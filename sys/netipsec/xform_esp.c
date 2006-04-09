@@ -759,7 +759,12 @@ esp_output(
 	/* Initialize ESP header. */
 	bcopy((caddr_t) &sav->spi, mtod(mo, caddr_t) + roff, sizeof(u_int32_t));
 	if (sav->replay) {
-		u_int32_t replay = htonl(++(sav->replay->count));
+		u_int32_t replay;
+
+		/* Emulate replay attack when ipsec_replay is TRUE. */
+		if (!ipsec_replay)
+			sav->replay->count++;
+		replay = htonl(sav->replay->count);
 		bcopy((caddr_t) &replay,
 		    mtod(mo, caddr_t) + roff + sizeof(u_int32_t),
 		    sizeof(u_int32_t));
@@ -941,6 +946,22 @@ esp_output_cb(struct cryptop *crp)
 	/* Release crypto descriptors. */
 	free(tc, M_XDATA);
 	crypto_freereq(crp);
+
+	/* Emulate man-in-the-middle attack when ipsec_integrity is TRUE. */
+	if (ipsec_integrity) {
+		static unsigned char ipseczeroes[AH_HMAC_HASHLEN];
+		struct auth_hash *esph;
+
+		/*
+		 * Corrupt HMAC if we want to test integrity verification of
+		 * the other side.
+		 */
+		esph = sav->tdb_authalgxform;
+		if (esph !=  NULL) {
+			m_copyback(m, m->m_pkthdr.len - AH_HMAC_HASHLEN,
+			    AH_HMAC_HASHLEN, ipseczeroes);
+		}
+	}
 
 	/* NB: m is reclaimed by ipsec_process_done. */
 	err = ipsec_process_done(m, isr);

@@ -148,6 +148,21 @@ SYSCTL_INT(_net_inet_ipsec, OID_AUTO,
 SYSCTL_STRUCT(_net_inet_ipsec, OID_AUTO,
 	ipsecstats,	CTLFLAG_RD,	&newipsecstat,	newipsecstat, "");
 
+/*
+ * When set to 1, IPsec will send packets with the same sequence number.
+ * This allows to verify if the other side has proper replay attacks detection.
+ */
+int ipsec_replay = 0;
+SYSCTL_INT(_net_inet_ipsec, OID_AUTO, test_replay, CTLFLAG_RW, &ipsec_replay, 0,
+    "Emulate replay attack");
+/*
+ * When set 1, IPsec will send packets with corrupted HMAC.
+ * This allows to verify if the other side properly detects modified packets.
+ */
+int ipsec_integrity = 0;
+SYSCTL_INT(_net_inet_ipsec, OID_AUTO, test_integrity, CTLFLAG_RW,
+    &ipsec_integrity, 0, "Emulate man-in-the-middle attack");
+
 #ifdef INET6
 int ip6_esp_trans_deflev = IPSEC_LEVEL_USE;
 int ip6_esp_net_deflev = IPSEC_LEVEL_USE;
