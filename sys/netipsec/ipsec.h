@@ -330,6 +330,8 @@ struct ipsec_history {
 };
 
 extern int ipsec_debug;
+extern int ipsec_replay;
+extern int ipsec_integrity;
 
 extern struct newipsecstat newipsecstat;
 extern struct secpolicy ip4_def_policy;
