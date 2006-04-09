@@ -48,29 +48,59 @@ static __inline__ int radeon_check_and_fixup_offset(drm_radeon_private_t *
 	u32 off = *offset;
 	struct drm_radeon_driver_file_fields *radeon_priv;
 
-	if (off >= dev_priv->fb_location &&
-	    off < (dev_priv->gart_vm_start + dev_priv->gart_size))
+	/* Hrm ... the story of the offset ... So this function converts
+	 * the various ideas of what userland clients might have for an
+	 * offset in the card address space into an offset into the card
+	 * address space :) So with a sane client, it should just keep
+	 * the value intact and just do some boundary checking. However,
+	 * not all clients are sane. Some older clients pass us 0 based
+	 * offsets relative to the start of the framebuffer and some may
+	 * assume the AGP aperture it appended to the framebuffer, so we
+	 * try to detect those cases and fix them up.
+	 *
+	 * Note: It might be a good idea here to make sure the offset lands
+	 * in some "allowed" area to protect things like the PCIE GART...
+	 */
+
+	/* First, the best case, the offset already lands in either the
+	 * framebuffer or the GART mapped space
+	 */
+	if ((off >= dev_priv->fb_location &&
+	     off < (dev_priv->fb_location + dev_priv->fb_size)) ||
+	    (off >= dev_priv->gart_vm_start &&
+	     off < (dev_priv->gart_vm_start + dev_priv->gart_size)))
 		return 0;
 
-	radeon_priv = filp_priv->driver_priv;
+	/* Ok, that didn't happen... now check if we have a zero based
+	 * offset that fits in the framebuffer + gart space, apply the
+	 * magic offset we get from SETPARAM or calculated from fb_location
+	 */
+	if (off < (dev_priv->fb_size + dev_priv->gart_size)) {
+		radeon_priv = filp_priv->driver_priv;
+		off += radeon_priv->radeon_fb_delta;
+	}
 
-	off += radeon_priv->radeon_fb_delta;
+	/* Finally, assume we aimed at a GART offset if beyond the fb */
+	if (off > (dev_priv->fb_location + dev_priv->fb_size))
+		off = off - (dev_priv->fb_location + dev_priv->fb_size) +
+			dev_priv->gart_vm_start;
 
-	DRM_DEBUG("offset fixed up to 0x%x\n", off);
-
-	if (off < dev_priv->fb_location ||
-	    off >= (dev_priv->gart_vm_start + dev_priv->gart_size))
-		return DRM_ERR(EINVAL);
-
-	*offset = off;
-
-	return 0;
+	/* Now recheck and fail if out of bounds */
+	if ((off >= dev_priv->fb_location &&
+	     off < (dev_priv->fb_location + dev_priv->fb_size)) ||
+	    (off >= dev_priv->gart_vm_start &&
+	     off < (dev_priv->gart_vm_start + dev_priv->gart_size))) {
+		DRM_DEBUG("offset fixed up to 0x%x\n", off);
+		*offset = off;
+		return 0;
+	}
+	return DRM_ERR(EINVAL);
 }
 
 static __inline__ int radeon_check_and_fixup_packets(drm_radeon_private_t *
 						     dev_priv,
 						     drm_file_t * filp_priv,
-						     int id, u32 __user * data)
+						     int id, u32 *data)
 {
 	switch (id) {
 
@@ -235,8 +265,8 @@ static __inline__ int radeon_check_and_fixup_packets(drm_radeon_private_t *
 
 static __inline__ int radeon_check_and_fixup_packet3(drm_radeon_private_t *
 						     dev_priv,
-						     drm_file_t * filp_priv,
-						     drm_radeon_cmd_buffer_t *
+						     drm_file_t *filp_priv,
+						     drm_radeon_kcmd_buffer_t *
 						     cmdbuf,
 						     unsigned int *cmdsz)
 {
@@ -523,7 +553,7 @@ static struct {
 	{RADEON_SE_ZBIAS_FACTOR, 2, "RADEON_SE_ZBIAS_FACTOR"},
 	{RADEON_SE_TCL_OUTPUT_VTX_FMT, 11, "RADEON_SE_TCL_OUTPUT_VTX_FMT"},
 	{RADEON_SE_TCL_MATERIAL_EMMISSIVE_RED, 17,
-	 "RADEON_SE_TCL_MATERIAL_EMMISSIVE_RED"},
+		    "RADEON_SE_TCL_MATERIAL_EMMISSIVE_RED"},
 	{R200_PP_TXCBLEND_0, 4, "R200_PP_TXCBLEND_0"},
 	{R200_PP_TXCBLEND_1, 4, "R200_PP_TXCBLEND_1"},
 	{R200_PP_TXCBLEND_2, 4, "R200_PP_TXCBLEND_2"},
@@ -565,7 +595,7 @@ static struct {
 	{R200_SE_VTX_STATE_CNTL, 1, "R200_SE_VTX_STATE_CNTL"},
 	{R200_RE_POINTSIZE, 1, "R200_RE_POINTSIZE"},
 	{R200_SE_TCL_INPUT_VTX_VECTOR_ADDR_0, 4,
-	 "R200_SE_TCL_INPUT_VTX_VECTOR_ADDR_0"},
+		    "R200_SE_TCL_INPUT_VTX_VECTOR_ADDR_0"},
 	{R200_PP_CUBIC_FACES_0, 1, "R200_PP_CUBIC_FACES_0"},	/* 61 */
 	{R200_PP_CUBIC_OFFSET_F1_0, 5, "R200_PP_CUBIC_OFFSET_F1_0"}, /* 62 */
 	{R200_PP_CUBIC_FACES_1, 1, "R200_PP_CUBIC_FACES_1"},
@@ -813,68 +843,73 @@ static void radeon_cp_dispatch_clear(drm_device_t * dev,
 
 	/* hyper z clear */
 	/* no docs available, based on reverse engeneering by Stephane Marchesin */
-	if ((flags & (RADEON_DEPTH | RADEON_STENCIL)) && (flags & RADEON_CLEAR_FASTZ)) {
+	if ((flags & (RADEON_DEPTH | RADEON_STENCIL))
+	    && (flags & RADEON_CLEAR_FASTZ)) {
 
 		int i;
-		int depthpixperline = dev_priv->depth_fmt==RADEON_DEPTH_FORMAT_16BIT_INT_Z? 
-			(dev_priv->depth_pitch / 2): (dev_priv->depth_pitch / 4);
-		
+		int depthpixperline =
+		    dev_priv->depth_fmt ==
+		    RADEON_DEPTH_FORMAT_16BIT_INT_Z ? (dev_priv->depth_pitch /
+						       2) : (dev_priv->
+							     depth_pitch / 4);
+
 		u32 clearmask;
 
 		u32 tempRB3D_DEPTHCLEARVALUE = clear->clear_depth |
-			((clear->depth_mask & 0xff) << 24);
-	
-		
+		    ((clear->depth_mask & 0xff) << 24);
+
 		/* Make sure we restore the 3D state next time.
 		 * we haven't touched any "normal" state - still need this?
 		 */
 		dev_priv->sarea_priv->ctx_owner = 0;
 
-		if ((dev_priv->flags & CHIP_HAS_HIERZ) && (flags & RADEON_USE_HIERZ)) {
-		/* FIXME : reverse engineer that for Rx00 cards */
-		/* FIXME : the mask supposedly contains low-res z values. So can't set
-		   just to the max (0xff? or actually 0x3fff?), need to take z clear
-		   value into account? */
-		/* pattern seems to work for r100, though get slight
-		   rendering errors with glxgears. If hierz is not enabled for r100,
-		   only 4 bits which indicate clear (15,16,31,32, all zero) matter, the
-		   other ones are ignored, and the same clear mask can be used. That's
-		   very different behaviour than R200 which needs different clear mask
-		   and different number of tiles to clear if hierz is enabled or not !?!
-		*/
-			clearmask = (0xff<<22)|(0xff<<6)| 0x003f003f;
-		}
-		else {
-		/* clear mask : chooses the clearing pattern.
-		   rv250: could be used to clear only parts of macrotiles
-		   (but that would get really complicated...)?
-		   bit 0 and 1 (either or both of them ?!?!) are used to
-		   not clear tile (or maybe one of the bits indicates if the tile is
-		   compressed or not), bit 2 and 3 to not clear tile 1,...,.
-		   Pattern is as follows:
-		        | 0,1 | 4,5 | 8,9 |12,13|16,17|20,21|24,25|28,29|
-		   bits -------------------------------------------------
-		        | 2,3 | 6,7 |10,11|14,15|18,19|22,23|26,27|30,31|
-		   rv100: clearmask covers 2x8 4x1 tiles, but one clear still
-		   covers 256 pixels ?!?
-		*/
+		if ((dev_priv->flags & CHIP_HAS_HIERZ)
+		    && (flags & RADEON_USE_HIERZ)) {
+			/* FIXME : reverse engineer that for Rx00 cards */
+			/* FIXME : the mask supposedly contains low-res z values. So can't set
+			   just to the max (0xff? or actually 0x3fff?), need to take z clear
+			   value into account? */
+			/* pattern seems to work for r100, though get slight
+			   rendering errors with glxgears. If hierz is not enabled for r100,
+			   only 4 bits which indicate clear (15,16,31,32, all zero) matter, the
+			   other ones are ignored, and the same clear mask can be used. That's
+			   very different behaviour than R200 which needs different clear mask
+			   and different number of tiles to clear if hierz is enabled or not !?!
+			 */
+			clearmask = (0xff << 22) | (0xff << 6) | 0x003f003f;
+		} else {
+			/* clear mask : chooses the clearing pattern.
+			   rv250: could be used to clear only parts of macrotiles
+			   (but that would get really complicated...)?
+			   bit 0 and 1 (either or both of them ?!?!) are used to
+			   not clear tile (or maybe one of the bits indicates if the tile is
+			   compressed or not), bit 2 and 3 to not clear tile 1,...,.
+			   Pattern is as follows:
+			   | 0,1 | 4,5 | 8,9 |12,13|16,17|20,21|24,25|28,29|
+			   bits -------------------------------------------------
+			   | 2,3 | 6,7 |10,11|14,15|18,19|22,23|26,27|30,31|
+			   rv100: clearmask covers 2x8 4x1 tiles, but one clear still
+			   covers 256 pixels ?!?
+			 */
 			clearmask = 0x0;
 		}
 
-		BEGIN_RING( 8 );
+		BEGIN_RING(8);
 		RADEON_WAIT_UNTIL_2D_IDLE();
-		OUT_RING_REG( RADEON_RB3D_DEPTHCLEARVALUE,
-			tempRB3D_DEPTHCLEARVALUE);
+		OUT_RING_REG(RADEON_RB3D_DEPTHCLEARVALUE,
+			     tempRB3D_DEPTHCLEARVALUE);
 		/* what offset is this exactly ? */
-		OUT_RING_REG( RADEON_RB3D_ZMASKOFFSET, 0 );
+		OUT_RING_REG(RADEON_RB3D_ZMASKOFFSET, 0);
 		/* need ctlstat, otherwise get some strange black flickering */
-		OUT_RING_REG( RADEON_RB3D_ZCACHE_CTLSTAT, RADEON_RB3D_ZC_FLUSH_ALL );
+		OUT_RING_REG(RADEON_RB3D_ZCACHE_CTLSTAT,
+			     RADEON_RB3D_ZC_FLUSH_ALL);
 		ADVANCE_RING();
 
 		for (i = 0; i < nbox; i++) {
 			int tileoffset, nrtilesx, nrtilesy, j;
 			/* it looks like r200 needs rv-style clears, at least if hierz is not enabled? */
-			if ((dev_priv->flags&CHIP_HAS_HIERZ) && !(dev_priv->microcode_version==UCODE_R200)) {
+			if ((dev_priv->flags & CHIP_HAS_HIERZ)
+			    && !(dev_priv->microcode_version == UCODE_R200)) {
 				/* FIXME : figure this out for r200 (when hierz is enabled). Or
 				   maybe r200 actually doesn't need to put the low-res z value into
 				   the tile cache like r100, but just needs to clear the hi-level z-buffer?
@@ -882,59 +917,74 @@ static void radeon_cp_dispatch_clear(drm_device_t * dev,
 				   R100 seems to operate on 2x1 8x8 tiles, but...
 				   odd: offset/nrtiles need to be 64 pix (4 block) aligned? Potentially
 				   problematic with resolutions which are not 64 pix aligned? */
-				tileoffset = ((pbox[i].y1 >> 3) * depthpixperline + pbox[i].x1) >> 6;
-				nrtilesx = ((pbox[i].x2 & ~63) - (pbox[i].x1 & ~63)) >> 4;
-				nrtilesy = (pbox[i].y2 >> 3) - (pbox[i].y1 >> 3);
+				tileoffset =
+				    ((pbox[i].y1 >> 3) * depthpixperline +
+				     pbox[i].x1) >> 6;
+				nrtilesx =
+				    ((pbox[i].x2 & ~63) -
+				     (pbox[i].x1 & ~63)) >> 4;
+				nrtilesy =
+				    (pbox[i].y2 >> 3) - (pbox[i].y1 >> 3);
 				for (j = 0; j <= nrtilesy; j++) {
-					BEGIN_RING( 4 );
-					OUT_RING( CP_PACKET3( RADEON_3D_CLEAR_ZMASK, 2 ) );
+					BEGIN_RING(4);
+					OUT_RING(CP_PACKET3
+						 (RADEON_3D_CLEAR_ZMASK, 2));
 					/* first tile */
-					OUT_RING( tileoffset * 8 );
+					OUT_RING(tileoffset * 8);
 					/* the number of tiles to clear */
-					OUT_RING( nrtilesx + 4 );
+					OUT_RING(nrtilesx + 4);
 					/* clear mask : chooses the clearing pattern. */
-					OUT_RING( clearmask );
+					OUT_RING(clearmask);
 					ADVANCE_RING();
 					tileoffset += depthpixperline >> 6;
 				}
-			}
-			else if (dev_priv->microcode_version==UCODE_R200) {
+			} else if (dev_priv->microcode_version == UCODE_R200) {
 				/* works for rv250. */
 				/* find first macro tile (8x2 4x4 z-pixels on rv250) */
-				tileoffset = ((pbox[i].y1 >> 3) * depthpixperline + pbox[i].x1) >> 5;
-				nrtilesx = (pbox[i].x2 >> 5) - (pbox[i].x1 >> 5);
-				nrtilesy = (pbox[i].y2 >> 3) - (pbox[i].y1 >> 3);
+				tileoffset =
+				    ((pbox[i].y1 >> 3) * depthpixperline +
+				     pbox[i].x1) >> 5;
+				nrtilesx =
+				    (pbox[i].x2 >> 5) - (pbox[i].x1 >> 5);
+				nrtilesy =
+				    (pbox[i].y2 >> 3) - (pbox[i].y1 >> 3);
 				for (j = 0; j <= nrtilesy; j++) {
-					BEGIN_RING( 4 );
-					OUT_RING( CP_PACKET3( RADEON_3D_CLEAR_ZMASK, 2 ) );
+					BEGIN_RING(4);
+					OUT_RING(CP_PACKET3
+						 (RADEON_3D_CLEAR_ZMASK, 2));
 					/* first tile */
 					/* judging by the first tile offset needed, could possibly
 					   directly address/clear 4x4 tiles instead of 8x2 * 4x4
 					   macro tiles, though would still need clear mask for
 					   right/bottom if truely 4x4 granularity is desired ? */
-					OUT_RING( tileoffset * 16 );
+					OUT_RING(tileoffset * 16);
 					/* the number of tiles to clear */
-					OUT_RING( nrtilesx + 1 );
+					OUT_RING(nrtilesx + 1);
 					/* clear mask : chooses the clearing pattern. */
-					OUT_RING( clearmask );
+					OUT_RING(clearmask);
 					ADVANCE_RING();
 					tileoffset += depthpixperline >> 5;
 				}
-			}
-			else { /* rv 100 */
+			} else {	/* rv 100 */
 				/* rv100 might not need 64 pix alignment, who knows */
 				/* offsets are, hmm, weird */
-				tileoffset = ((pbox[i].y1 >> 4) * depthpixperline + pbox[i].x1) >> 6;
-				nrtilesx = ((pbox[i].x2 & ~63) - (pbox[i].x1 & ~63)) >> 4;
-				nrtilesy = (pbox[i].y2 >> 4) - (pbox[i].y1 >> 4);
+				tileoffset =
+				    ((pbox[i].y1 >> 4) * depthpixperline +
+				     pbox[i].x1) >> 6;
+				nrtilesx =
+				    ((pbox[i].x2 & ~63) -
+				     (pbox[i].x1 & ~63)) >> 4;
+				nrtilesy =
+				    (pbox[i].y2 >> 4) - (pbox[i].y1 >> 4);
 				for (j = 0; j <= nrtilesy; j++) {
-					BEGIN_RING( 4 );
-					OUT_RING( CP_PACKET3( RADEON_3D_CLEAR_ZMASK, 2 ) );
-					OUT_RING( tileoffset * 128 );
+					BEGIN_RING(4);
+					OUT_RING(CP_PACKET3
+						 (RADEON_3D_CLEAR_ZMASK, 2));
+					OUT_RING(tileoffset * 128);
 					/* the number of tiles to clear */
-					OUT_RING( nrtilesx + 4 );
+					OUT_RING(nrtilesx + 4);
 					/* clear mask : chooses the clearing pattern. */
-					OUT_RING( clearmask );
+					OUT_RING(clearmask);
 					ADVANCE_RING();
 					tileoffset += depthpixperline >> 6;
 				}
@@ -942,18 +992,19 @@ static void radeon_cp_dispatch_clear(drm_device_t * dev,
 		}
 
 		/* TODO don't always clear all hi-level z tiles */
-		if ((dev_priv->flags & CHIP_HAS_HIERZ) && (dev_priv->microcode_version==UCODE_R200)
-			&& (flags & RADEON_USE_HIERZ))
-		/* r100 and cards without hierarchical z-buffer have no high-level z-buffer */
-		/* FIXME : the mask supposedly contains low-res z values. So can't set
-		   just to the max (0xff? or actually 0x3fff?), need to take z clear
-		   value into account? */
+		if ((dev_priv->flags & CHIP_HAS_HIERZ)
+		    && (dev_priv->microcode_version == UCODE_R200)
+		    && (flags & RADEON_USE_HIERZ))
+			/* r100 and cards without hierarchical z-buffer have no high-level z-buffer */
+			/* FIXME : the mask supposedly contains low-res z values. So can't set
+			   just to the max (0xff? or actually 0x3fff?), need to take z clear
+			   value into account? */
 		{
-			BEGIN_RING( 4 );
-			OUT_RING( CP_PACKET3( RADEON_3D_CLEAR_HIZ, 2 ) );
-			OUT_RING( 0x0 ); /* First tile */
-			OUT_RING( 0x3cc0 );
-			OUT_RING( (0xff<<22)|(0xff<<6)| 0x003f003f);
+			BEGIN_RING(4);
+			OUT_RING(CP_PACKET3(RADEON_3D_CLEAR_HIZ, 2));
+			OUT_RING(0x0);	/* First tile */
+			OUT_RING(0x3cc0);
+			OUT_RING((0xff << 22) | (0xff << 6) | 0x003f003f);
 			ADVANCE_RING();
 		}
 	}
@@ -1031,7 +1082,7 @@ static void radeon_cp_dispatch_clear(drm_device_t * dev,
 
 		if (flags & RADEON_USE_COMP_ZBUF) {
 			tempRB3D_ZSTENCILCNTL |= RADEON_Z_COMPRESSION_ENABLE |
-				RADEON_Z_DECOMPRESSION_ENABLE;
+			    RADEON_Z_DECOMPRESSION_ENABLE;
 		}
 		if (flags & RADEON_USE_HIERZ) {
 			tempRB3D_ZSTENCILCNTL |= RADEON_Z_HIERARCHY_ENABLE;
@@ -1088,7 +1139,7 @@ static void radeon_cp_dispatch_clear(drm_device_t * dev,
 	} else if ((flags & (RADEON_DEPTH | RADEON_STENCIL))) {
 
 		int tempRB3D_ZSTENCILCNTL = depth_clear->rb3d_zstencilcntl;
-		
+
 		rb3d_cntl = depth_clear->rb3d_cntl;
 
 		if (flags & RADEON_DEPTH) {
@@ -1107,7 +1158,7 @@ static void radeon_cp_dispatch_clear(drm_device_t * dev,
 
 		if (flags & RADEON_USE_COMP_ZBUF) {
 			tempRB3D_ZSTENCILCNTL |= RADEON_Z_COMPRESSION_ENABLE |
-				RADEON_Z_DECOMPRESSION_ENABLE;
+			    RADEON_Z_DECOMPRESSION_ENABLE;
 		}
 		if (flags & RADEON_USE_HIERZ) {
 			tempRB3D_ZSTENCILCNTL |= RADEON_Z_HIERARCHY_ENABLE;
@@ -1569,8 +1620,8 @@ static int radeon_cp_dispatch_texture(DRMFILE filp,
 			/* we got tiled coordinates, untile them */
 			image->x *= 2;
 		}
-	}
-	else microtile = 0;
+	} else
+		microtile = 0;
 
 	DRM_DEBUG("tex=%dx%d blit=%d\n", tex_width, tex->height, blit_width);
 
@@ -1614,6 +1665,14 @@ static int radeon_cp_dispatch_texture(DRMFILE filp,
 		    (u32 *) ((char *)dev->agp_buffer_map->handle + buf->offset);
 		dwords = size / 4;
 
+#define RADEON_COPY_MT(_buf, _data, _width) \
+	do { \
+		if (DRM_COPY_FROM_USER(_buf, _data, (_width))) {\
+			DRM_ERROR("EFAULT on pad, %d bytes\n", (_width)); \
+			return DRM_ERR(EFAULT); \
+		} \
+	} while(0)
+
 		if (microtile) {
 			/* texture micro tiling in use, minimum texture width is thus 16 bytes.
 			   however, we cannot use blitter directly for texture width < 64 bytes,
@@ -1625,101 +1684,58 @@ static int radeon_cp_dispatch_texture(DRMFILE filp,
 			   from user space. */
 			if (tex->height == 1) {
 				if (tex_width >= 64 || tex_width <= 16) {
-					if (DRM_COPY_FROM_USER(buffer, data,
-						       tex_width * sizeof(u32))) {
-						DRM_ERROR("EFAULT on pad, %d bytes\n",
-							  tex_width);
-						return DRM_ERR(EFAULT);
-					}
+					RADEON_COPY_MT(buffer, data,
+						(int)(tex_width * sizeof(u32)));
 				} else if (tex_width == 32) {
-					if (DRM_COPY_FROM_USER(buffer, data, 16)) {
-						DRM_ERROR("EFAULT on pad, %d bytes\n",
-							  tex_width);
-						return DRM_ERR(EFAULT);
-					}
-					if (DRM_COPY_FROM_USER(buffer + 8, data + 16, 16)) {
-						DRM_ERROR("EFAULT on pad, %d bytes\n",
-							  tex_width);
-						return DRM_ERR(EFAULT);
-					}
+					RADEON_COPY_MT(buffer, data, 16);
+					RADEON_COPY_MT(buffer + 8,
+						       data + 16, 16);
 				}
 			} else if (tex_width >= 64 || tex_width == 16) {
-				if (DRM_COPY_FROM_USER(buffer, data,
-						       dwords * sizeof(u32))) {
-					DRM_ERROR("EFAULT on data, %d dwords\n",
-						  dwords);
-					return DRM_ERR(EFAULT);
-				}
+				RADEON_COPY_MT(buffer, data,
+					       (int)(dwords * sizeof(u32)));
 			} else if (tex_width < 16) {
 				for (i = 0; i < tex->height; i++) {
-					if (DRM_COPY_FROM_USER(buffer, data, tex_width)) {
-						DRM_ERROR("EFAULT on pad, %d bytes\n",
-							  tex_width);
-						return DRM_ERR(EFAULT);
-					}
+					RADEON_COPY_MT(buffer, data, tex_width);
 					buffer += 4;
 					data += tex_width;
 				}
 			} else if (tex_width == 32) {
-			/* TODO: make sure this works when not fitting in one buffer
-				(i.e. 32bytes x 2048...) */
+				/* TODO: make sure this works when not fitting in one buffer
+				   (i.e. 32bytes x 2048...) */
 				for (i = 0; i < tex->height; i += 2) {
-					if (DRM_COPY_FROM_USER(buffer, data, 16)) {
-						DRM_ERROR("EFAULT on pad, %d bytes\n",
-							  tex_width);
-						return DRM_ERR(EFAULT);
-					}
+					RADEON_COPY_MT(buffer, data, 16);
 					data += 16;
-					if (DRM_COPY_FROM_USER(buffer + 8, data, 16)) {
-						DRM_ERROR("EFAULT on pad, %d bytes\n",
-							  tex_width);
-						return DRM_ERR(EFAULT);
-					}
+					RADEON_COPY_MT(buffer + 8, data, 16);
 					data += 16;
-					if (DRM_COPY_FROM_USER(buffer + 4, data, 16)) {
-						DRM_ERROR("EFAULT on pad, %d bytes\n",
-							  tex_width);
-						return DRM_ERR(EFAULT);
-					}
+					RADEON_COPY_MT(buffer + 4, data, 16);
 					data += 16;
-					if (DRM_COPY_FROM_USER(buffer + 12, data, 16)) {
-						DRM_ERROR("EFAULT on pad, %d bytes\n",
-							  tex_width);
-						return DRM_ERR(EFAULT);
-					}
+					RADEON_COPY_MT(buffer + 12, data, 16);
 					data += 16;
 					buffer += 16;
 				}
 			}
-		}
-		else {
+		} else {
 			if (tex_width >= 32) {
 				/* Texture image width is larger than the minimum, so we
 				 * can upload it directly.
 				 */
-				if (DRM_COPY_FROM_USER(buffer, data,
-						       dwords * sizeof(u32))) {
-					DRM_ERROR("EFAULT on data, %d dwords\n",
-						  dwords);
-					return DRM_ERR(EFAULT);
-				}
+				RADEON_COPY_MT(buffer, data,
+					       (int)(dwords * sizeof(u32)));
 			} else {
 				/* Texture image width is less than the minimum, so we
 				 * need to pad out each image scanline to the minimum
 				 * width.
 				 */
 				for (i = 0; i < tex->height; i++) {
-					if (DRM_COPY_FROM_USER(buffer, data, tex_width)) {
-						DRM_ERROR("EFAULT on pad, %d bytes\n",
-							  tex_width);
-						return DRM_ERR(EFAULT);
-					}
+					RADEON_COPY_MT(buffer, data, tex_width);
 					buffer += 8;
 					data += tex_width;
 				}
 			}
 		}
 
+#undef RADEON_COPY_MT
 		buf->filp = filp;
 		buf->used = size;
 		offset = dev_priv->gart_buffers_offset + buf->offset;
@@ -1732,8 +1748,7 @@ static int radeon_cp_dispatch_texture(DRMFILE filp,
 			 RADEON_GMC_SRC_DATATYPE_COLOR |
 			 RADEON_ROP3_S |
 			 RADEON_DP_SRC_SOURCE_MEMORY |
-			 RADEON_GMC_CLR_CMP_CNTL_DIS |
-			 RADEON_GMC_WR_MSK_DIS );
+			 RADEON_GMC_CLR_CMP_CNTL_DIS | RADEON_GMC_WR_MSK_DIS);
 		OUT_RING((spitch << 22) | (offset >> 10));
 		OUT_RING((texpitch << 22) | (tex->offset >> 10));
 		OUT_RING(0);
@@ -1781,33 +1796,35 @@ static void radeon_cp_dispatch_stipple(drm_device_t * dev, u32 * stipple)
 	ADVANCE_RING();
 }
 
-static void radeon_apply_surface_regs(int surf_index, drm_radeon_private_t *dev_priv)
+static void radeon_apply_surface_regs(int surf_index,
+				      drm_radeon_private_t *dev_priv)
 {
 	if (!dev_priv->mmio)
 		return;
 
 	radeon_do_cp_idle(dev_priv);
 
-	RADEON_WRITE(RADEON_SURFACE0_INFO + 16*surf_index,
-		dev_priv->surfaces[surf_index].flags);
-	RADEON_WRITE(RADEON_SURFACE0_LOWER_BOUND + 16*surf_index,
-		dev_priv->surfaces[surf_index].lower);
-	RADEON_WRITE(RADEON_SURFACE0_UPPER_BOUND + 16*surf_index,
-		dev_priv->surfaces[surf_index].upper);
+	RADEON_WRITE(RADEON_SURFACE0_INFO + 16 * surf_index,
+		     dev_priv->surfaces[surf_index].flags);
+	RADEON_WRITE(RADEON_SURFACE0_LOWER_BOUND + 16 * surf_index,
+		     dev_priv->surfaces[surf_index].lower);
+	RADEON_WRITE(RADEON_SURFACE0_UPPER_BOUND + 16 * surf_index,
+		     dev_priv->surfaces[surf_index].upper);
 }
 
 /* Allocates a virtual surface
- * doesn't always allocate a real surface, will stretch an existing 
+ * doesn't always allocate a real surface, will stretch an existing
  * surface when possible.
  *
  * Note that refcount can be at most 2, since during a free refcount=3
  * might mean we have to allocate a new surface which might not always
  * be available.
- * For example : we allocate three contigous surfaces ABC. If B is 
+ * For example : we allocate three contigous surfaces ABC. If B is
  * freed, we suddenly need two surfaces to store A and C, which might
  * not always be available.
  */
-static int alloc_surface(drm_radeon_surface_alloc_t* new, drm_radeon_private_t *dev_priv, DRMFILE filp)
+static int alloc_surface(drm_radeon_surface_alloc_t *new,
+			 drm_radeon_private_t *dev_priv, DRMFILE filp)
 {
 	struct radeon_virt_surface *s;
 	int i;
@@ -1819,34 +1836,37 @@ static int alloc_surface(drm_radeon_surface_alloc_t* new, drm_radeon_private_t *
 
 	/* sanity check */
 	if ((new_lower >= new_upper) || (new->flags == 0) || (new->size == 0) ||
-		((new_upper & RADEON_SURF_ADDRESS_FIXED_MASK) != RADEON_SURF_ADDRESS_FIXED_MASK) ||
-		((new_lower & RADEON_SURF_ADDRESS_FIXED_MASK) != 0))
+	    ((new_upper & RADEON_SURF_ADDRESS_FIXED_MASK) !=
+	     RADEON_SURF_ADDRESS_FIXED_MASK)
+	    || ((new_lower & RADEON_SURF_ADDRESS_FIXED_MASK) != 0))
 		return -1;
 
 	/* make sure there is no overlap with existing surfaces */
 	for (i = 0; i < RADEON_MAX_SURFACES; i++) {
 		if ((dev_priv->surfaces[i].refcount != 0) &&
-		(( (new_lower >= dev_priv->surfaces[i].lower) &&
-			(new_lower < dev_priv->surfaces[i].upper) ) ||
-		 ( (new_lower < dev_priv->surfaces[i].lower) &&
-			(new_upper > dev_priv->surfaces[i].lower) )) ){
-		return -1;}
+		    (((new_lower >= dev_priv->surfaces[i].lower) &&
+		      (new_lower < dev_priv->surfaces[i].upper)) ||
+		     ((new_lower < dev_priv->surfaces[i].lower) &&
+		      (new_upper > dev_priv->surfaces[i].lower)))) {
+			return -1;
+		}
 	}
 
 	/* find a virtual surface */
-	for (i = 0; i < 2*RADEON_MAX_SURFACES; i++)
+	for (i = 0; i < 2 * RADEON_MAX_SURFACES; i++)
 		if (dev_priv->virt_surfaces[i].filp == 0)
 			break;
-	if (i == 2*RADEON_MAX_SURFACES) {
-		return -1;}
+	if (i == 2 * RADEON_MAX_SURFACES) {
+		return -1;
+	}
 	virt_surface_index = i;
 
 	/* try to reuse an existing surface */
 	for (i = 0; i < RADEON_MAX_SURFACES; i++) {
 		/* extend before */
 		if ((dev_priv->surfaces[i].refcount == 1) &&
-		  (new->flags == dev_priv->surfaces[i].flags) &&
-		  (new_upper + 1 == dev_priv->surfaces[i].lower)) {
+		    (new->flags == dev_priv->surfaces[i].flags) &&
+		    (new_upper + 1 == dev_priv->surfaces[i].lower)) {
 			s = &(dev_priv->virt_surfaces[virt_surface_index]);
 			s->surface_index = i;
 			s->lower = new_lower;
@@ -1861,8 +1881,8 @@ static int alloc_surface(drm_radeon_surface_alloc_t* new, drm_radeon_private_t *
 
 		/* extend after */
 		if ((dev_priv->surfaces[i].refcount == 1) &&
-		  (new->flags == dev_priv->surfaces[i].flags) &&
-		  (new_lower == dev_priv->surfaces[i].upper + 1)) {
+		    (new->flags == dev_priv->surfaces[i].flags) &&
+		    (new_lower == dev_priv->surfaces[i].upper + 1)) {
 			s = &(dev_priv->virt_surfaces[virt_surface_index]);
 			s->surface_index = i;
 			s->lower = new_lower;
@@ -1898,26 +1918,34 @@ static int alloc_surface(drm_radeon_surface_alloc_t* new, drm_radeon_private_t *
 	return -1;
 }
 
-static int free_surface(DRMFILE filp, drm_radeon_private_t *dev_priv, int lower)
+static int free_surface(DRMFILE filp, drm_radeon_private_t * dev_priv,
+			int lower)
 {
 	struct radeon_virt_surface *s;
 	int i;
 	/* find the virtual surface */
-	for(i = 0; i < 2*RADEON_MAX_SURFACES; i++) {
+	for (i = 0; i < 2 * RADEON_MAX_SURFACES; i++) {
 		s = &(dev_priv->virt_surfaces[i]);
 		if (s->filp) {
 			if ((lower == s->lower) && (filp == s->filp)) {
-				if (dev_priv->surfaces[s->surface_index].lower == s->lower)
-					dev_priv->surfaces[s->surface_index].lower = s->upper;
+				if (dev_priv->surfaces[s->surface_index].
+				    lower == s->lower)
+					dev_priv->surfaces[s->surface_index].
+					    lower = s->upper;
 
-				if (dev_priv->surfaces[s->surface_index].upper == s->upper)
-					dev_priv->surfaces[s->surface_index].upper = s->lower;
+				if (dev_priv->surfaces[s->surface_index].
+				    upper == s->upper)
+					dev_priv->surfaces[s->surface_index].
+					    upper = s->lower;
 
 				dev_priv->surfaces[s->surface_index].refcount--;
-				if (dev_priv->surfaces[s->surface_index].refcount == 0)
-					dev_priv->surfaces[s->surface_index].flags = 0;
-				s->filp = 0;
-				radeon_apply_surface_regs(s->surface_index, dev_priv);
+				if (dev_priv->surfaces[s->surface_index].
+				    refcount == 0)
+					dev_priv->surfaces[s->surface_index].
+					    flags = 0;
+				s->filp = NULL;
+				radeon_apply_surface_regs(s->surface_index,
+							  dev_priv);
 				return 0;
 			}
 		}
@@ -1925,20 +1953,20 @@ static int free_surface(DRMFILE filp, drm_radeon_private_t *dev_priv, int lower)
 	return 1;
 }
 
-static void radeon_surfaces_release(DRMFILE filp, drm_radeon_private_t *dev_priv)
+static void radeon_surfaces_release(DRMFILE filp,
+				    drm_radeon_private_t * dev_priv)
 {
 	int i;
-	for( i = 0; i < 2*RADEON_MAX_SURFACES; i++)
-	{
+	for (i = 0; i < 2 * RADEON_MAX_SURFACES; i++) {
 		if (dev_priv->virt_surfaces[i].filp == filp)
-			free_surface(filp, dev_priv, dev_priv->virt_surfaces[i].lower);
+			free_surface(filp, dev_priv,
+				     dev_priv->virt_surfaces[i].lower);
 	}
 }
 
 /* ================================================================
  * IOCTL functions
  */
-
 static int radeon_surface_alloc(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
@@ -1946,12 +1974,13 @@ static int radeon_surface_alloc(DRM_IOCTL_ARGS)
 	drm_radeon_surface_alloc_t alloc;
 
 	if (!dev_priv) {
-		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
+		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
 		return DRM_ERR(EINVAL);
 	}
 
-	DRM_COPY_FROM_USER_IOCTL(alloc, (drm_radeon_surface_alloc_t __user *)data,
-				  sizeof(alloc));
+	DRM_COPY_FROM_USER_IOCTL(alloc,
+				 (drm_radeon_surface_alloc_t __user *) data,
+				 sizeof(alloc));
 
 	if (alloc_surface(&alloc, dev_priv, filp) == -1)
 		return DRM_ERR(EINVAL);
@@ -1966,12 +1995,12 @@ static int radeon_surface_free(DRM_IOCTL_ARGS)
 	drm_radeon_surface_free_t memfree;
 
 	if (!dev_priv) {
-		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
+		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
 		return DRM_ERR(EINVAL);
 	}
 
-	DRM_COPY_FROM_USER_IOCTL(memfree, (drm_radeon_surface_free_t __user *)data,
-				  sizeof(memfree) );
+	DRM_COPY_FROM_USER_IOCTL(memfree, (drm_radeon_surface_free_t __user *) data,
+				 sizeof(memfree));
 
 	if (free_surface(filp, dev_priv, memfree.address))
 		return DRM_ERR(EINVAL);
@@ -2097,7 +2126,7 @@ static int radeon_cp_vertex(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_file_t *filp_priv;
-	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
+	drm_radeon_sarea_t *sarea_priv;
 	drm_device_dma_t *dma = dev->dma;
 	drm_buf_t *buf;
 	drm_radeon_vertex_t vertex;
@@ -2109,6 +2138,8 @@ static int radeon_cp_vertex(DRM_IOCTL_ARGS)
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
 		return DRM_ERR(EINVAL);
 	}
+
+	sarea_priv = dev_priv->sarea_priv;
 
 	DRM_GET_PRIV_WITH_RETURN(filp_priv, filp);
 
@@ -2185,7 +2216,7 @@ static int radeon_cp_indices(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_file_t *filp_priv;
-	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
+	drm_radeon_sarea_t *sarea_priv;
 	drm_device_dma_t *dma = dev->dma;
 	drm_buf_t *buf;
 	drm_radeon_indices_t elts;
@@ -2198,6 +2229,7 @@ static int radeon_cp_indices(DRM_IOCTL_ARGS)
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
 		return DRM_ERR(EINVAL);
 	}
+	sarea_priv = dev_priv->sarea_priv;
 
 	DRM_GET_PRIV_WITH_RETURN(filp_priv, filp);
 
@@ -2413,7 +2445,7 @@ static int radeon_cp_vertex2(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_file_t *filp_priv;
-	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
+	drm_radeon_sarea_t *sarea_priv;
 	drm_device_dma_t *dma = dev->dma;
 	drm_buf_t *buf;
 	drm_radeon_vertex2_t vertex;
@@ -2426,6 +2458,8 @@ static int radeon_cp_vertex2(DRM_IOCTL_ARGS)
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
 		return DRM_ERR(EINVAL);
 	}
+
+	sarea_priv = dev_priv->sarea_priv;
 
 	DRM_GET_PRIV_WITH_RETURN(filp_priv, filp);
 
@@ -2515,7 +2549,7 @@ static int radeon_cp_vertex2(DRM_IOCTL_ARGS)
 static int radeon_emit_packets(drm_radeon_private_t * dev_priv,
 			       drm_file_t * filp_priv,
 			       drm_radeon_cmd_header_t header,
-			       drm_radeon_cmd_buffer_t * cmdbuf)
+			       drm_radeon_kcmd_buffer_t *cmdbuf)
 {
 	int id = (int)header.packet.packet_id;
 	int sz, reg;
@@ -2548,9 +2582,9 @@ static int radeon_emit_packets(drm_radeon_private_t * dev_priv,
 	return 0;
 }
 
-static __inline__ int radeon_emit_scalars(drm_radeon_private_t * dev_priv,
+static __inline__ int radeon_emit_scalars(drm_radeon_private_t *dev_priv,
 					  drm_radeon_cmd_header_t header,
-					  drm_radeon_cmd_buffer_t * cmdbuf)
+					  drm_radeon_kcmd_buffer_t *cmdbuf)
 {
 	int sz = header.scalars.count;
 	int start = header.scalars.offset;
@@ -2570,9 +2604,9 @@ static __inline__ int radeon_emit_scalars(drm_radeon_private_t * dev_priv,
 
 /* God this is ugly
  */
-static __inline__ int radeon_emit_scalars2(drm_radeon_private_t * dev_priv,
+static __inline__ int radeon_emit_scalars2(drm_radeon_private_t *dev_priv,
 					   drm_radeon_cmd_header_t header,
-					   drm_radeon_cmd_buffer_t * cmdbuf)
+					   drm_radeon_kcmd_buffer_t *cmdbuf)
 {
 	int sz = header.scalars.count;
 	int start = ((unsigned int)header.scalars.offset) + 0x100;
@@ -2590,9 +2624,9 @@ static __inline__ int radeon_emit_scalars2(drm_radeon_private_t * dev_priv,
 	return 0;
 }
 
-static __inline__ int radeon_emit_vectors(drm_radeon_private_t * dev_priv,
+static __inline__ int radeon_emit_vectors(drm_radeon_private_t *dev_priv,
 					  drm_radeon_cmd_header_t header,
-					  drm_radeon_cmd_buffer_t * cmdbuf)
+					  drm_radeon_kcmd_buffer_t *cmdbuf)
 {
 	int sz = header.vectors.count;
 	int start = header.vectors.offset;
@@ -2613,7 +2647,7 @@ static __inline__ int radeon_emit_vectors(drm_radeon_private_t * dev_priv,
 
 static int radeon_emit_packet3(drm_device_t * dev,
 			       drm_file_t * filp_priv,
-			       drm_radeon_cmd_buffer_t * cmdbuf)
+			       drm_radeon_kcmd_buffer_t *cmdbuf)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	unsigned int cmdsz;
@@ -2637,9 +2671,9 @@ static int radeon_emit_packet3(drm_device_t * dev,
 	return 0;
 }
 
-static int radeon_emit_packet3_cliprect(drm_device_t * dev,
-					drm_file_t * filp_priv,
-					drm_radeon_cmd_buffer_t * cmdbuf,
+static int radeon_emit_packet3_cliprect(drm_device_t *dev,
+					drm_file_t *filp_priv,
+					drm_radeon_kcmd_buffer_t *cmdbuf,
 					int orig_nbox)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
@@ -2736,7 +2770,7 @@ static int radeon_cp_cmdbuf(DRM_IOCTL_ARGS)
 	drm_device_dma_t *dma = dev->dma;
 	drm_buf_t *buf = NULL;
 	int idx;
-	drm_radeon_cmd_buffer_t cmdbuf;
+	drm_radeon_kcmd_buffer_t cmdbuf;
 	drm_radeon_cmd_header_t header;
 	int orig_nbox, orig_bufsz;
 	char *kbuf = NULL;
@@ -2751,7 +2785,7 @@ static int radeon_cp_cmdbuf(DRM_IOCTL_ARGS)
 	DRM_GET_PRIV_WITH_RETURN(filp_priv, filp);
 
 	DRM_COPY_FROM_USER_IOCTL(cmdbuf,
-				 (drm_radeon_cmd_buffer_t __user *) data,
+				 (drm_radeon_kcmd_buffer_t __user *) data,
 				 sizeof(cmdbuf));
 
 	RING_SPACE_TEST_WITH_RETURN(dev_priv);
@@ -2770,7 +2804,8 @@ static int radeon_cp_cmdbuf(DRM_IOCTL_ARGS)
 		kbuf = drm_alloc(cmdbuf.bufsz, DRM_MEM_DRIVER);
 		if (kbuf == NULL)
 			return DRM_ERR(ENOMEM);
-		if (DRM_COPY_FROM_USER(kbuf, cmdbuf.buf, cmdbuf.bufsz)) {
+		if (DRM_COPY_FROM_USER(kbuf, (void __user *)cmdbuf.buf,
+				       cmdbuf.bufsz)) {
 			drm_free(kbuf, orig_bufsz, DRM_MEM_DRIVER);
 			return DRM_ERR(EFAULT);
 		}
@@ -2778,19 +2813,20 @@ static int radeon_cp_cmdbuf(DRM_IOCTL_ARGS)
 	}
 
 	orig_nbox = cmdbuf.nbox;
-	
-	if(dev_priv->microcode_version == UCODE_R300) {
+
+	if (dev_priv->microcode_version == UCODE_R300) {
 		int temp;
-		temp=r300_do_cp_cmdbuf(dev, filp, filp_priv, &cmdbuf);
-	
+		temp = r300_do_cp_cmdbuf(dev, filp, filp_priv, &cmdbuf);
+
 		if (orig_bufsz != 0)
 			drm_free(kbuf, orig_bufsz, DRM_MEM_DRIVER);
-	
+
 		return temp;
 	}
-	
+
 	/* microcode_version != r300 */
 	while (cmdbuf.bufsz >= sizeof(header)) {
+
 		header.i = *(int *)cmdbuf.buf;
 		cmdbuf.buf += sizeof(header);
 		cmdbuf.bufsz -= sizeof(header);
@@ -2882,12 +2918,12 @@ static int radeon_cp_cmdbuf(DRM_IOCTL_ARGS)
 
 	if (orig_bufsz != 0)
 		drm_free(kbuf, orig_bufsz, DRM_MEM_DRIVER);
+
 	DRM_DEBUG("DONE\n");
 	COMMIT_RING();
-
 	return 0;
 
-err:
+      err:
 	if (orig_bufsz != 0)
 		drm_free(kbuf, orig_bufsz, DRM_MEM_DRIVER);
 	return DRM_ERR(EINVAL);
@@ -2937,7 +2973,7 @@ static int radeon_cp_getparam(DRM_IOCTL_ARGS)
 	case RADEON_PARAM_STATUS_HANDLE:
 		value = dev_priv->ring_rptr_offset;
 		break;
-#ifndef __LP64__
+#if BITS_PER_LONG == 32
 		/*
 		 * This ioctl() doesn't work on 64-bit platforms because hw_lock is a
 		 * pointer which can't fit into an int-sized variable.  According to
@@ -2954,6 +2990,15 @@ static int radeon_cp_getparam(DRM_IOCTL_ARGS)
 #endif
 	case RADEON_PARAM_GART_TEX_HANDLE:
 		value = dev_priv->gart_textures_offset;
+		break;
+	
+	case RADEON_PARAM_CARD_TYPE:
+		if (dev_priv->flags & CHIP_IS_PCIE)
+			value = RADEON_CARD_PCIE;
+		else if (dev_priv->flags & CHIP_IS_AGP)
+			value = RADEON_CARD_AGP;
+		else
+			value = RADEON_CARD_PCI;
 		break;
 	default:
 		return DRM_ERR(EINVAL);
@@ -2992,13 +3037,12 @@ static int radeon_cp_setparam(DRM_IOCTL_ARGS)
 		break;
 	case RADEON_SETPARAM_SWITCH_TILING:
 		if (sp.value == 0) {
-			DRM_DEBUG( "color tiling disabled\n" );
+			DRM_DEBUG("color tiling disabled\n");
 			dev_priv->front_pitch_offset &= ~RADEON_DST_TILE_MACRO;
 			dev_priv->back_pitch_offset &= ~RADEON_DST_TILE_MACRO;
 			dev_priv->sarea_priv->tiling_enabled = 0;
-		}
-		else if (sp.value == 1) {
-			DRM_DEBUG( "color tiling enabled\n" );
+		} else if (sp.value == 1) {
+			DRM_DEBUG("color tiling enabled\n");
 			dev_priv->front_pitch_offset |= RADEON_DST_TILE_MACRO;
 			dev_priv->back_pitch_offset |= RADEON_DST_TILE_MACRO;
 			dev_priv->sarea_priv->tiling_enabled = 1;
@@ -3006,6 +3050,9 @@ static int radeon_cp_setparam(DRM_IOCTL_ARGS)
 		break;
 	case RADEON_SETPARAM_PCIGART_LOCATION:
 		dev_priv->pcigart_offset = sp.value;
+		break;
+	case RADEON_SETPARAM_NEW_MEMMAP:
+		dev_priv->new_memmap = sp.value;
 		break;
 	default:
 		DRM_DEBUG("Invalid parameter %d\n", sp.param);
