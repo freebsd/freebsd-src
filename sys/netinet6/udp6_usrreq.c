@@ -519,7 +519,7 @@ udp6_attach(struct socket *so, int proto, struct thread *td)
 	int s, error;
 
 	inp = sotoinpcb(so);
-	KASSERT(inp == NULL, ("udp6_attach: inp == NULL"));
+	KASSERT(inp == NULL, ("udp6_attach: inp != NULL"));
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
 		error = soreserve(so, udp_sendspace, udp_recvspace);
 		if (error)
