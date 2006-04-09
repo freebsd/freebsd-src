@@ -329,7 +329,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	}
 
 	/* Update the counters */
-	espstat.esps_ibytes += m->m_pkthdr.len - skip - hlen - alen;
+	espstat.esps_ibytes += m->m_pkthdr.len - (skip + hlen + alen);
 
 	/* Find out if we've already done crypto */
 	for (mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_CRYPTO_DONE, NULL);
