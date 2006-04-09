@@ -155,7 +155,12 @@ raw_uattach(struct socket *so, int proto, struct thread *td)
 {
 	int error;
 
-	KASSERT(sotorawcb(so) == NULL, ("raw_uattach: rp != NULL"));
+	/*
+	 * Implementors of raw sockets will already have allocated the PCB,
+	 * so it must be non-NULL here.
+	 */
+	KASSERT(sotorawcb(so) != NULL, ("raw_uattach: so_pcb == NULL"));
+
 	if (td && (error = suser(td)) != 0)
 		return error;
 	return raw_attach(so, proto);
