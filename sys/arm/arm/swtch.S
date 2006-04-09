@@ -467,7 +467,7 @@ ENTRY(fork_trampoline)
 	bl	_C_LABEL(fork_exit)
 	/* Kill irq"s */
 	mrs	r0, cpsr
-	orr	r0, r0, #(I32_bit)
+	orr	r0, r0, #(I32_bit|F32_bit)
 	msr	cpsr_c, r0
 	DO_AST
 	PULLFRAME
