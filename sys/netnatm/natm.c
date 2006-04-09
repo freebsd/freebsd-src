@@ -335,7 +335,7 @@ natm_usr_control(struct socket *so, u_long cmd, caddr_t arg,
 static void
 natm_usr_abort(struct socket *so)
 {
-    natm_usr_shutdown(so);
+    natm_usr_detach(so);
 }
 
 static int
