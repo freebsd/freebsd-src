@@ -45,16 +45,6 @@ __FBSDID("$FreeBSD$");
 static int
 drm_device_find_capability(drm_device_t *dev, int cap)
 {
-	int ret;
-
-	if (dev->driver.device_is_agp != NULL) {
-		ret = (*dev->driver.device_is_agp)(dev);
-		
-		if (ret != DRM_MIGHT_BE_AGP) {
-			return ret == 2;
-		}
-	}
-
 #ifdef __FreeBSD__
 #if __FreeBSD_version >= 700010
 
@@ -104,7 +94,7 @@ int drm_device_is_agp(drm_device_t *dev)
 		 * AGP, 2 = fall back to PCI capability
 		 */
 		ret = (*dev->driver.device_is_agp)(dev);
-		if (ret != 2)
+		if (ret != DRM_MIGHT_BE_AGP)
 			return ret;
 	}
 

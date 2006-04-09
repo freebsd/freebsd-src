@@ -9,8 +9,10 @@ for i in `ls *.[ch]`; do
 done
 
 cp /usr/src/drm/bsd-core/*.[ch] .
-rm i810*.[ch]
+rm -f i810*.[ch]
 rm via*.[ch]
+
+(cd /usr/src/drm/bsd-core/ && make drm_pciids.h)
 
 # Replace drm_pciids.h with one with a $FreeBSD$
 line=`grep \\\$FreeBSD drm_pciids.h.cvs`
