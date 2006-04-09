@@ -311,6 +311,16 @@ static struct acpi_asus_model acpi_asus_models[] = {
 		.disp_get	= "\\_SB.PCI0.P0P1.VGA.GETD",
 		.disp_set	= "SDSP"
 	},
+	{
+		.name		= "W5A",
+		.bled_set	= "BLED",
+		.lcd_get	= "\\BKLT",
+		.lcd_set	= "\\_SB.PCI0.SBRG.EC0._Q10",
+		.brn_get	= "GPLV",
+		.brn_set	= "SPLV",
+		.disp_get	= "\\_SB.PCI0.P0P2.VGA.GETD",
+		.disp_set	= "SDSP"
+	},
 
 	{ .name = NULL }
 };
