@@ -176,6 +176,10 @@ parselength(char *ls, off_t *sz)
 	}
 
 	switch (*ls) {
+	case 'T':
+	case 't':
+		oflow = length * 1024;
+		ASSIGN_CHK_OFLOW(oflow, length);
 	case 'G':
 	case 'g':
 		oflow = length * 1024;
