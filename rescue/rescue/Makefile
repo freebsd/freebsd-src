@@ -317,11 +317,11 @@ cleandepend cleandir obj objlink:
 .ifdef CRUNCH_SRCDIR_${P}
 	cd ${CRUNCH_SRCDIR_$(P)} && \
 	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} \
-	    DIRPRFX=${DIRPRFX}${P}/ ${.TARGET}
+	    DIRPRFX=${DIRPRFX}${P}/ ${CRUNCH_BUILDOPTS} ${.TARGET}
 .else
 	cd $(.CURDIR)/../../${D}/${P} && \
 	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} \
-	    DIRPRFX=${DIRPRFX}${P}/ ${.TARGET}
+	    DIRPRFX=${DIRPRFX}${P}/ ${CRUNCH_BUILDOPTS} ${.TARGET}
 .endif
 .endfor
 .endfor
@@ -336,11 +336,11 @@ clean:
 .ifdef CRUNCH_SRCDIR_${P}
 	cd ${CRUNCH_SRCDIR_$(P)} && \
 	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} \
-	    DIRPRFX=${DIRPRFX}${P}/ ${.TARGET}
+	    DIRPRFX=${DIRPRFX}${P}/ ${CRUNCH_BUILDOPTS} ${.TARGET}
 .else
 	cd $(.CURDIR)/../../${D}/${P} && \
 	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} \
-	    DIRPRFX=${DIRPRFX}${P}/ ${.TARGET}
+	    DIRPRFX=${DIRPRFX}${P}/ ${CRUNCH_BUILDOPTS} ${.TARGET}
 .endif
 .endfor
 .endfor
