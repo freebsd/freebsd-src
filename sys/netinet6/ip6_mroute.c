@@ -484,8 +484,6 @@ ip6_mrouter_done()
 {
 	mifi_t mifi;
 	int i;
-	struct ifnet *ifp;
-	struct in6_ifreq ifr;
 	struct mf6c *rt;
 	struct rtdetq *rte;
 	int s;
@@ -511,11 +509,7 @@ ip6_mrouter_done()
 		for (mifi = 0; mifi < nummifs; mifi++) {
 			if (mif6table[mifi].m6_ifp &&
 			    !(mif6table[mifi].m6_flags & MIFF_REGISTER)) {
-				ifr.ifr_addr.sin6_family = AF_INET6;
-				ifr.ifr_addr.sin6_addr = in6addr_any;
-				ifp = mif6table[mifi].m6_ifp;
-				(*ifp->if_ioctl)(ifp, SIOCDELMULTI,
-						 (caddr_t)&ifr);
+				if_allmulti(mif6table[mifi].m6_ifp, 0);
 			}
 		}
 	}
