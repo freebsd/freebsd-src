@@ -239,6 +239,7 @@ void g_std_done(struct bio *bp);
 void g_std_spoiled(struct g_consumer *cp);
 void g_wither_geom(struct g_geom *gp, int error);
 void g_wither_geom_close(struct g_geom *gp, int error);
+void g_wither_provider(struct g_provider *pp, int error);
 
 #ifdef DIAGNOSTIC
 int g_valid_obj(void const *ptr);
