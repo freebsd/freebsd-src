@@ -111,27 +111,8 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 		/* IV explicitly provided ? */
 		if (crd->crd_flags & CRD_F_IV_EXPLICIT)
 			bcopy(crd->crd_iv, iv, blks);
-		else {
-			/* Get random IV */
-			for (i = 0;
-			    i + sizeof (u_int32_t) < EALG_MAX_BLOCK_LEN;
-			    i += sizeof (u_int32_t)) {
-				u_int32_t temp = arc4random();
-
-				bcopy(&temp, iv + i, sizeof(u_int32_t));
-			}
-			/*
-			 * What if the block size is not a multiple
-			 * of sizeof (u_int32_t), which is the size of
-			 * what arc4random() returns ?
-			 */
-			if (EALG_MAX_BLOCK_LEN % sizeof (u_int32_t) != 0) {
-				u_int32_t temp = arc4random();
-
-				bcopy (&temp, iv + i,
-				    EALG_MAX_BLOCK_LEN - i);
-			}
-		}
+		else
+			arc4rand(iv, blks, 0);
 
 		/* Do we need to write the IV */
 		if (!(crd->crd_flags & CRD_F_IV_PRESENT)) {
@@ -431,7 +412,7 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 			}
 		}
 
-		return 0; /* Done with mbuf encryption/decryption */
+		return 0; /* Done with iov encryption/decryption */
 	}
 
 	/* Unreachable */
