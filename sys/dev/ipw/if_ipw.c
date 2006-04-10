@@ -220,7 +220,7 @@ ipw_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
+	    MTX_DEF);
 
 	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
 		device_printf(dev, "chip is in D%d power mode "
@@ -380,6 +380,7 @@ ipw_detach(device_t dev)
 	struct ipw_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
+	IPW_LOCK_DECL;
 
 	IPW_LOCK(sc);
 
@@ -722,6 +723,7 @@ ipw_resume(device_t dev)
 {
 	struct ipw_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->sc_ic.ic_ifp;
+	IPW_LOCK_DECL;
 
 	IPW_LOCK(sc);
 
@@ -743,6 +745,7 @@ ipw_media_change(struct ifnet *ifp)
 {
 	struct ipw_softc *sc = ifp->if_softc;
 	int error;
+	IPW_LOCK_DECL;
 
 	IPW_LOCK(sc);
 
@@ -1222,6 +1225,7 @@ ipw_intr(void *arg)
 {
 	struct ipw_softc *sc = arg;
 	uint32_t r;
+	IPW_LOCK_DECL;
 
 	IPW_LOCK(sc);
 
@@ -1474,6 +1478,7 @@ ipw_start(struct ifnet *ifp)
 	struct mbuf *m0;
 	struct ether_header *eh;
 	struct ieee80211_node *ni;
+	IPW_LOCK_DECL;
 
 	IPW_LOCK(sc);
 
@@ -1557,6 +1562,7 @@ ipw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifreq *ifr;
 	int error = 0;
+	IPW_LOCK_DECL;
 
 	IPW_LOCK(sc);
 
@@ -1769,6 +1775,7 @@ ipw_cache_firmware(struct ipw_softc *sc, void *data)
 	struct ipw_firmware_hdr hdr;
 	u_char *p = data;
 	int error;
+	IPW_LOCK_DECL;
 
 	ipw_free_firmware(sc);
 
