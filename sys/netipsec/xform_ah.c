@@ -998,8 +998,10 @@ ah_output(
 			error = EINVAL;
 			goto bad;
 		}
+#ifdef REGRESSION
 		/* Emulate replay attack when ipsec_replay is TRUE. */
 		if (!ipsec_replay)
+#endif
 			sav->replay->count++;
 		ah->ah_seq = htonl(sav->replay->count);
 	}
@@ -1180,6 +1182,7 @@ ah_output_cb(struct cryptop *crp)
 	free(tc, M_XDATA);
 	crypto_freereq(crp);
 
+#ifdef REGRESSION
 	/* Emulate man-in-the-middle attack when ipsec_integrity is TRUE. */
 	if (ipsec_integrity) {
 		int alen;
@@ -1191,6 +1194,7 @@ ah_output_cb(struct cryptop *crp)
 		alen = AUTHSIZE(sav);
 		m_copyback(m, m->m_pkthdr.len - alen, alen, ipseczeroes);
 	}
+#endif
 
 	/* NB: m is reclaimed by ipsec_process_done. */
 	err = ipsec_process_done(m, isr);
