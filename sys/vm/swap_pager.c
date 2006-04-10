@@ -265,6 +265,7 @@ SYSCTL_INT(_vm, OID_AUTO, dmmax,
 static void	swp_sizecheck(void);
 static void	swp_pager_async_iodone(struct buf *bp);
 static int	swapongeom(struct thread *, struct vnode *);
+static int	swapoff_one(struct swdevt *sp, struct thread *td);
 static int	swaponvp(struct thread *, struct vnode *, u_long);
 
 /*
@@ -2109,15 +2110,13 @@ swapoff(struct thread *td, struct swapoff_args *uap)
 	struct vnode *vp;
 	struct nameidata nd;
 	struct swdevt *sp;
-	u_long nblks, dvbase;
 	int error;
-
-	mtx_lock(&Giant);
 
 	error = suser(td);
 	if (error)
-		goto done2;
+		return (error);
 
+	mtx_lock(&Giant);
 	while (swdev_syscall_active)
 	    tsleep(&swdev_syscall_active, PUSER - 1, "swpoff", 0);
 	swdev_syscall_active = 1;
@@ -2132,21 +2131,37 @@ swapoff(struct thread *td, struct swapoff_args *uap)
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
 		if (sp->sw_vp == vp)
-			goto found;
+			break;
 	}
 	mtx_unlock(&sw_dev_mtx);
-	error = EINVAL;
-	goto done;
-found:
-	mtx_unlock(&sw_dev_mtx);
-#ifdef MAC
-	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = mac_check_system_swapoff(td->td_ucred, vp);
-	(void) VOP_UNLOCK(vp, 0, td);
-	if (error != 0)
+	if (sp == NULL) {
+		error = EINVAL;
 		goto done;
+	}
+	error = swapoff_one(sp, td);
+done:
+	swdev_syscall_active = 0;
+	wakeup_one(&swdev_syscall_active);
+	mtx_unlock(&Giant);
+	return (error);
+}
+
+static int
+swapoff_one(struct swdevt *sp, struct thread *td)
+{
+	u_long nblks, dvbase;
+#ifdef MAC
+	int error;
 #endif
-	
+
+	mtx_assert(&Giant, MA_OWNED);
+#ifdef MAC
+	(void) vn_lock(sp->sw_vp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = mac_check_system_swapoff(td->td_ucred, sp->sw_vp);
+	(void) VOP_UNLOCK(sp->sw_vp, 0, td);
+	if (error != 0)
+		return (error);
+#endif
 	nblks = sp->sw_nblks;
 
 	/*
@@ -2157,8 +2172,7 @@ found:
 	 */
 	if (cnt.v_free_count + cnt.v_cache_count + swap_pager_avail <
 	    nblks + nswap_lowat) {
-		error = ENOMEM;
-		goto done;
+		return (ENOMEM);
 	}
 
 	/*
@@ -2191,13 +2205,42 @@ found:
 	mtx_unlock(&sw_dev_mtx);
 	blist_destroy(sp->sw_blist);
 	free(sp, M_VMPGDATA);
+	return (0);
+}
 
-done:
+void
+swapoff_all(void)
+{
+	struct swdevt *sp, *spt;
+	const char *devname;
+	int error;
+ 
+	mtx_lock(&Giant);
+	while (swdev_syscall_active)
+		tsleep(&swdev_syscall_active, PUSER - 1, "swpoff", 0);
+	swdev_syscall_active = 1;
+ 
+	mtx_lock(&sw_dev_mtx);
+	TAILQ_FOREACH_SAFE(sp, &swtailq, sw_list, spt) {
+		mtx_unlock(&sw_dev_mtx);
+		if (vn_isdisk(sp->sw_vp, NULL))
+			devname = sp->sw_vp->v_rdev->si_name;
+		else
+			devname = "[file]";
+		error = swapoff_one(sp, &thread0);
+		if (error != 0) {
+			printf("Cannot remove swap device %s (error=%d), "
+			    "skipping.\n", devname, error);
+		} else if (bootverbose) {
+			printf("Swap device %s removed.\n", devname);
+		}
+		mtx_lock(&sw_dev_mtx);
+	}
+	mtx_unlock(&sw_dev_mtx);
+ 
 	swdev_syscall_active = 0;
 	wakeup_one(&swdev_syscall_active);
-done2:
 	mtx_unlock(&Giant);
-	return (error);
 }
 
 void
