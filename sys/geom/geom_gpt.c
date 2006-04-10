@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2005 Marcel Moolenaar
+ * Copyright (c) 2002, 2005, 2006 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -108,6 +108,16 @@ struct g_gpt_softc {
 	enum gpt_hdr_state state[GPT_HDR_COUNT];
 };
 
+enum g_gpt_ctl {
+	G_GPT_CTL_NONE,
+	G_GPT_CTL_ADD,
+	G_GPT_CTL_CREATE,
+	G_GPT_CTL_DESTROY,
+	G_GPT_CTL_MODIFY,
+	G_GPT_CTL_RECOVER,
+	G_GPT_CTL_REMOVE
+};
+
 static struct uuid g_gpt_freebsd = GPT_ENT_TYPE_FREEBSD;
 static struct uuid g_gpt_freebsd_swap = GPT_ENT_TYPE_FREEBSD_SWAP;
 static struct uuid g_gpt_linux_swap = GPT_ENT_TYPE_LINUX_SWAP;
@@ -119,14 +129,15 @@ static struct uuid g_gpt_unused = GPT_ENT_TYPE_UNUSED;
 
 static void g_gpt_wither(struct g_geom *, int);
 
-static struct g_provider *
+static void
 g_gpt_ctl_add(struct gctl_req *req, const char *flags, struct g_geom *gp,
-    struct uuid *type, uint64_t start, uint64_t end)
+    struct uuid *type, uint64_t start, uint64_t end, long entry)
 {
+	char buf[16];
 	struct g_provider *pp;
 	struct g_gpt_softc *softc;
 	struct g_gpt_part *last, *part;
-	int idx;
+	u_int idx;
 
 	G_GPT_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, gp->name));
 	g_topology_assert();
@@ -135,14 +146,29 @@ g_gpt_ctl_add(struct gctl_req *req, const char *flags, struct g_geom *gp,
 	softc = gp->softc;
 
 	last = NULL;
-	idx = 0;
+	idx = (entry > 0) ? (u_int)(entry - 1) : 0;
 	LIST_FOREACH(part, &softc->parts, parts) {
 		if (part->index == idx) {
 			idx = part->index + 1;
 			last = part;
 		}
-		/* XXX test for overlap */
+		if ((start >= part->ent.ent_lba_start &&
+		     start <= part->ent.ent_lba_end) ||
+		    (end >= part->ent.ent_lba_start &&
+		     end <= part->ent.ent_lba_end) ||
+		    (start < part->ent.ent_lba_start &&
+		     end > part->ent.ent_lba_end)) {
+			gctl_error(req, "%d start/end %jd/%jd", ENOSPC,
+			    (intmax_t)start, (intmax_t)end);
+			return;
+		}
 	}
+	if (entry > 0 && (long)idx != entry - 1) {
+		gctl_error(req, "%d entry %ld", EEXIST, entry);
+		return;
+	}
+	snprintf(buf, sizeof(buf), "%u", idx + 1);
+	gctl_set_param(req, "entry", buf, strlen(buf) + 1);
 
 	part = g_malloc(sizeof(struct g_gpt_part), M_WAITOK | M_ZERO);
 	part->index = idx;
@@ -179,8 +205,6 @@ g_gpt_ctl_add(struct gctl_req *req, const char *flags, struct g_geom *gp,
 		printf_uuid(&part->ent.ent_uuid);
 		printf(".\n");
 	}
-
-	return (part->provider);
 }
 
 static struct g_geom *
@@ -287,8 +311,48 @@ g_gpt_ctl_destroy(struct gctl_req *req, const char *flags, struct g_geom *gp)
 }
 
 static void
+g_gpt_ctl_modify(struct gctl_req *req, const char *flags, struct g_geom *gp,
+    long entry)
+{
+}
+
+static void
 g_gpt_ctl_recover(struct gctl_req *req, const char *flags, struct g_geom *gp)
 {
+}
+
+static void
+g_gpt_ctl_remove(struct gctl_req *req, const char *flags, struct g_geom *gp, 
+    long entry)
+{
+	struct g_provider *pp;
+	struct g_gpt_softc *softc;
+	struct g_gpt_part *part;
+
+	G_GPT_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, gp->name));
+	g_topology_assert();
+
+	softc = gp->softc;
+
+	LIST_FOREACH(part, &softc->parts, parts) {
+		if ((long)part->index == entry - 1)
+			break;
+	}
+	if (part == NULL) {
+		gctl_error(req, "%d entry %ld", ENOENT, entry);
+		return;
+	}
+
+	pp = part->provider;
+	if (pp->acr > 0 || pp->acw > 0 || pp->ace > 0) {
+		gctl_error(req, "%d", EBUSY);
+		return;
+	}
+
+	LIST_REMOVE(part, parts);
+	pp->private = NULL;
+	g_wither_provider(pp, ENXIO);
+	g_free(part);
 }
 
 static int
@@ -572,11 +636,47 @@ g_gpt_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 	const char *flags;
 	char const *s;
 	uint64_t start, end;
-	long entries;
+	long entry, entries;
+	enum g_gpt_ctl ctlreq;
 	int error;
 
 	G_GPT_TRACE((G_T_TOPOLOGY, "%s(%s,%s)", __func__, mp->name, verb));
 	g_topology_assert();
+
+	/*
+	 * Improve error reporting by first checking if the verb is
+	 * a valid one. It also allows us to make assumptions down-
+	 * stream about the validity of the verb.
+	 */
+	ctlreq = G_GPT_CTL_NONE;
+	switch (*verb) {
+	case 'a':
+		if (!strcmp(verb, "add"))
+			ctlreq = G_GPT_CTL_ADD;
+		break;
+	case 'c':
+		if (!strcmp(verb, "create"))
+			ctlreq = G_GPT_CTL_CREATE;
+		break;
+	case 'd':
+		if (!strcmp(verb, "destroy"))
+			ctlreq = G_GPT_CTL_DESTROY;
+		break;
+	case 'm':
+		if (!strcmp(verb, "modify"))
+			ctlreq = G_GPT_CTL_MODIFY;
+		break;
+	case 'r':
+		if (!strcmp(verb, "recover"))
+			ctlreq = G_GPT_CTL_RECOVER;
+		else if (!strcmp(verb, "remove"))
+			ctlreq = G_GPT_CTL_REMOVE;
+		break;
+	}
+	if (ctlreq == G_GPT_CTL_NONE) {
+		gctl_error(req, "%d verb '%s'", EINVAL, verb);
+		return;
+	}
 
 	/*
 	 * All verbs take an optional flags parameter. The flags parameter
@@ -593,7 +693,7 @@ g_gpt_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 	 * special case so that more code sharing is possible for the
 	 * common case.
 	 */
-	if (!strcmp(verb, "create")) {
+	if (ctlreq == G_GPT_CTL_CREATE) {
 		/*
 		 * Create a GPT on a pristine disk-like provider.
 		 *	Required parameters/attributes:
@@ -660,13 +760,14 @@ g_gpt_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 	 * policy that all table entry related requests require a
 	 * valid GPT.
 	 */
-	if (!strcmp(verb, "destroy")) {
+	if (ctlreq == G_GPT_CTL_DESTROY) {
 		/*
 		 * Destroy a GPT completely.
 		 */
 		g_gpt_ctl_destroy(req, flags, gp);
 		return;
-	} else if (!strcmp(verb, "recover")) {
+	}
+	if (ctlreq == G_GPT_CTL_RECOVER) {
 		/*
 		 * Recover a downgraded GPT.
 		 */
@@ -684,7 +785,12 @@ g_gpt_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		return;
 	}
 
-	if (!strcmp(verb, "add")) {
+	/*
+	 * The add verb is the only table entry related verb that doesn't
+	 * require the entry parameter. All other verbs identify the table
+	 * entry by the entry number. Handle the add here.
+	 */
+	if (ctlreq == G_GPT_CTL_ADD) {
 		/*
 		 * Add a partition entry to a GPT.
 		 *	Required parameters/attributes:
@@ -692,6 +798,7 @@ g_gpt_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		 *		start
 		 *		end
 		 *	Optional parameters/attributes:
+		 *		entry (read/write)
 		 *		label
 		 */
 		s = gctl_get_asciiparam(req, "type");
@@ -730,17 +837,50 @@ g_gpt_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 			    (intmax_t)end);
 			return;
 		}
-		pp = g_gpt_ctl_add(req, flags, gp, &type, start, end);
-		return;
-	} else if (!strcmp(verb, "modify")) {
-		/* Modify a partition entry. */
-		return;
-	} else if (!strcmp(verb, "remove")) {
-		/* Remove a partition entry from a GPT. */
+		entry = 0;
+		s = gctl_get_asciiparam(req, "entry");
+		if (s != NULL && *s != '\0') {
+			entry = strtol(s, (char **)(uintptr_t)&s, 0);
+			if (*s != '\0' || entry <= 0 ||
+			    entry > softc->hdr[GPT_HDR_PRIMARY].hdr_entries) {
+				gctl_error(req, "%d entry %ld", EINVAL, entry);
+				return;
+			}
+		}
+		g_gpt_ctl_add(req, flags, gp, &type, start, end, entry);
 		return;
 	}
 
-	gctl_error(req, "%d verb '%s'", EINVAL, verb);
+	/*
+	 * Get the table entry number. Entry numbers run from 1 to the
+	 * number of entries in the table.
+	 */
+	s = gctl_get_asciiparam(req, "entry");
+	if (s == NULL) {
+		gctl_error(req, "%d entry", ENOATTR);
+		return;
+	}
+	entry = strtol(s, (char **)(uintptr_t)&s, 0);
+	if (*s != '\0' || entry <= 0 ||
+	    entry > softc->hdr[GPT_HDR_PRIMARY].hdr_entries) {
+		gctl_error(req, "%d entry %ld", EINVAL, entry);
+		return;
+	}
+
+	if (ctlreq == G_GPT_CTL_MODIFY) {
+		/*
+		 * Modify a partition entry.
+		 */
+		g_gpt_ctl_modify(req, flags, gp, entry);
+		return;
+	}
+	if (ctlreq == G_GPT_CTL_REMOVE) {
+		/*
+		 * Remove a partition entry.
+		 */
+		g_gpt_ctl_remove(req, flags, gp, entry);
+		return;
+	}
 }
 
 static int
@@ -1004,6 +1144,8 @@ g_gpt_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	if (indent == NULL) {
 		KASSERT(cp == NULL && pp != NULL, (__func__));
 		part = pp->private;
+		if (part == NULL)
+			return;
 		sbuf_printf(sb, " i %u o %ju ty ", pp->index,
 		    (uintmax_t)part->offset);
 		sbuf_printf_uuid(sb, &part->ent.ent_type);
@@ -1012,6 +1154,8 @@ g_gpt_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		/* none */
 	} else if (pp != NULL) {	/* Provider configuration. */
 		part = pp->private;
+		if (part == NULL)
+			return;
 		sbuf_printf(sb, "%s<index>%u</index>\n", indent, pp->index);
 		sbuf_printf(sb, "%s<type>", indent);
 		sbuf_printf_uuid(sb, &part->ent.ent_type);
@@ -1105,11 +1249,16 @@ g_gpt_start(struct bio *bp)
 
 	pp = bp->bio_to;
 	gp = pp->geom;
-	part = pp->private;
 	cp = LIST_FIRST(&gp->consumer);
 
 	G_GPT_TRACE((G_T_BIO, "%s: cmd=%d, provider=%s", __func__, bp->bio_cmd,
 	    pp->name));
+
+	part = pp->private;
+	if (part == NULL) {
+		g_io_deliver(bp, ENXIO);
+		return;
+	}
 
 	switch(bp->bio_cmd) {
 	case BIO_READ:
