@@ -318,6 +318,18 @@ g_wither_geom(struct g_geom *gp, int error)
 }
 
 /*
+ * Convenience function to destroy a particular provider.
+ */
+void
+g_wither_provider(struct g_provider *pp, int error)
+{
+
+	pp->flags |= G_PF_WITHER;
+	if (!(pp->flags & G_PF_ORPHAN))
+		g_orphan_provider(pp, error);
+}
+
+/*
  * This function is called (repeatedly) until the has withered away.
  */
 void

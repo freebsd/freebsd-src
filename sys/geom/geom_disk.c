@@ -428,7 +428,7 @@ disk_gone(struct disk *dp)
 	gp = dp->d_geom;
 	if (gp != NULL)
 		LIST_FOREACH(pp, &gp->provider, provider)
-			g_orphan_provider(pp, ENXIO);
+			g_wither_provider(pp, ENXIO);
 }
 
 static void
