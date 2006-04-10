@@ -407,6 +407,10 @@
 	<para>The &man.ath.4; driver has been updated to
 	  version 0.9.16.16.</para>
 
+	<para arch="i386,amd64">The &man.bce.4; driver, which supports Broadcom
+	  NetXtreme II (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet controllers,
+	  has been added.  For more details, see &man.bce.4;.</para>
+
 	<para>The &man.bge.4; driver's Jumbo frame support is now MPSAFE.</para>
 
 	<para>The &man.bge.4; driver now supports big-endian
@@ -451,7 +455,7 @@
 
 	<para arch="i386,amd64">The &man.myri10ge.4; driver,
 	  which supports Myricom Myri10GE 10 Gigabit Ethernet
-	  adapter has been added.  For more details, see
+	  adapters, has been added.  For more details, see
 	  &man.myri10ge.4;.</para>
 
 	<para>The &man.nve.4; driver has been updated to version 1.0-0310
