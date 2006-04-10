@@ -634,6 +634,9 @@ ED_HPP			opt_ed.h
 ED_3C503		opt_ed.h
 ED_SIC			opt_ed.h
 
+# bce driver
+BCE_DEBUG		opt_bce.h
+
 # bge driver
 BGE_FAKE_AUTONEG	opt_bge.h
 
