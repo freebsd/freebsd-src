@@ -1077,6 +1077,13 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 	}
 	crd2 = crd1->crd_next;
 
+	if ((crd1->crd_flags & CRD_F_KEY_EXPLICIT) ||
+	    (crd2 != NULL && (crd2->crd_flags & CRD_F_KEY_EXPLICIT))) {
+		ubsecstats.hst_badflags++;
+		err = EINVAL;
+		goto errout;
+	}
+
 	if (crd2 == NULL) {
 		if (crd1->crd_alg == CRYPTO_MD5_HMAC ||
 		    crd1->crd_alg == CRYPTO_SHA1_HMAC) {
