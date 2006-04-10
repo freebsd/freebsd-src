@@ -761,8 +761,10 @@ esp_output(
 	if (sav->replay) {
 		u_int32_t replay;
 
+#ifdef REGRESSION
 		/* Emulate replay attack when ipsec_replay is TRUE. */
 		if (!ipsec_replay)
+#endif
 			sav->replay->count++;
 		replay = htonl(sav->replay->count);
 		bcopy((caddr_t) &replay,
@@ -947,6 +949,7 @@ esp_output_cb(struct cryptop *crp)
 	free(tc, M_XDATA);
 	crypto_freereq(crp);
 
+#ifdef REGRESSION
 	/* Emulate man-in-the-middle attack when ipsec_integrity is TRUE. */
 	if (ipsec_integrity) {
 		static unsigned char ipseczeroes[AH_HMAC_HASHLEN];
@@ -962,6 +965,7 @@ esp_output_cb(struct cryptop *crp)
 			    AH_HMAC_HASHLEN, ipseczeroes);
 		}
 	}
+#endif
 
 	/* NB: m is reclaimed by ipsec_process_done. */
 	err = ipsec_process_done(m, isr);
