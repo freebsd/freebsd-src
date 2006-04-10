@@ -160,6 +160,7 @@ struct g_raid3_event {
 
 #define	G_RAID3_DEVICE_FLAG_DESTROY	0x0100000000000000ULL
 #define	G_RAID3_DEVICE_FLAG_WAIT	0x0200000000000000ULL
+#define	G_RAID3_DEVICE_FLAG_DESTROYING	0x0400000000000000ULL
 
 #define	G_RAID3_DEVICE_STATE_STARTING		0
 #define	G_RAID3_DEVICE_STATE_DEGRADED		1
@@ -243,7 +244,10 @@ struct g_raid3_softc {
 
 const char *g_raid3_get_diskname(struct g_raid3_disk *disk);
 u_int g_raid3_ndisks(struct g_raid3_softc *sc, int state);
-int g_raid3_destroy(struct g_raid3_softc *sc, boolean_t force);
+#define	G_RAID3_DESTROY_SOFT	0
+#define	G_RAID3_DESTROY_DELAYED	1
+#define	G_RAID3_DESTROY_HARD	2
+int g_raid3_destroy(struct g_raid3_softc *sc, int how);
 int g_raid3_event_send(void *arg, int state, int flags);
 struct g_raid3_metadata;
 int g_raid3_add_disk(struct g_raid3_softc *sc, struct g_provider *pp,
