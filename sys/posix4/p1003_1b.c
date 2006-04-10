@@ -121,7 +121,6 @@ int sched_setparam(struct thread *td,
 	if (e)
 		return (e);
 
-	mtx_lock(&Giant);
 	if (uap->pid == 0) {
 		targetp = td->td_proc;
 		targettd = td;
@@ -136,13 +135,12 @@ int sched_setparam(struct thread *td,
 	}
 
 	e = p_cansched(td, targetp);
-	PROC_UNLOCK(targetp);
 	if (e == 0) {
 		e = ksched_setparam(&td->td_retval[0], ksched, targettd,
 			(const struct sched_param *)&sched_param);
 	}
+	PROC_UNLOCK(targetp);
 done2:
-	mtx_unlock(&Giant);
 	return (e);
 }
 
@@ -157,7 +155,6 @@ int sched_getparam(struct thread *td,
 	struct thread *targettd;
 	struct proc *targetp;
 
-	mtx_lock(&Giant);
 	if (uap->pid == 0) {
 		targetp = td->td_proc;
 		targettd = td;
@@ -172,15 +169,14 @@ int sched_getparam(struct thread *td,
 	}
 
 	e = p_cansee(td, targetp);
+	if (e == 0) {
+		e = ksched_getparam(&td->td_retval[0], ksched, targettd,
+			 &sched_param);
+	}
 	PROC_UNLOCK(targetp);
-	if (e)
-		goto done2;
-
-	e = ksched_getparam(&td->td_retval[0], ksched, targettd, &sched_param);
 	if (e == 0)
 		e = copyout(&sched_param, uap->param, sizeof(sched_param));
 done2:
-	mtx_unlock(&Giant);
 	return (e);
 }
 
@@ -199,7 +195,6 @@ int sched_setscheduler(struct thread *td,
 	if (e)
 		return (e);
 
-	mtx_lock(&Giant);
 	if (uap->pid == 0) {
 		targetp = td->td_proc;
 		targettd = td;
@@ -214,13 +209,12 @@ int sched_setscheduler(struct thread *td,
 	}
 
 	e = p_cansched(td, targetp);
-	PROC_UNLOCK(targetp);
 	if (e == 0) {
 		e = ksched_setscheduler(&td->td_retval[0], ksched, targettd,
 			uap->policy, (const struct sched_param *)&sched_param);
 	}
+	PROC_UNLOCK(targetp);
 done2:
-	mtx_unlock(&Giant);
 	return (e);
 }
 
@@ -234,7 +228,6 @@ int sched_getscheduler(struct thread *td,
 	struct thread *targettd;
 	struct proc *targetp;
 
-	mtx_lock(&Giant);
 	if (uap->pid == 0) {
 		targetp = td->td_proc;
 		targettd = td;
@@ -249,12 +242,11 @@ int sched_getscheduler(struct thread *td,
 	}
 
 	e = p_cansee(td, targetp);
-	PROC_UNLOCK(targetp);
 	if (e == 0)
 		e = ksched_getscheduler(&td->td_retval[0], ksched, targettd);
+	PROC_UNLOCK(targetp);
 
 done2:
-	mtx_unlock(&Giant);
 	return (e);
 }
 
@@ -266,9 +258,7 @@ int sched_yield(struct thread *td,
 {
 	int error;
 
-	mtx_lock(&Giant);
 	error = ksched_yield(&td->td_retval[0], ksched);
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -280,9 +270,7 @@ int sched_get_priority_max(struct thread *td,
 {
 	int error;
 
-	mtx_lock(&Giant);
 	error = ksched_get_priority_max(&td->td_retval[0], ksched, uap->policy);
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -294,9 +282,7 @@ int sched_get_priority_min(struct thread *td,
 {
 	int error;
 
-	mtx_lock(&Giant);
 	error = ksched_get_priority_min(&td->td_retval[0], ksched, uap->policy);
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -322,17 +308,15 @@ int kern_sched_rr_get_interval(struct thread *td, pid_t pid,
 	struct thread *targettd;
 	struct proc *targetp;
 
-	mtx_lock(&Giant);
 	if (pid == 0) {
 		targettd = td;
 		targetp = td->td_proc;
 		PROC_LOCK(targetp);
 	} else {
 		targetp = pfind(pid);
-		if (targetp == NULL) {
-			mtx_unlock(&Giant);
+		if (targetp == NULL)
 			return (ESRCH);
-		}
+
 		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
 	}
 
@@ -341,7 +325,6 @@ int kern_sched_rr_get_interval(struct thread *td, pid_t pid,
 		e = ksched_rr_get_interval(&td->td_retval[0], ksched, targettd,
 			ts);
 	PROC_UNLOCK(targetp);
-	mtx_unlock(&Giant);
 	return (e);
 }
 

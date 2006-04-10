@@ -177,7 +177,7 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 		case SCHED_FIFO:
 
 		if (param->sched_priority >= P1B_PRIO_MIN &&
-		param->sched_priority <= P1B_PRIO_MAX)
+		    param->sched_priority <= P1B_PRIO_MAX)
 		{
 			rtp.prio = p4prio_to_rtpprio(param->sched_priority);
 			rtp.type = (policy == SCHED_FIFO)
