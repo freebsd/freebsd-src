@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Marcel Moolenaar
+ * Copyright (c) 2005, 2006 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <errno.h>
 #include <libgeom.h>
 #include <limits.h>
@@ -35,36 +36,82 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+struct retval {
+	struct retval *retval;
+	const char *param;
+	char *value;
+};
+
+struct retval *retval;
 int verbose;
 
 static void
 usage()
 {
-	fprintf(stdout, "usage: %s [-v] param ...\n", getprogname());
+	fprintf(stdout, "usage: %s [-v] param[:len][=value] ...\n",
+	    getprogname());
 	exit(1);
 }
 
 static int
-parse(char *arg, char **param, char **value)
+parse(char *arg, char **param, char **value, int *len)
 {
-	char *e;
+	char *e, *colon, *equal;
+
+	if (*arg == '\0')
+		return (EINVAL);
+
+	colon = strchr(arg, ':');
+	equal = strchr(arg, '=');
+	if (colon == NULL && equal == NULL)
+		return (EINVAL);
+	if (colon == arg || equal == arg)
+		return (EINVAL);
+	if (colon != NULL && equal != NULL && equal < colon)
+		return (EINVAL);
+
+	if (colon != NULL)
+		*colon++ = '\0';
+	if (equal != NULL)
+		*equal++ = '\0';
 
 	*param = arg;
-	e = strchr(arg, '=');
-	if (e != NULL) {
-		*e = '\0';
-		*value = e + 1;
-	} else
-		*value = NULL;
+	if (colon != NULL) {
+		/* Length specification. This parameter is RW. */
+		if (*colon == '\0')
+			return (EINVAL);
+		*len = strtol(colon, &e, 0);
+		if (*e != '\0')
+			return (EINVAL);
+		if (*len <= 0 || *len > PATH_MAX)
+			return (EINVAL);
+		*value = malloc(*len);
+		if (*value == NULL)
+			return (ENOMEM);
+		memset(*value, 0, *len);
+		if (equal != NULL) {
+			if (strlen(equal) >= PATH_MAX)
+				return (ENOMEM);
+			strcpy(*value, equal);
+		}
+	} else {
+		/* This parameter is RO. */
+		*len = -1;
+		if (*equal == '\0')
+			return (EINVAL);
+		*value = equal;
+	}
+
 	return (0);
 }
 
 int main(int argc, char *argv[])
 {
+	struct retval *rv;
 	struct gctl_req *req;
 	char *param, *value;
 	const char *s;
-	int c;
+	int c, len;
 
 	req = gctl_get_handle();
 	gctl_ro_param(req, "class", -1, "GPT");
@@ -83,19 +130,36 @@ int main(int argc, char *argv[])
 	}
 
 	while (optind < argc) {
-		parse(argv[optind++], &param, &value);
-		if (value != NULL)
-			gctl_ro_param(req, param, -1, value);
+		if (!parse(argv[optind++], &param, &value, &len)) {
+			if (len > 0) {
+				rv = malloc(sizeof(struct retval));
+				rv->param = param;
+				rv->value = value;
+				rv->retval = retval;
+				retval = rv;
+				gctl_rw_param(req, param, len, value);
+			} else
+				gctl_ro_param(req, param, -1, value);
+		}
 	}
 
 	if (verbose)
 		gctl_dump(req, stdout);
 
 	s = gctl_issue(req);
-	if (s != NULL)
+	if (s == NULL) {
+		printf("PASS");
+		while (retval != NULL) {
+			rv = retval->retval;
+			printf(" %s=%s", retval->param, retval->value);
+			free(retval->value);
+			free(retval);
+			retval = rv;
+		}
+		printf("\n");
+	} else
 		printf("FAIL %s\n", s);
-	else
-		printf("PASS\n");
+
 	gctl_free(req);
 	return (0);
 }
