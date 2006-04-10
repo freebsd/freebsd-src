@@ -329,6 +329,8 @@ fips.h:
 fips_rand.h:
 	echo '/* dummy fips_rand.h */' > ${.TARGET}
 
+CLEANFILES+=	fips.h fips_rand.h
+
 OLDSYMLINKS+=	libdes.a libdes.so libdes.so.3 libdes_p.a
 afterinstall:
 	@${ECHO} "Removing stale symlinks."
