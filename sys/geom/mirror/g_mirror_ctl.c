@@ -628,6 +628,7 @@ g_mirror_ctl_stop(struct gctl_req *req, struct g_class *mp)
 	const char *name;
 	char param[16];
 	u_int i;
+	int how;
 
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
@@ -643,6 +644,10 @@ g_mirror_ctl_stop(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No '%s' argument.", "force");
 		return;
 	}
+	if (*force)
+		how = G_MIRROR_DESTROY_HARD;
+	else
+		how = G_MIRROR_DESTROY_SOFT;
 
 	for (i = 0; i < (u_int)*nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
@@ -656,7 +661,8 @@ g_mirror_ctl_stop(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "No such device: %s.", name);
 			return;
 		}
-		error = g_mirror_destroy(sc, *force);
+		g_cancel_event(sc);
+		error = g_mirror_destroy(sc, how);
 		if (error != 0) {
 			gctl_error(req, "Cannot destroy device %s (error=%d).",
 			    sc->sc_geom->name, error);

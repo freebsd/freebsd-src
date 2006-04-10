@@ -153,6 +153,7 @@ struct g_mirror_event {
 
 #define	G_MIRROR_DEVICE_FLAG_DESTROY	0x0100000000000000ULL
 #define	G_MIRROR_DEVICE_FLAG_WAIT	0x0200000000000000ULL
+#define	G_MIRROR_DEVICE_FLAG_DESTROYING	0x0400000000000000ULL
 
 #define	G_MIRROR_DEVICE_STATE_STARTING		0
 #define	G_MIRROR_DEVICE_STATE_RUNNING		1
@@ -209,7 +210,10 @@ struct g_mirror_softc {
 #define	sc_name	sc_geom->name
 
 u_int g_mirror_ndisks(struct g_mirror_softc *sc, int state);
-int g_mirror_destroy(struct g_mirror_softc *sc, boolean_t force);
+#define	G_MIRROR_DESTROY_SOFT		0
+#define	G_MIRROR_DESTROY_DELAYED	1
+#define	G_MIRROR_DESTROY_HARD		2
+int g_mirror_destroy(struct g_mirror_softc *sc, int how);
 int g_mirror_event_send(void *arg, int state, int flags);
 struct g_mirror_metadata;
 int g_mirror_add_disk(struct g_mirror_softc *sc, struct g_provider *pp,

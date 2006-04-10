@@ -78,7 +78,7 @@ SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, sync_requests, CTLFLAG_RDTUN,
 	G_MIRROR_DEBUG(4, "%s: Woken up %p.", __func__, (ident));	\
 } while (0)
 
-static eventhandler_tag g_mirror_pre_sync = NULL, g_mirror_post_sync = NULL;
+static eventhandler_tag g_mirror_pre_sync = NULL;
 
 static int g_mirror_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
@@ -2697,11 +2697,37 @@ g_mirror_add_disk(struct g_mirror_softc *sc, struct g_provider *pp,
 	return (0);
 }
 
+static void
+g_mirror_destroy_delayed(void *arg, int flag)
+{
+	struct g_mirror_softc *sc;
+	int error;
+
+	if (flag == EV_CANCEL) {
+		G_MIRROR_DEBUG(1, "Destroying canceled.");
+		return;
+	}
+	sc = arg;
+	g_topology_unlock();
+	sx_xlock(&sc->sc_lock);
+	KASSERT((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) == 0,
+	    ("DESTROY flag set on %s.", sc->sc_name));
+	KASSERT((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROYING) != 0,
+	    ("DESTROYING flag not set on %s.", sc->sc_name));
+	G_MIRROR_DEBUG(1, "Destroying %s (delayed).", sc->sc_name);
+	error = g_mirror_destroy(sc, G_MIRROR_DESTROY_SOFT);
+	if (error != 0) {
+		G_MIRROR_DEBUG(0, "Cannot destroy %s.", sc->sc_name);
+		sx_xunlock(&sc->sc_lock);
+	}
+	g_topology_lock();
+}
+
 static int
 g_mirror_access(struct g_provider *pp, int acr, int acw, int ace)
 {
 	struct g_mirror_softc *sc;
-	int dcr, dcw, dce;
+	int dcr, dcw, dce, error = 0;
 
 	g_topology_assert();
 	G_MIRROR_DEBUG(2, "Access request for %s: r%dw%de%d.", pp->name, acr,
@@ -2712,21 +2738,32 @@ g_mirror_access(struct g_provider *pp, int acr, int acw, int ace)
 	dce = pp->ace + ace;
 
 	sc = pp->geom->softc;
-	if (sc == NULL || LIST_EMPTY(&sc->sc_disks) ||
-	    (sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) != 0) {
-		if (acr <= 0 && acw <= 0 && ace <= 0)
-			return (0);
-		else
-			return (ENXIO);
+	KASSERT(sc != NULL, ("NULL softc (provider=%s).", pp->name));
+
+	g_topology_unlock();
+	sx_xlock(&sc->sc_lock);
+	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) != 0 ||
+	    LIST_EMPTY(&sc->sc_disks)) {
+		if (acr > 0 || acw > 0 || ace > 0)
+			error = ENXIO;
+		goto end;
 	}
-	if (dcw == 0 && !sc->sc_idle) {
-		g_topology_unlock();
-		sx_xlock(&sc->sc_lock);
+	if (dcw == 0 && !sc->sc_idle)
 		g_mirror_idle(sc, dcw);
-		sx_xunlock(&sc->sc_lock);
-		g_topology_lock();
+	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROYING) != 0) {
+		if (acr > 0 || acw > 0 || ace > 0) {
+			error = ENXIO;
+			goto end;
+		}
+		if (dcr == 0 && dcw == 0 && dce == 0) {
+			g_post_event(g_mirror_destroy_delayed, sc, M_WAITOK,
+			    sc, NULL);
+		}
 	}
-	return (0);
+end:
+	sx_xunlock(&sc->sc_lock);
+	g_topology_lock();
+	return (error);
 }
 
 static struct g_geom *
@@ -2813,8 +2850,9 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md)
 }
 
 int
-g_mirror_destroy(struct g_mirror_softc *sc, boolean_t force)
+g_mirror_destroy(struct g_mirror_softc *sc, int how)
 {
+	struct g_mirror_disk *disk;
 	struct g_provider *pp;
 
 	g_topology_assert_not();
@@ -2824,14 +2862,27 @@ g_mirror_destroy(struct g_mirror_softc *sc, boolean_t force)
 
 	pp = sc->sc_provider;
 	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
-		if (force) {
-			G_MIRROR_DEBUG(1, "Device %s is still open, so it "
-			    "can't be definitely removed.", pp->name);
-		} else {
+		switch (how) {
+		case G_MIRROR_DESTROY_SOFT:
 			G_MIRROR_DEBUG(1,
 			    "Device %s is still open (r%dw%de%d).", pp->name,
 			    pp->acr, pp->acw, pp->ace);
 			return (EBUSY);
+		case G_MIRROR_DESTROY_DELAYED:
+			G_MIRROR_DEBUG(1,
+			    "Device %s will be destroyed on last close.",
+			    pp->name);
+			LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+				if (disk->d_state ==
+				    G_MIRROR_DISK_STATE_SYNCHRONIZING) {
+					g_mirror_sync_stop(disk, 1);
+				}
+			}
+			sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DESTROYING;
+			return (EBUSY);
+		case G_MIRROR_DESTROY_HARD:
+			G_MIRROR_DEBUG(1, "Device %s is still open, so it "
+			    "can't be definitely removed.", pp->name);
 		}
 	}
 
@@ -2937,6 +2988,7 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		G_MIRROR_DEBUG(0, "Cannot add disk %s to %s (error=%d).",
 		    pp->name, gp->name, error);
 		if (LIST_EMPTY(&sc->sc_disks)) {
+			g_cancel_event(sc);
 			g_mirror_destroy(sc, 1);
 			g_topology_lock();
 			return (NULL);
@@ -2958,6 +3010,7 @@ g_mirror_destroy_geom(struct gctl_req *req __unused,
 	g_topology_unlock();
 	sc = gp->softc;
 	sx_xlock(&sc->sc_lock);
+	g_cancel_event(sc);
 	error = g_mirror_destroy(gp->softc, 0);
 	if (error != 0)
 		sx_xunlock(&sc->sc_lock);
@@ -3087,7 +3140,7 @@ g_mirror_shutdown_pre_sync(void *arg, int howto)
 	struct g_class *mp;
 	struct g_geom *gp, *gp2;
 	struct g_mirror_softc *sc;
-	struct g_mirror_disk *disk;
+	int error;
 
 	mp = arg;
 	DROP_GIANT();
@@ -3095,42 +3148,19 @@ g_mirror_shutdown_pre_sync(void *arg, int howto)
 	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
 		if ((sc = gp->softc) == NULL)
 			continue;
-		g_topology_unlock();
-		sx_xlock(&sc->sc_lock);
-		LIST_FOREACH(disk, &sc->sc_disks, d_next) {
-			if (disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING)
-				g_mirror_sync_stop(disk, 1);
-		}
-		sx_xunlock(&sc->sc_lock);
-		g_topology_lock();
-	}
-	g_topology_unlock();
-	PICKUP_GIANT();
-}
-
-static void
-g_mirror_shutdown_post_sync(void *arg, int howto)
-{
-	struct g_class *mp;
-	struct g_geom *gp, *gp2;
-	struct g_mirror_softc *sc;
-
-	mp = arg;
-	DROP_GIANT();
-	g_topology_lock();
-	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
-		if ((sc = gp->softc) == NULL)
+		/* Skip synchronization geom. */
+		if (gp == sc->sc_sync.ds_geom)
 			continue;
 		g_topology_unlock();
 		sx_xlock(&sc->sc_lock);
-		g_mirror_destroy(sc, 1);
+		g_cancel_event(sc);
+		error = g_mirror_destroy(sc, G_MIRROR_DESTROY_DELAYED);
+		if (error != 0)
+			sx_xunlock(&sc->sc_lock);
 		g_topology_lock();
 	}
 	g_topology_unlock();
 	PICKUP_GIANT();
-#if 0
-	tsleep(&gp, PRIBIO, "m:shutdown", hz * 20);
-#endif
 }
 
 static void
@@ -3139,9 +3169,7 @@ g_mirror_init(struct g_class *mp)
 
 	g_mirror_pre_sync = EVENTHANDLER_REGISTER(shutdown_pre_sync,
 	    g_mirror_shutdown_pre_sync, mp, SHUTDOWN_PRI_FIRST);
-	g_mirror_post_sync = EVENTHANDLER_REGISTER(shutdown_post_sync,
-	    g_mirror_shutdown_post_sync, mp, SHUTDOWN_PRI_FIRST);
-	if (g_mirror_pre_sync == NULL || g_mirror_post_sync == NULL)
+	if (g_mirror_pre_sync == NULL)
 		G_MIRROR_DEBUG(0, "Warning! Cannot register shutdown event.");
 }
 
@@ -3151,8 +3179,6 @@ g_mirror_fini(struct g_class *mp)
 
 	if (g_mirror_pre_sync != NULL)
 		EVENTHANDLER_DEREGISTER(shutdown_pre_sync, g_mirror_pre_sync);
-	if (g_mirror_post_sync != NULL)
-		EVENTHANDLER_DEREGISTER(shutdown_post_sync, g_mirror_post_sync);
 }
 
 DECLARE_GEOM_CLASS(g_mirror_class, g_mirror);
