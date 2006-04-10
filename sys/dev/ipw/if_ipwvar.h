@@ -170,5 +170,12 @@ struct ipw_softc {
 #define SIOCSLOADFW	 _IOW('i', 137, struct ifreq)
 #define SIOCSKILLFW	 _IOW('i', 138, struct ifreq)
 
-#define IPW_LOCK(sc)	mtx_lock(&(sc)->sc_mtx)
-#define IPW_UNLOCK(sc)	mtx_unlock(&(sc)->sc_mtx)
+#define	IPW_LOCK_DECL	int     __waslocked = 0
+#define IPW_LOCK(sc)	do {				\
+	if (!(__waslocked = mtx_owned(&(sc)->sc_mtx)))	\
+		mtx_lock(&(sc)->sc_mtx);		\
+} while (0)
+#define IPW_UNLOCK(sc)	do {			\
+	if (!__waslocked)			\
+		mtx_unlock(&(sc)->sc_mtx);	\
+} while (0)
