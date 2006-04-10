@@ -904,6 +904,13 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 	}
 	crd2 = crd1->crd_next;
 
+	if ((crd1->crd_flags & CRD_F_KEY_EXPLICIT) ||
+	    (crd2 != NULL && (crd2->crd_flags & CRD_F_KEY_EXPLICIT))) {
+		safestats.st_badflags++;
+		err = EINVAL;
+		goto errout;
+	}
+
 	cmd0 = SAFE_SA_CMD0_BASIC;		/* basic group operation */
 	cmd1 = 0;
 	if (crd2 == NULL) {
