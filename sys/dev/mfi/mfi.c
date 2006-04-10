@@ -715,7 +715,9 @@ mfi_ldprobe_inq(struct mfi_softc *sc)
 			break;
 		cm = mfi_dequeue_free(sc);
 		if (cm == NULL) {
-			tsleep(mfi_startup, 0, "mfistart", 5 * hz);
+			free(inq, M_MFIBUF);
+			msleep(mfi_startup, &sc->mfi_io_lock, 0, "mfistart",
+			    5 * hz);
 			i--;
 			continue;
 		}
@@ -840,8 +842,10 @@ mfi_ldprobe_capacity(struct mfi_softc *sc, int id)
 	if (cap == NULL)
 		return (ENOMEM);
 	cm = mfi_dequeue_free(sc);
-	if (cm == NULL)
+	if (cm == NULL) {
+		free(cap, M_MFIBUF);
 		return (EBUSY);
+	}
 	pass = &cm->cm_frame->pass;
 	pass->header.cmd = MFI_CMD_LD_SCSI_IO;
 	pass->header.target_id = id;
@@ -925,6 +929,7 @@ mfi_add_ld(struct mfi_softc *sc, int id, uint64_t sectors, uint32_t secsize)
 
 	if ((child = device_add_child(sc->mfi_dev, "mfid", -1)) == NULL) {
 		device_printf(sc->mfi_dev, "Failed to add logical disk\n");
+		free(ld, M_MFIBUF);
 		return (EINVAL);
 	}
 
