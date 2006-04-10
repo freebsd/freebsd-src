@@ -57,8 +57,9 @@ BCM5706 and BCM5708 Ethernet controllers.
 .Pp
 The NetXtreme II product family is composed of various Converged NIC (or CNIC) 
 Ethernet controllers which support a TCP Offload Engine (TOE), Remote DMA (RDMA), 
-and iSCSI acceleration, in addtion to standard L2 Ethernet traffic, all on the 
-same controller.  The following features are supported in the 
+and iSCSI acceleration, in addition to standard L2 Ethernet traffic, all on the 
+same controller.
+The following features are supported in the 
 .Nm
 driver under FreeBSD:
 .Bd -literal -offset indent
@@ -122,7 +123,7 @@ For more information on configuring this device, see
 The
 .Nm
 driver provides support for various NICs based on the Broadcom NetXtreme II
-family of Gigabit Ethernet controller, including the
+family of Gigabit Ethernet controllers, including the
 following:
 .Pp
 .Bl -bullet -compact
@@ -225,13 +226,15 @@ The driver could not map the RX mbuf memory into the controller's DMA
 address space.
 .It "bce%d: Firmware synchronization timeout!"
 The driver was not able to synchronize with the firmware running on the
-controller.  The firmware may be stopped or hung.
+controller.
+The firmware may be stopped or hung.
 .It "bce%d: Invalid Ethernet address!"
 The driver was not able to read a vaild Ethernet MAC address from NVRAM.
 .It "bce%d: Reset failed!"
 The driver has encountered a fatal initialization error.
 .It "bce%d: Byte swap is incorrect!"
-The driver has encountered a fatal initialization error.  Contact the author
+The driver has encountered a fatal initialization error.
+Contact the author
 with details of the CPU architecture and system chipset in use.
 .It "bce%d: Firmware did not complete initialization!"
 The driver has encountered a fatal initialization error.
@@ -241,7 +244,8 @@ The driver has encountered a fatal initialization error.
 The driver could not map a RX mbuf into DMA addressable memory.
 .It "bce%d: Error filling RX chain: rx_bd[0x%04X]!"
 The driver was unable to allocate enough mbufs to fill the RX chain
-during initialization.  Try increasing the number of mbufs available in
+during initialization.
+Try increasing the number of mbufs available in
 the system, increase system memory, or if using jumbo frames, make sure
 enough 9KB mbufs are available.
 .It "bce%d: Failed to allocate new mbuf, incoming frame dropped!"
@@ -270,8 +274,8 @@ Disabling VLAN tag stripping is not currently supported by the driver.
 The device has stopped responding to the network, there is a problem
 with the cable connection, or a driver logic problem has occurred..
 .It "bce%d: Fatal attention detected: 0x%08X!"
-A controller hardware failure has occurred.  If the problem continues replace
-the controller.
+A controller hardware failure has occurred.
+If the problem continues replace the controller.
 .El
 .Sh SEE ALSO
 .Xr arp 4 ,
