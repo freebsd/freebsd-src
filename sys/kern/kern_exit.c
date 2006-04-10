@@ -266,9 +266,7 @@ retry:
 	 * Reset any sigio structures pointing to us as a result of
 	 * F_SETOWN with our pid.
 	 */
-	mtx_lock(&Giant);	/* XXX: not sure if needed */
 	funsetownlst(&p->p_sigiolst);
-	mtx_unlock(&Giant);	
 
 	/*
 	 * If this process has an nlminfo data area (for lockd), release it
