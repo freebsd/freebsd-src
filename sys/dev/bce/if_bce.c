@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
  *   BCM5708S A0, B0, B1
  */
 
+#include "opt_bce.h"
+
 #include <dev/bce/if_bcereg.h>
 #include <dev/bce/if_bcefw.h>
 
