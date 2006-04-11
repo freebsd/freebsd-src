@@ -254,7 +254,6 @@ mpt_set_options(struct mpt_softc *mpt)
 			mpt->disabled = 1;
 		}
 	}
-
 	bitmap = 0;
 	if (getenv_int("mpt_debug", &bitmap)) {
 		if (bitmap & (1 << mpt->unit)) {
@@ -262,21 +261,21 @@ mpt_set_options(struct mpt_softc *mpt)
 		}
 	}
 	bitmap = 0;
-	if (getenv_int("mpt_target", &bitmap)) {
+	if (getenv_int("mpt_debug1", &bitmap)) {
 		if (bitmap & (1 << mpt->unit)) {
-			mpt->role = MPT_ROLE_TARGET;
+			mpt->verbose = MPT_PRT_DEBUG1;
 		}
 	}
 	bitmap = 0;
-	if (getenv_int("mpt_none", &bitmap)) {
+	if (getenv_int("mpt_debug2", &bitmap)) {
 		if (bitmap & (1 << mpt->unit)) {
-			mpt->role = MPT_ROLE_NONE;
+			mpt->verbose = MPT_PRT_DEBUG2;
 		}
 	}
 	bitmap = 0;
-	if (getenv_int("mpt_initiator", &bitmap)) {
+	if (getenv_int("mpt_debug3", &bitmap)) {
 		if (bitmap & (1 << mpt->unit)) {
-			mpt->role = MPT_ROLE_INITIATOR;
+			mpt->verbose = MPT_PRT_DEBUG3;
 		}
 	}
 }
@@ -311,9 +310,9 @@ mpt_link_peer(struct mpt_softc *mpt)
 {
 	struct mpt_softc *mpt2;
 
-	if (mpt->unit == 0)
+	if (mpt->unit == 0) {
 		return;
-
+	}
 	/*
 	 * XXX: depends on probe order
 	 */
@@ -333,6 +332,14 @@ mpt_link_peer(struct mpt_softc *mpt)
 	if (mpt->verbose >= MPT_PRT_DEBUG) {
 		mpt_prt(mpt, "linking with peer (mpt%d)\n",
 		    device_get_unit(mpt2->dev));
+	}
+}
+
+static void
+mpt_unlink_peer(struct mpt_softc *mpt)
+{
+	if (mpt->mpt2) {
+		mpt->mpt2->mpt2 = NULL;
 	}
 }
 
@@ -377,7 +384,7 @@ mpt_pci_attach(device_t dev)
 	mpt->raid_mwce_setting = MPT_RAID_MWCE_DEFAULT;
 	mpt->raid_queue_depth = MPT_RAID_QUEUE_DEPTH_DEFAULT;
 	mpt->verbose = MPT_PRT_NONE;
-	mpt->role = MPT_ROLE_DEFAULT;
+	mpt->role = MPT_ROLE_NONE;
 	mpt_set_options(mpt);
 	if (mpt->verbose == MPT_PRT_NONE) {
 		mpt->verbose = MPT_PRT_WARN;
@@ -388,7 +395,7 @@ mpt_pci_attach(device_t dev)
 	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
 	if ((cmd & PCIM_CMD_MEMEN) == 0) {
 		device_printf(dev, "Memory accesses disabled");
-		goto bad;
+		return (ENXIO);
 	}
 
 	/*
@@ -498,21 +505,6 @@ mpt_pci_attach(device_t dev)
 	 */
 	pci_disable_io(dev, SYS_RES_IOPORT);
 
-	switch (mpt->role) {
-	case MPT_ROLE_TARGET:
-		break;
-	case MPT_ROLE_INITIATOR:
-		break;
-	case MPT_ROLE_TARGET|MPT_ROLE_INITIATOR:
-		mpt->disabled = 1;
-		mpt_prt(mpt, "dual roles unsupported\n");
-		goto bad;
-	case MPT_ROLE_NONE:
-		device_printf(dev, "role of NONE same as disable\n");
-		mpt->disabled = 1;
-		goto bad;
-	}
-
 	/* Initialize the hardware */
 	if (mpt->disabled == 0) {
 		MPT_LOCK(mpt);
@@ -536,11 +528,15 @@ mpt_pci_attach(device_t dev)
 		MPT_UNLOCK(mpt);
 		goto bad;
 	}
+	KASSERT(MPT_OWNED(mpt) == 0, ("leaving attach with device locked"));
 	return (0);
 
 bad:
 	mpt_dma_mem_free(mpt);
 	mpt_free_bus_resources(mpt);
+	mpt_unlink_peer(mpt);
+
+	MPT_LOCK_DESTROY(mpt);
 
 	/*
 	 * but return zero to preserve unit numbering

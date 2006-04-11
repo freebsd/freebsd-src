@@ -294,7 +294,8 @@ struct req_entry {
 	mpt_req_state_t	state;		/* Request State Information */
 	uint16_t	index;		/* Index of this entry */
 	uint16_t	IOCStatus;	/* Completion status */
-	uint32_t	serno;		/* serial number */
+	uint16_t	ResponseCode;	/* TMF Reponse Code */
+	uint16_t	serno;		/* serial number */
 	union ccb      *ccb;		/* CAM request */
 	void	       *req_vbuf;	/* Virtual Address of Entry */
 	void	       *sense_vbuf;	/* Virtual Address of sense data */
@@ -355,7 +356,7 @@ typedef struct {
 	struct mpt_hdr_stailq	inots;
 	int enabled;
 } tgt_resource_t;
-#define	MPT_MAX_ELS	8
+#define	MPT_MAX_ELS	64
 
 /**************************** Handler Registration ****************************/
 /*
@@ -478,10 +479,11 @@ LIST_HEAD(mpt_evtf_list, mpt_evtf_record);
 struct mpt_softc {
 	device_t		dev;
 #if __FreeBSD_version < 500000  
-	int			mpt_splsaved;
 	uint32_t		mpt_islocked;	
+	int			mpt_splsaved;
 #else
 	struct mtx		mpt_lock;
+	int			mpt_locksetup;
 #endif
 	uint32_t		mpt_pers_mask;
 	uint32_t		: 8,
@@ -489,14 +491,14 @@ struct mpt_softc {
 				: 1,
 		twildcard	: 1,
 		tenabled	: 1,
-		cap 		: 2,	/* none, ini, target, both */
+				: 2,
 		role		: 2,	/* none, ini, target, both */
 		raid_mwce_set	: 1,
 		getreqwaiter	: 1,
 		shutdwn_raid    : 1,
 		shutdwn_recovery: 1,
 		outofbeer	: 1,
-		mpt_locksetup	: 1,
+				: 1,
 		disabled	: 1,
 		is_sas		: 1,
 		is_fc		: 1;
@@ -534,8 +536,6 @@ struct mpt_softc {
 			CONFIG_PAGE_SCSI_DEVICE_1	_dev_page1[16];
 			uint16_t			_tag_enable;
 			uint16_t			_disc_enable;
-			uint16_t			_update_params0;
-			uint16_t			_update_params1;
 		} spi;
 #define	mpt_port_page0		cfg.spi._port_page0
 #define	mpt_port_page1		cfg.spi._port_page1
@@ -544,8 +544,6 @@ struct mpt_softc {
 #define	mpt_dev_page1		cfg.spi._dev_page1
 #define	mpt_tag_enable		cfg.spi._tag_enable
 #define	mpt_disc_enable		cfg.spi._disc_enable
-#define	mpt_update_params0	cfg.spi._update_params0
-#define	mpt_update_params1	cfg.spi._update_params1
 		struct mpi_fc_cfg {
 			CONFIG_PAGE_FC_PORT_0 _port_page0;
 #define	mpt_fcport_page0	cfg.fc._port_page0
@@ -637,6 +635,7 @@ struct mpt_softc {
 	 */
 	uint32_t		scsi_tgt_handler_id;
 	request_t **		tgt_cmd_ptrs;
+	request_t **		els_cmd_ptrs;	/* FC only */
 
 	/*
 	 * *snork*- this is chosen to be here *just in case* somebody
@@ -646,11 +645,12 @@ struct mpt_softc {
 	tgt_resource_t		trt_wildcard;	/* wildcard luns */
 	tgt_resource_t		trt[MPT_MAX_LUNS];
 	uint16_t		tgt_cmds_allocated;
-	uint16_t		padding1;
+	uint16_t		els_cmds_allocated;	/* FC only */
 
 	uint16_t		timeouts;	/* timeout count */
 	uint16_t		success;	/* successes afer timeout */
-	uint32_t		sequence;	/* Sequence Number */
+	uint16_t		sequence;	/* Sequence Number */
+	uint16_t		pad3;
 
 
 	/* Opposing port in a 929 or 1030, or NULL */
@@ -669,11 +669,22 @@ struct mpt_softc {
 	TAILQ_ENTRY(mpt_softc)	links;
 };
 
+static __inline void mpt_assign_serno(struct mpt_softc *, request_t *);
+
+static __inline void
+mpt_assign_serno(struct mpt_softc *mpt, request_t *req)
+{
+	if ((req->serno = mpt->sequence++) == 0) {
+		req->serno = mpt->sequence++;
+	}
+}
+
 /***************************** Locking Primitives *****************************/
 #if __FreeBSD_version < 500000  
 #define	MPT_IFLAGS		INTR_TYPE_CAM
 #define	MPT_LOCK(mpt)		mpt_lockspl(mpt)
 #define	MPT_UNLOCK(mpt)		mpt_unlockspl(mpt)
+#define	MPT_OWNED(mpt)		mpt->mpt_islocked
 #define	MPTLOCK_2_CAMLOCK	MPT_UNLOCK
 #define	CAMLOCK_2_MPTLOCK	MPT_LOCK
 #define	MPT_LOCK_SETUP(mpt)
@@ -741,22 +752,56 @@ mpt_sleep(struct mpt_softc *mpt, void *ident, int priority,
 
 #define	MPT_LOCK(mpt)		mtx_lock(&(mpt)->mpt_lock)
 #define	MPT_UNLOCK(mpt)		mtx_unlock(&(mpt)->mpt_lock)
+#define	MPT_OWNED(mpt)		mtx_owned(&(mpt)->mpt_lock)
 #define	MPTLOCK_2_CAMLOCK(mpt)	\
 	mtx_unlock(&(mpt)->mpt_lock); mtx_lock(&Giant)
 #define	CAMLOCK_2_MPTLOCK(mpt)	\
 	mtx_unlock(&Giant); mtx_lock(&(mpt)->mpt_lock)
 #define mpt_sleep(mpt, ident, priority, wmesg, timo) \
 	msleep(ident, &(mpt)->mpt_lock, priority, wmesg, timo)
+
 #else
+
 #define	MPT_IFLAGS		INTR_TYPE_CAM | INTR_ENTROPY
 #define	MPT_LOCK_SETUP(mpt)	do { } while (0)
 #define	MPT_LOCK_DESTROY(mpt)	do { } while (0)
-#define	MPT_LOCK(mpt)		do { } while (0)
-#define	MPT_UNLOCK(mpt)		do { } while (0)
-#define	MPTLOCK_2_CAMLOCK(mpt)	do { } while (0)
-#define	CAMLOCK_2_MPTLOCK(mpt)	do { } while (0)
-#define mpt_sleep(mpt, ident, priority, wmesg, timo) \
-	tsleep(ident, priority, wmesg, timo)
+#if	0
+#define	MPT_LOCK(mpt)		\
+	device_printf(mpt->dev, "LOCK %s:%d\n", __FILE__, __LINE__); 	\
+	KASSERT(mpt->mpt_locksetup == 0,				\
+	    ("recursive lock acquire at %s:%d", __FILE__, __LINE__));	\
+	mpt->mpt_locksetup = 1
+#define	MPT_UNLOCK(mpt)		\
+	device_printf(mpt->dev, "UNLK %s:%d\n", __FILE__, __LINE__); 	\
+	KASSERT(mpt->mpt_locksetup == 1,				\
+	    ("release unowned lock at %s:%d", __FILE__, __LINE__));	\
+	mpt->mpt_locksetup = 0
+#else
+#define	MPT_LOCK(mpt)							\
+	KASSERT(mpt->mpt_locksetup == 0,				\
+	    ("recursive lock acquire at %s:%d", __FILE__, __LINE__));	\
+	mpt->mpt_locksetup = 1
+#define	MPT_UNLOCK(mpt)							\
+	KASSERT(mpt->mpt_locksetup == 1,				\
+	    ("release unowned lock at %s:%d", __FILE__, __LINE__));	\
+	mpt->mpt_locksetup = 0
+#endif
+#define	MPT_OWNED(mpt)		mpt->mpt_locksetup
+#define	MPTLOCK_2_CAMLOCK(mpt)	MPT_UNLOCK(mpt)
+#define	CAMLOCK_2_MPTLOCK(mpt)	MPT_LOCK(mpt)
+
+static __inline int
+mpt_sleep(struct mpt_softc *, void *, int, const char *, int);
+
+static __inline int
+mpt_sleep(struct mpt_softc *mpt, void *i, int p, const char *w, int t)
+{
+	int r;
+	MPT_UNLOCK(mpt);
+	r = tsleep(i, p, w, t);
+	MPT_LOCK(mpt);
+	return (r);
+}
 #endif
 #endif
 
@@ -902,6 +947,11 @@ enum {
 	MPT_PRT_TRACE,
 	MPT_PRT_NONE=100
 };
+#ifdef	INVARIANTS
+#define	MPT_PRT_INVARIANT	MPT_PRT_ALWAYS
+#else
+#define	MPT_PRT_INVARIANT	MPT_PRT_DEBUG
+#endif
 
 #if __FreeBSD_version > 500000
 #define mpt_lprt(mpt, level, ...)		\
@@ -954,6 +1004,93 @@ mpt_tag_2_req(struct mpt_softc *mpt, uint32_t tag)
 	KASSERT(mpt->tgt_cmd_ptrs, ("no cmd backpointer array"));
 	KASSERT(mpt->tgt_cmd_ptrs[rtg], ("no cmd backpointer"));
 	return (mpt->tgt_cmd_ptrs[rtg]);
+}
+
+
+static __inline int
+mpt_req_on_free_list(struct mpt_softc *, request_t *);
+static __inline int
+mpt_req_on_pending_list(struct mpt_softc *, request_t *);
+
+static __inline void
+mpt_req_spcl(struct mpt_softc *, request_t *, const char *, int);
+static __inline void
+mpt_req_not_spcl(struct mpt_softc *, request_t *, const char *, int);
+
+
+/*
+ * Is request on freelist?
+ */
+static __inline int
+mpt_req_on_free_list(struct mpt_softc *mpt, request_t *req)
+{
+	request_t *lrq;
+
+	TAILQ_FOREACH(lrq, &mpt->request_free_list, links) {
+		if (lrq == req) {
+			return (1);
+		}
+	}
+	return (0);
+}
+
+/*
+ * Is request on pending list?
+ */
+static __inline int
+mpt_req_on_pending_list(struct mpt_softc *mpt, request_t *req)
+{
+	request_t *lrq;
+
+	TAILQ_FOREACH(lrq, &mpt->request_pending_list, links) {
+		if (lrq == req) {
+			return (1);
+		}
+	}
+	return (0);
+}
+
+/*
+ * Make sure that req *is* part of one of the special lists
+ */
+static __inline void
+mpt_req_spcl(struct mpt_softc *mpt, request_t *req, const char *s, int line)
+{
+	int i;
+	for (i = 0; i < mpt->els_cmds_allocated; i++) {
+		if (req == mpt->els_cmd_ptrs[i]) {
+			return;
+		}
+	}
+	for (i = 0; i < mpt->tgt_cmds_allocated; i++) {
+		if (req == mpt->tgt_cmd_ptrs[i]) {
+			return;
+		}
+	}
+	panic("%s(%d): req %p:%u function %x not in els or tgt ptrs\n",
+	    s, line, req, req->serno,
+	    ((PTR_MSG_REQUEST_HEADER)req->req_vbuf)->Function);
+}
+
+/*
+ * Make sure that req is *not* part of one of the special lists.
+ */
+static __inline void
+mpt_req_not_spcl(struct mpt_softc *mpt, request_t *req, const char *s, int line)
+{
+	int i;
+	for (i = 0; i < mpt->els_cmds_allocated; i++) {
+		KASSERT(req != mpt->els_cmd_ptrs[i],
+		    ("%s(%d): req %p:%u func %x in els ptrs at ioindex %d\n",
+		    s, line, req, req->serno,
+		    ((PTR_MSG_REQUEST_HEADER)req->req_vbuf)->Function, i));
+	}
+	for (i = 0; i < mpt->tgt_cmds_allocated; i++) {
+		KASSERT(req != mpt->tgt_cmd_ptrs[i],
+		    ("%s(%d): req %p:%u func %x in tgt ptrs at ioindex %d\n",
+		    s, line, req, req->serno,
+		    ((PTR_MSG_REQUEST_HEADER)req->req_vbuf)->Function, i));
+	}
 }
 #endif
 

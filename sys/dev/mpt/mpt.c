@@ -665,6 +665,7 @@ mpt_intr(void *arg)
 	int ntrips = 0;
 
 	mpt = (struct mpt_softc *)arg;
+	mpt_lprt(mpt, MPT_PRT_DEBUG2, "enter mpt_intr\n");
 	while ((reply_desc = mpt_pop_reply_queue(mpt)) != MPT_REPLY_EMPTY) {
 		request_t	  *req;
 		MSG_DEFAULT_REPLY *reply_frame;
@@ -789,6 +790,7 @@ mpt_intr(void *arg)
 			break;
 		}
 	}
+	mpt_lprt(mpt, MPT_PRT_DEBUG2, "exit mpt_intr\n");
 }
 
 /******************************* Error Recovery *******************************/
@@ -1138,18 +1140,29 @@ mpt_free_request(struct mpt_softc *mpt, request_t *req)
 		req->chain = NULL;
 		mpt_free_request(mpt, nxt);	/* NB: recursion */
 	}
-
 	KASSERT(req->state != REQ_STATE_FREE, ("freeing free request"));
 	KASSERT(!(req->state & REQ_STATE_LOCKED), ("freeing locked request"));
+	KASSERT(MPT_OWNED(mpt), ("mpt_free_request: mpt not locked\n"));
+	KASSERT(mpt_req_on_free_list(mpt, req) == 0,
+	    ("mpt_free_request: req %p:%u func %x already on freelist",
+	    req, req->serno, ((MSG_REQUEST_HEADER *)req->req_vbuf)->Function));
+	KASSERT(mpt_req_on_pending_list(mpt, req) == 0,
+	    ("mpt_free_request: req %p:%u func %x on pending list",
+	    req, req->serno, ((MSG_REQUEST_HEADER *)req->req_vbuf)->Function));
+#ifdef	INVARIANTS
+	mpt_req_not_spcl(mpt, req, "mpt_free_request", __LINE__);
+#endif
 
 	req->ccb = NULL;
-
 	if (LIST_EMPTY(&mpt->ack_frames)) {
 		/*
 		 * Insert free ones at the tail
 		 */
 		req->serno = 0;
 		req->state = REQ_STATE_FREE;
+#ifdef	INVARIANTS
+		memset(req->req_vbuf, 0xff, sizeof (MSG_REQUEST_HEADER));
+#endif
 		TAILQ_INSERT_TAIL(&mpt->request_free_list, req, links);
 		if (mpt->getreqwaiter != 0) {
 			mpt->getreqwaiter = 0;
@@ -1164,9 +1177,7 @@ mpt_free_request(struct mpt_softc *mpt, request_t *req)
 	record = LIST_FIRST(&mpt->ack_frames);
 	LIST_REMOVE(record, links);
 	req->state = REQ_STATE_ALLOCATED;
-	if ((req->serno = mpt->sequence++) == 0) {
-		req->serno = mpt->sequence++;
-	}
+	mpt_assign_serno(mpt, req);
 	mpt_send_event_ack(mpt, req, &record->reply, record->context);
 	reply_baddr = (uint32_t)((uint8_t *)record - mpt->reply)
 		    + (mpt->reply_phys & 0xFFFFFFFF);
@@ -1180,18 +1191,19 @@ mpt_get_request(struct mpt_softc *mpt, int sleep_ok)
 	request_t *req;
 
 retry:
+	KASSERT(MPT_OWNED(mpt), ("mpt_get_request: mpt not locked\n"));
 	req = TAILQ_FIRST(&mpt->request_free_list);
 	if (req != NULL) {
 		KASSERT(req == &mpt->request_pool[req->index],
 		    ("mpt_get_request: corrupted request free list\n"));
 		KASSERT(req->state == REQ_STATE_FREE,
-		    ("req not free on free list %x", req->state));
+		    ("req %p:%u not free on free list %x index %d function %x",
+		    req, req->serno, req->state, req->index,
+		    ((MSG_REQUEST_HEADER *)req->req_vbuf)->Function));
 		TAILQ_REMOVE(&mpt->request_free_list, req, links);
 		req->state = REQ_STATE_ALLOCATED;
 		req->chain = NULL;
-		if ((req->serno = mpt->sequence++) == 0) {
-			req->serno = mpt->sequence++;
-		}
+		mpt_assign_serno(mpt, req);
 	} else if (sleep_ok != 0) {
 		mpt->getreqwaiter = 1;
 		mpt_sleep(mpt, &mpt->request_free_list, PUSER, "mptgreq", 0);
@@ -1228,6 +1240,12 @@ mpt_send_cmd(struct mpt_softc *mpt, request_t *req)
 	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
 	    BUS_DMASYNC_PREWRITE);
 	req->state |= REQ_STATE_QUEUED;
+	KASSERT(mpt_req_on_free_list(mpt, req) == 0,
+	    ("req %p:%u func %x on freelist list in mpt_send_cmd",
+	    req, req->serno, ((MSG_REQUEST_HEADER *)req->req_vbuf)->Function));
+	KASSERT(mpt_req_on_pending_list(mpt, req) == 0,
+	    ("req %p:%u func %x already on pending list in mpt_send_cmd",
+	    req, req->serno, ((MSG_REQUEST_HEADER *)req->req_vbuf)->Function));
 	TAILQ_INSERT_HEAD(&mpt->request_pending_list, req, links);
 	mpt_write(mpt, MPT_OFFSET_REQUEST_Q, (uint32_t) req->req_pbuf);
 }
@@ -1867,8 +1885,7 @@ mpt_send_port_enable(struct mpt_softc *mpt, int port)
 
 	mpt_send_cmd(mpt, req);
 	error = mpt_wait_req(mpt, req, REQ_STATE_DONE, REQ_STATE_DONE,
-	    /*sleep_ok*/FALSE,
-	    /*time_ms*/(mpt->is_sas || mpt->is_fc)? 30000 : 3000);
+	    FALSE, (mpt->is_sas || mpt->is_fc)? 30000 : 3000);
 	if (error != 0) {
 		mpt_prt(mpt, "port %d enable timed out\n", port);
 		return (-1);
@@ -2113,7 +2130,7 @@ mpt_core_enable(struct mpt_softc *mpt)
 	mpt_intr(mpt);
 
 	/*
-	 * Enable the port- but only if we are not MPT_ROLE_NONE.
+	 * Enable the port.
 	 */
 	if (mpt_send_port_enable(mpt, 0) != MPT_OK) {
 		mpt_prt(mpt, "failed to enable port 0\n");
@@ -2446,35 +2463,19 @@ mpt_configure_ioc(struct mpt_softc *mpt)
 		mpt->mpt_max_devices = pfp.MaxDevices;
 
 		/*
-		 * Match our expected role with what this port supports.
-		 *
-		 * We only do this to meet expectations. That is, if the
-		 * user has specified they want initiator role, and we
-		 * don't support it, that's an error we return back upstream.
+		 * Set our expected role with what this port supports.
 		 */
 
-		mpt->cap = MPT_ROLE_NONE;
+		mpt->role = MPT_ROLE_NONE;
 		if (pfp.ProtocolFlags & MPI_PORTFACTS_PROTOCOL_INITIATOR) {
-			mpt->cap |= MPT_ROLE_INITIATOR;
+			mpt->role |= MPT_ROLE_INITIATOR;
 		}
 		if (pfp.ProtocolFlags & MPI_PORTFACTS_PROTOCOL_TARGET) {
-			mpt->cap |= MPT_ROLE_TARGET;
+			mpt->role |= MPT_ROLE_TARGET;
 		}
-		if (mpt->cap == MPT_ROLE_NONE) {
+		if (mpt->role == MPT_ROLE_NONE) {
 			mpt_prt(mpt, "port does not support either target or "
 			    "initiator role\n");
-			return (ENXIO);
-		}
-
-		if ((mpt->role & MPT_ROLE_INITIATOR) &&
-		    (mpt->cap & MPT_ROLE_INITIATOR) == 0) {
-			mpt_prt(mpt, "port does not support initiator role\n");
-			return (ENXIO);
-		}
-
-		if ((mpt->role & MPT_ROLE_TARGET) &&
-		    (mpt->cap & MPT_ROLE_TARGET) == 0) {
-			mpt_prt(mpt, "port does not support target role\n");
 			return (ENXIO);
 		}
 
