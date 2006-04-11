@@ -104,8 +104,6 @@ void	biosacpi_detect(void);
 
 void	smbios_detect(void);
 
-void	gateA20(void);
-
 int	i386_autoload(void);
 
 int	bi_getboothowto(char *kargs);
