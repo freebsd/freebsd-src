@@ -658,7 +658,7 @@ int
 crypto_dispatch(struct cryptop *crp)
 {
 	u_int32_t hid = CRYPTO_SESID2HID(crp->crp_sid);
-	int result;
+	int result, wasempty;
 
 	cryptostats.cs_ops++;
 
@@ -668,6 +668,7 @@ crypto_dispatch(struct cryptop *crp)
 #endif
 
 	CRYPTO_Q_LOCK();
+	wasempty = TAILQ_EMPTY(&crp_q);
 	if ((crp->crp_flags & CRYPTO_F_BATCH) == 0) {
 		struct cryptocap *cap;
 		/*
@@ -702,19 +703,17 @@ crypto_dispatch(struct cryptop *crp)
 			result = 0;
 		}
 	} else {
-		int wasempty;
 		/*
 		 * Caller marked the request as ``ok to delay'';
 		 * queue it for the dispatch thread.  This is desirable
 		 * when the operation is low priority and/or suitable
 		 * for batching.
 		 */
-		wasempty = TAILQ_EMPTY(&crp_q);
 		TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
-		if (wasempty)
-			wakeup_one(&crp_q);
 		result = 0;
 	}
+	if (wasempty && !TAILQ_EMPTY(&crp_q))
+		wakeup_one(&crp_q);
 	CRYPTO_Q_UNLOCK();
 
 	return result;
@@ -728,11 +727,12 @@ int
 crypto_kdispatch(struct cryptkop *krp)
 {
 	struct cryptocap *cap;
-	int result;
+	int result, wasempty;
 
 	cryptostats.cs_kops++;
 
 	CRYPTO_Q_LOCK();
+	wasempty = TAILQ_EMPTY(&crp_q);
 	cap = crypto_checkdriver(krp->krp_hid);
 	if (cap && !cap->cc_kqblocked) {
 		result = crypto_kinvoke(krp, 0);
@@ -758,6 +758,8 @@ crypto_kdispatch(struct cryptkop *krp)
 		TAILQ_INSERT_TAIL(&crp_kq, krp, krp_next);
 		result = 0;
 	}
+	if (wasempty && !TAILQ_EMPTY(&crp_kq))
+		wakeup_one(&crp_q);
 	CRYPTO_Q_UNLOCK();
 
 	return result;
