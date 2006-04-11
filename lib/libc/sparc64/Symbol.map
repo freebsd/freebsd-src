@@ -37,32 +37,9 @@ FBSD_1.0 {
 	brk;
 	exect;
 	sbrk;
-};
+	vfork;
 
-FBSDprivate {
-	# PSEUDO syscalls
-	__sys_getlogin;
-	_getlogin;
-	__sys_exit;
-
-	_set_tp;
-	__fpu_exception;
-	__fpu_add;
-	__fpu_compare;
-	__fpu_div;
-	__fpu_itof;
-	__fpu_xtof;
-	__fpu_stof;
-	__fpu_dtof;
-	__fpu_qtof;
-	__fpu_explode;
-	__fpu_ftoi;
-	__fpu_ftox;
-	__fpu_ftos;
-	__fpu_ftod;
-	__fpu_ftoq;
-	__fpu_implode;
-	__fpu_mul;
+	# SCD libc 64 psABI
 	_Qp_sqrt;
 	_Qp_add;
 	_Qp_div;
@@ -88,16 +65,18 @@ FBSDprivate {
 	_Qp_fne;
 	_Qp_cmp;
 	_Qp_cmpe;
-	__fpu_ld32;
-	__fpu_st32;
-	__fpu_ld64;
-	__fpu_st64;
-	__fpu_sqrt;
-	__fpu_shr;
-	__fpu_norm;
-	__fpu_newnan;
-	___longjmp;
 	__dtoul;
+	__sparc_utrap_install;
+};
+
+FBSDprivate {
+	# PSEUDO syscalls
+	__sys_getlogin;
+	_getlogin;
+	__sys_exit;
+
+	_set_tp;
+	___longjmp;
 	__makecontext;
 	__longjmp;
 	signalcontext;
@@ -113,5 +92,9 @@ FBSDprivate {
 	_end;
 	__sys_sbrk;
 	_sbrk;
-	__sigtramp;
+	__sys_vfork;
+	_vfork;
+
+	# used in src/lib/csu/sparc64/crt1.c
+	__sparc_utrap_setup;
 };
