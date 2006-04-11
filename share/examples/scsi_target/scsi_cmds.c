@@ -689,8 +689,22 @@ tcmd_rdwr_done(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio,
 		}
 		break;
 	case CTIO_DONE:
-		if (ctio->ccb_h.status != CAM_REQ_CMP) {
-			/* XXX */
+		switch (ctio->ccb_h.status & CAM_STATUS_MASK) {
+		case CAM_REQ_CMP:
+			break;
+		case CAM_REQUEUE_REQ:
+			warnx("requeueing request");
+			if ((a_descr->flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
+				if (aio_write(&c_descr->aiocb) < 0) {
+					err(1, "aio_write"); /* XXX */
+				}
+			} else {
+				if (aio_read(&c_descr->aiocb) < 0) {
+					err(1, "aio_read"); /* XXX */
+				}
+			}
+			return;
+		default:
 			errx(1, "CTIO failed, status %#x", ctio->ccb_h.status);
 		}
 		a_descr->init_ack += ctio->dxfer_len;
