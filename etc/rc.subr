@@ -903,7 +903,7 @@ load_rc_config()
 	if [ -f /etc/rc.conf.d/${_name} -a ${etcdir} != "/etc" ]; then
 		debug "Sourcing /etc/rc.conf.d/${_name}"
 		warn "Warning: /etc/rc.conf.d/${_name} is deprecated, please use ${etcdir}/rc.conf.d/${_name} instead."
-		if [ -f ${etcdir}/rc.conf.d/${_name} ]
+		if [ -f ${etcdir}/rc.conf.d/${_name} ]; then
 			warn "Warning: Both /etc/rc.conf.d/${_name} and ${etcdir}/rc.conf.d/${_name} exist."
 		fi
 		. /etc/rc.conf.d/${_name}
