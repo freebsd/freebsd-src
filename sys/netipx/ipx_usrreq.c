@@ -449,7 +449,9 @@ ipx_attach(so, proto, td)
 	int proto;
 	struct thread *td;
 {
+#ifdef INVARIANTS
 	struct ipxpcb *ipxp = sotoipxpcb(so);
+#endif
 	int error;
 
 	KASSERT(ipxp == NULL, ("ipx_attach: ipxp != NULL"));
