@@ -1524,8 +1524,8 @@ pmc_process_munmap(struct thread *td, struct pmckern_map_out *pkm)
 	for (ri = 0; ri < md->pmd_npmc; ri++)
 		if ((pm = pp->pp_pmcs[ri].pp_pmc) != NULL &&
 		    PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
-			pmclog_process_map_out(po, pid, pkm->pm_address,
-			    pkm->pm_address + pkm->pm_size);
+			pmclog_process_map_out(pm->pm_owner, pid,
+			    pkm->pm_address, pkm->pm_address + pkm->pm_size);
 }
 
 /*
