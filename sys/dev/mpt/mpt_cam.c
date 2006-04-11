@@ -108,8 +108,11 @@ __FBSDID("$FreeBSD$");
 static void mpt_poll(struct cam_sim *);
 static timeout_t mpt_timeout;
 static void mpt_action(struct cam_sim *, union ccb *);
-static int mpt_setwidth(struct mpt_softc *, int, int);
-static int mpt_setsync(struct mpt_softc *, int, int, int);
+static int
+mpt_get_spi_settings(struct mpt_softc *, struct ccb_trans_settings *);
+static void mpt_setwidth(struct mpt_softc *, int, int);
+static void mpt_setsync(struct mpt_softc *, int, int, int);
+static int mpt_update_spi_config(struct mpt_softc *, int);
 static void mpt_calc_geometry(struct ccb_calc_geometry *ccg, int extended);
 static mpt_reply_handler_t mpt_scsi_reply_handler;
 static mpt_reply_handler_t mpt_scsi_tmf_reply_handler;
@@ -127,9 +130,12 @@ static void mpt_recover_commands(struct mpt_softc *mpt);
 static int mpt_scsi_send_tmf(struct mpt_softc *, u_int, u_int, u_int,
     u_int, u_int, u_int, int);
 
-static void mpt_fc_add_els(struct mpt_softc *mpt, request_t *);
+static void mpt_fc_post_els(struct mpt_softc *mpt, request_t *, int);
 static void mpt_post_target_command(struct mpt_softc *, request_t *, int);
-static void mpt_add_target_commands(struct mpt_softc *mpt);
+static int mpt_add_els_buffers(struct mpt_softc *mpt);
+static int mpt_add_target_commands(struct mpt_softc *mpt);
+static void mpt_free_els_buffers(struct mpt_softc *mpt);
+static void mpt_free_target_commands(struct mpt_softc *mpt);
 static int mpt_enable_lun(struct mpt_softc *, target_id_t, lun_id_t);
 static int mpt_disable_lun(struct mpt_softc *, target_id_t, lun_id_t);
 static void mpt_target_start_io(struct mpt_softc *, union ccb *);
@@ -199,64 +205,45 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
 				     &scsi_io_handler_id);
 	if (error != 0) {
-		goto cleanup;
+		goto cleanup0;
 	}
 
 	handler.reply_handler = mpt_scsi_tmf_reply_handler;
 	error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
 				     &scsi_tmf_handler_id);
 	if (error != 0) {
-		goto cleanup;
+		goto cleanup0;
 	}
 
 	/*
-	 * We keep two requests reserved for ELS replies/responses
-	 * if we're fibre channel and target mode.
+	 * If we're fibre channel and could support target mode, we register
+	 * an ELS reply handler and give it resources.
 	 */
 	if (mpt->is_fc && (mpt->role & MPT_ROLE_TARGET) != 0) {
-		request_t *req;
-		int i;
-
 		handler.reply_handler = mpt_fc_els_reply_handler;
 		error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
 		    &fc_els_handler_id);
 		if (error != 0) {
-			goto cleanup;
+			goto cleanup0;
 		}
-
-		/*
-		 * Feed the chip some ELS buffer resources
-		 */
-		for (i = 0; i < MPT_MAX_ELS; i++) {
-			req = mpt_get_request(mpt, FALSE);
-			if (req == NULL) {
-				break;
-			}
-			mpt_fc_add_els(mpt, req);
+		if (mpt_add_els_buffers(mpt) == FALSE) {
+			error = ENOMEM;
+			goto cleanup0;
 		}
-		if (i == 0) {
-			mpt_prt(mpt, "Unable to add ELS buffer resources\n");
-			goto cleanup;
-		}
-		maxq -= i;
+		maxq -= mpt->els_cmds_allocated;
 	}
 
 	/*
-	 * If we're in target mode, register a reply
-	 * handler for it and add some commands.
+	 * If we support target mode, we register a reply handler for it,
+	 * but don't add resources until we actually enable target mode.
 	 */
 	if ((mpt->role & MPT_ROLE_TARGET) != 0) {
 		handler.reply_handler = mpt_scsi_tgt_reply_handler;
 		error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
 		    &mpt->scsi_tgt_handler_id);
 		if (error != 0) {
-			goto cleanup;
+			goto cleanup0;
 		}
-
-		/*
-		 * Add some target command resources
-		 */
-		mpt_add_target_commands(mpt);
 	}
 
 	/*
@@ -266,7 +253,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	if (mpt->tmf_req == NULL) {
 		mpt_prt(mpt, "Unable to allocate dedicated TMF request!\n");
 		error = ENOMEM;
-		goto cleanup;
+		goto cleanup0;
 	}
 
 	/*
@@ -281,8 +268,13 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	if (mpt_spawn_recovery_thread(mpt) != 0) {
 		mpt_prt(mpt, "Unable to spawn recovery thread!\n");
 		error = ENOMEM;
-		goto cleanup;
+		goto cleanup0;
 	}
+
+	/*
+	 * The rest of this is CAM foo, for which we need to drop our lock
+	 */
+	MPTLOCK_2_CAMLOCK(mpt);
 
 	/*
 	 * Create the device queue for our SIM(s).
@@ -327,6 +319,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	 * devices if the controller supports RAID.
 	 */
 	if (mpt->ioc_page2 == NULL || mpt->ioc_page2->MaxPhysDisks == 0) {
+		CAMLOCK_2_MPTLOCK(mpt);
 		return (0);
 	}
 
@@ -357,8 +350,12 @@ mpt_cam_attach(struct mpt_softc *mpt)
 		error = ENOMEM;
 		goto cleanup;
 	}
+	CAMLOCK_2_MPTLOCK(mpt);
 	return (0);
+
 cleanup:
+	CAMLOCK_2_MPTLOCK(mpt);
+cleanup0:
 	mpt_cam_detach(mpt);
 	return (error);
 }
@@ -461,16 +458,6 @@ mpt_set_initial_config_fc(struct mpt_softc *mpt)
 		fl |= MPI_FCPORTPAGE1_FLAGS_TARGET_MODE_OXID;
 		doit = 1;
 	}
-	if ((fl & MPI_FCPORTPAGE1_FLAGS_PROT_FCP_INIT) &&
-	    (mpt->role & MPT_ROLE_INITIATOR) == 0) {
-		fl &= ~MPI_FCPORTPAGE1_FLAGS_PROT_FCP_INIT;
-		doit = 1;
-	}
-	if ((fl & MPI_FCPORTPAGE1_FLAGS_PROT_FCP_TARG) &&
-	    (mpt->role & MPT_ROLE_TARGET) == 0) {
-		fl &= ~MPI_FCPORTPAGE1_FLAGS_PROT_FCP_TARG;
-		doit = 1;
-	}
 	if (doit) {
 		const char *cc;
 
@@ -487,12 +474,8 @@ mpt_set_initial_config_fc(struct mpt_softc *mpt)
 		}
 		mpt_prt(mpt, cc);
 	}
-#else
-	if ((mpt->role & MPT_ROLE_TARGET) == 0) {
-		return (0);
-	}
 #endif
-	return (mpt_fc_reset_link(mpt, 1));
+	return (0);
 }
 
 /*
@@ -521,69 +504,63 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 {
 	int rv, i;
 
-	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_PORT, 0,
-				 0, &mpt->mpt_port_page0.Header,
-				 /*sleep_ok*/FALSE, /*timeout_ms*/5000);
-	if (rv)
+	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_PORT, 0, 0,
+	    &mpt->mpt_port_page0.Header, FALSE, 5000);
+	if (rv) {
 		return (-1);
-	mpt_lprt(mpt, MPT_PRT_DEBUG,
-		 "SPI Port Page 0 Header: %x %x %x %x\n",
-		 mpt->mpt_port_page0.Header.PageVersion,
-		 mpt->mpt_port_page0.Header.PageLength,
-		 mpt->mpt_port_page0.Header.PageNumber,
-		 mpt->mpt_port_page0.Header.PageType);
+	}
+	mpt_lprt(mpt, MPT_PRT_DEBUG, "SPI Port Page 0 Header: %x %x %x %x\n",
+	    mpt->mpt_port_page0.Header.PageVersion,
+	    mpt->mpt_port_page0.Header.PageLength,
+	    mpt->mpt_port_page0.Header.PageNumber,
+	    mpt->mpt_port_page0.Header.PageType);
 
-	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_PORT, 1,
-				 0, &mpt->mpt_port_page1.Header,
-				 /*sleep_ok*/FALSE, /*timeout_ms*/5000);
-	if (rv)
+	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_PORT, 1, 0,
+	    &mpt->mpt_port_page1.Header, FALSE, 5000);
+	if (rv) {
 		return (-1);
-
+	}
 	mpt_lprt(mpt, MPT_PRT_DEBUG, "SPI Port Page 1 Header: %x %x %x %x\n",
-		 mpt->mpt_port_page1.Header.PageVersion,
-		 mpt->mpt_port_page1.Header.PageLength,
-		 mpt->mpt_port_page1.Header.PageNumber,
-		 mpt->mpt_port_page1.Header.PageType);
+	    mpt->mpt_port_page1.Header.PageVersion,
+	    mpt->mpt_port_page1.Header.PageLength,
+	    mpt->mpt_port_page1.Header.PageNumber,
+	    mpt->mpt_port_page1.Header.PageType);
 
-	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_PORT, 2,
-				 /*PageAddress*/0, &mpt->mpt_port_page2.Header,
-				 /*sleep_ok*/FALSE, /*timeout_ms*/5000);
-	if (rv)
+	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_PORT, 2, 0,
+	    &mpt->mpt_port_page2.Header, FALSE, 5000);
+	if (rv) {
 		return (-1);
-
-	mpt_lprt(mpt, MPT_PRT_DEBUG,
-		 "SPI Port Page 2 Header: %x %x %x %x\n",
-		 mpt->mpt_port_page1.Header.PageVersion,
-		 mpt->mpt_port_page1.Header.PageLength,
-		 mpt->mpt_port_page1.Header.PageNumber,
-		 mpt->mpt_port_page1.Header.PageType);
+	}
+	mpt_lprt(mpt, MPT_PRT_DEBUG, "SPI Port Page 2 Header: %x %x %x %x\n",
+	    mpt->mpt_port_page2.Header.PageVersion,
+	    mpt->mpt_port_page2.Header.PageLength,
+	    mpt->mpt_port_page2.Header.PageNumber,
+	    mpt->mpt_port_page2.Header.PageType);
 
 	for (i = 0; i < 16; i++) {
 		rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_DEVICE,
-					 0, i, &mpt->mpt_dev_page0[i].Header,
-					 /*sleep_ok*/FALSE, /*timeout_ms*/5000);
-		if (rv)
+		    0, i, &mpt->mpt_dev_page0[i].Header, FALSE, 5000);
+		if (rv) {
 			return (-1);
-
+		}
 		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "SPI Target %d Device Page 0 Header: %x %x %x %x\n",
-			 i, mpt->mpt_dev_page0[i].Header.PageVersion,
-			 mpt->mpt_dev_page0[i].Header.PageLength,
-			 mpt->mpt_dev_page0[i].Header.PageNumber,
-			 mpt->mpt_dev_page0[i].Header.PageType);
+		    "SPI Target %d Device Page 0 Header: %x %x %x %x\n", i,
+		    mpt->mpt_dev_page0[i].Header.PageVersion,
+		    mpt->mpt_dev_page0[i].Header.PageLength,
+		    mpt->mpt_dev_page0[i].Header.PageNumber,
+		    mpt->mpt_dev_page0[i].Header.PageType);
 		
 		rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_DEVICE,
-					 1, i, &mpt->mpt_dev_page1[i].Header,
-					 /*sleep_ok*/FALSE, /*timeout_ms*/5000);
-		if (rv)
+		    1, i, &mpt->mpt_dev_page1[i].Header, FALSE, 5000);
+		if (rv) {
 			return (-1);
-
+		}
 		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "SPI Target %d Device Page 1 Header: %x %x %x %x\n",
-			 i, mpt->mpt_dev_page1[i].Header.PageVersion,
-			 mpt->mpt_dev_page1[i].Header.PageLength,
-			 mpt->mpt_dev_page1[i].Header.PageNumber,
-			 mpt->mpt_dev_page1[i].Header.PageType);
+		    "SPI Target %d Device Page 1 Header: %x %x %x %x\n", i,
+		    mpt->mpt_dev_page1[i].Header.PageVersion,
+		    mpt->mpt_dev_page1[i].Header.PageLength,
+		    mpt->mpt_dev_page1[i].Header.PageNumber,
+		    mpt->mpt_dev_page1[i].Header.PageType);
 	}
 
 	/*
@@ -592,10 +569,8 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 	 * along.
 	 */
 
-	rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/0,
-				   &mpt->mpt_port_page0.Header,
-				   sizeof(mpt->mpt_port_page0),
-				   /*sleep_ok*/FALSE, /*timeout_ms*/5000);
+	rv = mpt_read_cur_cfg_page(mpt, 0, &mpt->mpt_port_page0.Header,
+	    sizeof(mpt->mpt_port_page0), FALSE, 5000);
 	if (rv) {
 		mpt_prt(mpt, "failed to read SPI Port Page 0\n");
 	} else {
@@ -605,10 +580,8 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 		    mpt->mpt_port_page0.PhysicalInterface);
 	}
 
-	rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/0,
-				   &mpt->mpt_port_page1.Header,
-				   sizeof(mpt->mpt_port_page1),
-				   /*sleep_ok*/FALSE, /*timeout_ms*/5000);
+	rv = mpt_read_cur_cfg_page(mpt, 0, &mpt->mpt_port_page1.Header,
+	    sizeof(mpt->mpt_port_page1), FALSE, 5000);
 	if (rv) {
 		mpt_prt(mpt, "failed to read SPI Port Page 1\n");
 	} else {
@@ -618,10 +591,8 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 		    mpt->mpt_port_page1.OnBusTimerValue);
 	}
 
-	rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/0,
-				   &mpt->mpt_port_page2.Header,
-				   sizeof(mpt->mpt_port_page2),
-				   /*sleep_ok*/FALSE, /*timeout_ms*/5000);
+	rv = mpt_read_cur_cfg_page(mpt, 0, &mpt->mpt_port_page2.Header,
+	    sizeof(mpt->mpt_port_page2), FALSE, 5000);
 	if (rv) {
 		mpt_prt(mpt, "failed to read SPI Port Page 2\n");
 	} else {
@@ -639,35 +610,31 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 	}
 
 	for (i = 0; i < 16; i++) {
-		rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/i,
-					   &mpt->mpt_dev_page0[i].Header,
-					   sizeof(*mpt->mpt_dev_page0),
-					   /*sleep_ok*/FALSE,
-					   /*timeout_ms*/5000);
+		rv = mpt_read_cur_cfg_page(mpt, i,
+		    &mpt->mpt_dev_page0[i].Header, sizeof(*mpt->mpt_dev_page0),
+		    FALSE, 5000);
 		if (rv) {
 			mpt_prt(mpt,
-			    "cannot read SPI Tgt %d Device Page 0\n", i);
+			    "cannot read SPI Target %d Device Page 0\n", i);
 			continue;
 		}
 		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "SPI Tgt %d Page 0: NParms %x Information %x",
-			 i, mpt->mpt_dev_page0[i].NegotiatedParameters,
-			 mpt->mpt_dev_page0[i].Information);
+		    "SPI Tgt %d Page 0: NParms %x Information %x", i,
+		    mpt->mpt_dev_page0[i].NegotiatedParameters,
+		    mpt->mpt_dev_page0[i].Information);
 
-		rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/i,
-					   &mpt->mpt_dev_page1[i].Header,
-					   sizeof(*mpt->mpt_dev_page1),
-					   /*sleep_ok*/FALSE,
-					   /*timeout_ms*/5000);
+		rv = mpt_read_cur_cfg_page(mpt, i,
+		    &mpt->mpt_dev_page1[i].Header, sizeof(*mpt->mpt_dev_page1),
+		    FALSE, 5000);
 		if (rv) {
 			mpt_prt(mpt,
-			    "cannot read SPI Tgt %d Device Page 1\n", i);
+			    "cannot read SPI Target %d Device Page 1\n", i);
 			continue;
 		}
 		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "SPI Tgt %d Page 1: RParms %x Configuration %x\n",
-			 i, mpt->mpt_dev_page1[i].RequestedParameters,
-			 mpt->mpt_dev_page1[i].Configuration);
+		    "SPI Tgt %d Page 1: RParms %x Configuration %x\n", i,
+		    mpt->mpt_dev_page1[i].RequestedParameters,
+		    mpt->mpt_dev_page1[i].Configuration);
 	}
 	return (0);
 }
@@ -689,23 +656,20 @@ mpt_set_initial_config_spi(struct mpt_softc *mpt)
 	if (mpt->mpt_port_page1.Configuration != pp1val) {
 		CONFIG_PAGE_SCSI_PORT_1 tmp;
 
-		mpt_prt(mpt,
-		    "SPI Port Page 1 Config value bad (%x)- should be %x\n",
-		    mpt->mpt_port_page1.Configuration, pp1val);
+		mpt_prt(mpt, "SPI Port Page 1 Config value bad (%x)- should "
+		    "be %x\n", mpt->mpt_port_page1.Configuration, pp1val);
 		tmp = mpt->mpt_port_page1;
 		tmp.Configuration = pp1val;
-		error = mpt_write_cur_cfg_page(mpt, /*PageAddress*/0,
-					       &tmp.Header, sizeof(tmp),
-					       /*sleep_ok*/FALSE,
-					       /*timeout_ms*/5000);
-		if (error)
+		error = mpt_write_cur_cfg_page(mpt, 0,
+		    &tmp.Header, sizeof(tmp), FALSE, 5000);
+		if (error) {
 			return (-1);
-		error = mpt_read_cur_cfg_page(mpt, /*PageAddress*/0,
-					      &tmp.Header, sizeof(tmp),
-					      /*sleep_ok*/FALSE,
-					      /*timeout_ms*/5000);
-		if (error)
+		}
+		error = mpt_read_cur_cfg_page(mpt, 0,
+		    &tmp.Header, sizeof(tmp), FALSE, 5000);
+		if (error) {
 			return (-1);
+		}
 		if (tmp.Configuration != pp1val) {
 			mpt_prt(mpt,
 			    "failed to reset SPI Port Page 1 Config value\n");
@@ -714,31 +678,23 @@ mpt_set_initial_config_spi(struct mpt_softc *mpt)
 		mpt->mpt_port_page1 = tmp;
 	}
 
+	/*
+	 * The purpose of this exercise is to get
+	 * all targets back to async/narrow.
+	 *
+	 * We skip this if the BIOS has already negotiated speeds with targets.
+	 */
+	i = mpt->mpt_port_page2.PortSettings &
+	    MPI_SCSIPORTPAGE2_PORT_MASK_NEGO_MASTER_SETTINGS;
+	if (i == MPI_SCSIPORTPAGE2_PORT_ALL_MASTER_SETTINGS) {
+		mpt_lprt(mpt, MPT_PRT_INFO,
+		    "honoring BIOS transfer negotiation for all targets\n");
+		return (0);
+	}
 	for (i = 0; i < 16; i++) {
-		CONFIG_PAGE_SCSI_DEVICE_1 tmp;
-		tmp = mpt->mpt_dev_page1[i];
-		tmp.RequestedParameters = 0;
-		tmp.Configuration = 0;
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "Set Tgt %d SPI DevicePage 1 values to %x 0 %x\n",
-			 i, tmp.RequestedParameters, tmp.Configuration);
-		error = mpt_write_cur_cfg_page(mpt, /*PageAddress*/i,
-					       &tmp.Header, sizeof(tmp),
-					       /*sleep_ok*/FALSE,
-					       /*timeout_ms*/5000);
-		if (error)
-			return (-1);
-		error = mpt_read_cur_cfg_page(mpt, /*PageAddress*/i,
-					      &tmp.Header, sizeof(tmp),
-					      /*sleep_ok*/FALSE,
-					      /*timeout_ms*/5000);
-		if (error)
-			return (-1);
-		mpt->mpt_dev_page1[i] = tmp;
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "SPI Tgt %d Page 1: RParm %x Configuration %x\n", i,
-			 mpt->mpt_dev_page1[i].RequestedParameters,
-			 mpt->mpt_dev_page1[i].Configuration);
+		mpt->mpt_dev_page1[i].RequestedParameters = 0;
+		mpt->mpt_dev_page1[i].Configuration = 0;
+		(void) mpt_update_spi_config(mpt, i);
 	}
 	return (0);
 }
@@ -792,22 +748,27 @@ mpt_cam_detach(struct mpt_softc *mpt)
 			       mpt->scsi_tgt_handler_id);
 
 	if (mpt->tmf_req != NULL) {
+		mpt->tmf_req->state = REQ_STATE_ALLOCATED;
 		mpt_free_request(mpt, mpt->tmf_req);
 		mpt->tmf_req = NULL;
 	}
 
 	if (mpt->sim != NULL) {
+		MPTLOCK_2_CAMLOCK(mpt);
 		xpt_free_path(mpt->path);
 		xpt_bus_deregister(cam_sim_path(mpt->sim));
 		cam_sim_free(mpt->sim, TRUE);
 		mpt->sim = NULL;
+		CAMLOCK_2_MPTLOCK(mpt);
 	}
 
 	if (mpt->phydisk_sim != NULL) {
+		MPTLOCK_2_CAMLOCK(mpt);
 		xpt_free_path(mpt->phydisk_path);
 		xpt_bus_deregister(cam_sim_path(mpt->phydisk_sim));
 		cam_sim_free(mpt->phydisk_sim, TRUE);
 		mpt->phydisk_sim = NULL;
+		CAMLOCK_2_MPTLOCK(mpt);
 	}
 }
 
@@ -841,6 +802,7 @@ mpt_timeout(void *arg)
 	req = ccb->ccb_h.ccb_req_ptr;
 	mpt_prt(mpt, "request %p:%u timed out for ccb %p (req->ccb %p)\n", req,
 	    req->serno, ccb, req->ccb);
+/* XXX: WHAT ARE WE TRYING TO DO HERE? */
 	if ((req->state & REQ_STATE_QUEUED) == REQ_STATE_QUEUED) {
 		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 		TAILQ_INSERT_TAIL(&mpt->request_timeout_list, req, links);
@@ -1144,7 +1106,11 @@ bad:
 		 * and chain to that.
 		 */
 		if (seg < nseg && nxt_off >= MPT_REQUEST_AREA) {
-			request_t *nrq = mpt_get_request(mpt, FALSE);
+			request_t *nrq;
+
+			CAMLOCK_2_MPTLOCK(mpt);
+			nrq = mpt_get_request(mpt, FALSE);
+			MPTLOCK_2_CAMLOCK(mpt);
 
 			if (nrq == NULL) {
 				error = ENOMEM;
@@ -1508,7 +1474,11 @@ bad:
 		 * and chain to that.
 		 */
 		if (seg < nseg && nxt_off >= MPT_REQUEST_AREA) {
-			request_t *nrq = mpt_get_request(mpt, FALSE);
+			request_t *nrq;
+
+			CAMLOCK_2_MPTLOCK(mpt);
+			nrq = mpt_get_request(mpt, FALSE);
+			MPTLOCK_2_CAMLOCK(mpt);
 
 			if (nrq == NULL) {
 				error = ENOMEM;
@@ -1624,6 +1594,9 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 		xpt_done(ccb);
 		return;
 	}
+#ifdef	INVARIANTS
+	mpt_req_not_spcl(mpt, req, "mpt_start", __LINE__);
+#endif
 	MPTLOCK_2_CAMLOCK(mpt);
 
 	if (sizeof (bus_addr_t) > 4) {
@@ -1794,7 +1767,8 @@ static int
 mpt_bus_reset(struct mpt_softc *mpt, int sleep_ok)
 {
 	int   error;
-	u_int status;
+	uint16_t status;
+	uint8_t response;
 
 	error = mpt_scsi_send_tmf(mpt, MPI_SCSITASKMGMT_TASKTYPE_RESET_BUS,
 	    mpt->is_fc ? MPI_SCSITASKMGMT_MSGFLAGS_LIP_RESET_OPTION : 0,
@@ -1815,16 +1789,28 @@ mpt_bus_reset(struct mpt_softc *mpt, int sleep_ok)
 	    REQ_STATE_DONE, sleep_ok, 5000);
 
 	status = mpt->tmf_req->IOCStatus;
+	response = mpt->tmf_req->ResponseCode;
 	mpt->tmf_req->state = REQ_STATE_FREE;
+
 	if (error) {
-		mpt_prt(mpt, "mpt_bus_reset: Reset timed-out."
-			"Resetting controller.\n");
-		mpt_reset(mpt, /*reinit*/TRUE);
+		mpt_prt(mpt, "mpt_bus_reset: Reset timed-out. "
+		    "Resetting controller.\n");
+		mpt_reset(mpt, TRUE);
 		return (ETIMEDOUT);
-	} else if ((status & MPI_IOCSTATUS_MASK) != MPI_SCSI_STATUS_SUCCESS) {
-		mpt_prt(mpt, "mpt_bus_reset: TMF Status %d."
-			"Resetting controller.\n", status);
-		mpt_reset(mpt, /*reinit*/TRUE);
+	}
+
+	if ((status & MPI_IOCSTATUS_MASK) != MPI_IOCSTATUS_SUCCESS) {
+		mpt_prt(mpt, "mpt_bus_reset: TMF IOC Status 0x%x. "
+		    "Resetting controller.\n", status);
+		mpt_reset(mpt, TRUE);
+		return (EIO);
+	}
+
+	if (response != MPI_SCSITASKMGMT_RSP_TM_SUCCEEDED &&
+	    response != MPI_SCSITASKMGMT_RSP_TM_COMPLETE) {
+		mpt_prt(mpt, "mpt_bus_reset: TMF Response 0x%x. "
+		    "Resetting controller.\n", response);
+		mpt_reset(mpt, TRUE);
 		return (EIO);
 	}
 	return (0);
@@ -1886,8 +1872,7 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 
 	case MPI_EVENT_RESCAN:
 		/*
-		 * In general this means a device has been added
-		 * to the loop.
+		 * In general this means a device has been added to the loop.
 		 */
 		mpt_prt(mpt, "Rescan Port: %d\n", (msg->Data[0] >> 8) & 0xff);
 /*		xpt_async(AC_FOUND_DEVICE, path, NULL);  */
@@ -2064,16 +2049,21 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 	if ((req->state & REQ_STATE_TIMEDOUT) == 0) {
 		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 	} else {
+		mpt_prt(mpt, "completing timedout/aborted req %p:%u\n",
+		    req, req->serno);
 		TAILQ_REMOVE(&mpt->request_timeout_list, req, links);
 	}
 	if ((req->state & REQ_STATE_NEED_WAKEUP) == 0) {
+#ifdef	INVARIANTS
+		mpt_req_not_spcl(mpt, req, "mpt_scsi_reply_handler", __LINE__);
+#endif
 		mpt_free_request(mpt, req);
-		return (/*free_reply*/TRUE);
+		return (TRUE);
 	}
 	req->state &= ~REQ_STATE_QUEUED;
 	req->state |= REQ_STATE_DONE;
 	wakeup(req);
-	return (/*free_reply*/TRUE);
+	return (TRUE);
 }
 
 static int
@@ -2081,17 +2071,18 @@ mpt_scsi_tmf_reply_handler(struct mpt_softc *mpt, request_t *req,
     uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame)
 {
 	MSG_SCSI_TASK_MGMT_REPLY *tmf_reply;
-	uint16_t		  status;
 
 	KASSERT(req == mpt->tmf_req, ("TMF Reply not using mpt->tmf_req"));
-
+#ifdef	INVARIANTS
+	mpt_req_not_spcl(mpt, req, "mpt_scsi_tmf_reply_handler", __LINE__);
+#endif
 	tmf_reply = (MSG_SCSI_TASK_MGMT_REPLY *)reply_frame;
+	/* Record IOC Status and Response Code of TMF for any waiters. */
+	req->IOCStatus = le16toh(tmf_reply->IOCStatus);
+	req->ResponseCode = tmf_reply->ResponseCode;
 
-	/* Record status of TMF for any waiters. */
-	req->IOCStatus = tmf_reply->IOCStatus;
-	status = le16toh(tmf_reply->IOCStatus);
 	mpt_lprt(mpt, MPT_PRT_INFO, "TMF complete: req %p:%u status 0x%x\n",
-	    req, req->serno, status);
+	    req, req->serno, le16toh(tmf_reply->IOCStatus));
 	TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 	if ((req->state & REQ_STATE_NEED_WAKEUP) != 0) {
 		req->state |= REQ_STATE_DONE;
@@ -2193,10 +2184,22 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 	U8 cmd;
 	U16 status = le16toh(reply_frame->IOCStatus);
 	U32 *elsbuf;
+	int ioindex;
 	int do_refresh = TRUE;
 
-	mpt_lprt(mpt, MPT_PRT_DEBUG, "FC_ELS Complete: req %p:%u, reply %p\n",
-		 req, req->serno, reply_frame);
+#ifdef	INVARIANTS
+	KASSERT(mpt_req_on_free_list(mpt, req) == 0,
+	    ("fc_els_reply_handler: req %p:%u for function %x on freelist!",
+	    req, req->serno, rp->Function));
+	if (rp->Function != MPI_FUNCTION_FC_PRIMITIVE_SEND) {
+		mpt_req_spcl(mpt, req, "fc_els_reply_handler", __LINE__);
+	} else {
+		mpt_req_not_spcl(mpt, req, "fc_els_reply_handler", __LINE__);
+	}
+#endif
+	mpt_lprt(mpt, MPT_PRT_INVARIANT,
+	    "FC_ELS Complete: req %p:%u, reply %p function %x\n",
+	    req, req->serno, reply_frame, reply_frame->Function);
 
 	if  (status != MPI_IOCSTATUS_SUCCESS) {
 		mpt_prt(mpt, "ELS REPLY STATUS 0x%x for Function %x\n",
@@ -2214,18 +2217,38 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 	/*
 	 * If the function of a link service response, we recycle the
 	 * response to be a refresh for a new link service request.
+	 *
+	 * The request pointer is bogus in this case and we have to fetch
+	 * it based upon the TransactionContext.
 	 */
 	if (rp->Function == MPI_FUNCTION_FC_LINK_SRVC_RSP) {
-		mpt_fc_add_els(mpt, req);
+		/* Freddie Uncle Charlie Katie */
+		/* We don't get the IOINDEX as part of the Link Svc Rsp */
+		for (ioindex = 0; ioindex < mpt->els_cmds_allocated; ioindex++)
+			if (mpt->els_cmd_ptrs[ioindex] == req) {
+				break;
+			}
+
+		KASSERT(ioindex < mpt->els_cmds_allocated,
+		    ("can't find my mommie!"));
+
+		/* remove from active list as we're going to re-post it */
+		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
+		req->state &= ~REQ_STATE_QUEUED;
+		req->state |= REQ_STATE_DONE;
+		mpt_fc_post_els(mpt, req, ioindex);
 		return (TRUE);
 	}
 
 	if (rp->Function == MPI_FUNCTION_FC_PRIMITIVE_SEND) {
+		/* remove from active list as we're done */
+		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 		req->state &= ~REQ_STATE_QUEUED;
 		req->state |= REQ_STATE_DONE;
 		if ((req->state & REQ_STATE_NEED_WAKEUP) == 0) {
 			mpt_lprt(mpt, MPT_PRT_DEBUG,
 			    "Async Primitive Send Complete\n");
+			TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 			mpt_free_request(mpt, req);
 		} else {
 			mpt_lprt(mpt, MPT_PRT_DEBUG,
@@ -2246,8 +2269,8 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 		/*
 		 * This is just a ack of an original ELS buffer post
 		 */
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-		    "Recv'd ACK of FC_ELS buf post %p:%u\n", req, req->serno);
+		mpt_lprt(mpt, MPT_PRT_INVARIANT,
+		    "RECV'd ACK of FC_ELS buf post %p:%u\n", req, req->serno);
 		return (TRUE);
 	}
 
@@ -2263,6 +2286,8 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 		return (TRUE);
 	}
 
+	ioindex = le32toh(rp->TransactionContext);
+	req = mpt->els_cmd_ptrs[ioindex];
 
 	if (rctl == ELS && type == 1) {
 		switch (cmd) {
@@ -2280,6 +2305,10 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 				elsbuf[4] |= htobe32(0x00000010);
 			if (mpt->role & MPT_ROLE_INITIATOR)
 				elsbuf[4] |= htobe32(0x00000020);
+			/* remove from active list as we're done */
+			TAILQ_REMOVE(&mpt->request_pending_list, req, links);
+			req->state &= ~REQ_STATE_QUEUED;
+			req->state |= REQ_STATE_DONE;
 			mpt_fc_els_send_response(mpt, req, rp, 20);
 			do_refresh = FALSE;
 			break;
@@ -2290,6 +2319,10 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 			mpt_prt(mpt, "PRLO from 0x%08x%08x\n",
 			    le32toh(rp->Wwn.PortNameHigh),
 			    le32toh(rp->Wwn.PortNameLow));
+			/* remove from active list as we're done */
+			TAILQ_REMOVE(&mpt->request_pending_list, req, links);
+			req->state &= ~REQ_STATE_QUEUED;
+			req->state |= REQ_STATE_DONE;
 			mpt_fc_els_send_response(mpt, req, rp, 20);
 			do_refresh = FALSE;
 			break;
@@ -2367,13 +2400,21 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 		 * will be correct.
 		 */
 		rp->Rctl_Did += ((BA_ACC - ABTS) << MPI_FC_RCTL_SHIFT);
+		/* remove from active list as we're done */
+		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
+		req->state &= ~REQ_STATE_QUEUED;
+		req->state |= REQ_STATE_DONE;
 		mpt_fc_els_send_response(mpt, req, rp, 12);
 		do_refresh = FALSE;
 	} else {
 		mpt_prt(mpt, "ELS: RCTL %x TYPE %x CMD %x\n", rctl, type, cmd);
 	}
 	if (do_refresh == TRUE) {
-		mpt_fc_add_els(mpt, req);
+		/* remove from active list as we're done */
+		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
+		req->state &= ~REQ_STATE_QUEUED;
+		req->state |= REQ_STATE_DONE;
+		mpt_fc_post_els(mpt, req, ioindex);
 	}
 	return (TRUE);
 }
@@ -2392,6 +2433,10 @@ mpt_cam_ioc_reset(struct mpt_softc *mpt, int type)
 	 */
 	mpt_complete_request_chain(mpt, &mpt->request_timeout_list,
 				   MPI_IOCSTATUS_INVALID_STATE);
+
+	/*
+	 * XXX: We need to repost ELS and Target Command Buffers?
+	 */
 
 	/*
 	 * Inform the XPT that a bus reset has occurred.
@@ -2572,6 +2617,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("mpt_action\n"));
 
 	mpt = (struct mpt_softc *)cam_sim_softc(sim);
+	KASSERT(MPT_OWNED(mpt) == 0, ("mpt owned on entrance to mpt_action"));
 	raid_passthru = (sim == mpt->phydisk_sim);
 
 	tgt = ccb->ccb_h.target_id;
@@ -2587,7 +2633,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		}
 		MPTLOCK_2_CAMLOCK(mpt);
 	}
-
 	ccb->ccb_h.ccb_mpt_ptr = mpt;
 
 	switch (ccb->ccb_h.func_code) {
@@ -2678,121 +2723,125 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 #define	DP_SYNC		0x40
 
 	case XPT_SET_TRAN_SETTINGS:	/* Nexus Settings */
+	{
+#ifdef	CAM_NEW_TRAN_CODE
+		struct ccb_trans_settings_scsi *scsi;
+		struct ccb_trans_settings_spi *spi;
+#endif
+		uint8_t dval;
+		u_int period;
+		u_int offset;
+		int m;
+
 		cts = &ccb->cts;
 		if (!IS_CURRENT_SETTINGS(cts)) {
 			mpt_prt(mpt, "Attempt to set User settings\n");
-			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 			mpt_set_ccb_status(ccb, CAM_REQ_INVALID);
 			xpt_done(ccb);
 			break;
 		}
-		if (mpt->is_fc == 0 && mpt->is_sas == 0) {
-			uint8_t dval = 0;
-			u_int period = 0, offset = 0;
-#ifndef	CAM_NEW_TRAN_CODE
-			if (cts->valid & CCB_TRANS_DISC_VALID) {
-				dval |= DP_DISC_ENABLE;
-			}
-			if (cts->valid & CCB_TRANS_TQ_VALID) {
-				dval |= DP_TQING_ENABLE;
-			}
-			if (cts->valid & CCB_TRANS_BUS_WIDTH_VALID) {
-				if (cts->bus_width)
-					dval |= DP_WIDE;
-				else
-					dval |= DP_NARROW;
-			}
-			/*
-			 * Any SYNC RATE of nonzero and SYNC_OFFSET
-			 * of nonzero will cause us to go to the
-			 * selected (from NVRAM) maximum value for
-			 * this device. At a later point, we'll
-			 * allow finer control.
-			 */
-			if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) &&
-			    (cts->valid & CCB_TRANS_SYNC_OFFSET_VALID)) {
-				dval |= DP_SYNC;
-				period = cts->sync_period;
-				offset = cts->sync_offset;
-			}
-#else
-			struct ccb_trans_settings_scsi *scsi =
-			    &cts->proto_specific.scsi;
-			struct ccb_trans_settings_spi *spi =
-			    &cts->xport_specific.spi;
-
-			if ((spi->valid & CTS_SPI_VALID_DISC) != 0) {
-				if ((spi->flags & CTS_SPI_FLAGS_DISC_ENB) != 0)
-					dval |= DP_DISC_ENABLE;
-				else
-					dval |= DP_DISC_DISABL;
-			}
-
-			if ((scsi->valid & CTS_SCSI_VALID_TQ) != 0) {
-				if ((scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0)
-					dval |= DP_TQING_ENABLE;
-				else
-					dval |= DP_TQING_DISABL;
-			}
-
-			if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0) {
-				if (spi->bus_width == MSG_EXT_WDTR_BUS_16_BIT)
-					dval |= DP_WIDE;
-				else
-					dval |= DP_NARROW;
-			}
-
-			if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) &&
-			    (spi->valid & CTS_SPI_VALID_SYNC_RATE) &&
-			    (spi->sync_period && spi->sync_offset)) {
-				dval |= DP_SYNC;
-				period = spi->sync_period;
-				offset = spi->sync_offset;
-			}
-#endif
-			CAMLOCK_2_MPTLOCK(mpt);
-			if (dval & DP_DISC_ENABLE) {
-				mpt->mpt_disc_enable |= (1 << tgt);
-			} else if (dval & DP_DISC_DISABL) {
-				mpt->mpt_disc_enable &= ~(1 << tgt);
-			}
-			if (dval & DP_TQING_ENABLE) {
-				mpt->mpt_tag_enable |= (1 << tgt);
-			} else if (dval & DP_TQING_DISABL) {
-				mpt->mpt_tag_enable &= ~(1 << tgt);
-			}
-			if (dval & DP_WIDTH) {
-				if (mpt_setwidth(mpt, tgt, dval & DP_WIDE)) {
-					mpt_prt(mpt, "Set width Failed!\n");
-					ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
-					mpt_set_ccb_status(ccb,
-					    CAM_REQ_CMP_ERR);
-					MPTLOCK_2_CAMLOCK(mpt);
-					xpt_done(ccb);
-					break;
-				}
-			}
-			if (dval & DP_SYNC) {
-				if (mpt_setsync(mpt, tgt, period, offset)) {
-					mpt_prt(mpt, "Set sync Failed!\n");
-					ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
-					mpt_set_ccb_status(ccb,
-					    CAM_REQ_CMP_ERR);
-					MPTLOCK_2_CAMLOCK(mpt);
-					xpt_done(ccb);
-					break;
-				}
-			}
-			MPTLOCK_2_CAMLOCK(mpt);
-			mpt_lprt(mpt, MPT_PRT_DEBUG,
-				 "SET tgt %d flags %x period %x off %x\n",
-				 tgt, dval, period, offset);
+		if (mpt->is_fc || mpt->is_sas) {
+			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
+			xpt_done(ccb);
+			break;
 		}
-		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+
+		m = mpt->mpt_port_page2.PortSettings;
+		if ((m & MPI_SCSIPORTPAGE2_PORT_MASK_NEGO_MASTER_SETTINGS) ==
+		    MPI_SCSIPORTPAGE2_PORT_ALL_MASTER_SETTINGS) {
+			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
+			xpt_done(ccb);
+			break;
+		}
+
+		dval = 0;
+		period = 0;
+		offset = 0;
+
+#ifndef	CAM_NEW_TRAN_CODE
+		if (cts->valid & CCB_TRANS_DISC_VALID) {
+			dval |= DP_DISC_ENABLE;
+		}
+		if (cts->valid & CCB_TRANS_TQ_VALID) {
+			dval |= DP_TQING_ENABLE;
+		}
+		if (cts->valid & CCB_TRANS_BUS_WIDTH_VALID) {
+			if (cts->bus_width)
+				dval |= DP_WIDE;
+			else
+				dval |= DP_NARROW;
+		}
+		/*
+		 * Any SYNC RATE of nonzero and SYNC_OFFSET
+		 * of nonzero will cause us to go to the
+		 * selected (from NVRAM) maximum value for
+		 * this device. At a later point, we'll
+		 * allow finer control.
+		 */
+		if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) &&
+		    (cts->valid & CCB_TRANS_SYNC_OFFSET_VALID)) {
+			dval |= DP_SYNC;
+			period = cts->sync_period;
+			offset = cts->sync_offset;
+		}
+#else
+		scsi = &cts->proto_specific.scsi;
+		spi = &cts->xport_specific.spi;
+
+		if ((spi->valid & CTS_SPI_VALID_DISC) != 0) {
+			if ((spi->flags & CTS_SPI_FLAGS_DISC_ENB) != 0)
+				dval |= DP_DISC_ENABLE;
+			else
+				dval |= DP_DISC_DISABL;
+		}
+
+		if ((scsi->valid & CTS_SCSI_VALID_TQ) != 0) {
+			if ((scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0)
+				dval |= DP_TQING_ENABLE;
+			else
+				dval |= DP_TQING_DISABL;
+		}
+
+		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0) {
+			if (spi->bus_width == MSG_EXT_WDTR_BUS_16_BIT)
+				dval |= DP_WIDE;
+			else
+				dval |= DP_NARROW;
+		}
+
+		if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) &&
+		    (spi->valid & CTS_SPI_VALID_SYNC_RATE) &&
+		    (spi->sync_period && spi->sync_offset)) {
+			dval |= DP_SYNC;
+			period = spi->sync_period;
+			offset = spi->sync_offset;
+		}
+#endif
+		CAMLOCK_2_MPTLOCK(mpt);
+		if (dval & DP_DISC_ENABLE) {
+			mpt->mpt_disc_enable |= (1 << tgt);
+		} else if (dval & DP_DISC_DISABL) {
+			mpt->mpt_disc_enable &= ~(1 << tgt);
+		}
+		if (dval & DP_TQING_ENABLE) {
+			mpt->mpt_tag_enable |= (1 << tgt);
+		} else if (dval & DP_TQING_DISABL) {
+			mpt->mpt_tag_enable &= ~(1 << tgt);
+		}
+		if (dval & DP_WIDTH) {
+			mpt_setwidth(mpt, tgt, 1);
+		}
+		if (dval & DP_SYNC) {
+			mpt_setsync(mpt, tgt, period, offset);
+		}
+		MPTLOCK_2_CAMLOCK(mpt);
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		    "SET tgt %d flags %x period %x off %x\n",
+		    tgt, dval, period, offset);
 		mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 		xpt_done(ccb);
 		break;
-
+	}
 	case XPT_GET_TRAN_SETTINGS:
 		cts = &ccb->cts;
 		if (mpt->is_fc) {
@@ -2848,128 +2897,12 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			sas->bitrate = 300000;	/* XXX: Default 3Gbps */
 #endif
 		} else {
-#ifdef	CAM_NEW_TRAN_CODE
-			struct ccb_trans_settings_scsi *scsi =
-			    &cts->proto_specific.scsi;
-			struct ccb_trans_settings_spi *spi =
-			    &cts->xport_specific.spi;
-#endif
-			uint8_t dval, pval, oval;
-			int rv;
-
-			/*
-			 * We aren't going off of Port PAGE2 params for
-			 * tagged queuing or disconnect capabilities
-			 * for current settings. For goal settings,
-			 * we assert all capabilities- we've had some
-			 * problems with reading NVRAM data.
-			 */
-			if (IS_CURRENT_SETTINGS(cts)) {
-				CONFIG_PAGE_SCSI_DEVICE_0 tmp;
-				dval = 0;
-
-				tmp = mpt->mpt_dev_page0[tgt];
-				CAMLOCK_2_MPTLOCK(mpt);
-				rv = mpt_read_cur_cfg_page(mpt, tgt,
-							   &tmp.Header,
-							   sizeof(tmp),
-							   /*sleep_ok*/FALSE,
-							   /*timeout_ms*/5000);
-				if (rv) {
-					mpt_prt(mpt,
-					    "cannot get target %d DP0\n", tgt);
-				}
-				mpt_lprt(mpt, MPT_PRT_DEBUG,
-					 "SPI Tgt %d Page 0: NParms %x "
-					 "Information %x\n", tgt,
-					 tmp.NegotiatedParameters,
-					 tmp.Information);
-				MPTLOCK_2_CAMLOCK(mpt);
-
-				if (tmp.NegotiatedParameters & 
-				    MPI_SCSIDEVPAGE0_NP_WIDE)
-					dval |= DP_WIDE;
-
-				if (mpt->mpt_disc_enable & (1 << tgt)) {
-					dval |= DP_DISC_ENABLE;
-				}
-				if (mpt->mpt_tag_enable & (1 << tgt)) {
-					dval |= DP_TQING_ENABLE;
-				}
-				oval = (tmp.NegotiatedParameters >> 16) & 0xff;
-				pval = (tmp.NegotiatedParameters >>  8) & 0xff;
-			} else {
-				/*
-				 * XXX: Fix wrt NVRAM someday. Attempts
-				 * XXX: to read port page2 device data
-				 * XXX: just returns zero in these areas.
-				 */
-				dval = DP_WIDE|DP_DISC|DP_TQING;
-				oval = (mpt->mpt_port_page0.Capabilities >> 16);
-				pval = (mpt->mpt_port_page0.Capabilities >>  8);
+			if (mpt_get_spi_settings(mpt, cts) != 0) {
+				mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
+				xpt_done(ccb);
+				return;
 			}
-#ifndef	CAM_NEW_TRAN_CODE
-			cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
-			if (dval & DP_DISC_ENABLE) {
-				cts->flags |= CCB_TRANS_DISC_ENB;
-			}
-			if (dval & DP_TQING_ENABLE) {
-				cts->flags |= CCB_TRANS_TAG_ENB;
-			}
-			if (dval & DP_WIDE) {
-				cts->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
-			} else {
-				cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
-			}
-			cts->valid = CCB_TRANS_BUS_WIDTH_VALID |
-			    CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
-			if (oval) {
-				cts->sync_period = pval;
-				cts->sync_offset = oval;
-				cts->valid |=
-				    CCB_TRANS_SYNC_RATE_VALID |
-				    CCB_TRANS_SYNC_OFFSET_VALID;
-			}
-#else
-			cts->protocol = PROTO_SCSI;
-			cts->protocol_version = SCSI_REV_2;
-			cts->transport = XPORT_SPI;
-			cts->transport_version = 2;
-
-			scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
-			spi->flags &= ~CTS_SPI_FLAGS_DISC_ENB;
-			if (dval & DP_DISC_ENABLE) {
-				spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
-			}
-			if (dval & DP_TQING_ENABLE) {
-				scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
-			}
-			if (oval && pval) {
-				spi->sync_offset = oval;
-				spi->sync_period = pval;
-				spi->valid |= CTS_SPI_VALID_SYNC_OFFSET;
-				spi->valid |= CTS_SPI_VALID_SYNC_RATE;
-			}
-			spi->valid |= CTS_SPI_VALID_BUS_WIDTH;
-			if (dval & DP_WIDE) {
-				spi->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
-			} else {
-				spi->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
-			}
-			if (cts->ccb_h.target_lun != CAM_LUN_WILDCARD) {
-				scsi->valid = CTS_SCSI_VALID_TQ;
-				spi->valid |= CTS_SPI_VALID_DISC;
-			} else {
-				scsi->valid = 0;
-			}
-#endif
-			mpt_lprt(mpt, MPT_PRT_DEBUG,
-				 "GET %s tgt %d flags %x period %x offset %x\n",
-				 IS_CURRENT_SETTINGS(cts)
-			       ? "ACTIVE" : "NVRAM",
-				 tgt, dval, pval, oval);
 		}
-		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 		xpt_done(ccb);
 		break;
@@ -3127,49 +3060,153 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 }
 
 static int
-mpt_setwidth(struct mpt_softc *mpt, int tgt, int onoff)
+mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 {
-	CONFIG_PAGE_SCSI_DEVICE_1 tmp;
+#ifdef	CAM_NEW_TRAN_CODE
+	struct ccb_trans_settings_scsi *scsi =
+	    &cts->proto_specific.scsi;
+	struct ccb_trans_settings_spi *spi =
+	    &cts->xport_specific.spi;
+#endif
+	int tgt;
+	uint8_t dval, pval, oval;
 	int rv;
 
-	tmp = mpt->mpt_dev_page1[tgt];
-	if (onoff) {
-		tmp.RequestedParameters |= MPI_SCSIDEVPAGE1_RP_WIDE;
+
+	tgt = cts->ccb_h.target_id;
+
+	/*
+	 * We aren't going off of Port PAGE2 params for
+	 * tagged queuing or disconnect capabilities
+	 * for current settings. For goal settings,
+	 * we assert all capabilities- we've had some
+	 * problems with reading NVRAM data.
+	 */
+	if (IS_CURRENT_SETTINGS(cts)) {
+		CONFIG_PAGE_SCSI_DEVICE_0 tmp;
+		dval = 0;
+
+		CAMLOCK_2_MPTLOCK(mpt);
+		tmp = mpt->mpt_dev_page0[tgt];
+		rv = mpt_read_cur_cfg_page(mpt, tgt, &tmp.Header,
+		    sizeof(tmp), FALSE, 5000);
+		if (rv) {
+			MPTLOCK_2_CAMLOCK(mpt);
+			mpt_prt(mpt, "can't get tgt %d config page 0\n", tgt);
+			return (rv);
+		}
+		MPTLOCK_2_CAMLOCK(mpt);
+
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		    "mpt_get_spi: SPI Tgt %d Page 0: NParms %x Info %x\n",
+		    tgt, tmp.NegotiatedParameters, tmp.Information);
+		if (tmp.NegotiatedParameters & MPI_SCSIDEVPAGE0_NP_WIDE) {
+			dval |= DP_WIDE;
+		}
+		if (mpt->mpt_disc_enable & (1 << tgt)) {
+			dval |= DP_DISC_ENABLE;
+		}
+		if (mpt->mpt_tag_enable & (1 << tgt)) {
+			dval |= DP_TQING_ENABLE;
+		}
+		oval = (tmp.NegotiatedParameters >> 16) & 0xff;
+		pval = (tmp.NegotiatedParameters >>  8) & 0xff;
 	} else {
-		tmp.RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_WIDE;
+		/*
+		 * XXX: Fix wrt NVRAM someday. Attempts
+		 * XXX: to read port page2 device data
+		 * XXX: just returns zero in these areas.
+		 */
+		dval = DP_WIDE|DP_DISC|DP_TQING;
+		oval = (mpt->mpt_port_page0.Capabilities >> 16);
+		pval = (mpt->mpt_port_page0.Capabilities >>  8);
 	}
-	rv = mpt_write_cur_cfg_page(mpt, tgt, &tmp.Header, sizeof(tmp),
-				    /*sleep_ok*/FALSE, /*timeout_ms*/5000);
-	if (rv) {
-		mpt_prt(mpt, "mpt_setwidth: write cur page failed\n");
-		return (-1);
+#ifndef	CAM_NEW_TRAN_CODE
+	cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
+	if (dval & DP_DISC_ENABLE) {
+		cts->flags |= CCB_TRANS_DISC_ENB;
 	}
-	rv = mpt_read_cur_cfg_page(mpt, tgt, &tmp.Header, sizeof(tmp),
-				   /*sleep_ok*/FALSE, /*timeout_ms*/5000);
-	if (rv) {
-		mpt_prt(mpt, "mpt_setwidth: read cur page failed\n");
-		return (-1);
+	if (dval & DP_TQING_ENABLE) {
+		cts->flags |= CCB_TRANS_TAG_ENB;
 	}
-	mpt->mpt_dev_page1[tgt] = tmp;
+	if (dval & DP_WIDE) {
+		cts->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
+	} else {
+		cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
+	}
+	cts->valid = CCB_TRANS_BUS_WIDTH_VALID |
+	    CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
+	if (oval) {
+		cts->sync_period = pval;
+		cts->sync_offset = oval;
+		cts->valid |=
+		    CCB_TRANS_SYNC_RATE_VALID | CCB_TRANS_SYNC_OFFSET_VALID;
+	}
+#else
+	cts->protocol = PROTO_SCSI;
+	cts->protocol_version = SCSI_REV_2;
+	cts->transport = XPORT_SPI;
+	cts->transport_version = 2;
+
+	scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
+	spi->flags &= ~CTS_SPI_FLAGS_DISC_ENB;
+	if (dval & DP_DISC_ENABLE) {
+		spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
+	}
+	if (dval & DP_TQING_ENABLE) {
+		scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
+	}
+	if (oval && pval) {
+		spi->sync_offset = oval;
+		spi->sync_period = pval;
+		spi->valid |= CTS_SPI_VALID_SYNC_OFFSET;
+		spi->valid |= CTS_SPI_VALID_SYNC_RATE;
+	}
+	spi->valid |= CTS_SPI_VALID_BUS_WIDTH;
+	if (dval & DP_WIDE) {
+		spi->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
+	} else {
+		spi->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
+	}
+	if (cts->ccb_h.target_lun != CAM_LUN_WILDCARD) {
+		scsi->valid = CTS_SCSI_VALID_TQ;
+		spi->valid |= CTS_SPI_VALID_DISC;
+	} else {
+		scsi->valid = 0;
+	}
+#endif
 	mpt_lprt(mpt, MPT_PRT_DEBUG,
-		 "SPI Target %d Page 1: RequestedParameters %x Config %x\n",
-		 tgt, mpt->mpt_dev_page1[tgt].RequestedParameters,
-		 mpt->mpt_dev_page1[tgt].Configuration);
+	    "mpt_get_spi: tgt %d %s settings flags %x period %x offset %x\n",
+	    tgt, IS_CURRENT_SETTINGS(cts)? "ACTIVE" : "NVRAM",
+	    dval, pval, oval);
 	return (0);
 }
 
-static int
+static void
+mpt_setwidth(struct mpt_softc *mpt, int tgt, int onoff)
+{
+	PTR_CONFIG_PAGE_SCSI_DEVICE_1 tmp;
+
+	tmp = &mpt->mpt_dev_page1[tgt];
+	if (onoff) {
+		tmp->RequestedParameters |= MPI_SCSIDEVPAGE1_RP_WIDE;
+	} else {
+		tmp->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_WIDE;
+	}
+}
+
+static void
 mpt_setsync(struct mpt_softc *mpt, int tgt, int period, int offset)
 {
-	CONFIG_PAGE_SCSI_DEVICE_1 tmp;
-	int rv;
+	PTR_CONFIG_PAGE_SCSI_DEVICE_1 tmp;
 
-	tmp = mpt->mpt_dev_page1[tgt];
-	tmp.RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_MIN_SYNC_PERIOD_MASK;
-	tmp.RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_MAX_SYNC_OFFSET_MASK;
-	tmp.RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_DT;
-	tmp.RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_QAS;
-	tmp.RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_IU;
+	tmp = &mpt->mpt_dev_page1[tgt];
+	tmp->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_MIN_SYNC_PERIOD_MASK;
+	tmp->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_MAX_SYNC_OFFSET_MASK;
+	tmp->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_DT;
+	tmp->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_QAS;
+	tmp->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_IU;
+
 	/*
 	 * XXX: For now, we're ignoring specific settings
 	 */
@@ -3186,25 +3223,34 @@ mpt_setsync(struct mpt_softc *mpt, int tgt, int period, int offset)
 			np |= MPI_SCSIDEVPAGE1_RP_DT;
 		}
 		np |= (factor << 8) | (offset << 16);
-		tmp.RequestedParameters |= np;
+		tmp->RequestedParameters |= np;
 	}
-	rv = mpt_write_cur_cfg_page(mpt, tgt, &tmp.Header, sizeof(tmp),
-				    /*sleep_ok*/FALSE, /*timeout_ms*/5000);
+}
+
+static int
+mpt_update_spi_config(struct mpt_softc *mpt, int tgt)
+{
+	CONFIG_PAGE_SCSI_DEVICE_1 tmp;
+	int rv;
+
+	tmp = mpt->mpt_dev_page1[tgt];
+	rv = mpt_write_cur_cfg_page(mpt, tgt,
+	    &tmp.Header, sizeof(tmp), FALSE, 5000);
 	if (rv) {
-		mpt_prt(mpt, "mpt_setsync: write cur page failed\n");
+		mpt_prt(mpt, "mpt_update_spi_config: write cur page failed\n");
 		return (-1);
 	}
-	rv = mpt_read_cur_cfg_page(mpt, tgt, &tmp.Header, sizeof(tmp),
-				   /*sleep_ok*/FALSE, /*timeout_ms*/500);
+	rv = mpt_read_cur_cfg_page(mpt, tgt,
+	    &tmp.Header, sizeof(tmp), FALSE, 500);
 	if (rv) {
-		mpt_prt(mpt, "mpt_setsync: read cur page failed\n");
+		mpt_prt(mpt, "mpt_update_spi_config: read cur page failed\n");
 		return (-1);
 	}
 	mpt->mpt_dev_page1[tgt] = tmp;
 	mpt_lprt(mpt, MPT_PRT_DEBUG,
-		 "SPI Target %d Page 1: RParams %x Config %x\n",
-		 tgt, mpt->mpt_dev_page1[tgt].RequestedParameters,
-		 mpt->mpt_dev_page1[tgt].Configuration);
+	    "mpt_update_spi_config[%d]: Page 1: RParams %x Config %x\n", tgt,
+	    mpt->mpt_dev_page1[tgt].RequestedParameters,
+	    mpt->mpt_dev_page1[tgt].Configuration);
 	return (0);
 }
 
@@ -3273,11 +3319,11 @@ mpt_recovery_thread(void *arg)
 	mpt = (struct mpt_softc *)arg;
 	MPT_LOCK(mpt);
 	for (;;) {
-
-		if (TAILQ_EMPTY(&mpt->request_timeout_list) != 0
-		 && mpt->shutdwn_recovery == 0)
-			mpt_sleep(mpt, mpt, PUSER, "idle", 0);
-
+		if (TAILQ_EMPTY(&mpt->request_timeout_list) != 0) {
+			if (mpt->shutdwn_recovery == 0) {
+				mpt_sleep(mpt, mpt, PUSER, "idle", 0);
+			}
+		}
 		if (mpt->shutdwn_recovery != 0) {
 			break;
 		}
@@ -3303,18 +3349,15 @@ mpt_scsi_send_tmf(struct mpt_softc *mpt, u_int type, u_int flags,
 	 * Wait for any current TMF request to complete.
 	 * We're only allowed to issue one TMF at a time.
 	 */
-	error = mpt_wait_req(mpt, mpt->tmf_req, REQ_STATE_FREE, REQ_STATE_MASK,
+	error = mpt_wait_req(mpt, mpt->tmf_req, REQ_STATE_FREE, REQ_STATE_FREE,
 	    sleep_ok, MPT_TMF_MAX_TIMEOUT);
 	if (error != 0) {
 		mpt_reset(mpt, TRUE);
 		return (ETIMEDOUT);
 	}
 
-	if ((mpt->tmf_req->serno = mpt->sequence++) == 0) {
-		mpt->tmf_req->serno = mpt->sequence++;
-	}
+	mpt_assign_serno(mpt, mpt->tmf_req);
 	mpt->tmf_req->state = REQ_STATE_ALLOCATED|REQ_STATE_QUEUED;
-	TAILQ_INSERT_HEAD(&mpt->request_pending_list, mpt->tmf_req, links);
 
 	tmf_req = (MSG_SCSI_TASK_MGMT *)mpt->tmf_req->req_vbuf;
 	memset(tmf_req, 0, sizeof(*tmf_req));
@@ -3341,15 +3384,14 @@ mpt_scsi_send_tmf(struct mpt_softc *mpt, u_int type, u_int flags,
 	mpt_lprt(mpt, MPT_PRT_INFO,
 	    "Issuing TMF %p:%u with MsgContext of 0x%x\n", mpt->tmf_req,
 	    mpt->tmf_req->serno, tmf_req->MsgContext);
-	if (mpt->verbose > MPT_PRT_DEBUG)
+	if (mpt->verbose > MPT_PRT_DEBUG) {
 		mpt_print_request(tmf_req);
-
-	if (mpt->is_fc || mpt->is_sas) {
-		mpt_send_cmd(mpt, mpt->tmf_req);
-		error = MPT_OK;
-	} else  {
-		error = mpt_send_handshake_cmd(mpt, sizeof(*tmf_req), tmf_req);
 	}
+
+	KASSERT(mpt_req_on_pending_list(mpt, mpt->tmf_req) == 0,
+	    ("mpt_scsi_send_tmf: tmf_req already on pending list"));
+	TAILQ_INSERT_HEAD(&mpt->request_pending_list, mpt->tmf_req, links);
+	error = mpt_send_handshake_cmd(mpt, sizeof(*tmf_req), tmf_req);
 	if (error != MPT_OK) {
 		mpt_reset(mpt, TRUE);
 	}
@@ -3402,15 +3444,44 @@ mpt_recover_commands(struct mpt_softc *mpt)
 	/*
 	 * We have no visibility into the current state of the
 	 * controller, so attempt to abort the commands in the
-	 * order they timed-out.
+	 * order they timed-out. For initiator commands, we
+	 * depend on the reply handler pulling requests off
+	 * the timeout list.
 	 */
 	while ((req = TAILQ_FIRST(&mpt->request_timeout_list)) != NULL) {
-		u_int status;
+		uint16_t status;
+		uint8_t response;
+		MSG_REQUEST_HEADER *hdrp = req->req_vbuf;
 
-		mpt_prt(mpt,
-		    "Attempting to abort req %p:%u\n", req, req->serno);
+		mpt_prt(mpt, "attempting to abort req %p:%u function %x\n",
+		    req, req->serno, hdrp->Function);
 		ccb = req->ccb;
+		if (ccb == NULL) {
+			mpt_prt(mpt, "null ccb in timed out request. "
+			    "Resetting Controller.\n");
+			mpt_reset(mpt, TRUE);
+			continue;
+		}
 		mpt_set_ccb_status(ccb, CAM_CMD_TIMEOUT);
+
+		/*
+		 * Check to see if this is not an initiator command and
+		 * deal with it differently if it is.
+		 */
+		switch (hdrp->Function) {
+		case MPI_FUNCTION_SCSI_IO_REQUEST:
+			break;
+		default:
+			/*
+			 * XXX: FIX ME: need to abort target assists...
+			 */
+			mpt_prt(mpt, "just putting it back on the pend q\n");
+			TAILQ_REMOVE(&mpt->request_timeout_list, req, links);
+			TAILQ_INSERT_HEAD(&mpt->request_pending_list, req,
+			    links);
+			continue;
+		}
+
 		error = mpt_scsi_send_tmf(mpt,
 		    MPI_SCSITASKMGMT_TASKTYPE_ABORT_TASK,
 		    0, 0, ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
@@ -3428,46 +3499,41 @@ mpt_recover_commands(struct mpt_softc *mpt)
 		error = mpt_wait_req(mpt, mpt->tmf_req, REQ_STATE_DONE,
 		    REQ_STATE_DONE, TRUE, 500);
 
+		status = mpt->tmf_req->IOCStatus;
+		response = mpt->tmf_req->ResponseCode;
+		mpt->tmf_req->state = REQ_STATE_FREE;
+
 		if (error != 0) {
 			/*
-			 * If we've errored out and the transaction is still
-			 * pending, reset the controller.
+			 * If we've errored out,, reset the controller.
 			 */
 			mpt_prt(mpt, "mpt_recover_commands: abort timed-out. "
-				"Resetting controller\n");
+			    "Resetting controller\n");
 			mpt_reset(mpt, TRUE);
 			continue;
 		}
 
-		/*
-		 * TMF is complete.
-		 */
-		TAILQ_REMOVE(&mpt->request_timeout_list, req, links);
-		mpt->tmf_req->state = REQ_STATE_FREE;
-
-		status = mpt->tmf_req->IOCStatus;
-		if ((status & MPI_IOCSTATUS_MASK) == MPI_SCSI_STATUS_SUCCESS) {
-			mpt_prt(mpt, "abort of req %p:%u completed\n",
-			    req, req->serno);
+		if ((status & MPI_IOCSTATUS_MASK) != MPI_IOCSTATUS_SUCCESS) {
+			mpt_prt(mpt, "mpt_recover_commands: IOC Status 0x%x. "
+			    "Resetting controller.\n", status);
+			mpt_reset(mpt, TRUE);
 			continue;
 		}
 
-		mpt_lprt(mpt, MPT_PRT_DEBUG, "mpt_recover_commands: abort of "
-		    "%p:%u failed with status 0x%x\n. Resetting controller.",
-		    req, req->serno, status);
-
-		/*
-		 * If the abort attempt fails for any reason, reset the bus.
-		 * We should find all of the timed-out commands on our
-		 * list are in the done state after this completes.
-		 */
-		mpt_bus_reset(mpt, TRUE);
+		if (response != MPI_SCSITASKMGMT_RSP_TM_SUCCEEDED &&
+		    response != MPI_SCSITASKMGMT_RSP_TM_COMPLETE) {
+			mpt_prt(mpt, "mpt_recover_commands: TMF Response 0x%x. "
+			    "Resetting controller.\n", response);
+			mpt_reset(mpt, TRUE);
+			continue;
+		}
+		mpt_prt(mpt, "abort of req %p:%u completed\n", req, req->serno);
 	}
 }
 
 /************************ Target Mode Support ****************************/
 static void
-mpt_fc_add_els(struct mpt_softc *mpt, request_t *req)
+mpt_fc_post_els(struct mpt_softc *mpt, request_t *req, int ioindex)
 {
 	MSG_LINK_SERVICE_BUFFER_POST_REQUEST *fc;
 	PTR_SGE_TRANSACTION32 tep;
@@ -3494,7 +3560,7 @@ mpt_fc_add_els(struct mpt_softc *mpt, request_t *req)
 
 	tep->ContextSize = 4;
 	tep->Flags = 0;
-	tep->TransactionContext[0] = htole32(req->index | fc_els_handler_id);
+	tep->TransactionContext[0] = htole32(ioindex);
 
 	se = (PTR_SGE_SIMPLE32) &tep->TransactionDetails[0];
 	se->FlagsLength =
@@ -3506,7 +3572,11 @@ mpt_fc_add_els(struct mpt_softc *mpt, request_t *req)
 	se->FlagsLength <<= MPI_SGE_FLAGS_SHIFT;
 	se->FlagsLength |= (MPT_NRFM(mpt) - MPT_RQSL(mpt));
 	se->Address = (uint32_t) paddr;
-	mpt_check_doorbell(mpt);
+	mpt_lprt(mpt, MPT_PRT_INVARIANT,
+	    "add ELS index %d ioindex %d for %p:%u\n",
+	    req->index, ioindex, req, req->serno);
+	KASSERT(((req->state & REQ_STATE_LOCKED) != 0),
+	    ("mpt_fc_post_els: request not locked"));
 	mpt_send_cmd(mpt, req);
 }
 
@@ -3535,13 +3605,60 @@ mpt_post_target_command(struct mpt_softc *mpt, request_t *req, int ioindex)
 	mpt_send_cmd(mpt, req);
 }
 
-static void
+static int
+mpt_add_els_buffers(struct mpt_softc *mpt)
+{
+	int i;
+
+	if (mpt->is_fc == 0) {
+		return (TRUE);
+	}
+
+	if (mpt->els_cmds_allocated) {
+		return (TRUE);
+	}
+
+	mpt->els_cmd_ptrs = malloc(MPT_MAX_ELS * sizeof (request_t *),
+	    M_DEVBUF, M_NOWAIT | M_ZERO);
+
+	if (mpt->els_cmd_ptrs == NULL) {
+		return (FALSE);
+	}
+
+	/*
+	 * Feed the chip some ELS buffer resources
+	 */
+	for (i = 0; i < MPT_MAX_ELS; i++) {
+		request_t *req = mpt_get_request(mpt, FALSE);
+		if (req == NULL) {
+			break;
+		}
+		req->state |= REQ_STATE_LOCKED;
+		mpt->els_cmd_ptrs[i] = req;
+		mpt_fc_post_els(mpt, req, i);
+	}
+
+	if (i == 0) {
+		mpt_prt(mpt, "unable to add ELS buffer resources\n");
+		free(mpt->els_cmd_ptrs, M_DEVBUF);
+		mpt->els_cmd_ptrs = NULL;
+		return (FALSE);
+	}
+	if (i != MPT_MAX_ELS) {
+		mpt_lprt(mpt, MPT_PRT_INFO,
+		    "only added %d of %d  ELS buffers\n", i, MPT_MAX_ELS);
+	}
+	mpt->els_cmds_allocated = i;
+	return(TRUE);
+}
+
+static int
 mpt_add_target_commands(struct mpt_softc *mpt)
 {
 	int i, max;
 
 	if (mpt->tgt_cmd_ptrs) {
-		return;
+		return (TRUE);
 	}
 
 	max = MPT_MAX_REQUESTS(mpt) >> 1;
@@ -3549,12 +3666,12 @@ mpt_add_target_commands(struct mpt_softc *mpt)
 		max = mpt->mpt_max_tgtcmds;
 	}
 	mpt->tgt_cmd_ptrs =
-	    malloc(max * sizeof (void *), M_DEVBUF, M_NOWAIT | M_ZERO);
+	    malloc(max * sizeof (request_t *), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (mpt->tgt_cmd_ptrs == NULL) {
-		mpt_prt(mpt, "could not allocate cmdptrs\n");
-		return;
+		mpt_prt(mpt,
+		    "mpt_add_target_commands: could not allocate cmd ptrs\n");
+		return (FALSE);
 	}
-	mpt->tgt_cmds_allocated = max;
 
 	for (i = 0; i < max; i++) {
 		request_t *req;
@@ -3568,16 +3685,35 @@ mpt_add_target_commands(struct mpt_softc *mpt)
 		mpt_post_target_command(mpt, req, i);
 	}
 
+
 	if (i == 0) {
 		mpt_lprt(mpt, MPT_PRT_ERROR, "could not add any target bufs\n");
 		free(mpt->tgt_cmd_ptrs, M_DEVBUF);
 		mpt->tgt_cmd_ptrs = NULL;
-		mpt->tgt_cmds_allocated = 0;
-	} else if (i < max) {
-		mpt_lprt(mpt, MPT_PRT_WARN, "added %d of %d target bufs\n",
-		    i, max);
+		return (FALSE);
 	}
+
+	mpt->tgt_cmds_allocated = i;
+
+	if (i < max) {
+		mpt_lprt(mpt, MPT_PRT_INFO,
+		    "added %d of %d target bufs\n", i, max);
+	}
+	return (i);
 }
+
+static void
+mpt_free_els_buffers(struct mpt_softc *mpt)
+{
+	mpt_prt(mpt, "fix me! need to implement mpt_free_els_buffers");
+}
+
+static void
+mpt_free_target_commands(struct mpt_softc *mpt)
+{
+	mpt_prt(mpt, "fix me! need to implement mpt_free_target_commands");
+}
+
 
 static int
 mpt_enable_lun(struct mpt_softc *mpt, target_id_t tgt, lun_id_t lun)
@@ -3590,11 +3726,16 @@ mpt_enable_lun(struct mpt_softc *mpt, target_id_t tgt, lun_id_t lun)
 		return (EINVAL);
 	}
 	if (mpt->tenabled == 0) {
-#if	0
+		/*
+		 * Try to add some target command resources
+		 */
+		if (mpt_add_target_commands(mpt) == FALSE) {
+			mpt_free_els_buffers(mpt);
+			return (ENOMEM);
+		}
 		if (mpt->is_fc) {
 			(void) mpt_fc_reset_link(mpt, 0);
 		}
-#endif
 		mpt->tenabled = 1;
 	}
 	if (lun == CAM_LUN_WILDCARD) {
@@ -3627,12 +3768,12 @@ mpt_disable_lun(struct mpt_softc *mpt, target_id_t tgt, lun_id_t lun)
 		}
 	}
 	if (i == MPT_MAX_LUNS && mpt->twildcard == 0) {
-		mpt->tenabled = 0;
-#if	0
+		mpt_free_els_buffers(mpt);
+		mpt_free_target_commands(mpt);
 		if (mpt->is_fc) {
 			(void) mpt_fc_reset_link(mpt, 0);
 		}
-#endif
+		mpt->tenabled = 0;
 	}
 	return (0);
 }
@@ -3647,9 +3788,21 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 	request_t *cmd_req = MPT_TAG_2_REQ(mpt, csio->tag_id);
 	mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, cmd_req);
 
-	if (tgt->state != TGT_STATE_IN_CAM) {
-		mpt_prt(mpt, "ccb flags 0x%x tag 0x%08x had bad request "
-		    "starting I/O\n", csio->ccb_h.flags, csio->tag_id);
+	switch (tgt->state) {
+	case TGT_STATE_IN_CAM:
+		break;
+	case TGT_STATE_MOVING_DATA:
+		mpt_set_ccb_status(ccb, CAM_REQUEUE_REQ);
+		xpt_freeze_simq(mpt->sim, 1);
+		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+		tgt->ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+		MPTLOCK_2_CAMLOCK(mpt);
+		xpt_done(ccb);
+		CAMLOCK_2_MPTLOCK(mpt);
+		return;
+	default:
+		mpt_prt(mpt, "ccb %p flags 0x%x tag 0x%08x had bad request "
+		    "starting I/O\n", ccb, csio->ccb_h.flags, csio->tag_id);
 		mpt_tgt_dump_req_state(mpt, cmd_req);
 		mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
 		MPTLOCK_2_CAMLOCK(mpt);
@@ -3988,7 +4141,7 @@ mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
 
 		rsp[2] = status;
 		if (tgt->resid) {
-			rsp[2] |= 0x800;
+			rsp[2] |= 0x800;	/* XXXX NEED MNEMONIC!!!! */
 			rsp[3] = htobe32(tgt->resid);
 #ifdef	WE_TRUST_AUTO_GOOD_STATUS
 			resplen = sizeof (MPI_TARGET_FCP_RSP_BUFFER);
@@ -3997,7 +4150,7 @@ mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
 		if (status == SCSI_STATUS_CHECK_COND) {
 			int i;
 
-			rsp[2] |= 0x200;
+			rsp[2] |= 0x200;	/* XXXX NEED MNEMONIC!!!! */
 			rsp[4] = htobe32(MPT_SENSE_SIZE);
 			memcpy(&rsp[8], sense_data, MPT_SENSE_SIZE);
 			for (i = 8; i < (8 + (MPT_SENSE_SIZE >> 2)); i++) {
@@ -4049,7 +4202,7 @@ mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
 	    req->serno, tgt->resid);
 	if (ccb) {
 		ccb->ccb_h.status = CAM_SIM_QUEUED | CAM_REQ_INPROG;
-		ccb->ccb_h.timeout_ch = timeout(mpt_timeout, (caddr_t)ccb, hz);
+		ccb->ccb_h.timeout_ch = timeout(mpt_timeout, ccb, 60 * hz);
 	}
 	mpt_send_cmd(mpt, req);
 }
@@ -4318,7 +4471,7 @@ mpt_tgt_dump_tgt_state(struct mpt_softc *mpt, request_t *req)
 	mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, req);
 
 	mpt_prt(mpt, "req %p:%u tgt:rdesc 0x%x resid %u xfrd %u ccb %p treq %p "
-	    "nx %d tag %08x state=%d\n", req, req->serno, tgt->reply_desc,
+	    "nx %d tag 0x%08x state=%d\n", req, req->serno, tgt->reply_desc,
 	    tgt->resid, tgt->bytes_xfered, tgt->ccb, tgt->req, tgt->nxfers,
 	    tgt->tag_id, tgt->state);
 }
@@ -4341,20 +4494,22 @@ mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
 
 	if (reply_frame == NULL) {
 		/*
-		 * Figure out if this is a new command or a target assist
-		 * completing.
+		 * Figure out what the state of the command is.
 		 */
 		mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, req);
-		char serno[8];
 
+#ifdef	INVARIANTS
+		mpt_req_spcl(mpt, req, "turbo scsi_tgt_reply", __LINE__);
 		if (tgt->req) {
-			snprintf(serno, 8, "%u", tgt->req->serno);
-		} else {
-			strncpy(serno, "??", 8);
+			mpt_req_not_spcl(mpt, tgt->req,
+			    "turbo scsi_tgt_reply associated req", __LINE__);
 		}
-
+#endif
 		switch(tgt->state) {
 		case TGT_STATE_LOADED:
+			/*
+			 * This is a new command starting.
+			 */
 			mpt_scsi_tgt_atio(mpt, req, reply_desc);
 			break;
 		case TGT_STATE_MOVING_DATA:
@@ -4362,20 +4517,33 @@ mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
 			uint8_t *sp = NULL, sense[MPT_SENSE_SIZE];
 
 			ccb = tgt->ccb;
+			if (tgt->req == NULL) {
+				panic("mpt: turbo target reply with null "
+				    "associated request moving data");
+				/* NOTREACHED */
+			}
+			if (ccb == NULL) {
+				panic("mpt: turbo target reply with null "
+				    "associated ccb moving data");
+				/* NOTREACHED */
+			}
 			tgt->ccb = NULL;
 			tgt->nxfers++;
 			untimeout(mpt_timeout, ccb, ccb->ccb_h.timeout_ch);
 			mpt_lprt(mpt, MPT_PRT_DEBUG,
-			    "TARGET_ASSIST %p (req %p:%s) done tag 0x%x\n",
-			    ccb, tgt->req, serno, ccb->csio.tag_id);
+			    "TARGET_ASSIST %p (req %p:%u) done tag 0x%x\n",
+			    ccb, tgt->req, tgt->req->serno, ccb->csio.tag_id);
 			/*
 			 * Free the Target Assist Request
 			 */
-			KASSERT(tgt->req && tgt->req->ccb == ccb,
-			    ("tgt->req %p:%s tgt->req->ccb %p", tgt->req,
-			    serno, tgt->req? tgt->req->ccb : NULL));
+			KASSERT(tgt->req->ccb == ccb,
+			    ("tgt->req %p:%u tgt->req->ccb %p", tgt->req,
+			    tgt->req->serno, tgt->req->ccb));
+			TAILQ_REMOVE(&mpt->request_pending_list,
+			    tgt->req, links);
 			mpt_free_request(mpt, tgt->req);
 			tgt->req = NULL;
+
 			/*
 			 * Do we need to send status now? That is, are
 			 * we done with all our data transfers?
@@ -4396,6 +4564,9 @@ mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
 				CAMLOCK_2_MPTLOCK(mpt);
 				break;
 			}
+			/*
+			 * Otherwise, send status (and sense)
+			 */
 			if (ccb->ccb_h.flags & CAM_SEND_SENSE) {
 				sp = sense;
 				memcpy(sp, &ccb->csio.sense_data,
@@ -4411,9 +4582,18 @@ mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
 			int ioindex;
 			ccb = tgt->ccb;
 
+			if (tgt->req == NULL) {
+				panic("mpt: turbo target reply with null "
+				    "associated request sending status");
+				/* NOTREACHED */
+			}
+
 			if (ccb) {
 				tgt->ccb = NULL;
-				tgt->nxfers++;
+				if (tgt->state ==
+				    TGT_STATE_MOVING_DATA_AND_STATUS) {
+					tgt->nxfers++;
+				}
 				untimeout(mpt_timeout, ccb,
 				    ccb->ccb_h.timeout_ch);
 				if (ccb->ccb_h.flags & CAM_SEND_SENSE) {
@@ -4426,10 +4606,9 @@ mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
 				/*
 				 * Free the Target Send Status Request
 				 */
-				KASSERT(tgt->req && tgt->req->ccb == ccb,
-				    ("tgt->req %p:%s tgt->req->ccb %p",
-				    tgt->req, serno,
-				    tgt->req? tgt->req->ccb : NULL));
+				KASSERT(tgt->req->ccb == ccb,
+				    ("tgt->req %p:%u tgt->req->ccb %p",
+				    tgt->req, tgt->req->serno, tgt->req->ccb));
 				/*
 				 * Notify CAM that we're done
 				 */
@@ -4440,16 +4619,20 @@ mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
 				tgt->ccb = NULL;
 			} else {
 				mpt_lprt(mpt, MPT_PRT_DEBUG,
-				    "TARGET_STATUS non-CAM for  req %p:%s\n",
-				    tgt->req, serno);
+				    "TARGET_STATUS non-CAM for  req %p:%u\n",
+				    tgt->req, tgt->req->serno);
 			}
+			TAILQ_REMOVE(&mpt->request_pending_list,
+			    tgt->req, links);
 			mpt_free_request(mpt, tgt->req);
 			tgt->req = NULL;
 
 			/*
 			 * And re-post the Command Buffer.
+			 * This wil reset the state.
 			 */
 			ioindex = GET_IO_INDEX(reply_desc);
+			TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 			mpt_post_target_command(mpt, req, ioindex);
 
 			/*
@@ -4491,19 +4674,37 @@ mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
 	switch (reply_frame->Function) {
 	case MPI_FUNCTION_TARGET_CMD_BUFFER_POST:
 	{
-		mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, req);
-		KASSERT(tgt->state == TGT_STATE_LOADING,
-		    ("bad state 0%x on reply to buffer post\n", tgt->state));
-		if ((req->serno = mpt->sequence++) == 0) {
-			req->serno = mpt->sequence++;
+		mpt_tgt_state_t *tgt;
+#ifdef	INVARIANTS
+		mpt_req_spcl(mpt, req, "tgt reply BUFFER POST", __LINE__);
+#endif
+		if (status != MPI_IOCSTATUS_SUCCESS) {
+			/*
+			 * XXX What to do?
+			 */
+			break;
 		}
+		tgt = MPT_TGT_STATE(mpt, req);
+		KASSERT(tgt->state == TGT_STATE_LOADING,
+		    ("bad state 0x%x on reply to buffer post\n", tgt->state));
+		mpt_assign_serno(mpt, req);
 		tgt->state = TGT_STATE_LOADED;
 		break;
 	}
 	case MPI_FUNCTION_TARGET_ASSIST:
+#ifdef	INVARIANTS
+		mpt_req_not_spcl(mpt, req, "tgt reply TARGET ASSIST", __LINE__);
+#endif
+		mpt_prt(mpt, "target assist completion\n");
+		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 		mpt_free_request(mpt, req);
 		break;
 	case MPI_FUNCTION_TARGET_STATUS_SEND:
+#ifdef	INVARIANTS
+		mpt_req_not_spcl(mpt, req, "tgt reply STATUS SEND", __LINE__);
+#endif
+		mpt_prt(mpt, "status send completion\n");
+		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 		mpt_free_request(mpt, req);
 		break;
 	case MPI_FUNCTION_TARGET_MODE_ABORT:
@@ -4513,8 +4714,12 @@ mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
 		PTR_MSG_TARGET_MODE_ABORT abtp =
 		    (PTR_MSG_TARGET_MODE_ABORT) req->req_vbuf;
 		uint32_t cc = GET_IO_INDEX(le32toh(abtp->ReplyWord));
+#ifdef	INVARIANTS
+		mpt_req_not_spcl(mpt, req, "tgt reply TMODE ABORT", __LINE__);
+#endif
 		mpt_prt(mpt, "ABORT RX_ID 0x%x Complete; status 0x%x cnt %u\n",
 		    cc, le16toh(abtrp->IOCStatus), le32toh(abtrp->AbortCount));
+		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 		mpt_free_request(mpt, req);
 		break;
 	}

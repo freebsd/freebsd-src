@@ -277,7 +277,9 @@ mpt_raid_attach(struct mpt_softc *mpt)
 	csa.event_enable = AC_FOUND_DEVICE;
 	csa.callback = mpt_raid_async;
 	csa.callback_arg = mpt;
+	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_action((union ccb *)&csa);
+	CAMLOCK_2_MPTLOCK(mpt);
 	if (csa.ccb_h.status != CAM_REQ_CMP) {
 		mpt_prt(mpt, "mpt_raid_attach: Unable to register "
 			"CAM async handler.\n");
@@ -307,7 +309,9 @@ mpt_raid_detach(struct mpt_softc *mpt)
 	csa.event_enable = 0;
 	csa.callback = mpt_raid_async;
 	csa.callback_arg = mpt;
+	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_action((union ccb *)&csa);
+	CAMLOCK_2_MPTLOCK(mpt);
 }
 
 static void
