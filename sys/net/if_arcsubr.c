@@ -100,11 +100,8 @@ u_int8_t  arcbroadcastaddr = 0;
  * Assumes that ifp is actually pointer to arccom structure.
  */
 int
-arc_output(ifp, m, dst, rt0)
-	struct ifnet *ifp;
-	struct mbuf *m;
-	struct sockaddr *dst;
-	struct rtentry *rt0;
+arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+    struct rtentry *rt0)
 {
 	struct arc_header	*ah;
 	int			error;
@@ -248,8 +245,7 @@ bad:
 }
 
 void
-arc_frag_init(ifp)
-	struct ifnet *ifp;
+arc_frag_init(struct ifnet *ifp)
 {
 	struct arccom *ac;
 
@@ -258,8 +254,7 @@ arc_frag_init(ifp)
 }
 
 struct mbuf *
-arc_frag_next(ifp)
-	struct ifnet *ifp;
+arc_frag_next(struct ifnet *ifp)
 {
 	struct arccom *ac;
 	struct mbuf *m;
@@ -354,9 +349,7 @@ arc_frag_next(ifp)
  */
 
 static __inline struct mbuf *
-arc_defrag(ifp, m)
-	struct ifnet *ifp;
-	struct mbuf *m;
+arc_defrag(struct ifnet *ifp, struct mbuf *m)
 {
 	struct arc_header *ah, *ah1;
 	struct arccom *ac;
@@ -504,8 +497,7 @@ outofseq:
  * Easiest is to assume that everybody else uses that, too.
  */
 int
-arc_isphds(type)
-	u_int8_t type;
+arc_isphds(u_int8_t type)
 {
 	return (type != ARCTYPE_IP_OLD &&
 		type != ARCTYPE_ARP_OLD &&
@@ -518,9 +510,7 @@ arc_isphds(type)
  * the ARCnet header.
  */
 void
-arc_input(ifp, m)
-	struct ifnet *ifp;
-	struct mbuf *m;
+arc_input(struct ifnet *ifp, struct mbuf *m)
 {
 	struct arc_header *ah;
 	int isr;
@@ -620,9 +610,7 @@ arc_input(ifp, m)
  * Register (new) link level address.
  */
 void
-arc_storelladdr(ifp, lla)
-	struct ifnet *ifp;
-	u_int8_t lla;
+arc_storelladdr(struct ifnet *ifp, u_int8_t lla)
 {
 	ARC_LLADDR(ifp) = lla;
 }
@@ -631,9 +619,7 @@ arc_storelladdr(ifp, lla)
  * Perform common duties while attaching to interface list
  */
 void
-arc_ifattach(ifp, lla)
-	struct ifnet *ifp;
-	u_int8_t lla;
+arc_ifattach(struct ifnet *ifp, u_int8_t lla)
 {
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
@@ -674,18 +660,14 @@ arc_ifattach(ifp, lla)
 }
 
 void
-arc_ifdetach(ifp)
-	struct ifnet *ifp;
+arc_ifdetach(struct ifnet *ifp)
 {
 	bpfdetach(ifp);
 	if_detach(ifp);
 }
 
 int
-arc_ioctl(ifp, command, data)
-	struct ifnet *ifp;
-	int command;
-	caddr_t data;
+arc_ioctl(struct ifnet *ifp, int command, caddr_t data)
 {
 	struct ifaddr *ifa = (struct ifaddr *) data;
 	struct ifreq *ifr = (struct ifreq *) data;
@@ -772,10 +754,8 @@ arc_ioctl(ifp, command, data)
 
 /* based on ether_resolvemulti() */
 int
-arc_resolvemulti(ifp, llsa, sa)
-	struct ifnet *ifp;
-	struct sockaddr **llsa;
-	struct sockaddr *sa;
+arc_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
+    struct sockaddr *sa)
 {
 	struct sockaddr_dl *sdl;
 	struct sockaddr_in *sin;

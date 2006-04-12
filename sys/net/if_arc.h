@@ -130,7 +130,7 @@ extern int arc_ipmtu;	/* XXX new ip only, no RFC 1051! */
 void	arc_ifattach(struct ifnet *, u_int8_t);
 void	arc_ifdetach(struct ifnet *);
 void	arc_storelladdr(struct ifnet *, u_int8_t);
-int	arc_isphds(int);
+int	arc_isphds(u_int8_t);
 void	arc_input(struct ifnet *, struct mbuf *);
 int	arc_output(struct ifnet *, struct mbuf *,
 	    struct sockaddr *, struct rtentry *);
