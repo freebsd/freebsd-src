@@ -513,20 +513,15 @@ in6_setsockaddr(so, nam)
 	struct socket *so;
 	struct sockaddr **nam;
 {
-	int s;
 	register struct inpcb *inp;
 	struct in6_addr addr;
 	in_port_t port;
 
-	s = splnet();
 	inp = sotoinpcb(so);
-	if (!inp) {
-		splx(s);
-		return EINVAL;
-	}
+	KASSERT(inp != NULL, ("in6_setsockaddr: inp == NULL"));
+
 	port = inp->inp_lport;
 	addr = inp->in6p_laddr;
-	splx(s);
 
 	*nam = in6_sockaddr(port, &addr);
 	return 0;
@@ -537,20 +532,15 @@ in6_setpeeraddr(so, nam)
 	struct socket *so;
 	struct sockaddr **nam;
 {
-	int s;
 	struct inpcb *inp;
 	struct in6_addr addr;
 	in_port_t port;
 
-	s = splnet();
 	inp = sotoinpcb(so);
-	if (!inp) {
-		splx(s);
-		return EINVAL;
-	}
+	KASSERT(inp != NULL, ("in6_setpeeraddr: inp == NULL"));
+
 	port = inp->inp_fport;
 	addr = inp->in6p_faddr;
-	splx(s);
 
 	*nam = in6_sockaddr(port, &addr);
 	return 0;
@@ -559,11 +549,12 @@ in6_setpeeraddr(so, nam)
 int
 in6_mapped_sockaddr(struct socket *so, struct sockaddr **nam)
 {
-	struct	inpcb *inp = sotoinpcb(so);
+	struct	inpcb *inp;
 	int	error;
 
-	if (inp == NULL)
-		return EINVAL;
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("in6_mapped_sockaddr: inp == NULL"));
+
 	if ((inp->inp_vflag & (INP_IPV4 | INP_IPV6)) == INP_IPV4) {
 		error = in_setsockaddr(so, nam, &tcbinfo);
 		if (error == 0)
@@ -579,11 +570,12 @@ in6_mapped_sockaddr(struct socket *so, struct sockaddr **nam)
 int
 in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam)
 {
-	struct	inpcb *inp = sotoinpcb(so);
+	struct	inpcb *inp;
 	int	error;
 
-	if (inp == NULL)
-		return EINVAL;
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("in6_mapped_peeraddr: inp == NULL"));
+
 	if ((inp->inp_vflag & (INP_IPV4 | INP_IPV6)) == INP_IPV4) {
 		error = in_setpeeraddr(so, nam, &tcbinfo);
 		if (error == 0)
@@ -603,8 +595,6 @@ in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam)
  * cmds that are uninteresting (e.g., no error in the map).
  * Call the protocol specific routine (if any) to report
  * any errors for each matching socket.
- *
- * Must be called at splnet.
  */
 void
 in6_pcbnotify(pcbinfo, dst, fport_arg, src, lport_arg, cmd, cmdarg, notify)
@@ -621,7 +611,7 @@ in6_pcbnotify(pcbinfo, dst, fport_arg, src, lport_arg, cmd, cmdarg, notify)
 	struct sockaddr_in6 sa6_src, *sa6_dst;
 	u_short	fport = fport_arg, lport = lport_arg;
 	u_int32_t flowinfo;
-	int errno, s;
+	int errno;
 
 	if ((unsigned)cmd >= PRC_NCMDS || dst->sa_family != AF_INET6)
 		return;
@@ -653,7 +643,6 @@ in6_pcbnotify(pcbinfo, dst, fport_arg, src, lport_arg, cmd, cmdarg, notify)
 			notify = in6_rtchange;
 	}
 	errno = inet6ctlerrmap[cmd];
-	s = splnet();
 	head = pcbinfo->listhead;
 	INP_INFO_WLOCK(pcbinfo);
  	for (inp = LIST_FIRST(head); inp != NULL; inp = ninp) {
@@ -714,7 +703,6 @@ in6_pcbnotify(pcbinfo, dst, fport_arg, src, lport_arg, cmd, cmdarg, notify)
 			INP_UNLOCK(inp);
 	}
 	INP_INFO_WUNLOCK(pcbinfo);
-	splx(s);
 }
 
 /*
