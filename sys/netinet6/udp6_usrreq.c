@@ -167,13 +167,14 @@ udp6_input(mp, offp, proto)
 	 */
 	if (uh->uh_sum == 0) {
 		udpstat.udps_nosum++;
-		goto bad;
+		goto bad_unlocked;
 	}
 	if (in6_cksum(m, IPPROTO_UDP, off, ulen) != 0) {
 		udpstat.udps_badsum++;
-		goto bad;
+		goto bad_unlocked;
 	}
 
+	INP_INFO_RLOCK(&udbinfo);
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		struct	inpcb *last;
 
@@ -321,6 +322,7 @@ udp6_input(mp, offp, proto)
 			goto bad;
 		}
 		sorwakeup(last->in6p_socket);
+		INP_INFO_RUNLOCK(&udbinfo);
 		return IPPROTO_DONE;
 	}
 	/*
@@ -345,6 +347,7 @@ udp6_input(mp, offp, proto)
 			udpstat.udps_noportmcast++;
 			goto bad;
 		}
+		INP_INFO_RUNLOCK(&udbinfo);
 		icmp6_error(m, ICMP6_DST_UNREACH, ICMP6_DST_UNREACH_NOPORT, 0);
 		return IPPROTO_DONE;
 	}
@@ -376,8 +379,11 @@ udp6_input(mp, offp, proto)
 		goto bad;
 	}
 	sorwakeup(in6p->in6p_socket);
+	INP_INFO_RUNLOCK(&udbinfo);
 	return IPPROTO_DONE;
 bad:
+	INP_INFO_RUNLOCK(&udbinfo);
+bad_unlocked:
 	if (m)
 		m_freem(m);
 	if (opts)
