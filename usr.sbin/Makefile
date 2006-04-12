@@ -319,7 +319,7 @@ _boot98cfg=	boot98cfg
 .if ${MACHINE_ARCH} == "alpha"
 _elf2exe=	elf2exe
 _pnpinfo=	pnpinfo
-.if ${MK_LIBC_R} != "no"
+.if ${MK_LIBTHR} != "no"
 _pppctl=	pppctl
 .endif
 .endif
@@ -368,7 +368,7 @@ _mount_smbfs=	mount_smbfs
 .if ${MACHINE_ARCH} == "sparc64"
 _eeprom=	eeprom
 _ofwdump=	ofwdump
-.if ${MK_LIBC_R} != "no"
+.if ${MK_LIBTHR} != "no"
 _pppctl=	pppctl
 .endif
 .endif
