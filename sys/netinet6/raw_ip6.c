@@ -547,7 +547,7 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct inpcb *inp;
 	struct icmp6_filter *filter;
-	int error, s;
+	int error;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp == NULL, ("rip6_attach: inp != NULL"));
@@ -561,9 +561,7 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 	if (filter == NULL)
 		return ENOMEM;
 	INP_INFO_WLOCK(&ripcbinfo);
-	s = splnet();
 	error = in_pcballoc(so, &ripcbinfo, "raw6inp");
-	splx(s);
 	if (error) {
 		INP_INFO_WUNLOCK(&ripcbinfo);
 		FREE(filter, M_PCB);
