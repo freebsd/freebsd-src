@@ -696,21 +696,6 @@ pmap_get_asn(pmap_t pmap)
  * Low level helper routines.....
  ***************************************************/
 
-
-
-/*
- * this routine defines the region(s) of memory that should
- * not be tested for the modified bit.
- */
-static PMAP_INLINE int
-pmap_track_modified(vm_offset_t va)
-{
-	if ((va < kmi.clean_sva) || (va >= kmi.clean_eva)) 
-		return 1;
-	else
-		return 0;
-}
-
 /*
  *	Routine:	pmap_extract
  *	Function:
@@ -1346,10 +1331,8 @@ retry:
 			    ("get_pv_entry: wired pte %#lx", tpte));
 			if ((tpte & PG_FOR) == 0)
 				vm_page_flag_set(m, PG_REFERENCED);
-			if ((tpte & PG_FOW) == 0) {
-				if (pmap_track_modified(va))
-					vm_page_dirty(m);
-			}
+			if ((tpte & PG_FOW) == 0)
+				vm_page_dirty(m);
 			pmap_invalidate_page(pmap, va);
 			TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
 			TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
@@ -1449,10 +1432,8 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va)
 	pmap->pm_stats.resident_count -= 1;
 	if (oldpte & PG_MANAGED) {
 		m = PHYS_TO_VM_PAGE(pmap_pte_pa(&oldpte));
-		if ((oldpte & PG_FOW) == 0) {
-			if (pmap_track_modified(va))
-				vm_page_dirty(m);
-		}
+		if ((oldpte & PG_FOW) == 0)
+			vm_page_dirty(m);
 		if ((oldpte & PG_FOR) == 0)
 			vm_page_flag_set(m, PG_REFERENCED);
 		return pmap_remove_entry(pmap, m, va);
@@ -1581,10 +1562,8 @@ pmap_remove_all(vm_page_t m)
 		/*
 		 * Update the vm_page_t clean and reference bits.
 		 */
-		if ((tpte & PG_FOW) == 0) {
-			if (pmap_track_modified(pv->pv_va))
-				vm_page_dirty(m);
-		}
+		if ((tpte & PG_FOW) == 0)
+			vm_page_dirty(m);
 		if ((tpte & PG_FOR) == 0)
 			vm_page_flag_set(m, PG_REFERENCED);
 
@@ -1666,8 +1645,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			if ((oldpte & PG_FOW) == 0) {
 				if (m == NULL)
 					m = PHYS_TO_VM_PAGE(pmap_pte_pa(pte));
-				if (pmap_track_modified(sva))
-					vm_page_dirty(m);
+				vm_page_dirty(m);
 				oldpte |= PG_FOW;
 			}
 			oldpte = (oldpte & ~PG_PROT) | newprot;
@@ -1763,8 +1741,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 * so we go ahead and sense modify status.
 		 */
 		if (origpte & PG_MANAGED) {
-			if ((origpte & PG_FOW) != PG_FOW
-			    && pmap_track_modified(va))
+			if ((origpte & PG_FOW) != PG_FOW)
 				vm_page_dirty(m);
 		}
 
@@ -1788,6 +1765,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * called at interrupt time.
 	 */
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
+		KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva,
+		    ("pmap_enter: managed mapping within the clean submap"));
 		pmap_insert_entry(pmap, va, mpte, m);
 		managed |= PG_MANAGED;
 	}
@@ -1850,6 +1829,9 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	register pt_entry_t *pte;
 	int managed;
 
+	KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva ||
+	    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0,
+	    ("pmap_enter_quick: managed mapping within the clean submap"));
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	PMAP_LOCK(pmap);
@@ -2168,8 +2150,7 @@ pmap_remove_pages(pmap_t pmap)
 		pmap->pm_stats.resident_count--;
 
 		if ((tpte & PG_FOW) == 0)
-			if (pmap_track_modified(pv->pv_va))
-				vm_page_dirty(m);
+			vm_page_dirty(m);
 
 		npv = TAILQ_NEXT(pv, pv_plist);
 		TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
@@ -2209,14 +2190,6 @@ pmap_changebit(vm_page_t m, int bit, boolean_t setem)
 	 * setting RO do we need to clear the VAC?
 	 */
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
-		/*
-		 * don't write protect pager mappings
-		 */
-		if (!setem && bit == (PG_UWE|PG_KWE)) {
-			if (!pmap_track_modified(pv->pv_va))
-				continue;
-		}
-
 		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
 
