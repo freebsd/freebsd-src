@@ -179,11 +179,7 @@ padlock_init(void)
 #endif
 
 	padlock_sc = sc = malloc(sizeof(*padlock_sc), M_DEVBUF,
-	    M_NOWAIT | M_ZERO);
-	if (padlock_sc == NULL) {
-		printf("PADLOCK: Could not allocate memory.\n");
-		return (ENOMEM);
-	}
+	    M_WAITOK | M_ZERO);
 	TAILQ_INIT(&sc->sc_sessions);
 	sc->sc_sid = 1;
 
