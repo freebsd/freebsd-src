@@ -140,6 +140,8 @@ udp6_output(in6p, m, addr6, control, td)
 	int flags;
 	struct sockaddr_in6 tmp;
 
+	INP_LOCK_ASSERT(in6p);
+
 	priv = 0;
 	if (td && !suser(td))
 		priv = 1;
