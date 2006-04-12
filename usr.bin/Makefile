@@ -263,7 +263,7 @@ _calendar=	calendar
 _chkey=		chkey
 _newkey=	newkey
 .if ${MACHINE_ARCH} == "alpha" || ${MACHINE_ARCH} == "sparc64"
-.if ${MK_LIBC_R} != "no"
+.if ${MK_LIBTHR} != "no"
 _csup=		csup
 .endif
 .elif ${MK_LIBPTHREAD} != "no"
