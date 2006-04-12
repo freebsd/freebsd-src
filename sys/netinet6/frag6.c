@@ -677,7 +677,6 @@ void
 frag6_slowtimo()
 {
 	struct ip6q *q6;
-	int s = splnet();
 
 	IP6Q_LOCK();
 	q6 = ip6q.ip6q_next;
@@ -719,8 +718,6 @@ frag6_slowtimo()
 		ipsrcchk_rt.ro_rt = 0;
 	}
 #endif
-
-	splx(s);
 }
 
 /*
