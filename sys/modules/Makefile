@@ -35,6 +35,7 @@ SUBDIR=	${_3dfx} \
 	${_auxio} \
 	${_awi} \
 	axe \
+	bce \
 	bfe \
 	bge \
 	${_bios} \
