@@ -217,6 +217,9 @@ udp6_input(mp, offp, proto)
 		/*
 		 * Locate pcb(s) for datagram.
 		 * (Algorithm copied from raw_intr().)
+		 *
+		 * XXXRW: The individual inpcbs need to be locked in the
+		 * style of udp_input().
 		 */
 		last = NULL;
 		LIST_FOREACH(in6p, &udb, inp_list) {
@@ -331,7 +334,7 @@ udp6_input(mp, offp, proto)
 	in6p = in6_pcblookup_hash(&udbinfo, &ip6->ip6_src, uh->uh_sport,
 				  &ip6->ip6_dst, uh->uh_dport, 1,
 				  m->m_pkthdr.rcvif);
-	if (in6p == 0) {
+	if (in6p == NULL) {
 		if (log_in_vain) {
 			char buf[INET6_ADDRSTRLEN];
 
@@ -351,11 +354,13 @@ udp6_input(mp, offp, proto)
 		icmp6_error(m, ICMP6_DST_UNREACH, ICMP6_DST_UNREACH_NOPORT, 0);
 		return IPPROTO_DONE;
 	}
+	INP_LOCK(in6p);
 #if defined(IPSEC) || defined(FAST_IPSEC)
 	/*
 	 * Check AH/ESP integrity.
 	 */
 	if (ipsec6_in_reject(m, in6p)) {
+		INP_UNLOCK(in6p);
 #ifdef IPSEC
 		ipsec6stat.in_polvio++;
 #endif /* IPSEC */
@@ -375,10 +380,12 @@ udp6_input(mp, offp, proto)
 	m_adj(m, off + sizeof(struct udphdr));
 	if (sbappendaddr(&in6p->in6p_socket->so_rcv,
 			(struct sockaddr *)&fromsa, m, opts) == 0) {
+		INP_UNLOCK(in6p);
 		udpstat.udps_fullsock++;
 		goto bad;
 	}
 	sorwakeup(in6p->in6p_socket);
+	INP_UNLOCK(in6p);
 	INP_INFO_RUNLOCK(&udbinfo);
 	return IPPROTO_DONE;
 bad:
