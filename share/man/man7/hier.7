@@ -32,7 +32,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd January 15, 2005
+.Dd April 12, 2006
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -90,11 +90,13 @@ mount point used by
 .It Pa /etc/
 system configuration files and scripts
 .Pp
-.Bl -tag -width ".Pa defaults/" -compact
+.Bl -tag -width ".Pa bluetooth/" -compact
 .It Pa defaults/
 default system configuration files;
 see
 .Xr rc 8
+.It Pa bluetooth/
+bluetooth configuration files
 .It Pa gnats/
 gnats configuration files;
 see
@@ -127,10 +129,22 @@ scripts that are run daily, weekly, and monthly, via
 .Xr cron 8 ;
 see
 .Xr periodic 8
+.It Pa rc.d/
+System and daemon startup/control scripts;
+see
+.Xr rc 8
+.It Pa security/
+OpenBSM audit configuration files;
+see
+.Xr audit 8
 .It Pa ppp/
 ppp configuration files;
 see
 .Xr ppp 8
+.It Pa ssh/
+OpenSSH configuration files;
+see
+.Xr ssh 1
 .It Pa ssl/
 OpenSSL configuration files
 .El
