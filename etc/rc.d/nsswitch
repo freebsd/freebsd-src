@@ -107,7 +107,7 @@ generate_host_conf()
 	_sources="${_sources}${_sources:+ }$line"
     done < $nsswitch_conf
 
-    echo "# Auto-generated from nsswitch.conf, do not edit" > $host_conf
+    echo "# Auto-generated from nsswitch.conf" > $host_conf
     for _s in ${_sources}; do
 	case $_s in
 	files)
