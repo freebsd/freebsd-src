@@ -28,7 +28,7 @@ PRECIOUSLIB=
 .if ${MACHINE_ARCH} == "alpha" || ${MACHINE_ARCH} == "sparc64"
 SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
 .if !defined(NO_PIC)
-SYMLINKS+=lib${LIB}.so ${SHLIBDIR}/libpthread.so
+SYMLINKS+=lib${LIB}.so ${LIBDIR}/libpthread.so
 .endif
 .if ${MK_PROFILE} != "no"
 SYMLINKS+=lib${LIB}_p.a ${LIBDIR}/libpthread_p.a
