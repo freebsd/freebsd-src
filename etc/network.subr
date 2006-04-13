@@ -44,7 +44,7 @@ ifconfig_up()
 	ifconfig_args=`ifconfig_getargs $1`
 	if [ -n "${ifconfig_args}" ]; then
 		ifconfig $1 up
-		eval "ifconfig $1 ${ifconfig_args}"
+		ifconfig $1 ${ifconfig_args}
 		_cfg=0
 	fi
 
@@ -60,7 +60,9 @@ ifconfig_up()
 		if [ $_cfg -ne 0 ] ; then
 			ifconfig $1 up
 		fi
-		/etc/rc.d/dhclient start $1
+		if syncdhcpif $1; then
+			/etc/rc.d/dhclient start $1
+		fi
 		_cfg=0
 	fi
 
@@ -71,6 +73,8 @@ ifconfig_up()
 #	Remove all inet entries from the $if interface. It returns
 #	0 if inet entries were found and removed. It returns 1 if
 #	no entries were found or they could not be removed.
+#
+#	XXX: should not be only inet
 #
 ifconfig_down()
 {
@@ -105,7 +109,34 @@ ifconfig_down()
 		_cfg=0
 	fi
 
+	ifconfig $1 down
+
 	return $_cfg
+}
+
+# get_if_var if var [default]
+#       Return the value of the pseudo-hash corresponding to $if where
+#       $var is a string containg the sub-string "IF" which will be
+#       replaced with $if after the characters defined in _punct are
+#       replaced with '_'. If the variable is unset, replace it with
+#       $default if given.
+get_if_var()
+{
+	if [ $# -ne 2 -a $# -ne 3 ]; then
+		err 3 'USAGE: get_if_var name var [default]'
+	fi
+
+	_if=$1
+	_punct=". - / +"
+	for _punct_c in $punct; do
+		_if=`ltr ${_if} ${_punct_c} '_'`
+	done
+	_var=$2
+	_default=$3
+
+	prefix=${_var%%IF*}
+	suffix=${_var##*IF}
+	eval echo \${${prefix}${_if}${suffix}-${_default}}
 }
 
 # _ifconfig_getargs if
@@ -119,9 +150,7 @@ _ifconfig_getargs()
 		return 1
 	fi
 
-	eval _args=\${ifconfig_$1-$ifconfig_DEFAULT}
-
-	echo "$_args"
+	get_if_var $_ifn ifconfig_IF "$ifconfig_DEFAULT"
 }
 
 # ifconfig_getargs if
@@ -137,12 +166,11 @@ ifconfig_getargs()
 
 	for _arg in $_tmpargs; do
 		case $_arg in
-		[Dd][Hh][Cc][Pp])
-			;;
-		[Nn][Oo][Aa][Uu][Tt][Oo])
-			;;
-		[Ww][Pp][Aa])
-			;;
+		[Dd][Hh][Cc][Pp]) ;;
+		[Nn][Oo][Aa][Uu][Tt][Oo]) ;;
+		[Nn][Oo][Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]) ;;
+		[Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]) ;;
+		[Ww][Pp][Aa]) ;;
 		*)
 			_args="$_args $_arg"
 			;;
@@ -178,9 +206,38 @@ dhcpif()
 		[Dd][Hh][Cc][Pp])
 			return 0
 			;;
+		[Nn][Oo][Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp])
+			return 0
+			;;
+		[Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp])
+			return 0
+			;;
 		esac
 	done
 	return 1
+}
+
+# syncdhcpif
+#	Returns 0 if the interface should be configured synchronously and
+#	1 otherwise.
+syncdhcpif()
+{
+	_tmpargs=`_ifconfig_getargs $1`
+	for _arg in $_tmpargs; do
+		case $_arg in
+		[Nn][Oo][Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp])
+			return 1
+			;;
+		[Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp])
+			return 0
+			;;
+		esac
+	done
+	if checkyesno syncronous_dhclient; then
+		return 0
+	else
+		return 1
+	fi
 }
 
 # wpaif if
@@ -226,7 +283,7 @@ ipv4_addrs_common()
 	_action=$2
     
 	# get ipv4-addresses
-	eval cidr_addr=\${ipv4_addrs_${_if}}
+	cidr_addr=`get_if_var $_if ipv4_addrs_IF`
     
 	for _cidr in ${cidr_addr}; do
 		_ipaddr=${_cidr%%/*}
@@ -266,7 +323,7 @@ ifalias_up()
 	_ret=1
 	alias=0
 	while : ; do
-		eval ifconfig_args=\$ifconfig_$1_alias${alias}
+		ifconfig_args=`get_if_var $1 ifconfig_IF_alias${alias}`
 		if [ -n "${ifconfig_args}" ]; then
 			ifconfig $1 ${ifconfig_args} alias
 			alias=$((${alias} + 1))
@@ -288,7 +345,7 @@ ifalias_down()
 	_ret=1
 	alias=0
 	while : ; do
-		eval ifconfig_args=\$ifconfig_$1_alias${alias}
+		ifconfig_args=`get_if_var $1 ifconfig_IF_alias${alias}`
 		if [ -n "${ifconfig_args}" ]; then
 			ifconfig $1 ${ifconfig_args} -alias
 			alias=$((${alias} + 1))
@@ -367,7 +424,7 @@ gif_up() {
 		;;
 	*)
 		for i in ${gif_interfaces}; do
-			eval peers=\$gifconfig_$i
+			peers=`get_if_var $i gifconfig_IF`
 			case ${peers} in
 			'')
 				continue
@@ -391,7 +448,7 @@ gif_up() {
 ipx_up()
 {
 	ifn="$1"
-	eval ifconfig_args=\$ifconfig_${ifn}_ipx
+	ifconfig_args=`get_if_var $ifn ifconfig_IF_ipx`
 	if [ -n "${ifconfig_args}" ]; then
 		ifconfig ${ifn} ${ifconfig_args}
 		return 0
@@ -438,7 +495,7 @@ ifnet_rename()
 	_ifn_list="`ifconfig -l`"
 	[ -z "$_ifn_list" ] && return 0
 	for _if in ${_ifn_list} ; do
-		eval _ifname=\$ifconfig_${_if}_name
+		_ifname=`get_if_var $_if ifconfig_IF_name`
 		if [ ! -z "$_ifname" ]; then
 			ifconfig $_if name $_ifname
 		fi
@@ -499,7 +556,7 @@ list_net_interfaces()
 		if dhcpif $_if; then
 			_dhcplist="${_dhcplist}${_aprefix}${_if}"
 			[ -z "$_aprefix" ] && _aprefix=' '
-		elif [ -n "`_ifconfig_getargs $if`" ]; then
+		elif [ -n "`_ifconfig_getargs $_if`" ]; then
 			_nodhcplist="${_nodhcplist}${_bprefix}${_if}"
 			[ -z "$_bprefix" ] && _bprefix=' '
 		fi
@@ -564,7 +621,7 @@ network6_interface_setup()
 	esac
 	for i in $interfaces; do
 		rtsol_interface=yes
-		eval prefix=\$ipv6_prefix_$i
+		prefix=`get_if_var $i ipv6_prefix_IF`
 		if [ -n "${prefix}" ]; then
 			rtsol_available=no
 			rtsol_interface=no
@@ -584,7 +641,7 @@ network6_interface_setup()
 				esac
 			done
 		fi
-		eval ipv6_ifconfig=\$ipv6_ifconfig_$i
+		ipv6_ifconfig=`get_if_var $i ipv6_ifconfig_IF`
 		if [ -n "${ipv6_ifconfig}" ]; then
 			rtsol_available=no
 			rtsol_interface=no
@@ -619,7 +676,7 @@ network6_interface_setup()
 	for i in $interfaces; do
 		alias=0
 		while : ; do
-			eval ipv6_ifconfig=\$ipv6_ifconfig_${i}_alias${alias}
+			ipv6_ifconfig=`get_if_var $i ipv6_ifconfig_IF_alias${alias}`
 			if [ -z "${ipv6_ifconfig}" ]; then
 				break;
 			fi
@@ -695,7 +752,7 @@ network6_static_routes_setup()
 		;;
 	*)
 		for i in ${ipv6_static_routes}; do
-			eval ipv6_route_args=\$ipv6_route_${i}
+			ipv6_route_args=`get_if_var $i ipv6_route_IF`
 			route add -inet6 ${ipv6_route_args}
 		done
 		;;
