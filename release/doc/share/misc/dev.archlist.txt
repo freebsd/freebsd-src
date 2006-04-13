@@ -49,6 +49,7 @@ ath	i386
 aue	i386,pc98,ia64,amd64
 awi	i386,pc98,amd64
 axe	i386,pc98,amd64
+bce	i386,amd64
 bge	i386,pc98,ia64,amd64
 bktr	i386,pc98
 bt	i386,amd64
@@ -82,6 +83,7 @@ ixgb	i386,amd64
 kue	i386,pc98,ia64,amd64
 lge	i386,pc98,amd64
 lnc	i386,pc98
+mfi	i386,alpha,ia64,amd64
 mlx	i386,alpha,ia64,amd64
 mly	i386,ia64,amd64
 my	i386,pc98
