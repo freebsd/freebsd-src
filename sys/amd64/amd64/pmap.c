@@ -106,6 +106,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_msgbuf.h"
+#include "opt_pmap.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
