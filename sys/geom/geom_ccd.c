@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 /* sc_flags */
 #define CCDF_UNIFORM	0x02	/* use LCCD of sizes for uniform interleave */
 #define CCDF_MIRROR	0x04	/* use mirroring */
+#define CCDF_NO_OFFSET	0x08	/* do not leave space in front */
+#define CCDF_LINUX	0x10	/* use Linux compatibility mode */
 
 /* Mask of user-settable ccd flags. */
 #define CCDF_USERMASK	(CCDF_UNIFORM|CCDF_MIRROR)
@@ -136,6 +138,7 @@ struct ccd_s {
 	u_int32_t	 sc_secsize;		/* # bytes per sector */
 	int		 sc_pick;		/* side of mirror picked */
 	daddr_t		 sc_blk[2];		/* mirror localization */
+	u_int32_t	 sc_offset;		/* actual offset used */
 };
 
 static g_start_t g_ccd_start;
@@ -215,6 +218,20 @@ ccdinit(struct gctl_req *req, struct ccd_s *cs)
 
 	maxsecsize = 0;
 	minsize = 0;
+
+	if (cs->sc_flags & CCDF_LINUX) {
+		cs->sc_offset = 0;
+		cs->sc_ileave *= 2;
+		if (cs->sc_flags & CCDF_MIRROR && cs->sc_ndisks != 2)
+			gctl_error(req, "Mirror mode for Linux raids is "
+			                "only supported with 2 devices");
+	} else {
+		if (cs->sc_flags & CCDF_NO_OFFSET)
+			cs->sc_offset = 0;
+		else
+			cs->sc_offset = CCD_OFFSET;
+
+	}
 	for (ix = 0; ix < cs->sc_ndisks; ix++) {
 		ci = &cs->sc_cinfo[ix];
 
@@ -222,7 +239,7 @@ ccdinit(struct gctl_req *req, struct ccd_s *cs)
 		sectorsize = ci->ci_provider->sectorsize;
 		if (sectorsize > maxsecsize)
 			maxsecsize = sectorsize;
-		size = mediasize / DEV_BSIZE - CCD_OFFSET;
+		size = mediasize / DEV_BSIZE - cs->sc_offset;
 
 		/* Truncate to interleave boundary */
 
@@ -604,7 +621,7 @@ ccdbuffer(struct bio **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, caddr_t
 	if (cbp == NULL)
 		return (ENOMEM);
 	cbp->bio_done = g_std_done;
-	cbp->bio_offset = dbtob(cbn + cboff + CCD_OFFSET);
+	cbp->bio_offset = dbtob(cbn + cboff + cs->sc_offset);
 	cbp->bio_data = addr;
 	if (cs->sc_ileave == 0)
               cbc = dbtob((off_t)(ci->ci_size - cbn));
@@ -739,6 +756,11 @@ g_ccd_create(struct gctl_req *req, struct g_class *mp)
 
 	sc->sc_unit = *unit;
 	sc->sc_ileave = *ileave;
+
+	if (gctl_get_param(req, "no_offset", NULL))
+		sc->sc_flags |= CCDF_NO_OFFSET;
+	if (gctl_get_param(req, "linux", NULL))
+		sc->sc_flags |= CCDF_LINUX;
 
 	if (gctl_get_param(req, "uniform", NULL))
 		sc->sc_flags |= CCDF_UNIFORM;
