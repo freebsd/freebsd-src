@@ -54,7 +54,7 @@ SYSCTL_N="${SYSCTL} -n"
 CMD_OSTYPE="${SYSCTL_N} kern.ostype"
 OSTYPE=`${CMD_OSTYPE}`
 ID="/usr/bin/id"
-JID=`ps -p $$ -o jid | tail -1 | tr -d ' '`
+JID=`ps -p $$ -o jid=`
 IDCMD="if [ -x $ID ]; then $ID -un; fi"
 
 case ${OSTYPE} in
