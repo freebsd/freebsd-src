@@ -26,6 +26,7 @@
 
 #include "AT91RM9200.h"
 #include "lib.h"
+#include "at91rm9200_lowlevel.h"
 
 typedef	void fn_t(void);
 
