@@ -88,7 +88,7 @@ find_next_zero_bit(void *data, size_t sz, size_t ofs)
 		p++;
 		ofs = (ofs + 31U) & ~31U;
 	}
-	while(*p == ~0U && ofs < sz) {
+	while(ofs < sz && *p == ~0U) {
 		p++;
 		ofs += 32;
 	}
