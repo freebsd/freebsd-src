@@ -93,9 +93,7 @@ static TAILQ_HEAD(, intr_event) event_list =
 
 static void	intr_event_update(struct intr_event *ie);
 static struct intr_thread *ithread_create(const char *name);
-#ifdef notyet
 static void	ithread_destroy(struct intr_thread *ithread);
-#endif
 static void	ithread_execute_handlers(struct proc *p, struct intr_event *ie);
 static void	ithread_loop(void *);
 static void	ithread_update(struct intr_thread *ithd);
@@ -270,6 +268,12 @@ intr_event_destroy(struct intr_event *ie)
 	mtx_pool_lock(mtxpool_sleep, &event_list);
 	TAILQ_REMOVE(&event_list, ie, ie_list);
 	mtx_pool_unlock(mtxpool_sleep, &event_list);
+#ifndef notyet
+	if (ie->ie_thread != NULL) {
+		ithread_destroy(ie->ie_thread);
+		ie->ie_thread = NULL;
+	}
+#endif
 	mtx_unlock(&ie->ie_lock);
 	mtx_destroy(&ie->ie_lock);
 	free(ie, M_ITHREAD);
@@ -301,12 +305,12 @@ ithread_create(const char *name)
 	return (ithd);
 }
 
-#ifdef notyet
 static void
 ithread_destroy(struct intr_thread *ithread)
 {
 	struct thread *td;
 
+	CTR2(KTR_INTR, "%s: killing %s", __func__, ithread->it_name);
 	td = ithread->it_thread;
 	mtx_lock_spin(&sched_lock);
 	ithread->it_flags |= IT_DEAD;
@@ -315,9 +319,7 @@ ithread_destroy(struct intr_thread *ithread)
 		setrunqueue(td, SRQ_INTR);
 	}
 	mtx_unlock_spin(&sched_lock);
-	CTR2(KTR_INTR, "%s: killing %s", __func__, ithread->it_name);
 }
-#endif
 
 int
 intr_event_add_handler(struct intr_event *ie, const char *name,
