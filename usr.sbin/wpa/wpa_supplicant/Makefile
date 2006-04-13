@@ -43,7 +43,7 @@ SRCS+=	eap_ttls.c eap_md5.c
 #CFLAGS+= -DEAP_FAST
 #SRCS+=	eap_fast.c
 
-DPADD+= ${LIBCRYPTO}
+DPADD+= ${LIBSSL} ${LIBCRYPTO}
 LDADD+= -lssl -lcrypto
 .else
 SRCS+=	tls_none.c
