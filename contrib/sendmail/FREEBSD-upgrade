@@ -24,6 +24,10 @@ Imported using:
 	cvs import -m 'Import sendmail 8.13.6' \
 		src/contrib/sendmail SENDMAIL v8_13_6
 
+After importing, bump the version of src/etc/sendmail/freebsd*mc
+so mergemaster will merge /etc/mail/freebsd*cf:
+
+	cvs commit -f src/etc/sendmail/freebsd*mc
 
 To make local changes to sendmail, simply patch and commit to the main
 branch (aka HEAD).  Never make local changes on the vendor (SENDMAIL)
@@ -93,4 +97,4 @@ infrastructure in FreeBSD:
 	usr.sbin/mailwrapper/Makefile
 
 gshapiro@FreeBSD.org
-22-March-2006
+12-April-2006
