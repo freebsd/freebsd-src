@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 
 #define CCDF_UNIFORM    0x02    /* use LCCD of sizes for uniform interleave */
 #define CCDF_MIRROR     0x04    /* use mirroring */
+#define CCDF_NO_OFFSET  0x08    /* do not leave space in front */
+#define CCDF_LINUX      0x10    /* use Linux compatibility mode */
 
 #include "pathnames.h"
 
@@ -65,6 +67,10 @@ struct	flagval {
 	{ "uniform",		CCDF_UNIFORM },
 	{ "CCDF_MIRROR",	CCDF_MIRROR },
 	{ "mirror",		CCDF_MIRROR },
+	{ "CCDF_NO_OFFSET",	CCDF_NO_OFFSET },
+	{ "no_offset",		CCDF_NO_OFFSET },
+	{ "CCDF_LINUX",		CCDF_LINUX },
+	{ "linux",		CCDF_LINUX },
 	{ "none",		0 },
 	{ NULL,			0 },
 };
@@ -245,6 +251,10 @@ do_single(int argc, char **argv, int action)
 		gctl_ro_param(grq, "uniform", -1, "");
 	if (flags & CCDF_MIRROR)
 		gctl_ro_param(grq, "mirror", -1, "");
+	if (flags & CCDF_NO_OFFSET)
+		gctl_ro_param(grq, "no_offset", -1, "");
+	if (flags & CCDF_LINUX)
+		gctl_ro_param(grq, "linux", -1, "");
 	gctl_ro_param(grq, "nprovider", sizeof(argc), &argc);
 	for (i = 0; i < argc; i++) {
 		sprintf(buf1, "provider%d", i);
