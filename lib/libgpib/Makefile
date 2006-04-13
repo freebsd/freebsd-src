@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 LIB =		gpib
-SHLIBDIR ?=	/lib
 SHLIB_MAJOR =	1
 SRCS =		ibfoo.c
 INCS =		gpib.h
