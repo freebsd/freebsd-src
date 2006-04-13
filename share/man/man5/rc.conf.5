@@ -364,13 +364,13 @@ to start the DHCP client in background.
 This can cause trouble with applications depending on
 a working network, but it will provide a faster startup
 in many cases.
-.It Va syncronous_dhclient
+.It Va synchronous_dhclient
 .Pq Bt bool
 Set to
 .Dq Li NO
 to start
 .Xr dhclient 8
-only in response to interface events and not syncronously at startup.
+only in response to interface events and not synchronously at startup.
 This behavior can be overridden on a per-interface basis by replacing
 the
 .Dq Li DHCP

@@ -233,7 +233,7 @@ syncdhcpif()
 			;;
 		esac
 	done
-	if checkyesno syncronous_dhclient; then
+	if checkyesno synchronous_dhclient; then
 		return 0
 	else
 		return 1
