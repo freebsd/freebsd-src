@@ -1,6 +1,8 @@
 # Makefile for libpcap
 # $FreeBSD$
 
+SHLIBDIR?= /lib
+
 .include <bsd.own.mk>
 
 LIB=	pcap
