@@ -269,7 +269,7 @@ _pthread_mutex_destroy(pthread_mutex_t *mutex)
 		 * Check to see if this mutex is in use:
 		 */
 		if (((*mutex)->m_owner != NULL) ||
-		    (TAILQ_FIRST(&(*mutex)->m_queue) != NULL) ||
+		    (!TAILQ_EMPTY(&(*mutex)->m_queue)) ||
 		    ((*mutex)->m_refcount != 0)) {
 			ret = EBUSY;
 
