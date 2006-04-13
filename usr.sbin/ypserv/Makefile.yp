@@ -300,7 +300,6 @@ netgroup: $(NETGROUP) netgroup.byhost netgroup.byuser
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
-	@$(MAKE) -f ../Makefile netid
 .endif
 
 
@@ -342,7 +341,6 @@ hosts.byname: $(HOSTS)
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
-	@$(MAKE) -f ../Makefile netid
 
 
 hosts.byaddr: $(HOSTS)
@@ -353,7 +351,6 @@ hosts.byaddr: $(HOSTS)
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
-	@$(MAKE) -f ../Makefile netid
 
 
 ipnodes.byname: $(IPNODES)
@@ -367,7 +364,6 @@ ipnodes.byname: $(IPNODES)
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
-	@$(MAKE) -f ../Makefile netid
 .endif
 
 
@@ -382,7 +378,6 @@ ipnodes.byaddr: $(IPNODES)
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
-	@$(MAKE) -f ../Makefile netid
 .endif
 
 
@@ -528,7 +523,6 @@ passwd.byuid: $(PASSWD)
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
-	@$(MAKE) -f ../Makefile netid
 
 
 group.byname: $(GROUP)
@@ -551,10 +545,9 @@ group.bygid: $(GROUP)
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
-	@$(MAKE) -f ../Makefile netid
 
 
-netid.byname: $(GROUP) $(PASSWD)
+netid.byname: $(GROUP) $(PASSWD) $(HOSTS)
 	@echo "Updating $@..."
 	@$(MKNETID) -q -p $(PASSWD) -g $(GROUP) -h $(HOSTS) -n $(NETID) \
 		-d $(DOMAIN) | $(DBLOAD) -o $(YPMAPDIR)/$@ - $(TMP); \
