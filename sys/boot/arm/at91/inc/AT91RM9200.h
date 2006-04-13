@@ -321,50 +321,50 @@ typedef struct _AT91S_MC {
 } AT91S_MC, *AT91PS_MC;
 
 // -------- MC_RCR : (MC Offset: 0x0) MC Remap Control Register -------- 
-#define AT91C_MC_RCB          ((unsigned int) 0x1 <<  0) // (MC) Remap Command Bit
+#define AT91C_MC_RCB          (0x1u <<  0) // (MC) Remap Command Bit
 // -------- MC_ASR : (MC Offset: 0x4) MC Abort Status Register -------- 
-#define AT91C_MC_UNDADD       ((unsigned int) 0x1 <<  0) // (MC) Undefined Addess Abort Status
-#define AT91C_MC_MISADD       ((unsigned int) 0x1 <<  1) // (MC) Misaligned Addess Abort Status
-#define AT91C_MC_MPU          ((unsigned int) 0x1 <<  2) // (MC) Memory protection Unit Abort Status
-#define AT91C_MC_ABTSZ        ((unsigned int) 0x3 <<  8) // (MC) Abort Size Status
-#define 	AT91C_MC_ABTSZ_BYTE                 ((unsigned int) 0x0 <<  8) // (MC) Byte
-#define 	AT91C_MC_ABTSZ_HWORD                ((unsigned int) 0x1 <<  8) // (MC) Half-word
-#define 	AT91C_MC_ABTSZ_WORD                 ((unsigned int) 0x2 <<  8) // (MC) Word
-#define AT91C_MC_ABTTYP       ((unsigned int) 0x3 << 10) // (MC) Abort Type Status
-#define 	AT91C_MC_ABTTYP_DATAR                ((unsigned int) 0x0 << 10) // (MC) Data Read
-#define 	AT91C_MC_ABTTYP_DATAW                ((unsigned int) 0x1 << 10) // (MC) Data Write
-#define 	AT91C_MC_ABTTYP_FETCH                ((unsigned int) 0x2 << 10) // (MC) Code Fetch
-#define AT91C_MC_MST0         ((unsigned int) 0x1 << 16) // (MC) Master 0 Abort Source
-#define AT91C_MC_MST1         ((unsigned int) 0x1 << 17) // (MC) Master 1 Abort Source
-#define AT91C_MC_SVMST0       ((unsigned int) 0x1 << 24) // (MC) Saved Master 0 Abort Source
-#define AT91C_MC_SVMST1       ((unsigned int) 0x1 << 25) // (MC) Saved Master 1 Abort Source
+#define AT91C_MC_UNDADD       (0x1u <<  0) // (MC) Undefined Addess Abort Status
+#define AT91C_MC_MISADD       (0x1u <<  1) // (MC) Misaligned Addess Abort Status
+#define AT91C_MC_MPU          (0x1u <<  2) // (MC) Memory protection Unit Abort Status
+#define AT91C_MC_ABTSZ        (0x3u <<  8) // (MC) Abort Size Status
+#define 	AT91C_MC_ABTSZ_BYTE                 (0x0u <<  8) // (MC) Byte
+#define 	AT91C_MC_ABTSZ_HWORD                (0x1u <<  8) // (MC) Half-word
+#define 	AT91C_MC_ABTSZ_WORD                 (0x2u <<  8) // (MC) Word
+#define AT91C_MC_ABTTYP       (0x3u << 10) // (MC) Abort Type Status
+#define 	AT91C_MC_ABTTYP_DATAR                (0x0u << 10) // (MC) Data Read
+#define 	AT91C_MC_ABTTYP_DATAW                (0x1u << 10) // (MC) Data Write
+#define 	AT91C_MC_ABTTYP_FETCH                (0x2u << 10) // (MC) Code Fetch
+#define AT91C_MC_MST0         (0x1u << 16) // (MC) Master 0 Abort Source
+#define AT91C_MC_MST1         (0x1u << 17) // (MC) Master 1 Abort Source
+#define AT91C_MC_SVMST0       (0x1u << 24) // (MC) Saved Master 0 Abort Source
+#define AT91C_MC_SVMST1       (0x1u << 25) // (MC) Saved Master 1 Abort Source
 // -------- MC_PUIA : (MC Offset: 0x10) MC Protection Unit Area -------- 
-#define AT91C_MC_PROT         ((unsigned int) 0x3 <<  0) // (MC) Protection
-#define 	AT91C_MC_PROT_PNAUNA               ((unsigned int) 0x0) // (MC) Privilege: No Access, User: No Access
-#define 	AT91C_MC_PROT_PRWUNA               ((unsigned int) 0x1) // (MC) Privilege: Read/Write, User: No Access
-#define 	AT91C_MC_PROT_PRWURO               ((unsigned int) 0x2) // (MC) Privilege: Read/Write, User: Read Only
-#define 	AT91C_MC_PROT_PRWURW               ((unsigned int) 0x3) // (MC) Privilege: Read/Write, User: Read/Write
-#define AT91C_MC_SIZE         ((unsigned int) 0xF <<  4) // (MC) Internal Area Size
-#define 	AT91C_MC_SIZE_1KB                  ((unsigned int) 0x0 <<  4) // (MC) Area size 1KByte
-#define 	AT91C_MC_SIZE_2KB                  ((unsigned int) 0x1 <<  4) // (MC) Area size 2KByte
-#define 	AT91C_MC_SIZE_4KB                  ((unsigned int) 0x2 <<  4) // (MC) Area size 4KByte
-#define 	AT91C_MC_SIZE_8KB                  ((unsigned int) 0x3 <<  4) // (MC) Area size 8KByte
-#define 	AT91C_MC_SIZE_16KB                 ((unsigned int) 0x4 <<  4) // (MC) Area size 16KByte
-#define 	AT91C_MC_SIZE_32KB                 ((unsigned int) 0x5 <<  4) // (MC) Area size 32KByte
-#define 	AT91C_MC_SIZE_64KB                 ((unsigned int) 0x6 <<  4) // (MC) Area size 64KByte
-#define 	AT91C_MC_SIZE_128KB                ((unsigned int) 0x7 <<  4) // (MC) Area size 128KByte
-#define 	AT91C_MC_SIZE_256KB                ((unsigned int) 0x8 <<  4) // (MC) Area size 256KByte
-#define 	AT91C_MC_SIZE_512KB                ((unsigned int) 0x9 <<  4) // (MC) Area size 512KByte
-#define 	AT91C_MC_SIZE_1MB                  ((unsigned int) 0xA <<  4) // (MC) Area size 1MByte
-#define 	AT91C_MC_SIZE_2MB                  ((unsigned int) 0xB <<  4) // (MC) Area size 2MByte
-#define 	AT91C_MC_SIZE_4MB                  ((unsigned int) 0xC <<  4) // (MC) Area size 4MByte
-#define 	AT91C_MC_SIZE_8MB                  ((unsigned int) 0xD <<  4) // (MC) Area size 8MByte
-#define 	AT91C_MC_SIZE_16MB                 ((unsigned int) 0xE <<  4) // (MC) Area size 16MByte
-#define 	AT91C_MC_SIZE_64MB                 ((unsigned int) 0xF <<  4) // (MC) Area size 64MByte
-#define AT91C_MC_BA           ((unsigned int) 0x3FFFF << 10) // (MC) Internal Area Base Address
+#define AT91C_MC_PROT         (0x3u <<  0) // (MC) Protection
+#define 	AT91C_MC_PROT_PNAUNA               0x0u // (MC) Privilege: No Access, User: No Access
+#define 	AT91C_MC_PROT_PRWUNA               0x1u // (MC) Privilege: Read/Write, User: No Access
+#define 	AT91C_MC_PROT_PRWURO               0x2u // (MC) Privilege: Read/Write, User: Read Only
+#define 	AT91C_MC_PROT_PRWURW               0x3u // (MC) Privilege: Read/Write, User: Read/Write
+#define AT91C_MC_SIZE         (0xFu <<  4) // (MC) Internal Area Size
+#define 	AT91C_MC_SIZE_1KB                  (0x0u <<  4) // (MC) Area size 1KByte
+#define 	AT91C_MC_SIZE_2KB                  (0x1u <<  4) // (MC) Area size 2KByte
+#define 	AT91C_MC_SIZE_4KB                  (0x2u <<  4) // (MC) Area size 4KByte
+#define 	AT91C_MC_SIZE_8KB                  (0x3u <<  4) // (MC) Area size 8KByte
+#define 	AT91C_MC_SIZE_16KB                 (0x4u <<  4) // (MC) Area size 16KByte
+#define 	AT91C_MC_SIZE_32KB                 (0x5u <<  4) // (MC) Area size 32KByte
+#define 	AT91C_MC_SIZE_64KB                 (0x6u <<  4) // (MC) Area size 64KByte
+#define 	AT91C_MC_SIZE_128KB                (0x7u <<  4) // (MC) Area size 128KByte
+#define 	AT91C_MC_SIZE_256KB                (0x8u <<  4) // (MC) Area size 256KByte
+#define 	AT91C_MC_SIZE_512KB                (0x9u <<  4) // (MC) Area size 512KByte
+#define 	AT91C_MC_SIZE_1MB                  (0xAu <<  4) // (MC) Area size 1MByte
+#define 	AT91C_MC_SIZE_2MB                  (0xBu <<  4) // (MC) Area size 2MByte
+#define 	AT91C_MC_SIZE_4MB                  (0xCu <<  4) // (MC) Area size 4MByte
+#define 	AT91C_MC_SIZE_8MB                  (0xDu <<  4) // (MC) Area size 8MByte
+#define 	AT91C_MC_SIZE_16MB                 (0xEu <<  4) // (MC) Area size 16MByte
+#define 	AT91C_MC_SIZE_64MB                 (0xFu <<  4) // (MC) Area size 64MByte
+#define AT91C_MC_BA           (0x3FFFFu << 10) // (MC) Internal Area Base Address
 // -------- MC_PUP : (MC Offset: 0x50) MC Protection Unit Peripheral -------- 
 // -------- MC_PUER : (MC Offset: 0x54) MC Protection Unit Area -------- 
-#define AT91C_MC_PUEB         ((unsigned int) 0x1 <<  0) // (MC) Protection Unit enable Bit
+#define AT91C_MC_PUEB         (0x1u <<  0) // (MC) Protection Unit enable Bit
 
 // *****************************************************************************
 //              SOFTWARE API DEFINITION  FOR Real-time Clock Alarm and Parallel Load Interface
@@ -385,52 +385,52 @@ typedef struct _AT91S_RTC {
 } AT91S_RTC, *AT91PS_RTC;
 
 // -------- RTC_CR : (RTC Offset: 0x0) RTC Control Register -------- 
-#define AT91C_RTC_UPDTIM      ((unsigned int) 0x1 <<  0) // (RTC) Update Request Time Register
-#define AT91C_RTC_UPDCAL      ((unsigned int) 0x1 <<  1) // (RTC) Update Request Calendar Register
-#define AT91C_RTC_TIMEVSEL    ((unsigned int) 0x3 <<  8) // (RTC) Time Event Selection
-#define 	AT91C_RTC_TIMEVSEL_MINUTE               ((unsigned int) 0x0 <<  8) // (RTC) Minute change.
-#define 	AT91C_RTC_TIMEVSEL_HOUR                 ((unsigned int) 0x1 <<  8) // (RTC) Hour change.
-#define 	AT91C_RTC_TIMEVSEL_DAY24                ((unsigned int) 0x2 <<  8) // (RTC) Every day at midnight.
-#define 	AT91C_RTC_TIMEVSEL_DAY12                ((unsigned int) 0x3 <<  8) // (RTC) Every day at noon.
-#define AT91C_RTC_CALEVSEL    ((unsigned int) 0x3 << 16) // (RTC) Calendar Event Selection
-#define 	AT91C_RTC_CALEVSEL_WEEK                 ((unsigned int) 0x0 << 16) // (RTC) Week change (every Monday at time 00:00:00).
-#define 	AT91C_RTC_CALEVSEL_MONTH                ((unsigned int) 0x1 << 16) // (RTC) Month change (every 01 of each month at time 00:00:00).
-#define 	AT91C_RTC_CALEVSEL_YEAR                 ((unsigned int) 0x2 << 16) // (RTC) Year change (every January 1 at time 00:00:00).
+#define AT91C_RTC_UPDTIM      (0x1u <<  0) // (RTC) Update Request Time Register
+#define AT91C_RTC_UPDCAL      (0x1u <<  1) // (RTC) Update Request Calendar Register
+#define AT91C_RTC_TIMEVSEL    (0x3u <<  8) // (RTC) Time Event Selection
+#define 	AT91C_RTC_TIMEVSEL_MINUTE               (0x0u <<  8) // (RTC) Minute change.
+#define 	AT91C_RTC_TIMEVSEL_HOUR                 (0x1u <<  8) // (RTC) Hour change.
+#define 	AT91C_RTC_TIMEVSEL_DAY24                (0x2u <<  8) // (RTC) Every day at midnight.
+#define 	AT91C_RTC_TIMEVSEL_DAY12                (0x3u <<  8) // (RTC) Every day at noon.
+#define AT91C_RTC_CALEVSEL    (0x3u << 16) // (RTC) Calendar Event Selection
+#define 	AT91C_RTC_CALEVSEL_WEEK                 (0x0u << 16) // (RTC) Week change (every Monday at time 00:00:00).
+#define 	AT91C_RTC_CALEVSEL_MONTH                (0x1u << 16) // (RTC) Month change (every 01 of each month at time 00:00:00).
+#define 	AT91C_RTC_CALEVSEL_YEAR                 (0x2u << 16) // (RTC) Year change (every January 1 at time 00:00:00).
 // -------- RTC_MR : (RTC Offset: 0x4) RTC Mode Register -------- 
-#define AT91C_RTC_HRMOD       ((unsigned int) 0x1 <<  0) // (RTC) 12-24 hour Mode
+#define AT91C_RTC_HRMOD       (0x1u <<  0) // (RTC) 12-24 hour Mode
 // -------- RTC_TIMR : (RTC Offset: 0x8) RTC Time Register -------- 
-#define AT91C_RTC_SEC         ((unsigned int) 0x7F <<  0) // (RTC) Current Second
-#define AT91C_RTC_MIN         ((unsigned int) 0x7F <<  8) // (RTC) Current Minute
-#define AT91C_RTC_HOUR        ((unsigned int) 0x1F << 16) // (RTC) Current Hour
-#define AT91C_RTC_AMPM        ((unsigned int) 0x1 << 22) // (RTC) Ante Meridiem, Post Meridiem Indicator
+#define AT91C_RTC_SEC         (0x7Fu <<  0) // (RTC) Current Second
+#define AT91C_RTC_MIN         (0x7Fu <<  8) // (RTC) Current Minute
+#define AT91C_RTC_HOUR        (0x1Fu << 16) // (RTC) Current Hour
+#define AT91C_RTC_AMPM        (0x1u << 22) // (RTC) Ante Meridiem, Post Meridiem Indicator
 // -------- RTC_CALR : (RTC Offset: 0xc) RTC Calendar Register -------- 
-#define AT91C_RTC_CENT        ((unsigned int) 0x3F <<  0) // (RTC) Current Century
-#define AT91C_RTC_YEAR        ((unsigned int) 0xFF <<  8) // (RTC) Current Year
-#define AT91C_RTC_MONTH       ((unsigned int) 0x1F << 16) // (RTC) Current Month
-#define AT91C_RTC_DAY         ((unsigned int) 0x7 << 21) // (RTC) Current Day
-#define AT91C_RTC_DATE        ((unsigned int) 0x3F << 24) // (RTC) Current Date
+#define AT91C_RTC_CENT        (0x3Fu <<  0) // (RTC) Current Century
+#define AT91C_RTC_YEAR        (0xFFu <<  8) // (RTC) Current Year
+#define AT91C_RTC_MONTH       (0x1Fu << 16) // (RTC) Current Month
+#define AT91C_RTC_DAY         (0x7u << 21) // (RTC) Current Day
+#define AT91C_RTC_DATE        (0x3Fu << 24) // (RTC) Current Date
 // -------- RTC_TIMALR : (RTC Offset: 0x10) RTC Time Alarm Register -------- 
-#define AT91C_RTC_SECEN       ((unsigned int) 0x1 <<  7) // (RTC) Second Alarm Enable
-#define AT91C_RTC_MINEN       ((unsigned int) 0x1 << 15) // (RTC) Minute Alarm
-#define AT91C_RTC_HOUREN      ((unsigned int) 0x1 << 23) // (RTC) Current Hour
+#define AT91C_RTC_SECEN       (0x1u <<  7) // (RTC) Second Alarm Enable
+#define AT91C_RTC_MINEN       (0x1u << 15) // (RTC) Minute Alarm
+#define AT91C_RTC_HOUREN      (0x1u << 23) // (RTC) Current Hour
 // -------- RTC_CALALR : (RTC Offset: 0x14) RTC Calendar Alarm Register -------- 
-#define AT91C_RTC_MONTHEN     ((unsigned int) 0x1 << 23) // (RTC) Month Alarm Enable
-#define AT91C_RTC_DATEEN      ((unsigned int) 0x1 << 31) // (RTC) Date Alarm Enable
+#define AT91C_RTC_MONTHEN     (0x1u << 23) // (RTC) Month Alarm Enable
+#define AT91C_RTC_DATEEN      (0x1u << 31) // (RTC) Date Alarm Enable
 // -------- RTC_SR : (RTC Offset: 0x18) RTC Status Register -------- 
-#define AT91C_RTC_ACKUPD      ((unsigned int) 0x1 <<  0) // (RTC) Acknowledge for Update
-#define AT91C_RTC_ALARM       ((unsigned int) 0x1 <<  1) // (RTC) Alarm Flag
-#define AT91C_RTC_SECEV       ((unsigned int) 0x1 <<  2) // (RTC) Second Event
-#define AT91C_RTC_TIMEV       ((unsigned int) 0x1 <<  3) // (RTC) Time Event
-#define AT91C_RTC_CALEV       ((unsigned int) 0x1 <<  4) // (RTC) Calendar event
+#define AT91C_RTC_ACKUPD      (0x1u <<  0) // (RTC) Acknowledge for Update
+#define AT91C_RTC_ALARM       (0x1u <<  1) // (RTC) Alarm Flag
+#define AT91C_RTC_SECEV       (0x1u <<  2) // (RTC) Second Event
+#define AT91C_RTC_TIMEV       (0x1u <<  3) // (RTC) Time Event
+#define AT91C_RTC_CALEV       (0x1u <<  4) // (RTC) Calendar event
 // -------- RTC_SCCR : (RTC Offset: 0x1c) RTC Status Clear Command Register -------- 
 // -------- RTC_IER : (RTC Offset: 0x20) RTC Interrupt Enable Register -------- 
 // -------- RTC_IDR : (RTC Offset: 0x24) RTC Interrupt Disable Register -------- 
 // -------- RTC_IMR : (RTC Offset: 0x28) RTC Interrupt Mask Register -------- 
 // -------- RTC_VER : (RTC Offset: 0x2c) RTC Valid Entry Register -------- 
-#define AT91C_RTC_NVTIM       ((unsigned int) 0x1 <<  0) // (RTC) Non valid Time
-#define AT91C_RTC_NVCAL       ((unsigned int) 0x1 <<  1) // (RTC) Non valid Calendar
-#define AT91C_RTC_NVTIMALR    ((unsigned int) 0x1 <<  2) // (RTC) Non valid time Alarm
-#define AT91C_RTC_NVCALALR    ((unsigned int) 0x1 <<  3) // (RTC) Nonvalid Calendar Alarm
+#define AT91C_RTC_NVTIM       (0x1u <<  0) // (RTC) Non valid Time
+#define AT91C_RTC_NVCAL       (0x1u <<  1) // (RTC) Non valid Calendar
+#define AT91C_RTC_NVTIMALR    (0x1u <<  2) // (RTC) Non valid time Alarm
+#define AT91C_RTC_NVCALALR    (0x1u <<  3) // (RTC) Nonvalid Calendar Alarm
 
 // *****************************************************************************
 //              SOFTWARE API DEFINITION  FOR System Timer Interface
@@ -449,27 +449,27 @@ typedef struct _AT91S_ST {
 } AT91S_ST, *AT91PS_ST;
 
 // -------- ST_CR : (ST Offset: 0x0) System Timer Control Register -------- 
-#define AT91C_ST_WDRST        ((unsigned int) 0x1 <<  0) // (ST) Watchdog Timer Restart
+#define AT91C_ST_WDRST        (0x1u <<  0) // (ST) Watchdog Timer Restart
 // -------- ST_PIMR : (ST Offset: 0x4) System Timer Period Interval Mode Register -------- 
-#define AT91C_ST_PIV          ((unsigned int) 0xFFFF <<  0) // (ST) Watchdog Timer Restart
+#define AT91C_ST_PIV          (0xFFFFu <<  0) // (ST) Watchdog Timer Restart
 // -------- ST_WDMR : (ST Offset: 0x8) System Timer Watchdog Mode Register -------- 
-#define AT91C_ST_WDV          ((unsigned int) 0xFFFF <<  0) // (ST) Watchdog Timer Restart
-#define AT91C_ST_RSTEN        ((unsigned int) 0x1 << 16) // (ST) Reset Enable
-#define AT91C_ST_EXTEN        ((unsigned int) 0x1 << 17) // (ST) External Signal Assertion Enable
+#define AT91C_ST_WDV          (0xFFFFu <<  0) // (ST) Watchdog Timer Restart
+#define AT91C_ST_RSTEN        (0x1u << 16) // (ST) Reset Enable
+#define AT91C_ST_EXTEN        (0x1u << 17) // (ST) External Signal Assertion Enable
 // -------- ST_RTMR : (ST Offset: 0xc) System Timer Real-time Mode Register -------- 
-#define AT91C_ST_RTPRES       ((unsigned int) 0xFFFF <<  0) // (ST) Real-time Timer Prescaler Value
+#define AT91C_ST_RTPRES       (0xFFFFu <<  0) // (ST) Real-time Timer Prescaler Value
 // -------- ST_SR : (ST Offset: 0x10) System Timer Status Register -------- 
-#define AT91C_ST_PITS         ((unsigned int) 0x1 <<  0) // (ST) Period Interval Timer Interrupt
-#define AT91C_ST_WDOVF        ((unsigned int) 0x1 <<  1) // (ST) Watchdog Overflow
-#define AT91C_ST_RTTINC       ((unsigned int) 0x1 <<  2) // (ST) Real-time Timer Increment
-#define AT91C_ST_ALMS         ((unsigned int) 0x1 <<  3) // (ST) Alarm Status
+#define AT91C_ST_PITS         (0x1u <<  0) // (ST) Period Interval Timer Interrupt
+#define AT91C_ST_WDOVF        (0x1u <<  1) // (ST) Watchdog Overflow
+#define AT91C_ST_RTTINC       (0x1u <<  2) // (ST) Real-time Timer Increment
+#define AT91C_ST_ALMS         (0x1u <<  3) // (ST) Alarm Status
 // -------- ST_IER : (ST Offset: 0x14) System Timer Interrupt Enable Register -------- 
 // -------- ST_IDR : (ST Offset: 0x18) System Timer Interrupt Disable Register -------- 
 // -------- ST_IMR : (ST Offset: 0x1c) System Timer Interrupt Mask Register -------- 
 // -------- ST_RTAR : (ST Offset: 0x20) System Timer Real-time Alarm Register -------- 
-#define AT91C_ST_ALMV         ((unsigned int) 0xFFFFF <<  0) // (ST) Alarm Value Value
+#define AT91C_ST_ALMV         (0xFFFFFu <<  0) // (ST) Alarm Value Value
 // -------- ST_CRTR : (ST Offset: 0x24) System Timer Current Real-time Register -------- 
-#define AT91C_ST_CRTV         ((unsigned int) 0xFFFFF <<  0) // (ST) Current Real-time Value
+#define AT91C_ST_CRTV         (0xFFFFFu <<  0) // (ST) Current Real-time Value
 
 // *****************************************************************************
 //              SOFTWARE API DEFINITION  FOR Power Management Controler
@@ -493,53 +493,53 @@ typedef struct _AT91S_PMC {
 } AT91S_PMC, *AT91PS_PMC;
 
 // -------- PMC_SCER : (PMC Offset: 0x0) System Clock Enable Register -------- 
-#define AT91C_PMC_PCK         ((unsigned int) 0x1 <<  0) // (PMC) Processor Clock
-#define AT91C_PMC_UDP         ((unsigned int) 0x1 <<  1) // (PMC) USB Device Port Clock
-#define AT91C_PMC_MCKUDP      ((unsigned int) 0x1 <<  2) // (PMC) USB Device Port Master Clock Automatic Disable on Suspend
-#define AT91C_PMC_UHP         ((unsigned int) 0x1 <<  4) // (PMC) USB Host Port Clock
-#define AT91C_PMC_PCK0        ((unsigned int) 0x1 <<  8) // (PMC) Programmable Clock Output
-#define AT91C_PMC_PCK1        ((unsigned int) 0x1 <<  9) // (PMC) Programmable Clock Output
-#define AT91C_PMC_PCK2        ((unsigned int) 0x1 << 10) // (PMC) Programmable Clock Output
-#define AT91C_PMC_PCK3        ((unsigned int) 0x1 << 11) // (PMC) Programmable Clock Output
-#define AT91C_PMC_PCK4        ((unsigned int) 0x1 << 12) // (PMC) Programmable Clock Output
-#define AT91C_PMC_PCK5        ((unsigned int) 0x1 << 13) // (PMC) Programmable Clock Output
-#define AT91C_PMC_PCK6        ((unsigned int) 0x1 << 14) // (PMC) Programmable Clock Output
-#define AT91C_PMC_PCK7        ((unsigned int) 0x1 << 15) // (PMC) Programmable Clock Output
+#define AT91C_PMC_PCK         (0x1u <<  0) // (PMC) Processor Clock
+#define AT91C_PMC_UDP         (0x1u <<  1) // (PMC) USB Device Port Clock
+#define AT91C_PMC_MCKUDP      (0x1u <<  2) // (PMC) USB Device Port Master Clock Automatic Disable on Suspend
+#define AT91C_PMC_UHP         (0x1u <<  4) // (PMC) USB Host Port Clock
+#define AT91C_PMC_PCK0        (0x1u <<  8) // (PMC) Programmable Clock Output
+#define AT91C_PMC_PCK1        (0x1u <<  9) // (PMC) Programmable Clock Output
+#define AT91C_PMC_PCK2        (0x1u << 10) // (PMC) Programmable Clock Output
+#define AT91C_PMC_PCK3        (0x1u << 11) // (PMC) Programmable Clock Output
+#define AT91C_PMC_PCK4        (0x1u << 12) // (PMC) Programmable Clock Output
+#define AT91C_PMC_PCK5        (0x1u << 13) // (PMC) Programmable Clock Output
+#define AT91C_PMC_PCK6        (0x1u << 14) // (PMC) Programmable Clock Output
+#define AT91C_PMC_PCK7        (0x1u << 15) // (PMC) Programmable Clock Output
 // -------- PMC_SCDR : (PMC Offset: 0x4) System Clock Disable Register -------- 
 // -------- PMC_SCSR : (PMC Offset: 0x8) System Clock Status Register -------- 
 // -------- PMC_MCKR : (PMC Offset: 0x30) Master Clock Register -------- 
-#define AT91C_PMC_CSS         ((unsigned int) 0x3 <<  0) // (PMC) Programmable Clock Selection
-#define 	AT91C_PMC_CSS_SLOW_CLK             ((unsigned int) 0x0) // (PMC) Slow Clock is selected
-#define 	AT91C_PMC_CSS_MAIN_CLK             ((unsigned int) 0x1) // (PMC) Main Clock is selected
-#define 	AT91C_PMC_CSS_PLLA_CLK             ((unsigned int) 0x2) // (PMC) Clock from PLL A is selected
-#define 	AT91C_PMC_CSS_PLLB_CLK             ((unsigned int) 0x3) // (PMC) Clock from PLL B is selected
-#define AT91C_PMC_PRES        ((unsigned int) 0x7 <<  2) // (PMC) Programmable Clock Prescaler
-#define 	AT91C_PMC_PRES_CLK                  ((unsigned int) 0x0 <<  2) // (PMC) Selected clock
-#define 	AT91C_PMC_PRES_CLK_2                ((unsigned int) 0x1 <<  2) // (PMC) Selected clock divided by 2
-#define 	AT91C_PMC_PRES_CLK_4                ((unsigned int) 0x2 <<  2) // (PMC) Selected clock divided by 4
-#define 	AT91C_PMC_PRES_CLK_8                ((unsigned int) 0x3 <<  2) // (PMC) Selected clock divided by 8
-#define 	AT91C_PMC_PRES_CLK_16               ((unsigned int) 0x4 <<  2) // (PMC) Selected clock divided by 16
-#define 	AT91C_PMC_PRES_CLK_32               ((unsigned int) 0x5 <<  2) // (PMC) Selected clock divided by 32
-#define 	AT91C_PMC_PRES_CLK_64               ((unsigned int) 0x6 <<  2) // (PMC) Selected clock divided by 64
-#define AT91C_PMC_MDIV        ((unsigned int) 0x3 <<  8) // (PMC) Master Clock Division
-#define 	AT91C_PMC_MDIV_1                    ((unsigned int) 0x0 <<  8) // (PMC) The master clock and the processor clock are the same
-#define 	AT91C_PMC_MDIV_2                    ((unsigned int) 0x1 <<  8) // (PMC) The processor clock is twice as fast as the master clock
-#define 	AT91C_PMC_MDIV_3                    ((unsigned int) 0x2 <<  8) // (PMC) The processor clock is three times faster than the master clock
-#define 	AT91C_PMC_MDIV_4                    ((unsigned int) 0x3 <<  8) // (PMC) The processor clock is four times faster than the master clock
+#define AT91C_PMC_CSS         (0x3u <<  0) // (PMC) Programmable Clock Selection
+#define 	AT91C_PMC_CSS_SLOW_CLK             0x0u // (PMC) Slow Clock is selected
+#define 	AT91C_PMC_CSS_MAIN_CLK             0x1u // (PMC) Main Clock is selected
+#define 	AT91C_PMC_CSS_PLLA_CLK             0x2u // (PMC) Clock from PLL A is selected
+#define 	AT91C_PMC_CSS_PLLB_CLK             0x3u // (PMC) Clock from PLL B is selected
+#define AT91C_PMC_PRES        (0x7u <<  2) // (PMC) Programmable Clock Prescaler
+#define 	AT91C_PMC_PRES_CLK                  (0x0u <<  2) // (PMC) Selected clock
+#define 	AT91C_PMC_PRES_CLK_2                (0x1u <<  2) // (PMC) Selected clock divided by 2
+#define 	AT91C_PMC_PRES_CLK_4                (0x2u <<  2) // (PMC) Selected clock divided by 4
+#define 	AT91C_PMC_PRES_CLK_8                (0x3u <<  2) // (PMC) Selected clock divided by 8
+#define 	AT91C_PMC_PRES_CLK_16               (0x4u <<  2) // (PMC) Selected clock divided by 16
+#define 	AT91C_PMC_PRES_CLK_32               (0x5u <<  2) // (PMC) Selected clock divided by 32
+#define 	AT91C_PMC_PRES_CLK_64               (0x6u <<  2) // (PMC) Selected clock divided by 64
+#define AT91C_PMC_MDIV        (0x3u <<  8) // (PMC) Master Clock Division
+#define 	AT91C_PMC_MDIV_1                    (0x0u <<  8) // (PMC) The master clock and the processor clock are the same
+#define 	AT91C_PMC_MDIV_2                    (0x1u <<  8) // (PMC) The processor clock is twice as fast as the master clock
+#define 	AT91C_PMC_MDIV_3                    (0x2u <<  8) // (PMC) The processor clock is three times faster than the master clock
+#define 	AT91C_PMC_MDIV_4                    (0x3u <<  8) // (PMC) The processor clock is four times faster than the master clock
 // -------- PMC_PCKR : (PMC Offset: 0x40) Programmable Clock Register -------- 
 // -------- PMC_IER : (PMC Offset: 0x60) PMC Interrupt Enable Register -------- 
-#define AT91C_PMC_MOSCS       ((unsigned int) 0x1 <<  0) // (PMC) MOSC Status/Enable/Disable/Mask
-#define AT91C_PMC_LOCKA       ((unsigned int) 0x1 <<  1) // (PMC) PLL A Status/Enable/Disable/Mask
-#define AT91C_PMC_LOCKB       ((unsigned int) 0x1 <<  2) // (PMC) PLL B Status/Enable/Disable/Mask
-#define AT91C_PMC_MCKRDY      ((unsigned int) 0x1 <<  3) // (PMC) MCK_RDY Status/Enable/Disable/Mask
-#define AT91C_PMC_PCK0RDY     ((unsigned int) 0x1 <<  8) // (PMC) PCK0_RDY Status/Enable/Disable/Mask
-#define AT91C_PMC_PCK1RDY     ((unsigned int) 0x1 <<  9) // (PMC) PCK1_RDY Status/Enable/Disable/Mask
-#define AT91C_PMC_PCK2RDY     ((unsigned int) 0x1 << 10) // (PMC) PCK2_RDY Status/Enable/Disable/Mask
-#define AT91C_PMC_PCK3RDY     ((unsigned int) 0x1 << 11) // (PMC) PCK3_RDY Status/Enable/Disable/Mask
-#define AT91C_PMC_PCK4RDY     ((unsigned int) 0x1 << 12) // (PMC) PCK4_RDY Status/Enable/Disable/Mask
-#define AT91C_PMC_PCK5RDY     ((unsigned int) 0x1 << 13) // (PMC) PCK5_RDY Status/Enable/Disable/Mask
-#define AT91C_PMC_PCK6RDY     ((unsigned int) 0x1 << 14) // (PMC) PCK6_RDY Status/Enable/Disable/Mask
-#define AT91C_PMC_PCK7RDY     ((unsigned int) 0x1 << 15) // (PMC) PCK7_RDY Status/Enable/Disable/Mask
+#define AT91C_PMC_MOSCS       (0x1u <<  0) // (PMC) MOSC Status/Enable/Disable/Mask
+#define AT91C_PMC_LOCKA       (0x1u <<  1) // (PMC) PLL A Status/Enable/Disable/Mask
+#define AT91C_PMC_LOCKB       (0x1u <<  2) // (PMC) PLL B Status/Enable/Disable/Mask
+#define AT91C_PMC_MCKRDY      (0x1u <<  3) // (PMC) MCK_RDY Status/Enable/Disable/Mask
+#define AT91C_PMC_PCK0RDY     (0x1u <<  8) // (PMC) PCK0_RDY Status/Enable/Disable/Mask
+#define AT91C_PMC_PCK1RDY     (0x1u <<  9) // (PMC) PCK1_RDY Status/Enable/Disable/Mask
+#define AT91C_PMC_PCK2RDY     (0x1u << 10) // (PMC) PCK2_RDY Status/Enable/Disable/Mask
+#define AT91C_PMC_PCK3RDY     (0x1u << 11) // (PMC) PCK3_RDY Status/Enable/Disable/Mask
+#define AT91C_PMC_PCK4RDY     (0x1u << 12) // (PMC) PCK4_RDY Status/Enable/Disable/Mask
+#define AT91C_PMC_PCK5RDY     (0x1u << 13) // (PMC) PCK5_RDY Status/Enable/Disable/Mask
+#define AT91C_PMC_PCK6RDY     (0x1u << 14) // (PMC) PCK6_RDY Status/Enable/Disable/Mask
+#define AT91C_PMC_PCK7RDY     (0x1u << 15) // (PMC) PCK7_RDY Status/Enable/Disable/Mask
 // -------- PMC_IDR : (PMC Offset: 0x64) PMC Interrupt Disable Register -------- 
 // -------- PMC_SR : (PMC Offset: 0x68) PMC Status Register -------- 
 // -------- PMC_IMR : (PMC Offset: 0x6c) PMC Interrupt Mask Register -------- 
@@ -555,37 +555,37 @@ typedef struct _AT91S_CKGR {
 } AT91S_CKGR, *AT91PS_CKGR;
 
 // -------- CKGR_MOR : (CKGR Offset: 0x0) Main Oscillator Register -------- 
-#define AT91C_CKGR_MOSCEN     ((unsigned int) 0x1 <<  0) // (CKGR) Main Oscillator Enable
-#define AT91C_CKGR_OSCTEST    ((unsigned int) 0x1 <<  1) // (CKGR) Oscillator Test
-#define AT91C_CKGR_OSCOUNT    ((unsigned int) 0xFF <<  8) // (CKGR) Main Oscillator Start-up Time
+#define AT91C_CKGR_MOSCEN     (0x1u <<  0) // (CKGR) Main Oscillator Enable
+#define AT91C_CKGR_OSCTEST    (0x1u <<  1) // (CKGR) Oscillator Test
+#define AT91C_CKGR_OSCOUNT    (0xFFu <<  8) // (CKGR) Main Oscillator Start-up Time
 // -------- CKGR_MCFR : (CKGR Offset: 0x4) Main Clock Frequency Register -------- 
-#define AT91C_CKGR_MAINF      ((unsigned int) 0xFFFF <<  0) // (CKGR) Main Clock Frequency
-#define AT91C_CKGR_MAINRDY    ((unsigned int) 0x1 << 16) // (CKGR) Main Clock Ready
+#define AT91C_CKGR_MAINF      (0xFFFFu <<  0) // (CKGR) Main Clock Frequency
+#define AT91C_CKGR_MAINRDY    (0x1u << 16) // (CKGR) Main Clock Ready
 // -------- CKGR_PLLAR : (CKGR Offset: 0x8) PLL A Register -------- 
-#define AT91C_CKGR_DIVA       ((unsigned int) 0xFF <<  0) // (CKGR) Divider Selected
-#define 	AT91C_CKGR_DIVA_0                    ((unsigned int) 0x0) // (CKGR) Divider output is 0
-#define 	AT91C_CKGR_DIVA_BYPASS               ((unsigned int) 0x1) // (CKGR) Divider is bypassed
-#define AT91C_CKGR_PLLACOUNT  ((unsigned int) 0x3F <<  8) // (CKGR) PLL A Counter
-#define AT91C_CKGR_OUTA       ((unsigned int) 0x3 << 14) // (CKGR) PLL A Output Frequency Range
-#define 	AT91C_CKGR_OUTA_0                    ((unsigned int) 0x0 << 14) // (CKGR) Please refer to the PLLA datasheet
-#define 	AT91C_CKGR_OUTA_1                    ((unsigned int) 0x1 << 14) // (CKGR) Please refer to the PLLA datasheet
-#define 	AT91C_CKGR_OUTA_2                    ((unsigned int) 0x2 << 14) // (CKGR) Please refer to the PLLA datasheet
-#define 	AT91C_CKGR_OUTA_3                    ((unsigned int) 0x3 << 14) // (CKGR) Please refer to the PLLA datasheet
-#define AT91C_CKGR_MULA       ((unsigned int) 0x7FF << 16) // (CKGR) PLL A Multiplier
-#define AT91C_CKGR_SRCA       ((unsigned int) 0x1 << 29) // (CKGR) PLL A Source
+#define AT91C_CKGR_DIVA       (0xFFu <<  0) // (CKGR) Divider Selected
+#define 	AT91C_CKGR_DIVA_0                    0x0u // (CKGR) Divider output is 0
+#define 	AT91C_CKGR_DIVA_BYPASS               0x1u // (CKGR) Divider is bypassed
+#define AT91C_CKGR_PLLACOUNT  (0x3Fu <<  8) // (CKGR) PLL A Counter
+#define AT91C_CKGR_OUTA       (0x3u << 14) // (CKGR) PLL A Output Frequency Range
+#define 	AT91C_CKGR_OUTA_0                    (0x0u << 14) // (CKGR) Please refer to the PLLA datasheet
+#define 	AT91C_CKGR_OUTA_1                    (0x1u << 14) // (CKGR) Please refer to the PLLA datasheet
+#define 	AT91C_CKGR_OUTA_2                    (0x2u << 14) // (CKGR) Please refer to the PLLA datasheet
+#define 	AT91C_CKGR_OUTA_3                    (0x3u << 14) // (CKGR) Please refer to the PLLA datasheet
+#define AT91C_CKGR_MULA       (0x7FFu << 16) // (CKGR) PLL A Multiplier
+#define AT91C_CKGR_SRCA       (0x1u << 29) // (CKGR) PLL A Source
 // -------- CKGR_PLLBR : (CKGR Offset: 0xc) PLL B Register -------- 
-#define AT91C_CKGR_DIVB       ((unsigned int) 0xFF <<  0) // (CKGR) Divider Selected
-#define 	AT91C_CKGR_DIVB_0                    ((unsigned int) 0x0) // (CKGR) Divider output is 0
-#define 	AT91C_CKGR_DIVB_BYPASS               ((unsigned int) 0x1) // (CKGR) Divider is bypassed
-#define AT91C_CKGR_PLLBCOUNT  ((unsigned int) 0x3F <<  8) // (CKGR) PLL B Counter
-#define AT91C_CKGR_OUTB       ((unsigned int) 0x3 << 14) // (CKGR) PLL B Output Frequency Range
-#define 	AT91C_CKGR_OUTB_0                    ((unsigned int) 0x0 << 14) // (CKGR) Please refer to the PLLB datasheet
-#define 	AT91C_CKGR_OUTB_1                    ((unsigned int) 0x1 << 14) // (CKGR) Please refer to the PLLB datasheet
-#define 	AT91C_CKGR_OUTB_2                    ((unsigned int) 0x2 << 14) // (CKGR) Please refer to the PLLB datasheet
-#define 	AT91C_CKGR_OUTB_3                    ((unsigned int) 0x3 << 14) // (CKGR) Please refer to the PLLB datasheet
-#define AT91C_CKGR_MULB       ((unsigned int) 0x7FF << 16) // (CKGR) PLL B Multiplier
-#define AT91C_CKGR_USB_96M    ((unsigned int) 0x1 << 28) // (CKGR) Divider for USB Ports
-#define AT91C_CKGR_USB_PLL    ((unsigned int) 0x1 << 29) // (CKGR) PLL Use
+#define AT91C_CKGR_DIVB       (0xFFu <<  0) // (CKGR) Divider Selected
+#define 	AT91C_CKGR_DIVB_0                    0x0u // (CKGR) Divider output is 0
+#define 	AT91C_CKGR_DIVB_BYPASS               0x1u // (CKGR) Divider is bypassed
+#define AT91C_CKGR_PLLBCOUNT  (0x3Fu <<  8) // (CKGR) PLL B Counter
+#define AT91C_CKGR_OUTB       (0x3u << 14) // (CKGR) PLL B Output Frequency Range
+#define 	AT91C_CKGR_OUTB_0                    (0x0u << 14) // (CKGR) Please refer to the PLLB datasheet
+#define 	AT91C_CKGR_OUTB_1                    (0x1u << 14) // (CKGR) Please refer to the PLLB datasheet
+#define 	AT91C_CKGR_OUTB_2                    (0x2u << 14) // (CKGR) Please refer to the PLLB datasheet
+#define 	AT91C_CKGR_OUTB_3                    (0x3u << 14) // (CKGR) Please refer to the PLLB datasheet
+#define AT91C_CKGR_MULB       (0x7FFu << 16) // (CKGR) PLL B Multiplier
+#define AT91C_CKGR_USB_96M    (0x1u << 28) // (CKGR) Divider for USB Ports
+#define AT91C_CKGR_USB_PLL    (0x1u << 29) // (CKGR) PLL Use
 
 // *****************************************************************************
 //              SOFTWARE API DEFINITION  FOR Parallel Input Output Controler
@@ -660,43 +660,43 @@ typedef struct _AT91S_DBGU {
 } AT91S_DBGU, *AT91PS_DBGU;
 
 // -------- DBGU_CR : (DBGU Offset: 0x0) Debug Unit Control Register -------- 
-#define AT91C_US_RSTRX        ((unsigned int) 0x1 <<  2) // (DBGU) Reset Receiver
-#define AT91C_US_RSTTX        ((unsigned int) 0x1 <<  3) // (DBGU) Reset Transmitter
-#define AT91C_US_RXEN         ((unsigned int) 0x1 <<  4) // (DBGU) Receiver Enable
-#define AT91C_US_RXDIS        ((unsigned int) 0x1 <<  5) // (DBGU) Receiver Disable
-#define AT91C_US_TXEN         ((unsigned int) 0x1 <<  6) // (DBGU) Transmitter Enable
-#define AT91C_US_TXDIS        ((unsigned int) 0x1 <<  7) // (DBGU) Transmitter Disable
+#define AT91C_US_RSTRX        (0x1u <<  2) // (DBGU) Reset Receiver
+#define AT91C_US_RSTTX        (0x1u <<  3) // (DBGU) Reset Transmitter
+#define AT91C_US_RXEN         (0x1u <<  4) // (DBGU) Receiver Enable
+#define AT91C_US_RXDIS        (0x1u <<  5) // (DBGU) Receiver Disable
+#define AT91C_US_TXEN         (0x1u <<  6) // (DBGU) Transmitter Enable
+#define AT91C_US_TXDIS        (0x1u <<  7) // (DBGU) Transmitter Disable
 // -------- DBGU_MR : (DBGU Offset: 0x4) Debug Unit Mode Register -------- 
-#define AT91C_US_PAR          ((unsigned int) 0x7 <<  9) // (DBGU) Parity type
-#define 	AT91C_US_PAR_EVEN                 ((unsigned int) 0x0 <<  9) // (DBGU) Even Parity
-#define 	AT91C_US_PAR_ODD                  ((unsigned int) 0x1 <<  9) // (DBGU) Odd Parity
-#define 	AT91C_US_PAR_SPACE                ((unsigned int) 0x2 <<  9) // (DBGU) Parity forced to 0 (Space)
-#define 	AT91C_US_PAR_MARK                 ((unsigned int) 0x3 <<  9) // (DBGU) Parity forced to 1 (Mark)
-#define 	AT91C_US_PAR_NONE                 ((unsigned int) 0x4 <<  9) // (DBGU) No Parity
-#define 	AT91C_US_PAR_MULTI_DROP           ((unsigned int) 0x6 <<  9) // (DBGU) Multi-drop mode
-#define AT91C_US_CHMODE       ((unsigned int) 0x3 << 14) // (DBGU) Channel Mode
-#define 	AT91C_US_CHMODE_NORMAL               ((unsigned int) 0x0 << 14) // (DBGU) Normal Mode: The USART channel operates as an RX/TX USART.
-#define 	AT91C_US_CHMODE_AUTO                 ((unsigned int) 0x1 << 14) // (DBGU) Automatic Echo: Receiver Data Input is connected to the TXD pin.
-#define 	AT91C_US_CHMODE_LOCAL                ((unsigned int) 0x2 << 14) // (DBGU) Local Loopback: Transmitter Output Signal is connected to Receiver Input Signal.
-#define 	AT91C_US_CHMODE_REMOTE               ((unsigned int) 0x3 << 14) // (DBGU) Remote Loopback: RXD pin is internally connected to TXD pin.
+#define AT91C_US_PAR          (0x7u <<  9) // (DBGU) Parity type
+#define 	AT91C_US_PAR_EVEN                 (0x0u <<  9) // (DBGU) Even Parity
+#define 	AT91C_US_PAR_ODD                  (0x1u <<  9) // (DBGU) Odd Parity
+#define 	AT91C_US_PAR_SPACE                (0x2u <<  9) // (DBGU) Parity forced to 0 (Space)
+#define 	AT91C_US_PAR_MARK                 (0x3u <<  9) // (DBGU) Parity forced to 1 (Mark)
+#define 	AT91C_US_PAR_NONE                 (0x4u <<  9) // (DBGU) No Parity
+#define 	AT91C_US_PAR_MULTI_DROP           (0x6u <<  9) // (DBGU) Multi-drop mode
+#define AT91C_US_CHMODE       (0x3u << 14) // (DBGU) Channel Mode
+#define 	AT91C_US_CHMODE_NORMAL               (0x0u << 14) // (DBGU) Normal Mode: The USART channel operates as an RX/TX USART.
+#define 	AT91C_US_CHMODE_AUTO                 (0x1u << 14) // (DBGU) Automatic Echo: Receiver Data Input is connected to the TXD pin.
+#define 	AT91C_US_CHMODE_LOCAL                (0x2u << 14) // (DBGU) Local Loopback: Transmitter Output Signal is connected to Receiver Input Signal.
+#define 	AT91C_US_CHMODE_REMOTE               (0x3u << 14) // (DBGU) Remote Loopback: RXD pin is internally connected to TXD pin.
 // -------- DBGU_IER : (DBGU Offset: 0x8) Debug Unit Interrupt Enable Register -------- 
-#define AT91C_US_RXRDY        ((unsigned int) 0x1 <<  0) // (DBGU) RXRDY Interrupt
-#define AT91C_US_TXRDY        ((unsigned int) 0x1 <<  1) // (DBGU) TXRDY Interrupt
-#define AT91C_US_ENDRX        ((unsigned int) 0x1 <<  3) // (DBGU) End of Receive Transfer Interrupt
-#define AT91C_US_ENDTX        ((unsigned int) 0x1 <<  4) // (DBGU) End of Transmit Interrupt
-#define AT91C_US_OVRE         ((unsigned int) 0x1 <<  5) // (DBGU) Overrun Interrupt
-#define AT91C_US_FRAME        ((unsigned int) 0x1 <<  6) // (DBGU) Framing Error Interrupt
-#define AT91C_US_PARE         ((unsigned int) 0x1 <<  7) // (DBGU) Parity Error Interrupt
-#define AT91C_US_TXEMPTY      ((unsigned int) 0x1 <<  9) // (DBGU) TXEMPTY Interrupt
-#define AT91C_US_TXBUFE       ((unsigned int) 0x1 << 11) // (DBGU) TXBUFE Interrupt
-#define AT91C_US_RXBUFF       ((unsigned int) 0x1 << 12) // (DBGU) RXBUFF Interrupt
-#define AT91C_US_COMM_TX      ((unsigned int) 0x1 << 30) // (DBGU) COMM_TX Interrupt
-#define AT91C_US_COMM_RX      ((unsigned int) 0x1 << 31) // (DBGU) COMM_RX Interrupt
+#define AT91C_US_RXRDY        (0x1u <<  0) // (DBGU) RXRDY Interrupt
+#define AT91C_US_TXRDY        (0x1u <<  1) // (DBGU) TXRDY Interrupt
+#define AT91C_US_ENDRX        (0x1u <<  3) // (DBGU) End of Receive Transfer Interrupt
+#define AT91C_US_ENDTX        (0x1u <<  4) // (DBGU) End of Transmit Interrupt
+#define AT91C_US_OVRE         (0x1u <<  5) // (DBGU) Overrun Interrupt
+#define AT91C_US_FRAME        (0x1u <<  6) // (DBGU) Framing Error Interrupt
+#define AT91C_US_PARE         (0x1u <<  7) // (DBGU) Parity Error Interrupt
+#define AT91C_US_TXEMPTY      (0x1u <<  9) // (DBGU) TXEMPTY Interrupt
+#define AT91C_US_TXBUFE       (0x1u << 11) // (DBGU) TXBUFE Interrupt
+#define AT91C_US_RXBUFF       (0x1u << 12) // (DBGU) RXBUFF Interrupt
+#define AT91C_US_COMM_TX      (0x1u << 30) // (DBGU) COMM_TX Interrupt
+#define AT91C_US_COMM_RX      (0x1u << 31) // (DBGU) COMM_RX Interrupt
 // -------- DBGU_IDR : (DBGU Offset: 0xc) Debug Unit Interrupt Disable Register -------- 
 // -------- DBGU_IMR : (DBGU Offset: 0x10) Debug Unit Interrupt Mask Register -------- 
 // -------- DBGU_CSR : (DBGU Offset: 0x14) Debug Unit Channel Status Register -------- 
 // -------- DBGU_FNTR : (DBGU Offset: 0x48) Debug Unit FORCE_NTRST Register -------- 
-#define AT91C_US_FORCE_NTRST  ((unsigned int) 0x1 <<  0) // (DBGU) Force NTRST in JTAG
+#define AT91C_US_FORCE_NTRST  (0x1u <<  0) // (DBGU) Force NTRST in JTAG
 
 // *****************************************************************************
 //              SOFTWARE API DEFINITION  FOR Peripheral Data Controller
@@ -715,10 +715,10 @@ typedef struct _AT91S_PDC {
 } AT91S_PDC, *AT91PS_PDC;
 
 // -------- PDC_PTCR : (PDC Offset: 0x20) PDC Transfer Control Register -------- 
-#define AT91C_PDC_RXTEN       ((unsigned int) 0x1 <<  0) // (PDC) Receiver Transfer Enable
-#define AT91C_PDC_RXTDIS      ((unsigned int) 0x1 <<  1) // (PDC) Receiver Transfer Disable
-#define AT91C_PDC_TXTEN       ((unsigned int) 0x1 <<  8) // (PDC) Transmitter Transfer Enable
-#define AT91C_PDC_TXTDIS      ((unsigned int) 0x1 <<  9) // (PDC) Transmitter Transfer Disable
+#define AT91C_PDC_RXTEN       (0x1u <<  0) // (PDC) Receiver Transfer Enable
+#define AT91C_PDC_RXTDIS      (0x1u <<  1) // (PDC) Receiver Transfer Disable
+#define AT91C_PDC_TXTEN       (0x1u <<  8) // (PDC) Transmitter Transfer Enable
+#define AT91C_PDC_TXTDIS      (0x1u <<  9) // (PDC) Transmitter Transfer Disable
 // -------- PDC_PTSR : (PDC Offset: 0x24) PDC Transfer Status Register -------- 
 
 // *****************************************************************************
@@ -748,20 +748,20 @@ typedef struct _AT91S_AIC {
 } AT91S_AIC, *AT91PS_AIC;
 
 // -------- AIC_SMR : (AIC Offset: 0x0) Control Register -------- 
-#define AT91C_AIC_PRIOR       ((unsigned int) 0x7 <<  0) // (AIC) Priority Level
-#define 	AT91C_AIC_PRIOR_LOWEST               ((unsigned int) 0x0) // (AIC) Lowest priority level
-#define 	AT91C_AIC_PRIOR_HIGHEST              ((unsigned int) 0x7) // (AIC) Highest priority level
-#define AT91C_AIC_SRCTYPE     ((unsigned int) 0x3 <<  5) // (AIC) Interrupt Source Type
-#define 	AT91C_AIC_SRCTYPE_INT_LEVEL_SENSITIVE  ((unsigned int) 0x0 <<  5) // (AIC) Internal Sources Code Label Level Sensitive
-#define 	AT91C_AIC_SRCTYPE_INT_EDGE_TRIGGERED   ((unsigned int) 0x1 <<  5) // (AIC) Internal Sources Code Label Edge triggered
-#define 	AT91C_AIC_SRCTYPE_EXT_HIGH_LEVEL       ((unsigned int) 0x2 <<  5) // (AIC) External Sources Code Label High-level Sensitive
-#define 	AT91C_AIC_SRCTYPE_EXT_POSITIVE_EDGE    ((unsigned int) 0x3 <<  5) // (AIC) External Sources Code Label Positive Edge triggered
+#define AT91C_AIC_PRIOR       (0x7u <<  0) // (AIC) Priority Level
+#define 	AT91C_AIC_PRIOR_LOWEST               0x0u // (AIC) Lowest priority level
+#define 	AT91C_AIC_PRIOR_HIGHEST              0x7u // (AIC) Highest priority level
+#define AT91C_AIC_SRCTYPE     (0x3u <<  5) // (AIC) Interrupt Source Type
+#define 	AT91C_AIC_SRCTYPE_INT_LEVEL_SENSITIVE  (0x0u <<  5) // (AIC) Internal Sources Code Label Level Sensitive
+#define 	AT91C_AIC_SRCTYPE_INT_EDGE_TRIGGERED   (0x1u <<  5) // (AIC) Internal Sources Code Label Edge triggered
+#define 	AT91C_AIC_SRCTYPE_EXT_HIGH_LEVEL       (0x2u <<  5) // (AIC) External Sources Code Label High-level Sensitive
+#define 	AT91C_AIC_SRCTYPE_EXT_POSITIVE_EDGE    (0x3u <<  5) // (AIC) External Sources Code Label Positive Edge triggered
 // -------- AIC_CISR : (AIC Offset: 0x114) AIC Core Interrupt Status Register -------- 
-#define AT91C_AIC_NFIQ        ((unsigned int) 0x1 <<  0) // (AIC) NFIQ Status
-#define AT91C_AIC_NIRQ        ((unsigned int) 0x1 <<  1) // (AIC) NIRQ Status
+#define AT91C_AIC_NFIQ        (0x1u <<  0) // (AIC) NFIQ Status
+#define AT91C_AIC_NIRQ        (0x1u <<  1) // (AIC) NIRQ Status
 // -------- AIC_DCR : (AIC Offset: 0x138) AIC Debug Control Register (Protect) -------- 
-#define AT91C_AIC_DCR_PROT    ((unsigned int) 0x1 <<  0) // (AIC) Protection Mode
-#define AT91C_AIC_DCR_GMSK    ((unsigned int) 0x1 <<  1) // (AIC) General Mask
+#define AT91C_AIC_DCR_PROT    (0x1u <<  0) // (AIC) Protection Mode
+#define AT91C_AIC_DCR_GMSK    (0x1u <<  1) // (AIC) General Mask
 
 // *****************************************************************************
 //              SOFTWARE API DEFINITION  FOR Serial Parallel Interface
@@ -791,55 +791,55 @@ typedef struct _AT91S_SPI {
 } AT91S_SPI, *AT91PS_SPI;
 
 // -------- SPI_CR : (SPI Offset: 0x0) SPI Control Register -------- 
-#define AT91C_SPI_SPIEN       ((unsigned int) 0x1 <<  0) // (SPI) SPI Enable
-#define AT91C_SPI_SPIDIS      ((unsigned int) 0x1 <<  1) // (SPI) SPI Disable
-#define AT91C_SPI_SWRST       ((unsigned int) 0x1 <<  7) // (SPI) SPI Software reset
+#define AT91C_SPI_SPIEN       (0x1u <<  0) // (SPI) SPI Enable
+#define AT91C_SPI_SPIDIS      (0x1u <<  1) // (SPI) SPI Disable
+#define AT91C_SPI_SWRST       (0x1u <<  7) // (SPI) SPI Software reset
 // -------- SPI_MR : (SPI Offset: 0x4) SPI Mode Register -------- 
-#define AT91C_SPI_MSTR        ((unsigned int) 0x1 <<  0) // (SPI) Master/Slave Mode
-#define AT91C_SPI_PS          ((unsigned int) 0x1 <<  1) // (SPI) Peripheral Select
-#define 	AT91C_SPI_PS_FIXED                ((unsigned int) 0x0 <<  1) // (SPI) Fixed Peripheral Select
-#define 	AT91C_SPI_PS_VARIABLE             ((unsigned int) 0x1 <<  1) // (SPI) Variable Peripheral Select
-#define AT91C_SPI_PCSDEC      ((unsigned int) 0x1 <<  2) // (SPI) Chip Select Decode
-#define AT91C_SPI_DIV32       ((unsigned int) 0x1 <<  3) // (SPI) Clock Selection
-#define AT91C_SPI_MODFDIS     ((unsigned int) 0x1 <<  4) // (SPI) Mode Fault Detection
-#define AT91C_SPI_LLB         ((unsigned int) 0x1 <<  7) // (SPI) Clock Selection
-#define AT91C_SPI_PCS         ((unsigned int) 0xF << 16) // (SPI) Peripheral Chip Select
-#define AT91C_SPI_DLYBCS      ((unsigned int) 0xFF << 24) // (SPI) Delay Between Chip Selects
+#define AT91C_SPI_MSTR        (0x1u <<  0) // (SPI) Master/Slave Mode
+#define AT91C_SPI_PS          (0x1u <<  1) // (SPI) Peripheral Select
+#define 	AT91C_SPI_PS_FIXED                (0x0u <<  1) // (SPI) Fixed Peripheral Select
+#define 	AT91C_SPI_PS_VARIABLE             (0x1u <<  1) // (SPI) Variable Peripheral Select
+#define AT91C_SPI_PCSDEC      (0x1u <<  2) // (SPI) Chip Select Decode
+#define AT91C_SPI_DIV32       (0x1u <<  3) // (SPI) Clock Selection
+#define AT91C_SPI_MODFDIS     (0x1u <<  4) // (SPI) Mode Fault Detection
+#define AT91C_SPI_LLB         (0x1u <<  7) // (SPI) Clock Selection
+#define AT91C_SPI_PCS         (0xFu << 16) // (SPI) Peripheral Chip Select
+#define AT91C_SPI_DLYBCS      (0xFFu << 24) // (SPI) Delay Between Chip Selects
 // -------- SPI_RDR : (SPI Offset: 0x8) Receive Data Register -------- 
-#define AT91C_SPI_RD          ((unsigned int) 0xFFFF <<  0) // (SPI) Receive Data
-#define AT91C_SPI_RPCS        ((unsigned int) 0xF << 16) // (SPI) Peripheral Chip Select Status
+#define AT91C_SPI_RD          (0xFFFFu <<  0) // (SPI) Receive Data
+#define AT91C_SPI_RPCS        (0xFu << 16) // (SPI) Peripheral Chip Select Status
 // -------- SPI_TDR : (SPI Offset: 0xc) Transmit Data Register -------- 
-#define AT91C_SPI_TD          ((unsigned int) 0xFFFF <<  0) // (SPI) Transmit Data
-#define AT91C_SPI_TPCS        ((unsigned int) 0xF << 16) // (SPI) Peripheral Chip Select Status
+#define AT91C_SPI_TD          (0xFFFFu <<  0) // (SPI) Transmit Data
+#define AT91C_SPI_TPCS        (0xFu << 16) // (SPI) Peripheral Chip Select Status
 // -------- SPI_SR : (SPI Offset: 0x10) Status Register -------- 
-#define AT91C_SPI_RDRF        ((unsigned int) 0x1 <<  0) // (SPI) Receive Data Register Full
-#define AT91C_SPI_TDRE        ((unsigned int) 0x1 <<  1) // (SPI) Transmit Data Register Empty
-#define AT91C_SPI_MODF        ((unsigned int) 0x1 <<  2) // (SPI) Mode Fault Error
-#define AT91C_SPI_OVRES       ((unsigned int) 0x1 <<  3) // (SPI) Overrun Error Status
-#define AT91C_SPI_SPENDRX     ((unsigned int) 0x1 <<  4) // (SPI) End of Receiver Transfer
-#define AT91C_SPI_SPENDTX     ((unsigned int) 0x1 <<  5) // (SPI) End of Receiver Transfer
-#define AT91C_SPI_RXBUFF      ((unsigned int) 0x1 <<  6) // (SPI) RXBUFF Interrupt
-#define AT91C_SPI_TXBUFE      ((unsigned int) 0x1 <<  7) // (SPI) TXBUFE Interrupt
-#define AT91C_SPI_SPIENS      ((unsigned int) 0x1 << 16) // (SPI) Enable Status
+#define AT91C_SPI_RDRF        (0x1u <<  0) // (SPI) Receive Data Register Full
+#define AT91C_SPI_TDRE        (0x1u <<  1) // (SPI) Transmit Data Register Empty
+#define AT91C_SPI_MODF        (0x1u <<  2) // (SPI) Mode Fault Error
+#define AT91C_SPI_OVRES       (0x1u <<  3) // (SPI) Overrun Error Status
+#define AT91C_SPI_SPENDRX     (0x1u <<  4) // (SPI) End of Receiver Transfer
+#define AT91C_SPI_SPENDTX     (0x1u <<  5) // (SPI) End of Receiver Transfer
+#define AT91C_SPI_RXBUFF      (0x1u <<  6) // (SPI) RXBUFF Interrupt
+#define AT91C_SPI_TXBUFE      (0x1u <<  7) // (SPI) TXBUFE Interrupt
+#define AT91C_SPI_SPIENS      (0x1u << 16) // (SPI) Enable Status
 // -------- SPI_IER : (SPI Offset: 0x14) Interrupt Enable Register -------- 
 // -------- SPI_IDR : (SPI Offset: 0x18) Interrupt Disable Register -------- 
 // -------- SPI_IMR : (SPI Offset: 0x1c) Interrupt Mask Register -------- 
 // -------- SPI_CSR : (SPI Offset: 0x30) Chip Select Register -------- 
-#define AT91C_SPI_CPOL        ((unsigned int) 0x1 <<  0) // (SPI) Clock Polarity
-#define AT91C_SPI_NCPHA       ((unsigned int) 0x1 <<  1) // (SPI) Clock Phase
-#define AT91C_SPI_BITS        ((unsigned int) 0xF <<  4) // (SPI) Bits Per Transfer
-#define 	AT91C_SPI_BITS_8                    ((unsigned int) 0x0 <<  4) // (SPI) 8 Bits Per transfer
-#define 	AT91C_SPI_BITS_9                    ((unsigned int) 0x1 <<  4) // (SPI) 9 Bits Per transfer
-#define 	AT91C_SPI_BITS_10                   ((unsigned int) 0x2 <<  4) // (SPI) 10 Bits Per transfer
-#define 	AT91C_SPI_BITS_11                   ((unsigned int) 0x3 <<  4) // (SPI) 11 Bits Per transfer
-#define 	AT91C_SPI_BITS_12                   ((unsigned int) 0x4 <<  4) // (SPI) 12 Bits Per transfer
-#define 	AT91C_SPI_BITS_13                   ((unsigned int) 0x5 <<  4) // (SPI) 13 Bits Per transfer
-#define 	AT91C_SPI_BITS_14                   ((unsigned int) 0x6 <<  4) // (SPI) 14 Bits Per transfer
-#define 	AT91C_SPI_BITS_15                   ((unsigned int) 0x7 <<  4) // (SPI) 15 Bits Per transfer
-#define 	AT91C_SPI_BITS_16                   ((unsigned int) 0x8 <<  4) // (SPI) 16 Bits Per transfer
-#define AT91C_SPI_SCBR        ((unsigned int) 0xFF <<  8) // (SPI) Serial Clock Baud Rate
-#define AT91C_SPI_DLYBS       ((unsigned int) 0xFF << 16) // (SPI) Serial Clock Baud Rate
-#define AT91C_SPI_DLYBCT      ((unsigned int) 0xFF << 24) // (SPI) Delay Between Consecutive Transfers
+#define AT91C_SPI_CPOL        (0x1u <<  0) // (SPI) Clock Polarity
+#define AT91C_SPI_NCPHA       (0x1u <<  1) // (SPI) Clock Phase
+#define AT91C_SPI_BITS        (0xFu <<  4) // (SPI) Bits Per Transfer
+#define 	AT91C_SPI_BITS_8                    (0x0u <<  4) // (SPI) 8 Bits Per transfer
+#define 	AT91C_SPI_BITS_9                    (0x1u <<  4) // (SPI) 9 Bits Per transfer
+#define 	AT91C_SPI_BITS_10                   (0x2u <<  4) // (SPI) 10 Bits Per transfer
+#define 	AT91C_SPI_BITS_11                   (0x3u <<  4) // (SPI) 11 Bits Per transfer
+#define 	AT91C_SPI_BITS_12                   (0x4u <<  4) // (SPI) 12 Bits Per transfer
+#define 	AT91C_SPI_BITS_13                   (0x5u <<  4) // (SPI) 13 Bits Per transfer
+#define 	AT91C_SPI_BITS_14                   (0x6u <<  4) // (SPI) 14 Bits Per transfer
+#define 	AT91C_SPI_BITS_15                   (0x7u <<  4) // (SPI) 15 Bits Per transfer
+#define 	AT91C_SPI_BITS_16                   (0x8u <<  4) // (SPI) 16 Bits Per transfer
+#define AT91C_SPI_SCBR        (0xFFu <<  8) // (SPI) Serial Clock Baud Rate
+#define AT91C_SPI_DLYBS       (0xFFu << 16) // (SPI) Serial Clock Baud Rate
+#define AT91C_SPI_DLYBCT      (0xFFu << 24) // (SPI) Delay Between Consecutive Transfers
 
 // *****************************************************************************
 //              SOFTWARE API DEFINITION  FOR Synchronous Serial Controller Interface
@@ -877,72 +877,72 @@ typedef struct _AT91S_SSC {
 } AT91S_SSC, *AT91PS_SSC;
 
 // -------- SSC_CR : (SSC Offset: 0x0) SSC Control Register -------- 
-#define AT91C_SSC_RXEN        ((unsigned int) 0x1 <<  0) // (SSC) Receive Enable
-#define AT91C_SSC_RXDIS       ((unsigned int) 0x1 <<  1) // (SSC) Receive Disable
-#define AT91C_SSC_TXEN        ((unsigned int) 0x1 <<  8) // (SSC) Transmit Enable
-#define AT91C_SSC_TXDIS       ((unsigned int) 0x1 <<  9) // (SSC) Transmit Disable
-#define AT91C_SSC_SWRST       ((unsigned int) 0x1 << 15) // (SSC) Software Reset
+#define AT91C_SSC_RXEN        (0x1u <<  0) // (SSC) Receive Enable
+#define AT91C_SSC_RXDIS       (0x1u <<  1) // (SSC) Receive Disable
+#define AT91C_SSC_TXEN        (0x1u <<  8) // (SSC) Transmit Enable
+#define AT91C_SSC_TXDIS       (0x1u <<  9) // (SSC) Transmit Disable
+#define AT91C_SSC_SWRST       (0x1u << 15) // (SSC) Software Reset
 // -------- SSC_RCMR : (SSC Offset: 0x10) SSC Receive Clock Mode Register -------- 
-#define AT91C_SSC_CKS         ((unsigned int) 0x3 <<  0) // (SSC) Receive/Transmit Clock Selection
-#define 	AT91C_SSC_CKS_DIV                  ((unsigned int) 0x0) // (SSC) Divided Clock
-#define 	AT91C_SSC_CKS_TK                   ((unsigned int) 0x1) // (SSC) TK Clock signal
-#define 	AT91C_SSC_CKS_RK                   ((unsigned int) 0x2) // (SSC) RK pin
-#define AT91C_SSC_CKO         ((unsigned int) 0x7 <<  2) // (SSC) Receive/Transmit Clock Output Mode Selection
-#define 	AT91C_SSC_CKO_NONE                 ((unsigned int) 0x0 <<  2) // (SSC) Receive/Transmit Clock Output Mode: None RK pin: Input-only
-#define 	AT91C_SSC_CKO_CONTINOUS            ((unsigned int) 0x1 <<  2) // (SSC) Continuous Receive/Transmit Clock RK pin: Output
-#define 	AT91C_SSC_CKO_DATA_TX              ((unsigned int) 0x2 <<  2) // (SSC) Receive/Transmit Clock only during data transfers RK pin: Output
-#define AT91C_SSC_CKI         ((unsigned int) 0x1 <<  5) // (SSC) Receive/Transmit Clock Inversion
-#define AT91C_SSC_CKG         ((unsigned int) 0x3 <<  6) // (SSC) Receive/Transmit Clock Gating Selection
-#define 	AT91C_SSC_CKG_NONE                 ((unsigned int) 0x0 <<  6) // (SSC) Receive/Transmit Clock Gating: None, continuous clock
-#define 	AT91C_SSC_CKG_LOW                  ((unsigned int) 0x1 <<  6) // (SSC) Receive/Transmit Clock enabled only if RF Low
-#define 	AT91C_SSC_CKG_HIGH                 ((unsigned int) 0x2 <<  6) // (SSC) Receive/Transmit Clock enabled only if RF High
-#define AT91C_SSC_START       ((unsigned int) 0xF <<  8) // (SSC) Receive/Transmit Start Selection
-#define 	AT91C_SSC_START_CONTINOUS            ((unsigned int) 0x0 <<  8) // (SSC) Continuous, as soon as the receiver is enabled, and immediately after the end of transfer of the previous data.
-#define 	AT91C_SSC_START_TX                   ((unsigned int) 0x1 <<  8) // (SSC) Transmit/Receive start
-#define 	AT91C_SSC_START_LOW_RF               ((unsigned int) 0x2 <<  8) // (SSC) Detection of a low level on RF input
-#define 	AT91C_SSC_START_HIGH_RF              ((unsigned int) 0x3 <<  8) // (SSC) Detection of a high level on RF input
-#define 	AT91C_SSC_START_FALL_RF              ((unsigned int) 0x4 <<  8) // (SSC) Detection of a falling edge on RF input
-#define 	AT91C_SSC_START_RISE_RF              ((unsigned int) 0x5 <<  8) // (SSC) Detection of a rising edge on RF input
-#define 	AT91C_SSC_START_LEVEL_RF             ((unsigned int) 0x6 <<  8) // (SSC) Detection of any level change on RF input
-#define 	AT91C_SSC_START_EDGE_RF              ((unsigned int) 0x7 <<  8) // (SSC) Detection of any edge on RF input
-#define 	AT91C_SSC_START_0                    ((unsigned int) 0x8 <<  8) // (SSC) Compare 0
-#define AT91C_SSC_STOP        ((unsigned int) 0x1 << 12) // (SSC) Receive Stop Selection
-#define AT91C_SSC_STTOUT      ((unsigned int) 0x1 << 15) // (SSC) Receive/Transmit Start Output Selection
-#define AT91C_SSC_STTDLY      ((unsigned int) 0xFF << 16) // (SSC) Receive/Transmit Start Delay
-#define AT91C_SSC_PERIOD      ((unsigned int) 0xFF << 24) // (SSC) Receive/Transmit Period Divider Selection
+#define AT91C_SSC_CKS         (0x3u <<  0) // (SSC) Receive/Transmit Clock Selection
+#define 	AT91C_SSC_CKS_DIV                  0x0u // (SSC) Divided Clock
+#define 	AT91C_SSC_CKS_TK                   0x1u // (SSC) TK Clock signal
+#define 	AT91C_SSC_CKS_RK                   0x2u // (SSC) RK pin
+#define AT91C_SSC_CKO         (0x7u <<  2) // (SSC) Receive/Transmit Clock Output Mode Selection
+#define 	AT91C_SSC_CKO_NONE                 (0x0u <<  2) // (SSC) Receive/Transmit Clock Output Mode: None RK pin: Input-only
+#define 	AT91C_SSC_CKO_CONTINOUS            (0x1u <<  2) // (SSC) Continuous Receive/Transmit Clock RK pin: Output
+#define 	AT91C_SSC_CKO_DATA_TX              (0x2u <<  2) // (SSC) Receive/Transmit Clock only during data transfers RK pin: Output
+#define AT91C_SSC_CKI         (0x1u <<  5) // (SSC) Receive/Transmit Clock Inversion
+#define AT91C_SSC_CKG         (0x3u <<  6) // (SSC) Receive/Transmit Clock Gating Selection
+#define 	AT91C_SSC_CKG_NONE                 (0x0u <<  6) // (SSC) Receive/Transmit Clock Gating: None, continuous clock
+#define 	AT91C_SSC_CKG_LOW                  (0x1u <<  6) // (SSC) Receive/Transmit Clock enabled only if RF Low
+#define 	AT91C_SSC_CKG_HIGH                 (0x2u <<  6) // (SSC) Receive/Transmit Clock enabled only if RF High
+#define AT91C_SSC_START       (0xFu <<  8) // (SSC) Receive/Transmit Start Selection
+#define 	AT91C_SSC_START_CONTINOUS            (0x0u <<  8) // (SSC) Continuous, as soon as the receiver is enabled, and immediately after the end of transfer of the previous data.
+#define 	AT91C_SSC_START_TX                   (0x1u <<  8) // (SSC) Transmit/Receive start
+#define 	AT91C_SSC_START_LOW_RF               (0x2u <<  8) // (SSC) Detection of a low level on RF input
+#define 	AT91C_SSC_START_HIGH_RF              (0x3u <<  8) // (SSC) Detection of a high level on RF input
+#define 	AT91C_SSC_START_FALL_RF              (0x4u <<  8) // (SSC) Detection of a falling edge on RF input
+#define 	AT91C_SSC_START_RISE_RF              (0x5u <<  8) // (SSC) Detection of a rising edge on RF input
+#define 	AT91C_SSC_START_LEVEL_RF             (0x6u <<  8) // (SSC) Detection of any level change on RF input
+#define 	AT91C_SSC_START_EDGE_RF              (0x7u <<  8) // (SSC) Detection of any edge on RF input
+#define 	AT91C_SSC_START_0                    (0x8u <<  8) // (SSC) Compare 0
+#define AT91C_SSC_STOP        (0x1u << 12) // (SSC) Receive Stop Selection
+#define AT91C_SSC_STTOUT      (0x1u << 15) // (SSC) Receive/Transmit Start Output Selection
+#define AT91C_SSC_STTDLY      (0xFFu << 16) // (SSC) Receive/Transmit Start Delay
+#define AT91C_SSC_PERIOD      (0xFFu << 24) // (SSC) Receive/Transmit Period Divider Selection
 // -------- SSC_RFMR : (SSC Offset: 0x14) SSC Receive Frame Mode Register -------- 
-#define AT91C_SSC_DATLEN      ((unsigned int) 0x1F <<  0) // (SSC) Data Length
-#define AT91C_SSC_LOOP        ((unsigned int) 0x1 <<  5) // (SSC) Loop Mode
-#define AT91C_SSC_MSBF        ((unsigned int) 0x1 <<  7) // (SSC) Most Significant Bit First
-#define AT91C_SSC_DATNB       ((unsigned int) 0xF <<  8) // (SSC) Data Number per Frame
-#define AT91C_SSC_FSLEN       ((unsigned int) 0xF << 16) // (SSC) Receive/Transmit Frame Sync length
-#define AT91C_SSC_FSOS        ((unsigned int) 0x7 << 20) // (SSC) Receive/Transmit Frame Sync Output Selection
-#define 	AT91C_SSC_FSOS_NONE                 ((unsigned int) 0x0 << 20) // (SSC) Selected Receive/Transmit Frame Sync Signal: None RK pin Input-only
-#define 	AT91C_SSC_FSOS_NEGATIVE             ((unsigned int) 0x1 << 20) // (SSC) Selected Receive/Transmit Frame Sync Signal: Negative Pulse
-#define 	AT91C_SSC_FSOS_POSITIVE             ((unsigned int) 0x2 << 20) // (SSC) Selected Receive/Transmit Frame Sync Signal: Positive Pulse
-#define 	AT91C_SSC_FSOS_LOW                  ((unsigned int) 0x3 << 20) // (SSC) Selected Receive/Transmit Frame Sync Signal: Driver Low during data transfer
-#define 	AT91C_SSC_FSOS_HIGH                 ((unsigned int) 0x4 << 20) // (SSC) Selected Receive/Transmit Frame Sync Signal: Driver High during data transfer
-#define 	AT91C_SSC_FSOS_TOGGLE               ((unsigned int) 0x5 << 20) // (SSC) Selected Receive/Transmit Frame Sync Signal: Toggling at each start of data transfer
-#define AT91C_SSC_FSEDGE      ((unsigned int) 0x1 << 24) // (SSC) Frame Sync Edge Detection
+#define AT91C_SSC_DATLEN      (0x1Fu <<  0) // (SSC) Data Length
+#define AT91C_SSC_LOOP        (0x1u <<  5) // (SSC) Loop Mode
+#define AT91C_SSC_MSBF        (0x1u <<  7) // (SSC) Most Significant Bit First
+#define AT91C_SSC_DATNB       (0xFu <<  8) // (SSC) Data Number per Frame
+#define AT91C_SSC_FSLEN       (0xFu << 16) // (SSC) Receive/Transmit Frame Sync length
+#define AT91C_SSC_FSOS        (0x7u << 20) // (SSC) Receive/Transmit Frame Sync Output Selection
+#define 	AT91C_SSC_FSOS_NONE                 (0x0u << 20) // (SSC) Selected Receive/Transmit Frame Sync Signal: None RK pin Input-only
+#define 	AT91C_SSC_FSOS_NEGATIVE             (0x1u << 20) // (SSC) Selected Receive/Transmit Frame Sync Signal: Negative Pulse
+#define 	AT91C_SSC_FSOS_POSITIVE             (0x2u << 20) // (SSC) Selected Receive/Transmit Frame Sync Signal: Positive Pulse
+#define 	AT91C_SSC_FSOS_LOW                  (0x3u << 20) // (SSC) Selected Receive/Transmit Frame Sync Signal: Driver Low during data transfer
+#define 	AT91C_SSC_FSOS_HIGH                 (0x4u << 20) // (SSC) Selected Receive/Transmit Frame Sync Signal: Driver High during data transfer
+#define 	AT91C_SSC_FSOS_TOGGLE               (0x5u << 20) // (SSC) Selected Receive/Transmit Frame Sync Signal: Toggling at each start of data transfer
+#define AT91C_SSC_FSEDGE      (0x1u << 24) // (SSC) Frame Sync Edge Detection
 // -------- SSC_TCMR : (SSC Offset: 0x18) SSC Transmit Clock Mode Register -------- 
 // -------- SSC_TFMR : (SSC Offset: 0x1c) SSC Transmit Frame Mode Register -------- 
-#define AT91C_SSC_DATDEF      ((unsigned int) 0x1 <<  5) // (SSC) Data Default Value
-#define AT91C_SSC_FSDEN       ((unsigned int) 0x1 << 23) // (SSC) Frame Sync Data Enable
+#define AT91C_SSC_DATDEF      (0x1u <<  5) // (SSC) Data Default Value
+#define AT91C_SSC_FSDEN       (0x1u << 23) // (SSC) Frame Sync Data Enable
 // -------- SSC_SR : (SSC Offset: 0x40) SSC Status Register -------- 
-#define AT91C_SSC_TXRDY       ((unsigned int) 0x1 <<  0) // (SSC) Transmit Ready
-#define AT91C_SSC_TXEMPTY     ((unsigned int) 0x1 <<  1) // (SSC) Transmit Empty
-#define AT91C_SSC_ENDTX       ((unsigned int) 0x1 <<  2) // (SSC) End Of Transmission
-#define AT91C_SSC_TXBUFE      ((unsigned int) 0x1 <<  3) // (SSC) Transmit Buffer Empty
-#define AT91C_SSC_RXRDY       ((unsigned int) 0x1 <<  4) // (SSC) Receive Ready
-#define AT91C_SSC_OVRUN       ((unsigned int) 0x1 <<  5) // (SSC) Receive Overrun
-#define AT91C_SSC_ENDRX       ((unsigned int) 0x1 <<  6) // (SSC) End of Reception
-#define AT91C_SSC_RXBUFF      ((unsigned int) 0x1 <<  7) // (SSC) Receive Buffer Full
-#define AT91C_SSC_CP0         ((unsigned int) 0x1 <<  8) // (SSC) Compare 0
-#define AT91C_SSC_CP1         ((unsigned int) 0x1 <<  9) // (SSC) Compare 1
-#define AT91C_SSC_TXSYN       ((unsigned int) 0x1 << 10) // (SSC) Transmit Sync
-#define AT91C_SSC_RXSYN       ((unsigned int) 0x1 << 11) // (SSC) Receive Sync
-#define AT91C_SSC_TXENA       ((unsigned int) 0x1 << 16) // (SSC) Transmit Enable
-#define AT91C_SSC_RXENA       ((unsigned int) 0x1 << 17) // (SSC) Receive Enable
+#define AT91C_SSC_TXRDY       (0x1u <<  0) // (SSC) Transmit Ready
+#define AT91C_SSC_TXEMPTY     (0x1u <<  1) // (SSC) Transmit Empty
+#define AT91C_SSC_ENDTX       (0x1u <<  2) // (SSC) End Of Transmission
+#define AT91C_SSC_TXBUFE      (0x1u <<  3) // (SSC) Transmit Buffer Empty
+#define AT91C_SSC_RXRDY       (0x1u <<  4) // (SSC) Receive Ready
+#define AT91C_SSC_OVRUN       (0x1u <<  5) // (SSC) Receive Overrun
+#define AT91C_SSC_ENDRX       (0x1u <<  6) // (SSC) End of Reception
+#define AT91C_SSC_RXBUFF      (0x1u <<  7) // (SSC) Receive Buffer Full
+#define AT91C_SSC_CP0         (0x1u <<  8) // (SSC) Compare 0
+#define AT91C_SSC_CP1         (0x1u <<  9) // (SSC) Compare 1
+#define AT91C_SSC_TXSYN       (0x1u << 10) // (SSC) Transmit Sync
+#define AT91C_SSC_RXSYN       (0x1u << 11) // (SSC) Receive Sync
+#define AT91C_SSC_TXENA       (0x1u << 16) // (SSC) Transmit Enable
+#define AT91C_SSC_RXENA       (0x1u << 17) // (SSC) Receive Enable
 // -------- SSC_IER : (SSC Offset: 0x44) SSC Interrupt Enable Register -------- 
 // -------- SSC_IDR : (SSC Offset: 0x48) SSC Interrupt Disable Register -------- 
 // -------- SSC_IMR : (SSC Offset: 0x4c) SSC Interrupt Mask Register -------- 
@@ -981,67 +981,67 @@ typedef struct _AT91S_USART {
 } AT91S_USART, *AT91PS_USART;
 
 // -------- US_CR : (USART Offset: 0x0) Debug Unit Control Register -------- 
-#define AT91C_US_RSTSTA       ((unsigned int) 0x1 <<  8) // (USART) Reset Status Bits
-#define AT91C_US_STTBRK       ((unsigned int) 0x1 <<  9) // (USART) Start Break
-#define AT91C_US_STPBRK       ((unsigned int) 0x1 << 10) // (USART) Stop Break
-#define AT91C_US_STTTO        ((unsigned int) 0x1 << 11) // (USART) Start Time-out
-#define AT91C_US_SENDA        ((unsigned int) 0x1 << 12) // (USART) Send Address
-#define AT91C_US_RSTIT        ((unsigned int) 0x1 << 13) // (USART) Reset Iterations
-#define AT91C_US_RSTNACK      ((unsigned int) 0x1 << 14) // (USART) Reset Non Acknowledge
-#define AT91C_US_RETTO        ((unsigned int) 0x1 << 15) // (USART) Rearm Time-out
-#define AT91C_US_DTREN        ((unsigned int) 0x1 << 16) // (USART) Data Terminal ready Enable
-#define AT91C_US_DTRDIS       ((unsigned int) 0x1 << 17) // (USART) Data Terminal ready Disable
-#define AT91C_US_RTSEN        ((unsigned int) 0x1 << 18) // (USART) Request to Send enable
-#define AT91C_US_RTSDIS       ((unsigned int) 0x1 << 19) // (USART) Request to Send Disable
+#define AT91C_US_RSTSTA       (0x1u <<  8) // (USART) Reset Status Bits
+#define AT91C_US_STTBRK       (0x1u <<  9) // (USART) Start Break
+#define AT91C_US_STPBRK       (0x1u << 10) // (USART) Stop Break
+#define AT91C_US_STTTO        (0x1u << 11) // (USART) Start Time-out
+#define AT91C_US_SENDA        (0x1u << 12) // (USART) Send Address
+#define AT91C_US_RSTIT        (0x1u << 13) // (USART) Reset Iterations
+#define AT91C_US_RSTNACK      (0x1u << 14) // (USART) Reset Non Acknowledge
+#define AT91C_US_RETTO        (0x1u << 15) // (USART) Rearm Time-out
+#define AT91C_US_DTREN        (0x1u << 16) // (USART) Data Terminal ready Enable
+#define AT91C_US_DTRDIS       (0x1u << 17) // (USART) Data Terminal ready Disable
+#define AT91C_US_RTSEN        (0x1u << 18) // (USART) Request to Send enable
+#define AT91C_US_RTSDIS       (0x1u << 19) // (USART) Request to Send Disable
 // -------- US_MR : (USART Offset: 0x4) Debug Unit Mode Register -------- 
-#define AT91C_US_USMODE       ((unsigned int) 0xF <<  0) // (USART) Usart mode
-#define 	AT91C_US_USMODE_NORMAL               ((unsigned int) 0x0) // (USART) Normal
-#define 	AT91C_US_USMODE_RS485                ((unsigned int) 0x1) // (USART) RS485
-#define 	AT91C_US_USMODE_HWHSH                ((unsigned int) 0x2) // (USART) Hardware Handshaking
-#define 	AT91C_US_USMODE_MODEM                ((unsigned int) 0x3) // (USART) Modem
-#define 	AT91C_US_USMODE_ISO7816_0            ((unsigned int) 0x4) // (USART) ISO7816 protocol: T = 0
-#define 	AT91C_US_USMODE_ISO7816_1            ((unsigned int) 0x6) // (USART) ISO7816 protocol: T = 1
-#define 	AT91C_US_USMODE_IRDA                 ((unsigned int) 0x8) // (USART) IrDA
-#define 	AT91C_US_USMODE_SWHSH                ((unsigned int) 0xC) // (USART) Software Handshaking
-#define AT91C_US_CLKS         ((unsigned int) 0x3 <<  4) // (USART) Clock Selection (Baud Rate generator Input Clock
-#define 	AT91C_US_CLKS_CLOCK                ((unsigned int) 0x0 <<  4) // (USART) Clock
-#define 	AT91C_US_CLKS_FDIV1                ((unsigned int) 0x1 <<  4) // (USART) fdiv1
-#define 	AT91C_US_CLKS_SLOW                 ((unsigned int) 0x2 <<  4) // (USART) slow_clock (ARM)
-#define 	AT91C_US_CLKS_EXT                  ((unsigned int) 0x3 <<  4) // (USART) External (SCK)
-#define AT91C_US_CHRL         ((unsigned int) 0x3 <<  6) // (USART) Clock Selection (Baud Rate generator Input Clock
-#define 	AT91C_US_CHRL_5_BITS               ((unsigned int) 0x0 <<  6) // (USART) Character Length: 5 bits
-#define 	AT91C_US_CHRL_6_BITS               ((unsigned int) 0x1 <<  6) // (USART) Character Length: 6 bits
-#define 	AT91C_US_CHRL_7_BITS               ((unsigned int) 0x2 <<  6) // (USART) Character Length: 7 bits
-#define 	AT91C_US_CHRL_8_BITS               ((unsigned int) 0x3 <<  6) // (USART) Character Length: 8 bits
-#define AT91C_US_SYNC         ((unsigned int) 0x1 <<  8) // (USART) Synchronous Mode Select
-#define AT91C_US_NBSTOP       ((unsigned int) 0x3 << 12) // (USART) Number of Stop bits
-#define 	AT91C_US_NBSTOP_1_BIT                ((unsigned int) 0x0 << 12) // (USART) 1 stop bit
-#define 	AT91C_US_NBSTOP_15_BIT               ((unsigned int) 0x1 << 12) // (USART) Asynchronous (SYNC=0) 2 stop bits Synchronous (SYNC=1) 2 stop bits
-#define 	AT91C_US_NBSTOP_2_BIT                ((unsigned int) 0x2 << 12) // (USART) 2 stop bits
-#define AT91C_US_MSBF         ((unsigned int) 0x1 << 16) // (USART) Bit Order
-#define AT91C_US_MODE9        ((unsigned int) 0x1 << 17) // (USART) 9-bit Character length
-#define AT91C_US_CKLO         ((unsigned int) 0x1 << 18) // (USART) Clock Output Select
-#define AT91C_US_OVER         ((unsigned int) 0x1 << 19) // (USART) Over Sampling Mode
-#define AT91C_US_INACK        ((unsigned int) 0x1 << 20) // (USART) Inhibit Non Acknowledge
-#define AT91C_US_DSNACK       ((unsigned int) 0x1 << 21) // (USART) Disable Successive NACK
-#define AT91C_US_MAX_ITER     ((unsigned int) 0x1 << 24) // (USART) Number of Repetitions
-#define AT91C_US_FILTER       ((unsigned int) 0x1 << 28) // (USART) Receive Line Filter
+#define AT91C_US_USMODE       (0xFu <<  0) // (USART) Usart mode
+#define 	AT91C_US_USMODE_NORMAL               0x0u // (USART) Normal
+#define 	AT91C_US_USMODE_RS485                0x1u // (USART) RS485
+#define 	AT91C_US_USMODE_HWHSH                0x2u // (USART) Hardware Handshaking
+#define 	AT91C_US_USMODE_MODEM                0x3u // (USART) Modem
+#define 	AT91C_US_USMODE_ISO7816_0            0x4u // (USART) ISO7816 protocol: T = 0
+#define 	AT91C_US_USMODE_ISO7816_1            0x6u // (USART) ISO7816 protocol: T = 1
+#define 	AT91C_US_USMODE_IRDA                 0x8u // (USART) IrDA
+#define 	AT91C_US_USMODE_SWHSH                0xCu // (USART) Software Handshaking
+#define AT91C_US_CLKS         (0x3u <<  4) // (USART) Clock Selection (Baud Rate generator Input Clock
+#define 	AT91C_US_CLKS_CLOCK                (0x0u <<  4) // (USART) Clock
+#define 	AT91C_US_CLKS_FDIV1                (0x1u <<  4) // (USART) fdiv1
+#define 	AT91C_US_CLKS_SLOW                 (0x2u <<  4) // (USART) slow_clock (ARM)
+#define 	AT91C_US_CLKS_EXT                  (0x3u <<  4) // (USART) External (SCK)
+#define AT91C_US_CHRL         (0x3u <<  6) // (USART) Clock Selection (Baud Rate generator Input Clock
+#define 	AT91C_US_CHRL_5_BITS               (0x0u <<  6) // (USART) Character Length: 5 bits
+#define 	AT91C_US_CHRL_6_BITS               (0x1u <<  6) // (USART) Character Length: 6 bits
+#define 	AT91C_US_CHRL_7_BITS               (0x2u <<  6) // (USART) Character Length: 7 bits
+#define 	AT91C_US_CHRL_8_BITS               (0x3u <<  6) // (USART) Character Length: 8 bits
+#define AT91C_US_SYNC         (0x1u <<  8) // (USART) Synchronous Mode Select
+#define AT91C_US_NBSTOP       (0x3u << 12) // (USART) Number of Stop bits
+#define 	AT91C_US_NBSTOP_1_BIT                (0x0u << 12) // (USART) 1 stop bit
+#define 	AT91C_US_NBSTOP_15_BIT               (0x1u << 12) // (USART) Asynchronous (SYNC=0) 2 stop bits Synchronous (SYNC=1) 2 stop bits
+#define 	AT91C_US_NBSTOP_2_BIT                (0x2u << 12) // (USART) 2 stop bits
+#define AT91C_US_MSBF         (0x1u << 16) // (USART) Bit Order
+#define AT91C_US_MODE9        (0x1u << 17) // (USART) 9-bit Character length
+#define AT91C_US_CKLO         (0x1u << 18) // (USART) Clock Output Select
+#define AT91C_US_OVER         (0x1u << 19) // (USART) Over Sampling Mode
+#define AT91C_US_INACK        (0x1u << 20) // (USART) Inhibit Non Acknowledge
+#define AT91C_US_DSNACK       (0x1u << 21) // (USART) Disable Successive NACK
+#define AT91C_US_MAX_ITER     (0x1u << 24) // (USART) Number of Repetitions
+#define AT91C_US_FILTER       (0x1u << 28) // (USART) Receive Line Filter
 // -------- US_IER : (USART Offset: 0x8) Debug Unit Interrupt Enable Register -------- 
-#define AT91C_US_RXBRK        ((unsigned int) 0x1 <<  2) // (USART) Break Received/End of Break
-#define AT91C_US_TIMEOUT      ((unsigned int) 0x1 <<  8) // (USART) Receiver Time-out
-#define AT91C_US_ITERATION    ((unsigned int) 0x1 << 10) // (USART) Max number of Repetitions Reached
-#define AT91C_US_NACK         ((unsigned int) 0x1 << 13) // (USART) Non Acknowledge
-#define AT91C_US_RIIC         ((unsigned int) 0x1 << 16) // (USART) Ring INdicator Input Change Flag
-#define AT91C_US_DSRIC        ((unsigned int) 0x1 << 17) // (USART) Data Set Ready Input Change Flag
-#define AT91C_US_DCDIC        ((unsigned int) 0x1 << 18) // (USART) Data Carrier Flag
-#define AT91C_US_CTSIC        ((unsigned int) 0x1 << 19) // (USART) Clear To Send Input Change Flag
+#define AT91C_US_RXBRK        (0x1u <<  2) // (USART) Break Received/End of Break
+#define AT91C_US_TIMEOUT      (0x1u <<  8) // (USART) Receiver Time-out
+#define AT91C_US_ITERATION    (0x1u << 10) // (USART) Max number of Repetitions Reached
+#define AT91C_US_NACK         (0x1u << 13) // (USART) Non Acknowledge
+#define AT91C_US_RIIC         (0x1u << 16) // (USART) Ring INdicator Input Change Flag
+#define AT91C_US_DSRIC        (0x1u << 17) // (USART) Data Set Ready Input Change Flag
+#define AT91C_US_DCDIC        (0x1u << 18) // (USART) Data Carrier Flag
+#define AT91C_US_CTSIC        (0x1u << 19) // (USART) Clear To Send Input Change Flag
 // -------- US_IDR : (USART Offset: 0xc) Debug Unit Interrupt Disable Register -------- 
 // -------- US_IMR : (USART Offset: 0x10) Debug Unit Interrupt Mask Register -------- 
 // -------- US_CSR : (USART Offset: 0x14) Debug Unit Channel Status Register -------- 
-#define AT91C_US_RI           ((unsigned int) 0x1 << 20) // (USART) Image of RI Input
-#define AT91C_US_DSR          ((unsigned int) 0x1 << 21) // (USART) Image of DSR Input
-#define AT91C_US_DCD          ((unsigned int) 0x1 << 22) // (USART) Image of DCD Input
-#define AT91C_US_CTS          ((unsigned int) 0x1 << 23) // (USART) Image of CTS Input
+#define AT91C_US_RI           (0x1u << 20) // (USART) Image of RI Input
+#define AT91C_US_DSR          (0x1u << 21) // (USART) Image of DSR Input
+#define AT91C_US_DCD          (0x1u << 22) // (USART) Image of DCD Input
+#define AT91C_US_CTS          (0x1u << 23) // (USART) Image of CTS Input
 
 // *****************************************************************************
 //              SOFTWARE API DEFINITION  FOR Two-wire Interface
@@ -1062,38 +1062,38 @@ typedef struct _AT91S_TWI {
 } AT91S_TWI, *AT91PS_TWI;
 
 // -------- TWI_CR : (TWI Offset: 0x0) TWI Control Register -------- 
-#define AT91C_TWI_START       ((unsigned int) 0x1 <<  0) // (TWI) Send a START Condition
-#define AT91C_TWI_STOP        ((unsigned int) 0x1 <<  1) // (TWI) Send a STOP Condition
-#define AT91C_TWI_MSEN        ((unsigned int) 0x1 <<  2) // (TWI) TWI Master Transfer Enabled
-#define AT91C_TWI_MSDIS       ((unsigned int) 0x1 <<  3) // (TWI) TWI Master Transfer Disabled
-#define AT91C_TWI_SVEN        ((unsigned int) 0x1 <<  4) // (TWI) TWI Slave Transfer Enabled
-#define AT91C_TWI_SVDIS       ((unsigned int) 0x1 <<  5) // (TWI) TWI Slave Transfer Disabled
-#define AT91C_TWI_SWRST       ((unsigned int) 0x1 <<  7) // (TWI) Software Reset
+#define AT91C_TWI_START       (0x1u <<  0) // (TWI) Send a START Condition
+#define AT91C_TWI_STOP        (0x1u <<  1) // (TWI) Send a STOP Condition
+#define AT91C_TWI_MSEN        (0x1u <<  2) // (TWI) TWI Master Transfer Enabled
+#define AT91C_TWI_MSDIS       (0x1u <<  3) // (TWI) TWI Master Transfer Disabled
+#define AT91C_TWI_SVEN        (0x1u <<  4) // (TWI) TWI Slave Transfer Enabled
+#define AT91C_TWI_SVDIS       (0x1u <<  5) // (TWI) TWI Slave Transfer Disabled
+#define AT91C_TWI_SWRST       (0x1u <<  7) // (TWI) Software Reset
 // -------- TWI_MMR : (TWI Offset: 0x4) TWI Master Mode Register -------- 
-#define AT91C_TWI_IADRSZ      ((unsigned int) 0x3 <<  8) // (TWI) Internal Device Address Size
-#define 	AT91C_TWI_IADRSZ_NO                   ((unsigned int) 0x0 <<  8) // (TWI) No internal device address
-#define 	AT91C_TWI_IADRSZ_1_BYTE               ((unsigned int) 0x1 <<  8) // (TWI) One-byte internal device address
-#define 	AT91C_TWI_IADRSZ_2_BYTE               ((unsigned int) 0x2 <<  8) // (TWI) Two-byte internal device address
-#define 	AT91C_TWI_IADRSZ_3_BYTE               ((unsigned int) 0x3 <<  8) // (TWI) Three-byte internal device address
-#define AT91C_TWI_MREAD       ((unsigned int) 0x1 << 12) // (TWI) Master Read Direction
-#define AT91C_TWI_DADR        ((unsigned int) 0x7F << 16) // (TWI) Device Address
+#define AT91C_TWI_IADRSZ      (0x3u <<  8) // (TWI) Internal Device Address Size
+#define 	AT91C_TWI_IADRSZ_NO                   (0x0u <<  8) // (TWI) No internal device address
+#define 	AT91C_TWI_IADRSZ_1_BYTE               (0x1u <<  8) // (TWI) One-byte internal device address
+#define 	AT91C_TWI_IADRSZ_2_BYTE               (0x2u <<  8) // (TWI) Two-byte internal device address
+#define 	AT91C_TWI_IADRSZ_3_BYTE               (0x3u <<  8) // (TWI) Three-byte internal device address
+#define AT91C_TWI_MREAD       (0x1u << 12) // (TWI) Master Read Direction
+#define AT91C_TWI_DADR        (0x7Fu << 16) // (TWI) Device Address
 // -------- TWI_SMR : (TWI Offset: 0x8) TWI Slave Mode Register -------- 
-#define AT91C_TWI_SADR        ((unsigned int) 0x7F << 16) // (TWI) Slave Device Address
+#define AT91C_TWI_SADR        (0x7Fu << 16) // (TWI) Slave Device Address
 // -------- TWI_CWGR : (TWI Offset: 0x10) TWI Clock Waveform Generator Register -------- 
-#define AT91C_TWI_CLDIV       ((unsigned int) 0xFF <<  0) // (TWI) Clock Low Divider
-#define AT91C_TWI_CHDIV       ((unsigned int) 0xFF <<  8) // (TWI) Clock High Divider
-#define AT91C_TWI_CKDIV       ((unsigned int) 0x7 << 16) // (TWI) Clock Divider
+#define AT91C_TWI_CLDIV       (0xFFu <<  0) // (TWI) Clock Low Divider
+#define AT91C_TWI_CHDIV       (0xFFu <<  8) // (TWI) Clock High Divider
+#define AT91C_TWI_CKDIV       (0x7u << 16) // (TWI) Clock Divider
 // -------- TWI_SR : (TWI Offset: 0x20) TWI Status Register -------- 
-#define AT91C_TWI_TXCOMP      ((unsigned int) 0x1 <<  0) // (TWI) Transmission Completed
-#define AT91C_TWI_RXRDY       ((unsigned int) 0x1 <<  1) // (TWI) Receive holding register ReaDY
-#define AT91C_TWI_TXRDY       ((unsigned int) 0x1 <<  2) // (TWI) Transmit holding register ReaDY
-#define AT91C_TWI_SVREAD      ((unsigned int) 0x1 <<  3) // (TWI) Slave Read
-#define AT91C_TWI_SVACC       ((unsigned int) 0x1 <<  4) // (TWI) Slave Access
-#define AT91C_TWI_GCACC       ((unsigned int) 0x1 <<  5) // (TWI) General Call Access
-#define AT91C_TWI_OVRE        ((unsigned int) 0x1 <<  6) // (TWI) Overrun Error
-#define AT91C_TWI_UNRE        ((unsigned int) 0x1 <<  7) // (TWI) Underrun Error
-#define AT91C_TWI_NACK        ((unsigned int) 0x1 <<  8) // (TWI) Not Acknowledged
-#define AT91C_TWI_ARBLST      ((unsigned int) 0x1 <<  9) // (TWI) Arbitration Lost
+#define AT91C_TWI_TXCOMP      (0x1u <<  0) // (TWI) Transmission Completed
+#define AT91C_TWI_RXRDY       (0x1u <<  1) // (TWI) Receive holding register ReaDY
+#define AT91C_TWI_TXRDY       (0x1u <<  2) // (TWI) Transmit holding register ReaDY
+#define AT91C_TWI_SVREAD      (0x1u <<  3) // (TWI) Slave Read
+#define AT91C_TWI_SVACC       (0x1u <<  4) // (TWI) Slave Access
+#define AT91C_TWI_GCACC       (0x1u <<  5) // (TWI) General Call Access
+#define AT91C_TWI_OVRE        (0x1u <<  6) // (TWI) Overrun Error
+#define AT91C_TWI_UNRE        (0x1u <<  7) // (TWI) Underrun Error
+#define AT91C_TWI_NACK        (0x1u <<  8) // (TWI) Not Acknowledged
+#define AT91C_TWI_ARBLST      (0x1u <<  9) // (TWI) Arbitration Lost
 // -------- TWI_IER : (TWI Offset: 0x24) TWI Interrupt Enable Register -------- 
 // -------- TWI_IDR : (TWI Offset: 0x28) TWI Interrupt Disable Register -------- 
 // -------- TWI_IMR : (TWI Offset: 0x2c) TWI Interrupt Mask Register -------- 
@@ -1131,73 +1131,73 @@ typedef struct _AT91S_MCI {
 } AT91S_MCI, *AT91PS_MCI;
 
 // -------- MCI_CR : (MCI Offset: 0x0) MCI Control Register -------- 
-#define AT91C_MCI_MCIEN       ((unsigned int) 0x1 <<  0) // (MCI) Multimedia Interface Enable
-#define AT91C_MCI_MCIDIS      ((unsigned int) 0x1 <<  1) // (MCI) Multimedia Interface Disable
-#define AT91C_MCI_PWSEN       ((unsigned int) 0x1 <<  2) // (MCI) Power Save Mode Enable
-#define AT91C_MCI_PWSDIS      ((unsigned int) 0x1 <<  3) // (MCI) Power Save Mode Disable
+#define AT91C_MCI_MCIEN       (0x1u <<  0) // (MCI) Multimedia Interface Enable
+#define AT91C_MCI_MCIDIS      (0x1u <<  1) // (MCI) Multimedia Interface Disable
+#define AT91C_MCI_PWSEN       (0x1u <<  2) // (MCI) Power Save Mode Enable
+#define AT91C_MCI_PWSDIS      (0x1u <<  3) // (MCI) Power Save Mode Disable
 // -------- MCI_MR : (MCI Offset: 0x4) MCI Mode Register -------- 
-#define AT91C_MCI_CLKDIV      ((unsigned int) 0x1 <<  0) // (MCI) Clock Divider
-#define AT91C_MCI_PWSDIV      ((unsigned int) 0x1 <<  8) // (MCI) Power Saving Divider
-#define AT91C_MCI_PDCPADV     ((unsigned int) 0x1 << 14) // (MCI) PDC Padding Value
-#define AT91C_MCI_PDCMODE     ((unsigned int) 0x1 << 15) // (MCI) PDC Oriented Mode
-#define AT91C_MCI_BLKLEN      ((unsigned int) 0x1 << 18) // (MCI) Data Block Length
+#define AT91C_MCI_CLKDIV      (0x1u <<  0) // (MCI) Clock Divider
+#define AT91C_MCI_PWSDIV      (0x1u <<  8) // (MCI) Power Saving Divider
+#define AT91C_MCI_PDCPADV     (0x1u << 14) // (MCI) PDC Padding Value
+#define AT91C_MCI_PDCMODE     (0x1u << 15) // (MCI) PDC Oriented Mode
+#define AT91C_MCI_BLKLEN      (0x1u << 18) // (MCI) Data Block Length
 // -------- MCI_DTOR : (MCI Offset: 0x8) MCI Data Timeout Register -------- 
-#define AT91C_MCI_DTOCYC      ((unsigned int) 0x1 <<  0) // (MCI) Data Timeout Cycle Number
-#define AT91C_MCI_DTOMUL      ((unsigned int) 0x7 <<  4) // (MCI) Data Timeout Multiplier
-#define 	AT91C_MCI_DTOMUL_1                    ((unsigned int) 0x0 <<  4) // (MCI) DTOCYC x 1
-#define 	AT91C_MCI_DTOMUL_16                   ((unsigned int) 0x1 <<  4) // (MCI) DTOCYC x 16
-#define 	AT91C_MCI_DTOMUL_128                  ((unsigned int) 0x2 <<  4) // (MCI) DTOCYC x 128
-#define 	AT91C_MCI_DTOMUL_256                  ((unsigned int) 0x3 <<  4) // (MCI) DTOCYC x 256
-#define 	AT91C_MCI_DTOMUL_1024                 ((unsigned int) 0x4 <<  4) // (MCI) DTOCYC x 1024
-#define 	AT91C_MCI_DTOMUL_4096                 ((unsigned int) 0x5 <<  4) // (MCI) DTOCYC x 4096
-#define 	AT91C_MCI_DTOMUL_65536                ((unsigned int) 0x6 <<  4) // (MCI) DTOCYC x 65536
-#define 	AT91C_MCI_DTOMUL_1048576              ((unsigned int) 0x7 <<  4) // (MCI) DTOCYC x 1048576
+#define AT91C_MCI_DTOCYC      (0x1u <<  0) // (MCI) Data Timeout Cycle Number
+#define AT91C_MCI_DTOMUL      (0x7u <<  4) // (MCI) Data Timeout Multiplier
+#define 	AT91C_MCI_DTOMUL_1                    (0x0u <<  4) // (MCI) DTOCYC x 1
+#define 	AT91C_MCI_DTOMUL_16                   (0x1u <<  4) // (MCI) DTOCYC x 16
+#define 	AT91C_MCI_DTOMUL_128                  (0x2u <<  4) // (MCI) DTOCYC x 128
+#define 	AT91C_MCI_DTOMUL_256                  (0x3u <<  4) // (MCI) DTOCYC x 256
+#define 	AT91C_MCI_DTOMUL_1024                 (0x4u <<  4) // (MCI) DTOCYC x 1024
+#define 	AT91C_MCI_DTOMUL_4096                 (0x5u <<  4) // (MCI) DTOCYC x 4096
+#define 	AT91C_MCI_DTOMUL_65536                (0x6u <<  4) // (MCI) DTOCYC x 65536
+#define 	AT91C_MCI_DTOMUL_1048576              (0x7u <<  4) // (MCI) DTOCYC x 1048576
 // -------- MCI_SDCR : (MCI Offset: 0xc) MCI SD Card Register -------- 
-#define AT91C_MCI_SCDSEL      ((unsigned int) 0x1 <<  0) // (MCI) SD Card Selector
-#define AT91C_MCI_SCDBUS      ((unsigned int) 0x1 <<  7) // (MCI) SD Card Bus Width
+#define AT91C_MCI_SCDSEL      (0x1u <<  0) // (MCI) SD Card Selector
+#define AT91C_MCI_SCDBUS      (0x1u <<  7) // (MCI) SD Card Bus Width
 // -------- MCI_CMDR : (MCI Offset: 0x14) MCI Command Register -------- 
-#define AT91C_MCI_CMDNB       ((unsigned int) 0x1F <<  0) // (MCI) Command Number
-#define AT91C_MCI_RSPTYP      ((unsigned int) 0x3 <<  6) // (MCI) Response Type
-#define 	AT91C_MCI_RSPTYP_NO                   ((unsigned int) 0x0 <<  6) // (MCI) No response
-#define 	AT91C_MCI_RSPTYP_48                   ((unsigned int) 0x1 <<  6) // (MCI) 48-bit response
-#define 	AT91C_MCI_RSPTYP_136                  ((unsigned int) 0x2 <<  6) // (MCI) 136-bit response
-#define AT91C_MCI_SPCMD       ((unsigned int) 0x7 <<  8) // (MCI) Special CMD
-#define 	AT91C_MCI_SPCMD_NONE                 ((unsigned int) 0x0 <<  8) // (MCI) Not a special CMD
-#define 	AT91C_MCI_SPCMD_INIT                 ((unsigned int) 0x1 <<  8) // (MCI) Initialization CMD
-#define 	AT91C_MCI_SPCMD_SYNC                 ((unsigned int) 0x2 <<  8) // (MCI) Synchronized CMD
-#define 	AT91C_MCI_SPCMD_IT_CMD               ((unsigned int) 0x4 <<  8) // (MCI) Interrupt command
-#define 	AT91C_MCI_SPCMD_IT_REP               ((unsigned int) 0x5 <<  8) // (MCI) Interrupt response
-#define AT91C_MCI_OPDCMD      ((unsigned int) 0x1 << 11) // (MCI) Open Drain Command
-#define AT91C_MCI_MAXLAT      ((unsigned int) 0x1 << 12) // (MCI) Maximum Latency for Command to respond
-#define AT91C_MCI_TRCMD       ((unsigned int) 0x3 << 16) // (MCI) Transfer CMD
-#define 	AT91C_MCI_TRCMD_NO                   ((unsigned int) 0x0 << 16) // (MCI) No transfer
-#define 	AT91C_MCI_TRCMD_START                ((unsigned int) 0x1 << 16) // (MCI) Start transfer
-#define 	AT91C_MCI_TRCMD_STOP                 ((unsigned int) 0x2 << 16) // (MCI) Stop transfer
-#define AT91C_MCI_TRDIR       ((unsigned int) 0x1 << 18) // (MCI) Transfer Direction
-#define AT91C_MCI_TRTYP       ((unsigned int) 0x3 << 19) // (MCI) Transfer Type
-#define 	AT91C_MCI_TRTYP_BLOCK                ((unsigned int) 0x0 << 19) // (MCI) Block Transfer type
-#define 	AT91C_MCI_TRTYP_MULTIPLE             ((unsigned int) 0x1 << 19) // (MCI) Multiple Block transfer type
-#define 	AT91C_MCI_TRTYP_STREAM               ((unsigned int) 0x2 << 19) // (MCI) Stream transfer type
+#define AT91C_MCI_CMDNB       (0x1Fu <<  0) // (MCI) Command Number
+#define AT91C_MCI_RSPTYP      (0x3u <<  6) // (MCI) Response Type
+#define 	AT91C_MCI_RSPTYP_NO                   (0x0u <<  6) // (MCI) No response
+#define 	AT91C_MCI_RSPTYP_48                   (0x1u <<  6) // (MCI) 48-bit response
+#define 	AT91C_MCI_RSPTYP_136                  (0x2u <<  6) // (MCI) 136-bit response
+#define AT91C_MCI_SPCMD       (0x7u <<  8) // (MCI) Special CMD
+#define 	AT91C_MCI_SPCMD_NONE                 (0x0u <<  8) // (MCI) Not a special CMD
+#define 	AT91C_MCI_SPCMD_INIT                 (0x1u <<  8) // (MCI) Initialization CMD
+#define 	AT91C_MCI_SPCMD_SYNC                 (0x2u <<  8) // (MCI) Synchronized CMD
+#define 	AT91C_MCI_SPCMD_IT_CMD               (0x4u <<  8) // (MCI) Interrupt command
+#define 	AT91C_MCI_SPCMD_IT_REP               (0x5u <<  8) // (MCI) Interrupt response
+#define AT91C_MCI_OPDCMD      (0x1u << 11) // (MCI) Open Drain Command
+#define AT91C_MCI_MAXLAT      (0x1u << 12) // (MCI) Maximum Latency for Command to respond
+#define AT91C_MCI_TRCMD       (0x3u << 16) // (MCI) Transfer CMD
+#define 	AT91C_MCI_TRCMD_NO                   (0x0u << 16) // (MCI) No transfer
+#define 	AT91C_MCI_TRCMD_START                (0x1u << 16) // (MCI) Start transfer
+#define 	AT91C_MCI_TRCMD_STOP                 (0x2u << 16) // (MCI) Stop transfer
+#define AT91C_MCI_TRDIR       (0x1u << 18) // (MCI) Transfer Direction
+#define AT91C_MCI_TRTYP       (0x3u << 19) // (MCI) Transfer Type
+#define 	AT91C_MCI_TRTYP_BLOCK                (0x0u << 19) // (MCI) Block Transfer type
+#define 	AT91C_MCI_TRTYP_MULTIPLE             (0x1u << 19) // (MCI) Multiple Block transfer type
+#define 	AT91C_MCI_TRTYP_STREAM               (0x2u << 19) // (MCI) Stream transfer type
 // -------- MCI_SR : (MCI Offset: 0x40) MCI Status Register -------- 
-#define AT91C_MCI_CMDRDY      ((unsigned int) 0x1 <<  0) // (MCI) Command Ready flag
-#define AT91C_MCI_RXRDY       ((unsigned int) 0x1 <<  1) // (MCI) RX Ready flag
-#define AT91C_MCI_TXRDY       ((unsigned int) 0x1 <<  2) // (MCI) TX Ready flag
-#define AT91C_MCI_BLKE        ((unsigned int) 0x1 <<  3) // (MCI) Data Block Transfer Ended flag
-#define AT91C_MCI_DTIP        ((unsigned int) 0x1 <<  4) // (MCI) Data Transfer in Progress flag
-#define AT91C_MCI_NOTBUSY     ((unsigned int) 0x1 <<  5) // (MCI) Data Line Not Busy flag
-#define AT91C_MCI_ENDRX       ((unsigned int) 0x1 <<  6) // (MCI) End of RX Buffer flag
-#define AT91C_MCI_ENDTX       ((unsigned int) 0x1 <<  7) // (MCI) End of TX Buffer flag
-#define AT91C_MCI_RXBUFF      ((unsigned int) 0x1 << 14) // (MCI) RX Buffer Full flag
-#define AT91C_MCI_TXBUFE      ((unsigned int) 0x1 << 15) // (MCI) TX Buffer Empty flag
-#define AT91C_MCI_RINDE       ((unsigned int) 0x1 << 16) // (MCI) Response Index Error flag
-#define AT91C_MCI_RDIRE       ((unsigned int) 0x1 << 17) // (MCI) Response Direction Error flag
-#define AT91C_MCI_RCRCE       ((unsigned int) 0x1 << 18) // (MCI) Response CRC Error flag
-#define AT91C_MCI_RENDE       ((unsigned int) 0x1 << 19) // (MCI) Response End Bit Error flag
-#define AT91C_MCI_RTOE        ((unsigned int) 0x1 << 20) // (MCI) Response Time-out Error flag
-#define AT91C_MCI_DCRCE       ((unsigned int) 0x1 << 21) // (MCI) data CRC Error flag
-#define AT91C_MCI_DTOE        ((unsigned int) 0x1 << 22) // (MCI) Data timeout Error flag
-#define AT91C_MCI_OVRE        ((unsigned int) 0x1 << 30) // (MCI) Overrun flag
-#define AT91C_MCI_UNRE        ((unsigned int) 0x1 << 31) // (MCI) Underrun flag
+#define AT91C_MCI_CMDRDY      (0x1u <<  0) // (MCI) Command Ready flag
+#define AT91C_MCI_RXRDY       (0x1u <<  1) // (MCI) RX Ready flag
+#define AT91C_MCI_TXRDY       (0x1u <<  2) // (MCI) TX Ready flag
+#define AT91C_MCI_BLKE        (0x1u <<  3) // (MCI) Data Block Transfer Ended flag
+#define AT91C_MCI_DTIP        (0x1u <<  4) // (MCI) Data Transfer in Progress flag
+#define AT91C_MCI_NOTBUSY     (0x1u <<  5) // (MCI) Data Line Not Busy flag
+#define AT91C_MCI_ENDRX       (0x1u <<  6) // (MCI) End of RX Buffer flag
+#define AT91C_MCI_ENDTX       (0x1u <<  7) // (MCI) End of TX Buffer flag
+#define AT91C_MCI_RXBUFF      (0x1u << 14) // (MCI) RX Buffer Full flag
+#define AT91C_MCI_TXBUFE      (0x1u << 15) // (MCI) TX Buffer Empty flag
+#define AT91C_MCI_RINDE       (0x1u << 16) // (MCI) Response Index Error flag
+#define AT91C_MCI_RDIRE       (0x1u << 17) // (MCI) Response Direction Error flag
+#define AT91C_MCI_RCRCE       (0x1u << 18) // (MCI) Response CRC Error flag
+#define AT91C_MCI_RENDE       (0x1u << 19) // (MCI) Response End Bit Error flag
+#define AT91C_MCI_RTOE        (0x1u << 20) // (MCI) Response Time-out Error flag
+#define AT91C_MCI_DCRCE       (0x1u << 21) // (MCI) data CRC Error flag
+#define AT91C_MCI_DTOE        (0x1u << 22) // (MCI) Data timeout Error flag
+#define AT91C_MCI_OVRE        (0x1u << 30) // (MCI) Overrun flag
+#define AT91C_MCI_UNRE        (0x1u << 31) // (MCI) Underrun flag
 // -------- MCI_IER : (MCI Offset: 0x44) MCI Interrupt Enable Register -------- 
 // -------- MCI_IDR : (MCI Offset: 0x48) MCI Interrupt Disable Register -------- 
 // -------- MCI_IMR : (MCI Offset: 0x4c) MCI Interrupt Mask Register -------- 
@@ -1223,65 +1223,65 @@ typedef struct _AT91S_UDP {
 } AT91S_UDP, *AT91PS_UDP;
 
 // -------- UDP_FRM_NUM : (UDP Offset: 0x0) USB Frame Number Register -------- 
-#define AT91C_UDP_FRM_NUM     ((unsigned int) 0x7FF <<  0) // (UDP) Frame Number as Defined in the Packet Field Formats
-#define AT91C_UDP_FRM_ERR     ((unsigned int) 0x1 << 16) // (UDP) Frame Error
-#define AT91C_UDP_FRM_OK      ((unsigned int) 0x1 << 17) // (UDP) Frame OK
+#define AT91C_UDP_FRM_NUM     (0x7FFu <<  0) // (UDP) Frame Number as Defined in the Packet Field Formats
+#define AT91C_UDP_FRM_ERR     (0x1u << 16) // (UDP) Frame Error
+#define AT91C_UDP_FRM_OK      (0x1u << 17) // (UDP) Frame OK
 // -------- UDP_GLB_STATE : (UDP Offset: 0x4) USB Global State Register -------- 
-#define AT91C_UDP_FADDEN      ((unsigned int) 0x1 <<  0) // (UDP) Function Address Enable
-#define AT91C_UDP_CONFG       ((unsigned int) 0x1 <<  1) // (UDP) Configured
-#define AT91C_UDP_RMWUPE      ((unsigned int) 0x1 <<  2) // (UDP) Remote Wake Up Enable
-#define AT91C_UDP_RSMINPR     ((unsigned int) 0x1 <<  3) // (UDP) A Resume Has Been Sent to the Host
+#define AT91C_UDP_FADDEN      (0x1u <<  0) // (UDP) Function Address Enable
+#define AT91C_UDP_CONFG       (0x1u <<  1) // (UDP) Configured
+#define AT91C_UDP_RMWUPE      (0x1u <<  2) // (UDP) Remote Wake Up Enable
+#define AT91C_UDP_RSMINPR     (0x1u <<  3) // (UDP) A Resume Has Been Sent to the Host
 // -------- UDP_FADDR : (UDP Offset: 0x8) USB Function Address Register -------- 
-#define AT91C_UDP_FADD        ((unsigned int) 0xFF <<  0) // (UDP) Function Address Value
-#define AT91C_UDP_FEN         ((unsigned int) 0x1 <<  8) // (UDP) Function Enable
+#define AT91C_UDP_FADD        (0xFFu <<  0) // (UDP) Function Address Value
+#define AT91C_UDP_FEN         (0x1u <<  8) // (UDP) Function Enable
 // -------- UDP_IER : (UDP Offset: 0x10) USB Interrupt Enable Register -------- 
-#define AT91C_UDP_EPINT0      ((unsigned int) 0x1 <<  0) // (UDP) Endpoint 0 Interrupt
-#define AT91C_UDP_EPINT1      ((unsigned int) 0x1 <<  1) // (UDP) Endpoint 0 Interrupt
-#define AT91C_UDP_EPINT2      ((unsigned int) 0x1 <<  2) // (UDP) Endpoint 2 Interrupt
-#define AT91C_UDP_EPINT3      ((unsigned int) 0x1 <<  3) // (UDP) Endpoint 3 Interrupt
-#define AT91C_UDP_EPINT4      ((unsigned int) 0x1 <<  4) // (UDP) Endpoint 4 Interrupt
-#define AT91C_UDP_EPINT5      ((unsigned int) 0x1 <<  5) // (UDP) Endpoint 5 Interrupt
-#define AT91C_UDP_EPINT6      ((unsigned int) 0x1 <<  6) // (UDP) Endpoint 6 Interrupt
-#define AT91C_UDP_EPINT7      ((unsigned int) 0x1 <<  7) // (UDP) Endpoint 7 Interrupt
-#define AT91C_UDP_RXSUSP      ((unsigned int) 0x1 <<  8) // (UDP) USB Suspend Interrupt
-#define AT91C_UDP_RXRSM       ((unsigned int) 0x1 <<  9) // (UDP) USB Resume Interrupt
-#define AT91C_UDP_EXTRSM      ((unsigned int) 0x1 << 10) // (UDP) USB External Resume Interrupt
-#define AT91C_UDP_SOFINT      ((unsigned int) 0x1 << 11) // (UDP) USB Start Of frame Interrupt
-#define AT91C_UDP_WAKEUP      ((unsigned int) 0x1 << 13) // (UDP) USB Resume Interrupt
+#define AT91C_UDP_EPINT0      (0x1u <<  0) // (UDP) Endpoint 0 Interrupt
+#define AT91C_UDP_EPINT1      (0x1u <<  1) // (UDP) Endpoint 0 Interrupt
+#define AT91C_UDP_EPINT2      (0x1u <<  2) // (UDP) Endpoint 2 Interrupt
+#define AT91C_UDP_EPINT3      (0x1u <<  3) // (UDP) Endpoint 3 Interrupt
+#define AT91C_UDP_EPINT4      (0x1u <<  4) // (UDP) Endpoint 4 Interrupt
+#define AT91C_UDP_EPINT5      (0x1u <<  5) // (UDP) Endpoint 5 Interrupt
+#define AT91C_UDP_EPINT6      (0x1u <<  6) // (UDP) Endpoint 6 Interrupt
+#define AT91C_UDP_EPINT7      (0x1u <<  7) // (UDP) Endpoint 7 Interrupt
+#define AT91C_UDP_RXSUSP      (0x1u <<  8) // (UDP) USB Suspend Interrupt
+#define AT91C_UDP_RXRSM       (0x1u <<  9) // (UDP) USB Resume Interrupt
+#define AT91C_UDP_EXTRSM      (0x1u << 10) // (UDP) USB External Resume Interrupt
+#define AT91C_UDP_SOFINT      (0x1u << 11) // (UDP) USB Start Of frame Interrupt
+#define AT91C_UDP_WAKEUP      (0x1u << 13) // (UDP) USB Resume Interrupt
 // -------- UDP_IDR : (UDP Offset: 0x14) USB Interrupt Disable Register -------- 
 // -------- UDP_IMR : (UDP Offset: 0x18) USB Interrupt Mask Register -------- 
 // -------- UDP_ISR : (UDP Offset: 0x1c) USB Interrupt Status Register -------- 
-#define AT91C_UDP_ENDBUSRES   ((unsigned int) 0x1 << 12) // (UDP) USB End Of Bus Reset Interrupt
+#define AT91C_UDP_ENDBUSRES   (0x1u << 12) // (UDP) USB End Of Bus Reset Interrupt
 // -------- UDP_ICR : (UDP Offset: 0x20) USB Interrupt Clear Register -------- 
 // -------- UDP_RST_EP : (UDP Offset: 0x28) USB Reset Endpoint Register -------- 
-#define AT91C_UDP_EP0         ((unsigned int) 0x1 <<  0) // (UDP) Reset Endpoint 0
-#define AT91C_UDP_EP1         ((unsigned int) 0x1 <<  1) // (UDP) Reset Endpoint 1
-#define AT91C_UDP_EP2         ((unsigned int) 0x1 <<  2) // (UDP) Reset Endpoint 2
-#define AT91C_UDP_EP3         ((unsigned int) 0x1 <<  3) // (UDP) Reset Endpoint 3
-#define AT91C_UDP_EP4         ((unsigned int) 0x1 <<  4) // (UDP) Reset Endpoint 4
-#define AT91C_UDP_EP5         ((unsigned int) 0x1 <<  5) // (UDP) Reset Endpoint 5
-#define AT91C_UDP_EP6         ((unsigned int) 0x1 <<  6) // (UDP) Reset Endpoint 6
-#define AT91C_UDP_EP7         ((unsigned int) 0x1 <<  7) // (UDP) Reset Endpoint 7
+#define AT91C_UDP_EP0         (0x1u <<  0) // (UDP) Reset Endpoint 0
+#define AT91C_UDP_EP1         (0x1u <<  1) // (UDP) Reset Endpoint 1
+#define AT91C_UDP_EP2         (0x1u <<  2) // (UDP) Reset Endpoint 2
+#define AT91C_UDP_EP3         (0x1u <<  3) // (UDP) Reset Endpoint 3
+#define AT91C_UDP_EP4         (0x1u <<  4) // (UDP) Reset Endpoint 4
+#define AT91C_UDP_EP5         (0x1u <<  5) // (UDP) Reset Endpoint 5
+#define AT91C_UDP_EP6         (0x1u <<  6) // (UDP) Reset Endpoint 6
+#define AT91C_UDP_EP7         (0x1u <<  7) // (UDP) Reset Endpoint 7
 // -------- UDP_CSR : (UDP Offset: 0x30) USB Endpoint Control and Status Register -------- 
-#define AT91C_UDP_TXCOMP      ((unsigned int) 0x1 <<  0) // (UDP) Generates an IN packet with data previously written in the DPR
-#define AT91C_UDP_RX_DATA_BK0 ((unsigned int) 0x1 <<  1) // (UDP) Receive Data Bank 0
-#define AT91C_UDP_RXSETUP     ((unsigned int) 0x1 <<  2) // (UDP) Sends STALL to the Host (Control endpoints)
-#define AT91C_UDP_ISOERROR    ((unsigned int) 0x1 <<  3) // (UDP) Isochronous error (Isochronous endpoints)
-#define AT91C_UDP_TXPKTRDY    ((unsigned int) 0x1 <<  4) // (UDP) Transmit Packet Ready
-#define AT91C_UDP_FORCESTALL  ((unsigned int) 0x1 <<  5) // (UDP) Force Stall (used by Control, Bulk and Isochronous endpoints).
-#define AT91C_UDP_RX_DATA_BK1 ((unsigned int) 0x1 <<  6) // (UDP) Receive Data Bank 1 (only used by endpoints with ping-pong attributes).
-#define AT91C_UDP_DIR         ((unsigned int) 0x1 <<  7) // (UDP) Transfer Direction
-#define AT91C_UDP_EPTYPE      ((unsigned int) 0x7 <<  8) // (UDP) Endpoint type
-#define 	AT91C_UDP_EPTYPE_CTRL                 ((unsigned int) 0x0 <<  8) // (UDP) Control
-#define 	AT91C_UDP_EPTYPE_ISO_OUT              ((unsigned int) 0x1 <<  8) // (UDP) Isochronous OUT
-#define 	AT91C_UDP_EPTYPE_BULK_OUT             ((unsigned int) 0x2 <<  8) // (UDP) Bulk OUT
-#define 	AT91C_UDP_EPTYPE_INT_OUT              ((unsigned int) 0x3 <<  8) // (UDP) Interrupt OUT
-#define 	AT91C_UDP_EPTYPE_ISO_IN               ((unsigned int) 0x5 <<  8) // (UDP) Isochronous IN
-#define 	AT91C_UDP_EPTYPE_BULK_IN              ((unsigned int) 0x6 <<  8) // (UDP) Bulk IN
-#define 	AT91C_UDP_EPTYPE_INT_IN               ((unsigned int) 0x7 <<  8) // (UDP) Interrupt IN
-#define AT91C_UDP_DTGLE       ((unsigned int) 0x1 << 11) // (UDP) Data Toggle
-#define AT91C_UDP_EPEDS       ((unsigned int) 0x1 << 15) // (UDP) Endpoint Enable Disable
-#define AT91C_UDP_RXBYTECNT   ((unsigned int) 0x7FF << 16) // (UDP) Number Of Bytes Available in the FIFO
+#define AT91C_UDP_TXCOMP      (0x1u <<  0) // (UDP) Generates an IN packet with data previously written in the DPR
+#define AT91C_UDP_RX_DATA_BK0 (0x1u <<  1) // (UDP) Receive Data Bank 0
+#define AT91C_UDP_RXSETUP     (0x1u <<  2) // (UDP) Sends STALL to the Host (Control endpoints)
+#define AT91C_UDP_ISOERROR    (0x1u <<  3) // (UDP) Isochronous error (Isochronous endpoints)
+#define AT91C_UDP_TXPKTRDY    (0x1u <<  4) // (UDP) Transmit Packet Ready
+#define AT91C_UDP_FORCESTALL  (0x1u <<  5) // (UDP) Force Stall (used by Control, Bulk and Isochronous endpoints).
+#define AT91C_UDP_RX_DATA_BK1 (0x1u <<  6) // (UDP) Receive Data Bank 1 (only used by endpoints with ping-pong attributes).
+#define AT91C_UDP_DIR         (0x1u <<  7) // (UDP) Transfer Direction
+#define AT91C_UDP_EPTYPE      (0x7u <<  8) // (UDP) Endpoint type
+#define 	AT91C_UDP_EPTYPE_CTRL                 (0x0u <<  8) // (UDP) Control
+#define 	AT91C_UDP_EPTYPE_ISO_OUT              (0x1u <<  8) // (UDP) Isochronous OUT
+#define 	AT91C_UDP_EPTYPE_BULK_OUT             (0x2u <<  8) // (UDP) Bulk OUT
+#define 	AT91C_UDP_EPTYPE_INT_OUT              (0x3u <<  8) // (UDP) Interrupt OUT
+#define 	AT91C_UDP_EPTYPE_ISO_IN               (0x5u <<  8) // (UDP) Isochronous IN
+#define 	AT91C_UDP_EPTYPE_BULK_IN              (0x6u <<  8) // (UDP) Bulk IN
+#define 	AT91C_UDP_EPTYPE_INT_IN               (0x7u <<  8) // (UDP) Interrupt IN
+#define AT91C_UDP_DTGLE       (0x1u << 11) // (UDP) Data Toggle
+#define AT91C_UDP_EPEDS       (0x1u << 15) // (UDP) Endpoint Enable Disable
+#define AT91C_UDP_RXBYTECNT   (0x7FFu << 16) // (UDP) Number Of Bytes Available in the FIFO
 
 // *****************************************************************************
 //              SOFTWARE API DEFINITION  FOR Timer Counter Channel Interface
@@ -1301,82 +1301,82 @@ typedef struct _AT91S_TC {
 } AT91S_TC, *AT91PS_TC;
 
 // -------- TC_CCR : (TC Offset: 0x0) TC Channel Control Register -------- 
-#define AT91C_TC_CLKEN        ((unsigned int) 0x1 <<  0) // (TC) Counter Clock Enable Command
-#define AT91C_TC_CLKDIS       ((unsigned int) 0x1 <<  1) // (TC) Counter Clock Disable Command
-#define AT91C_TC_SWTRG        ((unsigned int) 0x1 <<  2) // (TC) Software Trigger Command
+#define AT91C_TC_CLKEN        (0x1u <<  0) // (TC) Counter Clock Enable Command
+#define AT91C_TC_CLKDIS       (0x1u <<  1) // (TC) Counter Clock Disable Command
+#define AT91C_TC_SWTRG        (0x1u <<  2) // (TC) Software Trigger Command
 // -------- TC_CMR : (TC Offset: 0x4) TC Channel Mode Register: Capture Mode / Waveform Mode -------- 
-#define AT91C_TC_CPCSTOP      ((unsigned int) 0x1 <<  6) // (TC) Counter Clock Stopped with RC Compare
-#define AT91C_TC_CPCDIS       ((unsigned int) 0x1 <<  7) // (TC) Counter Clock Disable with RC Compare
-#define AT91C_TC_EEVTEDG      ((unsigned int) 0x3 <<  8) // (TC) External Event Edge Selection
-#define 	AT91C_TC_EEVTEDG_NONE                 ((unsigned int) 0x0 <<  8) // (TC) Edge: None
-#define 	AT91C_TC_EEVTEDG_RISING               ((unsigned int) 0x1 <<  8) // (TC) Edge: rising edge
-#define 	AT91C_TC_EEVTEDG_FALLING              ((unsigned int) 0x2 <<  8) // (TC) Edge: falling edge
-#define 	AT91C_TC_EEVTEDG_BOTH                 ((unsigned int) 0x3 <<  8) // (TC) Edge: each edge
-#define AT91C_TC_EEVT         ((unsigned int) 0x3 << 10) // (TC) External Event  Selection
-#define 	AT91C_TC_EEVT_NONE                 ((unsigned int) 0x0 << 10) // (TC) Signal selected as external event: TIOB TIOB direction: input
-#define 	AT91C_TC_EEVT_RISING               ((unsigned int) 0x1 << 10) // (TC) Signal selected as external event: XC0 TIOB direction: output
-#define 	AT91C_TC_EEVT_FALLING              ((unsigned int) 0x2 << 10) // (TC) Signal selected as external event: XC1 TIOB direction: output
-#define 	AT91C_TC_EEVT_BOTH                 ((unsigned int) 0x3 << 10) // (TC) Signal selected as external event: XC2 TIOB direction: output
-#define AT91C_TC_ENETRG       ((unsigned int) 0x1 << 12) // (TC) External Event Trigger enable
-#define AT91C_TC_WAVESEL      ((unsigned int) 0x3 << 13) // (TC) Waveform  Selection
-#define 	AT91C_TC_WAVESEL_UP                   ((unsigned int) 0x0 << 13) // (TC) UP mode without atomatic trigger on RC Compare
-#define 	AT91C_TC_WAVESEL_UP_AUTO              ((unsigned int) 0x1 << 13) // (TC) UP mode with automatic trigger on RC Compare
-#define 	AT91C_TC_WAVESEL_UPDOWN               ((unsigned int) 0x2 << 13) // (TC) UPDOWN mode without automatic trigger on RC Compare
-#define 	AT91C_TC_WAVESEL_UPDOWN_AUTO          ((unsigned int) 0x3 << 13) // (TC) UPDOWN mode with automatic trigger on RC Compare
-#define AT91C_TC_CPCTRG       ((unsigned int) 0x1 << 14) // (TC) RC Compare Trigger Enable
-#define AT91C_TC_WAVE         ((unsigned int) 0x1 << 15) // (TC) 
-#define AT91C_TC_ACPA         ((unsigned int) 0x3 << 16) // (TC) RA Compare Effect on TIOA
-#define 	AT91C_TC_ACPA_NONE                 ((unsigned int) 0x0 << 16) // (TC) Effect: none
-#define 	AT91C_TC_ACPA_SET                  ((unsigned int) 0x1 << 16) // (TC) Effect: set
-#define 	AT91C_TC_ACPA_CLEAR                ((unsigned int) 0x2 << 16) // (TC) Effect: clear
-#define 	AT91C_TC_ACPA_TOGGLE               ((unsigned int) 0x3 << 16) // (TC) Effect: toggle
-#define AT91C_TC_ACPC         ((unsigned int) 0x3 << 18) // (TC) RC Compare Effect on TIOA
-#define 	AT91C_TC_ACPC_NONE                 ((unsigned int) 0x0 << 18) // (TC) Effect: none
-#define 	AT91C_TC_ACPC_SET                  ((unsigned int) 0x1 << 18) // (TC) Effect: set
-#define 	AT91C_TC_ACPC_CLEAR                ((unsigned int) 0x2 << 18) // (TC) Effect: clear
-#define 	AT91C_TC_ACPC_TOGGLE               ((unsigned int) 0x3 << 18) // (TC) Effect: toggle
-#define AT91C_TC_AEEVT        ((unsigned int) 0x3 << 20) // (TC) External Event Effect on TIOA
-#define 	AT91C_TC_AEEVT_NONE                 ((unsigned int) 0x0 << 20) // (TC) Effect: none
-#define 	AT91C_TC_AEEVT_SET                  ((unsigned int) 0x1 << 20) // (TC) Effect: set
-#define 	AT91C_TC_AEEVT_CLEAR                ((unsigned int) 0x2 << 20) // (TC) Effect: clear
-#define 	AT91C_TC_AEEVT_TOGGLE               ((unsigned int) 0x3 << 20) // (TC) Effect: toggle
-#define AT91C_TC_ASWTRG       ((unsigned int) 0x3 << 22) // (TC) Software Trigger Effect on TIOA
-#define 	AT91C_TC_ASWTRG_NONE                 ((unsigned int) 0x0 << 22) // (TC) Effect: none
-#define 	AT91C_TC_ASWTRG_SET                  ((unsigned int) 0x1 << 22) // (TC) Effect: set
-#define 	AT91C_TC_ASWTRG_CLEAR                ((unsigned int) 0x2 << 22) // (TC) Effect: clear
-#define 	AT91C_TC_ASWTRG_TOGGLE               ((unsigned int) 0x3 << 22) // (TC) Effect: toggle
-#define AT91C_TC_BCPB         ((unsigned int) 0x3 << 24) // (TC) RB Compare Effect on TIOB
-#define 	AT91C_TC_BCPB_NONE                 ((unsigned int) 0x0 << 24) // (TC) Effect: none
-#define 	AT91C_TC_BCPB_SET                  ((unsigned int) 0x1 << 24) // (TC) Effect: set
-#define 	AT91C_TC_BCPB_CLEAR                ((unsigned int) 0x2 << 24) // (TC) Effect: clear
-#define 	AT91C_TC_BCPB_TOGGLE               ((unsigned int) 0x3 << 24) // (TC) Effect: toggle
-#define AT91C_TC_BCPC         ((unsigned int) 0x3 << 26) // (TC) RC Compare Effect on TIOB
-#define 	AT91C_TC_BCPC_NONE                 ((unsigned int) 0x0 << 26) // (TC) Effect: none
-#define 	AT91C_TC_BCPC_SET                  ((unsigned int) 0x1 << 26) // (TC) Effect: set
-#define 	AT91C_TC_BCPC_CLEAR                ((unsigned int) 0x2 << 26) // (TC) Effect: clear
-#define 	AT91C_TC_BCPC_TOGGLE               ((unsigned int) 0x3 << 26) // (TC) Effect: toggle
-#define AT91C_TC_BEEVT        ((unsigned int) 0x3 << 28) // (TC) External Event Effect on TIOB
-#define 	AT91C_TC_BEEVT_NONE                 ((unsigned int) 0x0 << 28) // (TC) Effect: none
-#define 	AT91C_TC_BEEVT_SET                  ((unsigned int) 0x1 << 28) // (TC) Effect: set
-#define 	AT91C_TC_BEEVT_CLEAR                ((unsigned int) 0x2 << 28) // (TC) Effect: clear
-#define 	AT91C_TC_BEEVT_TOGGLE               ((unsigned int) 0x3 << 28) // (TC) Effect: toggle
-#define AT91C_TC_BSWTRG       ((unsigned int) 0x3 << 30) // (TC) Software Trigger Effect on TIOB
-#define 	AT91C_TC_BSWTRG_NONE                 ((unsigned int) 0x0 << 30) // (TC) Effect: none
-#define 	AT91C_TC_BSWTRG_SET                  ((unsigned int) 0x1 << 30) // (TC) Effect: set
-#define 	AT91C_TC_BSWTRG_CLEAR                ((unsigned int) 0x2 << 30) // (TC) Effect: clear
-#define 	AT91C_TC_BSWTRG_TOGGLE               ((unsigned int) 0x3 << 30) // (TC) Effect: toggle
+#define AT91C_TC_CPCSTOP      (0x1u <<  6) // (TC) Counter Clock Stopped with RC Compare
+#define AT91C_TC_CPCDIS       (0x1u <<  7) // (TC) Counter Clock Disable with RC Compare
+#define AT91C_TC_EEVTEDG      (0x3u <<  8) // (TC) External Event Edge Selection
+#define 	AT91C_TC_EEVTEDG_NONE                 (0x0u <<  8) // (TC) Edge: None
+#define 	AT91C_TC_EEVTEDG_RISING               (0x1u <<  8) // (TC) Edge: rising edge
+#define 	AT91C_TC_EEVTEDG_FALLING              (0x2u <<  8) // (TC) Edge: falling edge
+#define 	AT91C_TC_EEVTEDG_BOTH                 (0x3u <<  8) // (TC) Edge: each edge
+#define AT91C_TC_EEVT         (0x3u << 10) // (TC) External Event  Selection
+#define 	AT91C_TC_EEVT_NONE                 (0x0u << 10) // (TC) Signal selected as external event: TIOB TIOB direction: input
+#define 	AT91C_TC_EEVT_RISING               (0x1u << 10) // (TC) Signal selected as external event: XC0 TIOB direction: output
+#define 	AT91C_TC_EEVT_FALLING              (0x2u << 10) // (TC) Signal selected as external event: XC1 TIOB direction: output
+#define 	AT91C_TC_EEVT_BOTH                 (0x3u << 10) // (TC) Signal selected as external event: XC2 TIOB direction: output
+#define AT91C_TC_ENETRG       (0x1u << 12) // (TC) External Event Trigger enable
+#define AT91C_TC_WAVESEL      (0x3u << 13) // (TC) Waveform  Selection
+#define 	AT91C_TC_WAVESEL_UP                   (0x0u << 13) // (TC) UP mode without atomatic trigger on RC Compare
+#define 	AT91C_TC_WAVESEL_UP_AUTO              (0x1u << 13) // (TC) UP mode with automatic trigger on RC Compare
+#define 	AT91C_TC_WAVESEL_UPDOWN               (0x2u << 13) // (TC) UPDOWN mode without automatic trigger on RC Compare
+#define 	AT91C_TC_WAVESEL_UPDOWN_AUTO          (0x3u << 13) // (TC) UPDOWN mode with automatic trigger on RC Compare
+#define AT91C_TC_CPCTRG       (0x1u << 14) // (TC) RC Compare Trigger Enable
+#define AT91C_TC_WAVE         (0x1u << 15) // (TC) 
+#define AT91C_TC_ACPA         (0x3u << 16) // (TC) RA Compare Effect on TIOA
+#define 	AT91C_TC_ACPA_NONE                 (0x0u << 16) // (TC) Effect: none
+#define 	AT91C_TC_ACPA_SET                  (0x1u << 16) // (TC) Effect: set
+#define 	AT91C_TC_ACPA_CLEAR                (0x2u << 16) // (TC) Effect: clear
+#define 	AT91C_TC_ACPA_TOGGLE               (0x3u << 16) // (TC) Effect: toggle
+#define AT91C_TC_ACPC         (0x3u << 18) // (TC) RC Compare Effect on TIOA
+#define 	AT91C_TC_ACPC_NONE                 (0x0u << 18) // (TC) Effect: none
+#define 	AT91C_TC_ACPC_SET                  (0x1u << 18) // (TC) Effect: set
+#define 	AT91C_TC_ACPC_CLEAR                (0x2u << 18) // (TC) Effect: clear
+#define 	AT91C_TC_ACPC_TOGGLE               (0x3u << 18) // (TC) Effect: toggle
+#define AT91C_TC_AEEVT        (0x3u << 20) // (TC) External Event Effect on TIOA
+#define 	AT91C_TC_AEEVT_NONE                 (0x0u << 20) // (TC) Effect: none
+#define 	AT91C_TC_AEEVT_SET                  (0x1u << 20) // (TC) Effect: set
+#define 	AT91C_TC_AEEVT_CLEAR                (0x2u << 20) // (TC) Effect: clear
+#define 	AT91C_TC_AEEVT_TOGGLE               (0x3u << 20) // (TC) Effect: toggle
+#define AT91C_TC_ASWTRG       (0x3u << 22) // (TC) Software Trigger Effect on TIOA
+#define 	AT91C_TC_ASWTRG_NONE                 (0x0u << 22) // (TC) Effect: none
+#define 	AT91C_TC_ASWTRG_SET                  (0x1u << 22) // (TC) Effect: set
+#define 	AT91C_TC_ASWTRG_CLEAR                (0x2u << 22) // (TC) Effect: clear
+#define 	AT91C_TC_ASWTRG_TOGGLE               (0x3u << 22) // (TC) Effect: toggle
+#define AT91C_TC_BCPB         (0x3u << 24) // (TC) RB Compare Effect on TIOB
+#define 	AT91C_TC_BCPB_NONE                 (0x0u << 24) // (TC) Effect: none
+#define 	AT91C_TC_BCPB_SET                  (0x1u << 24) // (TC) Effect: set
+#define 	AT91C_TC_BCPB_CLEAR                (0x2u << 24) // (TC) Effect: clear
+#define 	AT91C_TC_BCPB_TOGGLE               (0x3u << 24) // (TC) Effect: toggle
+#define AT91C_TC_BCPC         (0x3u << 26) // (TC) RC Compare Effect on TIOB
+#define 	AT91C_TC_BCPC_NONE                 (0x0u << 26) // (TC) Effect: none
+#define 	AT91C_TC_BCPC_SET                  (0x1u << 26) // (TC) Effect: set
+#define 	AT91C_TC_BCPC_CLEAR                (0x2u << 26) // (TC) Effect: clear
+#define 	AT91C_TC_BCPC_TOGGLE               (0x3u << 26) // (TC) Effect: toggle
+#define AT91C_TC_BEEVT        (0x3u << 28) // (TC) External Event Effect on TIOB
+#define 	AT91C_TC_BEEVT_NONE                 (0x0u << 28) // (TC) Effect: none
+#define 	AT91C_TC_BEEVT_SET                  (0x1u << 28) // (TC) Effect: set
+#define 	AT91C_TC_BEEVT_CLEAR                (0x2u << 28) // (TC) Effect: clear
+#define 	AT91C_TC_BEEVT_TOGGLE               (0x3u << 28) // (TC) Effect: toggle
+#define AT91C_TC_BSWTRG       (0x3u << 30) // (TC) Software Trigger Effect on TIOB
+#define 	AT91C_TC_BSWTRG_NONE                 (0x0u << 30) // (TC) Effect: none
+#define 	AT91C_TC_BSWTRG_SET                  (0x1u << 30) // (TC) Effect: set
+#define 	AT91C_TC_BSWTRG_CLEAR                (0x2u << 30) // (TC) Effect: clear
+#define 	AT91C_TC_BSWTRG_TOGGLE               (0x3u << 30) // (TC) Effect: toggle
 // -------- TC_SR : (TC Offset: 0x20) TC Channel Status Register -------- 
-#define AT91C_TC_COVFS        ((unsigned int) 0x1 <<  0) // (TC) Counter Overflow
-#define AT91C_TC_LOVRS        ((unsigned int) 0x1 <<  1) // (TC) Load Overrun
-#define AT91C_TC_CPAS         ((unsigned int) 0x1 <<  2) // (TC) RA Compare
-#define AT91C_TC_CPBS         ((unsigned int) 0x1 <<  3) // (TC) RB Compare
-#define AT91C_TC_CPCS         ((unsigned int) 0x1 <<  4) // (TC) RC Compare
-#define AT91C_TC_LDRAS        ((unsigned int) 0x1 <<  5) // (TC) RA Loading
-#define AT91C_TC_LDRBS        ((unsigned int) 0x1 <<  6) // (TC) RB Loading
-#define AT91C_TC_ETRCS        ((unsigned int) 0x1 <<  7) // (TC) External Trigger
-#define AT91C_TC_ETRGS        ((unsigned int) 0x1 << 16) // (TC) Clock Enabling
-#define AT91C_TC_MTIOA        ((unsigned int) 0x1 << 17) // (TC) TIOA Mirror
-#define AT91C_TC_MTIOB        ((unsigned int) 0x1 << 18) // (TC) TIOA Mirror
+#define AT91C_TC_COVFS        (0x1u <<  0) // (TC) Counter Overflow
+#define AT91C_TC_LOVRS        (0x1u <<  1) // (TC) Load Overrun
+#define AT91C_TC_CPAS         (0x1u <<  2) // (TC) RA Compare
+#define AT91C_TC_CPBS         (0x1u <<  3) // (TC) RB Compare
+#define AT91C_TC_CPCS         (0x1u <<  4) // (TC) RC Compare
+#define AT91C_TC_LDRAS        (0x1u <<  5) // (TC) RA Loading
+#define AT91C_TC_LDRBS        (0x1u <<  6) // (TC) RB Loading
+#define AT91C_TC_ETRCS        (0x1u <<  7) // (TC) External Trigger
+#define AT91C_TC_ETRGS        (0x1u << 16) // (TC) Clock Enabling
+#define AT91C_TC_MTIOA        (0x1u << 17) // (TC) TIOA Mirror
+#define AT91C_TC_MTIOB        (0x1u << 18) // (TC) TIOA Mirror
 // -------- TC_IER : (TC Offset: 0x24) TC Channel Interrupt Enable Register -------- 
 // -------- TC_IDR : (TC Offset: 0x28) TC Channel Interrupt Disable Register -------- 
 // -------- TC_IMR : (TC Offset: 0x2c) TC Channel Interrupt Mask Register -------- 
@@ -1396,23 +1396,23 @@ typedef struct _AT91S_TCB {
 } AT91S_TCB, *AT91PS_TCB;
 
 // -------- TCB_BCR : (TCB Offset: 0xc0) TC Block Control Register -------- 
-#define AT91C_TCB_SYNC        ((unsigned int) 0x1 <<  0) // (TCB) Synchro Command
+#define AT91C_TCB_SYNC        (0x1u <<  0) // (TCB) Synchro Command
 // -------- TCB_BMR : (TCB Offset: 0xc4) TC Block Mode Register -------- 
-#define AT91C_TCB_TC0XC0S     ((unsigned int) 0x1 <<  0) // (TCB) External Clock Signal 0 Selection
-#define 	AT91C_TCB_TC0XC0S_TCLK0                ((unsigned int) 0x0) // (TCB) TCLK0 connected to XC0
-#define 	AT91C_TCB_TC0XC0S_NONE                 ((unsigned int) 0x1) // (TCB) None signal connected to XC0
-#define 	AT91C_TCB_TC0XC0S_TIOA1                ((unsigned int) 0x2) // (TCB) TIOA1 connected to XC0
-#define 	AT91C_TCB_TC0XC0S_TIOA2                ((unsigned int) 0x3) // (TCB) TIOA2 connected to XC0
-#define AT91C_TCB_TC1XC1S     ((unsigned int) 0x1 <<  2) // (TCB) External Clock Signal 1 Selection
-#define 	AT91C_TCB_TC1XC1S_TCLK1                ((unsigned int) 0x0 <<  2) // (TCB) TCLK1 connected to XC1
-#define 	AT91C_TCB_TC1XC1S_NONE                 ((unsigned int) 0x1 <<  2) // (TCB) None signal connected to XC1
-#define 	AT91C_TCB_TC1XC1S_TIOA0                ((unsigned int) 0x2 <<  2) // (TCB) TIOA0 connected to XC1
-#define 	AT91C_TCB_TC1XC1S_TIOA2                ((unsigned int) 0x3 <<  2) // (TCB) TIOA2 connected to XC1
-#define AT91C_TCB_TC2XC2S     ((unsigned int) 0x1 <<  4) // (TCB) External Clock Signal 2 Selection
-#define 	AT91C_TCB_TC2XC2S_TCLK2                ((unsigned int) 0x0 <<  4) // (TCB) TCLK2 connected to XC2
-#define 	AT91C_TCB_TC2XC2S_NONE                 ((unsigned int) 0x1 <<  4) // (TCB) None signal connected to XC2
-#define 	AT91C_TCB_TC2XC2S_TIOA0                ((unsigned int) 0x2 <<  4) // (TCB) TIOA0 connected to XC2
-#define 	AT91C_TCB_TC2XC2S_TIOA2                ((unsigned int) 0x3 <<  4) // (TCB) TIOA2 connected to XC2
+#define AT91C_TCB_TC0XC0S     (0x1u <<  0) // (TCB) External Clock Signal 0 Selection
+#define 	AT91C_TCB_TC0XC0S_TCLK0                0x0u // (TCB) TCLK0 connected to XC0
+#define 	AT91C_TCB_TC0XC0S_NONE                 0x1u // (TCB) None signal connected to XC0
+#define 	AT91C_TCB_TC0XC0S_TIOA1                0x2u // (TCB) TIOA1 connected to XC0
+#define 	AT91C_TCB_TC0XC0S_TIOA2                0x3u // (TCB) TIOA2 connected to XC0
+#define AT91C_TCB_TC1XC1S     (0x1u <<  2) // (TCB) External Clock Signal 1 Selection
+#define 	AT91C_TCB_TC1XC1S_TCLK1                (0x0u <<  2) // (TCB) TCLK1 connected to XC1
+#define 	AT91C_TCB_TC1XC1S_NONE                 (0x1u <<  2) // (TCB) None signal connected to XC1
+#define 	AT91C_TCB_TC1XC1S_TIOA0                (0x2u <<  2) // (TCB) TIOA0 connected to XC1
+#define 	AT91C_TCB_TC1XC1S_TIOA2                (0x3u <<  2) // (TCB) TIOA2 connected to XC1
+#define AT91C_TCB_TC2XC2S     (0x1u <<  4) // (TCB) External Clock Signal 2 Selection
+#define 	AT91C_TCB_TC2XC2S_TCLK2                (0x0u <<  4) // (TCB) TCLK2 connected to XC2
+#define 	AT91C_TCB_TC2XC2S_NONE                 (0x1u <<  4) // (TCB) None signal connected to XC2
+#define 	AT91C_TCB_TC2XC2S_TIOA0                (0x2u <<  4) // (TCB) TIOA0 connected to XC2
+#define 	AT91C_TCB_TC2XC2S_TIOA2                (0x3u <<  4) // (TCB) TIOA2 connected to XC2
 
 // *****************************************************************************
 //              SOFTWARE API DEFINITION  FOR USB Host Interface
@@ -1493,73 +1493,73 @@ typedef struct _AT91S_EMAC {
 } AT91S_EMAC, *AT91PS_EMAC;
 
 // -------- EMAC_CTL : (EMAC Offset: 0x0)  -------- 
-#define AT91C_EMAC_LB         ((unsigned int) 0x1 <<  0) // (EMAC) Loopback. Optional. When set, loopback signal is at high level.
-#define AT91C_EMAC_LBL        ((unsigned int) 0x1 <<  1) // (EMAC) Loopback local. 
-#define AT91C_EMAC_RE         ((unsigned int) 0x1 <<  2) // (EMAC) Receive enable. 
-#define AT91C_EMAC_TE         ((unsigned int) 0x1 <<  3) // (EMAC) Transmit enable. 
-#define AT91C_EMAC_MPE        ((unsigned int) 0x1 <<  4) // (EMAC) Management port enable. 
-#define AT91C_EMAC_CSR        ((unsigned int) 0x1 <<  5) // (EMAC) Clear statistics registers. 
-#define AT91C_EMAC_ISR        ((unsigned int) 0x1 <<  6) // (EMAC) Increment statistics registers. 
-#define AT91C_EMAC_WES        ((unsigned int) 0x1 <<  7) // (EMAC) Write enable for statistics registers. 
-#define AT91C_EMAC_BP         ((unsigned int) 0x1 <<  8) // (EMAC) Back pressure. 
+#define AT91C_EMAC_LB         (0x1u <<  0) // (EMAC) Loopback. Optional. When set, loopback signal is at high level.
+#define AT91C_EMAC_LBL        (0x1u <<  1) // (EMAC) Loopback local. 
+#define AT91C_EMAC_RE         (0x1u <<  2) // (EMAC) Receive enable. 
+#define AT91C_EMAC_TE         (0x1u <<  3) // (EMAC) Transmit enable. 
+#define AT91C_EMAC_MPE        (0x1u <<  4) // (EMAC) Management port enable. 
+#define AT91C_EMAC_CSR        (0x1u <<  5) // (EMAC) Clear statistics registers. 
+#define AT91C_EMAC_ISR        (0x1u <<  6) // (EMAC) Increment statistics registers. 
+#define AT91C_EMAC_WES        (0x1u <<  7) // (EMAC) Write enable for statistics registers. 
+#define AT91C_EMAC_BP         (0x1u <<  8) // (EMAC) Back pressure. 
 // -------- EMAC_CFG : (EMAC Offset: 0x4) Network Configuration Register -------- 
-#define AT91C_EMAC_SPD        ((unsigned int) 0x1 <<  0) // (EMAC) Speed. 
-#define AT91C_EMAC_FD         ((unsigned int) 0x1 <<  1) // (EMAC) Full duplex. 
-#define AT91C_EMAC_BR         ((unsigned int) 0x1 <<  2) // (EMAC) Bit rate. 
-#define AT91C_EMAC_CAF        ((unsigned int) 0x1 <<  4) // (EMAC) Copy all frames. 
-#define AT91C_EMAC_NBC        ((unsigned int) 0x1 <<  5) // (EMAC) No broadcast. 
-#define AT91C_EMAC_MTI        ((unsigned int) 0x1 <<  6) // (EMAC) Multicast hash enable
-#define AT91C_EMAC_UNI        ((unsigned int) 0x1 <<  7) // (EMAC) Unicast hash enable. 
-#define AT91C_EMAC_BIG        ((unsigned int) 0x1 <<  8) // (EMAC) Receive 1522 bytes. 
-#define AT91C_EMAC_EAE        ((unsigned int) 0x1 <<  9) // (EMAC) External address match enable. 
-#define AT91C_EMAC_CLK        ((unsigned int) 0x3 << 10) // (EMAC) 
-#define 	AT91C_EMAC_CLK_HCLK_8               ((unsigned int) 0x0 << 10) // (EMAC) HCLK divided by 8
-#define 	AT91C_EMAC_CLK_HCLK_16              ((unsigned int) 0x1 << 10) // (EMAC) HCLK divided by 16
-#define 	AT91C_EMAC_CLK_HCLK_32              ((unsigned int) 0x2 << 10) // (EMAC) HCLK divided by 32
-#define 	AT91C_EMAC_CLK_HCLK_64              ((unsigned int) 0x3 << 10) // (EMAC) HCLK divided by 64
-#define AT91C_EMAC_RTY        ((unsigned int) 0x1 << 12) // (EMAC) 
-#define AT91C_EMAC_RMII       ((unsigned int) 0x1 << 13) // (EMAC) 
+#define AT91C_EMAC_SPD        (0x1u <<  0) // (EMAC) Speed. 
+#define AT91C_EMAC_FD         (0x1u <<  1) // (EMAC) Full duplex. 
+#define AT91C_EMAC_BR         (0x1u <<  2) // (EMAC) Bit rate. 
+#define AT91C_EMAC_CAF        (0x1u <<  4) // (EMAC) Copy all frames. 
+#define AT91C_EMAC_NBC        (0x1u <<  5) // (EMAC) No broadcast. 
+#define AT91C_EMAC_MTI        (0x1u <<  6) // (EMAC) Multicast hash enable
+#define AT91C_EMAC_UNI        (0x1u <<  7) // (EMAC) Unicast hash enable. 
+#define AT91C_EMAC_BIG        (0x1u <<  8) // (EMAC) Receive 1522 bytes. 
+#define AT91C_EMAC_EAE        (0x1u <<  9) // (EMAC) External address match enable. 
+#define AT91C_EMAC_CLK        (0x3u << 10) // (EMAC) 
+#define 	AT91C_EMAC_CLK_HCLK_8               (0x0u << 10) // (EMAC) HCLK divided by 8
+#define 	AT91C_EMAC_CLK_HCLK_16              (0x1u << 10) // (EMAC) HCLK divided by 16
+#define 	AT91C_EMAC_CLK_HCLK_32              (0x2u << 10) // (EMAC) HCLK divided by 32
+#define 	AT91C_EMAC_CLK_HCLK_64              (0x3u << 10) // (EMAC) HCLK divided by 64
+#define AT91C_EMAC_RTY        (0x1u << 12) // (EMAC) 
+#define AT91C_EMAC_RMII       (0x1u << 13) // (EMAC) 
 // -------- EMAC_SR : (EMAC Offset: 0x8) Network Status Register -------- 
-#define AT91C_EMAC_MDIO       ((unsigned int) 0x1 <<  1) // (EMAC) 
-#define AT91C_EMAC_IDLE       ((unsigned int) 0x1 <<  2) // (EMAC) 
+#define AT91C_EMAC_MDIO       (0x1u <<  1) // (EMAC) 
+#define AT91C_EMAC_IDLE       (0x1u <<  2) // (EMAC) 
 // -------- EMAC_TCR : (EMAC Offset: 0x10) Transmit Control Register -------- 
-#define AT91C_EMAC_LEN        ((unsigned int) 0x7FF <<  0) // (EMAC) 
-#define AT91C_EMAC_NCRC       ((unsigned int) 0x1 << 15) // (EMAC) 
+#define AT91C_EMAC_LEN        (0x7FFu <<  0) // (EMAC) 
+#define AT91C_EMAC_NCRC       (0x1u << 15) // (EMAC) 
 // -------- EMAC_TSR : (EMAC Offset: 0x14) Transmit Control Register -------- 
-#define AT91C_EMAC_OVR        ((unsigned int) 0x1 <<  0) // (EMAC) 
-#define AT91C_EMAC_COL        ((unsigned int) 0x1 <<  1) // (EMAC) 
-#define AT91C_EMAC_RLE        ((unsigned int) 0x1 <<  2) // (EMAC) 
-#define AT91C_EMAC_TXIDLE     ((unsigned int) 0x1 <<  3) // (EMAC) 
-#define AT91C_EMAC_BNQ        ((unsigned int) 0x1 <<  4) // (EMAC) 
-#define AT91C_EMAC_COMP       ((unsigned int) 0x1 <<  5) // (EMAC) 
-#define AT91C_EMAC_UND        ((unsigned int) 0x1 <<  6) // (EMAC) 
+#define AT91C_EMAC_OVR        (0x1u <<  0) // (EMAC) 
+#define AT91C_EMAC_COL        (0x1u <<  1) // (EMAC) 
+#define AT91C_EMAC_RLE        (0x1u <<  2) // (EMAC) 
+#define AT91C_EMAC_TXIDLE     (0x1u <<  3) // (EMAC) 
+#define AT91C_EMAC_BNQ        (0x1u <<  4) // (EMAC) 
+#define AT91C_EMAC_COMP       (0x1u <<  5) // (EMAC) 
+#define AT91C_EMAC_UND        (0x1u <<  6) // (EMAC) 
 // -------- EMAC_RSR : (EMAC Offset: 0x20) Receive Status Register -------- 
-#define AT91C_EMAC_BNA        ((unsigned int) 0x1 <<  0) // (EMAC) 
-#define AT91C_EMAC_REC        ((unsigned int) 0x1 <<  1) // (EMAC) 
+#define AT91C_EMAC_BNA        (0x1u <<  0) // (EMAC) 
+#define AT91C_EMAC_REC        (0x1u <<  1) // (EMAC) 
 // -------- EMAC_ISR : (EMAC Offset: 0x24) Interrupt Status Register -------- 
-#define AT91C_EMAC_DONE       ((unsigned int) 0x1 <<  0) // (EMAC) 
-#define AT91C_EMAC_RCOM       ((unsigned int) 0x1 <<  1) // (EMAC) 
-#define AT91C_EMAC_RBNA       ((unsigned int) 0x1 <<  2) // (EMAC) 
-#define AT91C_EMAC_TOVR       ((unsigned int) 0x1 <<  3) // (EMAC) 
-#define AT91C_EMAC_TUND       ((unsigned int) 0x1 <<  4) // (EMAC) 
-#define AT91C_EMAC_RTRY       ((unsigned int) 0x1 <<  5) // (EMAC) 
-#define AT91C_EMAC_TBRE       ((unsigned int) 0x1 <<  6) // (EMAC) 
-#define AT91C_EMAC_TCOM       ((unsigned int) 0x1 <<  7) // (EMAC) 
-#define AT91C_EMAC_TIDLE      ((unsigned int) 0x1 <<  8) // (EMAC) 
-#define AT91C_EMAC_LINK       ((unsigned int) 0x1 <<  9) // (EMAC) 
-#define AT91C_EMAC_ROVR       ((unsigned int) 0x1 << 10) // (EMAC) 
-#define AT91C_EMAC_HRESP      ((unsigned int) 0x1 << 11) // (EMAC) 
+#define AT91C_EMAC_DONE       (0x1u <<  0) // (EMAC) 
+#define AT91C_EMAC_RCOM       (0x1u <<  1) // (EMAC) 
+#define AT91C_EMAC_RBNA       (0x1u <<  2) // (EMAC) 
+#define AT91C_EMAC_TOVR       (0x1u <<  3) // (EMAC) 
+#define AT91C_EMAC_TUND       (0x1u <<  4) // (EMAC) 
+#define AT91C_EMAC_RTRY       (0x1u <<  5) // (EMAC) 
+#define AT91C_EMAC_TBRE       (0x1u <<  6) // (EMAC) 
+#define AT91C_EMAC_TCOM       (0x1u <<  7) // (EMAC) 
+#define AT91C_EMAC_TIDLE      (0x1u <<  8) // (EMAC) 
+#define AT91C_EMAC_LINK       (0x1u <<  9) // (EMAC) 
+#define AT91C_EMAC_ROVR       (0x1u << 10) // (EMAC) 
+#define AT91C_EMAC_HRESP      (0x1u << 11) // (EMAC) 
 // -------- EMAC_IER : (EMAC Offset: 0x28) Interrupt Enable Register -------- 
 // -------- EMAC_IDR : (EMAC Offset: 0x2c) Interrupt Disable Register -------- 
 // -------- EMAC_IMR : (EMAC Offset: 0x30) Interrupt Mask Register -------- 
 // -------- EMAC_MAN : (EMAC Offset: 0x34) PHY Maintenance Register -------- 
-#define AT91C_EMAC_DATA       ((unsigned int) 0xFFFF <<  0) // (EMAC) 
-#define AT91C_EMAC_CODE       ((unsigned int) 0x3 << 16) // (EMAC) 
-#define AT91C_EMAC_REGA       ((unsigned int) 0x1F << 18) // (EMAC) 
-#define AT91C_EMAC_PHYA       ((unsigned int) 0x1F << 23) // (EMAC) 
-#define AT91C_EMAC_RW         ((unsigned int) 0x3 << 28) // (EMAC) 
-#define AT91C_EMAC_HIGH       ((unsigned int) 0x1 << 30) // (EMAC) 
-#define AT91C_EMAC_LOW        ((unsigned int) 0x1 << 31) // (EMAC) 
+#define AT91C_EMAC_DATA       (0xFFFFu <<  0) // (EMAC) 
+#define AT91C_EMAC_CODE       (0x3u << 16) // (EMAC) 
+#define AT91C_EMAC_REGA       (0x1Fu << 18) // (EMAC) 
+#define AT91C_EMAC_PHYA       (0x1Fu << 23) // (EMAC) 
+#define AT91C_EMAC_RW         (0x3u << 28) // (EMAC) 
+#define AT91C_EMAC_HIGH       (0x1u << 30) // (EMAC) 
+#define AT91C_EMAC_LOW        (0x1u << 31) // (EMAC) 
 
 // *****************************************************************************
 //              SOFTWARE API DEFINITION  FOR External Bus Interface
@@ -1570,21 +1570,21 @@ typedef struct _AT91S_EBI {
 } AT91S_EBI, *AT91PS_EBI;
 
 // -------- EBI_CSA : (EBI Offset: 0x0) Chip Select Assignment Register -------- 
-#define AT91C_EBI_CS0A        ((unsigned int) 0x1 <<  0) // (EBI) Chip Select 0 Assignment
-#define 	AT91C_EBI_CS0A_SMC                  ((unsigned int) 0x0) // (EBI) Chip Select 0 is assigned to the Static Memory Controller.
-#define 	AT91C_EBI_CS0A_BFC                  ((unsigned int) 0x1) // (EBI) Chip Select 0 is assigned to the Burst Flash Controller.
-#define AT91C_EBI_CS1A        ((unsigned int) 0x1 <<  1) // (EBI) Chip Select 1 Assignment
-#define 	AT91C_EBI_CS1A_SMC                  ((unsigned int) 0x0 <<  1) // (EBI) Chip Select 1 is assigned to the Static Memory Controller.
-#define 	AT91C_EBI_CS1A_SDRAMC               ((unsigned int) 0x1 <<  1) // (EBI) Chip Select 1 is assigned to the SDRAM Controller.
-#define AT91C_EBI_CS3A        ((unsigned int) 0x1 <<  3) // (EBI) Chip Select 3 Assignment
-#define 	AT91C_EBI_CS3A_SMC                  ((unsigned int) 0x0 <<  3) // (EBI) Chip Select 3 is only assigned to the Static Memory Controller and NCS3 behaves as defined by the SMC2.
-#define 	AT91C_EBI_CS3A_SMC_SmartMedia       ((unsigned int) 0x1 <<  3) // (EBI) Chip Select 3 is assigned to the Static Memory Controller and the SmartMedia Logic is activated.
-#define AT91C_EBI_CS4A        ((unsigned int) 0x1 <<  4) // (EBI) Chip Select 4 Assignment
-#define 	AT91C_EBI_CS4A_SMC                  ((unsigned int) 0x0 <<  4) // (EBI) Chip Select 4 is assigned to the Static Memory Controller and NCS4,NCS5 and NCS6 behave as defined by the SMC2.
-#define 	AT91C_EBI_CS4A_SMC_CompactFlash     ((unsigned int) 0x1 <<  4) // (EBI) Chip Select 4 is assigned to the Static Memory Controller and the CompactFlash Logic is activated.
+#define AT91C_EBI_CS0A        (0x1u <<  0) // (EBI) Chip Select 0 Assignment
+#define 	AT91C_EBI_CS0A_SMC                  0x0u // (EBI) Chip Select 0 is assigned to the Static Memory Controller.
+#define 	AT91C_EBI_CS0A_BFC                  0x1u // (EBI) Chip Select 0 is assigned to the Burst Flash Controller.
+#define AT91C_EBI_CS1A        (0x1u <<  1) // (EBI) Chip Select 1 Assignment
+#define 	AT91C_EBI_CS1A_SMC                  (0x0u <<  1) // (EBI) Chip Select 1 is assigned to the Static Memory Controller.
+#define 	AT91C_EBI_CS1A_SDRAMC               (0x1u <<  1) // (EBI) Chip Select 1 is assigned to the SDRAM Controller.
+#define AT91C_EBI_CS3A        (0x1u <<  3) // (EBI) Chip Select 3 Assignment
+#define 	AT91C_EBI_CS3A_SMC                  (0x0u <<  3) // (EBI) Chip Select 3 is only assigned to the Static Memory Controller and NCS3 behaves as defined by the SMC2.
+#define 	AT91C_EBI_CS3A_SMC_SmartMedia       (0x1u <<  3) // (EBI) Chip Select 3 is assigned to the Static Memory Controller and the SmartMedia Logic is activated.
+#define AT91C_EBI_CS4A        (0x1u <<  4) // (EBI) Chip Select 4 Assignment
+#define 	AT91C_EBI_CS4A_SMC                  (0x0u <<  4) // (EBI) Chip Select 4 is assigned to the Static Memory Controller and NCS4,NCS5 and NCS6 behave as defined by the SMC2.
+#define 	AT91C_EBI_CS4A_SMC_CompactFlash     (0x1u <<  4) // (EBI) Chip Select 4 is assigned to the Static Memory Controller and the CompactFlash Logic is activated.
 // -------- EBI_CFGR : (EBI Offset: 0x4) Configuration Register -------- 
-#define AT91C_EBI_DBPUC       ((unsigned int) 0x1 <<  0) // (EBI) Data Bus Pull-Up Configuration
-#define AT91C_EBI_EBSEN       ((unsigned int) 0x1 <<  1) // (EBI) Bus Sharing Enable
+#define AT91C_EBI_DBPUC       (0x1u <<  0) // (EBI) Data Bus Pull-Up Configuration
+#define AT91C_EBI_EBSEN       (0x1u <<  1) // (EBI) Bus Sharing Enable
 
 // *****************************************************************************
 //              SOFTWARE API DEFINITION  FOR Static Memory Controller 2 Interface
@@ -1594,21 +1594,21 @@ typedef struct _AT91S_SMC2 {
 } AT91S_SMC2, *AT91PS_SMC2;
 
 // -------- SMC2_CSR : (SMC2 Offset: 0x0) SMC2 Chip Select Register -------- 
-#define AT91C_SMC2_NWS        ((unsigned int) 0x7F <<  0) // (SMC2) Number of Wait States
-#define AT91C_SMC2_WSEN       ((unsigned int) 0x1 <<  7) // (SMC2) Wait State Enable
-#define AT91C_SMC2_TDF        ((unsigned int) 0xF <<  8) // (SMC2) Data Float Time
-#define AT91C_SMC2_BAT        ((unsigned int) 0x1 << 12) // (SMC2) Byte Access Type
-#define AT91C_SMC2_DBW        ((unsigned int) 0x1 << 13) // (SMC2) Data Bus Width
-#define 	AT91C_SMC2_DBW_16                   ((unsigned int) 0x1 << 13) // (SMC2) 16-bit.
-#define 	AT91C_SMC2_DBW_8                    ((unsigned int) 0x2 << 13) // (SMC2) 8-bit.
-#define AT91C_SMC2_DRP        ((unsigned int) 0x1 << 15) // (SMC2) Data Read Protocol
-#define AT91C_SMC2_ACSS       ((unsigned int) 0x3 << 16) // (SMC2) Address to Chip Select Setup
-#define 	AT91C_SMC2_ACSS_STANDARD             ((unsigned int) 0x0 << 16) // (SMC2) Standard, asserted at the beginning of the access and deasserted at the end.
-#define 	AT91C_SMC2_ACSS_1_CYCLE              ((unsigned int) 0x1 << 16) // (SMC2) One cycle less at the beginning and the end of the access.
-#define 	AT91C_SMC2_ACSS_2_CYCLES             ((unsigned int) 0x2 << 16) // (SMC2) Two cycles less at the beginning and the end of the access.
-#define 	AT91C_SMC2_ACSS_3_CYCLES             ((unsigned int) 0x3 << 16) // (SMC2) Three cycles less at the beginning and the end of the access.
-#define AT91C_SMC2_RWSETUP    ((unsigned int) 0x7 << 24) // (SMC2) Read and Write Signal Setup Time
-#define AT91C_SMC2_RWHOLD     ((unsigned int) 0x7 << 29) // (SMC2) Read and Write Signal Hold Time
+#define AT91C_SMC2_NWS        (0x7Fu <<  0) // (SMC2) Number of Wait States
+#define AT91C_SMC2_WSEN       (0x1u <<  7) // (SMC2) Wait State Enable
+#define AT91C_SMC2_TDF        (0xFu <<  8) // (SMC2) Data Float Time
+#define AT91C_SMC2_BAT        (0x1u << 12) // (SMC2) Byte Access Type
+#define AT91C_SMC2_DBW        (0x1u << 13) // (SMC2) Data Bus Width
+#define 	AT91C_SMC2_DBW_16                   (0x1u << 13) // (SMC2) 16-bit.
+#define 	AT91C_SMC2_DBW_8                    (0x2u << 13) // (SMC2) 8-bit.
+#define AT91C_SMC2_DRP        (0x1u << 15) // (SMC2) Data Read Protocol
+#define AT91C_SMC2_ACSS       (0x3u << 16) // (SMC2) Address to Chip Select Setup
+#define 	AT91C_SMC2_ACSS_STANDARD             (0x0u << 16) // (SMC2) Standard, asserted at the beginning of the access and deasserted at the end.
+#define 	AT91C_SMC2_ACSS_1_CYCLE              (0x1u << 16) // (SMC2) One cycle less at the beginning and the end of the access.
+#define 	AT91C_SMC2_ACSS_2_CYCLES             (0x2u << 16) // (SMC2) Two cycles less at the beginning and the end of the access.
+#define 	AT91C_SMC2_ACSS_3_CYCLES             (0x3u << 16) // (SMC2) Three cycles less at the beginning and the end of the access.
+#define AT91C_SMC2_RWSETUP    (0x7u << 24) // (SMC2) Read and Write Signal Setup Time
+#define AT91C_SMC2_RWHOLD     (0x7u << 29) // (SMC2) Read and Write Signal Hold Time
 
 // *****************************************************************************
 //              SOFTWARE API DEFINITION  FOR SDRAM Controller Interface
@@ -1626,44 +1626,44 @@ typedef struct _AT91S_SDRC {
 } AT91S_SDRC, *AT91PS_SDRC;
 
 // -------- SDRC_MR : (SDRC Offset: 0x0) SDRAM Controller Mode Register -------- 
-#define AT91C_SDRC_MODE       ((unsigned int) 0xF <<  0) // (SDRC) Mode
-#define 	AT91C_SDRC_MODE_NORMAL_CMD           ((unsigned int) 0x0) // (SDRC) Normal Mode
-#define 	AT91C_SDRC_MODE_NOP_CMD              ((unsigned int) 0x1) // (SDRC) NOP Command
-#define 	AT91C_SDRC_MODE_PRCGALL_CMD          ((unsigned int) 0x2) // (SDRC) All Banks Precharge Command
-#define 	AT91C_SDRC_MODE_LMR_CMD              ((unsigned int) 0x3) // (SDRC) Load Mode Register Command
-#define 	AT91C_SDRC_MODE_RFSH_CMD             ((unsigned int) 0x4) // (SDRC) Refresh Command
-#define AT91C_SDRC_DBW        ((unsigned int) 0x1 <<  4) // (SDRC) Data Bus Width
-#define 	AT91C_SDRC_DBW_32_BITS              ((unsigned int) 0x0 <<  4) // (SDRC) 32 Bits datas bus
-#define 	AT91C_SDRC_DBW_16_BITS              ((unsigned int) 0x1 <<  4) // (SDRC) 16 Bits datas bus
+#define AT91C_SDRC_MODE       (0xFu <<  0) // (SDRC) Mode
+#define 	AT91C_SDRC_MODE_NORMAL_CMD           0x0u // (SDRC) Normal Mode
+#define 	AT91C_SDRC_MODE_NOP_CMD              0x1u // (SDRC) NOP Command
+#define 	AT91C_SDRC_MODE_PRCGALL_CMD          0x2u // (SDRC) All Banks Precharge Command
+#define 	AT91C_SDRC_MODE_LMR_CMD              0x3u // (SDRC) Load Mode Register Command
+#define 	AT91C_SDRC_MODE_RFSH_CMD             0x4u // (SDRC) Refresh Command
+#define AT91C_SDRC_DBW        (0x1u <<  4) // (SDRC) Data Bus Width
+#define 	AT91C_SDRC_DBW_32_BITS              (0x0u <<  4) // (SDRC) 32 Bits datas bus
+#define 	AT91C_SDRC_DBW_16_BITS              (0x1u <<  4) // (SDRC) 16 Bits datas bus
 // -------- SDRC_TR : (SDRC Offset: 0x4) SDRC Refresh Timer Register -------- 
-#define AT91C_SDRC_COUNT      ((unsigned int) 0xFFF <<  0) // (SDRC) Refresh Counter
+#define AT91C_SDRC_COUNT      (0xFFFu <<  0) // (SDRC) Refresh Counter
 // -------- SDRC_CR : (SDRC Offset: 0x8) SDRAM Configuration Register -------- 
-#define AT91C_SDRC_NC         ((unsigned int) 0x3 <<  0) // (SDRC) Number of Column Bits
-#define 	AT91C_SDRC_NC_8                    ((unsigned int) 0x0) // (SDRC) 8 Bits
-#define 	AT91C_SDRC_NC_9                    ((unsigned int) 0x1) // (SDRC) 9 Bits
-#define 	AT91C_SDRC_NC_10                   ((unsigned int) 0x2) // (SDRC) 10 Bits
-#define 	AT91C_SDRC_NC_11                   ((unsigned int) 0x3) // (SDRC) 11 Bits
-#define AT91C_SDRC_NR         ((unsigned int) 0x3 <<  2) // (SDRC) Number of Row Bits
-#define 	AT91C_SDRC_NR_11                   ((unsigned int) 0x0 <<  2) // (SDRC) 11 Bits
-#define 	AT91C_SDRC_NR_12                   ((unsigned int) 0x1 <<  2) // (SDRC) 12 Bits
-#define 	AT91C_SDRC_NR_13                   ((unsigned int) 0x2 <<  2) // (SDRC) 13 Bits
-#define AT91C_SDRC_NB         ((unsigned int) 0x1 <<  4) // (SDRC) Number of Banks
-#define 	AT91C_SDRC_NB_2_BANKS              ((unsigned int) 0x0 <<  4) // (SDRC) 2 banks
-#define 	AT91C_SDRC_NB_4_BANKS              ((unsigned int) 0x1 <<  4) // (SDRC) 4 banks
-#define AT91C_SDRC_CAS        ((unsigned int) 0x3 <<  5) // (SDRC) CAS Latency
-#define 	AT91C_SDRC_CAS_2                    ((unsigned int) 0x2 <<  5) // (SDRC) 2 cycles
-#define AT91C_SDRC_TWR        ((unsigned int) 0xF <<  7) // (SDRC) Number of Write Recovery Time Cycles
-#define AT91C_SDRC_TRC        ((unsigned int) 0xF << 11) // (SDRC) Number of RAS Cycle Time Cycles
-#define AT91C_SDRC_TRP        ((unsigned int) 0xF << 15) // (SDRC) Number of RAS Precharge Time Cycles
-#define AT91C_SDRC_TRCD       ((unsigned int) 0xF << 19) // (SDRC) Number of RAS to CAS Delay Cycles
-#define AT91C_SDRC_TRAS       ((unsigned int) 0xF << 23) // (SDRC) Number of RAS Active Time Cycles
-#define AT91C_SDRC_TXSR       ((unsigned int) 0xF << 27) // (SDRC) Number of Command Recovery Time Cycles
+#define AT91C_SDRC_NC         (0x3u <<  0) // (SDRC) Number of Column Bits
+#define 	AT91C_SDRC_NC_8                    0x0u // (SDRC) 8 Bits
+#define 	AT91C_SDRC_NC_9                    0x1u // (SDRC) 9 Bits
+#define 	AT91C_SDRC_NC_10                   0x2u // (SDRC) 10 Bits
+#define 	AT91C_SDRC_NC_11                   0x3u // (SDRC) 11 Bits
+#define AT91C_SDRC_NR         (0x3u <<  2) // (SDRC) Number of Row Bits
+#define 	AT91C_SDRC_NR_11                   (0x0u <<  2) // (SDRC) 11 Bits
+#define 	AT91C_SDRC_NR_12                   (0x1u <<  2) // (SDRC) 12 Bits
+#define 	AT91C_SDRC_NR_13                   (0x2u <<  2) // (SDRC) 13 Bits
+#define AT91C_SDRC_NB         (0x1u <<  4) // (SDRC) Number of Banks
+#define 	AT91C_SDRC_NB_2_BANKS              (0x0u <<  4) // (SDRC) 2 banks
+#define 	AT91C_SDRC_NB_4_BANKS              (0x1u <<  4) // (SDRC) 4 banks
+#define AT91C_SDRC_CAS        (0x3u <<  5) // (SDRC) CAS Latency
+#define 	AT91C_SDRC_CAS_2                    (0x2u <<  5) // (SDRC) 2 cycles
+#define AT91C_SDRC_TWR        (0xFu <<  7) // (SDRC) Number of Write Recovery Time Cycles
+#define AT91C_SDRC_TRC        (0xFu << 11) // (SDRC) Number of RAS Cycle Time Cycles
+#define AT91C_SDRC_TRP        (0xFu << 15) // (SDRC) Number of RAS Precharge Time Cycles
+#define AT91C_SDRC_TRCD       (0xFu << 19) // (SDRC) Number of RAS to CAS Delay Cycles
+#define AT91C_SDRC_TRAS       (0xFu << 23) // (SDRC) Number of RAS Active Time Cycles
+#define AT91C_SDRC_TXSR       (0xFu << 27) // (SDRC) Number of Command Recovery Time Cycles
 // -------- SDRC_SRR : (SDRC Offset: 0xc) SDRAM Controller Self-refresh Register -------- 
-#define AT91C_SDRC_SRCB       ((unsigned int) 0x1 <<  0) // (SDRC) Self-refresh Command Bit
+#define AT91C_SDRC_SRCB       (0x1u <<  0) // (SDRC) Self-refresh Command Bit
 // -------- SDRC_LPR : (SDRC Offset: 0x10) SDRAM Controller Low-power Register -------- 
-#define AT91C_SDRC_LPCB       ((unsigned int) 0x1 <<  0) // (SDRC) Low-power Command Bit
+#define AT91C_SDRC_LPCB       (0x1u <<  0) // (SDRC) Low-power Command Bit
 // -------- SDRC_IER : (SDRC Offset: 0x14) SDRAM Controller Interrupt Enable Register -------- 
-#define AT91C_SDRC_RES        ((unsigned int) 0x1 <<  0) // (SDRC) Refresh Error Status
+#define AT91C_SDRC_RES        (0x1u <<  0) // (SDRC) Refresh Error Status
 // -------- SDRC_IDR : (SDRC Offset: 0x18) SDRAM Controller Interrupt Disable Register -------- 
 // -------- SDRC_IMR : (SDRC Offset: 0x1c) SDRAM Controller Interrupt Mask Register -------- 
 // -------- SDRC_ISR : (SDRC Offset: 0x20) SDRAM Controller Interrupt Status Register -------- 
@@ -1676,29 +1676,29 @@ typedef struct _AT91S_BFC {
 } AT91S_BFC, *AT91PS_BFC;
 
 // -------- BFC_MR : (BFC Offset: 0x0) BFC Mode Register -------- 
-#define AT91C_BFC_BFCOM       ((unsigned int) 0x3 <<  0) // (BFC) Burst Flash Controller Operating Mode
-#define 	AT91C_BFC_BFCOM_DISABLED             ((unsigned int) 0x0) // (BFC) NPCS0 is driven by the SMC or remains high.
-#define 	AT91C_BFC_BFCOM_ASYNC                ((unsigned int) 0x1) // (BFC) Asynchronous
-#define 	AT91C_BFC_BFCOM_BURST_READ           ((unsigned int) 0x2) // (BFC) Burst Read
-#define AT91C_BFC_BFCC        ((unsigned int) 0x3 <<  2) // (BFC) Burst Flash Controller Operating Mode
-#define 	AT91C_BFC_BFCC_MCK                  ((unsigned int) 0x1 <<  2) // (BFC) Master Clock.
-#define 	AT91C_BFC_BFCC_MCK_DIV_2            ((unsigned int) 0x2 <<  2) // (BFC) Master Clock divided by 2.
-#define 	AT91C_BFC_BFCC_MCK_DIV_4            ((unsigned int) 0x3 <<  2) // (BFC) Master Clock divided by 4.
-#define AT91C_BFC_AVL         ((unsigned int) 0xF <<  4) // (BFC) Address Valid Latency
-#define AT91C_BFC_PAGES       ((unsigned int) 0x7 <<  8) // (BFC) Page Size
-#define 	AT91C_BFC_PAGES_NO_PAGE              ((unsigned int) 0x0 <<  8) // (BFC) No page handling.
-#define 	AT91C_BFC_PAGES_16                   ((unsigned int) 0x1 <<  8) // (BFC) 16 bytes page size.
-#define 	AT91C_BFC_PAGES_32                   ((unsigned int) 0x2 <<  8) // (BFC) 32 bytes page size.
-#define 	AT91C_BFC_PAGES_64                   ((unsigned int) 0x3 <<  8) // (BFC) 64 bytes page size.
-#define 	AT91C_BFC_PAGES_128                  ((unsigned int) 0x4 <<  8) // (BFC) 128 bytes page size.
-#define 	AT91C_BFC_PAGES_256                  ((unsigned int) 0x5 <<  8) // (BFC) 256 bytes page size.
-#define 	AT91C_BFC_PAGES_512                  ((unsigned int) 0x6 <<  8) // (BFC) 512 bytes page size.
-#define 	AT91C_BFC_PAGES_1024                 ((unsigned int) 0x7 <<  8) // (BFC) 1024 bytes page size.
-#define AT91C_BFC_OEL         ((unsigned int) 0x3 << 12) // (BFC) Output Enable Latency
-#define AT91C_BFC_BAAEN       ((unsigned int) 0x1 << 16) // (BFC) Burst Address Advance Enable
-#define AT91C_BFC_BFOEH       ((unsigned int) 0x1 << 17) // (BFC) Burst Flash Output Enable Handling
-#define AT91C_BFC_MUXEN       ((unsigned int) 0x1 << 18) // (BFC) Multiplexed Bus Enable
-#define AT91C_BFC_RDYEN       ((unsigned int) 0x1 << 19) // (BFC) Ready Enable Mode
+#define AT91C_BFC_BFCOM       (0x3u <<  0) // (BFC) Burst Flash Controller Operating Mode
+#define 	AT91C_BFC_BFCOM_DISABLED             0x0u // (BFC) NPCS0 is driven by the SMC or remains high.
+#define 	AT91C_BFC_BFCOM_ASYNC                0x1u // (BFC) Asynchronous
+#define 	AT91C_BFC_BFCOM_BURST_READ           0x2u // (BFC) Burst Read
+#define AT91C_BFC_BFCC        (0x3u <<  2) // (BFC) Burst Flash Controller Operating Mode
+#define 	AT91C_BFC_BFCC_MCK                  (0x1u <<  2) // (BFC) Master Clock.
+#define 	AT91C_BFC_BFCC_MCK_DIV_2            (0x2u <<  2) // (BFC) Master Clock divided by 2.
+#define 	AT91C_BFC_BFCC_MCK_DIV_4            (0x3u <<  2) // (BFC) Master Clock divided by 4.
+#define AT91C_BFC_AVL         (0xFu <<  4) // (BFC) Address Valid Latency
+#define AT91C_BFC_PAGES       (0x7u <<  8) // (BFC) Page Size
+#define 	AT91C_BFC_PAGES_NO_PAGE              (0x0u <<  8) // (BFC) No page handling.
+#define 	AT91C_BFC_PAGES_16                   (0x1u <<  8) // (BFC) 16 bytes page size.
+#define 	AT91C_BFC_PAGES_32                   (0x2u <<  8) // (BFC) 32 bytes page size.
+#define 	AT91C_BFC_PAGES_64                   (0x3u <<  8) // (BFC) 64 bytes page size.
+#define 	AT91C_BFC_PAGES_128                  (0x4u <<  8) // (BFC) 128 bytes page size.
+#define 	AT91C_BFC_PAGES_256                  (0x5u <<  8) // (BFC) 256 bytes page size.
+#define 	AT91C_BFC_PAGES_512                  (0x6u <<  8) // (BFC) 512 bytes page size.
+#define 	AT91C_BFC_PAGES_1024                 (0x7u <<  8) // (BFC) 1024 bytes page size.
+#define AT91C_BFC_OEL         (0x3u << 12) // (BFC) Output Enable Latency
+#define AT91C_BFC_BAAEN       (0x1u << 16) // (BFC) Burst Address Advance Enable
+#define AT91C_BFC_BFOEH       (0x1u << 17) // (BFC) Burst Flash Output Enable Handling
+#define AT91C_BFC_MUXEN       (0x1u << 18) // (BFC) Multiplexed Bus Enable
+#define AT91C_BFC_RDYEN       (0x1u << 19) // (BFC) Ready Enable Mode
 
 // *****************************************************************************
 //               REGISTER ADDRESS DEFINITION FOR AT91RM9200
@@ -2334,356 +2334,356 @@ typedef struct _AT91S_BFC {
 // *****************************************************************************
 //               PIO DEFINITIONS FOR AT91RM9200
 // *****************************************************************************
-#define AT91C_PIO_PA0        ((unsigned int) 1 <<  0) // Pin Controlled by PA0
-#define AT91C_PA0_MISO     ((unsigned int) AT91C_PIO_PA0) //  SPI Master In Slave
-#define AT91C_PA0_PCK3     ((unsigned int) AT91C_PIO_PA0) //  PMC Programmable Clock Output 3
-#define AT91C_PIO_PA1        ((unsigned int) 1 <<  1) // Pin Controlled by PA1
-#define AT91C_PA1_MOSI     ((unsigned int) AT91C_PIO_PA1) //  SPI Master Out Slave
-#define AT91C_PA1_PCK0     ((unsigned int) AT91C_PIO_PA1) //  PMC Programmable Clock Output 0
-#define AT91C_PIO_PA10       ((unsigned int) 1 << 10) // Pin Controlled by PA10
-#define AT91C_PA10_ETX1     ((unsigned int) AT91C_PIO_PA10) //  Ethernet MAC Transmit Data 1
-#define AT91C_PA10_MCDB1    ((unsigned int) AT91C_PIO_PA10) //  Multimedia Card B Data 1
-#define AT91C_PIO_PA11       ((unsigned int) 1 << 11) // Pin Controlled by PA11
-#define AT91C_PA11_ECRS_ECRSDV ((unsigned int) AT91C_PIO_PA11) //  Ethernet MAC Carrier Sense/Carrier Sense and Data Valid
-#define AT91C_PA11_MCDB2    ((unsigned int) AT91C_PIO_PA11) //  Multimedia Card B Data 2
-#define AT91C_PIO_PA12       ((unsigned int) 1 << 12) // Pin Controlled by PA12
-#define AT91C_PA12_ERX0     ((unsigned int) AT91C_PIO_PA12) //  Ethernet MAC Receive Data 0
-#define AT91C_PA12_MCDB3    ((unsigned int) AT91C_PIO_PA12) //  Multimedia Card B Data 3
-#define AT91C_PIO_PA13       ((unsigned int) 1 << 13) // Pin Controlled by PA13
-#define AT91C_PA13_ERX1     ((unsigned int) AT91C_PIO_PA13) //  Ethernet MAC Receive Data 1
-#define AT91C_PA13_TCLK0    ((unsigned int) AT91C_PIO_PA13) //  Timer Counter 0 external clock input
-#define AT91C_PIO_PA14       ((unsigned int) 1 << 14) // Pin Controlled by PA14
-#define AT91C_PA14_ERXER    ((unsigned int) AT91C_PIO_PA14) //  Ethernet MAC Receive Error
-#define AT91C_PA14_TCLK1    ((unsigned int) AT91C_PIO_PA14) //  Timer Counter 1 external clock input
-#define AT91C_PIO_PA15       ((unsigned int) 1 << 15) // Pin Controlled by PA15
-#define AT91C_PA15_EMDC     ((unsigned int) AT91C_PIO_PA15) //  Ethernet MAC Management Data Clock
-#define AT91C_PA15_TCLK2    ((unsigned int) AT91C_PIO_PA15) //  Timer Counter 2 external clock input
-#define AT91C_PIO_PA16       ((unsigned int) 1 << 16) // Pin Controlled by PA16
-#define AT91C_PA16_EMDIO    ((unsigned int) AT91C_PIO_PA16) //  Ethernet MAC Management Data Input/Output
-#define AT91C_PA16_IRQ6     ((unsigned int) AT91C_PIO_PA16) //  AIC Interrupt input 6
-#define AT91C_PIO_PA17       ((unsigned int) 1 << 17) // Pin Controlled by PA17
-#define AT91C_PA17_TXD0     ((unsigned int) AT91C_PIO_PA17) //  USART 0 Transmit Data
-#define AT91C_PA17_TIOA0    ((unsigned int) AT91C_PIO_PA17) //  Timer Counter 0 Multipurpose Timer I/O Pin A
-#define AT91C_PIO_PA18       ((unsigned int) 1 << 18) // Pin Controlled by PA18
-#define AT91C_PA18_RXD0     ((unsigned int) AT91C_PIO_PA18) //  USART 0 Receive Data
-#define AT91C_PA18_TIOB0    ((unsigned int) AT91C_PIO_PA18) //  Timer Counter 0 Multipurpose Timer I/O Pin B
-#define AT91C_PIO_PA19       ((unsigned int) 1 << 19) // Pin Controlled by PA19
-#define AT91C_PA19_SCK0     ((unsigned int) AT91C_PIO_PA19) //  USART 0 Serial Clock
-#define AT91C_PA19_TIOA1    ((unsigned int) AT91C_PIO_PA19) //  Timer Counter 1 Multipurpose Timer I/O Pin A
-#define AT91C_PIO_PA2        ((unsigned int) 1 <<  2) // Pin Controlled by PA2
-#define AT91C_PA2_SPCK     ((unsigned int) AT91C_PIO_PA2) //  SPI Serial Clock
-#define AT91C_PA2_IRQ4     ((unsigned int) AT91C_PIO_PA2) //  AIC Interrupt Input 4
-#define AT91C_PIO_PA20       ((unsigned int) 1 << 20) // Pin Controlled by PA20
-#define AT91C_PA20_CTS0     ((unsigned int) AT91C_PIO_PA20) //  USART 0 Clear To Send
-#define AT91C_PA20_TIOB1    ((unsigned int) AT91C_PIO_PA20) //  Timer Counter 1 Multipurpose Timer I/O Pin B
-#define AT91C_PIO_PA21       ((unsigned int) 1 << 21) // Pin Controlled by PA21
-#define AT91C_PA21_RTS0     ((unsigned int) AT91C_PIO_PA21) //  Usart 0 Ready To Send
-#define AT91C_PA21_TIOA2    ((unsigned int) AT91C_PIO_PA21) //  Timer Counter 2 Multipurpose Timer I/O Pin A
-#define AT91C_PIO_PA22       ((unsigned int) 1 << 22) // Pin Controlled by PA22
-#define AT91C_PA22_RXD2     ((unsigned int) AT91C_PIO_PA22) //  USART 2 Receive Data
-#define AT91C_PA22_TIOB2    ((unsigned int) AT91C_PIO_PA22) //  Timer Counter 2 Multipurpose Timer I/O Pin B
-#define AT91C_PIO_PA23       ((unsigned int) 1 << 23) // Pin Controlled by PA23
-#define AT91C_PA23_TXD2     ((unsigned int) AT91C_PIO_PA23) //  USART 2 Transmit Data
-#define AT91C_PA23_IRQ3     ((unsigned int) AT91C_PIO_PA23) //  Interrupt input 3
-#define AT91C_PIO_PA24       ((unsigned int) 1 << 24) // Pin Controlled by PA24
-#define AT91C_PA24_SCK2     ((unsigned int) AT91C_PIO_PA24) //  USART2 Serial Clock
-#define AT91C_PA24_PCK1     ((unsigned int) AT91C_PIO_PA24) //  PMC Programmable Clock Output 1
-#define AT91C_PIO_PA25       ((unsigned int) 1 << 25) // Pin Controlled by PA25
-#define AT91C_PA25_TWD      ((unsigned int) AT91C_PIO_PA25) //  TWI Two-wire Serial Data
-#define AT91C_PA25_IRQ2     ((unsigned int) AT91C_PIO_PA25) //  Interrupt input 2
-#define AT91C_PIO_PA26       ((unsigned int) 1 << 26) // Pin Controlled by PA26
-#define AT91C_PA26_TWCK     ((unsigned int) AT91C_PIO_PA26) //  TWI Two-wire Serial Clock
-#define AT91C_PA26_IRQ1     ((unsigned int) AT91C_PIO_PA26) //  Interrupt input 1
-#define AT91C_PIO_PA27       ((unsigned int) 1 << 27) // Pin Controlled by PA27
-#define AT91C_PA27_MCCK     ((unsigned int) AT91C_PIO_PA27) //  Multimedia Card Clock
-#define AT91C_PA27_TCLK3    ((unsigned int) AT91C_PIO_PA27) //  Timer Counter 3 External Clock Input
-#define AT91C_PIO_PA28       ((unsigned int) 1 << 28) // Pin Controlled by PA28
-#define AT91C_PA28_MCCDA    ((unsigned int) AT91C_PIO_PA28) //  Multimedia Card A Command
-#define AT91C_PA28_TCLK4    ((unsigned int) AT91C_PIO_PA28) //  Timer Counter 4 external Clock Input
-#define AT91C_PIO_PA29       ((unsigned int) 1 << 29) // Pin Controlled by PA29
-#define AT91C_PA29_MCDA0    ((unsigned int) AT91C_PIO_PA29) //  Multimedia Card A Data 0
-#define AT91C_PA29_TCLK5    ((unsigned int) AT91C_PIO_PA29) //  Timer Counter 5 external clock input
-#define AT91C_PIO_PA3        ((unsigned int) 1 <<  3) // Pin Controlled by PA3
-#define AT91C_PA3_NPCS0    ((unsigned int) AT91C_PIO_PA3) //  SPI Peripheral Chip Select 0
-#define AT91C_PA3_IRQ5     ((unsigned int) AT91C_PIO_PA3) //  AIC Interrupt Input 5
-#define AT91C_PIO_PA30       ((unsigned int) 1 << 30) // Pin Controlled by PA30
-#define AT91C_PA30_DRXD     ((unsigned int) AT91C_PIO_PA30) //  DBGU Debug Receive Data
-#define AT91C_PA30_CTS2     ((unsigned int) AT91C_PIO_PA30) //  Usart 2 Clear To Send
-#define AT91C_PIO_PA31       ((unsigned int) 1 << 31) // Pin Controlled by PA31
-#define AT91C_PA31_DTXD     ((unsigned int) AT91C_PIO_PA31) //  DBGU Debug Transmit Data
-#define AT91C_PA31_RTS2     ((unsigned int) AT91C_PIO_PA31) //  USART 2 Ready To Send
-#define AT91C_PIO_PA4        ((unsigned int) 1 <<  4) // Pin Controlled by PA4
-#define AT91C_PA4_NPCS1    ((unsigned int) AT91C_PIO_PA4) //  SPI Peripheral Chip Select 1
-#define AT91C_PA4_PCK1     ((unsigned int) AT91C_PIO_PA4) //  PMC Programmable Clock Output 1
-#define AT91C_PIO_PA5        ((unsigned int) 1 <<  5) // Pin Controlled by PA5
-#define AT91C_PA5_NPCS2    ((unsigned int) AT91C_PIO_PA5) //  SPI Peripheral Chip Select 2
-#define AT91C_PA5_TXD3     ((unsigned int) AT91C_PIO_PA5) //  USART 3 Transmit Data
-#define AT91C_PIO_PA6        ((unsigned int) 1 <<  6) // Pin Controlled by PA6
-#define AT91C_PA6_NPCS3    ((unsigned int) AT91C_PIO_PA6) //  SPI Peripheral Chip Select 3
-#define AT91C_PA6_RXD3     ((unsigned int) AT91C_PIO_PA6) //  USART 3 Receive Data
-#define AT91C_PIO_PA7        ((unsigned int) 1 <<  7) // Pin Controlled by PA7
-#define AT91C_PA7_ETXCK_EREFCK ((unsigned int) AT91C_PIO_PA7) //  Ethernet MAC Transmit Clock/Reference Clock
-#define AT91C_PA7_PCK2     ((unsigned int) AT91C_PIO_PA7) //  PMC Programmable Clock 2
-#define AT91C_PIO_PA8        ((unsigned int) 1 <<  8) // Pin Controlled by PA8
-#define AT91C_PA8_ETXEN    ((unsigned int) AT91C_PIO_PA8) //  Ethernet MAC Transmit Enable
-#define AT91C_PA8_MCCDB    ((unsigned int) AT91C_PIO_PA8) //  Multimedia Card B Command
-#define AT91C_PIO_PA9        ((unsigned int) 1 <<  9) // Pin Controlled by PA9
-#define AT91C_PA9_ETX0     ((unsigned int) AT91C_PIO_PA9) //  Ethernet MAC Transmit Data 0
-#define AT91C_PA9_MCDB0    ((unsigned int) AT91C_PIO_PA9) //  Multimedia Card B Data 0
-#define AT91C_PIO_PB0        ((unsigned int) 1 <<  0) // Pin Controlled by PB0
-#define AT91C_PB0_TF0      ((unsigned int) AT91C_PIO_PB0) //  SSC Transmit Frame Sync 0
-#define AT91C_PB0_TIOB3    ((unsigned int) AT91C_PIO_PB0) //  Timer Counter 3 Multipurpose Timer I/O Pin B
-#define AT91C_PIO_PB1        ((unsigned int) 1 <<  1) // Pin Controlled by PB1
-#define AT91C_PB1_TK0      ((unsigned int) AT91C_PIO_PB1) //  SSC Transmit Clock 0
-#define AT91C_PB1_CTS3     ((unsigned int) AT91C_PIO_PB1) //  USART 3 Clear To Send
-#define AT91C_PIO_PB10       ((unsigned int) 1 << 10) // Pin Controlled by PB10
-#define AT91C_PB10_RK1      ((unsigned int) AT91C_PIO_PB10) //  SSC Receive Clock 1
-#define AT91C_PB10_TIOA5    ((unsigned int) AT91C_PIO_PB10) //  Timer Counter 5 Multipurpose Timer I/O Pin A
-#define AT91C_PIO_PB11       ((unsigned int) 1 << 11) // Pin Controlled by PB11
-#define AT91C_PB11_RF1      ((unsigned int) AT91C_PIO_PB11) //  SSC Receive Frame Sync 1
-#define AT91C_PB11_TIOB5    ((unsigned int) AT91C_PIO_PB11) //  Timer Counter 5 Multipurpose Timer I/O Pin B
-#define AT91C_PIO_PB12       ((unsigned int) 1 << 12) // Pin Controlled by PB12
-#define AT91C_PB12_TF2      ((unsigned int) AT91C_PIO_PB12) //  SSC Transmit Frame Sync 2
-#define AT91C_PB12_ETX2     ((unsigned int) AT91C_PIO_PB12) //  Ethernet MAC Transmit Data 2
-#define AT91C_PIO_PB13       ((unsigned int) 1 << 13) // Pin Controlled by PB13
-#define AT91C_PB13_TK2      ((unsigned int) AT91C_PIO_PB13) //  SSC Transmit Clock 2
-#define AT91C_PB13_ETX3     ((unsigned int) AT91C_PIO_PB13) //  Ethernet MAC Transmit Data 3
-#define AT91C_PIO_PB14       ((unsigned int) 1 << 14) // Pin Controlled by PB14
-#define AT91C_PB14_TD2      ((unsigned int) AT91C_PIO_PB14) //  SSC Transmit Data 2
-#define AT91C_PB14_ETXER    ((unsigned int) AT91C_PIO_PB14) //  Ethernet MAC Transmikt Coding Error
-#define AT91C_PIO_PB15       ((unsigned int) 1 << 15) // Pin Controlled by PB15
-#define AT91C_PB15_RD2      ((unsigned int) AT91C_PIO_PB15) //  SSC Receive Data 2
-#define AT91C_PB15_ERX2     ((unsigned int) AT91C_PIO_PB15) //  Ethernet MAC Receive Data 2
-#define AT91C_PIO_PB16       ((unsigned int) 1 << 16) // Pin Controlled by PB16
-#define AT91C_PB16_RK2      ((unsigned int) AT91C_PIO_PB16) //  SSC Receive Clock 2
-#define AT91C_PB16_ERX3     ((unsigned int) AT91C_PIO_PB16) //  Ethernet MAC Receive Data 3
-#define AT91C_PIO_PB17       ((unsigned int) 1 << 17) // Pin Controlled by PB17
-#define AT91C_PB17_RF2      ((unsigned int) AT91C_PIO_PB17) //  SSC Receive Frame Sync 2
-#define AT91C_PB17_ERXDV    ((unsigned int) AT91C_PIO_PB17) //  Ethernet MAC Receive Data Valid
-#define AT91C_PIO_PB18       ((unsigned int) 1 << 18) // Pin Controlled by PB18
-#define AT91C_PB18_RI1      ((unsigned int) AT91C_PIO_PB18) //  USART 1 Ring Indicator
-#define AT91C_PB18_ECOL     ((unsigned int) AT91C_PIO_PB18) //  Ethernet MAC Collision Detected
-#define AT91C_PIO_PB19       ((unsigned int) 1 << 19) // Pin Controlled by PB19
-#define AT91C_PB19_DTR1     ((unsigned int) AT91C_PIO_PB19) //  USART 1 Data Terminal ready
-#define AT91C_PB19_ERXCK    ((unsigned int) AT91C_PIO_PB19) //  Ethernet MAC Receive Clock
-#define AT91C_PIO_PB2        ((unsigned int) 1 <<  2) // Pin Controlled by PB2
-#define AT91C_PB2_TD0      ((unsigned int) AT91C_PIO_PB2) //  SSC Transmit data
-#define AT91C_PB2_SCK3     ((unsigned int) AT91C_PIO_PB2) //  USART 3 Serial Clock
-#define AT91C_PIO_PB20       ((unsigned int) 1 << 20) // Pin Controlled by PB20
-#define AT91C_PB20_TXD1     ((unsigned int) AT91C_PIO_PB20) //  USART 1 Transmit Data
-#define AT91C_PIO_PB21       ((unsigned int) 1 << 21) // Pin Controlled by PB21
-#define AT91C_PB21_RXD1     ((unsigned int) AT91C_PIO_PB21) //  USART 1 Receive Data
-#define AT91C_PIO_PB22       ((unsigned int) 1 << 22) // Pin Controlled by PB22
-#define AT91C_PB22_SCK1     ((unsigned int) AT91C_PIO_PB22) //  USART1 Serial Clock
-#define AT91C_PIO_PB23       ((unsigned int) 1 << 23) // Pin Controlled by PB23
-#define AT91C_PB23_DCD1     ((unsigned int) AT91C_PIO_PB23) //  USART 1 Data Carrier Detect
-#define AT91C_PIO_PB24       ((unsigned int) 1 << 24) // Pin Controlled by PB24
-#define AT91C_PB24_CTS1     ((unsigned int) AT91C_PIO_PB24) //  USART 1 Clear To Send
-#define AT91C_PIO_PB25       ((unsigned int) 1 << 25) // Pin Controlled by PB25
-#define AT91C_PB25_DSR1     ((unsigned int) AT91C_PIO_PB25) //  USART 1 Data Set ready
-#define AT91C_PB25_EF100    ((unsigned int) AT91C_PIO_PB25) //  Ethernet MAC Force 100 Mbits/sec
-#define AT91C_PIO_PB26       ((unsigned int) 1 << 26) // Pin Controlled by PB26
-#define AT91C_PB26_RTS1     ((unsigned int) AT91C_PIO_PB26) //  Usart 0 Ready To Send
-#define AT91C_PIO_PB27       ((unsigned int) 1 << 27) // Pin Controlled by PB27
-#define AT91C_PB27_PCK0     ((unsigned int) AT91C_PIO_PB27) //  PMC Programmable Clock Output 0
-#define AT91C_PIO_PB28       ((unsigned int) 1 << 28) // Pin Controlled by PB28
-#define AT91C_PB28_FIQ      ((unsigned int) AT91C_PIO_PB28) //  AIC Fast Interrupt Input
-#define AT91C_PIO_PB29       ((unsigned int) 1 << 29) // Pin Controlled by PB29
-#define AT91C_PB29_IRQ0     ((unsigned int) AT91C_PIO_PB29) //  Interrupt input 0
-#define AT91C_PIO_PB3        ((unsigned int) 1 <<  3) // Pin Controlled by PB3
-#define AT91C_PB3_RD0      ((unsigned int) AT91C_PIO_PB3) //  SSC Receive Data
-#define AT91C_PB3_MCDA1    ((unsigned int) AT91C_PIO_PB3) //  Multimedia Card A Data 1
-#define AT91C_PIO_PB4        ((unsigned int) 1 <<  4) // Pin Controlled by PB4
-#define AT91C_PB4_RK0      ((unsigned int) AT91C_PIO_PB4) //  SSC Receive Clock
-#define AT91C_PB4_MCDA2    ((unsigned int) AT91C_PIO_PB4) //  Multimedia Card A Data 2
-#define AT91C_PIO_PB5        ((unsigned int) 1 <<  5) // Pin Controlled by PB5
-#define AT91C_PB5_RF0      ((unsigned int) AT91C_PIO_PB5) //  SSC Receive Frame Sync 0
-#define AT91C_PB5_MCDA3    ((unsigned int) AT91C_PIO_PB5) //  Multimedia Card A Data 3
-#define AT91C_PIO_PB6        ((unsigned int) 1 <<  6) // Pin Controlled by PB6
-#define AT91C_PB6_TF1      ((unsigned int) AT91C_PIO_PB6) //  SSC Transmit Frame Sync 1
-#define AT91C_PB6_TIOA3    ((unsigned int) AT91C_PIO_PB6) //  Timer Counter 4 Multipurpose Timer I/O Pin A
-#define AT91C_PIO_PB7        ((unsigned int) 1 <<  7) // Pin Controlled by PB7
-#define AT91C_PB7_TK1      ((unsigned int) AT91C_PIO_PB7) //  SSC Transmit Clock 1
-#define AT91C_PB7_TIOB3    ((unsigned int) AT91C_PIO_PB7) //  Timer Counter 3 Multipurpose Timer I/O Pin B
-#define AT91C_PIO_PB8        ((unsigned int) 1 <<  8) // Pin Controlled by PB8
-#define AT91C_PB8_TD1      ((unsigned int) AT91C_PIO_PB8) //  SSC Transmit Data 1
-#define AT91C_PB8_TIOA4    ((unsigned int) AT91C_PIO_PB8) //  Timer Counter 4 Multipurpose Timer I/O Pin A
-#define AT91C_PIO_PB9        ((unsigned int) 1 <<  9) // Pin Controlled by PB9
-#define AT91C_PB9_RD1      ((unsigned int) AT91C_PIO_PB9) //  SSC Receive Data 1
-#define AT91C_PB9_TIOB4    ((unsigned int) AT91C_PIO_PB9) //  Timer Counter 4 Multipurpose Timer I/O Pin B
-#define AT91C_PIO_PC0        ((unsigned int) 1 <<  0) // Pin Controlled by PC0
-#define AT91C_PC0_BFCK     ((unsigned int) AT91C_PIO_PC0) //  Burst Flash Clock
-#define AT91C_PIO_PC1        ((unsigned int) 1 <<  1) // Pin Controlled by PC1
-#define AT91C_PC1_BFRDY_SMOE ((unsigned int) AT91C_PIO_PC1) //  Burst Flash Ready
-#define AT91C_PIO_PC10       ((unsigned int) 1 << 10) // Pin Controlled by PC10
-#define AT91C_PC10_NCS4_CFCS ((unsigned int) AT91C_PIO_PC10) //  Compact Flash Chip Select
-#define AT91C_PIO_PC11       ((unsigned int) 1 << 11) // Pin Controlled by PC11
-#define AT91C_PC11_NCS5_CFCE1 ((unsigned int) AT91C_PIO_PC11) //  Chip Select 5 / Compact Flash Chip Enable 1
-#define AT91C_PIO_PC12       ((unsigned int) 1 << 12) // Pin Controlled by PC12
-#define AT91C_PC12_NCS6_CFCE2 ((unsigned int) AT91C_PIO_PC12) //  Chip Select 6 / Compact Flash Chip Enable 2
-#define AT91C_PIO_PC13       ((unsigned int) 1 << 13) // Pin Controlled by PC13
-#define AT91C_PC13_NCS7     ((unsigned int) AT91C_PIO_PC13) //  Chip Select 7
-#define AT91C_PIO_PC14       ((unsigned int) 1 << 14) // Pin Controlled by PC14
-#define AT91C_PIO_PC15       ((unsigned int) 1 << 15) // Pin Controlled by PC15
-#define AT91C_PIO_PC16       ((unsigned int) 1 << 16) // Pin Controlled by PC16
-#define AT91C_PC16_D16      ((unsigned int) AT91C_PIO_PC16) //  Data Bus [16]
-#define AT91C_PIO_PC17       ((unsigned int) 1 << 17) // Pin Controlled by PC17
-#define AT91C_PC17_D17      ((unsigned int) AT91C_PIO_PC17) //  Data Bus [17]
-#define AT91C_PIO_PC18       ((unsigned int) 1 << 18) // Pin Controlled by PC18
-#define AT91C_PC18_D18      ((unsigned int) AT91C_PIO_PC18) //  Data Bus [18]
-#define AT91C_PIO_PC19       ((unsigned int) 1 << 19) // Pin Controlled by PC19
-#define AT91C_PC19_D19      ((unsigned int) AT91C_PIO_PC19) //  Data Bus [19]
-#define AT91C_PIO_PC2        ((unsigned int) 1 <<  2) // Pin Controlled by PC2
-#define AT91C_PC2_BFAVD    ((unsigned int) AT91C_PIO_PC2) //  Burst Flash Address Valid
-#define AT91C_PIO_PC20       ((unsigned int) 1 << 20) // Pin Controlled by PC20
-#define AT91C_PC20_D20      ((unsigned int) AT91C_PIO_PC20) //  Data Bus [20]
-#define AT91C_PIO_PC21       ((unsigned int) 1 << 21) // Pin Controlled by PC21
-#define AT91C_PC21_D21      ((unsigned int) AT91C_PIO_PC21) //  Data Bus [21]
-#define AT91C_PIO_PC22       ((unsigned int) 1 << 22) // Pin Controlled by PC22
-#define AT91C_PC22_D22      ((unsigned int) AT91C_PIO_PC22) //  Data Bus [22]
-#define AT91C_PIO_PC23       ((unsigned int) 1 << 23) // Pin Controlled by PC23
-#define AT91C_PC23_D23      ((unsigned int) AT91C_PIO_PC23) //  Data Bus [23]
-#define AT91C_PIO_PC24       ((unsigned int) 1 << 24) // Pin Controlled by PC24
-#define AT91C_PC24_D24      ((unsigned int) AT91C_PIO_PC24) //  Data Bus [24]
-#define AT91C_PIO_PC25       ((unsigned int) 1 << 25) // Pin Controlled by PC25
-#define AT91C_PC25_D25      ((unsigned int) AT91C_PIO_PC25) //  Data Bus [25]
-#define AT91C_PIO_PC26       ((unsigned int) 1 << 26) // Pin Controlled by PC26
-#define AT91C_PC26_D26      ((unsigned int) AT91C_PIO_PC26) //  Data Bus [26]
-#define AT91C_PIO_PC27       ((unsigned int) 1 << 27) // Pin Controlled by PC27
-#define AT91C_PC27_D27      ((unsigned int) AT91C_PIO_PC27) //  Data Bus [27]
-#define AT91C_PIO_PC28       ((unsigned int) 1 << 28) // Pin Controlled by PC28
-#define AT91C_PC28_D28      ((unsigned int) AT91C_PIO_PC28) //  Data Bus [28]
-#define AT91C_PIO_PC29       ((unsigned int) 1 << 29) // Pin Controlled by PC29
-#define AT91C_PC29_D29      ((unsigned int) AT91C_PIO_PC29) //  Data Bus [29]
-#define AT91C_PIO_PC3        ((unsigned int) 1 <<  3) // Pin Controlled by PC3
-#define AT91C_PC3_BFBAA_SMWE ((unsigned int) AT91C_PIO_PC3) //  Burst Flash Address Advance / SmartMedia Write Enable
-#define AT91C_PIO_PC30       ((unsigned int) 1 << 30) // Pin Controlled by PC30
-#define AT91C_PC30_D30      ((unsigned int) AT91C_PIO_PC30) //  Data Bus [30]
-#define AT91C_PIO_PC31       ((unsigned int) 1 << 31) // Pin Controlled by PC31
-#define AT91C_PC31_D31      ((unsigned int) AT91C_PIO_PC31) //  Data Bus [31]
-#define AT91C_PIO_PC4        ((unsigned int) 1 <<  4) // Pin Controlled by PC4
-#define AT91C_PC4_BFOE     ((unsigned int) AT91C_PIO_PC4) //  Burst Flash Output Enable
-#define AT91C_PIO_PC5        ((unsigned int) 1 <<  5) // Pin Controlled by PC5
-#define AT91C_PC5_BFWE     ((unsigned int) AT91C_PIO_PC5) //  Burst Flash Write Enable
-#define AT91C_PIO_PC6        ((unsigned int) 1 <<  6) // Pin Controlled by PC6
-#define AT91C_PC6_NWAIT    ((unsigned int) AT91C_PIO_PC6) //  NWAIT
-#define AT91C_PIO_PC7        ((unsigned int) 1 <<  7) // Pin Controlled by PC7
-#define AT91C_PC7_A23      ((unsigned int) AT91C_PIO_PC7) //  Address Bus[23]
-#define AT91C_PIO_PC8        ((unsigned int) 1 <<  8) // Pin Controlled by PC8
-#define AT91C_PC8_A24      ((unsigned int) AT91C_PIO_PC8) //  Address Bus[24]
-#define AT91C_PIO_PC9        ((unsigned int) 1 <<  9) // Pin Controlled by PC9
-#define AT91C_PC9_A25_CFRNW ((unsigned int) AT91C_PIO_PC9) //  Address Bus[25] /  Compact Flash Read Not Write
-#define AT91C_PIO_PD0        ((unsigned int) 1 <<  0) // Pin Controlled by PD0
-#define AT91C_PD0_ETX0     ((unsigned int) AT91C_PIO_PD0) //  Ethernet MAC Transmit Data 0
-#define AT91C_PIO_PD1        ((unsigned int) 1 <<  1) // Pin Controlled by PD1
-#define AT91C_PD1_ETX1     ((unsigned int) AT91C_PIO_PD1) //  Ethernet MAC Transmit Data 1
-#define AT91C_PIO_PD10       ((unsigned int) 1 << 10) // Pin Controlled by PD10
-#define AT91C_PD10_PCK3     ((unsigned int) AT91C_PIO_PD10) //  PMC Programmable Clock Output 3
-#define AT91C_PD10_TPS1     ((unsigned int) AT91C_PIO_PD10) //  ETM ARM9 pipeline status 1
-#define AT91C_PIO_PD11       ((unsigned int) 1 << 11) // Pin Controlled by PD11
-#define AT91C_PD11_         ((unsigned int) AT91C_PIO_PD11) //  
-#define AT91C_PD11_TPS2     ((unsigned int) AT91C_PIO_PD11) //  ETM ARM9 pipeline status 2
-#define AT91C_PIO_PD12       ((unsigned int) 1 << 12) // Pin Controlled by PD12
-#define AT91C_PD12_         ((unsigned int) AT91C_PIO_PD12) //  
-#define AT91C_PD12_TPK0     ((unsigned int) AT91C_PIO_PD12) //  ETM Trace Packet 0
-#define AT91C_PIO_PD13       ((unsigned int) 1 << 13) // Pin Controlled by PD13
-#define AT91C_PD13_         ((unsigned int) AT91C_PIO_PD13) //  
-#define AT91C_PD13_TPK1     ((unsigned int) AT91C_PIO_PD13) //  ETM Trace Packet 1
-#define AT91C_PIO_PD14       ((unsigned int) 1 << 14) // Pin Controlled by PD14
-#define AT91C_PD14_         ((unsigned int) AT91C_PIO_PD14) //  
-#define AT91C_PD14_TPK2     ((unsigned int) AT91C_PIO_PD14) //  ETM Trace Packet 2
-#define AT91C_PIO_PD15       ((unsigned int) 1 << 15) // Pin Controlled by PD15
-#define AT91C_PD15_TD0      ((unsigned int) AT91C_PIO_PD15) //  SSC Transmit data
-#define AT91C_PD15_TPK3     ((unsigned int) AT91C_PIO_PD15) //  ETM Trace Packet 3
-#define AT91C_PIO_PD16       ((unsigned int) 1 << 16) // Pin Controlled by PD16
-#define AT91C_PD16_TD1      ((unsigned int) AT91C_PIO_PD16) //  SSC Transmit Data 1
-#define AT91C_PD16_TPK4     ((unsigned int) AT91C_PIO_PD16) //  ETM Trace Packet 4
-#define AT91C_PIO_PD17       ((unsigned int) 1 << 17) // Pin Controlled by PD17
-#define AT91C_PD17_TD2      ((unsigned int) AT91C_PIO_PD17) //  SSC Transmit Data 2
-#define AT91C_PD17_TPK5     ((unsigned int) AT91C_PIO_PD17) //  ETM Trace Packet 5
-#define AT91C_PIO_PD18       ((unsigned int) 1 << 18) // Pin Controlled by PD18
-#define AT91C_PD18_NPCS1    ((unsigned int) AT91C_PIO_PD18) //  SPI Peripheral Chip Select 1
-#define AT91C_PD18_TPK6     ((unsigned int) AT91C_PIO_PD18) //  ETM Trace Packet 6
-#define AT91C_PIO_PD19       ((unsigned int) 1 << 19) // Pin Controlled by PD19
-#define AT91C_PD19_NPCS2    ((unsigned int) AT91C_PIO_PD19) //  SPI Peripheral Chip Select 2
-#define AT91C_PD19_TPK7     ((unsigned int) AT91C_PIO_PD19) //  ETM Trace Packet 7
-#define AT91C_PIO_PD2        ((unsigned int) 1 <<  2) // Pin Controlled by PD2
-#define AT91C_PD2_ETX2     ((unsigned int) AT91C_PIO_PD2) //  Ethernet MAC Transmit Data 2
-#define AT91C_PIO_PD20       ((unsigned int) 1 << 20) // Pin Controlled by PD20
-#define AT91C_PD20_NPCS3    ((unsigned int) AT91C_PIO_PD20) //  SPI Peripheral Chip Select 3
-#define AT91C_PD20_TPK8     ((unsigned int) AT91C_PIO_PD20) //  ETM Trace Packet 8
-#define AT91C_PIO_PD21       ((unsigned int) 1 << 21) // Pin Controlled by PD21
-#define AT91C_PD21_RTS0     ((unsigned int) AT91C_PIO_PD21) //  Usart 0 Ready To Send
-#define AT91C_PD21_TPK9     ((unsigned int) AT91C_PIO_PD21) //  ETM Trace Packet 9
-#define AT91C_PIO_PD22       ((unsigned int) 1 << 22) // Pin Controlled by PD22
-#define AT91C_PD22_RTS1     ((unsigned int) AT91C_PIO_PD22) //  Usart 0 Ready To Send
-#define AT91C_PD22_TPK10    ((unsigned int) AT91C_PIO_PD22) //  ETM Trace Packet 10
-#define AT91C_PIO_PD23       ((unsigned int) 1 << 23) // Pin Controlled by PD23
-#define AT91C_PD23_RTS2     ((unsigned int) AT91C_PIO_PD23) //  USART 2 Ready To Send
-#define AT91C_PD23_TPK11    ((unsigned int) AT91C_PIO_PD23) //  ETM Trace Packet 11
-#define AT91C_PIO_PD24       ((unsigned int) 1 << 24) // Pin Controlled by PD24
-#define AT91C_PD24_RTS3     ((unsigned int) AT91C_PIO_PD24) //  USART 3 Ready To Send
-#define AT91C_PD24_TPK12    ((unsigned int) AT91C_PIO_PD24) //  ETM Trace Packet 12
-#define AT91C_PIO_PD25       ((unsigned int) 1 << 25) // Pin Controlled by PD25
-#define AT91C_PD25_DTR1     ((unsigned int) AT91C_PIO_PD25) //  USART 1 Data Terminal ready
-#define AT91C_PD25_TPK13    ((unsigned int) AT91C_PIO_PD25) //  ETM Trace Packet 13
-#define AT91C_PIO_PD26       ((unsigned int) 1 << 26) // Pin Controlled by PD26
-#define AT91C_PD26_TPK14    ((unsigned int) AT91C_PIO_PD26) //  ETM Trace Packet 14
-#define AT91C_PIO_PD27       ((unsigned int) 1 << 27) // Pin Controlled by PD27
-#define AT91C_PD27_TPK15    ((unsigned int) AT91C_PIO_PD27) //  ETM Trace Packet 15
-#define AT91C_PIO_PD3        ((unsigned int) 1 <<  3) // Pin Controlled by PD3
-#define AT91C_PD3_ETX3     ((unsigned int) AT91C_PIO_PD3) //  Ethernet MAC Transmit Data 3
-#define AT91C_PIO_PD4        ((unsigned int) 1 <<  4) // Pin Controlled by PD4
-#define AT91C_PD4_ETXEN    ((unsigned int) AT91C_PIO_PD4) //  Ethernet MAC Transmit Enable
-#define AT91C_PIO_PD5        ((unsigned int) 1 <<  5) // Pin Controlled by PD5
-#define AT91C_PD5_ETXER    ((unsigned int) AT91C_PIO_PD5) //  Ethernet MAC Transmikt Coding Error
-#define AT91C_PIO_PD6        ((unsigned int) 1 <<  6) // Pin Controlled by PD6
-#define AT91C_PD6_DTXD     ((unsigned int) AT91C_PIO_PD6) //  DBGU Debug Transmit Data
-#define AT91C_PIO_PD7        ((unsigned int) 1 <<  7) // Pin Controlled by PD7
-#define AT91C_PD7_PCK0     ((unsigned int) AT91C_PIO_PD7) //  PMC Programmable Clock Output 0
-#define AT91C_PD7_TSYNC    ((unsigned int) AT91C_PIO_PD7) //  ETM Synchronization signal
-#define AT91C_PIO_PD8        ((unsigned int) 1 <<  8) // Pin Controlled by PD8
-#define AT91C_PD8_PCK1     ((unsigned int) AT91C_PIO_PD8) //  PMC Programmable Clock Output 1
-#define AT91C_PD8_TCLK     ((unsigned int) AT91C_PIO_PD8) //  ETM Trace Clock signal
-#define AT91C_PIO_PD9        ((unsigned int) 1 <<  9) // Pin Controlled by PD9
-#define AT91C_PD9_PCK2     ((unsigned int) AT91C_PIO_PD9) //  PMC Programmable Clock 2
-#define AT91C_PD9_TPS0     ((unsigned int) AT91C_PIO_PD9) //  ETM ARM9 pipeline status 0
+#define AT91C_PIO_PA0        (1u <<  0) // Pin Controlled by PA0
+#define AT91C_PA0_MISO     (AT91C_PIO_PA0) //  SPI Master In Slave
+#define AT91C_PA0_PCK3     (AT91C_PIO_PA0) //  PMC Programmable Clock Output 3
+#define AT91C_PIO_PA1        (1u <<  1) // Pin Controlled by PA1
+#define AT91C_PA1_MOSI     (AT91C_PIO_PA1) //  SPI Master Out Slave
+#define AT91C_PA1_PCK0     (AT91C_PIO_PA1) //  PMC Programmable Clock Output 0
+#define AT91C_PIO_PA10       (1u << 10) // Pin Controlled by PA10
+#define AT91C_PA10_ETX1     (AT91C_PIO_PA10) //  Ethernet MAC Transmit Data 1
+#define AT91C_PA10_MCDB1    (AT91C_PIO_PA10) //  Multimedia Card B Data 1
+#define AT91C_PIO_PA11       (1u << 11) // Pin Controlled by PA11
+#define AT91C_PA11_ECRS_ECRSDV (AT91C_PIO_PA11) //  Ethernet MAC Carrier Sense/Carrier Sense and Data Valid
+#define AT91C_PA11_MCDB2    (AT91C_PIO_PA11) //  Multimedia Card B Data 2
+#define AT91C_PIO_PA12       (1u << 12) // Pin Controlled by PA12
+#define AT91C_PA12_ERX0     (AT91C_PIO_PA12) //  Ethernet MAC Receive Data 0
+#define AT91C_PA12_MCDB3    (AT91C_PIO_PA12) //  Multimedia Card B Data 3
+#define AT91C_PIO_PA13       (1u << 13) // Pin Controlled by PA13
+#define AT91C_PA13_ERX1     (AT91C_PIO_PA13) //  Ethernet MAC Receive Data 1
+#define AT91C_PA13_TCLK0    (AT91C_PIO_PA13) //  Timer Counter 0 external clock input
+#define AT91C_PIO_PA14       (1u << 14) // Pin Controlled by PA14
+#define AT91C_PA14_ERXER    (AT91C_PIO_PA14) //  Ethernet MAC Receive Error
+#define AT91C_PA14_TCLK1    (AT91C_PIO_PA14) //  Timer Counter 1 external clock input
+#define AT91C_PIO_PA15       (1u << 15) // Pin Controlled by PA15
+#define AT91C_PA15_EMDC     (AT91C_PIO_PA15) //  Ethernet MAC Management Data Clock
+#define AT91C_PA15_TCLK2    (AT91C_PIO_PA15) //  Timer Counter 2 external clock input
+#define AT91C_PIO_PA16       (1u << 16) // Pin Controlled by PA16
+#define AT91C_PA16_EMDIO    (AT91C_PIO_PA16) //  Ethernet MAC Management Data Input/Output
+#define AT91C_PA16_IRQ6     (AT91C_PIO_PA16) //  AIC Interrupt input 6
+#define AT91C_PIO_PA17       (1u << 17) // Pin Controlled by PA17
+#define AT91C_PA17_TXD0     (AT91C_PIO_PA17) //  USART 0 Transmit Data
+#define AT91C_PA17_TIOA0    (AT91C_PIO_PA17) //  Timer Counter 0 Multipurpose Timer I/O Pin A
+#define AT91C_PIO_PA18       (1u << 18) // Pin Controlled by PA18
+#define AT91C_PA18_RXD0     (AT91C_PIO_PA18) //  USART 0 Receive Data
+#define AT91C_PA18_TIOB0    (AT91C_PIO_PA18) //  Timer Counter 0 Multipurpose Timer I/O Pin B
+#define AT91C_PIO_PA19       (1u << 19) // Pin Controlled by PA19
+#define AT91C_PA19_SCK0     (AT91C_PIO_PA19) //  USART 0 Serial Clock
+#define AT91C_PA19_TIOA1    (AT91C_PIO_PA19) //  Timer Counter 1 Multipurpose Timer I/O Pin A
+#define AT91C_PIO_PA2        (1u <<  2) // Pin Controlled by PA2
+#define AT91C_PA2_SPCK     (AT91C_PIO_PA2) //  SPI Serial Clock
+#define AT91C_PA2_IRQ4     (AT91C_PIO_PA2) //  AIC Interrupt Input 4
+#define AT91C_PIO_PA20       (1u << 20) // Pin Controlled by PA20
+#define AT91C_PA20_CTS0     (AT91C_PIO_PA20) //  USART 0 Clear To Send
+#define AT91C_PA20_TIOB1    (AT91C_PIO_PA20) //  Timer Counter 1 Multipurpose Timer I/O Pin B
+#define AT91C_PIO_PA21       (1u << 21) // Pin Controlled by PA21
+#define AT91C_PA21_RTS0     (AT91C_PIO_PA21) //  Usart 0 Ready To Send
+#define AT91C_PA21_TIOA2    (AT91C_PIO_PA21) //  Timer Counter 2 Multipurpose Timer I/O Pin A
+#define AT91C_PIO_PA22       (1u << 22) // Pin Controlled by PA22
+#define AT91C_PA22_RXD2     (AT91C_PIO_PA22) //  USART 2 Receive Data
+#define AT91C_PA22_TIOB2    (AT91C_PIO_PA22) //  Timer Counter 2 Multipurpose Timer I/O Pin B
+#define AT91C_PIO_PA23       (1u << 23) // Pin Controlled by PA23
+#define AT91C_PA23_TXD2     (AT91C_PIO_PA23) //  USART 2 Transmit Data
+#define AT91C_PA23_IRQ3     (AT91C_PIO_PA23) //  Interrupt input 3
+#define AT91C_PIO_PA24       (1u << 24) // Pin Controlled by PA24
+#define AT91C_PA24_SCK2     (AT91C_PIO_PA24) //  USART2 Serial Clock
+#define AT91C_PA24_PCK1     (AT91C_PIO_PA24) //  PMC Programmable Clock Output 1
+#define AT91C_PIO_PA25       (1u << 25) // Pin Controlled by PA25
+#define AT91C_PA25_TWD      (AT91C_PIO_PA25) //  TWI Two-wire Serial Data
+#define AT91C_PA25_IRQ2     (AT91C_PIO_PA25) //  Interrupt input 2
+#define AT91C_PIO_PA26       (1u << 26) // Pin Controlled by PA26
+#define AT91C_PA26_TWCK     (AT91C_PIO_PA26) //  TWI Two-wire Serial Clock
+#define AT91C_PA26_IRQ1     (AT91C_PIO_PA26) //  Interrupt input 1
+#define AT91C_PIO_PA27       (1u << 27) // Pin Controlled by PA27
+#define AT91C_PA27_MCCK     (AT91C_PIO_PA27) //  Multimedia Card Clock
+#define AT91C_PA27_TCLK3    (AT91C_PIO_PA27) //  Timer Counter 3 External Clock Input
+#define AT91C_PIO_PA28       (1u << 28) // Pin Controlled by PA28
+#define AT91C_PA28_MCCDA    (AT91C_PIO_PA28) //  Multimedia Card A Command
+#define AT91C_PA28_TCLK4    (AT91C_PIO_PA28) //  Timer Counter 4 external Clock Input
+#define AT91C_PIO_PA29       (1u << 29) // Pin Controlled by PA29
+#define AT91C_PA29_MCDA0    (AT91C_PIO_PA29) //  Multimedia Card A Data 0
+#define AT91C_PA29_TCLK5    (AT91C_PIO_PA29) //  Timer Counter 5 external clock input
+#define AT91C_PIO_PA3        (1u <<  3) // Pin Controlled by PA3
+#define AT91C_PA3_NPCS0    (AT91C_PIO_PA3) //  SPI Peripheral Chip Select 0
+#define AT91C_PA3_IRQ5     (AT91C_PIO_PA3) //  AIC Interrupt Input 5
+#define AT91C_PIO_PA30       (1u << 30) // Pin Controlled by PA30
+#define AT91C_PA30_DRXD     (AT91C_PIO_PA30) //  DBGU Debug Receive Data
+#define AT91C_PA30_CTS2     (AT91C_PIO_PA30) //  Usart 2 Clear To Send
+#define AT91C_PIO_PA31       (1u << 31) // Pin Controlled by PA31
+#define AT91C_PA31_DTXD     (AT91C_PIO_PA31) //  DBGU Debug Transmit Data
+#define AT91C_PA31_RTS2     (AT91C_PIO_PA31) //  USART 2 Ready To Send
+#define AT91C_PIO_PA4        (1u <<  4) // Pin Controlled by PA4
+#define AT91C_PA4_NPCS1    (AT91C_PIO_PA4) //  SPI Peripheral Chip Select 1
+#define AT91C_PA4_PCK1     (AT91C_PIO_PA4) //  PMC Programmable Clock Output 1
+#define AT91C_PIO_PA5        (1u <<  5) // Pin Controlled by PA5
+#define AT91C_PA5_NPCS2    (AT91C_PIO_PA5) //  SPI Peripheral Chip Select 2
+#define AT91C_PA5_TXD3     (AT91C_PIO_PA5) //  USART 3 Transmit Data
+#define AT91C_PIO_PA6        (1u <<  6) // Pin Controlled by PA6
+#define AT91C_PA6_NPCS3    (AT91C_PIO_PA6) //  SPI Peripheral Chip Select 3
+#define AT91C_PA6_RXD3     (AT91C_PIO_PA6) //  USART 3 Receive Data
+#define AT91C_PIO_PA7        (1u <<  7) // Pin Controlled by PA7
+#define AT91C_PA7_ETXCK_EREFCK (AT91C_PIO_PA7) //  Ethernet MAC Transmit Clock/Reference Clock
+#define AT91C_PA7_PCK2     (AT91C_PIO_PA7) //  PMC Programmable Clock 2
+#define AT91C_PIO_PA8        (1u <<  8) // Pin Controlled by PA8
+#define AT91C_PA8_ETXEN    (AT91C_PIO_PA8) //  Ethernet MAC Transmit Enable
+#define AT91C_PA8_MCCDB    (AT91C_PIO_PA8) //  Multimedia Card B Command
+#define AT91C_PIO_PA9        (1u <<  9) // Pin Controlled by PA9
+#define AT91C_PA9_ETX0     (AT91C_PIO_PA9) //  Ethernet MAC Transmit Data 0
+#define AT91C_PA9_MCDB0    (AT91C_PIO_PA9) //  Multimedia Card B Data 0
+#define AT91C_PIO_PB0        (1u <<  0) // Pin Controlled by PB0
+#define AT91C_PB0_TF0      (AT91C_PIO_PB0) //  SSC Transmit Frame Sync 0
+#define AT91C_PB0_TIOB3    (AT91C_PIO_PB0) //  Timer Counter 3 Multipurpose Timer I/O Pin B
+#define AT91C_PIO_PB1        (1u <<  1) // Pin Controlled by PB1
+#define AT91C_PB1_TK0      (AT91C_PIO_PB1) //  SSC Transmit Clock 0
+#define AT91C_PB1_CTS3     (AT91C_PIO_PB1) //  USART 3 Clear To Send
+#define AT91C_PIO_PB10       (1u << 10) // Pin Controlled by PB10
+#define AT91C_PB10_RK1      (AT91C_PIO_PB10) //  SSC Receive Clock 1
+#define AT91C_PB10_TIOA5    (AT91C_PIO_PB10) //  Timer Counter 5 Multipurpose Timer I/O Pin A
+#define AT91C_PIO_PB11       (1u << 11) // Pin Controlled by PB11
+#define AT91C_PB11_RF1      (AT91C_PIO_PB11) //  SSC Receive Frame Sync 1
+#define AT91C_PB11_TIOB5    (AT91C_PIO_PB11) //  Timer Counter 5 Multipurpose Timer I/O Pin B
+#define AT91C_PIO_PB12       (1u << 12) // Pin Controlled by PB12
+#define AT91C_PB12_TF2      (AT91C_PIO_PB12) //  SSC Transmit Frame Sync 2
+#define AT91C_PB12_ETX2     (AT91C_PIO_PB12) //  Ethernet MAC Transmit Data 2
+#define AT91C_PIO_PB13       (1u << 13) // Pin Controlled by PB13
+#define AT91C_PB13_TK2      (AT91C_PIO_PB13) //  SSC Transmit Clock 2
+#define AT91C_PB13_ETX3     (AT91C_PIO_PB13) //  Ethernet MAC Transmit Data 3
+#define AT91C_PIO_PB14       (1u << 14) // Pin Controlled by PB14
+#define AT91C_PB14_TD2      (AT91C_PIO_PB14) //  SSC Transmit Data 2
+#define AT91C_PB14_ETXER    (AT91C_PIO_PB14) //  Ethernet MAC Transmikt Coding Error
+#define AT91C_PIO_PB15       (1u << 15) // Pin Controlled by PB15
+#define AT91C_PB15_RD2      (AT91C_PIO_PB15) //  SSC Receive Data 2
+#define AT91C_PB15_ERX2     (AT91C_PIO_PB15) //  Ethernet MAC Receive Data 2
+#define AT91C_PIO_PB16       (1u << 16) // Pin Controlled by PB16
+#define AT91C_PB16_RK2      (AT91C_PIO_PB16) //  SSC Receive Clock 2
+#define AT91C_PB16_ERX3     (AT91C_PIO_PB16) //  Ethernet MAC Receive Data 3
+#define AT91C_PIO_PB17       (1u << 17) // Pin Controlled by PB17
+#define AT91C_PB17_RF2      (AT91C_PIO_PB17) //  SSC Receive Frame Sync 2
+#define AT91C_PB17_ERXDV    (AT91C_PIO_PB17) //  Ethernet MAC Receive Data Valid
+#define AT91C_PIO_PB18       (1u << 18) // Pin Controlled by PB18
+#define AT91C_PB18_RI1      (AT91C_PIO_PB18) //  USART 1 Ring Indicator
+#define AT91C_PB18_ECOL     (AT91C_PIO_PB18) //  Ethernet MAC Collision Detected
+#define AT91C_PIO_PB19       (1u << 19) // Pin Controlled by PB19
+#define AT91C_PB19_DTR1     (AT91C_PIO_PB19) //  USART 1 Data Terminal ready
+#define AT91C_PB19_ERXCK    (AT91C_PIO_PB19) //  Ethernet MAC Receive Clock
+#define AT91C_PIO_PB2        (1u <<  2) // Pin Controlled by PB2
+#define AT91C_PB2_TD0      (AT91C_PIO_PB2) //  SSC Transmit data
+#define AT91C_PB2_SCK3     (AT91C_PIO_PB2) //  USART 3 Serial Clock
+#define AT91C_PIO_PB20       (1u << 20) // Pin Controlled by PB20
+#define AT91C_PB20_TXD1     (AT91C_PIO_PB20) //  USART 1 Transmit Data
+#define AT91C_PIO_PB21       (1u << 21) // Pin Controlled by PB21
+#define AT91C_PB21_RXD1     (AT91C_PIO_PB21) //  USART 1 Receive Data
+#define AT91C_PIO_PB22       (1u << 22) // Pin Controlled by PB22
+#define AT91C_PB22_SCK1     (AT91C_PIO_PB22) //  USART1 Serial Clock
+#define AT91C_PIO_PB23       (1u << 23) // Pin Controlled by PB23
+#define AT91C_PB23_DCD1     (AT91C_PIO_PB23) //  USART 1 Data Carrier Detect
+#define AT91C_PIO_PB24       (1u << 24) // Pin Controlled by PB24
+#define AT91C_PB24_CTS1     (AT91C_PIO_PB24) //  USART 1 Clear To Send
+#define AT91C_PIO_PB25       (1u << 25) // Pin Controlled by PB25
+#define AT91C_PB25_DSR1     (AT91C_PIO_PB25) //  USART 1 Data Set ready
+#define AT91C_PB25_EF100    (AT91C_PIO_PB25) //  Ethernet MAC Force 100 Mbits/sec
+#define AT91C_PIO_PB26       (1u << 26) // Pin Controlled by PB26
+#define AT91C_PB26_RTS1     (AT91C_PIO_PB26) //  Usart 0 Ready To Send
+#define AT91C_PIO_PB27       (1u << 27) // Pin Controlled by PB27
+#define AT91C_PB27_PCK0     (AT91C_PIO_PB27) //  PMC Programmable Clock Output 0
+#define AT91C_PIO_PB28       (1u << 28) // Pin Controlled by PB28
+#define AT91C_PB28_FIQ      (AT91C_PIO_PB28) //  AIC Fast Interrupt Input
+#define AT91C_PIO_PB29       (1u << 29) // Pin Controlled by PB29
+#define AT91C_PB29_IRQ0     (AT91C_PIO_PB29) //  Interrupt input 0
+#define AT91C_PIO_PB3        (1u <<  3) // Pin Controlled by PB3
+#define AT91C_PB3_RD0      (AT91C_PIO_PB3) //  SSC Receive Data
+#define AT91C_PB3_MCDA1    (AT91C_PIO_PB3) //  Multimedia Card A Data 1
+#define AT91C_PIO_PB4        (1u <<  4) // Pin Controlled by PB4
+#define AT91C_PB4_RK0      (AT91C_PIO_PB4) //  SSC Receive Clock
+#define AT91C_PB4_MCDA2    (AT91C_PIO_PB4) //  Multimedia Card A Data 2
+#define AT91C_PIO_PB5        (1u <<  5) // Pin Controlled by PB5
+#define AT91C_PB5_RF0      (AT91C_PIO_PB5) //  SSC Receive Frame Sync 0
+#define AT91C_PB5_MCDA3    (AT91C_PIO_PB5) //  Multimedia Card A Data 3
+#define AT91C_PIO_PB6        (1u <<  6) // Pin Controlled by PB6
+#define AT91C_PB6_TF1      (AT91C_PIO_PB6) //  SSC Transmit Frame Sync 1
+#define AT91C_PB6_TIOA3    (AT91C_PIO_PB6) //  Timer Counter 4 Multipurpose Timer I/O Pin A
+#define AT91C_PIO_PB7        (1u <<  7) // Pin Controlled by PB7
+#define AT91C_PB7_TK1      (AT91C_PIO_PB7) //  SSC Transmit Clock 1
+#define AT91C_PB7_TIOB3    (AT91C_PIO_PB7) //  Timer Counter 3 Multipurpose Timer I/O Pin B
+#define AT91C_PIO_PB8        (1u <<  8) // Pin Controlled by PB8
+#define AT91C_PB8_TD1      (AT91C_PIO_PB8) //  SSC Transmit Data 1
+#define AT91C_PB8_TIOA4    (AT91C_PIO_PB8) //  Timer Counter 4 Multipurpose Timer I/O Pin A
+#define AT91C_PIO_PB9        (1u <<  9) // Pin Controlled by PB9
+#define AT91C_PB9_RD1      (AT91C_PIO_PB9) //  SSC Receive Data 1
+#define AT91C_PB9_TIOB4    (AT91C_PIO_PB9) //  Timer Counter 4 Multipurpose Timer I/O Pin B
+#define AT91C_PIO_PC0        (1u <<  0) // Pin Controlled by PC0
+#define AT91C_PC0_BFCK     (AT91C_PIO_PC0) //  Burst Flash Clock
+#define AT91C_PIO_PC1        (1u <<  1) // Pin Controlled by PC1
+#define AT91C_PC1_BFRDY_SMOE (AT91C_PIO_PC1) //  Burst Flash Ready
+#define AT91C_PIO_PC10       (1u << 10) // Pin Controlled by PC10
+#define AT91C_PC10_NCS4_CFCS (AT91C_PIO_PC10) //  Compact Flash Chip Select
+#define AT91C_PIO_PC11       (1u << 11) // Pin Controlled by PC11
+#define AT91C_PC11_NCS5_CFCE1 (AT91C_PIO_PC11) //  Chip Select 5 / Compact Flash Chip Enable 1
+#define AT91C_PIO_PC12       (1u << 12) // Pin Controlled by PC12
+#define AT91C_PC12_NCS6_CFCE2 (AT91C_PIO_PC12) //  Chip Select 6 / Compact Flash Chip Enable 2
+#define AT91C_PIO_PC13       (1u << 13) // Pin Controlled by PC13
+#define AT91C_PC13_NCS7     (AT91C_PIO_PC13) //  Chip Select 7
+#define AT91C_PIO_PC14       (1u << 14) // Pin Controlled by PC14
+#define AT91C_PIO_PC15       (1u << 15) // Pin Controlled by PC15
+#define AT91C_PIO_PC16       (1u << 16) // Pin Controlled by PC16
+#define AT91C_PC16_D16      (AT91C_PIO_PC16) //  Data Bus [16]
+#define AT91C_PIO_PC17       (1u << 17) // Pin Controlled by PC17
+#define AT91C_PC17_D17      (AT91C_PIO_PC17) //  Data Bus [17]
+#define AT91C_PIO_PC18       (1u << 18) // Pin Controlled by PC18
+#define AT91C_PC18_D18      (AT91C_PIO_PC18) //  Data Bus [18]
+#define AT91C_PIO_PC19       (1u << 19) // Pin Controlled by PC19
+#define AT91C_PC19_D19      (AT91C_PIO_PC19) //  Data Bus [19]
+#define AT91C_PIO_PC2        (1u <<  2) // Pin Controlled by PC2
+#define AT91C_PC2_BFAVD    (AT91C_PIO_PC2)u //  Burst Flash Address Valid
+#define AT91C_PIO_PC20       (1u << 20) // Pin Controlled by PC20
+#define AT91C_PC20_D20      (AT91C_PIO_PC20) //  Data Bus [20]
+#define AT91C_PIO_PC21       (1u << 21) // Pin Controlled by PC21
+#define AT91C_PC21_D21      (AT91C_PIO_PC21) //  Data Bus [21]
+#define AT91C_PIO_PC22       (1u << 22) // Pin Controlled by PC22
+#define AT91C_PC22_D22      (AT91C_PIO_PC22) //  Data Bus [22]
+#define AT91C_PIO_PC23       (1u << 23) // Pin Controlled by PC23
+#define AT91C_PC23_D23      (AT91C_PIO_PC23) //  Data Bus [23]
+#define AT91C_PIO_PC24       (1u << 24) // Pin Controlled by PC24
+#define AT91C_PC24_D24      (AT91C_PIO_PC24) //  Data Bus [24]
+#define AT91C_PIO_PC25       (1u << 25) // Pin Controlled by PC25
+#define AT91C_PC25_D25      (AT91C_PIO_PC25) //  Data Bus [25]
+#define AT91C_PIO_PC26       (1u << 26) // Pin Controlled by PC26
+#define AT91C_PC26_D26      (AT91C_PIO_PC26) //  Data Bus [26]
+#define AT91C_PIO_PC27       (1u << 27) // Pin Controlled by PC27
+#define AT91C_PC27_D27      (AT91C_PIO_PC27) //  Data Bus [27]
+#define AT91C_PIO_PC28       (1u << 28) // Pin Controlled by PC28
+#define AT91C_PC28_D28      (AT91C_PIO_PC28) //  Data Bus [28]
+#define AT91C_PIO_PC29       (1u << 29) // Pin Controlled by PC29
+#define AT91C_PC29_D29      (AT91C_PIO_PC29) //  Data Bus [29]
+#define AT91C_PIO_PC3        (1u <<  3) // Pin Controlled by PC3
+#define AT91C_PC3_BFBAA_SMWE (AT91C_PIO_PC3) //  Burst Flash Address Advance / SmartMedia Write Enable
+#define AT91C_PIO_PC30       (1u << 30) // Pin Controlled by PC30
+#define AT91C_PC30_D30      (AT91C_PIO_PC30) //  Data Bus [30]
+#define AT91C_PIO_PC31       (1u << 31) // Pin Controlled by PC31
+#define AT91C_PC31_D31      (AT91C_PIO_PC31) //  Data Bus [31]
+#define AT91C_PIO_PC4        (1u <<  4) // Pin Controlled by PC4
+#define AT91C_PC4_BFOE     (AT91C_PIO_PC4) //  Burst Flash Output Enable
+#define AT91C_PIO_PC5        (1u <<  5) // Pin Controlled by PC5
+#define AT91C_PC5_BFWE     (AT91C_PIO_PC5) //  Burst Flash Write Enable
+#define AT91C_PIO_PC6        (1u <<  6) // Pin Controlled by PC6
+#define AT91C_PC6_NWAIT    (AT91C_PIO_PC6) //  NWAIT
+#define AT91C_PIO_PC7        (1u <<  7) // Pin Controlled by PC7
+#define AT91C_PC7_A23      (AT91C_PIO_PC7) //  Address Bus[23]
+#define AT91C_PIO_PC8        (1u <<  8) // Pin Controlled by PC8
+#define AT91C_PC8_A24      (AT91C_PIO_PC8) //  Address Bus[24]
+#define AT91C_PIO_PC9        (1u <<  9) // Pin Controlled by PC9
+#define AT91C_PC9_A25_CFRNW (AT91C_PIO_PC9) //  Address Bus[25] /  Compact Flash Read Not Write
+#define AT91C_PIO_PD0        (1u <<  0) // Pin Controlled by PD0
+#define AT91C_PD0_ETX0     (AT91C_PIO_PD0) //  Ethernet MAC Transmit Data 0
+#define AT91C_PIO_PD1        (1u <<  1) // Pin Controlled by PD1
+#define AT91C_PD1_ETX1     (AT91C_PIO_PD1) //  Ethernet MAC Transmit Data 1
+#define AT91C_PIO_PD10       (1u << 10) // Pin Controlled by PD10
+#define AT91C_PD10_PCK3     (AT91C_PIO_PD10) //  PMC Programmable Clock Output 3
+#define AT91C_PD10_TPS1     (AT91C_PIO_PD10) //  ETM ARM9 pipeline status 1
+#define AT91C_PIO_PD11       (1u << 11) // Pin Controlled by PD11
+#define AT91C_PD11_         (AT91C_PIO_PD11) //  
+#define AT91C_PD11_TPS2     (AT91C_PIO_PD11) //  ETM ARM9 pipeline status 2
+#define AT91C_PIO_PD12       (1u << 12) // Pin Controlled by PD12
+#define AT91C_PD12_         (AT91C_PIO_PD12) //  
+#define AT91C_PD12_TPK0     (AT91C_PIO_PD12) //  ETM Trace Packet 0
+#define AT91C_PIO_PD13       (1u << 13) // Pin Controlled by PD13
+#define AT91C_PD13_         (AT91C_PIO_PD13) //  
+#define AT91C_PD13_TPK1     (AT91C_PIO_PD13) //  ETM Trace Packet 1
+#define AT91C_PIO_PD14       (1u << 14) // Pin Controlled by PD14
+#define AT91C_PD14_         (AT91C_PIO_PD14) //  
+#define AT91C_PD14_TPK2     (AT91C_PIO_PD14) //  ETM Trace Packet 2
+#define AT91C_PIO_PD15       (1u << 15) // Pin Controlled by PD15
+#define AT91C_PD15_TD0      (AT91C_PIO_PD15) //  SSC Transmit data
+#define AT91C_PD15_TPK3     (AT91C_PIO_PD15) //  ETM Trace Packet 3
+#define AT91C_PIO_PD16       (1u << 16) // Pin Controlled by PD16
+#define AT91C_PD16_TD1      (AT91C_PIO_PD16) //  SSC Transmit Data 1
+#define AT91C_PD16_TPK4     (AT91C_PIO_PD16) //  ETM Trace Packet 4
+#define AT91C_PIO_PD17       (1u << 17) // Pin Controlled by PD17
+#define AT91C_PD17_TD2      (AT91C_PIO_PD17) //  SSC Transmit Data 2
+#define AT91C_PD17_TPK5     (AT91C_PIO_PD17) //  ETM Trace Packet 5
+#define AT91C_PIO_PD18       (1u << 18) // Pin Controlled by PD18
+#define AT91C_PD18_NPCS1    (AT91C_PIO_PD18) //  SPI Peripheral Chip Select 1
+#define AT91C_PD18_TPK6     (AT91C_PIO_PD18) //  ETM Trace Packet 6
+#define AT91C_PIO_PD19       (1u << 19) // Pin Controlled by PD19
+#define AT91C_PD19_NPCS2    (AT91C_PIO_PD19) //  SPI Peripheral Chip Select 2
+#define AT91C_PD19_TPK7     (AT91C_PIO_PD19) //  ETM Trace Packet 7
+#define AT91C_PIO_PD2        (1u <<  2) // Pin Controlled by PD2
+#define AT91C_PD2_ETX2     (AT91C_PIO_PD2) //  Ethernet MAC Transmit Data 2
+#define AT91C_PIO_PD20       (1u << 20) // Pin Controlled by PD20
+#define AT91C_PD20_NPCS3    (AT91C_PIO_PD20) //  SPI Peripheral Chip Select 3
+#define AT91C_PD20_TPK8     (AT91C_PIO_PD20) //  ETM Trace Packet 8
+#define AT91C_PIO_PD21       (1u << 21) // Pin Controlled by PD21
+#define AT91C_PD21_RTS0     (AT91C_PIO_PD21) //  Usart 0 Ready To Send
+#define AT91C_PD21_TPK9     (AT91C_PIO_PD21) //  ETM Trace Packet 9
+#define AT91C_PIO_PD22       (1u << 22) // Pin Controlled by PD22
+#define AT91C_PD22_RTS1     (AT91C_PIO_PD22) //  Usart 0 Ready To Send
+#define AT91C_PD22_TPK10    (AT91C_PIO_PD22) //  ETM Trace Packet 10
+#define AT91C_PIO_PD23       (1u << 23) // Pin Controlled by PD23
+#define AT91C_PD23_RTS2     (AT91C_PIO_PD23) //  USART 2 Ready To Send
+#define AT91C_PD23_TPK11    (AT91C_PIO_PD23) //  ETM Trace Packet 11
+#define AT91C_PIO_PD24       (1u << 24) // Pin Controlled by PD24
+#define AT91C_PD24_RTS3     (AT91C_PIO_PD24) //  USART 3 Ready To Send
+#define AT91C_PD24_TPK12    (AT91C_PIO_PD24) //  ETM Trace Packet 12
+#define AT91C_PIO_PD25       (1u << 25) // Pin Controlled by PD25
+#define AT91C_PD25_DTR1     (AT91C_PIO_PD25) //  USART 1 Data Terminal ready
+#define AT91C_PD25_TPK13    (AT91C_PIO_PD25) //  ETM Trace Packet 13
+#define AT91C_PIO_PD26       (1u << 26) // Pin Controlled by PD26
+#define AT91C_PD26_TPK14    (AT91C_PIO_PD26) //  ETM Trace Packet 14
+#define AT91C_PIO_PD27       (1u << 27) // Pin Controlled by PD27
+#define AT91C_PD27_TPK15    (AT91C_PIO_PD27) //  ETM Trace Packet 15
+#define AT91C_PIO_PD3        (1u <<  3) // Pin Controlled by PD3
+#define AT91C_PD3_ETX3     (AT91C_PIO_PD3) //  Ethernet MAC Transmit Data 3
+#define AT91C_PIO_PD4        (1u <<  4) // Pin Controlled by PD4
+#define AT91C_PD4_ETXEN    (AT91C_PIO_PD4) //  Ethernet MAC Transmit Enable
+#define AT91C_PIO_PD5        (1u <<  5) // Pin Controlled by PD5
+#define AT91C_PD5_ETXER    (AT91C_PIO_PD5) //  Ethernet MAC Transmikt Coding Error
+#define AT91C_PIO_PD6        (1u <<  6) // Pin Controlled by PD6
+#define AT91C_PD6_DTXD     (AT91C_PIO_PD6) //  DBGU Debug Transmit Data
+#define AT91C_PIO_PD7        (1u <<  7) // Pin Controlled by PD7
+#define AT91C_PD7_PCK0     (AT91C_PIO_PD7) //  PMC Programmable Clock Output 0
+#define AT91C_PD7_TSYNC    (AT91C_PIO_PD7) //  ETM Synchronization signal
+#define AT91C_PIO_PD8        (1u <<  8) // Pin Controlled by PD8
+#define AT91C_PD8_PCK1     (AT91C_PIO_PD8) //  PMC Programmable Clock Output 1
+#define AT91C_PD8_TCLK     (AT91C_PIO_PD8) //  ETM Trace Clock signal
+#define AT91C_PIO_PD9        (1u <<  9) // Pin Controlled by PD9
+#define AT91C_PD9_PCK2     (AT91C_PIO_PD9) //  PMC Programmable Clock 2
+#define AT91C_PD9_TPS0     (AT91C_PIO_PD9) //  ETM ARM9 pipeline status 0
 
 // *****************************************************************************
 //               PERIPHERAL ID DEFINITIONS FOR AT91RM9200
 // *****************************************************************************
-#define AT91C_ID_FIQ    ((unsigned int)  0) // Advanced Interrupt Controller (FIQ)
-#define AT91C_ID_SYS    ((unsigned int)  1) // System Peripheral
-#define AT91C_ID_PIOA   ((unsigned int)  2) // Parallel IO Controller A 
-#define AT91C_ID_PIOB   ((unsigned int)  3) // Parallel IO Controller B
-#define AT91C_ID_PIOC   ((unsigned int)  4) // Parallel IO Controller C
-#define AT91C_ID_PIOD   ((unsigned int)  5) // Parallel IO Controller D
-#define AT91C_ID_US0    ((unsigned int)  6) // USART 0
-#define AT91C_ID_US1    ((unsigned int)  7) // USART 1
-#define AT91C_ID_US2    ((unsigned int)  8) // USART 2
-#define AT91C_ID_US3    ((unsigned int)  9) // USART 3
-#define AT91C_ID_MCI    ((unsigned int) 10) // Multimedia Card Interface
-#define AT91C_ID_UDP    ((unsigned int) 11) // USB Device Port
-#define AT91C_ID_TWI    ((unsigned int) 12) // Two-Wire Interface
-#define AT91C_ID_SPI    ((unsigned int) 13) // Serial Peripheral Interface
-#define AT91C_ID_SSC0   ((unsigned int) 14) // Serial Synchronous Controller 0
-#define AT91C_ID_SSC1   ((unsigned int) 15) // Serial Synchronous Controller 1
-#define AT91C_ID_SSC2   ((unsigned int) 16) // Serial Synchronous Controller 2
-#define AT91C_ID_TC0    ((unsigned int) 17) // Timer Counter 0
-#define AT91C_ID_TC1    ((unsigned int) 18) // Timer Counter 1
-#define AT91C_ID_TC2    ((unsigned int) 19) // Timer Counter 2
-#define AT91C_ID_TC3    ((unsigned int) 20) // Timer Counter 3
-#define AT91C_ID_TC4    ((unsigned int) 21) // Timer Counter 4
-#define AT91C_ID_TC5    ((unsigned int) 22) // Timer Counter 5
-#define AT91C_ID_UHP    ((unsigned int) 23) // USB Host port
-#define AT91C_ID_EMAC   ((unsigned int) 24) // Ethernet MAC
-#define AT91C_ID_IRQ0   ((unsigned int) 25) // Advanced Interrupt Controller (IRQ0)
-#define AT91C_ID_IRQ1   ((unsigned int) 26) // Advanced Interrupt Controller (IRQ1)
-#define AT91C_ID_IRQ2   ((unsigned int) 27) // Advanced Interrupt Controller (IRQ2)
-#define AT91C_ID_IRQ3   ((unsigned int) 28) // Advanced Interrupt Controller (IRQ3)
-#define AT91C_ID_IRQ4   ((unsigned int) 29) // Advanced Interrupt Controller (IRQ4)
-#define AT91C_ID_IRQ5   ((unsigned int) 30) // Advanced Interrupt Controller (IRQ5)
-#define AT91C_ID_IRQ6   ((unsigned int) 31) // Advanced Interrupt Controller (IRQ6)
+#define AT91C_ID_FIQ    0u // Advanced Interrupt Controller (FIQ)
+#define AT91C_ID_SYS    1u // System Peripheral
+#define AT91C_ID_PIOA   2u // Parallel IO Controller A 
+#define AT91C_ID_PIOB   3u // Parallel IO Controller B
+#define AT91C_ID_PIOC   4u // Parallel IO Controller C
+#define AT91C_ID_PIOD   5u // Parallel IO Controller D
+#define AT91C_ID_US0    6u // USART 0
+#define AT91C_ID_US1    7u // USART 1
+#define AT91C_ID_US2    8u // USART 2
+#define AT91C_ID_US3    9u // USART 3
+#define AT91C_ID_MCI    10u // Multimedia Card Interface
+#define AT91C_ID_UDP    11u // USB Device Port
+#define AT91C_ID_TWI    12u // Two-Wire Interface
+#define AT91C_ID_SPI    13u // Serial Peripheral Interface
+#define AT91C_ID_SSC0   14u // Serial Synchronous Controller 0
+#define AT91C_ID_SSC1   15u // Serial Synchronous Controller 1
+#define AT91C_ID_SSC2   16u // Serial Synchronous Controller 2
+#define AT91C_ID_TC0    17u // Timer Counter 0
+#define AT91C_ID_TC1    18u // Timer Counter 1
+#define AT91C_ID_TC2    19u // Timer Counter 2
+#define AT91C_ID_TC3    20u // Timer Counter 3
+#define AT91C_ID_TC4    21u // Timer Counter 4
+#define AT91C_ID_TC5    22u // Timer Counter 5
+#define AT91C_ID_UHP    23u // USB Host port
+#define AT91C_ID_EMAC   24u // Ethernet MAC
+#define AT91C_ID_IRQ0   25u // Advanced Interrupt Controller (IRQ0)
+#define AT91C_ID_IRQ1   26u // Advanced Interrupt Controller (IRQ1)
+#define AT91C_ID_IRQ2   27u // Advanced Interrupt Controller (IRQ2)
+#define AT91C_ID_IRQ3   28u // Advanced Interrupt Controller (IRQ3)
+#define AT91C_ID_IRQ4   29u // Advanced Interrupt Controller (IRQ4)
+#define AT91C_ID_IRQ5   30u // Advanced Interrupt Controller (IRQ5)
+#define AT91C_ID_IRQ6   31u // Advanced Interrupt Controller (IRQ6)
 
 // *****************************************************************************
 //               BASE ADDRESS DEFINITIONS FOR AT91RM9200
@@ -2739,9 +2739,9 @@ typedef struct _AT91S_BFC {
 // *****************************************************************************
 //               MEMORY MAPPING DEFINITIONS FOR AT91RM9200
 // *****************************************************************************
-#define AT91C_ISRAM	 ((char *) 	0x00200000) // Internal SRAM base address
-#define AT91C_ISRAM_SIZE	 ((unsigned int) 0x00004000) // Internal SRAM size in byte (16 Kbyte)
-#define AT91C_IROM 	 ((char *) 	0x00100000) // Internal ROM base address
-#define AT91C_IROM_SIZE	 ((unsigned int) 0x00020000) // Internal ROM size in byte (128 Kbyte)
+#define AT91C_ISRAM	 ((char *) 0x00200000) // Internal SRAM base address
+#define AT91C_ISRAM_SIZE	 0x00004000u // Internal SRAM size in byte (16 Kbyte)
+#define AT91C_IROM 	 ((char *) 0x00100000) // Internal ROM base address
+#define AT91C_IROM_SIZE	 0x00020000u // Internal ROM size in byte (128 Kbyte)
 
 #endif
