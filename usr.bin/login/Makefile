@@ -6,7 +6,7 @@
 PROG=	login
 SRCS=	login.c login_audit.c login_fbtab.c
 CFLAGS+=-DLOGALL
-DPADD=	${LIBUTIL} ${LIBPAM}
+DPADD=	${LIBUTIL} ${LIBPAM} ${LIBBSM}
 LDADD=	-lutil ${MINUSLPAM} -lbsm
 
 .if ${MK_SETUID_LOGIN} != "no"

@@ -20,6 +20,6 @@ CFLAGS+= -DENABLE_ALTQ
 YFLAGS=
 
 LDADD+=	-lm -lmd
-DPADD+=	${LIBM}
+DPADD+=	${LIBM} ${LIBMD}
 
 .include <bsd.prog.mk>
