@@ -6,6 +6,7 @@ NO_MAN=
 LDFLAGS=-e 0 -T linker.cfg
 CFLAGS=-O2 -mcpu=arm9 -ffreestanding -I${.CURDIR}/../inc
 CFLAGS+=-DBOOT0_KB9202
+#CFLAGS+=-DBOOT0_TSC
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 CLEANFILES=${OBJS} ${PROG} ${PROG}.out
 
