@@ -4090,7 +4090,7 @@ bce_rx_intr(struct bce_softc *sc)
 		if (ifp->if_capenable & IFCAP_POLLING) {
 			if (sc->bce_rxcycles <= 0)
 				break;
-			sc->rxcycles--;
+			sc->bce_rxcycles--;
 		}
 #endif
 
@@ -4973,6 +4973,10 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			error = ether_ioctl(ifp, command, data);
 			break;
 	}
+
+#ifdef DEVICE_POLLING
+bce_ioctl_exit:
+#endif
 
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
 
