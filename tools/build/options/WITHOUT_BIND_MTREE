@@ -6,5 +6,3 @@ to create the chroot directory structure under
 and avoid creating an
 .Pa /etc/namedb
 symlink to the chroot directory.
-This option implies
-.Va WITHOUT_BIND_ETC .
