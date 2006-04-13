@@ -128,7 +128,7 @@ get_if_var()
 
 	_if=$1
 	_punct=". - / +"
-	for _punct_c in $punct; do
+	for _punct_c in $_punct; do
 		_if=`ltr ${_if} ${_punct_c} '_'`
 	done
 	_var=$2
