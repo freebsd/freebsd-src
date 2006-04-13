@@ -2654,6 +2654,8 @@ OLD_FILES+=usr/games/worm
 OLD_FILES+=usr/games/worms
 OLD_FILES+=usr/games/wump
 
+# 20060413: shared library moved to /usr/lib
+OLD_LIBS+=lib/libgpib.so.1
 # 20060127: revert libdisk to static-only
 OLD_LIBS+=usr/lib/libdisk.so.3
 # 20050722: bump for 6.0-RELEASE
