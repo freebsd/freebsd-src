@@ -1,10 +1,10 @@
 # $FreeBSD$
 
-LIB =		gpib
-SHLIB_MAJOR =	1
-SRCS =		ibfoo.c
-INCS =		gpib.h
-INCSDIR =	${INCLUDEDIR}/gpib
+LIB=		gpib
+SHLIB_MAJOR=	1
+INCS=		gpib.h
+INCSDIR=	${INCLUDEDIR}/gpib
+SRCS=		ibfoo.c
 WARNS?=		6
 
 .include <bsd.lib.mk>
