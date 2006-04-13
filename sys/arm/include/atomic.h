@@ -61,7 +61,7 @@
 			"orr  %1, %0, %2;"		\
 			"msr  cpsr_all, %1;"		\
 			: "=r" (cpsr_save), "=r" (tmp)	\
-			: "I" (I32_bit)		\
+			: "I" (I32_bit | F32_bit)		\
 		        : "cc" );		\
 		(expr);				\
 		 __asm __volatile(		\
