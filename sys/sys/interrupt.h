@@ -36,6 +36,7 @@
 #define	tty_intr_event	tty_ithd
 #define	clk_intr_event	clk_ithd
 #define	ithd		intr_event
+#define	ithread_destroy		intr_event_destroy
 #define	ithread_remove_handler	intr_event_remove_handler
 
 struct intr_event;
