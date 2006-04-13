@@ -336,7 +336,7 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 						    curthread);
 
 						/* Check for no more waiters: */
-						if (TAILQ_FIRST(&(*cond)->c_queue) == NULL)
+						if (TAILQ_EMPTY(&(*cond)->c_queue))
 							(*cond)->c_mutex = NULL;
 					}
 				}
@@ -536,7 +536,7 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 						    curthread);
 
 						/* Check for no more waiters: */
-						if (TAILQ_FIRST(&(*cond)->c_queue) == NULL)
+						if (TAILQ_EMPTY(&(*cond)->c_queue))
 							(*cond)->c_mutex = NULL;
 					}
 
@@ -631,7 +631,7 @@ _pthread_cond_signal(pthread_cond_t * cond)
 					kse_wakeup(kmbx);
 			}
 			/* Check for no more waiters: */
-			if (TAILQ_FIRST(&(*cond)->c_queue) == NULL)
+			if (TAILQ_EMPTY(&(*cond)->c_queue))
 				(*cond)->c_mutex = NULL;
 			break;
 
@@ -758,7 +758,7 @@ cond_wait_backout(void *arg)
 			cond_queue_remove(cond, curthread);
 
 			/* Check for no more waiters: */
-			if (TAILQ_FIRST(&cond->c_queue) == NULL)
+			if (TAILQ_EMPTY(&cond->c_queue))
 				cond->c_mutex = NULL;
 			break;
 
