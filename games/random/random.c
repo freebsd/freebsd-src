@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -84,6 +85,9 @@ main(int argc, char *argv[])
 	random_type = RANDOM_TYPE_UNSET;
 	random_exit = randomize_lines = random_type = unbuffer_output = 0;
 	unique_output = 1;
+
+	(void)setlocale(LC_CTYPE, "");
+
 	while ((ch = getopt(argc, argv, "ef:hlruUw")) != -1)
 		switch (ch) {
 		case 'e':
