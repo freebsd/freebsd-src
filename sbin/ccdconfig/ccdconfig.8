@@ -130,7 +130,10 @@ The component devices need to name partitions of type
 as shown by
 .Xr disklabel 8 ) .
 .Pp
-If you want to use the Linux md(4) compatibility mode, please be sure
+If you want to use the
+.Tn Linux
+.Xr md 4
+compatibility mode, please be sure
 to read the notes in
 .Xr ccd 4 .
 .Sh FILES
@@ -165,13 +168,19 @@ and assigned to ccd0.
 # ccdconfig ccd0 128 CCDF_MIRROR /dev/da8s2 /dev/da9s3
 .Ed
 .Pp
-The following are matching commands in Linux and FreeBSD to create a
-raid-0 in Linux and read it from FreeBSD.
+The following are matching commands in
+.Tn Linux
+and
+.Fx
+to create a RAID-0 in
+.Tn Linux
+and read it from
+.Fx .
 .Bd -literal
-# Create a raid-0 on Linux:
+# Create a RAID-0 on Linux:
 mdadm --create --chunk=32 --level=0 --raid-devices=2 /dev/md0 \\
    /dev/hda1 /dev/hdb1
-# Make the raid-0 just created available on FreeBSD:
+# Make the RAID-0 just created available on FreeBSD:
 ccdconfig -c /dev/ccd0 32 linux /dev/ad0s1 /dev/ad0s2
 .Ed
 .Pp
