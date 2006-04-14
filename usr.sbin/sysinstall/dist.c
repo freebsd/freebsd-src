@@ -884,7 +884,7 @@ distExtractAll(dialogMenuItem *self)
     /* Only do base fixup if base dist was successfully extracted */
     if ((old_dists & DIST_BASE) && !(Dists & DIST_BASE))
 	status |= installFixupBase(self);
-    /* Only do base fixup if base dist was successfully extracted */
+    /* Only do kernel fixup if kernel dist was successfully extracted */
     if ((old_dists & DIST_KERNEL) && !(Dists & DIST_KERNEL))
 	status |= installFixupKernel(self, old_kernel);
 
