@@ -53,8 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/amr/amrvar.h>
 
 /* There are multiple ioctl number ranges that need to be handled */
-#define AMR_LINUX_IOCTL_MIN  0x00000
-#define AMR_LINUX_IOCTL_MAX  0x50000
+#define AMR_LINUX_IOCTL_MIN  0x6d00
+#define AMR_LINUX_IOCTL_MAX  0x6d01
 
 static linux_ioctl_function_t amr_linux_ioctl;
 static struct linux_ioctl_handler amr_linux_handler = {amr_linux_ioctl,
