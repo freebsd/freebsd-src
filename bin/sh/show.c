@@ -144,6 +144,8 @@ shcmd(union node *cmd, FILE *fp)
 			case NFROM:	s = "<";  dftfd = 0; break;
 			case NFROMTO:	s = "<>"; dftfd = 0; break;
 			case NFROMFD:	s = "<&"; dftfd = 0; break;
+			case NHERE:	s = "<<"; dftfd = 0; break;
+			case NXHERE:	s = "<<"; dftfd = 0; break;
 			default:  	s = "*error*"; dftfd = 0; break;
 		}
 		if (np->nfile.fd != dftfd)
@@ -154,6 +156,10 @@ shcmd(union node *cmd, FILE *fp)
 				fprintf(fp, "%d", np->ndup.dupfd);
 			else
 				fprintf(fp, "-");
+		} else if (np->nfile.type == NHERE) {
+				fprintf(fp, "HERE");
+		} else if (np->nfile.type == NXHERE) {
+				fprintf(fp, "XHERE");
 		} else {
 			sharg(np->nfile.fname, fp);
 		}
