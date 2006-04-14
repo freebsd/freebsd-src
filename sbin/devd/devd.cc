@@ -311,6 +311,7 @@ config::parse_one_file(const char *fn)
 	yyin = fopen(fn, "r");
 	if (yyin == NULL)
 		err(1, "Cannot open config file %s", fn);
+	lineno = 1;
 	if (yyparse() != 0)
 		errx(1, "Cannot parse %s at line %d", fn, lineno);
 	fclose(yyin);
