@@ -93,7 +93,7 @@ rand_node_append(struct rand_node *n)
 int
 randomize_fd(int fd, int type, int unique, double denom)
 {
-	u_char *buf, *p;
+	u_char *buf;
 	u_int numnode, j, selected, slen;
 	struct rand_node *n, *prev;
 	int bufleft, eof, fndstr, ret;
@@ -148,30 +148,29 @@ randomize_fd(int fd, int type, int unique, double denom)
 						fndstr = 0;
 					}
 				} else {
-					p = (u_char *)realloc(buf, buflen * 2);
-					if (p == NULL)
+					buflen *= 2;
+					buf = (u_char *)realloc(buf, buflen);
+					if (buf == NULL)
 						err(1, "realloc");
 
-					buf = p;
 					if (!eof) {
-						len = read(fd, &buf[i], buflen);
+						len = read(fd, &buf[i], buflen - i);
 						if (len == -1)
 							err(1, "read");
 						else if (len == 0) {
 							eof++;
 							break;
 						} else if (len < (ssize_t)(buflen - i))
-							buflen = (size_t)len;
+							buflen = i + (size_t)len;
 
 						bufleft = (int)len;
 					}
 
-					buflen *= 2;
 				}
 			}
 
 			if ((type == RANDOM_TYPE_LINES && buf[i] == '\n') ||
-			    (type == RANDOM_TYPE_WORDS && isspace((int)buf[i])) ||
+			    (type == RANDOM_TYPE_WORDS && isspace(buf[i])) ||
 			    (eof && i == buflen - 1)) {
 			make_token:
 				n = rand_node_allocate();
