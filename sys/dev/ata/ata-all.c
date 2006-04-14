@@ -277,8 +277,8 @@ ata_suspend(device_t dev)
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
-    /* wait for the channel to be IDLE before entering suspend mode */
-    while (1) {
+    /* wait for the channel to be IDLE or detached before suspending */
+    while (ch->r_irq) {
 	mtx_lock(&ch->state_mtx);
 	if (ch->state == ATA_IDLE) {
 	    ch->state = ATA_ACTIVE;
