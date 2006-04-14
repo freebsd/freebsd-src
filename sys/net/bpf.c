@@ -1440,7 +1440,7 @@ bpfdetach(ifp)
 	}
 
 	/* Interface wasn't attached */
-	if (bp->bif_ifp == NULL) {
+	if ((bp == NULL) || (bp->bif_ifp == NULL)) {
 		splx(s);
 		printf("bpfdetach: %s%d was not attached\n", ifp->if_name,
 		    ifp->if_unit);
