@@ -173,33 +173,80 @@ You cannot replace a disk in a mirrored
 .Nm
 partition without first backing up the partition, then replacing the disk,
 then restoring the partition.
-.Ss Linux compatibility
-The Linux compatibility mode does not try to read the label that Linux'
-md(4) driver leaves on the raw devices.  You will have to give the order
-of devices and the interleave factor on your own.  When in Linux
-compatibility mode, ccd will convert the interleave factor from Linux
-terminology.  That means you give the same interleave factor that you
-gave as chunk size in Linux.
+.Ss Linux Compatibility
+The
+.Tn Linux
+compatibility mode does not try to read the label that
+.Tn Linux Ns '
+.Xr md 4
+driver leaves on the raw devices.
+You will have to give the order
+of devices and the interleave factor on your own.
+When in
+.Tn Linux
+compatibility mode,
+.Nm
+will convert the interleave factor from
+.Tn Linux
+terminology.
+That means you give the same interleave factor that you
+gave as chunk size in
+.Tn Linux .
 .Pp
-If you have a Linux md(4) device in "legacy" mode, do not use the
-CCD_LINUX flag in
+If you have a
+.Tn Linux
+.Xr md 4
+device in
+.Dq legacy
+mode, do not use the
+.Dv CCDF_LINUX
+flag in
 .Xr ccdconfig 8 .
-Use the CCD_NO_OFFSET flag instead.  In that case you have to convert
-the interleave factor on your own, usually it is Linux' chunk size
-multiplied by two.
+Use the
+.Dv CCDF_NO_OFFSET
+flag instead.
+In that case you have to convert
+the interleave factor on your own, usually it is
+.Tn Linux Ns '
+chunk size multiplied by two.
 .Pp
-Using a Linux raid this way is potentially dangerous and can destroy
-the data in there.  Since FreeBSD does not read the label used by
-Linux, changes in Linux might invalidate the compatibility layer.
+Using a
+.Tn Linux
+RAID this way is potentially dangerous and can destroy
+the data in there.
+Since
+.Fx
+does not read the label used by
+.Tn Linux ,
+changes in
+.Tn Linux
+might invalidate the compatibility layer.
 .Pp
 However, using this is reasonably safe if you test the compatibility
-before mounting a raid read-write for the first time.  Just using
-ccdconfig without mounting does not write anything to the Linux raid.
-Then you do a fsck.ex2fs on the ccd device using the -n flag.  You can
-mount the filesystem readonly to check files in there.  If all this
-works, it is unlikely that there is a problem with ccd.  Keep in mind
-that even when the Linux compatibility mode in ccd is working
-correctly, bugs in FreeBSD's ex2fs implementation would still destroy
+before mounting a RAID read-write for the first time.
+Just using
+.Xr ccdconfig 8
+without mounting does not write anything to the
+.Tn Linux
+RAID.
+Then you do a
+.Nm fsck.ext2fs Pq Pa ports/sysutils/e2fsprogs
+on the
+.Nm
+device using the
+.Fl n
+flag.
+You can mount the file system read-only to check files in there.
+If all this works, it is unlikely that there is a problem with
+.Nm .
+Keep in mind that even when the
+.Tn Linux
+compatibility mode in
+.Nm
+is working correctly, bugs in
+.Fx Ap s
+.Nm ex2fs
+implementation would still destroy
 your data.
 .Sh WARNINGS
 If just one (or more) of the disks in a
