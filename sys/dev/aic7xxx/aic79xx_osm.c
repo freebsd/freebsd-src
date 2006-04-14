@@ -281,7 +281,8 @@ ahd_done(struct ahd_softc *ahd, struct scb *scb)
 			LIST_FOREACH(list_scb,
 				     &ahd->pending_scbs, pending_links) {
 
-				aic_scb_timer_reset(scb, aic_get_timeout(scb));
+				aic_scb_timer_reset(list_scb,
+						    aic_get_timeout(scb));
 			}
 
 			ahd_print_path(ahd, scb);
