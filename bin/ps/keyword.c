@@ -302,22 +302,31 @@ findvar(char *p, int user, char **header)
 	hp = strchr(p, '=');
 	if (hp)
 		*hp++ = '\0';
-	else
-		hp = p;
 
 	key.name = p;
 	v = bsearch(&key, var, sizeof(var)/sizeof(VAR) - 1, sizeof(VAR), vcmp);
 
 	if (v && v->alias) {
 		/*
-		 * XXX - This processing will not be correct for any alias
-		 * which expands into a list of format keywords.  Presently
-		 * there are no aliases which do that.
+		 * If the user specified an alternate-header for this
+		 * (aliased) format-name, then we need to copy that
+		 * alternate-header when making the recursive call to
+		 * process the alias.
 		 */
-		rflen = strlen(v->alias) + strlen(hp) + 2;
-		realfmt = malloc(rflen);
-		snprintf(realfmt, rflen, "%s=%s", v->alias, hp);
-		parsefmt(realfmt, user);
+		if (hp == NULL)
+			parsefmt(v->alias, user);
+		else {
+			/*
+			 * XXX - This processing will not be correct for
+			 * any alias which expands into a list of format
+			 * keywords.  Presently there are no aliases
+			 * which do that.
+			 */
+			rflen = strlen(v->alias) + strlen(hp) + 2;
+			realfmt = malloc(rflen);
+			snprintf(realfmt, rflen, "%s=%s", v->alias, hp);
+			parsefmt(realfmt, user);
+		}
 		return ((VAR *)NULL);
 	}
 	if (!v) {
