@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <netdb.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
@@ -50,61 +51,84 @@ extern int _dns_getnetbyaddr(void *, void *, va_list);
 extern int _nis_getnetbyaddr(void *, void *, va_list);
 
 /* Network lookup order if nsswitch.conf is broken or nonexistant */
-static const ns_src default_src[] = { 
+static const ns_src default_src[] = {
 	{ NSSRC_FILES, NS_SUCCESS },
 	{ NSSRC_DNS, NS_SUCCESS },
 	{ 0 }
 };
 
-static struct netdata netdata;
-static thread_key_t netdata_key;
-static once_t netdata_init_once = ONCE_INITIALIZER;
-static int netdata_thr_keycreated = 0;
+NETDB_THREAD_ALLOC(netent_data)
+NETDB_THREAD_ALLOC(netdata)
+
+static void
+netent_data_free(void *ptr)
+{
+	struct netent_data *ned = ptr;
+
+	if (ned == NULL)
+		return;
+	ned->stayopen = 0;
+	_endnethtent(ned);
+	free(ned);
+}
 
 static void
 netdata_free(void *ptr)
 {
-	struct netdata *nd = ptr;
-
-	if (nd == NULL)
-		return;
-	nd->data.stayopen = 0;
-	_endnethtent(&nd->data);
-	free(nd);
-}
-
-static void
-netdata_keycreate(void)
-{
-	netdata_thr_keycreated =
-	    (thr_keycreate(&netdata_key, netdata_free) == 0);
-}
-
-struct netdata *
-__netdata_init(void)
-{
-	struct netdata *nd;
-
-	if (thr_main() != 0)
-		return &netdata;
-	if (thr_once(&netdata_init_once, netdata_keycreate) != 0 ||
-	    !netdata_thr_keycreated)
-		return NULL;
-	if ((nd = thr_getspecific(netdata_key)) != NULL)
-		return nd;
-	if ((nd = calloc(1, sizeof(*nd))) == NULL)
-		return NULL;
-	if (thr_setspecific(netdata_key, nd) == 0)
-		return nd;
-	free(nd);
-	return NULL;
+	free(ptr);
 }
 
 int
-getnetbyname_r(const char *name, struct netent *ne, struct netent_data *ned)
+__copy_netent(struct netent *ne, struct netent *nptr, char *buf, size_t buflen)
 {
-	int rval;
+	char *cp;
+	int i, n;
+	int numptr, len;
 
+	/* Find out the amount of space required to store the answer. */
+	numptr = 1; /* NULL ptr */
+	len = (char *)ALIGN(buf) - buf;
+	for (i = 0; ne->n_aliases[i]; i++, numptr++) {
+		len += strlen(ne->n_aliases[i]) + 1;
+	}
+	len += strlen(ne->n_name) + 1;
+	len += numptr * sizeof(char*);
+
+	if (len > (int)buflen) {
+		errno = ERANGE;
+		return (-1);
+	}
+
+	/* copy net value and type */
+	nptr->n_addrtype = ne->n_addrtype;
+	nptr->n_net = ne->n_net;
+
+	cp = (char *)ALIGN(buf) + numptr * sizeof(char *);
+
+	/* copy official name */
+	n = strlen(ne->n_name) + 1;
+	strcpy(cp, ne->n_name);
+	nptr->n_name = cp;
+	cp += n;
+
+	/* copy aliases */
+	nptr->n_aliases = (char **)ALIGN(buf);
+	for (i = 0 ; ne->n_aliases[i]; i++) {
+		n = strlen(ne->n_aliases[i]) + 1;
+		strcpy(cp, ne->n_aliases[i]);
+		nptr->n_aliases[i] = cp;
+		cp += n;
+	}
+	nptr->n_aliases[i] = NULL;
+
+	return (0);
+}
+
+int
+getnetbyname_r(const char *name, struct netent *ne, char *buffer,
+    size_t buflen, struct netent **result, int *h_errorp)
+{
+	int rval, ret_errno;
 
 	static const ns_dtab dtab[] = {
 		NS_FILES_CB(_ht_getnetbyname, NULL)
@@ -113,17 +137,18 @@ getnetbyname_r(const char *name, struct netent *ne, struct netent_data *ned)
 		{ 0 }
 	};
 
-	rval = _nsdispatch(NULL, dtab, NSDB_NETWORKS, "getnetbyname",
-	    default_src, name, ne, ned);
+	rval = _nsdispatch((void *)result, dtab, NSDB_NETWORKS,
+	    "getnetbyname_r", default_src, name, ne, buffer, buflen,
+	    &ret_errno, h_errorp);
 
-	return (rval == NS_SUCCESS) ? 0 : -1;
+	return ((rval == NS_SUCCESS) ? 0 : -1);
 }
 
 int
-getnetbyaddr_r(uint32_t addr, int af, struct netent *ne,
-    struct netent_data *ned)
+getnetbyaddr_r(uint32_t addr, int af, struct netent *ne, char *buffer,
+    size_t buflen, struct netent **result, int *h_errorp)
 {
-	int rval;
+	int rval, ret_errno;
 
 	static const ns_dtab dtab[] = {
 		NS_FILES_CB(_ht_getnetbyaddr, NULL)
@@ -132,66 +157,61 @@ getnetbyaddr_r(uint32_t addr, int af, struct netent *ne,
 		{ 0 }
 	};
 
-	rval = _nsdispatch(NULL, dtab, NSDB_NETWORKS, "getnetbyaddr",
-	    default_src, addr, af, ne, ned);
+	rval = _nsdispatch((void *)result, dtab, NSDB_NETWORKS,
+	    "getnetbyaddr_r", default_src, addr, af, ne, buffer, buflen,
+	    &ret_errno, h_errorp);
 
-	return (rval == NS_SUCCESS) ? 0 : -1;
-}
-
-void
-setnetent_r(int stayopen, struct netent_data *ned)
-{
-	_setnethtent(stayopen, ned);
-	_setnetdnsent(stayopen);
-}
-
-void
-endnetent_r(struct netent_data *ned)
-{
-	_endnethtent(ned);
-	_endnetdnsent();
+	return ((rval == NS_SUCCESS) ? 0 : -1);
 }
 
 struct netent *
 getnetbyname(const char *name)
 {
 	struct netdata *nd;
+	struct netent *rval;
+	int ret_h_errno;
 
 	if ((nd = __netdata_init()) == NULL)
-		return NULL;
-	if (getnetbyname_r(name, &nd->net, &nd->data) != 0)
-		return NULL;
-	return &nd->net;
+		return (NULL);
+	if (getnetbyname_r(name, &nd->net, nd->data, sizeof(nd->data), &rval,
+	    &ret_h_errno) != 0)
+		return (NULL);
+	return (rval);
 }
 
 struct netent *
 getnetbyaddr(uint32_t addr, int af)
 {
 	struct netdata *nd;
+	struct netent *rval;
+	int ret_h_errno;
 
 	if ((nd = __netdata_init()) == NULL)
-		return NULL;
-	if (getnetbyaddr_r(addr, af, &nd->net, &nd->data) != 0)
-		return NULL;
-	return &nd->net;
+		return (NULL);
+	if (getnetbyaddr_r(addr, af, &nd->net, nd->data, sizeof(nd->data),
+	    &rval, &ret_h_errno) != 0)
+		return (NULL);
+	return (rval);
 }
 
 void
 setnetent(int stayopen)
 {
-	struct netdata *nd;
+	struct netent_data *ned;
 
-	if ((nd = __netdata_init()) == NULL)
+	if ((ned = __netent_data_init()) == NULL)
 		return;
-	setnetent_r(stayopen, &nd->data);
+	_setnethtent(stayopen, ned);
+	_setnetdnsent(stayopen);
 }
 
 void
 endnetent(void)
 {
-	struct netdata *nd;
+	struct netent_data *ned;
 
-	if ((nd = __netdata_init()) == NULL)
+	if ((ned = __netent_data_init()) == NULL)
 		return;
-	endnetent_r(&nd->data);
+	_endnethtent(ned);
+	_endnetdnsent();
 }
