@@ -1,7 +1,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.296
+	Original Revision: 1.299
 -->
 
 <!--
@@ -116,6 +116,8 @@
 
     &hwlist.isp;
 
+    &hwlist.mfi;
+
     &hwlist.mlx;
 
       <note>
@@ -196,6 +198,8 @@
     &hwlist.aue;
 
     &hwlist.axe;
+
+    &hwlist.bce;
 
     <para arch="i386,amd64">基于 Broadcom BCM4401 的高速以太网适配器
       (&man.bfe.4; 驱动程序)</para>
@@ -472,6 +476,8 @@
     <para arch="i386,alpha,amd64"><quote>PC 标准</quote> 基于 8250、 16450， 以及基于 16550 的串口 (&man.sio.4; 驱动程序)</para>
 
     &hwlist.uart;
+
+    &hwlist.scc;
 
     <para arch="i386,alpha,amd64">使用共享 IRQ 的 AST 4 口串口卡</para>
 

@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.910
+     Original revision: 1.911
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -355,6 +355,10 @@
 	<title>网络接口支持</title>
 
 	<para>&man.ath.4; 驱动更新到了 0.9.16.16 版。</para>
+
+	<para arch="i386,amd64">新增了 &man.bce.4; 驱动， 用以支持 Broadcom
+	  NetXtreme II (BCM5706/BCM5708) PCI/PCIe 千兆以太网控制器。
+	  进一步详情请参考 &man.bce.4;。</para>
 
 	<para>&man.bge.4; 驱动的巨帧支持是 MPSAFE 的了。</para>
 
