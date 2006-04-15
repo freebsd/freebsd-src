@@ -310,7 +310,7 @@ ithread_destroy(struct intr_thread *ithread)
 {
 	struct thread *td;
 
-	CTR2(KTR_INTR, "%s: killing %s", __func__, ithread->it_thread->td_name);
+	CTR2(KTR_INTR, "%s: killing %s", __func__, ithread->it_event->ie_name);
 	td = ithread->it_thread;
 	mtx_lock_spin(&sched_lock);
 	ithread->it_flags |= IT_DEAD;
