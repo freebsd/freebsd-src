@@ -2788,27 +2788,23 @@ bge_intr(xsc)
 	}
 #endif
 
-	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
-	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_POSTREAD);
+	/*
+	 * Do the mandatory PCI flush as well as get the link status.
+	 */
+	statusword = CSR_READ_4(sc, BGE_MAC_STS) & BGE_MACSTAT_LINK_CHANGED;
 
-	statusword =
-	    atomic_readandclear_32(&sc->bge_ldata.bge_status_block->bge_status);
-
-	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
-	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_PREREAD);
-
-#ifdef notdef
-	/* Avoid this for now -- checking this register is expensive. */
-	/* Make sure this is really our interrupt. */
-	if (!(CSR_READ_4(sc, BGE_MISC_LOCAL_CTL) & BGE_MLC_INTR_STATE))
-		return;
-#endif
 	/* Ack interrupt and stop others from occuring. */
 	CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 1);
 
+	/* Make sure the descriptor ring indexes are coherent. */
+	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_PREREAD);
+
 	if ((sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
 	    sc->bge_chipid != BGE_CHIPID_BCM5700_B1) ||
-	    statusword & BGE_STATFLAG_LINKSTATE_CHANGED || sc->bge_link_evt)
+	    statusword || sc->bge_link_evt)
 		bge_link_upd(sc);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
