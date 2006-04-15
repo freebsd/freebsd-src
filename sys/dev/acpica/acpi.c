@@ -1518,6 +1518,7 @@ static ACPI_STATUS
 acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 {
     ACPI_OBJECT_TYPE type;
+    ACPI_HANDLE h;
     device_t bus, child;
     int order, probe_now;
     char *handle_str, **search;
@@ -1577,8 +1578,17 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     * "functional" (i.e. if disabled).  Go ahead and probe them
 	     * anyway since we may enable them later.
 	     */
-	    if (type == ACPI_TYPE_DEVICE && !acpi_DeviceIsPresent(child) &&
-		!acpi_MatchHid(handle, "PNP0C0F")) {
+	    if (type == ACPI_TYPE_DEVICE && !acpi_DeviceIsPresent(child)) {
+		/* Never disable PCI link devices. */
+		if (acpi_MatchHid(handle, "PNP0C0F"))
+		    break;
+		/*
+		 * Docking stations should remain enabled since the system
+		 * may be undocked at boot.
+		 */
+		if (ACPI_SUCCESS(AcpiGetHandle(handle, "_DCK", &h)))
+		    break;
+
 		device_disable(child);
 		break;
 	    }
