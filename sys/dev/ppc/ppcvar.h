@@ -30,6 +30,7 @@
 
 int ppc_probe(device_t dev);
 int ppc_attach(device_t dev);
+int ppc_detach(device_t dev);
 int ppc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val);
 
 int ppc_read(device_t, char *, int, int);
