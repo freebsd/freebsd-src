@@ -520,8 +520,10 @@ in6_setsockaddr(so, nam)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("in6_setsockaddr: inp == NULL"));
 
+	INP_LOCK(inp);
 	port = inp->inp_lport;
 	addr = inp->in6p_laddr;
+	INP_UNLOCK(inp);
 
 	*nam = in6_sockaddr(port, &addr);
 	return 0;
@@ -539,8 +541,10 @@ in6_setpeeraddr(so, nam)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("in6_setpeeraddr: inp == NULL"));
 
+	INP_LOCK(inp);
 	port = inp->inp_fport;
 	addr = inp->in6p_faddr;
+	INP_UNLOCK(inp);
 
 	*nam = in6_sockaddr(port, &addr);
 	return 0;
