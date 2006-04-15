@@ -974,7 +974,7 @@ ata_raid_create(struct ata_ioc_raid_config *config)
 		 * metadata format from the disks (if we support it).
 		 */
 		printf("WARNING!! - not able to determine metadata format\n"
-		       "WARNING!! - Using FreeBSD PsuedoRAID metadata\n"
+		       "WARNING!! - Using FreeBSD PseudoRAID metadata\n"
 		       "If that is not what you want, use the BIOS to "
 		       "create the array\n");
 		ctlr = AR_F_FREEBSD_RAID;
