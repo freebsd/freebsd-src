@@ -159,6 +159,7 @@ acpi_cmbat_detach(device_t dev)
 {
 
     acpi_battery_remove(dev);
+    AcpiRemoveNotifyHandler(handle, ACPI_ALL_NOTIFY, acpi_cmbat_notify_handler);
     return (0);
 }
 
@@ -435,6 +436,10 @@ acpi_cmbat_init_battery(void *arg)
      * to wait a while.
      */
     for (retry = 0; retry < ACPI_CMBAT_RETRY_MAX; retry++, AcpiOsSleep(10000)) {
+	/* batteries on DOCK can be ejected w/ DOCK during retrying */
+	if (!device_is_attached(dev))
+	    return;
+
 	if (!acpi_BatteryIsPresent(dev))
 	    continue;
 
