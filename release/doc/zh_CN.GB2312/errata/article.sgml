@@ -10,7 +10,7 @@
 
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.73.2.14
+	Original Revision: 1.73.2.15
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -117,6 +117,27 @@
 	</thead>
 
 	<tbody>
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:13.sendmail.asc"
+		>06:13.sendmail</ulink></entry>
+	    <entry>2006&nbsp;年&nbsp;3&nbsp;月&nbsp;22&nbsp;日</entry>
+	    <entry><para>sendmail 中的竞态条件</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:12.opie.asc"
+		>06:12.opie</ulink></entry>
+	    <entry>2006&nbsp;年&nbsp;3&nbsp;月&nbsp;22&nbsp;日</entry>
+	    <entry><para>OPIE 允许修改任意口令</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:11.ipsec.asc"
+		>06:11.ipsec</ulink></entry>
+	    <entry>2006&nbsp;年&nbsp;3&nbsp;月&nbsp;22&nbsp;日</entry>
+	    <entry><para>IPsec 回应攻击漏洞</para></entry>
+	  </row>
+
 	  <row>
 	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:10.nfs.asc"
 		>06:10.nfs</ulink></entry>
