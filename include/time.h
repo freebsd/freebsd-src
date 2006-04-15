@@ -100,6 +100,14 @@ typedef	__timer_t	timer_t;
 #define CLOCK_PROF	2
 #endif
 #define CLOCK_MONOTONIC	4
+#define CLOCK_UPTIME	5		/* FreeBSD-specific. */
+#define CLOCK_UPTIME_PRECISE	7	/* FreeBSD-specific. */
+#define CLOCK_UPTIME_FAST	8	/* FreeBSD-specific. */
+#define CLOCK_REALTIME_PRECISE	9	/* FreeBSD-specific. */
+#define CLOCK_REALTIME_FAST	10	/* FreeBSD-specific. */
+#define CLOCK_MONOTONIC_PRECISE	11	/* FreeBSD-specific. */
+#define CLOCK_MONOTONIC_FAST	12	/* FreeBSD-specific. */
+#define CLOCK_SECOND	13		/* FreeBSD-specific. */
 #endif /* !defined(CLOCK_REALTIME) && __POSIX_VISIBLE >= 200112 */
 
 #if !defined(TIMER_ABSTIME) && __POSIX_VISIBLE >= 200112
