@@ -361,7 +361,7 @@ g_eli_start(struct bio *bp)
 		cbp->bio_done = g_eli_read_done;
 		cp = LIST_FIRST(&sc->sc_geom->consumer);
 		cbp->bio_to = cp->provider;
-		G_ELI_LOGREQ(2, bp, "Sending request.");
+		G_ELI_LOGREQ(2, cbp, "Sending request.");
 		/*
 		 * Read encrypted data from provider.
 		 */
@@ -378,7 +378,7 @@ g_eli_start(struct bio *bp)
 		cbp->bio_done = g_std_done;
 		cp = LIST_FIRST(&sc->sc_geom->consumer);
 		cbp->bio_to = cp->provider;
-		G_ELI_LOGREQ(2, bp, "Sending request.");
+		G_ELI_LOGREQ(2, cbp, "Sending request.");
 		g_io_request(cbp, cp);
 		break;
 	}
