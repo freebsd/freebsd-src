@@ -1,7 +1,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.282.2.9
+	Original Revision: 1.282.2.10
 -->
 
 <!--
@@ -116,6 +116,8 @@
 
     &hwlist.isp;
 
+    &hwlist.mfi;
+
     &hwlist.mlx;
 
       <note>
@@ -196,6 +198,8 @@
     &hwlist.aue;
 
     &hwlist.axe;
+
+    &hwlist.bce;
 
     <para arch="i386,amd64">基于 Broadcom BCM4401 的高速以太网适配器
       (&man.bfe.4; 驱动程序)</para>
