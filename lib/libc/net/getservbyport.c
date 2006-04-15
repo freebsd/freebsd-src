@@ -42,42 +42,54 @@ __FBSDID("$FreeBSD$");
 #include "netdb_private.h"
 
 int
-getservbyport_r(int port, const char *proto, struct servent *se,
-    struct servent_data *sed)
+getservbyport_r(int port, const char *proto, struct servent *sptr,
+    char *buffer, size_t buflen, struct servent **result)
 {
+	struct servent se;
+	struct servent_data *sed;
 	int error;
+
+	if ((sed = __servent_data_init()) == NULL)
+		return (-1);
 
 #ifdef YP
 	sed->yp_port = port;
 	sed->yp_proto = (char *)proto;
 #endif
 
-	setservent_r(sed->stayopen, sed);
-	while ((error = getservent_r(se, sed)) == 0) {
-		if (se->s_port != port)
+	__setservent_p(sed->stayopen, sed);
+	while ((error = __getservent_p(&se, sed)) == 0) {
+		if (se.s_port != port)
 			continue;
-		if (proto == 0 || strcmp(se->s_proto, proto) == 0)
+		if (proto == 0 || strcmp(se.s_proto, proto) == 0)
 			break;
 	}
 	if (!sed->stayopen)
-		endservent_r(sed);
+		__endservent_p(sed);
 
 #ifdef YP
 	sed->yp_port = 0;
 	sed->yp_proto = NULL;
 #endif
 
-	return (error);
+	if (error != 0)
+		return (-1);
+	if (__copy_servent(&se, sptr, buffer, buflen) != 0)
+		return (-1);
+	*result = sptr;
+	return (0);
 }
 
 struct servent *
 getservbyport(int port, const char *proto)
 {
 	struct servdata *sd;
+	struct servent *rval;
 
 	if ((sd = __servdata_init()) == NULL)
 		return (NULL);
-	if (getservbyport_r(port, proto, &sd->serv, &sd->data) != 0)
+	if (getservbyport_r(port, proto, &sd->serv, sd->data,
+	    sizeof(sd->data), &rval) != 0)
 		return (NULL);
-	return (&sd->serv);
+	return (rval);
 }
