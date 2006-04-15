@@ -157,9 +157,11 @@ acpi_cmbat_attach(device_t dev)
 static int
 acpi_cmbat_detach(device_t dev)
 {
+    ACPI_HANDLE	handle;
 
-    acpi_battery_remove(dev);
+    handle = acpi_get_handle(dev);
     AcpiRemoveNotifyHandler(handle, ACPI_ALL_NOTIFY, acpi_cmbat_notify_handler);
+    acpi_battery_remove(dev);
     return (0);
 }
 
