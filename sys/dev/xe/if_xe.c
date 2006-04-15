@@ -289,7 +289,7 @@ xe_attach (device_t dev)
   }
   if (scp->ce2) {
     XE_SELECT_PAGE(0x45);
-    DEVPRINTF(1, (dev, "CE2 version = 0x%#02x\n", XE_INB(XE_REV)));
+    DEVPRINTF(1, (dev, "CE2 version = 0x%02x\n", XE_INB(XE_REV)));
   }
 
   /* Attach the interface */
