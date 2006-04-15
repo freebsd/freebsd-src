@@ -42,48 +42,60 @@ __FBSDID("$FreeBSD$");
 #include "netdb_private.h"
 
 int
-getservbyname_r(const char *name, const char *proto, struct servent *se,
-    struct servent_data *sed)
+getservbyname_r(const char *name, const char *proto, struct servent *sptr,
+    char *buffer, size_t buflen, struct servent **result)
 {
+	struct servent se;
+	struct servent_data *sed;
 	char **cp;
 	int error;
+
+	if ((sed = __servent_data_init()) == NULL)
+		return (-1);
 
 #ifdef YP
 	sed->yp_name = (char *)name;
 	sed->yp_proto = (char *)proto;
 #endif
 
-	setservent_r(sed->stayopen, sed);
-	while ((error = getservent_r(se, sed)) == 0) {
-		if (strcmp(name, se->s_name) == 0)
+	__setservent_p(sed->stayopen, sed);
+	while ((error = __getservent_p(&se, sed)) == 0) {
+		if (strcmp(name, se.s_name) == 0)
 			goto gotname;
-		for (cp = se->s_aliases; *cp; cp++)
+		for (cp = se.s_aliases; *cp; cp++)
 			if (strcmp(name, *cp) == 0)
 				goto gotname;
 		continue;
 gotname:
-		if (proto == 0 || strcmp(se->s_proto, proto) == 0)
+		if (proto == 0 || strcmp(se.s_proto, proto) == 0)
 			break;
 	}
 	if (!sed->stayopen)
-		endservent_r(sed);
+		__endservent_p(sed);
 
 #ifdef YP
 	sed->yp_name = NULL;
 	sed->yp_proto = NULL;
 #endif
 
-	return (error);
+	if (error != 0)
+		return (-1);
+	if (__copy_servent(&se, sptr, buffer, buflen) != 0)
+		return (-1);
+	*result = sptr;
+	return (0);
 }
 
 struct servent *
 getservbyname(const char *name, const char *proto)
 {
 	struct servdata *sd;
+	struct servent *rval;
 
 	if ((sd = __servdata_init()) == NULL)
 		return (NULL);
-	if (getservbyname_r(name, proto, &sd->serv, &sd->data) != 0)
+	if (getservbyname_r(name, proto, &sd->serv, sd->data, sizeof(sd->data),
+	    &rval) != 0)
 		return (NULL);
-	return (&sd->serv);
+	return (rval);
 }

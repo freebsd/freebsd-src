@@ -196,7 +196,7 @@ getnetanswer(querybuf *answer, int anslen, int net_i, struct netent *ne,
 			RES_SET_H_ERRNO(statp, HOST_NOT_FOUND);
 		else
 			RES_SET_H_ERRNO(statp, TRY_AGAIN);
-		return -1;
+		return (-1);
 	}
 	while (qdcount-- > 0)
 		cp += __dn_skipname(cp, eom) + QFIXEDSZ;
@@ -220,9 +220,9 @@ getnetanswer(querybuf *answer, int anslen, int net_i, struct netent *ne,
 			n = dn_expand(answer->buf, eom, cp, bp, ep - bp);
 			if ((n < 0) || !res_hnok(bp)) {
 				cp += n;
-				return -1;
+				return (-1);
 			}
-			cp += n; 
+			cp += n;
 			*ap++ = bp;
 			n = strlen(bp) + 1;
 			bp += n;
@@ -243,24 +243,24 @@ getnetanswer(querybuf *answer, int anslen, int net_i, struct netent *ne,
 			if (ep - bp < n) {
 				RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
 				errno = ENOBUFS;
-				return -1;
+				return (-1);
 			}
 			strlcpy(bp, ans, ep - bp);
 			ne->n_name = bp;
 			if (strlen(in) + 1 > sizeof(aux)) {
 				RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
 				errno = ENOBUFS;
-				return -1;
+				return (-1);
 			}
 			ipreverse(in, aux);
 			ne->n_net = inet_network(aux);
 			break;
 		}
 		ne->n_aliases++;
-		return 0;
+		return (0);
 	}
 	RES_SET_H_ERRNO(statp, TRY_AGAIN);
-	return -1;
+	return (-1);
 }
 
 int
@@ -268,7 +268,10 @@ _dns_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 {
 	uint32_t net;
 	int net_type;
-	struct netent *ne;
+	char *buffer;
+	size_t buflen;
+	int *errnop, *h_errnop;
+	struct netent *nptr, ne;
 	struct netent_data *ned;
 	unsigned int netbr[4];
 	int nn, anslen, error;
@@ -279,16 +282,31 @@ _dns_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 
 	net = va_arg(ap, uint32_t);
 	net_type = va_arg(ap, int);
-	ne = va_arg(ap, struct netent *);
-	ned = va_arg(ap, struct netent_data *);
-
-	if (net_type != AF_INET)
-		return NS_UNAVAIL;
+	nptr = va_arg(ap, struct netent *);
+	buffer = va_arg(ap, char *);
+	buflen = va_arg(ap, size_t);
+	errnop = va_arg(ap, int *);
+	h_errnop = va_arg(ap, int *);
 
 	statp = __res_state();
 	if ((statp->options & RES_INIT) == 0 && res_ninit(statp) == -1) {
 		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
-		return NS_UNAVAIL;
+		*h_errnop = statp->res_h_errno;
+		return (NS_UNAVAIL);
+	}
+
+	if ((ned = __netent_data_init()) == NULL) {
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
+		*h_errnop = statp->res_h_errno;
+		return (NS_UNAVAIL);
+	}
+
+	*((struct netent **)rval) = NULL;
+
+	if (net_type != AF_INET) {
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
+		*h_errnop = statp->res_h_errno;
+		return (NS_UNAVAIL);
 	}
 
 	for (nn = 4, net2 = net; net2; net2 >>= 8)
@@ -311,7 +329,8 @@ _dns_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 	}
 	if ((buf = malloc(sizeof(*buf))) == NULL) {
 		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
-		return NS_NOTFOUND;
+		*h_errnop = statp->res_h_errno;
+		return (NS_NOTFOUND);
 	}
 	anslen = res_nquery(statp, qbuf, C_IN, T_PTR, (u_char *)buf,
 	    sizeof(*buf));
@@ -321,32 +340,43 @@ _dns_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 		if (statp->options & RES_DEBUG)
 			printf("res_nsearch failed\n");
 #endif
-		return NS_UNAVAIL;
+		*h_errnop = statp->res_h_errno;
+		return (NS_UNAVAIL);
 	} else if (anslen > sizeof(*buf)) {
 		free(buf);
 #ifdef DEBUG
 		if (statp->options & RES_DEBUG)
 			printf("res_nsearch static buffer too small\n");
 #endif
-		return NS_UNAVAIL;
+		*h_errnop = statp->res_h_errno;
+		return (NS_UNAVAIL);
 	}
-	error = getnetanswer(buf, anslen, BYADDR, ne, ned, statp);
+	error = getnetanswer(buf, anslen, BYADDR, &ne, ned, statp);
 	free(buf);
 	if (error == 0) {
 		/* Strip trailing zeros */
 		while ((net & 0xff) == 0 && net != 0)
 			net >>= 8;
-		ne->n_net = net;
-		return NS_SUCCESS;
+		ne.n_net = net;
+		if (__copy_netent(&ne, nptr, buffer, buflen) != 0) {
+			*h_errnop = statp->res_h_errno;
+			return (NS_NOTFOUND);
+		}
+		*((struct netent **)rval) = nptr;
+		return (NS_SUCCESS);
 	}
-	return NS_NOTFOUND;
+	*h_errnop = statp->res_h_errno;
+	return (NS_NOTFOUND);
 }
 
 int
 _dns_getnetbyname(void *rval, void *cb_data, va_list ap)
 {
 	const char *net;
-	struct netent *ne;
+	char *buffer;
+	size_t buflen;
+	int *errnop, *h_errnop;
+	struct netent *nptr, ne;
 	struct netent_data *ned;
 	int anslen, error;
 	querybuf *buf;
@@ -354,18 +384,31 @@ _dns_getnetbyname(void *rval, void *cb_data, va_list ap)
 	res_state statp;
 
 	net = va_arg(ap, const char *);
-	ne = va_arg(ap, struct netent *);
-	ned = va_arg(ap, struct netent_data *);
+	nptr = va_arg(ap, struct netent *);
+	buffer = va_arg(ap, char *);
+	buflen = va_arg(ap, size_t);
+	errnop = va_arg(ap, int *);
+	h_errnop = va_arg(ap, int *);
 
 	statp = __res_state();
 	if ((statp->options & RES_INIT) == 0 && res_ninit(statp) == -1) {
 		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
-		return NS_UNAVAIL;
+		*h_errnop = statp->res_h_errno;
+		return (NS_UNAVAIL);
+	}
+	if ((ned = __netent_data_init()) == NULL) {
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
+		*h_errnop = statp->res_h_errno;
+		return (NS_UNAVAIL);
 	}
 	if ((buf = malloc(sizeof(*buf))) == NULL) {
 		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
-		return NS_NOTFOUND;
+		*h_errnop = statp->res_h_errno;
+		return (NS_NOTFOUND);
 	}
+
+	*((struct netent **)rval) = NULL;
+
 	strncpy(qbuf, net, sizeof(qbuf) - 1);
 	qbuf[sizeof(qbuf) - 1] = '\0';
 	anslen = res_nsearch(statp, qbuf, C_IN, T_PTR, (u_char *)buf,
@@ -376,23 +419,31 @@ _dns_getnetbyname(void *rval, void *cb_data, va_list ap)
 		if (statp->options & RES_DEBUG)
 			printf("res_nsearch failed\n");
 #endif
-		return NS_UNAVAIL;
+		return (NS_UNAVAIL);
 	} else if (anslen > sizeof(*buf)) {
 		free(buf);
 #ifdef DEBUG
 		if (statp->options & RES_DEBUG)
 			printf("res_search static buffer too small\n");
 #endif
-		return NS_UNAVAIL;
+		return (NS_UNAVAIL);
 	}
-	error = getnetanswer(buf, anslen, BYNAME, ne, ned, statp);
+	error = getnetanswer(buf, anslen, BYNAME, &ne, ned, statp);
 	free(buf);
-	return (error == 0) ? NS_SUCCESS : NS_NOTFOUND;
+	if (error != 0) {
+		*h_errnop = statp->res_h_errno;
+		return (NS_NOTFOUND);
+	}
+	if (__copy_netent(&ne, nptr, buffer, buflen) != 0) {
+		*h_errnop = statp->res_h_errno;
+		return (NS_NOTFOUND);
+	}
+	*((struct netent **)rval) = nptr;
+	return (NS_SUCCESS);
 }
 
 void
-_setnetdnsent(stayopen)
-	int stayopen;
+_setnetdnsent(int stayopen)
 {
 	res_state statp;
 
