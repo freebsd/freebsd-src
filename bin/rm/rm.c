@@ -307,6 +307,7 @@ err:
 	}
 	if (errno)
 		err(1, "fts_read");
+	fts_close(fts);
 }
 
 void
