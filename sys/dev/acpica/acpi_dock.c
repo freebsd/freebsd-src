@@ -36,7 +36,7 @@
 #include <machine/bus.h>
 #include <sys/module.h>
 
-#include "acpi.h"
+#include <contrib/dev/acpica/acpi.h>
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 
