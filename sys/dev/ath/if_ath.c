@@ -1929,7 +1929,7 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 	const HAL_RATE_TABLE *rt;
 	u_int8_t rix, rate;
 
-	DPRINTF(sc, ATH_DEBUG_BEACON, "%s: m %p len %u\n",
+	DPRINTF(sc, ATH_DEBUG_BEACON_PROC, "%s: m %p len %u\n",
 		__func__, m, m->m_len);
 
 	/* setup descriptors */
@@ -2021,7 +2021,7 @@ ath_beacon_proc(void *arg, int pending)
 	 */
 	if (ath_hal_numtxpending(ah, sc->sc_bhalq) != 0) {
 		sc->sc_bmisscount++;
-		DPRINTF(sc, ATH_DEBUG_BEACON_PROC,
+		DPRINTF(sc, ATH_DEBUG_BEACON,
 			"%s: missed %u consecutive beacons\n",
 			__func__, sc->sc_bmisscount);
 		if (sc->sc_bmisscount > 3)		/* NB: 3 is a guess */
@@ -3981,9 +3981,12 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 		ATH_TXQ_REMOVE_HEAD(txq, bf_list);
 		ATH_TXQ_UNLOCK(txq);
 #ifdef ATH_DEBUG
-		if (sc->sc_debug & ATH_DEBUG_RESET)
+		if (sc->sc_debug & ATH_DEBUG_RESET) {
 			ath_printtxbuf(bf, txq->axq_qnum, ix,
 				ath_hal_txprocdesc(ah, bf->bf_desc) == HAL_OK);
+			ieee80211_dump_pkt(mtod(bf->bf_m, caddr_t),
+				bf->bf_m->m_len, 0, -1);
+		}
 #endif /* ATH_DEBUG */
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 		m_freem(bf->bf_m);
@@ -4007,11 +4010,11 @@ ath_tx_stopdma(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_hal *ah = sc->sc_ah;
 
-	(void) ath_hal_stoptxdma(ah, txq->axq_qnum);
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: tx queue [%u] %p, link %p\n",
 	    __func__, txq->axq_qnum,
 	    (caddr_t)(uintptr_t) ath_hal_gettxbuf(ah, txq->axq_qnum),
 	    txq->axq_link);
+	(void) ath_hal_stoptxdma(ah, txq->axq_qnum);
 }
 
 /*
@@ -4027,10 +4030,11 @@ ath_draintxq(struct ath_softc *sc)
 	/* XXX return value */
 	if (!sc->sc_invalid) {
 		/* don't touch the hardware if marked invalid */
+		DPRINTF(sc, ATH_DEBUG_RESET, "%s: tx queue [%u] %p, link %p\n",
+		    __func__, sc->sc_bhalq,
+		    (caddr_t)(uintptr_t) ath_hal_gettxbuf(ah, sc->sc_bhalq),
+		    NULL);
 		(void) ath_hal_stoptxdma(ah, sc->sc_bhalq);
-		DPRINTF(sc, ATH_DEBUG_RESET,
-		    "%s: beacon queue %p\n", __func__,
-		    (caddr_t)(uintptr_t) ath_hal_gettxbuf(ah, sc->sc_bhalq));
 		for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
 			if (ATH_TXQ_SETUP(sc, i))
 				ath_tx_stopdma(sc, &sc->sc_txq[i]);
@@ -4038,6 +4042,17 @@ ath_draintxq(struct ath_softc *sc)
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_draintxq(sc, &sc->sc_txq[i]);
+#ifdef ATH_DEBUG
+	if (sc->sc_debug & ATH_DEBUG_RESET) {
+		struct ath_buf *bf = STAILQ_FIRST(&sc->sc_bbuf);
+		if (bf != NULL && bf->bf_m != NULL) {
+			ath_printtxbuf(bf, sc->sc_bhalq, 0,
+				ath_hal_txprocdesc(ah, bf->bf_desc) == HAL_OK);
+			ieee80211_dump_pkt(mtod(bf->bf_m, caddr_t),
+				bf->bf_m->m_len, 0, -1);
+		}
+	}
+#endif /* ATH_DEBUG */
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->sc_tx_timer = 0;
 }
