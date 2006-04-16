@@ -141,8 +141,8 @@ static int	doingcache = 1;		/* 1 => enable the cache */
 SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0, "");
 
 /* Export size information to userland */
-SYSCTL_INT(_debug, OID_AUTO, vnsize, CTLFLAG_RD, 0, sizeof(struct vnode), "");
-SYSCTL_INT(_debug, OID_AUTO, ncsize, CTLFLAG_RD, 0, sizeof(struct namecache), "");
+SYSCTL_INT(_debug_sizeof, OID_AUTO, namecache, CTLFLAG_RD, 0,
+	sizeof(struct namecache), "");
 
 /*
  * The new name cache statistics
