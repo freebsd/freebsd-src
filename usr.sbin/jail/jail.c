@@ -142,7 +142,7 @@ main(int argc, char **argv)
 		if (setgid(pwd->pw_gid) != 0)
 			err(1, "setgid");
 		if (setusercontext(lcap, pwd, pwd->pw_uid,
-		    LOGIN_SETALL & ~LOGIN_SETGROUP) != 0)
+		    LOGIN_SETALL & ~LOGIN_SETGROUP & ~LOGIN_SETLOGIN) != 0)
 			err(1, "setusercontext");
 		login_close(lcap);
 	}
