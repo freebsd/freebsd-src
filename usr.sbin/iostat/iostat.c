@@ -137,6 +137,7 @@ struct device_selection *dev_select;
 int maxshowdevs;
 volatile sig_atomic_t headercount;
 int dflag = 0, Iflag = 0, Cflag = 0, Tflag = 0, oflag = 0, Kflag = 0;
+int xflag = 0, zflag = 0;
 
 /* local function declarations */
 static void usage(void);
@@ -156,7 +157,7 @@ usage(void)
 	 * This isn't mentioned in the man page, or the usage statement,
 	 * but it is supported.
 	 */
-	fprintf(stderr, "usage: iostat [-CdhIKoT?] [-c count] [-M core]"
+	fprintf(stderr, "usage: iostat [-CdhIKoTxz?] [-c count] [-M core]"
 		" [-n devs] [-N system]\n"
 		"\t      [-t type,if,pass] [-w wait] [drives]\n");
 }
@@ -184,7 +185,7 @@ main(int argc, char **argv)
 	matches = NULL;
 	maxshowdevs = 3;
 
-	while ((c = getopt(argc, argv, "c:CdhIKM:n:N:ot:Tw:?")) != -1) {
+	while ((c = getopt(argc, argv, "c:CdhIKM:n:N:ot:Tw:xz?")) != -1) {
 		switch(c) {
 			case 'c':
 				cflag++;
@@ -238,6 +239,12 @@ main(int argc, char **argv)
 				if (waittime < 1)
 					errx(1, "wait time is < 1");
 				break;
+			case 'x':
+				xflag++;
+				break;
+			case 'z':
+				zflag++;
+				break;
 			default:
 				usage();
 				exit(1);
@@ -270,7 +277,7 @@ main(int argc, char **argv)
 	 * Make sure Tflag and/or Cflag are set if dflag == 0.  If dflag is
 	 * greater than 0, they may be 0 or non-zero.
 	 */
-	if (dflag == 0) {
+	if (dflag == 0 && xflag == 0) {
 		Cflag = 1;
 		Tflag = 1;
 	}
@@ -547,16 +554,18 @@ main(int argc, char **argv)
 			last.cp_time[i] = tmp;
 		}
 
-		if (Tflag > 0)
-			printf("%4.0Lf%5.0Lf", cur.tk_nin / etime, 
-				cur.tk_nout/etime);
+		if (xflag == 0 && Tflag > 0)
+			printf("%4.0Lf%5.0Lf", cur.tk_nin / etime,
+			    cur.tk_nout / etime);
 
 		devstats(hflag, etime, havelast);
 
-		if (Cflag > 0)
-			cpustats();
+		if (xflag == 0) {
+			if (Cflag > 0)
+				cpustats();
 
-		printf("\n");
+			printf("\n");
+		}
 		fflush(stdout);
 
 		if (count >= 0 && --count <= 0)
@@ -584,6 +593,13 @@ phdr(void)
 {
 	register int i;
 	int printed;
+	
+	/*
+	 * If xflag is set, we need a per-loop header, not a page header, so
+	 * just return.  We'll print the header in devstats().
+	 */
+	if (xflag > 0)
+		return;
 
 	if (Tflag > 0)
 		(void)printf("      tty");
@@ -639,11 +655,30 @@ static void
 devstats(int perf_select, long double etime, int havelast)
 {
 	register int dn;
-	long double transfers_per_second;
-	long double kb_per_transfer, mb_per_second;
+	long double transfers_per_second, transfers_per_second_read, transfers_per_second_write;
+	long double kb_per_transfer, mb_per_second, mb_per_second_read, mb_per_second_write;
 	u_int64_t total_bytes, total_transfers, total_blocks;
+	long double busy_pct;
+	u_int64_t queue_len;
 	long double total_mb;
 	long double blocks_per_second, ms_per_transaction;
+	int firstline = 1;
+	char *devname;
+
+	if (xflag > 0) {
+		printf("                        extended device statistics  ");
+		if (Tflag > 0)
+			printf("     tty ");
+		if (Cflag > 0)
+			printf("           cpu ");
+		printf("\n");
+		printf("device     r/s   w/s    kr/s    kw/s wait svc_t  %%b  ");
+		if (Tflag > 0)
+			printf("tin tout ");
+		if (Cflag > 0)
+			printf("us ni sy in id ");
+		printf("\n");
+	}
 	
 	for (dn = 0; dn < num_devices; dn++) {
 		int di;
@@ -661,9 +696,15 @@ devstats(int perf_select, long double etime, int havelast)
 		    DSM_TOTAL_BLOCKS, &total_blocks,
 		    DSM_KB_PER_TRANSFER, &kb_per_transfer,
 		    DSM_TRANSFERS_PER_SECOND, &transfers_per_second,
+		    DSM_TRANSFERS_PER_SECOND_READ, &transfers_per_second_read,
+		    DSM_TRANSFERS_PER_SECOND_WRITE, &transfers_per_second_write,
 		    DSM_MB_PER_SECOND, &mb_per_second, 
+		    DSM_MB_PER_SECOND_READ, &mb_per_second_read, 
+		    DSM_MB_PER_SECOND_WRITE, &mb_per_second_write, 
 		    DSM_BLOCKS_PER_SECOND, &blocks_per_second,
 		    DSM_MS_PER_TRANSACTION, &ms_per_transaction,
+		    DSM_BUSY_PCT, &busy_pct,
+		    DSM_QUEUE_LENGTH, &queue_len,
 		    DSM_NONE) != 0)
 			errx(1, "%s", devstat_errbuf);
 
@@ -674,13 +715,47 @@ devstats(int perf_select, long double etime, int havelast)
 				continue;
 		}
 
-		if (Kflag) {
+		if (Kflag > 0 || xflag > 0) {
 			int block_size = cur.dinfo->devices[di].block_size;
 			total_blocks = total_blocks * (block_size ?
 						       block_size : 512) / 1024;
 		}
 
-		if (oflag > 0) {
+		if (xflag > 0) {
+			asprintf(&devname, "%s%d",
+			    cur.dinfo->devices[di].device_name,
+			    cur.dinfo->devices[di].unit_number);
+			/*
+			 * If zflag is set, skip any devices with zero I/O.
+			 */
+			if (zflag == 0 || transfers_per_second_read > 0.05 ||
+			    transfers_per_second_write > 0.05 ||
+			    mb_per_second_read > ((long double).0005)/1024 ||
+			    mb_per_second_write > ((long double).0005)/1024 ||
+			    busy_pct > 0.5) {
+				printf("%-8.8s %5.1Lf %5.1Lf %7.1Lf %7.1Lf %4qu %5.1Lf %3.0Lf ",
+				    devname, transfers_per_second_read,
+				    transfers_per_second_write,
+				    mb_per_second_read * 1024,
+				    mb_per_second_write * 1024, queue_len,
+				    ms_per_transaction, busy_pct);
+				if (firstline) {
+					/*
+					 * If this is the first device
+					 * we're printing, also print
+					 * CPU or TTY stats if requested.
+					 */
+					firstline = 0;
+					if (Tflag > 0)
+						printf("%4.0Lf%5.0Lf",
+						    cur.tk_nin / etime,
+						    cur.tk_nout / etime);
+					if (Cflag > 0)
+						cpustats();
+				}
+				printf("\n");
+			}
+		} else if (oflag > 0) {
 			int msdig = (ms_per_transaction < 100.0) ? 1 : 0;
 
 			if (Iflag == 0)
@@ -711,6 +786,21 @@ devstats(int perf_select, long double etime, int havelast)
 				       total_mb);
 			}
 		}
+	}
+	if (xflag > 0 && zflag > 0 && firstline == 1 &&
+	    (Tflag > 0 || Cflag > 0)) {
+		/*
+		 * If zflag is set and we did not print any device
+		 * lines I/O because they were all zero,
+		 * print TTY/CPU stats.
+		 */
+		printf("%52s","");
+		if (Tflag > 0)
+			printf("%4.0Lf%5.0Lf", cur.tk_nin / etime,
+			    cur.tk_nout / etime);
+		if (Cflag > 0)
+			cpustats();
+		printf("\n");
 	}
 }
 

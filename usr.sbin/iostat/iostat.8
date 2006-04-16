@@ -60,7 +60,7 @@
 .\"
 .\"	@(#)iostat.8	8.1 (Berkeley) 6/6/93
 .\"
-.Dd December 22, 1997
+.Dd April 17, 2006
 .Dt IOSTAT 8
 .Os
 .Sh NAME
@@ -70,7 +70,7 @@
 statistics
 .Sh SYNOPSIS
 .Nm
-.Op Fl CdhKIoT?\&
+.Op Fl CdhKIoTxz?\&
 .Op Fl c Ar count
 .Op Fl M Ar core
 .Op Fl n Ar devs
@@ -239,6 +239,13 @@ seconds between each display.
 If no repeat
 .Ar count
 is specified, the default is infinity.
+.It Fl x
+Show extended disk statistics.
+Each disk is displayed on a line of its own with all available statistics.
+.It Fl z
+If
+.Fl x
+is specified, omit lines for devices with no activity.
 .It Fl ?\&
 Display a usage statement and exit.
 .El
@@ -311,6 +318,29 @@ kilobytes per transfer
 total number of transfers
 .It MB
 total number of megabytes transferred
+.El
+.Pp
+The extended
+.Nm
+device display, with the
+.Fl x
+flag specified, shows the following statistics:
+.Pp
+.Bl -tag -width indent -compact
+.It r/s
+read operations per second
+.It w/s
+write operations per second
+.It kr/s
+kilobytes read per second
+.It kw/s
+kilobytes write per second
+.It wait
+transactions queue length
+.It svc_t
+average duration of transactions, in milliseconds
+.It %b
+% of time the device had one or more outstanding transactions
 .El
 .Pp
 The old-style
@@ -414,6 +444,7 @@ flags are given, the TTY and CPU displays will be displayed.
 .Xr nfsstat 1 ,
 .Xr ps 1 ,
 .Xr systat 1 ,
+.Xr devstat 3 ,
 .Xr gstat 8 ,
 .Xr pstat 8 ,
 .Xr vmstat 8
