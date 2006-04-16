@@ -172,7 +172,7 @@ main(int argc, char **argv)
 	char *memf = NULL, *nlistf = NULL;
 	struct devstat_match *matches;
 	int num_matches = 0;
-        char errbuf[_POSIX2_LINE_MAX];
+	char errbuf[_POSIX2_LINE_MAX];
 	kvm_t *kd = NULL;
 	long generation;
 	int num_devices_specified;
@@ -226,7 +226,7 @@ main(int argc, char **argv)
 				break;
 			case 't':
 				tflag++;
-				if (devstat_buildmatch(optarg, &matches, 
+				if (devstat_buildmatch(optarg, &matches,
 						       &num_matches) != 0)
 					errx(1, "%s", devstat_errbuf);
 				break;
@@ -257,17 +257,17 @@ main(int argc, char **argv)
 
 	if (nlistf != NULL || memf != NULL) {
 		kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
-		
+
 		if (kd == NULL)
 			errx(1, "kvm_openfiles: %s", errbuf);
-		
+
 		if (kvm_nlist(kd, namelist) == -1)
 			errx(1, "kvm_nlist: %s", kvm_geterr(kd));
 	}
 
 	/*
 	 * Make sure that the userland devstat version matches the kernel
-	 * devstat version.  If not, exit and print a message informing 
+	 * devstat version.  If not, exit and print a message informing
 	 * the user of his mistake.
 	 */
 	if (devstat_checkversion(kd) < 0)
@@ -295,7 +295,7 @@ main(int argc, char **argv)
 				maxshowdevs = 4;
 		} else {
 			if ((dflag > 0) && (Cflag == 0))
-				maxshowdevs = 4;		
+				maxshowdevs = 4;
 			else
 				maxshowdevs = 3;
 		}
@@ -378,7 +378,7 @@ main(int argc, char **argv)
 		waittime = atoi(*argv);
 
 		/* Let the user know he goofed, but keep going anyway */
-		if (wflag != 0) 
+		if (wflag != 0)
 			warnx("discarding previous wait interval, using"
 			      " %d instead", waittime);
 		wflag++;
@@ -414,7 +414,7 @@ main(int argc, char **argv)
 	cur.tk_nin = 0;
 
 	/*
-	 * Set the snap time to the system boot time (ie: zero), so the 
+	 * Set the snap time to the system boot time (ie: zero), so the
 	 * stats are calculated since system boot.
 	 */
 	cur.snap_time = 0;
@@ -584,8 +584,8 @@ main(int argc, char **argv)
 void
 needhdr(int signo)
 {
-        
-        headercount = 1;
+
+	headercount = 1;
 }
 
 static void
@@ -593,7 +593,7 @@ phdr(void)
 {
 	register int i;
 	int printed;
-	
+
 	/*
 	 * If xflag is set, we need a per-loop header, not a page header, so
 	 * just return.  We'll print the header in devstats().
@@ -609,7 +609,7 @@ phdr(void)
 		 && (dev_select[i].selected <= maxshowdevs)) {
 			di = dev_select[i].position;
 			if (oflag > 0)
-				(void)printf("%12.6s%d ", 
+				(void)printf("%12.6s%d ",
 					    cur.dinfo->devices[di].device_name,
 					    cur.dinfo->devices[di].unit_number);
 			else
@@ -679,7 +679,7 @@ devstats(int perf_select, long double etime, int havelast)
 			printf("us ni sy in id ");
 		printf("\n");
 	}
-	
+
 	for (dn = 0; dn < num_devices; dn++) {
 		int di;
 
@@ -698,9 +698,9 @@ devstats(int perf_select, long double etime, int havelast)
 		    DSM_TRANSFERS_PER_SECOND, &transfers_per_second,
 		    DSM_TRANSFERS_PER_SECOND_READ, &transfers_per_second_read,
 		    DSM_TRANSFERS_PER_SECOND_WRITE, &transfers_per_second_write,
-		    DSM_MB_PER_SECOND, &mb_per_second, 
-		    DSM_MB_PER_SECOND_READ, &mb_per_second_read, 
-		    DSM_MB_PER_SECOND_WRITE, &mb_per_second_write, 
+		    DSM_MB_PER_SECOND, &mb_per_second,
+		    DSM_MB_PER_SECOND_READ, &mb_per_second_read,
+		    DSM_MB_PER_SECOND_WRITE, &mb_per_second_write,
 		    DSM_BLOCKS_PER_SECOND, &blocks_per_second,
 		    DSM_MS_PER_TRANSACTION, &ms_per_transaction,
 		    DSM_BUSY_PCT, &busy_pct,
@@ -764,7 +764,7 @@ devstats(int perf_select, long double etime, int havelast)
 				       transfers_per_second,
 				       msdig,
 				       ms_per_transaction);
-			else 
+			else
 				printf("%4.1qu%4.1qu%5.*Lf ",
 				       total_blocks,
 				       total_transfers,
@@ -772,7 +772,7 @@ devstats(int perf_select, long double etime, int havelast)
 				       ms_per_transaction);
 		} else {
 			if (Iflag == 0)
-				printf(" %5.2Lf %3.0Lf %5.2Lf ", 
+				printf(" %5.2Lf %3.0Lf %5.2Lf ",
 				       kb_per_transfer,
 				       transfers_per_second,
 				       mb_per_second);
@@ -780,7 +780,7 @@ devstats(int perf_select, long double etime, int havelast)
 				total_mb = total_bytes;
 				total_mb /= 1024 * 1024;
 
-				printf(" %5.2Lf %3.1qu %5.2Lf ", 
+				printf(" %5.2Lf %3.1qu %5.2Lf ",
 				       kb_per_transfer,
 				       total_transfers,
 				       total_mb);
@@ -838,7 +838,7 @@ readvar(kvm_t *kd, const char *name, int nlid, void *ptr, size_t len)
 		}
 	} else {
 		size_t nlen = len;
-	
+
 		if (sysctlbyname(name, ptr, &nlen, NULL, 0) == -1) {
 			warn("sysctl(%s...) failed", name);
 			return (1);
