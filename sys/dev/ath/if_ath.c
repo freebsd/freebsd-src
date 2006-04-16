@@ -2042,7 +2042,7 @@ ath_beacon_proc(void *arg, int pending)
 	 * of the TIM bitmap).
 	 */
 	m = bf->bf_m;
-	ncabq = ath_hal_numtxpending(ah, sc->sc_cabq->axq_qnum);
+	ncabq = sc->sc_cabq->axq_depth;
 	if (ieee80211_beacon_update(ic, bf->bf_node, &sc->sc_boff, m, ncabq)) {
 		/* XXX too conservative? */
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
@@ -2102,7 +2102,7 @@ ath_beacon_proc(void *arg, int pending)
 	 * Enable the CAB queue before the beacon queue to
 	 * insure cab frames are triggered by this beacon.
 	 */
-	if (ncabq != 0 && (sc->sc_boff.bo_tim[4] & 1))	/* NB: only at DTIM */
+	if (sc->sc_boff.bo_tim[4] & 1)		/* NB: only at DTIM */
 		ath_hal_txstart(ah, sc->sc_cabq->axq_qnum);
 	ath_hal_puttxbuf(ah, sc->sc_bhalq, bf->bf_daddr);
 	ath_hal_txstart(ah, sc->sc_bhalq);
