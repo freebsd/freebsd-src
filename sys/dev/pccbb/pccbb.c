@@ -662,7 +662,7 @@ cbb_intr(void *arg)
 	 * we got garbage.
 	 */
 	sockevent = cbb_get(sc, CBB_SOCKET_EVENT);
-	if (sockevent != 0 && (sockevent & CBB_SOCKET_EVENT_VALID_MASK) == 0) {
+	if (sockevent != 0 && (sockevent & ~CBB_SOCKET_EVENT_VALID_MASK) == 0) {
 		/* ack the interrupt */
 		cbb_set(sc, CBB_SOCKET_EVENT, sockevent);
 
