@@ -22,8 +22,8 @@ SOURCE CODE GENERATORS:  Files whose names begin with "mk" are
 programs that generate source code.  A complete list of these
 programs is:
 
-        program         intput files        generates
-        -------         ------------        ---------
+        program         input files         generates
+        -------         -----------         ---------
         mkbuiltins      builtins            builtins.h builtins.c
         mkinit          *.c                 init.c
         mknodes         nodetypes           nodes.h nodes.c
@@ -91,7 +91,7 @@ INTERRUPTS:  In an interactive shell, an interrupt will cause an
 EXINT exception to return to the main command loop.  (Exception:
 EXINT is not raised if the user traps interrupts using the trap
 command.)  The INTOFF and INTON macros (defined in exception.h)
-provide uninterruptable critical sections.  Between the execution
+provide uninterruptible critical sections.  Between the execution
 of INTOFF and the execution of INTON, interrupt signals will be
 held for later delivery.  INTOFF and INTON can be nested.
 
@@ -110,7 +110,7 @@ string was going to be:
         p = stackptr;
         *p++ = c;       /* repeated as many times as needed */
         stackptr = p;
-The folloing three macros (defined in memalloc.h) perform these
+The following three macros (defined in memalloc.h) perform these
 operations, but grow the stack if you run off the end:
         STARTSTACKSTR(p);
         STPUTC(c, p);   /* repeated as many times as needed */
@@ -119,7 +119,7 @@ operations, but grow the stack if you run off the end:
 We now start a top-down look at the code:
 
 MAIN.C:  The main routine performs some initialization, executes
-the user's profile if necessary, and calls cmdloop.  Cmdloop is
+the user's profile if necessary, and calls cmdloop.  Cmdloop
 repeatedly parses and executes commands.
 
 OPTIONS.C:  This file contains the option processing code.  It is
@@ -178,7 +178,7 @@ stitution.  The possible types are:
         VSQUESTION          ${var?text}
         VSQUESTION|VSNUL    ${var:?text}
         VSASSIGN            ${var=text}
-        VSASSIGN|VSNUL      ${var=text}
+        VSASSIGN|VSNUL      ${var:=text}
 
 In addition, the type field will have the VSQUOTE flag set if the
 variable is enclosed in double quotes.  The name of the variable
@@ -204,7 +204,7 @@ CTLESC characters to begin with (so the contents of the text
 field can be written without any processing).  Other here docu-
 ments, and words which are not subject to splitting and file name
 generation, have the CTLESC characters removed during the vari-
-able and command substitution phase.  Words which are subject
+able and command substitution phase.  Words which are subject to
 splitting and file name generation have the CTLESC characters re-
 moved as part of the file name phase.
 
@@ -212,7 +212,7 @@ EXECUTION:  Command execution is handled by the following files:
         eval.c     The top level routines.
         redir.c    Code to handle redirection of input and output.
         jobs.c     Code to handle forking, waiting, and job control.
-        exec.c     Code to to path searches and the actual exec sys call.
+        exec.c     Code to do path searches and the actual exec sys call.
         expand.c   Code to evaluate arguments.
         var.c      Maintains the variable symbol table.  Called from expand.c.
 
@@ -232,7 +232,7 @@ control is defined.
 REDIR.C:  Ash allows file descriptors to be redirected and then
 restored without forking off a child process.  This is accom-
 plished by duplicating the original file descriptors.  The redir-
-tab structure records where the file descriptors have be dupli-
+tab structure records where the file descriptors have been dupli-
 cated to.
 
 EXEC.C:  The routine find_command locates a command, and enters
@@ -283,8 +283,8 @@ BUILTIN COMMANDS:  The procedures for handling these are scat-
 tered throughout the code, depending on which location appears
 most appropriate.  They can be recognized because their names al-
 ways end in "cmd".  The mapping from names to procedures is
-specified in the file builtins, which is processed by the mkbuil-
-tins command.
+specified in the file builtins, which is processed by the mkbuilt-
+ins command.
 
 A builtin command is invoked with argc and argv set up like a
 normal program.  A builtin command is allowed to overwrite its
