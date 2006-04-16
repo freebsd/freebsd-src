@@ -165,8 +165,7 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	int c;
-	register int i;
+	int c, i;
 	int tflag = 0, hflag = 0, cflag = 0, wflag = 0, nflag = 0;
 	int count = 0, waittime = 0;
 	char *memf = NULL, *nlistf = NULL;
@@ -591,8 +590,7 @@ needhdr(int signo)
 static void
 phdr(void)
 {
-	register int i;
-	int printed;
+	int i, printed;
 
 	/*
 	 * If xflag is set, we need a per-loop header, not a page header, so
@@ -654,7 +652,7 @@ phdr(void)
 static void
 devstats(int perf_select, long double etime, int havelast)
 {
-	register int dn;
+	int dn;
 	long double transfers_per_second, transfers_per_second_read, transfers_per_second_write;
 	long double kb_per_transfer, mb_per_second, mb_per_second_read, mb_per_second_write;
 	u_int64_t total_bytes, total_transfers, total_blocks;
@@ -807,7 +805,7 @@ devstats(int perf_select, long double etime, int havelast)
 static void
 cpustats(void)
 {
-	register int state;
+	int state;
 	double time;
 
 	time = 0.0;
