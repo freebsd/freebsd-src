@@ -77,7 +77,9 @@
 #define DISPLAY_FNAME		"+DISPLAY"
 #define MTREE_FNAME		"+MTREE_DIRS"
 
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 600000
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 700000
+#define INDEX_FNAME		"INDEX-7"
+#elif defined(__FreeBSD_version) && __FreeBSD_version >= 600000
 #define INDEX_FNAME		"INDEX-6"
 #elif defined(__FreeBSD_version) && __FreeBSD_version >= 500036
 #define INDEX_FNAME		"INDEX-5"
@@ -107,7 +109,7 @@ enum _plist_t {
     PLIST_FILE, PLIST_CWD, PLIST_CMD, PLIST_CHMOD,
     PLIST_CHOWN, PLIST_CHGRP, PLIST_COMMENT, PLIST_IGNORE,
     PLIST_NAME, PLIST_UNEXEC, PLIST_SRC, PLIST_DISPLAY,
-    PLIST_PKGDEP, PLIST_CONFLICTS, PLIST_MTREE, PLIST_DIR_RM, 
+    PLIST_PKGDEP, PLIST_CONFLICTS, PLIST_MTREE, PLIST_DIR_RM,
     PLIST_IGNORE_INST, PLIST_OPTION, PLIST_ORIGIN, PLIST_DEPORIGIN,
     PLIST_NOINST
 };
@@ -142,7 +144,7 @@ struct reqr_by_entry {
     char pkgname[PATH_MAX];
 };
 STAILQ_HEAD(reqr_by_head, reqr_by_entry);
-                
+
 /* Prototypes */
 /* Misc */
 int		vsystem(const char *, ...);
