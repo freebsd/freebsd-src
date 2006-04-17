@@ -164,7 +164,7 @@ softdep_setup_allocext(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 	struct buf *bp;
 {
 	
-	panic("softdep_setup_allocdirect called");
+	panic("softdep_setup_allocext called");
 }
 
 void
