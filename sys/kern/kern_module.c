@@ -264,6 +264,13 @@ module_setspecific(module_t mod, modspecific_t *datap)
 	mod->data = *datap;
 }
 
+linker_file_t
+module_file(module_t mod)
+{
+
+	return (mod->file);
+}
+
 /*
  * Syscalls.
  */

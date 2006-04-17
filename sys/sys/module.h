@@ -147,6 +147,7 @@ int	module_unload(module_t, int flags);
 int	module_getid(module_t);
 module_t	module_getfnext(module_t);
 void	module_setspecific(module_t, modspecific_t *);
+struct linker_file *module_file(module_t);
 
 #ifdef	MOD_DEBUG
 extern int mod_debug;
