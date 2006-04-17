@@ -61,9 +61,20 @@ struct lock_class lock_class_rw = {
 #endif
 };
 
-#define	rw_owner(rw)							\
+/*
+ * Return a pointer to the owning thread if the lock is write-locked or
+ * NULL if the lock is unlocked or read-locked.
+ */
+#define	rw_wowner(rw)							\
 	((rw)->rw_lock & RW_LOCK_READ ? NULL :				\
 	    (struct thread *)RW_OWNER((rw)->rw_lock))
+
+/*
+ * Return a pointer to the owning thread for this lock who should receive
+ * any priority lent by threads that block on this lock.  Currently this
+ * is identical to rw_wowner().
+ */
+#define	rw_owner(rw)		rw_wowner(rw)
 
 #ifndef INVARIANTS
 #define	_rw_assert(rw, what, file, line)
@@ -100,7 +111,7 @@ _rw_wlock(struct rwlock *rw, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
-	KASSERT(rw_owner(rw) != curthread,
+	KASSERT(rw_wowner(rw) != curthread,
 	    ("%s (%s): wlock already held @ %s:%d", __func__,
 	    rw->rw_object.lo_name, file, line));
 	WITNESS_CHECKORDER(&rw->rw_object, LOP_NEWORDER | LOP_EXCLUSIVE, file,
@@ -126,7 +137,7 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 {
 	uintptr_t x;
 
-	KASSERT(rw_owner(rw) != curthread,
+	KASSERT(rw_wowner(rw) != curthread,
 	    ("%s (%s): wlock already held @ %s:%d", __func__,
 	    rw->rw_object.lo_name, file, line));
 	WITNESS_CHECKORDER(&rw->rw_object, LOP_NEWORDER, file, line);
@@ -198,16 +209,17 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 		 * it is not set then try to set it.  If we fail to set it
 		 * drop the turnstile lock and restart the loop.
 		 */
-		if (!(x & RW_LOCK_READ_WAITERS) &&
-		    !atomic_cmpset_ptr(&rw->rw_lock, x,
-		    x | RW_LOCK_READ_WAITERS)) {
-			turnstile_release(&rw->rw_object);
-			continue;
+		if (!(x & RW_LOCK_READ_WAITERS)) {
+			if (!atomic_cmpset_ptr(&rw->rw_lock, x,
+			    x | RW_LOCK_READ_WAITERS)) {
+				turnstile_release(&rw->rw_object);
+				cpu_spinwait();
+				continue;
+			}
+			if (LOCK_LOG_TEST(&rw->rw_object, 0))
+				CTR2(KTR_LOCK, "%s: %p set read waiters flag",
+				    __func__, rw);
 		}
-		if (!(x & RW_LOCK_READ_WAITERS) &&
-		    LOCK_LOG_TEST(&rw->rw_object, 0))
-			CTR2(KTR_LOCK, "%s: %p set read waiters flag", __func__,
-				rw);
 
 		/*
 		 * We were unable to acquire the lock and the read waiters
@@ -402,17 +414,17 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 		 * set it.  If we fail to set it, then loop back and try
 		 * again.
 		 */
-		if (!(v & RW_LOCK_WRITE_WAITERS) &&
-		    !atomic_cmpset_ptr(&rw->rw_lock, v,
-		    v | RW_LOCK_WRITE_WAITERS)) {
-			turnstile_release(&rw->rw_object);
-			cpu_spinwait();
-			continue;
+		if (!(v & RW_LOCK_WRITE_WAITERS)) {
+			if (!atomic_cmpset_ptr(&rw->rw_lock, v,
+			    v | RW_LOCK_WRITE_WAITERS)) {
+				turnstile_release(&rw->rw_object);
+				cpu_spinwait();
+				continue;
+			}
+			if (LOCK_LOG_TEST(&rw->rw_object, 0))
+				CTR2(KTR_LOCK, "%s: %p set write waiters flag",
+				    __func__, rw);
 		}
-		if (!(v & RW_LOCK_WRITE_WAITERS) &&
-		    LOCK_LOG_TEST(&rw->rw_object, 0))
-			CTR2(KTR_LOCK, "%s: %p set write waiters flag",
-			    __func__, rw);
 
 		/* XXX: Adaptively spin if current wlock owner on another CPU? */
 
@@ -517,14 +529,14 @@ _rw_assert(struct rwlock *rw, int what, const char *file, int line)
 		 */
 		if (rw->rw_lock == RW_UNLOCKED ||
 		    (!(rw->rw_lock & RW_LOCK_READ) && (what == RA_RLOCKED ||
-		    rw_owner(rw) != curthread)))
+		    rw_wowner(rw) != curthread)))
 			panic("Lock %s not %slocked @ %s:%d\n",
 			    rw->rw_object.lo_name, (what == RA_RLOCKED) ?
 			    "read " : "", file, line);
 #endif
 		break;
 	case RA_WLOCKED:
-		if (rw_owner(rw) != curthread)
+		if (rw_wowner(rw) != curthread)
 			panic("Lock %s not exclusively locked @ %s:%d\n",
 			    rw->rw_object.lo_name, file, line);
 		break;
@@ -536,7 +548,7 @@ _rw_assert(struct rwlock *rw, int what, const char *file, int line)
 		 * If we hold a write lock fail.  We can't reliably check
 		 * to see if we hold a read lock or not.
 		 */
-		if (rw_owner(rw) == curthread)
+		if (rw_wowner(rw) == curthread)
 			panic("Lock %s exclusively locked @ %s:%d\n",
 			    rw->rw_object.lo_name, file, line);
 #endif
@@ -564,7 +576,7 @@ db_show_rwlock(struct lock_object *lock)
 		db_printf("RLOCK: %jd locks\n",
 		    (intmax_t)(RW_READERS(rw->rw_lock)));
 	else {
-		td = rw_owner(rw);
+		td = rw_wowner(rw);
 		db_printf("WLOCK: %p (tid %d, pid %d, \"%s\")\n", td,
 		    td->td_tid, td->td_proc->p_pid, td->td_proc->p_comm);
 	}
