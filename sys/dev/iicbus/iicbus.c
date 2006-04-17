@@ -187,8 +187,6 @@ iicbus_null_repeated_start(device_t dev, u_char addr)
 	return (IIC_ENOTSUPP);
 }
 
-DRIVER_MODULE(iicbus, pcf, iicbus_driver, iicbus_devclass, 0, 0);
 DRIVER_MODULE(iicbus, envctrl, iicbus_driver, iicbus_devclass, 0, 0);
 DRIVER_MODULE(iicbus, iicbb, iicbus_driver, iicbus_devclass, 0, 0);
-DRIVER_MODULE(iicbus, bti2c, iicbus_driver, iicbus_devclass, 0, 0);
 MODULE_VERSION(iicbus, IICBUS_MODVER);
