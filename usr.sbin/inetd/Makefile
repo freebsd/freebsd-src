@@ -7,7 +7,7 @@ MLINKS=	inetd.8 inetd.conf.5
 SRCS=	inetd.c builtins.c
 
 WARNS?=	2
-CFLAGS+= -DLOGIN_CAP
+CFLAGS+= -DLOGIN_CAP -fno-builtin
 #CFLAGS+= -DSANITY_CHECK
 
 DPADD=	${LIBUTIL} ${LIBWRAP}

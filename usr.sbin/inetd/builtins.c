@@ -64,7 +64,7 @@ static int	getline(int, char *, int);
 void		iderror(int, int, int, const char *);
 void		ident_stream(int, struct servtab *);
 void		initring(void);
-unsigned long	machtime(void);
+uint32_t	machtime(void);
 void		machtime_dg(int, struct servtab *);
 void		machtime_stream(int, struct servtab *);
 
@@ -685,7 +685,7 @@ printit:
  * some seventy years Bell Labs was asleep.
  */
 
-unsigned long
+uint32_t
 machtime(void)
 {
 	struct timeval tv;
@@ -695,8 +695,8 @@ machtime(void)
 			warnx("unable to get time of day");
 		return (0L);
 	}
-#define	OFFSET ((u_long)25567 * 24*60*60)
-	return (htonl((long)(tv.tv_sec + OFFSET)));
+#define	OFFSET ((uint32_t)25567 * 24*60*60)
+	return (htonl((uint32_t)(tv.tv_sec + OFFSET)));
 #undef OFFSET
 }
 
@@ -704,7 +704,7 @@ machtime(void)
 void
 machtime_dg(int s, struct servtab *sep)
 {
-	unsigned long result;
+	uint32_t result;
 	struct sockaddr_storage ss;
 	socklen_t size;
 
@@ -725,7 +725,7 @@ machtime_dg(int s, struct servtab *sep)
 void
 machtime_stream(int s, struct servtab *sep __unused)
 {
-	unsigned long result;
+	uint32_t result;
 
 	result = machtime();
 	(void) send(s, (char *) &result, sizeof(result), MSG_EOF);
