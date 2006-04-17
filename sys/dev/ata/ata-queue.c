@@ -270,7 +270,7 @@ ata_completed(void *context, int dummy)
 	return;
     }
     if (request->flags & ATA_R_DANGER1)
-	request->flags |= ATA_R_DANGER2
+	request->flags |= ATA_R_DANGER2;
 
     ATA_DEBUG_RQ(request, "completed entered");
 
