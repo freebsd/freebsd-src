@@ -13,7 +13,7 @@ SRCS= ${SHSRCS} ${GENSRCS} ${GENHDRS} y.tab.h
 
 # MLINKS for Shell built in commands for which there are no userland
 # utilities of the same name are handled with the associated manpage,
-# builtin.1 in share/man/man1/.  
+# builtin.1 in share/man/man1/.
 
 DPADD= ${LIBL} ${LIBEDIT} ${LIBTERMCAP}
 LDADD= -ll -ledit -ltermcap
