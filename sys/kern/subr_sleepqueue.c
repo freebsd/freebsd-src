@@ -910,4 +910,7 @@ found:
 			    td->td_proc->p_comm);
 		}	
 }
+
+/* Alias 'show sleepqueue' to 'show sleepq'. */
+DB_SET(sleepqueue, db_show_sleepqueue, db_show_cmd_set, 0, NULL);
 #endif
