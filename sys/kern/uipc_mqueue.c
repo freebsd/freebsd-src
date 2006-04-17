@@ -1657,7 +1657,7 @@ _mqueue_send(struct mqueue *mq, struct mqueue_msg *msg, int timo)
 		}
 		mq->mq_senders++;
 		error = msleep(&mq->mq_senders, &mq->mq_mutex,
-			    curthread->td_priority | PCATCH, "mqsend", timo);
+			    PCATCH, "mqsend", timo);
 		mq->mq_senders--;
 		if (error == EAGAIN)
 			error = ETIMEDOUT;
@@ -1809,7 +1809,7 @@ _mqueue_recv(struct mqueue *mq, struct mqueue_msg **msg, int timo)
 		}
 		mq->mq_receivers++;
 		error = msleep(&mq->mq_receivers, &mq->mq_mutex,
-			    curthread->td_priority | PCATCH, "mqrecv", timo);
+			    PCATCH, "mqrecv", timo);
 		mq->mq_receivers--;
 		if (error == EAGAIN)
 			error = ETIMEDOUT;
