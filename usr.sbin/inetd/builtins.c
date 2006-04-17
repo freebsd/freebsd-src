@@ -117,7 +117,10 @@ initring(void)
 			*endring++ = i;
 }
 
-/* Character generator */
+/* Character generator
+ * The RFC says that we should send back a random number of
+ * characters chosen from the range 0 to 512. We send LINESIZ+2.
+ */
 /* ARGSUSED */
 void
 chargen_dg(int s, struct servtab *sep)
@@ -677,7 +680,7 @@ printit:
 }
 
 /*
- * RFC738 Time Server.
+ * RFC738/868 Time Server.
  * Return a machine readable date and time, in the form of the
  * number of seconds since midnight, Jan 1, 1900.  Since gettimeofday
  * returns the number of seconds since midnight, Jan 1, 1970,
