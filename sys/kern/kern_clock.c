@@ -90,7 +90,7 @@ sysctl_kern_cp_time(SYSCTL_HANDLER_ARGS)
 #ifdef SCTL_MASK32
 	int i;
 	unsigned int cp_time32[CPUSTATES];
-	
+
 	if (req->flags & SCTL_MASK32) {
 		if (!req->oldptr)
 			return SYSCTL_OUT(req, 0, sizeof(cp_time32));
@@ -107,7 +107,7 @@ sysctl_kern_cp_time(SYSCTL_HANDLER_ARGS)
 	return error;
 }
 
-SYSCTL_PROC(_kern, OID_AUTO, cp_time, CTLTYPE_LONG|CTLFLAG_RD, 
+SYSCTL_PROC(_kern, OID_AUTO, cp_time, CTLTYPE_LONG|CTLFLAG_RD,
     0,0, sysctl_kern_cp_time, "LU", "CPU time statistics");
 
 #ifdef SW_WATCHDOG
@@ -558,7 +558,7 @@ watchdog_fire(void)
 	curname = intrnames;
 	inttotal = 0;
 	nintr = eintrcnt - intrcnt;
-	
+
 	printf("interrupt                   total\n");
 	while (--nintr >= 0) {
 		if (*curintr)
