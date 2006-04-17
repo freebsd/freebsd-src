@@ -365,7 +365,7 @@ taskqueue_thread_loop(void *arg)
 	TQ_LOCK(tq);
 	do {
 		taskqueue_run(tq);
-		TQ_SLEEP(tq, tq, &tq->tq_mutex, curthread->td_priority, "-", 0);
+		TQ_SLEEP(tq, tq, &tq->tq_mutex, 0, "-", 0);
 	} while ((tq->tq_flags & TQ_FLAGS_ACTIVE) != 0);
 
 	/* rendezvous with thread that asked us to terminate */
