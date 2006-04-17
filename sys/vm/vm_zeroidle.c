@@ -140,9 +140,7 @@ vm_page_zero_idle_wakeup(void)
 static void
 vm_pagezero(void __unused *arg)
 {
-	struct thread *td;
 
-	td = curthread;
 	idlezero_enable = idlezero_enable_default;
 
 	for (;;) {
@@ -159,7 +157,7 @@ vm_pagezero(void __unused *arg)
 			vm_page_lock_queues();
 			wakeup_needed = TRUE;
 			msleep(&zero_state, &vm_page_queue_mtx,
-			    PDROP | td->td_priority, "pgzero", hz * 300);
+			    PDROP, "pgzero", hz * 300);
 		}
 	}
 }
