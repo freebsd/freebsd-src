@@ -34,7 +34,10 @@
 
 /*
  * Turnstile interface.  Non-sleepable locks use a turnstile for the
- * queue of threads blocked on them when they are contested.
+ * queue of threads blocked on them when they are contested.  Each
+ * turnstile contains two sub-queues: one for threads waiting for a
+ * shared, or eread, lock, and one for threads waiting for an
+ * exclusive, or write, lock.
  *
  * A thread calls turnstile_lock() to lock the turnstile chain associated
  * with a given lock.  A thread calls turnstile_wait() when the lock is
@@ -50,7 +53,10 @@
  * blocked threads.  The turnstile_signal() function returns true if the
  * turnstile became empty as a result.  After the higher level code finishes
  * releasing the lock, turnstile_unpend() must be called to wake up the
- * pending thread(s).
+ * pending thread(s) and give up ownership of the turnstile.
+ *
+ * Alternatively, if a thread wishes to relinquish ownership of a thread
+ * without waking up any waiters, it may call turnstile_disown().
  *
  * When a lock is acquired that already has at least one thread contested
  * on it, the new owner of the lock must claim ownership of the turnstile
@@ -62,8 +68,9 @@
  * released at thread destruction may not be the same turnstile that the
  * thread allocated when it was created.
  *
- * The highest priority thread blocked on a turnstile can be obtained via
- * turnstile_head().
+ * The highest priority thread blocked on a specified queue of a
+ * turnstile can be obtained via turnstile_head().  A given queue can
+ * also be queried to see if it is empty via turnstile_empty().
  */
 
 struct lock_object;
