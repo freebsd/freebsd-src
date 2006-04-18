@@ -313,6 +313,7 @@ SCSI_NCR_MYADDR		opt_ncr.h
 # Options used only in dev/isp/*
 ISP_TARGET_MODE		opt_isp.h
 ISP_FW_CRASH_DUMP	opt_isp.h
+ISP_DEFAULT_ROLES	opt_isp.h
 
 # Options used in the 'ata' ATA/ATAPI driver
 ATA_STATIC_ID		opt_ata.h
