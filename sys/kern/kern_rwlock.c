@@ -135,6 +135,7 @@ _rw_wunlock(struct rwlock *rw, const char *file, int line)
 void
 _rw_rlock(struct rwlock *rw, const char *file, int line)
 {
+	volatile struct thread *owner;
 	uintptr_t x;
 
 	KASSERT(rw_wowner(rw) != curthread,
@@ -182,6 +183,7 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 					    (void *)(x + RW_ONE_READER));
 				break;
 			}
+			cpu_spinwait();
 			continue;
 		}
 
@@ -200,6 +202,7 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 		x = rw->rw_lock;
 		if (x & RW_LOCK_READ) {
 			turnstile_release(&rw->rw_object);
+			cpu_spinwait();
 			continue;
 		}
 
@@ -220,6 +223,25 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 				CTR2(KTR_LOCK, "%s: %p set read waiters flag",
 				    __func__, rw);
 		}
+
+#ifdef SMP
+		/*
+		 * If the owner is running on another CPU, spin until
+		 * the owner stops running or the state of the lock
+		 * changes.
+		 */
+		owner = (struct thread *)RW_OWNER(x);
+		if (TD_IS_RUNNING(owner)) {
+			turnstile_release(&rw->rw_object);
+			if (LOCK_LOG_TEST(&rw->rw_object, 0))
+				CTR3(KTR_LOCK, "%s: spinning on %p held by %p",
+				    __func__, rw, owner);
+			while ((struct thread*)RW_OWNER(rw->rw_lock)== owner &&
+			    TD_IS_RUNNING(owner))
+				cpu_spinwait();
+			continue;
+		}
+#endif
 
 		/*
 		 * We were unable to acquire the lock and the read waiters
@@ -351,6 +373,7 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 		 * release the lock.
 		 */
 		ts = turnstile_lookup(&rw->rw_object);
+		MPASS(ts != NULL);
 		turnstile_broadcast(ts, TS_EXCLUSIVE_QUEUE);
 		turnstile_unpend(ts, TS_SHARED_LOCK);
 		break;
@@ -365,6 +388,7 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 void
 _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 {
+	volatile struct thread *owner;
 	uintptr_t v;
 
 	if (LOCK_LOG_TEST(&rw->rw_object, 0))
@@ -426,7 +450,24 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 				    __func__, rw);
 		}
 
-		/* XXX: Adaptively spin if current wlock owner on another CPU? */
+#ifdef SMP
+		/*
+		 * If the lock is write locked and the owner is
+		 * running on another CPU, spin until the owner stops
+		 * running or the state of the lock changes.
+		 */
+		owner = (struct thread *)RW_OWNER(v);
+		if (!(v & RW_LOCK_READ) && TD_IS_RUNNING(owner)) {
+			turnstile_release(&rw->rw_object);
+			if (LOCK_LOG_TEST(&rw->rw_object, 0))
+				CTR3(KTR_LOCK, "%s: spinning on %p held by %p",
+				    __func__, rw, owner);
+			while ((struct thread*)RW_OWNER(rw->rw_lock)== owner &&
+			    TD_IS_RUNNING(owner))
+				cpu_spinwait();
+			continue;
+		}
+#endif
 
 		/*
 		 * We were unable to acquire the lock and the write waiters
@@ -464,8 +505,22 @@ _rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	turnstile_lock(&rw->rw_object);
 	ts = turnstile_lookup(&rw->rw_object);
 
-	/* XXX: Adaptive fixup would be required here. */
+#ifdef SMP
+	/*
+	 * There might not be a turnstile for this lock if all of
+	 * the waiters are adaptively spinning.  In that case, just
+	 * reset the lock to the unlocked state and return.
+	 */
+	if (ts == NULL) {
+		atomic_store_rel_ptr(&rw->rw_lock, RW_UNLOCKED);
+		if (LOCK_LOG_TEST(&rw->rw_object, 0))
+			CTR2(KTR_LOCK, "%s: %p no sleepers", __func__, rw);
+		turnstile_release(&rw->rw_object);
+		return;
+	}
+#else
 	MPASS(ts != NULL);
+#endif
 
 	/*
 	 * Use the same algo as sx locks for now.  Prefer waking up shared
@@ -482,19 +537,45 @@ _rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	 * above.  There is probably a potential priority inversion in
 	 * there that could be worked around either by waking both queues
 	 * of waiters or doing some complicated lock handoff gymnastics.
+	 *
+	 * Note that in the SMP case, if both flags are set, there might
+	 * not be any actual writers on the turnstile as they might all
+	 * be spinning.  In that case, we don't want to preserve the
+	 * RW_LOCK_WRITE_WAITERS flag as the turnstile is going to go
+	 * away once we wakeup all the readers.
 	 */
+	v = RW_UNLOCKED;
 	if (rw->rw_lock & RW_LOCK_READ_WAITERS) {
 		queue = TS_SHARED_QUEUE;
-		v = RW_UNLOCKED | (rw->rw_lock & RW_LOCK_WRITE_WAITERS);
-	} else {
+#ifdef SMP
+		if (rw->rw_lock & RW_LOCK_WRITE_WAITERS &&
+		    !turnstile_empty(ts, TS_EXCLUSIVE_QUEUE))
+			v |= RW_LOCK_WRITE_WAITERS;
+#else
+		v |= (rw->rw_lock & RW_LOCK_WRITE_WAITERS);
+#endif
+	} else
 		queue = TS_EXCLUSIVE_QUEUE;
-		v = RW_UNLOCKED;
+
+#ifdef SMP
+	/*
+	 * We have to make sure that we actually have waiters to
+	 * wakeup.  If they are all spinning, then we just need to
+	 * disown the turnstile and return.
+	 */
+	if (turnstile_empty(ts, queue)) {
+		if (LOCK_LOG_TEST(&rw->rw_object, 0))
+			CTR2(KTR_LOCK, "%s: %p no sleepers 2", __func__, rw);
+		atomic_store_rel_ptr(&rw->rw_lock, v);
+		turnstile_disown(ts);
+		return;
 	}
+#endif
+
+	/* Wake up all waiters for the specific queue. */
 	if (LOCK_LOG_TEST(&rw->rw_object, 0))
 		CTR3(KTR_LOCK, "%s: %p waking up %s waiters", __func__, rw,
 		    queue == TS_SHARED_QUEUE ? "read" : "write");
-
-	/* Wake up all waiters for the specific queue. */
 	turnstile_broadcast(ts, queue);
 	atomic_store_rel_ptr(&rw->rw_lock, v);
 	turnstile_unpend(ts, TS_EXCLUSIVE_LOCK);
