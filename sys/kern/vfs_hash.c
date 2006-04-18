@@ -55,14 +55,14 @@ vfs_hashinit(void *dummy __unused)
 SYSINIT(vfs_hash, SI_SUB_VFS, SI_ORDER_SECOND, vfs_hashinit, NULL)
 
 static struct vfs_hash_head *
-vfs_hash_index(struct mount *mp, u_int hash)
+vfs_hash_index(const struct mount *mp, u_int hash)
 {
 
 	return(&vfs_hash_tbl[(hash + mp->mnt_hashseed) & vfs_hash_mask]);
 }
 
 int
-vfs_hash_get(struct mount *mp, u_int hash, int flags, struct thread *td, struct vnode **vpp, vfs_hash_cmp_t *fn, void *arg)
+vfs_hash_get(const struct mount *mp, u_int hash, int flags, struct thread *td, struct vnode **vpp, vfs_hash_cmp_t *fn, void *arg)
 {
 	struct vnode *vp;
 	int error;
