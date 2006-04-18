@@ -135,7 +135,9 @@ _rw_wunlock(struct rwlock *rw, const char *file, int line)
 void
 _rw_rlock(struct rwlock *rw, const char *file, int line)
 {
+#ifdef SMP
 	volatile struct thread *owner;
+#endif
 	uintptr_t x;
 
 	KASSERT(rw_wowner(rw) != curthread,
@@ -388,7 +390,9 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 void
 _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 {
+#ifdef SMP
 	volatile struct thread *owner;
+#endif
 	uintptr_t v;
 
 	if (LOCK_LOG_TEST(&rw->rw_object, 0))
