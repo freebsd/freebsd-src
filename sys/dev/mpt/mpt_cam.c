@@ -2685,7 +2685,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		switch (accb->ccb_h.func_code) {
 		case XPT_ACCEPT_TARGET_IO:
 		case XPT_IMMED_NOTIFY:
-        		ccb->ccb_h.status = mpt_abort_target_ccb(mpt, ccb);
+			ccb->ccb_h.status = mpt_abort_target_ccb(mpt, ccb);
 			break;
 		case XPT_CONT_TARGET_IO:
 			mpt_prt(mpt, "cannot abort active CTIOs yet\n");
@@ -3436,9 +3436,9 @@ mpt_recover_commands(struct mpt_softc *mpt)
 		 * are not happening.
 		 */
 		mpt_prt(mpt, "Timedout requests already complete. "
-                       "Interrupts may not be functioning.\n");
-                mpt_enable_ints(mpt);
-                return;
+		    "Interrupts may not be functioning.\n");
+		mpt_enable_ints(mpt);
+		return;
 	}
 
 	/*
@@ -4256,9 +4256,9 @@ mpt_scsi_tgt_tsk_mgmt(struct mpt_softc *mpt, request_t *req, mpt_task_mgmt_t fc,
 	}
 	tgt->ccb = (union ccb *) inot;
 	inot->ccb_h.status = CAM_MESSAGE_RECV|CAM_DEV_QFRZN;
-        MPTLOCK_2_CAMLOCK(mpt);
+	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_done((union ccb *)inot);
-        CAMLOCK_2_MPTLOCK(mpt);
+	CAMLOCK_2_MPTLOCK(mpt);
 }
 
 static void
@@ -4282,7 +4282,7 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	 * XXX: We could optimize this for a range
 	 */
 	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
-            BUS_DMASYNC_POSTREAD);
+	    BUS_DMASYNC_POSTREAD);
 
 	/*
 	 * Stash info for the current command where we can get at it later.
@@ -4427,12 +4427,12 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	mpt_lprt(mpt, MPT_PRT_DEBUG1,
 	    "Get FREE ATIO %p lun %d\n", atiop, atiop->ccb_h.target_lun);
 	atiop->ccb_h.ccb_mpt_ptr = mpt;
-        atiop->ccb_h.status = CAM_CDB_RECVD;
+	atiop->ccb_h.status = CAM_CDB_RECVD;
 	atiop->ccb_h.target_lun = lun;
 	atiop->sense_len = 0;
-        atiop->init_id = GET_INITIATOR_INDEX(reply_desc);
-        atiop->cdb_len = mpt_cdblen(cdbp[0], 16);
-        memcpy(atiop->cdb_io.cdb_bytes, cdbp, atiop->cdb_len);
+	atiop->init_id = GET_INITIATOR_INDEX(reply_desc);
+	atiop->cdb_len = mpt_cdblen(cdbp[0], 16);
+	memcpy(atiop->cdb_io.cdb_bytes, cdbp, atiop->cdb_len);
 
 	/*
 	 * The tag we construct here allows us to find the
@@ -4441,10 +4441,10 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	 * This way we don't have to depend on anything but the
 	 * tag to find things when CCBs show back up from CAM.
 	 */
-        atiop->tag_id = MPT_MAKE_TAGID(mpt, req, ioindex);
+	atiop->tag_id = MPT_MAKE_TAGID(mpt, req, ioindex);
 	tgt->tag_id = atiop->tag_id;
 	if (tag_action) {
-                atiop->tag_action = tag_action;
+		atiop->tag_action = tag_action;
 		atiop->ccb_h.flags = CAM_TAG_ACTION_VALID;
 	}
 	if (mpt->verbose >= MPT_PRT_DEBUG) {
@@ -4458,11 +4458,10 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 		mpt_prtc(mpt, " itag %x tag %x rdesc %x dl=%u\n",
 	    	    itag, atiop->tag_id, tgt->reply_desc, tgt->resid);
 	}
-	tgt->ccb = (union ccb *) atiop;
 	
-        MPTLOCK_2_CAMLOCK(mpt);
+	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_done((union ccb *)atiop);
-        CAMLOCK_2_MPTLOCK(mpt);
+	CAMLOCK_2_MPTLOCK(mpt);
 }
 
 static void
