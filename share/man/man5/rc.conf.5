@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 8, 2006
+.Dd April 18, 2006
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1804,6 +1804,13 @@ Path to
 .Xr ntpd 8
 (default
 .Pa /usr/sbin/ntpd ) .
+.It Va ntpd_config
+.Pq Vt str
+Path to
+.Xr ntpd 8
+configuration file.
+(default
+.Pa /etc/ntp.conf ) .
 .It Va ntpd_flags
 .Pq Vt str
 If
