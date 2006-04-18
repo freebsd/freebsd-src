@@ -1363,6 +1363,7 @@ options 	SC_NO_SUSPEND_VTYSWITCH
 #      ISP 12160 Ultra3 SCSI,
 #      Qlogic ISP 2100 and ISP 2200 1Gb Fibre Channel host adapters.
 #      Qlogic ISP 2300 and ISP 2312 2Gb Fibre Channel host adapters.
+#      Qlogic ISP 2322 and ISP 6322 2Gb Fibre Channel host adapters.
 # ispfw: Firmware module for Qlogic host adapters
 # mpt: LSI-Logic MPT/Fusion 53c1020 or 53c1030 Ultra4
 #      or FC9x9 Fibre Channel host adapters.
@@ -1463,6 +1464,10 @@ options 	ADW_ALLOW_MEMIO
 #	ISP_TARGET_MODE		-	enable target mode operation
 #
 options 	ISP_TARGET_MODE=1
+#
+#	IUSP_DEFAULT_ROLES	-	default role (none, target, init, both)
+#
+options 	ISP_DEFAULT_ROLES=3
 
 # Options used in dev/sym/ (Symbios SCSI driver).
 #options 	SYM_SETUP_LP_PROBE_MAP	#-Low Priority Probe Map (bits)
