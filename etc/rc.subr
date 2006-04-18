@@ -1,4 +1,4 @@
-# $NetBSD: rc.subr,v 1.65 2004/10/12 14:45:29 lukem Exp $
+# $NetBSD: rc.subr,v 1.66 2006/04/01 10:05:50 he Exp $
 # $FreeBSD$
 #
 # Copyright (c) 1997-2004 The NetBSD Foundation, Inc.
@@ -245,7 +245,9 @@ check_process()
 #	If interpreter != ".", read the first line of procname, remove the
 #	leading #!, normalise whitespace, append procname, and attempt to
 #	match that against each command, either as is, or with extra words
-#	at the end.
+#	at the end.  As an alternative, to deal with interpreted daemons
+#	using perl, the basename of the interpreter plus a colon is also
+#	tried as the prefix to procname.
 #
 _find_processes()
 {
@@ -265,9 +267,10 @@ _find_processes()
 			warn "\$command_interpreter $_interpreter != $1"
 		fi
 		_interp="$* $_procname"		# cleanup spaces, add _procname
+		_interpbn=${1##*/}
 		_fp_args='_argv'
 		_fp_match='case "$_argv" in
-		    ${_interp}|"${_interp} "*)'
+		    ${_interp}|"${_interp} "*|"${_interpbn}: ${_procname}"*)'
 	else					# a normal daemon
 		_procnamebn=${_procname##*/}
 		_fp_args='_arg0 _argv'
@@ -1119,8 +1122,6 @@ backup_file()
 	fi
 }
 
-_rc_subr_loaded=:
-
 # make_symlink src link
 #	Make a symbolic link 'link' to src from basedir. If the
 #	directory in which link is to be created does not exist
@@ -1460,3 +1461,5 @@ find_local_scripts_new () {
 }
 
 fi
+
+_rc_subr_loaded=:
