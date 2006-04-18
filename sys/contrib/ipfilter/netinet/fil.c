@@ -6286,7 +6286,7 @@ caddr_t	data;
 	int error;
 
 	fr_getstat(&fio);
-	error = copyoutptr(&fio, data, sizeof(fio));
+	error = fr_outobj(data, &fio, IPFOBJ_IPFSTAT);
 	if (error)
 		return EFAULT;
 
