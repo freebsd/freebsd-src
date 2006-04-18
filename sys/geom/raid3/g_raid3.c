@@ -723,10 +723,12 @@ g_raid3_fill_metadata(struct g_raid3_disk *disk, struct g_raid3_metadata *md)
 	md->md_no = disk->d_no;
 	md->md_syncid = disk->d_sync.ds_syncid;
 	md->md_dflags = (disk->d_flags & G_RAID3_DISK_FLAG_MASK);
-	if (disk->d_state == G_RAID3_DISK_STATE_SYNCHRONIZING)
-		md->md_sync_offset = disk->d_sync.ds_offset_done;
-	else
+	if (disk->d_state != G_RAID3_DISK_STATE_SYNCHRONIZING)
 		md->md_sync_offset = 0;
+	else {
+		md->md_sync_offset =
+		    disk->d_sync.ds_offset_done / (sc->sc_ndisks - 1);
+	}
 	if (disk->d_consumer != NULL && disk->d_consumer->provider != NULL)
 		pp = disk->d_consumer->provider;
 	else
