@@ -220,8 +220,8 @@ typedef void			irqreturn_t;
 
 enum {
 	DRM_IS_NOT_AGP,
-	DRM_MIGHT_BE_AGP,
-	DRM_IS_AGP
+	DRM_IS_AGP,
+	DRM_MIGHT_BE_AGP
 };
 #define DRM_AGP_MEM		struct agp_memory_info
 
