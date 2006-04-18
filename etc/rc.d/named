@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: named
-# REQUIRE: SERVERS cleanvar
+# REQUIRE: SERVERS cleanvar ldconfig
 # KEYWORD: shutdown
 
 . /etc/rc.subr
