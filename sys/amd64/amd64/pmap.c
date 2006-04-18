@@ -1616,6 +1616,7 @@ get_pv_entry(pmap_t pmap, int try)
 	m = vm_page_alloc(NULL, colour, VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ);
 	if (m == NULL) {
 		if (try) {
+			pv_entry_count--;
 			PV_STAT(pc_chunk_tryfail++);
 			return (NULL);
 		}
