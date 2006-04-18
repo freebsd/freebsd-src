@@ -156,30 +156,29 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para>&man.acpi.4; now has basic support for HPET time counter.</para>
+    <para>&man.acpi.4; now has basic support for the HPET time counter.</para>
 
-    <para>&man.acpi.ibm.4; driver now supports for setting the fan control
+    <para>The &man.acpi.ibm.4; driver now supports setting the fan control
       mode to manual or automatic, and adjusting the fan speed if the
-      fan control mode is manual.  Note that manual control of the fan speed
-      needs to set a sysctl variable
-      <varname>dev.acpi_ibm.<replaceable>0</replaceable>.fan</varname>
-      to zero (manual) with extreme precaution.
-      This is because disabling automatic fan control might
+      fan control mode is manual.  To enable manual control of the fan speed,
+      the sysctl variable <varname>dev.acpi_ibm.<replaceable>0</replaceable>.fan</varname>
+      needs to be set to zero (manual).  This should only be used with
+      extreme precaution, as disabling automatic fan control might
       overheat the hardware and lead to permanent damage.</para>
 
-    <para>The &man.ddb.4; now supports <literal>show lock</literal>
+    <para>The &man.ddb.4; debugger now provides the <literal>show lock</literal>
       command.  If the argument has a valid lock class,
       this displays various information about the lock and calls a
       new function pointer in lock_class (lc_ddb_show) to dump class-specific
       information about the lock as well (such as the owner of a mutex or
       xlock'ed sx lock).</para>
 
-    <para>The &man.ddb.4; now supports <literal>show sleepq</literal>
+    <para>The &man.ddb.4; debugger now provides the <literal>show sleepq</literal>
       command.  This takes a wait channel as an argument and looks
       for a sleep queue associated with that wait channel.</para>
 
-    <para>A bug in file descriptor handling such that simple
-      <literal>close(0); dup(fd)</literal> does not return
+    <para>A bug in file descriptor handling such that a simple
+      <literal>close(0); dup(fd)</literal> sequence does not return
       descriptor <literal>0</literal> in some cases, has been fixed.</para>
 
     <para>The &man.firmware.9; subsystem has been added.  This allows
@@ -204,9 +203,9 @@
 
     <para>The <literal>SIGCHLD</literal> signal queuing has been
       added.  For each child process whose status has been changed,
-      a SIGCHLD instance is queued, if the signal is stilling pending,
-      and process changed status several times, signal information
-      is updated to reflect latest process status.
+      a SIGCHLD instance is queued.  If the signal is still pending,
+      and the process changed status several times, the signal information
+      is updated to reflect the latest process status.
       There is a loader tunable <varname>kern.sigqueue.queue_sigchild</varname>
       which can control the behavior, setting it to zero disables the
       <literal>SIGCHLD</literal> queuing feature.</para>
@@ -224,20 +223,20 @@
 
     <para>A new sysctl variable <varname>kern.elf[32|64].can_exec_dyn</varname>
       has been removed.  Instead the <varname>brandinfo</varname>
-      structure has been extended to be able to have
+      structure has been extended to be able to provide the 
       <literal>BI_CAN_EXEC_DYN</literal> flag for all brands that usually
       allow executing ELF dynamic binaries.</para>
 
     <para>A new sysctl variable <varname>kern.forcesigexit</varname>
       has been added.  This forces a process
-      to sigexit if a trap signal is being hold by current thread or
-      ignored by current process and is enabled by default.</para>
+      to sigexit if a trap signal is being held by the current thread or
+      ignored by the current process and is enabled by default.</para>
 
-    <para>RedZone, a buffer corruption protection for kernel's &man.malloc.9;
-      has been implemented.  This detects both of buffer underflows and
+    <para>RedZone, a buffer corruption protection for kernel &man.malloc.9;
+      facility has been implemented.  This detects both of buffer underflows and
       buffer overflows bugs at runtime on &man.free.9; and &man.realloc.9;,
       and prints backtraces from where memory was allocated and from where
-      it was freed.  For more details, see &man.redzone.9; manual page.</para>
+      it was freed.  For more details, see the &man.redzone.9; manual page.</para>
 
     <para>A new sysctl variable <varname>security.mac.biba.interfaces_equal</varname>
       which makes all network interfaces be created with the label
@@ -305,13 +304,13 @@
       <title>Hardware Support</title>
 
       <para>The &man.acpi.thermal.4; driver now supports
-	passive cooling.</para>
+	passive cooling. &merged;</para>
 
       <para>The &man.cardbus.4; driver now supports
 	<filename>/dev/cardbus<replaceable>%d</replaceable>.cis</filename>.</para>
 
       <para>The &man.ce.4; driver, which supports Cronyx Tau-PCI/32 adapters,
-	has been added.</para>
+	has been added. &merged;</para>
 
       <para>Support for the PadLock Security Co-processor in VIA C3
 	processors has been added to the &man.crypto.9; subsystem.
@@ -409,7 +408,7 @@
 
 	<para arch="i386,amd64">The &man.bce.4; driver, which supports Broadcom
 	  NetXtreme II (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet controllers,
-	  has been added.  For more details, see &man.bce.4;.</para>
+	  has been added.  For more details, see &man.bce.4;. &merged;</para>
 
 	<para>The &man.bge.4; driver's Jumbo frame support is now MPSAFE.</para>
 
