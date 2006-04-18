@@ -10,17 +10,17 @@ top \- display and update information about the top cpu processes
 .SH SYNOPSIS
 .B top
 [
-.B \-SbiInqutv
+.B \-bHIinqStuv
 ] [
 .BI \-d count
 ] [
-.BI \-s time
+.BI \-m io | cpu
 ] [
 .BI \-o field
 ] [
-.BI \-U username
+.BI \-s time
 ] [
-.BI \-m io | cpu
+.BI \-U username
 ] [
 .I number
 ]
