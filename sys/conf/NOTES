@@ -1465,7 +1465,7 @@ options 	ADW_ALLOW_MEMIO
 #
 options 	ISP_TARGET_MODE=1
 #
-#	IUSP_DEFAULT_ROLES	-	default role (none, target, init, both)
+#	ISP_DEFAULT_ROLES	-	default role (none, target, init, both)
 #
 options 	ISP_DEFAULT_ROLES=3
 
