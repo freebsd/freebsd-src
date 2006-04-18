@@ -1547,7 +1547,7 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 
 	PV_STAT(pv_entry_frees++);
 	PV_STAT(pv_entry_spare++);
-	PV_STAT(pv_entry_count--);
+	pv_entry_count--;
 	pc = pv_to_chunk(pv);
 	idx = pv - &pc->pc_pventry[0];
 	field = idx / 64;
@@ -1588,7 +1588,7 @@ get_pv_entry(pmap_t pmap, int try)
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PV_STAT(pv_entry_allocs++);
-	PV_STAT(pv_entry_count++);
+	pv_entry_count++;
 	if (pv_entry_count > pv_entry_high_water)
 		pagedaemon_wakeup();
 	pc = TAILQ_FIRST(&pmap->pm_pvchunk);
@@ -2777,7 +2777,7 @@ pmap_remove_pages(pmap_t pmap)
 				/* Mark free */
 				PV_STAT(pv_entry_frees++);
 				PV_STAT(pv_entry_spare++);
-				PV_STAT(pv_entry_count--);
+				pv_entry_count--;
 				pc->pc_map[field] |= bitmask;
 				m->md.pv_list_count--;
 				TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
