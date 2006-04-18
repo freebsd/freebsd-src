@@ -879,6 +879,56 @@ turnstile_unpend(struct turnstile *ts, int owner_type)
 }
 
 /*
+ * Give up ownership of a turnstile.  This must be called with the
+ * turnstile chain locked.
+ */
+void
+turnstile_disown(struct turnstile *ts)
+{
+	struct turnstile_chain *tc;
+	struct thread *td;
+	u_char cp, pri;
+
+	MPASS(ts != NULL);
+	MPASS(ts->ts_owner == curthread);
+	tc = TC_LOOKUP(ts->ts_lockobj);
+	mtx_assert(&tc->tc_lock, MA_OWNED);
+	MPASS(TAILQ_EMPTY(&ts->ts_pending));
+	MPASS(!TAILQ_EMPTY(&ts->ts_blocked[TS_EXCLUSIVE_QUEUE]) ||
+	    !TAILQ_EMPTY(&ts->ts_blocked[TS_SHARED_QUEUE]));
+
+	/*
+	 * Remove the turnstile from this thread's list of contested locks
+	 * since this thread doesn't own it anymore.  New threads will
+	 * not be blocking on the turnstile until it is claimed by a new
+	 * owner.
+	 */
+	mtx_lock_spin(&td_contested_lock);
+	ts->ts_owner = NULL;
+	LIST_REMOVE(ts, ts_link);
+	mtx_unlock_spin(&td_contested_lock);
+	mtx_unlock_spin(&tc->tc_lock);
+
+	/*
+	 * Adjust the priority of curthread based on other contested
+	 * locks it owns.  Don't lower the priority below the base
+	 * priority however.
+	 */
+	td = curthread;
+	pri = PRI_MAX;
+	mtx_lock_spin(&sched_lock);
+	mtx_lock_spin(&td_contested_lock);
+	LIST_FOREACH(ts, &td->td_contested, ts_link) {
+		cp = turnstile_first_waiter(ts)->td_priority;
+		if (cp < pri)
+			pri = cp;
+	}
+	mtx_unlock_spin(&td_contested_lock);
+	sched_unlend_prio(td, pri);
+	mtx_unlock_spin(&sched_lock);
+}
+
+/*
  * Return the first thread in a turnstile.
  */
 struct thread *
@@ -893,6 +943,23 @@ turnstile_head(struct turnstile *ts, int queue)
 	mtx_assert(&tc->tc_lock, MA_OWNED);
 #endif
 	return (TAILQ_FIRST(&ts->ts_blocked[queue]));
+}
+
+/*
+ * Returns true if a sub-queue of a turnstile is empty.
+ */
+int
+turnstile_empty(struct turnstile *ts, int queue)
+{
+#ifdef INVARIANTS
+	struct turnstile_chain *tc;
+
+	MPASS(ts != NULL);
+	MPASS(queue == TS_SHARED_QUEUE || queue == TS_EXCLUSIVE_QUEUE);
+	tc = TC_LOOKUP(ts->ts_lockobj);
+	mtx_assert(&tc->tc_lock, MA_OWNED);
+#endif
+	return (TAILQ_EMPTY(&ts->ts_blocked[queue]));
 }
 
 #ifdef DDB
