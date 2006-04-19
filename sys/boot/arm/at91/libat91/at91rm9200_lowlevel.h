@@ -24,10 +24,34 @@
  * $FreeBSD$
  */
 
-#ifndef ARM_BOOT_LIB_H
-#define ARM_BOOT_LIB_H
+#ifndef _AT91RM9200_LOWLEVEL_H_
+#define _AT91RM9200_LOWLEVEL_H_
 
-int getc(int);
-void putc(int);
+/* default system config parameters */
 
+#define SDRAM_BASE		0x20000000
+
+#ifdef BOOT_KB9202
+/* The following divisor sets PLLA frequency: e.g. 10/5 * 90 = 180MHz */
+#define OSC_MAIN_FREQ_DIV	5	/* for 10MHz osc */
+#define SDRAM_WIDTH	AT91C_SDRC_DBW_16_BITS
+typedef unsigned short sdram_size_t;
+#define OSC_MAIN_MULT		90
 #endif
+
+#ifdef BOOT_TSC
+/* The following divisor sets PLLA frequency: e.g. 16/4 * 45 = 180MHz */
+#define OSC_MAIN_FREQ_DIV	4	/* for 16MHz osc */
+#define SDRAM_WIDTH	AT91C_SDRC_DBW_16_BITS
+typedef unsigned int sdram_size_t;
+#define OSC_MAIN_MULT		45
+#endif
+
+/* Master clock frequency at power-up */
+#define AT91C_MASTER_CLOCK 60000000
+
+#define GetSeconds() (AT91C_BASE_RTC->RTC_TIMR & AT91C_RTC_SEC)
+
+extern void _init(void);
+
+#endif /* _AT91RM9200_LOWLEVEL_H_ */

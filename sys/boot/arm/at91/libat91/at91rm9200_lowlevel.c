@@ -27,7 +27,7 @@
  * $FreeBSD$
  */
 
-#include "AT91RM9200.h"
+#include "at91rm9200.h"
 #include "at91rm9200_lowlevel.h"
 
 #define BAUD	115200
@@ -46,10 +46,9 @@ _init(void)
 	AT91PS_PDC pPDC = (AT91PS_PDC)&(pUSART->US_RPR);
 
 	register unsigned	value;
-	int i;
 	volatile sdram_size_t *p = (sdram_size_t *)SDRAM_BASE;
 
-#ifdef BOOT0_TSC
+#ifdef BOOT_TSC
 	// For the TSC board, we turn ON the one LED we have while
 	// early in boot.
 	AT91C_BASE_PIOC->PIO_PER = AT91C_PIO_PC10;
