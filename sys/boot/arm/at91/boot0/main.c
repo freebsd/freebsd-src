@@ -24,7 +24,7 @@
  * $FreeBSD$
  */
 
-#include "AT91RM9200.h"
+#include "at91rm9200.h"
 #include "lib.h"
 #include "at91rm9200_lowlevel.h"
 
@@ -34,7 +34,7 @@ int
 main(void)
 {
 	char *addr = (char *)SDRAM_BASE + (1 << 20); /* Load to base + 1MB */
-	fn_t *fn = (fn_t *)addr;
+	fn_t *fn = (fn_t *)(SDRAM_BASE + (1 << 20)); /* Load to base + 1MB */
 
 	while (xmodem_rx(addr) == -1)
 		continue;

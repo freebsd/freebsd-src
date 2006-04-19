@@ -34,43 +34,21 @@
  * $FreeBSD$
  */
 
-#include "AT91RM9200.h"
+#include "at91rm9200.h"
 #include "at91rm9200_lowlevel.h"
+#include "lib.h"
 
 /*
- * void putc(int ch)
+ * void putchar(int ch)
  * Writes a character to the DBGU port.  It assumes that DBGU has
  * already been initialized.
  */
 void
-putc(int ch)
+putchar(int ch)
 {
 	AT91PS_USART pUSART = (AT91PS_USART)AT91C_BASE_DBGU;
 
 	while (!(pUSART->US_CSR & AT91C_US_TXRDY))
 		continue;
 	pUSART->US_THR = (ch & 0xFF);
-}
-
-/*
- * int getc(int seconds)
- * 
- * Reads a character from the DBGU port, if one is available within about
- * seconds seconds.  It assumes that DBGU has already been initialized.
- */
-int
-getc(int seconds)
-{
-	AT91PS_USART pUSART = (AT91PS_USART)AT91C_BASE_DBGU;
-	unsigned	thisSecond;
-
-	thisSecond = GetSeconds();
-	seconds = thisSecond + seconds;
-
-	while (thisSecond <= seconds) {
-		if ((pUSART->US_CSR & AT91C_US_RXRDY))
-			return (pUSART->US_RHR & 0xFF);
-		thisSecond = GetSeconds();
-	}
-	return (-1);
 }

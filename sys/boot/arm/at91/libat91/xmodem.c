@@ -81,11 +81,11 @@ GetRecord(char blocknum, char *dest)
 	    goto err;
 	if (((ch = getc(1)) == -1) || ((ch & 0xff) != (chk & 0xFF)))
 	    goto err;
-	putc(ACK);
+	putchar(ACK);
 
 	return (1);
 err:;
-	putc(CAN);
+	putchar(CAN);
 	// We should allow for resend, but we don't.
 	return (0);
 }
@@ -107,11 +107,11 @@ xmodem_rx(char *dest)
 
 	while (1) {
 		if (starting)
-			putc('C');
+			putchar('C');
 		if (((ch = getc(1)) == -1) || (ch != SOH && ch != EOT))
 			continue;
 		if (ch == EOT) {
-			putc(ACK);
+			putchar(ACK);
 			return (dest - startAddress);
 		}
 		starting = 0;

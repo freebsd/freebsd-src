@@ -24,34 +24,20 @@
  * $FreeBSD$
  */
 
-#ifndef _AT91RM9200_LOWLEVEL_H_
-#define _AT91RM9200_LOWLEVEL_H_
+#ifndef ARM_BOOT_LIB_H
+#define ARM_BOOT_LIB_H
 
-/* default system config parameters */
+int getc(int);
+void putchar(int);
+void printf(const char *fmt,...);
 
-#define SDRAM_BASE		0x20000000
+/* The following function write eeprom at ee_addr using data 	*/
+/*  from data_add for size bytes.				*/
+void ReadEEPROM(unsigned ee_addr, char *data_addr, unsigned size);
+void WriteEEPROM(unsigned ee_addr, char *data_addr, unsigned size);
+void InitEEPROM(void);
 
-#ifdef BOOT0_KB9202
-/* The following divisor sets PLLA frequency: e.g. 10/5 * 90 = 180MHz */
-#define OSC_MAIN_FREQ_DIV	5	/* for 10MHz osc */
-#define SDRAM_WIDTH	AT91C_SDRC_DBW_16_BITS
-typedef unsigned short sdram_size_t;
-#define OSC_MAIN_MULT		90
+/* XMODEM protocol */
+int xmodem_rx(char *dst);
+
 #endif
-
-#ifdef BOOT0_TSC
-/* The following divisor sets PLLA frequency: e.g. 16/4 * 45 = 180MHz */
-#define OSC_MAIN_FREQ_DIV	4	/* for 16MHz osc */
-#define SDRAM_WIDTH	AT91C_SDRC_DBW_16_BITS
-typedef unsigned int sdram_size_t;
-#define OSC_MAIN_MULT		45
-#endif
-
-/* Master clock frequency at power-up */
-#define AT91C_MASTER_CLOCK 60000000
-
-#define GetSeconds() (AT91C_BASE_RTC->RTC_TIMR & AT91C_RTC_SEC)
-
-extern void DefaultSystemInit(void);
-
-#endif /* _AT91RM9200_LOWLEVEL_H_ */
