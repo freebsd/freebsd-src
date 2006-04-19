@@ -661,7 +661,6 @@ mpt_intr(void *arg)
 {
 	struct mpt_softc *mpt;
 	uint32_t reply_desc;
-	uint32_t last_reply_desc = MPT_REPLY_EMPTY;
 	int ntrips = 0;
 
 	mpt = (struct mpt_softc *)arg;
@@ -674,15 +673,6 @@ mpt_intr(void *arg)
 		u_int		   cb_index;
 		u_int		   req_index;
 		int		   free_rf;
-
-		if (reply_desc == last_reply_desc) {
-			mpt_prt(mpt, "debounce reply_desc 0x%x\n", reply_desc);
-			if (ntrips++ == 1000) {
-				break;
-			}
-			continue;
-		}
-		last_reply_desc = reply_desc;
 
 		req = NULL;
 		reply_frame = NULL;
