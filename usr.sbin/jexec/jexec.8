@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 8, 2003
+.Dd April 19, 2006
 .Dt JEXEC 8
 .Os
 .Sh NAME
@@ -33,6 +33,7 @@
 .Nd "execute a command inside an existing jail"
 .Sh SYNOPSIS
 .Nm
+.Op Fl u Ar username | Fl U Ar username
 .Ar jid command ...
 .Sh DESCRIPTION
 The
@@ -41,6 +42,17 @@ utility executes
 .Ar command
 inside the jail identified by
 .Ar jid .
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl u Ar username
+The user name from host environment as whom the
+.Ar command
+should run.
+.It Fl U Ar username
+The user name from jailed environment as whom the
+.Ar command
+should run.
 .Sh SEE ALSO
 .Xr jail_attach 2 ,
 .Xr jail 8 ,
