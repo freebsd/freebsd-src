@@ -54,6 +54,10 @@
 .Ft void
 .Fn rw_wunlock "struct rwlock *rw"
 .Ft int
+.Fn rw_try_upgrade "struct rwlock *rw"
+.Ft void
+.Fn rw_downgrade "struct rwlock *rw"
+.Ft int
 .Fn rw_initialized "struct rwlock *rw"
 .Ft void
 .Fn rw_destroy "struct rwlock *rw"
@@ -134,6 +138,25 @@ This function releases a shared lock previously acquired by
 .It Fn rw_wunlock "struct rwlock *rw"
 This function releases an exclusive lock previously acquired by
 .Fn rw_wlock .
+.It Fn rw_try_upgrade "struct rwlock *rw"
+Attempt to upgrade a single shared lock to an exclusive lock.
+The current thread must hold a shared lock of
+.Fa rw .
+This will only succeed if the current thread holds the only shared lock on
+.Fa rw ,
+and it only holds a single shared lock.
+If the attempt succeeds
+.Fn rw_try_upgrade
+will return a non-zero value,
+and the current thread will hold an exclusive lock.
+If the attempt fails
+.Fn rw_try_upgrade
+will return zero,
+and the current thread will still hold a shared lock.
+.It Fn rw_downgrade "struct rwlock *rw"
+Convert an exclusive lock into a single shared lock.
+The current thread must hold an exclusive lock of
+.Fa rw .
 .It Fn rw_initialized "struct rwlock *rw"
 This function returns non-zero if
 .Fa rw
