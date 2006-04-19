@@ -51,8 +51,6 @@ device		machfb		# ATI Mach64 framebuffers
 device		ofw_console	# Open Firmware console device
 option 		OFWCONS_POLL_HZ=4 # 20 or more works best on Ultra2
 
-device		sab		# Siemens SAB82532 based serial ports
-
 
 #####################################################################
 # Devices we don't want to deal with
