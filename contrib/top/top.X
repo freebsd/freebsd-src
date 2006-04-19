@@ -10,7 +10,7 @@ top \- display and update information about the top cpu processes
 .SH SYNOPSIS
 .B top
 [
-.B \-bHIinqStuv
+.B \-bCHIinqStuv
 ] [
 .BI \-d count
 ] [
@@ -61,6 +61,18 @@ features.  If the output of
 is redirected to a file, it acts as if it were being run on a dumb
 terminal.
 .SH OPTIONS
+.TP
+.B \-C
+Toggle CPU display mode.
+By default top displays the weighted CPU percentage in the WCPU column
+(this is the same value that
+.IR ps (1)
+displays as CPU).
+Each time
+.B \-C
+flag is passed it toggles between \*(lqraw cpu\*(rq mode
+and \*(lqweighted cpu\*(rq mode, showing the \*(lqCPU\*(rq or
+the \*(lqWCPU\*(rq column respectively.
 .TP
 .B \-S
 Show system processes in the display.  Normally, system processes such as
