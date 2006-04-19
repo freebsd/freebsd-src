@@ -1651,7 +1651,7 @@ static void
 ciss_free(struct ciss_softc *sc)
 {
     struct ciss_request *cr;
-    int			i;
+    int			i, j;
 
     debug_called(1);
 
@@ -1725,8 +1725,15 @@ ciss_free(struct ciss_softc *sc)
 	cam_simq_free(sc->ciss_cam_devq);
 
     if (sc->ciss_logical) {
-	for (i = 0; i < sc->ciss_max_logical_bus; i++)
+	for (i = 0; i <= sc->ciss_max_logical_bus; i++) {
+	    for (j = 0; j < CISS_MAX_LOGICAL; j++) {
+		if (sc->ciss_logical[i][j].cl_ldrive)
+		    free(sc->ciss_logical[i][j].cl_ldrive, CISS_MALLOC_CLASS);
+		if (sc->ciss_logical[i][j].cl_lstatus)
+		    free(sc->ciss_logical[i][j].cl_lstatus, CISS_MALLOC_CLASS);
+	    }
 	    free(sc->ciss_logical[i], CISS_MALLOC_CLASS);
+	}
 	free(sc->ciss_logical, CISS_MALLOC_CLASS);
     }
 
