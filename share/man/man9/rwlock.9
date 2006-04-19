@@ -24,11 +24,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 30, 2006
+.Dd April 19, 2006
 .Dt RWLOCK 9
 .Os
 .Sh NAME
-.Nm rwlock
+.Nm rwlock ,
 .Nm rw_init ,
 .Nm rw_rlock ,
 .Nm rw_wlock ,
@@ -38,118 +38,117 @@
 .Nm rw_initialized ,
 .Nm rw_destroy ,
 .Nm RW_SYSINIT ,
-.Nd kernel synchronization primitives
+.Nd kernel reader/writer lock
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/lock.h
 .In sys/rwlock.h
 .Ft void
-.Fn rw_init "struct rwlock *rwlock" "const char *name"
+.Fn rw_init "struct rwlock *rw" "const char *name"
 .Ft void
-.Fn rw_rlock "struct rwlock *rwlock"
+.Fn rw_rlock "struct rwlock *rw"
 .Ft void
-.Fn rw_wlock "struct rwlock *rwlock"
+.Fn rw_wlock "struct rwlock *rw"
 .Ft void
-.Fn rw_runlock "struct rwlock *rwlock"
+.Fn rw_runlock "struct rwlock *rw"
 .Ft void
-.Fn rw_wunlock "struct rwlock *rwlock"
+.Fn rw_wunlock "struct rwlock *rw"
 .Ft int
-.Fn rw_initialized "struct rwlock *rwlock"
+.Fn rw_initialized "struct rwlock *rw"
 .Ft void
-.Fn rw_destroy "struct rwlock *rwlock"
+.Fn rw_destroy "struct rwlock *rw"
 .Pp
 .Cd "options INVARIANTS"
 .Cd "options INVARIANT_SUPPORT"
 .Ft void
-.Fn rw_assert "struct rwlock *rwlock" "int what"
+.Fn rw_assert "struct rwlock *rw" "int what"
 .In sys/kernel.h
-.Fn RW_SYSINIT "name" "struct rwlock *rwlock" "const char *description"
+.Fn RW_SYSINIT "name" "struct rwlock *rw" "const char *desc"
 .Sh DESCRIPTION
-Read/write locks are a method of thread synchronization, which
-allows several threads have shared access to protected data, or
-one thread have exclusive access.
-The threads that share access are known as
+Reader/writer locks allow shared access to protected data by multiple threads,
+or exclusive access by a single thread.
+The threads with shared access are known as
 .Em readers
-since they should only read the protected data, while thread
-with exclusive access is known as a
+since they only read the protected data.
+A thread with exclusive access is known as a
 .Em writer
 since it can modify protected data.
 .Pp
-Although the description of read/write locks looks very similar
-to description of
+Although reader/writeer locks look very similar to
 .Xr sx 9
 locks, their usage pattern is different.
-The read/write locks can be treated as mutexes (see
+Reader/writer locks can be treated as mutexes (see
 .Xr mutex 9 )
 with shared/exclusive semantics.
 Unlike
 .Xr sx 9 ,
 an
 .Nm
-can be locked while holding a non-spin mutex;
+can be locked while holding a non-spin mutex, and an
 .Nm
 cannot be held while sleeping.
 The
 .Nm
 locks have priority propagation like mutexes, but priority
-can be propagated only to exclusive holder.
+can be propagated only to an exclusive holder.
 This limitation comes from the fact that shared owners
 are anonymous.
-Another important property is that shared holder of
+Another important property is that shared holders of
 .Nm
-can recurse on it.
+can recurse,
+but exclusive locks are not allowed to recurse.
 .Ss Macros and Functions
 .Bl -tag -width indent
-.It Fn rw_init "struct rwlock *rwlock" "const char *name"
+.It Fn rw_init "struct rwlock *rw" "const char *name"
 Initialize structure located at
-.Fa rwlock
-as read/write lock, described by name
+.Fa rw
+as reader/writer lock, described by name
 .Fa name .
 The description is used solely for debugging purposes.
-This function must be used before any other manipulations
-with the lock.
-.It Fn rw_rlock "struct rwlock *rwlock"
-Lock the
-.Fa rwlock
-as reader.
+This function must be called before any other operations
+on the lock.
+.It Fn rw_rlock "struct rwlock *rw"
+Lock
+.Fa rw
+as a reader.
 If any thread holds this lock exclusively, the current thread blocks,
-and its priority is propagated to exclusive holder.
+and its priority is propagated to the exclusive holder.
 The
 .Fn rw_rlock
 function can be called when the thread has already acquired reader
 access on
-.Fa rwlock .
+.Fa rw .
 This is called
 .Dq "recursing on a lock" .
-.It Fn rw_wlock "struct rwlock *rwlock"
-Lock the
-.Fa rwlock
-as writer.
+.It Fn rw_wlock "struct rwlock *rw"
+Lock
+.Fa rw
+as a writer.
 If there are any shared owners of the lock, the current thread blocks.
 The
 .Fn rw_wlock
 function cannot be called recursively.
-.It Fn rw_runlock "struct rwlock *rwlock"
-This function releases shared lock, previously acquired by
+.It Fn rw_runlock "struct rwlock *rw"
+This function releases a shared lock previously acquired by
 .Fn rw_rlock .
-.It Fn rw_wunlock "struct rwlock *rwlock"
-This function releases exclusive lock, previously acquired by
+.It Fn rw_wunlock "struct rwlock *rw"
+This function releases an exclusive lock previously acquired by
 .Fn rw_wlock .
-.It Fn rw_initialized "struct rwlock *rwlock"
-This function returns non-zero if the
-.Fa rwlock
+.It Fn rw_initialized "struct rwlock *rw"
+This function returns non-zero if
+.Fa rw
 has been initialized, and zero otherwise.
-.It Fn rw_destroy "struct rwlock *rwlock"
+.It Fn rw_destroy "struct rwlock *rw"
 This functions destroys a lock previously initialized with
 .Fn rw_init .
 The
-.Fa rwlock
-must be unlocked.
-.It Fn rw_assert "struct rwlock *rwlock" "int what"
+.Fa rw
+lock must be unlocked.
+.It Fn rw_assert "struct rwlock *rw" "int what"
 This function allows assertions specified in
 .Fa what
 to be made about
-.Fa rwlock .
+.Fa rw .
 If the assertions are not true and the kernel is compiled
 with
 .Cd "options INVARIANTS"
@@ -159,29 +158,21 @@ the kernel will panic.
 Currently the following assertions are supported:
 .Bl -tag -width ".Dv RA_UNLOCKED"
 .It Dv RA_LOCKED
-Assert that current thread is either shared or exclusive owner
-of the
-.Nm
-pointed to by the first argument.
+Assert that current thread holds either a shared or exclusive lock
+of
+.Fa rw .
 .It Dv RA_RLOCKED
-Assert that current thread is shared owner of the
-.Nm
-pointed
-to by the first argument.
+Assert that current thread holds a shared lock of
+.Fa rw .
 .It Dv RA_WLOCKED
-Assert that current thread is exclusive owner of the
-.Nm
-pointed
-to by the first argument.
+Assert that current thread holds an exclusive lock of
+.Fa rw .
 .It Dv RA_UNLOCKED
-Assert that current thread is neither shared nor exclusive owner
-of the
-.Nm
-pointed to by the first argument.
+Assert that current thread holds neither a shared nor exclusive lock of
+.Fa rw .
 .El
 .El
 .Sh SEE ALSO
-.Xr condvar 9 ,
 .Xr mutex 9 ,
 .Xr panic 9 ,
 .Xr sema 9 ,
@@ -198,3 +189,23 @@ facility was written by
 .An "John Baldwin" .
 This manual page was written by
 .An "Gleb Smirnoff" .
+.Sh BUGS
+If
+.Dv WITNESS
+is not included in the kernel,
+then it is impossible to assert that the current thread does or does not
+hold a shared lock.
+In the
+.No non - Ns Dv WITNESS
+case, the
+.Dv RA_LOCKED
+and
+.Dv RA_RLOCKED
+assertions merely check that some thread holds a shared lock.
+.Pp
+Reader/writer is a bit of an awkward name.
+An
+.Nm
+can also be called a
+.Dq Robert Watson
+lock if desired.
