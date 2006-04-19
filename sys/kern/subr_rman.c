@@ -89,8 +89,6 @@ struct resource_i {
 	void	*r_virtual;	/* virtual address of this resource */
 	struct	device *r_dev;	/* device which has allocated this resource */
 	struct	rman *r_rm;	/* resource manager from whence this came */
-	void    *r_spare1;	/* Spare pointer 1 */
-	void    *r_spare2;	/* Spare pointer 2 */
 	int	r_rid;		/* optional rid for this resource. */
 };
 
