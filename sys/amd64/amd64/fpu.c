@@ -96,6 +96,8 @@ void	stop_emulating(void);
 
 typedef u_char bool_t;
 
+static	void	fpu_clean_state(void);
+
 int	hw_float = 1;
 SYSCTL_INT(_hw,HW_FLOATINGPT, floatingpoint,
 	CTLFLAG_RD, &hw_float, 0, 
@@ -407,6 +409,8 @@ fpudna()
 	PCPU_SET(fpcurthread, curthread);
 	pcb = PCPU_GET(curpcb);
 
+	fpu_clean_state();
+
 	if ((pcb->pcb_flags & PCB_FPUINITDONE) == 0) {
 		/*
 		 * This is the first time this thread has used the FPU,
@@ -474,6 +478,7 @@ fpusetregs(struct thread *td, struct savefpu *addr)
 
 	s = intr_disable();
 	if (td == PCPU_GET(fpcurthread)) {
+		fpu_clean_state();
 		fxrstor(addr);
 		intr_restore(s);
 	} else {
@@ -481,6 +486,37 @@ fpusetregs(struct thread *td, struct savefpu *addr)
 		bcopy(addr, &td->td_pcb->pcb_save, sizeof(*addr));
 	}
 	curthread->td_pcb->pcb_flags |= PCB_FPUINITDONE;
+}
+
+/*
+ * On AuthenticAMD processors, the fxrstor instruction does not restore
+ * the x87's stored last instruction pointer, last data pointer, and last
+ * opcode values, except in the rare case in which the exception summary
+ * (ES) bit in the x87 status word is set to 1.
+ *
+ * In order to avoid leaking this information across processes, we clean
+ * these values by performing a dummy load before executing fxrstor().
+ */
+static	double	dummy_variable = 0.0;
+static void
+fpu_clean_state(void)
+{
+	u_short status;
+
+	/*
+	 * Clear the ES bit in the x87 status word if it is currently
+	 * set, in order to avoid causing a fault in the upcoming load.
+	 */
+	fnstsw(&status);
+	if (status & 0x80)
+		fnclex();
+
+	/*
+	 * Load the dummy variable into the x87 stack.  This mangles
+	 * the x87 stack, but we don't care since we're about to call
+	 * fxrstor() anyway.
+	 */
+	__asm __volatile("ffree %%st(7); fld %0" : : "m" (dummy_variable));
 }
 
 /*
