@@ -21,12 +21,42 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * This software is derived from software provided by kwikbyte without
+ * copyright as follows:
+ *
+ * No warranty, expressed or implied, is included with this software.  It is
+ * provided "AS IS" and no warranty of any kind including statutory or aspects
+ * relating to merchantability or fitness for any purpose is provided.  All
+ * intellectual property rights of others is maintained with the respective
+ * owners.  This software is not copyrighted and is intended for reference
+ * only.
+ *
  * $FreeBSD$
  */
 
-#ifndef BOOT_ARM_XMODEM_H
-#define BOOT_ARM_XMODEM_H
+#include "at91rm9200.h"
+#include "at91rm9200_lowlevel.h"
+#include "lib.h"
 
-int xmodem_rx(char *dst);
+/*
+ * int getc(int seconds)
+ * 
+ * Reads a character from the DBGU port, if one is available within about
+ * seconds seconds.  It assumes that DBGU has already been initialized.
+ */
+int
+getc(int seconds)
+{
+	AT91PS_USART pUSART = (AT91PS_USART)AT91C_BASE_DBGU;
+	unsigned	thisSecond;
 
-#endif /* BOOT_ARM_XMODEM_H */
+	thisSecond = GetSeconds();
+	seconds = thisSecond + seconds;
+
+	while (thisSecond <= seconds) {
+		if ((pUSART->US_CSR & AT91C_US_RXRDY))
+			return (pUSART->US_RHR & 0xFF);
+		thisSecond = GetSeconds();
+	}
+	return (-1);
+}
