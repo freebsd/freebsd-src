@@ -126,6 +126,8 @@ void	_rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file,
 	    int line);
 void	_rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file,
 	    int line);
+int	_rw_try_upgrade(struct rwlock *rw, const char *file, int line);
+void	_rw_downgrade(struct rwlock *rw, const char *file, int line);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 void	_rw_assert(struct rwlock *rw, int what, const char *file, int line);
 #endif
@@ -133,7 +135,7 @@ void	_rw_assert(struct rwlock *rw, int what, const char *file, int line);
 /*
  * Public interface for lock operations.
  *
- * XXX: Missing try and upgrade/downgrade.
+ * XXX: Missing try locks.
  */
 
 #ifndef LOCK_DEBUG
@@ -150,6 +152,8 @@ void	_rw_assert(struct rwlock *rw, int what, const char *file, int line);
 #endif
 #define	rw_rlock(rw)		_rw_rlock((rw), LOCK_FILE, LOCK_LINE)
 #define	rw_runlock(rw)		_rw_runlock((rw), LOCK_FILE, LOCK_LINE)
+#define	rw_try_upgrade(rw)	_rw_try_upgrade((rw), LOCK_FILE, LOCK_LINE)
+#define	rw_downgrade(rw)	_rw_downgrade((rw), LOCK_FILE, LOCK_LINE)
 
 #define	rw_initialized(rw)	lock_initalized(&(rw)->rw_object)
 
