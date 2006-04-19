@@ -55,7 +55,7 @@ static void	db_show_rwlock(struct lock_object *lock);
 
 struct lock_class lock_class_rw = {
 	"rw",
-	LC_SLEEPLOCK | LC_RECURSABLE /* | LC_UPGRADABLE */,
+	LC_SLEEPLOCK | LC_RECURSABLE | LC_UPGRADABLE,
 #ifdef DDB
 	db_show_rwlock
 #endif
@@ -87,7 +87,7 @@ rw_init(struct rwlock *rw, const char *name)
 	rw->rw_lock = RW_UNLOCKED;
 
 	lock_init(&rw->rw_object, &lock_class_rw, name, NULL, LO_WITNESS |
-	    LO_RECURSABLE /* | LO_UPGRADABLE */);
+	    LO_RECURSABLE | LO_UPGRADABLE);
 }
 
 void
@@ -583,6 +583,137 @@ _rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	turnstile_broadcast(ts, queue);
 	atomic_store_rel_ptr(&rw->rw_lock, v);
 	turnstile_unpend(ts, TS_EXCLUSIVE_LOCK);
+}
+
+/*
+ * Attempt to do a non-blocking upgrade from a read lock to a write
+ * lock.  This will only succeed if this thread holds a single read
+ * lock.  Returns true if the upgrade succeeded and false otherwise.
+ */
+int
+_rw_try_upgrade(struct rwlock *rw, const char *file, int line)
+{
+	uintptr_t v, tid;
+	int success;
+
+	_rw_assert(rw, RA_RLOCKED, file, line);
+
+	/*
+	 * Attempt to switch from one reader to a writer.  If there
+	 * are any write waiters, then we will have to lock the
+	 * turnstile first to prevent races with another writer
+	 * calling turnstile_wait() before we have claimed this
+	 * turnstile.  So, do the simple case of no waiters first.
+	 */
+	tid = (uintptr_t)curthread;
+	if (!(rw->rw_lock & RW_LOCK_WRITE_WAITERS)) {
+		success = atomic_cmpset_acq_ptr(&rw->rw_lock,
+		    RW_READERS_LOCK(1), tid);
+		goto out;
+	}
+
+	/*
+	 * Ok, we think we have write waiters, so lock the
+	 * turnstile.
+	 */
+	turnstile_lock(&rw->rw_object);
+
+	/*
+	 * Try to switch from one reader to a writer again.  This time
+	 * we honor the current state of the RW_LOCK_WRITE_WAITERS
+	 * flag.  If we obtain the lock with the flag set, then claim
+	 * ownership of the turnstile.  In the SMP case it is possible
+	 * for there to not be an associated turnstile even though there
+	 * are waiters if all of the waiters are spinning.
+	 */
+	v = rw->rw_lock & RW_LOCK_WRITE_WAITERS;
+	success = atomic_cmpset_acq_ptr(&rw->rw_lock, RW_READERS_LOCK(1) | v,
+	    tid | v);
+#ifdef SMP
+	if (success && v && turnstile_lookup(&rw->rw_object) != NULL)
+#else
+	if (success && v)
+#endif
+		turnstile_claim(&rw->rw_object);
+	else
+		turnstile_release(&rw->rw_object);
+out:
+	LOCK_LOG_TRY("WUPGRADE", &rw->rw_object, 0, success, file, line);
+	if (success)
+		WITNESS_UPGRADE(&rw->rw_object, LOP_EXCLUSIVE | LOP_TRYLOCK,
+		    file, line);
+	return (success);
+}
+
+/*
+ * Downgrade a write lock into a single read lock.
+ */
+void
+_rw_downgrade(struct rwlock *rw, const char *file, int line)
+{
+	struct turnstile *ts;
+	uintptr_t tid, v;
+
+	_rw_assert(rw, RA_WLOCKED, file, line);
+
+	WITNESS_DOWNGRADE(&rw->rw_object, 0, file, line);
+
+	/*
+	 * Convert from a writer to a single reader.  First we handle
+	 * the easy case with no waiters.  If there are any waiters, we
+	 * lock the turnstile, "disown" the lock, and awaken any read
+	 * waiters.
+	 */
+	tid = (uintptr_t)curthread;
+	if (atomic_cmpset_rel_ptr(&rw->rw_lock, tid, RW_READERS_LOCK(1)))
+		goto out;
+
+	/*
+	 * Ok, we think we have waiters, so lock the turnstile so we can
+	 * read the waiter flags without any races.
+	 */
+	turnstile_lock(&rw->rw_object);
+	v = rw->rw_lock;
+	MPASS(v & (RW_LOCK_READ_WAITERS | RW_LOCK_WRITE_WAITERS));
+
+	/*
+	 * Downgrade from a write lock while preserving
+	 * RW_LOCK_WRITE_WAITERS and give up ownership of the
+	 * turnstile.  If there are any read waiters, wake them up.
+	 *
+	 * For SMP, we have to allow for the fact that all of the
+	 * read waiters might be spinning.  In that case, act as if
+	 * RW_LOCK_READ_WAITERS is not set.  Also, only preserve
+	 * the RW_LOCK_WRITE_WAITERS flag if at least one writer is
+	 * blocked on the turnstile.
+	 */
+	ts = turnstile_lookup(&rw->rw_object);
+#ifdef SMP
+	if (ts == NULL)
+		v &= ~(RW_LOCK_READ_WAITERS | RW_LOCK_WRITE_WAITERS);
+	else if (v & RW_LOCK_READ_WAITERS &&
+	    turnstile_empty(ts, TS_SHARED_QUEUE))
+		v &= ~RW_LOCK_READ_WAITERS;
+	else if (v & RW_LOCK_WRITE_WAITERS &&
+	    turnstile_empty(ts, TS_EXCLUSIVE_QUEUE))
+		v &= ~RW_LOCK_WRITE_WAITERS;
+#else
+	MPASS(ts != NULL);
+#endif
+	if (v & RW_LOCK_READ_WAITERS)
+		turnstile_broadcast(ts, TS_SHARED_QUEUE);
+	atomic_store_rel_ptr(&rw->rw_lock, RW_READERS_LOCK(1) |
+	    (v & RW_LOCK_WRITE_WAITERS));
+	if (v & RW_LOCK_READ_WAITERS)
+		turnstile_unpend(ts, TS_EXCLUSIVE_LOCK);
+#ifdef SMP
+	else if (ts == NULL)
+		turnstile_release(&rw->rw_object);
+#endif
+	else
+		turnstile_disown(ts);
+out:
+	LOCK_LOG_LOCK("WDOWNGRADE", &rw->rw_object, 0, 0, file, line);
 }
 
 #ifdef INVARIANT_SUPPORT
