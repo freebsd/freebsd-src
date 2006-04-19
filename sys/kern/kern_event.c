@@ -1178,7 +1178,6 @@ start:
 		if (timeout < 0) {
 			error = EWOULDBLOCK;
 		} else {
-			KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
 			kq->kq_state |= KQ_SLEEP;
 			error = msleep(kq, &kq->kq_lock, PSOCK | PCATCH,
 			    "kqread", timeout);
@@ -1200,7 +1199,6 @@ start:
 
 		if ((kn->kn_status == KN_MARKER && kn != marker) ||
 		    (kn->kn_status & KN_INFLUX) == KN_INFLUX) {
-			KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
 			kq->kq_state |= KQ_FLUXWAIT;
 			error = msleep(kq, &kq->kq_lock, PSOCK,
 			    "kqflxwt", 0);
@@ -1245,6 +1243,7 @@ start:
 			KN_LIST_LOCK(kn);
 			if (kn->kn_fop->f_event(kn, 0) == 0) {
 				KQ_LOCK(kq);
+				KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
 				kn->kn_status &=
 				    ~(KN_QUEUED | KN_ACTIVE | KN_INFLUX);
 				kq->kq_count--;
@@ -1253,6 +1252,7 @@ start:
 			}
 			*kevp = kn->kn_kevent;
 			KQ_LOCK(kq);
+			KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
 			if (kn->kn_flags & EV_CLEAR) {
 				kn->kn_data = 0;
 				kn->kn_fflags = 0;
@@ -1263,7 +1263,6 @@ start:
 			
 			kn->kn_status &= ~(KN_INFLUX);
 			KN_LIST_UNLOCK(kn);
-
 		}
 
 		/* we are returning a copy to the user */
@@ -1285,7 +1284,6 @@ start:
 done:
 	KQ_OWNED(kq);
 	KQ_UNLOCK_FLUX(kq);
-	KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
 	knote_free(marker);
 done_nl:
 	KQ_NOTOWNED(kq);
