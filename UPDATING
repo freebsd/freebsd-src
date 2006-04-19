@@ -17,6 +17,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20060419:	p17	FreeBSD-SA-06:14.fpu
+	Correct a local information leakage bug affecting AMD FPUs.
+
 20060322:	p16	FreeBSD-SA-06:11.ipsec, FreeBSD-SA-06:12.opie,
 			FreeBSD-SA-06:13.sendmail
 	Add missing code needed for the detection of IPSec packet
