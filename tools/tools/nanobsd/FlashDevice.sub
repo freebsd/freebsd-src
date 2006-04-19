@@ -139,7 +139,7 @@ sub_FlashDevice () {
 		esac
 		;;
 	transcend)
-		case 2 in
+		case $2 in
 		dom064m)
 			NANO_MEDIASIZE=125184
 			NANO_HEADS=4
