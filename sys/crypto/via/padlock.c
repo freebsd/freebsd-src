@@ -366,6 +366,10 @@ padlock_process(void *arg __unused, struct cryptop *crp, int hint __unused)
 		err = EINVAL;
 		goto out;
 	}
+	if ((crd->crd_flags & CRD_F_KEY_EXPLICIT) != 0) {
+		err = EINVAL;
+		goto out;
+	}
 
 	mtx_lock(&sc->sc_sessions_mtx);
 	TAILQ_FOREACH(ses, &sc->sc_sessions, ses_next) {
