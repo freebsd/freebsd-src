@@ -430,6 +430,9 @@ wpa_driver_bsd_set_auth_alg(void *priv, int auth_alg)
 	else
 		authmode = IEEE80211_AUTH_OPEN;
 
+	wpa_printf(MSG_DEBUG, "%s alg 0x%x authmode %u",
+		__func__, auth_alg, authmode);
+
 	return set80211param(drv, IEEE80211_IOC_AUTHMODE, authmode);
 }
 
