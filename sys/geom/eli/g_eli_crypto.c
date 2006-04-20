@@ -97,7 +97,7 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 
 	crd->crd_skip = 0;
 	crd->crd_len = datasize;
-	crd->crd_flags = CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT | CRD_F_KEY_EXPLICIT;
+	crd->crd_flags = CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT;
 	if (enc)
 		crd->crd_flags |= CRD_F_ENCRYPT;
 	crd->crd_alg = algo;
