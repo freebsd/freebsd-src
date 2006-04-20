@@ -214,6 +214,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (rv == 0)
 		return 0;
 
+	rman_set_rid(rv, *rid);
 	rman_set_bustag(rv, (void*)ARM_BUS_SPACE_MEM);
 	rman_set_bushandle(rv, rman_get_start(rv));		
 	

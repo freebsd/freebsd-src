@@ -300,10 +300,14 @@ iq80321_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
 	struct i80321_softc *sc = device_get_softc(dev);
-	
-	if (type == SYS_RES_IRQ) 
-		return (rman_reserve_resource(&sc->sc_irq_rman,
-		    start, end, count, flags, child));
+	struct resource *rv;
+
+	if (type == SYS_RES_IRQ) {
+		rv = rman_reserve_resource(&sc->sc_irq_rman,
+		    start, end, count, flags, child);
+		if (rv != NULL)
+			rman_set_rid(rv, *rid);
+	}
 	return (NULL);
 }
 

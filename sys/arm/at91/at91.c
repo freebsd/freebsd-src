@@ -497,6 +497,7 @@ at91_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		rle->start = rman_get_start(rle->res);
 		rle->end = rman_get_end(rle->res);
 		rle->count = count;
+		rman_set_rid(rle->res, *rid);
 	}
 	return (rle->res);
 }
