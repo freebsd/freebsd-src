@@ -3355,15 +3355,17 @@ bus_alloc_resources(device_t dev, struct resource_spec *rs,
 }
 
 void
-bus_release_resources(device_t dev, struct resource_spec *rs,
+bus_release_resources(device_t dev, const struct resource_spec *rs,
     struct resource **res)
 {
 	int i;
 
 	for (i = 0; rs[i].type != -1; i++)
-		if (res[i] != NULL)
+		if (res[i] != NULL) {
 			bus_release_resource(
 			    dev, rs[i].type, rs[i].rid, res[i]);
+			res[i] = NULL;
+		}
 }
 
 /**
