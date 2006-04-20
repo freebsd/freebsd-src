@@ -297,7 +297,7 @@ struct resource_spec {
 };
 
 int bus_alloc_resources(device_t dev, struct resource_spec *rs, struct resource **res);
-void bus_release_resources(device_t dev, struct resource_spec *rs, struct resource **res);
+void bus_release_resources(device_t dev, const struct resource_spec *rs, struct resource **res);
 
 struct	resource *bus_alloc_resource(device_t dev, int type, int *rid,
 				     u_long start, u_long end, u_long count,
