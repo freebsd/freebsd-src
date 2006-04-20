@@ -3595,7 +3595,7 @@ ciss_notify_physical(struct ciss_softc *sc, struct ciss_notify *cn)
 static void
 ciss_notify_hotplug(struct ciss_softc *sc, struct ciss_notify *cn)
 {
-    struct ciss_lun_report *cll;
+    struct ciss_lun_report *cll = NULL;
     int bus, target;
     int s;
 
@@ -3633,6 +3633,9 @@ ciss_notify_hotplug(struct ciss_softc *sc, struct ciss_notify *cn)
 	ciss_printf(sc, "Unknown hotplug event %d\n", cn->subclass);
 	return;
     }
+
+    if (cll != NULL)
+	free(cll, CISS_MALLOC_CLASS);
 }
 
 /************************************************************************
