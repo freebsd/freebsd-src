@@ -532,8 +532,7 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 
 		crd->crd_skip = 0;
 		crd->crd_len = secsize;
-		crd->crd_flags =
-		    CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT | CRD_F_KEY_EXPLICIT;
+		crd->crd_flags = CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT;
 		if (bp->bio_cmd == BIO_WRITE)
 			crd->crd_flags |= CRD_F_ENCRYPT;
 		crd->crd_alg = sc->sc_algo;
