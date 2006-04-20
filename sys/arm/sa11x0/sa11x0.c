@@ -127,6 +127,8 @@ sa1110_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	
 	res = rman_reserve_resource(&sa11x0_softc->sa11x0_rman, *rid, *rid,
 	    count, flags, child);
+	if (res != NULL)
+		rman_set_rid(res, *rid);
 
 	return (res);
 }

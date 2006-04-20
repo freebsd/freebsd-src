@@ -124,6 +124,7 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		return (NULL);
 	if (type == SYS_RES_IRQ)
 		return (rv);
+	rman_set_rid(rv, *rid);
 	rman_set_bustag(rv, bt);
 	rman_set_bushandle(rv, bh);
 	
