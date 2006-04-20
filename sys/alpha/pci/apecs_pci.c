@@ -79,12 +79,17 @@ static struct resource *
 apecs_pcib_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			  u_long start, u_long end, u_long count, u_int flags)
 {
+	struct resource *rv = NULL;
+
 	if ((hwrpb->rpb_type == ST_DEC_2100_A50) &&
 	    (type == SYS_RES_IRQ))
-		return isa_alloc_intr(bus, child, start);
+		rv = isa_alloc_intr(bus, child, start);
 	else
-		return alpha_pci_alloc_resource(bus, child, type, rid,
-					  start, end, count, flags);
+		rv = alpha_pci_alloc_resource(bus, child, type, rid,
+		    start, end, count, flags);
+	if (rv != NULL)
+		rman_set_rid(rv, *rid);
+	return (rv);
 }
 
 static int
