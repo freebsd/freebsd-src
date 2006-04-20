@@ -214,6 +214,7 @@ hrowpic_allocate_intr(device_t picdev, device_t child, int *rid, u_long intr,
 		    device_get_nameunit(child));
 		return (NULL);
 	}
+	rman_set_rid(rv, *rid);
 	
 	return (rv);
 }
