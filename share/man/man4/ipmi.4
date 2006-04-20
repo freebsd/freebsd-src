@@ -25,14 +25,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2006
+.Dd April 20, 2006
 .Dt IPMI 4
 .Os
 .Sh NAME
 .Nm ipmi
 .Nd "OpenIPMI compatible IPMI interface driver"
 .Sh SYNOPSIS
-.Cd "options IPMI"
+.Cd "device ipmi"
 .Pp
 .In sys/dev/ipmi.h
 .Ft int
@@ -174,12 +174,13 @@ The
 driver first appeared in
 .Fx 7.0 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 driver was written by
-.Ar Doug Ambrisko An ambrisko@FreeBSD.org .
+.An Doug Ambrisko Aq ambrisko@FreeBSD.org .
 This manual page was written by
-.Ar Tom Rhodes An trhodes@FreeBSD.org .
+.An Tom Rhodes Aq trhodes@FreeBSD.org .
 .Sh BUGS
 Not all features of the MontaVista driver are supported.
 .Pp
