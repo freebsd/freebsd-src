@@ -137,6 +137,10 @@ void	stop_emulating	__P((void));
 
 typedef u_char bool_t;
 
+#ifdef CPU_ENABLE_SSE
+static	void	fpu_clean_state(void);
+#endif
+
 static	int	npx_attach	__P((device_t dev));
 	void	npx_intr	__P((void *));
 static	void	npx_identify	__P((driver_t *driver, device_t parent));
@@ -914,15 +918,49 @@ fpusave(addr)
 		fnsave(addr);
 }
 
+#ifdef CPU_ENABLE_SSE
+/*
+ * On AuthenticAMD processors, the fxrstor instruction does not restore
+ * the x87's stored last instruction pointer, last data pointer, and last
+ * opcode values, except in the rare case in which the exception summary
+ * (ES) bit in the x87 status word is set to 1.
+ *
+ * In order to avoid leaking this information across processes, we clean
+ * these values by performing a dummy load before executing fxrstor().
+ */
+static	double	dummy_variable = 0.0;
+static void
+fpu_clean_state(void)
+{
+	u_short status;
+
+	/*
+	 * Clear the ES bit in the x87 status word if it is currently
+	 * set, in order to avoid causing a fault in the upcoming load.
+	 */
+	fnstsw(&status);
+	if (status & 0x80)
+		fnclex();
+
+	/*
+	 * Load the dummy variable into the x87 stack.  This mangles
+	 * the x87 stack, but we don't care since we're about to call
+	 * fxrstor() anyway.
+	 */
+	__asm __volatile("ffree %%st(7); fld %0" : : "m" (dummy_variable));
+}
+#endif /* CPU_ENABLE_SSE */
+
 static void
 fpurstor(addr)
       union savefpu *addr;
 {
 
 #ifdef CPU_ENABLE_SSE
-	if (cpu_fxsr)
+	if (cpu_fxsr) {
+		fpu_clean_state();
 		fxrstor(addr);
-	else
+	} else
 #endif
 		frstor(addr);
 }
