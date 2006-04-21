@@ -210,6 +210,12 @@
       which can control the behavior, setting it to zero disables the
       <literal>SIGCHLD</literal> queuing feature.</para>
 
+    <para arch="amd64,i386">Instead of dumping the whole physical
+      memory, the kernel now defaults to dump only pages that are
+      actively mapped into kvm.  A new sysctl variable
+      <varname>debug.minidump</varname>
+      can be used to turn off this behavior when set to zero.</para>
+
     <para>A new sysctl variable <varname>kern.malloc_stats</varname>
       has been added.  This allows to export kernel malloc
       statistics via a binary structure stream.</para>
