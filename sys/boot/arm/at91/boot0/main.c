@@ -28,7 +28,7 @@
 #include "lib.h"
 #include "at91rm9200_lowlevel.h"
 
-typedef	void fn_t(void);
+typedef void fn_t(void);
 
 int
 main(void)
@@ -39,5 +39,5 @@ main(void)
 	while (xmodem_rx(addr) == -1)
 		continue;
 	fn();
-	return (1);
+	return (0);
 }
