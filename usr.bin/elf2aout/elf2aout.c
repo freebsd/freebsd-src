@@ -55,9 +55,6 @@ struct exec {
 };
 #define A_MAGIC 0x01030107
 
-extern char *optarg;
-extern int optind;
-
 static void usage(void);
 
 /*
