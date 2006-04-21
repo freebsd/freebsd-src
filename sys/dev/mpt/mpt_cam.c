@@ -4152,7 +4152,13 @@ mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
 
 			rsp[2] |= 0x200;	/* XXXX NEED MNEMONIC!!!! */
 			rsp[4] = htobe32(MPT_SENSE_SIZE);
-			memcpy(&rsp[8], sense_data, MPT_SENSE_SIZE);
+			if (sense_data) {
+				memcpy(&rsp[8], sense_data, MPT_SENSE_SIZE);
+			} else {
+				mpt_prt(mpt, "mpt_scsi_tgt_status: CHECK CONDI"
+				    "TION but no sense data?\n");
+				memset(&rsp, 0, MPT_SENSE_SIZE);
+			}
 			for (i = 8; i < (8 + (MPT_SENSE_SIZE >> 2)); i++) {
 				rsp[i] = htobe32(rsp[i]);
 			}
@@ -4268,7 +4274,7 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	lun_id_t lun;
 	int tag_action = 0;
 	mpt_tgt_state_t *tgt;
-	tgt_resource_t *trtp;
+	tgt_resource_t *trtp = NULL;
 	U8 *lunptr;
 	U8 *vbuf;
 	U16 itag;
@@ -4333,24 +4339,24 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 				    SCSI_STATUS_OK, 0);
 				return;
 			}
-			return;
-		}
-		switch (fc->FcpCntl[1]) {
-		case 0:
-			tag_action = MSG_SIMPLE_Q_TAG;
-			break;
-		case 1:
-			tag_action = MSG_HEAD_OF_Q_TAG;
-			break;
-		case 2:
-			tag_action = MSG_ORDERED_Q_TAG;
-			break;
-		default:
-			/*
-			 * Bah. Ignore Untagged Queing and ACA
-			 */
-			tag_action = MSG_SIMPLE_Q_TAG;
-			break;
+		} else {
+			switch (fc->FcpCntl[1]) {
+			case 0:
+				tag_action = MSG_SIMPLE_Q_TAG;
+				break;
+			case 1:
+				tag_action = MSG_HEAD_OF_Q_TAG;
+				break;
+			case 2:
+				tag_action = MSG_ORDERED_Q_TAG;
+				break;
+			default:
+				/*
+				 * Bah. Ignore Untagged Queing and ACA
+				 */
+				tag_action = MSG_SIMPLE_Q_TAG;
+				break;
+			}
 		}
 		tgt->resid = be32toh(fc->FcpDl);
 		cdbp = fc->FcpCdb;
@@ -4393,7 +4399,7 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	    mpt->trt[lun].enabled == 0) {
 		if (mpt->twildcard) {
 			trtp = &mpt->trt_wildcard;
-		} else {
+		} else if (fct != MPT_NIL_TMT_VALUE) {
 			const uint8_t sp[MPT_SENSE_SIZE] = {
 				0xf0, 0, 0x5, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0x25
 			};
@@ -4405,13 +4411,22 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 		trtp = &mpt->trt[lun];
 	}
 
+	/*
+	 * Deal with any task management
+	 */
 	if (fct != MPT_NIL_TMT_VALUE) {
-		/* undo any tgt residual settings */
-		tgt->resid = 0;
-		mpt_scsi_tgt_tsk_mgmt(mpt, req, fct, trtp,
-		    GET_INITIATOR_INDEX(reply_desc));
+		if (trtp == NULL) {
+			mpt_prt(mpt, "task mgmt function %x but no listener\n",
+			    fct);
+			mpt_scsi_tgt_status(mpt, 0, req,
+			    SCSI_STATUS_OK, 0);
+		} else {
+			mpt_scsi_tgt_tsk_mgmt(mpt, req, fct, trtp,
+			    GET_INITIATOR_INDEX(reply_desc));
+		}
 		return;
 	}
+
 
 	atiop = (struct ccb_accept_tio *) STAILQ_FIRST(&trtp->atios);
 	if (atiop == NULL) {
