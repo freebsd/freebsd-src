@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/protosw.h>
 #include <sys/domain.h>
+#include <sys/eventhandler.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -189,6 +190,13 @@ net_add_domain(void *data)
 	net_init_domain(dp);
 }
 
+static void
+socket_zone_change(void *tag)
+{
+
+	uma_zone_set_max(socket_zone, maxsockets);
+}
+
 /* ARGSUSED*/
 static void
 domaininit(void *dummy)
@@ -201,6 +209,8 @@ domaininit(void *dummy)
 	socket_zone = uma_zcreate("socket", sizeof(struct socket), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(socket_zone, maxsockets);
+	EVENTHANDLER_REGISTER(maxsockets_change, socket_zone_change, NULL,
+		EVENTHANDLER_PRI_FIRST);
 
 	if (max_linkhdr < 16)		/* XXX */
 		max_linkhdr = 16;

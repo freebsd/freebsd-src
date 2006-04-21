@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/aio.h> /* for aio_swake proto */
 #include <sys/domain.h>
 #include <sys/event.h>
+#include <sys/eventhandler.h>
 #include <sys/file.h>	/* for maxfiles */
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -1508,8 +1509,29 @@ static int dummy;
 SYSCTL_INT(_kern, KERN_DUMMY, dummy, CTLFLAG_RW, &dummy, 0, "");
 SYSCTL_OID(_kern_ipc, KIPC_MAXSOCKBUF, maxsockbuf, CTLTYPE_ULONG|CTLFLAG_RW, 
     &sb_max, 0, sysctl_handle_sb_max, "LU", "Maximum socket buffer size");
-SYSCTL_INT(_kern_ipc, OID_AUTO, maxsockets, CTLFLAG_RDTUN, 
-    &maxsockets, 0, "Maximum number of sockets avaliable");
+static int
+sysctl_maxsockets(SYSCTL_HANDLER_ARGS)
+{
+	int error, newmaxsockets;
+
+	newmaxsockets = maxsockets;
+	error = sysctl_handle_int(oidp, &newmaxsockets, sizeof(int), req); 
+	if (error == 0 && req->newptr) {
+		if (newmaxsockets > maxsockets) {
+			maxsockets = newmaxsockets;
+			if (maxsockets > ((maxfiles / 4) * 3)) {
+				maxfiles = (maxsockets * 5) / 4;
+				maxfilesperproc = (maxfiles * 9) / 10;
+			}
+			EVENTHANDLER_INVOKE(maxsockets_change);
+		} else
+			error = EINVAL;
+	}
+	return (error);
+}
+SYSCTL_PROC(_kern_ipc, OID_AUTO, maxsockets, CTLTYPE_INT|CTLFLAG_RW,
+    &maxsockets, 0, sysctl_maxsockets, "IU",
+    "Maximum number of sockets avaliable");
 SYSCTL_ULONG(_kern_ipc, KIPC_SOCKBUF_WASTE, sockbuf_waste_factor, CTLFLAG_RW,
     &sb_efficiency, 0, "");
 

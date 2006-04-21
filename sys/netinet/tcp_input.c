@@ -202,6 +202,14 @@ do { \
 	    (tcp_delack_enabled || (tp->t_flags & TF_NEEDSYN)))
 
 /* Initialize TCP reassembly queue */
+static void
+tcp_reass_zone_change(void *tag)
+{
+
+	tcp_reass_maxseg = nmbclusters / 16;
+	uma_zone_set_max(tcp_reass_zone, tcp_reass_maxseg);
+}
+
 uma_zone_t	tcp_reass_zone;
 void
 tcp_reass_init()
@@ -212,6 +220,8 @@ tcp_reass_init()
 	tcp_reass_zone = uma_zcreate("tcpreass", sizeof (struct tseg_qent),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(tcp_reass_zone, tcp_reass_maxseg);
+	EVENTHANDLER_REGISTER(nmbclusters_change,
+	    tcp_reass_zone_change, NULL, EVENTHANDLER_PRI_ANY);
 }
 
 static int
