@@ -87,12 +87,22 @@ static MALLOC_DEFINE(M_FTABLE, "fragment", "fragment reassembly header");
 /*
  * Initialise reassembly queue and fragment identifier.
  */
+static void
+frag6_change(void *tag)
+{
+
+	ip6_maxfragpackets = nmbclusters / 4;
+	ip6_maxfrags = nmbclusters / 4;
+}
+
 void
 frag6_init()
 {
 
 	ip6_maxfragpackets = nmbclusters / 4;
 	ip6_maxfrags = nmbclusters / 4;
+	EVENTHANDLER_REGISTER(nmbclusters_change,
+	    frag6_change, NULL, EVENTHANDLER_PRI_ANY);
 
 	IP6Q_LOCK_INIT();
 
