@@ -93,6 +93,18 @@ _init(void)
 	while (!(AT91C_BASE_PMC->PMC_SR & AT91C_PMC_MCKRDY))
 		continue;
 
+#ifdef BOOT_KB9202
+	// setup flash access (allow ample margin)
+	// 9 wait states, 1 setup, 1 hold, 1 float for 8-bit device
+	((AT91PS_SMC2)AT91C_BASE_SMC2)->SMC2_CSR[0] =
+		AT91C_SMC2_WSEN |
+		(9 & AT91C_SMC2_NWS) |
+		((1 << 8) & AT91C_SMC2_TDF) |
+		AT91C_SMC2_DBW_8 |
+		((1 << 24) & AT91C_SMC2_RWSETUP) |
+		((1 << 29) & AT91C_SMC2_RWHOLD);
+#endif
+
 	// setup SDRAM access
 	// EBI chip-select register (CS1 = SDRAM controller)
 	// 9 col, 13row, 4 bank, CAS2
@@ -160,7 +172,7 @@ _init(void)
 	AT91C_BASE_PIOA->PIO_PDR = AT91C_PA31_DTXD | AT91C_PA30_DRXD;
 	pUSART->US_IDR = (unsigned int) -1;
 	pUSART->US_CR =
-		AT91C_US_RSTRX | AT91C_US_RSTTX | AT91C_US_RXDIS | AT91C_US_TXDIS;
+	    AT91C_US_RSTRX | AT91C_US_RSTTX | AT91C_US_RXDIS | AT91C_US_TXDIS;
 	pUSART->US_BRGR = ((((AT91C_MASTER_CLOCK*10)/(BAUD*16))+5)/10);
 	pUSART->US_TTGR = 0;
 	pPDC->PDC_PTCR = AT91C_PDC_RXTDIS;
