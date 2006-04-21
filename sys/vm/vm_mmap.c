@@ -305,7 +305,7 @@ mmap(td, uap)
 		if ((error = fget(td, uap->fd, &fp)) != 0)
 			goto done;
 		if (fp->f_type != DTYPE_VNODE) {
-			error = EINVAL;
+			error = ENODEV;
 			goto done;
 		}
 		/*
