@@ -167,6 +167,7 @@ static struct mtx ipqlock;
 #define	IPQ_LOCK_ASSERT()	mtx_assert(&ipqlock, MA_OWNED)
 
 static void	maxnipq_update(void);
+static void	ipq_zone_change(void *);
 
 static int	maxnipq;	/* Administrative limit on # reass queues. */
 static int	nipq = 0;	/* Total # of reass queues */
@@ -256,6 +257,8 @@ ip_init()
 	ipport_tick(NULL);
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, ip_fini, NULL,
 		SHUTDOWN_PRI_DEFAULT);
+	EVENTHANDLER_REGISTER(nmbclusters_change, ipq_zone_change,
+		NULL, EVENTHANDLER_PRI_ANY);
 
 	/* Initialize various other remaining things. */
 	ip_id = time_second & 0xffff;
@@ -685,6 +688,16 @@ maxnipq_update(void)
 	 */
 	if (maxnipq == 0)
 		uma_zone_set_max(ipq_zone, 1);
+}
+
+static void
+ipq_zone_change(void *tag)
+{
+
+	if (maxnipq > 0 && maxnipq < (nmbclusters / 32)) {
+		maxnipq = nmbclusters / 32;
+		maxnipq_update();
+	}
 }
 
 static int

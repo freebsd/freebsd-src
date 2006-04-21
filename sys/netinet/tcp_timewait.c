@@ -248,6 +248,15 @@ struct callout isn_callout;
 /*
  * TCP initialization.
  */
+static void
+tcp_zone_change(void *tag)
+{
+
+	uma_zone_set_max(tcbinfo.ipi_zone, maxsockets);
+	uma_zone_set_max(tcpcb_zone, maxsockets);
+	uma_zone_set_max(tcptw_zone, maxsockets / 5);
+}
+
 void
 tcp_init(void)
 {
@@ -310,6 +319,8 @@ tcp_init(void)
 		SHUTDOWN_PRI_DEFAULT);
 	sack_hole_zone = uma_zcreate("sackhole", sizeof(struct sackhole),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	EVENTHANDLER_REGISTER(maxsockets_change, tcp_zone_change, NULL,
+		EVENTHANDLER_PRI_ANY);
 }
 
 void
