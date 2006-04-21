@@ -44,6 +44,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
 	static vm_pindex_t colour;
 	vm_page_t m;
+	vm_paddr_t pa;
 	void *va;
 	int pflags;
 
@@ -64,7 +65,9 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		} else
 			break;
 	}
-	va = (void *)PHYS_TO_DMAP(m->phys_addr);
+	pa = m->phys_addr;
+	dump_add_page(pa);
+	va = (void *)PHYS_TO_DMAP(pa);
 	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
 		pagezero(va);
 	return (va);
@@ -74,8 +77,11 @@ void
 uma_small_free(void *mem, int size, u_int8_t flags)
 {
 	vm_page_t m;
+	vm_paddr_t pa;
 
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)mem));
+	pa = DMAP_TO_PHYS((vm_offset_t)mem);
+	dump_drop_page(pa);
+	m = PHYS_TO_VM_PAGE(pa);
 	vm_page_lock_queues();
 	vm_page_free(m);
 	vm_page_unlock_queues();
