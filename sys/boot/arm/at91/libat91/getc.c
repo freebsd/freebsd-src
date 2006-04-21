@@ -53,10 +53,10 @@ getc(int seconds)
 	thisSecond = GetSeconds();
 	seconds = thisSecond + seconds;
 
-	while (thisSecond <= seconds) {
+	do {
 		if ((pUSART->US_CSR & AT91C_US_RXRDY))
 			return (pUSART->US_RHR & 0xFF);
 		thisSecond = GetSeconds();
-	}
+	} while (thisSecond < seconds);
 	return (-1);
 }
