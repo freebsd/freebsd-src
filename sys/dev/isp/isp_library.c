@@ -203,7 +203,7 @@ isp_fc_runstate(ispsoftc_t *isp, int tval)
 	if (IS_SCSI(isp))
 		return (0);
 
-	tptr = tval? &tval : NULL;
+	tptr = &tval;
 	if (isp_control(isp, ISPCTL_FCLINK_TEST, tptr) != 0) {
 		return (-1);
 	}
