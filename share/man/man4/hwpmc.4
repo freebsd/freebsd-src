@@ -50,8 +50,7 @@ PMCs are allocated using the
 request.
 A successful
 .Dv PMC_OP_PMCALLOCATE
-request will return an integer handle (typically a small integer) to
-the requesting process.
+request will return an integer handle to the requesting process.
 Subsequent operations on the allocated PMC use this handle to denote
 the specific PMC.
 A process that has successfully allocated a PMC is termed an
@@ -77,14 +76,14 @@ sampling:
 In counting modes, the PMCs count hardware events.
 These counts are retrievable using the
 .Dv PMC_OP_PMCREAD
-system call on all architectures, though some architectures like the
-i386 and amd64 offer faster methods of reading these counts.
+system call on all architectures.
+Some architectures offer faster methods of reading these counts.
 .It Em Sampling
-In sampling modes, where PMCs are configured to sample the CPU
+In sampling modes, the PMCs are configured to sample the CPU
 instruction pointer after a configurable number of hardware events
 have been observed.
-These instruction pointer samples are directed to a log file for
-subsequent analysis.
+These instruction pointer samples are usually directed to a log file
+for subsequent analysis.
 .El
 .Pp
 These modes of operation are orthogonal; a PMC may be configured to
@@ -136,7 +135,7 @@ System-wide statistical sampling can only be enabled by a process with
 super-user privileges.
 .El
 .Pp
-Processes are allowed to allocate as many PMCs are the hardware and
+Processes are allowed to allocate as many PMCs as the hardware and
 current operating conditions permit.
 Processes may mix allocations of system-wide and process-private
 PMCs.
@@ -225,7 +224,7 @@ and
 .Dv PMC_F_LOG_PROCCSW
 may be used in combination with modifier
 .Dv PMC_F_DESCENDANTS
-to track the behaviour of complex pipelines of processes.
+to track the behavior of complex pipelines of processes.
 PMCs with modifiers
 .Dv PMC_F_LOG_PROCEXIT
 and
@@ -410,7 +409,7 @@ before
 .Nm
 is loaded.
 .Sh SECURITY CONSIDERATIONS
-PMCs may be used to monitor the actual behaviour of the system on hardware.
+PMCs may be used to monitor the actual behavior of the system on hardware.
 In situations where this constitutes an undesirable information leak,
 the following options are available:
 .Bl -enum
@@ -456,7 +455,7 @@ has permitted user processes running at a processor CPL of 3 to
 read the TSC using the RDTSC instruction.
 The
 .Nm
-driver preserves this semantics.
+driver preserves this behavior.
 .Ss Intel P4/HTT Handling
 On CPUs with HTT support, Intel P4 PMCs are capable of qualifying
 only a subset of hardware events on a per-logical CPU basis.
