@@ -968,7 +968,8 @@ print_thread(struct thread *td, const char *prefix)
 {
 
 	db_printf("%s%p (tid %d, pid %d, \"%s\")\n", prefix, td, td->td_tid,
-	    td->td_proc->p_pid, td->td_proc->p_comm);
+	    td->td_proc->p_pid, td->td_name[0] != '\0' ? td->td_name :
+	    td->td_proc->p_comm);
 }
 
 static void
