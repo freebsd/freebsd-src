@@ -760,21 +760,9 @@ ffs_mountfs(devvp, mp, td)
 	mp->mnt_maxsymlinklen = fs->fs_maxsymlinklen;
 	mp->mnt_flag |= MNT_LOCAL;
 	if ((fs->fs_flags & FS_MULTILABEL) != 0)
-#ifdef MAC
 		mp->mnt_flag |= MNT_MULTILABEL;
-#else
-		printf(
-"WARNING: %s: multilabel flag on fs but no MAC support\n",
-		    fs->fs_fsmnt);
-#endif
 	if ((fs->fs_flags & FS_ACLS) != 0)
-#ifdef UFS_ACL
 		mp->mnt_flag |= MNT_ACLS;
-#else
-		printf(
-"WARNING: %s: ACLs flag on fs but no ACLs support\n",
-		    fs->fs_fsmnt);
-#endif
 	ump->um_mountp = mp;
 	ump->um_dev = dev;
 	ump->um_devvp = devvp;
