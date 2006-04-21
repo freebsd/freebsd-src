@@ -27,6 +27,7 @@
 #include "loader_prompt.h"
 #include "emac.h"
 #include "lib.h"
+#include "eeprom.h"
 
 /*
  * .KB_C_FN_DEFINITION_START
@@ -41,16 +42,12 @@
 int
 main(void)
 {
-
+	InitEEPROM();
 	EMAC_Init();
-
 	LoadBootCommands();
-
 	printf("\n\rKB9202(www.kwikbyte.com)\n\rAuto boot..\n\r");
-
 	if (getc(1) == -1)
 		ExecuteEnvironmentFunctions();
-
 	Bootloader(0);
 
 	return (1);
