@@ -32,7 +32,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd November 17, 2001
+.Dd April 21, 2006
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -311,12 +311,6 @@ was negative.
 was specified and the
 .Fa fd
 argument was not -1.
-.It Bq Er EINVAL
-.Dv MAP_ANON
-has not been specified and
-.Fa fd
-did not reference a regular or character special file.
-.It Bq Er EINVAL
 The
 .Fa offset
 argument
@@ -324,6 +318,11 @@ was not page-aligned.
 (See
 .Sx BUGS
 below.)
+.It Bq Er ENODEV
+.Dv MAP_ANON
+has not been specified and
+.Fa fd
+did not reference a regular or character special file.
 .It Bq Er ENOMEM
 .Dv MAP_FIXED
 was specified and the
