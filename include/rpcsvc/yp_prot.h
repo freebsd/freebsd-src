@@ -148,7 +148,7 @@ struct ypresp_order {
 };
 
 struct ypmaplist {
-	char ypml_name[YPMAXMAP + 1];
+	char *ypml_name;
 	struct ypmaplist *ypml_next;
 };
 
