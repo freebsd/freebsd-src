@@ -708,6 +708,10 @@ typedef struct isp_icb {
 #define	ICB_DFLT_RDELAY		5
 #define	ICB_DFLT_RCOUNT		3
 
+#define	ICB_LOGIN_TOV		30
+#define	ICB_LUN_ENABLE_TOV	180
+
+
 
 #define	RQRSP_ADDR0015	0
 #define	RQRSP_ADDR1631	1
