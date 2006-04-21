@@ -420,7 +420,7 @@ Bootloader(int(*inputFunction)(int))
 
 	printf("\r\n>");
 
-	while (ch >= 0)
+	while (1)
 		if ((ch = ((*inputFunction)(0))) > 0)
 			ServicePrompt(ch);
 }
