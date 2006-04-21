@@ -116,6 +116,13 @@ void (*ip_rsvp_force_done)(struct socket *);
 /*
  * Initialize raw connection block q.
  */
+static void
+rip_zone_change(void *tag)
+{
+
+	uma_zone_set_max(ripcbinfo.ipi_zone, maxsockets);
+}
+
 void
 rip_init()
 {
@@ -132,6 +139,8 @@ rip_init()
 	ripcbinfo.ipi_zone = uma_zcreate("ripcb", sizeof(struct inpcb),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(ripcbinfo.ipi_zone, maxsockets);
+	EVENTHANDLER_REGISTER(maxsockets_change, rip_zone_change,
+		NULL, EVENTHANDLER_PRI_ANY);
 }
 
 static struct	sockaddr_in ripsrc = { sizeof(ripsrc), AF_INET };

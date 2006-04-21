@@ -38,6 +38,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/domain.h>
+#include <sys/eventhandler.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -129,6 +130,13 @@ static void udp_detach(struct socket *so);
 static	int udp_output(struct inpcb *, struct mbuf *, struct sockaddr *,
 		struct mbuf *, struct thread *);
 
+static void
+udp_zone_change(void *tag)
+{
+
+	uma_zone_set_max(udbinfo.ipi_zone, maxsockets);
+}
+
 void
 udp_init()
 {
@@ -141,6 +149,8 @@ udp_init()
 	udbinfo.ipi_zone = uma_zcreate("udpcb", sizeof(struct inpcb), NULL,
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(udbinfo.ipi_zone, maxsockets);
+	EVENTHANDLER_REGISTER(maxsockets_change, udp_zone_change, NULL,
+		EVENTHANDLER_PRI_ANY);
 }
 
 void

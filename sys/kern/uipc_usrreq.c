@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/domain.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>		/* XXX must be before <sys/file.h> */
+#include <sys/eventhandler.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/jail.h>
@@ -1325,6 +1326,13 @@ next:
 	return (error);
 }
 
+static void
+unp_zone_change(void *tag)
+{
+
+	uma_zone_set_max(unp_zone, maxsockets);
+}
+
 void
 unp_init(void)
 {
@@ -1332,7 +1340,9 @@ unp_init(void)
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	if (unp_zone == NULL)
 		panic("unp_init");
-	uma_zone_set_max(unp_zone, nmbclusters);
+	uma_zone_set_max(unp_zone, maxsockets);
+	EVENTHANDLER_REGISTER(maxsockets_change, unp_zone_change,
+	    NULL, EVENTHANDLER_PRI_ANY);
 	LIST_INIT(&unp_dhead);
 	LIST_INIT(&unp_shead);
 	TASK_INIT(&unp_gc_task, 0, unp_gc, NULL);

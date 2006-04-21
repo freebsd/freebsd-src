@@ -112,7 +112,25 @@ SYSINIT(tunable_mbinit, SI_SUB_TUNABLES, SI_ORDER_ANY, tunable_mbinit, NULL);
 
 SYSCTL_DECL(_kern_ipc);
 /* XXX: These should be tuneables. Can't change UMA limits on the fly. */
-SYSCTL_INT(_kern_ipc, OID_AUTO, nmbclusters, CTLFLAG_RW, &nmbclusters, 0,
+static int
+sysctl_nmbclusters(SYSCTL_HANDLER_ARGS)
+{
+	int error, newnmbclusters;
+
+	newnmbclusters = nmbclusters;
+	error = sysctl_handle_int(oidp, &newnmbclusters, sizeof(int), req); 
+	if (error == 0 && req->newptr) {
+		if (newnmbclusters > nmbclusters) {
+			nmbclusters = newnmbclusters;
+			uma_zone_set_max(zone_clust, nmbclusters);
+			EVENTHANDLER_INVOKE(nmbclusters_change);
+		} else
+			error = EINVAL;
+	}
+	return (error);
+}
+SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbclusters, CTLTYPE_INT|CTLFLAG_RW,
+&nmbclusters, 0, sysctl_nmbclusters, "IU",
     "Maximum number of mbuf clusters allowed");
 SYSCTL_INT(_kern_ipc, OID_AUTO, nmbjumbop, CTLFLAG_RW, &nmbjumbop, 0,
     "Maximum number of mbuf page size jumbo clusters allowed");
