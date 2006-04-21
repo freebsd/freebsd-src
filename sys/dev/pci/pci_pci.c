@@ -187,12 +187,20 @@ pcib_attach_common(device_t dev)
 	{
 	    char *cp;
 
-	    cp = getenv("smbios.planar.maker");
-	    if (cp == NULL || strncmp(cp, "Compal", 6) != 0)
+	    if ((cp = getenv("smbios.planar.maker")) == NULL)
 		break;
-	    cp = getenv("smbios.planar.product");
-	    if (cp == NULL || strncmp(cp, "08A0", 4) != 0)
+	    if (strncmp(cp, "Compal", 6) != 0) {
+		freeenv(cp);
 		break;
+	    }
+	    freeenv(cp);
+	    if ((cp = getenv("smbios.planar.product")) == NULL)
+		break;
+	    if (strncmp(cp, "08A0", 4) != 0) {
+		freeenv(cp);
+		break;
+	    }
+	    freeenv(cp);
 	    if (sc->subbus < 0xa) {
 		pci_write_config(dev, PCIR_SUBBUS_1, 0xa, 1);
 		sc->subbus = pci_read_config(dev, PCIR_SUBBUS_1, 1);
