@@ -1565,6 +1565,7 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	/* entire chunk is free, return it */
 	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
+	dump_drop_page(m->phys_addr);
 	vm_page_lock_queues();
 	vm_page_free(m);
 	vm_page_unlock_queues();
@@ -1645,6 +1646,7 @@ get_pv_entry(pmap_t pmap, int try)
 	PV_STAT(pc_chunk_count++);
 	PV_STAT(pc_chunk_allocs++);
 	colour++;
+	dump_add_page(m->phys_addr);
 	pc = (void *)PHYS_TO_DMAP(m->phys_addr);
 	pc->pc_pmap = pmap;
 	pc->pc_map[0] = PC_FREE0 & ~1ul;	/* preallocated bit 0 */
@@ -2794,6 +2796,7 @@ pmap_remove_pages(pmap_t pmap)
 			PV_STAT(pc_chunk_frees++);
 			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 			m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
+			dump_drop_page(m->phys_addr);
 			vm_page_lock_queues();
 			vm_page_free(m);
 			vm_page_unlock_queues();
