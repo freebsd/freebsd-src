@@ -229,7 +229,7 @@ isp_target_notify(ispsoftc_t *isp, void *vptr, uint16_t *optrp)
 			isp_notify_ack(isp, local);
 			break;
 		case IN_RESET:
-			isp_target_async(isp, 0, ASYNC_BUS_RESET);
+			(void) isp_target_async(isp, 0, ASYNC_BUS_RESET);
 			break;
 		case IN_PORT_LOGOUT:
 		case IN_ABORT_TASK:
