@@ -28,7 +28,9 @@
 #define u16 unsigned short
 #define u8  unsigned char
 
-#include "/usr/src/arm/linux/include/asm/setup.h"
+// #include "/usr/src/arm/linux/include/asm/setup.h"
+#include <linux/asm/setup.h>
+#include "tag_list.h"
 
 #define PAGE_SIZE 	0x1000
 #define MEM_SIZE	0x2000000
