@@ -151,8 +151,8 @@ struct cmdtable cmds[] = {
 	{ "?", "Print out help", 1, 1, FL_RO, helpfn },
 	{ "inode", "Set active inode to INUM", 2, 2, FL_RO, focus },
 	{ "clri", "Clear inode INUM", 2, 2, FL_WR, zapi },
-	{ "lookup", "Set active inode by looking up NAME", 2, 2, FL_RO, focusname },
-	{ "cd", "Set active inode by looking up NAME", 2, 2, FL_RO, focusname },
+	{ "lookup", "Set active inode by looking up NAME", 2, 2, FL_RO | FL_ST, focusname },
+	{ "cd", "Set active inode by looking up NAME", 2, 2, FL_RO | FL_ST, focusname },
 	{ "back", "Go to previous active inode", 1, 1, FL_RO, back },
 	{ "active", "Print active inode", 1, 1, FL_RO, active },
 	{ "print", "Print active inode", 1, 1, FL_RO, active },
@@ -161,11 +161,11 @@ struct cmdtable cmds[] = {
 	{ "downlink", "Decrement link count", 1, 1, FL_WR, downlink },
 	{ "linkcount", "Set link count to COUNT", 2, 2, FL_WR, linkcount },
 	{ "ls", "List current inode as directory", 1, 1, FL_RO, ls },
-	{ "rm", "Remove NAME from current inode directory", 2, 2, FL_WR, rm },
-	{ "del", "Remove NAME from current inode directory", 2, 2, FL_WR, rm },
-	{ "ln", "Hardlink INO into current inode directory as NAME", 3, 3, FL_WR, ln },
+	{ "rm", "Remove NAME from current inode directory", 2, 2, FL_WR | FL_ST, rm },
+	{ "del", "Remove NAME from current inode directory", 2, 2, FL_WR | FL_ST, rm },
+	{ "ln", "Hardlink INO into current inode directory as NAME", 3, 3, FL_WR | FL_ST, ln },
 	{ "chinum", "Change dir entry number INDEX to INUM", 3, 3, FL_WR, chinum },
-	{ "chname", "Change dir entry number INDEX to NAME", 3, 3, FL_WR, chname },
+	{ "chname", "Change dir entry number INDEX to NAME", 3, 3, FL_WR | FL_ST, chname },
 	{ "chtype", "Change type of current inode to TYPE", 2, 2, FL_WR, newtype },
 	{ "chmod", "Change mode of current inode to MODE", 2, 2, FL_WR, chmode },
 	{ "chlen", "Change length of current inode to LENGTH", 2, 2, FL_WR, chlen },
@@ -188,11 +188,11 @@ helpfn(int argc, char *argv[])
     struct cmdtable *cmdtp;
 
     printf("Commands are:\n%-10s %5s %5s   %s\n",
-	   "command", "min argc", "max argc", "what");
+	   "command", "min args", "max args", "what");
     
     for (cmdtp = cmds; cmdtp->cmd; cmdtp++)
 	printf("%-10s %5u %5u   %s\n",
-	       cmdtp->cmd, cmdtp->minargc, cmdtp->maxargc, cmdtp->helptxt);
+		cmdtp->cmd, cmdtp->minargc-1, cmdtp->maxargc-1, cmdtp->helptxt);
     return 0;
 }
 
@@ -255,7 +255,8 @@ cmdloop(void)
 		    else if (cmd_argc >= cmdp->minargc &&
 			cmd_argc <= cmdp->maxargc)
 			rval = (*cmdp->handler)(cmd_argc, cmd_argv);
-		    else if (cmd_argc >= cmdp->minargc) {
+		    else if (cmd_argc >= cmdp->minargc &&
+			(cmdp->flags & FL_ST) == FL_ST) {
 			strcpy(line, elline);
 			cmd_argv = recrack(line, &cmd_argc, cmdp->maxargc);
 			rval = (*cmdp->handler)(cmd_argc, cmd_argv);

@@ -98,7 +98,7 @@ argcount(struct cmdtable *cmdp, int argc, char *argv[])
 {
     if (cmdp->minargc == cmdp->maxargc)
 	warnx("command `%s' takes %u arguments, got %u", cmdp->cmd,
-	    cmdp->minargc-1, argc);
+	    cmdp->minargc-1, argc-1);
     else
 	warnx("command `%s' takes from %u to %u arguments",
 	      cmdp->cmd, cmdp->minargc-1, cmdp->maxargc-1);
