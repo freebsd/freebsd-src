@@ -496,13 +496,11 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 }
 
 static int
-nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
+nexus_teardown_intr(device_t dev, device_t child, struct resource *ires,
+    void *cookie)
 {
-#if 0
-	return (inthand_remove(ih));
-#else
-	return 0;
-#endif
+
+	return (ia64_teardown_intr(cookie));
 }
 
 static struct resource_list *
