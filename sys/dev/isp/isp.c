@@ -3515,7 +3515,10 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, void *arg)
 	case ISPCTL_FCLINK_TEST:
 
 		if (IS_FC(isp)) {
-			int usdelay = (arg)? *((int *) arg) : 250000;
+			int usdelay = *((int *) arg);
+			if (usdelay == 0) {
+				usdelay =  250000;
+			}
 			return (isp_fclink_test(isp, usdelay));
 		}
 		break;
