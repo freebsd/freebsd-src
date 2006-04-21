@@ -85,18 +85,6 @@ InitReset:
 	ldr	r1, = SVC_STACK_USE
 	mov	sp, r1		@ ; Move the stack to SDRAM
 
-/* Copy the rest of the load image from EEPROM			*/
-	.extern	InitEEPROM
-
-	bl	InitEEPROM
-
-	.extern ReadEEPROM
-
-	mov	r0, #8192
-	mov	r1, #8192
-	mov	r2, #8192
-	bl	ReadEEPROM
-
 /* Start execution at main					*/
 
 	.extern	main
@@ -114,9 +102,18 @@ infiniteLoop:
 
 	.global BootCommandSection
 BootCommandSection:
+#ifdef SUPPORT_LINUX
 	.string "Bootloader for KB9202 Evaluation Board."
 	.string "c 0x20210000 0x10100000 0x80000        "
 	.string "m 0 0 0 0 0 0                          "
 	.string "t 0x20000100 console=ttyS0,115200 root=/dev/ram rw initrd=0x20210000,654933"
 	.string "e 0x10000000                           "
 	.string "                 "
+#else
+	.string "Bootloader for KB9202 Evaluation Board."
+	.string "m 42 53 44 0 0 1                       "
+	.string "ip 206 168 13 194                      "
+	.string "server_ip 206 168 13 207               "
+	.string "tftp 0x20000000 kernel.bin             "
+	.string "e 0x20000000                           "
+#endif
