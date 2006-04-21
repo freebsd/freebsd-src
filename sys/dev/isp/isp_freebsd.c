@@ -1531,28 +1531,21 @@ isp_handle_platform_atio(ispsoftc_t *isp, at_entry_t *aep)
 	if (tptr == NULL) {
 		tptr = get_lun_statep(isp, bus, CAM_LUN_WILDCARD);
 		if (tptr == NULL) {
-			isp_endcmd(isp, aep,
-			    SCSI_STATUS_CHECK_COND | ECMD_SVALID |
-			    (0x5 << 12) | (0x25 << 16), 0);
+			/*
+			 * Because we can't autofeed sense data back with
+			 * a command for parallel SCSI, we can't give back
+			 * a CHECK CONDITION. We'll give back a BUSY status
+			 * instead. This works out okay because the only
+			 * time we should, in fact, get this, is in the
+			 * case that somebody configured us without the
+			 * blackhole driver, so they get what they deserve.
+			 */
+			isp_endcmd(isp, aep, SCSI_STATUS_BUSY, 0);
 			return (0);
 		}
 		iswildcard = 1;
 	} else {
 		iswildcard = 0;
-	}
-
-	if (tptr == NULL) {
-		/*
-		 * Because we can't autofeed sense data back with
-		 * a command for parallel SCSI, we can't give back
-		 * a CHECK CONDITION. We'll give back a BUSY status
-		 * instead. This works out okay because the only
-		 * time we should, in fact, get this, is in the
-		 * case that somebody configured us without the
-		 * blackhole driver, so they get what they deserve.
-		 */
-		isp_endcmd(isp, aep, SCSI_STATUS_BUSY, 0);
-		return (0);
 	}
 
 	atiop = (struct ccb_accept_tio *) SLIST_FIRST(&tptr->atios);
