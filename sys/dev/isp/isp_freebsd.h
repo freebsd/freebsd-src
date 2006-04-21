@@ -29,18 +29,30 @@
 #ifndef	_ISP_FREEBSD_H
 #define	_ISP_FREEBSD_H
 
+#if __FreeBSD_version < 500000
+#define	ISP_PLATFORM_VERSION_MAJOR	4
+#define	ISP_PLATFORM_VERSION_MINOR	17
+#else
 #define	ISP_PLATFORM_VERSION_MAJOR	5
 #define	ISP_PLATFORM_VERSION_MINOR	9
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/endian.h>
+#if __FreeBSD_version < 500000
 #include <sys/kernel.h>
 #include <sys/queue.h>
+#include <sys/malloc.h>
+#else
 #include <sys/lock.h>
+#include <sys/kernel.h>
+#include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
+#endif
+
 #include <sys/proc.h>
 #include <sys/bus.h>
 
@@ -73,10 +85,14 @@
 #define	HANDLE_LOOPSTATE_IN_OUTER_LAYERS	1
 /* #define	ISP_SMPLOCK			1 */
 
+#if __FreeBSD_version < 500000  
+#define	ISP_IFLAGS	INTR_TYPE_CAM
+#else
 #ifdef	ISP_SMPLOCK
 #define	ISP_IFLAGS	INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE
 #else
 #define	ISP_IFLAGS	INTR_TYPE_CAM | INTR_ENTROPY
+#endif
 #endif
 
 typedef void ispfwfunc(int, int, int, uint16_t **);
@@ -129,14 +145,17 @@ struct isposinfo {
 	struct cam_sim		*sim2;
 	struct cam_path		*path2;
 	struct intr_config_hook	ehook;
-	uint8_t			: 1,
+	uint8_t
+		disabled	: 1,
 		fcbsy		: 1,
 		ktmature	: 1,
 		mboxwaiting	: 1,
 		intsok		: 1,
 		simqfrozen	: 3;
+#if __FreeBSD_version >= 500000  
 	struct mtx		lock;
 	struct cv		kthread_cv;
+#endif
 	struct proc		*kproc;
 	bus_dma_tag_t		cdmat;
 	bus_dmamap_t		cdmap;
@@ -247,7 +266,7 @@ default:							\
 
 #define	XS_T			struct ccb_scsiio
 #define	XS_DMA_ADDR_T		bus_addr_t
-#define	XS_ISP(ccb)		((struct ispsoftc *) (ccb)->ccb_h.spriv_ptr1)
+#define	XS_ISP(ccb)		((ispsoftc_t *) (ccb)->ccb_h.spriv_ptr1)
 #define	XS_CHANNEL(ccb)		cam_sim_bus(xpt_path_sim((ccb)->ccb_h.path))
 #define	XS_TGT(ccb)		(ccb)->ccb_h.target_id
 #define	XS_LUN(ccb)		(ccb)->ccb_h.target_lun
@@ -359,7 +378,7 @@ default:							\
 #include <dev/isp/isp_tpublic.h>
 #endif
 
-void isp_prt(struct ispsoftc *, int level, const char *, ...)
+void isp_prt(ispsoftc_t *, int level, const char *, ...)
 	__printflike(3, 4);
 /*
  * isp_osinfo definiitions && shorthand
@@ -377,8 +396,8 @@ void isp_prt(struct ispsoftc *, int level, const char *, ...)
 /*
  * prototypes for isp_pci && isp_freebsd to share
  */
-extern void isp_attach(struct ispsoftc *);
-extern void isp_uninit(struct ispsoftc *);
+extern void isp_attach(ispsoftc_t *);
+extern void isp_uninit(ispsoftc_t *);
 
 /*
  * driver global data
@@ -411,9 +430,9 @@ extern int isp_announced;
  * Platform specific inline functions
  */
 
-static __inline void isp_mbox_wait_complete(struct ispsoftc *);
+static __inline void isp_mbox_wait_complete(ispsoftc_t *);
 static __inline void
-isp_mbox_wait_complete(struct ispsoftc *isp)
+isp_mbox_wait_complete(ispsoftc_t *isp)
 {
 	if (isp->isp_osinfo.intsok) {
 		int lim = ((isp->isp_mbxwrk0)? 120 : 20) * hz;

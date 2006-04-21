@@ -59,12 +59,12 @@ static const char atior[] =
     "ATIO returned on for lun %d on from IID %d because a Bus Reset occurred "
     "on bus %d";
 
-static void isp_got_msg(struct ispsoftc *, in_entry_t *);
-static void isp_got_msg_fc(struct ispsoftc *, in_fcentry_t *);
-static void isp_handle_atio(struct ispsoftc *, at_entry_t *);
-static void isp_handle_atio2(struct ispsoftc *, at2_entry_t *);
-static void isp_handle_ctio(struct ispsoftc *, ct_entry_t *);
-static void isp_handle_ctio2(struct ispsoftc *, ct2_entry_t *);
+static void isp_got_msg(ispsoftc_t *, in_entry_t *);
+static void isp_got_msg_fc(ispsoftc_t *, in_fcentry_t *);
+static void isp_handle_atio(ispsoftc_t *, at_entry_t *);
+static void isp_handle_atio2(ispsoftc_t *, at2_entry_t *);
+static void isp_handle_ctio(ispsoftc_t *, ct_entry_t *);
+static void isp_handle_ctio2(ispsoftc_t *, ct2_entry_t *);
 
 /*
  * The Qlogic driver gets an interrupt to look at response queue entries.
@@ -113,7 +113,7 @@ static void isp_handle_ctio2(struct ispsoftc *, ct2_entry_t *);
  */
 
 int
-isp_target_notify(struct ispsoftc *isp, void *vptr, uint16_t *optrp)
+isp_target_notify(ispsoftc_t *isp, void *vptr, uint16_t *optrp)
 {
 	uint16_t status, seqid;
 	union {
@@ -303,7 +303,7 @@ isp_target_notify(struct ispsoftc *isp, void *vptr, uint16_t *optrp)
  * response entry. The caller is responsible for synchronizing this.
  */
 int
-isp_lun_cmd(struct ispsoftc *isp, int cmd, int bus, int tgt, int lun,
+isp_lun_cmd(ispsoftc_t *isp, int cmd, int bus, int tgt, int lun,
     int cmd_cnt, int inot_cnt, uint32_t opaque)
 {
 	lun_entry_t el;
@@ -342,7 +342,6 @@ isp_lun_cmd(struct ispsoftc *isp, int cmd, int bus, int tgt, int lun,
 	} else if ((FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN) == 0) {
 		el.le_lun = lun;
 	}
-	el.le_timeout = 2;
 
 	if (isp_getrqentry(isp, &nxti, &optr, &outp)) {
 		isp_prt(isp, ISP_LOGERR,
@@ -357,7 +356,7 @@ isp_lun_cmd(struct ispsoftc *isp, int cmd, int bus, int tgt, int lun,
 
 
 int
-isp_target_put_entry(struct ispsoftc *isp, void *ap)
+isp_target_put_entry(ispsoftc_t *isp, void *ap)
 {
 	void *outp;
 	uint16_t nxti, optr;
@@ -393,7 +392,7 @@ isp_target_put_entry(struct ispsoftc *isp, void *ap)
 }
 
 int
-isp_target_put_atio(struct ispsoftc *isp, void *arg)
+isp_target_put_atio(ispsoftc_t *isp, void *arg)
 {
 	union {
 		at_entry_t _atio;
@@ -453,7 +452,7 @@ isp_target_put_atio(struct ispsoftc *isp, void *arg)
  */
 
 int
-isp_endcmd(struct ispsoftc *isp, void *arg, uint32_t code, uint16_t hdl)
+isp_endcmd(ispsoftc_t *isp, void *arg, uint32_t code, uint16_t hdl)
 {
 	int sts;
 	union {
@@ -524,14 +523,16 @@ isp_endcmd(struct ispsoftc *isp, void *arg, uint32_t code, uint16_t hdl)
 	return (isp_target_put_entry(isp, &un));
 }
 
+/*
+ * These are either broadcast events or specifically CTIO fast completion
+ */
 int
-isp_target_async(struct ispsoftc *isp, int bus, int event)
+isp_target_async(ispsoftc_t *isp, int bus, int event)
 {
 	tmd_notify_t notify;
 
 	MEMZERO(&notify, sizeof (tmd_notify_t));
 	notify.nt_hba = isp;
-	/* nt_str set in outer layers */
 	notify.nt_iid = INI_ANY;
 	/* nt_tgt set in outer layers */
 	notify.nt_lun = LUN_ANY;
@@ -607,14 +608,13 @@ isp_target_async(struct ispsoftc *isp, int bus, int event)
  */
 
 static void
-isp_got_msg(struct ispsoftc *isp, in_entry_t *inp)
+isp_got_msg(ispsoftc_t *isp, in_entry_t *inp)
 {
 	tmd_notify_t nt;
 	uint8_t status = inp->in_status & ~QLTM_SVALID;
 
 	MEMZERO(&nt, sizeof (nt));
 	nt.nt_hba = isp;
-	/* nt_str set in outer layers */
 	nt.nt_iid = GET_IID_VAL(inp->in_iid);
 	nt.nt_tgt = inp->in_tgt;
 	nt.nt_lun = inp->in_lun;
@@ -662,22 +662,22 @@ isp_got_msg(struct ispsoftc *isp, in_entry_t *inp)
  * Synthesize a message from the task management flags in a FCP_CMND_IU.
  */
 static void
-isp_got_msg_fc(struct ispsoftc *isp, in_fcentry_t *inp)
+isp_got_msg_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 {
 	tmd_notify_t nt;
 	static const char f1[] = "%s from iid 0x%08x%08x lun %d seq 0x%x";
 	static const char f2[] = 
 	    "unknown %s 0x%x lun %d iid 0x%08x%08x task flags 0x%x seq 0x%x\n";
+	uint16_t seqid;
 
 	MEMZERO(&nt, sizeof (tmd_notify_t));
 	nt.nt_hba = isp;
-	/*
-	 * XXX: LOOK UP TRANSLATION IN CURRENT LPORTDB
-	 */
 	if (IS_2KLOGIN(isp)) {
 		nt.nt_iid = ((in_fcentry_e_t *)inp)->in_iid;
+		seqid = ((in_fcentry_e_t *)inp)->in_seqid;
 	} else {
-		nt.nt_iid = inp->in_iid; /* possibly reset in outer layer */
+		nt.nt_iid = inp->in_iid;
+		seqid = inp->in_seqid;
 	}
 	/* nt_tgt set in outer layers */
 	if (FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN) {
@@ -685,7 +685,7 @@ isp_got_msg_fc(struct ispsoftc *isp, in_fcentry_t *inp)
 	} else {
 		nt.nt_lun = inp->in_lun;
 	}
-	IN_FC_MAKE_TAGID(nt.nt_tagval, 0, inp);
+	IN_FC_MAKE_TAGID(nt.nt_tagval, 0, seqid);
 	nt.nt_lreserved = inp;
 
 	if (inp->in_status != IN_MSG_RECEIVED) {
@@ -727,7 +727,7 @@ isp_got_msg_fc(struct ispsoftc *isp, in_fcentry_t *inp)
 }
 
 void
-isp_notify_ack(struct ispsoftc *isp, void *arg)
+isp_notify_ack(ispsoftc_t *isp, void *arg)
 {
 	char storage[QENTRY_LEN];
 	uint16_t nxti, optr;
@@ -797,7 +797,7 @@ isp_notify_ack(struct ispsoftc *isp, void *arg)
 }
 
 static void
-isp_handle_atio(struct ispsoftc *isp, at_entry_t *aep)
+isp_handle_atio(ispsoftc_t *isp, at_entry_t *aep)
 {
 	int lun;
 	lun = aep->at_lun;
@@ -878,7 +878,7 @@ isp_handle_atio(struct ispsoftc *isp, at_entry_t *aep)
 }
 
 static void
-isp_handle_atio2(struct ispsoftc *isp, at2_entry_t *aep)
+isp_handle_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 {
 	int lun, iid;
 
@@ -967,7 +967,7 @@ isp_handle_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 }
 
 static void
-isp_handle_ctio(struct ispsoftc *isp, ct_entry_t *ct)
+isp_handle_ctio(ispsoftc_t *isp, ct_entry_t *ct)
 {
 	void *xs;
 	int pl = ISP_LOGTDEBUG2;
@@ -1127,7 +1127,7 @@ isp_handle_ctio(struct ispsoftc *isp, ct_entry_t *ct)
 }
 
 static void
-isp_handle_ctio2(struct ispsoftc *isp, ct2_entry_t *ct)
+isp_handle_ctio2(ispsoftc_t *isp, ct2_entry_t *ct)
 {
 	XS_T *xs;
 	int pl = ISP_LOGTDEBUG2;
@@ -1181,7 +1181,7 @@ isp_handle_ctio2(struct ispsoftc *isp, ct2_entry_t *ct)
 		if (fmsg == NULL)
 			fmsg = "ABORT Task Management Function Received";
 
-		isp_prt(isp, ISP_LOGERR, "CTIO2 destroyed by %s", fmsg);
+		isp_prt(isp, ISP_LOGERR, "CTIO2 destroyed by %s: RX_ID=0x%x", fmsg, ct->ct_rxid);
 		break;
 
 	case CT_INVAL:

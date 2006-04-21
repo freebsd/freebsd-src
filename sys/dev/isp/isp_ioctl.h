@@ -46,7 +46,7 @@
 #define	ISP_RESETHBA	_IO(ISP_IOC, 2)
 
 /*
- * This ioctl performs a fibre chanel rescan.
+ * This ioctl performs a fibre channel rescan.
  */
 #define	ISP_RESCAN	_IO(ISP_IOC, 3)
 
