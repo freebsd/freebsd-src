@@ -388,8 +388,8 @@ typedef struct {
 #define	FC_GET_INST	AT2_GET_INST
 #define	FC_GET_HANDLE	AT2_GET_HANDLE
 
-#define	IN_FC_MAKE_TAGID(tid, inst, inp)				\
-	tid = inp->in_seqid;						\
+#define	IN_FC_MAKE_TAGID(tid, inst, seqid)				\
+	tid = seqid;							\
 	tid |= (inst << 16)
 
 #define	FC_TAG_INSERT_INST(tid, inst)					\
@@ -667,7 +667,7 @@ void isp_notify_ack(ispsoftc_t *, void *);
  * (softc, cmd, bus, tgt, lun, cmd_cnt, inotify_cnt, opaque)
  */
 #define	DFLT_CMND_CNT	0xfe	/* unmonitored */
-#define	DFLT_INOT_CNT	16
+#define	DFLT_INOT_CNT	0xfe	/* unmonitored */
 int isp_lun_cmd(ispsoftc_t *, int, int, int, int, int, int, uint32_t);
 
 /*
