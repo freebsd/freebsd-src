@@ -104,6 +104,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_msgbuf.h"
+#include "opt_pmap.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
