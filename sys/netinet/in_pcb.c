@@ -759,14 +759,13 @@ in_setsockaddr(struct socket *so, struct sockaddr **nam,
 	struct in_addr addr;
 	in_port_t port;
 
-	INP_INFO_RLOCK(pcbinfo);
 	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("in_setsockaddr: so_pcb == NULL"));
+	KASSERT(inp != NULL, ("in_setsockaddr: inp == NULL"));
+
 	INP_LOCK(inp);
 	port = inp->inp_lport;
 	addr = inp->inp_laddr;
 	INP_UNLOCK(inp);
-	INP_INFO_RUNLOCK(pcbinfo);
 
 	*nam = in_sockaddr(port, &addr);
 	return 0;
@@ -783,14 +782,13 @@ in_setpeeraddr(struct socket *so, struct sockaddr **nam,
 	struct in_addr addr;
 	in_port_t port;
 
-	INP_INFO_RLOCK(pcbinfo);
 	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("in_setpeeraddr: so_pcb == NULL"));
+	KASSERT(inp != NULL, ("in_setpeeraddr: inp == NULL"));
+
 	INP_LOCK(inp);
 	port = inp->inp_fport;
 	addr = inp->inp_faddr;
 	INP_UNLOCK(inp);
-	INP_INFO_RUNLOCK(pcbinfo);
 
 	*nam = in_sockaddr(port, &addr);
 	return 0;
