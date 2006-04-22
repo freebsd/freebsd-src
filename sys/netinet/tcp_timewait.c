@@ -244,6 +244,7 @@ struct	tcpcb_mem {
 static uma_zone_t tcpcb_zone;
 static uma_zone_t tcptw_zone;
 struct callout isn_callout;
+static struct mtx isn_mtx;
 
 /*
  * TCP initialization.
@@ -313,6 +314,7 @@ tcp_init(void)
 	syncache_init();
 	tcp_hc_init();
 	tcp_reass_init();
+	mtx_init(&isn_mtx, "isn_mtx", NULL, MTX_DEF);
 	callout_init(&isn_callout, CALLOUT_MPSAFE);
 	tcp_isn_tick(NULL);
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, tcp_fini, NULL,
@@ -1392,9 +1394,9 @@ tcp_new_isn(struct tcpcb *tp)
 	u_int32_t md5_buffer[4];
 	tcp_seq new_isn;
 
-	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_LOCK_ASSERT(tp->t_inpcb);
 
+	mtx_lock(&isn_mtx);
 	/* Seed if this is the first use, reseed if requested. */
 	if ((isn_last_reseed == 0) || ((tcp_isn_reseed_interval > 0) &&
 	     (((u_int)isn_last_reseed + (u_int)tcp_isn_reseed_interval*hz)
@@ -1427,6 +1429,7 @@ tcp_new_isn(struct tcpcb *tp)
 	isn_offset += ISN_STATIC_INCREMENT +
 		(arc4random() & ISN_RANDOM_INCREMENT);
 	new_isn += isn_offset;
+	mtx_unlock(&isn_mtx);
 	return (new_isn);
 }
 
@@ -1440,7 +1443,7 @@ tcp_isn_tick(void *xtp)
 {
 	u_int32_t projected_offset;
 
-	INP_INFO_WLOCK(&tcbinfo);
+	mtx_lock(&isn_mtx);
 	projected_offset = isn_offset_old + ISN_BYTES_PER_SECOND / 100;
 
 	if (projected_offset > isn_offset)
@@ -1448,7 +1451,7 @@ tcp_isn_tick(void *xtp)
 
 	isn_offset_old = isn_offset;
 	callout_reset(&isn_callout, hz/100, tcp_isn_tick, NULL);
-	INP_INFO_WUNLOCK(&tcbinfo);
+	mtx_unlock(&isn_mtx);
 }
 
 /*
