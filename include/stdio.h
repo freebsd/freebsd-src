@@ -327,6 +327,7 @@ char	*tempnam(const char *, const char *);
 #if __BSD_VISIBLE
 int	 asprintf(char **, const char *, ...) __printflike(2, 3);
 char	*ctermid_r(char *);
+void	fcloseall(void);
 char	*fgetln(FILE *, size_t *);
 __const char *fmtcheck(const char *, const char *) __format_arg(2);
 int	 fpurge(FILE *);
