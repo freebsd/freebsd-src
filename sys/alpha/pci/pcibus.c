@@ -96,12 +96,7 @@ struct resource *
 alpha_platform_alloc_ide_intr(int chan)
 {
 	int irqs[2] = { 14, 15 };
-	struct resource *rv;
-
-	rv = isa_alloc_intr(0, 0, irqs[chan]);
-	if (rv != NULL)
-		rman_set_rid(rv, *rid);
-	return (rv);
+	return (isa_alloc_intr(0, 0, irqs[chan]));
 }
 
 int
