@@ -1003,6 +1003,7 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 	u_short fport = fport_arg, lport = lport_arg;
 
 	INP_INFO_RLOCK_ASSERT(pcbinfo);
+
 	/*
 	 * First look for an exact match.
 	 */
@@ -1078,6 +1079,8 @@ in_pcbinshash(struct inpcb *inp)
 	u_int32_t hashkey_faddr;
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
+	INP_LOCK_ASSERT(inp);
+
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6)
 		hashkey_faddr = inp->in6p_faddr.s6_addr32[3] /* XXX */;
@@ -1131,6 +1134,7 @@ in_pcbrehash(struct inpcb *inp)
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_LOCK_ASSERT(inp);
+
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6)
 		hashkey_faddr = inp->in6p_faddr.s6_addr32[3] /* XXX */;
@@ -1183,6 +1187,7 @@ in_pcbsosetlabel(struct socket *so)
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("in_pcbsosetlabel: so->so_pcb == NULL"));
+
 	INP_LOCK(inp);
 	SOCK_LOCK(so);
 	mac_inpcb_sosetlabel(so, inp);
