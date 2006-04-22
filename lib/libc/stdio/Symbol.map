@@ -7,6 +7,7 @@ FBSD_1.0 {
 	asprintf;
 	clearerr;
 	fclose;
+	fcloseall;
 	fdopen;
 	feof;
 	ferror;
