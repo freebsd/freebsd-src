@@ -387,42 +387,78 @@ MLINKS+=bus_space.9 bus_space_barrier.9 \
 	bus_space.9 bus_space_copy_region_2.9 \
 	bus_space.9 bus_space_copy_region_4.9 \
 	bus_space.9 bus_space_copy_region_8.9 \
+	bus_space.9 bus_space_copy_region_stream_1.9 \
+	bus_space.9 bus_space_copy_region_stream_2.9 \
+	bus_space.9 bus_space_copy_region_stream_4.9 \
+	bus_space.9 bus_space_copy_region_stream_8.9 \
 	bus_space.9 bus_space_free.9 \
 	bus_space.9 bus_space_map.9 \
 	bus_space.9 bus_space_read_1.9 \
 	bus_space.9 bus_space_read_2.9 \
 	bus_space.9 bus_space_read_4.9 \
 	bus_space.9 bus_space_read_8.9 \
+	bus_space.9 bus_space_read_stream_1.9 \
+	bus_space.9 bus_space_read_stream_2.9 \
+	bus_space.9 bus_space_read_stream_4.9 \
+	bus_space.9 bus_space_read_stream_8.9 \
 	bus_space.9 bus_space_read_multi_1.9 \
 	bus_space.9 bus_space_read_multi_2.9 \
 	bus_space.9 bus_space_read_multi_4.9 \
 	bus_space.9 bus_space_read_multi_8.9 \
+	bus_space.9 bus_space_read_multi_stream_1.9 \
+	bus_space.9 bus_space_read_multi_stream_2.9 \
+	bus_space.9 bus_space_read_multi_stream_4.9 \
+	bus_space.9 bus_space_read_multi_stream_8.9 \
 	bus_space.9 bus_space_read_region_1.9 \
 	bus_space.9 bus_space_read_region_2.9 \
 	bus_space.9 bus_space_read_region_4.9 \
 	bus_space.9 bus_space_read_region_8.9 \
+	bus_space.9 bus_space_read_region_stream_1.9 \
+	bus_space.9 bus_space_read_region_stream_2.9 \
+	bus_space.9 bus_space_read_region_stream_4.9 \
+	bus_space.9 bus_space_read_region_stream_8.9 \
 	bus_space.9 bus_space_set_multi_1.9 \
 	bus_space.9 bus_space_set_multi_2.9 \
 	bus_space.9 bus_space_set_multi_4.9 \
 	bus_space.9 bus_space_set_multi_8.9 \
+	bus_space.9 bus_space_set_multi_stream_1.9 \
+	bus_space.9 bus_space_set_multi_stream_2.9 \
+	bus_space.9 bus_space_set_multi_stream_4.9 \
+	bus_space.9 bus_space_set_multi_stream_8.9 \
 	bus_space.9 bus_space_set_region_1.9 \
 	bus_space.9 bus_space_set_region_2.9 \
 	bus_space.9 bus_space_set_region_4.9 \
 	bus_space.9 bus_space_set_region_8.9 \
+	bus_space.9 bus_space_set_region_stream_1.9 \
+	bus_space.9 bus_space_set_region_stream_2.9 \
+	bus_space.9 bus_space_set_region_stream_4.9 \
+	bus_space.9 bus_space_set_region_stream_8.9 \
 	bus_space.9 bus_space_subregion.9 \
 	bus_space.9 bus_space_unmap.9 \
 	bus_space.9 bus_space_write_1.9 \
 	bus_space.9 bus_space_write_2.9 \
 	bus_space.9 bus_space_write_4.9 \
 	bus_space.9 bus_space_write_8.9 \
+	bus_space.9 bus_space_write_stream_1.9 \
+	bus_space.9 bus_space_write_stream_2.9 \
+	bus_space.9 bus_space_write_stream_4.9 \
+	bus_space.9 bus_space_write_stream_8.9 \
 	bus_space.9 bus_space_write_multi_1.9 \
 	bus_space.9 bus_space_write_multi_2.9 \
 	bus_space.9 bus_space_write_multi_4.9 \
 	bus_space.9 bus_space_write_multi_8.9 \
+	bus_space.9 bus_space_write_multi_stream_1.9 \
+	bus_space.9 bus_space_write_multi_stream_2.9 \
+	bus_space.9 bus_space_write_multi_stream_4.9 \
+	bus_space.9 bus_space_write_multi_stream_8.9 \
 	bus_space.9 bus_space_write_region_1.9 \
 	bus_space.9 bus_space_write_region_2.9 \
 	bus_space.9 bus_space_write_region_4.9 \
-	bus_space.9 bus_space_write_region_8.9
+	bus_space.9 bus_space_write_region_8.9 \
+	bus_space.9 bus_space_write_region_stream_1.9 \
+	bus_space.9 bus_space_write_region_stream_2.9 \
+	bus_space.9 bus_space_write_region_stream_4.9 \
+	bus_space.9 bus_space_write_region_stream_8.9
 MLINKS+=byteorder.9 be16dec.9 \
 	byteorder.9 be16enc.9 \
 	byteorder.9 be16toh.9 \
