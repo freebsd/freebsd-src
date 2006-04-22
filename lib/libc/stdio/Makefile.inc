@@ -4,9 +4,9 @@
 # stdio sources
 .PATH: ${.CURDIR}/stdio
 
-SRCS+=	_flock_stub.c asprintf.c clrerr.c fclose.c fdopen.c feof.c ferror.c \
-	fflush.c fgetc.c fgetln.c fgetpos.c fgets.c fgetwc.c fgetwln.c \
-	fgetws.c \
+SRCS+=	_flock_stub.c asprintf.c clrerr.c fclose.c fcloseall.c fdopen.c \
+	feof.c ferror.c fflush.c fgetc.c fgetln.c fgetpos.c fgets.c fgetwc.c \
+	fgetwln.c fgetws.c \
 	fileno.c findfp.c flags.c fopen.c fprintf.c fpurge.c fputc.c fputs.c \
 	fputwc.c fputws.c fread.c freopen.c fscanf.c fseek.c fsetpos.c \
 	ftell.c funopen.c fvwrite.c fwalk.c fwide.c fwprintf.c fwscanf.c \
@@ -36,6 +36,7 @@ MAN+=	fclose.3 ferror.3 fflush.3 fgetln.3 fgets.3 fgetwln.3 fgetws.3 \
 	printf.3 putc.3 putwc.3 remove.3 scanf.3 setbuf.3 stdio.3 tmpnam.3 \
 	ungetc.3 ungetwc.3 wprintf.3 wscanf.3
 
+MLINKS+=fclose.3 fcloseall.3
 MLINKS+=ferror.3 ferror_unlocked.3 \
 	ferror.3 clearerr.3 ferror.3 clearerr_unlocked.3 \
 	ferror.3 feof.3 ferror.3 feof_unlocked.3 \
