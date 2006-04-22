@@ -54,6 +54,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define VIA8233_REV_ID_8233A	0x40
 #define VIA8233_REV_ID_8235	0x50
 #define VIA8233_REV_ID_8237	0x60
+#define VIA8233_REV_ID_8251	0x70
 
 #define SEGS_PER_CHAN	2			/* Segments per channel */
 #define NDXSCHANS	4			/* No of DXS channels */
@@ -100,7 +101,7 @@ struct via_info {
 	struct ac97_info *codec;
 
 	unsigned int bufsz;
-	int dxs_src;
+	int dxs_src, dma_eol_wake;
 
 	struct via_chinfo pch[NDXSCHANS + NMSGDCHANS];
 	struct via_chinfo rch[NWRCHANS];
@@ -707,16 +708,26 @@ static void
 via_intr(void *p)
 {
 	struct via_info *via = p;
-	int i, stat;
+	int i, reg, stat;
 
 	/* Poll playback channels */
 	snd_mtxlock(via->lock);
 	for (i = 0; i < NDXSCHANS + NMSGDCHANS; i++) {
 		if (via->pch[i].channel == NULL)
 			continue;
-		stat = via->pch[i].rbase + VIA_RP_STATUS;
-		if (via_rd(via, stat, 1) & SGD_STATUS_INTR) {
-			via_wr(via, stat, SGD_STATUS_INTR, 1);
+		reg = via->pch[i].rbase + VIA_RP_STATUS;
+		stat = via_rd(via, reg, 1);
+		if (stat & SGD_STATUS_INTR) {
+			if (via->dma_eol_wake && ((stat & SGD_STATUS_EOL) ||
+					!(stat & SGD_STATUS_ACTIVE))) {
+				via_wr(via,
+					via->pch[i].rbase + VIA_RP_CONTROL,
+					SGD_CONTROL_START |
+					SGD_CONTROL_AUTOSTART |
+					SGD_CONTROL_I_EOL |
+					SGD_CONTROL_I_FLAG, 1);
+			}
+			via_wr(via, reg, stat, 1);
 			snd_mtxunlock(via->lock);
 			chn_intr(via->pch[i].channel);
 			snd_mtxlock(via->lock);
@@ -727,9 +738,19 @@ via_intr(void *p)
 	for (i = 0; i < NWRCHANS; i++) {
 		if (via->rch[i].channel == NULL)
 			continue;
-		stat = via->rch[i].rbase + VIA_RP_STATUS;
-		if (via_rd(via, stat, 1) & SGD_STATUS_INTR) {
-			via_wr(via, stat, SGD_STATUS_INTR, 1);
+		reg = via->rch[i].rbase + VIA_RP_STATUS;
+		stat = via_rd(via, reg, 1);
+		if (stat & SGD_STATUS_INTR) {
+			if (via->dma_eol_wake && ((stat & SGD_STATUS_EOL) ||
+					!(stat & SGD_STATUS_ACTIVE))) {
+				via_wr(via,
+					via->rch[i].rbase + VIA_RP_CONTROL,
+					SGD_CONTROL_START |
+					SGD_CONTROL_AUTOSTART |
+					SGD_CONTROL_I_EOL |
+					SGD_CONTROL_I_FLAG, 1);
+			}
+			via_wr(via, reg, stat, 1);
 			snd_mtxunlock(via->lock);
 			chn_intr(via->rch[i].channel);
 			snd_mtxlock(via->lock);
@@ -764,6 +785,9 @@ via_probe(device_t dev)
 			return BUS_PROBE_DEFAULT;
 		case VIA8233_REV_ID_8237:
 			device_set_desc(dev, "VIA VT8237");
+			return BUS_PROBE_DEFAULT;
+		case VIA8233_REV_ID_8251:
+			device_set_desc(dev, "VIA VT8251");
 			return BUS_PROBE_DEFAULT;
 		default:
 			device_set_desc(dev, "VIA VT8233X");	/* Unknown */
@@ -842,6 +866,7 @@ via_attach(device_t dev)
 	struct via_info *via = 0;
 	char status[SND_STATUSLEN];
 	int i, via_dxs_disabled, via_dxs_src, via_dxs_chnum, via_sgd_chnum;
+	uint32_t revid;
 
 	if ((via = malloc(sizeof *via, M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
@@ -933,10 +958,21 @@ via_attach(device_t dev)
 	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld %s", 
 		 rman_get_start(via->reg), rman_get_start(via->irq),PCM_KLDSTRING(snd_via8233));
 
+	revid = pci_get_revid(dev);
+
+	/*
+	 * VIA8251 lost its interrupt after DMA EOL, and need
+	 * a gentle spank on its face within interrupt handler.
+	 */
+	if (revid == VIA8233_REV_ID_8251)
+		via->dma_eol_wake = 1;
+	else
+		via->dma_eol_wake = 0;
+
 	/*
 	 * Decide whether DXS had to be disabled or not
 	 */
-	if (pci_get_revid(dev) == VIA8233_REV_ID_8233A) {
+	if (revid == VIA8233_REV_ID_8233A) {
 		/*
 		 * DXS channel is disabled.  Reports from multiple users
 		 * that it plays at half-speed.  Do not see this behaviour
