@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include "local.h"
 
-__weak_reference(__fcloseall, fclose);
+__weak_reference(__fcloseall, fcloseall);
 
 void
 __fcloseall(void)
