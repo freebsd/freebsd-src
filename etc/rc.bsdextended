@@ -48,34 +48,25 @@ CMD=/usr/sbin/ugidfw
 
 ####
 # WARNING: recommended reading is the handbook's MAC
-# chapter and the ugidfw(8)
-# manual page.  You can lock yourself out of the system
-# very quickly by setting incorrect values here.
-####
-
-####
-# Set the value of 'x' to system users.  This would be nice but it
-# does not get the \n proper.  Work around is used below.
-#x=`awk -F: '($3 >= 1001) && ($3 != 65534) { print $1 }' /etc/passwd`;
-#l=`awk -F: '($3 >= 1001) && ($3 != 65534) { print $3 }' /etc/passwd`;
+# chapter and the ugidfw(8) manual page.  You can
+# lock yourself out of the system very quickly by setting
+# incorrect values here.  These are only examples.
 ####
 
 ####
 # Build a generic list of rules here, these should be
 # modified before using this script.
-# ugidfw add 1 subject uid USER1 object uid USER2 mode n
-# ugidfw add 2 subject gid USER1 object gid USER2 mode n
 #
 # For apache to read user files, the ruleadd must give
 # it permissions by default.
 ####
-${CMD} add subject uid 80 object not uid 80 mode rxws;
-${CMD} add subject gid 80 object not gid 80 mode rxws;
+#${CMD} add subject uid 80 object not uid 80 mode rxws;
+#${CMD} add subject gid 80 object not gid 80 mode rxws;
 
 ####
 # majordomo compat:
 #${CMD} add subject uid 54 object not uid 54 mode rxws;
-${CMD} add subject gid 26 object gid 54 mode rxws;
+#${CMD} add subject gid 26 object gid 54 mode rxws;
 
 ####
 # This is for root:
@@ -83,14 +74,9 @@ ${CMD} add subject uid 0 object not uid 0 mode arxws;
 ${CMD} add subject gid 0 object not gid 0 mode arxws;
 
 ####
-# And for mailnull:
-${CMD} add subject uid 26 object not uid 26 mode rxws;
-${CMD} add subject gid 26 object not gid 26 mode rxws;
-
-####
 # And for majordomo:
-${CMD} add subject uid 54 object not uid 54 mode rxws;
-${CMD} add subject gid 54 object not gid 54 mode rxws;
+#${CMD} add subject uid 54 object not uid 54 mode rxws;
+#${CMD} add subject gid 54 object not gid 54 mode rxws;
 
 ####
 # And for bin:
@@ -99,8 +85,8 @@ ${CMD} add subject gid 7 object not gid 7 mode rxws;
 
 ####
 # And for mail/pop:
-${CMD} add subject uid 68 object not uid 68 mode rxws;
-${CMD} add subject gid 6 object not gid 6 mode arxws;
+#${CMD} add subject uid 68 object not uid 68 mode rxws;
+#${CMD} add subject gid 6 object not gid 6 mode arxws;
 
 ####
 # And for smmsp:
@@ -114,13 +100,13 @@ ${CMD} add subject gid 26 object not gid 26 mode rxws;
 
 ####
 # For cyrus:
-${CMD} add subject uid 60 object not uid 60 mode rxws;
-${CMD} add subject gid 60 object not gid 60 mode rxws;
+#${CMD} add subject uid 60 object not uid 60 mode rxws;
+#${CMD} add subject gid 60 object not gid 60 mode rxws;
 
 ####
 # For stunnel:
-${CMD} add subject uid 1018 object not uid 1018 mode rxws;
-${CMD} add subject gid 1018 object not gid 1018 mode rxws;
+#${CMD} add subject uid 1018 object not uid 1018 mode rxws;
+#${CMD} add subject gid 1018 object not gid 1018 mode rxws;
 
 ####
 # For the nobody account:
@@ -133,12 +119,6 @@ ${CMD} add subject gid 65534 object not gid 65534 mode rxws;
 #	 Removing this will give mailbox lock issues.
 for x in `awk -F: '($3 >= 1001) && ($3 != 65534) { print $1 }' /etc/passwd`;
     do ${CMD} add subject uid $x object gid 6 mode arwxs;
-done;
-
-####
-# Work around majordomo problem where gid is `4'.
-for x in `awk -F: '($3 >= 1001) && ($3 != 65534) { print $1 }' /etc/passwd`;
-    do ${CMD} add subject uid $x object gid 4 mode arwxs;
 done;
 
 ####
