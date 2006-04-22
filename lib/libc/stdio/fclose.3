@@ -40,7 +40,8 @@
 .Dt FCLOSE 3
 .Os
 .Sh NAME
-.Nm fclose
+.Nm fclose ,
+.Nm fcloseall
 .Nd close a stream
 .Sh LIBRARY
 .Lb libc
@@ -48,6 +49,8 @@
 .In stdio.h
 .Ft int
 .Fn fclose "FILE *stream"
+.Ft void
+.Fn fcloseall void
 .Sh DESCRIPTION
 The
 .Fn fclose
@@ -58,6 +61,12 @@ from its underlying file or set of functions.
 If the stream was being used for output, any buffered data is written
 first, using
 .Xr fflush 3 .
+.Pp
+The
+.Fn fcloseall
+function calls
+.Fn fclose
+on all open streams.
 .Sh RETURN VALUES
 Upon successful completion 0 is returned.
 Otherwise,
@@ -99,3 +108,8 @@ The
 function
 conforms to
 .St -isoC .
+.Pp
+The
+.Fn fcloseall
+function first appeared in
+.Fx 7.0 .
