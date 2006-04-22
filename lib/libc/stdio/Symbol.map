@@ -136,7 +136,6 @@ FBSD_1.0 {
 };
 
 FBSDprivate {
-	_cleanup;	# To be replaced with fcloseall().
 	_flockfile;
 	_flockfile_debug_stub;
 	_flockfile_debug;
