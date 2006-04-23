@@ -102,12 +102,11 @@ natm_usr_attach(struct socket *so, int proto, d_thread_t *p)
 	else
 	    error = soreserve(so, natm0_sendspace, natm0_recvspace);
         if (error)
-          goto out;
+		return (error);
     }
 
-    so->so_pcb = (caddr_t) (npcb = npcb_alloc(M_WAITOK));
+    so->so_pcb = npcb = npcb_alloc(M_WAITOK);
     npcb->npcb_socket = so;
-out:
     return (error);
 }
 
@@ -145,12 +144,12 @@ natm_usr_connect(struct socket *so, struct sockaddr *nam, d_thread_t *p)
     snatm = (struct sockaddr_natm *)nam;
     if (snatm->snatm_len != sizeof(*snatm) ||
 	(npcb->npcb_flags & NPCB_FREE) == 0) {
-	error = EINVAL;
-	goto out;
+	NATM_UNLOCK();
+	return (EINVAL);
     }
     if (snatm->snatm_family != AF_NATM) {
-	error = EAFNOSUPPORT;
-	goto out;
+	NATM_UNLOCK();
+	return (EAFNOSUPPORT);
     }
 
     snatm->snatm_if[IFNAMSIZ - 1] = '\0';	/* XXX ensure null termination
@@ -161,25 +160,26 @@ natm_usr_connect(struct socket *so, struct sockaddr *nam, d_thread_t *p)
      */
     ifp = ifunit(snatm->snatm_if);
     if (ifp == NULL || (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-	error = ENXIO;
-	goto out;
+	NATM_UNLOCK();
+	return (ENXIO);
     }
     if (ifp->if_output != atm_output) {
-	error = EAFNOSUPPORT;
-	goto out;
+	NATM_UNLOCK();
+	return (EAFNOSUPPORT);
     }
 
     /*
      * register us with the NATM PCB layer
      */
     if (npcb_add(npcb, ifp, snatm->snatm_vci, snatm->snatm_vpi) != npcb) {
-        error = EADDRINUSE;
-        goto out;
+	NATM_UNLOCK();
+	return (EADDRINUSE);
     }
-    NATM_UNLOCK();
 
     /*
-     * open the channel
+     * Open the channel.
+     *
+     * XXXRW: Eventually desirable to hold mutex over ioctl?
      */
     bzero(&op, sizeof(op));
     op.rxhand = npcb;
@@ -189,19 +189,16 @@ natm_usr_connect(struct socket *so, struct sockaddr *nam, d_thread_t *p)
     op.param.rmtu = op.param.tmtu = ifp->if_mtu;
     op.param.aal = (proto == PROTO_NATMAAL5) ? ATMIO_AAL_5 : ATMIO_AAL_0;
     op.param.traffic = ATMIO_TRAFFIC_UBR;
+    NATM_UNLOCK();
 
     IFF_LOCKGIANT(ifp);
     if (ifp->if_ioctl == NULL || 
 	ifp->if_ioctl(ifp, SIOCATMOPENVCC, (caddr_t)&op) != 0) {
 	IFF_UNLOCKGIANT(ifp);
-        error = EIO;
-	goto out;
+	return (EIO);
     }
     IFF_UNLOCKGIANT(ifp);
-
     soisconnected(so);
-
- out:
     return (error);
 }
 
@@ -218,14 +215,16 @@ natm_usr_disconnect(struct socket *so)
 
     NATM_LOCK();
     if ((npcb->npcb_flags & NPCB_CONNECTED) == 0) {
+	NATM_UNLOCK();
         printf("natm: disconnected check\n");
-        error = EIO;
-	goto out;
+	return (EIO);
     }
     ifp = npcb->npcb_ifp;
 
     /*
-     * disable rx
+     * Disable rx.
+     *
+     * XXXRW: Eventually desirable to hold mutex over ioctl?
      */
     cl.vpi = npcb->npcb_vpi;
     cl.vci = npcb->npcb_vci;
@@ -235,12 +234,7 @@ natm_usr_disconnect(struct socket *so)
 	ifp->if_ioctl(ifp, SIOCATMCLOSEVCC, (caddr_t)&cl);
 	IFF_UNLOCKGIANT(ifp);
     }
-    NATM_LOCK();
-
     soisdisconnected(so);
-
- out:
-    NATM_UNLOCK();
     return (error);
 }
 
@@ -265,10 +259,10 @@ natm_usr_send(struct socket *so, int flags, struct mbuf *m,
 
     NATM_LOCK();
     if (control && control->m_len) {
+	NATM_UNLOCK();
 	m_freem(control);
 	m_freem(m);
-	error = EINVAL;
-	goto out;
+	return (EINVAL);
     }
 
     /*
@@ -276,18 +270,15 @@ natm_usr_send(struct socket *so, int flags, struct mbuf *m,
      */
     M_PREPEND(m, sizeof(*aph), M_DONTWAIT);
     if (m == NULL) {
+	NATM_UNLOCK();
 	m_freem(control);
-        error = ENOBUFS;
-	goto out;
+	return (ENOBUFS);
     }
     aph = mtod(m, struct atm_pseudohdr *);
     ATM_PH_VPI(aph) = npcb->npcb_vpi;
     ATM_PH_SETVCI(aph, npcb->npcb_vci);
     ATM_PH_FLAGS(aph) = (proto == PROTO_NATMAAL5) ? ATM_PH_AAL5 : 0;
-
     error = atm_output(npcb->npcb_ifp, m, NULL, NULL);
-
- out:
     NATM_UNLOCK();
     return (error);
 }
