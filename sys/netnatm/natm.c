@@ -116,9 +116,10 @@ natm_usr_detach(struct socket *so)
 {
     struct natmpcb *npcb;
 
-    NATM_LOCK();
     npcb = (struct natmpcb *)so->so_pcb;
     KASSERT(npcb != NULL, ("natm_usr_detach: npcb == NULL"));
+
+    NATM_LOCK();
     npcb_free(npcb, NPCB_DESTROY);	/* drain */
     so->so_pcb = NULL;
     NATM_UNLOCK();
@@ -134,13 +135,13 @@ natm_usr_connect(struct socket *so, struct sockaddr *nam, d_thread_t *p)
     int error = 0;
     int proto = so->so_proto->pr_protocol;
 
-    NATM_LOCK();
     npcb = (struct natmpcb *)so->so_pcb;
     KASSERT(npcb != NULL, ("natm_usr_connect: npcb == NULL"));
 
     /*
      * validate nam and npcb
      */
+    NATM_LOCK();
     snatm = (struct sockaddr_natm *)nam;
     if (snatm->snatm_len != sizeof(*snatm) ||
 	(npcb->npcb_flags & NPCB_FREE) == 0) {
@@ -212,10 +213,10 @@ natm_usr_disconnect(struct socket *so)
     struct ifnet *ifp;
     int error = 0;
 
-    NATM_LOCK();
     npcb = (struct natmpcb *)so->so_pcb;
     KASSERT(npcb != NULL, ("natm_usr_disconnect: npcb == NULL"));
 
+    NATM_LOCK();
     if ((npcb->npcb_flags & NPCB_CONNECTED) == 0) {
         printf("natm: disconnected check\n");
         error = EIO;
@@ -259,10 +260,10 @@ natm_usr_send(struct socket *so, int flags, struct mbuf *m,
     int error = 0;
     int proto = so->so_proto->pr_protocol;
 
-    NATM_LOCK();
     npcb = (struct natmpcb *)so->so_pcb;
     KASSERT(npcb != NULL, ("natm_usr_send: npcb == NULL"));
 
+    NATM_LOCK();
     if (control && control->m_len) {
 	m_freem(control);
 	m_freem(m);
@@ -275,6 +276,7 @@ natm_usr_send(struct socket *so, int flags, struct mbuf *m,
      */
     M_PREPEND(m, sizeof(*aph), M_DONTWAIT);
     if (m == NULL) {
+	m_freem(control);
         error = ENOBUFS;
 	goto out;
     }
@@ -296,10 +298,10 @@ natm_usr_peeraddr(struct socket *so, struct sockaddr **nam)
     struct natmpcb *npcb;
     struct sockaddr_natm *snatm, ssnatm;
 
-    NATM_LOCK();
     npcb = (struct natmpcb *)so->so_pcb;
     KASSERT(npcb != NULL, ("natm_usr_peeraddr: npcb == NULL"));
 
+    NATM_LOCK();
     snatm = &ssnatm;
     bzero(snatm, sizeof(*snatm));
     snatm->snatm_len = sizeof(*snatm);
