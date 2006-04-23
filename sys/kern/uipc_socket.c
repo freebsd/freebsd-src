@@ -559,8 +559,10 @@ soabort(so)
 	 * is as close as we can get for now.
 	 */
 	KASSERT(so->so_count == 0, ("soabort: so_count"));
-	KASSERT(!(so->so_state & SS_PROTOREF), ("soabort: SS_PROTOREF"));
+	KASSERT((so->so_state & SS_PROTOREF) == 0, ("soabort: SS_PROTOREF"));
 	KASSERT(so->so_state & SS_NOFDREF, ("soabort: !SS_NOFDREF"));
+	KASSERT((so->so_state & SQ_COMP) == 0, ("soabort: SQ_COMP"));
+	KASSERT((so->so_state & SQ_INCOMP) == 0, ("soabort: SQ_INCOMP"));
 
 	(*so->so_proto->pr_usrreqs->pru_abort)(so);
 	ACCEPT_LOCK();
