@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/errno.h>
+#include <sys/mount.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
 

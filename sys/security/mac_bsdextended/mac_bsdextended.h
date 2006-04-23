@@ -37,10 +37,7 @@
 #ifndef _SYS_SECURITY_MAC_BSDEXTENDED_H
 #define	_SYS_SECURITY_MAC_BSDEXTENDED_H
 
-#define	MBI_UID_DEFINED	0x00000001	/* uid field should be used */
-#define	MBI_GID_DEFINED	0x00000002	/* gid field should be used */
-#define	MBI_NEGATED	0x00000004	/* negate uid/gid matches */
-#define	MBI_BITS	(MBI_UID_DEFINED | MBI_GID_DEFINED | MBI_NEGATED)
+#define MB_VERSION 2 /* Used to check library and kernel are the same. */
 
 /*
  * Rights that can be represented in mbr_mode.  These have the same values
@@ -57,15 +54,60 @@
 #define	MBI_ALLPERM	(MBI_EXEC | MBI_WRITE | MBI_READ | MBI_ADMIN | \
 			    MBI_STAT | MBI_APPEND)
 
-struct mac_bsdextended_identity {
-	int	mbi_flags;
-	uid_t	mbi_uid;
-	gid_t	mbi_gid;
+#define	MBS_UID_DEFINED	0x00000001	/* uid field should be matched */
+#define	MBS_GID_DEFINED	0x00000002	/* gid field should be matched */
+#define	MBS_PRISON_DEFINED 0x00000004	/* prison field should be matched */
+
+#define MBS_ALL_FLAGS (MBS_UID_DEFINED | MBS_GID_DEFINED | MBS_PRISON_DEFINED)
+
+struct mac_bsdextended_subject {
+	int	mbs_flags;
+	int	mbs_neg;
+	uid_t	mbs_uid_min;
+	uid_t	mbs_uid_max;
+	gid_t	mbs_gid_min;
+	gid_t	mbs_gid_max;
+	int	mbs_prison;
+};
+
+#define	MBO_UID_DEFINED	0x00000001	/* uid field should be matched */
+#define	MBO_GID_DEFINED	0x00000002	/* gid field should be matched */
+#define	MBO_FSID_DEFINED 0x00000004	/* fsid field should be matched */
+#define	MBO_SUID	0x00000008	/* object must be suid */
+#define	MBO_SGID	0x00000010	/* object must be sgid */
+#define	MBO_UID_SUBJECT	0x00000020	/* uid must match subject */
+#define	MBO_GID_SUBJECT	0x00000040	/* gid must match subject */
+#define	MBO_TYPE_DEFINED 0x00000080	/* object type should be matched */
+
+#define MBO_ALL_FLAGS (MBO_UID_DEFINED | MBO_GID_DEFINED | MBO_FSID_DEFINED | \
+	    MBO_SUID | MBO_SGID | MBO_UID_SUBJECT | MBO_GID_SUBJECT | \
+	    MBO_TYPE_DEFINED)
+
+#define MBO_TYPE_REG	0x00000001
+#define MBO_TYPE_DIR	0x00000002
+#define MBO_TYPE_BLK	0x00000004
+#define MBO_TYPE_CHR	0x00000008
+#define MBO_TYPE_LNK	0x00000010
+#define MBO_TYPE_SOCK	0x00000020
+#define MBO_TYPE_FIFO	0x00000040
+
+#define MBO_ALL_TYPE	(MBO_TYPE_REG | MBO_TYPE_DIR | MBO_TYPE_BLK | \
+	    MBO_TYPE_CHR | MBO_TYPE_LNK | MBO_TYPE_SOCK | MBO_TYPE_FIFO)
+
+struct mac_bsdextended_object {
+	int	mbo_flags;
+	int	mbo_neg;
+	uid_t	mbo_uid_min;
+	uid_t	mbo_uid_max;
+	gid_t	mbo_gid_min;
+	gid_t	mbo_gid_max;
+	struct fsid mbo_fsid;
+	int	mbo_type;
 };
 
 struct mac_bsdextended_rule {
-	struct mac_bsdextended_identity	mbr_subject;
-	struct mac_bsdextended_identity	mbr_object;
+	struct mac_bsdextended_subject	mbr_subject;
+	struct mac_bsdextended_object	mbr_object;
 	mode_t				mbr_mode;	/* maximum access */
 };
 
