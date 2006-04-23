@@ -246,6 +246,10 @@ static uma_zone_t tcptw_zone;
 struct callout isn_callout;
 static struct mtx isn_mtx;
 
+#define	ISN_LOCK_INIT()	mtx_init(&isn_mtx, "isn_mtx", NULL, MTX_DEF)
+#define	ISN_LOCK()	mtx_lock(&isn_mtx)
+#define	ISN_UNLOCK()	mtx_unlock(&isn_mtx)
+
 /*
  * TCP initialization.
  */
@@ -314,7 +318,7 @@ tcp_init(void)
 	syncache_init();
 	tcp_hc_init();
 	tcp_reass_init();
-	mtx_init(&isn_mtx, "isn_mtx", NULL, MTX_DEF);
+	ISN_LOCK_INIT();
 	callout_init(&isn_callout, CALLOUT_MPSAFE);
 	tcp_isn_tick(NULL);
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, tcp_fini, NULL,
@@ -1396,7 +1400,7 @@ tcp_new_isn(struct tcpcb *tp)
 
 	INP_LOCK_ASSERT(tp->t_inpcb);
 
-	mtx_lock(&isn_mtx);
+	ISN_LOCK();
 	/* Seed if this is the first use, reseed if requested. */
 	if ((isn_last_reseed == 0) || ((tcp_isn_reseed_interval > 0) &&
 	     (((u_int)isn_last_reseed + (u_int)tcp_isn_reseed_interval*hz)
@@ -1429,7 +1433,7 @@ tcp_new_isn(struct tcpcb *tp)
 	isn_offset += ISN_STATIC_INCREMENT +
 		(arc4random() & ISN_RANDOM_INCREMENT);
 	new_isn += isn_offset;
-	mtx_unlock(&isn_mtx);
+	ISN_UNLOCK();
 	return (new_isn);
 }
 
@@ -1443,7 +1447,7 @@ tcp_isn_tick(void *xtp)
 {
 	u_int32_t projected_offset;
 
-	mtx_lock(&isn_mtx);
+	ISN_LOCK();
 	projected_offset = isn_offset_old + ISN_BYTES_PER_SECOND / 100;
 
 	if (projected_offset > isn_offset)
@@ -1451,7 +1455,7 @@ tcp_isn_tick(void *xtp)
 
 	isn_offset_old = isn_offset;
 	callout_reset(&isn_callout, hz/100, tcp_isn_tick, NULL);
-	mtx_unlock(&isn_mtx);
+	ISN_UNLOCK();
 }
 
 /*
