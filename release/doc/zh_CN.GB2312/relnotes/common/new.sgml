@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.911
+     Original revision: 1.914
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -135,6 +135,10 @@
       要了解进一步详情， 请参阅安全公告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:07.pf.asc">FreeBSD-SA-06:07.pf</ulink>. &merged;</para>
 
+    <para>发现并修正了在 AMD 第7和第8代处理器上运行的 FreeBSD 内核的一处信息泄露问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:14.fpu.asc">FreeBSD-SA-06:14.fpu</ulink>. &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -143,28 +147,31 @@
     <para>&man.acpi.4; 提供了对 HPET 时钟计数器的基本支持。</para>
 
     <para>&man.acpi.ibm.4; 驱动提供了将风扇配置为手动或自动控制，
-      以及在手动控制模式下调节风扇转速的能力。 请注意手工控制风扇转速时，
-      在设置 sysctl 变量
-      <varname>dev.acpi_ibm.<replaceable>0</replaceable>.fan</varname>
-      为零 (手动) 时需要特别小心， 因为禁用自动风扇控制，
+      以及在手动控制模式下调节风扇转速的能力。 要启用对风扇转速的手动控制，
+      需要将 sysctl 变量 <varname>dev.acpi_ibm.<replaceable>0</replaceable>.fan</varname>
+      设置为零 (手动)。 这样做时必须非常小心，因为禁用自动风扇控制，
       可能会使硬件过热， 从而导致永久性的损坏。</para>
 
-    <para>&man.ddb.4; 新增了 <literal>show lock</literal>
+    <para>&man.ddb.4; 调试器新增了 <literal>show lock</literal>
       命令。 参数为有效的锁类时， 这一命令会显示关于锁的多种信息，
       并调用在 lock_class 中新增的函数指针 (lc_ddb_show)
       来显示关于锁的其他信息 (例如 mutex 的持有者， 或
-      xlock 的 sx 锁)。</para>
+      xlock 的 sx 锁)。 &merged;</para>
 
-    <para>&man.ddb.4; 新增了 <literal>show sleepq</literal>
+    <para>&man.ddb.4; 调试器新增了 <literal>show sleepq</literal>
       命令。 这个命令需要指定一个等待通道作为其参数，
       起作用是显示与那一等待通道关联的休眠队列。</para>
 
-    <para>修正了文件描述符处理中的一个会导致
-      <literal>close(0); dup(fd)</literal> 在某些情况下不返回描述符
+    <para>加入了针对不同平台的 <filename>DEFAULTS</filename>
+      内核配置文件。 &merged;</para>
+
+    <para>修正了文件描述符处理中的一个会导致在某些情况下按
+      <literal>close(0); dup(fd)</literal> 顺序执行时不返回描述符
       <literal>0</literal> 的 bug。</para>
 
     <para>新增了 &man.firmware.9; 子系统。 它能够使用特制的模块，
-      将二进制数据加载到内核中。</para>
+      将二进制数据加载到内核中。
+      &merged;</para>
 
     <para>&man.gdb.1; 远程调试接口提供了对与将控制台信息复制到远程调试器实例的能力。
       要启用这一特性， 需要在  <filename>loader.conf</filename>
@@ -177,7 +184,8 @@
       <function>dlopen()</function> 加载的动态连接库的性能分析支持。
       &man.pmcstat.8; 新增了通过网络 socket 将数据记录到远程主机的能力。</para>
 
-    <para>&man.random.4; 熵设备驱动程序是 MPSAFE 的了。</para>
+    <para>&man.random.4; 熵设备驱动程序是 MPSAFE 的了。
+      &merged;</para>
 
     <para>新增了 <literal>SIGCHLD</literal> 信号队列的功能。
       对于每个状态发生变化的子进程， 都会在队列中有一个对应的 SIGCHLD 实例，
@@ -186,6 +194,12 @@
       加载器变量 <varname>kern.sigqueue.queue_sigchild</varname>
       可以控制这一行为， 将其设置为零表示完全禁用
       <literal>SIGCHLD</literal> 队列功能。</para>
+
+    <para arch="amd64,i386">与过去转存操作将整个物理内存转存不同，
+      内核现在提供了只转存映射至内核虚拟内存空间的内存页的能力。
+      如果将新增的 sysctl 变量
+      <varname>debug.minidump</varname>
+      设置为零， 就可以关闭这一特性。</para>
 
     <para>新增了一个 sysctl 变量 <varname>kern.malloc_stats</varname>。
       这使得内核 malloc 统计信息能够以二进制结构流的形式输出给用户态程序。</para>
@@ -216,7 +230,8 @@
       <literal>biba/equal(equal-equal)</literal> 创建所有网络接口。
       这对于类似 &man.dhclient.8; 和 &man.ppp.8; 这样需要初始化网络接口，
       但又不提供标签支持的程序非常有用。 默认情况下，
-      此变量的值为 <literal>0</literal>(禁用)。</para>
+      此变量的值为 <literal>0</literal>(禁用)。
+      &merged;</para>
 
     <para>新增了一个 sysctl 变量 <varname>vm.zone_stats</varname>。
       这使得 &man.uma.9; 分配器的统计信息能够以二进制结构流的形式输出给用户态程序。</para>
@@ -245,8 +260,6 @@
       关于开发的最新进展，
       请访问 <ulink url="http://xbox-bsd.nl"></ulink>。</para>
 
-    <para>在各个平台上加入了 <filename>DEFAULTS</filename> 内核配置文件。</para>
-
     <sect3 id="boot">
       <title>引导区和 loader 的变化</title>
 
@@ -258,7 +271,8 @@
 	<varname>comconsole_speed</varname> 用以调整串口速率。
 	如果前一阶段中引导加载器要求使用串口控制台，
 	则默认的速率会根据当前的串口速率确定， 否则将设为 9600
-	或编译时配置的内核选项 <literal>BOOT_COMCONSOLE_SPEED</literal> 所指定的值。</para>
+	或编译时配置的内核选项 <literal>BOOT_COMCONSOLE_SPEED</literal>
+	所指定的值。 &merged;</para>
 
       <!-- Above this line, order boot loader changes by keyword-->
 
@@ -267,12 +281,13 @@
     <sect3 id="proc">
       <title>硬件支持</title>
 
-      <para>&man.acpi.thermal.4; 驱动现在支持被动降温了。</para>
+      <para>&man.acpi.thermal.4; 驱动现在支持被动降温了。 &merged;</para>
 
       <para>&man.cardbus.4; 驱动现在支持
 	<filename>/dev/cardbus<replaceable>%d</replaceable>.cis</filename> 了。</para>
 
-      <para>新增了 &man.ce.4; 驱动， 这一驱动用于支持 Cronyx Tau-PCI/32 适配器。</para>
+      <para arch="i386,pc98">新增了 &man.ce.4; 驱动， 这一驱动用于支持 Cronyx Tau-PCI/32 适配器。
+	&merged;</para>
 
       <para>在 &man.crypto.9; 子系统中加入了对于 VIA C3 处理器中 PadLock 安全协处理器的支持。
 	&merged;</para>
@@ -289,13 +304,14 @@
 	键盘， 如果找不到泽搜索其他键盘。 切换到 &man.kbdmux.4;
 	可以在启动时通过使用 &man.loader.8; 来加载
 	<literal>kbdmux</literal> 内核模块，
-	或在运行状态通过 &man.kldload.8; 加载模块并移去当前键盘来完成。</para>
+	或在运行状态通过 &man.kldload.8; 加载模块并移去当前键盘来完成。
+	&merged;</para>
 
       <para arch="amd64,i386">&man.kbdmux.4; 已被加入默认的
 	<filename>GENERIC</filename> 内核。
 	此外， 由于这一变动修正了 USB 键盘探测问题，
 	因此引导加载器菜单中的 <quote>Boot FreeBSD with USB keyboard</quote>
-	选项也随之删去。</para>
+	选项也随之删去。 &merged;</para>
 
       <para arch="ia64">加载器变量 <varname>debug.mpsafevfs</varname>
 	现在默认设为 <literal>1</literal> 了。</para>
@@ -326,27 +342,33 @@
       <sect4 id="mm">
 	<title>多媒体支持</title>
 
-	<para>&man.agp.4; 驱动现在支持 ATI IGP 芯片组了。</para>
+	<para>&man.agp.4; 驱动现在支持 ATI IGP 芯片组了。
+	  &merged;</para>
 
 	<para>&man.sound.4; 驱动现在支持更为广泛的采样速率、
-	  多种可选的采样精度， 以及 24/32-位 PCM 格式转换了。</para>
+	  多种可选的采样精度， 以及 24/32-位 PCM 格式转换了。 &merged;</para>
 
-	<para>&man.snd.als4000.4; 驱动是 MPSAFE 的了。</para>
+	<para>&man.snd.als4000.4; 驱动是 MPSAFE 的了。
+	  &merged;</para>
 
 	<para>新增了 &man.snd.atiixp.4; 驱动。
-	  这一驱动支持 ATI IXP 200/300/400 系列音效控制器。</para>
+	  这一驱动支持 ATI IXP 200/300/400 系列音效控制器。 &merged;</para>
 
 	<para>&man.snd.atiixp.4; 驱动支持挂起和恢复功能了。</para>
 
 	<para>&man.snd.cmi.4; 驱动是 MPSAFE 的了。</para>
 
-	<para>&man.snd.solo.4; 驱动是 MPSAFE 的了。</para>
+	<para>&man.snd.es137x.4; 驱动是 MPSAFE 的了。 &merged;</para>
 
-	<para>&man.snd.via8233.4; 驱动是 MPSAFE 的了。</para>
+	<para>&man.snd.ich.4; 驱动是 MPSAFE 的了。 &merged;</para>
 
-	<para>&man.snd.via82c686.4; 驱动是 MPSAFE 的了。</para>
+	<para>&man.snd.solo.4; 驱动是 MPSAFE 的了。 &merged;</para>
 
-	<para arch="amd64">The &man.speaker.4; 支持 &os;/amd64 了。</para>
+	<para>&man.snd.via8233.4; 驱动是 MPSAFE 的了。 &merged;</para>
+
+	<para>&man.snd.via82c686.4; 驱动是 MPSAFE 的了。 &merged;</para>
+
+	<para arch="amd64">The &man.speaker.4; 支持 &os;/amd64 了。 &merged;</para>
 
 	<para>The &man.uaudio.4; 支持 24/32 位 声音文件格式及其转换了。</para>
       </sect4>
@@ -354,16 +376,19 @@
       <sect4 id="net-if">
 	<title>网络接口支持</title>
 
-	<para>&man.ath.4; 驱动更新到了 0.9.16.16 版。</para>
+	<para>&man.ath.4; 驱动更新到了 0.9.16.16 版。 &merged;</para>
 
 	<para arch="i386,amd64">新增了 &man.bce.4; 驱动， 用以支持 Broadcom
 	  NetXtreme II (BCM5706/BCM5708) PCI/PCIe 千兆以太网控制器。
-	  进一步详情请参考 &man.bce.4;。</para>
+	  进一步详情请参考 &man.bce.4;。 &merged;</para>
 
 	<para>&man.bge.4; 驱动的巨帧支持是 MPSAFE 的了。</para>
 
 	<para>&man.bge.4; 驱动支持类似 sparc64 这样的 big-endian
 	  架构了。</para>
+
+	<para>&man.bge.4; 驱动提供了 &man.polling.4; 模式的支持。
+	  &merged;</para>
 
 	<para>&man.dc.4; 驱动是 MPSAFE 的了。 &merged;</para>
 
@@ -375,7 +400,7 @@
 	<para>&man.el.4; 驱动已被删除。</para>
 
 	<para>&man.em.4; 驱动支持类似 sparc64 这样的 big-endian
-	  架构了。</para>
+	  架构了。 &merged;</para>
 
 	<para>&man.em.4; 驱动更新到了来自 Intel 的 3.2.18 版， 提供了对基于
 	  82571 和 82572 芯片的适配器的支持。</para>
@@ -393,7 +418,10 @@
 	  和 Am79C9xx PCnet 网络接口控制器， 它基于 NetBSD 的实现。
 	  尽管 &man.lnc.4; 驱动也支持这些网络接口控制器，
 	  这一驱动提供了许多额外的特性， 例如
-	  MPSAFE、 ALTQ、 VLAN_MTU、 ifmedia， 以及 PCI 变体的 32-位 DMA。</para>
+	  MPSAFE、 ALTQ、 VLAN_MTU、 ifmedia， 以及 PCI 变体的 32-位 DMA。
+	  &merged;</para>
+
+	<para>&man.lge.4; 驱动是 MPSAFE 的了。 &merged;</para>
 
 	<para>&man.my.4; 驱动是 MPSAFE 的了。 &merged;</para>
 
@@ -436,11 +464,11 @@
       <para>对 &man.arp.8; 重传算法进行了重写，
 	使得在需要某一 ARP 项时， 不再抑制重传 ARP 请求。 sysctl 变量
 	<varname>net.link.ether.inet.host_down_time</varname>
-	也因此消失了。</para>
+	也因此消失了。 &merged;</para>
 
       <para>&man.arp.8; 新增了 sysctl 变量，
 	<varname>net.link.ether.inet.log_arp_permanent_modify</varname>
-	以抑制对永久 ARP 项的修改尝试的日志记录。</para>
+	以抑制对永久 ARP 项的修改尝试的日志记录。 &merged;</para>
 
       <para>&man.arp.8; 工具能够将 <option>-i</option>
 	参数与 <option>-d</option> 和 <option>-a</option> 参数联用，
@@ -457,22 +485,22 @@
 
       <para>&man.if.bridge.4; 网桥驱动新增了创建镜像口， 即，
 	将网桥接收到的每个帧都发送到那个端口的支持。
-	这一功能可以通过 &man.ifconfig.8; 启用。</para>
+	这一功能可以通过 &man.ifconfig.8; 启用。 &merged;</para>
 
       <para>&man.if.bridge.4; 网桥驱动新增了对
 	RFC 3378 EtherIP 的支持。 这一变动使得向网桥增加 &man.gif.4;
 	接口， 并收发 IP 协议 97 的数据包成为可能。 这些包实际上是附带了 EtherIP
-	包头的以太网帧。</para>
+	包头的以太网帧。 &merged;</para>
 
       <para>默认禁用了在 &os; 中的
 	&man.ip6.4; 协议栈中的广播包路径 MTU 发现功能，
 	这使由于通过多播种的许多路由器来通知路径 MTU
 	可能构成对于一台服务器的分布式拒绝服务攻击行为。
 	这一功能可以通过新的 sysctl 变量
-	<varname>net.inet6.ip6.mcast_pmtu</varname> 来启用。</para>
+	<varname>net.inet6.ip6.mcast_pmtu</varname> 来启用。 &merged;</para>
 
       <para>&man.ipfw.4; 的 IP 包过滤器现在支持 IPv6 了。
-	&man.ip6fw.8; 已经过时， 并将在以后的发行版中删除。</para>
+	&man.ip6fw.8; 已经过时， 并将在以后的发行版中删除。 &merged;</para>
 
       <para>&man.ipfw.4; 新增了对于由查表得到的值所对应的动作进行替换的功能，
 	这一功能可以用来优化规则集。 目前，
@@ -481,7 +509,7 @@
 	<literal>divert</literal>、
 	<literal>tee</literal>、
 	<literal>netgraph</literal>
-	以及 <literal>ngtee</literal> 规则。
+	以及 <literal>ngtee</literal> 规则。 &merged;
 	例如， 下列规则会把不同的包发给不同的 pipe：</para>
 
       <programlisting>pipe 1000 config bw 1000Kbyte/s
@@ -497,8 +525,11 @@ pipe tablearg ip from table(1) to any</programlisting>
 	改为 <varname>net.bpf_jitter.enable</varname>，
 	并可以同时控制 &man.bpf.4; 和 &man.ng.bpf.4; 了。</para>
 
+      <para>&man.ng.iface.4; Netgraph 节点支持 &man.altq.4; 了。
+	&merged;</para>
+
       <para>修正了通过 TCP 进行的 NFS 连接无法在服务器发出 FIN 之后重连的问题。
-	这一问题会影响使用 Solaris 的 NFS 服务器提供的服务。</para>
+	这一问题会影响使用 Solaris 的 NFS 服务器提供的服务。 &merged;</para>
 
       <para>sysctl 变量 <varname>net.inet.ip.portrange.reservedhigh</varname>
 	和 <varname>net.inet.ip.portrange.reservedlow</varname>
@@ -544,7 +575,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 	使得在计算最大带宽时会出问题。 新增的 sysctl 变量
 	<varname>net.inet.tcp.inflight.rttthresh</varname>
 	可以用来指定希望此功能起作用的以毫秒为单位的阈值，
-	其默认值为 10ms。</para>
+	其默认值为 10ms。 &merged;</para>
     </sect3>
 
     <sect3 id="disks">
@@ -557,22 +588,27 @@ pipe tablearg ip from table(1) to any</programlisting>
 	并增加了完全的 64-位 DMA 支持。 尽管这一特性默认是启用的，
 	但也还可以使用加载器变量
 	<varname>hw.amr.force_sg32</varname> 来禁用，
-	以方便调试。</para>
+	以方便调试。
+	&merged;</para>
 
       <para>&man.amr.4; 驱动新增了 Linux LSI MegaRaid 工具所需的 &man.ioctl.2;
-	请求支持， 以便在 &os; 的 Linux 模拟环境中使用它们。</para>
+	请求支持， 以便在 &os; 的 Linux 模拟环境中使用它们。
+	&merged;</para>
 
       <para>&man.ata.4; 驱动提供了针对某些在 48-位 模式下 DMA
 	无法正常工作的控制器的缓解方法。 对于那些可疑的控制器，
-	驱动程序会在访问超过 137GB 的区域时使用 PIO 模式。</para>
+	驱动程序会在访问超过 137GB 的区域时使用 PIO 模式。
+	&merged;</para>
 
       <para>&man.ata.4; 驱动提供了对 ITE IT8211F IDE 控制器，
 	以及 Promise PDC40718 和 PDC40719 芯片的支持，
 	后两种芯片见于 Promise
-	Fasttrak TX4300。</para>
+	Fasttrak TX4300。
+	&merged;</para>
 
       <para>&man.ata.4; 驱动支持以 DMA 方式将内核崩溃转存数据存入
-	&man.ataraid.4; 设备了。</para>
+	&man.ataraid.4; 设备了。
+	&merged;</para>
 
       <para>&man.ata.4; 驱动支持 USB 海量存储 (mass storage) 类型的设备了。
 	要启用这一支持， 需要在内核配置文件中加入 <literal>device atausb</literal>
@@ -581,10 +617,14 @@ pipe tablearg ip from table(1) to any</programlisting>
 	请注意这一功能与 &man.umass.4; 冲突， 因此无法与其并存。</para>
 
       <para>&man.ataraid.4; 驱动支持
-	JMicron ATA RAID 元数据了。</para>
+	JMicron ATA RAID 元数据了。 &merged;</para>
+
+      <para><literal>GEOM_LABEL</literal> class 支持
+	Ext2FS、 NTFS 和 ReiserFS 了。 &merged;</para>
 
       <para><literal>GEOM_MIRROR</literal> class 支持将内核崩溃转存数据，
-	保存到其 GEOM providers 上了。</para>
+	保存到其 GEOM providers 上了。
+	&merged;</para>
 
       <para><literal>GEOM_MIRROR</literal> 和 <literal>GEOM_RAID3</literal>
 	这两个 class 新增了对 sysctl 变量
@@ -598,8 +638,9 @@ pipe tablearg ip from table(1) to any</programlisting>
 	(只有第一次错误被记入日志)。
 	如果有两个盘都存在故障， 但位置不同， 则这一功能将有助于恢复数据。
 	出现故障的盘在 <command>gmirror list</command>
-	和 <command>graid3 list</command> 的输出重仍可见， 但会标记上
-	<literal>BROKEN</literal>。</para>
+	和 <command>graid3 list</command> 的输出中仍可见， 但会标记上
+	<literal>BROKEN</literal>。
+	&merged;</para>
 
       <para><literal>GEOM_MIRROR</literal> 和 <literal>GEOM_RAID3</literal>
 	这两个 class 采用了并发 I/O 请求来获得更好的同步性能。 新增的 sysctl 变量
@@ -610,17 +651,16 @@ pipe tablearg ip from table(1) to any</programlisting>
 	<varname>kern.geom.mirror.syncs_per_sec</varname>、
 	<varname>kern.geom.raid3.reqs_per_sync</varname>， 以及
 	<varname>kern.geom.raid3.syncs_per_sec</varname>
-	则过时， 并已删去。</para>
+	则已经过时并删去。
+	&merged;</para>
 
       <para>新增了 GEOM class <literal>GEOM_ZERO</literal>。
 	它提供了一个非常大 (41PB) <filename>/dev/gzero</filename> 的 provider，
 	主要可以用来进行性能测试。
 	在收到 <literal>BIO_READ</literal> 请求时它会对
 	<varname>bio_data</varname> 填零， 而 <literal>BIO_WRITE</literal>
-	则什么都不做。</para>
-
-      <para><literal>GEOM_LABEL</literal> class 现在支持
-	Ext2FS 和 ReiserFS 了。</para>
+	则什么都不做。
+	&merged;</para>
 
       <para>为与其它模块的命名保持一致， GEOM class 内核模块 <filename>g_md.ko</filename>
 	已更名为 <filename>geom_md.ko</filename>。</para>
@@ -629,7 +669,8 @@ pipe tablearg ip from table(1) to any</programlisting>
 	amd64 和 PAE 的支持。</para>
 
       <para>新增了&man.mfi.4; 驱动， 用以支持
-	LSI MegaRAID SAS 系列控制器。</para>
+	LSI MegaRAID SAS 系列控制器。
+	&merged;</para>
 
       <para>对 &man.mpt.4; 驱动进行了更新， 从而为许多新功能，
 	例如 RAID 卷和 RAID 成员 状态/配置 报告、 周期性卷重同步状态报告，
@@ -640,14 +681,14 @@ pipe tablearg ip from table(1) to any</programlisting>
 	64-位 PCI， 以及大数据传送的支持。</para>
 
       <para>&man.twa.4; 已更新至 3ware 网站发布的 9.3.0.1
-	版本。</para>
+	版本。 &merged;</para>
 
       <para>新增了基于 GEOM 的磁盘加密机制， GEOM_ELI。
 	它使用 &man.crypto.9; 框架进行硬件加速，
 	并支持多种不同的加密算法。 请参见 &man.geli.8;
 	以了解进一步的信息。 &merged;</para>
 
-      <para>&man.geli.8; 支持在挂接根文件系统之前加载密钥文件了。
+      <para>&man.geli.8; 支持在挂接根文件系统之前加载密钥文件了。 &merged;
 	例如， 可以将下列配置加入 <filename>/boot/loader.conf</filename>
 	来启用它：</para>
 
@@ -689,7 +730,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 	已更新至 20051021 版本。</para>
 
       <para><application>DRM</application>
-	已更新至 DRI CVS 在 20051202 的快照版本。</para>
+	已更新至 DRI CVS 在 20051202 的快照版本。 &merged;</para>
 
       <para>新增了实现 Sun 的基本安全模块 (BSM) 审计 API 及文件格式，
 	以及一系列用以支持 Mac OS X 和 FreeBSD 操作系统的本地扩展的
@@ -721,40 +762,43 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       它们是用于建立和应用二进制补丁的程序。</para>
 
     <para>&man.bsnmpd.1; 工具支持 RFC 2790 所描述的主机资源
-      MIB 了。</para>
+      MIB 了。 &merged;</para>
 
     <para>&man.cmp.1; 工具支持通过 <option>-h</option>
       参数来指定比较符号连接本身， 而不是其所连接的对象了。</para>
 
     <para>&man.config.8; 工具新增了对 <literal>nocpu</literal>
-      语句的支持。</para>
+      语句的支持。 &merged;</para>
 
     <para>如果指定内核配置文件所在的目录中存在名为 <filename>DEFAULTS</filename>
       内核配置文件， 则 &man.config.8; 工具会在读取内核配置文件之前，
-      首先处理这个文件的内容。</para>
+      首先处理这个文件的内容。 &merged;</para>
 
     <para>&man.csh.1; 工具支持 NLS 编录了。 注意需要安装
-      <filename role="package">shells/tcsh_nls</filename> 才能正常使用。</para>
+      <filename role="package">shells/tcsh_nls</filename> 才能正常使用。
+      &merged;</para>
 
     <para>引入了 csup(1) 工具。 这是一个与 CVSup 兼容的，
       使用 C 语言撰写的客户端程序。 请注意它目前只支持检出模式。</para>
 
-    <para>&man.devd.8; 工具新增了用于指定配置文件的 <option>-f</option> 选项。</para>
+    <para>&man.devd.8; 工具新增了用于指定配置文件的 <option>-f</option> 选项。
+      &merged;</para>
 
     <para>&man.ftpd.8; 即使在没有使用 <option>-p</option> 参数的情况下，
       也会创建 PID 文件
-      <filename>/var/run/ftpd.pid</filename> 了。</para>
+      <filename>/var/run/ftpd.pid</filename> 了。 &merged;</para>
 
     <para>&man.gbde.8; 工具新增了用于同时指定密钥文件和口令字的
       <option>-k</option> 和 <option>-K</option> 选项。</para>
 
     <para>&man.getfacl.1; 工具新增了 <option>-q</option> 参数，
-      以避免显示每个文件头的中列出文件名、 属主与所属用户组的注释信息。</para>
+      以避免显示每个文件头的中列出文件名、 属主与所属用户组的注释信息。
+      &merged;</para>
 
     <para>&man.gpt.8; 工具支持设置 GPT 分区 label 了。</para>
 
     <para>&man.gvinum.8; 工具新增了用以完成对象改名，
-      并将子盘从一个驱动器转入另一驱动器的命令。</para>
+      并将子盘从一个驱动器转入另一驱动器的命令。 &merged;</para>
 
     <para>&man.gvinum.8; 工具新增了
       <command>resetconfig</command> 子命令。</para>
@@ -780,10 +824,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>&man.jail.8; 工具新增了 <option>-J
 	<replaceable>jid_file</replaceable></option> 选项的支持，
       用以指定 JidFile， 后者类似于 PidFile，
-      包含 jailid、 路径、 主机名、 ip 以及用以启动 jail 的命令。</para>
+      包含 jailid、 路径、 主机名、 ip 以及用以启动 jail 的命令。 &merged;</para>
 
     <para>&man.kdump.1; 新增了 <option>-H</option>
-      参数， 表示让 kdump 显示包含 threadid 的附加字段。</para>
+      参数， 表示让 kdump 显示包含 threadid 的附加字段。 &merged;</para>
 
     <para>&man.kdump.1; 新增了 <option>-s</option>
       参数， 用于在显示中略去 I/O 数据。</para>
@@ -814,13 +858,16 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       并通过这些分配器输出的二进制流形式的 sysctl 变量来获取数据。 &merged;</para>
 
     <para>&man.ln.1; 工具新增了 <option>-F</option> 参数，
-      表示在创建符号连接时删除空目录。</para>
+      表示在创建符号连接时删除空目录。
+      &merged;</para>
 
     <para>&man.locate.1; 工具新增了 <option>-0</option> 参数，
-      使其能够与 &man.xargs.1; 的 <option>-0</option> 参数联用。</para>
+      使其能够与 &man.xargs.1; 的 <option>-0</option> 参数联用。
+      &merged;</para>
 
     <para>&man.ls.1; 工具新增了 <option>-I</option> 参数， 用以禁用超级用户自动加上的
-      <option>-A</option> 参数。</para>
+      <option>-A</option> 参数。
+      &merged;</para>
 
     <para>&man.ls.1; 工具新增了 <option>-U</option> 参数，
       表示按文件的创建时间排序。</para>
@@ -845,7 +892,8 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       &man.strstr.3; 是二进制等价的。</para>
 
     <para>&man.mergemaster.8; 工具新增了 <option>-A</option> 参数，
-      用于显式地指定传递给下层 Makefile 的架构名称。</para>
+      用于显式地指定传递给下层 Makefile 的架构名称。
+      &merged;</para>
 
     <para>删去了 &man.mount.8; 的 <literal>nodev</literal> 选项。</para>
 
@@ -853,7 +901,8 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>&man.moused.8; 新增了 <option>-H</option> 参数，
       用以启用虚拟的水平方向滚轮， 这一功能与通过
-      <option>-V</option> 参数启用虚拟的垂直方向滚轮类似。</para>
+      <option>-V</option> 参数启用虚拟的垂直方向滚轮类似。
+      &merged;</para>
 
     <para>&man.netstat.1; 新增了
       <option>-h</option> 参数用于其统计模式，
@@ -868,11 +917,13 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>&man.periodic.8; 的 daily (每日执行) 脚本，
       新增了显示 &man.gmirror.8;、 &man.graid3.8;、
       &man.gstripe.8;， 以及 &man.gconcat.8; 设备的支持。
-      请注意这些功能默认都处于禁用的状态。</para>
+      请注意这些功能默认都处于禁用的状态。
+      &merged;</para>
 
     <para>新增了一组 &man.pidfile.3; 函数， 用以提供可靠的 PID
       文件处理方法。 这些函数放到了
-      <filename>libutil</filename> 中。</para>
+      <filename>libutil</filename> 中。
+      &merged;</para>
 
     <para>&man.ping.8; 工具支持了 <quote>扫荡式
 	ping</quote>， 也就是每次发送的 &man.icmp.4; 均会增加。
@@ -901,7 +952,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>&man.rfcomm.sppd.1; 能够支持在指定服务名的同时指定
       <option>-c</option> 选项和通道号了。
       支持的名字包括： DUN (拨号网络)、 FAX (传真)、
-      LAN (使用 PPP 访问 LAN)， 以及 SP (串口)。</para>
+      LAN (使用 PPP 访问 LAN)， 以及 SP (串口)。&merged;</para>
 
     <para>&man.rpcgen.1; 工具现在默认生成 ANSI C 编译器能识别的头和桩 (stub)
       文件了。</para>
@@ -914,8 +965,11 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>&man.sh.1; 新增了内建命令 <literal>times</literal>。</para>
 
+    <para>新增了用于查看 UFS 文件系统中快照位置的 &man.snapinfo.8; 工具。
+      &merged;</para>
+
     <para>加入了基于 OpenBSD 实现的 &man.strtonum.3; 库函数。 这是
-      &man.strtoll.3; 的改进版本。</para>
+      &man.strtoll.3; 的改进版本。 &merged;</para>
 
     <para>&man.sysctl.8; 工具新增了 <option>-q</option>
       参数来禁止显示某些警告和错误提示。</para>
@@ -931,7 +985,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       其功能和配置文件已经完全由 &man.devd.8; 工具接替。</para>
 
     <para>&man.xargs.1; 工具新增了 <option>-r</option>
-      参数， 表示只有在标准输入不含非空格字符时才执行命令。</para>
+      参数， 表示只有在标准输入不含非空格字符时才执行命令。&merged;</para>
 
     <para>由于某些潜在的 ABI 变动， 所有的共享库德版本号都进行了递增。
       这些库包括： snmp_*、 libdialog、 libg2c、 libobjc、
@@ -963,7 +1017,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 	来覆盖
 	(这里的 <replaceable>$device</replaceable> 是 <devicename>ubt0</devicename>、
 	<devicename>btcc0</devicename>， 等等。)
-	要了解进一步详情， 请参阅 &man.bluetooth.conf.5;。</para>
+	要了解进一步详情， 请参阅 &man.bluetooth.conf.5;。 &merged;</para>
 
       <para>新增了用于以独立方式启动 &man.ftpd.8; 的
 	<filename>ftpd</filename> 脚本。</para>
@@ -984,14 +1038,15 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 	在没有蓝牙设备接到系统上时， 也可以启动这些服务，
 	但这两个服务都需要蓝牙 socket 层， 因此默认禁用了这两个服务。
 	蓝牙 socket 曾必须通过模块加载， 或静态联编进内核，
-	这两个服务才能运行。</para>
+	这两个服务才能运行。
+	&merged;</para>
 
       <para>新增了用于
-	&man.hostapd.8; 的 <filename>hostapd</filename> 脚本。</para>
+	&man.hostapd.8; 的 <filename>hostapd</filename> 脚本。 &merged;</para>
 
       <para><filename>netif</filename> 脚本新增了对
 	<varname>ipv4_addrs_<replaceable>ifn</replaceable></varname>
-	的支持， 它表示增加 CIDR 记法的 IPv4 地址。 例如：</para>
+	的支持， 它表示增加 CIDR 记法的 IPv4 地址。 &merged; 例如：</para>
 
       <programlisting>ipv4_addrs_ed0="192.168.0.1/24 192.168.1.1-5/28"</programlisting>
 
@@ -1005,7 +1060,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       <para>由于 OLDCARD 已经过时， 删去了 <filename>pccard</filename> 脚本。</para>
 
       <para><filename>ppp-user</filename> 脚本改名为
-	<filename>ppp</filename>。</para>
+	<filename>ppp</filename>。 &merged;</para>
 
       <para>删去了 <varname>removable_interfaces</varname> 变量。</para>
 
@@ -1029,6 +1084,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para><application>GNU Readline 库</application>
       从 5.0 更新到了 5.1。</para>
 
+    <para><application>GNU Troff</application>
+      从 1.19 更新到了 1.19.2。
+      &merged;</para>
+
     <para><application>IPFilter</application> 从
       4.1.8 更新到了 4.1.10。</para>
 
@@ -1036,7 +1095,8 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       4.2p1 更新到了 4.3p1。</para>
 
     <para><application>hostapd</application>
-      由 0.3.9 版更新到了 0.4.8 版。</para>
+      由 0.3.9 版更新到了 0.4.8 版。
+      &merged;</para>
 
     <para><application>sendmail</application> 由
       8.13.4 更新到了 8.13.6。 &merged;</para>
@@ -1046,7 +1106,8 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       <application>tzdata2005r</application> 版。 &merged;</para>
 
     <para><application>WPA Supplicant</application>
-      由 0.3.9 版更新到了 0.4.8 版。</para>
+      由 0.3.9 版更新到了 0.4.8 版。
+      &merged;</para>
 
     <para><application>zlib</application>
       由 1.2.2 更新到了 1.2.3 版。</para>
@@ -1060,48 +1121,51 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>&man.pkg.add.1; 新增了 <option>-P</option>
       参数， 它与 <option>-p</option> 参数类似，
-      区别在于给定的前缀也会用于依赖的其他包。</para>
+      区别在于给定的前缀也会用于依赖的其他包。 &merged;</para>
 
     <para>&man.pkg.add.1; 和 &man.pkg.create.1; 新增了
       <option>-K</option> 参数， 表示将 package 默认保存至当前目录
-      (如果有定义 <varname>PKGDIR</varname> 则保存在那个目录)。</para>
+      (如果有定义 <varname>PKGDIR</varname> 则保存在那个目录)。
+      &merged;</para>
 
     <para>&man.pkg.create.1; 新增了 <option>-x</option>
       参数， 用以使用基本正则表达式来表示 package 的名字，
       <option>-E</option> 标志表示使用扩展正则表达式，
-      而 <option>-G</option> 则表示精确匹配。</para>
+      而 <option>-G</option> 则表示精确匹配。 &merged;</para>
 
     <para>&man.pkg.version.1; 新增了 <option>-o</option>
       参数， 用于显示在 package 生成时所记录的来源 (origin) 目录而不是其本身的名字，
-      以及 <option>-O</option> 参数表示只列出所有注册来源为指定来源的 package。</para>
+      以及 <option>-O</option> 参数表示只列出所有注册来源为指定来源的 package。
+      &merged;</para>
 
     <para>新增了 &man.portsnap.8; 工具 (<filename>sysutils/portsnap</filename>)
       到 &os; 基本系统中。 这是一个安全、 便于使用、
       快速、 轻量级的工具， 能够很好地帮助用户保持他们的 ports tree
-      与官方版本同步。</para>
+      与官方版本同步。 &merged;</para>
 
     <para>修正了 &man.portsnap.8; 工具在处理 <varname>HTTP_PROXY_AUTH</varname>
-      时的 bug。</para>
+      时的 bug。 &merged;</para>
 
     <para>从 <varname>local_startup</varname>
-      目录启动脚本改为使用与基本系统同样的 &man.rcorder.8; 排序了。</para>
+      目录启动脚本改为使用与基本系统同样的 &man.rcorder.8; 排序了。 &merged;</para>
 
-    <para>删去了从 Ports 套间安装的启动脚本的后缀。
+    <para>删去了从 Ports 套件安装的启动脚本的后缀。
       这意味着 <filename>foo.sh</filename>
       都将改名为 <filename>foo</filename>， 并且名为
       <filename>foo.ORG</filename> 的脚本也会被执行。
       您应重新安装所有安装了启动脚本的 package， 并清理
-      <varname>local_startup</varname> 目录中多余的文件。</para>
+      <varname>local_startup</varname> 目录中多余的文件。 &merged;</para>
 
     <para>新增了两个 <filename>rc.conf</filename> 变量，
       <varname>ldconfig_local_dirs</varname> 和
       <varname>ldconfig_local32_dirs</varname>。
-      这两个变量用于指定本地的 &man.ldconfig.8; 目录列表。</para>
+      这两个变量用于指定本地的 &man.ldconfig.8; 目录列表。
+      &merged;</para>
 
     <para><filename>pkg-plist</filename> 中的
       <command>@cwd</command> 命令支持不指定目录参数了。
       如果没有指定目录参数， 则它将把当前工作目录设置为
-      <command>@cwd</command> 命令给出的第一个前缀。</para>
+      <command>@cwd</command> 命令给出的第一个前缀。 &merged;</para>
   </sect2>
 
   <sect2 id="releng">
