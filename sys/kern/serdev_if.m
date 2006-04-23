@@ -50,6 +50,12 @@ CODE {
 	}
 
 	static int
+	default_ipend(device_t dev)
+	{
+		return (-1);
+	}
+
+	static int
 	default_sysdev(device_t dev)
 	{
 		return (0);
@@ -65,6 +71,15 @@ METHOD serdev_intr_t* ihand {
 	device_t dev;
 	int ipend;
 } DEFAULT default_ihand;
+
+# ipend() - Query pending interrupt status.
+# This method is called by the umbrella driver to obtain interrupt status
+# for the UART in question. This allows the umbrella driver to build a
+# matrix and service the interrupts in the most flexible way by calling
+# interrupt handlers collected with the ihand() method.
+METHOD int ipend {
+	device_t dev;
+} DEFAULT default_ipend;
 
 # sysdev() - Query system device status 
 # This method may be called by the umbrella driver for each child driver
