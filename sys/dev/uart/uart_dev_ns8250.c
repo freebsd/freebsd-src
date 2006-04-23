@@ -194,11 +194,11 @@ ns8250_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 
 	/* Set baudrate. */
 	if (baudrate > 0) {
-		uart_setreg(bas, REG_LCR, lcr | LCR_DLAB);
-		uart_barrier(bas);
 		divisor = ns8250_divisor(bas->rclk, baudrate);
 		if (divisor == 0)
 			return (EINVAL);
+		uart_setreg(bas, REG_LCR, lcr | LCR_DLAB);
+		uart_barrier(bas);
 		uart_setdreg(bas, REG_DL, divisor);
 		uart_barrier(bas);
 	}
