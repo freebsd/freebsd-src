@@ -799,15 +799,17 @@ in6_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 }
 
 void
-in6_pcbpurgeif0(head, ifp)
-	struct in6pcb *head;
+in6_pcbpurgeif0(pcbinfo, ifp)
+	struct inpcbinfo *pcbinfo;
 	struct ifnet *ifp;
 {
 	struct in6pcb *in6p;
 	struct ip6_moptions *im6o;
 	struct in6_multi_mship *imm, *nimm;
 
-	for (in6p = head; in6p != NULL; in6p = LIST_NEXT(in6p, inp_list)) {
+	INP_INFO_RLOCK(pcbinfo);
+	LIST_FOREACH(in6p, pcbinfo->listhead, inp_list) {
+		INP_LOCK(in6p);
 		im6o = in6p->in6p_moptions;
 		if ((in6p->inp_vflag & INP_IPV6) &&
 		    im6o) {
@@ -834,7 +836,9 @@ in6_pcbpurgeif0(head, ifp)
 				}
 			}
 		}
+		INP_UNLOCK(in6p);
 	}
+	INP_INFO_RUNLOCK(pcbinfo);
 }
 
 /*
