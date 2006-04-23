@@ -172,7 +172,6 @@ rwlock_rdlock_common (pthread_rwlock_t *rwlock, const struct timespec *abstime)
 		return (EAGAIN);
 	}
 
-	curthread = _get_curthread();
 	if ((curthread->rdlock_count > 0) && (prwlock->state > 0)) {
 		/*
 		 * To avoid having to track all the rdlocks held by
@@ -256,7 +255,6 @@ _pthread_rwlock_tryrdlock (pthread_rwlock_t *rwlock)
 	if ((ret = _pthread_mutex_lock(&prwlock->lock)) != 0)
 		return (ret);
 
-	curthread = _get_curthread();
 	if (prwlock->state == MAX_READ_LOCKS)
 		ret = EAGAIN;
 	else if ((curthread->rdlock_count > 0) && (prwlock->state > 0)) {
@@ -317,7 +315,7 @@ _pthread_rwlock_trywrlock (pthread_rwlock_t *rwlock)
 int
 _pthread_rwlock_unlock (pthread_rwlock_t *rwlock)
 {
-	struct pthread *curthread;
+	struct pthread *curthread = _get_curthread();
 	pthread_rwlock_t prwlock;
 	int ret;
 
@@ -333,7 +331,6 @@ _pthread_rwlock_unlock (pthread_rwlock_t *rwlock)
 	if ((ret = _pthread_mutex_lock(&prwlock->lock)) != 0)
 		return (ret);
 
-	curthread = _get_curthread();
 	if (prwlock->state > 0) {
 		curthread->rdlock_count--;
 		prwlock->state--;
