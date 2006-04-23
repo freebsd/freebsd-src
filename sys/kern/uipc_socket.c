@@ -397,6 +397,10 @@ solisten_proto(so, backlog)
  * - The protocol does not have an outstanding strong reference on the socket
  *   (SS_PROTOREF).
  *
+ * - The socket is in a completed connection queue, so a process has been
+ *   notified that it is present.  If it is removed, the user process may
+ *   block in accept() despite select() saying the socket was ready.
+ *
  * Otherwise, it will quietly abort so that a future call to sofree(), when
  * conditions are right, can succeed.
  */
@@ -410,7 +414,7 @@ sofree(so)
 	SOCK_LOCK_ASSERT(so);
 
 	if ((so->so_state & SS_NOFDREF) == 0 || so->so_count != 0 ||
-	    (so->so_state & SS_PROTOREF)) {
+	    (so->so_state & SS_PROTOREF) || (so->so_qstate & SQ_COMP)) {
 		SOCK_UNLOCK(so);
 		ACCEPT_UNLOCK();
 		return;
@@ -425,22 +429,6 @@ sofree(so)
 		KASSERT((so->so_qstate & SQ_COMP) == 0 ||
 		    (so->so_qstate & SQ_INCOMP) == 0,
 		    ("sofree: so->so_qstate is SQ_COMP and also SQ_INCOMP"));
-		/*
-		 * accept(2) is responsible draining the completed
-		 * connection queue and freeing those sockets, so
-		 * we just return here if this socket is currently
-		 * on the completed connection queue.  Otherwise,
-		 * accept(2) may hang after select(2) has indicating
-		 * that a listening socket was ready.  If it's an
-		 * incomplete connection, we remove it from the queue
-		 * and free it; otherwise, it won't be released until
-		 * the listening socket is closed.
-		 */
-		if ((so->so_qstate & SQ_COMP) != 0) {
-			SOCK_UNLOCK(so);
-			ACCEPT_UNLOCK();
-			return;
-		}
 		TAILQ_REMOVE(&head->so_incomp, so, so_list);
 		head->so_incqlen--;
 		so->so_qstate &= ~SQ_INCOMP;
