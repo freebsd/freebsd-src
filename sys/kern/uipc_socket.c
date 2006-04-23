@@ -397,7 +397,7 @@ solisten_proto(so, backlog)
  * - The protocol does not have an outstanding strong reference on the socket
  *   (SS_PROTOREF).
  *
- * - The socket is in a completed connection queue, so a process has been
+ * - The socket is not in a completed connection queue, so a process has been
  *   notified that it is present.  If it is removed, the user process may
  *   block in accept() despite select() saying the socket was ready.
  *
