@@ -36,12 +36,15 @@
  * from trying to use each other's VCs.
  */
 
+#include "opt_ddb.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/systm.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 
@@ -50,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 
 #include <netnatm/natm.h>
+
+#include <ddb/ddb.h>
 
 struct npcblist natm_pcbs;
 
@@ -63,12 +68,6 @@ npcb_alloc(int wait)
 	struct natmpcb *npcb;
 
 	npcb = malloc(sizeof(*npcb), M_PCB, wait | M_ZERO);
-
-#ifdef DIAGNOSTIC
-	if (wait == M_WAITOK && npcb == NULL)
-		panic("npcb_alloc: malloc didn't wait");
-#endif
-
 	if (npcb != NULL)
 		npcb->npcb_flags = NPCB_FREE;
 	return (npcb);
@@ -150,20 +149,16 @@ done:
 }
 
 #ifdef DDB
-
-int
-npcb_dump(void)
+DB_SHOW_COMMAND(natm, db_show_natm)
 {
 	struct natmpcb *cpcb;
 
-	printf("npcb dump:\n");
+	db_printf("npcb dump:\n");
 	LIST_FOREACH(cpcb, &natm_pcbs, pcblist) {
-		printf("if=%s, vci=%d, vpi=%d, IP=0x%x, sock=%p, flags=0x%x, "
-		    "inq=%d\n", cpcb->npcb_ifp->if_xname, cpcb->npcb_vci,
-		    cpcb->npcb_vpi, cpcb->ipaddr.s_addr, cpcb->npcb_socket, 
-		    cpcb->npcb_flags, cpcb->npcb_inq);
+		db_printf("if=%s, vci=%d, vpi=%d, IP=0x%x, sock=%p, "
+		    "flags=0x%x, inq=%d\n", cpcb->npcb_ifp->if_xname,
+		    cpcb->npcb_vci, cpcb->npcb_vpi, cpcb->ipaddr.s_addr,
+		    cpcb->npcb_socket, cpcb->npcb_flags, cpcb->npcb_inq);
 	}
-	printf("done\n");
-	return (0);
 }
 #endif
