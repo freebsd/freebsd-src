@@ -263,7 +263,6 @@ MAN=	aac.4 \
 	rp.4 \
 	rue.4 \
 	sa.4 \
-	sab.4 \
 	safe.4 \
 	sbp.4 \
 	sbp_targ.4 \
