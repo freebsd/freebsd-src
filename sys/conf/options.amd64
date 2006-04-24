@@ -49,8 +49,6 @@ IPR_LOG			opt_i4b.h
 # EOF
 # -------------------------------
 HAMMER			opt_cpu.h
-PPC_PROBE_CHIPSET	opt_ppc.h
-PPC_DEBUG		opt_ppc.h
 PSM_HOOKRESUME		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
 PSM_DEBUG		opt_psm.h
