@@ -28,7 +28,7 @@
  *
  */
 
-int ppc_probe(device_t dev);
+int ppc_probe(device_t dev, int rid);
 int ppc_attach(device_t dev);
 int ppc_detach(device_t dev);
 int ppc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val);
@@ -46,4 +46,5 @@ void ppc_reset_epp(device_t);
 void ppc_ecp_sync(device_t);
 int ppc_setmode(device_t, int);
 
-extern	devclass_t	ppc_devclass;
+extern devclass_t ppc_devclass;
+extern const char ppc_driver_name[];

@@ -193,8 +193,6 @@ dev/mse/mse.c			optional mse
 dev/mse/mse_isa.c		optional mse isa
 dev/nve/if_nve.c		optional nve pci
 dev/pcf/pcf_isa.c		optional pcf
-dev/ppc/ppc.c			optional ppc
-dev/ppc/ppc_puc.c		optional ppc puc pci
 dev/random/nehemiah.c		optional random
 dev/sbni/if_sbni.c		optional sbni
 dev/sbni/if_sbni_isa.c		optional sbni isa
