@@ -119,6 +119,13 @@
 
 	<tbody>
 	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:14.fpu.asc"
+		>06:14.fpu</ulink></entry>
+	    <entry>19&nbsp;April&nbsp;2006</entry>
+	    <entry><para>FPU information disclosure</para></entry>
+	  </row>
+
+	  <row>
 	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:13.sendmail.asc"
 		>06:13.sendmail</ulink></entry>
 	    <entry>22&nbsp;March&nbsp;2006</entry>
