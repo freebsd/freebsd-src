@@ -856,7 +856,8 @@ printcpuinfo(void)
 			else if (strcmp(cpu_vendor, "GenuineIntel") == 0 &&
 			    (cpu_high >= 4)) {
 				cpuid_count(4, 0, regs);
-				cmp = ((regs[0] & 0xfc000000) >> 26) + 1;
+				if ((regs[0] & 0x1f) != 0)
+					cmp = ((regs[0] >> 26) & 0x3f) + 1;
 			}
 			if (cmp > 1)
 				printf("\n  Cores per package: %d", cmp);
