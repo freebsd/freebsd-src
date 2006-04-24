@@ -10,7 +10,7 @@
 
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.73.2.15
+	Original Revision: 1.73.2.15.2.1
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -117,6 +117,13 @@
 	</thead>
 
 	<tbody>
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:14.fpu.asc"
+		>06:14.fpu</ulink></entry>
+	    <entry>2006&nbsp;年&nbsp;4&nbsp;月&nbsp;19日</entry>
+	    <entry><para>FPU 信息泄露</para></entry>
+	  </row>
+
 	  <row>
 	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:13.sendmail.asc"
 		>06:13.sendmail</ulink></entry>
