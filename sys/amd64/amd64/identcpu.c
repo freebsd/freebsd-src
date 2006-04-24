@@ -233,7 +233,7 @@ printcpuinfo(void)
 				"\014<b11>"
 				"\015<b12>"
 				"\016CX16"	/* CMPXCHG16B Instruction */
-				"\017<b14>"
+				"\017XTPR"	/* Send Task Priority Messages*/
 				"\020<b15>"
 				"\021<b16>"
 				"\022<b17>"
