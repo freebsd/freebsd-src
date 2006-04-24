@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 1997-2000 Nicolas Souchu
- * Copyright (c) 2001 Alcove - Nicolas Souchu
+ * Copyright (c) 2006 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,17 +22,19 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-  
+
 #include <machine/bus.h>
+
+#include <dev/pci/pcivar.h>
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_msq.h>
@@ -42,18 +43,19 @@
 
 #include "ppbus_if.h"
 
-static int ppc_puc_probe(device_t dev);
+static int ppc_pci_probe(device_t dev);
 
-static device_method_t ppc_puc_methods[] = {
+static device_method_t ppc_pci_methods[] = {
 	/* device interface */
-	DEVMETHOD(device_probe,         ppc_puc_probe),
-	DEVMETHOD(device_attach,        ppc_attach),
+	DEVMETHOD(device_probe,		ppc_pci_probe),
+	DEVMETHOD(device_attach,	ppc_attach),
+	DEVMETHOD(device_detach,	ppc_detach),
 
 	/* bus interface */
 	DEVMETHOD(bus_read_ivar,	ppc_read_ivar),
 	DEVMETHOD(bus_setup_intr,	ppc_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	ppc_teardown_intr),
-	DEVMETHOD(bus_alloc_resource,   bus_generic_alloc_resource),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 
 	/* ppbus interface */
 	DEVMETHOD(ppbus_io,		ppc_io),
@@ -64,21 +66,45 @@ static device_method_t ppc_puc_methods[] = {
 	DEVMETHOD(ppbus_read,		ppc_read),
 	DEVMETHOD(ppbus_write,		ppc_write),
 
-        { 0, 0 }
-  };
-  
-static driver_t ppc_puc_driver = {
+	{ 0, 0 }
+};
+
+static driver_t ppc_pci_driver = {
 	ppc_driver_name,
-	ppc_puc_methods,
+	ppc_pci_methods,
 	sizeof(struct ppc_data),
 };
 
+struct pci_id {
+	uint32_t	type;
+	const char	*desc;
+	int		rid;
+};
+
+static struct pci_id pci_ids[] = {
+	{ 0x1020131f, "SIIG Cyber Parallel PCI (10x family)", 0x18 },
+	{ 0x2020131f, "SIIG Cyber Parallel PCI (20x family)", 0x10 },
+	{ 0x80001407, "Lava Computers 2SP-PCI parallel port", 0x10 },
+	{ 0x84031415, "Oxford Semiconductor OX12PCI840 Parallel port", 0x10 },
+	{ 0x95131415, "Oxford Semiconductor OX16PCI954 Parallel port", 0x10 },
+	{ 0x98059710, "NetMos NM9805 1284 Printer port", 0x10 },
+	{ 0xffff }
+};
+
 static int
-ppc_puc_probe(dev)
-	device_t	dev;
+ppc_pci_probe(device_t dev)
 {
-	device_set_desc(dev, "Parallel port");
-	return (ppc_probe(dev, 0));
+	struct pci_id *id;
+	uint32_t type;
+
+	type = pci_get_devid(dev);
+	id = pci_ids;
+	while (id->type != 0xffff && id->type != type)
+		id++;
+	if (id->type == 0xffff)
+		return (ENXIO);
+	device_set_desc(dev, id->desc);
+	return (ppc_probe(dev, id->rid));
 }
 
-DRIVER_MODULE(ppc, puc, ppc_puc_driver, ppc_devclass, 0, 0);
+DRIVER_MODULE(ppc, pci, ppc_pci_driver, ppc_devclass, 0, 0);

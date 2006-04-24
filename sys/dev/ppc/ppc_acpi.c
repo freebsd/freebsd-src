@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 1997-2000 Nicolas Souchu
- * Copyright (c) 2001 Alcove - Nicolas Souchu
+ * Copyright (c) 2006 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,10 +22,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include "opt_isa.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -35,6 +36,9 @@
   
 #include <machine/bus.h>
 
+#include <isa/isareg.h>
+#include <isa/isavar.h>
+
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_msq.h>
 #include <dev/ppc/ppcvar.h>
@@ -42,18 +46,26 @@
 
 #include "ppbus_if.h"
 
-static int ppc_puc_probe(device_t dev);
+static int ppc_acpi_probe(device_t dev);
 
-static device_method_t ppc_puc_methods[] = {
+int ppc_isa_attach(device_t dev);
+int ppc_isa_write(device_t, char *, int, int);
+
+static device_method_t ppc_acpi_methods[] = {
 	/* device interface */
-	DEVMETHOD(device_probe,         ppc_puc_probe),
-	DEVMETHOD(device_attach,        ppc_attach),
+	DEVMETHOD(device_probe,		ppc_acpi_probe),
+#ifdef DEV_ISA
+	DEVMETHOD(device_attach,	ppc_isa_attach),
+#else
+	DEVMETHOD(device_attach,	ppc_attach),
+#endif
+	DEVMETHOD(device_detach,	ppc_attach),
 
 	/* bus interface */
 	DEVMETHOD(bus_read_ivar,	ppc_read_ivar),
 	DEVMETHOD(bus_setup_intr,	ppc_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	ppc_teardown_intr),
-	DEVMETHOD(bus_alloc_resource,   bus_generic_alloc_resource),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 
 	/* ppbus interface */
 	DEVMETHOD(ppbus_io,		ppc_io),
@@ -62,23 +74,41 @@ static device_method_t ppc_puc_methods[] = {
 	DEVMETHOD(ppbus_setmode,	ppc_setmode),
 	DEVMETHOD(ppbus_ecp_sync,	ppc_ecp_sync),
 	DEVMETHOD(ppbus_read,		ppc_read),
+#ifdef DEV_ISA
+	DEVMETHOD(ppbus_write,		ppc_isa_write),
+#else
 	DEVMETHOD(ppbus_write,		ppc_write),
+#endif
 
-        { 0, 0 }
-  };
-  
-static driver_t ppc_puc_driver = {
+	{ 0, 0 }
+};
+
+static driver_t ppc_acpi_driver = {
 	ppc_driver_name,
-	ppc_puc_methods,
+	ppc_acpi_methods,
 	sizeof(struct ppc_data),
 };
 
+static struct isa_pnp_id lpc_ids[] = {
+	{ 0x0004d041, "Standard parallel printer port" },	/* PNP0400 */
+	{ 0x0104d041, "ECP parallel printer port" },		/* PNP0401 */
+	{ 0 }
+};
+
 static int
-ppc_puc_probe(dev)
-	device_t	dev;
+ppc_acpi_probe(device_t dev)
 {
+	device_t parent;
+	int error;
+
+	parent = device_get_parent(dev);
+
+	error = ISA_PNP_PROBE(parent, dev, lpc_ids);
+	if (error)
+		return (ENXIO);
+
 	device_set_desc(dev, "Parallel port");
 	return (ppc_probe(dev, 0));
 }
 
-DRIVER_MODULE(ppc, puc, ppc_puc_driver, ppc_devclass, 0, 0);
+DRIVER_MODULE(ppc, acpi, ppc_acpi_driver, ppc_devclass, 0, 0);

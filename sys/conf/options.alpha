@@ -18,9 +18,6 @@ API_UP1000		opt_cpu.h
 
 MAXMEM
 
-PPC_PROBE_CHIPSET       opt_ppc.h
-PPC_DEBUG               opt_ppc.h
-
 VGA_ALT_SEQACCESS	opt_vga.h
 VGA_DEBUG		opt_vga.h
 VGA_NO_FONT_LOADING	opt_vga.h

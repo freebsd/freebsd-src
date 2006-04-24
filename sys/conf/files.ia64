@@ -58,8 +58,6 @@ dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
 dev/hwpmc/hwpmc_ia64.c		optional	hwpmc
 dev/kbd/kbd.c			optional	atkbd | sc | ukbd
-dev/ppc/ppc.c			optional	ppc isa
-dev/ppc/ppc_puc.c		optional	ppc puc
 dev/syscons/schistory.c		optional	sc
 dev/syscons/scmouse.c		optional	sc
 dev/syscons/scterm-dumb.c	optional	sc
