@@ -950,6 +950,8 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		memcpy(&unp->unp_peercred, &unp2->unp_peercred,
 		    sizeof(unp->unp_peercred));
 		unp->unp_flags |= UNP_HAVEPC;
+		if (unp2->unp_flags & UNP_WANTCRED)
+			unp3->unp_flags |= UNP_WANTCRED;
 #ifdef MAC
 		SOCK_LOCK(so);
 		mac_set_socket_peer_from_socket(so, so3);
