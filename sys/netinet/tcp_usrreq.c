@@ -139,46 +139,27 @@ out:
 }
 
 /*
- * pru_detach() detaches the TCP protocol from the socket.
- * If the protocol state is non-embryonic, then can't
- * do this directly: have to initiate a pru_disconnect(),
- * which may finish later; embryonic TCB's can just
- * be discarded here.
+ * tcp_detach() releases any protocol state that can be reasonably released
+ * when a socket shutdown is requested, and is a shared code path for
+ * tcp_usr_detach() and tcp_usr_abort(), the two socket close entry points.
+ *
+ * Accepts pcbinfo, inpcb locked, will unlock the inpcb (if needed) on
+ * return.
  */
 static void
-tcp_usr_detach(struct socket *so)
+tcp_detach(struct socket *so, struct inpcb *inp)
 {
-	struct inpcb *inp;
 	struct tcpcb *tp;
 #ifdef INET6
 	int isipv6 = INP_CHECK_SOCKAF(so, AF_INET6) != 0;
 #endif
-	TCPDEBUG0;
 
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("tcp_usr_detach: inp == NULL"));
-	INP_INFO_WLOCK(&tcbinfo);
-	INP_LOCK(inp);
-	KASSERT(inp->inp_socket != NULL,
-	    ("tcp_usr_detach: inp_socket == NULL"));
-	TCPDEBUG1();
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
+	INP_LOCK_ASSERT(inp);
 
-	/*
-	 * First, if we still have full TCP state, and we're not dropped,
-	 * initiate a disconnect.
-	 */
-	if (!(inp->inp_vflag & INP_TIMEWAIT) &&
-	    !(inp->inp_vflag & INP_DROPPED)) {
-		tp = intotcpcb(inp);
-		tcp_disconnect(tp);
-	}
+	KASSERT(so->so_pcb == inp, ("tcp_detach: so_pcb != inp"));
+	KASSERT(inp->inp_socket == so, ("tcp_detach: inp_socket != so"));
 
-	/*
-	 * Second, release any protocol state that we can reasonably release.
-	 * Note that the call to tcp_disconnect() may actually have changed
-	 * the TCP state, so we have to re-evaluate INP_TIMEWAIT and
-	 * INP_DROPPED.
-	 */
 	if (inp->inp_vflag & INP_TIMEWAIT) {
 		if (inp->inp_vflag & INP_DROPPED) {
 			/*
@@ -248,6 +229,40 @@ tcp_usr_detach(struct socket *so)
 			INP_UNLOCK(inp);
 		}
 	}
+}
+
+/*
+ * pru_detach() detaches the TCP protocol from the socket.
+ * If the protocol state is non-embryonic, then can't
+ * do this directly: have to initiate a pru_disconnect(),
+ * which may finish later; embryonic TCB's can just
+ * be discarded here.
+ */
+static void
+tcp_usr_detach(struct socket *so)
+{
+	struct inpcb *inp;
+	struct tcpcb *tp;
+	TCPDEBUG0;
+
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("tcp_usr_detach: inp == NULL"));
+	INP_INFO_WLOCK(&tcbinfo);
+	INP_LOCK(inp);
+	KASSERT(inp->inp_socket != NULL,
+	    ("tcp_usr_detach: inp_socket == NULL"));
+	TCPDEBUG1();
+
+	/*
+	 * First, if we still have full TCP state, and we're not dropped,
+	 * initiate a disconnect.
+	 */
+	if (!(inp->inp_vflag & INP_TIMEWAIT) &&
+	    !(inp->inp_vflag & INP_DROPPED)) {
+		tp = intotcpcb(inp);
+		tcp_disconnect(tp);
+	}
+	tcp_detach(so, inp);
 	tp = NULL;
 	TCPDEBUG2(PRU_DETACH);
 	INP_INFO_WUNLOCK(&tcbinfo);
@@ -916,41 +931,38 @@ out:
 
 /*
  * Abort the TCP.
+ *
+ * First, drop the connection.  Then collect state if possible.
  */
 static void
 tcp_usr_abort(struct socket *so)
 {
-#if 0
 	struct inpcb *inp;
 	struct tcpcb *tp;
-#endif
-
-	/*
-	 * XXXRW: This is not really quite the same, as we want to tcp_drop()
-	 * rather than tcp_disconnect(), I think, but for now I'll avoid
-	 * replicating all the tear-down logic here.
-	 */
-	tcp_usr_detach(so);
-
-#if 0
 	TCPDEBUG0;
-	INP_INFO_WLOCK(&tcbinfo);
+
 	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("tcp_usr_abort: inp == NULL"));
+
+	INP_INFO_WLOCK(&tcbinfo);
 	INP_LOCK(inp);
-	/*
-	 * Do we need to handle timewait here?  Aborted connections should
-	 * never generate a FIN?
-	 */
-	KASSERT((inp->inp_vflag & INP_TIMEWAIT) == 0,
-	    ("tcp_usr_abort: timewait"));
-	tp = intotcpcb(inp);
+	KASSERT(inp->inp_socket != NULL,
+	    ("tcp_usr_abort: inp_socket == NULL"));
 	TCPDEBUG1();
-	tp = tcp_drop(tp, ECONNABORTED);
-		TCPDEBUG2(PRU_ABORT);
-	if (tp != NULL)
-		INP_UNLOCK(inp);
+
+	/*
+	 * First, if we still have full TCP state, and we're not dropped,
+	 * drop.
+	 */
+	if (!(inp->inp_vflag & INP_TIMEWAIT) &&
+	    !(inp->inp_vflag & INP_DROPPED)) {
+		tp = intotcpcb(inp);
+		tcp_drop(tp, ECONNABORTED);
+	}
+	tcp_detach(so, inp);
+	tp = NULL;
+	TCPDEBUG2(PRU_DETACH);
 	INP_INFO_WUNLOCK(&tcbinfo);
-#endif
 }
 
 /*
