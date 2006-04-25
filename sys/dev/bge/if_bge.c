@@ -306,6 +306,9 @@ static devclass_t bge_devclass;
 DRIVER_MODULE(bge, pci, bge_driver, bge_devclass, 0, 0);
 DRIVER_MODULE(miibus, bge, miibus_driver, miibus_devclass, 0, 0);
 
+static int bge_fake_autoneg = 0;
+TUNABLE_INT("hw.bge.fake_autoneg", &bge_fake_autoneg);
+
 static u_int32_t
 bge_readmem_ind(sc, off)
 	struct bge_softc *sc;
@@ -3341,13 +3344,13 @@ bge_ifmedia_upd(ifp)
 			return(EINVAL);
 		switch(IFM_SUBTYPE(ifm->ifm_media)) {
 		case IFM_AUTO:
-#ifndef BGE_FAKE_AUTONEG
 			/*
 			 * The BCM5704 ASIC appears to have a special
 			 * mechanism for programming the autoneg
 			 * advertisement registers in TBI mode.
 			 */
-			if (sc->bge_asicrev == BGE_ASICREV_BCM5704) {
+			if (bge_fake_autoneg == 0 &&
+			    sc->bge_asicrev == BGE_ASICREV_BCM5704) {
 				uint32_t sgdig;
 				CSR_WRITE_4(sc, BGE_TX_TBI_AUTONEG, 0);
 				sgdig = CSR_READ_4(sc, BGE_SGDIG_CFG);
@@ -3359,7 +3362,6 @@ bge_ifmedia_upd(ifp)
 				DELAY(5);
 				CSR_WRITE_4(sc, BGE_SGDIG_CFG, sgdig);
 			}
-#endif
 			break;
 		case IFM_1000_SX:
 			if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX) {
