@@ -407,7 +407,10 @@ vm_page_alloc_contig(vm_pindex_t npages, vm_paddr_t low, vm_paddr_t high,
 		panic("vm_page_alloc_contig: boundary must be a power of 2");
 
 	for (pass = 0; pass < 2; pass++) {
-		start = vm_page_array_size - npages + 1;
+		if (atop(high) < vm_page_array_size)
+			start = atop(high) - npages + 1;
+		else
+			start = vm_page_array_size - npages + 1;
 		vm_page_lock_queues();
 retry:
 		start--;
