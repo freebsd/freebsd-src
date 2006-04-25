@@ -1955,30 +1955,12 @@ witness_list(struct thread *td)
 DB_SHOW_COMMAND(locks, db_witness_list)
 {
 	struct thread *td;
-	pid_t pid;
-	struct proc *p;
 
-	if (have_addr) {
-		pid = (addr % 16) + ((addr >> 4) % 16) * 10 +
-		    ((addr >> 8) % 16) * 100 + ((addr >> 12) % 16) * 1000 +
-		    ((addr >> 16) % 16) * 10000;
-		/* sx_slock(&allproc_lock); */
-		FOREACH_PROC_IN_SYSTEM(p) {
-			if (p->p_pid == pid)
-				break;
-		}
-		/* sx_sunlock(&allproc_lock); */
-		if (p == NULL) {
-			db_printf("pid %d not found\n", pid);
-			return;
-		}
-		FOREACH_THREAD_IN_PROC(p, td) {
-			witness_list(td);
-		}
-	} else {
-		td = curthread;
-		witness_list(td);
-	}
+	if (have_addr)
+		td = db_lookup_thread(addr, TRUE);
+	else
+		td = kdb_thread;
+	witness_list(td);
 }
 
 DB_SHOW_COMMAND(alllocks, db_witness_list_all)
