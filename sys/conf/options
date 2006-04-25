@@ -640,9 +640,6 @@ ED_SIC			opt_ed.h
 # bce driver
 BCE_DEBUG		opt_bce.h
 
-# bge driver
-BGE_FAKE_AUTONEG	opt_bge.h
-
 # wi driver
 WI_SYMBOL_FIRMWARE	opt_wi.h
 
