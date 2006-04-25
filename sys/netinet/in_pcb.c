@@ -737,9 +737,8 @@ in_pcbfree(struct inpcb *inp)
 void
 in_pcbdrop(struct inpcb *inp)
 {
-	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 
-	INP_INFO_WLOCK_ASSERT(pcbinfo);
+	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_LOCK_ASSERT(inp);
 
 	inp->inp_vflag |= INP_DROPPED;
