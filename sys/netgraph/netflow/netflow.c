@@ -621,6 +621,9 @@ export_send(priv_p priv, item_p item, int flags)
 	getnanotime(&ts);
 	header->unix_secs  = htonl(ts.tv_sec);
 	header->unix_nsecs = htonl(ts.tv_nsec);
+	header->engine_type = 0;
+	header->engine_id = 0;
+	header->pad = 0;
 	header->flow_seq = htonl(atomic_fetchadd_32(&priv->flow_seq,
 	    header->count));
 	header->count = htons(header->count);
