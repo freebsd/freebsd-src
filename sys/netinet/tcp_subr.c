@@ -791,8 +791,7 @@ tcp_close(struct tcpcb *tp)
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_LOCK_ASSERT(inp);
 
-	inp->inp_vflag |= INP_DROPPED;
-
+	in_pcbdrop(inp);
 	tcpstat.tcps_closed++;
 	KASSERT(inp->inp_socket != NULL, ("tcp_close: inp_socket NULL"));
 	so = inp->inp_socket;
@@ -1852,7 +1851,7 @@ tcp_twclose(struct tcptw *tw, int reuse)
 	tw->tw_inpcb = NULL;
 	tcp_timer_2msl_stop(tw);
 	inp->inp_ppcb = NULL;
-	inp->inp_vflag |= INP_DROPPED;
+	in_pcbdrop(inp);
 
 	so = inp->inp_socket;
 	if (so != NULL) {
