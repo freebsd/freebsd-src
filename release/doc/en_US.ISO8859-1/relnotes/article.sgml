@@ -151,8 +151,8 @@
       For more details see security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:07.pf.asc">FreeBSD-SA-06:07.pf</ulink>. &merged;</para>
 
-    <para arch="i386,amd64">An information disclosure issue found in
-      FreeBSD kernel running on 7th and 8th generation of AMD processors
+    <para arch="i386,amd64">An information disclosure issue found in the
+      &os; kernel running on 7th- and 8th-generation AMD processors
       has been fixed.  For more details see security advisory <ulink
        url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:14.fpu.asc">FreeBSD-SA-06:14.fpu</ulink>. &merged;</para>
 
@@ -340,16 +340,16 @@
 	standard designed to enable remote monitoring and control of server,
 	networking and telecommunication platforms.</para>
 
-      <para>The &man.kbdmux.4; has been integrated into &man.syscons.4; and
-	<devicename>kbd</devicename> device driver.
+      <para>The &man.kbdmux.4; driver has been integrated into &man.syscons.4; and
+	the <devicename>kbd</devicename> device driver.
 	By default &man.syscons.4; will look for the &man.kbdmux.4;
 	keyboard first, and then, if not found, look for any keyboard.
-	Switch to &man.kbdmux.4; can be done at boot time by loading
-	<literal>kbdmux</literal> kernel module via &man.loader.8;,
+	Switching to &man.kbdmux.4; can be done at boot time by loading
+	the <literal>kbdmux</literal> kernel module via &man.loader.8;,
 	or at runtime via &man.kldload.8; and releasing the active
 	keyboard.  &merged;</para>
 
-      <para arch="amd64,i386">The &man.kbdmux.4; has been included in the
+      <para arch="amd64,i386">The &man.kbdmux.4; driver has been included in the
 	<filename>GENERIC</filename> kernel by default.
 	Also, the <quote>Boot FreeBSD with USB keyboard</quote>
 	menu item in the boot loader menu has been removed
@@ -468,8 +468,8 @@
 	  architectures such as sparc64.</para>
 
 	<para>The &man.le.4; driver, which supports AMD Am7900 LANCE
-	  and Am79C9xx PCnet NICs and is based on NetBSD's implementation
-	  has been added.  While the &man.lnc.4; driver also support these
+	  and Am79C9xx PCnet NICs and is based on NetBSD's implementation,
+	  has been added.  While the &man.lnc.4; driver also supports these
 	  NICs, this driver has several advantages over it such as
 	  MPSAFE, ALTQ, VLAN_MTU, ifmedia, and 32-bit DMA for PCI
 	  variants.  &merged;</para>
@@ -558,16 +558,16 @@
 	&man.ip6.4; stack has been disabled by default because
 	notifying path MTU by a lot of routers in multicast
 	can be a kind of distributed Denial-of-Service attack to a router.
-	This feature can be enabled by using a new sysctl variable
+	This feature can be re-enabled by using a new sysctl variable
 	<varname>net.inet6.ip6.mcast_pmtu</varname>.  &merged;</para>
 
-      <para>The &man.ipfw.4;, IP packet filter now supports IPv6.
-	The &man.ip6fw.8; is deprecated and will be removed
+      <para>The &man.ipfw.4; IP packet filter now supports IPv6.
+	The &man.ip6fw.8; packet filter is deprecated and will be removed
 	in the future releases.  &merged;</para>
 
       <para>The &man.ipfw.4; now supports substitution of the action
 	argument with the value obtained from table lookup,
-	which allows to optimize the rulesets.
+	which allows some optimization of rulesets.
 	This is now applicable only to <literal>pipe</literal>,
 	<literal>queue</literal>,
 	<literal>divert</literal>,
@@ -593,8 +593,8 @@ pipe tablearg ip from table(1) to any</programlisting>
       <para>The &man.ng.iface.4; Netgraph node now supports &man.altq.4;.
 	&merged;</para>
 
-      <para>A bug where a connection of NFS over TCP would not reconnect
-	when the server sent FIN.  This problem had occurred
+      <para>A bug has been fixed in which NFS over TCP would not reconnect
+	when the server sent a FIN.  This problem had occurred
 	with Solaris NFS servers.  &merged;</para>
 
       <para>The sysctl variable <varname>net.inet.ip.portrange.reservedhigh</varname>
@@ -712,8 +712,8 @@ pipe tablearg ip from table(1) to any</programlisting>
 	behavior, and if it is set to <literal>0</literal> such components
 	are not disconnected and the kernel will try to still use them
 	(only first error will be logged).
-	This is helpful when we have two broken components, but in
-	different places, so actually all data is available.
+	This is helpful for the case of multiple broken components (in
+	different places), so actually all data is available.
 	The broken components will be visible in <command>gmirror list</command>
 	or <command>graid3 list</command> output with flag
 	<literal>BROKEN</literal>.
@@ -749,7 +749,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 	amd64 as well as PAE.</para>
 
       <para>The &man.mfi.4; driver, which supports
-	LSI MegaRAID SAS controller family has been added.
+	the LSI MegaRAID SAS controller family, has been added.
 	&merged;</para>
 
       <para>The &man.mpt.4; driver has been updated to support
@@ -763,7 +763,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 	64-bit PCI, and large data transfer.</para>
 
       <para>The &man.twa.4; driver has been updated to the 9.3.0.1
-	release on the 3ware website.  &merged;</para>
+	release on the 3ware Web site.  &merged;</para>
 
       <para>A new GEOM-based disk encryption facility, GEOM_ELI, has been
 	added.  It uses the &man.crypto.9; framework for hardware acceleration
@@ -857,8 +857,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       flag to compare the symbolic link itself rather than the
       file that the link points to.</para>
 
-    <para>The &man.config.8; utility now supports <literal>nocpu</literal>
-      directive.  &merged;</para>
+    <para>The &man.config.8; utility now supports the <literal>nocpu</literal>
+      directive, which cancels the effect of a
+      previous <literal>cpu</literal> directive.  &merged;</para>
 
     <para>The &man.config.8; utility now reads <filename>DEFAULTS</filename>
       kernel configuration file if it exists in the current directory
@@ -866,7 +867,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The &man.csh.1; utility now supports NLS catalog.
       Note that this requires installing
-      <filename role="package">shells/tcsh_nls</filename>.
+      the <filename role="package">shells/tcsh_nls</filename> port.
       &merged;</para>
 
     <para>The csup(1) utility has been imported.
@@ -926,11 +927,11 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       the jailid, path, hostname, IP and the command used to start
       the jail.  &merged;</para>
 
-    <para>The &man.kdump.1; now supports a <option>-H</option>
+    <para>The &man.kdump.1; utility now supports a <option>-H</option>
       flag, which causes kdump to print an additional field holding
       the threadid.  &merged;</para>
 
-    <para>The &man.kdump.1; now supports a <option>-s</option>
+    <para>The &man.kdump.1; program now supports a <option>-s</option>
       flag to suppress the display of I/O data.  &merged;</para>
 
     <para>The &man.kenv.1; utility now supports a <option>-q</option>
@@ -1012,7 +1013,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The &man.mount.8; now supports &man.mqueuefs.5;.</para>
 
-    <para>The &man.moused.8; now supports an <option>-H</option> flag
+    <para>The &man.moused.8; daemon now supports an <option>-H</option> flag
       to enable horizontal virtual scrolling similar to a
       <option>-V</option> flag for vertical virtual scrolling.
       &merged;</para>
@@ -1027,15 +1028,15 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       rather than the KAME IPSEC stack.
       Note that the output of <command>netstat -s -p ipsec</command>
       differs depending on which stack is compiled into
-      the kernel since they each keep different stats.  &merged;</para>
+      the kernel since they each keep different statistics.  &merged;</para>
 
     <para>The &man.periodic.8; daily script now supports
-      to show the status of &man.gmirror.8;, &man.graid3.8;,
+      display of the status of &man.gmirror.8;, &man.graid3.8;,
       &man.gstripe.8;, and &man.gconcat.8; devices.
       Note that these are disabled by default.  &merged;</para>
 
-    <para>A new functions, &man.pidfile.3;, which allow reliable
-      pidfiles handling have been implemented in
+    <para>A new function, &man.pidfile.3;, which provides reliable
+      pidfiles handling, has been implemented in
       <filename>libutil</filename>.  &merged;</para>
 
     <para>The &man.ping.8; utility now supports <quote>a sweeping
@@ -1082,8 +1083,8 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.sh.1; utility now supports <literal>times</literal>
       built-in command.</para>
 
-    <para>The &man.snapinfo.8; utility which shows snapshot location
-      on UFS filesystems has been added.  &merged;</para>
+    <para>The &man.snapinfo.8; utility, which shows snapshot locations
+      on UFS filesystems, has been added.  &merged;</para>
 
     <para>The &man.strtonum.3; library function has been implemented
       based on OpenBSD's implementation.  This is an improved version of
@@ -1252,22 +1253,22 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       flag to disable checking whether the same package is already
       installed or not.</para>
 
-    <para>The &man.pkg.add.1; now supports an <option>-P</option>
+    <para>The &man.pkg.add.1; program now supports an <option>-P</option>
       flag, which is the same as the <option>-p</option> flag
       except that the given prefix is also used recursively for the
       dependency packages if any.  &merged;</para>
 
-    <para>The &man.pkg.add.1; and &man.pkg.create.1; now supports
+    <para>The &man.pkg.add.1; and &man.pkg.create.1; utilities now support
       a <option>-K</option> flag to save packages to the current directory
       (or <varname>PKGDIR</varname> if defined) by default.
       &merged;</para>
 
-    <para>The &man.pkg.create.1; now supports an <option>-x</option>
+    <para>The &man.pkg.create.1; program now supports an <option>-x</option>
       flag to support basic regular expressions for package name,
       an <option>-E</option> flag for extended regular
       expressions, and a <option>-G</option> for exact matching.  &merged;</para>
 
-    <para>The &man.pkg.version.1; now supports an <option>-o</option>
+    <para>The &man.pkg.version.1; utility now supports an <option>-o</option>
       flag to show the origin recorded on package generation
       instead of the package name, and an <option>-O</option> flag
       to list packages whose registered origin is origin only.
