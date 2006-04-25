@@ -111,8 +111,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/bge/if_bgereg.h>
 
-#include "opt_bge.h"
-
 #define BGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 #define ETHER_MIN_NOPAD		(ETHER_MIN_LEN - ETHER_CRC_LEN) /* i.e., 60 */
 
