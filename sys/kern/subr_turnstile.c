@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/turnstile.h>
 
 #ifdef DDB
+#include <sys/kdb.h>
 #include <ddb/ddb.h>
 #endif
 
@@ -1032,5 +1033,142 @@ found:
 	    "\t");
 	print_queue(&ts->ts_pending, "Pending Threads", "\t");
 	
+}
+
+static void
+print_threadchain(struct thread *td, const char *prefix)
+{
+	struct lock_object *lock;
+	struct lock_class *class;
+	struct turnstile *ts;
+
+	/*
+	 * Follow the chain.  We keep walking as long as the thread is
+	 * blocked on a turnstile that has an owner.
+	 */
+	for (;;) {
+		db_printf("%sthread %d (pid %d, %s) ", prefix, td->td_tid,
+		    td->td_proc->p_pid, td->td_name[0] != '\0' ? td->td_name :
+		    td->td_proc->p_comm);
+		switch (td->td_state) {
+		case TDS_INACTIVE:
+			db_printf("is inactive\n");
+			return;
+		case TDS_CAN_RUN:
+			db_printf("can run\n");
+			return;
+		case TDS_RUNQ:
+			db_printf("is on a run queue\n");
+			return;
+		case TDS_RUNNING:
+			db_printf("running on CPU %d\n", td->td_oncpu);
+			return;
+		case TDS_INHIBITED:
+			if (TD_ON_LOCK(td)) {
+				ts = td->td_blocked;
+				lock = ts->ts_lockobj;
+				class = LOCK_CLASS(lock);
+				db_printf("blocked on lock %p (%s) \"%s\"\n",
+				    lock, class->lc_name, lock->lo_name);
+				if (ts->ts_owner == NULL)
+					return;
+				td = ts->ts_owner;
+				break;
+			}
+			db_printf("inhibited\n");
+			return;
+		default:
+			db_printf("??? (%#x)\n", td->td_state);
+			return;
+		}
+	}
+}
+
+DB_SHOW_COMMAND(threadchain, db_show_threadchain)
+{
+	struct thread *td;
+
+	/* Figure out which thread to start with. */
+	if (have_addr)
+		td = db_lookup_thread(addr, TRUE);
+	else
+		td = kdb_thread;
+
+	print_threadchain(td, "");
+}
+
+DB_SHOW_COMMAND(allchains, db_show_allchains)
+{
+	struct thread *td;
+	struct proc *p;
+	int i;
+
+	i = 1;
+	LIST_FOREACH(p, &allproc, p_list) {
+		FOREACH_THREAD_IN_PROC(p, td) {
+			if (TD_ON_LOCK(td) && LIST_EMPTY(&td->td_contested)) {
+				db_printf("chain %d:\n", i++);
+				print_threadchain(td, " ");
+			}
+		}
+	}
+}
+
+static void	print_waiters(struct turnstile *ts, int indent);
+	
+static void
+print_waiter(struct thread *td, int indent)
+{
+	struct turnstile *ts;
+	int i;
+
+	for (i = 0; i < indent; i++)
+		db_printf(" ");
+	print_thread(td, "thread ");
+	LIST_FOREACH(ts, &td->td_contested, ts_link)
+		print_waiters(ts, indent + 1);
+}
+
+static void
+print_waiters(struct turnstile *ts, int indent)
+{
+	struct lock_object *lock;
+	struct lock_class *class;
+	struct thread *td;
+	int i;
+
+	lock = ts->ts_lockobj;
+	class = LOCK_CLASS(lock);
+	for (i = 0; i < indent; i++)
+		db_printf(" ");
+	db_printf("lock %p (%s) \"%s\"\n", lock, class->lc_name, lock->lo_name);
+	TAILQ_FOREACH(td, &ts->ts_blocked[TS_EXCLUSIVE_QUEUE], td_lockq)
+		print_waiter(td, indent + 1);
+	TAILQ_FOREACH(td, &ts->ts_blocked[TS_SHARED_QUEUE], td_lockq)
+		print_waiter(td, indent + 1);
+	TAILQ_FOREACH(td, &ts->ts_pending, td_lockq)
+		print_waiter(td, indent + 1);
+}
+
+DB_SHOW_COMMAND(lockchain, db_show_lockchain)
+{
+	struct lock_object *lock;
+	struct lock_class *class;
+	struct turnstile_chain *tc;
+	struct turnstile *ts;
+
+	if (!have_addr)
+		return;
+	lock = (struct lock_object *)addr;
+	tc = TC_LOOKUP(lock);
+	LIST_FOREACH(ts, &tc->tc_turnstiles, ts_hash)
+		if (ts->ts_lockobj == lock)
+			break;
+	if (ts == NULL) {
+		class = LOCK_CLASS(lock);
+		db_printf("lock %p (%s) \"%s\"\n", lock, class->lc_name,
+		    lock->lo_name);
+	} else
+		print_waiters(ts, 0);
 }
 #endif
