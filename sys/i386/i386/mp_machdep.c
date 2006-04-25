@@ -240,6 +240,7 @@ void
 mp_topology(void)
 {
 	struct cpu_group *group;
+	u_int regs[4];
 	int logical_cpus;
 	int apic_id;
 	int groups;
@@ -252,6 +253,13 @@ mp_topology(void)
 	logical_cpus = (cpu_procinfo & CPUID_HTT_CORES) >> 16;
 	if (logical_cpus <= 1)
 		return;
+	/* Nothing to do if reported cores are physical cores. */
+	if (strcmp(cpu_vendor, "GenuineIntel") == 0 && cpu_high >= 4) {
+		cpuid_count(4, 0, regs);
+		if ((regs[0] & 0x1f) != 0 &&
+		    logical_cpus <= ((regs[0] >> 26) & 0x3f) + 1)
+			return;
+	}
 	group = &mp_groups[0];
 	groups = 1;
 	for (cpu = 0, apic_id = 0; apic_id < MAXCPU; apic_id++) {
