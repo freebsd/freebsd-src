@@ -52,6 +52,12 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 if_bge_load="YES"
 .Ed
+.Pp
+The following tunable is settable from the loader:
+.Bl -ohang -offset indent
+.It Va hw.bge.fake_autoneg
+set to 1 for special handling of the BCM5704 HW (default is 0).
+.El
 .Sh DESCRIPTION
 The
 .Nm
