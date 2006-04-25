@@ -352,6 +352,7 @@ int	in_pcbconnect_setup(struct inpcb *, struct sockaddr *, in_addr_t *,
 	    struct ucred *);
 void	in_pcbdetach(struct inpcb *);
 void	in_pcbdisconnect(struct inpcb *);
+void	in_pcbdrop(struct inpcb *);
 void	in_pcbfree(struct inpcb *);
 int	in_pcbinshash(struct inpcb *);
 struct inpcb *

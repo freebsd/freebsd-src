@@ -728,6 +728,34 @@ in_pcbfree(struct inpcb *inp)
 	uma_zfree(ipi->ipi_zone, inp);
 }
 
+/*
+ * TCP needs to maintain its inpcb structure after the TCP connection has
+ * been torn down.  However, it must be disconnected from the inpcb hashes as
+ * it must not prevent binding of future connections to the same port/ip
+ * combination by other inpcbs.
+ */
+void
+in_pcbdrop(struct inpcb *inp)
+{
+	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
+
+	INP_INFO_WLOCK_ASSERT(pcbinfo);
+	INP_LOCK_ASSERT(inp);
+
+	inp->inp_vflag |= INP_DROPPED;
+	if (inp->inp_lport) {
+		struct inpcbport *phd = inp->inp_phd;
+
+		LIST_REMOVE(inp, inp_hash);
+		LIST_REMOVE(inp, inp_portlist);
+		if (LIST_FIRST(&phd->phd_pcblist) == NULL) {
+			LIST_REMOVE(phd, phd_hash);
+			free(phd, M_PCB);
+		}
+		inp->inp_lport = 0;
+	}
+}
+
 struct sockaddr *
 in_sockaddr(in_port_t port, struct in_addr *addr_p)
 {
