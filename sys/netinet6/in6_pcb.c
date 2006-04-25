@@ -297,6 +297,9 @@ in6_pcbladdr(inp, nam, plocal_addr6)
 	struct ifnet *ifp = NULL;
 	int scope_ambiguous = 0;
 
+	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
+	INP_LOCK_ASSERT(inp);
+
 	if (nam->sa_len != sizeof (*sin6))
 		return (EINVAL);
 	if (sin6->sin6_family != AF_INET6)
@@ -308,9 +311,6 @@ in6_pcbladdr(inp, nam, plocal_addr6)
 		scope_ambiguous = 1;
 	if ((error = sa6_embedscope(sin6, ip6_use_defzone)) != 0)
 		return(error);
-
-	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
-	INP_LOCK_ASSERT(inp);
 
 	if (in6_ifaddr) {
 		/*
@@ -723,6 +723,8 @@ in6_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 	int matchwild = 3, wildcard;
 	u_short lport = lport_arg;
 
+	INP_INFO_WLOCK_ASSERT(pcbinfo);
+
 	if (!wild_okay) {
 		struct inpcbhead *head;
 		/*
@@ -887,6 +889,8 @@ in6_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard, ifp)
 	register struct inpcb *inp;
 	u_short fport = fport_arg, lport = lport_arg;
 	int faith;
+
+	INP_INFO_RLOCK_ASSERT(pcbinfo);
 
 	if (faithprefix_p != NULL)
 		faith = (*faithprefix_p)(laddr);
