@@ -382,7 +382,6 @@ static struct witness_order_list_entry order_lists[] = {
 #endif
 	{ "scc_hwmtx", &lock_class_mtx_spin },
 	{ "uart_hwmtx", &lock_class_mtx_spin },
-	{ "sabtty", &lock_class_mtx_spin },
 	{ "zstty", &lock_class_mtx_spin },
 	{ "ng_node", &lock_class_mtx_spin },
 	{ "ng_worklist", &lock_class_mtx_spin },
