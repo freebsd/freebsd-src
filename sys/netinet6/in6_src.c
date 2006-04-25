@@ -760,6 +760,9 @@ in6_pcbsetport(laddr, inp, cred)
 	int count, error = 0, wild = 0;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 
+	INP_INFO_WLOCK_ASSERT(pcbinfo);
+	INP_LOCK_ASSERT(inp);
+
 	/* XXX: this is redundant when called from in6_pcbbind */
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
 		wild = INPLOOKUP_WILDCARD;
