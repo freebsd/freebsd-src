@@ -439,8 +439,8 @@ badunlocked:
  * into the socket code.
  */
 static void
-udp_append(last, ip, n, off, udp_in)
-	struct inpcb *last;
+udp_append(inp, ip, n, off, udp_in)
+	struct inpcb *inp;
 	struct ip *ip;
 	struct mbuf *n;
 	int off;
@@ -453,11 +453,11 @@ udp_append(last, ip, n, off, udp_in)
 	struct sockaddr_in6 udp_in6;
 #endif
 
-	INP_LOCK_ASSERT(last);
+	INP_LOCK_ASSERT(inp);
 
 #if defined(IPSEC) || defined(FAST_IPSEC)
 	/* check AH/ESP integrity. */
-	if (ipsec4_in_reject(n, last)) {
+	if (ipsec4_in_reject(n, inp)) {
 #ifdef IPSEC
 		ipsecstat.in_polvio++;
 #endif /*IPSEC*/
@@ -466,27 +466,27 @@ udp_append(last, ip, n, off, udp_in)
 	}
 #endif /*IPSEC || FAST_IPSEC*/
 #ifdef MAC
-	if (mac_check_inpcb_deliver(last, n) != 0) {
+	if (mac_check_inpcb_deliver(inp, n) != 0) {
 		m_freem(n);
 		return;
 	}
 #endif
-	if (last->inp_flags & INP_CONTROLOPTS ||
-	    last->inp_socket->so_options & (SO_TIMESTAMP | SO_BINTIME)) {
+	if (inp->inp_flags & INP_CONTROLOPTS ||
+	    inp->inp_socket->so_options & (SO_TIMESTAMP | SO_BINTIME)) {
 #ifdef INET6
-		if (last->inp_vflag & INP_IPV6) {
+		if (inp->inp_vflag & INP_IPV6) {
 			int savedflags;
 
-			savedflags = last->inp_flags;
-			last->inp_flags &= ~INP_UNMAPPABLEOPTS;
-			ip6_savecontrol(last, n, &opts);
-			last->inp_flags = savedflags;
+			savedflags = inp->inp_flags;
+			inp->inp_flags &= ~INP_UNMAPPABLEOPTS;
+			ip6_savecontrol(inp, n, &opts);
+			inp->inp_flags = savedflags;
 		} else
 #endif
-		ip_savecontrol(last, &opts, ip, n);
+		ip_savecontrol(inp, &opts, ip, n);
 	}
 #ifdef INET6
-	if (last->inp_vflag & INP_IPV6) {
+	if (inp->inp_vflag & INP_IPV6) {
 		bzero(&udp_in6, sizeof(udp_in6));
 		udp_in6.sin6_len = sizeof(udp_in6);
 		udp_in6.sin6_family = AF_INET6;
@@ -497,7 +497,7 @@ udp_append(last, ip, n, off, udp_in)
 	append_sa = (struct sockaddr *)udp_in;
 	m_adj(n, off);
 
-	so = last->inp_socket;
+	so = inp->inp_socket;
 	SOCKBUF_LOCK(&so->so_rcv);
 	if (sbappendaddr_locked(&so->so_rcv, append_sa, n, opts) == 0) {
 		m_freem(n);
