@@ -35,9 +35,6 @@ console	none				unknown	off secure
 screen	"/usr/libexec/getty Pc"		vt100	off secure
 ttya	"/usr/libexec/getty 3wire.9600"	vt100	off secure
 ttyb	"/usr/libexec/getty 3wire.9600"	vt100	off secure
-# sab(4)
-ttyz0	"/usr/libexec/getty 3wire.9600"	vt100	off secure
-ttyz1	"/usr/libexec/getty 3wire.9600"	vt100	off secure
 # syscons(4)
 ttyv0	"/usr/libexec/getty Pc"		cons25	on  secure
 # Virtual terminals
