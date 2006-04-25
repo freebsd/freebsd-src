@@ -105,10 +105,11 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
  * file entry is held upon returning.  This is lighter weight than
  * fgetsock(), which bumps the socket reference drops the file reference
  * count instead, as this approach avoids several additional mutex operations
- * associated with the additional reference count.
+ * associated with the additional reference count.  If requested, return the
+ * open file flags.
  */
 static int
-getsock(struct filedesc *fdp, int fd, struct file **fpp)
+getsock(struct filedesc *fdp, int fd, struct file **fpp, u_int *fflagp)
 {
 	struct file *fp;
 	int error;
@@ -126,6 +127,8 @@ getsock(struct filedesc *fdp, int fd, struct file **fpp)
 			error = ENOTSOCK;
 		} else {
 			fhold(fp);
+			if (fflagp != NULL)
+				*fflagp = fp->f_flag;
 			error = 0;
 		}
 		FILEDESC_UNLOCK_FAST(fdp);
@@ -221,7 +224,7 @@ kern_bind(td, fd, sa)
 	int error;
 
 	NET_LOCK_GIANT();
-	error = getsock(td->td_proc->p_fd, fd, &fp);
+	error = getsock(td->td_proc->p_fd, fd, &fp, NULL);
 	if (error)
 		goto done2;
 	so = fp->f_data;
@@ -260,7 +263,7 @@ listen(td, uap)
 	int error;
 
 	NET_LOCK_GIANT();
-	error = getsock(td->td_proc->p_fd, uap->s, &fp);
+	error = getsock(td->td_proc->p_fd, uap->s, &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
 #ifdef MAC
@@ -283,9 +286,6 @@ done:
 /*
  * accept1()
  * MPSAFE
- *
- * XXXRW: Use getsock() instead of fgetsock() here to avoid additional mutex
- * operations due to soref()/sorele().
  */
 static int
 accept1(td, uap, compat)
@@ -298,7 +298,7 @@ accept1(td, uap, compat)
 	int compat;
 {
 	struct filedesc *fdp;
-	struct file *nfp = NULL;
+	struct file *headfp, *nfp = NULL;
 	struct sockaddr *sa = NULL;
 	socklen_t namelen;
 	int error;
@@ -317,9 +317,10 @@ accept1(td, uap, compat)
 			return (EINVAL);
 	}
 	NET_LOCK_GIANT();
-	error = fgetsock(td, uap->s, &head, &fflag);
+	error = getsock(fdp, uap->s, &headfp, &fflag);
 	if (error)
 		goto done2;
+	head = headfp->f_data;
 	if ((head->so_options & SO_ACCEPTCONN) == 0) {
 		error = EINVAL;
 		goto done;
@@ -453,7 +454,7 @@ noconnection:
 done:
 	if (nfp != NULL)
 		fdrop(nfp, td);
-	fputsock(head);
+	fdrop(headfp, td);
 done2:
 	NET_UNLOCK_GIANT();
 	return (error);
@@ -521,7 +522,7 @@ kern_connect(td, fd, sa)
 	int interrupted = 0;
 
 	NET_LOCK_GIANT();
-	error = getsock(td->td_proc->p_fd, fd, &fp);
+	error = getsock(td->td_proc->p_fd, fd, &fp, NULL);
 	if (error)
 		goto done2;
 	so = fp->f_data;
@@ -740,7 +741,7 @@ kern_sendit(td, s, mp, flags, control, segflg)
 #endif
 
 	NET_LOCK_GIANT();
-	error = getsock(td->td_proc->p_fd, s, &fp);
+	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
 	if (error)
 		goto bad2;
 	so = (struct socket *)fp->f_data;
@@ -952,7 +953,7 @@ kern_recvit(td, s, mp, namelenp, segflg, controlp)
 		*controlp = 0;
 
 	NET_LOCK_GIANT();
-	error = getsock(td->td_proc->p_fd, s, &fp);
+	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
 	if (error) {
 		NET_UNLOCK_GIANT();
 		return (error);
@@ -1282,7 +1283,7 @@ shutdown(td, uap)
 	int error;
 
 	NET_LOCK_GIANT();
-	error = getsock(td->td_proc->p_fd, uap->s, &fp);
+	error = getsock(td->td_proc->p_fd, uap->s, &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
 		error = soshutdown(so, uap->how);
@@ -1349,7 +1350,7 @@ kern_setsockopt(td, s, level, name, val, valseg, valsize)
 	}
 
 	NET_LOCK_GIANT();
-	error = getsock(td->td_proc->p_fd, s, &fp);
+	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
 		error = sosetopt(so, &sopt);
@@ -1432,7 +1433,7 @@ kern_getsockopt(td, s, level, name, val, valseg, valsize)
 	}
 
 	NET_LOCK_GIANT();
-	error = getsock(td->td_proc->p_fd, s, &fp);
+	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
 		error = sogetopt(so, &sopt);
@@ -1466,7 +1467,7 @@ getsockname1(td, uap, compat)
 	int error;
 
 	NET_LOCK_GIANT();
-	error = getsock(td->td_proc->p_fd, uap->fdes, &fp);
+	error = getsock(td->td_proc->p_fd, uap->fdes, &fp, NULL);
 	if (error)
 		goto done2;
 	so = fp->f_data;
@@ -1554,7 +1555,7 @@ getpeername1(td, uap, compat)
 	int error;
 
 	NET_LOCK_GIANT();
-	error = getsock(td->td_proc->p_fd, uap->fdes, &fp);
+	error = getsock(td->td_proc->p_fd, uap->fdes, &fp, NULL);
 	if (error)
 		goto done2;
 	so = fp->f_data;
