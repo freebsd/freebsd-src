@@ -195,8 +195,6 @@ vm_pageq_add_new_page(vm_paddr_t pa)
 	vm_page_t m;
 	char *cp, *list, *pos;
 
-	GIANT_REQUIRED;
-
 	/*
 	 * See if a physical address in this page has been listed
 	 * in the blacklist tunable.  Entries in the tunable are
@@ -225,13 +223,15 @@ vm_pageq_add_new_page(vm_paddr_t pa)
 		freeenv(list);
 	}
 
-	++cnt.v_page_count;
+	atomic_add_int(&cnt.v_page_count, 1);
 	m = PHYS_TO_VM_PAGE(pa);
 	m->phys_addr = pa;
 	m->flags = 0;
 	m->pc = (pa >> PAGE_SHIFT) & PQ_COLORMASK;
 	pmap_page_init(m);
+	mtx_lock_spin(&vm_page_queue_free_mtx);
 	vm_pageq_enqueue(m->pc + PQ_FREE, m);
+	mtx_unlock_spin(&vm_page_queue_free_mtx);
 	return (m);
 }
 
