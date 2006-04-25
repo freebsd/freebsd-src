@@ -1949,7 +1949,8 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 		 * Switch antenna every 4 beacons.
 		 * XXX assumes two antenna
 		 */
-		antenna = (sc->sc_stats.ast_be_xmit & 4 ? 2 : 1);
+		antenna = sc->sc_txantenna != 0 ? sc->sc_txantenna
+			: (sc->sc_stats.ast_be_xmit & 4 ? 2 : 1);
 	}
 
 	KASSERT(bf->bf_nseg == 1,
