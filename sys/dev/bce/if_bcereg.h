@@ -709,13 +709,11 @@ struct flash_spec {
 #define PCI_SETBIT(dev, reg, x, s)	pci_write_config(dev, reg, (pci_read_config(dev, reg, s) | (x)), s)
 #define PCI_CLRBIT(dev, reg, x, s)	pci_write_config(dev, reg, (pci_read_config(dev, reg, s) & ~(x)), s)
 
+#define BCE_STATS(x)			(u_long) stats->stat_ ## x ## _lo
 #if (BUS_SPACE_MAXADDR > 0xFFFFFFFF)
-#define BCE_STATS(x)			((u_long) stats->stat_ ## x ## _hi << 32) + \
-					    (u_long) stats->stat_ ## x ## _lo
 #define BCE_ADDR_LO(y)			((u64) (y) & 0xFFFFFFFF)
 #define BCE_ADDR_HI(y)			((u64) (y) >> 32)
 #else
-#define BCE_STATS(x)			(u_long) stats->stat_ ## x ## _lo
 #define BCE_ADDR_LO(y)			((u32)y)
 #define BCE_ADDR_HI(y)			(0)
 #endif
