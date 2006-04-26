@@ -1449,6 +1449,9 @@ pv_to_chunk(pv_entry_t pv)
 
 static uint64_t pc_freemask[3] = { PC_FREE0, PC_FREE1, PC_FREE2 };
 
+SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,
+	"Current number of pv entries");
+
 #ifdef PV_STATS
 static int pc_chunk_count, pc_chunk_allocs, pc_chunk_frees, pc_chunk_tryfail;
 
@@ -1464,8 +1467,6 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_tryfail, CTLFLAG_RD, &pc_chunk_tryfail, 
 static long pv_entry_frees, pv_entry_allocs;
 static int pv_entry_spare;
 
-SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,
-	"Current number of pv entries");
 SYSCTL_LONG(_vm_pmap, OID_AUTO, pv_entry_frees, CTLFLAG_RD, &pv_entry_frees, 0,
 	"Current number of pv entry frees");
 SYSCTL_LONG(_vm_pmap, OID_AUTO, pv_entry_allocs, CTLFLAG_RD, &pv_entry_allocs, 0,
