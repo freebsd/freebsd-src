@@ -23,16 +23,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-  
+
 #include <machine/bus.h>
 
 #include <dev/ppbus/ppbconf.h>
@@ -46,14 +46,14 @@ static int ppc_puc_probe(device_t dev);
 
 static device_method_t ppc_puc_methods[] = {
 	/* device interface */
-	DEVMETHOD(device_probe,         ppc_puc_probe),
-	DEVMETHOD(device_attach,        ppc_attach),
+	DEVMETHOD(device_probe,		ppc_puc_probe),
+	DEVMETHOD(device_attach,	ppc_attach),
 
 	/* bus interface */
 	DEVMETHOD(bus_read_ivar,	ppc_read_ivar),
 	DEVMETHOD(bus_setup_intr,	ppc_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	ppc_teardown_intr),
-	DEVMETHOD(bus_alloc_resource,   bus_generic_alloc_resource),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 
 	/* ppbus interface */
 	DEVMETHOD(ppbus_io,		ppc_io),
@@ -64,9 +64,9 @@ static device_method_t ppc_puc_methods[] = {
 	DEVMETHOD(ppbus_read,		ppc_read),
 	DEVMETHOD(ppbus_write,		ppc_write),
 
-        { 0, 0 }
-  };
-  
+	{ 0, 0 }
+};
+
 static driver_t ppc_puc_driver = {
 	ppc_driver_name,
 	ppc_puc_methods,
@@ -74,8 +74,7 @@ static driver_t ppc_puc_driver = {
 };
 
 static int
-ppc_puc_probe(dev)
-	device_t	dev;
+ppc_puc_probe(device_t dev)
 {
 	device_set_desc(dev, "Parallel port");
 	return (ppc_probe(dev, 0));
