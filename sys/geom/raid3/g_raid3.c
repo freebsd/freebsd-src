@@ -3334,6 +3334,9 @@ g_raid3_shutdown_pre_sync(void *arg, int howto)
 	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
 		if ((sc = gp->softc) == NULL)
 			continue;
+		/* Skip synchronization geom. */
+		if (gp == sc->sc_sync.ds_geom)
+			continue;
 		g_topology_unlock();
 		sx_xlock(&sc->sc_lock);
 		if (sc->sc_syncdisk != NULL)
@@ -3357,6 +3360,9 @@ g_raid3_shutdown_post_sync(void *arg, int howto)
 	g_topology_lock();
 	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
 		if ((sc = gp->softc) == NULL)
+			continue;
+		/* Skip synchronization geom. */
+		if (gp == sc->sc_sync.ds_geom)
 			continue;
 		g_topology_unlock();
 		sx_xlock(&sc->sc_lock);
