@@ -4586,6 +4586,9 @@ ath_getchannels(struct ath_softc *sc, u_int cc,
 	HAL_BOOL outdoor, HAL_BOOL xchanmode)
 {
 #define	COMPAT	(CHANNEL_ALL_NOTURBO|CHANNEL_PASSIVE)
+#define IS_CHAN_PUBLIC_SAFETY(_c) \
+	(((_c)->channelFlags & CHANNEL_5GHZ) && \
+	 ((_c)->channel > 4940 && (_c)->channel < 4990))
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
@@ -4618,7 +4621,16 @@ ath_getchannels(struct ath_softc *sc, u_int cc,
 		HAL_CHANNEL *c = &chans[i];
 		u_int16_t flags;
 
-		ix = ath_hal_mhz2ieee(ah, c->channel, c->channelFlags);
+		/*
+		 * XXX we're not ready to handle the ieee number mapping
+		 * for public safety channels as they overlap with any
+		 * 2GHz channels; for now use the non-public safety
+		 * numbering which is non-overlapping.
+		 */
+		if (IS_CHAN_PUBLIC_SAFETY(c))
+			ix = (c->channel - 4000) / 5;
+		else
+			ix = ath_hal_mhz2ieee(ah, c->channel, c->channelFlags);
 		if (ix > IEEE80211_CHAN_MAX) {
 			if_printf(ifp, "bad hal channel %d (%u/%x) ignored\n",
 				ix, c->channel, c->channelFlags);
@@ -4651,6 +4663,7 @@ ath_getchannels(struct ath_softc *sc, u_int cc,
 	}
 	free(chans, M_TEMP);
 	return 0;
+#undef IS_CHAN_PUBLIC_SAFETY
 #undef COMPAT
 }
 
