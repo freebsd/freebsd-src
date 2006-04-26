@@ -29,6 +29,7 @@
 #include "sha1.h"
 #include "eap.h"
 #include "radius_client.h"
+#include "ieee802_1x.h"		/* XXX for EAPOL_VERSION */
 
 
 static struct hostapd_config *hostapd_config_defaults(void)
@@ -60,6 +61,7 @@ static struct hostapd_config *hostapd_config_defaults(void)
 	conf->logger_stdout = (unsigned int) -1;
 
 	conf->auth_algs = HOSTAPD_AUTH_OPEN | HOSTAPD_AUTH_SHARED_KEY;
+	conf->eapol_version = EAPOL_VERSION;	/* NB: default version */
 
 	conf->wpa_group_rekey = 600;
 	conf->wpa_gmk_rekey = 86400;
@@ -855,6 +857,17 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 			}
 		} else if (strcmp(buf, "eapol_key_index_workaround") == 0) {
 			conf->eapol_key_index_workaround = atoi(pos);
+		} else if (strcmp(buf, "eapol_version") == 0) {
+			conf->eapol_version = atoi(pos);
+			if (conf->eapol_version < 1 ||
+			    conf->eapol_version > 2) {
+				printf("Line %d: invalid EAPOL "
+				       "version (%d): '%s'.\n",
+				       line, conf->eapol_version, pos);
+				errors++;
+			} else
+				wpa_printf(MSG_DEBUG, "eapol_version=%d",
+				   conf->eapol_version);
 #ifdef CONFIG_IAPP
 		} else if (strcmp(buf, "iapp_interface") == 0) {
 			conf->ieee802_11f = 1;
