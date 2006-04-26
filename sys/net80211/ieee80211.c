@@ -236,7 +236,6 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 int
 ieee80211_mhz2ieee(u_int freq, u_int flags)
 {
-#define IS_CHAN_IN_PUBLIC_SAFETY_BAND(_c) ((_c) > 4940 && (_c) < 4990)
 	if (flags & IEEE80211_CHAN_2GHZ) {	/* 2GHz band */
 		if (freq == 2484)
 			return 14;
@@ -245,9 +244,6 @@ ieee80211_mhz2ieee(u_int freq, u_int flags)
 		else
 			return 15 + ((freq - 2512) / 20);
 	} else if (flags & IEEE80211_CHAN_5GHZ) {	/* 5Ghz band */
-		if (IS_CHAN_IN_PUBLIC_SAFETY_BAND(freq))
-			return ((freq * 10) +
-				(((freq % 5) == 2) ? 5 : 0) - 49400) / 5;
 		if (freq <= 5000)
 			return (freq - 4000) / 5;
 		else
@@ -258,17 +254,13 @@ ieee80211_mhz2ieee(u_int freq, u_int flags)
 		if (freq < 2484)
 			return ((int) freq - 2407) / 5;
 		if (freq < 5000) {
-			if (IS_CHAN_IN_PUBLIC_SAFETY_BAND(freq))
-				return ((freq * 10) +
-					(((freq % 5) == 2) ? 5 : 0) - 49400)/5;
-			else if (freq > 4900)
+			if (freq > 4900)
 				return (freq - 4000) / 5;
 			else
 				return 15 + ((freq - 2512) / 20);
 		}
 		return (freq - 5000) / 5;
 	}
-#undef IS_CHAN_IN_PUBLIC_SAFETY_BAND
 }
 
 /*
