@@ -282,11 +282,12 @@ atkbd_configure(int flags)
 	int arg[2];
 	int i;
 
-	/* probe the keyboard controller */
-	atkbdc_configure();
-
-	/* if the driver is disabled, unregister the keyboard if any */
-	if (resource_disabled("atkbd", ATKBD_DEFAULT)) {
+	/*
+	 * Probe the keyboard controller, if not present or if the driver
+	 * is disabled, unregister the keyboard if any.
+	 */
+	if (atkbdc_configure() != 0 ||
+	    resource_disabled("atkbd", ATKBD_DEFAULT)) {
 		i = kbd_find_keyboard(ATKBD_DRIVER_NAME, ATKBD_DEFAULT);
 		if (i >= 0) {
 			kbd = kbd_get_keyboard(i);
