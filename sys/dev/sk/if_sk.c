@@ -312,7 +312,7 @@ static driver_t sk_driver = {
 
 static devclass_t sk_devclass;
 
-DRIVER_MODULE(sk, pci, skc_driver, skc_devclass, 0, 0);
+DRIVER_MODULE(skc, pci, skc_driver, skc_devclass, 0, 0);
 DRIVER_MODULE(sk, skc, sk_driver, sk_devclass, 0, 0);
 DRIVER_MODULE(miibus, sk, miibus_driver, miibus_devclass, 0, 0);
 
