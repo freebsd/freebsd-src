@@ -67,14 +67,22 @@ int		_thread_active_threads = 1;
 atfork_head	_thr_atfork_list = TAILQ_HEAD_INITIALIZER(_thr_atfork_list);
 umtx_t		_thr_atfork_lock;
 
+/*
+ * XXX these values should be updated from kernel at startup,
+ * but current they are same.
+ */
+struct pthread_prio	_thr_priorities[3] = {
+	{0,   31, 0}, /* FIF0 */
+	{-20, 20, 0}, /* OTHER */
+	{0,   31, 0}  /* RR */
+};
+
 struct pthread_attr _pthread_attr_default = {
 	.sched_policy = SCHED_OTHER,
 	.sched_inherit = 0,
-	.sched_interval = TIMESLICE_USEC,
-	.prio = THR_DEFAULT_PRIORITY,
+	.prio = 0,
 	.suspend = THR_CREATE_RUNNING,
 	.flags = PTHREAD_SCOPE_SYSTEM,
-	.arg_attr = NULL,
 	.stackaddr_attr = NULL,
 	.stacksize_attr = THR_STACK_DEFAULT,
 	.guardsize_attr = 0
@@ -400,8 +408,8 @@ init_main_thread(struct pthread *thread)
 	thr_set_name(thread->tid, "initial thread");
 
 	/* Default the priority of the initial thread: */
-	thread->base_priority = THR_DEFAULT_PRIORITY;
-	thread->active_priority = THR_DEFAULT_PRIORITY;
+	thread->base_priority = THR_DEF_PRIORITY;
+	thread->active_priority = THR_DEF_PRIORITY;
 	thread->inherited_priority = 0;
 
 	/* Initialize the mutex queue: */

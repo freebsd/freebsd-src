@@ -55,8 +55,8 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 
 	if ((param == NULL) || (policy < SCHED_FIFO) || (policy > SCHED_RR)) {
 		ret = EINVAL;
-	} else if ((param->sched_priority < THR_MIN_PRIORITY) ||
-	    (param->sched_priority > THR_MAX_PRIORITY)) {
+	} else if (param->sched_priority < _thr_priorities[policy-1].pri_min ||
+		   param->sched_priority > _thr_priorities[policy-1].pri_max) {
 		ret = ENOTSUP;
 	} else if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0))
 	    == 0) {
@@ -74,8 +74,7 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 		/* Set the scheduling policy: */
 		pthread->attr.sched_policy = policy;
 
-		if (param->sched_priority ==
-		    THR_BASE_PRIORITY(pthread->base_priority))
+		if (param->sched_priority == pthread->base_priority)
 			/*
 			 * There is nothing to do; unlock the threads
 			 * scheduling queue.
