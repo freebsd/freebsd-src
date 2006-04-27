@@ -260,7 +260,7 @@ SYSCTL_INT(_debug, OID_AUTO, PMAP1unchanged, CTLFLAG_RD,
 	   "Number of times pmap_pte_quick didn't change PMAP1");
 static struct mtx PMAP2mutex;
 
-static PMAP_INLINE void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
+static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t locked_pmap, int try);
 static void	pmap_clear_ptes(vm_page_t m, int bit);
 
@@ -1574,7 +1574,7 @@ pmap_collect(pmap_t locked_pmap, struct vpgqueues *vpq)
 /*
  * free the pv_entry back to the free list
  */
-static PMAP_INLINE void
+static void
 free_pv_entry(pmap_t pmap, pv_entry_t pv)
 {
 	vm_page_t m;
