@@ -707,7 +707,7 @@ static chunk_tree_t	huge;
 static void		*brk_base;
 /* Current end of brk, or ((void *)-1) if brk is exhausted. */
 static void		*brk_prev;
-/* Upper limit on brk addresses (may be an over-estimate). */
+/* Current upper limit on brk addresses. */
 static void		*brk_max;
 #endif
 
@@ -929,6 +929,7 @@ malloc_mutex_unlock(malloc_mutex_t *a_mutex)
 static inline size_t
 pow2_ceil(size_t x)
 {
+
 	x--;
 	x |= x >> 1;
 	x |= x >> 2;
@@ -1136,9 +1137,6 @@ pages_map(void *addr, size_t size)
 {
 	void *ret;
 
-#ifdef USE_BRK
-AGAIN:
-#endif
 	/*
 	 * We don't use MAP_FIXED here, because it can cause the *replacement*
 	 * of existing mappings, and we only want to create new mappings.
@@ -1164,18 +1162,6 @@ AGAIN:
 		}
 		ret = NULL;
 	}
-#ifdef USE_BRK
-	else if ((uintptr_t)ret >= (uintptr_t)brk_base
-	    && (uintptr_t)ret < (uintptr_t)brk_max) {
-		/*
-		 * We succeeded in mapping memory, but at a location that could
-		 * be confused with brk.  Leave the mapping intact so that this
-		 * won't ever happen again, then try again.
-		 */
-		assert(addr == NULL);
-		goto AGAIN;
-	}
-#endif
 
 	assert(ret == NULL || (addr == NULL && ret != addr)
 	    || (addr != NULL && ret == addr));
@@ -1239,47 +1225,47 @@ chunk_alloc(size_t size)
 				goto RETURN;
 			}
 		}
+	}
 
 #ifdef USE_BRK
+	/*
+	 * Try to create allocations in brk, in order to make full use of
+	 * limited address space.
+	 */
+	if (brk_prev != (void *)-1) {
+		void *brk_cur;
+		intptr_t incr;
+
 		/*
-		 * Try to create chunk-size allocations in brk, in order to
-		 * make full use of limited address space.
+		 * The loop is necessary to recover from races with other
+		 * threads that are using brk for something other than malloc.
 		 */
-		if (brk_prev != (void *)-1) {
-			void *brk_cur;
-			intptr_t incr;
+		do {
+			/* Get the current end of brk. */
+			brk_cur = sbrk(0);
 
 			/*
-			 * The loop is necessary to recover from races with
-			 * other threads that are using brk for something other
-			 * than malloc.
+			 * Calculate how much padding is necessary to
+			 * chunk-align the end of brk.
 			 */
-			do {
-				/* Get the current end of brk. */
-				brk_cur = sbrk(0);
+			incr = (intptr_t)size
+			    - (intptr_t)CHUNK_ADDR2OFFSET(brk_cur);
+			if (incr == size) {
+				ret = brk_cur;
+			} else {
+				ret = (void *)(intptr_t)brk_cur + incr;
+				incr += size;
+			}
 
-				/*
-				 * Calculate how much padding is necessary to
-				 * chunk-align the end of brk.
-				 */
-				incr = (intptr_t)chunk_size
-				    - (intptr_t)CHUNK_ADDR2OFFSET(brk_cur);
-				if (incr == chunk_size) {
-					ret = brk_cur;
-				} else {
-					ret = (void *)(intptr_t)brk_cur + incr;
-					incr += chunk_size;
-				}
-
-				brk_prev = sbrk(incr);
-				if (brk_prev == brk_cur) {
-					/* Success. */
-					goto RETURN;
-				}
-			} while (brk_prev != (void *)-1);
-		}
-#endif
+			brk_prev = sbrk(incr);
+			if (brk_prev == brk_cur) {
+				/* Success. */
+				brk_max = (void *)(intptr_t)ret + size;
+				goto RETURN;
+			}
+		} while (brk_prev != (void *)-1);
 	}
+#endif
 
 	/*
 	 * Try to over-allocate, but allow the OS to place the allocation
@@ -1340,29 +1326,56 @@ chunk_dealloc(void *chunk, size_t size)
 	assert(size % chunk_size == 0);
 
 	malloc_mutex_lock(&chunks_mtx);
+
+#ifdef USE_BRK
+	if ((uintptr_t)chunk >= (uintptr_t)brk_base
+	    && (uintptr_t)chunk < (uintptr_t)brk_max) {
+		void *brk_cur;
+
+		/* Get the current end of brk. */
+		brk_cur = sbrk(0);
+
+		/*
+		 * Try to shrink the data segment if this chunk is at the end
+		 * of the data segment.  The sbrk() call here is subject to a
+		 * race condition with threads that use brk(2) or sbrk(2)
+		 * directly, but the alternative would be to leak memory for
+		 * the sake of poorly designed multi-threaded programs.
+		 */
+		if (brk_cur == brk_max
+		    && (void *)(uintptr_t)chunk + size == brk_max
+		    && sbrk(-(intptr_t)size) == brk_max) {
+			if (brk_prev == brk_max) {
+				/* Success. */
+				brk_prev = (void *)(intptr_t)brk_max
+				    - (intptr_t)size;
+				brk_max = brk_prev;
+			}
+			goto RETURN;
+		} else
+			madvise(chunk, size, MADV_FREE);
+	} else
+#endif
+		pages_unmap(chunk, size);
+
+	/*
+	 * Iteratively create records of each chunk-sized memory region that
+	 * 'chunk' is comprised of, so that the address range can be recycled
+	 * if memory usage increases later on.
+	 */
 	for (offset = 0; offset < size; offset += chunk_size) {
 		node = base_chunk_node_alloc();
 		if (node == NULL)
 			break;
 
-		/*
-		 * Create a record of this chunk before deallocating it, so
-		 * that the address range can be recycled if memory usage
-		 * increases later on.
-		 */
 		node->chunk = (void *)((uintptr_t)chunk + (uintptr_t)offset);
 		node->size = chunk_size;
 		RB_INSERT(chunk_tree_s, &old_chunks, node);
 	}
 
 #ifdef USE_BRK
-	if ((uintptr_t)chunk >= (uintptr_t)brk_base
-	    && (uintptr_t)chunk < (uintptr_t)brk_max)
-		madvise(chunk, size, MADV_FREE);
-	else
+RETURN:
 #endif
-		pages_unmap(chunk, size);
-
 #ifdef MALLOC_STATS
 	stats_chunks.curchunks -= (size / chunk_size);
 #endif
@@ -1415,7 +1428,7 @@ choose_arena(void)
 		 * working.  Even so, the hashing can be easily thwarted by
 		 * inconvenient _pthread_self() values.  Without specific
 		 * knowledge of how _pthread_self() calculates values, we can't
-		 * do much better than this.
+		 * easily do much better than this.
 		 */
 		ind = (unsigned long) _pthread_self() % narenas;
 
@@ -1824,7 +1837,6 @@ arena_bin_run_promote(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
 			break;
 	}
 }
-
 
 static void
 arena_bin_run_demote(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
@@ -2514,13 +2526,13 @@ static void *
 huge_malloc(size_t size)
 {
 	void *ret;
-	size_t chunk_size;
+	size_t csize;
 	chunk_node_t *node;
 
-	/* Allocate a chunk for this request. */
+	/* Allocate one or more contiguous chunks for this request. */
 
-	chunk_size = CHUNK_CEILING(size);
-	if (chunk_size == 0) {
+	csize = CHUNK_CEILING(size);
+	if (csize == 0) {
 		/* size is large enough to cause size_t wrap-around. */
 		return (NULL);
 	}
@@ -2530,7 +2542,7 @@ huge_malloc(size_t size)
 	if (node == NULL)
 		return (NULL);
 
-	ret = chunk_alloc(chunk_size);
+	ret = chunk_alloc(csize);
 	if (ret == NULL) {
 		base_chunk_node_dealloc(node);
 		return (NULL);
@@ -2538,20 +2550,20 @@ huge_malloc(size_t size)
 
 	/* Insert node into chunks. */
 	node->chunk = ret;
-	node->size = chunk_size;
+	node->size = csize;
 
 	malloc_mutex_lock(&chunks_mtx);
 	RB_INSERT(chunk_tree_s, &huge, node);
 #ifdef MALLOC_STATS
 	huge_nmalloc++;
-	huge_allocated += chunk_size;
+	huge_allocated += csize;
 #endif
 	malloc_mutex_unlock(&chunks_mtx);
 
 	if (opt_junk && ret != NULL)
-		memset(ret, 0xa5, chunk_size);
+		memset(ret, 0xa5, csize);
 	else if (opt_zero && ret != NULL)
-		memset(ret, 0, chunk_size);
+		memset(ret, 0, csize);
 
 	return (ret);
 }
@@ -3211,7 +3223,7 @@ malloc_init_hard(void)
 #ifdef USE_BRK
 	brk_base = sbrk(0);
 	brk_prev = brk_base;
-	brk_max = (void *)((uintptr_t)brk_base + MAXDSIZ);
+	brk_max = brk_base;
 #endif
 #ifdef MALLOC_STATS
 	huge_nmalloc = 0;
