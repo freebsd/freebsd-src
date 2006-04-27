@@ -104,7 +104,7 @@ safe	i386,pc98,amd64
 sbp	i386,sparc64,ia64,amd64
 sf	i386,pc98,alpha,ia64,amd64
 sis	i386,pc98,alpha,ia64,amd64
-sk	i386,pc98,alpha,amd64
+sk	i386,sparc64,pc98,alpha,amd64
 sn	i386,amd64
 snc	pc98
 snd_ad1816	i386,amd64
