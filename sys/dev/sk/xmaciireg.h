@@ -317,6 +317,9 @@
 #define XM_RXSTAT_VLAN_LEV1	0x00010000
 #define XM_RXSTAT_VLAN_LEV2	0x00020000
 #define XM_RXSTAT_LEN		0xFFFC0000
+#define	XM_RXSTAT_LENSHIFT	18
+
+#define	XM_RXSTAT_BYTES(x)	((x) >> XM_RXSTAT_LENSHIFT)
 
 /*
  * XMAC PHY registers, indirectly accessed through
