@@ -117,7 +117,7 @@ struct pthread_mutex {
 	int				m_protocol;
 	TAILQ_HEAD(mutex_head, pthread)	m_queue;
 	struct pthread			*m_owner;
-	long				m_flags;
+	int				m_flags;
 	int				m_count;
 	int				m_refcount;
 
@@ -152,7 +152,7 @@ struct pthread_mutex_attr {
 	enum pthread_mutextype	m_type;
 	int			m_protocol;
 	int			m_ceiling;
-	long			m_flags;
+	int			m_flags;
 };
 
 #define PTHREAD_MUTEXATTR_STATIC_INITIALIZER \
