@@ -57,8 +57,7 @@ _pthread_getschedparam(pthread_t pthread, int *policy,
 		 * thread.
 		 */
 		THR_THREAD_LOCK(curthread, curthread);
-		param->sched_priority =
-		    THR_BASE_PRIORITY(pthread->base_priority);
+		param->sched_priority = pthread->base_priority;
 		tmp = pthread->attr.sched_policy;
 		THR_THREAD_UNLOCK(curthread, curthread);
 		*policy = tmp;
@@ -68,8 +67,7 @@ _pthread_getschedparam(pthread_t pthread, int *policy,
 	else if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0))
 	    == 0) {
 		THR_THREAD_LOCK(curthread, pthread);
-		param->sched_priority =
-		    THR_BASE_PRIORITY(pthread->base_priority);
+		param->sched_priority = pthread->base_priority;
 		tmp = pthread->attr.sched_policy;
 		THR_THREAD_UNLOCK(curthread, pthread);
 		_thr_ref_delete(curthread, pthread);
