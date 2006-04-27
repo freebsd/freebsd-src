@@ -73,6 +73,8 @@ static struct pci_id pci_ns8250_ids[] = {
 { 0x1028, 0x0012, 0xffff, 0, "Dell Remote Access Card 4 Daughter Card Virtual UART", 0x14, 128 * DEFAULT_RCLK },
 { 0x1033, 0x0074, 0x1033, 0x8014, "NEC RCV56ACF 56k Voice Modem", 0x10 },
 { 0x1033, 0x007d, 0x1033, 0x8012, "NEC RS232C", 0x10 },
+{ 0x103c, 0x1048, 0x103c, 0x1227, "HP Diva Serial [GSP] Multiport UART - Powerbar SP2", 0x10, DEFAULT_RCLK },
+{ 0x103c, 0x1290, 0xffff, 0, "HP Auxiliary Diva Serial Port", 0x18, DEFAULT_RCLK },
 { 0x11c1, 0x0480, 0xffff, 0, "Agere Systems Venus Modem (V90, 56KFlex)", 0x14 },
 { 0x115d, 0x0103, 0xffff, 0, "Xircom Cardbus Ethernet + 56k Modem", 0x10 },
 { 0x12b9, 0x1008, 0xffff, 0, "3Com 56K FaxModem Model 5610", 0x10 },
