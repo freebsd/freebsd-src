@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2001 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2006 Marcel Moolenaar
+ * Copyright (c) 2001 M. Warner Losh
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -69,12 +71,15 @@ struct pci_id {
 };
 
 static struct pci_id pci_ns8250_ids[] = {
-{ 0x1028, 0x0008, 0xffff, 0, "Dell Remote Access Card III", 0x14, 128 * DEFAULT_RCLK },
-{ 0x1028, 0x0012, 0xffff, 0, "Dell Remote Access Card 4 Daughter Card Virtual UART", 0x14, 128 * DEFAULT_RCLK },
+{ 0x1028, 0x0008, 0xffff, 0, "Dell Remote Access Card III", 0x14,
+	128 * DEFAULT_RCLK },
+{ 0x1028, 0x0012, 0xffff, 0, "Dell RAC 4 Daughter Card Virtual UART", 0x14,
+	128 * DEFAULT_RCLK },
 { 0x1033, 0x0074, 0x1033, 0x8014, "NEC RCV56ACF 56k Voice Modem", 0x10 },
 { 0x1033, 0x007d, 0x1033, 0x8012, "NEC RS232C", 0x10 },
-{ 0x103c, 0x1048, 0x103c, 0x1227, "HP Diva Serial [GSP] Multiport UART - Powerbar SP2", 0x10, DEFAULT_RCLK },
-{ 0x103c, 0x1290, 0xffff, 0, "HP Auxiliary Diva Serial Port", 0x18, DEFAULT_RCLK },
+{ 0x103c, 0x1048, 0x103c, 0x1227, "HP Diva Serial [GSP] UART - Powerbar SP2",
+	0x10 },
+{ 0x103c, 0x1290, 0xffff, 0, "HP Auxiliary Diva Serial Port", 0x18 },
 { 0x11c1, 0x0480, 0xffff, 0, "Agere Systems Venus Modem (V90, 56KFlex)", 0x14 },
 { 0x115d, 0x0103, 0xffff, 0, "Xircom Cardbus Ethernet + 56k Modem", 0x10 },
 { 0x12b9, 0x1008, 0xffff, 0, "3Com 56K FaxModem Model 5610", 0x10 },
@@ -86,11 +91,23 @@ static struct pci_id pci_ns8250_ids[] = {
 { 0x131f, 0x2002, 0xffff, 0, "Siig CyberSerial (1-port) 16850", 0x10 },
 { 0x135c, 0x0190, 0xffff, 0, "Quatech SSCLP-100", 0x18 },
 { 0x135c, 0x01c0, 0xffff, 0, "Quatech SSCLP-200/300", 0x18 },
-{ 0x135e, 0x7101, 0xffff, 0, "Sealevel Systems Single Port RS-232/422/485/530", 0x18 },
+{ 0x135e, 0x7101, 0xffff, 0, "Sealevel Systems Single Port RS-232/422/485/530",
+	0x18 },
 { 0x1407, 0x0110, 0xffff, 0, "Lava Computer mfg DSerial-PCI Port A", 0x10 },
 { 0x1407, 0x0111, 0xffff, 0, "Lava Computer mfg DSerial-PCI Port B", 0x10 },
-{ 0x1415, 0x950b, 0xffff, 0, "Oxford Semiconductor OXCB950 Cardbus 16950 UART", 0x10, 16384000 },
-{ 0x151f, 0x0000, 0xffff, 0, "TOPIC Semiconductor TP560 Data/Fax/Voice 56k modem", 0x10 },
+{ 0x1409, 0x7168, 0x1409, 0x4025, "Timedia Technology Serial Port", 0x10,
+	8 * DEFAULT_RCLK },
+{ 0x1409, 0x7168, 0x1409, 0x4027, "Timedia Technology Serial Port", 0x10,
+	8 * DEFAULT_RCLK },
+{ 0x1409, 0x7168, 0x1409, 0x4028, "Timedia Technology Serial Port", 0x10,
+	8 * DEFAULT_RCLK },
+{ 0x1409, 0x7168, 0x1409, 0x5025, "Timedia Technology Serial Port", 0x10,
+	8 * DEFAULT_RCLK },
+{ 0x1409, 0x7168, 0x1409, 0x5027, "Timedia Technology Serial Port", 0x10,
+	8 * DEFAULT_RCLK },
+{ 0x1415, 0x950b, 0xffff, 0, "Oxford Semiconductor OXCB950 Cardbus 16950 UART",
+	0x10, 16384000 },
+{ 0x151f, 0x0000, 0xffff, 0, "TOPIC Semiconductor TP560 56k modem", 0x10 },
 { 0xdeaf, 0x9051, 0xffff, 0, "Middle Digital PC Weasel Serial Port", 0x10 },
 { 0xffff, 0, 0xffff, 0, NULL, 0, 0}
 };
