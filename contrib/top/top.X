@@ -10,17 +10,17 @@ top \- display and update information about the top cpu processes
 .SH SYNOPSIS
 .B top
 [
-.B \-SbiInqutv
+.B \-bCHIinqStuv
 ] [
 .BI \-d count
 ] [
-.BI \-s time
+.BI \-m io | cpu
 ] [
 .BI \-o field
 ] [
-.BI \-U username
+.BI \-s time
 ] [
-.BI \-m io | cpu
+.BI \-U username
 ] [
 .I number
 ]
@@ -61,6 +61,18 @@ features.  If the output of
 is redirected to a file, it acts as if it were being run on a dumb
 terminal.
 .SH OPTIONS
+.TP
+.B \-C
+Toggle CPU display mode.
+By default top displays the weighted CPU percentage in the WCPU column
+(this is the same value that
+.IR ps (1)
+displays as CPU).
+Each time
+.B \-C
+flag is passed it toggles between \*(lqraw cpu\*(rq mode
+and \*(lqweighted cpu\*(rq mode, showing the \*(lqCPU\*(rq or
+the \*(lqWCPU\*(rq column respectively.
 .TP
 .B \-S
 Show system processes in the display.  Normally, system processes such as
@@ -249,7 +261,7 @@ to all users will be displayed.
 .TP
 .B o
 Change the order in which the display is sorted.  This command is not
-available on all systems.  The sort key names vary fron system to system
+available on all systems.  The sort key names vary from system to system
 but usually include:  \*(lqcpu\*(rq, \*(lqres\*(rq, \*(lqsize\*(rq,
 \*(lqtime\*(rq.  The default is cpu.
 .TP
