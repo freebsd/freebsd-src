@@ -77,6 +77,11 @@ hptmvraid.o			optional	hptmv			\
 	compile-with	"uudecode < $S/dev/hptmv/i386-elf.raid.o.uu" \
 	no-implicit-rule
 #
+rr232x_lib.o			optional	rr232x			\
+	dependency	"$S/dev/rr232x/i386-elf.rr232x_lib.o.uu"	\
+	compile-with	"uudecode < $S/dev/rr232x/i386-elf.rr232x_lib.o.uu" \
+	no-implicit-rule
+#
 #
 compat/linux/linux_file.c	optional compat_linux
 compat/linux/linux_getcwd.c	optional compat_linux
@@ -194,6 +199,9 @@ dev/mse/mse_isa.c		optional mse isa
 dev/nve/if_nve.c		optional nve pci
 dev/pcf/pcf_isa.c		optional pcf
 dev/random/nehemiah.c		optional random
+dev/rr232x/os_bsd.c		optional rr232x
+dev/rr232x/osm_bsd.c		optional rr232x
+dev/rr232x/rr232x_config.c	optional rr232x
 dev/sbni/if_sbni.c		optional sbni
 dev/sbni/if_sbni_isa.c		optional sbni isa
 dev/sbni/if_sbni_pci.c		optional sbni pci
