@@ -35,8 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/kdb.h>
 #include <sys/linker_set.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sysent.h>
 #include <sys/cons.h>
@@ -91,7 +89,6 @@ db_ps(db_expr_t addr, boolean_t hasaddr, db_expr_t count, char *modif)
 	np = nprocs;
 	quit = 0;
 
-	/* sx_slock(&allproc_lock); */
 	if (!LIST_EMPTY(&allproc))
 		p = LIST_FIRST(&allproc);
 	else
@@ -108,7 +105,6 @@ db_ps(db_expr_t addr, boolean_t hasaddr, db_expr_t count, char *modif)
 			db_printf("oops, ran out of processes early!\n");
 			break;
 		}
-		/* PROC_LOCK(p); */
 		pp = p->p_pptr;
 		if (pp == NULL)
 			pp = p;
@@ -209,13 +205,11 @@ db_ps(db_expr_t addr, boolean_t hasaddr, db_expr_t count, char *modif)
 			if (quit)
 				break;
 		}
-		/* PROC_UNLOCK(p); */
 
 		p = LIST_NEXT(p, p_list);
 		if (p == NULL && np > 0)
 			p = LIST_FIRST(&zombproc);
     	}
-	/* sx_sunlock(&allproc_lock); */
 }
 
 static void
