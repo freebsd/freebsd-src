@@ -2061,6 +2061,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	   boolean_t wired)
 {
 	vm_paddr_t pa;
+	pd_entry_t *pde;
 	register pt_entry_t *pte;
 	vm_paddr_t opa;
 	pt_entry_t origpte, newpte;
@@ -2098,7 +2099,13 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	}
 #endif
 
-	pte = pmap_pte(pmap, va);
+	pde = pmap_pde(pmap, va);
+	if (pde != NULL) {
+		if ((*pde & PG_PS) != 0)
+			panic("pmap_enter: attempted pmap_enter on 2MB page");
+		pte = pmap_pde_to_pte(pde, va);
+	} else
+		pte = NULL;
 
 	/*
 	 * Page Directory table entry not valid, we need a new PT page
@@ -2110,9 +2117,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	om = NULL;
 	origpte = *pte;
 	opa = origpte & PG_FRAME;
-
-	if (origpte & PG_PS)
-		panic("pmap_enter: attempted pmap_enter on 2MB page");
 
 	/*
 	 * Mapping has not changed, must be protection or wiring change.
