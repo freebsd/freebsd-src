@@ -215,7 +215,7 @@ bfe_dma_alloc(device_t dev)
 
 	/* tag for TX ring */
 	error = bus_dma_tag_create(sc->bfe_parent_tag,
-			BFE_TX_LIST_SIZE, BFE_TX_LIST_SIZE,
+			1, 0,
 			BUS_SPACE_MAXADDR,
 			BUS_SPACE_MAXADDR,
 			NULL, NULL,
@@ -233,7 +233,7 @@ bfe_dma_alloc(device_t dev)
 
 	/* tag for RX ring */
 	error = bus_dma_tag_create(sc->bfe_parent_tag,
-			BFE_RX_LIST_SIZE, BFE_RX_LIST_SIZE,
+			1, 0,
 			BUS_SPACE_MAXADDR,
 			BUS_SPACE_MAXADDR,
 			NULL, NULL,
