@@ -590,7 +590,9 @@ cpu_reset()
 static void
 cpu_reset_real()
 {
+	int b;
 
+	disable_intr();
 #ifdef CPU_ELAN
 	if (elan_mmcr != NULL)
 		elan_mmcr->RESCFG = 1;
@@ -606,7 +608,6 @@ cpu_reset_real()
 	/*
 	 * Attempt to do a CPU reset via CPU reset port.
 	 */
-	disable_intr();
 	if ((inb(0x35) & 0xa0) != 0xa0) {
 		outb(0x37, 0x0f);		/* SHUT0 = 0. */
 		outb(0x37, 0x0b);		/* SHUT1 = 0. */
@@ -621,10 +622,25 @@ cpu_reset_real()
 	 */
 	outb(IO_KBD + 4, 0xFE);
 	DELAY(500000);	/* wait 0.5 sec to see if that did it */
-	printf("Keyboard reset did not work, attempting CPU shutdown\n");
-	DELAY(1000000);	/* wait 1 sec for printf to complete */
 #endif
+	/* Try the PCI reset */
+	outb(0xcf9, 0x2);
+	outb(0xcf9, 0x6);
+	DELAY(500000);  /* wait 0.5 sec to see if that did it */
+
+	/* Try port 0x92 fast reset */
+	b = inb(0x92);
+	/* Check the the hardware actually has the port in question */
+	if (b != 0xff) {
+		if ((b & 0x1) != 0)
+			outb(0x92, b & 0xfe);
+		outb(0x92, b | 0x1);
+		DELAY(500000);  /* wait 0.5 sec to see if that did it */
+	}
 #endif /* PC98 */
+
+	printf("No known reset method did work, attempting CPU shutdown\n");
+	DELAY(1000000); /* wait 1 sec for printf to complete */
 
 	/* Force a shutdown by unmapping entire address space. */
 	bzero((caddr_t)PTD, NBPTD);
