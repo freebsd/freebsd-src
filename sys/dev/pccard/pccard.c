@@ -974,7 +974,7 @@ pccard_safe_quote(char *dst, const char *src, size_t len)
 
 	if (len == 0)
 		return;
-	while (walker < ep)
+	while (src != NULL && walker < ep)
 	{
 		if (*src == '"') {
 			if (ep - walker < 2)
