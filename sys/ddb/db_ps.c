@@ -116,7 +116,7 @@ db_ps(db_expr_t addr, boolean_t hasaddr, db_expr_t count, char *modif)
 		    pgrp != NULL ? pgrp->pg_id : 0);
 
 		/* Determine our primary process state. */
-		switch(p->p_state) {
+		switch (p->p_state) {
 		case PRS_NORMAL:
 			if (P_SHOULDSTOP(p))
 				state[0] = 'T';
