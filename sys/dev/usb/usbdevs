@@ -657,11 +657,11 @@ product APPLE SPEAKERS		0x1101	Speakers
 product APPLE IPOD		0x1201	iPod
 product APPLE IPOD2G		0x1202	iPod 2G
 product APPLE IPOD3G		0x1203	iPod 3G
-product APPLE IPOD_04		0x1204	iPod "04"
+product APPLE IPOD_04		0x1204	iPod '04'
 product APPLE IPODMINI		0x1205	iPod Mini
-product APPLE IPOD_06		0x1206	iPod "06"
-product APPLE IPOD_07		0x1207	iPod "07"
-product APPLE IPOD_08		0x1208	iPod "08"
+product APPLE IPOD_06		0x1206	iPod '06'
+product APPLE IPOD_07		0x1207	iPod '07'
+product APPLE IPOD_08		0x1208	iPod '08'
 product APPLE IPODVIDEO		0x1209	iPod Video
 product APPLE IPODNANO		0x120a	iPod Nano
 
@@ -1044,7 +1044,7 @@ product JVC GR_DX95		0x000a	GR-DX95
 product JVC MP_PRX1		0x3008	MP-PRX1 Ethernet
 
 /* JRC products */
-product JRC AH_J3001V_J3002V	0x0001	AirH\" PHONE AH-J3001V/J3002V
+product JRC AH_J3001V_J3002V	0x0001	AirH PHONE AH-J3001V/J3002V
 
 /* Kawasaki products */
 product KLSI DUH3E10BT		0x0008	USB ethernet
