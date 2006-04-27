@@ -424,20 +424,23 @@ __weak_reference(_pthread_attr_setschedparam, pthread_attr_setschedparam);
 int
 _pthread_attr_setschedparam(pthread_attr_t *attr, const struct sched_param *param)
 {
-	int ret = 0;
+	int policy;
 
 	if ((attr == NULL) || (*attr == NULL))
-		ret = EINVAL;
-	else if (param == NULL) {
-		ret = ENOTSUP;
-	} else if ((param->sched_priority < THR_MIN_PRIORITY) ||
-	    (param->sched_priority > THR_MAX_PRIORITY)) {
-		/* Return an unsupported value error. */
-		ret = ENOTSUP;
-	} else
-		(*attr)->prio = param->sched_priority;
+		return (EINVAL);
 
-	return(ret);
+	if (param == NULL)
+		return (ENOTSUP);
+
+	policy = (*attr)->sched_policy;
+
+	if (param->sched_priority < _thr_priorities[policy-1].pri_min ||
+	    param->sched_priority > _thr_priorities[policy-1].pri_max)
+		return (ENOTSUP);
+
+	(*attr)->prio = param->sched_priority;
+
+	return (0);
 }
 
 __weak_reference(_pthread_attr_setschedpolicy, pthread_attr_setschedpolicy);
@@ -451,9 +454,10 @@ _pthread_attr_setschedpolicy(pthread_attr_t *attr, int policy)
 		ret = EINVAL;
 	else if ((policy < SCHED_FIFO) || (policy > SCHED_RR)) {
 		ret = ENOTSUP;
-	} else
+	} else {
 		(*attr)->sched_policy = policy;
-
+		(*attr)->prio = _thr_priorities[policy-1].pri_default;
+	}
 	return(ret);
 }
 

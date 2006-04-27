@@ -232,12 +232,10 @@ struct pthread_atfork {
 struct pthread_attr {
 	int	sched_policy;
 	int	sched_inherit;
-	int	sched_interval;
 	int	prio;
 	int	suspend;
 #define	THR_STACK_USER		0x100	/* 0xFF reserved for <pthread.h> */
 	int	flags;
-	void	*arg_attr;
 	void	*stackaddr_attr;
 	size_t	stacksize_attr;
 	size_t	guardsize_attr;
@@ -262,33 +260,26 @@ struct pthread_attr {
 #define THR_STACK_INITIAL		(THR_STACK_DEFAULT * 2)
 
 /*
- * Define the different priority ranges.  All applications have thread
- * priorities constrained within 0-31.  The threads library raises the
- * priority when delivering signals in order to ensure that signal
- * delivery happens (from the POSIX spec) "as soon as possible".
- * In the future, the threads library will also be able to map specific
- * threads into real-time (cooperating) processes or kernel threads.
- * The RT and SIGNAL priorities will be used internally and added to
- * thread base priorities so that the scheduling queue can handle both
- * normal and RT priority threads with and without signal handling.
- *
- * The approach taken is that, within each class, signal delivery
- * always has priority over thread execution.
+ * Define priorities returned by kernel.
  */
-#define THR_DEFAULT_PRIORITY			15
-#define THR_MIN_PRIORITY			0
-#define THR_MAX_PRIORITY			31	/* 0x1F */
-#define THR_SIGNAL_PRIORITY			32	/* 0x20 */
-#define THR_RT_PRIORITY				64	/* 0x40 */
-#define THR_FIRST_PRIORITY			THR_MIN_PRIORITY
-#define THR_LAST_PRIORITY	\
-	(THR_MAX_PRIORITY + THR_SIGNAL_PRIORITY + THR_RT_PRIORITY)
-#define THR_BASE_PRIORITY(prio)	((prio) & THR_MAX_PRIORITY)
+#define THR_MIN_PRIORITY		(_thr_priorities[SCHED_OTHER-1].pri_min)
+#define THR_MAX_PRIORITY		(_thr_priorities[SCHED_OTHER-1].pri_min)
+#define THR_DEF_PRIORITY		(_thr_priorities[SCHED_OTHER-1].pri_default)
 
-/*
- * Time slice period in microseconds.
- */
-#define TIMESLICE_USEC				20000
+#define THR_MIN_RR_PRIORITY		(_thr_priorities[SCHED_RR-1].pri_min)
+#define THR_MAX_RR_PRIORITY		(_thr_priorities[SCHED_RR-1].pri_max)
+#define THR_DEF_RR_PRIORITY		(_thr_priorities[SCHED_RR-1].pri_default)
+
+/* XXX The SCHED_FIFO should have same priority range as SCHED_RR */
+#define THR_MIN_FIFO_PRIORITY		(_thr_priorities[SCHED_FIFO_1].pri_min)
+#define THR_MAX_FIFO_PRIORITY		(_thr_priorities[SCHED_FIFO-1].pri_min)
+#define THR_DEF_FIFO_PRIORITY		(_thr_priorities[SCHED_FIFO-1].pri_default)
+
+struct pthread_prio {
+	int	pri_min;
+	int	pri_max;
+	int	pri_default;
+};
 
 struct pthread_rwlockattr {
 	int		pshared;
@@ -621,6 +612,8 @@ extern struct pthread_mutex_attr _pthread_mutexattr_default __hidden;
 
 /* Default condition variable attributes: */
 extern struct pthread_cond_attr _pthread_condattr_default __hidden;
+
+extern struct pthread_prio _thr_priorities[] __hidden;
 
 extern pid_t	_thr_pid __hidden;
 extern size_t	_thr_guard_default __hidden;
