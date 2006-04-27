@@ -406,7 +406,7 @@ roundrobin(void *arg)
 
 /* decay 95% of `ke_pctcpu' in 60 seconds; see CCPU_SHIFT before changing */
 static fixpt_t	ccpu = 0.95122942450071400909 * FSCALE;	/* exp(-1/20) */
-SYSCTL_INT(_kern_sched, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
+SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
 
 /*
  * If `ccpu' is not equal to `exp(-1/20)' and you still want to use the
