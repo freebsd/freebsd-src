@@ -611,7 +611,7 @@ ns8250_bus_probe(struct uart_softc *sc)
 	mcr = MCR_IE;
 	if (sc->sc_sysdev == NULL) {
 		/* By using ns8250_init() we also set DTR and RTS. */
-		ns8250_init(bas, 9600, 8, 1, UART_PARITY_NONE);
+		ns8250_init(bas, 115200, 8, 1, UART_PARITY_NONE);
 	} else
 		mcr |= MCR_DTR | MCR_RTS;
 
