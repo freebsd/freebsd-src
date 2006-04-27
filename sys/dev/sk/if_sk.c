@@ -123,9 +123,9 @@ __FBSDID("$FreeBSD$");
 #define SK_USEIOSPACE
 #endif
 
-#include <pci/if_skreg.h>
-#include <pci/xmaciireg.h>
-#include <pci/yukonreg.h>
+#include <dev/sk/if_skreg.h>
+#include <dev/sk/xmaciireg.h>
+#include <dev/sk/yukonreg.h>
 
 MODULE_DEPEND(sk, pci, 1, 1, 1);
 MODULE_DEPEND(sk, ether, 1, 1, 1);
