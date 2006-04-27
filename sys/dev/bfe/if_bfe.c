@@ -197,16 +197,19 @@ bfe_dma_alloc(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	/* parent tag */
+	/*
+	 * parent tag.  Apparently the chip cannot handle any DMA address
+	 * greater than 1GB.
+	 */
 	error = bus_dma_tag_create(NULL,  /* parent */
 			PAGE_SIZE, 0,             /* alignment, boundary */
-			BUS_SPACE_MAXADDR,        /* lowaddr */
-			BUS_SPACE_MAXADDR_32BIT,  /* highaddr */
+			0x40000000,               /* lowaddr */
+			BUS_SPACE_MAXADDR,        /* highaddr */
 			NULL, NULL,               /* filter, filterarg */
 			MAXBSIZE,                 /* maxsize */
 			BUS_SPACE_UNRESTRICTED,   /* num of segments */
 			BUS_SPACE_MAXSIZE_32BIT,  /* max segment size */
-			BUS_DMA_ALLOCNOW,         /* flags */
+			0,                        /* flags */
 			NULL, NULL,               /* lockfunc, lockarg */
 			&sc->bfe_parent_tag);
 
@@ -255,7 +258,7 @@ bfe_dma_alloc(device_t dev)
 			MCLBYTES,
 			1,
 			BUS_SPACE_MAXSIZE_32BIT,
-			0,
+			BUS_DMA_ALLOCNOW,
 			NULL, NULL,
 			&sc->bfe_tag);
 
