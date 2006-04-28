@@ -1,49 +1,16 @@
-/*	$NetBSD: puc.c,v 1.7 2000/07/29 17:43:38 jlam Exp $	*/
-
 /*-
- * Copyright (c) 2002 JF Hay.  All rights reserved.
- * Copyright (c) 2000 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2006 Marcel Moolenaar
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
-
-/*-
- * Copyright (c) 1996, 1998, 1999
- *	Christopher G. Demetriou.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by Christopher G. Demetriou
- *	for the NetBSD Project.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -60,35 +27,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/*
- * PCI "universal" communication card device driver, glues com, lpt,
- * and similar ports to PCI via bridge chip often much larger than
- * the devices being glued.
- *
- * Author: Christopher G. Demetriou, May 14, 1998 (derived from NetBSD
- * sys/dev/pci/pciide.c, revision 1.6).
- *
- * These devices could be (and some times are) described as
- * communications/{serial,parallel}, etc. devices with known
- * programming interfaces, but those programming interfaces (in
- * particular the BAR assignments for devices, etc.) in fact are not
- * particularly well defined.
- *
- * After I/we have seen more of these devices, it may be possible
- * to generalize some of these bits.  In particular, devices which
- * describe themselves as communications/serial/16[45]50, and
- * communications/parallel/??? might be attached via direct
- * 'com' and 'lpt' attachments to pci.
- */
-
-#include "opt_puc.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -97,518 +42,670 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#define PUC_ENTRAILS	1
-#include <dev/puc/pucvar.h>
+#include <dev/puc/puc_bfe.h>
+#include <dev/puc/puc_bus.h>
+#include <dev/puc/puc_cfg.h>
 
-struct puc_device {
-	struct resource_list resources;
-	int	port;
-	int	regshft;
-	u_int	serialfreq;
-	u_int	subtype;
+#define	PUC_ISRCCNT	5
+
+struct puc_port {
+	struct puc_bar	*p_bar;
+	struct resource *p_rres;
+	struct resource *p_ires;
+	device_t	p_dev;
+	int		p_nr;
+	int		p_type;
+	int		p_rclk;
+
+	int		p_hasintr:1;
+
+	driver_intr_t	*p_ih;
+	serdev_intr_t	*p_ihsrc[PUC_ISRCCNT];
+	void		*p_iharg;
+
+	int		p_ipend;
 };
 
-static void puc_intr(void *arg);
-
-static int puc_find_free_unit(char *);
-#ifdef PUC_DEBUG
-static void puc_print_resource_list(struct resource_list *);
-#endif
-
 devclass_t puc_devclass;
+const char puc_driver_name[] = "puc";
 
-static int
-puc_port_bar_index(struct puc_softc *sc, int bar)
+MALLOC_DEFINE(M_PUC, "PUC", "PUC driver");
+
+struct puc_bar *
+puc_get_bar(struct puc_softc *sc, int rid)
 {
-	int i;
+	struct puc_bar *bar;
+	struct rman *rm;
+	u_long end, start;
+	int error, i;
 
-	for (i = 0; i < PUC_MAX_BAR; i += 1) {
-		if (!sc->sc_bar_mappings[i].used)
-			break;
-		if (sc->sc_bar_mappings[i].bar == bar)
-			return (i);
+	/* Find the BAR entry with the given RID. */
+	i = 0;
+	while (i < PUC_PCI_BARS && sc->sc_bar[i].b_rid != rid)
+		i++;
+	if (i < PUC_PCI_BARS)
+		return (&sc->sc_bar[i]);
+
+	/* Not found. If we're looking for an unused entry, return NULL. */
+	if (rid == -1)
+		return (NULL);
+
+	/* Get an unused entry for us to fill.  */
+	bar = puc_get_bar(sc, -1);
+	if (bar == NULL)
+		return (NULL);
+	bar->b_rid = rid;
+	bar->b_type = SYS_RES_IOPORT;
+	bar->b_res = bus_alloc_resource_any(sc->sc_dev, bar->b_type,
+	    &bar->b_rid, RF_ACTIVE);
+	if (bar->b_res == NULL) {
+		bar->b_rid = rid;
+		bar->b_type = SYS_RES_MEMORY;
+		bar->b_res = bus_alloc_resource_any(sc->sc_dev, bar->b_type,
+		    &bar->b_rid, RF_ACTIVE);
+		if (bar->b_res == NULL) {
+			bar->b_rid = -1;
+			return (NULL);
+		}
 	}
-	if (i == PUC_MAX_BAR) {
-		printf("%s: out of bars!\n", __func__);
-		return (-1);
+
+	/* Update our managed space. */
+	rm = (bar->b_type == SYS_RES_IOPORT) ? &sc->sc_ioport : &sc->sc_iomem;
+	start = rman_get_start(bar->b_res);
+	end = rman_get_end(bar->b_res);
+	error = rman_manage_region(rm, start, end);
+	if (error) {
+		bus_release_resource(sc->sc_dev, bar->b_type, bar->b_rid,
+		    bar->b_res);
+		bar->b_res = NULL;
+		bar->b_rid = -1;
+		bar = NULL;
 	}
-	sc->sc_bar_mappings[i].bar = bar;
-	sc->sc_bar_mappings[i].used = 1;
-	return (i);
+
+	return (bar);
 }
 
-static int
-puc_probe_ilr(struct puc_softc *sc, struct resource *res)
-{
-	u_char t1, t2;
-	int i;
-
-	switch (sc->sc_desc.ilr_type) {
-	case PUC_ILR_TYPE_DIGI:
-		sc->ilr_st = rman_get_bustag(res);
-		sc->ilr_sh = rman_get_bushandle(res);
-		for (i = 0; i < 2 && sc->sc_desc.ilr_offset[i] != 0; i++) {
-			t1 = bus_space_read_1(sc->ilr_st, sc->ilr_sh,
-			    sc->sc_desc.ilr_offset[i]);
-			t1 = ~t1;
-			bus_space_write_1(sc->ilr_st, sc->ilr_sh,
-			    sc->sc_desc.ilr_offset[i], t1);
-			t2 = bus_space_read_1(sc->ilr_st, sc->ilr_sh,
-			    sc->sc_desc.ilr_offset[i]);
-			if (t2 == t1)
-				return (0);
-		}
-		return (1);
-
-	default:
-		break;
-	}
-	return (0);
-}
-
-int
-puc_attach(device_t dev, const struct puc_device_description *desc)
-{
-	char *typestr;
-	int bidx, childunit, i, irq_setup, ressz, rid, type;
-	struct puc_softc *sc;
-	struct puc_device *pdev;
-	struct resource *res;
-	struct resource_list_entry *rle;
-	bus_space_handle_t bh;
-
-	if (desc == NULL)
-		return (ENXIO);
-
-	sc = (struct puc_softc *)device_get_softc(dev);
-	bzero(sc, sizeof(*sc));
-	sc->sc_desc = *desc;
-
-#ifdef PUC_DEBUG
-	bootverbose = 1;
-
-	printf("puc: name: %s\n", sc->sc_desc.name);
-#endif
-	rid = 0;
-	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE | RF_SHAREABLE);
-	if (!res)
-		return (ENXIO);
-
-	sc->irqres = res;
-	sc->irqrid = rid;
-#ifdef PUC_FASTINTR
-	irq_setup = bus_setup_intr(dev, res,
-	    INTR_TYPE_TTY | INTR_FAST, puc_intr, sc, &sc->intr_cookie);
-	if (irq_setup == 0)
-		sc->fastintr = INTR_FAST;
-	else
-#else
-	irq_setup = bus_setup_intr(dev, res,
-	    INTR_TYPE_TTY, puc_intr, sc, &sc->intr_cookie);
-#endif
-	if (irq_setup != 0)
-		return (ENXIO);
-
-	rid = 0;
-	for (i = 0; PUC_PORT_VALID(sc->sc_desc, i); i++) {
-		if (i > 0 && rid == sc->sc_desc.ports[i].bar)
-			sc->barmuxed = 1;
-		rid = sc->sc_desc.ports[i].bar;
-		bidx = puc_port_bar_index(sc, rid);
-
-		if (bidx < 0 || sc->sc_bar_mappings[bidx].res != NULL)
-			continue;
-
-		type = (sc->sc_desc.ports[i].flags & PUC_FLAGS_MEMORY)
-		    ? SYS_RES_MEMORY : SYS_RES_IOPORT;
-
-		res = bus_alloc_resource_any(dev, type, &rid,
-		    RF_ACTIVE);
-		if (res == NULL &&
-		    sc->sc_desc.ports[i].flags & PUC_FLAGS_ALTRES) {
-			type = (type == SYS_RES_IOPORT)
-			    ? SYS_RES_MEMORY : SYS_RES_IOPORT;
-			res = bus_alloc_resource_any(dev, type, &rid,
-			    RF_ACTIVE);
-		}
-		if (res == NULL) {
-			device_printf(dev, "could not get resource\n");
-			continue;
-		}
-		sc->sc_bar_mappings[bidx].type = type;
-		sc->sc_bar_mappings[bidx].res = res;
-
-		if (sc->sc_desc.ilr_type != PUC_ILR_TYPE_NONE) {
-			sc->ilr_enabled = puc_probe_ilr(sc, res);
-			if (sc->ilr_enabled)
-				device_printf(dev, "ILR enabled\n");
-			else
-				device_printf(dev, "ILR disabled\n");
-		}
-#ifdef PUC_DEBUG
-		printf("%s rid %d bst %lx, start %lx, end %lx\n",
-		    (type == SYS_RES_MEMORY) ? "memory" : "port", rid,
-		    (u_long)rman_get_bustag(res), (u_long)rman_get_start(res),
-		    (u_long)rman_get_end(res));
-#endif
-	}
-
-	if (desc->init != NULL) {
-		i = desc->init(sc);
-		if (i != 0)
-			return (i);
-	}
-
-	for (i = 0; PUC_PORT_VALID(sc->sc_desc, i); i++) {
-		rid = sc->sc_desc.ports[i].bar;
-		bidx = puc_port_bar_index(sc, rid);
-		if (bidx < 0 || sc->sc_bar_mappings[bidx].res == NULL)
-			continue;
-
-		switch (sc->sc_desc.ports[i].type & ~PUC_PORT_SUBTYPE_MASK) {
-		case PUC_PORT_TYPE_COM:
-			typestr = "sio";
-			break;
-		case PUC_PORT_TYPE_LPT:
-			typestr = "ppc";
-			break;
-		case PUC_PORT_TYPE_UART:
-			typestr = "uart";
-			break;
-		default:
-			continue;
-		}
-		switch (sc->sc_desc.ports[i].type & PUC_PORT_SUBTYPE_MASK) {
-		case PUC_PORT_UART_SAB82532:
-			ressz = 64;
-			break;
-		case PUC_PORT_UART_Z8530:
-			ressz = 2;
-			break;
-		default:
-			ressz = 8;
-			break;
-		}
-		pdev = malloc(sizeof(struct puc_device), M_DEVBUF,
-		    M_NOWAIT | M_ZERO);
-		if (!pdev)
-			continue;
-		resource_list_init(&pdev->resources);
-
-		/* First fake up an IRQ resource. */
-		resource_list_add(&pdev->resources, SYS_RES_IRQ, 0,
-		    rman_get_start(sc->irqres), rman_get_end(sc->irqres),
-		    rman_get_end(sc->irqres) - rman_get_start(sc->irqres) + 1);
-		rle = resource_list_find(&pdev->resources, SYS_RES_IRQ, 0);
-		rle->res = sc->irqres;
-
-		/* Now fake an IOPORT or MEMORY resource */
-		res = sc->sc_bar_mappings[bidx].res;
-		type = sc->sc_bar_mappings[bidx].type;
-		resource_list_add(&pdev->resources, type, 0,
-		    rman_get_start(res) + sc->sc_desc.ports[i].offset,
-		    rman_get_start(res) + sc->sc_desc.ports[i].offset
-		    + ressz - 1, ressz);
-		rle = resource_list_find(&pdev->resources, type, 0);
-
-		if (sc->barmuxed == 0) {
-			rle->res = sc->sc_bar_mappings[bidx].res;
-		} else {
-			rle->res = rman_secret_puc_alloc_resource(M_WAITOK);
-			if (rle->res == NULL) {
-				free(pdev, M_DEVBUF);
-				return (ENOMEM);
-			}
-
-			rman_set_start(rle->res, rman_get_start(res) +
-			    sc->sc_desc.ports[i].offset);
-			rman_set_end(rle->res, rman_get_start(rle->res) +
-			    ressz - 1);
-			rman_set_bustag(rle->res, rman_get_bustag(res));
-			bus_space_subregion(rman_get_bustag(rle->res),
-			    rman_get_bushandle(res),
-			    sc->sc_desc.ports[i].offset, ressz,
-			    &bh);
-			rman_set_bushandle(rle->res, bh);
-		}
-
-		pdev->port = i + 1;
-		pdev->serialfreq = sc->sc_desc.ports[i].serialfreq;
-		pdev->subtype = sc->sc_desc.ports[i].type &
-		    PUC_PORT_SUBTYPE_MASK;
-		pdev->regshft = sc->sc_desc.ports[i].regshft;
-
-		childunit = puc_find_free_unit(typestr);
-		if (childunit < 0 && strcmp(typestr, "uart") != 0) {
-			typestr = "uart";
-			childunit = puc_find_free_unit(typestr);
-		}
-		sc->sc_ports[i].dev = device_add_child(dev, typestr,
-		    childunit);
-		if (sc->sc_ports[i].dev == NULL) {
-			if (sc->barmuxed) {
-				bus_space_unmap(rman_get_bustag(rle->res),
-				    rman_get_bushandle(rle->res), ressz);
-				rman_secret_puc_free_resource(rle->res);
-				free(pdev, M_DEVBUF);
-			}
-			continue;
-		}
-		device_set_ivars(sc->sc_ports[i].dev, pdev);
-		device_set_desc(sc->sc_ports[i].dev, sc->sc_desc.name);
-#ifdef PUC_DEBUG
-		printf("puc: type %d, bar %x, offset %x\n",
-		    sc->sc_desc.ports[i].type,
-		    sc->sc_desc.ports[i].bar,
-		    sc->sc_desc.ports[i].offset);
-		puc_print_resource_list(&pdev->resources);
-#endif
-		device_set_flags(sc->sc_ports[i].dev,
-		    sc->sc_desc.ports[i].flags);
-		if (device_probe_and_attach(sc->sc_ports[i].dev) != 0) {
-			if (sc->barmuxed) {
-				bus_space_unmap(rman_get_bustag(rle->res),
-				    rman_get_bushandle(rle->res), ressz);
-				rman_secret_puc_free_resource(rle->res);
-				free(pdev, M_DEVBUF);
-			}
-		}
-	}
-
-#ifdef PUC_DEBUG
-	bootverbose = 0;
-#endif
-	return (0);
-}
-
-static u_int32_t
-puc_ilr_read(struct puc_softc *sc)
-{
-	u_int32_t mask;
-	int i;
-
-	mask = 0;
-	switch (sc->sc_desc.ilr_type) {
-	case PUC_ILR_TYPE_DIGI:
-		for (i = 1; i >= 0 && sc->sc_desc.ilr_offset[i] != 0; i--) {
-			mask = (mask << 8) | (bus_space_read_1(sc->ilr_st,
-			    sc->ilr_sh, sc->sc_desc.ilr_offset[i]) & 0xff);
-		}
-		break;
-
-	default:
-		mask = 0xffffffff;
-		break;
-	}
-	return (mask);
-}
-
-/*
- * This is an interrupt handler. For boards that can't tell us which
- * device generated the interrupt it just calls all the registered
- * handlers sequencially, but for boards that can tell us which
- * device(s) generated the interrupt it calls only handlers for devices
- * that actually generated the interrupt.
- */
 static void
 puc_intr(void *arg)
 {
-	int i;
-	u_int32_t ilr_mask;
-	struct puc_softc *sc;
+	struct puc_port *port;
+	struct puc_softc *sc = arg;
+	u_long dev, devs;
+	int i, idx, ipend, isrc;
+	uint8_t ilr;
 
-	sc = (struct puc_softc *)arg;
-	ilr_mask = sc->ilr_enabled ? puc_ilr_read(sc) : 0xffffffff;
-	for (i = 0; i < PUC_MAX_PORTS; i++)
-		if (sc->sc_ports[i].ihand != NULL &&
-		    ((ilr_mask >> i) & 0x00000001))
-			(sc->sc_ports[i].ihand)(sc->sc_ports[i].ihandarg);
-}
+	devs = sc->sc_serdevs;
+	if (sc->sc_ilr == PUC_ILR_DIGI) {
+		idx = 0;
+		while (devs & (0xfful << idx)) {
+			ilr = ~bus_read_1(sc->sc_port[idx].p_rres, 7);
+			devs &= ~0ul ^ ((u_long)ilr << idx);
+			idx += 8;
+		}
+	} else if (sc->sc_ilr == PUC_ILR_QUATECH) {
+		/*
+		 * Don't trust the value if it's the same as the option
+		 * register. It may mean that the ILR is not active and
+		 * we're reading the option register instead. This may
+		 * lead to false positives on 8-port boards.
+		 */
+		ilr = bus_read_1(sc->sc_port[0].p_rres, 7);
+		if (ilr != (sc->sc_cfg_data & 0xff))
+			devs &= (u_long)ilr;
+	}
 
-static int
-puc_find_free_unit(char *name)
-{
-	devclass_t dc;
-	int start;
-	int unit;
+	ipend = 0;
+	idx = 0, dev = 1UL;
+	while (devs != 0UL) {
+		while ((devs & dev) == 0UL)
+			idx++, dev <<= 1;
+		devs &= ~dev;
+		port = &sc->sc_port[idx];
+		port->p_ipend = SERDEV_IPEND(port->p_dev);
+		ipend |= port->p_ipend;
+	}
 
-	unit = 0;
-	start = 0;
-	while (resource_int_value(name, unit, "port", &start) == 0 && 
-	    start > 0)
-		unit++;
-	dc = devclass_find(name);
-	if (dc == NULL)
-		return (-1);
-	while (devclass_get_device(dc, unit))
-		unit++;
-#ifdef PUC_DEBUG
-	printf("puc: Using %s%d\n", name, unit);
-#endif
-	return (unit);
-}
-
-#ifdef PUC_DEBUG
-static void
-puc_print_resource_list(struct resource_list *rl)
-{
-#if 0
-	struct resource_list_entry *rle;
-
-	printf("print_resource_list: rl %p\n", rl);
-	SLIST_FOREACH(rle, rl, link)
-		printf("  type %x, rid %x start %lx end %lx count %lx\n",
-		    rle->type, rle->rid, rle->start, rle->end, rle->count);
-	printf("print_resource_list: end.\n");
-#endif
-}
-#endif
-
-struct resource *
-puc_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
-{
-	struct puc_device *pdev;
-	struct resource *retval;
-	struct resource_list *rl;
-	struct resource_list_entry *rle;
-	device_t my_child;
-
-	/* 
-	 * in the case of a child of child we need to find our immediate child
-	 */
-	for (my_child = child; device_get_parent(my_child) != dev; 
-	     my_child = device_get_parent(my_child));
-
-	pdev = device_get_ivars(my_child);
-	rl = &pdev->resources;
-
-#ifdef PUC_DEBUG
-	printf("puc_alloc_resource: pdev %p, looking for t %x, r %x\n",
-	    pdev, type, *rid);
-	puc_print_resource_list(rl);
-#endif
-	retval = NULL;
-	rle = resource_list_find(rl, type, *rid);
-	if (rle) {
-#ifdef PUC_DEBUG
-		printf("found rle, %lx, %lx, %lx\n", rle->start, rle->end,
-		    rle->count);
-#endif
-		retval = rle->res;
-	} 
-#ifdef PUC_DEBUG
-	else
-		printf("oops rle is gone\n");
-#endif
-
-	return (retval);
+	i = 0, isrc = SER_INT_OVERRUN;
+	while (ipend) {
+		while (i < PUC_ISRCCNT && !(ipend & isrc))
+			i++, isrc <<= 1;
+		KASSERT(i < PUC_ISRCCNT, ("%s", __func__));
+		ipend &= ~isrc;
+		idx = 0, dev = 1UL;
+		devs = sc->sc_serdevs;
+		while (devs != 0UL) {
+			while ((devs & dev) == 0UL)
+				idx++, dev <<= 1;
+			devs &= ~dev;
+			port = &sc->sc_port[idx];
+			if (!(port->p_ipend & isrc))
+				continue;
+			if (port->p_ihsrc[i] != NULL)
+				(*port->p_ihsrc[i])(port->p_iharg);
+		}
+	}
 }
 
 int
-puc_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *res)
+puc_bfe_attach(device_t dev)
 {
+	char buffer[64];
+	struct puc_bar *bar;
+	struct puc_port *port;
+	struct puc_softc *sc;
+	struct rman *rm;
+	intptr_t res;
+	bus_addr_t ofs, start;
+	bus_size_t size;
+	bus_space_handle_t bsh;
+	bus_space_tag_t bst;
+	int error, idx;
+
+	sc = device_get_softc(dev);
+
+	for (idx = 0; idx < PUC_PCI_BARS; idx++)
+		sc->sc_bar[idx].b_rid = -1;
+
+	do {
+		sc->sc_ioport.rm_type = RMAN_ARRAY;
+		error = rman_init(&sc->sc_ioport);
+		if (!error) {
+			sc->sc_iomem.rm_type = RMAN_ARRAY;
+			error = rman_init(&sc->sc_iomem);
+			if (!error) {
+				sc->sc_irq.rm_type = RMAN_ARRAY;
+				error = rman_init(&sc->sc_irq);
+				if (!error)
+					break;
+				rman_fini(&sc->sc_iomem);
+			}
+			rman_fini(&sc->sc_ioport);
+		}
+		return (error);
+	} while (0);
+
+	snprintf(buffer, sizeof(buffer), "%s I/O port mapping",
+	    device_get_nameunit(dev));
+	sc->sc_ioport.rm_descr = strdup(buffer, M_PUC);
+	snprintf(buffer, sizeof(buffer), "%s I/O memory mapping",
+	    device_get_nameunit(dev));
+	sc->sc_iomem.rm_descr = strdup(buffer, M_PUC);
+	snprintf(buffer, sizeof(buffer), "%s port numbers",
+	    device_get_nameunit(dev));
+	sc->sc_irq.rm_descr = strdup(buffer, M_PUC);
+
+	error = puc_config(sc, PUC_CFG_GET_NPORTS, 0, &res);
+	KASSERT(error == 0, ("%s %d", __func__, __LINE__));
+	sc->sc_nports = (int)res;
+	sc->sc_port = malloc(sc->sc_nports * sizeof(struct puc_port),
+	    M_PUC, M_WAITOK|M_ZERO);
+
+	error = rman_manage_region(&sc->sc_irq, 1, sc->sc_nports);
+	if (error)
+		goto fail;
+
+	error = puc_config(sc, PUC_CFG_SETUP, 0, &res);
+	if (error)
+		goto fail;
+
+	for (idx = 0; idx < sc->sc_nports; idx++) {
+		port = &sc->sc_port[idx];
+		port->p_nr = idx + 1;
+		error = puc_config(sc, PUC_CFG_GET_TYPE, idx, &res);
+		if (error)
+			goto fail;
+		port->p_type = res;
+		error = puc_config(sc, PUC_CFG_GET_RID, idx, &res);
+		if (error)
+			goto fail;
+		bar = puc_get_bar(sc, res);
+		if (bar == NULL) {
+			error = ENXIO;
+			goto fail;
+		}
+		port->p_bar = bar;
+		start = rman_get_start(bar->b_res);
+		error = puc_config(sc, PUC_CFG_GET_OFS, idx, &res);
+		if (error)
+			goto fail;
+		ofs = res;
+		error = puc_config(sc, PUC_CFG_GET_LEN, idx, &res);
+		if (error)
+			goto fail;
+		size = res;
+		rm = (bar->b_type == SYS_RES_IOPORT)
+		    ? &sc->sc_ioport: &sc->sc_iomem;
+		port->p_rres = rman_reserve_resource(rm, start + ofs,
+		    start + ofs + size - 1, size, 0, NULL);
+		if (port->p_rres != NULL) {
+			bsh = rman_get_bushandle(bar->b_res);
+			bst = rman_get_bustag(bar->b_res);
+			bus_space_subregion(bst, bsh, ofs, size, &bsh);
+			rman_set_bushandle(port->p_rres, bsh);
+			rman_set_bustag(port->p_rres, bst);
+		}
+		port->p_ires = rman_reserve_resource(&sc->sc_irq, port->p_nr,
+		    port->p_nr, 1, 0, NULL);
+		if (port->p_ires == NULL) {
+			error = ENXIO;
+			goto fail;
+		}
+		error = puc_config(sc, PUC_CFG_GET_CLOCK, idx, &res);
+		if (error)
+			goto fail;
+		port->p_rclk = res;
+
+		port->p_dev = device_add_child(dev, NULL, -1);
+		if (port->p_dev != NULL)
+			device_set_ivars(port->p_dev, (void *)port);
+	}
+
+	error = puc_config(sc, PUC_CFG_GET_ILR, 0, &res);
+	if (error)
+		goto fail;
+	sc->sc_ilr = res;
+	if (bootverbose && sc->sc_ilr != 0)
+		device_printf(dev, "using interrupt latch register\n");
+
+	sc->sc_irid = 0;
+	sc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->sc_irid,
+	    RF_ACTIVE|RF_SHAREABLE);
+	if (sc->sc_ires != NULL) {
+		error = bus_setup_intr(dev, sc->sc_ires,
+		    INTR_TYPE_TTY | INTR_FAST, puc_intr, sc, &sc->sc_icookie);
+		if (error)
+			error = bus_setup_intr(dev, sc->sc_ires,
+			    INTR_TYPE_TTY | INTR_MPSAFE, puc_intr, sc,
+			    &sc->sc_icookie);
+		else
+			sc->sc_fastintr = 1;
+
+		if (error) {
+			device_printf(dev, "could not activate interrupt\n");
+			bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irid,
+			    sc->sc_ires);
+			sc->sc_ires = NULL;
+		}
+	}
+	if (sc->sc_ires == NULL) {
+		/* XXX no interrupt resource. Force polled mode. */
+		sc->sc_polled = 1;
+	}
+
+	/* Probe and attach our children. */
+	for (idx = 0; idx < sc->sc_nports; idx++) {
+		port = &sc->sc_port[idx];
+		if (port->p_dev == NULL)
+			continue;
+		error = device_probe_and_attach(port->p_dev);
+		if (error) {
+			device_delete_child(dev, port->p_dev);
+			port->p_dev = NULL;
+		}
+	}
+
+	/*
+	 * If there are no serdev devices, then our interrupt handler
+	 * will do nothing. Tear it down.
+	 */
+	if (sc->sc_serdevs == 0UL)
+		bus_teardown_intr(dev, sc->sc_ires, sc->sc_icookie);
+
+	return (0);
+
+fail:
+	for (idx = 0; idx < sc->sc_nports; idx++) {
+		port = &sc->sc_port[idx];
+		if (port->p_dev != NULL)
+			device_delete_child(dev, port->p_dev);
+		if (port->p_rres != NULL)
+			rman_release_resource(port->p_rres);
+		if (port->p_ires != NULL)
+			rman_release_resource(port->p_ires);
+	}
+	for (idx = 0; idx < PUC_PCI_BARS; idx++) {
+		bar = &sc->sc_bar[idx];
+		if (bar->b_res != NULL)
+			bus_release_resource(sc->sc_dev, bar->b_type,
+			    bar->b_rid, bar->b_res);
+	}
+	rman_fini(&sc->sc_irq);
+	free(__DECONST(void *, sc->sc_irq.rm_descr), M_PUC);
+	rman_fini(&sc->sc_iomem);
+	free(__DECONST(void *, sc->sc_iomem.rm_descr), M_PUC);
+	rman_fini(&sc->sc_ioport);
+	free(__DECONST(void *, sc->sc_ioport.rm_descr), M_PUC);
+	free(sc->sc_port, M_PUC);
+	return (error);
+}
+
+int
+puc_bfe_detach(device_t dev)
+{
+	struct puc_bar *bar;
+	struct puc_port *port;
+	struct puc_softc *sc;
+	int error, idx;
+
+	sc = device_get_softc(dev);
+
+	/* Detach our children. */
+	error = 0;
+	for (idx = 0; idx < sc->sc_nports; idx++) {
+		port = &sc->sc_port[idx];
+		if (port->p_dev == NULL)
+			continue;
+		if (device_detach(port->p_dev) == 0) {
+			device_delete_child(dev, port->p_dev);
+			if (port->p_rres != NULL)
+				rman_release_resource(port->p_rres);
+			if (port->p_ires != NULL)
+				rman_release_resource(port->p_ires);
+		} else
+			error = ENXIO;
+	}
+	if (error)
+		return (error);
+
+	if (sc->sc_serdevs != 0UL)
+		bus_teardown_intr(dev, sc->sc_ires, sc->sc_icookie);
+	bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irid, sc->sc_ires);
+
+	for (idx = 0; idx < PUC_PCI_BARS; idx++) {
+		bar = &sc->sc_bar[idx];
+		if (bar->b_res != NULL)
+			bus_release_resource(sc->sc_dev, bar->b_type,
+			    bar->b_rid, bar->b_res);
+	}
+
+	rman_fini(&sc->sc_irq);
+	free(__DECONST(void *, sc->sc_irq.rm_descr), M_PUC);
+	rman_fini(&sc->sc_iomem);
+	free(__DECONST(void *, sc->sc_iomem.rm_descr), M_PUC);
+	rman_fini(&sc->sc_ioport);
+	free(__DECONST(void *, sc->sc_ioport.rm_descr), M_PUC);
+	free(sc->sc_port, M_PUC);
 	return (0);
 }
 
 int
-puc_get_resource(device_t dev, device_t child, int type, int rid,
+puc_bfe_probe(device_t dev, const struct puc_cfg *cfg)
+{
+	struct puc_softc *sc;
+	intptr_t res;
+	int error;
+
+	sc = device_get_softc(dev);
+	sc->sc_dev = dev;
+	sc->sc_cfg = cfg;
+
+	/* We don't attach to single-port serial cards. */
+	if (cfg->ports == PUC_PORT_1S || cfg->ports == PUC_PORT_1P)
+		return (EDOOFUS);
+	error = puc_config(sc, PUC_CFG_GET_NPORTS, 0, &res);
+	if (error)
+		return (error);
+	error = puc_config(sc, PUC_CFG_GET_DESC, 0, &res);
+	if (error)
+		return (error);
+	if (res != 0)
+		device_set_desc(dev, (const char *)res);
+	return (BUS_PROBE_DEFAULT);
+}
+
+struct resource *
+puc_bus_alloc_resource(device_t dev, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct puc_port *port;
+	struct resource *res;
+	device_t assigned, originator;
+	int error;
+
+	/* Get our immediate child. */
+	originator = child;
+	while (child != NULL && device_get_parent(child) != dev)
+		child = device_get_parent(child);
+	if (child == NULL)
+		return (NULL);
+
+	port = device_get_ivars(child);
+	KASSERT(port != NULL, ("%s %d", __func__, __LINE__));
+
+	if (rid == NULL || *rid != 0)
+		return (NULL);
+
+	/* We only support default allocations. */
+	if (start != 0UL || end != ~0UL)
+		return (NULL);
+
+	if (type == port->p_bar->b_type)
+		res = port->p_rres;
+	else if (type == SYS_RES_IRQ)
+		res = port->p_ires;
+	else
+		return (NULL);
+
+	if (res == NULL)
+		return (NULL);
+
+	assigned = rman_get_device(res);
+	if (assigned == NULL)	/* Not allocated */
+		rman_set_device(res, originator);
+	else if (assigned != originator)
+		return (NULL);
+
+	if (flags & RF_ACTIVE) {
+		error = rman_activate_resource(res);
+		if (error) {
+			if (assigned == NULL)
+				rman_set_device(res, NULL);
+			return (NULL);
+		}
+	}
+
+	return (res);
+}
+
+int
+puc_bus_release_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *res)
+{
+	struct puc_port *port;
+	device_t originator;
+
+	/* Get our immediate child. */
+	originator = child;
+	while (child != NULL && device_get_parent(child) != dev)
+		child = device_get_parent(child);
+	if (child == NULL)
+		return (EINVAL);
+
+	port = device_get_ivars(child);
+	KASSERT(port != NULL, ("%s %d", __func__, __LINE__));
+
+	if (rid != 0 || res == NULL)
+		return (EINVAL);
+
+	if (type == port->p_bar->b_type) {
+		if (res != port->p_rres)
+			return (EINVAL);
+	} else if (type == SYS_RES_IRQ) {
+		if (res != port->p_ires)
+			return (EINVAL);
+		if (port->p_hasintr)
+			return (EBUSY);
+	} else
+		return (EINVAL);
+
+	if (rman_get_device(res) != originator)
+		return (ENXIO);
+	if (rman_get_flags(res) & RF_ACTIVE)
+		rman_deactivate_resource(res);
+	rman_set_device(res, NULL);
+	return (0);
+}
+
+int
+puc_bus_get_resource(device_t dev, device_t child, int type, int rid,
     u_long *startp, u_long *countp)
 {
-	struct puc_device *pdev;
-	struct resource_list *rl;
-	struct resource_list_entry *rle;
+	struct puc_port *port;
+	struct resource *res;
+	u_long start;
 
-	pdev = device_get_ivars(child);
-	rl = &pdev->resources;
+	/* Get our immediate child. */
+	while (child != NULL && device_get_parent(child) != dev)
+		child = device_get_parent(child);
+	if (child == NULL)
+		return (EINVAL);
 
-#ifdef PUC_DEBUG
-	printf("puc_get_resource: pdev %p, looking for t %x, r %x\n", pdev,
-	    type, rid);
-	puc_print_resource_list(rl);
-#endif
-	rle = resource_list_find(rl, type, rid);
-	if (rle) {
-#ifdef PUC_DEBUG
-		printf("found rle %p,", rle);
-#endif
-		if (startp != NULL)
-			*startp = rle->start;
-		if (countp != NULL)
-			*countp = rle->count;
-#ifdef PUC_DEBUG
-		printf(" %lx, %lx\n", rle->start, rle->count);
-#endif
-		return (0);
-	} else
-		printf("oops rle is gone\n");
-	return (ENXIO);
-}
+	port = device_get_ivars(child);
+	KASSERT(port != NULL, ("%s %d", __func__, __LINE__));
 
-int
-puc_setup_intr(device_t dev, device_t child, struct resource *r, int flags,
-	       void (*ihand)(void *), void *arg, void **cookiep)
-{
-	int i;
-	struct puc_softc *sc;
-
-	sc = (struct puc_softc *)device_get_softc(dev);
-	if ((flags & INTR_FAST) != sc->fastintr)
+	if (type == port->p_bar->b_type)
+		res = port->p_rres;
+	else if (type == SYS_RES_IRQ)
+		res = port->p_ires;
+	else
 		return (ENXIO);
-	for (i = 0; PUC_PORT_VALID(sc->sc_desc, i); i++) {
-		if (sc->sc_ports[i].dev == child) {
-			if (sc->sc_ports[i].ihand != 0)
-				return (ENXIO);
-			sc->sc_ports[i].ihand = ihand;
-			sc->sc_ports[i].ihandarg = arg;
-			*cookiep = arg;
-			return (0);
-		}
-	}
-	return (ENXIO);
+
+	if (rid != 0 || res == NULL)
+		return (ENXIO);
+
+	start = rman_get_start(res);
+	if (startp != NULL)
+		*startp = start;
+	if (countp != NULL)
+		*countp = rman_get_end(res) - start + 1;
+	return (0);
 }
 
 int
-puc_teardown_intr(device_t dev, device_t child, struct resource *r,
-		  void *cookie)
+puc_bus_setup_intr(device_t dev, device_t child, struct resource *res,
+    int flags, void (*ihand)(void *), void *arg, void **cookiep)
 {
-	int i;
+	struct puc_port *port;
 	struct puc_softc *sc;
+	device_t originator;
+	int i, isrc, serdev;
 
-	sc = (struct puc_softc *)device_get_softc(dev);
-	for (i = 0; PUC_PORT_VALID(sc->sc_desc, i); i++) {
-		if (sc->sc_ports[i].dev == child) {
-			sc->sc_ports[i].ihand = NULL;
-			sc->sc_ports[i].ihandarg = NULL;
-			return (0);
+	sc = device_get_softc(dev);
+
+	/* Get our immediate child. */
+	originator = child;
+	while (child != NULL && device_get_parent(child) != dev)
+		child = device_get_parent(child);
+	if (child == NULL)
+		return (EINVAL);
+
+	port = device_get_ivars(child);
+	KASSERT(port != NULL, ("%s %d", __func__, __LINE__));
+
+	if (ihand == NULL || cookiep == NULL || res != port->p_ires)
+		return (EINVAL);
+	if (rman_get_device(port->p_ires) != originator)
+		return (ENXIO);
+
+	/*
+	 * Have non-serdev ports handled by the bus implementation. It
+	 * supports multiple handlers for a single interrupt as it is,
+	 * so we wouldn't add value if we did it ourselves.
+	 */
+	serdev = 0;
+	if (port->p_type == PUC_TYPE_SERIAL) {
+		i = 0, isrc = SER_INT_OVERRUN;
+		while (i < PUC_ISRCCNT) {
+			port->p_ihsrc[i] = SERDEV_IHAND(originator, isrc);
+			if (port->p_ihsrc[i] != NULL)
+				serdev = 1;
+			i++, isrc <<= 1;
 		}
 	}
-	return (ENXIO);
+	if (!serdev)
+		return (BUS_SETUP_INTR(device_get_parent(dev), originator,
+		    sc->sc_ires, flags, ihand, arg, cookiep));
+
+	/* We demand that serdev devices use fast interrupts. */
+	if (!(flags & INTR_FAST))
+		return (ENXIO);
+
+	sc->sc_serdevs |= 1UL << (port->p_nr - 1);
+
+	port->p_hasintr = 1;
+	port->p_ih = ihand;
+	port->p_iharg = arg;
+
+	*cookiep = port;
+	return (0);
 }
 
 int
-puc_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
+puc_bus_teardown_intr(device_t dev, device_t child, struct resource *res,
+    void *cookie)
 {
-	struct puc_device *pdev;
+	struct puc_port *port;
+	struct puc_softc *sc;
+	device_t originator;
+	int i;
 
-	pdev = device_get_ivars(child);
-	if (pdev == NULL)
-		return (ENOENT);
+	sc = device_get_softc(dev);
+
+	/* Get our immediate child. */
+	originator = child;
+	while (child != NULL && device_get_parent(child) != dev)
+		child = device_get_parent(child);
+	if (child == NULL)
+		return (EINVAL);
+
+	port = device_get_ivars(child);
+	KASSERT(port != NULL, ("%s %d", __func__, __LINE__));
+
+	if (res != port->p_ires)
+		return (EINVAL);
+	if (rman_get_device(port->p_ires) != originator)
+		return (ENXIO);
+
+	if (!port->p_hasintr)
+		return (BUS_TEARDOWN_INTR(device_get_parent(dev), originator,
+		    sc->sc_ires, cookie));
+
+	if (cookie != port)
+		return (EINVAL);
+
+	port->p_hasintr = 0;
+	port->p_ih = NULL;
+	port->p_iharg = NULL;
+
+	for (i = 0; i < PUC_ISRCCNT; i++)
+		port->p_ihsrc[i] = NULL;
+
+	return (0);
+}
+
+int
+puc_bus_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
+{
+	struct puc_port *port;
+
+	/* Get our immediate child. */
+	while (child != NULL && device_get_parent(child) != dev)
+		child = device_get_parent(child);
+	if (child == NULL)
+		return (EINVAL);
+
+	port = device_get_ivars(child);
+	KASSERT(port != NULL, ("%s %d", __func__, __LINE__));
+
+	if (result == NULL)
+		return (EINVAL);
 
 	switch(index) {
-	case PUC_IVAR_FREQ:
-		*result = pdev->serialfreq;
+	case PUC_IVAR_CLOCK:
+		*result = port->p_rclk;
 		break;
-	case PUC_IVAR_PORT:
-		*result = pdev->port;
-		break;
-	case PUC_IVAR_REGSHFT:
-		*result = pdev->regshft;
-		break;
-	case PUC_IVAR_SUBTYPE:
-		*result = pdev->subtype;
+	case PUC_IVAR_TYPE:
+		*result = port->p_type;
 		break;
 	default:
 		return (ENOENT);

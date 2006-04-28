@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_puc.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -41,24 +39,18 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <sys/rman.h>
 
-#define PUC_ENTRAILS 1
-#include <dev/puc/pucvar.h>
-
-#include <dev/sio/sioreg.h>
 #include <dev/pccard/pccardvar.h>
 
-const struct puc_device_description rscom_devices = {
+#include <dev/puc/puc_bfe.h>
+#include <dev/puc/puc_cfg.h>
 
+/* http://www.argosy.com.tw/product/sp320.htm */
+const struct puc_cfg puc_pccard_rscom = {
+	0, 0, 0, 0,
 	"ARGOSY SP320 Dual port serial PCMCIA",
-	/* http://www.argosy.com.tw/product/sp320.htm */
-		{	0,	0,	0,	0	},
-		{	0,	0,	0,	0	},
-	{
-		{ PUC_PORT_TYPE_COM, 0x0, 0x00, DEFAULT_RCLK, 0x100000 },
-		{ PUC_PORT_TYPE_COM, 0x1, 0x00, DEFAULT_RCLK, 0 },
-	}
+	DEFAULT_RCLK,
+	PUC_PORT_2S, 0, 1, 0,
 };
-
 
 static int
 puc_pccard_probe(device_t dev)
@@ -72,39 +64,31 @@ puc_pccard_probe(device_t dev)
 	error = pccard_get_product_str(dev, &product);
 	if (error)
 		return(error);
-	if (!strcmp(vendor, "PCMCIA") && !strcmp(product, "RS-COM 2P")) {
-		device_set_desc(dev, rscom_devices.name);
-		return (0);
-	}
+	if (!strcmp(vendor, "PCMCIA") && !strcmp(product, "RS-COM 2P"))
+		return (puc_bfe_probe(dev, &puc_pccard_rscom));
 
 	return (ENXIO);
-}
-
-static int
-puc_pccard_attach(device_t dev)
-{
-
-	return (puc_attach(dev, &rscom_devices));
 }
 
 static device_method_t puc_pccard_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,		puc_pccard_probe),
-    DEVMETHOD(device_attach,		puc_pccard_attach),
+    DEVMETHOD(device_attach,		puc_bfe_attach),
+    DEVMETHOD(device_detach,		puc_bfe_detach),
 
-    DEVMETHOD(bus_alloc_resource,	puc_alloc_resource),
-    DEVMETHOD(bus_release_resource,	puc_release_resource),
-    DEVMETHOD(bus_get_resource,		puc_get_resource),
-    DEVMETHOD(bus_read_ivar,		puc_read_ivar),
-    DEVMETHOD(bus_setup_intr,		puc_setup_intr),
-    DEVMETHOD(bus_teardown_intr,	puc_teardown_intr),
+    DEVMETHOD(bus_alloc_resource,	puc_bus_alloc_resource),
+    DEVMETHOD(bus_release_resource,	puc_bus_release_resource),
+    DEVMETHOD(bus_get_resource,		puc_bus_get_resource),
+    DEVMETHOD(bus_read_ivar,		puc_bus_read_ivar),
+    DEVMETHOD(bus_setup_intr,		puc_bus_setup_intr),
+    DEVMETHOD(bus_teardown_intr,	puc_bus_teardown_intr),
     DEVMETHOD(bus_print_child,		bus_generic_print_child),
     DEVMETHOD(bus_driver_added,		bus_generic_driver_added),
     { 0, 0 }
 };
 
 static driver_t puc_pccard_driver = {
-	"puc",
+	puc_driver_name,
 	puc_pccard_methods,
 	sizeof(struct puc_softc),
 };
