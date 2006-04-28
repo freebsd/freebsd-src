@@ -80,20 +80,44 @@ The
 driver implements the IEEE 802.1D Spanning Tree protocol (STP).
 Spanning Tree is used to detect and remove loops in a network topology.
 .Pp
+All the bridged member interfaces need to up in order to pass network traffic,
+these can be enabled using
+.Xr ifconfig 8 
+or
+.Va ifconfig_ Ns Ao Ar interface Ac Ns Va ="up"
+in
+.Xr rc.conf 5 .
+.Pp
+The MTU of the first member interface to be added is used as the bridge MTU,
+all additional members are required to have exactly the same value.
+.Pp
+The TXCSUM capability is disabled for any interface added to the bridge, this
+is restored when the interface is removed again.
+.Pp
+The bridge supports monitor mode where the packets are discarded after
+.Xr bpf 4
+processing, the bridge will not process or forward the packets further.
+This can be used to multiplex the input of two or more interfaces into a single
+bpf stream.
+This is useful for reconstructing the traffic for network taps
+that transmit the RX/TX signals out through two separate interfaces.
+.Sh PACKET FILTERING
+.Pp
 Packet filtering can be used with any firewall package that hooks in via the
 .Xr pfil 9
 framework.
 When filtering is enabled, bridged packets will pass through the filter
 inbound on the originating interface, on the bridge interface and outbound on
 the appropriate interfaces.
-Either stage can be disabled, this behaviour can be controlled using
+Either stage can be disabled, the filtering behaviour can be controlled using
 .Xr sysctl 8 :
 .Bl -tag -width ".Va net.link.bridge.pfil_onlyip"
 .It Va net.link.bridge.pfil_onlyip
+Controls the handling of non-IP packets which are not passed to
+.Xr pfil 9 .
 Set to
 .Li 1
-to only allow IP packets to pass when packet filtering is enabled (subject to
-firewall rules), set to
+to only allow IP packets to pass (subject to firewall rules), set to
 .Li 0
 to unconditionally pass all non-IP Ethernet frames.
 .It Va net.link.bridge.pfil_member
@@ -143,27 +167,13 @@ the filter for processing.
 Note that packets to and from the bridging host will be seen by the
 filter on the interface with the appropriate address configured as well
 as on the interface on which the packet arrives or departs.
-.Pp
-The MTU of the first member interface to be added is used as the bridge MTU,
-all additional members are required to have exactly the same value.
-.Pp
-The TXCSUM capability is disabled for any interface added to the bridge, this
-is restored when the interface is removed again.
-.Pp
-The bridge supports monitor mode where the packets are discarded after
-.Xr bpf 4
-processing, the bridge will not process or forward the packets further.
-This can be used to multiplex the input of two or more interfaces into a single
-bpf stream.
-This is useful for reconstructing the traffic for network taps
-that transmit the RX/TX signals out through two separate interfaces.
 .Sh EXAMPLES
 The following when placed in the file
 .Pa /etc/rc.conf
 will cause a bridge called
 .Dq Li bridge0
 to be created, and will add the interfaces
-.Dq Li wi0
+.Dq Li ath0
 and
 .Dq Li fxp0
 to the bridge, and then enable packet forwarding.
@@ -172,7 +182,15 @@ Such a configuration could be used to implement a simple
 in ad-hoc mode).
 .Bd -literal -offset indent
 cloned_interfaces="bridge0"
-ifconfig_bridge0="addm wi0 addm fxp0 up"
+ifconfig_bridge0="addm ath0 addm fxp0 up"
+.Ed
+.Pp
+For the bridge to forward packets all member interfaces and the bridge need
+to be up.
+The above example would also require:
+.Bd -literal -offset indent
+ifconfig_ath0="up ssid my_ap mode 11g mediaopt hostap"
+ifconfig_fxp0="up"
 .Ed
 .Pp
 Consider a system with two 4-port Ethernet boards.
