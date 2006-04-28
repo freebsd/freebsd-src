@@ -61,6 +61,9 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "pw_scan.h"
 #include "nss_tls.h"
+#ifdef NS_CACHING
+#include "nscache.h"
+#endif
 
 #ifndef CTASSERT
 #define CTASSERT(x)		_CTASSERT(x, __LINE__)
@@ -195,9 +198,233 @@ static	int	 compat_use_template(struct passwd *, struct passwd *, char *,
 static	int	 compat_redispatch(struct compat_state *, enum nss_lookup_type,
 		    enum nss_lookup_type, const char *, const char *, uid_t,
 		    struct passwd *, char *, size_t, int *);
+
+#ifdef NS_CACHING
+static	int	 pwd_id_func(char *, size_t *, va_list ap, void *);
+static	int	 pwd_marshal_func(char *, size_t *, void *, va_list, void *);
+static	int	 pwd_unmarshal_func(char *, size_t, void *, va_list, void *);
+
+static int
+pwd_id_func(char *buffer, size_t *buffer_size, va_list ap, void *cache_mdata)
+{
+	char	*name;
+	uid_t	uid;
+	size_t	size, desired_size;
+	int	res = NS_UNAVAIL;
+	enum nss_lookup_type lookup_type;
+
+	lookup_type = (enum nss_lookup_type)cache_mdata;
+	switch (lookup_type) {
+	case nss_lt_name:
+		name = va_arg(ap, char *);
+		size = strlen(name);
+		desired_size = sizeof(enum nss_lookup_type) + size + 1;
+		if (desired_size > *buffer_size) {
+			res = NS_RETURN;
+			goto fin;
+		}
+
+		memcpy(buffer, &lookup_type, sizeof(enum nss_lookup_type));
+		memcpy(buffer + sizeof(enum nss_lookup_type), name, size + 1);
+
+		res = NS_SUCCESS;
+		break;
+	case nss_lt_id:
+		uid = va_arg(ap, uid_t);
+		desired_size = sizeof(enum nss_lookup_type) + sizeof(uid_t);
+		if (desired_size > *buffer_size) {
+			res = NS_RETURN;
+			goto fin;
+		}
+
+		memcpy(buffer, &lookup_type, sizeof(enum nss_lookup_type));
+		memcpy(buffer + sizeof(enum nss_lookup_type), &uid,
+		    sizeof(uid_t));
+
+		res = NS_SUCCESS;
+		break;
+	default:
+		/* should be unreachable */
+		return (NS_UNAVAIL);
+	}
+
+fin:
+	*buffer_size = desired_size;
+	return (res);
+}
+
+static int
+pwd_marshal_func(char *buffer, size_t *buffer_size, void *retval, va_list ap,
+    void *cache_mdata)
+{
+	char *name;
+	uid_t uid;
+	struct passwd *pwd;
+	char *orig_buf;
+	size_t orig_buf_size;
+
+	struct passwd new_pwd;
+	size_t desired_size, size;
+	char *p;
+
+	switch ((enum nss_lookup_type)cache_mdata) {
+	case nss_lt_name:
+		name = va_arg(ap, char *);
+		break;
+	case nss_lt_id:
+		uid = va_arg(ap, uid_t);
+		break;
+	case nss_lt_all:
+		break;
+	default:
+		/* should be unreachable */
+		return (NS_UNAVAIL);
+	}
+
+	pwd = va_arg(ap, struct passwd *);
+	orig_buf = va_arg(ap, char *);
+	orig_buf_size = va_arg(ap, size_t);
+
+	desired_size = sizeof(struct passwd) + sizeof(char *) +
+	    strlen(pwd->pw_name) + 1;
+	if (pwd->pw_passwd != NULL)
+		desired_size += strlen(pwd->pw_passwd) + 1;
+	if (pwd->pw_class != NULL)
+		desired_size += strlen(pwd->pw_class) + 1;
+	if (pwd->pw_gecos != NULL)
+		desired_size += strlen(pwd->pw_gecos) + 1;
+	if (pwd->pw_dir != NULL)
+		desired_size += strlen(pwd->pw_dir) + 1;
+	if (pwd->pw_shell != NULL)
+		desired_size += strlen(pwd->pw_shell) + 1;
+
+	if (*buffer_size < desired_size) {
+		/* this assignment is here for future use */
+		*buffer_size = desired_size;
+		return (NS_RETURN);
+	}
+
+	memcpy(&new_pwd, pwd, sizeof(struct passwd));
+	memset(buffer, 0, desired_size);
+
+	*buffer_size = desired_size;
+	p = buffer + sizeof(struct passwd) + sizeof(char *);
+	memcpy(buffer + sizeof(struct passwd), &p, sizeof(char *));
+
+	if (new_pwd.pw_name != NULL) {
+		size = strlen(new_pwd.pw_name);
+		memcpy(p, new_pwd.pw_name, size);
+		new_pwd.pw_name = p;
+		p += size + 1;
+	}
+
+	if (new_pwd.pw_passwd != NULL) {
+		size = strlen(new_pwd.pw_passwd);
+		memcpy(p, new_pwd.pw_passwd, size);
+		new_pwd.pw_passwd = p;
+		p += size + 1;
+	}
+
+	if (new_pwd.pw_class != NULL) {
+		size = strlen(new_pwd.pw_class);
+		memcpy(p, new_pwd.pw_class, size);
+		new_pwd.pw_class = p;
+		p += size + 1;
+	}
+
+	if (new_pwd.pw_gecos != NULL) {
+		size = strlen(new_pwd.pw_gecos);
+		memcpy(p, new_pwd.pw_gecos, size);
+		new_pwd.pw_gecos = p;
+		p += size + 1;
+	}
+
+	if (new_pwd.pw_dir != NULL) {
+		size = strlen(new_pwd.pw_dir);
+		memcpy(p, new_pwd.pw_dir, size);
+		new_pwd.pw_dir = p;
+		p += size + 1;
+	}
+
+	if (new_pwd.pw_shell != NULL) {
+		size = strlen(new_pwd.pw_shell);
+		memcpy(p, new_pwd.pw_shell, size);
+		new_pwd.pw_shell = p;
+		p += size + 1;
+	}
+
+	memcpy(buffer, &new_pwd, sizeof(struct passwd));
+	return (NS_SUCCESS);
+}
+
+static int
+pwd_unmarshal_func(char *buffer, size_t buffer_size, void *retval, va_list ap,
+    void *cache_mdata)
+{
+	char *name;
+	uid_t uid;
+	struct passwd *pwd;
+	char *orig_buf;
+	size_t orig_buf_size;
+	int *ret_errno;
+
+	char *p;
+
+	switch ((enum nss_lookup_type)cache_mdata) {
+	case nss_lt_name:
+		name = va_arg(ap, char *);
+		break;
+	case nss_lt_id:
+		uid = va_arg(ap, uid_t);
+		break;
+	case nss_lt_all:
+		break;
+	default:
+		/* should be unreachable */
+		return (NS_UNAVAIL);
+	}
+
+	pwd = va_arg(ap, struct passwd *);
+	orig_buf = va_arg(ap, char *);
+	orig_buf_size = va_arg(ap, size_t);
+	ret_errno = va_arg(ap, int *);
+
+	if (orig_buf_size <
+	    buffer_size - sizeof(struct passwd) - sizeof(char *)) {
+		*ret_errno = ERANGE;
+		return (NS_RETURN);
+	}
+
+	memcpy(pwd, buffer, sizeof(struct passwd));
+	memcpy(&p, buffer + sizeof(struct passwd), sizeof(char *));
+	memcpy(orig_buf, buffer + sizeof(struct passwd) + sizeof(char *),
+	    buffer_size - sizeof(struct passwd) - sizeof(char *));
+
+	NS_APPLY_OFFSET(pwd->pw_name, orig_buf, p, char *);
+	NS_APPLY_OFFSET(pwd->pw_passwd, orig_buf, p, char *);
+	NS_APPLY_OFFSET(pwd->pw_class, orig_buf, p, char *);
+	NS_APPLY_OFFSET(pwd->pw_gecos, orig_buf, p, char *);
+	NS_APPLY_OFFSET(pwd->pw_dir, orig_buf, p, char *);
+	NS_APPLY_OFFSET(pwd->pw_shell, orig_buf, p, char *);
+
+	if (retval != NULL)
+		*((struct passwd **)retval) = pwd;
+
+	return (NS_SUCCESS);
+}
+
+NSS_MP_CACHE_HANDLING(passwd);
+#endif /* NS_CACHING */
+
 void
 setpwent(void)
 {
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info = NS_MP_CACHE_INFO_INITIALIZER(
+		passwd, (void *)nss_lt_all,
+		NULL, NULL);
+#endif
+
 	static const ns_dtab dtab[] = {
 		{ NSSRC_FILES, files_setpwent, (void *)SETPWENT },
 #ifdef HESIOD
@@ -207,6 +434,9 @@ setpwent(void)
 		{ NSSRC_NIS, nis_setpwent, (void *)SETPWENT },
 #endif
 		{ NSSRC_COMPAT, compat_setpwent, (void *)SETPWENT },
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
 		{ NULL, NULL, NULL }
 	};
 	(void)_nsdispatch(NULL, dtab, NSDB_PASSWD, "setpwent", defaultsrc, 0);
@@ -216,6 +446,12 @@ setpwent(void)
 int
 setpassent(int stayopen)
 {
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info = NS_MP_CACHE_INFO_INITIALIZER(
+		passwd, (void *)nss_lt_all,
+		NULL, NULL);
+#endif
+
 	static const ns_dtab dtab[] = {
 		{ NSSRC_FILES, files_setpwent, (void *)SETPWENT },
 #ifdef HESIOD
@@ -225,6 +461,9 @@ setpassent(int stayopen)
 		{ NSSRC_NIS, nis_setpwent, (void *)SETPWENT },
 #endif
 		{ NSSRC_COMPAT, compat_setpwent, (void *)SETPWENT },
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
 		{ NULL, NULL, NULL }
 	};
 	(void)_nsdispatch(NULL, dtab, NSDB_PASSWD, "setpwent", defaultsrc,
@@ -236,6 +475,12 @@ setpassent(int stayopen)
 void
 endpwent(void)
 {
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info = NS_MP_CACHE_INFO_INITIALIZER(
+		passwd, (void *)nss_lt_all,
+		NULL, NULL);
+#endif
+
 	static const ns_dtab dtab[] = {
 		{ NSSRC_FILES, files_setpwent, (void *)ENDPWENT },
 #ifdef HESIOD
@@ -245,6 +490,9 @@ endpwent(void)
 		{ NSSRC_NIS, nis_setpwent, (void *)ENDPWENT },
 #endif
 		{ NSSRC_COMPAT, compat_setpwent, (void *)ENDPWENT },
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
 		{ NULL, NULL, NULL }
 	};
 	(void)_nsdispatch(NULL, dtab, NSDB_PASSWD, "endpwent", defaultsrc);
@@ -255,6 +503,12 @@ int
 getpwent_r(struct passwd *pwd, char *buffer, size_t bufsize,
     struct passwd **result)
 {
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info = NS_MP_CACHE_INFO_INITIALIZER(
+		passwd, (void *)nss_lt_all,
+		pwd_marshal_func, pwd_unmarshal_func);
+#endif
+
 	static const ns_dtab dtab[] = {
 		{ NSSRC_FILES, files_passwd, (void *)nss_lt_all },
 #ifdef HESIOD
@@ -264,6 +518,9 @@ getpwent_r(struct passwd *pwd, char *buffer, size_t bufsize,
 		{ NSSRC_NIS, nis_passwd, (void *)nss_lt_all },
 #endif
 		{ NSSRC_COMPAT, compat_passwd, (void *)nss_lt_all },
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
 		{ NULL, NULL, NULL }
 	};
 	int	rv, ret_errno;
@@ -284,6 +541,13 @@ int
 getpwnam_r(const char *name, struct passwd *pwd, char *buffer, size_t bufsize,
     struct passwd **result)
 {
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info =
+    		NS_COMMON_CACHE_INFO_INITIALIZER(
+		passwd, (void *)nss_lt_name,
+		pwd_id_func, pwd_marshal_func, pwd_unmarshal_func);
+#endif
+
 	static const ns_dtab dtab[] = {
 		{ NSSRC_FILES, files_passwd, (void *)nss_lt_name },
 #ifdef HESIOD
@@ -293,6 +557,9 @@ getpwnam_r(const char *name, struct passwd *pwd, char *buffer, size_t bufsize,
 		{ NSSRC_NIS, nis_passwd, (void *)nss_lt_name },
 #endif
 		{ NSSRC_COMPAT, compat_passwd, (void *)nss_lt_name },
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
 		{ NULL, NULL, NULL }
 	};
 	int	rv, ret_errno;
@@ -313,6 +580,13 @@ int
 getpwuid_r(uid_t uid, struct passwd *pwd, char *buffer, size_t bufsize,
     struct passwd **result)
 {
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info =
+    		NS_COMMON_CACHE_INFO_INITIALIZER(
+		passwd, (void *)nss_lt_id,
+		pwd_id_func, pwd_marshal_func, pwd_unmarshal_func);
+#endif
+
 	static const ns_dtab dtab[] = {
 		{ NSSRC_FILES, files_passwd, (void *)nss_lt_id },
 #ifdef HESIOD
@@ -322,6 +596,9 @@ getpwuid_r(uid_t uid, struct passwd *pwd, char *buffer, size_t bufsize,
 		{ NSSRC_NIS, nis_passwd, (void *)nss_lt_id },
 #endif
 		{ NSSRC_COMPAT, compat_passwd, (void *)nss_lt_id },
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
 		{ NULL, NULL, NULL }
 	};
 	int	rv, ret_errno;

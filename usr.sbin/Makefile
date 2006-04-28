@@ -27,6 +27,7 @@ SUBDIR=	ac \
 	bsnmpd \
 	${_btxld} \
 	burncd \
+	${_cached} \
 	cdcontrol \
 	chkgrp \
 	chown \
@@ -223,6 +224,10 @@ _rndc-confgen=		rndc-confgen
 
 .if ${MK_BLUETOOTH} != "no"
 _bluetooth=	bluetooth
+.endif
+
+.if ${MK_NS_CACHING} != "no"
+_cached=       cached
 .endif
 
 .if ${MK_OPENSSL} != "no"

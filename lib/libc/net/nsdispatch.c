@@ -86,6 +86,9 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <unistd.h>
 #include "un-namespace.h"
+#ifdef NS_CACHING
+#include "nscache.h"
+#endif
 
 enum _nss_constants {
 	/* Number of elements allocated when we grow a vector */
@@ -123,6 +126,14 @@ static	ns_mod			*_nsmod;
 /* Placeholder for builtin modules' dlopen `handle'. */
 static	int			 __nss_builtin_handle;
 static	void			*nss_builtin_handle = &__nss_builtin_handle;
+
+#ifdef NS_CACHING
+/*
+ * Cache lookup cycle prevention function - if !NULL then no cache lookups
+ * will be made
+ */
+static	void			*nss_cache_cycle_prevention_func = NULL;
+#endif
 
 /*
  * Attempt to spew relatively uniform messages to syslog.
@@ -231,8 +242,6 @@ vector_free(void *vec, unsigned int *count, size_t esize,
 	*count = 0;
 }
 
-
-
 /*
  * Comparison functions for vector_search.
  */
@@ -255,8 +264,6 @@ mtab_compare(const void *a, const void *b)
 	      return (strcmp(((const ns_mtab *)a)->database,
 		  ((const ns_mtab *)b)->database));
 }
-
-
 
 /*
  * NSS nsmap management.
@@ -318,6 +325,9 @@ nss_configure(void)
 	struct stat	 statbuf;
 	int		 result, isthreaded;
 	const char	*path;
+#ifdef NS_CACHING
+	void		*handle;
+#endif
 
 	result = 0;
 	isthreaded = __isthreaded;
@@ -356,6 +366,15 @@ nss_configure(void)
 	if (confmod == 0)
 		(void)atexit(nss_atexit);
 	confmod = statbuf.st_mtime;
+
+#ifdef NS_CACHING
+	handle = dlopen(NULL, RTLD_LAZY | RTLD_GLOBAL);
+	if (handle != NULL) {
+		nss_cache_cycle_prevention_func = dlsym(handle,
+			"_nss_cache_cycle_prevention_function");
+		dlclose(handle);
+	}
+#endif
 fin:
 	if (isthreaded) {
 	    (void)_pthread_rwlock_unlock(&nss_lock);
@@ -583,6 +602,12 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 	void		*mdata;
 	int		 isthreaded, serrno, i, result, srclistsize;
 
+#ifdef NS_CACHING
+	nss_cache_data	 cache_data;
+	nss_cache_data	*cache_data_p;
+	int		 cache_flag;
+#endif
+
 	isthreaded = __isthreaded;
 	serrno = errno;
 	if (isthreaded) {
@@ -608,18 +633,80 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 		while (srclist[srclistsize].name != NULL)
 			srclistsize++;
 	}
+
+#ifdef NS_CACHING
+	cache_data_p = NULL;
+	cache_flag = 0;
+#endif
 	for (i = 0; i < srclistsize; i++) {
 		result = NS_NOTFOUND;
 		method = nss_method_lookup(srclist[i].name, database,
 		    method_name, disp_tab, &mdata);
+
 		if (method != NULL) {
+#ifdef NS_CACHING
+			if (strcmp(srclist[i].name, NSSRC_CACHE) == 0 &&
+			    nss_cache_cycle_prevention_func == NULL) {
+#ifdef NS_STRICT_LIBC_EID_CHECKING
+				if (issetugid() != 0)
+					continue;
+#endif
+				cache_flag = 1;
+
+				memset(&cache_data, 0, sizeof(nss_cache_data));
+				cache_data.info = (nss_cache_info const *)mdata;
+				cache_data_p = &cache_data;
+
+				va_start(ap, defaults);
+				if (cache_data.info->id_func != NULL)
+					result = __nss_common_cache_read(retval,
+					    cache_data_p, ap);
+				else if (cache_data.info->marshal_func != NULL)
+					result = __nss_mp_cache_read(retval,
+					    cache_data_p, ap);
+				else
+					result = __nss_mp_cache_end(retval,
+					    cache_data_p, ap);
+				va_end(ap);
+			} else {
+				cache_flag = 0;
+				va_start(ap, defaults);
+				result = method(retval, mdata, ap);
+				va_end(ap);
+			}
+#else /* NS_CACHING */
 			va_start(ap, defaults);
 			result = method(retval, mdata, ap);
 			va_end(ap);
+#endif /* NS_CACHING */
+
 			if (result & (srclist[i].flags))
 				break;
 		}
 	}
+
+#ifdef NS_CACHING
+	if (cache_data_p != NULL &&
+	    (result & (NS_NOTFOUND | NS_SUCCESS)) && cache_flag == 0) {
+		va_start(ap, defaults);
+		if (result == NS_SUCCESS) {
+			if (cache_data.info->id_func != NULL)
+				__nss_common_cache_write(retval, cache_data_p,
+				    ap);
+			else if (cache_data.info->marshal_func != NULL)
+				__nss_mp_cache_write(retval, cache_data_p, ap);
+		} else if (result == NS_NOTFOUND) {
+			if (cache_data.info->id_func == NULL) {
+				if (cache_data.info->marshal_func != NULL)
+					__nss_mp_cache_write_submit(retval,
+					    cache_data_p, ap);
+			} else
+				__nss_common_cache_write_negative(cache_data_p);
+		}
+		va_end(ap);
+	}
+#endif /* NS_CACHING */
+
 	if (isthreaded)
 		(void)_pthread_rwlock_unlock(&nss_lock);
 fin:
