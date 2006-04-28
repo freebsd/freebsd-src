@@ -829,6 +829,9 @@ pty_clone(void *arg, struct ucred *cred, char *name, int namelen,
 	struct pt_desc *pt;
 	struct cdev *devc;
 
+	if (!use_pts)
+		return;
+
 	if (*dev != NULL)
 		return;
 
