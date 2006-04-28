@@ -358,15 +358,15 @@ lookup(ndp)
 	int dpunlocked = 0;		/* dp has already been unlocked */
 	struct componentname *cnp = &ndp->ni_cnd;
 	struct thread *td = cnp->cn_thread;
-	int vfslocked;
+	int vfslocked;			/* VFS Giant state for child */
+	int dvfslocked;			/* VFS Giant state for parent */
 	int tvfslocked;
-	int dvfslocked;
 
 	/*
 	 * Setup: break out flag bits into variables.
 	 */
-	vfslocked = (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
-	dvfslocked = 0;
+	dvfslocked = (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
+	vfslocked = 0;
 	ndp->ni_cnd.cn_flags &= ~GIANTHELD;
 	wantparent = cnp->cn_flags & (LOCKPARENT | WANTPARENT);
 	KASSERT(cnp->cn_nameiop == LOOKUP || wantparent,
@@ -520,8 +520,8 @@ dirloop:
 			}
 			tdp = dp;
 			dp = dp->v_mount->mnt_vnodecovered;
-			tvfslocked = vfslocked;
-			vfslocked = VFS_LOCK_GIANT(dp->v_mount);
+			tvfslocked = dvfslocked;
+			dvfslocked = VFS_LOCK_GIANT(dp->v_mount);
 			VREF(dp);
 			vput(tdp);
 			VFS_UNLOCK_GIANT(tvfslocked);
@@ -543,6 +543,7 @@ unionlookup:
 	ndp->ni_dvp = dp;
 	ndp->ni_vp = NULL;
 	ASSERT_VOP_LOCKED(dp, "lookup");
+	VNASSERT(vfslocked == 0, dp, ("lookup: vfslocked %d", vfslocked));
 	/*
 	 * If we have a shared lock we may need to upgrade the lock for the
 	 * last operation.
@@ -570,8 +571,8 @@ unionlookup:
 		    (dp->v_mount->mnt_flag & MNT_UNION)) {
 			tdp = dp;
 			dp = dp->v_mount->mnt_vnodecovered;
-			tvfslocked = vfslocked;
-			vfslocked = VFS_LOCK_GIANT(dp->v_mount);
+			tvfslocked = dvfslocked;
+			dvfslocked = VFS_LOCK_GIANT(dp->v_mount);
 			VREF(dp);
 			vput(tdp);
 			VFS_UNLOCK_GIANT(tvfslocked);
@@ -628,6 +629,7 @@ unionlookup:
 	}
 
 	dp = ndp->ni_vp;
+	vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 
 	/*
 	 * Check to see if the vnode has been mounted on;
@@ -635,14 +637,13 @@ unionlookup:
 	 */
 	while (dp->v_type == VDIR && (mp = dp->v_mountedhere) &&
 	       (cnp->cn_flags & NOCROSSMOUNT) == 0) {
-		KASSERT(dp != ndp->ni_dvp, ("XXX"));
 		if (vfs_busy(mp, 0, 0, td))
 			continue;
 		vput(dp);
-		VFS_UNLOCK_GIANT(dvfslocked);
-		dvfslocked = vfslocked;
+		VFS_UNLOCK_GIANT(vfslocked);
 		vfslocked = VFS_LOCK_GIANT(mp);
-		VOP_UNLOCK(ndp->ni_dvp, 0, td);
+		if (dp != ndp->ni_dvp)
+			VOP_UNLOCK(ndp->ni_dvp, 0, td);
 		error = VFS_ROOT(mp, cnp->cn_lkflags, &tdp, td);
 		vfs_unbusy(mp, td);
 		vn_lock(ndp->ni_dvp, cnp->cn_lkflags | LK_RETRY, td);
@@ -704,7 +705,8 @@ nextname:
 		else
 			vrele(ndp->ni_dvp);
 		VFS_UNLOCK_GIANT(dvfslocked);
-		dvfslocked = 0;
+		dvfslocked = vfslocked;	/* dp becomes dvp in dirloop */
+		vfslocked = 0;
 		goto dirloop;
 	}
 	/*
