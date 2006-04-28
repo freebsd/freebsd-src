@@ -602,12 +602,10 @@ g_raid3_destroy_device(struct g_raid3_softc *sc)
 		}
 	}
 	callout_drain(&sc->sc_callout);
-	gp->softc = NULL;
 	cp = LIST_FIRST(&sc->sc_sync.ds_geom->consumer);
 	g_topology_lock();
 	if (cp != NULL)
 		g_raid3_disconnect_consumer(sc, cp);
-	sc->sc_sync.ds_geom->softc = NULL;
 	g_wither_geom(sc->sc_sync.ds_geom, ENXIO);
 	G_RAID3_DEBUG(0, "Device %s destroyed.", gp->name);
 	g_wither_geom(gp, ENXIO);
@@ -1876,6 +1874,8 @@ g_raid3_can_destroy(struct g_raid3_softc *sc)
 
 	g_topology_assert();
 	gp = sc->sc_geom;
+	if (gp->softc == NULL)
+		return (1);
 	LIST_FOREACH(cp, &gp->consumer, consumer) {
 		if (g_raid3_is_busy(sc, cp))
 			return (0);
@@ -1909,6 +1909,8 @@ g_raid3_try_destroy(struct g_raid3_softc *sc)
 		g_topology_unlock();
 		return (0);
 	}
+	sc->sc_geom->softc = NULL;
+	sc->sc_sync.ds_geom->softc = NULL;
 	if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_WAIT) != 0) {
 		g_topology_unlock();
 		G_RAID3_DEBUG(4, "%s: Waking up %p.", __func__,
@@ -3111,6 +3113,15 @@ g_raid3_destroy(struct g_raid3_softc *sc, int how)
 			break;
 		}
 	}
+
+	g_topology_lock();
+	if (sc->sc_geom->softc == NULL) {
+		g_topology_unlock();
+		return (0);
+	}
+	sc->sc_geom->softc = NULL;
+	sc->sc_sync.ds_geom->softc = NULL;
+	g_topology_unlock();
 
 	sc->sc_flags |= G_RAID3_DEVICE_FLAG_DESTROY;
 	sc->sc_flags |= G_RAID3_DEVICE_FLAG_WAIT;
