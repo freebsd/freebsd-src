@@ -80,25 +80,28 @@ The
 driver implements the IEEE 802.1D Spanning Tree protocol (STP).
 Spanning Tree is used to detect and remove loops in a network topology.
 .Pp
-All the bridged member interfaces need to up in order to pass network traffic,
-these can be enabled using
+All the bridged member interfaces need to be up in order to pass network traffic.
+These can be enabled using
 .Xr ifconfig 8 
 or
 .Va ifconfig_ Ns Ao Ar interface Ac Ns Va ="up"
 in
 .Xr rc.conf 5 .
 .Pp
-The MTU of the first member interface to be added is used as the bridge MTU,
-all additional members are required to have exactly the same value.
+The MTU of the first member interface to be added is used as the bridge MTU.
+All additional members are required to have exactly the same value.
 .Pp
-The TXCSUM capability is disabled for any interface added to the bridge, this
+The TXCSUM capability is disabled for any interface added to the bridge, and it
 is restored when the interface is removed again.
 .Pp
-The bridge supports monitor mode where the packets are discarded after
+The bridge supports
+.Dq monitor mode ,
+where the packets are discarded after
 .Xr bpf 4
-processing, the bridge will not process or forward the packets further.
+processing, and are not processed or forwarded further.
 This can be used to multiplex the input of two or more interfaces into a single
-bpf stream.
+.Xr bpf 4
+stream.
 This is useful for reconstructing the traffic for network taps
 that transmit the RX/TX signals out through two separate interfaces.
 .Sh PACKET FILTERING
@@ -109,7 +112,8 @@ framework.
 When filtering is enabled, bridged packets will pass through the filter
 inbound on the originating interface, on the bridge interface and outbound on
 the appropriate interfaces.
-Either stage can be disabled, the filtering behaviour can be controlled using
+Either stage can be disabled.
+The filtering behaviour can be controlled using
 .Xr sysctl 8 :
 .Bl -tag -width ".Va net.link.bridge.pfil_onlyip"
 .It Va net.link.bridge.pfil_onlyip
