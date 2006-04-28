@@ -203,7 +203,7 @@ bfe_dma_alloc(device_t dev)
 	 */
 	error = bus_dma_tag_create(NULL,  /* parent */
 			PAGE_SIZE, 0,             /* alignment, boundary */
-			0x40000000,               /* lowaddr */
+			0x3FFFFFFF,               /* lowaddr */
 			BUS_SPACE_MAXADDR,        /* highaddr */
 			NULL, NULL,               /* filter, filterarg */
 			MAXBSIZE,                 /* maxsize */
