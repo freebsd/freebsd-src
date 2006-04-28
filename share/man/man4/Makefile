@@ -261,6 +261,7 @@ MAN=	aac.4 \
 	rndtest.4 \
 	route.4 \
 	rp.4 \
+	${_rr232x.4} \
 	rr232x.4 \
 	rue.4 \
 	sa.4 \
@@ -503,6 +504,7 @@ _if_nve.4=	if_nve.4
 _ipmi.4=	ipmi.4
 _nfsmb.4=	nfsmb.4
 _nve.4=		nve.4
+_rr232x.4=	rr232x.4
 _spkr.4=	spkr.4
 _speaker.4=	speaker.4
 .endif
