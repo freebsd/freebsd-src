@@ -302,7 +302,7 @@ bfe_dma_alloc(device_t dev)
 	if(error)
 		return (ENOMEM);
 
-	bus_dmamap_sync(sc->bfe_rx_tag, sc->bfe_rx_map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->bfe_rx_tag, sc->bfe_rx_map, BUS_DMASYNC_PREWRITE);
 
 	error = bus_dmamem_alloc(sc->bfe_tx_tag, (void *)&sc->bfe_tx_list,
 			BUS_DMA_NOWAIT, &sc->bfe_tx_map);
@@ -317,7 +317,7 @@ bfe_dma_alloc(device_t dev)
 		return (ENOMEM);
 
 	bzero(sc->bfe_tx_list, BFE_TX_LIST_SIZE);
-	bus_dmamap_sync(sc->bfe_tx_tag, sc->bfe_tx_map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->bfe_tx_tag, sc->bfe_tx_map, BUS_DMASYNC_PREWRITE);
 
 	return (0);
 }
@@ -527,7 +527,7 @@ bfe_tx_ring_free(struct bfe_softc *sc)
 		}
 	}
 	bzero(sc->bfe_tx_list, BFE_TX_LIST_SIZE);
-	bus_dmamap_sync(sc->bfe_tx_tag, sc->bfe_tx_map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->bfe_tx_tag, sc->bfe_tx_map, BUS_DMASYNC_PREWRITE);
 }
 
 static void
@@ -544,7 +544,7 @@ bfe_rx_ring_free(struct bfe_softc *sc)
 		}
 	}
 	bzero(sc->bfe_rx_list, BFE_RX_LIST_SIZE);
-	bus_dmamap_sync(sc->bfe_rx_tag, sc->bfe_rx_map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->bfe_rx_tag, sc->bfe_rx_map, BUS_DMASYNC_PREWRITE);
 }
 
 static int
@@ -557,7 +557,7 @@ bfe_list_rx_init(struct bfe_softc *sc)
 			return (ENOBUFS);
 	}
 
-	bus_dmamap_sync(sc->bfe_rx_tag, sc->bfe_rx_map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->bfe_rx_tag, sc->bfe_rx_map, BUS_DMASYNC_PREWRITE);
 	CSR_WRITE_4(sc, BFE_DMARX_PTR, (i * sizeof(struct bfe_desc)));
 
 	sc->bfe_rx_cons = 0;
@@ -595,7 +595,7 @@ bfe_list_newbuf(struct bfe_softc *sc, int c, struct mbuf *m)
 	r = &sc->bfe_rx_ring[c];
 	bus_dmamap_load(sc->bfe_tag, r->bfe_map, mtod(m, void *),
 			MCLBYTES, bfe_dma_map_desc, d, 0);
-	bus_dmamap_sync(sc->bfe_tag, r->bfe_map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->bfe_tag, r->bfe_map, BUS_DMASYNC_PREWRITE);
 
 	ctrl = ETHER_MAX_LEN + 32;
 
@@ -604,7 +604,7 @@ bfe_list_newbuf(struct bfe_softc *sc, int c, struct mbuf *m)
 
 	d->bfe_ctrl = ctrl;
 	r->bfe_mbuf = m;
-	bus_dmamap_sync(sc->bfe_rx_tag, sc->bfe_rx_map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->bfe_rx_tag, sc->bfe_rx_map, BUS_DMASYNC_PREWRITE);
 	return (0);
 }
 
@@ -1139,7 +1139,7 @@ bfe_rxeof(struct bfe_softc *sc)
 		r = &sc->bfe_rx_ring[cons];
 		m = r->bfe_mbuf;
 		rxheader = mtod(m, struct bfe_rxheader*);
-		bus_dmamap_sync(sc->bfe_tag, r->bfe_map, BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_sync(sc->bfe_tag, r->bfe_map, BUS_DMASYNC_POSTREAD);
 		len = rxheader->len;
 		r->bfe_mbuf = NULL;
 
@@ -1301,7 +1301,7 @@ bfe_encap(struct bfe_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 			    r->bfe_map, mtod(m, void*), m->m_len,
 			    bfe_dma_map_desc, d, 0);
 			bus_dmamap_sync(sc->bfe_tag, r->bfe_map,
-			    BUS_DMASYNC_PREREAD);
+			    BUS_DMASYNC_PREWRITE);
 
 			frag = cur;
 			BFE_INC(cur, BFE_TX_LIST_CNT);
@@ -1314,7 +1314,7 @@ bfe_encap(struct bfe_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 
 	sc->bfe_tx_list[frag].bfe_ctrl |= BFE_DESC_EOF;
 	sc->bfe_tx_ring[frag].bfe_mbuf = m_head;
-	bus_dmamap_sync(sc->bfe_tx_tag, sc->bfe_tx_map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->bfe_tx_tag, sc->bfe_tx_map, BUS_DMASYNC_PREWRITE);
 
 	*txidx = cur;
 	sc->bfe_tx_cnt += cnt;
