@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <limits.h>
 #include <netdb.h>
+#include <nsswitch.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,6 +51,15 @@ __FBSDID("$FreeBSD$");
 #include "reentrant.h"
 #include "un-namespace.h"
 #include "netdb_private.h"
+#ifdef NS_CACHING
+#include "nscache.h"
+#endif
+#include "nss_tls.h"
+
+static const ns_src defaultsrc[] = {
+	{ NSSRC_FILES, NS_SUCCESS },
+	{ NULL, 0 }
+};
 
 NETDB_THREAD_ALLOC(protoent_data)
 NETDB_THREAD_ALLOC(protodata)
@@ -77,6 +87,214 @@ protodata_free(void *ptr)
 {
 	free(ptr);
 }
+
+#ifdef NS_CACHING
+int
+__proto_id_func(char *buffer, size_t *buffer_size, va_list ap,
+    void *cache_mdata)
+{
+	char *name;
+	int proto;
+
+	size_t desired_size, size;
+	enum nss_lookup_type lookup_type;
+	int res = NS_UNAVAIL;
+
+	lookup_type = (enum nss_lookup_type)cache_mdata;
+	switch (lookup_type) {
+	case nss_lt_name:
+		name = va_arg(ap, char *);
+
+		size = strlen(name);
+		desired_size = sizeof(enum nss_lookup_type) + size + 1;
+		if (desired_size > *buffer_size) {
+			res = NS_RETURN;
+			goto fin;
+		}
+
+		memcpy(buffer, &lookup_type, sizeof(enum nss_lookup_type));
+		memcpy(buffer + sizeof(enum nss_lookup_type), name, size + 1);
+
+		res = NS_SUCCESS;
+		break;
+	case nss_lt_id:
+		proto = va_arg(ap, int);
+
+		desired_size = sizeof(enum nss_lookup_type) + sizeof(int);
+		if (desired_size > *buffer_size) {
+			res = NS_RETURN;
+			goto fin;
+		}
+
+		memcpy(buffer, &lookup_type, sizeof(enum nss_lookup_type));
+		memcpy(buffer + sizeof(enum nss_lookup_type), &proto,
+			sizeof(int));
+
+		res = NS_SUCCESS;
+		break;
+	default:
+		/* should be unreachable */
+		return (NS_UNAVAIL);
+	}
+
+fin:
+	*buffer_size = desired_size;
+	return (res);
+}
+
+
+int
+__proto_marshal_func(char *buffer, size_t *buffer_size, void *retval,
+    va_list ap, void *cache_mdata)
+{
+	char *name;
+	int num;
+	struct protoent *proto;
+	char *orig_buf;
+	size_t orig_buf_size;
+
+	struct protoent new_proto;
+	size_t desired_size, size, aliases_size;
+	char *p;
+	char **alias;
+
+	switch ((enum nss_lookup_type)cache_mdata) {
+	case nss_lt_name:
+		name = va_arg(ap, char *);
+		break;
+	case nss_lt_id:
+		num = va_arg(ap, int);
+		break;
+	case nss_lt_all:
+		break;
+	default:
+		/* should be unreachable */
+		return (NS_UNAVAIL);
+	}
+
+	proto = va_arg(ap, struct protoent *);
+	orig_buf = va_arg(ap, char *);
+	orig_buf_size = va_arg(ap, size_t);
+
+	desired_size = _ALIGNBYTES + sizeof(struct protoent) + sizeof(char *);
+	if (proto->p_name != NULL)
+		desired_size += strlen(proto->p_name) + 1;
+
+	if (proto->p_aliases != NULL) {
+		aliases_size = 0;
+		for (alias = proto->p_aliases; *alias; ++alias) {
+			desired_size += strlen(*alias) + 1;
+			++aliases_size;
+		}
+
+		desired_size += _ALIGNBYTES + (aliases_size + 1) *
+		    sizeof(char *);
+	}
+
+	if (*buffer_size < desired_size) {
+		/* this assignment is here for future use */
+		*buffer_size = desired_size;
+		return (NS_RETURN);
+	}
+
+	memcpy(&new_proto, proto, sizeof(struct protoent));
+
+	*buffer_size = desired_size;
+	memset(buffer, 0, desired_size);
+	p = buffer + sizeof(struct protoent) + sizeof(char *);
+	memcpy(buffer + sizeof(struct protoent), &p, sizeof(char *));
+	p = (char *)_ALIGN(p);
+
+	if (new_proto.p_name != NULL) {
+		size = strlen(new_proto.p_name);
+		memcpy(p, new_proto.p_name, size);
+		new_proto.p_name = p;
+		p += size + 1;
+	}
+
+	if (new_proto.p_aliases != NULL) {
+		p = (char *)_ALIGN(p);
+		memcpy(p, new_proto.p_aliases, sizeof(char *) * aliases_size);
+		new_proto.p_aliases = (char **)p;
+		p += sizeof(char *) * (aliases_size + 1);
+
+		for (alias = new_proto.p_aliases; *alias; ++alias) {
+			size = strlen(*alias);
+			memcpy(p, *alias, size);
+			*alias = p;
+			p += size + 1;
+		}
+	}
+
+	memcpy(buffer, &new_proto, sizeof(struct protoent));
+	return (NS_SUCCESS);
+}
+
+int
+__proto_unmarshal_func(char *buffer, size_t buffer_size, void *retval,
+    va_list ap, void *cache_mdata)
+{
+	char *name;
+	int num;
+	struct protoent *proto;
+	char *orig_buf;
+	size_t orig_buf_size;
+	int *ret_errno;
+
+	char *p;
+	char **alias;
+
+	switch ((enum nss_lookup_type)cache_mdata) {
+	case nss_lt_name:
+		name = va_arg(ap, char *);
+		break;
+	case nss_lt_id:
+		num = va_arg(ap, int);
+		break;
+	case nss_lt_all:
+		break;
+	default:
+		/* should be unreachable */
+		return (NS_UNAVAIL);
+	}
+
+	proto = va_arg(ap, struct protoent *);
+	orig_buf = va_arg(ap, char *);
+	orig_buf_size = va_arg(ap, size_t);
+	ret_errno = va_arg(ap, int *);
+
+	if (orig_buf_size <
+	    buffer_size - sizeof(struct protoent) - sizeof(char *)) {
+		*ret_errno = ERANGE;
+		return (NS_RETURN);
+	}
+
+	memcpy(proto, buffer, sizeof(struct protoent));
+	memcpy(&p, buffer + sizeof(struct protoent), sizeof(char *));
+
+	orig_buf = (char *)_ALIGN(orig_buf);
+	memcpy(orig_buf, buffer + sizeof(struct protoent) + sizeof(char *) +
+	    _ALIGN(p) - (size_t)p,
+	    buffer_size - sizeof(struct protoent) - sizeof(char *) -
+	    _ALIGN(p) + (size_t)p);
+	p = (char *)_ALIGN(p);
+
+	NS_APPLY_OFFSET(proto->p_name, orig_buf, p, char *);
+	if (proto->p_aliases != NULL) {
+		NS_APPLY_OFFSET(proto->p_aliases, orig_buf, p, char **);
+
+		for (alias = proto->p_aliases; *alias; ++alias)
+			NS_APPLY_OFFSET(*alias, orig_buf, p, char *);
+	}
+
+	if (retval != NULL)
+		*((struct protoent **)retval) = proto;
+
+	return (NS_SUCCESS);
+}
+
+NSS_MP_CACHE_HANDLING(protocols);
+#endif /* NS_CACHING */
 
 int
 __copy_protoent(struct protoent *pe, struct protoent *pptr, char *buf,
@@ -194,42 +412,133 @@ again:
 	return (0);
 }
 
-int
-getprotoent_r(struct protoent *pptr, char *buffer, size_t buflen,
-    struct protoent **result)
+static int
+files_getprotoent_r(void *retval, void *mdata, va_list ap)
 {
 	struct protoent pe;
 	struct protoent_data *ped;
 
+	struct protoent	*pptr;
+	char *buffer;
+	size_t buflen;
+	int *errnop;
+
+	pptr = va_arg(ap, struct protoent *);
+	buffer = va_arg(ap, char *);
+	buflen = va_arg(ap, size_t);
+	errnop = va_arg(ap, int *);
+
 	if ((ped = __protoent_data_init()) == NULL)
 		return (-1);
 
-	if (__getprotoent_p(&pe, ped) != 0)
-		return (-1);
-	if (__copy_protoent(&pe, pptr, buffer, buflen) != 0)
-		return (-1);
-	*result = pptr;
-	return (0);
+	if (__getprotoent_p(&pe, ped) != 0) {
+		*errnop = errno;
+		return (NS_NOTFOUND);
+	}
+
+	if (__copy_protoent(&pe, pptr, buffer, buflen) != 0) {
+		*errnop = errno;
+		return (NS_NOTFOUND);
+	}
+
+	*((struct protoent **)retval) = pptr;
+	return (NS_SUCCESS);
 }
 
-void
-setprotoent(int f)
+static int
+files_setprotoent(void *retval, void *mdata, va_list ap)
+{
+	struct protoent_data *ped;
+	int f;
+
+	f = va_arg(ap, int);
+	if ((ped = __protoent_data_init()) == NULL)
+		return (NS_UNAVAIL);
+
+	__setprotoent_p(f, ped);
+	return (NS_UNAVAIL);
+}
+
+static int
+files_endprotoent(void *retval, void *mdata, va_list ap)
 {
 	struct protoent_data *ped;
 
 	if ((ped = __protoent_data_init()) == NULL)
-		return;
-	__setprotoent_p(f, ped);
+		return (NS_UNAVAIL);
+
+	__endprotoent_p(ped);
+	return (NS_UNAVAIL);
+}
+
+int
+getprotoent_r(struct protoent *pptr, char *buffer, size_t buflen,
+    struct protoent **result)
+{
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info = NS_MP_CACHE_INFO_INITIALIZER(
+		protocols, (void *)nss_lt_all,
+		__proto_marshal_func, __proto_unmarshal_func);
+#endif
+	static const ns_dtab dtab[] = {
+		{ NSSRC_FILES, files_getprotoent_r, (void *)nss_lt_all },
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
+		{ NULL, NULL, NULL }
+	};
+	int rv, ret_errno;
+
+	ret_errno = 0;
+	*result = NULL;
+	rv = nsdispatch(result, dtab, NSDB_PROTOCOLS, "getprotoent_r",
+	    defaultsrc, pptr, buffer, buflen, &ret_errno);
+
+	if (rv == NS_SUCCESS)
+		return (0);
+	else
+		return (ret_errno);
+}
+
+void
+setprotoent(int stayopen)
+{
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info = NS_MP_CACHE_INFO_INITIALIZER(
+		protocols, (void *)nss_lt_all,
+		NULL, NULL);
+#endif
+
+	static const ns_dtab dtab[] = {
+		{ NSSRC_FILES, files_setprotoent, NULL },
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
+		{ NULL, NULL, NULL }
+	};
+
+	(void)nsdispatch(NULL, dtab, NSDB_PROTOCOLS, "setprotoent", defaultsrc,
+		stayopen);
 }
 
 void
 endprotoent(void)
 {
-	struct protoent_data *ped;
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info = NS_MP_CACHE_INFO_INITIALIZER(
+		protocols, (void *)nss_lt_all,
+		NULL, NULL);
+#endif
 
-	if ((ped = __protoent_data_init()) == NULL)
-		return;
-	__endprotoent_p(ped);
+	static const ns_dtab dtab[] = {
+		{ NSSRC_FILES, files_endprotoent, NULL },
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
+		{ NULL, NULL, NULL }
+	};
+
+	(void)nsdispatch(NULL, dtab, NSDB_PROTOCOLS, "endprotoent", defaultsrc);
 }
 
 struct protoent *

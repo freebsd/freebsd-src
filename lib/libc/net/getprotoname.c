@@ -38,20 +38,50 @@ static char sccsid[] = "@(#)getprotoname.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #include <netdb.h>
+#include <nsswitch.h>
 #include <string.h>
 #include "netdb_private.h"
+#ifdef NS_CACHING
+#include "nscache.h"
+#endif
+#include "nss_tls.h"
 
-int
-getprotobyname_r(const char *name, struct protoent *pptr, char *buffer,
-    size_t buflen, struct protoent **result)
+static const ns_src defaultsrc[] = {
+	{ NSSRC_FILES, NS_SUCCESS },
+	{ NULL, 0 }
+};
+
+#ifdef NS_CACHING
+extern int __proto_id_func(char *, size_t *, va_list, void *);
+extern int __proto_marshal_func(char *, size_t *, void *, va_list, void *);
+extern int __proto_unmarshal_func(char *, size_t, void *, va_list, void *);
+#endif
+
+static int
+files_getprotobyname(void *retval, void *mdata, va_list ap)
 {
 	struct protoent pe;
 	struct protoent_data *ped;
 	char **cp;
 	int error;
 
-	if ((ped = __protoent_data_init()) == NULL)
-		return (-1);
+	char *name;
+	struct protoent	*pptr;
+	char *buffer;
+	size_t buflen;
+	int *errnop;
+
+	name = va_arg(ap, char *);
+	pptr = va_arg(ap, struct protoent *);
+	buffer = va_arg(ap, char *);
+	buflen = va_arg(ap, size_t);
+	errnop = va_arg(ap, int *);
+
+
+	if ((ped = __protoent_data_init()) == NULL) {
+		*errnop = -1;
+		return (NS_NOTFOUND);
+	}
 
 	__setprotoent_p(ped->stayopen, ped);
 	while ((error = __getprotoent_p(&pe, ped)) == 0) {
@@ -64,12 +94,48 @@ getprotobyname_r(const char *name, struct protoent *pptr, char *buffer,
 found:
 	if (!ped->stayopen)
 		__endprotoent_p(ped);
-	if (error != 0)
-		return (-1);
-	if (__copy_protoent(&pe, pptr, buffer, buflen) != 0)
-		return (-1);
-	*result = pptr;
-	return (0);
+	if (error != 0) {
+		*errnop = -1;
+		return (NS_NOTFOUND);
+	}
+	if (__copy_protoent(&pe, pptr, buffer, buflen) != 0) {
+		*errnop = -1;
+		return (NS_NOTFOUND);
+	}
+
+	*((struct protoent **)retval) = pptr;
+	return (NS_SUCCESS);
+}
+
+
+int
+getprotobyname_r(const char *name, struct protoent *pptr, char *buffer,
+    size_t buflen, struct protoent **result)
+{
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info =
+		NS_COMMON_CACHE_INFO_INITIALIZER(
+		protocols, (void *)nss_lt_name,
+		__proto_id_func, __proto_marshal_func, __proto_unmarshal_func);
+#endif
+	static const ns_dtab dtab[] = {
+		{ NSSRC_FILES, files_getprotobyname, NULL },
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
+		{ NULL, NULL, NULL }
+	};
+	int	rv, ret_errno;
+
+	ret_errno = 0;
+	*result = NULL;
+	rv = nsdispatch(result, dtab, NSDB_PROTOCOLS, "getprotobyname_r",
+	    defaultsrc, name, pptr, buffer, buflen, &ret_errno);
+
+	if (rv == NS_SUCCESS)
+		return (0);
+	else
+		return (ret_errno);
 }
 
 struct protoent *

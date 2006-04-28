@@ -103,6 +103,9 @@ __FBSDID("$FreeBSD$");
 #include <nsswitch.h>
 #include "un-namespace.h"
 #include "libc_private.h"
+#ifdef NS_CACHING
+#include "nscache.h"
+#endif
 
 #if defined(__KAME__) && defined(INET6)
 # define FAITH
@@ -278,6 +281,11 @@ static int _files_getaddrinfo(void *, void *, va_list);
 #ifdef YP
 static struct addrinfo *_yphostent(char *, const struct addrinfo *);
 static int _yp_getaddrinfo(void *, void *, va_list);
+#endif
+#ifdef NS_CACHING
+static int addrinfo_id_func(char *, size_t *, va_list, void *);
+static int addrinfo_marshal_func(char *, size_t *, void *, va_list, void *);
+static int addrinfo_unmarshal_func(char *, size_t, void *, va_list, void *);
 #endif
 
 static int res_queryN(const char *, struct res_target *, res_state);
@@ -1525,6 +1533,185 @@ ip6_str2scopeid(char *scope, struct sockaddr_in6 *sin6, u_int32_t *scopeid)
 }
 #endif
 
+
+#ifdef NS_CACHING
+static int
+addrinfo_id_func(char *buffer, size_t *buffer_size, va_list ap,
+    void *cache_mdata)
+{
+	res_state statp;
+	u_long res_options;
+
+	const int op_id = 0;	/* identifies the getaddrinfo for the cache */
+	char *hostname;
+	struct addrinfo *hints;
+
+	char *p;
+	int ai_flags, ai_family, ai_socktype, ai_protocol;
+	size_t desired_size, size;
+
+	statp = __res_state();
+	res_options = statp->options & (RES_RECURSE | RES_DEFNAMES |
+	    RES_DNSRCH | RES_NOALIASES | RES_USE_INET6);
+
+	hostname = va_arg(ap, char *);
+	hints = va_arg(ap, struct addrinfo *);
+
+	desired_size = sizeof(res_options) + sizeof(int) + sizeof(int) * 4;
+	if (hostname != NULL) {
+		size = strlen(hostname);
+		desired_size += size + 1;
+	} else
+		size = 0;
+
+	if (desired_size > *buffer_size) {
+		*buffer_size = desired_size;
+		return (NS_RETURN);
+	}
+
+	if (hints == NULL)
+		ai_flags = ai_family = ai_socktype = ai_protocol = 0;
+	else {
+		ai_flags = hints->ai_flags;
+		ai_family = hints->ai_family;
+		ai_socktype = hints->ai_socktype;
+		ai_protocol = hints->ai_protocol;
+	}
+
+	p = buffer;
+	memcpy(p, &res_options, sizeof(res_options));
+	p += sizeof(res_options);
+
+	memcpy(p, &op_id, sizeof(int));
+	p += sizeof(int);
+
+	memcpy(p, &ai_flags, sizeof(int));
+	p += sizeof(int);
+
+	memcpy(p, &ai_family, sizeof(int));
+	p += sizeof(int);
+
+	memcpy(p, &ai_socktype, sizeof(int));
+	p += sizeof(int);
+
+	memcpy(p, &ai_protocol, sizeof(int));
+	p += sizeof(int);
+
+	if (hostname != NULL)
+		memcpy(p, hostname, size);
+
+	*buffer_size = desired_size;
+	return (NS_SUCCESS);
+}
+
+static int
+addrinfo_marshal_func(char *buffer, size_t *buffer_size, void *retval,
+    va_list ap, void *cache_mdata)
+{
+	struct addrinfo	*ai, *cai;
+	char *p;
+	size_t desired_size, size, ai_size;
+
+	ai = *((struct addrinfo **)retval);
+
+	desired_size = sizeof(size_t);
+	ai_size = 0;
+	for (cai = ai; cai != NULL; cai = cai->ai_next) {
+		desired_size += sizeof(struct addrinfo) + cai->ai_addrlen;
+		if (cai->ai_canonname != NULL)
+			desired_size += sizeof(size_t) +
+			    strlen(cai->ai_canonname);
+		++ai_size;
+	}
+
+	if (desired_size > *buffer_size) {
+		/* this assignment is here for future use */
+		errno = ERANGE;
+		*buffer_size = desired_size;
+		return (NS_RETURN);
+	}
+
+	memset(buffer, 0, desired_size);
+	p = buffer;
+
+	memcpy(p, &ai_size, sizeof(size_t));
+	p += sizeof(size_t);
+	for (cai = ai; cai != NULL; cai = cai->ai_next) {
+		memcpy(p, cai, sizeof(struct addrinfo));
+		p += sizeof(struct addrinfo);
+
+		memcpy(p, cai->ai_addr, cai->ai_addrlen);
+		p += cai->ai_addrlen;
+
+		if (cai->ai_canonname != NULL) {
+			size = strlen(cai->ai_canonname);
+			memcpy(p, &size, sizeof(size_t));
+			p += sizeof(size_t);
+
+			memcpy(p, cai->ai_canonname, size);
+			p += size;
+		}
+	}
+
+	return (NS_SUCCESS);
+}
+
+static int
+addrinfo_unmarshal_func(char *buffer, size_t buffer_size, void *retval,
+    va_list ap, void *cache_mdata)
+{
+	struct addrinfo	new_ai, *result, *sentinel, *lasts;
+
+	char *p;
+	size_t ai_size, ai_i, size;
+
+	p = buffer;
+	memcpy(&ai_size, p, sizeof(size_t));
+	p += sizeof(size_t);
+
+	result = NULL;
+	lasts = NULL;
+	for (ai_i = 0; ai_i < ai_size; ++ai_i) {
+		memcpy(&new_ai, p, sizeof(struct addrinfo));
+		p += sizeof(struct addrinfo);
+		size = new_ai.ai_addrlen + sizeof(struct addrinfo) +
+			_ALIGNBYTES;
+
+		sentinel = (struct addrinfo *)malloc(size);
+		memset(sentinel, 0, size);
+
+		memcpy(sentinel, &new_ai, sizeof(struct addrinfo));
+		sentinel->ai_addr = (struct sockaddr *)_ALIGN((char *)sentinel +
+		    sizeof(struct addrinfo));
+
+		memcpy(sentinel->ai_addr, p, new_ai.ai_addrlen);
+		p += new_ai.ai_addrlen;
+
+		if (new_ai.ai_canonname != NULL) {
+			memcpy(&size, p, sizeof(size_t));
+			p += sizeof(size_t);
+
+			sentinel->ai_canonname = (char *)malloc(size + 1);
+			memset(sentinel->ai_canonname, 0, size + 1);
+
+			memcpy(sentinel->ai_canonname, p, size);
+			p += size;
+		}
+
+		if (result == NULL) {
+			result = sentinel;
+			lasts = sentinel;
+		} else {
+			lasts->ai_next = sentinel;
+			lasts = sentinel;
+		}
+	}
+
+	*((struct addrinfo **)retval) = result;
+	return (NS_SUCCESS);
+}
+#endif /* NS_CACHING */
+
 /*
  * FQDN hostname, DNS lookup
  */
@@ -1535,10 +1722,20 @@ explore_fqdn(const struct addrinfo *pai, const char *hostname,
 	struct addrinfo *result;
 	struct addrinfo *cur;
 	int error = 0;
+
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info =
+	NS_COMMON_CACHE_INFO_INITIALIZER(
+		hosts, NULL, addrinfo_id_func, addrinfo_marshal_func,
+		addrinfo_unmarshal_func);
+#endif
 	static const ns_dtab dtab[] = {
 		NS_FILES_CB(_files_getaddrinfo, NULL)
 		{ NSSRC_DNS, _dns_getaddrinfo, NULL },	/* force -DHESIOD */
 		NS_NIS_CB(_yp_getaddrinfo, NULL)
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
 		{ 0 }
 	};
 

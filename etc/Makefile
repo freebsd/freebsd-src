@@ -35,6 +35,10 @@ BSM_ETC_DIR=			${DESTDIR}/etc/security
 BIN1+=	printcap
 .endif
 
+.if ${MK_NS_CACHING} != "no"
+BIN1+= cached.conf
+.endif
+
 .if ${MK_OPENSSH} != "no"
 SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
 	${.CURDIR}/../crypto/openssh/sshd_config \
