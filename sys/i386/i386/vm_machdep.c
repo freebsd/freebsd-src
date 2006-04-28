@@ -590,7 +590,9 @@ cpu_reset()
 static void
 cpu_reset_real()
 {
+#ifndef PC98
 	int b;
+#endif
 
 	disable_intr();
 #ifdef CPU_ELAN
