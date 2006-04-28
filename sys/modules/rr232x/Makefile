@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 RR232X= ${.CURDIR}/../../dev/rr232x
-PATH: ${RR232X}
+.PATH: ${RR232X}
 
 KMOD = rr232x
 SRCS = opt_scsi.h opt_cam.h bus_if.h device_if.h pci_if.h os_bsd.h os_bsd.c osm_bsd.c rr232x_config.c
