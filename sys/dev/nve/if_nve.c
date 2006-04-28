@@ -1277,9 +1277,27 @@ nve_watchdog(struct ifnet *ifp)
 {
 	struct nve_softc *sc = ifp->if_softc;
 
+	NVE_LOCK(sc);
+
+	/*
+	 * The nvidia driver blob defers tx completion notifications.
+	 * Thus, sometimes the watchdog timer will go off when the
+	 * tx engine is fine, but the tx completions are just deferred.
+	 * Try kicking the driver blob to clear out any pending tx
+	 * completions.  If that clears up all the pending tx
+	 * operations, then just return without printing the warning
+	 * message or resetting the adapter.
+	 */
+	sc->hwapi->pfnDisableInterrupts(sc->hwapi->pADCX);
+	sc->hwapi->pfnHandleInterrupt(sc->hwapi->pADCX);
+	sc->hwapi->pfnEnableInterrupts(sc->hwapi->pADCX);
+	if (sc->pending_txs == 0) {
+		NVE_UNLOCK(sc);
+		return;
+	}
+
 	device_printf(sc->dev, "device timeout (%d)\n", sc->pending_txs);
 
-	NVE_LOCK(sc);
 	sc->tx_errors++;
 
 	nve_stop(sc);
