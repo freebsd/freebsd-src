@@ -836,7 +836,7 @@ ffs_mountfs(devvp, mp, td)
 	 * Our bufobj must require giant for snapshots when quotas are
 	 * enabled.
 	 */
-	devvp->v_bufobj.bo_flags |= BO_NEEDSGIANT;
+	devvp->v_bufobj.bo_flag |= BO_NEEDSGIANT;
 #else
 	mp->mnt_kern_flag |= MNTK_MPSAFE;
 #endif
