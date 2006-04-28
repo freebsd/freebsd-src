@@ -46,6 +46,10 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 FILES+=	sshd
 .endif
 
+.if ${MK_NS_CACHING} != "no"
+FILES+= cached
+.endif
+
 FILESDIR=	/etc/rc.d
 FILESMODE=	${BINMODE}
 

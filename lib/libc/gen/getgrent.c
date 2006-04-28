@@ -57,7 +57,9 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "libc_private.h"
 #include "nss_tls.h"
-
+#ifdef NS_CACHING
+#include "nscache.h"
+#endif
 
 enum constants {
 	GRP_STORAGE_INITIAL	= 1 << 10, /* 1 KByte */
@@ -141,11 +143,235 @@ NSS_TLS_HANDLING(compat);
 static	int	 compat_setgrent(void *, void *, va_list);
 static	int	 compat_group(void *, void *, va_list);
 
+#ifdef NS_CACHING
+static	int	 grp_id_func(char *, size_t *, va_list, void *);
+static	int	 grp_marshal_func(char *, size_t *, void *, va_list, void *);
+static	int	 grp_unmarshal_func(char *, size_t, void *, va_list, void *);
+
+static int
+grp_id_func(char *buffer, size_t *buffer_size, va_list ap, void *cache_mdata)
+{
+	char	*name;
+	gid_t	gid;
+
+	size_t	desired_size, size;
+	int	res = NS_UNAVAIL;
+	enum nss_lookup_type lookup_type;
+
+
+	lookup_type = (enum nss_lookup_type)cache_mdata;
+	switch (lookup_type) {
+	case nss_lt_name:
+		name = va_arg(ap, char *);
+		size = strlen(name);
+		desired_size = sizeof(enum nss_lookup_type) + size + 1;
+		if (desired_size > *buffer_size) {
+			res = NS_RETURN;
+			goto fin;
+		}
+
+		memcpy(buffer, &lookup_type, sizeof(enum nss_lookup_type));
+		memcpy(buffer + sizeof(enum nss_lookup_type), name, size + 1);
+
+		res = NS_SUCCESS;
+		break;
+	case nss_lt_id:
+		gid = va_arg(ap, gid_t);
+		desired_size = sizeof(enum nss_lookup_type) + sizeof(gid_t);
+		if (desired_size > *buffer_size) {
+			res = NS_RETURN;
+			goto fin;
+		}
+
+		memcpy(buffer, &lookup_type, sizeof(enum nss_lookup_type));
+		memcpy(buffer + sizeof(enum nss_lookup_type), &gid,
+		    sizeof(gid_t));
+
+		res = NS_SUCCESS;
+		break;
+	default:
+		/* should be unreachable */
+		return (NS_UNAVAIL);
+	}
+
+fin:
+	*buffer_size = desired_size;
+	return (res);
+}
+
+static int
+grp_marshal_func(char *buffer, size_t *buffer_size, void *retval, va_list ap,
+    void *cache_mdata)
+{
+	char *name;
+	gid_t gid;
+	struct group *grp;
+	char *orig_buf;
+	size_t orig_buf_size;
+
+	struct group new_grp;
+	size_t desired_size, size, mem_size;
+	char *p, **mem;
+
+	switch ((enum nss_lookup_type)cache_mdata) {
+	case nss_lt_name:
+		name = va_arg(ap, char *);
+		break;
+	case nss_lt_id:
+		gid = va_arg(ap, gid_t);
+		break;
+	case nss_lt_all:
+		break;
+	default:
+		/* should be unreachable */
+		return (NS_UNAVAIL);
+	}
+
+	grp = va_arg(ap, struct group *);
+	orig_buf = va_arg(ap, char *);
+	orig_buf_size = va_arg(ap, size_t);
+
+	desired_size = _ALIGNBYTES + sizeof(struct group) + sizeof(char *);
+
+	if (grp->gr_name != NULL)
+		desired_size += strlen(grp->gr_name) + 1;
+	if (grp->gr_passwd != NULL)
+		desired_size += strlen(grp->gr_passwd) + 1;
+
+	if (grp->gr_mem != NULL) {
+		mem_size = 0;
+		for (mem = grp->gr_mem; *mem; ++mem) {
+			desired_size += strlen(*mem) + 1;
+			++mem_size;
+		}
+
+		desired_size += _ALIGNBYTES + (mem_size + 1) * sizeof(char *);
+	}
+
+	if (desired_size > *buffer_size) {
+		/* this assignment is here for future use */
+		*buffer_size = desired_size;
+		return (NS_RETURN);
+	}
+
+	memcpy(&new_grp, grp, sizeof(struct group));
+	memset(buffer, 0, desired_size);
+
+	*buffer_size = desired_size;
+	p = buffer + sizeof(struct group) + sizeof(char *);
+	memcpy(buffer + sizeof(struct group), &p, sizeof(char *));
+	p = (char *)_ALIGN(p);
+
+	if (new_grp.gr_name != NULL) {
+		size = strlen(new_grp.gr_name);
+		memcpy(p, new_grp.gr_name, size);
+		new_grp.gr_name = p;
+		p += size + 1;
+	}
+
+	if (new_grp.gr_passwd != NULL) {
+		size = strlen(new_grp.gr_passwd);
+		memcpy(p, new_grp.gr_passwd, size);
+		new_grp.gr_passwd = p;
+		p += size + 1;
+	}
+
+	if (new_grp.gr_mem != NULL) {
+		p = (char *)_ALIGN(p);
+		memcpy(p, new_grp.gr_mem, sizeof(char *) * mem_size);
+		new_grp.gr_mem = (char **)p;
+		p += sizeof(char *) * (mem_size + 1);
+
+		for (mem = new_grp.gr_mem; *mem; ++mem) {
+			size = strlen(*mem);
+			memcpy(p, *mem, size);
+			*mem = p;
+			p += size + 1;
+		}
+	}
+
+	memcpy(buffer, &new_grp, sizeof(struct group));
+	return (NS_SUCCESS);
+}
+
+static int
+grp_unmarshal_func(char *buffer, size_t buffer_size, void *retval, va_list ap,
+    void *cache_mdata)
+{
+	char *name;
+	gid_t gid;
+	struct group *grp;
+	char *orig_buf;
+	size_t orig_buf_size;
+	int *ret_errno;
+
+	char *p;
+	char **mem;
+
+	switch ((enum nss_lookup_type)cache_mdata) {
+	case nss_lt_name:
+		name = va_arg(ap, char *);
+		break;
+	case nss_lt_id:
+		gid = va_arg(ap, gid_t);
+		break;
+	case nss_lt_all:
+		break;
+	default:
+		/* should be unreachable */
+		return (NS_UNAVAIL);
+	}
+
+	grp = va_arg(ap, struct group *);
+	orig_buf = va_arg(ap, char *);
+	orig_buf_size = va_arg(ap, size_t);
+	ret_errno = va_arg(ap, int *);
+
+	if (orig_buf_size <
+	    buffer_size - sizeof(struct group) - sizeof(char *)) {
+		*ret_errno = ERANGE;
+		return (NS_RETURN);
+	}
+
+	memcpy(grp, buffer, sizeof(struct group));
+	memcpy(&p, buffer + sizeof(struct group), sizeof(char *));
+
+	orig_buf = (char *)_ALIGN(orig_buf);
+	memcpy(orig_buf, buffer + sizeof(struct group) + sizeof(char *) +
+	    _ALIGN(p) - (size_t)p,
+	    buffer_size - sizeof(struct group) - sizeof(char *) -
+	    _ALIGN(p) + (size_t)p);
+	p = (char *)_ALIGN(p);
+
+	NS_APPLY_OFFSET(grp->gr_name, orig_buf, p, char *);
+	NS_APPLY_OFFSET(grp->gr_passwd, orig_buf, p, char *);
+	if (grp->gr_mem != NULL) {
+		NS_APPLY_OFFSET(grp->gr_mem, orig_buf, p, char **);
+
+		for (mem = grp->gr_mem; *mem; ++mem)
+			NS_APPLY_OFFSET(*mem, orig_buf, p, char *);
+	}
+
+	if (retval != NULL)
+		*((struct group **)retval) = grp;
+
+	return (NS_SUCCESS);
+}
+
+NSS_MP_CACHE_HANDLING(group);
+#endif /* NS_CACHING */
+
 
 /* XXX IEEE Std 1003.1, 2003 specifies `void setgrent(void)' */
 int				
 setgrent(void)
 {
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info = NS_MP_CACHE_INFO_INITIALIZER(
+		group, (void *)nss_lt_all,
+		NULL, NULL);
+#endif
+
 	static const ns_dtab dtab[] = {
 		{ NSSRC_FILES, files_setgrent, (void *)SETGRENT },
 #ifdef HESIOD
@@ -155,6 +381,9 @@ setgrent(void)
 		{ NSSRC_NIS, nis_setgrent, (void *)SETGRENT },
 #endif
 		{ NSSRC_COMPAT, compat_setgrent, (void *)SETGRENT },
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
 		{ NULL, NULL, NULL }
 	};
 	(void)_nsdispatch(NULL, dtab, NSDB_GROUP, "setgrent", defaultsrc, 0);
@@ -165,6 +394,12 @@ setgrent(void)
 int
 setgroupent(int stayopen)
 {
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info = NS_MP_CACHE_INFO_INITIALIZER(
+		group, (void *)nss_lt_all,
+		NULL, NULL);
+#endif
+
 	static const ns_dtab dtab[] = {
 		{ NSSRC_FILES, files_setgrent, (void *)SETGRENT },
 #ifdef HESIOD
@@ -174,6 +409,9 @@ setgroupent(int stayopen)
 		{ NSSRC_NIS, nis_setgrent, (void *)SETGRENT },
 #endif
 		{ NSSRC_COMPAT, compat_setgrent, (void *)SETGRENT },
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
 		{ NULL, NULL, NULL }
 	};
 	(void)_nsdispatch(NULL, dtab, NSDB_GROUP, "setgrent", defaultsrc,
@@ -185,6 +423,12 @@ setgroupent(int stayopen)
 void
 endgrent(void)
 {
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info = NS_MP_CACHE_INFO_INITIALIZER(
+		group, (void *)nss_lt_all,
+		NULL, NULL);
+#endif
+
 	static const ns_dtab dtab[] = {
 		{ NSSRC_FILES, files_setgrent, (void *)ENDGRENT },
 #ifdef HESIOD
@@ -194,6 +438,9 @@ endgrent(void)
 		{ NSSRC_NIS, nis_setgrent, (void *)ENDGRENT },
 #endif
 		{ NSSRC_COMPAT, compat_setgrent, (void *)ENDGRENT },
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
 		{ NULL, NULL, NULL }
 	};
 	(void)_nsdispatch(NULL, dtab, NSDB_GROUP, "endgrent", defaultsrc);
@@ -204,6 +451,12 @@ int
 getgrent_r(struct group *grp, char *buffer, size_t bufsize,
     struct group **result)
 {
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info = NS_MP_CACHE_INFO_INITIALIZER(
+		group, (void *)nss_lt_all,
+		grp_marshal_func, grp_unmarshal_func);
+#endif
+
 	static const ns_dtab dtab[] = {
 		{ NSSRC_FILES, files_group, (void *)nss_lt_all },
 #ifdef HESIOD
@@ -213,6 +466,9 @@ getgrent_r(struct group *grp, char *buffer, size_t bufsize,
 		{ NSSRC_NIS, nis_group, (void *)nss_lt_all },
 #endif
 		{ NSSRC_COMPAT, compat_group, (void *)nss_lt_all },
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
 		{ NULL, NULL, NULL }
 	};
 	int	rv, ret_errno;
@@ -232,6 +488,13 @@ int
 getgrnam_r(const char *name, struct group *grp, char *buffer, size_t bufsize,
     struct group **result)
 {
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info =
+    		NS_COMMON_CACHE_INFO_INITIALIZER(
+		group, (void *)nss_lt_name,
+		grp_id_func, grp_marshal_func, grp_unmarshal_func);
+#endif
+
 	static const ns_dtab dtab[] = {
 		{ NSSRC_FILES, files_group, (void *)nss_lt_name },
 #ifdef HESIOD
@@ -241,6 +504,9 @@ getgrnam_r(const char *name, struct group *grp, char *buffer, size_t bufsize,
 		{ NSSRC_NIS, nis_group, (void *)nss_lt_name },
 #endif
 		{ NSSRC_COMPAT, compat_group, (void *)nss_lt_name },
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
 		{ NULL, NULL, NULL }
 	};
 	int	rv, ret_errno;
@@ -260,6 +526,13 @@ int
 getgrgid_r(gid_t gid, struct group *grp, char *buffer, size_t bufsize,
     struct group **result)
 {
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info =
+    		NS_COMMON_CACHE_INFO_INITIALIZER(
+		group, (void *)nss_lt_id,
+		grp_id_func, grp_marshal_func, grp_unmarshal_func);
+#endif
+
 	static const ns_dtab dtab[] = {
 		{ NSSRC_FILES, files_group, (void *)nss_lt_id },
 #ifdef HESIOD
@@ -269,6 +542,9 @@ getgrgid_r(gid_t gid, struct group *grp, char *buffer, size_t bufsize,
 		{ NSSRC_NIS, nis_group, (void *)nss_lt_id },
 #endif
 		{ NSSRC_COMPAT, compat_group, (void *)nss_lt_id },
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
 		{ NULL, NULL, NULL }
 	};
 	int	rv, ret_errno;

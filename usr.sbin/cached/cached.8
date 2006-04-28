@@ -1,0 +1,148 @@
+.\" Copyright (c) 2005 Michael Bushkov <bushman@rsu.ru>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+
+.Dd October 20, 2005
+.Dt CACHED 8
+.Os
+.Sh NAME
+.Nm cached
+.Nd caching server daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl nst
+.Op Fl i Ar cachename
+.Op Fl I Ar cachename
+.Sh DESCRIPTION
+.Nm
+- is the system caching daemon.
+It can cache almost all types of data and is basically intended to be used
+with
+.Pa nsswitch
+subsystem.
+The cache is actually per-user. It means that each user can work only with the
+cached data, that were cached by him and can't poison the cache of other users.
+.Nm
+supports 2 types of caching:
+.Bl -tag -width Pair
+.It Sy Type
+.Sy Description
+.It Common caching
+Each cached element is the the key+value pair.
+This type of caching supports policies, which are applied, when maximum
+number of cached elements is exceeded.
+3 policies are available:
+.Pa FIFO
+(first in - first out),
+.Pa LRU
+(least recently used) and
+.Pa LFU
+(least frequently used).
+This type of caching is used with
+.Fn getXXXbyname
+- like functions.
+.It Multipart caching
+Each cached element is the part of the elements sequence.
+This type of caching is intended to be used with
+.Fn getXXXent
+- like functions.
+.El
+.Pp
+.Nm
+is able not only to cache elements, but to perform the actual nsswitch
+lookups by itself. To enable this feature use
+.Pa perform-actual-lookups
+parameter in the
+.Xr cached.conf 5
+.Pp
+.Nm
+recognizes the following runtime options:
+.Bl -tag -width indent
+.It Fl n
+Do not daemonize.
+.Nm
+doesn't fork and doesn't disconnect itself from the terminal.
+.It Fl s
+Single-threaded mode.
+Forces using only one thread for all processing purposes (it overrides
+the
+.Pa threads
+parameter in the
+.Xr cached.conf 5
+file).
+.It Fl t
+Trace mode.
+All trace messages would be written to the stdout.
+This mode is usually used with
+.Fl n
+and
+.Fl s
+flags for debugging purposes.
+.It Fl i Ar cachename
+Invalidates personal cache. When specified,
+.Nm
+acts as the administration tool. It asks the already
+running
+.Nm
+to invalidate the specified part of the cache of the
+calling user. For example, you may want sometimes
+to invalidate your
+.Pa hosts
+cache. You can specify
+.Pa all
+as the
+.Pa cachename
+to invalidate your personal cache as a whole. You
+can't use this option for the cachename, for which
+the
+.Pa perform-actual-lookups
+option is enabled.
+.It Fl I Ar cachename
+Invalidates the cache for every user. When specified,
+.Nm
+acts as the administration tool. It asks the already
+running
+.Nm
+to invalidate the specified part of the cache for
+every user. You can specify
+.Pa all
+as the
+.Pa cachename
+to invalidate the whole cache. Only root can use this
+option.
+.El
+.Sh FILES
+.Xr cached.conf 5
+.Sh SEE ALSO
+.Xr cached.conf 5
+.Xr nsswitch.conf 5
+.Xr nsdispatch 3
+.Sh "AUTHORS"
+Michael Bushkov
+.Aq bushman@rsu.ru
+.Sh "BUGS"
+To report bugs or suggestions please mail me
+.Aq bushman@rsu.ru
