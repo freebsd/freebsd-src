@@ -39,8 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/timepps.h>
 
-#include <dev/pci/pcivar.h>
-#include <dev/puc/pucvar.h>
+#include <dev/puc/puc_bus.h>
+
 #include <dev/sio/siovar.h>
 #include <dev/sio/sioreg.h>
 
@@ -63,30 +63,37 @@ static driver_t sio_puc_driver = {
 };
 
 static int
-sio_puc_attach(dev)
-	device_t	dev;
+sio_puc_attach(device_t dev)
 {
 	uintptr_t rclk;
 
-	if (BUS_READ_IVAR(device_get_parent(dev), dev, PUC_IVAR_FREQ,
+	if (BUS_READ_IVAR(device_get_parent(dev), dev, PUC_IVAR_CLOCK,
 	    &rclk) != 0)
 		rclk = DEFAULT_RCLK;
 	return (sioattach(dev, 0, rclk));
 }
 
 static int
-sio_puc_probe(dev)
-	device_t	dev;
+sio_puc_probe(device_t dev)
 {
-	uintptr_t rclk;
+	device_t parent;
+	uintptr_t rclk, type;
+	int error;
 
-	if (BUS_READ_IVAR(device_get_parent(dev), dev, PUC_IVAR_FREQ,
-	    &rclk) != 0)
+	parent = device_get_parent(dev);
+
+	if (BUS_READ_IVAR(parent, dev, PUC_IVAR_TYPE, &type))
+		return (ENXIO);
+	if (type != PUC_TYPE_SERIAL)
+		return (ENXIO);
+
+	if (BUS_READ_IVAR(parent, dev, PUC_IVAR_CLOCK, &rclk))
 		rclk = DEFAULT_RCLK;
 #ifdef PC98
 	SET_FLAG(dev, SET_IFTYPE(COM_IF_NS16550));
 #endif
-	return (sioprobe(dev, 0, rclk, 1));
+	error = sioprobe(dev, 0, rclk, 1);
+	return ((error > 0) ? error : BUS_PROBE_LOW_PRIORITY);
 }
 
 DRIVER_MODULE(sio, puc, sio_puc_driver, sio_devclass, 0, 0);

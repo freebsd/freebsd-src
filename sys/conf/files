@@ -805,10 +805,9 @@ dev/pst/pst-iop.c		optional pst
 dev/pst/pst-pci.c		optional pst pci
 dev/pst/pst-raid.c		optional pst
 dev/puc/puc.c			optional puc
-dev/puc/puc_ebus.c		optional puc ebus
+dev/puc/puc_cfg.c		optional puc
 dev/puc/puc_pccard.c		optional puc pccard
 dev/puc/puc_pci.c		optional puc pci
-dev/puc/puc_sbus.c		optional puc fhc | puc sbus
 dev/puc/pucdata.c		optional puc pci
 dev/ral/rt2560.c		optional ral
 dev/ral/rt2661.c		optional ral
@@ -845,7 +844,7 @@ dev/si/si_isa.c			optional si isa
 dev/si/si_pci.c			optional si pci
 dev/sio/sio_pccard.c		optional sio pccard
 dev/sio/sio_pci.c		optional sio pci
-dev/sio/sio_puc.c		optional sio puc pci
+dev/sio/sio_puc.c		optional sio puc
 dev/sk/if_sk.c			optional sk pci
 dev/smbus/smb.c			optional smb
 dev/smbus/smbconf.c		optional smbus
@@ -1321,7 +1320,7 @@ kern/md4c.c			optional netsmb
 kern/md5c.c			standard
 kern/sched_4bsd.c		optional sched_4bsd
 kern/sched_ule.c		optional sched_ule
-kern/serdev_if.m		optional scc
+kern/serdev_if.m		optional puc | scc
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
 kern/subr_bus.c			standard

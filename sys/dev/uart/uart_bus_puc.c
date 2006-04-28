@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2006 Marcel Moolenaar.  All rights reserved.
  * Copyright (c) 2002 JF Hay.  All rights reserved.
  * Copyright (c) 2001 M. Warner Losh.  All rights reserved.
  *
@@ -32,12 +33,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
 
-#include <dev/pci/pcivar.h>
-#include <dev/puc/pucvar.h>
+#include <dev/puc/puc_bus.h>
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
@@ -49,6 +50,9 @@ static device_method_t uart_puc_methods[] = {
 	DEVMETHOD(device_probe,		uart_puc_probe),
 	DEVMETHOD(device_attach,	uart_bus_attach),
 	DEVMETHOD(device_detach,	uart_bus_detach),
+	/* Serdev interface */
+	DEVMETHOD(serdev_ihand,		uart_bus_ihand),
+	DEVMETHOD(serdev_ipend,		uart_bus_ipend),
 	{ 0, 0 }
 };
 
@@ -63,37 +67,21 @@ uart_puc_probe(device_t dev)
 {
 	device_t parent;
 	struct uart_softc *sc;
-	uintptr_t port, rclk, regshft, type;
+	uintptr_t rclk, type;
 
 	parent = device_get_parent(dev);
 	sc = device_get_softc(dev);
 
-	if (BUS_READ_IVAR(parent, dev, PUC_IVAR_SUBTYPE, &type))
+	if (BUS_READ_IVAR(parent, dev, PUC_IVAR_TYPE, &type))
 		return (ENXIO);
-	switch (type) {
-	case PUC_PORT_UART_NS8250:
-		sc->sc_class = &uart_ns8250_class;
-		port = 0;
-		break;
-	case PUC_PORT_UART_SAB82532:
-		sc->sc_class = &uart_sab82532_class;
-		if (BUS_READ_IVAR(parent, dev, PUC_IVAR_PORT, &port))
-			port = 0;
-		break;
-	case PUC_PORT_UART_Z8530:
-		sc->sc_class = &uart_z8530_class;
-		if (BUS_READ_IVAR(parent, dev, PUC_IVAR_PORT, &port))
-			port = 0;
-		break;
-	default:
+	if (type != PUC_TYPE_SERIAL)
 		return (ENXIO);
-	}
 
-	if (BUS_READ_IVAR(parent, dev, PUC_IVAR_FREQ, &rclk))
+	sc->sc_class = &uart_ns8250_class;
+
+	if (BUS_READ_IVAR(parent, dev, PUC_IVAR_CLOCK, &rclk))
 		rclk = 0;
-	if (BUS_READ_IVAR(parent, dev, PUC_IVAR_REGSHFT, &regshft))
-		regshft = 0;
-	return (uart_bus_probe(dev, regshft, rclk, 0, port));
+	return (uart_bus_probe(dev, 0, rclk, 0, 0));
 }
 
 DRIVER_MODULE(uart, puc, uart_puc_driver, uart_devclass, 0, 0);
