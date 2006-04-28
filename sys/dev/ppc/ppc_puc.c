@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2006 Marcel Moolenaar
  * Copyright (c) 1997-2000 Nicolas Souchu
  * Copyright (c) 2001 Alcove - Nicolas Souchu
  * All rights reserved.
@@ -35,6 +36,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
+#include <dev/puc/puc_bus.h>
+
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_msq.h>
 #include <dev/ppc/ppcvar.h>
@@ -48,6 +51,7 @@ static device_method_t ppc_puc_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		ppc_puc_probe),
 	DEVMETHOD(device_attach,	ppc_attach),
+	DEVMETHOD(device_detach,	ppc_detach),
 
 	/* bus interface */
 	DEVMETHOD(bus_read_ivar,	ppc_read_ivar),
@@ -76,6 +80,15 @@ static driver_t ppc_puc_driver = {
 static int
 ppc_puc_probe(device_t dev)
 {
+	device_t parent;
+	uintptr_t type;
+
+	parent = device_get_parent(dev);
+	if (BUS_READ_IVAR(parent, dev, PUC_IVAR_TYPE, &type))
+		return (ENXIO);
+	if (type != PUC_TYPE_PARALLEL)
+		return (ENXIO);
+
 	device_set_desc(dev, "Parallel port");
 	return (ppc_probe(dev, 0));
 }
