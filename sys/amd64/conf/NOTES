@@ -281,6 +281,11 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 device		hptmv
 
 #
+# Highpoint RocketRAID 232x.  This is software RAID but with hardware
+# acceleration assistance for RAID_5.
+device		rr232x
+
+#
 # IBM (now Adaptec) ServeRAID controllers
 device		ips
 

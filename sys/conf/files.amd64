@@ -72,6 +72,10 @@ hptmvraid.o			optional	hptmv			\
 	dependency	"$S/dev/hptmv/amd64-elf.raid.o.uu"	\
 	compile-with	"uudecode < $S/dev/hptmv/amd64-elf.raid.o.uu" \
 	no-implicit-rule
+rr232x_lib.o		optional	rr232x				\
+	dependency	"$S/dev/rr232x/amd64-elf.rr232x_lib.o.uu"	\
+	compile-with	"uudecode < $S/dev/rr232x/amd64-elf.rr232x_lib.o.uu" \
+	no-implicit-rule
 #
 amd64/acpica/OsdEnvironment.c	optional	acpi
 amd64/acpica/acpi_machdep.c	optional	acpi
@@ -174,6 +178,9 @@ dev/hwpmc/hwpmc_x86.c		optional	hwpmc
 dev/kbd/kbd.c			optional	atkbd | sc | ukbd
 dev/mem/memutil.c		optional	mem
 dev/nve/if_nve.c		optional	nve pci
+dev/rr232x/os_bsd.c		optional	rr232x
+dev/rr232x/osm_bsd.c		optional	rr232x
+dev/rr232x/rr232x_config.c	optional	rr232x
 dev/sio/sio.c			optional	sio
 dev/sio/sio_isa.c		optional	sio isa
 dev/speaker/spkr.c		optional	speaker
