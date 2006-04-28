@@ -1,0 +1,343 @@
+.\"
+.\" Copyright (c) 2006 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 28, 2006
+.Dt SYSCTL 9
+.Os
+.Sh NAME
+.Nm SYSCTL_DECL ,
+.Nm SYSCTL_INT ,
+.Nm SYSCTL_LONG ,
+.Nm SYSCTL_NODE ,
+.Nm SYSCTL_OPAQUE ,
+.Nm SYSCTL_PROC ,
+.Nm SYSCTL_STRING ,
+.Nm SYSCTL_STRUCT ,
+.Nm SYSCTL_UINT ,
+.Nm SYSCTL_ULONG
+.Nd Static sysctl declaration functions
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/sysctl.h
+.Fo SYSCTL_DECL
+.Fa "name"
+.Fc
+.Fo SYSCTL_INT
+.Fa "parent"
+.Fa "nbr"
+.Fa "name"
+.Fa "access"
+.Fa "ptr"
+.Fa "val"
+.Fa "descr"
+.Fc
+.Fo SYSCTL_LONG
+.Fa "parent"
+.Fa "nbr"
+.Fa "name"
+.Fa "access"
+.Fa "ptr"
+.Fa "val"
+.Fa "descr"
+.Fc
+.Fo SYSCTL_NODE
+.Fa "parent"
+.Fa "nbr"
+.Fa "name"
+.Fa "access"
+.Fa "handler"
+.Fa "descr"
+.Fc
+.Fo SYSCTL_OPAQUE
+.Fa "parent"
+.Fa "nbr"
+.Fa "name"
+.Fa "access"
+.Fa "ptr"
+.Fa "len"
+.Fa "fmt"
+.Fa "descr"
+.Fc
+.Fo SYSCTL_PROC
+.Fa "parent"
+.Fa "nbr"
+.Fa "name"
+.Fa "access"
+.Fa "ptr"
+.Fa "arg"
+.Fa "handler"
+.Fa "fmt"
+.Fa "descr"
+.Fc
+.Fo SYSCTL_STRING
+.Fa "parent"
+.Fa "nbr"
+.Fa "name"
+.Fa "access"
+.Fa "arg"
+.Fa "len"
+.Fa "descr"
+.Fc
+.Fo SYSCTL_STRUCT
+.Fa "parent"
+.Fa "nbr"
+.Fa "name"
+.Fa "access"
+.Fa "ptr"
+.Fa "type"
+.Fa "descr"
+.Fc
+.Fo SYSCTL_UINT
+.Fa "parent"
+.Fa "nbr"
+.Fa "name"
+.Fa "access"
+.Fa "ptr"
+.Fa "val"
+.Fa "descr"
+.Fc
+.Fo SYSCTL_ULONG
+.Fa "parent"
+.Fa "nbr"
+.Fa "name"
+.Fa "access"
+.Fa "ptr"
+.Fa "val"
+.Fa "descr"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm
+kernel interfaces allow code to statically declare
+.Xr sysctl 8
+MIB entries, which will be initialized when the kernel module containing the
+declaration is initialized.
+When the module is unloaded, the sysctl will be automatically destroyed.
+.Pp
+Sysctl nodes are created in a hierarchical tree, with all static nodes being
+represented by named C data structures; in order to create a new node under
+an existing node in the tree, the structure representing the desired parent
+node must be declared in the current context using
+.Fn SYSCTL_DECL .
+.Pp
+New nodes are declared using one of
+.Nm SYSCTL_INT ,
+.Nm SYSCTL_LONG ,
+.Nm SYSCTL_NODE ,
+.Nm SYSCTL_OPAQUE ,
+.Nm SYSCTL_PROC ,
+.Nm SYSCTL_STRING ,
+.Nm SYSCTL_STRUCT ,
+.Nm SYSCTL_UINT ,
+and
+.Nm SYSCTL_ULONG .
+Each macro accepts a parent name, as declared using
+.Nm SYSCTL_DECL ,
+an OID number, typically
+.Dv OID_AUTO ,
+a node name, a set of control and access flags, and a description.
+Depending on the macro, a pointer to a variable supporting the MIB entry, a
+size, a value, and a function pointer implementing the MIB entry may also be
+present.
+.Pp
+For most of the above macros, declaring a type as part of the access flags is
+not necessary -- however, when declaring a sysctl implemented by a function,
+including a type in the access mask is required:
+.Bl -tag -width CTLTYPE_STRING
+.It Dv CTLTYPE_NODE
+This is a node intended to be a parent for other nodes.
+.It Dv CTLTYPE_INT
+This is a signed integer.
+.It Dv CTLTYPE_STRING
+This is a nul-terminated string stored in a character array.
+.It Dv CTLTYPE_QUAD
+This is a 64-bit signed integer.
+.It Dv CTLTYPE_OPAQUE
+This is an opaque data structure.
+.It Dv CTLTYPE_STRUCT
+Alias for
+.Dv CTLTYPE_OPAQUE.
+.It Dv CTLTYPE_UINT
+This is an unsigned integer.
+.It Dv CTLTYPE_LONG
+This is a signed long.
+.It Dv CTLTYPE_ULONG
+This is an unsigned long.
+.El
+.Pp
+All sysctl types except for new node declarations require one or more flags
+to be set indicating the read and write disposition of the sysctl:
+.Bl -tag -width CTLFLAG_ANYBODY
+.It Dv CTLFLAG_RD
+This is a read-only sysctl.
+It Dv CTLFLAG_WR
+This is a writable sysctl.
+.It Dv CTLFLAG_RW
+This sysctl is readable and writable.
+.It Dv CTLFLAG_ANYBODY
+Any user or process can write to this sysctl.
+.It Dv CTLFLAG_SECURE
+This sysctl can be written to only if the effective securelevel of the
+process is <= 0.
+.It Dv CTLFLAG_PRISON
+This sysctl can be written to by processes in
+.Xr jail 2 .
+.It Dv CTLFLAG_SKIP
+When iterating the sysctl name space, do not list this sysctl.
+.It Dv CTLFLAG_TUN
+Also declare a system tunable with the same name to initialize this variable.
+.It Dv CTLFLAG_RDTUN
+Also declare a system tunable with the same name to initalize this variable;
+however, the run-time variable is read-only.
+.El
+.Pp
+When creating new sysctls, careful attention should be paid to the security
+implications of the monitoring or management interface being created.
+Most sysctls present in the kernel are read-only or writable only by the
+superuser.
+Sysctls exporting extensive information on system data structures and
+operation, especially those implemented using procedures, will wish to
+implement access control to limit the undesired exposure of information about
+other processes, network connections, etc.
+.Pp
+The following top level sysctl name spaces are commonly used:
+.Bl -tag -width regression
+.It Dv compat
+Compatibility layer information.
+.It Dv debug
+Debugging information.
+Various name spaces exist under
+.Dv debug .
+.It Dv hw
+Hardware and device driver information.
+.It Dv kern
+Kernel behavior tuning; generally deprecated in favor of more specific
+name spaces.
+.It Dv machdep
+Machine-dependent configuration parameters.
+.It Dv net
+Network subsystem.
+Various protocols have name spaces under
+.Dv net .
+.It Dv regression
+Regression test configuration and information.
+.It Dv security
+Security and security-policy configuration and information.
+.It Dv sysctl
+Reserved name space for the implementation of sysctl.
+.It Dv user
+Configuration settings relating to user application behavior.
+Generally, configuring applications using kernel sysctls is discouraged.
+.It Dv vfs
+Virtual file system configuration and information.
+.It Dv vm
+Virtual memory subsystem configuration and information.
+.El
+.Sh EXAMPLES
+Sample use of
+.Nm SYSCTL_DECL
+to declare the "security" sysctl tree for use by new nodes:
+.Bd -literal -offset indent
+SYSCTL_DECL(_security);
+.Ed
+.Pp
+Examples of integer, opaque, string, and procedure sysctls follow:
+.Bd -literal -offset indent
+/*
+ * Example of a constant integer value.  Notice that the control
+ * flags are CTLFLAG_RD, the variable pointer is NULL, and the
+ * value is declared.
+ */
+SYSCTL_INT(_debug_sizeof, OID_AUTO, bio, CTLFLAG_RD, NULL,
+    sizeof(struct bio), "sizeof(struct bio)");
+
+/*
+ * Example of a variable integer value.  Notice that the control
+ * flags are CTLFLAG_RW, the variable pointer is set, and the
+ * value is 0.
+ */
+static int	doingcache = 1;		/* 1 => enable the cache */
+SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0,
+    "Enable name cache");
+
+/*
+ * Example of a variable string value.  Notice that the control
+ * flags are CTLFLAG_RW, that the variable pointer and string
+ * size are set.  Unlike newer sysctls, this older sysctl uses a
+ * static oid number.
+ */
+char kernelname[MAXPATHLEN] = "/kernel";	/* XXX bloat */
+SYSCTL_STRING(_kern, KERN_BOOTFILE, bootfile, CTLFLAG_RW,
+    kernelname, sizeof(kernelname), "Name of kernel file booted");
+
+/*
+ * Example of an opaque data type exported by sysctl.  Notice that
+ * the variable pointer and size are provided, as well as a format
+ * string for sysctl(8).
+ */
+static l_fp pps_freq;	/* scaled frequence offset (ns/s) */
+SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, pps_freq, CTLFLAG_RD,
+    &pps_freq, sizeof(pps_freq), "I", "");
+
+/*
+ * Example of a procedure based sysctl exporting string
+ * information.  Notice that the data type is declared, the NULL
+ * variable pointer and 0 size, the function pointer, and the
+ * format string for sysctl(8).
+ */
+SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware, CTLTYPE_STRING |
+    CTLFLAG_RW, NULL, 0, sysctl_kern_timecounter_hardware, "A",
+    "");
+.Ed
+.Pp
+When adding, modifying, or removing sysctl names, it is important to be
+aware that these interfaces may be used by users, libraries, applications,
+or documentation (such as published books), and are implicitly published application interfaces.
+As with other application interfaces, caution must be taken not to break
+existing applications, and to think about future use of new name spaces so as
+to avoid the need to rename or remove interfaces that might be depended on in
+the future.
+.Sh SEE ALSO
+.Xr sysctl 8 ,
+.Xr sysctl_add_oid 9 ,
+.Xr sysctl_ctx_free 9 ,
+.Xr sysctl_ctx_init 9 ,
+.Xr sysctl_remove_oid 9
+.Sh HISTORY
+.Xr sysctl 8
+first appeared in
+.Bx 4.4 .
+.Sh AUTHORS
+The sysctl implementation originally found in
+.Bx
+has been extensively rewritten by
+.An Poul-Henning Kamp
+in order to add support for name lookups, name space iteration, and dynamic
+addition of MIB nodes.
+.Pp
+This man page was written by
+.An Robert N. M. Watson .
