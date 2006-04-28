@@ -1454,8 +1454,19 @@ ieee80211_find_txnode(struct ieee80211com *ic, const u_int8_t *macaddr)
 	IEEE80211_NODE_LOCK(nt);
 	if (ic->ic_opmode == IEEE80211_M_STA || IEEE80211_IS_MULTICAST(macaddr))
 		ni = ieee80211_ref_node(ic->ic_bss);
-	else
+	else {
 		ni = _ieee80211_find_node(nt, macaddr);
+		if (ic->ic_opmode == IEEE80211_M_HOSTAP && 
+		    (ni != NULL && ni->ni_associd == 0)) {
+			/*
+			 * Station is not associated; don't permit the
+			 * data frame to be sent by returning NULL.  This
+			 * is kinda a kludge but the least intrusive way
+			 * to add this check into all drivers.
+			 */
+			ieee80211_unref_node(&ni);	/* NB: null's ni */
+		}
+	}
 	IEEE80211_NODE_UNLOCK(nt);
 
 	if (ni == NULL) {
