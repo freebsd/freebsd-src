@@ -262,7 +262,6 @@ MAN=	aac.4 \
 	route.4 \
 	rp.4 \
 	${_rr232x.4} \
-	rr232x.4 \
 	rue.4 \
 	sa.4 \
 	safe.4 \
