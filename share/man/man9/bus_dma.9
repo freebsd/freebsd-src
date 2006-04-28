@@ -792,6 +792,65 @@ code, as discussed above.
 All
 .Vt void
 routines will succeed if provided with valid arguments.
+.Sh LOCKING
+Two locking protocols are used by
+.Nm .
+The first is a private global lock that is used to synchronize access to the
+bounce buffer pool on the architectures that make use of them.
+This lock is strictly a leaf lock that is only used internally to
+.Nm
+and is not exposed to clients of the API.
+.Pp
+The second protocol involves protecting various resources stored in the tag.
+Since almost all
+.Nm
+operations are done through requests from the driver that created the tag,
+the most efficient way to protect the tag resources is through the lock that
+the driver uses.
+In cases where
+.Nm
+acts on its own without being called by the driver, the lock primitive
+specified in the tag is acquired and released automatically.
+An example of this is when the
+.Fn bus_dmamap_load
+callback function is called from a defered context instead of the driver
+context.
+This means that certain
+.Nm
+functions must always be called with same lock held that is specified in the
+tag.  These functions include:
+.Pp
+.Bl -inset -offset indent -compact
+.It bus_dmamap_load
+.It bus_dmamap_load_uio
+.It bus_dmamap_load_mbuf
+.It bus_dmamap_load_mbuf_sg
+.It bus_dmamap_unload
+.It bus_dmamap_sync
+.El
+.Pp
+There is one exception to this rule.
+It is common practice to call some of these functions during driver start-up
+without any locks held.
+So long as there is a guarantee of no possible concurrent use of the tag by
+different threads during this operation, it is safe to not hold a lock for
+these functions.
+.Pp
+Certain
+.Nm
+operations should not be called with the driver lock held, either because
+they are already protected by an internal lock, or because they might sleep
+due to memory or resource allocation.  The following functions must not be
+called with any non-sleepable locks held:
+.Pp
+.Bl -inset -offset indent -compact
+.It bus_dma_tag_create
+.It bus_dmamap_create
+.It bus_dmamem_alloc
+.El
+.Pp
+All other functions do not have a locking protocol and can thus be
+called with or without and system or driver locks held.
 .Sh SEE ALSO
 .Xr devclass 9 ,
 .Xr device 9 ,
