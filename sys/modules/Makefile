@@ -472,6 +472,7 @@ _iwi=		iwi
 _mly=		mly
 _ndis=		ndis
 _nve=		nve
+_rr232x=	rr232x
 _safe=		safe
 _scsi_low=	scsi_low
 _smbfs=		smbfs
