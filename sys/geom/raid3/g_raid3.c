@@ -2005,15 +2005,6 @@ g_raid3_worker(void *arg)
 		mtx_lock(&sc->sc_queue_mtx);
 		bp = bioq_first(&sc->sc_queue);
 		if (bp == NULL) {
-			if (ep != NULL) {
-				/*
-				 * We have a pending even, try to serve it
-				 * again.
-				 */
-				mtx_unlock(&sc->sc_queue_mtx);
-				tsleep(ep, PRIBIO, "r3:top1", hz / 5);
-				continue;
-			}
 			if ((sc->sc_flags &
 			    G_RAID3_DEVICE_FLAG_DESTROY) != 0) {
 				mtx_unlock(&sc->sc_queue_mtx);
@@ -2025,6 +2016,15 @@ g_raid3_worker(void *arg)
 				mtx_lock(&sc->sc_queue_mtx);
 			}
 			sx_xunlock(&sc->sc_lock);
+			/*
+			 * XXX: We can miss an event here, because an event
+			 *      can be added without sx-device-lock and without
+			 *      mtx-queue-lock. Maybe I should just stop using
+			 *      dedicated mutex for events synchronization and
+			 *      stick with the queue lock?
+			 *      The event will hang here until next I/O request
+			 *      or next event is received.
+			 */
 			MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP, "r3:w1",
 			    timeout * hz);
 			sx_xlock(&sc->sc_lock);
