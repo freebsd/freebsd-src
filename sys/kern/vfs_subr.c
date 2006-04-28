@@ -1446,7 +1446,8 @@ bgetvp(struct vnode *vp, struct buf *bp)
 
 	ASSERT_VI_LOCKED(vp, "bgetvp");
 	vholdl(vp);
-	if (VFS_NEEDSGIANT(vp->v_mount))
+	if (VFS_NEEDSGIANT(vp->v_mount) ||
+	    vp->v_bufobj.bo_flag & BO_NEEDSGIANT)
 		bp->b_flags |= B_NEEDSGIANT;
 	bp->b_vp = vp;
 	bp->b_bufobj = &vp->v_bufobj;
