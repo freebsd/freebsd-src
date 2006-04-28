@@ -267,6 +267,15 @@ uart_bus_ihand(device_t dev, int ipend)
 }
 
 int
+uart_bus_ipend(device_t dev)
+{
+	struct uart_softc *sc;
+
+	sc = device_get_softc(dev);
+	return (UART_IPEND(sc));
+}
+
+int
 uart_bus_sysdev(device_t dev)
 {
 	struct uart_softc *sc;
