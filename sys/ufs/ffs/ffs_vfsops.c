@@ -831,7 +831,13 @@ ffs_mountfs(devvp, mp, td)
 	(void) ufs_extattr_autostart(mp, td);
 #endif /* !UFS_EXTATTR_AUTOSTART */
 #endif /* !UFS_EXTATTR */
-#ifndef QUOTA
+#ifdef QUOTA
+	/*
+	 * Our bufobj must require giant for snapshots when quotas are
+	 * enabled.
+	 */
+	devvp->v_bufobj.bo_flags |= BO_NEEDSGIANT;
+#else
 	mp->mnt_kern_flag |= MNTK_MPSAFE;
 #endif
 	return (0);
