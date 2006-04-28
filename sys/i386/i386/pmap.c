@@ -216,6 +216,11 @@ static uma_zone_t pdptzone;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 static int shpgperproc = PMAP_SHPGPERPROC;
 
+TAILQ_HEAD(,pv_chunk) pv_freechunks;	/* Freelist of chunk pages */
+struct pv_chunk *pv_chunkbase;		/* KVA block for pv_chunks */
+int pv_maxchunks;			/* How many chunks we have KVA for */
+int pv_nextindex;			/* Where to map the next page */
+
 /*
  * All those kernel PT submaps that BSD is so fond of
  */
@@ -491,6 +496,7 @@ void
 pmap_init(void)
 {
 
+	TAILQ_INIT(&pv_freechunks);
 	/*
 	 * Initialize the address space (zone) for the pv entries.  Set a
 	 * high water mark so that the system can recover from excessive
@@ -499,8 +505,15 @@ pmap_init(void)
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
 	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
 	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
+	pv_entry_max = roundup(pv_entry_max, _NPCPV);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 
+	pv_maxchunks = pv_entry_max / _NPCPV;
+	pv_chunkbase = (struct pv_chunk *)kmem_alloc_nofault(kernel_map,
+	    PAGE_SIZE * pv_maxchunks);
+	if (pv_chunkbase == NULL)
+		panic("pmap_init: not enough kvm for pv chunks");
+	pv_nextindex = 0;
 #ifdef PAE
 	pdptzone = uma_zcreate("PDPT", NPGPTD * sizeof(pdpt_entry_t), NULL,
 	    NULL, NULL, NULL, (NPGPTD * sizeof(pdpt_entry_t)) - 1,
@@ -511,35 +524,10 @@ pmap_init(void)
 
 
 SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
-static int
-pmap_pventry_proc(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
-	if (error == 0 && req->newptr) {
-		shpgperproc = (pv_entry_max - cnt.v_page_count) / maxproc;
-		pv_entry_high_water = 9 * (pv_entry_max / 10);
-	}
-	return (error);
-}
-SYSCTL_PROC(_vm_pmap, OID_AUTO, pv_entry_max, CTLTYPE_INT|CTLFLAG_RW, 
-    &pv_entry_max, 0, pmap_pventry_proc, "IU", "Max number of PV entries");
-
-static int
-pmap_shpgperproc_proc(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
-	if (error == 0 && req->newptr) {
-		pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
-		pv_entry_high_water = 9 * (pv_entry_max / 10);
-	}
-	return (error);
-}
-SYSCTL_PROC(_vm_pmap, OID_AUTO, shpgperproc, CTLTYPE_INT|CTLFLAG_RW, 
-    &shpgperproc, 0, pmap_shpgperproc_proc, "IU", "Page share factor per proc");
+SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_max, CTLFLAG_RD, &pv_entry_max, 0,
+	"Max number of PV entries");
+SYSCTL_INT(_vm_pmap, OID_AUTO, shpgperproc, CTLFLAG_RD, &shpgperproc, 0,
+	"Page share factor per proc");
 
 /***************************************************
  * Low level helper routines.....
@@ -1488,6 +1476,7 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,
 
 #ifdef PV_STATS
 static int pc_chunk_count, pc_chunk_allocs, pc_chunk_frees, pc_chunk_tryfail;
+static int pc_chunk_spare;
 
 SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_count, CTLFLAG_RD, &pc_chunk_count, 0,
 	"Current number of pv entry chunks");
@@ -1497,6 +1486,8 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_frees, CTLFLAG_RD, &pc_chunk_frees, 0,
 	"Current number of pv entry chunks frees");
 SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_tryfail, CTLFLAG_RD, &pc_chunk_tryfail, 0,
 	"Number of times tried to get a chunk page but failed.");
+SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_spare, CTLFLAG_RD, &pc_chunk_spare, 0,
+	"Current number of spare pv entry chunks allocated");
 
 static long pv_entry_frees, pv_entry_allocs;
 static int pv_entry_spare;
@@ -1577,7 +1568,6 @@ pmap_collect(pmap_t locked_pmap, struct vpgqueues *vpq)
 static void
 free_pv_entry(pmap_t pmap, pv_entry_t pv)
 {
-	vm_page_t m;
 	struct pv_chunk *pc;
 	int idx, field, bit;
 
@@ -1598,15 +1588,10 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	PV_STAT(pv_entry_spare -= _NPCPV);
 	PV_STAT(pc_chunk_count--);
 	PV_STAT(pc_chunk_frees++);
-	/* entire chunk is free, return it */
+	/* entire chunk is free, return it to freelist */
 	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-	m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
-	pmap_qremove((vm_offset_t)pc, 1);
-	vm_page_lock_queues();
-	vm_page_unwire(m, 0);
-	vm_page_free(m);
-	vm_page_unlock_queues();
-	kmem_free(kernel_map, (vm_offset_t)pc, PAGE_SIZE);
+	TAILQ_INSERT_HEAD(&pv_freechunks, pc, pc_list);
+	PV_STAT(pc_chunk_spare++);
 }
 
 /*
@@ -1653,50 +1638,52 @@ get_pv_entry(pmap_t pmap, int try)
 			return (pv);
 		}
 	}
-	/* No free items, allocate another chunk */
-	pc = (struct pv_chunk *)kmem_alloc_nofault(kernel_map, PAGE_SIZE);
-	if (pc == NULL) {
-		if (try) {
-			pv_entry_count--;
-			PV_STAT(pc_chunk_tryfail++);
-			return (NULL);
-		}
-		panic("get_pv_entry: out of kvm for pv entry chunk!");
-	}
-	m = vm_page_alloc(NULL, colour, VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
-	if (m == NULL) {
-		if (try) {
-			pv_entry_count--;
-			PV_STAT(pc_chunk_tryfail++);
-			kmem_free(kernel_map, (vm_offset_t)pc, PAGE_SIZE);
-			return (NULL);
-		}
-		/*
-		 * Reclaim pv entries: At first, destroy mappings to inactive
-		 * pages.  After that, if a pv chunk entry is still needed,
-		 * destroy mappings to active pages.
-		 */
-		if (ratecheck(&lastprint, &printinterval))
-			printf("Approaching the limit on PV entries, consider"
-			    "increasing sysctl vm.pmap.shpgperproc or "
-			    "vm.pmap.pv_entry_max\n");
-		PV_STAT(pmap_collect_inactive++);
-		pmap_collect(pmap, &vm_page_queues[PQ_INACTIVE]);
-		m = vm_page_alloc(NULL, colour,
-		    VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ);
+	/* See if we have a preallocated chunk */
+	pc = TAILQ_FIRST(&pv_freechunks);
+	if (pc) {
+		/* Take a preallocated one from the freelist */
+		TAILQ_REMOVE(&pv_freechunks, pc, pc_list);
+		PV_STAT(pc_chunk_spare--);
+	} else {
+		/* No free items, allocate another chunk */
+		m = vm_page_alloc(NULL, colour, VM_ALLOC_SYSTEM |
+		    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
 		if (m == NULL) {
-			PV_STAT(pmap_collect_active++);
-			pmap_collect(pmap, &vm_page_queues[PQ_ACTIVE]);
+			if (try) {
+				pv_entry_count--;
+				PV_STAT(pc_chunk_tryfail++);
+				return (NULL);
+			}
+			/*
+			 * Reclaim pv entries: At first, destroy mappings to
+			 * inactive pages.  After that, if a pv chunk entry
+			 * is still needed, destroy mappings to active pages.
+			 */
+			if (ratecheck(&lastprint, &printinterval))
+				printf("Approaching the limit on PV entries, "
+				    "consider increasing tunables "
+				    "vm.pmap.shpgperproc or "
+				    "vm.pmap.pv_entry_max\n");
+			PV_STAT(pmap_collect_inactive++);
+			pmap_collect(pmap, &vm_page_queues[PQ_INACTIVE]);
 			m = vm_page_alloc(NULL, colour,
 			    VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ);
-			if (m == NULL)
-				panic("get_pv_entry: increase vm.pmap.shpgperproc");
+			if (m == NULL) {
+				PV_STAT(pmap_collect_active++);
+				pmap_collect(pmap, &vm_page_queues[PQ_ACTIVE]);
+				m = vm_page_alloc(NULL, colour,
+				    VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ);
+				if (m == NULL)
+					panic("get_pv_entry: increase vm.pmap.shpgperproc");
+			}
 		}
+		colour++;
+		pc = pv_chunkbase + pv_nextindex;	/* Scaled */
+		pv_nextindex++;
+		pmap_qenter((vm_offset_t)pc, &m, 1);
 	}
 	PV_STAT(pc_chunk_count++);
 	PV_STAT(pc_chunk_allocs++);
-	colour++;
-	pmap_qenter((vm_offset_t)pc, &m, 1);
 	pc->pc_pmap = pmap;
 	pc->pc_map[0] = pc_freemask[0] & ~1ul;	/* preallocated bit 0 */
 	for (field = 1; field < _NPCM; field++)
@@ -2843,13 +2830,9 @@ pmap_remove_pages(pmap_t pmap)
 			PV_STAT(pc_chunk_count--);
 			PV_STAT(pc_chunk_frees++);
 			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-			m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
-			pmap_qremove((vm_offset_t)pc, 1);
-			vm_page_lock_queues();
-			vm_page_unwire(m, 0);
-			vm_page_free(m);
-			vm_page_unlock_queues();
-			kmem_free(kernel_map, (vm_offset_t)pc, PAGE_SIZE);
+			/* Return to freelist */
+			TAILQ_INSERT_HEAD(&pv_freechunks, pc, pc_list);
+			PV_STAT(pc_chunk_spare++);
 		}
 	}
 	sched_unpin();
