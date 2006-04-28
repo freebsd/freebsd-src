@@ -539,13 +539,11 @@ g_mirror_destroy_device(struct g_mirror_softc *sc)
 		}
 	}
 	callout_drain(&sc->sc_callout);
-	gp->softc = NULL;
 
 	g_topology_lock();
 	LIST_FOREACH_SAFE(cp, &sc->sc_sync.ds_geom->consumer, consumer, tmpcp) {
 		g_mirror_disconnect_consumer(sc, cp);
 	}
-	sc->sc_sync.ds_geom->softc = NULL;
 	g_wither_geom(sc->sc_sync.ds_geom, ENXIO);
 	G_MIRROR_DEBUG(0, "Device %s destroyed.", gp->name);
 	g_wither_geom(gp, ENXIO);
@@ -1660,6 +1658,8 @@ g_mirror_can_destroy(struct g_mirror_softc *sc)
 
 	g_topology_assert();
 	gp = sc->sc_geom;
+	if (gp->softc == NULL)
+		return (1);
 	LIST_FOREACH(cp, &gp->consumer, consumer) {
 		if (g_mirror_is_busy(sc, cp))
 			return (0);
@@ -1689,6 +1689,8 @@ g_mirror_try_destroy(struct g_mirror_softc *sc)
 		g_topology_unlock();
 		return (0);
 	}
+	sc->sc_geom->softc = NULL;
+	sc->sc_sync.ds_geom->softc = NULL;
 	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_WAIT) != 0) {
 		g_topology_unlock();
 		G_MIRROR_DEBUG(4, "%s: Waking up %p.", __func__,
@@ -2885,6 +2887,15 @@ g_mirror_destroy(struct g_mirror_softc *sc, int how)
 			    "can't be definitely removed.", pp->name);
 		}
 	}
+
+	g_topology_lock();
+	if (sc->sc_geom->softc == NULL) {
+		g_topology_unlock();
+		return (0);
+	}
+	sc->sc_geom->softc = NULL;
+	sc->sc_sync.ds_geom->softc = NULL;
+	g_topology_unlock();
 
 	sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DESTROY;
 	sc->sc_flags |= G_MIRROR_DEVICE_FLAG_WAIT;
