@@ -55,12 +55,22 @@
 #define SK_YUKON		0xB0
 #define SK_YUKON_LITE		0xB1
 #define SK_YUKON_LP		0xB2
+#define SK_YUKON_XL		0xB3
+#define SK_YUKON_EC_U		0xB4
+#define SK_YUKON_EC		0xB6
+#define SK_YUKON_FE		0xB7
 #define SK_YUKON_FAMILY(x) ((x) & 0xB0)
+#define SK_IS_YUKON2(sc) \
+    ((sc)->sk_type >= SK_YUKON_XL && (sc)->sk_type <= SK_YUKON_FE)
 
 /* Known revisions in SK_CONFIG. */
 #define SK_YUKON_LITE_REV_A0	0x0 /* invented, see test in skc_attach. */
 #define SK_YUKON_LITE_REV_A1	0x3
 #define SK_YUKON_LITE_REV_A3	0x7
+
+#define SK_YUKON_EC_REV_A1	0x0
+#define SK_YUKON_EC_REV_A2	0x1
+#define SK_YUKON_EC_REV_A3	0x2
 
 /*
  * SysKonnect PCI vendor ID
@@ -77,6 +87,13 @@
  */
 #define DEVICEID_SK_V1		0x4300
 #define DEVICEID_SK_V2		0x4320
+
+/*
+ * Marvell gigabit ethernet device IDs
+ */
+#define DEVICEID_MRVL_4360	0x4360
+#define DEVICEID_MRVL_4361	0x4361
+#define DEVICEID_MRVL_4362	0x4362
 
 /*
  * Belkin F5D5005
@@ -345,8 +362,10 @@
 #define SK_CONFIG	0x011A
 #define SK_CHIPVER	0x011B
 #define SK_EPROM0	0x011C
-#define SK_EPROM1	0x011D
-#define SK_EPROM2	0x011E
+#define SK_EPROM1	0x011D		/* yukon/genesis */
+#define SK_Y2_CLKGATE	0x011D		/* yukon 2 */
+#define SK_EPROM2	0x011E		/* yukon/genesis */
+#define SK_Y2_HWRES	0x011E		/* yukon 2 */
 #define SK_EPROM3	0x011F
 #define SK_EP_ADDR	0x0120
 #define SK_EP_DATA	0x0124
@@ -451,6 +470,13 @@
 #define SK_GPIO_DIR7		0x00800000
 #define SK_GPIO_DIR8		0x01000000
 #define SK_GPIO_DIR9		0x02000000
+
+#define SK_Y2_CLKGATE_LINK2_INACTIVE	0x80		/* port 2 inactive */
+
+#define SK_Y2_HWRES_LINK_1	0x01
+#define SK_Y2_HWRES_LINK_2	0x02
+#define SK_Y2_HWRES_LINK_MASK	(SK_Y2_HWRES_LINK_1 | SK_Y2_HWRES_LINK_2)
+#define SK_Y2_HWRES_LINK_DUAL	(SK_Y2_HWRES_LINK_1 | SK_Y2_HWRES_LINK_2)
 
 /* Block 3 Ram interface and MAC arbiter registers */
 #define SK_RAMADDR	0x0180
