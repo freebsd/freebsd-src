@@ -2031,6 +2031,7 @@ g_raid3_worker(void *arg)
 			G_RAID3_DEBUG(5, "%s: I'm here 4.", __func__);
 			continue;
 		}
+process:
 		bioq_remove(&sc->sc_queue, bp);
 		mtx_unlock(&sc->sc_queue_mtx);
 
@@ -2038,13 +2039,29 @@ g_raid3_worker(void *arg)
 			g_raid3_regular_request(bp);
 		else if ((bp->bio_cflags & G_RAID3_BIO_CFLAG_SYNC) != 0)
 			g_raid3_sync_request(bp);
-		else {
-			if (g_raid3_register_request(bp) != 0) {
-				mtx_lock(&sc->sc_queue_mtx);
-				bioq_insert_head(&sc->sc_queue, bp);
-				MSLEEP(&sc->sc_queue, &sc->sc_queue_mtx,
-				    PRIBIO | PDROP, "r3:lowmem", hz / 10);
+		else if (g_raid3_register_request(bp) != 0) {
+			mtx_lock(&sc->sc_queue_mtx);
+			bioq_insert_head(&sc->sc_queue, bp);
+			/*
+			 * We are short in memory, let see if there are finished
+			 * request we can free.
+			 */
+			TAILQ_FOREACH(bp, &sc->sc_queue.queue, bio_queue) {
+				if (bp->bio_cflags & G_RAID3_BIO_CFLAG_REGULAR)
+					goto process;
 			}
+			/*
+			 * No finished regular request, so at least keep
+			 * synchronization running.
+			 */
+			TAILQ_FOREACH(bp, &sc->sc_queue.queue, bio_queue) {
+				if (bp->bio_cflags & G_RAID3_BIO_CFLAG_SYNC)
+					goto process;
+			}
+			sx_xunlock(&sc->sc_lock);
+			MSLEEP(&sc->sc_queue, &sc->sc_queue_mtx, PRIBIO | PDROP,
+			    "r3:lowmem", hz / 10);
+			sx_xlock(&sc->sc_lock);
 		}
 		G_RAID3_DEBUG(5, "%s: I'm here 9.", __func__);
 	}
