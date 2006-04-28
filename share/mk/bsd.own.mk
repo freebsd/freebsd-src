@@ -243,6 +243,7 @@ WITHOUT_${var}=
     NIS \
     NLS \
     NLS_CATALOGS \
+    NS_CACHING \
     OBJC \
     OPENSSH \
     OPENSSL \
@@ -331,6 +332,7 @@ WITH_IDEA=
     NIS \
     NLS \
     NLS_CATALOGS \
+    NS_CACHING \
     OBJC \
     OPENSSH \
     OPENSSL \

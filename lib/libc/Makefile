@@ -72,6 +72,9 @@ CFLAGS+= -DHESIOD
 .if ${MK_FP_LIBC} == "no"
 CFLAGS+= -DNO_FLOATING_POINT
 .endif
+.if ${MK_NS_CACHING} != "no"
+CFLAGS+= -DNS_CACHING
+.endif
 
 .if defined(SYMVER_ENABLED)
 VERSION_DEF=${.CURDIR}/Versions.def

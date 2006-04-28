@@ -42,6 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <nsswitch.h>
 #include "un-namespace.h"
 #include "netdb_private.h"
+#ifdef NS_CACHING
+#include "nscache.h"
+#endif
 
 extern int _ht_getnetbyname(void *, void *, va_list);
 extern int _dns_getnetbyname(void *, void *, va_list);
@@ -59,6 +62,220 @@ static const ns_src default_src[] = {
 
 NETDB_THREAD_ALLOC(netent_data)
 NETDB_THREAD_ALLOC(netdata)
+
+#ifdef NS_CACHING
+static int
+net_id_func(char *buffer, size_t *buffer_size, va_list ap, void *cache_mdata)
+{
+	char *name;
+	uint32_t net;
+	int type;
+
+	size_t desired_size, size;
+	enum nss_lookup_type lookup_type;
+	int res = NS_UNAVAIL;
+
+	lookup_type = (enum nss_lookup_type)cache_mdata;
+	switch (lookup_type) {
+	case nss_lt_name:
+		name = va_arg(ap, char *);
+
+		size = strlen(name);
+		desired_size = sizeof(enum nss_lookup_type) + size + 1;
+		if (desired_size > *buffer_size) {
+			res = NS_RETURN;
+			goto fin;
+		}
+
+		memcpy(buffer, &lookup_type, sizeof(enum nss_lookup_type));
+		memcpy(buffer + sizeof(enum nss_lookup_type), name, size + 1);
+
+		res = NS_SUCCESS;
+		break;
+	case nss_lt_id:
+		net = va_arg(ap, uint32_t);
+		type = va_arg(ap, int);
+
+		desired_size = sizeof(enum nss_lookup_type) +
+		    sizeof(uint32_t) + sizeof(int);
+		if (desired_size > *buffer_size) {
+			res = NS_RETURN;
+			goto fin;
+		}
+
+		memcpy(buffer, &lookup_type, sizeof(enum nss_lookup_type));
+		memcpy(buffer + sizeof(enum nss_lookup_type), &net,
+		    sizeof(uint32_t));
+		memcpy(buffer + sizeof(enum nss_lookup_type) + sizeof(uint32_t),
+		    &type, sizeof(int));
+
+		res = NS_SUCCESS;
+		break;
+	default:
+		/* should be unreachable */
+		return (NS_UNAVAIL);
+	}
+
+fin:
+	*buffer_size = desired_size;
+	return (res);
+}
+
+
+static int
+net_marshal_func(char *buffer, size_t *buffer_size, void *retval, va_list ap,
+    void *cache_mdata)
+{
+	char *name;
+	uint32_t net;
+	int type;
+	struct netent *ne;
+	char *orig_buf;
+	size_t orig_buf_size;
+
+	struct netent new_ne;
+	size_t desired_size, size, aliases_size;
+	char *p;
+	char **alias;
+
+	switch ((enum nss_lookup_type)cache_mdata) {
+	case nss_lt_name:
+		name = va_arg(ap, char *);
+		break;
+	case nss_lt_id:
+		net = va_arg(ap, uint32_t);
+		type = va_arg(ap, int);
+	break;
+	case nss_lt_all:
+		break;
+	default:
+		/* should be unreachable */
+		return (NS_UNAVAIL);
+	}
+
+	ne = va_arg(ap, struct netent *);
+	orig_buf = va_arg(ap, char *);
+	orig_buf_size = va_arg(ap, size_t);
+
+	desired_size = _ALIGNBYTES + sizeof(struct netent) + sizeof(char *);
+	if (ne->n_name != NULL)
+		desired_size += strlen(ne->n_name) + 1;
+
+	if (ne->n_aliases != NULL) {
+		aliases_size = 0;
+		for (alias = ne->n_aliases; *alias; ++alias) {
+			desired_size += strlen(*alias) + 1;
+			++aliases_size;
+		}
+
+		desired_size += _ALIGNBYTES +
+		    (aliases_size + 1) * sizeof(char *);
+	}
+
+	if (*buffer_size < desired_size) {
+		/* this assignment is here for future use */
+		*buffer_size = desired_size;
+		return (NS_RETURN);
+	}
+
+	memcpy(&new_ne, ne, sizeof(struct netent));
+
+	*buffer_size = desired_size;
+	memset(buffer, 0, desired_size);
+	p = buffer + sizeof(struct netent) + sizeof(char *);
+	memcpy(buffer + sizeof(struct netent), &p, sizeof(char *));
+	p = (char *)_ALIGN(p);
+
+	if (new_ne.n_name != NULL) {
+		size = strlen(new_ne.n_name);
+		memcpy(p, new_ne.n_name, size);
+		new_ne.n_name = p;
+		p += size + 1;
+	}
+
+	if (new_ne.n_aliases != NULL) {
+		p = (char *)_ALIGN(p);
+		memcpy(p, new_ne.n_aliases, sizeof(char *) * aliases_size);
+		new_ne.n_aliases = (char **)p;
+		p += sizeof(char *) * (aliases_size + 1);
+
+		for (alias = new_ne.n_aliases; *alias; ++alias) {
+			size = strlen(*alias);
+			memcpy(p, *alias, size);
+			*alias = p;
+			p += size + 1;
+		}
+	}
+
+	memcpy(buffer, &new_ne, sizeof(struct netent));
+	return (NS_SUCCESS);
+}
+
+static int
+net_unmarshal_func(char *buffer, size_t buffer_size, void *retval, va_list ap,
+    void *cache_mdata)
+{
+	char *name;
+	uint32_t net;
+	int type;
+	struct netent *ne;
+	char *orig_buf;
+	size_t orig_buf_size;
+	int *ret_errno;
+
+	char *p;
+	char **alias;
+
+	switch ((enum nss_lookup_type)cache_mdata) {
+	case nss_lt_name:
+		name = va_arg(ap, char *);
+		break;
+	case nss_lt_id:
+		net = va_arg(ap, uint32_t);
+		type = va_arg(ap, int);
+		break;
+	case nss_lt_all:
+		break;
+	default:
+		/* should be unreachable */
+		return (NS_UNAVAIL);
+	}
+
+	ne = va_arg(ap, struct netent *);
+	orig_buf = va_arg(ap, char *);
+	orig_buf_size = va_arg(ap, size_t);
+	ret_errno = va_arg(ap, int *);
+
+	if (orig_buf_size <
+	    buffer_size - sizeof(struct netent) - sizeof(char *)) {
+		*ret_errno = ERANGE;
+		return (NS_RETURN);
+	}
+
+	memcpy(ne, buffer, sizeof(struct netent));
+	memcpy(&p, buffer + sizeof(struct netent), sizeof(char *));
+
+	orig_buf = (char *)_ALIGN(orig_buf);
+	memcpy(orig_buf, buffer + sizeof(struct netent) + sizeof(char *) +
+	    _ALIGN(p) - (size_t)p,
+	    buffer_size - sizeof(struct netent) - sizeof(char *) -
+	    _ALIGN(p) + (size_t)p);
+	p = (char *)_ALIGN(p);
+
+	NS_APPLY_OFFSET(ne->n_name, orig_buf, p, char *);
+	if (ne->n_aliases != NULL) {
+		NS_APPLY_OFFSET(ne->n_aliases, orig_buf, p, char **);
+
+		for (alias = ne->n_aliases; *alias; ++alias)
+			NS_APPLY_OFFSET(*alias, orig_buf, p, char *);
+	}
+
+	if (retval != NULL)
+		*((struct netent **)retval) = ne;
+
+	return (NS_SUCCESS);
+}
+#endif /* NS_CACHING */
 
 static void
 netent_data_free(void *ptr)
@@ -128,14 +345,22 @@ int
 getnetbyname_r(const char *name, struct netent *ne, char *buffer,
     size_t buflen, struct netent **result, int *h_errorp)
 {
-	int rval, ret_errno;
-
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info =
+    		NS_COMMON_CACHE_INFO_INITIALIZER(
+		networks, (void *)nss_lt_name,
+		net_id_func, net_marshal_func, net_unmarshal_func);
+#endif
 	static const ns_dtab dtab[] = {
 		NS_FILES_CB(_ht_getnetbyname, NULL)
 		{ NSSRC_DNS, _dns_getnetbyname, NULL },
 		NS_NIS_CB(_nis_getnetbyname, NULL) /* force -DHESIOD */
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
 		{ 0 }
 	};
+	int rval, ret_errno;
 
 	rval = _nsdispatch((void *)result, dtab, NSDB_NETWORKS,
 	    "getnetbyname_r", default_src, name, ne, buffer, buflen,
@@ -148,14 +373,22 @@ int
 getnetbyaddr_r(uint32_t addr, int af, struct netent *ne, char *buffer,
     size_t buflen, struct netent **result, int *h_errorp)
 {
-	int rval, ret_errno;
-
+#ifdef NS_CACHING
+	static const nss_cache_info cache_info =
+    		NS_COMMON_CACHE_INFO_INITIALIZER(
+		networks, (void *)nss_lt_id,
+		net_id_func, net_marshal_func, net_unmarshal_func);
+#endif
 	static const ns_dtab dtab[] = {
 		NS_FILES_CB(_ht_getnetbyaddr, NULL)
 		{ NSSRC_DNS, _dns_getnetbyaddr, NULL },
 		NS_NIS_CB(_nis_getnetbyaddr, NULL) /* force -DHESIOD */
+#ifdef NS_CACHING
+		NS_CACHE_CB(&cache_info)
+#endif
 		{ 0 }
 	};
+	int rval, ret_errno;
 
 	rval = _nsdispatch((void *)result, dtab, NSDB_NETWORKS,
 	    "getnetbyaddr_r", default_src, addr, af, ne, buffer, buflen,

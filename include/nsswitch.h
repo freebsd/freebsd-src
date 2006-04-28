@@ -68,6 +68,7 @@
 #define	NSSRC_DNS	"dns"		/* DNS; IN for hosts, HS for others */
 #define	NSSRC_NIS	"nis"		/* YP/NIS */
 #define	NSSRC_COMPAT	"compat"	/* passwd,group in YP compat mode */
+#define	NSSRC_CACHE	"cache"		/* cache daemon */
 
 /*
  * currently implemented databases
@@ -80,6 +81,11 @@
 #define NSDB_PASSWD		"passwd"
 #define NSDB_PASSWD_COMPAT	"passwd_compat"
 #define NSDB_SHELLS		"shells"
+#define NSDB_SERVICES		"services"
+#define NSDB_SERVICES_COMPAT	"services_compat"
+#define NSDB_SSH_HOSTKEYS	"ssh_hostkeys"
+#define NSDB_PROTOCOLS		"protocols"
+#define NSDB_RPC		"rpc"
 
 /*
  * suggested databases to implement
@@ -93,11 +99,8 @@
 #define NSDB_NETMASKS		"netmasks"
 #define NSDB_PHONES		"phones"
 #define NSDB_PRINTCAP		"printcap"
-#define NSDB_PROTOCOLS		"protocols"
 #define NSDB_REMOTE		"remote"
-#define NSDB_RPC		"rpc"
 #define NSDB_SENDMAILVARS	"sendmailvars"
-#define NSDB_SERVICES		"services"
 #define NSDB_TERMCAP		"termcap"
 #define NSDB_TTYS		"ttys"
 
@@ -193,7 +196,6 @@ enum nss_lookup_type {
 };
 
 #ifdef _NS_PRIVATE
-
 /*
  * private data structures for back-end nsswitch implementation
  */
