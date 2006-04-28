@@ -138,7 +138,7 @@ MIB entries, which will be initialized when the kernel module containing the
 declaration is initialized.
 When the module is unloaded, the sysctl will be automatically destroyed.
 .Pp
-Sysctl nodes are created in a hierarchal tree, with all static nodes being
+Sysctl nodes are created in a hierarchical tree, with all static nodes being
 represented by named C data structures; in order to create a new node under
 an existing node in the tree, the structure representing the desired parent
 node must be declared in the current context using
@@ -246,12 +246,12 @@ Various protocols have name spaces under
 .It Dv regression
 Regression test configuration and information.
 .It Dv security
-Security and security policy configuration and information.
+Security and security-policy configuration and information.
 .It Dv sysctl
 Reserved name space for the implementation of sysctl.
 .It Dv user
 Configuration settings relating to user application behavior.
-Generally, configuring applications using kernel sysctls is disouraged.
+Generally, configuring applications using kernel sysctls is discouraged.
 .It Dv vfs
 Virtual file system configuration and information.
 .It Dv vm
@@ -316,7 +316,7 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware, CTLTYPE_STRING |
 .Pp
 When adding, modifying, or removing sysctl names, it is important to be
 aware that these interfaces may be used by users, libraries, applications,
-and even books, and are implicitly published application interfaces.
+or documentation (such as published books), and are implicitly published application interfaces.
 As with other application interfaces, caution must be taken not to break
 existing applications, and to think about future use of new name spaces so as
 to avoid the need to rename or remove interfaces that might be depended on in
