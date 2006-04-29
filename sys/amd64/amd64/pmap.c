@@ -1546,6 +1546,7 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	struct pv_chunk *pc;
 	int idx, field, bit;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PV_STAT(pv_entry_frees++);
 	PV_STAT(pv_entry_spare++);
 	pv_entry_count--;
@@ -1567,9 +1568,7 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
 	dump_drop_page(m->phys_addr);
-	vm_page_lock_queues();
 	vm_page_free(m);
-	vm_page_unlock_queues();
 }
 
 /*
@@ -2802,14 +2801,12 @@ pmap_remove_pages(pmap_t pmap)
 			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 			m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
 			dump_drop_page(m->phys_addr);
-			vm_page_lock_queues();
 			vm_page_free(m);
-			vm_page_unlock_queues();
 		}
 	}
+	vm_page_unlock_queues();
 	pmap_invalidate_all(pmap);
 	PMAP_UNLOCK(pmap);
-	vm_page_unlock_queues();
 }
 
 /*
