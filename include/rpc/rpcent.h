@@ -53,7 +53,10 @@ struct rpcent {
 };
 
 __BEGIN_DECLS
-/* These interfaces are currently implemented through nsswitch and MT-safe */
+/*
+ * These interfaces are currently implemented through nsswitch and are
+ * MT-safe.
+ */
 extern struct rpcent *getrpcbyname(char *);
 extern struct rpcent *getrpcbynumber(int);
 extern struct rpcent *getrpcent(void);
