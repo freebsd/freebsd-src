@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 10, 2005
+.Dd April 29, 2006
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -80,20 +80,37 @@ The
 driver implements the IEEE 802.1D Spanning Tree protocol (STP).
 Spanning Tree is used to detect and remove loops in a network topology.
 .Pp
+All the bridged member interfaces need to be up in order to pass network traffic.
+These can be enabled using
+.Xr ifconfig 8 
+or
+.Va ifconfig_ Ns Ao Ar interface Ac Ns Va ="up"
+in
+.Xr rc.conf 5 .
+.Pp
+The MTU of the first member interface to be added is used as the bridge MTU.
+All additional members are required to have exactly the same value.
+.Pp
+The TXCSUM capability is disabled for any interface added to the bridge, and it
+is restored when the interface is removed again.
+.Sh PACKET FILTERING
+.Pp
 Packet filtering can be used with any firewall package that hooks in via the
 .Xr pfil 9
 framework.
 When filtering is enabled, bridged packets will pass through the filter
 inbound on the originating interface, on the bridge interface and outbound on
 the appropriate interfaces.
-Either stage can be disabled, this behaviour can be controlled using
+Either stage can be disabled.
+The filtering behaviour can be controlled using
 .Xr sysctl 8 :
 .Bl -tag -width ".Va net.link.bridge.pfil_onlyip"
 .It Va net.link.bridge.pfil_onlyip
+Controls the handling of non-IP packets which are not passed to
+.Xr pfil 9 .
 Set to
 .Li 1
-to only allow IP packets to pass when packet filtering is enabled (subject to
-firewall rules), set to
+to only allow IP packets to pass (subject to firewall rules), set to
 .Li 0
 to unconditionally pass all non-IP Ethernet frames.
 .It Va net.link.bridge.pfil_member
@@ -133,8 +150,8 @@ is not run twice; these can be re-enabled if desired.
 .Pp
 ARP and REVARP packets are forwarded without being filtered and others
 that are not IP nor IPv6 packets are not forwarded when
-.Xr pfil 9
-filtering is enabled.
+.Va pfil_onlyip
+is enabled.
 IPFW can filter Ethernet types using
 .Cm mac-type
 so all packets are passed to
@@ -143,16 +160,13 @@ the filter for processing.
 Note that packets to and from the bridging host will be seen by the
 filter on the interface with the appropriate address configured as well
 as on the interface on which the packet arrives or departs.
-.Pp
-The MTU of the first member interface to be added is used as the bridge MTU,
-all additional members are required to have exactly the same value.
 .Sh EXAMPLES
 The following when placed in the file
 .Pa /etc/rc.conf
 will cause a bridge called
 .Dq Li bridge0
 to be created, and will add the interfaces
-.Dq Li wi0
+.Dq Li ath0
 and
 .Dq Li fxp0
 to the bridge, and then enable packet forwarding.
@@ -161,7 +175,15 @@ Such a configuration could be used to implement a simple
 in ad-hoc mode).
 .Bd -literal -offset indent
 cloned_interfaces="bridge0"
-ifconfig_bridge0="addm wi0 addm fxp0 up"
+ifconfig_bridge0="addm ath0 addm fxp0 up"
+.Ed
+.Pp
+For the bridge to forward packets all member interfaces and the bridge need
+to be up.
+The above example would also require:
+.Bd -literal -offset indent
+ifconfig_ath0="up ssid my_ap mode 11g mediaopt hostap"
+ifconfig_fxp0="up"
 .Ed
 .Pp
 Consider a system with two 4-port Ethernet boards.
@@ -197,11 +219,11 @@ ifconfig bridge0 create
 ifconfig bridge0 addm fxp0 addm gif0 up
 .Ed
 .Sh SEE ALSO
-.Xr ifconfig 8 ,
 .Xr gif 4 ,
-.Xr ipfw 4 ,
 .Xr ipf 4 ,
-.Xr pf 4
+.Xr ipfw 4 ,
+.Xr pf 4 ,
+.Xr ifconfig 8
 .Sh HISTORY
 The
 .Nm
