@@ -508,6 +508,7 @@ dirloop:
 			    dp == rootvnode) {
 				ndp->ni_dvp = dp;
 				ndp->ni_vp = dp;
+				vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 				VREF(dp);
 				goto nextname;
 			}
