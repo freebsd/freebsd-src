@@ -813,7 +813,7 @@ acts on its own without being called by the driver, the lock primitive
 specified in the tag is acquired and released automatically.
 An example of this is when the
 .Fn bus_dmamap_load
-callback function is called from a defered context instead of the driver
+callback function is called from a deferred context instead of the driver
 context.
 This means that certain
 .Nm
