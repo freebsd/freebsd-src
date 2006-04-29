@@ -2369,7 +2369,7 @@ cons60l2-m|cons60-iso8859-2-mono:\
 	:li#60:tc=cons25l2-m:
 # ISO 8859-1 FreeBSD console with ACS support
 cons25l1|cons25-iso8859-1:\
-	:ac=f\260g\261}\243+\253,\273i\247:\
+	:ac=:ac=l\200m\201k\202j\203t\204u\205v\206w\207q\210x\211n\212`\213a\214f\260g\261~\267,\215+\216.\217-\220h\221i\2470\222y\223z\224{\225}\243:\
 	:tc=cons25w:
 cons25l1-m|cons25-iso8859-1-mono:\
 	:pa@:Co@:AF@:AB@:AX@:op@:us=\E[4m:ue=\E[24m:tc=cons25l1:
