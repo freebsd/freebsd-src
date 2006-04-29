@@ -2824,7 +2824,6 @@ vfs_msync(struct mount *mp, int flags)
 	struct vnode *vp, *mvp;
 	struct vm_object *obj;
 
-	(void) vn_start_write(NULL, &mp, V_WAIT);
 	MNT_ILOCK(mp);
 	MNT_VNODE_FOREACH(vp, mp, mvp) {
 		VI_LOCK(vp);
@@ -2855,7 +2854,6 @@ vfs_msync(struct mount *mp, int flags)
 			VI_UNLOCK(vp);
 	}
 	MNT_IUNLOCK(mp);
-	vn_finished_write(mp);
 }
 
 /*
