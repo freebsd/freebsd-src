@@ -24,13 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-
 .Dd October 20, 2005
 .Dt CACHED 8
 .Os
 .Sh NAME
 .Nm cached
-.Nd caching server daemon
+.Nd "caching server daemon"
 .Sh SYNOPSIS
 .Nm
 .Op Fl nst
@@ -38,53 +37,58 @@
 .Op Fl I Ar cachename
 .Sh DESCRIPTION
 .Nm
-- is the system caching daemon.
+is the system caching daemon.
 It can cache almost all types of data and is basically intended to be used
-with
+with the
 .Pa nsswitch
 subsystem.
-The cache is actually per-user. It means that each user can work only with the
-cached data, that were cached by him and can't poison the cache of other users.
+The cache is actually per-user.
+This means that each user can work only with the
+cached data that was cached locally and cannot poison the cache of other users.
+The
 .Nm
-supports 2 types of caching:
+utility supports two types of caching:
 .Bl -tag -width Pair
 .It Sy Type
 .Sy Description
 .It Common caching
 Each cached element is the the key+value pair.
-This type of caching supports policies, which are applied, when maximum
+This type of caching supports policies which are applied when maximum
 number of cached elements is exceeded.
-3 policies are available:
+Three policies are available:
 .Pa FIFO
 (first in - first out),
 .Pa LRU
 (least recently used) and
 .Pa LFU
 (least frequently used).
-This type of caching is used with
+This type of caching is used with the
 .Fn getXXXbyname
-- like functions.
+family of functions.
 .It Multipart caching
 Each cached element is the part of the elements sequence.
-This type of caching is intended to be used with
+This type of caching is intended to be used with the
 .Fn getXXXent
-- like functions.
+family of functions.
 .El
 .Pp
+The
 .Nm
-is able not only to cache elements, but to perform the actual nsswitch
-lookups by itself. To enable this feature use
+utility is able not only to cache elements, but to perform the actual nsswitch
+lookups by itself.
+To enable this feature use the
 .Pa perform-actual-lookups
 parameter in the
 .Xr cached.conf 5
 .Pp
+The
 .Nm
-recognizes the following runtime options:
+utility recognizes the following runtime options:
 .Bl -tag -width indent
 .It Fl n
 Do not daemonize.
 .Nm
-doesn't fork and doesn't disconnect itself from the terminal.
+will not fork or disconnect itself from the terminal.
 .It Fl s
 Single-threaded mode.
 Forces using only one thread for all processing purposes (it overrides
@@ -95,44 +99,49 @@ parameter in the
 file).
 .It Fl t
 Trace mode.
-All trace messages would be written to the stdout.
+All trace messages will be written to stdout.
 This mode is usually used with
 .Fl n
 and
 .Fl s
-flags for debugging purposes.
+flags are used for debugging purposes.
 .It Fl i Ar cachename
-Invalidates personal cache. When specified,
+Invalidates personal cache.
+When specified,
 .Nm
-acts as the administration tool. It asks the already
-running
+acts as the administration tool.
+It asks the already running
 .Nm
 to invalidate the specified part of the cache of the
-calling user. For example, you may want sometimes
-to invalidate your
+calling user.
+For example, sometimes you may want to invalidate your
 .Pa hosts
-cache. You can specify
+cache.
+You can specify
 .Pa all
 as the
 .Pa cachename
-to invalidate your personal cache as a whole. You
-can't use this option for the cachename, for which
+to invalidate your personal cache as a whole.
+You cannot use this option for the cachename, for which
 the
 .Pa perform-actual-lookups
 option is enabled.
 .It Fl I Ar cachename
-Invalidates the cache for every user. When specified,
+Invalidates the cache for every user.
+When specified,
 .Nm
-acts as the administration tool. It asks the already
+acts as the administration tool.
+It asks the already
 running
 .Nm
 to invalidate the specified part of the cache for
-every user. You can specify
+every user.
+You can specify
 .Pa all
 as the
 .Pa cachename
-to invalidate the whole cache. Only root can use this
-option.
+to invalidate the whole cache.
+Only the root can use this option.
 .El
 .Sh FILES
 .Xr cached.conf 5
@@ -141,8 +150,7 @@ option.
 .Xr nsswitch.conf 5
 .Xr nsdispatch 3
 .Sh "AUTHORS"
-Michael Bushkov
-.Aq bushman@rsu.ru
+.An Michael Bushkov Aq bushman@rsu.ru
 .Sh "BUGS"
-To report bugs or suggestions please mail me
+To report bugs or suggestions please mail me:
 .Aq bushman@rsu.ru
