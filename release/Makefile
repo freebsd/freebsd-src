@@ -1230,7 +1230,7 @@ makeFloppySet:
 IMAGEDIR=	${RD}/image.${FSIMAGE}
 BOOTDIR=	${RD}/trees/base/boot
 HINTSFILE=	${BOOTDIR}/device.hints
-ACPI_KO=	${BOOTDIR}/kernel/acpi.ko
+ACPI_KO=	${RD}/kernels/GENERIC/acpi.ko
 IMAGEFILE=	${RD}/floppies/${FSIMAGE}.flp
 .if defined(FDSIZE) && ${FDSIZE} == "SMALL"
 FLPSIZE=	${SMALLFLOPPYSIZE}
