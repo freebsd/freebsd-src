@@ -58,7 +58,7 @@ convert_host_conf()
 	*)
         	printf "Warning: unrecognized line [%s]", $line > "/dev/stderr"
 		;;
-		
+
 	esac
     done < $host_conf
 
@@ -77,6 +77,10 @@ networks: files
 passwd: compat
 passwd_compat: nis
 shells: files
+services: files
+services_compat: nis
+protocols: files
+rpc: files
 EOF
 }
 
