@@ -161,8 +161,8 @@ is not run twice; these can be re-enabled if desired.
 .Pp
 ARP and REVARP packets are forwarded without being filtered and others
 that are not IP nor IPv6 packets are not forwarded when
-.Xr pfil 9
-filtering is enabled.
+.Va pfil_onlyip
+is enabled.
 IPFW can filter Ethernet types using
 .Cm mac-type
 so all packets are passed to
