@@ -367,7 +367,8 @@ memory system which list the average number of
 pages copied on write (`cow'),
 pages zero filled on demand (`zfod'),
 pages optimize zero filled on demand (`ozfod'),
-slow (on-the-fly) zero fills percentage (`%slo-z'),
+slow (on-the-fly) zero fills percentage (`%sloz'),
+total pages freed (`totfr'),
 pages wired down (`wire'),
 active pages (`act'),
 inactive pages (`inact'),
@@ -384,12 +385,11 @@ per second over the refresh interval.
 .Pp
 At the bottom of this column are lines showing the
 amount of memory, in kilobytes, used for the buffer cache (`buf'),
-the number of dirty buffers in the buffer cache (`dirtybuf'),
-desired maximum size of vnode cache (`desiredvnodes') (mostly unused,
-except to size the name cache),
-number of vnodes actually allocated (`numvnodes'),
+the number of dirty buffers in the buffer cache (`dtbuf'),
+desired maximum size of vnode cache (`desvn'),
+number of vnodes actually allocated (`numvn'),
 and
-number of allocated vnodes that are free (`freevnodes').
+number of allocated vnodes that are free (`frevn').
 .Pp
 Running down the right hand side of the display is a breakdown
 of the interrupts being handled by the system.

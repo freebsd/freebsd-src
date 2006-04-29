@@ -315,11 +315,11 @@ labelkre()
 	mvprintw(VMSTATROW + 11, VMSTATCOL + 10, "pdpgs");
 	mvprintw(VMSTATROW + 12, VMSTATCOL + 10, "intrn");
 	mvprintw(VMSTATROW + 13, VMSTATCOL + 10, "buf");
-	mvprintw(VMSTATROW + 14, VMSTATCOL + 10, "dirtybuf");
+	mvprintw(VMSTATROW + 14, VMSTATCOL + 10, "dtbuf");
 
-	mvprintw(VMSTATROW + 15, VMSTATCOL + 10, "desiredvnodes");
-	mvprintw(VMSTATROW + 16, VMSTATCOL + 10, "numvnodes");
-	mvprintw(VMSTATROW + 17, VMSTATCOL + 10, "freevnodes");
+	mvprintw(VMSTATROW + 15, VMSTATCOL + 10, "desvn");
+	mvprintw(VMSTATROW + 16, VMSTATCOL + 10, "numvn");
+	mvprintw(VMSTATROW + 17, VMSTATCOL + 10, "frevn");
 
 	mvprintw(GENSTATROW, GENSTATCOL, " Csw  Trp  Sys  Int  Sof  Flt");
 
@@ -361,8 +361,8 @@ labelkre()
 		 */
 		mvprintw(VMSTATROW + 11, VMSTATCOL - 6, "zfod");
 		mvprintw(VMSTATROW + 12, VMSTATCOL - 6, "ozfod");
-		mvprintw(VMSTATROW + 13, VMSTATCOL - 6, "%%slo-z");
-		mvprintw(VMSTATROW + 14, VMSTATCOL - 6, "tfree");
+		mvprintw(VMSTATROW + 13, VMSTATCOL - 6, "%%sloz");
+		mvprintw(VMSTATROW + 14, VMSTATCOL - 6, "totfr");
 		extended_vm_stats = 1;
 	} else {
 		extended_vm_stats = 0;
