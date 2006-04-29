@@ -184,14 +184,23 @@ preadfd(void)
 retry:
 #ifndef NO_HISTORY
 	if (parsefile->fd == 0 && el) {
-		const char *rl_cp;
+		static const char *rl_cp;
+		static int el_len;
 
-		rl_cp = el_gets(el, &nr);
+		if (rl_cp == NULL)
+			rl_cp = el_gets(el, &el_len);
 		if (rl_cp == NULL)
 			nr = 0;
 		else {
-			/* XXX - BUFSIZE should redesign so not necessary */
-			(void) strcpy(parsenextc, rl_cp);
+			nr = el_len;
+			if (nr > BUFSIZ - 1)
+				nr = BUFSIZ - 1;
+			memcpy(parsenextc, rl_cp, nr);
+			if (nr != el_len) {
+				el_len -= nr;
+				rl_cp += nr;
+			} else
+				rl_cp = NULL;
 		}
 	} else
 #endif
