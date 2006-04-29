@@ -77,7 +77,7 @@ networks: files
 passwd: compat
 passwd_compat: nis
 shells: files
-services: files
+services: compat
 services_compat: nis
 protocols: files
 rpc: files
