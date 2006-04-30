@@ -696,6 +696,11 @@ putint(n, l, lc, w)
 	char b[128];
 
 	move(l, lc);
+#ifdef DEBUG
+		while (w-- > 0)
+			addch('*');
+		return;
+#endif
 	if (n == 0) {
 		while (w-- > 0)
 			addch(' ');
@@ -723,6 +728,11 @@ putfloat(f, l, lc, w, d, nz)
 	char b[128];
 
 	move(l, lc);
+#ifdef DEBUG
+		while (--w >= 0)
+			addch('*');
+		return;
+#endif
 	if (nz && f == 0.0) {
 		while (--w >= 0)
 			addch(' ');
@@ -748,6 +758,11 @@ putlongdouble(f, l, lc, w, d, nz)
 	char b[128];
 
 	move(l, lc);
+#ifdef DEBUG
+		while (--w >= 0)
+			addch('*');
+		return;
+#endif
 	if (nz && f == 0.0) {
 		while (--w >= 0)
 			addch(' ');
