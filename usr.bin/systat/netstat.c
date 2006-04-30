@@ -143,7 +143,7 @@ closenetstat(w)
 
 static const char *miblist[] = {
 	"net.inet.tcp.pcblist",
-	"net.inet.udp.pcblist" 
+	"net.inet.udp.pcblist"
 };
 
 struct nlist namelist[] = {
@@ -274,9 +274,9 @@ fetchnetstat_sysctl()
 			error("sysctl(%s...) failed", miblist[idx]);
 			continue;
 		}
-		/* 
+		/*
 		 * We currently do no require a consistent pcb list.
-		 * Try to be robust in case of struct size changes 
+		 * Try to be robust in case of struct size changes
 		 */
 		cur = ((char *)inpg) + inpg->xig_len;
 		/* There is also a trailing struct xinpgen */
@@ -322,7 +322,7 @@ fetchnetstat_sysctl()
 			if (nports && !checkport(inpcb))
 				continue;
 			if (idx == 0)	/* TCP */
-				enter_sysctl(inpcb, &xtp->xt_socket, 
+				enter_sysctl(inpcb, &xtp->xt_socket,
 				    xtp->xt_tp.t_state, "tcp");
 			else		/* UDP */
 				enter_sysctl(inpcb, &xip->xi_socket, 0, "udp");
@@ -574,10 +574,10 @@ inetprint(sa, proto)
 	if (!nflag && port)
 		sp = getservbyport(port, proto);
 	if (sp || port == 0)
-		snprintf(cp, sizeof(line) - (cp - line), "%.8s", 
+		snprintf(cp, sizeof(line) - (cp - line), "%.8s",
 		    sp ? sp->s_name : "*");
 	else
-		snprintf(cp, sizeof(line) - (cp - line), "%d", 
+		snprintf(cp, sizeof(line) - (cp - line), "%d",
 		    ntohs((u_short)port));
 	/* pad to full column to clear any garbage */
 	cp = index(line, '\0');

@@ -171,7 +171,7 @@ domode(struct icmp6stat *ret)
 	}
 #undef DO
 }
-	
+
 void
 showicmp6(void)
 {
@@ -185,7 +185,7 @@ showicmp6(void)
 		totalin += stats.icp6s_inhist[i];
 		totalout += stats.icp6s_outhist[i];
 	}
-	totalin += stats.icp6s_badcode + stats.icp6s_badlen + 
+	totalin += stats.icp6s_badcode + stats.icp6s_badlen +
 		stats.icp6s_checksum + stats.icp6s_tooshort;
 	mvwprintw(wnd, 1, 0, "%9lu", totalin);
 	mvwprintw(wnd, 1, 35, "%9lu", totalout);
