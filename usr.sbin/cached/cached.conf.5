@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .\"
 
-.Dd August 29, 2005
+.Dd April 30, 2006
 .Dt CACHED.CONF 5
 .Os
 .Sh NAME
@@ -58,7 +58,7 @@ coherence. The default value is 3600.
 The policy that is applied to erase some of the cache elements, when the
 size limit of the given cachename is exceeded. Possible policies are:
 fifo (first-in-first-out), lru (least-recently-used),
-lfu (least-frequently-used). The default policy is
+lfu (least-frequently-used). The default policy is lru.
 .It Sy negative-time-to-live [cachename] [value]
 The TTL of the negative cached elements in seconds. The larger values can
 significantly increase system performance in some environments
@@ -67,7 +67,7 @@ for example). This number should be kept low to avoid the cache
 coherence problems. The default value is 60.
 .It Sy negative-policy [cachename] [fifo|lru|lfu]
 The same as the positive-policy, but this one is applied to the negative
-elements of the given cachename. The default policy is
+elements of the given cachename. The default policy is fifo.
 .It Sy suggested-size [cachename] [value]
 This is the internal hash table size. The value should be a prime number
 for optimum performance. You should only change this value when the number
