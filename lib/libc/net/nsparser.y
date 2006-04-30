@@ -157,10 +157,11 @@ _nsaddsrctomap(elem)
 
 	lineno = _nsyylineno - (*_nsyytext == '\n' ? 1 : 0);
 	if (curdbt.srclistsize > 0) {
-		if ((strcasecmp(elem, NSSRC_COMPAT) == 0) ||
+		if (((strcasecmp(elem, NSSRC_COMPAT) == 0) &&
+		    (strcasecmp(curdbt.srclist[0].name, NSSRC_CACHE) != 0)) ||
 		    (strcasecmp(curdbt.srclist[0].name, NSSRC_COMPAT) == 0)) {
 			syslog(LOG_ERR,
-	    "NSSWITCH(nsparser): %s line %d: 'compat' used with other sources",
+	    "NSSWITCH(nsparser): %s line %d: 'compat' used with sources, other than 'cache'",
 			    _PATH_NS_CONF, lineno);
 			return;
 		}
