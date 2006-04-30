@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+XSRCS+=	ppcnbsd-nat.c ppc-tdep.c \
+	core-regset.c
+CFLAGS+= -DDEFAULT_BFD_VEC=bfd_elf32_powerpc_vec

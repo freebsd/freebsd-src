@@ -1,0 +1,82 @@
+<html>
+<head><title>smfi_delrcpt</title></head>
+<body>
+<!--
+$Id: smfi_delrcpt.html,v 1.9 2003/10/27 15:51:12 ca Exp $
+-->
+<h1>smfi_delrcpt</h1>
+
+<table border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<tr><th valign="top" align=left width=150>SYNOPSIS</th><td>
+<pre>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_delrcpt(
+	SMFICTX *ctx;
+	char *rcpt;
+);
+</pre>
+Remove a recipient from the current message's envelope.
+</td></tr>
+
+<!----------- Description ---------->
+<tr><th valign="top" align=left>DESCRIPTION</th><td>
+<table border="1" cellspacing=1 cellpadding=4>
+<tr align="left" valign=top>
+<th width="80">Called When</th>
+<td>Called only from <a href="xxfi_eom.html">xxfi_eom</a>.</td>
+</tr>
+<tr align="left" valign=top>
+<th width="80">Effects</th>
+<td>smfi_delrcpt removes the named recipient from the current message's envelope.</td>
+</tr>
+</table>
+
+<!----------- Arguments ---------->
+<tr><th valign="top" align=left>ARGUMENTS</th><td>
+    <table border="1" cellspacing=0>
+    <tr bgcolor="#dddddd"><th>Argument</th><th>Description</th></tr>
+    <tr valign="top"><td>ctx</td>
+	<td>Opaque context structure.
+	</td></tr>
+    <tr valign="top"><td>rcpt</td>
+	<td>The recipient address to be removed, a non-NULL, null-terminated string.
+	</td></tr>
+    </table>
+</td></tr>
+
+<!----------- Return values ---------->
+<tr>
+<th valign="top" align=left>RETURN VALUES</th> 
+
+<td>smfi_delrcpt will fail and return MI_FAILURE if:
+<ul>
+    <li>rcpt is NULL.
+    <li>Deleting recipients in the current connection state is invalid.
+    <li>A network error occurs.
+    <li>SMFIF_DELRCPT was not set when <a href="smfi_register.html">smfi_register</a> was called.
+</ul>
+Otherwise, it will return MI_SUCCESS
+</td>
+</tr>
+
+<!----------- Notes ---------->
+<tr align="left" valign=top>
+<th>NOTES</th> 
+<td>
+The addresses to be removed must match exactly.  For example, an address and its expanded form do not match.
+</td>
+</tr>
+
+</table>
+
+<hr size="1">
+<font size="-1">
+Copyright (c) 2000, 2003 Sendmail, Inc. and its suppliers.
+All rights reserved.
+<br>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</font>
+</body>
+</html>

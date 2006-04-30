@@ -1,0 +1,293 @@
+.\"-
+.\" Copyright (c) 2001 Chris D. Faulhaber
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR THE VOICES IN HIS HEAD BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 7, 2001
+.Dt SETFACL 1
+.Os
+.Sh NAME
+.Nm setfacl
+.Nd set ACL information
+.Sh SYNOPSIS
+.Nm
+.Op Fl bdhkn
+.Op Fl m Ar entries
+.Op Fl M Ar file
+.Op Fl x Ar entries
+.Op Fl X Ar file
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility sets discretionary access control information on
+the specified file(s).
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl b
+Remove all ACL entries except for the three required entries.
+If the ACL contains a
+.Dq Li mask
+entry, the permissions of the
+.Dq Li group
+entry in the resulting ACL will be set to the permission
+associated with both the
+.Dq Li group
+and
+.Dq Li mask
+entries of the current ACL.
+.It Fl d
+The operations apply to the default ACL entries instead of
+access ACL entries.
+Currently only directories may have
+default ACL's.
+.It Fl h
+If the target of the operation is a symbolic link, perform the operation
+on the symbolic link itself, rather than following the link.
+.It Fl k
+Delete any default ACL entries on the specified files.
+It
+is not considered an error if the specified files do not have
+any default ACL entries.
+An error will be reported if any of
+the specified files cannot have a default entry (i.e.\&
+non-directories).
+.It Fl m Ar entries
+Modify the ACL entries on the specified files by adding new
+entries and modifying existing ACL entries with the ACL entries
+specified in
+.Ar entries .
+.It Fl M Ar file
+Modify the ACL entries on the specified files by adding new
+ACL entries and modifying existing ACL entries with the ACL
+entries specified in the file
+.Ar file .
+If
+.Ar file
+is
+.Fl ,
+the input is taken from stdin.
+.It Fl n
+Do not recalculate the permissions associated with the ACL
+mask entry.
+.It Fl x Ar entries
+Remove the ACL entries specified in
+.Ar entries
+from the access or default ACL of the specified files.
+.It Fl X Ar file
+Remove the ACL entries specified in the file
+.Ar file
+from the access or default ACL of the specified files.
+.El
+.Pp
+The above options are evaluated in the order specified
+on the command-line.
+.Sh ACL ENTRIES
+An ACL entry contains three colon-separated fields:
+an ACL tag, an ACL qualifier, and discretionary access
+permissions:
+.Bl -tag -width indent
+.It Ar "ACL tag"
+The ACL tag specifies the ACL entry type and consists of
+one of the following:
+.Dq Li user
+or
+.Ql u
+specifying the access
+granted to the owner of the file or a specified user;
+.Dq Li group
+or
+.Ql g
+specifying the access granted to the file owning group
+or a specified group;
+.Dq Li other
+or
+.Ql o
+specifying the access
+granted to any process that does not match any user or group
+ACL entry;
+.Dq Li mask
+or
+.Ql m
+specifying the maximum access
+granted to any ACL entry except the
+.Dq Li user
+ACL entry for the file owner and the
+.Dq Li other
+ACL entry.
+.It Ar "ACL qualifier"
+The ACL qualifier field describes the user or group associated with
+the ACL entry.
+It may consist of one of the following: uid or
+user name, gid or group name, or empty.
+For
+.Dq Li user
+ACL entries, an empty field specifies access granted to the
+file owner.
+For
+.Dq Li group
+ACL entries, an empty field specifies access granted to the
+file owning group.
+.Dq Li mask
+and
+.Dq Li other
+ACL entries do not use this field.
+.It Ar "access permissions"
+The access permissions field contains up to one of each of
+the following:
+.Ql r ,
+.Ql w ,
+and
+.Ql x
+to set read, write, and
+execute permissions, respectively.
+Each of these may be excluded
+or replaced with a
+.Ql -
+character to indicate no access.
+.El
+.Pp
+A
+.Dq Li mask
+ACL entry is required on a file with any ACL entries other than
+the default
+.Dq Li user ,
+.Dq Li group ,
+and
+.Dq Li other
+ACL entries.
+If the
+.Fl n
+option is not specified and no
+.Dq Li mask
+ACL entry was specified, the
+.Nm
+utility
+will apply a
+.Dq Li mask
+ACL entry consisting of the union of the permissions associated
+with all
+.Dq Li group
+ACL entries in the resulting ACL.
+.Pp
+Traditional POSIX interfaces acting on file system object modes have
+modified semantics in the presence of POSIX.1e extended ACLs.
+When a mask entry is present on the access ACL of an object, the mask
+entry is substituted for the group bits; this occurs in programs such
+as
+.Xr stat 1
+or
+.Xr ls 1 .
+When the mode is modified on an object that has a mask entry, the
+changes applied to the group bits will actually be applied to the
+mask entry.
+These semantics provide for greater application compatibility:
+applications modifying the mode instead of the ACL will see
+conservative behavior, limiting the effective rights granted by all
+of the additional user and group entries; this occurs in programs
+such as
+.Xr chmod 1 .
+.Pp
+ACL entries applied from a file using the
+.Fl M
+or
+.Fl X
+options shall be of the following form: one ACL entry per line, as
+previously specified; whitespace is ignored; any text after a
+.Ql #
+is ignored (comments).
+.Pp
+When ACL entries are evaluated, the access check algorithm checks
+the ACL entries in the following order: file owner,
+.Dq Li user
+ACL entries, file owning group,
+.Dq Li group
+ACL entries, and
+.Dq Li other
+ACL entry.
+.Pp
+Multiple ACL entries specified on the command line are
+separated by commas.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+.Dl setfacl -m u::rwx,g:mail:rw file
+.Pp
+Sets read, write, and execute permissions for the
+.Pa file
+owner's ACL entry and read and write permissions for group mail on
+.Pa file .
+.Pp
+.Dl setfacl -M file1 file2
+.Pp
+Sets/updates the ACL entries contained in
+.Pa file1
+on
+.Pa file2 .
+.Pp
+.Dl setfacl -x g:mail:rw file
+.Pp
+Remove the group mail ACL entry containing read/write permissions
+from
+.Pa file.
+.Pp
+.Dl setfacl -bn file
+.Pp
+Remove all
+.Dq Li access
+ACL entries except for the three required from
+.Pa file .
+.Pp
+.Dl getfacl file1 | setfacl -b -n -M - file2
+.Pp
+Copy ACL entries from
+.Pa file1
+to
+.Pa file2 .
+.Sh SEE ALSO
+.Xr getfacl 1 ,
+.Xr acl 3 ,
+.Xr getextattr 8 ,
+.Xr setextattr 8 ,
+.Xr acl 9 ,
+.Xr extattr 9
+.Sh STANDARDS
+The
+.Nm
+utility is expected to be
+.Tn IEEE
+Std 1003.2c compliant.
+.Sh HISTORY
+Extended Attribute and Access Control List support was developed
+as part of the
+.Tn TrustedBSD
+Project and introduced in
+.Fx 5.0 .
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Chris D. Faulhaber Aq jedgar@fxp.org .

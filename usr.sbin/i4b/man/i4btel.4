@@ -1,0 +1,133 @@
+.\"
+.\" Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\"	last edit-date: [Sun Jul 28 14:14:06 2002]
+.\"
+.Dd July 28, 2002
+.Dt I4BTEL 4
+.Os
+.Sh NAME
+.Nm i4btel
+.Nd isdn4bsd ISDN B-channel telephony interface driver
+.Sh SYNOPSIS
+.Cd device \&"i4btel\&" Op count
+.Sh DESCRIPTION
+The
+.Nm
+driver provides an interface to the ISDN B-channel for telephony applications
+and is currently used by the
+.Xr isdnd 8
+for answering machine support.
+The driver is part of the isdn4bsd package.
+.Pp
+The lower six bits of the drivers's minor number is used to specify a
+unit number, whereas the upper two bits specify a functionality.
+.Pp
+Functionality zero is the usual telephony data stream i/o driver.
+.Pp
+Functionality one is used to enable commands to dial out and hang up and
+receive responses about the state of the dial out progress and status.
+This commands may change in the future, for details see the file
+.Em i4b_tel_ioctl.h
+and the
+.Xr isdnphone 8
+utility.
+.Pp
+The telephony data stream comes out of the line in a bit-reversed format,
+so the
+.Nm
+driver does the bit-reversion process in any case.
+.Pp
+Additionally, the user can specify to do A-law to u-law, u-law to A-law
+or no conversion at all in the i4btel driver by using the
+.Xr isdntelctl 8
+utility.
+.Pp
+The driver is able to process several ioctl's:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It Ar I4B_TEL_GETAUDIOFMT
+get currently used audio format conversion.
+.It Ar I4B_TEL_SETAUDIOFMT
+set currently used audio format conversion.
+.It Ar I4B_TEL_EMPTYINPUTQUEUE
+clear the input queue.
+.El
+.Pp
+For the I4B_TEL_GETAUDIOFMT and I4B_TEL_SETAUDIOFMT, the following
+parameters are available:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It Ar CVT_NONE
+do no A-law/u-law audio format conversion.
+The conversion path looks like this:
+.Pp
+USER <--> bitreversing <--> ISDN-line
+.Pp
+.It Ar CVT_ALAW2ULAW
+set set audio format conversion to do an audio conversion from A-law
+(on the ISDN line) to u-law (in the userland).
+The
+.Xr read 2
+conversion path looks like this:
+.Pp
+USER <-- u-law/A-law <-- bitreversing <-- ISDN-line
+.Pp
+and the
+.Xr write 2
+conversion path looks like this:
+.Pp
+USER --> u-law/A-law --> bitreversing --> ISDN-line
+.Pp
+.It Ar CVT_ULAW2ALAW
+set set audio format conversion to do an audio conversion from u-law
+(on the ISDN line) to A-law (in the userland).
+The
+.Xr read 2
+conversion path looks like this:
+.Pp
+USER <-- A-law/u-law <-- bitreversing <-- ISDN-line
+.Pp
+and the
+.Xr write 2
+conversion path looks like this:
+.Pp
+USER --> A-law/u-law --> bitreversing --> ISDN-line
+.Pp
+.El
+.Sh SEE ALSO
+.Xr g711conv 1 ,
+.Xr isdnd.rc 5 ,
+.Xr isdnd 8 ,
+.Xr isdnphone 8 ,
+.Xr isdntelctl 8
+.Sh STANDARDS
+A-Law and u-Law are specified in ITU Recommendation G.711.
+.Sh AUTHORS
+The
+.Nm
+device driver and this manpage were written by
+.An Hellmuth Michaelis Aq hm@FreeBSD.org .

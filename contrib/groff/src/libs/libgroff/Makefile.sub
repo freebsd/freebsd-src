@@ -1,0 +1,126 @@
+LIB=groff
+EXTRA_CFLAGS=-D__GETOPT_PREFIX=groff_
+OBJS=\
+  assert.$(OBJEXT) \
+  change_lf.$(OBJEXT) \
+  cmap.$(OBJEXT) \
+  color.$(OBJEXT) \
+  cset.$(OBJEXT) \
+  device.$(OBJEXT) \
+  errarg.$(OBJEXT) \
+  error.$(OBJEXT) \
+  fatal.$(OBJEXT) \
+  filename.$(OBJEXT) \
+  font.$(OBJEXT) \
+  fontfile.$(OBJEXT) \
+  geometry.$(OBJEXT) \
+  getopt.$(OBJEXT) \
+  getopt1.$(OBJEXT) \
+  glyphuni.$(OBJEXT) \
+  htmlhint.$(OBJEXT) \
+  hypot.$(OBJEXT) \
+  iftoa.$(OBJEXT) \
+  invalid.$(OBJEXT) \
+  itoa.$(OBJEXT) \
+  lf.$(OBJEXT) \
+  lineno.$(OBJEXT) \
+  macropath.$(OBJEXT) \
+  matherr.$(OBJEXT) \
+  maxfilename.$(OBJEXT) \
+  maxpathname.$(OBJEXT) \
+  mksdir.$(OBJEXT) \
+  nametoindex.$(OBJEXT) \
+  new.$(OBJEXT) \
+  paper.$(OBJEXT) \
+  prime.$(OBJEXT) \
+  progname.$(OBJEXT) \
+  ptable.$(OBJEXT) \
+  quotearg.$(OBJEXT) \
+  relocate.$(OBJEXT) \
+  searchpath.$(OBJEXT) \
+  spawnvp.$(OBJEXT) \
+  string.$(OBJEXT) \
+  strsave.$(OBJEXT) \
+  symbol.$(OBJEXT) \
+  tmpfile.$(OBJEXT) \
+  tmpname.$(OBJEXT) \
+  unicode.$(OBJEXT) \
+  uniglyph.$(OBJEXT) \
+  uniuni.$(OBJEXT) \
+  version.$(OBJEXT) \
+  $(LIBOBJS)
+CCSRCS=\
+  $(srcdir)/assert.cpp \
+  $(srcdir)/change_lf.cpp \
+  $(srcdir)/cmap.cpp \
+  $(srcdir)/color.cpp \
+  $(srcdir)/cset.cpp \
+  $(srcdir)/device.cpp \
+  $(srcdir)/errarg.cpp \
+  $(srcdir)/error.cpp \
+  $(srcdir)/fatal.cpp \
+  $(srcdir)/filename.cpp \
+  $(srcdir)/font.cpp \
+  $(srcdir)/fontfile.cpp \
+  $(srcdir)/geometry.cpp \
+  $(srcdir)/glyphuni.cpp \
+  $(srcdir)/htmlhint.cpp \
+  $(srcdir)/hypot.cpp \
+  $(srcdir)/invalid.cpp \
+  $(srcdir)/lf.cpp \
+  $(srcdir)/lineno.cpp \
+  $(srcdir)/macropath.cpp \
+  $(srcdir)/maxfilename.cpp \
+  $(srcdir)/maxpathname.cpp \
+  $(srcdir)/mksdir.cpp \
+  $(srcdir)/mkstemp.cpp \
+  $(srcdir)/nametoindex.cpp \
+  $(srcdir)/new.cpp \
+  $(srcdir)/paper.cpp \
+  $(srcdir)/prime.cpp \
+  $(srcdir)/ptable.cpp \
+  $(srcdir)/relocate.cpp \
+  $(srcdir)/searchpath.cpp \
+  $(srcdir)/string.cpp \
+  $(srcdir)/strsave.cpp \
+  $(srcdir)/symbol.cpp \
+  $(srcdir)/tmpfile.cpp \
+  $(srcdir)/tmpname.cpp \
+  $(srcdir)/unicode.cpp \
+  $(srcdir)/uniglyph.cpp \
+  $(srcdir)/uniuni.cpp \
+  version.cpp
+CSRCS=\
+  $(srcdir)/fmod.c \
+  $(srcdir)/getcwd.c \
+  $(srcdir)/getopt.c \
+  $(srcdir)/getopt1.c \
+  $(srcdir)/iftoa.c \
+  $(srcdir)/itoa.c \
+  $(srcdir)/matherr.c \
+  $(srcdir)/progname.c \
+  $(srcdir)/putenv.c \
+  $(srcdir)/quotearg.c \
+  $(srcdir)/spawnvp.c \
+  $(srcdir)/strcasecmp.c \
+  $(srcdir)/strerror.c \
+  $(srcdir)/strncasecmp.c \
+  $(srcdir)/strtol.c \
+  $(srcdir)/../snprintf/snprintf.c
+GENSRCS=\
+  version.cpp
+
+src_version=`cat $(top_srcdir)/VERSION`
+src_revision=`cat $(top_srcdir)/REVISION`
+
+version.cpp: $(top_srcdir)/VERSION $(top_srcdir)/REVISION
+	@echo Making version.cpp
+	@echo const char \*version_string = \"$(src_version)\"\; >$@
+	@echo const char \*revision_string = \"$(src_revision)\"\; >>$@
+	@echo extern \"C\" const char \*Version_string = \"$(src_version).$(src_revision)\"\; | \
+	  sed -e 's/\.0\"/\"/' >>$@
+
+# We have to avoid $(COMPILE.c) since we must not use groff's `assert.h'
+snprintf.$(OBJEXT): $(srcdir)/../snprintf/snprintf.c
+	$(CC) -c $(CDEFINES) $(CFLAGS) $(CPPFLAGS) \
+	  $(srcdir)/../snprintf/snprintf.c

@@ -1,0 +1,329 @@
+Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+Copyright (C) 2000, 2001  Internet Software Consortium.
+See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
+
+The BIND v9 ARM master document is now kept in DocBook XML format.
+
+Version: $Id: README-SGML,v 1.16.206.1 2004/03/06 13:16:14 marka Exp $
+
+The entire ARM is in the single file:
+
+    Bv9ARM-book.xml
+
+All of the other documents - HTML, PDF, etc - are generated from this
+master source.
+
+This file attempts to describe what tools are necessary for the
+maintenance of this document as well as the generation of the
+alternate formats of this document.
+
+This file will also spend a very little time describing the XML and
+SGML headers so you can understand a bit what you may need to do to be
+able to work with this document in any fashion other than simply
+editing it. 
+
+We will spend almost no time on the actual tags and how to write an
+XML DocBook compliant document. If you are at all familiar with SGML
+or HTML it will be very evident. You only need to know what the tags
+are and how to use them. You can find a good resource either for this
+either online or in printed form:
+
+    DocBook: The Definitive Guide
+    By Norman Walsh and Leonard Muellner
+    ISBN: 156592-580-7
+    1st Edition, October 1999
+    Copyright (C) 1999 by O'Reilly & Associates, Inc. All rights reserved.
+
+The book is available online in HTML format:
+
+    http://docbook.org/
+
+and buried in:
+
+    http://www.nwalsh.com/docbook/defguide/index.html
+
+A lot of useful stuff is at NWalsh's site in general. You may also
+want to look at:
+
+    http://www.xml.com/
+
+The BIND v9 ARM is based on the XML 4.0 DocBook DTD. Every XML and
+SGML document begins with a prefix that tells where to find the file
+that describes the meaning and structure of the tags used in the rest
+of the document.
+
+For our XML DocBook 4.0 based document this prefix looks like this:
+
+    <!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
+		   "/usr/local/share/xml/dtd/docbook/docbookx.dtd">
+
+This "DOCTYPE" statement has three parts, of which we are only using
+two:
+
+o The highest level term that represents this document (in this case
+  it is "book"
+
+o The identifier that tells us which DTD to use. This identifier has
+  two parts, the "Formal Public Identifier" (or FPI) and the system
+  identifier. In SGML you can have either a FPI or a SYSTEM identifier
+  but you have to have at least one of them. In XML you have to have a
+  SYSTEM identifier.
+
+FP & SYSTEM identifiers - These are names/lookups for the actual
+DTD. The FPI is a globally unique name that should, on a properly
+configured system, tell you exactly what DTD to use. The SYSTEM
+identifier gives an absolute location for the DTD. In XML these are
+supposed to be properly formatted URL's.
+
+SGML has these things called "catalogs" that are files that map FPI's
+in to actual files. A "catalog" can also be used to remap a SYSTEM
+identifier so you can say something like: "http://www.oasis.org/foo"
+is actually "/usr/local/share/xml/foo.dtd"
+
+When you use various SGML/XML tools they need to be configured to look
+at the same "catalog" files so that as you move from tool to tool they
+all refer to the same DTD for the same document.
+
+We will be spending most of our configuration time making sure our
+tools use the same "catalog" files and that we have the same DTD's
+installed on our machines. XML's requirement of the SYSTEM identifier
+over the FPI will probably lead to more problems as it does not
+guarantee that everyone is using the same DTD.
+
+I did my initial work with the "sgmltools" the XML 4.0 DocBook DTD and
+"jade" or "openjade."
+
+You can get the 4.0 XML DocBook DTD from:
+
+    http://www.docbook.org/xml/4.0/
+
+(download the .zip file.) NOTE: We will eventually be changing the
+SYSTEM identifier to the recommended value of:
+
+    http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd
+
+NOTE: Under FreeBSD this is the package: 
+
+    /usr/ports/textproc/docbook-xml
+
+NetBSD instructions are coming soon.
+
+With packages listed below installed under FreeBSD the "catalog" file
+that all the tools refer to at least one is in:
+
+    /usr/local/share/sgml/catalog
+
+In order for our SYSTEM identifier for the XML DocBook dtd to be found
+I create a new catalog file at the top of the XML directory created on
+FreeBSD:
+
+   /usr/local/share/xml/catalog
+
+This file has one line:
+
+   SYSTEM "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd" "/usr/local/share/xml/dtd/docbook/docbookx.dtd"
+
+Then in the main "catalog" I have it include this XML catalog:
+
+   CATALOG "/usr/local/share/xml/catalog"
+
+
+On your systems you need to replace "/usr/local/share" with your
+prefix root (probably /usr/pkg under NetBSD.)
+
+NOTE: The URL used above is supposed to the be the proper one for this
+XML DocBook DTD... but there is nothing at that URL so you really do
+need the "SYSTEM" identifier mapping in your catalog (or make the
+SYSTEM identifier in your document refer to the real location of the
+file on your local system.)
+
+HOW TO VALIDATE A DOCUMENT:
+
+I use the sgmltools "nsgmls" document validator. Since we are using
+XML we need to use the XML declarations, which are installed as part
+of the modular DSSL style sheets:
+
+    nsgmls -sv /usr/local/share/sgml/docbook/dsssl/modular/dtds/decls/xml.dcl \
+	   Bv9ARM-book.xml
+
+A convenient shell script "validate.sh" is now generated by configure
+to invoke the above command with the correct system-dependent paths.
+
+The SGML tools can be found at:
+
+    ftp://ftp.us.sgmltools.org/pub/SGMLtools/v2.0/source/ \
+    ftp://ftp.nllgg.nl/pub/SGMLtools/v2.0/source/
+
+FreeBSD package for these is: 
+
+    /usr/ports/textproc/sgmltools
+
+HOW TO RENDER A DOCUMENT AS HTML or TeX:
+
+o Generate html doc with:
+
+    openjade -v -d ./nominum-docbook-html.dsl \
+	 -t sgml \
+	 /usr/local/share/sgml/docbook/dsssl/modular/dtds/decls/xml.dcl \
+	 Bv9ARM-book.xml
+
+A convenient shell script "genhtml.sh" is now generated by configure to
+invoke the above command with the correct system-dependent paths.
+
+On NetBSD there is no port for "openjade" however "jade" does still
+work. However you need to specify the "catalog" file to use for style
+sheets on the command line AND you need to have a default "catalog"
+mapping where to find various DTDs. It seems that "jade" installed out
+of the box on NetBSD does not use a globally defined "catalog" file
+for mapping PUBLIC identifiers in to SYSTEM identifiers.
+
+So you need to have a "catalog" file in your current working directory
+that has in it this: (these are probably more entries than you need!)
+
+     CATALOG "/usr/pkg/share/sgml/iso8879/catalog"
+     CATALOG "/usr/pkg/share/sgml/docbook/2.4.1/catalog"
+     CATALOG "/usr/pkg/share/sgml/docbook/3.0/catalog"
+     CATALOG "/usr/pkg/share/sgml/docbook/3.1/catalog"
+     CATALOG "/usr/pkg/share/sgml/jade/catalog"
+     CATALOG "/usr/local/share/xml/catalog"
+
+(These would all be "/usr/local" on FreeBSD)
+
+So the command for jade on NetBSD will look like this:
+
+jade -v -c /usr/pkg/share/sgml/catalog -t sgml \
+     -d ./nominum-docbook-html.dsl \
+     /usr/pkg/share/sgml/docbook/dsssl/modular/dtds/decls/xml.dcl \
+     ./Bv9ARM-book.xml
+
+Furthermore, since the style sheet subset we define has in it a hard
+coded path to the style sheet is based, it is actually generated by
+configure from a .in file so that it will contain the correct
+system-dependent path: where on FreeBSD the second line reads:
+
+    <!ENTITY dbstyle SYSTEM "/usr/local/share/sgml/docbook/dsssl/modular/html/docbook.dsl" CDATA DSSSL>
+  
+On NetBSD it needs to read:
+
+    <!ENTITY dbstyle SYSTEM "/usr/pkg/share/sgml/docbook/dsssl/modular/html/docbook.dsl" CDATA DSSSL>
+
+NOTE: This is usually solved by having this style sheet modification
+be installed in a system directory and have it reference the style
+sheet it is based on via a relative path.
+
+o Generate TeX documentation:
+
+openjade -d ./nominum-docbook-print.dsl -t tex -v \
+     /usr/local/share/sgml/docbook/dsssl/modular/dtds/decls/xml.dcl \
+     Bv9ARM-book.xml
+
+If you have "jade" installed instead of "openjade" then use that as
+the command. There is little difference, openjade has some bug fixes
+and is in more active development.
+
+To convert the resulting TeX file in to a DVI file you need to do:
+
+    tex "&jadetex" Bv9ARM-book.tex
+
+You can also directly generate the pdf file via:
+
+    pdftex "&pdfjadetex" Bv9ARM-book.tex
+
+The scripts "genpdf.sh" and "gendvi." have been added to simply
+generating the  PDF and DVI output. These substitute the correct paths
+of NetBSD & FreeBSD. You still need to have TeX, jadeTeX, and pdfTeX
+installed and configured properly for these to work.
+
+You will need to up both the "pool_size" and "hash_extra" variables in
+your texmf.cnf file and regenerate them. See below.
+
+You can see that I am using a DSSSL style sheet for DocBook. Actually
+two different ones - one for rendering html, and one for 'print'
+media.
+
+NOTE: For HTML we are using a Nominum DSSSL style instead of the
+default one (all it does is change the chunking to the chapter level
+and makes the files end with ".html" instead of ".htm" so far.) If you
+want to use the plain jane DSSSL style sheet replace the:
+
+    -d ./nominum-docbook-html.dsl
+
+with
+
+    -d /usr/local/share/sgml/docbook/dsssl/modular/html/docbook.dsl
+
+This style sheet will attempt to reference the one above.
+
+I am currently working on fixing these up so that it works the same on
+our various systems. The main trick is knowing which DTD's and DSSSL
+stylesheets you have installed, installing the right ones, and
+configuring a CATALOG that refers to them in the same way. We will
+probably end up putting our CATALOG's in the same place and then we
+should be able to generate and validate our documents with a minimal
+number of command line arguments.
+
+When running these commands you will get a lot of messages about a
+bunch of general entities not being defined and having no default
+entity. You can ignore those for now.
+
+Also with the style sheets we have and jade as it is you will get
+messages about "xref to title" being unsupported. You can ignore these
+for now as well.
+
+=== Getting the various tools installed on FreeBSD
+(NetBSD coming soon..)
+
+o On freebsd you need to install the following packages:
+  o print/teTeX
+  o textproc/openjade
+  o textproc/docbook
+  o textproc/docbook-xml
+  o textproc/dsssl-docbook-modular
+  o textproc/dtd-catalogs
+
+o on freebsd you need to make some entities visible to the docbook xml
+  dtd by making a symlink (can probably be done with a catalog too)
+  ln -s /usr/local/share/xml/entity /usr/local/share/xml/dtd/docbook/ent
+
+o you may need to edit /usr/local/share/sgml/catalog and add the line:
+
+  CATALOG "/usr/local/share/sgml/openjade/catalog"
+
+o add "hugelatex," Enlarge pool sizes, install the jadetex TeX driver
+  file.
+
+  cd /usr/local/share/texmf/web2c/
+  sudo cp texmf.cnf texmf.cnf.bak
+
+  o edit the lines in texmf.cnf with these keys to these values:
+
+                  main_memory = 1100000
+                  hash_extra = 15000
+                  pool_size = 500000
+                  string_vacancies = 45000
+                  max_strings = 55000
+                  pool_free = 47500
+                  nest_size = 500
+                  param_size = 1500
+                  save_size = 5000
+                  stack_size = 1500
+
+  sudo tex -ini -progname=hugelatex -fmt=hugelatex latex.ltx
+  sudo texconfig init
+  sudo texhash
+
+  o For the jadetex macros you will need I recommend you get a more
+    current version than what is packaged with openjade or jade.
+
+    Checkout http://www.tug.org/applications/jadetex/
+    
+    Unzip the file you get from there (should be jadetex-2.20 or
+    newer.) 
+
+    In the directory you unzip: 
+
+      sudo make install
+      sudo texhash
+
+    NOTE: In the most uptodate "ports" for FreeBSD, jadetext is 2.20+
+    so on this platform you should be set as of 2001.01.08.

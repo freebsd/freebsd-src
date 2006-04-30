@@ -1,0 +1,3 @@
+map foo0 from any port = 1 to any port != 0 -> 0/32 udp
+map foo0 from any port < 1 to any port > 0 -> 0/32 tcp
+map foo0 from any port <= 1 to any port >= 0 -> 0/32 tcp/udp

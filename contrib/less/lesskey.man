@@ -1,0 +1,462 @@
+
+
+
+LESSKEY(1)                                             LESSKEY(1)
+
+
+NNAAMMEE
+       lesskey - specify key bindings for less
+
+SSYYNNOOPPSSIISS
+       lleesssskkeeyy [[--oo oouuttppuutt]] [[----]] [[iinnppuutt]]
+       lleesssskkeeyy [[----oouuttppuutt==oouuttppuutt]] [[----]] [[iinnppuutt]]
+       lleesssskkeeyy --VV
+       lleesssskkeeyy ----vveerrssiioonn
+
+DDEESSCCRRIIPPTTIIOONN
+       _L_e_s_s_k_e_y  is  used  to  specify a set of key bindings to be
+       used by _l_e_s_s_.   The  input  file  is  a  text  file  which
+       describes  the  key  bindings,  If  the input file is "-",
+       standard input is read.  If no input file is specified,  a
+       standard  filename  is used as the name of the input file,
+       which depends on the system being used: On  Unix  systems,
+       $HOME/.lesskey  is used; on MS-DOS systems, $HOME/_lesskey
+       is used; and on OS/2 systems $HOME/lesskey.ini is used, or
+       $INIT/lesskey.ini  if $HOME is undefined.  The output file
+       is a binary file which is used by _l_e_s_s_.  If no output file
+       is specified, and the environment variable LESSKEY is set,
+       the value of LESSKEY is used as the  name  of  the  output
+       file.   Otherwise, a standard filename is used as the name
+       of the output file, which  depends  on  the  system  being
+       used:  On  Unix  and OS-9 systems, $HOME/.less is used; on
+       MS-DOS systems, $HOME/_less is used; and on OS/2  systems,
+       $HOME/less.ini  is  used,  or  $INIT/less.ini  if $HOME is
+       undefined.  If the output  file  already  exists,  _l_e_s_s_k_e_y
+       will overwrite it.
+
+       The  -V  or  --version  option causes _l_e_s_s_k_e_y to print its
+       version number and immediately exit.  If -V  or  --version
+       is present, other options and arguments are ignored.
+
+       The  input  file  consists  of one or more _s_e_c_t_i_o_n_s_.  Each
+       section starts with a line that  identifies  the  type  of
+       section.  Possible sections are:
+
+       #command
+              Defines new command keys.
+
+       #line-edit
+              Defines new line-editing keys.
+
+       #env   Defines environment variables.
+
+       Blank  lines  and  lines which start with a pound sign (#)
+       are ignored, except for the special section header  lines.
+
+
+CCOOMMMMAANNDD SSEECCTTIIOONN
+       The command section begins with the line
+
+       #command
+
+
+
+                     Version 381: 17 Jan 2003                   1
+
+
+
+
+
+LESSKEY(1)                                             LESSKEY(1)
+
+
+       If  the  command section is the first section in the file,
+       this line may be omitted.  The command section consists of
+       lines of the form:
+
+            _s_t_r_i_n_g <whitespace> _a_c_t_i_o_n [extra-string] <newline>
+
+       Whitespace  is  any  sequence of one or more spaces and/or
+       tabs.  The _s_t_r_i_n_g is the command key(s) which  invoke  the
+       action.   The  _s_t_r_i_n_g  may  be  a single command key, or a
+       sequence of up to 15 keys.  The _a_c_t_i_o_n is the name of  the
+       less  action,  from the list below.  The characters in the
+       _s_t_r_i_n_g may appear literally, or be prefixed by a caret  to
+       indicate  a  control  key.  A backslash followed by one to
+       three octal digits may be used to specify a  character  by
+       its  octal value.  A backslash followed by certain charac­
+       ters specifies input characters as follows:
+
+       \b     BACKSPACE
+
+       \e     ESCAPE
+
+       \n     NEWLINE
+
+       \r     RETURN
+
+       \t     TAB
+
+       \ku    UP ARROW
+
+       \kd    DOWN ARROW
+
+       \kr    RIGHT ARROW
+
+       \kl    LEFT ARROW
+
+       \kU    PAGE UP
+
+       \kD    PAGE DOWN
+
+       \kh    HOME
+
+       \ke    END
+
+       \kx    DELETE
+
+       A backslash followed by any other character indicates that
+       character is to be taken literally.  Characters which must
+       be preceded by backslash include caret, space, tab and the
+       backslash itself.
+
+       An action may be followed by an "extra" string.  When such
+       a command is entered while running  _l_e_s_s_,  the  action  is
+       performed, and then the extra string is parsed, just as if
+       it were typed in to _l_e_s_s_.  This feature  can  be  used  in
+
+
+
+                     Version 381: 17 Jan 2003                   2
+
+
+
+
+
+LESSKEY(1)                                             LESSKEY(1)
+
+
+       certain  cases  to  extend the functionality of a command.
+       For example, see the "{" and ":t" commands in the  example
+       below.   The  extra  string  has a special meaning for the
+       "quit" action: when _l_e_s_s quits,  first  character  of  the
+       extra string is used as its exit status.
+
+
+EEXXAAMMPPLLEE
+       The following input file describes the set of default com­
+       mand keys used by less:
+
+            #command
+            \r        forw-line
+            \n        forw-line
+            e         forw-line
+            j         forw-line
+            \kd  forw-line
+            ^E        forw-line
+            ^N        forw-line
+            k         back-line
+            y         back-line
+            ^Y        back-line
+            ^K        back-line
+            ^P        back-line
+            J         forw-line-force
+            K         back-line-force
+            Y         back-line-force
+            d         forw-scroll
+            ^D        forw-scroll
+            u         back-scroll
+            ^U        back-scroll
+            \40  forw-screen
+            f         forw-screen
+            ^F        forw-screen
+            ^V        forw-screen
+            \kD  forw-screen
+            b         back-screen
+            ^B        back-screen
+            \ev       back-screen
+            \kU  back-screen
+            z         forw-window
+            w         back-window
+            \e\40          forw-screen-force
+            F         forw-forever
+            R         repaint-flush
+            r         repaint
+            ^R        repaint
+            ^L        repaint
+            \eu       undo-hilite
+            g         goto-line
+            \kh  goto-line
+            <         goto-line
+            \e<       goto-line
+            p         percent
+
+
+
+                     Version 381: 17 Jan 2003                   3
+
+
+
+
+
+LESSKEY(1)                                             LESSKEY(1)
+
+
+            %         percent
+            \e[       left-scroll
+            \e]       right-scroll
+            \e(       left-scroll
+            \e)       right-scroll
+            {         forw-bracket {}
+            }         back-bracket {}
+            (         forw-bracket ()
+            )         back-bracket ()
+            [         forw-bracket []
+            ]         back-bracket []
+            \e^F      forw-bracket
+            \e^B      back-bracket
+            G         goto-end
+            \e>       goto-end
+            >         goto-end
+            \ke  goto-end
+            =         status
+            ^G        status
+            :f        status
+            /         forw-search
+            ?         back-search
+            \e/       forw-search *
+            \e?       back-search *
+            n         repeat-search
+            \en       repeat-search-all
+            N         reverse-search
+            \eN       reverse-search-all
+            m         set-mark
+            '         goto-mark
+            ^X^X      goto-mark
+            E         examine
+            :e        examine
+            ^X^V      examine
+            :n        next-file
+            :p        prev-file
+            t         next-tag
+            T         prev-tag
+            :x        index-file
+            :d        remove-file
+            -         toggle-option
+            :t        toggle-option t
+            s         toggle-option o
+            _         display-option
+            |         pipe
+            v         visual
+            !         shell
+            +         firstcmd
+            H         help
+            h         help
+            V         version
+            0         digit
+            1         digit
+            2         digit
+
+
+
+                     Version 381: 17 Jan 2003                   4
+
+
+
+
+
+LESSKEY(1)                                             LESSKEY(1)
+
+
+            3         digit
+            4         digit
+            5         digit
+            6         digit
+            7         digit
+            8         digit
+            9         digit
+            q         quit
+            Q         quit
+            :q        quit
+            :Q        quit
+            ZZ        quit
+
+
+PPRREECCEEDDEENNCCEE
+       Commands specified by _l_e_s_s_k_e_y  take  precedence  over  the
+       default  commands.   A default command key may be disabled
+       by  including  it  in  the  input  file  with  the  action
+       "invalid".   Alternatively,  a  key  may  be defined to do
+       nothing by using the  action  "noaction".   "noaction"  is
+       similar to "invalid", but _l_e_s_s will give an error beep for
+       an "invalid" command, but not for  a  "noaction"  command.
+       In  addition,  ALL  default  commands  may  be disabled by
+       adding this control line to the input file:
+
+       #stop
+
+       This will cause all default commands to be  ignored.   The
+       #stop  line should be the last line in that section of the
+       file.
+
+       Be aware that #stop can be dangerous.  Since  all  default
+       commands  are  disabled,  you must provide sufficient com­
+       mands before  the  #stop  line  to  enable  all  necessary
+       actions.  For example, failure to provide a "quit" command
+       can lead to frustration.
+
+
+LLIINNEE EEDDIITTIINNGG SSEECCTTIIOONN
+       The line-editing section begins with the line:
+
+       #line-edit
+
+       This section specifies new key bindings for the line edit­
+       ing  commands, in a manner similar to the way key bindings
+       for ordinary commands are specified in the  #command  sec­
+       tion.  The line-editing section consists of a list of keys
+       and actions, one per line as in the example below.
+
+
+EEXXAAMMPPLLEE
+       The following input file  describes  the  set  of  default
+       line-editing keys used by less:
+
+
+
+
+                     Version 381: 17 Jan 2003                   5
+
+
+
+
+
+LESSKEY(1)                                             LESSKEY(1)
+
+
+            #line-edit
+            \t        forw-complete
+            \17       back-complete
+            \e\t      back-complete
+            ^L        expand
+            ^V        literal
+            ^A        literal
+            \el       right
+            \kr       right
+            \eh       left
+            \kl       left
+            \eb       word-left
+            \e\kl     word-left
+            \ew       word-right
+            \e\kr     word-right
+            \ei       insert
+            \ex       delete
+            \kx       delete
+            \eX       word-delete
+            \ekx      word-delete
+            \e\b      word-backspace
+            \e0       home
+            \kh       home
+            \e$       end
+            \ke       end
+            \ek       up
+            \ku       up
+            \ej       down
+
+
+
+LLEESSSS EENNVVIIRROONNMMEENNTT VVAARRIIAABBLLEESS
+       The environment variable section begins with the line
+
+       #env
+
+       Following  this  line  is  a  list of environment variable
+       assignments.  Each line consists of an  environment  vari­
+       able name, an equals sign (=) and the value to be assigned
+       to the environment variable.  White space before and after
+       the  equals  sign  is ignored.  Variables assigned in this
+       way are visible only to _l_e_s_s_.  If a variable is  specified
+       in  the system environment and also in a lesskey file, the
+       value in the lesskey file takes precedence.  Although  the
+       lesskey  file can be used to override variables set in the
+       environment, the main purpose of  assigning  variables  in
+       the  lesskey file is simply to have all _l_e_s_s configuration
+       information stored in one file.
+
+
+EEXXAAMMPPLLEE
+       The following input file sets the -i option whenever  _l_e_s_s
+       is run, and specifies the character set to be "latin1":
+
+
+
+
+                     Version 381: 17 Jan 2003                   6
+
+
+
+
+
+LESSKEY(1)                                             LESSKEY(1)
+
+
+            #env
+            LESS = -i
+            LESSCHARSET = latin1
+
+
+
+SSEEEE AALLSSOO
+       less(1)
+
+
+WWAARRNNIINNGGSS
+       It  is not possible to specify special keys, such as upar­
+       row, in a keyboard-independent manner.  The  only  way  to
+       specify  such keys is to specify the escape sequence which
+       a particular keyboard sends when such a key is pressed.
+
+       On MS-DOS and OS/2 systems, certain keys send  a  sequence
+       of  characters which start with a NUL character (0).  This
+       NUL character should be represented as \340 in  a  lesskey
+       file.
+
+
+CCOOPPYYRRIIGGHHTT
+       Copyright (C) 2000  Mark Nudelman
+
+       lesskey  is  part of the GNU project and is free software;
+       you can redistribute it and/or modify it under  the  terms
+       of the GNU General Public License as published by the Free
+       Software Foundation; either version 2, or (at your option)
+       any later version.
+
+       lesskey is distributed in the hope that it will be useful,
+       but WITHOUT ANY WARRANTY; without even  the  implied  war­
+       ranty  of MERCHANTABILITY or FITNESS FOR A PARTICULAR PUR­
+       POSE.   See  the  GNU  General  Public  License  for  more
+       details.
+
+       You  should have received a copy of the GNU General Public
+       License along with lesskey; see the file COPYING.  If not,
+       write  to  the  Free Software Foundation, 59 Temple Place,
+       Suite 330, Boston, MA  02111-1307, USA.
+
+
+AAUUTTHHOORR
+       Mark Nudelman <markn@greenwoodsoftware.com>
+       Send bug reports or comments to the above  address  or  to
+       bug-less@gnu.org.
+
+
+
+
+
+
+
+
+
+
+                     Version 381: 17 Jan 2003                   7
+
+

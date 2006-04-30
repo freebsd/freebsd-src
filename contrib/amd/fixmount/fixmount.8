@@ -1,0 +1,187 @@
+.\"
+.\" Copyright (c) 1997-2004 Erez Zadok
+.\" Copyright (c) 1990 Jan-Simon Pendry
+.\" Copyright (c) 1990 Imperial College of Science, Technology & Medicine
+.\" Copyright (c) 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Jan-Simon Pendry at Imperial College, London.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgment:
+.\"      This product includes software developed by the University of
+.\"      California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	%W% (Berkeley) %G%
+.\"
+.\" $Id: fixmount.8,v 1.3.2.6 2004/01/06 03:15:23 ezk Exp $
+.\" $FreeBSD$
+.\"
+.Dd February 26, 1993
+.Dt FIXMOUNT 8
+.Os
+.Sh NAME
+.Nm fixmount
+.Nd fix remote mount entries
+.Sh SYNOPSIS
+.Nm
+.Op Fl adervq
+.Op Fl h Ar name
+.Ar host
+\&...
+.Sh DESCRIPTION
+.Nm
+is a variant of
+.Xr showmount 8
+that can delete bogus mount entries in remote
+.Xr mountd 8
+daemons.
+The actions specified by the options are performed for each
+.Ar host
+in turn.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl a Fl d Fl e
+These options work as in
+.Xr showmount 8
+except that only entries pertaining to the local host are printed.
+.It Fl r
+Removes those remote mount entries on
+.Ar host
+that do not correspond to current mounts, i.e., which are left-over
+from a crash or are the result of improper mount protocol.
+The actuality of mounts is verified using the entries in
+.Pa /etc/mtab .
+.It Fl v
+Verify remote mounts.
+Similar to
+.Fl r
+except that only a notification message is printed for each bogus entry
+found.
+The remote mount table is not changed.
+.It Fl A
+Issues a command to the remote mountd declaring that
+.Em all
+of its file systems have been unmounted.
+This should be used with caution, as
+it removes all remote mount entries pertaining to the local system, whether or
+not any file systems are still mounted locally.
+.It Fl v
+Be quiet.
+Suppresses error messages due to timeouts and
+.Dq Program not Registered ,
+i.e., due to remote hosts not supporting RPC or not running
+.Nm mountd .
+.It Fl h Ar name
+Pretend the local hostname is
+.Ar name .
+This is useful after the local hostname has been changed and rmtab entries
+using the old name remain on a remote machine.
+Unfortunately, most mountd's will not be able to successfully handle removal
+of such entries, so this option is useful in combination with
+.Fl v
+only.
+.Pp
+This option also saves time as comparisons of remotely recorded and local
+hostnames by address are avoided.
+.El
+.Sh FILES
+.Bl -tag -width /axx
+.It Pa /etc/mtab
+List of current mounts.
+.It Pa /etc/rmtab
+Backup file for remote mount entries on
+.Tn NFS
+server.
+.El
+.Sh SEE ALSO
+.Xr mtab 5 ,
+.Xr rmtab 5 ,
+.Xr mountd 8 ,
+.Xr showmount 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An Jan-Simon Pendry Aq jsp@doc.ic.ac.uk ,
+Department of Computing, Imperial College, London, UK.
+.Pp
+.An Erez Zadok Aq ezk@cs.columbia.edu ,
+Department of Computer Science, Columbia University, New York, USA.
+.Pp
+.An Other authors and contributors to
+.Nm am-utils
+are listed in the
+.Nm AUTHORS
+file distributed with
+.Nm am-utils .
+.Sh BUGS
+No attempt is made to verify the information in
+.Pa /etc/mtab
+itself.
+.Pp
+Since swap file mounts are not recorded in
+.Pa /etc/mtab ,
+a heuristic specific to SunOS is used to determine whether such a mount
+is actual (replacing the string
+.Ql swap
+with
+.Ql root
+and verifying the resulting path).
+.Pp
+Symbolic links on the server will cause the path in the remote entry to differ
+from the one in
+.Pa /etc/mtab .
+To catch those cases, a file system is also deemed mounted if its
+.Em local
+mount point is identical to the remote entry.
+I.e., on a SunOS diskless client,
+.Pa server:/export/share/sunos.4.1.1
+is actually
+.Pa /usr/share .
+Since the local mount point is
+.Pa /usr/share
+as well this will be handled correctly.
+.Pp
+There is no way to clear a stale entry in a remote
+.Nm mountd
+after the local hostname (or whatever reverse name resolution
+returns for it) has been changed.
+To take care of these cases,
+the remote
+.Pa /etc/rmtab
+file has to be edited and
+.Nm mountd
+restarted.
+.Pp
+The RPC timeouts for
+.Nm mountd
+calls can only be changed by recompiling.
+The defaults are 2 seconds
+for client handle creation and 5 seconds for RPC calls.

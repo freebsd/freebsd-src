@@ -1,0 +1,169 @@
+<html>
+<head><title>Installation and Configuration</title>
+</head>
+<body>
+<!--
+$Id: installation.html,v 1.20 2003/03/05 19:57:54 ca Exp $
+-->
+<h1>Installation</h1>
+<h2>Contents</h2>
+<ul>
+    <li><a href="#compile">Compiling and Installing Your Filter</a>
+    <li><a href="#config">Configuring Sendmail</a>
+</ul>
+
+<h2><a name="compile">Compiling and Installing Your Filter</A></h2>
+
+To compile a filter, modify the Makefile provided with the sample program, or:
+<ul>
+    <li>Put the include and Sendmail directories in your include path
+    (e.g. -I/path/to/include -I/path/to/sendmail).  
+
+    <li>Make sure libmilter.a is in your library path, and link your
+    application with it (e.g. "-lmilter").
+
+    <li>Compile with pthreads, either by using -pthread for gcc, or
+    linking with a pthreads support library (-lpthread).
+</ul>
+Your compile command line will look like
+<pre>
+cc -I/path/to/include -I/path/to/sendmail -c myfile.c
+</pre>
+and your linking command line will look something like
+<pre>
+cc -o myfilter [object-files] -L[library-location] -lmilter -pthread
+</pre>
+
+<H2><a name="config">Configuring Sendmail</A></H2>
+
+First, you must compile sendmail with MILTER defined.
+If you use a sendmail version older than 8.12 please see
+the instructions for your version.
+To do this, add the following lines to your build
+configuration file (devtools/Site/config.site.m4)
+<pre>
+APPENDDEF(`conf_sendmail_ENVDEF', `-DMILTER')
+</pre>
+
+then type <code>./Build -c</code> in your sendmail directory.
+
+<P>
+Next, you must add the desired filters to your sendmail configuration
+(.mc) file.
+Mail filters have three equates:
+The required <code>S=</code> equate specifies the socket where
+sendmail should look for the filter; The optional <code>F=</code> and
+<code>T=</code> equates specify flags and timeouts, respectively.  All
+equates names, equate field names, and flag values are case sensitive.
+
+<P>
+The current flags (<code>F=</code>) are:
+<p>
+<table cellspacing="1" cellpadding=4 border=1>
+<tr bgcolor="#dddddd" align=left valign=top>
+<th>Flag</TH>   <th align="center">Meaning</TH>
+</TR>
+<tr align="left" valign=top>
+<TD>R</TD>      <TD>Reject connection if filter unavailable</TD>
+</TR>
+<tr align="left" valign=top>
+<TD>T</TD>      <TD>Temporary fail connection if filter unavailable</TD>
+</TR>
+</TABLE>
+
+If a filter is unavailable or unresponsive and no flags have been
+specified, the MTA will continue normal handling of the current
+connection.  The MTA will try to contact the filter again on each new
+connection.
+
+<P>
+There are three fields inside of the <code>T=</code> equate: S, R, and
+E.  Note the separator between each is a ";" (semicolon), as ","
+(comma) already separates equates.  The value of each field is a
+decimal number followed by a single letter designating the units ("s"
+for seconds, "m" for minutes).  The fields have the following
+meanings:
+<p>
+<TABLE cellspacing="1" cellpadding=4 border=1>
+<TR bgcolor="#dddddd" align=left valign=top>
+<TH>Flag</TH>   <TH align="center">Meaning</TH>
+</TR>
+<TR align="left" valign=top>
+<TD>C</TD>      <TD>Timeout for connecting to a filter.  If set to 0, the
+		system's <CODE>connect()</CODE> timeout will be used.
+		Default: 5m</TD>
+</TR>
+<TR align="left" valign=top>
+<TD>S</TD>      <TD>Timeout for sending information from the MTA to a
+                filter.  Default: 10s</TD>
+</TR>
+<TR align="left" valign=top>
+<TD>R</TD>      <TD>Timeout for reading reply from the filter.  Default: 10s</TD>
+</TR>
+<TR align="left" valign=top>
+<TD>E</TD>      <TD>Overall timeout between sending end-of-message to
+                filter and waiting for the final acknowledgment.  Default: 5m</TD>
+</TR>
+</TABLE>
+
+<p>
+The following sendmail.mc example specifies three filters.  The first
+two rendezvous on Unix-domain sockets in the /var/run directory; the
+third uses an IP socket on port 999.
+<pre>
+	INPUT_MAIL_FILTER(`filter1', `S=unix:/var/run/f1.sock, F=R')
+	INPUT_MAIL_FILTER(`filter2', `S=unix:/var/run/f2.sock, F=T, T=S:1s;R:1s;E:5m')
+	INPUT_MAIL_FILTER(`filter3', `S=inet:999@localhost, T=C:2m')
+
+	define(`confINPUT_MAIL_FILTERS', `filter2,filter1,filter3')
+<hr width="30%">
+	m4 ../m4/cf.m4 myconfig.mc &gt; myconfig.cf
+</pre>
+By default, the filters would be run in the order declared,
+i.e. "filter1, filter2, filter3"; however, since
+<code>confINPUT_MAIL_FILTERS</code> is defined, the filters will be
+run "filter2, filter1, filter3".  Also note that a filter can be
+defined without adding it to the input filter list by using
+MAIL_FILTER() instead of INPUT_MAIL_FILTER().
+
+<p>
+The above macros will result in the following lines being added to
+your .cf file:
+<PRE>
+        Xfilter1, S=unix:/var/run/f1.sock, F=R
+        Xfilter2, S=unix:/var/run/f2.sock, F=T, T=S:1s;R:1s;E:5m
+        Xfilter3, S=inet:999@localhost, T=C:2m
+
+        O InputMailFilters=filter2,filter1,filter3
+</PRE>
+<p>
+Finally, the sendmail macros accessible via <a
+href="smfi_getsymval.html">smfi_getsymval</a> can be configured by
+defining the following m4 variables (or cf options):
+<table cellspacing="1" cellpadding=4 border=1>
+<tr bgcolor="#dddddd" align=left valign=top>
+<th align="center">In .mc file</th>   <th align="center">In .cf file</TH>
+<th align="center">Default Value</th>
+</tr>
+<tr><td>confMILTER_MACROS_CONNECT</td><td>Milter.macros.connect</td>
+<td><code>j, _, {daemon_name}, {if_name}, {if_addr}</code></td></tr>
+<tr><td>confMILTER_MACROS_HELO</td><td>Milter.macros.helo</td>
+<td><code>{tls_version}, {cipher}, {cipher_bits}, {cert_subject},
+{cert_issuer}</code></td></tr>
+<tr><td>confMILTER_MACROS_ENVFROM</td><td>Milter.macros.envfrom</td>
+<td><code>i, {auth_type}, {auth_authen}, {auth_ssf}, {auth_author},
+{mail_mailer}, {mail_host}, {mail_addr}</code></td></tr>
+<tr><td>confMILTER_MACROS_ENVRCPT</td><td>Milter.macros.envrcpt</td>
+<td><code>{rcpt_mailer}, {rcpt_host}, {rcpt_addr}</code></td></tr>
+</table>
+For information about available macros and their meanings, please
+consult the sendmail documentation.
+<hr size="1">
+<font size="-1">
+Copyright (c) 2000-2003 Sendmail, Inc. and its suppliers.
+All rights reserved.
+<br>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</font>
+</body> </html>

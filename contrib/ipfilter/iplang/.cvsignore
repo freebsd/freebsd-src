@@ -1,0 +1,9 @@
+y.tab.h
+y.output
+lex.yy.c
+y.tab.c
+y.tab.o
+lex.yy.o
+iplang_y.output
+iplang_y.tab.c
+iplang_y.tab.h

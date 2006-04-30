@@ -1,0 +1,152 @@
+.\" Copyright (c) 2002 Hidetoshi Shimokawa
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 14, 2004
+.Dt FWCONTROL 8
+.Os
+.Sh NAME
+.Nm fwcontrol
+.Nd FireWire control utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl u Ar bus_num
+.Op Fl prt
+.Op Fl c Ar node
+.Op Fl d Ar node
+.Op Fl o Ar node
+.Op Fl s Ar node
+.Op Fl l Ar file
+.Op Fl g Ar gap_count
+.Op Fl b Ar pri_req
+.Op Fl R Ar filename
+.Op Fl S Ar filename
+.Op Fl m Ar EUI64 | hostname
+.Sh DESCRIPTION
+The
+.Nm
+utility is designed to provide a way for users to access and control the
+.Fx
+FireWire subsystem.
+Without options,
+.Nm
+will output a list of devices that are/were connected to the bus.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl u Ar bus_num
+Specify the FireWire bus number to be operated on.
+.It Fl r
+Initiate bus reset.
+.It Fl t
+Show the topology map.
+.It Fl p
+Dump PHY registers.
+.It Fl c Ar node
+Show the configuration ROM on the node.
+.It Fl d Ar node
+Hex dump of the configuration ROM.
+.It Fl o Ar node
+Send a link-on PHY packet to the node.
+.It Fl s Ar node
+Write to the
+.Dv RESET_START
+register on the node.
+.It Fl l Ar file
+Load hex dump file of the configuration ROM and parse it.
+.It Fl g Ar gap_count
+Broadcast
+.Ar gap_count
+by phy_config packet.
+.It Fl i Ar pri_req
+Set the
+.Dv PRIORITY_BUDGET
+register on all supported nodes.
+.It Fl R Ar filename
+Receive DV stream and dump it to a file.
+Use Ctrl-C to stop the receiving.
+Some DV cameras seem not to send the stream if a bus manager exits.
+If you cannot get the stream, try the following commands:
+.Bd -literal -offset indent
+sysctl hw.firewire.try_bmr=0
+fwcontrol -r
+.Ed
+.Pp
+The resulting file contains raw DV data excluding isochronous header
+and CIP header.
+It can be handled by
+.Nm libdv
+in the
+.Fx
+Ports Collection.
+.It Fl S Ar filename
+Send a DV file as isochronous stream.
+.It Fl m Ar EUI64 | hostname
+Set default fwmem target.
+Hostname will be converted to EUI64 using
+.Xr eui64 5 .
+.El
+.Sh FILES
+.Bl -tag
+.It Pa /dev/fw0.0
+.El
+.Sh EXAMPLES
+Each DV frame has a fixed size and it is easy to edit the frame order.
+.Pp
+.Dl "fwcontrol -R original.dv"
+.Pp
+Receive stream.
+.Pp
+.Dl "dd if=original.dv of=first.dv bs=120000 count=30"
+.Pp
+Get first 30 frames(NTSC).
+.Pp
+.Dl "dd if=original.dv of=second.dv bs=120000 skip=30 count=30"
+.Pp
+Get second 30 frames(NTSC).
+.Pp
+.Dl "cat second.dv first.dv | fwcontrol -S /dev/stdin"
+.Pp
+Swap first and second 30 frames and send them to DV recorder.
+.Pp
+For PAL, replace
+.Dq Li bs=120000
+with
+.Dq Li bs=144000 .
+.Sh SEE ALSO
+.Xr firewire 4 ,
+.Xr fwe 4 ,
+.Xr fwip 4 ,
+.Xr fwohci 4 ,
+.Xr sbp 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Hidetoshi Shimokawa Aq simokawa@FreeBSD.org
+.Sh BUGS
+This utility is still under development and provided for debugging purposes.

@@ -1,0 +1,66 @@
+.\"
+.\" Copyright (c) 2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\" 	All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 21, 2003
+.Dt HARP 4
+.Os
+.Sh NAME
+.Nm harp
+.Nd pseudo physical interface driver for HARP
+.Sh SYNOPSIS
+.Cd device atm
+.Cd options NATM
+.Cd options ATM_CORE
+.Cd device harp
+.Sh DESCRIPTION
+The
+.Nm
+driver, when loaded, attaches to all
+.Xr netgraph 4
+ATM interfaces in the system, and for
+each of these interfaces presents a physical interface to the HARP stack.
+The name of the
+.Nm
+physical interface is the same as the name of the
+Netgraph interface (they are in different namespaces).
+.Sh SEE ALSO
+.Xr fatm 4 ,
+.Xr hatm 4 ,
+.Xr ng_atm 4 ,
+.Xr patm 4 ,
+.Xr atm 8
+.Sh CAVEATS
+When
+.Xr fatm 4
+is used, it must be started before
+.Nm
+is loaded, to get the correct configuration for the HARP physical interface.
+.Sh AUTHORS
+.An Harti Brandt Aq harti@FreeBSD.org

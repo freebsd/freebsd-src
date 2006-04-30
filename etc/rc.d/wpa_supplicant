@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: wpa_supplicant
+# REQUIRE: mountcritremote
+# KEYWORD: nojail nostart
+
+. /etc/rc.subr
+. /etc/network.subr
+
+name="wpa_supplicant"
+rcvar=
+command="/usr/sbin/${name}"
+conf_file="/etc/wpa_supplicant.conf"
+
+ifn="$2"
+if [ -z "$ifn" ]; then
+	return 1
+fi
+
+case ${ifn} in
+ndis*)
+	driver="ndis"
+	;;
+*)
+	driver="bsd"
+	;;
+esac
+
+load_rc_config $name
+
+pid_file="/var/run/${name}/${ifn}.pid"
+command_args="-B -q -i $ifn -c $conf_file -D $driver -P $pid_file"
+required_files=$conf_file
+
+run_rc_command "$1"

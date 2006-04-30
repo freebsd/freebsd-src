@@ -1,0 +1,22 @@
+The programs in this directory are designed to test your newest toy :-)
+Check the sources for any further details.
+
+blue       - Blue Moon, a nifty solitaire (uses color)
+bs.c       - the game of Battleships (uses color)
+firework.c - multi-colored fireworks (uses color)
+gdc.c      - Great Digital Clock (uses color)
+hanoi.c    - the game of hanoi (uses color essentially)
+knight.c   - the game of Knight's Tour (uses color)
+lrtest.c   - test of access to the lower-right corner
+ncurses.c  - multi-test program (uses color)
+newdemo.c  - another test from PDCurses (uses color)
+rain.c     - rain drops keep falling on my head...
+tclock.c   - analog/digital clock
+testcurs.c - a test from the PDCurses people (uses color)
+worm.c     - worms run all over your screen (uses color)
+xmas.c     - Xmas greeting card
+
+The bs and knight games demonstrate processing of mouse events under xterm.
+This directory also contains:
+
+tracemunch - Perl script to crunch trace scripts to make them easier to read

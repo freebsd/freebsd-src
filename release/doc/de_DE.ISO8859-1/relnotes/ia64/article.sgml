@@ -1,0 +1,27 @@
+<!--
+  $FreeBSD$
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/ia64/article.sgml,v 1.2 2002/11/10 10:47:53 ue Exp $
+  basiert auf: 1.1
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//DE">
+%mlists;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+<!ENTITY % sections SYSTEM "../common/relnotes.ent"> %sections;
+
+<!-- Architecture-specific customization -->
+
+<!ENTITY arch "ia64">
+<!ENTITY arch.print "IA-64">
+
+]>
+
+<article lang="de">
+  &art;
+</article>

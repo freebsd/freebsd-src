@@ -1,0 +1,311 @@
+.tr ~
+.ig
+Copyright (C) 1994-2000, 2001, 2003, 2004 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.
+..
+.\" Like TP, but if specified indent is more than half
+.\" the current line-length - indent, use the default indent.
+.de Tp
+.ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
+.el .TP "\\$1"
+..
+.de CW
+.ie \\n(.$>2 \&\\$1\f(CR\\$2\fP\\$3
+.el \&\f(CR\\$1\fP\\$2
+..
+.tr ~
+.TH HPFTODIT @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.\" --------------------------------------------------------------------------
+.SH NAME
+.\" --------------------------------------------------------------------------
+hpftodit \- create font description files for use with groff \-Tlj4
+.\" --------------------------------------------------------------------------
+.SH SYNOPSIS
+.\" --------------------------------------------------------------------------
+.B hpftodit
+[
+.B \-adqsv
+]
+[
+.BI \-i n
+]
+.I tfm_file
+.I map_file
+.I font
+.PP
+It is possible to have whitespace between the
+.B \-i
+option and its parameter.
+.\" --------------------------------------------------------------------------
+.SH DESCRIPTION
+.\" --------------------------------------------------------------------------
+.B hpftodit
+creates a font file for use with a Hewlett-Packard LaserJet~4\(enseries
+(or newer) printer with
+.BR "groff \-Tlj4" ,
+using data from an HP tagged font metric (TFM) file.
+.I tfm_file
+is the name of the TFM file for the font; Intellifont and
+TrueType TFM files are supported, but symbol set TFM files are not.
+.I map_file
+is a file giving the groff names for characters in the font; this file
+should consist of a sequence of lines of the form:
+.IP
+.I
+m u c1 c2 \fR.\|.\|. [ 
+.CW #
+.I comment
+]
+.LP
+where
+.I m
+is a decimal integer giving the MSL number of the character,
+.I u
+is a hexadecimal integer giving the Unicode value of the character,
+and
+.IR c1 ,
+.IR c2 ", .\|.\|."
+are the groff names of the character.
+The values can be separated by any whitespace; the Unicode value must
+use uppercase digits A\^\(en\^F, and must be without a leading
+.CW ` 0x ',
+.CW ` u ',
+or
+.CW ` U+ '.
+Unicode values corresponding to composite glyphs are decomposed; e.g.,
+.CW ` u00C0 '
+becomes
+.CW ` u0041_0300 '.
+The name for a glyph without a groff name may be given as
+.CW u \fIXXXX\fP
+if the glyph corresponds to a Unicode value, or as an unnamed glyph
+.CW ` --- '.
+If the given Unicode value is in the Private Use Area
+(0xE000\^\(en\^0xF8FF), the glyph is included as an unnamed glyph.
+Refer to
+.BR groff_diff (@MAN1EXT@)
+for additional information about unnamed glyphs and how to access them.
+.LP
+Blank lines and lines beginning with
+.CW ` # '
+are ignored.
+A
+.CW ` # '
+following one or more groff names begins a comment.
+Because
+.CW ` # '
+is a valid groff name, it must appear first in a list of
+groff names if a comment is included, e.g.,
+.IP
+.CW "3   0023   #   # number sign"
+.LP
+or
+.IP
+.CW "3   0023   # sh   # number sign"
+.LP
+rather than
+.IP
+.CW "3   0023   sh #   # number sign"
+.LP
+which will treat the first
+.CW ` # '
+as the beginning of the comment.
+.LP
+.I font
+is the name of the groff font file.
+The groff font file is written to
+.IR font ;
+if
+.I font
+is specified as
+.CW ` - ',
+the output is written to the standard output.
+.LP
+The
+.B \-s
+option should be given if the font is special
+(a font is
+.I special
+if
+.B troff
+should search it whenever
+a character is not found in the current font).
+If the font is special,
+it should be listed in the
+.B fonts
+command in the DESC file;
+if it is not special, there is no need to list it, since
+.B troff
+can automatically mount it when it's first used.
+.LP
+If the
+.B \-i
+option is used,
+.B hpftodit
+automatically will generate an italic correction,
+a left italic correction and a subscript correction
+for each character
+(the significance of these parameters is explained in
+.BR groff_font (@MAN5EXT@)).
+.\" --------------------------------------------------------------------------
+.SH OPTIONS
+.\" --------------------------------------------------------------------------
+.TP
+.B \-a
+Include characters in the TFM file that are not included in the map
+file.
+A glyph with corresponding Unicode value is given the name
+.RI u XXXX ;
+a glyph without a Unicode value is included as an unnamed glyph
+\&`\-\^\-\^\-'.
+A glyph with a Unicode value in the Private Use Area
+(0xE000\^\(en\^0xF8FF) also is included as an unnamed glyph.
+.IP
+This option provides a simple means of adding Unicode-named and unnamed
+glyphs to a font without including them in the map file, but it affords
+little control over which glyphs are placed in a regular font and which
+are placed in a special font.
+The presence or absence of the
+.B \-s
+option has some effect on which glyphs are included: without the
+.B \-s
+option, only the \(lqtext\(rq symbol sets are searched for matching
+glyphs; with the
+.B \-s
+option, only the \(lqmathematical\(rq symbol sets
+are searched.
+Nonetheless, restricting the symbol sets searched isn't very
+selective\(emmany glyphs are placed in both regular and special fonts.
+Normally, the
+.B \-a
+option should be used only as a last resort.
+.\" --------------------------------------------------------------------------
+.TP
+.B \-d
+Dump information about the TFM file to the standard output; this option
+can be useful for ensuring that a TFM file is a proper match for a font,
+and that the contents of the TFM file are suitable.
+The information includes the values of important TFM tags, and a listing
+(by MSL number for Intellifont TFM files or by Unicode value for
+TrueType TFM files) of the glyphs included in the TFM file.
+The unit of measure `DU' for some tags indicates design units; there are
+8782 design units per em for Intellifont fonts, and 2048 design units
+per em for TrueType fonts.
+Note that the accessibility of a glyph depends on its inclusion in a
+symbol set; some TFM files list many glyphs but only a few symbol sets.
+.IP
+The glyph listing includes the glyph index within the TFM file, the MSL
+or Unicode value, and the symbol set and character code that will be
+used to print the glyph.
+If
+.I map_file
+is given,
+groff names are given for matching glyphs.
+If only the glyph index and MSL or Unicode value are given, the glyph
+does not appear in any supported symbol set and cannot be printed.
+.IP
+With the
+.B \-d
+option,
+.I map_file
+is optional, and
+.I font
+is ignored if given.
+.\" --------------------------------------------------------------------------
+.TP
+.B \-q
+Suppress warnings about characters in the map file that were not found
+in the TFM file.
+Warnings never are given for unnamed glyphs or by glyphs named by their
+Unicode values.
+This option is useful when sending the output of
+.B hpftodit
+to the standard output.
+.\" --------------------------------------------------------------------------
+.TP
+.B \-v
+Print the
+.B hpftodit
+version number.
+.\" --------------------------------------------------------------------------
+.TP
+.B \-s
+The font is special.
+This option adds the
+.B special
+command to the font file, and affects the order in which HP symbol sets
+are searched for each glyph.
+Without the
+.B \-s
+option, the \(lqtext\(rq sets are searched before
+the \(lqmathematical\(rq symbol sets.
+With the
+.B \-s
+option, the search order is reversed.
+.\" --------------------------------------------------------------------------
+.TP
+.BI \-i n
+Generate an italic correction for each character so that the character's
+width plus the character's italic correction is equal to
+.I n
+thousandths of an em plus the amount by which the right edge of the
+character's bounding is to the right of the character's origin.
+If this would result in a negative italic correction, use a zero italic
+correction instead.
+.IP
+Also generate a subscript correction equal to the 
+product of the tangent of the slant of the font and
+four fifths of the x-height of the font.
+If this would result in a subscript correction greater than the italic
+correction, use a subscript correction equal to the italic correction
+instead.
+.IP
+Also generate a left italic correction for each character
+equal to
+.I n
+thousandths of an em plus the amount by which the left edge of the
+character's bounding box is to the left of the character's origin.
+The left italic correction may be negative.
+.IP
+This option normally is needed only with italic or oblique fonts;
+a value of 50 (0.05 em) usually is a reasonable choice.
+.\" --------------------------------------------------------------------------
+.SH FILES
+.\" --------------------------------------------------------------------------
+.ad 0
+.TP \w'\fB@FONTDIR@/devlj4/generate/\fP\fI*\fP.map'u+2n
+.B @FONTDIR@/devlj4/DESC
+Device description file.
+.TP
+.BI @FONTDIR@/devlj4/ F
+Font description file for font
+.IR F .
+.TP
+.BI @FONTDIR@/devlj4/generate/ * .map
+Symbol mapping files
+.\" --------------------------------------------------------------------------
+.SH "SEE ALSO"
+.\" --------------------------------------------------------------------------
+.BR groff (@MAN1EXT@),
+.BR groff_diff (@MAN1EXT@),
+.BR grolj4 (@MAN1EXT@),
+.BR groff_font (@MAN5EXT@),
+.BR lj4_font (@MAN5EXT@)
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

@@ -1,0 +1,33 @@
+# $FreeBSD$
+
+FONTS?=R I B BI S L CW
+DEVFILES=$(FONTS) DESC
+CLEANFILES=$(DEVFILES)
+
+RES=240
+CPI=10
+LPI=6
+
+$(FONTS): R.proto
+	@${ECHO} Making ${.TARGET}
+	@(charwidth=`expr $(RES) / $(CPI)` ; \
+ 	 sed -e "s/^name [A-Z]*$$/name ${.TARGET}/" \
+	     -e "s/^\\([^	]*\\)	[0-9]+	/\\1	$$charwidth	/" \
+	     -e "s/^spacewidth [0-9]+$$/spacewidth $$charwidth/" \
+	     -e "s/^internalname .*$$/internalname $@/" \
+	     -e "/^internalname/s/BI/3/" \
+	     -e "/^internalname/s/B/2/" \
+	     -e "/^internalname/s/I/1/" \
+	     -e "/^internalname .*[^ 0-9]/d" \
+	     ${.ALLSRC} >$.${.TARGET})
+
+DESC: DESC.proto
+	@${ECHO} Making ${.TARGET}
+	@sed -e "s/^res .*$$/res $(RES)/" \
+	    -e "s/^hor .*$$/hor `expr $(RES) / $(CPI)`/" \
+	    -e "s/^vert .*$$/vert `expr $(RES) / $(LPI)`/" \
+	    -e "s/^fonts .*$$/fonts `set $(FONTS); echo $$#` $(FONTS)/" \
+	    ${.ALLSRC} >${.TARGET}
+.if defined(DESC_EXT)
+	@${DESC_EXT} >>${.TARGET}
+.endif

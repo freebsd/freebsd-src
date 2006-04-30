@@ -1,0 +1,46 @@
+#!/bin/sh
+commit=
+for i
+do
+	z=`expr "$i" : 'http://www.ietf.org/internet-drafts/\(.*\)'`
+	if test -n "$z"
+	then
+		i="$z"
+	fi
+	if test -f "$i"
+	then
+		continue
+	fi
+	pat=`echo "$i" | sed 's/...txt/??.txt/'`
+	old=`echo $pat 2> /dev/null`
+	if test "X$old" != "X$pat"
+	then
+		newer=0
+		for j in $old
+		do
+			if test $j ">" $i
+			then
+				 newer=1
+			fi
+		done
+		if test $newer = 1
+		then
+			continue;
+		fi
+	fi
+	if fetch "http://www.ietf.org/internet-drafts/$i" 
+	then
+		cvs add "$i" 
+		if test "X$old" != "X$pat"
+		then
+			rm $old
+			cvs delete $old
+			commit="$commit $old"
+		fi
+		commit="$commit $i"
+	fi
+done
+if test -n "$commit"
+then
+	cvs commit -m "new draft" $commit
+fi

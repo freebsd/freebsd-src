@@ -1,0 +1,176 @@
+.\"
+.\" Copyright (c) 1998, 2000 Hellmuth Michaelis. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id: isdndecode.8,v 1.9 2000/02/21 15:17:17 hm Exp $
+.\"
+.\"	last edit-date: [Mon Feb 21 16:15:09 2000]
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 21, 2000
+.Dt ISDNDECODE 8
+.Os
+.Sh NAME
+.Nm isdndecode
+.Nd isdn4bsd ISDN protocol decode utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl a
+.Op Fl b
+.Op Fl d
+.Op Fl f Ar filename
+.Op Fl h
+.Op Fl i
+.Op Fl l
+.Op Fl o
+.Op Fl p Ar filename
+.Op Fl u Ar number
+.Op Fl x
+.Op Fl B
+.Op Fl P
+.Op Fl R Ar unit
+.Op Fl T Ar unit
+.Sh DESCRIPTION
+The
+.Nm
+utility is part of the isdn4bsd package and is used to provide the user with a
+detailed mnemonic display of the layers 1, 2 and 3 protocol activities on
+the D channel and hex dump of the B channel(s) activities.
+.Pp
+Together with two passive supported cards and an easy to build cable it can
+also be used to monitor the complete traffic on a S0 bus providing S0 bus
+analyzer features.
+.Pp
+The
+.Nm
+utility is only available for passive supported cards.
+.Pp
+The following options can be used:
+.Bl -tag -width Ds
+.It Fl a
+Run
+.Nm
+in analyzer mode by using two passive cards and a custom cable which can
+be build as described in the file
+.Em cable.txt
+in the isdn4bsd source distribution.
+One card acts as a receiver for the
+transmitting direction on the S0 bus while the other card acts as a receiver
+for the receiving direction on the S0 bus.
+Complete traffic monitoring is
+possible using this setup.
+.It Fl b
+switch B channel tracing on (default off).
+.It Fl d
+switch D channel tracing off (default on).
+.It Fl f
+Use
+.Ar filename
+as the name of a file into which to write tracing output (default filename is
+isdndecode<n> where n is the number of the unit to decode).
+.It Fl h
+switch display of header off (default on).
+.It Fl i
+print layer 1 (I.430) INFO signals to monitor layer 1 activity (default off).
+.It Fl l
+switch displaying of Layer 2 (Q.921) frames off (default on).
+.It Fl o
+switch off writing decode output to a file (default on).
+.It Fl p
+Use
+.Ar filename
+as the name of a file used for the -B and -P options (default filename
+is isdntracebin<n> where n is the number of the unit to decode).
+.It Fl u
+Use
+.Ar number
+as the unit number of the controller card to decode (default 0).
+.It Fl x
+Decode Layer 3 packets with an unknown protocol discriminator.
+.It Fl B
+Write undecoded binary decode data to a file for later or remote
+analyzing (default off).
+.It Fl P
+Read undecoded binary decode data from file instead from device (default off).
+.It Fl R
+Use
+.Ar unit
+as the receiving interface unit number in analyze mode.
+.It Fl T
+Use
+.Ar unit
+as the transmitting interface unit number in analyze mode.
+.El
+.Pp
+When the USR1 signal is sent to a
+.Nm
+process, the currently used logfiles are reopened, so that logfile
+rotation becomes possible.
+.Pp
+The decode output should be obvious.
+It is very handy to have the following
+standard texts available when tracing ISDN protocols:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It Ar I.430
+ISDN BRI layer 1 protocol description.
+.It Ar Q.921
+ISDN D-channel layer 2 protocol description.
+.It Ar Q.931
+ISDN D-channel layer 3 protocol description.
+.El
+.Sh FILES
+.Bl -tag -width daddeldi -compact
+.It Pa /dev/i4btrc<n>
+The devicefile(s) used to get the decode messages for ISDN card unit <n>
+out of the kernel.
+.El
+.Sh EXAMPLES
+The command:
+.Bd -literal -offset indent
+isdndecode -f /var/tmp/isdn.decode
+.Ed
+.Pp
+will start D channel tracing on passive controller 0 with all except B
+channel tracing enabled and logs everything into the output file
+/var/tmp/isdn.decode.
+.Sh SEE ALSO
+.Xr isdnd 8
+.Sh STANDARDS
+ITU Recommendations I.430, Q.920, Q.921, Q.930, Q.931
+.Pp
+ITU Recommendation Q.932 (03/93), Q.950 (03/93)
+.Pp
+ETSI Recommendation ETS 300 179 (10/92), ETS 300 180 (10/92)
+.Pp
+ETSI Recommendation ETS 300 181 (04/93), ETS 300 182 (04/93)
+.Pp
+ITU Recommendation X.208, X.209
+.Sh AUTHORS
+The
+.Nm
+utility and this manual page were written by
+.An Hellmuth Michaelis Aq hm@kts.org .
+.Sh BUGS
+Still one left.

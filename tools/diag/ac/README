@@ -1,0 +1,9 @@
+Various scripts that checks of style/content correctness of
+committers lists in doc/ area.
+
+ac              check if the contributors article is in sync with the
+                committers list
+ent.sh          check for ordering/content problems in .ent files (authors.ent,
+                teams.ent, etc)
+
+$FreeBSD$

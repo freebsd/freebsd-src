@@ -1,0 +1,33 @@
+<!--
+	$FreeBSD$
+-->
+<sect1 id="support-sys">
+  <title>Supported Systems</title>
+
+  <para>NEC PC-9801/9821 series with almost all i386-compatible processors,
+    including 80486, Pentium, Pentium Pro, Pentium II, and variants.
+    All i386-compatible processors by AMD, Cyrix, IBM, and IDT
+    are also supported.</para>
+
+  <para>NEC FC-9801/9821 series, and NEC SV-98 series
+    (both of them are compatible with PC-9801/9821 series)
+    should be supported.</para>
+
+  <para>EPSON PC-386/486/586 series, which are
+    compatible with NEC PC-9801 series are supported.</para>
+
+  <para>High-resolution mode is not supported.
+    NEC PC-98XA/XL/RL/XL^2, and NEC PC-H98 series
+    are supported in normal (PC-9801 compatible) mode only.</para>
+
+  <para>Although there are some multi-processor systems
+    (such as Rs20/B20), SMP-related features of &os;
+    are not supported yet.</para>
+
+  <para>PC-9801/9821 standard bus (called C-Bus),
+    PC-9801NOTE expansion bus (110pin),
+    and PCI bus are supported.
+    New Extend Standard Architecture (NESA) bus
+    (used in PC-H98, SV-H98, and FC-H98 series) is not supported.</para>
+
+</sect1>

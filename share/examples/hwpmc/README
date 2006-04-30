@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+Examples illustrating the use of the hwpmc(4) driver and pmc(3)
+library interface.
+
+While there is nothing here yet, the source code for pmccontrol(8)
+and pmcstat(8) could serve as examples.
+

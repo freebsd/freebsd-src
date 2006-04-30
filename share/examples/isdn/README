@@ -1,0 +1,342 @@
+
+$FreeBSD$
+
+--------------------------------------------------------------------------------
+
+                                  isdn4bsd
+                                  ========
+
+                         Version 1.04.00 / August 2002
+
+                                 written by:
+
+			     Hellmuth Michaelis
+                               Hallstrasse 20
+                             D-25462 Rellingen
+
+                           voice: +49 4101 473574
+                            fax: +49 4101 473575
+                           email: hm@freebsd.org
+
+                                    -----
+
+                          The isdn4bsd package is:
+
+     Copyright (c) 1997, 2002 by Hellmuth Michaelis. All rights reserved. 
+
+        The standard FreeBSD license applies, for details see the file 
+                   /usr/share/examples/etc/bsd-style-copyright
+
+                                    -----
+
+                   isdn4bsd would not be what it is without
+                      the help and support of many people,
+                              see file ThankYou !
+
+                                    -----
+
+        Vote with your wallet: in case you want to buy new ISDN hardware,
+          buy it from manufacturers who support the development of i4b,
+             for a list of supporters have a look at file ThankYou!
+
+                                    -----
+
+                       This package is postcard-ware:
+                       ==============================
+
+        The (for laywer infected places: optional) license fee for using
+            isdn4bsd is sending a picture postcard of your home town.
+                 My address can be found at the top of this file.
+
+
+--------------------------------------------------------------------------------
+
+Contents:
+---------
+	1.  Disclaimer
+	2.  What is isdn4bsd ?
+        3.  Which BSD's are supported ?
+	4.  Which ISDN cards are supported ?
+	5.  Where do i find documentation for isdn4bsd ?
+	6.  How do i install isdn4bsd ?
+	7.  Where do i get support for isdn4bsd ?
+	8.  Where do i get commercial support for isdn4bsd ?
+	9.  How can i help and/or support isdn4bsd ?
+	10. How do i report bugs ?
+	11. Is there a mailing-list available for isdn4bsd ?
+	12. Where can i get isdn4bsd ?
+	13. What is the reward for reading everything in this file ?
+
+
+1. Disclaimer:
+--------------
+
+  It may be illegal in your country to connect an isdn4bsd based machine 
+  using a passive ISDN card to the ISDN at your site because the protocol 
+  stack of isdn4bsd, which is necessary to run passive cards, has not been 
+  approved by the telecommunication certification authority of your country. 
+  If in doubt, please contact your local ISDN provider !
+
+
+  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+  SUCH DAMAGE.
+
+
+2. What is isdn4bsd ?
+---------------------
+
+Isdn4bsd (or in short i4b) is a package for interfacing a computer running
+FreeBSD, NetBSD, OpenBSD or BSD/OS to the ISDN.
+
+The only ISDN protocol currently supported by the drivers for passive cards
+is the BRI protocol specified in I.430, Q.921 and Q.931; better known as 
+DSS1 or Euro-ISDN.
+
+Other ISDN Protocols may be / are supported by the microcode of the supported
+active ISDN cards.
+
+Isdn4bsd allows you to make IP network connections by using either IP packets
+sent in raw HDLC frames on the B channel or by using built-in synchronous PPP
+(or using userland ppp, this is experimental and only available for FreeBSD).
+
+For telephony, isdn4bsd can answer incoming phone calls like an answering 
+machine and now has preliminary dialout capabilities for voice and data calls.
+
+
+3. Which BSD's are supported ?
+------------------------------
+
+FreeBSD:
+--------
+
+	FreeBSD-STABLE and FreeBSD-CURRENT is supported
+	by this version of isdn4bsd.
+
+	I4b was integrated into FreeBSD in January 1999, so it is part
+	of the base FreeBSD system since FreeBSD 3.x.
+
+	Please take the time to read the available documentation carefully.
+
+
+NetBSD/i386:
+------------
+	The NetBSD specific support and the Diehl driver was written by 
+	Martin Husemann, (martin@netbsd.org). Isdn4bsd was integrated
+	into the NetBSD tree in January 2001, please have a look at
+	http://www.de.netbsd.org/Documentation/network/isdn/ for more
+	information.
+
+NetBSD/Amiga:
+-------------
+	The NetBSD/Amiga specific support was done by Ignatios Souvatzis,
+	(is@netbsd.org).
+
+NetBSD/Atari:
+-------------
+	The NetBSD/Atari specific support was done by Leo Weppelman,
+	(leo@netbsd.org).
+
+NetBSD/Alpha:
+-------------
+	This port is still experimental!
+
+	The NetBSD/Alpha specific support was done by Jan-Hinrich Fessel,
+	(oskar@zippo.unna.ping.de)
+
+OpenBSD/i386:
+-------------
+	Nikolay Sturm (sturm@physik.rwth-aachen.de) sent in patches to
+	support OpenBSD/i386 2.6, they are still experimental and since
+	i don't run OpenBSD i have no idea on the state of affairs.
+
+BSD/OS:
+-------
+	The BSD/OS 4.0 specific support was done by Bert Driehuis. The
+	support is not yet complete. Please contact Bert directly in case
+	of questions regarding this at driehuis@playbeing.org.
+
+
+4. Which ISDN cards are supported ?
+-----------------------------------
+
+	For a list of supported ISDN cards, please have a look at
+	the file "SupportedCards".
+
+	Please have a look at the ReleaseNotes file !
+
+
+5. Where do i find documentation for isdn4bsd ?
+-----------------------------------------------
+
+- in case you are upgrading from previous versions of isdn4bsd, have a
+  look at the ReleaseNotes file in the top level directory for major
+  changes and improvements.
+
+- For installation instructions have a look at the isdn4bsd handbook
+  available online at http://people.freebsd.org/~hm/i4b-home/
+
+- isdn4bsd has a homepage at http://www.freebsd-support.de/i4b/ where i
+  will try to maintain links to docs, updates and errata.
+
+- Every program and every driver has a man page.
+  Hint: try "apropos isdn4bsd", it displays all available manual pages.
+
+- The file Overview contains a short technical overview of the inner 
+  workings of isdn4bsd.
+
+- The file Resources contains URL's and ISBN's to more interesting ISDN 
+  related stuff.
+
+
+6. How do i install isdn4bsd ?
+------------------------------
+
+Read the installation instructions in the isdn4bsd handbook which is
+available online at http://people.freebsd.org/~hm/i4b-home/
+
+In case they are incomplete, unclear, wrong or outdated, please send me an 
+update for inclusion into a future distribution!
+
+
+7. Where do i get support for isdn4bsd ?
+----------------------------------------
+
+Please send all questions regarding the installation, configuration
+and setup of isdn4bsd to the isdn4bsd mailing list (see below).
+
+Please do not send me private mail asking for help with the installation, 
+configuration and setup of isdn4bsd: due to the amount of mail of this 
+type i'm no longer able to reply to those mails.
+
+Before sending mail asking for help, PLEASE (!) read the supplied
+documentation, the examples, the handbook, the manual pages and the FAQ !
+
+I will support and help with isdn4bsd as my time permits it. Please 
+keep in mind that in this case support is given on a voluntary basis
+and your questions might not be answered immediately.
+
+Also, i strongly recommend subscribing to the mailing list mentioned below.
+
+Due to the experience gained supporting the predecessor of isdn4bsd, let
+me please clearly state that there is no guarantee that your bug will be
+fixed within some specific amount of time, in fact there is no guarantee 
+that your bug will be fixed at all; i'll do my best but there might be
+more important things going on in my life than giving free support for
+isdn4bsd. 
+
+Some bugs seem to occur only in certain environments and are not 
+reproduceable here without access to the equipment you are connected
+to or other equipment like ISDN simulators (which i don't get access to
+for free): in this case you are the only person being able to trace down
+the bug and fix it.
+
+There is a web page for i4b at http://www.freebsd-support.de/i4b/ available
+where i will put bugfixes, updates and contributions. In particular it has
+an "errata" page, where you should look in case you have problems with i4b.
+
+
+8.  Where do i get commercial support for isdn4bsd ?
+----------------------------------------------------
+
+In case you want to pay for support, maintenance, enhancements, extensions
+to isdn4bsd or whatever else you may need, it is possible to hire me for
+reasonable rates through my employer HCS GmbH; in this case please contact 
+me for details at hm@hcs.de and/or look at http://www.freebsd-support.de
+
+
+9. How can i help and/or support isdn4bsd ?
+-------------------------------------------
+
+Send a postcard! :-)
+
+I'm open for constructive suggestions, bugreports, fixes, patches, 
+enhancements and comments to improve isdn4bsd.
+
+Please send all questions regarding the installation, configuration
+and setup of isdn4bsd to the isdn4bsd mailing list. 
+
+Please send flames to /dev/null and/or start writing your own ISDN package.
+
+Isdn4bsd is a project on a voluntary basis and writing and supporting
+communication systems like isdn4bsd costs much money and much time.
+
+Any contribution in terms of equipment, cards, documentation, cash
+and/or daytime payed work on isdn4bsd will be highly appreciated!
+
+You can help by not only reporting bugs, but by sending in a patch for
+the problem together with a bugreport.
+
+In case you cannot fix something yourself, please describe your problem
+as detailed as possible, include information which version of an operating
+system you are running, which ISDN board you are using, to which kind
+of ISDN equipment (like the brand of PBX) you are connected etc. etc.
+
+In case you want to get a currently unsupported card supported, write a
+low level driver for it yourself and submit it. In case you can't write
+it yourself there is a good chance to get it supported if you can donate
+one of those cards and - if at all possible - docs for it.
+
+
+10. How do i report bugs ?
+--------------------------
+
+Please submit patches ONLY as context diffs (diff -c)!
+
+I vastly prefer receiving bug fixes and enhancements that are clearly
+differentiated. I don't always know what to do with large patches that
+contain many bugs and enhances folded into the same context diffs. 
+
+Please keep it to one fix or enhancement per patch!
+
+If your change modifies the external interface of an isdn4bsd program,
+i.e. more config options, command-line switches, new programs, etc., 
+then please also include patches for the manual pages and documentation.
+
+Thank you!
+
+
+11. Is there a mailing-list available for isdn4bsd ?
+---------------------------------------------------
+
+There is a mailing list available at
+
+        freebsd-isdn@freebsd.org
+
+The list is maintained by majordomo, so i.e. to subscribe,
+send a mail with the text
+
+        subscribe freebsd-isdn
+        
+in the message body sent to
+
+        majordomo@freebsd.org
+
+This mailing list is NOT (!) FreeBSD specific, everyone is welcome there!
+
+
+12. Where can i get isdn4bsd ?
+------------------------------
+
+The isdn4bsd package is part of FreeBSD since FreeBSD 3.0-RELEASE so you
+get isdn4bsd where you can get FreeBSD: http://www.freebsd.org
+
+Isdn4bsd has its own homepage at
+
+	http://www.freebsd-support.de/i4b/
+
+
+
+13. What is the reward for reading everything in this file ?
+------------------------------------------------------------
+
+Have fun!
+hellmuth

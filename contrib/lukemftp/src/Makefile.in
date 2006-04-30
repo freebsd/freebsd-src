@@ -1,0 +1,43 @@
+#
+#	$Id: Makefile.in,v 1.8 2000/08/08 07:04:27 lukem Exp $
+#
+
+srcdir	= @srcdir@
+VPATH	= @srcdir@
+SHELL	= /bin/sh
+
+prefix	= @prefix@
+exec_prefix = @exec_prefix@
+bindir	= @bindir@
+mandir	= @mandir@
+transform = @program_transform_name@
+
+mandircat1 = ${mandir}/cat1
+
+CC	= @CC@
+CFLAGS	= -I${srcdir} -I${srcdir}/.. -I. -I.. @INCLUDES@ @CFLAGS@
+LIBS	= @LIBS@
+LDFLAGS	= @LDFLAGS@
+
+INSTALL	= @INSTALL@
+
+PROG	= ftp
+OBJS	= cmds.o cmdtab.o complete.o domacro.o fetch.o ftp.o main.o \
+	  ruserpass.o util.o
+
+all:	${PROG}
+
+install: all
+	-mkdir -p ${bindir}
+	${INSTALL} -m 555 ${PROG} ${bindir}/`echo ${PROG}|sed '$(transform)'`
+	-mkdir -p ${mandircat1}
+	${INSTALL} -m 444 ${srcdir}/${PROG}.cat1 ${mandircat1}/`echo ${PROG}|sed '$(transform)'`.1
+
+${PROG}: ${OBJS} @LIBDEPENDS@
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${PROG} ${OBJS} ${LIBS}
+
+clean:
+	rm -f core ${PROG} ${OBJS}
+
+distclean: clean
+	rm -f Makefile

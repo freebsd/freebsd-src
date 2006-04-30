@@ -1,0 +1,393 @@
+
+
+
+INTERNET-DRAFT                                      Andreas Gustafsson
+draft-ietf-dnsext-axfr-clarify-05.txt                     Nominum Inc.
+                                                         November 2002
+
+
+               DNS Zone Transfer Protocol Clarifications
+
+
+Status of this Memo
+
+   This document is an Internet-Draft and is in full conformance with
+   all provisions of Section 10 of RFC2026.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF), its areas, and its working groups.  Note that
+   other groups may also distribute working documents as Internet-
+   Drafts.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   The list of current Internet-Drafts can be accessed at
+   http://www.ietf.org/ietf/1id-abstracts.txt
+
+   The list of Internet-Draft Shadow Directories can be accessed at
+   http://www.ietf.org/shadow.html.
+
+Abstract
+
+   In the Domain Name System, zone data is replicated among
+   authoritative DNS servers by means of the "zone transfer" protocol,
+   also known as the "AXFR" protocol.  This memo clarifies, updates, and
+   adds missing detail to the original AXFR protocol specification in
+   RFC1034.
+
+1. Introduction
+
+   The original definition of the DNS zone transfer protocol consists of
+   a single paragraph in [RFC1034] section 4.3.5 and some additional
+   notes in [RFC1035] section 6.3.  It is not sufficiently detailed to
+   serve as the sole basis for constructing interoperable
+   implementations.  This document is an attempt to provide a more
+   complete definition of the protocol.  Where the text in RFC1034
+   conflicts with existing practice, the existing practice has been
+   codified in the interest of interoperability.
+
+
+
+
+Expires May 2003                                                [Page 1]
+
+draft-ietf-dnsext-axfr-clarify-05.txt                      November 2002
+
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in [RFC 2119].
+
+2. The zone transfer request
+
+   To initiate a zone transfer, the slave server sends a zone transfer
+   request to the master server over a reliable transport such as TCP.
+   The form of this request is specified in sufficient detail in RFC1034
+   and needs no further clarification.
+
+   Implementers are advised that one server implementation in widespread
+   use sends AXFR requests where the TCP message envelope size exceeds
+   the DNS request message size by two octets.
+
+3. The zone transfer response
+
+   If the master server is unable or unwilling to provide a zone
+   transfer, it MUST respond with a single DNS message containing an
+   appropriate RCODE other than NOERROR.  If the master is not
+   authoritative for the requested zone, the RCODE SHOULD be 9
+   (NOTAUTH).
+
+   Slave servers should note that some master server implementations
+   will simply close the connection when denying the slave access to the
+   zone.  Therefore, slaves MAY interpret an immediate graceful close of
+   the TCP connection as equivalent to a "Refused" response (RCODE 5).
+
+   If a zone transfer can be provided, the master server sends one or
+   more DNS messages containing the zone data as described below.
+
+3.1. Multiple answers per message
+
+   The zone data in a zone transfer response is a sequence of answer
+   RRs.  These RRs are transmitted in the answer section(s) of one or
+   more DNS response messages.
+
+   The AXFR protocol definition in RFC1034 does not make a clear
+   distinction between response messages and answer RRs.  Historically,
+   DNS servers always transmitted a single answer RR per message.  This
+   encoding is wasteful due to the overhead of repeatedly sending DNS
+   message headers and the loss of domain name compression
+   opportunities.  To improve efficiency, some newer servers support a
+   mode where multiple RRs are transmitted in a single DNS response
+   message.
+
+   A master MAY transmit multiple answer RRs per response message up to
+   the largest number that will fit within the 65535 byte limit on TCP
+
+
+
+Expires May 2003                                                [Page 2]
+
+draft-ietf-dnsext-axfr-clarify-05.txt                      November 2002
+
+
+   DNS message size.  In the case of a small zone, this can cause the
+   entire transfer to be transmitted in a single response message.
+
+   Slaves MUST accept messages containing any number of answer RRs.  For
+   compatibility with old slaves, masters that support sending multiple
+   answers per message SHOULD be configurable to revert to the
+   historical mode of one answer per message, and the configuration
+   SHOULD be settable on a per-slave basis.
+
+3.2. DNS message header contents
+
+   RFC1034 does not specify the contents of the DNS message header of
+   the zone transfer response messages.  The header of each message MUST
+   be as follows:
+
+       ID      Copy from request
+       QR      1
+       OPCODE  QUERY
+       AA      1, but MAY be 0 when RCODE is not NOERROR
+       TC      0
+       RD      Copy from request, or 0
+       RA      Set according to availability of recursion, or 0
+       Z       0
+       AD      0
+       CD      0
+       RCODE   NOERROR on success, error code otherwise
+
+   The slave MUST check the RCODE in each message and abort the transfer
+   if it is not NOERROR.  It SHOULD check the ID of the first message
+   received and abort the transfer if it does not match the ID of the
+   request.  The ID SHOULD be ignored in subsequent messages, and fields
+   other than RCODE and ID SHOULD be ignored in all messages, to ensure
+   interoperability with certain older implementations which transmit
+   incorrect or arbitrary values in these fields.
+
+3.3. Additional section and SIG processing
+
+   Zone transfer responses are not subject to any kind of additional
+   section processing or automatic inclusion of SIG records.  SIG RRs in
+   the zone data are treated exactly the same as any other RR type.
+
+3.4. The question section
+
+   RFC1034 does not specify whether zone transfer response messages have
+   a question section or not.  The initial message of a zone transfer
+   response SHOULD have a question section identical to that in the
+   request.  Subsequent messages SHOULD NOT have a question section,
+   though the final message MAY.  The receiving slave server MUST accept
+
+
+
+Expires May 2003                                                [Page 3]
+
+draft-ietf-dnsext-axfr-clarify-05.txt                      November 2002
+
+
+   any combination of messages with and without a question section.
+
+3.5. The authority section
+
+   The master server MUST transmit messages with an empty authority
+   section.  Slaves MUST ignore any authority section contents they may
+   receive from masters that do not comply with this requirement.
+
+3.6. The additional section
+
+   The additional section MAY contain additional RRs such as transaction
+   signatures.  The slave MUST ignore any unexpected RRs in the
+   additional section.  It MUST NOT treat additional section RRs as zone
+   data.
+
+4. Zone data
+
+   The purpose of the zone transfer mechanism is to exactly replicate at
+   each slave the set of RRs associated with a particular zone at its
+   primary master.  An RR is associated with a zone by being loaded from
+   the master file of that zone at the primary master server, or by some
+   other, equivalent method for configuring zone data.
+
+   This replication shall be complete and unaltered, regardless of how
+   many and which intermediate masters/slaves are involved, and
+   regardless of what other zones those intermediate masters/slaves do
+   or do not serve, and regardless of what data may be cached in
+   resolvers associated with the intermediate masters/slaves.
+
+   Therefore, in a zone transfer the master MUST send exactly those
+   records that are associated with the zone, whether or not their owner
+   names would be considered to be "in" the zone for purposes of
+   resolution, and whether or not they would be eligible for use as glue
+   in responses.  The transfer MUST NOT include any RRs that are not
+   associated with the zone, such as RRs associated with zones other
+   than the one being transferred or present in the cache of the local
+   resolver, even if their owner names are in the zone being transferred
+   or are pointed to by NS records in the zone being transferred.
+
+   The slave MUST associate the RRs received in a zone transfer with the
+   specific zone being transferred, and maintain that association for
+   purposes of acting as a master in outgoing transfers.
+
+5. Transmission order
+
+   RFC1034 states that "The first and last messages must contain the
+   data for the top authoritative node of the zone".  This is not
+   consistent with existing practice.  All known master implementations
+
+
+
+Expires May 2003                                                [Page 4]
+
+draft-ietf-dnsext-axfr-clarify-05.txt                      November 2002
+
+
+   send, and slave implementations expect to receive, the zone's SOA RR
+   as the first and last record of the transfer.
+
+   Therefore, the quoted sentence is hereby superseded by the sentence
+   "The first and last RR transmitted must be the SOA record of the
+   zone".
+
+   The initial and final SOA record MUST be identical, with the possible
+   exception of case and compression.  In particular, they MUST have the
+   same serial number.  The slave MUST consider the transfer to be
+   complete when, and only when, it has received the message containing
+   the second SOA record.
+
+   The transmission order of all other RRs in the zone is undefined.
+   Each of them SHOULD be transmitted only once, and slaves MUST ignore
+   any duplicate RRs received.
+
+6. Security Considerations
+
+   The zone transfer protocol as defined in [RFC1034] and clarified by
+   this memo does not have any built-in mechanisms for the slave to
+   securely verify the identity of the master server and the integrity
+   of the transferred zone data.  The use of a cryptographic mechanism
+   for ensuring authenticity and integrity, such as TSIG [RFC2845],
+   IPSEC, or TLS, is RECOMMENDED.
+
+   The zone transfer protocol allows read-only public access to the
+   complete zone data.  Since data in the DNS is public by definition,
+   this is generally acceptable.  Sites that wish to avoid disclosing
+   their full zone data MAY restrict zone transfer access to authorized
+   slaves.
+
+   These clarifications are not believed to themselves introduce any new
+   security problems, nor to solve any existing ones.
+
+Acknowledgements
+
+   Many people have contributed input and commentary to earlier versions
+   of this document, including but not limited to Bob Halley, Dan
+   Bernstein, Eric A. Hall, Josh Littlefield, Kevin Darcy, Robert Elz,
+   Levon Esibov, Mark Andrews, Michael Patton, Peter Koch, Sam
+   Trenholme, and Brian Wellington.
+
+References
+
+   [RFC1034] - Domain Names - Concepts and Facilities, P. Mockapetris,
+   November 1987.
+
+
+
+
+Expires May 2003                                                [Page 5]
+
+draft-ietf-dnsext-axfr-clarify-05.txt                      November 2002
+
+
+   [RFC1035] - Domain Names - Implementation and Specifications, P.
+   Mockapetris, November 1987.
+
+   [RFC2119] - Key words for use in RFCs to Indicate Requirement Levels,
+   S. Bradner, BCP 14, March 1997.
+
+   [RFC2845] - Secret Key Transaction Authentication for DNS (TSIG).  P.
+   Vixie, O. Gudmundsson, D. Eastlake, B. Wellington, May 2000.
+
+Author's Address
+
+   Andreas Gustafsson
+   Nominum Inc.
+   2385 Bay Rd
+   Redwood City, CA 94063
+   USA
+
+   Phone: +1 650 381 6004
+
+   Email: gson@nominum.com
+
+
+Full Copyright Statement
+
+   Copyright (C) The Internet Society (2000 - 2002).  All Rights Reserved.
+
+   This document and translations of it may be copied and furnished to
+   others, and derivative works that comment on or otherwise explain it
+   or assist in its implmentation may be prepared, copied, published and
+   distributed, in whole or in part, without restriction of any kind,
+   provided that the above copyright notice and this paragraph are
+   included on all such copies and derivative works.  However, this
+   document itself may not be modified in any way, such as by removing
+   the copyright notice or references to the Internet Society or other
+   Internet organizations, except as needed for the purpose of
+   developing Internet standards in which case the procedures for
+   copyrights defined in the Internet Standards process must be
+   followed, or as required to translate it into languages other than
+   English.
+
+   The limited permissions granted above are perpetual and will not be
+   revoked by the Internet Society or its successors or assigns.
+
+   This document and the information contained herein is provided on an
+   "AS IS" basis and THE INTERNET SOCIETY AND THE INTERNET ENGINEERING
+   TASK FORCE DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING
+   BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION
+   HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED WARRANTIES OF
+
+
+
+Expires May 2003                                                [Page 6]
+
+draft-ietf-dnsext-axfr-clarify-05.txt                      November 2002
+
+
+   MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE."
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Expires May 2003                                                [Page 7]
+
+

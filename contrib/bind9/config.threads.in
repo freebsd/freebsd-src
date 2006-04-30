@@ -1,0 +1,152 @@
+#
+# Begin pthreads checking.
+#
+# First, decide whether to use multithreading or not.
+#
+# Enable multithreading by default on systems where it is known
+# to work well, and where debugging of multithreaded programs
+# is supported.
+#
+
+AC_MSG_CHECKING(whether to build with thread support)
+
+case $host in
+*-dec-osf*)
+	use_threads=true ;;
+[*-solaris2.[0-6]])
+	# Thread signals are broken on Solaris 2.6; they are sometimes
+	# delivered to the wrong thread.
+	use_threads=false ;;
+*-solaris*)
+	use_threads=true ;;
+*-ibm-aix*)
+	use_threads=true ;;
+*-hp-hpux10*)
+	use_threads=false ;;
+*-hp-hpux11*)
+	use_threads=true ;;
+*-sgi-irix*)
+	use_threads=true ;;
+*-sco-sysv*uw*|*-*-sysv*UnixWare*)
+        # UnixWare
+	use_threads=false ;;
+*-*-sysv*OpenUNIX*)
+        # UnixWare
+	use_threads=true ;;
+*-netbsd*)
+	if test -r /usr/lib/libpthread.so ; then
+	    use_threads=true
+	else
+	    # Socket I/O optimizations introduced in 9.2 expose a
+	    # bug in unproven-pthreads; see PR #12650
+	    use_threads=false
+	fi
+	;;
+*-openbsd*)
+	# OpenBSD users have reported that named dumps core on
+	# startup when built with threads.
+	use_threads=false ;;
+*-freebsd*)
+	use_threads=false ;;
+*-bsdi[234]*)
+	# Thread signals do not work reliably on some versions of BSD/OS.
+	use_threads=false ;;
+*-bsdi5*)
+	use_threads=true ;;
+*-linux*)
+   	# Threads are disabled on Linux by default because most
+	# Linux kernels produce unusable core dumps from multithreaded
+	# programs, and because of limitations in setuid().
+	use_threads=false ;;	
+*)
+	use_threads=false ;;
+esac
+
+AC_ARG_ENABLE(threads,
+	[  --enable-threads	enable multithreading])
+case "$enable_threads" in
+	yes)
+		use_threads=true
+		;;
+	no)
+		use_threads=false
+		;;
+	'')
+		# Use system-dependent default
+		;;
+	*)
+	    	AC_MSG_ERROR([--enable-threads takes yes or no])
+		;;
+esac
+
+if $use_threads
+then
+	AC_MSG_RESULT(yes)
+else
+	AC_MSG_RESULT(no)	
+fi
+
+if $use_threads
+then
+	#
+	# Search for / configure pthreads in a system-dependent fashion.
+	#
+	case "$host" in
+	  *-netbsd*)
+		# NetBSD has multiple pthreads implementations.	 The
+		# recommended one to use is "unproven-pthreads".  The
+		# older "mit-pthreads" may also work on some NetBSD
+		# versions.  The PTL2 thread library does not
+		# currently work with bind9, but can be chosen with
+		# the --with-ptl2 option for those who wish to
+		# experiment with it.
+		CC="gcc"
+		AC_MSG_CHECKING(which NetBSD thread library to use)
+
+		AC_ARG_WITH(ptl2,
+[  --with-ptl2		on NetBSD, use the ptl2 thread library (experimental)],
+		    use_ptl2="$withval", use_ptl2="no")
+
+		: ${LOCALBASE:=/usr/pkg}
+
+		if test "X$use_ptl2" = "Xyes"
+		then
+			AC_MSG_RESULT(PTL2)
+			AC_MSG_WARN(
+[linking with PTL2 is highly experimental and not expected to work])
+			CC=ptlgcc
+		else
+			if test -r /usr/lib/libpthread.so
+			then
+				AC_MSG_RESULT(native)
+				LIBS="-lpthread $LIBS"
+			else
+				if test ! -d $LOCALBASE/pthreads
+				then
+					AC_MSG_RESULT(none)
+					AC_MSG_ERROR("could not find thread libraries")
+				fi
+
+				if $use_threads
+				then
+					AC_MSG_RESULT(mit-pthreads/unproven-pthreads)
+					pkg="$LOCALBASE/pthreads"
+					lib1="-L$pkg/lib -Wl,-R$pkg/lib"
+					lib2="-lpthread -lm -lgcc -lpthread"
+					LIBS="$lib1 $lib2 $LIBS"
+					CPPFLAGS="$CPPFLAGS -I$pkg/include"
+					STD_CINCLUDES="$STD_CINCLUDES -I$pkg/include"
+				fi
+			fi
+		fi
+		;;
+		*)
+			AC_CHECK_LIB(pthread, pthread_create,,
+				AC_CHECK_LIB(pthread, __pthread_create,,
+				AC_CHECK_LIB(pthread, __pthread_create_system,,
+				AC_CHECK_LIB(c_r, pthread_create,,
+				AC_CHECK_LIB(c, pthread_create,,
+				AC_MSG_ERROR("could not find thread libraries"))))))
+		;;
+	esac
+fi

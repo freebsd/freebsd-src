@@ -1,0 +1,213 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)startslip.1	8.1 (Berkeley) 6/5/93
+.\" $FreeBSD$
+.\"
+.Dd June 5, 1993
+.Dt STARTSLIP 1
+.Os
+.Sh NAME
+.Nm startslip
+.Nd dial up and login to a slip server
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Op Fl b Ar speed
+.Oo
+.Fl s Ar string1
+.Op Fl s Ar string2 Op Ar ...\&
+.Oc
+.Op Fl h
+.Op Fl l
+.Op Fl L
+.Op Fl A Ar annexname
+.Op Fl U Ar upscript
+.Op Fl D Ar downscript
+.Op Fl t Ar script_timeout
+.Op Fl W Ar maxtries
+.Op Fl w Ar retry_pause
+.Op Fl K Ar keepalive
+.Op Fl O Ar outfill
+.Op Fl S Ar unit
+.Ar device user password
+.Sh DESCRIPTION
+The
+.Nm
+utility opens the specified
+.Ar device .
+Once carrier is asserted (if modem control is enabled)
+.Nm
+attempts to login as the specified
+.Ar user
+with the given
+.Ar password .
+Standard login: & Password: scheme assumed unless Annex option
+specified (see
+.Fl A ) .
+If successful, it puts the device into the slip line discipline,
+calls
+.Ar upscript
+and goes to wait mode.
+If carrier drops (modem control enabled) or a
+.Dv SIGHUP
+is sent to
+.Nm ,
+it closes the device, calls
+.Ar downscript
+and attempts to repeat the dialup and login sequence.
+If a
+.Dv SIGTERM
+is send to
+.Nm ,
+it closes the device, calls
+.Ar downscript
+and exits.
+When
+.Nm
+called twice on the same device, previous copy killed by a
+.Dv SIGTERM
+before any operation.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl d
+Print out debugging information.
+.It Fl b Ar speed
+Determine the baud rate used for
+.Ar device ,
+default value is 9600.
+.It Fl t Ar script_timeout
+Set login script timeout in seconds, default value is 90.
+.It Fl w Ar retry_pause
+Set connecting retry pause in seconds (increased from one retry to another),
+default value is 60.
+.It Fl W Ar maxtries
+Set maximum number of connection retries for one session,
+default value is 6.
+Value 0 means infinite count.
+.It Fl s Ar stringN
+The optional
+.Ar stringN
+is written to
+.Ar device .
+Return character is added automatically.
+For a dialup modem,
+the string is used to specify a dial sequence.
+No string written by default.
+You can specify several
+.Fl s Ar stringN
+arguments to use with each try, f.e.
+several host phone numbers.
+.It Fl A Ar annexname
+The
+.Nm
+utility assumes it is connecting to a Xylogics Annex box and engages in an
+appropriate dialog using the
+.Ar user
+and
+.Ar password
+arguments.
+The
+.Ar annexname
+argument is a string that is used to match against the Annex prompt
+to determine when a connection has been established.
+.It Fl h
+Use hardware (CTS/RTS) flow control for
+.Ar device .
+Default value is no flow control.
+.It Fl l
+Disable modem control (waiting for carrier and carrier drop sense) for
+.Ar device .
+Modem control is enabled by default.
+.It Fl U Ar upscript
+Specify a script to run when a SLIP interface becomes connected.
+This may
+contain
+.Xr ifconfig 8 ,
+.Xr route 8 ,
+and other appropriate commands.
+The arguments that
+are passed to the script are "slX up".
+Default value is
+.Pa /sbin/ifconfig .
+Dial sequence number (see
+.Fl s )
+passed via
+.Ev LINE
+environment variable.
+.It Fl D Ar downscript
+Specify a script to run when a SLIP connection goes away.
+The arguments that
+are passed to the script are "slX down".
+Default value is
+.Pa /sbin/ifconfig .
+Dial sequence number (see
+.Fl s )
+passed via
+.Ev LINE
+environment variable.
+.It Fl K Ar keepalive
+Set SLIP "keep alive" timeout in seconds.
+If FRAME_END not received during this
+time period, a reconnect will occur.
+Active "out fill" timeout expected from other
+side.
+Default value is no timeout.
+.It Fl O Ar outfill
+Set SLIP "out fill" timeout in seconds.
+It causes at least one FRAME_END
+to be sent during this timeout.
+Needed for "keep alive" timeout on other side.
+Default value is no timeout.
+.It Fl S Ar unit
+Set SLIP unit number directly.
+Use with caution, no check for two
+interfaces with same number made.
+Default is dynamic assignment.
+.It Fl L
+Use uucp-style device locking.
+You need it unless you start
+.Nm
+from external program which already does uucp locking.
+Default case is no uucp locking to satisfy such programs.
+.El
+.Sh FILES
+.Bl -tag -width /var/run/startslip.<device>.pid -compact
+.It Pa /var/run/startslip.<device>.pid
+pid stored here
+.It Pa /usr/share/examples/startslip/*
+.El
+.Sh SEE ALSO
+.Xr uustat 1 Pq Pa ports/net/freebsd-uucp ,
+.Xr slattach 8 ,
+.Xr sliplogin 8
+.Sh HISTORY
+The
+.Nm
+appeared in
+.Bx 4.4 .

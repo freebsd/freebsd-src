@@ -1,0 +1,102 @@
+.\" Copyright (c) 2004 Poul-Henning Kamp <phk@FreeBSD.org>
+.\" Copyright (c) 2003, 2004 Sean M. Kelly <smkelly@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 25, 2003
+.Dt WATCHDOG 4
+.Os
+.Sh NAME
+.Nm watchdog
+.Nd "hardware and software watchdog"
+.Sh SYNOPSIS
+.Cd "options CPU_ELAN"
+.Cd "options CPU_GEODE"
+.Cd "options SW_WATCHDOG"
+.Pp
+.In sys/watchdog.h
+.Sh DESCRIPTION
+The
+.Nm
+facility is used for controlling hardware and software watchdogs.
+.Pp
+The interface is through a device named
+.Qq Li /dev/
+.Dv _PATH_WATCHDOG
+which responds to a single
+.Xr ioctl 2
+call,
+.Dv WDIOCPATPAT .
+.Pp
+The call takes a single argument which represents a timeout value
+specified as an integer power of two nanoseconds.
+.Pp
+The
+.Dv WD_ACTIVE
+flag signals that the
+.Nm
+will be kept from
+timing out from userland, for instance by the
+.Xr watchdogd 8
+daemon.
+.Pp
+To disable the watchdogs, an argument of zero should be used.
+.Pp
+The
+.Xr ioctl 2
+call will return success if just one of the available
+.Xr watchdog 9
+implementations support the request.
+If the call fails, for instance if none of
+.Xr watchdog 9
+implementations support the timeout
+length, all watchdogs are disabled and must be explicitly re-enabled.
+.Sh EXAMPLES
+.\" XXX insert some descriptive text here
+.Bd -literal -offset indent
+u_int u = WD_ACTIVE | WD_TO_8SEC;
+int fd = open("/dev/" _PATH_WATCHDOG, O_RDWR);
+
+ioctl(fd, WDIOCPATPAT, &u);
+.Ed
+.Sh SEE ALSO
+.Xr watchdogd 8 ,
+.Xr watchdog 9
+.Sh HISTORY
+The
+.Nm
+code first appeared in
+.Fx 5.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+facility was written by
+.An Poul-Henning Kamp Aq phk@FreeBSD.org .
+The software watchdog code
+and this manual page were written by
+.An Sean Kelly Aq smkelly@FreeBSD.org .
+Some contributions were made by
+.An Jeff Roberson Aq jeff@FreeBSD.org .

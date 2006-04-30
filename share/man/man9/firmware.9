@@ -1,0 +1,116 @@
+.\" Copyright (c) 2006 Max Laier <mlaier@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 6, 2006
+.Os
+.Dt FIRMWARE 9
+.Sh NAME
+.Nm firmware_register ,
+.Nm firmware_unregister ,
+.Nm firmware_get ,
+.Nm firmware_put
+.Nd firmware image loading and management
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/systm.h
+.In sys/linker.h
+.In sys/firmware.h
+.Bd -literal
+struct firmware {
+	const char	*name;		/* system-wide name */
+	const void	*data;		/* location of image */
+	size_t		datasize;	/* size of image in bytes */
+	unsigned int	version;	/* version of the image */
+	int		refcnt;		/* held references */
+	struct firmware	*parent;	/* not null if a subimage */
+	linker_file_t	file;		/* loadable module */
+};
+.Ed
+.Ft struct firmware *
+.Fo firmware_register
+.Fa "const char *imagename"
+.Fa "const void *data"
+.Fa "size_t datasize"
+.Fa "unsigned int version"
+.Fa "struct firmware *parent"
+.Fc
+.Ft int
+.Fn firmware_unregister "const char *imagename"
+.Ft struct firmware *
+.Fn firmware_get "const char *imagename"
+.Ft void
+.Fn firmware_put "struct firmware *fp" "int flags"
+.Sh DESCRIPTION
+The firmware abstraction provides a convenient interface for loading firmware
+images into the kernel.
+Specially crafted kernel modules are used to hold the firmware images.
+.Pp
+The function
+.Fn firmware_register
+is used on load of such modules to register contained firmware images.
+The arguments to
+.Fn firmware_register
+include a name that identifies the image for later requests to the firmware
+system, a pointer to the actual image, the size of the image and an optional
+parent image.
+The parent image is used to keep track of references to a given module so that
+it can be unloaded on last reference.
+.Pp
+The function
+.Fn firmware_unregister
+removes the firmware image identified by the name from the system if there
+are no pending references or returns an error otherwise.
+.Pp
+The function
+.Fn firmware_get
+returns the requested firmware image.
+If the image is not yet registered with the system
+.Fn firmware_get
+tries to load a module with the corresponding name.
+This involves the linker subsystem and disk access which is why
+.Fn firmware_get
+must not be called with any locks (except for Giant).
+On success
+.Fn firmware_get
+returns a pointer to the image description and increases the reference count
+for this image.
+.Pp
+The function
+.Fn firmware_put
+is used to drop the reference to a firmware image.
+The flags argument may be set to
+.Dv FIRMWARE_UNLOAD
+to indicate that the caller wishes to unload the corresponding module if the
+image becomes unreferenced.
+.Sh SEE ALSO
+.Xr module 9
+.Pp
+.Pa /usr/share/examples/kld
+.Sh HISTORY
+The firmware system was introduced in
+.Fx 6.1 .
+.Sh AUTHORS
+This manual page was written by
+.An Max Laier Aq mlaier@FreeBSD.org .

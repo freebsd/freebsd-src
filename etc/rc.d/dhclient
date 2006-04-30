@@ -1,0 +1,50 @@
+#!/bin/sh
+#
+# $NetBSD: dhclient,v 1.8 2002/03/22 04:33:58 thorpej Exp $
+# $FreeBSD$
+#
+
+# PROVIDE: dhclient
+# KEYWORD: nojail nostart
+#
+
+. /etc/rc.subr
+. /etc/network.subr
+
+name="dhclient"
+rcvar=
+start_cmd="dhclient_start"
+stop_cmd="dhclient_stop"
+
+dhclient_start()
+{
+	# prevent unnecessicary restarts
+	# XXX: should use a pidfile
+	if [ -x /usr/bin/pgrep ]; then
+		pids=`/usr/bin/pgrep -f "dhclient: $ifn(\$| .*)"`
+		if [ -n "$pids" ]; then
+			exit 0
+		fi
+	fi
+
+	if checkyesno background_dhclient; then
+		rc_flags="${rc_flags} -b"
+	fi
+
+	${dhclient_program} ${rc_flags} $ifn
+}
+
+dhclient_stop()
+{
+	ifconfig $ifn down	# cause dhclient to die
+}
+
+ifn="$2"
+
+load_rc_config $name
+
+if ! dhcpif $ifn; then
+	return 1
+fi
+
+run_rc_command "$1"

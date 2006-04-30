@@ -1,0 +1,2072 @@
+
+
+
+Network Working Group                                          B. Laurie
+Internet-Draft                                                 G. Sisson
+Expires: December 3, 2005                                        Nominet
+                                                               R. Arends
+                                                    Telematica Instituut
+                                                               june 2005
+
+
+             DNSSEC Hash Authenticated Denial of Existence
+                       draft-ietf-dnsext-nsec3-02
+
+Status of this Memo
+
+   By submitting this Internet-Draft, each author represents that any
+   applicable patent or other IPR claims of which he or she is aware
+   have been or will be disclosed, and any of which he or she becomes
+   aware will be disclosed, in accordance with Section 6 of BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF), its areas, and its working groups.  Note that
+   other groups may also distribute working documents as Internet-
+   Drafts.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   The list of current Internet-Drafts can be accessed at
+   http://www.ietf.org/ietf/1id-abstracts.txt.
+
+   The list of Internet-Draft Shadow Directories can be accessed at
+   http://www.ietf.org/shadow.html.
+
+   This Internet-Draft will expire on December 3, 2005.
+
+Copyright Notice
+
+   Copyright (C) The Internet Society (2005).
+
+Abstract
+
+   The DNS Security (DNSSEC) NSEC resource record (RR) is intended to be
+   used to provide authenticated denial of existence of DNS ownernames
+   and types; however, it permits any user to traverse a zone and obtain
+   a listing of all ownernames.
+
+   A complete zone file can be used either directly as a source of
+
+
+
+Laurie, et al.          Expires December 3, 2005                [Page 1]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   probable e-mail addresses for spam, or indirectly as a key for
+   multiple WHOIS queries to reveal registrant data which many
+   registries (particularly in Europe) may be under strict legal
+   obligations to protect.  Many registries therefore prohibit copying
+   of their zone file; however the use of NSEC RRs renders policies
+   unenforceable.
+
+   This document proposes a scheme which obscures original ownernames
+   while permitting authenticated denial of existence of non-existent
+   names.  Non-authoritative delegation point NS RR types may be
+   excluded.
+
+Table of Contents
+
+   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  4
+     1.1   Rationale  . . . . . . . . . . . . . . . . . . . . . . . .  4
+     1.2   Reserved Words . . . . . . . . . . . . . . . . . . . . . .  4
+     1.3   Terminology  . . . . . . . . . . . . . . . . . . . . . . .  4
+   2.  The NSEC3 Resource Record  . . . . . . . . . . . . . . . . . .  5
+     2.1   NSEC3 RDATA Wire Format  . . . . . . . . . . . . . . . . .  5
+       2.1.1   The Authoritative Only Flag Field  . . . . . . . . . .  6
+       2.1.2   The Hash Function Field  . . . . . . . . . . . . . . .  6
+       2.1.3   The Iterations Field . . . . . . . . . . . . . . . . .  7
+       2.1.4   The Salt Length Field  . . . . . . . . . . . . . . . .  7
+       2.1.5   The Salt Field . . . . . . . . . . . . . . . . . . . .  7
+       2.1.6   The Next Hashed Ownername Field  . . . . . . . . . . .  7
+       2.1.7   The list of Type Bit Map(s) Field  . . . . . . . . . .  8
+     2.2   The NSEC3 RR Presentation Format . . . . . . . . . . . . .  9
+   3.  Creating Additional NSEC3 RRs for Empty Non Terminals  . . . .  9
+   4.  Calculation of the Hash  . . . . . . . . . . . . . . . . . . . 10
+   5.  Including NSEC3 RRs in a Zone  . . . . . . . . . . . . . . . . 10
+   6.  Special Considerations . . . . . . . . . . . . . . . . . . . . 11
+     6.1   Delegation Points  . . . . . . . . . . . . . . . . . . . . 11
+       6.1.1   Unsigned Delegations . . . . . . . . . . . . . . . . . 11
+     6.2   Proving Nonexistence . . . . . . . . . . . . . . . . . . . 12
+     6.3   Salting  . . . . . . . . . . . . . . . . . . . . . . . . . 13
+     6.4   Hash Collision . . . . . . . . . . . . . . . . . . . . . . 13
+       6.4.1   Avoiding Hash Collisions during generation . . . . . . 14
+       6.4.2   Second Preimage Requirement Analysis . . . . . . . . . 14
+       6.4.3   Possible Hash Value Truncation Method  . . . . . . . . 14
+   7.  Performance Considerations . . . . . . . . . . . . . . . . . . 15
+   8.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 15
+   9.  Security Considerations  . . . . . . . . . . . . . . . . . . . 15
+   10.   References . . . . . . . . . . . . . . . . . . . . . . . . . 16
+     10.1  Normative References . . . . . . . . . . . . . . . . . . . 16
+     10.2  Informative References . . . . . . . . . . . . . . . . . . 17
+       Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . 17
+   A.  Example Zone . . . . . . . . . . . . . . . . . . . . . . . . . 18
+
+
+
+Laurie, et al.          Expires December 3, 2005                [Page 2]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   B.  Example Responses  . . . . . . . . . . . . . . . . . . . . . . 23
+     B.1   answer . . . . . . . . . . . . . . . . . . . . . . . . . . 23
+       B.1.1   Authenticating the Example DNSKEY RRset  . . . . . . . 25
+     B.2   Name Error . . . . . . . . . . . . . . . . . . . . . . . . 26
+     B.3   No Data Error  . . . . . . . . . . . . . . . . . . . . . . 28
+       B.3.1   No Data Error, Empty Non-Terminal  . . . . . . . . . . 29
+     B.4   Referral to Signed Zone  . . . . . . . . . . . . . . . . . 30
+     B.5   Referral to Unsigned Zone using Opt-In . . . . . . . . . . 31
+     B.6   Wildcard Expansion . . . . . . . . . . . . . . . . . . . . 32
+     B.7   Wildcard No Data Error . . . . . . . . . . . . . . . . . . 34
+     B.8   DS Child Zone No Data Error  . . . . . . . . . . . . . . . 35
+       Intellectual Property and Copyright Statements . . . . . . . . 37
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Laurie, et al.          Expires December 3, 2005                [Page 3]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+1.  Introduction
+
+   The DNS Security Extensions (DNSSEC) introduced the NSEC Resource
+   Record (RR) for authenticated denial of existence.  This document
+   introduces a new RR as an alternative to NSEC that provides measures
+   against zone traversal and allows for gradual expansion of
+   delegation-centric zones.
+
+1.1  Rationale
+
+   The DNS Security Extensions included the NSEC RR to provide
+   authenticated denial of existence.  Though the NSEC RR meets the
+   requirements for authenticated denial of existence, it introduced a
+   side-effect in that the contents of a zone can be enumerated.  This
+   property introduces undesired policy issues.
+
+   A second problem was the requirement that the existence of all record
+   types in a zone - including delegation point NS record types - must
+   be accounted for, despite the fact that delegation point NS RRsets
+   are not authoritative and not signed.  This requirement has a side-
+   effect that the overhead of delegation-centric signed zones is not
+   related to the increase in security of subzones.  This requirement
+   does not allow delegation-centric zones size to grow in relation to
+   the growth of signed subzones.
+
+   In the past, solutions have been proposed as a measure against these
+   side effects but at the time were regarded as secondary over the need
+   to have a stable DNSSEC specification.  With (draft-vixie-dnssec-ter)
+   a graceful transition path to future enhancements is introduced,
+   while current DNSSEC deployment can continue.  This document presents
+   the NSEC3 Resource Record which mitigates these issues with the NSEC
+   RR.
+
+   The reader is assumed to be familiar with the basic DNS concepts
+   described in RFC1034 [RFC1034], RFC1035 [RFC1035] and subsequent RFCs
+   that update them:  RFC2136 [RFC2136], RFC2181 [RFC2181] and RFC2308
+   [RFC2308].
+
+1.2  Reserved Words
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [RFC2119].
+
+1.3  Terminology
+
+   In this document the term "original ownername" refers to a standard
+   ownername.  Because this proposal uses the result of a hash function
+
+
+
+Laurie, et al.          Expires December 3, 2005                [Page 4]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   over the original (unmodified) ownername, this result is referred to
+   as "hashed ownername".
+
+   "Canonical ordering of the zone" means the order in which hashed
+   ownernames are arranged according to their numerical value, treating
+   the leftmost (lowest numbered) byte as the most significant byte.
+
+2.  The NSEC3 Resource Record
+
+   The NSEC3 RR provides Authenticated Denial of Existence for DNS
+   Resource Record Sets.
+
+   The NSEC3 Resource Record lists RR types present at the NSEC3 RR's
+   original ownername.  It includes the next hashed ownername in the
+   canonical ordering of the zone.  The complete set of NSEC3 RRs in a
+   zone indicates which RRsets exist for the original ownername of the
+   RRset and form a chain of hashed ownernames in the zone.  This
+   information is used to provide authenticated denial of existence for
+   DNS data, as described in RFC 4035 [RFC4035].  Unsigned delegation
+   point NS RRsets can optionally be excluded.  To provide protection
+   against zone traversal, the ownernames used in the NSEC3 RR are
+   cryptographic hashes of the original ownername prepended to the name
+   of the zone.  The NSEC3 RR indicates which hash function is used to
+   construct the hash, which salt is used, and how many iterations of
+   the hash function are performed over the original ownername.
+
+   The ownername for the NSEC3 RR is the base32 encoding of the hashed
+   ownername.
+
+   The type value for the NSEC3 RR is XX.
+
+   The NSEC3 RR RDATA format is class independent.
+
+   The NSEC3 RR SHOULD have the same TTL value as the SOA minimum TTL
+   field.  This is in the spirit of negative caching [RFC2308].
+
+2.1  NSEC3 RDATA Wire Format
+
+   The RDATA of the NSEC3 RR is as shown below:
+
+
+
+
+
+
+
+
+
+
+
+
+Laurie, et al.          Expires December 3, 2005                [Page 5]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+                        1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |A|Hash Function|                  Iterations                   |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |  Salt Length  |                     Salt                      /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /                     Next Hashed Ownername                     /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /                         Type Bit Maps                         /
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+2.1.1  The Authoritative Only Flag Field
+
+   The Authoritative Only Flag field indicates whether the Type Bit Maps
+   include delegation point NS record types.
+
+   If the flag is set to 1, the NS RR type bit for a delegation point
+   ownername SHOULD be clear when the NSEC3 RR is generated.  The NS RR
+   type bit MUST be ignored during processing of the NSEC3 RR.  The NS
+   RR type bit has no meaning in this context (it is not authoritative),
+   hence the NSEC3 does not contest the existence of a NS RRset for this
+   ownername.  When a delegation is not secured, there exist no DS RR
+   type nor any other authoritative types for this delegation, hence the
+   unsecured delegation has no NSEC3 record associated.  Please see the
+   Special Consideration section for implications for unsigned
+   delegations.
+
+   If the flag is set to 0, the NS RR type bit for a delegation point
+   ownername MUST be set if the NSEC3 covers a delegation, even though
+   the NS RR itself is not authoritative.  This implies that all
+   delegations, signed or unsigned, have an NSEC3 record associated.
+   This behaviour is identical to NSEC behaviour.
+
+2.1.2  The Hash Function Field
+
+   The Hash Function field identifies the cryptographic hash function
+   used to construct the hash-value.
+
+   This document defines Value 1 for SHA-1 and Value 127 for
+   experimental.  All other values are reserved.
+
+   On reception, a resolver MUST discard an NSEC3 RR with an unknown
+   hash function value.
+
+
+
+
+
+
+Laurie, et al.          Expires December 3, 2005                [Page 6]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+2.1.3  The Iterations Field
+
+   The Iterations field defines the number of times the hash has been
+   iterated.  More iterations results in greater resiliency of the hash
+   value against dictionary attacks, but at a higher cost for both the
+   server and resolver.
+
+2.1.4  The Salt Length Field
+
+   The salt length field defines the length of the salt in octets.
+
+2.1.5  The Salt Field
+
+   The Salt field is not present when the Salt Length Field has a value
+   of 0.
+
+   The Salt field is prepended to the original ownername before hashing
+   in order to defend against precalculated dictionary attacks.
+
+   The salt is also prepended during iterations of the hash function.
+
+   Note that although it is theoretically possible to cover the entire
+   possible ownername space with different salt values, it is
+   computationally infeasible to do so, and so there MUST be at least
+   one salt which is the same for all NSEC3 records.  This means that no
+   matter what name is asked for in a query, it is guaranteed to be
+   possible to find a covering NSEC3 record.  Note that this does not
+   preclude the use of two different salts at the same time - indeed
+   this may well occur naturally, due to rolling the salt value
+   periodically.
+
+   The salt value SHOULD be changed from time to time - this is to
+   prevent the use of a precomputed dictionary to reduce the cost of
+   enumeration.
+
+2.1.6  The Next Hashed Ownername Field
+
+   The Next Hashed Ownername field contains the hash of the ownername of
+   the next RR in the canonical ordering of the hashed ownernames of the
+   zone.  The value of the Next Hashed Ownername Field in the last NSEC3
+   record in the zone is the same as the ownername of the first NSEC3 RR
+   in the zone in canonical order.
+
+   Hashed ownernames of RRsets not authoritative for the given zone
+   (such as glue records) MUST NOT be listed in the Next Hashed
+   Ownername unless at least one authoritative RRset exists at the same
+   ownername.
+
+
+
+
+Laurie, et al.          Expires December 3, 2005                [Page 7]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   Note that the Next Hashed Ownername field is not encoded, unlike the
+   NSEC3 RR's ownername.  It is the unmodified binary hash value.
+
+2.1.7  The list of Type Bit Map(s) Field
+
+   The Type Bit Maps field identifies the RRset types which exist at the
+   NSEC3 RR's ownername.
+
+   The Type bits for the NSEC3 RR and RRSIG RR MUST be set during
+   generation, and MUST be ignored during processing.
+
+   The RR type space is split into 256 window blocks, each representing
+   the low-order 8 bits of the 16-bit RR type space.  Each block that
+   has at least one active RR type is encoded using a single octet
+   window number (from 0 to 255), a single octet bitmap length (from 1
+   to 32) indicating the number of octets used for the window block's
+   bitmap, and up to 32 octets (256 bits) of bitmap.
+
+   Blocks are present in the NSEC3 RR RDATA in increasing numerical
+   order.
+
+   "|" denotes concatenation
+
+   Type Bit Map(s) Field = ( Window Block # | Bitmap Length | Bitmap ) +
+
+   Each bitmap encodes the low-order 8 bits of RR types within the
+   window block, in network bit order.  The first bit is bit 0.  For
+   window block 0, bit 1 corresponds to RR type 1 (A), bit 2 corresponds
+   to RR type 2 (NS), and so forth.  For window block 1, bit 1
+   corresponds to RR type 257, bit 2 to RR type 258.  If a bit is set to
+   1, it indicates that an RRset of that type is present for the NSEC3
+   RR's ownername.  If a bit is set to 0, it indicates that no RRset of
+   that type is present for the NSEC3 RR's ownername.
+
+   The RR type 2 (NS) is authoritative at the apex of a zone and is not
+   authoritative at delegation points.  If the Authoritative Only Flag
+   is set to 1, the delegation point NS RR type MUST NOT be included in
+   the type bit maps.  If the Authoritative Only Flag is set to 0, the
+   NS RR type at a delegation point MUST be included in the type bit
+   maps.
+
+   Since bit 0 in window block 0 refers to the non-existing RR type 0,
+   it MUST be set to 0.  After verification, the validator MUST ignore
+   the value of bit 0 in window block 0.
+
+   Bits representing Meta-TYPEs or QTYPEs as specified in RFC 2929
+   [RFC2929] (section 3.1) or within the range reserved for assignment
+   only to QTYPEs and Meta-TYPEs MUST be set to 0, since they do not
+
+
+
+Laurie, et al.          Expires December 3, 2005                [Page 8]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   appear in zone data.  If encountered, they must be ignored upon
+   reading.
+
+   Blocks with no types present MUST NOT be included.  Trailing zero
+   octets in the bitmap MUST be omitted.  The length of each block's
+   bitmap is determined by the type code with the largest numerical
+   value, within that block, among the set of RR types present at the
+   NSEC3 RR's actual ownername.  Trailing zero octets not specified MUST
+   be interpreted as zero octets.
+
+2.2  The NSEC3 RR Presentation Format
+
+   The presentation format of the RDATA portion is as follows:
+
+   The Authoritative Only Field is represented as an unsigned decimal
+   integer.  The value are either 0 or 1.
+
+   The Hash field is presented as the name of the hash or as an unsigned
+   decimal integer.  The value has a maximum of 127.
+
+   The Iterations field is presented as an unsigned decimal integer.
+
+   The Salt Length field is not presented.
+
+   The Salt field is represented as a sequence of case-insensitive
+   hexadecimal digits.  Whitespace is not allowed within the sequence.
+   The Salt Field is represented as 00 when the Salt Length field has
+   value 0.
+
+   The Next Hashed Ownername field is represented as a sequence of case-
+   insensitive base32 digits.  Whitespace is allowed within the
+   sequence.
+
+   The List of Type Bit Map(s) Field is represented as a sequence of RR
+   type mnemonics.  When the mnemonic is not known, the TYPE
+   representation as described in RFC 3597 [RFC3597] (section 5) MUST be
+   used.
+
+3.  Creating Additional NSEC3 RRs for Empty Non Terminals
+
+   In order to prove the non-existence of a record that might be covered
+   by a wildcard, it is necessary to prove the existence of its closest
+   encloser.  A closest encloser might be an Empty Non Terminal.
+
+   Additional NSEC3 RRs are synthesized which cover every existing
+   intermediate label level.  Additional NSEC3 RRs are identical in
+   format to NSEC3 RRs that cover existing RRs in the zone.  The
+   difference is that the type-bit-maps only indicate the existence of
+
+
+
+Laurie, et al.          Expires December 3, 2005                [Page 9]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   an NSEC3 RR type and an RRSIG RR type.
+
+4.  Calculation of the Hash
+
+   Define H(x) to be the hash of x using the hash function selected by
+   the NSEC3 record and || to indicate concatenation.  Then define:
+
+   IH(salt,x,0)=H(x || salt)
+
+   IH(salt,x,k)=H(IH(salt,x,k-1) || salt) if k > 0
+
+   Then the calculated hash of an ownername is
+   IH(salt,ownername,iterations-1), where the ownername is the canonical
+   form.
+
+   The canonical form of the ownername is the wire format of the
+   ownername where:
+   1.  The ownername is fully expanded (no DNS name compression) and
+       fully qualified;
+   2.  All uppercase US-ASCII letters are replaced by the corresponding
+       lowercase US-ASCII letters;
+   3.  If the ownername is a wildcard name, the ownername is in its
+       original unexpanded form, including the "*" label (no wildcard
+       substitution);
+
+5.  Including NSEC3 RRs in a Zone
+
+   Each owner name in the zone which has authoritative data or a secured
+   delegation point NS RRset MUST have an NSEC3 resource record.
+
+   An unsecured delegation point NS RRset MAY have an NSEC3 resource
+   record.  This is different from NSEC records where an unsecured
+   delegation point NS RRset MUST have an NSEC record.
+
+   The TTL value for any NSEC3 RR SHOULD be the same as the minimum TTL
+   value field in the zone SOA RR.
+
+   The type bitmap of every NSEC3 resource record in a signed zone MUST
+   indicate the presence of both the NSEC3 RR type itself and its
+   corresponding RRSIG RR type.
+
+   The bitmap for the NSEC3 RR at a delegation point requires special
+   attention.  Bits corresponding to the delegation NS RRset and any
+   RRsets for which the parent zone has authoritative data MUST be set;
+   bits corresponding to any non-NS RRset for which the parent is not
+   authoritative MUST be clear.
+
+   The following steps describe the proper construction of NSEC3
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 10]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   records.
+   1.  For each unique original owner name in the zone, add an NSEC3
+       RRset.  This includes NSEC3 RRsets for unsigned delegation point
+       NS RRsets, unless the policy is to have Authoritative Only NSEC3
+       RRsets.  The ownername of the NSEC3 RR is the hashed equivalent
+       of the original owner name, prepended to the zone name.
+   2.  For each RRset at the original owner, set the corresponding bit
+       in the type bit map.
+   3.  If the difference in number of labels between the apex and the
+       original ownername is greater then 1, additional NSEC3s need to
+       be added for every empty non-terminal between the apex and the
+       original ownername.
+   4.  Sort the set of NSEC3 RRs.
+   5.  In each NSEC3 RR, insert the Next Hashed Ownername.  The Next
+       Hashed Ownername of the last NSEC3 in the zone contains the value
+       of the hashed ownername of the first NSEC3 in the zone.
+   6.  If the policy is to have authoritative only, set the
+       Authoritative Only bit in those NSEC3 RRs that cover unsecured
+       delegation points.
+
+6.  Special Considerations
+
+   The following paragraphs clarify specific behaviour explain special
+   considerations for implementations.
+
+6.1  Delegation Points
+
+   This proposal introduces the Authoritative Only Flag which indicates
+   whether non authoritative delegation point NS records are included in
+   the type bit Maps.  As discussed in paragraph 2.1.1, a flag value of
+   0 indicates that the interpretation of the type bit maps is identical
+   to NSEC records.
+
+   The following subsections describe behaviour when the flag value is
+   1.
+
+6.1.1  Unsigned Delegations
+
+   Delegation point NS records are not authoritative.  They are
+   authoritative in the delegated zone.  No other data exists at the
+   ownername of an unsigned delegation point.
+
+   Since no authoritative data exist at this ownername, it is excluded
+   from the NSEC3 chain.  This is an optimization, since it relieves the
+   zone of including an NSEC3 record and its associated signature for
+   this name.
+
+   An NSEC3 that denies existence of ownernames between X and X' with
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 11]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   the Authoritative Only Flag set to 1 can not be used to prove the
+   presence or the absence of delegation point NS records for unsigned
+   delegations in the interval (X, X').  The Authoritative Only Flag
+   effectively states No Contest on the presence of delegation point NS
+   resource records.
+
+   Since proof is absent, there exists a new attack vector.  Unsigned
+   delegation point NS records can be deleted during a man in the middle
+   attack, effectively denying existence of the delegation.  This is a
+   form of Denial of Service, where the victim has no information it is
+   under attack, since all signatures are valid and the fabricated
+   response form is a known type of response.
+
+   The only possible mitigation is to either not use this method, hence
+   proving existence or absence of unsigned delegations, or to sign all
+   delegations, regardless of whether the delegated zone is signed or
+   not.
+
+   A second attack vector exists in that an adversary is able to
+   successfully fabricate an (unsigned) response claiming a nonexistent
+   delegation exists.
+
+   The only possible mitigation is to mandate the signing of all
+   delegations.
+
+6.2  Proving Nonexistence
+
+   If a wildcard resource record appears in a zone, its asterisk label
+   is treated as a literal symbol and is treated in the same way as any
+   other ownername for purposes of generating NSEC3 RRs.  RFC 4035
+   [RFC4035] describes the impact of wildcards on authenticated denial
+   of existence.
+
+   In order to prove there exist no RRs for a domain, as well as no
+   source of synthesis, an RR must be shown for the closest encloser,
+   and non-existence must be shown for all closer labels and for the
+   wildcard at the closest encloser.
+
+   This can be done as follows.  If the QNAME in the query is
+   omega.alfa.beta.example, and the closest encloser is beta.example
+   (the nearest ancestor to omega.alfa.beta.example), then the server
+   should return an NSEC3 that demonstrates the nonexistence of
+   alfa.beta.example, an NSEC3 that demonstrates the nonexistence of
+   *.beta.example, and an NSEC3 that demonstrates the existence of
+   beta.example.  This takes between one and three NSEC3 records, since
+   a single record can, by chance, prove more than one of these facts.
+
+   When a verifier checks this response, then the existence of
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 12]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   beta.example together with the non-existence of alfa.beta.example
+   proves that the closest encloser is indeed beta.example.  The non-
+   existence of *.beta.example shows that there is no wildcard at the
+   closest encloser, and so no source of synthesis for
+   omega.alfa.beta.example.  These two facts are sufficient to satisfy
+   the resolver that the QNAME cannot be resolved.
+
+   In practice, since the NSEC3 owner and next names are hashed, if the
+   server responds with an NSEC3 for beta.example, the resolver will
+   have to try successively longer names, starting with example, moving
+   to beta.example, alfa.beta.example, and so on, until one of them
+   hashes to a value that matches the interval (but not the ownername
+   nor next owner name) of one of the returned NSEC3s (this name will be
+   alfa.beta.example).  Once it has done this, it knows the closest
+   encloser (i.e. beta.example), and can then easily check the other two
+   required proofs.
+
+   Note that it is not possible for one of the shorter names tried by
+   the resolver to be denied by one of the returned NSEC3s, since, by
+   definition, all these names exist and so cannot appear within the
+   range covered by an NSEC3.  Note, however, that the first name that
+   the resolver tries MUST be the apex of the zone, since names above
+   the apex could be denied by one of the returned NSEC3s.
+
+6.3  Salting
+
+   Augmenting original ownernames with salt before hashing increases the
+   cost of a dictionary of pre-generated hash-values.  For every bit of
+   salt, the cost of the dictionary doubles.  The NSEC3 RR can use a
+   maximum of 2040 bits of salt, multiplying the cost by 2^2040.
+
+   There MUST be a complete set of NSEC3s for the zone using the same
+   salt value.  The salt value for each NSEC3 RR MUST be equal for a
+   single version of the zone.
+
+   The salt SHOULD be changed every time the zone is resigned to prevent
+   precomputation using a single salt.
+
+6.4  Hash Collision
+
+   Hash collisions occur when different messages have the same hash
+   value.  The expected number of domain names needed to give a 1 in 2
+   chance of a single collision is about 2^(n/2) for a hash of length n
+   bits (i.e. 2^80 for SHA-1).  Though this probability is extremely
+   low, the following paragraphs deal with avoiding collisions and
+   assessing possible damage in the event of an attack using hash
+   collisions.
+
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 13]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+6.4.1  Avoiding Hash Collisions during generation
+
+   During generation of NSEC3 RRs, hash values are supposedly unique.
+   In the (academic) case of a collision occurring, an alternative salt
+   SHOULD be chosen and all hash values SHOULD be regenerated.
+
+   If hash values are not regenerated on collision, the NSEC3 RR MUST
+   list all authoritative RR types that exist for both owners, to avoid
+   a replay attack, spoofing an existing type as non-existent.
+
+6.4.2  Second Preimage Requirement Analysis
+
+   A cryptographic hash function has a second-preimage resistance
+   property.  The second-preimage resistance property means that it is
+   computationally infeasible to find another message with the same hash
+   value as a given message, i.e. given preimage X, to find a second
+   preimage X' <> X such that hash(X) = hash(X').  The work factor for
+   finding a second preimage is of the order of 2^160 for SHA-1.  To
+   mount an attack using an existing NSEC3 RR, an adversary needs to
+   find a second preimage.
+
+   Assuming an adversary is capable of mounting such an extreme attack,
+   the actual damage is that a response message can be generated which
+   claims that a certain QNAME (i.e. the second pre-image) does exist,
+   while in reality QNAME does not exist (a false positive), which will
+   either cause a security aware resolver to re-query for the non-
+   existent name, or to fail the initial query.  Note that the adversary
+   can't mount this attack on an existing name but only on a name that
+   the adversary can't choose and does not yet exist.
+
+6.4.3  Possible Hash Value Truncation Method
+
+   The previous sections outlined the low probability and low impact of
+   a second-preimage attack.  When impact and probability are low, while
+   space in a DNS message is costly, truncation is tempting.  Truncation
+   might be considered to allow for shorter ownernames and rdata for
+   hashed labels.  In general, if a cryptographic hash is truncated to n
+   bits, then the expected number of domains required to give a 1 in 2
+   probability of a single collision is approximately 2^(n/2) and the
+   work factor to produce a second preimage resistance is 2^n.
+
+   An extreme hash value truncation would be truncating to the shortest
+   possible unique label value.  Considering that hash values are
+   presented in base32, which represents 5 bits per label character,
+   truncation must be done on a 5 bit boundary.  This would be unwise,
+   since the work factor to produce collisions would then approximate
+   the size of the zone.
+
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 14]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   Though the mentioned truncation can be maximized to a certain
+   extreme, the probability of collision increases exponentially for
+   every truncated bit.  Given the low impact of hash value collisions
+   and limited space in DNS messages, the balance between truncation
+   profit and collision damage may be determined by local policy.  Of
+   course, the size of the corresponding RRSIG RR is not reduced, so
+   truncation is of limited benefit.
+
+   Truncation could be signalled simply by reducing the length of the
+   first label in the ownername.  Note that there would have to be a
+   corresponding reduction in the length of the Next Hashed Ownername
+   field.
+
+7.  Performance Considerations
+
+   Iterated hashes will obviously impose a performance penalty on both
+   authoritative servers and resolvers.  Therefore, the number of
+   iterations should be carefully chosen.  In particular it should be
+   noted that a high value for iterations gives an attacker a very good
+   denial of service attack, since the attacker need not bother to
+   verify the results of their queries, and hence has no performance
+   penalty of his own.
+
+   On the other hand, nameservers with low query rates and limited
+   bandwidth are already subject to a bandwidth based denial of service
+   attack, since responses are typically an order of magnitude larger
+   than queries, and hence these servers may choose a high value of
+   iterations in order to increase the difficulty of offline attempts to
+   enumerate their namespace without significantly increasing their
+   vulnerability to denial of service attacks.
+
+8.  IANA Considerations
+
+   IANA has to create a new registry for NSEC3 Hash Functions.  The
+   range for this registry is 0-127.  Value 0 is the identity function.
+   Value 1 is SHA-1.  Values 2-126 are Reserved For Future Use. Value
+   127 is marked as Experimental.
+
+9.  Security Considerations
+
+   The NSEC3 records are still susceptible to dictionary attacks (i.e.
+   the attacker retrieves all the NSEC3 records, then calculates the
+   hashes of all likely domain names, comparing against the hashes found
+   in the NSEC3 records, and thus enumerating the zone).  These are
+   substantially more expensive than traversing the original NSEC
+   records would have been, and in any case, such an attack could also
+   be used directly against the name server itself by performing queries
+   for all likely names, though this would obviously be more detectable.
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 15]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   The expense of this off-line attack can be chosen by setting the
+   number of iterations in the NSEC3 RR.
+
+   High-value domains are also susceptible to a precalculated dictionary
+   attack - that is, a list of hashes for all likely names is computed
+   once, then NSEC3 is scanned periodically and compared against the
+   precomputed hashes.  This attack is prevented by changing the salt on
+   a regular basis.
+
+   Walking the NSEC3 RRs will reveal the total number of records in the
+   zone, and also what types they are.  This could be mitigated by
+   adding dummy entries, but certainly an upper limit can always be
+   found.
+
+   Hash collisions may occur.  If they do, it will be impossible to
+   prove the non-existence of the colliding domain - however, this is
+   fantastically unlikely, and, in any case, DNSSEC already relies on
+   SHA-1 to not collide.
+
+10.  References
+
+10.1  Normative References
+
+   [RFC1034]  Mockapetris, P., "Domain names - concepts and facilities",
+              STD 13, RFC 1034, November 1987.
+
+   [RFC1035]  Mockapetris, P., "Domain names - implementation and
+              specification", STD 13, RFC 1035, November 1987.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC2136]  Vixie, P., Thomson, S., Rekhter, Y., and J. Bound,
+              "Dynamic Updates in the Domain Name System (DNS UPDATE)",
+              RFC 2136, April 1997.
+
+   [RFC2181]  Elz, R. and R. Bush, "Clarifications to the DNS
+              Specification", RFC 2181, July 1997.
+
+   [RFC2308]  Andrews, M., "Negative Caching of DNS Queries (DNS
+              NCACHE)", RFC 2308, March 1998.
+
+   [RFC2929]  Eastlake, D., Brunner-Williams, E., and B. Manning,
+              "Domain Name System (DNS) IANA Considerations", BCP 42,
+              RFC 2929, September 2000.
+
+   [RFC3597]  Gustafsson, A., "Handling of Unknown DNS Resource Record
+              (RR) Types", RFC 3597, September 2003.
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 16]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   [RFC4033]  Arends, R., Austein, R., Larson, M., Massey, D., and S.
+              Rose, "DNS Security Introduction and Requirements",
+              RFC 4033, March 2005.
+
+   [RFC4034]  Arends, R., Austein, R., Larson, M., Massey, D., and S.
+              Rose, "Resource Records for the DNS Security Extensions",
+              RFC 4034, March 2005.
+
+   [RFC4035]  Arends, R., Austein, R., Larson, M., Massey, D., and S.
+              Rose, "Protocol Modifications for the DNS Security
+              Extensions", RFC 4035, March 2005.
+
+10.2  Informative References
+
+   [I-D.ietf-dnsext-trustupdate-threshold]
+              Ihren, J., "An In-Band Rollover Mechanism and an Out-Of-
+              Band Priming Method for DNSSEC  Trust Anchors.",
+              draft-ietf-dnsext-trustupdate-threshold-00 (work in
+              progress), October 2004.
+
+   [RFC2026]  Bradner, S., "The Internet Standards Process -- Revision
+              3", BCP 9, RFC 2026, October 1996.
+
+   [RFC2418]  Bradner, S., "IETF Working Group Guidelines and
+              Procedures", BCP 25, RFC 2418, September 1998.
+
+
+Authors' Addresses
+
+   Ben Laurie
+   Nominet
+   17 Perryn Road
+   London  W3 7LR
+   England
+
+   Phone: +44 (20) 8735 0686
+   Email: ben@algroup.co.uk
+
+
+   Geoffrey Sisson
+   Nominet
+
+
+
+
+
+
+
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 17]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   Roy Arends
+   Telematica Instituut
+   Brouwerijstraat 1
+   7523 XC  Enschede
+   The Netherlands
+
+   Phone: +31 (53) 485 0485
+   Email: roy.arends@telin.nl
+
+Appendix A.  Example Zone
+
+   This is a zone showing its NSEC3 records.  They can also be used as
+   test vectors for the hash algorithm.
+
+
+   example.       3600 IN SOA ns1.example. bugs.x.w.example. (
+                              1
+                              3600
+                              300
+                              3600000
+                              3600 )
+                  3600 RRSIG  SOA 5 1 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              RtctD6aLUU5Md5wOOItilS7JXX1tf58Ql3sK
+                              mTXkL13jqLiUFOGg0uzqRh1U9GbydS0P7M0g
+                              qYIt90txzE/4+g== )
+                  3600 NS     ns1.example.
+                  3600 NS     ns2.example.
+                  3600 RRSIG  NS 5 1 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              hNyyin2JpECIFxW4vsj8RhHcWCQKUXgO+z4l
+                              m7g2zM8q3Qpsm/gYIXSF2Rhj6lAG7esR/X9d
+                              1SH5r/wfjuCg+g== )
+                  3600 MX     1 xx.example.
+                  3600 RRSIG  MX 5 1 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              L/ZDLMSZJKITmSxmM9Kni37/wKQsdSg6FT0l
+                              NMm14jy2Stp91Pwp1HQ1hAMkGWAqCMEKPMtU
+                              S/o/g5C8VM6ftQ== )
+                  3600 DNSKEY 257 3 5 (
+                              AQOnsGyJvywVjYmiLbh0EwIRuWYcDiB/8blX
+                              cpkoxtpe19Oicv6Zko+8brVsTMeMOpcUeGB1
+                              zsYKWJ7BvR2894hX
+                              ) ; Key ID = 21960
+                  3600 DNSKEY 256 3 5 (
+                              AQO0gEmbZUL6xbD/xQczHbnwYnf+jQjwz/sU
+                              5k44rHTt0Ty+3aOdYoome9TjGMhwkkGby1TL
+                              ExXT48OGGdbfIme5
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 18]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+                              ) ; Key ID = 62699
+                  3600 RRSIG  DNSKEY 5 1 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              e6EB+K21HbyZzoLUeRDb6+g0+n8XASYe6h+Z
+                              xtnB31sQXZgq8MBHeNFDQW9eZw2hjT9zMClx
+                              mTkunTYzqWJrmQ== )
+                  3600 RRSIG  DNSKEY 5 1 3600 20050712112304 (
+                              20050612112304 21960 example.
+                              SnWLiNWLbOuiKU/F/wVMokvcg6JVzGpQ2VUk
+                              ZbKjB9ON0t3cdc+FZbOCMnEHRJiwgqlnncik
+                              3w7ZY2UWyYIvpw== )
+   5pe7ctl7pfs2cilroy5dcofx4rcnlypd.example. 3600 NSEC3  0 1 1 (
+                              deadbeaf
+                              7nomf47k3vlidh4vxahhpp47l3tgv7a2
+                              NSEC3 RRSIG )
+                  3600 RRSIG  NSEC3 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              PTWYq4WZmmtgh9UQif342HWf9DD9RuuM4ii5
+                              Z1oZQgRi5zrsoKHAgl2YXprF2Rfk1TLgsiFQ
+                              sb7KfbaUo/vzAg== )
+   7nomf47k3vlidh4vxahhpp47l3tgv7a2.example. 3600 NSEC3  0 1 1 (
+                              deadbeaf
+                              dw4o7j64wnel3j4jh7fb3c5n7w3js2yb
+                              MX NSEC3 RRSIG )
+                  3600 RRSIG  NSEC3 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              YTcqole3h8EOsTT3HKnwhR1QS8borR0XtZaA
+                              ZrLsx6n0RDC1AAdZONYOvdqvcal9PmwtWjlo
+                              MEFQmc/gEuxojA== )
+   a.example.     3600 IN NS  ns1.a.example.
+                  3600 IN NS  ns2.a.example.
+                  3600 DS     58470 5 1 3079F1593EBAD6DC121E202A8B
+                              766A6A4837206C )
+                  3600 RRSIG  DS 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              QavhbsSmEvJLSUzGoTpsV3SKXCpaL1UO3Ehn
+                              cB0ObBIlex/Zs9kJyG/9uW1cYYt/1wvgzmX2
+                              0kx7rGKTc3RQDA== )
+   ns1.a.example. 3600 IN A   192.0.2.5
+   ns2.a.example. 3600 IN A   192.0.2.6
+   ai.example.    3600 IN A   192.0.2.9
+                  3600 RRSIG  A 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              plY5M26ED3Owe3YX0pBIhgg44j89NxUaoBrU
+                              6bLRr99HpKfFl1sIy18JiRS7evlxCETZgubq
+                              ZXW5S+1VjMZYzQ== )
+                  3600 HINFO  "KLH-10" "ITS"
+                  3600 RRSIG  HINFO 5 2 3600 20050712112304 (
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 19]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+                              20050612112304 62699 example.
+                              AR0hG/Z/e+vlRhxRQSVIFORzrJTBpdNHhwUk
+                              tiuqg+zGqKK84eIqtrqXelcE2szKnF3YPneg
+                              VGNmbgPnqDVPiA== )
+                  3600 AAAA   2001:db8:0:0:0:0:f00:baa9
+                  3600 RRSIG  AAAA 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              PNF/t7+DeosEjhfuL0kmsNJvn16qhYyLI9FV
+                              ypSCorFx/PKIlEL3syomkYM2zcXVSRwUXMns
+                              l5/UqLCJJ9BDMg== )
+   b.example.     3600 IN NS  ns1.b.example.
+                  3600 IN NS  ns2.b.example.
+   ns1.b.example. 3600 IN A   192.0.2.7
+   ns2.b.example. 3600 IN A   192.0.2.8
+   dw4o7j64wnel3j4jh7fb3c5n7w3js2yb.example. 3600 NSEC3  0 1 1 (
+                              deadbeaf
+                              gmnfcccja7wkax3iv26bs75myptje3qk
+                              MX DNSKEY NS SOA NSEC3 RRSIG )
+                  3600 RRSIG  NSEC3 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              VqEbXiZLJVYmo25fmO3IuHkAX155y8NuA50D
+                              C0NmJV/D4R3rLm6tsL6HB3a3f6IBw6kKEa2R
+                              MOiKMSHozVebqw== )
+   gmnfcccja7wkax3iv26bs75myptje3qk.example. 3600 NSEC3  0 1 1 (
+                              deadbeaf
+                              jt4bbfokgbmr57qx4nqucvvn7fmo6ab6
+                              DS NS NSEC3 RRSIG )
+                  3600 RRSIG  NSEC3 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              ZqkdmF6eICpHyn1Cj7Yvw+nLcbji46Qpe76/
+                              ZetqdZV7K5sO3ol5dOc0dZyXDqsJp1is5StW
+                              OwQBGbOegrW/Zw== )
+   jt4bbfokgbmr57qx4nqucvvn7fmo6ab6.example. 3600 NSEC3  0 1 1 (
+                              deadbeaf
+                              kcll7fqfnisuhfekckeeqnmbbd4maanu
+                              NSEC3 RRSIG )
+                  3600 RRSIG  NSEC3 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              FXyCVQUdFF1EW1NcgD2V724/It0rn3lr+30V
+                              IyjmqwOMvQ4G599InTpiH46xhX3U/FmUzHOK
+                              94Zbq3k8lgdpZA== )
+   kcll7fqfnisuhfekckeeqnmbbd4maanu.example. 3600 NSEC3  1 1 1 (
+                              deadbeaf
+                              n42hbhnjj333xdxeybycax5ufvntux5d
+                              MX NSEC3 RRSIG )
+                  3600 RRSIG  NSEC3 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              d0g8MTOvVwByOAIwvYV9JrTHwJof1VhnMKuA
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 20]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+                              IBj6Xaeney86RBZYgg7Qyt9WnQSK3uCEeNpx
+                              TOLtc5jPrkL4zQ== )
+   n42hbhnjj333xdxeybycax5ufvntux5d.example. 3600 NSEC3  0 1 1 (
+                              deadbeaf
+                              nimwfwcnbeoodmsc6npv3vuaagaevxxu
+                              A NSEC3 RRSIG )
+                  3600 RRSIG  NSEC3 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              MZGzllh+YFqZbY8SkHxARhXFiMDPS0tvQYyy
+                              91tj+lbl45L/BElD3xxB/LZMO8vQejYtMLHj
+                              xFPFGRIW3wKnrA== )
+   nimwfwcnbeoodmsc6npv3vuaagaevxxu.example. 3600 NSEC3  0 1 1 (
+                              deadbeaf
+                              vhgwr2qgykdkf4m6iv6vkagbxozphazr
+                              HINFO A AAAA NSEC3 RRSIG )
+                  3600 RRSIG  NSEC3 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              c3zQdK68cYTHTjh1cD6pi0vblXwzyoU/m7Qx
+                              z8kaPYikbJ9vgSl9YegjZukgQSwybHUC0SYG
+                              jL33Wm1p07TBdw== )
+   ns1.example.   3600 A      192.0.2.1
+                  3600 RRSIG  A 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              QLGkaqWXxRuE+MHKkMvVlswg65HcyjvD1fyb
+                              BDZpcfiMHH9w4x1eRqRamtSDTcqLfUrcYkrr
+                              nWWLepz1PjjShQ== )
+   ns2.example.   3600 A      192.0.2.2
+                  3600 RRSIG  A 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              UoIZaC1O6XHRWGHBOl8XFQKPdYTkRCz6SYh3
+                              P2mZ3xfY22fLBCBDrEnOc8pGDGijJaLl26Cz
+                              AkeTJu3J3auUiA== )
+   vhgwr2qgykdkf4m6iv6vkagbxozphazr.example. 3600 NSEC3  0 1 1 (
+                              deadbeaf
+                              wbyijvpnyj33pcpi3i44ecnibnaj7eiw
+                              HINFO A AAAA NSEC3 RRSIG )
+                  3600 RRSIG  NSEC3 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              leFhoF5FXZAiNOxK4OBOOA0WKdbaD5lLDT/W
+                              kLoyWnQ6WGBwsUOdsEcVmqz+1n7q9bDf8G8M
+                              5SNSHIyfpfsi6A== )
+   *.w.example.   3600 MX     1 ai.example.
+                  3600 RRSIG  MX 5 3 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              sYNUPHn1/gJ87wTHNksGdRm3vfnSFa2BbofF
+                              xGfJLF5A4deRu5f0hvxhAFDCcXfIASj7z0wQ
+                              gQlgxEwhvQDEaQ== )
+   x.w.example.   3600 MX     1 xx.example.
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 21]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+                  3600 RRSIG  MX 5 3 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              s1XQ/8SlViiEDik9edYs1Ooe3XiXo453Dg7w
+                              lqQoewuDzmtd6RaLNu52W44zTM1EHJES8ujP
+                              U9VazOa1KEIq1w== )
+   x.y.w.example. 3600 MX     1 xx.example.
+                  3600 RRSIG  MX 5 4 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              aKVCGO/Fx9rm04UUsHRTTYaDA8o8dGfyq6t7
+                              uqAcYxU9xiXP+xNtLHBv7er6Q6f2JbOs6SGF
+                              9VrQvJjwbllAfA== )
+   wbyijvpnyj33pcpi3i44ecnibnaj7eiw.example. 3600 NSEC3  0 1 1 (
+                              deadbeaf
+                              zjxfz5o7t4ty4u3f6fa7mhhqzjln4mui
+                              A NSEC3 RRSIG )
+                  3600 RRSIG  NSEC3 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              ledFAaDCqDxapQ1FvBAjjK2DP06iQj8AN6gN
+                              ZycTeSmobKLTpzbgQp8uKYYe/DPHjXYmuEhd
+                              oorBv4xkb0flXw== )
+   xx.example.    3600 A      192.0.2.10
+                  3600 RRSIG  A 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              XSuMVjNxovbZUsnKU6oQDygaK+WB+O5HYQG9
+                              tJgphHIX7TM4uZggfR3pNM+4jeC8nt2OxZZj
+                              cxwCXWj82GVGdw== )
+                  3600 HINFO  "KLH-10" "TOPS-20"
+                  3600 RRSIG  HINFO 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              ghS2DimOqPSacG9j6KMgXSfTMSjLxvoxvx3q
+                              OKzzPst4tEbAmocF2QX8IrSHr67m4ZLmd2Fk
+                              KMf4DgNBDj+dIQ== )
+                  3600 AAAA   2001:db8:0:0:0:0:f00:baaa
+                  3600 RRSIG  AAAA 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              rto7afZkXYB17IfmQCT5QoEMMrlkeOoAGXzo
+                              w8Wmcg86Fc+MQP0hyXFScI1gYNSgSSoDMXIy
+                              rzKKwb8J04/ILw== )
+   zjxfz5o7t4ty4u3f6fa7mhhqzjln4mui.example. 3600 NSEC3  0 1 1 (
+                              deadbeaf
+                              5pe7ctl7pfs2cilroy5dcofx4rcnlypd
+                              MX NSEC3 RRSIG )
+                  3600 RRSIG  NSEC3 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              eULkdWjcjmM+wXQcr7zXNfnGLgHjZSJINGkt
+                              7Zmvp7WKVAqoHMm1RXV8IfBH1aRgv5+/Lgny
+                              OcFlrPGPMm48/A== )
+
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 22]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+Appendix B.  Example Responses
+
+   The examples in this section show response messages using the signed
+   zone example in Appendix A.
+
+B.1  answer
+
+   A successful query to an authoritative server.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 23]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   ;; Header: QR AA DO RCODE=0
+   ;;
+   ;; Question
+   x.w.example.        IN MX
+
+   ;; Answer
+   x.w.example.   3600 IN MX  1 xx.example.
+   x.w.example.   3600 IN RRSIG  MX 5 3 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              s1XQ/8SlViiEDik9edYs1Ooe3XiXo453Dg7w
+                              lqQoewuDzmtd6RaLNu52W44zTM1EHJES8ujP
+                              U9VazOa1KEIq1w== )
+
+   ;; Authority
+   example.       3600 IN NS  ns1.example.
+   example.       3600 IN NS  ns2.example.
+   example.       3600 IN RRSIG  NS 5 1 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              hNyyin2JpECIFxW4vsj8RhHcWCQKUXgO+z4l
+                              m7g2zM8q3Qpsm/gYIXSF2Rhj6lAG7esR/X9d
+                              1SH5r/wfjuCg+g== )
+
+   ;; Additional
+   xx.example.    3600 IN A   192.0.2.10
+   xx.example.    3600 IN RRSIG  A 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              XSuMVjNxovbZUsnKU6oQDygaK+WB+O5HYQG9
+                              tJgphHIX7TM4uZggfR3pNM+4jeC8nt2OxZZj
+                              cxwCXWj82GVGdw== )
+   xx.example.    3600 IN AAAA   2001:db8::f00:baaa
+   xx.example.    3600 IN RRSIG  AAAA 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              rto7afZkXYB17IfmQCT5QoEMMrlkeOoAGXzo
+                              w8Wmcg86Fc+MQP0hyXFScI1gYNSgSSoDMXIy
+                              rzKKwb8J04/ILw== )
+   ns1.example.   3600 IN A   192.0.2.1
+   ns1.example.   3600 IN RRSIG  A 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              QLGkaqWXxRuE+MHKkMvVlswg65HcyjvD1fyb
+                              BDZpcfiMHH9w4x1eRqRamtSDTcqLfUrcYkrr
+                              nWWLepz1PjjShQ== )
+   ns2.example.   3600 IN A   192.0.2.2
+   ns2.example.   3600 IN RRSIG  A 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              UoIZaC1O6XHRWGHBOl8XFQKPdYTkRCz6SYh3
+                              P2mZ3xfY22fLBCBDrEnOc8pGDGijJaLl26Cz
+                              AkeTJu3J3auUiA== )
+
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 24]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   The query returned an MX RRset for "x.w.example".  The corresponding
+   RRSIG RR indicates that the MX RRset was signed by an "example"
+   DNSKEY with algorithm 5 and key tag 62699.  The resolver needs the
+   corresponding DNSKEY RR in order to authenticate this answer.  The
+   discussion below describes how a resolver might obtain this DNSKEY
+   RR.
+
+   The RRSIG RR indicates the original TTL of the MX RRset was 3600,
+   and, for the purpose of authentication, the current TTL is replaced
+   by 3600.  The RRSIG RR's labels field value of 3 indicates that the
+   answer was not the result of wildcard expansion.  The "x.w.example"
+   MX RRset is placed in canonical form, and, assuming the current time
+   falls between the signature inception and expiration dates, the
+   signature is authenticated.
+
+B.1.1  Authenticating the Example DNSKEY RRset
+
+   This example shows the logical authentication process that starts
+   from a configured root DNSKEY RRset (or DS RRset) and moves down the
+   tree to authenticate the desired "example" DNSKEY RRset.  Note that
+   the logical order is presented for clarity.  An implementation may
+   choose to construct the authentication as referrals are received or
+   to construct the authentication chain only after all RRsets have been
+   obtained, or in any other combination it sees fit.  The example here
+   demonstrates only the logical process and does not dictate any
+   implementation rules.
+
+   We assume the resolver starts with a configured DNSKEY RRset for the
+   root zone (or a configured DS RRset for the root zone).  The resolver
+   checks whether this configured DNSKEY RRset is present in the root
+   DNSKEY RRset (or whether a DS RR in the DS RRset matches some DNSKEY
+   RR in the root DNSKEY RRset), whether this DNSKEY RR has signed the
+   root DNSKEY RRset, and whether the signature lifetime is valid.  If
+   all these conditions are met, all keys in the DNSKEY RRset are
+   considered authenticated.  The resolver then uses one (or more) of
+   the root DNSKEY RRs to authenticate the "example" DS RRset.  Note
+   that the resolver may have to query the root zone to obtain the root
+   DNSKEY RRset or "example" DS RRset.
+
+   Once the DS RRset has been authenticated using the root DNSKEY, the
+   resolver checks the "example" DNSKEY RRset for some "example" DNSKEY
+   RR that matches one of the authenticated "example" DS RRs.  If such a
+   matching "example" DNSKEY is found, the resolver checks whether this
+   DNSKEY RR has signed the "example" DNSKEY RRset and the signature
+   lifetime is valid.  If these conditions are met, all keys in the
+   "example" DNSKEY RRset are considered authenticated.
+
+   Finally, the resolver checks that some DNSKEY RR in the "example"
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 25]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   DNSKEY RRset uses algorithm 5 and has a key tag of 62699.  This
+   DNSKEY is used to authenticate the RRSIG included in the response.
+   If multiple "example" DNSKEY RRs match this algorithm and key tag,
+   then each DNSKEY RR is tried, and the answer is authenticated if any
+   of the matching DNSKEY RRs validate the signature as described above.
+
+B.2  Name Error
+
+   An authoritative name error.  The NSEC3 RRs prove that the name does
+   not exist and that no covering wildcard exists.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 26]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   ;; Header: QR AA DO RCODE=3
+   ;;
+   ;; Question
+   a.c.x.w.example.         IN A
+
+   ;; Answer
+   ;; (empty)
+
+   ;; Authority
+   example.       3600 IN SOA ns1.example. bugs.x.w.example. (
+                              1
+                              3600
+                              300
+                              3600000
+                              3600
+                              )
+   example.       3600 IN RRSIG  SOA 5 1 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              RtctD6aLUU5Md5wOOItilS7JXX1tf58Ql3sK
+                              mTXkL13jqLiUFOGg0uzqRh1U9GbydS0P7M0g
+                              qYIt90txzE/4+g== )
+   7nomf47k3vlidh4vxahhpp47l3tgv7a2.example. 3600 IN NSEC3  0 1 1 (
+                              deadbeaf
+                              dw4o7j64wnel3j4jh7fb3c5n7w3js2yb
+                              MX NSEC3 RRSIG )
+   7nomf47k3vlidh4vxahhpp47l3tgv7a2.example. 3600 IN RRSIG  NSEC3 (
+                              5 2 3600 20050712112304
+                              20050612112304 62699 example.
+                              YTcqole3h8EOsTT3HKnwhR1QS8borR0XtZaA
+                              ZrLsx6n0RDC1AAdZONYOvdqvcal9PmwtWjlo
+                              MEFQmc/gEuxojA== )
+   nimwfwcnbeoodmsc6npv3vuaagaevxxu.example. 3600 IN NSEC3  0 1 1 (
+                              deadbeaf
+                              vhgwr2qgykdkf4m6iv6vkagbxozphazr
+                              HINFO A AAAA NSEC3 RRSIG )
+   nimwfwcnbeoodmsc6npv3vuaagaevxxu.example. 3600 IN RRSIG  NSEC3 (
+                              5 2 3600 20050712112304
+                              20050612112304 62699 example.
+                              c3zQdK68cYTHTjh1cD6pi0vblXwzyoU/m7Qx
+                              z8kaPYikbJ9vgSl9YegjZukgQSwybHUC0SYG
+                              jL33Wm1p07TBdw== )
+   ;; Additional
+   ;; (empty)
+
+   The query returned two NSEC3 RRs that prove that the requested data
+   does not exist and no wildcard applies.  The negative reply is
+   authenticated by verifying both NSEC3 RRs.  The NSEC3 RRs are
+   authenticated in a manner identical to that of the MX RRset discussed
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 27]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   above.  At least one of the owner names of the NSEC3 RRs will match
+   the closest encloser.  At least one of the NSEC3 RRs prove that there
+   exists no longer name.  At least one of the NSEC3 RRs prove that
+   there exists no wildcard RRsets that should have been expanded.  The
+   closest encloser can be found by hasing the apex ownername (The SOA
+   RR's ownername, or the ownername of the DNSKEY RRset referred by an
+   RRSIG RR), matching it to the ownername of one of the NSEC3 RRs, and
+   if that fails, continue by adding labels.
+
+   In the above example, the name 'x.w.example' hashes to
+   '7nomf47k3vlidh4vxahhpp47l3tgv7a2'.  This indicates that this might
+   be the closest encloser.  To prove that 'c.x.w.example' and
+   '*.x.w.example' do not exists, these names are hashed to respectively
+   'qsgoxsf2lanysajhtmaylde4tqwnqppl' and
+   'cvljzyf6nsckjowghch4tt3nohocpdka'.  The two NSEC3 records prove that
+   these hashed ownernames do not exists, since the names are within the
+   given intervals.
+
+B.3  No Data Error
+
+   A "no data" response.  The NSEC3 RR proves that the name exists and
+   that the requested RR type does not.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 28]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   ;; Header: QR AA DO RCODE=0
+   ;;
+   ;; Question
+   ns1.example.        IN MX
+
+   ;; Answer
+   ;; (empty)
+
+   ;; Authority
+   example.       3600 IN SOA ns1.example. bugs.x.w.example. (
+                              1
+                              3600
+                              300
+                              3600000
+                              3600
+                              )
+   example.       3600 IN RRSIG  SOA 5 1 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              RtctD6aLUU5Md5wOOItilS7JXX1tf58Ql3sK
+                              mTXkL13jqLiUFOGg0uzqRh1U9GbydS0P7M0g
+                              qYIt90txzE/4+g== )
+   wbyijvpnyj33pcpi3i44ecnibnaj7eiw.example. 3600 IN NSEC3  0 1 1 (
+                              deadbeaf
+                              zjxfz5o7t4ty4u3f6fa7mhhqzjln4mui
+                              A NSEC3 RRSIG )
+   wbyijvpnyj33pcpi3i44ecnibnaj7eiw.example. 3600 IN RRSIG  NSEC3 (
+                              5 2 3600 20050712112304
+                              20050612112304 62699 example.
+                              ledFAaDCqDxapQ1FvBAjjK2DP06iQj8AN6gN
+                              ZycTeSmobKLTpzbgQp8uKYYe/DPHjXYmuEhd
+                              oorBv4xkb0flXw== )
+   ;; Additional
+   ;; (empty)
+
+   The query returned an NSEC3 RR that proves that the requested name
+   exists ("ns1.example." hashes to "wbyijvpnyj33pcpi3i44ecnibnaj7eiw"),
+   but the requested RR type does not exist (type MX is absent in the
+   type code list of the NSEC RR).  The negative reply is authenticated
+   by verifying the NSEC3 RR.  The NSEC3 RR is authenticated in a manner
+   identical to that of the MX RRset discussed above.
+
+B.3.1  No Data Error, Empty Non-Terminal
+
+   A "no data" response because of an empty non-terminal.  The NSEC3 RR
+   proves that the name exists and that the requested RR type does not.
+
+
+
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 29]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   ;; Header: QR AA DO RCODE=0
+   ;;
+   ;; Question
+   y.w.example.        IN A
+
+   ;; Answer
+   ;; (empty)
+
+   ;; Authority
+   example.       3600 IN SOA ns1.example. bugs.x.w.example. (
+                              1
+                              3600
+                              300
+                              3600000
+                              3600
+                              )
+   example.       3600 IN RRSIG  SOA 5 1 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              RtctD6aLUU5Md5wOOItilS7JXX1tf58Ql3sK
+                              mTXkL13jqLiUFOGg0uzqRh1U9GbydS0P7M0g
+                              qYIt90txzE/4+g== )
+   jt4bbfokgbmr57qx4nqucvvn7fmo6ab6.example. 3600 IN NSEC3  0 1 1 (
+                              deadbeaf
+                              kcll7fqfnisuhfekckeeqnmbbd4maanu
+                              NSEC3 RRSIG )
+   jt4bbfokgbmr57qx4nqucvvn7fmo6ab6.example. 3600 IN RRSIG  NSEC3 (
+                              5 2 3600 20050712112304
+                              20050612112304 62699 example.
+                              FXyCVQUdFF1EW1NcgD2V724/It0rn3lr+30V
+                              IyjmqwOMvQ4G599InTpiH46xhX3U/FmUzHOK
+                              94Zbq3k8lgdpZA== )
+
+   The query returned an NSEC3 RR that proves that the requested name
+   exists ("y.w.example." hashes to "jt4bbfokgbmr57qx4nqucvvn7fmo6ab6"),
+   but the requested RR type does not exist (Type A is absent in the
+   type-bit-maps of the NSEC3 RR).  The negative reply is authenticated
+   by verifying the NSEC3 RR.  The NSEC3 RR is authenticated in a manner
+   identical to that of the MX RRset discussed above.  Note that, unlike
+   generic empty non terminal proof using NSECs, this is identical to
+   proving a No Data Error.  This example is solely mentioned to be
+   complete.
+
+B.4  Referral to Signed Zone
+
+   Referral to a signed zone.  The DS RR contains the data which the
+   resolver will need to validate the corresponding DNSKEY RR in the
+   child zone's apex.
+
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 30]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   ;; Header: QR DO RCODE=0
+   ;;
+
+   ;; Question
+   mc.a.example.       IN MX
+
+   ;; Answer
+   ;; (empty)
+
+   ;; Authority
+   a.example.     3600 IN NS  ns1.a.example.
+   a.example.     3600 IN NS  ns2.a.example.
+   a.example.     3600 IN DS  58470 5 1 (
+                              3079F1593EBAD6DC121E202A8B766A6A4837
+                              206C )
+   a.example.     3600 IN RRSIG  DS 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              QavhbsSmEvJLSUzGoTpsV3SKXCpaL1UO3Ehn
+                              cB0ObBIlex/Zs9kJyG/9uW1cYYt/1wvgzmX2
+                              0kx7rGKTc3RQDA== )
+
+   ;; Additional
+   ns1.a.example. 3600 IN A   192.0.2.5
+   ns2.a.example. 3600 IN A   192.0.2.6
+
+   The query returned a referral to the signed "a.example." zone.  The
+   DS RR is authenticated in a manner identical to that of the MX RRset
+   discussed above.  This DS RR is used to authenticate the "a.example"
+   DNSKEY RRset.
+
+   Once the "a.example" DS RRset has been authenticated using the
+   "example" DNSKEY, the resolver checks the "a.example" DNSKEY RRset
+   for some "a.example" DNSKEY RR that matches the DS RR.  If such a
+   matching "a.example" DNSKEY is found, the resolver checks whether
+   this DNSKEY RR has signed the "a.example" DNSKEY RRset and whether
+   the signature lifetime is valid.  If all these conditions are met,
+   all keys in the "a.example" DNSKEY RRset are considered
+   authenticated.
+
+B.5  Referral to Unsigned Zone using Opt-In
+
+   Referral to an unsigned zone using Opt-In.  The NSEC3 RR proves that
+   nothing for this delegation was signed in the parent zone.  There is
+   no proof that the delegation exists
+
+
+
+
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 31]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   ;; Header: QR DO RCODE=0
+   ;;
+   ;; Question
+   mc.b.example.       IN MX
+
+   ;; Answer
+   ;; (empty)
+
+   ;; Authority
+   b.example.     3600 IN NS  ns1.b.example.
+   b.example.     3600 IN NS  ns2.b.example.
+   kcll7fqfnisuhfekckeeqnmbbd4maanu.example. 3600 IN NSEC3  1 1 1 (
+                              deadbeaf
+                              n42hbhnjj333xdxeybycax5ufvntux5d
+                              MX NSEC3 RRSIG )
+   kcll7fqfnisuhfekckeeqnmbbd4maanu.example. 3600 IN RRSIG  NSEC3 (
+                              5 2 3600 20050712112304
+                              20050612112304 62699 example.
+                              d0g8MTOvVwByOAIwvYV9JrTHwJof1VhnMKuA
+                              IBj6Xaeney86RBZYgg7Qyt9WnQSK3uCEeNpx
+                              TOLtc5jPrkL4zQ== )
+
+   ;; Additional
+   ns1.b.example. 3600 IN A   192.0.2.7
+   ns2.b.example. 3600 IN A   192.0.2.8
+
+   The query returned a referral to the unsigned "b.example." zone.  The
+   NSEC3 proves that no authentication leads from "example" to
+   "b.example", since the hash of "b.example"
+   ("ldjpfcucebeks5azmzpty4qlel4cftzo") is within the NSEC3 interval and
+   the NSEC3 opt-in bit is set.  The NSEC3 RR is authenticated in a
+   manner identical to that of the MX RRset discussed above.
+
+B.6  Wildcard Expansion
+
+   A successful query that was answered via wildcard expansion.  The
+   label count in the answer's RRSIG RR indicates that a wildcard RRset
+   was expanded to produce this response, and the NSEC3 RR proves that
+   no closer match exists in the zone.
+
+
+
+
+
+
+
+
+
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 32]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   ;; Header: QR AA DO RCODE=0
+   ;;
+   ;; Question
+   a.z.w.example.      IN MX
+
+   ;; Answer
+   a.z.w.example. 3600 IN MX  1 ai.example.
+   a.z.w.example. 3600 IN RRSIG  MX 5 3 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              sYNUPHn1/gJ87wTHNksGdRm3vfnSFa2BbofF
+                              xGfJLF5A4deRu5f0hvxhAFDCcXfIASj7z0wQ
+                              gQlgxEwhvQDEaQ== )
+   ;; Authority
+   example.       3600 NS     ns1.example.
+   example.       3600 NS     ns2.example.
+   example.       3600 IN RRSIG  NS 5 1 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              hNyyin2JpECIFxW4vsj8RhHcWCQKUXgO+z4l
+                              m7g2zM8q3Qpsm/gYIXSF2Rhj6lAG7esR/X9d
+                              1SH5r/wfjuCg+g== )
+   zjxfz5o7t4ty4u3f6fa7mhhqzjln4mui.example. 3600 IN NSEC3  0 1 1 (
+                              deadbeaf
+                              5pe7ctl7pfs2cilroy5dcofx4rcnlypd
+                              MX NSEC3 RRSIG )
+   zjxfz5o7t4ty4u3f6fa7mhhqzjln4mui.example. 3600 IN RRSIG  NSEC3 (
+                              5 2 3600 20050712112304
+                              20050612112304 62699 example.
+                              eULkdWjcjmM+wXQcr7zXNfnGLgHjZSJINGkt
+                              7Zmvp7WKVAqoHMm1RXV8IfBH1aRgv5+/Lgny
+                              OcFlrPGPMm48/A== )
+   ;; Additional
+   ai.example.    3600 IN A   192.0.2.9
+   ai.example.    3600 IN RRSIG  A 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              plY5M26ED3Owe3YX0pBIhgg44j89NxUaoBrU
+                              6bLRr99HpKfFl1sIy18JiRS7evlxCETZgubq
+                              ZXW5S+1VjMZYzQ== )
+   ai.example.    3600 AAAA   2001:db8::f00:baa9
+   ai.example.    3600 IN RRSIG  AAAA 5 2 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              PNF/t7+DeosEjhfuL0kmsNJvn16qhYyLI9FV
+                              ypSCorFx/PKIlEL3syomkYM2zcXVSRwUXMns
+                              l5/UqLCJJ9BDMg== )
+
+   The query returned an answer that was produced as a result of
+   wildcard expansion.  The answer section contains a wildcard RRset
+   expanded as it would be in a traditional DNS response, and the
+   corresponding RRSIG indicates that the expanded wildcard MX RRset was
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 33]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   signed by an "example" DNSKEY with algorithm 5 and key tag 62699.
+   The RRSIG indicates that the original TTL of the MX RRset was 3600,
+   and, for the purpose of authentication, the current TTL is replaced
+   by 3600.  The RRSIG labels field value of 2 indicates that the answer
+   is the result of wildcard expansion, as the "a.z.w.example" name
+   contains 4 labels.  The name "a.z.w.example" is replaced by
+   "*.w.example", the MX RRset is placed in canonical form, and,
+   assuming that the current time falls between the signature inception
+   and expiration dates, the signature is authenticated.
+
+   The NSEC3 proves that no closer match (exact or closer wildcard)
+   could have been used to answer this query, and the NSEC3 RR must also
+   be authenticated before the answer is considered valid.
+
+B.7  Wildcard No Data Error
+
+   A "no data" response for a name covered by a wildcard.  The NSEC3 RRs
+   prove that the matching wildcard name does not have any RRs of the
+   requested type and that no closer match exists in the zone.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 34]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   ;; Header: QR AA DO RCODE=0
+   ;;
+   ;; Question
+   a.z.w.example.      IN AAAA
+
+   ;; Answer
+   ;; (empty)
+
+   ;; Authority
+   example.       3600 IN SOA ns1.example. bugs.x.w.example. (
+                              1
+                              3600
+                              300
+                              3600000
+                              3600
+                              )
+   example.       3600 IN RRSIG  SOA 5 1 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              RtctD6aLUU5Md5wOOItilS7JXX1tf58Ql3sK
+                              mTXkL13jqLiUFOGg0uzqRh1U9GbydS0P7M0g
+                              qYIt90txzE/4+g== )
+   zjxfz5o7t4ty4u3f6fa7mhhqzjln4mui.example. 3600 IN NSEC3  0 1 1 (
+                              deadbeaf
+                              5pe7ctl7pfs2cilroy5dcofx4rcnlypd
+                              MX NSEC3 RRSIG )
+   zjxfz5o7t4ty4u3f6fa7mhhqzjln4mui.example. 3600 IN RRSIG  NSEC3 (
+                              5 2 3600 20050712112304
+                              20050612112304 62699 example.
+                              eULkdWjcjmM+wXQcr7zXNfnGLgHjZSJINGkt
+                              7Zmvp7WKVAqoHMm1RXV8IfBH1aRgv5+/Lgny
+                              OcFlrPGPMm48/A== )
+   ;; Additional
+   ;; (empty)
+
+   The query returned NSEC3 RRs that prove that the requested data does
+   not exist and no wildcard applies.  The negative reply is
+   authenticated by verifying both NSEC3 RRs.
+
+B.8  DS Child Zone No Data Error
+
+   A "no data" response for a QTYPE=DS query that was mistakenly sent to
+   a name server for the child zone.
+
+
+
+
+
+
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 35]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+   ;; Header: QR AA DO RCODE=0
+   ;;
+   ;; Question
+   example.            IN DS
+
+   ;; Answer
+   ;; (empty)
+
+   ;; Authority
+   example.       3600 IN SOA ns1.example. bugs.x.w.example. (
+                              1
+                              3600
+                              300
+                              3600000
+                              3600
+                              )
+   example.       3600 IN RRSIG  SOA 5 1 3600 20050712112304 (
+                              20050612112304 62699 example.
+                              RtctD6aLUU5Md5wOOItilS7JXX1tf58Ql3sK
+                              mTXkL13jqLiUFOGg0uzqRh1U9GbydS0P7M0g
+                              qYIt90txzE/4+g== )
+   dw4o7j64wnel3j4jh7fb3c5n7w3js2yb.example. 3600 IN NSEC3  0 1 1 (
+                              deadbeaf
+                              gmnfcccja7wkax3iv26bs75myptje3qk
+                              MX DNSKEY NS SOA NSEC3 RRSIG )
+   dw4o7j64wnel3j4jh7fb3c5n7w3js2yb.example. 3600 IN RRSIG  NSEC3 (
+                              5 2 3600 20050712112304
+                              20050612112304 62699 example.
+                              VqEbXiZLJVYmo25fmO3IuHkAX155y8NuA50D
+                              C0NmJV/D4R3rLm6tsL6HB3a3f6IBw6kKEa2R
+                              MOiKMSHozVebqw== )
+
+   ;; Additional
+   ;; (empty)
+
+   The query returned NSEC RRs that shows the requested was answered by
+   a child server ("example" server).  The NSEC RR indicates the
+   presence of an SOA RR, showing that the answer is from the child .
+   Queries for the "example" DS RRset should be sent to the parent
+   servers ("root" servers).
+
+
+
+
+
+
+
+
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 36]
+
+Internet-Draft                    nsec3                        june 2005
+
+
+Intellectual Property Statement
+
+   The IETF takes no position regarding the validity or scope of any
+   Intellectual Property Rights or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this document or the extent to which any license under such rights
+   might or might not be available; nor does it represent that it has
+   made any independent effort to identify any such rights.  Information
+   on the procedures with respect to rights in RFC documents can be
+   found in BCP 78 and BCP 79.
+
+   Copies of IPR disclosures made to the IETF Secretariat and any
+   assurances of licenses to be made available, or the result of an
+   attempt made to obtain a general license or permission for the use of
+   such proprietary rights by implementers or users of this
+   specification can be obtained from the IETF on-line IPR repository at
+   http://www.ietf.org/ipr.
+
+   The IETF invites any interested party to bring to its attention any
+   copyrights, patents or patent applications, or other proprietary
+   rights that may cover technology that may be required to implement
+   this standard.  Please address the information to the IETF at
+   ietf-ipr@ietf.org.
+
+
+Disclaimer of Validity
+
+   This document and the information contained herein are provided on an
+   "AS IS" basis and THE CONTRIBUTOR, THE ORGANIZATION HE/SHE REPRESENTS
+   OR IS SPONSORED BY (IF ANY), THE INTERNET SOCIETY AND THE INTERNET
+   ENGINEERING TASK FORCE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED,
+   INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE
+   INFORMATION HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED
+   WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+
+Copyright Statement
+
+   Copyright (C) The Internet Society (2005).  This document is subject
+   to the rights, licenses and restrictions contained in BCP 78, and
+   except as set forth therein, the authors retain all their rights.
+
+
+Acknowledgment
+
+   Funding for the RFC Editor function is currently provided by the
+   Internet Society.
+
+
+
+
+Laurie, et al.          Expires December 3, 2005               [Page 37]
+

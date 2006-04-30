@@ -1,0 +1,132 @@
+# Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2001-2003  Internet Software Consortium.
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+# REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+# AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+# INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+# LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+# OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+# PERFORMANCE OF THIS SOFTWARE.
+
+# $Id: Makefile.in,v 1.12.2.5.2.9 2005/07/29 00:13:08 marka Exp $
+
+srcdir =        @srcdir@
+VPATH =         @srcdir@
+top_srcdir =    @top_srcdir@
+
+# Attempt to disable parallel processing.
+.NOTPARALLEL:
+.NO_PARALLEL:
+
+@LIBBIND_API@
+
+LIBS =		@LIBS@
+
+DAEMON_OBJS=bsd/daemon.@O@
+STRSEP_OBJS=bsd/strsep.@O@
+
+BSDOBJS= @DAEMON_OBJS@ @STRSEP_OBJS@ bsd/ftruncate.@O@ bsd/gettimeofday.@O@ \
+        bsd/mktemp.@O@ bsd/putenv.@O@ bsd/readv.@O@ bsd/setenv.@O@ \
+	bsd/setitimer.@O@ bsd/strcasecmp.@O@ bsd/strdup.@O@ \
+        bsd/strerror.@O@ bsd/strpbrk.@O@ bsd/strtoul.@O@ bsd/utimes.@O@ \
+        bsd/writev.@O@
+
+DSTOBJS= dst/dst_api.@O@ dst/hmac_link.@O@ dst/md5_dgst.@O@ dst/support.@O@
+
+INETOBJS= inet/inet_addr.@O@ inet/inet_cidr_ntop.@O@ inet/inet_cidr_pton.@O@ \
+	inet/inet_data.@O@ inet/inet_lnaof.@O@ inet/inet_makeaddr.@O@ \
+	inet/inet_net_ntop.@O@ inet/inet_net_pton.@O@ inet/inet_neta.@O@ \
+	inet/inet_netof.@O@ inet/inet_network.@O@ inet/inet_ntoa.@O@ \
+	inet/inet_ntop.@O@ inet/inet_pton.@O@ inet/nsap_addr.@O@
+
+WANT_IRS_THREADS_OBJS=	irs/gethostent_r.@O@ irs/getnetent_r.@O@ \
+	irs/getnetgrent_r.@O@ irs/getprotoent_r.@O@ irs/getservent_r.@O@
+
+WANT_IRS_NISGR_OBJS= irs/nis_gr.@O@ 
+WANT_IRS_GR_OBJS= irs/dns_gr.@O@ irs/irp_gr.@O@ irs/lcl_gr.@O@ irs/gen_gr.@O@ \
+	irs/getgrent.@O@ @WANT_IRS_NISGR_OBJS@ @WANT_IRS_THREADSGR_OBJS@
+
+WANT_IRS_THREADSPW_OBJS=irs/getpwent_r.@O@
+WANT_IRS_NISPW_OBJS= irs/nis_pw.@O@
+WANT_IRS_DBPW_OBJS=irs/irp_pw.@O@ irs/lcl_pw.@O@
+WANT_IRS_PW_OBJS= irs/dns_pw.@O@ irs/gen_pw.@O@ irs/getpwent.@O@ \
+	@WANT_IRS_DBPW_OBJS@ @WANT_IRS_NISPW_OBJS@ @WANT_IRS_THREADSPW_OBJS@
+
+WANT_IRS_NIS_OBJS= irs/nis_ho.@O@ irs/nis_ng.@O@ irs/nis_nw.@O@ \
+	irs/nis_pr.@O@ irs/nis_sv.@O@
+
+IRSOBJS= @WANT_IRS_GR_OBJS@ @WANT_IRS_NIS_OBJS@ @WANT_IRS_THREADS_OBJS@ \
+	@WANT_IRS_PW_OBJS@ \
+	irs/dns.@O@ irs/dns_ho.@O@ irs/dns_nw.@O@ irs/dns_pr.@O@ \
+	irs/dns_sv.@O@ irs/gai_strerror.@O@ irs/gen.@O@ irs/gen_ho.@O@ \
+	irs/gen_ng.@O@ irs/gen_nw.@O@ irs/gen_pr.@O@ irs/gen_sv.@O@ \
+	irs/getaddrinfo.@O@ irs/gethostent.@O@  irs/getnameinfo.@O@ \
+	irs/getnetent.@O@ irs/getnetgrent.@O@ \
+	irs/getprotoent.@O@ irs/getservent.@O@ irs/hesiod.@O@ \
+	irs/irp.@O@ irs/irp_ho.@O@ irs/irp_ng.@O@ irs/irp_nw.@O@ \
+	irs/irp_pr.@O@ irs/irp_sv.@O@ irs/irpmarshall.@O@ irs/irs_data.@O@ \
+	irs/lcl.@O@ irs/lcl_ho.@O@ irs/lcl_ng.@O@ irs/lcl_nw.@O@ \
+	irs/lcl_pr.@O@ irs/lcl_sv.@O@ irs/nis.@O@ irs/nul_ng.@O@ irs/util.@O@
+
+WANT_IRS_THREADSGR_OBJS=irs/getgrent_r.@O@
+
+ISCOBJS= isc/assertions.@O@ isc/base64.@O@ isc/bitncmp.@O@ isc/ctl_clnt.@O@ \
+	isc/ctl_p.@O@ isc/ctl_srvr.@O@ isc/ev_connects.@O@ isc/ev_files.@O@ \
+	isc/ev_streams.@O@ isc/ev_timers.@O@ isc/ev_waits.@O@ \
+	isc/eventlib.@O@ isc/heap.@O@ isc/hex.@O@ isc/logging.@O@ \
+	isc/memcluster.@O@ isc/movefile.@O@ isc/tree.@O@
+
+NAMESEROBJS= nameser/ns_date.@O@ nameser/ns_name.@O@ nameser/ns_netint.@O@ \
+	nameser/ns_parse.@O@ nameser/ns_print.@O@  nameser/ns_samedomain.@O@ \
+	nameser/ns_sign.@O@ nameser/ns_ttl.@O@ nameser/ns_verify.@O@
+
+RESOLVOBJS= resolv/herror.@O@ resolv/mtctxres.@O@ resolv/res_comp.@O@ \
+	resolv/res_data.@O@ resolv/res_debug.@O@ resolv/res_findzonecut.@O@ \
+	resolv/res_init.@O@ resolv/res_mkquery.@O@ resolv/res_mkupdate.@O@ \
+	resolv/res_query.@O@ resolv/res_send.@O@ resolv/res_sendsigned.@O@ \
+	resolv/res_update.@O@
+
+SUBDIRS = bsd dst include inet irs isc nameser resolv @PORT_INCLUDE@
+
+TARGETS= timestamp
+OBJS=	${BSDOBJS} ${DSTOBJS} ${INETOBJS} ${IRSOBJS} ${ISCOBJS} \
+	${NAMESEROBJS} ${RESOLVOBJS}
+
+@BIND9_MAKE_RULES@
+
+libbind.@SA@: ${OBJS}
+	${AR} ${ARFLAGS} $@ ${OBJS}
+	${RANLIB} $@
+
+libbind.la: ${OBJS}
+	${LIBTOOL_MODE_LINK} \
+	${CC} ${ALL_CFLAGS} ${LDFLAGS} -o libbind.la -rpath ${libdir} \
+		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
+		${OBJS} ${LIBS}
+
+timestamp: libbind.@A@
+	touch timestamp
+
+installdirs:
+	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${libdir}
+
+install:: timestamp installdirs
+	${LIBTOOL_MODE_INSTALL} ${INSTALL_DATA} libbind.@A@ ${DESTDIR}${libdir}
+
+clean distclean::
+	rm -f libbind.@SA@ libbind.la
+
+distclean::
+	rm -f make/rules make/includes make/mkdep
+
+distclean::
+	rm -f config.cache config.h config.log config.status libtool
+	rm -f port_before.h port_after.h configure.lineno
+	rm -f port/Makefile @PORT_DIR@/Makefile
+
+man:

@@ -1,0 +1,130 @@
+<!--
+ - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000-2003 Internet Software Consortium.
+ - 
+ - Permission to use, copy, modify, and distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ - 
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+<!-- $Id: Bv9ARM.ch02.html,v 1.10.2.1.8.8 2005/10/13 02:33:59 marka Exp $ -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Chapter 2. BIND Resource Requirements</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+<link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
+<link rel="up" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
+<link rel="prev" href="Bv9ARM.ch01.html" title="Chapter 1. Introduction ">
+<link rel="next" href="Bv9ARM.ch03.html" title="Chapter 3. Name Server Configuration">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<div class="navheader">
+<table width="100%" summary="Navigation header">
+<tr><th colspan="3" align="center">Chapter 2. <span class="acronym">BIND</span> Resource Requirements</th></tr>
+<tr>
+<td width="20%" align="left">
+<a accesskey="p" href="Bv9ARM.ch01.html">Prev</a> </td>
+<th width="60%" align="center"> </th>
+<td width="20%" align="right"> <a accesskey="n" href="Bv9ARM.ch03.html">Next</a>
+</td>
+</tr>
+</table>
+<hr>
+</div>
+<div class="chapter" lang="en">
+<div class="titlepage"><div><div><h2 class="title">
+<a name="Bv9ARM.ch02"></a>Chapter 2. <span class="acronym">BIND</span> Resource Requirements</h2></div></div></div>
+<div class="toc">
+<p><b>Table of Contents</b></p>
+<dl>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2547108">Hardware requirements</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2547132">CPU Requirements</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2547143">Memory Requirements</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2547158">Name Server Intensive Environment Issues</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2547303">Supported Operating Systems</a></span></dt>
+</dl>
+</div>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="id2547108"></a>Hardware requirements</h2></div></div></div>
+<p><span class="acronym">DNS</span> hardware requirements have traditionally been quite modest.
+For many installations, servers that have been pensioned off from
+active duty have performed admirably as <span class="acronym">DNS</span> servers.</p>
+<p>The DNSSEC and IPv6 features of <span class="acronym">BIND</span> 9 may prove to be quite
+CPU intensive however, so organizations that make heavy use of these
+features may wish to consider larger systems for these applications.
+<span class="acronym">BIND</span> 9 is fully multithreaded, allowing full utilization of
+multiprocessor systems for installations that need it.</p>
+</div>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="id2547132"></a>CPU Requirements</h2></div></div></div>
+<p>CPU requirements for <span class="acronym">BIND</span> 9 range from i486-class machines
+for serving of static zones without caching, to enterprise-class
+machines if you intend to process many dynamic updates and DNSSEC
+signed zones, serving many thousands of queries per second.</p>
+</div>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="id2547143"></a>Memory Requirements</h2></div></div></div>
+<p>The memory of the server has to be large enough to fit the
+cache and zones loaded off disk.  The <span><strong class="command">max-cache-size</strong></span>
+option can be used to limit the amount of memory used by the cache,
+at the expense of reducing cache hit rates and causing more <span class="acronym">DNS</span>
+traffic. It is still good practice to have enough memory to load
+all zone and cache data into memory &#8212; unfortunately, the best way
+to determine this for a given installation is to watch the name server
+in operation. After a few weeks the server process should reach
+a relatively stable size where entries are expiring from the cache as
+fast as they are being inserted.</p>
+</div>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="id2547158"></a>Name Server Intensive Environment Issues</h2></div></div></div>
+<p>For name server intensive environments, there are two alternative
+configurations that may be used. The first is where clients and
+any second-level internal name servers query a main name server, which
+has enough memory to build a large cache. This approach minimizes
+the bandwidth used by external name lookups. The second alternative
+is to set up second-level internal name servers to make queries independently.
+In this configuration, none of the individual machines needs to
+have as much memory or CPU power as in the first alternative, but
+this has the disadvantage of making many more external queries,
+as none of the name servers share their cached data.</p>
+</div>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="id2547303"></a>Supported Operating Systems</h2></div></div></div>
+<p>ISC <span class="acronym">BIND</span> 9 compiles and runs on a large number
+of Unix-like operating system and on Windows NT / 2000.  For an up-to-date
+list of supported systems, see the README file in the top level directory
+of the BIND 9 source distribution.</p>
+</div>
+</div>
+<div class="navfooter">
+<hr>
+<table width="100%" summary="Navigation footer">
+<tr>
+<td width="40%" align="left">
+<a accesskey="p" href="Bv9ARM.ch01.html">Prev</a> </td>
+<td width="20%" align="center"> </td>
+<td width="40%" align="right"> <a accesskey="n" href="Bv9ARM.ch03.html">Next</a>
+</td>
+</tr>
+<tr>
+<td width="40%" align="left" valign="top">Chapter 1. Introduction  </td>
+<td width="20%" align="center"><a accesskey="h" href="Bv9ARM.html">Home</a></td>
+<td width="40%" align="right" valign="top"> Chapter 3. Name Server Configuration</td>
+</tr>
+</table>
+</div>
+</body>
+</html>

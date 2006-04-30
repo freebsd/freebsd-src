@@ -1,0 +1,5 @@
+document.write("<ul>\
+<li class='inline'><a href='debug.html'>NTP Debugging Techniques</a><br>\
+<li class='inline'><a href='rdebug.html'>Debugging Reference Clock Drivers</a><br>\
+<li class='inline'><a href='msyslog.html'><tt>ntpd</tt> System Log Messages</a><br>\
+</ul>")

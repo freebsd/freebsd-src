@@ -1,0 +1,41 @@
+1: Add:
+	-DRUNNING_IP
+
+   to the Makefile CFLAGS line and rebuild cl_main.o if it's already
+   been compiled.
+
+2: Add:
+
+	IPOBJS=	ip_funcs.o ip_main.o ip_read.o ip_screen.o ip_term.o
+
+   after the other object lists in the Makefile.
+
+3: Add
+	$(IPOBJS)
+
+   to the end of the NVIALL= line in the Makefile.
+
+4: Add:
+
+	# Vi IP sources.
+	ip_funcs.o: $(srcdir)/ip/ip_funcs.c
+		$(CC) $(CFLAGS) $?
+	ip_main.o: $(srcdir)/ip/ip_main.c
+		$(CC) $(CFLAGS) $?
+	ip_read.o: $(srcdir)/ip/ip_read.c
+		$(CC) $(CFLAGS) $?
+	ip_screen.o: $(srcdir)/ip/ip_screen.c
+		$(CC) $(CFLAGS) $?
+	ip_term.o: $(srcdir)/ip/ip_term.c
+		$(CC) $(CFLAGS) $?
+
+   at the end of the Makefile.
+
+5: Remove cl_main.o if it exists, and make nvi.
+
+6: Go to ip_cl and change the entries in the Makefile to reflect
+   where the nvi binary was just built.
+
+7: Build ip_cl.
+
+8: Enter ip_cl and you should be running vi over a pipe.

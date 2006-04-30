@@ -1,0 +1,82 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+
+    <head>
+        <title>vxWorks Port of NTP</title>
+        <link href="scripts/style.css" type="text/css" rel="stylesheet">
+    </head>
+
+    <body link="#00008B" vlink="#8B0000">
+        <h1>VxWorks port of NTP</h1>
+        <p>Creating a port for vxWorks posed some problems. This port may help as a starting point for similar ports to real-time OS's and other embeddable kernels, particularly where main() is not allowed, and where the configure scripts need to be altered.</p>
+        <h1><b>Configuration issues</b></h1>
+        <p>I decided to do as little invasive surgery as possible on the NTP code, so I brought the vxWorks header tree in line with the standard unix tree. The following changes were needed, as a side effect these changes will allow for easy porting of other autoconfigure enabled code.</p>
+        <p>Where I have 386 you will need to put in your target type. The vxWorks tree entry point is /usr/wind. If these are the same for your system, you should be able to cut and paste the changes.</p>
+        <p><blink>WARNING: Check you are not overwriting files, before entering the following: there should be no conflict, but check first... </blink></p>
+        <p>export CC=&quot;cc386 -nostdlib -m486 -DCPU=I80486 -I/usr/wind/target/h&quot;<br>
+            export RANLIB=ranlib386<br>
+            export AR=ar386<br>
+            export VX_KERNEL=/usr/wind/target/config/ims_std_bsp/vxWorks<br>
+            cd /usr/wind/target/sys<br>
+            ln -s ../signal.h<br>
+            ln -s ../time.h<br>
+            ln -s socket.h sockio.h<br>
+            ln -s ../selectLib.h select.h<br>
+            ln -s ../timers.h<br>
+            touch file.h param.h resource.h utsname.h var.h ../netdb.h ../a.out.h ../termios.h<br>
+            echo &quot; ******ADD #include \&quot;sys/times.h\&quot; to sys/time.h &quot;</p>
+        <p>The configure script must be changed in the following way to get the linking tests to work, once in the correct directory issue the following commands:<br>
+            sed -e 's%main.*()%vxmain()%' configure &gt; configure.vxnew<br>
+            mv configure.vxnew configure<br>
+            chmod 755 configure</p>
+        <p>The new version 4 of NTP requires some maths functions so it links in the maths library (-lm) in the ntpd <a href="../ntpd/Makefile.am">Makefile.am</a> change the line &quot;ntpd_LDADD = $(LDADD) -lm&quot; by removing the &quot;-lm&quot;.<br>
+            You are now ready to compile</p>
+        <p><br>
+            The <a href="../configure.in">configure.in </a>file needed to be altered to allow for a host-target configuration to take place.</p>
+        <ul>
+            <li>The define SYS_VXWORKS was added to the compilation flags.
+            <li>Little endianess is set if the target is of type iX86.
+            <li>The size of char, integer, long values are all set. If Wind River ever changes these values they will need to be updated.
+            <li>clock_settime() is defined to be used for setting the clock.
+            <li>The Linking flags have -r added to allow for relinking into the vxWorks kernel
+        </ul>
+        <p>Unfortunately I have had to make use of the <a href="../include/ntp_machine.h">ntp_machine.h </a>file to add in the checks that would have been checked at linking stage by autoconf, a better method should be devised.</p>
+        <ul>
+            <li>There is now a NO_MAIN_ALLOWED define that simulates command line args, this allows the use of the normal startup sysntax.
+            <li>POSIX timers have been added.
+            <li>Structures normally found in netdb.h have been added with, the corresponding code is in <a href="../libntp/machines.c">machines.c </a>. Where possible the defines for these have been kept non-vxWorks specific.
+        </ul>
+        <p>Unfortunately there are still quite a few SYS_VXWORKS type defines in the source, but I have eliminated as many as possible. You have the choice of using the usrtime.a library avaliable from the vxworks archives or forgoing adjtime() and using the clock_[get|set]time().The <a href="../include/ntp_machine.h">ntp_machine.h </a>file clearly marks how to do this.</p>
+        <h1><b>Compilation issues</b></h1>
+        <p>You will need autoconf and automake ... available free from the gnu archives worldwide.</p>
+        <p>The variable arch is the target architecture (e.g. i486)</p>
+        <p>mkdir A.vxworks (or whatever....)<br>
+            cd A.vxworks<br>
+            ../configure --target=arch-wrs-vxworks [any other options]<br>
+            make</p>
+        <p>Options I normally use are the --disable-all-clocks --enable-LOCAL-CLOCK flags. The program should proceed to compile without problem. The daemon ntpd, ntpdate, ntptrace, ntpdc, ntpq programs and of course the libraries are all fully ported. The other utilities are not, but they should be easy to port.</p>
+        <h1>Running the software</h1>
+        <p>Load in the various files, call them in the normal vxWorks function type manner. Here are some examples. Refer to the man pages for further information.</p>
+        <p>ld &lt; ntpdate/ntpdate<br>
+            ld &lt; ntpd/ntpd<br>
+            ld &lt; ntptrace/ntptrace<br>
+            ld &lt; ntpq/ntpq<br>
+            ld &lt; ntpdc/ntpdc<br>
+            ntpdate (&quot;-b&quot;, &quot;192.168.0.245&quot;)<br>
+            sp(ntpd, &quot;-c&quot;, &quot;/export/home/casey/ntp/ntp.conf&quot;)<br>
+            ntpdc(&quot;-c&quot;, &quot;monlist&quot;, &quot;192.168.0.244&quot;)<br>
+            ntpq(&quot;-c&quot;, &quot;peers&quot;, &quot;192.168.0.244&quot;)<br>
+            ntptrace(&quot;192.168.0.244&quot;)<br>
+        </p>
+        <h1>Bugs and such</h1>
+        <p>Should you happen across any bugs, please let me know, or better yet fix them and submit a patch. Remember to make you patch general for Vxworks, not just for your particular architecture. <a href="http://www.ccii.co.za">CCII Systems (Pty) Ltd</a>, my ex employers, sponsored the time to this port. Please let me know how it goes, I would be most interested in offsets and configurations.</p>
+        <p><br>
+        </p>
+        <p>Casey Crellin<br>
+            <a href="mailto:casey@csc.co.za">casey@csc.co.za</a></p>
+        <p><br>
+        </p>
+    </body>
+
+</html>

@@ -1,0 +1,18 @@
+$FreeBSD$
+
+Index: run.c
+===================================================================
+RCS file: /home/ncvs/src/contrib/one-true-awk/run.c,v
+retrieving revision 1.1.1.8
+diff -u -p -r1.1.1.8 run.c
+--- run.c	16 May 2005 19:11:35 -0000	1.1.1.8
++++ run.c	16 May 2005 19:12:47 -0000
+@@ -651,7 +651,7 @@ Cell *relop(Node **a, int n)	/* a[0 < a[
+ 		j = x->fval - y->fval;
+ 		i = j<0? -1: (j>0? 1: 0);
+ 	} else {
+-		i = strcmp(getsval(x), getsval(y));
++		i = strcoll(getsval(x), getsval(y));
+ 	}
+ 	tempfree(x);
+ 	tempfree(y);

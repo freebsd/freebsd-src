@@ -1,0 +1,103 @@
+.\" Copyright (c) 2004 Gleb Smirnoff
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 22, 2004
+.Dt NG_FEC 4
+.Os
+.Sh NAME
+.Nm ng_fec
+.Nd netgraph Fast EtherChannel node
+.Sh SYNOPSIS
+.In netgraph/ng_fec.h
+.Sh DESCRIPTION
+The
+.Nm fec
+node implements Ethernet port trunking using Cisco Fast EtherChannel protocol.
+Upon creation, node creates a network interface associated with it.
+Interfaces are named
+.Dq Li fec0 ,
+.Dq Li fec1 ,
+etc.
+New node takes first available unit.
+.Sh HOOKS
+The
+.Nm fec
+node accepts any hooks.
+However it does not use them.
+Under normal operation, node should not have any hooks.
+.Sh CONTROL MESSAGES
+Interface membership in the FEC group is configured with the following
+control messages:
+.Bl -tag -width indent
+.It Dv NGM_FEC_ADD_IFACE Pq Dq Li add_iface
+Attach interface to the FEC group.
+Target interface name is passed as a string argument.
+.It Dv NGM_FEC_DEL_IFACE Pq Dq Li del_iface
+Remove interface from the trunk.
+Target interface name is passed as a string argument.
+.El
+.Pp
+The following control messages define forwarding method for a node:
+.Bl -tag -width indent
+.It Dv NGM_FEC_MODE_INET Pq Dq Li set_mode_mac
+Forwarding decisions will be made on destination link layer MAC addresses.
+.It Dv NGM_FEC_MODE_MAC Pq Dq Li set_mode_inet
+Forwarding decisions will be made on destination IP addresses.
+.El
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message.
+.Sh EXAMPLES
+This example script creates a
+.Nm fec
+node, attaches four Ethernet interfaces to it and
+sets forwarding method based on IP address:
+.Bd -literal -offset indent
+/usr/sbin/ngctl -f- <<-SEQ
+	mkpeer fec dummy fec
+	msg fec0: add_iface "dc0"
+	msg fec0: add_iface "dc1"
+	msg fec0: add_iface "dc2"
+	msg fec0: add_iface "dc3"
+	msg fec0: set_mode_inet
+SEQ
+.Ed
+.Sh SEE ALSO
+.Xr netgraph 4
+.Sh HISTORY
+The
+.Nm fec
+node type was implemented in
+.Fx 5.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm fec
+node was written by
+.An "Bill Paul" Aq wpaul@FreeBSD.org .
+This manual page was written by
+.An "Gleb Smirnoff" .

@@ -1,0 +1,230 @@
+.TH arlib 3
+.SH NAME
+ar_answer, ar_close, ar_delete, ar_gethostbyname, ar_gethostbyaddr,
+ar_init, ar_open, ar_timeout - Asynchronous DNS library routines
+.SH SYNOPSIS
+.nf
+.B #include "arlib.h"
+
+.B struct hostent *ar_answer(dataptr, size)
+.B char *dataptr;
+.B int size;
+
+.B void ar_close();
+
+.B int ar_delete(dataptr, size)
+.B char *dataptr;
+.B int size;
+
+.B int ar_gethostbyname(name, dataptr, size)
+.B char *name;
+.B char *dataptr;
+.B int size;
+
+.B int ar_gethostbyaddr(name, dataptr, size)
+.B char *name;
+.B char *dataptr;
+.B int size;
+
+.B int ar_init(flags)
+.B int flags;
+
+.B int ar_open();
+
+.B long ar_timeout(time, dataptr, size)
+.B long time;
+.B char *dataptr;
+.B int size;
+.fi
+.SH DESCRIPTION
+
+.PP
+   This small library of DNS routines is intended to provide an
+asynchronous interface to performing hostname and IP number lookups.
+Only lookups of Internet domain are handled as yet.  To use this
+set of routines properly, the presence of the
+.B "BIND 4.8"
+resolve
+libraries is required (or any library derived from it).
+.PP
+   This library should be used in conjunction with
+.B select(2)
+to wait for
+the name server's reply to arrive or the lookup to timeout.
+.PP
+   To open a fd for talking to the name server, either
+.B ar_open()
+or
+ar_init()
+must be used.
+.B  ar_open()
+ will open either a datagram socket
+or a virtual circuit with the name server, depending on the flags
+set in the _res structure (see
+.B resolv(5)
+).  In both cases, if the socket
+
+> i
+.B  ar_init()
+is
+used to both open the socket (as in
+.B ar_open()
+) and initialize the
+queues used by this library.  The values recognized as parameters to
+.B ar_init()
+are:
+
+.RS
+#define ARES_INITLIST   1
+.RE
+.RS
+#define ARES_CALLINIT   2
+.RE
+.RS
+#define ARES_INITSOCK   4
+.RE
+.RS
+#define ARES_INITDEBG   8
+.RE
+
+   ARES_INITLIST initializes the list of queries waiting for replies.
+ARES_CALLINIT is a flag which when set causes
+.B res_init()
+to be called.
+ARES_INITSOCK will close the current socket if it is open and call
+.B ar_open()
+to open a new one, returning the fd for that socket.
+ARES_INITDEBG sets the RES_DEBUG flag of the
+.B _res
+structure.
+ARES_INITCACH is as yet, unused and is for future use where the library
+keeps its own cache of replies.
+
+   To send a query about either a hostname or an IP number,
+.B ar_gethostbyname()
+and
+.B ar_gethostbyaddr()
+must be used.  Each takes
+either a pointer to the hostname or the IP number respectively for use
+when making the query.  In addition to this, both (optionally) can be
+passed a pointer to data, dataptr, with the size also passed which can
+be used for identifying individual queries.  A copy of the area pointed
+to is made if dataptr is non NULL and size is non zero.  These functions
+will always return NULL unless the answer to the query is found in
+internal caches.  A new flag, RES_CHECKPTR is checked during the
+processing of answers for
+.B ar_gethostbyname()
+which will automatically
+cause a reverse lookup to be queued, causing a failure if that reply
+differs from the original.
+
+   To check for a query,
+.B ar_answer()
+is called with a pointer to an  area
+of memory which is sufficient to hold what was originally passed via
+.B ar_gethostbyname()
+or
+.B ar_gethostbyaddr()
+through dataptr.  If an answer
+is found, a pointer to the host information is returned and the data
+segment copied if dataptr is non NULL and it was originally passed.  The
+size of the copied data is the smaller of the passed size and that of
+original data stored.
+
+   To expire old queries,
+.B ar_timeout()
+is called with the 'current' time
+(or the time for which you want to do timeouts for).  If a queue entry
+is too old, it will be expired when it has exhausted all available avenues
+for lookups and the data segment for the expired query copied into
+dataptr.  The size of the copied data is the smaller of the passed size
+and that of the original stored data.  Only 1 entry is thus expired with
+each call, requiring that it be called immediately after an expiration
+to check for others.  In addition to expiring lookups,
+.B ar_timeout()
+also
+triggers resends of queries and the searching of the domain tree for the
+host, the latter works from the
+.B _res
+structure of
+.B resolv(5).
+
+   To delete entries from the queue,
+.B ar_delete()
+can be used and by
+passing the pointer and size of the data segment, all queries have their
+data segments checked (if present) for an exact match, being deleted if
+and only if there is a match.  A NULL pointer passed to ar_deleted()
+matches all queries which were called with a NULL dataptr parameter.
+The amount of data compared is the smaller of the size passed and that
+of the data stored for the queue entry being compared.
+
+   To close a socket opened by
+.B ar_open()
+,
+.B ar_close()
+should  be used so
+that it is closed and also marked closed within this library.
+
+   
+.SH DIAGNOSIS
+
+.B ar_open()
+returns -1 if a socket isn't open and could not be opened;
+otherwise returns the current fd open or the fd it opened.
+
+.B ar_init()
+returns -1 for any errors, the value returned by
+.B res_init()
+if
+.B res_init()
+was called, the return value for
+.B ar_open()
+if that was
+called or the current socket open if 0 is passed and a socket is open.
+If neither
+.B res_init()
+or
+.B ar_open()
+are called and the flags are non-zero, -2 is returned.
+ 
+.B ar_gethostbyaddr()
+and
+.B ar_gethostbyname()
+will always return NULL in this version but may return a pointer to a hostent
+structure if a cache is being used and the answer is found in the cache.
+
+.B ar_answer()
+returns NULL if the answer is either not found or the
+query returned an error and another attempt at a lookup is attempted.
+If an answer was found, it returned a pointer to this structure and
+the contents of the data segment copied over.
+
+.B ar_timeout()
+returns the time when it should be called next or 0 if
+there are no queries in the queue to be checked later.  If any queries
+are expired, the data segment is copied over if dataptr is non NULL.
+
+.B ar_delete()
+returns the number of entries that were found to match
+and consequently deleted.
+
+.SH SEE ALSO
+
+gethostbyaddr(3), gethostbyname(3), resolv(5)
+
+.SH FILES
+.nf
+arlib.h
+/usr/include/resolv.h
+/usr/include/arpa/nameser.h
+/etc/resolv.conf
+
+.SH BUGS
+
+The results of a successful call to ar_answer() destroy the structure
+for any previous calls.
+
+.SH AUTHOR
+
+Darren Reed.  Email address: avalon@coombs.anu.edu.au

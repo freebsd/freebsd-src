@@ -1,0 +1,30 @@
+#------------------------------------------------------------------------------
+# alpha architecture description
+#
+
+0	leshort		0603		COFF format alpha
+>22	leshort&030000	!020000		executable
+>24	leshort		0410		pure
+>24	leshort		0413		paged
+>22	leshort&020000	!0		dynamically linked
+>16	lelong		!0		not stripped
+>16	lelong		0		stripped
+>22	leshort&030000	020000		shared library
+>24	leshort		0407		object
+>27	byte		x		- version %d
+>26	byte		x		.%d
+>28	byte		x		-%d
+
+# Basic recognition of Digital UNIX core dumps - Mike Bremford <mike@opac.bl.uk>
+#
+# The actual magic number is just "Core", followed by a 2-byte version
+# number; however, treating any file that begins with "Core" as a Digital
+# UNIX core dump file may produce too many false hits, so we include one
+# byte of the version number as well; DU 5.0 appears only to be up to
+# version 2.
+#
+0	string		Core\001	Alpha COFF format core dump (Digital UNIX)
+>24	string		>\0		\b, from '%s'
+0	string		Core\002	Alpha COFF format core dump (Digital UNIX)
+>24	string		>\0		\b, from '%s'
+

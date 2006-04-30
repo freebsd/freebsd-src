@@ -1,0 +1,67 @@
+#!/bin/sh
+#
+# install,v 3.1 1993/07/06 01:10:53 jbj Exp
+#
+# install,v
+# Revision 3.1  1993/07/06  01:10:53  jbj
+# XNTP release 3.1
+#
+#
+# Revision 1.1  1992/12/10  12:59:21  kardel
+# Prerelease NTP V3 / DCF
+#
+# Revision 1.1  1992/06/18  14:50:08  kardel
+# Initial revision
+#
+#
+NTPROOT=/local/NTP		# SITE SPECIFIC: where NTP resides
+#
+# where the local NTP state files reside (xntp.drift) ussualle /etc
+# this directory must not be shared as machine dependent data ist stored there
+#
+NTPDIR="/+private/local/NTP"
+#
+# get the initial setup
+#
+if [ ! -r $NTPROOT/etc/setup ]; then
+	echo "ERROR: $NTPROOT/etc/setup missing - incorrect installation."
+	exit 1
+else
+	. $NTPROOT/etc/setup
+fi
+
+umask 022                           # SITE SPECIFIC: local policy - watch out for NFS and "root" rights
+
+Mkdir() {
+  p=""
+  IFS="/"
+  set -- $@
+  IFS=' 	
+'
+  for pnc do
+    if [ ! -d "$p/$pnc" ]; then
+      ECHO -n "creating directory $p/$pnc"
+      if mkdir "$p/$pnc"; then
+	ECHO ""
+      else
+	ECHO " - FAILED"
+	break;
+      fi
+    fi
+    p="$p/$pnc"
+  done
+}
+
+if [ ! -d "$NTPDIR" ]; then
+  ECHO "installing NTP private data area ($NTPDIR)"
+  if Mkdir "$NTPDIR"; then
+    chmod 755 "$NTPDIR"
+    ECHO "$NTPDIR created."
+  fi
+else
+  ECHO "NTP already installed."
+  if [ -f "$NTPDIR/xntp.drift" ]; then
+    ECHO "currently saved drift value:" `cat "$NTPDIR/xntp.drift"`
+  fi
+fi
+

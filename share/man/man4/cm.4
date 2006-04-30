@@ -1,0 +1,173 @@
+.\"
+.\" Copyright (c) 2004 Tom Rhodes
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 16, 2005
+.Dt CM 4
+.Os
+.Sh NAME
+.Nm cm
+.Nd "SMC Arcnet Ethernet device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your kernel
+configuration file:
+.Bd -ragged -offset indent
+.Cd "device isa"
+.Cd "device cm"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_cm_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the
+.Tn Arcnet
+.Tn ISA
+network adapters.
+.Pp
+This driver also has quirks preset in the
+.Xr device.hints 5
+file for card detection.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following
+card models:
+.Pp
+.Bl -bullet -compact
+.It
+SMC90c26
+.It
+SMC90c56
+.It
+SMC90c66 in '56 compatibility mode.
+.El
+.Sh IMPLEMENTATION NOTES
+When the
+.Va NOARP
+flag is set on the
+.Nm
+interface,
+it does not employ the address resolution protocol described in
+.Xr arp 4
+to dynamically map between Internet and Ethernet addresses on
+the local network.
+Instead it uses the least significant 8 bits of the
+.Tn IP
+address as the hardware address
+like described in
+.Tn RFC
+1051
+and
+.Tn RFC
+1201.
+.Pp
+With the
+.Dv IFF_LINK0
+flag cleared
+.Tn IP/ARP/RARP
+encoding is done according to
+.Tn RFC
+1201
+that is, with Packet Header Definition Standard header and packet type
+212 / 213.
+The
+.Tn MTU
+is normally 1500.
+The
+.Dv IFF_LINK0
+flag is cleared by default.
+.Pp
+With the
+.Dv IFF_LINK0
+flag set,
+.Tn IP
+and
+.Tn ARP
+encoding is done according to the deprecated
+.Tn RFC
+1051 encoding, that is with simple header, packet type 240 / 241,
+and the
+.Tn MTU
+is 507.
+.Pp
+When switching between the two modes, use
+.Dl ifconfig interfacename down up
+to switch the
+.Tn MTU .
+.Sh DIAGNOSTICS
+The following driver specific error messages
+may be reported:
+.Bl -diag
+.It "reset: card reset, link addr = 0x%02x (cm%d)"
+The card is being reset and a new link address assigned.
+.It "srint: restarted rx on buf cm%d"
+The rx buffer has been emptied and will be reset.
+.El
+.Sh SEE ALSO
+.Xr netintro 4 ,
+.Xr watchdog 4 ,
+.Xr device.hints 5 ,
+.Xr ifconfig 8 ,
+.Xr watchdog 8
+.Sh HISTORY
+The
+.Nm
+device was ported from
+.Nx
+by
+.An Max Khon Aq fjoe@FreeBSD.org
+and first appeared in
+.Fx 4.6 .
+This manual page first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+This manual page was written by
+.An Tom Rhodes Aq trhodes@FreeBSD.org .
+The
+.Sx IMPLEMENTATION NOTES
+section was submitted by
+.An Max Khon Aq fjoe@FreeBSD.org
+and originated from
+.Nx .
+.Sh BUGS
+The
+.Nm
+driver code could do with a bit of improvement,
+it would be nice if some one could come along and take care of this.
+.Pp
+The
+.Sx IMPLEMENTATION NOTES
+section is specific to all Arcnet
+devices (see
+.Pa sys/net/if_arcsubr.c )
+and should be moved to a more generic location.

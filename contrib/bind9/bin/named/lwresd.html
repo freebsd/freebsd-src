@@ -1,0 +1,189 @@
+<!--
+ - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000, 2001 Internet Software Consortium.
+ - 
+ - Permission to use, copy, modify, and distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ - 
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+<!-- $Id: lwresd.html,v 1.4.2.1.4.8 2005/10/13 02:33:47 marka Exp $ -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>lwresd</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
+<a name="id2463721"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2>Name</h2>
+<p><span class="application">lwresd</span> &#8212; lightweight resolver daemon</p>
+</div>
+<div class="refsynopsisdiv">
+<h2>Synopsis</h2>
+<div class="cmdsynopsis"><p><code class="command">lwresd</code>  [<code class="option">-C <em class="replaceable"><code>config-file</code></em></code>] [<code class="option">-d <em class="replaceable"><code>debug-level</code></em></code>] [<code class="option">-f</code>] [<code class="option">-g</code>] [<code class="option">-i <em class="replaceable"><code>pid-file</code></em></code>] [<code class="option">-n <em class="replaceable"><code>#cpus</code></em></code>] [<code class="option">-P <em class="replaceable"><code>port</code></em></code>] [<code class="option">-p <em class="replaceable"><code>port</code></em></code>] [<code class="option">-s</code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-u <em class="replaceable"><code>user</code></em></code>] [<code class="option">-v</code>]</p></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525920"></a><h2>DESCRIPTION</h2>
+<p>
+	<span><strong class="command">lwresd</strong></span> is the daemon providing name lookup
+	services to clients that use the BIND 9 lightweight resolver
+	library.  It is essentially a stripped-down, caching-only name
+	server that answers queries using the BIND 9 lightweight
+	resolver protocol rather than the DNS protocol.
+    </p>
+<p>
+	<span><strong class="command">lwresd</strong></span> listens for resolver queries on a
+	UDP port on the IPv4 loopback interface, 127.0.0.1.  This
+	means that <span><strong class="command">lwresd</strong></span> can only be used by
+	processes running on the local machine.  By default UDP port
+	number 921 is used for lightweight resolver requests and
+	responses.
+    </p>
+<p>
+	Incoming lightweight resolver requests are decoded by the
+	server which then resolves them using the DNS protocol.  When
+	the DNS lookup completes, <span><strong class="command">lwresd</strong></span> encodes
+	the answers in the lightweight resolver format and returns
+	them to the client that made the request.
+    </p>
+<p>
+	If <code class="filename">/etc/resolv.conf</code> contains any
+	<code class="option">nameserver</code> entries, <span><strong class="command">lwresd</strong></span>
+	sends recursive DNS queries to those servers.  This is similar
+	to the use of forwarders in a caching name server.  If no
+	<code class="option">nameserver</code> entries are present, or if
+	forwarding fails, <span><strong class="command">lwresd</strong></span> resolves the
+	queries autonomously starting at the root name servers, using
+	a built-in list of root server hints.
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2525969"></a><h2>OPTIONS</h2>
+<div class="variablelist"><dl>
+<dt><span class="term">-C <em class="replaceable"><code>config-file</code></em></span></dt>
+<dd><p>
+		Use <em class="replaceable"><code>config-file</code></em> as the
+		configuration file instead of the default,
+		<code class="filename">/etc/resolv.conf</code>.
+          </p></dd>
+<dt><span class="term">-d <em class="replaceable"><code>debug-level</code></em></span></dt>
+<dd><p>
+		Set the daemon's debug level to <em class="replaceable"><code>debug-level</code></em>.
+		Debugging traces from <span><strong class="command">lwresd</strong></span> become
+		more verbose as the debug level increases.
+          </p></dd>
+<dt><span class="term">-f</span></dt>
+<dd><p>
+		Run the server in the foreground (i.e. do not daemonize).
+          </p></dd>
+<dt><span class="term">-g</span></dt>
+<dd><p>
+		Run the server in the foreground and force all logging
+		to <code class="filename">stderr</code>.
+          </p></dd>
+<dt><span class="term">-n <em class="replaceable"><code>#cpus</code></em></span></dt>
+<dd><p>
+		Create <em class="replaceable"><code>#cpus</code></em> worker threads
+		to take advantage of multiple CPUs.  If not specified,
+		<span><strong class="command">lwresd</strong></span> will try to determine the
+		number of CPUs present and create one thread per CPU.
+		If it is unable to determine the number of CPUs, a
+		single worker thread will be created.
+          </p></dd>
+<dt><span class="term">-P <em class="replaceable"><code>port</code></em></span></dt>
+<dd><p>
+		Listen for lightweight resolver queries on port
+		<em class="replaceable"><code>port</code></em>.  If
+		not specified, the default is port 921.
+          </p></dd>
+<dt><span class="term">-p <em class="replaceable"><code>port</code></em></span></dt>
+<dd><p>
+		Send DNS lookups to port <em class="replaceable"><code>port</code></em>.  If not
+		specified, the default is port 53.  This provides a
+		way of testing the lightweight resolver daemon with a
+		name server that listens for queries on a non-standard
+		port number.
+          </p></dd>
+<dt><span class="term">-s</span></dt>
+<dd>
+<p>
+		Write memory usage statistics to <code class="filename">stdout</code>
+		on exit.
+          </p>
+<div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
+<h3 class="title">Note</h3>
+<p>
+		This option is mainly of interest to BIND 9 developers
+		and may be removed or changed in a future release.
+	    </p>
+</div>
+</dd>
+<dt><span class="term">-t <em class="replaceable"><code>directory</code></em></span></dt>
+<dd>
+<p>
+		<code class="function">chroot()</code> to <em class="replaceable"><code>directory</code></em> after
+		processing the command line arguments, but before
+		reading the configuration file.
+          </p>
+<div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;">
+<h3 class="title">Warning</h3>
+<p>
+		This option should be used in conjunction with the
+		<code class="option">-u</code> option, as chrooting a process
+		running as root doesn't enhance security on most
+		systems; the way <code class="function">chroot()</code> is
+		defined allows a process with root privileges to
+		escape a chroot jail.
+	    </p>
+</div>
+</dd>
+<dt><span class="term">-u <em class="replaceable"><code>user</code></em></span></dt>
+<dd><p>
+		<code class="function">setuid()</code> to <em class="replaceable"><code>user</code></em> after completing
+		privileged operations, such as creating sockets that
+		listen on privileged ports.
+          </p></dd>
+<dt><span class="term">-v</span></dt>
+<dd><p>
+		Report the version number and exit.
+          </p></dd>
+</dl></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526237"></a><h2>FILES</h2>
+<div class="variablelist"><dl>
+<dt><span class="term"><code class="filename">/etc/resolv.conf</code></span></dt>
+<dd><p>
+		The default configuration file.
+          </p></dd>
+<dt><span class="term"><code class="filename">/var/run/lwresd.pid</code></span></dt>
+<dd><p>
+		The default process-id file.
+          </p></dd>
+</dl></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526277"></a><h2>SEE ALSO</h2>
+<p>
+	<span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
+	<span class="citerefentry"><span class="refentrytitle">lwres</span>(3)</span>,
+	<span class="citerefentry"><span class="refentrytitle">resolver</span>(5)</span>.
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2526315"></a><h2>AUTHOR</h2>
+<p>
+	<span class="corpauthor">Internet Systems Consortium</span>
+    </p>
+</div>
+</div></body>
+</html>

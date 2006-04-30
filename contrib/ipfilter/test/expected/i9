@@ -1,0 +1,7 @@
+pass in from 127.0.0.1/32 to 127.0.0.1/32 with short,frag
+block in from any to any with ipopts
+pass in from any to any with opt nop,rr,zsu
+pass in from any to any with opt nop,rr,zsu not opt lsrr,ssrr
+pass in from 127.0.0.1/32 to 127.0.0.1/32 with not frag
+pass in proto tcp from any to any flags S/FSRPAU with not oow keep state
+pass in proto tcp from any to any flags S/FSRPAU with not bad,bad-src,bad-nat

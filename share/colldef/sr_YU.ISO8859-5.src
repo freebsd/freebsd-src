@@ -1,0 +1,38 @@
+# Serbian part of ISO8859-5 (backward compatible with ASCII)
+#
+# $FreeBSD$
+#
+charmap map.ISO8859-5
+order \
+# controls
+   <NU>;...;<US>;\
+#
+   <NS>;<SP>;!;\";<Nb>;<DO>;\
+   %;&;';\(;\);*;+;\,;-;.;/;\
+# digits
+   0;...;9;\
+#
+   :;\;;\<;=;>;?;<At>;\
+# capital
+   A;...;Z;\
+   <A=>;<B=>;<V=>;<G=>;<D=>;<D%>;<E=>;<Z%>;<Z=>;\
+   <I=>;<J%>;<K=>;<L=>;<LJ>;<M=>;<N=>;<NJ>;<O=>;\
+   <P=>;<R=>;<S=>;<T=>;<Ts>;<U=>;<F=>;<H=>;<C=>;\
+   <C%>;<DZ>;<S%>;\
+#
+   [;\\;];^;_;`;\
+# small
+   a;...;z;\
+   <a=>;<b=>;<v=>;<g=>;<d=>;<d%>;<e=>;<z%>;<z=>;\
+   <i=>;<j%>;<k=>;<l=>;<lj>;<m=>;<n=>;<nj>;<o=>;\
+   <p=>;<r=>;<s=>;<t=>;<ts>;<u=>;<f=>;<h=>;<c=>;\
+   <c%>;<dz>;<s%>;\
+#
+   \{;\|;\};\~;<DT>;<PA>;<HO>;<BH>;<NH>;<IN>;<NL>;\
+   <SA>;<ES>;<HS>;<HJ>;<VS>;<PD>;<PU>;<RI>;<S2>;<S3>;\
+   <DC>;<P1>;<P2>;<TS>;<CC>;<MW>;<SG>;<EG>;<SS>;<GC>;\
+   <SC>;<CI>;<ST>;<OC>;<PM>;<AC>;<IO>;<G%>;<IE>;<DS>;\
+   <II>;<YI>;<KJ>;<-->;<V%>;<J=>;<Sc>;<=">;<Y=>;<%">;\
+   <JE>;<JU>;<JA>;<j=>;<sc>;<='>;<y=>;<%'>;<je>;<ju>;\
+   <ja>;<N0>;<io>;<g%>;<ie>;<ds>;<ii>;<yi>;<kj>;<SE>;\
+   <v%>

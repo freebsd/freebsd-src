@@ -1,0 +1,92 @@
+<html>
+<head>
+<title>Filtering Mail with Sendmail</title>
+</head>
+<body>
+<!--
+$Id: index.html,v 1.12 2003/03/05 19:57:54 ca Exp $
+-->
+
+<h1>Filtering Mail with Sendmail</h1>
+
+<!--
+<P><b>Disclaimer</b>: 
+This preliminary API description is provided for review only.  This
+specification may change based on feedback from reviewers, and does
+not bind Sendmail to offer this functionality in any release.
+-->
+
+<h2>Introduction</h2>
+
+<P>
+Sendmail's Content Management API (milter) provides third-party
+programs to access mail messages as they are being processed by the
+Mail Transfer Agent (MTA), allowing them to examine and modify message
+content and meta-information.  Filtering policies implemented by
+Milter-conformant filters may then be centrally configured and
+composed in an end-user's MTA configuration file.
+
+<p>
+Possible uses for filters include spam rejection, virus
+filtering, and content control.  In general, Milter seeks to address
+site-wide filtering concerns in a scalable way.  Individual users' mail
+filtering needs (e.g. sorting messages by subject) are left to
+client-level programs such as <a href="http://www.procmail.org">Procmail</a>.
+
+<P>
+This document is a technical introduction intended for those
+interested in developing Milter filters.  It includes:
+<ul>
+<li>A description of Milter's design goals.
+
+<li>An explanation of Milter application architecture, including
+interactions between the support library and user code, and between
+filters and the MTA.
+
+<li>A specification of the C application programming interface.
+<li>An example of a simple Milter filter.
+</ul>
+
+<h2>Contents</h2>
+
+<ul>
+<li><a href="design.html">Architecture</a>
+<ul>
+    <li>Design Goals
+    <li>Implementing Filtering Policies
+    <li>MTA - Filter communication
+</ul>
+<li><a href="overview.html">Technical Overview</a>
+<ul>
+    <li>Initialization
+    <li>Control flow
+    <li>Multithreading
+    <li>Resource Management
+    <li>Signal Handling
+</ul>
+<li><a href="api.html">API Documentation</a>
+<ul>
+    <li>Library Control Functions
+    <li>Data Access Functions
+    <li>Message Modification Functions
+    <li>Callbacks
+</ul>
+<li><a href="installation.html">Installation and Configuration</a>
+<ul>
+    <li>Compiling and Installing Your Filter
+    <li>Configuring Sendmail
+</ul>
+<li><a href="sample.html">A Sample Filter</a>
+<!-- <li><a href="other.html">Other Sources of Information</a> -->
+</ul>
+
+<hr size="1">
+<font size="-1">
+Copyright (c) 2000, 2001, 2003 Sendmail, Inc. and its suppliers.
+All rights reserved.
+<br>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</font>
+</body>
+</html>

@@ -1,0 +1,53 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: abi
+# REQUIRE: archdep
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="abi"
+start_precmd="${name}_prestart"
+start_cmd=":"
+
+sysv_start()
+{
+	echo -n ' sysvipc'
+	kldload sysvmsg >/dev/null 2>&1
+	kldload sysvsem >/dev/null 2>&1
+	kldload sysvshm >/dev/null 2>&1
+}
+
+linux_start()
+{
+	echo -n ' linux'
+	if ! kldstat -v | grep -E 'linux(aout|elf)' > /dev/null; then
+		kldload linux > /dev/null 2>&1
+	fi
+	if [ -x /compat/linux/sbin/ldconfig ]; then
+		/compat/linux/sbin/ldconfig
+	fi
+}
+
+svr4_start()
+{
+	echo -n ' svr4'
+	kldload svr4 > /dev/null 2>&1
+}
+
+abi_prestart()
+{
+	echo -n 'Additional ABI support:'
+
+	checkyesno sysvipc_enable && sysv_start
+	checkyesno linux_enable && linux_start
+	checkyesno svr4_enable && svr4_start
+
+	echo '.'
+}
+
+load_rc_config $name
+run_rc_command "$1"

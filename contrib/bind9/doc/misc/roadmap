@@ -1,0 +1,47 @@
+Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+Copyright (C) 2000, 2001  Internet Software Consortium.
+See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
+
+$Id: roadmap,v 1.1.206.1 2004/03/06 13:16:20 marka Exp $
+
+Road Map to the BIND 9 Source Tree
+
+bin/named		The name server.  This relies heavily on the
+			libraries in lib/isc and lib/dns.
+    client.c		Handling of incoming client requests
+    query.c		Query processing
+bin/rndc		The remote name daemon control program
+bin/dig			The "dig" program
+bin/dnssec		The DNSSEC signer and other DNSSEC tools
+bin/nsupdate		The "nsupdate" program
+bin/tests		Test suites and miscellaneous test programs
+bin/tests/system	System tests; see bin/tests/system/README
+lib/dns			The DNS library
+    resolver.c		The "full resolver" (performs recursive lookups)
+    validator.c		The DNSSEC validator
+    db.c		The database interface
+    sdb.c		The simple database interface
+    rbtdb.c		The red-black tree database
+lib/dns/rdata		Routines for handling the various RR types
+lib/dns/sec		Cryptographic libraries for DNSSEC
+lib/isc			The ISC library
+    task.c		Task library
+    unix/socket.c	Unix implementation of socket library
+lib/isccfg		Routines for reading and writing ISC-style
+			configuration files like named.conf and rndc.conf
+lib/isccc		The command channel library, used by rndc.
+lib/tests		Support code for the test suites.
+lib/lwres		The lightweight resolver library.
+doc/draft		Current internet-drafts pertaining to the DNS
+doc/rfc			RFCs pertaining to the DNS
+doc/misc		Miscellaneous documentation
+doc/arm			The BIND 9 Administrator Reference Manual
+doc/man			Man pages
+contrib			Contributed and other auxiliary code
+contrib/idn/mdnkit	The multilingual domain name evaluation kit
+contrib/sdb		Sample drivers for the simple database interface
+make			Makefile fragments, used by configure
+
+The library interfaces are mainly documented in the form of comments
+in the header files.  For example, the task subsystem is documented in
+lib/isc/include/isc/task.h

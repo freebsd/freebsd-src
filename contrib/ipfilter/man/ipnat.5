@@ -1,0 +1,294 @@
+.\"	$FreeBSD$
+.\"
+.TH IPNAT 5
+.SH NAME
+ipnat, ipnat.conf \- IP NAT file format
+.SH DESCRIPTION
+The format for files accepted by ipnat is described by the following grammar:
+.LP
+.nf
+ipmap :: = mapblock | redir | map .
+
+map ::= mapit ifname lhs "->" dstipmask [ mapicmp | mapport | mapproxy ]
+        mapoptions .
+mapblock ::= "map-block" ifname lhs "->" ipmask [ ports ] mapoptions .
+redir ::= "rdr" ifname ipmask dport "->" ip [ "," ip ] rdrport rdroptions .
+
+lhs ::= ipmask | fromto .
+dport ::= "port" portnum [ "-" portnum ] .
+ports ::= "ports" numports | "auto" .
+rdrport ::= "port" portnum .
+mapit ::= "map" | "bimap" .
+fromto ::= "from" object "to" object .
+ipmask ::= ip "/" bits | ip "/" mask | ip "netmask" mask .
+dstipmask ::= ipmask | "range" ip "-" ip .
+mapicmp ::= "icmpidmap" "icmp" number ":" number .
+mapport ::= "portmap" tcpudp portspec .
+mapoptions ::= [ tcpudp ] [ "frag" ] [ age ] [ clamp ] .
+rdroptions ::= rdrproto [ rr ] [ "frag" ] [ age ] [ clamp ] [ rdrproxy ] .
+
+object :: = addr [ port-comp | port-range ] .
+addr :: = "any" | nummask | host-name [ "mask" ipaddr | "mask" hexnumber ] .
+port-comp :: = "port" compare port-num .
+port-range :: = "port" port-num range port-num .
+rdrproto ::= tcpudp | protocol .
+
+rr ::= "round-robin" .
+age ::= "age" decnumber [ "/" decnumber ] .
+clamp ::= "mssclamp" decnumber .
+tcpudp ::= "tcp/udp" | protocol .
+mapproxy ::= "proxy" "port" port proxy-name '/' protocol
+rdrproxy ::= "proxy" proxy-name .
+
+protocol ::= protocol-name | decnumber .
+nummask ::= host-name [ "/" decnumber ] .
+portspec ::= "auto" | portnumber ":" portnumber .
+port ::= portnumber | port-name .
+portnumber ::= number { numbers } .
+ifname ::= 'A' - 'Z' { 'A' - 'Z' } numbers .
+
+numbers ::= '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' .
+.fi
+.PP
+For standard NAT functionality, a rule should start with \fBmap\fP and then
+proceeds to specify the interface for which outgoing packets will have their
+source address rewritten.
+.PP
+Packets which will be rewritten can only be selected by matching the original
+source address.  A netmask must be specified with the IP address.
+.PP
+The address selected for replacing the original is chosen from an IP#/netmask
+pair.  A netmask of all 1's indicating a hostname is valid.  A netmask of
+31 1's (255.255.255.254) is considered invalid as there is no space for
+allocating host IP#'s after consideration for broadcast and network
+addresses.
+.PP
+When remapping TCP and UDP packets, it is also possible to change the source
+port number.  Either TCP or UDP or both can be selected by each rule, with a
+range of port numbers to remap into given as \fBport-number:port-number\fP.
+.SH COMMANDS
+There are four commands recognised by IP Filter's NAT code:
+.TP
+.B map
+that is used for mapping one address or network to another in an unregulated
+round robin fashion;
+.TP
+.B rdr
+that is used for redirecting packets to one IP address and port pair to
+another;
+.TP
+.B bimap
+for setting up bidirectional NAT between an external IP address and an internal
+IP address and
+.TP
+.B map-block
+which sets up static IP address based translation, based on a algorithm to
+squeeze the addresses to be translated into the destination range.
+.SH MATCHING
+.PP
+For basic NAT and redirection of packets, the address subject to change is used
+along with its protocol to check if a packet should be altered.  The packet
+\fImatching\fP part of the rule is to the left of the "->" in each rule.
+.PP
+Matching of packets has now been extended to allow more complex compares.
+In place of the address which is to be translated, an IP address and port
+number comparison can be made using the same expressions available with
+\fBipf\fP.  A simple NAT rule could be written as:
+.LP
+.nf
+map de0 10.1.0.0/16 -> 201.2.3.4/32
+.fi
+.LP
+or as
+.LP
+.nf
+map de0 from 10.1.0.0/16 to any -> 201.2.3.4/32
+.fi
+.LP
+Only IP address and port numbers can be compared against.  This is available
+with all NAT rules.
+.SH TRANSLATION
+.PP
+To the right of the "->" is the address and port specification which will be
+written into the packet providing it has already successfully matched the
+prior constraints.  The case of redirections (\fBrdr\fP) is the simplest:
+the new destination address is that specified in the rule.  For \fBmap\fP
+rules, the destination address will be one for which the tuple combining
+the new source and destination is known to be unique.  If the packet is
+either a TCP or UDP packet, the destination and source ports come into the
+equation too.  If the tuple already exists, IP Filter will increment the
+port number first, within the available range specified with \fBportmap\fP
+and if there exists no unique tuple, the source address will be incremented
+within the specified netmask.  If a unique tuple cannot be determined, then
+the packet will not be translated.  The \fBmap-block\fP is more limited in
+how it searches for a new, free and unique tuple, in that it will used an
+algorithm to determine what the new source address should be, along with the
+range of available ports - the IP address is never changed and nor does the
+port number ever exceed its allotted range.
+.SH ICMPIDMAP
+.PP
+ICMP messages can be divided into two groups: "errors" and "queries". ICMP
+errors are generated as a response of another IP packet. IP Filter will take
+care that ICMP errors that are the response of a NAT-ed IP packet are
+handled properly.
+.PP
+For 4 types of ICMP queries (echo request, timestamp request, information 
+request and address mask request) IP Filter supports an additional mapping
+called "ICMP id mapping". All these 4 types of ICMP queries use a unique
+identifier called the ICMP id. This id is set by the process sending the
+ICMP query and it is usually equal to the process id. The receiver of the
+ICMP query will use the same id in its response, thus enabling the
+sender to recognize that the incoming ICMP reply is intended for him and is
+an answer to a query that he made. The "ICMP id mapping" feature modifies 
+these ICMP id in a way identical to \fBportmap\fP for TCP or UDP.
+.PP
+The reason that you might want this, is that using this feature you don't
+need an IP address per host behind the NAT box, that wants to do ICMP queries.
+The two numbers behind the \fBicmpidmap\fP keyword are the first and the
+last icmp id number that can be used. There is one important caveat: if you
+map to an IP address that belongs to the NAT box itself (notably if you have
+only a single public IP address), then you must ensure that the NAT box does
+not use the \fBicmpidmap\fP range that you specified in the \fBmap\fP rule.
+Since the ICMP id is usually the process id, it is wise to restrict the
+largest permittable process id (PID) on your operating system to e.g. 63999 and
+use the range 64000:65535 for ICMP id mapping. Changing the maximal PID is
+system dependent. For most BSD derived systems can be done by changing 
+PID_MAX in /usr/include/sys/proc.h and then rebuild the system.
+.SH KERNEL PROXIES
+.PP
+IP Filter comes with a few, simple, proxies built into the code that is loaded
+into the kernel to allow secondary channels to be opened without forcing the
+packets through a user program.  The current state of the proxies is listed
+below, as one of three states:
+.HP
+Aging - protocol is roughly understood from
+the time at which the proxy was written but it is not well tested or
+maintained;
+.HP
+Developmental - basic functionality exists, works most of the time but
+may be problematic in extended real use;
+.HP
+Experimental - rough support for the protocol at best, may or may not
+work as testing has been at best sporadic, possible large scale changes
+to the code in order to properly support the protocol.
+.HP
+Mature - well tested, protocol is properly
+understood by the proxy;
+.PP
+The currently compiled in proxy list is as follows:
+.HP
+FTP - Mature
+.HP
+IRC - Experimental
+.HP
+rpcbind - Experimental
+.HP
+H.323 - Experimental
+.HP
+Real Audio (PNA) - Aging
+.HP
+IPsec - Developmental
+.HP
+netbios - Experimental
+.HP
+R-command - Mature
+
+.SH TRANSPARENT PROXIES
+.PP
+True transparent proxying should be performed using the redirect (\fBrdr\fP)
+rules directing ports to localhost (127.0.0.1) with the proxy program doing
+a lookup through \fB/dev/ipnat\fP to determine the real source and address
+of the connection.
+.SH LOAD-BALANCING
+.PP
+Two options for use with \fBrdr\fP are available to support primitive,
+\fIround-robin\fP based load balancing.  The first option allows for a
+\fBrdr\fP to specify a second destination, as follows:
+.LP
+.nf
+rdr le0 203.1.2.3/32 port 80 -> 203.1.2.3,203.1.2.4 port 80 tcp
+.fi
+.LP
+This would send alternate connections to either 203.1.2.3 or 203.1.2.4.
+In scenarios where the load is being spread amongst a larger set of
+servers, you can use:
+.LP
+.nf
+rdr le0 203.1.2.3/32 port 80 -> 203.1.2.3,203.1.2.4 port 80 tcp round-robin
+rdr le0 203.1.2.3/32 port 80 -> 203.1.2.5 port 80 tcp round-robin
+.fi
+.LP
+In this case, a connection will be redirected to 203.1.2.3, then 203.1.2.4
+and then 203.1.2.5 before going back to 203.1.2.3.  In accomplishing this,
+the rule is removed from the top of the list and added to the end,
+automatically, as required.  This will not effect the display of rules
+using "ipnat -l", only the internal application order.
+.SH EXAMPLES
+.PP
+This section deals with the \fBmap\fP command and its variations.
+.PP
+To change IP#'s used internally from network 10 into an ISP provided 8 bit
+subnet at 209.1.2.0 through the ppp0 interface, the following would be used:
+.LP
+.nf
+map ppp0 10.0.0.0/8 -> 209.1.2.0/24
+.fi
+.PP
+The obvious problem here is we're trying to squeeze over 16,000,000 IP
+addresses into a 254 address space.  To increase the scope, remapping for TCP
+and/or UDP, port remapping can be used;
+.LP
+.nf
+map ppp0 10.0.0.0/8 -> 209.1.2.0/24 portmap tcp/udp 1025:65000
+.fi
+.PP
+which falls only 527,566 `addresses' short of the space available in network
+10.  If we were to combine these rules, they would need to be specified as
+follows:
+.LP
+.nf
+map ppp0 10.0.0.0/8 -> 209.1.2.0/24 portmap tcp/udp 1025:65000
+map ppp0 10.0.0.0/8 -> 209.1.2.0/24
+.fi
+.PP
+so that all TCP/UDP packets were port mapped and only other protocols, such as
+ICMP, only have their IP# changed.  In some instances, it is more appropriate
+to use the keyword \fBauto\fP in place of an actual range of port numbers if
+you want to guarantee simultaneous access to all within the given range.
+However, in the above case, it would default to 1 port per IP address, since
+we need to squeeze 24 bits of address space into 8.  A good example of how
+this is used might be:
+.LP
+.nf
+map ppp0 172.192.0.0/16 -> 209.1.2.0/24 portmap tcp/udp auto
+.fi
+.PP
+which would result in each IP address being given a small range of ports to
+use (252).  In all cases, the new port number that is used is deterministic.
+That is, port X will always map to port Y.
+WARNING: It is not advisable to use the \fBauto\fP feature if you are map'ing
+to a /32 (i.e. 0/32) because the NAT code will try to map multiple hosts to
+the same port number, outgoing and ultimately this will only succeed for one
+of them.
+The problem here is that the \fBmap\fP directive tells the NAT
+code to use the next address/port pair available for an outgoing connection,
+resulting in no easily discernible relation between external addresses/ports
+and internal ones.  This is overcome by using \fBmap-block\fP as follows:
+.LP
+.nf
+map-block ppp0 172.192.0.0/16 -> 209.1.2.0/24 ports auto
+.fi
+.PP
+For example, this would result in 172.192.0.0/24 being mapped to 209.1.2.0/32
+with each address, from 172.192.0.0 to 172.192.0.255 having 252 ports of its
+own.  As opposed to the above use of \fBmap\fP, if for some reason the user
+of (say) 172.192.0.2 wanted 260 simultaneous connections going out, they would
+be limited to 252 with \fBmap-block\fP but would just \fImove on\fP to the next
+IP address with the \fBmap\fP command.
+/dev/ipnat
+.br
+/etc/services
+.br
+/etc/hosts
+.SH SEE ALSO
+ipnat(4), hosts(5), ipf(5), services(5), ipf(8), ipnat(8)

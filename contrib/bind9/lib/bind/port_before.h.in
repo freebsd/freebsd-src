@@ -1,0 +1,146 @@
+#ifndef port_before_h
+#define port_before_h
+#include <config.h>
+
+struct group;           /* silence warning */
+struct passwd;          /* silence warning */
+struct timeval;         /* silence warning */
+struct timezone;        /* silence warning */
+
+#ifdef HAVE_SYS_TIMERS_H
+#include <sys/timers.h>
+#endif
+#include <limits.h>
+
+
+@WANT_IRS_GR@
+@WANT_IRS_NIS@
+@WANT_IRS_PW@
+
+@BSD_COMP@
+@USE_POLL@
+@HAVE_MD5@
+@SOLARIS2@
+
+@DO_PTHREADS@
+@GETGROUPLIST_ARGS@
+@GETNETBYADDR_ADDR_T@
+@SETPWENT_VOID@
+@SETGRENT_VOID@
+
+@NET_R_ARGS@
+@NET_R_BAD@
+@NET_R_COPY@
+@NET_R_COPY_ARGS@
+@NET_R_END_RESULT@
+@NET_R_END_RETURN@
+@NET_R_ENT_ARGS@
+@NET_R_OK@
+@NET_R_RETURN@
+@NET_R_SET_RESULT@
+@NET_R_SETANSWER@
+@NET_R_SET_RETURN@
+@NETENT_DATA@
+
+@GROUP_R_RETURN@
+@GROUP_R_SET_RETURN@
+@GROUP_R_SET_RESULT@
+@GROUP_R_END_RETURN@
+@GROUP_R_END_RESULT@
+@GROUP_R_ARGS@
+@GROUP_R_ENT_ARGS@
+@GROUP_R_OK@
+@GROUP_R_BAD@
+
+@HOST_R_ARGS@
+@HOST_R_BAD@
+@HOST_R_COPY@
+@HOST_R_COPY_ARGS@
+@HOST_R_END_RESULT@
+@HOST_R_END_RETURN@
+@HOST_R_ENT_ARGS@
+@HOST_R_ERRNO@
+@HOST_R_OK@
+@HOST_R_RETURN@
+@HOST_R_SETANSWER@
+@HOST_R_SET_RESULT@
+@HOST_R_SET_RETURN@
+@HOSTENT_DATA@
+
+@NGR_R_ARGS@
+@NGR_R_BAD@
+@NGR_R_COPY@
+@NGR_R_COPY_ARGS@
+@NGR_R_END_RESULT@
+@NGR_R_END_RETURN@
+@NGR_R_ENT_ARGS@
+@NGR_R_OK@
+@NGR_R_RETURN@
+@NGR_R_SET_RESULT@
+@NGR_R_SET_RETURN@
+@NGR_R_PRIVATE@
+
+@PROTO_R_ARGS@
+@PROTO_R_BAD@
+@PROTO_R_COPY@
+@PROTO_R_COPY_ARGS@
+@PROTO_R_END_RESULT@
+@PROTO_R_END_RETURN@
+@PROTO_R_ENT_ARGS@
+@PROTO_R_OK@
+@PROTO_R_SETANSWER@
+@PROTO_R_RETURN@
+@PROTO_R_SET_RESULT@
+@PROTO_R_SET_RETURN@
+
+@PASS_R_ARGS@
+@PASS_R_BAD@
+@PASS_R_COPY@
+@PASS_R_COPY_ARGS@
+@PASS_R_END_RESULT@
+@PASS_R_END_RETURN@
+@PASS_R_ENT_ARGS@
+@PASS_R_OK@
+@PASS_R_RETURN@
+@PASS_R_SET_RESULT@
+@PASS_R_SET_RETURN@
+
+@SERV_R_ARGS@
+@SERV_R_BAD@
+@SERV_R_COPY@
+@SERV_R_COPY_ARGS@
+@SERV_R_END_RESULT@
+@SERV_R_END_RETURN@
+@SERV_R_ENT_ARGS@
+@SERV_R_OK@
+@SERV_R_SETANSWER@
+@SERV_R_RETURN@
+@SERV_R_SET_RESULT@
+@SERV_R_SET_RETURN@
+
+
+#define DE_CONST(konst, var) \
+        do { \
+                union { const void *k; void *v; } _u; \
+                _u.k = konst; \
+                var = _u.v; \
+        } while (0)
+
+#define UNUSED(x) (x) = (x)
+
+@SOLARIS_BITTYPES@
+@ISC_SOCKLEN_T@
+
+#ifdef __GNUC__
+#define ISC_FORMAT_PRINTF(fmt, args) \
+	__attribute__((__format__(__printf__, fmt, args)))
+#else
+#define ISC_FORMAT_PRINTF(fmt, args)
+#endif
+
+/* Pull in host order macros when _XOPEN_SOURCE_EXTENDED is defined. */
+#if defined(__hpux) && defined(_XOPEN_SOURCE_EXTENDED)
+#include <sys/byteorder.h>
+#endif
+
+#endif

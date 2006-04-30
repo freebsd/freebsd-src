@@ -1,0 +1,35 @@
+In troff mode, dotted and dashed splines.
+
+Make DELIMITED have type lstr; this would allow us to give better
+error messages for problems within the body of for and if constructs.
+
+In troff mode without -x, fake \D't' with .ps commands.
+
+Perhaps an option to set command char.
+
+Add an output class for dumb line printers. It wouldn't be pretty but
+it would be better than nothing. Integrate it with texinfo.  Useful
+for groff -Tascii as well.
+
+Option to allow better positioning of arrowheads on arcs.
+
+Perhaps add PostScript output mode.
+
+Change the interface to the output class so that output devices have
+the opportunity to handle arrowheads themselves.
+
+Consider whether the line thickness should scale.
+
+Consider whether the test in a for loop should be fuzzy (as it
+apparently is in grap).
+
+Possibly change fillval so that zero is black.
+
+Provide a way of getting text blocks (positioned with `.in' rather
+than \h), into pic.  Should be possible to use block of diverted text
+in pic.  Possibly something similar to T{ and T} in tbl.
+
+Option to provide macro backtraces.
+
+Have a path that is searched by `copy' statement.  Set by environment
+variable or command line option.

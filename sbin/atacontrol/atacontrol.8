@@ -1,0 +1,241 @@
+.\"
+.\" Copyright (c) 2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 16, 2005
+.Dt ATACONTROL 8
+.Os
+.Sh NAME
+.Nm atacontrol
+.Nd ATA device driver control program
+.Sh SYNOPSIS
+.Nm
+.Aq Ar command
+.Ar args
+.Pp
+.Nm
+.Ic attach
+.Ar channel
+.Nm
+.Ic detach
+.Ar channel
+.Nm
+.Ic reinit
+.Ar channel
+.Nm
+.Ic create
+.Ar type Oo Ar interleave Oc Ar disk0 ... diskN
+.Nm
+.Ic delete
+.Ar raid
+.Nm
+.Ic addspare
+.Ar raid disk
+.Nm
+.Ic rebuild
+.Ar raid
+.Nm
+.Ic status
+.Ar raid
+.Nm
+.Ic mode
+.Ar device
+.Nm
+.Ic info
+.Ar channel
+.Nm
+.Ic cap
+.Ar device
+.Nm
+.Ic list
+.Sh DESCRIPTION
+The
+.Nm
+utility is a control program that provides the user access and control to the
+.Fx
+.Xr ata 4
+subsystem.
+.Pp
+The
+.Nm
+utility
+can cause severe system crashes and loss of data if used improperly.
+Please
+exercise caution when using this command!
+.Pp
+The
+.Ar channel
+argument is the ATA channel device (e.g., ata0) on which to operate.
+The following commands are supported:
+.Bl -tag -width "rebuild"
+.It Ic attach
+Attach an ATA
+.Ar channel .
+Devices on the channel are probed and attached as
+is done on boot.
+.It Ic detach
+Detach an ATA
+.Ar channel .
+Devices on the channel are removed from the kernel,
+and all outstanding transfers etc.\& are returned back to the system marked
+as failed.
+.It Ic reinit
+Reinitialize an ATA
+.Ar channel .
+Both devices on the channel are reset and
+initialized to the parameters the ATA driver has stored internally.
+Devices that have gone bad and no longer respond to the probe, or devices
+that have physically been removed, are removed from the kernel.
+Likewise are devices that show up during a reset, probed and attached.
+.It Ic create
+Create a
+.Ar type
+ATA RAID.
+The type can be
+.Cm RAID0
+(stripe),
+.Cm RAID1
+(mirror),
+.Cm RAID0+1 ,
+.Cm SPAN
+or
+.Cm JBOD .
+In case the RAID has a
+.Cm RAID0
+component,
+the
+.Ar interleave
+must be specified in number of sectors.
+The RAID will be created
+of the individual disks named
+.Bk -words
+.Ar disk0 ... diskN .
+.Ek
+.Pp
+Although the ATA driver allows for creating an ATA RAID on disks with any
+controller, there are restrictions.
+It is only possible to boot on
+an array if it is either located on a
+.Dq real
+ATA RAID controller like
+the Promise or Highpoint controllers, or if the RAID declared is of
+.Cm RAID1
+or
+.Cm SPAN
+type; in case of a
+.Cm SPAN ,
+the partition to boot must
+reside on the first disk in the SPAN.
+.It Ic delete
+Delete a RAID array on a RAID capable ATA controller.
+.It Ic addspare
+Add a spare disk to an existing RAID.
+.It Ic rebuild
+Rebuild a RAID1 array on a RAID capable ATA controller.
+.It Ic status
+Get the status of an ATA RAID.
+.It Ic mode
+Without the mode argument, the current transfer modes of the
+device are printed.
+If the mode argument is given, the ATA driver
+is asked to change the transfer mode to the one given.
+The ATA driver
+will reject modes that are not supported by the hardware.
+Modes are given like
+.Dq Li PIO3 ,
+.Dq Li udma2 ,
+.Dq Li udma100 ,
+case does not matter.
+.Pp
+Currently supported modes are:
+.Cm PIO0 , PIO1 , PIO2 , PIO3 , PIO4 ,
+.Cm WDMA2 ,
+.Cm UDMA2
+(alias
+.Cm UDMA33 ) ,
+.Cm UDMA4
+(alias
+.Cm UDMA66 ) ,
+.Cm UDMA5
+(alias
+.Cm UDMA100 )
+and
+.Cm UDMA6
+(alias
+.Cm UDMA133 ) .
+The device name and manufacture/version strings are shown.
+.It Ic cap
+Show detailed info about the device on
+.Ar device .
+.It Ic info
+Show info about the attached devices on the
+.Ar channel .
+.It Ic list
+Show info about all attached devices on all active controllers.
+.El
+.Sh EXAMPLES
+To get information on devices attached to a channel,
+use the command line:
+.Pp
+.Dl "atacontrol info ata0"
+.Pp
+To see the devices' current access modes, use the command line:
+.Pp
+.Dl "atacontrol mode ad0"
+.Pp
+which results in the modes of the devices being displayed as a string
+like this:
+.Pp
+.Dl "current mode = UDMA100"
+.Pp
+You can set the mode with
+.Nm
+and a string like the above,
+for example:
+.Pp
+.Dl "atacontrol mode ad0 PIO4"
+.Pp
+The new modes are set as soon as the
+.Nm
+command returns.
+.Sh SEE ALSO
+.Xr ata 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 4.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was written by
+.An S\(/oren Schmidt
+.Aq sos@FreeBSD.org .
+.Pp
+This manual page was written by
+.An S\(/oren Schmidt
+.Aq sos@FreeBSD.org .
