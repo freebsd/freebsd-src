@@ -1856,9 +1856,7 @@ g_raid3_register_request(struct bio *pbp)
 		 */
 		if ((sc->sc_bump_id & G_RAID3_BUMP_SYNCID) != 0) {
 			sc->sc_bump_id &= ~G_RAID3_BUMP_SYNCID;
-			g_topology_lock();
 			g_raid3_bump_syncid(sc);
-			g_topology_unlock();
 		}
 		g_raid3_scatter(pbp);
 		break;
