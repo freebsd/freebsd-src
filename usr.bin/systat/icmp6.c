@@ -64,25 +64,25 @@ static struct icmp6stat icmp6stat, initstat, oldstat;
 /*-
 --0         1         2         3         4         5         6         7
 --0123456789012345678901234567890123456789012345678901234567890123456789012345
-01          ICMPv6 Input                       ICMPv6 Output
-02999999999 total messages           999999999 total messages
-03999999999 with bad code            999999999 errors generated
-04999999999 with bad length          999999999 suppressed - original too short
-05999999999 with bad checksum        999999999 suppressed - original was ICMP
-06999999999 with insufficient data   999999999 responses sent
-07
-08          Input Histogram                    Output Histogram
-09999999999 echo response            999999999 echo response
-10999999999 echo request             999999999 echo request
-11999999999 destination unreachable  999999999 destination unreachable
-12999999999 redirect                 999999999 redirect
-13999999999 time-to-live exceeded    999999999 time-to-line exceeded
-14999999999 parameter problem        999999999 parameter problem
-15999999999 neighbor solicitation    999999999 neighbor solicitation
-16999999999 neighbor advertisment    999999999 neighbor advertisment
-17999999999 router advertisement     999999999 router solicitation
+00          ICMPv6 Input                       ICMPv6 Output
+01999999999 total messages           999999999 total messages
+02999999999 with bad code            999999999 errors generated
+03999999999 with bad length          999999999 suppressed - original too short
+04999999999 with bad checksum        999999999 suppressed - original was ICMP
+05999999999 with insufficient data   999999999 responses sent
+06
+07          Input Histogram                    Output Histogram
+08999999999 echo response            999999999 echo response
+09999999999 echo request             999999999 echo request
+10999999999 destination unreachable  999999999 destination unreachable
+11999999999 redirect                 999999999 redirect
+12999999999 time-to-live exceeded    999999999 time-to-line exceeded
+13999999999 parameter problem        999999999 parameter problem
+14999999999 neighbor solicitation    999999999 neighbor solicitation
+15999999999 neighbor advertisment    999999999 neighbor advertisment
+16999999999 router advertisement     999999999 router solicitation
+17
 18
-19
 --0123456789012345678901234567890123456789012345678901234567890123456789012345
 --0         1         2         3         4         5         6         7
 */
@@ -90,7 +90,7 @@ static struct icmp6stat icmp6stat, initstat, oldstat;
 WINDOW *
 openicmp6(void)
 {
-	return (subwin(stdscr, LINES-5-1, 0, 5, 0));
+	return (subwin(stdscr, LINES-3-1, 0, MAINWIN_ROW, 0));
 }
 
 void
@@ -110,24 +110,24 @@ labelicmp6(void)
 	wmove(wnd, 0, 0); wclrtoeol(wnd);
 #define L(row, str) mvwprintw(wnd, row, 10, str)
 #define R(row, str) mvwprintw(wnd, row, 45, str);
-	L(1, "ICMPv6 Input");		R(1, "ICMPv6 Output");
-	L(2, "total messages");		R(2, "total messages");
-	L(3, "with bad code");		R(3, "errors generated");
-	L(4, "with bad length");	R(4, "suppressed - original too short");
-	L(5, "with bad checksum");	R(5, "suppressed - original was ICMP");
-	L(6, "with insufficient data");	R(6, "responses sent");
+	L(0, "ICMPv6 Input");		R(0, "ICMPv6 Output");
+	L(1, "total messages");		R(1, "total messages");
+	L(2, "with bad code");		R(2, "errors generated");
+	L(3, "with bad length");	R(3, "suppressed - original too short");
+	L(4, "with bad checksum");	R(4, "suppressed - original was ICMP");
+	L(5, "with insufficient data");	R(5, "responses sent");
 
-	L(8, "Input Histogram");	R(8, "Output Histogram");
+	L(7, "Input Histogram");	R(7, "Output Histogram");
 #define B(row, str) L(row, str); R(row, str)
-	B(9, "echo response");
-	B(10, "echo request");
-	B(11, "destination unreachable");
-	B(12, "redirect");
-	B(13, "time-to-live exceeded");
-	B(14, "parameter problem");
-	B(15, "neighbor solicitation");
-	B(16, "neighbor advertisment");
-	L(17, "router advertisement");	R(17, "router solicitation");
+	B(8, "echo response");
+	B(9, "echo request");
+	B(10, "destination unreachable");
+	B(11, "redirect");
+	B(12, "time-to-live exceeded");
+	B(13, "parameter problem");
+	B(14, "neighbor solicitation");
+	B(15, "neighbor advertisment");
+	L(16, "router advertisement");	R(16, "router solicitation");
 #undef L
 #undef R
 #undef B
@@ -187,32 +187,32 @@ showicmp6(void)
 	}
 	totalin += stats.icp6s_badcode + stats.icp6s_badlen + 
 		stats.icp6s_checksum + stats.icp6s_tooshort;
-	mvwprintw(wnd, 2, 0, "%9lu", totalin);
-	mvwprintw(wnd, 2, 35, "%9lu", totalout);
+	mvwprintw(wnd, 1, 0, "%9lu", totalin);
+	mvwprintw(wnd, 1, 35, "%9lu", totalout);
 
 #define DO(stat, row, col) \
 	mvwprintw(wnd, row, col, "%9lu", stats.stat)
 
-	DO(icp6s_badcode, 3, 0);
-	DO(icp6s_badlen, 4, 0);
-	DO(icp6s_checksum, 5, 0);
-	DO(icp6s_tooshort, 6, 0);
-	DO(icp6s_error, 3, 35);
-	DO(icp6s_tooshort, 4, 35);
-	DO(icp6s_canterror, 5, 35);
-	DO(icp6s_reflect, 6, 35);
+	DO(icp6s_badcode, 2, 0);
+	DO(icp6s_badlen, 3, 0);
+	DO(icp6s_checksum, 4, 0);
+	DO(icp6s_tooshort, 5, 0);
+	DO(icp6s_error, 2, 35);
+	DO(icp6s_tooshort, 3, 35);
+	DO(icp6s_canterror, 4, 35);
+	DO(icp6s_reflect, 5, 35);
 #define DO2(type, row) DO(icp6s_inhist[type], row, 0); DO(icp6s_outhist[type], \
 							 row, 35)
-	DO2(ICMP6_ECHO_REPLY, 9);
-	DO2(ICMP6_ECHO_REQUEST, 10);
-	DO2(ICMP6_DST_UNREACH, 11);
-	DO2(ND_REDIRECT, 12);
-	DO2(ICMP6_TIME_EXCEEDED, 13);
-	DO2(ICMP6_PARAM_PROB, 14);
-	DO2(ND_NEIGHBOR_SOLICIT, 15);
-	DO2(ND_NEIGHBOR_ADVERT, 16);
-	DO(icp6s_inhist[ND_ROUTER_SOLICIT], 17, 0);
-	DO(icp6s_outhist[ND_ROUTER_ADVERT], 17, 35);
+	DO2(ICMP6_ECHO_REPLY, 8);
+	DO2(ICMP6_ECHO_REQUEST, 9);
+	DO2(ICMP6_DST_UNREACH, 10);
+	DO2(ND_REDIRECT, 11);
+	DO2(ICMP6_TIME_EXCEEDED, 12);
+	DO2(ICMP6_PARAM_PROB, 13);
+	DO2(ND_NEIGHBOR_SOLICIT, 14);
+	DO2(ND_NEIGHBOR_ADVERT, 15);
+	DO(icp6s_inhist[ND_ROUTER_SOLICIT], 16, 0);
+	DO(icp6s_outhist[ND_ROUTER_ADVERT], 16, 35);
 #undef DO
 #undef DO2
 }

@@ -97,7 +97,7 @@ static void stat1(int, int);
 WINDOW *
 openiostat()
 {
-	return (subwin(stdscr, LINES-1-5, 0, 5, 0));
+	return (subwin(stdscr, LINES-3-1, 0, MAINWIN_ROW, 0));
 }
 
 void
