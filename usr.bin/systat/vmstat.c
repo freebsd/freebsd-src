@@ -392,7 +392,7 @@ labelkre()
 		 */
 		mvprintw(VMSTATROW + 11, VMSTATCOL - 6, "zfod");
 		mvprintw(VMSTATROW + 12, VMSTATCOL - 6, "ozfod");
-		mvprintw(VMSTATROW + 13, VMSTATCOL - 6, "%%sloz");
+		mvprintw(VMSTATROW + 13, VMSTATCOL - 7, "%%ozfod");
 		mvprintw(VMSTATROW + 14, VMSTATCOL - 6, "totfr");
 		extended_vm_stats = 1;
 	} else {
@@ -530,8 +530,8 @@ showkre()
 	    PUTRATE(v_zfod, VMSTATROW + 11, VMSTATCOL - 16, 9);
 	    PUTRATE(v_ozfod, VMSTATROW + 12, VMSTATCOL - 16, 9);
 	    putint(
-		((s.v_ozfod < s.v_zfod) ?
-		    s.v_ozfod * 100 / s.v_zfod : 
+		((s.v_zfod != 0) ?
+		    (int)(s.v_ozfod * 100.0 / s.v_zfod) : 
 		    0
 		),
 		VMSTATROW + 13, 
