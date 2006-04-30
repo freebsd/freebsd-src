@@ -408,7 +408,6 @@ sleepq_catch_signals(void *wchan)
 	mtx_lock_spin(&sched_lock);
 	if (TD_ON_SLEEPQ(td))
 		sleepq_resume_thread(sq, td, -1);
-	td->td_flags &= ~TDF_SINTR;
 	return (ret);
 }
 
@@ -628,6 +627,7 @@ sleepq_resume_thread(struct sleepqueue *sq, struct thread *td, int pri)
 
 	td->td_wmesg = NULL;
 	td->td_wchan = NULL;
+	td->td_flags &= ~TDF_SINTR;
 
 	/*
 	 * Note that thread td might not be sleeping if it is running
