@@ -207,7 +207,7 @@ closekre(w)
 int
 initkre()
 {
-	char *intrnamebuf, *cp;
+	char *cp, *cp1, *cp2, *intrnamebuf, *nextcp;
 	int i;
 	size_t sz;
 
@@ -249,8 +249,39 @@ initkre()
 			return(0);
 		}
 		for (cp = intrnamebuf, i = 0; i < nintr; i++) {
+			nextcp = cp + strlen(cp) + 1;
+
+			/* Discard trailing spaces. */
+			for (cp1 = nextcp - 1; cp1 > cp && *(cp1 - 1) == ' '; )
+				*--cp1 = '\0';
+
+			/* Convert "irqN: name" to "name irqN". */
+			if (strncmp(cp, "irq", 3) == 0) {
+				cp1 = cp + 3;
+				while (isdigit((u_char)*cp1))
+					cp1++;
+				if (cp1 != cp && *cp1 == ':' &&
+				    *(cp1 + 1) == ' ') {
+					*cp1 = '\0';
+					cp1 = cp1 + 2;
+					cp2 = strdup(cp);
+					bcopy(cp1, cp, strlen(cp1) + 1);
+					strcat(cp, " ");
+					strcat(cp, cp2);
+					free(cp2);
+				}
+			}
+
+			/*
+			 * Convert "name irqN" to "name N" if the former is
+			 * longer than the field width.
+			 */
+			if ((cp1 = strstr(cp, "irq")) != NULL &&
+			    strlen(cp) > 10)
+				bcopy(cp1 + 3, cp1, strlen(cp1 + 3) + 1);
+
 			intrname[i] = cp;
-			cp += strlen(cp) + 1;
+			cp = nextcp;
 		}
 		nextintsrow = INTSROW + 2;
 		allocinfo(&s);
