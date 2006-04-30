@@ -42,7 +42,7 @@
  * Definitions for the server recent request cache
  */
 
-#define	NFSRVCACHESIZ	64
+#define	NFSRVCACHESIZ	2048
 
 struct nfsrvcache {
 	TAILQ_ENTRY(nfsrvcache) rc_lru;		/* LRU chain */
