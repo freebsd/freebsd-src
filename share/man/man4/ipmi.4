@@ -1,0 +1,187 @@
+.\"
+.\" Copyright (c) 2006 Tom Rhodes
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 20, 2006
+.Dt IPMI 4
+.Os
+.Sh NAME
+.Nm ipmi
+.Nd "OpenIPMI compatible IPMI interface driver"
+.Sh SYNOPSIS
+.Cd "device ipmi"
+.Pp
+.In sys/dev/ipmi.h
+.Ft int
+.Fn ioctl "int d" "IPMICTL_RECEIVE_MSG_TRUNC" "struct ipmi_recv *"
+.Ft int
+.Fn ioctl "int d" "IPMICTL_RECEIVE_MSG" "struct ipmi_recv *"
+.Ft int
+.Fn ioctl "int d" "IPMICTL_SEND_COMMAND" "struct ipmi_req *"
+.Ft int
+.Fn ioctl "int d" "IPMICTL_REGISTER_FOR_CMD" "struct ipmi_cmdspec *"
+.Ft int
+.Fn ioctl "int d" "IPMICTL_UNREGISTER_FOR_CMD" "struct ipmi_cmdspec *"
+.Ft int
+.Fn ioctl "int d" "IPMICTL_SET_GETS_EVENTS_CMD" "int *"
+.Ft int
+.Fn ioctl "int d" "IPMICTL_SET_MY_ADDRESS_CMD" "unsigned int *"
+.Ft int
+.Fn ioctl "int d" "IPMICTL_GET_MY_ADDRESS_CMD" "unsigned int *"
+.Ft int
+.Fn ioctl "int d" "IPMICTL_SET_MY_LUN_CMD" "unsigned int *"
+.Ft int
+.Fn ioctl "int d" "IPMICTL_GET_MY_LUN_CMD" "unsigned int *"
+.Sh DESCRIPTION
+The
+.Tn IPMI
+(Intelligent Platform Management Interface) is a standard for
+monitoring system hardware by permitting generic code to detect
+and monitor the sensors in a system.
+The
+.Tn IPMI
+standard offers watchdog support, an FRU database, and other
+support extensions.
+It is currently being adopted by the makers of many
+single board and embedded system manufacturers.
+.Pp
+The
+.Nm
+driver in
+.Fx
+is heavily adopted from the standard and
+.Lx
+driver; however, not all features described in the
+standard are supported.
+.Sh IOCTL
+Sending and receiving messages through the
+.Nm
+driver requires the use of IOCTLs.
+The IOCTLs are used due to the complexity of
+data sent to and from the device.
+Currently the following IOCTLs are defined:
+.Pp
+.Dv IPMI_IOC_MAGIC
+The magic IOCTL value for this interface.
+.Pp
+.Dv IPMICTL_RECEIVE_MSG_TRUNC
+Like
+.Dv RECEIVE_MSG
+but if the message can not fit into the buffer, it
+will truncate the contents instead of leaving the data
+in the buffer.
+.Pp
+.Dv IPMICTL_RECEIVE_MSG
+Receive a message.
+Possible error values:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+No messages are in the process queue.
+.It Bq Er EFAULT
+An address supplied was invalid.
+.It Bq Er EMSGSIZE
+The address could not fit in the message buffer and
+will remain in the buffer.
+.El
+.Pp
+.Dv IPMICTL_SEND_COMMAND
+Send a message to the interface.
+Possible error values:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+An address supplied was invalid
+.It Bq Er ENOMEM
+Buffers could not be allowed for the command, out of memory.
+.El
+.Pp
+.Dv IPMICTL_SET_MY_ADDRESS_CMD
+Set the slave address for source messages.
+.Pp
+.Dv IPMICTL_GET_MY_ADDRESS_CMD
+Get the slave address for source messages.
+.Pp
+.Dv IPMICTL_SET_MY_LUN_CMD
+Set the slave LUN for source messages.
+.Pp
+.Dv IPMICTL_GET_MY_LUN_CMD
+Get the slave LUN for source messages.
+.Pp
+.Ss Unimplemented IOCTLS:
+.Pp
+.Dv IPMICTL_REGISTER_FOR_CMD
+Register to receive a specfic command
+Possible error values:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+An supplied address was invalid.
+.It Bq Er EBUSY
+The network function/command is already in use.
+.It Bq Er ENOMEM
+Could not allocate memory.
+.El
+.Pp
+.Dv IPMICTL_UNREGISTER_FOR_CMD
+Unregister to receive a specific command
+Possible error values:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+An address supplied was invalid.
+.It Bq Er ENOENT
+The network function/command was not found.
+.El
+.Pp
+.Ss Stub only IOCTL:
+.Pp
+.Dv IPMICTL_SET_GETS_EVENTS_CMD
+Set whether this interface receives events.
+Possible error values:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+An address supplied was invalid.
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr watchdog 4 ,
+.Xr watchdog 8 ,
+.Xr watchdogd 8 ,
+.Xr watchdog 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Doug Ambrisko Aq ambrisko@FreeBSD.org .
+This manual page was written by
+.An Tom Rhodes Aq trhodes@FreeBSD.org .
+.Sh BUGS
+Not all features of the MontaVista driver are supported.
+.Pp
+Currently, IPMB and BT modes are not implemented.
