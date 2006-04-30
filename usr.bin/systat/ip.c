@@ -201,7 +201,7 @@ domode(struct stat *ret)
 	DO(u.udps_opackets);
 #undef DO
 }
-	
+
 void
 showip(void)
 {

@@ -52,7 +52,7 @@
                                 /* Column numbers */
 
 #define C1	0		/*  0-19 */
-#define C2	20		/* 20-39 */ 
+#define C2	20		/* 20-39 */
 #define C3	40		/* 40-59 */
 #define C4	60		/* 60-80 */
 #define C5	80		/* Used for label positioning. */
@@ -65,7 +65,7 @@ static const int col4 = C4;
 static const int col5 = C5;
 
 
-SLIST_HEAD(, if_stat)		curlist;	
+SLIST_HEAD(, if_stat)		curlist;
 SLIST_HEAD(, if_stat_disp)	displist;
 
 struct if_stat {
@@ -204,7 +204,7 @@ showifstat(void)
 	return;
 }
 
-int 
+int
 initifstat(void)
 {
 	struct   if_stat *p = NULL;
@@ -226,7 +226,7 @@ initifstat(void)
 		getifmibdata(p->if_row, &p->if_mib);
 		right_align_string(p);
 
-		/* 
+		/*
 		 * Initially, we only display interfaces that have
 		 * received some traffic.
 		 */
@@ -249,11 +249,11 @@ fetchifstat(void)
 	u_int	we_need_to_sort_interface_list = 0;
 
 	SLIST_FOREACH(ifp, &curlist, link) {
-		/* 
+		/*
 		 * Grab a copy of the old input/output values before we
 		 * call getifmibdata().
 		 */
-		old_inb = ifp->if_mib.ifmd_data.ifi_ibytes;		
+		old_inb = ifp->if_mib.ifmd_data.ifi_ibytes;
 		old_outb = ifp->if_mib.ifmd_data.ifi_obytes;
 		ifp->tv_lastchanged = ifp->if_mib.ifmd_data.ifi_lastchange;
 
@@ -269,7 +269,7 @@ fetchifstat(void)
 		if (new_inb > 0 && old_inb == 0) {
 			ifp->display = 1;
 			we_need_to_sort_interface_list++;
-		} 
+		}
 
 		/*
 		 * The rest is pretty trivial.  Calculate the new values
@@ -308,7 +308,7 @@ fetchifstat(void)
 	return;
 }
 
-/* 
+/*
  * We want to right justify our interface names against the first column
  * (first sixteen or so characters), so we need to do some alignment.
  */
@@ -348,7 +348,7 @@ void
 sort_interface_list(void)
 {
 	struct	if_stat	*ifp = NULL;
-	u_int	y = 0;	
+	u_int	y = 0;
 
 	y = STARTING_ROW;
 	SLIST_FOREACH(ifp, &curlist, link) {
@@ -378,7 +378,7 @@ getifnum(void)
 	return data;
 }
 
-static void 
+static void
 getifmibdata(int row, struct ifmibdata *data)
 {
 	size_t	datalen = 0;
