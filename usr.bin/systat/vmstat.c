@@ -560,14 +560,8 @@ showkre()
 	PUTRATE(v_intr, GENSTATROW + 1, GENSTATCOL + 15, 4);
 	PUTRATE(v_soft, GENSTATROW + 1, GENSTATCOL + 20, 4);
 	PUTRATE(v_vm_faults, GENSTATROW + 1, GENSTATCOL + 25, 4);
-	mvprintw(DISKROW, DISKCOL + 5, "                              ");
 	for (i = 0, lc = 0; i < num_devices && lc < MAXDRIVES; i++)
 		if (dev_select[i].selected) {
-			char tmpstr[80];
-			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
-				dev_select[i].unit_number);
-			mvprintw(DISKROW, DISKCOL + 5 + 6 * lc,
-				" %5.5s", tmpstr);
 			switch(state) {
 			case TIME:
 				dinfo(i, ++lc, &cur, &last);
