@@ -195,7 +195,9 @@ closekre(w)
 #define VMSTATCOL	48	/* actually 50-51 for some fields */
 #define GRAPHROW	10	/* uses 3 rows and 51 cols */
 #define GRAPHCOL	 0
-#define NAMEIROW	14	/* uses 3 rows and 37 cols */
+#define VNSTATROW	13	/* uses 4 rows and 13 columns */
+#define VNSTATCOL	35
+#define NAMEIROW	14	/* uses 3 rows and 32 cols */
 #define NAMEICOL	 0
 #define DISKROW		18	/* uses 5 rows and 47 cols (for 7 drives) */
 #define DISKCOL		 0
@@ -346,11 +348,6 @@ labelkre()
 	mvprintw(VMSTATROW + 11, VMSTATCOL + 10, "pdpgs");
 	mvprintw(VMSTATROW + 12, VMSTATCOL + 10, "intrn");
 	mvprintw(VMSTATROW + 13, VMSTATCOL + 10, "buf");
-	mvprintw(VMSTATROW + 14, VMSTATCOL + 10, "dtbuf");
-
-	mvprintw(VMSTATROW + 15, VMSTATCOL + 10, "desvn");
-	mvprintw(VMSTATROW + 16, VMSTATCOL + 10, "numvn");
-	mvprintw(VMSTATROW + 17, VMSTATCOL + 10, "frevn");
 
 	mvprintw(GENSTATROW, GENSTATCOL, " Csw  Trp  Sys  Int  Sof  Flt");
 
@@ -361,9 +358,14 @@ labelkre()
 	mvprintw(GRAPHROW + 1, GRAPHCOL,
 		"|    |    |    |    |    |    |    |    |    |    |");
 
-	mvprintw(NAMEIROW, NAMEICOL, "Namei         Name-cache    Dir-cache");
+	mvprintw(VNSTATROW, VNSTATCOL + 8, "dtbuf");
+	mvprintw(VNSTATROW + 1, VNSTATCOL + 8, "desvn");
+	mvprintw(VNSTATROW + 2, VNSTATCOL + 8, "numvn");
+	mvprintw(VNSTATROW + 3, VNSTATCOL + 8, "frevn");
+
+	mvprintw(NAMEIROW, NAMEICOL, "Namei     Name-cache   Dir-cache");
 	mvprintw(NAMEIROW + 1, NAMEICOL,
-		"    Calls     hits    %%     hits    %%");
+		"   Calls    hits   %%    hits   %%");
 	mvprintw(DISKROW, DISKCOL, "Disks");
 	mvprintw(DISKROW + 1, DISKCOL, "KB/t");
 	mvprintw(DISKROW + 2, DISKCOL, "tps");
@@ -542,10 +544,6 @@ showkre()
 	}
 
 	putint(s.bufspace/1024, VMSTATROW + 13, VMSTATCOL, 9);
-	putint(s.numdirtybuffers, VMSTATROW + 14, VMSTATCOL, 9);
-	putint(s.desiredvnodes, VMSTATROW + 15, VMSTATCOL, 9);
-	putint(s.numvnodes, VMSTATROW + 16, VMSTATCOL, 9);
-	putint(s.freevnodes, VMSTATROW + 17, VMSTATCOL, 9);
 	PUTRATE(v_vnodein, PAGEROW + 2, PAGECOL + 6, 5);
 	PUTRATE(v_vnodeout, PAGEROW + 2, PAGECOL + 12, 5);
 	PUTRATE(v_swapin, PAGEROW + 2, PAGECOL + 19, 5);
@@ -574,16 +572,20 @@ showkre()
 				break;
 			}
 		}
-	putint(s.nchcount, NAMEIROW + 2, NAMEICOL, 9);
+	putint(s.numdirtybuffers, VNSTATROW, VNSTATCOL, 7);
+	putint(s.desiredvnodes, VNSTATROW + 1, VNSTATCOL, 7);
+	putint(s.numvnodes, VNSTATROW + 2, VNSTATCOL, 7);
+	putint(s.freevnodes, VNSTATROW + 3, VNSTATCOL, 7);
+	putint(s.nchcount, NAMEIROW + 2, NAMEICOL, 8);
 	putint((nchtotal.ncs_goodhits + nchtotal.ncs_neghits),
-	   NAMEIROW + 2, NAMEICOL + 10, 8);
+	   NAMEIROW + 2, NAMEICOL + 9, 7);
 #define nz(x)	((x) ? (x) : 1)
 	putfloat((nchtotal.ncs_goodhits+nchtotal.ncs_neghits) *
 	   100.0 / nz(s.nchcount),
-	   NAMEIROW + 2, NAMEICOL + 19, 4, 0, 1);
-	putint(nchtotal.ncs_pass2, NAMEIROW + 2, NAMEICOL + 24, 8);
+	   NAMEIROW + 2, NAMEICOL + 17, 3, 0, 1);
+	putint(nchtotal.ncs_pass2, NAMEIROW + 2, NAMEICOL + 21, 7);
 	putfloat(nchtotal.ncs_pass2 * 100.0 / nz(s.nchcount),
-	   NAMEIROW + 2, NAMEICOL + 33, 4, 0, 1);
+	   NAMEIROW + 2, NAMEICOL + 29, 3, 0, 1);
 #undef nz
 }
 
