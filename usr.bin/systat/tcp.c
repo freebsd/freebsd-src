@@ -227,7 +227,7 @@ domode(struct tcpstat *ret)
 	DO(tcps_listendrop);
 #undef DO
 }
-	
+
 void
 showtcp(void)
 {

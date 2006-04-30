@@ -170,11 +170,11 @@ showswap()
 		}
 
 		mvwprintw(
-		    wnd, 
-		    i + 1, 
+		    wnd,
+		    i + 1,
 		    lcol,
 		    "%*d",
-		    hlen, 
+		    hlen,
 		    CONVERT(kvmsw[i].ksw_total)
 		);
 		lcol += hlen;
@@ -182,7 +182,7 @@ showswap()
 		mvwprintw(
 		    wnd,
 		    i + 1,
-		    lcol, 
+		    lcol,
 		    "%9d  ",
 		    CONVERT(kvmsw[i].ksw_used)
 		);
