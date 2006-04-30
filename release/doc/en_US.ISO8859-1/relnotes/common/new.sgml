@@ -439,6 +439,9 @@
 	  NetXtreme II (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet controllers,
 	  has been added.  For more details, see &man.bce.4;. &merged;</para>
 
+	<para>A bug which prevents the &man.bfe.4; driver from working
+	  on a system with over 1GB RAM has been fixed.  &merged;</para>
+
 	<para>The &man.bge.4; driver's Jumbo frame support is now MPSAFE.</para>
 
 	<para>The &man.bge.4; driver now supports big-endian
