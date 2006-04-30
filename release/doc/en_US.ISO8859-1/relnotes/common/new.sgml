@@ -285,6 +285,9 @@
 	  NetXtreme II (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet controllers,
 	  has been added.  For more details, see &man.bce.4;.</para>
 
+	<para>A bug which prevents the &man.bfe.4; driver from working
+	  on a system with over 1GB RAM has been fixed.</para>
+
 	<para>The &man.bge.4; driver now supports &man.polling.4; mode.</para>
 
 	<para>The &man.em.4; driver now supports big-endian
@@ -581,6 +584,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.xargs.1; utility now supports a <option>-r</option>
       flag which makes the command execution when the standard input
       does not contain any non-whitespace-characters.</para>
+
+    <para>A bug in the &man.ypwhich.1; utility which causes
+      the <option>-m</option> option to produce an incorrect
+      list of available named maps has been fixed.</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
