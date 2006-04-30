@@ -78,7 +78,7 @@ struct	cmdtab cmdtab[] = {
 #endif
 	{ "tcp",	showtcp,	fetchtcp,	labeltcp,
 	  inittcp,	opentcp,	closetcp,	cmdmode,
-	  resettcp,	0 },
+	  resettcp,	CF_LOADAV },
 	{ "ifstat",	showifstat,	fetchifstat,	labelifstat,
 	  initifstat,	openifstat,	closeifstat,	cmdifstat,
 	  0,		CF_LOADAV },
