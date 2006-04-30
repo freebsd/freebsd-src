@@ -333,6 +333,13 @@ handled by the system wide name translation cache, and
 the number and percentage of the translations that were
 handled by the per process name translation cache.
 .Pp
+To the right of the name translations display are lines showing
+the number of dirty buffers in the buffer cache (`dtbuf'),
+desired maximum size of vnode cache (`desvn'),
+number of vnodes actually allocated (`numvn'),
+and
+number of allocated vnodes that are free (`frevn').
+.Pp
 At the bottom left is the disk usage display.
 It reports the number of
 kilobytes per transaction, transactions per second, megabytes
@@ -372,7 +379,7 @@ total pages freed (`totfr'),
 pages wired down (`wire'),
 active pages (`act'),
 inactive pages (`inact'),
-pages on the buffer cache queue (`cache'),
+pages on the cache queue (`cache'),
 number of free pages (`free'),
 pages freed by the page daemon (`daefr'),
 pages freed by exiting processes (`prcfr'),
@@ -383,13 +390,14 @@ and
 intransit blocking page faults (`intrn')
 per second over the refresh interval.
 .Pp
-At the bottom of this column are lines showing the
-amount of memory, in kilobytes, used for the buffer cache (`buf'),
-the number of dirty buffers in the buffer cache (`dtbuf'),
-desired maximum size of vnode cache (`desvn'),
-number of vnodes actually allocated (`numvn'),
-and
-number of allocated vnodes that are free (`frevn').
+At the bottom of this column is a line showing the
+amount of virtual memory, in kilobytes, mapped into the buffer cache (`buf').
+This statistic is not useful.
+It exists only as a placeholder for the corresponding useful statistic
+(the amount of real memory used to cache disks).
+The most important component of the latter (the amount of real memory
+used by the vm system to cache disks) is not available,
+but can be guessed from the `inact' amount under some system loads.
 .Pp
 Running down the right hand side of the display is a breakdown
 of the interrupts being handled by the system.
