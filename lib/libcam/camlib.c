@@ -465,7 +465,7 @@ static struct cam_device *
 cam_lookup_pass(const char *dev_name, int unit, int flags,
 		const char *given_path, struct cam_device *device)
 {
-	int fd;
+	int fd, rc;
 	union ccb ccb;
 	char dev_path[256];
 	char *func_name = "cam_lookup_pass";
@@ -494,7 +494,10 @@ cam_lookup_pass(const char *dev_name, int unit, int flags,
 	 * the device name is null, if the device doesn't exist, or if the
 	 * passthrough driver isn't in the kernel.
 	 */
-	if (ioctl(fd, CAMGETPASSTHRU, &ccb) == -1) {
+	rc = ioctl(fd, CAMGETPASSTHRU, &ccb);
+	close(fd);
+
+	if (rc == -1) {
 		char tmpstr[256];
 
 		/*
@@ -516,8 +519,6 @@ cam_lookup_pass(const char *dev_name, int unit, int flags,
 
 		return(NULL);
 	}
-
-	close(fd);
 
 	/*
 	 * If the ioctl returned the right status, but we got an error back
