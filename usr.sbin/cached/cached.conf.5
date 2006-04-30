@@ -24,7 +24,6 @@
 .\"
 .\" $FreeBSD$
 .\"
-
 .Dd April 30, 2006
 .Dt CACHED.CONF 5
 .Os
@@ -35,59 +34,67 @@
 .Nm
 is used by the
 .Xr cached 8
-daemon and is read on its startup. Its syntax is mostly similar to the
-nscd.conf syntax in Linux and Solaris. It has some differences, though -
-see them below.
+daemon and is read on its startup.
+Its syntax is mostly similar to the nscd.conf syntax in Linux and Solaris.
+It has some differences, though - see them below.
 .Pp
 Each line specifies either an attribute and a value, or an attribute,
-a cachename and a value. Usual cachenames are passwd, groups, hosts,
-services, protocols and rpc. You can also use any other cachename
-(for example, if some third-party application uses nsswitch).
+a cachename and a value.
+Usual cachenames are passwd, groups, hosts, services, protocols and rpc.
+You can also use any other cachename (for example, if some third-party
+application uses nsswitch).
 .Pp
 .Bl -tag -width Pair
 .It Sy threads [value]
-Number of threads, which would listen for connections and process requests. The
-minimum is 1. The default value is 8.
+Number of threads, which would listen for connections and process requests.
+The minimum is 1.
+The default value is 8.
 .It Sy enable-cache [cachename] [yes|no]
 Enables or disables the cache for specified cachename.
 .It Sy positive-time-to-live [cachename] [value]
-Sets the TTL (time-to-live) for the specified cache in seconds. Larger values
-can increase system's performance, but they also can affect the cache
-coherence. The default value is 3600.
+Sets the TTL (time-to-live) for the specified cache in seconds.
+Larger values can increase system's performance, but they also can affect
+the cache coherence.
+The default value is 3600.
 .It Sy positive-policy [cachename] [fifo|lru|lfu]
 The policy that is applied to erase some of the cache elements, when the
-size limit of the given cachename is exceeded. Possible policies are:
-fifo (first-in-first-out), lru (least-recently-used),
-lfu (least-frequently-used). The default policy is lru.
+size limit of the given cachename is exceeded.
+Possible policies are: fifo (first-in-first-out), lru (least-recently-used),
+lfu (least-frequently-used).
+The default policy is lru.
 .It Sy negative-time-to-live [cachename] [value]
-The TTL of the negative cached elements in seconds. The larger values can
-significantly increase system performance in some environments
-(when dealing with files with UIDs, which are not in system databases,
-for example). This number should be kept low to avoid the cache
-coherence problems. The default value is 60.
+The TTL of the negative cached elements in seconds.
+The larger values can significantly increase system performance in some
+environments (when dealing with files with UIDs, which are not in system
+databases, for example).
+This number should be kept low to avoid the cache coherence problems.
+The default value is 60.
 .It Sy negative-policy [cachename] [fifo|lru|lfu]
 The same as the positive-policy, but this one is applied to the negative
-elements of the given cachename. The default policy is fifo.
+elements of the given cachename.
+The default policy is fifo.
 .It Sy suggested-size [cachename] [value]
-This is the internal hash table size. The value should be a prime number
-for optimum performance. You should only change this value when the number
-of cached elements is significantly (in 5-10 times) greater then the default
-hash table size (255).
+This is the internal hash table size.
+The value should be a prime number for optimum performance.
+You should only change this value when the number of cached elements is
+significantly (in 5-10 times) greater then the default hash table size (255).
 .It Sy keep-hot-count [cachename] [value]
-The size limit of the cache with the given cachename. When it is exceeded,
-the policy will be applied. The default value is 2048.
+The size limit of the cache with the given cachename.
+When it is exceeded, the policy will be applied.
+The default value is 2048.
 .It Sy perform-actual-lookups [cachename] [yes|no]
 If enabled, the
 .Xr cached 8
-doesn't simply receive and cache the NSS-requests results, but performs
-all the lookups by itself and only returns the responses. If this feature is
-enabled, then for the given cachename
+does not simply receive and cache the NSS-requests results, but performs
+all the lookups by itself and only returns the responses.
+If this feature is enabled, then for the given cachename
 .Xr cached 8
 will act similarly to the NSCD.
 .Pp
 .Pa NOTE:
 this feature is currently experimental - it supports only passwd, groups and
 services cachenames.
+.El
 .Sh "NOTES"
 You can use
 .Sq #
