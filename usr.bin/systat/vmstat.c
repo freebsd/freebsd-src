@@ -397,9 +397,8 @@ showkre()
 {
 	float f1, f2;
 	int psiz, inttotal;
-	int i, j, k, l, lc;
+	int i, l, lc;
 	static int failcnt = 0;
-	char intrbuffer[10];
 
 	etime = 0;
 	for(i = 0; i < CPUSTATES; i++) {
@@ -431,15 +430,8 @@ showkre()
 			if (nextintsrow == LINES)
 				continue;
 			intrloc[i] = nextintsrow++;
-			k = 0;
-			for (j = 0; j < (int)sizeof(intrbuffer); j++) {
-				if (strncmp(&intrname[i][j], "irq", 3) == 0)
-					j += 3;
-				intrbuffer[k++] = intrname[i][j];
-			}
-			intrbuffer[k] = '\0';
 			mvprintw(intrloc[i], INTSCOL + 6, "%-10.10s",
-				intrbuffer);
+				intrname[i]);
 		}
 		X(intrcnt);
 		l = (int)((float)s.intrcnt[i]/etime + 0.5);
