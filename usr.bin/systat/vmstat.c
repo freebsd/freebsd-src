@@ -149,7 +149,6 @@ static	int nintr;
 static	long *intrloc;
 static	char **intrname;
 static	int nextintsrow;
-static  int extended_vm_stats;
 
 struct	utmp utmp;
 
@@ -191,7 +190,7 @@ closekre(w)
 #define PROCSCOL	 0
 #define GENSTATROW	 7	/* uses 2 rows and 29 cols */
 #define GENSTATCOL	21
-#define VMSTATROW	 6	/* uses 17-18 rows and 12-15 cols */
+#define VMSTATROW	 6	/* uses 17 rows and 12-15 cols */
 #define VMSTATCOL	48	/* actually 50-51 for some fields */
 #define GRAPHROW	10	/* uses 3 rows and 51 cols */
 #define GRAPHCOL	 0
@@ -336,6 +335,10 @@ labelkre()
 	mvprintw(INTSROW + 1, INTSCOL + 6, "total");
 
 	mvprintw(VMSTATROW + 1, VMSTATCOL + 10, "cow");
+	mvprintw(VMSTATROW + 14, VMSTATCOL + 10, "zfod");
+	mvprintw(VMSTATROW + 15, VMSTATCOL + 10, "ozfod");
+	mvprintw(VMSTATROW + 16, VMSTATCOL + 10 - 1, "%%ozfod");
+	mvprintw(VMSTATROW + 17, VMSTATCOL + 10, "totfr");
 	mvprintw(VMSTATROW + 2, VMSTATCOL + 10, "wire");
 	mvprintw(VMSTATROW + 3, VMSTATCOL + 10, "act");
 	mvprintw(VMSTATROW + 4, VMSTATCOL + 10, "inact");
@@ -387,20 +390,6 @@ labelkre()
 				" %5.5s", tmpstr);
 			j++;
 		}
-
-	if (j <= 4) {
-		/*
-		 * room for extended VM stats
-		 */
-		mvprintw(VMSTATROW + 11, VMSTATCOL - 6, "zfod");
-		mvprintw(VMSTATROW + 12, VMSTATCOL - 6, "ozfod");
-		mvprintw(VMSTATROW + 13, VMSTATCOL - 7, "%%ozfod");
-		mvprintw(VMSTATROW + 14, VMSTATCOL - 6, "totfr");
-		extended_vm_stats = 1;
-	} else {
-		extended_vm_stats = 0;
-		mvprintw(VMSTATROW + 0, VMSTATCOL + 10, "zfod");
-	}
 
 	for (i = 0; i < nintr; i++) {
 		if (intrloc[i] == 0)
@@ -513,9 +502,12 @@ showkre()
 	putint(total.t_dw, PROCSROW + 2, PROCSCOL + 8, 3);
 	putint(total.t_sl, PROCSROW + 2, PROCSCOL + 12, 3);
 	putint(total.t_sw, PROCSROW + 2, PROCSCOL + 16, 3);
-	if (extended_vm_stats == 0)
-		PUTRATE(v_zfod, VMSTATROW + 0, VMSTATCOL, 9);
 	PUTRATE(v_cow_faults, VMSTATROW + 1, VMSTATCOL + 3, 9 - 3);
+	PUTRATE(v_zfod, VMSTATROW + 14, VMSTATCOL, 9);
+	PUTRATE(v_ozfod, VMSTATROW + 15, VMSTATCOL, 9);
+	putint(s.v_zfod != 0 ? (int)(s.v_ozfod * 100.0 / s.v_zfod) : 0,
+	    VMSTATROW + 16, VMSTATCOL, 9);
+	PUTRATE(v_tfree, VMSTATROW + 17, VMSTATCOL, 9);
 	putint(pgtokb(s.v_wire_count), VMSTATROW + 2, VMSTATCOL + 3, 9 - 3);
 	putint(pgtokb(s.v_active_count), VMSTATROW + 3, VMSTATCOL, 9);
 	putint(pgtokb(s.v_inactive_count), VMSTATROW + 4, VMSTATCOL + 2, 9 - 2);
@@ -527,22 +519,6 @@ showkre()
 	PUTRATE(v_pdwakeups, VMSTATROW + 10, VMSTATCOL, 9);
 	PUTRATE(v_pdpages, VMSTATROW + 11, VMSTATCOL, 9);
 	PUTRATE(v_intrans, VMSTATROW + 12, VMSTATCOL, 9);
-
-	if (extended_vm_stats) {
-	    PUTRATE(v_zfod, VMSTATROW + 11, VMSTATCOL - 16, 9);
-	    PUTRATE(v_ozfod, VMSTATROW + 12, VMSTATCOL - 16, 9);
-	    putint(
-		((s.v_zfod != 0) ?
-		    (int)(s.v_ozfod * 100.0 / s.v_zfod) : 
-		    0
-		),
-		VMSTATROW + 13, 
-		VMSTATCOL - 16,
-		9
-	    );
-	    PUTRATE(v_tfree, VMSTATROW + 14, VMSTATCOL - 16, 9);
-	}
-
 	putint(s.bufspace/1024, VMSTATROW + 13, VMSTATCOL, 9);
 	PUTRATE(v_vnodein, PAGEROW + 2, PAGECOL + 6, 5);
 	PUTRATE(v_vnodeout, PAGEROW + 2, PAGECOL + 12, 5);
