@@ -109,11 +109,11 @@ main(int argc, char **argv)
 	}
 	kd = kvm_openfiles(NULL, NULL, NULL, O_RDONLY, errbuf);
 	if (kd != NULL) {
-		/* 
+		/*
 		 * Try to actually read something, we may be in a jail, and
 		 * have /dev/null opened as /dev/mem.
 		 */
-		if (kvm_nlist(kd, namelist) != 0 || namelist[0].n_value == 0 || 
+		if (kvm_nlist(kd, namelist) != 0 || namelist[0].n_value == 0 ||
 		    kvm_read(kd, namelist[0].n_value, &dummy, sizeof(dummy)) !=
 		    sizeof(dummy)) {
 			kvm_close(kd);
@@ -121,7 +121,7 @@ main(int argc, char **argv)
 		}
 	}
 	if (kd == NULL) {
-		/* 
+		/*
 		 * Maybe we are lacking permissions? Retry, this time with bogus
 		 * devices. We can now use sysctl only.
 		 */

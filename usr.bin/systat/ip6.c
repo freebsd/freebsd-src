@@ -75,7 +75,7 @@ static struct ip6stat curstat, initstat, oldstat;
 059999999 total fragments received 999999999 - fragmentation failed
 069999999 - fragments dropped      999999999 destinations unreachable
 079999999 - fragments timed out    999999999 packets output via raw IP
-089999999 - fragments overflown   
+089999999 - fragments overflown
 099999999 - packets reassembled ok           Input next-header histogram
 109999999 packets forwarded        999999999  - destination options
 119999999 - unreachable dests      999999999  - hop-by-hop options
@@ -86,7 +86,7 @@ static struct ip6stat curstat, initstat, oldstat;
 169999999 bad scope packets        999999999  - routing header
 179999999 address selection failed 999999999  - fragmentation header
 18                                 999999999  - ICMP6
-19                                 999999999  - none                     
+19                                 999999999  - none
 --0123456789012345678901234567890123456789012345678901234567890123456789012345
 --0         1         2         3         4         5         6         7
 */
@@ -188,7 +188,7 @@ domode(struct ip6stat *ret)
 	DO(ip6s_sources_none);
 #undef DO
 }
-	
+
 void
 showip6(void)
 {

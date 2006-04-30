@@ -174,7 +174,7 @@ domode(struct icmpstat *ret)
 	DO(icps_bmcasttstamp);
 #undef DO
 }
-	
+
 void
 showicmp(void)
 {
@@ -188,7 +188,7 @@ showicmp(void)
 		totalin += stats.icps_inhist[i];
 		totalout += stats.icps_outhist[i];
 	}
-	totalin += stats.icps_badcode + stats.icps_badlen + 
+	totalin += stats.icps_badcode + stats.icps_badlen +
 		stats.icps_checksum + stats.icps_tooshort;
 	mvwprintw(wnd, 1, 0, "%9lu", totalin);
 	mvwprintw(wnd, 1, 35, "%9lu", totalout);
