@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_ccb.h>
 #include <cam/cam_sim.h>
 #include <cam/cam_xpt_sim.h>
-#include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
 
 #include <cam/scsi/scsi_all.h>
