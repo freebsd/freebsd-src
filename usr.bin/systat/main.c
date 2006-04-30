@@ -150,7 +150,7 @@ main(int argc, char **argv)
 		warnx("couldn't initialize display");
 		die(0);
 	}
-	wload = newwin(1, 0, 3, 20);
+	wload = newwin(1, 0, 1, 20);
 	if (wload == NULL) {
 		warnx("couldn't set up load average window");
 		die(0);
@@ -183,9 +183,9 @@ void
 labels()
 {
 	if (curcmd->c_flags & CF_LOADAV) {
-		mvaddstr(2, 20,
+		mvaddstr(0, 20,
 		    "/0   /1   /2   /3   /4   /5   /6   /7   /8   /9   /10");
-		mvaddstr(3, 5, "Load Average");
+		mvaddstr(1, 5, "Load Average");
 	}
 	(*curcmd->c_label)();
 #ifdef notdef

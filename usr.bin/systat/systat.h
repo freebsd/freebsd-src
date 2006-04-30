@@ -62,6 +62,8 @@ extern int use_kvm;
 #define	TCP	0x1
 #define	UDP	0x2
 
+#define	MAINWIN_ROW	3		/* top row for the main/lower window */
+
 #define GETSYSCTL(name, var) getsysctl(name, &(var), sizeof(var))
 #define KREAD(addr, buf, len)  kvm_ckread((addr), (buf), (len))
 #define NVAL(indx)  namelist[(indx)].n_value

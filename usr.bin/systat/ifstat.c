@@ -96,12 +96,12 @@ static	 u_int getifnum(void);
 	err((n), (s));							\
 } while (0)
 
-#define STARTING_ROW	(8)
-#define ROW_SPACING	(3)
-
-#define TOPLINE 5
+#define TOPLINE 3
 #define TOPLABEL \
 "      Interface           Traffic               Peak                Total"
+
+#define STARTING_ROW	(TOPLINE + 1)
+#define ROW_SPACING	(3)
 
 #define CLEAR_LINE(y, x)	do {					\
 	wmove(wnd, y, x);						\
@@ -153,7 +153,7 @@ static	 u_int getifnum(void);
 WINDOW *
 openifstat(void)
 {
-	return (subwin(stdscr, LINES-1-5, 0, 5, 0));
+	return (subwin(stdscr, LINES-3-1, 0, MAINWIN_ROW, 0));
 }
 
 void
