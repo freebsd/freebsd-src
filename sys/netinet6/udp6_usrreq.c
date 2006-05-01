@@ -119,20 +119,59 @@
 extern	struct protosw inetsw[];
 static	void udp6_detach __P((struct socket *so));
 
+static void
+udp6_append(struct inpcb *in6p, struct mbuf *n, int off,
+    struct sockaddr_in6 *fromsa)
+{
+	struct socket *so;
+	struct mbuf *opts;
+
+	/* XXXRW: Not yet: INP_LOCK_ASSERT(in6p); */
+
+#if defined(IPSEC) || defined(FAST_IPSEC)
+	/*
+	 * Check AH/ESP integrity.
+	 */
+	if (ipsec6_in_reject(n, in6p)) {
+		m_freem(n);
+#ifdef IPSEC
+		ipsec6stat.in_polvio++;
+#endif /* IPSEC */
+		return;
+	}
+#endif /*IPSEC || FAST_IPSEC*/
+
+	opts = NULL;
+	if (in6p->in6p_flags & IN6P_CONTROLOPTS ||
+	    in6p->inp_socket->so_options & SO_TIMESTAMP)
+		ip6_savecontrol(in6p, n, &opts);
+	m_adj(n, off + sizeof(struct udphdr));
+
+	so = in6p->inp_socket;
+	SOCKBUF_LOCK(&so->so_rcv);
+	if (sbappendaddr_locked(&so->so_rcv, (struct sockaddr *)fromsa, n,
+	    opts) == 0) {
+		SOCKBUF_UNLOCK(&so->so_rcv);
+		m_freem(n);
+		if (opts)
+			m_freem(opts);
+		udpstat.udps_fullsock++;
+	} else
+		sorwakeup_locked(so);
+}
+
 int
 udp6_input(mp, offp, proto)
 	struct mbuf **mp;
 	int *offp, proto;
 {
-	struct mbuf *m = *mp, *opts;
+	struct mbuf *m = *mp;
 	register struct ip6_hdr *ip6;
 	register struct udphdr *uh;
 	register struct inpcb *in6p;
 	int off = *offp;
 	int plen, ulen;
 	struct sockaddr_in6 fromsa;
-
-	opts = NULL;
 
 	ip6 = mtod(m, struct ip6_hdr *);
 
@@ -174,6 +213,12 @@ udp6_input(mp, offp, proto)
 		goto bad_unlocked;
 	}
 
+	/*
+	 * Construct sockaddr format source address.
+	 */
+	init_sin6(&fromsa, m);
+	fromsa.sin6_port = uh->uh_sport;
+
 	INP_INFO_RLOCK(&udbinfo);
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		struct	inpcb *last;
@@ -204,11 +249,6 @@ udp6_input(mp, offp, proto)
 		 * matches one of the multicast groups specified in the socket.
 		 */
 
-		/*
-		 * Construct sockaddr format source address.
-		 */
-		init_sin6(&fromsa, m);
-		fromsa.sin6_port = uh->uh_sport;
 		/*
 		 * KAME note: traditionally we dropped udpiphdr from mbuf here.
 		 * We need udphdr for IPsec processing so we do that later.
@@ -242,40 +282,10 @@ udp6_input(mp, offp, proto)
 			if (last != NULL) {
 				struct mbuf *n;
 
-#if defined(IPSEC) || defined(FAST_IPSEC)
-				/*
-				 * Check AH/ESP integrity.
-				 */
-				if (ipsec6_in_reject(m, last)) {
-#ifdef IPSEC
-					ipsec6stat.in_polvio++;
-#endif /* IPSEC */
-					/* do not inject data into pcb */
-				} else
-#endif /*IPSEC || FAST_IPSEC*/
 				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
-					/*
-					 * KAME NOTE: do not
-					 * m_copy(m, offset, ...) above.
-					 * sbappendaddr() expects M_PKTHDR,
-					 * and m_copy() will copy M_PKTHDR
-					 * only if offset is 0.
-					 */
-					if (last->in6p_flags & IN6P_CONTROLOPTS
-					    || last->in6p_socket->so_options & SO_TIMESTAMP)
-						ip6_savecontrol(last, n, &opts);
-
-					m_adj(n, off + sizeof(struct udphdr));
-					if (sbappendaddr(&last->in6p_socket->so_rcv,
-							(struct sockaddr *)&fromsa,
-							n, opts) == 0) {
-						m_freem(n);
-						if (opts)
-							m_freem(opts);
-						udpstat.udps_fullsock++;
-					} else
-						sorwakeup(last->in6p_socket);
-					opts = NULL;
+					INP_LOCK(in6p);
+					udp6_append(in6p, n, off, &fromsa);
+					INP_UNLOCK(in6p);
 				}
 			}
 			last = in6p;
@@ -302,29 +312,9 @@ udp6_input(mp, offp, proto)
 			udpstat.udps_noportmcast++;
 			goto bad;
 		}
-#if defined(IPSEC) || defined(FAST_IPSEC)
-		/*
-		 * Check AH/ESP integrity.
-		 */
-		if (ipsec6_in_reject(m, last)) {
-#ifdef IPSEC
-			ipsec6stat.in_polvio++;
-#endif /* IPSEC */
-			goto bad;
-		}
-#endif /*IPSEC || FAST_IPSEC*/
-		if (last->in6p_flags & IN6P_CONTROLOPTS
-		    || last->in6p_socket->so_options & SO_TIMESTAMP)
-			ip6_savecontrol(last, m, &opts);
-
-		m_adj(m, off + sizeof(struct udphdr));
-		if (sbappendaddr(&last->in6p_socket->so_rcv,
-				(struct sockaddr *)&fromsa,
-				m, opts) == 0) {
-			udpstat.udps_fullsock++;
-			goto bad;
-		}
-		sorwakeup(last->in6p_socket);
+		INP_LOCK(last);
+		udp6_append(last, m, off, &fromsa);
+		INP_UNLOCK(last);
 		INP_INFO_RUNLOCK(&udbinfo);
 		return IPPROTO_DONE;
 	}
@@ -355,36 +345,7 @@ udp6_input(mp, offp, proto)
 		return IPPROTO_DONE;
 	}
 	INP_LOCK(in6p);
-#if defined(IPSEC) || defined(FAST_IPSEC)
-	/*
-	 * Check AH/ESP integrity.
-	 */
-	if (ipsec6_in_reject(m, in6p)) {
-		INP_UNLOCK(in6p);
-#ifdef IPSEC
-		ipsec6stat.in_polvio++;
-#endif /* IPSEC */
-		goto bad;
-	}
-#endif /*IPSEC || FAST_IPSEC*/
-
-	/*
-	 * Construct sockaddr format source address.
-	 * Stuff source address and datagram in user buffer.
-	 */
-	init_sin6(&fromsa, m);
-	fromsa.sin6_port = uh->uh_sport;
-	if (in6p->in6p_flags & IN6P_CONTROLOPTS
-	    || in6p->in6p_socket->so_options & SO_TIMESTAMP)
-		ip6_savecontrol(in6p, m, &opts);
-	m_adj(m, off + sizeof(struct udphdr));
-	if (sbappendaddr(&in6p->in6p_socket->so_rcv,
-			(struct sockaddr *)&fromsa, m, opts) == 0) {
-		INP_UNLOCK(in6p);
-		udpstat.udps_fullsock++;
-		goto bad;
-	}
-	sorwakeup(in6p->in6p_socket);
+	udp6_append(in6p, m, off, &fromsa);
 	INP_UNLOCK(in6p);
 	INP_INFO_RUNLOCK(&udbinfo);
 	return IPPROTO_DONE;
@@ -393,8 +354,6 @@ bad:
 bad_unlocked:
 	if (m)
 		m_freem(m);
-	if (opts)
-		m_freem(opts);
 	return IPPROTO_DONE;
 }
 
