@@ -32,10 +32,16 @@
 #define	ACTIVE_TIMEOUT		(30*60)	/* maximum flow lifetime is 30 min */
 #define	INACTIVE_TIMEOUT	15
 
-/* More info can be found in these two Cisco documents:
- * http://www.cisco.com/warp/public/cc/pd/iosw/ioft/neflct/tech/napps_wp.htm
- * http://www.cisco.com/en/US/products/sw/netmgtsw/ps1964/prod_installation_guide09186a00800fea56.html#wp1006186
- * However, they say quite different things.
+/*
+ * More info can be found in these Cisco documents:
+ *
+ * Cisco IOS NetFlow, White Papers.
+ * http://www.cisco.com/en/US/products/ps6601/prod_white_papers_list.html
+ *
+ * Cisco CNS NetFlow Collection Engine User Guide, 5.0.2, NetFlow Export
+ * Datagram Formats.
+ * http://www.cisco.com/en/US/products/sw/netmgtsw/ps1964/products_user_guide_chapter09186a00803f3147.html#wp26453
+ *
  */
 
 #define NETFLOW_V1 1
@@ -77,10 +83,10 @@ struct netflow_v1_record
   uint16_t s_port;	/* Source port */
   uint16_t d_port;	/* Destination port */
   uint16_t pad1;	/* Pad to word boundary */
-  uint8_t prot;	/* IP protocol */
+  uint8_t prot;		/* IP protocol */
   uint8_t tos;		/* IP type of service */
   uint8_t flags;	/* Cumulative OR of tcp flags */
-  uint8_t pad2;	/* pad to word boundary */
+  uint8_t pad2;		/* Pad to word boundary */
   uint16_t pad3;	/* Pad to word boundary */
   uint8_t reserved[5];	/* Reserved for future use */
 } __attribute__((__packed__));
@@ -98,9 +104,9 @@ struct netflow_v5_record
   uint32_t last;	/* System uptime at end of a flow */
   uint16_t s_port;	/* Source port */
   uint16_t d_port;	/* Destination port */
-  uint8_t pad1;	/* pad to word boundary */
+  uint8_t pad1;		/* Pad to word boundary */
   uint8_t flags;	/* Cumulative OR of tcp flags */
-  uint8_t prot;	/* IP protocol */
+  uint8_t prot;		/* IP protocol */
   uint8_t tos;		/* IP type of service */
   uint16_t src_as;	/* Src peer/origin Autonomous System */
   uint16_t dst_as;	/* Dst peer/origin Autonomous System */
