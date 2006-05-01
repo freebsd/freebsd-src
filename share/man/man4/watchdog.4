@@ -42,9 +42,8 @@ The
 .Nm
 facility is used for controlling hardware and software watchdogs.
 .Pp
-The interface is through a device named
-.Qq Li /dev/
-.Dv _PATH_WATCHDOG
+The interface is through a device
+.Pa /dev/fido
 which responds to a single
 .Xr ioctl 2
 call,
@@ -77,7 +76,7 @@ length, all watchdogs are disabled and must be explicitly re-enabled.
 .\" XXX insert some descriptive text here
 .Bd -literal -offset indent
 u_int u = WD_ACTIVE | WD_TO_8SEC;
-int fd = open("/dev/" _PATH_WATCHDOG, O_RDWR);
+int fd = open("/dev/fido", O_RDWR);
 
 ioctl(fd, WDIOCPATPAT, &u);
 .Ed
