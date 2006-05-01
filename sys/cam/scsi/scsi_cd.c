@@ -1669,7 +1669,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		if (softc->flags & CD_FLAG_CHANGER)
 			cdchangerschedule(softc);
 
-		biofinish(bp, softc->disk->d_devstat, 0);
+		biofinish(bp, NULL, 0);
 		break;
 	}
 	case CD_CCB_PROBE:
