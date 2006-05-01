@@ -216,10 +216,9 @@ static uma_zone_t pdptzone;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 static int shpgperproc = PMAP_SHPGPERPROC;
 
-TAILQ_HEAD(,pv_chunk) pv_freechunks;	/* Freelist of chunk pages */
 struct pv_chunk *pv_chunkbase;		/* KVA block for pv_chunks */
 int pv_maxchunks;			/* How many chunks we have KVA for */
-int pv_nextindex;			/* Where to map the next page */
+vm_offset_t pv_vafree;			/* freelist stored in the PTE */
 
 /*
  * All those kernel PT submaps that BSD is so fond of
@@ -488,6 +487,61 @@ pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 #endif
 
 /*
+ * ABuse the pte nodes for unmapped kva to thread a kva freelist through.
+ * Requirements:
+ *  - Must deal with pages in order to ensure that none of the PG_* bits
+ *    are ever set, PG_V in particular.
+ *  - Assumes we can write to ptes without pte_store() atomic ops, even
+ *    on PAE systems.  This should be ok.
+ *  - Assumes nothing will ever test these addresses for 0 to indicate
+ *    no mapping instead of correctly checking PG_V.
+ *  - Assumes a vm_offset_t will fit in a pte (true for i386).
+ * Because PG_V is never set, there can be no mappings to invalidate.
+ */
+static vm_offset_t
+pmap_ptelist_alloc(vm_offset_t *head)
+{
+	pt_entry_t *pte;
+	vm_offset_t va;
+
+	va = *head;
+	if (va == 0)
+		return (va);	/* Out of memory */
+	pte = vtopte(va);
+	*head = *pte;
+	if (*head & PG_V)
+		panic("pmap_ptelist_alloc: va with PG_V set!");
+	*pte = 0;
+	return (va);
+}
+
+static void
+pmap_ptelist_free(vm_offset_t *head, vm_offset_t va)
+{
+	pt_entry_t *pte;
+
+	if (va & PG_V)
+		panic("pmap_ptelist_free: freeing va with PG_V set!");
+	pte = vtopte(va);
+	*pte = *head;		/* virtual! PG_V is 0 though */
+	*head = va;
+}
+
+static void
+pmap_ptelist_init(vm_offset_t *head, void *base, int npages)
+{
+	int i;
+	vm_offset_t va;
+
+	*head = 0;
+	for (i = npages - 1; i >= 0; i--) {
+		va = (vm_offset_t)base + i * PAGE_SIZE;
+		pmap_ptelist_free(head, va);
+	}
+}
+
+
+/*
  *	Initialize the pmap module.
  *	Called by vm_init, to initialize any structures that the pmap
  *	system needs to map virtual memory.
@@ -496,7 +550,6 @@ void
 pmap_init(void)
 {
 
-	TAILQ_INIT(&pv_freechunks);
 	/*
 	 * Initialize the address space (zone) for the pv entries.  Set a
 	 * high water mark so that the system can recover from excessive
@@ -513,7 +566,7 @@ pmap_init(void)
 	    PAGE_SIZE * pv_maxchunks);
 	if (pv_chunkbase == NULL)
 		panic("pmap_init: not enough kvm for pv chunks");
-	pv_nextindex = 0;
+	pmap_ptelist_init(&pv_vafree, pv_chunkbase, pv_maxchunks);
 #ifdef PAE
 	pdptzone = uma_zcreate("PDPT", NPGPTD * sizeof(pdpt_entry_t), NULL,
 	    NULL, NULL, NULL, (NPGPTD * sizeof(pdpt_entry_t)) - 1,
@@ -1476,7 +1529,6 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,
 
 #ifdef PV_STATS
 static int pc_chunk_count, pc_chunk_allocs, pc_chunk_frees, pc_chunk_tryfail;
-static int pc_chunk_spare;
 
 SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_count, CTLFLAG_RD, &pc_chunk_count, 0,
 	"Current number of pv entry chunks");
@@ -1486,8 +1538,6 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_frees, CTLFLAG_RD, &pc_chunk_frees, 0,
 	"Current number of pv entry chunks frees");
 SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_tryfail, CTLFLAG_RD, &pc_chunk_tryfail, 0,
 	"Number of times tried to get a chunk page but failed.");
-SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_spare, CTLFLAG_RD, &pc_chunk_spare, 0,
-	"Current number of spare pv entry chunks allocated");
 
 static long pv_entry_frees, pv_entry_allocs;
 static int pv_entry_spare;
@@ -1568,6 +1618,7 @@ pmap_collect(pmap_t locked_pmap, struct vpgqueues *vpq)
 static void
 free_pv_entry(pmap_t pmap, pv_entry_t pv)
 {
+	vm_page_t m;
 	struct pv_chunk *pc;
 	int idx, field, bit;
 
@@ -1588,10 +1639,15 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	PV_STAT(pv_entry_spare -= _NPCPV);
 	PV_STAT(pc_chunk_count--);
 	PV_STAT(pc_chunk_frees++);
-	/* entire chunk is free, return it to freelist */
+	/* entire chunk is free, return it */
 	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-	TAILQ_INSERT_HEAD(&pv_freechunks, pc, pc_list);
-	PV_STAT(pc_chunk_spare++);
+	m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
+	pmap_qremove((vm_offset_t)pc, 1);
+	vm_page_lock_queues();
+	vm_page_unwire(m, 0);
+	vm_page_free(m);
+	vm_page_unlock_queues();
+	pmap_ptelist_free(&pv_vafree, (vm_offset_t)pc);
 }
 
 /*
@@ -1638,53 +1694,58 @@ get_pv_entry(pmap_t pmap, int try)
 			return (pv);
 		}
 	}
-	/* See if we have a preallocated chunk */
-	pc = TAILQ_FIRST(&pv_freechunks);
-	if (pc) {
-		/* Take a preallocated one from the freelist */
-		TAILQ_REMOVE(&pv_freechunks, pc, pc_list);
-		PV_STAT(pc_chunk_spare--);
-	} else {
-		/* No free items, allocate another chunk */
-		m = vm_page_alloc(NULL, colour, VM_ALLOC_SYSTEM |
-		    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
-		if (m == NULL) {
-			if (try) {
-				pv_entry_count--;
-				PV_STAT(pc_chunk_tryfail++);
-				return (NULL);
+	pc = (struct pv_chunk *)pmap_ptelist_alloc(&pv_vafree);
+	m = vm_page_alloc(NULL, colour, VM_ALLOC_SYSTEM |
+	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
+	if (m == NULL || pc == NULL) {
+		if (try) {
+			pv_entry_count--;
+			PV_STAT(pc_chunk_tryfail++);
+			if (m) {
+				vm_page_lock_queues();
+				vm_page_unwire(m, 0);
+				vm_page_free(m);
+				vm_page_unlock_queues();
 			}
-			/*
-			 * Reclaim pv entries: At first, destroy mappings to
-			 * inactive pages.  After that, if a pv chunk entry
-			 * is still needed, destroy mappings to active pages.
-			 */
-			if (ratecheck(&lastprint, &printinterval))
-				printf("Approaching the limit on PV entries, "
-				    "consider increasing tunables "
-				    "vm.pmap.shpgperproc or "
-				    "vm.pmap.pv_entry_max\n");
-			PV_STAT(pmap_collect_inactive++);
-			pmap_collect(pmap, &vm_page_queues[PQ_INACTIVE]);
+			if (pc)
+				pmap_ptelist_free(&pv_vafree, (vm_offset_t)pc);
+			return (NULL);
+		}
+		/*
+		 * Reclaim pv entries: At first, destroy mappings to
+		 * inactive pages.  After that, if a pv chunk entry
+		 * is still needed, destroy mappings to active pages.
+		 */
+		if (ratecheck(&lastprint, &printinterval))
+			printf("Approaching the limit on PV entries, "
+			    "consider increasing tunables "
+			    "vm.pmap.shpgperproc or "
+			    "vm.pmap.pv_entry_max\n");
+		PV_STAT(pmap_collect_inactive++);
+		pmap_collect(pmap, &vm_page_queues[PQ_INACTIVE]);
+		if (m == NULL)
 			m = vm_page_alloc(NULL, colour, VM_ALLOC_SYSTEM |
 			    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
-			if (m == NULL) {
-				PV_STAT(pmap_collect_active++);
-				pmap_collect(pmap, &vm_page_queues[PQ_ACTIVE]);
+		if (pc == NULL)
+			pc = (struct pv_chunk *)pmap_ptelist_alloc(&pv_vafree);
+		if (m == NULL || pc == NULL) {
+			PV_STAT(pmap_collect_active++);
+			pmap_collect(pmap, &vm_page_queues[PQ_ACTIVE]);
+			if (m == NULL)
 				m = vm_page_alloc(NULL, colour,
 				    VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ |
 				    VM_ALLOC_WIRED);
-				if (m == NULL)
-					panic("get_pv_entry: increase vm.pmap.shpgperproc");
-			}
+			if (pc == NULL)
+				pc = (struct pv_chunk *)
+				    pmap_ptelist_alloc(&pv_vafree);
+			if (m == NULL || pc == NULL)
+				panic("get_pv_entry: increase vm.pmap.shpgperproc");
 		}
-		colour++;
-		pc = pv_chunkbase + pv_nextindex;	/* Scaled */
-		pv_nextindex++;
-		pmap_qenter((vm_offset_t)pc, &m, 1);
 	}
 	PV_STAT(pc_chunk_count++);
 	PV_STAT(pc_chunk_allocs++);
+	colour++;
+	pmap_qenter((vm_offset_t)pc, &m, 1);
 	pc->pc_pmap = pmap;
 	pc->pc_map[0] = pc_freemask[0] & ~1ul;	/* preallocated bit 0 */
 	for (field = 1; field < _NPCM; field++)
@@ -2831,9 +2892,13 @@ pmap_remove_pages(pmap_t pmap)
 			PV_STAT(pc_chunk_count--);
 			PV_STAT(pc_chunk_frees++);
 			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-			/* Return to freelist */
-			TAILQ_INSERT_HEAD(&pv_freechunks, pc, pc_list);
-			PV_STAT(pc_chunk_spare++);
+			m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
+			pmap_qremove((vm_offset_t)pc, 1);
+			vm_page_lock_queues();
+			vm_page_unwire(m, 0);
+			vm_page_free(m);
+			vm_page_unlock_queues();
+			pmap_ptelist_free(&pv_vafree, (vm_offset_t)pc);
 		}
 	}
 	sched_unpin();
