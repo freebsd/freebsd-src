@@ -350,7 +350,8 @@ labelkre()
 	mvprintw(VMSTATROW + 13, VMSTATCOL + 9, "pdwak");
 	mvprintw(VMSTATROW + 14, VMSTATCOL + 9, "pdpgs");
 	mvprintw(VMSTATROW + 15, VMSTATCOL + 9, "intrn");
-	mvprintw(VMSTATROW + 16, VMSTATCOL + 9, "buf");
+	if (LINES - 1 > VMSTATROW + 16)
+		mvprintw(VMSTATROW + 16, VMSTATCOL + 9, "buf");
 
 	mvprintw(GENSTATROW, GENSTATCOL, " Csw  Trp  Sys  Int  Sof  Flt");
 
@@ -519,7 +520,8 @@ showkre()
 	PUTRATE(v_pdwakeups, VMSTATROW + 13, VMSTATCOL, 8);
 	PUTRATE(v_pdpages, VMSTATROW + 14, VMSTATCOL, 8);
 	PUTRATE(v_intrans, VMSTATROW + 15, VMSTATCOL, 8);
-	putint(s.bufspace / 1024, VMSTATROW + 16, VMSTATCOL, 8);
+	if (LINES - 1 > VMSTATROW + 16)
+		putint(s.bufspace / 1024, VMSTATROW + 16, VMSTATCOL, 8);
 	PUTRATE(v_vnodein, PAGEROW + 2, PAGECOL + 6, 5);
 	PUTRATE(v_vnodeout, PAGEROW + 2, PAGECOL + 12, 5);
 	PUTRATE(v_swapin, PAGEROW + 2, PAGECOL + 19, 5);
