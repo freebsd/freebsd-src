@@ -159,6 +159,7 @@ static struct sk_type sk_devs[] = {
 		DEVICEID_SK_V2,
 		"Marvell Gigabit Ethernet"
 	},
+#ifdef not_yet
 	{
 		VENDORID_MARVELL,
 		DEVICEID_MRVL_4360,
@@ -174,6 +175,7 @@ static struct sk_type sk_devs[] = {
 		DEVICEID_MRVL_4362,
 		"Marvell 88E8053 Gigabit Ethernet Controller"
 	},
+#endif
 	{
 		VENDORID_MARVELL,
 		DEVICEID_BELKIN_5005,
