@@ -875,6 +875,14 @@ smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offse
 }
 
 void
+smp_cache_flush(void)
+{
+
+	if (smp_started)
+		smp_tlb_shootdown(IPI_INVLCACHE, 0, 0);
+}
+
+void
 smp_invltlb(void)
 {
 
