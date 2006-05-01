@@ -563,6 +563,9 @@ init_secondary(void)
 	lidt(&r_idt);
 #endif
 
+	/* Initialize the PAT MSR if present. */
+	pmap_init_pat();
+
 	/* set up CPU registers and state */
 	cpu_setregs();
 
