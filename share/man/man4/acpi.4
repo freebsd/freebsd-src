@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2005
+.Dd May 1, 2006
 .Dt ACPI 4
 .Os
 .Sh NAME
@@ -117,8 +117,6 @@ Try increasing this number if you get the error
 .Qq Li AE_NO_HARDWARE_RESPONSE .
 .It Va hw.acpi.host_mem_start
 Override the assumed memory starting address for PCI host bridges.
-.It Va hw.acpi.pci.link.%d.%d.%d.irq
-Override the interrupt to use.
 .It Va hw.acpi.reset_video
 Enables calling the VESA reset BIOS vector on the resume path.
 Some graphic chips have problems such as LCD white-out after resume.
@@ -133,6 +131,10 @@ It is off by default since this breaks recursive methods and some IBMs use
 such code.
 .It Va hw.acpi.verbose
 Turn on verbose debugging information about what ACPI is doing.
+.It Va hw.pci.link.%s.%d.irq
+Override the interrupt to use.
+.It Va hw.pci.link.%s.irq
+Override the interrupt to use.
 .El
 .Sh DISABLING ACPI
 Since ACPI support on different platforms varies greatly, there are many
