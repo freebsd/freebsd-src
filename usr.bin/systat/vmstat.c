@@ -338,18 +338,18 @@ labelkre()
 	mvprintw(VMSTATROW + 1, VMSTATCOL + 9, "zfod");
 	mvprintw(VMSTATROW + 2, VMSTATCOL + 9, "ozfod");
 	mvprintw(VMSTATROW + 3, VMSTATCOL + 9 - 1, "%%ozfod");
-	mvprintw(VMSTATROW + 4, VMSTATCOL + 9, "totfr");
-	mvprintw(VMSTATROW + 5, VMSTATCOL + 9, "wire");
-	mvprintw(VMSTATROW + 6, VMSTATCOL + 9, "act");
-	mvprintw(VMSTATROW + 7, VMSTATCOL + 9, "inact");
-	mvprintw(VMSTATROW + 8, VMSTATCOL + 9, "cache");
-	mvprintw(VMSTATROW + 9, VMSTATCOL + 9, "free");
-	mvprintw(VMSTATROW + 10, VMSTATCOL + 9, "daefr");
-	mvprintw(VMSTATROW + 11, VMSTATCOL + 9, "prcfr");
-	mvprintw(VMSTATROW + 12, VMSTATCOL + 9, "react");
-	mvprintw(VMSTATROW + 13, VMSTATCOL + 9, "pdwak");
-	mvprintw(VMSTATROW + 14, VMSTATCOL + 9, "pdpgs");
-	mvprintw(VMSTATROW + 15, VMSTATCOL + 9, "intrn");
+	mvprintw(VMSTATROW + 4, VMSTATCOL + 9, "daefr");
+	mvprintw(VMSTATROW + 5, VMSTATCOL + 9, "prcfr");
+	mvprintw(VMSTATROW + 6, VMSTATCOL + 9, "totfr");
+	mvprintw(VMSTATROW + 7, VMSTATCOL + 9, "react");
+	mvprintw(VMSTATROW + 8, VMSTATCOL + 9, "pdwak");
+	mvprintw(VMSTATROW + 9, VMSTATCOL + 9, "pdpgs");
+	mvprintw(VMSTATROW + 10, VMSTATCOL + 9, "intrn");
+	mvprintw(VMSTATROW + 11, VMSTATCOL + 9, "wire");
+	mvprintw(VMSTATROW + 12, VMSTATCOL + 9, "act");
+	mvprintw(VMSTATROW + 13, VMSTATCOL + 9, "inact");
+	mvprintw(VMSTATROW + 14, VMSTATCOL + 9, "cache");
+	mvprintw(VMSTATROW + 15, VMSTATCOL + 9, "free");
 	if (LINES - 1 > VMSTATROW + 16)
 		mvprintw(VMSTATROW + 16, VMSTATCOL + 9, "buf");
 
@@ -508,18 +508,18 @@ showkre()
 	PUTRATE(v_ozfod, VMSTATROW + 2, VMSTATCOL, 8);
 	putint(s.v_zfod != 0 ? (int)(s.v_ozfod * 100.0 / s.v_zfod) : 0,
 	    VMSTATROW + 3, VMSTATCOL + 1, 8 - 1);
-	PUTRATE(v_tfree, VMSTATROW + 4, VMSTATCOL + 2, 8 - 2);
-	putint(pgtokb(s.v_wire_count), VMSTATROW + 5, VMSTATCOL + 2, 8 - 2);
-	putint(pgtokb(s.v_active_count), VMSTATROW + 6, VMSTATCOL, 8);
-	putint(pgtokb(s.v_inactive_count), VMSTATROW + 7, VMSTATCOL, 8);
-	putint(pgtokb(s.v_cache_count), VMSTATROW + 8, VMSTATCOL, 8);
-	putint(pgtokb(s.v_free_count), VMSTATROW + 9, VMSTATCOL, 8);
-	PUTRATE(v_dfree, VMSTATROW + 10, VMSTATCOL, 8);
-	PUTRATE(v_pfree, VMSTATROW + 11, VMSTATCOL, 8);
-	PUTRATE(v_reactivated, VMSTATROW + 12, VMSTATCOL, 8);
-	PUTRATE(v_pdwakeups, VMSTATROW + 13, VMSTATCOL, 8);
-	PUTRATE(v_pdpages, VMSTATROW + 14, VMSTATCOL, 8);
-	PUTRATE(v_intrans, VMSTATROW + 15, VMSTATCOL, 8);
+	PUTRATE(v_dfree, VMSTATROW + 4, VMSTATCOL + 2, 8 - 2);
+	PUTRATE(v_pfree, VMSTATROW + 5, VMSTATCOL + 2, 8 - 2);
+	PUTRATE(v_tfree, VMSTATROW + 6, VMSTATCOL, 8);
+	PUTRATE(v_reactivated, VMSTATROW + 7, VMSTATCOL, 8);
+	PUTRATE(v_pdwakeups, VMSTATROW + 8, VMSTATCOL, 8);
+	PUTRATE(v_pdpages, VMSTATROW + 9, VMSTATCOL, 8);
+	PUTRATE(v_intrans, VMSTATROW + 10, VMSTATCOL, 8);
+	putint(pgtokb(s.v_wire_count), VMSTATROW + 11, VMSTATCOL, 8);
+	putint(pgtokb(s.v_active_count), VMSTATROW + 12, VMSTATCOL, 8);
+	putint(pgtokb(s.v_inactive_count), VMSTATROW + 13, VMSTATCOL, 8);
+	putint(pgtokb(s.v_cache_count), VMSTATROW + 14, VMSTATCOL, 8);
+	putint(pgtokb(s.v_free_count), VMSTATROW + 15, VMSTATCOL, 8);
 	if (LINES - 1 > VMSTATROW + 16)
 		putint(s.bufspace / 1024, VMSTATROW + 16, VMSTATCOL, 8);
 	PUTRATE(v_vnodein, PAGEROW + 2, PAGECOL + 6, 5);
