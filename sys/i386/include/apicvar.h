@@ -116,9 +116,10 @@
 #define	IPI_INVLTLB	(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs */
 #define	IPI_INVLPG	(APIC_IPI_INTS + 2)
 #define	IPI_INVLRNG	(APIC_IPI_INTS + 3)
-#define	IPI_LAZYPMAP	(APIC_IPI_INTS + 4)	/* Lazy pmap release. */
+#define	IPI_INVLCACHE	(APIC_IPI_INTS + 4)
+#define	IPI_LAZYPMAP	(APIC_IPI_INTS + 5)	/* Lazy pmap release. */
 /* Vector to handle bitmap based IPIs */
-#define	IPI_BITMAP_VECTOR	(APIC_IPI_INTS + 5) 
+#define	IPI_BITMAP_VECTOR	(APIC_IPI_INTS + 6) 
 
 /* IPIs handled by IPI_BITMAPED_VECTOR  (XXX ups is there a better place?) */
 #define	IPI_AST		0 	/* Generate software trap. */
@@ -126,7 +127,7 @@
 #define IPI_BITMAP_LAST IPI_PREEMPT
 #define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
 
-#define	IPI_STOP	(APIC_IPI_INTS + 6)	/* Stop CPU until restarted. */
+#define	IPI_STOP	(APIC_IPI_INTS + 7)	/* Stop CPU until restarted. */
 
 /*
  * The spurious interrupt can share the priority class with the IPIs since
