@@ -51,7 +51,7 @@ blocks of lines separated by
 .Em program
 and
 .Em hostname
-specifications (separations appear along on the line),
+specifications (separations appear alone on their lines),
 with each line containing two fields: the
 .Em selector
 field which specifies the types of messages and priorities to which the
@@ -341,6 +341,9 @@ sign).
 Selected messages are forwarded to the
 .Xr syslogd 8
 program on the named host.
+If a port number is added after a colon
+.Pq ':'
+then that port will be used as the destination port rather than the usual syslog port.
 .It
 A comma separated list of users.
 Selected messages are written to those users
