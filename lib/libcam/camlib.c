@@ -514,6 +514,7 @@ cam_lookup_pass(const char *dev_name, int unit, int flags,
 			 "%s: %s%s", func_name, func_name, strerror(errno),
 			 (errno == ENOENT) ? tmpstr : "");
 
+		close(fd);
 		return(NULL);
 	}
 
