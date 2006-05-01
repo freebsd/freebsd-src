@@ -32,7 +32,7 @@
 .\"	@(#)systat.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd September 9, 1997
+.Dd May 1, 2006
 .Dt SYSTAT 1
 .Os
 .Sh NAME
@@ -370,25 +370,34 @@ the second row of the display shows the average
 number of pages transferred per second over the last refresh interval.
 .Pp
 Below the paging statistics is a column of lines regarding the virtual
-memory system which list the average number of
+memory system.
+The first few lines describe,
+in units (except as noted below)
+of pages per second averaged over the sampling interval,
 pages copied on write (`cow'),
 pages zero filled on demand (`zfod'),
-pages optimize zero filled on demand (`ozfod'),
-the ratio ozfod / zfod as a percentage (`%ozfod'),
+pages optimally zero filled on demand (`ozfod'),
+the ratio of the (average) ozfod / zfod as a percentage (`%ozfod'),
+pages freed by the page daemon (`daefr'),
+pages freed by exiting processes (`prcfr'),
 total pages freed (`totfr'),
+pages reactivated from the free list (`react'),
+the average number of
+times per second that the page daemon was awakened (`pdwak'),
+pages analyzed by the page daemon (`pdpgs'),
+and
+in-transit blocking page faults (`intrn').
+Note that the units are special for `%ozfod' and `pdwak'.
+The next few lines describe,
+as amounts of memory in in kilobytes,
 pages wired down (`wire'),
 active pages (`act'),
 inactive pages (`inact'),
 pages on the cache queue (`cache'),
-number of free pages (`free'),
-pages freed by the page daemon (`daefr'),
-pages freed by exiting processes (`prcfr'),
-pages reactivated from the free list (`react'),
-times the page daemon was awakened (`pdwak'),
-pages analyzed by the page daemon (`pdpgs'),
 and
-intransit blocking page faults (`intrn')
-per second over the refresh interval.
+free pages (`free').
+Note that the values displayed are the current transient ones;
+they are not averages.
 .Pp
 At the bottom of this column is a line showing the
 amount of virtual memory, in kilobytes, mapped into the buffer cache (`buf').
