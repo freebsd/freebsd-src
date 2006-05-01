@@ -847,8 +847,9 @@ ich_pci_attach(device_t dev)
 	case 0x203a161f:	/* Gateway 4028GZ */
 	case 0x204c161f:	/* Kvazar-Micro Senator 3592XT */
 	case 0x8144104d:	/* Sony VAIO PCG-TR* */
-	case 0x81c0104d:	/* Sony VAIO type T */
 	case 0x8197104d:	/* Sony S1XP */
+	case 0x81c0104d:	/* Sony VAIO type T */
+	case 0x81c5104d:	/* Sony VAIO VGN B1VP/B1XP */
 		ac97_setflags(sc->codec, ac97_getflags(sc->codec) | AC97_F_EAPD_INV);
 		break;
 	default:
