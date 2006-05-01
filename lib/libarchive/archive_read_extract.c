@@ -1453,16 +1453,16 @@ set_xattrs(struct archive *a, int fd, struct archive_entry *entry)
 				    name, value, size, 0);
 			}
 			if (e == -1) {
-				if (err == ENOTSUP) {
+				if (errno == ENOTSUP) {
 					if (!warning_done) {
 						warning_done = 1;
-						archive_set_error(a, err,
+						archive_set_error(a, errno,
 						    "Cannot restore extended "
 						    "attributes on this file "
 						    "system");
 					}
 				} else
-					archive_set_error(a, err,
+					archive_set_error(a, errno,
 					    "Failed to set extended attribute");
 				ret = ARCHIVE_WARN;
 			}
