@@ -198,6 +198,7 @@ FreeBSD 5.2           |      |                 |                       |
  |                    |      |                 |                       |
  |                    |   NetBSD 3.0           |                       |
  |                    |      |                 |                 DragonFly 1.4.0
+ |                    |      |             OpenBSD 3.9                 |
  |                    |      |                 |                       |
 FreeBSD 7 -current    |  NetBSD -current  OpenBSD -current             |
  |                    |      |                 |                       |
@@ -440,6 +441,7 @@ FreeBSD 6.0		2005-11-01 [FBD]
 NetBSD 2.1		2005-11-02 [NBD]
 NetBSD 3.0		2005-12-23 [NBD]
 DragonFly 1.4.0		2006-01-08 [DFB]
+OpenBSD 3.9		2006-05-01 [OBD]
 
 Bibliography
 ------------------------
