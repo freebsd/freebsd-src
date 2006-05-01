@@ -1431,8 +1431,8 @@ archive_entry_xattr_next(struct archive_entry * entry,
 	const char **name, const void **value, size_t *size)
 {
 	if (entry->xattr_p) {
-		*name = entry->xattr_p->name;	
-		*value = entry->xattr_p->value;	
+		*name = entry->xattr_p->name;
+		*value = entry->xattr_p->value;
 		*size = entry->xattr_p->size;
 
 		entry->xattr_p = entry->xattr_p->next;
