@@ -1666,13 +1666,14 @@ get_pv_entry(pmap_t pmap, int try)
 				    "vm.pmap.pv_entry_max\n");
 			PV_STAT(pmap_collect_inactive++);
 			pmap_collect(pmap, &vm_page_queues[PQ_INACTIVE]);
-			m = vm_page_alloc(NULL, colour,
-			    VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ);
+			m = vm_page_alloc(NULL, colour, VM_ALLOC_SYSTEM |
+			    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
 			if (m == NULL) {
 				PV_STAT(pmap_collect_active++);
 				pmap_collect(pmap, &vm_page_queues[PQ_ACTIVE]);
 				m = vm_page_alloc(NULL, colour,
-				    VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ);
+				    VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ |
+				    VM_ALLOC_WIRED);
 				if (m == NULL)
 					panic("get_pv_entry: increase vm.pmap.shpgperproc");
 			}
