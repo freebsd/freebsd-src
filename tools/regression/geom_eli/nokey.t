@@ -18,7 +18,7 @@ fi
 
 dd if=/dev/random of=${keyfile} bs=512 count=16 >/dev/null 2>&1
 
-geli init -i 0 -P -K ${keyfile} md${no} 2>/dev/null
+geli init -P -K ${keyfile} md${no} 2>/dev/null
 if [ $? -eq 0 ]; then
 	echo "ok 2"
 else
