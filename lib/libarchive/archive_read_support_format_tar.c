@@ -46,10 +46,19 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_WCHAR_H
 #include <wchar.h>
 #else
+/* Good enough for equality testing, which is all we need. */
 static int wcscmp(const wchar_t *s1, const wchar_t *s2)
 {
 	int diff = *s1 - *s2;
 	while (*s1 && diff == 0)
+		diff = (int)*++s1 - (int)*++s2;
+	return diff;
+}
+/* Good enough for equality testing, which is all we need. */
+static int wcsncmp(const wchar_t *s1, const wchar_t *s2, size_t n)
+{
+	int diff = *s1 - *s2;
+	while (*s1 && diff == 0 && n-- > 0)
 		diff = (int)*++s1 - (int)*++s2;
 	return diff;
 }
@@ -1644,12 +1653,6 @@ utf8_decode(wchar_t *dest, const char *src, size_t length)
 		n = UTF8_mbrtowc(dest, src, length);
 		if (n == 0)
 			break;
-		if (n > 8) {
-			/* Invalid byte encountered; try to keep going. */
-			*dest = L'?';
-			n = 1;
-			err = 1;
-		}
 		dest++;
 		src += n;
 		length -= n;
@@ -1659,68 +1662,52 @@ utf8_decode(wchar_t *dest, const char *src, size_t length)
 }
 
 /*
- * Copied from FreeBSD libc/locale.
+ * Copied and simplified from FreeBSD libc/locale.
  */
 static size_t
 UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n)
 {
         int ch, i, len, mask;
-        unsigned long lbound, wch;
+        unsigned long wch;
 
-        if (s == NULL)
-                /* Reset to initial shift state (no-op) */
+        if (s == NULL || n == 0 || pwc == NULL)
                 return (0);
-        if (n == 0)
-                /* Incomplete multibyte sequence */
-                return ((size_t)-2);
 
         /*
          * Determine the number of octets that make up this character from
          * the first octet, and a mask that extracts the interesting bits of
          * the first octet.
-         *
-         * We also specify a lower bound for the character code to detect
-         * redundant, non-"shortest form" encodings. For example, the
-         * sequence C0 80 is _not_ a legal representation of the null
-         * character. This enforces a 1-to-1 mapping between character
-         * codes and their multibyte representations.
          */
         ch = (unsigned char)*s;
         if ((ch & 0x80) == 0) {
                 mask = 0x7f;
                 len = 1;
-                lbound = 0;
         } else if ((ch & 0xe0) == 0xc0) {
                 mask = 0x1f;
                 len = 2;
-                lbound = 0x80;
         } else if ((ch & 0xf0) == 0xe0) {
                 mask = 0x0f;
                 len = 3;
-                lbound = 0x800;
         } else if ((ch & 0xf8) == 0xf0) {
                 mask = 0x07;
                 len = 4;
-                lbound = 0x10000;
         } else if ((ch & 0xfc) == 0xf8) {
                 mask = 0x03;
                 len = 5;
-                lbound = 0x200000;
-        } else if ((ch & 0xfc) == 0xfc) {
+        } else if ((ch & 0xfe) == 0xfc) {
                 mask = 0x01;
                 len = 6;
-                lbound = 0x4000000;
         } else {
-                /*
-                 * Malformed input; input is not UTF-8.
-                 */
-                errno = EILSEQ;
-                return ((size_t)-1);
+		/* Invalid first byte; convert to '?' */
+		*pwc = '?';
+		return (1);
         }
 
-        if (n < (size_t)len)
-                /* Incomplete multibyte sequence */
-                return ((size_t)-2);
+        if (n < (size_t)len) {
+		/* Invalid first byte; convert to '?' */
+		*pwc = '?';
+                return (1);
+	}
 
         /*
          * Decode the octet sequence representing the character in chunks
@@ -1730,36 +1717,27 @@ UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n)
         i = len;
         while (--i != 0) {
                 if ((*s & 0xc0) != 0x80) {
-                        /*
-                         * Malformed input; bad characters in the middle
-                         * of a character.
-                         */
-                        errno = EILSEQ;
-                        return ((size_t)-1);
+			/* Invalid intermediate byte; consume one byte and
+			 * emit '?' */
+			*pwc = '?';
+			return (1);
                 }
                 wch <<= 6;
                 wch |= *s++ & 0x3f;
         }
-        if (wch < lbound) {
-                /*
-                 * Malformed input; redundant encoding.
-                 */
-                errno = EILSEQ;
-                return ((size_t)-1);
-        }
-        if (pwc != NULL) {
-		/* Assign the value to the output; out-of-range values
-		 * just get truncated. */
-		*pwc = (wchar_t)wch;
+
+	/* Assign the value to the output; out-of-range values
+	 * just get truncated. */
+	*pwc = (wchar_t)wch;
 #ifdef WCHAR_MAX
-		/*
-		 * If platform has WCHAR_MAX, we can do something
-		 * more sensible with out-of-range values.
-		 */
-		if (wch >= WCHAR_MAX)
-			*pwc = '?';
+	/*
+	 * If platform has WCHAR_MAX, we can do something
+	 * more sensible with out-of-range values.
+	 */
+	if (wch >= WCHAR_MAX)
+		*pwc = '?';
 #endif
-	}
+	/* Return number of bytes input consumed: 0 for end-of-string. */
         return (wch == L'\0' ? 0 : len);
 }
 
