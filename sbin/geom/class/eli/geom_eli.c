@@ -505,7 +505,7 @@ eli_init(struct gctl_req *req)
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs != 1) {
-		gctl_error(req, "Too few arguments.");
+		gctl_error(req, "Invalid number of arguments.");
 		return;
 	}
 	prov = gctl_get_ascii(req, "arg0");
@@ -611,7 +611,7 @@ eli_attach(struct gctl_req *req)
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs != 1) {
-		gctl_error(req, "Too few arguments.");
+		gctl_error(req, "Invalid number of arguments.");
 		return;
 	}
 	prov = gctl_get_ascii(req, "arg0");
@@ -756,7 +756,7 @@ eli_setkey(struct gctl_req *req)
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs != 1) {
-		gctl_error(req, "Too few arguments.");
+		gctl_error(req, "Invalid number of arguments.");
 		return;
 	}
 	prov = gctl_get_ascii(req, "arg0");
@@ -830,7 +830,7 @@ eli_delkey(struct gctl_req *req)
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs != 1) {
-		gctl_error(req, "Too few arguments.");
+		gctl_error(req, "Invalid number of arguments.");
 		return;
 	}
 	prov = gctl_get_ascii(req, "arg0");
