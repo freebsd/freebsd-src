@@ -154,11 +154,12 @@ on_query_startup(struct query_state *qstate)
 {
 	struct msghdr	cred_hdr;
 	struct iovec	iov;
+	struct cmsgcred *cred;
 	int elem_type;
 
 	struct {
 		struct cmsghdr	hdr;
-		struct cmsgcred	creds;
+		char cred[CMSG_SPACE(sizeof(struct cmsgcred))];
 	} cmsg;
 
 	TRACE_IN(on_query_startup);
@@ -167,8 +168,8 @@ on_query_startup(struct query_state *qstate)
 	memset(&cred_hdr, 0, sizeof(struct msghdr));
 	cred_hdr.msg_iov = &iov;
 	cred_hdr.msg_iovlen = 1;
-	cred_hdr.msg_control = &cmsg;
-	cred_hdr.msg_controllen = sizeof(cmsg);
+	cred_hdr.msg_control = (caddr_t)&cmsg;
+	cred_hdr.msg_controllen = CMSG_LEN(sizeof(struct cmsgcred));
 
 	memset(&iov, 0, sizeof(struct iovec));
 	iov.iov_base = &elem_type;
@@ -179,15 +180,16 @@ on_query_startup(struct query_state *qstate)
 		return (-1);
 	}
 
-	if (cmsg.hdr.cmsg_len != sizeof cmsg
+	if (cmsg.hdr.cmsg_len < CMSG_LEN(sizeof(struct cmsgcred))
 		|| cmsg.hdr.cmsg_level != SOL_SOCKET
 		|| cmsg.hdr.cmsg_type != SCM_CREDS) {
 		TRACE_OUT(on_query_startup);
 		return (-1);
 	}
 
-	qstate->uid = cmsg.creds.cmcred_uid;
-	qstate->gid = cmsg.creds.cmcred_gid;
+	cred = (struct cmsgcred *)CMSG_DATA(&cmsg);
+	qstate->uid = cred->cmcred_uid;
+	qstate->gid = cred->cmcred_gid;
 
 #if defined(NS_CACHED_EID_CHECKING) || defined(NS_STRICT_CACHED_EID_CHECKING)
 /*
