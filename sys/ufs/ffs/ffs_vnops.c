@@ -338,7 +338,50 @@ ffs_lock(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	return (VOP_LOCK_APV(&ufs_vnodeops, ap));
+	struct vnode *vp;
+	int flags;
+	struct lock *lkp;
+	int result;
+	
+	switch (ap->a_flags & LK_TYPE_MASK) {
+	case LK_SHARED:
+	case LK_UPGRADE:
+	case LK_EXCLUSIVE:
+		vp = ap->a_vp;
+		flags = ap->a_flags;
+		for (;;) {
+			/*
+			 * vnode interlock must be held to ensure that
+			 * the possibly external lock isn't freed,
+			 * e.g. when mutating from snapshot file vnode
+			 * to regular file vnode.
+			 */
+			if ((flags & LK_INTERLOCK) == 0) {
+				VI_LOCK(vp);
+				flags |= LK_INTERLOCK;
+			}
+			lkp = vp->v_vnlock;
+			result = lockmgr(lkp, flags, VI_MTX(vp), ap->a_td);
+			if (lkp == vp->v_vnlock || result != 0)
+				break;
+			/*
+			 * Apparent success, except that the vnode
+			 * mutated between snapshot file vnode and
+			 * regular file vnode while this process
+			 * slept.  The lock currently held is not the
+			 * right lock.  Release it, and try to get the
+			 * new lock.
+			 */
+			(void) lockmgr(lkp, LK_RELEASE, VI_MTX(vp), ap->a_td);
+			if ((flags & LK_TYPE_MASK) == LK_UPGRADE)
+				flags = (flags & ~LK_TYPE_MASK) | LK_EXCLUSIVE;
+			flags &= ~LK_INTERLOCK;
+		}
+		break;
+	default:
+		result = VOP_LOCK_APV(&ufs_vnodeops, ap);
+	}
+	return (result);
 }
 
 /*

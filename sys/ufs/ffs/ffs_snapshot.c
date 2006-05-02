@@ -160,6 +160,7 @@ static int mapacct_ufs2(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *,
     struct fs *, ufs_lbn_t, int);
 static int readblock(struct vnode *vp, struct buf *, ufs2_daddr_t);
 static void process_deferred_inactive(struct mount *);
+static void try_free_snapdata(struct vnode *devvp, struct thread *td);
 
 /*
  * To ensure the consistency of snapshots across crashes, we must
@@ -608,7 +609,6 @@ loop:
 	}
 	lockmgr(vp->v_vnlock, LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY,
 	    VI_MTX(vp), td);
-	transferlockers(&vp->v_lock, vp->v_vnlock);
 	lockmgr(&vp->v_lock, LK_RELEASE, NULL, td);
 	/*
 	 * If this is the first snapshot on this filesystem, then we need
@@ -1526,18 +1526,16 @@ ffs_snapremove(vp)
 {
 	struct inode *ip;
 	struct vnode *devvp;
-	struct lock *lkp;
 	struct buf *ibp;
 	struct fs *fs;
 	struct thread *td = curthread;
-	ufs2_daddr_t numblks, blkno, dblk, *snapblklist;
+	ufs2_daddr_t numblks, blkno, dblk;
 	int error, loc, last;
 	struct snapdata *sn;
 
 	ip = VTOI(vp);
 	fs = ip->i_fs;
 	devvp = ip->i_devvp;
-	sn = devvp->v_rdev->si_snapdata;
 	/*
 	 * If active, delete from incore list (this snapshot may
 	 * already have been in the process of being deleted, so
@@ -1545,29 +1543,23 @@ ffs_snapremove(vp)
 	 *
 	 * Clear copy-on-write flag if last snapshot.
 	 */
+	VI_LOCK(devvp);
 	if (ip->i_nextsnap.tqe_prev != 0) {
-		lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL, td);
-		VI_LOCK(devvp);
+		sn = devvp->v_rdev->si_snapdata;
 		TAILQ_REMOVE(&sn->sn_head, ip, i_nextsnap);
 		ip->i_nextsnap.tqe_prev = 0;
-		lkp = vp->v_vnlock;
+		VI_UNLOCK(devvp);
+		lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL, td);
+		VI_LOCK(vp);
+		KASSERT(vp->v_vnlock == &sn->sn_lock,
+			("ffs_snapremove: lost lock mutation")); 
 		vp->v_vnlock = &vp->v_lock;
-		lockmgr(lkp, LK_RELEASE, NULL, td);
-		if (TAILQ_FIRST(&sn->sn_head) != 0) {
-			VI_UNLOCK(devvp);
-		} else {
-			snapblklist = sn->sn_blklist;
-			sn->sn_blklist = 0;
-			sn->sn_listsize = 0;
-			devvp->v_rdev->si_snapdata = NULL;
-			devvp->v_vflag &= ~VV_COPYONWRITE;
-			lockmgr(lkp, LK_DRAIN|LK_INTERLOCK, VI_MTX(devvp), td);
-			lockmgr(lkp, LK_RELEASE, NULL, td);
-			lockdestroy(lkp);
-			free(sn, M_UFSMNT);
-			FREE(snapblklist, M_UFSMNT);
-		}
-	}
+		VI_UNLOCK(vp);
+		VI_LOCK(devvp);
+		lockmgr(&sn->sn_lock, LK_RELEASE, NULL, td);
+		try_free_snapdata(devvp, td);
+	} else
+		VI_UNLOCK(devvp);
 	/*
 	 * Clear all BLK_NOCOPY fields. Pass any block claims to other
 	 * snapshots that want them (see ffs_snapblkfree below).
@@ -1923,7 +1915,6 @@ ffs_snapshot_mount(mp)
 		}
 		lockmgr(vp->v_vnlock, LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY,
 		    VI_MTX(vp), td);
-		transferlockers(&vp->v_lock, vp->v_vnlock);
 		lockmgr(&vp->v_lock, LK_RELEASE, NULL, td);
 		/*
 		 * Link it onto the active snapshot list.
@@ -1996,30 +1987,35 @@ ffs_snapshot_unmount(mp)
 	struct snapdata *sn;
 	struct inode *xp;
 	struct vnode *vp;
+	struct thread *td = curthread;
 
-	sn = devvp->v_rdev->si_snapdata;
 	VI_LOCK(devvp);
-	while ((xp = TAILQ_FIRST(&sn->sn_head)) != 0) {
+	sn = devvp->v_rdev->si_snapdata;
+	while (sn != NULL && (xp = TAILQ_FIRST(&sn->sn_head)) != NULL) {
 		vp = ITOV(xp);
-		vp->v_vnlock = &vp->v_lock;
 		TAILQ_REMOVE(&sn->sn_head, xp, i_nextsnap);
 		xp->i_nextsnap.tqe_prev = 0;
-		if (xp->i_effnlink > 0) {
-			VI_UNLOCK(devvp);
+		lockmgr(&sn->sn_lock, 
+			LK_INTERLOCK | LK_EXCLUSIVE,
+			VI_MTX(devvp),
+			td);
+		VI_LOCK(vp);
+		lockmgr(&vp->v_lock,
+			LK_INTERLOCK | LK_EXCLUSIVE,
+			VI_MTX(vp), td);
+		VI_LOCK(vp);
+		KASSERT(vp->v_vnlock == &sn->sn_lock,
+		("ffs_snapshot_unmount: lost lock mutation")); 
+		vp->v_vnlock = &vp->v_lock;
+		VI_UNLOCK(vp);
+		lockmgr(&vp->v_lock, LK_RELEASE, NULL, td);
+		lockmgr(&sn->sn_lock, LK_RELEASE, NULL, td);
+		if (xp->i_effnlink > 0)
 			vrele(vp);
-			VI_LOCK(devvp);
-		}
+		VI_LOCK(devvp);
+		sn = devvp->v_rdev->si_snapdata;
 	}
-	devvp->v_rdev->si_snapdata = NULL;
-	devvp->v_vflag &= ~VV_COPYONWRITE;
-	VI_UNLOCK(devvp);
-	if (sn->sn_blklist != NULL) {
-		FREE(sn->sn_blklist, M_UFSMNT);
-		sn->sn_blklist = NULL;
-		sn->sn_listsize = 0;
-	}
-	lockdestroy(&sn->sn_lock);
-	free(sn, M_UFSMNT);
+	try_free_snapdata(devvp, td);
 	ASSERT_VOP_LOCKED(devvp, "ffs_snapshot_unmount");
 }
 
@@ -2316,5 +2312,34 @@ process_deferred_inactive(struct mount *mp)
 	}
 	MNT_IUNLOCK(mp);
 	vn_finished_secondary_write(mp);
+}
+
+/* Try to free snapdata associated with devvp */
+static void
+try_free_snapdata(struct vnode *devvp,
+		  struct thread *td)
+{
+	struct snapdata *sn;
+	ufs2_daddr_t *snapblklist;
+
+	sn = devvp->v_rdev->si_snapdata;
+
+	if (sn == NULL || TAILQ_FIRST(&sn->sn_head) != NULL ||
+	    (devvp->v_vflag & VV_COPYONWRITE) == 0) {
+		VI_UNLOCK(devvp);
+		return;
+	}
+
+	devvp->v_rdev->si_snapdata = NULL;
+	devvp->v_vflag &= ~VV_COPYONWRITE;
+	snapblklist = sn->sn_blklist;
+	sn->sn_blklist = NULL;
+	sn->sn_listsize = 0;
+	lockmgr(&sn->sn_lock, LK_DRAIN|LK_INTERLOCK, VI_MTX(devvp), td);
+	lockmgr(&sn->sn_lock, LK_RELEASE, NULL, td);
+	lockdestroy(&sn->sn_lock);
+	free(sn, M_UFSMNT);
+	if (snapblklist != NULL)
+		FREE(snapblklist, M_UFSMNT);
 }
 #endif
