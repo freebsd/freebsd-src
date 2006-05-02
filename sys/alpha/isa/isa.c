@@ -224,23 +224,21 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		}
 	}
 
-	if (type == SYS_RES_IRQ)
-	    res = rman_reserve_resource(&isa_irq_rman, start, start, 1,
-					0, child);
-	else
-	    res = rman_reserve_resource(&isa_drq_rman, start, start, 1,
-					0, child);
-	    
+	res = rman_reserve_resource(
+	    (type == SYS_RES_IRQ) ? &isa_irq_rman : &isa_drq_rman,
+	    start, start, 1, 0, child);
+	if (res == NULL)
+		return (NULL);
+
 	rman_set_rid(res, *rid);
-	if (res && !passthrough) {
+	if (!passthrough) {
 		rle = resource_list_find(rl, type, *rid);
 		rle->start = rman_get_start(res);
 		rle->end = rman_get_end(res);
 		rle->count = 1;
 		rle->res = res;
 	}
-
-	return res;
+	return (res);
 }
 
 int
