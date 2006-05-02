@@ -75,10 +75,10 @@ typedef	long fsizeT;
 #endif
 
 static	int dirindir __P((ino_t ino, daddr_t blkno, int level, long *size,
-    long *tapesize, int nodump));
+    long *tapesize, int nodump, ino_t maxino));
 static	void dmpindir __P((ino_t ino, daddr_t blk, int level, fsizeT *size));
 static	int searchdir __P((ino_t ino, daddr_t blkno, long size, long filesize,
-    long *tapesize, int nodump));
+    long *tapesize, int nodump, ino_t maxino));
 
 /*
  * This is an estimation of the number of TP_BSIZE blocks in the file.
@@ -154,6 +154,11 @@ mapfiles(maxino, tapesize)
 		dp = getino(ino);
 		if ((mode = (dp->di_mode & IFMT)) == 0)
 			continue;
+		if (ino >= maxino) {
+			msg("Skipping inode %d >= maxino %d\n",
+			    ino, maxino);
+			continue;
+		}
 		/*
 		 * Everything must go in usedinomap so that a check
 		 * for "in dumpdirmap but not in usedinomap" to detect
@@ -233,7 +238,7 @@ mapdirs(maxino, tapesize)
 			if (di.di_db[i] != 0)
 				ret |= searchdir(ino, di.di_db[i],
 					(long)dblksize(sblock, &di, i),
-					filesize, tapesize, nodump);
+					filesize, tapesize, nodump, maxino);
 			if (ret & HASDUMPEDFILE)
 				filesize = 0;
 			else
@@ -243,7 +248,7 @@ mapdirs(maxino, tapesize)
 			if (di.di_ib[i] == 0)
 				continue;
 			ret |= dirindir(ino, di.di_ib[i], i, &filesize,
-			    tapesize, nodump);
+			    tapesize, nodump, maxino);
 		}
 		if (ret & HASDUMPEDFILE) {
 			SETINO(ino, dumpinomap);
@@ -270,13 +275,14 @@ mapdirs(maxino, tapesize)
  * require the directory to be dumped.
  */
 static int
-dirindir(ino, blkno, ind_level, filesize, tapesize, nodump)
+dirindir(ino, blkno, ind_level, filesize, tapesize, nodump, maxino)
 	ino_t ino;
 	daddr_t blkno;
 	int ind_level;
 	long *filesize;
 	long *tapesize;
 	int nodump;
+	ino_t maxino;
 {
 	int ret = 0;
 	register int i;
@@ -288,7 +294,7 @@ dirindir(ino, blkno, ind_level, filesize, tapesize, nodump)
 			blkno = idblk[i];
 			if (blkno != 0)
 				ret |= searchdir(ino, blkno, sblock->fs_bsize,
-					*filesize, tapesize, nodump);
+					*filesize, tapesize, nodump, maxino);
 			if (ret & HASDUMPEDFILE)
 				*filesize = 0;
 			else
@@ -301,7 +307,7 @@ dirindir(ino, blkno, ind_level, filesize, tapesize, nodump)
 		blkno = idblk[i];
 		if (blkno != 0)
 			ret |= dirindir(ino, blkno, ind_level, filesize,
-			    tapesize, nodump);
+			    tapesize, nodump, maxino);
 	}
 	return (ret);
 }
@@ -312,13 +318,14 @@ dirindir(ino, blkno, ind_level, filesize, tapesize, nodump)
  * contains any subdirectories.
  */
 static int
-searchdir(ino, blkno, size, filesize, tapesize, nodump)
+searchdir(ino, blkno, size, filesize, tapesize, nodump, maxino)
 	ino_t ino;
 	daddr_t blkno;
 	register long size;
 	long filesize;
 	long *tapesize;
 	int nodump;
+	ino_t maxino;
 {
 	register struct direct *dp;
 	register struct dinode *ip;
@@ -337,6 +344,11 @@ searchdir(ino, blkno, size, filesize, tapesize, nodump)
 		loc += dp->d_reclen;
 		if (dp->d_ino == 0)
 			continue;
+		if (dp->d_ino >= maxino) {
+			msg("corrupted directory entry, d_ino %d >= %d\n",
+			    dp->d_ino, maxino);
+			break;
+		}
 		if (dp->d_name[0] == '.') {
 			if (dp->d_name[1] == '\0')
 				continue;
