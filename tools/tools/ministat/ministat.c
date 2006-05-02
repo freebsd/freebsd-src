@@ -134,6 +134,7 @@ static char symbol[MAX_DS] = { ' ', 'x', '+', '*', '%', '#', '@', 'O' };
 TAILQ_HEAD(pointlist, point);
 
 struct dataset {
+	char *name;
 	struct pointlist list;
 	double sy, syy;
 	int n;
@@ -399,13 +400,15 @@ PlotSet(struct dataset *ds, int val)
 		}
 		pl->data[j * pl->width + x] |= val;
 	}
-	x = ((Avg(ds) - Stddev(ds)) - pl->x0) / pl->dx;
-	m = ((Avg(ds) + Stddev(ds)) - pl->x0) / pl->dx;
-	pl->bar[bar][m] = '|';
-	pl->bar[bar][x] = '|';
-	for (i = x + 1; i < m; i++)
-		if (pl->bar[bar][i] == 0)
-			pl->bar[bar][i] = '_';
+	if (!isnan(Stddev(ds))) {
+		x = ((Avg(ds) - Stddev(ds)) - pl->x0) / pl->dx;
+		m = ((Avg(ds) + Stddev(ds)) - pl->x0) / pl->dx;
+		pl->bar[bar][m] = '|';
+		pl->bar[bar][x] = '|';
+		for (i = x + 1; i < m; i++)
+			if (pl->bar[bar][i] == 0)
+				pl->bar[bar][i] = '_';
+	}
 	x = (Median(ds) - pl->x0) / pl->dx;
 	pl->bar[bar][x] = 'M';
 	x = (Avg(ds) - pl->x0) / pl->dx;
@@ -483,6 +486,7 @@ ReadSet(char *n)
 	if (f == NULL)
 		err(1, "Cannot open %s", n);
 	s = NewSet();
+	s->name = strdup(n);
 	line = 0;
 	while (fgets(buf, sizeof buf, f) != NULL) {
 		line++;
@@ -588,18 +592,18 @@ main(int argc, char **argv)
 	argv += optind;
 
 	if (argc == 0) {
-		ds[0] = ReadSet(NULL);
-		printf("x stdin\n");
+		ds[0] = ReadSet("-");
 		nds = 1;
 	} else {
 		if (argc > (MAX_DS - 1))
 			usage("Too many datasets.");
 		nds = argc;
-		for (i = 0; i < nds; i++) {
+		for (i = 0; i < nds; i++)
 			ds[i] = ReadSet(argv[i]);
-			printf("%c %s\n", symbol[i+1], argv[i]);
-		}
 	}
+
+	for (i = 0; i < nds; i++) 
+		printf("%c %s\n", symbol[i+1], ds[i]->name);
 
 	if (!flag_n) {
 		SetupPlot(termwidth, flag_s, nds);
