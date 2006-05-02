@@ -74,10 +74,10 @@ union dinode {
 #define	HASSUBDIRS	0x2
 
 static	int dirindir(ino_t ino, ufs2_daddr_t blkno, int level, long *size,
-    long *tapesize, int nodump);
+    long *tapesize, int nodump, ino_t maxino);
 static	void dmpindir(ino_t ino, ufs2_daddr_t blk, int level, off_t *size);
 static	int searchdir(ino_t ino, ufs2_daddr_t blkno, long size, long filesize,
-    long *tapesize, int nodump);
+    long *tapesize, int nodump, ino_t maxino);
 static	long blockest(union dinode *dp);
 
 /*
@@ -190,6 +190,11 @@ mapfiles(ino_t maxino, long *tapesize)
 			    (dp = getino(ino, &mode)) == NULL ||
 			    (mode & IFMT) == 0)
 				continue;
+			if (ino >= maxino) {
+				msg("Skipping inode %d >= maxino %d\n",
+				    ino, maxino);
+				continue;
+			}
 			/*
 			 * Everything must go in usedinomap so that a check
 			 * for "in dumpdirmap but not in usedinomap" to detect
@@ -277,7 +282,7 @@ mapdirs(ino_t maxino, long *tapesize)
 			if (DIP(&di, di_db[i]) != 0)
 				ret |= searchdir(ino, DIP(&di, di_db[i]),
 				    (long)sblksize(sblock, DIP(&di, di_size),
-				    i), filesize, tapesize, nodump);
+				    i), filesize, tapesize, nodump, maxino);
 			if (ret & HASDUMPEDFILE)
 				filesize = 0;
 			else
@@ -287,7 +292,7 @@ mapdirs(ino_t maxino, long *tapesize)
 			if (DIP(&di, di_ib[i]) == 0)
 				continue;
 			ret |= dirindir(ino, DIP(&di, di_ib[i]), i, &filesize,
-			    tapesize, nodump);
+			    tapesize, nodump, maxino);
 		}
 		if (ret & HASDUMPEDFILE) {
 			SETINO(ino, dumpinomap);
@@ -320,7 +325,8 @@ dirindir(
 	int ind_level,
 	long *filesize,
 	long *tapesize,
-	int nodump)
+	int nodump,
+	ino_t maxino)
 {
 	union {
 		ufs1_daddr_t ufs1[MAXBSIZE / sizeof(ufs1_daddr_t)];
@@ -338,7 +344,7 @@ dirindir(
 				blkno = idblk.ufs2[i];
 			if (blkno != 0)
 				ret |= searchdir(ino, blkno, sblock->fs_bsize,
-					*filesize, tapesize, nodump);
+					*filesize, tapesize, nodump, maxino);
 			if (ret & HASDUMPEDFILE)
 				*filesize = 0;
 			else
@@ -354,7 +360,7 @@ dirindir(
 			blkno = idblk.ufs2[i];
 		if (blkno != 0)
 			ret |= dirindir(ino, blkno, ind_level, filesize,
-			    tapesize, nodump);
+			    tapesize, nodump, maxino);
 	}
 	return (ret);
 }
@@ -371,7 +377,8 @@ searchdir(
 	long size,
 	long filesize, 
 	long *tapesize,
-	int nodump)
+	int nodump,
+	ino_t maxino)
 {
 	int mode;
 	struct direct *dp;
@@ -393,6 +400,11 @@ searchdir(
 		loc += dp->d_reclen;
 		if (dp->d_ino == 0)
 			continue;
+		if (dp->d_ino >= maxino) {
+			msg("corrupted directory entry, d_ino %d >= %d\n",
+			    dp->d_ino, maxino);
+			break;
+		}
 		if (dp->d_name[0] == '.') {
 			if (dp->d_name[1] == '\0')
 				continue;
