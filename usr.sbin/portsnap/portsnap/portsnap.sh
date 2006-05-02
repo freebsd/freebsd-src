@@ -326,9 +326,13 @@ fetch_pick_server() {
 	echo -n "Looking up ${SERVERNAME} mirrors..."
 
 # Issue the SRV query and pull out the Priority, Weight, and Target fields.
-	host -t srv "_http._tcp.${SERVERNAME}" |
-	    grep -E "^_http._tcp.${SERVERNAME} has SRV record" |
-	    cut -f 5,6,8 -d ' ' | sed -e 's/\.$//' > serverlist
+# BIND 9 prints "$name has SRV record ..." while BIND 8 prints
+# "$name server selection ..."; we allow either format.
+	MLIST="_http._tcp.${SERVERNAME}"
+	host -t srv "${MLIST}" |
+	    sed -nE "s/${MLIST} (has SRV record|server selection) //p" |
+	    cut -f 1,2,4 -d ' ' |
+	    sed -e 's/\.$//' > serverlist
 
 # If no records, give up -- we'll just use the server name we were given.
 	if [ `wc -l < serverlist` -eq 0 ]; then
