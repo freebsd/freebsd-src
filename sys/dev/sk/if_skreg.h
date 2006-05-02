@@ -927,7 +927,7 @@
 #define SK_RXMF1_READ_PTR	0x0C70
 #define SK_RXMF1_READ_LEVEL	0x0C78
 
-/* Receive MAC FIFO 1 Contro/Test */
+/* Receive MAC FIFO 1 Control/Test */
 #define SK_RFCTL_WR_PTR_TST_ON	0x00004000	/* Write pointer test on*/
 #define SK_RFCTL_WR_PTR_TST_OFF	0x00002000	/* Write pointer test off */
 #define SK_RFCTL_WR_PTR_STEP	0x00001000	/* Write pointer increment */
