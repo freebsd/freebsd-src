@@ -110,6 +110,7 @@ static struct cdevsw amr_cdevsw = {
 	.d_name =	"amr",
 };
 
+int linux_no_adapter = 0;
 /*
  * Initialisation, bus interface.
  */
@@ -177,6 +178,8 @@ static void	amr_printcommand(struct amr_command *ac);
 #endif
 
 static void	amr_init_sysctl(struct amr_softc *sc);
+static int	amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr,
+		    int32_t flag, d_thread_t *td);
 
 /********************************************************************************
  ********************************************************************************
@@ -258,6 +261,9 @@ amr_attach(struct amr_softc *sc)
     sc->amr_dev_t = make_dev(&amr_cdevsw, device_get_unit(sc->amr_dev), UID_ROOT, GID_OPERATOR,
 			     S_IRUSR | S_IWUSR, "amr%d", device_get_unit(sc->amr_dev));
     sc->amr_dev_t->si_drv1 = sc;
+    linux_no_adapter++;
+    if (device_get_unit(sc->amr_dev) == 0)
+	make_dev_alias(sc->amr_dev_t, "megadev0");
 
     /*
      * Schedule ourselves to bring the controller up once interrupts are
@@ -542,9 +548,9 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 	    break;
 
 	case 'm':
-	    copyout(&sc->amr_linux_no_adapters, (void *)(uintptr_t)ali.data,
-		sizeof(sc->amr_linux_no_adapters));
-	    td->td_retval[0] = sc->amr_linux_no_adapters;
+	    copyout(&linux_no_adapter, (void *)(uintptr_t)ali.data,
+		sizeof(linux_no_adapter));
+	    td->td_retval[0] = linux_no_adapter;
 	    error = 0;
 	    break;
 
@@ -768,9 +774,30 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
 
     case 0xc0046d00:
     case 0xc06e6d00:	/* Linux emulation */
-	return amr_linux_ioctl_int(dev, cmd, addr, flag, td);
-	break;
+	{
+	    devclass_t			devclass;
+	    struct amr_linux_ioctl	ali;
+	    int				adapter, error;
 
+	    devclass = devclass_find("amr");
+	    if (devclass == NULL)
+		return (ENOENT);
+
+	    error = copyin(addr, &ali, sizeof(ali));
+	    if (error)
+		return (error);
+	    if (ali.ui.fcs.opcode == 0x82)
+		adapter = 0;
+	    else
+		adapter = (ali.ui.fcs.adapno) ^ 'm' << 8;
+
+	    sc = devclass_get_softc(devclass, adapter);
+	    if (sc == NULL)
+		return (ENOENT);
+
+	return (amr_linux_ioctl_int(sc->amr_dev_t, cmd,
+	    addr, 0, td));
+	}
     default:
 	debug(1, "unknown ioctl 0x%lx", cmd);
 	return(ENOIOCTL);
