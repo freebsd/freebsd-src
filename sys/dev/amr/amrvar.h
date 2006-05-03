@@ -254,8 +254,6 @@ extern void		amr_free(struct amr_softc *sc);
 extern int		amr_flush(struct amr_softc *sc);
 extern int		amr_done(struct amr_softc *sc);
 extern void		amr_startio(struct amr_softc *sc);
-extern int		amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr,
-			    int32_t flag, d_thread_t *td);
 
 /*
  * Command buffer allocation.
