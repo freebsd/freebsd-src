@@ -309,21 +309,21 @@ update_check_params() {
 # (in which case portsnap will use that particular server, since there
 # won't be an SRV entry for that name).
 #
-# We don't implement the recommendations from RFC 2782 completely, since
-# we are only looking to pick a single server -- the recommendations are
-# targetted at applications which obtain a list of servers and then try
-# each in turn, but we are instead just going to pick one server and let
-# the user re-run portsnap if a broken server was selected.
-#
-# We also ignore the Port field, since we are always going to use port 80.
-fetch_pick_server() {
+# We ignore the Port field, since we are always going to use port 80.
+
+# Fetch the mirror list, but do not pick a mirror yet.  Returns 1 if
+# no mirrors are available for any reason.
+fetch_pick_server_init() {
+	: > serverlist_tried
+
 # Check that host(1) exists (i.e., that the system wasn't built with the
 # WITHOUT_BIND set) and don't try to find a mirror if it doesn't exist.
 	if ! which -s host; then
-		return
+		: > serverlist_full
+		return 1
 	fi
 
-	echo -n "Looking up ${SERVERNAME} mirrors..."
+	echo -n "Looking up ${SERVERNAME} mirrors... "
 
 # Issue the SRV query and pull out the Priority, Weight, and Target fields.
 # BIND 9 prints "$name has SRV record ..." while BIND 8 prints
@@ -332,12 +332,29 @@ fetch_pick_server() {
 	host -t srv "${MLIST}" |
 	    sed -nE "s/${MLIST} (has SRV record|server selection) //p" |
 	    cut -f 1,2,4 -d ' ' |
-	    sed -e 's/\.$//' > serverlist
+	    sed -e 's/\.$//' |
+	    sort > serverlist_full
 
 # If no records, give up -- we'll just use the server name we were given.
+	if [ `wc -l < serverlist_full` -eq 0 ]; then
+		echo "none found."
+		return 1
+	fi
+
+# Report how many mirrors we found.
+	echo `wc -l < serverlist_full` "mirrors found."
+}
+
+# Pick a mirror.  Returns 1 if we have run out of mirrors to try.
+fetch_pick_server() {
+# Generate a list of not-yet-tried mirrors
+	sort serverlist_tried |
+	    comm -23 serverlist_full - > serverlist
+
+# Have we run out of mirrors?
 	if [ `wc -l < serverlist` -eq 0 ]; then
-		echo " none found."
-		return
+		echo "No mirrors remaining, giving up."
+		return 1
 	fi
 
 # Find the highest priority level (lowest numeric value).
@@ -365,7 +382,9 @@ fetch_pick_server() {
 # Pick a random value between 1 and the sum of the weights
 	SRV_RND=`jot -r 1 1 ${SRV_WSUM}`
 
-# Read through the list of mirrors and set SERVERNAME
+# Read through the list of mirrors and set SERVERNAME.  Write the line
+# corresponding to the mirror we selected into serverlist_tried so that
+# we won't try it again.
 	while read X; do
 		case "$X" in
 		${SRV_PRIORITY}\ *)
@@ -373,6 +392,7 @@ fetch_pick_server() {
 			SRV_W=$(($SRV_W + $SRV_W_ADD))
 			if [ $SRV_RND -le $SRV_W ]; then
 				SERVERNAME=`echo $X | cut -f 3 -d ' '`
+				echo "$X" >> serverlist_tried
 				break
 			else
 				SRV_RND=$(($SRV_RND - $SRV_W))
@@ -380,18 +400,17 @@ fetch_pick_server() {
 			;;
 		esac
 	done < serverlist
-
-	echo " using ${SERVERNAME}"
 }
 
 # Check that we have a public key with an appropriate hash, or
-# fetch the key if it doesn't exist.
+# fetch the key if it doesn't exist.  Returns 1 if the key has
+# not yet been fetched.
 fetch_key() {
 	if [ -r pub.ssl ] && [ `${SHA256} -q pub.ssl` = ${KEYPRINT} ]; then
-		return
+		return 0
 	fi
 
-	echo -n "Fetching public key... "
+	echo -n "Fetching public key from ${SERVERNAME}... "
 	rm -f pub.ssl
 	fetch ${QUIETFLAG} http://${SERVERNAME}/pub.ssl \
 	    2>${QUIETREDIR} || true
@@ -411,8 +430,8 @@ fetch_key() {
 fetch_tag() {
 	rm -f snapshot.ssl tag.new
 
-	echo ${NDEBUG} "Fetching snapshot tag... "
-	fetch ${QUIETFLAG} http://${SERVERNAME}/$1.ssl
+	echo ${NDEBUG} "Fetching snapshot tag from ${SERVERNAME}... "
+	fetch ${QUIETFLAG} http://${SERVERNAME}/$1.ssl		\
 	    2>${QUIETREDIR} || true
 	if ! [ -r $1.ssl ]; then
 		echo "failed."
@@ -571,7 +590,9 @@ fetch_snapshot_verify() {
 
 # Fetch a snapshot tarball, extract, and verify.
 fetch_snapshot() {
-	fetch_tag snapshot || return 1
+	while ! fetch_tag snapshot; do
+		fetch_pick_server || return 1
+	done
 	fetch_snapshot_tagsanity || return 1
 	fetch_metadata || return 1
 	fetch_metadata_sanity || return 1
@@ -619,7 +640,9 @@ fetch_update() {
 	OLDSNAPSHOTDATE=`cut -f 2 -d '|' < tag`
 	OLDSNAPSHOTHASH=`cut -f 3 -d '|' < tag`
 
-	fetch_tag latest || return 1
+	while ! fetch_tag latest; do
+		fetch_pick_server || return 1
+	done
 	fetch_update_tagsanity || return 1
 	fetch_update_neededp || return 0
 	fetch_metadata || return 1
@@ -772,9 +795,11 @@ fetch_update() {
 
 # Do the actual work involved in "fetch" / "cron".
 fetch_run() {
-	fetch_pick_server
+	fetch_pick_server_init && fetch_pick_server
 
-	fetch_key || return 1
+	while ! fetch_key; do
+		fetch_pick_server || return 1
+	done
 
 	if ! [ -d files -a -r tag -a -r INDEX -a -r tINDEX ]; then
 		fetch_snapshot || return 1
