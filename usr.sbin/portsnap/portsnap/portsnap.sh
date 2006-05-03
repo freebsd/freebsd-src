@@ -343,6 +343,19 @@ fetch_pick_server_init() {
 
 # Report how many mirrors we found.
 	echo `wc -l < serverlist_full` "mirrors found."
+
+# Generate a random seed for use in picking mirrors.  If HTTP_PROXY
+# is set, this will be used to generate the seed; otherwise, the seed
+# will be random.
+	if [ -z "${HTTP_PROXY}" ]; then
+		RANDVALUE=`sha256 -qs "${HTTP_PROXY}" |
+		    tr -d 'a-f' |
+		    cut -c 1-9`
+	else
+		RANDVALUE=`jot -r 1 0 999999999`
+	fi
+	echo "XXXdebug: HTTP_PROXY=${HTTP_PROXY}"
+	echo "XXXdebug: RANDVALUE=${RANDVALUE}"
 }
 
 # Pick a mirror.  Returns 1 if we have run out of mirrors to try.
@@ -379,8 +392,8 @@ fetch_pick_server() {
 		SRV_W_ADD=0
 	fi
 
-# Pick a random value between 1 and the sum of the weights
-	SRV_RND=`jot -r 1 1 ${SRV_WSUM}`
+# Pick a value between 0 and the sum of the weights - 1
+	SRV_RND=`expr ${RANDVALUE} % ${SRV_WSUM}`
 
 # Read through the list of mirrors and set SERVERNAME.  Write the line
 # corresponding to the mirror we selected into serverlist_tried so that
@@ -390,7 +403,7 @@ fetch_pick_server() {
 		${SRV_PRIORITY}\ *)
 			SRV_W=`echo $X | cut -f 2 -d ' '`
 			SRV_W=$(($SRV_W + $SRV_W_ADD))
-			if [ $SRV_RND -le $SRV_W ]; then
+			if [ $SRV_RND -lt $SRV_W ]; then
 				SERVERNAME=`echo $X | cut -f 3 -d ' '`
 				echo "$X" >> serverlist_tried
 				break
