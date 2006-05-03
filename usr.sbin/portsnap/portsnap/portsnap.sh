@@ -354,8 +354,6 @@ fetch_pick_server_init() {
 	else
 		RANDVALUE=`jot -r 1 0 999999999`
 	fi
-	echo "XXXdebug: HTTP_PROXY=${HTTP_PROXY}"
-	echo "XXXdebug: RANDVALUE=${RANDVALUE}"
 }
 
 # Pick a mirror.  Returns 1 if we have run out of mirrors to try.
