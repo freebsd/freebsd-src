@@ -1781,6 +1781,7 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 		if ((vp->v_vflag & VV_COPYONWRITE) &&
 		    vp->v_rdev->si_snapdata != NULL) {
 			if ((bp->b_flags & B_CLUSTER) != 0) {
+				runningbufwakeup(bp);
 				TAILQ_FOREACH(tbp, &bp->b_cluster.cluster_head,
 					      b_cluster.cluster_entry) {
 					error = ffs_copyonwrite(vp, tbp);
@@ -1792,6 +1793,9 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 						return;
 					}
 				}
+				bp->b_runningbufspace = bp->b_bufsize;
+				atomic_add_int(&runningbufspace,
+					       bp->b_runningbufspace);
 			} else {
 				error = ffs_copyonwrite(vp, bp);
 				if (error != 0 && error != EOPNOTSUPP) {
