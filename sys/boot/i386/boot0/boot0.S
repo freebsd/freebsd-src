@@ -29,7 +29,7 @@
 		.set PRT_OFF,0x1be		# Partition table
 
 		.set TBL0SZ,0x3 		# Table 0 size
-		.set TBL1SZ,0xb 		# Table 1 size
+		.set TBL1SZ,0xa 		# Table 1 size
 
 		.set MAGIC,0xaa55		# Magic: bootable
 		.set B0MAGIC,0xbb66		# Identification
@@ -198,12 +198,16 @@ main.7:		movw $prompt,%si		# Display
 		movb _OPT(%bp),%dl		# Display
 		decw %si			#  default
 		callw putkey			#  key
+		jmp main.7_1			# Skip beep
 /*
- * Start of input loop.  Beep and take note of time
+ * Users's last try was bad, beep in displeasure.
  */
 main.10:	movb $ASCII_BEL,%al		# Signal
 		callw putchr			#  beep!
-		xorb %ah,%ah			# BIOS: Get
+/*
+ * Start of input loop.  Take note of time
+ */
+main.7_1:	xorb %ah,%ah			# BIOS: Get
 		int $0x1a			#  system time
 		movw %dx,%di			# Ticks when
 		addw _TICKS(%bp),%di		#  timeout
@@ -410,7 +414,7 @@ tables:
  * These values indicate bootable types we know the names of.
  */
 		.byte 0x1, 0x6, 0x7, 0xb, 0xc, 0xe, 0x83
-		.byte 0x9f, 0xa5, 0xa6, 0xa9
+		.byte 0xa5, 0xa6, 0xa9
 /*
  * These are offsets that match the known names above and point to the strings
  * that will be printed. os_misc will be used if the search of the above table
@@ -423,7 +427,6 @@ tables:
 		.byte os_dos-.			# Windows
 		.byte os_dos-.			# Windows
 		.byte os_linux-.		# Linux
-		.byte os_bsd-.			# BSD/OS
 		.byte os_freebsd-.		# FreeBSD
 		.byte os_bsd-.			# OpenBSD
 		.byte os_bsd-.			# NetBSD
