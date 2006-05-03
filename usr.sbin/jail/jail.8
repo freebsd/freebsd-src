@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2005
+.Dd May 3, 2006
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -539,6 +539,11 @@ privileged, and may manipulate system file flags subject to the usual
 constraints on
 .Va kern.securelevel .
 .El
+.Pp
+The read-only
+.Va security.jail.jailed
+variable can be used to determine if a process is running inside a jail (value
+is one) or not (value is zero).
 .Pp
 There are currently two MIB related variables that have per-jail settings.
 Changes to these variables by a jailed process do not effect the host
