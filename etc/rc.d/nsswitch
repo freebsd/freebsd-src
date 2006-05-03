@@ -36,54 +36,6 @@ name="nsswitch"
 start_cmd="nsswitch_start"
 stop_cmd=":"
 
-convert_host_conf()
-{
-    host_conf=$1; shift;
-    nsswitch_conf=$1; shift;
-
-    while read line; do
-	line=${line##[ 	]}
-	case $line in
-        hosts|local|file)
-		_nsswitch="${_nsswitch}${_nsswitch+ }files"
-		;;
-	dns|bind)
-		_nsswitch="${_nsswitch}${_nsswitch+ }dns"
-		;;
-	nis)
-		_nsswitch="${_nsswitch}${_nsswitch+ }nis"
-		;;
-	'#'*)
-		;;
-	*)
-        	printf "Warning: unrecognized line [%s]", $line > "/dev/stderr"
-		;;
-
-	esac
-    done < $host_conf
-
-    echo "hosts: $_nsswitch" > $nsswitch_conf
-}
-
-generate_nsswitch_conf()
-{
-    nsswitch_conf=$1; shift;
-
-    cat >$nsswitch_conf <<EOF
-group: compat
-group_compat: nis
-hosts: files dns
-networks: files
-passwd: compat
-passwd_compat: nis
-shells: files
-services: compat
-services_compat: nis
-protocols: files
-rpc: files
-EOF
-}
-
 generate_host_conf()
 {
     nsswitch_conf=$1; shift;
@@ -134,22 +86,6 @@ generate_host_conf()
 
 nsswitch_start()
 {
-	# Convert host.conf to nsswitch.conf if necessary
-	#
-	if [ -f "/etc/host.conf" -a ! -f "/etc/nsswitch.conf" ]; then
-		echo ''
-		echo 'Warning: /etc/host.conf is no longer used'
-		echo '  /etc/nsswitch.conf will be created for you'
-		convert_host_conf /etc/host.conf /etc/nsswitch.conf
-	fi
-
-	# Generate default nsswitch.conf if none exists
-	#
-	if [ ! -f "/etc/nsswitch.conf" ]; then
-		echo 'Generating nsswitch.conf.'
-		generate_nsswitch_conf /etc/nsswitch.conf
-	fi
-
 	# Generate host.conf for compatibility
 	#
 	if [ ! -f "/etc/host.conf" -o \
