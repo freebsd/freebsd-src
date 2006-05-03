@@ -2037,6 +2037,7 @@ ffs_copyonwrite(devvp, bp)
 	ufs2_daddr_t lbn, blkno, *snapblklist;
 	int lower, upper, mid, indiroff, error = 0;
 	int launched_async_io, prev_norunningbuf;
+	long saved_runningbufspace;
 
 	if ((VTOI(bp->b_vp)->i_flags & SF_SNAPSHOT) != 0)
 		return (0);		/* Update on a snapshot file */
@@ -2079,7 +2080,9 @@ ffs_copyonwrite(devvp, bp)
 	 * for a long time waiting on snaplk, back it out of
 	 * runningbufspace, possibly waking other threads waiting for space.
 	 */
-	runningbufwakeup(bp);
+	saved_runningbufspace = bp->b_runningbufspace;
+	if (saved_runningbufspace != 0)
+		runningbufwakeup(bp);
 	/*
 	 * Not in the precomputed list, so check the snapshots.
 	 */
@@ -2091,9 +2094,11 @@ ffs_copyonwrite(devvp, bp)
 		if (sn == NULL ||
 		    TAILQ_FIRST(&sn->sn_head) == NULL) {
 			VI_UNLOCK(devvp);
-			if (bp->b_runningbufspace)
+			if (saved_runningbufspace != 0) {
+				bp->b_runningbufspace = saved_runningbufspace;
 				atomic_add_int(&runningbufspace,
 					       bp->b_runningbufspace);
+			}
 			return (0);		/* Snapshot gone */
 		}
 	}
@@ -2214,8 +2219,10 @@ ffs_copyonwrite(devvp, bp)
 	/*
 	 * I/O on bp will now be started, so count it in runningbufspace.
 	 */
-	if (bp->b_runningbufspace)
+	if (saved_runningbufspace != 0) {
+		bp->b_runningbufspace = saved_runningbufspace;
 		atomic_add_int(&runningbufspace, bp->b_runningbufspace);
+	}
 	return (error);
 }
 
