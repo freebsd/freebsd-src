@@ -406,6 +406,11 @@ restart:
 		vn_start_write(NULL, &wrtmp, V_WAIT);
 	}
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	if (ip->i_effnlink == 0) {
+		error = ENOENT;		/* Snapshot file unlinked */
+		sn = NULL;
+		goto out1;
+	}
 	if (collectsnapstats)
 		nanotime(&starttime);
 	/*
@@ -764,12 +769,17 @@ out1:
 	 * the inode for this snapshot then a deadlock can occur. Drop
 	 * the snapshot lock until the buffer has been written.
 	 */
+	VREF(vp);	/* Protect against ffs_snapgone() */
 	VOP_UNLOCK(vp, 0, td);
 	(void) bread(ip->i_devvp,
 		     fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
 		     (int) fs->fs_bsize, NOCRED, &nbp);
 	brelse(nbp);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	if (ip->i_effnlink == 0)
+		error = ENOENT;		/* Snapshot file unlinked */
+	else
+		vrele(vp);		/* Drop extra reference */
 done:
 	FREE(copy_fs->fs_csp, M_UFSMNT);
 	bawrite(sbp);
