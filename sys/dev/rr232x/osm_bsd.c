@@ -1024,7 +1024,8 @@ static void hpt_final_init(void *dummy)
 	}
 
 	if (!i) {
-		os_printk("no controller detected.");
+		if (bootverbose)
+			os_printk("no controller detected.");
 		return;
 	}
 
