@@ -703,9 +703,10 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	error = _bus_dmamap_load_buffer(dmat, map, buf, buflen, NULL, flags,
 	     &lastaddr, dmat->segments, &nsegs, 1);
 
+	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
+	    __func__, dmat, dmat->flags, error, nsegs + 1);
+
 	if (error == EINPROGRESS) {
-		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
-		    __func__, dmat, dmat->flags, error);
 		return (error);
 	}
 
@@ -714,8 +715,13 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	else
 		(*callback)(callback_arg, dmat->segments, nsegs + 1, 0);
 
-	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error 0 nsegs %d",
-	    __func__, dmat, dmat->flags, nsegs + 1);
+	/*
+	 * Return ENOMEM to the caller so that it can pass it up the stack.
+	 * This error only happens when NOWAIT is set, so deferal is disabled.
+	 */
+	if (error == ENOMEM)
+		return (error);
+
 	return (0);
 }
 
