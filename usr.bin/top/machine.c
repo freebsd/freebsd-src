@@ -51,15 +51,12 @@
 #include "screen.h"
 #include "utils.h"
 
-static void getsysctl(char *, void *, size_t);
-
 #define GETSYSCTL(name, var) getsysctl(name, &(var), sizeof(var))
 #define	SMPUNAMELEN	13
 #define	UPUNAMELEN	15
 
 extern struct process_select ps;
 extern char* printable(char *);
-int swapmode(int *retavail, int *retfree);
 static int smpmode;
 enum displaymodes displaymode;
 static int namelength = 8;
@@ -67,7 +64,6 @@ static int cmdlengthdelta;
 
 /* Prototypes for top internals */
 void quit(int);
-int compare_pid(const void *a, const void *b);
 
 /* get_process_info passes back a handle.  This is what it looks like: */
 
@@ -109,7 +105,7 @@ static char smp_header[] =
     "  PID %-*.*s "   "PRI NICE   SIZE    RES STATE  C   TIME %6s COMMAND";
 
 #define smp_Proc_format \
-    "%5d %-*.*s %s%3d %4d%7s %6s %-6.6s %1x%7s %5.2f%% %.*s"
+    "%5d %-*.*s %s%3d %4s%7s %6s %-6.6s %1x%7s %5.2f%% %.*s"
 
 static char up_header_thr[] =
     "  PID %-*.*s  THR PRI NICE   SIZE    RES STATE    TIME %6s COMMAND";
@@ -117,7 +113,7 @@ static char up_header[] =
     "  PID %-*.*s "   "PRI NICE   SIZE    RES STATE    TIME %6s COMMAND";
 
 #define up_Proc_format \
-    "%5d %-*.*s %s%3d %4d%7s %6s %-6.6s%.0d%7s %5.2f%% %.*s"
+    "%5d %-*.*s %s%3d %4s%7s %6s %-6.6s%.0d%7s %5.2f%% %.*s"
 
 
 /* process state names for the "STATE" column of the display */
@@ -217,6 +213,11 @@ char *ordernames[] = {
 	"total", "read", "write", "fault", "vcsw", "ivcsw", NULL
 };
 #endif
+
+static int compare_pid(const void *a, const void *b);
+static const char *format_nice(const struct kinfo_proc *pp);
+static void getsysctl(const char *name, void *ptr, size_t len);
+static int swapmode(int *retavail, int *retfree);
 
 int
 machine_init(struct statics *statics)
@@ -767,17 +768,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int))
 	    namelength, namelength, (*get_userid)(pp->ki_ruid),
 	    thr_buf,
 	    pp->ki_pri.pri_level - PZERO,
-
-	    /*
-	     * normal time      -> nice value -20 - +20
-	     * real time 0 - 31 -> nice value -52 - -21
-	     * idle time 0 - 31 -> nice value +21 - +52
-	     */
-	    (pp->ki_pri.pri_class ==  PRI_TIMESHARE ?
-		pp->ki_nice - NZERO :
-		(PRI_IS_REALTIME(pp->ki_pri.pri_class) ?
-		    (PRIO_MIN - 1 - (PRI_MAX_REALTIME - pp->ki_pri.pri_level)) :
-		    (PRIO_MAX + 1 + pp->ki_pri.pri_level - PRI_MIN_IDLE))),
+	    format_nice(pp),
 	    format_k2(PROCSIZE(pp)),
 	    format_k2(pagetok(pp->ki_rssize)),
 	    status,
@@ -792,7 +783,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int))
 }
 
 static void
-getsysctl(char *name, void *ptr, size_t len)
+getsysctl(const char *name, void *ptr, size_t len)
 {
 	size_t nlen = len;
 
@@ -808,9 +799,28 @@ getsysctl(char *name, void *ptr, size_t len)
 	}
 }
 
+static
+const char *format_nice(const struct kinfo_proc *pp)
+{
+	static char nicebuf[5];
+
+	snprintf(nicebuf, sizeof(nicebuf), "%4d",
+	    /*
+	     * normal time      -> nice value -20 - +20
+	     * real time 0 - 31 -> nice value -52 - -21
+	     * idle time 0 - 31 -> nice value +21 - +52
+	     */
+	    (pp->ki_pri.pri_class ==  PRI_TIMESHARE ?
+		pp->ki_nice - NZERO :
+		(PRI_IS_REALTIME(pp->ki_pri.pri_class) ?
+		    (PRIO_MIN - 1 - (PRI_MAX_REALTIME - pp->ki_pri.pri_level)) :
+		    (PRIO_MAX + 1 + pp->ki_pri.pri_level - PRI_MIN_IDLE))));
+	return (nicebuf);
+}
+
 /* comparison routines for qsort */
 
-int
+static int
 compare_pid(const void *p1, const void *p2)
 {
 	const struct kinfo_proc * const *pp1 = p1;
@@ -1143,7 +1153,7 @@ proc_owner(int pid)
 	return (-1);
 }
 
-int
+static int
 swapmode(int *retavail, int *retfree)
 {
 	int n;
