@@ -120,6 +120,8 @@ ip6_forward(m, srcrt)
 	int ipsecrt = 0;
 #endif
 
+	GIANT_REQUIRED; /* XXX bz: ip6_forward_rt */
+
 #ifdef IPSEC
 	/*
 	 * Check AH/ESP integrity.
