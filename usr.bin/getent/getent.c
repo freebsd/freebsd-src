@@ -509,10 +509,9 @@ services(int argc, char *argv[])
 			proto = strchr(argv[i], '/');
 			if (proto != NULL)
 				*proto++ = '\0';
-			if (parsenum(argv[i], &id)) {
-				printf("%lu %s\n", id, proto);
-				se = getservbyport((int)id, proto);
-			} else
+			if (parsenum(argv[i], &id))
+				se = getservbyport(htons((u_short)id), proto);
+			else
 				se = getservbyname(argv[i], proto);
 			if (se != NULL)
 				SERVICESPRINT;
