@@ -709,13 +709,11 @@ struct flash_spec {
 #define PCI_SETBIT(dev, reg, x, s)	pci_write_config(dev, reg, (pci_read_config(dev, reg, s) | (x)), s)
 #define PCI_CLRBIT(dev, reg, x, s)	pci_write_config(dev, reg, (pci_read_config(dev, reg, s) & ~(x)), s)
 
+#define BCE_STATS(x)			(u_long) stats->stat_ ## x ## _lo
 #if (BUS_SPACE_MAXADDR > 0xFFFFFFFF)
-#define BCE_STATS(x)			((u_long) stats->stat_ ## x ## _hi << 32) + \
-					    (u_long) stats->stat_ ## x ## _lo
 #define BCE_ADDR_LO(y)			((u64) (y) & 0xFFFFFFFF)
 #define BCE_ADDR_HI(y)			((u64) (y) >> 32)
 #else
-#define BCE_STATS(x)			(u_long) stats->stat_ ## x ## _lo
 #define BCE_ADDR_LO(y)			((u32)y)
 #define BCE_ADDR_HI(y)			(0)
 #endif
@@ -4703,7 +4701,7 @@ struct bce_softc
 #define BCE_PHY_INT_MODE_AUTO_POLLING_FLAG	0x100
 #define BCE_PHY_INT_MODE_LINK_READY_FLAG	0x200
 
-	bus_size_t			max_bus_addr;
+	bus_addr_t				max_bus_addr;
 	u16					bus_speed_mhz;		/* PCI bus speed */
 	struct flash_spec	*bce_flash_info;	/* Flash NVRAM settings */
 	u32					bce_flash_size;		/* Flash NVRAM size */
