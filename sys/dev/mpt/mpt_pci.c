@@ -127,6 +127,10 @@ __FBSDID("$FreeBSD$");
 #define	PCI_PRODUCT_LSI_FC929X		0x0626
 #endif
 
+#ifndef	PCI_PRODUCT_LSI_FC7X04X
+#define	PCI_PRODUCT_LSI_FC7X04X		0x0640
+#endif
+
 #ifndef	PCI_PRODUCT_LSI_1030
 #define	PCI_PRODUCT_LSI_1030		0x0030
 #endif
@@ -219,7 +223,10 @@ mpt_pci_probe(device_t dev)
 		desc = "LSILogic FC929 FC Adapter";
 		break;
 	case PCI_PRODUCT_LSI_FC929X:
-		desc = "LSILogic FC929X FC Adapter";
+		desc = "LSILogic FC929X 2Gb/s FC Adapter";
+		break;
+	case PCI_PRODUCT_LSI_FC7X04X:
+		desc = "LSILogic FC7X04X 4Gb/s FC Adapter";
 		break;
 	case PCI_PRODUCT_LSI_1030:
 		desc = "LSILogic 1030 Ultra4 Adapter";
@@ -363,6 +370,7 @@ mpt_pci_attach(device_t dev)
 	case PCI_PRODUCT_LSI_FC909A:
 	case PCI_PRODUCT_LSI_FC919:
 	case PCI_PRODUCT_LSI_FC929:
+	case PCI_PRODUCT_LSI_FC7X04X:
 		mpt->is_fc = 1;
 		break;
 	case PCI_PRODUCT_LSI_SAS1064:
@@ -418,6 +426,7 @@ mpt_pci_attach(device_t dev)
 	 * If so, link with our partner (around yet)
 	 */
 	if ((pci_get_device(dev) & ~1) == PCI_PRODUCT_LSI_FC929 ||
+	    (pci_get_device(dev) & ~1) == PCI_PRODUCT_LSI_FC7X04X ||
 	    (pci_get_device(dev) & ~1) == PCI_PRODUCT_LSI_1030) {
 		mpt_link_peer(mpt);
 	}
