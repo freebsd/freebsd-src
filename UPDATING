@@ -21,6 +21,21 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20060428:
+	The puc(4) driver has been overhauled. The ebus(4) and sbus(4)
+	attachments have been removed. Make sure to configure scc(4)
+	on sparc64. Note also that by default puc(4) will use uart(4)
+	and not sio(4) for serial ports because interrupt handling has
+	been optimized for multi-port serial cards and only uart(4)
+	implements the interface to support it.
+
+20060330:
+	The scc(4) driver replaces puc(4) for Serial Communications
+	Controllers (SCCs) like the Siemens SAB82532 and the Zilog
+	Z8530. On sparc64, it is advised to add scc(4) to the kernel
+	configuration to make sure that the serial ports remain
+	functional.
+
 20060317:
 	Most world/kernel related NO_* build options changed names.
 	New knobs have common prefixes WITHOUT_*/WITH_* (modelled
