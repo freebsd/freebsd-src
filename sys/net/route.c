@@ -499,6 +499,9 @@ rtrequest(int req,
 {
 	struct rt_addrinfo info;
 
+	if (dst->sa_len == 0)
+		return(EINVAL);
+
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_flags = flags;
 	info.rti_info[RTAX_DST] = dst;
@@ -1137,6 +1140,9 @@ rtinit(struct ifaddr *ifa, int cmd, int flags)
 		dst = ifa->ifa_addr;
 		netmask = ifa->ifa_netmask;
 	}
+	if (dst->sa_len == 0)
+		return(EINVAL);
+
 	/*
 	 * If it's a delete, check that if it exists, it's on the correct
 	 * interface or we might scrub a route to another ifa which would
