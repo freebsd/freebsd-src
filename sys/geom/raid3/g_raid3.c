@@ -1009,7 +1009,7 @@ g_raid3_scatter(struct bio *pbp)
 {
 	struct g_raid3_softc *sc;
 	struct g_raid3_disk *disk;
-	struct bio *bp, *cbp;
+	struct bio *bp, *cbp, *tmpbp;
 	off_t atom, cadd, padd, left;
 
 	sc = pbp->bio_to->geom->softc;
@@ -1038,8 +1038,6 @@ g_raid3_scatter(struct bio *pbp)
 		cadd += atom;
 	}
 	if ((pbp->bio_pflags & G_RAID3_BIO_PFLAG_NOPARITY) == 0) {
-		struct bio *tmpbp;
-
 		/*
 		 * Calculate parity.
 		 */
@@ -1053,7 +1051,7 @@ g_raid3_scatter(struct bio *pbp)
 				g_raid3_destroy_bio(sc, cbp);
 		}
 	}
-	G_RAID3_FOREACH_BIO(pbp, cbp) {
+	G_RAID3_FOREACH_SAFE_BIO(pbp, cbp, tmpbp) {
 		struct g_consumer *cp;
 
 		disk = cbp->bio_caller2;
@@ -1685,7 +1683,7 @@ g_raid3_register_request(struct bio *pbp)
 	struct g_raid3_softc *sc;
 	struct g_raid3_disk *disk;
 	struct g_consumer *cp;
-	struct bio *cbp;
+	struct bio *cbp, *tmpbp;
 	off_t offset, length;
 	u_int n, ndisks;
 	int round_robin, verify;
@@ -1831,7 +1829,7 @@ g_raid3_register_request(struct bio *pbp)
 			 */
 			sc->sc_round_robin = 0;
 		}
-		G_RAID3_FOREACH_BIO(pbp, cbp) {
+		G_RAID3_FOREACH_SAFE_BIO(pbp, cbp, tmpbp) {
 			disk = cbp->bio_caller2;
 			cp = disk->d_consumer;
 			cbp->bio_to = cp->provider;
