@@ -1,7 +1,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.282.2.10
+	Original Revision: 1.282.2.11
 -->
 
 <!--
@@ -141,6 +141,8 @@
     &hwlist.nsp;
 
     &hwlist.pst;
+
+    &hwlist.rr232x;
 
     &hwlist.stg;
 

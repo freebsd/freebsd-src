@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.883.2.15.2.3
+     Original revision: 1.883.2.15.2.5
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -148,13 +148,14 @@
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:12.opie.asc">FreeBSD-SA-06:12.opie</ulink>。</para>
 
     <para>发现并修正了 &man.sendmail.8; 中的一项可能导致远程攻击者以执行
-      sendmail 的用户， 通常是 root 身份执行任意代码的问题。
+      sendmail 的用户， 通常是 <username>root</username> 身份执行任意代码的问题。
       要了解进一步详情， 请参阅安全公告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:13.sendmail.asc">FreeBSD-SA-06:13.sendmail</ulink>。</para>
 
     <para>发现并修正了在 AMD 第7和第8代处理器上运行的 FreeBSD 内核的一处信息泄露问题。
       要了解进一步详情， 请参阅安全公告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:14.fpu.asc">FreeBSD-SA-06:14.fpu</ulink>。</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -208,17 +209,17 @@
       <para>&man.kbdmux.4; 驱动已经集成到了 &man.syscons.4; 和
 	<devicename>kbd</devicename> 设备驱动程序中。
 	默认情况下 &man.syscons.4; 会首先查找 &man.kbdmux.4;
-	键盘， 如果找不到泽搜索其他键盘。 切换到 &man.kbdmux.4;
+	键盘， 如果找不到则搜索其他键盘。 切换到 &man.kbdmux.4;
 	可以在启动时通过使用 &man.loader.8; 来加载
 	<literal>kbdmux</literal> 内核模块，
 	或在运行状态通过 &man.kldload.8; 加载模块并移去当前键盘来完成。
-	&merged;</para>
+	</para>
 
-      <para arch="amd64,i386">&man.kbdmux.4; 已被加入默认的
+      <para arch="amd64,i386">&man.kbdmux.4; 驱动已被加入默认的
 	<filename>GENERIC</filename> 内核。
 	此外， 由于这一变动修正了 USB 键盘探测问题，
 	因此引导加载器菜单中的 <quote>Boot FreeBSD with USB keyboard</quote>
-	选项也随之删去。 &merged;</para>
+	选项也随之删去。</para>
 
       <sect4 id="mm">
 	<title>多媒体支持</title>
@@ -254,6 +255,9 @@
 	<para arch="i386,amd64">新增了 &man.bce.4; 驱动， 用以支持 Broadcom
 	  NetXtreme II (BCM5706/BCM5708) PCI/PCIe 千兆以太网控制器。
 	  进一步详情请参考 &man.bce.4;。</para>
+
+	<para>修正了导致 &man.bfe.4; 驱动无法在配有 1GB 以上 RAM
+	  的系统上正常工作的问题。</para>
 
 	<para>&man.bge.4; 驱动提供了 &man.polling.4; 模式的支持。</para>
 
@@ -292,7 +296,7 @@
 	包头的以太网帧。</para>
 
       <para>&man.ipfw.4; 的 IP 包过滤器现在支持 IPv6 了。
-	&man.ip6fw.8; 已经过时， 并将在以后的发行版中删除。</para>
+	&man.ip6fw.8; 包过滤器已经过时， 并将在以后的发行版中删除。</para>
 
       <para>&man.ipfw.4; 新增了对于由查表得到的值所对应的动作进行替换的功能，
 	这一功能可以用来优化规则集。 目前，
@@ -320,7 +324,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 	这使由于通过多播种的许多路由器来通知路径 MTU
 	可能构成对于一台服务器的分布式拒绝服务攻击行为。
 	这一功能可以通过新的 sysctl 变量
-	<varname>net.inet6.ip6.mcast_pmtu</varname> 来启用。</para>
+	<varname>net.inet6.ip6.mcast_pmtu</varname> 来重新启用。</para>
 
       <para>当 RTT 低于某一特定阈值时， TCP 带宽-延迟积限制功能会自动禁用。
 	在 LAN 上这一优化是没有意义的， 因为时钟的粒度过粗，
@@ -373,7 +377,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 	而如果将它设置为 <literal>0</literal>， 则这样的盘不会被断开，
 	而内核将继续尝试使用它们
 	(只有第一次错误被记入日志)。
-	如果有两个盘都存在故障， 但位置不同， 则这一功能将有助于恢复数据。
+	如果有多个盘都存在故障， 但位置不同， 则这一功能将有助于恢复数据。
 	出现故障的盘在 <command>gmirror list</command>
 	和 <command>graid3 list</command> 的输出中仍可见， 但会标记上
 	<literal>BROKEN</literal>。</para>
@@ -399,7 +403,7 @@ pipe tablearg ip from table(1) to any</programlisting>
       <para>&man.twa.4; 已更新至 3ware 网站发布的 9.3.0.1
 	版本。</para>
 
-      <para>&man.geli.8; 支持在挂接根文件系统之前加载密钥文件了。 &merged;
+      <para>&man.geli.8; 支持在挂接根文件系统之前加载密钥文件了。
 	例如， 可以将下列配置加入 <filename>/boot/loader.conf</filename>
 	来启用它：</para>
 
@@ -442,14 +446,15 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       MIB 了。</para>
 
     <para>&man.config.8; 工具新增了对 <literal>nocpu</literal>
-      语句的支持。</para>
+      语句的支持， 其作用是取消先前的 <literal>cpu</literal>
+      语句。</para>
 
     <para>如果指定内核配置文件所在的目录中存在名为 <filename>DEFAULTS</filename>
       内核配置文件， 则 &man.config.8; 工具会在读取内核配置文件之前，
       首先处理这个文件的内容。</para>
 
     <para>&man.csh.1; 工具支持 NLS 编录了。 注意需要安装
-      <filename role="package">shells/tcsh_nls</filename> 才能正常使用。</para>
+      <filename role="package">shells/tcsh_nls</filename> port 才能正常使用。</para>
 
     <para>&man.devd.8; 工具新增了用于指定配置文件的 <option>-f</option> 选项。</para>
 
@@ -468,10 +473,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       用以指定 JidFile， 后者类似于 PidFile，
       包含 jailid、 路径、 主机名、 ip 以及用以启动 jail 的命令。</para>
 
-    <para>&man.kdump.1; 新增了 <option>-H</option>
+    <para>&man.kdump.1; 工具新增了 <option>-H</option>
       参数， 表示让 kdump 显示包含 threadid 的附加字段。</para>
 
-    <para>&man.kdump.1; 新增了 <option>-s</option>
+    <para>&man.kdump.1; 工具新增了 <option>-s</option>
       参数， 用于在显示中略去 I/O 数据。</para>
 
     <para>&man.ln.1; 工具新增了 <option>-F</option> 参数，
@@ -486,7 +491,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>&man.mergemaster.8; 工具新增了 <option>-A</option> 参数，
       用于显式地指定传递给下层 Makefile 的架构名称。</para>
 
-    <para>&man.moused.8; 新增了 <option>-H</option> 参数，
+    <para>&man.moused.8; 服务新增了 <option>-H</option> 参数，
       用以启用虚拟的水平方向滚轮， 这一功能与通过
       <option>-V</option> 参数启用虚拟的垂直方向滚轮类似。</para>
 
@@ -518,6 +523,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>&man.xargs.1; 工具新增了 <option>-r</option>
       参数， 表示只有在标准输入不含非空格字符时才执行命令。</para>
 
+    <para>修正了 &man.ypwhich.1; 工具中的一个导致
+      <option>-m</option> 选项产生不正确的可用命名映射的 bug。</para>
+
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> 脚本</title>
 
@@ -546,7 +554,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
       <para><filename>netif</filename> 脚本新增了对
 	<varname>ipv4_addrs_<replaceable>ifn</replaceable></varname>
-	的支持， 它表示增加 CIDR 记法的 IPv4 地址。 &merged; 例如：</para>
+	的支持， 它表示增加 CIDR 记法的 IPv4 地址。 例如：</para>
 
       <programlisting>ipv4_addrs_ed0="192.168.0.1/24 192.168.1.1-5/28"</programlisting>
 
@@ -581,20 +589,20 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
   <sect2 id="ports">
     <title>Ports/Packages 套件基础结构</title>
 
-    <para>&man.pkg.add.1; 新增了 <option>-P</option>
+    <para>&man.pkg.add.1; 命令新增了 <option>-P</option>
       参数， 它与 <option>-p</option> 参数类似，
       区别在于给定的前缀也会用于依赖的其他包。</para>
 
-    <para>&man.pkg.add.1; 和 &man.pkg.create.1; 新增了
+    <para>&man.pkg.add.1; 和 &man.pkg.create.1; 这两个工具新增了
       <option>-K</option> 参数， 表示将 package 默认保存至当前目录
       (如果有定义 <varname>PKGDIR</varname> 则保存在那个目录)。</para>
 
-    <para>&man.pkg.create.1; 新增了 <option>-x</option>
+    <para>&man.pkg.create.1; 程序新增了 <option>-x</option>
       参数， 用以使用基本正则表达式来表示 package 的名字，
       <option>-E</option> 标志表示使用扩展正则表达式，
       而 <option>-G</option> 则表示精确匹配。</para>
 
-    <para>&man.pkg.version.1; 新增了 <option>-o</option>
+    <para>&man.pkg.version.1; 工具新增了 <option>-o</option>
       参数， 用于显示在 package 生成时所记录的来源 (origin) 目录而不是其本身的名字，
       以及 <option>-O</option> 参数表示只列出所有注册来源为指定来源的 package。</para>
 
