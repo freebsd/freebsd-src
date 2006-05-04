@@ -947,11 +947,6 @@ enum {
 	MPT_PRT_TRACE,
 	MPT_PRT_NONE=100
 };
-#ifdef	INVARIANTS
-#define	MPT_PRT_INVARIANT	MPT_PRT_ALWAYS
-#else
-#define	MPT_PRT_INVARIANT	MPT_PRT_DEBUG
-#endif
 
 #if __FreeBSD_version > 500000
 #define mpt_lprt(mpt, level, ...)		\

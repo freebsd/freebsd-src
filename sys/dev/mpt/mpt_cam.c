@@ -2197,7 +2197,7 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 		mpt_req_not_spcl(mpt, req, "fc_els_reply_handler", __LINE__);
 	}
 #endif
-	mpt_lprt(mpt, MPT_PRT_INVARIANT,
+	mpt_lprt(mpt, MPT_PRT_DEBUG,
 	    "FC_ELS Complete: req %p:%u, reply %p function %x\n",
 	    req, req->serno, reply_frame, reply_frame->Function);
 
@@ -2269,7 +2269,7 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 		/*
 		 * This is just a ack of an original ELS buffer post
 		 */
-		mpt_lprt(mpt, MPT_PRT_INVARIANT,
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
 		    "RECV'd ACK of FC_ELS buf post %p:%u\n", req, req->serno);
 		return (TRUE);
 	}
@@ -3572,7 +3572,7 @@ mpt_fc_post_els(struct mpt_softc *mpt, request_t *req, int ioindex)
 	se->FlagsLength <<= MPI_SGE_FLAGS_SHIFT;
 	se->FlagsLength |= (MPT_NRFM(mpt) - MPT_RQSL(mpt));
 	se->Address = (uint32_t) paddr;
-	mpt_lprt(mpt, MPT_PRT_INVARIANT,
+	mpt_lprt(mpt, MPT_PRT_DEBUG,
 	    "add ELS index %d ioindex %d for %p:%u\n",
 	    req->index, ioindex, req, req->serno);
 	KASSERT(((req->state & REQ_STATE_LOCKED) != 0),
