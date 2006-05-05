@@ -35,6 +35,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ffs.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
@@ -46,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 
@@ -97,6 +100,13 @@ getinoquota(ip)
 	struct vnode *vp = ITOV(ip);
 	int error;
 
+#ifndef NO_FFS_SNAPSHOT
+	/*
+	 * Disk quotas must be turned off for snapshot files.
+	 */
+	if ((ip->i_flags & SF_SNAPSHOT) != 0)
+		return (0);
+#endif
 	ump = VFSTOUFS(vp->v_mount);
 	/*
 	 * Set up the user quota based on file uid.
@@ -375,6 +385,13 @@ chkdquot(ip)
 	struct ufsmount *ump = VFSTOUFS(ITOV(ip)->v_mount);
 	int i;
 
+#ifndef NO_FFS_SNAPSHOT
+	/*
+	 * Disk quotas must be turned off for snapshot files.
+	 */
+	if ((ip->i_flags & SF_SNAPSHOT) != 0)
+		return;
+#endif
 	for (i = 0; i < MAXQUOTAS; i++) {
 		if (ump->um_quotas[i] == NULLVP ||
 		    (ump->um_qflags[i] & (QTF_OPENING|QTF_CLOSING)))
