@@ -119,7 +119,7 @@ struct ath_descdma {
 	const char*		dd_name;
 	struct ath_desc		*dd_desc;	/* descriptors */
 	bus_addr_t		dd_desc_paddr;	/* physical addr of dd_desc */
-	bus_addr_t		dd_desc_len;	/* size of dd_desc */
+	bus_size_t		dd_desc_len;	/* size of dd_desc */
 	bus_dma_segment_t	dd_dseg;
 	bus_dma_tag_t		dd_dmat;	/* bus DMA tag */
 	bus_dmamap_t		dd_dmamap;	/* DMA map for descriptors */
