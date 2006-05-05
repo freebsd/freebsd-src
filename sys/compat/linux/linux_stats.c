@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
+#include <sys/conf.h>
+#include <sys/fcntl.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -93,6 +95,47 @@ disk_foo(struct somestat *tbuf)
 }
 #endif
 
+static void
+translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
+{
+	struct file *fp;
+	int error;
+	int major, minor;
+
+	if ((error = fget(td, fd, &fp)) != 0)
+		return;
+	if (fp->f_vnode) {
+		if (fp->f_vnode->v_type == VCHR
+		    || fp->f_vnode->v_type == VBLK) {
+			if (fp->f_vnode->v_un.vu_cdev) {
+				if (linux_driver_get_major_minor(
+				    fp->f_vnode->v_un.vu_cdev->si_name,
+				    &major, &minor) == 0) {
+					buf->st_rdev = (major << 8 | minor);
+				}
+			}
+		}
+	}
+	fdrop(fp, td);
+}
+
+static void
+translate_path_major_minor(struct thread *td, char *path, struct stat *buf)
+{
+	struct file *fp;
+	int fd;
+	int temp;
+
+	temp = td->td_retval[0];
+	if (kern_open(td, path, UIO_SYSSPACE, O_RDONLY, 0) != 0)
+		return;
+	fd = td->td_retval[0];
+	td->td_retval[0] = temp;
+	translate_fd_major_minor(td, fd, buf);
+	fget(td, fd, &fp);
+	closef(fp, td);
+}
+
 static int
 newstat_copyout(struct stat *buf, void *ubuf)
 {
@@ -134,13 +177,15 @@ linux_newstat(struct thread *td, struct linux_newstat_args *args)
 	  if (!error && strlen(path) > strlen("/dev/pts/") &&
 	      !strncmp(path, "/dev/pts/", strlen("/dev/pts/"))
 	      && path[9] >= '0' && path[9] <= '9') {
-		  /* 
-   		   * Linux checks major and minors of the slave device to make
+		  /*
+		   * Linux checks major and minors of the slave device to make
 		   * sure it's a pty device, so let's make him believe it is.
 		   */
 		  buf.st_rdev = (136 << 8);
 	  }
-	  
+
+	translate_path_major_minor(td, path, &buf);
+
 	LFREEPATH(path);
 	if (error)
 		return (error);
@@ -162,6 +207,7 @@ linux_newlstat(struct thread *td, struct linux_newlstat_args *args)
 #endif
 
 	error = kern_lstat(td, path, UIO_SYSSPACE, &sb);
+	translate_path_major_minor(td, path, &sb);
 	LFREEPATH(path);
 	if (error)
 		return (error);
@@ -180,6 +226,7 @@ linux_newfstat(struct thread *td, struct linux_newfstat_args *args)
 #endif
 
 	error = kern_fstat(td, args->fd, &buf);
+	translate_fd_major_minor(td, args->fd, &buf);
 	if (!error)
 		error = newstat_copyout(&buf, args->buf);
 
@@ -227,6 +274,7 @@ linux_stat(struct thread *td, struct linux_stat_args *args)
 	error = kern_stat(td, args->path, UIO_SYSSPACE, &buf);
 	if (error)
 		return (error);
+	translate_path_major_minor(td, args->path, &buf);
 	return(stat_copyout(&buf, args->up));
 }
 
@@ -243,6 +291,7 @@ linux_lstat(struct thread *td, struct linux_lstat_args *args)
 	error = kern_lstat(td, args->path, UIO_SYSSPACE, &buf);
 	if (error)
 		return (error);
+	translate_path_major_minor(td, args->path, &buf);
 	return(stat_copyout(&buf, args->up));
 }
 #endif
@@ -424,13 +473,15 @@ linux_stat64(struct thread *td, struct linux_stat64_args *args)
 	if (!error && strlen(filename) > strlen("/dev/pts/") &&
 	    !strncmp(filename, "/dev/pts/", strlen("/dev/pts/"))
 	    && filename[9] >= '0' && filename[9] <= '9') {
-		/* 
+		/*
 		 * Linux checks major and minors of the slave device to make
 		 * sure it's a pty deivce, so let's make him believe it is.
 		 */
 		buf.st_rdev = (136 << 8);
 	}
-	   
+
+	translate_path_major_minor(td, filename, &buf);
+
 	LFREEPATH(filename);
 	if (error)
 		return (error);
@@ -452,6 +503,7 @@ linux_lstat64(struct thread *td, struct linux_lstat64_args *args)
 #endif
 
 	error = kern_lstat(td, filename, UIO_SYSSPACE, &sb);
+	translate_path_major_minor(td, filename, &sb);
 	LFREEPATH(filename);
 	if (error)
 		return (error);
@@ -470,7 +522,9 @@ linux_fstat64(struct thread *td, struct linux_fstat64_args *args)
 #endif
 
 	error = kern_fstat(td, args->fd, &buf);
+	translate_fd_major_minor(td, args->fd, &buf);
 	if (!error)
+		translate_fd_major_minor(td, args->fd, &buf);
 		error = stat64_copyout(&buf, args->statbuf);
 
 	return (error);

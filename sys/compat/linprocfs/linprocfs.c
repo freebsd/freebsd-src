@@ -388,8 +388,13 @@ linprocfs_domtab(PFS_FILL_ARGS)
 		else if (strcmp(fstype, "procfs") == 0)
 			continue;
 
-		sbuf_printf(sb, "%s %s %s %s", mntfrom, mntto, fstype,
-		    mp->mnt_stat.f_flags & MNT_RDONLY ? "ro" : "rw");
+		if (strcmp(fstype, "linsysfs") == 0) {
+			sbuf_printf(sb, "/sys %s sysfs %s", mntto,
+			    mp->mnt_stat.f_flags & MNT_RDONLY ? "ro" : "rw");
+		} else {
+			sbuf_printf(sb, "%s %s %s %s", mntfrom, mntto, fstype,
+			    mp->mnt_stat.f_flags & MNT_RDONLY ? "ro" : "rw");
+		}
 #define ADD_OPTION(opt, name) \
 	if (mp->mnt_stat.f_flags & (opt)) sbuf_printf(sb, "," name);
 		ADD_OPTION(MNT_SYNCHRONOUS,	"sync");
@@ -952,7 +957,24 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 	return (0);
 }
 
-#if 0
+/*
+ * Filler function for proc/scsi/device_info
+ */
+static int
+linprocfs_doscsidevinfo(PFS_FILL_ARGS)
+{
+	return (0);
+}
+
+/*
+ * Filler function for proc/scsi/scsi
+ */
+static int
+linprocfs_doscsiscsi(PFS_FILL_ARGS)
+{
+	return (0);
+}
+
 extern struct cdevsw *cdevsw[];
 
 /*
@@ -961,19 +983,17 @@ extern struct cdevsw *cdevsw[];
 static int
 linprocfs_dodevices(PFS_FILL_ARGS)
 {
-	int i;
-
+	char *char_devices;
 	sbuf_printf(sb, "Character devices:\n");
 
-	for (i = 0; i < NUMCDEVSW; i++)
-		if (cdevsw[i] != NULL)
-			sbuf_printf(sb, "%3d %s\n", i, cdevsw[i]->d_name);
+	char_devices = linux_get_char_devices();
+	sbuf_printf(sb, "%s", char_devices);
+	linux_free_get_char_devices(char_devices);
 
 	sbuf_printf(sb, "\nBlock devices:\n");
 
 	return (0);
 }
-#endif
 
 /*
  * Filler function for proc/cmdline
@@ -1019,10 +1039,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, NULL, PFS_RD);
 	pfs_create_file(root, "cpuinfo", &linprocfs_docpuinfo,
 	    NULL, NULL, PFS_RD);
-#if 0
 	pfs_create_file(root, "devices", &linprocfs_dodevices,
 	    NULL, NULL, PFS_RD);
-#endif
 	pfs_create_file(root, "loadavg", &linprocfs_doloadavg,
 	    NULL, NULL, PFS_RD);
 	pfs_create_file(root, "meminfo", &linprocfs_domeminfo,
@@ -1031,6 +1049,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(root, "modules", &linprocfs_domodules,
 	    NULL, NULL, PFS_RD);
 #endif
+	pfs_create_file(root, "mounts", &linprocfs_domtab,
+	    NULL, NULL, PFS_RD);
 	pfs_create_file(root, "mtab", &linprocfs_domtab,
 	    NULL, NULL, PFS_RD);
 	pfs_create_link(root, "self", &procfs_docurproc,
@@ -1070,6 +1090,12 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(dir, "status", &linprocfs_doprocstatus,
 	    NULL, NULL, PFS_RD);
 
+	/* /proc/scsi/... */
+	dir = pfs_create_dir(root, "scsi", NULL, NULL, 0);
+	pfs_create_file(dir, "device_info", &linprocfs_doscsidevinfo,
+	    NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "scsi", &linprocfs_doscsiscsi,
+	    NULL, NULL, PFS_RD);
 	return (0);
 }
 
