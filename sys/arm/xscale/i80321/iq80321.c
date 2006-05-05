@@ -307,6 +307,7 @@ iq80321_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		    start, end, count, flags, child);
 		if (rv != NULL)
 			rman_set_rid(rv, *rid);
+		return (rv);
 	}
 	return (NULL);
 }
