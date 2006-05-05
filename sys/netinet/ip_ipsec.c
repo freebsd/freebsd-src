@@ -421,6 +421,7 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 			*ifp = (*ro)->ro_rt->rt_ifp;
 		}
 	}
+	ip = mtod(*m, struct ip *);
 
 	/* make it flipped, again. */
 	ip->ip_len = ntohs(ip->ip_len);
