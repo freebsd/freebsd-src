@@ -202,8 +202,7 @@ _xfs_mount(struct mount		*mp,
         mp->mnt_stat.f_fsid.val[0] = dev2udev(ddev);
         mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 
-        VFS_STATFS(mp, &mp->mnt_stat, td);
-        if (error)
+        if ((error = VFS_STATFS(mp, &mp->mnt_stat, td)) != 0)
 		goto fail_unmount;
 
 	rvp = rootvp->v_vnode;
