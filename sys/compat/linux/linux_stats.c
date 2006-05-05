@@ -524,7 +524,6 @@ linux_fstat64(struct thread *td, struct linux_fstat64_args *args)
 	error = kern_fstat(td, args->fd, &buf);
 	translate_fd_major_minor(td, args->fd, &buf);
 	if (!error)
-		translate_fd_major_minor(td, args->fd, &buf);
 		error = stat64_copyout(&buf, args->statbuf);
 
 	return (error);
