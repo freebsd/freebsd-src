@@ -144,20 +144,18 @@ services_lookup_func(const char *key, size_t key_size, char **buffer,
 
 	switch (lookup_type) {
 	case nss_lt_name:
-		size = key_size - sizeof(enum nss_lookup_type)	+ 1;
-		name = (char *)malloc(size);
+		size = key_size - sizeof(enum nss_lookup_type);
+		name = (char *)malloc(size + 1);
 		assert(name != NULL);
-		memset(name, 0, size);
-		memcpy(name, key + sizeof(enum nss_lookup_type), size - 1);
+		memset(name, 0, size + 1);
+		memcpy(name, key + sizeof(enum nss_lookup_type), size);
 
 		size2 = strlen(name) + 1;
-		if (size2 < size) {
-			proto = strchr(name, '\0');
-			if (strrchr(name, '\0') > proto)
-				++proto ;
-			else
-				proto = NULL;
-		}
+
+		if (size2 < size)
+			proto = name + size2;
+		else
+			proto = NULL;
 		break;
 	case nss_lt_id:
 		if (key_size < sizeof(enum nss_lookup_type) +
@@ -169,7 +167,7 @@ services_lookup_func(const char *key, size_t key_size, char **buffer,
 		memcpy(&port, key + sizeof(enum nss_lookup_type),
 			sizeof(int));
 
-		size = key_size - sizeof(enum nss_lookup_type) + sizeof(int);
+		size = key_size - sizeof(enum nss_lookup_type) - sizeof(int);
 		if (size > 0) {
 			proto = (char *)malloc(size + 1);
 			assert(proto != NULL);
