@@ -290,7 +290,7 @@ installUpgrade(dialogMenuItem *self)
 	}
 
 	msgNotify("chflags'ing old binaries - please wait.");
-	(void)vsystem("chflags -R noschg /bin /sbin /usr/sbin /usr/bin /usr/lib /usr/libexec /kernel*");
+	(void)vsystem("chflags -R noschg /bin /sbin /usr/sbin /usr/bin /usr/lib /usr/libexec /var/empty /kernel*");
 
 	if (file_readable("/kernel")) {
 	    msgNotify("Moving old kernel to /kernel.prev");
