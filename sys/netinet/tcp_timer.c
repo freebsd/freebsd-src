@@ -295,7 +295,7 @@ tcp_timer_2msl_tw(int reuse)
 			continue;
 		INP_LOCK(tw->tw_inpcb);
 		tcp_twclose(tw, reuse);
-		return (tw);
+		return (reuse ? tw : NULL);
 	}
 	return (NULL);
 }
