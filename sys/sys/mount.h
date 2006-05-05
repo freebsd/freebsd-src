@@ -576,7 +576,9 @@ extern int mpsafe_vfs;
 #define	VFS_LOCK_GIANT(MP) __extension__				\
 ({									\
 	int _locked;							\
-	if (VFS_NEEDSGIANT((MP))) {					\
+	struct mount *_MP;						\
+	_MP = (MP);							\
+	if (VFS_NEEDSGIANT(_MP)) {					\
 		mtx_lock(&Giant);					\
 		_locked = 1;						\
 	} else								\
