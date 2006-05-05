@@ -619,6 +619,11 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       <para>The <filename>hostapd</filename> script for
 	&man.hostapd.8; has been added.</para>
 
+      <para>The <filename>jail</filename> script now supports
+	the <varname>jail_interface</varname> option and
+	the <varname>jail_<replaceable>jid</replaceable>_interface</varname>
+	option which create an IP alias on the given interface.</para>
+
       <para>The <filename>netif</filename> script now supports
 	<varname>ipv4_addrs_<replaceable>ifn</replaceable></varname>,
 	which adds one or more IPv4 address from a ranged list in
