@@ -487,7 +487,9 @@ interpret:
 	}
 
 	/* close files on exec */
+	VOP_UNLOCK(imgp->vp, 0, td);
 	fdcloseexec(td);
+	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	/* Get a reference to the vnode prior to locking the proc */
 	VREF(ndp->ni_vp);
@@ -582,7 +584,9 @@ interpret:
 		 */
 		PROC_UNLOCK(p);
 		setugidsafety(td);
+		VOP_UNLOCK(imgp->vp, 0, td);
 		error = fdcheckstd(td);
+		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
 		if (error != 0)
 			goto done1;
 		PROC_LOCK(p);
@@ -714,6 +718,7 @@ done1:
 		crfree(oldcred);
 	else
 		crfree(newcred);
+	VOP_UNLOCK(imgp->vp, 0, td);
 	/*
 	 * Handle deferred decrement of ref counts.
 	 */
@@ -732,6 +737,7 @@ done1:
 	if (tracecred != NULL)
 		crfree(tracecred);
 #endif
+	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (oldargs != NULL)
 		pargs_drop(oldargs);
 	if (newargs != NULL)
