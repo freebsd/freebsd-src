@@ -5,10 +5,14 @@
  * $FreeBSD$
  */
 
+#ifdef __FreeBSD__
 #include <sys/param.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
+#else
+#include "mini_ufs.h"
+#endif
 
 #include <err.h>
 #include <fcntl.h>
@@ -72,7 +76,7 @@ main(int argc, char **argv)
 				}
 				last = fsbegin / DEV_BSIZE;
 			} else if (u.sblock.fs_magic == FS_UFS2_MAGIC) {
-				intmax_t fsbegin = offset - SBLOCK_UFS1;
+				intmax_t fsbegin = offset - SBLOCK_UFS2;
 				printf("Found UFS2 superblock at offset %jd, "
 				       "block %jd\n", offset,
 				       offset / DEV_BSIZE);
