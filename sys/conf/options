@@ -708,6 +708,7 @@ AH_SUPPORT_5413		opt_ah.h
 AH_DEBUG		opt_ah.h
 AH_DEBUG_ALQ		opt_ah.h
 AH_ASSERT		opt_ah.h
+AH_REGOPS_FUNC		opt_ah.h
 
 # dcons options 
 DCONS_BUF_SIZE		opt_dcons.h
