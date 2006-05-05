@@ -347,8 +347,8 @@ fetch_pick_server_init() {
 # Generate a random seed for use in picking mirrors.  If HTTP_PROXY
 # is set, this will be used to generate the seed; otherwise, the seed
 # will be random.
-	if [ -n "${HTTP_PROXY}" ]; then
-		RANDVALUE=`sha256 -qs "${HTTP_PROXY}" |
+	if [ -n "${HTTP_PROXY}${http_proxy}" ]; then
+		RANDVALUE=`sha256 -qs "${HTTP_PROXY}${http_proxy}" |
 		    tr -d 'a-f' |
 		    cut -c 1-9`
 	else
