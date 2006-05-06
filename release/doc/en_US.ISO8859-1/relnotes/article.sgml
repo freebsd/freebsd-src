@@ -1408,7 +1408,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The supported version of
       the <application>KDE</application> desktop environment
-      (<filename role="package">x11/kde2</filename>) has been
+      (<filename role="package">x11/kde3</filename>) has been
       updated from 3.4.2 to 3.5.1. &merged;</para>
 
     <para>The supported version of
