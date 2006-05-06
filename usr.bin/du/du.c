@@ -78,6 +78,8 @@ void		ignoreadd(const char *);
 void		ignoreclean(void);
 int		ignorep(FTSENT *);
 
+int		nodumpflag = 0;
+
 int
 main(int argc, char *argv[])
 {
@@ -101,7 +103,7 @@ main(int argc, char *argv[])
 	depth = INT_MAX;
 	SLIST_INIT(&ignores);
 
-	while ((ch = getopt(argc, argv, "HI:LPasd:chkmrx")) != -1)
+	while ((ch = getopt(argc, argv, "HI:LPasd:chkmnrx")) != -1)
 		switch (ch) {
 			case 'H':
 				Hflag = 1;
@@ -148,6 +150,9 @@ main(int argc, char *argv[])
 			case 'm':
 				hflag = 0;
 				putenv("BLOCKSIZE=1048576");
+				break;
+			case 'n':
+				nodumpflag = 1;
 				break;
 			case 'r':		 /* Compatibility. */
 				break;
@@ -438,7 +443,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-		"usage: du [-H | -L | -P] [-a | -s | -d depth] [-c] [-h | -k | -m] [-x] [-I mask] [file ...]\n");
+		"usage: du [-H | -L | -P] [-a | -s | -d depth] [-c] [-h | -k | -m] [-n] [-x] [-I mask] [file ...]\n");
 	exit(EX_USAGE);
 }
 
@@ -474,6 +479,8 @@ ignorep(FTSENT *ent)
 {
 	struct ignentry *ign;
 
+	if (nodumpflag && (ent->fts_statp->st_flags & UF_NODUMP))
+		return 1;
 	SLIST_FOREACH(ign, &ignores, next)
 		if (fnmatch(ign->mask, ent->fts_name, 0) != FNM_NOMATCH)
 			return 1;
