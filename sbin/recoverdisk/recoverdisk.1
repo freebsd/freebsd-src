@@ -1,0 +1,128 @@
+.\" Copyright (c) 2006 Ulrich Spoerlein <uspoerlein@gmail.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 6, 2006
+.Dt RECOVERDISK 1
+.Os
+.Sh NAME
+.Nm recoverdisk
+.Nd recover data from hard disk or optical media
+.Sh SYNOPSIS
+.Nm
+.Op Fl r Ar rlist
+.Op Fl w Ar wlist
+.Ar special
+.Op file
+.Sh DESCRIPTION
+The
+.Nm
+utility reads data from the
+.Pa special
+file until all blocks could be successfully read.
+It starts reading in multiples of the sector size.
+Whenever a block fails, it is put to the end of the working queue and will be
+read again, possibly with a smaller read size.
+.Pp
+It uses block sizes of roughly 1 MB, 64kB, and the native sector size (usually
+512 bytes).
+These figures are adjusted slightly, for devices whose sectorsize is not a
+power of 2, e.g., audio CDs with a sector size of 2352 bytes.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl r Ar rlist
+Read the list of blocks and block sizes to read from the specified file.
+.It Fl w Ar wlist
+Write the list of remaining blocks to read to the specified file if
+.Nm
+is aborted via SIGINT.
+.El
+.Pp
+The
+.Fl r
+and
+.Fl w
+option can be used in combination.
+Especially, they can point to the same file, which will be updated on abort.
+.Sh OUTPUT
+.Nm
+prints several columns, detailing the progress
+.Bl -tag -width remaining
+.It start
+Starting offset of the current block.
+.It size
+Read size of the current block.
+.It len
+Length of the current block.
+.It state
+Is increased for every failed read.
+.It done
+Number of bytes already read.
+.It remaining
+Number of bytes remaining.
+.It % done
+Percent complete.
+.El
+.Sh EXAMPLES
+# recover data from failing hard drive ad3
+.Dl $ touch /data/lots_of_space
+.Dl $ recoverdisk /dev/ad3 /data/lots_of_space
+.Pp
+# clone a hard disk
+.Dl $ recoverdisk /dev/ad3 /dev/ad4
+.Pp
+# read an ISO image from a CD-ROM
+.Dl $ touch /data/cd.iso; recoverdisk /dev/acd0 /data/cd.iso
+.Pp
+# continue reading from a broken CD and update the existing worklist
+.Dl $ recoverdisk -r worklist -w worklist /dev/acd0 /data/cd.iso
+.Pp
+# recover a single file from the unreadable media
+.Dl $ touch file.avi; recoverdisk /cdrom/file.avi file.avi
+.Sh SEE ALSO
+.Xr dd 1
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 7.0 .
+.Sh BUGS
+Reading from media where the sectorsize is not a power of 2 will make all
+1 MB reads fail.
+This is due to the DMA reads being split up into blocks of at most 128kB.
+These reads then fail if the sectorsize is not a divisor of 128kB.
+When reading a full raw audio CD, this leads to roughly 700 error messages
+flying by.
+This is harmless.
+.Sh AUTHORS
+.An -nosplit
+The original implementation was done by
+.An Poul-Henning Kamp Aq phk@freebsd.org
+with minor improvements from
+.An Ulrich Sp\(:orlein Aq uspoerlein@gmail.com .
+.Pp
+This manual page was written by
+.An Ulrich Sp\(:orlein Aq uspoerlein@gmail.com .
