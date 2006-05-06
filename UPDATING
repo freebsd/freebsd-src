@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060506:
+	FreeBSD 6.1-RELEASE
+
 20060419:		FreeBSD-SA-06:14.fpu
 	Correct a local information leakage bug affecting AMD FPUs.
 
