@@ -59,6 +59,7 @@ CFLAGS+= -I. -I${HAL}/freebsd -I${HAL}
 
 # patch for hal naming difference
 ATH_MODULE_ARCH=${MACHINE_ARCH:S/amd64/x86_64/}
+ATH_MODULE_ARCH=${MACHINE_ARCH:S/sparc64/sparc64-be/}
 
 .if defined(HAL_SRC)
 .include "${HAL}/freebsd/Makefile.inc"
