@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/localpkg,v 1.5.2.2 2005/12/21 07:11:34 dougb Exp $
 #
 
 # PROVIDE: localpkg

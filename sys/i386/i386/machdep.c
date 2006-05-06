@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/i386/machdep.c,v 1.616.2.3.2.1 2006/04/30 05:17:59 kensmith Exp $");
 
 #include "opt_apic.h"
 #include "opt_atalk.h"

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/sysctlnametomib.c,v 1.4 2003/01/04 00:11:11 tjr Exp $");
 
 #include <sys/types.h>
 #include <sys/sysctl.h>

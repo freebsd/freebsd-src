@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/nanobsd/nanobsd.sh,v 1.7.2.5 2006/01/31 15:56:33 phk Exp $
 #
 
 set -e

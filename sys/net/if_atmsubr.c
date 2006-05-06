@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net/if_atmsubr.c,v 1.37.2.3 2005/08/25 05:01:19 rwatson Exp $");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"

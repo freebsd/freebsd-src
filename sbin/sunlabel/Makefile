@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/sunlabel/Makefile,v 1.12 2004/02/01 13:09:26 ceri Exp $
 
 .PATH: ${.CURDIR}/../../sys/geom
 

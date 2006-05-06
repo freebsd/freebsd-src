@@ -1,5 +1,5 @@
 
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/puc/Makefile,v 1.1 2005/04/22 07:43:27 imp Exp $
 
 .PATH:	${.CURDIR}/../../dev/puc
 KMOD=	puc

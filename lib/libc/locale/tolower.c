@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/tolower.c,v 1.11 2004/07/29 06:16:19 tjr Exp $");
 
 #include <stdio.h>
 #include <runetype.h>

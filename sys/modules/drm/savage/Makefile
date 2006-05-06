@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/drm/savage/Makefile,v 1.1.2.1 2005/12/14 00:52:58 anholt Exp $
 
 .PATH:	${.CURDIR}/../../../dev/drm
 KMOD= 	savage

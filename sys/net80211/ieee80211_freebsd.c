@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net80211/ieee80211_freebsd.c,v 1.7.2.2 2005/12/22 19:22:51 sam Exp $");
 
 /*
  * IEEE 802.11 support (FreeBSD-specific code)

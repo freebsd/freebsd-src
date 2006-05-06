@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_spec.c,v 1.22 2004/07/13 22:49:58 davidxu Exp $
  */
 #include <signal.h>
 #include <stdlib.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/ieeefp.h,v 1.6 2005/01/05 20:05:50 imp Exp $ */
 /* From: NetBSD: ieeefp.h,v 1.2 1997/04/06 08:47:28 cgd Exp */
 
 /*-

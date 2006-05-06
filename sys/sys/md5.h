@@ -1,5 +1,5 @@
 /* MD5.H - header file for MD5C.C
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/md5.h,v 1.18.2.1 2006/04/04 19:59:52 andre Exp $
  */
 
 /*-

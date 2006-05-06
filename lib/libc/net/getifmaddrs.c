@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/getifmaddrs.c,v 1.2 2005/04/08 21:24:23 stefanf Exp $");
 
 #include "namespace.h"
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/security/proc_to_proc/README,v 1.2 2001/04/12 17:46:20 rwatson Exp $
 
   Inter-Process Authorization Test Suite
   Robert Watson, TrustedBSD Project

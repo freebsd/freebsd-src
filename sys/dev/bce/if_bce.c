@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/bce/if_bce.c,v 1.2.4.2 2006/04/13 22:42:07 ps Exp $");
 
 /*
  * The following controllers are supported by this driver:

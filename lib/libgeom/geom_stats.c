@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libgeom/geom_stats.c,v 1.3 2003/03/18 09:53:46 phk Exp $
  */
 
 #include <paths.h>

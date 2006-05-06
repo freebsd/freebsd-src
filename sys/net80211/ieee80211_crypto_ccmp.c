@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net80211/ieee80211_crypto_ccmp.c,v 1.7.2.1 2005/12/22 19:02:08 sam Exp $");
 
 /*
  * IEEE 802.11i AES-CCMP crypto support.

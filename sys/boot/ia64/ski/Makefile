@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/ia64/ski/Makefile,v 1.18 2004/12/21 12:32:14 ru Exp $
 
 PROG=		skiload
 NO_MAN=

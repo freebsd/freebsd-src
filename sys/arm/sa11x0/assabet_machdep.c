@@ -47,7 +47,7 @@
 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/sa11x0/assabet_machdep.c,v 1.9 2005/01/05 21:58:48 imp Exp $");
 
 #include "opt_md.h"
 

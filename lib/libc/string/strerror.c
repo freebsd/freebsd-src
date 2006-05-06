@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)strerror.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/string/strerror.c,v 1.15 2005/02/27 21:17:22 phantom Exp $");
 
 #if defined(NLS)
 #include <nl_types.h>

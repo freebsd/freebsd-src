@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/pccard_ether,v 1.45.2.2 2005/12/10 02:11:07 brooks Exp $
 #
 # pccard_ether interfacename [start|stop|restart]
 #

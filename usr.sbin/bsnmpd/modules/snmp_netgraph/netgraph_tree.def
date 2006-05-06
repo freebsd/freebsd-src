@@ -27,7 +27,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bsnmpd/modules/snmp_netgraph/netgraph_tree.def,v 1.1 2003/11/10 09:17:34 harti Exp $
 #
 # Definition of the tree implemented by snmp_netgraph.
 #

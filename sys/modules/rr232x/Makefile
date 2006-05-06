@@ -1,5 +1,5 @@
 # $Id: Makefile.def,v 1.14 2006/04/06 09:23:49 gmm Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/rr232x/Makefile,v 1.2.4.2 2006/05/06 06:36:38 scottl Exp $
 
 RR232X= ${.CURDIR}/../../dev/rr232x
 .PATH: ${RR232X}

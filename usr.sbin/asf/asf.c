@@ -24,7 +24,7 @@
  * software, even if advised of the possibility of such damage.
  */
 /* $Id: asf.c,v 1.4 2003/05/04 02:55:20 grog Exp grog $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/asf/asf.c,v 1.6.10.1 2005/10/03 23:45:01 grog Exp $ */
 
 #define MAXLINE 1024
 #include <ctype.h>

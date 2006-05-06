@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/boot/alpha/netboot/version,v 1.3 2002/01/11 00:09:59 jhb Exp $
 
 NOTE ANY CHANGES YOU MAKE TO THE BOOTBLOCKS HERE.  The format of this
 file is important.  Make sure the current version number is on line 6.

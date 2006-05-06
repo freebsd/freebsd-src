@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/test/posixshm/README,v 1.1 2000/04/22 15:29:21 wollman Exp $
 
 This is a simple program to test/demonstrate the POSIX Shared Memory
 Objects feature set.  `make shm_test' to build.

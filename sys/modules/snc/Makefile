@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/snc/Makefile,v 1.2.14.1 2006/02/10 00:38:06 yar Exp $
 
 .PATH: ${.CURDIR}/../../dev/snc
 

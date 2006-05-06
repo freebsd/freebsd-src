@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/vfs_syscalls.c,v 1.392.2.7 2006/03/13 03:06:39 jeff Exp $");
 
 #include "opt_compat.h"
 #include "opt_mac.h"

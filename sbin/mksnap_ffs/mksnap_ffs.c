@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/mksnap_ffs/mksnap_ffs.c,v 1.8 2004/12/08 11:54:50 phk Exp $
  */
 
 #include <sys/param.h>

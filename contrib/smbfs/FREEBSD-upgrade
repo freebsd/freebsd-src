@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/smbfs/FREEBSD-upgrade,v 1.1 2001/12/14 11:11:31 sheldonh Exp $
 
 The smbfs distribution was written with FreeBSD in mind, so the only
 change required before an import is:

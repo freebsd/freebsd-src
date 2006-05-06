@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/tools/lex_var.h,v 1.2 2005/04/25 18:20:15 darrenr Exp $	*/
 
 
 extern	long		string_start;

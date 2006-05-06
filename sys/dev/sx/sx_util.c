@@ -24,7 +24,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sx/sx_util.c,v 1.2 2005/01/06 01:43:24 imp Exp $
  */
 
 #include "opt_debug_sx.h"

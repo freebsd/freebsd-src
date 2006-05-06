@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/games/fortune/unstr/Makefile,v 1.7 2005/02/23 20:59:03 ru Exp $
 
 PROG=	unstr
 NO_MAN=

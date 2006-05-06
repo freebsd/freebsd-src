@@ -1,5 +1,5 @@
 \ Loader.rc
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/i386/loader/loader.rc,v 1.4.2.1 2005/10/30 14:37:02 scottl Exp $
 \
 \ Includes additional commands
 include /boot/loader.4th

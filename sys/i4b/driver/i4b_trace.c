@@ -34,7 +34,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/driver/i4b_trace.c,v 1.32 2005/01/06 22:18:18 imp Exp $");
 
 #include "opt_i4b.h"
 

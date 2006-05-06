@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kvm_private.h	8.1 (Berkeley) 6/4/93
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkvm/kvm_private.h,v 1.9 2005/06/29 22:39:41 peter Exp $
  */
 
 struct __kvm {

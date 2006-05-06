@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/samples/userauth.c,v 1.2 2005/04/25 18:20:15 darrenr Exp $	*/
 
 #include <sys/types.h>
 #include <sys/socket.h>

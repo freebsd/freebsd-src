@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/swprintf.c,v 1.1 2002/09/21 13:00:30 tjr Exp $");
 
 #include <stdarg.h>
 #include <stdio.h>

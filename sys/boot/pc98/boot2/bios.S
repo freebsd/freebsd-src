@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/pc98/boot2/bios.S,v 1.4 2003/01/06 13:43:13 nyan Exp $
  */
 
 /*

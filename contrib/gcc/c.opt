@@ -59,7 +59,7 @@
 
 ; Please try to keep this file in ASCII collating order.
 
-; $FreeBSD$
+; $FreeBSD: src/contrib/gcc/c.opt,v 1.3 2005/06/03 04:02:19 kan Exp $
 
 Language
 C

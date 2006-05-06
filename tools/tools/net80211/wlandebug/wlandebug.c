@@ -33,7 +33,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/net80211/wlandebug/wlandebug.c,v 1.1.2.1 2006/01/31 20:48:20 sam Exp $
  */
 
 /*

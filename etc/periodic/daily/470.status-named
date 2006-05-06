@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/470.status-named,v 1.6.10.1 2005/11/27 00:38:57 dougb Exp $
 #
 
 # If there is a global system configuration file, suck it in.

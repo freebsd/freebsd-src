@@ -16,7 +16,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/advansys/adwmcode.c,v 1.5 2005/01/06 01:42:24 imp Exp $");
 
 #include <sys/param.h>
 

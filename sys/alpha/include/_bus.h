@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/_bus.h,v 1.1 2005/04/18 21:45:32 imp Exp $
  */
 
 #ifndef ALPHA_INCLUDE__BUS_H

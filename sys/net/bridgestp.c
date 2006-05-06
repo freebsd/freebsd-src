@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net/bridgestp.c,v 1.3.2.8 2006/03/09 08:21:19 thompsa Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

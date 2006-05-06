@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/pppoed/pppoed.c,v 1.24 2005/02/09 20:36:12 ru Exp $
  */
 
 #include <sys/param.h>

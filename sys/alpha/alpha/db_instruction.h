@@ -25,7 +25,7 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/db_instruction.h,v 1.7 2005/01/05 20:05:48 imp Exp $
  */
 
 /*

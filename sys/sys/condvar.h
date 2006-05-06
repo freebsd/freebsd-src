@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/condvar.h,v 1.12 2004/05/05 21:57:44 jhb Exp $
  */
 
 #ifndef	_SYS_CONDVAR_H_

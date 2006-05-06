@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/mpt/Makefile,v 1.2 2005/07/10 15:07:57 scottl Exp $
 
 .PATH: ${.CURDIR}/../../dev/mpt
 

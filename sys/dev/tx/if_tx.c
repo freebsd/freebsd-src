@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/tx/if_tx.c,v 1.89.2.3 2006/03/17 21:30:55 glebius Exp $");
 
 /*
  * EtherPower II 10/100 Fast Ethernet (SMC 9432 serie)

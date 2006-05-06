@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/tlsb/tlsb.c,v 1.17 2005/01/05 20:05:52 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

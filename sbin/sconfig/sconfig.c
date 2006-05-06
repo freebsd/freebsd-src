@@ -15,7 +15,7 @@
  * all derivative works or modified versions.
  *
  * Cronyx Id: sconfig.c,v 1.4.2.2 2005/11/09 13:01:35 rik Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sbin/sconfig/sconfig.c,v 1.2.12.1 2006/03/10 23:10:39 rik Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>

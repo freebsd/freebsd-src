@@ -40,7 +40,7 @@
 
 #include <machine/asm.h>
 #include <machine/param.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/bcopy_page.S,v 1.3 2005/01/05 21:58:47 imp Exp $");
 #ifndef __XSCALE__
 
 /* #define BIG_LOOPS */

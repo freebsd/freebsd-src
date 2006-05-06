@@ -59,7 +59,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/advansys/adv_pci.c,v 1.27 2005/05/29 04:42:16 nyan Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

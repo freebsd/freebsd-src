@@ -3,7 +3,7 @@
      The FreeBSD French Documentation Project
 
      $Id$
-     $FreeBSD$
+     $FreeBSD: src/release/doc/fr_FR.ISO8859-1/errata/article.sgml,v 1.6 2004/08/22 09:53:23 hrs Exp $
      Original revision: 1.9
 
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
@@ -40,7 +40,7 @@
     Le projet &os;
     </corpauthor>
 
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/fr_FR.ISO8859-1/errata/article.sgml,v 1.6 2004/08/22 09:53:23 hrs Exp $</pubdate>
 
     <copyright>
       <year>2000</year>

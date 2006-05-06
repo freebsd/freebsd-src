@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/gdb/Makefile.ia64,v 1.1 2002/06/29 03:18:28 obrien Exp $
 
 XSRCS+=	ia64-tdep.c ia64-fbsd-nat.c \
 	core-regset.c

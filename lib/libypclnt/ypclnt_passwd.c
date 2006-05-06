@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libypclnt/ypclnt_passwd.c,v 1.6 2003/06/15 10:36:53 mbr Exp $
  */
 
 #include <sys/types.h>

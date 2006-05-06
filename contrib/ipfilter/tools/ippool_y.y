@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/tools/ippool_y.y,v 1.2 2005/04/25 18:20:15 darrenr Exp $	*/
 
 %{
 #include <sys/types.h>

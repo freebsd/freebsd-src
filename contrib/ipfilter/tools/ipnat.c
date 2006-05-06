@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/tools/ipnat.c,v 1.3 2005/04/26 15:18:45 darrenr Exp $	*/
 
 /*
  * Copyright (C) 1993-2001 by Darren Reed.

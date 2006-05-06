@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/sound/Makefile,v 1.16.2.1 2005/12/30 19:55:55 netchild Exp $
 
 .PATH: ${.CURDIR}/../../../dev/sound/pcm
 .PATH: ${.CURDIR}/../../../dev/sound/isa

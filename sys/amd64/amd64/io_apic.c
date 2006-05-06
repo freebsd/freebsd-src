@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/io_apic.c,v 1.15.2.4 2006/03/07 18:33:20 jhb Exp $");
 
 #include "opt_atpic.h"
 #include "opt_isa.h"

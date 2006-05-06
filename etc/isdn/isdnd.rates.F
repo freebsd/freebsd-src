@@ -3,7 +3,7 @@
 #	i4b - Tarifs France Telecom
 #	---------------------------
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/isdn/isdnd.rates.F,v 1.4 2004/06/06 11:46:28 schweikh Exp $
 #
 #	last edit-date: [Thu Mar 19 20:05:18 1998]
 #

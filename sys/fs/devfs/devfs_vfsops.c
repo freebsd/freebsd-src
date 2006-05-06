@@ -31,7 +31,7 @@
  *	@(#)kernfs_vfsops.c	8.10 (Berkeley) 5/14/95
  * From: FreeBSD: src/sys/miscfs/kernfs/kernfs_vfsops.c 1.36
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/devfs/devfs_vfsops.c,v 1.44.2.3 2005/09/26 14:36:52 phk Exp $
  */
 
 #include "opt_devfs.h"

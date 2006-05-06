@@ -35,7 +35,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/nl_types.h,v 1.11.2.2 2006/02/01 12:24:39 stefanf Exp $
  */
 
 #ifndef _NL_TYPES_H_

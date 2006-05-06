@@ -40,7 +40,7 @@
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
  * 	from: FreeBSD: src/sys/i386/i386/vm_machdep.c,v 1.167 2001/07/12
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/vm_machdep.c,v 1.74 2005/07/10 23:31:11 davidxu Exp $
  */
 
 #include "opt_pmap.h"

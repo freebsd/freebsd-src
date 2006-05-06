@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/if_ppp/Makefile,v 1.33.2.2 2006/03/01 21:40:14 wkoszek Exp $
 
 .PATH:  ${.CURDIR}/../../net
 

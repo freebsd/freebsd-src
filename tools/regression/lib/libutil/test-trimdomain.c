@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/lib/libutil/test-trimdomain.c,v 1.1.2.1 2005/12/22 03:47:05 brooks Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

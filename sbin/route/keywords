@@ -1,5 +1,5 @@
 #	@(#)keywords	8.2 (Berkeley) 3/19/94
-# $FreeBSD$
+# $FreeBSD: src/sbin/route/keywords,v 1.5 2001/06/12 13:31:53 ru Exp $
 
 add
 atalk

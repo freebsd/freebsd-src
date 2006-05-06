@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)arith.h	1.1 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/arith.h,v 1.9.8.1 2005/11/06 20:39:47 stefanf Exp $
  */
 
 extern char *arith_buf, *arith_startbuf;

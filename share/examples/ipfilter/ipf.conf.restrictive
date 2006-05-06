@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/ipfilter/ipf.conf.restrictive,v 1.1 2001/10/20 04:17:07 darrenr Exp $
 #--------------------------------------------------------------------------
 # ed1 - external interface
 # fxp0 - internal interface

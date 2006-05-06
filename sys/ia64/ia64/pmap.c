@@ -46,7 +46,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ia64/ia64/pmap.c,v 1.160.2.4 2005/11/19 20:31:31 alc Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

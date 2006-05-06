@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpam/modules/pam_rootok/pam_rootok.c,v 1.8 2002/04/12 22:27:23 des Exp $");
 
 #define _BSD_SOURCE
 

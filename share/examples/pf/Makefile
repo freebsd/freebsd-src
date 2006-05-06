@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/pf/Makefile,v 1.3 2004/12/21 08:46:53 ru Exp $
 
 NO_OBJ=
 

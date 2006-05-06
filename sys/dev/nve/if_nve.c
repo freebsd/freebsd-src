@@ -74,7 +74,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/nve/if_nve.c,v 1.7.2.8 2005/12/25 21:57:03 bz Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/nexus.c,v 1.5 2005/06/09 12:26:19 cognet Exp $");
 
 #define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>

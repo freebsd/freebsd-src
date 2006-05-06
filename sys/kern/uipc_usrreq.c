@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/uipc_usrreq.c,v 1.155.2.3 2006/03/13 03:06:03 jeff Exp $");
 
 #include "opt_mac.h"
 

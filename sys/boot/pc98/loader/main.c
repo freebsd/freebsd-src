@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/pc98/loader/main.c,v 1.20.2.1 2006/02/15 13:55:13 nyan Exp $");
 
 /*
  * MD bootstrap main() and assorted miscellaneous

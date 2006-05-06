@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/udbp/Makefile,v 1.9 2005/06/04 10:58:37 schweikh Exp $
 
 .PATH: ${.CURDIR}/../../dev/usb
 

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/wpa_supplicant/FREEBSD-Xlist,v 1.1.2.1 2006/03/24 01:41:06 sam Exp $
 .cvsignore
 README-Windows.txt
 driver_atmel.c

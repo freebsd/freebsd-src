@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/netrate/netsend/netsend.c,v 1.8 2005/04/21 19:28:22 mux Exp $
  */
 
 #include <sys/types.h>

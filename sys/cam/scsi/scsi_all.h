@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/scsi/scsi_all.h,v 1.24 2005/01/05 22:34:34 imp Exp $
  */
 
 /*

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-** $FreeBSD$
+** $FreeBSD: src/sys/pci/ncrreg.h,v 1.15 2005/01/07 05:01:24 scottl Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **

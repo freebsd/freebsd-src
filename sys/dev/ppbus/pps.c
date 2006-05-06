@@ -15,7 +15,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ppbus/pps.c,v 1.50 2005/04/14 15:56:10 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

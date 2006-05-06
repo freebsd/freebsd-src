@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/softfloat/fpgetmask.c,v 1.1 2004/05/14 12:13:04 cognet Exp $");
 
 #include "namespace.h"
 

@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/resolv,v 1.35.2.1 2005/12/21 07:11:34 dougb Exp $
 #
 
 # PROVIDE: resolv

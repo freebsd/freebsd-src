@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/make/suffixes/src_wild1/test.t,v 1.1 2005/05/31 14:13:05 harti Exp $
 
 cd `dirname $0`
 . ../../common.sh

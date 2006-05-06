@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/options.i386,v 1.225 2005/07/02 20:06:42 delphij Exp $
 # Options specific to the i386 platform kernels
 
 AUTO_EOI_1		opt_auto_eoi.h

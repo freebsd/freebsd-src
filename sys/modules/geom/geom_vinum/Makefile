@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/geom/geom_vinum/Makefile,v 1.1.8.3 2005/12/10 14:36:17 le Exp $
 
 .PATH: ${.CURDIR}/../../../geom/vinum
 

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $FreeBSD$
+ *      $FreeBSD: src/sys/fs/procfs/procfs_ioctl.c,v 1.12 2005/06/30 07:49:21 peter Exp $
  */
 
 #include "opt_compat.h"

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/cbus/pckbdtables.h,v 1.1 2005/05/12 13:39:31 nyan Exp $
  */
 
 #ifndef KBD_DFLT_KEYMAP

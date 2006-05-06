@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/tools/ipf_y.y,v 1.3 2005/05/16 16:22:55 darrenr Exp $	*/
 
 %{
 #include "ipf.h"

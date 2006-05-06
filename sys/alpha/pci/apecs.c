@@ -55,7 +55,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/pci/apecs.c,v 1.27 2005/01/05 20:05:51 imp Exp $");
 
 #define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>

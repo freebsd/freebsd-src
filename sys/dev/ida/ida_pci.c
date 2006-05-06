@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ida/ida_pci.c,v 1.34 2005/05/29 04:42:20 nyan Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/fpu.h,v 1.3 2004/12/11 06:15:12 marcel Exp $
  */
 
 #ifndef _MACHINE_FPU_H_

@@ -72,7 +72,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/dec_1000a.c,v 1.19 2005/01/05 20:05:48 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/reboot.h>

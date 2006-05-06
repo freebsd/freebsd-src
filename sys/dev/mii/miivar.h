@@ -36,7 +36,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mii/miivar.h,v 1.15 2002/05/04 11:00:30 phk Exp $
  */
 
 #ifndef _DEV_MII_MIIVAR_H_

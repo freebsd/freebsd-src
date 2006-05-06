@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ppp/Makefile,v 1.109 2004/12/21 12:49:24 ru Exp $
 
 PROG=	ppp
 MAN=	ppp.8

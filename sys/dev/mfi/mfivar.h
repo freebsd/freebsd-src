@@ -28,7 +28,7 @@
 #define _MFIVAR_H
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mfi/mfivar.h,v 1.1.2.1 2006/04/04 03:24:48 scottl Exp $");
 
 /*
  * SCSI structures and definitions are used from here, but no linking

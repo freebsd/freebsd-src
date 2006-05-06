@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/pci/pci_cfgreg.c,v 1.108 2005/01/21 05:56:41 peter Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/ia64/ski/sal_stub.c,v 1.4 2005/01/05 22:16:58 imp Exp $");
 
 #include <sys/types.h>
 #include <machine/md_var.h>

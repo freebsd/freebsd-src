@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/efi/libefi/Makefile,v 1.16 2004/11/28 00:30:22 marcel Exp $
 
 .PATH: ${.CURDIR}/../../../${MACHINE_ARCH}/${MACHINE_ARCH}
 

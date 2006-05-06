@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/bus_dma.h,v 1.1 2005/03/14 16:46:27 scottl Exp $ */
 
 #ifndef _ALPHA_BUS_DMA_H_
 #define _ALPHA_BUS_DMA_H_

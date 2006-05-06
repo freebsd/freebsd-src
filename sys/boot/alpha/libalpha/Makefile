@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/alpha/libalpha/Makefile,v 1.15 2004/10/24 15:32:49 ru Exp $
 
 LIB=		alpha
 INTERNALLIB=

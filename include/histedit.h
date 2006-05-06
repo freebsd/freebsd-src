@@ -31,7 +31,7 @@
  *
  *	@(#)histedit.h	8.2 (Berkeley) 1/3/94
  *	$NetBSD: histedit.h,v 1.28 2005/07/14 15:00:58 christos Exp $
- * $FreeBSD$
+ * $FreeBSD: src/include/histedit.h,v 1.9.10.1 2005/10/09 03:44:00 delphij Exp $
  */
 
 /*

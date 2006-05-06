@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/genassym.c,v 1.155.2.2 2005/11/15 00:25:59 peter Exp $");
 
 #include "opt_compat.h"
 #include "opt_kstack_pages.h"

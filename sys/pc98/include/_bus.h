@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/include/_bus.h,v 1.3 2005/04/19 21:07:00 imp Exp $
  */
 
 #ifndef PC98_INCLUDE__BUS_H

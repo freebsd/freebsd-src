@@ -64,7 +64,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/libalias/alias_smedia.c,v 1.15 2005/06/27 07:36:02 glebius Exp $");
 
 /*
    Alias_smedia.c is meant to contain the aliasing code for streaming media

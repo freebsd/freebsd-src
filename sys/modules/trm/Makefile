@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/trm/Makefile,v 1.1.16.1 2006/02/10 00:38:07 yar Exp $
 
 .PATH: ${.CURDIR}/../../dev/trm
 

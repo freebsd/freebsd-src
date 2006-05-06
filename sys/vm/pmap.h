@@ -57,7 +57,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/pmap.h,v 1.71.2.1 2005/11/13 21:45:48 alc Exp $
  */
 
 /*

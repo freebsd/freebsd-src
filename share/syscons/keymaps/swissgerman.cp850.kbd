@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/swissgerman.cp850.kbd,v 1.2 2001/03/11 23:41:19 ache Exp $
 #
 # swiss-german cp850 keymap
 # original 21.10.1996 by Adrian Steinmann <ast@marabu.ch>

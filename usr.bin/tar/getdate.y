@@ -24,7 +24,7 @@
 /* SUPPRESS 288 on yyerrlab *//* Label unused */
 
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/tar/getdate.y,v 1.4 2005/04/23 18:38:32 kientzle Exp $");
 
 #include <ctype.h>
 #include <stdio.h>

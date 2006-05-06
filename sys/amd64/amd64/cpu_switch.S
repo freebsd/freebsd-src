@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/amd64/cpu_switch.S,v 1.151.8.2 2005/11/15 00:25:59 peter Exp $
  */
 
 #include <machine/asmacros.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/lib/msun/test-ilogb.c,v 1.2 2004/11/11 19:47:52 nik Exp $
  */
 
 #include <assert.h>

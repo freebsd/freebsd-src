@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/ndis/resource_var.h,v 1.3 2005/02/16 05:41:17 wpaul Exp $
  */
 
 #ifndef _RESOURCE_VAR_H_

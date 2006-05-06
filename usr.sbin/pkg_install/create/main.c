@@ -10,7 +10,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pkg_install/create/main.c,v 1.36.2.1 2005/11/11 08:07:24 krion Exp $");
 
 #include <err.h>
 #include "lib.h"

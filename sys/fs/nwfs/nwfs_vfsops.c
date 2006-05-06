@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/nwfs/nwfs_vfsops.c,v 1.40.2.2 2006/02/10 00:37:57 yar Exp $
  */
 
 #include <sys/param.h>

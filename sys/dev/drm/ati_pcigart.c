@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/ati_pcigart.c,v 1.1.2.2 2005/12/14 00:52:58 anholt Exp $");
 
 #include "dev/drm/drmP.h"
 

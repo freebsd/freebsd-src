@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: bthidd.c,v 1.7 2004/11/17 21:59:42 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/bthidd/bthidd.c,v 1.3 2004/11/18 18:05:15 emax Exp $
  */
 
 #include <sys/time.h>

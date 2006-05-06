@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom_concat/test-2.t,v 1.1 2004/11/11 19:47:50 nik Exp $
 
 name="test"
 base=`basename $0`

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/boot/ficl/loader.c,v 1.11 2004/11/30 11:35:30 scottl Exp $
  */
 
 /*******************************************************************

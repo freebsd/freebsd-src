@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/udp.c,v 1.5 2005/05/31 20:01:58 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/socket.h>

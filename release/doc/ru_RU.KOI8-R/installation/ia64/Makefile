@@ -1,7 +1,7 @@
 # The FreeBSD Russian Documentation Project
 #
 # $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/ia64/Makefile,v 1.1 2004/06/24 07:21:48 den Exp $
-# $FreeBSD$
+# $FreeBSD: src/release/doc/ru_RU.KOI8-R/installation/ia64/Makefile,v 1.1 2004/06/24 08:39:19 den Exp $
 #
 # Original revision: 1.1
 #

@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/buslogic/bt.c,v 1.45 2005/05/29 04:42:19 nyan Exp $");
 
  /*
   * Special thanks to Leonard N. Zubkoff for writing such a complete and

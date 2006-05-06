@@ -26,7 +26,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/amd64/gen/rfork_thread.S,v 1.1 2003/10/13 20:32:33 alc Exp $");
 
 /*
  * With thanks to John Dyson for the original version of this.

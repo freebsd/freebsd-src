@@ -1,6 +1,6 @@
 /*	$OpenBSD: tip.h,v 1.11 2001/09/09 19:30:49 millert Exp $	*/
 /*	$NetBSD: tip.h,v 1.7 1997/04/20 00:02:46 mellon Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.bin/tip/tip/tip.h,v 1.10 2004/05/06 13:25:09 stefanf Exp $	*/
 
 /*
  * Copyright (c) 1989, 1993

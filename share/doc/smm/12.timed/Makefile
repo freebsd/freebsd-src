@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-# $FreeBSD$
+# $FreeBSD: src/share/doc/smm/12.timed/Makefile,v 1.7 2004/10/24 15:32:44 ru Exp $
 
 VOLUME=		smm/12.timed
 SRCS=		timed.ms

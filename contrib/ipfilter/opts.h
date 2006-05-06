@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/opts.h,v 1.2 2005/04/25 18:20:08 darrenr Exp $	*/
 
 /*
  * Copyright (C) 2000 by Darren Reed.

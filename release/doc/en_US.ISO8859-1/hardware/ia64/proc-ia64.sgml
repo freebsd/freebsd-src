@@ -1,5 +1,5 @@
 <!--
-	$FreeBSD$
+	$FreeBSD: src/release/doc/en_US.ISO8859-1/hardware/ia64/proc-ia64.sgml,v 1.9.8.1 2006/02/11 18:54:19 marcel Exp $
 -->
 <sect1 id="proc-ia64">
   <title>Supported Processors and Motherboards</title>

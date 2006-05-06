@@ -1,7 +1,7 @@
 /*
  * MD header for contrib/gdtoa
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/arm/arith.h,v 1.1 2004/05/14 12:04:29 cognet Exp $
  */
 
 /*

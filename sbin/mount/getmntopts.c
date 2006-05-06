@@ -33,7 +33,7 @@ static char sccsid[] = "@(#)getmntopts.c	8.3 (Berkeley) 3/29/95";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/mount/getmntopts.c,v 1.15 2004/11/25 16:14:27 delphij Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>

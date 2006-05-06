@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/pccard/pccard.c,v 1.105.2.3 2006/01/31 17:10:02 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

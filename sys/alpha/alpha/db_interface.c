@@ -47,7 +47,7 @@
 
 #include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
 /* __KERNEL_RCSID(0, "$NetBSD: db_interface.c,v 1.2 1997/09/16 19:07:19 thorpej Exp $"); */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/db_interface.c,v 1.30 2005/01/05 20:05:48 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

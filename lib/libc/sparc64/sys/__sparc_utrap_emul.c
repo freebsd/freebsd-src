@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/sys/__sparc_utrap_emul.c,v 1.2 2002/05/11 21:20:05 jake Exp $");
 
 #include <sys/types.h>
 #include <machine/cpufunc.h>

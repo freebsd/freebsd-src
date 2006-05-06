@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/lib32/README,v 1.2 2004/11/25 04:25:21 peter Exp $
 
 Set WITH_LIB32=yes in /etc/make.conf and do a buildworld/installworld.
 

@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netipx/spx_debug.c,v 1.16 2005/01/07 01:45:47 imp Exp $");
 
 #include "opt_inet.h"
 #include "opt_tcpdebug.h"

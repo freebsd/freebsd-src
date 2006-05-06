@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/ObsoleteFiles.inc,v 1.25.2.4 2006/03/11 07:28:32 yar Exp $
 #
 # This file lists old files (OLD_FILES), libraries (OLD_LIBS) and
 # directories (OLD_DIRS) which should get removed at an update. Recently

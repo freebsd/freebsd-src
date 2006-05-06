@@ -62,7 +62,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ffs/ffs_vnops.c,v 1.157.2.1 2005/10/29 06:43:55 scottl Exp $");
 
 #include <sys/param.h>
 #include <sys/bio.h>

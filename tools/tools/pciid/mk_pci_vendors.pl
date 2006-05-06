@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 # 
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/pciid/mk_pci_vendors.pl,v 1.5 2004/06/28 11:46:48 mux Exp $
 #
 # usage: mk_pci_vendors [-lq] [-p pcidevs.txt] [-v vendors.txt]
 #

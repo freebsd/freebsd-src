@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/truss/setup.c,v 1.21 2005/03/27 12:53:25 alfred Exp $");
 
 /*
  * Various setup functions for truss.  Not the cleanest-written code,

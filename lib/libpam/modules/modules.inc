@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/modules.inc,v 1.19 2004/12/21 10:16:00 ru Exp $
 
 MODULES		 =
 MODULES		+= pam_chroot

@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/if_cdce.c,v 1.7.2.5 2006/01/14 14:21:59 netchild Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

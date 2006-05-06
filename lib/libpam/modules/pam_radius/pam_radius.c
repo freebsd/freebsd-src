@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpam/modules/pam_radius/pam_radius.c,v 1.23 2005/06/13 21:18:52 des Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

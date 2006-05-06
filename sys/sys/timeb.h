@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)timeb.h	8.2 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/timeb.h,v 1.9 2004/04/07 04:19:50 imp Exp $
  */
 
 #ifndef _SYS_TIMEB_H_

@@ -12,7 +12,7 @@
  *
  * See README and COPYING for more details.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/hostapd/wpa.c,v 1.3.2.1 2006/03/24 01:42:34 sam Exp $
  */
 
 #include <stdlib.h>

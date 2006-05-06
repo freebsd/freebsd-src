@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/unionfs/union_vnops.c,v 1.132 2005/05/03 11:05:33 jeff Exp $
  */
 
 #include <sys/param.h>

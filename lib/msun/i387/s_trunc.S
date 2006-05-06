@@ -4,7 +4,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$")
+__FBSDID("$FreeBSD: src/lib/msun/i387/s_trunc.S,v 1.1 2005/04/16 21:12:55 das Exp $")
 
 ENTRY(trunc)
 	pushl	%ebp

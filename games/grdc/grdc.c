@@ -11,7 +11,7 @@
  * modified 03-25-03 for 12 hour option
  *     - Samy Al Bahra <samy@kerneled.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/games/grdc/grdc.c,v 1.12 2003/06/23 16:02:40 will Exp $
  */
 
 #include <err.h>

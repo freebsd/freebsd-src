@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/mem.c,v 1.51 2004/08/01 11:40:50 markm Exp $");
 
 /*
  * Memory special file

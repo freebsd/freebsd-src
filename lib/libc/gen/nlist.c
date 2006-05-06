@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)nlist.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/nlist.c,v 1.18.12.1 2005/12/30 22:13:56 marcel Exp $");
 
 #include "namespace.h"
 #include <sys/param.h>

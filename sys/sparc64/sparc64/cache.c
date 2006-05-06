@@ -68,7 +68,7 @@
  *	from: @(#)cache.c	8.2 (Berkeley) 10/30/93
  *	from: NetBSD: cache.c,v 1.5 2000/12/06 01:47:50 mrg Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/cache.c,v 1.20 2005/01/07 02:29:23 imp Exp $
  */
 
 #include <sys/param.h>

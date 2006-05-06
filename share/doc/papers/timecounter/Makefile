@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/doc/papers/timecounter/Makefile,v 1.3 2004/10/24 15:32:41 ru Exp $
 
 # You really want:
 # PRINTERDEVICE=ps

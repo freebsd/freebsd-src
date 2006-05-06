@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/ipf_dotuning.c,v 1.4 2005/06/23 14:19:02 darrenr Exp $	*/
 
 #include "ipf.h"
 #include "netinet/ipl.h"

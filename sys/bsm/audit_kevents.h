@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/bsm/audit_kevents.h,v 1.2 2005/05/29 16:11:34 rwatson Exp $
  */
 
 #ifndef _BSM_AUDIT_KEVENTS_H_

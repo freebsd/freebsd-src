@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/smbfs/smbfs_vnops.c,v 1.61.2.1 2006/02/20 00:53:13 yar Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

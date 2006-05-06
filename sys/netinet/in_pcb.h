@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/in_pcb.h,v 1.80.2.2 2005/10/02 15:45:47 andre Exp $
  */
 
 #ifndef _NETINET_IN_PCB_H_

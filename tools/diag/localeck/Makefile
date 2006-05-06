@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/diag/localeck/Makefile,v 1.5 2004/12/21 08:47:20 ru Exp $
 
 PROG=	localeck
 NO_MAN=

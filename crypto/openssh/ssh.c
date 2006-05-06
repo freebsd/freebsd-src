@@ -41,7 +41,7 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: ssh.c,v 1.249 2005/07/30 01:26:16 djm Exp $");
-RCSID("$FreeBSD$");
+RCSID("$FreeBSD: src/crypto/openssh/ssh.c,v 1.28.2.1 2005/09/11 16:50:35 des Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/err.h>

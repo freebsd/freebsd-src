@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/joy/joy.c,v 1.53.8.1 2005/12/07 15:14:59 jylefort Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

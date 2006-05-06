@@ -37,7 +37,7 @@
 
 #include <machine/asm.h>
 #include <machine/cpuconf.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/bus_space_asm_generic.S,v 1.3 2005/01/05 21:58:47 imp Exp $");
 
 /*
  * Generic bus_space functions.

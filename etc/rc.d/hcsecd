@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/hcsecd,v 1.4.2.1 2005/11/23 18:03:33 emax Exp $
 #
 
 # PROVIDE: hcsecd

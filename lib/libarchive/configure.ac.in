@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libarchive/configure.ac.in,v 1.6 2005/06/04 22:30:36 kientzle Exp $
 
 #Process this file with autoconf to produce a configure script.
 AC_INIT(libarchive, @VERSION@, kientzle@freebsd.org)

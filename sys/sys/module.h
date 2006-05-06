@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/module.h,v 1.21 2004/07/13 19:36:59 phk Exp $
  */
 
 #ifndef _SYS_MODULE_H_

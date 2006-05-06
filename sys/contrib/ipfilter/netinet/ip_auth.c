@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_auth.c,v 1.40 2005/04/27 03:48:09 darrenr Exp $	*/
 
 /*
  * Copyright (C) 1998-2003 by Darren Reed & Guido van Rooij.
@@ -119,7 +119,7 @@ extern struct ifqueue   ipintrq;		/* ip packet input queue */
 /* END OF INCLUDES */
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$FreeBSD$";
+static const char rcsid[] = "@(#)$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_auth.c,v 1.40 2005/04/27 03:48:09 darrenr Exp $";
 /* static const char rcsid[] = "@(#)Id: ip_auth.c,v 2.73.2.3 2004/08/26 11:25:21 darrenr Exp"; */
 #endif
 

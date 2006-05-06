@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/map.CP1251,v 1.1 2001/11/05 06:58:02 ache Exp $
 NU \x00
 SH \x01
 SX \x02

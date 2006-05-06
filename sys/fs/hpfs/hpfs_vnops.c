@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/hpfs/hpfs_vnops.c,v 1.66.2.1 2006/03/12 21:50:01 scottl Exp $
  */
 
 #include <sys/param.h>

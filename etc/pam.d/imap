@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/pam.d/imap,v 1.5 2003/03/08 09:50:11 markm Exp $
 #
 # PAM configuration for the "imap" service
 #

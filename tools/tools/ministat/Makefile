@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/ministat/Makefile,v 1.5.2.1 2005/08/16 22:48:12 phk Exp $
 PROG=	ministat
 NO_MAN=
 DPADD=	${LIBM}

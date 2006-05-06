@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_netbios_pxy.c,v 1.1.1.2 2005/04/25 18:15:27 darrenr Exp $	*/
 
 /*
  * Simple netbios-dgm transparent proxy for in-kernel use.

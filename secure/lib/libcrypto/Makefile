@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/lib/libcrypto/Makefile,v 1.73.2.1 2005/07/22 17:29:09 kensmith Exp $
 
 LIB=		crypto
 SHLIBDIR?=	/lib

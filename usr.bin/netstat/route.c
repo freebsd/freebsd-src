@@ -38,7 +38,7 @@ static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/netstat/route.c,v 1.76 2005/05/13 16:31:10 ume Exp $");
 
 #include <sys/param.h>
 #include <sys/protosw.h>

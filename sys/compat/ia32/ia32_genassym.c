@@ -1,5 +1,5 @@
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/ia32/ia32_genassym.c,v 1.4 2004/02/21 23:35:56 peter Exp $");
 
 #include "opt_compat.h"
 

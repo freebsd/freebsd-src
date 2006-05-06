@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/pf/ackpri,v 1.1 2004/09/14 01:07:18 mlaier Exp $
 # $OpenBSD: ackpri,v 1.2 2003/03/10 14:24:33 henning Exp $
 
 # Use a simple priority queue to prioritize empty (no payload) TCP ACKs,

@@ -32,7 +32,7 @@
  * Agency (DARPA) and Air Force Research Laboratory, Air Force
  * Materiel Command, USAF, under agreement number F30602-01-2-0537.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/uart/uart_kbd_sun.h,v 1.2 2005/01/06 01:43:26 imp Exp $
  */
 
 /* keyboard commands (host->kbd) */

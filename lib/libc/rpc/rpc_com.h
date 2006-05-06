@@ -28,7 +28,7 @@
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/rpc/rpc_com.h,v 1.7 2003/02/27 13:40:01 nectar Exp $
  */
 /*
  * Copyright (c) 1986 - 1991 by Sun Microsystems, Inc.

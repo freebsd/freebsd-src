@@ -5,7 +5,7 @@
 /* extracted from freebsd:sys/i386/boot/biosboot/io.c */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/pc98/libpc98/gatea20.c,v 1.5 2005/05/08 14:17:28 nyan Exp $");
 
 #include <stand.h>
 #include <machine/cpufunc.h>

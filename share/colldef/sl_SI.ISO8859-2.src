@@ -2,7 +2,7 @@
 # Slovenian collation sequence
 # 2003-03-20 simon.zekar@literal.si
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/sl_SI.ISO8859-2.src,v 1.1 2003/10/09 00:55:33 ache Exp $
 #
 
 charmap map.ISO8859-2

@@ -8,7 +8,7 @@
 # Copyright 1998-2004 Douglas Barton
 # DougB@FreeBSD.org
 
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/mergemaster/mergemaster.sh,v 1.51.8.2 2006/02/13 23:47:48 rwatson Exp $
 
 PATH=/bin:/usr/bin:/usr/sbin
 

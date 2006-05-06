@@ -12,7 +12,7 @@
  * warranties of merchantability and fitness for a particular
  * purpose.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/pxeldr/pxeldr.S,v 1.13.12.1 2006/04/18 13:51:13 sobomax Exp $
  */
 
 /*

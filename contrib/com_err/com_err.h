@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/com_err/com_err.h,v 1.3 2004/04/03 21:17:01 nectar Exp $ */
 /* $Id: com_err.h,v 1.9 2001/05/11 20:03:36 assar Exp $ */
 
 /* MIT compatible com_err library */

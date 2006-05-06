@@ -29,7 +29,7 @@
  */
 
 #include <sys/types.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/watchdogd/watchdogd.c,v 1.10.2.1 2006/01/15 17:50:38 delphij Exp $");
 
 #include <sys/param.h>
 #include <sys/rtprio.h>

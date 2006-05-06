@@ -49,7 +49,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/sparc64/eeprom.c,v 1.9.2.1 2006/03/25 12:17:23 marius Exp $");
 
 /*
  * clock (eeprom) attaches at EBus, FireHose or SBus

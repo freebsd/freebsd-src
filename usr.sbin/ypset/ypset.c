@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/ypset/ypset.c,v 1.15 2004/10/17 19:33:33 stefanf Exp $");
 
 #include <err.h>
 #include <netdb.h>

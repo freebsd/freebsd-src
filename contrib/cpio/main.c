@@ -19,7 +19,7 @@
    David MacKenzie <djm@gnu.ai.mit.edu>,
    and John Oleynick <juo@klinzhai.rutgers.edu>.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/cpio/main.c,v 1.3.34.1 2006/01/11 08:02:15 cperciva Exp $ */
 
 #include <stdio.h>
 #include <getopt.h>

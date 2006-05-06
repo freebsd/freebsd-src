@@ -29,7 +29,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/usb/if_cdcereg.h,v 1.5.2.1 2005/12/29 05:30:39 sobomax Exp $
  */
 
 #ifndef _USB_IF_CDCEREG_H_

@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/dec/mcclock_if.m,v 1.5 2005/01/06 01:42:34 imp Exp $
 #
 
 #include <sys/bus.h>

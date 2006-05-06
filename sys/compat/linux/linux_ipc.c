@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/linux/linux_ipc.c,v 1.43 2005/02/11 13:46:55 sobomax Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

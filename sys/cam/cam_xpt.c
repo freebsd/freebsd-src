@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/cam/cam_xpt.c,v 1.155.2.2 2006/02/26 22:38:39 iedowse Exp $");
 
 #include <sys/param.h>
 #include <sys/bus.h>

@@ -34,7 +34,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *	$NetBSD: read.h,v 1.4 2004/02/27 14:52:18 christos Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libedit/read.h,v 1.1.2.1 2005/10/09 03:44:01 delphij Exp $
  */
 
 /*

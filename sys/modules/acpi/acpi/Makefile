@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/acpi/acpi/Makefile,v 1.11.2.2 2006/02/10 00:37:57 yar Exp $
 
 .PATH: ${.CURDIR}/../../../contrib/dev/acpica \
        ${.CURDIR}/../../../pci \

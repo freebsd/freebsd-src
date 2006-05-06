@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.9 (Berkeley) 5/14/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ufs/inode.h,v 1.49 2005/03/14 10:21:16 phk Exp $
  */
 
 #ifndef _UFS_UFS_INODE_H_

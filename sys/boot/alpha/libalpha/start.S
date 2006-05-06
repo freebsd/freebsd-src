@@ -1,5 +1,5 @@
 /* 
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/boot/alpha/libalpha/start.S,v 1.9 2001/03/04 04:38:14 obrien Exp $ 
  * From: $NetBSD: start.S,v 1.4 1998/03/28 00:54:15 cgd Exp $ 
  */
 

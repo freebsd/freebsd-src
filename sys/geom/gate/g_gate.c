@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/gate/g_gate.c,v 1.21.2.1 2006/04/05 22:12:28 pjd Exp $
  */
 
 #include <sys/param.h>

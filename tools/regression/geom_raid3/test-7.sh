@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom_raid3/test-7.sh,v 1.1 2004/08/16 09:09:23 pjd Exp $
 
 name="test"
 base=`basename $0`

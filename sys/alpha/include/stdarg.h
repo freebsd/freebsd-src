@@ -33,7 +33,7 @@
  *
  *	@(#)stdarg.h	8.1 (Berkeley) 6/10/93
  *	$NetBSD: stdarg.h,v 1.7 1997/04/06 08:47:44 cgd Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/stdarg.h,v 1.7 2005/03/02 21:33:20 joerg Exp $
  */
 
 #ifndef _MACHINE_STDARG_H_

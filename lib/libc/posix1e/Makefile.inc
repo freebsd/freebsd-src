@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/posix1e/Makefile.inc,v 1.17 2005/06/03 15:50:55 imp Exp $
 
 .PATH: ${.CURDIR}/posix1e
 

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/tools/ipfs.c,v 1.3 2005/04/26 15:18:45 darrenr Exp $	*/
 
 /*
  * Copyright (C) 1999-2001, 2003 by Darren Reed.

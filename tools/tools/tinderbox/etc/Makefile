@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinderbox/etc/Makefile,v 1.9 2004/08/19 07:28:30 des Exp $
 
 ETCFILES	 =
 ETCFILES	+= default.rc

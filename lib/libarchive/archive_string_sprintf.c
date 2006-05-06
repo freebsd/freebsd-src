@@ -25,7 +25,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_string_sprintf.c,v 1.7 2005/01/16 22:13:51 kientzle Exp $");
 
 /*
  * The use of printf()-family functions can be troublesome

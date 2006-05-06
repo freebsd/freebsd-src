@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/esp_aesctr.c,v 1.2.2.1 2005/11/04 20:59:58 ume Exp $
  */
 
 #include <sys/param.h>

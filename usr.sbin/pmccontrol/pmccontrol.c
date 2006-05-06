@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pmccontrol/pmccontrol.c,v 1.4.2.2 2006/02/27 17:36:01 jkoshy Exp $");
 
 #include <sys/types.h>
 #include <sys/queue.h>

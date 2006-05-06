@@ -34,7 +34,7 @@
  *
  *	@(#)openpromio.h	8.1 (Berkeley) 6/11/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ofw/openfirmio.h,v 1.6 2005/05/19 15:22:16 marius Exp $
  */
 
 #ifndef _DEV_OFW_OPENFIRMIO_H_

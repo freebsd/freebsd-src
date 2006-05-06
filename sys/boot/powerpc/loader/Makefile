@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/powerpc/loader/Makefile,v 1.18 2004/12/21 12:32:15 ru Exp $
 
 PROG=		loader
 NEWVERSWHAT=	"bootstrap loader" "Open Firmware/PowerPC"

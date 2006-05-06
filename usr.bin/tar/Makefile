@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/tar/Makefile,v 1.24 2005/05/08 06:25:15 kientzle Exp $
 
 #
 # Use "make distfile" to build a tar.gz file suitable for distribution,

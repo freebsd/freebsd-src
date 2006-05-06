@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/ofw/common/main.c,v 1.7 2004/08/16 15:45:24 marius Exp $");
 
 #include <stand.h>
 #include "openfirm.h"

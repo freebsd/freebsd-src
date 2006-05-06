@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/mfi/Makefile,v 1.1.2.1 2006/04/04 03:24:49 scottl Exp $
 
 .PATH: ${.CURDIR}/../../dev/mfi
 

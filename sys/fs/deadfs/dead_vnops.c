@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dead_vnops.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/deadfs/dead_vnops.c,v 1.48.2.1 2006/03/13 03:05:02 jeff Exp $
  */
 
 #include <sys/param.h>

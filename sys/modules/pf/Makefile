@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/pf/Makefile,v 1.7.2.2 2006/03/22 15:56:32 yar Exp $
 
 .PATH: ${.CURDIR}/../../contrib/pf/net
 .PATH: ${.CURDIR}/../../contrib/pf/netinet

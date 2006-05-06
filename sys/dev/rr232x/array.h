@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/rr232x/array.h,v 1.1.4.1 2006/05/01 00:15:11 scottl Exp $
  */
 #ifndef _HPT_ARRAY_H_
 #define _HPT_ARRAY_H_

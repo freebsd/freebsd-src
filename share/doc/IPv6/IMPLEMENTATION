@@ -3,7 +3,7 @@
 	KAME Project
 	http://www.kame.net/
 	$KAME: IMPLEMENTATION,v 1.216 2001/05/25 07:43:01 jinmei Exp $
-	$FreeBSD$
+	$FreeBSD: src/share/doc/IPv6/IMPLEMENTATION,v 1.7.10.2 2005/12/25 14:03:37 suz Exp $
 
 NOTE: The document tries to describe behaviors/implementation choices
 of the latest KAME/*BSD stack (like KAME/NetBSD 1.5.1).  The description

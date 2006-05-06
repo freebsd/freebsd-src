@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cname.h	8.3 (Berkeley) 3/20/94
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/regex/cname.h,v 1.3 2002/03/22 23:41:56 obrien Exp $
  */
 
 /* character-name table */

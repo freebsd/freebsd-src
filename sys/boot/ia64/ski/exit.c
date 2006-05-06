@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/ia64/ski/exit.c,v 1.3 2004/09/24 03:53:50 marcel Exp $");
 
 #include <sys/param.h>
 #include <sys/time.h>

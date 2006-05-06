@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/tsc.c,v 1.205 2003/11/17 08:58:13 peter Exp $");
 
 #include "opt_clock.h"
 

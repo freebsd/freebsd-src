@@ -26,7 +26,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/bce/if_bcereg.h,v 1.1.4.2 2006/05/04 07:31:56 scottl Exp $
  */
 
 #ifndef	_BCE_H_DEFINED

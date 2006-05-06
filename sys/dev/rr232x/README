@@ -10,7 +10,7 @@ Revision History:
    v1.01 2005-8-30
          First source code release
 
-$FreeBSD$
+$FreeBSD: src/sys/dev/rr232x/README,v 1.1.4.1 2006/05/01 00:15:10 scottl Exp $
 
 #############################################################################
 

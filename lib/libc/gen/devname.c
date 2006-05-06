@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)devname.c	8.2 (Berkeley) 4/29/95";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/devname.c,v 1.9 2003/06/20 09:52:27 phk Exp $");
 
 #include <sys/types.h>
 #include <sys/sysctl.h>

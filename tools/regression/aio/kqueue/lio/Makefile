@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/aio/kqueue/lio/Makefile,v 1.1 2005/03/02 04:00:55 ambrisko Exp $
 
 PROG=	lio_kqueue
 NO_MAN=	YES

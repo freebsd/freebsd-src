@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)des_crypt.c	2.2 88/08/10 4.0 RPCSRC; from 1.13 88/02/08 SMI";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/des_crypt.c,v 1.8 2004/10/16 06:11:34 obrien Exp $");
 
 static int common_crypt( char *, char *, unsigned, unsigned, struct desparams * );
 int (*__des_crypt_LOCAL)() = 0;

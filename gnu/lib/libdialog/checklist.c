@@ -22,7 +22,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/gnu/lib/libdialog/checklist.c,v 1.40 2005/01/04 11:30:24 phantom Exp $");
 
 #include <dialog.h>
 #include "dialog.priv.h"

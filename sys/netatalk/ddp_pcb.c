@@ -23,7 +23,7 @@
  *	Ann Arbor, Michigan
  *	+1-313-764-2278
  *	netatalk@umich.edu
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/ddp_pcb.c,v 1.47 2005/01/07 02:35:34 imp Exp $
  */
 
 #include <sys/param.h>

@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/smbus/smbconf.c,v 1.13 2003/08/24 18:03:44 obrien Exp $");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/module.h>

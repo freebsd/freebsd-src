@@ -65,7 +65,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/tools/miidevs2h.awk,v 1.6 2005/01/07 02:29:25 imp Exp $
 #
 function collectline(f, line) {
 	oparen = 0

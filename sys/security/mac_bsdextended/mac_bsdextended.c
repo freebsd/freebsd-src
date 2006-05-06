@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/mac_bsdextended/mac_bsdextended.c,v 1.25.2.2 2006/01/24 04:11:45 csjp Exp $
  */
 
 /*

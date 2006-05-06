@@ -25,7 +25,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/tools/fw_stub.awk,v 1.2.2.1 2006/02/23 02:13:32 mlaier Exp $
 
 #
 # Script to generate module .c file from a list of firmware images

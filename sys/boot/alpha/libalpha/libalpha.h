@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/alpha/libalpha/libalpha.h,v 1.7 2005/05/31 21:23:43 jhb Exp $ */
 
 /*
  * Copyright (c) 1996

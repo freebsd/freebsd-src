@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/regex/engine.c,v 1.16 2004/12/30 14:27:57 dds Exp $");
 
 /*
  * The matching engine and friends.  This file is #included by regexec.c

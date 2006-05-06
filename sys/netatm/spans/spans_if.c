@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netatm/spans/spans_if.c,v 1.16 2005/01/07 01:45:38 imp Exp $");
 
 #ifndef ATM_SPANS_MODULE
 #include "opt_atm.h"

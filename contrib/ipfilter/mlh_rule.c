@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/mlh_rule.c,v 1.2 2005/04/25 18:20:08 darrenr Exp $	*/
 
 /*
  * Copyright (C) 1993-1998 by Darren Reed.

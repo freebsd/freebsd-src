@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsend/sirix.c,v 1.2 2005/04/25 18:20:11 darrenr Exp $	*/
 
 /*
  * (C)opyright 1992-1998 Darren Reed.

@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/xscale/i80321/i80321_space.c,v 1.3 2005/02/13 18:20:39 cognet Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

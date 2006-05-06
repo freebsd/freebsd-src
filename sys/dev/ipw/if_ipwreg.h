@@ -1,4 +1,4 @@
-/*      $FreeBSD$	*/
+/*      $FreeBSD: src/sys/dev/ipw/if_ipwreg.h,v 1.1 2005/04/18 18:47:36 damien Exp $	*/
 
 /*-
  * Copyright (c) 2004, 2005

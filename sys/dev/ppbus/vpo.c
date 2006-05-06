@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ppbus/vpo.c,v 1.33 2004/07/09 16:56:46 cognet Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

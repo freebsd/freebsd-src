@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/fb/splash_bmp.c,v 1.19 2004/08/06 20:37:08 des Exp $
  */
 
 #include <sys/param.h>

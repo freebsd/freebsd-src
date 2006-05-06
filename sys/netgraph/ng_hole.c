@@ -37,7 +37,7 @@
  *
  * Author: Julian Elisher <julian@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_hole.c,v 1.14.2.1 2005/12/09 07:13:06 ru Exp $
  * $Whistle: ng_hole.c,v 1.10 1999/11/01 09:24:51 julian Exp $
  */
 

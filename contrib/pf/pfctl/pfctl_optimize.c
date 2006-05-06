@@ -17,7 +17,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/pf/pfctl/pfctl_optimize.c,v 1.2 2005/05/03 16:55:20 mlaier Exp $");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>

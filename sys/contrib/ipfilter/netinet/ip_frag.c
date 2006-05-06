@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_frag.c,v 1.29 2005/04/29 05:57:17 ru Exp $	*/
 
 /*
  * Copyright (C) 1993-2003 by Darren Reed.
@@ -102,7 +102,7 @@ extern struct timeout fr_slowtimer_ch;
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_frag.c	1.11 3/24/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$FreeBSD$";
+static const char rcsid[] = "@(#)$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_frag.c,v 1.29 2005/04/29 05:57:17 ru Exp $";
 /* static const char rcsid[] = "@(#)Id: ip_frag.c,v 2.77 2004/01/27 00:24:54 darrenr Exp"; */
 #endif
 

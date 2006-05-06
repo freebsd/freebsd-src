@@ -8,7 +8,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_disk.c,v 1.85.2.1 2006/02/14 03:29:31 rwatson Exp $");
 
 #include "opt_geom.h"
 

@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pcvt/vgaio/vgaio.y,v 1.7 2005/05/31 20:07:46 stefanf Exp $");
 
 /*
  * $Log: vgaio.y,v $

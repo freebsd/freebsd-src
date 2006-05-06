@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/fpu/fpu_qp.c,v 1.7 2005/06/21 21:13:07 stefanf Exp $");
 
 #include <sys/types.h>
 #include <machine/fsr.h>

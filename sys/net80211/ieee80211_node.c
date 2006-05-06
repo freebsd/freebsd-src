@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net80211/ieee80211_node.c,v 1.48.2.10 2006/03/13 03:05:47 sam Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h> 

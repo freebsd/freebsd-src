@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/amd/FREEBSD-Xlist,v 1.5 2004/07/06 12:52:27 mbr Exp $
 *LSM.am-utils
 *Makefile.*
 *README.autofs

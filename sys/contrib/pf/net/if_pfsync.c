@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/pf/net/if_pfsync.c,v 1.19.2.3 2005/09/17 15:19:38 mlaier Exp $	*/
 /*	$OpenBSD: if_pfsync.c,v 1.46 2005/02/20 15:58:38 mcbride Exp $	*/
 
 /*

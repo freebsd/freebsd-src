@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/amr/amr_linux.c,v 1.1.2.2 2006/03/07 15:49:11 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/locate/bigram/locate.bigram.c,v 1.12 2005/02/09 09:13:36 stefanf Exp $
  */
 
 #ifndef lint

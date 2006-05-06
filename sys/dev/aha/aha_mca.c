@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/aha/aha_mca.c,v 1.13 2005/01/19 06:54:10 imp Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

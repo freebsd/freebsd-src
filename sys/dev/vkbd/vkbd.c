@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  * $Id: vkbd.c,v 1.20 2004/11/15 23:53:30 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vkbd/vkbd.c,v 1.7.2.3 2006/02/28 02:37:47 emax Exp $
  */
 
 #include "opt_kbd.h"

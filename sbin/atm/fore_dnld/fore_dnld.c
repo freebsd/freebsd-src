@@ -62,7 +62,7 @@
 #include <unistd.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sbin/atm/fore_dnld/fore_dnld.c,v 1.17 2004/02/10 20:48:08 cperciva Exp $");
 #endif
 
 extern u_char pca200e_microcode_3[];

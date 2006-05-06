@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pcvt/kbdio/kbdio.y,v 1.8 2005/05/31 20:07:46 stefanf Exp $");
 
 /*
  * $Log: kbdio.y,v $

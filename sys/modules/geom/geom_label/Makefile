@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/geom/geom_label/Makefile,v 1.1.8.2 2005/12/29 06:22:38 sobomax Exp $
 
 .PATH: ${.CURDIR}/../../../geom/label
 

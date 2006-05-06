@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net80211/ieee80211_output.c,v 1.26.2.7 2006/03/23 23:28:43 sam Exp $");
 
 #include "opt_inet.h"
 

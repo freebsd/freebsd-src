@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.prog.mk,v 1.144.2.1 2005/11/28 19:08:51 ru Exp $
 
 .include <bsd.init.mk>
 

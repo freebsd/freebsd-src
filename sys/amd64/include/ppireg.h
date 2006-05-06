@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/include/ppireg.h,v 1.1 2005/05/14 09:10:00 nyan Exp $
  */
 
 #ifndef _MACHINE_PPIREG_H_

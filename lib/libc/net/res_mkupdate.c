@@ -21,7 +21,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/res_mkupdate.c,v 1.6 2005/04/08 21:24:23 stefanf Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

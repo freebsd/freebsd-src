@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)quad.h	8.1 (Berkeley) 6/4/93
- * $FreeBSD$
+ * $FreeBSD: src/lib/libstand/quad.h,v 1.3 2002/03/21 23:53:20 obrien Exp $
  */
 
 /*

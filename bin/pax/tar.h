@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tar.h	8.2 (Berkeley) 4/18/94
- * $FreeBSD$
+ * $FreeBSD: src/bin/pax/tar.h,v 1.7 2004/04/06 20:06:49 markm Exp $
  */
 
 /*

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net80211/ieee80211_xauth.c,v 1.2 2004/12/31 22:42:38 sam Exp $");
 
 /*
  * External authenticator placeholder module.

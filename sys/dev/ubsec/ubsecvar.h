@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/ubsec/ubsecvar.h,v 1.8 2005/01/06 01:43:27 imp Exp $ */
 /*	$OpenBSD: ubsecvar.h,v 1.35 2002/09/24 18:33:26 jason Exp $	*/
 
 /*-

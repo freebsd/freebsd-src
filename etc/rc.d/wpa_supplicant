@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/wpa_supplicant,v 1.1.2.1 2005/10/27 17:06:45 wpaul Exp $
 #
 
 # PROVIDE: wpa_supplicant

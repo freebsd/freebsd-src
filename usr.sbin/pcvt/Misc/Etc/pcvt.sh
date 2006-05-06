@@ -13,7 +13,7 @@
 #
 #	last edit-date: [Fri Mar 31 10:40:18 2000]
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pcvt/Misc/Etc/pcvt.sh,v 1.1 2000/03/31 08:39:33 hm Exp $
 #
 #---------------------------------------------------------------------------
 

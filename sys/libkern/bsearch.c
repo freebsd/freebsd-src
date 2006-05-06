@@ -31,7 +31,7 @@
 static char sccsid[] = "@(#)bsearch.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/bsearch.c,v 1.8 2005/01/07 00:24:32 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/libkern.h>

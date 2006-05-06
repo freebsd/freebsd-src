@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/aio/kqueue/lio/lio_kqueue.c,v 1.1 2005/03/02 04:00:55 ambrisko Exp $
  */
 
 /*

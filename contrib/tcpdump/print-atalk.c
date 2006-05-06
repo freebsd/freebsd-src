@@ -20,7 +20,7 @@
  *
  * Format and print AppleTalk packets.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/print-atalk.c,v 1.13 2005/05/29 19:09:27 sam Exp $
  */
 
 #ifndef lint

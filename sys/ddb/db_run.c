@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ddb/db_run.c,v 1.27 2005/04/14 05:25:40 peter Exp $");
 
 #include <sys/param.h>
 #include <sys/kdb.h>

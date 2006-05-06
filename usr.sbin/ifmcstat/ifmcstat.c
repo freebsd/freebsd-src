@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ifmcstat/ifmcstat.c,v 1.12 2004/09/13 08:14:55 dd Exp $
  */
 
 #include <stdio.h>

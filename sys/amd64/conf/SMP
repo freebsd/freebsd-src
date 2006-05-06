@@ -2,7 +2,7 @@
 # SMP -- Generic kernel configuration file for FreeBSD/amd64 SMP
 #	 Use this for multi-processor machines
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/amd64/conf/SMP,v 1.1.6.1 2005/09/18 03:37:58 scottl Exp $
 
 include GENERIC
 

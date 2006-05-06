@@ -26,7 +26,7 @@
  * OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS,
  * OR MODIFICATIONS.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/ppp_comp.h,v 1.12 2005/01/07 01:45:35 imp Exp $
  */
 
 #ifndef _NET_PPP_COMP_H

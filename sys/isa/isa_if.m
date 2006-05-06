@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/isa/isa_if.m,v 1.7 2005/01/06 22:18:23 imp Exp $
 #
 
 #include <sys/bus.h>

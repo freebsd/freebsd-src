@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libtacplus/taclib.c,v 1.6 2005/02/14 17:42:56 stefanf Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>

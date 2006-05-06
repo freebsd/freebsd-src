@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/acpica/Osd/OsdInterrupt.c,v 1.19.2.2 2005/11/07 09:53:23 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

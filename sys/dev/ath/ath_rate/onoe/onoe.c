@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ath/ath_rate/onoe/onoe.c,v 1.8.2.3 2006/02/24 19:51:11 sam Exp $");
 
 /*
  * Atsushi Onoe's rate control algorithm.

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/rr232x/rr232x_config.h,v 1.1.4.1 2006/05/01 00:15:11 scottl Exp $
  */
 #ifndef rr232x_CONFIG_H
 #define rr232x_CONFIG_H

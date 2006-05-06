@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_device.h,v 1.5 2005/01/07 01:45:39 imp Exp $
  *
  */
 

@@ -1,5 +1,5 @@
 #	$NetBSD: Makefile,v 1.3 2000/06/20 13:56:43 fvdl Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rpcbind/Makefile,v 1.5.12.1 2006/03/15 07:44:28 matteo Exp $
 
 LIBCDIR=        ${.CURDIR}/../../lib/libc
 LIBCRPCDIR=     ${LIBCDIR}/rpc

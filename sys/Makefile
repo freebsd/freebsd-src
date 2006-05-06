@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/Makefile,v 1.33 2005/03/08 00:09:41 grog Exp $
 
 # The boot loader
 .if !defined(NO_BOOT)

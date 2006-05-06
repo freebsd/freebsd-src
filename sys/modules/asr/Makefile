@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/asr/Makefile,v 1.5 2005/03/23 17:13:08 cognet Exp $
 
 .PATH: ${.CURDIR}/../../dev/asr
 

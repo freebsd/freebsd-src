@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/fs/pseudofs/pseudofs_fileno.c,v 1.12 2005/03/19 08:22:36 phk Exp $");
 
 #include "opt_pseudofs.h"
 

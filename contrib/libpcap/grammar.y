@@ -19,7 +19,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpcap/grammar.y,v 1.10 2005/07/11 03:43:25 sam Exp $
  */
 #ifndef lint
 static const char rcsid[] _U_ =

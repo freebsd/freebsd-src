@@ -1,7 +1,7 @@
 /*
  * Music
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/calendar.music,v 1.17 2004/12/16 00:26:53 grog Exp $
  */
 
 #ifndef _calendar_music_

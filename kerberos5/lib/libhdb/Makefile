@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/lib/libhdb/Makefile,v 1.18 2004/02/05 18:51:49 ru Exp $
 
 LIB=	hdb
 

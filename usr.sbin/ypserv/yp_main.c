@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/ypserv/yp_main.c,v 1.28 2005/05/20 13:04:10 charnier Exp $");
 
 /*
  * ypserv startup function.

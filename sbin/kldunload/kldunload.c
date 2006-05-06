@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/kldunload/kldunload.c,v 1.15.2.2 2006/03/01 20:51:53 wkoszek Exp $");
 
 #include <sys/param.h>
 #include <sys/linker.h>

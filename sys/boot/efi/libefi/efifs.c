@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/efi/libefi/efifs.c,v 1.8 2003/08/02 08:22:03 marcel Exp $
  */
 
 #include <sys/param.h>

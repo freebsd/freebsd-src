@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <DISKIMAGE>
-  <FreeBSD>$FreeBSD$</FreeBSD>
+  <FreeBSD>$FreeBSD: src/tools/regression/geom/Data/disk.alpha2.da0.xml,v 1.1 2002/03/27 21:21:29 phk Exp $</FreeBSD>
   <comment>
     alpha label which O'brien says blows up libdisk
   </comment>

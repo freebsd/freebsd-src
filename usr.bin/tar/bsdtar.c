@@ -25,7 +25,7 @@
  */
 
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.63.2.2 2005/11/06 22:27:21 kientzle Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>

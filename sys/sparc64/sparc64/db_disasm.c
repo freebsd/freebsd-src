@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *	from: NetBSD: db_disasm.c,v 1.9 2000/08/16 11:29:42 pk Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/db_disasm.c,v 1.8 2005/01/07 02:29:23 imp Exp $
  */
 
 #include <sys/param.h>

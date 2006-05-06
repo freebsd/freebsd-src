@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/posix4/p1003_1b.c,v 1.24 2005/03/31 22:54:48 jhb Exp $");
 
 #include "opt_posix.h"
 

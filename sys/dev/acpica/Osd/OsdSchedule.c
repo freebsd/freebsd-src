@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/acpica/Osd/OsdSchedule.c,v 1.32.2.5 2006/04/02 00:14:57 sam Exp $");
 
 #include "opt_acpi.h"
 #include <sys/param.h>

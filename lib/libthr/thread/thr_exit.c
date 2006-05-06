@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libthr/thread/thr_exit.c,v 1.18.2.2 2006/01/16 05:36:30 davidxu Exp $
  */
 
 #include <errno.h>

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/posix4/mqueue.h,v 1.6 2002/09/20 17:54:34 mike Exp $
  */
 
 /* mqueue.h: POSIX 1003.1b Message Queues */

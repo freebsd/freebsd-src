@@ -32,4 +32,4 @@ configuration to distinguish one from the other.
 Daniel C. Sobral
 <dcs@freebsd.org>
 
-$FreeBSD$
+$FreeBSD: src/share/examples/bootforth/README,v 1.3 1999/08/28 00:19:09 peter Exp $

@@ -88,7 +88,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/name6.c,v 1.54.2.1 2005/11/18 02:30:09 ume Exp $");
 
 #include "namespace.h"
 #ifdef ICMPNL

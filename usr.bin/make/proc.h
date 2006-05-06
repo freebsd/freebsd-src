@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/proc.h,v 1.1 2005/05/24 15:41:34 harti Exp $
  */
 
 #ifndef proc_h_458845848

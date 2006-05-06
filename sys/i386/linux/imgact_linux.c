@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/linux/imgact_linux.c,v 1.54 2005/04/01 20:00:10 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

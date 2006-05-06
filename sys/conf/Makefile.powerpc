@@ -1,7 +1,7 @@
 # Makefile.powerpc -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/Makefile.powerpc,v 1.277.2.1 2005/10/28 19:04:03 jhb Exp $
 #
 # Makefile for FreeBSD
 #

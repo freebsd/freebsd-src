@@ -120,7 +120,7 @@
  * valid on the LANCE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/le/lancereg.h,v 1.1.2.1 2006/02/13 11:30:40 marius Exp $ */
 
 #ifndef _DEV_LE_LANCEREG_H_
 #define	_DEV_LE_LANCEREG_H_

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ldef.h	8.1 (Berkeley) 6/6/93
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.bin/mklocale/ldef.h,v 1.4 2005/02/26 21:47:54 ru Exp $
  */
 
 #include <sys/types.h>

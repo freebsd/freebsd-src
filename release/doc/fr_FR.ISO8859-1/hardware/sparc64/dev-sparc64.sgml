@@ -3,12 +3,12 @@
      The FreeBSD French Documentation Project
 
      $Id: dev-sparc64.sgml,v 1.2 2002/09/28 23:01:52 eagle Exp $
-     $FreeBSD$
+     $FreeBSD: src/release/doc/fr_FR.ISO8859-1/hardware/sparc64/dev-sparc64.sgml,v 1.2 2002/09/28 23:15:58 gioria Exp $
      Original revision: 1.1
 -->
 <sect1>
   <sect1info>
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/fr_FR.ISO8859-1/hardware/sparc64/dev-sparc64.sgml,v 1.2 2002/09/28 23:15:58 gioria Exp $</pubdate>
   </sect1info>
 
   <title>P&eacute;riph&eacute;riques support&eacute;s</title>

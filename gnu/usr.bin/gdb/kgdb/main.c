@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/gnu/usr.bin/gdb/kgdb/main.c,v 1.7.2.3 2005/11/05 19:13:08 marcel Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>

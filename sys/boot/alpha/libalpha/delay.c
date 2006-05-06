@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/alpha/libalpha/delay.c,v 1.4 2005/06/04 21:50:44 marcel Exp $");
 
 #include <stand.h>
 #include <machine/rpb.h>

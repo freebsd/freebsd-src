@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/cpufreq/ichss.c,v 1.9 2005/03/20 01:25:21 njl Exp $");
 
 #include <sys/param.h>
 #include <sys/bus.h>

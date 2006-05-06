@@ -35,7 +35,7 @@
 #include <dev/pci/pcivar.h>
 #include <sys/queue.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/emu10k1.c,v 1.55.2.1 2005/12/30 19:55:53 netchild Exp $");
 
 /* -------------------------------------------------------------------- */
 

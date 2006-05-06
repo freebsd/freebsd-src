@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libutil/login_crypt.c,v 1.5 2002/04/08 11:04:56 ru Exp $");
 
 #include <sys/types.h>
 

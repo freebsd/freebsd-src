@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gdb/arch/alpha/Makefile,v 1.3 2004/12/05 06:58:59 marcel Exp $
 
 .if !defined(GDB_CROSS_DEBUGGER)
 LIBSRCS+= core-regset.c solib.c solib-legacy.c solib-svr4.c

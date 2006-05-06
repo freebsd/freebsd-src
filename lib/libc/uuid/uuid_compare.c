@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/uuid/uuid_compare.c,v 1.4 2005/01/03 02:56:15 marcel Exp $
  */
 
 #include <string.h>
