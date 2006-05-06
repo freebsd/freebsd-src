@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060506:
+	FreeBSD 6.1-RELEASE
+
 20060309:
 	The support for Linux applications the 3dfx kernel module used
 	to provide is in a separate module named 3dfx_linux now.  The
