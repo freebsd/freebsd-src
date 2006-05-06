@@ -18,16 +18,16 @@
 # Set these, release builder!
 #
 # Fixed version:
-#BUILDNAME=6.0-STABLE
+#BUILDNAME=6.1-STABLE
 #
 # Automatic SNAP versioning:
 DATE != date +%Y%m%d
-BASE = 6.0
+BASE = 6.1
 BUILDNAME?=${BASE}-${DATE}-SNAP
 #
 #CHROOTDIR=/junk/release
 # If this is a -stable snapshot, then set
-#RELEASETAG=RELENG_4
+#RELEASETAG=RELENG_6
 #
 # To test a release with a source tree containing patches and
 # other work. This tree will get copied instead of getting the
@@ -67,8 +67,8 @@ PORTSRELEASETAG?=	${AUXRELEASETAG}
 # If you want to pass flags to the world build such as -j X, use
 # WORLD_FLAGS.  Similarly, you can specify make flags for kernel
 # builds via KERNEL_FLAGS.
-#WORLD_FLAGS=-j4
-#KERNEL_FLAGS=-j4
+WORLD_FLAGS=-j4 -s
+KERNEL_FLAGS=-j4
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 .if ${TARGET_ARCH} == ${MACHINE_ARCH}
