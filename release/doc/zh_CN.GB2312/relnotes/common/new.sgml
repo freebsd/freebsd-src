@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.883.2.15.2.5
+     Original revision: 1.883.2.15.2.7
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -226,8 +226,11 @@
 
 	<para>&man.agp.4; 驱动现在支持 ATI IGP 芯片组了。</para>
 
-	<para>&man.sound.4; 驱动现在支持更为广泛的采样速率、
-	  多种可选的采样精度， 以及 24/32-位 PCM 格式转换了。</para>
+	<para>对 &man.sound.4; 驱动进行了全方位的更新，
+	  包括修正了在先前版本的系统中存在的一系列与锁有关，
+	  可能导致系统崩溃的缺陷， 并带来了一些性能上的改善。
+	  此外， 这一驱动现在也支持更为广泛的采样速率、
+	  多种可选的采样精度， 以及 24/32-位 PCM 格式的转换了。</para>
 
 	<para>&man.snd.atiixp.4; 驱动支持挂起和恢复功能了。</para>
 
@@ -421,8 +424,11 @@ geli_da1s3a_keyfile0_load="YES"
 geli_da1s3a_keyfile0_type="da1s3a:geli_keyfile0"
 geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
-      <para>新增了&man.mfi.4; 驱动， 用以支持
-	LSI MegaRAID SAS 系列控制器。</para>
+      <para>新增了用以支持
+	LSI MegaRAID SAS 系列控制器的驱动程序 &man.mfi.4;。</para>
+
+      <para>新增了用以支持 HighPoint 的
+	RocketRAID 232x 系列 RAID 控制器的驱动程序 &man.rr232x.4;。</para>
     </sect3>
 
     <sect3 id="fs">
@@ -520,9 +526,6 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>加入了基于 OpenBSD 实现的 &man.strtonum.3; 库函数。 这是
       &man.strtoll.3; 的改进版本。</para>
 
-    <para>&man.xargs.1; 工具新增了 <option>-r</option>
-      参数， 表示只有在标准输入不含非空格字符时才执行命令。</para>
-
     <para>修正了 &man.ypwhich.1; 工具中的一个导致
       <option>-m</option> 选项产生不正确的可用命名映射的 bug。</para>
 
@@ -551,6 +554,11 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
       <para>新增了用于
 	&man.hostapd.8; 的 <filename>hostapd</filename> 脚本。</para>
+
+      <para><filename>jail</filename> 脚本新增了
+	<varname>jail_interface</varname> 选项和
+	<varname>jail_<replaceable>jid</replaceable>_interface</varname>
+	选项， 用以在给定的网络接口上创建 IP 别名。</para>
 
       <para><filename>netif</filename> 脚本新增了对
 	<varname>ipv4_addrs_<replaceable>ifn</replaceable></varname>
