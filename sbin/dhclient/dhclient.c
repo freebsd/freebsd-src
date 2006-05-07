@@ -1461,6 +1461,40 @@ make_discover(struct interface_info *ip, struct client_lease *lease)
 			    ip->client->config->send_options[i].len;
 			options[i]->timeout = 0xFFFFFFFF;
 		}
+		
+	/* send host name if not set via config file. */
+	char hostname[_POSIX_HOST_NAME_MAX+1];
+	if (!options[DHO_HOST_NAME]) {
+		if (gethostname(hostname, sizeof(hostname)) == 0) {
+			size_t len;
+			char* posDot = strchr(hostname, '.');
+			if (posDot != NULL)
+				len = posDot - hostname;
+			else
+				len = strlen(hostname);
+			options[DHO_HOST_NAME] = &option_elements[DHO_HOST_NAME];
+			options[DHO_HOST_NAME]->value = hostname;
+			options[DHO_HOST_NAME]->len = len;
+			options[DHO_HOST_NAME]->buf_size = len;
+			options[DHO_HOST_NAME]->timeout = 0xFFFFFFFF;
+		}
+	}
+
+#ifdef SEND_CLIENT_IDENTIFIER	
+	/* set unique client identifier */
+	char client_ident[sizeof(struct hardware)];
+	if (!options[DHO_DHCP_CLIENT_IDENTIFIER]) {
+		int hwlen = (ip->hw_address.hlen < sizeof(client_ident)-1) ?
+				ip->hw_address.hlen : sizeof(client_ident)-1;
+		client_ident[0] = ip->hw_address.htype;
+		memcpy(&client_ident[1], ip->hw_address.haddr, hwlen); 
+		options[DHO_DHCP_CLIENT_IDENTIFIER] = &option_elements[DHO_DHCP_CLIENT_IDENTIFIER];
+		options[DHO_DHCP_CLIENT_IDENTIFIER]->value = client_ident;
+		options[DHO_DHCP_CLIENT_IDENTIFIER]->len = hwlen+1;
+		options[DHO_DHCP_CLIENT_IDENTIFIER]->buf_size = hwlen+1;
+		options[DHO_DHCP_CLIENT_IDENTIFIER]->timeout = 0xFFFFFFFF;
+	}
+#endif	
 
 	/* Set up the option buffer... */
 	ip->client->packet_length = cons_options(NULL, &ip->client->packet, 0,
@@ -1553,6 +1587,40 @@ make_request(struct interface_info *ip, struct client_lease * lease)
 			    ip->client->config->send_options[i].len;
 			options[i]->timeout = 0xFFFFFFFF;
 		}
+		
+	/* send host name if not set via config file. */
+	char hostname[_POSIX_HOST_NAME_MAX+1];
+	if (!options[DHO_HOST_NAME]) {
+		if (gethostname(hostname, sizeof(hostname)) == 0) {
+			size_t len;
+			char* posDot = strchr(hostname, '.');
+			if (posDot != NULL)
+				len = posDot - hostname;
+			else
+				len = strlen(hostname);
+			options[DHO_HOST_NAME] = &option_elements[DHO_HOST_NAME];
+			options[DHO_HOST_NAME]->value = hostname;
+			options[DHO_HOST_NAME]->len = len;
+			options[DHO_HOST_NAME]->buf_size = len;
+			options[DHO_HOST_NAME]->timeout = 0xFFFFFFFF;
+		}
+	}
+
+#ifdef SEND_CLIENT_IDENTIFIER	
+	/* set unique client identifier */
+	char client_ident[sizeof(struct hardware)];
+	if (!options[DHO_DHCP_CLIENT_IDENTIFIER]) {
+		int hwlen = (ip->hw_address.hlen < sizeof(client_ident)-1) ?
+				ip->hw_address.hlen : sizeof(client_ident)-1;
+		client_ident[0] = ip->hw_address.htype;
+		memcpy(&client_ident[1], ip->hw_address.haddr, hwlen); 
+		options[DHO_DHCP_CLIENT_IDENTIFIER] = &option_elements[DHO_DHCP_CLIENT_IDENTIFIER];
+		options[DHO_DHCP_CLIENT_IDENTIFIER]->value = client_ident;
+		options[DHO_DHCP_CLIENT_IDENTIFIER]->len = hwlen+1;
+		options[DHO_DHCP_CLIENT_IDENTIFIER]->buf_size = hwlen+1;
+		options[DHO_DHCP_CLIENT_IDENTIFIER]->timeout = 0xFFFFFFFF;
+	}
+#endif	
 
 	/* Set up the option buffer... */
 	ip->client->packet_length = cons_options(NULL, &ip->client->packet, 0,
