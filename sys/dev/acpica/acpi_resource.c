@@ -688,7 +688,7 @@ acpi_sysres_probe(device_t dev)
 
     device_set_desc(dev, "System Resource");
     device_quiet(dev);
-    return (-100);
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int
