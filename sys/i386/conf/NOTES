@@ -449,6 +449,9 @@ device		acpi_asus
 # ACPI Fujitsu Extras (Buttons)
 device		acpi_fujitsu
 
+# ACPI extras driver for IBM laptops
+device         acpi_ibm
+
 # ACPI Panasonic Extras (LCD backlight/brightness, video output, etc.)
 device		acpi_panasonic
 
