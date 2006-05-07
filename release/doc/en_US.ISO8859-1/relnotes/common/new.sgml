@@ -334,6 +334,10 @@
       <para>A bug which prevents the &man.ichsmb.4; kernel module
 	from unloading has been fixed.</para>
 
+      <para arch="i386,amd64">Dual-core processors (such as the Intel
+	Core Duo) now have both cores available for use by
+	default in SMP-enabled kernels. &merged;</para>
+
       <para arch="i386,amd64">&man.ipmi.4;, an OpenIPMI compatible driver,
 	has been added.
 	OpenIPMI (Intelligent Platform Management Interface) is an open
