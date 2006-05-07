@@ -15,8 +15,7 @@ all:
 SALPHA=	${SYS}/alpha/mcbus/*.[ch] ${SYS}/alpha/tlsb/*.[ch] \
 	${SYS}/alpha/alpha/*.[ch] ${SYS}/alpha/pci/*.[ch] \
 	${SYS}/alpha/include/*.[ch] ${SYS}/alpha/isa/*.[ch] \
-	${SYS}/alpha/tc/*.[ch] ${SYS}/alpha/osf1/*.[ch] \
-	${SYS}/alpha/linux/*.[ch]
+	${SYS}/alpha/tc/*.[ch] ${SYS}/alpha/osf1/*.[ch]
 AALPHA=	${SYS}/alpha/alpha/*.s
 
 tags::
