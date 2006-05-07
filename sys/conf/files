@@ -99,7 +99,6 @@ coda/coda_subr.c		optional vcoda
 coda/coda_venus.c		optional vcoda
 coda/coda_vfsops.c		optional vcoda
 coda/coda_vnops.c		optional vcoda
-compat/linprocfs/linprocfs.c	optional linprocfs
 contrib/altq/altq/altq_cbq.c	optional altq \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/altq/altq/altq_cdnr.c	optional altq

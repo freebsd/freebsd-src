@@ -73,8 +73,8 @@ maxusers	10
 makeoptions	CONF_CFLAGS=-fno-builtin  #Don't allow use of memcmp, etc.
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 #makeoptions	KERNEL=foo		#Build kernel "foo" and install "/foo"
-# Only build Linux API modules and plus those parts of the sound system I need.
-#makeoptions	MODULES_OVERRIDE="linux sound/sound sound/driver/maestro3"
+# Only build ext2fs module plus those parts of the sound system I need.
+#makeoptions	MODULES_OVERRIDE="ext2fs sound/sound sound/driver/maestro3"
 makeoptions	DESTDIR=/tmp
 
 #
