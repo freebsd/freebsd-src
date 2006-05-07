@@ -1,4 +1,4 @@
-#	$FreeBSD$
+# $FreeBSD$
 
 PROG=		ipf
 SRCS=		ipf.c ipfcomp.c ipf_y.c ipf_l.c bpf_filter.c
