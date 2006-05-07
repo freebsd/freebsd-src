@@ -86,6 +86,17 @@ init_variables()
 	debug "$_j exec start: $jail_exec_start"
 	debug "$_j exec stop: $jail_exec_stop"
 	debug "$_j flags: $jail_flags"
+
+	if [ -z "${jail_hostname}" ]; then
+		err 3 "$name: No hostname has been defined for ${_j}"
+	fi
+	if [ -z "${jail_rootdir}" ]; then
+		err 3 "$name: No root directory has been defined for ${_j}"
+	fi
+	if [ -z "${jail_ip}" ]; then
+		err 3 "$name: No IP address has been defined for ${_j}"
+	fi
+
 }
 
 # set_sysctl rc_knob mib msg
