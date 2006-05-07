@@ -1813,12 +1813,14 @@ bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 	}
 	index = 0;
 	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+		BPFIF_LOCK(bp);
 		LIST_FOREACH(bd, &bp->bif_dlist, bd_next) {
 			xbd = &xbdbuf[index++];
 			BPFD_LOCK(bd);
 			bpfstats_fill_xbpf(xbd, bd);
 			BPFD_UNLOCK(bd);
 		}
+		BPFIF_UNLOCK(bp);
 	}
 	mtx_unlock(&bpf_mtx);
 	error = SYSCTL_OUT(req, xbdbuf, index * sizeof(*xbd));
