@@ -475,6 +475,10 @@ acpi_attach(device_t dev)
     /*
      * Call the ECDT probe function to provide EC functionality before
      * the namespace has been evaluated.
+     *
+     * XXX This happens before the sysresource devices have been probed and
+     * attached so its resources come from nexus0.  In practice, this isn't
+     * a problem but should be addressed eventually.
      */
     acpi_ec_ecdt_probe(dev);
 
@@ -903,6 +907,21 @@ acpi_sysres_alloc(device_t dev)
     struct resource_list *rl;
     struct resource_list_entry *rle;
     struct rman *rm;
+    char *sysres_ids[] = { "PNP0C01", "PNP0C02", NULL };
+    device_t *children;
+    int child_count, i;
+
+    /*
+     * Probe/attach any sysresource devices.  This would be unnecessary if we
+     * had multi-pass probe/attach.
+     */
+    if (device_get_children(dev, &children, &child_count) != 0)
+	return (ENXIO);
+    for (i = 0; i < child_count; i++) {
+	if (ACPI_ID_PROBE(dev, children[i], sysres_ids) != NULL)
+	    device_probe_and_attach(children[i]);
+    }
+    free(children, M_TEMP);
 
     rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
     STAILQ_FOREACH(rle, rl, link) {
@@ -1489,26 +1508,19 @@ acpi_probe_children(device_t bus)
 static int
 acpi_probe_order(ACPI_HANDLE handle, int *order)
 {
-    int ret;
 
     /*
      * 1. I/O port and memory system resource holders
      * 2. Embedded controllers (to handle early accesses)
      * 3. PCI Link Devices
      */
-    ret = 0;
-    if (acpi_MatchHid(handle, "PNP0C01") || acpi_MatchHid(handle, "PNP0C02")) {
+    if (acpi_MatchHid(handle, "PNP0C01") || acpi_MatchHid(handle, "PNP0C02"))
 	*order = 1;
-	ret = 1;
-    } else if (acpi_MatchHid(handle, "PNP0C09")) {
+    else if (acpi_MatchHid(handle, "PNP0C09"))
 	*order = 2;
-	ret = 1;
-    } else if (acpi_MatchHid(handle, "PNP0C0F")) {
+    else if (acpi_MatchHid(handle, "PNP0C0F"))
 	*order = 3;
-	ret = 1;
-    }
-
-    return (ret);
+    return (0);
 }
 
 /*
@@ -1521,7 +1533,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
     ACPI_OBJECT_TYPE type;
     ACPI_HANDLE h;
     device_t bus, child;
-    int order, probe_now;
+    int order;
     char *handle_str, **search;
     static char *scopes[] = {"\\_PR_", "\\_TZ_", "\\_SI_", "\\_SB_", NULL};
 
@@ -1561,7 +1573,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     */
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "scanning '%s'\n", handle_str));
 	    order = (level + 1) * 10;
-	    probe_now = acpi_probe_order(handle, &order);
+	    acpi_probe_order(handle, &order);
 	    child = BUS_ADD_CHILD(bus, order, NULL, -1);
 	    if (child == NULL)
 		break;
@@ -1602,10 +1614,6 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     * device not to have any resources.
 	     */
 	    acpi_parse_resources(child, handle, &acpi_res_parse_set, NULL);
-
-	    /* If order was overridden, probe/attach now rather than later. */
-	    if (probe_now)
-		device_probe_and_attach(child);
 	    break;
 	}
     }
