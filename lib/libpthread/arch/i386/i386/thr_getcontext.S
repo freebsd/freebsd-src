@@ -63,10 +63,10 @@ ENTRY(__thr_setcontext)
 	movl	$-1, %eax		/* bzzzt, invalid context */
 	jmp	8f
 2:	/*movl	4(%edx), %gs*/		/* we don't touch %gs */
-	movl	8(%edx), %fs
-	movl	12(%edx), %es
-	movl	16(%edx), %ds
-	movl	76(%edx), %ss
+	movw	8(%edx), %fs
+	movw	12(%edx), %es
+	movw	16(%edx), %ds
+	movw	76(%edx), %ss
 	movl	20(%edx), %edi
 	movl	24(%edx), %esi
 	movl	28(%edx), %ebp
@@ -126,11 +126,11 @@ ENTRY(__thr_getcontext)
 	popl	%edx			/* restore edx and stack */
 	movl	$-1, %eax
 	jmp	2f
-1:	/*movl	%gs, 4(%edx)*/		/* we don't touch %gs */
-	movl	%fs, 8(%edx)
-	movl	%es, 12(%edx)
-	movl	%ds, 16(%edx)
-	movl	%ss, 76(%edx)
+1:	/*movw	%gs, 4(%edx)*/		/* we don't touch %gs */
+	movw	%fs, 8(%edx)
+	movw	%es, 12(%edx)
+	movw	%ds, 16(%edx)
+	movw	%ss, 76(%edx)
 	movl	%edi, 20(%edx)
 	movl	%esi, 24(%edx)
 	movl	%ebp, 28(%edx)
