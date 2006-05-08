@@ -2372,7 +2372,7 @@ ath_descdma_setup(struct ath_softc *sc,
 		       NULL, NULL,		/* filter, filterarg */
 		       dd->dd_desc_len,		/* maxsize */
 		       1,			/* nsegments */
-		       BUS_SPACE_MAXADDR,	/* maxsegsize */
+		       dd->dd_desc_len,		/* maxsegsize */
 		       BUS_DMA_ALLOCNOW,	/* flags */
 		       NULL,			/* lockfunc */
 		       NULL,			/* lockarg */
