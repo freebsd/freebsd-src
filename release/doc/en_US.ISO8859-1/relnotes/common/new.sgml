@@ -912,6 +912,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       flag, which causes it to ignore files and directories with
       the <literal>nodump</literal> flag set.</para>
 
+    <para>The &man.find.1; program now supports <option>-Btime</option>
+      and other related primaries, which can be used to create expressions
+      based on a file's creation time.</para>
+
     <para>The &man.ftpd.8; utility now creates a PID file
       <filename>/var/run/ftpd.pid</filename> even when
       no <option>-p</option> option is specified.  &merged;</para>
