@@ -103,7 +103,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <pc98/pc98/pc98_machdep.h>
-#include <pc98/cbus/cbus.h>
 
 #include <net/netisr.h>
 
