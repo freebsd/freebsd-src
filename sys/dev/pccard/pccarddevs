@@ -432,6 +432,7 @@ product NEWMEDIA BUSTOASTER2	0xa002 New Media SCSI Bus Toaster
 product NEWMEDIA BUSTOASTER	0xc102 New Media SCSI Bus Toaster
 product NEWMEDIA BUSTOASTER3	0xd302 New Media SCSI Bus Toaster
 product NEWMEDIA WAVJAMMER	0xe005 New Media .WAVjammer
+product NEWMEDIA WAVJAMMER2	0xf005 New Media .WAVjammer
 product NEWMEDIA2 BUSTOASTER	0x0001 New Media BusToaster
 
 /* Netgear */
