@@ -22,9 +22,12 @@ BEGIN {
 	if (!(match($2, "\\+[0-9]") && match($3, "-[0-9]")))
 		next
 	printf("cvs -d %s update %s -j 1.%d -j 1.%d %s\n", CVSROOT, UPDATEOPTS, $1 - 1, $1, $4)
-	files = files " " $4
+	files[$4] = 1
 }
 
 END {
-	printf("cvs -d %s commit %s\n", CVSROOT, files);
+	for (i in files)
+		fl = fl " " i
+	printf("cvs -d %s diff -kk %s | less\n", CVSROOT, fl);
+	printf("cvs -d %s commit %s\n", CVSROOT, fl);
 }
