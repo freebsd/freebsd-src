@@ -251,7 +251,7 @@
     <para arch="alpha">Support for Linux emulation on the Alpha
       platform has been removed, due to the lack of a
       <filename>linux_base</filename> port that both supports the
-      Alpha archiecture and is in good working condition.</para>
+      Alpha architecture and is in good working condition.</para>
 
     <para>RedZone, a buffer corruption protection for kernel &man.malloc.9;
       facility has been implemented.  This detects both of buffer underflows and
@@ -963,6 +963,12 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       no longer requires a network interface as its argument.  The
       argument still is supported for backward compatibility, but now
       it is deprecated and its use is discouraged.</para>
+
+    <para>The &man.iostat.8; utility now supports
+      a <option>-x</option> flag (inspired by Solaris) to print
+      extended disk statistics.  If the new <option>-z</option> flag is
+      also specified, no output is made for disks with no
+      activity.</para>
 
     <para>The &man.jail.8; utility pports a <option>-J
 	<replaceable>jid_file</replaceable></option> option to
