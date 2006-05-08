@@ -183,7 +183,7 @@ ath_pci_attach(device_t dev)
 			       NULL, NULL,		/* filter, filterarg */
 			       0x3ffff,			/* maxsize XXX */
 			       ATH_MAX_SCATTER,		/* nsegments */
-			       BUS_SPACE_MAXADDR,	/* maxsegsize */
+			       0x3ffff,			/* maxsegsize XXX */
 			       BUS_DMA_ALLOCNOW,	/* flags */
 			       NULL,			/* lockfunc */
 			       NULL,			/* lockarg */
