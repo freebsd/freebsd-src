@@ -346,6 +346,7 @@ hint.mse.0.irq="13"
 
 # ar:   Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver
 #       (requires sppp)
+# ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 # ce:   Cronyx Tau-PCI/32 sync single/dual port G.703/E1 serial adaptor
 #       with 32 HDLC subchannels (requires sppp (default), or NETGRAPH if
 #       NETGRAPH_CRONYX is configured)
@@ -400,6 +401,13 @@ hint.snc.0.irq="6"
 hint.snc.0.maddr="0xc0000"
 device		sr
 device		oltr
+
+device		ath
+device		ath_hal		# Atheros HAL (includes binary component)
+#device		ath_rate_amrr	# AMRR rate control for ath driver
+#device		ath_rate_onoe	# Onoe rate control for ath driver
+device		ath_rate_sample	# SampleRate rate control for the ath driver
+#device		wlan		# 802.11 layer
 
 #
 # SCSI host adapters:
