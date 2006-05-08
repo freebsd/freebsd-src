@@ -248,6 +248,11 @@
       to sigexit if a trap signal is being held by the current thread or
       ignored by the current process and is enabled by default.</para>
 
+    <para arch="alpha">Support for Linux emulation on the Alpha
+      platform has been removed, due to the lack of a
+      <filename>linux_base</filename> port that both supports the
+      Alpha archiecture and is in good working condition.</para>
+
     <para>RedZone, a buffer corruption protection for kernel &man.malloc.9;
       facility has been implemented.  This detects both of buffer underflows and
       buffer overflows bugs at runtime on &man.free.9; and &man.realloc.9;,
@@ -467,7 +472,7 @@
 	  architectures such as sparc64.  &merged;</para>
 
 	<para>The &man.em.4; driver has been updated to
-	  version 3.2.18 from Intel, and now supports
+	  version 5.1.5 from Intel.  Among other changes, it now supports
 	  82571 and 82572 based adapters.</para>
 
 	<para>The &man.em.4; driver now includes
@@ -555,6 +560,10 @@
 	<literal>options BPF_JITTER</literal> kernel option is needed,
 	and a sysctl variable <varname>net.bpf.jitter.enable</varname>
 	can be used to disable this feature.</para>
+
+      <para>The bridge(4) driver has been removed from the tree.  Its
+	functionality has been completely replaced by
+	&man.if.bridge.4;.</para>
 
       <para>The &man.gre.4; driver, which is for GRE encapsulation
 	found in RFC 1701 and RFC 1702 now supports IPv6 over GRE.</para>
@@ -892,8 +901,16 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       in C language.  Note that it currently supports checkout mode
       only.</para>
 
+    <para>The &man.dhclient.8; program now sends the host's name in
+      DHCP requests if it is not specified in the configuration
+      file.</para>
+
     <para>The &man.devd.8; utility now supports a <option>-f</option> option
       to specify a configuration file.  &merged;</para>
+
+    <para>The &man.du.1; program now supports a <option>-n</option>
+      flag, which causes it to ignore files and directories with
+      the <literal>nodump</literal> flag set.</para>
 
     <para>The &man.ftpd.8; utility now creates a PID file
       <filename>/var/run/ftpd.pid</filename> even when
@@ -907,6 +924,11 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       a <option>-q</option> flag to suppress the per-file header
       comment listing the file name, owner, and group.
       &merged;</para>
+
+    <para>The &man.getent.1; utility has been imported from NetBSD.
+      It retrieves and displays information from an administrative
+      database (such as <filename>hosts</filename>) using the lookup
+      order specified in &man.nsswitch.conf.5;.</para>
 
     <para>The &man.gpt.8; utility now supports setting GPT partition labels.</para>
 
@@ -1408,7 +1430,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The supported version of
       the <application>GNOME</application> desktop environment
       (<filename role="package">x11/gnome2</filename>) has been
-      updated from 2.10.2 to 2.12.3. &merged;</para>
+      updated from 2.10.2 to 2.14.1. &merged;</para>
 
     <para>The supported version of
       the <application>KDE</application> desktop environment
