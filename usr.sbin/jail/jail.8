@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2006
+.Dd May 8, 2006
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -544,6 +544,14 @@ The read-only
 .Va security.jail.jailed
 variable can be used to determine if a process is running inside a jail (value
 is one) or not (value is zero).
+.Pp
+The
+.Va security.jail.list 
+MIB entry is read-only and it returns an array of struct xprison defined in
+.In sys/jail.h .
+It is recommended to use the
+.Xr jls 8
+utility to see current active list of jails.
 .Pp
 There are currently two MIB related variables that have per-jail settings.
 Changes to these variables by a jailed process do not effect the host
