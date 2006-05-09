@@ -1222,7 +1222,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       <para>The <filename>netif</filename> script now supports
 	<varname>ipv4_addrs_<replaceable>ifn</replaceable></varname>,
 	which adds one or more IPv4 address from a ranged list in
-	CIRD notation.  &merged;  For example:</para>
+	CIDR notation.  &merged;  For example:</para>
 
       <programlisting>ipv4_addrs_ed0="192.168.0.1/24 192.168.1.1-5/28"</programlisting>
 
