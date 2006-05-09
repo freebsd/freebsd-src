@@ -82,8 +82,8 @@ struct umtxq_chain {
 	struct mtx		uc_lock;	/* Lock for this chain. */
 	struct umtx_head	uc_queue;	/* List of sleep queues. */
 #define	UCF_BUSY		0x01
-#define	UCF_WANT		0x02
 	int			uc_flags;
+	int			uc_waiters;
 };
 
 #define	GOLDEN_RATIO_PRIME	2654404609U
@@ -135,6 +135,7 @@ umtxq_init_chains(void *arg __unused)
 			 MTX_DEF | MTX_DUPOK);
 		LIST_INIT(&umtxq_chains[i].uc_queue);
 		umtxq_chains[i].uc_flags = 0;
+		umtxq_chains[i].uc_waiters = 0;
 	}
 }
 
@@ -166,9 +167,10 @@ umtxq_busy(struct umtx_key *key)
 
 	mtx_assert(umtxq_mtx(chain), MA_OWNED);
 	while (umtxq_chains[chain].uc_flags & UCF_BUSY) {
-		umtxq_chains[chain].uc_flags |= UCF_WANT;
+		umtxq_chains[chain].uc_waiters++;
 		msleep(&umtxq_chains[chain], umtxq_mtx(chain),
 		    0, "umtxq_busy", 0);
+		umtxq_chains[chain].uc_waiters--;
 	}
 	umtxq_chains[chain].uc_flags |= UCF_BUSY;
 }
@@ -181,10 +183,8 @@ umtxq_unbusy(struct umtx_key *key)
 	mtx_assert(umtxq_mtx(chain), MA_OWNED);
 	KASSERT(umtxq_chains[chain].uc_flags & UCF_BUSY, ("not busy"));
 	umtxq_chains[chain].uc_flags &= ~UCF_BUSY;
-	if (umtxq_chains[chain].uc_flags & UCF_WANT) {
-		umtxq_chains[chain].uc_flags &= ~UCF_WANT;
-		wakeup(&umtxq_chains[chain]);
-	}
+	if (umtxq_chains[chain].uc_waiters)
+		wakeup_one(&umtxq_chains[chain]);
 }
 
 static inline void
