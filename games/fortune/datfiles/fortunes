@@ -60869,3 +60869,12 @@ use of this material.
 		-- taken from Samuel M. Goldwasser's
 		   Sam's Strobe FAQ Notes on the Troubleshooting 
 		   and Repair of Electronic Flash Units and Strobe Lights
+%
+The Microsoft Exchange MTA Stacks service depends on the Microsoft Exchange
+System Attendant service which failed to start because of the following
+error: 
+
+The operation completed successfully. 
+
+For more information, see Help and Support Center at
+http://go.microsoft.com/fwlink/events.asp.
