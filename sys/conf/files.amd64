@@ -218,6 +218,7 @@ compat/freebsd32/freebsd32_syscalls.c	optional	compat_ia32
 compat/freebsd32/freebsd32_sysent.c	optional	compat_ia32
 compat/ia32/ia32_sysvec.c	optional	compat_ia32
 compat/linprocfs/linprocfs.c	optional	linprocfs
+compat/linsysfs/linsysfs.c	optional	linsysfs
 kern/imgact_elf32.c		optional	compat_ia32
 #
 # Linux/i386 binary support

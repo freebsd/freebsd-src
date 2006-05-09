@@ -134,6 +134,7 @@ SUBDIR=	${_3dfx} \
 	libmbpool \
 	libmchain \
 	${_linprocfs} \
+	${_linsysfs} \
 	${_linux} \
 	lmc \
 	${_lnc} \
@@ -357,6 +358,7 @@ _ie=		ie
 _if_ndis=	if_ndis
 _io=		io
 _linprocfs=	linprocfs
+_linsysfs=	linsysfs
 _linux=		linux
 _lnc=		lnc
 _mse=		mse
