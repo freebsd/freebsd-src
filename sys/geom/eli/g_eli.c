@@ -327,6 +327,7 @@ static void
 g_eli_start(struct bio *bp)
 {
 	struct g_eli_softc *sc;
+	struct g_consumer *cp;
 	struct bio *cbp;
 
 	sc = bp->bio_to->geom->softc;
@@ -338,6 +339,7 @@ g_eli_start(struct bio *bp)
 	switch (bp->bio_cmd) {
 	case BIO_READ:
 	case BIO_WRITE:
+	case BIO_GETATTR:
 		break;
 	case BIO_DELETE:
 		/*
@@ -345,7 +347,6 @@ g_eli_start(struct bio *bp)
 		 * It could be done by overwritting requested sector with
 		 * random data g_eli_overwrites number of times.
 		 */
-	case BIO_GETATTR:
 	default:	
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
@@ -355,23 +356,31 @@ g_eli_start(struct bio *bp)
 		g_io_deliver(bp, ENOMEM);
 		return;
 	}
-	if (bp->bio_cmd == BIO_READ) {
-		struct g_consumer *cp;
-
+	switch (bp->bio_cmd) {
+	case BIO_READ:
 		cbp->bio_done = g_eli_read_done;
 		cp = LIST_FIRST(&sc->sc_geom->consumer);
 		cbp->bio_to = cp->provider;
-		G_ELI_LOGREQ(2, bp, "Sending request.");
+		G_ELI_LOGREQ(2, cbp, "Sending request.");
 		/*
 		 * Read encrypted data from provider.
 		 */
 		g_io_request(cbp, cp);
-	} else /* if (bp->bio_cmd == BIO_WRITE) */ {
+		break;
+	case BIO_WRITE:
 		bp->bio_driver1 = cbp;
 		mtx_lock(&sc->sc_queue_mtx);
 		bioq_insert_tail(&sc->sc_queue, bp);
 		mtx_unlock(&sc->sc_queue_mtx);
 		wakeup(sc);
+		break;
+	case BIO_GETATTR:
+		cbp->bio_done = g_std_done;
+		cp = LIST_FIRST(&sc->sc_geom->consumer);
+		cbp->bio_to = cp->provider;
+		G_ELI_LOGREQ(2, cbp, "Sending request.");
+		g_io_request(cbp, cp);
+		break;
 	}
 }
 
@@ -523,8 +532,7 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 
 		crd->crd_skip = 0;
 		crd->crd_len = secsize;
-		crd->crd_flags =
-		    CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT | CRD_F_KEY_EXPLICIT;
+		crd->crd_flags = CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT;
 		if (bp->bio_cmd == BIO_WRITE)
 			crd->crd_flags |= CRD_F_ENCRYPT;
 		crd->crd_alg = sc->sc_algo;
