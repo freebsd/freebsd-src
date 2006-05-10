@@ -72,12 +72,6 @@ static int do_sa_get(struct sockaddr **, const struct osockaddr *, int *,
     struct malloc_type *);
 static int linux_to_bsd_domain(int);
 
-#ifdef __alpha__
-#define	STATIC
-#else
-#define	STATIC static
-#endif
-
 /*
  * Reads a linux sockaddr and does any necessary translation.
  * Linux sockaddrs don't have a length field, only a family.
@@ -244,7 +238,6 @@ bsd_to_linux_sockopt_level(int level)
 	return (level);
 }
 
-#ifndef __alpha__
 static int
 linux_to_bsd_ip_sockopt(int opt)
 {
@@ -302,7 +295,6 @@ linux_to_bsd_so_sockopt(int opt)
 	}
 	return (-1);
 }
-#endif /* !__alpha__*/
 
 static int
 linux_to_bsd_msg_flags(int flags)
@@ -454,7 +446,6 @@ bad:
 	return (error);
 }
 
-#ifndef __alpha__
 /* Return 0 if IP_HDRINCL is set for the given socket. */
 static int
 linux_check_hdrincl(struct thread *td, int s)
@@ -620,33 +611,25 @@ linux_bind(struct thread *td, struct linux_bind_args *args)
 
 	return (kern_bind(td, linux_args.s, sa));
 }
-#endif /* !__alpha__*/
 
-struct l_connect_args {
+struct linux_connect_args {
 	int s;
 	l_uintptr_t name;
 	int namelen;
 };
-#ifndef __alpha__
-#define	linux_connect_args l_connect_args
 int linux_connect(struct thread *, struct linux_connect_args *);
-#endif /* !__alpha__*/
 
 int
 linux_connect(struct thread *td, struct linux_connect_args *args)
 {
-	struct l_connect_args linux_args;
+	struct linux_connect_args linux_args;
 	struct socket *so;
 	struct sockaddr *sa;
 	u_int fflag;
 	int error;
 
-#ifdef __alpha__
-	bcopy(args, &linux_args, sizeof(linux_args));
-#else
 	if ((error = copyin(args, &linux_args, sizeof(linux_args))))
 		return (error);
-#endif /* __alpha__ */
 
 	error = linux_getsockaddr(&sa,
 	    (struct osockaddr *)PTRIN(linux_args.name),
@@ -684,7 +667,6 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 	return (error);
 }
 
-#ifndef __alpha__
 struct linux_listen_args {
 	int s;
 	int backlog;
@@ -707,22 +689,17 @@ linux_listen(struct thread *td, struct linux_listen_args *args)
 	bsd_args.backlog = linux_args.backlog;
 	return (listen(td, &bsd_args));
 }
-#endif /* !__alpha__*/
 
-struct l_accept_args {
+struct linux_accept_args {
 	int s;
 	l_uintptr_t addr;
 	l_uintptr_t namelen;
 };
 
-#ifndef __alpha__
-#define	linux_accept_args l_accept_args
-#endif
-
-STATIC int
+static int
 linux_accept(struct thread *td, struct linux_accept_args *args)
 {
-	struct l_accept_args linux_args;
+	struct linux_accept_args linux_args;
 	struct accept_args /* {
 		int	s;
 		struct sockaddr * __restrict name;
@@ -764,20 +741,16 @@ linux_accept(struct thread *td, struct linux_accept_args *args)
 	return (0);
 }
 
-struct l_getsockname_args {
+struct linux_getsockname_args {
 	int s;
 	l_uintptr_t addr;
 	l_uintptr_t namelen;
 };
 
-#ifndef __alpha__
-#define linux_getsockname_args l_getsockname_args
-#endif
-
-STATIC int
+static int
 linux_getsockname(struct thread *td, struct linux_getsockname_args *args)
 {
-	struct l_getsockname_args linux_args;
+	struct linux_getsockname_args linux_args;
 	struct getsockname_args /* {
 		int	fdes;
 		struct sockaddr * __restrict asa;
@@ -802,20 +775,16 @@ linux_getsockname(struct thread *td, struct linux_getsockname_args *args)
 	return (0);
 }
 
-struct l_getpeername_args {
+struct linux_getpeername_args {
 	int s;
 	l_uintptr_t addr;
 	l_uintptr_t namelen;
 };
 
-#ifndef __alpha__
-#define linux_getpeername_args l_getpeername_args
-#endif
-
-STATIC int
+static int
 linux_getpeername(struct thread *td, struct linux_getpeername_args *args)
 {
-	struct l_getpeername_args linux_args;
+	struct linux_getpeername_args linux_args;
 	struct getpeername_args /* {
 		int fdes;
 		caddr_t asa;
@@ -839,21 +808,17 @@ linux_getpeername(struct thread *td, struct linux_getpeername_args *args)
 	return (0);
 }
 
-struct l_socketpair_args {
+struct linux_socketpair_args {
 	int domain;
 	int type;
 	int protocol;
 	l_uintptr_t rsv;
 };
 
-#ifndef __alpha__
-#define linux_socketpair_args l_socketpair_args
-#endif
-
-STATIC int
+static int
 linux_socketpair(struct thread *td, struct linux_socketpair_args *args)
 {
-	struct l_socketpair_args linux_args;
+	struct linux_socketpair_args linux_args;
 	struct socketpair_args /* {
 		int domain;
 		int type;
@@ -875,21 +840,17 @@ linux_socketpair(struct thread *td, struct linux_socketpair_args *args)
 	return (socketpair(td, &bsd_args));
 }
 
-struct l_send_args {
+struct linux_send_args {
 	int s;
 	l_uintptr_t msg;
 	int len;
 	int flags;
 };
 
-#ifndef __alpha__
-#define linux_send_args l_send_args
-#endif
-
-STATIC int
+static int
 linux_send(struct thread *td, struct linux_send_args *args)
 {
-	struct l_send_args linux_args;
+	struct linux_send_args linux_args;
 	struct sendto_args /* {
 		int s;
 		caddr_t buf;
@@ -912,21 +873,17 @@ linux_send(struct thread *td, struct linux_send_args *args)
 	return sendto(td, &bsd_args);
 }
 
-struct l_recv_args {
+struct linux_recv_args {
 	int s;
 	l_uintptr_t msg;
 	int len;
 	int flags;
 };
 
-#ifndef __alpha__
-#define linux_recv_args l_recv_args
-#endif
-
-STATIC int
+static int
 linux_recv(struct thread *td, struct linux_recv_args *args)
 {
-	struct l_recv_args linux_args;
+	struct linux_recv_args linux_args;
 	struct recvfrom_args /* {
 		int s;
 		caddr_t buf;
@@ -949,7 +906,6 @@ linux_recv(struct thread *td, struct linux_recv_args *args)
 	return (recvfrom(td, &bsd_args));
 }
 
-#ifndef __alpha__
 static int
 linux_sendto(struct thread *td, struct linux_sendto_args *args)
 {
@@ -977,9 +933,8 @@ linux_sendto(struct thread *td, struct linux_sendto_args *args)
 	    UIO_USERSPACE);
 	return (error);
 }
-#endif /* !__alpha__*/
 
-struct l_recvfrom_args {
+struct linux_recvfrom_args {
 	int s;
 	l_uintptr_t buf;
 	int len;
@@ -988,14 +943,10 @@ struct l_recvfrom_args {
 	l_uintptr_t fromlen;
 };
 
-#ifndef __alpha__
-#define linux_recvfrom_args l_recvfrom_args
-#endif
-
-STATIC int
+static int
 linux_recvfrom(struct thread *td, struct linux_recvfrom_args *args)
 {
-	struct l_recvfrom_args linux_args;
+	struct linux_recvfrom_args linux_args;
 	struct recvfrom_args /* {
 		int	s;
 		caddr_t	buf;
@@ -1036,20 +987,16 @@ linux_recvfrom(struct thread *td, struct linux_recvfrom_args *args)
 	return (0);
 }
 
-struct l_sendmsg_args {
+struct linux_sendmsg_args {
 	int s;
 	l_uintptr_t msg;
 	int flags;
 };
 
-#ifndef __alpha__
-#define linux_sendmsg_args l_sendmsg_args
-#endif
-
-STATIC int
+static int
 linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 {
-	struct l_sendmsg_args linux_args;
+	struct linux_sendmsg_args linux_args;
 	struct msghdr msg;
 	struct iovec *iov;
 	int error;
@@ -1073,20 +1020,16 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 	return (error);
 }
 
-struct l_recvmsg_args {
+struct linux_recvmsg_args {
 	int s;
 	l_uintptr_t msg;
 	int flags;
 };
 
-#ifndef __alpha__
-#define linux_recvmsg_args l_recvmsg_args
-#endif
-
-STATIC int
+static int
 linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 {
-	struct l_recvmsg_args linux_args;
+	struct linux_recvmsg_args linux_args;
 	struct recvmsg_args /* {
 		int	s;
 		struct	msghdr *msg;
@@ -1128,7 +1071,6 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 	return (error);
 }
 
-#ifndef __alpha__
 struct linux_shutdown_args {
 	int s;
 	int how;
@@ -1313,4 +1255,3 @@ linux_socketcall(struct thread *td, struct linux_socketcall_args *args)
 	uprintf("LINUX: 'socket' typ=%d not implemented\n", args->what);
 	return (ENOSYS);
 }
-#endif /*!__alpha__*/

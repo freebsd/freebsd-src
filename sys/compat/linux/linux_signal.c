@@ -60,11 +60,7 @@ linux_to_bsd_sigset(l_sigset_t *lss, sigset_t *bss)
 	bss->__bits[1] = lss->__bits[1];
 	for (l = 1; l <= LINUX_SIGTBLSZ; l++) {
 		if (LINUX_SIGISMEMBER(*lss, l)) {
-#ifdef __alpha__
-			b = _SIG_IDX(l);
-#else
 			b = linux_to_bsd_signal[_SIG_IDX(l)];
-#endif
 			if (b)
 				SIGADDSET(*bss, b);
 		}
@@ -81,11 +77,7 @@ bsd_to_linux_sigset(sigset_t *bss, l_sigset_t *lss)
 	lss->__bits[1] = bss->__bits[1];
 	for (b = 1; b <= LINUX_SIGTBLSZ; b++) {
 		if (SIGISMEMBER(*bss, b)) {
-#ifdef __alpha__
-			l = _SIG_IDX(b);
-#else
 			l = bsd_to_linux_signal[_SIG_IDX(b)];
-#endif
 			if (l)
 				LINUX_SIGADDSET(*lss, l);
 		}
@@ -160,11 +152,9 @@ linux_do_sigaction(struct thread *td, int linux_sig, l_sigaction_t *linux_nsa,
 	} else
 		nsa = NULL;
 
-#ifndef __alpha__
 	if (linux_sig <= LINUX_SIGTBLSZ)
 		sig = linux_to_bsd_signal[_SIG_IDX(linux_sig)];
 	else
-#endif
 		sig = linux_sig;
 
 	error = kern_sigaction(td, sig, nsa, osa, 0);
@@ -178,7 +168,6 @@ linux_do_sigaction(struct thread *td, int linux_sig, l_sigaction_t *linux_nsa,
 }
 
 
-#ifndef __alpha__
 int
 linux_signal(struct thread *td, struct linux_signal_args *args)
 {
@@ -200,7 +189,6 @@ linux_signal(struct thread *td, struct linux_signal_args *args)
 
 	return (error);
 }
-#endif	/*!__alpha__*/
 
 int
 linux_rt_sigaction(struct thread *td, struct linux_rt_sigaction_args *args)
@@ -270,7 +258,6 @@ linux_do_sigprocmask(struct thread *td, int how, l_sigset_t *new,
 	return (error);
 }
 
-#ifndef __alpha__
 int
 linux_sigprocmask(struct thread *td, struct linux_sigprocmask_args *args)
 {
@@ -302,7 +289,6 @@ linux_sigprocmask(struct thread *td, struct linux_sigprocmask_args *args)
 
 	return (error);
 }
-#endif	/*!__alpha__*/
 
 int
 linux_rt_sigprocmask(struct thread *td, struct linux_rt_sigprocmask_args *args)
@@ -337,7 +323,6 @@ linux_rt_sigprocmask(struct thread *td, struct linux_rt_sigprocmask_args *args)
 	return (error);
 }
 
-#ifndef __alpha__
 int
 linux_sgetmask(struct thread *td, struct linux_sgetmask_args *args)
 {
@@ -434,7 +419,6 @@ linux_rt_sigpending(struct thread *td, struct linux_rt_sigpending_args *args)
 	bsd_to_linux_sigset(&bset, &lset);
 	return (copyout(&lset, args->set, args->sigsetsize));
 }
-#endif	/*!__alpha__*/
 
 int
 linux_kill(struct thread *td, struct linux_kill_args *args)
@@ -455,11 +439,9 @@ linux_kill(struct thread *td, struct linux_kill_args *args)
 	if (args->signum < 0 || args->signum > LINUX_NSIG)
 		return EINVAL;
 
-#ifndef __alpha__
 	if (args->signum > 0 && args->signum <= LINUX_SIGTBLSZ)
 		tmp.signum = linux_to_bsd_signal[_SIG_IDX(args->signum)];
 	else
-#endif
 		tmp.signum = args->signum;
 
 	tmp.pid = args->pid;
