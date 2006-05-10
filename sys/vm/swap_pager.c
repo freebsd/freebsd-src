@@ -265,8 +265,8 @@ SYSCTL_INT(_vm, OID_AUTO, dmmax,
 static void	swp_sizecheck(void);
 static void	swp_pager_async_iodone(struct buf *bp);
 static int	swapongeom(struct thread *, struct vnode *);
-static int	swapoff_one(struct swdevt *sp, struct thread *td);
 static int	swaponvp(struct thread *, struct vnode *, u_long);
+static int	swapoff_one(struct swdevt *sp, struct thread *td);
 
 /*
  * Swap bitmap functions
