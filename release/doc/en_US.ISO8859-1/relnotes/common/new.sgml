@@ -274,6 +274,10 @@
         support Cronyx Tau32-PCI adapters.
         </para>
 
+      <para arch="i386,amd64">Dual-core processors (such as the Intel
+	Core Duo) now have both cores available for use by
+	default in SMP-enabled kernels.</para>
+
       <para></para>
 
       <sect4 id="mm">
@@ -410,7 +414,7 @@
 
     <para>The supported version of
       the <application>KDE</application> desktop environment
-      (<filename role="package">x11/kde2</filename>) has been
+      (<filename role="package">x11/kde3</filename>) has been
       updated from 3.4.2 to 3.5.1.</para>
 
     <para>The supported version of
