@@ -61,7 +61,7 @@
 #define	WITH_SLICES
 #endif
 
-#if defined(__i386__) || defined(__alpha__)
+#if defined(__i386__)
 #define	WITH_LINUX
 #endif
 
