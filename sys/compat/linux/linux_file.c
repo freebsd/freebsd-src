@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <compat/linux/linux_util.h>
 
-#ifndef __alpha__
 int
 linux_creat(struct thread *td, struct linux_creat_args *args)
 {
@@ -81,7 +80,6 @@ linux_creat(struct thread *td, struct linux_creat_args *args)
     LFREEPATH(path);
     return (error);
 }
-#endif /*!__alpha__*/
 
 int
 linux_open(struct thread *td, struct linux_open_args *args)
@@ -175,7 +173,6 @@ linux_lseek(struct thread *td, struct linux_lseek_args *args)
     return error;
 }
 
-#ifndef __alpha__
 int
 linux_llseek(struct thread *td, struct linux_llseek_args *args)
 {
@@ -203,9 +200,7 @@ linux_llseek(struct thread *td, struct linux_llseek_args *args)
 	td->td_retval[0] = 0;
 	return 0;
 }
-#endif /*!__alpha__*/
 
-#ifndef __alpha__
 int
 linux_readdir(struct thread *td, struct linux_readdir_args *args)
 {
@@ -216,7 +211,6 @@ linux_readdir(struct thread *td, struct linux_readdir_args *args)
 	lda.count = 1;
 	return linux_getdents(td, &lda);
 }
-#endif /*!__alpha__*/
 
 /*
  * Note that linux_getdents(2) and linux_getdents64(2) have the same
@@ -705,7 +699,6 @@ linux_link(struct thread *td, struct linux_link_args *args)
 	return (error);
 }
 
-#ifndef __alpha__
 int
 linux_fdatasync(td, uap)
 	struct thread *td;
@@ -716,7 +709,6 @@ linux_fdatasync(td, uap)
 	bsd.fd = uap->fd;
 	return fsync(td, &bsd);
 }
-#endif /*!__alpha__*/
 
 int
 linux_pread(td, uap)
@@ -950,10 +942,6 @@ bsd_to_linux_flock64(struct flock *bsd_flock, struct l_flock64 *linux_flock)
 	linux_flock->l_pid = (l_pid_t)bsd_flock->l_pid;
 }
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
-
-#if defined(__alpha__)
-#define	linux_fcntl64_args	linux_fcntl_args
-#endif
 
 static int
 fcntl_common(struct thread *td, struct linux_fcntl64_args *args)

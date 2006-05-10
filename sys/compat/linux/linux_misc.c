@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/blist.h>
 #include <sys/fcntl.h>
-#if defined(__i386__) || defined(__alpha__)
+#if defined(__i386__)
 #include <sys/imgact_aout.h>
 #endif
 #include <sys/jail.h>
@@ -90,20 +90,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/cputypes.h>
 #endif
 
-#ifdef __alpha__
-#define BSD_TO_LINUX_SIGNAL(sig)       (sig)
-#else
 #define BSD_TO_LINUX_SIGNAL(sig)	\
 	(((sig) <= LINUX_SIGTBLSZ) ? bsd_to_linux_signal[_SIG_IDX(sig)] : sig)
-#endif
 
-#ifndef __alpha__
 static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] = {
 	RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK,
 	RLIMIT_CORE, RLIMIT_RSS, RLIMIT_NPROC, RLIMIT_NOFILE,
 	RLIMIT_MEMLOCK, -1
 };
-#endif /*!__alpha__*/
 
 struct l_sysinfo {
 	l_long		uptime;		/* Seconds since boot */
@@ -121,7 +115,6 @@ struct l_sysinfo {
 	l_uint		mem_unit;
 	char		_f[6];		/* Pads structure to 64 bytes */
 };
-#ifndef __alpha__
 int
 linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 {
@@ -166,9 +159,7 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 
 	return copyout(&sysinfo, args->info, sizeof(sysinfo));
 }
-#endif /*!__alpha__*/
 
-#ifndef __alpha__
 int
 linux_alarm(struct thread *td, struct linux_alarm_args *args)
 {
@@ -197,7 +188,6 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 	}
 	return (0);
 }
-#endif /*!__alpha__*/
 
 int
 linux_brk(struct thread *td, struct linux_brk_args *args)
@@ -223,7 +213,8 @@ linux_brk(struct thread *td, struct linux_brk_args *args)
 	return 0;
 }
 
-#if defined(__i386__) || defined(__alpha__)
+#if defined(__i386__)
+/* XXX: what about amd64/linux32? */
 
 int
 linux_uselib(struct thread *td, struct linux_uselib_args *args)
@@ -473,7 +464,7 @@ cleanup:
 	return error;
 }
 
-#endif	/* __i386__ || __alpha__ */
+#endif	/* __i386__ */
 
 int
 linux_select(struct thread *td, struct linux_select_args *args)
@@ -626,7 +617,6 @@ linux_msync(struct thread *td, struct linux_msync_args *args)
 	return msync(td, &bsd_args);
 }
 
-#ifndef __alpha__
 int
 linux_time(struct thread *td, struct linux_time_args *args)
 {
@@ -646,7 +636,6 @@ linux_time(struct thread *td, struct linux_time_args *args)
 	td->td_retval[0] = tm;
 	return 0;
 }
-#endif	/*!__alpha__*/
 
 struct l_times_argv {
 	l_long		tms_utime;
@@ -655,11 +644,7 @@ struct l_times_argv {
 	l_long		tms_cstime;
 };
 
-#ifdef __alpha__
-#define CLK_TCK 1024	/* Linux uses 1024 on alpha */
-#else
 #define CLK_TCK 100	/* Linux uses 100 */
-#endif
 
 #define CONVTCK(r)	(r.tv_sec * CLK_TCK + r.tv_usec / (1000000 / CLK_TCK))
 
@@ -796,7 +781,6 @@ linux_utime(struct thread *td, struct linux_utime_args *args)
 
 #define __WCLONE 0x80000000
 
-#ifndef __alpha__
 int
 linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 {
@@ -830,7 +814,6 @@ linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 
 	return 0;
 }
-#endif	/*!__alpha__*/
 
 int
 linux_wait4(struct thread *td, struct linux_wait4_args *args)
@@ -912,10 +895,8 @@ linux_personality(struct thread *td, struct linux_personality_args *args)
 	if (ldebug(personality))
 		printf(ARGS(personality, "%lu"), (unsigned long)args->per);
 #endif
-#ifndef __alpha__
 	if (args->per != 0)
 		return EINVAL;
-#endif
 
 	/* Yes Jim, it's still a Linux... */
 	td->td_retval[0] = 0;
@@ -989,7 +970,6 @@ linux_getitimer(struct thread *td, struct linux_getitimer_args *uap)
 	return (copyout(&ls, uap->itv, sizeof(ls)));
 }
 
-#ifndef __alpha__
 int
 linux_nice(struct thread *td, struct linux_nice_args *args)
 {
@@ -1000,7 +980,6 @@ linux_nice(struct thread *td, struct linux_nice_args *args)
 	bsd_args.prio = args->inc;
 	return setpriority(td, &bsd_args);
 }
-#endif	/*!__alpha__*/
 
 int
 linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
@@ -1095,7 +1074,6 @@ linux_getgroups(struct thread *td, struct linux_getgroups_args *args)
 	return (0);
 }
 
-#ifndef __alpha__
 int
 linux_setrlimit(struct thread *td, struct linux_setrlimit_args *args)
 {
@@ -1198,7 +1176,6 @@ linux_getrlimit(struct thread *td, struct linux_getrlimit_args *args)
 	rlim.rlim_max = (l_ulong)bsd_rlim.rlim_max;
 	return (copyout(&rlim, args->rlim, sizeof(rlim)));
 }
-#endif /*!__alpha__*/
 
 int
 linux_sched_setscheduler(struct thread *td,
@@ -1334,7 +1311,6 @@ linux_reboot(struct thread *td, struct linux_reboot_args *args)
 	return (reboot(td, &bsd_args));
 }
 
-#ifndef __alpha__
 
 /*
  * The FreeBSD native getpid(2), getgid(2) and getuid(2) also modify
@@ -1372,7 +1348,6 @@ linux_getuid(struct thread *td, struct linux_getuid_args *args)
 	return (0);
 }
 
-#endif /*!__alpha__*/
 
 int
 linux_getsid(struct thread *td, struct linux_getsid_args *args)
