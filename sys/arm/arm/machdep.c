@@ -232,6 +232,7 @@ cpu_startup(void *dummy)
 	vm_page_t m;
 #endif
 
+	cpu_setup("");
 	vm_ksubmap_init(&kmi);
 	bufinit();
 	vm_pager_bufferinit();
@@ -241,7 +242,6 @@ cpu_startup(void *dummy)
 	    USPACE_SVC_STACK_TOP;
 	vector_page_setprot(VM_PROT_READ);
 	pmap_set_pcb_pagedir(pmap_kernel(), pcb);
-	cpu_setup("");
 	identify_arm_cpu();
 	thread0.td_frame = (struct trapframe *)pcb->un_32.pcb32_sp - 1;
 	pmap_postinit();
