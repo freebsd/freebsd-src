@@ -106,7 +106,19 @@
   <sect1 id="known-problems">
     <title>Known Problems and Solutions</title>
 
-    <para>No known problems.</para>
+    <para>(2006/05/10) The errata file distributed with &os;
+      &release.bugfix; mistakenly contained the errata applicable to
+      &os; 6.0-RELEASE.</para>
+
+    <para>(2006/05/10) The release notes for &os; &release.bugfix;
+      gave the wrong name for the KDE port in the item documenting the
+      KDE upgrade.  The correct name is
+      <filename role="package">x11/kde3</filename>.
+
+    <para>(2006/05/10) The release notes for &os; &release.bugfix;
+      should have mentioned changes that enable the second core of
+      dual-core i386 and amd64 CPUs by default when running an SMP
+      kernel.</para>
   </sect1>
 
 </article>
