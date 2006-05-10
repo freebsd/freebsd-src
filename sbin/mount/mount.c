@@ -120,6 +120,9 @@ remountable_fs_names[] = {
 	0
 };
 
+static const char userquotaeq[] = "userquota=";
+static const char groupquotaeq[] = "groupquota=";
+
 static int
 use_mountprog(const char *vfstype)
 {
@@ -634,7 +637,13 @@ mangle(options, argcp, argv)
 				continue;
 			} else if (strcmp(p, "userquota") == 0) {
 				continue;
+			} else if (strncmp(p, userquotaeq,
+			    sizeof(userquotaeq) - 1) == 0) {
+				continue;
 			} else if (strcmp(p, "groupquota") == 0) {
+				continue;
+			} else if (strncmp(p, groupquotaeq,
+			    sizeof(groupquotaeq) - 1) == 0) {
 				continue;
 			} else if (*p == '-') {
 				argv[argc++] = p;
