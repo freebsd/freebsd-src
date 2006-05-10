@@ -68,6 +68,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/smp.h>
 
+#include <vm/vm.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
+#include <vm/swap_pager.h>
+
 #include <sys/signalvar.h>
 
 #ifndef PANIC_REBOOT_WAIT_TIME
@@ -384,6 +390,7 @@ boot(int howto)
 			if (panicstr == 0)
 				vfs_unmountall();
 		}
+		swapoff_all();
 		DELAY(100000);		/* wait for console output to finish */
 	}
 
