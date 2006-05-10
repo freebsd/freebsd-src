@@ -406,6 +406,34 @@ linux_sigpending(struct thread *td, struct linux_sigpending_args *args)
 	mask = lset.__bits[0];
 	return (copyout(&mask, args->mask, sizeof(mask)));
 }
+
+/*
+ * MPSAFE
+ */
+int
+linux_rt_sigpending(struct thread *td, struct linux_rt_sigpending_args *args)
+{
+	struct proc *p = td->td_proc;
+	sigset_t bset;
+	l_sigset_t lset;
+
+	if (args->sigsetsize > sizeof(lset))
+		return EINVAL;
+		/* NOT REACHED */
+
+#ifdef DEBUG
+	if (ldebug(rt_sigpending))
+		printf(ARGS(rt_sigpending, "*"));
+#endif
+
+	PROC_LOCK(p);
+	bset = p->p_siglist;
+	SIGSETOR(bset, td->td_siglist);
+	SIGSETAND(bset, td->td_sigmask);
+	PROC_UNLOCK(p);
+	bsd_to_linux_sigset(&bset, &lset);
+	return (copyout(&lset, args->set, args->sigsetsize));
+}
 #endif	/*!__alpha__*/
 
 int
