@@ -57,7 +57,6 @@ DUMMY(vm86);
 DUMMY(query_module);
 DUMMY(nfsservctl);
 DUMMY(prctl);
-DUMMY(rt_sigpending);
 DUMMY(rt_sigtimedwait);
 DUMMY(rt_sigqueueinfo);
 DUMMY(capget);

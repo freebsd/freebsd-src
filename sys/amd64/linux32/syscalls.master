@@ -308,7 +308,8 @@
 175	AUE_NULL	MSTD	{ int linux_rt_sigprocmask(l_int how, \
 				    l_sigset_t *mask, l_sigset_t *omask, \
 				    l_size_t sigsetsize); }
-176	AUE_NULL	MSTD	{ int linux_rt_sigpending(void); }
+176	AUE_NULL	MSTD	{ int linux_rt_sigpending(l_sigset_t *set, \
+				    l_size_t sigsetsize); }
 177	AUE_NULL	MSTD	{ int linux_rt_sigtimedwait(void); }
 178	AUE_NULL	MSTD	{ int linux_rt_sigqueueinfo(void); }
 179	AUE_NULL	MSTD	{ int linux_rt_sigsuspend( \
