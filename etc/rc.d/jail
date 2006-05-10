@@ -164,7 +164,7 @@ jail_start()
 			echo -n " [${jail_hostname} already running (/var/run/jail_${_jail}.id exists)]"
 			continue;
 		fi
-		if [ -n ${jail_interface} ]; then
+		if [ -n "${jail_interface}" ]; then
 			ifconfig ${jail_interface} alias ${jail_ip} netmask 255.255.255.255
 		fi
 		if checkyesno jail_mount; then
@@ -239,7 +239,7 @@ jail_stop()
 				jail_umount_fs
 				echo -n " $jail_hostname"
 			fi
-			if [ -n ${jail_interface} ]; then
+			if [ -n "${jail_interface}" ]; then
 				ifconfig ${jail_interface} -alias ${jail_ip}
 			fi
 			rm /var/run/jail_${_jail}.id
