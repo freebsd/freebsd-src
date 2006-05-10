@@ -521,7 +521,7 @@ struct arena_run_s {
 	unsigned	regs_minelm;
 
 	/* Number of free regions in run. */
-	unsigned	nfree:(RUN_MIN_REGS_2POW + 2);
+	unsigned	nfree;
 
 	/*
 	 * Current quartile for this run, one of: {RUN_QINIT, RUN_Q0, RUN_25,
@@ -3100,7 +3100,7 @@ malloc_init_hard(void)
 				 * enough resolution if there are too few
 				 * regions for the largest bin size classes.
 				 */
-				if (opt_chunk_2pow > pagesize_2pow + 3)
+				if (opt_chunk_2pow > pagesize_2pow + 4)
 					opt_chunk_2pow--;
 				break;
 			case 'K':
