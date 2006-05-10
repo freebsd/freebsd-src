@@ -270,16 +270,21 @@ static struct
     { 0x0e11, 0x409B, CISS_BOARD_SA5,	"HP Smart Array 642" },
     { 0x0e11, 0x409C, CISS_BOARD_SA5,	"HP Smart Array 6400" },
     { 0x0e11, 0x409D, CISS_BOARD_SA5,	"HP Smart Array 6400 EM" },
+    { 0x103C, 0x3211, CISS_BOARD_SA5,	"HP Smart Array E200i" },
+    { 0x103C, 0x3212, CISS_BOARD_SA5,	"HP Smart Array E200" },
+    { 0x103C, 0x3213, CISS_BOARD_SA5,	"HP Smart Array E200i" },
+    { 0x103C, 0x3214, CISS_BOARD_SA5,	"HP Smart Array E200i" },
+    { 0x103C, 0x3215, CISS_BOARD_SA5,	"HP Smart Array E200i" },
     { 0x103C, 0x3220, CISS_BOARD_SA5,	"HP Smart Array" },
     { 0x103C, 0x3222, CISS_BOARD_SA5,	"HP Smart Array" },
     { 0x103C, 0x3223, CISS_BOARD_SA5,	"HP Smart Array P800" },
     { 0x103C, 0x3225, CISS_BOARD_SA5,	"HP Smart Array P600" },
     { 0x103C, 0x3230, CISS_BOARD_SA5,	"HP Smart Array" },
-    { 0x103C, 0x3231, CISS_BOARD_SA5,	"HP Smart Array E400" },
+    { 0x103C, 0x3231, CISS_BOARD_SA5,	"HP Smart Array" },
     { 0x103C, 0x3232, CISS_BOARD_SA5,	"HP Smart Array" },
     { 0x103C, 0x3233, CISS_BOARD_SA5,	"HP Smart Array" },
-    { 0x103C, 0x3234, CISS_BOARD_SA5,	"HP Smart Array" },
-    { 0x103C, 0x3235, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3234, CISS_BOARD_SA5,	"HP Smart Array P400" },
+    { 0x103C, 0x3235, CISS_BOARD_SA5,	"HP Smart Array P400i" },
     { 0x103C, 0x3236, CISS_BOARD_SA5,	"HP Smart Array" },
     { 0x103C, 0x3237, CISS_BOARD_SA5,	"HP Smart Array" },
     { 0x103C, 0x3238, CISS_BOARD_SA5,	"HP Smart Array" },
@@ -1646,7 +1651,7 @@ static void
 ciss_free(struct ciss_softc *sc)
 {
     struct ciss_request *cr;
-    int			i;
+    int			i, j;
 
     debug_called(1);
 
@@ -1720,8 +1725,15 @@ ciss_free(struct ciss_softc *sc)
 	cam_simq_free(sc->ciss_cam_devq);
 
     if (sc->ciss_logical) {
-	for (i = 0; i < sc->ciss_max_logical_bus; i++)
+	for (i = 0; i <= sc->ciss_max_logical_bus; i++) {
+	    for (j = 0; j < CISS_MAX_LOGICAL; j++) {
+		if (sc->ciss_logical[i][j].cl_ldrive)
+		    free(sc->ciss_logical[i][j].cl_ldrive, CISS_MALLOC_CLASS);
+		if (sc->ciss_logical[i][j].cl_lstatus)
+		    free(sc->ciss_logical[i][j].cl_lstatus, CISS_MALLOC_CLASS);
+	    }
 	    free(sc->ciss_logical[i], CISS_MALLOC_CLASS);
+	}
 	free(sc->ciss_logical, CISS_MALLOC_CLASS);
     }
 
@@ -3583,7 +3595,7 @@ ciss_notify_physical(struct ciss_softc *sc, struct ciss_notify *cn)
 static void
 ciss_notify_hotplug(struct ciss_softc *sc, struct ciss_notify *cn)
 {
-    struct ciss_lun_report *cll;
+    struct ciss_lun_report *cll = NULL;
     int bus, target;
     int s;
 
@@ -3621,6 +3633,9 @@ ciss_notify_hotplug(struct ciss_softc *sc, struct ciss_notify *cn)
 	ciss_printf(sc, "Unknown hotplug event %d\n", cn->subclass);
 	return;
     }
+
+    if (cll != NULL)
+	free(cll, CISS_MALLOC_CLASS);
 }
 
 /************************************************************************
