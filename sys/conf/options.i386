@@ -25,6 +25,7 @@ COMPAT_LINUX		opt_dontuse.h
 COMPAT_SVR4		opt_dontuse.h
 DEBUG_SVR4		opt_svr4.h
 LINPROCFS		opt_dontuse.h
+LINSYSFS		opt_dontuse.h
 NDISAPI			opt_dontuse.h
 PECOFF_DEBUG		opt_pecoff.h
 PECOFF_SUPPORT		opt_dontuse.h
