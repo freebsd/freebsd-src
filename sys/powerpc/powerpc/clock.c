@@ -85,11 +85,11 @@ static volatile u_long	lasttb;
 static int sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS);
 
 int	wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
-SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
+SYSCTL_INT(_machdep, OID_AUTO, wall_cmos_clock,
 	CTLFLAG_RW, &wall_cmos_clock, 0, "");
 
 int	adjkerntz;		/* local offset from GMT in seconds */
-SYSCTL_PROC(_machdep, CPU_ADJKERNTZ, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
+SYSCTL_PROC(_machdep, OID_AUTO, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
 	&adjkerntz, 0, sysctl_machdep_adjkerntz, "I", "");
 
 #define	SECDAY		86400
