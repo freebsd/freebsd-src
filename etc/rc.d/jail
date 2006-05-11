@@ -227,6 +227,10 @@ jail_start()
 				tail +2 ${_tmp_jail} >${jail_rootdir}/var/log/console.log
 				echo ${_jail_id} > /var/run/jail_${_jail}.id
 			else
+				jail_umount_fs
+				if [ -n "${jail_interface}" ]; then
+					ifconfig ${jail_interface} -alias ${jail_ip}
+				fi
 				echo " cannot start jail \"${_jail}\": "
 				tail +2 ${_tmp_jail}
 			fi
