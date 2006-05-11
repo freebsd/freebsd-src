@@ -1881,15 +1881,15 @@ addr4sort(struct addrinfo *sentinel)
 	}
 
 	while (needsort < naddrs) {
-	    for (j = needsort - 1; j >= 0; j--) {
-		if (addrs[j].aval > addrs[j+1].aval) {
-		    addr = addrs[j];
-		    addrs[j] = addrs[j + 1];
-		    addrs[j + 1] = addr;
-		} else
-		    break;
-	    }
-	    needsort++;
+		for (j = needsort - 1; j >= 0; j--) {
+			if (addrs[j].aval > addrs[j+1].aval) {
+				addr = addrs[j];
+				addrs[j] = addrs[j + 1];
+				addrs[j + 1] = addr;
+			} else
+				break;
+		}
+		needsort++;
 	}
 
 	ai = sentinel;
