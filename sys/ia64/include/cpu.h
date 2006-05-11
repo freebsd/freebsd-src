@@ -51,19 +51,7 @@
 /*
  * CTL_MACHDEP definitions.
  */
-#define	CPU_CONSDEV		1	/* dev_t: console terminal device */
-#define	CPU_ADJKERNTZ		2	/* int:	timezone offset	(seconds) */
-#define	CPU_DISRTCSET		3	/* int: disable resettodr() call */
-#define	CPU_WALLCLOCK		4	/* int:	indicates wall CMOS clock */
-#define	CPU_MAXID		5	/* valid machdep IDs */
-
-#define	CTL_MACHDEP_NAMES { \
-	{ 0, 0 }, \
-	{ "console_device", CTLTYPE_STRUCT }, \
-	{ "adjkerntz", CTLTYPE_INT }, \
-	{ "disable_rtc_set", CTLTYPE_INT }, \
-	{ "wall_cmos_clock", CTLTYPE_INT }, \
-}
+#define	OID_AUTO		3	/* int: disable resettodr() call */
 
 #ifdef _KERNEL
 
