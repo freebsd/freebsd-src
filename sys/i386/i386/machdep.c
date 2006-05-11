@@ -1267,16 +1267,16 @@ sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_machdep, CPU_ADJKERNTZ, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
+SYSCTL_PROC(_machdep, OID_AUTO, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
 	&adjkerntz, 0, sysctl_machdep_adjkerntz, "I", "");
 
-SYSCTL_INT(_machdep, CPU_DISRTCSET, disable_rtc_set,
+SYSCTL_INT(_machdep, OID_AUTO, disable_rtc_set,
 	CTLFLAG_RW, &disable_rtc_set, 0, "");
 
-SYSCTL_STRUCT(_machdep, CPU_BOOTINFO, bootinfo, 
+SYSCTL_STRUCT(_machdep, OID_AUTO, bootinfo, 
 	CTLFLAG_RD, &bootinfo, bootinfo, "");
 
-SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
+SYSCTL_INT(_machdep, OID_AUTO, wall_cmos_clock,
 	CTLFLAG_RW, &wall_cmos_clock, 0, "");
 
 u_long bootdev;		/* not a struct cdev *- encoding is different */

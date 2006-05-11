@@ -21,14 +21,6 @@ get_cyclecount(void)
 }
 #endif
 
-#define CPU_CONSDEV 1
-#define CPU_ADJKERNTZ           2       /* int: timezone offset (seconds) */
-#define CPU_DISRTCSET           3       /* int: disable resettodr() call */
-#define CPU_BOOTINFO            4       /* struct: bootinfo */
-#define CPU_WALLCLOCK           5       /* int: indicates wall CMOS clock */
-#define CPU_MAXID               6       /* number of valid machdep ids */
-
-
 #define TRAPF_USERMODE(frame)	((frame->tf_spsr & PSR_MODE) == PSR_USR32_MODE)
 
 #define TRAPF_PC(tfp)		((tfp)->tf_pc)
