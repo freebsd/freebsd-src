@@ -279,9 +279,9 @@ acpi_pci_attach(device_t dev)
 
 	/*
 	 * Since there can be multiple independantly numbered PCI
-	 * busses on some large alpha systems, we can't use the unit
-	 * number to decide what bus we are probing. We ask the parent 
-	 * pcib what our bus number is.
+	 * busses on systems with multiple PCI domains, we can't use
+	 * the unit number to decide which bus we are probing. We ask
+	 * the parent pcib what our bus number is.
 	 */
 	busno = pcib_get_bus(dev);
 	if (bootverbose)
