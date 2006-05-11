@@ -266,7 +266,7 @@ universe_prologue:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
-.for target in i386 i386:pc98 sparc64 alpha ia64 amd64
+.for target in i386 i386:pc98 sparc64 ia64 amd64
 .for arch in ${target:C/:.*$//}
 .for mach in ${target:C/^.*://}
 KERNCONFS!=	cd ${.CURDIR}/sys/${mach}/conf && \
