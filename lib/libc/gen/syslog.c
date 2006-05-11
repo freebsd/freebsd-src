@@ -153,6 +153,8 @@ vsyslog(int pri, const char *fmt, va_list ap)
 		pri &= LOG_PRIMASK|LOG_FACMASK;
 	}
 
+	saved_errno = errno;
+
 	THREAD_LOCK();
 
 	/* Check priority against setlogmask values. */
@@ -160,8 +162,6 @@ vsyslog(int pri, const char *fmt, va_list ap)
 		THREAD_UNLOCK();
 		return;
 	}
-
-	saved_errno = errno;
 
 	/* Set default facility if none specified. */
 	if ((pri & LOG_FACMASK) == 0)
