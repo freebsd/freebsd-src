@@ -94,13 +94,13 @@ int wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
  * These have traditionally been in machdep, but should probably be moved to
  * kern.
  */
-SYSCTL_PROC(_machdep, CPU_ADJKERNTZ, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
+SYSCTL_PROC(_machdep, OID_AUTO, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
 	&adjkerntz, 0, sysctl_machdep_adjkerntz, "I", "");
 
-SYSCTL_INT(_machdep, CPU_DISRTCSET, disable_rtc_set,
+SYSCTL_INT(_machdep, OID_AUTO, disable_rtc_set,
 	CTLFLAG_RW, &disable_rtc_set, 0, "");
 
-SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
+SYSCTL_INT(_machdep, OID_AUTO, wall_cmos_clock,
 	CTLFLAG_RW, &wall_cmos_clock, 0, "");
 
 static int
@@ -214,7 +214,7 @@ clock_ts_to_ct(struct timespec *ts, struct clocktime *ct)
 }
 
 void
-clock_register(device_t dev, long res)
+clock_register(device_t dev, long res)	/* res has units of microseconds */
 {
 
 	if (clock_dev != NULL) {
