@@ -99,7 +99,7 @@ static STAILQ_HEAD(, cn_device) cn_devlist =
 	    (cnd->cnd_vp->v_type == VBAD && !cn_devopen(cnd, td, 1)))
 
 static dev_t	cn_udev_t;
-SYSCTL_OPAQUE(_machdep, CPU_CONSDEV, consdev, CTLFLAG_RD,
+SYSCTL_OPAQUE(_machdep, OID_AUTO, consdev, CTLFLAG_RD,
 	&cn_udev_t, sizeof cn_udev_t, "T,struct cdev *", "");
 
 int	cons_avail_mask = 0;	/* Bit mask. Each registered low level console
