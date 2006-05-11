@@ -294,7 +294,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			 * RFC2004 specifies that fragmented diagrams shouldn't
 			 * be encapsulated.
 			 */
-			if ((ip->ip_off & IP_MF) != 0) {
+			if (ip->ip_off & (IP_MF | IP_OFFMASK)) {
 				_IF_DROP(&ifp->if_snd);
 				m_freem(m);
 				error = EINVAL;    /* is there better errno? */
