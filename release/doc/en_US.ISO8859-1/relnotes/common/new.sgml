@@ -85,8 +85,6 @@
   <para>This section describes
     the most user-visible new or changed features in &os;
     since &release.prev;.
-    In general, changes described here are unique to the &release.branch;
-    branch unless specifically marked as &merged; features.
   </para>
 
   <para>Typical release note items
@@ -307,6 +305,9 @@
 	  the result is a kernel module that can be loaded into a
 	  running kernel using &man.kldload.8;.</para>
 
+	<para arch="i386,amd64">Many (but not all) changes to the
+	  &man.ndis.4; system were merged from HEAD.</para>
+
 	<para>The &man.xl.4; driver now supports &man.polling.4;</para>
 
       </sect4>
@@ -315,14 +316,22 @@
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para></para>
+      <para>The &man.if.bridge.4; network bridging implementation,
+	originally from NetBSD, has been added.  It supports the IEEE
+	802.1D Spanning Tree Protocol, individual interface devices
+	for each bridge, filtering of bridged packets, and
+	span ports (which transmit a copy of every frame received by
+	the bridge).
+	The &man.ifconfig.8; utility now supports configuration of
+	&man.if.bridge.4;.</para>
 
     </sect3>
 
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
-      <para></para>
+      <para>The &man.twa.4; driver has been updated to the 9.3.0.1
+	release on the 3ware Web site.</para>
 
     </sect3>
 
@@ -344,6 +353,14 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>The &man.bsdiff.1; and &man.bspatch.1; utilities
+      have been added.  These are tools for constructing and
+      applying binary patches.</para>
+
+    <para>The &man.cmp.1; utility now supports an <option>-h</option>
+      flag to compare the symbolic link itself rather than the
+      file that the link points to.</para>
+
     <para>The &man.gethostbyname.3;, &man.gethostbyname2.3;, and
       &man.gethostbyaddr.3; functions are now thread-safe.</para>
 
@@ -355,6 +372,9 @@
 
     <para>The &man.getservent.3;, &man.getservbyname.3;, and
       &man.getservbyport.3; functions are now thread-safe.</para>
+
+    <para>The &man.kdump.1; program now supports a <option>-s</option>
+      flag to suppress the display of I/O data.</para>
 
     <para>The &man.kldstat.8; utility now supports a
       <option>-m</option> option to return the status of a specific
@@ -368,11 +388,52 @@
       64-bit platforms, the default stack sizes are 4MB and 2MB
       respectively.</para>
 
+    <para>The &man.netstat.1; utility now supports an
+      <option>-h</option> flag for interface stats mode,
+      which prints all interface statistics in human readable form.</para>
+
+    <para>The &man.ping.8; utility now supports a <quote>sweeping
+	ping</quote> in which &man.icmp.4; payload of
+      packets being sent is increased with given step.
+      This is useful for testing problematic channels, MTU issues
+      or traffic policing functions in networks.</para>
+
+    <para>The &man.powerd.8; program for managing power consumption has been
+      added.</para>
+
+    <para>The &man.rfcomm.sppd.1; program now supports service names
+      in addition to <option>-c</option> option with channel number.
+      The supported names are: DUN (Dial-Up Networking), FAX (Fax),
+      LAN (LAN Access Using PPP), and SP (Serial Port).</para>
+
+    <para>The &man.rm.1; utility now supports an <option>-I</option>
+      option that asks for confirmation (once) if recursively
+      removing directories or if more than 3 files are listed in the
+      command line.</para>
+
     <para>&man.sed.1; now supports a <option>-l</option> option to
       make its output line-buffered.</para>
 
+    <para>The &man.sh.1; utility now supports the <literal>times</literal>
+      built-in command.</para>
+
+    <para>The &man.snapinfo.8; utility, which shows snapshot locations
+      on UFS filesystems, has been added.</para>
+
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
+
+      <para>The <filename>bluetooth</filename> script
+	has been added.  This script will be called from
+	&man.devd.8; in response to device attachment/detachment
+	events and to stop/start particular device without unplugging
+	it by hand.  The configuration parameters are in
+	<filename>/etc/defaults/bluetooth.device.conf</filename>,
+	and can be overridden by using
+	<filename>/etc/bluetooth/<replaceable>$device</replaceable>.conf</filename>
+	(where <replaceable>$device</replaceable> is <devicename>ubt0</devicename>,
+	<devicename>btcc0</devicename>, and so on.)
+	For more details, see &man.bluetooth.conf.5;.</para>
 
       <para>The <filename>rc.d/jail</filename> startup script
 	now supports <varname>jail_<replaceable>name</replaceable>_flags</varname>
@@ -398,10 +459,58 @@
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
+    <para>The &man.pkg.add.1; program now supports an <option>-P</option>
+      flag, which is the same as the <option>-p</option> flag
+      except that the given prefix is also used recursively for the
+      dependency packages if any.</para>
+
+    <para>The &man.pkg.add.1; and &man.pkg.create.1; utilities now support
+      a <option>-K</option> flag to save packages to the current directory
+      (or <varname>PKGDIR</varname> if defined) by default.
+      </para>
+
+    <para>The &man.pkg.create.1; program now supports an <option>-x</option>
+      flag to support basic regular expressions for package name,
+      an <option>-E</option> flag for extended regular
+      expressions, and a <option>-G</option> for exact matching.</para>
+
     <para>The &man.pkg.version.1; utility now supports a
       <option>-I</option> flag, which causes only the
       <filename>INDEX</filename> file to be used for determining if a
       package is out of date.</para>
+
+    <para>The &man.pkg.version.1; utility now supports an <option>-o</option>
+      flag to show the origin recorded on package generation
+      instead of the package name, and an <option>-O</option> flag
+      to list packages whose registered origin is origin only.
+      </para>
+
+    <para>The &man.portsnap.8; utility (<filename>sysutils/portsnap</filename>)
+      has been added into the &os; base system.  This is a secure,
+      easy to use, fast, lightweight, and generally good way for
+      users to keep their ports trees up to date.</para>
+
+    <para>The suffix of startup scripts from the Ports Collection
+      has been removed.  This means <filename>foo.sh</filename>
+      is renamed to <filename>foo</filename>, and now
+      scripts whose name is something like
+      <filename>foo.ORG</filename> will also be invoked.
+      You are recommended to reinstall packages which install
+      such scripts and remove extra files in the
+      <varname>local_startup</varname> directory.</para>
+
+    <para>New <filename>rc.conf</filename> variables,
+      <varname>ldconfig_local_dirs</varname> and
+      <varname>ldconfig_local32_dirs</varname> have been added.
+      These hold lists of local &man.ldconfig.8; directories.
+      </para>
+
+    <para>The <command>@cwd</command> command in
+      <filename>pkg-plist</filename> now allows
+      no directory argument.  If no
+      directory argument is given, it will set current
+      working directory to the first prefix given by the
+      <command>@cwd</command> command.</para>
   </sect2>
 
   <sect2 id="releng">
