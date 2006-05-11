@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 9, 2006
+.Dd May 11, 2006
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -43,6 +43,7 @@
 .Nm
 .Op Fl i
 .Op Fl J Ar jid_file
+.Op Fl s Ar securelevel
 .Op Fl l u Ar username | Fl U Ar username
 .Ar path hostname ip-number command ...
 .Sh DESCRIPTION
@@ -73,6 +74,10 @@ is set to the target login.
 is imported from the current environment.
 The environment variables from the login class capability database for the
 target login are also set.
+.It Fl s Ar securelevel
+Sets 
+.Va kern.securelevel 
+to the specified value inside the newly created jail.
 .It Fl u Ar username
 The user name from host environment as whom the
 .Ar command
