@@ -44,17 +44,6 @@ __FBSDID("$FreeBSD$");
 
 #include <ddb/ddb.h>
 
-/* XXX I'd prefer a better way. */
-#if defined(__alpha__) || defined(__amd64__) || defined(__ia64__) || defined(__sparc64__)
-#define	PTR64
-#endif
-
-#ifdef PTR64
-CTASSERT(sizeof(uintptr_t) == sizeof(uint64_t));
-#else
-CTASSERT(sizeof(uintptr_t) == sizeof(uint32_t));
-#endif
-
 static void	dumpthread(volatile struct proc *p, volatile struct thread *td,
 		    int all);
 
@@ -95,7 +84,7 @@ db_ps(db_expr_t addr, boolean_t hasaddr, db_expr_t count, char *modif)
 		p = &proc0;
 
 	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
-#ifdef PTR64
+#ifdef __LP64__
 	db_printf(" pid   uid  ppid  pgrp  state   wmesg          wchan        cmd\n");
 #else
 	db_printf(" pid   uid  ppid  pgrp  state   wmesg      wchan    cmd\n");
@@ -194,7 +183,7 @@ db_ps(db_expr_t addr, boolean_t hasaddr, db_expr_t count, char *modif)
 			strlcat(state, "J", sizeof(state));
 		db_printf(" %-6.6s ", state);
 		if (p->p_flag & P_HADTHREADS)
-#ifdef PTR64
+#ifdef __LP64__
 			db_printf(" (threaded)                  %s\n",
 			    p->p_comm);
 #else
@@ -275,7 +264,7 @@ dumpthread(volatile struct proc *p, volatile struct thread *td, int all)
 	}
 	db_printf("%c%-8.8s ", wprefix, wmesg);
 	if (wchan == NULL)
-#ifdef PTR64
+#ifdef __LP64__
 		db_printf("%18s ", "");
 #else
 		db_printf("%10s ", "");
