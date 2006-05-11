@@ -12,6 +12,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/jail.h>
+#include <sys/sysctl.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -28,6 +29,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 static void	usage(void);
+static void	setsecurelevel(int level);
 extern char	**environ;
 
 #define GET_USER_INFO do {						\
@@ -58,13 +60,14 @@ main(int argc, char **argv)
 	char path[PATH_MAX], *username, *JidFile;
 	static char *cleanenv;
 	const char *shell, *p = NULL;
+	int securelevel = -1;
 	FILE *fp;
 
 	iflag = Jflag = lflag = uflag = Uflag = 0;
 	username = JidFile = cleanenv = NULL;
 	fp = NULL;
 
-	while ((ch = getopt(argc, argv, "ilu:U:J:")) != -1) {
+	while ((ch = getopt(argc, argv, "ils:u:U:J:")) != -1) {
 		switch (ch) {
 		case 'i':
 			iflag = 1;
@@ -72,6 +75,9 @@ main(int argc, char **argv)
 		case 'J':
 			JidFile = optarg;
 			Jflag = 1;
+			break;
+		case 's':
+			securelevel = (int) strtol(optarg, NULL, 0);
 			break;
 		case 'u':
 			username = optarg;
@@ -130,6 +136,8 @@ main(int argc, char **argv)
 			errx(1, "Could not write JidFile: %s", JidFile);
 		}
 	}
+	if (securelevel > 0)
+			setsecurelevel(securelevel);
 	if (username != NULL) {
 		if (Uflag)
 			GET_USER_INFO;
@@ -168,8 +176,17 @@ static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "%s%s\n",
-	     "usage: jail [-i] [-J jid_file] [-l -u username | -U username]",
+	(void)fprintf(stderr, "%s%s%s\n",
+		 "usage: jail [-i] [-J jid_file] [-s securelevel] [-l -u ",
+ 		 "username | -U username]",
 	     " path hostname ip-number command ...");
 	exit(1);
 }
+
+static void
+setsecurelevel(int level) {
+		if (sysctlbyname("kern.securelevel", NULL, 0, &level, sizeof(level)))
+		   err(1, "Can not set securelevel to %d", level);
+
+}
+
