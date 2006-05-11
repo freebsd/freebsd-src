@@ -1,6 +1,6 @@
 #! /bin/sh
 
-: '@(#)yearistype.sh	7.8'
+: '@(#)yearistype.sh	8.1'
 
 case $#-$1 in
 	2-|2-0*|2-*[!0-9]*)
