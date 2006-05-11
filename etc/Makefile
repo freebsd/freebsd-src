@@ -115,7 +115,7 @@ distribution:
 .if !defined(NO_SENDMAIL)
 	cd ${.CURDIR}/sendmail; ${MAKE} distribution
 .endif
-.if !defined(NO_OPENSSL)
+.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 .if !defined(NO_OPENSSH)
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${SSH} ${DESTDIR}/etc/ssh
