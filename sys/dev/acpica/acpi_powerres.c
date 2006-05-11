@@ -247,7 +247,7 @@ acpi_pwr_register_consumer(ACPI_HANDLE consumer)
     ACPI_SERIAL_ASSERT(powerres);
 
     /* Check to see whether we know about this consumer already */
-    if ((pc = acpi_pwr_find_consumer(consumer)) != NULL)
+    if (acpi_pwr_find_consumer(consumer) != NULL)
 	return_ACPI_STATUS (AE_OK);
     
     /* Allocate a new power consumer */

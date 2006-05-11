@@ -134,9 +134,7 @@ acpi_smbat_attach(device_t dev)
 static int
 acpi_smbat_shutdown(device_t dev)
 {
-	struct acpi_smbat_softc *sc;
 
-	sc = device_get_softc(dev);
 	acpi_battery_remove(dev);
 	return (0);
 }
