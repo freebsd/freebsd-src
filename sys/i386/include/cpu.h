@@ -59,25 +59,6 @@
 	((ISPL((framep)->tf_cs) == SEL_UPL) || ((framep)->tf_eflags & PSL_VM))
 #define	TRAPF_PC(framep)	((framep)->tf_eip)
 
-/*
- * CTL_MACHDEP definitions.
- */
-#define CPU_CONSDEV		1	/* dev_t: console terminal device */
-#define	CPU_ADJKERNTZ		2	/* int:	timezone offset	(seconds) */
-#define	CPU_DISRTCSET		3	/* int: disable resettodr() call */
-#define CPU_BOOTINFO		4	/* struct: bootinfo */
-#define	CPU_WALLCLOCK		5	/* int:	indicates wall CMOS clock */
-#define	CPU_MAXID		6	/* number of valid machdep ids */
-
-#define CTL_MACHDEP_NAMES { \
-	{ 0, 0 }, \
-	{ "console_device", CTLTYPE_STRUCT }, \
-	{ "adjkerntz", CTLTYPE_INT }, \
-	{ "disable_rtc_set", CTLTYPE_INT }, \
-	{ "bootinfo", CTLTYPE_STRUCT }, \
-	{ "wall_cmos_clock", CTLTYPE_INT }, \
-}
-
 #ifdef _KERNEL
 extern char	btext[];
 extern char	etext[];
