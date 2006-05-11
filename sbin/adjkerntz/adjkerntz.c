@@ -82,7 +82,6 @@ main(int argc, char *argv[])
 	struct timezone tz, *stz;
 	int kern_offset, wall_clock, disrtcset;
 	size_t len;
-	int mib[2];
 	/* Avoid time_t here, can be unsigned long or worse */
 	long offset, localsec, diff;
 	time_t initial_sec, final_sec;
@@ -150,11 +149,9 @@ again:
 
 	tzset();
 
-	mib[0] = CTL_MACHDEP;
-	mib[1] = CPU_ADJKERNTZ;
 	len = sizeof(kern_offset);
-	if (sysctl(mib, 2, &kern_offset, &len, NULL, 0) == -1) {
-		syslog(LOG_ERR, "sysctl(get_offset): %m");
+	if (sysctlbyname("machdep.adjkerntz", &kern_offset, &len, NULL, 0) == -1) {
+		syslog(LOG_ERR, "sysctl(\"machdep.adjkerntz\"): %m");
 		return 1;
 	}
 
@@ -286,18 +283,16 @@ recalculate:
 	if (   (init && stv != NULL)
 	    || ((init || !wall_clock) && kern_offset != offset)
 	   ) {
-		mib[0] = CTL_MACHDEP;
-		mib[1] = CPU_DISRTCSET;
 		len = sizeof(disrtcset);
-		if (sysctl(mib, 2, &disrtcset, &len, NULL, 0) == -1) {
-			syslog(LOG_ERR, "sysctl(get_disrtcset): %m");
+		if (sysctlbyname("machdep.disable_rtc_set", &disrtcset, &len, NULL, 0) == -1) {
+			syslog(LOG_ERR, "sysctl(get: \"disable_rtc_set\"): %m");
 			return 1;
 		}
 		if (disrtcset == 0) {
 			disrtcset = 1;
 			need_restore = True;
-			if (sysctl(mib, 2, NULL, NULL, &disrtcset, len) == -1) {
-				syslog(LOG_ERR, "sysctl(set_disrtcset): %m");
+			if (sysctlbyname("disable_rtc_set", NULL, NULL, &disrtcset, len) == -1) {
+				syslog(LOG_ERR, "sysctl(set: \"disable_rtc_set\"): %m");
 				return 1;
 			}
 		}
@@ -327,37 +322,31 @@ recalculate:
 		}
 	}
 
-	/* setting CPU_ADJKERNTZ have a side effect: resettodr(), which */
-	/* can be disabled by CPU_DISRTCSET, so if init or UTC clock    */
+	/* setting machdep.adjkerntz have a side effect: resettodr(), which */
+	/* can be disabled by machdep.disable_rtc_set, so if init or UTC clock    */
 	/* -- don't write RTC, else write RTC.                          */
 
 	if (kern_offset != offset) {
 		kern_offset = offset;
-		mib[0] = CTL_MACHDEP;
-		mib[1] = CPU_ADJKERNTZ;
 		len = sizeof(kern_offset);
-		if (sysctl(mib, 2, NULL, NULL, &kern_offset, len) == -1) {
-			syslog(LOG_ERR, "sysctl(update_offset): %m");
+		if (sysctlbyname("machdep.adjkerntz", NULL, NULL, &kern_offset, len) == -1) {
+			syslog(LOG_ERR, "sysctl(set: \"disable_rtc_set\"): %m");
 			return 1;
 		}
 	}
 
-	mib[0] = CTL_MACHDEP;
-	mib[1] = CPU_WALLCLOCK;
 	len = sizeof(wall_clock);
-	if (sysctl(mib, 2, NULL, NULL, &wall_clock, len) == -1) {
-		syslog(LOG_ERR, "sysctl(put_wallclock): %m");
+	if (sysctlbyname("machdep.wall_cmos_clock",  NULL, NULL, &wall_clock, len) == -1) {
+		syslog(LOG_ERR, "sysctl(set: \"machdep.wall_cmos_clock\"): %m");
 		return 1;
 	}
 
 	if (need_restore) {
 		need_restore = False;
-		mib[0] = CTL_MACHDEP;
-		mib[1] = CPU_DISRTCSET;
 		disrtcset = 0;
 		len = sizeof(disrtcset);
-		if (sysctl(mib, 2, NULL, NULL, &disrtcset, len) == -1) {
-			syslog(LOG_ERR, "sysctl(restore_disrtcset): %m");
+		if (sysctlbyname("machdep.disable_rtc_set", NULL, NULL, &disrtcset, len) == -1) {
+			syslog(LOG_ERR, "sysctl(set: \"machdep.disable_rtc_set\"): %m");
 			return 1;
 		}
 	}
