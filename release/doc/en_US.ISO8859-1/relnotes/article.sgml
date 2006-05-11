@@ -151,6 +151,30 @@
       For more details see security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:07.pf.asc">FreeBSD-SA-06:07.pf</ulink>. &merged;</para>
 
+    <para>A logic bug in the NFS server code, which could cause a crash when
+      the server received a message with a zero-length payload, has been fixed.
+      For more details see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:10.nfs.asc">FreeBSD-SA-06:10.nfs</ulink>. &merged;</para>
+
+    <para>A programming error in the &man.fast.ipsec.4; implementation
+      results in the sequence number associated with a Security
+      Association not being updated, allowing packets to unconditionally
+      pass sequence number verification checks, has been fixed.
+      For more details see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:11.ipsec.asc">FreeBSD-SA-06:11.ipsec</ulink>. &merged;</para>
+
+    <para>A logic bug that could cause &man.opiepasswd.1; to allow an unprivileged
+      user to configure OPIE authentication for the root user under certain
+      circumstances, has been fixed.
+      For more details see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:12.opie.asc">FreeBSD-SA-06:12.opie</ulink>. &merged;</para>
+
+    <para>An asynchronous signal handling vulnerability in &man.sendmail.8;,
+      which could allow a remote attacker to execute arbitrary code with the
+      privileges of the user running sendmail, typically root, has been fixed.
+      For more details see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:13.sendmail.asc">FreeBSD-SA-06:13.sendmail</ulink>. &merged;</para>
+
     <para arch="i386,amd64">An information disclosure issue found in the
       &os; kernel running on 7th- and 8th-generation AMD processors
       has been fixed.  For more details see security advisory <ulink
