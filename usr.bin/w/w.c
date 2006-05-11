@@ -239,21 +239,16 @@ main(int argc, char *argv[])
 		nextp = &ep->next;
 		memmove(&ep->utmp, &utmp, sizeof(struct utmp));
 		ep->tdev = stp->st_rdev;
-#ifdef CPU_CONSDEV
 		/*
 		 * If this is the console device, attempt to ascertain
 		 * the true console device dev_t.
 		 */
 		if (ep->tdev == 0) {
-			int mib[2];
 			size_t size;
 
-			mib[0] = CTL_MACHDEP;
-			mib[1] = CPU_CONSDEV;
 			size = sizeof(dev_t);
-			(void)sysctl(mib, 2, &ep->tdev, &size, NULL, 0);
+			(void)sysctlbyname("machdep.consdev", &ep->tdev, &size, NULL, 0);
 		}
-#endif
 		touched = stp->st_atime;
 		if (touched < ep->utmp.ut_time) {
 			/* tty untouched since before login */
