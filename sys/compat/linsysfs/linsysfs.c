@@ -71,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
 #include <fs/pseudofs/pseudofs.h>
-#include <fs/procfs/procfs.h>
 
 struct scsi_host_queue {
 	TAILQ_ENTRY(scsi_host_queue) scsi_host_next;
@@ -282,4 +281,3 @@ linsysfs_uninit(PFS_INIT_ARGS)
 
 PSEUDOFS(linsysfs, 1);
 MODULE_DEPEND(linsysfs, linux, 1, 1, 1);
-MODULE_DEPEND(linsysfs, procfs, 1, 1, 1);
