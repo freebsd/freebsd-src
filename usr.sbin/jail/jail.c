@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 static void	usage(void);
-static void	setsecurelevel(int level);
 extern char	**environ;
 
 #define GET_USER_INFO do {						\
@@ -136,8 +135,11 @@ main(int argc, char **argv)
 			errx(1, "Could not write JidFile: %s", JidFile);
 		}
 	}
-	if (securelevel > 0)
-			setsecurelevel(securelevel);
+	if (securelevel > 0) {
+		if (sysctlbyname("kern.securelevel", NULL, 0, &securelevel,
+		    sizeof(securelevel)))
+			err(1, "Can not set securelevel to %d", securelevel);
+	}
 	if (username != NULL) {
 		if (Uflag)
 			GET_USER_INFO;
@@ -177,16 +179,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s%s%s\n",
-		 "usage: jail [-i] [-J jid_file] [-s securelevel] [-l -u ",
- 		 "username | -U username]",
+	     "usage: jail [-i] [-J jid_file] [-s securelevel] [-l -u ",
+	     "username | -U username]",
 	     " path hostname ip-number command ...");
 	exit(1);
 }
-
-static void
-setsecurelevel(int level) {
-		if (sysctlbyname("kern.securelevel", NULL, 0, &level, sizeof(level)))
-		   err(1, "Can not set securelevel to %d", level);
-
-}
-
