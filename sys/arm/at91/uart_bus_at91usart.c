@@ -104,7 +104,7 @@ usart_at91rm92_probe(device_t dev)
 		break;
 	}
 	sc->sc_class = &at91_usart_class;
-	return (uart_bus_probe(dev, 0, 0, 0, device_get_unit(dev), 0));
+	return (uart_bus_probe(dev, 0, 0, 0, 0));
 }
 
 
