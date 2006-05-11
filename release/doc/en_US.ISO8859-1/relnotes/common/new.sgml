@@ -502,8 +502,8 @@
 	<para>The &man.em.4; driver now includes
 	  initial support for suspend and resume features.</para>
 
-	<para>The &man.em.4; driver has been improved on
-	  its performance by using a fast interrupt handler and taskqueue
+	<para>The performance of the &man.em.4; driver has been improved
+	  by using a fast interrupt handler and taskqueue
 	  instead of ithread handler.  This change can be disabled
 	  by defining <literal>NO_EM_FASTINTR</literal> kernel option
 	  for debugging purpose.</para>
@@ -532,7 +532,7 @@
 
 	<para>The &man.pcn.4; driver is now MPSAFE. &merged;</para>
 
-	<para>The &man.re.4; driver now supports D-Link DGE-528(T)
+	<para>The &man.re.4; driver now supports the D-Link DGE-528(T)
 	  Gigabit Ethernet card.</para>
 
 	<para>The &man.sf.4; driver is now MPSAFE. &merged;</para>
@@ -575,8 +575,8 @@
 	to suppress logging of attempts to modify
 	permanent ARP entries.  &merged;</para>
 
-      <para>The &man.arp.8; utility now allows <option>-i</option>
-	option with <option>-d</option> and <option>-a</option> options
+      <para>The &man.arp.8; utility now allows the <option>-i</option>
+	option together with the <option>-d</option> and <option>-a</option> options
 	to allow all entries for a given interface to be removed.</para>
 
       <para arch="amd64,i386,pc98">An experimental BPF Just-In-Time compiler
@@ -590,14 +590,14 @@
 	&man.if.bridge.4;.</para>
 
       <para>The &man.gre.4; driver, which is for GRE encapsulation
-	found in RFC 1701 and RFC 1702 now supports IPv6 over GRE.</para>
+	found in RFC 1701 and RFC 1702, now supports IPv6 over GRE.</para>
 
-      <para>The &man.if.bridge.4; bridge driver now supports
+      <para>The &man.if.bridge.4; driver now supports
 	creating span ports, which transmit a copy of every frame
 	received by the bridge.  This feature can be enabled
 	by using &man.ifconfig.8;.  &merged;</para>
 
-      <para>The &man.if.bridge.4; bridge driver now supports
+      <para>The &man.if.bridge.4; driver now supports
 	RFC 3378 EtherIP.  This change makes it possible to
 	add &man.gif.4; interfaces to bridges, which will then
 	send and receive IP protocol 97 packets.
@@ -647,13 +647,13 @@ pipe tablearg ip from table(1) to any</programlisting>
 	when the server sent a FIN.  This problem had occurred
 	with Solaris NFS servers.  &merged;</para>
 
-      <para>The sysctl variable <varname>net.inet.ip.portrange.reservedhigh</varname>
+      <para>The sysctl variables <varname>net.inet.ip.portrange.reservedhigh</varname>
 	and <varname>net.inet.ip.portrange.reservedlow</varname>
 	can be used with IPv6 now.</para>
 
       <para>A new sysctl variable <varname>net.inet.icmp.reply_from_interface</varname>
 	has been added.  This allows the &man.icmp.4;
-	reply to non-local packets generated with
+	reply to non-local packets to be generated with
 	the IP address the packet came through in.
 	This is useful for routers to show in &man.traceroute.8;
 	the actual path a packet has taken instead of
@@ -708,38 +708,38 @@ pipe tablearg ip from table(1) to any</programlisting>
       <para>The &man.aac.4; driver now supports the Adaptec 2610SA SATA-RAID
 	controller in some Hewlett-Packard machines.</para>
 
-      <para>The &man.amr.4; driver has been improved on its performance
-	and now supports full 64-bit DMA.  While this feature is
+      <para>The performance of the &man.amr.4; driver has been improved;
+	it also now supports full 64-bit DMA.  While this feature is
 	enabled by default, this can be forced off by setting the
 	<varname>hw.amr.force_sg32</varname> loader tunable for
 	debugging purpose.
 	&merged;</para>
 
-      <para>The &man.amr.4; driver now supports &man.ioctl.2; requests
-	necessary for Linux LSI MegaRaid tools on &os;'s Linux emulation
+      <para>The &man.amr.4; driver now supports the &man.ioctl.2; requests
+	necessary for the Linux LSI MegaRaid tools in &os;'s Linux emulation
 	environment.
 	&merged;</para>
 
       <para>The &man.ata.4; driver now supports a workaround
 	for some controllers whose DMA does not work properly
-	in 48bit mode.  For the suspicious controllers
-	the PIO mode will be used for access to over 137GB areas.
+	in 48bit mode.  For affected controllers,
+	PIO mode will be used for access to areas beyond 137GB.
 	&merged;</para>
 
       <para>The &man.ata.4; driver now supports the ITE IT8211F IDE controller,
-	and Promise PDC40718 and PDC40719 chip found in Promise
+	and the Promise PDC40718 and PDC40719 chip found in Promise
 	Fasttrak TX4300.
 	&merged;</para>
 
-      <para>The &man.ata.4; driver now supports DMA for kernel crash dump
-	and crash dumping to &man.ataraid.4; device.
+      <para>The &man.ata.4; driver now supports DMA for kernel crash dumps
+	and crash dumping to an &man.ataraid.4; device.
 	&merged;</para>
 
       <para>The &man.ata.4; driver now supports USB mass storage class
 	devices.  To enable it, a line <literal>device atausb</literal>
 	in the kernel configuration file or loading the
 	<filename>atausb</filename> kernel module is needed.
-	Note that this conflicts &man.umass.4; and cannot coexist with
+	Note that this conflicts with &man.umass.4; and cannot coexist with
 	each other.</para>
 
       <para>The &man.ataraid.4; driver now supports
@@ -749,7 +749,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 	Ext2FS, NTFS, and ReiserFS.  &merged;</para>
 
       <para>The <literal>GEOM_MIRROR</literal> class now supports
-	kernel crash dump to the GEOM providers.
+	kernel crash dumps to the GEOM providers.
 	&merged;</para>
 
       <para>The <literal>GEOM_MIRROR</literal> and <literal>GEOM_RAID3</literal>
@@ -761,7 +761,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 	The default value is <literal>1</literal> to preserve the current
 	behavior, and if it is set to <literal>0</literal> such components
 	are not disconnected and the kernel will try to still use them
-	(only first error will be logged).
+	(only the first error will be logged).
 	This is helpful for the case of multiple broken components (in
 	different places), so actually all data is available.
 	The broken components will be visible in <command>gmirror list</command>
@@ -784,8 +784,8 @@ pipe tablearg ip from table(1) to any</programlisting>
 	&merged;</para>
 
       <para>A new GEOM class <literal>GEOM_ZERO</literal> has been added.
-	It creates very huge provider (41PB) <filename>/dev/gzero</filename>
-	and mainly for performance testing.
+	It creates a very huge provider (41PB) <filename>/dev/gzero</filename>
+	and is mainly useful for performance testing.
 	On <literal>BIO_READ</literal> request it zero-fills
 	<varname>bio_data</varname> and on <literal>BIO_WRITE</literal>
 	it does nothing.
@@ -820,7 +820,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 	and supports different cryptographic algorithms.  See &man.geli.8; for
 	more information. &merged;</para>
 
-      <para>The &man.geli.8; now supports loading keyfiles before root
+      <para>The &man.geli.8; now supports loading keyfiles before the root
 	file system is mounted.  &merged;
 	For example, the following entries
 	can be used in <filename>/boot/loader.conf</filename> to enable
@@ -846,7 +846,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 	<literal>PLAY_TRACK_REL</literal>,
 	<literal>PAUSE</literal>,
 	<literal>PLAY_12</literal> commands so that
-	the &man.cdcontrol.1; utility can handle USB CD drive.</para>
+	the &man.cdcontrol.1; utility can handle a USB CD drive.</para>
     </sect3>
 
     <sect3 id="fs">
@@ -855,7 +855,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       <para>A part of the FreeBSD NFS subsystem (the interface with
 	the protocol stack and callouts) is now MPSAFE.</para>
 
-      <para>An initial support of SGI's XFS filesystem has been
+      <para>Initial support for SGI's XFS filesystem has been
 	added.</para>
     </sect3>
 
@@ -868,7 +868,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       <para><application>DRM</application> has
 	been updated to a snapshot from DRI CVS as of 20051202.  &merged;</para>
 
-      <para>TrustedBSD <application>OpenBSM</application> distribution,
+      <para>TrustedBSD <application>OpenBSM</application>,
 	version 1.0 alpha 5, an implementation of the documented Sun Basic
 	Security Module (BSM) Audit API and file format, as well as local
 	extensions to support the Mac OS X and FreeBSD operating systems
@@ -887,14 +887,14 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>Padding of <varname>ai_addrlen</varname>
       in <varname>struct addrinfo</varname> has been removed,
       which was originally for the ABI compatibility.
-      For example, this change break the ABI compatibility of
+      For example, this change breaks the ABI compatibility of the
       &man.getaddrinfo.3; function on 64-bit architecture including
       &os;/alpha, &os;/amd64, &os;/ia64, and &os;/sparc64.</para>
 
-    <para>OpenBSM userland tools including &man.audit.8;,
+    <para>The OpenBSM userland tools, including &man.audit.8;,
       &man.auditd.8;,
-      &man.auditreduce.1;,
-      &man.praudit.1; have been added.</para>
+      &man.auditreduce.1;, and
+      &man.praudit.1;, have been added.</para>
 
     <para>The &man.bsdiff.1; and &man.bspatch.1; utilities
       have been added.  These are tools for constructing and
@@ -921,8 +921,8 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       &merged;</para>
 
     <para>The csup(1) utility has been imported.
-      This is an implementation of CVSup-compatible client written
-      in C language.  Note that it currently supports checkout mode
+      This is an implementation of a CVSup-compatible client written
+      in the C language.  Note that it currently supports checkout mode
       only.</para>
 
     <para>The &man.dhclient.8; program now sends the host's name in
@@ -1010,7 +1010,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.kenv.1; utility now supports a <option>-q</option>
       flag to suppress warnings.</para>
 
-    <para>The &man.kgdb.1; now supports a <option>-w</option>
+    <para>&man.kgdb.1; now supports a <option>-w</option>
       option to open kmem-based targets in read-write mode.
       This allows one to use kgdb on <filename>/dev/mem</filename>
       and be able to patch memory on a live system.</para>
@@ -1084,7 +1084,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.mount.8; <literal>nodev</literal> option has
       been removed.</para>
 
-    <para>The &man.mount.8; now supports &man.mqueuefs.5;.</para>
+    <para>&man.mount.8; now supports &man.mqueuefs.5;.</para>
 
     <para>The &man.moused.8; daemon now supports an <option>-H</option> flag
       to enable horizontal virtual scrolling similar to a
@@ -1112,7 +1112,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       pidfiles handling, has been implemented in
       <filename>libutil</filename>.  &merged;</para>
 
-    <para>The &man.ping.8; utility now supports <quote>a sweeping
+    <para>The &man.ping.8; utility now supports a <quote>sweeping
 	ping</quote> in which &man.icmp.4; payload of
       packets being sent is increased with given step.
       This is useful for testing problematic channels, MTU issues
@@ -1137,7 +1137,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The DNS resolver library in &os;'s <application>libc</application>
       has been updated to BIND9's one.</para>
 
-    <para>The &man.rfcomm.sppd.1; now supports service name
+    <para>The &man.rfcomm.sppd.1; program now supports service names
       in addition to <option>-c</option> option with channel number.
       The supported names are: DUN (Dial-Up Networking), FAX (Fax),
       LAN (LAN Access Using PPP), and SP (Serial Port).  &merged;</para>
@@ -1180,7 +1180,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       flag which makes the command execution when the standard input
       does not contain any non-whitespace-characters.  &merged;</para>
 
-    <para>The shared library version number of all libraries have
+    <para>The shared library version number of all libraries has
       been updated due to some possible ABI changes.  The libraries
       include: snmp_*, libdialog, libg2c, libobjc,
       libreadline, libregex, libstdc++, libkrb5, libalias, libarchive,
@@ -1250,13 +1250,13 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
       <programlisting>ipv4_addrs_ed0="192.168.0.1/24 192.168.1.1-5/28"</programlisting>
 
-      <para>The <filename>rcconf.sh</filename> in <filename>/etc/rc.d</filename>
+      <para>The <filename>rcconf.sh</filename> script in <filename>/etc/rc.d</filename>
 	has been removed and a variable <varname>early_late_divider</varname>,
 	which designates the script to separate the early and late stages
 	of the boot process, has been added.</para>
 
-      <para>The <filename>rc.initdiskless</filename> now uses &man.tar.1;
-	instead of &man.pax.1; because the &man.pax.1; needs a writable
+      <para>The <filename>rc.initdiskless</filename> script now uses &man.tar.1;
+	instead of &man.pax.1; because &man.pax.1; needs a writable
 	temporary directory.</para>
 
       <para>The <filename>pccard</filename> script has been removed
@@ -1322,7 +1322,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para>The &man.pkg.add.1; now supports an <option>-F</option>
+    <para>&man.pkg.add.1; now supports an <option>-F</option>
       flag to disable checking whether the same package is already
       installed or not.</para>
 
@@ -1376,7 +1376,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The <command>@cwd</command> command in
       <filename>pkg-plist</filename> now allows
-      no directory argument.  If no
+      the case where no directory argument is given.  If no
       directory argument is given, it will set current
       working directory to the first prefix given by the
       <command>@cwd</command> command.  &merged;</para>
