@@ -48,11 +48,6 @@
 #define	TRAPF_CPL(tf)		((tf)->tf_special.psr & IA64_PSR_CPL)
 #define	TRAPF_USERMODE(tf)	(TRAPF_CPL(tf) != IA64_PSR_CPL_KERN)
 
-/*
- * CTL_MACHDEP definitions.
- */
-#define	OID_AUTO		3	/* int: disable resettodr() call */
-
 #ifdef _KERNEL
 
 #ifdef GPROF
