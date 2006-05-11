@@ -24,7 +24,7 @@ traceroute \- print the route packets take to network host
 .na
 .B traceroute
 [
-.B \-dFISdnrvx
+.B \-deFISdnrvx
 ] [
 .B \-f
 .I first_ttl
@@ -97,6 +97,11 @@ by specifying a packet length (in bytes) after the destination host
 name.
 .PP
 Other options are:
+.TP
+.B \-e
+Firewall evasion mode.
+Use fixed destination ports for UDP and TCP probes.
+The destination port does NOT increment with each packet sent.
 .TP
 .B \-f
 Set the initial time-to-live used in the first outgoing probe packet.
