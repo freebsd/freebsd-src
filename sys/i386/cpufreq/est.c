@@ -64,7 +64,6 @@ typedef struct {
 typedef struct {
 	const char	*vendor;
 	uint32_t	id32;
-	uint32_t	bus_clk;
 	freq_info	*freqtab;
 } cpu_info;
 
@@ -81,12 +80,17 @@ struct est_softc {
 	((ID16(MHz_lo, mV_lo, bus_clk) << 16) | (ID16(MHz_hi, mV_hi, bus_clk)))
 
 /* Format for storing IDs in our table. */
+#define FREQ_INFO_PWR(MHz, mV, bus_clk, mW)		\
+	{ MHz, mV, ID16(MHz, mV, bus_clk), mW }
 #define FREQ_INFO(MHz, mV, bus_clk)			\
-	{ MHz, mV, ID16(MHz, mV, bus_clk), CPUFREQ_VAL_UNKNOWN }
+	FREQ_INFO_PWR(MHz, mV, bus_clk, CPUFREQ_VAL_UNKNOWN)
 #define INTEL(tab, zhi, vhi, zlo, vlo, bus_clk)		\
-	{ GenuineIntel, ID32(zhi, vhi, zlo, vlo, bus_clk), bus_clk, tab }
+	{ intel_id, ID32(zhi, vhi, zlo, vlo, bus_clk), tab }
+#define CENTAUR(tab, zhi, vhi, zlo, vlo, bus_clk)	\
+	{ centaur_id, ID32(zhi, vhi, zlo, vlo, bus_clk), tab }
 
-const char GenuineIntel[] = "GenuineIntel";
+const char intel_id[] = "GenuineIntel";
+const char centaur_id[] = "CentaurHauls";
 
 /* Default bus clock value for Centrino processors. */
 #define INTEL_BUS_CLK		100
@@ -684,6 +688,133 @@ static freq_info PM_723_90[] = {
 	FREQ_INFO(   0,    0, 1),
 };
 
+/*
+ * VIA C7-M 500 MHz FSB, 400 MHz FSB, and ULV variants.
+ * Data from the "VIA C7-M Processor BIOS Writer's Guide (v2.17)" datasheet.
+ */
+static freq_info C7M_795[] = {
+	/* 2.00GHz Centaur C7-M 533 Mhz FSB */
+	FREQ_INFO_PWR(2000, 1148, 133, 20000),
+	FREQ_INFO_PWR(1867, 1132, 133, 18000),
+	FREQ_INFO_PWR(1600, 1100, 133, 15000),
+	FREQ_INFO_PWR(1467, 1052, 133, 13000),
+	FREQ_INFO_PWR(1200, 1004, 133, 10000),
+	FREQ_INFO_PWR( 800,  844, 133,  7000),
+	FREQ_INFO_PWR( 667,  844, 133,  6000),
+	FREQ_INFO_PWR( 533,  844, 133,  5000),
+	FREQ_INFO(0, 0, 1),
+};
+static freq_info C7M_785[] = {
+	/* 1.80GHz Centaur C7-M 533 Mhz FSB */
+	FREQ_INFO_PWR(1867, 1148, 133, 18000),
+	FREQ_INFO_PWR(1600, 1100, 133, 15000),
+	FREQ_INFO_PWR(1467, 1052, 133, 13000),
+	FREQ_INFO_PWR(1200, 1004, 133, 10000),
+	FREQ_INFO_PWR( 800,  844, 133,  7000),
+	FREQ_INFO_PWR( 667,  844, 133,  6000),
+	FREQ_INFO_PWR( 533,  844, 133,  5000),
+	FREQ_INFO(0, 0, 1),
+};
+static freq_info C7M_765[] = {
+	/* 1.60GHz Centaur C7-M 533 Mhz FSB */
+	FREQ_INFO_PWR(1600, 1084, 133, 15000),
+	FREQ_INFO_PWR(1467, 1052, 133, 13000),
+	FREQ_INFO_PWR(1200, 1004, 133, 10000),
+	FREQ_INFO_PWR( 800,  844, 133,  7000),
+	FREQ_INFO_PWR( 667,  844, 133,  6000),
+	FREQ_INFO_PWR( 533,  844, 133,  5000),
+	FREQ_INFO(0, 0, 1),
+};
+
+static freq_info C7M_794[] = {
+	/* 2.00GHz Centaur C7-M 400 Mhz FSB */
+	FREQ_INFO_PWR(2000, 1148, 100, 20000),
+	FREQ_INFO_PWR(1800, 1132, 100, 18000),
+	FREQ_INFO_PWR(1600, 1100, 100, 15000),
+	FREQ_INFO_PWR(1400, 1052, 100, 13000),
+	FREQ_INFO_PWR(1000, 1004, 100, 10000),
+	FREQ_INFO_PWR( 800,  844, 100,  7000),
+	FREQ_INFO_PWR( 600,  844, 100,  6000),
+	FREQ_INFO_PWR( 400,  844, 100,  5000),
+	FREQ_INFO(0, 0, 1),
+};
+static freq_info C7M_784[] = {
+	/* 1.80GHz Centaur C7-M 400 Mhz FSB */
+	FREQ_INFO_PWR(1800, 1148, 100, 18000),
+	FREQ_INFO_PWR(1600, 1100, 100, 15000),
+	FREQ_INFO_PWR(1400, 1052, 100, 13000),
+	FREQ_INFO_PWR(1000, 1004, 100, 10000),
+	FREQ_INFO_PWR( 800,  844, 100,  7000),
+	FREQ_INFO_PWR( 600,  844, 100,  6000),
+	FREQ_INFO_PWR( 400,  844, 100,  5000),
+	FREQ_INFO(0, 0, 1),
+};
+static freq_info C7M_764[] = {
+	/* 1.60GHz Centaur C7-M 400 Mhz FSB */
+	FREQ_INFO_PWR(1600, 1084, 100, 15000),
+	FREQ_INFO_PWR(1400, 1052, 100, 13000),
+	FREQ_INFO_PWR(1000, 1004, 100, 10000),
+	FREQ_INFO_PWR( 800,  844, 100,  7000),
+	FREQ_INFO_PWR( 600,  844, 100,  6000),
+	FREQ_INFO_PWR( 400,  844, 100,  5000),
+	FREQ_INFO(0, 0, 1),
+};
+static freq_info C7M_754[] = {
+	/* 1.50GHz Centaur C7-M 400 Mhz FSB */
+	FREQ_INFO_PWR(1500, 1004, 100, 12000),
+	FREQ_INFO_PWR(1400,  988, 100, 11000),
+	FREQ_INFO_PWR(1000,  940, 100,  9000),
+	FREQ_INFO_PWR( 800,  844, 100,  7000),
+	FREQ_INFO_PWR( 600,  844, 100,  6000),
+	FREQ_INFO_PWR( 400,  844, 100,  5000),
+	FREQ_INFO(0, 0, 1),
+};
+static freq_info C7M_771[] = {
+	/* 1.20GHz Centaur C7-M 400 Mhz FSB */
+	FREQ_INFO_PWR(1200,  860, 100,  7000),
+	FREQ_INFO_PWR(1000,  860, 100,  6000),
+	FREQ_INFO_PWR( 800,  844, 100,  5500),
+	FREQ_INFO_PWR( 600,  844, 100,  5000),
+	FREQ_INFO_PWR( 400,  844, 100,  4000),
+	FREQ_INFO(0, 0, 1),
+};
+
+static freq_info C7M_775_ULV[] = {
+	/* 1.50GHz Centaur C7-M ULV */
+	FREQ_INFO_PWR(1500,  956, 100,  7500),
+	FREQ_INFO_PWR(1400,  940, 100,  6000),
+	FREQ_INFO_PWR(1000,  860, 100,  5000),
+	FREQ_INFO_PWR( 800,  828, 100,  2800),
+	FREQ_INFO_PWR( 600,  796, 100,  2500),
+	FREQ_INFO_PWR( 400,  796, 100,  2000),
+	FREQ_INFO(0, 0, 1),
+};
+static freq_info C7M_772_ULV[] = {
+	/* 1.20GHz Centaur C7-M ULV */
+	FREQ_INFO_PWR(1200,  844, 100,  5000),
+	FREQ_INFO_PWR(1000,  844, 100,  4000),
+	FREQ_INFO_PWR( 800,  828, 100,  2800),
+	FREQ_INFO_PWR( 600,  796, 100,  2500),
+	FREQ_INFO_PWR( 400,  796, 100,  2000),
+	FREQ_INFO(0, 0, 1),
+};
+static freq_info C7M_779_ULV[] = {
+	/* 1.00GHz Centaur C7-M ULV */
+	FREQ_INFO_PWR(1000,  796, 100,  3500),
+	FREQ_INFO_PWR( 800,  796, 100,  2800),
+	FREQ_INFO_PWR( 600,  796, 100,  2500),
+	FREQ_INFO_PWR( 400,  796, 100,  2000),
+	FREQ_INFO(0, 0, 1),
+};
+static freq_info C7M_770_ULV[] = {
+	/* 1.00GHz Centaur C7-M ULV */
+	FREQ_INFO_PWR(1000,  844, 100,  5000),
+	FREQ_INFO_PWR( 800,  796, 100,  2800),
+	FREQ_INFO_PWR( 600,  796, 100,  2500),
+	FREQ_INFO_PWR( 400,  796, 100,  2000),
+	FREQ_INFO(0, 0, 1),
+};
+
 static cpu_info ESTprocs[] = {
 	INTEL(PM17_130,		1700, 1484, 600, 956, INTEL_BUS_CLK),
 	INTEL(PM16_130,		1600, 1484, 600, 956, INTEL_BUS_CLK),
@@ -742,7 +873,20 @@ static cpu_info ESTprocs[] = {
 	INTEL(PM_733JL_90,	1100,  876, 600, 812, INTEL_BUS_CLK),
 	INTEL(PM_733_90,	1100,  940, 600, 812, INTEL_BUS_CLK),
 	INTEL(PM_723_90,	1000,  940, 600, 812, INTEL_BUS_CLK),
-	{ NULL, 0, 0, NULL },
+
+	CENTAUR(C7M_795,	2000, 1148, 533, 844, 133),
+	CENTAUR(C7M_794,	2000, 1148, 400, 844, 100),
+	CENTAUR(C7M_785,	1867, 1148, 533, 844, 133),
+	CENTAUR(C7M_784,	1800, 1148, 400, 844, 100),
+	CENTAUR(C7M_765,	1600, 1084, 533, 844, 133),
+	CENTAUR(C7M_764,	1600, 1084, 400, 844, 100),
+	CENTAUR(C7M_754,	1500, 1004, 400, 844, 100),
+	CENTAUR(C7M_775_ULV,	1500,  956, 400, 796, 100),
+	CENTAUR(C7M_771,	1200,  860, 400, 844, 100),
+	CENTAUR(C7M_772_ULV,	1200,  844, 400, 796, 100),
+	CENTAUR(C7M_779_ULV,	1000,  796, 400, 796, 100),
+	CENTAUR(C7M_770_ULV,	1000,  844, 400, 796, 100),
+	{ NULL, 0, NULL },
 };
 
 static void	est_identify(driver_t *driver, device_t parent);
@@ -752,8 +896,7 @@ static int	est_attach(device_t parent);
 static int	est_detach(device_t parent);
 static int	est_get_info(device_t dev);
 static int	est_acpi_info(device_t dev, freq_info **freqs);
-static int	est_table_info(device_t dev, uint64_t msr, uint32_t bus_clk,
-		    freq_info **freqs);
+static int	est_table_info(device_t dev, uint64_t msr, freq_info **freqs);
 static freq_info *est_get_current(freq_info *freq_list);
 static int	est_settings(device_t dev, struct cf_setting *sets, int *count);
 static int	est_set(device_t dev, const struct cf_setting *set);
@@ -808,10 +951,14 @@ est_identify(driver_t *driver, device_t parent)
 		return;
 
 	/* Check that CPUID is supported and the vendor is Intel.*/
-	if (cpu_high == 0 || strcmp(cpu_vendor, GenuineIntel) != 0)
+	if (cpu_high == 0 || (strcmp(cpu_vendor, intel_id) != 0 &&
+	    strcmp(cpu_vendor, centaur_id) != 0))
 		return;
 
-	/* Read capability bits and check if the CPU supports EST. */
+	/*
+	 * Read capability bits and check if the CPU supports EST.
+	 * This is indicated by bit 7 of ECX.
+	 */
 	do_cpuid(1, p);
 	if ((p[2] & 0x80) == 0)
 		return;
@@ -908,7 +1055,7 @@ est_get_info(device_t dev)
 
 	sc = device_get_softc(dev);
 	msr = rdmsr(MSR_PERF_STATUS);
-	error = est_table_info(dev, msr, INTEL_BUS_CLK, &sc->freq_list);
+	error = est_table_info(dev, msr, &sc->freq_list);
 	if (error)
 		error = est_acpi_info(dev, &sc->freq_list);
 
@@ -978,16 +1125,15 @@ out:
 }
 
 static int
-est_table_info(device_t dev, uint64_t msr, uint32_t bus_clk, freq_info **freqs)
+est_table_info(device_t dev, uint64_t msr, freq_info **freqs)
 {
 	cpu_info *p;
 	uint32_t id;
 
-	/* Find a table which matches (vendor, id, bus_clk). */
+	/* Find a table which matches (vendor, id32). */
 	id = msr >> 32;
 	for (p = ESTprocs; p->id32 != 0; p++) {
-		if (strcmp(p->vendor, cpu_vendor) == 0 && p->id32 == id &&
-		    p->bus_clk == bus_clk)
+		if (strcmp(p->vendor, cpu_vendor) == 0 && p->id32 == id)
 			break;
 	}
 	if (p->id32 == 0)
