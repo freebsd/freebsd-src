@@ -1417,15 +1417,15 @@ ata_highpoint_ident(device_t dev)
     if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    strcpy(buffer, idx->text);
+    strcpy(buffer, "HighPoint ");
+    strcat(buffer, idx->text);
     if (idx->cfg1 == HPT374) {
 	if (pci_get_function(dev) == 0)
 	    strcat(buffer, " (channel 0+1)");
-	else if (pci_get_function(dev) == 1)
+	if (pci_get_function(dev) == 1)
 	    strcat(buffer, " (channel 2+3)");
     }
-    sprintf(buffer, "HighPoint %s %s controller",
-	    buffer, ata_mode2str(idx->max_dma));
+    sprintf(buffer, "%s %s controller", buffer, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_highpoint_chipinit;
@@ -2989,7 +2989,6 @@ ata_promise_ident(device_t dev)
 	}
 	else if (pci_get_slot(dev) == 2 && start && end) {
 	    bus_set_resource(dev, SYS_RES_IRQ, 0, start, end);
-	    start = end = 0;
 	    strcat(buffer, " (channel 2+3)");
 	}
 	else {
