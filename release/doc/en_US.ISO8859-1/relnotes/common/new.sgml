@@ -874,14 +874,14 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The &man.bsdiff.1; and &man.bspatch.1; utilities
       have been added.  These are tools for constructing and
-      applying binary patches.</para>
+      applying binary patches.  &merged;</para>
 
     <para>The &man.bsnmpd.1; utility now supports the Host Resources
       MIB described in RFC 2790.  &merged;</para>
 
     <para>The &man.cmp.1; utility now supports an <option>-h</option>
       flag to compare the symbolic link itself rather than the
-      file that the link points to.</para>
+      file that the link points to. &merged;</para>
 
     <para>The &man.config.8; utility now supports the <literal>nocpu</literal>
       directive, which cancels the effect of a
@@ -1069,7 +1069,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The &man.netstat.1; utility now supports an
       <option>-h</option> flag for interface stats mode,
-      which prints all interface statistics in human readable form.</para>
+      which prints all interface statistics in human readable form. &merged;</para>
 
     <para>The &man.netstat.1; utility now supports
       printing &man.ipsec.4; protocol statistics if the
@@ -1092,7 +1092,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 	ping</quote> in which &man.icmp.4; payload of
       packets being sent is increased with given step.
       This is useful for testing problematic channels, MTU issues
-      or traffic policing functions in networks.</para>
+      or traffic policing functions in networks.  &merged;</para>
 
     <para>The &man.pkill.1; utility now supports a
       <option>-F</option> option which allows to
@@ -1130,7 +1130,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       allow lookups for a specific version of a given symbol.</para>
 
     <para>The &man.sh.1; utility now supports <literal>times</literal>
-      built-in command.</para>
+      built-in command. &merged;</para>
 
     <para>The &man.snapinfo.8; utility, which shows snapshot locations
       on UFS filesystems, has been added.  &merged;</para>
