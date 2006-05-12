@@ -113,7 +113,6 @@ SUBDIR=	${_3dfx} \
 	if_vlan \
 	${_iir} \
 	${_io} \
-	ip6fw \
 	ipdivert \
 	${_ipfilter} \
 	ipfw \

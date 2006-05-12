@@ -246,8 +246,8 @@
  *	listen/accept (like tcp).
  *
  * - header files with defopt (opt_xx.h)
- *	FreeBSD3: opt_{inet,ipsec,ip6fw,altq}.h
- *	FreeBSD4: opt_{inet,inet6,ipsec,ip6fw,altq}.h
+ *	FreeBSD3: opt_{inet,ipsec,altq}.h
+ *	FreeBSD4: opt_{inet,inet6,ipsec,altq}.h
  *	NetBSD: opt_{inet,ipsec,altq}.h
  *	others: does not use defopt
  *

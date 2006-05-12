@@ -1726,7 +1726,6 @@ netinet6/in6_proto.c		optional inet6
 netinet6/in6_rmx.c		optional inet6
 netinet6/in6_src.c		optional inet6
 netinet6/ip6_forward.c		optional inet6
-netinet6/ip6_fw.c		optional inet6 ipv6firewall
 netinet6/ip6_id.c		optional inet6
 netinet6/ip6_input.c		optional inet6
 netinet6/ip6_mroute.c		optional inet6
