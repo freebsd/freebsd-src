@@ -30,7 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_ip6fw.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
@@ -80,8 +79,6 @@
 #include <netipsec/key.h>
 #define	IPSEC
 #endif /* FAST_IPSEC */
-
-#include <netinet6/ip6_fw.h>
 
 #include <net/net_osdep.h>
 
@@ -552,20 +549,6 @@ ip6_forward(m, srcrt)
 			return;
 		}
 		type = ND_REDIRECT;
-	}
-
-	/*
-	 * Check with the firewall...
-	 */
-	if (ip6_fw_enable && ip6_fw_chk_ptr) {
-		u_short port = 0;
-		/* If ipfw says divert, we have to just drop packet */
-		if ((*ip6_fw_chk_ptr)(&ip6, rt->rt_ifp, &port, &m)) {
-			m_freem(m);
-			goto freecopy;
-		}
-		if (!m)
-			goto freecopy;
 	}
 
 	/*
