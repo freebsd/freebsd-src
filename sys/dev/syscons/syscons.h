@@ -40,8 +40,6 @@
 #include <pc98/cbus/sc_machdep.h>
 #elif defined(__i386__)
 /* nothing for the moment */
-#elif defined(__alpha__)
-/* nothing for the moment */
 #endif
 
 /* default values for configuration options */

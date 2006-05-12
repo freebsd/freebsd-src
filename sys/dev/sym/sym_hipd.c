@@ -137,8 +137,6 @@ typedef	u_int32_t u32;
 
 #if	defined	__i386__ || defined __amd64__
 #define MEMORY_BARRIER()	do { ; } while(0)
-#elif	defined	__alpha__
-#define MEMORY_BARRIER()	alpha_mb()
 #elif	defined	__powerpc__
 #define MEMORY_BARRIER()	__asm__ volatile("eieio; sync" : : : "memory")
 #elif	defined	__ia64__

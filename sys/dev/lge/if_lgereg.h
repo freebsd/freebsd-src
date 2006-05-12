@@ -607,8 +607,3 @@ struct lge_softc {
 #define LGE_PSTATE_D3		0x0003
 #define LGE_PME_EN		0x0010
 #define LGE_PME_STATUS		0x8000
-
-#ifdef __alpha__
-#undef vtophys
-#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
-#endif

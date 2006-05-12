@@ -146,9 +146,6 @@
 #define ASR_IOCTL_COMPAT
 #endif /* ASR_COMPAT */
 #endif /* !BURN_BRIDGES */
-
-#elif defined(__alpha__)
-#include <alpha/include/pmap.h>
 #endif
 #include <machine/vmparam.h>
 
@@ -3715,8 +3712,6 @@ asr_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 		case CPU_686:
 			Info.processorType = PROC_SEXIUM; break;
 		}
-#elif defined(__alpha__)
-		Info.processorType = PROC_ALPHA;
 #endif
 
 		Info.osType = OS_BSDI_UNIX;

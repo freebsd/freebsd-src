@@ -90,12 +90,6 @@ agp_flush_cache()
 #if defined(__i386__) || defined(__amd64__)
 	wbinvd();
 #endif
-#ifdef __alpha__
-	/* FIXME: This is most likely not correct as it doesn't flush CPU 
-	 * write caches, but we don't have a facility to do that and 
-	 * this is all linux does, too */
-	alpha_mb();
-#endif
 }
 
 u_int8_t
@@ -507,10 +501,6 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	/*
 	 * Bind the individual pages and flush the chipset's
 	 * TLB.
-	 *
-	 * XXX Presumably, this needs to be the pci address on alpha
-	 * (i.e. use alpha_XXX_dmamap()). I don't have access to any
-	 * alpha AGP hardware to check.
 	 */
 	VM_OBJECT_LOCK(mem->am_obj);
 	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {

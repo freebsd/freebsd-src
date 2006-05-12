@@ -1038,7 +1038,7 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 #if defined(__i386__) || defined(__amd64__)
 			*(u_char *)p &= m >> 8;
 			*(u_char *)(p + 1) &= m;
-#elif defined(__alpha__)
+#else
 			writeb(p, readb(p) & (m >> 8));
 			writeb(p + 1, readb(p + 1) & (m >> 8));
 #endif
@@ -1050,7 +1050,7 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 			m = ~(mouse_and_mask[j] >> xoff);
 #if defined(__i386__) || defined(__amd64__)
 			*(u_char *)p &= m;
-#elif defined(__alpha__)
+#else
 			writeb(p, readb(p) & (m >> 8));
 #endif
 			p += line_width;
@@ -1064,7 +1064,7 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 #if defined(__i386__) || defined(__amd64__)
 			*(u_char *)p &= m >> 8;
 			*(u_char *)(p + 1) &= m;
-#elif defined(__alpha__)
+#else
 			writeb(p, readb(p) & (m >> 8));
 			writeb(p + 1, readb(p + 1) & (m >> 8));
 #endif
@@ -1075,7 +1075,7 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 			m = mouse_or_mask[j] >> xoff;
 #if defined(__i386__) || defined(__amd64__)
 			*(u_char *)p &= m;
-#elif defined(__alpha__)
+#else
 			writeb(p, readb(p) & (m >> 8));
 #endif
 			p += line_width;

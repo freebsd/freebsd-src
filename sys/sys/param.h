@@ -304,7 +304,7 @@ __END_DECLS
  * Constraints: PAGE_SIZE <= MAXALLOCSAVE <= 2 ** (MINBUCKET + 14), and
  * MAXALLOCSIZE must be a power of two.
  */
-#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__)
+#if defined(__ia64__) || defined(__sparc64__)
 #define MINBUCKET	5		/* 5 => min allocation of 32 bytes */
 #else
 #define MINBUCKET	4		/* 4 => min allocation of 16 bytes */

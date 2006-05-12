@@ -4436,15 +4436,6 @@ tulip_attach(tulip_softc_t * const sc)
 		 == TULIP_HAVE_ISVSROM ? " (invalid EESPROM checksum)" : "");
 
     TULIP_LOCK(sc);
-#if defined(__alpha__)
-    /*
-     * In case the SRM console told us about a bogus media,
-     * we need to check to be safe.
-     */
-    if (sc->tulip_mediums[sc->tulip_media] == NULL)
-	sc->tulip_media = TULIP_MEDIA_UNKNOWN;
-#endif
-
     (*sc->tulip_boardsw->bd_media_probe)(sc);
     ifmedia_init(&sc->tulip_ifmedia, 0,
 		 tulip_ifmedia_change,
@@ -4749,9 +4740,6 @@ static int
 tulip_pci_attach(device_t dev)
 {
     tulip_softc_t *sc;
-#if defined(__alpha__)
-    tulip_media_t media = TULIP_MEDIA_UNKNOWN;
-#endif
     int retval, idx;
     u_int32_t revinfo, cfdainfo;
     unsigned csroffset = TULIP_PCI_CSROFFSET;
@@ -4829,23 +4817,6 @@ tulip_pci_attach(device_t dev)
 	pci_write_config(dev, PCI_CFDA, cfdainfo, 4);
 	DELAY(11*1000);
     }
-#if defined(__alpha__) 
-    /*
-     * The Alpha SRM console encodes a console set media in the driver
-     * part of the CFDA register.  Note that the Multia presents a
-     * problem in that its BNC mode is really EXTSIA.  So in that case
-     * force a probe.
-     */
-    switch ((cfdainfo >> 8) & 0xff) {
-	case 1: media = chipid > TULIP_21040 ? TULIP_MEDIA_AUI : TULIP_MEDIA_AUIBNC; break;
-	case 2: media = chipid > TULIP_21040 ? TULIP_MEDIA_BNC : TULIP_MEDIA_UNKNOWN; break;
-	case 3: media = TULIP_MEDIA_10BASET; break;
-	case 4: media = TULIP_MEDIA_10BASET_FD; break;
-	case 5: media = TULIP_MEDIA_100BASETX; break;
-	case 6: media = TULIP_MEDIA_100BASETX_FD; break;
-	default: media = TULIP_MEDIA_UNKNOWN; break;
-    }
-#endif
 
     sc->tulip_unit = unit;
     sc->tulip_revinfo = revinfo;
@@ -4911,9 +4882,6 @@ tulip_pci_attach(device_t dev)
 	if (sc->tulip_features & TULIP_HAVE_SHAREDINTR)
 	    intr_rtn = tulip_intr_shared;
 
-#if defined(__alpha__) 
-	sc->tulip_media = media;
-#endif
 	tulip_attach(sc);
 
 	/* Setup interrupt last. */
@@ -4933,13 +4901,6 @@ tulip_pci_attach(device_t dev)
 		return ENXIO;
 	    }
 	}
-
-#if defined(__alpha__)
-	TULIP_LOCK(sc);
-	if (sc->tulip_media != TULIP_MEDIA_UNKNOWN)
-		tulip_linkup(sc, media);
-	TULIP_UNLOCK(sc);
-#endif
     }
     return 0;
 }

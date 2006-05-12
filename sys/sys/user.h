@@ -82,9 +82,6 @@
 #define	KI_NSPARE_LONG	12
 #define	KI_NSPARE_PTR	7
 
-#ifdef __alpha__
-#define	KINFO_PROC_SIZE	1088
-#endif
 #ifdef __amd64__
 #define	KINFO_PROC_SIZE	1088
 #endif
