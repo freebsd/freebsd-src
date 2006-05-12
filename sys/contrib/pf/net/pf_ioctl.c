@@ -1479,14 +1479,20 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			break;
 		}
 		if (pr->ticket != ruleset->rules[rs_num].inactive.ticket) {
-			printf("ticket: %d != [%d]%d\n", pr->ticket,
-			    rs_num, ruleset->rules[rs_num].inactive.ticket);
+#ifdef __FreeBSD__
+			DPFPRINTF(PF_DEBUG_MISC,
+			    ("ticket: %d != [%d]%d\n", pr->ticket, rs_num,
+			    ruleset->rules[rs_num].inactive.ticket));
+#endif
 			error = EBUSY;
 			break;
 		}
 		if (pr->pool_ticket != ticket_pabuf) {
-			printf("pool_ticket: %d != %d\n", pr->pool_ticket,
-			    ticket_pabuf);
+#ifdef __FreeBSD__
+			DPFPRINTF(PF_DEBUG_MISC,
+			    ("pool_ticket: %d != %d\n", pr->pool_ticket,
+			    ticket_pabuf));
+#endif
 			error = EBUSY;
 			break;
 		}
