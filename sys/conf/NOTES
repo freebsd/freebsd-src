@@ -2486,6 +2486,14 @@ options 	BUS_DEBUG	# enable newbus debugging
 options 	DEBUG_VFS_LOCKS	# enable vfs lock debugging
 options 	SOCKBUF_DEBUG	# enable sockbuf last record/mb tail checking
 
+#
+# Verbose SYSINIT
+#
+# Make the SYSINIT process performed by mi_startup() verbose.  This is very
+# useful when porting to a new architecture.  If DDB is also enabled, this
+# will print function names instead of addresses.
+options 	VERBOSE_SYSINIT
+
 #####################################################################
 # SYSV IPC KERNEL PARAMETERS
 #
