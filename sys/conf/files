@@ -854,7 +854,6 @@ dev/sn/if_sn_isa.c		optional sn isa
 dev/sn/if_sn_pccard.c		optional sn pccard
 dev/snp/snp.c			optional snp
 dev/sound/isa/ad1816.c		optional snd_ad1816 isa
-dev/sound/isa/es1888.c		optional snd_ess isa
 dev/sound/isa/ess.c		optional snd_ess isa
 dev/sound/isa/gusc.c		optional snd_gusc isa
 dev/sound/isa/mss.c		optional snd_mss isa
