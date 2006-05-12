@@ -589,8 +589,3 @@ struct tl_stats {
  */
 #define EEPROM_CTL_READ			0xA1	/* 0101 0001 */
 #define EEPROM_CTL_WRITE		0xA0	/* 0101 0000 */
-
-#ifdef __alpha__
-#undef vtophys
-#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
-#endif

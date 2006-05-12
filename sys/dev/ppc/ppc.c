@@ -1681,15 +1681,6 @@ ppc_probe(device_t dev, int rid)
 				 IO_LPTSIZE_EXTENDED);
 	}
 #endif
-#ifdef __alpha__
-	/*
-	 * There isn't a bios list on alpha. Put it in the usual place.
-	 */
-	if (error) {
-		bus_set_resource(dev, SYS_RES_IOPORT, rid, 0x3bc,
-				 IO_LPTSIZE_NORMAL);
-	}
-#endif
 
 	/* IO port is mandatory */
 

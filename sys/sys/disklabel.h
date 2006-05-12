@@ -57,11 +57,6 @@
 #define LABELOFFSET	0			/* offset of label in sector */
 #endif
 
-#ifdef __alpha__
-#define LABELSECTOR	0
-#define LABELOFFSET	64
-#endif
-
 #define DISKMAGIC	((u_int32_t)0x82564557)	/* The disk magic number */
 #ifndef MAXPARTITIONS
 #define	MAXPARTITIONS	8

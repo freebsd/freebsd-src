@@ -79,13 +79,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/clock.h>
 
-#ifdef __alpha__
-#include <machine/alpha_cpu.h>
-#include <machine/cpuconf.h>
-#include <machine/rpb.h>
-extern int ncpus;
-#endif /* __alpha__ */
-
 #if defined(__i386__) || defined(__amd64__)
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
@@ -184,77 +177,6 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 
 	return (0);
 }
-
-#ifdef __alpha__
-extern struct rpb *hwrpb;
-/*
- * Filler function for proc/cpuinfo (Alpha version)
- */
-static int
-linprocfs_docpuinfo(PFS_FILL_ARGS)
-{
-	u_int64_t type, major;
-	struct pcs *pcsp;
-	const char *model, *sysname;
-
-	static const char *cpuname[] = {
-		"EV3", "EV4", "Simulate", "LCA4", "EV5", "EV45", "EV56",
-		"EV6", "PCA56", "PCA57", "EV67", "EV68CB", "EV68AL"
-	};
-
-	pcsp = LOCATE_PCS(hwrpb, hwrpb->rpb_primary_cpu_id);
-	type = pcsp->pcs_proc_type;
-	major = (type & PCS_PROC_MAJOR) >> PCS_PROC_MAJORSHIFT;
-	if (major < sizeof(cpuname)/sizeof(char *)) {
-		model = cpuname[major - 1];
-	} else {
-		model = "unknown";
-	}
-
-	sysname = alpha_dsr_sysname();
-
-	sbuf_printf(sb,
-	    "cpu\t\t\t: Alpha\n"
-	    "cpu model\t\t: %s\n"
-	    "cpu variation\t\t: %ld\n"
-	    "cpu revision\t\t: %d\n"
-	    "cpu serial number\t: %s\n"
-	    "system type\t\t: %s\n"
-	    "system variation\t: %s\n"
-	    "system revision\t\t: %d\n"
-	    "system serial number\t: %s\n"
-	    "cycle frequency [Hz]\t: %lu\n"
-	    "timer frequency [Hz]\t: %u\n"
-	    "page size [bytes]\t: %ld\n"
-	    "phys. address bits\t: %ld\n"
-	    "max. addr. space #\t: %ld\n"
-	    "BogoMIPS\t\t: %u.%02u\n"
-	    "kernel unaligned acc\t: %d (pc=%x,va=%x)\n"
-	    "user unaligned acc\t: %d (pc=%x,va=%x)\n"
-	    "platform string\t\t: %s\n"
-	    "cpus detected\t\t: %d\n"
-	    ,
-	    model,
-	    pcsp->pcs_proc_var,
-	    *(int *)hwrpb->rpb_revision,
-	    " ",
-	    " ",
-	    "0",
-	    0,
-	    " ",
-	    hwrpb->rpb_cc_freq,
-	    hz,
-	    hwrpb->rpb_page_size,
-	    hwrpb->rpb_phys_addr_size,
-	    hwrpb->rpb_max_asn,
-	    0, 0,
-	    0, 0, 0,
-	    0, 0, 0,
-	    sysname,
-	    ncpus);
-	return (0);
-}
-#endif /* __alpha__ */
 
 #if defined(__i386__) || defined(__amd64__)
 /*

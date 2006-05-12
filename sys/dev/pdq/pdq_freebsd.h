@@ -164,11 +164,7 @@ typedef struct _pdq_os_ctx_t {
 #define	PDQ_OS_CSR_FMT	"0x%x"
 
 #define	PDQ_OS_USEC_DELAY(n)		DELAY(n)
-#ifdef __alpha__
-#define	PDQ_OS_VA_TO_BUSPA(pdq, p)      alpha_XXX_dmamap((vm_offset_t)p)
-#else
 #define	PDQ_OS_VA_TO_BUSPA(pdq, p)	vtophys(p)
-#endif
 
 #define	PDQ_OS_MEMALLOC(n)		malloc(n, M_DEVBUF, M_NOWAIT)
 #define	PDQ_OS_MEMFREE(p, n)		free((void *) p, M_DEVBUF)

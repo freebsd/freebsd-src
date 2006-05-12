@@ -1441,10 +1441,6 @@ tl_newbuf(sc, c)
 	if (m_new == NULL)
 		return(ENOBUFS);
 
-#ifdef __alpha__
-	m_new->m_data += 2;
-#endif
-
 	c->tl_mbuf = m_new;
 	c->tl_next = NULL;
 	c->tl_ptr->tlist_frsize = MCLBYTES;

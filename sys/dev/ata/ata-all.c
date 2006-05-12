@@ -47,9 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
-#ifdef __alpha__
-#include <machine/md_var.h>
-#endif
 #include <dev/ata/ata-all.h>
 #include <ata_if.h>
 

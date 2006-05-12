@@ -547,8 +547,3 @@ struct ste_mii_frame {
 #define STE_MII_READOP		0x02
 #define STE_MII_WRITEOP		0x01
 #define STE_MII_TURNAROUND	0x02
-
-#ifdef __alpha__
-#undef vtophys
-#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
-#endif
