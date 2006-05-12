@@ -42,9 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
-#ifdef __alpha__
-#include <machine/md_var.h>
-#endif
 #include <sys/rman.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -288,14 +285,10 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
     }
     if (type == SYS_RES_IRQ && *rid == ATA_IRQ_RID) {
 	if (ata_legacy(dev)) {
-#ifdef __alpha__
-	    res = alpha_platform_alloc_ide_intr(unit);
-#else
 	    int irq = (unit == 0 ? 14 : 15);
 	    
 	    res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
 				     SYS_RES_IRQ, rid, irq, irq, 1, flags);
-#endif
 	}
 	else
 	    res = controller->r_irq;
@@ -331,12 +324,8 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 	    return ENOENT;
 
 	if (ata_legacy(dev)) {
-#ifdef __alpha__
-	    return alpha_platform_release_ide_intr(unit, r);
-#else
 	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
 					SYS_RES_IRQ, rid, r);
-#endif
 	}
 	else  
 	    return 0;
@@ -350,13 +339,8 @@ ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq,
 		   void **cookiep)
 {
     if (ata_legacy(dev)) {
-#ifdef __alpha__
-	return alpha_platform_setup_ide_intr(child, irq, function, argument,
-					     cookiep);
-#else
 	return BUS_SETUP_INTR(device_get_parent(dev), child, irq,
 			      flags, function, argument, cookiep);
-#endif
     }
     else {
 	struct ata_pci_controller *controller = device_get_softc(dev);
@@ -374,11 +358,7 @@ ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 		      void *cookie)
 {
     if (ata_legacy(dev)) {
-#ifdef __alpha__
-	return alpha_platform_teardown_ide_intr(child, irq, cookie);
-#else
 	return BUS_TEARDOWN_INTR(device_get_parent(dev), child, irq, cookie);
-#endif
     }
     else {
 	struct ata_pci_controller *controller = device_get_softc(dev);

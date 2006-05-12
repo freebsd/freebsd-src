@@ -165,7 +165,7 @@ typedef struct _pdq_os_ctx_t {
     struct ifmedia sc_ifmedia;
 #endif
     pdq_t *sc_pdq;
-#if defined(__alpha__) || defined(__i386__)
+#if defined(__i386__)
     pdq_bus_ioport_t sc_iobase;
 #endif
 #if defined(PDQ_IOMAPPED)

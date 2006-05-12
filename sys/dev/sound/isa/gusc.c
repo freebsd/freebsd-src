@@ -41,9 +41,6 @@
 
 #include <isa/isavar.h>
 #include <isa/isa_common.h>
-#ifdef __alpha__		/* XXX workaround a stupid warning */
-#include <alpha/isa/isavar.h>
-#endif
 
 SND_DECLARE_FILE("$FreeBSD$");
 
