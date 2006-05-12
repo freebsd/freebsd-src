@@ -68,11 +68,11 @@ z8530_divisor(int rclk, int baudrate)
 	int act_baud, divisor, error;
 
 	if (baudrate == 0)
-		return (0);
+		return (-1);
 
 	divisor = (rclk + baudrate) / (baudrate << 1) - 2;
 	if (divisor < 0 || divisor >= 65536)
-		return (0);
+		return (-1);
 	act_baud = rclk / 2 / (divisor + 2);
 
 	/* 10 times error in percent: */
@@ -80,7 +80,7 @@ z8530_divisor(int rclk, int baudrate)
 
 	/* 3.0% maximum error tolerance: */
 	if (error < -30 || error > 30)
-		return (0);
+		return (-1);
 
 	return (divisor);
 }
@@ -117,11 +117,17 @@ z8530_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	default:		return (EINVAL);
 	}
 
-	/* Set baudrate. */
 	if (baudrate > 0) {
 		divisor = z8530_divisor(bas->rclk, baudrate);
-		if (divisor == 0)
+		if (divisor == -1)
 			return (EINVAL);
+	} else
+		divisor = -1;
+
+	uart_setmreg(bas, WR_MCB2, MCB2_PCLK);
+	uart_barrier(bas);
+
+	if (divisor >= 0) {
 		uart_setmreg(bas, WR_TCL, divisor & 0xff);
 		uart_barrier(bas);
 		uart_setmreg(bas, WR_TCH, (divisor >> 8) & 0xff);
@@ -133,6 +139,8 @@ z8530_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	uart_setmreg(bas, WR_MPM, mpm);
 	uart_barrier(bas);
 	uart_setmreg(bas, WR_TPC, tpc);
+	uart_barrier(bas);
+	uart_setmreg(bas, WR_MCB2, MCB2_PCLK | MCB2_BRGE);
 	uart_barrier(bas);
 	*tpcp = tpc;
 	return (0);
@@ -157,9 +165,9 @@ z8530_setup(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 		break;
 	}
 	uart_barrier(bas);
-	/* Set clock sources and enable BRG. */
+	/* Set clock sources. */
 	uart_setmreg(bas, WR_CMC, CMC_RC_BRG | CMC_TC_BRG);
-	uart_setmreg(bas, WR_MCB2, MCB2_PCLK | MCB2_BRGE);
+	uart_setmreg(bas, WR_MCB2, MCB2_PCLK);
 	uart_barrier(bas);
 	/* Set data encoding. */
 	uart_setmreg(bas, WR_MCB1, MCB1_NRZ);
