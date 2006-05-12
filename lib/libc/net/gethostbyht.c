@@ -282,8 +282,9 @@ found:
 int
 _ht_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 {
-	const char *addr;
-	int len, af;
+	const void *addr;
+	socklen_t len;
+	int af;
 	char *buffer;
 	size_t buflen;
 	int *errnop, *h_errnop;
@@ -292,8 +293,8 @@ _ht_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 	res_state statp;
 	int error;
 
-	addr = va_arg(ap, const char *);
-	len = va_arg(ap, int);
+	addr = va_arg(ap, const void *);
+	len = va_arg(ap, socklen_t);
 	af = va_arg(ap, int);
 	hptr = va_arg(ap, struct hostent *);
 	buffer = va_arg(ap, char *);

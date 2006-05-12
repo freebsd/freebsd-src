@@ -63,6 +63,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
+#include <machine/_limits.h>
 
 #ifndef _SIZE_T_DECLARED
 typedef	__size_t	size_t;
@@ -220,9 +221,15 @@ void		endnetgrent(void);
 void		endprotoent(void);
 void		endservent(void);
 void		freehostent(struct hostent *);
-struct hostent	*gethostbyaddr(const char *, int, int);
-int		gethostbyaddr_r(const char *, int, int, struct hostent *,
+#if __LONG_BIT == 64
+struct hostent	*gethostbyaddr(const void *, int, int);
+int		gethostbyaddr_r(const void *, int, int, struct hostent *,
     char *, size_t, struct hostent **, int *);
+#else
+struct hostent	*gethostbyaddr(const void *, socklen_t, int);
+int		gethostbyaddr_r(const void *, socklen_t, int, struct hostent *,
+    char *, size_t, struct hostent **, int *);
+#endif
 struct hostent	*gethostbyname(const char *);
 int		gethostbyname_r(const char *, struct hostent *, char *, size_t,
     struct hostent **, int *);
