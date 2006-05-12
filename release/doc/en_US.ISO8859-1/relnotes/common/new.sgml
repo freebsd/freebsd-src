@@ -1176,7 +1176,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       flag to suppress a limited set of warnings and errors.</para>
 
     <para>The &man.traceroute.8; utility now supports
-      a <option>-c</option> option, which sets a fixed destination
+      a <option>-e</option> option, which sets a fixed destination
       port for probe packets.  This can be useful for tracing behind
       packet-filtering firewalls.</para>
 
