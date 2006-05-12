@@ -573,8 +573,14 @@ gethostbyname_internal(const char *name, int af, struct hostent *hp, char *buf,
 }
 
 int
-gethostbyaddr_r(const char *addr, int len, int af, struct hostent *hp,
-    char *buf, size_t buflen, struct hostent **result, int *h_errnop)
+gethostbyaddr_r(const void *addr,
+#if __LONG_BIT == 64
+    int len,
+#else
+    socklen_t len,
+#endif
+    int af, struct hostent *hp, char *buf, size_t buflen,
+    struct hostent **result, int *h_errnop)
 {
 	const u_char *uaddr = (const u_char *)addr;
 	const struct in6_addr *addr6;
@@ -606,7 +612,7 @@ gethostbyaddr_r(const char *addr, int len, int af, struct hostent *hp,
 	}
 
 	if (af == AF_INET6 && len == NS_IN6ADDRSZ) {
-		addr6 = (const struct in6_addr *)(const void *)uaddr;
+		addr6 = (const struct in6_addr *)addr;
 		if (IN6_IS_ADDR_LINKLOCAL(addr6)) {
 			RES_SET_H_ERRNO(statp, HOST_NOT_FOUND);
 			*h_errnop = statp->res_h_errno;
@@ -678,7 +684,11 @@ gethostbyname2(const char *name, int af)
 }
 
 struct hostent *
-gethostbyaddr(const char *addr, int len, int af)
+#if __LONG_BIT == 64
+gethostbyaddr(const void *addr, int len, int af)
+#else
+gethostbyaddr(const void *addr, socklen_t len, int af)
+#endif
 {
 	struct hostdata *hd;
 	struct hostent *rval;
