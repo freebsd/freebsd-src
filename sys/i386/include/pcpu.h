@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) Peter Wemm <peter@netplex.com.au>
+ * Copyright (c) Peter Wemm
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
