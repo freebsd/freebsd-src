@@ -165,7 +165,6 @@ typedef int dumper_t(
 /*
  * Flags for d_flags which the drivers can set.
  */
-#define	D_MEMDISK	0x00010000	/* memory type disk */
 #define	D_TRACKCLOSE	0x00080000	/* track all closes */
 #define D_MMAP_ANON	0x00100000	/* special treatment in vm_mmap.c */
 #define D_PSEUDO	0x00200000	/* make_dev() can return NULL */
