@@ -308,7 +308,7 @@
 	<para arch="i386,amd64">Many (but not all) changes to the
 	  &man.ndis.4; system were merged from HEAD.</para>
 
-	<para>The &man.xl.4; driver now supports &man.polling.4;</para>
+	<para>The &man.xl.4; driver now supports &man.polling.4;.</para>
 
       </sect4>
     </sect3>
@@ -453,7 +453,7 @@
 
     <para>The timezone database has been updated from the
       <application>tzdata2005g</application> release to the
-      <application>tzdata2005r</application> release.</para>
+      <application>tzdata2006g</application> release.</para>
   </sect2>
 
   <sect2 id="ports">
