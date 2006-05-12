@@ -349,6 +349,12 @@
       <para>The &man.acpi.thermal.4; driver now supports
 	passive cooling. &merged;</para>
 
+<!-- The following note should remain MI (i.e. don't set arch="alpha") --
+  -- because the alpha docs will be disappearing at some point before --
+  -- 7.0-RELEASE. -->
+    <para>Support for the alpha architecture has been removed.  Alpha
+      support will remain on the RELENG_5 and RELENG_6 codelines.</para>
+
       <para>The &man.cardbus.4; driver now supports
 	<filename>/dev/cardbus<replaceable>%d</replaceable>.cis</filename>.</para>
 
@@ -994,11 +1000,14 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       also specified, no output is made for disks with no
       activity.</para>
 
-    <para>The &man.jail.8; utility pports a <option>-J
+    <para>The &man.jail.8; utility supports a <option>-J
 	<replaceable>jid_file</replaceable></option> option to
       write out a JidFile, similar to a PidFile, containing
       the jailid, path, hostname, IP and the command used to start
       the jail.  &merged;</para>
+
+    <para>The &man.jail.8; program now support a <option>-s</option>
+      option to specify a jail's securelevel.</para>
 
     <para>The &man.kdump.1; utility now supports a <option>-H</option>
       flag, which causes kdump to print an additional field holding
@@ -1166,6 +1175,11 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.sysctl.8; utility now supports a <option>-q</option>
       flag to suppress a limited set of warnings and errors.</para>
 
+    <para>The &man.traceroute.8; utility now supports
+      a <option>-c</option> option, which sets a fixed destination
+      port for probe packets.  This can be useful for tracing behind
+      packet-filtering firewalls.</para>
+
     <para>The &man.truss.1; utility now supports an <option>-s</option>
       flag for the same functionality as the strace utility
       (<filename role="package">devel/strace</filename>).</para>
@@ -1309,7 +1323,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The timezone database has been updated from the
       <application>tzdata2005l</application> release to the
-      <application>tzdata2005r</application> release. &merged;</para>
+      <application>tzdata2006g</application> release. &merged;</para>
 
     <para><application>WPA Supplicant</application>
       has been updated from version 0.3.9 to version 0.4.8.
