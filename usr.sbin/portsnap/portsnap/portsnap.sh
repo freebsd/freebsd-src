@@ -872,7 +872,8 @@ extract_run() {
 		fi
 		case ${FILE} in
 		*/)
-			rm -rf ${PORTSDIR}/${FILE}
+			DIR=`echo ${FILE} | sed -e 's|/$||'`
+			rm -rf ${PORTSDIR}/${DIR}
 			mkdir -p ${PORTSDIR}/${FILE}
 			tar -xzf ${WORKDIR}/files/${HASH}.gz	\
 			    -C ${PORTSDIR}/${FILE}
@@ -914,11 +915,13 @@ update_run() {
 		sort ${WORKDIR}/INDEX |
 		    comm -23 ${PORTSDIR}/.portsnap.INDEX - | cut -f 1 -d '|' |
 		    grep -vE "${REFUSE}" |
-		    lam -s "${PORTSDIR}/" - | xargs rm -rf
+		    lam -s "${PORTSDIR}/" - |
+		    sed -e 's|/$||' | xargs rm -rf
 	else
 		sort ${WORKDIR}/INDEX |
 		    comm -23 ${PORTSDIR}/.portsnap.INDEX - | cut -f 1 -d '|' |
-		    lam -s "${PORTSDIR}/" - | xargs rm -rf
+		    lam -s "${PORTSDIR}/" - |
+		    sed -e 's|/$||' | xargs rm -rf
 	fi
 	echo "done."
 
