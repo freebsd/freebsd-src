@@ -6,12 +6,12 @@
 
 <!-- Version of the OS we're describing.  This needs to be updated
      with each new release. -->
-<!ENTITY release.current "5.4-STABLE">
+<!ENTITY release.current "5.5-STABLE">
 
 <!-- The previous version used for comparison in the "What's New"
      section.  For -CURRENT, we might point back to the last
      branchpoint. -->
-<!ENTITY release.prev "5.4-RELEASE">
+<!ENTITY release.prev "5.5-RELEASE">
 
 <!-- The previous stable release, useful for pointing user's at the
      release they SHOULD be running if they don't want the bleeding
@@ -19,7 +19,7 @@
 <!ENTITY release.prev.stable "4.11-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
-<!ENTITY release.next "5.5-RELEASE">
+<!ENTITY release.next "5.6-RELEASE">
 
 <!-- The name of this branch. -->
 <!ENTITY release.branch "5-STABLE">
@@ -39,7 +39,7 @@
 <!ENTITY release.manpath.xorg          "6.9.0">
 <!ENTITY release.manpath.netbsd        "3.0">
 <!ENTITY release.manpath.freebsd-ports "Ports">
-<!ENTITY release.manpath.freebsd       "5.4-stable">
+<!ENTITY release.manpath.freebsd       "5.5-stable">
 
 <!-- Text constants which probably don't need to be changed.-->
 
