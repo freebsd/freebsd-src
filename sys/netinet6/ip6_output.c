@@ -61,7 +61,6 @@
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
  */
 
-#include "opt_ip6fw.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
@@ -105,8 +104,6 @@
 #include <netipsec/ipsec6.h>
 #include <netipsec/key.h>
 #endif /* FAST_IPSEC */
-
-#include <netinet6/ip6_fw.h>
 
 #include <net/net_osdep.h>
 
@@ -837,23 +834,6 @@ again:
 	 */
 	in6_clearscope(&ip6->ip6_src);
 	in6_clearscope(&ip6->ip6_dst);
-
-	/*
-	 * Check with the firewall...
-	 */
-	if (ip6_fw_enable && ip6_fw_chk_ptr) {
-		u_short port = 0;
-		m->m_pkthdr.rcvif = NULL;	/* XXX */
-		/* If ipfw says divert, we have to just drop packet */
-		if ((*ip6_fw_chk_ptr)(&ip6, ifp, &port, &m)) {
-			m_freem(m);
-			goto done;
-		}
-		if (!m) {
-			error = EACCES;
-			goto done;
-		}
-	}
 
 	/*
 	 * If the outgoing packet contains a hop-by-hop options header,
@@ -1891,27 +1871,6 @@ do { \
 				break;
 #endif /* KAME IPSEC */
 
-			case IPV6_FW_ADD:
-			case IPV6_FW_DEL:
-			case IPV6_FW_FLUSH:
-			case IPV6_FW_ZERO:
-			    {
-				struct mbuf *m;
-				struct mbuf **mp = &m;
-
-				if (ip6_fw_ctl_ptr == NULL)
-					return EINVAL;
-				/* XXX */
-				if ((error = soopt_getm(sopt, &m)) != 0)
-					break;
-				/* XXX */
-				if ((error = soopt_mcopyin(sopt, m)) != 0)
-					break;
-				error = (*ip6_fw_ctl_ptr)(optname, mp);
-				m = *mp;
-			    }
-				break;
-
 			default:
 				error = ENOPROTOOPT;
 				break;
@@ -2137,23 +2096,6 @@ do { \
 				break;
 			  }
 #endif /* KAME IPSEC */
-
-			case IPV6_FW_GET:
-			  {
-				struct mbuf *m;
-				struct mbuf **mp = &m;
-
-				if (ip6_fw_ctl_ptr == NULL)
-			        {
-					return EINVAL;
-				}
-				error = (*ip6_fw_ctl_ptr)(optname, mp);
-				if (error == 0)
-					error = soopt_mcopyout(sopt, m); /* XXX */
-				if (error == 0 && m)
-					m_freem(m);
-			  }
-				break;
 
 			default:
 				error = ENOPROTOOPT;
