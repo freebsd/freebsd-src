@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2006
+.Dd May 12, 2006
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -327,7 +327,7 @@ have this picture in mind in order to design a correct ruleset.
        |                       |
        +----------->-----------+
        ^                       V
- [ip(6)_input]           [ip(6)_output]     net.inet.ip.fw.enable=1
+ [ip(6)_input]           [ip(6)_output]     net.inet(6).ip(6).fw.enable=1
        |                       |
        ^                       V
  [ether_demux]        [ether_output_frame]  net.link.ether.ipfw=1
@@ -2051,6 +2051,8 @@ The firewall enforces that.
 Enables the firewall.
 Setting this variable to 0 lets you run your machine without
 firewall even if compiled in.
+.It Em net.inet6.ip6.fw.enable : No 1
+provides the same functionality as above for the IPv6 case.
 .It Em net.inet.ip.fw.one_pass : No 1
 When set, the packet exiting from the
 .Xr dummynet 4
