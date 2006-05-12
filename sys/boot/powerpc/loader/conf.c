@@ -102,7 +102,7 @@ struct file_format *file_formats[] = {
 /* 
  * Consoles 
  *
- * We don't prototype these in libalpha.h because they require
+ * We don't prototype these in libofw.h because they require
  * data structures from bootstrap.h as well.
  */
 extern struct console ofwconsole;
