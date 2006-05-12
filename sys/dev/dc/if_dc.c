@@ -128,9 +128,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #define DC_USEIOSPACE
-#ifdef __alpha__
-#define SRM_MEDIA
-#endif
 
 #include <dev/dc/if_dcreg.h>
 
@@ -2281,32 +2278,6 @@ dc_attach(device_t dev)
 
 	callout_init_mtx(&sc->dc_stat_ch, &sc->dc_mtx, 0);
 
-#ifdef SRM_MEDIA
-	sc->dc_srm_media = 0;
-
-	/* Remember the SRM console media setting */
-	if (DC_IS_INTEL(sc)) {
-		command = pci_read_config(dev, DC_PCI_CFDD, 4);
-		command &= ~(DC_CFDD_SNOOZE_MODE | DC_CFDD_SLEEP_MODE);
-		switch ((command >> 8) & 0xff) {
-		case 3:
-			sc->dc_srm_media = IFM_10_T;
-			break;
-		case 4:
-			sc->dc_srm_media = IFM_10_T | IFM_FDX;
-			break;
-		case 5:
-			sc->dc_srm_media = IFM_100_TX;
-			break;
-		case 6:
-			sc->dc_srm_media = IFM_100_TX | IFM_FDX;
-			break;
-		}
-		if (sc->dc_srm_media)
-			sc->dc_srm_media |= IFM_ACTIVE | IFM_ETHER;
-	}
-#endif
-
 	/*
 	 * Call MI attach routine.
 	 */
@@ -3400,19 +3371,7 @@ dc_init(void *xsc)
 
 	DC_LOCK(sc);
 	dc_init_locked(sc);
-#ifdef SRM_MEDIA
-	if(sc->dc_srm_media) {
-		struct ifreq ifr;
-		struct mii_data *mii;
-
-		ifr.ifr_media = sc->dc_srm_media;
-		sc->dc_srm_media = 0;
-		DC_UNLOCK(sc);
-		mii = device_get_softc(sc->dc_miibus);
-		ifmedia_ioctl(sc->dc_ifp, &ifr, &mii->mii_media, SIOCSIFMEDIA);
-	} else
-#endif
-		DC_UNLOCK(sc);
+	DC_UNLOCK(sc);
 }
 
 static void
@@ -3684,12 +3643,6 @@ dc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFMEDIA:
 		mii = device_get_softc(sc->dc_miibus);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
-#ifdef SRM_MEDIA
-		DC_LOCK(sc);
-		if (sc->dc_srm_media)
-			sc->dc_srm_media = 0;
-		DC_UNLOCK(sc);
-#endif
 		break;
 	case SIOCSIFCAP:
 #ifdef DEVICE_POLLING

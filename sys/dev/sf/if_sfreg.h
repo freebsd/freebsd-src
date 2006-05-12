@@ -1056,8 +1056,3 @@ struct sf_softc {
 #define	SF_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sf_mtx, MA_OWNED)
 
 #define SF_TIMEOUT	1000
-
-#ifdef __alpha__
-#undef vtophys
-#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
-#endif

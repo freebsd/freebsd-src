@@ -81,10 +81,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
-#if defined (__alpha__) && !defined(COMPAT_43)
-#error "You *really* need COMPAT_43 on the alpha for longjmp(3)"
-#endif
-
 #define	ONSIG	32		/* NSIG for osig* syscalls.  XXX. */
 
 static int	coredump(struct thread *);
@@ -905,7 +901,7 @@ osigaction(td, uap)
 	return (error);
 }
 
-#if !defined(__i386__) && !defined(__alpha__)
+#if !defined(__i386__)
 /* Avoid replicating the same stub everywhere */
 int
 osigreturn(td, uap)

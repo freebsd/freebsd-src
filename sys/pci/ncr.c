@@ -278,12 +278,6 @@ __FBSDID("$FreeBSD$");
 **==========================================================
 */
 
-#ifdef __alpha__
-/* XXX */
-#undef vtophys
-#define	vtophys(va)	alpha_XXX_dmamap((vm_offset_t)va)
-#endif
-
 #define	INB(r) bus_space_read_1(np->bst, np->bsh, offsetof(struct ncr_reg, r))
 #define	INW(r) bus_space_read_2(np->bst, np->bsh, offsetof(struct ncr_reg, r))
 #define	INL(r) bus_space_read_4(np->bst, np->bsh, offsetof(struct ncr_reg, r))

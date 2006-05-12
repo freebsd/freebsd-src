@@ -1330,7 +1330,7 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 		}
 	}
 
-#if defined(__alpha__) || defined(__sparc64__)
+#if defined(__sparc64__)
 	if (send_kbd_command_and_data(
 		kbdc, KBDC_SET_SCANCODE_SET, 2) != KBD_ACK) {
 		printf("atkbd: can't set translation.\n");

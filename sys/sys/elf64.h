@@ -50,11 +50,7 @@ typedef uint64_t	Elf64_Xword;
  * typedef is required.
  */
 
-#ifdef __alpha__
-typedef Elf64_Off	Elf64_Hashelt;
-#else
 typedef Elf64_Word	Elf64_Hashelt;
-#endif
 
 /* Non-standard class-dependent datatype used for abstraction. */
 typedef Elf64_Xword	Elf64_Size;

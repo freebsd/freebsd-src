@@ -103,9 +103,6 @@ struct if_data {
 	u_long	ifi_noproto;		/* destined for unsupported protocol */
 	u_long	ifi_hwassist;		/* HW offload capabilities */
 	time_t	ifi_epoch;		/* uptime at attach or stat reset */
-#ifdef __alpha__
-	u_int	ifi_timepad;		/* time_t is int, not long on alpha */
-#endif
 	struct	timeval ifi_lastchange;	/* time of last administrative change */
 };
 

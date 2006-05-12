@@ -273,9 +273,11 @@ if_simloop(ifp, m, af, hlen)
 	/* Strip away media header */
 	if (hlen > 0) {
 		m_adj(m, hlen);
-#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__)
-		/* The alpha doesn't like unaligned data.
-		 * We move data down in the first mbuf */
+#if defined(__ia64__) || defined(__sparc64__)
+		/*
+		 * Some archs do not like unaligned data, so
+		 * we move data down in the first mbuf.
+		 */
 		if (mtod(m, vm_offset_t) & 3) {
 			KASSERT(hlen >= 3, ("if_simloop: hlen too small"));
 			bcopy(m->m_data, 
