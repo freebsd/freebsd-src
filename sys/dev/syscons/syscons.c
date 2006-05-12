@@ -1031,8 +1031,10 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
     case VT_ACTIVATE:   	/* switch to screen *data */
 	i = (*(intptr_t *)data == 0) ? scp->index : (*(intptr_t *)data - 1);
 	s = spltty();
-	sc_clean_up(sc->cur_scp);
+	error = sc_clean_up(sc->cur_scp);
 	splx(s);
+	if (error)
+	    return error;
 	return sc_switch_scr(sc, i);
 
     case VT_WAITACTIVE: 	/* wait for switch to occur */
