@@ -178,8 +178,8 @@ _gethostbynisname_r(const char *name, int af, struct hostent *he,
 }
 
 static int
-_gethostbynisaddr_r(const char *addr, int len, int af, struct hostent *he,
-    struct hostent_data *hed)
+_gethostbynisaddr_r(const void *addr, socklen_t len, int af,
+    struct hostent *he, struct hostent_data *hed)
 {
 	char *map;
 	char numaddr[46];
@@ -227,7 +227,7 @@ _gethostbynisname(const char *name, int af)
 }
 
 struct hostent *
-_gethostbynisaddr(const char *addr, int len, int af)
+_gethostbynisaddr(const void *addr, socklen_t len, int af)
 {
 #ifdef YP
 	struct hostent *he;
@@ -303,8 +303,8 @@ int
 _nis_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 {
 #ifdef YP
-	const char *addr;
-	int len;
+	const void *addr;
+	socklen_t len;
 	int af;
 	char *buffer;
 	size_t buflen;
@@ -313,8 +313,8 @@ _nis_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 	struct hostent_data *hed;
 	res_state statp;
 
-	addr = va_arg(ap, const char *);
-	len = va_arg(ap, int);
+	addr = va_arg(ap, const void *);
+	len = va_arg(ap, socklen_t);
 	af = va_arg(ap, int);
 	hptr = va_arg(ap, struct hostent *);
 	buffer = va_arg(ap, char *);
