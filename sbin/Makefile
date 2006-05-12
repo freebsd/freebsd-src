@@ -38,7 +38,6 @@ SUBDIR=	adjkerntz \
 	gvinum \
 	ifconfig \
 	init \
-	${_ip6fw} \
 	${_ipf} \
 	ipfw \
 	kldconfig \
@@ -112,7 +111,6 @@ _pflogd=	pflogd
 .endif
 
 .if ${MK_INET6} != "no"
-_ip6fw=		ip6fw
 _ping6=		ping6
 .endif
 

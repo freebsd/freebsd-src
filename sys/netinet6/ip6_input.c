@@ -61,7 +61,6 @@
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
  */
 
-#include "opt_ip6fw.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
@@ -115,8 +114,6 @@
 #define	IPSEC
 #endif /* FAST_IPSEC */
 
-#include <netinet6/ip6_fw.h>
-
 #include <netinet6/ip6protosw.h>
 
 #include <net/net_osdep.h>
@@ -137,11 +134,6 @@ int ip6_sourcecheck_interval;		/* XXX */
 int ip6_ours_check_algorithm;
 
 struct pfil_head inet6_pfil_hook;
-
-/* firewall hooks */
-ip6_fw_chk_t *ip6_fw_chk_ptr;
-ip6_fw_ctl_t *ip6_fw_ctl_ptr;
-int ip6_fw_enable = 1;
 
 struct ip6stat ip6stat;
 
@@ -425,21 +417,6 @@ ip6_input(m)
 	srcrt = !IN6_ARE_ADDR_EQUAL(&odst, &ip6->ip6_dst);
 
 passin:
-	/*
-	 * Check with the firewall...
-	 */
-	if (ip6_fw_enable && ip6_fw_chk_ptr) {
-		u_short port = 0;
-		/* If ipfw says divert, we have to just drop packet */
-		/* use port as a dummy argument */
-		if ((*ip6_fw_chk_ptr)(&ip6, NULL, &port, &m)) {
-			m_freem(m);
-			m = NULL;
-		}
-		if (!m)
-			return;
-	}
-
 	/*
 	 * Disambiguate address scope zones (if there is ambiguity).
 	 * We first make sure that the original source or destination address
