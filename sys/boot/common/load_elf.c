@@ -266,7 +266,7 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	off = - (off & 0xff000000u);	/* i386 relocates after locore */
 #endif
 #else
-	off = 0;		/* alpha is direct mapped for kernels */
+	off = 0;		/* other archs use direct mapped kernels */
 #endif
     }
     ef->off = off;

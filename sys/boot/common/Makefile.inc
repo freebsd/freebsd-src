@@ -11,8 +11,7 @@ SRCS+=	load_elf64.c load_elf64_obj.c reloc_elf64.c
 SRCS+=	load_elf32.c load_elf32_obj.c reloc_elf32.c
 .elif ${MACHINE_ARCH} == "powerpc"
 SRCS+=	load_elf32.c reloc_elf32.c
-.elif ${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "ia64" || \
-    ${MACHINE_ARCH} == "alpha"
+.elif ${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "ia64"
 SRCS+=	load_elf64.c reloc_elf64.c
 .endif
 
