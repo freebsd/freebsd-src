@@ -55,14 +55,15 @@ main(int argc, char **argv)
 	struct passwd *pwd = NULL;
 	struct in_addr in;
 	gid_t groups[NGROUPS];
-	int ch, i, iflag, Jflag, lflag, ngroups, uflag, Uflag;
-	char path[PATH_MAX], *username, *JidFile;
+	int ch, i, iflag, Jflag, lflag, ngroups, securelevel, uflag, Uflag;
+	char path[PATH_MAX], *ep, *username, *JidFile;
 	static char *cleanenv;
 	const char *shell, *p = NULL;
-	int securelevel = -1;
+	long ltmp;
 	FILE *fp;
 
 	iflag = Jflag = lflag = uflag = Uflag = 0;
+	securelevel = -1;
 	username = JidFile = cleanenv = NULL;
 	fp = NULL;
 
@@ -76,7 +77,10 @@ main(int argc, char **argv)
 			Jflag = 1;
 			break;
 		case 's':
-			securelevel = (int) strtol(optarg, NULL, 0);
+			ltmp = strtol(optarg, &ep, 0);
+			if (*ep || ep == optarg || ltmp > INT_MAX || !ltmp)
+				errx(1, "invalid securelevel: `%s'", optarg);
+			securelevel = ltmp;
 			break;
 		case 'u':
 			username = optarg;
