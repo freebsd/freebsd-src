@@ -20,10 +20,4 @@ SUBDIR+=		ofw
 # Pick the machine-dependent subdir based on the target architecture.
 SUBDIR+=		${MACHINE:S/amd64/i386/}
 
-# Build ARC / AlphaBIOS executable on the Alpha
-# (this is a WIP (work in progress)).
-#.if ${MACHINE_ARCH} == "alpha"
-#SUBDIR+=		arc
-#.endif
-
 .include <bsd.subdir.mk>

@@ -243,7 +243,7 @@ bi_copymodules(vm_offset_t addr)
 }
 
 /*
- * Load the information expected by an alpha kernel.
+ * Load the information expected by the kernel.
  *
  * - The kernel environment is copied into kernel space.
  * - Module metadata are formatted and placed in kernel space.
