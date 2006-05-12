@@ -550,11 +550,13 @@ _dns_gethostbyname(void *rval, void *cb_data, va_list ap)
 int
 _dns_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 {
-	const u_char *uaddr;
-	int len, af;
+	const void *addr;
+	socklen_t len;
+	int af;
 	char *buffer;
 	size_t buflen;
 	int *errnop, *h_errnop;
+	const u_char *uaddr;
 	struct hostent *hptr, he;
 	struct hostent_data *hed;
 	int n;
@@ -570,14 +572,15 @@ _dns_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 	int ret_h_error;
 #endif /*SUNSECURITY*/
 
-	uaddr = va_arg(ap, const u_char *);
-	len = va_arg(ap, int);
+	addr = va_arg(ap, const void *);
+	len = va_arg(ap, socklen_t);
 	af = va_arg(ap, int);
 	hptr = va_arg(ap, struct hostent *);
 	buffer = va_arg(ap, char *);
 	buflen = va_arg(ap, size_t);
 	errnop = va_arg(ap, int *);
 	h_errnop = va_arg(ap, int *);
+	uaddr = (const u_char *)addr;
 
 	*((struct hostent **)rval) = NULL;
 
