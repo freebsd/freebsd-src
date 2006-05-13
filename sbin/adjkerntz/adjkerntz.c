@@ -285,14 +285,14 @@ recalculate:
 	   ) {
 		len = sizeof(disrtcset);
 		if (sysctlbyname("machdep.disable_rtc_set", &disrtcset, &len, NULL, 0) == -1) {
-			syslog(LOG_ERR, "sysctl(get: \"disable_rtc_set\"): %m");
+			syslog(LOG_ERR, "sysctl(get: \"machdep.disable_rtc_set\"): %m");
 			return 1;
 		}
 		if (disrtcset == 0) {
 			disrtcset = 1;
 			need_restore = True;
-			if (sysctlbyname("disable_rtc_set", NULL, NULL, &disrtcset, len) == -1) {
-				syslog(LOG_ERR, "sysctl(set: \"disable_rtc_set\"): %m");
+			if (sysctlbyname("machdep.disable_rtc_set", NULL, NULL, &disrtcset, len) == -1) {
+				syslog(LOG_ERR, "sysctl(set: \"machdep.disable_rtc_set\"): %m");
 				return 1;
 			}
 		}
@@ -330,7 +330,7 @@ recalculate:
 		kern_offset = offset;
 		len = sizeof(kern_offset);
 		if (sysctlbyname("machdep.adjkerntz", NULL, NULL, &kern_offset, len) == -1) {
-			syslog(LOG_ERR, "sysctl(set: \"disable_rtc_set\"): %m");
+			syslog(LOG_ERR, "sysctl(set: \"machdep.adjkerntz\"): %m");
 			return 1;
 		}
 	}
