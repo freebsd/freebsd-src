@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Dec 26 12:51:00 2001]
+ *      last edit-date: [Sat May 13 13:03:56 2006]
  *
  *---------------------------------------------------------------------------*/
 
@@ -267,7 +267,7 @@ main(int argc, char **argv)
 	
 	if((isdnfd = open(I4BDEVICE, O_RDWR)) < 0)
 	{
-		log(LL_ERR, "main: cannot open %s: %s", I4BDEVICE, strerror(errno));
+		llog(LL_ERR, "main: cannot open %s: %s", I4BDEVICE, strerror(errno));
 		exit(1);
 	}
 
@@ -275,25 +275,25 @@ main(int argc, char **argv)
 	
 	if((ioctl(isdnfd, I4B_VR_REQ, &mvr)) < 0)
 	{
-		log(LL_ERR, "main: ioctl I4B_VR_REQ failed: %s", strerror(errno));
+		llog(LL_ERR, "main: ioctl I4B_VR_REQ failed: %s", strerror(errno));
 		do_exit(1);
 	}
 
 	if(mvr.version != VERSION)
 	{
-		log(LL_ERR, "main: version mismatch, kernel %d, daemon %d", mvr.version, VERSION);
+		llog(LL_ERR, "main: version mismatch, kernel %d, daemon %d", mvr.version, VERSION);
 		do_exit(1);
 	}
 
 	if(mvr.release != REL)
 	{
-		log(LL_ERR, "main: release mismatch, kernel %d, daemon %d", mvr.release, REL);
+		llog(LL_ERR, "main: release mismatch, kernel %d, daemon %d", mvr.release, REL);
 		do_exit(1);
 	}
 
 	if(mvr.step != STEP)
 	{
-		log(LL_ERR, "main: step mismatch, kernel %d, daemon %d", mvr.step, STEP);
+		llog(LL_ERR, "main: step mismatch, kernel %d, daemon %d", mvr.step, STEP);
 		do_exit(1);
 	}
 
@@ -307,7 +307,7 @@ main(int argc, char **argv)
 
 	if(config_error_flag)
 	{
-		log(LL_ERR, "there were %d error(s) in the configuration file, terminating!", config_error_flag);
+		llog(LL_ERR, "there were %d error(s) in the configuration file, terminating!", config_error_flag);
 		exit(1);
 	}
 
@@ -328,19 +328,19 @@ main(int argc, char **argv)
 	if((i = readrates(ratesfile)) == ERROR)
 	{
 		if(rate_error != NULL)
-			log(LL_ERR, "%s", rate_error);
+			llog(LL_ERR, "%s", rate_error);
 		exit(1);
 	}
 
 	if(i == GOOD)
 	{
 		got_rate = 1;	/* flag, ratesfile read and ok */
-		DBGL(DL_RCCF, (log(LL_DBG, "ratesfile %s read successfully", ratesfile)));
+		DBGL(DL_RCCF, (llog(LL_DBG, "ratesfile %s read successfully", ratesfile)));
 	}
 	else
 	{
 		if(rate_error != NULL)
-			log(LL_WRN, "%s", rate_error);
+			llog(LL_WRN, "%s", rate_error);
 	}
 
 	/* if writing accounting info, open file, set unbuffered */
@@ -349,7 +349,7 @@ main(int argc, char **argv)
 	{
 		if((acctfp = fopen(acctfile, "a")) == NULL)
 		{
-			log(LL_ERR, "ERROR, can't open acctfile %s for writing, terminating!", acctfile);
+			llog(LL_ERR, "ERROR, can't open acctfile %s for writing, terminating!", acctfile);
 			exit(1);
 		}
 		setvbuf(acctfp, (char *)NULL, _IONBF, 0);		
@@ -398,7 +398,7 @@ main(int argc, char **argv)
 
   		if((rtprio(RTP_SET, getpid(), &rtp)) == -1)
   		{
-			log(LL_ERR, "rtprio failed: %s", strerror(errno));
+			llog(LL_ERR, "rtprio failed: %s", strerror(errno));
 			do_exit(1);
 		}
 	}
@@ -430,7 +430,7 @@ do_exit(int exitval)
 
 	unlink(PIDFILE);
 
-	log(LL_DMN, "daemon terminating, exitval = %d", exitval);
+	llog(LL_DMN, "daemon terminating, exitval = %d", exitval);
 	
 #ifdef USE_CURSES
 	if(do_fullscreen)
@@ -454,7 +454,7 @@ error_exit(int exitval, const char *fmt, ...)
 
 	unlink(PIDFILE);
 
-	log(LL_DMN, "fatal error, daemon terminating, exitval = %d", exitval);
+	llog(LL_DMN, "fatal error, daemon terminating, exitval = %d", exitval);
 	
 #ifdef USE_CURSES
 	if(do_fullscreen)
@@ -515,7 +515,7 @@ mloop(
 
  	/* go into loop */
 	
- 	log(LL_DMN, "i4b isdn daemon started (pid = %d)", getpid());
+ 	llog(LL_DMN, "i4b isdn daemon started (pid = %d)", getpid());
  
 	for(;;)
 	{
@@ -590,7 +590,7 @@ mloop(
 		{
 			if(errno != EINTR)
 			{
-				log(LL_ERR, "mloop: ERROR, select error on isdn device, errno = %d!", errno);
+				llog(LL_ERR, "mloop: ERROR, select error on isdn device, errno = %d!", errno);
 				error_exit(1, "mloop: ERROR, select error on isdn device, errno = %d!", errno);
 			}
 		}			
@@ -612,7 +612,7 @@ kbdrdhdl(void)
 
 	if(ch == ERR)
 	{
-		log(LL_ERR, "kbdrdhdl: ERROR, read error on controlling tty, errno = %d!", errno);
+		llog(LL_ERR, "kbdrdhdl: ERROR, read error on controlling tty, errno = %d!", errno);
 		error_exit(1, "kbdrdhdl: ERROR, read error on controlling tty, errno = %d!", errno);
 	}
 
@@ -718,13 +718,13 @@ isdnrdhdl(void)
 				break;
 
 			default:
-				log(LL_WRN, "ERROR, unknown message received from %sisdn (0x%x)", _PATH_DEV, msg_rd_buf[0]);
+				llog(LL_WRN, "ERROR, unknown message received from %sisdn (0x%x)", _PATH_DEV, msg_rd_buf[0]);
 				break;
 		}
 	}
 	else
 	{
-		log(LL_WRN, "ERROR, read error on isdn device, errno = %d, length = %d", errno, len);
+		llog(LL_WRN, "ERROR, read error on isdn device, errno = %d, length = %d", errno, len);
 	}
 }
 
@@ -736,7 +736,7 @@ rereadconfig(int dummy)
 {
 	extern int entrycount;
 
-	log(LL_DMN, "re-reading configuration file");
+	llog(LL_DMN, "re-reading configuration file");
 	
 	close_allactive();
 
@@ -753,7 +753,7 @@ rereadconfig(int dummy)
 
 	if(config_error_flag)
 	{
-		log(LL_ERR, "rereadconfig: there were %d error(s) in the configuration file, terminating!", config_error_flag);
+		llog(LL_ERR, "rereadconfig: there were %d error(s) in the configuration file, terminating!", config_error_flag);
 		error_exit(1, "rereadconfig: there were %d error(s) in the configuration file, terminating!", config_error_flag);
 	}
 
@@ -791,14 +791,14 @@ reopenfiles(int dummy)
 
 			if((rename(acctfile, filename)) != 0)
 			{
-				log(LL_ERR, "reopenfiles: acct rename failed, cause = %s", strerror(errno));
+				llog(LL_ERR, "reopenfiles: acct rename failed, cause = %s", strerror(errno));
 				error_exit(1, "reopenfiles: acct rename failed, cause = %s", strerror(errno));
 			}
 		}
 
 		if((acctfp = fopen(acctfile, "a")) == NULL)
 		{
-			log(LL_ERR, "ERROR, can't open acctfile %s for writing, terminating!", acctfile);
+			llog(LL_ERR, "ERROR, can't open acctfile %s for writing, terminating!", acctfile);
 			error_exit(1, "ERROR, can't open acctfile %s for writing, terminating!", acctfile);
 		}
 		setvbuf(acctfp, (char *)NULL, _IONBF, 0);
@@ -818,7 +818,7 @@ reopenfiles(int dummy)
 
 			if((rename(logfile, filename)) != 0)
 			{
-				log(LL_ERR, "reopenfiles: log rename failed, cause = %s", strerror(errno));
+				llog(LL_ERR, "reopenfiles: log rename failed, cause = %s", strerror(errno));
 				error_exit(1, "reopenfiles: log rename failed, cause = %s", strerror(errno));
 			}
 		}
