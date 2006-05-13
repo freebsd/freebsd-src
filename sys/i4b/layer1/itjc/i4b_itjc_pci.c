@@ -33,7 +33,7 @@
  *
  *	i4b_itjc_pci.c: NetJet-S hardware driver
  *	----------------------------------------
- *      last edit-date: [Thu Jan 11 11:29:38 2001]
+ *      last edit-date: [Sat May 13 15:25:47 2006]
  *
  *---------------------------------------------------------------------------*/
 
@@ -210,8 +210,8 @@ enum tiger_reg_bits
 
 	TIGER_PIB_CYCLE_TIMING_MASK	= 0x30,
 		TIGER_PIB_3_CYCLES	= 0x00,
-		TIGER_PIB_5_CYCLES	= 0x01,
-		TIGER_PIB_12_CYCLES	= 0x10,
+		TIGER_PIB_5_CYCLES	= 0x10,
+		TIGER_PIB_12_CYCLES	= 0x20,
 
 	TIGER_RESET_MASK		= 0x0F,
 		TIGER_RESET_PULSE_COUNT	= 0x08,
@@ -223,7 +223,7 @@ enum tiger_reg_bits
 /* DMA Operation */
 	TIGER_DMA_RESTART_MASK		= 0x02,
 		TIGER_HOLD_DMA		= 0x00,
-		TIGER_RESTART_DMA	= 0x00,
+		TIGER_RESTART_DMA	= 0x02,
 
 	TIGER_DMA_ENABLE_MASK		= 0x01,
 		TIGER_ENABLE_DMA	= 0x01,
@@ -250,13 +250,13 @@ enum tiger_reg_bits
 		TIGER_AUX_4_IS_INPUT	= 0x00,
 		TIGER_AUX_4_IS_OUTPUT	= 0x10,
 		TIGER_AUX_3_IS_INPUT	= 0x00,
-		TIGER_AUX_3_IS_OUTPUT	= 0x80,
+		TIGER_AUX_3_IS_OUTPUT	= 0x08,
 		TIGER_AUX_2_IS_INPUT	= 0x00,
-		TIGER_AUX_2_IS_OUTPUT	= 0x40,
+		TIGER_AUX_2_IS_OUTPUT	= 0x04,
 		TIGER_AUX_1_IS_INPUT	= 0x00,
-		TIGER_AUX_1_IS_OUTPUT	= 0x20,
+		TIGER_AUX_1_IS_OUTPUT	= 0x02,
 		TIGER_AUX_0_IS_INPUT	= 0x00,
-		TIGER_AUX_0_IS_OUTPUT	= 0x10,
+		TIGER_AUX_0_IS_OUTPUT	= 0x01,
 		TIGER_AUX_NJ_DEFAULT	= 0xEF, /* All but ISAC int is output */
 
 /* Interrupt 0 Mask & Status */
