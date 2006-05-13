@@ -1301,14 +1301,9 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 			startpindex = pindex - rbehind;
 		}
 
-		for (tpindex = pindex - 1; tpindex >= startpindex; tpindex -= 1) {
-			if (vm_page_lookup(object, tpindex)) {
-				startpindex = tpindex + 1;
-				break;
-			}
-			if (tpindex == 0)
-				break;
-		}
+		if ((rtm = TAILQ_PREV(m, pglist, listq)) != NULL &&
+		    rtm->pindex >= startpindex)
+			startpindex = rtm->pindex + 1;
 
 		for (i = 0, tpindex = startpindex; tpindex < pindex; i++, tpindex++) {
 
@@ -1342,14 +1337,12 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	 * scan forward for the read ahead pages
 	 */
 	endpindex = tpindex + rahead;
+	if ((rtm = TAILQ_NEXT(m, listq)) != NULL && rtm->pindex < endpindex)
+		endpindex = rtm->pindex;
 	if (endpindex > object->size)
 		endpindex = object->size;
 
 	for (; tpindex < endpindex; i++, tpindex++) {
-
-		if (vm_page_lookup(object, tpindex)) {
-			break;
-		}
 
 		rtm = vm_page_alloc(object, tpindex, VM_ALLOC_NORMAL);
 		if (rtm == NULL) {
