@@ -43,6 +43,7 @@ Options:
                   (default: /etc/portsnap.conf)
   -I           -- Update INDEX only. (update command only)
   -k KEY       -- Trust an RSA key with SHA256 hash of KEY
+  -l descfile  -- Merge the specified local describes file into the INDEX.
   -p portsdir  -- Location of uncompressed ports tree
                   (default: /usr/ports/)
   -s server    -- Server from which to fetch updates.
@@ -82,6 +83,7 @@ init_params() {
 	INDEXONLY=""
 	SERVERNAME=""
 	REFUSE=""
+	LOCALDESC=""
 }
 
 # Parse the command line
@@ -116,6 +118,11 @@ parse_cmdline() {
 			if [ $# -eq 1 ]; then usage; fi
 			if [ ! -z "${KEYPRINT}" ]; then usage; fi
 			shift; KEYPRINT="$1"
+			;;
+		-l)
+			if [ $# -eq 1 ]; then usage; fi
+			if [ ! -z "${LOCALDESC}" ]; then usage; fi
+			shift; LOCALDESC="$1"
 			;;
 		--no-stats)
 			if [ -z "${STATSREDIR}" ]; then
@@ -203,7 +210,9 @@ default_params() {
 	_WORKDIR="/var/db/portsnap"
 	_PORTSDIR="/usr/ports"
 	_NDEBUG="-n"
-	for X in QUIETREDIR QUIETFLAG STATSREDIR WORKDIR PORTSDIR NDEBUG; do
+	_LOCALDESC="/dev/null"
+	for X in QUIETREDIR QUIETFLAG STATSREDIR WORKDIR PORTSDIR	\
+	    NDEBUG LOCALDESC; do
 		eval _=\$${X}
 		eval __=\$_${X}
 		if [ -z "${_}" ]; then
@@ -821,7 +830,9 @@ fetch_run() {
 # Build a ports INDEX file
 extract_make_index() {
 	gunzip -c "${WORKDIR}/files/`look $1 ${WORKDIR}/tINDEX |
-	    cut -f 2 -d '|'`.gz" | ${MKINDEX} /dev/stdin > ${PORTSDIR}/$2
+	    cut -f 2 -d '|'`.gz" |
+	    cat - ${LOCALDESC} |
+	    ${MKINDEX} /dev/stdin > ${PORTSDIR}/$2
 }
 
 # Create INDEX, INDEX-5, INDEX-6
