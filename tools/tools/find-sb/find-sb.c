@@ -30,20 +30,49 @@ static union {
 int
 main(int argc, char **argv)
 {
-	off_t end, last;
+	off_t end, last1, last2;
 	size_t len;
 	ssize_t justread;
 	int fd;
+	char *ch;
+	char c;
+	intmax_t offset;
 
-	if (argv[1] == NULL)
+	while ((c = getopt(argc, argv, "o:")) != -1) {
+		switch (c) {
+		case 'o':
+			if (optarg[0] == '\0')
+				errx(1, "usage");
+			offset = strtoimax(optarg, &ch, 10);
+			if (*ch != '\0' || offset < 0)
+				errx(1, "usage");
+			offset -= offset % DEV_BSIZE;
+			break;
+
+		default:
+			errx(1, "usage");
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc != 1)
 		errx(1, "usage");
 
-	fd = open(argv[1], O_RDONLY, 0);
+	fd = open(argv[0], O_RDONLY, 0);
 	if (fd < 0)
-		err(1, "%s", argv[1]);
+		err(1, "%s", argv[0]);
 
-	end = len = 0;
-	last = -1;
+	if (offset != 0) {
+		end = lseek(fd, offset, SEEK_SET);
+		if (end == -1)
+			err(1, "%s", argv[0]);
+	} else {
+		end = 0;
+	}
+	len = 0;
+	last1 = last2 = -1;
+
 	while (1) {
 		justread = read(fd, &u.buf[len], DEV_BSIZE);
 		if (justread != DEV_BSIZE) {
@@ -60,7 +89,7 @@ main(int argc, char **argv)
 		len += DEV_BSIZE;
 		end += DEV_BSIZE;
 		if (len >= sizeof(struct fs)) {
-			intmax_t offset = end - len;
+			offset = end - len;
 
 			if (u.sblock.fs_magic == FS_UFS1_MAGIC) {
 				intmax_t fsbegin = offset - SBLOCK_UFS1;
@@ -70,11 +99,13 @@ main(int argc, char **argv)
 				printf("Filesystem might begin at offset %jd, "
 				       "block %jd\n", fsbegin,
 				       fsbegin / DEV_BSIZE);
-				if (last >= 0) {
+				if (last1 >= 0) {
 					printf("%jd blocks from last guess\n",
-					       fsbegin / DEV_BSIZE - last);
+					       fsbegin / DEV_BSIZE - last1);
 				}
-				last = fsbegin / DEV_BSIZE;
+				last1 = fsbegin / DEV_BSIZE;
+				len -= DEV_BSIZE;
+				memmove(u.buf, &u.buf[DEV_BSIZE], len);
 			} else if (u.sblock.fs_magic == FS_UFS2_MAGIC) {
 				intmax_t fsbegin = offset - SBLOCK_UFS2;
 				printf("Found UFS2 superblock at offset %jd, "
@@ -83,11 +114,13 @@ main(int argc, char **argv)
 				printf("Filesystem might begin at offset %jd, "
 				       "block %jd\n", fsbegin,
 				       fsbegin / DEV_BSIZE);
-				if (last >= 0) {
+				if (last2 >= 0) {
 					printf("%jd blocks from last guess\n",
-					       fsbegin / DEV_BSIZE - last);
+					       fsbegin / DEV_BSIZE - last2);
 				}
-				last = fsbegin / DEV_BSIZE;
+				last2 = fsbegin / DEV_BSIZE;
+				len -= DEV_BSIZE;
+				memmove(u.buf, &u.buf[DEV_BSIZE], len);
 			}
 		}
 		if (len >= SBLOCKSIZE) {
