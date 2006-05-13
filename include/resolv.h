@@ -393,20 +393,24 @@ extern const struct res_sym __p_rcode_syms[];
 #define	res_nametotype		__res_nametotype
 #define	res_setservers		__res_setservers
 #define	res_getservers		__res_getservers
+#if 0
 #define	res_buildprotolist	__res_buildprotolist
 #define	res_destroyprotolist	__res_destroyprotolist
 #define	res_destroyservicelist	__res_destroyservicelist
-#if 0
 #define	res_get_nibblesuffix	__res_get_nibblesuffix
 #define	res_get_nibblesuffix2	__res_get_nibblesuffix2
 #endif
 #define	res_ourserver_p		__res_ourserver_p
+#if 0
 #define	res_protocolname	__res_protocolname
 #define	res_protocolnumber	__res_protocolnumber
+#endif
 #define	res_send_setqhook	__res_send_setqhook
 #define	res_send_setrhook	__res_send_setrhook
+#if 0
 #define	res_servicename		__res_servicename
 #define	res_servicenumber	__res_servicenumber
+#endif
 __BEGIN_DECLS
 int		res_hnok(const char *);
 int		res_ownok(const char *);
@@ -475,12 +479,12 @@ int		res_nopt(res_state, int, u_char *, int, int);
 void		res_send_setqhook(res_send_qhook);
 void		res_send_setrhook(res_send_rhook);
 int		__res_vinit(res_state, int);
+#if 0
 void		res_destroyservicelist(void);
 const char *	res_servicename(u_int16_t, const char *);
 const char *	res_protocolname(int);
 void		res_destroyprotolist(void);
 void		res_buildprotolist(void);
-#if 0
 const char *	res_get_nibblesuffix(res_state);
 const char *	res_get_nibblesuffix2(res_state);
 #endif
