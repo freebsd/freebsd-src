@@ -11,3 +11,5 @@ LDADD=	-lssh -lcrypt -lcrypto -lz
 .include <bsd.prog.mk>
 
 .PATH:	${SSHDIR}
+
+${OBJS} ${POBJS} ${SOBJS}: ssh_namespace.h
