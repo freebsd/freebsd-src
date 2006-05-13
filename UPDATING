@@ -21,6 +21,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20060412:
+	The ip6fw utility has been removed.  The behavior provided by
+	ip6fw has been in ipfw2 for a good while and the rc.d scripts
+	have been update to deal with it.  There are some rules that
+	might not migrate cleanly.  Use rc.firewall6 as a template to
+	rewrite rules.
+
 20060428:
 	The puc(4) driver has been overhauled. The ebus(4) and sbus(4)
 	attachments have been removed. Make sure to configure scc(4)
