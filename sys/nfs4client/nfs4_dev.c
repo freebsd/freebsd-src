@@ -152,11 +152,12 @@ nfs4dev_reply(caddr_t addr)
 		return EINVAL;
 	}
 
-	if (m->msg_len == 0 || m->msg_len > NFS4DEV_MSG_MAX_DATALEN) {
+	if (m->msg_len < sizeof(*m) - NFS4DEV_MSG_MAX_DATALEN ||
+		m->msg_len > NFS4DEV_MSG_MAX_DATALEN) {
 	  	NFS4DEV_DEBUG("bad message length\n");
 		return EINVAL;
 	}
-	  	
+
 	/* match the reply with a request */
 	mtx_lock(&nfs4dev_waitq_mtx);
 	TAILQ_FOREACH(u, &nfs4dev_waitq, up_entry) {
@@ -197,8 +198,10 @@ found:
 
 	return 0;
 bad:
-	u->up_error = error;
-	wakeup(u);
+	if (u) {
+		u->up_error = error;
+		wakeup(u);
+	}
 	return error;
 }
 
