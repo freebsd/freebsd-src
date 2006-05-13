@@ -3,7 +3,7 @@
 PROG=	ssh-keysign
 SRCS=	ssh-keysign.c readconf.c
 MAN=	ssh-keysign.8
-CFLAGS+=-I${SSHDIR}
+CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 .if defined(ENABLE_SUID_SSH)
 BINMODE=4511
 .endif

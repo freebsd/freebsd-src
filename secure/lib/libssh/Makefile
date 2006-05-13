@@ -28,7 +28,7 @@ SRCS+=	version.c
 SRCS+=	getaddrinfo.c getnameinfo.c name6.c rcmd.c bindresvport.c
 .endif
 
-CFLAGS+= -I${SSHDIR}
+CFLAGS+= -I${SSHDIR} -include ssh_namespace.h
 DPADD=	${LIBZ}
 LDADD=	-lz
 
