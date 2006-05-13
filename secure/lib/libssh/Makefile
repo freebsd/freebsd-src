@@ -46,3 +46,5 @@ LDADD+=	-lcrypto -lcrypt
 .include <bsd.lib.mk>
 
 .PATH: ${SSHDIR} ${SSHDIR}/openbsd-compat
+
+${OBJS} ${POBJS} ${SOBJS}: ssh_namespace.h
