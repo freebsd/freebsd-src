@@ -119,6 +119,18 @@
       should have mentioned changes that enable the second core of
       dual-core i386 and amd64 CPUs by default when running an SMP
       kernel.</para>
+
+    <para>(2006/05/13) A change in the &man.ata.4; driver in &os;
+      &release.bugfix; modified a software interface visible from
+      userland programs.  Programs that use the
+      <literal>IOCATAREQUEST</literal> &man.ioctl.2; interface will
+      need to be recompiled.  Typically, these programs communicate
+      directly with ATA and ATAPI drives, such as CDROM burning or
+      ripping tools, or monitoring utilities.  One known example
+      is <filename>smartd</filename> from the
+      <filename role="package">sysutils/smartmontools</filename>
+      port.</para>
+
   </sect1>
 
 </article>
