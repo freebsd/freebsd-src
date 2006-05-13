@@ -11,19 +11,21 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN">
-%devauto;
-<!ENTITY % sections SYSTEM "../common/hw.ent"> %sections;
+<!ENTITY % sections SYSTEM "../common/install.ent"> %sections;
 
 <!-- Architecture-specific customization -->
 
 <!ENTITY arch "sparc64">
 <!ENTITY arch.print "UltraSPARC">
+<!ENTITY release.url "ftp://ftp.FreeBSD.org/pub/FreeBSD/development/sparc64/">
+
 ]>
 
 <article>
-  &artheader;
-  &sect.intro;
-  &sect.proc.sparc64;
-  &sect.dev;
+&artheader;
+&abstract;
+&sect.install;
+&sect.layout;
+&sect.upgrade;
+&sect.trouble;
 </article>

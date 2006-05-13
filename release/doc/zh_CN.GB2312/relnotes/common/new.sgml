@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.761.2.56
+     Original revision: 1.761.2.59.2.1
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -44,7 +44,7 @@
 
   <para>这篇文档包括了在 &arch.print; 硬件平台上 &os;
     &release.current; 的发行说明。 它描述了最近刚刚加入、修改或删除了的
-    &os; 特性的说明。 同时，它也将给出如何从先前的 &os; 版本完成升级的说明。</para>
+    &os; 特性。 同时，它也将给出如何从先前的 &os; 版本完成升级的说明。</para>
 
 <![ %release.type.snapshot [
 
@@ -80,7 +80,6 @@
 
   <para>这一节描述了
     &os; 自 &release.prev; 以来最明显的新功能和变化。
-    一般说来， 没有注明 &merged; 的那些新特性是 &release.branch; 所独有的。
   </para>
 
   <para>发行说明中的绝大多数条目是在说明自从
@@ -118,7 +117,7 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:11.gzip.asc">FreeBSD-SA-05:11.gzip</ulink>。
       </para>
 
-    <para发现并修正了 &man.ipfw.4; 中的一处可能导致包在查询表中无法正确匹配的问题。
+    <para>发现并修正了 &man.ipfw.4; 中的一处可能导致包在查询表中无法正确匹配的问题。
       这一问题只影响 SMP 和启用了
       <literal>PREEMPTION</literal>(抢占) 内核选项的 UP 机器。
       要了解进一步详情， 请参阅安全公告
@@ -214,6 +213,10 @@
       要了解进一步详情， 请参阅安全公告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:13.sendmail.asc">FreeBSD-SA-06:13.sendmail</ulink>。</para>
 
+    <para>发现并修正了在 AMD 第7和第8代处理器上运行的 FreeBSD 内核的一处信息泄露问题。
+      要了解进一步详情， 请参阅安全公告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:14.fpu.asc">FreeBSD-SA-06:14.fpu</ulink>。</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -241,6 +244,9 @@
         &man.ce.4; 驱动。
         </para>
 
+      <para arch="i386,amd64">默认情况下双核处理器 (例如 Intel
+	Core Duo) 在运行启用了 SMP 的内核时， 会同时使用可用的两个核了。</para>
+
       <para></para>
 
       <sect4 id="mm">
@@ -267,6 +273,9 @@
 	  驱动程序可以使用 &man.ndisgen.8; 工具来构建，
 	  其结果是生成能够使用 &man.kldload.8; 直接加载的内核模块。</para>
 
+	<para arch="i386,amd64">从 HEAD 合并了许多 (但并非全部) 对
+	  &man.ndis.4; 系统所做的改进。</para>
+
 	<para>&man.xl.4; 驱动支持 &man.polling.4; 了。</para>
 
       </sect4>
@@ -275,14 +284,19 @@
     <sect3 id="net-proto">
       <title>网络协议</title>
 
-      <para></para>
+      <para>加入了始创于 NetBSD 的网桥实现 &man.if.bridge.4;。 它支持 IEEE
+	802.1D 生成树协议、 为每个网桥分配独立的接口设备、
+	过滤网桥数据包、 镜像口 (将传送网桥收到的所有包的副本) 等功能。
+	此外， &man.ifconfig.8; 工具也能够配置
+	&man.if.bridge.4; 了。</para>
 
     </sect3>
 
     <sect3 id="disks">
       <title>磁盘及存储</title>
 
-      <para></para>
+      <para>&man.twa.4; 驱动已升级至 3ware 网站上发布的 9.3.0.1
+	版。</para>
 
     </sect3>
 
@@ -313,10 +327,28 @@
     <para>&man.getprotoent.3;、 &man.getprotobyname.3;， 以及
       &man.getprotobynumber.3; 这些函数是线程-安全的了。</para>
 
+    <para>加入了 &man.bsdiff.1; 和 &man.bspatch.1; 工具。
+      这些工具可以用来针对二进制的文件建立和应用补丁。</para>
+
+    <para>&man.cmp.1; 工具新增了 <option>-h</option>
+      选项表示比较符号连接本身， 而非连接所指的文件。</para>
+
     <para>&man.getservent.3;、 &man.getservbyname.3;， 以及
       &man.getservbyport.3; 这些函数是线程-安全的了。</para>
 
     <para>&man.kldstat.8; 工具新增了用于返回特定内核模块状态的
+      <option>-m</option> 选项。</para>
+
+    <para>&man.getprotoent.3;、 &man.getprotobyname.3;， 以及
+      &man.getprotobynumber.3; 函数是线程安全的了。</para>
+
+    <para>&man.getservent.3;、 &man.getservbyname.3;， 以及
+      &man.getservbyport.3; 函数是线程安全的了。</para>
+
+    <para>&man.kdump.1; 程序新增了用以省略 I/O 数据显示的 <option>-s</option>
+      参数。</para>
+
+    <para>&man.kldstat.8; 工具新增了用以返回特定内核模块状态的
       <option>-m</option> 选项。</para>
 
     <para>在 <filename>libpthread</filename>、
@@ -325,10 +357,46 @@
       平台上， 主线程默认使用 2MB 的堆栈， 而其他线程则是 1MB 的堆栈。 在
       64-位 平台上， 默认的堆栈尺寸则相应是 4MB 和 2MB。</para>
 
+    <para>&man.netstat.1; 工具新增了用于显示接口统计模式的
+      <option>-h</option> 参数， 它表示以便于人类阅读的方式显示接口的全部统计数据。</para>
+
+    <para>&man.ping.8; 工具新增了 <quote>扫荡式
+	ping</quote>， 表示每步增加 &man.icmp.4; 包的尺寸。
+      这对于测试存在问题的信道、 MTU 问题，
+      以及网络中的流量策略功能都非常有用。</para>
+
+    <para>加入了用于管理电源消耗的 &man.powerd.8; 程序。</para>
+
+    <para>&man.rfcomm.sppd.1; 能够支持在指定服务名的同时指定
+      <option>-c</option> 选项和通道号了。
+      支持的名字包括： DUN (拨号网络)、 FAX (传真)、
+      LAN (使用 PPP 访问 LAN)， 以及 SP (串口)。</para>
+
+    <para>&man.rm.1; 工具新增了 <option>-I</option>
+      选项， 表示在递归删除目录或一次删除超过 3 个文件时进行提示 (一次)。</para>
+
     <para>&man.sed.1; 新增了用于启用输出行缓冲的 <option>-l</option> 选项。</para>
+
+    <para>&man.sh.1; 新增了 <literal>times</literal>
+      内建命令。</para>
+
+    <para>加入了用以显示 UFS 文件系统中快照位置的 &man.snapinfo.8;
+      工具。</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> 脚本</title>
+
+      <para>新增了 <filename>bluetooth</filename> 脚本。
+	这个脚本会在设备连上/断开时， 由
+	&man.devd.8; 调用并启动/停止对应的设备，
+	而无须管理员手工干预。 这个脚本的默认配置参数在
+	<filename>/etc/defaults/bluetooth.device.conf</filename>，
+	这些默认值可以用
+	<filename>/etc/bluetooth/<replaceable>$device</replaceable>.conf</filename>
+	来覆盖
+	(这里的 <replaceable>$device</replaceable> 是 <devicename>ubt0</devicename>、
+	<devicename>btcc0</devicename>， 等等。)
+	要了解进一步详情， 请参阅 &man.bluetooth.conf.5;。</para>
 
       <para><filename>rc.d/jail</filename> 启动脚本新增了
 	<varname>jail_<replaceable>name</replaceable>_flags</varname>
@@ -348,15 +416,54 @@
 
     <para>时区数据库从
       <application>tzdata2005g</application> 版升级到了
-      <application>tzdata2005r</application> 版。</para>
+      <application>tzdata2006g</application> 版。</para>
   </sect2>
 
   <sect2 id="ports">
     <title>Ports/Packages Collection 基础结构</title>
 
+    <para>&man.pkg.add.1; 命令新增了 <option>-P</option>
+      参数， 它与 <option>-p</option> 参数类似，
+      区别在于给定的前缀也会用于依赖的其他包。</para>
+
+    <para>&man.pkg.add.1; 和 &man.pkg.create.1; 这两个工具新增了
+      <option>-K</option> 参数， 表示将 package 默认保存至当前目录
+      (如果有定义 <varname>PKGDIR</varname> 则保存在那个目录)。</para>
+
+    <para>&man.pkg.create.1; 程序新增了 <option>-x</option>
+      参数， 用以使用基本正则表达式来表示 package 的名字，
+      <option>-E</option> 标志表示使用扩展正则表达式，
+      而 <option>-G</option> 则表示精确匹配。</para>
+
     <para>&man.pkg.version.1; 新增了
       <option>-I</option> 参数， 表示使用
       <filename>INDEX</filename> 作为判断预编译包是否过时的唯一依据。</para>
+
+    <para>&man.pkg.version.1; 工具新增了 <option>-o</option>
+      参数， 用于显示在 package 生成时所记录的来源 (origin) 目录而不是其本身的名字，
+      以及 <option>-O</option> 参数表示只列出所有注册来源为指定来源的 package。</para>
+
+    <para>新增了 &man.portsnap.8; 工具 (<filename>sysutils/portsnap</filename>)
+      到 &os; 基本系统中。 这是一个安全、 便于使用、
+      快速、 轻量级的工具， 能够很好地帮助用户保持他们的 ports tree
+      与官方版本同步。</para>
+
+    <para>删去了从 Ports 套件安装的启动脚本的后缀。
+      这意味着 <filename>foo.sh</filename>
+      都将改名为 <filename>foo</filename>， 并且名为
+      <filename>foo.ORG</filename> 的脚本也会被执行。
+      您应重新安装所有安装了启动脚本的 package， 并清理
+      <varname>local_startup</varname> 目录中多余的文件。</para>
+
+    <para>新增了两个 <filename>rc.conf</filename> 变量，
+      <varname>ldconfig_local_dirs</varname> 和
+      <varname>ldconfig_local32_dirs</varname>。
+      这两个变量用于指定本地的 &man.ldconfig.8; 目录列表。</para>
+
+    <para><filename>pkg-plist</filename> 中的
+      <command>@cwd</command> 命令支持不指定目录参数了。
+      如果没有指定目录参数， 则它将把当前工作目录设置为
+      <command>@cwd</command> 命令给出的第一个前缀。</para>
   </sect2>
 
   <sect2 id="releng">
@@ -367,7 +474,7 @@
       从 2.10.2 升级到了 2.12.3。</para>
 
     <para>支持的 <application>KDE</application> 桌面环境
-      (<filename role="package">x11/kde2</filename>) 的版本，
+      (<filename role="package">x11/kde3</filename>) 的版本，
       从 3.4.2 升级到了 3.5.1。</para>
 
     <para>支持的 <application>Perl</application> 解释器

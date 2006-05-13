@@ -10,7 +10,7 @@
 
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.69.2.33
+	Original Revision: 1.69.2.35.2.1
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -19,8 +19,7 @@
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 
-<!ENTITY release.bugfix "5.4-RELEASE">
-<!ENTITY release.bugfix.next "5.5-RELEASE">
+<!ENTITY release.bugfix "5.5-RELEASE">
 ]>
 
 <article>
@@ -59,9 +58,6 @@
       而没有来得及加入的重要信息。 这些信息可能包括安全公告，
       以及关于可能影响软件和文档的操作或可用性的新闻。
       在安装此版本的 &os; 之前， 应首先阅读此文档的最新版本。</para>
-
-    <para>这份 &os; &release.bugfix; 的勘误文档将被持续地维护，
-      直到 &os; 的 &release.bugfix.next; 发布为止。</para>
   </abstract>
 
   <sect1 id="intro">
@@ -90,254 +86,18 @@
   <sect1 id="security">
     <title>安全公告</title>
 
-    <para>下列安全公告与 &os; &release.bugfix; 有关。
-      要了解进一步的信息， 请从
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/"></ulink>
-      下载并阅读安全公告。</para>
-
-    <informaltable frame="none" pgwide="0">
-      <tgroup cols="3">
-	<colspec colwidth="1*">
-	<colspec colwidth="1*">
-	<colspec colwidth="3*">
-	<thead>
-	  <row>
-	    <entry>安全公告</entry>
-	    <entry>日期</entry>
-	    <entry>主题</entry>
-	  </row>
-	</thead>
-
-	<tbody>
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:10.nfs.asc"
-		>06:10.nfs</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;3&nbsp;月&nbsp;1&nbsp;日</entry>
-	    <entry><para>针对 NFS 服务器的远程拒绝服务攻击</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:09.openssh.asc"
-		>06:09.openssh</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;3&nbsp;月&nbsp;1&nbsp;日</entry>
-	    <entry><para>针对 OpenSSH 的远程拒绝服务攻击</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:07.pf.asc"
-		>06:07.pf</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;1&nbsp;月&nbsp;25&nbsp;日</entry>
-	    <entry><para>&man.pf.4; 中 IP 分片处理导致的 panic</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:03.cpio.asc"
-		>06:03.cpio</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;1&nbsp;月&nbsp;11日</entry>
-	    <entry><para>在 &man.cpio.1; 中存在多处漏洞</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:02.ee.asc"
-		>06:02.eex</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;1&nbsp;月&nbsp;11日</entry>
-	    <entry><para>&man.ee.1; 临时文件特权提升</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:01.texindex.asc"
-		>06:01.texindex</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;1&nbsp;月&nbsp;11日</entry>
-	    <entry><para>Texindex 临时文件特权提升</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:09.htt.asc"
-		>SA-05:09.htt</ulink></entry>
-	    <entry>2005&nbsp;年&nbsp;5&nbsp;月&nbsp;22&nbsp;日</entry>
-	    <entry><para>使用 HTT 引致的信息泄露</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:10.tcpdump.asc"
-		>SA-05:10.tcpdump</ulink></entry>
-	    <entry>2005&nbsp;年&nbsp;6&nbsp;月&nbsp;9&nbsp;日</entry>
-	    <entry><para>在 tcpdump 协议解码中的死循环</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:11.gzip.asc"
-		>SA-05:11.gzip</ulink></entry>
-	    <entry>2005&nbsp;年&nbsp;6&nbsp;月&nbsp;9&nbsp;日</entry>
-	    <entry><para>gzip 目录遍历及权限竞态条件漏洞</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:13.ipfw.asc"
-		>SA-05:13.ipfw</ulink></entry>
-	    <entry>2005&nbsp;年&nbsp;6&nbsp;月&nbsp;29&nbsp;日</entry>
-	    <entry><para>ipfw 地指表的包匹配差错</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:14.bzip2.asc"
-		>SA-05:14.bzip2</ulink></entry>
-	    <entry>2005&nbsp;年&nbsp;6&nbsp;月&nbsp;29&nbsp;日</entry>
-	    <entry><para>bzip2 拒绝服务和权限竞态条件漏洞</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:15.tcp.asc"
-		>SA-05:15.tcp</ulink></entry>
-	    <entry>2005&nbsp;年&nbsp;6&nbsp;月&nbsp;29&nbsp;日</entry>
-	    <entry><para>针对挂起 TCP 连接的拒绝服务攻击</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:16.zlib.asc"
-		>SA-05:16.zlib</ulink></entry>
-	    <entry>2005&nbsp;年&nbsp;7&nbsp;月&nbsp;6&nbsp;日</entry>
-	    <entry><para>zlib 中的缓冲区溢出问题</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:17.devfs.asc"
-		>SA-05:17.devfs</ulink></entry>
-	    <entry>2005&nbsp;年&nbsp;7&nbsp;月&nbsp;20&nbsp;日</entry>
-	    <entry><para>绕过 devfs 规则</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:18.zlib.asc"
-		>SA-05:18.zlib</ulink></entry>
-	    <entry>2005&nbsp;年&nbsp;7&nbsp;月&nbsp;27&nbsp;日</entry>
-	    <entry><para>zlib 中的缓冲区溢出问题</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:19.ipsec.asc"
-		>SA-05:19.ipsec</ulink></entry>
-	    <entry>2005&nbsp;年&nbsp;7&nbsp;月&nbsp;27&nbsp;日</entry>
-	    <entry><para>IPsec 对 AES-XCBC-MAC 密钥的不当使用</para></entry>
-	  </row>
-	</tbody>
-      </tgroup>
-    </informaltable>
+    <para>目前为止尚未发布任何安全公告。</para>
   </sect1>
 
   <sect1 id="open-issues">
     <title>存在的问题</title>
 
-    <para>暂时还没有新的已知问题。</para>
+    <para>目前为止没有新的已知问题。</para>
   </sect1>
 
   <sect1 id="late-news">
     <title>重大新闻</title>
 
-    <para>(2005 年 5 月 6 日) 由于默认的
-      <filename class="devicefile">/dev/iir</filename> 设备节点权限设置失误，
-      使得非特权的本地用户能够向 &man.iir.4; 驱动直接发送硬件指令。
-      尽管这一问题已经在 &release.prev; 发布之前修正，
-      但这一修正已经来不及放到发行版说明中。 欲了解进一步的细节，
-      请参见安全公告
-      <ulink url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:06.iir.asc">FreeBSD-SA-05:06.iir</ulink>。
-      </para>
-
-    <para>(2005 年 5 月 6 日) 修正了在 &man.i386.get.ldt.2;
-      系统调用的输入参数验证部分存在一些问题， 它们可能使内核内存被泄露给用户进程。
-      尽管这一问题已经在 &release.prev; 发布之前修正，
-      但这一修正已经来不及放到发行版说明中。 欲了解进一步的细节，
-      请参见安全公告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:07.ldt.asc">FreeBSD-SA-05:07.ldt</ulink>。
-      </para>
-
-    <para>(2005 年 5 月 6 日) 修正了导致多个内核内存的部分内容的问题。
-      尽管这一问题已经在 &release.prev; 发布之前修正，
-      但这一修正已经来不及放到发行版说明中。 欲了解进一步的细节，
-      请参见安全公告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:08.kmem.asc">FreeBSD-SA-05:08.kmem</ulink>。
-      </para>
-
-    <para>(2005 年 6 月 24 日) &os;/sparc64 &release.bugfix;
-      应明示 &os;/sparc64 GENERIC 内核在未来的 6.0-RELEASE
-      之前， 只提供对于串口控制台的正式支持。 对于 &os;/sparc64 &release.bugfix;
-      GENERIC 内核而言更是如此，
-      因为能够提供优先的间接图形控制台支持的 ofw_console(4) 已经为 &man.uart.4;
-      驱动所取代， 以期更好地支持串口。</para>
-
-    <para>由于这一限制， 在显示了 <quote><computeroutput>jumping to kernel entry
-	  at...</computeroutput></quote> 消息之后屏幕会停止工作，
-      如果您使用 &os;/sparc64 &release.bugfix;
-      GENERIC 内核配合图形控制台， 这一状态会持续到 &os; 本身继续执行为止。</para>
-
-    <para>如果一定要使用 &os;/sparc64 来配合图形控制台，
-      您可采取下列措施：</para>
-
-    <itemizedlist>
-      <listitem>
-	<para>如果您的计算机装配了 Sun Creator、
-	  Sun Creator3D， 或 Sun Elite3D 帧缓存卡，
-	  并使用了 Sun RS232 键盘， 则可以使用串口控制台安装 &os;/sparc64
-	  &release.bugfix; 并在随后使用包含下列选项的内核编译配置文件来编译定制的内核：</para>
-
-	<programlisting>device          sc
-device          creator
-options         KBD_INSTALL_CDEV</programlisting>
-
-	<para>除此之外， 您还需要在 <filename>/etc/ttys</filename>
-	  中启用 <filename>tty[1-7]</filename> 项，
-	  类似下面这样：</para>
-
-	<programlisting>ttyv0   "/usr/libexec/getty Pc"         cons25  on  secure
-# Virtual terminals
-ttyv1   "/usr/libexec/getty Pc"         cons25  on  secure
-ttyv2   "/usr/libexec/getty Pc"         cons25  on  secure
-ttyv3   "/usr/libexec/getty Pc"         cons25  on  secure
-ttyv4   "/usr/libexec/getty Pc"         cons25  on  secure
-ttyv5   "/usr/libexec/getty Pc"         cons25  on  secure
-ttyv6   "/usr/libexec/getty Pc"         cons25  on  secure
-ttyv7   "/usr/libexec/getty Pc"         cons25  on  secure</programlisting>
-
-	<para>这些配置将提供针对这些键盘， 以及 VTY 切换和 X 视窗系统的内建支持。	  请注意这些配置需要使用不低于 &os;/sparc64
-	  &release.bugfix; 的版本， 否则在绝大多数型号的 UltraSPARC
-	  上都将无法正常工作。</para>
-      </listitem>
-
-      <listitem>
-	<para>如果您的计算机装配了  ATI Mach64
-	  帧缓存卡 (见于 Sun Blade 100/150
-	  以及 Sun Ultra 5/10 和 Sun PGX8 以及 Sun PGX64
-	  附加卡) 或 PS/2 或 USB 键盘， 就必须升级到
-	  &os;/sparc64 6.0 在 2005 年 6 月 10 日之后的版本。
-	  如果您使用标准的 GENERIC 内核以及 <filename>/etc/ttys</filename>
-	  则不需要做任何额外的操作就可以正常工作了。</para>
-
-	<para>这些配置将提供针对这些键盘以及帧缓存， 以及 VTY 切换和 X
-	  视窗系统的内建支持。</para>
-      </listitem>
-
-      <listitem>
-	<para>如果您的计算机装配了其他硬件，
-	  或者不愿意升级到 &os;/sparc64 6.0，
-	  您可以重新启用 ofw_console(4) 驱动作为最后方案，
-	  方法是增加下列选项并重新联编定制的内核：</para>
-
-	<programlisting>device          ofw_console
-device          sab
-device          zs</programlisting>
-
-	<para>注意需要注释掉下列设置：</para>
-
-	<programlisting>device          uart</programlisting>
-
-	<para>这些操作将提供有限的对于图形控制台硬件的间接支持，
-	  但其性能很不好， 而且 VTY 切换和 X 视窗系统无法与其一同使用。
-	  请注意 ofw_console(4) 并非 MPSAFE 因此在某些特定的情况下，
-	  可能会导致系统崩溃。</para>
-      </listitem>
-    </itemizedlist>
-
-    <para>关于如何重新编译内核或升级到 &os; 6.0 的信息， 请参见 &os; 使用手册中的
-      <ulink url="http://www.FreeBSD.org/doc/zh_CN.GB2312/books/handbook/kernelconfig.html">配置 &os; 内核</ulink> 以及
-      <ulink url="http://www.freebsd.org/doc/zh_CN.GB2312/books/handbook/cutting-edge.html">最前沿</ulink> 章节。</para>
+    <para>目前为止还没有新闻。</para>
+  </sect1>
 </article>
