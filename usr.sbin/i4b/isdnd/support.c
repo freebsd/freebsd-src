@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Jul 31 11:05:16 2003]
+ *      last edit-date: [Sat May 13 13:19:23 2006]
  *
  *---------------------------------------------------------------------------*/
 
@@ -60,7 +60,7 @@ find_active_entry_by_driver(int drivertype, int driverunit)
 		
 		if(isvalidtime(cep) == 0)
 		{
-			DBGL(DL_VALID, (log(LL_DBG, "find_active_entry_by_driver: entry %d, time not valid!", i)));
+			DBGL(DL_VALID, (llog(LL_DBG, "find_active_entry_by_driver: entry %d, time not valid!", i)));
 			continue;
 		}
 		
@@ -68,13 +68,13 @@ find_active_entry_by_driver(int drivertype, int driverunit)
 		
 		if(cep->cdid == CDID_UNUSED)
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_active_entry_by_driver: entry %d [%s%d], cdid=CDID_UNUSED !",
+			DBGL(DL_MSG, (llog(LL_DBG, "find_active_entry_by_driver: entry %d [%s%d], cdid=CDID_UNUSED !",
 				i, bdrivername(drivertype), driverunit)));
 			return(NULL);
 		}
 		else if(cep->cdid == CDID_RESERVED)
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_active_entry_by_driver: entry %d [%s%d], cdid=CDID_RESERVED!",
+			DBGL(DL_MSG, (llog(LL_DBG, "find_active_entry_by_driver: entry %d [%s%d], cdid=CDID_RESERVED!",
 				i, bdrivername(drivertype), driverunit)));
 			return(NULL);
 		}
@@ -108,7 +108,7 @@ find_by_device_for_dialout(int drivertype, int driverunit)
 		
 		if(isvalidtime(cep) == 0)
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialout: entry %d, time not valid!", i)));
+			DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_dialout: entry %d, time not valid!", i)));
 			continue;
 		}
 		
@@ -116,7 +116,7 @@ find_by_device_for_dialout(int drivertype, int driverunit)
 		
 		if(cep->cdid == CDID_RESERVED)
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialout: entry %d, cdid reserved!", i)));
+			DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_dialout: entry %d, cdid reserved!", i)));
 			return(NULL);
 		}
 
@@ -124,7 +124,7 @@ find_by_device_for_dialout(int drivertype, int driverunit)
 		
 		if(cep->cdid != CDID_UNUSED)	
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialout: entry %d, cdid in use", i)));
+			DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_dialout: entry %d, cdid in use", i)));
 			return(NULL);
 		}
 
@@ -132,17 +132,17 @@ find_by_device_for_dialout(int drivertype, int driverunit)
 		{
 			/* found an entry to be used for calling out */
 		
-			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialout: found entry %d!", i)));
+			DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_dialout: found entry %d!", i)));
 			return(cep);
 		}
 		else
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialout: entry %d, setup_dialout() failed!", i)));
+			DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_dialout: entry %d, setup_dialout() failed!", i)));
 			return(NULL);
 		}
 	}
 
-	DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialout: no entry found!")));
+	DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_dialout: no entry found!")));
 	return(NULL);
 }
 
@@ -171,7 +171,7 @@ find_by_device_for_dialoutnumber(msg_dialoutnumber_ind_t *mp)
 		
 		if(isvalidtime(cep) == 0)
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, time not valid!", i)));
+			DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, time not valid!", i)));
 			continue;
 		}
 
@@ -179,7 +179,7 @@ find_by_device_for_dialoutnumber(msg_dialoutnumber_ind_t *mp)
 		
 		if(cep->cdid == CDID_RESERVED)
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, cdid reserved!", i)));
+			DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, cdid reserved!", i)));
 			return(NULL);
 		}
 
@@ -187,7 +187,7 @@ find_by_device_for_dialoutnumber(msg_dialoutnumber_ind_t *mp)
 		
 		if(cep->cdid != CDID_UNUSED)	
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, cdid in use", i)));
+			DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, cdid in use", i)));
 			return(NULL);
 		}
 
@@ -199,7 +199,7 @@ find_by_device_for_dialoutnumber(msg_dialoutnumber_ind_t *mp)
 		{
 			if(!(isdigit(*(mp->cmd+j))))
 			{
-				DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, dial string contains non-digit at pos %d", i, j)));
+				DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, dial string contains non-digit at pos %d", i, j)));
 				return(NULL);
 			}
 			/* fill in number to dial */
@@ -212,7 +212,7 @@ find_by_device_for_dialoutnumber(msg_dialoutnumber_ind_t *mp)
 		{
 			if(!(isdigit(*(mp->subaddr+j))))
 			{
-				DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, subaddr string contains non-digit at pos %d", i, j)));
+				DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, subaddr string contains non-digit at pos %d", i, j)));
 				return(NULL);
 			}
 			/* fill in number to dial */
@@ -226,17 +226,17 @@ find_by_device_for_dialoutnumber(msg_dialoutnumber_ind_t *mp)
 		{
 			/* found an entry to be used for calling out */
 		
-			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialoutnumber: found entry %d!", i)));
+			DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_dialoutnumber: found entry %d!", i)));
 			return(cep);
 		}
 		else
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, setup_dialout() failed!", i)));
+			DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, setup_dialout() failed!", i)));
 			return(NULL);
 		}
 	}
 
-	DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialoutnumber: no entry found!")));
+	DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_dialoutnumber: no entry found!")));
 	return(NULL);
 }
 
@@ -247,7 +247,7 @@ cfg_entry_t *
 find_by_device_for_keypad(int drivertype, int driverunit, int cmdlen, char *cmd)
 {
 	cfg_entry_t *cep = NULL;
-	int i, j;
+	int i;
 
 	for(i=0; i < nentries; i++)
 	{
@@ -265,7 +265,7 @@ find_by_device_for_keypad(int drivertype, int driverunit, int cmdlen, char *cmd)
 		
 		if(isvalidtime(cep) == 0)
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_keypad: entry %d, time not valid!", i)));
+			DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_keypad: entry %d, time not valid!", i)));
 			continue;
 		}
 
@@ -273,7 +273,7 @@ find_by_device_for_keypad(int drivertype, int driverunit, int cmdlen, char *cmd)
 		
 		if(cep->cdid == CDID_RESERVED)
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_keypad: entry %d, cdid reserved!", i)));
+			DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_keypad: entry %d, cdid reserved!", i)));
 			return(NULL);
 		}
 
@@ -281,7 +281,7 @@ find_by_device_for_keypad(int drivertype, int driverunit, int cmdlen, char *cmd)
 		
 		if(cep->cdid != CDID_UNUSED)	
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_keypad: entry %d, cdid in use", i)));
+			DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_keypad: entry %d, cdid in use", i)));
 			return(NULL);
 		}
 
@@ -292,23 +292,23 @@ find_by_device_for_keypad(int drivertype, int driverunit, int cmdlen, char *cmd)
 		bzero(cep->keypad, KEYPAD_MAX);
 		strncpy(cep->keypad, cmd, cmdlen);
 
-		DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_keypad: entry %d, keypad string is %s", i, cep->keypad)));
+		DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_keypad: entry %d, keypad string is %s", i, cep->keypad)));
 
 		if((setup_dialout(cep)) == GOOD)
 		{
 			/* found an entry to be used for calling out */
 		
-			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_keypad: found entry %d!", i)));
+			DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_keypad: found entry %d!", i)));
 			return(cep);
 		}
 		else
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_keypad: entry %d, setup_dialout() failed!", i)));
+			DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_keypad: entry %d, setup_dialout() failed!", i)));
 			return(NULL);
 		}
 	}
 
-	DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_keypad: no entry found!")));
+	DBGL(DL_MSG, (llog(LL_DBG, "find_by_device_for_keypad: no entry found!")));
 	return(NULL);
 }
 
@@ -324,7 +324,7 @@ setup_dialout(cfg_entry_t *cep)
 
 	if((get_controller_state(cep->isdncontroller)) != CTRL_UP)
 	{
-		DBGL(DL_MSG, (log(LL_DBG, "setup_dialout: entry %s, controller is down", cep->name)));
+		DBGL(DL_MSG, (llog(LL_DBG, "setup_dialout: entry %s, controller is down", cep->name)));
 		return(ERROR);
 	}
 
@@ -343,7 +343,7 @@ setup_dialout(cfg_entry_t *cep)
 
 		    if (i == isdn_ctrl_tab[cep->isdncontroller].nbch)
 			{
-				DBGL(DL_MSG, (log(LL_DBG, "setup_dialout: entry %s, no channel free", cep->name)));
+				DBGL(DL_MSG, (llog(LL_DBG, "setup_dialout: entry %s, no channel free", cep->name)));
 				return(ERROR);
 			}
 			cep->isdnchannelused = CHAN_ANY;
@@ -352,14 +352,14 @@ setup_dialout(cfg_entry_t *cep)
 		default:
 			if((ret_channel_state(cep->isdncontroller, cep->isdnchannel)) != CHAN_IDLE)
 			{
-				DBGL(DL_MSG, (log(LL_DBG, "setup_dialout: entry %s, channel not free", cep->name)));
+				DBGL(DL_MSG, (llog(LL_DBG, "setup_dialout: entry %s, channel not free", cep->name)));
 			return(ERROR);
 			}
 			cep->isdnchannelused = cep->isdnchannel;
 			break;
 	}
 
-	DBGL(DL_MSG, (log(LL_DBG, "setup_dialout: entry %s ok!", cep->name)));
+	DBGL(DL_MSG, (llog(LL_DBG, "setup_dialout: entry %s ok!", cep->name)));
 
 	/* preset disconnect cause */
 	
@@ -392,11 +392,11 @@ get_cep_by_driver(int drivertype, int driverunit)
 		
 		if(isvalidtime(cep) == 0)
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "get_cep_by_driver: entry %d, time not valid!", i)));
+			DBGL(DL_MSG, (llog(LL_DBG, "get_cep_by_driver: entry %d, time not valid!", i)));
 			continue;
 		}		
 
-		DBGL(DL_MSG, (log(LL_DBG, "get_cep_by_driver: found entry %d!", i)));
+		DBGL(DL_MSG, (llog(LL_DBG, "get_cep_by_driver: found entry %d!", i)));
 		return(cep);
 	}
 	return(NULL);
@@ -426,12 +426,12 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 	                src_tela = get_alias(mp->src_telno);
 	                dst_tela = get_alias(mp->dst_telno);
 	
-			log(LL_CHD, "%05d <unknown> CW from %s to %s (no channel free)",
+			llog(LL_CHD, "%05d <unknown> CW from %s to %s (no channel free)",
 				mp->header.cdid, src_tela, dst_tela);
 		}
 		else
 		{
-			log(LL_CHD, "%05d <unknown> call waiting from %s to %s (no channel free)",
+			llog(LL_CHD, "%05d <unknown> call waiting from %s to %s (no channel free)",
 				mp->header.cdid, mp->src_telno, mp->dst_telno);
 		}
 		return(NULL);
@@ -446,14 +446,14 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 
 		if(strncmp(cep->local_phone_incoming.number, mp->dst_telno, strlen(cep->local_phone_incoming.number)))
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, myno %s != incomingno %s", i,
+			DBGL(DL_MSG, (llog(LL_DBG, "find_matching_entry_incoming: entry %d, myno %s != incomingno %s", i,
 				cep->local_phone_incoming.number, mp->dst_telno)));
 			continue;
 		}
 
 		if (cep->usesubaddr && strncmp(cep->local_phone_incoming.subaddr, mp->dst_subaddr, strlen(cep->local_phone_incoming.subaddr)))
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, mysubno %s != incomingsubno %s", i,
+			DBGL(DL_MSG, (llog(LL_DBG, "find_matching_entry_incoming: entry %d, mysubno %s != incomingsubno %s", i,
 				cep->local_phone_incoming.subaddr, mp->dst_subaddr)));
 			continue;
 		}
@@ -484,14 +484,14 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 			{
 				if ((!cep->usesubaddr) || (in->subaddr[0] == '*') || (!strncmp(in->subaddr, mp->src_subaddr, strlen(in->subaddr))))
 				{
-					DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, match: remno %s = incomingfromno %s", i,
+					DBGL(DL_MSG, (llog(LL_DBG, "find_matching_entry_incoming: entry %d, match: remno %s = incomingfromno %s", i,
 						in->number, mp->src_telno)));
 					break;
 				}
 			}
 			else
 			{
-				DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, remno %s != incomingfromno %s", i,
+				DBGL(DL_MSG, (llog(LL_DBG, "find_matching_entry_incoming: entry %d, remno %s != incomingfromno %s", i,
 					in->number, mp->src_telno)));
 			}
 		}
@@ -504,7 +504,7 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 
 		if(cep->b1protocol != mp->bprot)
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, bprot %d != incomingprot %d", i,
+			DBGL(DL_MSG, (llog(LL_DBG, "find_matching_entry_incoming: entry %d, bprot %d != incomingprot %d", i,
 				cep->b1protocol, mp->bprot)));
 			continue;
 		}
@@ -515,7 +515,7 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 		{
 			if(cep->cdid == CDID_RESERVED)
 			{
-				DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, cdid is reserved", i)));
+				DBGL(DL_MSG, (llog(LL_DBG, "find_matching_entry_incoming: entry %d, cdid is reserved", i)));
 			}
 			else if (cep->dialin_reaction == REACT_ACCEPT
 				 && cep->dialouttype == DIALOUT_CALLEDBACK)
@@ -529,7 +529,7 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 				 * and never be able to establish a connection.
 				 * In the called-back case this should not happen.
 				 */
-				DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, incoming call for callback in progress (cdid %05d)", i, cep->cdid)));
+				DBGL(DL_MSG, (llog(LL_DBG, "find_matching_entry_incoming: entry %d, incoming call for callback in progress (cdid %05d)", i, cep->cdid)));
 
 				/* save the current call state, we're going to overwrite it with the
 				 * new incoming state below... */
@@ -539,7 +539,7 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 			}
 			else
 			{
-				DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, cdid in use", i)));
+				DBGL(DL_MSG, (llog(LL_DBG, "find_matching_entry_incoming: entry %d, cdid in use", i)));
 				continue;	/* yes, next */
 			}
 		}
@@ -548,7 +548,7 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 
 		if(mp->controller > ncontroller)
 		{
-			log(LL_CHD, "%05d %s incoming call with invalid controller %d",
+			llog(LL_CHD, "%05d %s incoming call with invalid controller %d",
                         	mp->header.cdid, cep->name, mp->controller);
 			return(NULL);
 		}
@@ -557,7 +557,7 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 
 		if((get_controller_state(mp->controller)) != CTRL_UP)
 		{
-			log(LL_CHD, "%05d %s incoming call, controller %d DOWN!",
+			llog(LL_CHD, "%05d %s incoming call, controller %d DOWN!",
                         	mp->header.cdid, cep->name, mp->controller);
 			return(NULL);
 		}
@@ -570,7 +570,7 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 		if( (mp->controller != -1) && 
 		    (mp->controller != cep->isdncontroller) )
 		{
-			log(LL_CHD, "%05d %s incoming call, controller %d != incoming %d",
+			llog(LL_CHD, "%05d %s incoming call, controller %d != incoming %d",
 				mp->header.cdid, cep->name, 
 				cep->isdncontroller, mp->controller);
 			continue;
@@ -589,14 +589,14 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 
 			    if (i == isdn_ctrl_tab[mp->controller].nbch)
 				{
-					log(LL_CHD, "%05d %s incoming call, no channel free!",
+					llog(LL_CHD, "%05d %s incoming call, no channel free!",
 	                	        	mp->header.cdid, cep->name);
 					return(NULL);
 				}
 				break;
 
 			case CHAN_NO:
-				log(LL_CHD, "%05d %s incoming call, call waiting (no channel available)!",
+				llog(LL_CHD, "%05d %s incoming call, call waiting (no channel available)!",
                 	        	mp->header.cdid, cep->name);
                 	        return(NULL);
                 	        break;
@@ -604,7 +604,7 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 			default:
 				if((ret_channel_state(mp->controller, mp->channel)) != CHAN_IDLE)
 				{
-					log(LL_CHD, "%05d %s incoming call, channel B%d not free!",
+					llog(LL_CHD, "%05d %s incoming call, channel B%d not free!",
 	                	        	mp->header.cdid, cep->name, mp->channel+1);
 				return(NULL);
 				}
@@ -615,7 +615,7 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 		
 		if(isvalidtime(cep) == 0)
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, time not valid!", i)));
+			DBGL(DL_MSG, (llog(LL_DBG, "find_matching_entry_incoming: entry %d, time not valid!", i)));
 			continue;
 		}
 		
@@ -642,7 +642,7 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 			
 			/* set interface up */
 	
-			DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, ", i)));
+			DBGL(DL_MSG, (llog(LL_DBG, "find_matching_entry_incoming: entry %d, ", i)));
 	
 			mui.driver = cep->usrdevicename;
 			mui.driver_unit = cep->usrdeviceunit;
@@ -650,7 +650,7 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 			
 			if((ioctl(isdnfd, I4B_UPDOWN_IND, &mui)) < 0)
 			{
-				log(LL_ERR, "find_matching_entry_incoming: ioctl I4B_UPDOWN_IND failed: %s", strerror(errno));
+				llog(LL_ERR, "find_matching_entry_incoming: ioctl I4B_UPDOWN_IND failed: %s", strerror(errno));
 				error_exit(1, "find_matching_entry_incoming: ioctl I4B_UPDOWN_IND failed: %s", strerror(errno));
 			}
 
@@ -668,12 +668,12 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
                 src_tela = get_alias(mp->src_telno);
                 dst_tela = get_alias(mp->dst_telno);
 
-		log(LL_CHD, "%05d Call from %s to %s",
+		llog(LL_CHD, "%05d Call from %s to %s",
 			mp->header.cdid, src_tela, dst_tela);
 	}
 	else
 	{
-		log(LL_CHD, "%05d <unknown> incoming call from %s to %s ctrl %d",
+		llog(LL_CHD, "%05d <unknown> incoming call from %s to %s ctrl %d",
 			mp->header.cdid, mp->src_telno, mp->dst_telno, mp->controller);
 	}
 	return(NULL);
@@ -780,7 +780,7 @@ handle_charge(cfg_entry_t *cep)
 	{
 		if(cep->aoc_diff != cep->unitlength)
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "handle_charge: AOCD unit length updated %d -> %d secs", cep->unitlength, cep->aoc_diff)));
+			DBGL(DL_MSG, (llog(LL_DBG, "handle_charge: AOCD unit length updated %d -> %d secs", cep->unitlength, cep->aoc_diff)));
 
 			cep->unitlength = cep->aoc_diff;
 
@@ -789,7 +789,7 @@ handle_charge(cfg_entry_t *cep)
 		else
 		{
 #ifdef NOTDEF
-			DBGL(DL_MSG, (log(LL_DBG, "handle_charge: AOCD unit length still %d secs", cep->unitlength)));
+			DBGL(DL_MSG, (llog(LL_DBG, "handle_charge: AOCD unit length still %d secs", cep->unitlength)));
 #endif
 		}
 	}
@@ -823,14 +823,14 @@ unitlen_chkupd(cfg_entry_t *cep)
 			tupd.shorthold_data.earlyhup_time = 0;
 			break;
 		default:
-			log(LL_ERR, "unitlen_chkupd bad shorthold_algorithm %d", cep->shorthold_algorithm );
+			llog(LL_ERR, "unitlen_chkupd bad shorthold_algorithm %d", cep->shorthold_algorithm );
 			return;
 			break;			
 	}
 
 	if((ioctl(isdnfd, I4B_TIMEOUT_UPD, &tupd)) < 0)
 	{
-		log(LL_ERR, "ioctl I4B_TIMEOUT_UPD failed: %s", strerror(errno));
+		llog(LL_ERR, "ioctl I4B_TIMEOUT_UPD failed: %s", strerror(errno));
 		error_exit(1, "ioctl I4B_TIMEOUT_UPD failed: %s", strerror(errno));
 	}
 }
@@ -874,7 +874,7 @@ close_allactive(void)
 
 	if(j)
 	{
-		log(LL_DMN, "close_allactive: waiting for all connections terminated");
+		llog(LL_DMN, "close_allactive: waiting for all connections terminated");
 		sleep(5);
 	}
 }
@@ -889,7 +889,7 @@ if_up(cfg_entry_t *cep)
 			
 	/* set interface up */
 	
-	DBGL(DL_MSG, (log(LL_DBG, "if_up: taking %s%d up", bdrivername(cep->usrdevicename), cep->usrdeviceunit)));
+	DBGL(DL_MSG, (llog(LL_DBG, "if_up: taking %s%d up", bdrivername(cep->usrdevicename), cep->usrdeviceunit)));
 	
 	mui.driver = cep->usrdevicename;
 	mui.driver_unit = cep->usrdeviceunit;
@@ -897,7 +897,7 @@ if_up(cfg_entry_t *cep)
 			
 	if((ioctl(isdnfd, I4B_UPDOWN_IND, &mui)) < 0)
 	{
-		log(LL_ERR, "if_up: ioctl I4B_UPDOWN_IND failed: %s", strerror(errno));
+		llog(LL_ERR, "if_up: ioctl I4B_UPDOWN_IND failed: %s", strerror(errno));
 		error_exit(1, "if_up: ioctl I4B_UPDOWN_IND failed: %s", strerror(errno));
 	}
 	cep->down_retry_count = 0;
@@ -922,7 +922,7 @@ if_down(cfg_entry_t *cep)
 			
 	/* set interface up */
 	
-	DBGL(DL_MSG, (log(LL_DBG, "if_down: taking %s%d down", bdrivername(cep->usrdevicename), cep->usrdeviceunit)));
+	DBGL(DL_MSG, (llog(LL_DBG, "if_down: taking %s%d down", bdrivername(cep->usrdevicename), cep->usrdeviceunit)));
 	
 	mui.driver = cep->usrdevicename;
 	mui.driver_unit = cep->usrdeviceunit;
@@ -930,7 +930,7 @@ if_down(cfg_entry_t *cep)
 			
 	if((ioctl(isdnfd, I4B_UPDOWN_IND, &mui)) < 0)
 	{
-		log(LL_ERR, "if_down: ioctl I4B_UPDOWN_IND failed: %s", strerror(errno));
+		llog(LL_ERR, "if_down: ioctl I4B_UPDOWN_IND failed: %s", strerror(errno));
 		error_exit(1, "if_down: ioctl I4B_UPDOWN_IND failed: %s", strerror(errno));
 	}
 	cep->went_down_time = time(NULL);
@@ -963,7 +963,7 @@ dialresponse(cfg_entry_t *cep, int dstat)
 
 	if(dstat < DSTAT_NONE || dstat > DSTAT_INONLY)
 	{
-		log(LL_ERR, "dialresponse: dstat out of range %d!", dstat);
+		llog(LL_ERR, "dialresponse: dstat out of range %d!", dstat);
 		return;
 	}
 	
@@ -974,11 +974,11 @@ dialresponse(cfg_entry_t *cep, int dstat)
 	
 	if((ioctl(isdnfd, I4B_DIALOUT_RESP, &mdr)) < 0)
 	{
-		log(LL_ERR, "dialresponse: ioctl I4B_DIALOUT_RESP failed: %s", strerror(errno));
+		llog(LL_ERR, "dialresponse: ioctl I4B_DIALOUT_RESP failed: %s", strerror(errno));
 		error_exit(1, "dialresponse: ioctl I4B_DIALOUT_RESP failed: %s", strerror(errno));
 	}
 
-	DBGL(DL_DRVR, (log(LL_DBG, "dialresponse: sent [%s]", stattab[dstat])));
+	DBGL(DL_DRVR, (llog(LL_DBG, "dialresponse: sent [%s]", stattab[dstat])));
 }
 
 /*--------------------------------------------------------------------------*
@@ -991,7 +991,7 @@ handle_scrprs(int cdid, int scr, int prs, char *caller)
 	
 	if(scr < SCR_NONE || scr > SCR_NET)
 	{
-		log(LL_ERR, "msg_connect_ind: invalid screening indicator value %d!", scr);
+		llog(LL_ERR, "msg_connect_ind: invalid screening indicator value %d!", scr);
 	}
 	else
 	{
@@ -1004,11 +1004,11 @@ handle_scrprs(int cdid, int scr, int prs, char *caller)
 
 		if(extcallattr)
 		{
-			log(LL_CHD, "%05d %s %s", cdid, caller, scrtab[scr]);
+			llog(LL_CHD, "%05d %s %s", cdid, caller, scrtab[scr]);
 		}
 		else
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "%s - %s", caller, scrtab[scr])));
+			DBGL(DL_MSG, (llog(LL_DBG, "%s - %s", caller, scrtab[scr])));
 		}
 	}
 			
@@ -1016,7 +1016,7 @@ handle_scrprs(int cdid, int scr, int prs, char *caller)
 	
 	if(prs < PRS_NONE || prs > PRS_RESERVED)
 	{
-		log(LL_ERR, "msg_connect_ind: invalid presentation indicator value %d!", prs);
+		llog(LL_ERR, "msg_connect_ind: invalid presentation indicator value %d!", prs);
 	}
 	else
 	{
@@ -1029,11 +1029,11 @@ handle_scrprs(int cdid, int scr, int prs, char *caller)
 			
 		if(extcallattr)
 		{
-			log(LL_CHD, "%05d %s %s", cdid, caller, prstab[prs]);
+			llog(LL_CHD, "%05d %s %s", cdid, caller, prstab[prs]);
 		}
 		else
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "%s - %s", caller, prstab[prs])));
+			DBGL(DL_MSG, (llog(LL_DBG, "%s - %s", caller, prstab[prs])));
 		}
 	}
 }
@@ -1057,14 +1057,14 @@ isvalidtime(cfg_entry_t *cep)
 	{
 		if(isholiday(tp->tm_mday, (tp->tm_mon)+1, (tp->tm_year)+1900))
 		{
-			DBGL(DL_VALID, (log(LL_DBG, "isvalidtime: holiday %d.%d.%d", tp->tm_mday, (tp->tm_mon)+1, (tp->tm_year)+1900)));
+			DBGL(DL_VALID, (llog(LL_DBG, "isvalidtime: holiday %d.%d.%d", tp->tm_mday, (tp->tm_mon)+1, (tp->tm_year)+1900)));
 			goto dayok;
 		}
 	}
 	
 	if(cep->day & (1 << tp->tm_wday))
 	{
-		DBGL(DL_VALID, (log(LL_DBG, "isvalidtime: day match")));	
+		DBGL(DL_VALID, (llog(LL_DBG, "isvalidtime: day match")));	
 		goto dayok;
 	}
 
@@ -1073,7 +1073,7 @@ isvalidtime(cfg_entry_t *cep)
 dayok:
 	if(cep->fromhr==0 && cep->frommin==0 && cep->tohr==0 && cep->tomin==0)
 	{
-		DBGL(DL_VALID, (log(LL_DBG, "isvalidtime: no time specified, match!")));
+		DBGL(DL_VALID, (llog(LL_DBG, "isvalidtime: no time specified, match!")));
 		return(1);
 	}
 
@@ -1084,7 +1084,7 @@ dayok:
 		if( (tp->tm_hour > cep->fromhr) ||
 		    (tp->tm_hour == cep->fromhr && tp->tm_min > cep->frommin) )
 		{
-			DBGL(DL_VALID, (log(LL_DBG, "isvalidtime: t<f-1, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
+			DBGL(DL_VALID, (llog(LL_DBG, "isvalidtime: t<f-1, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
 				cep->fromhr, cep->frommin,
 				cep->tohr, cep->tomin,
 				tp->tm_hour, tp->tm_min)));
@@ -1097,7 +1097,7 @@ dayok:
 		if( (tp->tm_hour < cep->tohr) ||
 		    (tp->tm_hour == cep->tohr && tp->tm_min < cep->tomin) )
 		{
-			DBGL(DL_VALID, (log(LL_DBG, "isvalidtime: t<f-2, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
+			DBGL(DL_VALID, (llog(LL_DBG, "isvalidtime: t<f-2, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
 				cep->fromhr, cep->frommin,
 				cep->tohr, cep->tomin,
 				tp->tm_hour, tp->tm_min)));
@@ -1109,7 +1109,7 @@ dayok:
 	{
 		if(tp->tm_min >= cep->frommin && tp->tm_min < cep->tomin)
 		{
-			DBGL(DL_VALID, (log(LL_DBG, "isvalidtime: f=t, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
+			DBGL(DL_VALID, (llog(LL_DBG, "isvalidtime: f=t, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
 				cep->fromhr, cep->frommin,
 				cep->tohr, cep->tomin,
 				tp->tm_hour, tp->tm_min)));
@@ -1123,14 +1123,14 @@ dayok:
 		   (tp->tm_hour == cep->fromhr && tp->tm_min >= cep->frommin) ||
 		   (tp->tm_hour == cep->tohr && tp->tm_min < cep->tomin) )
 		{
-			DBGL(DL_VALID, (log(LL_DBG, "isvalidtime: t>f, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
+			DBGL(DL_VALID, (llog(LL_DBG, "isvalidtime: t>f, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
 				cep->fromhr, cep->frommin,
 				cep->tohr, cep->tomin,
 				tp->tm_hour, tp->tm_min)));
 			return(1);
 		}
 	}
-	DBGL(DL_VALID, (log(LL_DBG, "isvalidtime: spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, no match!",
+	DBGL(DL_VALID, (llog(LL_DBG, "isvalidtime: spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, no match!",
 			cep->fromhr, cep->frommin,
 			cep->tohr, cep->tomin,
 			tp->tm_hour, tp->tm_min)));

@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Sun Aug 11 12:31:44 2002]
+ *      last edit-date: [Sat May 13 13:18:48 2006]
  *
  *---------------------------------------------------------------------------*/
 
@@ -753,6 +753,7 @@ char prefixinternational[TELNO_MAX];
 
 #endif /* MAIN */
 
+int add_number_prefix( char *number, int type_of_number );
 char * bdrivername ( int drivertype );
 void cfg_setval ( int keyword );
 void check_and_kill ( cfg_entry_t *cep );
@@ -797,7 +798,7 @@ void init_controller ( void );
 void init_controller_protocol ( void );
 void init_log ( void );
 void init_screen ( void );
-void log ( int what, const char *fmt, ... );
+void llog ( int what, const char *fmt, ... );
 int main ( int argc, char **argv );
 void msg_accounting ( msg_accounting_ind_t *mp );
 void msg_alert_ind ( msg_alert_ind_t *mp );
@@ -816,6 +817,7 @@ void msg_l12stat_ind(msg_l12stat_ind_t *ml);
 void msg_teiasg_ind(msg_teiasg_ind_t *mt);
 void msg_proceeding_ind ( msg_proceeding_ind_t *mp );
 void msg_packet_ind( msg_packet_ind_t *mp );
+void msg_keypad(msg_keypad_ind_t *mp);
 const char * name_of_controller(int ctrl_type, int card_type);
 void next_state ( cfg_entry_t *cep, int event );
 char * print_i4b_cause( cause_t code );

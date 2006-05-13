@@ -35,7 +35,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Tue Mar 26 14:37:03 2002]
+ *      last edit-date: [Sat May 13 13:08:15 2006]
  *
  *---------------------------------------------------------------------------*/
 
@@ -284,7 +284,7 @@ monitor_start_rights(const char *clientspec)
 	if(r.local)
 		local_rights = cur_add_entry;
 
-	DBGL(DL_RCCF, (log(LL_DBG, "system: monitor = %s", clientspec)));
+	DBGL(DL_RCCF, (llog(LL_DBG, "system: monitor = %s", clientspec)));
 	
 	return I4BMAR_OK;
 }
@@ -300,7 +300,7 @@ monitor_add_rights(int rights_mask)
 
 	cur_add_entry->rights |= rights_mask;
 
-	DBGL(DL_RCCF, (log(LL_DBG, "system: monitor-access = 0x%x", rights_mask)));
+	DBGL(DL_RCCF, (llog(LL_DBG, "system: monitor-access = 0x%x", rights_mask)));
 }
 
 /*---------------------------------------------------------------------------
@@ -386,7 +386,7 @@ monitor_create_remote_socket(int portno)
 
 	if(remotesockfd == -1)
 	{
-		log(LL_MER, "could not create remote monitor socket: %s", strerror(errno));
+		llog(LL_MER, "could not create remote monitor socket: %s", strerror(errno));
 		return(-1);
 	}
 
@@ -394,7 +394,7 @@ monitor_create_remote_socket(int portno)
 
 	if(setsockopt(remotesockfd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof val))
 	{
-		log(LL_MER, "could not setsockopt: %s", strerror(errno));
+		llog(LL_MER, "could not setsockopt: %s", strerror(errno));
 		return(-1);
 	}
 
@@ -406,13 +406,13 @@ monitor_create_remote_socket(int portno)
 
 	if(bind(remotesockfd, (struct sockaddr *)&sa, sizeof sa) == -1)
 	{
-		log(LL_MER, "could not bind remote monitor socket to port %d: %s", portno, strerror(errno));
+		llog(LL_MER, "could not bind remote monitor socket to port %d: %s", portno, strerror(errno));
 		return(-1);
 	}
 
 	if(listen(remotesockfd, 0))
 	{
-		log(LL_MER, "could not listen on monitor socket: %s", strerror(errno));
+		llog(LL_MER, "could not listen on monitor socket: %s", strerror(errno));
 		return(-1);
 	}
 
@@ -441,7 +441,7 @@ monitor_create_local_socket(void)
 
 	if (s == -1)
 	{
-		log(LL_MER, "could not create local monitor socket, errno = %d", errno);
+		llog(LL_MER, "could not create local monitor socket, errno = %d", errno);
 		return(-1);
 	}
 
@@ -454,7 +454,7 @@ monitor_create_local_socket(void)
 
 	if (bind(s, (struct sockaddr *)&sa, SUN_LEN(&sa)))
 	{
-		log(LL_MER, "could not bind local monitor socket [%s], errno = %d", local_rights->name, errno);
+		llog(LL_MER, "could not bind local monitor socket [%s], errno = %d", local_rights->name, errno);
 		return(-1);
 	}
 
@@ -462,7 +462,7 @@ monitor_create_local_socket(void)
 
 	if (listen(s, 0))
 	{
-		log(LL_MER, "could not listen on local monitor socket, errno = %d", errno);
+		llog(LL_MER, "could not listen on local monitor socket, errno = %d", errno);
 		return(-1);
 	}
 
@@ -516,7 +516,7 @@ monitor_handle_input(fd_set *selset)
 				strcpy(source, con->source);
 				TAILQ_REMOVE(&connections, con, connections);
 				free(con);
-				log(LL_DMN, "monitor closed from %s", source );
+				llog(LL_DMN, "monitor closed from %s", source );
 			}
 		}
 	}
@@ -607,7 +607,7 @@ monitor_handle_connect(int sockfd, int is_local)
 	if(r_mask == 0)
 	{
 		/* no rights - go away */
-		log(LL_MER, "monitor access denied from %s", source);
+		llog(LL_MER, "monitor access denied from %s", source);
 		close(fd);
 		return;
 	}
@@ -621,7 +621,7 @@ monitor_handle_connect(int sockfd, int is_local)
 	con->rights = r_mask;
 	strcpy(con->source, source);
 	
-	log(LL_DMN, "monitor opened from %s rights 0x%x", source, r_mask);
+	llog(LL_DMN, "monitor opened from %s rights 0x%x", source, r_mask);
 
 	/* send initial data */
 	I4B_PREP_CMD(idata, I4B_MON_IDATA_CODE);
@@ -633,7 +633,7 @@ monitor_handle_connect(int sockfd, int is_local)
 
 	if((sock_write(fd, idata, sizeof idata)) == -1)
 	{
-		log(LL_MER, "monitor_handle_connect: sock_write 1 error - %s", strerror(errno));
+		llog(LL_MER, "monitor_handle_connect: sock_write 1 error - %s", strerror(errno));
 	}
 		
 	for (i = 0; i < ncontroller; i++)
@@ -648,7 +648,7 @@ monitor_handle_connect(int sockfd, int is_local)
 
 		if((sock_write(fd, ictrl, sizeof ictrl)) == -1)
 		{
-			log(LL_MER, "monitor_handle_connect: sock_write 2 error - %s", strerror(errno));
+			llog(LL_MER, "monitor_handle_connect: sock_write 2 error - %s", strerror(errno));
 		}
 		
 	}
@@ -670,7 +670,7 @@ monitor_handle_connect(int sockfd, int is_local)
 
 		if((sock_write(fd, ictrl, sizeof ictrl)) == -1)
 		{
-			log(LL_MER, "monitor_handle_connect: sock_write 3 error - %s", strerror(errno));
+			llog(LL_MER, "monitor_handle_connect: sock_write 3 error - %s", strerror(errno));
 		}
 	}
 
@@ -723,7 +723,7 @@ cmd_dump_rights(int fd, int r_mask, u_int8_t *cmd, const char *source)
 
 	if((sock_write(fd, drini, sizeof drini)) == -1)
 	{
-		log(LL_MER, "cmd_dump_rights: sock_write 1 error - %s", strerror(errno));
+		llog(LL_MER, "cmd_dump_rights: sock_write 1 error - %s", strerror(errno));
 	}
 
 	for (r = TAILQ_FIRST(&rights); r != NULL; r = TAILQ_NEXT(r, list))
@@ -735,7 +735,7 @@ cmd_dump_rights(int fd, int r_mask, u_int8_t *cmd, const char *source)
 		I4B_PUT_1B(dr, I4B_MON_DR_LOCAL, r->local);
 		if((sock_write(fd, dr, sizeof dr)) == -1)
 		{
-			log(LL_MER, "cmd_dump_rights: sock_write 2 error - %s", strerror(errno));
+			llog(LL_MER, "cmd_dump_rights: sock_write 2 error - %s", strerror(errno));
 		}		
 	}
 }
@@ -779,7 +779,7 @@ cmd_dump_mcons(int fd, int rights, u_int8_t *cmd, const char * source)
 
 	if((sock_write(fd, dcini, sizeof dcini)) == -1)
 	{
-		log(LL_MER, "cmd_dump_mcons: sock_write 1 error - %s", strerror(errno));
+		llog(LL_MER, "cmd_dump_mcons: sock_write 1 error - %s", strerror(errno));
 	}		
 
 	for (con = TAILQ_FIRST(&connections); con != NULL; con = TAILQ_NEXT(con, connections))
@@ -801,7 +801,7 @@ cmd_dump_mcons(int fd, int rights, u_int8_t *cmd, const char * source)
 #endif
 		if((sock_write(fd, dc, sizeof dc)) == -1)
 		{
-			log(LL_MER, "cmd_dump_mcons: sock_write 2 error - %s", strerror(errno));
+			llog(LL_MER, "cmd_dump_mcons: sock_write 2 error - %s", strerror(errno));
 		}
 	}
 }
@@ -845,7 +845,7 @@ monitor_command(struct monitor_connection * con, int fd, int rights)
 	{
 		if (u == 0)
 		{
-			/* log(LL_MER, "monitor read 0 bytes"); */
+			/* llog(LL_MER, "monitor read 0 bytes"); */
 			/* socket closed by peer */
 			close(fd);
 			return 1;
@@ -857,7 +857,7 @@ monitor_command(struct monitor_connection * con, int fd, int rights)
 
 	if (bytes < I4B_MON_CMD_HDR)
 	{
-		log(LL_MER, "monitor read only %d bytes", bytes);
+		llog(LL_MER, "monitor read only %d bytes", bytes);
 		return 0;	/* errh? something must be wrong... */
 	}
 
@@ -866,7 +866,7 @@ monitor_command(struct monitor_connection * con, int fd, int rights)
 	if (bytes >= sizeof cmd)
 	{
 		close(fd);
-		log(LL_MER, "monitor: garbage on connection");
+		llog(LL_MER, "monitor: garbage on connection");
 		return 1;
 	}
 
@@ -874,7 +874,7 @@ monitor_command(struct monitor_connection * con, int fd, int rights)
 
 	if(sock_read(fd, cmd, bytes) <= 0)
 	{
-		log(LL_MER, "monitor: sock_read <= 0");
+		llog(LL_MER, "monitor: sock_read <= 0");
 		close(fd);
 		return 1;
 	}
@@ -900,7 +900,7 @@ monitor_command(struct monitor_connection * con, int fd, int rights)
 
 	if (code < 0 || code >= NUMCMD)
 	{
-		log(LL_MER, "illegal command from client, code = %d\n",
+		llog(LL_MER, "illegal command from client, code = %d\n",
 			code);
 		return 0;
 	}
@@ -960,7 +960,7 @@ hangup_channel(int controller, int channel, const char *source)
 	return;
 
 found:
-	log(LL_CHD, "%05d %s manual disconnect (remote from %s)", cep->cdid, cep->name, source);
+	llog(LL_CHD, "%05d %s manual disconnect (remote from %s)", cep->cdid, cep->name, source);
 	cep->hangup = 1;
 	return;
 }
@@ -982,7 +982,7 @@ monitor_broadcast(int mask, u_int8_t *pkt, size_t bytes)
 
 			if((sock_write(fd, pkt, bytes)) == -1)
 			{
-				log(LL_MER, "monitor_broadcast: sock_write error - %s", strerror(errno));
+				llog(LL_MER, "monitor_broadcast: sock_write error - %s", strerror(errno));
 			}
 		}
 	}

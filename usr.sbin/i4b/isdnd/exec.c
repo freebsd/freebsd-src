@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Tue Mar 26 14:35:46 2002]
+ *      last edit-date: [Sat May 13 13:06:12 2006]
  *
  *---------------------------------------------------------------------------*/
 
@@ -61,23 +61,23 @@ sigchild_handler(int sig)
 	
 	if((pid = waitpid(-1, &retstat, WNOHANG)) <= 0)
 	{
-		log(LL_ERR, "ERROR, sigchild_handler, waitpid: %s", strerror(errno));
+		llog(LL_ERR, "ERROR, sigchild_handler, waitpid: %s", strerror(errno));
 		error_exit(1, "ERROR, sigchild_handler, waitpid: %s", strerror(errno));
 	}
 	else
 	{
 		if(WIFEXITED(retstat))
 		{
-			DBGL(DL_PROC, (log(LL_DBG, "normal child (pid=%d) termination, exitstat = %d",
+			DBGL(DL_PROC, (llog(LL_DBG, "normal child (pid=%d) termination, exitstat = %d",
 				pid, WEXITSTATUS(retstat))));
 		}
 		else if(WIFSIGNALED(retstat))
 		{
 			if(WCOREDUMP(retstat))
-				log(LL_WRN, "child (pid=%d) termination due to signal %d (coredump)",
+				llog(LL_WRN, "child (pid=%d) termination due to signal %d (coredump)",
 					pid, WTERMSIG(retstat));
 			else
-				log(LL_WRN, "child (pid=%d) termination due to signal %d",
+				llog(LL_WRN, "child (pid=%d) termination due to signal %d",
 					pid, WTERMSIG(retstat));
 		}
 	}
@@ -90,7 +90,7 @@ sigchild_handler(int sig)
 		{
 			if(pid_tab[i].cep->cdid != CDID_UNUSED)
 			{
-				DBGL(DL_PROC, (log(LL_DBG, "sigchild_handler: scheduling hangup for cdid %d, pid %d",
+				DBGL(DL_PROC, (llog(LL_DBG, "sigchild_handler: scheduling hangup for cdid %d, pid %d",
 					pid_tab[i].cep->cdid, pid_tab[i].pid)));
 				pid_tab[i].cep->hangup = 1;
 			}
@@ -123,12 +123,12 @@ exec_prog(char *prog, char **arglist)
 		strcat(tmp, arglist[a]);
 	}
 
-	DBGL(DL_PROC, (log(LL_DBG, "exec_prog: %s, args:%s", path, tmp)));
+	DBGL(DL_PROC, (llog(LL_DBG, "exec_prog: %s, args:%s", path, tmp)));
 	
 	switch(pid = fork())
 	{
 		case -1:		/* error */
-			log(LL_ERR, "ERROR, exec_prog/fork: %s", strerror(errno));
+			llog(LL_ERR, "ERROR, exec_prog/fork: %s", strerror(errno));
 			error_exit(1, "ERROR, exec_prog/fork: %s", strerror(errno));
 		case 0:			/* child */
 			break;
@@ -245,7 +245,7 @@ exec_answer(cfg_entry_t *cep)
 
 	/* exec program */
 	
-	DBGL(DL_PROC, (log(LL_DBG, "exec_answer: prog=[%s]", cep->answerprog)));
+	DBGL(DL_PROC, (llog(LL_DBG, "exec_answer: prog=[%s]", cep->answerprog)));
 	
 	pid = exec_prog(cep->answerprog, argv);
 		
@@ -283,7 +283,7 @@ check_and_kill(cfg_entry_t *cep)
 		{
 			pid_t kp;
 
-			DBGL(DL_PROC, (log(LL_DBG, "check_and_kill: killing pid %d", pid_tab[i].pid)));
+			DBGL(DL_PROC, (llog(LL_DBG, "check_and_kill: killing pid %d", pid_tab[i].pid)));
 
 			kp = pid_tab[i].pid;
 			pid_tab[i].pid = 0;			
@@ -312,18 +312,18 @@ upd_callstat_file(char *filename, int rotateflag)
 	{
 		/* file not there, create it and exit */
 		
-		log(LL_WRN, "upd_callstat_file: creating %s", filename);
+		llog(LL_WRN, "upd_callstat_file: creating %s", filename);
 
 		fp = fopen(filename, "w");
 		if(fp == NULL)
 		{
-			log(LL_ERR, "ERROR, upd_callstat_file: cannot create %s, %s", filename, strerror(errno));
+			llog(LL_ERR, "ERROR, upd_callstat_file: cannot create %s, %s", filename, strerror(errno));
 			return;
 		}
 
 		ret = fprintf(fp, "%ld %ld 1", now, now);
 		if(ret <= 0)
-			log(LL_ERR, "ERROR, upd_callstat_file: fprintf failed: %s", strerror(errno));
+			llog(LL_ERR, "ERROR, upd_callstat_file: fprintf failed: %s", strerror(errno));
 		
 		fclose(fp);
 		return;
@@ -341,7 +341,7 @@ upd_callstat_file(char *filename, int rotateflag)
 	{
 		/* file corrupt ? anyway, initialize */
 		
-		log(LL_WRN, "upd_callstat_file: initializing %s", filename);
+		llog(LL_WRN, "upd_callstat_file: initializing %s", filename);
 
 		s = l = now;
 		n = 0;
@@ -371,13 +371,13 @@ upd_callstat_file(char *filename, int rotateflag)
 			nfp = fopen(buf, "w");
 			if(nfp == NULL)
 			{
-				log(LL_ERR, "ERROR, upd_callstat_file: cannot open for write %s, %s", buf, strerror(errno));
+				llog(LL_ERR, "ERROR, upd_callstat_file: cannot open for write %s, %s", buf, strerror(errno));
 				return;
 			}
 
 			ret = fprintf(nfp, "%ld %ld %d", s, l, n);
 			if(ret <= 0)
-				log(LL_ERR, "ERROR, upd_callstat_file: fprintf failed: %s", strerror(errno));
+				llog(LL_ERR, "ERROR, upd_callstat_file: fprintf failed: %s", strerror(errno));
 			
 			fclose(nfp);
 
@@ -385,7 +385,7 @@ upd_callstat_file(char *filename, int rotateflag)
 			n = 0;
 			s = now;
 
-			log(LL_WRN, "upd_callstat_file: rotate %s, new s=%ld l=%ld n=%d", filename, s, l, n);
+			llog(LL_WRN, "upd_callstat_file: rotate %s, new s=%ld l=%ld n=%d", filename, s, l, n);
 		}				
 	}
 
@@ -399,7 +399,7 @@ upd_callstat_file(char *filename, int rotateflag)
 	ret = fprintf(fp, "%ld %ld %-3d", s, now, n);	
 
 	if(ret <= 0)
-		log(LL_ERR, "ERROR, upd_callstat_file: fprintf failed: %s", strerror(errno));
+		llog(LL_ERR, "ERROR, upd_callstat_file: fprintf failed: %s", strerror(errno));
 	
 	fclose(fp);
 }
