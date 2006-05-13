@@ -1,7 +1,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.5.2.1
+	Original Revision: 1.5.2.2
 	$FreeBSD$
 -->
 
@@ -17,6 +17,7 @@
     <year>2003</year>
     <year>2004</year>
     <year>2005</year>
+    <year>2006</year>
     <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
   </copyright>
 </articleinfo>

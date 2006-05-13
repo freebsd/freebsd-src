@@ -10,7 +10,7 @@
 
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.69.2.33
+	Original Revision: 1.69.2.35
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -109,6 +109,34 @@
 	</thead>
 
 	<tbody>
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:14.fpu.asc"
+		>06:14.fpu</ulink></entry>
+	    <entry>2006&nbsp;年&nbsp;4&nbsp;月&nbsp;19日</entry>
+	    <entry><para>FPU 信息泄露</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:13.sendmail.asc"
+		>06:13.sendmail</ulink></entry>
+	    <entry>2006&nbsp;年&nbsp;3&nbsp;月&nbsp;22&nbsp;日</entry>
+	    <entry><para>sendmail 中的竞态条件</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:12.opie.asc"
+		>06:12.opie</ulink></entry>
+	    <entry>2006&nbsp;年&nbsp;3&nbsp;月&nbsp;22&nbsp;日</entry>
+	    <entry><para>OPIE 允许修改任意口令</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:11.ipsec.asc"
+		>06:11.ipsec</ulink></entry>
+	    <entry>2006&nbsp;年&nbsp;3&nbsp;月&nbsp;22&nbsp;日</entry>
+	    <entry><para>IPsec 回应攻击漏洞</para></entry>
+	  </row>
+
 	  <row>
 	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:10.nfs.asc"
 		>06:10.nfs</ulink></entry>
