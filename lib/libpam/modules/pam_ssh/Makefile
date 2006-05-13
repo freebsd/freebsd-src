@@ -8,7 +8,7 @@ MAN=	pam_ssh.8
 SRCS=	pam_ssh.c
 
 WARNS?=	0
-CFLAGS+= -I${SSHSRC}
+CFLAGS+= -I${SSHSRC} -include ssh_namespace.h
 
 DPADD=	${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT}
 LDADD=	-lssh -lcrypto -lcrypt

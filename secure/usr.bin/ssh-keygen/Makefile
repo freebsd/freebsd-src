@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	ssh-keygen
-CFLAGS+=-I${SSHDIR}
+CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 
 DPADD=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
 LDADD=	-lssh -lcrypt -lcrypto -lz
