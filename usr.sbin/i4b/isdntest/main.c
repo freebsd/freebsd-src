@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Mar 13 17:19:26 2000]
+ *      last edit-date: [Sat May 13 16:50:38 2006]
  *
  *---------------------------------------------------------------------------*/
 
@@ -487,7 +487,7 @@ handle_disconnect(unsigned char *ptr)
 	}
 	else
 	{
-		fprintf(stderr, "isdntest: incoming disconnect indication, cdid %d (???), cause %d\n",
+		fprintf(stderr, "isdntest: incoming disconnect indication, cdid %d (\?\?\?), cause %d\n",
 			mdi->header.cdid, mdi->cause);
 	}		
 }
