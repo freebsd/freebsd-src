@@ -33,7 +33,6 @@ makeoptions	CONF_CFLAGS=-mcpu=arm9
 options		DDB
 options		KDB
 
-options		USART0_CONSOLE
 
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
@@ -43,6 +42,7 @@ options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	UFS_ACL			#Support for access control lists
 options 	UFS_DIRHASH		#Improve performance on big directories
 options 	MD_ROOT			#MD is a potential root device
+options		MD_ROOT_SIZE=4096
 options		ROOTDEVNAME=\"ufs:md0\"
 options 	NFSCLIENT		#Network Filesystem Client
 options 	NFSSERVER		#Network Filesystem Server
@@ -83,6 +83,7 @@ device		uart
 
 device		mem			# Memory and kernel memory devices
 device md
+options		SKYEYE_WORKAROUNDS
 options		ARM32_NEW_VM_LAYOUT
 # Floppy drives
 

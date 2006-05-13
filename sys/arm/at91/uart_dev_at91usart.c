@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2005 M. Warner Losh
- * Copyright (c) 2005 cognet
+ * Copyright (c) 2005 Olivier Houchard
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -322,6 +322,7 @@ errout:;
 	return (err);
 }
 
+#ifndef SKYEYE_WORKAROUNDS
 static void
 at91_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
@@ -329,22 +330,28 @@ at91_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		return;
 	*(bus_addr_t *)arg = segs[0].ds_addr;
 }
+#endif
 
 
 static int
 at91_usart_bus_transmit(struct uart_softc *sc)
 {
+#ifndef SKYEYE_WORKAROUNDS
 	bus_addr_t addr;
+#endif
 	struct at91_usart_softc *atsc;
 
 	atsc = (struct at91_usart_softc *)sc;
+#ifndef SKYEYE_WORKAROUNDS
 	if (bus_dmamap_load(atsc->dmatag, atsc->tx_map, sc->sc_txbuf,
 	    sc->sc_txdatasz, at91_getaddr, &addr, 0) != 0)
 		return (EAGAIN);
 	bus_dmamap_sync(atsc->dmatag, atsc->tx_map, BUS_DMASYNC_PREWRITE);
+#endif
 
 	uart_lock(sc->sc_hwmtx);
 	sc->sc_txbusy = 1;
+#ifndef SKYEYE_WORKAROUNDS
 	/*
 	 * Setup the PDC to transfer the data and interrupt us when it
 	 * is done.  We've already requested the interrupt.
@@ -353,7 +360,9 @@ at91_usart_bus_transmit(struct uart_softc *sc)
 	WR4(&sc->sc_bas, PDC_TCR, sc->sc_txdatasz);
 	WR4(&sc->sc_bas, PDC_PTCR, PDC_PTCR_TXTEN);
 	uart_unlock(sc->sc_hwmtx);
-#ifdef USART0_CONSOLE
+#else
+	for (int i = 0; i < sc->sc_txdatasz; i++)
+		at91_usart_putc(&sc->sc_bas, sc->sc_txbuf[i]);
 	/*
 	 * XXX: Gross hack : Skyeye doesn't raise an interrupt once the
 	 * transfer is done, so simulate it.
@@ -416,16 +425,7 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 	int ipend = 0;
 	struct at91_usart_softc *atsc;
 
-	atsc = (struct at91_usart_softc *)sc;
-#ifdef USART0_CONSOLE
-	/* 
-	 * XXX: We have to cheat for skyeye, as it will return 0xff for all
-	 * the devices it doesn't emulate.
-	 */
-	if (sc->sc_bas.chan != 1)
-		return (0);
-#endif
-	   
+	atsc = (struct at91_usart_softc *)sc;	   
 	if (csr & USART_CSR_ENDTX) {
 		bus_dmamap_sync(atsc->dmatag, atsc->tx_map,
 		    BUS_DMASYNC_POSTWRITE);

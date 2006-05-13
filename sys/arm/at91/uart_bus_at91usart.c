@@ -76,22 +76,20 @@ usart_at91rm92_probe(device_t dev)
 	switch (device_get_unit(dev))
 	{
 	case 0:
+#ifdef SKYEYE_WORKAROUNDS
+		device_set_desc(dev, "USART0");
+#else
 		device_set_desc(dev, "DBGU");
-#ifndef USART0_CONSOLE
+#endif
 		/*
 		 * Setting sc_sysdev makes this device a 'system device' and
 		 * indirectly makes it the system console.
 		 */
 		sc->sc_sysdev = SLIST_FIRST(&uart_sysdevs);
 		bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
-#endif
 		break;
 	case 1:
 		device_set_desc(dev, "USART0");
-#ifdef USART0_CONSOLE
-		sc->sc_sysdev = SLIST_FIRST(&uart_sysdevs);
-		bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
-#endif
 		break;
 	case 2:
 		device_set_desc(dev, "USART1");
@@ -104,7 +102,7 @@ usart_at91rm92_probe(device_t dev)
 		break;
 	}
 	sc->sc_class = &at91_usart_class;
-	return (uart_bus_probe(dev, 0, 0, 0, 0));
+	return (uart_bus_probe(dev, 0, 0, 0, device_get_unit(dev)));
 }
 
 
