@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Sat May 13 13:06:12 2006]
+ *      last edit-date: [Sat May 13 16:55:23 2006]
  *
  *---------------------------------------------------------------------------*/
 
@@ -321,7 +321,7 @@ upd_callstat_file(char *filename, int rotateflag)
 			return;
 		}
 
-		ret = fprintf(fp, "%ld %ld 1", now, now);
+		ret = fprintf(fp, "%d %d 1", now, now);
 		if(ret <= 0)
 			llog(LL_ERR, "ERROR, upd_callstat_file: fprintf failed: %s", strerror(errno));
 		
@@ -331,7 +331,7 @@ upd_callstat_file(char *filename, int rotateflag)
 
 	/* get contents */
 	
-	ret = fscanf(fp, "%ld %ld %d", &s, &l, &n);
+	ret = fscanf(fp, "%d %d %d", &s, &l, &n);
 
 	/* reset fp */
 	
@@ -375,7 +375,7 @@ upd_callstat_file(char *filename, int rotateflag)
 				return;
 			}
 
-			ret = fprintf(nfp, "%ld %ld %d", s, l, n);
+			ret = fprintf(nfp, "%d %d %d", s, l, n);
 			if(ret <= 0)
 				llog(LL_ERR, "ERROR, upd_callstat_file: fprintf failed: %s", strerror(errno));
 			
@@ -396,7 +396,7 @@ upd_callstat_file(char *filename, int rotateflag)
 	 * leftovers from previous contents!
 	 */
 
-	ret = fprintf(fp, "%ld %ld %-3d", s, now, n);	
+	ret = fprintf(fp, "%d %d %-3d", s, now, n);	
 
 	if(ret <= 0)
 		llog(LL_ERR, "ERROR, upd_callstat_file: fprintf failed: %s", strerror(errno));
