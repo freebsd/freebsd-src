@@ -701,6 +701,13 @@ out1:
 		else
 			error = expunge_ufs2(vp, xp, fs, snapacct_ufs2,
 			    BLK_SNAP);
+		if (error == 0 && xp->i_effnlink == 0) {
+			error = ffs_freefile(ump,
+					     copy_fs,
+					     vp,
+					     xp->i_number,
+					     xp->i_mode);
+		}
 		if (error) {
 			fs->fs_snapinum[snaploc] = 0;
 			goto done;
@@ -989,11 +996,11 @@ expunge_ufs1(snapvp, cancelip, fs, acctfunc, expungetype)
 	}
 	/*
 	 * Set a snapshot inode to be a zero length file, regular files
-	 * to be completely unallocated.
+	 * or unlinked snapshots to be completely unallocated.
 	 */
 	dip = (struct ufs1_dinode *)bp->b_data +
 	    ino_to_fsbo(fs, cancelip->i_number);
-	if (expungetype == BLK_NOCOPY)
+	if (expungetype == BLK_NOCOPY || cancelip->i_effnlink == 0)
 		dip->di_mode = 0;
 	dip->di_size = 0;
 	dip->di_blocks = 0;
