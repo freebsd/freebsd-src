@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Dec 26 12:49:45 2001]
+ *      last edit-date: [Sat May 13 13:07:18 2006]
  *
  *---------------------------------------------------------------------------*/
 
@@ -112,7 +112,7 @@ init_log(void)
 
 		if((p = malloc(strlen(buf) + 1)) == NULL)
 		{
-			log(LL_DBG, "init_log: malloc failed: %s", strerror(errno));
+			llog(LL_DBG, "init_log: malloc failed: %s", strerror(errno));
 			do_exit(1);
 		}
 
@@ -143,7 +143,7 @@ finish_log(void)
  *	place entry into logfile
  *---------------------------------------------------------------------------*/
 void
-log(int what, const char *fmt, ...)
+llog(int what, const char *fmt, ...)
 {
 	char buffer[LOGBUFLEN];
 	register char *dp;

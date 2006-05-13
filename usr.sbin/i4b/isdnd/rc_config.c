@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Sun Aug 11 12:30:49 2002]
+ *      last edit-date: [Sat May 13 13:11:48 2006]
  *
  *---------------------------------------------------------------------------*/
 
@@ -77,7 +77,7 @@ configure(char *filename, int reread)
 
 	if(yyin == NULL)
 	{
-		log(LL_ERR, "cannot fopen file [%s]", filename);
+		llog(LL_ERR, "cannot fopen file [%s]", filename);
 		exit(1);
 	}
 
@@ -98,7 +98,7 @@ configure(char *filename, int reread)
 	{
 		if(config_error_flag)
 		{
-			log(LL_ERR, "there were %d error(s) in the configuration file, terminating!", config_error_flag);
+			llog(LL_ERR, "there were %d error(s) in the configuration file, terminating!", config_error_flag);
 			exit(1);
 		}
 		print_config();
@@ -112,7 +112,7 @@ configure(char *filename, int reread)
 void
 yyerror(const char *msg)
 {
-	log(LL_ERR, "configuration error: %s at line %d, token \"%s\"", msg, lineno+1, yytext);
+	llog(LL_ERR, "configuration error: %s at line %d, token \"%s\"", msg, lineno+1, yytext);
 	config_error_flag++;
 }
 
@@ -231,7 +231,7 @@ void
 cfg_set_controller_default()
 {
 	controllercount = 0;
-	DBGL(DL_RCCF, (log(LL_DBG, "[defaults, no controller section] controller %d: protocol = dss1", controllercount)));
+	DBGL(DL_RCCF, (llog(LL_DBG, "[defaults, no controller section] controller %d: protocol = dss1", controllercount)));
 	isdn_ctrl_tab[controllercount].protocol = PROTOCOL_DSS1;
 }
 
@@ -277,7 +277,7 @@ set_isppp_auth(int entry)
 
 	/* use a random AF to create the socket */
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		log(LL_ERR, "ERROR opening control socket at line %d!", lineno);
+		llog(LL_ERR, "ERROR opening control socket at line %d!", lineno);
 		config_error_flag++;
 		return;
 	}
@@ -285,7 +285,7 @@ set_isppp_auth(int entry)
 	ifr.ifr_data = (caddr_t)&spr;
 
 	if (ioctl(s, SIOCGIFGENERIC, &ifr) == -1) {
-		log(LL_ERR, "ERROR fetching active PPP authentication info for %s at line %d!", ifr.ifr_name, lineno);
+		llog(LL_ERR, "ERROR fetching active PPP authentication info for %s at line %d!", ifr.ifr_name, lineno);
 		close(s);
 		config_error_flag++;
 		return;
@@ -336,7 +336,7 @@ set_isppp_auth(int entry)
 	spr.cmd = (int)SPPPIOSDEFS;
 
 	if (ioctl(s, SIOCSIFGENERIC, &ifr) == -1) {
-		log(LL_ERR, "ERROR setting new PPP authentication parameters for %s at line %d!", ifr.ifr_name, lineno);
+		llog(LL_ERR, "ERROR setting new PPP authentication parameters for %s at line %d!", ifr.ifr_name, lineno);
 		config_error_flag++;
 	}
 	close(s);
@@ -354,70 +354,70 @@ cfg_setval(int keyword)
 	{
 		case ACCTALL:
 			acct_all = yylval.booln;
-			DBGL(DL_RCCF, (log(LL_DBG, "system: acctall = %d", yylval.booln)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: acctall = %d", yylval.booln)));
 			break;
 			
 		case ACCTFILE:
 			strcpy(acctfile, yylval.str);
-			DBGL(DL_RCCF, (log(LL_DBG, "system: acctfile = %s", yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: acctfile = %s", yylval.str)));
 			break;
 	
 		case ADDPREFIX:
 			addprefix = yylval.booln;
-			DBGL(DL_RCCF, (log(LL_DBG, "system: add-prefix = %d", yylval.booln)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: add-prefix = %d", yylval.booln)));
 			break;
 
 		case ALERT:
 			if(yylval.num < MINALERT)
 			{
 				yylval.num = MINALERT;
-				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: alert < %d, min = %d", entrycount, MINALERT, yylval.num)));
+				DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: alert < %d, min = %d", entrycount, MINALERT, yylval.num)));
 			}
 			else if(yylval.num > MAXALERT)
 			{
 				yylval.num = MAXALERT;
-				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: alert > %d, min = %d", entrycount, MAXALERT, yylval.num)));
+				DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: alert > %d, min = %d", entrycount, MAXALERT, yylval.num)));
 			}
 				
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: alert = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: alert = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].alert = yylval.num;
 			break;
 
 		case ALIASING:
-			DBGL(DL_RCCF, (log(LL_DBG, "system: aliasing = %d", yylval.booln)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: aliasing = %d", yylval.booln)));
 			aliasing = yylval.booln;
 			break;
 
 		case ALIASFNAME:
 			strcpy(aliasfile, yylval.str);
-			DBGL(DL_RCCF, (log(LL_DBG, "system: aliasfile = %s", yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: aliasfile = %s", yylval.str)));
 			break;
 
 		case ANSWERPROG:
 			if((cfg_entry_tab[entrycount].answerprog = malloc(strlen(yylval.str)+1)) == NULL)
 			{
-				log(LL_ERR, "entry %d: answerstring, malloc failed!", entrycount);
+				llog(LL_ERR, "entry %d: answerstring, malloc failed!", entrycount);
 				do_exit(1);
 			}
 			strcpy(cfg_entry_tab[entrycount].answerprog, yylval.str);
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: answerprog = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: answerprog = %s", entrycount, yylval.str)));
 			break;
 			
 		case B1PROTOCOL:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: b1protocol = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: b1protocol = %s", entrycount, yylval.str)));
 			if(!(strcmp(yylval.str, "raw")))
 				cfg_entry_tab[entrycount].b1protocol = BPROT_NONE;
 			else if(!(strcmp(yylval.str, "hdlc")))
 				cfg_entry_tab[entrycount].b1protocol = BPROT_RHDLC;
 			else
 			{
-				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"b1protocol\" at line %d!", lineno);
+				llog(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"b1protocol\" at line %d!", lineno);
 				config_error_flag++;
 			}
 			break;
 
 		case BCAP:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: bcap = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: bcap = %s", entrycount, yylval.str)));
 			cfg_entry_tab[entrycount].bcap = BCAP_NONE;
 			if(!(strcmp(yylval.str, "dov")))
 				cfg_entry_tab[entrycount].bcap = BCAP_DOV;
@@ -425,32 +425,32 @@ cfg_setval(int keyword)
 
 		case BEEPCONNECT:
 			do_bell = yylval.booln;
-			DBGL(DL_RCCF, (log(LL_DBG, "system: beepconnect = %d", yylval.booln)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: beepconnect = %d", yylval.booln)));
 			break;
 
 		case BUDGETCALLBACKPERIOD:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: budget-callbackperiod = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: budget-callbackperiod = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].budget_callbackperiod = yylval.num;
 			break;
 
 		case BUDGETCALLBACKNCALLS:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: budget-callbackncalls = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: budget-callbackncalls = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].budget_callbackncalls = yylval.num;
 			break;
 			
 		case BUDGETCALLOUTPERIOD:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: budget-calloutperiod = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: budget-calloutperiod = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].budget_calloutperiod = yylval.num;
 			break;
 
 		case BUDGETCALLOUTNCALLS:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: budget-calloutncalls = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: budget-calloutncalls = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].budget_calloutncalls = yylval.num;
 			break;
 
 		case BUDGETCALLBACKSFILEROTATE:
 			cfg_entry_tab[entrycount].budget_callbacksfile_rotate = yylval.booln;
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: budget-callbacksfile-rotate = %d", entrycount, yylval.booln)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: budget-callbacksfile-rotate = %d", entrycount, yylval.booln)));
 			break;
 			
 		case BUDGETCALLBACKSFILE:
@@ -458,13 +458,13 @@ cfg_setval(int keyword)
 				FILE *fp;
 				int s, l;
 				int n;
-				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: budget-callbacksfile = %s", entrycount, yylval.str)));
+				DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: budget-callbacksfile = %s", entrycount, yylval.str)));
 				fp = fopen(yylval.str, "r");
 				if(fp != NULL)
 				{
 					if((fscanf(fp, "%d %d %d", (int *)&s, (int *)&l, &n)) != 3)
 					{
-						DBGL(DL_RCCF, (log(LL_DBG, "entry %d: initializing budget-callbacksfile %s", entrycount, yylval.str)));
+						DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: initializing budget-callbacksfile %s", entrycount, yylval.str)));
 						fclose(fp);
 						fp = fopen(yylval.str, "w");
 						if(fp != NULL)
@@ -476,7 +476,7 @@ cfg_setval(int keyword)
 				}
 				else
 				{
-					DBGL(DL_RCCF, (log(LL_DBG, "entry %d: creating budget-callbacksfile %s", entrycount, yylval.str)));
+					DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: creating budget-callbacksfile %s", entrycount, yylval.str)));
 					fp = fopen(yylval.str, "w");
 					if(fp != NULL)
 					{
@@ -492,11 +492,11 @@ cfg_setval(int keyword)
 					{
 						if((cfg_entry_tab[entrycount].budget_callbacks_file = malloc(strlen(yylval.str)+1)) == NULL)
 						{
-							log(LL_ERR, "entry %d: budget-callbacksfile, malloc failed!", entrycount);
+							llog(LL_ERR, "entry %d: budget-callbacksfile, malloc failed!", entrycount);
 							do_exit(1);
 						}
 						strcpy(cfg_entry_tab[entrycount].budget_callbacks_file, yylval.str);
-						DBGL(DL_RCCF, (log(LL_DBG, "entry %d: using callbacksfile %s", entrycount, yylval.str)));
+						DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: using callbacksfile %s", entrycount, yylval.str)));
 					}
 					fclose(fp);
 				}
@@ -505,7 +505,7 @@ cfg_setval(int keyword)
 
 		case BUDGETCALLOUTSFILEROTATE:
 			cfg_entry_tab[entrycount].budget_calloutsfile_rotate = yylval.booln;
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: budget-calloutsfile-rotate = %d", entrycount, yylval.booln)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: budget-calloutsfile-rotate = %d", entrycount, yylval.booln)));
 			break;
 
 		case BUDGETCALLOUTSFILE:
@@ -513,13 +513,13 @@ cfg_setval(int keyword)
 				FILE *fp;
 				int s, l;
 				int n;
-				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: budget-calloutsfile = %s", entrycount, yylval.str)));
+				DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: budget-calloutsfile = %s", entrycount, yylval.str)));
 				fp = fopen(yylval.str, "r");
 				if(fp != NULL)
 				{
 					if((fscanf(fp, "%d %d %d", (int *)&s, (int *)&l, &n)) != 3)
 					{
-						DBGL(DL_RCCF, (log(LL_DBG, "entry %d: initializing budget-calloutsfile %s", entrycount, yylval.str)));
+						DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: initializing budget-calloutsfile %s", entrycount, yylval.str)));
 						fclose(fp);
 						fp = fopen(yylval.str, "w");
 						if(fp != NULL)
@@ -531,7 +531,7 @@ cfg_setval(int keyword)
 				}
 				else
 				{
-					DBGL(DL_RCCF, (log(LL_DBG, "entry %d: creating budget-calloutsfile %s", entrycount, yylval.str)));
+					DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: creating budget-calloutsfile %s", entrycount, yylval.str)));
 					fp = fopen(yylval.str, "w");
 					if(fp != NULL)
 					{
@@ -547,11 +547,11 @@ cfg_setval(int keyword)
 					{
 						if((cfg_entry_tab[entrycount].budget_callouts_file = malloc(strlen(yylval.str)+1)) == NULL)
 						{
-							log(LL_ERR, "entry %d: budget-calloutsfile, malloc failed!", entrycount);
+							llog(LL_ERR, "entry %d: budget-calloutsfile, malloc failed!", entrycount);
 							do_exit(1);
 						}
 						strcpy(cfg_entry_tab[entrycount].budget_callouts_file, yylval.str);
-						DBGL(DL_RCCF, (log(LL_DBG, "entry %d: using calloutsfile %s", entrycount, yylval.str)));
+						DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: using calloutsfile %s", entrycount, yylval.str)));
 					}
 					fclose(fp);
 				}
@@ -562,10 +562,10 @@ cfg_setval(int keyword)
 			if(yylval.num < CALLBACKWAIT_MIN)
 			{
 				yylval.num = CALLBACKWAIT_MIN;
-				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: callbackwait < %d, min = %d", entrycount, CALLBACKWAIT_MIN, yylval.num)));
+				DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: callbackwait < %d, min = %d", entrycount, CALLBACKWAIT_MIN, yylval.num)));
 			}
 
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: callbackwait = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: callbackwait = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].callbackwait = yylval.num;
 			break;
 			
@@ -573,10 +573,10 @@ cfg_setval(int keyword)
 			if(yylval.num < CALLEDBACKWAIT_MIN)
 			{
 				yylval.num = CALLEDBACKWAIT_MIN;
-				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: calledbackwait < %d, min = %d", entrycount, CALLEDBACKWAIT_MIN, yylval.num)));
+				DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: calledbackwait < %d, min = %d", entrycount, CALLEDBACKWAIT_MIN, yylval.num)));
 			}
 
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: calledbackwait = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: calledbackwait = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].calledbackwait = yylval.num;
 			break;
 
@@ -595,11 +595,11 @@ cfg_setval(int keyword)
 			if (!strcmp(cfg_entry_tab[i].name, yylval.str))
 			    break;
 		    if (i == entrycount) {
-			log(LL_ERR, "entry %d: clone, unknown entry %s!", entrycount, yylval.str);
+			llog(LL_ERR, "entry %d: clone, unknown entry %s!", entrycount, yylval.str);
 			do_exit(1);
 		    }
 		    
-		    DBGL(DL_RCCF, (log(LL_DBG, "entry %d: clone = %s", entrycount, yylval.str)));
+		    DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: clone = %s", entrycount, yylval.str)));
 
 		    memcpy(&cfg_entry_tab[entrycount], &cfg_entry_tab[i],
 			   sizeof(cfg_entry_tab[0]));
@@ -619,38 +619,38 @@ cfg_setval(int keyword)
 		case CONNECTPROG:
 			if((cfg_entry_tab[entrycount].connectprog = malloc(strlen(yylval.str)+1)) == NULL)
 			{
-				log(LL_ERR, "entry %d: connectprog, malloc failed!", entrycount);
+				llog(LL_ERR, "entry %d: connectprog, malloc failed!", entrycount);
 				do_exit(1);
 			}
 			strcpy(cfg_entry_tab[entrycount].connectprog, yylval.str);
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: connectprog = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: connectprog = %s", entrycount, yylval.str)));
 			break;
 			
 		case DIALOUTTYPE:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: dialouttype = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: dialouttype = %s", entrycount, yylval.str)));
 			if(!(strcmp(yylval.str, "normal")))
 				cfg_entry_tab[entrycount].dialouttype = DIALOUT_NORMAL;
 			else if(!(strcmp(yylval.str, "calledback")))
 				cfg_entry_tab[entrycount].dialouttype = DIALOUT_CALLEDBACK;
 			else
 			{
-				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"dialout-type\" at line %d!", lineno);
+				llog(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"dialout-type\" at line %d!", lineno);
 				config_error_flag++;
 			}
 			break;
 
 		case DIALRETRIES:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: dialretries = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: dialretries = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].dialretries = yylval.num;
 			break;
 
 		case DIALRANDINCR:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: dialrandincr = %d", entrycount, yylval.booln)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: dialrandincr = %d", entrycount, yylval.booln)));
 			cfg_entry_tab[entrycount].dialrandincr = yylval.booln;
 			break;
 
 		case DIRECTION:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: direction = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: direction = %s", entrycount, yylval.str)));
 
 			if(!(strcmp(yylval.str, "inout")))
 				cfg_entry_tab[entrycount].inout = DIR_INOUT;
@@ -660,7 +660,7 @@ cfg_setval(int keyword)
 				cfg_entry_tab[entrycount].inout = DIR_OUTONLY;
 			else
 			{
-				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"direction\" at line %d!", lineno);
+				llog(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"direction\" at line %d!", lineno);
 				config_error_flag++;
 			}
 			break;
@@ -668,11 +668,11 @@ cfg_setval(int keyword)
 		case DISCONNECTPROG:
 			if((cfg_entry_tab[entrycount].disconnectprog = malloc(strlen(yylval.str)+1)) == NULL)
 			{
-				log(LL_ERR, "entry %d: disconnectprog, malloc failed!", entrycount);
+				llog(LL_ERR, "entry %d: disconnectprog, malloc failed!", entrycount);
 				do_exit(1);
 			}
 			strcpy(cfg_entry_tab[entrycount].disconnectprog, yylval.str);
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: disconnectprog = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: disconnectprog = %s", entrycount, yylval.str)));
 			break;
 
 		case DOWNTRIES:
@@ -681,7 +681,7 @@ cfg_setval(int keyword)
 			else if(yylval.num < DOWN_TRIES_MIN)
 				yylval.num = DOWN_TRIES_MIN;
 		
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: downtries = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: downtries = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].downtries = yylval.num;
 			break;
 
@@ -691,32 +691,32 @@ cfg_setval(int keyword)
 			else if(yylval.num < DOWN_TIME_MIN)
 				yylval.num = DOWN_TIME_MIN;
 		
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: downtime = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: downtime = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].downtime = yylval.num;
 			break;
 
 		case EARLYHANGUP:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: earlyhangup = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: earlyhangup = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].earlyhangup = yylval.num;
 			break;
 
 		case EXTCALLATTR:
-			DBGL(DL_RCCF, (log(LL_DBG, "system: extcallattr = %d", yylval.booln)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: extcallattr = %d", yylval.booln)));
 			extcallattr = yylval.booln;
 			break;
 
 		case FIRMWARE:
-			DBGL(DL_RCCF, (log(LL_DBG, "controller %d: firmware = %s", controllercount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "controller %d: firmware = %s", controllercount, yylval.str)));
 			isdn_ctrl_tab[controllercount].firmware = strdup(yylval.str);
 			break;
 
 		case HOLIDAYFILE:
 			strcpy(holidayfile, yylval.str);
-			DBGL(DL_RCCF, (log(LL_DBG, "system: holidayfile = %s", yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: holidayfile = %s", yylval.str)));
 			break;
 
 		case IDLE_ALG_OUT:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: idle-algorithm-outgoing = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: idle-algorithm-outgoing = %s", entrycount, yylval.str)));
 
 			if(!(strcmp(yylval.str, "fix-unit-size")))
 			{
@@ -728,119 +728,119 @@ cfg_setval(int keyword)
 			}
 			else
 			{
-				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"idle-algorithm-outgoing\" at line %d!", lineno);
+				llog(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"idle-algorithm-outgoing\" at line %d!", lineno);
 				config_error_flag++;
 			}
 			break;
 
 		case IDLETIME_IN:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: idle_time_in = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: idle_time_in = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].idle_time_in = yylval.num;
 			break;
 			
 		case IDLETIME_OUT:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: idle_time_out = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: idle_time_out = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].idle_time_out = yylval.num;
 			break;
 
 		case ISDNCONTROLLER:
 			cfg_entry_tab[entrycount].isdncontroller = yylval.num;
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: isdncontroller = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: isdncontroller = %d", entrycount, yylval.num)));
 			break;
 
 		case ISDNCHANNEL:
 		        if (yylval.num == 0 || yylval.num == -1)
 			{
 					cfg_entry_tab[entrycount].isdnchannel = CHAN_ANY;
-					DBGL(DL_RCCF, (log(LL_DBG, "entry %d: isdnchannel = any", entrycount)));
+					DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: isdnchannel = any", entrycount)));
 			}
 			else if (yylval.num > MAX_BCHAN)
 			{
-					log(LL_DBG, "entry %d: isdnchannel value out of range", entrycount);
+					llog(LL_DBG, "entry %d: isdnchannel value out of range", entrycount);
 					config_error_flag++;
 			}
 			else
 			{
 			    cfg_entry_tab[entrycount].isdnchannel = yylval.num-1;
-			    DBGL(DL_RCCF, (log(LL_DBG, "entry %d: isdnchannel = B%d", entrycount, yylval.num)));
+			    DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: isdnchannel = B%d", entrycount, yylval.num)));
 			}
 			break;
 
 		case ISDNTIME:
-			DBGL(DL_RCCF, (log(LL_DBG, "system: isdntime = %d", yylval.booln)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: isdntime = %d", yylval.booln)));
 			isdntime = yylval.booln;
 			break;
 
 		case ISDNTXDELIN:
 			cfg_entry_tab[entrycount].isdntxdelin = yylval.num;
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: isdntxdel-incoming = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: isdntxdel-incoming = %d", entrycount, yylval.num)));
 			break;
 
 		case ISDNTXDELOUT:
 			cfg_entry_tab[entrycount].isdntxdelout = yylval.num;
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: isdntxdel-outgoing = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: isdntxdel-outgoing = %d", entrycount, yylval.num)));
 			break;
 
 		case LOCAL_PHONE_DIALOUT:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: local_phone_dialout = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: local_phone_dialout = %s", entrycount, yylval.str)));
 			strcpy(cfg_entry_tab[entrycount].local_phone_dialout.number, yylval.str);
 			break;
 
 		case LOCAL_SUBADDR_DIALOUT:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: local_subaddr_dialout = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: local_subaddr_dialout = %s", entrycount, yylval.str)));
 			strcpy(cfg_entry_tab[entrycount].local_phone_dialout.subaddr, yylval.str);
 			break;
 
 		case LOCAL_PHONE_INCOMING:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: local_phone_incoming = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: local_phone_incoming = %s", entrycount, yylval.str)));
 			strcpy(cfg_entry_tab[entrycount].local_phone_incoming.number, yylval.str);
 			break;
 
 		case LOCAL_SUBADDR_INCOMING:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: local_subaddr_incoming = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: local_subaddr_incoming = %s", entrycount, yylval.str)));
 			strcpy(cfg_entry_tab[entrycount].local_phone_incoming.subaddr, yylval.str);
 			break;
 
 		case MAILER:
 			strcpy(mailer, yylval.str);
-			DBGL(DL_RCCF, (log(LL_DBG, "system: mailer = %s", yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: mailer = %s", yylval.str)));
 			break;
 
 		case MAILTO:
 			strcpy(mailto, yylval.str);
-			DBGL(DL_RCCF, (log(LL_DBG, "system: mailto = %s", yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: mailto = %s", yylval.str)));
 			break;
 
 		case MAXCONNECTTIME:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: maxconnecttime = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: maxconnecttime = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].maxconnecttime = yylval.num;
 			break;
 
 		case MONITORPORT:
 			monitorport = yylval.num;
-			DBGL(DL_RCCF, (log(LL_DBG, "system: monitorport = %d", yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: monitorport = %d", yylval.num)));
 			break;
 
 		case MONITORSW:
 			if (yylval.booln && inhibit_monitor)
 			{
 				do_monitor = 0;
-				DBGL(DL_RCCF, (log(LL_DBG, "system: monitor-enable overriden by command line flag")));
+				DBGL(DL_RCCF, (llog(LL_DBG, "system: monitor-enable overriden by command line flag")));
 			}
 			else
 			{
 				do_monitor = yylval.booln;
-				DBGL(DL_RCCF, (log(LL_DBG, "system: monitor-enable = %d", yylval.booln)));
+				DBGL(DL_RCCF, (llog(LL_DBG, "system: monitor-enable = %d", yylval.booln)));
 			}
 			break;
 
 		case NAME:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: name = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: name = %s", entrycount, yylval.str)));
 			strcpy(cfg_entry_tab[entrycount].name, yylval.str);
 			break;
 
 		case PPP_AUTH_RECHALLENGE:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ppp-auth-rechallenge = %d", entrycount, yylval.booln)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: ppp-auth-rechallenge = %d", entrycount, yylval.booln)));
 			if(yylval.booln)
 				cfg_entry_tab[entrycount].ppp_auth_flags |= AUTH_RECHALLENGE;
 			else
@@ -849,7 +849,7 @@ cfg_setval(int keyword)
 			break;
 
 		case PPP_AUTH_PARANOID:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ppp-auth-paranoid = %d", entrycount, yylval.booln)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: ppp-auth-paranoid = %d", entrycount, yylval.booln)));
 			if(yylval.booln)
 				cfg_entry_tab[entrycount].ppp_auth_flags |= AUTH_REQUIRED;
 			else
@@ -858,7 +858,7 @@ cfg_setval(int keyword)
 			break;
 
 		case PPP_EXPECT_AUTH:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ppp-expect-auth = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: ppp-expect-auth = %s", entrycount, yylval.str)));
 			if(!(strcmp(yylval.str, "none")))
 				cfg_entry_tab[entrycount].ppp_expect_auth = AUTH_NONE;
 			else if(!(strcmp(yylval.str, "pap")))
@@ -867,7 +867,7 @@ cfg_setval(int keyword)
 				cfg_entry_tab[entrycount].ppp_expect_auth = AUTH_CHAP;
 			else
 			{
-				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"ppp-expect-auth\" at line %d!", lineno);
+				llog(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"ppp-expect-auth\" at line %d!", lineno);
 				config_error_flag++;
 				break;
 			}
@@ -875,19 +875,19 @@ cfg_setval(int keyword)
 			break;
 
 		case PPP_EXPECT_NAME:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ppp-expect-name = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: ppp-expect-name = %s", entrycount, yylval.str)));
 			strncpy(cfg_entry_tab[entrycount].ppp_expect_name, yylval.str, sizeof(cfg_entry_tab[entrycount].ppp_expect_name) -1);
 			set_isppp_auth(entrycount);
 			break;
 
 		case PPP_EXPECT_PASSWORD:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ppp-expect-password = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: ppp-expect-password = %s", entrycount, yylval.str)));
 			strncpy(cfg_entry_tab[entrycount].ppp_expect_password, yylval.str, sizeof(cfg_entry_tab[entrycount].ppp_expect_password) -1);
 			set_isppp_auth(entrycount);
 			break;
 
 		case PPP_SEND_AUTH:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ppp-send-auth = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: ppp-send-auth = %s", entrycount, yylval.str)));
 			if(!(strcmp(yylval.str, "none")))
 				cfg_entry_tab[entrycount].ppp_send_auth = AUTH_NONE;
 			else if(!(strcmp(yylval.str, "pap")))
@@ -896,7 +896,7 @@ cfg_setval(int keyword)
 				cfg_entry_tab[entrycount].ppp_send_auth = AUTH_CHAP;
 			else
 			{
-				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"ppp-send-auth\" at line %d!", lineno);
+				llog(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"ppp-send-auth\" at line %d!", lineno);
 				config_error_flag++;
 				break;
 			}
@@ -904,42 +904,42 @@ cfg_setval(int keyword)
 			break;
 
 		case PPP_SEND_NAME:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ppp-send-name = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: ppp-send-name = %s", entrycount, yylval.str)));
 			strncpy(cfg_entry_tab[entrycount].ppp_send_name, yylval.str, sizeof(cfg_entry_tab[entrycount].ppp_send_name) -1);
 			set_isppp_auth(entrycount);
 			break;
 
 		case PPP_SEND_PASSWORD:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ppp-send-password = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: ppp-send-password = %s", entrycount, yylval.str)));
 			strncpy(cfg_entry_tab[entrycount].ppp_send_password, yylval.str, sizeof(cfg_entry_tab[entrycount].ppp_send_password) -1);
 			set_isppp_auth(entrycount);
 			break;
 
 		case PREFIXINTERNATIONAL:
 			strncpy(prefixinternational, yylval.str, sizeof(prefixinternational)-1);
-			DBGL(DL_RCCF, (log(LL_DBG, "system: prefix-international = %s", prefixinternational)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: prefix-international = %s", prefixinternational)));
 			break;
 
 		case PREFIXNATIONAL:
 			strncpy(prefixnational, yylval.str, sizeof(prefixnational)-1);
-			DBGL(DL_RCCF, (log(LL_DBG, "system: prefix-national = %s", prefixnational)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: prefix-national = %s", prefixnational)));
 			break;
 
 		case PROTOCOL:
-			DBGL(DL_RCCF, (log(LL_DBG, "controller %d: protocol = %s", controllercount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "controller %d: protocol = %s", controllercount, yylval.str)));
 			if(!(strcmp(yylval.str, "dss1")))
 				isdn_ctrl_tab[controllercount].protocol = PROTOCOL_DSS1;
 			else if(!(strcmp(yylval.str, "d64s")))
 				isdn_ctrl_tab[controllercount].protocol = PROTOCOL_D64S;
 			else
 			{
-				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"protocol\" at line %d!", lineno);
+				llog(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"protocol\" at line %d!", lineno);
 				config_error_flag++;
 			}
 			break;
 
 		case REACTION:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: dialin_reaction = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: dialin_reaction = %s", entrycount, yylval.str)));
 			if(!(strcmp(yylval.str, "accept")))
 				cfg_entry_tab[entrycount].dialin_reaction = REACT_ACCEPT;
 			else if(!(strcmp(yylval.str, "reject")))
@@ -952,7 +952,7 @@ cfg_setval(int keyword)
 				cfg_entry_tab[entrycount].dialin_reaction = REACT_CALLBACK;
 			else
 			{
-				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"dialin_reaction\" at line %d!", lineno);
+				llog(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"dialin_reaction\" at line %d!", lineno);
 				config_error_flag++;
 			}
 			break;
@@ -960,12 +960,12 @@ cfg_setval(int keyword)
 		case REMOTE_PHONE_DIALOUT:
 			if(cfg_entry_tab[entrycount].remote_numbers_count >= MAXRNUMBERS)
 			{
-				log(LL_ERR, "ERROR parsing config file: too many remote numbers at line %d!", lineno);
+				llog(LL_ERR, "ERROR parsing config file: too many remote numbers at line %d!", lineno);
 				config_error_flag++;
 				break;
 			}				
 			
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: remote_phone_dialout #%d = %s",
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: remote_phone_dialout #%d = %s",
 				entrycount, cfg_entry_tab[entrycount].remote_numbers_count, yylval.str)));
 
 			strcpy(cfg_entry_tab[entrycount].remote_numbers[cfg_entry_tab[entrycount].remote_numbers_count].number, yylval.str);
@@ -978,12 +978,12 @@ cfg_setval(int keyword)
 		case REMOTE_SUBADDR_DIALOUT:
 			if(cfg_entry_tab[entrycount].remote_subaddr_count >= MAXRNUMBERS)
 			{
-				log(LL_ERR, "ERROR parsing config file: too many remote subaddresses at line %d!", lineno);
+				llog(LL_ERR, "ERROR parsing config file: too many remote subaddresses at line %d!", lineno);
 				config_error_flag++;
 				break;
 			}				
 			
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: remote_subaddr_dialout #%d = %s",
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: remote_subaddr_dialout #%d = %s",
 				entrycount, cfg_entry_tab[entrycount].remote_numbers_count, yylval.str)));
 
 			strcpy(cfg_entry_tab[entrycount].remote_numbers[cfg_entry_tab[entrycount].remote_numbers_count].subaddr, yylval.str);
@@ -991,7 +991,7 @@ cfg_setval(int keyword)
 			break;
 
 		case REMOTE_NUMBERS_HANDLING:			
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: remdial_handling = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: remdial_handling = %s", entrycount, yylval.str)));
 			if(!(strcmp(yylval.str, "next")))
 				cfg_entry_tab[entrycount].remote_numbers_handling = RNH_NEXT;
 			else if(!(strcmp(yylval.str, "last")))
@@ -1000,7 +1000,7 @@ cfg_setval(int keyword)
 				cfg_entry_tab[entrycount].remote_numbers_handling = RNH_FIRST;
 			else
 			{
-				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"remdial_handling\" at line %d!", lineno);
+				llog(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"remdial_handling\" at line %d!", lineno);
 				config_error_flag++;
 			}
 			break;
@@ -1011,11 +1011,11 @@ cfg_setval(int keyword)
 				n = cfg_entry_tab[entrycount].incoming_numbers_count;
 				if (n >= MAX_INCOMING)
 				{
-					log(LL_ERR, "ERROR parsing config file: too many \"remote_phone_incoming\" entries at line %d!", lineno);
+					llog(LL_ERR, "ERROR parsing config file: too many \"remote_phone_incoming\" entries at line %d!", lineno);
 					config_error_flag++;
 					break;
 				}
-				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: remote_phone_incoming #%d = %s", entrycount, n, yylval.str)));
+				DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: remote_phone_incoming #%d = %s", entrycount, n, yylval.str)));
 				strcpy(cfg_entry_tab[entrycount].remote_phone_incoming[n].number, yylval.str);
 				cfg_entry_tab[entrycount].incoming_numbers_count++;
 			}
@@ -1027,22 +1027,22 @@ cfg_setval(int keyword)
 				n = cfg_entry_tab[entrycount].incoming_numbers_count;
 				if (n >= MAX_INCOMING)
 				{
-					log(LL_ERR, "ERROR parsing config file: too many \"remote_subaddr_incoming\" entries at line %d!", lineno);
+					llog(LL_ERR, "ERROR parsing config file: too many \"remote_subaddr_incoming\" entries at line %d!", lineno);
 					config_error_flag++;
 					break;
 				}
-				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: remote_subaddr_incoming #%d = %s", entrycount, n, yylval.str)));
+				DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: remote_subaddr_incoming #%d = %s", entrycount, n, yylval.str)));
 				strcpy(cfg_entry_tab[entrycount].remote_phone_incoming[n].subaddr, yylval.str);
 			}
 			break;
 
 		case RATESFILE:
 			strcpy(ratesfile, yylval.str);
-			DBGL(DL_RCCF, (log(LL_DBG, "system: ratesfile = %s", yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: ratesfile = %s", yylval.str)));
 			break;
 
 		case RATETYPE:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ratetype = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: ratetype = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].ratetype = yylval.num;
 			break;
 		
@@ -1050,17 +1050,17 @@ cfg_setval(int keyword)
 			if(yylval.num < RECOVERYTIME_MIN)
 			{
 				yylval.num = RECOVERYTIME_MIN;
-				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: recoverytime < %d, min = %d", entrycount, RECOVERYTIME_MIN, yylval.num)));
+				DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: recoverytime < %d, min = %d", entrycount, RECOVERYTIME_MIN, yylval.num)));
 			}
 
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: recoverytime = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: recoverytime = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].recoverytime = yylval.num;
 			break;
 		
 		case REGEXPR:
 			if(nregexpr >= MAX_RE)
 			{
-				log(LL_ERR, "system: regexpr #%d >= MAX_RE", nregexpr);
+				llog(LL_ERR, "system: regexpr #%d >= MAX_RE", nregexpr);
 				config_error_flag++;
 				break;
 			}
@@ -1069,7 +1069,7 @@ cfg_setval(int keyword)
 		        {
                 		char buf[256];
                 		regerror(i, &(rarr[nregexpr].re), buf, sizeof(buf));
-				log(LL_ERR, "system: regcomp error for %s: [%s]", yylval.str, buf);
+				llog(LL_ERR, "system: regcomp error for %s: [%s]", yylval.str, buf);
 				config_error_flag++;
                 		break;
 			}
@@ -1077,13 +1077,13 @@ cfg_setval(int keyword)
 			{
 				if((rarr[nregexpr].re_expr = malloc(strlen(yylval.str)+1)) == NULL)
 				{
-					log(LL_ERR, "system: regexpr malloc error error for %s", yylval.str);
+					llog(LL_ERR, "system: regexpr malloc error error for %s", yylval.str);
 					config_error_flag++;
 					break;
 				}
 				strcpy(rarr[nregexpr].re_expr, yylval.str);
 
-				DBGL(DL_RCCF, (log(LL_DBG, "system: regexpr %s stored into slot %d", yylval.str, nregexpr)));
+				DBGL(DL_RCCF, (llog(LL_DBG, "system: regexpr %s stored into slot %d", yylval.str, nregexpr)));
 				
 				if(rarr[nregexpr].re_prog != NULL)
 					rarr[nregexpr].re_flg = 1;
@@ -1096,19 +1096,19 @@ cfg_setval(int keyword)
 		case REGPROG:
 			if(nregprog >= MAX_RE)
 			{
-				log(LL_ERR, "system: regprog #%d >= MAX_RE", nregprog);
+				llog(LL_ERR, "system: regprog #%d >= MAX_RE", nregprog);
 				config_error_flag++;
 				break;
 			}
 			if((rarr[nregprog].re_prog = malloc(strlen(yylval.str)+1)) == NULL)
 			{
-				log(LL_ERR, "system: regprog malloc error error for %s", yylval.str);
+				llog(LL_ERR, "system: regprog malloc error error for %s", yylval.str);
 				config_error_flag++;
 				break;
 			}
 			strcpy(rarr[nregprog].re_prog, yylval.str);
 
-			DBGL(DL_RCCF, (log(LL_DBG, "system: regprog %s stored into slot %d", yylval.str, nregprog)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: regprog %s stored into slot %d", yylval.str, nregprog)));
 			
 			if(rarr[nregprog].re_expr != NULL)
 				rarr[nregprog].re_flg = 1;
@@ -1118,7 +1118,7 @@ cfg_setval(int keyword)
 
 		case ROTATESUFFIX:
 			strcpy(rotatesuffix, yylval.str);
-			DBGL(DL_RCCF, (log(LL_DBG, "system: rotatesuffix = %s", yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: rotatesuffix = %s", yylval.str)));
 			break;
 
 		case RTPRIO:
@@ -1127,11 +1127,11 @@ cfg_setval(int keyword)
 			if(rt_prio < RTP_PRIO_MIN || rt_prio > RTP_PRIO_MAX)
 			{
 				config_error_flag++;
-				log(LL_ERR, "system: error, rtprio (%d) out of range!", yylval.num);
+				llog(LL_ERR, "system: error, rtprio (%d) out of range!", yylval.num);
 			}
 			else
 			{
-				DBGL(DL_RCCF, (log(LL_DBG, "system: rtprio = %d", yylval.num)));
+				DBGL(DL_RCCF, (llog(LL_DBG, "system: rtprio = %d", yylval.num)));
 			}
 #else
 			rt_prio = RTPRIO_NOTUSED;
@@ -1140,16 +1140,16 @@ cfg_setval(int keyword)
 
 		case TINAINITPROG:
 			strcpy(tinainitprog, yylval.str);
-			DBGL(DL_RCCF, (log(LL_DBG, "system: tinainitprog = %s", yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: tinainitprog = %s", yylval.str)));
 			break;
 
 		case UNITLENGTH:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: unitlength = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: unitlength = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].unitlength = yylval.num;
 			break;
 
 		case UNITLENGTHSRC:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: unitlengthsrc = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: unitlengthsrc = %s", entrycount, yylval.str)));
 			if(!(strcmp(yylval.str, "none")))
 				cfg_entry_tab[entrycount].unitlengthsrc = ULSRC_NONE;
 			else if(!(strcmp(yylval.str, "cmdl")))
@@ -1162,13 +1162,13 @@ cfg_setval(int keyword)
 				cfg_entry_tab[entrycount].unitlengthsrc = ULSRC_DYN;
 			else
 			{
-				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"unitlengthsrc\" at line %d!", lineno);
+				llog(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"unitlengthsrc\" at line %d!", lineno);
 				config_error_flag++;
 			}
 			break;
 
 		case USRDEVICENAME:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: usrdevicename = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: usrdevicename = %s", entrycount, yylval.str)));
 			if(!strcmp(yylval.str, "rbch"))
 				cfg_entry_tab[entrycount].usrdevicename = BDRV_RBCH;
 			else if(!strcmp(yylval.str, "tel"))
@@ -1185,38 +1185,38 @@ cfg_setval(int keyword)
 				cfg_entry_tab[entrycount].usrdevicename = BDRV_ING;
 			else
 			{
-				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"usrdevicename\" at line %d!", lineno);
+				llog(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"usrdevicename\" at line %d!", lineno);
 				config_error_flag++;
 			}
 			break;
 
 		case USRDEVICEUNIT:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: usrdeviceunit = %d", entrycount, yylval.num)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: usrdeviceunit = %d", entrycount, yylval.num)));
 			cfg_entry_tab[entrycount].usrdeviceunit = yylval.num;
 			break;
 
 		case USEACCTFILE:
 			useacctfile = yylval.booln;
-			DBGL(DL_RCCF, (log(LL_DBG, "system: useacctfile = %d", yylval.booln)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "system: useacctfile = %d", yylval.booln)));
 			break;
 
 		case USESUBADDR:
 			cfg_entry_tab[entrycount].usesubaddr = yylval.booln;
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: usesubaddr = %d", entrycount, yylval.booln)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: usesubaddr = %d", entrycount, yylval.booln)));
 			break;
 
 		case USEDOWN:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: usedown = %d", entrycount, yylval.booln)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: usedown = %d", entrycount, yylval.booln)));
 			cfg_entry_tab[entrycount].usedown = yylval.booln;
 			break;
 
 		case VALID:
-			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: valid = %s", entrycount, yylval.str)));
+			DBGL(DL_RCCF, (llog(LL_DBG, "entry %d: valid = %s", entrycount, yylval.str)));
 			parse_valid(entrycount, yylval.str);
 			break;
 
 		default:
-			log(LL_ERR, "ERROR parsing config file: unknown keyword at line %d!", lineno);
+			llog(LL_ERR, "ERROR parsing config file: unknown keyword at line %d!", lineno);
 			config_error_flag++;
 			break;			
 	}
@@ -1256,7 +1256,7 @@ parse_valid(int entrycount, char *dt)
 			ret = sscanf(dt, "%d:%d-%d:%d", &fromhr, &frommin, &tohr, &tomin);
 			if(ret !=4)
 			{
-				log(LL_ERR, "ERROR parsing config file: timespec [%s] error at line %d!", *dt, lineno);
+				llog(LL_ERR, "ERROR parsing config file: timespec [%s] error at line %d!", *dt, lineno);
 				config_error_flag++;
 				return;
 			}
@@ -1264,7 +1264,7 @@ parse_valid(int entrycount, char *dt)
 			if(fromhr < 0 || fromhr > 24 || tohr < 0 || tohr > 24 ||
 			   frommin < 0 || frommin > 59 || tomin < 0 || tomin > 59)
 			{
-				log(LL_ERR, "ERROR parsing config file: invalid time [%s] at line %d!", *dt, lineno);
+				llog(LL_ERR, "ERROR parsing config file: invalid time [%s] at line %d!", *dt, lineno);
 				config_error_flag++;
 				return;
 			}
@@ -1291,7 +1291,7 @@ parse_valid(int entrycount, char *dt)
 		else
 		{
 			/* dt points to illegal character */
-			log(LL_ERR, "ERROR parsing config file: illegal character [%c=0x%x] in date/time spec at line %d!", *dt, *dt, lineno);
+			llog(LL_ERR, "ERROR parsing config file: illegal character [%c=0x%x] in date/time spec at line %d!", *dt, *dt, lineno);
 			config_error_flag++;
 			return;
 		}
@@ -1319,12 +1319,12 @@ check_config(void)
 	{
 		if((rarr[i].re_expr != NULL) && (rarr[i].re_prog == NULL))
 		{
-			log(LL_ERR, "check_config: regular expression %d without program!", i);
+			llog(LL_ERR, "check_config: regular expression %d without program!", i);
 			error++;
 		}
 		if((rarr[i].re_prog != NULL) && (rarr[i].re_expr == NULL))
 		{
-			log(LL_ERR, "check_config: regular expression program %d without expression!", i);
+			llog(LL_ERR, "check_config: regular expression program %d without expression!", i);
 			error++;
 		}
 	}
@@ -1337,7 +1337,7 @@ check_config(void)
 
 		if((cep->isdncontroller < -1) || (cep->isdncontroller > (ncontroller-1)))
 		{
-			log(LL_ERR, "check_config: WARNING, isdncontroller out of range in entry %d!", i);
+			llog(LL_ERR, "check_config: WARNING, isdncontroller out of range in entry %d!", i);
 		}
 
 		/* numbers used for dialout */
@@ -1346,12 +1346,12 @@ check_config(void)
 		{
 			if(cep->remote_numbers_count == 0)
 			{
-				log(LL_ERR, "check_config: remote-phone-dialout not set in entry %d!", i);
+				llog(LL_ERR, "check_config: remote-phone-dialout not set in entry %d!", i);
 				error++;
 			}
 			if(strlen(cep->local_phone_dialout.number) == 0)
 			{
-				log(LL_ERR, "check_config: local-phone-dialout not set in entry %d!", i);
+				llog(LL_ERR, "check_config: local-phone-dialout not set in entry %d!", i);
 				error++;
 			}
 		}
@@ -1362,19 +1362,19 @@ check_config(void)
 		{
 			if(strlen(cep->local_phone_incoming.number) == 0)
 			{
-				log(LL_ERR, "check_config: local-phone-incoming not set in entry %d!", i);
+				llog(LL_ERR, "check_config: local-phone-incoming not set in entry %d!", i);
 				error++;
 			}
 			if(cep->incoming_numbers_count == 0)
 			{
-				log(LL_ERR, "check_config: remote-phone-incoming not set in entry %d!", i);
+				llog(LL_ERR, "check_config: remote-phone-incoming not set in entry %d!", i);
 				error++;
 			}
 		}
 
 		if((cep->dialin_reaction == REACT_ANSWER) && (cep->b1protocol != BPROT_NONE))
 		{
-			log(LL_ERR, "check_config: b1protocol not raw for telephony in entry %d!", i);
+			llog(LL_ERR, "check_config: b1protocol not raw for telephony in entry %d!", i);
 			error++;
 		}
 
@@ -1382,12 +1382,12 @@ check_config(void)
 		{
 			if(cep->ppp_send_name[0] == 0)
 			{
-				log(LL_ERR, "check_config: no remote authentification name in entry %d!", i);
+				llog(LL_ERR, "check_config: no remote authentification name in entry %d!", i);
 				error++;
 			}
 			if(cep->ppp_send_password[0] == 0)
 			{
-				log(LL_ERR, "check_config: no remote authentification password in entry %d!", i);
+				llog(LL_ERR, "check_config: no remote authentification password in entry %d!", i);
 				error++;
 			}
 		}
@@ -1395,19 +1395,19 @@ check_config(void)
 		{
 			if(cep->ppp_expect_name[0] == 0)
 			{
-				log(LL_ERR, "check_config: no local authentification name in entry %d!", i);
+				llog(LL_ERR, "check_config: no local authentification name in entry %d!", i);
 				error++;
 			}
 			if(cep->ppp_expect_password[0] == 0)
 			{
-				log(LL_ERR, "check_config: no local authentification secret in entry %d!", i);
+				llog(LL_ERR, "check_config: no local authentification secret in entry %d!", i);
 				error++;
 			}
 		}
 	}
 	if(error)
 	{
-		log(LL_ERR, "check_config: %d error(s) in configuration file, exit!", error);
+		llog(LL_ERR, "check_config: %d error(s) in configuration file, exit!", error);
 		do_exit(1);
 	}
 }
