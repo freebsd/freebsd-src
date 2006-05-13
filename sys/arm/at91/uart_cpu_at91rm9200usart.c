@@ -62,13 +62,11 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	 * XXX: Not pretty, but will work because we map VA == PA early
 	 * for the last 1MB of memory.
 	 */
-#ifdef USART0_CONSOLE
+#ifdef SKYEYE_WORKAROUNDS
 	di->bas.bsh = AT91RM92_BASE + AT91RM92_USART0_BASE;
-	di->bas.chan = 1;
 	di->baudrate = 38400;
 #else
 	di->bas.bsh = AT91RM92_BASE + AT91RM92_SYS_BASE + DBGU;
-	di->bas.chan = 0;
 	di->baudrate = 115200;
 #endif
 	di->bas.regshft = 0;
@@ -76,12 +74,10 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->databits = 8;
 	di->stopbits = 1;
 	di->parity = UART_PARITY_NONE;
+	uart_bus_space_io = &at91_bs_tag;
+	uart_bus_space_mem = NULL;
 	/* Check the environment for overrides */
 	if (uart_getenv(devtype, di) == 0)
 		return (0);
-
-	uart_bus_space_io = &at91_bs_tag;
-	uart_bus_space_mem = NULL;
-	
 	return (0);
 }
