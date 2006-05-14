@@ -26,7 +26,6 @@ MAN=	acpi_asus.4 \
 	ie.4 \
 	io.4 \
 	linux.4 \
-	lnc.4 \
 	longrun.4 \
 	mcd.4 \
 	mse.4 \
