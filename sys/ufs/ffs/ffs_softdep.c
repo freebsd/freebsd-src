@@ -5501,6 +5501,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 	int error = 0;
 	struct buf *bp;
 	ino_t inum;
+	struct worklist *wk;
 
 	ump = VFSTOUFS(mp);
 	while ((dap = LIST_FIRST(diraddhdp)) != NULL) {
@@ -5545,8 +5546,53 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 			}
 			VI_LOCK(vp);
 			drain_output(vp);
+			/*
+			 * If first block is still dirty with a D_MKDIR
+			 * dependency then it needs to be written now.
+			 */
+			for (;;) {
+				error = 0;
+				bp = gbincore(&vp->v_bufobj, 0);
+				if (bp == NULL)
+					break;	/* First block not present */
+				error = BUF_LOCK(bp,
+						 LK_EXCLUSIVE |
+						 LK_SLEEPFAIL |
+						 LK_INTERLOCK,
+						 VI_MTX(vp));
+				VI_LOCK(vp);
+				if (error == ENOLCK)
+					continue;	/* Slept, retry */
+				if (error != 0)
+					break;		/* Failed */
+				if ((bp->b_flags & B_DELWRI) == 0) {
+					BUF_UNLOCK(bp);
+					break;	/* Buffer not dirty */
+				}
+				for (wk = LIST_FIRST(&bp->b_dep);
+				     wk != NULL;
+				     wk = LIST_NEXT(wk, wk_list))
+					if (wk->wk_type == D_MKDIR)
+						break;
+				if (wk == NULL)
+					BUF_UNLOCK(bp);	/* Dependency gone */
+				else {
+					/*
+					 * D_MKDIR dependency remains,
+					 * must write buffer to stable
+					 * storage.
+					 */
+					VI_UNLOCK(vp);
+					bremfree(bp);
+					error = bwrite(bp);
+					VI_LOCK(vp);
+				}
+				break;
+			}
 			VI_UNLOCK(vp);
 			vput(vp);
+			if (error != 0)
+				break;	/* Flushing of first block failed */
 			ACQUIRE_LOCK(&lk);
 			/*
 			 * If that cleared dependencies, go on to next.
