@@ -136,7 +136,6 @@ SUBDIR=	${_3dfx} \
 	${_linsysfs} \
 	${_linux} \
 	lmc \
-	${_lnc} \
 	lpt \
 	mac_biba \
 	mac_bsdextended \
@@ -359,7 +358,6 @@ _io=		io
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
-_lnc=		lnc
 _mse=		mse
 .if ${MK_NCP} != "no"
 _ncp=		ncp
@@ -467,7 +465,6 @@ _ipmi=		ipmi
 _ips=		ips
 _ipw=		ipw
 _iwi=		iwi
-#_lnc=		lnc
 _mly=		mly
 _ndis=		ndis
 _nve=		nve
