@@ -49,6 +49,7 @@ struct stat;
 void	 printlong(char *, char *, struct stat *);
 int	 queryuser(char **);
 OPTION	*lookup_option(const char *);
+void	 finish_execplus(void);
 
 creat_f	c_Xmin;
 creat_f	c_Xtime;
