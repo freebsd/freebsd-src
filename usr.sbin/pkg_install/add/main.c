@@ -27,7 +27,7 @@ __FBSDID("$FreeBSD$");
 #include "lib.h"
 #include "add.h"
 
-static char Options[] = "hvIRfnrp:P:SMt:C:K";
+static char Options[] = "hvIRfFnrp:P:SMt:C:K";
 
 char	*Prefix		= NULL;
 Boolean	PrefixRecursive	= FALSE;
@@ -36,6 +36,7 @@ Boolean	NoInstall	= FALSE;
 Boolean	NoRecord	= FALSE;
 Boolean Remote		= FALSE;
 Boolean KeepPackage	= FALSE;
+Boolean FailOnAlreadyInstalled	= TRUE;
 
 char	*Mode		= NULL;
 char	*Owner		= NULL;
@@ -130,6 +131,10 @@ main(int argc, char **argv)
 
 	case 'f':
 	    Force = TRUE;
+	    break;
+
+	case 'F':
+	    FailOnAlreadyInstalled = FALSE;
 	    break;
 
 	case 'K':
