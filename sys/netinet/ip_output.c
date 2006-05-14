@@ -1138,6 +1138,7 @@ static struct ip_moptions *
 ip_findmoptions(struct inpcb *inp)
 {
 	struct ip_moptions *imo;
+	struct in_multi **immp;
 
 	INP_LOCK(inp);
 	if (inp->inp_moptions != NULL)
@@ -1146,6 +1147,8 @@ ip_findmoptions(struct inpcb *inp)
 	INP_UNLOCK(inp);
 
 	imo = (struct ip_moptions*)malloc(sizeof(*imo), M_IPMOPTS, M_WAITOK);
+	immp = (struct in_multi **)malloc((sizeof(*immp) * IP_MIN_MEMBERSHIPS),
+					  M_IPMOPTS, M_WAITOK);
 
 	imo->imo_multicast_ifp = NULL;
 	imo->imo_multicast_addr.s_addr = INADDR_ANY;
@@ -1153,9 +1156,12 @@ ip_findmoptions(struct inpcb *inp)
 	imo->imo_multicast_ttl = IP_DEFAULT_MULTICAST_TTL;
 	imo->imo_multicast_loop = IP_DEFAULT_MULTICAST_LOOP;
 	imo->imo_num_memberships = 0;
+	imo->imo_max_memberships = IP_MIN_MEMBERSHIPS;
+	imo->imo_membership = immp;
 
 	INP_LOCK(inp);
 	if (inp->inp_moptions != NULL) {
+		free(immp, M_IPMOPTS);
 		free(imo, M_IPMOPTS);
 		return (inp->inp_moptions);
 	}
@@ -1360,11 +1366,32 @@ ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 			splx(s);
 			break;
 		}
-		if (i == IP_MAX_MEMBERSHIPS) {
+		if (imo->imo_num_memberships == imo->imo_max_memberships) {
+		    struct in_multi **nmships, **omships;
+		    size_t newmax;
+		    /*
+		     * Resize the vector to next power-of-two minus 1. If the
+		     * size would exceed the maximum then we know we've really
+		     * run out of entries. Otherwise, we realloc() the vector
+		     * with the INP lock held to avoid introducing a race.
+		     */
+		    nmships = NULL;
+		    omships = imo->imo_membership;
+		    newmax = ((imo->imo_max_memberships + 1) * 2) - 1;
+		    if (newmax <= IP_MAX_MEMBERSHIPS) {
+			nmships = (struct in_multi **)realloc(omships,
+sizeof(*nmships) * newmax, M_IPMOPTS, M_NOWAIT);
+			if (nmships != NULL) {
+			    imo->imo_membership = nmships;
+			    imo->imo_max_memberships = newmax;
+			}
+		    }
+		    if (nmships == NULL) {
 			INP_UNLOCK(inp);
 			error = ETOOMANYREFS;
 			splx(s);
 			break;
+		    }
 		}
 		/*
 		 * Everything looks good; add a new record to the multicast
@@ -1538,6 +1565,7 @@ ip_freemoptions(imo)
 	if (imo != NULL) {
 		for (i = 0; i < imo->imo_num_memberships; ++i)
 			in_delmulti(imo->imo_membership[i]);
+		free(imo->imo_membership, M_IPMOPTS);
 		free(imo, M_IPMOPTS);
 	}
 }

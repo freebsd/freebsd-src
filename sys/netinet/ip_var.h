@@ -85,11 +85,12 @@ struct ipoption {
 struct ip_moptions {
 	struct	ifnet *imo_multicast_ifp; /* ifp for outgoing multicasts */
 	struct in_addr imo_multicast_addr; /* ifindex/addr on MULTICAST_IF */
+	u_long	imo_multicast_vif;	/* vif num outgoing multicasts */
 	u_char	imo_multicast_ttl;	/* TTL for outgoing multicasts */
 	u_char	imo_multicast_loop;	/* 1 => hear sends if a member */
 	u_short	imo_num_memberships;	/* no. memberships this socket */
-	struct	in_multi *imo_membership[IP_MAX_MEMBERSHIPS];
-	u_long	imo_multicast_vif;	/* vif num outgoing multicasts */
+	u_short	imo_max_memberships;	/* max memberships this socket */
+	struct	in_multi **imo_membership;	/* group memberships */
 };
 
 struct	ipstat {
