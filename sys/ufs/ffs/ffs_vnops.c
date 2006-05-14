@@ -338,6 +338,7 @@ ffs_lock(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
+#ifndef NO_FFS_SNAPSHOT
 	struct vnode *vp;
 	int flags;
 	struct lock *lkp;
@@ -382,6 +383,9 @@ ffs_lock(ap)
 		result = VOP_LOCK_APV(&ufs_vnodeops, ap);
 	}
 	return (result);
+#else
+	return (VOP_LOCK_APV(&ufs_vnodeops, ap));
+#endif
 }
 
 /*
