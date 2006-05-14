@@ -738,10 +738,6 @@ options 	IPFIREWALL_VERBOSE_LIMIT=100	#limit verbosity
 options 	IPFIREWALL_DEFAULT_TO_ACCEPT	#allow everything by default
 options 	IPFIREWALL_FORWARD	#packet destination changes
 options 	IPFIREWALL_FORWARD_EXTENDED	#all packet dest changes
-options 	IPV6FIREWALL		#firewall for IPv6
-options 	IPV6FIREWALL_VERBOSE
-options 	IPV6FIREWALL_VERBOSE_LIMIT=100
-options 	IPV6FIREWALL_DEFAULT_TO_ACCEPT
 options 	IPDIVERT		#divert sockets
 options 	IPFILTER		#ipfilter support
 options 	IPFILTER_LOG		#ipfilter logging
