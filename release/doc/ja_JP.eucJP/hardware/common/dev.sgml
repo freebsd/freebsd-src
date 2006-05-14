@@ -216,8 +216,6 @@
 
     &hwlist.pcn;
 
-    &hwlist.lnc;
-
     <para arch="i386,pc98,amd64">SMC 83c17x (EPIC) ベースの Ethernet NIC
       (&man.tx.4; ドライバ)</para>
     

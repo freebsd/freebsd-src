@@ -219,8 +219,6 @@
 
     &hwlist.pcn;
 
-    &hwlist.lnc;
-
     <para arch="i386,pc98,amd64">SMC 83c17x (EPIC) Ethernet сетевые карты
       (драйвер &man.tx.4;)
     </para>
