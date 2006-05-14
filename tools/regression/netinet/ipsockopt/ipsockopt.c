@@ -627,6 +627,67 @@ test_ip_boolean(int sock, const char *socktypename, int option,
 }
 
 /*
+ * Test the IP_ADD_MEMBERSHIP socket option, and the dynamic allocator
+ * for the imo_membership vector which now hangs off struct ip_moptions.
+ * We then call IP_DROP_MEMBERSHIP for each group so joined.
+ */
+static void
+test_ip_multicast_membership(int sock, const char *socktypename)
+{
+    struct ip_mreq mreq;
+    uint32_t basegroup;
+    uint16_t i;
+    int sotype;
+    socklen_t sotypelen;
+
+    sotypelen = sizeof(sotype);
+    if (getsockopt(sock, SOL_SOCKET, SO_TYPE, &sotype, &sotypelen) < 0)
+	err(-1, "test_ip_multicast_membership(%s): so_type getsockopt()",
+	    socktypename);
+    /*
+     * Do not perform the test for SOCK_STREAM sockets, as this makes
+     * no sense.
+     */
+    if (sotype == SOCK_STREAM)
+	return;
+    /*
+     * For SOCK_DGRAM and SOCK_RAW sockets, pick a multicast group ID
+     * in subnet 224/5 with 11 random bits in the middle, and the groups
+     * themselves joined in sequential order up to IP_MAX_MEMBERSHIPS.
+     * The 224/8 range has special meaning, so don't use it.
+     */
+    basegroup = 0xEE000000;	/* 224.0.0.0/5 i.e. 5 bits. */
+    basegroup |= ((random() % ((1 << 11) - 1)) << 16);	/* Mid 11 bits. */
+    /*
+     * Join the multicast group(s) on the default multicast interface;
+     * this usually maps to the interface to which the default
+     * route is pointing.
+     */
+    for (i = 0; i < IP_MAX_MEMBERSHIPS; i++) {
+	mreq.imr_multiaddr.s_addr = htonl((basegroup | i));
+	mreq.imr_interface.s_addr = INADDR_ANY;
+	if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq,
+		       sizeof(mreq)) < 0) {
+		err(-1,
+"test_ip_multicast_membership(%d, %s): failed IP_ADD_MEMBERSHIP (%s, %s)",
+		    sock, socktypename,
+		    inet_ntoa(mreq.imr_multiaddr), "INADDR_ANY");
+	}
+    }
+    for (i = 0; i < IP_MAX_MEMBERSHIPS; i++) {
+	mreq.imr_multiaddr.s_addr = htonl((basegroup | i));
+	mreq.imr_interface.s_addr = INADDR_ANY;
+	if (setsockopt(sock, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq,
+		       sizeof(mreq)) < 0) {
+		err(-1,
+"test_ip_multicast_membership(%d, %s): failed IP_DROP_MEMBERSHIP (%s, %s)",
+		    sock, socktypename,
+		    inet_ntoa(mreq.imr_multiaddr), "INADDR_ANY");
+	}
+    }
+}
+
+/*
  * XXX: For now, nothing here.
  */
 static void
@@ -650,15 +711,6 @@ test_ip_multicast_vif(int sock, const char *socktypename)
 	 * This requires some knowledge of the number of virtual interfaces,
 	 * and what is valid.
 	 */
-}
-
-/*
- * XXX: For now, nothing here.
- */
-static void
-test_ip_multicast_membership(int sock, const char *socktypename)
-{
-
 }
 
 static void
@@ -791,9 +843,15 @@ testsuite(int priv)
 		//test_ip_options(sock, socktypename);
 		close(sock);
 
+		sock = get_socket(socktype, priv);
+		if (sock == -1)
+			err(-1, "get_socket(%s, %d) for test_ip_options",
+			    socktypename, priv);
+		test_ip_multicast_membership(sock, socktypename);
+		close(sock);
+
 		test_ip_multicast_if(0, NULL);
 		test_ip_multicast_vif(0, NULL);
-		test_ip_multicast_membership(0, NULL);
 		/*
 		 * XXX: Still need to test:
 		 * IP_PORTRANGE
