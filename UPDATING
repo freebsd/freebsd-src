@@ -24,7 +24,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 20060412:
 	The ip6fw utility has been removed.  The behavior provided by
 	ip6fw has been in ipfw2 for a good while and the rc.d scripts
-	have been update to deal with it.  There are some rules that
+	have been updated to deal with it.  There are some rules that
 	might not migrate cleanly.  Use rc.firewall6 as a template to
 	rewrite rules.
 
