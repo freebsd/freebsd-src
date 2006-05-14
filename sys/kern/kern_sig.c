@@ -2624,6 +2624,7 @@ restart:
 	VOP_LEASE(vp, td, cred, LEASE_WRITE);
 	VOP_SETATTR(vp, &vattr, cred, td);
 	VOP_UNLOCK(vp, 0, td);
+	vn_finished_write(mp);
 	PROC_LOCK(p);
 	p->p_acflag |= ACORE;
 	PROC_UNLOCK(p);
@@ -2636,7 +2637,6 @@ restart:
 		lf.l_type = F_UNLCK;
 		VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
 	}
-	vn_finished_write(mp);
 out:
 	error1 = vn_close(vp, FWRITE, cred, td);
 	mtx_unlock(&Giant);
