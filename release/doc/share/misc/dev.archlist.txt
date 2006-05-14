@@ -81,7 +81,6 @@ ips	i386,amd64
 ixgb	i386,amd64
 kue	i386,pc98,ia64,amd64
 lge	i386,pc98,amd64
-lnc	i386,pc98
 mfi	i386,alpha,ia64,amd64
 mlx	i386,alpha,ia64,amd64
 mly	i386,ia64,amd64
