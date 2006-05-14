@@ -36,6 +36,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_quota.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -363,6 +365,18 @@ restart:
 		if (error)
 			goto out;
 	}
+#ifdef QUOTA
+	/*
+	 * Turn off disk quotas for snapshot file.
+	 */
+	(void) chkdq(ip, -DIP(ip, i_blocks), KERNCRED, FORCE);
+	for (i = 0; i < MAXQUOTAS; i++) {
+		if (ip->i_dquot[i] != NODQUOT) {
+			dqrele(vp, ip->i_dquot[i]);
+			ip->i_dquot[i] = NODQUOT;
+		}
+	}
+#endif
 	/*
 	 * Change inode to snapshot type file.
 	 */
@@ -1633,6 +1647,13 @@ ffs_snapremove(vp)
 	ip->i_flags &= ~SF_SNAPSHOT;
 	DIP_SET(ip, i_flags, ip->i_flags);
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
+#ifdef QUOTA
+	/*
+	 * Reenable disk quotas for ex-snapshot file.
+	 */
+	if (!getinoquota(ip))
+		(void) chkdq(ip, DIP(ip, i_blocks), KERNCRED, FORCE);
+#endif
 }
 
 /*
