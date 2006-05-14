@@ -566,12 +566,15 @@ static int
 vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 {
 	struct vfsoptlist *optlist;
-	struct vfsopt *opt;
+	struct vfsopt *opt, *noro_opt;
 	char *fstype, *fspath, *errmsg;
 	int error, fstypelen, fspathlen, errmsg_len, errmsg_pos;
+	int has_rw, has_noro;
 
 	errmsg_len = 0;
 	errmsg_pos = -1;
+	has_rw = 0;
+	has_noro = 0;
 
 	error = vfs_buildopts(fsoptions, &optlist);
 	if (error)
@@ -633,9 +636,14 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 			fsflags |= MNT_NOSUID;
 		else if (strcmp(opt->name, "nosymfollow") == 0)
 			fsflags |= MNT_NOSYMFOLLOW;
-		else if (strcmp(opt->name, "noro") == 0 ||
-		    strcmp(opt->name, "rw") == 0)
+		else if (strcmp(opt->name, "noro") == 0) {
 			fsflags &= ~MNT_RDONLY;
+			has_noro = 1;
+		}
+		else if (strcmp(opt->name, "rw") == 0) {
+			fsflags &= ~MNT_RDONLY;
+			has_rw = 1;
+		}
 		else if (strcmp(opt->name, "ro") == 0 ||
 		    strcmp(opt->name, "rdonly") == 0)
 			fsflags |= MNT_RDONLY;
@@ -647,6 +655,20 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 			fsflags |= MNT_SYNCHRONOUS;
 		else if (strcmp(opt->name, "union") == 0)
 			fsflags |= MNT_UNION;
+	}
+
+	/*
+	 * If "rw" was specified as a mount option, and we
+	 * are trying to update a mount-point from "ro" to "rw",
+	 * we need a mount option "noro", since in vfs_mergeopts(),
+	 * "noro" will cancel "ro", but "rw" will not do anything.
+	 */
+	if (has_rw && !has_noro) {
+		noro_opt = malloc(sizeof(struct vfsopt), M_MOUNT, M_WAITOK);
+		noro_opt->name = strdup("noro", M_MOUNT);
+		noro_opt->value = NULL;
+		noro_opt->len = 0;
+		TAILQ_INSERT_TAIL(optlist, noro_opt, link);
 	}
 
 	/*
