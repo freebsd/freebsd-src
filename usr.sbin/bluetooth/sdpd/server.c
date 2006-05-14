@@ -475,8 +475,8 @@ server_process_request(server_p srv, int32_t fd)
 
 		case SDP_PDU_SERVICE_SEARCH_ATTRIBUTE_REQUEST:
 			error = server_send_service_search_attribute_response(srv, fd);
-			
-break;
+			break;
+
 		case SDP_PDU_SERVICE_REGISTER_REQUEST:
 			error = server_send_service_register_response(srv, fd);
 			break;
@@ -487,6 +487,7 @@ break;
 
 		case SDP_PDU_SERVICE_CHANGE_REQUEST:
 			error = server_send_service_change_response(srv, fd);
+			break;
 
 		default:
 			error = SDP_ERROR_CODE_INVALID_REQUEST_SYNTAX;
