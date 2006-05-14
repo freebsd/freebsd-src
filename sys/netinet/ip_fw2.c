@@ -641,11 +641,11 @@ static __inline int
 hash_packet6(struct ipfw_flow_id *id)
 {
 	u_int32_t i;
-	i = (id->dst_ip6.__u6_addr.__u6_addr32[0]) ^
-	    (id->dst_ip6.__u6_addr.__u6_addr32[1]) ^
-	    (id->dst_ip6.__u6_addr.__u6_addr32[2]) ^
+	i = (id->dst_ip6.__u6_addr.__u6_addr32[2]) ^
 	    (id->dst_ip6.__u6_addr.__u6_addr32[3]) ^
-	    (id->dst_port) ^ (id->src_port) ^ (id->flow_id6);
+	    (id->src_ip6.__u6_addr.__u6_addr32[2]) ^
+	    (id->src_ip6.__u6_addr.__u6_addr32[3]) ^
+	    (id->dst_port) ^ (id->src_port);
 	return i;
 }
 
