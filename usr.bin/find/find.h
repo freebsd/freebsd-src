@@ -72,6 +72,8 @@ typedef	struct _plandata *creat_f(struct _option *, char ***);
 #define	F_IGNCASE	0x00010000	/* iname ipath iregex */
 #define	F_EXACTTIME	F_IGNCASE	/* -[acm]time units syntax */
 #define F_EXECPLUS	0x00020000	/* -exec ... {} + */
+#define	F_TIME_B	0x00040000	/* one of -Btime, -Bnewer, -newerB* */
+#define	F_TIME2_B	0x00080000	/* one of -newer?B */
 
 /* node definition */
 typedef struct _plandata {
