@@ -129,8 +129,16 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 			upgraded = 0;
 			
 		
-		/* Attempt to msync mmap() regions to clean dirty mmap */ 
 		VI_LOCK(vp);
+		/* Check if vnode was reclaimed while unlocked. */
+		if ((vp->v_iflag & VI_DOOMED) != 0) {
+			VI_UNLOCK(vp);
+			if (upgraded != 0)
+				VOP_LOCK(vp, LK_DOWNGRADE, td);
+			vn_finished_write(mp);
+			return (EIO);
+		}
+		/* Attempt to msync mmap() regions to clean dirty mmap */ 
 		if ((vp->v_iflag & VI_OBJDIRTY) != 0) {
 			VI_UNLOCK(vp);
 			if (vp->v_object != NULL) {
@@ -150,6 +158,7 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 			VI_UNLOCK(vp);
 			if (upgraded != 0)
 				VOP_LOCK(vp, LK_DOWNGRADE, td);
+			vn_finished_write(mp);
 			return (error);
 		}
 		/* Flush dirty buffers */
@@ -159,6 +168,7 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 			if ((error = ffs_syncvnode(vp, MNT_WAIT)) != 0) {
 				if (upgraded != 0)
 					VOP_LOCK(vp, LK_DOWNGRADE, td);
+				vn_finished_write(mp);
 				return (error);
 			}
 			VI_LOCK(vp);
