@@ -96,6 +96,12 @@ The most common use at the date of writing is for allowing multiple
 threading libraries to be used on a system without relinking or
 changing symlinks.
 .Pp
+On 64-bit architectures that provide 32-bit runtime support,
+the libmap mechanism is available for 32-bit binaries too.
+The mappings has to be written into separate configuration file
+.Pa /etc/libmap32.conf .
+Currently only supported on amd64.
+.Pp
 This mechanism has also been used to create shims to allow Linux
 shared libraries to be dynamically loaded into
 .Fx
@@ -112,9 +118,11 @@ The symbol version information in shared libraries is checked at
 link time, but at run time the version information is currently
 ignored.
 .Sh FILES
-.Bl -tag -width ".Pa /etc/libmap.conf" -compact
+.Bl -tag -width ".Pa /etc/libmap32.conf" -compact
 .It Pa /etc/libmap.conf
 The libmap configuration file.
+.It Pa /etc/libmap32.conf
+The libmap configuration file for 32-bit binaries on 64-bit system.
 .El
 .Sh EXAMPLES
 .Bd -literal
