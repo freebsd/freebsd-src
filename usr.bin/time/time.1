@@ -99,6 +99,15 @@ command which is similar or identical to this utility.
 Consult the
 .Xr builtin 1
 manual page.
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+(see the status argument for
+.Xr stty 1 )
+signal, the current time the given command is running will be written to the
+standard output.
 .Sh ENVIRONMENT
 The
 .Ev PATH
