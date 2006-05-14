@@ -152,7 +152,8 @@ new_x509_checker(h, sign, userid, envp, filename)
 		break;
 
 	    default:
-		warnx("Uknown certificate type");
+		warnx("Unknown certificate type: %d", EVP_PKEY_type(X509_get_pubkey(x509)->type));
+		fclose(fp);
 		return 0;
 	    }
 
@@ -234,13 +235,15 @@ x509_sign_ok(arg)
 		break;
 
 	    default:
+		warnx("Unknown public key type: %d", EVP_PKEY_type(pkey->type));
+		md_ctx = NULL;
 		break;
 	    }
 
-	    status = EVP_VerifyFinal(md_ctx,
-				     n->signature->data,
-				     n->signature->length,
-				     pkey);
+	    status = (md_ctx == NULL) ? 0 : EVP_VerifyFinal(md_ctx,
+						n->signature->data,
+						n->signature->length,
+						pkey);
 
 	    EVP_PKEY_free(pkey);
 	    X509_free(x509);
@@ -291,13 +294,11 @@ retrieve_x509_marker(filename, sign, userid)
 
 	f = fopen(filename, "r");
 	if (f == NULL) {
-	    free(n);
 	    return 0;
 	}
 	if (gzip_read_header(f, &h, sign) == GZIP_NOT_GZIP) {
 	    warnx("File %s is not a gzip file\n", filename);
 	    fclose(f);
-	    free(n);
 	    return 0;
 	}
 
@@ -314,6 +315,7 @@ retrieve_x509_marker(filename, sign, userid)
 	if (keyf == NULL)
 	{
 	    warnx("Cannot open private key %s.", keyfile);
+	    fclose(f);
 	    return 0;
 	}
 	
@@ -335,16 +337,15 @@ retrieve_x509_marker(filename, sign, userid)
 	{
 	case EVP_PKEY_RSA:
 	    md_type = EVP_sha1();
-printf("*** It's an RSA key.\n");
 	    break;
 
 	case EVP_PKEY_DSA:
 	    md_type = EVP_dss1();
-printf("@@@ It's a DSA key, yippee!\n");
 	    break;
 
 	default:
-	    warnx("Uknown key type");
+	    warnx("Unknown key type");
+	    fclose(f);
 	    return 0;
 	}
 
@@ -352,6 +353,8 @@ printf("@@@ It's a DSA key, yippee!\n");
 
 	while ((length = fread(buffer, 1, sizeof buffer, f)) > 0)
 		EVP_SignUpdate(&md_ctx, buffer, length);
+
+	fclose(f);
 
 	sig_buf = malloc(sig_len);
 	if (sig_buf == NULL) {
