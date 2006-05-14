@@ -145,13 +145,6 @@ There are not enough mbuf's available for allocation.
 .It "fxp%d: device timeout"
 The device has stopped responding to the network, or there is a problem with
 the network connection (cable).
-.It "fxp%d: Ethernet address ff:ff:ff:ff:ff:ff"
-In some Alpha's (AXPpci and Multia) you must tell the driver to use (slower)
-I/O rather than memory to access the card.
-Create, if it does not yet exist, and add to the file
-.Pa /boot/device.hints
-the line
-.Dq Li hint.fxp.0.prefer_iomap="0" .
 .It "fxp%d: Microcode loaded, int_delay: %d usec  bundle_max: %d"
 The chip has successfully downloaded the microcode, and changed the
 parameterized values to the given settings.
