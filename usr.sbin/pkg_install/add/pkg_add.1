@@ -23,7 +23,7 @@
 .Nd a utility for installing software package distributions
 .Sh SYNOPSIS
 .Nm
-.Op Fl vInfrRMSK
+.Op Fl vInfFrRMSK
 .Op Fl t Ar template
 .Op Fl p Ar prefix
 .Op Fl P Ar prefix
@@ -109,6 +109,8 @@ Although
 .Nm
 will still try to find and auto-install missing prerequisite packages,
 a failure to find one will not be fatal.
+.It Fl F
+Already installed packages are not an error.
 .It Fl p Ar prefix
 Set
 .Ar prefix
