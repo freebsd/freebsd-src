@@ -362,6 +362,9 @@
 	which supports Cronyx Tau-PCI/32 adapters, has been added.
 	&merged;</para>
 
+      <para>The <literal>est</literal> &man.cpufreq.4; driver now supports
+        frequency control for the VIA C7-M family of processors.</para> 
+
       <para>Support for the PadLock Security Co-processor in VIA C3
 	processors has been added to the &man.crypto.9; subsystem.
 	&merged;</para>
@@ -526,6 +529,10 @@
 
 	<para>The &man.lge.4; driver is now MPSAFE. &merged;</para>
 
+	<para>The lnc(4) driver has been removed.  The &man.le.4; and
+	  &man.pcn.4; drivers support all devices that were supported
+	  by lnc(4).</para>
+
 	<para>The &man.my.4; driver is now MPSAFE. &merged;</para>
 
 	<para arch="i386,amd64">The &man.myri10ge.4; driver,
@@ -638,6 +645,10 @@ pipe 4000 config bw 4000Kbyte/s
 table 1 add x.x.x.x 1000
 table 1 add x.x.x.y 4000
 pipe tablearg ip from table(1) to any</programlisting>
+
+      <para>The ip6fw(8) packet filter has been removed.  Since &man.ipfw.4; has gained
+        IPv6 support, it should be used instead.  Please note that some rules might need
+        to be adjusted.</para>
 
       <para>The &man.natm.4;, Native Mode ATM protocol layer is now MPSAFE.</para>
 
