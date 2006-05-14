@@ -69,7 +69,6 @@ nodevice	ex
 nodevice	ep
 nodevice	fe
 nodevice	ie
-nodevice	lnc
 nodevice	sn
 nodevice	xe
 
