@@ -76,6 +76,8 @@ static char *nextarg(OPTION *, char ***);
 
 extern char **environ;
 
+static PLAN *lastexecplus = NULL;
+
 #define	COMPARE(a, b) do {						\
 	switch (plan->flags & F_ELG_MASK) {				\
 	case F_EQUAL:							\
@@ -711,6 +713,8 @@ c_exec(OPTION *option, char ***argvp)
 		new->e_psizemax = argmax;
 		new->e_pbsize = 0;
 		cnt += new->e_pnummax + 1;
+		new->e_next = lastexecplus;
+		lastexecplus = new;
 	}
 	if ((new->e_argv = malloc(cnt * sizeof(char *))) == NULL)
 		err(1, NULL);
@@ -752,6 +756,19 @@ c_exec(OPTION *option, char ***argvp)
 
 done:	*argvp = argv + 1;
 	return new;
+}
+
+/* Finish any pending -exec ... {} + functions. */
+void
+finish_execplus()
+{
+	PLAN *p;
+
+	p = lastexecplus;
+	while (p != NULL) {
+		(p->execute)(p, NULL);
+		p = p->e_next;
+	}
 }
 
 int

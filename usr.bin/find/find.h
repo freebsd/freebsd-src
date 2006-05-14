@@ -105,6 +105,7 @@ typedef struct _plandata {
 			int _e_psize;		/* number of bytes of args. */
 			int _e_pbsize;		/* base num. of bytes of args */
 			int _e_psizemax;	/* max num. of bytes of args */
+			struct _plandata *_e_next;/* next F_EXECPLUS in tree */
 		} ex;
 		char *_a_data[2];		/* array of char pointers */
 		char *_c_data;			/* char pointer */
@@ -135,6 +136,7 @@ typedef struct _plandata {
 #define e_psize p_un.ex._e_psize
 #define e_pbsize p_un.ex._e_pbsize
 #define e_psizemax p_un.ex._e_psizemax
+#define e_next p_un.ex._e_next
 
 typedef struct _option {
 	const char *name;		/* option name */
