@@ -80,7 +80,10 @@ The
 .Nm
 utility
 recognizes a number of environment variables that can be used to modify
-its behaviour as follows:
+its behaviour.
+On 64-bit architectures, the linker for 32-bit objects recognizes
+all the environment variables listed below, but is being prefixed with
+LD_32_, for example: LD_32_TRACE_LOADED_OBJECTS.
 .Pp
 .Bl -tag -width ".Ev LD_LIBMAP_DISABLE"
 .It Ev LD_DUMP_REL_POST
@@ -181,11 +184,15 @@ and
 are recognized and have their usual meaning.
 .El
 .Sh FILES
-.Bl -tag -width ".Pa /var/run/ld-elf.so.hints" -compact
+.Bl -tag -width ".Pa /var/run/ld-elf32.so.hints" -compact
 .It Pa /var/run/ld-elf.so.hints
 Hints file.
+.It Pa /var/run/ld-elf32.so.hints
+Hints file for 32-bit binaries on 64-bit system.
 .It Pa /etc/libmap.conf
 The libmap configuration file.
+.It Pa /etc/libmap32.conf
+The libmap configuration file for 32-bit binaries on 64-bit system.
 .El
 .Sh SEE ALSO
 .Xr ld 1 ,
