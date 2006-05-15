@@ -41,6 +41,7 @@ SUBDIR=	alias \
 	compile_et \
 	compress \
 	csplit \
+	${_csup} \
 	ctags \
 	cut \
 	${_dig} \
@@ -250,6 +251,7 @@ _bluetooth=	bluetooth
 .if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 _chkey=		chkey
 _newkey=	newkey
+_csup=		csup
 .endif
 
 .if !defined(NO_NETCAT)
