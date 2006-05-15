@@ -661,9 +661,19 @@ rip_abort(struct socket *so)
 static int
 rip_disconnect(struct socket *so)
 {
+	struct inpcb *inp;
+
 	if ((so->so_state & SS_ISCONNECTED) == 0)
 		return ENOTCONN;
-	rip_abort(so);
+
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("rip_disconnect: inp == NULL"));
+	INP_INFO_WLOCK(&ripcbinfo);
+	INP_LOCK(inp);
+	inp->inp_faddr.s_addr = INADDR_ANY;
+	INP_UNLOCK(inp);
+	INP_INFO_WUNLOCK(&ripcbinfo);
+	so->so_state &= ~SS_ISCONNECTED;
 	return (0);
 }
 
