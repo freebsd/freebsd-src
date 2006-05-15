@@ -419,14 +419,14 @@ pcn_chip_id (device_t dev)
 	sc = device_get_softc(dev);
 	/*
 	 * Note: we can *NOT* put the chip into
-	 * 32-bit mode yet. The lnc driver will only
+	 * 32-bit mode yet. The le(4) driver will only
 	 * work in 16-bit mode, and once the chip
 	 * goes into 32-bit mode, the only way to
 	 * get it out again is with a hardware reset.
 	 * So if pcn_probe() is called before the
-	 * lnc driver's probe routine, the chip will
-	 * be locked into 32-bit operation and the lnc
-	 * driver will be unable to attach to it.
+	 * le(4) driver's probe routine, the chip will
+	 * be locked into 32-bit operation and the
+	 * le(4) driver will be unable to attach to it.
 	 * Note II: if the chip happens to already
 	 * be in 32-bit mode, we still need to check
 	 * the chip ID, but first we have to detect
