@@ -1746,9 +1746,11 @@ device		miibus
 #	GigaNIX 1000TA and 1000TPC, the Addtron AEG320T, the Surecom
 #	EP-320G-TX and the Netgear GA622T.
 # pcn:	Support for PCI fast ethernet adapters based on the AMD Am79c97x
-#	chipsets, including the PCnet/FAST, PCnet/FAST+, PCnet/PRO and
-#	PCnet/Home. These were previously handled by the lnc driver (and
-#	still will be if you leave this driver out of the kernel).
+#	PCnet-FAST, PCnet-FAST+, PCnet-FAST III, PCnet-PRO and PCnet-Home
+#	chipsets. These can also be handled by the le(4) driver if the
+#	pcn(4) driver is left out of the kernel. The le(4) driver does not
+#	support the additional features like the MII bus and burst mode of
+#	the PCnet-FAST and greater chipsets though.
 # rl:   Support for PCI fast ethernet adapters based on the RealTek 8129/8139
 #       chipset.  Note that the RealTek driver defaults to using programmed
 #       I/O to do register accesses because memory mapped mode seems to cause
