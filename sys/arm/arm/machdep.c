@@ -233,7 +233,36 @@ cpu_startup(void *dummy)
 #endif
 
 	cpu_setup("");
+	identify_arm_cpu();
+
+	printf("real memory  = %ju (%ju MB)\n", (uintmax_t)ptoa(physmem),
+	    (uintmax_t)ptoa(physmem) / 1048576);
+	realmem = physmem;
+
+	/*
+	 * Display the RAM layout.
+	 */
+	if (bootverbose) {
+		int indx;
+
+		printf("Physical memory chunk(s):\n");
+		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
+			vm_paddr_t size;
+
+			size = phys_avail[indx + 1] - phys_avail[indx];
+			printf("%#08jx - %#08jx, %ju bytes (%ju pages)\n",
+			    (uintmax_t)phys_avail[indx],
+			    (uintmax_t)phys_avail[indx + 1] - 1,
+			    (uintmax_t)size, (uintmax_t)size / PAGE_SIZE);
+		}
+	}
+
 	vm_ksubmap_init(&kmi);
+
+	printf("avail memory = %ju (%ju MB)\n",
+	    (uintmax_t)ptoa(cnt.v_free_count),
+	    (uintmax_t)ptoa(cnt.v_free_count) / 1048576);
+
 	bufinit();
 	vm_pager_bufferinit();
 	pcb->un_32.pcb32_und_sp = (u_int)thread0.td_kstack +
@@ -242,7 +271,6 @@ cpu_startup(void *dummy)
 	    USPACE_SVC_STACK_TOP;
 	vector_page_setprot(VM_PROT_READ);
 	pmap_set_pcb_pagedir(pmap_kernel(), pcb);
-	identify_arm_cpu();
 	thread0.td_frame = (struct trapframe *)pcb->un_32.pcb32_sp - 1;
 	pmap_postinit();
 #ifdef ARM_CACHE_LOCK_ENABLE
@@ -252,8 +280,6 @@ cpu_startup(void *dummy)
 	m = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ | VM_ALLOC_ZERO);
 	pmap_kenter_user(ARM_TP_ADDRESS, VM_PAGE_TO_PHYS(m));
 #endif
-	realmem = physmem;
-	
 }
 
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
