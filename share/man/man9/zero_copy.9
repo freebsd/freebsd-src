@@ -90,8 +90,7 @@ generally directly correspond to the TCP window size.
 For receiving data, in order to take advantage of the zero copy receive
 code, the user must have a NIC that is configured for an MTU greater than
 the architecture page size.
-(E.g., for alpha this would be 8KB, for i386,
-it would be 4KB.)
+(E.g., for i386 it would be 4KB.)
 Additionally, in order for zero copy receive to work,
 packet payloads must be at least a page in size and page aligned.
 .Pp
