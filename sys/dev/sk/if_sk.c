@@ -1604,14 +1604,15 @@ sk_attach(dev)
 		}
 	} else {
 		if (sc_if->sk_phytype < SK_PHYTYPE_MARV_COPPER &&
-		    sc->sk_pmd == IFM_1000_T) {
+		    sc->sk_pmd != 'S') {
 			/* not initialized, punt */
 			sc_if->sk_phytype = SK_PHYTYPE_MARV_COPPER;
+			sc->sk_coppertype = 1;
 		}
 
 		sc_if->sk_phyaddr = SK_PHYADDR_MARV;
 
-		if (sc->sk_pmd != IFM_1000_T && sc->sk_pmd != IFM_1000_CX)
+		if (!(sc->sk_coppertype))
 			sc_if->sk_phytype = SK_PHYTYPE_MARV_FIBER;
 	}
 
@@ -1788,31 +1789,12 @@ skc_attach(dev)
 	}
 
 	/* Read and save physical media type */
-	switch(sk_win_read_1(sc, SK_PMDTYPE)) {
-	case SK_PMD_1000BASESX:
-		sc->sk_pmd = IFM_1000_SX;
-		break;
-	case SK_PMD_1000BASELX:
-		sc->sk_pmd = IFM_1000_LX;
-		break;
-	case SK_PMD_1000BASECX:
-		sc->sk_pmd = IFM_1000_CX;
-		break;
-	case SK_PMD_1000BASETX:
-		sc->sk_pmd = IFM_1000_T;
-		break;
-	default:
-		if (SK_YUKON_FAMILY(sc->sk_type) && (sk_win_read_1(sc, SK_EPROM1) 
-		    & 0xF) < SK_PHYTYPE_MARV_COPPER) {
-			/* not initialized, punt */
-			sc->sk_pmd = IFM_1000_T;
-			break;
-		}
-		device_printf(dev, "unknown media type: 0x%x\n",
-		    sk_win_read_1(sc, SK_PMDTYPE));
-		error = ENXIO;
-		goto fail;
-	}
+	 sc->sk_pmd = sk_win_read_1(sc, SK_PMDTYPE);
+
+	 if (sc->sk_pmd == 'T' || sc->sk_pmd == '1')
+		 sc->sk_coppertype = 1;
+	 else
+		 sc->sk_coppertype = 0;
 
 	/* Determine whether to name it with VPD PN or just make it up.
 	 * Marvell Yukon VPD PN seems to freqently be bogus. */
@@ -3722,17 +3704,10 @@ sk_init_yukon(sc_if)
 	phy = SK_GPHY_INT_POL_HI | SK_GPHY_DIS_FC | SK_GPHY_DIS_SLEEP |
 		SK_GPHY_ENA_XC | SK_GPHY_ANEG_ALL | SK_GPHY_ENA_PAUSE;
 
-	switch(sc_if->sk_softc->sk_pmd) {
-	case IFM_1000_SX:
-	case IFM_1000_LX:
-		phy |= SK_GPHY_FIBER;
-		break;
-
-	case IFM_1000_CX:
-	case IFM_1000_T:
+	if (sc->sk_coppertype)
 		phy |= SK_GPHY_COPPER;
-		break;
-	}
+	else
+		phy |= SK_GPHY_FIBER;
 
 	SK_IF_WRITE_4(sc_if, 0, SK_GPHY_CTRL, phy | SK_GPHY_RESET_SET);
 	DELAY(1000);
