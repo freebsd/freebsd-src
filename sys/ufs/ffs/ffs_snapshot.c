@@ -424,6 +424,17 @@ restart:
 	}
 	if (collectsnapstats)
 		nanotime(&starttime);
+
+	/* The last block might have changed.  Copy it again to be sure. */
+	error = UFS_BALLOC(vp, lblktosize(fs, (off_t)(numblks - 1)),
+	    fs->fs_bsize, KERNCRED, BA_CLRBUF, &bp);
+	if (error != 0)
+		goto out1;
+	error = readblock(vp, bp, numblks - 1);
+	bp->b_flags |= B_VALIDSUSPWRT;
+	bawrite(bp);
+	if (error != 0)
+		goto out1;
 	/*
 	 * First, copy all the cylinder group maps that have changed.
 	 */
