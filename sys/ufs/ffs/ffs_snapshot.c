@@ -292,9 +292,10 @@ restart:
 	ip->i_size = lblktosize(fs, (off_t)numblks);
 	DIP_SET(ip, i_size, ip->i_size);
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
-	if ((error = readblock(vp, bp, numblks - 1)) != 0)
-		goto out;
+	error = readblock(vp, bp, numblks - 1);
 	bawrite(bp);
+	if (error != 0)
+		goto out;
 	/*
 	 * Preallocate critical data structures so that we can copy
 	 * them in without further allocation after we suspend all
