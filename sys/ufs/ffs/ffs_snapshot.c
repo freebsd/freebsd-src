@@ -215,10 +215,7 @@ ffs_snapshot(mp, snapfile)
 
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
-	/*
-	 * XXX: make sure we don't go to out1 before we setup sn
-	 */
-	sn = (void *)0xdeadbeef;
+	sn = NULL;
 
 	/*
 	 * Need to serialize access to snapshot code per filesystem.
@@ -422,7 +419,6 @@ restart:
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (ip->i_effnlink == 0) {
 		error = ENOENT;		/* Snapshot file unlinked */
-		sn = NULL;
 		goto out1;
 	}
 	if (collectsnapstats)
@@ -673,7 +669,9 @@ loop:
 	ASSERT_VOP_LOCKED(vp, "ffs_snapshot vp");
 	vp->v_vflag |= VV_SYSTEM;
 out1:
-	KASSERT(sn != (void *)0xdeadbeef, ("email phk@ and mckusick@"));
+	KASSERT((sn != NULL && sbp != NULL && error == 0) ||
+		(sn == NULL && sbp == NULL && error != 0),
+		("email phk@ and mckusick@"));
 	/*
 	 * Resume operation on filesystem.
 	 */
