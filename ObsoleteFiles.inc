@@ -14,7 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
-# 20061205: remove ip6fw
+# 20060514: lnc(4) replaced by le(4)
+OLD_FILES+=usr/share/man/man4/i386/lnc.4.gz
+# 20060512: remove ip6fw
 OLD_FILES+=etc/periodic/security/600.ip6fwdenied
 OLD_FILES+=etc/periodic/security/650.ip6fwlimit
 OLD_FILES+=sbin/ip6fw
