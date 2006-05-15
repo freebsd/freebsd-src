@@ -1535,6 +1535,7 @@ struct sk_softc {
 	u_int32_t		sk_rboff;	/* RAMbuffer offset */
 	u_int32_t		sk_ramsize;	/* amount of RAM on NIC */
 	u_int32_t		sk_pmd;		/* physical media type */
+	u_int32_t		sk_coppertype;
 	u_int32_t		sk_intrmask;
 	int			sk_int_mod;
 	int			sk_int_ticks;
