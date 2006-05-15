@@ -394,8 +394,9 @@ block the output at a positive decimal integer number of
 bytes per write to the archive file.
 The
 .Ar blocksize
-must be a multiple of 512 bytes with a maximum of 64512 bytes.
-Archives larger than 32256 bytes violate the
+must be a multiple of 512 bytes with a maximum of 64512 bytes. A
+.Ar blocksize
+larger than 32256 bytes violates the
 .Tn POSIX
 standard and will not be portable to all systems.
 A
