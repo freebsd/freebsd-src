@@ -2590,7 +2590,7 @@ bridge_rtnode_destroy(struct bridge_softc *sc, struct bridge_rtnode *brt)
 static int
 bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 {
-	int snap, error, i;
+	int snap, error, i, hlen;
 	struct ether_header *eh1, eh2;
 	struct ip_fw_args args;
 	struct ip *ip;
@@ -2785,10 +2785,25 @@ ipfwpass:
 			}
 		}
 
-		/* Restore ip and the fields ntohs()'d. */
+		/* Recalculate the ip checksum and restore byte ordering */
 		ip = mtod(*mp, struct ip *);
+		hlen = ip->ip_hl << 2;
+ 		if (hlen < sizeof(struct ip))
+ 			goto bad;
+ 		if (hlen > (*mp)->m_len) {
+ 			if ((*mp = m_pullup(*mp, hlen)) == 0)
+ 				goto bad;
+ 			ip = mtod(*mp, struct ip *);
+ 			if (ip == NULL)
+ 				goto bad;
+ 		}
 		ip->ip_len = htons(ip->ip_len);
 		ip->ip_off = htons(ip->ip_off);
+ 		ip->ip_sum = 0;
+ 		if (hlen == sizeof(struct ip))
+ 			ip->ip_sum = in_cksum_hdr(ip);
+ 		else
+ 			ip->ip_sum = in_cksum(*mp, hlen);
 
 		break;
 # ifdef INET6
