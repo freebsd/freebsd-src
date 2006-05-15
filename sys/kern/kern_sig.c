@@ -1333,7 +1333,7 @@ killpg1(td, sig, pgid, all)
 		LIST_FOREACH(p, &allproc, p_list) {
 			PROC_LOCK(p);
 			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
-			    p == td->td_proc) {
+			    p == td->td_proc || p->p_state == PRS_NEW) {
 				PROC_UNLOCK(p);
 				continue;
 			}
@@ -1363,7 +1363,8 @@ killpg1(td, sig, pgid, all)
 		sx_sunlock(&proctree_lock);
 		LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
 			PROC_LOCK(p);	      
-			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM) {
+			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
+				p->p_state == PRS_NEW ) {
 				PROC_UNLOCK(p);
 				continue;
 			}
