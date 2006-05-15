@@ -1,5 +1,3 @@
-.\" $FreeBSD$
-.\"
 .\" Copyright (c) 1995 Paul Kranenburg
 .\" All rights reserved.
 .\"
@@ -28,6 +26,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd January 28, 2000
 .Dt RTLD 1
 .Os
@@ -36,8 +36,9 @@
 .Nm rtld
 .Nd run-time link-editor
 .Sh DESCRIPTION
+The
 .Nm
-is a self-contained shared object providing run-time
+utility is a self-contained shared object providing run-time
 support for loading and link-editing shared objects into a process'
 address space.
 It is also commonly known as the dynamic linker.
@@ -56,8 +57,9 @@ to be called on a per-object basis, giving a shared object an opportunity
 to perform any extra set-up before execution of the program proper begins.
 This is useful for C++ libraries that contain static constructors.
 .Pp
+The
 .Nm
-itself is loaded by the kernel together with any dynamically-linked
+utility itself is loaded by the kernel together with any dynamically-linked
 program that is to be executed.
 The kernel transfers control to the
 dynamic linker.
@@ -65,7 +67,7 @@ After the dynamic linker has finished loading,
 relocating, and initializing the program and its required shared
 objects, it transfers control to the entry point of the program.
 .Pp
-To locate the required shared objects in the filesystem,
+To locate the required shared objects in the file system,
 .Nm
 may use a
 .Dq hints
@@ -73,7 +75,9 @@ file prepared by the
 .Xr ldconfig 8
 utility.
 .Pp
+The
 .Nm
+utility
 recognizes a number of environment variables that can be used to modify
 its behaviour as follows:
 .Pp
