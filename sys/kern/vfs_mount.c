@@ -736,9 +736,6 @@ mount(td, uap)
 	/* Kick out MNT_ROOTFS early as it is legal internally */
 	uap->flags &= ~MNT_ROOTFS;
 
-	if (uap->data == NULL)
-		return (EINVAL);
-
 	fstype = malloc(MFSNAMELEN, M_TEMP, M_WAITOK);
 	error = copyinstr(uap->type, fstype, MFSNAMELEN, NULL);
 	if (!error) {

@@ -34,6 +34,7 @@
 /*
  * Opaque structures
  */
+struct mntarg;
 struct mount;
 struct nameidata;
 struct proc;
@@ -199,6 +200,8 @@ struct pfs_node {
  */
 int		 pfs_mount	(struct pfs_info *pi, struct mount *mp,
 				 struct thread *td);
+int		 pfs_cmount	(struct mntarg *ma, void *data, int flags,
+				 struct thread *td);
 int		 pfs_unmount	(struct mount *mp, int mntflags,
 				 struct thread *td);
 int		 pfs_root	(struct mount *mp, int flags,
@@ -251,6 +254,7 @@ _##name##_uninit(struct vfsconf *vfc) {					\
 }									\
 									\
 static struct vfsops name##_vfsops = {					\
+	.vfs_cmount =		pfs_cmount,				\
 	.vfs_init =		_##name##_init,				\
 	.vfs_mount =		_##name##_mount,			\
 	.vfs_root =		pfs_root,				\
