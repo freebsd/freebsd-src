@@ -2,8 +2,7 @@
 
 RELN_ROOT?= ${.CURDIR}/../..
 
-SUBDIR = alpha
-SUBDIR+= amd64
+SUBDIR= amd64
 SUBDIR+= ia64
 SUBDIR+= i386
 SUBDIR+= pc98
