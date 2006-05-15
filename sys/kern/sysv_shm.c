@@ -102,20 +102,24 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_SHM, "shm", "SVID compatible shared memory segments");
 
+#if defined(__i386__) && (defined(COMPAT_FREEBSD4) || defined(COMPAT_43))
 struct oshmctl_args;
 static int oshmctl(struct thread *td, struct oshmctl_args *uap);
+#endif
 
 static int shmget_allocate_segment(struct thread *td,
     struct shmget_args *uap, int mode);
 static int shmget_existing(struct thread *td, struct shmget_args *uap,
     int mode, int segnum);
 
+#if defined(__i386__) && (defined(COMPAT_FREEBSD4) || defined(COMPAT_43))
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
 static sy_call_t *shmcalls[] = {
 	(sy_call_t *)shmat, (sy_call_t *)oshmctl,
 	(sy_call_t *)shmdt, (sy_call_t *)shmget,
 	(sy_call_t *)shmctl
 };
+#endif
 
 #define	SHMSEG_FREE     	0x0200
 #define	SHMSEG_REMOVED  	0x0400
@@ -464,6 +468,7 @@ shmat(td, uap)
 	return kern_shmat(td, uap->shmid, uap->shmaddr, uap->shmflg);
 }
 
+#if defined(__i386__) && (defined(COMPAT_FREEBSD4) || defined(COMPAT_43))
 struct oshmid_ds {
 	struct	ipc_perm shm_perm;	/* operation perms */
 	int	shm_segsz;		/* size of segment (bytes) */
@@ -540,6 +545,7 @@ done2:
 	return (EINVAL);
 #endif
 }
+#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct shmctl_args {
@@ -874,6 +880,7 @@ shmsys(td, uap)
 		int	a4;
 	} */ *uap;
 {
+#if defined(__i386__) && (defined(COMPAT_FREEBSD4) || defined(COMPAT_43))
 	int error;
 
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
@@ -885,6 +892,9 @@ shmsys(td, uap)
 	error = (*shmcalls[uap->which])(td, &uap->a2);
 	mtx_unlock(&Giant);
 	return (error);
+#else
+	return (nosys(td, NULL));
+#endif
 }
 
 static void

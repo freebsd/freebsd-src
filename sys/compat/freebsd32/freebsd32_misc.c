@@ -69,6 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/wait.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -1362,10 +1364,170 @@ freebsd32_msgsys(struct thread *td, struct freebsd32_msgsys_args *uap)
 int
 freebsd32_shmsys(struct thread *td, struct freebsd32_shmsys_args *uap)
 {
-	/*
-	 * Vector through to shmsys if it is loaded.
-	 */
-	return sysent[SYS_shmsys].sy_call(td, uap);
+
+	switch (uap->which) {
+	case 0:	{	/* shmat */
+		struct shmat_args ap;
+
+		ap.shmid = uap->a2;
+		ap.shmaddr = PTRIN(uap->a3);
+		ap.shmflg = uap->a4;
+		return (sysent[SYS_shmat].sy_call(td, &ap));
+	}
+	case 2: {	/* shmdt */
+		struct shmdt_args ap;
+
+		ap.shmaddr = PTRIN(uap->a2);
+		return (sysent[SYS_shmdt].sy_call(td, &ap));
+	}
+	case 3: {	/* shmget */
+		struct shmget_args ap;
+
+		ap.key = uap->a2;
+		ap.size = uap->a3;
+		ap.shmflg = uap->a4;
+		return (sysent[SYS_shmget].sy_call(td, &ap));
+	}
+	case 4: {	/* shmctl */
+		struct freebsd32_shmctl_args ap;
+
+		ap.shmid = uap->a2;
+		ap.cmd = uap->a3;
+		ap.buf = PTRIN(uap->a4);
+		return (freebsd32_shmctl(td, &ap));
+	}
+	case 1:		/* oshmctl */
+	default:
+		return (EINVAL);
+	}
+}
+
+struct ipc_perm32 {
+	uint16_t	cuid;
+	uint16_t	cgid;
+	uint16_t	uid;
+	uint16_t	gid;
+	uint16_t	mode;
+	uint16_t	seq;
+	uint32_t	key;
+};
+struct shmid_ds32 {
+	struct ipc_perm32 shm_perm;
+	int32_t		shm_segsz;
+	int32_t		shm_lpid;
+	int32_t		shm_cpid;
+	int16_t		shm_nattch;
+	int32_t		shm_atime;
+	int32_t		shm_dtime;
+	int32_t		shm_ctime;
+	uint32_t	shm_internal;
+};
+struct shm_info32 {
+	int32_t		used_ids;
+	uint32_t	shm_tot;
+	uint32_t	shm_rss;
+	uint32_t	shm_swp;
+	uint32_t	swap_attempts;
+	uint32_t	swap_successes;
+};
+struct shminfo32 {
+	uint32_t	shmmax;
+	uint32_t	shmmin;
+	uint32_t	shmmni;
+	uint32_t	shmseg;
+	uint32_t	shmall;
+};
+
+int
+freebsd32_shmctl(struct thread *td, struct freebsd32_shmctl_args *uap)
+{
+	int error = 0;
+	union {
+		struct shmid_ds shmid_ds;
+		struct shm_info shm_info;
+		struct shminfo shminfo;
+	} u;
+	union {
+		struct shmid_ds32 shmid_ds32;
+		struct shm_info32 shm_info32;
+		struct shminfo32 shminfo32;
+	} u32;
+	size_t sz;
+	
+	if (uap->cmd == IPC_SET) {
+		if ((error = copyin(uap->buf, &u32.shmid_ds32,
+		    sizeof(u32.shmid_ds32))))
+			goto done;
+		CP(u32.shmid_ds32, u.shmid_ds, shm_perm.cuid);
+		CP(u32.shmid_ds32, u.shmid_ds, shm_perm.cgid);
+		CP(u32.shmid_ds32, u.shmid_ds, shm_perm.uid);
+		CP(u32.shmid_ds32, u.shmid_ds, shm_perm.gid);
+		CP(u32.shmid_ds32, u.shmid_ds, shm_perm.mode);
+		CP(u32.shmid_ds32, u.shmid_ds, shm_perm.seq);
+		CP(u32.shmid_ds32, u.shmid_ds, shm_perm.key);
+		CP(u32.shmid_ds32, u.shmid_ds, shm_segsz);
+		CP(u32.shmid_ds32, u.shmid_ds, shm_lpid);
+		CP(u32.shmid_ds32, u.shmid_ds, shm_cpid);
+		CP(u32.shmid_ds32, u.shmid_ds, shm_nattch);
+		CP(u32.shmid_ds32, u.shmid_ds, shm_atime);
+		CP(u32.shmid_ds32, u.shmid_ds, shm_dtime);
+		CP(u32.shmid_ds32, u.shmid_ds, shm_ctime);
+		PTRIN_CP(u32.shmid_ds32, u.shmid_ds, shm_internal);
+	}
+	
+	error = kern_shmctl(td, uap->shmid, uap->cmd, (void *)&u, &sz);
+	if (error)
+		goto done;
+	
+	/* Cases in which we need to copyout */
+	switch (uap->cmd) {
+	case IPC_INFO:
+		CP(u.shminfo, u32.shminfo32, shmmax);
+		CP(u.shminfo, u32.shminfo32, shmmin);
+		CP(u.shminfo, u32.shminfo32, shmmni);
+		CP(u.shminfo, u32.shminfo32, shmseg);
+		CP(u.shminfo, u32.shminfo32, shmall);
+		error = copyout(&u32.shminfo32, uap->buf,
+		    sizeof(u32.shminfo32));
+		break;
+	case SHM_INFO:
+		CP(u.shm_info, u32.shm_info32, used_ids);
+		CP(u.shm_info, u32.shm_info32, shm_rss);
+		CP(u.shm_info, u32.shm_info32, shm_tot);
+		CP(u.shm_info, u32.shm_info32, shm_swp);
+		CP(u.shm_info, u32.shm_info32, swap_attempts);
+		CP(u.shm_info, u32.shm_info32, swap_successes);
+		error = copyout(&u32.shm_info32, uap->buf,
+		    sizeof(u32.shm_info32));
+		break;
+	case SHM_STAT:
+	case IPC_STAT:
+		CP(u.shmid_ds, u32.shmid_ds32, shm_perm.cuid);
+		CP(u.shmid_ds, u32.shmid_ds32, shm_perm.cgid);
+		CP(u.shmid_ds, u32.shmid_ds32, shm_perm.uid);
+		CP(u.shmid_ds, u32.shmid_ds32, shm_perm.gid);
+		CP(u.shmid_ds, u32.shmid_ds32, shm_perm.mode);
+		CP(u.shmid_ds, u32.shmid_ds32, shm_perm.seq);
+		CP(u.shmid_ds, u32.shmid_ds32, shm_perm.key);
+		CP(u.shmid_ds, u32.shmid_ds32, shm_segsz);
+		CP(u.shmid_ds, u32.shmid_ds32, shm_lpid);
+		CP(u.shmid_ds, u32.shmid_ds32, shm_cpid);
+		CP(u.shmid_ds, u32.shmid_ds32, shm_nattch);
+		CP(u.shmid_ds, u32.shmid_ds32, shm_atime);
+		CP(u.shmid_ds, u32.shmid_ds32, shm_dtime);
+		CP(u.shmid_ds, u32.shmid_ds32, shm_ctime);
+		PTROUT_CP(u.shmid_ds, u32.shmid_ds32, shm_internal);
+		error = copyout(&u32.shmid_ds32, uap->buf,
+		    sizeof(u32.shmid_ds32));
+		break;
+	}
+
+done:
+	if (error) {
+		/* Invalidate the return value */
+		td->td_retval[0] = -1;
+	}
+	return (error);
 }
 
 int
