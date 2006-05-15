@@ -35,7 +35,7 @@
 .Cd "device hwpmc"
 .Pp
 Additionally, for i386 systems:
-.Cd device apic
+.Cd "device apic"
 .Sh DESCRIPTION
 The
 .Nm
@@ -503,7 +503,7 @@ between the currently executing kernel and the module being loaded.
 .It "hwpmc: this kernel has not been compiled with 'options HWPMC_HOOKS'."
 The module loading process failed because the currently executing kernel
 was not configured with the required configuration option
-.Cd HWPMC_HOOKS .
+.Dv HWPMC_HOOKS .
 .It "hwpmc: tunable hashsize=%d must be greater than zero."
 A negative value was supplied for tunable
 .Va kern.hwpmc.hashsize .
