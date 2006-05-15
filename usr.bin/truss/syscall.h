@@ -30,7 +30,7 @@
  * $FreeBSD$
  */
 
-enum Argtype { None = 1, Hex, Octal, Int, String, Ptr, Stat, Ioctl, Quad,
+enum Argtype { None = 1, Hex, Octal, Int, Name, String, Ptr, Stat, Ioctl, Quad,
 	Signal, Sockaddr, StringArray, Timespec, Timeval, Itimerval, Pollfd, 
 	Fd_set, Sigaction, Fcntl, Mprot, Mmapflags, Whence, Readlinkres };
 
@@ -53,7 +53,7 @@ struct syscall {
 
 struct syscall *get_syscall(const char*);
 char *get_string(int, void*, int);
-char *print_arg(int, struct syscall_args *, unsigned long*, long);
+char *print_arg(int, struct syscall_args *, unsigned long*, long, struct trussinfo *);
 void print_syscall(struct trussinfo *, const char *, int, char **);
 void print_syscall_ret(struct trussinfo *, const char *, int, char **, int,
     long);

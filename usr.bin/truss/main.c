@@ -70,8 +70,8 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
-	    "usage: truss [-faedDS] [-o file] -p pid",
-	    "       truss [-faedDS] [-o file] command [args]");
+	    "usage: truss [-faedDS] [-o file] [-s strsize] -p pid",
+	    "       truss [-faedDS] [-o file] [-s strsize] command [args]");
 	exit(1);
 }
 
@@ -181,8 +181,9 @@ main(int ac, char **av)
 		errx(1, "malloc() failed");
 	bzero(trussinfo, sizeof(struct trussinfo));
 	trussinfo->outfile = stderr;
+	trussinfo->strsize = 32;
 
-	while ((c = getopt(ac, av, "p:o:faedDS")) != -1) {
+	while ((c = getopt(ac, av, "p:o:faedDs:S")) != -1) {
 		switch (c) {
 		case 'p':	/* specified pid */
 			trussinfo->pid = atoi(optarg);
@@ -204,6 +205,9 @@ main(int ac, char **av)
 			break;
 		case 'o':	/* Specified output file */
 			fname = optarg;
+			break;
+		case 's':	/* Specified string size */
+			trussinfo->strsize = atoi(optarg);
 			break;
 		case 'S':	/* Don't trace signals */ 
 			trussinfo->flags |= NOSIGS;
