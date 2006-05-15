@@ -54,10 +54,20 @@
 
 static MALLOC_DEFINE(M_FDESCMNT, "fdesc_mount", "FDESC mount structure");
 
+static vfs_cmount_t	fdesc_cmount;
 static vfs_mount_t	fdesc_mount;
 static vfs_unmount_t	fdesc_unmount;
 static vfs_statfs_t	fdesc_statfs;
 static vfs_root_t	fdesc_root;
+
+/*
+ * Compatibility shim for old mount(2) system call.
+ */
+int
+fdesc_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+{
+	return kernel_mount(ma, flags);
+}
 
 /*
  * Mount the per-process file descriptors (/dev/fd)
@@ -193,6 +203,7 @@ fdesc_statfs(mp, sbp, td)
 }
 
 static struct vfsops fdesc_vfsops = {
+	.vfs_cmount =		fdesc_cmount,
 	.vfs_init =		fdesc_init,
 	.vfs_mount =		fdesc_mount,
 	.vfs_root =		fdesc_root,

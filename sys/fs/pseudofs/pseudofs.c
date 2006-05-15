@@ -285,6 +285,15 @@ pfs_mount(struct pfs_info *pi, struct mount *mp, struct thread *td)
 }
 
 /*
+ * Compatibility shim for old mount(2) system call.
+ */
+int
+pfs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+{
+	return kernel_mount(ma, flags);
+}
+
+/*
  * Unmount a pseudofs instance
  */
 int
