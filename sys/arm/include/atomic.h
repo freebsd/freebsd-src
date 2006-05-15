@@ -324,10 +324,12 @@ atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
 #define atomic_clear_acq_long		atomic_clear_32
 #define atomic_subtract_int		atomic_subtract_32
 #define atomic_subtract_rel_int		atomic_subtract_32
+#define atomic_subtract_rel_32		atomic_subtract_32
 #define atomic_subtract_acq_int		atomic_subtract_32
 #define atomic_add_int			atomic_add_32
 #define atomic_add_acq_long		atomic_add_32
 #define atomic_add_rel_int		atomic_add_32
+#define atomic_add_rel_32		atomic_add_32
 #define atomic_add_acq_int		atomic_add_32
 #define atomic_cmpset_int		atomic_cmpset_32
 #define atomic_cmpset_rel_int		atomic_cmpset_32
@@ -340,6 +342,7 @@ atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
 #define atomic_cmpset_rel_32		atomic_cmpset_32
 #define atomic_cmpset_rel_ptr		atomic_cmpset_ptr
 #define atomic_load_acq_int		atomic_load_32
+#define atomic_load_acq_32		atomic_load_32
 #define	atomic_clear_ptr		atomic_clear_32
 #define	atomic_store_ptr		atomic_store_32
 #define	atomic_cmpset_ptr		atomic_cmpset_32
