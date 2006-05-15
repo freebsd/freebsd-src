@@ -21,6 +21,21 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20060511:
+	The machdep.* sysctls and the adjkerntz utility have been
+	modified a bit.  The new adjkerntz utility uses the new
+	sysctl names and sysctlbyname() calls, so it may be impossible
+	to run an old /sbin/adjkerntz utility in single-user mode
+	with a new kernel.  Replace the `adjkerntz -i' step before
+	`make installworld' with:
+
+	    /usr/obj/usr/src/sbin/adjkerntz/adjkerntz -i
+
+	and proceed as usual with the rest of the installworld-stage
+	steps.  Otherwise, you risk installing binaries with their
+	timestamp set several hours in the future, especially if
+	you are running with local time set to GMT+X hours.
+
 20060412:
 	The ip6fw utility has been removed.  The behavior provided by
 	ip6fw has been in ipfw2 for a good while and the rc.d scripts
