@@ -198,7 +198,7 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
 device		ep		# Etherlink III based cards
 device		fe		# Fujitsu MB8696x based cards
-device		lnc		# C-NET(98)S
+device		le		# NE2100, NE32-VL Lance Ethernet cards
 device		sn		# SMC's 9000 series of Ethernet chips
 device		snc
 device		xe		# Xircom pccard Ethernet
