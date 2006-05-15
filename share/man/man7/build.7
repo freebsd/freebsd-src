@@ -395,11 +395,11 @@ section in
 .Pa src/UPDATING .
 .Pp
 The following sequence of commands can be used to cross-build the
-system for the Alpha architecture on an i386 host:
+system for the sparc64 architecture on an i386 host:
 .Bd -literal -offset indent
 cd /usr/src
-make TARGET_ARCH=alpha buildworld
-make TARGET_ARCH=alpha DESTDIR=/clients/axp installworld
+make TARGET_ARCH=sparc64 buildworld
+make TARGET_ARCH=sparc64 DESTDIR=/clients/axp installworld
 .Ed
 .Sh SEE ALSO
 .Xr cc 1 ,
