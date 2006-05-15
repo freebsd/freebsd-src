@@ -279,6 +279,7 @@ START_TRACE:
 
 	do {
 		int val = 0;
+		struct timespec timediff;
 
 		if (ioctl(Procfd, PIOCWAIT, &pfs) == -1)
 			warn("PIOCWAIT top of loop");
@@ -328,6 +329,23 @@ START_TRACE:
 				funcs->exit_syscall(trussinfo, pfs.val);
 				break;
 			case S_SIG:
+				if (trussinfo->flags & FOLLOWFORKS)
+					fprintf(trussinfo->outfile, "%5d: ",
+					    trussinfo->pid);
+				if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
+					timespecsubt(&trussinfo->after,
+					    &trussinfo->start_time, &timediff);
+					fprintf(trussinfo->outfile, "%ld.%09ld ",
+					    (long)timediff.tv_sec,
+					    timediff.tv_nsec);
+				}
+				if (trussinfo->flags & RELATIVETIMESTAMPS) {
+					timespecsubt(&trussinfo->after,
+					    &trussinfo->before, &timediff);
+					fprintf(trussinfo->outfile, "%ld.%09ld ",
+					    (long)timediff.tv_sec,
+					    timediff.tv_nsec);
+				}
 				signame = strsig(pfs.val);
 				fprintf(trussinfo->outfile,
 				    "SIGNAL %lu (%s)\n", pfs.val,
@@ -336,6 +354,22 @@ START_TRACE:
 				sigexit = pfs.val;
 				break;
 			case S_EXIT:
+				if (trussinfo->flags & FOLLOWFORKS)
+					fprintf(trussinfo->outfile, "%5d: ",
+					    trussinfo->pid);
+				if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
+					timespecsubt(&trussinfo->after,
+					    &trussinfo->start_time, &timediff);
+					fprintf(trussinfo->outfile, "%ld.%09ld ",
+					    (long)timediff.tv_sec,
+					    timediff.tv_nsec);
+				}
+				if (trussinfo->flags & RELATIVETIMESTAMPS) {
+				  timespecsubt(&trussinfo->after,
+				      &trussinfo->before, &timediff);
+				  fprintf(trussinfo->outfile, "%ld.%09ld ",
+				    (long)timediff.tv_sec, timediff.tv_nsec);
+				}
 				fprintf(trussinfo->outfile,
 				    "process exit, rval = %lu\n", pfs.val);
 				break;
