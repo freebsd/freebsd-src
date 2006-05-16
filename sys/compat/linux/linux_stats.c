@@ -122,6 +122,8 @@ translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 static void
 translate_path_major_minor(struct thread *td, char *path, struct stat *buf)
 {
+	struct proc *p = td->td_proc;	
+	struct filedesc *fdp = p->p_fd;
 	struct file *fp;
 	int fd;
 	int temp;
@@ -132,8 +134,10 @@ translate_path_major_minor(struct thread *td, char *path, struct stat *buf)
 	fd = td->td_retval[0];
 	td->td_retval[0] = temp;
 	translate_fd_major_minor(td, fd, buf);
-	fget(td, fd, &fp);
-	closef(fp, td);
+	FILEDESC_LOCK(fdp);
+	fp = fdp->fd_ofiles[fd];
+	FILEDESC_UNLOCK(fdp);
+	fdclose(fdp, fdp->fd_ofiles[fd], fd, td);
 }
 
 static int
