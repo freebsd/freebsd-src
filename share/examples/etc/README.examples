@@ -51,7 +51,7 @@ phones		- phone number database for tip(1)
 portsnap.conf	- portsnap(8) configuration file
 printcap	- configuration file for lpr(1)
 profile		- system-wide .profile for sh(1)
-protocols	- see protocols(5
+protocols	- see protocols(5)
 rc		- system startup script (see init(8))
 rc.bsdextended	- startup policy for the mac_bsdextended(4) security module. 
 rc.firewall	- ipfw(8) setup script with basic rulesets
