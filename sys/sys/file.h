@@ -117,7 +117,13 @@ struct file {
 
 	/* DFLAG_SEEKABLE specific fields */
 	off_t	f_offset;
-
+	short     f_vnread_flags; /* 
+				   * (f) home grown sleep lock for f_offset
+				   * Used only for shared vnode locking in
+				   * vnread()
+				   */
+#define  FOFFSET_LOCKED       0x1
+#define  FOFFSET_LOCK_WAITING 0x2		 
 	/* DTYPE_SOCKET specific fields */
 	short	f_gcflag;	/* used by thread doing fd garbage collection */
 #define	FMARK		0x1	/* mark during gc() */

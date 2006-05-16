@@ -495,11 +495,18 @@ vn_read(fp, uio, active_cred, flags, td)
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	VOP_LEASE(vp, td, fp->f_cred, LEASE_READ);
 	/*
-	 * According to McKusick the vn lock is protecting f_offset here.
-	 * Once this field has it's own lock we can acquire this shared.
+	 * According to McKusick the vn lock was protecting f_offset here.
+	 * It is now protected by the FOFFSET_LOCKED flag.
 	 */
 	if ((flags & FOF_OFFSET) == 0) {
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		FILE_LOCK(fp);
+		while(fp->f_vnread_flags & FOFFSET_LOCKED) {
+			fp->f_vnread_flags |= FOFFSET_LOCK_WAITING;
+			msleep(&fp->f_vnread_flags,fp->f_mtxp,PUSER -1,"vnread offlock",0);
+		}
+		fp->f_vnread_flags |= FOFFSET_LOCKED;
+		FILE_UNLOCK(fp);
+		vn_lock(vp, LK_SHARED | LK_RETRY, td);
 		uio->uio_offset = fp->f_offset;
 	} else
 		vn_lock(vp, LK_SHARED | LK_RETRY, td);
@@ -511,8 +518,14 @@ vn_read(fp, uio, active_cred, flags, td)
 	if (error == 0)
 #endif
 		error = VOP_READ(vp, uio, ioflag, fp->f_cred);
-	if ((flags & FOF_OFFSET) == 0)
+	if ((flags & FOF_OFFSET) == 0) {
 		fp->f_offset = uio->uio_offset;
+		FILE_LOCK(fp);
+		if (fp->f_vnread_flags & FOFFSET_LOCK_WAITING)
+			wakeup(&fp->f_vnread_flags);
+		fp->f_vnread_flags = 0;
+		FILE_UNLOCK(fp);
+	}
 	fp->f_nextoff = uio->uio_offset;
 	VOP_UNLOCK(vp, 0, td);
 	VFS_UNLOCK_GIANT(vfslocked);
