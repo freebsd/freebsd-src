@@ -171,4 +171,7 @@ EVENTHANDLER_DECLARE(process_exit, exitlist_fn);
 EVENTHANDLER_DECLARE(process_fork, forklist_fn);
 EVENTHANDLER_DECLARE(process_exec, execlist_fn);
 
+typedef void (*uma_zone_chfn)(void *);
+EVENTHANDLER_DECLARE(nmbclusters_change, uma_zone_chfn);
+EVENTHANDLER_DECLARE(maxsockets_change, uma_zone_chfn);
 #endif /* SYS_EVENTHANDLER_H */
