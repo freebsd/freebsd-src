@@ -139,6 +139,10 @@ typedef struct mii_softc mii_softc_t;
 #define	MIIF_DOPAUSE	0x0100		/* advertise PAUSE capability */
 #define	MIIF_IS_HPNA	0x0200		/* is a HomePNA device */
 
+/* Default mii_anegticks values */
+#define	MII_ANEGTICKS		5
+#define	MII_ANEGTICKS_GIGE	17
+
 #define	MIIF_INHERIT_MASK	(MIIF_NOISOLATE|MIIF_NOLOOP|MIIF_AUTOTSLEEP)
 
 /*
