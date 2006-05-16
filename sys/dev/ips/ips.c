@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ips/ips.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <machine/clock.h>
 
 static d_open_t ips_open;
 static d_close_t ips_close;

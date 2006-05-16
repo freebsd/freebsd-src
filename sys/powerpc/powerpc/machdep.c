@@ -104,7 +104,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 
 #include <machine/bat.h>
-#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/elf.h>
 #include <machine/fpu.h>

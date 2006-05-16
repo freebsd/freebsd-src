@@ -88,7 +88,6 @@ enum _pdq_type_t {
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <machine/cpufunc.h>
-#include <machine/clock.h>
 #define	ifnet_ret_t void
 typedef int ioctl_cmd_t;
 typedef enum { PDQ_BUS_EISA, PDQ_BUS_PCI } pdq_bus_t;

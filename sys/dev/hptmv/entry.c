@@ -50,7 +50,6 @@
 #else 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
-#include <machine/clock.h>
 #include <sys/wait.h>
 #include <sys/sysproto.h>
 #endif

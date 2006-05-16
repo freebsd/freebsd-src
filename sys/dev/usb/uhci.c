@@ -96,7 +96,6 @@ __FBSDID("$FreeBSD$");
 /*#define UHCI_CTL_LOOP */
 
 #if defined(__FreeBSD__)
-#include <machine/clock.h>
 
 #define delay(d)		DELAY(d)
 #endif

@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/taskqueue.h>
-#include <machine/clock.h>
 
 #include <contrib/dev/acpica/acpi.h>
 #include <dev/acpica/acpivar.h>

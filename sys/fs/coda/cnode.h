@@ -49,7 +49,6 @@
 
 #include <sys/vnode.h>
 #include <sys/lock.h>
-#include <machine/clock.h>
 
 MALLOC_DECLARE(M_CODA);
 

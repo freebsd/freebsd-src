@@ -93,7 +93,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-#include <machine/clock.h>
 
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>

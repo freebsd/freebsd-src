@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <net/if.h>
 
-#include <machine/clock.h>
 
 #include <machine/bus.h>
 #include <sys/bus.h>

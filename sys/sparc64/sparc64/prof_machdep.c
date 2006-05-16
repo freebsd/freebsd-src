@@ -37,7 +37,6 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
-#include <machine/clock.h>
 #include <machine/profile.h>
 
 int	cputime_bias;

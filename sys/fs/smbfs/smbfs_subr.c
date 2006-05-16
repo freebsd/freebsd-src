@@ -35,7 +35,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <machine/clock.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
 #include <sys/sysctl.h>

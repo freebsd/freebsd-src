@@ -99,7 +99,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #endif
 #include <sys/sysctl.h>
-#include <machine/clock.h>	/* for DELAY */  
 
 #include <sys/module.h>
 #include <sys/sysctl.h>

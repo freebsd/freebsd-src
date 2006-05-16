@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_arp.h>
 
-#include <machine/clock.h>	/* for DELAY */
 
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>

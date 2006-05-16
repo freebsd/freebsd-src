@@ -30,10 +30,6 @@
 #ifndef	_CAM_CAM_DEBUG_H
 #define _CAM_CAM_DEBUG_H 1
 
-#if defined(CAMDEBUG) && defined(_KERNEL)
-#include <machine/clock.h>
-#endif /* CAMDEBUG && _KERNEL */
-
 /*
  * Debugging flags.
  */

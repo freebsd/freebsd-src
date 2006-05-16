@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/openfirm.h>
 
-#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 #include <machine/md_var.h>
