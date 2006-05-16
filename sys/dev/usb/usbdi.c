@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 
 #if defined(__FreeBSD__)
 #include "usb_if.h"
-#include <machine/clock.h>
 #define delay(d)	DELAY(d)
 #endif
 

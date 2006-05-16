@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_media.h>
 
-#include <machine/clock.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>

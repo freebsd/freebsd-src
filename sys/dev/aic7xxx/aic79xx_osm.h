@@ -55,7 +55,6 @@
 #define AIC_PCI_CONFIG 1
 #include <machine/bus.h>
 #include <machine/endian.h>
-#include <machine/clock.h>
 #include <machine/resource.h>
 
 #include <sys/rman.h>

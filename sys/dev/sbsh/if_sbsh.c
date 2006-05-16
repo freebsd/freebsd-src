@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/random.h>
-#include <machine/clock.h>
 #include <machine/stdarg.h>
 
 #include <net/if.h>

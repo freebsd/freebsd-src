@@ -42,7 +42,6 @@
 
 #include <machine/atomic.h>
 #include <machine/pmap.h>
-#include <machine/clock.h>
 
 int			boot_cpu_id;
 

@@ -37,7 +37,6 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-#include <machine/clock.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>

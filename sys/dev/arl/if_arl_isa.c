@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <isa/pnpvar.h>
 #include <isa/isa_common.h>
 
-#include <machine/clock.h>
 #include <machine/md_var.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>

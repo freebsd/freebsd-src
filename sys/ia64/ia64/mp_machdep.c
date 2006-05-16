@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 
 #include <machine/atomic.h>
-#include <machine/clock.h>
 #include <machine/fpu.h>
 #include <machine/mca.h>
 #include <machine/md_var.h>

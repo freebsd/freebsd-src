@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <sys/rman.h>
 
-#include <machine/clock.h>
 #include <machine/md_var.h>
 
 #include <net/if.h>

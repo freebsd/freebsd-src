@@ -81,7 +81,6 @@
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 
-#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/fpu.h>
 #include <machine/md_var.h>

@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <machine/stdarg.h>
-#include <machine/clock.h>
 
 #include <net/if.h>
 

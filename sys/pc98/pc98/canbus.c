@@ -35,7 +35,6 @@
 #include <sys/module.h>
 #include <sys/sysctl.h>
 
-#include <machine/clock.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
