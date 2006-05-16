@@ -103,7 +103,7 @@ __FBSDID("$FreeBSD$");
 #define	AMD_VENDOR	0x1022
 #define	AMD_PCNET_PCI	0x2000
 #define	AMD_PCNET_HOME	0x2001
-#define	PCNET_MEMSIZE	16384
+#define	PCNET_MEMSIZE	(32*1024)
 #define	PCNET_PCI_RDP	0x10
 #define	PCNET_PCI_RAP	0x12
 #define	PCNET_PCI_BDP	0x16
@@ -146,7 +146,7 @@ static device_method_t le_pci_methods[] = {
 
 DEFINE_CLASS_0(le, le_pci_driver, le_pci_methods, sizeof(struct le_pci_softc));
 DRIVER_MODULE(le, pci, le_pci_driver, le_devclass, 0, 0);
-MODULE_DEPEND(le_DRIVER_NAME, ether, 1, 1, 1);
+MODULE_DEPEND(le, ether, 1, 1, 1);
 
 static const int le_home_supmedia[] = {
 	IFM_MAKEWORD(IFM_ETHER, IFM_HPNA_1, 0, 0)
@@ -263,8 +263,8 @@ static void
 le_pci_hwreset(struct lance_softc *sc)
 {
 
-	/* Chip is stopped. Set "software style" to 32-bit. */
-	le_pci_wrbcr(sc, LE_BCR20, LE_B20_SSTYLE_PCNETPCI2);
+	/* Chip is stopped. Set software style to ILACC (32-bit). */
+	le_pci_wrbcr(sc, LE_BCR20, LE_B20_SSTYLE_ILACC);
 }
 
 static void
@@ -287,9 +287,13 @@ le_pci_probe(device_t dev)
 
 	switch (pci_get_device(dev)) {
 	case AMD_PCNET_PCI:
+		device_set_desc(dev, "AMD PCnet-PCI");
+		/* Let pcn(4) win. */
+		return (BUS_PROBE_LOW_PRIORITY);
 	case AMD_PCNET_HOME:
-		device_set_desc(dev, "AMD PCnet Ethernet");
-		return (BUS_PROBE_DEFAULT);
+		device_set_desc(dev, "AMD PCnet-Home");
+		/* Let pcn(4) win. */
+		return (BUS_PROBE_LOW_PRIORITY);
 	default:
 		return (ENXIO);
 	}
@@ -331,7 +335,7 @@ le_pci_attach(device_t dev)
 
 	error = bus_dma_tag_create(
 	    NULL,			/* parent */
-	    PAGE_SIZE, 0,		/* alignment, boundary */
+	    1, 0,			/* alignment, boundary */
 	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
@@ -347,9 +351,14 @@ le_pci_attach(device_t dev)
 	}
 
 	sc->sc_memsize = PCNET_MEMSIZE;
+	/*
+	 * For Am79C970A, Am79C971 and Am79C978 the init block must be 2-byte
+	 * aligned and the ring descriptors must be 16-byte aligned when using
+	 * a 32-bit software style.
+	 */
 	error = bus_dma_tag_create(
 	    lesc->sc_pdmat,		/* parent */
-	    1, 0,			/* alignment, boundary */
+	    16, 0,			/* alignment, boundary */
 	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
@@ -382,6 +391,7 @@ le_pci_attach(device_t dev)
 	sc->sc_flags = LE_BSWAP;
 	sc->sc_conf3 = 0;
 
+	sc->sc_mediastatus = NULL;
 	switch (pci_get_device(dev)) {
 	case AMD_PCNET_HOME:
 		sc->sc_mediachange = le_pci_mediachange;
@@ -412,11 +422,14 @@ le_pci_attach(device_t dev)
 	sc->sc_rdcsr = le_pci_rdcsr;
 	sc->sc_wrcsr = le_pci_wrcsr;
 	sc->sc_hwreset = le_pci_hwreset;
+	sc->sc_hwinit = NULL;
+	sc->sc_hwintr = NULL;
+	sc->sc_nocarrier = NULL;
 
 	error = am79900_config(&lesc->sc_am79900, device_get_name(dev),
 	    device_get_unit(dev));
 	if (error != 0) {
-		device_printf(dev, "cannot attach AM79900\n");
+		device_printf(dev, "cannot attach Am79900\n");
 		goto fail_dmap;
 	}
 
