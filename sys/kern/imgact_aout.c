@@ -220,6 +220,7 @@ exec_aout_imgact(imgp)
 		MAP_COPY_ON_WRITE | MAP_PREFAULT);
 	if (error) {
 		vm_map_unlock(map);
+		vm_object_deallocate(object);
 		return (error);
 	}
 	data_end = text_end + a_out->a_data;
@@ -232,6 +233,7 @@ exec_aout_imgact(imgp)
 			MAP_COPY_ON_WRITE | MAP_PREFAULT);
 		if (error) {
 			vm_map_unlock(map);
+			vm_object_deallocate(object);
 			return (error);
 		}
 	}
