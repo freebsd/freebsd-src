@@ -128,6 +128,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_var.h>
 
+#include <machine/bus.h>
+
 #include <dev/le/lancereg.h>
 #include <dev/le/lancevar.h>
 #include <dev/le/am79900reg.h>
@@ -255,9 +257,13 @@ static inline void
 am79900_rint(struct lance_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
+	struct mbuf *m;
 	struct lermd rmd;
 	uint32_t rmd1;
 	int bix, rp;
+#if defined(__i386__) && !defined(PC98)
+	struct ether_header *eh;
+#endif
 
 	bix = sc->sc_last_rd;
 
@@ -270,35 +276,37 @@ am79900_rint(struct lance_softc *sc)
 		if (rmd1 & LE_R1_OWN)
 			break;
 
-		if (rmd1 & LE_R1_ERR) {
-			if (rmd1 & LE_R1_ENP) {
+		m = NULL;
+		if ((rmd1 & (LE_R1_ERR | LE_R1_STP | LE_R1_ENP)) !=
+		    (LE_R1_STP | LE_R1_ENP)){
+			if (rmd1 & LE_R1_ERR) {
 #ifdef LEDEBUG
-				if ((rmd1 & LE_R1_OFLO) == 0) {
-					if (rmd1 & LE_R1_FRAM)
-						if_printf(ifp,
-						    "framing error\n");
-					if (rmd1 & LE_R1_CRC)
-						if_printf(ifp,
-						    "crc mismatch\n");
-				}
+				if (rmd1 & LE_R1_ENP) {
+					if ((rmd1 & LE_R1_OFLO) == 0) {
+						if (rmd1 & LE_R1_FRAM)
+							if_printf(ifp,
+							    "framing error\n");
+						if (rmd1 & LE_R1_CRC)
+							if_printf(ifp,
+							    "crc mismatch\n");
+					}
+				} else
+					if (rmd1 & LE_R1_OFLO)
+						if_printf(ifp, "overflow\n");
 #endif
-			} else {
-				if (rmd1 & LE_R1_OFLO)
-					if_printf(ifp, "overflow\n");
-			}
-			if (rmd1 & LE_R1_BUFF)
-				if_printf(ifp, "receive buffer error\n");
-			ifp->if_ierrors++;
-		} else if ((rmd1 & (LE_R1_STP | LE_R1_ENP)) !=
-		    (LE_R1_STP | LE_R1_ENP)) {
-			if_printf(ifp, "dropping chained buffer\n");
-			ifp->if_ierrors++;
+				if (rmd1 & LE_R1_BUFF)
+					if_printf(ifp,
+					    "receive buffer error\n");
+			} else if ((rmd1 & (LE_R1_STP | LE_R1_ENP)) !=
+			    (LE_R1_STP | LE_R1_ENP))
+				if_printf(ifp, "dropping chained buffer\n");
 		} else {
 #ifdef LEDEBUG
 			if (sc->sc_flags & LE_DEBUG)
-				am79900_recv_print(sc, sc->sc_last_rd);
+				am79900_recv_print(sc, bix);
 #endif
-			lance_read(sc, LE_RBUFADDR(sc, bix),
+			/* Pull the packet off the interface. */
+			m = lance_get(sc, LE_RBUFADDR(sc, bix),
 			    (LE_LE32TOH(rmd.rmd2) & 0xfff) - ETHER_CRC_LEN);
 		}
 
@@ -308,16 +316,31 @@ am79900_rint(struct lance_softc *sc)
 		rmd.rmd3 = 0;
 		(*sc->sc_copytodesc)(sc, &rmd, rp, sizeof(rmd));
 
-#ifdef LEDEBUG
-		if (sc->sc_flags & LE_DEBUG)
-			if_printf(ifp, "sc->sc_last_rd = %x, rmd: "
-			    "adr %08x, flags/blen %08x\n",
-			    sc->sc_last_rd, LE_LE32TOH(rmd.rmd0),
-			    LE_LE32TOH(rmd.rmd1));
-#endif
-
 		if (++bix == sc->sc_nrbuf)
 			bix = 0;
+
+		if (m != NULL) {
+			ifp->if_ipackets++;
+
+#if defined(__i386__) && !defined(PC98)
+			/*
+			 * The VMware LANCE does not present IFF_SIMPLEX
+			 * behavior on multicast packets. Thus drop the
+			 * packet if it is from ourselves.
+			 */
+			eh = mtod(m, struct ether_header *);
+			if (!ether_cmp(eh->ether_shost, sc->sc_enaddr)) {
+				m_freem(m);
+				continue;
+			}
+#endif
+
+			/* Pass the packet up. */
+			LE_UNLOCK(sc);
+			(*ifp->if_input)(ifp, m);
+			LE_LOCK(sc);
+		} else
+			ifp->if_ierrors++;
 	}
 
 	sc->sc_last_rd = bix;
@@ -340,21 +363,22 @@ am79900_tint(struct lance_softc *sc)
 		(*sc->sc_copyfromdesc)(sc, &tmd, LE_TMDADDR(sc, bix),
 		    sizeof(tmd));
 
+		tmd1 = LE_LE32TOH(tmd.tmd1);
+
 #ifdef LEDEBUG
 		if (sc->sc_flags & LE_DEBUG)
 			if_printf(ifp, "trans tmd: "
 			    "adr %08x, flags/blen %08x\n",
-			    LE_LE32TOH(tmd.tmd0), LE_LE32TOH(tmd.tmd1));
+			    LE_LE32TOH(tmd.tmd0), tmd1);
 #endif
 
-		tmd1 = LE_LE32TOH(tmd.tmd1);
 		if (tmd1 & LE_T1_OWN)
 			break;
 
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-		tmd2 = LE_LE32TOH(tmd.tmd2);
 		if (tmd1 & LE_T1_ERR) {
+			tmd2 = LE_LE32TOH(tmd.tmd2);
 			if (tmd2 & LE_T2_BUFF)
 				if_printf(ifp, "transmit buffer error\n");
 			else if (tmd2 & LE_T2_UFLO)
@@ -434,11 +458,11 @@ am79900_intr(void *arg)
 	/*
 	 * Clear interrupt source flags and turn off interrupts. If we
 	 * don't clear these flags before processing their sources we
-	 * could completely miss some interrupt events as the the NIC
-	 * can change these flags while we're in this handler. We turn
-	 * of interrupts while processing them so we don't get another
-	 * one while we still process the previous one in ifp->if_input()
-	 * with the driver lock dropped.
+	 * could completely miss some interrupt events as the NIC can
+	 * change these flags while we're in this handler. We turn off
+	 * interrupts so we don't get another RX interrupt while still
+	 * processing the previous one in ifp->if_input() with the
+	 * driver lock dropped.
 	 */
 	(*sc->sc_wrcsr)(sc, LE_CSR0, isr & ~(LE_C0_INEA | LE_C0_TDMD |
 	    LE_C0_STOP | LE_C0_STRT | LE_C0_INIT));
@@ -572,7 +596,7 @@ am79900_start_locked(struct lance_softc *sc)
 
 #ifdef LEDEBUG
 		if (sc->sc_flags & LE_DEBUG)
-			am79900_xmit_print(sc, sc->sc_last_td);
+			am79900_xmit_print(sc, bix);
 #endif
 
 		(*sc->sc_wrcsr)(sc, LE_CSR0, LE_C0_INEA | LE_C0_TDMD);
