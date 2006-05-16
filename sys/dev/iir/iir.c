@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <machine/bus.h>
-#include <machine/clock.h>
 #include <machine/stdarg.h>
 
 #include <cam/cam.h>

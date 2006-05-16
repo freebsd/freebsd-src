@@ -73,7 +73,6 @@
 #include <sys/systm.h>
 
 #include <machine/bus.h>
-#include <machine/clock.h>
 #include <machine/stdarg.h>
 
 #ifdef PC98

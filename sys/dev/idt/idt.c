@@ -95,7 +95,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/mman.h>
-#include <machine/clock.h>
 #include <machine/cpu.h>	/* bootverbose */
 
 #include <sys/bus.h>

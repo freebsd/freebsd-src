@@ -62,7 +62,6 @@
 
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
-#include <machine/clock.h>      /* for DELAY */
 
 #endif	/* PDQ_HWSUPPORT */
 

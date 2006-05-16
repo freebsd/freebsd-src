@@ -117,7 +117,6 @@
 #include <sys/bus.h>
 #include <sys/module.h>
 
-#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/resource.h>
 

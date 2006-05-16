@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <isa/isavar.h>
 #include <sys/poll.h>
 #include <machine/pci_cfgreg.h>
-#include <machine/clock.h>
 #include <sys/tty.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
