@@ -42,8 +42,6 @@
 #ifndef _DEV_LE_LANCEVAR_H_
 #define	_DEV_LE_LANCEVAR_H_
 
-#define	LE_DRIVER_NAME	"le"
-
 extern devclass_t le_devclass;
 
 struct lance_softc {
@@ -92,10 +90,10 @@ struct lance_softc {
 
 	uint16_t	sc_conf3;	/* CSR3 value */
 
-	void	*sc_mem;	/* base address of RAM -- CPU's view */
-	u_long	sc_addr;	/* base address of RAM -- LANCE's view */
+	void	*sc_mem;		/* base address of RAM - CPU's view */
+	bus_addr_t	sc_addr;	/* base address of RAM - LANCE's view */
 
-	u_long	sc_memsize;	/* size of RAM */
+	bus_size_t	sc_memsize;	/* size of RAM */
 
 	int	sc_nrbuf;	/* number of receive buffers */
 	int	sc_ntbuf;	/* number of transmit buffers */
@@ -131,6 +129,11 @@ struct lance_softc {
 #define	LE_LOCK_ASSERT(_sc, _what)	mtx_assert(&(_sc)->sc_mtx, (_what))
 #define	LE_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->sc_mtx)
 
+/*
+ * Unfortunately, manual byte swapping is only necessary for the PCnet-PCI
+ * variants but not for the original LANCE or ILACC so we cannot do this
+ * with #ifdefs resolved at compile time.
+ */
 #define	LE_HTOLE16(v)	(((sc)->sc_flags & LE_BSWAP) ? htole16(v) : (v))
 #define	LE_HTOLE32(v)	(((sc)->sc_flags & LE_BSWAP) ? htole32(v) : (v))
 #define	LE_LE16TOH(v)	(((sc)->sc_flags & LE_BSWAP) ? le16toh(v) : (v))
@@ -143,7 +146,7 @@ void lance_suspend(struct lance_softc *);
 void lance_resume(struct lance_softc *);
 void lance_init_locked(struct lance_softc *);
 int lance_put(struct lance_softc *, int, struct mbuf *);
-void lance_read(struct lance_softc *, int, int);
+struct mbuf *lance_get(struct lance_softc *, int, int);
 void lance_setladrf(struct lance_softc *, u_int16_t *);
 
 /*
@@ -165,5 +168,47 @@ void lance_copytobuf_gap16(struct lance_softc *, void *, int, int);
 void lance_copyfrombuf_gap16(struct lance_softc *, void *, int, int);
 void lance_zerobuf_gap16(struct lance_softc *, int, int);
 #endif /* Example only */
+
+/*
+ * Compare two Ether/802 addresses for equality, inlined and
+ * unrolled for speed.  Use this like memcmp().
+ *
+ * XXX: Add <machine/inlines.h> for stuff like this?
+ * XXX: or maybe add it to libkern.h instead?
+ *
+ * "I'd love to have an inline assembler version of this."
+ * XXX: Who wanted that? mycroft?  I wrote one, but this
+ * version in C is as good as hand-coded assembly. -gwr
+ *
+ * Please do NOT tweak this without looking at the actual
+ * assembly code generated before and after your tweaks!
+ */
+static inline uint16_t
+ether_cmp(void *one, void *two)
+{
+	uint16_t *a = (u_short *)one;
+	uint16_t *b = (u_short *)two;
+	uint16_t diff;
+
+#ifdef	m68k
+	/*
+	 * The post-increment-pointer form produces the best
+	 * machine code for m68k.  This was carefully tuned
+	 * so it compiles to just 8 short (2-byte) op-codes!
+	 */
+	diff  = *a++ - *b++;
+	diff |= *a++ - *b++;
+	diff |= *a++ - *b++;
+#else
+	/*
+	 * Most modern CPUs do better with a single expresion.
+	 * Note that short-cut evaluation is NOT helpful here,
+	 * because it just makes the code longer, not faster!
+	 */
+	diff = (a[0] - b[0]) | (a[1] - b[1]) | (a[2] - b[2]);
+#endif
+
+	return (diff);
+}
 
 #endif /* _DEV_LE_LANCEVAR_H_ */
