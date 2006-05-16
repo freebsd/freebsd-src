@@ -116,6 +116,13 @@ static u_long	div_recvspace = DIVRCVQ;	/* XXX sysctl ? */
 /*
  * Initialize divert connection block queue.
  */
+static void
+div_zone_change(void *tag)
+{
+
+	uma_zone_set_max(divcbinfo.ipi_zone, maxsockets);
+}
+
 void
 div_init(void)
 {
@@ -132,6 +139,8 @@ div_init(void)
 	divcbinfo.ipi_zone = uma_zcreate("divcb", sizeof(struct inpcb),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(divcbinfo.ipi_zone, maxsockets);
+	EVENTHANDLER_REGISTER(maxsockets_change, div_zone_change,
+		NULL, EVENTHANDLER_PRI_ANY);
 }
 
 /*
