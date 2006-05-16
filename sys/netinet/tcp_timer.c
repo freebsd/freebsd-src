@@ -449,9 +449,8 @@ tcp_timer_persist(xtp)
 
 out:
 #ifdef TCPDEBUG
-	if (tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
-		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
-			  PRU_SLOWTIMO);
+	if (tp != NULL && tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
+		tcp_trace(TA_USER, ostate, tp, NULL, NULL, PRU_SLOWTIMO);
 #endif
 	if (tp != NULL)
 		INP_UNLOCK(inp);
