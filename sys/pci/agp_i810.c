@@ -88,6 +88,8 @@ struct agp_i810_softc {
 	struct resource *gtt;		/* memory mapped GATT entries */
 	bus_space_tag_t gtt_bst;	/* bus_space tag */
 	bus_space_handle_t gtt_bsh;	/* bus_space handle */
+
+	void *argb_cursor;		/* contigmalloc area for ARGB cursor */
 };
 
 static const char*
@@ -697,34 +699,53 @@ agp_i810_alloc_memory(device_t dev, int type, vm_size_t size)
 			return 0;
 	} else if (type == 2) {
 		/*
-		 * Bogus mapping of a single page for the hardware cursor.
+		 * Type 2 is the contiguous physical memory type, that hands
+		 * back a physical address.  This is used for cursors on i810.
+		 * Hand back as many single pages with physical as the user
+		 * wants, but only allow one larger allocation (ARGB cursor)
+		 * for simplicity.
 		 */
-		if (size != AGP_PAGE_SIZE)
-			return 0;
+		if (size != AGP_PAGE_SIZE) {
+			if (sc->argb_cursor != NULL)
+				return 0;
+
+			/* Allocate memory for ARGB cursor, if we can. */
+			sc->argb_cursor = contigmalloc(size, M_AGP,
+			   0, 0, ~0, PAGE_SIZE, 0);
+			if (sc->argb_cursor == NULL)
+				return 0;
+		}
 	}
 
 	mem = malloc(sizeof *mem, M_AGP, M_WAITOK);
 	mem->am_id = sc->agp.as_nextid++;
 	mem->am_size = size;
 	mem->am_type = type;
-	if (type != 1)
+	if (type != 1 && (type != 2 || size == AGP_PAGE_SIZE))
 		mem->am_obj = vm_object_allocate(OBJT_DEFAULT,
 						 atop(round_page(size)));
 	else
 		mem->am_obj = 0;
 
 	if (type == 2) {
-		/*
-		 * Allocate and wire down the page now so that we can
-		 * get its physical address.
-		 */
-		vm_page_t m;
-
-		VM_OBJECT_LOCK(mem->am_obj);
-		m = vm_page_grab(mem->am_obj, 0, VM_ALLOC_NOBUSY |
-		    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
-		VM_OBJECT_UNLOCK(mem->am_obj);
-		mem->am_physical = VM_PAGE_TO_PHYS(m);
+		if (size == AGP_PAGE_SIZE) {
+			/*
+			 * Allocate and wire down the page now so that we can
+			 * get its physical address.
+			 */
+			vm_page_t m;
+	
+			VM_OBJECT_LOCK(mem->am_obj);
+			m = vm_page_grab(mem->am_obj, 0, VM_ALLOC_NOBUSY |
+			    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+			VM_OBJECT_UNLOCK(mem->am_obj);
+			mem->am_physical = VM_PAGE_TO_PHYS(m);
+		} else {
+			/* Our allocation is already nicely wired down for us.
+			 * Just grab the physical address.
+			 */
+			mem->am_physical = vtophys(sc->argb_cursor);
+		}
 	} else {
 		mem->am_physical = 0;
 	}
@@ -746,17 +767,22 @@ agp_i810_free_memory(device_t dev, struct agp_memory *mem)
 		return EBUSY;
 
 	if (mem->am_type == 2) {
-		/*
-		 * Unwire the page which we wired in alloc_memory.
-		 */
-		vm_page_t m;
-
-		VM_OBJECT_LOCK(mem->am_obj);
-		m = vm_page_lookup(mem->am_obj, 0);
-		VM_OBJECT_UNLOCK(mem->am_obj);
-		vm_page_lock_queues();
-		vm_page_unwire(m, 0);
-		vm_page_unlock_queues();
+		if (mem->am_size == AGP_PAGE_SIZE) {
+			/*
+			 * Unwire the page which we wired in alloc_memory.
+			 */
+			vm_page_t m;
+	
+			VM_OBJECT_LOCK(mem->am_obj);
+			m = vm_page_lookup(mem->am_obj, 0);
+			VM_OBJECT_UNLOCK(mem->am_obj);
+			vm_page_lock_queues();
+			vm_page_unwire(m, 0);
+			vm_page_unlock_queues();
+		} else {
+			contigfree(sc->argb_cursor, mem->am_size, M_AGP);
+			sc->argb_cursor = NULL;
+		}
 	}
 
 	sc->agp.as_allocated -= mem->am_size;
@@ -773,6 +799,40 @@ agp_i810_bind_memory(device_t dev, struct agp_memory *mem,
 {
 	struct agp_i810_softc *sc = device_get_softc(dev);
 	vm_offset_t i;
+
+	/* Do some sanity checks first. */
+	if (offset < 0 || (offset & (AGP_PAGE_SIZE - 1)) != 0 ||
+	    offset + mem->am_size > AGP_GET_APERTURE(dev)) {
+		device_printf(dev, "binding memory at bad offset %#x\n",
+		    (int)offset);
+		return EINVAL;
+	}
+
+	if (mem->am_type == 2 && mem->am_size != AGP_PAGE_SIZE) {
+		mtx_lock(&sc->agp.as_lock);
+		if (mem->am_is_bound) {
+			mtx_unlock(&sc->agp.as_lock);
+			return EINVAL;
+		}
+		/* The memory's already wired down, just stick it in the GTT. */
+		for (i = 0; i < mem->am_size; i += AGP_PAGE_SIZE) {
+			u_int32_t physical = mem->am_physical + i;
+
+			if (sc->chiptype == CHIP_I915) {
+				WRITEGTT(((offset + i) >> AGP_PAGE_SHIFT) * 4,
+				    physical | 1);
+			} else {
+				WRITE4(AGP_I810_GTT +
+				    ((offset + i) >> AGP_PAGE_SHIFT) * 4,
+				    physical | 1);
+			}
+		}
+		agp_flush_cache();
+		mem->am_offset = offset;
+		mem->am_is_bound = 1;
+		mtx_unlock(&sc->agp.as_lock);
+		return 0;
+	}
 
 	if (mem->am_type != 1)
 		return agp_generic_bind_memory(dev, mem, offset);
@@ -793,6 +853,30 @@ agp_i810_unbind_memory(device_t dev, struct agp_memory *mem)
 {
 	struct agp_i810_softc *sc = device_get_softc(dev);
 	vm_offset_t i;
+
+	if (mem->am_type == 2 && mem->am_size != AGP_PAGE_SIZE) {
+		mtx_lock(&sc->agp.as_lock);
+		if (!mem->am_is_bound) {
+			mtx_unlock(&sc->agp.as_lock);
+			return EINVAL;
+		}
+
+		for (i = 0; i < mem->am_size; i += AGP_PAGE_SIZE) {
+			vm_offset_t offset = mem->am_offset;
+
+			if (sc->chiptype == CHIP_I915) {
+				WRITEGTT(((offset + i) >> AGP_PAGE_SHIFT) * 4,
+				    0);
+			} else {
+				WRITE4(AGP_I810_GTT +
+				    ((offset + i) >> AGP_PAGE_SHIFT) * 4, 0);
+			}
+		}
+		agp_flush_cache();
+		mem->am_is_bound = 0;
+		mtx_unlock(&sc->agp.as_lock);
+		return 0;
+	}
 
 	if (mem->am_type != 1)
 		return agp_generic_unbind_memory(dev, mem);
