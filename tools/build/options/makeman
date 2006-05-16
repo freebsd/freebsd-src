@@ -60,7 +60,7 @@ main()
 .Os
 .Sh NAME
 .Nm src.conf
-.Nd source build options
+.Nd "source build options"
 .Sh DESCRIPTION
 The
 .Nm
@@ -104,7 +104,7 @@ The only purpose of
 .Nm
 is to control the compilation of the
 .Fx
-sources, which are usually found in
+source code, which is usually located in
 .Pa /usr/src .
 As a rule, the system administrator creates
 .Nm
@@ -119,12 +119,14 @@ option of
 or in environment; see
 .Xr environ 7 .
 .Pp
-The values of variables are ignored; the variable being
-set at all (even to
+The value of variables are ignored regardless of their setting;
+even if they would be set to
 .Dq Li FALSE
 or
-.Dq Li NO )
-causes it to be treated as if it was set with no value.
+.Dq Li NO .
+Just the existence of an option will cause
+it to be honoured by
+.Xr make 1 .
 .Pp
 The following list provides a name and short description for variables
 that can be used for source builds.
