@@ -73,7 +73,6 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
-#include <machine/clock.h>	/* for DELAY */
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>

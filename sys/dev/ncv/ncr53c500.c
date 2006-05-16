@@ -73,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #endif /* __NetBSD__ */
 
 #ifdef __FreeBSD__
-#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/bus.h>
 

@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 #include <machine/cputypes.h>
-#include <machine/clock.h>
 #include <machine/vmparam.h>
 #include <sys/rman.h>
 

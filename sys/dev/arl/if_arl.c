@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 
-#include <machine/clock.h>
 
 #include <dev/arl/if_arlreg.h>
 

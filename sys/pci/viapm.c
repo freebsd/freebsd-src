@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <machine/bus.h>
-#include <machine/clock.h>		/* for DELAY */
 #include <machine/resource.h>
 #include <sys/rman.h>
 

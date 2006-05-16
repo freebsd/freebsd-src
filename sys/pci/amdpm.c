@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <machine/bus.h>
-#include <machine/clock.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
 

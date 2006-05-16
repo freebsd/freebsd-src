@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <machine/cpufunc.h>
 #include <machine/cserial.h>
-#include <machine/clock.h>
 #include <machine/resource.h>
 #include <dev/cx/machdep.h>
 #include <dev/cx/cxddk.h>

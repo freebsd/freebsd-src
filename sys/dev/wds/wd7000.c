@@ -144,7 +144,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 
-#include <machine/clock.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

@@ -83,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
-#include <machine/clock.h>
 #include <sys/rman.h>
 
 #include <cam/cam.h>

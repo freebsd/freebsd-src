@@ -62,7 +62,6 @@
 #endif
 #include <machine/bus.h>
 #include <machine/endian.h>
-#include <machine/clock.h>
 #include <machine/resource.h>
 
 #include <sys/rman.h>
