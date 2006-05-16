@@ -289,8 +289,7 @@ le_pci_probe(device_t dev)
 	case AMD_PCNET_PCI:
 	case AMD_PCNET_HOME:
 		device_set_desc(dev, "AMD PCnet Ethernet");
-		/* Let lnc(4) win for now. */
-		return (BUS_PROBE_LOW_PRIORITY);
+		return (BUS_PROBE_DEFAULT);
 	default:
 		return (ENXIO);
 	}
