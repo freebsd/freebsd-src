@@ -435,6 +435,7 @@ struct ifaddr *
 ifa_ifwithroute(int flags, struct sockaddr *dst, struct sockaddr *gateway)
 {
 	register struct ifaddr *ifa;
+	int not_found = 0;
 
 	if ((flags & RTF_GATEWAY) == 0) {
 		/*
@@ -463,8 +464,26 @@ ifa_ifwithroute(int flags, struct sockaddr *dst, struct sockaddr *gateway)
 		struct rtentry *rt = rtalloc1(gateway, 0, 0UL);
 		if (rt == NULL)
 			return (NULL);
+		/*
+		 * dismiss a gateway that is reachable only
+		 * through the default router
+		 */
+		switch (gateway->sa_family) {
+		case AF_INET:
+			if (satosin(rt_key(rt))->sin_addr.s_addr == INADDR_ANY)
+				not_found = 1;
+			break;
+		case AF_INET6:
+			if (IN6_IS_ADDR_UNSPECIFIED(&satosin6(rt_key(rt))->sin6_addr))
+				not_found = 1;
+			break;
+		default:
+			break;
+		}
 		RT_REMREF(rt);
 		RT_UNLOCK(rt);
+		if (not_found)
+			return (NULL);
 		if ((ifa = rt->rt_ifa) == NULL)
 			return (NULL);
 	}
