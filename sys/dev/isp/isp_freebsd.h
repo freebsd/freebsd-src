@@ -29,14 +29,6 @@
 #ifndef	_ISP_FREEBSD_H
 #define	_ISP_FREEBSD_H
 
-#if __FreeBSD_version < 500000
-#define	ISP_PLATFORM_VERSION_MAJOR	4
-#define	ISP_PLATFORM_VERSION_MINOR	17
-#else
-#define	ISP_PLATFORM_VERSION_MAJOR	5
-#define	ISP_PLATFORM_VERSION_MINOR	9
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/endian.h>
@@ -71,6 +63,14 @@
 
 #include "opt_ddb.h"
 #include "opt_isp.h"
+
+#if __FreeBSD_version < 500000
+#define	ISP_PLATFORM_VERSION_MAJOR	4
+#define	ISP_PLATFORM_VERSION_MINOR	17
+#else
+#define	ISP_PLATFORM_VERSION_MAJOR	5
+#define	ISP_PLATFORM_VERSION_MINOR	9
+#endif
 
 /*
  * Efficiency- get rid of SBus code && tests unless we need them.
