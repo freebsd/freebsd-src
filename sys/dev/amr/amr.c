@@ -921,6 +921,7 @@ static int
 amr_wait_command(struct amr_command *ac)
 {
     int			error, count;
+    int			s;
     
     debug_called(1);
 
@@ -931,9 +932,11 @@ amr_wait_command(struct amr_command *ac)
     
     count = 0;
     /* XXX better timeout? */
+    s = splbio();
     while ((ac->ac_flags & AMR_CMD_BUSY) && (count < 30)) {
 	tsleep(ac, PRIBIO | PCATCH, "amrwcmd", hz);
     }
+    splx(s);
     return(0);
 }
 
