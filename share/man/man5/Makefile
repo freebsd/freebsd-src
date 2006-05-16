@@ -51,6 +51,7 @@ MAN=	acct.5 \
 	protocols.5 \
 	quota.user.5 \
 	rc.conf.5 \
+	reiserfs.5 \
 	remote.5 \
 	resolver.5 \
 	services.5 \
