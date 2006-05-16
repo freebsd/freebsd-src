@@ -1516,7 +1516,8 @@ softdep_setup_inomapdep(bp, ip, newinum)
 	ACQUIRE_LOCK(&lk);
 	if ((inodedep_lookup(UFSTOVFS(ip->i_ump), newinum, DEPALLOC|NODELAY,
 	    &inodedep)))
-		panic("softdep_setup_inomapdep: found inode");
+		panic("softdep_setup_inomapdep: dependency for new inode "
+		    "already exists");
 	inodedep->id_buf = bp;
 	inodedep->id_state &= ~DEPCOMPLETE;
 	bmsafemap = bmsafemap_lookup(inodedep->id_list.wk_mp, bp);
