@@ -272,6 +272,11 @@ hint.fe.1.at="isa"
 hint.fe.1.port="0x73d0"
 hint.fe.1.irq="5"
 
+# C-NET(98)S
+hint.le.0.at="isa"
+hint.le.0.port="0x03d0"
+hint.le.0.irq="6"
+
 hint.snc.0.at="isa"
 hint.snc.0.port="0x888"
 hint.snc.0.irq="6"
