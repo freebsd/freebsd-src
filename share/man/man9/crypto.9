@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 14, 2002
+.Dd May 17, 2006
 .Dt CRYPTO 9
 .Os
 .Sh NAME
@@ -62,7 +62,7 @@
 struct cryptoini {
 	int                cri_alg;
 	int                cri_klen;
-	int                cri_rnd;
+	int                cri_mlen;
 	caddr_t            cri_key;
 	u_int8_t           cri_iv[EALG_MAX_BLOCK_LEN];
 	struct cryptoini  *cri_next;
@@ -192,9 +192,9 @@ Currently supported algorithms are:
 .It Va cri_klen
 Specifies the length of the key in bits, for variable-size key
 algorithms.
-.It Va cri_rnd
-Specifies the number of rounds to be used with the algorithm, for
-variable-round algorithms.
+.It Va cri_mlen
+Specifies how many bytes from the calculated hash should be copied back.
+0 means entire hash.
 .It Va cri_key
 Contains the key to be used with the algorithm.
 .It Va cri_iv
