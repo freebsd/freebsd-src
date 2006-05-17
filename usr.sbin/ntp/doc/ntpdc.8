@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2000
+.Dd May 17, 2006
 .Dt NTPDC 8
 .Os
 .Sh NAME
@@ -9,9 +9,10 @@
 .Nd special NTP query program
 .Sh SYNOPSIS
 .Nm
-.Op Fl ilnps
+.Op Fl 46ilnps
 .Op Fl c Ar command
-.Op Ar host ...
+.Op Ar host
+.Op Ar ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -33,6 +34,12 @@ ntpd's configuration file may also be specified at run time using
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl 4
+Force DNS resolution of following host names on the command line to the
+IPv4 namespace.
+.It Fl 6
+Force DNS resolution of following host names on the command line to the
+IPv6 namespace.
 .It Fl c Ar command
 The following argument is interpreted as an interactive format
 command and is added to the list of commands to be executed on the
@@ -51,7 +58,7 @@ standard input.
 Obtain a list of peers which are known to the server(s).
 This
 switch is equivalent to
-.Ql -c listpeers .
+.Ql Fl c Ar listpeers .
 .It Fl n
 Output all host addresses in dotted-quad numeric format rather
 than converting to the canonical host names.
@@ -59,14 +66,14 @@ than converting to the canonical host names.
 Print a list of the peers known to the server as well as a
 summary of their state.
 This is equivalent to
-.Ql -c peers .
+.Ql Fn c Ar peers .
 .It Fl s
 Print a list of the peers known to the server as well as a
 summary of their state, but in a slightly different format than the
 .Fl p
 switch.
 This is equivalent to
-.Ql -c dmpeers .
+.Ql Fl c Ar dmpeers .
 .El
 .Pp
 If one or more request options are included on the command line
@@ -115,6 +122,13 @@ utility which affect the
 state of the local server must be authenticated, which requires
 both the remote program and local server share a common key and key
 identifier.
+.Pp
+Note that in contexts where a host name is expected, a
+.Fl 4
+qualifier preceding the host name forces DNS resolution to the IPv4 namespace,
+while a
+.Fl 6
+qualifier forces DNS resolution to the IPv6 namespace.
 Specifying a command line option other than
 .Fl i
 or
@@ -148,12 +162,12 @@ following.
 .It Ic \&? Ar command_keyword
 .It Ic help Ar command_keyword
 A
-.Ic \&?
+.Ic Ql \&?
 will print a list of all the command
 keywords known to this incarnation of
 .Nm .
 A
-.Ic \&?
+.Ic Ql \&?
 followed by a command keyword will print function and usage
 information about the command.
 This command is probably a better
@@ -287,15 +301,15 @@ A
 .Ql \&*
 denotes the peer the server is currently
 synchronizing with.
-.It Ic showpeer Ar peer_address ...
+.It Ic showpeer Ar peer_address Oo Ar ... Oc
 Shows a detailed display of the current peer variables for one
 or more peers.
 Most of these values are described in the NTP
 Version 2 specification.
-.It Ic pstats Ar peer_address ...
+.It Ic pstats Ar peer_address Oo Ar ... Oc
 Show per-peer statistic counters associated with the specified
 peer(s).
-.It Ic clockinfo Ar clock_peer_address ...
+.It Ic clockinfo Ar clock_peer_address Oo Ar ... Oc
 Obtain and print information concerning a peer clock.
 The
 values obtained provide information on the setting of fudge factors
@@ -429,7 +443,7 @@ Obtain and print traffic counts collected and maintained by the
 monitor facility.
 The version number should not normally need to be
 specified.
-.It Ic clkbug Ar clock_peer_address ...
+.It Ic clkbug Ar clock_peer_address Oo Ar ... Oc
 Obtain debugging information for a reference clock driver.
 This
 information is provided only by some clock drivers and is mostly
@@ -535,7 +549,7 @@ address of the local network or a multicast group address assigned
 to NTP.
 If a multicast address, a multicast-capable kernel is
 required.
-.It Ic unconfig Ar peer_address ...
+.It Ic unconfig Ar peer_address Oo Ar ... Oc
 This command causes the configured bit to be removed from the
 specified peer(s).
 In many cases this will cause the peer
@@ -552,108 +566,79 @@ is willing to continue on in this fashion.
 This command provides a way to set certain data for a reference
 clock.
 See the source listing for further information.
-.It Ic enable Ar flag ...
-.It Ic disable Ar flag ...
+.It Xo Ic enable
+.Oo
+.Cm auth | Cm bclient |
+.Cm calibrate | Cm kernel |
+.Cm monitor | Cm ntp |
+.Cm pps | Cm stats
+.Oc
+.Xc
+.It Xo Ic disable
+.Oo
+.Cm auth | Cm bclient |
+.Cm calibrate | Cm kernel |
+.Cm monitor | Cm ntp |
+.Cm pps | Cm stats
+.Oc
+.Xc
 These commands operate in the same way as the
 .Ic enable
 and
 .Ic disable
 configuration file commands of
 .Xr ntpd 8 .
-Following is a description of the flags.
-Note that only the
-.Cm auth ,
-.Cm bclient ,
-.Cm monitor ,
-.Cm pll ,
-.Cm pps
-and
-.Cm stats
-flags can be set by
-.Nm ;
-the
-.Cm pll_kernel
-and
-.Cm pps_kernel
-flags are
-read-only.
 .Bl -tag -width indent
 .It Cm auth
 Enables the server to synchronize with unconfigured peers only
-if the peer has been correctly authenticated using a trusted key
-and key identifier.
-The default for this flag is enable.
+if the peer has been correctly authenticated using either public key
+or private key cryptography. The default for this flag is enable.
 .It Cm bclient
 Enables the server to listen for a message from a broadcast or
-multicast server, as in the
-.Ic multicastclient
-command with
-default address.
+multicast server, as in the multicastclient command with
+default address. The default for this flag is disable.
+.It Cm calibrate
+Enables the calibrate feature for reference clocks.
 The default for this flag is disable.
+.It Cm kernel
+Enables the kernel time discipline, if available.
+The default for this flag is enable if support is available, otherwise disable.
 .It Cm monitor
-Enables the monitoring facility.
+Enables the monitoring facility. See the
+.Xr ntpdc 8 .
+program and the monlist command or further information.
+The default for this flag is enable.
+.It Cm ntp
+Enables time and frequency discipline.
+In effect, this switch opens and closes the feedback loop,
+which is useful for testing. The default for this flag is enable.
+.It Cm pps
+Enables the pulse-per-second (PPS) signal when frequency
+and time is disciplined by the precision time kernel modifications.
 See the
-.Ic monlist
-command for further information.
-The
-default for this flag is enable.
-.It Cm pll
-Enables the server to adjust its local clock by means of NTP.
-If disabled, the local clock free-runs at its intrinsic time and
-frequency offset.
-This flag is useful in case the local clock is
-controlled by some other device or protocol and NTP is used only to
-provide synchronization to other clients.
-In this case, the local
-clock driver is used.
-See the
-.Qq "Reference Clock Drivers"
-page
+.Qq A Kernel Model for Precision Timekeeping
 (available as part of the HTML documentation
 provided in
 .Pa /usr/share/doc/ntp )
-page for further information.
-The default for
-this flag is enable.
-.It Cm pps
-Enables the pulse-per-second (PPS) signal when frequency and
-time is disciplined by the precision time kernel modifications.
-See
-the
-.Qq "A Kernel Model for Precision Timekeeping"
-page for further information.
-The default for this flag is
-disable.
+page for further information. The default for this flag is disable.
 .It Cm stats
 Enables the statistics facility.
 See the
 .Sx Monitoring Options
-section
-of the
+section of
 .Xr ntp.conf 5
-page for further information.
-The default for this flag is enable.
-.It Cm pll_kernel
-When the precision time kernel modifications are installed,
-this indicates the kernel controls the clock discipline; otherwise,
-the daemon controls the clock discipline.
-.It Cm pps_kernel
-When the precision time kernel modifications are installed and
-a pulse-per-second (PPS) signal is available, this indicates the
-PPS signal controls the clock discipline; otherwise, the daemon or
-kernel controls the clock discipline, as indicated by the
-.Cm pll_kernel
-flag.
+for further information.
+The default for this flag is disable.
 .El
 .It Xo Ic restrict Ar address Ar mask
-.Ar flag ...
+.Ar flag Oo Ar ... Oc
 .Xc
 This command operates in the same way as the
 .Ic restrict
 configuration file commands of
 .Xr ntpd 8 .
 .It Xo Ic unrestrict Ar address Ar mask
-.Ar flag ...
+.Ar flag Oo Ar ... Oc
 .Xc
 Unrestrict the matching entry from the restrict list.
 .It Xo Ic delrestrict Ar address Ar mask
@@ -669,8 +654,8 @@ configuration file).
 This
 allows encryption keys to be changed without restarting the
 server.
-.It Ic trustedkey Ar keyid ...
-.It Ic untrustedkey Ar keyid ...
+.It Ic trustedkey Ar keyid Oo Ar ... Oc
+.It Ic untrustedkey Ar keyid Oo Ar ... Oc
 These commands operate in the same way as the
 .Ic trustedkey
 and
