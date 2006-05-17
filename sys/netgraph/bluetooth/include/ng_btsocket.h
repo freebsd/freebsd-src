@@ -189,6 +189,15 @@ struct ng_btsocket_hci_raw_node_role_switch {
 	_IOWR('b', NGM_HCI_NODE_SET_ROLE_SWITCH, \
 		struct ng_btsocket_hci_raw_node_role_switch)
 
+/* Get list of HCI node names */
+struct ng_btsocket_hci_raw_node_list_names {
+	u_int32_t	 num_names;
+	struct nodeinfo	*names;
+};
+#define SIOC_HCI_RAW_NODE_LIST_NAMES \
+	_IOWR('b', NGM_HCI_NODE_LIST_NAMES, \
+		struct ng_btsocket_hci_raw_node_list_names)
+
 /*
  * XXX FIXME: probably does not belong here
  * Bluetooth version of struct sockaddr for L2CAP sockets (RAW and SEQPACKET)

@@ -604,6 +604,8 @@ typedef u_int16_t	ng_hci_node_packet_mask_ep;
 #define NGM_HCI_NODE_SET_ROLE_SWITCH		119 /* User -> HCI */
 typedef u_int16_t	ng_hci_node_role_switch_ep;
 
+#define	NGM_HCI_NODE_LIST_NAMES			200 /* HCI -> User */
+
 /**************************************************************************
  **************************************************************************
  **             Link control commands and return parameters
