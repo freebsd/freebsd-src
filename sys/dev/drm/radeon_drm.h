@@ -214,10 +214,10 @@ typedef union {
  * The interface has not been stabilized, so some of these may be removed
  * and eventually reordered before stabilization.
  */
-#define R300_CMD_PACKET0		1 
-#define R300_CMD_VPU			2 /* emit vertex program upload */
-#define R300_CMD_PACKET3		3 /* emit a packet3 */
-#define R300_CMD_END3D			4 /* emit sequence ending 3d rendering */
+#define R300_CMD_PACKET0		1
+#define R300_CMD_VPU			2	/* emit vertex program upload */
+#define R300_CMD_PACKET3		3	/* emit a packet3 */
+#define R300_CMD_END3D			4	/* emit sequence ending 3d rendering */
 #define R300_CMD_CP_DELAY		5
 #define R300_CMD_DMA_DISCARD		6
 #define R300_CMD_WAIT			7
@@ -225,6 +225,7 @@ typedef union {
 #	define R300_WAIT_3D  		0x2
 #	define R300_WAIT_2D_CLEAN  	0x3
 #	define R300_WAIT_3D_CLEAN  	0x4
+#define R300_CMD_SCRATCH		8
 
 typedef union {
 	unsigned int u;
@@ -242,20 +243,23 @@ typedef union {
 	} packet3;
 	struct {
 		unsigned char cmd_type, packet;
-		unsigned short count; /* amount of packet2 to emit */
+		unsigned short count;	/* amount of packet2 to emit */
 	} delay;
 	struct {
 		unsigned char cmd_type, buf_idx, pad0, pad1;
 	} dma;
 	struct {
-		unsigned char cmd_type, flags, pad0, pad1;	
+		unsigned char cmd_type, flags, pad0, pad1;
 	} wait;
+	struct {
+		unsigned char cmd_type, reg, n_bufs, flags;
+	} scratch;
 } drm_r300_cmd_header_t;
 
 #define RADEON_FRONT			0x1
 #define RADEON_BACK			0x2
 #define RADEON_DEPTH			0x4
-#define RADEON_STENCIL                  0x8
+#define RADEON_STENCIL			0x8
 #define RADEON_CLEAR_FASTZ		0x80000000
 #define RADEON_USE_HIERZ		0x40000000
 #define RADEON_USE_COMP_ZBUF		0x20000000
@@ -627,6 +631,11 @@ typedef struct drm_radeon_indirect {
 	int discard;
 } drm_radeon_indirect_t;
 
+/* enum for card type parameters */
+#define RADEON_CARD_PCI 0
+#define RADEON_CARD_AGP 1
+#define RADEON_CARD_PCIE 2
+
 /* 1.3: An ioctl to get parameters that aren't available to the 3d
  * client any other way.
  */
@@ -643,6 +652,7 @@ typedef struct drm_radeon_indirect {
 #define RADEON_PARAM_SAREA_HANDLE          9
 #define RADEON_PARAM_GART_TEX_HANDLE       10
 #define RADEON_PARAM_SCRATCH_OFFSET        11
+#define RADEON_PARAM_CARD_TYPE             12
 
 typedef struct drm_radeon_getparam {
 	int param;
@@ -693,7 +703,9 @@ typedef struct drm_radeon_setparam {
 
 #define RADEON_SETPARAM_FB_LOCATION    1	/* determined framebuffer location */
 #define RADEON_SETPARAM_SWITCH_TILING  2	/* enable/disable color tiling */
-#define RADEON_SETPARAM_PCIGART_LOCATION 3      /* PCI Gart Location */
+#define RADEON_SETPARAM_PCIGART_LOCATION 3	/* PCI Gart Location */
+
+#define RADEON_SETPARAM_NEW_MEMMAP 4		/* Use new memory map */
 
 /* 1.14: Clients can allocate/free a surface
  */

@@ -92,8 +92,9 @@ static int savage_verify_texaddr(drm_savage_private_t *dev_priv, int unit,
 		addr &= ~7;
 		if (addr <  dev_priv->texture_offset ||
 		    addr >= dev_priv->texture_offset+dev_priv->texture_size) {
-			DRM_ERROR("bad texAddr%d %08x (local addr out of range)\n",
-				  unit, addr);
+			DRM_ERROR
+			    ("bad texAddr%d %08x (local addr out of range)\n",
+			     unit, addr);
 			return DRM_ERR(EINVAL);
 		}
 	} else { /* AGP */
@@ -106,8 +107,9 @@ static int savage_verify_texaddr(drm_savage_private_t *dev_priv, int unit,
 		if (addr < dev_priv->agp_textures->offset ||
 		    addr >= (dev_priv->agp_textures->offset +
 			     dev_priv->agp_textures->size)) {
-			DRM_ERROR("bad texAddr%d %08x (AGP addr out of range)\n",
-				  unit, addr);
+			DRM_ERROR
+			    ("bad texAddr%d %08x (AGP addr out of range)\n",
+			     unit, addr);
 			return DRM_ERR(EINVAL);
 		}
 	}
@@ -148,8 +150,8 @@ static int savage_verify_state_s3d(drm_savage_private_t *dev_priv,
 		SAVE_STATE(SAVAGE_TEXCTRL_S3D, s3d.texctrl);
 		SAVE_STATE(SAVAGE_TEXADDR_S3D, s3d.texaddr);
 		if (dev_priv->state.s3d.texctrl & SAVAGE_TEXCTRL_TEXEN_MASK)
-			return savage_verify_texaddr(
-				dev_priv, 0, dev_priv->state.s3d.texaddr);
+			return savage_verify_texaddr(dev_priv, 0,
+						dev_priv->state.s3d.texaddr);
 	}
 
 	return 0;
@@ -175,17 +177,17 @@ static int savage_verify_state_s4(drm_savage_private_t *dev_priv,
 
 	/* if any texture regs were changed ... */
 	if (start <= SAVAGE_TEXDESCR_S4 &&
-	    start+count > SAVAGE_TEXPALADDR_S4) {
+	    start + count > SAVAGE_TEXPALADDR_S4) {
 		/* ... check texture state */
 		SAVE_STATE(SAVAGE_TEXDESCR_S4, s4.texdescr);
 		SAVE_STATE(SAVAGE_TEXADDR0_S4, s4.texaddr0);
 		SAVE_STATE(SAVAGE_TEXADDR1_S4, s4.texaddr1);
 		if (dev_priv->state.s4.texdescr & SAVAGE_TEXDESCR_TEX0EN_MASK)
-			ret |= savage_verify_texaddr(
-				dev_priv, 0, dev_priv->state.s4.texaddr0);
+			ret |= savage_verify_texaddr(dev_priv, 0,
+						dev_priv->state.s4.texaddr0);
 		if (dev_priv->state.s4.texdescr & SAVAGE_TEXDESCR_TEX1EN_MASK)
-			ret |= savage_verify_texaddr(
-				dev_priv, 1, dev_priv->state.s4.texaddr1);
+			ret |= savage_verify_texaddr(dev_priv, 1,
+						dev_priv->state.s4.texaddr1);
 	}
 
 	return ret;
@@ -231,7 +233,8 @@ static int savage_dispatch_state(drm_savage_private_t *dev_priv,
 		/* scissor regs are emitted in savage_dispatch_draw */
 		if (start < SAVAGE_DRAWCTRL0_S4) {
 			if (start+count > SAVAGE_DRAWCTRL1_S4+1)
-				count2 = count - (SAVAGE_DRAWCTRL1_S4+1 - start);
+				count2 = count -
+					 (SAVAGE_DRAWCTRL1_S4 + 1 - start);
 			if (start+count > SAVAGE_DRAWCTRL0_S4)
 				count = SAVAGE_DRAWCTRL0_S4 - start;
 		} else if (start <= SAVAGE_DRAWCTRL1_S4) {
@@ -307,8 +310,9 @@ static int savage_dispatch_dma_prim(drm_savage_private_t *dev_priv,
 	case SAVAGE_PRIM_TRISTRIP:
 	case SAVAGE_PRIM_TRIFAN:
 		if (n < 3) {
-			DRM_ERROR("wrong number of vertices %u in TRIFAN/STRIP\n",
-				  n);
+			DRM_ERROR
+			   ("wrong number of vertices %u in TRIFAN/STRIP\n",
+			    n);
 			return DRM_ERR(EINVAL);
 		}
 		break;
@@ -319,8 +323,7 @@ static int savage_dispatch_dma_prim(drm_savage_private_t *dev_priv,
 
 	if (S3_SAVAGE3D_SERIES(dev_priv->chipset)) {
 		if (skip != 0) {
-			DRM_ERROR("invalid skip flags 0x%04x for DMA\n",
-				  skip);
+			DRM_ERROR("invalid skip flags 0x%04x for DMA\n", skip);
 			return DRM_ERR(EINVAL);
 		}
 	} else {
@@ -328,8 +331,7 @@ static int savage_dispatch_dma_prim(drm_savage_private_t *dev_priv,
 			(skip >> 2 & 1) - (skip >> 3 & 1) - (skip >> 4 & 1) -
 			(skip >> 5 & 1) - (skip >> 6 & 1) - (skip >> 7 & 1);
 		if (skip > SAVAGE_SKIP_ALL_S4 || size != 8) {
-			DRM_ERROR("invalid skip flags 0x%04x for DMA\n",
-				  skip);
+			DRM_ERROR("invalid skip flags 0x%04x for DMA\n", skip);
 			return DRM_ERR(EINVAL);
 		}
 		if (reorder) {
@@ -383,7 +385,8 @@ static int savage_dispatch_dma_prim(drm_savage_private_t *dev_priv,
 
 			for (i = start+1; i+1 < start+count; i += 2)
 				BCI_WRITE((i + reorder[i % 3]) |
-					  ((i+1 + reorder[(i+1) % 3]) << 16));
+					  ((i + 1 +
+					    reorder[(i + 1) % 3]) << 16));
 			if (i < start+count)
 				BCI_WRITE(i + reorder[i%3]);
 		} else if (S3_SAVAGE3D_SERIES(dev_priv->chipset)) {
@@ -444,8 +447,9 @@ static int savage_dispatch_vb_prim(drm_savage_private_t *dev_priv,
 	case SAVAGE_PRIM_TRISTRIP:
 	case SAVAGE_PRIM_TRIFAN:
 		if (n < 3) {
-			DRM_ERROR("wrong number of vertices %u in TRIFAN/STRIP\n",
-				  n);
+			DRM_ERROR
+			    ("wrong number of vertices %u in TRIFAN/STRIP\n",
+			     n);
 			return DRM_ERR(EINVAL);
 		}
 		break;
@@ -556,16 +560,15 @@ static int savage_dispatch_dma_idx(drm_savage_private_t *dev_priv,
 		prim = SAVAGE_PRIM_TRILIST;
 	case SAVAGE_PRIM_TRILIST:
 		if (n % 3 != 0) {
-			DRM_ERROR("wrong number of indices %u in TRILIST\n",
-				  n);
+			DRM_ERROR("wrong number of indices %u in TRILIST\n", n);
 			return DRM_ERR(EINVAL);
 		}
 		break;
 	case SAVAGE_PRIM_TRISTRIP:
 	case SAVAGE_PRIM_TRIFAN:
 		if (n < 3) {
-			DRM_ERROR("wrong number of indices %u in TRIFAN/STRIP\n",
-				  n);
+			DRM_ERROR
+			    ("wrong number of indices %u in TRIFAN/STRIP\n", n);
 			return DRM_ERR(EINVAL);
 		}
 		break;
@@ -576,8 +579,7 @@ static int savage_dispatch_dma_idx(drm_savage_private_t *dev_priv,
 
 	if (S3_SAVAGE3D_SERIES(dev_priv->chipset)) {
 		if (skip != 0) {
-			DRM_ERROR("invalid skip flags 0x%04x for DMA\n",
-				  skip);
+			DRM_ERROR("invalid skip flags 0x%04x for DMA\n", skip);
 			return DRM_ERR(EINVAL);
 		}
 	} else {
@@ -585,8 +587,7 @@ static int savage_dispatch_dma_idx(drm_savage_private_t *dev_priv,
 			(skip >> 2 & 1) - (skip >> 3 & 1) - (skip >> 4 & 1) -
 			(skip >> 5 & 1) - (skip >> 6 & 1) - (skip >> 7 & 1);
 		if (skip > SAVAGE_SKIP_ALL_S4 || size != 8) {
-			DRM_ERROR("invalid skip flags 0x%04x for DMA\n",
-				  skip);
+			DRM_ERROR("invalid skip flags 0x%04x for DMA\n", skip);
 			return DRM_ERR(EINVAL);
 		}
 		if (reorder) {
@@ -643,7 +644,8 @@ static int savage_dispatch_dma_idx(drm_savage_private_t *dev_priv,
 
 			for (i = 1; i+1 < count; i += 2)
 				BCI_WRITE(idx[i + reorder[i % 3]] |
-					  (idx[i+1 + reorder[(i+1) % 3]] << 16));
+					  (idx[i + 1 +
+					   reorder[(i + 1) % 3]] << 16));
 			if (i < count)
 				BCI_WRITE(idx[i + reorder[i%3]]);
 		} else if (S3_SAVAGE3D_SERIES(dev_priv->chipset)) {
@@ -677,8 +679,7 @@ static int savage_dispatch_vb_idx(drm_savage_private_t *dev_priv,
 				  const drm_savage_cmd_header_t *cmd_header,
 				  const uint16_t *idx,
 				  const uint32_t *vtxbuf,
-				  unsigned int vb_size,
-				  unsigned int vb_stride)
+				  unsigned int vb_size, unsigned int vb_stride)
 {
 	unsigned char reorder = 0;
 	unsigned int prim = cmd_header->idx.prim;
@@ -697,16 +698,15 @@ static int savage_dispatch_vb_idx(drm_savage_private_t *dev_priv,
 		prim = SAVAGE_PRIM_TRILIST;
 	case SAVAGE_PRIM_TRILIST:
 		if (n % 3 != 0) {
-			DRM_ERROR("wrong number of indices %u in TRILIST\n",
-				  n);
+			DRM_ERROR("wrong number of indices %u in TRILIST\n", n);
 			return DRM_ERR(EINVAL);
 		}
 		break;
 	case SAVAGE_PRIM_TRISTRIP:
 	case SAVAGE_PRIM_TRIFAN:
 		if (n < 3) {
-			DRM_ERROR("wrong number of indices %u in TRIFAN/STRIP\n",
-				  n);
+			DRM_ERROR
+			    ("wrong number of indices %u in TRIFAN/STRIP\n", n);
 			return DRM_ERR(EINVAL);
 		}
 		break;
@@ -808,8 +808,7 @@ static int savage_dispatch_clear(drm_savage_private_t *dev_priv,
 	BCI_CMD_SET_ROP(clear_cmd,0xCC);
 
 	nbufs = ((flags & SAVAGE_FRONT) ? 1 : 0) +
-		((flags & SAVAGE_BACK) ? 1 : 0) +
-		((flags & SAVAGE_DEPTH) ? 1 : 0);
+	    ((flags & SAVAGE_BACK) ? 1 : 0) + ((flags & SAVAGE_DEPTH) ? 1 : 0);
 	if (nbufs == 0)
 		return 0;
 
@@ -979,8 +978,9 @@ int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
 
 	if (dma && dma->buflist) {
 		if (cmdbuf.dma_idx > dma->buf_count) {
-			DRM_ERROR("vertex buffer index %u out of range (0-%u)\n",
-				  cmdbuf.dma_idx, dma->buf_count-1);
+			DRM_ERROR
+			    ("vertex buffer index %u out of range (0-%u)\n",
+			     cmdbuf.dma_idx, dma->buf_count-1);
 			return DRM_ERR(EINVAL);
 		}
 		dmabuf = dma->buflist[cmdbuf.dma_idx];
