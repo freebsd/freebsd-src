@@ -56,6 +56,7 @@ ps_err_e ps_lgetxmmregs (struct ps_prochandle *, lwpid_t, char *);
 ps_err_e ps_lsetxmmregs (struct ps_prochandle *, lwpid_t, const char *);
 #endif
 ps_err_e ps_lstop(struct ps_prochandle *, lwpid_t);
+ps_err_e ps_linfo(struct ps_prochandle *, lwpid_t, void *);
 ps_err_e ps_pcontinue(struct ps_prochandle *);
 ps_err_e ps_pdmodel(struct ps_prochandle *, int *);
 ps_err_e ps_pglobal_lookup(struct ps_prochandle *, const char *, const char *,
