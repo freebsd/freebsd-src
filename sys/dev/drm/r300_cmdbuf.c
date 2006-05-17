@@ -725,7 +725,7 @@ static int r300_scratch(drm_radeon_private_t *dev_priv,
 	
 	dev_priv->scratch_ages[header.scratch.reg] ++;
 	
-	ref_age_base = *(u32 **)cmdbuf->buf;
+	ref_age_base = (u32 *)(unsigned long)*((uint64_t *)cmdbuf->buf);
 	
 	cmdbuf->buf += sizeof(uint64_t);
 	cmdbuf->bufsz -= sizeof(uint64_t);
