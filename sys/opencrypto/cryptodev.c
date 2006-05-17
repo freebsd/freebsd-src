@@ -265,8 +265,14 @@ cryptof_ioctl(
 		}
 
 		error = crypto_newsession(&sid, (txform ? &crie : &cria), 1);
-		if (error)
-			goto bail;
+		if (error) {
+			if (crypto_devallowsoft) {
+				error = crypto_newsession(&sid,
+				    (txform ? &crie : &cria), 0);
+			}
+			if (error)
+				goto bail;
+		}
 
 		cse = csecreate(fcr, sid, crie.cri_key, crie.cri_klen,
 		    cria.cri_key, cria.cri_klen, sop->cipher, sop->mac, txform,
