@@ -82,9 +82,9 @@ static int mga_driver_device_is_agp(drm_device_t * dev)
 	if (pci_get_device(dev->device) == 0x0525 &&
 	    pci_get_vendor(bus) == 0x3388 &&
 	    pci_get_device(bus) == 0x0021)
-		return 0;
+		return DRM_IS_NOT_AGP;
 	else
-		return 2;
+		return DRM_MIGHT_BE_AGP;
 }
 
 static void mga_configure(drm_device_t *dev)
