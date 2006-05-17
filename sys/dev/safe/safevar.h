@@ -138,6 +138,7 @@ struct safe_session {
 	u_int32_t	ses_used;
 	u_int32_t	ses_klen;		/* key length in bits */
 	u_int32_t	ses_key[8];		/* DES/3DES/AES key */
+	u_int32_t	ses_mlen;		/* hmac length in bytes */
 	u_int32_t	ses_hminner[5];		/* hmac inner state */
 	u_int32_t	ses_hmouter[5];		/* hmac outer state */
 	u_int32_t	ses_iv[4];		/* DES/3DES/AES iv */
