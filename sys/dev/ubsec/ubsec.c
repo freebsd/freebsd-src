@@ -917,6 +917,14 @@ ubsec_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 	}
 
 	if (macini) {
+		ses->ses_mlen = macini->cri_mlen;
+		if (ses->ses_mlen == 0) {
+			if (macini->cri_alg == CRYPTO_MD5_HMAC)
+				ses->ses_mlen = MD5_DIGEST_LENGTH;
+			else
+				ses->ses_mlen = SHA1_RESULTLEN;
+		}
+
 		for (i = 0; i < macini->cri_klen / 8; i++)
 			macini->cri_key[i] ^= HMAC_IPAD_VAL;
 
@@ -1604,11 +1612,13 @@ ubsec_callback(struct ubsec_softc *sc, struct ubsec_q *q)
 			continue;
 		if (crp->crp_flags & CRYPTO_F_IMBUF)
 			m_copyback((struct mbuf *)crp->crp_buf,
-			    crd->crd_inject, 12,
+			    crd->crd_inject,
+			    sc->sc_sessions[q->q_sesn].ses_mlen,
 			    (caddr_t)dmap->d_dma->d_macbuf);
 		else if (crp->crp_flags & CRYPTO_F_IOV && crp->crp_mac)
 			bcopy((caddr_t)dmap->d_dma->d_macbuf,
-			    crp->crp_mac, 12);
+			    crp->crp_mac,
+			    sc->sc_sessions[q->q_sesn].ses_mlen);
 		break;
 	}
 	mtx_lock(&sc->sc_freeqlock);
