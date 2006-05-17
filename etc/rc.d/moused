@@ -23,8 +23,7 @@ load_rc_config $name
 # expected to be the mouse device.
 #
 if [ -n "$2" ]; then
-	checkyesno moused_nondefault_enable &&
-	    eval moused_$2_enable=\${moused_$2_enable-YES}
+	eval moused_$2_enable=\${moused_$2_enable-${moused_nondefault_enable}}
 	rcvar=`set_rcvar moused_$2`
 	pidfile="${_pidprefix}.$2.pid"
 	_pidarg="-I $pidfile"
