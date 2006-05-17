@@ -248,7 +248,6 @@ WITHOUT_${var}=
     OPENSSH \
     OPENSSL \
     PAM \
-    PCVT \
     PF \
     RCMDS \
     RCS \
@@ -337,7 +336,6 @@ WITH_IDEA=
     OPENSSH \
     OPENSSL \
     PAM \
-    PCVT \
     PF \
     PROFILE \
     RCMDS \

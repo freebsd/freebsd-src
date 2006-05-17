@@ -192,7 +192,7 @@ create_includes_and_libraries() {
 		-DNOHTML -DNOINFO -DNOMAN -DNOSHARE -DNOFSCHG "
 	log "do a 'make obj' in a few places."
 	# This is very version-specific... The following works for 5.0
-	for i in lib secure/lib gnu/lib usr.sbin/pcvt/keycap \
+	for i in lib secure/lib gnu/lib \
 		gnu/usr.bin/perl usr.bin/lex usr.sbin/config ; do
 	    (cd ${i}; eval $e obj)
 	done

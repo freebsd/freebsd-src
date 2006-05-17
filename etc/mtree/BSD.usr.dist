@@ -799,8 +799,6 @@
         misc
             fonts
             ..
-            pcvtfonts
-            ..
         ..
         mk
         ..
@@ -1124,12 +1122,6 @@
                 ..
                 man3
                 ..
-            ..
-        ..
-        pcvt
-            Doc
-            ..
-            Etc
             ..
         ..
         security

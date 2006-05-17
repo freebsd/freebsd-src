@@ -127,10 +127,6 @@ syscons_precmd()
 	then
 		return 1
 	fi
-	if [ -x /usr/sbin/ispcvt ] && /usr/sbin/ispcvt
-	then
-		return 1
-	fi
 	return 0
 }
 

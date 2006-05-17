@@ -37,7 +37,6 @@ LIBS="
 	kerberos5/lib
 	secure/lib
 	usr.bin/lex/lib
-	usr.sbin/pcvt/keycap
 "				# where to scan for libraries
 
 # This sed(1) filter is used to convert -lfoo to path/to/libfoo.
