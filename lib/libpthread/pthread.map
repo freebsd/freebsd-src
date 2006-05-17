@@ -723,6 +723,8 @@ global:
 	_thread_off_key_destructor;
 	_thread_off_kse;
 	_thread_off_kse_locklevel;
+	_thread_off_sigmask;
+	_thread_off_sigpend;
 	_thread_off_state;
 	_thread_off_thr_locklevel;
 	_thread_off_tlsindex;
