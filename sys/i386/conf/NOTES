@@ -498,8 +498,6 @@ hint.mse.0.irq="5"
 #       (requires miibus)
 # ie:   AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210;
 #       Intel EtherExpress
-# le:   Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 and
-#       Am79C960)
 # nve:	nVidia nForce MCP on-board Ethernet Networking
 # oltr: Olicom ISA token-ring adapters OC-3115, OC-3117, OC-3118 and OC-3133.
 #       Olicom PCI token-ring adapters OC-3136, OC-3137, OC-3139, OC-3140,
@@ -548,6 +546,11 @@ hint.ie.2.at="isa"
 hint.ie.2.port="0x300"
 hint.ie.2.irq="5"
 hint.ie.2.maddr="0xd0000"
+# Hint for the i386-only ISA front-end of le(4).
+hint.le.0.at="isa"
+hint.le.0.port="0x280"
+hint.le.0.irq="10"
+hint.le.0.drq="0"
 device		nve		# nVidia nForce MCP on-board Ethernet Networking
 device		sbni
 hint.sbni.0.at="isa"
