@@ -77,3 +77,5 @@ int _thread_off_dtv = DTV_OFFSET;
 int _thread_off_state = offsetof(struct pthread, state);
 int _thread_state_running = PS_RUNNING;
 int _thread_state_zoombie = PS_DEAD;
+int _thread_off_sigmask = offsetof(struct pthread, sigmask);
+int _thread_off_sigpend = offsetof(struct pthread, sigpend);
