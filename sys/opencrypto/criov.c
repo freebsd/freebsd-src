@@ -40,6 +40,23 @@ __FBSDID("$FreeBSD$");
 
 #include <opencrypto/cryptodev.h>
 
+/*
+ * This macro is only for avoiding code duplication, as we need to skip
+ * given number of bytes in the same way in three functions below.
+ */
+#define	CUIO_SKIP()	do {						\
+	KASSERT(off >= 0, ("%s: off %d < 0", __func__, off));		\
+	KASSERT(len >= 0, ("%s: len %d < 0", __func__, len));		\
+	while (off > 0) {						\
+		KASSERT(iol >= 0, ("%s: empty in skip", __func__));	\
+		if (off < iov->iov_len)					\
+			break;						\
+		off -= iov->iov_len;					\
+		iol--;							\
+		iov++;							\
+	}								\
+} while (0)
+
 void
 cuio_copydata(struct uio* uio, int off, int len, caddr_t cp)
 {
@@ -47,22 +64,9 @@ cuio_copydata(struct uio* uio, int off, int len, caddr_t cp)
 	int iol = uio->uio_iovcnt;
 	unsigned count;
 
-	if (off < 0)
-		panic("cuio_copydata: off %d < 0", off);
-	if (len < 0)
-		panic("cuio_copydata: len %d < 0", len);
-	while (off > 0) {
-		if (iol == 0)
-			panic("iov_copydata: empty in skip");
-		if (off < iov->iov_len)
-			break;
-		off -= iov->iov_len;
-		iol--;
-		iov++;
-	}
+	CUIO_SKIP();
 	while (len > 0) {
-		if (iol == 0)
-			panic("cuio_copydata: empty");
+		KASSERT(iol >= 0, ("%s: empty", __func__));
 		count = min(iov->iov_len - off, len);
 		bcopy(((caddr_t)iov->iov_base) + off, cp, count);
 		len -= count;
@@ -80,22 +84,9 @@ cuio_copyback(struct uio* uio, int off, int len, caddr_t cp)
 	int iol = uio->uio_iovcnt;
 	unsigned count;
 
-	if (off < 0)
-		panic("cuio_copyback: off %d < 0", off);
-	if (len < 0)
-		panic("cuio_copyback: len %d < 0", len);
-	while (off > 0) {
-		if (iol == 0)
-			panic("cuio_copyback: empty in skip");
-		if (off < iov->iov_len)
-			break;
-		off -= iov->iov_len;
-		iol--;
-		iov++;
-	}
+	CUIO_SKIP();
 	while (len > 0) {
-		if (iol == 0)
-			panic("uio_copyback: empty");
+		KASSERT(iol >= 0, ("%s: empty", __func__));
 		count = min(iov->iov_len - off, len);
 		bcopy(cp, ((caddr_t)iov->iov_base) + off, count);
 		len -= count;
@@ -136,4 +127,32 @@ cuio_getptr(struct uio *uio, int loc, int *off)
     	}
 
 	return (NULL);
+}
+
+/*
+ * Apply function f to the data in an iovec list starting "off" bytes from
+ * the beginning, continuing for "len" bytes.
+ */
+int
+cuio_apply(struct uio *uio, int off, int len, int (*f)(void *, void *, u_int),
+    void *arg)
+{
+	struct iovec *iov = uio->uio_iov;
+	int iol = uio->uio_iovcnt;
+	unsigned count;
+	int rval;
+
+	CUIO_SKIP();
+	while (len > 0) {
+		KASSERT(iol >= 0, ("%s: empty", __func__));
+		count = min(iov->iov_len - off, len);
+		rval = (*f)(arg, ((caddr_t)iov->iov_base) + off, count);
+		if (rval)
+			return (rval);
+		len -= count;
+		off = 0;
+		iol--;
+		iov++;
+	}
+	return (0);
 }
