@@ -2344,6 +2344,19 @@ hifn_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 			if (mac)
 				return (EINVAL);
 			mac = 1;
+			ses->hs_mlen = c->cri_mlen;
+			if (ses->hs_mlen == 0) {
+				switch (c->cri_alg) {
+				case CRYPTO_MD5:
+				case CRYPTO_MD5_HMAC:
+					ses->hs_mlen = 16;
+					break;
+				case CRYPTO_SHA1:
+				case CRYPTO_SHA1_HMAC:
+					ses->hs_mlen = 20;
+					break;
+				}
+			}
 			break;
 		case CRYPTO_DES_CBC:
 		case CRYPTO_3DES_CBC:
@@ -2809,16 +2822,13 @@ hifn_callback(struct hifn_softc *sc, struct hifn_command *cmd, u_int8_t *macbuf)
 		for (crd = crp->crp_desc; crd; crd = crd->crd_next) {
                         int len;
 
-                        if (crd->crd_alg == CRYPTO_MD5)
-				len = 16;
-                        else if (crd->crd_alg == CRYPTO_SHA1)
-				len = 20;
-                        else if (crd->crd_alg == CRYPTO_MD5_HMAC ||
-                            crd->crd_alg == CRYPTO_SHA1_HMAC)
-				len = 12;
-                        else
+			if (crd->crd_alg != CRYPTO_MD5 &&
+			    crd->crd_alg != CRYPTO_SHA1 &&
+			    crd->crd_alg != CRYPTO_MD5_HMAC &&
+			    crd->crd_alg != CRYPTO_SHA1_HMAC) {
 				continue;
-
+			}
+			len = cmd->softc->sc_sessions[cmd->session_num].hs_mlen;
 			if (crp->crp_flags & CRYPTO_F_IMBUF)
 				m_copyback((struct mbuf *)crp->crp_buf,
                                    crd->crd_inject, len, macbuf);
