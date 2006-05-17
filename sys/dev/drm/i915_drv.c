@@ -50,6 +50,7 @@ static void i915_configure(drm_device_t *dev)
 	dev->driver.preclose		= i915_driver_preclose;
 	dev->driver.lastclose		= i915_driver_lastclose;
 	dev->driver.device_is_agp	= i915_driver_device_is_agp,
+	dev->driver.vblank_wait		= i915_driver_vblank_wait;
 	dev->driver.irq_preinstall	= i915_driver_irq_preinstall;
 	dev->driver.irq_postinstall	= i915_driver_irq_postinstall;
 	dev->driver.irq_uninstall	= i915_driver_irq_uninstall;
@@ -69,6 +70,7 @@ static void i915_configure(drm_device_t *dev)
 	dev->driver.require_agp		= 1;
 	dev->driver.use_mtrr		= 1;
 	dev->driver.use_irq		= 1;
+	dev->driver.use_vbl_irq		= 1;
 }
 
 #ifdef __FreeBSD__
@@ -98,13 +100,21 @@ static device_method_t i915_methods[] = {
 };
 
 static driver_t i915_driver = {
+#if __FreeBSD_version >= 700010
+	"drm",
+#else
 	"drmsub",
+#endif
 	i915_methods,
 	sizeof(drm_device_t)
 };
 
 extern devclass_t drm_devclass;
-DRIVER_MODULE(i915, pci, i915_driver, drm_devclass, 0, 0);
+#if __FreeBSD_version >= 700010
+DRIVER_MODULE(i915, vgapci, i915_driver, drm_devclass, 0, 0);
+#else
+DRIVER_MODULE(i915, agp, i915_driver, drm_devclass, 0, 0);
+#endif
 MODULE_DEPEND(i915, drm, 1, 1, 1);
 
 #elif defined(__NetBSD__) || defined(__OpenBSD__)

@@ -88,6 +88,7 @@ int drm_sg_alloc(DRM_IOCTL_ARGS)
 
 	DRM_DEBUG( "sg alloc handle  = %08lx\n", entry->handle );
 
+	entry->virtual = (void *)entry->handle;
 	request.handle = entry->handle;
 
 	DRM_COPY_TO_USER_IOCTL( (drm_scatter_gather_t *)data,

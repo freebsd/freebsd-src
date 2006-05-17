@@ -300,8 +300,7 @@ static int savage_dma_init(drm_savage_private_t *dev_priv)
 	dev_priv->nr_dma_pages = dev_priv->cmd_dma->size /
 		(SAVAGE_DMA_PAGE_SIZE*4);
 	dev_priv->dma_pages = drm_alloc(sizeof(drm_savage_dma_page_t) *
-					dev_priv->nr_dma_pages,
-					DRM_MEM_DRIVER);
+					dev_priv->nr_dma_pages, DRM_MEM_DRIVER);
 	if (dev_priv->dma_pages == NULL)
 		return DRM_ERR(ENOMEM);
 
@@ -376,8 +375,7 @@ uint32_t *savage_dma_alloc(drm_savage_private_t *dev_priv, unsigned int n)
 
 	if (cur + nr_pages < dev_priv->nr_dma_pages) {
 		dma_ptr = (uint32_t *)dev_priv->cmd_dma->handle +
-			cur*SAVAGE_DMA_PAGE_SIZE +
-			dev_priv->dma_pages[cur].used;
+		    cur*SAVAGE_DMA_PAGE_SIZE + dev_priv->dma_pages[cur].used;
 		if (n < rest)
 			rest = n;
 		dev_priv->dma_pages[cur].used += rest;
@@ -385,7 +383,8 @@ uint32_t *savage_dma_alloc(drm_savage_private_t *dev_priv, unsigned int n)
 		cur++;
 	} else {
 		dev_priv->dma_flush(dev_priv);
-		nr_pages = (n + SAVAGE_DMA_PAGE_SIZE-1) / SAVAGE_DMA_PAGE_SIZE;
+		nr_pages =
+		    (n + SAVAGE_DMA_PAGE_SIZE-1) / SAVAGE_DMA_PAGE_SIZE;
 		for (i = cur; i < dev_priv->nr_dma_pages; ++i) {
 			dev_priv->dma_pages[i].age = dev_priv->last_dma_age;
 			dev_priv->dma_pages[i].used = 0;
@@ -443,8 +442,7 @@ static void savage_dma_flush(drm_savage_private_t *dev_priv)
 	/* pad with noops */
 	if (pad) {
 		uint32_t *dma_ptr = (uint32_t *)dev_priv->cmd_dma->handle +
-			cur * SAVAGE_DMA_PAGE_SIZE +
-			dev_priv->dma_pages[cur].used;
+		    cur * SAVAGE_DMA_PAGE_SIZE + dev_priv->dma_pages[cur].used;
 		dev_priv->dma_pages[cur].used += pad;
 		while(pad != 0) {
 			*dma_ptr++ = BCI_CMD_WAIT;
@@ -459,8 +457,7 @@ static void savage_dma_flush(drm_savage_private_t *dev_priv)
 		(first * SAVAGE_DMA_PAGE_SIZE +
 		 dev_priv->dma_pages[first].flushed) * 4;
 	len = (cur - first) * SAVAGE_DMA_PAGE_SIZE +
-		dev_priv->dma_pages[cur].used -
-		dev_priv->dma_pages[first].flushed;
+	    dev_priv->dma_pages[cur].used - dev_priv->dma_pages[first].flushed;
 
 	DRM_DEBUG("phys_addr=%lx, len=%u\n",
 		  phys_addr | dev_priv->dma_type, len);
@@ -588,19 +585,19 @@ int savage_driver_firstopen(drm_device_t *dev)
 			 * MTRRs. */
 			dev_priv->mtrr[0].base = fb_base;
 			dev_priv->mtrr[0].size = 0x01000000;
-			dev_priv->mtrr[0].handle = drm_mtrr_add(
-				dev_priv->mtrr[0].base, dev_priv->mtrr[0].size,
-				DRM_MTRR_WC);
+			dev_priv->mtrr[0].handle = 
+			    drm_mtrr_add(dev_priv->mtrr[0].base,
+					 dev_priv->mtrr[0].size, DRM_MTRR_WC);
 			dev_priv->mtrr[1].base = fb_base+0x02000000;
 			dev_priv->mtrr[1].size = 0x02000000;
-			dev_priv->mtrr[1].handle = drm_mtrr_add(
-				dev_priv->mtrr[1].base, dev_priv->mtrr[1].size,
-				DRM_MTRR_WC);
+			dev_priv->mtrr[1].handle =
+			    drm_mtrr_add(dev_priv->mtrr[1].base,
+					 dev_priv->mtrr[1].size, DRM_MTRR_WC);
 			dev_priv->mtrr[2].base = fb_base+0x04000000;
 			dev_priv->mtrr[2].size = 0x04000000;
-			dev_priv->mtrr[2].handle = drm_mtrr_add(
-				dev_priv->mtrr[2].base, dev_priv->mtrr[2].size,
-				DRM_MTRR_WC);
+			dev_priv->mtrr[2].handle =
+			    drm_mtrr_add(dev_priv->mtrr[2].base, 
+				         dev_priv->mtrr[2].size, DRM_MTRR_WC);
 		} else {
 			DRM_ERROR("strange pci_resource_len %08lx\n",
 				  drm_get_resource_len(dev, 0));
@@ -619,9 +616,9 @@ int savage_driver_firstopen(drm_device_t *dev)
 			 * aperture. */
 			dev_priv->mtrr[0].base = fb_base;
 			dev_priv->mtrr[0].size = 0x08000000;
-			dev_priv->mtrr[0].handle = drm_mtrr_add(
-				dev_priv->mtrr[0].base, dev_priv->mtrr[0].size,
-				DRM_MTRR_WC);
+			dev_priv->mtrr[0].handle = 
+			    drm_mtrr_add(dev_priv->mtrr[0].base,
+					 dev_priv->mtrr[0].size, DRM_MTRR_WC);
 		} else {
 			DRM_ERROR("strange pci_resource_len %08lx\n",
 				  drm_get_resource_len(dev, 1));
@@ -667,8 +664,7 @@ void savage_driver_lastclose(drm_device_t *dev)
 		if (dev_priv->mtrr[i].handle >= 0)
 			drm_mtrr_del(dev_priv->mtrr[i].handle,
 				     dev_priv->mtrr[i].base,
-				     dev_priv->mtrr[i].size,
-				     DRM_MTRR_WC);
+				     dev_priv->mtrr[i].size, DRM_MTRR_WC);
 }
 
 int savage_driver_unload(drm_device_t *dev)
@@ -836,9 +832,10 @@ static int savage_do_init_bci(drm_device_t *dev, drm_savage_init_t *init)
 			color_tile_format = SAVAGE_BD_TILE_DEST;
 			depth_tile_format = SAVAGE_BD_TILE_DEST;
 		}
-		front_stride = dev_priv->front_pitch / (dev_priv->fb_bpp/8);
-		back_stride  = dev_priv-> back_pitch / (dev_priv->fb_bpp/8);
-		depth_stride = dev_priv->depth_pitch / (dev_priv->depth_bpp/8);
+		front_stride = dev_priv->front_pitch / (dev_priv->fb_bpp / 8);
+		back_stride  = dev_priv->back_pitch / (dev_priv->fb_bpp / 8);
+		depth_stride = 
+		    dev_priv->depth_pitch / (dev_priv->depth_bpp / 8);
 
 		dev_priv->front_bd = front_stride | SAVAGE_BD_BW_DISABLE |
 			(dev_priv->fb_bpp << SAVAGE_BD_BPP_SHIFT) |
@@ -1071,7 +1068,8 @@ int savage_bci_buffers(DRM_IOCTL_ARGS)
 	return ret;
 }
 
-void savage_reclaim_buffers(drm_device_t *dev, DRMFILE filp) {
+void savage_reclaim_buffers(drm_device_t *dev, DRMFILE filp)
+{
 	drm_device_dma_t *dma = dev->dma;
 	drm_savage_private_t *dev_priv = dev->dev_private;
 	int i;

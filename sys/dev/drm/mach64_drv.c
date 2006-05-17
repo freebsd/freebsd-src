@@ -109,7 +109,11 @@ static driver_t mach64_driver = {
 };
 
 extern devclass_t drm_devclass;
+#if __FreeBSD_version >= 700010
+DRIVER_MODULE(mach64, vgapci, mach64_driver, drm_devclass, 0, 0);
+#else
 DRIVER_MODULE(mach64, pci, mach64_driver, drm_devclass, 0, 0);
+#endif
 MODULE_DEPEND(mach64, drm, 1, 1, 1);
 
 #elif defined(__NetBSD__) || defined(__OpenBSD__)

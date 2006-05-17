@@ -99,7 +99,11 @@ static driver_t savage_driver = {
 };
 
 extern devclass_t drm_devclass;
+#if __FreeBSD_version >= 700010
+DRIVER_MODULE(savage, vgapci, savage_driver, drm_devclass, 0, 0);
+#else
 DRIVER_MODULE(savage, pci, savage_driver, drm_devclass, 0, 0);
+#endif
 MODULE_DEPEND(savage, drm, 1, 1, 1);
 
 #elif defined(__NetBSD__) || defined(__OpenBSD__)

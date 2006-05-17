@@ -40,15 +40,17 @@ __FBSDID("$FreeBSD$");
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20041217"
+#define DRIVER_DATE		"20060119"
 
 /* Interface history:
  *
  * 1.1: Original.
  * 1.2: Add Power Management
+ * 1.3: Add vblank support
+ * 1.4: Fix cmdbuffer path, add heap destroy
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		2
+#define DRIVER_MINOR		4
 #define DRIVER_PATCHLEVEL	0
 
 typedef struct _drm_i915_ring_buffer {
@@ -115,6 +117,7 @@ extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 extern int i915_irq_emit(DRM_IOCTL_ARGS);
 extern int i915_irq_wait(DRM_IOCTL_ARGS);
 
+extern int i915_driver_vblank_wait(drm_device_t *dev, unsigned int *sequence);
 extern irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS);
 extern void i915_driver_irq_preinstall(drm_device_t * dev);
 extern void i915_driver_irq_postinstall(drm_device_t * dev);
@@ -124,6 +127,7 @@ extern void i915_driver_irq_uninstall(drm_device_t * dev);
 extern int i915_mem_alloc(DRM_IOCTL_ARGS);
 extern int i915_mem_free(DRM_IOCTL_ARGS);
 extern int i915_mem_init_heap(DRM_IOCTL_ARGS);
+extern int i915_mem_destroy_heap(DRM_IOCTL_ARGS);
 extern void i915_mem_takedown(struct mem_block **heap);
 extern void i915_mem_release(drm_device_t * dev,
 			     DRMFILE filp, struct mem_block *heap);
@@ -264,5 +268,7 @@ extern int i915_wait_ring(drm_device_t * dev, int n, const char *caller);
 #define ASYNC_FLIP                (1<<22)
 
 #define CMD_OP_DESTBUFFER_INFO	 ((0x3<<29)|(0x1d<<24)|(0x8e<<16)|1)
+
+#define READ_BREADCRUMB(dev_priv)  (((u32*)(dev_priv->hw_status_page))[5])
 
 #endif
