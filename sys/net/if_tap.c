@@ -219,6 +219,7 @@ tapmodevent(module_t mod, int type, void *data)
 			KASSERT(!(tp->tap_flags & TAP_OPEN), 
 				("%s flags is out of sync", ifp->if_xname));
 
+			knlist_destroy(&tp->tap_rsel.si_note);
 			destroy_dev(tp->tap_dev);
 			s = splimp();
 			ether_ifdetach(ifp);
@@ -354,6 +355,8 @@ tapcreate(struct cdev *dev)
 	tp->tap_flags |= TAP_INITED;
 	mtx_unlock(&tp->tap_mtx);
 
+	knlist_init(&tp->tap_rsel.si_note, NULL, NULL, NULL, NULL);
+
 	TAPDEBUG("interface %s is created. minor = %#x\n", 
 		ifp->if_xname, minor(dev));
 } /* tapcreate */
@@ -404,8 +407,6 @@ tapopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	splx(s);
-
-	knlist_init(&tp->tap_rsel.si_note, NULL, NULL, NULL, NULL);
 
 	TAPDEBUG("%s is open. minor = %#x\n", ifp->if_xname, minor(dev));
 
@@ -458,8 +459,6 @@ tapclose(struct cdev *dev, int foo, int bar, struct thread *td)
 	tp->tap_flags &= ~TAP_OPEN;
 	tp->tap_pid = 0;
 	mtx_unlock(&tp->tap_mtx);
-
-	knlist_destroy(&tp->tap_rsel.si_note);
 
 	TAPDEBUG("%s is closed. minor = %#x\n", 
 		ifp->if_xname, minor(dev));
