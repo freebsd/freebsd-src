@@ -115,7 +115,6 @@ vesa_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *
 
 			mode = (cmd & 0xff) + M_VESA_BASE;
 
-			/* Only set graphics mode in non-pcvt case */
 			if (((cmd & IOC_DIRMASK) == IOC_VOID) &&
 			    (mode > M_VESA_FULL_1280) &&
 			    (mode < M_VESA_MODE_MAX))

@@ -181,9 +181,6 @@ atkbd_timeout(void *arg)
 
 typedef struct atkbd_state {
 	KBDC		kbdc;		/* keyboard controller */
-					/* XXX: don't move this field; pcvt
-					 * expects `kbdc' to be the first
-					 * field in this structure. */
 	int		ks_mode;	/* input mode (K_XLATE,K_RAW,K_CODE) */
 	int		ks_flags;	/* flags */
 #define COMPOSE		(1 << 0)

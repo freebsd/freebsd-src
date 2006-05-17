@@ -1,4 +1,0 @@
-# $FreeBSD$
-
-DISTRIBUTION=	doc
-BINDIR=		${SHAREDIR}/pcvt
