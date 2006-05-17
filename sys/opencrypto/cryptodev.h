@@ -209,7 +209,6 @@ struct cryptostats {
 struct cryptoini {
 	int		cri_alg;	/* Algorithm to use */
 	int		cri_klen;	/* Key length, in bits */
-	int		cri_rnd;	/* Algorithm rounds, where relevant */
 	caddr_t		cri_key;	/* key to use */
 	u_int8_t	cri_iv[EALG_MAX_BLOCK_LEN];	/* IV to use */
 	struct cryptoini *cri_next;
@@ -233,7 +232,6 @@ struct cryptodesc {
 	struct cryptoini	CRD_INI; /* Initialization/context data */
 #define crd_iv		CRD_INI.cri_iv
 #define crd_key		CRD_INI.cri_key
-#define crd_rnd		CRD_INI.cri_rnd
 #define crd_alg		CRD_INI.cri_alg
 #define crd_klen	CRD_INI.cri_klen
 
