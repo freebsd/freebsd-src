@@ -501,7 +501,8 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 	if (ret == PS_OK) {
 		info->ti_sigmask = linfo.pl_sigmask;
 		info->ti_pending = linfo.pl_siglist;
-	}	
+	} else
+		return (ret);
 	if (state == ta->thread_state_running)
 		info->ti_state = TD_THR_RUN;
 	else if (state == ta->thread_state_zoombie)
