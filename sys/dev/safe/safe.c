@@ -746,6 +746,14 @@ safe_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 	}
 
 	if (macini) {
+		ses->ses_mlen = macini->cri_mlen;
+		if (ses->ses_mlen == 0) {
+			if (macini->cri_alg == CRYPTO_MD5_HMAC)
+				ses->ses_mlen = MD5_DIGEST_LENGTH;
+			else
+				ses->ses_mlen = SHA1_RESULTLEN;
+		}
+
 		for (i = 0; i < macini->cri_klen / 8; i++)
 			macini->cri_key[i] ^= HMAC_IPAD_VAL;
 
@@ -1580,11 +1588,13 @@ safe_callback(struct safe_softc *sc, struct safe_ringentry *re)
 			}
 			if (crp->crp_flags & CRYPTO_F_IMBUF) {
 				m_copyback((struct mbuf *)crp->crp_buf,
-					crd->crd_inject, 12,
+					crd->crd_inject,
+					sc->sc_sessions[re->re_sesn].ses_mlen,
 					(caddr_t)re->re_sastate.sa_saved_indigest);
 			} else if (crp->crp_flags & CRYPTO_F_IOV && crp->crp_mac) {
 				bcopy((caddr_t)re->re_sastate.sa_saved_indigest,
-					crp->crp_mac, 12);
+					crp->crp_mac,
+					sc->sc_sessions[re->re_sesn].ses_mlen);
 			}
 			break;
 		}
