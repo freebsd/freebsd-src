@@ -3,8 +3,18 @@
 .PATH: ${.CURDIR}/../../dev/le
 
 KMOD=	if_le
-SRCS=	am7990.c am79900.c ${if_le_ledma} if_le_pci.c lance.c
-SRCS+=	bus_if.h device_if.h ${ofw_bus_if} pci_if.h
+SRCS=	am7990.c am79900.c ${if_le_cbus} ${if_le_isa} ${if_le_ledma}
+SRCS+=	if_le_pci.c lance.c
+SRCS+=	bus_if.h device_if.h ${isa_if} ${ofw_bus_if} pci_if.h
+
+.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE} == "pc98"
+if_le_cbus=	if_le_cbus.c
+.else
+if_le_isa=	if_le_isa.c
+.endif
+isa_if=		isa_if.h
+.endif
 
 .if ${MACHINE_ARCH} == "sparc64"
 if_le_ledma=	if_le_ledma.c
