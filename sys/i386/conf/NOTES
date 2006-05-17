@@ -363,24 +363,6 @@ options 	VESA
 # Turn on extra debugging checks and output for VESA support.
 options 	VESA_DEBUG
 
-# The pcvt console driver (vt220 compatible).
-device		vt
-hint.vt.0.at="isa"
-options 	XSERVER			# support for running an X server on vt
-options 	FAT_CURSOR		# start with block cursor
-# This PCVT option is for keyboards such as those used on really old ThinkPads
-options 	PCVT_SCANSET=2
-# Other PCVT options are documented in pcvt(4).
-options 	PCVT_24LINESDEF
-options 	PCVT_CTRL_ALT_DEL
-options 	PCVT_META_ESC
-options 	PCVT_NSCREENS=9
-options 	PCVT_PRETTYSCRNS
-options 	PCVT_SCREENSAVER
-options 	PCVT_USEKBDSEC
-options 	PCVT_VT220KEYB
-options 	PCVT_GREENSAVER
-
 #
 # The Numeric Processing eXtension driver.  This is non-optional.
 device		npx

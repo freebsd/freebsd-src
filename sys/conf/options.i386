@@ -91,30 +91,6 @@ PSM_RESETAFTERSUSPEND	opt_psm.h
 
 ATKBD_DFLT_KEYMAP	opt_atkbd.h
 
-# pcvt(4) has a bunch of options
-FAT_CURSOR		opt_pcvt.h
-PCVT_123GENERIC		opt_pcvt.h
-PCVT_24LINESDEF		opt_pcvt.h
-PCVT_CTRL_ALT_DEL	opt_pcvt.h
-PCVT_GREENSAVER		opt_pcvt.h
-PCVT_INHIBIT_NUMLOCK	opt_pcvt.h
-PCVT_META_ESC		opt_pcvt.h
-PCVT_NO_LED_UPDATE	opt_pcvt.h
-PCVT_NSCREENS		opt_pcvt.h
-PCVT_NULLCHARS		opt_pcvt.h
-PCVT_PRETTYSCRNS	opt_pcvt.h
-PCVT_SCANSET		opt_pcvt.h
-PCVT_SCREENSAVER	opt_pcvt.h
-PCVT_SETCOLOR		opt_pcvt.h
-PCVT_SHOWKEYS		opt_pcvt.h
-PCVT_SLOW_INTERRUPT	opt_pcvt.h
-PCVT_SYSBEEPF		opt_pcvt.h
-PCVT_UPDATEFAST		opt_pcvt.h
-PCVT_UPDATESLOW		opt_pcvt.h
-PCVT_USEKBDSEC		opt_pcvt.h
-PCVT_VT220KEYB		opt_pcvt.h
-XSERVER			opt_pcvt.h
-
 # Video spigot
 SPIGOT_UNSECURE		opt_spigot.h
 
