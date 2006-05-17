@@ -14,6 +14,59 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20060517: pcvt removed
+OLD_FILES+=usr/share/pcvt/README.FIRST
+OLD_FILES+=usr/share/pcvt/Etc/xmodmap-german
+OLD_FILES+=usr/share/pcvt/Etc/pcvt.sh
+OLD_FILES+=usr/share/pcvt/Etc/pcvt.el
+OLD_FILES+=usr/share/pcvt/Etc/Terminfo
+OLD_FILES+=usr/share/pcvt/Etc/Termcap
+OLD_DIRS+=usr/share/pcvt/Etc
+OLD_FILES+=usr/share/pcvt/Doc/NotesAndHints
+OLD_FILES+=usr/share/pcvt/Doc/Keyboard.VT
+OLD_FILES+=usr/share/pcvt/Doc/Keyboard.HP
+OLD_FILES+=usr/share/pcvt/Doc/EscapeSequences
+OLD_FILES+=usr/share/pcvt/Doc/Charsets
+OLD_FILES+=usr/share/pcvt/Doc/CharGen
+OLD_FILES+=usr/share/pcvt/Doc/Bibliography
+OLD_FILES+=usr/share/pcvt/Doc/Acknowledgements
+OLD_DIRS+=usr/share/pcvt/Doc
+OLD_DIRS+=usr/share/pcvt
+OLD_FILES+=usr/share/misc/pcvtfonts/vt220l.816
+OLD_FILES+=usr/share/misc/pcvtfonts/vt220l.814
+OLD_FILES+=usr/share/misc/pcvtfonts/vt220l.810
+OLD_FILES+=usr/share/misc/pcvtfonts/vt220l.808
+OLD_FILES+=usr/share/misc/pcvtfonts/vt220h.816
+OLD_FILES+=usr/share/misc/pcvtfonts/vt220h.814
+OLD_FILES+=usr/share/misc/pcvtfonts/vt220h.810
+OLD_FILES+=usr/share/misc/pcvtfonts/vt220h.808
+OLD_DIRS+=usr/share/misc/pcvtfonts
+OLD_FILES+=usr/share/misc/keycap.pcvt
+OLD_FILES+=usr/share/man/man8/ispcvt.8.gz
+OLD_FILES+=usr/share/man/man5/keycap.5.gz
+OLD_FILES+=usr/share/man/man4/vt.4.gz
+OLD_FILES+=usr/share/man/man4/pcvt.4.gz
+OLD_FILES+=usr/share/man/man3/kgetstr.3.gz
+OLD_FILES+=usr/share/man/man3/kgetnum.3.gz
+OLD_FILES+=usr/share/man/man3/kgetflag.3.gz
+OLD_FILES+=usr/share/man/man3/kgetent.3.gz
+OLD_FILES+=usr/share/man/man3/keycap.3.gz
+OLD_FILES+=usr/share/man/man1/vt220keys.1.gz
+OLD_FILES+=usr/share/man/man1/scon.1.gz
+OLD_FILES+=usr/share/man/man1/loadfont.1.gz
+OLD_FILES+=usr/share/man/man1/kcon.1.gz
+OLD_FILES+=usr/share/man/man1/fontedit.1.gz
+OLD_FILES+=usr/share/man/man1/cursor.1.gz
+OLD_FILES+=usr/sbin/vt220keys
+OLD_FILES+=usr/sbin/scon
+OLD_FILES+=usr/sbin/loadfont
+OLD_FILES+=usr/sbin/kcon
+OLD_FILES+=usr/sbin/ispcvt
+OLD_FILES+=usr/sbin/fontedit
+OLD_FILES+=usr/sbin/cursor
+OLD_FILES+=usr/lib/libkeycap_p.a
+OLD_FILES+=usr/lib/libkeycap.a
+OLD_FILES+=usr/include/machine/pcvt_ioctl.h
 # 20060514: lnc(4) replaced by le(4)
 OLD_FILES+=usr/share/man/man4/i386/lnc.4.gz
 # 20060512: remove ip6fw

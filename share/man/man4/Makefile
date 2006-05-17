@@ -241,7 +241,6 @@ MAN=	aac.4 \
 	pcic.4 \
 	pcm.4 \
 	pcn.4 \
-	pcvt.4 \
 	pim.4 \
 	polling.4 \
 	ppbus.4 \
@@ -458,7 +457,6 @@ MLINKS+=pccbb.4 cbb.4
 MLINKS+=pcm.4 snd.4 \
 	pcm.4 sound.4
 MLINKS+=pcn.4 if_pcn.4
-MLINKS+=pcvt.4 vt.4
 MLINKS+=ppp.4 if_ppp.4
 MLINKS+=ral.4 if_ral.4
 MLINKS+=re.4 if_re.4

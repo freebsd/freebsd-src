@@ -421,7 +421,7 @@ build32:
 	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
 .endif
 .endfor
-.for _dir in usr.sbin/pcvt/keycap usr.bin/lex/lib
+.for _dir in usr.bin/lex/lib
 	cd ${.CURDIR}/${_dir}; \
 	    ${LIB32MAKE} DESTDIR=${LIB32TMP} obj
 .endfor
@@ -1009,10 +1009,6 @@ _prebuild_libs+=	lib/libypclnt
 .endif
 
 _generic_libs+=	usr.bin/lex/lib
-
-.if ${MACHINE} == "i386"
-_generic_libs+=	usr.sbin/pcvt/keycap
-.endif
 
 .for _lib in ${_startup_libs} ${_prebuild_libs:Nlib/libpam} ${_generic_libs}
 ${_lib}__L: .PHONY

@@ -113,7 +113,6 @@ SUBDIR=	ac \
 	${_ofwdump} \
 	${_pccard} \
 	pciconf \
-	${_pcvt} \
 	periodic \
 	pkg_install \
 	pmccontrol \
@@ -312,9 +311,6 @@ _acpi=		acpi
 .endif
 _arlcontrol=	arlcontrol
 _boot0cfg=	boot0cfg
-.if ${MK_PCVT} != "no"
-_pcvt=		pcvt
-.endif
 _wlconfig=	wlconfig
 .elif ${MACHINE} == "pc98"
 _boot98cfg=	boot98cfg
