@@ -190,25 +190,22 @@ cryptof_ioctl(
 		case 0:
 			break;
 		case CRYPTO_MD5_HMAC:
-			thash = &auth_hash_hmac_md5_96;
+			thash = &auth_hash_hmac_md5;
 			break;
 		case CRYPTO_SHA1_HMAC:
-			thash = &auth_hash_hmac_sha1_96;
+			thash = &auth_hash_hmac_sha1;
 			break;
-		case CRYPTO_SHA2_HMAC:
-			if (sop->mackeylen == auth_hash_hmac_sha2_256.keysize)
-				thash = &auth_hash_hmac_sha2_256;
-			else if (sop->mackeylen == auth_hash_hmac_sha2_384.keysize)
-				thash = &auth_hash_hmac_sha2_384;
-			else if (sop->mackeylen == auth_hash_hmac_sha2_512.keysize)
-				thash = &auth_hash_hmac_sha2_512;
-			else {
-				mtx_unlock(&Giant);
-				return (EINVAL);
-			}
+		case CRYPTO_SHA2_256_HMAC:
+			thash = &auth_hash_hmac_sha2_256;
+			break;
+		case CRYPTO_SHA2_384_HMAC:
+			thash = &auth_hash_hmac_sha2_384;
+			break;
+		case CRYPTO_SHA2_512_HMAC:
+			thash = &auth_hash_hmac_sha2_512;
 			break;
 		case CRYPTO_RIPEMD160_HMAC:
-			thash = &auth_hash_hmac_ripemd_160_96;
+			thash = &auth_hash_hmac_ripemd_160;
 			break;
 #ifdef notdef
 		case CRYPTO_MD5:
@@ -471,7 +468,7 @@ cryptodev_op(
 		goto bail;
 
 	if (cop->mac &&
-	    (error = copyout(crp->crp_mac, cop->mac, cse->thash->authsize)))
+	    (error = copyout(crp->crp_mac, cop->mac, cse->thash->hashsize)))
 		goto bail;
 
 bail:
