@@ -303,6 +303,7 @@ struct cryptkop {
 /* Crypto capabilities structure */
 struct cryptocap {
 	u_int32_t	cc_sessions;
+	u_int32_t	cc_koperations;
 
 	/*
 	 * Largest possible operator length (in bits) for each type of
