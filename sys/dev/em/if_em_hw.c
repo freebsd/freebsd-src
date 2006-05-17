@@ -6027,7 +6027,7 @@ em_get_cable_length(struct em_hw *hw,
 {
     int32_t ret_val;
     uint16_t agc_value = 0;
-    uint16_t cur_agc, min_agc = IGP01E1000_AGC_LENGTH_TABLE_SIZE;
+    uint16_t cur_agc, min_agc = IGP01E1000_AGC_LENGTH_TABLE_SIZE - 1;
     uint16_t max_agc = 0;
     uint16_t i, phy_data;
     uint16_t cable_length;
