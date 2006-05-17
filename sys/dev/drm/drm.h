@@ -82,8 +82,8 @@ __FBSDID("$FreeBSD$");
 #define DRM_IOC_WRITE		_IOC_WRITE
 #define DRM_IOC_READWRITE	_IOC_READ|_IOC_WRITE
 #define DRM_IOC(dir, group, nr, size) _IOC(dir, group, nr, size)
-#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
-#if defined(__FreeBSD__) && defined(IN_MODULE)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#if (defined(__FreeBSD__) || defined(__FreeBSD_kernel__)) && defined(IN_MODULE)
 /* Prevent name collision when including sys/ioccom.h */
 #undef ioctl
 #include <sys/ioccom.h>
@@ -123,7 +123,7 @@ __FBSDID("$FreeBSD$");
 #if defined(__linux__) || defined(__NetBSD__)
 #define DRM_MAJOR       226
 #endif
-#define DRM_MAX_MINOR   255
+#define DRM_MAX_MINOR   15
 #endif
 #define DRM_NAME	"drm"	  /**< Name in kernel, /dev, and /proc */
 #define DRM_MIN_ORDER	5	  /**< At least 2^5 bytes = 32 bytes */

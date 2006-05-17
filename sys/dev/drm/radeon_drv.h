@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #define DRIVER_NAME		"radeon"
 #define DRIVER_DESC		"ATI Radeon"
-#define DRIVER_DATE		"20050911"
+#define DRIVER_DATE		"20060225"
 
 /* Interface history:
  *
@@ -86,32 +86,42 @@ __FBSDID("$FreeBSD$");
  * 1.16- Add R200_EMIT_PP_TRI_PERF_CNTL packet to support brilinear
  *       texture filtering on r200
  * 1.17- Add initial support for R300 (3D).
- * 1.18- Add support for GL_ATI_fragment_shader, new packets R200_EMIT_PP_AFS_0/1,
-         R200_EMIT_PP_TXCTLALL_0-5 (replaces R200_EMIT_PP_TXFILTER_0-5, 2 more regs)
-         and R200_EMIT_ATF_TFACTOR (replaces R200_EMIT_TFACTOR_0 (8 consts instead of 6)
+ * 1.18- Add support for GL_ATI_fragment_shader, new packets
+ *       R200_EMIT_PP_AFS_0/1, R200_EMIT_PP_TXCTLALL_0-5 (replaces
+ *       R200_EMIT_PP_TXFILTER_0-5, 2 more regs) and R200_EMIT_ATF_TFACTOR
+ *       (replaces R200_EMIT_TFACTOR_0 (8 consts instead of 6)
  * 1.19- Add support for gart table in FB memory and PCIE r300
+ * 1.20- Add support for r300 texrect
+ * 1.21- Add support for card type getparam
+ * 1.22- Add support for texture cache flushes (R300_TX_CNTL)
+ * 1.23- Add new radeon memory map work from benh
+ * 1.24- Add general-purpose packet for manipulating scratch registers (r300)
  */
 
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		19
+#define DRIVER_MINOR		24
 #define DRIVER_PATCHLEVEL	0
 
+/*
+ * Radeon chip families
+ */
 enum radeon_family {
 	CHIP_R100,
-	CHIP_RS100,
 	CHIP_RV100,
+	CHIP_RS100,
 	CHIP_RV200,
-	CHIP_R200,
 	CHIP_RS200,
-	CHIP_R250,
-	CHIP_RS250,
+	CHIP_R200,
 	CHIP_RV250,
+	CHIP_RS300,
 	CHIP_RV280,
 	CHIP_R300,
-	CHIP_RS300,
 	CHIP_R350,
 	CHIP_RV350,
+	CHIP_RV380,
 	CHIP_R420,
+	CHIP_RV410,
+	CHIP_RS400,
 	CHIP_LAST,
 };
 
@@ -131,11 +141,13 @@ enum radeon_chip_flags {
 	CHIP_IS_IGP = 0x00020000UL,
 	CHIP_SINGLE_CRTC = 0x00040000UL,
 	CHIP_IS_AGP = 0x00080000UL,
-	CHIP_HAS_HIERZ = 0x00100000UL, 
+	CHIP_HAS_HIERZ = 0x00100000UL,
 	CHIP_IS_PCIE = 0x00200000UL,
+	CHIP_NEW_MEMMAP = 0x00400000UL,
 };
 
-#define GET_RING_HEAD(dev_priv)		DRM_READ32(  (dev_priv)->ring_rptr, 0 )
+#define GET_RING_HEAD(dev_priv)	(dev_priv->writeback_works ? \
+        DRM_READ32(  (dev_priv)->ring_rptr, 0 ) : RADEON_READ(RADEON_CP_RB_RPTR))
 #define SET_RING_HEAD(dev_priv,val)	DRM_WRITE32( (dev_priv)->ring_rptr, 0, (val) )
 
 typedef struct drm_radeon_freelist {
@@ -197,6 +209,8 @@ typedef struct drm_radeon_private {
 	drm_radeon_sarea_t *sarea_priv;
 
 	u32 fb_location;
+	u32 fb_size;
+	int new_memmap;
 
 	int gart_size;
 	u32 gart_vm_start;
@@ -269,6 +283,9 @@ typedef struct drm_radeon_private {
 
 	unsigned long pcigart_offset;
 	drm_ati_pcigart_info gart_info;
+
+	u32 scratch_ages[5];
+
 	/* starting from here on, data is preserved accross an open */
 	uint32_t flags;		/* see radeon_chip_flags */
 
@@ -277,6 +294,13 @@ typedef struct drm_radeon_private {
 typedef struct drm_radeon_buf_priv {
 	u32 age;
 } drm_radeon_buf_priv_t;
+
+typedef struct drm_radeon_kcmd_buffer {
+	int bufsz;
+	char *buf;
+	int nbox;
+	drm_clip_rect_t __user *boxes;
+} drm_radeon_kcmd_buffer_t;
 
 extern int radeon_no_wb;
 extern drm_ioctl_desc_t radeon_ioctls[];
@@ -331,10 +355,9 @@ extern long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
 /* r300_cmdbuf.c */
 extern void r300_init_reg_flags(void);
 
-extern int r300_do_cp_cmdbuf( drm_device_t* dev,
-				  DRMFILE filp,
-			      drm_file_t* filp_priv,
-			      drm_radeon_cmd_buffer_t* cmdbuf );
+extern int r300_do_cp_cmdbuf(drm_device_t *dev, DRMFILE filp,
+			     drm_file_t* filp_priv,
+			     drm_radeon_kcmd_buffer_t* cmdbuf);
 
 /* Flags for stats.boxes
  */
@@ -350,7 +373,6 @@ extern int r300_do_cp_cmdbuf( drm_device_t* dev,
 #define RADEON_AGP_COMMAND		0x0f60
 #define RADEON_AGP_COMMAND_PCI_CONFIG	0x0060	/* offset in PCI config */
 #       define RADEON_AGP_ENABLE            (1<<8)
-
 #define RADEON_AUX_SCISSOR_CNTL		0x26f0
 #	define RADEON_EXCLUSIVE_SCISSOR_0	(1 << 24)
 #	define RADEON_EXCLUSIVE_SCISSOR_1	(1 << 25)
@@ -366,6 +388,7 @@ extern int r300_do_cp_cmdbuf( drm_device_t* dev,
 #	define RADEON_PLL_WR_EN			(1 << 7)
 #define RADEON_CLOCK_CNTL_INDEX		0x0008
 #define RADEON_CONFIG_APER_SIZE		0x0108
+#define RADEON_CONFIG_MEMSIZE           0x00f8
 #define RADEON_CRTC_OFFSET		0x0224
 #define RADEON_CRTC_OFFSET_CNTL		0x0228
 #	define RADEON_CRTC_TILE_EN		(1 << 15)
