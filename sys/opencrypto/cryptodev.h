@@ -384,5 +384,7 @@ struct uio;
 extern	void cuio_copydata(struct uio* uio, int off, int len, caddr_t cp);
 extern	void cuio_copyback(struct uio* uio, int off, int len, caddr_t cp);
 extern	struct iovec *cuio_getptr(struct uio *uio, int loc, int *off);
+extern	int cuio_apply(struct uio *uio, int off, int len,
+	    int (*f)(void *, void *, u_int), void *arg); 
 #endif /* _KERNEL */
 #endif /* _CRYPTO_CRYPTO_H_ */
