@@ -180,6 +180,8 @@ pt_ta_new(struct ps_prochandle *ph, td_thragent_t **pta)
 	LOOKUP_VAL(ph, "_thread_off_key_destructor", &ta->thread_off_key_destructor);
 	LOOKUP_VAL(ph, "_thread_state_running", &ta->thread_state_running);
 	LOOKUP_VAL(ph, "_thread_state_zoombie", &ta->thread_state_zoombie);
+	LOOKUP_VAL(ph, "_thread_off_sigmask",	&ta->thread_off_sigmask);
+	LOOKUP_VAL(ph, "_thread_off_sigpend",	&ta->thread_off_sigpend);
 	dbg = getpid();
 	/*
 	 * If this fails it probably means we're debugging a core file and
@@ -590,10 +592,13 @@ static td_err_e
 pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 {
 	const td_thragent_t *ta = th->th_ta;
+	struct ptrace_lwpinfo linfo;
 	psaddr_t tcb_addr;
 	uint32_t dflags;
+	lwpid_t lwp;
 	int state;
 	int ret;
+	int attrflags;
 
 	TDBG_FUNC();
 
@@ -611,6 +616,12 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 		info->ti_type = TD_THR_SYSTEM;
 		return (TD_OK);
 	}
+
+	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr +
+		ta->thread_off_attr_flags,
+		&attrflags, sizeof(attrflags));
+	if (ret != 0)
+		return (P2T(ret));
 	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr + ta->thread_off_tcb,
 	               &tcb_addr, sizeof(tcb_addr));
 	if (ret != 0)
@@ -629,8 +640,33 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 		&dflags, sizeof(dflags));
 	if (ret != 0)
 		return (P2T(ret));
+	ret = ps_pread(ta->ph, tcb_addr + ta->thread_off_tmbx +
+		offsetof(struct kse_thr_mailbox, tm_lwp), &lwp, sizeof(lwpid_t));
+	if (ret != 0)
+		return (P2T(ret));
 	info->ti_ta_p = th->th_ta;
 	info->ti_tid = th->th_tid;
+
+	if (attrflags & PTHREAD_SCOPE_SYSTEM) {
+		ret = ps_linfo(ta->ph, lwp, &linfo);
+		if (ret == PS_OK) {
+			info->ti_sigmask = linfo.pl_sigmask;
+			info->ti_pending = linfo.pl_siglist;
+		} else
+			return (ret);
+	} else {
+		ret = ps_pread(ta->ph,
+			ta->map[th->th_tid].thr + ta->thread_off_sigmask,
+			&info->ti_sigmask, sizeof(sigset_t));
+		if (ret)
+			return (ret);
+		ret = ps_pread(ta->ph,
+			ta->map[th->th_tid].thr + ta->thread_off_sigpend,
+			&info->ti_pending, sizeof(sigset_t));
+		if (ret)
+			return (ret);
+	}
+
 	if (state == ta->thread_state_running)
 		info->ti_state = TD_THR_RUN;
 	else if (state == ta->thread_state_zoombie)
