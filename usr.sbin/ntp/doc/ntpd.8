@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 2, 2001
+.Dd May 17, 2006
 .Dt NTPD 8
 .Os
 .Sh NAME
@@ -9,13 +9,11 @@
 .Nd Network Time Protocol (NTP) daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl aAbdgLmnPqx
+.Op Fl 46aAbDdgLmnPqx
 .Op Fl c Ar conffile
-.Op Fl D Ar level
 .Op Fl f Ar driftfile
 .Op Fl k Ar keyfile
 .Op Fl l Ar logfile
-.Op Fl N Cm high
 .Op Fl p Ar pidfile
 .Op Fl r Ar broadcastdelay
 .Op Fl s Ar statsdir
@@ -84,76 +82,94 @@ utility programs.
 When
 .Nm
 starts it looks at the value of
-.Xr umask 2 ,
+.Cm umask 2 ,
 and if zero
 .Nm
 will set the
-.Xr umask 2
+.Cm umask 2
 to 022.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl 4
+Force DNS resolution of following host names to the IPv4 namespace.
+.It Fl 6
+Force DNS resolution of following host names to the IPv6 namespace.
 .It Fl a
-Enable authentication mode (default).
+Require cryptographic authentication for broadcast client,
+multicast client and symmetric passive associations.
+This is the default.
 .It Fl A
-Disable authentication mode.
+Do not require cryptographic authentication for broadcast client,
+multicast client and symmetric passive associations.
+This is almost never a good idea.
 .It Fl b
-Synchronize using NTP broadcast messages.
+Enable the client to synchronize to broadcast servers.
 .It Fl c Ar conffile
-Specify the name and path of the configuration file.
-(Disable
-netinfo?)
+Specify the name and path of the configuration file, default
+.Pa /etc/ntp.conf .
 .It Fl d
-Specify debugging mode.
-This flag may occur multiple times,
+Specify debugging mode. This option may occur more than once,
 with each occurrence indicating greater detail of display.
 .It Fl D Ar level
 Specify debugging level directly.
 .It Fl f Ar driftfile
-Specify the name and path of the drift file.
+Specify the name and path of the frequency file, default
+.Pa /etc/ntp.drift .
+This is the same operation as the
+.Ic driftfile Ar driftfile
+configuration command.
 .It Fl g
 Normally,
 .Nm
-exits if the offset exceeds the sanity
-limit, which is 1000 s by default.
-If the sanity limit is set to
-zero, no sanity checking is performed and any offset is acceptable.
-This option overrides the limit and allows the time to be set to
-any value without restriction; however, this can happen only once.
-After that,
+exits with a message to the system log if the offset exceeds
+the panic threshold, which is 1000 s by default.
+This option allows thetime to be set to any value without restriction;
+however, this can happen only once.
+If the threshold is exceeded after that,
 .Nm
-will exit if the limit is exceeded.
-This
-option can be used with the
+will exit with a message to the system log.
+This option can be used with the
 .Fl q
-option.
+and
+.Fl x
+options. See the
+.Ic tinker
+command for other options.
 .It Fl k Ar keyfile
-Specify the name and path of the file containing the NTP
-authentication keys.
+Specify the name and path of the symmetric key file, default
+.Pa /etc/ntp.keys .
+This is the same operation as the
+.Ic keys Ar keyfile
+configuration command.
 .It Fl l Ar logfile
 Specify the name and path of the log file.
-The default is the
-system log facility.
+The default is the system log file.
+This is the same operation as the
+.Ic logfile Ar logfile
+configuration command.
 .It Fl L
-Listen to virtual IPs.
+Do not listen to virtual IPs. The default is to listen.
 .It Fl m
-Synchronize using NTP multicast messages on the IP multicast
-group address 224.0.1.1 (requires multicast kernel).
+Enable the client to synchronize to multicast servers at the IPv4 multicast
+group address 224.0.1.1.
 .It Fl n
 Do not fork.
-.It Fl N Ar priority
+.It Fl N
 To the extent permitted by the operating system, run the
 .Nm
-at a high priority.
+at the highest priority.
 .It Fl p Ar pidfile
-Specify the name and path to record the
-.Nm Ns 's
-process
-ID.
-.It Fl P
-Override the priority limit set by the operating system.
-Not
-recommended for sissies.
+Specify the name and path of the file used to record the
+.Nm
+process ID.
+This is the same operation as the
+.Ic pidfile Ar pidfile
+configuration command.
+.It Fl P Ar priority
+To the extent permitted by the operating system, run the
+.Nm
+at the specified priority.
 .It Fl q
 Exit the
 .Nm
@@ -169,17 +185,22 @@ and
 .Fl x
 options can
 be used with this option.
+Note: The kernel time discipline is disabled with this option.
 .It Fl r Ar broadcastdelay
 Specify the default propagation delay from the
-broadcast/multicast server and this computer.
+broadcast/multicast server to this client.
 This is necessary
 only if the delay cannot be computed automatically by the
 protocol.
 .It Fl s Ar statsdir
 Specify the directory path for files created by the statistics
 facility.
+This is the same operation as the
+.Ic statsdir Ar statsdir
+configuration command.
 .It Fl t Ar key
 Add a key number to the trusted key list.
+This option can occur more than once.
 .It Fl v Ar variable
 .It Fl V Ar variable
 Add a system variable listed by default.
@@ -187,22 +208,20 @@ Add a system variable listed by default.
 Normally, the time is slewed if the offset is less than the
 step threshold, which is 128 ms by default, and stepped if above
 the threshold.
-This option forces the time to be slewed in all
-cases.
-If the step threshold is set to zero, all offsets are
-stepped, regardless of value and regardless of the
-.Fl x
-option.
-In general, this is not a good idea, as it bypasses the
-clock state machine which is designed to cope with large time and
-frequency errors Note: Since the slew rate is limited to 0.5 ms/s,
-each second of adjustment requires an amortization interval of 2000
-s.
-Thus, an adjustment of many seconds can take hours or days to
-amortize.
+This option sets the threshold to 600 s,
+which is well within the accuracy window to set the clock manually.
+Note: Since the slew rate of typical Unix kernels is limited to 0.5 ms/s,
+each second of adjustment requires an amortization interval of 2000 s.
+Thus, an adjustment as much as 600 s will take almost 14 days to complete.
 This option can be used with the
+.Fl g
+and
 .Fl q
-option.
+options.
+See the
+.Ic tinker
+command for other options.
+Note: The kernel time discipline is disabled with this option.
 .El
 .Ss "How NTP Operates"
 The
@@ -216,7 +235,7 @@ the signal processing and mitigation algorithms can accumulate and
 groom the data and set the clock.
 In order to protect the network
 from bursts, the initial poll interval for each server is delayed
-an interval randomized over 0-16s.
+an interval randomized over a few seconds.
 At the default initial poll
 interval of 64s, several minutes can elapse before the clock is
 set.
@@ -322,7 +341,9 @@ The intent of this behavior
 is to quickly correct the frequency and restore operation to the
 normal tracking mode.
 In the most extreme cases
-(time.ien.it comes to mind), there may be occasional
+(
+.Cm time.ien.it
+comes to mind), there may be occasional
 step/slew corrections and subsequent frequency corrections.
 It
 helps in these cases to use the
@@ -431,7 +452,7 @@ keyword with the
 configuration command.
 With this
 keyword a volley of messages are exchanged to groom the data and
-the clock is set in about a minute.
+the clock is set in about 10 s.
 If nothing is heard after a
 couple of minutes, the daemon times out and exits.
 After a suitable
@@ -506,7 +527,7 @@ this limit.
 Once this is done, the drift file is automatically
 updated once per hour and is available to initialize the frequency
 on subsequent daemon restarts.
-.Ss "The huff-n'-puff filter"
+.Ss "The huff-n'-puff Filter"
 In scenarios where a considerable amount of data are to be
 downloaded or uploaded over telephone modems, timekeeping quality
 can be seriously degraded.
@@ -535,7 +556,8 @@ and positive (puff) correction, which depends on the sign of the
 offset.
 .Pp
 The filter is activated by the
-.Ic tinker command and
+.Ic tinker
+command and
 .Cm huffpuff
 keyword, as described in
 .Xr ntp.conf 5 .
