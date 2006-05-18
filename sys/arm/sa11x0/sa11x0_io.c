@@ -188,9 +188,21 @@ sa11x0_bs_unmap(t, size)
 	void *t;
 	bus_size_t size;
 {
-	/*
-	 * Temporary implementation
-	 */
+	vm_offset_t va, endva;
+
+	if (pmap_devmap_find_va((vm_offset_t)t, size) != NULL) {
+		/* Device was statically mapped; nothing to do. */
+		return;
+	}
+
+	va = trunc_page((vm_offset_t)t);
+	endva = round_page((vm_offset_t)t + size);
+
+	while (va < endva) {
+		pmap_kremove(va);
+		va += PAGE_SIZE;
+	}
+	kmem_free(kernel_map, va, endva - va);
 }
 
 void    
