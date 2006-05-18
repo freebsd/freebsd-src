@@ -941,14 +941,14 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       the <filename role="package">shells/tcsh_nls</filename> port.
       &merged;</para>
 
-    <para>The csup(1) utility has been imported.
+    <para>The &man.csup.1; utility has been imported.
       This is an implementation of a CVSup-compatible client written
       in the C language.  Note that it currently supports checkout mode
-      only.</para>
+      only. &merged;</para>
 
     <para>The &man.dhclient.8; program now sends the host's name in
       DHCP requests if it is not specified in the configuration
-      file.</para>
+      file. &merged;</para>
 
     <para>The &man.devd.8; utility now supports a <option>-f</option> option
       to specify a configuration file.  &merged;</para>
@@ -959,7 +959,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The &man.find.1; program now supports <option>-Btime</option>
       and other related primaries, which can be used to create expressions
-      based on a file's creation time.</para>
+      based on a file's creation time. &merged;</para>
 
     <para>The &man.ftpd.8; utility now creates a PID file
       <filename>/var/run/ftpd.pid</filename> even when
@@ -1013,7 +1013,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       a <option>-x</option> flag (inspired by Solaris) to print
       extended disk statistics.  If the new <option>-z</option> flag is
       also specified, no output is made for disks with no
-      activity.</para>
+      activity. &merged;</para>
 
     <para>The &man.jail.8; utility supports a <option>-J
 	<replaceable>jid_file</replaceable></option> option to
@@ -1353,7 +1353,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>&man.pkg.add.1; now supports an <option>-F</option>
       flag to disable checking whether the same package is already
-      installed or not.</para>
+      installed or not. &merged;</para>
 
     <para>The &man.pkg.add.1; program now supports an <option>-P</option>
       flag, which is the same as the <option>-p</option> flag
