@@ -355,7 +355,7 @@ struct thread {
 #define	TDF_NEEDRESCHED	0x00010000 /* Thread needs to yield. */
 #define	TDF_NEEDSIGCHK	0x00020000 /* Thread may need signal delivery. */
 #define	TDF_XSIG	0x00040000 /* Thread is exchanging signal under trace */
-#define	TDF_UMTXQ	0x00080000 /* Thread is sleeping on a umtx. */
+#define	TDF_UNUSED19	0x00080000 /* Thread is sleeping on a umtx. */
 #define	TDF_THRWAKEUP	0x00100000 /* Libthr thread must not suspend itself. */
 #define	TDF_DBSUSPEND	0x00200000 /* Thread is suspended by debugger */
 #define	TDF_UNUSED22	0x00400000 /* --available -- */
