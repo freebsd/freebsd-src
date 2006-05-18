@@ -1379,6 +1379,35 @@ ltr()
 	echo "${_out}"
 }
 
+# require_kld name
+#	Ensure given module is loaded.
+#	Try to load it if it's not.
+require_kld()
+{
+	local _name _line _ret
+
+	_name=$1
+	_me="require_kld"
+
+	_ret=`kldstat -v | while read _line; do
+		case ${_line} in
+		*" ${_name}")
+			echo "yes"
+			;;
+		*)
+			;;
+		esac;
+	done`
+
+	if [ -z "${_ret}" ]; then
+                if kldload ${_name}; then
+                        info "${_name} module loaded."
+                else
+                        err 1 "${_me}: ${_name} module failed to load."
+                fi
+        fi
+}
+
 # Creates a list of providers for GELI encryption.
 geli_make_list()
 {
