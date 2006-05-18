@@ -400,7 +400,7 @@ ff.nextblock:	subl $SECTOR_SIZE,rec_size	# Adjust size
 ff.checkname:	lea DIR_NAME(%bx),%di		# Address name in record
 		push %si			# Save
 		repe cmpsb			# Compare name
-		jcxz ff.match			# We have a winner!
+		je ff.match			# We have a winner!
 		pop %si				# Restore
 		jmp ff.nextrec			# Keep looking.
 ff.match:	add $2,%sp			# Discard saved %si
