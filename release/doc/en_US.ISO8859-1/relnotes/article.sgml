@@ -277,6 +277,10 @@
       <filename>linux_base</filename> port that both supports the
       Alpha architecture and is in good working condition.</para>
 
+    <para>The pcvt(4) driver, an alternative to &man.syscons.4;,
+      has been removed, as it had fallen out of sync with the rest
+      of the kernel.</para>
+
     <para>RedZone, a buffer corruption protection for kernel &man.malloc.9;
       facility has been implemented.  This detects both of buffer underflows and
       buffer overflows bugs at runtime on &man.free.9; and &man.realloc.9;,
@@ -341,6 +345,8 @@
 
       <!-- Above this line, order boot loader changes by keyword-->
 
+      <para arch="pc98">A bootable CDROM loader has been implemented
+	for the pc98 platform.</para>
     </sect3>
 
     <sect3 id="proc">
@@ -624,9 +630,7 @@
 	This feature can be re-enabled by using a new sysctl variable
 	<varname>net.inet6.ip6.mcast_pmtu</varname>.  &merged;</para>
 
-      <para>The &man.ipfw.4; IP packet filter now supports IPv6.
-	The &man.ip6fw.8; packet filter is deprecated and will be removed
-	in the future releases.  &merged;</para>
+      <para>The &man.ipfw.4; IP packet filter now supports IPv6.  &merged;</para>
 
       <para>The &man.ipfw.4; now supports substitution of the action
 	argument with the value obtained from table lookup,
@@ -1505,6 +1509,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       the <application>&xorg;</application> windowing system
       (<filename role="package">x11/xorg</filename>) has been updated
       from 6.8.2 to 6.9.0. &merged;</para>
+
+    <para arch="pc98">CDROMs produced for the pc98 platform are now
+      bootable (on systems with support for this feature).</para>
   </sect2>
 
   <sect2 id="doc">
@@ -1512,7 +1519,13 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>Documentation of existing functionality has been improved by
       the addition of the following manual pages:
-      &man.acpi.sony.4;, &man.snd.mss.4;, &man.snd.t4dwave.4;.</para>
+      &man.acpi.sony.4;, &man.ext2fs.5;,
+      &man.snd.mss.4;, &man.snd.t4dwave.4;.</para>
+
+    <para>The manual pages for <application>NTP</application>
+      have been updated to 4.2.0, to match the version of
+      code actually included in &os;.</para>
+
   </sect2>
 </sect1>
 
