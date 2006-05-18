@@ -120,7 +120,7 @@ typedef enum {
 #define MFI_SHUTDOWN_SPINDOWN	0x01
 
 /*
- * MFI Frmae flags
+ * MFI Frame flags
  */
 #define MFI_FRAME_POST_IN_REPLY_QUEUE		0x0000
 #define MFI_FRAME_DONT_POST_IN_REPLY_QUEUE	0x0001
@@ -218,27 +218,27 @@ typedef enum {
 } mfi_evt_locale_t;
 
 typedef enum {
-        MR_EVT_ARGS_NONE =		0x00,
-        MR_EVT_ARGS_CDB_SENSE,
-        MR_EVT_ARGS_LD,
-        MR_EVT_ARGS_LD_COUNT,
-        MR_EVT_ARGS_LD_LBA,
-        MR_EVT_ARGS_LD_OWNER,
-        MR_EVT_ARGS_LD_LBA_PD_LBA,
-        MR_EVT_ARGS_LD_PROG,
-        MR_EVT_ARGS_LD_STATE,
-        MR_EVT_ARGS_LD_STRIP,
-        MR_EVT_ARGS_PD,
-        MR_EVT_ARGS_PD_ERR,
-        MR_EVT_ARGS_PD_LBA,
-        MR_EVT_ARGS_PD_LBA_LD,
-        MR_EVT_ARGS_PD_PROG,
-        MR_EVT_ARGS_PD_STATE,
-        MR_EVT_ARGS_PCI,
-        MR_EVT_ARGS_RATE,
-        MR_EVT_ARGS_STR,
-        MR_EVT_ARGS_TIME,
-        MR_EVT_ARGS_ECC
+	MR_EVT_ARGS_NONE =		0x00,
+	MR_EVT_ARGS_CDB_SENSE,
+	MR_EVT_ARGS_LD,
+	MR_EVT_ARGS_LD_COUNT,
+	MR_EVT_ARGS_LD_LBA,
+	MR_EVT_ARGS_LD_OWNER,
+	MR_EVT_ARGS_LD_LBA_PD_LBA,
+	MR_EVT_ARGS_LD_PROG,
+	MR_EVT_ARGS_LD_STATE,
+	MR_EVT_ARGS_LD_STRIP,
+	MR_EVT_ARGS_PD,
+	MR_EVT_ARGS_PD_ERR,
+	MR_EVT_ARGS_PD_LBA,
+	MR_EVT_ARGS_PD_LBA_LD,
+	MR_EVT_ARGS_PD_PROG,
+	MR_EVT_ARGS_PD_STATE,
+	MR_EVT_ARGS_PCI,
+	MR_EVT_ARGS_RATE,
+	MR_EVT_ARGS_STR,
+	MR_EVT_ARGS_TIME,
+	MR_EVT_ARGS_ECC
 } mfi_evt_args;
 
 /*
@@ -508,7 +508,7 @@ struct mfi_ctrl_info {
 #define MFI_INFO_RAID_6		0x10
 
 	uint32_t		adapter_ops;
-#define MFI_INFO_AOPS_RBLD_RATE		0x0001		
+#define MFI_INFO_AOPS_RBLD_RATE		0x0001
 #define MFI_INFO_AOPS_CC_RATE		0x0002
 #define MFI_INFO_AOPS_BGI_RATE		0x0004
 #define MFI_INFO_AOPS_RECON_RATE	0x0008
@@ -554,6 +554,177 @@ struct mfi_ctrl_info {
 	struct mfi_ctrl_props	properties;
 	char			package_version[0x60];
 	uint8_t			pad[0x800 - 0x6a0];
+} __packed;
+
+/* keep track of an event. */
+union mfi_evt {
+	struct {
+		uint16_t	locale;
+		uint8_t		reserved;
+		uint8_t		class;
+	} members;
+	uint32_t		word;
+} __packed;
+
+/* event log state. */
+struct mfi_evt_log_state {
+	uint32_t		newest_seq_num;
+	uint32_t		oldest_seq_num;
+	uint32_t		clear_seq_num;
+	uint32_t		shutdown_seq_num;
+	uint32_t		boot_seq_num;
+} __packed;
+
+struct mfi_progress {
+	uint16_t		progress;
+	uint16_t		elapsed_seconds;
+} __packed;
+
+struct mfi_evt_ld {
+	uint16_t		target_id;
+	uint8_t			ld_index;
+	uint8_t			reserved;
+} __packed;
+
+struct mfi_evt_pd {
+	uint16_t		device_id;
+	uint8_t			enclosure_index;
+	uint8_t			slot_number;
+} __packed;
+
+/* SAS (?) event detail, returned from MFI_DCMD_CTRL_EVENT_WAIT. */
+struct mfi_evt_detail {
+	uint32_t		seq;
+	uint32_t		time;
+	uint32_t		code;
+	union mfi_evt		class;
+	uint8_t			arg_type;
+	uint8_t			reserved1[15];
+
+	union {
+		struct {
+			struct mfi_evt_pd	pd;
+			uint8_t			cdb_len;
+			uint8_t			sense_len;
+			uint8_t			reserved[2];
+			uint8_t			cdb[16];
+			uint8_t			sense[64];
+		} cdb_sense;
+
+		struct mfi_evt_ld		ld;
+
+		struct {
+			struct mfi_evt_ld	ld;
+			uint64_t		count;
+		} ld_count;
+
+		struct {
+			uint64_t		lba;
+			struct mfi_evt_ld	ld;
+		} ld_lba;
+
+		struct {
+			struct mfi_evt_ld	ld;
+			uint32_t		pre_owner;
+			uint32_t		new_owner;
+		} ld_owner;
+
+		struct {
+			uint64_t		ld_lba;
+			uint64_t		pd_lba;
+			struct mfi_evt_ld	ld;
+			struct mfi_evt_pd	pd;
+		} ld_lba_pd_lba;
+
+		struct {
+			struct mfi_evt_ld	ld;
+			struct mfi_progress	prog;
+		} ld_prog;
+
+		struct {
+			struct mfi_evt_ld	ld;
+			uint32_t		prev_state;
+			uint32_t		new_state;
+		} ld_state;
+
+		struct {
+			uint64_t		strip;
+			struct mfi_evt_ld	ld;
+		} ld_strip;
+
+		struct mfi_evt_pd		pd;
+
+		struct {
+			struct mfi_evt_pd	pd;
+			uint32_t		err;
+		} pd_err;
+
+		struct {
+			uint64_t		lba;
+			struct mfi_evt_pd	pd;
+		} pd_lba;
+
+		struct {
+			uint64_t		lba;
+			struct mfi_evt_pd	pd;
+			struct mfi_evt_ld	ld;
+		} pd_lba_ld;
+
+		struct {
+			struct mfi_evt_pd	pd;
+			struct mfi_progress	prog;
+		} pd_prog;
+
+		struct {
+			struct mfi_evt_pd	ld;
+			uint32_t		prev_state;
+			uint32_t		new_state;
+		} pd_state;
+
+		struct {
+			uint16_t		venderId;
+			uint16_t		deviceId;
+			uint16_t		subVenderId;
+			uint16_t		subDeviceId;
+		} pci;
+
+		uint32_t			rate;
+
+		char				str[96];
+
+		struct {
+			uint32_t		rtc;
+			uint16_t		elapsedSeconds;
+		} time;
+
+		struct {
+			uint32_t		ecar;
+			uint32_t		elog;
+			char			str[64];
+		} ecc;
+
+		uint8_t		b[96];
+		uint16_t	s[48];
+		uint32_t	w[24];
+		uint64_t	d[12];
+	} args;
+
+	char description[128];
+} __packed;
+
+/* SAS log detail guessed at */
+struct mfi_log_detail {
+	uint32_t		something1;
+	uint32_t		something2;
+	uint32_t		seq;
+	uint32_t		something3;
+	uint32_t		arg_type;
+	uint8_t			reserved1[15];
+
+	union {
+		uint8_t		b[96];
+	} args;
+	char description[128];
 } __packed;
 
 #endif /* _MFIREG_H */
