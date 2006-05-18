@@ -72,8 +72,9 @@ struct umtx_key {
 struct umtx_q {
 	LIST_ENTRY(umtx_q)	uq_next;	/* Linked list for the hash. */
 	struct umtx_key		uq_key;		/* Umtx key. */
+	int			uq_flags;	/* Umtx flags. */
+#define UQF_UMTXQ		0x0001
 	struct thread		*uq_thread;	/* The thread waits on. */
-	LIST_ENTRY(umtx_q)	uq_rqnext;	/* Linked list for requeuing. */
 	vm_offset_t		uq_addr;	/* Umtx's virtual address. */
 };
 
@@ -116,7 +117,7 @@ SYSINIT(umtx, SI_SUB_EVENTHANDLER+1, SI_ORDER_MIDDLE, umtxq_init_chains, NULL);
 struct umtx_q *
 umtxq_alloc(void)
 {
-	return (malloc(sizeof(struct umtx_q), M_UMTX, M_WAITOK));
+	return (malloc(sizeof(struct umtx_q), M_UMTX, M_WAITOK|M_ZERO));
 }
 
 void
@@ -213,9 +214,7 @@ umtxq_insert(struct umtx_q *uq)
 	mtx_assert(umtxq_mtx(chain), MA_OWNED);
 	head = &umtxq_chains[chain].uc_queue;
 	LIST_INSERT_HEAD(head, uq, uq_next);
-	mtx_lock_spin(&sched_lock);
-	uq->uq_thread->td_flags |= TDF_UMTXQ;
-	mtx_unlock_spin(&sched_lock);
+	uq->uq_flags |= UQF_UMTXQ;
 }
 
 /*
@@ -225,12 +224,10 @@ static inline void
 umtxq_remove(struct umtx_q *uq)
 {
 	mtx_assert(umtxq_mtx(umtxq_hash(&uq->uq_key)), MA_OWNED);
-	if (uq->uq_thread->td_flags & TDF_UMTXQ) {
+	if (uq->uq_flags & UQF_UMTXQ) {
 		LIST_REMOVE(uq, uq_next);
-		/* turning off TDF_UMTXQ should be the last thing. */
-		mtx_lock_spin(&sched_lock);
-		uq->uq_thread->td_flags &= ~TDF_UMTXQ;
-		mtx_unlock_spin(&sched_lock);
+		/* turning off UQF_UMTXQ should be the last thing. */
+		uq->uq_flags &= ~UQF_UMTXQ;
 	}
 }
 
@@ -423,7 +420,7 @@ _do_lock(struct thread *td, struct umtx *umtx, long id, int timo)
 		 * unlocking the umtx.
 		 */
 		umtxq_lock(&uq->uq_key);
-		if (old == owner && (td->td_flags & TDF_UMTXQ)) {
+		if (old == owner && (uq->uq_flags & UQF_UMTXQ)) {
 			error = umtxq_sleep(td, &uq->uq_key, PCATCH,
 				       "umtx", timo);
 		}
@@ -544,10 +541,10 @@ do_wait(struct thread *td, struct umtx *umtx, long id, struct timespec *timeout)
 		umtxq_unlock(&uq->uq_key);
 	} else if (timeout == NULL) {
 		umtxq_lock(&uq->uq_key);
-		if (td->td_flags & TDF_UMTXQ)
+		if (uq->uq_flags & UQF_UMTXQ)
 			error = umtxq_sleep(td, &uq->uq_key,
 			    PCATCH, "ucond", 0);
-		if (!(td->td_flags & TDF_UMTXQ))
+		if (!(uq->uq_flags & UQF_UMTXQ))
 			error = 0;
 		else
 			umtxq_remove(uq);
@@ -558,11 +555,11 @@ do_wait(struct thread *td, struct umtx *umtx, long id, struct timespec *timeout)
 		TIMESPEC_TO_TIMEVAL(&tv, timeout);
 		for (;;) {
 			umtxq_lock(&uq->uq_key);
-			if (td->td_flags & TDF_UMTXQ) {
+			if (uq->uq_flags & UQF_UMTXQ) {
 				error = umtxq_sleep(td, &uq->uq_key, PCATCH,
 					    "ucond", tvtohz(&tv));
 			}
-			if (!(td->td_flags & TDF_UMTXQ)) {
+			if (!(uq->uq_flags & UQF_UMTXQ)) {
 				umtxq_unlock(&uq->uq_key);
 				goto out;
 			}
