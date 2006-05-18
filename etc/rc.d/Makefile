@@ -22,7 +22,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	kadmind kerberos kernel keyserv kldxref kpasswdd \
 	ldconfig local localpkg lpd \
 	mixer motd mountcritlocal mountcritremote \
-	mountd moused mroute6d mrouted msgs \
+	mdconfig mdconfig2 mountd moused mroute6d mrouted msgs \
 	named natd netif netoptions \
 	network_ipv6 newsyslog nfsclient nfsd \
 	nfslocking nfsserver nisdomain nsswitch ntpd ntpdate \
