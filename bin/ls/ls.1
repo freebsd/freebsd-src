@@ -40,7 +40,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm
-.Op Fl ABCFGHILPRSTWZabcdfghiklmnopqrstuwx1
+.Op Fl ABCFGHILPRSTUWZabcdfghiklmnopqrstuwx1
 .Op Ar
 .Sh DESCRIPTION
 For each operand that names a
@@ -149,6 +149,8 @@ When used with the
 .Dq ell )
 option, display complete time information for the file, including
 month, day, hour, minute, second, and year.
+.It Fl U
+Use time when file was created for sorting or printing.
 .It Fl W
 Display whiteouts when scanning directories.
 .It Fl Z
@@ -263,10 +265,10 @@ options all override each other; the last one specified determines
 the format used.
 .Pp
 The
-.Fl c
+.Fl c , u ,
 and
-.Fl u
-options override each other; the last one specified determines
+.Fl U
+options all override each other; the last one specified determines
 the file time used.
 .Pp
 The
