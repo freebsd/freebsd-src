@@ -2116,6 +2116,7 @@ tbf_send_packet(struct vif *vifp, struct mbuf *m)
 	ip_output(m, NULL, &vifp->v_route, IP_FORWARDING, NULL, NULL);
     else {
 	struct ip_moptions imo;
+	struct in_multi *imm[2];
 	int error;
 	static struct route ro; /* XXX check this */
 
@@ -2123,6 +2124,9 @@ tbf_send_packet(struct vif *vifp, struct mbuf *m)
 	imo.imo_multicast_ttl  = mtod(m, struct ip *)->ip_ttl - 1;
 	imo.imo_multicast_loop = 1;
 	imo.imo_multicast_vif  = -1;
+	imo.imo_num_memberships = 0;
+	imo.imo_max_memberships = 2;
+	imo.imo_membership  = &imm[0];
 
 	/*
 	 * Re-entrancy should not be a problem here, because
