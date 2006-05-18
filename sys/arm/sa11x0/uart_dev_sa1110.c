@@ -270,12 +270,12 @@ sa1110_bus_ipend(struct uart_softc *sc)
 	int mask = CR3_RIE | CR3_TIE;
 	if (sr & 1) {
 		if (uart_getreg(&sc->sc_bas, SACOM_CR3) & CR3_TIE)
-			ipend |= UART_IPEND_TXIDLE;
+			ipend |= SER_INT_TXIDLE;
 		mask &= ~CR3_TIE;
 	}
 	if (sr & 4) {
 		if (uart_getreg(&sc->sc_bas, SACOM_CR3) & CR3_RIE)
-			ipend |= UART_IPEND_RXREADY;
+			ipend |= SER_INT_RXREADY;
 		mask &= ~CR3_RIE;
 	}
 	uart_setreg(&sc->sc_bas, SACOM_CR3, CR3_RXE | mask); 
