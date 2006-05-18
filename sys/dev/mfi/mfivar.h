@@ -67,6 +67,7 @@ struct mfi_command {
 #define MFI_ON_MFIQ_READY	(1<<6)
 #define MFI_ON_MFIQ_BUSY	(1<<7)
 #define MFI_ON_MFIQ_MASK	((1<<5)|(1<<6)|(1<<7))
+	int			cm_aen_abort;
 	void			(* cm_complete)(struct mfi_command *cm);
 	void			*cm_private;
 };
@@ -77,6 +78,11 @@ struct mfi_ld {
 	uint64_t		ld_sectors;
 	uint32_t		ld_secsize;
 	int			ld_id;
+};
+
+struct mfi_aen {
+	TAILQ_ENTRY(mfi_aen) aen_link;
+	struct proc			*p;
 };
 
 struct mfi_softc {
@@ -109,6 +115,12 @@ struct mfi_softc {
 	bus_dmamap_t			mfi_frames_dmamap;
 	uint32_t			mfi_frames_busaddr;
 	union mfi_frame			*mfi_frames;
+
+	TAILQ_HEAD(,mfi_aen)		mfi_aen_pids;
+	struct mfi_command		*mfi_aen_cm;
+	uint32_t			mfi_aen_triggered;
+	uint32_t			mfi_poll_waiting;
+	struct selinfo			mfi_select;
 
 	bus_dma_tag_t			mfi_sense_dmat;
 	bus_dmamap_t			mfi_sense_dmamap;
