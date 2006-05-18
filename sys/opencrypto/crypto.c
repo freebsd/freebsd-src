@@ -1071,8 +1071,8 @@ crypto_proc(void)
 			 * Driver cannot disappeared when there is an active
 			 * session.
 			 */
-			KASSERT(cap != NULL, ("%s: Driver disappeared.",
-			     __func__));
+			KASSERT(cap != NULL, ("%s:%u Driver disappeared.",
+			    __func__, __LINE__));
 			if (cap == NULL || cap->cc_process == NULL) {
 				/* Op needs to be migrated, process it. */
 				if (submit == NULL)
@@ -1105,6 +1105,8 @@ crypto_proc(void)
 			CRYPTO_Q_UNLOCK();
 			hid = CRYPTO_SESID2HID(submit->crp_sid);
 			cap = crypto_checkdriver(hid);
+			KASSERT(cap != NULL, ("%s:%u Driver disappeared.",
+			    __func__, __LINE__));
 			result = crypto_invoke(cap, submit, hint);
 			CRYPTO_Q_LOCK();
 			if (result == ERESTART) {
