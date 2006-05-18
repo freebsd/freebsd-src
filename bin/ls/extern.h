@@ -32,6 +32,8 @@
 
 int	 acccmp(const FTSENT *, const FTSENT *);
 int	 revacccmp(const FTSENT *, const FTSENT *);
+int	 birthcmp(const FTSENT *, const FTSENT *);
+int	 revbirthcmp(const FTSENT *, const FTSENT *);
 int	 modcmp(const FTSENT *, const FTSENT *);
 int	 revmodcmp(const FTSENT *, const FTSENT *);
 int	 namecmp(const FTSENT *, const FTSENT *);
