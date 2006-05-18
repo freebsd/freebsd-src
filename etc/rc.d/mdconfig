@@ -84,7 +84,7 @@ init_variables()
 		fi
 		if [ "${_file}" != "${_file%.uzip}" ]; then
 			# Load geom_uzip kernel module if needed
-			require_kld geom_uzip
+			kldstat -q -m g_uzip || kldload geom_uzip || err 1 "geom_uzip failed to load."
 			_dev="/dev/${_md}.uzip"
 		fi
 		for _i in `df ${_file} 2>/dev/null`; do _fs=${_i}; done
@@ -103,7 +103,7 @@ mdconfig_start()
 {
 	local _md _mp _config _type _dev _file _fs _newfs _fsck_cmd
 
-	require_kld g_md
+	kldstat -q -m g_md || kldload geom_md || err 1 "geom_md failed to load."
 
 	for _md in ${_mdconfig_list}; do
 		init_variables ${_md}
