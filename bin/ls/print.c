@@ -190,6 +190,8 @@ printlong(const DISPLAY *dp)
 			printsize(dp->s_size, sp->st_size);
 		if (f_accesstime)
 			printtime(sp->st_atime);
+		else if (f_birthtime)
+			printtime(sp->st_birthtime);
 		else if (f_statustime)
 			printtime(sp->st_ctime);
 		else
