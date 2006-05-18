@@ -699,6 +699,7 @@ dev/mem/memdev.c		optional mem
 dev/mfi/mfi.c			optional mfi
 dev/mfi/mfi_pci.c		optional mfi pci
 dev/mfi/mfi_disk.c		optional mfi
+dev/mfi/mfi_linux.c		optional mfi compat_linux
 dev/mii/acphy.c			optional miibus | acphy
 dev/mii/amphy.c			optional miibus | amphy
 dev/mii/bmtphy.c		optional miibus | bmtphy
