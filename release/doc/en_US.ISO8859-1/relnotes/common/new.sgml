@@ -168,26 +168,51 @@
       <para></para>
     </sect3>
 
-    <sect3>
-      <title>Contributed Software</title>
-
-    <para>The timezone database has been updated from the
-      <application>tzdata2005r</application> release to the
-      <application>tzdata2006g</application> release.</para>
-
-    </sect3>
   </sect2>
 
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para></para>
+    <para>The &man.csup.1; utility has been imported.
+      This is an implementation of a CVSup-compatible client written
+      in the C language.  Note that it currently supports checkout mode
+      only.</para>
+
+    <para>The &man.dhclient.8; program now sends the host's name in
+      DHCP requests if it is not specified in the configuration
+      file.</para>
+
+    <para>The &man.find.1; program now supports <option>-Btime</option>
+      and other related primaries, which can be used to create expressions
+      based on a file's creation time.</para>
+
+    <para>The &man.iostat.8; utility now supports
+      a <option>-x</option> flag (inspired by Solaris) to print
+      extended disk statistics.  If the new <option>-z</option> flag is
+      also specified, no output is made for disks with no
+      activity.</para>
+
+    <sect3 id="rc-scripts">
+      <title><filename>/etc/rc.d</filename> Scripts</title>
+
+      <para></para>
+    </sect3>
+  </sect2>
+
+  <sect2 id="contrib">
+    <title>Contributed Software</title>
+
+    <para>The timezone database has been updated from the
+      <application>tzdata2005r</application> release to the
+      <application>tzdata2006g</application> release.</para>
   </sect2>
 
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para></para>
+    <para>&man.pkg.add.1; now supports an <option>-F</option>
+      flag to disable checking whether the same package is already
+      installed or not.</para>
   </sect2>
 
   <sect2 id="releng">
