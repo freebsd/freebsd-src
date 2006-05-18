@@ -116,6 +116,7 @@ MAC_TEST	opt_dontuse.h
 MD_ROOT		opt_md.h
 MD_ROOT_SIZE	opt_md.h
 MFI_DEBUG	opt_mfi.h
+MFI_DECODE_LOG	opt_mfi.h
 MPROF_BUFFERS	opt_mprof.h
 MPROF_HASH_SIZE	opt_mprof.h
 MUTEX_WAKE_ALL
