@@ -12,6 +12,7 @@
 .Bd -literal
 linproc		/compat/linux/proc	linprocfs	rw 0 0
 .Ed
+.Pp
 .Sh DESCRIPTION
 The Linux process file system, or
 .Nm ,
@@ -65,11 +66,17 @@ The executable image for the current process.
 .It Pa /compat/linux/proc/self/mem
 The complete virtual address space of the current process.
 .El
+.Sh EXAMPLES
+To mount a
+.Nm
+file system on
+.Pa /compat/linux/proc :
+.Pp
+.Dl "mount -t linprocfs linproc /compat/linux/proc"
 .Sh SEE ALSO
 .Xr mount 2 ,
 .Xr unmount 2 ,
 .Xr procfs 5 ,
-.Xr mount_linprocfs 8 ,
 .Xr pseudofs 9
 .Sh HISTORY
 The
