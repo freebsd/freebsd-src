@@ -32,16 +32,7 @@
 #ifndef _MACHINE_MUTEX_H_
 #define _MACHINE_MUTEX_H_
 
-#ifndef LOCORE
-
-#ifdef _KERNEL
-
-/* Global locks */
-extern struct mtx	clock_lock;
-
-#endif	/* _KERNEL */
-
-#else	/* !LOCORE */
+#ifdef LOCORE
 
 /*
  * Simple assembly macros to get and release mutexes.
@@ -71,5 +62,5 @@ extern struct mtx	clock_lock;
 	call _mtx_unlock_spin_flags ;					\
 	addl $0x10, %esp ;						\
 
-#endif	/* !LOCORE */
+#endif	/* LOCORE */
 #endif	/* __MACHINE_MUTEX_H */
