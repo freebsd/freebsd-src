@@ -16,7 +16,7 @@ __FBSDID("$FreeBSD$");
 #include <inttypes.h>
 
 #define	ADOT	46		/* ASCII '.' */
-#define	ASLASH	ADOT + 1	/* ASCII '/' */
+#define	ASLASH	47		/* ASCII '/' */
 #define	A0	48		/* ASCII '0' */
 #define	AA	65		/* ASCII 'A' */
 #define	Aa	97		/* ASCII 'a' */
