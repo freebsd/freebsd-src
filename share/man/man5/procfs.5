@@ -244,11 +244,17 @@ the process current and maximum rlimit
 .It Pa /proc/curproc/status
 the process' current status
 .El
+.Sh EXAMPLES
+To mount a
+.Nm
+file system on
+.Pa /proc :
+.Pp
+.Dl "mount -t procfs proc /proc"
 .Sh SEE ALSO
 .Xr mount 2 ,
 .Xr sigaction 2 ,
 .Xr unmount 2 ,
-.Xr mount_procfs 8 ,
 .Xr procctl 8 ,
 .Xr pseudofs 9
 .Sh AUTHORS
