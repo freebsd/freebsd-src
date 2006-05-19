@@ -251,7 +251,13 @@ _bluetooth=	bluetooth
 .if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 _chkey=		chkey
 _newkey=	newkey
+.if ${MACHINE_ARCH} == "alpha" || ${MACHINE_ARCH} == "sparc64"
+.if !defined(NO_LIBTHR)
 _csup=		csup
+.endif
+.elif !defined(NO_LIBPTHREAD)
+_csup=		csup
+.endif
 .endif
 
 .if !defined(NO_NETCAT)
