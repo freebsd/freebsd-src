@@ -25,6 +25,7 @@ extern int	timer0_max_count;
 extern uint64_t	tsc_freq;
 extern int	tsc_is_broken;
 extern int	wall_cmos_clock;
+extern struct mtx clock_lock;
 
 /*
  * Driver to clock driver interface.
