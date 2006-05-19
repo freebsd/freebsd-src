@@ -32,13 +32,4 @@
 #ifndef _MACHINE_MUTEX_H_
 #define _MACHINE_MUTEX_H_
 
-#ifndef LOCORE
-#ifdef _KERNEL
-
-/* Global locks */
-extern struct mtx	clock_lock;
-
-#endif	/* _KERNEL */
-
-#endif	/* !LOCORE */
 #endif	/* __MACHINE_MUTEX_H */
