@@ -122,7 +122,7 @@ struct bus_space at91_bs_tag = {
 	NULL,
 
 	/* read region */
-	NULL,
+	generic_bs_rr_1,
 	generic_armv4_bs_rr_2,
 	generic_bs_rr_4,
 	NULL,
