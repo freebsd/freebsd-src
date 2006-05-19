@@ -41,7 +41,6 @@ struct nfs_tcp_mountstate {
 #define NFS_TCP_EXPECT_RPCMARKER 	0x0001 /* Expect to see a RPC/TCP marker next */
 #define NFS_TCP_FORCE_RECONNECT 	0x0002 /* Force a TCP reconnect */
  	int flags;
-	struct mtx mtx;
 };
 
 /*
@@ -50,6 +49,7 @@ struct nfs_tcp_mountstate {
  * Holds NFS specific information for mount.
  */
 struct	nfsmount {
+	struct mtx	nm_mtx;
 	int	nm_flag;		/* Flags for soft/hard... */
 	int	nm_state;		/* Internal state flags */
 	struct	mount *nm_mountp;	/* Vfs structure for this filesystem */

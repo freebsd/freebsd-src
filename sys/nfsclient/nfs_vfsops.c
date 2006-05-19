@@ -35,6 +35,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+
 #include "opt_bootp.h"
 #include "opt_nfsroot.h"
 
@@ -84,6 +85,7 @@ MALLOC_DEFINE(M_NFSDIRECTIO, "nfsclient_directio", "NFS Direct IO async write st
 uma_zone_t nfsmount_zone;
 
 struct nfsstats	nfsstats;
+
 SYSCTL_NODE(_vfs, OID_AUTO, nfs, CTLFLAG_RW, 0, "NFS filesystem");
 SYSCTL_STRUCT(_vfs_nfs, NFS_NFSSTATS, nfsstats, CTLFLAG_RD,
 	&nfsstats, nfsstats, "S,nfsstats");
@@ -183,7 +185,8 @@ nfs_iosize(struct nfsmount *nmp)
 	 * space.
 	 */
 	iosize = max(nmp->nm_rsize, nmp->nm_wsize);
-	if (iosize < PAGE_SIZE) iosize = PAGE_SIZE;
+	if (iosize < PAGE_SIZE) 
+		iosize = PAGE_SIZE;
 	return iosize;
 }
 
@@ -257,8 +260,12 @@ nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 		return (error);
 	}
 	vp = NFSTOV(np);
-	if (v3 && (nmp->nm_state & NFSSTA_GOTFSINFO) == 0)
+	mtx_lock(&nmp->nm_mtx);
+	if (v3 && (nmp->nm_state & NFSSTA_GOTFSINFO) == 0) {
+		mtx_unlock(&nmp->nm_mtx);		
 		(void)nfs_fsinfo(nmp, vp, td->td_ucred, td);
+	} else
+		mtx_unlock(&nmp->nm_mtx);
 	nfsstats.rpccnt[NFSPROC_FSSTAT]++;
 	mreq = nfsm_reqhead(vp, NFSPROC_FSSTAT, NFSX_FH(v3));
 	mb = mreq;
@@ -273,7 +280,9 @@ nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 		goto nfsmout;
 	}
 	sfp = nfsm_dissect(struct nfs_statfs *, NFSX_STATFS(v3));
+	mtx_lock(&nmp->nm_mtx);
 	sbp->f_iosize = nfs_iosize(nmp);
+	mtx_unlock(&nmp->nm_mtx);
 	if (v3) {
 		sbp->f_bsize = NFS_FABLKSIZE;
 		tquad = fxdr_hyper(&sfp->sf_tbytes);
@@ -314,7 +323,7 @@ nfs_fsinfo(struct nfsmount *nmp, struct vnode *vp, struct ucred *cred,
 	int error = 0, retattr;
 	struct mbuf *mreq, *mrep, *md, *mb;
 	u_int64_t maxfsize;
-
+	
 	nfsstats.rpccnt[NFSPROC_FSINFO]++;
 	mreq = nfsm_reqhead(vp, NFSPROC_FSINFO, NFSX_FH(1));
 	mb = mreq;
@@ -323,6 +332,7 @@ nfs_fsinfo(struct nfsmount *nmp, struct vnode *vp, struct ucred *cred,
 	nfsm_request(vp, NFSPROC_FSINFO, td, cred);
 	nfsm_postop_attr(vp, retattr);
 	if (!error) {
+		mtx_lock(&nmp->nm_mtx);
 		fsp = nfsm_dissect(struct nfsv3_fsinfo *, NFSX_V3FSINFO);
 		pref = fxdr_unsigned(u_int32_t, fsp->fs_wtpref);
 		if (pref < nmp->nm_wsize && pref >= NFS_FABLKSIZE)
@@ -358,6 +368,7 @@ nfs_fsinfo(struct nfsmount *nmp, struct vnode *vp, struct ucred *cred,
 			nmp->nm_maxfilesize = maxfsize;
 		nmp->nm_mountp->mnt_stat.f_iosize = nfs_iosize(nmp);
 		nmp->nm_state |= NFSSTA_GOTFSINFO;
+		mtx_unlock(&nmp->nm_mtx);
 	}
 	m_freem(mrep);
 nfsmout:
@@ -664,8 +675,7 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp)
 		if (nmp->nm_sotype == SOCK_DGRAM)
 			while (nfs_connect(nmp, NULL)) {
 				printf("nfs_args: retrying connect\n");
-				(void) tsleep((caddr_t)&lbolt,
-					      PSOCK, "nfscon", 0);
+				(void) tsleep((caddr_t)&lbolt, PSOCK, "nfscon", 0);
 			}
 	}
 }
@@ -693,24 +703,31 @@ nfs_mount(struct mount *mp, struct thread *td)
 	size_t len;
 	u_char nfh[NFSX_V3FHMAX];
 
-	if (vfs_filteropt(mp->mnt_optnew, nfs_opts))
-		return (EINVAL);
+	if (vfs_filteropt(mp->mnt_optnew, nfs_opts)) {
+		error = EINVAL;
+		goto out;
+	}
 
-	if (mp->mnt_flag & MNT_ROOTFS)
-		return (nfs_mountroot(mp, td));
+	if (mp->mnt_flag & MNT_ROOTFS) {
+		error = nfs_mountroot(mp, td);
+		goto out;
+	}
 
 	error = vfs_copyopt(mp->mnt_optnew, "nfs_args", &args, sizeof args);
 	if (error)
-		return (error);
+		goto out;
 
 	if (args.version != NFS_ARGSVERSION) {
-		return (EPROGMISMATCH);
+		error = EPROGMISMATCH;
+		goto out;
 	}
 	if (mp->mnt_flag & MNT_UPDATE) {
 		struct nfsmount *nmp = VFSTONFS(mp);
 
-		if (nmp == NULL)
-			return (EIO);
+		if (nmp == NULL) {
+			error = EIO;
+			goto out;
+		}
 		/*
 		 * When doing an update, we can't change from or to
 		 * v3, switch lockd strategies or change cookie translation
@@ -720,7 +737,7 @@ nfs_mount(struct mount *mp, struct thread *td)
 		    (nmp->nm_flag &
 			(NFSMNT_NFSV3 | NFSMNT_NOLOCKD /*|NFSMNT_XLATECOOKIE*/));
 		nfs_decode_args(mp, nmp, &args);
-		return (0);
+		goto out;
 	}
 
 	/*
@@ -734,21 +751,25 @@ nfs_mount(struct mount *mp, struct thread *td)
 	 */
 	if (nfs_ip_paranoia == 0)
 		args.flags |= NFSMNT_NOCONN;
-	if (args.fhsize < 0 || args.fhsize > NFSX_V3FHMAX)
-		return (EINVAL);
+	if (args.fhsize < 0 || args.fhsize > NFSX_V3FHMAX) {
+		error = EINVAL;
+		goto out;
+	}
 	error = copyin((caddr_t)args.fh, (caddr_t)nfh, args.fhsize);
 	if (error)
-		return (error);
+		goto out;
 	error = copyinstr(args.hostname, hst, MNAMELEN-1, &len);
 	if (error)
-		return (error);
+		goto out;
 	bzero(&hst[len], MNAMELEN - len);
 	/* sockargs() call must be after above copyin() calls */
 	error = getsockaddr(&nam, (caddr_t)args.addr, args.addrlen);
 	if (error)
-		return (error);
+		goto out;
 	args.fh = nfh;
 	error = mountnfs(&args, mp, nam, hst, &vp, td->td_ucred);
+	mp->mnt_kern_flag |= MNTK_MPSAFE;
+out:
 	return (error);
 }
 
@@ -771,12 +792,11 @@ nfs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
 
 	error = copyin(data, &args, sizeof (struct nfs_args));
 	if (error)
-		return (error);
+		return error;
 
 	ma = mount_arg(ma, "nfs_args", &args, sizeof args);
 
 	error = kernel_mount(ma, flags);
-
 	return (error);
 }
 
@@ -805,6 +825,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	}
 	vfs_getnewfsid(mp);
 	nmp->nm_mountp = mp;
+	mtx_init(&nmp->nm_mtx, "NFSmount lock", NULL, MTX_DEF);			
 
 	/*
 	 * V2 can only handle 32 bit filesizes.  A 4GB-1 limit may be too
@@ -851,10 +872,6 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 
 	nfs_decode_args(mp, nmp, argp);
 
-	if (nmp->nm_sotype == SOCK_STREAM)
-		mtx_init(&nmp->nm_nfstcpstate.mtx, "NFS/TCP state lock", 
-			 NULL, MTX_DEF);		
-
 	/*
 	 * For Connection based sockets (TCP,...) defer the connect until
 	 * the first request, in case the server is not responding.
@@ -869,7 +886,9 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	 * stuck on a dead server and we are holding a lock on the mount
 	 * point.
 	 */
+	mtx_lock(&nmp->nm_mtx);
 	mp->mnt_stat.f_iosize = nfs_iosize(nmp);
+	mtx_unlock(&nmp->nm_mtx);
 	/*
 	 * A reference count is needed on the nfsnode representing the
 	 * remote root.  If this object is not persistent, then backward
@@ -900,8 +919,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 
 	return (0);
 bad:
-	if (nmp->nm_sotype == SOCK_STREAM)
-		mtx_destroy(&nmp->nm_nfstcpstate.mtx);
+	mtx_destroy(&nmp->nm_mtx);
 	nfs_disconnect(nmp);
 	uma_zfree(nfsmount_zone, nmp);
 	FREE(nam, M_SONAME);
@@ -930,12 +948,12 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	if (flags & FORCECLOSE) {
 		error = nfs_nmcancelreqs(nmp);
 		if (error)
-			return (error);
+			goto out;
 	}
 	/* We hold 1 extra ref on the root vnode; see comment in mountnfs(). */
 	error = vflush(mp, 1, flags, td);
 	if (error)
-		return (error);
+		goto out;
 
 	/*
 	 * We are now committed to the unmount.
@@ -943,11 +961,10 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	nfs_disconnect(nmp);
 	FREE(nmp->nm_nam, M_SONAME);
 
-	if (nmp->nm_sotype == SOCK_STREAM)
-		mtx_destroy(&nmp->nm_nfstcpstate.mtx);
-	
+	mtx_destroy(&nmp->nm_mtx);
 	uma_zfree(nfsmount_zone, nmp);
-	return (0);
+out:
+	return (error);
 }
 
 /*
@@ -964,15 +981,18 @@ nfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 	nmp = VFSTONFS(mp);
 	error = nfs_nget(mp, (nfsfh_t *)nmp->nm_fh, nmp->nm_fhsize, &np);
 	if (error)
-		return (error);
+		return error;
 	vp = NFSTOV(np);
 	/*
 	 * Get transfer parameters and attributes for root vnode once.
 	 */
+	mtx_lock(&nmp->nm_mtx);
 	if ((nmp->nm_state & NFSSTA_GOTFSINFO) == 0 &&
 	    (nmp->nm_flag & NFSMNT_NFSV3)) {
+		mtx_unlock(&nmp->nm_mtx);
 		nfs_fsinfo(nmp, vp, curthread->td_ucred, curthread);
-	}
+	} else 
+		mtx_unlock(&nmp->nm_mtx);
 	if (vp->v_type == VNON)
 	    vp->v_type = VDIR;
 	vp->v_vflag |= VV_ROOT;
@@ -1051,8 +1071,10 @@ nfs_sysctl(struct mount *mp, fsctlop_t op, struct sysctl_req *req)
 		break;
 #endif
 	case VFS_CTL_QUERY:
+		mtx_lock(&nmp->nm_mtx);
 		if (nmp->nm_state & NFSSTA_TIMEO)
 			vq.vq_flags |= VQ_NOTRESP;
+		mtx_unlock(&nmp->nm_mtx);
 #if 0
 		if (!(nmp->nm_flag & NFSMNT_NOLOCKS) &&
 		    (nmp->nm_state & NFSSTA_LOCKTIMEO))

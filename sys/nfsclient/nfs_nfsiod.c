@@ -102,17 +102,22 @@ sysctl_iodmin(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &newmin, 0, req);
 	if (error || (req->newptr == NULL))
 		return (error);
-	if (newmin > nfs_iodmax)
-		return (EINVAL);
+	mtx_lock(&nfs_iod_mtx);
+	if (newmin > nfs_iodmax) {
+		error = EINVAL;
+		goto out;
+	}
 	nfs_iodmin = newmin;
 	if (nfs_numasync >= nfs_iodmin)
-		return (0);
+		goto out;
 	/*
 	 * If the current number of nfsiod is lower
 	 * than the new minimum, create some more.
 	 */
 	for (i = nfs_iodmin - nfs_numasync; i > 0; i--)
 		nfs_nfsiodnew();
+out:
+	mtx_unlock(&nfs_iod_mtx);	
 	return (0);
 }
 SYSCTL_PROC(_vfs_nfs, OID_AUTO, iodmin, CTLTYPE_UINT | CTLFLAG_RW, 0,
@@ -131,9 +136,10 @@ sysctl_iodmax(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (newmax > NFS_MAXASYNCDAEMON)
 		return (EINVAL);
+	mtx_lock(&nfs_iod_mtx);
 	nfs_iodmax = newmax;
 	if (nfs_numasync <= nfs_iodmax)
-		return (0);
+		goto out;
 	/*
 	 * If there are some asleep nfsiods that should
 	 * exit, wakeup() them so that they check nfs_iodmax
@@ -146,6 +152,8 @@ sysctl_iodmax(SYSCTL_HANDLER_ARGS)
 			wakeup(&nfs_iodwant[iod]);
 		iod--;
 	}
+out:
+	mtx_unlock(&nfs_iod_mtx);
 	return (0);
 }
 SYSCTL_PROC(_vfs_nfs, OID_AUTO, iodmax, CTLTYPE_UINT | CTLFLAG_RW, 0,
@@ -168,8 +176,10 @@ nfs_nfsiodnew(void)
 		}
 	if (newiod == -1)
 		return (-1);
+	mtx_unlock(&nfs_iod_mtx);
 	error = kthread_create(nfssvc_iod, nfs_asyncdaemon + i, NULL, RFHIGHPID,
 	    0, "nfsiod %d", newiod);
+	mtx_lock(&nfs_iod_mtx);
 	if (error)
 		return (-1);
 	nfs_numasync++;
@@ -183,6 +193,7 @@ nfsiod_setup(void *dummy)
 	int error;
 
 	TUNABLE_INT_FETCH("vfs.nfs.iodmin", &nfs_iodmin);
+	mtx_lock(&nfs_iod_mtx);
 	/* Silently limit the start number of nfsiod's */
 	if (nfs_iodmin > NFS_MAXASYNCDAEMON)
 		nfs_iodmin = NFS_MAXASYNCDAEMON;
@@ -192,6 +203,7 @@ nfsiod_setup(void *dummy)
 		if (error == -1)
 			panic("nfsiod_setup: nfs_nfsiodnew failed");
 	}
+	mtx_unlock(&nfs_iod_mtx);
 }
 SYSINIT(nfsiod, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, nfsiod_setup, NULL);
 
@@ -211,7 +223,7 @@ nfssvc_iod(void *instance)
 	int myiod, timo;
 	int error = 0;
 
-	mtx_lock(&Giant);
+	mtx_lock(&nfs_iod_mtx);
 	myiod = (int *)instance - nfs_asyncdaemon;
 	/*
 	 * Main loop
@@ -230,7 +242,7 @@ nfssvc_iod(void *instance)
 		 * Always keep at least nfs_iodmin kthreads.
 		 */
 		timo = (myiod < nfs_iodmin) ? 0 : nfs_iodmaxidle * hz;
-		error = tsleep(&nfs_iodwant[myiod], PWAIT | PCATCH,
+		error = msleep(&nfs_iodwant[myiod], &nfs_iod_mtx, PWAIT | PCATCH,
 		    "-", timo);
 	    }
 	    if (error)
@@ -243,6 +255,7 @@ nfssvc_iod(void *instance)
 		    nmp->nm_bufqwant = 0;
 		    wakeup(&nmp->nm_bufq);
 		}
+		mtx_unlock(&nfs_iod_mtx);
 		if (bp->b_flags & B_DIRECT) {
 			KASSERT((bp->b_iocmd == BIO_WRITE), ("nfscvs_iod: BIO_WRITE not set"));
 			(void)nfs_doio_directwrite(bp);
@@ -252,7 +265,7 @@ nfssvc_iod(void *instance)
 			else
 				(void) nfs_doio(bp->b_vp, bp, bp->b_wcred, NULL);
 		}
-
+		mtx_lock(&nfs_iod_mtx);
 		/*
 		 * If there are more than one iod on this mount, then defect
 		 * so that the iods can be shared out fairly between the mounts
@@ -276,7 +289,7 @@ finish:
 	/* Someone may be waiting for the last nfsiod to terminate. */
 	if (--nfs_numasync == 0)
 		wakeup(&nfs_numasync);
-	mtx_unlock(&Giant);
+	mtx_unlock(&nfs_iod_mtx);
 	if ((error == 0) || (error == EWOULDBLOCK))
 		kthread_exit(0);
 	/* Abnormal termination */
