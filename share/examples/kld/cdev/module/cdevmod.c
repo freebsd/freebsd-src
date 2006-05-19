@@ -75,12 +75,6 @@
 
 #include "cdev.h"
 
-#if __FreeBSD_version < 500000
-#define CDEV_MAJOR 32
-#else
-#define CDEV_MAJOR MAJOR_AUTO
-#endif
-
 static struct cdevsw my_devsw = {
 	/* version */	.d_version = D_VERSION,
 	/* open */	.d_open = mydev_open,
@@ -88,8 +82,7 @@ static struct cdevsw my_devsw = {
 	/* read */	.d_read = mydev_read,
 	/* write */	.d_write = mydev_write,
 	/* ioctl */	.d_ioctl = mydev_ioctl,
-	/* name */	.d_name = "cdev",
-	/* maj */	.d_maj = CDEV_MAJOR
+	/* name */	.d_name = "cdev"
 };
 
 /* 
