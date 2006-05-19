@@ -164,6 +164,7 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp)
 		np->n_fhp = &np->n_fh;
 	bcopy((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize);
 	np->n_fhsize = fhsize;
+	mtx_init(&np->n_mtx, "NFSnode lock", NULL, MTX_DEF);
 	*npp = np;
 
 	return (0);
@@ -234,7 +235,7 @@ nfs_reclaim(struct vop_reclaim_args *ap)
 	if (np->n_fhsize > NFS_SMALLFH) {
 		FREE((caddr_t)np->n_fhp, M_NFSBIGFH);
 	}
-
+	mtx_destroy(&np->n_mtx);
 	uma_zfree(nfsnode_zone, vp->v_data);
 	vp->v_data = NULL;
 	return (0);
