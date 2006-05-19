@@ -563,6 +563,8 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 
 	vfs_getnewfsid(mp);
 	nmp->nm_mountp = mp;
+	mtx_init(&nmp->nm_mtx, "NFS4mount lock", NULL, MTX_DEF);			
+
 	nmp->nm_maxfilesize = 0xffffffffLL;
 	nmp->nm_timeo = NFS_TIMEO;
 	nmp->nm_retry = NFS_RETRANS;
@@ -652,6 +654,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	if (mrep != NULL)
 		m_freem(mrep);
 bad:
+	mtx_destroy(&nmp->nm_mtx);
 	nfs4_disconnect(nmp);
 	uma_zfree(nfsmount_zone, nmp);
 	FREE(nam, M_SONAME);
@@ -698,6 +701,7 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	/* XXX there's a race condition here for SMP */
 	wakeup(&nfs4_daemonproc);
 
+	mtx_destroy(&nmp->nm_mtx);
 	uma_zfree(nfsmount_zone, nmp);
 	return (0);
 }

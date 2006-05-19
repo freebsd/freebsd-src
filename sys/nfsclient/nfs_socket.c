@@ -115,7 +115,7 @@ static int	nfs_realign_test;
 static int	nfs_realign_count;
 static int	nfs_bufpackets = 4;
 static int	nfs_reconnects;
-static int	nfs3_jukebox_delay = 10;
+static int     nfs3_jukebox_delay = 10;
 
 SYSCTL_DECL(_vfs_nfs);
 
@@ -125,8 +125,7 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, bufpackets, CTLFLAG_RW, &nfs_bufpackets, 0, "");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, reconnects, CTLFLAG_RD, &nfs_reconnects, 0,
     "number of times the nfs client has had to reconnect");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs3_jukebox_delay, CTLFLAG_RW, &nfs3_jukebox_delay, 0,
-    "number of seconds to delay a retry after receiving EJUKEBOX");
-
+	   "number of seconds to delay a retry after receiving EJUKEBOX");
 
 /*
  * There is a congestion window for outstanding rpcs maintained per mount
@@ -154,10 +153,8 @@ static void	nfs_softterm(struct nfsreq *rep);
 static int	nfs_reconnect(struct nfsreq *rep);
 static void nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag);
 static void nfs_clnt_udp_soupcall(struct socket *so, void *arg, int waitflag);
-static void wakeup_nfsreq(struct nfsreq *req);
 
 extern struct mtx nfs_reqq_mtx;
-extern struct mtx nfs_reply_mtx;
 
 /*
  * Initialize sockets and congestion for a new NFS connection.
@@ -172,13 +169,13 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	struct sockaddr *saddr;
 	struct thread *td = &thread0; /* only used for socreate and sobind */
 
-	NET_ASSERT_GIANT();
+	NET_LOCK_GIANT();
 
 	if (nmp->nm_sotype == SOCK_STREAM) {
-		mtx_lock(&nmp->nm_nfstcpstate.mtx);
+		mtx_lock(&nmp->nm_mtx);
  		nmp->nm_nfstcpstate.flags |= NFS_TCP_EXPECT_RPCMARKER;
  		nmp->nm_nfstcpstate.rpcresid = 0;
-		mtx_unlock(&nmp->nm_nfstcpstate.mtx);
+		mtx_unlock(&nmp->nm_mtx);
  	}	
 	nmp->nm_so = NULL;
 	saddr = nmp->nm_nam;
@@ -243,12 +240,16 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	 * Protocols that do not require connections may be optionally left
 	 * unconnected for servers that reply from a port other than NFS_PORT.
 	 */
+	mtx_lock(&nmp->nm_mtx);
 	if (nmp->nm_flag & NFSMNT_NOCONN) {
 		if (nmp->nm_soflags & PR_CONNREQUIRED) {
 			error = ENOTCONN;
+			mtx_unlock(&nmp->nm_mtx);
 			goto bad;
-		}
+		} else
+			mtx_unlock(&nmp->nm_mtx);
 	} else {
+		mtx_unlock(&nmp->nm_mtx);
 		error = soconnect(so, nmp->nm_nam, td);
 		if (error)
 			goto bad;
@@ -290,7 +291,7 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 		pktscale = 2;
 	if (pktscale > 64)
 		pktscale = 64;
-
+	mtx_lock(&nmp->nm_mtx);
 	if (nmp->nm_sotype == SOCK_DGRAM) {
 		sndreserve = (nmp->nm_wsize + NFS_MAXPKTHDR) * pktscale;
 		rcvreserve = (max(nmp->nm_rsize, nmp->nm_readdirsize) +
@@ -313,7 +314,9 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 			sopt.sopt_val = &val;
 			sopt.sopt_valsize = sizeof val;
 			val = 1;
+			mtx_unlock(&nmp->nm_mtx);
 			sosetopt(so, &sopt);
+			mtx_lock(&nmp->nm_mtx);
 		}
 		if (so->so_proto->pr_protocol == IPPROTO_TCP) {
 			struct sockopt sopt;
@@ -326,13 +329,16 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 			sopt.sopt_val = &val;
 			sopt.sopt_valsize = sizeof val;
 			val = 1;
+			mtx_unlock(&nmp->nm_mtx);
 			sosetopt(so, &sopt);
+			mtx_lock(&nmp->nm_mtx);
 		}
 		sndreserve = (nmp->nm_wsize + NFS_MAXPKTHDR +
 		    sizeof (u_int32_t)) * pktscale;
 		rcvreserve = (nmp->nm_rsize + NFS_MAXPKTHDR +
 		    sizeof (u_int32_t)) * pktscale;
 	}
+	mtx_unlock(&nmp->nm_mtx);
 	error = soreserve(so, sndreserve, rcvreserve);
 	if (error)
 		goto bad;
@@ -349,6 +355,7 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	so->so_snd.sb_flags |= SB_NOINTR;
 	SOCKBUF_UNLOCK(&so->so_snd);
 
+	mtx_lock(&nmp->nm_mtx);
 	/* Initialize other non-zero congestion variables */
 	nmp->nm_srtt[0] = nmp->nm_srtt[1] = nmp->nm_srtt[2] =
 		nmp->nm_srtt[3] = (NFS_TIMEO << 3);
@@ -357,10 +364,13 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	nmp->nm_cwnd = NFS_MAXCWND / 2;	    /* Initial send window */
 	nmp->nm_sent = 0;
 	nmp->nm_timeouts = 0;
+	mtx_unlock(&nmp->nm_mtx);
+	NET_UNLOCK_GIANT();
 	return (0);
 
 bad:
 	nfs_disconnect(nmp);
+	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -387,7 +397,9 @@ nfs_reconnect(struct nfsreq *rep)
 			error = EINTR;
 		if (error == EIO || error == EINTR)
 			return (error);
+		mtx_lock(&Giant);
 		(void) tsleep(&lbolt, PSOCK, "nfscon", 0);
+		mtx_unlock(&Giant);
 	}
 
   	/*
@@ -399,9 +411,10 @@ nfs_reconnect(struct nfsreq *rep)
  	 * until the connection is established successfully, and 
  	 * then re-transmit the request.
  	 */
-	mtx_lock(&nmp->nm_nfstcpstate.mtx);
+	mtx_lock(&nmp->nm_mtx);
 	nmp->nm_nfstcpstate.flags &= ~NFS_TCP_FORCE_RECONNECT;
-	mtx_unlock(&nmp->nm_nfstcpstate.mtx);	
+	nmp->nm_nfstcpstate.rpcresid = 0;
+	mtx_unlock(&nmp->nm_mtx);	
 
 	/*
 	 * Loop through outstanding request list and fix up all requests
@@ -409,8 +422,11 @@ nfs_reconnect(struct nfsreq *rep)
 	 */
 	mtx_lock(&nfs_reqq_mtx);
 	TAILQ_FOREACH(rp, &nfs_reqq, r_chain) {
-		if (rp->r_nmp == nmp)
+		if (rp->r_nmp == nmp) {
+			mtx_lock(&rp->r_mtx);			
 			rp->r_flags |= R_MUSTRESEND;
+			mtx_unlock(&rp->r_mtx);
+		}
 	}
 	mtx_unlock(&nfs_reqq_mtx);
 	return (0);
@@ -426,9 +442,11 @@ nfs_disconnect(struct nfsmount *nmp)
 
 	NET_ASSERT_GIANT();
 
+	mtx_lock(&nmp->nm_mtx);
 	if (nmp->nm_so) {
 		so = nmp->nm_so;
 		nmp->nm_so = NULL;
+		mtx_unlock(&nmp->nm_mtx);
 		SOCKBUF_LOCK(&so->so_rcv);
  		so->so_upcallarg = NULL;
  		so->so_upcall = NULL;
@@ -436,7 +454,8 @@ nfs_disconnect(struct nfsmount *nmp)
 		SOCKBUF_UNLOCK(&so->so_rcv);
 		soshutdown(so, SHUT_WR);
 		soclose(so);
-	}
+	} else
+		mtx_unlock(&nmp->nm_mtx);
 }
 
 void
@@ -463,22 +482,29 @@ nfs_send(struct socket *so, struct sockaddr *nam, struct mbuf *top,
 	struct sockaddr *sendnam;
 	int error, error2, soflags, flags;
 
-	NET_ASSERT_GIANT();
+	NET_LOCK_GIANT();
 
 	KASSERT(rep, ("nfs_send: called with rep == NULL"));
 
 	error = nfs_sigintr(rep->r_nmp, rep, rep->r_td);
 	if (error) {
 		m_freem(top);
-		return (error);
+		goto out;
 	}
+	mtx_lock(&rep->r_nmp->nm_mtx);
+	mtx_lock(&rep->r_mtx);
 	if ((so = rep->r_nmp->nm_so) == NULL) {
 		rep->r_flags |= R_MUSTRESEND;
+		mtx_unlock(&rep->r_mtx);
+		mtx_unlock(&rep->r_nmp->nm_mtx);
 		m_freem(top);
-		return (0);
+		error = 0;
+		goto out;
 	}
 	rep->r_flags &= ~R_MUSTRESEND;
 	soflags = rep->r_nmp->nm_soflags;
+	mtx_unlock(&rep->r_mtx);
+	mtx_unlock(&rep->r_nmp->nm_mtx);
 
 	if ((soflags & PR_CONNREQUIRED) || (so->so_state & SS_ISCONNECTED))
 		sendnam = NULL;
@@ -493,7 +519,9 @@ nfs_send(struct socket *so, struct sockaddr *nam, struct mbuf *top,
 						     flags, curthread /*XXX*/);
 	if (error == ENOBUFS && so->so_type == SOCK_DGRAM) {
 		error = 0;
+		mtx_lock(&rep->r_mtx);
 		rep->r_flags |= R_MUSTRESEND;
+		mtx_unlock(&rep->r_mtx);
 	}
 
 	if (error) {
@@ -513,8 +541,11 @@ nfs_send(struct socket *so, struct sockaddr *nam, struct mbuf *top,
 		error2 = NFS_SIGREP(rep);
 		if (error2)
 			error = error2;
-		else
+		else {
+			mtx_lock(&rep->r_mtx);
 			rep->r_flags |= R_MUSTRESEND;
+			mtx_unlock(&rep->r_mtx);
+		}
 
 		/*
 		 * Handle any recoverable (soft) socket errors here. (?)
@@ -523,6 +554,8 @@ nfs_send(struct socket *so, struct sockaddr *nam, struct mbuf *top,
 			error != EWOULDBLOCK && error != EPIPE)
 			error = 0;
 	}
+out:
+	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -533,7 +566,7 @@ nfs_reply(struct nfsreq *rep)
 	register struct mbuf *m;
 	int error = 0, sotype, slpflag;
 
-	NET_ASSERT_GIANT();
+	NET_LOCK_GIANT();
 
 	sotype = rep->r_nmp->nm_sotype;
 	/*
@@ -543,30 +576,39 @@ nfs_reply(struct nfsreq *rep)
 	if (sotype != SOCK_DGRAM) {
 		error = nfs_sndlock(rep);
 		if (error)
-			return (error);
+			goto out;
 tryagain:
+		mtx_lock(&rep->r_nmp->nm_mtx);
+		mtx_lock(&rep->r_mtx);
 		if (rep->r_mrep) {
+			mtx_unlock(&rep->r_mtx);
+			mtx_unlock(&rep->r_nmp->nm_mtx);
 			nfs_sndunlock(rep);
-			return (0);
+			error = 0;
+			goto out;
 		}
 		if (rep->r_flags & R_SOFTTERM) {
+			mtx_unlock(&rep->r_mtx);
+			mtx_unlock(&rep->r_nmp->nm_mtx);
 			nfs_sndunlock(rep);
-			return (EINTR);
+			error = EINTR;
+			goto out;
 		}
 		so = rep->r_nmp->nm_so;
-		mtx_lock(&rep->r_nmp->nm_nfstcpstate.mtx);
 		if (!so || 
 		    (rep->r_nmp->nm_nfstcpstate.flags & NFS_TCP_FORCE_RECONNECT)) {
-			mtx_unlock(&rep->r_nmp->nm_nfstcpstate.mtx);
+			mtx_unlock(&rep->r_mtx);
+			mtx_unlock(&rep->r_nmp->nm_mtx);
 			error = nfs_reconnect(rep);
 			if (error) {
 				nfs_sndunlock(rep);
-				return (error);
+				goto out;
 			}
 			goto tryagain;
-		} else
-			mtx_unlock(&rep->r_nmp->nm_nfstcpstate.mtx);
+		}
 		while (rep->r_flags & R_MUSTRESEND) {
+			mtx_unlock(&rep->r_mtx);
+			mtx_unlock(&rep->r_nmp->nm_mtx);
 			m = m_copym(rep->r_mreq, 0, M_COPYALL, M_WAIT);
 			nfsstats.rpcretries++;
 			error = nfs_send(so, rep->r_nmp->nm_nam, m, rep);
@@ -574,41 +616,59 @@ tryagain:
 				if (error == EINTR || error == ERESTART ||
 				    (error = nfs_reconnect(rep)) != 0) {
 					nfs_sndunlock(rep);
-					return (error);
+					goto out;
 				}
 				goto tryagain;
 			}
+			mtx_lock(&rep->r_nmp->nm_mtx);
+			mtx_lock(&rep->r_mtx);
 		}
+		mtx_unlock(&rep->r_nmp->nm_mtx);
+		mtx_unlock(&rep->r_mtx);
 		nfs_sndunlock(rep);
 	}
 	slpflag = 0;
+	mtx_lock(&rep->r_nmp->nm_mtx);
 	if (rep->r_nmp->nm_flag & NFSMNT_INT)
 		slpflag = PCATCH;
-	mtx_lock(&nfs_reply_mtx);
+	mtx_unlock(&rep->r_nmp->nm_mtx);
+	mtx_lock(&rep->r_mtx);
 	while ((rep->r_mrep == NULL) && (error == 0) && 
 	       ((rep->r_flags & R_SOFTTERM) == 0) &&
 	       ((sotype == SOCK_DGRAM) || ((rep->r_flags & R_MUSTRESEND) == 0)))
-		error = msleep((caddr_t)rep, &nfs_reply_mtx, 
+		error = msleep((caddr_t)rep, &rep->r_mtx, 
 			       slpflag | (PZERO - 1), "nfsreq", 0);
-	mtx_unlock(&nfs_reply_mtx);
-	if (error == EINTR || error == ERESTART)
+	if (error == EINTR || error == ERESTART) {
 		/* NFS operations aren't restartable. Map ERESTART to EINTR */
-		return (EINTR);
-	if (rep->r_flags & R_SOFTTERM)
+		error = EINTR;
+		mtx_unlock(&rep->r_mtx);
+		goto out;
+	}
+	if (rep->r_flags & R_SOFTTERM) {
 		/* Request was terminated because we exceeded the retries (soft mount) */
-		return (ETIMEDOUT);
+		error = ETIMEDOUT;
+		mtx_unlock(&rep->r_mtx);
+		goto out;
+	}
+	mtx_unlock(&rep->r_mtx);
 	if (sotype == SOCK_STREAM) {
-		mtx_lock(&rep->r_nmp->nm_nfstcpstate.mtx);
+		mtx_lock(&rep->r_nmp->nm_mtx);
+		mtx_lock(&rep->r_mtx);
 		if (((rep->r_nmp->nm_nfstcpstate.flags & NFS_TCP_FORCE_RECONNECT) || 
 		     (rep->r_flags & R_MUSTRESEND))) {
-			mtx_unlock(&rep->r_nmp->nm_nfstcpstate.mtx);	
+			mtx_unlock(&rep->r_mtx);
+			mtx_unlock(&rep->r_nmp->nm_mtx);	
 			error = nfs_sndlock(rep);
 			if (error)
-				return (error);
+				goto out;
 			goto tryagain;
-		} else
-			mtx_unlock(&rep->r_nmp->nm_nfstcpstate.mtx);
+		} else {
+			mtx_unlock(&rep->r_mtx);
+			mtx_unlock(&rep->r_nmp->nm_mtx);	
+		}
 	}
+out:
+	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -660,6 +720,8 @@ nfsmout:
 	 * Iff no match, just drop the datagram
 	 */
 	TAILQ_FOREACH(rep, &nfs_reqq, r_chain) {
+		mtx_lock(&nmp->nm_mtx);
+		mtx_lock(&rep->r_mtx);
 		if (rep->r_mrep == NULL && rxid == rep->r_xid) {
 			/* Found it.. */
 			rep->r_mrep = mrep;
@@ -703,8 +765,13 @@ nfsmout:
 				NFS_SDRTT(rep) += t1;
 			}
 			nmp->nm_timeouts = 0;
+			wakeup((caddr_t)rep);
+			mtx_unlock(&rep->r_mtx);
+			mtx_unlock(&nmp->nm_mtx);
 			break;
 		}
+		mtx_unlock(&rep->r_mtx);
+		mtx_unlock(&nmp->nm_mtx);
 	}
 	/*
 	 * If not matched to a request, drop it.
@@ -713,21 +780,8 @@ nfsmout:
 	if (rep == 0) {
 		nfsstats.rpcunexpected++;
 		m_freem(mrep);
-	} else
-		wakeup_nfsreq(rep);
+	}
 	mtx_unlock(&nfs_reqq_mtx);
-}
-
-/* 
- * The wakeup of the requestor should be done under the mutex
- * to avoid potential missed wakeups.
- */
-static void 
-wakeup_nfsreq(struct nfsreq *req)
-{
-	mtx_lock(&nfs_reply_mtx);
-	wakeup((caddr_t)req);
-	mtx_unlock(&nfs_reply_mtx);	
 }
 
 static void
@@ -735,9 +789,9 @@ nfs_mark_for_reconnect(struct nfsmount *nmp)
 {
 	struct nfsreq *rp;
 
-	mtx_lock(&nmp->nm_nfstcpstate.mtx);
+	mtx_lock(&nmp->nm_mtx);
 	nmp->nm_nfstcpstate.flags |= NFS_TCP_FORCE_RECONNECT;
-	mtx_unlock(&nmp->nm_nfstcpstate.mtx);
+	mtx_unlock(&nmp->nm_mtx);
 	/* 
 	 * Wakeup all processes that are waiting for replies 
 	 * on this mount point. One of them does the reconnect.
@@ -745,8 +799,10 @@ nfs_mark_for_reconnect(struct nfsmount *nmp)
 	mtx_lock(&nfs_reqq_mtx);
 	TAILQ_FOREACH(rp, &nfs_reqq, r_chain) {
 		if (rp->r_nmp == nmp) {
+			mtx_lock(&rp->r_mtx);
 			rp->r_flags |= R_MUSTRESEND;
-			wakeup_nfsreq(rp);
+			wakeup((caddr_t)rp);
+			mtx_unlock(&rp->r_mtx);
 		}
 	}
 	mtx_unlock(&nfs_reqq_mtx);
@@ -795,19 +851,21 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 	 * Don't pick any more data from the socket if we've marked the 
 	 * mountpoint for reconnect.
 	 */
-	mtx_lock(&nmp->nm_nfstcpstate.mtx);
+	mtx_lock(&nmp->nm_mtx);
 	if (nmp->nm_nfstcpstate.flags & NFS_TCP_FORCE_RECONNECT) {
-		mtx_unlock(&nmp->nm_nfstcpstate.mtx);		
+		mtx_unlock(&nmp->nm_mtx);		
 		return;
 	} else			
-		mtx_unlock(&nmp->nm_nfstcpstate.mtx);
+		mtx_unlock(&nmp->nm_mtx);
 	auio.uio_td = curthread;
 	auio.uio_segflg = UIO_SYSSPACE;
 	auio.uio_rw = UIO_READ;
 	for ( ; ; ) {
+		mtx_lock(&nmp->nm_mtx);
 		if (nmp->nm_nfstcpstate.flags & NFS_TCP_EXPECT_RPCMARKER) {
 			int resid;
 
+			mtx_unlock(&nmp->nm_mtx);
 			if (!nfstcp_marker_readable(so)) {
 				/* Marker is not readable */
 				return;
@@ -864,14 +922,20 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 				    nmp->nm_mountp->mnt_stat.f_mntfromname);
 				goto mark_reconnect;
 			}
+			mtx_lock(&nmp->nm_mtx);
 			nmp->nm_nfstcpstate.rpcresid = len;
 			nmp->nm_nfstcpstate.flags &= ~(NFS_TCP_EXPECT_RPCMARKER);
-		}
+			mtx_unlock(&nmp->nm_mtx);
+		} else
+			mtx_unlock(&nmp->nm_mtx);
+
 		/* 
 		 * Processed RPC marker or no RPC marker to process. 
 		 * Pull in and process data.
 		 */
+		mtx_lock(&nmp->nm_mtx);
 		if (nmp->nm_nfstcpstate.rpcresid > 0) {
+			mtx_unlock(&nmp->nm_mtx);
 			if (!nfstcp_readable(so, nmp->nm_nfstcpstate.rpcresid)) {
 				/* All data not readable */
 				return;
@@ -894,11 +958,14 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 			}
 			if (mp == NULL)
 				panic("nfs_clnt_tcp_soupcall: Got empty mbuf chain from sorecv\n");
+			mtx_lock(&nmp->nm_mtx);
 			nmp->nm_nfstcpstate.rpcresid = 0;
 			nmp->nm_nfstcpstate.flags |= NFS_TCP_EXPECT_RPCMARKER;
+			mtx_unlock(&nmp->nm_mtx);
 			/* We got the entire RPC reply. Match XIDs and wake up requestor */
 			nfs_clnt_match_xid(so, nmp, mp);
-		}
+		} else
+			mtx_unlock(&nmp->nm_mtx);
 	}
 
 mark_reconnect:
@@ -953,7 +1020,7 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 	struct mbuf *m, *md, *mheadend;
 	time_t waituntil;
 	caddr_t dpos;
-	int s, error = 0, mrest_len, auth_len, auth_type;
+	int error = 0, mrest_len, auth_len, auth_type;
 	struct timeval now;
 	u_int32_t *xidp;
 
@@ -966,11 +1033,12 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
 		return nfs4_request(vp, mrest, procnum, td, cred, mrp, mdp, dposp);
 	MALLOC(rep, struct nfsreq *, sizeof(struct nfsreq), M_NFSREQ, M_WAITOK);
-	rep->r_mrep = rep->r_md = NULL;
+	bzero(rep, sizeof(struct nfsreq));
 	rep->r_nmp = nmp;
 	rep->r_vp = vp;
 	rep->r_td = td;
 	rep->r_procnum = procnum;
+	mtx_init(&rep->r_mtx, "NFSrep lock", NULL, MTX_DEF);
 
 	getmicrouptime(&now);
 	rep->r_lastmsg = now.tv_sec -
@@ -1019,7 +1087,6 @@ tryagain:
 	 * Chain request into list of outstanding requests. Be sure
 	 * to put it LAST so timer finds oldest requests first.
 	 */
-	s = splsoftclock();
 	mtx_lock(&nfs_reqq_mtx);
 	if (TAILQ_EMPTY(&nfs_reqq))
 		callout_reset(&nfs_callout, nfs_ticks, nfs_timer, NULL);
@@ -1031,10 +1098,11 @@ tryagain:
 	 * send this one now but let timer do it. If not timing a request,
 	 * do it now.
 	 */
+	mtx_lock(&nmp->nm_mtx);
 	if (nmp->nm_so && (nmp->nm_sotype != SOCK_DGRAM ||
 		(nmp->nm_flag & NFSMNT_DUMBTIMR) ||
 		nmp->nm_sent < nmp->nm_cwnd)) {
-		splx(s);
+		mtx_unlock(&nmp->nm_mtx);
 		error = nfs_sndlock(rep);
 		if (!error) {
 			m2 = m_copym(m, 0, M_COPYALL, M_TRYWAIT);
@@ -1047,12 +1115,14 @@ tryagain:
 		 * blocking on nfs_send() too long, so check for R_SENT here.
 		 */
 		if (!error && (rep->r_flags & (R_SENT | R_MUSTRESEND)) == 0) {
+			mtx_lock(&nmp->nm_mtx);
 			nmp->nm_sent += NFS_CWNDSCALE;
+			mtx_unlock(&nmp->nm_mtx);
 			rep->r_flags |= R_SENT;
 		}
 		mtx_unlock(&nfs_reqq_mtx);
 	} else {
-		splx(s);
+		mtx_unlock(&nmp->nm_mtx);
 		rep->r_rtt = -1;
 	}
 
@@ -1065,7 +1135,6 @@ tryagain:
 	/*
 	 * RPC done, unlink the request.
 	 */
-	s = splsoftclock();
 	mtx_lock(&nfs_reqq_mtx);
 	/*
 	 * nfs_timer() may be in the process of re-transmitting this request.
@@ -1086,10 +1155,11 @@ tryagain:
 	 */
 	if (rep->r_flags & R_SENT) {
 		rep->r_flags &= ~R_SENT;	/* paranoia */
+		mtx_lock(&nmp->nm_mtx);
 		nmp->nm_sent -= NFS_CWNDSCALE;
+		mtx_unlock(&nmp->nm_mtx);
 	}
 	mtx_unlock(&nfs_reqq_mtx);
-	splx(s);
 
 	/*
 	 * If there was a successful reply and a tprintf msg.
@@ -1113,6 +1183,7 @@ tryagain:
 		if (rep->r_mrep != NULL)
 			m_freem(rep->r_mrep);
 		m_freem(rep->r_mreq);
+		mtx_destroy(&rep->r_mtx);
 		free((caddr_t)rep, M_NFSREQ);
 		return (error);
 	}
@@ -1131,6 +1202,7 @@ tryagain:
 			error = EACCES;
 		m_freem(mrep);
 		m_freem(rep->r_mreq);
+		mtx_destroy(&rep->r_mtx);
 		free((caddr_t)rep, M_NFSREQ);
 		return (error);
 	}
@@ -1153,12 +1225,16 @@ tryagain:
 				m_freem(mrep);
 				error = 0;
 				waituntil = time_second + nfs3_jukebox_delay;
-				while (time_second < waituntil)
-					(void) tsleep(&lbolt,
-						PSOCK, "nqnfstry", 0);
+				while (time_second < waituntil) {
+					mtx_lock(&Giant);
+					(void) tsleep(&lbolt, PSOCK, "nqnfstry", 0);
+					mtx_unlock(&Giant);
+				}
+				mtx_lock(&nfs_reqq_mtx);
 				if (++nfs_xid == 0)
 					nfs_xid++;
 				rep->r_xid = *xidp = txdr_unsigned(nfs_xid);
+				mtx_unlock(&nfs_reqq_mtx);
 				goto tryagain;
 			}
 
@@ -1176,6 +1252,7 @@ tryagain:
 			} else
 				m_freem(mrep);
 			m_freem(rep->r_mreq);
+			mtx_destroy(&rep->r_mtx);
 			free((caddr_t)rep, M_NFSREQ);
 			return (error);
 		}
@@ -1184,6 +1261,7 @@ tryagain:
 		*mdp = md;
 		*dposp = dpos;
 		m_freem(rep->r_mreq);
+		mtx_destroy(&rep->r_mtx);
 		FREE((caddr_t)rep, M_NFSREQ);
 		return (0);
 	}
@@ -1191,6 +1269,7 @@ tryagain:
 	error = EPROTONOSUPPORT;
 nfsmout:
 	m_freem(rep->r_mreq);
+	mtx_destroy(&rep->r_mtx);
 	free((caddr_t)rep, M_NFSREQ);
 	return (error);
 }
@@ -1215,34 +1294,34 @@ nfs_timer(void *arg)
 	struct socket *so;
 	struct nfsmount *nmp;
 	int timeo;
-	int s, error;
+	int error;
 	struct timeval now;
 
 	getmicrouptime(&now);
-	s = splnet();
 	mtx_lock(&Giant);	/* nfs_down -> tprintf */
 	mtx_lock(&nfs_reqq_mtx);
 	TAILQ_FOREACH(rep, &nfs_reqq, r_chain) {
 		nmp = rep->r_nmp;
-		if (rep->r_mrep || (rep->r_flags & R_SOFTTERM))
+		mtx_lock(&rep->r_mtx);
+		if (rep->r_mrep || (rep->r_flags & R_SOFTTERM)) {
+			mtx_unlock(&rep->r_mtx);			
 			continue;
+		} else
+			mtx_unlock(&rep->r_mtx);
 		if (nfs_sigintr(nmp, rep, rep->r_td))
 			continue;
+		mtx_lock(&nmp->nm_mtx);
+		mtx_lock(&rep->r_mtx);
 		if (nmp->nm_tprintf_initial_delay != 0 &&
 		    (rep->r_rexmit > 2 || (rep->r_flags & R_RESENDERR)) &&
 		    rep->r_lastmsg + nmp->nm_tprintf_delay < now.tv_sec) {
+			mtx_unlock(&rep->r_mtx);
+			mtx_unlock(&nmp->nm_mtx);
 			rep->r_lastmsg = now.tv_sec;
 			nfs_down(rep, nmp, rep->r_td, "not responding",
-			    0, NFSSTA_TIMEO);
-#if 0
-			if (!(nmp->nm_state & NFSSTA_MOUNTED)) {
-				/* we're not yet completely mounted and */
-				/* we can't complete an RPC, so we fail */
-				nfsstats.rpctimeouts++;
-				nfs_softterm(rep);
-				continue;
-			}
-#endif
+				 0, NFSSTA_TIMEO);
+			mtx_lock(&nmp->nm_mtx);
+			mtx_lock(&rep->r_mtx);
 		}
 		if (rep->r_rtt >= 0) {
 			rep->r_rtt++;
@@ -1252,14 +1331,19 @@ nfs_timer(void *arg)
 				timeo = NFS_RTO(nmp, proct[rep->r_procnum]);
 			if (nmp->nm_timeouts > 0)
 				timeo *= nfs_backoff[nmp->nm_timeouts - 1];
-			if (rep->r_rtt <= timeo)
+			if (rep->r_rtt <= timeo) {
+				mtx_unlock(&rep->r_mtx);
+				mtx_unlock(&nmp->nm_mtx);
 				continue;
+			}
 			if (nmp->nm_timeouts < NFS_NBACKOFF)
 				nmp->nm_timeouts++;
 		}
 		if (rep->r_rexmit >= rep->r_retry) {	/* too many */
 			nfsstats.rpctimeouts++;
 			nfs_softterm(rep);
+			mtx_unlock(&rep->r_mtx);
+			mtx_unlock(&nmp->nm_mtx);
 			continue;
 		}
 		if (nmp->nm_sotype != SOCK_DGRAM) {
@@ -1272,12 +1356,17 @@ nfs_timer(void *arg)
 			 * if necessary.
 			 */
 			rep->r_flags |= R_MUSTRESEND;
-			wakeup_nfsreq(rep);
+			wakeup((caddr_t)rep);
 			rep->r_rtt = 0;
+			mtx_unlock(&rep->r_mtx);
+			mtx_unlock(&nmp->nm_mtx);
 			continue;
 		}
-		if ((so = nmp->nm_so) == NULL)
+		if ((so = nmp->nm_so) == NULL) {
+			mtx_unlock(&rep->r_mtx);
+			mtx_unlock(&nmp->nm_mtx);
 			continue;
+		}
 		/*
 		 * If there is enough space and the window allows..
 		 *	Resend it
@@ -1285,57 +1374,69 @@ nfs_timer(void *arg)
 		 */
 		rep->r_rtt = -1;
 		if (sbspace(&so->so_snd) >= rep->r_mreq->m_pkthdr.len &&
-		   ((nmp->nm_flag & NFSMNT_DUMBTIMR) ||
-		    (rep->r_flags & R_SENT) ||
-		    nmp->nm_sent < nmp->nm_cwnd) &&
-		   (m = m_copym(rep->r_mreq, 0, M_COPYALL, M_DONTWAIT))) {
-			/*
-			 * Mark the request to indicate that a XMIT is in progress
-			 * to prevent the req structure being removed in nfs_request().
-			 */
-			rep->r_flags |= R_REXMIT_INPROG;
-			mtx_unlock(&nfs_reqq_mtx);
-			NET_LOCK_GIANT();
-			if ((nmp->nm_flag & NFSMNT_NOCONN) == 0)
-			    error = (*so->so_proto->pr_usrreqs->pru_send)
-				    (so, 0, m, NULL, NULL, curthread);
-			else
-			    error = (*so->so_proto->pr_usrreqs->pru_send)
-				    (so, 0, m, nmp->nm_nam, NULL, curthread);
-			NET_UNLOCK_GIANT();
-			mtx_lock(&nfs_reqq_mtx);
-			rep->r_flags &= ~R_REXMIT_INPROG;
-			wakeup((caddr_t)&rep->r_flags);
-			if (error) {
-				if (NFSIGNORE_SOERROR(nmp->nm_soflags, error))
-					so->so_error = 0;
-				rep->r_flags |= R_RESENDERR;
-			} else {
+		    ((nmp->nm_flag & NFSMNT_DUMBTIMR) || (rep->r_flags & R_SENT) ||
+		     nmp->nm_sent < nmp->nm_cwnd)) {
+			mtx_unlock(&rep->r_mtx);
+			mtx_unlock(&nmp->nm_mtx);
+			if ((m = m_copym(rep->r_mreq, 0, M_COPYALL, M_DONTWAIT))) {
 				/*
-				 * Iff first send, start timing
-				 * else turn timing off, backoff timer
-				 * and divide congestion window by 2.
+				 * Mark the request to indicate that a XMIT is in 
+				 * progress to prevent the req structure being 
+				 * removed in nfs_request().
 				 */
-				rep->r_flags &= ~R_RESENDERR;
-				if (rep->r_flags & R_SENT) {
-					rep->r_flags &= ~R_TIMING;
-					if (++rep->r_rexmit > NFS_MAXREXMIT)
-						rep->r_rexmit = NFS_MAXREXMIT;
-					nmp->nm_cwnd >>= 1;
-					if (nmp->nm_cwnd < NFS_CWNDSCALE)
-						nmp->nm_cwnd = NFS_CWNDSCALE;
-					nfsstats.rpcretries++;
+				mtx_lock(&rep->r_mtx);
+				rep->r_flags |= R_REXMIT_INPROG;
+				mtx_unlock(&rep->r_mtx);
+				mtx_unlock(&nfs_reqq_mtx);
+				NET_LOCK_GIANT();
+				if ((nmp->nm_flag & NFSMNT_NOCONN) == 0)
+					error = (*so->so_proto->pr_usrreqs->pru_send)
+						(so, 0, m, NULL, NULL, curthread);
+				else	
+					error = (*so->so_proto->pr_usrreqs->pru_send)
+						(so, 0, m, nmp->nm_nam, NULL, 
+						 curthread);
+				NET_UNLOCK_GIANT();
+				mtx_lock(&nfs_reqq_mtx);
+				mtx_lock(&nmp->nm_mtx);
+				mtx_lock(&rep->r_mtx);
+				rep->r_flags &= ~R_REXMIT_INPROG;
+				wakeup((caddr_t)&rep->r_flags);
+				if (error) {
+					if (NFSIGNORE_SOERROR(nmp->nm_soflags, error))
+						so->so_error = 0;
+					rep->r_flags |= R_RESENDERR;
 				} else {
-					rep->r_flags |= R_SENT;
-					nmp->nm_sent += NFS_CWNDSCALE;
+					/*
+					 * Iff first send, start timing
+					 * else turn timing off, backoff timer
+					 * and divide congestion window by 2.
+					 */
+					rep->r_flags &= ~R_RESENDERR;
+					if (rep->r_flags & R_SENT) {
+						rep->r_flags &= ~R_TIMING;
+						if (++rep->r_rexmit > NFS_MAXREXMIT)
+							rep->r_rexmit = NFS_MAXREXMIT;
+						nmp->nm_cwnd >>= 1;
+						if (nmp->nm_cwnd < NFS_CWNDSCALE)
+							nmp->nm_cwnd = NFS_CWNDSCALE;
+						nfsstats.rpcretries++;
+					} else {
+						rep->r_flags |= R_SENT;
+						nmp->nm_sent += NFS_CWNDSCALE;
+					}
+					rep->r_rtt = 0;
 				}
-				rep->r_rtt = 0;
+				mtx_unlock(&rep->r_mtx);
+				mtx_unlock(&nmp->nm_mtx);
 			}
+		} else {
+			mtx_unlock(&rep->r_mtx);
+			mtx_unlock(&nmp->nm_mtx);
 		}
 	}
 	mtx_unlock(&nfs_reqq_mtx);
 	mtx_unlock(&Giant);	/* nfs_down -> tprintf */
-	splx(s);
 	callout_reset(&nfs_callout, nfs_ticks, nfs_timer, NULL);
 }
 
@@ -1349,31 +1450,33 @@ nfs_nmcancelreqs(nmp)
 	struct nfsmount *nmp;
 {
 	struct nfsreq *req;
-	int i, s;
+	int i;
 
-	s = splnet();
 	mtx_lock(&nfs_reqq_mtx);
 	TAILQ_FOREACH(req, &nfs_reqq, r_chain) {
+		mtx_lock(&req->r_mtx);
 		if (nmp != req->r_nmp || req->r_mrep != NULL ||
-		    (req->r_flags & R_SOFTTERM))
+		    (req->r_flags & R_SOFTTERM)) {
+			mtx_unlock(&req->r_mtx);			
 			continue;
+		}
 		nfs_softterm(req);
+		mtx_unlock(&req->r_mtx);
 	}
 	mtx_unlock(&nfs_reqq_mtx);
-	splx(s);
 
 	for (i = 0; i < 30; i++) {
-		s = splnet();
 		mtx_lock(&nfs_reqq_mtx);
 		TAILQ_FOREACH(req, &nfs_reqq, r_chain) {
 			if (nmp == req->r_nmp)
 				break;
 		}
 		mtx_unlock(&nfs_reqq_mtx);
-		splx(s);
 		if (req == NULL)
 			return (0);
+		mtx_lock(&Giant);
 		tsleep(&lbolt, PSOCK, "nfscancel", 0);
+		mtx_unlock(&Giant);
 	}
 	return (EBUSY);
 }
@@ -1387,7 +1490,7 @@ nfs_nmcancelreqs(nmp)
 static void
 nfs_softterm(struct nfsreq *rep)
 {
-
+	KASSERT(mtx_owned(&rep->r_mtx), ("NFS req lock not owned !"));
 	rep->r_flags |= R_SOFTTERM;
 	if (rep->r_flags & R_SENT) {
 		rep->r_nmp->nm_sent -= NFS_CWNDSCALE;
@@ -1397,7 +1500,7 @@ nfs_softterm(struct nfsreq *rep)
 	 * Request terminated, wakeup the blocked process, so that we
 	 * can return EINTR back.
 	 */
-	wakeup_nfsreq(rep);
+	wakeup((caddr_t)rep);
 }
 
 /*
@@ -1494,28 +1597,6 @@ nfs_msleep(struct thread *td, void *ident, struct mtx *mtx, int priority, char *
 }
 
 /*
- * NFS wrapper to tsleep(), that shoves a new p_sigmask and restores the
- * old one after tsleep() returns.
- */
-int
-nfs_tsleep(struct thread *td, void *ident, int priority, char *wmesg, int timo)
-{
-	sigset_t oldset;
-	int error;
-	struct proc *p;
-	
-	if ((priority & PCATCH) == 0)
-		return tsleep(ident, priority, wmesg, timo);
-	if (td == NULL)
-		td = curthread; /* XXX */
-	nfs_set_sigmask(td, &oldset);
-	error = tsleep(ident, priority, wmesg, timo);
-	nfs_restore_sigmask(td, &oldset);
-	p = td->td_proc;
-	return (error);
-}
-
-/*
  * Test for a termination condition pending on the process.
  * This is used for NFSMNT_INT mounts.
  */
@@ -1524,19 +1605,28 @@ nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct thread *td)
 {
 	struct proc *p;
 	sigset_t tmpset;
-
+	int error = 0;
+	
 	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
 		return nfs4_sigintr(nmp, rep, td);
-	if (rep && (rep->r_flags & R_SOFTTERM))
-		return (EIO);
+	if (rep) {
+		mtx_lock(&rep->r_mtx);
+		if (rep->r_flags & R_SOFTTERM) {
+			mtx_unlock(&rep->r_mtx);
+			error = EIO;
+			goto out;
+		} else
+			mtx_unlock(&rep->r_mtx);
+	}
 	/* Terminate all requests while attempting a forced unmount. */
-	if (nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF)
-		return (EIO);
+	if (nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF) {
+		error = EIO;
+		goto out;
+	}
 	if (!(nmp->nm_flag & NFSMNT_INT))
-		return (0);
+		goto out;
 	if (td == NULL)
 		return (0);
-
 	p = td->td_proc;
 	PROC_LOCK(p);
 	tmpset = p->p_siglist;
@@ -1551,6 +1641,8 @@ nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct thread *td)
 	PROC_UNLOCK(p);
 
 	return (0);
+out:
+	return(error);
 }
 
 /*
@@ -1567,21 +1659,25 @@ nfs_sndlock(struct nfsreq *rep)
 	int error, slpflag = 0, slptimeo = 0;
 
 	td = rep->r_td;
+	mtx_lock(&rep->r_nmp->nm_mtx);
 	if (rep->r_nmp->nm_flag & NFSMNT_INT)
 		slpflag = PCATCH;
 	while (*statep & NFSSTA_SNDLOCK) {
 		error = nfs_sigintr(rep->r_nmp, rep, td);
-		if (error)
+		if (error) {
+			mtx_unlock(&rep->r_nmp->nm_mtx);
 			return (error);
+		}
 		*statep |= NFSSTA_WANTSND;
-		(void) tsleep(statep, slpflag | (PZERO - 1),
-			"nfsndlck", slptimeo);
+		(void) msleep(statep, &rep->r_nmp->nm_mtx,
+			      slpflag | (PZERO - 1), "nfsndlck", slptimeo);
 		if (slpflag == PCATCH) {
 			slpflag = 0;
 			slptimeo = 2 * hz;
 		}
 	}
 	*statep |= NFSSTA_SNDLOCK;
+	mtx_unlock(&rep->r_nmp->nm_mtx);
 	return (0);
 }
 
@@ -1593,6 +1689,7 @@ nfs_sndunlock(struct nfsreq *rep)
 {
 	int *statep = &rep->r_nmp->nm_state;
 
+	mtx_lock(&rep->r_nmp->nm_mtx);
 	if ((*statep & NFSSTA_SNDLOCK) == 0)
 		panic("nfs sndunlock");
 	*statep &= ~NFSSTA_SNDLOCK;
@@ -1600,6 +1697,7 @@ nfs_sndunlock(struct nfsreq *rep)
 		*statep &= ~NFSSTA_WANTSND;
 		wakeup(statep);
 	}
+	mtx_unlock(&rep->r_nmp->nm_mtx);
 }
 
 /*
@@ -1703,8 +1801,10 @@ nfs_down(rep, nmp, td, msg, error, flags)
 		nmp->nm_state |= NFSSTA_LOCKTIMEO;
 	}
 #endif
+	mtx_lock(&rep->r_mtx);
 	if (rep)
 		rep->r_flags |= R_TPRINTFMSG;
+	mtx_unlock(&rep->r_mtx);
 	nfs_msg(td, nmp->nm_mountp->mnt_stat.f_mntfromname, msg, error);
 }
 
@@ -1721,8 +1821,10 @@ nfs_up(rep, nmp, td, msg, flags)
 
 	if (nmp == NULL)
 		return;
+	mtx_lock(&rep->r_mtx);
 	if ((rep == NULL) || (rep->r_flags & R_TPRINTFMSG) != 0)
 		nfs_msg(td, nmp->nm_mountp->mnt_stat.f_mntfromname, msg, 0);
+	mtx_unlock(&rep->r_mtx);
 	if ((flags & NFSSTA_TIMEO) && (nmp->nm_state & NFSSTA_TIMEO)) {
 		nmp->nm_state &= ~NFSSTA_TIMEO;
 		vfs_event_signal(&nmp->nm_mountp->mnt_stat.f_fsid,
@@ -1736,4 +1838,3 @@ nfs_up(rep, nmp, td, msg, flags)
 	}
 #endif
 }
-
