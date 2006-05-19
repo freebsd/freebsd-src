@@ -623,6 +623,9 @@
 	Packets are Ethernet frames with an EtherIP header prepended.
         &merged;</para>
 
+      <para>A hard-coded limit on the number of IPv4 multicast group
+        memberships (formerly 20) has been removed.</para>
+
       <para>The path MTU discovery for multicast packets in the &os;
 	&man.ip6.4; stack has been disabled by default because
 	notifying path MTU by a lot of routers in multicast
@@ -873,10 +876,16 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <sect3 id="fs">
       <title>File Systems</title>
 
+      <para>The &man.linsysfs.5; pseudo-filesystem driver has been
+	added.  It provides a subset of the
+	Linux <filename>sys</filename> filesystem, and is required for
+	the correct operation of some Linux binaries (such as the LSI
+	MegaRAID SAS utility).</para>
+
       <para>A part of the FreeBSD NFS subsystem (the interface with
 	the protocol stack and callouts) is now MPSAFE.</para>
 
-      <para>Initial support for SGI's XFS filesystem has been
+      <para>Initial (read-only) support for SGI's XFS filesystem has been
 	added.</para>
     </sect3>
 
@@ -923,6 +932,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The &man.bsnmpd.1; utility now supports the Host Resources
       MIB described in RFC 2790.  &merged;</para>
+
+    <para>&man.cached.8; has been added.  It is a daemon that caches
+      the results of nsswitch lookups (such as those to the password,
+      group, and services databases) for improved performance.</para>
 
     <para>The &man.cmp.1; utility now supports an <option>-h</option>
       flag to compare the symbolic link itself rather than the
@@ -1040,7 +1053,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       and be able to patch memory on a live system.</para>
 
     <para>The &man.libarchive.3; library now supports
-      POSIX.1e-style Extended Attribute.</para>
+      POSIX.1e-style Extended Attributes.</para>
 
     <para>The <application>libc</application> library now includes
       initial implementation of symbol maps and symbol version
@@ -1127,6 +1140,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       differs depending on which stack is compiled into
       the kernel since they each keep different statistics.  &merged;</para>
 
+    <para>The <filename>/etc/nsswitch.conf</filename> file is now
+      installed statically instead of being generated on every
+      reboot.</para>
+
     <para>The &man.periodic.8; daily script now supports
       display of the status of &man.gmirror.8;, &man.graid3.8;,
       &man.gstripe.8;, and &man.gconcat.8; devices.
@@ -1201,7 +1218,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para arch="ppc">The &man.truss.1; utility now supports &os;/ppc.</para>
 
-    <para>The &man.usbd.8; utility has been removed.
+    <para>The usbd(8) utility has been removed.
       The &man.devd.8; utility and its configuration
       file now support functionality which is equivalent to it.</para>
 
@@ -1520,7 +1537,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>Documentation of existing functionality has been improved by
       the addition of the following manual pages:
       &man.acpi.sony.4;, &man.ext2fs.5;,
-      &man.snd.mss.4;, &man.snd.t4dwave.4;.</para>
+      &man.mca.8;,
+      &man.snd.mss.4;, &man.snd.t4dwave.4;,
+      &man.sysctl.9;.</para>
 
     <para>The manual pages for <application>NTP</application>
       have been updated to 4.2.0, to match the version of
