@@ -55,7 +55,8 @@ struct ksched {
 	struct timespec rr_interval;
 };
 
-int ksched_attach(struct ksched **p)
+int
+ksched_attach(struct ksched **p)
 {
 	struct ksched *ksched= p31b_malloc(sizeof(*ksched));
 
@@ -66,7 +67,8 @@ int ksched_attach(struct ksched **p)
 	return 0;
 }
 
-int ksched_detach(struct ksched *ks)
+int
+ksched_detach(struct ksched *ks)
 {
 	p31b_free(ks);
 
@@ -124,8 +126,9 @@ getscheduler(register_t *ret, struct ksched *ksched, struct thread *td)
 	return e;
 }
 
-int ksched_setparam(register_t *ret, struct ksched *ksched,
-	struct thread *td, const struct sched_param *param)
+int
+ksched_setparam(register_t *ret, struct ksched *ksched,
+    struct thread *td, const struct sched_param *param)
 {
 	register_t policy;
 	int e;
@@ -143,8 +146,9 @@ int ksched_setparam(register_t *ret, struct ksched *ksched,
 	return e;
 }
 
-int ksched_getparam(register_t *ret, struct ksched *ksched,
-	struct thread *td, struct sched_param *param)
+int
+ksched_getparam(register_t *ret, struct ksched *ksched,
+    struct thread *td, struct sched_param *param)
 {
 	struct rtprio rtp;
 
@@ -164,8 +168,9 @@ int ksched_getparam(register_t *ret, struct ksched *ksched,
  * The permissions to modify process p were checked in "p31b_proc()".
  *
  */
-int ksched_setscheduler(register_t *ret, struct ksched *ksched,
-	struct thread *td, int policy, const struct sched_param *param)
+int
+ksched_setscheduler(register_t *ret, struct ksched *ksched,
+    struct thread *td, int policy, const struct sched_param *param)
 {
 	int e = 0;
 	struct rtprio rtp;
@@ -237,14 +242,16 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 	return e;
 }
 
-int ksched_getscheduler(register_t *ret, struct ksched *ksched, struct thread *td)
+int
+ksched_getscheduler(register_t *ret, struct ksched *ksched, struct thread *td)
 {
 	return getscheduler(ret, ksched, td);
 }
 
 /* ksched_yield: Yield the CPU.
  */
-int ksched_yield(register_t *ret, struct ksched *ksched)
+int
+ksched_yield(register_t *ret, struct ksched *ksched)
 {
 	mtx_lock_spin(&sched_lock);
 	curthread->td_flags |= TDF_NEEDRESCHED;
@@ -252,7 +259,8 @@ int ksched_yield(register_t *ret, struct ksched *ksched)
 	return 0;
 }
 
-int ksched_get_priority_max(register_t*ret, struct ksched *ksched, int policy)
+int
+ksched_get_priority_max(register_t*ret, struct ksched *ksched, int policy)
 {
 	int e = 0;
 
@@ -274,7 +282,8 @@ int ksched_get_priority_max(register_t*ret, struct ksched *ksched, int policy)
 	return e;
 }
 
-int ksched_get_priority_min(register_t *ret, struct ksched *ksched, int policy)
+int
+ksched_get_priority_min(register_t *ret, struct ksched *ksched, int policy)
 {
 	int e = 0;
 
@@ -296,8 +305,9 @@ int ksched_get_priority_min(register_t *ret, struct ksched *ksched, int policy)
 	return e;
 }
 
-int ksched_rr_get_interval(register_t *ret, struct ksched *ksched,
-	struct thread *td, struct timespec *timespec)
+int
+ksched_rr_get_interval(register_t *ret, struct ksched *ksched,
+    struct thread *td, struct timespec *timespec)
 {
 	*timespec = ksched->rr_interval;
 

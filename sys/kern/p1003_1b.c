@@ -76,7 +76,8 @@ syscall_not_present(struct thread *td, const char *s, struct nosys_args *uap)
 /* Not configured but loadable via a module:
  */
 
-static int sched_attach(void)
+static int
+sched_attach(void)
 {
 	return 0;
 }
@@ -96,7 +97,8 @@ SYSCALL_NOT_PRESENT_GEN(sched_rr_get_interval)
  */
 static struct ksched *ksched;
 
-static int sched_attach(void)
+static int
+sched_attach(void)
 {
 	int ret = ksched_attach(&ksched);
 
@@ -109,8 +111,8 @@ static int sched_attach(void)
 /* 
  * MPSAFE
  */
-int sched_setparam(struct thread *td,
-	struct sched_setparam_args *uap)
+int
+sched_setparam(struct thread *td, struct sched_setparam_args *uap)
 {
 	struct thread *targettd;
 	struct proc *targetp;
@@ -147,8 +149,8 @@ done2:
 /* 
  * MPSAFE
  */
-int sched_getparam(struct thread *td,
-	struct sched_getparam_args *uap)
+int
+sched_getparam(struct thread *td, struct sched_getparam_args *uap)
 {
 	int e;
 	struct sched_param sched_param;
@@ -183,8 +185,8 @@ done2:
 /* 
  * MPSAFE
  */
-int sched_setscheduler(struct thread *td,
-	struct sched_setscheduler_args *uap)
+int
+sched_setscheduler(struct thread *td, struct sched_setscheduler_args *uap)
 {
 	int e;
 	struct sched_param sched_param;
@@ -221,8 +223,8 @@ done2:
 /* 
  * MPSAFE
  */
-int sched_getscheduler(struct thread *td,
-	struct sched_getscheduler_args *uap)
+int
+sched_getscheduler(struct thread *td, struct sched_getscheduler_args *uap)
 {
 	int e;
 	struct thread *targettd;
@@ -253,8 +255,8 @@ done2:
 /* 
  * MPSAFE
  */
-int sched_yield(struct thread *td,
-	struct sched_yield_args *uap)
+int
+sched_yield(struct thread *td, struct sched_yield_args *uap)
 {
 	int error;
 
@@ -265,8 +267,9 @@ int sched_yield(struct thread *td,
 /* 
  * MPSAFE
  */
-int sched_get_priority_max(struct thread *td,
-	struct sched_get_priority_max_args *uap)
+int
+sched_get_priority_max(struct thread *td,
+    struct sched_get_priority_max_args *uap)
 {
 	int error;
 
@@ -277,8 +280,9 @@ int sched_get_priority_max(struct thread *td,
 /* 
  * MPSAFE
  */
-int sched_get_priority_min(struct thread *td,
-	struct sched_get_priority_min_args *uap)
+int
+sched_get_priority_min(struct thread *td,
+    struct sched_get_priority_min_args *uap)
 {
 	int error;
 
@@ -289,8 +293,9 @@ int sched_get_priority_min(struct thread *td,
 /* 
  * MPSAFE
  */
-int sched_rr_get_interval(struct thread *td,
-	struct sched_rr_get_interval_args *uap)
+int
+sched_rr_get_interval(struct thread *td,
+    struct sched_rr_get_interval_args *uap)
 {
 	struct timespec timespec;
 	int error;
@@ -301,7 +306,8 @@ int sched_rr_get_interval(struct thread *td,
 	return (error);
 }
 
-int kern_sched_rr_get_interval(struct thread *td, pid_t pid,
+int
+kern_sched_rr_get_interval(struct thread *td, pid_t pid,
     struct timespec *ts)
 {
 	int e;
@@ -330,7 +336,8 @@ int kern_sched_rr_get_interval(struct thread *td, pid_t pid,
 
 #endif
 
-static void p31binit(void *notused)
+static void
+p31binit(void *notused)
 {
 	(void) sched_attach();
 	p31b_setcfg(CTL_P1003_1B_PAGESIZE, PAGE_SIZE);
