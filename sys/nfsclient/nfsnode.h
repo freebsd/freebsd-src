@@ -88,6 +88,7 @@ struct nfsdmap {
  *     be well aligned and, therefore, tightly packed.
  */
 struct nfsnode {
+	struct mtx 		n_mtx;		/* Protects all of these members */
 	u_quad_t		n_size;		/* Current size of file */
 	u_quad_t		n_brev;		/* Modify rev when cached */
 	u_quad_t		n_lrev;		/* Modify rev for lease */
@@ -124,9 +125,8 @@ struct nfsnode {
 	struct nfs4_fctx	n_wfc;
 	u_char			*n_name;	/* leaf name, for v4 OPEN op */
 	uint32_t		n_namelen;
-	daddr_t			ra_expect_lbn;
 	int			n_directio_opens;
-	int			n_directio_asyncwr;
+	int                     n_directio_asyncwr;
 };
 
 #define n_atim		n_un1.nf_atim
@@ -140,6 +140,8 @@ struct nfsnode {
 /*
  * Flags for n_flag
  */
+#define NFSYNCWAIT      0x0002  /* fsync waiting for all directio async writes
+				  to drain */
 #define	NMODIFIED	0x0004	/* Might have a modified buffer in bio */
 #define	NWRITEERR	0x0008	/* Flag write errors so close will know */
 /* 0x20, 0x40, 0x80 free */
@@ -150,8 +152,7 @@ struct nfsnode {
 #define	NTRUNCATE	0x1000	/* Opened by nfs_setattr() */
 #define	NSIZECHANGED	0x2000  /* File size has changed: need cache inval */
 #define NNONCACHE	0x4000  /* Node marked as noncacheable */
-#define NFSYNCWAIT	0x8000  /* fsync waiting for all directio async writes 
-				   to drain */
+#define NDIRCOOKIELK	0x8000	/* Lock to serialize access to directory cookies */
 
 /*
  * Convert between nfsnode pointers and vnode pointers
@@ -193,6 +194,12 @@ nfsuint64 *nfs_getcookie(struct nfsnode *, off_t, int);
 uint64_t *nfs4_getcookie(struct nfsnode *, off_t, int);
 void	nfs_invaldir(struct vnode *);
 void	nfs4_invaldir(struct vnode *);
+int	nfs_upgrade_vnlock(struct vnode *vp, struct thread *td);
+void	nfs_downgrade_vnlock(struct vnode *vp, struct thread *td, int old_lock);
+void	nfs_printf(const char *fmt, ...);
+
+void nfs_dircookie_lock(struct nfsnode *np);
+void nfs_dircookie_unlock(struct nfsnode *np);
 
 #endif /* _KERNEL */
 

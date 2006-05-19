@@ -131,6 +131,7 @@ extern struct uma_zone *nfsmount_zone;
 
 extern struct callout nfs_callout;
 extern struct nfsstats nfsstats;
+extern struct mtx nfs_iod_mtx;
 
 extern int nfs_numasync;
 extern unsigned int nfs_iodmax;
@@ -178,6 +179,7 @@ struct nfsreq {
 	int		r_rtt;		/* RTT for rpc */
 	int		r_lastmsg;	/* last tprintf */
 	struct thread	*r_td;		/* Proc that did I/O system call */
+	struct mtx	r_mtx;		/* Protects nfsreq fields */
 };
 
 /*
@@ -310,8 +312,6 @@ int	nfs_meta_setsize (struct vnode *, struct ucred *,
 
 void    nfs_set_sigmask __P((struct thread *td, sigset_t *oldset));
 void    nfs_restore_sigmask __P((struct thread *td, sigset_t *set));
-int     nfs_tsleep __P((struct thread *td, void *ident, int priority, char *wmesg, 
-			int timo));
 int     nfs_msleep __P((struct thread *td, void *ident, struct mtx *mtx, int priority, 
 			char *wmesg, int timo));
 
