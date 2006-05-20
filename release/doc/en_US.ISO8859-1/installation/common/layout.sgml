@@ -41,7 +41,7 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
 
   <para>If you're trying to do some other type of installation or are
   merely curious about how a distribution is organized, what follows
-  is a more thorough description of some of these items in more detail:
+  is a more thorough description of some of these items in more detail:</para>
     <orderedlist>
       <listitem>
 	<para>The <filename>*.TXT</filename> and
@@ -98,7 +98,7 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
 	Packages and Ports Collections.  Packages may be installed from
 	the packages directory by running the command:</para>
 
-	<screen>&prompt.root;<userinput>/stand/sysinstall configPackages</userinput></screen>
+	<screen>&prompt.root; <userinput>sysinstall configPackages</userinput></screen>
 
 	<para>Packages can also be installed by feeding individual
 	filenames in <filename>packages</filename>/ to the &man.pkg.add.1; command.</para>
@@ -117,7 +117,6 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
 	convenience.</para>
       </listitem>
     </orderedlist>
-  </para>
 
   <para>A typical distribution directory (for example, the <filename>info</filename> distribution) looks like this internally:</para>
 
