@@ -4,12 +4,15 @@
 .PATH: ${.CURDIR}/../ktrace
 
 PROG=		kdump
-SRCS=		kdump.c ioctl.c subr.c
-CFLAGS+=	-I${.CURDIR}/../ktrace -I${.CURDIR}/../..
+SRCS=		kdump.c ioctl.c kdump_subr.c subr.c
+CFLAGS+=	-I${.CURDIR}/../ktrace -I${.CURDIR} -I${.CURDIR}/../..
 
-CLEANFILES=	ioctl.c
+CLEANFILES=	ioctl.c kdump_subr.c
 
 ioctl.c: mkioctls
 	sh ${.CURDIR}/mkioctls ${DESTDIR}/usr/include > ${.TARGET}
+
+kdump_subr.c: mksubr
+	sh ${.CURDIR}/mksubr ${DESTDIR}/usr/include > ${.TARGET}
 
 .include <bsd.prog.mk>
