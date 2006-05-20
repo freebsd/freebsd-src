@@ -66,6 +66,7 @@ extern int errno;
 #include <unistd.h>
 #include <vis.h>
 #include "ktrace.h"
+#include "kdump_subr.h"
 
 int fread_tail(void *, int, int);
 void dumpheader(struct ktr_header *);
@@ -320,14 +321,20 @@ ktrsyscall(struct ktr_syscall *ktr)
 	if (narg) {
 		char c = '(';
 		if (fancy) {
+
+#define print_number(i,n,c) do {                      \
+	if (decimal)                                  \
+		(void)printf("%c%ld", c, (long)*i);   \
+	else                                          \
+		(void)printf("%c%#lx", c, (long)*i);  \
+	i++;                                          \
+	n--;                                          \
+	c = ',';                                      \
+	} while (0);
+
 			if (ktr->ktr_code == SYS_ioctl) {
 				const char *cp;
-				if (decimal)
-					(void)printf("(%ld", (long)*ip);
-				else
-					(void)printf("(%#lx", (long)*ip);
-				ip++;
-				narg--;
+				print_number(ip,narg,c);
 				if ((cp = ioctlname(*ip)) != NULL)
 					(void)printf(",%s", cp);
 				else {
@@ -372,16 +379,384 @@ ktrsyscall(struct ktr_syscall *ktr)
 				c = ',';
 				ip++;
 				narg--;
+			} else if (ktr->ktr_code == SYS_access ||
+				   ktr->ktr_code == SYS_eaccess) {
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				accessmodename ((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_open) {
+				int	flags;
+				int	mode;
+				print_number(ip,narg,c);
+				flags = *ip;
+				mode = *++ip;
+				(void)putchar(',');
+				flagsandmodename (flags, mode, decimal);
+				ip++;
+				narg-=2;
+			} else if (ktr->ktr_code == SYS_wait4) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				wait4optname ((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_chmod ||
+				   ktr->ktr_code == SYS_fchmod ||
+				   ktr->ktr_code == SYS_lchmod) {
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				modename ((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_mknod) {
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				modename ((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_getfsstat) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				getfsstatflagsname ((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_mount) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				mountflagsname ((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_unmount) {
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				mountflagsname ((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_recvmsg ||
+				   ktr->ktr_code == SYS_sendmsg) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				sendrecvflagsname ((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_recvfrom ||
+				   ktr->ktr_code == SYS_sendto) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				sendrecvflagsname ((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_chflags ||
+				   ktr->ktr_code == SYS_fchflags ||
+				   ktr->ktr_code == SYS_lchflags) {
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				modename((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_kill) {
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				signame((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_reboot) {
+				(void)putchar('(');
+				rebootoptname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_umask) {
+				(void)putchar('(');
+				modename((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_msync) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				msyncflagsname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_mmap) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				mmapprotname ((int)*ip);
+				(void)putchar(',');
+				ip++;
+				narg--;
+				mmapflagsname ((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_mprotect) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				mmapprotname ((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_madvise) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				madvisebehavname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_setpriority) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				prioname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_fcntl) {
+				int cmd;
+				int arg;
+				print_number(ip,narg,c);
+				cmd = *ip;
+				arg = *++ip;
+				(void)putchar(',');
+				fcntlcmdname(cmd, arg, decimal);
+				ip++;
+				narg-=2;
+			} else if (ktr->ktr_code == SYS_socket) {
+				(void)putchar('(');
+				sockdomainname((int)*ip);
+				ip++;
+				narg--;
+				(void)putchar(',');
+				socktypename((int)*ip);
+				ip++;
+				narg--;
+				c = ',';
+			} else if (ktr->ktr_code == SYS_setsockopt ||
+				   ktr->ktr_code == SYS_getsockopt) {
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				sockoptlevelname((int)*ip, decimal);
+				ip++;
+				narg--;
+				(void)putchar(',');
+				sockoptname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_lseek) {
+				print_number(ip,narg,c);
+				/* Hidden 'pad' argument, not in lseek(2) */
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				whencename ((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_flock) {
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				flockname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_mkfifo ||
+				   ktr->ktr_code == SYS_mkdir) {
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				modename((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_shutdown) {
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				shutdownhowname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_socketpair) {
+				(void)putchar('(');
+				sockdomainname((int)*ip);
+				ip++;
+				narg--;
+				(void)putchar(',');
+				socktypename((int)*ip);
+				ip++;
+				narg--;
+				c = ',';
+			} else if (ktr->ktr_code == SYS_getrlimit ||
+				   ktr->ktr_code == SYS_setrlimit) {
+				(void)putchar('(');
+				rlimitname((int)*ip);
+				ip++;
+				narg--;
+				c = ',';
+			} else if (ktr->ktr_code == SYS_quotactl) {
+				print_number(ip,narg,c);
+				quotactlname((int)*ip);
+				ip++;
+				narg--;
+				c = ',';
+			} else if (ktr->ktr_code == SYS_nfssvc) {
+				(void)putchar('(');
+				nfssvcname((int)*ip);
+				ip++;
+				narg--;
+				c = ',';
+			} else if (ktr->ktr_code == SYS_rtprio) {
+				(void)putchar('(');
+				rtprioname((int)*ip);
+				ip++;
+				narg--;
+				c = ',';
+			} else if (ktr->ktr_code == SYS___semctl) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				semctlname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_semget) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				semgetname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_msgctl) {
+				print_number(ip,narg,c);
+				shmctlname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_shmat) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				shmatname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_shmctl) {
+				print_number(ip,narg,c);
+				shmctlname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_minherit) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				minheritname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_rfork) {
+				(void)putchar('(');
+				rforkname((int)*ip);
+				ip++;
+				narg--;
+				c = ',';
+			} else if (ktr->ktr_code == SYS_lio_listio) {
+				(void)putchar('(');
+				lio_listioname((int)*ip);
+				ip++;
+				narg--;
+				c = ',';
+			} else if (ktr->ktr_code == SYS_mlockall) {
+				(void)putchar('(');
+				mlockallname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_sched_setscheduler) {
+				print_number(ip,narg,c);
+				schedpolicyname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_sched_get_priority_max ||
+				   ktr->ktr_code == SYS_sched_get_priority_min) {
+				(void)putchar('(');
+				schedpolicyname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_sendfile) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				sendfileflagsname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_kldsym) {
+				print_number(ip,narg,c);
+				kldsymcmdname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_sigprocmask) {
+				(void)putchar('(');
+				sigprocmaskhowname((int)*ip);
+				ip++;
+				narg--;
+				c = ',';
+			} else if (ktr->ktr_code == SYS___acl_get_file ||
+				   ktr->ktr_code == SYS___acl_set_file ||
+				   ktr->ktr_code == SYS___acl_get_fd ||
+				   ktr->ktr_code == SYS___acl_set_fd ||
+				   ktr->ktr_code == SYS___acl_delete_file ||
+				   ktr->ktr_code == SYS___acl_delete_fd ||
+				   ktr->ktr_code == SYS___acl_aclcheck_file ||
+				   ktr->ktr_code == SYS___acl_aclcheck_fd ||
+				   ktr->ktr_code == SYS___acl_get_link ||
+				   ktr->ktr_code == SYS___acl_set_link ||
+				   ktr->ktr_code == SYS___acl_delete_link ||
+				   ktr->ktr_code == SYS___acl_aclcheck_link) {
+				print_number(ip,narg,c);
+				acltypename((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_sigaction) {
+				(void)putchar('(');
+				signame((int)*ip);
+				ip++;
+				narg--;
+				c = ',';
+			} else if (ktr->ktr_code == SYS_extattrctl) {
+				print_number(ip,narg,c);
+				extattrctlname((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_nmount) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				mountflagsname ((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_kse_thr_interrupt) {
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				ksethrcmdname ((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_thr_create) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				thrcreateflagsname ((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_thr_kill) {
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				signame ((int)*ip);
+				ip++;
+				narg--;
+			} else if (ktr->ktr_code == SYS_kldunloadf) {
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				kldunloadfflagsname ((int)*ip);
+				ip++;
+				narg--;
 			}
 		}
 		while (narg) {
-			if (decimal)
-				(void)printf("%c%ld", c, (long)*ip);
-			else
-				(void)printf("%c%#lx", c, (long)*ip);
-			c = ',';
-			ip++;
-			narg--;
+			print_number(ip,narg,c);
 		}
 		(void)putchar(')');
 	}
