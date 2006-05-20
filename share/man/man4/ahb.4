@@ -33,8 +33,20 @@
 .Nm ahb
 .Nd Adaptec EISA SCSI host adapter driver
 .Sh SYNOPSIS
-.Cd device ahb
-.Cd device scbus
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device ahb"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ahb_load="YES"
+.Ed
 .Sh DESCRIPTION
 This driver provides access to the
 .Tn SCSI
