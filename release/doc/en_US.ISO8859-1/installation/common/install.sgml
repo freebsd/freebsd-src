@@ -767,7 +767,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
         <screen>ftp://216.66.64.162/pub/FreeBSD/releases/&arch;/4.2-RELEASE</screen>
 
-        <para>There are three FTP installation modes you can use:
+        <para>There are three FTP installation modes you can use:</para>
 	  <itemizedlist>
 	    <listitem>
 	      <para>FTP:  This method uses the standard
@@ -804,7 +804,6 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
               is the port number of the proxy FTP server.</para>
 	    </listitem>
 	  </itemizedlist>
-	</para>
 
       </sect4>
     </sect3>
