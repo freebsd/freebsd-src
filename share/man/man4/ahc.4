@@ -33,22 +33,35 @@
 .Nm ahc
 .Nd Adaptec VL/EISA/PCI SCSI host adapter driver
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device ahc"
+.Pp
 For one or more VL/EISA cards:
-.Cd device eisa
-.Cd device ahc
+.Cd "device eisa"
 .Pp
 For one or more PCI cards:
-.Cd device pci
-.Cd device ahc
+.Cd "device pci"
 .Pp
 To allow PCI adapters to use memory mapped I/O if enabled:
 .Cd options AHC_ALLOW_MEMIO
 .Pp
 To configure one or more controllers to assume the target role:
 .Cd options AHC_TMODE_ENABLE <bitmask of units>
+.Ed
 .Pp
-For one or more SCSI busses:
-.Cd device scbus
+Alternatively, to load the driver as a
+module at boot time, place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ahc_load="YES"
+ahc_eisa_load="YES"
+ahc_isa_load="YES"
+ahc_pci_load="YES"
+.Ed
 .Sh DESCRIPTION
 This driver provides access to the
 .Tn SCSI

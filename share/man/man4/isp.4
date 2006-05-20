@@ -36,10 +36,20 @@
 .Nm isp
 .Nd Qlogic based SCSI and FibreChannel SCSI Host Adapters
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
 .Cd "device isp"
+.Ed
 .Pp
-For one or more SCSI busses:
-.Cd device scbus0
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+isp_load="YES"
+.Ed
 .Sh DESCRIPTION
 This driver provides access to
 .Tn SCSI
@@ -67,7 +77,7 @@ requires tagging).
 Fabric support is enabled by default (but may
 be contingent upon the correct firmware being loaded).
 .Sh FIRMWARE
-Firmware is now available if the
+Firmware is available if the
 .Xr ispfw 4
 module is loaded during bootstrap (q.v.).
 .Pp
