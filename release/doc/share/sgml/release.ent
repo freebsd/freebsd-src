@@ -25,7 +25,7 @@
 <!ENTITY release.branch "5.5-STABLE">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
-<!ENTITY release.url "http://www.FreeBSD.org/snapshots/">
+<!ENTITY release.url "ftp://ftp.FreeBSD.org/">
 
 <!-- The type of release (usually this will be either "snapshot"
      or "release" -->
