@@ -43,7 +43,7 @@
 .\" this program; if not, write to the Free Software Foundation, Inc., 59
 .\" Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 .\"
-.Dd October 3, 2005
+.Dd May 20, 2006
 .Dt LMC 4
 .Os
 .\"
@@ -476,46 +476,6 @@ and 1500 bytes for Cisco-HDLC.
 RAWIP sets the default MTU to 4032 bytes,
 but it can be changed to anything.
 .\"
-.Ss ALTQ - Alternate Output Queue Disciplines
-.\"
-This driver has hooks for
-.Xr altq 4 ,
-the Alternate Queueing package.
-To see ALTQ in action, use your favorite traffic generation
-program to generate three flows sending down one T3 circuit.
-Without ALTQ, the speeds of the three connections will vary chaotically.
-Turn on ALTQ and two of the connections will run at 21 Mb/s and
-the third will run at 1.5 Mb/s.
-.Pp
-To include ALTQ in your kernel,
-add the following line to
-.Pa conf/YOURKERNEL :
-.Pp
-.Dl "options ALTQ"
-.Pp
-The example below requires the Hierarchical
-Fair Service Curve (HSFC) queue discipline:
-.Pp
-.Dl "options ALTQ_HFSC"
-.Pp
-Enable
-.Xr altqd 8
-and create file
-.Pa /etc/altq.conf
-containing:
-.Bd -literal -offset indent
-interface lmc0 bandwidth 44M hfsc
-class hfsc lmc0 a root pshare 49
-filter lmc0 a 10.0.0.2 12345 10.0.0.1 0 6
-filter lmc0 a 10.0.0.1 0 10.0.0.2 12345 6
-class hfsc lmc0 b root pshare 49
-filter lmc0 b 10.0.0.2 12346 10.0.0.1 0 6
-filter lmc0 b 10.0.0.1 0 10.0.0.2 12346 6
-class hfsc lmc0 c root pshare 2 default
-filter lmc0 c 10.0.0.2 12347 10.0.0.1 0 6
-filter lmc0 c 10.0.0.1 0 10.0.0.2 12347 6
-.Ed
-.\"
 .Ss BPF - Berkeley Packet Filter
 .\"
 This driver has hooks for
@@ -751,14 +711,12 @@ Thus, cable length does not affect data/clock timing.
 .\"
 .Xr tcpdump 1 ,
 .Xr ioctl 2 ,
-.Xr altq 4 ,
 .Xr bpf 4 ,
 .Xr kld 4 ,
 .Xr netgraph 4 ,
 .Xr polling 4 ,
 .Xr sppp 4 ,
 .Xr loader.conf 5 ,
-.Xr altqd 8 ,
 .Xr ifconfig 8 ,
 .Xr lmcconfig 8 ,
 .Xr mpd 8 Pq Pa ports/net/mpd ,
