@@ -230,9 +230,10 @@ calls are pending,
 the call may be interrupted or restarted when the signal-catching routine
 returns,
 depending on the options in effect for the signal;
-see
-.Xr intro 2 ,
-System call restart.
+see discussion of
+.Dv SA_RESTART
+in
+.Xr sigaction 2 .
 .Pp
 The implementation queues one
 .Dv SIGCHLD
