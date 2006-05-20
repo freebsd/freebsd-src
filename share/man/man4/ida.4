@@ -9,8 +9,20 @@
 .Nm ida
 .Nd Compaq Intelligent Drive Array Controllers
 .Sh SYNOPSIS
-.Cd device scbus
-.Cd device ida
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device ida"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ida_load="YES"
+.Ed
 .Sh DESCRIPTION
 The Compaq Intelligent Drive Array (IDA) technology is used to
 distribute data across an array of hard drives.

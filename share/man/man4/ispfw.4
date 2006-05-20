@@ -29,7 +29,19 @@
 .Nm ispfw
 .Nd "Firmware Module for Qlogic based SCSI and FibreChannel SCSI Host Adapters"
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device ispfw"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ispfw_load="YES"
+.Ed
 .Sh DESCRIPTION
 This trivial driver provides access to firmware sets for the Qlogic
 based SCSI and FibreChannel SCSI Host Adapters.
