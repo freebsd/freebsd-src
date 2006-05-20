@@ -119,7 +119,7 @@ option of
 or in environment; see
 .Xr environ 7 .
 .Pp
-The value of variables are ignored regardless of their setting;
+The values of variables are ignored regardless of their setting;
 even if they would be set to
 .Dq Li FALSE
 or
