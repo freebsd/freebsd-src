@@ -48,9 +48,9 @@ file specifies how the
 .Pp
 The configuration file controls how a process looks up various databases
 containing information regarding hosts, users (passwords), groups, etc.
-Each database comes from a source (such as local files, DNS, and
-.Tn NIS ) ,
-and the order to look up the sources is specified in
+Each database comes from a source (such as local files, DNS,
+.Tn NIS ,
+and cache), and the order to look up the sources is specified in
 .Nm .
 .Pp
 Each entry in
@@ -93,6 +93,10 @@ and
 .Dq group
 databases.
 If this is present, it must be the only source for that entry.
+.It cache
+makes use of the
+.Xr cached 8
+daemon.
 .El
 .Ss Databases
 The following databases are used by the following C library functions:
@@ -110,6 +114,12 @@ The following databases are used by the following C library functions:
 .Xr getpwent 3
 .It shells
 .Xr getusershell 3
+.It services
+.Xr getservent 3
+.It rpc
+.Xr getrpcent 3
+.It proto
+.Xr getprotobyname 3
 .El
 .Ss Status codes
 The following status codes are available:
@@ -177,6 +187,25 @@ The default criteria is to return on
 .Dq success ,
 and continue on anything else (i.e,
 .Li "[success=return notfound=continue unavail=continue tryagain=continue]" ) .
+.Ss Cache
+You can enable caching for the particular database by specifying
+.Dq cache
+as the first source in the
+.Xr nsswitch.conf 5
+file.
+You should also enable caching for this database in
+.Xr cached.conf 5 .
+If for the particular query
+.Dq cache
+source returns success, no further sources are queried.
+On the other hand, if there are no previously cached data, the
+query result will be placed into the cache right after
+all other sources are processed.
+Note, that
+.Dq cache
+requires
+.Xr cached 8
+daemon to be running.
 .Ss Compat mode: +/- syntax
 In historical multi-source implementations, the
 .Sq +
@@ -231,7 +260,7 @@ will default to an entry of
 for the requested database.
 Exceptions are:
 .Pp
-.Bl -tag -width passwd_compat -compact
+.Bl -tag -width services_compat -compact
 .It Sy Database
 .Sy "Default source list"
 .It group
@@ -244,6 +273,10 @@ files dns
 compat
 .It passwd_compat
 nis
+.It services
+compat
+.It services_compat
+nis
 .El
 .Sh FILES
 .Bl -tag -width /etc/nsswitch.conf -compact
@@ -254,7 +287,7 @@ resides in
 .Pa /etc .
 .El
 .Sh EXAMPLES
-To lookup hosts in
+To lookup hosts in cache, then in
 .Pa /etc/hosts
 and then from the DNS, and lookup user information from
 .Tn NIS
@@ -262,7 +295,7 @@ then files, use:
 .Pp
 .Bl -tag -width passwd: -compact
 .It hosts:
-files dns
+cache files dns
 .It passwd:
 nis [notfound=return] files
 .It group:
@@ -284,7 +317,9 @@ entries.
 .Xr nsdispatch 3 ,
 .Xr resolv.conf 5 ,
 .Xr named 8 ,
-.Xr ypbind 8
+.Xr ypbind 8 ,
+.Xr cached 8 ,
+.Xr cached.conf 5
 .Sh HISTORY
 The
 .Nm
