@@ -584,8 +584,10 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		if (IN6_IS_ADDR_V4MAPPED(&sin6_p->sin6_addr)) {
 			struct sockaddr_in sin;
 
-			if (inp->inp_faddr.s_addr != INADDR_ANY)
-				return EISCONN;
+			if (inp->inp_faddr.s_addr != INADDR_ANY) {
+				error = EISCONN;
+				goto out;
+			}
 			in6_sin6_2_sin(&sin, sin6_p);
 			error = in_pcbconnect(inp, (struct sockaddr *)&sin,
 			    td->td_ucred);
