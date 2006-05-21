@@ -101,12 +101,4 @@
 #define	RAM_SIZE	(RAM_END - RAM_BEGIN)
 #endif /* !RAM_BEGIN */
 
-#define	M_NEC_PC98	0x0001
-#define	M_EPSON_PC98	0x0002
-#define	M_NOT_H98	0x0010
-#define	M_H98		0x0020
-#define	M_NOTE		0x0040
-#define	M_NORMAL	0x1000
-#define	M_8M		0x8000
-
 #endif /* !_PC98_PC98_PC98_H_ */
