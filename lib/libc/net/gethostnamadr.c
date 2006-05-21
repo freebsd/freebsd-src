@@ -169,7 +169,9 @@ host_id_func(char *buffer, size_t *buffer_size, va_list ap, void *cache_mdata)
 
 	const int op_id = 1;
 	char *str;
-	int len, type;
+	void *addr;
+	socklen_t len;
+	int type;
 
 	size_t desired_size, size;
 	enum nss_lookup_type lookup_type;
@@ -214,12 +216,13 @@ host_id_func(char *buffer, size_t *buffer_size, va_list ap, void *cache_mdata)
 		res = NS_SUCCESS;
 		break;
 	case nss_lt_id:
-		str = va_arg(ap, char *);
-		len = va_arg(ap, int);
+		addr = va_arg(ap, void *);
+		len = va_arg(ap, socklen_t);
 		type = va_arg(ap, int);
 
 		desired_size = sizeof(res_options) + sizeof(int) +
-		    sizeof(enum nss_lookup_type) + sizeof(int) * 2 + len;
+		    sizeof(enum nss_lookup_type) + sizeof(int) +
+		    sizeof(socklen_t) + len;
 
 		if (desired_size > *buffer_size) {
 			res = NS_RETURN;
@@ -239,10 +242,10 @@ host_id_func(char *buffer, size_t *buffer_size, va_list ap, void *cache_mdata)
 		memcpy(p, &type, sizeof(int));
 		p += sizeof(int);
 
-		memcpy(p, &len, sizeof(int));
-		p += sizeof(int);
+		memcpy(p, &len, sizeof(socklen_t));
+		p += sizeof(socklen_t);
 
-		memcpy(p, str, len);
+		memcpy(p, addr, len);
 
 		res = NS_SUCCESS;
 		break;
@@ -261,7 +264,9 @@ host_marshal_func(char *buffer, size_t *buffer_size, void *retval, va_list ap,
     void *cache_mdata)
 {
 	char *str;
-	int len, type;
+	void *addr;
+	socklen_t len;
+	int type;
 	struct hostent *ht;
 
 	struct hostent new_ht;
@@ -274,8 +279,8 @@ host_marshal_func(char *buffer, size_t *buffer_size, void *retval, va_list ap,
 		type = va_arg(ap, int);
 		break;
 	case nss_lt_id:
-		str = va_arg(ap, char *);
-		len = va_arg(ap, int);
+		addr = va_arg(ap, void *);
+		len = va_arg(ap, socklen_t);
 		type = va_arg(ap, int);
 		break;
 	default:
@@ -365,7 +370,9 @@ host_unmarshal_func(char *buffer, size_t buffer_size, void *retval, va_list ap,
     void *cache_mdata)
 {
 	char *str;
-	int len, type;
+	void *addr;
+	socklen_t len;
+	int type;
 	struct hostent *ht;
 
 	char *p;
@@ -379,8 +386,8 @@ host_unmarshal_func(char *buffer, size_t buffer_size, void *retval, va_list ap,
 		type = va_arg(ap, int);
 		break;
 	case nss_lt_id:
-		str = va_arg(ap, char *);
-		len = va_arg(ap, int);
+		addr = va_arg(ap, void *);
+		len = va_arg(ap, socklen_t);
 		type = va_arg(ap, int);
 		break;
 	default:
@@ -573,14 +580,8 @@ gethostbyname_internal(const char *name, int af, struct hostent *hp, char *buf,
 }
 
 int
-gethostbyaddr_r(const void *addr,
-#if __LONG_BIT == 64
-    int len,
-#else
-    socklen_t len,
-#endif
-    int af, struct hostent *hp, char *buf, size_t buflen,
-    struct hostent **result, int *h_errnop)
+gethostbyaddr_r(const void *addr, socklen_t len, int af, struct hostent *hp,
+    char *buf, size_t buflen, struct hostent **result, int *h_errnop)
 {
 	const u_char *uaddr = (const u_char *)addr;
 	const struct in6_addr *addr6;
@@ -684,11 +685,7 @@ gethostbyname2(const char *name, int af)
 }
 
 struct hostent *
-#if __LONG_BIT == 64
-gethostbyaddr(const void *addr, int len, int af)
-#else
 gethostbyaddr(const void *addr, socklen_t len, int af)
-#endif
 {
 	struct hostdata *hd;
 	struct hostent *rval;
