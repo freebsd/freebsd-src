@@ -19,9 +19,6 @@ SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c eui64.c \
 SRCS+=	nscache.c nscachedcli.c
 .endif
 
-# for binary backward compatibility against FreeBSD 6.X and earlier
-SRCS+=	res_mkupdate.c res_update.c
-
 SYM_MAPS+=${.CURDIR}/net/Symbol.map
 
 CFLAGS+=-DINET6 -I${.OBJDIR}
