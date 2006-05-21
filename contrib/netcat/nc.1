@@ -1,4 +1,4 @@
-.\"     $OpenBSD: nc.1,v 1.36 2005/01/07 10:11:31 jmc Exp $
+.\"     $OpenBSD: nc.1,v 1.43 2006/01/31 09:34:12 jmc Exp $
 .\"
 .\" Copyright (c) 1996 David Sacerdote
 .\" All rights reserved.
@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 30, 2005
+.Dd May 21, 2006
 .Dt NC 1
 .Os
 .Sh NAME
@@ -39,8 +39,10 @@
 .Op Fl 46DEdhklnorStUuvz
 .Op Fl e Ar IPsec_policy
 .Op Fl i Ar interval
+.Op Fl P Ar proxy_username
 .Op Fl p Ar source_port
 .Op Fl s Ar source_ip_address
+.Op Fl T Ar ToS
 .Op Fl w Ar timeout
 .Op Fl X Ar proxy_protocol
 .Oo Xo
@@ -153,6 +155,10 @@ but continues until the network side has been closed down.
 Specifying
 .Fl o
 will make it terminate on EOF as well.
+.It Fl P Ar proxy_username
+Specifies a username to present to a proxy server that requires authentication.
+If no username is specified then authentication will not be attempted.
+Proxy authentication is only supported for HTTP CONNECT proxies at present.
 .It Fl p Ar source_port
 Specifies the source port
 .Nm
@@ -171,6 +177,14 @@ Specifies the IP of the interface which is used to send the packets.
 It is an error to use this option in conjunction with the
 .Fl l
 option.
+.It Fl T Ar ToS
+Specifies IP Type of Service (ToS) for the connection.
+Valid values are the tokens
+.Dq lowdelay ,
+.Dq throughput ,
+.Dq reliability ,
+or an 8-bit hexadecimal value preceded by
+.Dq 0x .
 .It Fl t
 Causes
 .Nm
@@ -200,7 +214,7 @@ will listen forever for a connection, with or without the
 .Fl w
 flag.
 The default is no timeout.
-.It Fl X Ar proxy_version
+.It Fl X Ar proxy_protocol
 Requests that
 .Nm
 should use the specified protocol when talking to the proxy server.
@@ -316,8 +330,9 @@ It can aid in troubleshooting,
 when it might be necessary to verify what data a server is sending
 in response to commands issued by the client.
 For example, to retrieve the home page of a web site:
-.Pp
-.Dl $ echo \&"GET\&" | nc host.example.com 80
+.Bd -literal -offset indent
+$ echo -n "GET / HTTP/1.0\er\en\er\en" | nc host.example.com 80
+.Ed
 .Pp
 Note that this also displays the headers sent by the web server.
 They can be filtered, using a tool such as
@@ -345,15 +360,11 @@ The
 .Fl z
 flag can be used to tell
 .Nm
-not to initiate a connection,
-together with the
-.Fl v
-.Pq verbose
-flag,
-to report open ports.
+to report open ports,
+rather than initiate a connection.
 For example:
 .Bd -literal -offset indent
-$ nc -vz host.example.com 20-30
+$ nc -z host.example.com 20-30
 Connection to host.example.com 22 port [tcp/ssh] succeeded!
 Connection to host.example.com 25 port [tcp/smtp] succeeded!
 .Ed
@@ -377,47 +388,63 @@ Protocol mismatch.
 220 host.example.com IMS SMTP Receiver Version 0.84 Ready
 .Ed
 .Sh EXAMPLES
-Open a TCP connection to port 42 of hostname, using port 31337 as
+Open a TCP connection to port 42 of host.example.com, using port 31337 as
 the source port, with a timeout of 5 seconds:
 .Pp
-.Dl $ nc -p 31337 -w 5 hostname 42
+.Dl $ nc -p 31337 -w 5 host.example.com 42
 .Pp
-Open a UDP connection to port 53 of hostname:
+Open a UDP connection to port 53 of host.example.com:
 .Pp
-.Dl $ nc -u hostname 53
+.Dl $ nc -u host.example.com 53
 .Pp
-Open a TCP connection to port 42 of example.host using 10.1.2.3 as the
+Open a TCP connection to port 42 of host.example.com using 10.1.2.3 as the
 IP for the local end of the connection:
 .Pp
-.Dl $ nc -s 10.1.2.3 example.host 42
+.Dl $ nc -s 10.1.2.3 host.example.com 42
 .Pp
-Open a TCP connection to port 42 of example.host using IPsec ESP for
+Open a TCP connection to port 42 of host.example.com using IPsec ESP for
 incoming and outgoing traffic.
 .Pp
-.Dl $ nc -E example.host 42
+.Dl $ nc -E host.example.com 42
 .Pp
-Open a TCP connection to port 42 of example.host using IPsec ESP for
+Open a TCP connection to port 42 of host.example.com using IPsec ESP for
 outgoing traffic only.
 .Pp
-.Dl $ nc -e 'out ipsec esp/transport//require' example.host 42
-.Pp
-Send UDP packets to ports 20-30 of example.host, and report which ones
-responded with an ICMP packet after three seconds:
-.Pp
-.Dl $ nc -uvz -w 3 hostname 20-30
+.Dl $ nc -e 'out ipsec esp/transport//require' host.example.com 42
 .Pp
 Create and listen on a Unix Domain Socket:
 .Pp
 .Dl $ nc -lU /var/tmp/dsocket
 .Pp
-Connect to port 42 of hostname via an HTTP proxy at 10.2.3.4, port 8080:
+Connect to port 42 of host.example.com via an HTTP proxy at 10.2.3.4,
+port 8080.
+This example could also be used by
+.Xr ssh 1 ;
+see the
+.Cm ProxyCommand
+directive in
+.Xr ssh_config 5
+for more information.
 .Pp
-.Dl $ nc -x10.2.3.4:8080 -Xconnect hostname 42
+.Dl $ nc -x10.2.3.4:8080 -Xconnect host.example.com 42
+.Pp
+The same example again, this time enabling proxy authentication with username
+.Dq ruser
+if the proxy requires it:
+.Pp
+.Dl $ nc -x10.2.3.4:8080 -Xconnect -Pruser host.example.com 42
 .Sh SEE ALSO
-.Xr cat 1
+.Xr cat 1 ,
+.Xr ssh 1
 .Sh AUTHORS
 Original implementation by *Hobbit*
 .Aq hobbit@avian.org .
 .br
 Rewritten with IPv6 support by
 .An Eric Jackson Aq ericj@monkey.org .
+.Sh CAVEATS
+UDP port scans will always succeed
+(i.e. report the port as open),
+rendering the
+.Fl uz
+combination of flags relatively useless.
