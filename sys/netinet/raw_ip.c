@@ -671,9 +671,11 @@ rip_disconnect(struct socket *so)
 	INP_INFO_WLOCK(&ripcbinfo);
 	INP_LOCK(inp);
 	inp->inp_faddr.s_addr = INADDR_ANY;
+	SOCK_LOCK(so);
+	so->so_state &= ~SS_ISCONNECTED;
+	SOCK_UNLOCK(so);
 	INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
-	so->so_state &= ~SS_ISCONNECTED;
 	return (0);
 }
 
