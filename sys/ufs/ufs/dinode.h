@@ -79,7 +79,7 @@
 /*
  * The Whiteout inode# is a dummy non-zero inode number which will
  * never be allocated to a real file.  It is used as a place holder
- * in the directory entry which has been tagged as a DT_W entry.
+ * in the directory entry which has been tagged as a DT_WHT entry.
  * See the comments about ROOTINO above.
  */
 #define	WINO	((ino_t)1)
