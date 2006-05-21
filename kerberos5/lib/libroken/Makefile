@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 LIB=	roken
+SHLIB_MAJOR=	9
 INCS=	roken.h roken-common.h
 
 SRCS=	base64.c \
