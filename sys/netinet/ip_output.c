@@ -824,6 +824,10 @@ ip_ctloutput(so, sopt)
 			m->m_len = sopt->sopt_valsize;
 			error = sooptcopyin(sopt, mtod(m, char *), m->m_len,
 					    m->m_len);
+			if (error) {
+				m_free(m);
+				break;
+			}
 			INP_LOCK(inp);
 			error = ip_pcbopts(inp, sopt->sopt_name, m);
 			INP_UNLOCK(inp);
