@@ -507,7 +507,9 @@ typedef enum __ns_cert_types {
 #define	ns_verify		__ns_verify
 #define	ns_verify_tcp		__ns_verify_tcp
 #define	ns_verify_tcp_init	__ns_verify_tcp_init
+#endif
 #define	ns_samedomain		__ns_samedomain
+#if 0
 #define	ns_subdomain		__ns_subdomain
 #endif
 #define	ns_makecanon		__ns_makecanon
@@ -567,7 +569,9 @@ int		ns_verify(u_char *, int *, void *,
 int		ns_verify_tcp(u_char *, int *, ns_tcp_tsig_state *, int);
 int		ns_verify_tcp_init(void *, const u_char *, int,
 				   ns_tcp_tsig_state *);
+#endif
 int		ns_samedomain(const char *, const char *);
+#if 0
 int		ns_subdomain(const char *, const char *);
 #endif
 int		ns_makecanon(const char *, char *, size_t);

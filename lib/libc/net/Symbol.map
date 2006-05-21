@@ -103,10 +103,6 @@ FBSD_1.0 {
 	iruserok_sa;
 	rcmdsh;
 	recv;
-	__res_freeupdrec;
-	__res_mkupdrec;
-	__res_nmkupdate;
-	__res_nupdate;
 	inet6_rthdr_space;
 	inet6_rthdr_init;
 	inet6_rthdr_add;
