@@ -54,11 +54,8 @@ FBSD_1.0 {
 	p_secstodate;
 	__res_init;
 	__res_randomid;
-	___res;
-	___res_ext;
 	__h_errno;
 	__h_errno_set;
-	__h_error;
 	h_errno;
 	res_init;
 	__res_findzonecut2;
