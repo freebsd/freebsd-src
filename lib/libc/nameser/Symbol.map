@@ -19,6 +19,7 @@ FBSD_1.0 {
 	__ns_initparse;
 	__ns_parserr;
 	_ns_flagdata;
+	__ns_samedomain;
 	__ns_samename;
 	__ns_skiprr;
 	__ns_sprintrr;
