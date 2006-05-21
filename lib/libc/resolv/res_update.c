@@ -24,6 +24,9 @@ static const char rcsid[] = "$Id: res_update.c,v 1.6.2.4.4.2 2004/03/16 12:34:20
  * <viraj_bais@ccm.fm.intel.com>
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "port_before.h"
 
 #include <sys/param.h>
@@ -166,10 +169,16 @@ res_nupdate(res_state statp, ns_updrec *rrecp_in, ns_tsig_key *key) {
 		res_setservers(statp, zptr->z_nsaddrs, zptr->z_nscount);
 
 		/* Send the update and remember the result. */
-		if (key != NULL)
+		if (key != NULL) {
+#ifdef _LIBC
+			DPRINTF(("TSIG is not supported\n"));
+			RES_SET_H_ERRNO(statp, NO_RECOVERY);
+			goto done;
+#else
 			n = res_nsendsigned(statp, packet, n, key,
 					    answer, sizeof answer);
-		else
+#endif
+		} else
 			n = res_nsend(statp, packet, n, answer, sizeof answer);
 		if (n < 0) {
 			DPRINTF(("res_nsend: send error, n=%d (%s)\n",

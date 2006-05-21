@@ -363,8 +363,8 @@ extern const struct res_sym __p_rcode_syms[];
 #define res_dnok		__res_dnok
 #if 0
 #define res_findzonecut		__res_findzonecut
-#define res_findzonecut2	__res_findzonecut2
 #endif
+#define res_findzonecut2	__res_findzonecut2
 #define res_hnok		__res_hnok
 #define res_hostalias		__res_hostalias
 #define res_mailok		__res_mailok
@@ -470,10 +470,10 @@ int		res_nsendsigned(res_state, const u_char *, int,
 				ns_tsig_key *, u_char *, int);
 int		res_findzonecut(res_state, const char *, ns_class, int,
 				char *, size_t, struct in_addr *, int);
+#endif
 int		res_findzonecut2(res_state, const char *, ns_class, int,
 				 char *, size_t,
 				 union res_sockaddr_union *, int);
-#endif
 void		res_nclose(res_state);
 int		res_nopt(res_state, int, u_char *, int, int);
 void		res_send_setqhook(res_send_qhook);
