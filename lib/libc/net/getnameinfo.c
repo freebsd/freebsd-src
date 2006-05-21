@@ -280,7 +280,7 @@ ip6_parsenumeric(const struct sockaddr *sa, const char *addr,
 
 	numaddrlen = strlen(numaddr);
 	if (numaddrlen + 1 > hostlen) /* don't forget terminator */
-		return EAI_MEMORY;
+		return EAI_OVERFLOW;
 	strlcpy(host, numaddr, hostlen);
 
 	if (((const struct sockaddr_in6 *)sa)->sin6_scope_id) {
@@ -291,9 +291,9 @@ ip6_parsenumeric(const struct sockaddr *sa, const char *addr,
 		    (const struct sockaddr_in6 *)(const void *)sa,
 		    zonebuf, sizeof(zonebuf), flags);
 		if (zonelen < 0)
-			return EAI_MEMORY;
+			return EAI_OVERFLOW;
 		if (zonelen + 1 + numaddrlen + 1 > hostlen)
-			return EAI_MEMORY;
+			return EAI_OVERFLOW;
 
 		/* construct <numeric-addr><delim><zoneid> */
 		memcpy(host + numaddrlen + 1, zonebuf,
