@@ -129,7 +129,7 @@ struct ufs2_dinode {
 	u_int32_t	di_gid;		/*   8: File group. */
 	u_int32_t	di_blksize;	/*  12: Inode blocksize. */
 	u_int64_t	di_size;	/*  16: File byte count. */
-	u_int64_t	di_blocks;	/*  24: Bytes actually held. */
+	u_int64_t	di_blocks;	/*  24: Blocks actually held. */
 	ufs_time_t	di_atime;	/*  32: Last access time. */
 	ufs_time_t	di_mtime;	/*  40: Last modified time. */
 	ufs_time_t	di_ctime;	/*  48: Last inode change time. */
