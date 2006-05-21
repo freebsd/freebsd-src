@@ -48,7 +48,8 @@ static const char *ai_errlist[] = {
 	"ai_socktype not supported", 			/* EAI_SOCKTYPE */
 	"System error returned in errno", 		/* EAI_SYSTEM */
 	"Invalid value for hints",			/* EAI_BADHINTS */
-	"Resolved protocol is unknown"			/* EAI_PROTOCOL */
+	"Resolved protocol is unknown",			/* EAI_PROTOCOL */
+	"Argument buffer overflow"			/* EAI_OVERFLOW */
 };
 
 const char *
