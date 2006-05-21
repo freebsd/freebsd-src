@@ -1057,9 +1057,11 @@ udp_disconnect(struct socket *so)
 
 	in_pcbdisconnect(inp);
 	inp->inp_laddr.s_addr = INADDR_ANY;
+	SOCK_LOCK(so);
+	so->so_state &= ~SS_ISCONNECTED;		/* XXX */
+	SOCK_UNLOCK(so);
 	INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
-	so->so_state &= ~SS_ISCONNECTED;		/* XXX */
 	return 0;
 }
 
