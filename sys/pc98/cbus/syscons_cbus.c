@@ -41,7 +41,6 @@
 #include <machine/ppireg.h>
 #include <machine/timerreg.h>
 
-#include <pc98/cbus/cbus.h>
 #include <pc98/pc98/pc98_machdep.h>
 
 #include <dev/syscons/syscons.h>
