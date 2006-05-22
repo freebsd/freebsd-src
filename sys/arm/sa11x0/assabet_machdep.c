@@ -93,6 +93,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/reboot.h>
 
+#include <arm/sa11x0/sa11x0_reg.h>
+
 #define MDROOT_ADDR 0xd0400000
 
 #define KERNEL_PT_VMEM		0	/* Page table for mapping video memory */
@@ -334,8 +336,8 @@ initarm(void *arg, void *arg2)
 	/* Map the vector page. */
 	pmap_map_entry(l1pagetable, vector_page, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	/* Map SACOM3. */
-	pmap_map_entry(l1pagetable, 0xd000d000, 0x80010000, 
+	/* Map SACOM1. */
+	pmap_map_entry(l1pagetable, SACOM1_VBASE, SACOM1_BASE, 
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE);
 	pmap_map_entry(l1pagetable, 0x90050000, 0x90050000,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE);

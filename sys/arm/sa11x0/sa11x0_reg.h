@@ -59,7 +59,7 @@
 #define SALCD_BASE		0xB0100000	/* LCD */
 
 /* Register base virtual addresses mapped by initarm() */
-#define SACOM3_BASE             0xd000d000
+#define SACOM1_VBASE		0xd000d000
 
 /* Interrupt controller registers */
 #define SAIPIC_NPORTS		9
