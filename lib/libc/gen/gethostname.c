@@ -50,9 +50,6 @@ gethostname(name, namelen)
 {
 	int mib[2];
 
-	/* Kluge to avoid ABI breakage. */
-	namelen = (int)namelen;
-
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_HOSTNAME;
 	if (sysctl(mib, 2, name, &namelen, NULL, 0) == -1) {
