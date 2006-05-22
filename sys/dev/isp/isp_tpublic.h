@@ -111,6 +111,7 @@ typedef struct tmd_notify {
     void *      nt_hreserved;
 } tmd_notify_t;
 #define LUN_ANY     0xffff
+#define TGT_ANY     ((uint64_t) -1)
 #define INI_ANY     ((uint64_t) -1)
 #define TAG_ANY     0
 #define MATCH_TMD(tmd, iid, lun, tag)                   \
