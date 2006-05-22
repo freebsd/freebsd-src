@@ -77,6 +77,18 @@
     documentation.  An up-to-date copy of the errata for &os;
     &release.current; can be found on the &os; Web site.</para>
 
+  <para>&os; &release.current; is the last planned release on the
+    &release.branch; branch.  The &os; development community is
+    currently focusing its efforts on the 6-STABLE and CURRENT
+    codelines.  No new major features are planned for the
+    &release.branch; branch, although minor updates and bugfixes may
+    be merged at the discretion of individual developers.  The &os;
+    security team will support the &release.current;-based security
+    branch with advisories and security patches until the end-of-life
+    date documented at
+    <ulink url="http://security.freebsd.org/"></ulink> (as of this
+    writing, 31 May 2008).</para>
+
 </sect1>
 
 <sect1 id="new">
