@@ -277,7 +277,6 @@ struct cryptop {
 
 	int (*crp_callback)(struct cryptop *); /* Callback function */
 
-	caddr_t		crp_mac;
 	struct bintime	crp_tstamp;	/* performance time stamp */
 };
 
