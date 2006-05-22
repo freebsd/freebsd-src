@@ -352,6 +352,10 @@
     <sect3 id="proc">
       <title>Hardware Support</title>
 
+      <para>A &man.acpi.dock.4; driver has been added to provide
+        support for controlling laptop docking station functions via
+        ACPI.</para>
+
       <para>The &man.acpi.thermal.4; driver now supports
 	passive cooling. &merged;</para>
 
@@ -547,7 +551,7 @@
 	  &man.myri10ge.4;.</para>
 
 	<para>The &man.nve.4; driver has been updated to version 1.0-0310
-	  (23-Nov-2005).</para>
+	  (23-Nov-2005).  It also now has &man.altq.4; support.</para>
 
 	<para>The &man.pcn.4; driver is now MPSAFE. &merged;</para>
 
@@ -1332,6 +1336,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para><application>BSNMPD</application> has been updated from
       1.11 to 1.12.</para>
+
+    <para><application>netcat</application> has been updated from the
+      version in a 4 February 2005 OpenBSD snapshot to the version
+      included in OpenBSD 3.9.</para>
 
     <para><application>GNU Readline library</application>
       has been updated from 5.0 to 5.1.</para>
