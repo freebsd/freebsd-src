@@ -104,7 +104,7 @@ static device_method_t le_cbus_methods[] = {
 };
 
 DEFINE_CLASS_0(le, le_cbus_driver, le_cbus_methods, sizeof(struct le_cbus_softc));
-DRIVER_MODULE(le, cbus, le_cbus_driver, le_devclass, 0, 0);
+DRIVER_MODULE(le, isa, le_cbus_driver, le_devclass, 0, 0);
 MODULE_DEPEND(le, ether, 1, 1, 1);
 
 static bus_addr_t le_ioaddr_cnet98s[CNET98S_IOSIZE] = {
@@ -216,6 +216,13 @@ le_cbus_probe(device_t dev)
 	struct le_cbus_softc *lesc;
 	struct lance_softc *sc;
 	int error;
+
+	/*
+	 * Skip PnP devices as some wedge when trying to probe them as
+	 * C-NET(98)S.
+	 */
+	if (isa_get_vendorid(dev))
+		return (ENXIO);
 
 	lesc = device_get_softc(dev);
 	sc = &lesc->sc_am7990.lsc;
