@@ -773,9 +773,7 @@ crypto_kinvoke(struct cryptkop *krp)
 		CRYPTO_DRIVER_LOCK();
 		if (error == ERESTART) {
 			cap->cc_koperations--;
-			cap->cc_kqblocked = 1;
 			CRYPTO_DRIVER_UNLOCK();
-			cryptostats.cs_kblocks++;
 			return (error);
 		}
 	} else {
