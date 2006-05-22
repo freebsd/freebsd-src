@@ -46,18 +46,18 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/isp/isp_freebsd.h>
 
-static u_int16_t isp_sbus_rd_reg(struct ispsoftc *, int);
-static void isp_sbus_wr_reg(struct ispsoftc *, int, u_int16_t);
+static uint16_t isp_sbus_rd_reg(ispsoftc_t *, int);
+static void isp_sbus_wr_reg(ispsoftc_t *, int, uint16_t);
 static int
-isp_sbus_rd_isr(struct ispsoftc *, u_int16_t *, u_int16_t *, u_int16_t *);
-static int isp_sbus_mbxdma(struct ispsoftc *);
+isp_sbus_rd_isr(ispsoftc_t *, uint16_t *, uint16_t *, uint16_t *);
+static int isp_sbus_mbxdma(ispsoftc_t *);
 static int
-isp_sbus_dmasetup(struct ispsoftc *, XS_T *, ispreq_t *, u_int16_t *, u_int16_t);
+isp_sbus_dmasetup(ispsoftc_t *, XS_T *, ispreq_t *, uint16_t *, uint16_t);
 static void
-isp_sbus_dmateardown(struct ispsoftc *, XS_T *, u_int16_t);
+isp_sbus_dmateardown(ispsoftc_t *, XS_T *, uint16_t);
 
-static void isp_sbus_reset1(struct ispsoftc *);
-static void isp_sbus_dumpregs(struct ispsoftc *, const char *);
+static void isp_sbus_reset1(ispsoftc_t *);
+static void isp_sbus_dumpregs(ispsoftc_t *, const char *);
 
 static struct ispmdvec mdvec = {
 	isp_sbus_rd_isr,
@@ -78,7 +78,7 @@ static int isp_sbus_attach (device_t);
 
 
 struct isp_sbussoftc {
-	struct ispsoftc			sbus_isp;
+	ispsoftc_t			sbus_isp;
 	device_t			sbus_dev;
 	struct resource *		sbus_reg;
 	bus_space_tag_t			sbus_st;
@@ -138,7 +138,7 @@ isp_sbus_attach(device_t dev)
 	struct resource *regs;
 	int tval, iqd, isp_debug, role, rid, ispburst;
 	struct isp_sbussoftc *sbs;
-	struct ispsoftc *isp = NULL;
+	ispsoftc_t *isp = NULL;
 	int locksetup = 0;
 
 	/*
@@ -373,8 +373,8 @@ bad:
 static void
 isp_sbus_intr(void *arg)
 {
-	struct ispsoftc *isp = arg;
-	u_int16_t isr, sema, mbox;
+	ispsoftc_t *isp = arg;
+	uint16_t isr, sema, mbox;
 
 	ISP_LOCK(isp);
 	isp->isp_intcnt++;
@@ -397,11 +397,11 @@ isp_sbus_intr(void *arg)
 	bus_space_read_2(sbc->sbus_st, sbc->sbus_sh, off)
 
 static int
-isp_sbus_rd_isr(struct ispsoftc *isp, u_int16_t *isrp,
-    u_int16_t *semap, u_int16_t *mbp)
+isp_sbus_rd_isr(ispsoftc_t *isp, uint16_t *isrp,
+    uint16_t *semap, uint16_t *mbp)
 {
 	struct isp_sbussoftc *sbc = (struct isp_sbussoftc *) isp;
-	u_int16_t isr, sema;
+	uint16_t isr, sema;
 
 	isr = BXR2(sbc, IspVirt2Off(isp, BIU_ISR));
 	sema = BXR2(sbc, IspVirt2Off(isp, BIU_SEMA));
@@ -418,10 +418,10 @@ isp_sbus_rd_isr(struct ispsoftc *isp, u_int16_t *isrp,
 	return (1);
 }
 
-static u_int16_t
-isp_sbus_rd_reg(struct ispsoftc *isp, int regoff)
+static uint16_t
+isp_sbus_rd_reg(ispsoftc_t *isp, int regoff)
 {
-	u_int16_t rval;
+	uint16_t rval;
 	struct isp_sbussoftc *sbs = (struct isp_sbussoftc *) isp;
 	int offset = sbs->sbus_poff[(regoff & _BLK_REG_MASK) >> _BLK_REG_SHFT];
 	offset += (regoff & 0xff);
@@ -432,7 +432,7 @@ isp_sbus_rd_reg(struct ispsoftc *isp, int regoff)
 }
 
 static void
-isp_sbus_wr_reg(struct ispsoftc *isp, int regoff, u_int16_t val)
+isp_sbus_wr_reg(ispsoftc_t *isp, int regoff, uint16_t val)
 {
 	struct isp_sbussoftc *sbs = (struct isp_sbussoftc *) isp;
 	int offset = sbs->sbus_poff[(regoff & _BLK_REG_MASK) >> _BLK_REG_SHFT];
@@ -443,7 +443,7 @@ isp_sbus_wr_reg(struct ispsoftc *isp, int regoff, u_int16_t val)
 }
 
 struct imush {
-	struct ispsoftc *isp;
+	ispsoftc_t *isp;
 	int error;
 };
 
@@ -456,7 +456,7 @@ imc(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	if (error) {
 		imushp->error = error;
 	} else {
-		struct ispsoftc *isp =imushp->isp;
+		ispsoftc_t *isp =imushp->isp;
 		bus_addr_t addr = segs->ds_addr;
 
 		isp->isp_rquest_dma = addr;
@@ -471,11 +471,11 @@ imc(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 #define ISP_NSEGS ((MAXPHYS / PAGE_SIZE) + 1)  
 
 static int
-isp_sbus_mbxdma(struct ispsoftc *isp)
+isp_sbus_mbxdma(ispsoftc_t *isp)
 {
 	struct isp_sbussoftc *sbs = (struct isp_sbussoftc *)isp;
 	caddr_t base;
-	u_int32_t len;
+	uint32_t len;
 	int i, error, ns;
 	struct imush im;
 
@@ -582,12 +582,12 @@ bad:
 }
 
 typedef struct {
-	struct ispsoftc *isp;
+	ispsoftc_t *isp;
 	void *cmd_token;
 	void *rq;
-	u_int16_t *nxtip;
-	u_int16_t optr;
-	u_int error;
+	uint16_t *nxtip;
+	uint16_t optr;
+	int error;
 } mush_t;
 
 #define	MUSHERR_NOQENTRIES	-2
@@ -599,14 +599,14 @@ static void
 dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 {
 	mush_t *mp;
-	struct ispsoftc *isp;
+	ispsoftc_t *isp;
 	struct ccb_scsiio *csio;
 	struct isp_sbussoftc *sbs;
 	bus_dmamap_t *dp;
 	bus_dma_segment_t *eseg;
 	ispreq_t *rq;
 	int seglim, datalen;
-	u_int16_t nxti;
+	uint16_t nxti;
 
 	mp = (mush_t *) arg;
 	if (error) {
@@ -666,7 +666,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	}
 
 	while (datalen > 0 && dm_segs != eseg) {
-		u_int16_t onxti;
+		uint16_t onxti;
 		ispcontreq_t local, *crq = &local, *cqe;
 
 		cqe = (ispcontreq_t *) ISP_QUEUE_ENTRY(isp->isp_rquest, nxti);
@@ -700,8 +700,8 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 }
 
 static int
-isp_sbus_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
-	u_int16_t *nxtip, u_int16_t optr)
+isp_sbus_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, ispreq_t *rq,
+	uint16_t *nxtip, uint16_t optr)
 {
 	struct isp_sbussoftc *sbs = (struct isp_sbussoftc *)isp;
 	ispreq_t *qep;
@@ -802,7 +802,7 @@ mbxsync:
 }
 
 static void
-isp_sbus_dmateardown(struct ispsoftc *isp, XS_T *xs, u_int16_t handle)
+isp_sbus_dmateardown(ispsoftc_t *isp, XS_T *xs, uint16_t handle)
 {
 	struct isp_sbussoftc *sbs = (struct isp_sbussoftc *)isp;
 	bus_dmamap_t *dp = &sbs->dmaps[isp_handle_index(handle)];
@@ -816,14 +816,14 @@ isp_sbus_dmateardown(struct ispsoftc *isp, XS_T *xs, u_int16_t handle)
 
 
 static void
-isp_sbus_reset1(struct ispsoftc *isp)
+isp_sbus_reset1(ispsoftc_t *isp)
 {
 	/* enable interrupts */
 	ENABLE_INTS(isp);
 }
 
 static void
-isp_sbus_dumpregs(struct ispsoftc *isp, const char *msg)
+isp_sbus_dumpregs(ispsoftc_t *isp, const char *msg)
 {
 	if (msg)
 		printf("%s: %s\n", device_get_nameunit(isp->isp_dev), msg);

@@ -32,17 +32,18 @@
  * (qlogicisp.c) and Dave Miller's SBus version of same (qlogicisp.c). Some
  * ideas dredged from the Solaris driver.
  */
+#ifdef	__FreeBSD__
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+#endif
 
 /*
  * Include header file appropriate for platform we're building on.
  */
-
 #ifdef	__NetBSD__
 #include <dev/ic/isp_netbsd.h>
 #endif
 #ifdef	__FreeBSD__
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 #include <dev/isp/isp_freebsd.h>
 #endif
 #ifdef	__OpenBSD__
@@ -113,40 +114,40 @@ static const char bun[] =
 /*
  * Local function prototypes.
  */
-static int isp_parse_async(struct ispsoftc *, u_int16_t);
-static int isp_handle_other_response(struct ispsoftc *, int, isphdr_t *,
-    u_int16_t *);
+static int isp_parse_async(ispsoftc_t *, uint16_t);
+static int isp_handle_other_response(ispsoftc_t *, int, isphdr_t *,
+    uint16_t *);
 static void
-isp_parse_status(struct ispsoftc *, ispstatusreq_t *, XS_T *);
-static void isp_fastpost_complete(struct ispsoftc *, u_int16_t);
-static int isp_mbox_continue(struct ispsoftc *);
-static void isp_scsi_init(struct ispsoftc *);
-static void isp_scsi_channel_init(struct ispsoftc *, int);
-static void isp_fibre_init(struct ispsoftc *);
-static void isp_mark_getpdb_all(struct ispsoftc *);
-static int isp_getmap(struct ispsoftc *, fcpos_map_t *);
-static int isp_getpdb(struct ispsoftc *, int, isp_pdb_t *);
-static u_int64_t isp_get_portname(struct ispsoftc *, int, int);
-static int isp_fclink_test(struct ispsoftc *, int);
+isp_parse_status(ispsoftc_t *, ispstatusreq_t *, XS_T *);
+static void isp_fastpost_complete(ispsoftc_t *, uint16_t);
+static int isp_mbox_continue(ispsoftc_t *);
+static void isp_scsi_init(ispsoftc_t *);
+static void isp_scsi_channel_init(ispsoftc_t *, int);
+static void isp_fibre_init(ispsoftc_t *);
+static void isp_mark_getpdb_all(ispsoftc_t *);
+static int isp_getmap(ispsoftc_t *, fcpos_map_t *);
+static int isp_getpdb(ispsoftc_t *, int, isp_pdb_t *);
+static uint64_t isp_get_portname(ispsoftc_t *, int, int);
+static int isp_fclink_test(ispsoftc_t *, int);
 static char *isp2100_fw_statename(int);
-static int isp_pdb_sync(struct ispsoftc *);
-static int isp_scan_loop(struct ispsoftc *);
-static int isp_fabric_mbox_cmd(struct ispsoftc *, mbreg_t *);
-static int isp_scan_fabric(struct ispsoftc *, int);
-static void isp_register_fc4_type(struct ispsoftc *);
-static void isp_fw_state(struct ispsoftc *);
-static void isp_mboxcmd_qnw(struct ispsoftc *, mbreg_t *, int);
-static void isp_mboxcmd(struct ispsoftc *, mbreg_t *, int);
+static int isp_pdb_sync(ispsoftc_t *);
+static int isp_scan_loop(ispsoftc_t *);
+static int isp_fabric_mbox_cmd(ispsoftc_t *, mbreg_t *);
+static int isp_scan_fabric(ispsoftc_t *, int);
+static void isp_register_fc4_type(ispsoftc_t *);
+static void isp_fw_state(ispsoftc_t *);
+static void isp_mboxcmd_qnw(ispsoftc_t *, mbreg_t *, int);
+static void isp_mboxcmd(ispsoftc_t *, mbreg_t *, int);
 
-static void isp_update(struct ispsoftc *);
-static void isp_update_bus(struct ispsoftc *, int);
-static void isp_setdfltparm(struct ispsoftc *, int);
-static int isp_read_nvram(struct ispsoftc *);
-static void isp_rdnvram_word(struct ispsoftc *, int, u_int16_t *);
-static void isp_parse_nvram_1020(struct ispsoftc *, u_int8_t *);
-static void isp_parse_nvram_1080(struct ispsoftc *, int, u_int8_t *);
-static void isp_parse_nvram_12160(struct ispsoftc *, int, u_int8_t *);
-static void isp_parse_nvram_2100(struct ispsoftc *, u_int8_t *);
+static void isp_update(ispsoftc_t *);
+static void isp_update_bus(ispsoftc_t *, int);
+static void isp_setdfltparm(ispsoftc_t *, int);
+static int isp_read_nvram(ispsoftc_t *);
+static void isp_rdnvram_word(ispsoftc_t *, int, uint16_t *);
+static void isp_parse_nvram_1020(ispsoftc_t *, uint8_t *);
+static void isp_parse_nvram_1080(ispsoftc_t *, int, uint8_t *);
+static void isp_parse_nvram_12160(ispsoftc_t *, int, uint8_t *);
+static void isp_parse_nvram_2100(ispsoftc_t *, uint8_t *);
 
 /*
  * Reset Hardware.
@@ -157,10 +158,10 @@ static void isp_parse_nvram_2100(struct ispsoftc *, u_int8_t *);
  */
 
 void
-isp_reset(struct ispsoftc *isp)
+isp_reset(ispsoftc_t *isp)
 {
 	mbreg_t mbs;
-	u_int16_t code_org;
+	uint16_t code_org;
 	int loops, i, dodnld = 1;
 	char *btype = "????";
 
@@ -282,7 +283,7 @@ isp_reset(struct ispsoftc *isp)
 		 */
 	} else if (IS_ULTRA2(isp)) {
 		static const char m[] = "bus %d is in %s Mode";
-		u_int16_t l;
+		uint16_t l;
 		sdparam *sdp = isp->isp_param;
 
 		isp->isp_clock = 100;
@@ -524,7 +525,7 @@ again:
 	 * be done later after fetching from NVRAM.
 	 */
 	if (IS_SCSI(isp)) {
-		u_int16_t tmp = isp->isp_mdvec->dv_conf1;
+		uint16_t tmp = isp->isp_mdvec->dv_conf1;
 		/*
 		 * Busted FIFO. Turn off all but burst enables.
 		 */
@@ -836,7 +837,7 @@ again:
  */
 
 void
-isp_init(struct ispsoftc *isp)
+isp_init(ispsoftc_t *isp)
 {
 	/*
 	 * Must do this first to get defaults established.
@@ -853,7 +854,7 @@ isp_init(struct ispsoftc *isp)
 }
 
 static void
-isp_scsi_init(struct ispsoftc *isp)
+isp_scsi_init(ispsoftc_t *isp)
 {
 	sdparam *sdp_chan0, *sdp_chan1;
 	mbreg_t mbs;
@@ -1037,7 +1038,7 @@ isp_scsi_init(struct ispsoftc *isp)
 #endif
 #endif
 	if (mbs.param[1] != 0) {
-		u_int16_t sfeat = mbs.param[1];
+		uint16_t sfeat = mbs.param[1];
 		isp_mboxcmd(isp, &mbs, MBLOGALL);
 		if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
 			isp_prt(isp, ISP_LOGINFO,
@@ -1052,7 +1053,7 @@ isp_scsi_init(struct ispsoftc *isp)
 }
 
 static void
-isp_scsi_channel_init(struct ispsoftc *isp, int channel)
+isp_scsi_channel_init(ispsoftc_t *isp, int channel)
 {
 	sdparam *sdp;
 	mbreg_t mbs;
@@ -1080,7 +1081,7 @@ isp_scsi_channel_init(struct ispsoftc *isp, int channel)
 	 */
 	for (tgt = 0; tgt < MAX_TARGETS; tgt++) {
 		int lun;
-		u_int16_t sdf;
+		uint16_t sdf;
 
 		if (sdp->isp_devparam[tgt].dev_enable == 0) {
 			continue;
@@ -1173,13 +1174,13 @@ isp_scsi_channel_init(struct ispsoftc *isp, int channel)
  * Locks are held before coming here.
  */
 static void
-isp_fibre_init(struct ispsoftc *isp)
+isp_fibre_init(ispsoftc_t *isp)
 {
 	fcparam *fcp;
 	isp_icb_t local, *icbp = &local;
 	mbreg_t mbs;
 	int loopid;
-	u_int64_t nwwn, pwwn;
+	uint64_t nwwn, pwwn;
 
 	fcp = isp->isp_param;
 
@@ -1276,7 +1277,7 @@ isp_fibre_init(struct ispsoftc *isp)
 		/*
 		 * We end up with these Loop IDs for F-Port topologies
 		 */
-		if (icbp->icb_hardaddr != 0xff || icbp->icb_hardaddr != 0x800) {
+		if (icbp->icb_hardaddr != 0xff && icbp->icb_hardaddr != 0x800) {
 		    isp_prt(isp, ISP_LOGERR,
 			"bad hard address %u- resetting to zero",
 			icbp->icb_hardaddr); 
@@ -1389,7 +1390,8 @@ isp_fibre_init(struct ispsoftc *isp)
 		mbs.param[3] = 0;
 		isp_mboxcmd(isp, &mbs, MBLOGALL);
 	}
-	icbp->icb_logintime = 30;	/* 30 second login timeout */
+	icbp->icb_logintime = ICB_LOGIN_TOV;
+	icbp->icb_lunetimeout = ICB_LUN_ENABLE_TOV;
 
 	if (IS_23XX(isp)) {
 		ISP_WRITE(isp, isp->isp_rqstinrp, 0);
@@ -1406,10 +1408,10 @@ isp_fibre_init(struct ispsoftc *isp)
 		MAKE_NODE_NAME_FROM_WWN(icbp->icb_portname, pwwn);
 		isp_prt(isp, ISP_LOGDEBUG1,
 		    "Setting ICB Node 0x%08x%08x Port 0x%08x%08x",
-		    ((u_int32_t) (nwwn >> 32)),
-		    ((u_int32_t) (nwwn & 0xffffffff)),
-		    ((u_int32_t) (pwwn >> 32)),
-		    ((u_int32_t) (pwwn & 0xffffffff)));
+		    ((uint32_t) (nwwn >> 32)),
+		    ((uint32_t) (nwwn & 0xffffffff)),
+		    ((uint32_t) (pwwn >> 32)),
+		    ((uint32_t) (pwwn & 0xffffffff)));
 	} else {
 		isp_prt(isp, ISP_LOGDEBUG1, "Not using any WWNs");
 		icbp->icb_fwoptions &= ~(ICBOPT_BOTH_WWNS|ICBOPT_FULL_LOGIN);
@@ -1471,7 +1473,7 @@ isp_fibre_init(struct ispsoftc *isp)
  */
 
 static int
-isp_getmap(struct ispsoftc *isp, fcpos_map_t *map)
+isp_getmap(ispsoftc_t *isp, fcpos_map_t *map)
 {
 	fcparam *fcp = (fcparam *) isp->isp_param;
 	mbreg_t mbs;
@@ -1503,7 +1505,7 @@ isp_getmap(struct ispsoftc *isp, fcpos_map_t *map)
 }
 
 static void
-isp_mark_getpdb_all(struct ispsoftc *isp)
+isp_mark_getpdb_all(ispsoftc_t *isp)
 {
 	fcparam *fcp = (fcparam *) isp->isp_param;
 	int i;
@@ -1513,7 +1515,7 @@ isp_mark_getpdb_all(struct ispsoftc *isp)
 }
 
 static int
-isp_getpdb(struct ispsoftc *isp, int id, isp_pdb_t *pdbp)
+isp_getpdb(ispsoftc_t *isp, int id, isp_pdb_t *pdbp)
 {
 	fcparam *fcp = (fcparam *) isp->isp_param;
 	mbreg_t mbs;
@@ -1548,10 +1550,10 @@ isp_getpdb(struct ispsoftc *isp, int id, isp_pdb_t *pdbp)
 	return (-1);
 }
 
-static u_int64_t
-isp_get_portname(struct ispsoftc *isp, int loopid, int nodename)
+static uint64_t
+isp_get_portname(ispsoftc_t *isp, int loopid, int nodename)
 {
-	u_int64_t wwn = 0;
+	uint64_t wwn = 0;
 	mbreg_t mbs;
 
 	MEMZERO(&mbs, sizeof (mbs));
@@ -1569,14 +1571,14 @@ isp_get_portname(struct ispsoftc *isp, int loopid, int nodename)
 	isp_mboxcmd(isp, &mbs, MBLOGALL & ~MBOX_COMMAND_PARAM_ERROR);
 	if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
 		wwn =
-		    (((u_int64_t)(mbs.param[2] & 0xff)) << 56) |
-		    (((u_int64_t)(mbs.param[2] >> 8))	<< 48) |
-		    (((u_int64_t)(mbs.param[3] & 0xff))	<< 40) |
-		    (((u_int64_t)(mbs.param[3] >> 8))	<< 32) |
-		    (((u_int64_t)(mbs.param[6] & 0xff))	<< 24) |
-		    (((u_int64_t)(mbs.param[6] >> 8))	<< 16) |
-		    (((u_int64_t)(mbs.param[7] & 0xff))	<<  8) |
-		    (((u_int64_t)(mbs.param[7] >> 8)));
+		    (((uint64_t)(mbs.param[2] & 0xff)) << 56) |
+		    (((uint64_t)(mbs.param[2] >> 8))	<< 48) |
+		    (((uint64_t)(mbs.param[3] & 0xff))	<< 40) |
+		    (((uint64_t)(mbs.param[3] >> 8))	<< 32) |
+		    (((uint64_t)(mbs.param[6] & 0xff))	<< 24) |
+		    (((uint64_t)(mbs.param[6] >> 8))	<< 16) |
+		    (((uint64_t)(mbs.param[7] & 0xff))	<<  8) |
+		    (((uint64_t)(mbs.param[7] >> 8)));
 	}
 	return (wwn);
 }
@@ -1586,7 +1588,7 @@ isp_get_portname(struct ispsoftc *isp, int loopid, int nodename)
  */
 
 static int
-isp_fclink_test(struct ispsoftc *isp, int usdelay)
+isp_fclink_test(ispsoftc_t *isp, int usdelay)
 {
 	static char *toponames[] = {
 		"Private Loop",
@@ -1597,7 +1599,7 @@ isp_fclink_test(struct ispsoftc *isp, int usdelay)
 	};
 	mbreg_t mbs;
 	int count, check_for_fabric;
-	u_int8_t lwfs;
+	uint8_t lwfs;
 	fcparam *fcp;
 	struct lportdb *lp;
 	isp_pdb_t pdb;
@@ -1614,8 +1616,8 @@ isp_fclink_test(struct ispsoftc *isp, int usdelay)
 	lwfs = FW_CONFIG_WAIT;
 	count = 0;
 	while (count < usdelay) {
-		u_int64_t enano;
-		u_int32_t wrk;
+		uint64_t enano;
+		uint32_t wrk;
 		NANOTIME_T hra, hrb;
 
 		GET_NANOTIME(&hra);
@@ -1640,7 +1642,7 @@ isp_fclink_test(struct ispsoftc *isp, int usdelay)
 		isp_prt(isp, ISP_LOGDEBUG1,
 		    "usec%d: 0x%lx->0x%lx enano 0x%x%08x",
 		    count, (long) GET_NANOSEC(&hra), (long) GET_NANOSEC(&hrb),
-		    (u_int32_t)(enano >> 32), (u_int32_t)(enano & 0xffffffff));
+		    (uint32_t)(enano >> 32), (uint32_t)(enano & 0xffffffff));
 
 		/*
 		 * If the elapsed time is less than 1 millisecond,
@@ -1648,23 +1650,23 @@ isp_fclink_test(struct ispsoftc *isp, int usdelay)
 		 * waiting.
 		 *
 		 * This peculiar code is an attempt to try and avoid
-		 * invoking u_int64_t math support functions for some
+		 * invoking uint64_t math support functions for some
 		 * platforms where linkage is a problem.
 		 */
 		if (enano < (1000 * 1000)) {
 			count += 1000;
 			enano = (1000 * 1000) - enano;
-			while (enano > (u_int64_t) 4000000000U) {
+			while (enano > (uint64_t) 4000000000U) {
 				USEC_SLEEP(isp, 4000000);
-				enano -= (u_int64_t) 4000000000U;
+				enano -= (uint64_t) 4000000000U;
 			}
 			wrk = enano;
 			wrk /= 1000;
 			USEC_SLEEP(isp, wrk);
 		} else {
-			while (enano > (u_int64_t) 4000000000U) {
+			while (enano > (uint64_t) 4000000000U) {
 				count += 4000000;
-				enano -= (u_int64_t) 4000000000U;
+				enano -= (uint64_t) 4000000000U;
 			}
 			wrk = enano;
 			count += (wrk / 1000);
@@ -1751,23 +1753,23 @@ isp_fclink_test(struct ispsoftc *isp, int usdelay)
 		 */
 		lp = &fcp->portdb[loopid];
 		lp->node_wwn =
-		    (((u_int64_t)pdb.pdb_nodename[0]) << 56) |
-		    (((u_int64_t)pdb.pdb_nodename[1]) << 48) |
-		    (((u_int64_t)pdb.pdb_nodename[2]) << 40) |
-		    (((u_int64_t)pdb.pdb_nodename[3]) << 32) |
-		    (((u_int64_t)pdb.pdb_nodename[4]) << 24) |
-		    (((u_int64_t)pdb.pdb_nodename[5]) << 16) |
-		    (((u_int64_t)pdb.pdb_nodename[6]) <<  8) |
-		    (((u_int64_t)pdb.pdb_nodename[7]));
+		    (((uint64_t)pdb.pdb_nodename[0]) << 56) |
+		    (((uint64_t)pdb.pdb_nodename[1]) << 48) |
+		    (((uint64_t)pdb.pdb_nodename[2]) << 40) |
+		    (((uint64_t)pdb.pdb_nodename[3]) << 32) |
+		    (((uint64_t)pdb.pdb_nodename[4]) << 24) |
+		    (((uint64_t)pdb.pdb_nodename[5]) << 16) |
+		    (((uint64_t)pdb.pdb_nodename[6]) <<  8) |
+		    (((uint64_t)pdb.pdb_nodename[7]));
 		lp->port_wwn =
-		    (((u_int64_t)pdb.pdb_portname[0]) << 56) |
-		    (((u_int64_t)pdb.pdb_portname[1]) << 48) |
-		    (((u_int64_t)pdb.pdb_portname[2]) << 40) |
-		    (((u_int64_t)pdb.pdb_portname[3]) << 32) |
-		    (((u_int64_t)pdb.pdb_portname[4]) << 24) |
-		    (((u_int64_t)pdb.pdb_portname[5]) << 16) |
-		    (((u_int64_t)pdb.pdb_portname[6]) <<  8) |
-		    (((u_int64_t)pdb.pdb_portname[7]));
+		    (((uint64_t)pdb.pdb_portname[0]) << 56) |
+		    (((uint64_t)pdb.pdb_portname[1]) << 48) |
+		    (((uint64_t)pdb.pdb_portname[2]) << 40) |
+		    (((uint64_t)pdb.pdb_portname[3]) << 32) |
+		    (((uint64_t)pdb.pdb_portname[4]) << 24) |
+		    (((uint64_t)pdb.pdb_portname[5]) << 16) |
+		    (((uint64_t)pdb.pdb_portname[6]) <<  8) |
+		    (((uint64_t)pdb.pdb_portname[7]));
 		lp->roles =
 		    (pdb.pdb_prli_svc3 & SVC3_ROLE_MASK) >> SVC3_ROLE_SHIFT;
 		lp->portid = BITS2WORD(pdb.pdb_portid_bits);
@@ -1863,7 +1865,7 @@ isp2100_fw_statename(int state)
  */
 
 static int
-isp_pdb_sync(struct ispsoftc *isp)
+isp_pdb_sync(ispsoftc_t *isp)
 {
 	struct lportdb *lp;
 	fcparam *fcp = isp->isp_param;
@@ -1931,7 +1933,7 @@ isp_pdb_sync(struct ispsoftc *isp)
 	 * for the moment.
 	 */
 	for (lp = &fcp->portdb[base]; lp < &fcp->portdb[lim]; lp++) {
-		u_int32_t portid;
+		uint32_t portid;
 		mbreg_t mbs;
 
 		loopid = lp - fcp->portdb;
@@ -1966,29 +1968,29 @@ isp_pdb_sync(struct ispsoftc *isp)
 		if (lp->loggedin && lp->force_logout == 0 &&
 		    isp_getpdb(isp, lp->loopid, &pdb) == 0) {
 			int nrole;
-			u_int64_t nwwnn, nwwpn;
+			uint64_t nwwnn, nwwpn;
 			nwwnn =
-			    (((u_int64_t)pdb.pdb_nodename[0]) << 56) |
-			    (((u_int64_t)pdb.pdb_nodename[1]) << 48) |
-			    (((u_int64_t)pdb.pdb_nodename[2]) << 40) |
-			    (((u_int64_t)pdb.pdb_nodename[3]) << 32) |
-			    (((u_int64_t)pdb.pdb_nodename[4]) << 24) |
-			    (((u_int64_t)pdb.pdb_nodename[5]) << 16) |
-			    (((u_int64_t)pdb.pdb_nodename[6]) <<  8) |
-			    (((u_int64_t)pdb.pdb_nodename[7]));
+			    (((uint64_t)pdb.pdb_nodename[0]) << 56) |
+			    (((uint64_t)pdb.pdb_nodename[1]) << 48) |
+			    (((uint64_t)pdb.pdb_nodename[2]) << 40) |
+			    (((uint64_t)pdb.pdb_nodename[3]) << 32) |
+			    (((uint64_t)pdb.pdb_nodename[4]) << 24) |
+			    (((uint64_t)pdb.pdb_nodename[5]) << 16) |
+			    (((uint64_t)pdb.pdb_nodename[6]) <<  8) |
+			    (((uint64_t)pdb.pdb_nodename[7]));
 			nwwpn =
-			    (((u_int64_t)pdb.pdb_portname[0]) << 56) |
-			    (((u_int64_t)pdb.pdb_portname[1]) << 48) |
-			    (((u_int64_t)pdb.pdb_portname[2]) << 40) |
-			    (((u_int64_t)pdb.pdb_portname[3]) << 32) |
-			    (((u_int64_t)pdb.pdb_portname[4]) << 24) |
-			    (((u_int64_t)pdb.pdb_portname[5]) << 16) |
-			    (((u_int64_t)pdb.pdb_portname[6]) <<  8) |
-			    (((u_int64_t)pdb.pdb_portname[7]));
+			    (((uint64_t)pdb.pdb_portname[0]) << 56) |
+			    (((uint64_t)pdb.pdb_portname[1]) << 48) |
+			    (((uint64_t)pdb.pdb_portname[2]) << 40) |
+			    (((uint64_t)pdb.pdb_portname[3]) << 32) |
+			    (((uint64_t)pdb.pdb_portname[4]) << 24) |
+			    (((uint64_t)pdb.pdb_portname[5]) << 16) |
+			    (((uint64_t)pdb.pdb_portname[6]) <<  8) |
+			    (((uint64_t)pdb.pdb_portname[7]));
 			nrole = (pdb.pdb_prli_svc3 & SVC3_ROLE_MASK) >>
 			    SVC3_ROLE_SHIFT;
 			if (pdb.pdb_loopid == lp->loopid && lp->portid ==
-			    (u_int32_t) BITS2WORD(pdb.pdb_portid_bits) &&
+			    (uint32_t) BITS2WORD(pdb.pdb_portid_bits) &&
 			    nwwnn == lp->node_wwn && nwwpn == lp->port_wwn &&
 			    lp->roles == nrole && lp->force_logout == 0) {
 				lp->loggedin = lp->valid = 1;
@@ -2125,7 +2127,7 @@ isp_pdb_sync(struct ispsoftc *isp)
 			goto dump_em;
 		}
 
-		if (lp->portid != (u_int32_t) BITS2WORD(pdb.pdb_portid_bits)) {
+		if (lp->portid != (uint32_t) BITS2WORD(pdb.pdb_portid_bits)) {
 			isp_prt(isp, ISP_LOGWARN, pdbmfail2,
 			    lp->portid, BITS2WORD(pdb.pdb_portid_bits));
 			goto dump_em;
@@ -2134,23 +2136,23 @@ isp_pdb_sync(struct ispsoftc *isp)
 		lp->roles =
 		    (pdb.pdb_prli_svc3 & SVC3_ROLE_MASK) >> SVC3_ROLE_SHIFT;
 		lp->node_wwn =
-		    (((u_int64_t)pdb.pdb_nodename[0]) << 56) |
-		    (((u_int64_t)pdb.pdb_nodename[1]) << 48) |
-		    (((u_int64_t)pdb.pdb_nodename[2]) << 40) |
-		    (((u_int64_t)pdb.pdb_nodename[3]) << 32) |
-		    (((u_int64_t)pdb.pdb_nodename[4]) << 24) |
-		    (((u_int64_t)pdb.pdb_nodename[5]) << 16) |
-		    (((u_int64_t)pdb.pdb_nodename[6]) <<  8) |
-		    (((u_int64_t)pdb.pdb_nodename[7]));
+		    (((uint64_t)pdb.pdb_nodename[0]) << 56) |
+		    (((uint64_t)pdb.pdb_nodename[1]) << 48) |
+		    (((uint64_t)pdb.pdb_nodename[2]) << 40) |
+		    (((uint64_t)pdb.pdb_nodename[3]) << 32) |
+		    (((uint64_t)pdb.pdb_nodename[4]) << 24) |
+		    (((uint64_t)pdb.pdb_nodename[5]) << 16) |
+		    (((uint64_t)pdb.pdb_nodename[6]) <<  8) |
+		    (((uint64_t)pdb.pdb_nodename[7]));
 		lp->port_wwn =
-		    (((u_int64_t)pdb.pdb_portname[0]) << 56) |
-		    (((u_int64_t)pdb.pdb_portname[1]) << 48) |
-		    (((u_int64_t)pdb.pdb_portname[2]) << 40) |
-		    (((u_int64_t)pdb.pdb_portname[3]) << 32) |
-		    (((u_int64_t)pdb.pdb_portname[4]) << 24) |
-		    (((u_int64_t)pdb.pdb_portname[5]) << 16) |
-		    (((u_int64_t)pdb.pdb_portname[6]) <<  8) |
-		    (((u_int64_t)pdb.pdb_portname[7]));
+		    (((uint64_t)pdb.pdb_portname[0]) << 56) |
+		    (((uint64_t)pdb.pdb_portname[1]) << 48) |
+		    (((uint64_t)pdb.pdb_portname[2]) << 40) |
+		    (((uint64_t)pdb.pdb_portname[3]) << 32) |
+		    (((uint64_t)pdb.pdb_portname[4]) << 24) |
+		    (((uint64_t)pdb.pdb_portname[5]) << 16) |
+		    (((uint64_t)pdb.pdb_portname[6]) <<  8) |
+		    (((uint64_t)pdb.pdb_portname[7]));
 		/*
 		 * Check to make sure this all makes sense.
 		 */
@@ -2189,7 +2191,7 @@ dump_em:
 }
 
 static int
-isp_scan_loop(struct ispsoftc *isp)
+isp_scan_loop(ispsoftc_t *isp)
 {
 	struct lportdb *lp;
 	fcparam *fcp = isp->isp_param;
@@ -2277,23 +2279,23 @@ isp_scan_loop(struct ispsoftc *isp)
 		 * Save the pertinent info locally.
 		 */
 		lp->node_wwn =
-		    (((u_int64_t)pdb.pdb_nodename[0]) << 56) |
-		    (((u_int64_t)pdb.pdb_nodename[1]) << 48) |
-		    (((u_int64_t)pdb.pdb_nodename[2]) << 40) |
-		    (((u_int64_t)pdb.pdb_nodename[3]) << 32) |
-		    (((u_int64_t)pdb.pdb_nodename[4]) << 24) |
-		    (((u_int64_t)pdb.pdb_nodename[5]) << 16) |
-		    (((u_int64_t)pdb.pdb_nodename[6]) <<  8) |
-		    (((u_int64_t)pdb.pdb_nodename[7]));
+		    (((uint64_t)pdb.pdb_nodename[0]) << 56) |
+		    (((uint64_t)pdb.pdb_nodename[1]) << 48) |
+		    (((uint64_t)pdb.pdb_nodename[2]) << 40) |
+		    (((uint64_t)pdb.pdb_nodename[3]) << 32) |
+		    (((uint64_t)pdb.pdb_nodename[4]) << 24) |
+		    (((uint64_t)pdb.pdb_nodename[5]) << 16) |
+		    (((uint64_t)pdb.pdb_nodename[6]) <<  8) |
+		    (((uint64_t)pdb.pdb_nodename[7]));
 		lp->port_wwn =
-		    (((u_int64_t)pdb.pdb_portname[0]) << 56) |
-		    (((u_int64_t)pdb.pdb_portname[1]) << 48) |
-		    (((u_int64_t)pdb.pdb_portname[2]) << 40) |
-		    (((u_int64_t)pdb.pdb_portname[3]) << 32) |
-		    (((u_int64_t)pdb.pdb_portname[4]) << 24) |
-		    (((u_int64_t)pdb.pdb_portname[5]) << 16) |
-		    (((u_int64_t)pdb.pdb_portname[6]) <<  8) |
-		    (((u_int64_t)pdb.pdb_portname[7]));
+		    (((uint64_t)pdb.pdb_portname[0]) << 56) |
+		    (((uint64_t)pdb.pdb_portname[1]) << 48) |
+		    (((uint64_t)pdb.pdb_portname[2]) << 40) |
+		    (((uint64_t)pdb.pdb_portname[3]) << 32) |
+		    (((uint64_t)pdb.pdb_portname[4]) << 24) |
+		    (((uint64_t)pdb.pdb_portname[5]) << 16) |
+		    (((uint64_t)pdb.pdb_portname[6]) <<  8) |
+		    (((uint64_t)pdb.pdb_portname[7]));
 		lp->roles =
 		    (pdb.pdb_prli_svc3 & SVC3_ROLE_MASK) >> SVC3_ROLE_SHIFT;
 		lp->portid = BITS2WORD(pdb.pdb_portid_bits);
@@ -2461,7 +2463,7 @@ isp_scan_loop(struct ispsoftc *isp)
 
 
 static int
-isp_fabric_mbox_cmd(struct ispsoftc *isp, mbreg_t *mbp)
+isp_fabric_mbox_cmd(ispsoftc_t *isp, mbreg_t *mbp)
 {
 	isp_mboxcmd(isp, mbp, MBLOGNONE);
 	if (mbp->param[0] != MBOX_COMMAND_COMPLETE) {
@@ -2510,10 +2512,10 @@ isp_fabric_mbox_cmd(struct ispsoftc *isp, mbreg_t *mbp)
 
 #ifdef	ISP_USE_GA_NXT
 static int
-isp_scan_fabric(struct ispsoftc *isp, int ftype)
+isp_scan_fabric(ispsoftc_t *isp, int ftype)
 {
 	fcparam *fcp = isp->isp_param;
-	u_int32_t portid, first_portid, last_portid;
+	uint32_t portid, first_portid, last_portid;
 	int hicap, last_port_same;
 
 	if (fcp->isp_onfabric == 0) {
@@ -2537,7 +2539,7 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 		sns_screq_t *rq;
 		sns_ga_nxt_rsp_t *rs0, *rs1;
 		struct lportdb lcl;
-		u_int8_t sc[SNS_GA_NXT_RESP_SIZE];
+		uint8_t sc[SNS_GA_NXT_RESP_SIZE];
 
 		rq = (sns_screq_t *)sc;
 		MEMZERO((void *) rq, SNS_GA_NXT_REQ_SIZE);
@@ -2571,7 +2573,7 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 		}
 		MEMORYBARRIER(isp, SYNC_SFORCPU, 0x100, SNS_GA_NXT_RESP_SIZE);
 		rs1 = (sns_ga_nxt_rsp_t *) sc;
-		rs0 = (sns_ga_nxt_rsp_t *) ((u_int8_t *)fcp->isp_scratch+0x100);
+		rs0 = (sns_ga_nxt_rsp_t *) ((uint8_t *)fcp->isp_scratch+0x100);
 		isp_get_ga_nxt_response(isp, rs0, rs1);
 		if (rs1->snscb_cthdr.ct_response != FS_ACC) {
 			int level;
@@ -2588,9 +2590,9 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 			return (0);
 		}
 		portid =
-		    (((u_int32_t) rs1->snscb_port_id[0]) << 16) |
-		    (((u_int32_t) rs1->snscb_port_id[1]) << 8) |
-		    (((u_int32_t) rs1->snscb_port_id[2]));
+		    (((uint32_t) rs1->snscb_port_id[0]) << 16) |
+		    (((uint32_t) rs1->snscb_port_id[1]) << 8) |
+		    (((uint32_t) rs1->snscb_port_id[2]));
 
 		/*
 		 * XXX: We should check to make sure that this entry
@@ -2609,23 +2611,23 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 		lcl.fc4_type = ftype;
 		lcl.portid = portid;
 		lcl.node_wwn =
-		    (((u_int64_t)rs1->snscb_nodename[0]) << 56) |
-		    (((u_int64_t)rs1->snscb_nodename[1]) << 48) |
-		    (((u_int64_t)rs1->snscb_nodename[2]) << 40) |
-		    (((u_int64_t)rs1->snscb_nodename[3]) << 32) |
-		    (((u_int64_t)rs1->snscb_nodename[4]) << 24) |
-		    (((u_int64_t)rs1->snscb_nodename[5]) << 16) |
-		    (((u_int64_t)rs1->snscb_nodename[6]) <<  8) |
-		    (((u_int64_t)rs1->snscb_nodename[7]));
+		    (((uint64_t)rs1->snscb_nodename[0]) << 56) |
+		    (((uint64_t)rs1->snscb_nodename[1]) << 48) |
+		    (((uint64_t)rs1->snscb_nodename[2]) << 40) |
+		    (((uint64_t)rs1->snscb_nodename[3]) << 32) |
+		    (((uint64_t)rs1->snscb_nodename[4]) << 24) |
+		    (((uint64_t)rs1->snscb_nodename[5]) << 16) |
+		    (((uint64_t)rs1->snscb_nodename[6]) <<  8) |
+		    (((uint64_t)rs1->snscb_nodename[7]));
 		lcl.port_wwn =
-		    (((u_int64_t)rs1->snscb_portname[0]) << 56) |
-		    (((u_int64_t)rs1->snscb_portname[1]) << 48) |
-		    (((u_int64_t)rs1->snscb_portname[2]) << 40) |
-		    (((u_int64_t)rs1->snscb_portname[3]) << 32) |
-		    (((u_int64_t)rs1->snscb_portname[4]) << 24) |
-		    (((u_int64_t)rs1->snscb_portname[5]) << 16) |
-		    (((u_int64_t)rs1->snscb_portname[6]) <<  8) |
-		    (((u_int64_t)rs1->snscb_portname[7]));
+		    (((uint64_t)rs1->snscb_portname[0]) << 56) |
+		    (((uint64_t)rs1->snscb_portname[1]) << 48) |
+		    (((uint64_t)rs1->snscb_portname[2]) << 40) |
+		    (((uint64_t)rs1->snscb_portname[3]) << 32) |
+		    (((uint64_t)rs1->snscb_portname[4]) << 24) |
+		    (((uint64_t)rs1->snscb_portname[5]) << 16) |
+		    (((uint64_t)rs1->snscb_portname[6]) <<  8) |
+		    (((uint64_t)rs1->snscb_portname[7]));
 
 		/*
 		 * Does this fabric object support the type we want?
@@ -2674,7 +2676,7 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 #define	GXOFF	(256)
 
 static int
-isp_scan_fabric(struct ispsoftc *isp, int ftype)
+isp_scan_fabric(ispsoftc_t *isp, int ftype)
 {
 	fcparam *fcp = FCPARAM(isp);
 	mbreg_t mbs;
@@ -2727,7 +2729,7 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 	}
 	MEMORYBARRIER(isp, SYNC_SFORCPU, IGPOFF, GIDLEN);
 	rs1 = (sns_gid_ft_rsp_t *) fcp->tport;
-	rs0 = (sns_gid_ft_rsp_t *) ((u_int8_t *)fcp->isp_scratch+IGPOFF);
+	rs0 = (sns_gid_ft_rsp_t *) ((uint8_t *)fcp->isp_scratch+IGPOFF);
 	isp_get_gid_ft_response(isp, rs0, rs1, NGENT);
 	if (rs1->snscb_cthdr.ct_response != FS_ACC) {
 		int level;
@@ -2765,9 +2767,9 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 		MEMZERO(&lcl, sizeof (lcl));
 		lcl.fc4_type = ftype;
 		lcl.portid =
-		    (((u_int32_t) rs1->snscb_ports[i].portid[0]) << 16) |
-		    (((u_int32_t) rs1->snscb_ports[i].portid[1]) << 8) |
-		    (((u_int32_t) rs1->snscb_ports[i].portid[2]));
+		    (((uint32_t) rs1->snscb_ports[i].portid[0]) << 16) |
+		    (((uint32_t) rs1->snscb_ports[i].portid[1]) << 8) |
+		    (((uint32_t) rs1->snscb_ports[i].portid[2]));
 
 		MEMZERO((void *) gq, sizeof (sns_gxn_id_req_t));
 		gq->snscb_rblen = SNS_GXN_ID_RESP_SIZE >> 1;
@@ -2803,7 +2805,7 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 			return (-1);
 		}
 		MEMORYBARRIER(isp, SYNC_SFORCPU, GXOFF, SNS_GXN_ID_RESP_SIZE);
-		gs0 = (sns_gxn_id_rsp_t *) ((u_int8_t *)fcp->isp_scratch+GXOFF);
+		gs0 = (sns_gxn_id_rsp_t *) ((uint8_t *)fcp->isp_scratch+GXOFF);
 		isp_get_gxn_id_response(isp, gs0, gs1);
 		if (gs1->snscb_cthdr.ct_response != FS_ACC) {
 			isp_prt(isp, ISP_LOGWARN, swrej, "GPN_ID",
@@ -2816,14 +2818,14 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 			continue;
 		}
 		lcl.port_wwn = 
-		    (((u_int64_t)gs1->snscb_wwn[0]) << 56) |
-		    (((u_int64_t)gs1->snscb_wwn[1]) << 48) |
-		    (((u_int64_t)gs1->snscb_wwn[2]) << 40) |
-		    (((u_int64_t)gs1->snscb_wwn[3]) << 32) |
-		    (((u_int64_t)gs1->snscb_wwn[4]) << 24) |
-		    (((u_int64_t)gs1->snscb_wwn[5]) << 16) |
-		    (((u_int64_t)gs1->snscb_wwn[6]) <<  8) |
-		    (((u_int64_t)gs1->snscb_wwn[7]));
+		    (((uint64_t)gs1->snscb_wwn[0]) << 56) |
+		    (((uint64_t)gs1->snscb_wwn[1]) << 48) |
+		    (((uint64_t)gs1->snscb_wwn[2]) << 40) |
+		    (((uint64_t)gs1->snscb_wwn[3]) << 32) |
+		    (((uint64_t)gs1->snscb_wwn[4]) << 24) |
+		    (((uint64_t)gs1->snscb_wwn[5]) << 16) |
+		    (((uint64_t)gs1->snscb_wwn[6]) <<  8) |
+		    (((uint64_t)gs1->snscb_wwn[7]));
 
 		MEMZERO((void *) gq, sizeof (sns_gxn_id_req_t));
 		gq->snscb_rblen = SNS_GXN_ID_RESP_SIZE >> 1;
@@ -2859,7 +2861,7 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 			return (-1);
 		}
 		MEMORYBARRIER(isp, SYNC_SFORCPU, GXOFF, SNS_GXN_ID_RESP_SIZE);
-		gs0 = (sns_gxn_id_rsp_t *) ((u_int8_t *)fcp->isp_scratch+GXOFF);
+		gs0 = (sns_gxn_id_rsp_t *) ((uint8_t *)fcp->isp_scratch+GXOFF);
 		isp_get_gxn_id_response(isp, gs0, gs1);
 		if (gs1->snscb_cthdr.ct_response != FS_ACC) {
 			isp_prt(isp, ISP_LOGWARN, swrej, "GNN_ID",
@@ -2872,14 +2874,14 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 			continue;
 		}
 		lcl.node_wwn = 
-		    (((u_int64_t)gs1->snscb_wwn[0]) << 56) |
-		    (((u_int64_t)gs1->snscb_wwn[1]) << 48) |
-		    (((u_int64_t)gs1->snscb_wwn[2]) << 40) |
-		    (((u_int64_t)gs1->snscb_wwn[3]) << 32) |
-		    (((u_int64_t)gs1->snscb_wwn[4]) << 24) |
-		    (((u_int64_t)gs1->snscb_wwn[5]) << 16) |
-		    (((u_int64_t)gs1->snscb_wwn[6]) <<  8) |
-		    (((u_int64_t)gs1->snscb_wwn[7]));
+		    (((uint64_t)gs1->snscb_wwn[0]) << 56) |
+		    (((uint64_t)gs1->snscb_wwn[1]) << 48) |
+		    (((uint64_t)gs1->snscb_wwn[2]) << 40) |
+		    (((uint64_t)gs1->snscb_wwn[3]) << 32) |
+		    (((uint64_t)gs1->snscb_wwn[4]) << 24) |
+		    (((uint64_t)gs1->snscb_wwn[5]) << 16) |
+		    (((uint64_t)gs1->snscb_wwn[6]) <<  8) |
+		    (((uint64_t)gs1->snscb_wwn[7]));
 
 		/*
 		 * The QLogic f/w is bouncing this with a parameter error.
@@ -2923,7 +2925,7 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 			return (-1);
 		}
 		MEMORYBARRIER(isp, SYNC_SFORCPU, GXOFF, SNS_GFF_ID_RESP_SIZE);
-		fs0 = (sns_gff_id_rsp_t *) ((u_int8_t *)fcp->isp_scratch+GXOFF);
+		fs0 = (sns_gff_id_rsp_t *) ((uint8_t *)fcp->isp_scratch+GXOFF);
 		isp_get_gff_id_response(isp, fs0, fs1);
 		if (fs1->snscb_cthdr.ct_response != FS_ACC) {
 			isp_prt(isp, /* ISP_LOGDEBUG0 */ ISP_LOGWARN,
@@ -2980,10 +2982,10 @@ isp_scan_fabric(struct ispsoftc *isp, int ftype)
 #endif
 
 static void
-isp_register_fc4_type(struct ispsoftc *isp)
+isp_register_fc4_type(ispsoftc_t *isp)
 {
 	fcparam *fcp = isp->isp_param;
-	u_int8_t local[SNS_RFT_ID_REQ_SIZE];
+	uint8_t local[SNS_RFT_ID_REQ_SIZE];
 	sns_screq_t *reqp = (sns_screq_t *) local;
 	mbreg_t mbs;
 
@@ -3027,9 +3029,9 @@ isp_register_fc4_type(struct ispsoftc *isp)
 int
 isp_start(XS_T *xs)
 {
-	struct ispsoftc *isp;
-	u_int16_t nxti, optr, handle;
-	u_int8_t local[QENTRY_LEN];
+	ispsoftc_t *isp;
+	uint16_t nxti, optr, handle;
+	uint8_t local[QENTRY_LEN];
 	ispreq_t *reqp, *qep;
 	int target, i;
 
@@ -3275,7 +3277,7 @@ isp_start(XS_T *xs)
 	 */
 	reqp = (ispreq_t *) local;
 	if (isp->isp_sendmarker) {
-		u_int8_t n = (IS_DUALBUS(isp)? 2: 1);
+		uint8_t n = (IS_DUALBUS(isp)? 2: 1);
 		/*
 		 * Check ports to send markers for...
 		 */
@@ -3400,12 +3402,12 @@ isp_start(XS_T *xs)
  */
 
 int
-isp_control(struct ispsoftc *isp, ispctl_t ctl, void *arg)
+isp_control(ispsoftc_t *isp, ispctl_t ctl, void *arg)
 {
 	XS_T *xs;
 	mbreg_t mbs;
 	int bus, tgt;
-	u_int16_t handle;
+	uint16_t handle;
 
 	MEMZERO(&mbs, sizeof (mbs));
 
@@ -3513,7 +3515,10 @@ isp_control(struct ispsoftc *isp, ispctl_t ctl, void *arg)
 	case ISPCTL_FCLINK_TEST:
 
 		if (IS_FC(isp)) {
-			int usdelay = (arg)? *((int *) arg) : 250000;
+			int usdelay = *((int *) arg);
+			if (usdelay == 0) {
+				usdelay =  250000;
+			}
 			return (isp_fclink_test(isp, usdelay));
 		}
 		break;
@@ -3613,10 +3618,10 @@ isp_control(struct ispsoftc *isp, ispctl_t ctl, void *arg)
 #endif
 
 void
-isp_intr(struct ispsoftc *isp, u_int16_t isr, u_int16_t sema, u_int16_t mbox)
+isp_intr(ispsoftc_t *isp, uint16_t isr, uint16_t sema, uint16_t mbox)
 {
 	XS_T *complist[MAX_REQUESTQ_COMPLETIONS], *xs;
-	u_int16_t iptr, optr, junk;
+	uint16_t iptr, optr, junk;
 	int i, nlooked = 0, ndone = 0;
 
 again:
@@ -3765,7 +3770,7 @@ again:
 		ispstatusreq_t local, *sp = &local;
 		isphdr_t *hp;
 		int type;
-		u_int16_t oop;
+		uint16_t oop;
 		int buddaboom = 0;
 
 		hp = (isphdr_t *) ISP_QUEUE_ENTRY(isp->isp_result, optr);
@@ -3876,7 +3881,7 @@ again:
 		}
 		xs = isp_find_xs(isp, sp->req_handle);
 		if (xs == NULL) {
-			u_int8_t ts = sp->req_completion_status & 0xff;
+			uint8_t ts = sp->req_completion_status & 0xff;
 			MEMZERO(hp, QENTRY_LEN);	/* PERF */
 			/*
 			 * Only whine if this isn't the expected fallout of
@@ -4058,7 +4063,7 @@ again:
  */
 
 static int
-isp_parse_async(struct ispsoftc *isp, u_int16_t mbox)
+isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 {
 	int rval = 0;
 	int bus;
@@ -4385,7 +4390,7 @@ isp_parse_async(struct ispsoftc *isp, u_int16_t mbox)
 
 	if (bus & 0x100) {
 		int i, nh;
-		u_int16_t handles[16];
+		uint16_t handles[16];
 
 		for (nh = 0, i = 1; i < MAX_MAILBOX(isp); i++) {
 			if ((bus & (1 << i)) == 0) {
@@ -4413,8 +4418,8 @@ isp_parse_async(struct ispsoftc *isp, u_int16_t mbox)
  */
 
 static int
-isp_handle_other_response(struct ispsoftc *isp, int type,
-    isphdr_t *hp, u_int16_t *optrp)
+isp_handle_other_response(ispsoftc_t *isp, int type,
+    isphdr_t *hp, uint16_t *optrp)
 {
 	switch (type) {
 	case RQSTYPE_STATUS_CONT:
@@ -4463,7 +4468,7 @@ isp_handle_other_response(struct ispsoftc *isp, int type,
 }
 
 static void
-isp_parse_status(struct ispsoftc *isp, ispstatusreq_t *sp, XS_T *xs)
+isp_parse_status(ispsoftc_t *isp, ispstatusreq_t *sp, XS_T *xs)
 {
 	switch (sp->req_completion_status & 0xff) {
 	case RQCS_COMPLETE:
@@ -4847,7 +4852,7 @@ isp_parse_status(struct ispsoftc *isp, ispstatusreq_t *sp, XS_T *xs)
 }
 
 static void
-isp_fastpost_complete(struct ispsoftc *isp, u_int16_t fph)
+isp_fastpost_complete(ispsoftc_t *isp, uint16_t fph)
 {
 	XS_T *xs;
 
@@ -4880,10 +4885,10 @@ isp_fastpost_complete(struct ispsoftc *isp, u_int16_t fph)
 }
 
 static int
-isp_mbox_continue(struct ispsoftc *isp)
+isp_mbox_continue(ispsoftc_t *isp)
 {
 	mbreg_t mbs;
-	u_int16_t *ptr;
+	uint16_t *ptr;
 
 	switch (isp->isp_lastmbxcmd) {
 	case MBOX_WRITE_RAM_WORD:
@@ -4931,7 +4936,7 @@ isp_mbox_continue(struct ispsoftc *isp)
 #define	HIWRD(x)			((x) >> 16)
 #define	LOWRD(x)			((x)  & 0xffff)
 #define	ISPOPMAP(a, b)			(((a) << 16) | (b))
-static const u_int32_t mbpscsi[] = {
+static const uint32_t mbpscsi[] = {
 	ISPOPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
 	ISPOPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
 	ISPOPMAP(0x03, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
@@ -5127,7 +5132,7 @@ static char *scsi_mbcmd_names[] = {
 };
 #endif
 
-static const u_int32_t mbpfc[] = {
+static const uint32_t mbpfc[] = {
 	ISPOPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
 	ISPOPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
 	ISPOPMAP(0x03, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
@@ -5397,10 +5402,10 @@ static char *fc_mbcmd_names[] = {
 #endif
 
 static void
-isp_mboxcmd_qnw(struct ispsoftc *isp, mbreg_t *mbp, int nodelay)
+isp_mboxcmd_qnw(ispsoftc_t *isp, mbreg_t *mbp, int nodelay)
 {
 	unsigned int ibits, obits, box, opcode;
-	const u_int32_t *mcp;
+	const uint32_t *mcp;
 
 	if (IS_FC(isp)) {
 		mcp = mbpfc;
@@ -5437,11 +5442,11 @@ isp_mboxcmd_qnw(struct ispsoftc *isp, mbreg_t *mbp, int nodelay)
 }
 
 static void
-isp_mboxcmd(struct ispsoftc *isp, mbreg_t *mbp, int logmask)
+isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp, int logmask)
 {
 	char *cname, *xname, tname[16], mname[16];
 	unsigned int lim, ibits, obits, box, opcode;
-	const u_int32_t *mcp;
+	const uint32_t *mcp;
 
 	if (IS_FC(isp)) {
 		mcp = mbpfc;
@@ -5585,7 +5590,7 @@ isp_mboxcmd(struct ispsoftc *isp, mbreg_t *mbp, int logmask)
 }
 
 static void
-isp_fw_state(struct ispsoftc *isp)
+isp_fw_state(ispsoftc_t *isp)
 {
 	if (IS_FC(isp)) {
 		mbreg_t mbs;
@@ -5601,7 +5606,7 @@ isp_fw_state(struct ispsoftc *isp)
 }
 
 static void
-isp_update(struct ispsoftc *isp)
+isp_update(ispsoftc_t *isp)
 {
 	int bus, upmask;
 
@@ -5614,7 +5619,7 @@ isp_update(struct ispsoftc *isp)
 }
 
 static void
-isp_update_bus(struct ispsoftc *isp, int bus)
+isp_update_bus(ispsoftc_t *isp, int bus)
 {
 	int tgt;
 	mbreg_t mbs;
@@ -5632,7 +5637,7 @@ isp_update_bus(struct ispsoftc *isp, int bus)
 	MEMZERO(&mbs, sizeof (mbs));
 
 	for (tgt = 0; tgt < MAX_TARGETS; tgt++) {
-		u_int16_t flags, period, offset;
+		uint16_t flags, period, offset;
 		int get;
 
 		if (sdp->isp_devparam[tgt].dev_enable == 0) {
@@ -5739,7 +5744,7 @@ isp_update_bus(struct ispsoftc *isp, int bus)
 #endif
 
 static void
-isp_setdfltparm(struct ispsoftc *isp, int channel)
+isp_setdfltparm(ispsoftc_t *isp, int channel)
 {
 	int tgt;
 	mbreg_t mbs;
@@ -5802,8 +5807,8 @@ isp_setdfltparm(struct ispsoftc *isp, int channel)
 		}
 		if (isp->isp_confopts & ISP_CFG_OWNWWNN) {
 			isp_prt(isp, ISP_LOGCONFIG, "Using Node WWN 0x%08x%08x",
-			    (u_int32_t) (DEFAULT_NODEWWN(isp) >> 32),
-			    (u_int32_t) (DEFAULT_NODEWWN(isp) & 0xffffffff));
+			    (uint32_t) (DEFAULT_NODEWWN(isp) >> 32),
+			    (uint32_t) (DEFAULT_NODEWWN(isp) & 0xffffffff));
 			ISP_NODEWWN(isp) = DEFAULT_NODEWWN(isp);
 		} else {
 			/*
@@ -5814,8 +5819,8 @@ isp_setdfltparm(struct ispsoftc *isp, int channel)
 		}
 		if (isp->isp_confopts & ISP_CFG_OWNWWPN) {
 			isp_prt(isp, ISP_LOGCONFIG, "Using Port WWN 0x%08x%08x",
-			    (u_int32_t) (DEFAULT_PORTWWN(isp) >> 32),
-			    (u_int32_t) (DEFAULT_PORTWWN(isp) & 0xffffffff));
+			    (uint32_t) (DEFAULT_PORTWWN(isp) >> 32),
+			    (uint32_t) (DEFAULT_PORTWWN(isp) & 0xffffffff));
 			ISP_PORTWWN(isp) = DEFAULT_PORTWWN(isp);
 		} else {
 			/*
@@ -5912,7 +5917,7 @@ isp_setdfltparm(struct ispsoftc *isp, int channel)
 	 * the default to the SAFE default state- that's not the goal state.
 	 */
 	for (tgt = 0; tgt < MAX_TARGETS; tgt++) {
-		u_int8_t off, per;
+		uint8_t off, per;
 		sdp->isp_devparam[tgt].actv_offset = 0;
 		sdp->isp_devparam[tgt].actv_period = 0;
 		sdp->isp_devparam[tgt].actv_flags = 0;
@@ -5966,7 +5971,7 @@ isp_setdfltparm(struct ispsoftc *isp, int channel)
  */
 
 void
-isp_reinit(struct ispsoftc *isp)
+isp_reinit(ispsoftc_t *isp)
 {
 	XS_T *xs;
 	int i;
@@ -5990,7 +5995,7 @@ isp_reinit(struct ispsoftc *isp)
 	isp->isp_nactive = 0;
 
 	for (i = 0; i < isp->isp_maxcmds; i++) {
-		u_int16_t handle;
+		uint16_t handle;
 		xs = isp->isp_xflist[i];
 		if (xs == NULL) {
 			continue;
@@ -6012,13 +6017,13 @@ isp_reinit(struct ispsoftc *isp)
  * NVRAM Routines
  */
 static int
-isp_read_nvram(struct ispsoftc *isp)
+isp_read_nvram(ispsoftc_t *isp)
 {
 	int i, amt;
-	u_int8_t csum, minversion;
+	uint8_t csum, minversion;
 	union {
-		u_int8_t _x[ISP2100_NVRAM_SIZE];
-		u_int16_t _s[ISP2100_NVRAM_SIZE>>1];
+		uint8_t _x[ISP2100_NVRAM_SIZE];
+		uint16_t _s[ISP2100_NVRAM_SIZE>>1];
 	} _n;
 #define	nvram_data	_n._x
 #define	nvram_words	_n._s
@@ -6086,10 +6091,10 @@ isp_read_nvram(struct ispsoftc *isp)
 }
 
 static void
-isp_rdnvram_word(struct ispsoftc *isp, int wo, u_int16_t *rp)
+isp_rdnvram_word(ispsoftc_t *isp, int wo, uint16_t *rp)
 {
 	int i, cbits;
-	u_int16_t bit, rqst;
+	uint16_t bit, rqst;
 
 	ISP_WRITE(isp, BIU_NVRAM, BIU_NVRAM_SELECT);
 	USEC_DELAY(2);
@@ -6134,7 +6139,7 @@ isp_rdnvram_word(struct ispsoftc *isp, int wo, u_int16_t *rp)
 	 */
 	*rp = 0;
 	for (i = 0; i < 16; i++) {
-		u_int16_t rv;
+		uint16_t rv;
 		*rp <<= 1;
 		ISP_WRITE(isp, BIU_NVRAM, BIU_NVRAM_SELECT|BIU_NVRAM_CLOCK);
 		USEC_DELAY(2);
@@ -6152,7 +6157,7 @@ isp_rdnvram_word(struct ispsoftc *isp, int wo, u_int16_t *rp)
 }
 
 static void
-isp_parse_nvram_1020(struct ispsoftc *isp, u_int8_t *nvram_data)
+isp_parse_nvram_1020(ispsoftc_t *isp, uint8_t *nvram_data)
 {
 	sdparam *sdp = (sdparam *) isp->isp_param;
 	int tgt;
@@ -6278,7 +6283,7 @@ isp_parse_nvram_1020(struct ispsoftc *isp, u_int8_t *nvram_data)
 }
 
 static void
-isp_parse_nvram_1080(struct ispsoftc *isp, int bus, u_int8_t *nvram_data)
+isp_parse_nvram_1080(ispsoftc_t *isp, int bus, uint8_t *nvram_data)
 {
 	sdparam *sdp = (sdparam *) isp->isp_param;
 	int tgt;
@@ -6370,7 +6375,7 @@ isp_parse_nvram_1080(struct ispsoftc *isp, int bus, u_int8_t *nvram_data)
 }
 
 static void
-isp_parse_nvram_12160(struct ispsoftc *isp, int bus, u_int8_t *nvram_data)
+isp_parse_nvram_12160(ispsoftc_t *isp, int bus, uint8_t *nvram_data)
 {
 	sdparam *sdp = (sdparam *) isp->isp_param;
 	int tgt;
@@ -6461,10 +6466,10 @@ isp_parse_nvram_12160(struct ispsoftc *isp, int bus, u_int8_t *nvram_data)
 }
 
 static void
-isp_parse_nvram_2100(struct ispsoftc *isp, u_int8_t *nvram_data)
+isp_parse_nvram_2100(ispsoftc_t *isp, uint8_t *nvram_data)
 {
 	fcparam *fcp = (fcparam *) isp->isp_param;
-	u_int64_t wwn;
+	uint64_t wwn;
 
 	/*
 	 * There is NVRAM storage for both Port and Node entities-
@@ -6480,9 +6485,9 @@ isp_parse_nvram_2100(struct ispsoftc *isp, u_int8_t *nvram_data)
 	wwn = ISP2100_NVRAM_PORT_NAME(nvram_data);
 	if (wwn) {
 		isp_prt(isp, ISP_LOGCONFIG, "NVRAM Port WWN 0x%08x%08x",
-		    (u_int32_t) (wwn >> 32), (u_int32_t) (wwn & 0xffffffff));
+		    (uint32_t) (wwn >> 32), (uint32_t) (wwn & 0xffffffff));
 		if ((wwn >> 60) == 0) {
-			wwn |= (((u_int64_t) 2)<< 60);
+			wwn |= (((uint64_t) 2)<< 60);
 		}
 	}
 	fcp->isp_portwwn = wwn;
@@ -6490,14 +6495,14 @@ isp_parse_nvram_2100(struct ispsoftc *isp, u_int8_t *nvram_data)
 		wwn = ISP2200_NVRAM_NODE_NAME(nvram_data);
 		if (wwn) {
 			isp_prt(isp, ISP_LOGCONFIG, "NVRAM Node WWN 0x%08x%08x",
-			    (u_int32_t) (wwn >> 32),
-			    (u_int32_t) (wwn & 0xffffffff));
+			    (uint32_t) (wwn >> 32),
+			    (uint32_t) (wwn & 0xffffffff));
 			if ((wwn >> 60) == 0) {
-				wwn |= (((u_int64_t) 2)<< 60);
+				wwn |= (((uint64_t) 2)<< 60);
 			}
 		}
 	} else {
-		wwn &= ~((u_int64_t) 0xfff << 48);
+		wwn &= ~((uint64_t) 0xfff << 48);
 	}
 	fcp->isp_nodewwn = wwn;
 
@@ -6517,13 +6522,13 @@ isp_parse_nvram_2100(struct ispsoftc *isp, u_int8_t *nvram_data)
 	 * for the Port WWN.
 	 */
 	if (fcp->isp_nodewwn && fcp->isp_portwwn) {
-		if ((fcp->isp_nodewwn & (((u_int64_t) 0xfff) << 48)) != 0 &&
+		if ((fcp->isp_nodewwn & (((uint64_t) 0xfff) << 48)) != 0 &&
 		    (fcp->isp_nodewwn >> 60) == 2) {
-			fcp->isp_nodewwn &= ~((u_int64_t) 0xfff << 48);
+			fcp->isp_nodewwn &= ~((uint64_t) 0xfff << 48);
 		}
-		if ((fcp->isp_portwwn & (((u_int64_t) 0xfff) << 48)) == 0 &&
+		if ((fcp->isp_portwwn & (((uint64_t) 0xfff) << 48)) == 0 &&
 		    (fcp->isp_portwwn >> 60) == 2) {
-			fcp->isp_portwwn |= ((u_int64_t) 1 << 56);
+			fcp->isp_portwwn |= ((uint64_t) 1 << 56);
 		}
 	}
 
@@ -6553,15 +6558,15 @@ isp_parse_nvram_2100(struct ispsoftc *isp, u_int8_t *nvram_data)
 }
 
 #ifdef	ISP_FW_CRASH_DUMP
-static void isp2200_fw_dump(struct ispsoftc *);
-static void isp2300_fw_dump(struct ispsoftc *);
+static void isp2200_fw_dump(ispsoftc_t *);
+static void isp2300_fw_dump(ispsoftc_t *);
 
 static void
-isp2200_fw_dump(struct ispsoftc *isp)
+isp2200_fw_dump(ispsoftc_t *isp)
 {
 	int i, j;
 	mbreg_t mbs;
-	u_int16_t *ptr;
+	uint16_t *ptr;
 
 	MEMZERO(&mbs, sizeof (mbs));
 	ptr = FCPARAM(isp)->isp_dump_data;
@@ -6702,11 +6707,11 @@ isp2200_fw_dump(struct ispsoftc *isp)
 }
 
 static void
-isp2300_fw_dump(struct ispsoftc *isp)
+isp2300_fw_dump(ispsoftc_t *isp)
 {
 	int i, j;
 	mbreg_t mbs;
-	u_int16_t *ptr;
+	uint16_t *ptr;
 
 	MEMZERO(&mbs, sizeof (mbs));
 	ptr = FCPARAM(isp)->isp_dump_data;
@@ -6866,7 +6871,7 @@ isp2300_fw_dump(struct ispsoftc *isp)
 }
 
 void
-isp_fw_dump(struct ispsoftc *isp)
+isp_fw_dump(ispsoftc_t *isp)
 {
 	if (IS_2200(isp))
 		isp2200_fw_dump(isp);
