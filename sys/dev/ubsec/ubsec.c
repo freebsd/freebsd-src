@@ -1622,10 +1622,11 @@ ubsec_callback(struct ubsec_softc *sc, struct ubsec_q *q)
 			    crd->crd_inject,
 			    sc->sc_sessions[q->q_sesn].ses_mlen,
 			    (caddr_t)dmap->d_dma->d_macbuf);
-		else if (crp->crp_flags & CRYPTO_F_IOV && crp->crp_mac)
-			bcopy((caddr_t)dmap->d_dma->d_macbuf,
-			    crp->crp_mac,
-			    sc->sc_sessions[q->q_sesn].ses_mlen);
+		else if (crp->crp_flags & CRYPTO_F_IOV)
+			cuio_copyback((struct uio *)crp->crp_buf,
+			    crd->crd_inject,
+			    sc->sc_sessions[q->q_sesn].ses_mlen,
+			    (caddr_t)dmap->d_dma->d_macbuf);
 		break;
 	}
 	mtx_lock(&sc->sc_freeqlock);
