@@ -694,19 +694,10 @@ crypto_dispatch(struct cryptop *crp)
 			result = crypto_invoke(cap, crp, 0);
 			if (result != ERESTART)
 				return (result);
-			else {
-				/*
-				 * The driver ran out of resources, mark the
-				 * driver ``blocked'' for cryptop's and put
-				 * the request on the queue.
-				 *
-				 * XXX ops are placed at the tail so their
-				 * order is preserved but this can place them
-				 * behind batch'd ops.
-				 */
-				cap->cc_qblocked = 1;
-				cryptostats.cs_blocks++;
-			}
+			/*
+			 * The driver ran out of resources, put the request on
+			 * the queue.
+			 */
 		}
 	}
 	CRYPTO_Q_LOCK();
@@ -1102,13 +1093,11 @@ crypto_proc(void)
 		}
 		if (submit != NULL) {
 			TAILQ_REMOVE(&crp_q, submit, crp_next);
-			CRYPTO_Q_UNLOCK();
 			hid = CRYPTO_SESID2HID(submit->crp_sid);
 			cap = crypto_checkdriver(hid);
 			KASSERT(cap != NULL, ("%s:%u Driver disappeared.",
 			    __func__, __LINE__));
 			result = crypto_invoke(cap, submit, hint);
-			CRYPTO_Q_LOCK();
 			if (result == ERESTART) {
 				/*
 				 * The driver ran out of resources, mark the
@@ -1138,9 +1127,7 @@ crypto_proc(void)
 		}
 		if (krp != NULL) {
 			TAILQ_REMOVE(&crp_kq, krp, krp_next);
-			CRYPTO_Q_UNLOCK();
 			result = crypto_kinvoke(krp);
-			CRYPTO_Q_LOCK();
 			if (result == ERESTART) {
 				/*
 				 * The driver ran out of resources, mark the
