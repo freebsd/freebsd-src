@@ -144,7 +144,7 @@ typedef char Char;
 
 
 static int	 compare(const void *, const void *);
-static int	 g_Ctoc(const Char *, char *, u_int);
+static int	 g_Ctoc(const Char *, char *, size_t);
 static int	 g_lstat(Char *, struct stat *, glob_t *);
 static DIR	*g_opendir(Char *, glob_t *);
 static Char	*g_strchr(Char *, wchar_t);
@@ -152,15 +152,15 @@ static Char	*g_strchr(Char *, wchar_t);
 static Char	*g_strcat(Char *, const Char *);
 #endif
 static int	 g_stat(Char *, struct stat *, glob_t *);
-static int	 glob0(const Char *, glob_t *, int *);
-static int	 glob1(Char *, glob_t *, int *);
-static int	 glob2(Char *, Char *, Char *, Char *, glob_t *, int *);
-static int	 glob3(Char *, Char *, Char *, Char *, Char *, glob_t *, int *);
-static int	 globextend(const Char *, glob_t *, int *);
+static int	 glob0(const Char *, glob_t *, size_t *);
+static int	 glob1(Char *, glob_t *, size_t *);
+static int	 glob2(Char *, Char *, Char *, Char *, glob_t *, size_t *);
+static int	 glob3(Char *, Char *, Char *, Char *, Char *, glob_t *, size_t *);
+static int	 globextend(const Char *, glob_t *, size_t *);
 static const Char *	
 		 globtilde(const Char *, Char *, size_t, glob_t *);
-static int	 globexp1(const Char *, glob_t *, int *);
-static int	 globexp2(const Char *, const Char *, glob_t *, int *, int *);
+static int	 globexp1(const Char *, glob_t *, size_t *);
+static int	 globexp2(const Char *, const Char *, glob_t *, int *, size_t *);
 static int	 match(Char *, Char *, Char *);
 #ifdef DEBUG
 static void	 qprintf(const char *, Char *);
@@ -173,7 +173,7 @@ glob(pattern, flags, errfunc, pglob)
 	glob_t *pglob;
 {
 	const u_char *patnext;
-	int limit;
+	size_t limit;
 	Char *bufnext, *bufend, patbuf[MAXPATHLEN], prot;
 	mbstate_t mbs;
 	wchar_t wc;
@@ -247,7 +247,7 @@ static int
 globexp1(pattern, pglob, limit)
 	const Char *pattern;
 	glob_t *pglob;
-	int *limit;
+	size_t *limit;
 {
 	const Char* ptr = pattern;
 	int rv;
@@ -273,7 +273,8 @@ static int
 globexp2(ptr, pattern, pglob, rv, limit)
 	const Char *ptr, *pattern;
 	glob_t *pglob;
-	int *rv, *limit;
+	int *rv;
+	size_t *limit;
 {
 	int     i;
 	Char   *lm, *ls;
@@ -450,10 +451,11 @@ static int
 glob0(pattern, pglob, limit)
 	const Char *pattern;
 	glob_t *pglob;
-	int *limit;
+	size_t *limit;
 {
 	const Char *qpatnext;
-	int c, err, oldpathc;
+	int c, err;
+	size_t oldpathc;
 	Char *bufnext, patbuf[MAXPATHLEN];
 
 	qpatnext = globtilde(pattern, patbuf, MAXPATHLEN, pglob);
@@ -546,7 +548,7 @@ static int
 glob1(pattern, pglob, limit)
 	Char *pattern;
 	glob_t *pglob;
-	int *limit;
+	size_t *limit;
 {
 	Char pathbuf[MAXPATHLEN];
 
@@ -566,7 +568,7 @@ static int
 glob2(pathbuf, pathend, pathend_last, pattern, pglob, limit)
 	Char *pathbuf, *pathend, *pathend_last, *pattern;
 	glob_t *pglob;
-	int *limit;
+	size_t *limit;
 {
 	struct stat sb;
 	Char *p, *q;
@@ -626,7 +628,7 @@ static int
 glob3(pathbuf, pathend, pathend_last, pattern, restpattern, pglob, limit)
 	Char *pathbuf, *pathend, *pathend_last, *pattern, *restpattern;
 	glob_t *pglob;
-	int *limit;
+	size_t *limit;
 {
 	struct dirent *dp;
 	DIR *dirp;
@@ -725,11 +727,10 @@ static int
 globextend(path, pglob, limit)
 	const Char *path;
 	glob_t *pglob;
-	int *limit;
+	size_t *limit;
 {
 	char **pathv;
-	int i;
-	u_int newsize, len;
+	size_t i, newsize, len;
 	char *copy;
 	const Char *p;
 
@@ -753,7 +754,7 @@ globextend(path, pglob, limit)
 	if (pglob->gl_pathv == NULL && pglob->gl_offs > 0) {
 		/* first time around -- clear initial gl_offs items */
 		pathv += pglob->gl_offs;
-		for (i = pglob->gl_offs; --i >= 0; )
+		for (i = pglob->gl_offs + 1; --i > 0; )
 			*--pathv = NULL;
 	}
 	pglob->gl_pathv = pathv;
@@ -832,7 +833,7 @@ void
 globfree(pglob)
 	glob_t *pglob;
 {
-	int i;
+	size_t i;
 	char **pp;
 
 	if (pglob->gl_pathv != NULL) {
@@ -915,7 +916,7 @@ static int
 g_Ctoc(str, buf, len)
 	const Char *str;
 	char *buf;
-	u_int len;
+	size_t len;
 {
 	mbstate_t mbs;
 	size_t clen;
