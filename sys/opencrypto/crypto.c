@@ -59,12 +59,12 @@ static	int crypto_drivers_num = 0;
  * have one per-queue but having one simplifies handling of block/unblock
  * operations.
  */
+static	int crp_sleep = 0;
 static	TAILQ_HEAD(,cryptop) crp_q;		/* request queues */
 static	TAILQ_HEAD(,cryptkop) crp_kq;
 static	struct mtx crypto_q_mtx;
 #define	CRYPTO_Q_LOCK()		mtx_lock(&crypto_q_mtx)
 #define	CRYPTO_Q_UNLOCK()	mtx_unlock(&crypto_q_mtx)
-#define	CRYPTO_Q_EMPTY()	(TAILQ_EMPTY(&crp_q) && TAILQ_EMPTY(&crp_kq))
 
 /*
  * There are two queues for processing completed crypto requests; one
@@ -639,21 +639,16 @@ int
 crypto_unblock(u_int32_t driverid, int what)
 {
 	struct cryptocap *cap;
-	int needwakeup, err;
+	int err;
 
 	CRYPTO_Q_LOCK();
 	cap = crypto_checkdriver(driverid);
 	if (cap != NULL) {
-		needwakeup = 0;
-		if (what & CRYPTO_SYMQ) {
-			needwakeup |= cap->cc_qblocked;
+		if (what & CRYPTO_SYMQ)
 			cap->cc_qblocked = 0;
-		}
-		if (what & CRYPTO_ASYMQ) {
-			needwakeup |= cap->cc_kqblocked;
+		if (what & CRYPTO_ASYMQ)
 			cap->cc_kqblocked = 0;
-		}
-		if (needwakeup)
+		if (crp_sleep)
 			wakeup_one(&crp_q);
 		err = 0;
 	} else
@@ -702,9 +697,9 @@ crypto_dispatch(struct cryptop *crp)
 		}
 	}
 	CRYPTO_Q_LOCK();
-	if (CRYPTO_Q_EMPTY())
-		wakeup_one(&crp_q);
 	TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
+	if (crp_sleep)
+		wakeup_one(&crp_q);
 	CRYPTO_Q_UNLOCK();
 	return 0;
 }
@@ -724,9 +719,9 @@ crypto_kdispatch(struct cryptkop *krp)
 	if (result != ERESTART)
 		return (result);
 	CRYPTO_Q_LOCK();
-	if (CRYPTO_Q_EMPTY())
-		wakeup_one(&crp_q);
 	TAILQ_INSERT_TAIL(&crp_kq, krp, krp_next);
+	if (crp_sleep)
+		wakeup_one(&crp_q);
 	CRYPTO_Q_UNLOCK();
 
 	return 0;
@@ -1157,7 +1152,9 @@ crypto_proc(void)
 			 * out of order if dispatched to different devices
 			 * and some become blocked while others do not.
 			 */
+			crp_sleep = 1;
 			msleep(&crp_q, &crypto_q_mtx, PWAIT, "crypto_wait", 0);
+			crp_sleep = 0;
 			if (cryptoproc == NULL)
 				break;
 			cryptostats.cs_intrs++;
