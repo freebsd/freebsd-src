@@ -1,6 +1,5 @@
 # $FreeBSD$
 # .gdbinit file for remote serial debugging.
-# see gdbinit(9) for further details.
 #
 # XXX Do not use this file directly.  It contains parameters which are
 # XXX substituted by the kernel Makefile when you do a 'make gdbinit'.
@@ -8,9 +7,9 @@
 # XXX
 # To debug kernels, do:
 #
-#  cd /usr/src/sys/GENERIC   (or kernel build directory)
+#  cd /usr/obj/usr/src/sys/GENERIC   (or kernel build directory)
 #  make gdbinit
-#  gdb -k kernel.debug
+#  gdb kernel.debug
 #
 # Read gdb(4) for more details.
 
