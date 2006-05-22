@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_bus.h>
+#include <arm/sa11x0/sa11x0_reg.h>
 #include <arm/sa11x0/uart_dev_sa1110.h>
 
 #include "uart_if.h"
@@ -79,7 +80,7 @@ static void
 sa1110_addr_change(struct uart_bas *bas)
 {
 	
-	bas->bsh = 0xd000d000;
+	bas->bsh = SACOM1_VBASE;
 	did_mmu = 1;
 }
 
