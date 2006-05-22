@@ -1247,7 +1247,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb)
 		XS_SETERR(ccb, CAM_REQUEUE_REQ);
 		goto out;
 	}
-	bzero(local, QENTRY_LEN);
+	memset(local, 0, QENTRY_LEN);
 
 	/*
 	 * We're either moving data or completing a command here.
@@ -1259,9 +1259,13 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb)
 
 		cto->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 		cto->ct_header.rqs_entry_count = 1;
-		cto->ct_iid = cso->init_id;
-		if ((FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN) == 0) {
-			cto->ct_lun = ccb->ccb_h.target_lun;
+		if (IS_2KLOGIN(isp)) {
+			((ct2e_entry_t *)cto)->ct_iid = cso->init_id;
+		} else {
+			cto->ct_iid = cso->init_id;
+			if (!(FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN)) {
+				cto->ct_lun = ccb->ccb_h.target_lun;
+			}
 		}
 
 		atp = isp_get_atpd(isp, cso->tag_id);
@@ -1291,7 +1295,8 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb)
 			}
 			if ((ccb->ccb_h.flags & CAM_SEND_SENSE) != 0) {
 				int m = min(cso->sense_len, MAXRESPLEN);
-				bcopy(&cso->sense_data, cto->rsp.m1.ct_resp, m);
+				memcpy(cto->rsp.m1.ct_resp,
+				    &cso->sense_data, m);
 				cto->rsp.m1.ct_senselen = m;
 				cto->rsp.m1.ct_scsi_status |= CT2_SNSLEN_VALID;
 			}
@@ -1440,7 +1445,7 @@ isp_target_putback_atio(union ccb *ccb)
 		    "isp_target_putback_atio: Request Queue Overflow"); 
 		return;
 	}
-	bzero(qe, QENTRY_LEN);
+	memset(qe, 0, QENTRY_LEN);
 	cso = &ccb->csio;
 	if (IS_FC(isp)) {
 		at2_entry_t local, *at = &local;
@@ -2845,7 +2850,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, void *arg)
 		struct ccb_trans_settings cts;
 		struct cam_path *tmppath;
 
-		bzero(&cts, sizeof (struct ccb_trans_settings));
+		memset(&cts, 0, sizeof (struct ccb_trans_settings));
 
 		tgt = *((int *)arg);
 		bus = (tgt >> 16) & 0xffff;
