@@ -474,7 +474,7 @@ isp_get_options(device_t dev, ispsoftc_t *isp)
 			if (amt) {
 				FCPARAM(isp)->isp_dump_data =
 				    malloc(amt, M_DEVBUF, M_WAITOK);
-				bzero(FCPARAM(isp)->isp_dump_data, amt);
+				memset(FCPARAM(isp)->isp_dump_data, 0, amt);
 			} else {
 				device_printf(dev,
 				    "f/w crash dumps not supported for card\n");
@@ -1328,25 +1328,28 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	hlim = BUS_SPACE_MAXADDR;
 	if (IS_ULTRA2(isp) || IS_FC(isp) || IS_1240(isp)) {
 		slim = (bus_size_t) (1ULL << 32);
-#ifdef	ISP_TARGET_MODE
-		/*
-		 * XXX: Until Fixed Soon
-		 */
-		llim = BUS_SPACE_MAXADDR_32BIT;
-#else
 		llim = BUS_SPACE_MAXADDR;
-#endif
 	} else {
 		llim = BUS_SPACE_MAXADDR_32BIT;
 		slim = (1 << 24);
 	}
+
+	/*
+	 * XXX: We don't really support 64 bit target mode for parallel scsi yet
+	 */
+#ifdef	ISP_TARGET_MODE
+	if (IS_SCSI(isp) && sizeof (bus_addr_t) > 4) {
+		isp_prt(isp, ISP_LOGERR, "we cannot do DAC for SPI cards yet");
+		return (1);
+	}
+#endif
 
 	ISP_UNLOCK(isp);
 	if (isp_dma_tag_create(NULL, 1, slim, llim, hlim,
 	    NULL, NULL, BUS_SPACE_MAXSIZE, ISP_NSEGS, slim, 0, &pcs->dmat)) {
 		isp_prt(isp, ISP_LOGERR, "could not create master dma tag");
 		ISP_LOCK(isp);
-		return(1);
+		return (1);
 	}
 
 
@@ -1747,7 +1750,9 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	ispsoftc_t *isp;
 	ct2_entry_t *cto, *qe;
 	uint16_t curi, nxti;
-	int segcnt;
+	ispds_t *ds;
+	ispds64_t *ds64;
+	int segcnt, seglim;
 
 	mp = (mush_t *) arg;
 	if (error) {
@@ -1783,7 +1788,12 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		    "0x%x res %d", cto->ct_rxid, csio->ccb_h.target_lun,
 		    cto->ct_iid, cto->ct_flags, cto->ct_status,
 		    cto->rsp.m1.ct_scsi_status, cto->ct_resid);
-		isp_put_ctio2(isp, cto, qe);
+		if (IS_2KLOGIN(isp)) {
+			isp_put_ctio2e(isp,
+			    (ct2e_entry_t *)cto, (ct2e_entry_t *)qe);
+		} else {
+			isp_put_ctio2(isp, cto, qe);
+		}
 		ISP_TDQE(isp, "dma2_tgt_fc[no data]", curi, qe);
 		return;
 	}
@@ -1800,14 +1810,48 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	nxti = *mp->nxtip;
 
 	/*
+	 * Check to see if we need to DAC addressing or not.
+	 *
+	 * Any address that's over the 4GB boundary causes this
+	 * to happen.
+	 */
+	segcnt = nseg;
+	if (sizeof (bus_addr_t) > 4) {
+		for (segcnt = 0; segcnt < nseg; segcnt++) {
+			uint64_t addr = dm_segs[segcnt].ds_addr;
+			if (addr >= 0x100000000LL) {
+				break;
+			}
+		}
+	}
+	if (segcnt != nseg) {
+		cto->ct_header.rqs_entry_type = RQSTYPE_CTIO3;
+		seglim = ISP_RQDSEG_T3;
+		ds64 = &cto->rsp.m0.ct_dataseg64[0];
+		ds = NULL;
+	} else {
+		seglim = ISP_RQDSEG_T2;
+		ds64 = NULL;
+		ds = &cto->rsp.m0.ct_dataseg[0];
+	}
+	cto->ct_seg_count = 0;
+
+	/*
 	 * Set up the CTIO2 data segments.
 	 */
-	for (segcnt = 0; cto->ct_seg_count < ISP_RQDSEG_T2 && segcnt < nseg;
+	for (segcnt = 0; cto->ct_seg_count < seglim && segcnt < nseg;
 	    cto->ct_seg_count++, segcnt++) {
-		cto->rsp.m0.ct_dataseg[cto->ct_seg_count].ds_base =
-		    dm_segs[segcnt].ds_addr;
-		cto->rsp.m0.ct_dataseg[cto->ct_seg_count].ds_count =
-		    dm_segs[segcnt].ds_len;
+		if (ds64) {
+			ds64->ds_basehi =
+			    ((uint64_t) (dm_segs[segcnt].ds_addr) >> 32);
+			ds64->ds_base = dm_segs[segcnt].ds_addr;
+			ds64->ds_count = dm_segs[segcnt].ds_len;
+			ds64++;
+		} else {
+			ds->ds_base = dm_segs[segcnt].ds_addr;
+			ds->ds_count = dm_segs[segcnt].ds_len;
+			ds++;
+		}
 		cto->rsp.m0.ct_xfrlen += dm_segs[segcnt].ds_len;
 #if __FreeBSD_version < 500000  
 		isp_prt(isp, ISP_LOGTDEBUG1,
@@ -1840,11 +1884,30 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		cto->ct_header.rqs_entry_count++;
 		MEMZERO((void *)crq, sizeof (*crq));
 		crq->req_header.rqs_entry_count = 1;
-		crq->req_header.rqs_entry_type = RQSTYPE_DATASEG;
-		for (seg = 0; segcnt < nseg && seg < ISP_CDSEG;
+		if (cto->ct_header.rqs_entry_type == RQSTYPE_CTIO3) {
+			seglim = ISP_CDSEG64;
+			ds = NULL;
+			ds64 = &((ispcontreq64_t *)crq)->req_dataseg[0];
+			crq->req_header.rqs_entry_type = RQSTYPE_A64_CONT;
+		} else {
+			seglim = ISP_CDSEG;
+			ds = &crq->req_dataseg[0];
+			ds64 = NULL;
+			crq->req_header.rqs_entry_type = RQSTYPE_DATASEG;
+		}
+		for (seg = 0; segcnt < nseg && seg < seglim;
 		    segcnt++, seg++) {
-			crq->req_dataseg[seg].ds_base = dm_segs[segcnt].ds_addr;
-			crq->req_dataseg[seg].ds_count = dm_segs[segcnt].ds_len;
+			if (ds64) {
+				ds64->ds_basehi =
+				  ((uint64_t) (dm_segs[segcnt].ds_addr) >> 32);
+				ds64->ds_base = dm_segs[segcnt].ds_addr;
+				ds64->ds_count = dm_segs[segcnt].ds_len;
+				ds64++;
+			} else {
+				ds->ds_base = dm_segs[segcnt].ds_addr;
+				ds->ds_count = dm_segs[segcnt].ds_len;
+				ds++;
+			}
 #if __FreeBSD_version < 500000  
 			isp_prt(isp, ISP_LOGTDEBUG1,
 			    "isp_send_ctio2: ent%d[%d]%llx:%llu",
@@ -1875,7 +1938,10 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	    cto->ct_rxid, csio->ccb_h.target_lun, (int) cto->ct_iid,
 	    cto->ct_flags, cto->ct_status, cto->rsp.m1.ct_scsi_status,
 	    cto->ct_resid);
-	isp_put_ctio2(isp, cto, qe);
+	if (IS_2KLOGIN(isp))
+		isp_put_ctio2e(isp, (ct2e_entry_t *)cto, (ct2e_entry_t *)qe);
+	else
+		isp_put_ctio2(isp, cto, qe);
 	ISP_TDQE(isp, "last dma2_tgt_fc", curi, qe);
 	*mp->nxtip = nxti;
 }
