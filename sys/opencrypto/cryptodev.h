@@ -305,10 +305,17 @@ struct cryptkop {
 	int		(*krp_callback)(struct cryptkop *);
 };
 
-/* Crypto capabilities structure */
+/*
+ * Crypto capabilities structure.
+ *
+ * Synchronization:
+ * (d) - protected by CRYPTO_DRIVER_LOCK()
+ * (q) - protected by CRYPTO_Q_LOCK()
+ * Not tagged fields are read-only.
+ */
 struct cryptocap {
-	u_int32_t	cc_sessions;
-	u_int32_t	cc_koperations;
+	u_int32_t	cc_sessions;		/* (d) number of sessions */
+	u_int32_t	cc_koperations;		/* (d) number os asym operations */
 
 	/*
 	 * Largest possible operator length (in bits) for each type of
@@ -320,12 +327,12 @@ struct cryptocap {
 
 	u_int8_t	cc_kalg[CRK_ALGORITHM_MAX + 1];
 
-	u_int8_t	cc_flags;
-	u_int8_t	cc_qblocked;		/* symmetric q blocked */
-	u_int8_t	cc_kqblocked;		/* asymmetric q blocked */
+	u_int8_t	cc_flags;		/* (d) flags */
 #define CRYPTOCAP_F_CLEANUP	0x01		/* needs resource cleanup */
 #define CRYPTOCAP_F_SOFTWARE	0x02		/* software implementation */
 #define CRYPTOCAP_F_SYNC	0x04		/* operates synchronously */
+	u_int8_t	cc_qblocked;		/* (q) symmetric q blocked */
+	u_int8_t	cc_kqblocked;		/* (q) asymmetric q blocked */
 
 	void		*cc_arg;		/* callback argument */
 	int		(*cc_newsession)(void*, u_int32_t*, struct cryptoini*);
