@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/cons.h>
 #include <sys/uio.h>
+#include <sys/ctype.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -88,7 +89,7 @@ extern	int log_open;
 
 static void  msglogchar(int c, int pri);
 static void  putchar(int ch, void *arg);
-static char *ksprintn(char *nbuf, uintmax_t num, int base, int *len);
+static char *ksprintn(char *nbuf, uintmax_t num, int base, int *len, int upper);
 static void  snprintf_func(int ch, void *arg);
 
 static int consintr = 1;		/* Ok to handle console interrupts? */
@@ -451,14 +452,15 @@ snprintf_func(int ch, void *arg)
  * The buffer pointed to by `nbuf' must have length >= MAXNBUF.
  */
 static char *
-ksprintn(char *nbuf, uintmax_t num, int base, int *lenp)
+ksprintn(char *nbuf, uintmax_t num, int base, int *lenp, int upper)
 {
-	char *p;
+	char *p, c;
 
 	p = nbuf;
 	*p = '\0';
 	do {
-		*++p = hex2ascii(num % base);
+		c = hex2ascii(num % base);
+		*++p = upper ? toupper(c) : c;
 	} while (num /= base);
 	if (lenp)
 		*lenp = p - nbuf;
@@ -503,7 +505,7 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 	uintmax_t num;
 	int base, lflag, qflag, tmp, width, ladjust, sharpflag, neg, sign, dot;
 	int cflag, hflag, jflag, tflag, zflag;
-	int dwidth;
+	int dwidth, upper;
 	char padc;
 	int stop = 0, retval = 0;
 
@@ -529,7 +531,7 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 		}
 		percent = fmt - 1;
 		qflag = 0; lflag = 0; ladjust = 0; sharpflag = 0; neg = 0;
-		sign = 0; dot = 0; dwidth = 0;
+		sign = 0; dot = 0; dwidth = 0; upper = 0;
 		cflag = 0; hflag = 0; jflag = 0; tflag = 0; zflag = 0;
 reswitch:	switch (ch = (u_char)*fmt++) {
 		case '.':
@@ -579,7 +581,7 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 		case 'b':
 			num = (u_int)va_arg(ap, int);
 			p = va_arg(ap, char *);
-			for (q = ksprintn(nbuf, num, *p++, NULL); *q;)
+			for (q = ksprintn(nbuf, num, *p++, NULL, 0); *q;)
 				PCHAR(*q--);
 
 			if (num == 0)
@@ -698,8 +700,9 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 		case 'u':
 			base = 10;
 			goto handle_nosign;
-		case 'x':
 		case 'X':
+			upper = 1;
+		case 'x':
 			base = 16;
 			goto handle_nosign;
 		case 'y':
@@ -750,7 +753,7 @@ number:
 				neg = 1;
 				num = -(intmax_t)num;
 			}
-			p = ksprintn(nbuf, num, base, &tmp);
+			p = ksprintn(nbuf, num, base, &tmp, upper);
 			if (sharpflag && num != 0) {
 				if (base == 8)
 					tmp++;
@@ -823,7 +826,7 @@ msglogchar(int c, int pri)
 			dangling = 0;
 		}
 		msgbuf_addchar(msgbufp, '<');
-		for (p = ksprintn(nbuf, (uintmax_t)pri, 10, NULL); *p;)
+		for (p = ksprintn(nbuf, (uintmax_t)pri, 10, NULL, 0); *p;)
 			msgbuf_addchar(msgbufp, *p--);
 		msgbuf_addchar(msgbufp, '>');
 		lastpri = pri;
