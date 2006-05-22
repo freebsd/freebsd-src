@@ -388,8 +388,8 @@
 #define	MAX_MAILBOX(isp)	((IS_FC(isp))? 12 : 8)
 #define	MAILBOX_STORAGE		12
 typedef struct {
-	u_int16_t param[MAILBOX_STORAGE];
-	u_int16_t ibits, obits;
+	uint16_t param[MAILBOX_STORAGE];
+	uint16_t ibits, obits;
 } mbreg_t;
 
 /*
@@ -766,26 +766,26 @@ typedef struct {
 
 /* Offset 5 */
 /*
-	u_int8_t bios_configuration_mode     :2;
-	u_int8_t bios_disable                :1;
-	u_int8_t selectable_scsi_boot_enable :1;
-	u_int8_t cd_rom_boot_enable          :1;
-	u_int8_t disable_loading_risc_code   :1;
-	u_int8_t enable_64bit_addressing     :1;
-	u_int8_t unused_7                    :1;
+	uint8_t bios_configuration_mode     :2;
+	uint8_t bios_disable                :1;
+	uint8_t selectable_scsi_boot_enable :1;
+	uint8_t cd_rom_boot_enable          :1;
+	uint8_t disable_loading_risc_code   :1;
+	uint8_t enable_64bit_addressing     :1;
+	uint8_t unused_7                    :1;
  */
 
 /* Offsets 6, 7 */
 /*
-        u_int8_t boot_lun_number    :5;
-        u_int8_t scsi_bus_number    :1;
-        u_int8_t unused_6           :1;
-        u_int8_t unused_7           :1;
-        u_int8_t boot_target_number :4;
-        u_int8_t unused_12          :1;
-        u_int8_t unused_13          :1;
-        u_int8_t unused_14          :1;
-        u_int8_t unused_15          :1;
+        uint8_t boot_lun_number    :5;
+        uint8_t scsi_bus_number    :1;
+        uint8_t unused_6           :1;
+        uint8_t unused_7           :1;
+        uint8_t boot_target_number :4;
+        uint8_t unused_12          :1;
+        uint8_t unused_13          :1;
+        uint8_t unused_14          :1;
+        uint8_t unused_15          :1;
  */
 
 #define	ISP1080_NVRAM_HBA_ENABLE(c)			ISPBSMX(c, 16, 3, 0x01)
@@ -955,26 +955,26 @@ typedef struct {
 #define	ISP2100_NVRAM_RETRY_DELAY(c)		(c)[17]
 
 #define	ISP2100_NVRAM_PORT_NAME(c)	(\
-		(((u_int64_t)(c)[18]) << 56) | \
-		(((u_int64_t)(c)[19]) << 48) | \
-		(((u_int64_t)(c)[20]) << 40) | \
-		(((u_int64_t)(c)[21]) << 32) | \
-		(((u_int64_t)(c)[22]) << 24) | \
-		(((u_int64_t)(c)[23]) << 16) | \
-		(((u_int64_t)(c)[24]) <<  8) | \
-		(((u_int64_t)(c)[25]) <<  0))
+		(((uint64_t)(c)[18]) << 56) | \
+		(((uint64_t)(c)[19]) << 48) | \
+		(((uint64_t)(c)[20]) << 40) | \
+		(((uint64_t)(c)[21]) << 32) | \
+		(((uint64_t)(c)[22]) << 24) | \
+		(((uint64_t)(c)[23]) << 16) | \
+		(((uint64_t)(c)[24]) <<  8) | \
+		(((uint64_t)(c)[25]) <<  0))
 
 #define	ISP2100_NVRAM_HARDLOOPID(c)		(c)[26]
 
 #define	ISP2200_NVRAM_NODE_NAME(c)	(\
-		(((u_int64_t)(c)[30]) << 56) | \
-		(((u_int64_t)(c)[31]) << 48) | \
-		(((u_int64_t)(c)[32]) << 40) | \
-		(((u_int64_t)(c)[33]) << 32) | \
-		(((u_int64_t)(c)[34]) << 24) | \
-		(((u_int64_t)(c)[35]) << 16) | \
-		(((u_int64_t)(c)[36]) <<  8) | \
-		(((u_int64_t)(c)[37]) <<  0))
+		(((uint64_t)(c)[30]) << 56) | \
+		(((uint64_t)(c)[31]) << 48) | \
+		(((uint64_t)(c)[32]) << 40) | \
+		(((uint64_t)(c)[33]) << 32) | \
+		(((uint64_t)(c)[34]) << 24) | \
+		(((uint64_t)(c)[35]) << 16) | \
+		(((uint64_t)(c)[36]) <<  8) | \
+		(((uint64_t)(c)[37]) <<  0))
 
 #define	ISP2100_NVRAM_HBA_OPTIONS(c)		(c)[70]
 #define	ISP2100_NVRAM_HBA_DISABLE(c)		ISPBSMX(c, 70, 0, 0x01)
@@ -985,14 +985,14 @@ typedef struct {
 #define	ISP2100_NVRAM_SET_CACHELINESZ(c)	ISPBSMX(c, 70, 5, 0x01)
 
 #define	ISP2100_NVRAM_BOOT_NODE_NAME(c)	(\
-		(((u_int64_t)(c)[72]) << 56) | \
-		(((u_int64_t)(c)[73]) << 48) | \
-		(((u_int64_t)(c)[74]) << 40) | \
-		(((u_int64_t)(c)[75]) << 32) | \
-		(((u_int64_t)(c)[76]) << 24) | \
-		(((u_int64_t)(c)[77]) << 16) | \
-		(((u_int64_t)(c)[78]) <<  8) | \
-		(((u_int64_t)(c)[79]) <<  0))
+		(((uint64_t)(c)[72]) << 56) | \
+		(((uint64_t)(c)[73]) << 48) | \
+		(((uint64_t)(c)[74]) << 40) | \
+		(((uint64_t)(c)[75]) << 32) | \
+		(((uint64_t)(c)[76]) << 24) | \
+		(((uint64_t)(c)[77]) << 16) | \
+		(((uint64_t)(c)[78]) <<  8) | \
+		(((uint64_t)(c)[79]) <<  0))
 
 #define	ISP2100_NVRAM_BOOT_LUN(c)		(c)[80]
 
@@ -1008,15 +1008,15 @@ typedef struct {
  */
 
 #define	QLA2200_RISC_IMAGE_DUMP_SIZE					\
-	(1 * sizeof (u_int16_t)) +	/* 'used' flag (also HBA type) */ \
-	(352 * sizeof (u_int16_t)) +	/* RISC registers */		\
- 	(61440 * sizeof (u_int16_t))	/* RISC SRAM (offset 0x1000..0xffff) */
+	(1 * sizeof (uint16_t)) +	/* 'used' flag (also HBA type) */ \
+	(352 * sizeof (uint16_t)) +	/* RISC registers */		\
+ 	(61440 * sizeof (uint16_t))	/* RISC SRAM (offset 0x1000..0xffff) */
 #define	QLA2300_RISC_IMAGE_DUMP_SIZE					\
-	(1 * sizeof (u_int16_t)) +	/* 'used' flag (also HBA type) */ \
-	(464 * sizeof (u_int16_t)) +	/* RISC registers */		\
- 	(63488 * sizeof (u_int16_t)) +	/* RISC SRAM (0x0800..0xffff) */ \
-	(4096 * sizeof (u_int16_t)) +	/* RISC SRAM (0x10000..0x10FFF) */ \
-	(61440 * sizeof (u_int16_t))	/* RISC SRAM (0x11000..0x1FFFF) */
+	(1 * sizeof (uint16_t)) +	/* 'used' flag (also HBA type) */ \
+	(464 * sizeof (uint16_t)) +	/* RISC registers */		\
+ 	(63488 * sizeof (uint16_t)) +	/* RISC SRAM (0x0800..0xffff) */ \
+	(4096 * sizeof (uint16_t)) +	/* RISC SRAM (0x10000..0x10FFF) */ \
+	(61440 * sizeof (uint16_t))	/* RISC SRAM (0x11000..0x1FFFF) */
 /* the larger of the two */
 #define	ISP_CRASH_IMAGE_SIZE	QLA2300_RISC_IMAGE_DUMP_SIZE
 #endif	/* _ISPREG_H */

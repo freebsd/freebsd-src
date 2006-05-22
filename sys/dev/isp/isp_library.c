@@ -26,12 +26,29 @@
  * SUCH DAMAGE.
  *
  */
+#ifdef	__FreeBSD__
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+#endif
+
+#ifdef	__NetBSD__
+#include <dev/ic/isp_netbsd.h>
+#endif
+#ifdef	__FreeBSD__
 #include <dev/isp/isp_freebsd.h>
+#endif
+#ifdef	__OpenBSD__
+#include <dev/ic/isp_openbsd.h>
+#endif
+#ifdef	__linux__
+#include "isp_linux.h"
+#endif
+#ifdef	__svr4__
+#include "isp_solaris.h"
+#endif
 
 int
-isp_save_xs(struct ispsoftc *isp, XS_T *xs, u_int16_t *handlep)
+isp_save_xs(ispsoftc_t *isp, XS_T *xs, uint16_t *handlep)
 {
 	int i, j;
 
@@ -50,28 +67,28 @@ isp_save_xs(struct ispsoftc *isp, XS_T *xs, u_int16_t *handlep)
 	*handlep = j+1;
 	if (++j == isp->isp_maxcmds)
 		j = 0;
-	isp->isp_lasthdls = (u_int16_t)j;
+	isp->isp_lasthdls = (uint16_t)j;
 	return (0);
 }
 
 XS_T *
-isp_find_xs(struct ispsoftc *isp, u_int16_t handle)
+isp_find_xs(ispsoftc_t *isp, uint16_t handle)
 {
-	if (handle < 1 || handle > (u_int16_t) isp->isp_maxcmds) {
+	if (handle < 1 || handle > (uint16_t) isp->isp_maxcmds) {
 		return (NULL);
 	} else {
 		return (isp->isp_xflist[handle - 1]);
 	}
 }
 
-u_int16_t
-isp_find_handle(struct ispsoftc *isp, XS_T *xs)
+uint16_t
+isp_find_handle(ispsoftc_t *isp, XS_T *xs)
 {
 	int i;
 	if (xs != NULL) {
 		for (i = 0; i < isp->isp_maxcmds; i++) {
 			if (isp->isp_xflist[i] == xs) {
-				return ((u_int16_t) i+1);
+				return ((uint16_t) i+1);
 			}
 		}
 	}
@@ -79,30 +96,30 @@ isp_find_handle(struct ispsoftc *isp, XS_T *xs)
 }
 
 int
-isp_handle_index(u_int16_t handle)
+isp_handle_index(uint16_t handle)
 {
 	return (handle-1);
 }
 
-u_int16_t
+uint16_t
 isp_index_handle(int index)
 {
 	return (index+1);
 }
 
 void
-isp_destroy_handle(struct ispsoftc *isp, u_int16_t handle)
+isp_destroy_handle(ispsoftc_t *isp, uint16_t handle)
 {
-	if (handle > 0 && handle <= (u_int16_t) isp->isp_maxcmds) {
+	if (handle > 0 && handle <= (uint16_t) isp->isp_maxcmds) {
 		isp->isp_xflist[handle - 1] = NULL;
 	}
 }
 
 int
-isp_getrqentry(struct ispsoftc *isp, u_int16_t *iptrp,
-    u_int16_t *optrp, void **resultp)
+isp_getrqentry(ispsoftc_t *isp, uint16_t *iptrp,
+    uint16_t *optrp, void **resultp)
 {
-	volatile u_int16_t iptr, optr;
+	volatile uint16_t iptr, optr;
 
 	optr = isp->isp_reqodx = READ_REQUEST_QUEUE_OUT_POINTER(isp);
 	iptr = isp->isp_reqidx;
@@ -120,11 +137,11 @@ isp_getrqentry(struct ispsoftc *isp, u_int16_t *iptrp,
 
 #define	TBA	(4 * (((QENTRY_LEN >> 2) * 3) + 1) + 1)
 void
-isp_print_qentry(struct ispsoftc *isp, char *msg, int idx, void *arg)
+isp_print_qentry(ispsoftc_t *isp, char *msg, int idx, void *arg)
 {
 	char buf[TBA];
 	int amt, i, j;
-	u_int8_t *ptr = arg;
+	uint8_t *ptr = arg;
 
 	isp_prt(isp, ISP_LOGALL, "%s index %d=>", msg, idx);
 	for (buf[0] = 0, amt = i = 0; i < 4; i++) {
@@ -138,10 +155,10 @@ isp_print_qentry(struct ispsoftc *isp, char *msg, int idx, void *arg)
 }
 
 void
-isp_print_bytes(struct ispsoftc *isp, char *msg, int amt, void *arg)
+isp_print_bytes(ispsoftc_t *isp, char *msg, int amt, void *arg)
 {
 	char buf[128];
-	u_int8_t *ptr = arg;
+	uint8_t *ptr = arg;
 	int off;
 
 	if (msg)
@@ -178,7 +195,7 @@ isp_print_bytes(struct ispsoftc *isp, char *msg, int amt, void *arg)
  */
 
 int
-isp_fc_runstate(struct ispsoftc *isp, int tval)
+isp_fc_runstate(ispsoftc_t *isp, int tval)
 {
 	fcparam *fcp;
 	int *tptr;
@@ -186,7 +203,7 @@ isp_fc_runstate(struct ispsoftc *isp, int tval)
 	if (IS_SCSI(isp))
 		return (0);
 
-	tptr = tval? &tval : NULL;
+	tptr = &tval;
 	if (isp_control(isp, ISPCTL_FCLINK_TEST, tptr) != 0) {
 		return (-1);
 	}
@@ -229,7 +246,7 @@ isp_fc_runstate(struct ispsoftc *isp, int tval)
  * Swizzle/Copy Functions
  */
 void
-isp_copy_out_hdr(struct ispsoftc *isp, isphdr_t *hpsrc, isphdr_t *hpdst)
+isp_copy_out_hdr(ispsoftc_t *isp, isphdr_t *hpsrc, isphdr_t *hpdst)
 {
 	if (ISP_IS_SBUS(isp)) {
 		ISP_IOXPUT_8(isp, hpsrc->rqs_entry_type,
@@ -253,7 +270,7 @@ isp_copy_out_hdr(struct ispsoftc *isp, isphdr_t *hpsrc, isphdr_t *hpdst)
 }
 
 void
-isp_copy_in_hdr(struct ispsoftc *isp, isphdr_t *hpsrc, isphdr_t *hpdst)
+isp_copy_in_hdr(ispsoftc_t *isp, isphdr_t *hpsrc, isphdr_t *hpdst)
 {
 	if (ISP_IS_SBUS(isp)) {
 		ISP_IOXGET_8(isp, &hpsrc->rqs_entry_type,
@@ -277,9 +294,9 @@ isp_copy_in_hdr(struct ispsoftc *isp, isphdr_t *hpsrc, isphdr_t *hpdst)
 }
 
 int
-isp_get_response_type(struct ispsoftc *isp, isphdr_t *hp)
+isp_get_response_type(ispsoftc_t *isp, isphdr_t *hp)
 {
-	u_int8_t type;
+	uint8_t type;
 	if (ISP_IS_SBUS(isp)) {
 		ISP_IOXGET_8(isp, &hp->rqs_entry_count, type);
 	} else {
@@ -289,7 +306,7 @@ isp_get_response_type(struct ispsoftc *isp, isphdr_t *hp)
 }
 
 void
-isp_put_request(struct ispsoftc *isp, ispreq_t *rqsrc, ispreq_t *rqdst)
+isp_put_request(ispsoftc_t *isp, ispreq_t *rqsrc, ispreq_t *rqdst)
 {
 	int i;
 	isp_copy_out_hdr(isp, &rqsrc->req_header, &rqdst->req_header);
@@ -317,7 +334,7 @@ isp_put_request(struct ispsoftc *isp, ispreq_t *rqsrc, ispreq_t *rqdst)
 }
 
 void
-isp_put_request_t2(struct ispsoftc *isp, ispreqt2_t *tqsrc, ispreqt2_t *tqdst)
+isp_put_request_t2(ispsoftc_t *isp, ispreqt2_t *tqsrc, ispreqt2_t *tqdst)
 {
 	int i;
 	isp_copy_out_hdr(isp, &tqsrc->req_header, &tqdst->req_header);
@@ -342,7 +359,7 @@ isp_put_request_t2(struct ispsoftc *isp, ispreqt2_t *tqsrc, ispreqt2_t *tqdst)
 }
 
 void
-isp_put_request_t2e(struct ispsoftc *isp, ispreqt2e_t *tqsrc, ispreqt2e_t *tqdst)
+isp_put_request_t2e(ispsoftc_t *isp, ispreqt2e_t *tqsrc, ispreqt2e_t *tqdst)
 {
 	int i;
 	isp_copy_out_hdr(isp, &tqsrc->req_header, &tqdst->req_header);
@@ -366,7 +383,7 @@ isp_put_request_t2e(struct ispsoftc *isp, ispreqt2e_t *tqsrc, ispreqt2e_t *tqdst
 }
 
 void
-isp_put_request_t3(struct ispsoftc *isp, ispreqt3_t *tqsrc, ispreqt3_t *tqdst)
+isp_put_request_t3(ispsoftc_t *isp, ispreqt3_t *tqsrc, ispreqt3_t *tqdst)
 {
 	int i;
 	isp_copy_out_hdr(isp, &tqsrc->req_header, &tqdst->req_header);
@@ -393,7 +410,7 @@ isp_put_request_t3(struct ispsoftc *isp, ispreqt3_t *tqsrc, ispreqt3_t *tqdst)
 }
 
 void
-isp_put_request_t3e(struct ispsoftc *isp, ispreqt3e_t *tqsrc, ispreqt3e_t *tqdst)
+isp_put_request_t3e(ispsoftc_t *isp, ispreqt3e_t *tqsrc, ispreqt3e_t *tqdst)
 {
 	int i;
 	isp_copy_out_hdr(isp, &tqsrc->req_header, &tqdst->req_header);
@@ -419,7 +436,7 @@ isp_put_request_t3e(struct ispsoftc *isp, ispreqt3e_t *tqsrc, ispreqt3e_t *tqdst
 }
 
 void
-isp_put_extended_request(struct ispsoftc *isp, ispextreq_t *xqsrc,
+isp_put_extended_request(ispsoftc_t *isp, ispextreq_t *xqsrc,
     ispextreq_t *xqdst)
 {
 	int i;
@@ -442,7 +459,7 @@ isp_put_extended_request(struct ispsoftc *isp, ispextreq_t *xqsrc,
 }
 
 void
-isp_put_cont_req(struct ispsoftc *isp, ispcontreq_t *cqsrc, ispcontreq_t *cqdst)
+isp_put_cont_req(ispsoftc_t *isp, ispcontreq_t *cqsrc, ispcontreq_t *cqdst)
 {
 	int i;
 	isp_copy_out_hdr(isp, &cqsrc->req_header, &cqdst->req_header);
@@ -455,7 +472,7 @@ isp_put_cont_req(struct ispsoftc *isp, ispcontreq_t *cqsrc, ispcontreq_t *cqdst)
 }
 
 void
-isp_put_cont64_req(struct ispsoftc *isp, ispcontreq64_t *cqsrc,
+isp_put_cont64_req(ispsoftc_t *isp, ispcontreq64_t *cqsrc,
     ispcontreq64_t *cqdst)
 {
 	int i;
@@ -471,7 +488,7 @@ isp_put_cont64_req(struct ispsoftc *isp, ispcontreq64_t *cqsrc,
 }
 
 void
-isp_get_response(struct ispsoftc *isp, ispstatusreq_t *spsrc,
+isp_get_response(ispsoftc_t *isp, ispstatusreq_t *spsrc,
     ispstatusreq_t *spdst)
 {
 	int i;
@@ -496,7 +513,7 @@ isp_get_response(struct ispsoftc *isp, ispstatusreq_t *spsrc,
 }
 
 void
-isp_get_response_x(struct ispsoftc *isp, ispstatus_cont_t *cpsrc,
+isp_get_response_x(ispsoftc_t *isp, ispstatus_cont_t *cpsrc,
     ispstatus_cont_t *cpdst)
 {
 	int i;
@@ -508,7 +525,7 @@ isp_get_response_x(struct ispsoftc *isp, ispstatus_cont_t *cpsrc,
 }
 
 void
-isp_get_rio2(struct ispsoftc *isp, isp_rio2_t *r2src, isp_rio2_t *r2dst)
+isp_get_rio2(ispsoftc_t *isp, isp_rio2_t *r2src, isp_rio2_t *r2dst)
 {
 	int i;
 	isp_copy_in_hdr(isp, &r2src->req_header, &r2dst->req_header);
@@ -524,7 +541,7 @@ isp_get_rio2(struct ispsoftc *isp, isp_rio2_t *r2src, isp_rio2_t *r2dst)
 }
 
 void
-isp_put_icb(struct ispsoftc *isp, isp_icb_t *Is, isp_icb_t *Id)
+isp_put_icb(ispsoftc_t *isp, isp_icb_t *Is, isp_icb_t *Id)
 {
 	int i;
 	if (ISP_IS_SBUS(isp)) {
@@ -590,7 +607,7 @@ isp_put_icb(struct ispsoftc *isp, isp_icb_t *Is, isp_icb_t *Id)
 }
 
 void
-isp_get_pdb(struct ispsoftc *isp, isp_pdb_t *src, isp_pdb_t *dst)
+isp_get_pdb(ispsoftc_t *isp, isp_pdb_t *src, isp_pdb_t *dst)
 {
 	int i;
 	ISP_IOXGET_16(isp, &src->pdb_options, dst->pdb_options);
@@ -648,7 +665,7 @@ isp_get_pdb(struct ispsoftc *isp, isp_pdb_t *src, isp_pdb_t *dst)
  * CT_HDR canonicalization- only needed for SNS responses
  */
 void
-isp_get_ct_hdr(struct ispsoftc *isp, ct_hdr_t *src, ct_hdr_t *dst)
+isp_get_ct_hdr(ispsoftc_t *isp, ct_hdr_t *src, ct_hdr_t *dst)
 {
 	ISP_IOXGET_8(isp, &src->ct_revision, dst->ct_revision);
 	ISP_IOXGET_8(isp, &src->ct_portid[0], dst->ct_portid[0]);
@@ -673,7 +690,7 @@ isp_get_ct_hdr(struct ispsoftc *isp, ct_hdr_t *src, ct_hdr_t *dst)
  * isn't always 16 bit words.
  */
 void
-isp_put_sns_request(struct ispsoftc *isp, sns_screq_t *src, sns_screq_t *dst)
+isp_put_sns_request(ispsoftc_t *isp, sns_screq_t *src, sns_screq_t *dst)
 {
 	int i, nw = (int) src->snscb_sblen;
 	ISP_IOXPUT_16(isp, src->snscb_rblen, &dst->snscb_rblen);
@@ -688,7 +705,7 @@ isp_put_sns_request(struct ispsoftc *isp, sns_screq_t *src, sns_screq_t *dst)
 }
 
 void
-isp_put_gid_ft_request(struct ispsoftc *isp, sns_gid_ft_req_t *src,
+isp_put_gid_ft_request(ispsoftc_t *isp, sns_gid_ft_req_t *src,
     sns_gid_ft_req_t *dst)
 {
 	ISP_IOXPUT_16(isp, src->snscb_rblen, &dst->snscb_rblen);
@@ -706,7 +723,7 @@ isp_put_gid_ft_request(struct ispsoftc *isp, sns_gid_ft_req_t *src,
 }
 
 void
-isp_put_gxn_id_request(struct ispsoftc *isp, sns_gxn_id_req_t *src,
+isp_put_gxn_id_request(ispsoftc_t *isp, sns_gxn_id_req_t *src,
     sns_gxn_id_req_t *dst)
 {
 	ISP_IOXPUT_16(isp, src->snscb_rblen, &dst->snscb_rblen);
@@ -728,7 +745,7 @@ isp_put_gxn_id_request(struct ispsoftc *isp, sns_gxn_id_req_t *src,
  * isn't always 16 bit words.
  */
 void
-isp_get_sns_response(struct ispsoftc *isp, sns_scrsp_t *src,
+isp_get_sns_response(ispsoftc_t *isp, sns_scrsp_t *src,
     sns_scrsp_t *dst, int nwords)
 {
 	int i;
@@ -748,7 +765,7 @@ isp_get_sns_response(struct ispsoftc *isp, sns_scrsp_t *src,
 }
 
 void
-isp_get_gid_ft_response(struct ispsoftc *isp, sns_gid_ft_rsp_t *src,
+isp_get_gid_ft_response(ispsoftc_t *isp, sns_gid_ft_rsp_t *src,
     sns_gid_ft_rsp_t *dst, int nwords)
 {
 	int i;
@@ -770,7 +787,7 @@ isp_get_gid_ft_response(struct ispsoftc *isp, sns_gid_ft_rsp_t *src,
 }
 
 void
-isp_get_gxn_id_response(struct ispsoftc *isp, sns_gxn_id_rsp_t *src,
+isp_get_gxn_id_response(ispsoftc_t *isp, sns_gxn_id_rsp_t *src,
     sns_gxn_id_rsp_t *dst)
 {
 	int i;
@@ -780,7 +797,7 @@ isp_get_gxn_id_response(struct ispsoftc *isp, sns_gxn_id_rsp_t *src,
 }
 
 void
-isp_get_gff_id_response(struct ispsoftc *isp, sns_gff_id_rsp_t *src,
+isp_get_gff_id_response(ispsoftc_t *isp, sns_gff_id_rsp_t *src,
     sns_gff_id_rsp_t *dst)
 {
 	int i;
@@ -792,7 +809,7 @@ isp_get_gff_id_response(struct ispsoftc *isp, sns_gff_id_rsp_t *src,
 }
 
 void
-isp_get_ga_nxt_response(struct ispsoftc *isp, sns_ga_nxt_rsp_t *src,
+isp_get_ga_nxt_response(ispsoftc_t *isp, sns_ga_nxt_rsp_t *src,
     sns_ga_nxt_rsp_t *dst)
 {
 	int i;
@@ -846,7 +863,7 @@ isp_get_ga_nxt_response(struct ispsoftc *isp, sns_ga_nxt_rsp_t *src,
 #ifdef	ISP_TARGET_MODE
 
 int
-isp_save_xs_tgt(struct ispsoftc *isp, void *xs, u_int16_t *handlep)
+isp_save_xs_tgt(ispsoftc_t *isp, void *xs, uint16_t *handlep)
 {
 	int i;
 
@@ -864,23 +881,23 @@ isp_save_xs_tgt(struct ispsoftc *isp, void *xs, u_int16_t *handlep)
 }
 
 void *
-isp_find_xs_tgt(struct ispsoftc *isp, u_int16_t handle)
+isp_find_xs_tgt(ispsoftc_t *isp, uint16_t handle)
 {
-	if (handle < 1 || handle > (u_int16_t) isp->isp_maxcmds) {
+	if (handle < 1 || handle > (uint16_t) isp->isp_maxcmds) {
 		return (NULL);
 	} else {
 		return (isp->isp_tgtlist[handle - 1]);
 	}
 }
 
-u_int16_t
-isp_find_tgt_handle(struct ispsoftc *isp, void *xs)
+uint16_t
+isp_find_tgt_handle(ispsoftc_t *isp, void *xs)
 {
 	int i;
 	if (xs != NULL) {
 		for (i = 0; i < isp->isp_maxcmds; i++) {
 			if (isp->isp_tgtlist[i] == xs) {
-				return ((u_int16_t) i+1);
+				return ((uint16_t) i+1);
 			}
 		}
 	}
@@ -888,14 +905,14 @@ isp_find_tgt_handle(struct ispsoftc *isp, void *xs)
 }
 
 void
-isp_destroy_tgt_handle(struct ispsoftc *isp, u_int16_t handle)
+isp_destroy_tgt_handle(ispsoftc_t *isp, uint16_t handle)
 {
-	if (handle > 0 && handle <= (u_int16_t) isp->isp_maxcmds) {
+	if (handle > 0 && handle <= (uint16_t) isp->isp_maxcmds) {
 		isp->isp_tgtlist[handle - 1] = NULL;
 	}
 }
 void
-isp_put_atio(struct ispsoftc *isp, at_entry_t *atsrc, at_entry_t *atdst)
+isp_put_atio(ispsoftc_t *isp, at_entry_t *atsrc, at_entry_t *atdst)
 {
 	int i;
 	isp_copy_out_hdr(isp, &atsrc->at_header, &atdst->at_header);
@@ -931,7 +948,7 @@ isp_put_atio(struct ispsoftc *isp, at_entry_t *atsrc, at_entry_t *atdst)
 }
 
 void
-isp_get_atio(struct ispsoftc *isp, at_entry_t *atsrc, at_entry_t *atdst)
+isp_get_atio(ispsoftc_t *isp, at_entry_t *atsrc, at_entry_t *atdst)
 {
 	int i;
 	isp_copy_in_hdr(isp, &atsrc->at_header, &atdst->at_header);
@@ -967,7 +984,7 @@ isp_get_atio(struct ispsoftc *isp, at_entry_t *atsrc, at_entry_t *atdst)
 }
 
 void
-isp_put_atio2(struct ispsoftc *isp, at2_entry_t *atsrc, at2_entry_t *atdst)
+isp_put_atio2(ispsoftc_t *isp, at2_entry_t *atsrc, at2_entry_t *atdst)
 {
 	int i;
 	isp_copy_out_hdr(isp, &atsrc->at_header, &atdst->at_header);
@@ -997,7 +1014,7 @@ isp_put_atio2(struct ispsoftc *isp, at2_entry_t *atsrc, at2_entry_t *atdst)
 }
 
 void
-isp_put_atio2e(struct ispsoftc *isp, at2e_entry_t *atsrc, at2e_entry_t *atdst)
+isp_put_atio2e(ispsoftc_t *isp, at2e_entry_t *atsrc, at2e_entry_t *atdst)
 {
 	int i;
 	isp_copy_out_hdr(isp, &atsrc->at_header, &atdst->at_header);
@@ -1026,7 +1043,7 @@ isp_put_atio2e(struct ispsoftc *isp, at2e_entry_t *atsrc, at2e_entry_t *atdst)
 }
 
 void
-isp_get_atio2(struct ispsoftc *isp, at2_entry_t *atsrc, at2_entry_t *atdst)
+isp_get_atio2(ispsoftc_t *isp, at2_entry_t *atsrc, at2_entry_t *atdst)
 {
 	int i;
 	isp_copy_in_hdr(isp, &atsrc->at_header, &atdst->at_header);
@@ -1056,7 +1073,7 @@ isp_get_atio2(struct ispsoftc *isp, at2_entry_t *atsrc, at2_entry_t *atdst)
 }
 
 void
-isp_get_atio2e(struct ispsoftc *isp, at2e_entry_t *atsrc, at2e_entry_t *atdst)
+isp_get_atio2e(ispsoftc_t *isp, at2e_entry_t *atsrc, at2e_entry_t *atdst)
 {
 	int i;
 	isp_copy_in_hdr(isp, &atsrc->at_header, &atdst->at_header);
@@ -1085,7 +1102,7 @@ isp_get_atio2e(struct ispsoftc *isp, at2e_entry_t *atsrc, at2e_entry_t *atdst)
 }
 
 void
-isp_put_ctio(struct ispsoftc *isp, ct_entry_t *ctsrc, ct_entry_t *ctdst)
+isp_put_ctio(ispsoftc_t *isp, ct_entry_t *ctsrc, ct_entry_t *ctdst)
 {
 	int i;
 	isp_copy_out_hdr(isp, &ctsrc->ct_header, &ctdst->ct_header);
@@ -1125,7 +1142,7 @@ isp_put_ctio(struct ispsoftc *isp, ct_entry_t *ctsrc, ct_entry_t *ctdst)
 }
 
 void
-isp_get_ctio(struct ispsoftc *isp, ct_entry_t *ctsrc, ct_entry_t *ctdst)
+isp_get_ctio(ispsoftc_t *isp, ct_entry_t *ctsrc, ct_entry_t *ctdst)
 {
 	int i;
 	isp_copy_in_hdr(isp, &ctsrc->ct_header, &ctdst->ct_header);
@@ -1167,7 +1184,7 @@ isp_get_ctio(struct ispsoftc *isp, ct_entry_t *ctsrc, ct_entry_t *ctdst)
 }
 
 void
-isp_put_ctio2(struct ispsoftc *isp, ct2_entry_t *ctsrc, ct2_entry_t *ctdst)
+isp_put_ctio2(ispsoftc_t *isp, ct2_entry_t *ctsrc, ct2_entry_t *ctdst)
 {
 	int i;
 	isp_copy_out_hdr(isp, &ctsrc->ct_header, &ctdst->ct_header);
@@ -1251,7 +1268,7 @@ isp_put_ctio2(struct ispsoftc *isp, ct2_entry_t *ctsrc, ct2_entry_t *ctdst)
 }
 
 void
-isp_put_ctio2e(struct ispsoftc *isp, ct2e_entry_t *ctsrc, ct2e_entry_t *ctdst)
+isp_put_ctio2e(ispsoftc_t *isp, ct2e_entry_t *ctsrc, ct2e_entry_t *ctdst)
 {
 	int i;
 	isp_copy_out_hdr(isp, &ctsrc->ct_header, &ctdst->ct_header);
@@ -1334,7 +1351,7 @@ isp_put_ctio2e(struct ispsoftc *isp, ct2e_entry_t *ctsrc, ct2e_entry_t *ctdst)
 }
 
 void
-isp_get_ctio2(struct ispsoftc *isp, ct2_entry_t *ctsrc, ct2_entry_t *ctdst)
+isp_get_ctio2(ispsoftc_t *isp, ct2_entry_t *ctsrc, ct2_entry_t *ctdst)
 {
 	isp_copy_in_hdr(isp, &ctsrc->ct_header, &ctdst->ct_header);
 	ISP_IOXGET_16(isp, &ctsrc->ct_reserved, ctdst->ct_reserved);
@@ -1351,7 +1368,7 @@ isp_get_ctio2(struct ispsoftc *isp, ct2_entry_t *ctsrc, ct2_entry_t *ctdst)
 }
 
 void
-isp_get_ctio2e(struct ispsoftc *isp, ct2e_entry_t *ctsrc, ct2e_entry_t *ctdst)
+isp_get_ctio2e(ispsoftc_t *isp, ct2e_entry_t *ctsrc, ct2e_entry_t *ctdst)
 {
 	isp_copy_in_hdr(isp, &ctsrc->ct_header, &ctdst->ct_header);
 	ISP_IOXGET_16(isp, &ctsrc->ct_reserved, ctdst->ct_reserved);
@@ -1367,7 +1384,7 @@ isp_get_ctio2e(struct ispsoftc *isp, ct2e_entry_t *ctsrc, ct2e_entry_t *ctdst)
 }
 
 void
-isp_put_enable_lun(struct ispsoftc *isp, lun_entry_t *lesrc, lun_entry_t *ledst)
+isp_put_enable_lun(ispsoftc_t *isp, lun_entry_t *lesrc, lun_entry_t *ledst)
 {
 	int i;
 	isp_copy_out_hdr(isp, &lesrc->le_header, &ledst->le_header);
@@ -1404,7 +1421,7 @@ isp_put_enable_lun(struct ispsoftc *isp, lun_entry_t *lesrc, lun_entry_t *ledst)
 }
 
 void
-isp_get_enable_lun(struct ispsoftc *isp, lun_entry_t *lesrc, lun_entry_t *ledst)
+isp_get_enable_lun(ispsoftc_t *isp, lun_entry_t *lesrc, lun_entry_t *ledst)
 {
 	int i;
 	isp_copy_in_hdr(isp, &lesrc->le_header, &ledst->le_header);
@@ -1441,7 +1458,7 @@ isp_get_enable_lun(struct ispsoftc *isp, lun_entry_t *lesrc, lun_entry_t *ledst)
 }
 
 void
-isp_put_notify(struct ispsoftc *isp, in_entry_t *insrc, in_entry_t *indst)
+isp_put_notify(ispsoftc_t *isp, in_entry_t *insrc, in_entry_t *indst)
 {
 	int i;
 	isp_copy_out_hdr(isp, &insrc->in_header, &indst->in_header);
@@ -1481,7 +1498,7 @@ isp_put_notify(struct ispsoftc *isp, in_entry_t *insrc, in_entry_t *indst)
 }
 
 void
-isp_get_notify(struct ispsoftc *isp, in_entry_t *insrc, in_entry_t *indst)
+isp_get_notify(ispsoftc_t *isp, in_entry_t *insrc, in_entry_t *indst)
 {
 	int i;
 	isp_copy_in_hdr(isp, &insrc->in_header, &indst->in_header);
@@ -1521,7 +1538,7 @@ isp_get_notify(struct ispsoftc *isp, in_entry_t *insrc, in_entry_t *indst)
 }
 
 void
-isp_put_notify_fc(struct ispsoftc *isp, in_fcentry_t *insrc,
+isp_put_notify_fc(ispsoftc_t *isp, in_fcentry_t *insrc,
     in_fcentry_t *indst)
 {
 	isp_copy_out_hdr(isp, &insrc->in_header, &indst->in_header);
@@ -1536,7 +1553,7 @@ isp_put_notify_fc(struct ispsoftc *isp, in_fcentry_t *insrc,
 }
 
 void
-isp_put_notify_fc_e(struct ispsoftc *isp, in_fcentry_e_t *insrc,
+isp_put_notify_fc_e(ispsoftc_t *isp, in_fcentry_e_t *insrc,
     in_fcentry_e_t *indst)
 {
 	isp_copy_out_hdr(isp, &insrc->in_header, &indst->in_header);
@@ -1550,7 +1567,7 @@ isp_put_notify_fc_e(struct ispsoftc *isp, in_fcentry_e_t *insrc,
 }
 
 void
-isp_get_notify_fc(struct ispsoftc *isp, in_fcentry_t *insrc,
+isp_get_notify_fc(ispsoftc_t *isp, in_fcentry_t *insrc,
     in_fcentry_t *indst)
 {
 	isp_copy_in_hdr(isp, &insrc->in_header, &indst->in_header);
@@ -1565,7 +1582,7 @@ isp_get_notify_fc(struct ispsoftc *isp, in_fcentry_t *insrc,
 }
 
 void
-isp_get_notify_fc_e(struct ispsoftc *isp, in_fcentry_e_t *insrc,
+isp_get_notify_fc_e(ispsoftc_t *isp, in_fcentry_e_t *insrc,
     in_fcentry_e_t *indst)
 {
 	isp_copy_in_hdr(isp, &insrc->in_header, &indst->in_header);
@@ -1579,7 +1596,7 @@ isp_get_notify_fc_e(struct ispsoftc *isp, in_fcentry_e_t *insrc,
 }
 
 void
-isp_put_notify_ack(struct ispsoftc *isp, na_entry_t *nasrc,  na_entry_t *nadst)
+isp_put_notify_ack(ispsoftc_t *isp, na_entry_t *nasrc,  na_entry_t *nadst)
 {
 	int i;
 	isp_copy_out_hdr(isp, &nasrc->na_header, &nadst->na_header);
@@ -1603,7 +1620,7 @@ isp_put_notify_ack(struct ispsoftc *isp, na_entry_t *nasrc,  na_entry_t *nadst)
 }
 
 void
-isp_get_notify_ack(struct ispsoftc *isp, na_entry_t *nasrc, na_entry_t *nadst)
+isp_get_notify_ack(ispsoftc_t *isp, na_entry_t *nasrc, na_entry_t *nadst)
 {
 	int i;
 	isp_copy_in_hdr(isp, &nasrc->na_header, &nadst->na_header);
@@ -1627,7 +1644,7 @@ isp_get_notify_ack(struct ispsoftc *isp, na_entry_t *nasrc, na_entry_t *nadst)
 }
 
 void
-isp_put_notify_ack_fc(struct ispsoftc *isp, na_fcentry_t *nasrc,
+isp_put_notify_ack_fc(ispsoftc_t *isp, na_fcentry_t *nasrc,
     na_fcentry_t *nadst)
 {
 	int i;
@@ -1648,7 +1665,7 @@ isp_put_notify_ack_fc(struct ispsoftc *isp, na_fcentry_t *nasrc,
 }
 
 void
-isp_put_notify_ack_fc_e(struct ispsoftc *isp, na_fcentry_e_t *nasrc,
+isp_put_notify_ack_fc_e(ispsoftc_t *isp, na_fcentry_e_t *nasrc,
     na_fcentry_e_t *nadst)
 {
 	int i;
@@ -1668,7 +1685,7 @@ isp_put_notify_ack_fc_e(struct ispsoftc *isp, na_fcentry_e_t *nasrc,
 }
 
 void
-isp_get_notify_ack_fc(struct ispsoftc *isp, na_fcentry_t *nasrc,
+isp_get_notify_ack_fc(ispsoftc_t *isp, na_fcentry_t *nasrc,
     na_fcentry_t *nadst)
 {
 	int i;
@@ -1689,7 +1706,7 @@ isp_get_notify_ack_fc(struct ispsoftc *isp, na_fcentry_t *nasrc,
 }
 
 void
-isp_get_notify_ack_fc_e(struct ispsoftc *isp, na_fcentry_e_t *nasrc,
+isp_get_notify_ack_fc_e(ispsoftc_t *isp, na_fcentry_e_t *nasrc,
     na_fcentry_e_t *nadst)
 {
 	int i;
