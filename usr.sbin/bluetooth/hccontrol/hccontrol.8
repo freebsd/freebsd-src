@@ -34,7 +34,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl hN
-.Fl n Ar HCI_node_name
+.Op Fl n Ar HCI_node_name
 .Ar command
 .Op Ar parameters ...
 .Sh DESCRIPTION
@@ -42,8 +42,8 @@ The
 .Nm
 utility connects to the specified Netgraph node of type
 .Dv HCI
-and attempts to send specified command to the HCI Netgraph node or to the
-associated Bluetooth device.
+or the first one found if none is specified and attempts to send the specified
+command to the HCI Netgraph node or to the associated Bluetooth device.
 The
 .Nm
 utility will print results to the standard output and error messages to
@@ -62,16 +62,16 @@ attempts to resolve Bluetooth addresses, and display them symbolically.
 Connect to the specified HCI Netgraph node.
 .It Ar command
 One of the supported commands (see below).
-Special command
+The special command
 .Cm help
 can be used to obtain the list of all supported commands.
-To get more information about specific command use
+To get more information about a specific command use
 .Cm help Ar command .
 .It Ar parameters
 One or more optional space separated command parameters.
-Many commands require remote device address as one of the parameters.
-The remote device address can be specified as BD_ADDR or name.
-If name was specified then the
+Many commands require a remote device address as one of the parameters.
+The remote device address can be specified as BD_ADDR or a name.
+If a name was specified then the
 .Nm
 utility will attempt to resolve the name via
 .Xr bt_gethostbyname 3 .
@@ -167,6 +167,7 @@ are:
 .It Cm Write_Node_Packet_Mask
 .It Cm Read_Node_Role_Switch
 .It Cm Write_Node_Role_Switch
+.It Cm Read_Node_List
 .El
 .Sh EXIT STATUS
 .Ex -std
