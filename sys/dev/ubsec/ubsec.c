@@ -698,13 +698,17 @@ ubsec_intr(void *arg)
 	}
 
 	if (sc->sc_needwakeup) {		/* XXX check high watermark */
-		int wakeup = sc->sc_needwakeup & (CRYPTO_SYMQ|CRYPTO_ASYMQ);
+		int wakeup;
+
+		mtx_lock(&sc->sc_freeqlock);
+		wakeup = sc->sc_needwakeup & (CRYPTO_SYMQ|CRYPTO_ASYMQ);
 #ifdef UBSEC_DEBUG
 		if (ubsec_debug)
 			device_printf(sc->sc_dev, "wakeup crypto (%x)\n",
 				sc->sc_needwakeup);
 #endif /* UBSEC_DEBUG */
 		sc->sc_needwakeup &= ~wakeup;
+		mtx_unlock(&sc->sc_freeqlock);
 		crypto_unblock(sc->sc_cid, wakeup);
 	}
 }
@@ -1545,16 +1549,19 @@ errout:
 			bus_dmamap_unload(sc->sc_dmat, q->q_src_map);
 			bus_dmamap_destroy(sc->sc_dmat, q->q_src_map);
 		}
-
+	}
+	if (q != NULL || err == ERESTART) {
 		mtx_lock(&sc->sc_freeqlock);
 		SIMPLEQ_INSERT_TAIL(&sc->sc_freequeue, q, q_next);
+		if (q != NULL)
+			SIMPLEQ_INSERT_TAIL(&sc->sc_freequeue, q, q_next);
+		if (err == ERESTART)
+			sc->sc_needwakeup |= CRYPTO_SYMQ;
 		mtx_unlock(&sc->sc_freeqlock);
 	}
 	if (err != ERESTART) {
 		crp->crp_etype = err;
 		crypto_done(crp);
-	} else {
-		sc->sc_needwakeup |= CRYPTO_SYMQ;
 	}
 	return (err);
 }
