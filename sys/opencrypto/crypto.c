@@ -79,6 +79,7 @@ static	TAILQ_HEAD(,cryptkop) crp_ret_kq;
 static	struct mtx crypto_ret_q_mtx;
 #define	CRYPTO_RETQ_LOCK()	mtx_lock(&crypto_ret_q_mtx)
 #define	CRYPTO_RETQ_UNLOCK()	mtx_unlock(&crypto_ret_q_mtx)
+#define	CRYPTO_RETQ_EMPTY()	(TAILQ_EMPTY(&crp_ret_q) && TAILQ_EMPTY(&crp_ret_kq))
 
 static	uma_zone_t cryptop_zone;
 static	uma_zone_t cryptodesc_zone;
@@ -953,7 +954,7 @@ crypto_done(struct cryptop *crp)
 		 * Normal case; queue the callback for the thread.
 		 */
 		CRYPTO_RETQ_LOCK();
-		if (TAILQ_EMPTY(&crp_ret_q))
+		if (CRYPTO_RETQ_EMPTY())
 			wakeup_one(&crp_ret_q);	/* shared wait channel */
 		TAILQ_INSERT_TAIL(&crp_ret_q, crp, crp_next);
 		CRYPTO_RETQ_UNLOCK();
@@ -981,7 +982,7 @@ crypto_kdone(struct cryptkop *krp)
 	}
 	CRYPTO_DRIVER_UNLOCK();
 	CRYPTO_RETQ_LOCK();
-	if (TAILQ_EMPTY(&crp_ret_kq))
+	if (CRYPTO_RETQ_EMPTY())
 		wakeup_one(&crp_ret_q);		/* shared wait channel */
 	TAILQ_INSERT_TAIL(&crp_ret_kq, krp, krp_next);
 	CRYPTO_RETQ_UNLOCK();
