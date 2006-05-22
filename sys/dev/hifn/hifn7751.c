@@ -2832,8 +2832,9 @@ hifn_callback(struct hifn_softc *sc, struct hifn_command *cmd, u_int8_t *macbuf)
 			if (crp->crp_flags & CRYPTO_F_IMBUF)
 				m_copyback((struct mbuf *)crp->crp_buf,
                                    crd->crd_inject, len, macbuf);
-			else if ((crp->crp_flags & CRYPTO_F_IOV) && crp->crp_mac)
-				bcopy((caddr_t)macbuf, crp->crp_mac, len);
+			else if (crp->crp_flags & CRYPTO_F_IOV)
+				cuio_copyback((struct uio *)crp->crp_buf,
+				    crd->crd_inject, len, macbuf);
 			break;
 		}
 	}

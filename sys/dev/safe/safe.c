@@ -1591,10 +1591,11 @@ safe_callback(struct safe_softc *sc, struct safe_ringentry *re)
 					crd->crd_inject,
 					sc->sc_sessions[re->re_sesn].ses_mlen,
 					(caddr_t)re->re_sastate.sa_saved_indigest);
-			} else if (crp->crp_flags & CRYPTO_F_IOV && crp->crp_mac) {
-				bcopy((caddr_t)re->re_sastate.sa_saved_indigest,
-					crp->crp_mac,
-					sc->sc_sessions[re->re_sesn].ses_mlen);
+			} else if (crp->crp_flags & CRYPTO_F_IOV) {
+				cuio_copyback((struct uio *)crp->crp_buf,
+					crd->crd_inject,
+					sc->sc_sessions[re->re_sesn].ses_mlen,
+					(caddr_t)re->re_sastate.sa_saved_indigest);
 			}
 			break;
 		}
