@@ -3176,6 +3176,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, void *arg)
 		case RQSTYPE_ATIO2:
 			rv = isp_handle_platform_atio2(isp, (at2_entry_t *)arg);
 			break;
+		case RQSTYPE_CTIO3:
 		case RQSTYPE_CTIO2:
 		case RQSTYPE_CTIO:
 			rv = isp_handle_platform_ctio(isp, arg);
