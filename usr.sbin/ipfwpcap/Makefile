@@ -9,7 +9,7 @@ PROG=	ipfwpcap
 LDADD=	-lpcap
 DPADD=	${LIBPCAP}
 
-NO_MAN=	not_yet
+MAN=	ipfwpcap.8
 
 .include <bsd.prog.mk>
 
