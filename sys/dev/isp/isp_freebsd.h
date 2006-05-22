@@ -198,8 +198,8 @@ struct isposinfo {
 
 #define	ISP2100_SCRLEN		0x800
 
-#define	MEMZERO			bzero
-#define	MEMCPY(dst, src, amt)	bcopy((src), (dst), (amt))
+#define	MEMZERO(a, b)		memset(a, 0, b)
+#define	MEMCPY			memcpy
 #define	SNPRINTF		snprintf
 #define	USEC_DELAY		DELAY
 #define	USEC_SLEEP(isp, x)		\
@@ -320,7 +320,7 @@ default:							\
 
 #define	XS_SAVE_SENSE(xs, sp)				\
 	(xs)->ccb_h.status |= CAM_AUTOSNS_VALID,	\
-	bcopy(sp->req_sense_data, &(xs)->sense_data,	\
+	memcpy(&(xs)->sense_data, sp->req_sense_data,	\
 	    imin(XS_SNSLEN(xs), sp->req_sense_len))
 
 #define	XS_SET_STATE_STAT(a, b, c)
