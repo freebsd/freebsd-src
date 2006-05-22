@@ -30,10 +30,12 @@
  */
 
 #include <bluetooth.h>
+#include <sys/ioctl.h>
 #include <sys/sysctl.h>
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
+#include <netgraph/ng_message.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,6 +45,7 @@
 /* Prototypes */
 static int                  do_hci_command    (char const *, int, char **);
 static struct hci_command * find_hci_command  (char const *, struct hci_command *);
+static int                  find_hci_nodes    (struct nodeinfo **);
 static void                 print_hci_command (struct hci_command *);
 static void usage                             (void);
 
@@ -94,13 +97,21 @@ main(int argc, char *argv[])
 static int
 socket_open(char const *node)
 {
-	struct sockaddr_hci			addr;
-	struct ng_btsocket_hci_raw_filter	filter;
-	int					s, mib[4];
-	size_t					size;
+	struct sockaddr_hci			 addr;
+	struct ng_btsocket_hci_raw_filter	 filter;
+	int					 s, mib[4];
+	size_t					 size;
+	struct nodeinfo 			*nodes;
 
-	if (node == NULL)
-		usage();
+	if (find_hci_nodes(&nodes) == 0)
+		err(7, "Could not find HCI nodes");
+
+	if (node == NULL) {
+		node = strdup(nodes[0].name);
+		fprintf(stdout, "Using HCI node: %s\n", node);
+	}
+
+	free(nodes);
 
 	s = socket(PF_BLUETOOTH, SOCK_RAW, BLUETOOTH_PROTO_HCI);
 	if (s < 0)
@@ -254,6 +265,41 @@ find_hci_command(char const *command, struct hci_command *category)
 	return (NULL);
 } /* find_hci_command */
 
+/* Find all HCI nodes */
+static int
+find_hci_nodes(struct nodeinfo** nodes)
+{
+	struct ng_btsocket_hci_raw_node_list_names	r;
+	struct sockaddr_hci				addr;
+	int						s;
+	const char *					node = "ubt0hci";
+
+	r.num_names = MAX_NODE_NUM;
+	r.names = (struct nodeinfo*)calloc(MAX_NODE_NUM, sizeof(struct nodeinfo));
+	if (r.names == NULL)
+		err(8, "Could not allocate memory");
+
+	s = socket(PF_BLUETOOTH, SOCK_RAW, BLUETOOTH_PROTO_HCI);
+	if (s < 0)
+		err(9, "Could not create socket");
+
+	memset(&addr, 0, sizeof(addr));
+	addr.hci_len = sizeof(addr);
+	addr.hci_family = AF_BLUETOOTH;
+	strncpy(addr.hci_node, node, sizeof(addr.hci_node));
+	if (bind(s, (struct sockaddr *) &addr, sizeof(addr)) < 0)
+		err(10, "Could not bind socket");
+
+	if (ioctl(s, SIOC_HCI_RAW_NODE_LIST_NAMES, &r, sizeof(r)) < 0)
+		err(11, "Could not get list of HCI nodes");
+
+	close(s);
+
+	*nodes = r.names;
+
+	return (r.num_names);
+} /* find_hci_nodes */
+
 /* Print commands in specified category */
 static void
 print_hci_command(struct hci_command *category)
@@ -268,7 +314,7 @@ print_hci_command(struct hci_command *category)
 static void
 usage(void)
 {
-	fprintf(stdout, "Usage: hccontrol -n HCI_node_name [-h] cmd [p1] [..]]\n");
+	fprintf(stdout, "Usage: hccontrol [-hN] [-n HCI_node_name] cmd [p1] [..]\n");
 	exit(255);
 } /* usage */
 
