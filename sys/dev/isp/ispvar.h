@@ -248,7 +248,7 @@ typedef struct {
 	uint16_t		isp_iid;	/* 'initiator' id */
 	uint16_t		isp_loopid;	/* hard loop id */
 	uint16_t		isp_fwattr;	/* firmware attributes */
-	uint8_t			isp_execthrottle;
+	uint16_t		isp_execthrottle;
 	uint8_t			isp_retry_delay;
 	uint8_t			isp_retry_count;
 	uint8_t			isp_reserved;
