@@ -71,7 +71,6 @@ struct csession {
 
 	caddr_t		mackey;
 	int		mackeylen;
-	u_char		tmp_mac[CRYPTO_MAX_MAC_LEN];
 
 	struct iovec	iovec;
 	struct uio	uio;
@@ -352,7 +351,10 @@ cryptodev_op(
 	cse->uio.uio_rw = UIO_WRITE;
 	cse->uio.uio_td = td;
 	cse->uio.uio_iov[0].iov_len = cop->len;
-	cse->uio.uio_iov[0].iov_base = malloc(cop->len, M_XDATA, M_WAITOK);
+	if (cse->thash)
+		cse->uio.uio_iov[0].iov_len += cse->thash->hashsize;
+	cse->uio.uio_iov[0].iov_base = malloc(cse->uio.uio_iov[0].iov_len,
+	    M_XDATA, M_WAITOK);
 
 	crp = crypto_getreq((cse->txform != NULL) + (cse->thash != NULL));
 	if (crp == NULL) {
@@ -379,7 +381,7 @@ cryptodev_op(
 	if (crda) {
 		crda->crd_skip = 0;
 		crda->crd_len = cop->len;
-		crda->crd_inject = 0;	/* ??? */
+		crda->crd_inject = cop->len;
 
 		crda->crd_alg = cse->mac;
 		crda->crd_key = cse->mackey;
@@ -429,12 +431,9 @@ cryptodev_op(
 		crde->crd_len -= cse->txform->blocksize;
 	}
 
-	if (cop->mac) {
-		if (crda == NULL) {
-			error = EINVAL;
-			goto bail;
-		}
-		crp->crp_mac=cse->tmp_mac;
+	if (cop->mac && crda == NULL) {
+		error = EINVAL;
+		goto bail;
 	}
 
 	/*
@@ -468,7 +467,8 @@ cryptodev_op(
 		goto bail;
 
 	if (cop->mac &&
-	    (error = copyout(crp->crp_mac, cop->mac, cse->thash->hashsize)))
+	    (error = copyout((caddr_t)cse->uio.uio_iov[0].iov_base + cop->len,
+	    cop->mac, cse->thash->hashsize)))
 		goto bail;
 
 bail:
