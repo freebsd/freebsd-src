@@ -12,8 +12,6 @@ SHLIBDIR?= /lib
 # To include legacy CSRG sccsid strings, add -DLIBC_SCCS and -DSYSLIBC_SCCS
 # to CFLAGS below.  -DSYSLIBC_SCCS affects just the system call stubs.
 LIB=c
-# If you bump SHLIB_MAJOR, remove the kluge from gen/gethostname.c.
-# If you bump SHLIB_MAJOR, see standards/55112.
 SHLIB_MAJOR= 7
 WARNS?=	2
 CFLAGS+=-I${.CURDIR}/include -I${.CURDIR}/../../include
