@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
+#include <arm/sa11x0/sa11x0_reg.h>
 #include <arm/sa11x0/sa11x0_var.h>
 
 bus_space_tag_t uart_bus_space_io;
@@ -57,7 +58,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->ops = uart_sa1110_ops;
 	di->bas.chan = 0;
 	di->bas.bst = &sa11x0_bs_tag;
-	di->bas.bsh = 0x80010000;
+	di->bas.bsh = SACOM1_BASE;
 	di->bas.regshft = 0;
 	di->bas.rclk = 0;
 	di->baudrate = 9600;
