@@ -72,6 +72,7 @@ MAN=	accept_filter.9 \
 	device_get_parent.9 \
 	device_get_softc.9 \
 	device_get_state.9 \
+	device_get_sysctl.9 \
 	device_get_unit.9 \
 	DEVICE_IDENTIFY.9 \
 	device_ids.9 \
@@ -529,6 +530,8 @@ MLINKS+=device_get_state.9 device_busy.9 \
 	device_get_state.9 device_is_alive.9 \
 	device_get_state.9 device_is_attached.9 \
 	device_get_state.9 device_unbusy.9
+MLINKS+=device_get_sysctl.9 device_get_sysctl_ctx.9 \
+	device_get_sysctl.9 device_get_sysctl_tree.9
 MLINKS+=device_ids.9 major.9 \
 	device_ids.9 minor.9 \
 	device_ids.9 umajor.9 \
