@@ -79,38 +79,6 @@ __FBSDID("$FreeBSD$");
 
 extern u_int32_t nfs_xid;
 
-/*
- * Estimate rto for an nfs rpc sent via. an unreliable datagram.
- * Use the mean and mean deviation of rtt for the appropriate type of rpc
- * for the frequent rpcs and a default for the others.
- * The justification for doing "other" this way is that these rpcs
- * happen so infrequently that timer est. would probably be stale.
- * Also, since many of these rpcs are
- * non-idempotent, a conservative timeout is desired.
- * getattr, lookup - A+2D
- * read, write     - A+4D
- * other           - nm_timeo
- */
-#define	NFS_RTO(n, t) \
-	((t) == 0 ? (n)->nm_timeo : \
-	 ((t) < 3 ? \
-	  (((((n)->nm_srtt[t-1] + 3) >> 2) + (n)->nm_sdrtt[t-1] + 1) >> 1) : \
-	  ((((n)->nm_srtt[t-1] + 7) >> 3) + (n)->nm_sdrtt[t-1] + 1)))
-#define	NFS_SRTT(r)	(r)->r_nmp->nm_srtt[proct[(r)->r_procnum] - 1]
-#define	NFS_SDRTT(r)	(r)->r_nmp->nm_sdrtt[proct[(r)->r_procnum] - 1]
-
-/*
- * Defines which timer to use for the procnum.
- * 0 - default
- * 1 - getattr
- * 2 - lookup
- * 3 - read
- * 4 - write
- */
-static int proct[NFS_NPROCS] = {
-	0, 1, 0, 2, 1, 3, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0,
-};
-
 static int	nfs_realign_test;
 static int	nfs_realign_count;
 static int	nfs_bufpackets = 4;
@@ -155,6 +123,132 @@ static void nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag);
 static void nfs_clnt_udp_soupcall(struct socket *so, void *arg, int waitflag);
 
 extern struct mtx nfs_reqq_mtx;
+
+/*
+ * RTT estimator
+ */
+
+static enum nfs_rto_timer_t nfs_proct[NFS_NPROCS] = {
+	NFS_DEFAULT_TIMER,	/* NULL */
+	NFS_GETATTR_TIMER,	/* GETATTR */
+	NFS_DEFAULT_TIMER,	/* SETATTR */
+	NFS_LOOKUP_TIMER,	/* LOOKUP */
+	NFS_GETATTR_TIMER,	/* ACCESS */
+	NFS_READ_TIMER,		/* READLINK */
+	NFS_READ_TIMER,		/* READ */
+	NFS_WRITE_TIMER,	/* WRITE */
+	NFS_DEFAULT_TIMER,	/* CREATE */
+	NFS_DEFAULT_TIMER,	/* MKDIR */
+	NFS_DEFAULT_TIMER,	/* SYMLINK */
+	NFS_DEFAULT_TIMER,	/* MKNOD */
+	NFS_DEFAULT_TIMER,	/* REMOVE */
+	NFS_DEFAULT_TIMER,	/* RMDIR */
+	NFS_DEFAULT_TIMER,	/* RENAME */
+	NFS_DEFAULT_TIMER,	/* LINK */
+	NFS_READ_TIMER,		/* READDIR */
+	NFS_READ_TIMER,		/* READDIRPLUS */
+	NFS_DEFAULT_TIMER,	/* FSSTAT */
+	NFS_DEFAULT_TIMER,	/* FSINFO */
+	NFS_DEFAULT_TIMER,	/* PATHCONF */
+	NFS_DEFAULT_TIMER,	/* COMMIT */
+	NFS_DEFAULT_TIMER,	/* NOOP */
+};
+
+/*
+ * Choose the correct RTT timer for this NFS procedure.
+ */
+static inline enum nfs_rto_timer_t
+nfs_rto_timer(u_int32_t procnum)
+{
+	return nfs_proct[procnum];
+}
+
+/*
+ * Initialize the RTT estimator state for a new mount point.
+ */
+static void
+nfs_init_rtt(struct nfsmount *nmp)
+{
+	int i;
+
+	for (i = 0; i < NFS_MAX_TIMER; i++)
+		nmp->nm_srtt[i] = NFS_INITRTT;
+	for (i = 0; i < NFS_MAX_TIMER; i++)
+		nmp->nm_sdrtt[i] = 0;
+}
+
+/*
+ * Update a mount point's RTT estimator state using data from the
+ * passed-in request.
+ * 
+ * Use a gain of 0.125 on the mean and a gain of 0.25 on the deviation.
+ *
+ * NB: Since the timer resolution of NFS_HZ is so course, it can often
+ * result in r_rtt == 0. Since r_rtt == N means that the actual RTT is
+ * between N + dt and N + 2 - dt ticks, add 1 before calculating the
+ * update values.
+ */
+static void
+nfs_update_rtt(struct nfsreq *rep)
+{
+	int t1 = rep->r_rtt + 1;
+	int index = nfs_rto_timer(rep->r_procnum) - 1;
+	int *srtt = &rep->r_nmp->nm_srtt[index];
+	int *sdrtt = &rep->r_nmp->nm_sdrtt[index];
+
+	t1 -= *srtt >> 3;
+	*srtt += t1;
+	if (t1 < 0)
+		t1 = -t1;
+	t1 -= *sdrtt >> 2;
+	*sdrtt += t1;
+}
+
+/*
+ * Estimate RTO for an NFS RPC sent via an unreliable datagram.
+ *
+ * Use the mean and mean deviation of RTT for the appropriate type
+ * of RPC for the frequent RPCs and a default for the others.
+ * The justification for doing "other" this way is that these RPCs
+ * happen so infrequently that timer est. would probably be stale.
+ * Also, since many of these RPCs are non-idempotent, a conservative
+ * timeout is desired.
+ *
+ * getattr, lookup - A+2D
+ * read, write     - A+4D
+ * other           - nm_timeo
+ */
+static int
+nfs_estimate_rto(struct nfsmount *nmp, u_int32_t procnum)
+{
+	enum nfs_rto_timer_t timer = nfs_rto_timer(procnum);
+	int index = timer - 1;
+	int rto;
+
+	switch (timer) {
+	case NFS_GETATTR_TIMER:
+	case NFS_LOOKUP_TIMER:
+		rto = ((nmp->nm_srtt[index] + 3) >> 2) +
+				((nmp->nm_sdrtt[index] + 1) >> 1);
+		break;
+	case NFS_READ_TIMER:
+	case NFS_WRITE_TIMER:
+		rto = ((nmp->nm_srtt[index] + 7) >> 3) +
+				(nmp->nm_sdrtt[index] + 1);
+		break;
+	default:
+		rto = nmp->nm_timeo;
+		return (rto);
+	}
+
+	if (rto < NFS_MINRTO)
+		rto = NFS_MINRTO;
+	else if (rto > NFS_MAXRTO)
+		rto = NFS_MAXRTO;
+
+	return (rto);
+}
+
 
 /*
  * Initialize sockets and congestion for a new NFS connection.
@@ -357,10 +451,7 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 
 	mtx_lock(&nmp->nm_mtx);
 	/* Initialize other non-zero congestion variables */
-	nmp->nm_srtt[0] = nmp->nm_srtt[1] = nmp->nm_srtt[2] =
-		nmp->nm_srtt[3] = (NFS_TIMEO << 3);
-	nmp->nm_sdrtt[0] = nmp->nm_sdrtt[1] = nmp->nm_sdrtt[2] =
-		nmp->nm_sdrtt[3] = 0;
+	nfs_init_rtt(nmp);
 	nmp->nm_cwnd = NFS_MAXCWND / 2;	    /* Initial send window */
 	nmp->nm_sent = 0;
 	nmp->nm_timeouts = 0;
@@ -685,7 +776,6 @@ nfs_clnt_match_xid(struct socket *so,
 	caddr_t dpos;
 	u_int32_t rxid, *tl;
 	struct nfsreq *rep;
-	register int32_t t1;
 	int error;
 	
 	/*
@@ -743,27 +833,8 @@ nfsmout:
 				rep->r_flags &= ~R_SENT;
 				nmp->nm_sent -= NFS_CWNDSCALE;
 			}
-			/*
-			 * Update rtt using a gain of 0.125 on the mean
-			 * and a gain of 0.25 on the deviation.
-			 */
-			if (rep->r_flags & R_TIMING) {
-				/*
-				 * Since the timer resolution of
-				 * NFS_HZ is so course, it can often
-				 * result in r_rtt == 0. Since
-				 * r_rtt == N means that the actual
-				 * rtt is between N+dt and N+2-dt ticks,
-				 * add 1.
-				 */
-				t1 = rep->r_rtt + 1;
-				t1 -= (NFS_SRTT(rep) >> 3);
-				NFS_SRTT(rep) += t1;
-				if (t1 < 0)
-					t1 = -t1;
-				t1 -= (NFS_SDRTT(rep) >> 2);
-				NFS_SDRTT(rep) += t1;
-			}
+			if (rep->r_flags & R_TIMING)
+				nfs_update_rtt(rep);
 			nmp->nm_timeouts = 0;
 			wakeup((caddr_t)rep);
 			mtx_unlock(&rep->r_mtx);
@@ -1073,7 +1144,7 @@ tryagain:
 	else
 		rep->r_retry = NFS_MAXREXMIT + 1;	/* past clip limit */
 	rep->r_rtt = rep->r_rexmit = 0;
-	if (proct[procnum] > 0)
+	if (nfs_rto_timer(procnum) != NFS_DEFAULT_TIMER)
 		rep->r_flags = R_TIMING;
 	else
 		rep->r_flags = 0;
@@ -1328,7 +1399,7 @@ nfs_timer(void *arg)
 			if (nmp->nm_flag & NFSMNT_DUMBTIMR)
 				timeo = nmp->nm_timeo;
 			else
-				timeo = NFS_RTO(nmp, proct[rep->r_procnum]);
+				timeo = nfs_estimate_rto(nmp, rep->r_procnum);
 			if (nmp->nm_timeouts > 0)
 				timeo *= nfs_backoff[nmp->nm_timeouts - 1];
 			if (rep->r_rtt <= timeo) {
