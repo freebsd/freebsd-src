@@ -280,11 +280,25 @@ or if no callback routine was specified).
 .It Va crp_flags
 Is a bitmask of flags associated with this request.
 Currently defined flags are:
-.Bl -tag -width ".Dv CRYPTO_F_IMBUF"
+.Bl -tag -width ".Dv CRYPTO_F_CBIFSYNC"
 .It Dv CRYPTO_F_IMBUF
 The buffer pointed to by
 .Va crp_buf
 is an mbuf chain.
+.It Dv CRYPTO_F_IOV
+The buffer pointed to by
+.Va crp_buf
+is an uio structure.
+.It Dv CRYPTO_F_REL
+Must return data in the same place.
+.It Dv CRYPTO_F_BATCH
+Batch operation if possible.
+.It Dv CRYPTO_F_CBIMM
+Do callback immediatelly instead of doing it from a dedicated kernel thread.
+.It Dv CRYPTO_F_DONE
+Operation completed.
+.It Dv CRYPTO_F_CBIFSYNC
+Do callback immediatelly if operation is synchronous.
 .El
 .It Va crp_buf
 Points to the input buffer.
