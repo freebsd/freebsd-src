@@ -24,7 +24,7 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: auth2.c,v 1.104 2003/11/04 08:54:09 djm Exp $");
-RCSID("$FreeBSD$");
+RCSID("$FreeBSD: src/crypto/openssh/auth2.c,v 1.23 2004/04/20 09:46:39 des Exp $");
 
 #include "canohost.h"
 #include "ssh2.h"

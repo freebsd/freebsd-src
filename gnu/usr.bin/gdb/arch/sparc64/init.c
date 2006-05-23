@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/gdb/arch/sparc64/init.c,v 1.1 2004/06/25 06:48:54 marcel Exp $ */
 
 /* Do not modify this file.  */
 /* It is created automatically by the Makefile.  */

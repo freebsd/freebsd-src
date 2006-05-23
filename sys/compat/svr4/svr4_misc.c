@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/svr4/svr4_misc.c,v 1.71.2.6 2005/04/21 22:19:21 ps Exp $");
 
 #include "opt_mac.h"
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/driver/Makefile,v 1.15.8.1 2004/12/13 11:12:49 yongari Exp $
 
 .if ${MACHINE_ARCH} == "sparc64"
 SUBDIR  = audiocs

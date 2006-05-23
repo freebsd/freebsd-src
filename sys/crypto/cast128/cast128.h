@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/cast128/cast128.h,v 1.7 2003/10/10 15:06:16 ume Exp $	*/
 /*	$NetBSD: cast128.h,v 1.6 2003/08/26 20:03:57 thorpej Exp $ */
 /*      $OpenBSD: cast.h,v 1.2 2002/03/14 01:26:51 millert Exp $       */
 

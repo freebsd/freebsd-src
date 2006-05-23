@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/ia64/string/bzero.S,v 1.6 2004/02/10 20:45:28 cperciva Exp $");
 
 ENTRY(bzero, 2)
 	

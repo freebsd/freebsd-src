@@ -1,7 +1,7 @@
 /*
  * This program is in the public domain
  *
- * $FreeBSD$
+ * $FreeBSD: src/bin/dd/gen.c,v 1.1 2004/03/05 19:30:13 phk Exp $
  */
 
 #include <stdio.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$ 
+# $FreeBSD: src/sys/modules/udbp/Makefile,v 1.7.2.1 2005/06/07 07:49:49 glebius Exp $ 
 
 MAINTAINER=	n_hibma@freebsd.org
 

@@ -13,7 +13,7 @@
  * works or modified versions.
  *
  * $Cronyx: ceddk.h,v 1.2.6.1 2005/11/09 13:01:39 rik Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ce/ceddk.h,v 1.1.4.1 2006/03/07 13:44:32 rik Exp $
  */
 
 #define TAU32_UserContext_Add	void	*sys;

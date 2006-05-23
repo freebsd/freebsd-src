@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)mount_portal.c	8.6 (Berkeley) 4/26/95";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/mount_portalfs/mount_portalfs.c,v 1.22.2.1 2005/04/10 07:57:25 dds Exp $");
 
 #include <sys/param.h>
 #include <sys/wait.h>

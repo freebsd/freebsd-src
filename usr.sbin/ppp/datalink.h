@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/datalink.h,v 1.14.8.1 2005/02/03 10:49:16 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)

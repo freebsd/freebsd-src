@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/gen/makecontext.c,v 1.4.2.1 2005/02/03 21:29:42 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/signal.h>

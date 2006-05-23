@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/nfs.c,v 1.12 2004/01/21 20:12:23 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/time.h>

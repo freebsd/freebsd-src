@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/tinyware/passwd/Makefile,v 1.3 2003/04/30 17:50:08 markm Exp $
 
 # Only NOPAM is used by PicoBSD and supported here
 

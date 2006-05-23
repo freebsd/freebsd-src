@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/dest6.c,v 1.9.4.1 2005/01/31 23:26:38 imp Exp $	*/
 /*	$KAME: dest6.c,v 1.59 2003/07/11 13:21:16 t-momose Exp $	*/
 
 /*-

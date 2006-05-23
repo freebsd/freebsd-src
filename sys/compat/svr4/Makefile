@@ -1,6 +1,6 @@
 # Makefile for syscall tables
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/compat/svr4/Makefile,v 1.7 2001/09/13 22:02:48 julian Exp $
 
 MAINTAINER=	newton@freebsd.org
 

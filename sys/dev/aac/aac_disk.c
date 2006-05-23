@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/aac/aac_disk.c,v 1.41.2.1 2004/12/10 16:37:13 scottl Exp $");
 
 #include "opt_aac.h"
 

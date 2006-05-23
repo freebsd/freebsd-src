@@ -2,7 +2,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libmd/shadriver.c,v 1.3.8.1 2005/06/24 13:32:25 cperciva Exp $");
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All
    rights reserved.

@@ -89,7 +89,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/sys_pipe.c,v 1.177.2.4 2006/01/14 19:57:48 delphij Exp $");
 
 #include "opt_mac.h"
 

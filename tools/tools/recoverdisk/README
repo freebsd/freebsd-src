@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/tools/recoverdisk/README,v 1.2.2.1 2005/06/06 00:24:46 sobomax Exp $
 
 This is a small tool which will read an entire disk(partition) using
 1M blocks and optionally write the read data to a file or disk.

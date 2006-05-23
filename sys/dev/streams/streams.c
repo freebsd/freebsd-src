@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/streams/streams.c,v 1.47.2.3 2005/04/23 16:36:52 ps Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

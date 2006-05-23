@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netncp/ncp_sock.c,v 1.14.4.1 2005/01/31 23:26:44 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/errno.h>

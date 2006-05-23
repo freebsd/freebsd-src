@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/swapcontext.c,v 1.5 2002/09/20 08:13:21 mini Exp $");
 
 #include <sys/param.h>
 #include <sys/signal.h>

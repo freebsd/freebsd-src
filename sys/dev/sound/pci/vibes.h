@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/vibes.h,v 1.1.10.1 2005/01/30 01:00:04 imp Exp $
  */
 
 /* ------------------------------------------------------------------------- */

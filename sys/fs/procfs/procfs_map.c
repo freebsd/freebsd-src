@@ -32,7 +32,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/procfs/procfs_map.c,v 1.36.2.1 2005/01/31 23:25:58 imp Exp $
  */
 
 #include <sys/param.h>

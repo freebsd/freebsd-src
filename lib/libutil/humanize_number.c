@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libutil/humanize_number.c,v 1.1.2.1 2004/09/28 18:24:10 pjd Exp $");
 
 #include <sys/types.h>
 #include <assert.h>

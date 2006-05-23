@@ -1,7 +1,7 @@
 <!--
    The FreeBSD Russian Documentation Project
 
-   $FreeBSD$
+   $FreeBSD: src/release/doc/ru_RU.KOI8-R/readme/article.sgml,v 1.5.2.2 2005/03/15 16:50:38 den Exp $
    $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/readme/article.sgml,v 1.9 2004/09/13 09:24:01 den Exp $
 
    Original revision: 1.31.2.2
@@ -21,7 +21,7 @@
 
     <corpauthor>Проект &os;</corpauthor>
 
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/ru_RU.KOI8-R/readme/article.sgml,v 1.5.2.2 2005/03/15 16:50:38 den Exp $</pubdate>
 
     <copyright>
       <year>2000</year>

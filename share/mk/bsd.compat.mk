@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.compat.mk,v 1.18.2.1 2005/02/14 00:05:58 obrien Exp $
 
 .for oldnew in \
 	NOATM:NO_ATM \

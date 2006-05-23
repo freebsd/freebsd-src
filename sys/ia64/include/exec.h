@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/exec.h,v 1.1.8.1 2005/01/31 23:26:14 imp Exp $
  */
 
 #define __LDPGSZ	4096

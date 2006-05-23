@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/aac/aac_pci.c,v 1.48.2.4 2005/02/02 06:44:24 scottl Exp $");
 
 /*
  * PCI bus interface and resource allocation.

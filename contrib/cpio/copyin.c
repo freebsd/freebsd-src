@@ -15,7 +15,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-$FreeBSD$
+$FreeBSD: src/contrib/cpio/copyin.c,v 1.7.8.1 2006/01/11 08:03:55 cperciva Exp $
 */
 
 #include <stdio.h>

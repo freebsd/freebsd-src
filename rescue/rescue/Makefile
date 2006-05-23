@@ -1,4 +1,4 @@
-#$FreeBSD$
+#$FreeBSD: src/rescue/rescue/Makefile,v 1.28.2.2 2005/04/18 06:08:28 cperciva Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/2/93
 
 PROG=	rescue

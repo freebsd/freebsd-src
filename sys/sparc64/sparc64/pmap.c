@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *      from:   @(#)pmap.c      7.7 (Berkeley)  5/12/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/pmap.c,v 1.139.2.3 2005/03/13 20:49:57 alc Exp $
  */
 
 /*

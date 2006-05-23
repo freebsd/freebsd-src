@@ -7,7 +7,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/sysv_sem.c,v 1.70.2.4 2005/05/05 18:53:13 rwatson Exp $");
 
 #include "opt_sysvipc.h"
 

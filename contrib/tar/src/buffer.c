@@ -19,7 +19,7 @@
    with this program; if not, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/tar/src/buffer.c,v 1.6 2003/05/05 22:49:22 obrien Exp $ */
 
 #include "system.h"
 

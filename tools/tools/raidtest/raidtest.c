@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/tools/raidtest/raidtest.c,v 1.2.2.1 2004/09/14 16:02:32 pjd Exp $");
 
 #include <sys/types.h>
 #include <stdio.h>

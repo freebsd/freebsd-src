@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ia64/ia64/unwind.c,v 1.12.2.1 2005/01/31 23:26:13 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/kdb.h>

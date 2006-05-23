@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/geom/mirror/g_mirror.c,v 1.19.2.9 2005/04/29 08:24:56 pjd Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

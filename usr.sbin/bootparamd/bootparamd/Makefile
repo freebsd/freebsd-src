@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.8 (Berkeley) 7/28/90
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bootparamd/bootparamd/Makefile,v 1.14.4.1 2004/11/28 14:10:19 bz Exp $
 
 PROG=	bootparamd
 MAN=	bootparams.5 bootparamd.8

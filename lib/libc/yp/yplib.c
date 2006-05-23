@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/yp/yplib.c,v 1.45.6.1 2005/05/13 17:06:52 ume Exp $");
 
 #include "namespace.h"
 #include "reentrant.h"

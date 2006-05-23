@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/sockets/accf_data_attach/accf_data_attach.c,v 1.1.2.2 2005/06/26 06:59:50 maxim Exp $
  */
 
 #include <sys/types.h>

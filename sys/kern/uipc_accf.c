@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/uipc_accf.c,v 1.11.2.5 2005/06/26 06:59:49 maxim Exp $");
 
 #define ACCEPT_FILTER_MOD
 

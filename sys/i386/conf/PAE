@@ -1,7 +1,7 @@
 #
 # PAE -- Generic kernel configuration file for FreeBSD/i386 PAE
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/conf/PAE,v 1.9.2.5 2005/04/29 04:12:12 scottl Exp $
 
 include GENERIC
 

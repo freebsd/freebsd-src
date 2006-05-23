@@ -25,7 +25,7 @@
  *
  * 	from: FreeBSD: src/sys/i386/include/bus_memio.h,v 1.2 1999/08/28
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/bus_memio.h,v 1.1.8.1 2005/01/31 23:26:53 imp Exp $
  */
 
 #ifndef _MACHINE_BUS_MEMIO_H_

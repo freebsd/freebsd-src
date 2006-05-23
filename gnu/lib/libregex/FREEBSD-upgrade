@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/gnu/lib/libregex/FREEBSD-upgrade,v 1.2 2004/07/06 00:10:40 ache Exp $
 
 GNU regex (from grep):
 

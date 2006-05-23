@@ -210,4 +210,4 @@ Created by: iwasaki@FreeBSD.org
 Edited by: jkh@FreeBSD.org
            nick@foobar.org
 
-$FreeBSD$
+$FreeBSD: src/usr.sbin/apmd/README,v 1.2 1999/08/28 01:15:24 peter Exp $

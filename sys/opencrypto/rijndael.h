@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/opencrypto/rijndael.h,v 1.1.10.1 2005/01/31 23:26:48 imp Exp $	*/
 /*	$OpenBSD: rijndael.h,v 1.7 2001/12/19 17:42:24 markus Exp $ */
 
 /*-

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_stack.c,v 1.5.8.2 2005/05/11 15:56:04 marcus Exp $
  */
 #include "namespace.h"
 #include <sys/types.h>

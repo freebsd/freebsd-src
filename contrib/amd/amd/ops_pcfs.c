@@ -39,7 +39,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: ops_pcfs.c,v 1.3.2.5 2004/01/06 03:15:16 ezk Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/amd/amd/ops_pcfs.c,v 1.2 2004/07/06 13:44:14 mbr Exp $
  *
  */
 

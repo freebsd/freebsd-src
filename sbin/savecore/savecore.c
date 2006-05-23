@@ -65,7 +65,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/savecore/savecore.c,v 1.69.2.2 2005/10/08 17:57:15 maxim Exp $");
 
 #include <sys/param.h>
 #include <sys/disk.h>

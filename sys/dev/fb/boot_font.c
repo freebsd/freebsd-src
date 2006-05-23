@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/fb/boot_font.c,v 1.3 2003/08/24 17:46:06 obrien Exp $");
 
 /*
  * This font lives in the public domain. It it a PC font, IBM encoding,
@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/fb/boot_font.c,v 1.3 2003/08/24 17:46:06 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

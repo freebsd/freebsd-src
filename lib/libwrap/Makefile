@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libwrap/Makefile,v 1.14.4.1 2004/11/28 14:10:17 bz Exp $
 #
 
 LIB=	wrap

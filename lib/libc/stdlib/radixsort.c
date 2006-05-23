@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)radixsort.c	8.2 (Berkeley) 4/28/95";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/radixsort.c,v 1.7 2003/11/11 04:59:23 kientzle Exp $");
 
 /*
  * Radixsort routines.

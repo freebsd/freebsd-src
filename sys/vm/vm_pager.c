@@ -64,7 +64,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/vm/vm_pager.c,v 1.95.2.3 2005/08/16 15:09:44 sobomax Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

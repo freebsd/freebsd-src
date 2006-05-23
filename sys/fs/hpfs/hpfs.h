@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/hpfs/hpfs.h,v 1.14 2004/06/16 09:47:03 phk Exp $
  */
 
 /*#define HPFS_DEBUG 10*/

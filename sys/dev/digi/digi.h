@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/digi/digi.h,v 1.17.2.1 2005/02/05 23:42:58 dwhite Exp $
  */
 
 #define	W(p)				(*(u_int16_t *)(p))

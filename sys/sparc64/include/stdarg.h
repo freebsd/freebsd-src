@@ -35,7 +35,7 @@
  *
  *	@(#)stdarg.h	8.2 (Berkeley) 9/27/93
  *	$NetBSD: stdarg.h,v 1.11 2000/07/23 21:36:56 mycroft Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/stdarg.h,v 1.6.8.1 2005/01/31 23:26:53 imp Exp $
  */
 
 #ifndef _MACHINE_STDARG_H_

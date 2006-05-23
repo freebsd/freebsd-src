@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/netisr.c,v 1.10.2.4 2005/09/26 18:48:01 rwatson Exp $
  */
 
 #include "opt_net.h"

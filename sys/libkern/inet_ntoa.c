@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/inet_ntoa.c,v 1.5.4.1 2005/01/31 23:26:21 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

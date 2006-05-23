@@ -2,7 +2,7 @@
  * Automatically generated from sun.us.unix.kbd.
  * DO NOT EDIT!
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/uart/uart_kbd_sun_tables.h,v 1.1 2003/11/11 07:33:24 jake Exp $
  */
 static keymap_t keymap_sun_us_unix_kbd = { 0x80, {
 /*                                                         alt

@@ -12,7 +12,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/mixer/mixer.c,v 1.21.2.1 2006/01/04 00:37:13 ariff Exp $");
 
 #include <err.h>
 #include <fcntl.h>

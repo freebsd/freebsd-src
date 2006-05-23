@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/ngatm/netnatm/api/ccpriv.h,v 1.1.1.1 2004/07/08 16:39:02 harti Exp $
  *
  * ATM API as defined per af-saa-0108
  *

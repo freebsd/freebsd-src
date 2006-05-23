@@ -1,7 +1,7 @@
 <!--
    The FreeBSD Russian Documentation Project
 
-   $FreeBSD$
+   $FreeBSD: src/release/doc/ru_RU.KOI8-R/early-adopter/article.sgml,v 1.5.2.4 2005/04/01 13:11:04 den Exp $
    $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/early-adopter/article.sgml,v 1.6 2004/08/12 08:31:34 den Exp $
 
    Original revision: 1.21.2.7
@@ -28,7 +28,7 @@
       <corpauthor>Группа подготовки релизов &os;</corpauthor>
     </authorgroup>
 
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/ru_RU.KOI8-R/early-adopter/article.sgml,v 1.5.2.4 2005/04/01 13:11:04 den Exp $</pubdate>
 
     <copyright>
       <year>2002</year>

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/boot/README,v 1.3.8.1 2005/06/16 18:42:02 jhb Exp $
 
        README file, for the boot config file setup.  This is meant
        to explain how to manage the loader configuration process.

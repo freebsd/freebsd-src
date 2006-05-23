@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ed/if_ed_pccard.c,v 1.59.2.3 2005/02/02 22:46:13 imp Exp $
  */
 
 #include "opt_ed.h"

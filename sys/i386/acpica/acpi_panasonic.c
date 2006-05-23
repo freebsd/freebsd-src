@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/acpica/acpi_panasonic.c,v 1.3.2.2 2004/12/27 05:54:13 njl Exp $");
 
 #include "opt_acpi.h"
 #include <sys/param.h>

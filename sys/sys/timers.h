@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/timers.h,v 1.4.26.1 2005/01/31 23:26:57 imp Exp $
  *
  * Description : Basic timers header.
  */

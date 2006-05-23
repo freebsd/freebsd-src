@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/security/mac/mac_vfs.c,v 1.106.2.2 2005/05/18 00:32:04 csjp Exp $");
 
 #include "opt_mac.h"
 #include "opt_devfs.h"

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libreadline/readline/Makefile,v 1.12 2003/08/31 19:15:35 ache Exp $
 
 SUBDIR= doc
 

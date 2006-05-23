@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/i386/libi386/devicename.c,v 1.6.4.1 2005/06/16 18:25:48 jhb Exp $");
 
 #include <stand.h>
 #include <string.h>

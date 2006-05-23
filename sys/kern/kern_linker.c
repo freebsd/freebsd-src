@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_linker.c,v 1.113.2.3 2005/11/04 17:18:29 jdp Exp $");
 
 #include "opt_ddb.h"
 #include "opt_mac.h"

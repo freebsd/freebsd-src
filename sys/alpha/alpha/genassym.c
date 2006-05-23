@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/genassym.c,v 1.44.2.1 2005/02/05 01:04:53 das Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/isp/isp_pci.c,v 1.98.2.4 2006/02/04 23:55:03 mjacob Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

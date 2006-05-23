@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/osf1/osf1_signal.c,v 1.36.2.2 2005/02/05 01:02:48 das Exp $");
 
 #include "opt_compat.h"
 #ifndef COMPAT_43

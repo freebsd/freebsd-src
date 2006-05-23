@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/alpha/gen/infinity.c,v 1.7 2003/02/08 20:37:48 mike Exp $");
 
 #include <math.h>
 

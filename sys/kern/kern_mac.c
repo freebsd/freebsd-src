@@ -42,7 +42,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_mac.c,v 1.113.2.2 2005/05/05 18:36:03 trhodes Exp $");
 
 #include "opt_mac.h"
 #include "opt_devfs.h"

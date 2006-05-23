@@ -28,7 +28,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_sarea.h,v 1.3.2.1 2005/01/30 00:59:36 imp Exp $
  */
 
 #ifndef _DRM_SAREA_H_

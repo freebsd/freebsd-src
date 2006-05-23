@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/ndis/subr_pe.c,v 1.7.2.4 2005/10/26 18:48:57 wpaul Exp $");
 
 /*
  * This file contains routines for relocating and dynamically linking

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/isp/isp_ioctl.h,v 1.11.2.3 2006/02/04 23:55:03 mjacob Exp $ */
 /*-
  *
  * Copyright (c) 1997-2006 by Matthew Jacob

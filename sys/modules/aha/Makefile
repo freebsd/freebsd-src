@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/aha/Makefile,v 1.8 2001/02/04 16:45:39 imp Exp $
 
 .PATH: ${.CURDIR}/../../dev/aha
 

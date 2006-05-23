@@ -18,7 +18,7 @@
  * all derivative works or modified versions.
  *
  * Cronyx Id: cserial.h,v 1.4.2.2 2005/11/09 13:01:35 rik Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/cserial.h,v 1.1.6.2 2006/03/07 13:32:48 rik Exp $
  */
 
 /*

@@ -30,7 +30,7 @@
 
 /*
  * $Id: ng_h4.c,v 1.5 2003/05/10 05:51:25 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/bluetooth/drivers/h4/ng_h4.c,v 1.10.2.2 2005/01/31 23:26:32 imp Exp $
  * 
  * Based on:
  * ---------

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/pf/ftp-proxy/ftp-proxy.c,v 1.5 2004/06/16 23:39:31 mlaier Exp $");
 
 /*
  * ftp proxy, Originally based on juniper_ftp_proxy from the Obtuse

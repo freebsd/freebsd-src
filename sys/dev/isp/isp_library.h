@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/isp/isp_library.h,v 1.1.4.1 2006/02/04 23:55:03 mjacob Exp $ */
 /*-
  * Qlogic Host Adapter Library Functions
  *

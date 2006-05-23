@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/dev/em/LICENSE,v 1.2.6.1 2005/01/30 00:59:38 imp Exp $
 /*-
 Copyright (c) 2001-2003, Intel Corporation 
 All rights reserved.

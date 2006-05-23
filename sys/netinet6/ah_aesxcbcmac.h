@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/ah_aesxcbcmac.h,v 1.1.4.1 2005/01/31 23:26:38 imp Exp $
  */
 
 extern int ah_aes_xcbc_mac_init __P((struct ah_algorithm_state *,

@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/uftdi.c,v 1.18.2.2 2005/06/17 14:15:27 ticso Exp $");
 
 /*
  * FTDI FT8U100AX serial adapter driver

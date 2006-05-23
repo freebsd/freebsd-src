@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/msun/amd64/fenv.h,v 1.1.2.1 2005/01/15 22:59:16 das Exp $
  */
 
 #ifndef	_FENV_H_

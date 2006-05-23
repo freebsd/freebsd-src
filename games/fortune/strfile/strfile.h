@@ -35,7 +35,7 @@
  *
  *	@(#)strfile.h	8.1 (Berkeley) 5/31/93
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/fortune/strfile/strfile.h,v 1.3 1999/10/02 12:33:37 dcs Exp $ */
 
 #define	STR_ENDSTRING(line,tbl) \
 	(((unsigned char)(line)[0]) == (tbl).str_delim && (line)[1] == '\n')

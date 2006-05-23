@@ -26,7 +26,7 @@
  * Authors:
  *    Sung-Ching Lin <sclin@sis.com.tw>
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/sis_ds.h,v 1.2.2.1 2005/01/30 00:59:36 imp Exp $
  */
 
 #ifndef __SIS_DS_H__

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/main.h,v 1.12.8.1 2005/02/03 10:49:17 brian Exp $
  */
 
 extern void Cleanup(void);

@@ -32,7 +32,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/driver/i4b_rbch.c,v 1.33.2.1 2005/01/31 23:26:08 imp Exp $");
 
 #include "i4brbch.h"
 

@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_mib.c,v 1.71.2.2 2005/03/03 00:46:31 wes Exp $");
 
 #include "opt_posix.h"
 

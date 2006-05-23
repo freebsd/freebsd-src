@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/isa/isa_dma.c,v 1.19.2.1 2005/03/07 13:10:47 phk Exp $");
 
 /*
  * code to manage AT bus

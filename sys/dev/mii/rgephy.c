@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/rgephy.c,v 1.5.2.1 2005/01/30 00:59:54 imp Exp $");
 
 /*
  * Driver for the RealTek 8169S/8110S internal 10/100/1000 PHY.

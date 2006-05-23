@@ -20,7 +20,7 @@ along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/cp/ptree.c,v 1.8 2004/07/28 05:06:59 kan Exp $ */
 
 #include "config.h"
 #include "system.h"

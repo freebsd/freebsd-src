@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: cleartmp,v 1.4 2002/03/22 04:33:58 thorpej Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/cleartmp,v 1.10.2.2 2005/01/12 22:36:36 anholt Exp $
 #
 
 # PROVIDE: cleartmp

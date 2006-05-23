@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/xargs/regress.sh,v 1.5 2002/06/24 13:52:28 jmallett Exp $
 
 REGRESSION_START($1)
 

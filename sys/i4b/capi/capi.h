@@ -24,7 +24,7 @@
  *
  * capi/capi.h		The CAPI device interface.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/capi/capi.h,v 1.1.10.1 2005/01/31 23:26:07 imp Exp $
  */
 
 #ifndef _I4B_CAPI_H_

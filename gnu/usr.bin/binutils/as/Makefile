@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/as/Makefile,v 1.14.2.1 2005/02/13 07:23:06 obrien Exp $
 
 
 # BINDIR

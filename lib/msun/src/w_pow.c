@@ -20,7 +20,7 @@
 #include "math_private.h"
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/msun/src/w_pow.c,v 1.3 2002/05/28 17:51:46 alfred Exp $";
 #endif
 
 double

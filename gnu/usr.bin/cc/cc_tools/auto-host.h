@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/cc/cc_tools/auto-host.h,v 1.18 2004/07/28 05:27:20 kan Exp $ */
 
 #ifndef __FreeBSD_version
 #include <sys/param.h>

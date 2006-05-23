@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/portsnap/phttpget/phttpget.c,v 1.6.2.4 2006/03/09 17:13:39 ume Exp $");
 
 #include <sys/types.h>
 #include <sys/time.h>

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/sys/uthread_error.c,v 1.4 2003/01/24 01:46:30 fjoe Exp $
  */
 #include <pthread.h>
 #include "pthread_private.h"

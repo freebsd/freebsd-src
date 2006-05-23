@@ -19,7 +19,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/fe/if_fevar.h,v 1.2.4.2 2005/02/03 00:34:46 imp Exp $
  */
 
 /* How many registers does an fe-supported adapter have at maximum?  */

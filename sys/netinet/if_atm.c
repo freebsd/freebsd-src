@@ -32,7 +32,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/if_atm.c,v 1.18.2.2 2005/08/31 13:59:00 glebius Exp $");
 
 /*
  * IP <=> ATM address resolution.

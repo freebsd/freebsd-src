@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/md_var.h,v 1.18.2.1 2005/01/09 05:47:12 marcel Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_

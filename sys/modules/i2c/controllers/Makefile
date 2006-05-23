@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/i2c/controllers/Makefile,v 1.3.4.1 2005/08/19 18:54:24 brian Exp $
 
 .if ${MACHINE} == "pc98"
 SUBDIR = lpbb

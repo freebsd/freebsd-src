@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $FreeBSD$
+ *      $FreeBSD: src/sys/fs/pseudofs/pseudofs_vncache.c,v 1.26 2004/08/15 21:58:02 des Exp $
  */
 
 #include <sys/param.h>

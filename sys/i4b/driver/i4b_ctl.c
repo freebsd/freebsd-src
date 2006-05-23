@@ -32,7 +32,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/driver/i4b_ctl.c,v 1.25.2.1 2005/01/31 23:26:08 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/ioccom.h>

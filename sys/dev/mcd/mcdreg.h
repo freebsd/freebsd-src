@@ -41,7 +41,7 @@
  * the manufacturer or anyone else might provide better documentation,
  * so this file (and the driver) will then have a better quality.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mcd/mcdreg.h,v 1.16.2.1 2005/01/30 00:59:53 imp Exp $
  */
 
 #ifndef MCD_H

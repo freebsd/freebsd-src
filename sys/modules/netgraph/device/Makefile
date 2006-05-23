@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/netgraph/device/Makefile,v 1.1.8.1 2005/05/27 12:05:24 glebius Exp $
 KMOD=   ng_device
 SRCS=   ng_device.c
 

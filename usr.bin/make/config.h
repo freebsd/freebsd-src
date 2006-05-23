@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)config.h	8.2 (Berkeley) 4/28/95
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/config.h,v 1.12 2002/09/17 21:29:06 jmallett Exp $
  */
 
 /*

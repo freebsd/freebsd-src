@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/isa/mss.h,v 1.11.8.1 2005/01/30 01:00:03 imp Exp $
  */
 
 /*
@@ -331,7 +331,7 @@ MIX_NONE(SOUND_MIXER_LINE3),
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/isa/mss.h,v 1.11.8.1 2005/01/30 01:00:03 imp Exp $
  */
 
 /*

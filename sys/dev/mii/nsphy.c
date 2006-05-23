@@ -67,7 +67,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/nsphy.c,v 1.22.2.1 2005/01/30 00:59:54 imp Exp $");
 
 /*
  * driver for National Semiconductor's DP83840A ethernet 10/100 PHY

@@ -42,7 +42,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/vinum/vinumraid5.c,v 1.14 2003/08/24 17:55:56 obrien Exp $");
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
 #include <sys/resourcevar.h>

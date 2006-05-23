@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/inetd/inetd.c,v 1.127.2.1 2005/05/28 11:54:37 ume Exp $");
 
 /*
  * Inetd - Internet super-server

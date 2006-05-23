@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/geom/vinum/geom_vinum_plex.c,v 1.8.2.7 2005/08/16 20:55:33 le Exp $");
 
 #include <sys/param.h>
 #include <sys/bio.h>

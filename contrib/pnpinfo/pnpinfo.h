@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/pnpinfo/pnpinfo.h,v 1.2 1999/09/05 17:27:05 peter Exp $
  */
 
 

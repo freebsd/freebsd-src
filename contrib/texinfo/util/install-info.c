@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/texinfo/util/install-info.c,v 1.15 2003/06/18 13:02:02 ru Exp $ */
 /* install-info -- create Info directory entry(ies) for an Info file.
    $Id: install-info.c,v 1.9 2003/05/19 13:10:59 karl Exp $
 

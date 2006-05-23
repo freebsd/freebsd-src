@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/sys_machdep.c,v 1.27.2.1 2005/02/05 01:02:47 das Exp $");
 
 #include "opt_mac.h"
 

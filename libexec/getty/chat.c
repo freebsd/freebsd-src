@@ -25,7 +25,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/getty/chat.c,v 1.10 2004/03/14 05:27:26 bde Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

@@ -33,7 +33,7 @@
  *
  *      @(#)bpfdesc.h	8.1 (Berkeley) 6/10/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/bpfdesc.h,v 1.27.2.2 2005/01/31 23:26:22 imp Exp $
  */
 
 #ifndef _NET_BPFDESC_H_

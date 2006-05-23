@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/i386/autoconf.c,v 1.178.2.1 2004/11/10 12:42:45 nyan Exp $");
 
 /*
  * Setup the system to run on the current machine.

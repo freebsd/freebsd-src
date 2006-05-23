@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ed/Makefile,v 1.8 2004/05/26 00:53:02 imp Exp $
 
 .PATH: ${.CURDIR}/../../dev/ed
 

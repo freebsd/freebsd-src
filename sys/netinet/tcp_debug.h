@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_debug.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/tcp_debug.h,v 1.14.2.1 2005/01/31 23:26:36 imp Exp $
  */
 
 #ifndef _NETINET_TCP_DEBUG_H_

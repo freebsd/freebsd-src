@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/esp/Makefile,v 1.3 2004/08/12 17:41:30 marius Exp $
 
 .PATH: ${.CURDIR}/../../dev/esp
 

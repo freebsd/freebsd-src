@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/ia64/genassym.c,v 1.39.2.1 2005/02/05 01:04:53 das Exp $
  */
 
 #include "opt_kstack_pages.h"

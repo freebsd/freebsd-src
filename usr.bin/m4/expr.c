@@ -48,7 +48,7 @@ static char rcsid[] = "$OpenBSD: expr.c,v 1.14 2002/04/26 16:15:16 espie Exp $";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/m4/expr.c,v 1.14 2004/05/01 03:59:43 smkelly Exp $");
 
 #include <sys/types.h>
 #include <ctype.h>

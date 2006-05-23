@@ -1,4 +1,4 @@
-# $FreeBSD$ 
+# $FreeBSD: src/sys/modules/umodem/Makefile,v 1.12 2004/06/27 12:33:19 imp Exp $ 
 
 MAINTAINER=	n_hibma@freebsd.org
 

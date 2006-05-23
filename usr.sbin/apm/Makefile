@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/apm/Makefile,v 1.17.2.1 2005/11/28 16:01:57 nyan Exp $
 
 PROG=	apm
 MAN=	apm.8

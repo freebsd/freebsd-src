@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/Makefile.inc,v 1.23 2004/08/06 07:27:03 cperciva Exp $
 
 NOLINT=
 

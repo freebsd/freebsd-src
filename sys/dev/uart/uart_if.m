@@ -23,7 +23,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/uart/uart_if.m,v 1.2.4.1 2005/01/30 01:00:08 imp Exp $
 
 #include <sys/param.h>
 #include <sys/lock.h>

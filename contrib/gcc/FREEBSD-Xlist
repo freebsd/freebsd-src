@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/contrib/gcc/FREEBSD-Xlist,v 1.3 2004/02/17 03:22:34 ache Exp $
 *.brik
 *FAQ
 *contrib

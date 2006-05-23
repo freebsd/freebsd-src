@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uio.h	8.5 (Berkeley) 2/22/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/uio.h,v 1.36.2.2 2005/07/14 19:08:22 jhb Exp $
  */
 
 #ifndef _SYS_UIO_H_

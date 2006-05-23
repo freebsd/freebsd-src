@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/tty_pty.c,v 1.129.2.1 2005/01/31 23:26:17 imp Exp $");
 
 /*
  * Pseudo-teletype Driver

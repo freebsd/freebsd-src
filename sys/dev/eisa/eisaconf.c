@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/eisa/eisaconf.c,v 1.69.2.1 2005/01/30 00:59:38 imp Exp $");
 
 #include "opt_eisa.h"
 

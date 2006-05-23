@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/acpica/acpi_cmbat.c,v 1.36.2.3 2004/12/27 05:45:38 njl Exp $
  */
 
 #include "opt_acpi.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/autoconf.c,v 1.10.8.1 2005/03/22 00:14:16 iedowse Exp $
  */
 
 #include "opt_isa.h"

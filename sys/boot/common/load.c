@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/common/load.c,v 1.3.4.2 2005/01/30 12:11:15 rwatson Exp $");
 
 #include <stand.h>
 

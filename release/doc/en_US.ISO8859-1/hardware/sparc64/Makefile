@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/doc/en_US.ISO8859-1/hardware/sparc64/Makefile,v 1.4 2004/08/03 22:12:45 simon Exp $
 
 RELN_ROOT?= ${.CURDIR}/../../..
 

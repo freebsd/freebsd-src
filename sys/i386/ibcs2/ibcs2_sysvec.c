@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/ibcs2/ibcs2_sysvec.c,v 1.28.2.2 2006/01/10 21:46:19 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

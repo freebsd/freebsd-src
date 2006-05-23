@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/usr.sbin/pcvt/vttest/README,v 1.4 2001/07/23 12:05:27 kris Exp $
 
 NOTES FROM THE MOD.SOURCES MODERATOR:
 I split the source up into the three separate pieces it now is.

@@ -46,7 +46,7 @@ static const char sccsid[] = "@(#)du.c	8.5 (Berkeley) 5/4/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/du/du.c,v 1.36.2.1 2005/01/12 07:39:26 pjd Exp $");
 
 #include <sys/param.h>
 #include <sys/queue.h>

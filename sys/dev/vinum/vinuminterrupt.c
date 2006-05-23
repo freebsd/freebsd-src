@@ -1,7 +1,7 @@
 /* vinuminterrupt.c: bottom half of the driver */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/vinum/vinuminterrupt.c,v 1.44 2004/07/10 21:17:04 marcel Exp $");
 
 /*-
  * Copyright (c) 1997, 1998, 1999

@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libbsnmp/modules/snmp_pf/pf_tree.def,v 1.1.2.1 2005/04/20 08:45:13 philip Exp $
 #
 
 (1 internet

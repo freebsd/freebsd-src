@@ -5,7 +5,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/BSD_daemon/README,v 1.2 2001/03/04 09:13:17 phk Exp $
 #
 
 This directory contains various stuff relating to the FreeBSD daemon

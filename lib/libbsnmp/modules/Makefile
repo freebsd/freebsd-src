@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libbsnmp/modules/Makefile,v 1.6.2.1 2005/04/20 08:45:12 philip Exp $
 
 .PATH: ${.CURDIR}/../../../contrib/bsnmp/snmpd
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/io/Makefile,v 1.1 2004/08/01 11:40:53 markm Exp $
 
 .PATH: ${.CURDIR}/../../dev/io
 .PATH: ${.CURDIR}/../../${MACHINE_ARCH}/${MACHINE_ARCH}

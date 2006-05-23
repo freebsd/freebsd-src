@@ -26,7 +26,7 @@
  * Authors:
  *   Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/ati_pcigart.h,v 1.3.4.1 2005/01/30 00:59:35 imp Exp $
  */
 
 #include "dev/drm/drmP.h"

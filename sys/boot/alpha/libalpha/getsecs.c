@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/alpha/libalpha/getsecs.c,v 1.3.2.1 2005/06/11 05:44:54 marcel Exp $");
 
 #include <sys/param.h>
 #include <machine/prom.h>

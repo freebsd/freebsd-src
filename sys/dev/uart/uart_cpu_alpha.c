@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/uart/uart_cpu_alpha.c,v 1.8.2.2 2005/06/18 00:48:53 marcel Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libthr/arch/i386/i386/_setcurthread.c,v 1.14.2.1 2004/10/09 15:07:20 mtm Exp $
  */
 
 #include <sys/types.h>

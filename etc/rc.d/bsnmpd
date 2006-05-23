@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/bsnmpd,v 1.1.2.1 2005/05/19 11:35:15 glebius Exp $
 #
 
 # PROVIDE: bsnmpd

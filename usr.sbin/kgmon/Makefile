@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/kgmon/Makefile,v 1.5.8.1 2004/11/09 03:47:41 marcel Exp $
 
 PROG=	kgmon
 MAN=	kgmon.8

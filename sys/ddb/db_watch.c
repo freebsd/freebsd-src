@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ddb/db_watch.c,v 1.25.4.1 2005/01/30 00:59:22 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

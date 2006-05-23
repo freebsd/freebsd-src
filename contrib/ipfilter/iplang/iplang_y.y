@@ -7,7 +7,7 @@
  * to the original author and the contributors.
  *
  * $Id: iplang_y.y,v 2.2 1999/12/04 03:37:04 darrenr Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/ipfilter/iplang/iplang_y.y,v 1.5 2003/02/15 06:32:47 darrenr Exp $
  */
 
 #if defined(__sgi) && (IRIX > 602)

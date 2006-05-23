@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/syscons/scvesactl.c,v 1.20.2.1 2005/09/02 17:37:46 rodrigc Exp $");
 
 #include "opt_vga.h"
 

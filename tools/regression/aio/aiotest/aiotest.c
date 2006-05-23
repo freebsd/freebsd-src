@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/aio/aiotest/aiotest.c,v 1.2.2.1 2005/02/13 18:38:51 rwatson Exp $
  */
 
 /*

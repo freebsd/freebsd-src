@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/ndis/subr_ndis.c,v 1.67.2.13 2005/12/16 17:34:36 wpaul Exp $");
 
 /*
  * This file implements a translation layer between the BSD networking

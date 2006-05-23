@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/lib/libssh/Makefile,v 1.28.2.1 2005/02/13 07:23:19 obrien Exp $
 
 LIB=	ssh
 SRCS=	acss.c authfd.c authfile.c bufaux.c buffer.c \

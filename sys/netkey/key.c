@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netkey/key.c,v 1.65.2.7 2005/09/03 16:14:52 ume Exp $");
 
 /*
  * This code is referd to RFC 2367

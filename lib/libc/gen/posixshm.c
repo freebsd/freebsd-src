@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/posixshm.c,v 1.4 2002/02/01 00:57:29 obrien Exp $");
 
 #include "namespace.h"
 #include <sys/types.h>

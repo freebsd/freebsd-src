@@ -30,7 +30,7 @@
 #include <sys/sx.h>
 #endif
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/sndstat.c,v 1.17.2.3 2005/09/21 02:47:12 yongari Exp $");
 
 #define	SS_TYPE_MODULE		0
 #define	SS_TYPE_FIRST		1

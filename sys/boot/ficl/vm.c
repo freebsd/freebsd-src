@@ -47,7 +47,7 @@
 ** SUCH DAMAGE.
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/vm.c,v 1.9 2002/04/09 17:45:11 dcs Exp $ */
 
 #ifdef TESTMAIN
 #include <stdlib.h>

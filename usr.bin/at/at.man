@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/usr.bin/at/at.man,v 1.34 2003/03/26 02:38:18 keramida Exp $
 .Dd January 13, 2002
 .Dt "AT" 1
 .Os

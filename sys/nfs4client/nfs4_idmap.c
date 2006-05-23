@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/nfs4client/nfs4_idmap.c,v 1.4.2.1 2005/01/31 23:26:45 imp Exp $ */
 /* $Id: nfs4_idmap.c,v 1.4 2003/11/05 14:58:59 rees Exp $ */
 
 /*-

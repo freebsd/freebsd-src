@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/if_ste.c,v 1.76.2.4 2006/01/29 15:39:08 emaste Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

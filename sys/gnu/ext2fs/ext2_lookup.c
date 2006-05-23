@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.6 (Berkeley) 4/1/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/ext2fs/ext2_lookup.c,v 1.44.2.1 2005/01/31 23:26:02 imp Exp $
  */
 
 #include <sys/param.h>

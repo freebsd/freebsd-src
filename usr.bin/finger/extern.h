@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/28/95
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/finger/extern.h,v 1.9.2.1 2006/01/22 11:52:46 dds Exp $
  */
 
 #ifndef	_EXTERN_H_

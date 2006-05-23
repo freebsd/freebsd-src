@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/bus_pio.h,v 1.2.26.1 2005/01/31 23:26:04 imp Exp $
  */
 
 #ifndef _I386_BUS_PIO_H_

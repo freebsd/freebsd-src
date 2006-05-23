@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)alias.h	8.2 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/alias.h,v 1.8 2004/04/06 20:06:51 markm Exp $
  */
 
 #define ALIASINUSE	1

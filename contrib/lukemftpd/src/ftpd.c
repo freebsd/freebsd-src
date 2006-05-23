@@ -108,7 +108,7 @@ static char sccsid[] = "@(#)ftpd.c	8.5 (Berkeley) 4/28/95";
 __RCSID("$NetBSD: ftpd.c,v 1.158 2004-08-09 12:56:47 lukem Exp $");
 #endif
 #endif /* not lint */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/lukemftpd/src/ftpd.c,v 1.3.6.1 2004/08/21 03:45:51 obrien Exp $");
 
 /*
  * FTP server.

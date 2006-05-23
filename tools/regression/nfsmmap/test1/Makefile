@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/nfsmmap/test1/Makefile,v 1.1.30.1 2005/02/13 07:23:34 obrien Exp $
 
 PROG= test1
 NOMAN=

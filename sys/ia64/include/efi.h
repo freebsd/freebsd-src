@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/ia64/include/efi.h,v 1.5 2001/11/19 07:25:42 peter Exp $
  */
 
 #ifndef _MACHINE_EFI_H_

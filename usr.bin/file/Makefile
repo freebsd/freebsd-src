@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/file/Makefile,v 1.29.2.1 2004/12/16 22:13:06 obrien Exp $
 # Makefile for file(1) cmd.
 # Copyright (c) David E. O'Brien, 2000-2004
 # Copyright (c) Ian F. Darwin 86/09/01 - see LEGAL.NOTICE.

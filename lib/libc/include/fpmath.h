@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/include/fpmath.h,v 1.2 2004/01/18 08:05:21 das Exp $
  */
 
 #include <sys/endian.h>

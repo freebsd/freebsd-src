@@ -27,7 +27,7 @@
  *	q931.c - print Q.931 traces
  *	---------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdntrace/q931.c,v 1.8 2001/10/18 08:03:23 hm Exp $
  *
  *      last edit-date: [Wed Oct 17 14:49:16 2001]
  *

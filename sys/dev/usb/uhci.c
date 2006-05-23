@@ -11,7 +11,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/uhci.c,v 1.154.2.5 2005/03/22 00:56:54 iedowse Exp $");
 
 
 /*-

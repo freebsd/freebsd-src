@@ -37,7 +37,7 @@ static const char sccsid[] = "@(#)table.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/chpass/table.c,v 1.10 2003/05/03 19:44:45 obrien Exp $");
 
 #include <sys/types.h>
 #include <stddef.h>

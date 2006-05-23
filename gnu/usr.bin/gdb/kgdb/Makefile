@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gdb/kgdb/Makefile,v 1.1.2.1 2005/03/01 20:27:45 obrien Exp $
 
 PROG=	kgdb
 SRCS=	kthr.c main.c trgt.c trgt_${MACHINE_ARCH}.c

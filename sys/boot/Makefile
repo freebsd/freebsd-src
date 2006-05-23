@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/Makefile,v 1.24 2004/08/16 15:45:24 marius Exp $
 
 .if !defined(NOFORTH)
 # Build the add-in FORTH interpreter.

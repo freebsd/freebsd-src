@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpthread/arch/ia64/ia64/context.S,v 1.5 2003/09/19 22:54:05 marcel Exp $");
 
 #include <sys/syscall.h>
 

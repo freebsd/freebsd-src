@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tlsb/dwlpxvar.h,v 1.1.10.1 2005/01/30 00:59:12 imp Exp $ */
 /*-
  * Copyright (c) 2000 by Matthew Jacob
  * NASA AMES Research Center.

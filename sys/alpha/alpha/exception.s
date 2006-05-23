@@ -24,7 +24,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *	$NetBSD: locore.s,v 1.47 1998/03/22 07:26:32 thorpej Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/exception.s,v 1.17.6.1 2005/01/30 00:59:09 imp Exp $
  */
 
 #include <machine/asm.h>

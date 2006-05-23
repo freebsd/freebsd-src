@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/my/if_my.c,v 1.26.2.1 2006/01/29 15:39:05 emaste Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

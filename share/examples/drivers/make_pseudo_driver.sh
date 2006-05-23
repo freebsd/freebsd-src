@@ -4,7 +4,7 @@
 #
 # Trust me, RUN THIS SCRIPT :)
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/drivers/make_pseudo_driver.sh,v 1.8 2002/08/02 10:37:22 markm Exp $
 #
 #-------cut here------------------
 cd /sys/i386/conf

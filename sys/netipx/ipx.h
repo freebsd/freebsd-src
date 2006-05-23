@@ -33,7 +33,7 @@
  *
  *	@(#)ipx.h
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netipx/ipx.h,v 1.18.2.3 2005/06/10 08:49:12 rwatson Exp $
  */
 
 #ifndef _NETIPX_IPX_H_

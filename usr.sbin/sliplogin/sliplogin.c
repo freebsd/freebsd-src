@@ -35,7 +35,7 @@ static char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "@(#)sliplogin.c	8.2 (Berkeley) 2/1/94";
-static char rscid[] = "@(#)$FreeBSD$";
+static char rscid[] = "@(#)$FreeBSD: src/usr.sbin/sliplogin/sliplogin.c,v 1.15 2004/08/07 04:28:55 imp Exp $";
 #endif /* not lint */
 
 /*

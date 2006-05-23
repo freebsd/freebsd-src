@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_mount.h	8.1 (Berkeley) 5/24/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/isofs/cd9660/cd9660_mount.h,v 1.7.2.1 2005/01/31 23:26:15 imp Exp $
  */
 
 /*

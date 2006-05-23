@@ -32,7 +32,7 @@
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/timed/timed/pathnames.h,v 1.2 2001/11/20 07:13:40 jhb Exp $
  */
 
 #include <paths.h>

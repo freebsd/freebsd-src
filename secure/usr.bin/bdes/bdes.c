@@ -81,7 +81,7 @@ static char sccsid[] = "@(#)bdes.c	8.1 (Berkeley) 6/6/93";
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/secure/usr.bin/bdes/bdes.c,v 1.7.4.2 2005/02/13 15:27:33 dds Exp $");
 
 #include <sys/types.h>
 

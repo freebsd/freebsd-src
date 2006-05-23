@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/usr.sbin/sshd/Makefile,v 1.39 2004/02/26 11:26:46 des Exp $
 #
 
 PROG=	sshd

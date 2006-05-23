@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/pc98/isa_dma.c,v 1.17.2.1 2005/03/07 13:10:48 phk Exp $
  */
 
 /*

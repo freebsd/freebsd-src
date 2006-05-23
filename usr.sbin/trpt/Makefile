@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/trpt/Makefile,v 1.8 2003/04/04 17:49:20 obrien Exp $
 
 PROG=	trpt
 MAN=	trpt.8

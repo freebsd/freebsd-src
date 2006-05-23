@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)zopen.c	8.1 (Berkeley) 6/27/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/compress/zopen.c,v 1.10 2002/07/28 15:32:17 dwmalone Exp $");
 
 /*-
  * fcompress.c - File compression ala IEEE Computer, June 1984.

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/sparc64/loader/Makefile,v 1.18 2004/08/16 15:45:25 marius Exp $
 
 PROG=		loader
 NEWVERSWHAT=	"bootstrap loader" sparc64

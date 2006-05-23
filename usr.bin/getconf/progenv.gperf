@@ -2,7 +2,7 @@
 /*
  * Copyright is disclaimed as to the contents of this file.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/getconf/progenv.gperf,v 1.2.4.1 2005/02/21 23:50:43 wollman Exp $
  */
 
 #include <sys/types.h>

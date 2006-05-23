@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/yp/xdryp.c,v 1.14 2002/04/28 15:18:47 des Exp $");
 
 #include <rpc/rpc.h>
 #include <rpcsvc/yp.h>

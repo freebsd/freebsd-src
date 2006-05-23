@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/camcontrol/Makefile,v 1.16 2004/05/14 13:31:21 cognet Exp $
 
 PROG=	camcontrol
 SRCS=	camcontrol.c util.c

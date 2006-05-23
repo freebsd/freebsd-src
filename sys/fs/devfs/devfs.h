@@ -33,7 +33,7 @@
  *	@(#)kernfs.h	8.6 (Berkeley) 3/29/95
  * From: FreeBSD: src/sys/miscfs/kernfs/kernfs.h 1.14
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/devfs/devfs.h,v 1.20 2004/06/16 09:47:03 phk Exp $
  */
 
 #ifndef _FS_DEVFS_DEVFS_H_

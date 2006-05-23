@@ -24,7 +24,7 @@
  *
  *	from: NetBSD: mc146818reg.h,v 1.5 2003/11/02 11:07:45 wiz Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mc146818/mc146818reg.h,v 1.6.2.1 2005/02/17 01:05:09 marius Exp $
  */
 
 /*

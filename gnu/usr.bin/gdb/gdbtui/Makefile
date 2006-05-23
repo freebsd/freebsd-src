@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gdb/gdbtui/Makefile,v 1.2.2.2 2005/03/01 20:27:45 obrien Exp $
 
 PROG=	gdbtui
 SRCS=	tui-main.c

@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpthread/arch/amd64/amd64/context.S,v 1.7 2004/07/31 14:18:26 davidxu Exp $");
 
 /*
  * The following notes ("cheat sheet") was provided by Peter Wemm.

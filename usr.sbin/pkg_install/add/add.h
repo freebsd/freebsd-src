@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/pkg_install/add/add.h,v 1.11.2.2 2006/01/16 19:51:41 flz Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance

@@ -1,5 +1,5 @@
 #       $NetBSD: Makefile,v 1.1 1999/11/23 05:28:20 mrg Exp $
-# $FreeBSD$
+# $FreeBSD: src/sbin/rcorder/Makefile,v 1.5.2.1 2006/01/26 01:34:00 dougb Exp $
 
 PROG=   rcorder
 SRCS=   ealloc.c hash.c rcorder.c

@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_ihash.c	8.7 (Berkeley) 5/17/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/ext2fs/ext2_ihash.c,v 1.38.2.1 2005/01/31 23:26:02 imp Exp $
  */
 
 #include <sys/param.h>

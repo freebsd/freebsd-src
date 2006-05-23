@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/i2c/controllers/viapm/Makefile,v 1.1.8.1 2005/11/08 17:04:19 jhb Exp $
 
 .PATH:		${.CURDIR}/../../../../pci
 KMOD		= viapm

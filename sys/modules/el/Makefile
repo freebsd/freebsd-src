@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/el/Makefile,v 1.2 2001/01/06 13:59:45 obrien Exp $
 
 .PATH: ${.CURDIR}/../../i386/isa
 

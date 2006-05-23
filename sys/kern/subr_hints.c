@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_hints.c,v 1.9.4.2 2006/01/30 12:15:58 ariff Exp $");
 
 #include <sys/param.h>
 #include <sys/lock.h>

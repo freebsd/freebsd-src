@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/bzip2/FREEBSD-upgrade,v 1.1 2002/02/01 16:34:13 sobomax Exp $
 
 Julian Seward's bzip2
 	originals can be found at: 	http://sources.redhat.com/bzip2/

@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)swab.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/string/swab.c,v 1.5.8.1 2005/06/27 01:54:40 trhodes Exp $");
 
 #include <unistd.h>
 

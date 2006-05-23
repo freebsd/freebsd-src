@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/pc98/pc98/canbus_if.m,v 1.2.8.1 2005/01/31 23:26:48 imp Exp $
 #
 
 #include <sys/bus.h>

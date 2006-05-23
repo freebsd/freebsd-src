@@ -16,7 +16,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/res_data.c,v 1.8 2002/03/22 21:52:29 obrien Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

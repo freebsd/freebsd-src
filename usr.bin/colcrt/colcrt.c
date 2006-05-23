@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)colcrt.c	8.1 (Berkeley) 6/6/93";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/colcrt/colcrt.c,v 1.18 2004/07/31 06:22:57 tjr Exp $");
 
 #include <err.h>
 #include <locale.h>

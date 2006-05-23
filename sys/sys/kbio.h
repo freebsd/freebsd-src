@@ -1,5 +1,5 @@
 /*-
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/kbio.h,v 1.7 2001/03/11 22:47:04 ache Exp $
  */
 
 #ifndef	_SYS_KBIO_H_

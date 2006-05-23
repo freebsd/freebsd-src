@@ -25,7 +25,7 @@
  *
  *	Problems/Questions to: Mike Makonnen <mtm@FreeBSD.Org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libthr/thread/thr_subr.c,v 1.1 2003/12/09 11:06:55 mtm Exp $
  */
 
 #include <stdlib.h>

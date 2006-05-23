@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/efi/libefi/time.c,v 1.4.6.1 2005/01/30 00:59:14 imp Exp $");
 
 #include <efi.h>
 #include <efilib.h>

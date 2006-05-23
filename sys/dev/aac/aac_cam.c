@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/aac/aac_cam.c,v 1.17.2.2 2005/01/30 00:59:22 imp Exp $");
 
 /*
  * CAM front-end for communicating with non-DASD devices

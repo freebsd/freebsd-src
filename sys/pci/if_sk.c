@@ -48,7 +48,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/if_sk.c,v 1.83.2.11 2006/01/29 15:39:08 emaste Exp $");
 
 /*
  * SysKonnect SK-NET gigabit ethernet driver for FreeBSD. Supports
@@ -136,7 +136,7 @@ MODULE_DEPEND(sk, miibus, 1, 1, 1);
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/pci/if_sk.c,v 1.83.2.11 2006/01/29 15:39:08 emaste Exp $";
 #endif
 
 static struct sk_type sk_devs[] = {

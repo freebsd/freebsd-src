@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/gpt/remove.c,v 1.1.2.2 2005/05/08 13:26:59 des Exp $");
 
 #include <sys/types.h>
 

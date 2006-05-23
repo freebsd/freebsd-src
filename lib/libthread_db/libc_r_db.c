@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libthread_db/libc_r_db.c,v 1.1 2004/07/18 04:17:13 marcel Exp $");
 
 #include <machine/setjmp.h>
 #include <proc_service.h>

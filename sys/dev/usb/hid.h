@@ -1,5 +1,5 @@
 /*	$NetBSD: hid.h,v 1.6 2000/06/01 14:28:57 augustss Exp $	*/
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/usb/hid.h,v 1.12.4.1 2005/01/30 01:00:09 imp Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

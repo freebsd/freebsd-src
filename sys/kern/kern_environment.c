@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_environment.c,v 1.34.2.3 2006/01/30 12:17:29 ariff Exp $");
 
 #include "opt_mac.h"
 

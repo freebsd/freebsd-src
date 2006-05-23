@@ -31,7 +31,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/firewire/fwohci_pci.c,v 1.48.2.2 2005/01/30 00:59:41 imp Exp $
  */
 
 #define BOUNCE_BUFFER_TEST	0

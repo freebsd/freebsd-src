@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/usr.bin/ssh/Makefile,v 1.28 2004/02/26 11:26:46 des Exp $
 #
 
 PROG=	ssh

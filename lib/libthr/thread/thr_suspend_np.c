@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libthr/thread/thr_suspend_np.c,v 1.2 2004/01/15 16:09:58 ru Exp $
  */
 #include <errno.h>
 #include <pthread.h>

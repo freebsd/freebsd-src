@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/security/Makefile,v 1.3.8.1 2004/12/08 00:37:50 mlaier Exp $
 
 FILES=	100.chksetuid \
 	200.chkmounts \

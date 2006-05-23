@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libc/i386/gen/_set_tp.c,v 1.1.2.1 2004/11/26 19:28:10 peter Exp $
  */
 
 #include <string.h>

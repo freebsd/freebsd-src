@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/splitfs.c,v 1.6 2004/01/21 20:12:23 jhb Exp $");
 
 #include "stand.h"
 

@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/crypto/md5.c,v 1.9 2004/01/27 19:49:19 des Exp $");
 
 #include <sys/types.h>
 #include <sys/cdefs.h>

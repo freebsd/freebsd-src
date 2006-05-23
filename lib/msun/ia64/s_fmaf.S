@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$")
+__FBSDID("$FreeBSD: src/lib/msun/ia64/s_fmaf.S,v 1.1.2.1 2005/03/01 03:57:08 das Exp $")
 
 ENTRY(fmaf, 3)
 {

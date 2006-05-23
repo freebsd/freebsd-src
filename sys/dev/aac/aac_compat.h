@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aac/aac_compat.h,v 1.3 2001/09/05 20:43:02 scottl Exp $
  */
 /*
  * Backwards compatibility support.

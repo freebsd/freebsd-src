@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/osf1/osf1_signal.h,v 1.3 2002/03/20 18:58:46 obrien Exp $ */
 
 #ifndef _OSF1_SIGNAL_H
 #define	_OSF1_SIGNAL_H

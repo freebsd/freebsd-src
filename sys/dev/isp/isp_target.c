@@ -39,7 +39,7 @@
 #endif
 #ifdef	__FreeBSD__
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/isp/isp_target.c,v 1.30.2.4 2006/02/04 23:55:03 mjacob Exp $");
 
 #include <dev/isp/isp_freebsd.h>
 #endif

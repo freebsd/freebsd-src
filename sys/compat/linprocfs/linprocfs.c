@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/linprocfs/linprocfs.c,v 1.84.2.5 2005/12/14 19:07:38 mlaier Exp $");
 
 #include <sys/param.h>
 #include <sys/queue.h>

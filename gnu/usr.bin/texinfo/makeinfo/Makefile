@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/texinfo/makeinfo/Makefile,v 1.16 2003/05/02 00:51:24 ru Exp $
 
 PROG=	makeinfo
 SRCS=	cmds.c defun.c files.c footnote.c html.c \

@@ -100,7 +100,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/owi/if_owi.c,v 1.7.2.2 2006/01/29 15:39:05 emaste Exp $";
 #endif
 
 static void wi_intr(void *);

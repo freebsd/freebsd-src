@@ -3,7 +3,7 @@
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
-/* @(#) $FreeBSD$ */
+/* @(#) $FreeBSD: src/lib/libz/zconf.h,v 1.8.2.1 2005/06/08 03:38:28 kientzle Exp $ */
 
 #ifndef ZCONF_H
 #define ZCONF_H

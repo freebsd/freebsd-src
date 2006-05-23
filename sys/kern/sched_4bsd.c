@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/sched_4bsd.c,v 1.49.2.16 2005/07/03 20:08:04 ups Exp $");
 
 #define kse td_sched
 

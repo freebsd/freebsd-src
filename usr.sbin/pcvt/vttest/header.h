@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/pcvt/vttest/header.h,v 1.5 2001/07/27 04:40:04 brooks Exp $ */
 #define VERSION "1.7b 1985-04-19"
 
 /* Choose one of these */

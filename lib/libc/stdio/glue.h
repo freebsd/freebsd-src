@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)glue.h	8.1 (Berkeley) 6/4/93
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdio/glue.h,v 1.2.8.1 2005/05/26 19:51:59 stefanf Exp $
  */
 
 /*

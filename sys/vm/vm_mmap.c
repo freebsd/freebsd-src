@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/vm/vm_mmap.c,v 1.192.2.3 2005/05/18 00:32:05 csjp Exp $");
 
 #include "opt_compat.h"
 #include "opt_mac.h"

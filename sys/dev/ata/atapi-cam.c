@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ata/atapi-cam.c,v 1.35.2.1 2005/08/07 20:34:03 thomas Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -1,5 +1,5 @@
 # $NetBSD: Makefile,v 1.16 2001/01/14 15:37:22 minoura Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/Makefile,v 1.41.2.5 2005/11/23 22:51:01 emax Exp $
 
 FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	abi accounting addswap adjkerntz amd \

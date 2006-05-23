@@ -1,7 +1,7 @@
 #
 # RELENG_4 tinderbox setup
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinderbox/etc/releng_4.rc,v 1.8 2004/02/14 09:52:22 des Exp $
 #
 
 branches	= RELENG_4_8, RELENG_4_9

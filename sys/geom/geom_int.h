@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/geom_int.h,v 1.28 2004/07/08 16:17:14 phk Exp $
  */
 
 LIST_HEAD(class_list_head, g_class);

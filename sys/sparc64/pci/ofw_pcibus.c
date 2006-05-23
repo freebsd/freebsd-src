@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/pci/ofw_pcibus.c,v 1.4.2.2 2005/03/30 08:10:37 jmg Exp $
  */
 
 #include "opt_ofw_pci.h"

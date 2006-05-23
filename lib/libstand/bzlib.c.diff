@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/lib/libstand/bzlib.c.diff,v 1.2 2002/02/01 16:33:40 sobomax Exp $
 
 A patch to avoid linking into libstand compression routines from the bzip2
 that never being used anyway, while bloat loader(8) by additional 15KB.

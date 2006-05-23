@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/man/Makefile.inc,v 1.21 2002/10/18 09:14:13 ru Exp $
 #
 # Set a bunch of things to hardcoded paths so that we don't accidently
 # pick up a user's own version of some utility and hose ourselves.

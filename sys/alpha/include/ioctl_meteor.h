@@ -23,7 +23,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/ioctl_meteor.h,v 1.4 2003/12/08 07:22:41 obrien Exp $
  */
 
 #ifndef	_MACHINE_IOCTL_METEOR_H_

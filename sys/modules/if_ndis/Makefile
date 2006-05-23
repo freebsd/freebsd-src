@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/if_ndis/Makefile,v 1.4.2.2 2005/03/31 04:27:38 wpaul Exp $
 
 .PATH: ${.CURDIR}/../../dev/if_ndis
 

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/MAINTAINERS,v 1.99.2.1 2005/06/04 11:55:39 markm Exp $
 
 subsystem	login	notes
 -----------------------------

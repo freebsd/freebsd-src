@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/geom/class/shsec/geom_shsec.c,v 1.4.2.2 2005/03/23 20:54:56 pjd Exp $");
 
 #include <sys/param.h>
 #include <errno.h>

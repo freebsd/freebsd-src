@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/buslogic/bt_mca.c,v 1.9 2004/03/17 17:50:29 njl Exp $");
 
 /*
  * Written using the bt_isa/bt_pci code as a reference.

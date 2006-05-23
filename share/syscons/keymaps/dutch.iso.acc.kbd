@@ -5,7 +5,7 @@
 # Based on the US standard keymap
 # Accent coding by M. Blapp <mb@imp.ch>
 #
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/dutch.iso.acc.kbd,v 1.1 2002/10/17 19:56:00 ache Exp $
 #                                                         alt
 # scan                       cntrl          alt    alt   cntrl lock
 # code  base   shift  cntrl  shift  alt    shift  cntrl  shift state

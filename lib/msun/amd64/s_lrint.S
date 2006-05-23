@@ -27,7 +27,7 @@
 #include <machine/asm.h>
 
 #ifndef fn
-__FBSDID("$FreeBSD$")
+__FBSDID("$FreeBSD: src/lib/msun/amd64/s_lrint.S,v 1.1.2.1 2005/03/01 03:57:05 das Exp $")
 #define	fn	lrint
 #endif
 

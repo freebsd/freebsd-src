@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/lnc/if_lnc.c,v 1.110.2.1 2006/01/29 15:39:05 emaste Exp $");
 
 /*
 #define DIAGNOSTIC

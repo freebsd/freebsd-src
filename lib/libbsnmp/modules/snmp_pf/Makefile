@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libbsnmp/modules/snmp_pf/Makefile,v 1.1.2.1 2005/04/20 08:45:13 philip Exp $
 # 
 # Author: Philip Paeps <philip@freebsd.org>
 

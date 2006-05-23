@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/bootp.c,v 1.5 2002/03/21 23:38:48 obrien Exp $");
 
 #include <sys/types.h>
 #include <netinet/in.h>

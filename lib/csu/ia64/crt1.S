@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-		.ident		"$FreeBSD$"
+		.ident		"$FreeBSD: src/lib/csu/ia64/crt1.S,v 1.3.2.1 2004/08/19 05:52:09 marcel Exp $"
 
 		.text
 

@@ -27,7 +27,7 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_pci.h,v 1.2.4.1 2005/01/30 00:59:36 imp Exp $
  */
 
 #include "dev/drm/drmP.h"

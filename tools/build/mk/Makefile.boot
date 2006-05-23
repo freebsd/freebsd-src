@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/build/mk/Makefile.boot,v 1.1 2003/04/12 15:07:46 ru Exp $
 
 # FreeBSD didn't always have the __FBSDID() macro in <sys/cdefs.h>.
 # We could do this with a sys/cdefs.h wrapper, but given that this would

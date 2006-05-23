@@ -36,7 +36,7 @@
  */
 
 #include <sys/types.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/rcorder/rcorder.c,v 1.1.1.2.8.1 2006/01/26 01:34:00 dougb Exp $");
 
 #include <sys/stat.h>
 

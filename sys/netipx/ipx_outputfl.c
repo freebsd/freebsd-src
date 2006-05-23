@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netipx/ipx_outputfl.c,v 1.19.4.3 2005/02/25 13:20:42 rwatson Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

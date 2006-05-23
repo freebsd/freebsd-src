@@ -32,7 +32,7 @@
  * bytes. Ignore fields with the 'pad' prefix - they are only present for
  * alignment purposes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/elan_mmcr.h,v 1.1.2.1 2005/01/31 23:26:04 imp Exp $
  */
 
 #ifndef _MACHINE_ELAN_MMCR_H_

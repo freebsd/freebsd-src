@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/udf/udf_vnops.c,v 1.37.2.2 2005/06/25 15:01:00 imura Exp $
  */
 
 /* udf_vnops.c */

@@ -17,7 +17,7 @@
  * Cronyx Id: cxddk.c,v 1.1.2.2 2003/11/27 14:24:50 rik Exp $
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/cx/cxddk.c,v 1.1.6.1 2005/01/30 00:59:34 imp Exp $");
 
 #include <dev/cx/machdep.h>
 #include <dev/cx/cxddk.h>

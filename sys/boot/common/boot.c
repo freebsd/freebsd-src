@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/common/boot.c,v 1.29.4.1 2005/05/23 14:59:33 sobomax Exp $");
 
 /*
  * Loading modules, booting the system

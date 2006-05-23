@@ -1,5 +1,5 @@
 /*	$NetBSD: ibcs2_types.h,v 1.5 1995/08/14 01:11:54 mycroft Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/ibcs2/ibcs2_types.h,v 1.1.1.1.36.1 2005/01/31 23:26:03 imp Exp $ */
 
 /*-
  * Copyright (c) 1994 Scott Bartram

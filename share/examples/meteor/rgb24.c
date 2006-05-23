@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/share/examples/meteor/rgb24.c,v 1.2 2003/12/08 07:22:42 obrien Exp $");
 
 #include <sys/fcntl.h>
 #include <dev/bktr/ioctl_meteor.h>

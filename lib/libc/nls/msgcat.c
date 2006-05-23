@@ -31,7 +31,7 @@ up-to-date.  Many thanks.
 ******************************************************************/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/nls/msgcat.c,v 1.48 2003/10/29 10:45:01 tjr Exp $");
 
 /*
  * We need a better way of handling errors than printing text.  I need

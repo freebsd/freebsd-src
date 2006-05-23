@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/kerberos,v 1.3.6.2 2005/09/25 19:06:24 rwatson Exp $
 #
 
 # PROVIDE: kerberos

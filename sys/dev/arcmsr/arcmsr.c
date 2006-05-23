@@ -40,7 +40,7 @@
 **     1.00.00.00    3/31/2004	       Erich Chen	     First release
 **     1.20.00.02   11/29/2004         Erich Chen        bug fix with arcmsr_bus_reset when PHY error
 ******************************************************************************************
-** $FreeBSD$
+** $FreeBSD: src/sys/dev/arcmsr/arcmsr.c,v 1.2.2.2 2005/04/29 04:11:30 scottl Exp $
 */
 #define ARCMSR_DEBUG            1
 /*

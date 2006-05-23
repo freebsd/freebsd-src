@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/lib/libc/locale/test-sputrune.c,v 1.1 2003/10/30 11:51:36 tjr Exp $");
 
 #include <assert.h>
 #include <errno.h>

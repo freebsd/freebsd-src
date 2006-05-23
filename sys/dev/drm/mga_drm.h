@@ -31,7 +31,7 @@
  * Rewritten by:
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/mga_drm.h,v 1.4.2.1 2005/01/30 00:59:36 imp Exp $
  */
 
 #ifndef __MGA_DRM_H__

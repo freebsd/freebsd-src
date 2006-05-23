@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libfetch/ftp.errors,v 1.6 2002/10/30 06:06:16 des Exp $
 #
 # This list is taken from RFC 959.
 # It probably needs a going over.

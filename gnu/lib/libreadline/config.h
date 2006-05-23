@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/lib/libreadline/config.h,v 1.6 2003/08/31 19:15:34 ache Exp $ */
 /* config.h.  Generated automatically by configure.  */
 /* config.h.in.  Maintained by hand. */
 

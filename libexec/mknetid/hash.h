@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/mknetid/hash.h,v 1.6 2002/02/17 19:09:20 imp Exp $
  */
 
 /* Groupid entry hung off a member_entry node. */

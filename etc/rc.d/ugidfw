@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ugidfw,v 1.1.2.1 2004/10/14 04:36:15 trhodes Exp $
 
 # PROVIDE: ugidfw
 # REQUIRE:

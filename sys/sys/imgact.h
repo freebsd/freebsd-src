@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/imgact.h,v 1.36 2004/04/24 06:44:33 bde Exp $
  */
 
 #ifndef _SYS_IMGACT_H_

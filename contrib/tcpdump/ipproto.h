@@ -34,7 +34,7 @@
  *
  * From:
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/ipproto.h,v 1.1.1.1 2004/03/31 09:16:32 bms Exp $
  */
 
 #ifndef IPPROTO_IP

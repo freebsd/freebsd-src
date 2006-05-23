@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfsserver/nfs.h,v 1.75.2.2 2005/06/10 08:45:58 rwatson Exp $
  */
 
 #ifndef _NFSSERVER_NFS_H_

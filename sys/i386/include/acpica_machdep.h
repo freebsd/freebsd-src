@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/acpica_machdep.h,v 1.6.2.1 2004/11/07 20:24:06 njl Exp $
  */
 
 /******************************************************************************

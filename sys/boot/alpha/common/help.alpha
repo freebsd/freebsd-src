@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/boot/alpha/common/help.alpha,v 1.1.26.1 2004/11/10 20:30:37 ru Exp $
 
 ################################################################################
 # Treboot DReboot the system

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/usr.bin/bzip2/doc/manual.texi.diff,v 1.1 2002/02/01 16:33:40 sobomax Exp $
 
 --- manual.texi	2002/02/01 16:00:45	1.1
 +++ manual.texi	2002/02/01 16:01:11

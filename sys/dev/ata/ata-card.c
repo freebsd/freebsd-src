@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ata/ata-card.c,v 1.25.2.4 2005/02/02 22:51:17 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

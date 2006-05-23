@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/pci/lcareg.h,v 1.2.8.1 2005/01/30 00:59:12 imp Exp $ */
 /* $NetBSD: lcareg.h,v 1.8 1997/09/05 02:14:31 thorpej Exp $ */
 
 /*-

@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/ext2fs/ext2_alloc.c,v 1.38.2.1 2005/01/31 23:26:01 imp Exp $
  */
 
 #include <sys/param.h>

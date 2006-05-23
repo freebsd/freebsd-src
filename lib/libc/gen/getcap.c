@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)getcap.c	8.3 (Berkeley) 3/25/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/getcap.c,v 1.19 2003/01/02 10:19:43 thomas Exp $");
 
 #include "namespace.h"
 #include <sys/types.h>

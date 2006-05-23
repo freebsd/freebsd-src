@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/capi/capi_llif.c,v 1.3.4.1 2005/01/31 23:26:07 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

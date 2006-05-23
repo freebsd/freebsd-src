@@ -2,7 +2,7 @@
 	The FreeBSD Simplified Chinese Project
 
 	Original Revision: 1.13
-	$FreeBSD$
+	$FreeBSD: src/release/doc/zh_CN.GB2312/hardware/i386/proc-i386.sgml,v 1.1 2004/10/15 06:43:45 delphij Exp $
 -->
 <sect1 id="proc">
   <title>支持的处理器和主板</title>

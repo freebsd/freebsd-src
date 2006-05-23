@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/posix1e/mac_get.c,v 1.4.4.1 2005/01/26 11:23:40 rwatson Exp $
  */
 
 #include <sys/types.h>

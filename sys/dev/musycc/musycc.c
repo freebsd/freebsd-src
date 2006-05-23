@@ -8,7 +8,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/musycc/musycc.c,v 1.33.2.1 2004/10/15 21:45:13 jmg Exp $");
 
 /*
  * Card state machine:

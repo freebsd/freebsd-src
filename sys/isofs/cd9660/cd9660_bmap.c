@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/isofs/cd9660/cd9660_bmap.c,v 1.13 2004/04/07 20:46:09 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

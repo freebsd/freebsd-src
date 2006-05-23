@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_attr_init.c,v 1.9.4.1 2005/05/11 15:54:51 marcus Exp $
  */
 #include <string.h>
 #include <stdlib.h>

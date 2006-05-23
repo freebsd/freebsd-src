@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ddb/db_watch.h,v 1.11.26.1 2005/01/30 00:59:22 imp Exp $
  */
 
 /*

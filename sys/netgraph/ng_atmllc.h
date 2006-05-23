@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_atmllc.h,v 1.1.2.1 2005/01/31 23:26:28 imp Exp $
  */
 
 #ifndef	_NETGRAPH_ATMLLC_H_

@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/vm/device_pager.c,v 1.75.2.1 2005/01/31 23:27:02 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpcap/pcap.h,v 1.9 2004/03/31 10:21:28 bms Exp $
  * @(#) $Header: /tcpdump/master/libpcap/pcap.h,v 1.45.2.4 2004/01/27 22:56:20 guy Exp $ (LBL)
  */
 

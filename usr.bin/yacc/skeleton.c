@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)skeleton.c	5.8 (Berkeley) 4/29/95";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/yacc/skeleton.c,v 1.37 2003/02/12 18:03:55 davidc Exp $");
 
 #include "defs.h"
 
@@ -65,7 +65,7 @@ const char *banner[] =
     "__unused",
     "#endif",
     "static char const ",
-    "yyrcsid[] = \"$FreeBSD$\";",
+    "yyrcsid[] = \"$FreeBSD: src/usr.bin/yacc/skeleton.c,v 1.37 2003/02/12 18:03:55 davidc Exp $\";",
     "#endif",
     "#define YYBYACC 1",
     "#define YYMAJOR 1",

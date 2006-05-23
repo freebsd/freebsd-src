@@ -6,6 +6,6 @@
  * The numbering scheme is inspired by the sys/conf/newvers.sh RELDATE
  * and <osreldate.h> system.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/config/configvers.h,v 1.32 2004/05/09 22:29:00 cognet Exp $
  */
 #define	CONFIGVERS	500013

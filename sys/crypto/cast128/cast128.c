@@ -9,7 +9,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/crypto/cast128/cast128.c,v 1.7 2003/10/10 15:06:16 ume Exp $");
 
 #include <sys/types.h>
 #include <crypto/cast128/cast128.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/libi386/Makefile,v 1.36.2.1 2005/02/13 07:23:31 obrien Exp $
 #
 LIB=			i386
 INTERNALLIB=

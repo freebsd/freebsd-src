@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/msun/src/s_copysignl.c,v 1.1 2004/05/07 18:56:31 stefanf Exp $
  */
 
 #include <math.h>

@@ -3,7 +3,7 @@
  * This is free software; you can redistribute it and/or modify it under the
  * terms of the GNU General Public License, see the file COPYING.
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/gzip/gzip.h,v 1.4 2004/05/02 23:07:49 obrien Exp $
  */
 
 #if defined(__STDC__) || defined(PROTO)

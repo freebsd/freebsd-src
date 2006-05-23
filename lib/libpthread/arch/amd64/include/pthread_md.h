@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/arch/amd64/include/pthread_md.h,v 1.9.2.1 2005/02/04 16:17:54 jhb Exp $
  */
 /*
  * Machine-dependent thread prototypes/definitions for the thread kernel.

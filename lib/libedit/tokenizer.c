@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)tokenizer.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libedit/tokenizer.c,v 1.6.8.1 2006/01/09 18:02:39 stefanf Exp $");
 
 /*
  * tokenize.c: Bourne shell like tokenizer

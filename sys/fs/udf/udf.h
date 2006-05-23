@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/udf/udf.h,v 1.8.2.1 2005/02/25 17:59:45 rwatson Exp $
  */
 
 #define UDF_HASHTBLSIZE 100

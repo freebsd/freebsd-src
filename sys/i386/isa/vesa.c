@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/isa/vesa.c,v 1.47.2.2 2005/06/29 15:33:23 jhb Exp $");
 
 #include "opt_vga.h"
 #include "opt_vesa.h"

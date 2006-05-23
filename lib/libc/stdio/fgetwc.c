@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/fgetwc.c,v 1.12 2004/07/20 08:27:27 tjr Exp $");
 
 #include "namespace.h"
 #include <errno.h>

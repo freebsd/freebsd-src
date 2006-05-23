@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_ihash.c	8.7 (Berkeley) 5/17/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/hpfs/hpfs_hash.c,v 1.16.2.1 2005/01/31 23:25:56 imp Exp $
  */
 
 #include <sys/param.h>

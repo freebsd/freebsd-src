@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/lpr/Makefile.inc,v 1.9 2003/06/11 20:32:52 gad Exp $
 
 CFLAGS+= -DINET6
 

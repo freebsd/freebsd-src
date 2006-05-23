@@ -28,7 +28,7 @@
  *				Cambridge, MA 02139  USA
  *				nazgul@alfalfa.com
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/nl_types.h,v 1.10 2002/09/24 17:28:12 mike Exp $
  */
 
 #ifndef _NL_TYPES_H_

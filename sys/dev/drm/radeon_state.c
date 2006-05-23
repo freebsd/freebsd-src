@@ -26,7 +26,7 @@
  *    Gareth Hughes <gareth@valinux.com>
  *    Kevin E. Martin <martin@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/radeon_state.c,v 1.11.2.2 2005/03/02 10:48:10 obrien Exp $
  */
 
 #include "dev/drm/radeon.h"

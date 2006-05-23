@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/ppp/ppp.conf.span-isp,v 1.5 2003/04/10 21:33:02 keramida Exp $
 
 # This advanced ppp configuration file explains how to implement
 # the following:

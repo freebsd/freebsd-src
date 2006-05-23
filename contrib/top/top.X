@@ -1,6 +1,6 @@
 .\" NOTE:  changes to the manual page for "top" should be made in the
 .\"        file "top.X" and NOT in the file "top.1".
-.\" $FreeBSD$
+.\" $FreeBSD: src/contrib/top/top.X,v 1.11.2.1 2005/03/16 01:59:33 brueffer Exp $
 .nr N %topn%
 .nr D %delay%
 .TH TOP 1 Local

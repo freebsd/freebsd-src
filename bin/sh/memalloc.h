@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)memalloc.h	8.2 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/memalloc.h,v 1.9.2.1 2005/12/26 18:15:37 stefanf Exp $
  */
 
 struct stackmark {

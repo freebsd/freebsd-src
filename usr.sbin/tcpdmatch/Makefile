@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/tcpdmatch/Makefile,v 1.8 2003/06/04 15:58:03 markm Exp $
 
 .PATH: ${.CURDIR}/../../contrib/tcp_wrappers
 

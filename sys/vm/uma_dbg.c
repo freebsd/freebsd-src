@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/vm/uma_dbg.c,v 1.15.2.4 2005/02/16 21:53:08 bmilekic Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

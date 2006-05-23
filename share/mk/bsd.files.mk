@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.files.mk,v 1.3.8.1 2005/04/27 13:52:35 harti Exp $
 
 .if !target(__<bsd.init.mk>__)
 .error bsd.files.mk cannot be included directly.

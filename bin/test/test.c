@@ -11,7 +11,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/test/test.c,v 1.52 2002/08/19 09:19:31 maxim Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

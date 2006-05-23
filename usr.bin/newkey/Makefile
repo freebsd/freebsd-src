@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/newkey/Makefile,v 1.12.2.1 2004/11/28 14:10:19 bz Exp $
 
 PROG=	newkey
 SRCS=	newkey.c generic.c update.c
