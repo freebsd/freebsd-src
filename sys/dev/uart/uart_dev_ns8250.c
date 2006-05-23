@@ -232,7 +232,7 @@ struct uart_ops uart_ns8250_ops = {
 static int
 ns8250_probe(struct uart_bas *bas)
 {
-	u_char lcr, val;
+	u_char val;
 
 	/* Check known 0 bits that don't depend on DLAB. */
 	val = uart_getreg(bas, REG_IIR);
