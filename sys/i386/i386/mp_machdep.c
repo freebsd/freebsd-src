@@ -1761,7 +1761,7 @@ loop:
 	 * (valid, does it exist, etc.).
 	 */
 	bus = pci_get_bus(pcib);
-	pin = (pci_get_slot(pcib) + (pin - 1)) % 4 + 1;
+	pin = (device + (pin - 1)) % 4 + 1;
 	device = pci_get_slot(pcib);
 	goto loop;
 }
