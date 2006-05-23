@@ -301,7 +301,7 @@ main(int argc, char *argv[])
 	openlog(__progname, LOG_PID | LOG_NDELAY, DHCPD_LOG_FACILITY);
 	setlogmask(LOG_UPTO(LOG_INFO));
 
-	while ((ch = getopt(argc, argv, "bc:dl:nqu")) != -1)
+	while ((ch = getopt(argc, argv, "bc:dl:qu")) != -1)
 		switch (ch) {
 		case 'b':
 			immediate_daemon = 1;
@@ -437,7 +437,7 @@ usage(void)
 {
 	extern char	*__progname;
 
-	fprintf(stderr, "usage: %s [-dqu] ", __progname);
+	fprintf(stderr, "usage: %s [-bdqu] ", __progname);
 	fprintf(stderr, "[-c conffile] [-l leasefile] interface\n");
 	exit(1);
 }
