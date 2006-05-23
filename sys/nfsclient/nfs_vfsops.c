@@ -545,10 +545,15 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp)
 
 	/*
 	 * Silently clear NFSMNT_NOCONN if it's a TCP mount, it makes
-	 * no sense in that context.
+	 * no sense in that context.  Also, set up appropriate retransmit
+	 * and soft timeout behavior.
 	 */
-	if (argp->sotype == SOCK_STREAM)
+	if (argp->sotype == SOCK_STREAM) {
 		nmp->nm_flag &= ~NFSMNT_NOCONN;
+		nmp->nm_flag |= NFSMNT_DUMBTIMR;
+		nmp->nm_timeo = NFS_MAXTIMEO;
+		nmp->nm_retry = NFS_RETRANS_TCP;
+	}
 
 	/* Also clear RDIRPLUS if not NFSv3, it crashes some servers */
 	if ((argp->flags & NFSMNT_NFSV3) == 0)
