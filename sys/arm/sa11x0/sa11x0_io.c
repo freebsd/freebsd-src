@@ -146,6 +146,13 @@ sa11x0_bs_map(t, bpa, size, cacheable, bshp)
 	u_long startpa, endpa, pa;
 	vm_offset_t va;
 	pt_entry_t *pte;
+	const struct pmap_devmap *pd;
+
+	if ((pd = pmap_devmap_find_pa(bpa, size)) != NULL) {
+		/* Device was statically mapped. */
+		*bshp = pd->pd_va + (bpa - pd->pd_pa);
+		return 0;
+	}
 
 	startpa = trunc_page(bpa);
 	endpa = round_page(bpa + size);
