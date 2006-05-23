@@ -1552,7 +1552,6 @@ errout:
 	}
 	if (q != NULL || err == ERESTART) {
 		mtx_lock(&sc->sc_freeqlock);
-		SIMPLEQ_INSERT_TAIL(&sc->sc_freequeue, q, q_next);
 		if (q != NULL)
 			SIMPLEQ_INSERT_TAIL(&sc->sc_freequeue, q, q_next);
 		if (err == ERESTART)
