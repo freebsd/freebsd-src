@@ -39,19 +39,10 @@
 #include <sys/syscall.h>
 #include <machine/swi.h>
 
-#ifdef __STDC__
 #define SYSTRAP(x)	swi 0 | SYS_ ## x
-#else
-#define SYSTRAP(x)	swi 0 | SYS_/**/x
-#endif
 
-#ifdef __ELF__
 #define	CERROR		_C_LABEL(cerror)
 #define	CURBRK		_C_LABEL(curbrk)
-#else
-#define	CERROR		_ASM_LABEL(cerror)
-#define	CURBRK		_ASM_LABEL(curbrk)
-#endif
 
 #define _SYSCALL_NOERROR(x)						\
 	ENTRY(__CONCAT(__sys_, x));					\
