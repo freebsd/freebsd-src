@@ -650,7 +650,7 @@ in6_selectif(dstsock, opts, mopts, ro, retifp)
 
 	if ((error = selectroute(dstsock, opts, mopts, ro, retifp,
 				     &rt, 0, 1)) != 0) {
-		if (rt && rt == sro.ro_rt)
+		if (ro == &sro && rt && rt == sro.ro_rt)
 			RTFREE(rt);
 		return (error);
 	}
@@ -675,7 +675,7 @@ in6_selectif(dstsock, opts, mopts, ro, retifp)
 	if (rt && (rt->rt_flags & (RTF_REJECT | RTF_BLACKHOLE))) {
 		int flags = (rt->rt_flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
 
-		if (rt && rt == sro.ro_rt)
+		if (ro == &sro && rt && rt == sro.ro_rt)
 			RTFREE(rt);
 		return (flags);
 	}
@@ -690,7 +690,7 @@ in6_selectif(dstsock, opts, mopts, ro, retifp)
 	if (rt && rt->rt_ifa && rt->rt_ifa->ifa_ifp)
 		*retifp = rt->rt_ifa->ifa_ifp;
 
-	if (rt && rt == sro.ro_rt)
+	if (ro == &sro && rt && rt == sro.ro_rt)
 		RTFREE(rt);
 	return (0);
 }
