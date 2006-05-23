@@ -106,6 +106,7 @@ GD	GRD	308	Grenada
 GP	GLP	312	Guadeloupe
 GU	GUM	316	Guam
 GT	GTM	320	Guatemala
+GG	GGY	831	Guernsey
 GN	GIN	324	Guinea
 GW	GNB	624	Guinea-Bissau
 GY	GUY	328	Guyana
@@ -120,10 +121,12 @@ ID	IDN	360	Indonesia
 IR	IRN	364	Iran
 IQ	IRQ	368	Iraq
 IE	IRL	372	Ireland
+IM	IMN	833	Isle of Man
 IL	ISR	376	Israel
 IT	ITA	380	Italy
 JM	JAM	388	Jamaica
 JP	JPN	392	Japan
+JE	JEY	832	Jersey
 JO	JOR	400	Jordan
 KZ	KAZ	398	Kazakhstan
 KE	KEN	404	Kenya
@@ -494,7 +497,7 @@ ZW	ZWE	716	Zimbabwe
 #  ALAND ISLANDS (AX) added as a new entry.  In the official newsletter,
 #  this territory is shown with the correct (Swedish) orthography.  As this
 #  file is restricted to the ASCII character set, we have substituted the
-#  letter `A' for the Swedish letter \xc5.  (The Finnish name for this
+#  letter `A' for the Swedish letter U+00C5.  (The Finnish name for this
 #  semi-autonomous territory is Ahvenanmaa, but the official place-names
 #  in the territory are Swedish-only.)  Note that the standard collation
 #  order for Swedish in Finland would sort this letter after Z.
@@ -502,3 +505,7 @@ ZW	ZWE	716	Zimbabwe
 # Newsletter V-10 2004-04-26
 #  Name changes not relevant to this file.
 #
+# Newsletter V-11 2006-03-29
+#  GUERNSEY (GG), ISLE OF MAN (IM), and JERSEY (JE) added as new entries.
+#  These territories were previously included as a part of the UNITED
+#  KINGDOM (GB).
