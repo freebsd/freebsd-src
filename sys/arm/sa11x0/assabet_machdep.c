@@ -156,6 +156,35 @@ struct pv_addr kernelstack;
 void enable_mmu(vm_offset_t);
 static struct trapframe proc0_tf;
 
+/* Static device mappings. */
+static const struct pmap_devmap assabet_devmap[] = {
+	/*
+	 * Map the on-board devices VA == PA so that we can access them
+	 * with the MMU on or off.
+	 */
+	{
+		SACOM1_VBASE,
+		SACOM1_BASE,
+		SACOM1_SIZE,
+		VM_PROT_READ|VM_PROT_WRITE,
+		PTE_NOCACHE,
+	},
+	{
+		SAIPIC_BASE,
+		SAIPIC_BASE,
+		SAIPIC_SIZE,
+		VM_PROT_READ|VM_PROT_WRITE,
+		PTE_NOCACHE,
+	},
+	{
+		0,
+		0,
+		0,
+		0,
+		0,
+	}
+};
+
 struct arm32_dma_range *
 bus_dma_get_range(void)
 {
@@ -336,11 +365,8 @@ initarm(void *arg, void *arg2)
 	/* Map the vector page. */
 	pmap_map_entry(l1pagetable, vector_page, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	/* Map SACOM1. */
-	pmap_map_entry(l1pagetable, SACOM1_VBASE, SACOM1_BASE, 
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE);
-	pmap_map_entry(l1pagetable, 0x90050000, 0x90050000,
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE);
+	/* Map the statically mapped devices. */
+	pmap_devmap_bootstrap(l1pagetable, assabet_devmap);
 	pmap_map_chunk(l1pagetable, sa1_cache_clean_addr, 0xf0000000, 
 	    CPU_SA110_CACHE_CLEAN_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 

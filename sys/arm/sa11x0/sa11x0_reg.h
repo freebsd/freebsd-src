@@ -48,9 +48,11 @@
 #define SARCR_BASE		0x90030000	/* Reset Controller */
 #define SAGPIO_BASE		0x90040000	/* GPIO */
 #define SAIPIC_BASE		0x90050000	/* Interrupt Controller */
+#define SAIPIC_SIZE		0x24
 #define SAPPC_BASE		0x90060000	/* Peripheral Pin Controller */
 #define SAUDC_BASE		0x80000000	/* USB Device Controller*/
 #define	SACOM1_BASE		0x80010000	/* GPCLK/UART 1 */
+#define SACOM1_SIZE		0x24
 #define SACOM3_HW_BASE		0x80050000	/* UART 3  */
 #define SAMCP_BASE		0x80060000	/* MCP Controller */
 #define SASSP_BASE		0x80070000	/* Synchronous serial port */
