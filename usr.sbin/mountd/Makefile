@@ -2,9 +2,14 @@
 # $FreeBSD$
 
 PROG=	mountd
+SRCS=	mountd.c getmntopts.c
 MAN=	exports.5 netgroup.5 mountd.8
 
-WARNS?=	2
+MOUNT=  ${.CURDIR}/../../sbin/mount
+CFLAGS+= -I${MOUNT}
+WARNS?= 2
+
+.PATH: ${MOUNT}
 
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
