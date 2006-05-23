@@ -286,7 +286,7 @@ static void
 cbb_print_config(device_t dev)
 {
 	int i;
-	
+
 	device_printf(dev, "PCI Configuration space:");
 	for (i = 0; i < 256; i += 4) {
 		if (i % 16 == 0)
@@ -329,7 +329,7 @@ cbb_pci_attach(device_t brdev)
 		DEVPRINTF((brdev, "Found memory at %08lx\n",
 		    rman_get_start(sc->base_res)));
 	}
-		
+
 	sc->bst = rman_get_bustag(sc->base_res);
 	sc->bsh = rman_get_bushandle(sc->base_res);
 	exca_init(&sc->exca[0], brdev, sc->bst, sc->bsh, CBB_EXCA_OFFSET);
@@ -341,7 +341,7 @@ cbb_pci_attach(device_t brdev)
 	/*
 	 * This is a gross hack.  We should be scanning the entire pci
 	 * tree, assigning bus numbers in a way such that we (1) can
-	 * reserve 1 extra bus just in case and (2) all sub busses 
+	 * reserve 1 extra bus just in case and (2) all sub busses
 	 * are in an appropriate range.
 	 */
 	bus = pci_read_config(brdev, PCIR_SECBUS_2, 1);
