@@ -62,10 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsserver/nfs.h>
-#include <ufs/ufs/ufsmount.h>
-#include <fs/msdosfs/msdosfsmount.h>
-#include <fs/ntfs/ntfsmount.h>
-#include <isofs/cd9660/cd9660_mount.h>	/* XXX need isofs in include */
 
 #include <arpa/inet.h>
 
@@ -83,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include "pathnames.h"
+#include "mntopts.h"
 
 #ifdef DEBUG
 #include <stdarg.h>
@@ -963,14 +960,23 @@ get_exportlist()
 	struct exportlist *ep, *ep2;
 	struct grouplist *grp, *tgrp;
 	struct exportlist **epp;
+	struct export_args export;
 	struct dirlist *dirhead;
+	struct iovec *iov;
 	struct statfs fsb, *fsp;
 	struct xucred anon;
 	char *cp, *endcp, *dirp, *hst, *usr, *dom, savedc;
+	char errmsg[255];
 	int len, has_host, exflags, got_nondir, dirplen, num, i, netgrp;
+	int iovlen;
 
+	bzero(&export, sizeof(export));
+	export.ex_flags = MNT_DELEXPORT;
 	dirp = NULL;
 	dirplen = 0;
+	iov = NULL;
+	iovlen = 0;
+	bzero(errmsg, sizeof(errmsg));
 
 	/*
 	 * First, get rid of the old list
@@ -998,34 +1004,65 @@ get_exportlist()
 	 *      instead of just "ufs".
 	 */
 	num = getmntinfo(&fsp, MNT_NOWAIT);
+
+	if (num > 0) {
+		build_iovec(&iov, &iovlen, "fstype", NULL, 0);
+		build_iovec(&iov, &iovlen, "fspath", NULL, 0);
+		build_iovec(&iov, &iovlen, "from", NULL, 0);
+		build_iovec(&iov, &iovlen, "update", NULL, 0);
+		build_iovec(&iov, &iovlen, "export", &export, sizeof(export));
+		build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
+	}
+
 	for (i = 0; i < num; i++) {
-		union {
-			struct ufs_args ua;
-			struct iso_args ia;
-			struct msdosfs_args da;
-			struct ntfs_args na;
-		} targs;
 
 		if (!strcmp(fsp->f_fstypename, "ufs") ||
 		    !strcmp(fsp->f_fstypename, "msdosfs") ||
 		    !strcmp(fsp->f_fstypename, "ntfs") ||
 		    !strcmp(fsp->f_fstypename, "cd9660")) {
-			bzero(&targs, sizeof targs);
-			targs.ua.fspec = NULL;
-			targs.ua.export.ex_flags = MNT_DELEXPORT;
-			if (mount(fsp->f_fstypename, fsp->f_mntonname,
-			    fsp->f_flags | MNT_UPDATE, (caddr_t)&targs) < 0 &&
-			    errno != ENOENT)
+			iov[1].iov_base = fsp->f_fstypename;
+			iov[1].iov_len = strlen(fsp->f_fstypename) + 1;
+			iov[3].iov_base = fsp->f_mntonname;
+			iov[3].iov_len = strlen(fsp->f_mntonname) + 1;
+			iov[5].iov_base = fsp->f_mntfromname;
+			iov[5].iov_len = strlen(fsp->f_mntfromname) + 1;
+
+			/*
+			 * Kick out MNT_ROOTFS.  It should not be passed from
+			 * userland to kernel.  It should only be used 
+			 * internally in the kernel.
+			 */
+			if (fsp->f_flags & MNT_ROOTFS) {
+				fsp->f_flags &= ~MNT_ROOTFS;
+			}
+
+			if (nmount(iov, iovlen, fsp->f_flags) < 0 &&
+			    errno != ENOENT) {
 				syslog(LOG_ERR,
-				    "can't delete exports for %s: %m",
-				    fsp->f_mntonname);
+				    "can't delete exports for %s: %m %s",
+				    fsp->f_mntonname, errmsg);
+			}
 		}
 		fsp++;
 	}
 
+	if (iov != NULL) {
+		/* Free strings allocated by strdup() in getmntopts.c */
+		free(iov[0].iov_base); /* fstype */
+		free(iov[2].iov_base); /* fspath */
+		free(iov[4].iov_base); /* from */
+		free(iov[6].iov_base); /* update */
+		free(iov[8].iov_base); /* export */
+		free(iov[10].iov_base); /* errmsg */
+
+		/* free iov, allocated by realloc() */
+		free(iov);
+		iovlen = 0;
+	}
+
 	/*
 	 * Read in the exports file and build the list, calling
-	 * mount() as we go along to push the export rules into the kernel.
+	 * nmount() as we go along to push the export rules into the kernel.
 	 */
 	if ((exp_file = fopen(exname, "r")) == NULL) {
 		syslog(LOG_ERR, "can't open %s", exname);
@@ -1778,79 +1815,85 @@ out_of_mem()
 }
 
 /*
- * Do the mount syscall with the update flag to push the export info into
+ * Do the nmount() syscall with the update flag to push the export info into
  * the kernel.
  */
 int
-do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
-	struct exportlist *ep;
-	struct grouplist *grp;
-	int exflags;
-	struct xucred *anoncrp;
-	char *dirp;
-	int dirplen;
-	struct statfs *fsb;
+do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
+    struct xucred *anoncrp, char *dirp, int dirplen, struct statfs *fsb)
 {
 	struct statfs fsb1;
 	struct addrinfo *ai;
-	struct export_args *eap;
-	char *cp = NULL;
+	struct export_args eap;
+	char errmsg[255];
+	char *cp;
 	int done;
-	char savedc = '\0';
-	union {
-		struct ufs_args ua;
-		struct iso_args ia;
-		struct msdosfs_args da;
-		struct ntfs_args na;
-	} args;
+	char savedc;
+	struct iovec *iov;
+	int iovlen;
+	int ret;
 
-	bzero(&args, sizeof args);
-	/* XXX, we assume that all xx_args look like ufs_args. */
-	args.ua.fspec = 0;
-	eap = &args.ua.export;
+	cp = NULL;
+	savedc = '\0';
+	iov = NULL;
+	iovlen = 0;
+	ret = 0;
 
-	eap->ex_flags = exflags;
-	eap->ex_anon = *anoncrp;
-	eap->ex_indexfile = ep->ex_indexfile;
+	bzero(&eap, sizeof(eap));
+	bzero(errmsg, sizeof(errmsg));
+	eap.ex_flags = exflags;
+	eap.ex_anon = *anoncrp;
+	eap.ex_indexfile = ep->ex_indexfile;
 	if (grp->gr_type == GT_HOST)
 		ai = grp->gr_ptr.gt_addrinfo;
 	else
 		ai = NULL;
 	done = FALSE;
+
+	build_iovec(&iov, &iovlen, "fstype", NULL, 0);
+	build_iovec(&iov, &iovlen, "fspath", NULL, 0);
+	build_iovec(&iov, &iovlen, "from", NULL, 0);
+	build_iovec(&iov, &iovlen, "update", NULL, 0);
+	build_iovec(&iov, &iovlen, "export", &eap, sizeof(eap));
+	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
+
 	while (!done) {
 		switch (grp->gr_type) {
 		case GT_HOST:
 			if (ai->ai_addr->sa_family == AF_INET6 && have_v6 == 0)
 				goto skip;
-			eap->ex_addr = ai->ai_addr;
-			eap->ex_addrlen = ai->ai_addrlen;
-			eap->ex_masklen = 0;
+			eap.ex_addr = ai->ai_addr;
+			eap.ex_addrlen = ai->ai_addrlen;
+			eap.ex_masklen = 0;
 			break;
 		case GT_NET:
 			if (grp->gr_ptr.gt_net.nt_net.ss_family == AF_INET6 &&
 			    have_v6 == 0)
 				goto skip;
-			eap->ex_addr =
+			eap.ex_addr =
 			    (struct sockaddr *)&grp->gr_ptr.gt_net.nt_net;
-			eap->ex_addrlen = args.ua.export.ex_addr->sa_len;
-			eap->ex_mask =
+			eap.ex_addrlen =
+			    ((struct sockaddr *)&grp->gr_ptr.gt_net.nt_net)->sa_len;
+			eap.ex_mask =
 			    (struct sockaddr *)&grp->gr_ptr.gt_net.nt_mask;
-			eap->ex_masklen = args.ua.export.ex_mask->sa_len;
+			eap.ex_masklen = ((struct sockaddr *)&grp->gr_ptr.gt_net.nt_mask)->sa_len;
 			break;
 		case GT_DEFAULT:
-			eap->ex_addr = NULL;
-			eap->ex_addrlen = 0;
-			eap->ex_mask = NULL;
-			eap->ex_masklen = 0;
+			eap.ex_addr = NULL;
+			eap.ex_addrlen = 0;
+			eap.ex_mask = NULL;
+			eap.ex_masklen = 0;
 			break;
 		case GT_IGNORE:
-			return(0);
+			ret = 0;
+			goto error_exit;
 			break;
 		default:
 			syslog(LOG_ERR, "bad grouptype");
 			if (cp)
 				*cp = savedc;
-			return (1);
+			ret = 1;
+			goto error_exit;
 		};
 
 		/*
@@ -1860,21 +1903,30 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 		 * Also, needs to know how to export all types of local
 		 * exportable filesystems and not just "ufs".
 		 */
-		while (mount(fsb->f_fstypename, dirp,
-		    fsb->f_flags | MNT_UPDATE, (caddr_t)&args) < 0) {
+		iov[1].iov_base = fsb->f_fstypename; /* "fstype" */
+		iov[1].iov_len = strlen(fsb->f_fstypename) + 1;
+		iov[3].iov_base = fsb->f_mntonname; /* "fspath" */
+		iov[3].iov_len = strlen(fsb->f_mntonname) + 1;
+		iov[5].iov_base = fsb->f_mntfromname; /* "from" */
+		iov[5].iov_len = strlen(fsb->f_mntfromname) + 1;
+
+		while (nmount(iov, iovlen, 0) < 0) {
 			if (cp)
 				*cp-- = savedc;
 			else
 				cp = dirp + dirplen - 1;
-			if (opt_flags & OP_QUIET)
-				return (1);
+			if (opt_flags & OP_QUIET) {
+				ret = 1;
+				goto error_exit;
+			}
 			if (errno == EPERM) {
 				if (debug)
 					warnx("can't change attributes for %s",
 					    dirp);
 				syslog(LOG_ERR,
 				   "can't change attributes for %s", dirp);
-				return (1);
+				ret = 1;
+				goto error_exit;
 			}
 			if (opt_flags & OP_ALLDIRS) {
 				if (errno == EINVAL)
@@ -1885,7 +1937,8 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 					syslog(LOG_ERR,
 						"could not remount %s: %m",
 						dirp);
-				return (1);
+				ret = 1;
+				goto error_exit;
 			}
 			/* back up over the last component */
 			while (*cp == '/' && cp > dirp)
@@ -1896,7 +1949,8 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 				if (debug)
 					warnx("mnt unsucc");
 				syslog(LOG_ERR, "can't export %s", dirp);
-				return (1);
+				ret = 1;
+				goto error_exit;
 			}
 			savedc = *cp;
 			*cp = '\0';
@@ -1905,7 +1959,8 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 			    &fsb->f_fsid, sizeof(fsb1.f_fsid)) != 0) {
 				*cp = savedc;
 				syslog(LOG_ERR, "can't export %s", dirp);
-				return (1);
+				ret = 1;
+				goto error_exit;
 			}
 		}
 skip:
@@ -1916,7 +1971,20 @@ skip:
 	}
 	if (cp)
 		*cp = savedc;
-	return (0);
+error_exit:
+	/* free strings allocated by strdup() in getmntopts.c */
+	if (iov != NULL) {
+		free(iov[0].iov_base); /* fstype */
+		free(iov[2].iov_base); /* fspath */
+		free(iov[4].iov_base); /* from */
+		free(iov[6].iov_base); /* update */
+		free(iov[8].iov_base); /* export */
+		free(iov[10].iov_base); /* errmsg */
+
+		/* free iov, allocated by realloc() */
+		free(iov);
+	}
+	return (ret);
 }
 
 /*
