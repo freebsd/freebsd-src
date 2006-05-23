@@ -73,6 +73,8 @@ struct td_thragent {
 	int		thread_off_key_destructor;
 	int		thread_state_zoombie;
 	int		thread_state_running;
+	int		thread_off_sigmask;
+	int		thread_off_sigpend;
 	struct pt_map	*map;
 	int		map_len;
 };
