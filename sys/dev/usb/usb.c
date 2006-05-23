@@ -403,6 +403,7 @@ usb_rem_task(usbd_device_handle dev, struct usb_task *task)
 void
 usb_event_thread(void *arg)
 {
+	static int newthread_wchan;
 	struct usb_softc *sc = arg;
 
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500000
@@ -414,12 +415,20 @@ usb_event_thread(void *arg)
 	/*
 	 * In case this controller is a companion controller to an
 	 * EHCI controller we need to wait until the EHCI controller
-	 * has grabbed the port.
-	 * XXX It would be nicer to do this with a tsleep(), but I don't
-	 * know how to synchronize the creation of the threads so it
-	 * will work.
+	 * has grabbed the port. What we do here is wait until no new
+	 * USB threads have been created in a while. XXX we actually
+	 * just want to wait for the PCI slot to be fully scanned.
+	 *
+	 * Note that when you `kldload usb' it actually attaches the
+	 * devices in order that the drivers appear in the kld, not the
+	 * normal PCI order, since the addition of each driver within
+	 * usb.ko (ohci, ehci etc.) causes a separate PCI bus re-scan.
 	 */
-	usb_delay_ms(sc->sc_bus, 500);
+	wakeup(&newthread_wchan);
+	for (;;) {
+		if (tsleep(&newthread_wchan , PWAIT, "usbets", hz * 4) != 0)
+			break;
+	}
 
 	/* Make sure first discover does something. */
 	sc->sc_bus->needs_explore = 1;
