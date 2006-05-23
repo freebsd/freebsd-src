@@ -257,6 +257,31 @@ extern int nfs_debug;
 
 #endif
 
+/*
+ * On fast networks, the estimator will try to reduce the
+ * timeout lower than the latency of the server's disks,
+ * which results in too many timeouts, so cap the lower
+ * bound.
+ */
+#define NFS_MINRTO	(NFS_HZ >> 2)
+
+/*
+ * Keep the RTO from increasing to unreasonably large values
+ * when a server is not responding.
+ */
+#define NFS_MAXRTO	(20 * NFS_HZ)
+
+enum nfs_rto_timer_t {
+	NFS_DEFAULT_TIMER,
+	NFS_GETATTR_TIMER,
+	NFS_LOOKUP_TIMER,
+	NFS_READ_TIMER,
+	NFS_WRITE_TIMER,
+};
+#define NFS_MAX_TIMER	(NFS_WRITE_TIMER)
+
+#define NFS_INITRTT	(NFS_HZ << 3)
+
 vfs_init_t nfs_init;
 vfs_uninit_t nfs_uninit;
 int	nfs_mountroot(struct mount *mp, struct thread *td);
