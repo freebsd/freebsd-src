@@ -673,6 +673,16 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		mapinfo->num_bufs_used++;
 	}
 
+	/*
+	 * Now that we've gotten this far, change ownership to the kernel
+	 * of the buffers so that we don't run afoul of returning to user
+	 * space with locks (on the buffer) held.
+	 */
+	for (i = 0; i < numbufs; i++) {
+		BUF_KERNPROC(mapinfo->bp[i]);
+	}
+
+
 	return(0);
 }
 
