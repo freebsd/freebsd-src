@@ -48,7 +48,8 @@
 
   <para>The &release.type; distribution to which these release notes
     apply represents a point along the &release.branch; development
-    branch between &release.prev; and the future &release.next;.
+    branch after &release.prev;.  Note that no further, formal
+    releases on the &release.branch; branch are planned at this time.
     Information regarding
     pre-built, binary &release.type; distributions along this branch
     can be found at <ulink url="&release.url;"></ulink>.</para>
@@ -101,149 +102,7 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para arch="i386,amd64">Because of an information disclosure vulnerability on
-      processors using Hyper-Threading Technology (HTT), the
-      <varname>machdep.hyperthreading_allowed</varname> sysctl
-      variable has been added.  It defaults to <literal>1</literal>
-      (HTT enabled) on &os; CURRENT, and <literal>0</literal> (HTT
-      disabled) on the 4-STABLE and 5-STABLE development branches and
-      supported security fix branches.  More information can be found
-      in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:09.htt.asc">FreeBSD-SA-05:09.htt</ulink>.
-      </para>
-
-    <para>A bug in the &man.tcpdump.1; utility which allows
-      a malicious remote user to cause a denial-of-service
-      by using specially crafted packets, has been fixed.
-      For more information, see security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:10.tcpdump.asc">FreeBSD-SA-05:10.tcpdump</ulink>.
-      </para>
-
-    <para>Two problems in the &man.gzip.1; utility have been fixed.
-      These may allow a local user to modify permissions
-      of arbitrary files and overwrite arbitrary local
-      files when uncompressing a file.
-      For more information, see security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:11.gzip.asc">FreeBSD-SA-05:11.gzip</ulink>.
-      </para>
-
-    <para>A bug has been fixed in &man.ipfw.4; that could cause
-      packets to be matched incorrectly against a lookup table.  This
-      bug only affects SMP machines or UP machines that have the
-      <literal>PREEMPTION</literal> kernel option enabled.  More
-      information is contained in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:13.ipfw.asc">FreeBSD-SA-05:13.ipfw</ulink>.
-      </para>
-
-    <para>Two security-related problems have been fixed in
-      &man.bzip2.1;.  These include a potential denial of service and
-      unauthorized manipulation of file permissions.  For more
-      information, see security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:14.bzip2.asc">FreeBSD-SA-05:14.bzip2</ulink>.
-      </para>
-
-    <para>Two problems in &os;'s TCP stack have been fixed.  They
-      could allow attackers to stall existing TCP connections,
-      creating a denial-of-service situation.  More information is
-      contained in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:15.tcp.asc">FreeBSD-SA-05:15.tcp</ulink>.
-      </para>
-
-    <para>Two buffer overflows in the zlib library has been corrected.
-      More information can be found in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:16.zlib.asc">FreeBSD-SA-05:16.zlib</ulink>
-      and
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:18.zlib.asc">FreeBSD-SA-05:18.zlib</ulink>.</para>
-
-    <para>A security vulnerability that could allow processes running
-      inside a &man.jail.2; to gain access to hidden &man.devfs.5;
-      file nodes has been corrected, as described in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:17.devfs.asc">FreeBSD-SA-05:17.devfs</ulink>.</para>
-
-    <para>A programming error in the &man.ipsec.4; implementation,
-      which resulted in AES-XCBC-MAC authentication using a constant
-      key, has been corrected.  More details are in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:19.ipsec.asc">FreeBSD-SA-05:19.ipsec</ulink>.</para>
-
-    <para>A temporary file vulnerability in &man.cvsbug.8;, which
-      could allow an attacker to modify or overwrite files with the
-      permissions of a user running the &man.cvsbug.8; utility, has
-      been fixed.  More details can be found in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:20.cvsbug.asc">FreeBSD-SA-05:20.cvsbug</ulink>.</para>
-
-    <para>A bug in OpenSSL that could allow an attacker to force an
-      use older version of the SSL (with known weakensses) has been
-      corrected.  Details can be found in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:21.openssl.asc">FreeBSD-SA-05:21.openssl</ulink>.</para>
-
-    <para>A temporary file vulnerability in &man.texindex.1;, which
-      could allow a local attacker to overwrite files in the context
-      of a user running the &man.texindex.1; utility, has been fixed.
-      For more details see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:01.texindex.asc">FreeBSD-SA-06:01.texindex</ulink>.</para>
-
-    <para>A temporary file vulnerability in the &man.ee.1; text
-      editor, which could allow a local attacker to overwrite files in
-      the context of a user running &man.ee.1;, has been fixed.  For
-      more details see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:02.ee.asc">FreeBSD-SA-06:02.ee</ulink>.</para>
-
-    <para>Several vulnerabilities in the &man.cpio.1; utility have
-      been corrected.  For more
-      details see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:03.cpio.asc">FreeBSD-SA-06:03.cpio</ulink>.</para>
-
-    <para>Two instances in which portions of kernel memory could be
-      disclosed to users have been fixed.  For more details see
-      security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:06.kmem.asc">FreeBSD-SA-06:06.kmem</ulink>.</para>
-
-    <para>A logic bug in the IP fragment handling in &man.pf.4;, which
-      could cause a crash under certain circumstances, has been fixed.
-      For more details see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:07.pf.asc">FreeBSD-SA-06:07.pf</ulink>.</para>
-
-    <para>An error in Selective Acknowledgement (SACK) support in the
-      TCP/IP stack, which could cause an infinite loop upon reception
-      of a particular series of packets, has been corrected.  More
-      details are contained in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:08.sack.asc">FreeBSD-SA-06:08.sack</ulink>.</para>
-
-    <para>A logic bug in the OpenSSH performs internal accounting, which
-      could cause the master decides that it is overloaded and stops
-      accepting client connections, has been fixed.
-      For more details see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:09.openssh.asc">FreeBSD-SA-06:09.openssh</ulink>.</para>
-
-    <para>A logic bug in the NFS server code, which could cause a crash when
-      the server received a message with a zero-length payload, has been fixed.
-      For more details see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:10.nfs.asc">FreeBSD-SA-06:10.nfs</ulink>.</para>
-
-    <para>A programming error in the &man.fast.ipsec.4; implementation
-      results in the sequence number associated with a Security
-      Association not being updated, allowing packets to unconditionally
-      pass sequence number verification checks, has been fixed.
-      For more details see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:11.ipsec.asc">FreeBSD-SA-06:11.ipsec</ulink>.</para>
-
-    <para>A logic bug that could cause &man.opiepasswd.1; to allow an unprivileged
-      user to configure OPIE authentication for the root user under certain
-      circumstances, has been fixed.
-      For more details see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:12.opie.asc">FreeBSD-SA-06:12.opie</ulink>.</para>
-
-    <para>An asynchronous signal handling vulnerability in &man.sendmail.8;,
-      which could allow a remote attacker to execute arbitrary code with the
-      privileges of the user running sendmail, typically root, has been fixed.
-      For more details see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:13.sendmail.asc">FreeBSD-SA-06:13.sendmail</ulink>.</para>
-
-    <para arch="i386,amd64">An information disclosure issue found in
-      FreeBSD kernel running on 7th and 8th generation of AMD processors
-      has been fixed.  For more details see security advisory <ulink
-       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:14.fpu.asc">FreeBSD-SA-06:14.fpu</ulink>.</para>
-
+    <para></para>
   </sect2>
 
   <sect2 id="kernel">
@@ -253,86 +112,40 @@
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
-    <para></para>
-
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
-      <para>The <command>autoboot</command> command will now prevent the user
-	from interrupting the boot process at all if the
-	<varname>autoboot_delay</varname> variable is set to
-	<literal>-1</literal>.</para>
-
+      <para></para>
     </sect3>
 
     <sect3 id="proc">
       <title>Hardware Support</title>
-
-      <para arch="i386,pc98">The &man.ce.4; driver has been added to
-        support Cronyx Tau32-PCI adapters.
-        </para>
-
-      <para arch="i386,amd64">Dual-core processors (such as the Intel
-	Core Duo) now have both cores available for use by
-	default in SMP-enabled kernels.</para>
 
       <para></para>
 
       <sect4 id="mm">
 	<title>Multimedia Support</title>
 
-	<para>The &man.uaudio.4; driver now has some added
-	  functionality, including volume control on more inputs and
-	  recording capability on some devices.</para>
-
 	<para></para>
-
       </sect4>
 
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
-	<para>The &man.bge.4; driver now supports the BCM5714 and 5789
-	  chips.</para>
-
-	<para>The &man.ixgb.4; driver is now MPSAFE.</para>
-
-	<para arch="i386,amd64">Drivers using the &man.ndis.4; device
-	  driver wrapper mechanism are now built and loaded
-	  differently.  The &man.ndis.4; driver can now be pre-built
-	  as module or statically compiled into a kernel.  Individual
-	  drivers can now be built with the &man.ndisgen.8; utility;
-	  the result is a kernel module that can be loaded into a
-	  running kernel using &man.kldload.8;.</para>
-
-	<para arch="i386,amd64">Many (but not all) changes to the
-	  &man.ndis.4; system were merged from HEAD.</para>
-
-	<para>The &man.xl.4; driver now supports &man.polling.4;</para>
-
+	<para></para>
       </sect4>
     </sect3>
 
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para>The &man.if.bridge.4; network bridging implementation,
-	originally from NetBSD, has been added.  It supports the IEEE
-	802.1D Spanning Tree Protocol, individual interface devices
-	for each bridge, filtering of bridged packets, and
-	span ports (which transmit a copy of every frame received by
-	the bridge).
-	The &man.ifconfig.8; utility now supports configuration of
-	&man.if.bridge.4;.</para>
-
+      <para></para>
     </sect3>
 
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
-      <para>The &man.twa.4; driver has been updated to the 9.3.0.1
-	release on the 3ware Web site.</para>
-
+      <para></para>
     </sect3>
 
     <sect3 id="fs">
@@ -353,188 +166,31 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para>The &man.bsdiff.1; and &man.bspatch.1; utilities
-      have been added.  These are tools for constructing and
-      applying binary patches.</para>
-
-    <para>The &man.cmp.1; utility now supports an <option>-h</option>
-      flag to compare the symbolic link itself rather than the
-      file that the link points to.</para>
-
-    <para>The &man.gethostbyname.3;, &man.gethostbyname2.3;, and
-      &man.gethostbyaddr.3; functions are now thread-safe.</para>
-
-    <para>The &man.getnetent.3;, &man.getnetbyname.3;, and
-      &man.getnetbyaddr.3; functions are now thread-safe.</para>
-
-    <para>The &man.getprotoent.3;, &man.getprotobyname.3;, and
-      &man.getprotobynumber.3; functions are now thread-safe.</para>
-
-    <para>The &man.getservent.3;, &man.getservbyname.3;, and
-      &man.getservbyport.3; functions are now thread-safe.</para>
-
-    <para>The &man.kdump.1; program now supports a <option>-s</option>
-      flag to suppress the display of I/O data.</para>
-
-    <para>The &man.kldstat.8; utility now supports a
-      <option>-m</option> option to return the status of a specific
-      kernel module.</para>
-
-    <para>The default stack sizes in <filename>libpthread</filename>,
-      <filename>libthr</filename>,
-      and <filename>libc_r</filename> have been increased.  On 32-bit
-      platforms, the main thread receives a 2MB stack size by default,
-      with other threads receiving a 1MB stack size by default.  On
-      64-bit platforms, the default stack sizes are 4MB and 2MB
-      respectively.</para>
-
-    <para>The &man.netstat.1; utility now supports an
-      <option>-h</option> flag for interface stats mode,
-      which prints all interface statistics in human readable form.</para>
-
-    <para>The &man.ping.8; utility now supports a <quote>sweeping
-	ping</quote> in which &man.icmp.4; payload of
-      packets being sent is increased with given step.
-      This is useful for testing problematic channels, MTU issues
-      or traffic policing functions in networks.</para>
-
-    <para>The &man.powerd.8; program for managing power consumption has been
-      added.</para>
-
-    <para>The &man.rfcomm.sppd.1; program now supports service names
-      in addition to <option>-c</option> option with channel number.
-      The supported names are: DUN (Dial-Up Networking), FAX (Fax),
-      LAN (LAN Access Using PPP), and SP (Serial Port).</para>
-
-    <para>The &man.rm.1; utility now supports an <option>-I</option>
-      option that asks for confirmation (once) if recursively
-      removing directories or if more than 3 files are listed in the
-      command line.</para>
-
-    <para>&man.sed.1; now supports a <option>-l</option> option to
-      make its output line-buffered.</para>
-
-    <para>The &man.sh.1; utility now supports the <literal>times</literal>
-      built-in command.</para>
-
-    <para>The &man.snapinfo.8; utility, which shows snapshot locations
-      on UFS filesystems, has been added.</para>
+    <para></para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
-      <para>The <filename>bluetooth</filename> script
-	has been added.  This script will be called from
-	&man.devd.8; in response to device attachment/detachment
-	events and to stop/start particular device without unplugging
-	it by hand.  The configuration parameters are in
-	<filename>/etc/defaults/bluetooth.device.conf</filename>,
-	and can be overridden by using
-	<filename>/etc/bluetooth/<replaceable>$device</replaceable>.conf</filename>
-	(where <replaceable>$device</replaceable> is <devicename>ubt0</devicename>,
-	<devicename>btcc0</devicename>, and so on.)
-	For more details, see &man.bluetooth.conf.5;.</para>
-
-      <para>The <filename>rc.d/jail</filename> startup script
-	now supports <varname>jail_<replaceable>name</replaceable>_flags</varname>
-	variable which allows to specify &man.jail.8; flags.</para>
-
+      <para></para>
     </sect3>
   </sect2>
 
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para><application>BIND</application> has been updated from 9.3.1
-      to 9.3.2.</para>
-
-    <para><application>sendmail</application> has been updated from
-      version 8.13.3 to version 8.13.6.</para>
-
-    <para>The timezone database has been updated from the
-      <application>tzdata2005g</application> release to the
-      <application>tzdata2005r</application> release.</para>
+    <para></para>
   </sect2>
 
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para>The &man.pkg.add.1; program now supports an <option>-P</option>
-      flag, which is the same as the <option>-p</option> flag
-      except that the given prefix is also used recursively for the
-      dependency packages if any.</para>
-
-    <para>The &man.pkg.add.1; and &man.pkg.create.1; utilities now support
-      a <option>-K</option> flag to save packages to the current directory
-      (or <varname>PKGDIR</varname> if defined) by default.
-      </para>
-
-    <para>The &man.pkg.create.1; program now supports an <option>-x</option>
-      flag to support basic regular expressions for package name,
-      an <option>-E</option> flag for extended regular
-      expressions, and a <option>-G</option> for exact matching.</para>
-
-    <para>The &man.pkg.version.1; utility now supports a
-      <option>-I</option> flag, which causes only the
-      <filename>INDEX</filename> file to be used for determining if a
-      package is out of date.</para>
-
-    <para>The &man.pkg.version.1; utility now supports an <option>-o</option>
-      flag to show the origin recorded on package generation
-      instead of the package name, and an <option>-O</option> flag
-      to list packages whose registered origin is origin only.
-      </para>
-
-    <para>The &man.portsnap.8; utility (<filename>sysutils/portsnap</filename>)
-      has been added into the &os; base system.  This is a secure,
-      easy to use, fast, lightweight, and generally good way for
-      users to keep their ports trees up to date.</para>
-
-    <para>The suffix of startup scripts from the Ports Collection
-      has been removed.  This means <filename>foo.sh</filename>
-      is renamed to <filename>foo</filename>, and now
-      scripts whose name is something like
-      <filename>foo.ORG</filename> will also be invoked.
-      You are recommended to reinstall packages which install
-      such scripts and remove extra files in the
-      <varname>local_startup</varname> directory.</para>
-
-    <para>New <filename>rc.conf</filename> variables,
-      <varname>ldconfig_local_dirs</varname> and
-      <varname>ldconfig_local32_dirs</varname> have been added.
-      These hold lists of local &man.ldconfig.8; directories.
-      </para>
-
-    <para>The <command>@cwd</command> command in
-      <filename>pkg-plist</filename> now allows
-      no directory argument.  If no
-      directory argument is given, it will set current
-      working directory to the first prefix given by the
-      <command>@cwd</command> command.</para>
+    <para></para>
   </sect2>
 
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para>The supported version of
-      the <application>GNOME</application> desktop environment
-      (<filename role="package">x11/gnome2</filename>) has been
-      updated from 2.10.2 to 2.12.3.</para>
-
-    <para>The supported version of
-      the <application>KDE</application> desktop environment
-      (<filename role="package">x11/kde3</filename>) has been
-      updated from 3.4.2 to 3.5.1.</para>
-
-    <para>The supported version of
-      the <application>Perl</application> interpreter
-      (<filename role="package">lang/perl5.8</filename>) has been updated
-      from 5.8.7 to 5.8.8.</para>
-
-    <para>The supported version of
-      the <application>&xorg;</application> windowing system
-      (<filename role="package">x11/xorg</filename>) has been updated
-      from 6.8.2 to 6.9.0.</para>
+    <para></para>
   </sect2>
 
   <sect2 id="doc">

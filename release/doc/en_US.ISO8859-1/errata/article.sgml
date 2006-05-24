@@ -16,8 +16,7 @@
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 
-<!ENTITY release.bugfix "5.4-RELEASE">
-<!ENTITY release.bugfix.next "5.5-RELEASE">
+<!ENTITY release.bugfix "5.5-RELEASE">
 ]>
 
 <article>
@@ -61,7 +60,11 @@
       &os;.</para>
 
     <para>This errata document for &os; &release.bugfix;
-      will be maintained until the release of &os; &release.bugfix.next;.</para>
+      will be maintained until the end-of-life date for the
+      &release.branch; branch.  As of the release date, this date was
+      estimated to be 31 May 2008.  The current end-of-life state for
+      the various &os; branches can be found at <ulink
+      url="http://security.freebsd.org/"></ulink>.</para>
   </abstract>
 
   <sect1 id="intro">
@@ -87,7 +90,7 @@
       the snapshot).</para>
 
     <para>For a list of all &os; CERT security advisories, see <ulink
-      url="http://www.FreeBSD.org/security/"></ulink> or <ulink
+      url="http://security.FreeBSD.org/"></ulink> or <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
 
   </sect1>
@@ -95,166 +98,7 @@
   <sect1 id="security">
     <title>Security Advisories</title>
 
-    <para>The following security advisories pertain to &os; &release.bugfix;.
-      For more information, consult the individual advisories available from
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/"></ulink>.</para>
-
-    <informaltable frame="none" pgwide="0">
-      <tgroup cols="3">
-	<colspec colwidth="1*">
-	<colspec colwidth="1*">
-	<colspec colwidth="3*">
-	<thead>
-	  <row>
-	    <entry>Advisory</entry>
-	    <entry>Date</entry>
-	    <entry>Topic</entry>
-	  </row>
-	</thead>
-
-	<tbody>
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:14.fpu.asc"
-		>06:14.fpu</ulink></entry>
-	    <entry>19&nbsp;April&nbsp;2006</entry>
-	    <entry><para>FPU information disclosure</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:13.sendmail.asc"
-		>06:13.sendmail</ulink></entry>
-	    <entry>22&nbsp;March&nbsp;2006</entry>
-	    <entry><para>Race condition in sendmail</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:12.opie.asc"
-		>06:12.opie</ulink></entry>
-	    <entry>22&nbsp;March&nbsp;2006</entry>
-	    <entry><para>OPIE arbitrary password change</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:11.ipsec.asc"
-		>06:11.ipsec</ulink></entry>
-	    <entry>22&nbsp;March&nbsp;2006</entry>
-	    <entry><para>IPsec replay attack vulnerability</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:10.nfs.asc"
-		>06:10.nfs</ulink></entry>
-	    <entry>1&nbsp;March&nbsp;2006</entry>
-	    <entry><para>Remote denial of service in NFS server</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:09.openssh.asc"
-		>06:09.openssh</ulink></entry>
-	    <entry>1&nbsp;March&nbsp;2006</entry>
-	    <entry><para>Remote denial of service in OpenSSH</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:07.pf.asc"
-		>06:07.pf</ulink></entry>
-	    <entry>25&nbsp;January&nbsp;2006</entry>
-	    <entry><para>IP fragment handling panic in &man.pf.4;</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:03.cpio.asc"
-		>06:03.cpio</ulink></entry>
-	    <entry>11&nbsp;January&nbsp;2006</entry>
-	    <entry><para>Multiple vulnerabilities in &man.cpio.1;</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:02.ee.asc"
-		>06:02.eex</ulink></entry>
-	    <entry>11&nbsp;January&nbsp;2006</entry>
-	    <entry><para>&man.ee.1; temporary file privilege escalation</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:01.texindex.asc"
-		>06:01.texindex</ulink></entry>
-	    <entry>11&nbsp;January&nbsp;2006</entry>
-	    <entry><para>Texindex temporary file privilege escalation</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:09.htt.asc"
-		>SA-05:09.htt</ulink></entry>
-	    <entry>22&nbsp;May&nbsp;2005</entry>
-	    <entry><para>information disclosure when using HTT</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:10.tcpdump.asc"
-		>SA-05:10.tcpdump</ulink></entry>
-	    <entry>9&nbsp;Jun&nbsp;2005</entry>
-	    <entry><para>Infinite loops in tcpdump protocol decoding</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:11.gzip.asc"
-		>SA-05:11.gzip</ulink></entry>
-	    <entry>9&nbsp;Jun&nbsp;2005</entry>
-	    <entry><para>gzip directory traversal and permission race vulnerabilities</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:13.ipfw.asc"
-		>SA-05:13.ipfw</ulink></entry>
-	    <entry>29&nbsp;Jun&nbsp;2005</entry>
-	    <entry><para>ipfw packet matching errors with address tables</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:14.bzip2.asc"
-		>SA-05:14.bzip2</ulink></entry>
-	    <entry>29&nbsp;Jun&nbsp;2005</entry>
-	    <entry><para>bzip2 denial of service and permission race vulnerabilities</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:15.tcp.asc"
-		>SA-05:15.tcp</ulink></entry>
-	    <entry>29&nbsp;Jun&nbsp;2005</entry>
-	    <entry><para>TCP connection stall denial of service</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:16.zlib.asc"
-		>SA-05:16.zlib</ulink></entry>
-	    <entry>6&nbsp;Jul&nbsp;2005</entry>
-	    <entry><para>Buffer overflow in zlib</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:17.devfs.asc"
-		>SA-05:17.devfs</ulink></entry>
-	    <entry>20&nbsp;Jul&nbsp;2005</entry>
-	    <entry><para>devfs ruleset bypass</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:18.zlib.asc"
-		>SA-05:18.zlib</ulink></entry>
-	    <entry>27&nbsp;Jul&nbsp;2005</entry>
-	    <entry><para>Buffer overflow in zlib</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:19.ipsec.asc"
-		>SA-05:19.ipsec</ulink></entry>
-	    <entry>27&nbsp;Jul&nbsp;2005</entry>
-	    <entry><para>IPsec incorrect key usage in AES-XCBC-MAC</para></entry>
-	  </row>
-	</tbody>
-      </tgroup>
-    </informaltable>
+    <para>No advisories.</para>
   </sect1>
 
   <sect1 id="open-issues">
@@ -266,122 +110,6 @@
   <sect1 id="late-news">
     <title>Late-Breaking News</title>
 
-    <para>(6 May 2005) An error in the default permissions on the
-      <filename class="devicefile">/dev/iir</filename> device node,
-      which allowed unprivileged local users to send commands to the
-      hardware supported by the &man.iir.4; driver.  Although the
-      error was fixed prior to &release.prev;, it was applied too late
-      in the release cycle to be mentioned in the release notes.  For
-      more information, see security advisory
-      <ulink url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:06.iir.asc">FreeBSD-SA-05:06.iir</ulink>.
-      </para>
-
-    <para>(6 May 2005) A bug in the validation of &man.i386.get.ldt.2;
-      system call input arguments, which may allow kernel memory may
-      be disclosed to the user process, has been fixed.  This bug was
-      fixed prior to &release.prev;, although not in time to be
-      mentioned in the release notes.  For more information, see
-      security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:07.ldt.asc">FreeBSD-SA-05:07.ldt</ulink>.
-      </para>
-
-    <para>(6 May 2005) Several information disclosure vulnerabilities
-      in various parts of the kernel have been fixed in
-      &release.prev;, although too late to be mentioned in the release
-      notes.  For more information, see security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:08.kmem.asc">FreeBSD-SA-05:08.kmem</ulink>.
-      </para>
-
-    <para>(24 Jun 2005) The &os;/sparc64 &release.bugfix; should
-      have stated that the &os;/sparc64 GENERIC kernel prior
-      to the upcoming 6.0-RELEASE officially only supports serial consoles.
-      This is especially true for the &os;/sparc64 &release.bugfix;
-      GENERIC kernel because the ofw_console(4) driver which also provides
-      limited indirect support for graphical consoles has been replaced
-      with the &man.uart.4; driver in favor better serial support.</para>
-
-    <para>Due to this limitation to serial consoles the screen will
-      stop working after the message <quote><computeroutput>jumping to kernel entry
-	  at...</computeroutput></quote> is
-      displayed when trying to use the &os;/sparc64 &release.bugfix;
-      GENERIC kernel with a graphical console, while &os; itself continues
-      working actually.</para>
-
-    <para>If you want to use &os;/sparc64 with a graphical console anyway
-      you can do one of the following:</para>
-
-    <itemizedlist>
-      <listitem>
-	<para>In case your machine is equipped with a Sun Creator,
-	  Sun Creator3D, or Sun Elite3D frame buffer card
-	  and a Sun RS232 keyboard you can install &os;/sparc64
-	  &release.bugfix; with a serial console and afterwards
-	  compile a custom kernel with the following additional
-	  options:</para>
-
-	<programlisting>device          sc
-device          creator
-options         KBD_INSTALL_CDEV</programlisting>
-
-	<para>Additionally you have to enable the <filename>tty[1-7]</filename>
-	  entries in <filename>/etc/ttys</filename>
-	  like so:</para>
-
-	<programlisting>ttyv0   "/usr/libexec/getty Pc"         cons25  on  secure
-# Virtual terminals
-ttyv1   "/usr/libexec/getty Pc"         cons25  on  secure
-ttyv2   "/usr/libexec/getty Pc"         cons25  on  secure
-ttyv3   "/usr/libexec/getty Pc"         cons25  on  secure
-ttyv4   "/usr/libexec/getty Pc"         cons25  on  secure
-ttyv5   "/usr/libexec/getty Pc"         cons25  on  secure
-ttyv6   "/usr/libexec/getty Pc"         cons25  on  secure
-ttyv7   "/usr/libexec/getty Pc"         cons25  on  secure</programlisting>
-
-	<para>This will yield native support for these keyboards
-	  and frame buffers including VTY switching and X Window System.
-	  Note that this really requires at least &os;/sparc64
-	  &release.bugfix; otherwise it will not work on
-	  most of the UltraSPARC models.</para>
-      </listitem>
-
-      <listitem>
-	<para>In case your machine is equipped with a ATI Mach64
-	  frame buffer (found on-board in e.g. Sun Blade 100/150
-	  and Sun Ultra 5/10 as well as on Sun PGX8 and Sun PGX64
-	  add-on cards) or a PS/2 or a USB keyboard update to a
-	  &os;/sparc64 6.0 from June 10 2005 or later.
-	  If you use the stock GENERIC kernel and <filename>/etc/ttys</filename>
-	  from there no further action is required.</para>
-
-	<para>This will yield native support for these keyboards and frame buffers
-	  including VTY switching and X Window System.</para>
-      </listitem>
-
-      <listitem>
-	<para>In case your machine is equipped with hardware other than those
-	  mentioned above or you refuse to update to &os;/sparc64 6.0
-	  you can re-enable the ofw_console(4) driver as a last resort.
-	  To do so build a custom kernel with the following additional
-	  options:</para>
-
-	<programlisting>device          ofw_console
-device          sab
-device          zs</programlisting>
-
-	<para>and make sure to comment out the following kernel option:</para>
-
-	<programlisting>device          uart</programlisting>
-
-	<para>This will yield limited indirect support for
-	  any graphical console hardware, however with poor performance,
-	  and VTY switching as well as X Window System do not work with this.
-	  Note that ofw_console(4) is not really MPSAFE and therefore
-	  can result in panics under certain conditions.</para>
-      </listitem>
-    </itemizedlist>
-
-    <para>For more details of how to recompile your kernel or
-      update to &os; 6.0, see
-      <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig.html">Configuring the &os; Kernel</ulink> and
-      <ulink url="http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/cutting-edge.html">The Cutting Edge</ulink> sections in the &os; Handbook, respectively.</para>
+    <para>No issues.</para>
+  </sect1>
 </article>
