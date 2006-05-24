@@ -781,6 +781,9 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 		if (cmd->opcode == O_PROB)
 			cmd += F_LEN(cmd);
 
+		if (cmd->opcode == O_TAG)
+			cmd += F_LEN(cmd);
+
 		action = action2;
 		switch (cmd->opcode) {
 		case O_DENY:
@@ -1659,6 +1662,8 @@ lookup_next_rule(struct ip_fw *me)
 	if (cmd->opcode == O_LOG)
 		cmd += F_LEN(cmd);
 	if (cmd->opcode == O_ALTQ)
+		cmd += F_LEN(cmd);
+	if (cmd->opcode == O_TAG)
 		cmd += F_LEN(cmd);
 	if ( cmd->opcode == O_SKIPTO )
 		for (rule = me->next; rule ; rule = rule->next)
@@ -2886,6 +2891,55 @@ check_body:
 				match = is_ipv4;
 				break;
 
+			case O_TAG:
+				/* Packet is already tagged with this tag? */
+				mtag = m_tag_locate(m, MTAG_IPFW,
+						((ipfw_insn *) cmd)->arg1, NULL);
+				/* We have `untag' action when F_NOT flag is
+				 * present. And we must remove this mtag from
+				 * mbuf and reset `match' to zero (`match' will
+				 * be inversed later).
+				 * Otherwise we should allocate new mtag and
+				 * push it into mbuf.
+				 */
+				if (cmd->len & F_NOT) { /* `untag' action */
+					if (mtag != NULL)
+						m_tag_delete(m, mtag);
+				} else if (mtag == NULL) {
+					mtag = m_tag_alloc(MTAG_IPFW,
+						((ipfw_insn *) cmd)->arg1, 0, M_NOWAIT);
+					if (mtag != NULL)
+						m_tag_prepend(m, mtag);
+				}
+				match = (cmd->len & F_NOT) ? 0: 1;
+				break;
+
+			case O_TAGGED: 
+				if (cmdlen == 1) {
+					match = (m_tag_locate(m, MTAG_IPFW, 
+						((ipfw_insn *) cmd)->arg1, NULL) != NULL);
+					break;
+				}
+
+				/* we have ranges */
+				for (mtag = m_tag_first(m);
+				    mtag != NULL && !match;
+				    mtag = m_tag_next(m, mtag)) {
+					uint16_t *p;
+					int i;
+
+					if (mtag->m_tag_cookie != MTAG_IPFW)
+						continue;
+
+					p = ((ipfw_insn_u16 *)cmd)->ports;
+					i = cmdlen - 1;
+					for(; !match && i > 0; i--, p += 2)
+						match =
+						    mtag->m_tag_id >= p[0] &&
+						    mtag->m_tag_id <= p[1];
+				}
+				break;
+				
 			/*
 			 * The second set of opcodes represents 'actions',
 			 * i.e. the terminal part of a rule once the packet
@@ -2905,7 +2959,7 @@ check_body:
 			 *   or to the SKIPTO target ('goto again' after
 			 *   having set f, cmd and l), respectively.
 			 *
-			 * O_LOG and O_ALTQ action parameters:
+			 * O_TAG, O_LOG and O_ALTQ action parameters:
 			 *   perform some action and set match = 1;
 			 *
 			 * O_LIMIT and O_KEEP_STATE: these opcodes are
@@ -3528,6 +3582,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IP6:
 #endif
 		case O_IP4:
+		case O_TAG:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
 			break;
@@ -3600,6 +3655,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IPTTL:
 		case O_IPLEN:
 		case O_TCPDATALEN:
+		case O_TAGGED:
 			if (cmdlen < 1 || cmdlen > 31)
 				goto bad_size;
 			break;
