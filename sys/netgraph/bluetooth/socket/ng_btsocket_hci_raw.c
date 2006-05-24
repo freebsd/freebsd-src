@@ -257,7 +257,8 @@ ng_btsocket_hci_raw_node_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	 */
 
 	if (msg != NULL &&
-	    msg->header.typecookie == NGM_HCI_COOKIE &&
+	    (msg->header.typecookie == NGM_HCI_COOKIE ||
+	     msg->header.typecookie == NGM_GENERIC_COOKIE) &&
 	    msg->header.flags & NGF_RESP) {
 		if (msg->header.token == 0) {
 			NG_FREE_ITEM(item);
@@ -1305,6 +1306,68 @@ ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
 					sizeof(p->role_switch));
 		else
 			error = EPERM;
+		} break;
+
+	case SIOC_HCI_RAW_NODE_LIST_NAMES: {
+		struct ng_btsocket_hci_raw_node_list_names	*nl =
+			(struct ng_btsocket_hci_raw_node_list_names *) data;
+		struct nodeinfo					*ni = nl->names;
+
+		if (nl->num_names == 0) {
+			error = EINVAL;
+			break;
+		}
+
+		NG_MKMESSAGE(msg, NGM_GENERIC_COOKIE, NGM_LISTNAMES,
+			0, M_NOWAIT);
+		if (msg == NULL) {
+			error = ENOMEM;
+			break;
+		}
+		ng_btsocket_hci_raw_get_token(&msg->header.token);
+		pcb->token = msg->header.token;
+		pcb->msg = NULL;
+
+		NG_SEND_MSG_PATH(error, ng_btsocket_hci_raw_node, msg, ".:", 0);
+		if (error != 0) {
+			pcb->token = 0;
+			break;
+		}
+
+		error = msleep(&pcb->msg, &pcb->pcb_mtx,
+				PZERO|PCATCH, "hcictl",
+				ng_btsocket_hci_raw_ioctl_timeout * hz);
+		pcb->token = 0;
+
+		if (error != 0)
+			break;
+
+		if (pcb->msg != NULL && pcb->msg->header.cmd == NGM_LISTNAMES) {
+			/* Return data back to user space */
+			struct namelist	*nl1 = (struct namelist *) pcb->msg->data;
+			struct nodeinfo	*ni1 = &nl1->nodeinfo[0];
+
+			while (nl->num_names > 0 && nl1->numnames > 0) {
+				if (strcmp(ni1->type, NG_HCI_NODE_TYPE) == 0) {
+					error = copyout((caddr_t) ni1,
+							(caddr_t) ni,
+							sizeof(*ni));
+					if (error != 0)
+						break;
+
+					nl->num_names --;
+					ni ++;
+				}
+
+				nl1->numnames --;
+				ni1 ++;
+			}
+
+			nl->num_names = ni - nl->names;
+		} else
+			error = EINVAL;
+
+		NG_FREE_MSG(pcb->msg); /* checks for != NULL */
 		} break;
 
 	default:
