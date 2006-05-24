@@ -1924,7 +1924,7 @@ nfs4_readdir(struct vop_readdir_args *ap)
 	if (np->n_direofoffset > 0 && uio->uio_offset >= np->n_direofoffset &&
 	    (np->n_flag & NMODIFIED) == 0) {
 		if (VOP_GETATTR(vp, &vattr, ap->a_cred, uio->uio_td) == 0 &&
-			np->n_mtime.tv_sec == vattr.va_mtime.tv_sec) {
+			!NFS_TIMESPEC_COMPARE(&np->n_mtime, &vattr.va_mtime)) {
 			nfsstats.direofcache_hits++;
 			return (0);
 		}
