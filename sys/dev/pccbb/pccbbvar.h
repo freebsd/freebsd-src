@@ -61,8 +61,9 @@ struct cbb_softc {
 	void		*intrhand;
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;
-	u_int8_t	secbus;
-	u_int8_t	subbus;
+	unsigned int	pribus;
+	unsigned int	secbus;
+	unsigned int	subbus;
 	struct mtx	mtx;
 	struct cv	cv;
 	struct cv	powercv;
