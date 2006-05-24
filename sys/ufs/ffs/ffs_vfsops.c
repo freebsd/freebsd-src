@@ -117,7 +117,7 @@ static struct buf_ops ffs_ops = {
 };
 
 static const char *ffs_opts[] = { "acls", "async", "atime", "clusterr",
-    "clusterw", "exec", "errmsg", "export", "force", "from", "multilabel", 
+    "clusterw", "exec", "export", "force", "from", "multilabel", 
     "snapshot", "suid", "suiddir", "symfollow", "sync",
     "update", "union", NULL };
 
