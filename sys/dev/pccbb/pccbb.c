@@ -330,7 +330,8 @@ cbb_detach(device_t brdev)
 	mtx_lock(&sc->mtx);
 	bus_teardown_intr(brdev, sc->irq_res, sc->intrhand);
 	sc->flags |= CBB_KTHREAD_DONE;
-	if (sc->flags & CBB_KTHREAD_RUNNING) {
+	while (sc->flags & CBB_KTHREAD_RUNNING) {
+		DEVPRINTF((sc->dev, "Waiting for thread to die\n"));
 		cv_broadcast(&sc->cv);
 		msleep(sc->event_thread, &sc->mtx, PWAIT, "cbbun", 0);
 	}
@@ -481,7 +482,9 @@ cbb_event_thread(void *arg)
 	int err;
 	int not_a_card = 0;
 
+	mtx_lock(&sc->mtx);
 	sc->flags |= CBB_KTHREAD_RUNNING;
+	mtx_unlock(&sc->mtx);
 	while ((sc->flags & CBB_KTHREAD_DONE) == 0) {
 		/*
 		 * We take out Giant here because we need it deep,
@@ -538,7 +541,10 @@ cbb_event_thread(void *arg)
 			err = cv_timedwait(&sc->cv, &sc->mtx, 1 * hz);
 		mtx_unlock(&sc->mtx);
 	}
+	DEVPRINTF((sc->dev, "Thread terminating\n"));
+	mtx_lock(&sc->mtx);
 	sc->flags &= ~CBB_KTHREAD_RUNNING;
+	mtx_unlock(&sc->mtx);
 	kthread_exit(0);
 }
 
