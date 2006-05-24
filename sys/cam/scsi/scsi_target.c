@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/devicestat.h>
+#include <sys/proc.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -89,7 +90,6 @@ struct targ_softc {
 	targ_state		 state;
 	struct selinfo		 read_select;
 	struct devstat		 device_stats;
-	struct mtx		 mtx;
 };
 
 static d_open_t		targopen;
@@ -157,10 +157,6 @@ static struct periph_driver targdriver =
 };
 PERIPHDRIVER_DECLARE(targ, targdriver);
 
-static struct mtx		targ_mtx;
-#define TARG_LOCK(softc)	mtx_lock(&(softc)->mtx)
-#define TARG_UNLOCK(softc)	mtx_unlock(&(softc)->mtx)
-
 static MALLOC_DEFINE(M_TARG, "TARG", "TARG data");
 
 /* Create softc and initialize it. Only one proc can open each targ device. */
@@ -169,15 +165,12 @@ targopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct targ_softc *softc;
 
-	mtx_lock(&targ_mtx);
 	if (dev->si_drv1 != 0) {
-		mtx_unlock(&targ_mtx);
 		return (EBUSY);
 	}
 	
 	/* Mark device busy before any potentially blocking operations */
 	dev->si_drv1 = (void *)~0;
-	mtx_unlock(&targ_mtx);
 
 	/* Create the targ device, allocate its softc, initialize it */
 	if ((dev->si_flags & SI_NAMED) == 0) {
@@ -190,13 +183,12 @@ targopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	softc->state = TARG_STATE_OPENED;
 	softc->periph = NULL;
 	softc->path = NULL;
-	mtx_init(&softc->mtx, devtoname(dev), "targ cdev", MTX_DEF);
 
 	TAILQ_INIT(&softc->pending_ccb_queue);
 	TAILQ_INIT(&softc->work_queue);
 	TAILQ_INIT(&softc->abort_queue);
 	TAILQ_INIT(&softc->user_ccb_queue);
-	knlist_init(&softc->read_select.si_note, &softc->mtx, NULL, NULL, NULL);
+	knlist_init(&softc->read_select.si_note, NULL, NULL, NULL, NULL);
 
 	return (0);
 }
@@ -209,22 +201,15 @@ targclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	int    error;
 
 	softc = (struct targ_softc *)dev->si_drv1;
-	TARG_LOCK(softc);
 	error = targdisable(softc);
 	if (error == CAM_REQ_CMP) {
 		dev->si_drv1 = 0;
-		mtx_lock(&targ_mtx);
 		if (softc->periph != NULL) {
 			cam_periph_invalidate(softc->periph);
 			softc->periph = NULL;
 		}
-		mtx_unlock(&targ_mtx);
-		TARG_UNLOCK(softc);
-		mtx_destroy(&softc->mtx);
 		destroy_dev(dev);
 		FREE(softc, M_TARG);
-	} else {
-		TARG_UNLOCK(softc);
 	}
 	return (error);
 }
@@ -253,17 +238,13 @@ targioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 			printf("Couldn't create path, status %#x\n", status);
 			break;
 		}
-		TARG_LOCK(softc);
 		status = targenable(softc, path, new_lun->grp6_len,
 				    new_lun->grp7_len);
-		TARG_UNLOCK(softc);
 		xpt_free_path(path);
 		break;
 	}
 	case TARGIOCDISABLE:
-		TARG_LOCK(softc);
 		status = targdisable(softc);
-		TARG_UNLOCK(softc);
 		break;
 	case TARGIOCDEBUG:
 	{
@@ -280,14 +261,11 @@ targioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 		cdbg.ccb_h.cbfcnp = targdone;
 
 		/* If no periph available, disallow debugging changes */
-		TARG_LOCK(softc);
 		if ((softc->state & TARG_STATE_LUN_ENABLED) == 0) {
 			status = CAM_DEV_NOT_THERE;
-			TARG_UNLOCK(softc);
 			break;
 		}
 		xpt_action((union ccb *)&cdbg);
-		TARG_UNLOCK(softc);
 		status = cdbg.ccb_h.status & CAM_STATUS_MASK;
 #else
 		status = CAM_FUNC_NOTAVAIL;
@@ -315,7 +293,6 @@ targpoll(struct cdev *dev, int poll_events, struct thread *td)
 	revents = poll_events & (POLLOUT | POLLWRNORM);
 	if ((poll_events & (POLLIN | POLLRDNORM)) != 0) {
 		/* Poll for read() depends on user and abort queues. */
-		TARG_LOCK(softc);
 		if (!TAILQ_EMPTY(&softc->user_ccb_queue) ||
 		    !TAILQ_EMPTY(&softc->abort_queue)) {
 			revents |= poll_events & (POLLIN | POLLRDNORM);
@@ -323,7 +300,6 @@ targpoll(struct cdev *dev, int poll_events, struct thread *td)
 		/* Only sleep if the user didn't poll for write. */
 		if (revents == 0)
 			selrecord(td, &softc->read_select);
-		TARG_UNLOCK(softc);
 	}
 
 	return (revents);
@@ -415,7 +391,6 @@ targenable(struct targ_softc *softc, struct cam_path *path, int grp6_len,
 	}
 
 	/* Destroy any periph on our path if it is disabled */
-	mtx_lock(&targ_mtx);
 	periph = cam_periph_find(path, "targ");
 	if (periph != NULL) {
 		struct targ_softc *del_softc;
@@ -427,7 +402,6 @@ targenable(struct targ_softc *softc, struct cam_path *path, int grp6_len,
 		} else {
 			printf("Requested path still in use by targ%d\n",
 			       periph->unit_number);
-			mtx_unlock(&targ_mtx);
 			status = CAM_LUN_ALRDY_ENA;
 			goto enable_fail;
 		}
@@ -436,7 +410,6 @@ targenable(struct targ_softc *softc, struct cam_path *path, int grp6_len,
 	/* Create a periph instance attached to this path */
 	status = cam_periph_alloc(targctor, NULL, targdtor, targstart,
 			"targ", CAM_PERIPH_BIO, path, targasync, 0, softc);
-	mtx_unlock(&targ_mtx);
 	if (status != CAM_REQ_CMP) {
 		printf("cam_periph_alloc failed, status %#x\n", status);
 		goto enable_fail;
@@ -566,11 +539,9 @@ targwrite(struct cdev *dev, struct uio *uio, int ioflag)
 			CAM_DEBUG(softc->path, CAM_DEBUG_PERIPH,
 				  ("Sent ATIO/INOT (%p)\n", user_ccb));
 			xpt_action(ccb);
-			TARG_LOCK(softc);
 			TAILQ_INSERT_TAIL(&softc->pending_ccb_queue,
 					  &ccb->ccb_h,
 					  periph_links.tqe);
-			TARG_UNLOCK(softc);
 			break;
 		default:
 			if ((func_code & XPT_FC_QUEUED) != 0) {
@@ -581,10 +552,8 @@ targwrite(struct cdev *dev, struct uio *uio, int ioflag)
 				descr->user_ccb = user_ccb;
 				descr->priority = priority;
 				descr->func_code = func_code;
-				TARG_LOCK(softc);
 				TAILQ_INSERT_TAIL(&softc->work_queue,
 						  descr, tqe);
-				TARG_UNLOCK(softc);
 				xpt_schedule(softc->periph, priority);
 			} else {
 				CAM_DEBUG(softc->path, CAM_DEBUG_PERIPH,
@@ -629,15 +598,12 @@ targstart(struct cam_periph *periph, union ccb *start_ccb)
 	softc = (struct targ_softc *)periph->softc;
 	CAM_DEBUG(softc->path, CAM_DEBUG_PERIPH, ("targstart %p\n", start_ccb));
 
-	TARG_LOCK(softc);
 	descr = TAILQ_FIRST(&softc->work_queue);
 	if (descr == NULL) {
-		TARG_UNLOCK(softc);
 		xpt_release_ccb(start_ccb);
 	} else {
 		TAILQ_REMOVE(&softc->work_queue, descr, tqe);
 		next_descr = TAILQ_FIRST(&softc->work_queue);
-		TARG_UNLOCK(softc);
 
 		/* Initiate a transaction using the descr and supplied CCB */
 		error = targusermerge(softc, descr, start_ccb);
@@ -649,9 +615,7 @@ targstart(struct cam_periph *periph, union ccb *start_ccb)
 			xpt_release_ccb(start_ccb);
 			suword(&descr->user_ccb->ccb_h.status,
 			       CAM_REQ_CMP_ERR);
-			TARG_LOCK(softc);
 			TAILQ_INSERT_TAIL(&softc->abort_queue, descr, tqe);
-			TARG_UNLOCK(softc);
 			notify_user(softc);
 		}
 
@@ -694,7 +658,6 @@ targusermerge(struct targ_softc *softc, struct targ_cmd_descr *descr,
 		struct ccb_hdr *ccb_h;
 
 		cab = (struct ccb_abort *)ccb;
-		TARG_LOCK(softc);
 		TAILQ_FOREACH(ccb_h, &softc->pending_ccb_queue,
 		    periph_links.tqe) {
 			struct targ_cmd_descr *ab_descr;
@@ -708,7 +671,6 @@ targusermerge(struct targ_softc *softc, struct targ_cmd_descr *descr,
 				break;
 			}
 		}
-		TARG_UNLOCK(softc);
 		/* CCB not found, set appropriate status */
 		if (ccb_h == NULL) {
 			k_ccbh->status = CAM_PATH_INVALID;
@@ -776,10 +738,8 @@ targsendccb(struct targ_softc *softc, union ccb *ccb,
 	 */
 	CAM_DEBUG(softc->path, CAM_DEBUG_PERIPH, ("sendccb %p\n", ccb));
 	if (XPT_FC_IS_QUEUED(ccb)) {
-		TARG_LOCK(softc);
 		TAILQ_INSERT_TAIL(&softc->pending_ccb_queue, ccb_h,
 				  periph_links.tqe);
-		TARG_UNLOCK(softc);
 	}
 	xpt_action(ccb);
 
@@ -795,7 +755,6 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH, ("targdone %p\n", done_ccb));
 	softc = (struct targ_softc *)periph->softc;
-	TARG_LOCK(softc);
 	TAILQ_REMOVE(&softc->pending_ccb_queue, &done_ccb->ccb_h,
 		     periph_links.tqe);
 	status = done_ccb->ccb_h.status & CAM_STATUS_MASK;
@@ -803,7 +762,6 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 	/* If we're no longer enabled, throw away CCB */
 	if ((softc->state & TARG_STATE_LUN_ENABLED) == 0) {
 		targfreeccb(softc, done_ccb);
-		TARG_UNLOCK(softc);
 		return;
 	}
 	/* abort_all_pending() waits for pending queue to be empty */
@@ -817,7 +775,6 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 	case XPT_CONT_TARGET_IO:
 		TAILQ_INSERT_TAIL(&softc->user_ccb_queue, &done_ccb->ccb_h,
 				  periph_links.tqe);
-		TARG_UNLOCK(softc);
 		notify_user(softc);
 		break;
 	default:
@@ -839,6 +796,8 @@ targread(struct cdev *dev, struct uio *uio, int ioflag)
 	union  ccb	  *user_ccb;
 	int		   read_len, error;
 
+	mtx_lock(&Giant);
+
 	error = 0;
 	read_len = 0;
 	softc = (struct targ_softc *)dev->si_drv1;
@@ -847,12 +806,11 @@ targread(struct cdev *dev, struct uio *uio, int ioflag)
 	CAM_DEBUG(softc->path, CAM_DEBUG_PERIPH, ("targread\n"));
 
 	/* If no data is available, wait or return immediately */
-	TARG_LOCK(softc);
 	ccb_h = TAILQ_FIRST(user_queue);
 	user_descr = TAILQ_FIRST(abort_queue);
 	while (ccb_h == NULL && user_descr == NULL) {
 		if ((ioflag & IO_NDELAY) == 0) {
-			error = msleep(user_queue, &softc->mtx,
+			error = msleep(user_queue, NULL,
 				       PRIBIO | PCATCH, "targrd", 0);
 			ccb_h = TAILQ_FIRST(user_queue);
 			user_descr = TAILQ_FIRST(abort_queue);
@@ -860,12 +818,11 @@ targread(struct cdev *dev, struct uio *uio, int ioflag)
 				if (error == ERESTART) {
 					continue;
 				} else {
-					TARG_UNLOCK(softc);
 					goto read_fail;
 				}
 			}
 		} else {
-			TARG_UNLOCK(softc);
+			mtx_unlock(&Giant);
 			return (EAGAIN);
 		}
 	}
@@ -877,7 +834,6 @@ targread(struct cdev *dev, struct uio *uio, int ioflag)
 		if (uio->uio_resid < sizeof(user_ccb))
 			break;
 		TAILQ_REMOVE(user_queue, ccb_h, periph_links.tqe);
-		TARG_UNLOCK(softc);
 		descr = (struct targ_cmd_descr *)ccb_h->targ_descr;
 		user_ccb = descr->user_ccb;
 		CAM_DEBUG(softc->path, CAM_DEBUG_PERIPH,
@@ -890,7 +846,6 @@ targread(struct cdev *dev, struct uio *uio, int ioflag)
 			goto read_fail;
 		read_len += sizeof(user_ccb);
 
-		TARG_LOCK(softc);
 		ccb_h = TAILQ_FIRST(user_queue);
 	}
 
@@ -899,7 +854,6 @@ targread(struct cdev *dev, struct uio *uio, int ioflag)
 		if (uio->uio_resid < sizeof(user_ccb))
 			break;
 		TAILQ_REMOVE(abort_queue, user_descr, tqe);
-		TARG_UNLOCK(softc);
 		user_ccb = user_descr->user_ccb;
 		CAM_DEBUG(softc->path, CAM_DEBUG_PERIPH,
 			  ("targread aborted descr %p (%p)\n",
@@ -910,10 +864,8 @@ targread(struct cdev *dev, struct uio *uio, int ioflag)
 			goto read_fail;
 		read_len += sizeof(user_ccb);
 
-		TARG_LOCK(softc);
 		user_descr = TAILQ_FIRST(abort_queue);
 	}
-	TARG_UNLOCK(softc);
 
 	/*
 	 * If we've successfully read some amount of data, don't report an
@@ -924,6 +876,7 @@ targread(struct cdev *dev, struct uio *uio, int ioflag)
 		error = ENOSPC;
 
 read_fail:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -1020,7 +973,6 @@ targgetdescr(struct targ_softc *softc)
 static void
 targinit(void)
 {
-	mtx_init(&targ_mtx, "targ global", NULL, MTX_DEF);
 	EVENTHANDLER_REGISTER(dev_clone, targclone, 0, 1000);
 }
 
@@ -1086,7 +1038,7 @@ abort_all_pending(struct targ_softc *softc)
 
 	/* If we aborted at least one pending CCB ok, wait for it. */
 	if (cab.ccb_h.status == CAM_REQ_CMP) {
-		msleep(&softc->pending_ccb_queue, &softc->mtx,
+		msleep(&softc->pending_ccb_queue, NULL,
 		       PRIBIO | PCATCH, "tgabrt", 0);
 	}
 
@@ -1105,7 +1057,7 @@ notify_user(struct targ_softc *softc)
 	 * blocking read().
 	 */
 	selwakeuppri(&softc->read_select, PRIBIO);
-	KNOTE_LOCKED(&softc->read_select.si_note, 0);
+	KNOTE_UNLOCKED(&softc->read_select.si_note, 0);
 	wakeup(&softc->user_ccb_queue);
 }
 
