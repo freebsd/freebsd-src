@@ -37,6 +37,12 @@
  * $FreeBSD$
  */
 
+#include <err.h>
+#include <netgraph.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 #include "ngctl.h"
 
 #define FMT		"  %-15s %-15s %-12s %-15s %-15s\n"

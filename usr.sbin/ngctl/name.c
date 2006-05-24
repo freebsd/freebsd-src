@@ -37,6 +37,11 @@
  * $FreeBSD$
  */
 
+#include <err.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <netgraph.h>
+
 #include "ngctl.h"
 
 static int NameCmd(int ac, char **av);
