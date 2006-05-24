@@ -86,6 +86,7 @@
 #define NFS_CMPFH(n, f, s) \
 	((n)->n_fhsize == (s) && !bcmp((caddr_t)(n)->n_fhp, (caddr_t)(f), (s)))
 #define NFS_ISV3(v)	(VFSTONFS((v)->v_mount)->nm_flag & NFSMNT_NFSV3)
+#define NFS_ISV4(v)	(VFSTONFS((v)->v_mount)->nm_flag & NFSMNT_NFSV4)
 
 #define NFSSTA_HASWRITEVERF	0x00040000  /* Has write verifier for V3 */
 #define NFSSTA_GOTFSINFO	0x00100000  /* Got the V3 fsinfo */
