@@ -347,29 +347,15 @@ sysctl.
 The
 .Fa len
 argument
-is limited to 2GB.
-Mmapping slightly more than 2GB does not work, but
-it is possible to map a window of size (filesize % 2GB) for file sizes
-of slightly less than 2G, 4GB, 6GB and 8GB.
+is limited to the maximum file size or available userland address
+space.
+Files may not be able to be made more than 1TB large on 32 bit systems
+due to file systems restrictions and bugs, but address space is far more
+restrictive.  Larger files may be possible on 64 bit systems.
 .Pp
-The limit is imposed for a variety of reasons.
-Most of them have to do
-with
-.Fx
-not wanting to use 64 bit offsets in the VM system due to
-the extreme performance penalty.
-So
-.Fx
-uses 32bit page indexes and
-this gives
-.Fx
-a maximum of 8TB filesizes.
-It is actually bugs in
-the file system code that causes the limit to be further restricted to
-1TB (loss of precision when doing blockno calculations).
-.Pp
-Another reason for the 2GB limit is that file system metadata can
-reside at negative offsets.
+The previous documented limit of 2GB was a documentation bug.
+That limit has not existed since
+.Fx 2.2 .
 .Pp
 Note that an attempt to
 .Fn mmap
