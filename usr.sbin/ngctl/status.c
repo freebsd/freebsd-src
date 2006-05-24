@@ -37,6 +37,11 @@
  * $FreeBSD$
  */
 
+#include <err.h>
+#include <errno.h>
+#include <netgraph.h>
+#include <stdio.h>
+
 #include "ngctl.h"
 
 #define NOSTATUS	"<no status>"

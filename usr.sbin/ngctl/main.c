@@ -38,6 +38,22 @@
  * $Whistle: main.c,v 1.12 1999/11/29 19:17:46 archie Exp $
  */
 
+#include <sys/param.h>
+#include <sys/socket.h>
+#include <sys/select.h>
+
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sysexits.h>
+#include <unistd.h>
+
+#include <netgraph.h>
+
 #include "ngctl.h"
 
 #define PROMPT			"+ "

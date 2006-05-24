@@ -37,6 +37,10 @@
  * $FreeBSD$
  */
 
+#include <err.h>
+#include <netgraph.h>
+#include <unistd.h>
+
 #include "ngctl.h"
 
 static int ShutdownCmd(int ac, char **av);
