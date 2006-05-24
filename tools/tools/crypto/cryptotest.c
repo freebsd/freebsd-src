@@ -131,9 +131,9 @@ struct alg {
 #endif
 	{ "md5",	1,	8,	16,	16,	CRYPTO_MD5_HMAC },
 	{ "sha1",	1,	8,	20,	20,	CRYPTO_SHA1_HMAC },
-	{ "sha256",	1,	8,	32,	32,	CRYPTO_SHA2_HMAC },
-	{ "sha384",	1,	8,	48,	48,	CRYPTO_SHA2_HMAC },
-	{ "sha512",	1,	8,	64,	64,	CRYPTO_SHA2_HMAC },
+	{ "sha256",	1,	8,	32,	32,	CRYPTO_SHA2_256_HMAC },
+	{ "sha384",	1,	8,	48,	48,	CRYPTO_SHA2_384_HMAC },
+	{ "sha512",	1,	8,	64,	64,	CRYPTO_SHA2_512_HMAC },
 };
 
 static void
