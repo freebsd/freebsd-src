@@ -315,6 +315,7 @@ taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 {
 	va_list ap;
 	struct taskqueue *tq;
+	struct thread *td;
 	char ktname[MAXCOMLEN];
 	int i, error;
 
@@ -336,21 +337,27 @@ taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 	for (i = 0; i < count; i++) {
 		if (count == 1)
 			error = kthread_create(taskqueue_thread_loop, tqp,
-			    &tq->tq_pproc[i], 0, 0, ktname);
+			    &tq->tq_pproc[i], RFSTOPPED, 0, ktname);
 		else
 			error = kthread_create(taskqueue_thread_loop, tqp,
-			    &tq->tq_pproc[i], 0, 0, "%s_%d", ktname, i);
-		if (error == 0) {
-			mtx_lock_spin(&sched_lock);
-			sched_prio(FIRST_THREAD_IN_PROC(tq->tq_pproc[i]), pri);
-			mtx_unlock_spin(&sched_lock);
-			tq->tq_pcount++;
-		} else {
+			    &tq->tq_pproc[i], RFSTOPPED, 0, "%s_%d", ktname, i);
+		if (error) {
 			/* should be ok to continue, taskqueue_free will dtrt */
 			printf("%s: kthread_create(%s): error %d",
 				__func__, ktname, error);
-		}
+			tq->tq_pproc[i] = NULL;		/* paranoid */
+		} else
+			tq->tq_pcount++;
 	}
+	mtx_lock_spin(&sched_lock);
+	for (i = 0; i < count; i++) {
+		if (tq->tq_pproc[i] == NULL)
+			continue;
+		td = FIRST_THREAD_IN_PROC(tq->tq_pproc[i]);
+		sched_prio(td, pri);
+		setrunqueue(td, SRQ_BORING);
+	}
+	mtx_unlock_spin(&sched_lock);
 
 	return (0);
 }
