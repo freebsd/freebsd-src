@@ -301,8 +301,10 @@ cbb_pci_attach(device_t brdev)
 {
 	static int curr_bus_number = 2; /* XXX EVILE BAD (see below) */
 	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(brdev);
-	int rid, bus, pribus;
+	int rid;
 	device_t parent;
+	struct sysctl_ctx_list *sctx;
+	struct sysctl_oid *soid;
 
 	parent = device_get_parent(brdev);
 	mtx_init(&sc->mtx, device_get_nameunit(brdev), "cbb", MTX_DEF);
@@ -314,6 +316,7 @@ cbb_pci_attach(device_t brdev)
 	sc->exca[0].pccarddev = NULL;
 	sc->secbus = pci_read_config(brdev, PCIR_SECBUS_2, 1);
 	sc->subbus = pci_read_config(brdev, PCIR_SUBBUS_2, 1);
+	sc->pribus = pci_read_config(brdev, PCIR_PRIBUS_2, 1);
 	SLIST_INIT(&sc->rl);
 	cbb_powerstate_d0(brdev);
 
@@ -338,30 +341,37 @@ cbb_pci_attach(device_t brdev)
 	sc->chipinit = cbb_chipinit;
 	sc->chipinit(sc);
 
+	/*Sysctls*/
+	sctx = device_get_sysctl_ctx(brdev);
+	soid = device_get_sysctl_tree(brdev);
+	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "pribus",
+	    CTLFLAG_RD, &sc->pribus, 0, "Primary bus number");
+	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "secbus",
+	    CTLFLAG_RD, &sc->secbus, 0, "Secondary bus number");
+	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "subbus",
+	    CTLFLAG_RD, &sc->subbus, 0, "Subordinate bus number");
+
 	/*
 	 * This is a gross hack.  We should be scanning the entire pci
 	 * tree, assigning bus numbers in a way such that we (1) can
 	 * reserve 1 extra bus just in case and (2) all sub busses
 	 * are in an appropriate range.
 	 */
-	bus = pci_read_config(brdev, PCIR_SECBUS_2, 1);
-	pribus = pcib_get_bus(parent);
-	DEVPRINTF((brdev, "Secondary bus is %d\n", bus));
-	if (bus == 0) {
-		if (curr_bus_number <= pribus)
-			curr_bus_number = pribus + 1;
-		if (pci_read_config(brdev, PCIR_PRIBUS_2, 1) != pribus) {
-			DEVPRINTF((brdev, "Setting primary bus to %d\n", pribus));
-			pci_write_config(brdev, PCIR_PRIBUS_2, pribus, 1);
+	DEVPRINTF((brdev, "Secondary bus is %d\n", sc->secbus));
+	if (sc->secbus == 0) {
+		if (curr_bus_number <= sc->pribus)
+			curr_bus_number = sc->pribus + 1;
+		if (pci_read_config(brdev, PCIR_PRIBUS_2, 1) != sc->pribus) {
+			DEVPRINTF((brdev, "Setting primary bus to %d\n",
+			    sc->pribus));
+			pci_write_config(brdev, PCIR_PRIBUS_2, sc->pribus, 1);
 		}
-		bus = curr_bus_number;
-		DEVPRINTF((brdev, "Secondary bus set to %d subbus %d\n", bus,
-		    bus + 1));
-		sc->secbus = bus;
-		sc->subbus = bus + 1;
-		pci_write_config(brdev, PCIR_SECBUS_2, bus, 1);
-		pci_write_config(brdev, PCIR_SUBBUS_2, bus + 1, 1);
-		curr_bus_number += 2;
+		sc->secbus = curr_bus_number++;
+		sc->subbus = curr_bus_number++;
+		DEVPRINTF((brdev, "Secondary bus set to %d subbus %d\n",
+		    sc->secbus, sc->subbus));
+		pci_write_config(brdev, PCIR_SECBUS_2, sc->secbus, 1);
+		pci_write_config(brdev, PCIR_SUBBUS_2, sc->subbus, 1);
 	}
 
 	/* attach children */
