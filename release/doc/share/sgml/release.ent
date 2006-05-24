@@ -19,6 +19,8 @@
 <!ENTITY release.prev.stable "4.11-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
+<!-- NOTE:  No 5.6-RELEASE is planned at this time.  This entity may -->
+<!-- be removed in the future to reduce potential confusion. -->
 <!ENTITY release.next "5.6-RELEASE">
 
 <!-- The name of this branch. -->
