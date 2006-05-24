@@ -1015,33 +1015,27 @@ get_exportlist()
 	}
 
 	for (i = 0; i < num; i++) {
+		iov[1].iov_base = fsp->f_fstypename;
+		iov[1].iov_len = strlen(fsp->f_fstypename) + 1;
+		iov[3].iov_base = fsp->f_mntonname;
+		iov[3].iov_len = strlen(fsp->f_mntonname) + 1;
+		iov[5].iov_base = fsp->f_mntfromname;
+		iov[5].iov_len = strlen(fsp->f_mntfromname) + 1;
 
-		if (!strcmp(fsp->f_fstypename, "ufs") ||
-		    !strcmp(fsp->f_fstypename, "msdosfs") ||
-		    !strcmp(fsp->f_fstypename, "ntfs") ||
-		    !strcmp(fsp->f_fstypename, "cd9660")) {
-			iov[1].iov_base = fsp->f_fstypename;
-			iov[1].iov_len = strlen(fsp->f_fstypename) + 1;
-			iov[3].iov_base = fsp->f_mntonname;
-			iov[3].iov_len = strlen(fsp->f_mntonname) + 1;
-			iov[5].iov_base = fsp->f_mntfromname;
-			iov[5].iov_len = strlen(fsp->f_mntfromname) + 1;
+		/*
+		 * Kick out MNT_ROOTFS.  It should not be passed from
+		 * userland to kernel.  It should only be used 
+		 * internally in the kernel.
+		 */
+		if (fsp->f_flags & MNT_ROOTFS) {
+			fsp->f_flags &= ~MNT_ROOTFS;
+		}
 
-			/*
-			 * Kick out MNT_ROOTFS.  It should not be passed from
-			 * userland to kernel.  It should only be used 
-			 * internally in the kernel.
-			 */
-			if (fsp->f_flags & MNT_ROOTFS) {
-				fsp->f_flags &= ~MNT_ROOTFS;
-			}
-
-			if (nmount(iov, iovlen, fsp->f_flags) < 0 &&
-			    errno != ENOENT) {
-				syslog(LOG_ERR,
-				    "can't delete exports for %s: %m %s",
-				    fsp->f_mntonname, errmsg);
-			}
+		if (nmount(iov, iovlen, fsp->f_flags) < 0 &&
+		    errno != ENOENT) {
+			syslog(LOG_ERR,
+			    "can't delete exports for %s: %m %s",
+			    fsp->f_mntonname, errmsg);
 		}
 		fsp++;
 	}
