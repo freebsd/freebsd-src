@@ -1888,6 +1888,7 @@ ffs_snapshot_mount(mp)
 	struct thread *td = curthread;
 	struct snapdata *sn;
 	struct vnode *vp;
+	struct vnode *lastvp;
 	struct inode *ip;
 	struct uio auio;
 	struct iovec aiov;
@@ -1905,6 +1906,7 @@ ffs_snapshot_mount(mp)
 	 * Process each snapshot listed in the superblock.
 	 */
 	vp = NULL;
+	lastvp = NULL;
 	sn = devvp->v_rdev->si_snapdata;
 	for (snaploc = 0; snaploc < FSMAXSNAP; snaploc++) {
 		if (fs->fs_snapinum[snaploc] == 0)
@@ -1975,7 +1977,9 @@ ffs_snapshot_mount(mp)
 		vp->v_vflag |= VV_SYSTEM;
 		VI_UNLOCK(devvp);
 		VOP_UNLOCK(vp, 0, td);
+		lastvp = vp;
 	}
+	vp = lastvp;
 	/*
 	 * No usable snapshots found.
 	 */
