@@ -38,7 +38,12 @@
  * $FreeBSD$
  */
 
+#include <err.h>
 #include <inttypes.h>
+#include <netgraph.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "ngctl.h"
 

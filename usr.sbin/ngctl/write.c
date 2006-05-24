@@ -33,6 +33,16 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#include <err.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <netgraph/ng_socket.h>
+
 #include "ngctl.h"
 
 #define BUF_SIZE	8192

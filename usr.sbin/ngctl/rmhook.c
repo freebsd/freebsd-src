@@ -37,6 +37,10 @@
  * $FreeBSD$
  */
 
+#include <err.h>
+#include <netgraph.h>
+#include <stdio.h>
+
 #include "ngctl.h"
 
 static int RmHookCmd(int ac, char **av);
