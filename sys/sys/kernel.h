@@ -57,9 +57,7 @@
 /* 1.1 */
 extern unsigned long hostid;
 extern char hostname[MAXHOSTNAMELEN];
-extern int hostnamelen;
 extern char domainname[MAXHOSTNAMELEN];
-extern int domainnamelen;
 extern char kernelname[MAXPATHLEN];
 
 extern int tick;			/* usec per tick (1000000 / hz) */
