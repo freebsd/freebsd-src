@@ -104,12 +104,18 @@
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
-    <para>No issues.</para>
+    <para>(24 May 2006) The NFSv4 client in &release.bugfix; is an
+      unfinished prototype, and there are a number of issues with it
+      (many documented in the &os; GNATS database) that make it
+      unusable in many situations.  Given the state of
+      &release.branch; development, it is unlikely that these will be
+      resolved on this development branch.</para>
+
   </sect1>
 
   <sect1 id="late-news">
     <title>Late-Breaking News</title>
 
-    <para>No issues.</para>
+    <para>No news.</para>
   </sect1>
 </article>
