@@ -98,9 +98,12 @@ procfs_attr(PFS_ATTR_ARGS)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	/* XXX inefficient, split into separate functions */
-	if (p->p_flag & P_SUGID)
-		vap->va_mode = 0;
-	else if (strcmp(pn->pn_name, "ctl") == 0 ||
+	if (p->p_flag & P_SUGID) {
+		if (pn->pn_type == pfstype_procdir)
+			vap->va_mode = 0555;
+		else
+			vap->va_mode = 0;
+	} else if (strcmp(pn->pn_name, "ctl") == 0 ||
 	    strcmp(pn->pn_name, "note") == 0 ||
 	    strcmp(pn->pn_name, "notepg") == 0)
 		vap->va_mode = 0200;
