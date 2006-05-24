@@ -449,8 +449,6 @@ g_bsd_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g_
  *
  * If flags == G_TF_NORMAL, the idea is to take a bite of the provider and
  * if we find valid, consistent magic on it, build a geom on it.
- * any magic bits which indicate that we should automatically put a BSD
- * geom on it.
  *
  * There may be cases where the operator would like to put a BSD-geom on
  * providers which do not meet all of the requirements.  This can be done
