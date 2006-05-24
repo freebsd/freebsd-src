@@ -36,6 +36,13 @@
  * $FreeBSD$
  */
 
+#include <err.h>
+#include <errno.h>
+#include <netgraph.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "ngctl.h"
 
 #define NOCONFIG	"<no config>"

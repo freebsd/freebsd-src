@@ -37,6 +37,11 @@
  * $FreeBSD$
  */
 
+#include <netgraph.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "ngctl.h"
 
 static int DebugCmd(int ac, char **av);
