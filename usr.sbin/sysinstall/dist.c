@@ -254,7 +254,7 @@ distSetKernDeveloper(dialogMenuItem *self)
 
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
-    SrcDists = DIST_SRC_SYS;
+    SrcDists = DIST_SRC_SYS | DIST_SRC_BASE;
     KernelDists = selectKernel();
     i = distMaybeSetPorts(self);
     distVerifyFlags();
