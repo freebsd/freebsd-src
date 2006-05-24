@@ -82,6 +82,15 @@ int
  */
 #define NEED1(msg)      {if (!ac) errx(EX_USAGE, msg);}
 
+#define NOT_NUMBER(str, msg) do {		\
+	char *c;				\
+	for (c = str; *c != '\0'; c++) {	\
+		if (isdigit(*c))		\
+			continue;		\
+		errx(EX_DATAERR, msg);		\
+	}					\
+} while (0)
+
 /*
  * _s_x is a structure that stores a string <-> token pairs, used in
  * various places in the parser. Entries are stored in arrays,
@@ -212,7 +221,10 @@ enum tokens {
 
 	TOK_ALTQ,
 	TOK_LOG,
+	TOK_TAG,
+	TOK_UNTAG,
 
+	TOK_TAGGED,
 	TOK_UID,
 	TOK_GID,
 	TOK_JAIL,
@@ -340,10 +352,13 @@ struct _s_x rule_actions[] = {
 struct _s_x rule_action_params[] = {
 	{ "altq",		TOK_ALTQ },
 	{ "log",		TOK_LOG },
+	{ "tag",		TOK_TAG },
+	{ "untag",		TOK_UNTAG },
 	{ NULL, 0 }	/* terminator */
 };
 
 struct _s_x rule_options[] = {
+	{ "tagged",		TOK_TAGGED },
 	{ "uid",		TOK_UID },
 	{ "gid",		TOK_GID },
 	{ "jail",		TOK_JAIL },
@@ -572,6 +587,7 @@ struct _s_x _port_name[] = {
 	{"ipttl",	O_IPTTL},
 	{"mac-type",	O_MAC_TYPE},
 	{"tcpdatalen",	O_TCPDATALEN},
+	{"tagged",	O_TAGGED},
 	{NULL,		0}
 };
 
@@ -1358,7 +1374,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 {
 	static int twidth = 0;
 	int l;
-	ipfw_insn *cmd;
+	ipfw_insn *cmd, *tagptr = NULL;
 	char *comment = NULL;	/* ptr to comment if we have one */
 	int proto = 0;		/* default */
 	int flags = 0;	/* prerequisites */
@@ -1500,6 +1516,10 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			altqptr = (ipfw_insn_altq *)cmd;
 			break;
 
+		case O_TAG:
+			tagptr = cmd;
+			break;
+
 		default:
 			printf("** unrecognized action %d len %d ",
 				cmd->opcode, cmd->len);
@@ -1519,6 +1539,12 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			printf(" altq ?<%u>", altqptr->qid);
 		else
 			printf(" altq %s", qname);
+	}
+	if (tagptr) {
+		if (tagptr->len & F_NOT)
+			printf(" untag %hu", tagptr->arg1);
+		else
+			printf(" tag %hu", tagptr->arg1);
 	}
 
 	/*
@@ -1904,6 +1930,14 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 
 			case O_EXT_HDR:
 				print_ext6hdr( (ipfw_insn *) cmd );
+				break;
+
+			case O_TAGGED:
+				if (F_LEN(cmd) == 1)
+				    printf(" tagged %hu", cmd->arg1 );
+				else
+				    print_newports((ipfw_insn_u16 *)cmd, 0,
+					O_TAGGED);
 				break;
 
 			default:
@@ -3775,7 +3809,7 @@ add(int ac, char *av[])
 	 * various flags used to record that we entered some fields.
 	 */
 	ipfw_insn *have_state = NULL;	/* check-state or keep-state */
-	ipfw_insn *have_log = NULL, *have_altq = NULL;
+	ipfw_insn *have_log = NULL, *have_altq = NULL, *have_tag = NULL;
 	size_t len;
 
 	int i;
@@ -4014,6 +4048,20 @@ chkarg:
 			fill_altq_qid(&a->qid, *av);
 			ac--; av++;
 		    }
+			break;
+
+		case TOK_TAG:
+		case TOK_UNTAG:
+			{
+			if (have_tag)
+				errx(EX_USAGE, "tag and untag cannot be specified more than once");
+			NEED1("missing tag number");
+			NOT_NUMBER(*av, "invalid tag number");
+			have_tag = cmd;
+			fill_cmd(cmd, O_TAG, (i == TOK_TAG) ? 0: F_NOT,
+			    strtoul(*av, NULL, 0));
+			ac--; av++;
+			}
 			break;
 
 		default:
@@ -4605,6 +4653,19 @@ read_options:
 			ac = 0;
 			break;
 
+		case TOK_TAGGED:
+			NEED1("missing tag number");
+			if (strpbrk(*av, "-,")) {
+				if (!add_ports(cmd, *av, 0, O_TAGGED))
+					errx(EX_DATAERR, "invalid tag %s", *av);
+			} else {
+				NOT_NUMBER(*av, "invalid tag number");
+				fill_cmd(cmd, O_TAGGED, 0,
+				    strtoul(*av, NULL, 0));
+			}
+			ac--; av++;
+			break;
+
 		default:
 			errx(EX_USAGE, "unrecognised option [%d] %s\n", i, s);
 		}
@@ -4641,9 +4702,8 @@ done:
 		fill_cmd(dst, O_PROBE_STATE, 0, 0);
 		dst = next_cmd(dst);
 	}
-	/*
-	 * copy all commands but O_LOG, O_KEEP_STATE, O_LIMIT, O_ALTQ
-	 */
+
+	/* copy all commands but O_LOG, O_KEEP_STATE, O_LIMIT, O_ALTQ, O_TAG */
 	for (src = (ipfw_insn *)cmdbuf; src != cmd; src += i) {
 		i = F_LEN(src);
 
@@ -4652,6 +4712,7 @@ done:
 		case O_KEEP_STATE:
 		case O_LIMIT:
 		case O_ALTQ:
+		case O_TAG:
 			break;
 		default:
 			bcopy(src, dst, i * sizeof(uint32_t));
@@ -4672,9 +4733,7 @@ done:
 	 */
 	rule->act_ofs = dst - rule->cmd;
 
-	/*
-	 * put back O_LOG, O_ALTQ if necessary
-	 */
+	/* put back O_LOG, O_ALTQ, O_TAG if necessary */
 	if (have_log) {
 		i = F_LEN(have_log);
 		bcopy(have_log, dst, i * sizeof(uint32_t));
@@ -4683,6 +4742,11 @@ done:
 	if (have_altq) {
 		i = F_LEN(have_altq);
 		bcopy(have_altq, dst, i * sizeof(uint32_t));
+		dst += i;
+	}
+	if (have_tag) {
+		i = F_LEN(have_tag);
+		bcopy(have_tag, dst, i * sizeof(uint32_t));
 		dst += i;
 	}
 	/*
