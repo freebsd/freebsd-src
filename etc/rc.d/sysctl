@@ -37,7 +37,7 @@ sysctl_start()
 					${val})
 						;;
 					*)
-						sysctl ${var}
+						sysctl "${var}"
 						;;
 					esac
 				elif [ "$1" = "last" ]; then
