@@ -248,6 +248,8 @@ nfssvc_iod(void *instance)
 	    if (error)
 		    break;
 	    while ((bp = TAILQ_FIRST(&nmp->nm_bufq)) != NULL) {
+	        int giant_locked = 0;
+		    
 		/* Take one off the front of the list */
 		TAILQ_REMOVE(&nmp->nm_bufq, bp, b_freelist);
 		nmp->nm_bufqlen--;
@@ -256,6 +258,10 @@ nfssvc_iod(void *instance)
 		    wakeup(&nmp->nm_bufq);
 		}
 		mtx_unlock(&nfs_iod_mtx);
+		if (NFS_ISV4(bp->b_vp)) {
+			giant_locked = 1;
+			mtx_lock(&Giant);
+		}
 		if (bp->b_flags & B_DIRECT) {
 			KASSERT((bp->b_iocmd == BIO_WRITE), ("nfscvs_iod: BIO_WRITE not set"));
 			(void)nfs_doio_directwrite(bp);
@@ -265,6 +271,8 @@ nfssvc_iod(void *instance)
 			else
 				(void) nfs_doio(bp->b_vp, bp, bp->b_wcred, NULL);
 		}
+		if (giant_locked)
+			mtx_unlock(&Giant);
 		mtx_lock(&nfs_iod_mtx);
 		/*
 		 * If there are more than one iod on this mount, then defect
