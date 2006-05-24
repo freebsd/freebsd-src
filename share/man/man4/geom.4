@@ -173,7 +173,7 @@ improve the overall flexibility.
 .It Em TASTING
 is a process that happens whenever a new class or new provider
 is created, and it provides the class a chance to automatically configure an
-instance on providers, which it recognizes as its own.
+instance on providers which it recognizes as its own.
 A typical example is the MBR disk-partition class which will look for
 the MBR table in the first sector and, if found and validated, will
 instantiate a geom to multiplex according to the contents of the MBR.
@@ -208,15 +208,15 @@ When a geom orphans a provider, all future I/O requests will
 on the provider with an error code set by the geom.
 Any
 consumers attached to the provider will receive notification about
-the orphanization when the eventloop gets around to it, and they
+the orphanization when the event loop gets around to it, and they
 can take appropriate action at that time.
 .Pp
 A geom which came into being as a result of a normal taste operation
-should self-destruct unless it has a way to keep functioning lacking
-the orphaned provider.
-Geoms like diskslicers should therefore self-destruct whereas
-RAID5 or mirror geoms will be able to continue, as long as they do
-not loose quorum.
+should self-destruct unless it has a way to keep functioning whilst
+lacking the orphaned provider.
+Geoms like disk slicers should therefore self-destruct whereas
+RAID5 or mirror geoms will be able to continue as long as they do
+not lose quorum.
 .Pp
 When a provider is orphaned, this does not necessarily result in any
 immediate change in the topology: any attached consumers are still
@@ -230,20 +230,20 @@ The typical scenario is:
 A device driver detects a disk has departed and orphans the provider for it.
 .It
 The geoms on top of the disk receive the orphanization event and
-orphans all their providers in turn.
-Providers, which are not attached to, will typically self-destruct
+orphan all their providers in turn.
+Providers which are not attached to will typically self-destruct
 right away.
 This process continues in a quasi-recursive fashion until all
-relevant pieces of the tree has heard the bad news.
+relevant pieces of the tree have heard the bad news.
 .It
 Eventually the buck stops when it reaches geom_dev at the top
 of the stack.
 .It
 Geom_dev will call
 .Xr destroy_dev 9
-to stop any more request from
+to stop any more requests from
 coming in.
-It will sleep until all (if any) outstanding I/O requests have
+It will sleep until any and all outstanding I/O requests have
 been returned.
 It will explicitly close (i.e.: zero the access counts), a change
 which will propagate all the way down through the mesh.
@@ -259,7 +259,7 @@ the cleanup is complete.
 While this approach seems byzantine, it does provide the maximum
 flexibility and robustness in handling disappearing devices.
 .Pp
-The one absolutely crucial detail to be aware is that if the
+The one absolutely crucial detail to be aware of is that if the
 device driver does not return all I/O requests, the tree will
 not unravel.
 .It Em SPOILING
@@ -269,7 +269,7 @@ It is probably easiest to understand spoiling by going through
 an example.
 .Pp
 Imagine a disk,
-.Pa da0
+.Pa da0 ,
 on top of which an MBR geom provides
 .Pa da0s1
 and
@@ -280,7 +280,7 @@ a BSD geom provides
 .Pa da0s1a
 through
 .Pa da0s1e ,
-both the MBR and BSD geoms have
+and that both the MBR and BSD geoms have
 autoconfigured based on data structures on the disk media.
 Now imagine the case where
 .Pa da0
@@ -292,21 +292,22 @@ can inform them otherwise.
 To avoid this situation, when the open of
 .Pa da0
 for write happens,
-all attached consumers are told about this, and geoms like
+all attached consumers are told about this and geoms like
 MBR and BSD will self-destruct as a result.
 When
 .Pa da0
-is closed again, it will be offered for tasting again
-and if the data structures for MBR and BSD are still there, new
+is closed, it will be offered for tasting again
+and, if the data structures for MBR and BSD are still there, new
 geoms will instantiate themselves anew.
 .Pp
 Now for the fine print:
 .Pp
 If any of the paths through the MBR or BSD module were open, they
-would have opened downwards with an exclusive bit rendering it
+would have opened downwards with an exclusive bit thus rendering it
 impossible to open
 .Pa da0
-for writing in that case and conversely
+for writing in that case.
+Conversely,
 the requested exclusive bit would render it impossible to open a
 path through the MBR geom while
 .Pa da0
@@ -316,42 +317,42 @@ From this it also follows that changing the size of open geoms can
 only be done with their cooperation.
 .Pp
 Finally: the spoiling only happens when the write count goes from
-zero to non-zero and the retasting only when the write count goes
+zero to non-zero and the retasting happens only when the write count goes
 from non-zero to zero.
 .It Em INSERT/DELETE
-are a very special operation which allows a new geom
+are very special operations which allow a new geom
 to be instantiated between a consumer and a provider attached to
 each other and to remove it again.
 .Pp
-To understand the utility of this, imagine a provider with
+To understand the utility of this, imagine a provider
 being mounted as a file system.
-Between the DEVFS geoms consumer and its provider we insert
+Between the DEVFS geom's consumer and its provider we insert
 a mirror module which configures itself with one mirror
 copy and consequently is transparent to the I/O requests
 on the path.
 We can now configure yet a mirror copy on the mirror geom,
 request a synchronization, and finally drop the first mirror
 copy.
-We have now in essence moved a mounted file system from one
+We have now, in essence, moved a mounted file system from one
 disk to another while it was being used.
 At this point the mirror geom can be deleted from the path
-again, it has served its purpose.
+again; it has served its purpose.
 .It Em CONFIGURE
 is the process where the administrator issues instructions
 for a particular class to instantiate itself.
 There are multiple
-ways to express intent in this case, a particular provider can be
-specified with a level of override forcing for instance a BSD
+ways to express intent in this case - a particular provider may be
+specified with a level of override forcing, for instance, a BSD
 disklabel module to attach to a provider which was not found palatable
 during the TASTE operation.
 .Pp
-Finally I/O is the reason we even do this: it concerns itself with
+Finally, I/O is the reason we even do this: it concerns itself with
 sending I/O requests through the graph.
-.It Em "I/O REQUESTS"
+.It Em "I/O REQUESTS" ,
 represented by
 .Vt "struct bio" ,
 originate at a consumer,
-are scheduled on its attached provider, and when processed, returned
+are scheduled on its attached provider and, when processed, are returned
 to the consumer.
 It is important to realize that the
 .Vt "struct bio"
