@@ -32,6 +32,8 @@
 #include <sys/module.h>
 
 #include <errno.h>
+#include <libutil.h>
+#include <string.h>
 
 int
 kld_isloaded(const char *name)
@@ -50,7 +52,7 @@ kld_isloaded(const char *name)
 			return (1);
 		/* strip .ko and try again */
 		if ((ko = strstr(fstat.name, ".ko")) != NULL &&
-		    strlen(name) == ko - fstat.name &&
+		    strlen(name) == (size_t)(ko - fstat.name) &&
 		    strncmp(fstat.name, name, ko - fstat.name) == 0)
 			return (1);
 		/* look for a matching module within the file */
