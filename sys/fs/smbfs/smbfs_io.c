@@ -683,6 +683,10 @@ smbfs_vinvalbuf(struct vnode *vp, struct thread *td)
 			return EINTR;
 	}
 	np->n_flag |= NFLUSHINPROG;
+
+	if (vp->v_bufobj.bo_object != NULL)
+		vm_object_page_clean(vp->v_bufobj.bo_object, 0, 0, OBJPC_SYNC);
+
 	error = vinvalbuf(vp, V_SAVE, td, PCATCH, 0);
 	while (error) {
 		if (error == ERESTART || error == EINTR) {
