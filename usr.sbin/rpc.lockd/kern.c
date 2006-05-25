@@ -151,6 +151,7 @@ client_request(void)
 
 	signal(SIGHUP, (sig_t)client_cleanup);
 	signal(SIGTERM, (sig_t)client_cleanup);
+	signal(SIGPIPE, SIG_IGN);
 
 	/* Setup. */
 	(void)time(&owner.tod);
