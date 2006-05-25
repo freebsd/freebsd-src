@@ -4,8 +4,6 @@
 
 PROG=	socketpair
 NO_MAN=
-
-socketpair: socketpair.c
-	gcc -Wall -o socketpair socketpair.c
+WARNS=	2
 
 .include <bsd.prog.mk>
