@@ -1669,13 +1669,14 @@ cpu	EV5</programlisting>
       <para>Features:</para>
         <itemizedlist>
 	  <listitem>
-	    <para>21264 EV6 CPU at 500 or 670 MHz</para>
+	    <para>21264 EV6 CPU at 500, 670 or 833 MHz</para>
 	  </listitem>
 	  <listitem>
 	    <para>dual CPU capable machine</para>
 	  </listitem>
 	  <listitem>
-	    <para>L2 / Bcache: 4 Mbytes per CPU</para>
+	    <para>L2 / Bcache: 4 Mbytes per CPU (500 and 670 MHz)</para>
+            <para>L2 / Bcache: 8 Mbytes per CPU (833 MHz)</para>
 	  </listitem>
 	  <listitem>
 	    <para>memory bus: dual 256 bit wide with crossbar switch</para>
@@ -1701,7 +1702,7 @@ cpu	EV5</programlisting>
 	    <para>21271 core logic chip set (<quote>Tsunami</quote>)</para>
 	  </listitem>
 	  <listitem>
-	    <para>embedded Adaptec ? Wide Ultra SCSI</para>
+	    <para>embedded Adaptec AIC-7895 Wide Ultra SCSI</para>
 	  </listitem>
 	  <listitem>
 	    <para>expansion:</para>
@@ -1736,11 +1737,12 @@ cpu	EV5</programlisting>
       <para>The DS20 is housed in a fat cube-like enclosure. The
       enclosure also contains a StorageWorks SCSI hot-swap shelf for a
       maximum of seven 3.5&quot; SCSI devices.  The DS20E is in a sleeker
-      case, and lacks the StorageWorks shelf.</para>
+      case, and lacks the StorageWorks shelf.  It can either be rackmounted
+      or floorstanding.</para>
 
       <para>The system has a smart power controller. This means that parts
       of the system remain powered when it is switched off (like an ATX-style
-      PC power supply). Before servicing the machine remove the
+      PC power supply). Before servicing the machine remove all
       power cord(s).</para>
     
       <para>The smart power controller is called the RMC. When enabled,
@@ -1749,15 +1751,17 @@ cpu	EV5</programlisting>
       reset the machine, monitor and set temperature trip levels etc. RMC
       has its own builtin help.</para>
 
-      <para>The embedded Adaptec SCSI chip on the DS20 is disabled and
-      is therefore not usable under &os;.</para>
+      <para>The embedded Adaptec SCSI on the DS20 is disabled and
+      is therefore not usable under &os;.  On the DS20E with recent SRM
+      console code you can use them with &os;.</para>
 
       <para>Starting with SRM firmware version 5.9 you can boot from
       Adaptec 2940-series adapters in addition to the usual set of
       Qlogic and Symbios/NCR adapters.  This unfortunately does not
       include the embedded Adaptec SCSI chips. You can use a KZPEA
       aka Adaptec 39160 for dual channel LVD U160 SCSI, which is 
-      bootable from SRM.</para>
+      bootable from SRM. For a single channel LVD Ultra2 SCSI adapter
+      you can use a LSI Logic / Symbios Sym8952u card.</para>
 
       <para>If you are using banks of DIMMs of different sizes the
       biggest DIMMs should be installed in the DIMM slots marked
