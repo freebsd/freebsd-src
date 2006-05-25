@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2002
+.Dd May 25, 2006
 .Os
 .Dt GEOM 4
 .Sh NAME
@@ -426,10 +426,8 @@ Allow writing to Rank 1 providers.
 This would, for example, allow the super-user to overwrite the MBR on the root
 disk or write random sectors elsewhere to a mounted disk.
 The implications are obvious.
-.It 0x20 Pq Dv G_T_DETAILS
-This appears to be unused at this time.
 .It 0x40 Pq Dv G_F_DISKIOCTL
-This appears to be unused at this time.
+This is unused at this time.
 .It 0x80 Pq Dv G_F_CTLDUMP
 Dump contents of gctl requests.
 .El
