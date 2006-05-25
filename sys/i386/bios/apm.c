@@ -23,10 +23,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/condvar.h>
 #include <sys/eventhandler.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/power.h>
 #include <sys/reboot.h>
@@ -98,10 +102,6 @@ static struct apmhook	*hook[NAPM_HOOK];		/* XXX */
 /* Map version number to integer (keeps ordering of version numbers) */
 #define INTVERSION(major, minor)	((major)*100 + (minor))
 
-static struct callout_handle apm_timeout_ch = 
-    CALLOUT_HANDLE_INITIALIZER(&apm_timeout_ch);
-
-static timeout_t apm_timeout;
 static d_open_t apmopen;
 static d_close_t apmclose;
 static d_write_t apmwrite;
@@ -728,31 +728,32 @@ apm_cpu_busy(void)
 
 
 /*
- * APM timeout routine:
+ * APM thread loop.
  *
- * This routine is automatically called by timer once per second.
+ * This routine wakes up from time to time to deal with delaying the
+ * suspend of the system, or other events.
  */
-
 static void
-apm_timeout(void *dummy)
+apm_event_thread(void *arg)
 {
 	struct apm_softc *sc = &apm_softc;
 
-	if (apm_op_inprog)
-		apm_lastreq_notify();
-
-	if (sc->standbys && sc->standby_countdown-- <= 0)
-		apm_do_standby();
-
-	if (sc->suspends && sc->suspend_countdown-- <= 0)
-		apm_do_suspend();
-
-	if (!sc->bios_busy)
-		apm_processevent();
-
-	if (sc->active == 1)
-		/* Run slightly more oftan than 1 Hz */
-		apm_timeout_ch = timeout(apm_timeout, NULL, hz - 1);
+	sc->running = 1;
+	while (sc->active) {
+		if (apm_op_inprog)
+			apm_lastreq_notify();
+		if (sc->standbys && sc->standby_countdown-- <= 0)
+			apm_do_standby();
+		if (sc->suspends && sc->suspend_countdown-- <= 0)
+			apm_do_suspend();
+		if (!sc->bios_busy)
+			apm_processevent();
+		mtx_lock(&sc->mtx);
+		cv_timedwait(&sc->cv, &sc->mtx, 10 * hz / 9);
+		mtx_unlock(&sc->mtx);
+	}
+	sc->running = 0;
+	kthread_exit(0);
 }
 
 /* enable APM BIOS */
@@ -766,8 +767,11 @@ apm_event_enable(void)
 	if (sc == NULL || sc->initialized == 0)
 		return;
 
+	/* Start the thread */
 	sc->active = 1;
-	apm_timeout(sc);
+	if (kthread_create(apm_event_thread, sc, &sc->event_thread, 0, 0,
+	    "apm worker"))
+		panic("Cannot create apm worker thread");
 
 	return;
 }
@@ -783,9 +787,14 @@ apm_event_disable(void)
 	if (sc == NULL || sc->initialized == 0)
 		return;
 
-	untimeout(apm_timeout, NULL, apm_timeout_ch);
+	mtx_lock(&sc->mtx);
 	sc->active = 0;
-
+	while (sc->running) {
+		cv_broadcast(&sc->cv);
+		msleep(sc->event_thread, &sc->mtx, PWAIT, "apmdie", 0);
+	}
+	mtx_unlock(&sc->mtx);
+	sc->event_thread = NULL;
 	return;
 }
 
@@ -1132,6 +1141,8 @@ apm_attach(device_t dev)
 #ifdef PC98
 	int			rid;
 #endif
+	mtx_init(&sc->mtx, device_get_nameunit(dev), "apm", MTX_DEF);
+	cv_init(&sc->cv, "cbb cv");
 
 	if (device_get_flags(dev) & 0x20)
 		statclock_disable = 1;
@@ -1223,6 +1234,7 @@ apm_attach(device_t dev)
 
 	sc->initialized = 1;
 	sc->suspending = 0;
+	sc->running = 0;
 
 	make_dev(&apm_cdevsw, 0, 0, 5, 0664, "apm");
 	make_dev(&apm_cdevsw, 8, 0, 5, 0660, "apmctl");

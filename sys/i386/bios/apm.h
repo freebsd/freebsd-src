@@ -29,7 +29,10 @@ struct apm_softc {
 	bus_space_handle_t	sc_ioh;
 	struct resource 	*sc_res;
 #endif
-	int	initialized, active, bios_busy;
+	struct mtx	mtx;
+	struct cv	cv;
+	struct proc	*event_thread;
+	int	initialized, active, running, bios_busy;
 	int	always_halt_cpu, slow_idle_cpu;
 	int	disabled, disengaged;
 	int	suspending;
