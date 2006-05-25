@@ -1313,7 +1313,9 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 	 * Now, flush as required.
 	 */
 	if ((flags & V_SAVE) && (vp->v_bufobj.bo_object != NULL)) {
+		VM_OBJECT_LOCK(vp->v_bufobj.bo_object);
 		vm_object_page_clean(vp->v_bufobj.bo_object, 0, 0, OBJPC_SYNC);
+		VM_OBJECT_UNLOCK(vp->v_bufobj.bo_object);
 		/*
 		 * If the page clean was interrupted, fail the invalidation.
 		 * Not doing so, we run the risk of losing dirty pages in the 
