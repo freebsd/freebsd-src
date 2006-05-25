@@ -1312,6 +1312,17 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 	/*
 	 * Now, flush as required.
 	 */
+	if ((flags & V_SAVE) && (vp->v_bufobj.bo_object != NULL)) {
+		vm_object_page_clean(vp->v_bufobj.bo_object, 0, 0, OBJPC_SYNC);
+		/*
+		 * If the page clean was interrupted, fail the invalidation.
+		 * Not doing so, we run the risk of losing dirty pages in the 
+		 * vinvalbuf() call below.
+		 */
+		if (intrflg && (error = nfs_sigintr(nmp, NULL, td)))
+			goto out;
+	}
+
 	error = vinvalbuf(vp, flags, td, slpflag, 0);
 	while (error) {
 		if (intrflg && (error = nfs_sigintr(nmp, NULL, td)))
