@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2000
+.Dd May 17, 2006
 .Dt NTPDATE 8
 .Os
 .Sh NAME
@@ -9,7 +9,7 @@
 .Nd set the date and time via NTP
 .Sh SYNOPSIS
 .Nm
-.Op Fl bBdoqsuv
+.Op Fl 46bBdoqsuv
 .Op Fl a Ar key
 .Op Fl e Ar authdelay
 .Op Fl k Ar keyfile
@@ -56,6 +56,12 @@ the interval between runs.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl 4
+Force DNS resolution of following host names on the command line to the
+IPv4 namespace.
+.It Fl 6
+Force DNS resolution of following host names on the command line to the
+IPv6 namespace.
 .It Fl a Ar key
 Enable the authentication function and specify the key
 identifier to be used for authentication as the argument
@@ -239,10 +245,17 @@ an alternative to running a daemon, doing so once every hour or two
 will result in precise enough timekeeping to avoid stepping the
 clock.
 .Pp
+Note that in contexts where a host name is expected, a
+.Fl 4
+qualifier preceding the host name forces DNS resolution to the
+IPv4 namespace, while a
+.Fl 6
+qualifier forces DNS resolution to the IPv6 namespace.
+.Pp
 If NetInfo support is compiled into
 .Nm ,
 then the
-.Ic server
+.Cm server
 argument is optional if
 .Nm
 can find a
