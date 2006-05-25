@@ -1802,6 +1802,7 @@ int
 kern_sendfile(struct thread *td, struct sendfile_args *uap,
     struct uio *hdr_uio, struct uio *trl_uio, int compat)
 {
+	struct file *sock_fp;
 	struct vnode *vp;
 	struct vm_object *obj = NULL;
 	struct socket *so = NULL;
@@ -1845,8 +1846,9 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 		error = EINVAL;
 		goto done;
 	}
-	if ((error = fgetsock(td, uap->s, &so, NULL)) != 0)
+	if ((error = getsock(td->td_proc->p_fd, uap->s, &sock_fp, NULL)) != 0)
 		goto done;
+	so = sock_fp->f_data;
 	if (so->so_type != SOCK_STREAM) {
 		error = EINVAL;
 		goto done;
@@ -2196,7 +2198,7 @@ done:
 		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	if (so)
-		fputsock(so);
+		fdrop(sock_fp, td);
 	if (m_header)
 		m_freem(m_header);
 
