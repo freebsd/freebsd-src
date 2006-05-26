@@ -73,13 +73,13 @@ static int	ofw_tty_param(struct tty *, struct termios *);
 static void	ofw_tty_stop(struct tty *, int);
 static void	ofw_timeout(void *);
 
-static cn_probe_t	ofw_cons_probe;
-static cn_init_t	ofw_cons_init;
-static cn_getc_t	ofw_cons_getc;
-static cn_checkc_t 	ofw_cons_checkc;
-static cn_putc_t	ofw_cons_putc;
+static cn_probe_t	ofw_cnprobe;
+static cn_init_t	ofw_cninit;
+static cn_term_t	ofw_cnterm;
+static cn_getc_t	ofw_cngetc;
+static cn_putc_t	ofw_cnputc;
 
-CONS_DRIVER(ofw, ofw_cons_probe, ofw_cons_init, NULL, ofw_cons_getc,
+CONSOLE_DRIVER(ofw)
     ofw_cons_checkc, ofw_cons_putc, NULL);
 
 static void
@@ -260,7 +260,7 @@ ofw_cons_probe(struct consdev *cp)
 }
 
 static void
-ofw_cons_init(struct consdev *cp)
+ofw_cninit(struct consdev *cp)
 {
 
 	/* XXX: This is the alias, but that should be good enough */
@@ -268,30 +268,13 @@ ofw_cons_init(struct consdev *cp)
 	cp->cn_tp = ofw_tp;
 }
 
-static int
-ofw_cons_getc(struct consdev *cp)
+static void
+ofw_cneterm(struct consdev *cp)
 {
-	unsigned char ch;
-	int l;
-
-	ch = '\0';
-
-	while ((l = OF_read(stdin, &ch, 1)) != 1) {
-		if (l != -2 && l != 0) {
-			return (-1);
-		}
-	}
-
-#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
-	if (kdb_alt_break(ch, &alt_break_state))
-		kdb_enter("Break sequence on console");
-#endif
-
-	return (ch);
 }
 
 static int
-ofw_cons_checkc(struct consdev *cp)
+ofw_cngetc(struct consdev *cp)
 {
 	unsigned char ch;
 
@@ -307,7 +290,7 @@ ofw_cons_checkc(struct consdev *cp)
 }
 
 static void
-ofw_cons_putc(struct consdev *cp, int c)
+ofw_cnputc(struct consdev *cp, int c)
 {
 	char cbuf;
 
