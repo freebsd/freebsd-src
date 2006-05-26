@@ -147,7 +147,6 @@ struct pv_addr abtstack;
 struct pv_addr kernelstack;
 struct pv_addr minidataclean;
 
-void enable_mmu(vm_offset_t);
 static struct trapframe proc0_tf;
 
 #define IQ80321_OBIO_BASE 0xfe800000UL
