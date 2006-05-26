@@ -183,11 +183,10 @@ static gdb_probe_f dcons_dbg_probe;
 static gdb_init_f dcons_dbg_init;
 static gdb_term_f dcons_dbg_term;
 static gdb_getc_f dcons_dbg_getc;
-static gdb_checkc_f dcons_dbg_checkc;
 static gdb_putc_f dcons_dbg_putc;
 
 GDB_DBGPORT(dcons, dcons_dbg_probe, dcons_dbg_init, dcons_dbg_term,
-    dcons_dbg_checkc, dcons_dbg_getc, dcons_dbg_putc);
+    dcons_dbg_getc, dcons_dbg_putc);
 
 extern struct gdb_dbgport *gdb_cur;
 #endif
@@ -730,13 +729,6 @@ dcons_dbg_putc(int c)
 {
 	struct dcons_softc *dc = &sc[DCONS_GDB];
 	dcons_os_putc(dc, c);
-}
-
-static int
-dcons_dbg_checkc(void)
-{
-	struct dcons_softc *dc = &sc[DCONS_GDB];
-	return (dcons_os_checkc(dc));
 }
 
 static int
