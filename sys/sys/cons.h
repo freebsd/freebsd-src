@@ -86,6 +86,16 @@ struct consdev {
 	};								\
 	DATA_SET(cons_set, name##_consdev)
 
+#define CONSOLE_DRIVER(name)						\
+	static struct consdev name##_consdev = {			\
+		.cn_probe = name##_cnprobe,				\
+		.cn_init = name##_cninit,				\
+		.cn_term = name##_cnterm,				\
+		.cn_getc = name##_cngetc,				\
+		.cn_putc = name##_cnputc,				\
+	};								\
+	DATA_SET(cons_set, name##_consdev)
+
 /* Other kernel entry points. */
 void	cninit(void);
 void	cninit_finish(void);
