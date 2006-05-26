@@ -446,7 +446,7 @@ struct mpt_raid_volume {
 	CONFIG_PAGE_RAID_VOL_0	       *config_page;
 	MPI_RAID_VOL_INDICATOR		sync_progress;
 	mpt_raid_volume_flags		flags;
-	u_int				quieced_disks;
+	u_int				quiesced_disks;
 };
 
 typedef enum {
@@ -490,8 +490,9 @@ struct mpt_softc {
 				: 1,
 		twildcard	: 1,
 		tenabled	: 1,
-				: 2,
 		role		: 2,	/* none, ini, target, both */
+				: 1,
+		raid_enabled	: 1,
 		raid_mwce_set	: 1,
 		getreqwaiter	: 1,
 		shutdwn_raid    : 1,
@@ -932,6 +933,8 @@ typedef struct mpt_decode_entry {
 int mpt_decode_value(mpt_decode_entry_t *table, u_int num_entries,
 		     const char *name, u_int value, u_int *cur_column,
 		     u_int wrap_point);
+
+void mpt_dump_request(struct mpt_softc *, request_t *);
 
 enum {
 	MPT_PRT_ALWAYS,
