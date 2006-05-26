@@ -1206,26 +1206,8 @@ retry:
 void
 mpt_send_cmd(struct mpt_softc *mpt, request_t *req)
 {
-	uint32_t *pReq;
-
-	pReq = req->req_vbuf;
 	if (mpt->verbose > MPT_PRT_TRACE) {
-		int offset;
-#if __FreeBSD_version >= 500000
-		mpt_prt(mpt, "Send Request %d (%jx):",
-		    req->index, (uintmax_t) req->req_pbuf);
-#else
-		mpt_prt(mpt, "Send Request %d (%llx):",
-		    req->index, (unsigned long long) req->req_pbuf);
-#endif
-		for (offset = 0; offset < mpt->request_frame_size; offset++) {
-			if ((offset & 0x7) == 0) {
-				mpt_prtc(mpt, "\n");
-				mpt_prt(mpt, " ");
-			}
-			mpt_prtc(mpt, " %08x", pReq[offset]);
-		}
-		mpt_prtc(mpt, "\n");
+		mpt_dump_request(mpt, req);
 	}
 	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
 	    BUS_DMASYNC_PREWRITE);
