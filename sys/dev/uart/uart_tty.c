@@ -54,11 +54,9 @@ static cn_probe_t uart_cnprobe;
 static cn_init_t uart_cninit;
 static cn_term_t uart_cnterm;
 static cn_getc_t uart_cngetc;
-static cn_checkc_t uart_cncheckc;
 static cn_putc_t uart_cnputc;
 
-CONS_DRIVER(uart, uart_cnprobe, uart_cninit, uart_cnterm, uart_cngetc,
-    uart_cncheckc, uart_cnputc, NULL);
+CONSOLE_DRIVER(uart);
 
 static struct uart_devinfo uart_console;
 
@@ -118,17 +116,10 @@ uart_cnputc(struct consdev *cp, int c)
 }
 
 static int
-uart_cncheckc(struct consdev *cp)
-{
-
-	return (uart_poll(cp->cn_arg));
-}
-
-static int
 uart_cngetc(struct consdev *cp)
 {
 
-	return (uart_getc(cp->cn_arg));
+	return (uart_poll(cp->cn_arg));
 }
 
 static int
