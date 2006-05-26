@@ -138,6 +138,7 @@ static const char *global_opts[] = {
 	"rw",
 	"suid",
 	"exec",
+	"update",
 	NULL
 };
 
