@@ -217,15 +217,13 @@ static int update_kbd_state(scr_stat *scp, int state, int mask);
 static int update_kbd_leds(scr_stat *scp, int which);
 static timeout_t blink_screen;
 
-static cn_probe_t	sccnprobe;
-static cn_init_t	sccninit;
-static cn_getc_t	sccngetc;
-static cn_checkc_t	sccncheckc;
-static cn_putc_t	sccnputc;
-static cn_term_t	sccnterm;
+static cn_probe_t	sc_cnprobe;
+static cn_init_t	sc_cninit;
+static cn_term_t	sc_cnterm;
+static cn_getc_t	sc_cngetc;
+static cn_putc_t	sc_cnputc;
 
-CONS_DRIVER(sc, sccnprobe, sccninit, sccnterm, sccngetc, sccncheckc, sccnputc,
-	    NULL);
+CONSOLE_DRIVER(sc);
 
 static	d_open_t	scopen;
 static	d_close_t	scclose;
@@ -1404,7 +1402,7 @@ scstart(struct tty *tp)
 }
 
 static void
-sccnprobe(struct consdev *cp)
+sc_cnprobe(struct consdev *cp)
 {
     int unit;
     int flags;
@@ -1426,7 +1424,7 @@ sccnprobe(struct consdev *cp)
 }
 
 static void
-sccninit(struct consdev *cp)
+sc_cninit(struct consdev *cp)
 {
     int unit;
     int flags;
@@ -1439,7 +1437,7 @@ sccninit(struct consdev *cp)
 }
 
 static void
-sccnterm(struct consdev *cp)
+sc_cnterm(struct consdev *cp)
 {
     /* we are not the kernel console any more, release everything */
 
@@ -1457,7 +1455,7 @@ sccnterm(struct consdev *cp)
 }
 
 static void
-sccnputc(struct consdev *cd, int c)
+sc_cnputc(struct consdev *cd, int c)
 {
     u_char buf[1];
     scr_stat *scp = sc_console;
@@ -1499,13 +1497,7 @@ sccnputc(struct consdev *cd, int c)
 }
 
 static int
-sccngetc(struct consdev *cd)
-{
-    return sccngetch(0);
-}
-
-static int
-sccncheckc(struct consdev *cd)
+sc_cngetc(struct consdev *cd)
 {
     return sccngetch(SCGETC_NONBLOCK);
 }
