@@ -299,7 +299,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	}
 
 	/*
-	 * Register exactly the bus.
+	 * Register exactly this bus.
 	 */
 	if (xpt_bus_register(mpt->sim, 0) != CAM_SUCCESS) {
 		mpt_prt(mpt, "Bus registration Failed!\n");
@@ -335,7 +335,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	}
 
 	/*
-	 * Register exactly the bus.
+	 * Register this bus.
 	 */
 	if (xpt_bus_register(mpt->phydisk_sim, 1) != CAM_SUCCESS) {
 		mpt_prt(mpt, "Physical Disk Bus registration Failed!\n");
@@ -687,8 +687,8 @@ mpt_set_initial_config_spi(struct mpt_softc *mpt)
 	i = mpt->mpt_port_page2.PortSettings &
 	    MPI_SCSIPORTPAGE2_PORT_MASK_NEGO_MASTER_SETTINGS;
 	if (i == MPI_SCSIPORTPAGE2_PORT_ALL_MASTER_SETTINGS) {
-		mpt_lprt(mpt, MPT_PRT_INFO,
-		    "honoring BIOS transfer negotiation for all targets\n");
+		mpt_lprt(mpt, /* MPT_PRT_INFO */ MPT_PRT_ALWAYS,
+		    "honoring BIOS transfer negotiations\n");
 		return (0);
 	}
 	for (i = 0; i < 16; i++) {
@@ -828,10 +828,11 @@ mpt_execute_req_a64(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	struct mpt_softc *mpt;
 	int seg, first_lim;
 	uint32_t flags, nxt_off;
-	void *sglp;
+	void *sglp = NULL;
 	MSG_REQUEST_HEADER *hdrp;
 	SGE_SIMPLE64 *se;
 	SGE_CHAIN64 *ce;
+	int istgt = 0;
 
 	req = (request_t *)arg;
 	ccb = req->ccb;
@@ -842,17 +843,28 @@ mpt_execute_req_a64(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	hdrp = req->req_vbuf;
 	mpt_off = req->req_vbuf;
 
-	if (hdrp->Function == MPI_FUNCTION_SCSI_IO_REQUEST) {
-		sglp = &((PTR_MSG_SCSI_IO_REQUEST)hdrp)->SGL;
-	} else /* if (hdrp->Function == MPI_FUNCTION_TARGET_ASSIST) */ {
-		sglp = &((PTR_MSG_TARGET_ASSIST_REQUEST)hdrp)->SGL;
-	}
-
-
 	if (error == 0 && ((uint32_t)nseg) >= mpt->max_seg_cnt) {
 		error = EFBIG;
 	}
 
+	if (error == 0) {
+		switch (hdrp->Function) {
+		case MPI_FUNCTION_SCSI_IO_REQUEST:
+		case MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH:
+			istgt = 0;
+			sglp = &((PTR_MSG_SCSI_IO_REQUEST)hdrp)->SGL;
+			break;
+		case MPI_FUNCTION_TARGET_ASSIST:
+			istgt = 1;
+			sglp = &((PTR_MSG_TARGET_ASSIST_REQUEST)hdrp)->SGL;
+			break;
+		default:
+			mpt_prt(mpt, "bad fct 0x%x in mpt_execute_req_a64\n",
+			    hdrp->Function);
+			error = EINVAL;
+			break;
+		}
+	}
 bad:
 	if (error != 0) {
 		if (error != EFBIG && error != ENOMEM) {
@@ -912,7 +924,7 @@ bad:
 
 
 	flags = MPI_SGE_FLAGS_SIMPLE_ELEMENT | MPI_SGE_FLAGS_64_BIT_ADDRESSING;
-	if (hdrp->Function == MPI_FUNCTION_SCSI_IO_REQUEST) {
+	if (istgt == 0) {
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
 			flags |= MPI_SGE_FLAGS_HOST_TO_IOC;
 		}
@@ -924,7 +936,7 @@ bad:
 
 	if (!(ccb->ccb_h.flags & (CAM_SG_LIST_PHYS|CAM_DATA_PHYS))) {
 		bus_dmasync_op_t op;
-		if (hdrp->Function == MPI_FUNCTION_SCSI_IO_REQUEST) {
+		if (istgt == 0) {
 			if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
 				op = BUS_DMASYNC_PREREAD;
 			} else {
@@ -1208,10 +1220,11 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	struct mpt_softc *mpt;
 	int seg, first_lim;
 	uint32_t flags, nxt_off;
-	void *sglp;
+	void *sglp = NULL;
 	MSG_REQUEST_HEADER *hdrp;
 	SGE_SIMPLE32 *se;
 	SGE_CHAIN32 *ce;
+	int istgt = 0;
 
 	req = (request_t *)arg;
 	ccb = req->ccb;
@@ -1223,12 +1236,27 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	mpt_off = req->req_vbuf;
 
 
-	if (hdrp->Function == MPI_FUNCTION_SCSI_IO_REQUEST) {
-		sglp = &((PTR_MSG_SCSI_IO_REQUEST)hdrp)->SGL;
-	} else /* if (hdrp->Function == MPI_FUNCTION_TARGET_ASSIST) */ {
-		sglp = &((PTR_MSG_TARGET_ASSIST_REQUEST)hdrp)->SGL;
+	if (error == 0 && ((uint32_t)nseg) >= mpt->max_seg_cnt) {
+		error = EFBIG;
 	}
 
+	if (error == 0) {
+		switch (hdrp->Function) {
+		case MPI_FUNCTION_SCSI_IO_REQUEST:
+		case MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH:
+			sglp = &((PTR_MSG_SCSI_IO_REQUEST)hdrp)->SGL;
+			break;
+		case MPI_FUNCTION_TARGET_ASSIST:
+			istgt = 1;
+			sglp = &((PTR_MSG_TARGET_ASSIST_REQUEST)hdrp)->SGL;
+			break;
+		default:
+			mpt_prt(mpt, "bad fct 0x%x in mpt_execute_req\n",
+			    hdrp->Function);
+			error = EINVAL;
+			break;
+		}
+	}
 
 	if (error == 0 && ((uint32_t)nseg) >= mpt->max_seg_cnt) {
 		error = EFBIG;
@@ -1292,7 +1320,7 @@ bad:
 
 
 	flags = MPI_SGE_FLAGS_SIMPLE_ELEMENT;
-	if (hdrp->Function == MPI_FUNCTION_SCSI_IO_REQUEST) {
+	if (istgt) {
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
 			flags |= MPI_SGE_FLAGS_HOST_TO_IOC;
 		}
@@ -1304,7 +1332,7 @@ bad:
 
 	if (!(ccb->ccb_h.flags & (CAM_SG_LIST_PHYS|CAM_DATA_PHYS))) {
 		bus_dmasync_op_t op;
-		if (hdrp->Function == MPI_FUNCTION_SCSI_IO_REQUEST) {
+		if (istgt) {
 			if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
 				op = BUS_DMASYNC_PREREAD;
 			} else {
@@ -1604,14 +1632,6 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	} else {
 		cb = mpt_execute_req;
 	}
-
-#if 0
-	COWWWWW
-	if (raid_passthru) {
-		status = mpt_raid_quiesce_disk(mpt, mpt->raid_disks + ccb->ccb_h.target_id,
-		     request_t *req)
-	}
-#endif 
 
 	/*
 	 * Link the ccb and the request structure so we can find
@@ -2625,9 +2645,9 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	    ccb->ccb_h.func_code != XPT_RESET_BUS) {
 		CAMLOCK_2_MPTLOCK(mpt);
 		if (mpt_map_physdisk(mpt, ccb, &tgt) != 0) {
+			MPTLOCK_2_CAMLOCK(mpt);
 			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 			mpt_set_ccb_status(ccb, CAM_DEV_NOT_THERE);
-			MPTLOCK_2_CAMLOCK(mpt);
 			xpt_done(ccb);
 			return;
 		}
@@ -2644,7 +2664,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			if ((ccb->ccb_h.flags & CAM_CDB_PHYS) != 0) {
 				ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 				mpt_set_ccb_status(ccb, CAM_REQ_INVALID);
-				xpt_done(ccb);
 				break;
 			}
 		}
@@ -2654,18 +2673,17 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		    sizeof (((PTR_MSG_SCSI_IO_REQUEST)0)->CDB)) {
 			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 			mpt_set_ccb_status(ccb, CAM_REQ_INVALID);
-			xpt_done(ccb);
-			return;
+			break;
 		}
 		ccb->csio.scsi_status = SCSI_STATUS_OK;
 		mpt_start(sim, ccb);
-		break;
+		return;
 
 	case XPT_RESET_BUS:
 		mpt_lprt(mpt, MPT_PRT_DEBUG, "XPT_RESET_BUS\n");
-		if (!raid_passthru) {
+		if (raid_passthru == 0) {
 			CAMLOCK_2_MPTLOCK(mpt);
-			(void)mpt_bus_reset(mpt, /*sleep_ok*/FALSE);
+			(void)mpt_bus_reset(mpt, FALSE);
 			MPTLOCK_2_CAMLOCK(mpt);
 		}
 		/*
@@ -2675,7 +2693,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		 */
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		mpt_set_ccb_status(ccb, CAM_REQ_CMP);
-		xpt_done(ccb);
 		break;
 		
 	case XPT_ABORT:
@@ -2699,7 +2716,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 		}
 		MPTLOCK_2_CAMLOCK(mpt);
-		xpt_done(ccb);
 		break;
 	}
 
@@ -2737,12 +2753,10 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		if (!IS_CURRENT_SETTINGS(cts)) {
 			mpt_prt(mpt, "Attempt to set User settings\n");
 			mpt_set_ccb_status(ccb, CAM_REQ_INVALID);
-			xpt_done(ccb);
 			break;
 		}
 		if (mpt->is_fc || mpt->is_sas) {
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
-			xpt_done(ccb);
 			break;
 		}
 
@@ -2750,7 +2764,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		if ((m & MPI_SCSIPORTPAGE2_PORT_MASK_NEGO_MASTER_SETTINGS) ==
 		    MPI_SCSIPORTPAGE2_PORT_ALL_MASTER_SETTINGS) {
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
-			xpt_done(ccb);
 			break;
 		}
 
@@ -2839,7 +2852,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		    "SET tgt %d flags %x period %x off %x\n",
 		    tgt, dval, period, offset);
 		mpt_set_ccb_status(ccb, CAM_REQ_CMP);
-		xpt_done(ccb);
 		break;
 	}
 	case XPT_GET_TRAN_SETTINGS:
@@ -2899,12 +2911,10 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			if (mpt_get_spi_settings(mpt, cts) != 0) {
 				mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
-				xpt_done(ccb);
-				return;
+				break;
 			}
 		}
 		mpt_set_ccb_status(ccb, CAM_REQ_CMP);
-		xpt_done(ccb);
 		break;
 
 	case XPT_CALC_GEOMETRY:
@@ -2915,12 +2925,10 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		if (ccg->block_size == 0) {
 			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 			mpt_set_ccb_status(ccb, CAM_REQ_INVALID);
-			xpt_done(ccb);
 			break;
 		}
 		mpt_calc_geometry(ccg, /*extended*/1);
 		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d\n", __LINE__));
-		xpt_done(ccb);
 		break;
 	}
 	case XPT_PATH_INQ:		/* Path routing inquiry */
@@ -2933,21 +2941,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_lun = 7;
 		cpi->bus_id = cam_sim_bus(sim);
 		/* XXX Report base speed more accurately for FC/SAS, etc.*/
-		if (raid_passthru) {
-			cpi->max_target = mpt->ioc_page2->MaxPhysDisks;
-			cpi->hba_misc = PIM_NOBUSRESET;
-			cpi->initiator_id = cpi->max_target + 1;
-			cpi->hba_inquiry = PI_TAG_ABLE;
-			if (mpt->is_fc) {
-				cpi->base_transfer_speed = 100000;
-			} else if (mpt->is_sas) {
-				cpi->base_transfer_speed = 300000;
-			} else {
-				cpi->base_transfer_speed = 3300;
-				cpi->hba_inquiry |=
-				    PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
-			}
-		} else if (mpt->is_fc) {
+		if (mpt->is_fc) {
 			/* XXX SHOULD BE BASED UPON IOC FACTS XXX XXX */
 			cpi->max_target = 255;
 			cpi->hba_misc = PIM_NOBUSRESET;
@@ -2961,11 +2955,15 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->base_transfer_speed = 300000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
 		} else {
+			cpi->max_target = 15;
+			cpi->hba_misc = 0;
 			cpi->initiator_id = mpt->mpt_ini_id;
 			cpi->base_transfer_speed = 3300;
 			cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
-			cpi->hba_misc = 0;
-			cpi->max_target = 15;
+		}
+		if (raid_passthru) {
+			cpi->max_target = mpt->ioc_page2->MaxPhysDisks;
+			cpi->initiator_id = cpi->max_target+1;
 		}
 
 		if ((mpt->role & MPT_ROLE_INITIATOR) == 0) {
@@ -2982,7 +2980,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
 		cpi->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(ccb);
 		break;
 	}
 	case XPT_EN_LUN:		/* Enable LUN as a target */
@@ -3002,7 +2999,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
 		}
-		xpt_done(ccb);
 		break;
 	}
 	case XPT_NOTIFY_ACK:		/* recycle notify ack */
@@ -3018,13 +3014,11 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		if (lun == CAM_LUN_WILDCARD) {
 			if (ccb->ccb_h.target_id != CAM_TARGET_WILDCARD) {
 				mpt_set_ccb_status(ccb, CAM_REQ_INVALID);
-				xpt_done(ccb);
 				break;
 			}
 			trtp = &mpt->trt_wildcard;
 		} else if (lun >= MPT_MAX_LUNS) {
 			mpt_set_ccb_status(ccb, CAM_REQ_INVALID);
-			xpt_done(ccb);
 			break;
 		} else {
 			trtp = &mpt->trt[lun];
@@ -3054,9 +3048,9 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	default:
 		ccb->ccb_h.status = CAM_REQ_INVALID;
-		xpt_done(ccb);
 		break;
 	}
+	xpt_done(ccb);
 }
 
 static int
@@ -3470,6 +3464,7 @@ mpt_recover_commands(struct mpt_softc *mpt)
 		 */
 		switch (hdrp->Function) {
 		case MPI_FUNCTION_SCSI_IO_REQUEST:
+		case MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH:
 			break;
 		default:
 			/*
