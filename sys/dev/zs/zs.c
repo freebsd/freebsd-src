@@ -129,7 +129,6 @@ static cn_probe_t zs_cnprobe;
 static cn_init_t zs_cninit;
 static cn_term_t zs_cnterm;
 static cn_getc_t zs_cngetc;
-static cn_checkc_t zs_cncheckc;
 static cn_putc_t zs_cnputc;
 
 static int zstty_cngetc(struct zstty_softc *sc);
@@ -155,8 +154,7 @@ static struct cdevsw zstty_cdevsw = {
 
 static struct zstty_softc *zstty_cons;
 
-CONS_DRIVER(zs, zs_cnprobe, zs_cninit, zs_cnterm, zs_cngetc, zs_cncheckc,
-    zs_cnputc, NULL);
+CONSOLE_DRIVER(zs);
 
 int
 zs_probe(device_t dev)
@@ -830,16 +828,6 @@ zs_cnterm(struct consdev *cn)
 
 static int
 zs_cngetc(struct consdev *cn)
-{
-	struct zstty_softc *sc = zstty_cons;
-
-	if (sc == NULL)
-		return (-1);
-	return (zstty_cngetc(sc));
-}
-
-static int
-zs_cncheckc(struct consdev *cn)
 {
 	struct zstty_softc *sc = zstty_cons;
 
