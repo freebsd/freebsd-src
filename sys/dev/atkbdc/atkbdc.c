@@ -153,6 +153,10 @@ atkbdc_configure(void)
 	bus_space_tag_t tag;
 	bus_space_handle_t h0;
 	bus_space_handle_t h1;
+#if defined(__i386__)
+	volatile int i;
+	register_t flags;
+#endif
 #ifdef __sparc64__
 	char name[32];
 	phandle_t chosen, node;
@@ -219,6 +223,26 @@ atkbdc_configure(void)
 	h1 = (bus_space_handle_t)port1;
 #endif
 #endif
+
+#if defined(__i386__)
+	/*
+	 * Check if we really have AT keyboard controller. Poll status
+	 * register until we get "all clear" indication. If no such
+	 * indication comes, it probably means that there is no AT
+	 * keyboard controller present. Give up in such case. Check relies
+	 * on the fact that reading from non-existing in/out port returns
+	 * 0xff on i386. May or may not be true on other platforms.
+	 */
+	flags = intr_disable();
+	for (i = 0; i != 65535; i++) {
+		if ((bus_space_read_1(tag, h1, 0) & 0x2) == 0)
+			break;
+	}
+	intr_restore(flags);
+	if (i == 65535)
+                return ENXIO;
+#endif
+
 	return atkbdc_setup(atkbdc_softc[0], tag, h0, h1);
 }
 
