@@ -1289,20 +1289,22 @@ cpu	EV5</programlisting>
       the type of CPU (EV4 or EV5) must match the mainboard in use.</para>
 
       <para>AlphaServer 800 has a much smaller mini tower case, it lacks the 
-      StorageWorks SCSI hot-plug chassis. The main difference between AS1000 
-      and AS1000A is that AS1000A has 7 PCI slots whereas AS1000 only has 3 
-      PCI slots and has EISA slots instead.</para>
+      StorageWorks SCSI hot-plug chassis. Instead, it has a disk cage that
+      allows up to 4 fullheight 3.5" SCA SCSI disks to be installed.  The
+      carriers used to mount the disks are specific to the AlphaServer 800.
+      The main difference between AS1000 and AS1000A is that AS1000A has 
+      7 PCI slots whereas AS1000 only has 3 PCI slots and has EISA 
+      slots instead.</para>
 
       <para>AS800 with an EV5/400 MHz CPU was later re-branded to become a 
       <quote>DIGITAL Server 3300[R]</quote>, AS800 with an EV5/500 MHz 
-      CPU was later re-branded to become a 
-      <quote>DIGITAL Server 3305[R]</quote>.</para>
+      CPU was later re-branded to become a <quote>DIGITAL Server 3305[R]</quote>.</para>
 
       <para>Features:</para>
       <itemizedlist>
        <listitem>
         <para>21064 EV4[5] CPU at 200, 233 or 266 MHz
-        21164 EV5[6] CPU at 300, 333 or 400 MHz (or 500 MHz for 
+        21164 EV5[6] CPU at 300, 333 or 400 MHz (or 500 MHz, for 
 	AS800 only)</para>
        </listitem>
        <listitem>
@@ -1327,7 +1329,8 @@ cpu	EV5</programlisting>
 	    </itemizedlist>
           </listitem>
 	  <listitem>
-	   <para>AS800: Uses 60ns 3.3 Volts EDO DIMMs</para>
+	   <para>AS800: Uses 60ns 3.3 Volts EDO DIMMs. 8 DIMM sockets are
+           provided.</para>
 	  </listitem>
          </itemizedlist>
        </listitem>
@@ -1364,7 +1367,7 @@ cpu	EV5</programlisting>
       start in slots marked bank 0. A bank is four physically adjacent slots. 
       The biggest size DIMMs must be installed in bank 0 in case 2 banks 
       of different DIMM sizes are used. Max memory size is 2GB. Note 
-      that these are EDO DIMMs.</para>
+      that it uses buffered EDO DIMMs.</para>
 
       <para>The AS1000/800 are somewhat stubborn when it comes to serial
       consoles. They need</para>
