@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 9, 2006
+.Dd May 26, 2006
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -114,10 +114,11 @@ Please see the
 man page for further details.
 .Sh EXAMPLES
 .Ss "Setting up a Jail Directory Tree"
-This example shows how to set up a jail directory tree
-containing an entire
+To set up a jail directory tree containing an entire
 .Fx
-distribution:
+distribution, the following
+.Xr sh 1
+command script can be used:
 .Bd -literal
 D=/here/is/the/jail
 cd /usr/src
@@ -333,6 +334,7 @@ If you do decide to set this variable,
 it must be set before starting any jails, and once each boot.
 .Bd -literal -offset indent
 ifconfig ed0 inet alias 192.168.11.100/32
+mount_devfs devfs /data/jail/192.168.11.100/dev
 mount -t procfs proc /data/jail/192.168.11.100/proc
 jail /data/jail/192.168.11.100 testhostname 192.168.11.100 \\
 	/bin/sh /etc/rc
