@@ -2276,12 +2276,10 @@ static void siocntxwait(Port_t iobase);
 static cn_probe_t sio_cnprobe;
 static cn_init_t sio_cninit;
 static cn_term_t sio_cnterm;
-static cn_checkc_t sio_cncheckc;
 static cn_getc_t sio_cngetc;
 static cn_putc_t sio_cnputc;
 
-CONS_DRIVER(sio, sio_cnprobe, sio_cninit, sio_cnterm, sio_cngetc, sio_cncheckc,
-	    sio_cnputc, NULL);
+CONSOLE_DRIVER(sio);
 
 static void
 siocntxwait(iobase)
@@ -2500,7 +2498,7 @@ sio_cnterm(cp)
 }
 
 static int
-sio_cncheckc(struct consdev *cd)
+sio_cngetc(struct consdev *cd)
 {
 	int	c;
 	Port_t	iobase;
@@ -2525,36 +2523,6 @@ sio_cncheckc(struct consdev *cd)
 		c = inb(iobase + com_data);
 	else
 		c = -1;
-	siocnclose(&sp, iobase);
-	splx(s);
-	return (c);
-}
-
-static int
-sio_cngetc(struct consdev *cd)
-{
-	int	c;
-	Port_t	iobase;
-	int	s;
-	struct siocnstate	sp;
-	speed_t	speed;
-
-	if (cd != NULL && cd->cn_unit == siocnunit) {
-		iobase = siocniobase;
-		speed = comdefaultrate;
-	} else {
-#ifdef GDB
-		iobase = siogdbiobase;
-		speed = gdbdefaultrate;
-#else
-		return (-1);
-#endif
-	}
-	s = spltty();
-	siocnopen(&sp, iobase, speed);
-	while (!(inb(iobase + com_lsr) & LSR_RXRDY))
-		;
-	c = inb(iobase + com_data);
 	siocnclose(&sp, iobase);
 	splx(s);
 	return (c);
@@ -2607,10 +2575,9 @@ static gdb_probe_f siogdbprobe;
 static gdb_init_f siogdbinit;
 static gdb_term_f siogdbterm;
 static gdb_getc_f siogdbgetc;
-static gdb_checkc_f siogdbcheckc;
 static gdb_putc_f siogdbputc;
 
-GDB_DBGPORT(sio, siogdbprobe, siogdbinit, siogdbterm, siogdbcheckc,
+GDB_DBGPORT(sio, siogdbprobe, siogdbinit, siogdbterm, NULL,
     siogdbgetc, siogdbputc);
 
 static int
@@ -2636,15 +2603,14 @@ siogdbputc(int c)
 }
 
 static int
-siogdbcheckc(void)
-{
-	return (sio_cncheckc(NULL));
-}
-
-static int
 siogdbgetc(void)
 {
-	return (sio_cngetc(NULL));
+	int c;
+
+	do
+		c = sio_cngetc(NULL);
+	while (c == -1);
+	return (c);
 }
 
 #endif
