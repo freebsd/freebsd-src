@@ -598,7 +598,10 @@ cncheckc(void)
 	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
 		cn = cnd->cnd_cn;
 		if (!kdb_active || !(cn->cn_flags & CN_FLAG_NODEBUG)) {
-			c = cn->cn_checkc(cn);
+			if (cn->cn_checkc != NULL)
+				c = cn->cn_checkc(cn);
+			else
+				c = cn->cn_getc(cn);
 			if (c != -1) {
 				return (c);
 			}
