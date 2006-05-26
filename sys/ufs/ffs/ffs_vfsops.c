@@ -119,7 +119,7 @@ static struct buf_ops ffs_ops = {
 static const char *ffs_opts[] = { "acls", "async", "atime", "clusterr",
     "clusterw", "exec", "export", "force", "from", "multilabel", 
     "snapshot", "suid", "suiddir", "symfollow", "sync",
-    "update", "union", NULL };
+    "union", NULL };
 
 static int
 ffs_mount(struct mount *mp, struct thread *td)
@@ -176,9 +176,6 @@ ffs_mount(struct mount *mp, struct thread *td)
 
 	if (vfs_getopt(mp->mnt_optnew, "snapshot", NULL, NULL) == 0)
 		mp->mnt_flag |= MNT_SNAPSHOT;
-
-	if (vfs_getopt(mp->mnt_optnew, "update", NULL, NULL) == 0)
-		mp->mnt_flag |= MNT_UPDATE;
 
 	/*
 	 * If updating, check whether changing from read-only to
