@@ -42,11 +42,10 @@ static gdb_probe_f uart_dbg_probe;
 static gdb_init_f uart_dbg_init;
 static gdb_term_f uart_dbg_term;
 static gdb_getc_f uart_dbg_getc;
-static gdb_checkc_f uart_dbg_checkc;
 static gdb_putc_f uart_dbg_putc;
 
 GDB_DBGPORT(uart, uart_dbg_probe, uart_dbg_init, uart_dbg_term,
-    uart_dbg_checkc, uart_dbg_getc, uart_dbg_putc);
+    uart_dbg_getc, uart_dbg_putc);
 
 static struct uart_devinfo uart_dbgport;
 
@@ -87,15 +86,8 @@ uart_dbg_putc(int c)
 }
 
 static int
-uart_dbg_checkc(void)
-{
-
-	return (uart_poll(&uart_dbgport));
-}
-
-static int
 uart_dbg_getc(void)
 {
 
-	return (uart_getc(&uart_dbgport));
+	return (uart_poll(&uart_dbgport));
 }
