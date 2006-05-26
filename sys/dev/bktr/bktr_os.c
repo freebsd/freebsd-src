@@ -149,6 +149,8 @@ SYSCTL_INT(_hw_bt848, OID_AUTO, dolby, CTLFLAG_RW, &bt848_dolby, 0, "");
 
 #include <vm/vm.h>
 
+#include <dev/bktr/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
+
 #ifndef __NetBSD__
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
@@ -767,8 +769,15 @@ bktr_ioctl( struct cdev *dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct thr
 		return (ENXIO);
 	}
 
+#ifdef BKTR_GPIO_ACCESS
+	if (bktr->bigbuf == 0 && cmd != BT848_GPIO_GET_EN &&
+	    cmd != BT848_GPIO_SET_EN && cmd != BT848_GPIO_GET_DATA &&
+	    cmd != BT848_GPIO_SET_DATA)	/* no frame buffer allocated (ioctl failed) */
+		return( ENOMEM );
+#else
 	if (bktr->bigbuf == 0)	/* no frame buffer allocated (ioctl failed) */
 		return( ENOMEM );
+#endif
 
 	switch ( FUNCTION( minor(dev) ) ) {
 	case VIDEO_DEV:
