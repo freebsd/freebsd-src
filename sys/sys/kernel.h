@@ -89,7 +89,7 @@ extern int tz_dsttime;
  * The SI_SUB_RUN_SCHEDULER value must have the highest lexical value.
  *
  * The SI_SUB_SWAP values represent a value used by
- * the BSD 4.4Lite but not by FreeBSD; it are maintained in dependent
+ * the BSD 4.4Lite but not by FreeBSD; it is maintained in dependent
  * order to support porting.
  *
  * The SI_SUB_PROTO_BEGIN and SI_SUB_PROTO_END bracket a range of
