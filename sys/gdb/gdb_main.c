@@ -46,7 +46,8 @@ static dbbe_trap_f gdb_trap;
 
 KDB_BACKEND(gdb, gdb_init, NULL, gdb_trap);
 
-GDB_DBGPORT(null, NULL, NULL, NULL, NULL, NULL, NULL);
+static struct gdb_dbgport null_gdb_dbgport;
+DATA_SET(gdb_dbgport_set, null_gdb_dbgport);
 SET_DECLARE(gdb_dbgport_set, struct gdb_dbgport);
 
 struct gdb_dbgport *gdb_cur = NULL;
