@@ -79,7 +79,6 @@ reiserfs_mount(struct mount *mp, struct thread *td)
 	char *path, *fspec;
 	struct vnode *devvp;
 	struct vfsoptlist *opts;
-	struct export_args *export;
 	struct reiserfs_mount *rmp;
 	struct reiserfs_sb_info *sbi;
 	struct nameidata nd, *ndp = &nd;
@@ -104,9 +103,8 @@ reiserfs_mount(struct mount *mp, struct thread *td)
 	/* Handle MNT_UPDATE (mp->mnt_flag) */
 	if (mp->mnt_flag & MNT_UPDATE) {
 		/* For now, only NFS export is supported. */
-		error = vfs_getopt(opts, "export", (void **)&export, &len);
-		if (error == 0 && len == sizeof(*export) && export->ex_flags)
-			return (vfs_export(mp, export));
+		if (vfs_flagopt(opts, "export", NULL, 0))
+			return (0);
 	}
 
 	/* Not an update, or updating the name: look up the name
