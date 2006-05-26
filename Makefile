@@ -15,6 +15,7 @@
 # reinstallkernel     - Reinstall the kernel and the kernel-modules.
 # reinstallkernel.debug
 # kernel              - buildkernel + installkernel.
+# doxygen             - Build API documentation of the kernel, needs doxygen.
 # update              - Convenient way to update your source tree (cvs).
 # check-old           - Print a list of old files/directories in the system.
 # delete-old          - Delete obsolete files and directories interactively.
@@ -69,10 +70,10 @@
 #
 TGTS=	all all-man buildenv buildkernel buildworld check-old checkdpadd \
 	clean cleandepend cleandir delete-old delete-old-libs depend \
-	distribute distributeworld distrib-dirs distribution everything \
-	hierarchy install installcheck installkernel installkernel.debug\
-	reinstallkernel reinstallkernel.debug installworld \
-	kernel-toolchain libraries lint maninstall \
+	distribute distributeworld distrib-dirs distribution doxygen \
+	everything hierarchy install installcheck installkernel \
+	installkernel.debug reinstallkernel reinstallkernel.debug \
+	installworld kernel-toolchain libraries lint maninstall \
 	obj objlink regress rerelease showconfig tags toolchain update \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _cross-tools _includes _libraries _depend \
