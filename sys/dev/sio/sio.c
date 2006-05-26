@@ -2577,8 +2577,7 @@ static gdb_term_f siogdbterm;
 static gdb_getc_f siogdbgetc;
 static gdb_putc_f siogdbputc;
 
-GDB_DBGPORT(sio, siogdbprobe, siogdbinit, siogdbterm, NULL,
-    siogdbgetc, siogdbputc);
+GDB_DBGPORT(sio, siogdbprobe, siogdbinit, siogdbterm, siogdbgetc, siogdbputc);
 
 static int
 siogdbprobe(void)
@@ -2605,12 +2604,7 @@ siogdbputc(int c)
 static int
 siogdbgetc(void)
 {
-	int c;
-
-	do
-		c = sio_cngetc(NULL);
-	while (c == -1);
-	return (c);
+	return (sio_cngetc(NULL));
 }
 
 #endif
