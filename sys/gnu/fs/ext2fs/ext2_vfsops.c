@@ -129,7 +129,6 @@ ext2_mount(mp, td)
 	struct mount *mp;
 	struct thread *td;
 {
-	struct export_args *export;
 	struct vfsoptlist *opts;
 	struct vnode *devvp;
 	struct ext2mount *ump = 0;
@@ -233,13 +232,9 @@ ext2_mount(mp, td)
 			fs->s_rd_only = 0;
 			mp->mnt_flag &= ~MNT_RDONLY;
 		}
-		if (fspec == NULL) {
-			error = vfs_getopt(opts, "export", (void **)&export,
-			    &len);
-			if (error || len != sizeof(struct export_args))
-				return (EINVAL);
-				/* Process export requests. */
-			return (vfs_export(mp, export));
+		if (vfs_flagopt(opts, "export", NULL, 0)) {
+			/* Process export requests in vfs_mount.c. */
+			return (error);
 		}
 	}
 	/*
