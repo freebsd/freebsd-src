@@ -635,25 +635,6 @@ cnputc(int c)
 	}
 }
 
-void
-cndbctl(int on)
-{
-	struct cn_device *cnd;
-	struct consdev *cn;
-	static int refcount;
-
-	if (!on)
-		refcount--;
-	if (refcount == 0)
-		STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
-			cn = cnd->cnd_cn;
-			if (cn->cn_dbctl != NULL)
-				cn->cn_dbctl(cn, on);
-		}
-	if (on)
-		refcount++;
-}
-
 static int consmsgbuf_size = 8192;
 SYSCTL_INT(_kern, OID_AUTO, consmsgbuf_size, CTLFLAG_RW, &consmsgbuf_size, 0,
     "");
