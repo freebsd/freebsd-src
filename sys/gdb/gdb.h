@@ -38,7 +38,6 @@ typedef void gdb_term_f(void);
 
 struct gdb_dbgport {
 	const char	*gdb_name;
-	gdb_checkc_f	*gdb_checkc;
 	gdb_getc_f	*gdb_getc;
 	gdb_init_f	*gdb_init;
 	gdb_probe_f	*gdb_probe;
@@ -47,15 +46,14 @@ struct gdb_dbgport {
 	int		gdb_active;
 };
 
-#define	GDB_DBGPORT(name, probe, init, term, checkc, getc, putc)	\
+#define	GDB_DBGPORT(name, probe, init, term, getc, putc)		\
 	static struct gdb_dbgport name##_gdb_dbgport = {		\
 		.gdb_name = #name,					\
-		.gdb_checkc = checkc,					\
-		.gdb_getc = getc,					\
-		.gdb_init = init,					\
 		.gdb_probe = probe,					\
+		.gdb_init = init,					\
+		.gdb_term = term,					\
+		.gdb_getc = getc,					\
 		.gdb_putc = putc,					\
-		.gdb_term = term					\
 	};								\
 	DATA_SET(gdb_dbgport_set, name##_gdb_dbgport)
 
