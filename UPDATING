@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060525:
+	FreeBSD 5.5-RELEASE
+
 20060127:
 	The i386 loader(8) now defaults to the serial speed set by the
 	previous boot stage, if the comconsole is already in use.  If
