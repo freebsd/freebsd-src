@@ -332,9 +332,9 @@ nfs_fsinfo(struct nfsmount *nmp, struct vnode *vp, struct ucred *cred,
 	nfsm_request(vp, NFSPROC_FSINFO, td, cred);
 	nfsm_postop_attr(vp, retattr);
 	if (!error) {
-		mtx_lock(&nmp->nm_mtx);
 		fsp = nfsm_dissect(struct nfsv3_fsinfo *, NFSX_V3FSINFO);
 		pref = fxdr_unsigned(u_int32_t, fsp->fs_wtpref);
+		mtx_lock(&nmp->nm_mtx);
 		if (pref < nmp->nm_wsize && pref >= NFS_FABLKSIZE)
 			nmp->nm_wsize = (pref + NFS_FABLKSIZE - 1) &
 				~(NFS_FABLKSIZE - 1);
