@@ -48,6 +48,21 @@ char *gdb_txp = NULL;			/* Used in inline functions. */
 #define	N2C(n)	(((n) < 10) ? (n) + '0' : (n) + 'a' - 10)
 
 /*
+ * Get a single character
+ */
+
+static int
+gdb_getc(void)
+{
+	int c;
+
+	do
+		c = gdb_cur->gdb_getc();
+	while (c == -1);
+	return (c);
+}
+
+/*
  * Functions to receive and extract from a packet.
  */
 
@@ -62,14 +77,14 @@ gdb_rx_begin(void)
 		 * Wait for the start character, ignore all others.
 		 * XXX needs a timeout.
 		 */
-		while ((c = gdb_cur->gdb_getc()) != '$')
+		while ((c = gdb_getc()) != '$')
 			;
 
 		/* Read until a # or end of buffer is found. */
 		cksum = 0;
 		gdb_rxsz = 0;
 		while (gdb_rxsz < sizeof(gdb_rxbuf) - 1) {
-			c = gdb_cur->gdb_getc();
+			c = gdb_getc();
 			if (c == '#')
 				break;
 			gdb_rxbuf[gdb_rxsz++] = c;
@@ -84,9 +99,9 @@ gdb_rx_begin(void)
 			return (ENOSPC);
 		}
 
-		c = gdb_cur->gdb_getc();
+		c = gdb_getc();
 		cksum -= (C2N(c) << 4) & 0xf0;
-		c = gdb_cur->gdb_getc();
+		c = gdb_getc();
 		cksum -= C2N(c) & 0x0f;
 		gdb_cur->gdb_putc((cksum == 0) ? '+' : '-');
 		if (cksum != 0)
@@ -245,7 +260,7 @@ gdb_tx_end(void)
 		c = cksum & 0x0f;
 		gdb_cur->gdb_putc(N2C(c));
 
-		c = gdb_cur->gdb_getc();
+		c = gdb_getc();
 	} while (c != '+');
 
 	return (0);
