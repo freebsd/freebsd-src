@@ -120,7 +120,8 @@ struct tty *constty;			/* pointer to console "window" tty */
 
 static void constty_timeout(void *arg);
 
-CONS_DRIVER(cons, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+static struct consdev cons_consdev;
+DATA_SET(cons_set, cons_consdev);
 SET_DECLARE(cons_set, struct consdev);
 
 void
