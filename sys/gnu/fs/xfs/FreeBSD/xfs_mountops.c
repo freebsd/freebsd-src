@@ -65,7 +65,7 @@ static b_strategy_t	xfs_geom_strategy;
 static const char *xfs_opts[] =
 	{ "from", "flags", "logbufs", "logbufsize",
 	  "rtname", "logname", "iosizelog", "sunit",
-	  "swidth",
+	  "swidth", "export",
 	  NULL };
 
 static void
@@ -168,6 +168,16 @@ _xfs_mount(struct mount		*mp,
 	if (vfs_filteropt(mp->mnt_optnew, xfs_opts))
 		return (EINVAL);
 
+	if (mp->mnt_flag & MNT_UPDATE) {
+		/*
+		 * XXX: Only support update mounts for NFS export.
+		*/
+		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0))
+			return (0);
+		else
+			return EOPNOTSUPP;
+	}
+
         xmp = xfsmount_allocate(mp);
         if (xmp == NULL)
                 return (ENOMEM);
@@ -178,10 +188,6 @@ _xfs_mount(struct mount		*mp,
 	/* Force read-only mounts in this branch. */
 	XFSTOVFS(xmp)->vfs_flag |= VFS_RDONLY;
         mp->mnt_flag |= MNT_RDONLY;
-
-	/* XXX: Do not support MNT_UPDATE yet */
-	if (mp->mnt_flag & MNT_UPDATE)
-		return EOPNOTSUPP; 
 
 	curcred = td->td_ucred;
 	XVFS_MOUNT(XFSTOVFS(xmp), &xmp->m_args, curcred, error);
