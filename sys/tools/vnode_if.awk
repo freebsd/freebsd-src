@@ -34,8 +34,9 @@
 #
 # Script to produce VFS front-end sugar.
 #
-# usage: vnode_if.awk <srcfile> [-c | -h]
+# usage: vnode_if.awk <srcfile> [-c | -h | -p | -q]
 #	(where <srcfile> is currently /sys/kern/vnode_if.src)
+#	The source file must have a .src extension
 #
 
 function usage()
