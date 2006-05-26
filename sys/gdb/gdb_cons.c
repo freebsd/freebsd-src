@@ -82,8 +82,13 @@ gdb_cninit(struct consdev *cp)
 	}
 }
 
+static void
+gdb_cnterm(struct consdev *cp)
+{
+}
+
 static int
-gdb_nogetc(struct consdev *cp)
+gdb_cngetc(struct consdev *cp)
 {
 	return -1;
 }
@@ -154,9 +159,7 @@ gdb_cnputc(struct consdev *cp, int c)
 	}
 }
 
-/* NB: no get interface, we supply nogetc for checkc too */
-CONS_DRIVER(gdb, gdb_cnprobe, gdb_cninit, NULL, gdb_nogetc, gdb_nogetc,
-	gdb_cnputc, NULL);
+CONSOLE_DRIVER(gdb);
 
 /*
  * Our console device only gets attached if the system is booted
