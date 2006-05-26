@@ -17,6 +17,7 @@
 # The intended user-driven targets are:
 # buildworld  - rebuild *everything*, including glue to help do upgrades
 # installworld- install everything built by "buildworld"
+# doxygen     - build API documentation of the kernel
 # update      - convenient way to update your source tree (eg: cvsup/cvs)
 #
 # Standard targets (not defined here) are documented in the makefiles in
@@ -709,6 +710,18 @@ reinstallkernel reinstallkernel.debug: installcheck
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} PATH=${TMPPATH} \
 	    ${MAKE} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
+
+#
+# doxygen
+#
+# Build the API documentation with doxygen
+#
+doxygen:
+	@if [ ! -x `/usr/bin/which doxygen` ]; then \
+		echo "You need doxygen (devel/doxygen) to generate the API documentation of the kernel." | /usr/bin/fmt; \
+		exit 1; \
+	fi
+	cd ${.CURDIR}/sys/doc/subsys && ${MAKE} obj all
 
 #
 # update
