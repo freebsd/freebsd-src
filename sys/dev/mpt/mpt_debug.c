@@ -493,6 +493,7 @@ mpt_print_reply(void *vmsg)
 		mpt_print_init_reply((MSG_IOC_INIT_REPLY *)msg);
 		break;
 	case MPI_FUNCTION_SCSI_IO_REQUEST:
+	case MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH:
 		mpt_print_scsi_io_reply((MSG_SCSI_IO_REPLY *)msg);
 		break;
 	default:
@@ -613,6 +614,7 @@ mpt_print_request(void *vreq)
 
 	switch (req->Function) {
 	case MPI_FUNCTION_SCSI_IO_REQUEST:
+	case MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH:
 		mpt_print_scsi_io_request((MSG_SCSI_IO_REQUEST *)req);
 		break;
 	case MPI_FUNCTION_SCSI_TASK_MGMT:
@@ -793,6 +795,28 @@ mpt_dump_sgl(SGE_IO_UNION *su, int offset)
 			break;
 		}
 	} while ((flags & MPI_SGE_FLAGS_END_OF_LIST) == 0 && nxtaddr < lim);
+}
+
+void
+mpt_dump_request(struct mpt_softc *mpt, request_t *req)
+{
+        uint32_t *pReq = req->req_vbuf;
+	int offset;
+#if __FreeBSD_version >= 500000
+	mpt_prt(mpt, "Send Request %d (%jx):",
+	    req->index, (uintmax_t) req->req_pbuf);
+#else
+	mpt_prt(mpt, "Send Request %d (%llx):",
+	    req->index, (unsigned long long) req->req_pbuf);
+#endif
+	for (offset = 0; offset < mpt->request_frame_size; offset++) {
+		if ((offset & 0x7) == 0) {
+			mpt_prtc(mpt, "\n");
+			mpt_prt(mpt, " ");
+		}
+		mpt_prtc(mpt, " %08x", pReq[offset]);
+	}
+	mpt_prtc(mpt, "\n");
 }
 
 #if __FreeBSD_version < 500000

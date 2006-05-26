@@ -76,6 +76,7 @@ struct mpt_raid_action_result
 
 static mpt_probe_handler_t	mpt_raid_probe;
 static mpt_attach_handler_t	mpt_raid_attach;
+static mpt_enable_handler_t	mpt_raid_enable;
 static mpt_event_handler_t	mpt_raid_event;
 static mpt_shutdown_handler_t	mpt_raid_shutdown;
 static mpt_reset_handler_t	mpt_raid_ioc_reset;
@@ -86,6 +87,7 @@ static struct mpt_personality mpt_raid_personality =
 	.name		= "mpt_raid",
 	.probe		= mpt_raid_probe,
 	.attach		= mpt_raid_attach,
+	.enable		= mpt_raid_enable,
 	.event		= mpt_raid_event,
 	.reset		= mpt_raid_ioc_reset,
 	.shutdown	= mpt_raid_shutdown,
@@ -220,8 +222,9 @@ mpt_raid_async(void *callback_arg, u_int32_t code,
 		struct mpt_raid_volume *mpt_vol;
 
 		cgd = (struct ccb_getdev *)arg;
-		if (cgd == NULL)
+		if (cgd == NULL) {
 			break;
+		}
 
 		mpt_lprt(mpt, MPT_PRT_DEBUG, " Callback for %d\n",
 			 cgd->ccb_h.target_id);
@@ -263,8 +266,10 @@ mpt_raid_attach(struct mpt_softc *mpt)
 	handler.reply_handler = mpt_raid_reply_handler;
 	error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
 				     &raid_handler_id);
-	if (error != 0)
+	if (error != 0) {
+		mpt_prt(mpt, "Unable to register RAID haandler!\n");
 		goto cleanup;
+	}
 
 	error = mpt_spawn_raid_thread(mpt);
 	if (error != 0) {
@@ -272,7 +277,7 @@ mpt_raid_attach(struct mpt_softc *mpt)
 		goto cleanup;
 	}
  
-	xpt_setup_ccb(&csa.ccb_h, mpt->path, /*priority*/5);
+	xpt_setup_ccb(&csa.ccb_h, mpt->path, 5);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
 	csa.event_enable = AC_FOUND_DEVICE;
 	csa.callback = mpt_raid_async;
@@ -290,6 +295,12 @@ mpt_raid_attach(struct mpt_softc *mpt)
 cleanup:
 	mpt_raid_detach(mpt);
 	return (error);
+}
+
+int
+mpt_raid_enable(struct mpt_softc *mpt)
+{
+	return (0);
 }
 
 void
@@ -347,11 +358,12 @@ mpt_raid_event(struct mpt_softc *mpt, request_t *req,
 	int i;
 	int print_event;
 
-	if (msg->Event != MPI_EVENT_INTEGRATED_RAID)
-		return (/*handled*/0);
+	if (msg->Event != MPI_EVENT_INTEGRATED_RAID) {
+		return (0);
+	}
 
 	raid_event = (EVENT_DATA_RAID *)&msg->Data;
-	
+
 	mpt_vol = NULL;
 	vol_pg = NULL;
 	if (mpt->raid_volumes != NULL && mpt->ioc_page2 != NULL) {
@@ -373,12 +385,11 @@ mpt_raid_event(struct mpt_softc *mpt, request_t *req,
 	}
 
 	mpt_disk = NULL;
-	if (raid_event->PhysDiskNum != 0xFF
-	 && mpt->raid_disks != NULL) {
-		mpt_disk = mpt->raid_disks
-			 + raid_event->PhysDiskNum;
-		if ((mpt_disk->flags & MPT_RDF_ACTIVE) == 0)
+	if (raid_event->PhysDiskNum != 0xFF && mpt->raid_disks != NULL) {
+		mpt_disk = mpt->raid_disks + raid_event->PhysDiskNum;
+		if ((mpt_disk->flags & MPT_RDF_ACTIVE) == 0) {
 			mpt_disk = NULL;
+		}
 	}
 
 	print_event = 1;
@@ -404,8 +415,9 @@ mpt_raid_event(struct mpt_softc *mpt, request_t *req,
 	case MPI_EVENT_RAID_RC_VOLUME_SETTINGS_CHANGED:
 	case MPI_EVENT_RAID_RC_VOLUME_PHYSDISK_CHANGED:
 		mpt->raid_rescan++;
-		if (mpt_vol != NULL)
+		if (mpt_vol != NULL) {
 			mpt_vol->flags &= ~(MPT_RVF_UP2DATE|MPT_RVF_ANNOUNCED);
+		}
 		break;
 	case MPI_EVENT_RAID_RC_PHYSDISK_CREATED:
 	case MPI_EVENT_RAID_RC_PHYSDISK_DELETED:
@@ -414,8 +426,9 @@ mpt_raid_event(struct mpt_softc *mpt, request_t *req,
 	case MPI_EVENT_RAID_RC_PHYSDISK_SETTINGS_CHANGED:
 	case MPI_EVENT_RAID_RC_PHYSDISK_STATUS_CHANGED:
 		mpt->raid_rescan++;
-		if (mpt_disk != NULL)
+		if (mpt_disk != NULL) {
 			mpt_disk->flags &= ~MPT_RDF_UP2DATE;
+		}
 		break;
 	case MPI_EVENT_RAID_RC_DOMAIN_VAL_NEEDED:
 		mpt->raid_rescan++;
@@ -462,7 +475,7 @@ mpt_raid_event(struct mpt_softc *mpt, request_t *req,
 	}
 
 	mpt_raid_wakeup(mpt);
-	return (/*handled*/1);
+	return (1);
 }
 
 static void
@@ -487,7 +500,7 @@ mpt_raid_reply_handler(struct mpt_softc *mpt, request_t *req,
 	int free_req;
 
 	if (req == NULL)
-		return (/*free_reply*/TRUE);
+		return (TRUE);
 
 	free_req = TRUE;
 	if (reply_frame != NULL)
@@ -508,7 +521,7 @@ mpt_raid_reply_handler(struct mpt_softc *mpt, request_t *req,
 		mpt_free_request(mpt, req);
 	}
 
-	return (/*free_reply*/TRUE);
+	return (TRUE);
 }
 
 /*
@@ -517,7 +530,7 @@ mpt_raid_reply_handler(struct mpt_softc *mpt, request_t *req,
  */
 static int
 mpt_raid_reply_frame_handler(struct mpt_softc *mpt, request_t *req,
-			     MSG_DEFAULT_REPLY *reply_frame)
+    MSG_DEFAULT_REPLY *reply_frame)
 {
 	MSG_RAID_ACTION_REPLY *reply;
 	struct mpt_raid_action_result *action_result;
@@ -529,27 +542,19 @@ mpt_raid_reply_frame_handler(struct mpt_softc *mpt, request_t *req,
 	
 	switch (rap->Action) {
 	case MPI_RAID_ACTION_QUIESCE_PHYS_IO:
-		/*
-		 * Parse result, call mpt_start with ccb,
-		 * release device queue.
-		 * COWWWWW
-		 */
+		mpt_prt(mpt, "QUIESCE PHYSIO DONE\n");
 		break;
 	case MPI_RAID_ACTION_ENABLE_PHYS_IO:
-		/*
-		 * Need additional state for transition to enabled to
-		 * protect against attempts to disable??
-		 */
+		mpt_prt(mpt, "ENABLY PHYSIO DONE\n");
 		break;
 	default:
-		action_result = REQ_TO_RAID_ACTION_RESULT(req);
-		memcpy(&action_result->action_data, &reply->ActionData,
-		       sizeof(action_result->action_data));
-		action_result->action_status = reply->ActionStatus;
 		break;
 	}
-
-	return (/*Free Request*/TRUE);
+	action_result = REQ_TO_RAID_ACTION_RESULT(req);
+	memcpy(&action_result->action_data, &reply->ActionData,
+	    sizeof(action_result->action_data));
+	action_result->action_status = reply->ActionStatus;
+	return (TRUE);
 }
 
 /*
@@ -661,7 +666,10 @@ mpt_raid_thread(void *arg)
 
 		mpt->raid_wakeup = 0;
 
-		mpt_refresh_raid_data(mpt);
+		if (mpt_refresh_raid_data(mpt)) {
+			mpt_schedule_raid_refresh(mpt);	/* XX NOT QUITE RIGHT */
+			continue;
+		}
 
 		/*
 		 * Now that we have our first snapshot of RAID data,
@@ -669,7 +677,9 @@ mpt_raid_thread(void *arg)
 		 */
 		if (firstrun) {
 			firstrun = 0;
-			xpt_release_simq(mpt->phydisk_sim, /*run_queue*/TRUE);
+			MPTLOCK_2_CAMLOCK(mpt);
+			xpt_release_simq(mpt->phydisk_sim, TRUE);
+			CAMLOCK_2_MPTLOCK(mpt);
 		}
 
 		if (mpt->raid_rescan != 0) {
@@ -681,18 +691,19 @@ mpt_raid_thread(void *arg)
 
 			ccb = malloc(sizeof(*ccb), M_DEVBUF, M_WAITOK);
 			error = xpt_create_path(&path, xpt_periph,
-						cam_sim_path(mpt->phydisk_sim),
-						CAM_TARGET_WILDCARD,
-						CAM_LUN_WILDCARD);
+			    cam_sim_path(mpt->phydisk_sim),
+			    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
 			if (error != CAM_REQ_CMP) {
 				free(ccb, M_DEVBUF);
 				mpt_prt(mpt, "Unable to rescan RAID Bus!\n");
 			} else {
-				xpt_setup_ccb(&ccb->ccb_h, path, /*priority*/5);
+				xpt_setup_ccb(&ccb->ccb_h, path, 5);
 				ccb->ccb_h.func_code = XPT_SCAN_BUS;
 				ccb->ccb_h.cbfcnp = mpt_cam_rescan_callback;
 				ccb->crcn.flags = CAM_FLAG_NONE;
+				MPTLOCK_2_CAMLOCK(mpt);
 				xpt_action(ccb);
+				CAMLOCK_2_MPTLOCK(mpt);
 			}
 		}
 	}
@@ -1217,7 +1228,7 @@ mpt_refresh_raid_vol(struct mpt_softc *mpt, struct mpt_raid_volume *mpt_vol,
  * be updated by our event handler.  Interesting changes are displayed
  * to the console.
  */
-void
+int
 mpt_refresh_raid_data(struct mpt_softc *mpt)
 {
 	CONFIG_PAGE_IOC_2_RAID_VOL *ioc_vol;
@@ -1231,7 +1242,7 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 	u_int nonopt_volumes;
 
 	if (mpt->ioc_page2 == NULL || mpt->ioc_page3 == NULL) {
-		return;
+		return (0);
 	}
 
 	/*
@@ -1254,9 +1265,9 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 				   &mpt->ioc_page3->Header, len,
 				   /*sleep_ok*/TRUE, /*timeout_ms*/5000);
 	if (rv) {
-		mpt_prt(mpt, "mpt_refresh_raid_data: "
-			"Failed to read IOC Page 3\n");
-		return;
+		mpt_prt(mpt,
+		    "mpt_refresh_raid_data: Failed to read IOC Page 3\n");
+		return (-1);
 	}
 
 	ioc_disk = mpt->ioc_page3->PhysDisk;
@@ -1286,7 +1297,7 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 	if (rv) {
 		mpt_prt(mpt, "mpt_refresh_raid_data: "
 			"Failed to read IOC Page 2\n");
-		return;
+		return (-1);
 	}
 
 	ioc_vol = mpt->ioc_page2->RaidVolume;
@@ -1455,6 +1466,7 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 	}
 
 	mpt->raid_nonopt_volumes = nonopt_volumes;
+	return (0);
 }
 
 static void
@@ -1612,24 +1624,28 @@ mpt_raid_sysctl_vol_member_wce(SYSCTL_HANDLER_ARGS)
 	u_int i;
 
 	GIANT_REQUIRED;
+
 	mpt = (struct mpt_softc *)arg1;
 	str = mpt_vol_mwce_strs[mpt->raid_mwce_setting];
 	error = SYSCTL_OUT(req, str, strlen(str) + 1);
-	if (error || !req->newptr)
+	if (error || !req->newptr) {
 		return (error);
+	}
 
 	size = req->newlen - req->newidx;
-	if (size >= sizeof(inbuf))
+	if (size >= sizeof(inbuf)) {
 		return (EINVAL);
+	}
 
 	error = SYSCTL_IN(req, inbuf, size);
-	if (error)
+	if (error) {
 		return (error);
+	}
 	inbuf[size] = '\0'; 
 	for (i = 0; i < NUM_ELEMENTS(mpt_vol_mwce_strs); i++) {
-
-		if (strcmp(mpt_vol_mwce_strs[i], inbuf) == 0)
+		if (strcmp(mpt_vol_mwce_strs[i], inbuf) == 0) {
 			return (mpt_raid_set_vol_mwce(mpt, i));
+		}
 	}
 	return (EINVAL);
 }
@@ -1642,12 +1658,14 @@ mpt_raid_sysctl_vol_resync_rate(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	GIANT_REQUIRED;
+
 	mpt = (struct mpt_softc *)arg1;
 	raid_resync_rate = mpt->raid_resync_rate;
 
 	error = sysctl_handle_int(oidp, &raid_resync_rate, 0, req);
-	if (error || !req->newptr)
+	if (error || !req->newptr) {
 		return error;
+	}
 
 	return (mpt_raid_set_vol_resync_rate(mpt, raid_resync_rate));
 }
@@ -1660,12 +1678,14 @@ mpt_raid_sysctl_vol_queue_depth(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	GIANT_REQUIRED;
+
 	mpt = (struct mpt_softc *)arg1;
 	raid_queue_depth = mpt->raid_queue_depth;
 
 	error = sysctl_handle_int(oidp, &raid_queue_depth, 0, req);
-	if (error || !req->newptr)
+	if (error || !req->newptr) {
 		return error;
+	}
 
 	return (mpt_raid_set_vol_queue_depth(mpt, raid_queue_depth));
 }

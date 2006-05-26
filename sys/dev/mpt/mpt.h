@@ -491,8 +491,7 @@ struct mpt_softc {
 		twildcard	: 1,
 		tenabled	: 1,
 		role		: 2,	/* none, ini, target, both */
-				: 1,
-		raid_enabled	: 1,
+				: 2,
 		raid_mwce_set	: 1,
 		getreqwaiter	: 1,
 		shutdwn_raid    : 1,
