@@ -171,12 +171,11 @@ static int	dcons_drv_init(int);
 
 static cn_probe_t	dcons_cnprobe;
 static cn_init_t	dcons_cninit;
+static cn_term_t	dcons_cnterm;
 static cn_getc_t	dcons_cngetc;
-static cn_checkc_t 	dcons_cncheckc;
 static cn_putc_t	dcons_cnputc;
 
-CONS_DRIVER(dcons, dcons_cnprobe, dcons_cninit, NULL, dcons_cngetc,
-    dcons_cncheckc, dcons_cnputc, NULL);
+CONSOLE_DRIVER(dcons);
 
 #if __FreeBSD_version >= 502122
 static gdb_probe_f dcons_dbg_probe;
@@ -443,15 +442,14 @@ dcons_cninit(struct consdev *cp)
 		= (void *)&sc[DCONS_CON]; /* share port0 with unit0 */
 }
 
+static void
+dcons_cnterm(struct consdev *cp)
+{
+}
+
 #if CONS_NODEV
 static int
 dcons_cngetc(struct consdev *cp)
-{
-	struct dcons_softc *dc = (struct dcons_softc *)cp->cn_arg;
-	return (dcons_os_getc(dc));
-}
-static int
-dcons_cncheckc(struct consdev *cp)
 {
 	struct dcons_softc *dc = (struct dcons_softc *)cp->cn_arg;
 	return (dcons_os_checkc(dc));
