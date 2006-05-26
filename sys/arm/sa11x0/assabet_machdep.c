@@ -153,7 +153,6 @@ struct pv_addr irqstack;
 struct pv_addr undstack;
 struct pv_addr abtstack;
 struct pv_addr kernelstack;
-void enable_mmu(vm_offset_t);
 static struct trapframe proc0_tf;
 
 /* Static device mappings. */
