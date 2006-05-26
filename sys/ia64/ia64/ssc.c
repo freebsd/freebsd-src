@@ -87,14 +87,19 @@ ssc(u_int64_t in0, u_int64_t in1, u_int64_t in2, u_int64_t in3, int which)
 }
 
 static void
-ssccnprobe(struct consdev *cp)
+ssc_cnprobe(struct consdev *cp)
 {
 	sprintf(cp->cn_name, "ssccons");
 	cp->cn_pri = CN_INTERNAL;
 }
 
 static void
-ssccninit(struct consdev *cp)
+ssc_cninit(struct consdev *cp)
+{
+}
+
+static void
+ssc_cnterm(struct consdev *cp)
 {
 }
 
@@ -108,24 +113,13 @@ ssccnattach(void *arg)
 SYSINIT(ssccnattach, SI_SUB_DRIVERS, SI_ORDER_ANY, ssccnattach, 0);
 
 static void
-ssccnputc(struct consdev *cp, int c)
+ssc_cnputc(struct consdev *cp, int c)
 {
 	ssc(c, 0, 0, 0, SSC_PUTCHAR);
 }
 
 static int
-ssccngetc(struct consdev *cp)
-{
-	int c;
-	do {
-		c = ssc(0, 0, 0, 0, SSC_GETCHAR);
-	} while (c == 0);
-
-	return c;
-}
-
-static int
-ssccncheckc(struct consdev *cp)
+ssc_cngetc(struct consdev *cp)
 {
     int c;
     c = ssc(0, 0, 0, 0, SSC_GETCHAR);
@@ -243,4 +237,4 @@ ssctimeout(void *v)
 	ssctimeouthandle = timeout(ssctimeout, tp, polltime);
 }
 
-CONS_DRIVER(ssc, ssccnprobe, ssccninit, NULL, ssccngetc, ssccncheckc, ssccnputc, NULL);
+CONSOLE_DRIVER(ssc);
