@@ -480,6 +480,7 @@ _sound=		sound
 _speaker=	speaker
 _sppp=		sppp
 _twa=		twa
+_wi=		wi
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
