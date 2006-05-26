@@ -88,8 +88,8 @@ extern int tz_dsttime;
  *
  * The SI_SUB_RUN_SCHEDULER value must have the highest lexical value.
  *
- * The SI_SUB_CONSOLE and SI_SUB_SWAP values represent values used by
- * the BSD 4.4Lite but not by FreeBSD; they are maintained in dependent
+ * The SI_SUB_SWAP values represent a value used by
+ * the BSD 4.4Lite but not by FreeBSD; it are maintained in dependent
  * order to support porting.
  *
  * The SI_SUB_PROTO_BEGIN and SI_SUB_PROTO_END bracket a range of
@@ -102,7 +102,6 @@ enum sysinit_sub_id {
 	SI_SUB_DUMMY		= 0x0000000,	/* not executed; for linker*/
 	SI_SUB_DONE		= 0x0000001,	/* processed*/
 	SI_SUB_TUNABLES		= 0x0700000,	/* establish tunable values */
-	SI_SUB_CONSOLE		= 0x0800000,	/* console*/
 	SI_SUB_COPYRIGHT	= 0x0800001,	/* first use of console*/
 	SI_SUB_SETTINGS		= 0x0880000,	/* check and recheck settings */
 	SI_SUB_MTX_POOL_STATIC	= 0x0900000,	/* static mutex pool */
