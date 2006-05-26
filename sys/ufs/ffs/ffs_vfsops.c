@@ -130,7 +130,6 @@ ffs_mount(struct mount *mp, struct thread *td)
 	int error, flags;
 	mode_t accessmode;
 	struct nameidata ndp;
-	struct export_args export;
 	char *fspec;
 
 	if (vfs_filteropt(mp->mnt_optnew, ffs_opts))
@@ -180,13 +179,6 @@ ffs_mount(struct mount *mp, struct thread *td)
 
 	if (vfs_getopt(mp->mnt_optnew, "update", NULL, NULL) == 0)
 		mp->mnt_flag |= MNT_UPDATE;
-
-	export.ex_root = -2; /* DEFAULT_ROOTID */
-
-	if (mp->mnt_flag & MNT_RDONLY)
-		export.ex_flags = MNT_EXRDONLY;
-	else
-		export.ex_flags = 0;
 
 	/*
 	 * If updating, check whether changing from read-only to
@@ -329,17 +321,7 @@ ffs_mount(struct mount *mp, struct thread *td)
 		 */
 		if ((fs->fs_flags & FS_ACLS) != 0)
 			mp->mnt_flag |= MNT_ACLS;
-		/*
-		 * If not updating name, process export requests.
-		 */
-		error = 0;
-		if (vfs_getopt(mp->mnt_optnew, "export", NULL, NULL) == 0) { 
-			error = vfs_copyopt(mp->mnt_optnew, "export",
-			    &export, sizeof export);
-		}
 
-		if (error == 0 && export.ex_flags != 0)
-			return (vfs_export(mp, &export));
 		/*
 		 * If this is a snapshot request, take the snapshot.
 		 */
