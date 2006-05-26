@@ -222,11 +222,10 @@ static cn_init_t	sccninit;
 static cn_getc_t	sccngetc;
 static cn_checkc_t	sccncheckc;
 static cn_putc_t	sccnputc;
-static cn_dbctl_t	sccndbctl;
 static cn_term_t	sccnterm;
 
 CONS_DRIVER(sc, sccnprobe, sccninit, sccnterm, sccngetc, sccncheckc, sccnputc,
-	    sccndbctl);
+	    NULL);
 
 static	d_open_t	scopen;
 static	d_close_t	scclose;
@@ -1509,37 +1508,6 @@ static int
 sccncheckc(struct consdev *cd)
 {
     return sccngetch(SCGETC_NONBLOCK);
-}
-
-static void
-sccndbctl(struct consdev *cd, int on)
-{
-    /* assert(sc_console_unit >= 0) */
-    /* try to switch to the kernel console screen */
-    if (on && debugger == 0) {
-	/*
-	 * TRY to make sure the screen saver is stopped, 
-	 * and the screen is updated before switching to 
-	 * the vty0.
-	 */
-	scrn_timer(NULL);
-	if (!cold
-	    && sc_console->sc->cur_scp->smode.mode == VT_AUTO
-	    && sc_console->smode.mode == VT_AUTO) {
-	    sc_console->sc->cur_scp->status |= MOUSE_HIDDEN;
-	    ++debugger;		/* XXX */
-#ifdef DDB
-	    /* unlock vty switching */
-	    sc_console->sc->flags &= ~SC_SCRN_VTYLOCK;
-#endif
-	    sc_switch_scr(sc_console->sc, sc_console->index);
-	    --debugger;		/* XXX */
-	}
-    }
-    if (on)
-	++debugger;
-    else
-	--debugger;
 }
 
 static int
