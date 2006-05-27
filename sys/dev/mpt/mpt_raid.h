@@ -59,12 +59,13 @@ mpt_issue_raid_req(struct mpt_softc *, struct mpt_raid_volume *,
     bus_size_t, int, int);
 
 cam_status
-mpt_map_physdisk(struct mpt_softc *, union ccb *, u_int *);
+mpt_map_physdisk(struct mpt_softc *, union ccb *, target_id_t *);
 cam_status
 mpt_raid_quiesce_disk(struct mpt_softc *, struct mpt_raid_disk *, request_t *);
 
 int	mpt_refresh_raid_data(struct mpt_softc *);
 void	mpt_schedule_raid_refresh(struct mpt_softc *);
+void	mpt_raid_free_mem(struct mpt_softc *);
 
 static __inline void
 mpt_raid_wakeup(struct mpt_softc *mpt)
