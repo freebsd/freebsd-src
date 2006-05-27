@@ -35,7 +35,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd April 4, 2006
+.Dd May 27, 2006
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -681,7 +681,7 @@ but not
 .Dq Li xyzzy
 or
 .Dq Li /foo/ .
-.It Ic -size Ar n Ns Op Cm c
+.It Ic -size Ar n Ns Op Cm ckMGTP
 True if the file's size, rounded up, in 512-byte blocks is
 .Ar n .
 If
@@ -692,6 +692,25 @@ then the primary is true if the
 file's size is
 .Ar n
 bytes (characters).
+Similarly if
+.Ar n
+is followed by a scale indicator then the file's size is compared to
+.Ar n
+scaled as:
+.Pp
+.Bl -tag -width indent -compact
+.It Cm k
+kilobytes (1024 bytes)
+.It Cm M
+megabytes (1024 kilobytes)
+.It Cm G
+gigabytes (1024 megabytes)
+.It Cm T
+terabytes (1024 gigabytes)
+.It Cm P
+petabytes (1024 terabytes)
+.El
+.Pp
 .It Ic -type Ar t
 True if the file is of the specified type.
 Possible file types are as follows:
