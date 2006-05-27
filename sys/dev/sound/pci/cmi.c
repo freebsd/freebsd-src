@@ -48,8 +48,10 @@
 #include <dev/pci/pcivar.h>
 
 #include <sys/sysctl.h>
+#include <dev/sound/midi/mpu401.h>
 
 #include "mixer_if.h"
+#include "mpufoi_if.h"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -112,6 +114,13 @@ struct sc_info {
 	int			spdif_enabled;
 	unsigned int		bufsz;
 	struct sc_chinfo 	pch, rch;
+
+	struct mpu401	*mpu;
+	mpu401_intr_t		*mpu_intr;
+	struct resource *mpu_reg;
+	int mpu_regid;
+	bus_space_tag_t	mpu_bt;
+	bus_space_handle_t	mpu_bh;
 };
 
 /* Channel caps */
@@ -551,6 +560,9 @@ cmi_intr(void *data)
 
 		}
 	}
+	if(sc->mpu_intr) {
+		(sc->mpu_intr)(sc->mpu);
+	}
 	snd_mtxunlock(sc->lock);
 	return;
 }
@@ -747,6 +759,74 @@ static kobj_method_t cmi_mixer_methods[] = {
 };
 MIXER_DECLARE(cmi_mixer);
 
+/*
+ * mpu401 functions
+ */
+
+static unsigned char
+cmi_mread(void *arg, struct sc_info *sc, int reg)
+{	
+	unsigned int d;
+
+		d = bus_space_read_1(0,0, 0x330 + reg); 
+	/*	printf("cmi_mread: reg %x %x\n",reg, d);
+	*/
+	return d;
+}
+
+static void
+cmi_mwrite(void *arg, struct sc_info *sc, int reg, unsigned char b)
+{
+
+	bus_space_write_1(0,0,0x330 + reg , b);
+}
+
+static int
+cmi_muninit(void *arg, struct sc_info *sc)
+{
+
+	snd_mtxlock(sc->lock);
+	sc->mpu_intr = 0;
+	sc->mpu = 0;
+	snd_mtxunlock(sc->lock);
+
+	return 0;
+}
+
+static kobj_method_t cmi_mpu_methods[] = {
+    	KOBJMETHOD(mpufoi_read,		cmi_mread),
+    	KOBJMETHOD(mpufoi_write,	cmi_mwrite),
+    	KOBJMETHOD(mpufoi_uninit,	cmi_muninit),
+	{ 0, 0 }
+};
+
+DEFINE_CLASS(cmi_mpu, cmi_mpu_methods, 0);
+
+static void
+cmi_midiattach(struct sc_info *sc) {
+/*
+	const struct {
+		int port,bits;
+	} *p, ports[] = { 
+		{0x330,0}, 
+		{0x320,1}, 
+		{0x310,2}, 
+		{0x300,3}, 
+		{0,0} } ;
+	Notes, CMPCI_REG_VMPUSEL sets the io port for the mpu.  Does
+	anyone know how to bus_space tag?
+*/
+	cmi_clr4(sc, CMPCI_REG_FUNC_1, CMPCI_REG_UART_ENABLE);
+	cmi_clr4(sc, CMPCI_REG_LEGACY_CTRL, 
+			CMPCI_REG_VMPUSEL_MASK << CMPCI_REG_VMPUSEL_SHIFT);
+	cmi_set4(sc, CMPCI_REG_LEGACY_CTRL, 
+			0 << CMPCI_REG_VMPUSEL_SHIFT );
+	cmi_set4(sc, CMPCI_REG_FUNC_1, CMPCI_REG_UART_ENABLE);
+	sc->mpu = mpu401_init(&cmi_mpu_class, sc, cmi_intr, &sc->mpu_intr);
+}
+
+
+
 /* ------------------------------------------------------------------------- */
 /* Power and reset */
 
@@ -802,6 +882,10 @@ cmi_uninit(struct sc_info *sc)
 		 CMPCI_REG_TDMA_INTR_ENABLE);
 	cmi_clr4(sc, CMPCI_REG_FUNC_0,
 		 CMPCI_REG_CH0_ENABLE | CMPCI_REG_CH1_ENABLE);
+	cmi_clr4(sc, CMPCI_REG_FUNC_1, CMPCI_REG_UART_ENABLE);
+
+	if( sc->mpu )
+		sc->mpu_intr = 0;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -856,6 +940,8 @@ cmi_attach(device_t dev)
 	}
 	sc->st = rman_get_bustag(sc->reg);
 	sc->sh = rman_get_bushandle(sc->reg);
+
+	cmi_midiattach(sc);
 
 	sc->irqid = 0;
 	sc->irq   = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqid,
@@ -936,7 +1022,12 @@ cmi_detach(device_t dev)
 	bus_dma_tag_destroy(sc->parent_dmat);
 	bus_teardown_intr(dev, sc->irq, sc->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
+	if(sc->mpu)
+		mpu401_uninit(sc->mpu);
 	bus_release_resource(dev, SYS_RES_IOPORT, sc->regid, sc->reg);
+	if (sc->mpu_reg)
+	    bus_release_resource(dev, SYS_RES_IOPORT, sc->mpu_regid, sc->mpu_reg);
+
 	snd_mtxfree(sc->lock);
 	free(sc, M_DEVBUF);
 
@@ -1007,4 +1098,5 @@ static driver_t cmi_driver = {
 
 DRIVER_MODULE(snd_cmi, pci, cmi_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_cmi, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_cmi, midi, 1,1,1);
 MODULE_VERSION(snd_cmi, 1);
