@@ -3777,13 +3777,13 @@ siogdbterm(void)
 static void
 siogdbputc(int c)
 {
-	sio__cnputc(NULL, c);
+	sio_cnputc(NULL, c);
 }
 
 static int
 siogdbgetc(void)
 {
-	return (sio__cngetc(NULL));
+	return (sio_cngetc(NULL));
 }
 
 #endif
