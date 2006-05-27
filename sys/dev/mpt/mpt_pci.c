@@ -600,27 +600,10 @@ mpt_pci_detach(device_t dev)
 		mpt_reset(mpt, /*reinit*/FALSE);
 		mpt_dma_mem_free(mpt);
 		mpt_free_bus_resources(mpt);
-		if (mpt->raid_volumes != NULL && mpt->ioc_page2 != NULL) {
-			int i;
-			for (i = 0; i < mpt->ioc_page2->MaxVolumes; i++) {
-				struct mpt_raid_volume *mpt_vol;
-				
-				mpt_vol = &mpt->raid_volumes[i];
-				if (mpt_vol->config_page) {
-					free(mpt_vol->config_page, M_DEVBUF);
-				}
-			}
-		}
-		if (mpt->ioc_page2 != NULL)
-			free(mpt->ioc_page2, M_DEVBUF);
-		if (mpt->ioc_page3 != NULL)
-			free(mpt->ioc_page3, M_DEVBUF);
-		if (mpt->raid_volumes != NULL)
-			free(mpt->raid_volumes, M_DEVBUF);
-		if (mpt->raid_disks != NULL)
-			free(mpt->raid_disks, M_DEVBUF);
-		if (mpt->eh != NULL)
+		mpt_raid_free_mem(mpt);
+		if (mpt->eh != NULL) {
                         EVENTHANDLER_DEREGISTER(shutdown_final, mpt->eh);
+		}
 		MPT_UNLOCK(mpt);
 	}
 	return(0);
