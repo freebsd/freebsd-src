@@ -157,8 +157,8 @@ MODULE_DEPEND(hme, miibus, 1, 1, 1);
 	if (hme_nerr++ < HME_MAXERR)					\
 		device_printf(dev, __VA_ARGS__);			\
 	if (hme_nerr == HME_MAXERR) {					\
-		device_printf(dev, "too may errors; not reporting any "	\
-		    "more\n");						\
+		device_printf(dev, "too many errors; not reporting "	\
+		    "any more\n");					\
 	}								\
 } while(0)
 
