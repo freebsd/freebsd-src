@@ -131,6 +131,16 @@
       <filename role="package">sysutils/smartmontools</filename>
       port.</para>
 
+    <para>(2006/05/27) On &os;/alpha, sysinstall sometimes does not allow
+      a disk to be labeled.  The disk is presented in sysinstall but
+      actions like 'A'auto do not result in a disklabel being presented.
+      Workaround is to boot the install CD, then select Fixit.  From
+      the Fixit prompt run disklabel manually.  For example:  
+      "disklabel -rw da1 auto" ensures a valid disklabel is written onto
+      da1.  Reboot from the install media.  sysinstall will now
+      detect a valid disklabel on the disk and allow it to be partitioned
+      to your preference.</para>
+
   </sect1>
 
 </article>
