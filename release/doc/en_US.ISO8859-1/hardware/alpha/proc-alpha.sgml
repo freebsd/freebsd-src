@@ -1684,14 +1684,14 @@ cpu	EV5</programlisting>
       <para>Features:</para>
         <itemizedlist>
 	  <listitem>
-	    <para>21264 EV6 CPU at 500, 670 or 833 MHz</para>
+	    <para>21264 EV6 CPU at 500, 667 or 833 MHz</para>
 	  </listitem>
 	  <listitem>
 	    <para>dual CPU capable machine</para>
 	  </listitem>
 	  <listitem>
-	    <para>L2 / Bcache: 4 Mbytes per CPU (500 and 670 MHz)</para>
-            <para>L2 / Bcache: 8 Mbytes per CPU (833 MHz)</para>
+	    <para>L2 / Bcache: 4 Mbytes per CPU (500 MHz)</para>
+            <para>L2 / Bcache: 8 Mbytes per CPU (667 and 833 MHz)</para>
 	  </listitem>
 	  <listitem>
 	    <para>memory bus: dual 256 bit wide with crossbar switch</para>
