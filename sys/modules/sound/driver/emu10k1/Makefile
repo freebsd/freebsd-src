@@ -5,6 +5,7 @@
 
 KMOD=	snd_emu10k1
 SRCS=	device_if.h bus_if.h pci_if.h emu10k1-alsa%diked.h
+SRCS+= mpufoi_if.h
 SRCS+=	emu10k1.c
 
 CLEANFILES+= emu10k1-alsa%diked.h
