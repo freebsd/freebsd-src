@@ -135,7 +135,10 @@
     <sect3 id="proc">
       <title>Hardware Support</title>
 
-      <para></para>
+      <para arch="i386">Support has been improved for
+	so-called <quote>legacy-free</quote> hardware, in particular,
+	i386 systems without AT-style keyboard controllers such as the
+	Macbook Pro.</para>
 
       <sect4 id="mm">
 	<title>Multimedia Support</title>
@@ -192,6 +195,13 @@
       also specified, no output is made for disks with no
       activity.</para>
 
+    <para>The &man.jail.8; program now supports a <option>-s</option>
+      option to specify a jail's securelevel.</para>
+
+    <para>The &man.ls.1; utility now supports
+      an <option>-U</option> flag to use the file creation
+      time for sorting.</para>
+
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
@@ -224,7 +234,10 @@
   <sect2 id="doc">
     <title>Documentation</title>
 
-    <para></para>
+    <para>The manual pages for <application>NTP</application>
+      have been updated to 4.2.0, to match the version of
+      code actually included in &os;.</para>
+
   </sect2>
 </sect1>
 
