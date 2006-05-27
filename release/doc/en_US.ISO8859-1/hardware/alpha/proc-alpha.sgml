@@ -1296,9 +1296,21 @@ cpu	EV5</programlisting>
       7 PCI slots whereas AS1000 only has 3 PCI slots and has EISA 
       slots instead.</para>
 
-      <para>AS800 with an EV5/400 MHz CPU was later re-branded to become a 
-      <quote>DIGITAL Server 3300[R]</quote>, AS800 with an EV5/500 MHz 
-      CPU was later re-branded to become a <quote>DIGITAL Server 3305[R]</quote>.</para>
+      <para>The AlphaServer 800 system has a smart power controller. 
+      This means that parts of the system remain powered when it 
+      is switched off (like an ATX-style PC power supply). 
+      Before servicing the machine remove the power cord.</para>
+
+      <para>The smart power controller is called the RMC. When enabled, 
+      typing <keycap>Escape</keycap><keycap>Escape</keycap>RMC on serial port 1
+      will bring you to the RMC prompt. RMC allows you to powerup or powerdown,
+      reset the machine, monitor and set temperature trip levels etc. RMC
+      has its own builtin help.</para>
+
+      <para>AlphaServer 800 with an EV5/400 MHz CPU was later re-branded 
+      to become a <quote>DIGITAL Server 3300[R]</quote>, AlphaServer 800
+      with an EV5/500 MHz CPU was later re-branded to become 
+      a <quote>DIGITAL Server 3305[R]</quote>.</para>
 
       <para>Features:</para>
       <itemizedlist>
