@@ -129,6 +129,7 @@ Static int axe_encap(struct axe_softc *, struct mbuf *, int);
 Static void axe_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
 Static void axe_txeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
 Static void axe_tick(void *);
+Static void axe_tick_task(void *);
 Static void axe_rxstart(struct ifnet *);
 Static void axe_start(struct ifnet *);
 Static int axe_ioctl(struct ifnet *, u_long, caddr_t);
@@ -426,6 +427,8 @@ USB_ATTACH(axe)
 		USB_ATTACH_ERROR_RETURN;
 	}
 
+	usb_init_task(&sc->axe_tick_task, axe_tick_task, sc);
+
 	if (usbd_device2interface_handle(uaa->device,
 	    AXE_IFACE_IDX, &sc->axe_iface)) {
 		printf("axe%d: getting interface handle failed\n",
@@ -547,6 +550,8 @@ axe_detach(device_ptr_t dev)
 
 	sc->axe_dying = 1;
 	untimeout(axe_tick, sc, sc->axe_stat_ch);
+	usb_rem_task(sc->axe_udev, &sc->axe_tick_task);
+
 #if __FreeBSD_version >= 500000
 	ether_ifdetach(ifp);
 	if_free(ifp);
@@ -716,6 +721,20 @@ axe_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 
 Static void
 axe_tick(void *xsc)
+{
+	struct axe_softc *sc = xsc;
+
+	if (sc == NULL)
+		return;
+	if (sc->axe_dying)
+		return;
+
+	/* Perform periodic stuff in process context */
+	usb_add_task(sc->axe_udev, &sc->axe_tick_task);
+}
+
+Static void
+axe_tick_task(void *xsc)
 {
 	struct axe_softc	*sc;
 	struct ifnet		*ifp;
