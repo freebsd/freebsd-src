@@ -35,6 +35,9 @@
 #include <dev/pci/pcivar.h>
 #include <sys/queue.h>
 
+#include <dev/sound/midi/mpu401.h>
+#include "mpufoi_if.h"
+
 SND_DECLARE_FILE("$FreeBSD$");
 
 /* -------------------------------------------------------------------- */
@@ -137,6 +140,9 @@ struct sc_info {
 	struct emu_voice voice[64];
 	struct sc_pchinfo pch[EMU_MAX_CHANS];
 	struct sc_rchinfo rch[3];
+	struct mpu401   *mpu;
+	mpu401_intr_t           *mpu_intr;
+	int mputx;
 };
 
 /* -------------------------------------------------------------------- */
@@ -1059,8 +1065,65 @@ static kobj_method_t emurchan_methods[] = {
 };
 CHANNEL_DECLARE(emurchan);
 
+static unsigned char
+emu_mread(void *arg, struct sc_info *sc, int reg)
+{	
+	unsigned int d;
+
+	d = emu_rd(sc, 0x18 + reg, 1); 
+	return d;
+}
+
+static void
+emu_mwrite(void *arg, struct sc_info *sc, int reg, unsigned char b)
+{
+
+	emu_wr(sc, 0x18 + reg, b, 1);
+}
+
+static int
+emu_muninit(void *arg, struct sc_info *sc)
+{
+
+	snd_mtxlock(sc->lock);
+	sc->mpu_intr = 0;
+	snd_mtxunlock(sc->lock);
+
+	return 0;
+}
+
+static kobj_method_t emu_mpu_methods[] = {
+    	KOBJMETHOD(mpufoi_read,		emu_mread),
+    	KOBJMETHOD(mpufoi_write,	emu_mwrite),
+    	KOBJMETHOD(mpufoi_uninit,	emu_muninit),
+	{ 0, 0 }
+};
+
+DEFINE_CLASS(emu_mpu, emu_mpu_methods, 0);
+
+static void
+emu_intr2(void *p)
+{
+	struct sc_info *sc = (struct sc_info *)p;
+
+	if (sc->mpu_intr)
+	    (sc->mpu_intr)(sc->mpu);
+}
+
+static void
+emu_midiattach(struct sc_info *sc)
+{
+	int i;
+
+	i = emu_rd(sc, INTE, 4);
+	i |= INTE_MIDIRXENABLE;
+	emu_wr(sc, INTE, i, 4);
+
+	sc->mpu = mpu401_init(&emu_mpu_class, sc, emu_intr2, &sc->mpu_intr);
+}
 /* -------------------------------------------------------------------- */
 /* The interrupt handler */
+
 static void
 emu_intr(void *data)
 {
@@ -1100,6 +1163,11 @@ emu_intr(void *data)
 #endif
 		}
 
+	    if (stat & IPR_MIDIRECVBUFEMPTY)
+		if (sc->mpu_intr) {
+		    (sc->mpu_intr)(sc->mpu);
+		    ack |= IPR_MIDIRECVBUFEMPTY | IPR_MIDITRANSBUFEMPTY;
+ 		}
 		if (stat & ~ack)
 			device_printf(sc->dev, "dodgy irq: %x (harmless)\n",
 			    stat & ~ack);
@@ -1871,6 +1939,8 @@ emu_uninit(struct sc_info *sc)
 	emu_free(sc, sc->mem.ptb_pages);
 	emu_free(sc, sc->mem.silent_page);
 
+	if(sc->mpu)
+	    mpu401_uninit(sc->mpu);
 	return 0;
 }
 
@@ -1963,6 +2033,8 @@ emu_pci_attach(device_t dev)
 	gotmic = (ac97_getcaps(codec) & AC97_CAP_MICCHANNEL) ? 1 : 0;
 	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto bad;
 
+	emu_midiattach(sc);
+
 	i = 0;
 	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &i,
 	    RF_ACTIVE | RF_SHAREABLE);
@@ -2041,6 +2113,7 @@ DRIVER_MODULE(snd_emu10k1, pci, emu_driver, pcm_devclass, 0, 0);
 DRIVER_MODULE(snd_emu10k1, cardbus, emu_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_emu10k1, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_emu10k1, 1);
+MODULE_DEPEND(snd_emu10k1, midi, 1, 1, 1);
 
 /* dummy driver to silence the joystick device */
 static int
