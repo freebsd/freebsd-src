@@ -147,6 +147,7 @@ struct axe_softc {
 	unsigned char 		axe_phyaddrs[2];
 	struct timeval		axe_rx_notice;
 	struct usb_qdat		axe_qdat;
+	struct usb_task		axe_tick_task;
 };
 
 #if 0
