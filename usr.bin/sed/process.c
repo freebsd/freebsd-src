@@ -188,8 +188,7 @@ redirect:
 			case 'P':
 				if (pd)
 					break;
-				if (psl != 0 &&
-				    (p = memchr(ps, '\n', psl)) != NULL) {
+				if ((p = memchr(ps, '\n', psl)) != NULL) {
 					oldpsl = psl;
 					psl = p - ps;
 				}
