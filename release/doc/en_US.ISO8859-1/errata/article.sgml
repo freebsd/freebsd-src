@@ -141,6 +141,12 @@
       detect a valid disklabel on the disk and allow it to be partitioned
       to your preference.</para>
 
+    <para>(2006/05/27) &os; &release.bugfix; includes a change
+      to some definitions in <filename>src/sys/net/if_media.h</filename>
+      (revision 1.30.2.1).  This could break source-level compatibility
+      with externally-maintained 10Gb Ethernet network drivers written
+      for &os; 6.0-RELEASE.  This change should have been documented
+      in the release notes.</para>
   </sect1>
 
 </article>
