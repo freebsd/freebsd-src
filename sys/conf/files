@@ -905,6 +905,12 @@ dev/sound/pcm/vchan.c		optional sound
 #dev/sound/usb/upcm.c		optional snd_upcm usb
 dev/sound/usb/uaudio.c		optional snd_uaudio usb
 dev/sound/usb/uaudio_pcm.c	optional snd_uaudio usb
+dev/sound/midi/midi.c		optional sound
+dev/sound/midi/mpu401.c		optional sound
+dev/sound/midi/mpu_if.m		optional sound
+dev/sound/midi/mpufoi_if.m	optional sound
+dev/sound/midi/sequencer.c	optional sound
+dev/sound/midi/synth_if.m	optional sound
 dev/sr/if_sr.c			optional sr
 dev/sr/if_sr_pci.c		optional sr pci
 dev/stg/tmc18c30.c		optional stg
