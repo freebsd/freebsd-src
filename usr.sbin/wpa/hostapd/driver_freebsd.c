@@ -129,7 +129,7 @@ static int
 bsd_configure_wpa(struct bsd_driver_data *drv)
 {
 	static const char *ciphernames[] =
-		{ "WEP", "TKIP", "AES-OCB", "AES-CCM", "CKIP", "NONE" };
+	    { "WEP", "TKIP", "AES-OCB", "AES-CCM", "*BAD*", "CKIP", "NONE" };
 	hostapd *hapd = drv->hapd;
 	struct hostapd_config *conf = hapd->conf;
 	int v;
