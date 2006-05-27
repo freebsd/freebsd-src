@@ -1644,20 +1644,12 @@ linker_search_module(const char *modname, int modnamelen,
 static char *
 linker_search_kld(const char *name)
 {
-	char *cp, *ep, *result, **cpp;
-	int extlen, len;
+	char *cp, *ep, *result;
+	int len;
 
 	/* qualified at all? */
 	if (index(name, '/'))
 		return (linker_strdup(name));
-
-	extlen = 0;
-	for (cpp = linker_ext_list; *cpp; cpp++) {
-		len = strlen(*cpp);
-		if (len > extlen)
-			extlen = len;
-	}
-	extlen++;		/* trailing '\0' */
 
 	/* traverse the linker path */
 	len = strlen(name);
