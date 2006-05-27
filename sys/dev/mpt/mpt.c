@@ -1206,7 +1206,7 @@ retry:
 void
 mpt_send_cmd(struct mpt_softc *mpt, request_t *req)
 {
-	if (mpt->verbose > MPT_PRT_TRACE) {
+	if (mpt->verbose > MPT_PRT_DEBUG2) {
 		mpt_dump_request(mpt, req);
 	}
 	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
@@ -1685,15 +1685,16 @@ mpt_read_config_info_ioc(struct mpt_softc *mpt)
 	size_t len;
 
 	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_IOC,
-				 /*PageNumber*/2, /*PageAddress*/0, &hdr,
-				 /*sleep_ok*/FALSE, /*timeout_ms*/5000);
+		2, 0, &hdr, FALSE, 5000);
 	/*
 	 * If it's an invalid page, so what? Not a supported function....
 	 */
-	if (rv == EINVAL)
+	if (rv == EINVAL) {
 		return (0);
-	if (rv)
+	}
+	if (rv) {
 		return (rv);
+	}
 
 #if __FreeBSD_version >= 500000
 	mpt_lprt(mpt, MPT_PRT_DEBUG,  "IOC Page 2 Header: ver %x, len %zx, "
@@ -1709,22 +1710,28 @@ mpt_read_config_info_ioc(struct mpt_softc *mpt)
 
 	len = hdr.PageLength * sizeof(uint32_t);
 	mpt->ioc_page2 = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (mpt->ioc_page2 == NULL)
+	if (mpt->ioc_page2 == NULL) {
+		mpt_prt(mpt, "unable to allocate memory for IOC page 2\n");
+		mpt_raid_free_mem(mpt);
 		return (ENOMEM);
+	}
 	memcpy(&mpt->ioc_page2->Header, &hdr, sizeof(hdr));
-	rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/0,
-				   &mpt->ioc_page2->Header, len,
-				   /*sleep_ok*/FALSE, /*timeout_ms*/5000);
+	rv = mpt_read_cur_cfg_page(mpt, 0,
+	    &mpt->ioc_page2->Header, len, FALSE, 5000);
 	if (rv) {
 		mpt_prt(mpt, "failed to read IOC Page 2\n");
-	} else if (mpt->ioc_page2->CapabilitiesFlags != 0) {
+		mpt_raid_free_mem(mpt);
+		return (EIO);
+	}
+
+	if (mpt->ioc_page2->CapabilitiesFlags != 0) {
 		uint32_t mask;
 
 		mpt_prt(mpt, "Capabilities: (");
 		for (mask = 1; mask != 0; mask <<= 1) {
-			if ((mpt->ioc_page2->CapabilitiesFlags & mask) == 0)
+			if ((mpt->ioc_page2->CapabilitiesFlags & mask) == 0) {
 				continue;
-
+			}
 			switch (mask) {
 			case MPI_IOCPAGE2_CAP_FLAGS_IS_SUPPORT:
 				mpt_prtc(mpt, " RAID-0");
@@ -1766,11 +1773,11 @@ mpt_read_config_info_ioc(struct mpt_softc *mpt)
 	}
 
 	len = mpt->ioc_page2->MaxVolumes * sizeof(struct mpt_raid_volume);
-	mpt->raid_volumes = malloc(len, M_DEVBUF, M_NOWAIT);
+	mpt->raid_volumes = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (mpt->raid_volumes == NULL) {
 		mpt_prt(mpt, "Could not allocate RAID volume data\n");
-	} else {
-		memset(mpt->raid_volumes, 0, len);
+		mpt_raid_free_mem(mpt);
+		return (ENOMEM);
 	}
 
 	/*
@@ -1780,54 +1787,57 @@ mpt_read_config_info_ioc(struct mpt_softc *mpt)
 	 */
 	mpt->raid_max_volumes =  mpt->ioc_page2->MaxVolumes;
 
-	len = sizeof(*mpt->raid_volumes->config_page)
-	    + (sizeof(RAID_VOL0_PHYS_DISK)*(mpt->ioc_page2->MaxPhysDisks - 1));
+	len = sizeof(*mpt->raid_volumes->config_page) +
+	    (sizeof (RAID_VOL0_PHYS_DISK) * (mpt->ioc_page2->MaxPhysDisks - 1));
 	for (i = 0; i < mpt->ioc_page2->MaxVolumes; i++) {
 		mpt_raid = &mpt->raid_volumes[i];
-		mpt_raid->config_page = malloc(len, M_DEVBUF, M_NOWAIT);
+		mpt_raid->config_page =
+		    malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (mpt_raid->config_page == NULL) {
 			mpt_prt(mpt, "Could not allocate RAID page data\n");
-			break;
+			mpt_raid_free_mem(mpt);
+			return (ENOMEM);
 		}
-		memset(mpt_raid->config_page, 0, len);
 	}
 	mpt->raid_page0_len = len;
 
 	len = mpt->ioc_page2->MaxPhysDisks * sizeof(struct mpt_raid_disk);
-	mpt->raid_disks = malloc(len, M_DEVBUF, M_NOWAIT);
+	mpt->raid_disks = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (mpt->raid_disks == NULL) {
 		mpt_prt(mpt, "Could not allocate RAID disk data\n");
-	} else {
-		memset(mpt->raid_disks, 0, len);
+		mpt_raid_free_mem(mpt);
+		return (ENOMEM);
 	}
-
 	mpt->raid_max_disks =  mpt->ioc_page2->MaxPhysDisks;
 
+	/*
+	 * Load page 3.
+	 */
 	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_IOC,
-				 /*PageNumber*/3, /*PageAddress*/0, &hdr,
-				 /*sleep_ok*/FALSE, /*timeout_ms*/5000);
-	if (rv)
-		return (EIO);
-
-	mpt_lprt(mpt, MPT_PRT_DEBUG, "IOC Page 3 Header: %x %x %x %x\n",
-		 hdr.PageVersion, hdr.PageLength, hdr.PageNumber, hdr.PageType);
-
-	if (mpt->ioc_page3 != NULL)
-		free(mpt->ioc_page3, M_DEVBUF);
-	len = hdr.PageLength * sizeof(uint32_t);
-	mpt->ioc_page3 = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (mpt->ioc_page3 == NULL)
-		return (-1);
-	memcpy(&mpt->ioc_page3->Header, &hdr, sizeof(hdr));
-	rv = mpt_read_cur_cfg_page(mpt, /*PageAddress*/0,
-				   &mpt->ioc_page3->Header, len,
-				   /*sleep_ok*/FALSE, /*timeout_ms*/5000);
+	    3, 0, &hdr, FALSE, 5000);
 	if (rv) {
-		mpt_prt(mpt, "failed to read IOC Page 3\n");
+		mpt_raid_free_mem(mpt);
+		return (EIO);
 	}
 
-	mpt_raid_wakeup(mpt);
+	mpt_lprt(mpt, MPT_PRT_DEBUG, "IOC Page 3 Header: %x %x %x %x\n",
+	    hdr.PageVersion, hdr.PageLength, hdr.PageNumber, hdr.PageType);
 
+	len = hdr.PageLength * sizeof(uint32_t);
+	mpt->ioc_page3 = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (mpt->ioc_page3 == NULL) {
+		mpt_prt(mpt, "unable to allocate memory for IOC page 3\n");
+		mpt_raid_free_mem(mpt);
+		return (ENOMEM);
+	}
+	memcpy(&mpt->ioc_page3->Header, &hdr, sizeof(hdr));
+	rv = mpt_read_cur_cfg_page(mpt, 0,
+	    &mpt->ioc_page3->Header, len, FALSE, 5000);
+	if (rv) {
+		mpt_raid_free_mem(mpt);
+		return (EIO);
+	}
+	mpt_raid_wakeup(mpt);
 	return (0);
 }
 
@@ -2458,6 +2468,9 @@ mpt_configure_ioc(struct mpt_softc *mpt)
 
 		/*
 		 * Read IOC configuration information.
+		 *
+		 * We need this to determine whether or not we have certain
+		 * settings for Integrated Mirroring (e.g.).
 		 */
 		mpt_read_config_info_ioc(mpt);
 

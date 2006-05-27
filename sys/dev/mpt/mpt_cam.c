@@ -1184,7 +1184,7 @@ out:
 	} else {
 		callout_handle_init(&ccb->ccb_h.timeout_ch);
 	}
-	if (mpt->verbose >= MPT_PRT_DEBUG) {
+	if (mpt->verbose > MPT_PRT_DEBUG) {
 		int nc = 0;
 		mpt_print_request(req->req_vbuf);
 		for (trq = req->chain; trq; trq = trq->chain) {
@@ -1192,6 +1192,7 @@ out:
 			mpt_dump_sgl(trq->req_vbuf, 0);
 		}
 	}
+
 	if (hdrp->Function == MPI_FUNCTION_TARGET_ASSIST) {
 		request_t *cmd_req = MPT_TAG_2_REQ(mpt, ccb->csio.tag_id);
 		mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, cmd_req);
@@ -1567,7 +1568,7 @@ out:
 	} else {
 		callout_handle_init(&ccb->ccb_h.timeout_ch);
 	}
-	if (mpt->verbose >= MPT_PRT_DEBUG) {
+	if (mpt->verbose > MPT_PRT_DEBUG) {
 		int nc = 0;
 		mpt_print_request(req->req_vbuf);
 		for (trq = req->chain; trq; trq = trq->chain) {
@@ -1603,6 +1604,7 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	struct ccb_scsiio *csio = &ccb->csio;
 	struct ccb_hdr *ccbh = &ccb->ccb_h;
 	bus_dmamap_callback_t *cb;
+	target_id_t tgt;
 	int raid_passthru;
 
 	/* Get the pointer for the physical addapter */
@@ -1647,8 +1649,21 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	mpt_req->Function = MPI_FUNCTION_SCSI_IO_REQUEST;
 	if (raid_passthru) {
 		mpt_req->Function = MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH;
+		CAMLOCK_2_MPTLOCK(mpt);
+		if (mpt_map_physdisk(mpt, ccb, &tgt) != 0) {
+			MPTLOCK_2_CAMLOCK(mpt);
+			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+			mpt_set_ccb_status(ccb, CAM_DEV_NOT_THERE);
+			xpt_done(ccb);
+			return;
+		}
+		MPTLOCK_2_CAMLOCK(mpt);
+		mpt_req->Bus = 0;	/* we never set bus here */
+	} else {
+		tgt = ccb->ccb_h.target_id;
+		mpt_req->Bus = 0;	/* XXX */
+		
 	}
-	mpt_req->Bus = 0;	/* we don't have multiport devices yet */
 	mpt_req->SenseBufferLength =
 		(csio->sense_len < MPT_SENSE_SIZE) ?
 		 csio->sense_len : MPT_SENSE_SIZE;
@@ -1660,7 +1675,7 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	mpt_req->MsgContext = htole32(req->index | scsi_io_handler_id);
 
 	/* Which physical device to do the I/O on */
-	mpt_req->TargetID = ccb->ccb_h.target_id;
+	mpt_req->TargetID = tgt;
 
 	/* We assume a single level LUN type */
 	if (ccb->ccb_h.target_lun >= 256) {
@@ -1722,9 +1737,25 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	mpt_req->SenseBufferLowAddr = req->sense_pbuf;
 
 	/*
+	 * Do a *short* print here if we're set to MPT_PRT_DEBUG
+	 */
+	if (mpt->verbose == MPT_PRT_DEBUG) {
+		mpt_prt(mpt, "mpt_start: %s op 0x%x ",
+		    (mpt_req->Function == MPI_FUNCTION_SCSI_IO_REQUEST)?
+		    "SCSI_IO_REQUEST" : "SCSI_IO_PASSTHRU", mpt_req->CDB[0]);
+		if (mpt_req->Control != MPI_SCSIIO_CONTROL_NODATATRANSFER) {
+			mpt_prtc(mpt, "(%s %u byte%s ",
+			    (mpt_req->Control == MPI_SCSIIO_CONTROL_READ)?
+			    "read" : "write",  csio->dxfer_len,
+			    (csio->dxfer_len == 1)? ")" : "s)");
+		}
+		mpt_prtc(mpt, "tgt %u lun %u req %p:%u\n", tgt,
+		    ccb->ccb_h.target_lun, req, req->serno);
+	}
+
+	/*
 	 * If we have any data to send with this command map it into bus space.
 	 */
-
 	if ((ccbh->flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
 		if ((ccbh->flags & CAM_SCATTER_VALID) == 0) {
 			/*
@@ -2060,6 +2091,10 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 		inq = (struct scsi_inquiry_data *)ccb->csio.data_ptr;
 		inq->device &= ~0x1F;
 		inq->device |= T_NODEVICE;
+	}
+	if (mpt->verbose == MPT_PRT_DEBUG) {
+		mpt_prt(mpt, "mpt_scsi_reply_handler: %p:%u complete\n",
+		    req, req->serno);
 	}
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d\n", __LINE__));
@@ -2631,7 +2666,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 {
 	struct	mpt_softc *mpt;
 	struct	ccb_trans_settings *cts;
-	u_int	tgt;
+	target_id_t tgt;
 	int	raid_passthru;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("mpt_action\n"));
@@ -2681,11 +2716,11 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 
 	case XPT_RESET_BUS:
 		mpt_lprt(mpt, MPT_PRT_DEBUG, "XPT_RESET_BUS\n");
-		if (raid_passthru == 0) {
-			CAMLOCK_2_MPTLOCK(mpt);
-			(void)mpt_bus_reset(mpt, FALSE);
-			MPTLOCK_2_CAMLOCK(mpt);
-		}
+
+		CAMLOCK_2_MPTLOCK(mpt);
+		(void) mpt_bus_reset(mpt, FALSE);
+		MPTLOCK_2_CAMLOCK(mpt);
+
 		/*
 		 * mpt_bus_reset is always successful in that it
 		 * will fall back to a hard reset should a bus
@@ -2760,11 +2795,20 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 		}
 
+		if (mpt->ioc_page2 && mpt->ioc_page2->MaxPhysDisks != 0 &&
+		    raid_passthru == 0) {
+			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
+			break;
+		}
+
 		m = mpt->mpt_port_page2.PortSettings;
 		if ((m & MPI_SCSIPORTPAGE2_PORT_MASK_NEGO_MASTER_SETTINGS) ==
 		    MPI_SCSIPORTPAGE2_PORT_ALL_MASTER_SETTINGS) {
+mpt_prt(mpt, "master settings\n");
+if (raid_passthru == 0) {
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 			break;
+}
 		}
 
 		dval = 0;
@@ -2962,7 +3006,8 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 		}
 		if (raid_passthru) {
-			cpi->max_target = mpt->ioc_page2->MaxPhysDisks;
+			cpi->max_lun = 0;
+			cpi->hba_misc = PIM_NOBUSRESET;
 			cpi->initiator_id = cpi->max_target+1;
 		}
 
@@ -3057,17 +3102,38 @@ static int
 mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 {
 #ifdef	CAM_NEW_TRAN_CODE
-	struct ccb_trans_settings_scsi *scsi =
-	    &cts->proto_specific.scsi;
-	struct ccb_trans_settings_spi *spi =
-	    &cts->xport_specific.spi;
+	struct ccb_trans_settings_scsi *scsi = &cts->proto_specific.scsi;
+	struct ccb_trans_settings_spi *spi = &cts->xport_specific.spi;
 #endif
-	int tgt;
+	target_id_t tgt;
 	uint8_t dval, pval, oval;
 	int rv;
 
+	/*
+	 * Check to see if this is an Integrated Raid card.
+	 *
+	 * If it is, and we're the RAID bus side, both current
+	 * and goal settings are synthesized as we only look at
+	 * or change actual settings for the physical disk side.
+	 *
+	 * NB: In the future we can just do this on the blacked out
+	 * NB: portion that the RAID volume covers- there may be
+	 * NB: other entities on this bus as well.
+	 */
 
-	tgt = cts->ccb_h.target_id;
+	if (mpt->phydisk_sim) {
+		if (xpt_path_sim(cts->ccb_h.path) != mpt->phydisk_sim) {
+			dval = DP_WIDE|DP_DISC|DP_TQING;
+			oval = (mpt->mpt_port_page0.Capabilities >> 16);
+			pval = (mpt->mpt_port_page0.Capabilities >>  8);
+			tgt = cts->ccb_h.target_id;
+			goto skip;
+		}
+	}
+
+	if (mpt_map_physdisk(mpt, (union ccb *)cts, &tgt) != 0) {
+		return (-1);
+	}
 
 	/*
 	 * We aren't going off of Port PAGE2 params for
@@ -3115,6 +3181,7 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 		oval = (mpt->mpt_port_page0.Capabilities >> 16);
 		pval = (mpt->mpt_port_page0.Capabilities >>  8);
 	}
+ skip:
 #ifndef	CAM_NEW_TRAN_CODE
 	cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
 	if (dval & DP_DISC_ENABLE) {

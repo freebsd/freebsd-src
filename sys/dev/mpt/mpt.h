@@ -491,7 +491,8 @@ struct mpt_softc {
 		twildcard	: 1,
 		tenabled	: 1,
 		role		: 2,	/* none, ini, target, both */
-				: 2,
+				: 1,
+		raid_enabled	: 1,
 		raid_mwce_set	: 1,
 		getreqwaiter	: 1,
 		shutdwn_raid    : 1,
@@ -549,7 +550,7 @@ struct mpt_softc {
 		} fc;
 	} cfg;
 
-	/* Controller Info */
+	/* Controller Info for RAID information */
 	CONFIG_PAGE_IOC_2 *	ioc_page2;
 	CONFIG_PAGE_IOC_3 *	ioc_page3;
 
@@ -871,7 +872,7 @@ mpt_pio_read(struct mpt_softc *mpt, int offset)
 
 #define	MPT_DUMP_REPLY_FRAME(mpt, reply_frame)		\
 do {							\
-	if (mpt->verbose >= MPT_PRT_DEBUG)		\
+	if (mpt->verbose > MPT_PRT_DEBUG)		\
 		mpt_dump_reply_frame(mpt, reply_frame);	\
 } while(0)
 
