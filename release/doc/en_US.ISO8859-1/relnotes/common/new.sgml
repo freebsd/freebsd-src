@@ -443,7 +443,7 @@
       <para arch="i386">Support has been improved for
 	so-called <quote>legacy-free</quote> hardware, in particular,
 	i386 systems without AT-style keyboard controllers such as the
-	Macbook Pro.</para>
+	Macbook Pro. &merged;</para>
 
       <sect4 id="mm">
 	<title>Multimedia Support</title>
@@ -1043,8 +1043,8 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       the jailid, path, hostname, IP and the command used to start
       the jail.  &merged;</para>
 
-    <para>The &man.jail.8; program now support a <option>-s</option>
-      option to specify a jail's securelevel.</para>
+    <para>The &man.jail.8; program now supports a <option>-s</option>
+      option to specify a jail's securelevel. &merged;</para>
 
     <para>The &man.kdump.1; utility now supports a <option>-H</option>
       flag, which causes kdump to print an additional field holding
@@ -1098,7 +1098,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The &man.ls.1; utility now supports
       an <option>-U</option> flag to use the file creation
-      time for sorting.</para>
+      time for sorting. &merged;</para>
 
     <para>A new &man.malloc.3; implementation has been introduced.
       This implementation, sometimes referred to
@@ -1566,7 +1566,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The manual pages for <application>NTP</application>
       have been updated to 4.2.0, to match the version of
-      code actually included in &os;.</para>
+      code actually included in &os;. &merged;</para>
 
   </sect2>
 </sect1>
