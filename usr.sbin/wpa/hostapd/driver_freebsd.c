@@ -836,12 +836,13 @@ bsd_init(struct hostapd_data *hapd)
 	hapd->driver = &drv->ops;
 	return 0;
 bad:
-	if (drv->sock_xmit != NULL)
-		l2_packet_deinit(drv->sock_xmit);
-	if (drv->ioctl_sock >= 0)
-		close(drv->ioctl_sock);
-	if (drv != NULL)
+	if (drv != NULL) {
+		if (drv->sock_xmit != NULL)
+			l2_packet_deinit(drv->sock_xmit);
+		if (drv->ioctl_sock >= 0)
+			close(drv->ioctl_sock);
 		free(drv);
+	}
 	return -1;
 }
 
