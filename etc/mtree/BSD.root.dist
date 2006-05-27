@@ -65,6 +65,8 @@
     ..
     libexec
     ..
+    media
+    ..
     mnt
     ..
     proc            mode=0555
