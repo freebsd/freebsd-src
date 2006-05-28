@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <sys/queue.h>
 #if defined(__FreeBSD__)
@@ -348,6 +350,29 @@ uhci_pci_attach(device_t self)
 #endif
 	pci_write_config(self, PCI_LEGSUP, PCI_LEGSUP_USBPIRQDEN, 2);
 
+	/* Allocate a parent dma tag for DMA maps */
+	err = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
+	    BUS_SPACE_MAXADDR, NULL, NULL, BUS_SPACE_MAXSIZE_32BIT,
+	    USB_DMA_NSEG, BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL,
+	    &sc->sc_bus.parent_dmatag);
+	if (err) {
+		device_printf(self, "Could not allocate parent DMA tag (%d)\n",
+		    err);
+		uhci_pci_detach(self);
+		return ENXIO;
+	}
+	/* Allocate a dma tag for transfer buffers */
+	err = bus_dma_tag_create(sc->sc_bus.parent_dmatag, 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    BUS_SPACE_MAXSIZE_32BIT, USB_DMA_NSEG, BUS_SPACE_MAXSIZE_32BIT, 0,
+	    busdma_lock_mutex, &Giant, &sc->sc_bus.buffer_dmatag);
+	if (err) {
+		device_printf(self, "Could not allocate transfer tag (%d)\n",
+		    err);
+		uhci_pci_detach(self);
+		return ENXIO;
+	}
+
 	err = uhci_init(sc);
 	if (!err) {
 		sc->sc_flags |= UHCI_SCFLG_DONEINIT;
@@ -372,6 +397,10 @@ uhci_pci_detach(device_t self)
 		sc->sc_flags &= ~UHCI_SCFLG_DONEINIT;
 	}
 
+	if (sc->sc_bus.parent_dmatag != NULL)
+		bus_dma_tag_destroy(sc->sc_bus.parent_dmatag);
+	if (sc->sc_bus.buffer_dmatag != NULL)
+		bus_dma_tag_destroy(sc->sc_bus.buffer_dmatag);
 
 	if (sc->irq_res && sc->ih) {
 		int err = bus_teardown_intr(self, sc->irq_res, sc->ih);
