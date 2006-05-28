@@ -89,8 +89,13 @@ nullfs_mount(struct mount *mp, struct thread *td)
 	 * Update is a no-op
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
-		return (EOPNOTSUPP);
-		/* return VFS_MOUNT(MOUNTTONULLMOUNT(mp)->nullm_vfs, path, data, ndp, td);*/
+		/*
+		 * Only support update mounts for NFS export.
+		 */
+		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0))
+			return (0);
+		else
+			return (EOPNOTSUPP);
 	}
 
 	/*
