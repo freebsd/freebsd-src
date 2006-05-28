@@ -952,9 +952,14 @@ npx_fork_thread(struct thread *td, struct thread *newtd)
 	u_int32_t	mxcsr;
 	u_int32_t	cw;
 
+	if (!(td->td_pcb->pcb_flags & PCB_NPXINITDONE)) {
+		newtd->td_pcb->pcb_flags &= ~PCB_NPXINITDONE;
+		return;
+	}
+		
 	state = &newtd->td_pcb->pcb_save;
 	/* get control word */
-	if (npxgetregs(td, &newtd->td_pcb->pcb_save))
+	if (npxgetregs(td, state))
 		return;
 	if (cpu_fxsr) {
 		mxcsr = state->sv_xmm.sv_env.en_mxcsr;
