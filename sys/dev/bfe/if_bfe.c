@@ -201,27 +201,27 @@ bfe_dma_alloc(device_t dev)
 	 * greater than 1GB.
 	 */
 	error = bus_dma_tag_create(NULL,  /* parent */
-			PAGE_SIZE, 0,             /* alignment, boundary */
+			4096, 0,                  /* alignment, boundary */
 			0x3FFFFFFF,               /* lowaddr */
 			BUS_SPACE_MAXADDR,        /* highaddr */
 			NULL, NULL,               /* filter, filterarg */
 			MAXBSIZE,                 /* maxsize */
 			BUS_SPACE_UNRESTRICTED,   /* num of segments */
 			BUS_SPACE_MAXSIZE_32BIT,  /* max segment size */
-			0,                        /* flags */
+			BUS_DMA_ALLOCNOW,                        /* flags */
 			NULL, NULL,               /* lockfunc, lockarg */
 			&sc->bfe_parent_tag);
 
 	/* tag for TX ring */
 	error = bus_dma_tag_create(sc->bfe_parent_tag,
-			1, 0,
+			4096, 0,
 			BUS_SPACE_MAXADDR,
 			BUS_SPACE_MAXADDR,
 			NULL, NULL,
 			BFE_TX_LIST_SIZE,
 			1,
 			BUS_SPACE_MAXSIZE_32BIT,
-			0,
+			BUS_DMA_ALLOCNOW,
 			NULL, NULL,
 			&sc->bfe_tx_tag);
 
@@ -232,14 +232,14 @@ bfe_dma_alloc(device_t dev)
 
 	/* tag for RX ring */
 	error = bus_dma_tag_create(sc->bfe_parent_tag,
-			1, 0,
+			4096, 0,
 			BUS_SPACE_MAXADDR,
 			BUS_SPACE_MAXADDR,
 			NULL, NULL,
 			BFE_RX_LIST_SIZE,
 			1,
 			BUS_SPACE_MAXSIZE_32BIT,
-			0,
+			BUS_DMA_ALLOCNOW,
 			NULL, NULL,
 			&sc->bfe_rx_tag);
 
@@ -1212,6 +1212,21 @@ bfe_intr(void *xsc)
 	}
 
 	if(istat & BFE_ISTAT_ERRORS) {
+
+		if (istat & BFE_ISTAT_DSCE) {
+			printf("if_bfe Descriptor Error\n");
+			bfe_stop(sc);
+			BFE_UNLOCK(sc);
+			return;
+		}
+
+		if (istat & BFE_ISTAT_DPE) {
+			printf("if_bfe Descriptor Protocol Error\n");
+			bfe_stop(sc);
+			BFE_UNLOCK(sc);
+			return;
+		}
+		
 		flag = CSR_READ_4(sc, BFE_DMATX_STAT);
 		if(flag & BFE_STAT_EMASK)
 			ifp->if_oerrors++;
