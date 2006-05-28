@@ -353,8 +353,8 @@ do_execve(td, args, mac_p)
 	 *	in ni_vp amoung other things.
 	 */
 	ndp = &nd;
-	NDINIT(ndp, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW | SAVENAME | MPSAFE,
-	    UIO_SYSSPACE, args->fname, td);
+	NDINIT(ndp, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW | SAVENAME | MPSAFE |
+	    AUDITVNODE1, UIO_SYSSPACE, args->fname, td);
 
 interpret:
 	error = namei(ndp);
