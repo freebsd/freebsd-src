@@ -1226,7 +1226,7 @@ midisynth_writeraw(void *n, uint8_t *buf, size_t len)
 
 	    used = MIN(MIDIQ_AVAIL(m->outq), len);
 	    used = MIN(used, MIDI_WSIZE);
-	    MIDI_DEBUG(5,printf("midi_synth: resid %d len %jd avail %jd\n", 
+	    MIDI_DEBUG(5,printf("midi_synth: resid %zu len %jd avail %jd\n", 
 			len, (intmax_t)MIDIQ_LEN(m->outq), 
 			(intmax_t)MIDIQ_AVAIL(m->outq)));
 
