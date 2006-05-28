@@ -11,7 +11,7 @@ EXTRACT_ALL            = YES    # for undocumented src, no warnings enabled
 #---------------------------------------------------------------------------
 # configuration options related to the input files
 #---------------------------------------------------------------------------
-INPUT                  = $(DOXYGEN_SRC_PATH)/vm/
+INPUT                  = $(DOXYGEN_SRC_PATH)/vm/ $(NOTREVIEWED)
 
 GENERATE_TAGFILE       = vm/vm.tag
 
