@@ -395,7 +395,8 @@ slhci_attach(struct slhci_softc *sc)
 	sc->sc_bus.usbrev = USBREV_1_1;
 	sc->sc_bus.methods = &slhci_bus_methods;
 	sc->sc_bus.pipe_size = sizeof(struct slhci_pipe);
-	sc->sc_bus.dmatag = sc->sc_dmat;
+	sc->sc_bus.parent_dmatag = NULL; /* XXX */
+	sc->sc_bus.buffer_dmatag = NULL; /* XXX */
 	SIMPLEQ_INIT(&sc->sc_free_xfers);
 
 	usb_callout_init(sc->sc_poll_handle);
@@ -548,7 +549,7 @@ slhci_poll_hub(void *arg)
 	usb_callout(sc->sc_poll_handle, sc->sc_interval, slhci_poll_hub, xfer);
 
 	/* USB spec 11.13.3 (p.260) */
-	p = KERNADDR(&xfer->dmabuf, 0);
+	p = xfer->buffer;
 	p[0] = 0;
 	if ((sc->sc_flags & (SLF_INSERT | SLF_RESET))) {
 		p[0] = 2;
@@ -767,7 +768,7 @@ slhci_root_ctrl_start(usbd_xfer_handle xfer)
 	index = UGETW(req->wIndex);
 
 	if (len)
-		buf = KERNADDR(&xfer->dmabuf, 0);
+		buf = xfer->buffer;
 
 #ifdef SLHCI_DEBUG
 	if ((slhci_debug & D_TRACE))
@@ -1197,7 +1198,7 @@ slhci_device_ctrl_start(usbd_xfer_handle xfer)
 	actlen = 0;
 	len = UGETW(req->wLength);
 	if (len) {
-		buf = KERNADDR(&xfer->dmabuf, 0);
+		buf = xfer->buffer;
 		if (req->bmRequestType & UT_READ)
 			pid = SL11_PID_IN;
 		for (; actlen < len; ) {
@@ -1226,7 +1227,7 @@ slhci_device_ctrl_start(usbd_xfer_handle xfer)
 	if((slhci_debug & D_TRACE) && UGETW(req->wLength) > 0){
 		int i;
 		for(i=0; i < UGETW(req->wLength); i++)
-			printf("%02x", *(unsigned char*)(KERNADDR(&xfer->dmabuf, i)));
+			printf("%02x", ((unsigned char *)xfer->buffer)[i]);
 		printf(" ");
 	}
 #endif
@@ -1318,7 +1319,7 @@ slhci_poll_device(void *arg)
 	/* interrupt transfer */
 	pid = (UE_GET_DIR(pipe->endpoint->edesc->bEndpointAddress) == UE_DIR_IN)
 	    ? SL11_PID_IN : SL11_PID_OUT;
-	buf = KERNADDR(&xfer->dmabuf, 0);
+	buf = xfer->buffer;
 
 	r = slhci_transaction(sc, pipe, pid, xfer->length, buf, 0/*toggle*/);
 	if (r < 0) {

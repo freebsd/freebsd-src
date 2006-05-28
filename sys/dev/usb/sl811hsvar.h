@@ -59,7 +59,6 @@ struct slhci_softc {
 	struct usbd_bus		 sc_bus;
 	bus_space_tag_t		 sc_iot;
 	bus_space_handle_t	 sc_ioh;
-	bus_dma_tag_t		 sc_dmat;
   
 #ifdef __FreeBSD__
 	void *ih; 

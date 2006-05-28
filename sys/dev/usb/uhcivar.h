@@ -100,6 +100,9 @@ struct uhci_soft_td {
 	uhci_td_t td;			/* The real TD, must be first */
 	uhci_soft_td_qh_t link; 	/* soft version of the td_link field */
 	uhci_physaddr_t physaddr;	/* TD's physical address. */
+	usb_dma_t aux_dma;		/* Auxillary storage if needed. */
+	void *aux_data;			/* Original aux data virtual address. */
+	int aux_len;			/* Auxillary storage size. */
 };
 /*
  * Make the size such that it is a multiple of UHCI_TD_ALIGN.  This way
