@@ -90,7 +90,7 @@ stack_print(struct stack *st)
 	long offset;
 	int i;
 
-	KASSERT(st->depth <= STACK_MAX, ("bogous stack"));
+	KASSERT(st->depth <= STACK_MAX, ("bogus stack"));
 	for (i = 0; i < st->depth; i++) {
 		stack_symbol(st->pcs[i], &name, &offset);
 		printf("#%d %p at %s+%#lx\n", i, (void *)st->pcs[i],
@@ -105,7 +105,7 @@ stack_sbuf_print(struct sbuf *sb, struct stack *st)
 	long offset;
 	int i;
 
-	KASSERT(st->depth <= STACK_MAX, ("bogous stack"));
+	KASSERT(st->depth <= STACK_MAX, ("bogus stack"));
 	for (i = 0; i < st->depth; i++) {
 		stack_symbol(st->pcs[i], &name, &offset);
 		sbuf_printf(sb, "#%d %p at %s+%#lx\n", i, (void *)st->pcs[i],
@@ -122,7 +122,7 @@ stack_ktr(u_int mask, const char *file, int line, struct stack *st, u_int depth,
 	long offset;
 	int i;
 
-	KASSERT(st->depth <= STACK_MAX, ("bogous stack"));
+	KASSERT(st->depth <= STACK_MAX, ("bogus stack"));
 	if (cheap) {
 		ktr_tracepoint(mask, file, line, "#0 %p %p %p %p %p %p",
 		    st->pcs[0], st->pcs[1], st->pcs[2], st->pcs[3],
