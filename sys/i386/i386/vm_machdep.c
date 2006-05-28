@@ -394,6 +394,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
 	pcb2->pcb_flags &= ~(PCB_NPXTRAP|PCB_NPXINITDONE);
+	npx_fork_thread(td0, td);
 
 	/*
 	 * Create a new fresh stack for the new thread.
