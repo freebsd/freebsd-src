@@ -511,7 +511,7 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 		     int alen, int rd, usbd_xfer_handle xfer,
 		     ohci_soft_td_t *sp, ohci_soft_td_t **ep)
 {
-	ohci_soft_td_t *next, *cur;
+	ohci_soft_td_t *next, *cur, *end;
 	ohci_physaddr_t dataphys, physend;
 	u_int32_t tdflags;
 	int offset = 0;
@@ -523,6 +523,7 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 
 	len = alen;
 	cur = sp;
+	end = NULL;
 
 	maxp = UGETW(opipe->pipe.endpoint->edesc->wMaxPacketSize);
 	tdflags = htole32(
@@ -532,7 +533,7 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 
 	seg = 0;
 	segoff = 0;
-	for (;;) {
+	while (len > 0) {
 		next = ohci_alloc_std(sc);
 		if (next == NULL)
 			goto nomem;
@@ -624,21 +625,17 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 		cur->xfer = xfer;
 		DPRINTFN(10,("ohci_alloc_std_chain: cbp=0x%08x be=0x%08x\n",
 			    dataphys, dataphys + curlen - 1));
-		if (len == 0)
-			break;
 		if (len < 0)
 			panic("Length went negative: %d curlen %d dma %p offset %08x", len, curlen, dma, (int)0);
 
 		DPRINTFN(10,("ohci_alloc_std_chain: extend chain\n"));
 		offset += curlen;
+		end = cur;
 		cur = next;
 	}
-	if ((flags & USBD_FORCE_SHORT_XFER) &&
+	if (((flags & USBD_FORCE_SHORT_XFER) || alen == 0) &&
 	    alen % UGETW(opipe->pipe.endpoint->edesc->wMaxPacketSize) == 0) {
 		/* Force a 0 length transfer at the end. */
-
-		cur = next;
-
 		next = ohci_alloc_std(sc);
 		if (next == NULL)
 			goto nomem;
@@ -652,8 +649,9 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 		cur->flags = 0;
 		cur->xfer = xfer;
 		DPRINTFN(2,("ohci_alloc_std_chain: add 0 xfer\n"));
+		end = cur;
 	}
-	*ep = cur;
+	*ep = end;
 
 	return (USBD_NORMAL_COMPLETION);
 

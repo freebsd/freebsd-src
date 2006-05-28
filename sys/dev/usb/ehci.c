@@ -2354,7 +2354,8 @@ ehci_alloc_sqtd_chain(struct ehci_pipe *epipe, ehci_softc_t *sc,
 	    /* BYTES set below */
 	    ;
 	mps = UGETW(epipe->pipe.endpoint->edesc->wMaxPacketSize);
-	forceshort = (xfer->flags & USBD_FORCE_SHORT_XFER) && len % mps == 0;
+	forceshort = ((xfer->flags & USBD_FORCE_SHORT_XFER) || len == 0) &&
+	    len % mps == 0;
 	/*
 	 * The control transfer data stage always starts with a toggle of 1.
 	 * For other transfers we let the hardware track the toggle state.
