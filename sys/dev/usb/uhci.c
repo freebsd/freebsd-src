@@ -2690,6 +2690,8 @@ uhci_device_isoc_done(usbd_xfer_handle xfer)
 		return;
 	}
 #endif
+	ii->stdstart = NULL;
+	ii->stdend = NULL;
 }
 
 void
@@ -2748,8 +2750,11 @@ uhci_device_intr_done(usbd_xfer_handle xfer)
 		/* The ii is already on the examined list, just leave it. */
 	} else {
 		DPRINTFN(5,("uhci_device_intr_done: removing\n"));
-		if (uhci_active_intr_info(ii))
+		if (uhci_active_intr_info(ii)) {
 			uhci_del_intr_info(ii);
+			ii->stdstart = NULL;
+			ii->stdend = NULL;
+		}
 	}
 }
 
@@ -2778,6 +2783,8 @@ uhci_device_ctrl_done(usbd_xfer_handle xfer)
 
 	if (upipe->u.ctl.length != 0)
 		uhci_free_std_chain(sc, ii->stdstart->link.std, ii->stdend);
+	ii->stdstart = NULL;
+	ii->stdend = NULL;
 
 	DPRINTFN(5, ("uhci_device_ctrl_done: length=%d\n", xfer->actlen));
 }
@@ -2801,6 +2808,8 @@ uhci_device_bulk_done(usbd_xfer_handle xfer)
 	uhci_remove_bulk(sc, upipe->u.bulk.sqh);
 
 	uhci_free_std_chain(sc, ii->stdstart, NULL);
+	ii->stdstart = NULL;
+	ii->stdend = NULL;
 
 	DPRINTFN(5, ("uhci_device_bulk_done: length=%d\n", xfer->actlen));
 }
