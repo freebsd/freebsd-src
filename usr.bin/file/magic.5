@@ -254,6 +254,24 @@ a system on which the lengths are invariant.
 .Pp
 There is (currently) no support for specified-endian data to be used in
 indirect offsets.
+.Pp
+If
+.Pa /usr/share/misc/magic
+is newer than
+.Pa /usr/share/misc/magic.mgc
+it is not used.
+Use the command:
+.Po
+cd /usr/share/misc &&
+.Nm file
+.Fl C 
+.Fl m Ar magic
+.Pc
+to rebuild.
+.Pp
+Compiling the magic file on a big endian system is broken.
+Using a compiled magic file from a little endian system on a big endian system
+works fine.
 .Sh SEE ALSO
 .Xr file 1
 .\"
