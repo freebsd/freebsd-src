@@ -2649,6 +2649,14 @@ cpu     EV5</programlisting>
   </sect2>
 
   <sect2>
+    <title>Further reading</title>
+    
+    <para>An interesting overview of the history of the Alpha CPU
+    can be found at 
+    <ulink url="http://www.alasir.com/alpha/alpha_history.html">.</para>
+  </sect2>
+
+  <sect2>
     <title>Acknowledgments</title>
 
     <para>In compiling this file I used multiple information sources,
