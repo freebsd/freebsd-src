@@ -130,7 +130,8 @@ struct usbd_bus {
 #endif
 #endif
 
-	bus_dma_tag_t		dmatag;	/* DMA tag */
+	bus_dma_tag_t		parent_dmatag;	/* Base DMA tag */
+	bus_dma_tag_t		buffer_dmatag;	/* Tag for transfer buffers */
 };
 
 struct usbd_device {
@@ -187,6 +188,15 @@ struct usbd_pipe {
 	struct usbd_pipe_methods *methods;
 };
 
+#define USB_DMA_NSEG (btoc(MAXPHYS) + 1)
+
+/* DMA-capable memory buffer. */
+struct usb_dma_mapping {
+	bus_dma_segment_t segs[USB_DMA_NSEG];	/* The physical segments. */
+	int nsegs;				/* Number of segments. */
+	bus_dmamap_t map;			/* DMA mapping. */
+};
+
 struct usbd_xfer {
 	struct usbd_pipe       *pipe;
 	void		       *priv;
@@ -214,7 +224,8 @@ struct usbd_xfer {
 
 	/* For memory allocation */
 	struct usbd_device     *device;
-	usb_dma_t		dmabuf;
+	struct usb_dma_mapping	dmamap;
+	void			*allocbuf;
 
 	int			rqflags;
 #define URQ_REQUEST	0x01

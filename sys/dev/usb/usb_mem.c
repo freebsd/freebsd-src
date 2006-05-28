@@ -230,7 +230,7 @@ usb_block_freemem(usb_dma_block_t *p)
 usbd_status
 usb_allocmem(usbd_bus_handle bus, size_t size, size_t align, usb_dma_t *p)
 {
-	bus_dma_tag_t tag = bus->dmatag;
+	bus_dma_tag_t tag = bus->parent_dmatag;
 	usbd_status err;
 	struct usb_frag_dma *f;
 	usb_dma_block_t *b;

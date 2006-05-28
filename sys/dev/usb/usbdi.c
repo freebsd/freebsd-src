@@ -86,6 +86,10 @@ Static void usbd_start_next(usbd_pipe_handle pipe);
 Static usbd_status usbd_open_pipe_ival
 	(usbd_interface_handle, u_int8_t, u_int8_t, usbd_pipe_handle *, int);
 Static int usbd_xfer_isread(usbd_xfer_handle xfer);
+Static void usbd_start_transfer(void *arg, bus_dma_segment_t *segs, int nseg,
+    int error);
+Static void usbd_alloc_callback(void *arg, bus_dma_segment_t *segs, int nseg,
+    int error);
 
 Static int usbd_nbuses = 0;
 
@@ -282,7 +286,7 @@ usbd_status
 usbd_transfer(usbd_xfer_handle xfer)
 {
 	usbd_pipe_handle pipe = xfer->pipe;
-	usb_dma_t *dmap = &xfer->dmabuf;
+	struct usb_dma_mapping *dmap = &xfer->dmamap;
 	usbd_status err;
 	u_int size;
 	int s;
@@ -301,49 +305,92 @@ usbd_transfer(usbd_xfer_handle xfer)
 	size = xfer->length;
 	/* If there is no buffer, allocate one. */
 	if (!(xfer->rqflags & URQ_DEV_DMABUF) && size != 0) {
-		struct usbd_bus *bus = pipe->device->bus;
+		bus_dma_tag_t tag = pipe->device->bus->buffer_dmatag;
 
 #ifdef DIAGNOSTIC
 		if (xfer->rqflags & URQ_AUTO_DMABUF)
 			printf("usbd_transfer: has old buffer!\n");
 #endif
-		err = bus->methods->allocm(bus, dmap, size);
+		err = bus_dmamap_create(tag, 0, &dmap->map);
 		if (err)
-			return (err);
+			return (USBD_NOMEM);
+
 		xfer->rqflags |= URQ_AUTO_DMABUF;
-	}
-
-	/* Copy data if going out. */
-	if (!(xfer->flags & USBD_NO_COPY) && size != 0 &&
-	    !usbd_xfer_isread(xfer))
-		memcpy(KERNADDR(dmap, 0), xfer->buffer, size);
-
-	err = pipe->methods->transfer(xfer);
-
-	if (err != USBD_IN_PROGRESS && err) {
-		/* The transfer has not been queued, so free buffer. */
-		if (xfer->rqflags & URQ_AUTO_DMABUF) {
-			struct usbd_bus *bus = pipe->device->bus;
-
-			bus->methods->freem(bus, &xfer->dmabuf);
+		err = bus_dmamap_load(tag, dmap->map, xfer->buffer, size,
+		    usbd_start_transfer, xfer, 0);
+		if (err != 0 && err != EINPROGRESS) {
 			xfer->rqflags &= ~URQ_AUTO_DMABUF;
+			bus_dmamap_destroy(tag, dmap->map);
+			return (USBD_INVAL);
 		}
+	} else if (size != 0) {
+		usbd_start_transfer(xfer, dmap->segs, dmap->nsegs, 0);
+	} else {
+		usbd_start_transfer(xfer, NULL, 0, 0);
 	}
 
 	if (!(xfer->flags & USBD_SYNCHRONOUS))
-		return (err);
+		return (xfer->done ? 0 : USBD_IN_PROGRESS);
 
 	/* Sync transfer, wait for completion. */
-	if (err != USBD_IN_PROGRESS)
-		return (err);
 	s = splusb();
-	if (!xfer->done) {
+	while (!xfer->done) {
 		if (pipe->device->bus->use_polling)
 			panic("usbd_transfer: not done");
 		tsleep(xfer, PRIBIO, "usbsyn", 0);
 	}
 	splx(s);
 	return (xfer->status);
+}
+
+Static void
+usbd_start_transfer(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	usbd_xfer_handle xfer = arg;
+	usbd_pipe_handle pipe = xfer->pipe;
+	struct usb_dma_mapping *dmap = &xfer->dmamap;
+	bus_dma_tag_t tag = pipe->device->bus->buffer_dmatag;
+	int err, i;
+
+	if (error != 0) {
+		KASSERT(xfer->rqflags & URQ_AUTO_DMABUF,
+		    ("usbd_start_transfer: error with non-auto buf"));
+		if (nseg > 0)
+			bus_dmamap_unload(tag, dmap->map);
+		bus_dmamap_destroy(tag, dmap->map);
+		/* XXX */
+		usb_insert_transfer(xfer);
+		xfer->status = USBD_IOERROR;
+		usb_transfer_complete(xfer);
+		return;
+	}
+
+	if (segs != dmap->segs) {
+		for (i = 0; i < nseg; i++)
+			dmap->segs[i] = segs[i];
+	}
+	dmap->nsegs = nseg;
+
+	if (segs > 0 && !usbd_xfer_isread(xfer)) {
+		/* Copy data if it is not already in the correct buffer. */
+		if (!(xfer->flags & USBD_NO_COPY) && xfer->allocbuf != NULL &&
+		    xfer->buffer != xfer->allocbuf)
+			memcpy(xfer->allocbuf, xfer->buffer, xfer->length);
+		bus_dmamap_sync(tag, dmap->map, BUS_DMASYNC_PREWRITE);
+	}
+	err = pipe->methods->transfer(xfer);
+	if (err != USBD_IN_PROGRESS && err) {
+		if (xfer->rqflags & URQ_AUTO_DMABUF) {
+			bus_dmamap_unload(tag, dmap->map);
+			bus_dmamap_destroy(tag, dmap->map);
+			xfer->rqflags &= ~URQ_AUTO_DMABUF;
+		}
+		/* XXX */
+		usb_insert_transfer(xfer);
+		xfer->status = err;
+		usb_transfer_complete(xfer);
+		return;
+	}
 }
 
 /* Like usbd_transfer(), but waits for completion. */
@@ -354,42 +401,103 @@ usbd_sync_transfer(usbd_xfer_handle xfer)
 	return (usbd_transfer(xfer));
 }
 
+struct usbd_allocstate {
+	usbd_xfer_handle xfer;
+	int done;
+	int error;
+	int waiting;
+};
+
 void *
 usbd_alloc_buffer(usbd_xfer_handle xfer, u_int32_t size)
 {
-	struct usbd_bus *bus = xfer->device->bus;
+	struct usbd_allocstate allocstate;
+	struct usb_dma_mapping *dmap = &xfer->dmamap;
+	bus_dma_tag_t tag = xfer->device->bus->buffer_dmatag;
+	void *buf;
 	usbd_status err;
+	int error, s;
 
-#ifdef DIAGNOSTIC
-	if (xfer->rqflags & (URQ_DEV_DMABUF | URQ_AUTO_DMABUF))
-		printf("usbd_alloc_buffer: xfer already has a buffer\n");
-#endif
-	err = bus->methods->allocm(bus, &xfer->dmabuf, size);
+	KASSERT((xfer->rqflags & (URQ_DEV_DMABUF | URQ_AUTO_DMABUF)) == 0,
+	    ("usbd_alloc_buffer: xfer already has a buffer"));
+	err = bus_dmamap_create(tag, 0, &dmap->map);
 	if (err)
 		return (NULL);
+	buf = malloc(size, M_USB, M_WAITOK);
+
+	allocstate.xfer = xfer;
+	allocstate.done = 0;
+	allocstate.error = 0;
+	allocstate.waiting = 0;
+	error = bus_dmamap_load(tag, dmap->map, buf, size, usbd_alloc_callback,
+	    &allocstate, 0);
+	if (error && error != EINPROGRESS) {
+		bus_dmamap_destroy(tag, dmap->map);
+		free(buf, M_USB);
+		return (NULL);
+	}
+	if (error == EINPROGRESS) {
+		/* Wait for completion. */
+		s = splusb();
+		allocstate.waiting = 1;
+		while (!allocstate.done)
+			tsleep(&allocstate, PRIBIO, "usbdab", 0);
+		splx(s);
+		error = allocstate.error;
+	}
+	if (error) {
+		bus_dmamap_unload(tag, dmap->map);
+		bus_dmamap_destroy(tag, dmap->map);
+		free(buf, M_USB);
+		return (NULL);
+	}
+
+	xfer->allocbuf = buf;
 	xfer->rqflags |= URQ_DEV_DMABUF;
-	return (KERNADDR(&xfer->dmabuf, 0));
+	return (buf);
 }
 
 void
 usbd_free_buffer(usbd_xfer_handle xfer)
 {
-#ifdef DIAGNOSTIC
-	if (!(xfer->rqflags & (URQ_DEV_DMABUF | URQ_AUTO_DMABUF))) {
-		printf("usbd_free_buffer: no buffer\n");
-		return;
-	}
-#endif
-	xfer->rqflags &= ~(URQ_DEV_DMABUF | URQ_AUTO_DMABUF);
-	xfer->device->bus->methods->freem(xfer->device->bus, &xfer->dmabuf);
+	struct usb_dma_mapping *dmap = &xfer->dmamap;
+	bus_dma_tag_t tag = xfer->device->bus->buffer_dmatag;
+
+	KASSERT((xfer->rqflags & (URQ_DEV_DMABUF | URQ_AUTO_DMABUF)) ==
+	    URQ_DEV_DMABUF, ("usbd_free_buffer: no/auto buffer"));
+
+	xfer->rqflags &= ~URQ_DEV_DMABUF;
+	bus_dmamap_unload(tag, dmap->map);
+	bus_dmamap_destroy(tag, dmap->map);
+	free(xfer->allocbuf, M_USB);
+	xfer->allocbuf = NULL;
 }
 
 void *
 usbd_get_buffer(usbd_xfer_handle xfer)
 {
 	if (!(xfer->rqflags & URQ_DEV_DMABUF))
-		return (0);
-	return (KERNADDR(&xfer->dmabuf, 0));
+		return (NULL);
+	return (xfer->allocbuf);
+}
+
+Static void
+usbd_alloc_callback(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	struct usbd_allocstate *allocstate = arg;
+	usbd_xfer_handle xfer = allocstate->xfer;
+	struct usb_dma_mapping *dmap = &xfer->dmamap;
+	int i;
+
+	allocstate->error = error;
+	if (error == 0) {
+		for (i = 0; i < nseg; i++)
+			dmap->segs[i] = segs[i];
+		dmap->nsegs = nseg;
+	}
+	allocstate->done = 1;
+	if (allocstate->waiting)
+		wakeup(&allocstate);
 }
 
 usbd_xfer_handle
@@ -410,7 +518,7 @@ usbd_status
 usbd_free_xfer(usbd_xfer_handle xfer)
 {
 	DPRINTFN(5,("usbd_free_xfer: %p\n", xfer));
-	if (xfer->rqflags & (URQ_DEV_DMABUF | URQ_AUTO_DMABUF))
+	if (xfer->rqflags & URQ_DEV_DMABUF)
 		usbd_free_buffer(xfer);
 #if defined(__NetBSD__) && defined(DIAGNOSTIC)
 	if (callout_pending(&xfer->timeout_handle)) {
@@ -467,10 +575,14 @@ usbd_setup_isoc_xfer(usbd_xfer_handle xfer, usbd_pipe_handle pipe,
 		     usbd_private_handle priv, u_int16_t *frlengths,
 		     u_int32_t nframes, u_int16_t flags, usbd_callback callback)
 {
+	int i;
+
 	xfer->pipe = pipe;
 	xfer->priv = priv;
 	xfer->buffer = 0;
 	xfer->length = 0;
+	for (i = 0; i < nframes; i++)
+		xfer->length += frlengths[i];
 	xfer->actlen = 0;
 	xfer->flags = flags;
 	xfer->timeout = USBD_NO_TIMEOUT;
@@ -759,6 +871,7 @@ usbd_ar_pipe(usbd_pipe_handle pipe)
 			    pipe, xfer, pipe->methods));
 		/* Make the HC abort it (and invoke the callback). */
 		pipe->methods->abort(xfer);
+		KASSERT(SIMPLEQ_FIRST(&pipe->queue) != xfer, ("usbd_ar_pipe"));
 		/* XXX only for non-0 usbd_clear_endpoint_stall(pipe); */
 	}
 	pipe->aborting = 0;
@@ -770,7 +883,8 @@ void
 usb_transfer_complete(usbd_xfer_handle xfer)
 {
 	usbd_pipe_handle pipe = xfer->pipe;
-	usb_dma_t *dmap = &xfer->dmabuf;
+	struct usb_dma_mapping *dmap = &xfer->dmamap;
+	bus_dma_tag_t tag = pipe->device->bus->buffer_dmatag;
 	int sync = xfer->flags & USBD_SYNCHRONOUS;
 	int erred = xfer->status == USBD_CANCELLED ||
 	    xfer->status == USBD_TIMEOUT;
@@ -800,23 +914,19 @@ usb_transfer_complete(usbd_xfer_handle xfer)
 	if (polling)
 		pipe->running = 0;
 
-	if (!(xfer->flags & USBD_NO_COPY) && xfer->actlen != 0 &&
-	    usbd_xfer_isread(xfer)) {
-#ifdef DIAGNOSTIC
-		if (xfer->actlen > xfer->length) {
-			printf("usb_transfer_complete: actlen > len %d > %d\n",
-			       xfer->actlen, xfer->length);
-			xfer->actlen = xfer->length;
-		}
-#endif
-		memcpy(xfer->buffer, KERNADDR(dmap, 0), xfer->actlen);
+	if (xfer->actlen != 0 && usbd_xfer_isread(xfer)) {
+		bus_dmamap_sync(tag, dmap->map, BUS_DMASYNC_POSTREAD);
+		/* Copy data if it is not already in the correct buffer. */
+		if (!(xfer->flags & USBD_NO_COPY) && xfer->allocbuf != NULL &&
+		    xfer->buffer != xfer->allocbuf)
+			memcpy(xfer->buffer, xfer->allocbuf, xfer->actlen);
 	}
 
-	/* if we allocated the buffer in usbd_transfer() we free it here. */
+	/* if we mapped the buffer in usbd_transfer() we unmap it here. */
 	if (xfer->rqflags & URQ_AUTO_DMABUF) {
 		if (!repeat) {
-			struct usbd_bus *bus = pipe->device->bus;
-			bus->methods->freem(bus, dmap);
+			bus_dmamap_unload(tag, dmap->map);
+			bus_dmamap_destroy(tag, dmap->map);
 			xfer->rqflags &= ~URQ_AUTO_DMABUF;
 		}
 	}
@@ -824,11 +934,10 @@ usb_transfer_complete(usbd_xfer_handle xfer)
 	if (!repeat) {
 		/* Remove request from queue. */
 #ifdef DIAGNOSTIC
-		if (xfer != SIMPLEQ_FIRST(&pipe->queue))
-			printf("usb_transfer_complete: bad dequeue %p != %p\n",
-			       xfer, SIMPLEQ_FIRST(&pipe->queue));
 		xfer->busy_free = XFER_BUSY;
 #endif
+		KASSERT(SIMPLEQ_FIRST(&pipe->queue) == xfer,
+		    ("usb_transfer_complete: bad dequeue"));
 		SIMPLEQ_REMOVE_HEAD(&pipe->queue, next);
 	}
 	DPRINTFN(5,("usb_transfer_complete: repeat=%d new head=%p\n",
@@ -892,6 +1001,7 @@ usb_insert_transfer(usbd_xfer_handle xfer)
 	xfer->busy_free = XFER_ONQU;
 #endif
 	s = splusb();
+	KASSERT(SIMPLEQ_FIRST(&pipe->queue) != xfer, ("usb_insert_transfer"));
 	SIMPLEQ_INSERT_TAIL(&pipe->queue, xfer, next);
 	if (pipe->running)
 		err = USBD_IN_PROGRESS;

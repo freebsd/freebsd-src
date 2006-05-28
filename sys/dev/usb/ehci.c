@@ -654,7 +654,7 @@ ehci_pcd(ehci_softc_t *sc, usbd_xfer_handle xfer)
 
 	pipe = xfer->pipe;
 
-	p = KERNADDR(&xfer->dmabuf, 0);
+	p = xfer->buffer;
 	m = min(sc->sc_noport, xfer->length * 8 - 1);
 	memset(p, 0, xfer->length);
 	for (i = 1; i <= m; i++) {
@@ -1742,7 +1742,7 @@ ehci_root_ctrl_start(usbd_xfer_handle xfer)
 	index = UGETW(req->wIndex);
 
 	if (len != 0)
-		buf = KERNADDR(&xfer->dmabuf, 0);
+		buf = xfer->buffer;
 
 #define C(x,y) ((x) | ((y) << 8))
 	switch(C(req->bRequest, req->bmRequestType)) {
@@ -2335,11 +2335,11 @@ ehci_alloc_sqtd_chain(struct ehci_pipe *epipe, ehci_softc_t *sc,
      ehci_soft_qtd_t *newinactive, ehci_soft_qtd_t **sp, ehci_soft_qtd_t **ep)
 {
 	ehci_soft_qtd_t *next, *cur;
-	ehci_physaddr_t dataphys, dataphyspage, dataphyslastpage, nextphys;
+	ehci_physaddr_t dataphys, nextphys;
 	u_int32_t qtdstatus;
-	int len, curlen, mps, offset;
-	int i, iscontrol;
-	usb_dma_t *dma = &xfer->dmabuf;
+	int adj, len, curlen, mps, offset, pagelen, seg, segoff;
+	int i, iscontrol, forceshort;
+	struct usb_dma_mapping *dma = &xfer->dmamap;
 
 	DPRINTFN(alen<4*4096,("ehci_alloc_sqtd_chain: start len=%d\n", alen));
 
@@ -2347,8 +2347,6 @@ ehci_alloc_sqtd_chain(struct ehci_pipe *epipe, ehci_softc_t *sc,
 	len = alen;
 	iscontrol = (epipe->pipe.endpoint->edesc->bmAttributes & UE_XFERTYPE) ==
 	    UE_CONTROL;
-	dataphys = DMAADDR(dma, 0);
-	dataphyslastpage = EHCI_PAGE(DMAADDR(dma, len - 1));
 	qtdstatus = EHCI_QTD_ACTIVE |
 	    EHCI_QTD_SET_PID(rd ? EHCI_QTD_PID_IN : EHCI_QTD_PID_OUT) |
 	    EHCI_QTD_SET_CERR(3)
@@ -2356,6 +2354,7 @@ ehci_alloc_sqtd_chain(struct ehci_pipe *epipe, ehci_softc_t *sc,
 	    /* BYTES set below */
 	    ;
 	mps = UGETW(epipe->pipe.endpoint->edesc->wMaxPacketSize);
+	forceshort = (xfer->flags & USBD_FORCE_SHORT_XFER) && len % mps == 0;
 	/*
 	 * The control transfer data stage always starts with a toggle of 1.
 	 * For other transfers we let the hardware track the toggle state.
@@ -2377,63 +2376,63 @@ ehci_alloc_sqtd_chain(struct ehci_pipe *epipe, ehci_softc_t *sc,
 		if (cur == NULL)
 			goto nomem;
 	}
+	seg = 0;
+	segoff = 0;
 	for (;;) {
-		dataphyspage = EHCI_PAGE(dataphys);
+		curlen = 0;
+
 		/* The EHCI hardware can handle at most 5 pages. */
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-		if (dataphyslastpage - dataphyspage <
-		    EHCI_QTD_NBUFFERS * EHCI_PAGE_SIZE) {
-			/* we can handle it in this QTD */
-			curlen = len;
-		}
-#elif defined(__FreeBSD__)
-		/* XXX This is pretty broken: Because we do not allocate
-		 * a contiguous buffer (contiguous in physical pages) we
-		 * can only transfer one page in one go.
-		 * So check whether the start and end of the buffer are on
-		 * the same page.
-		 */
-		if (dataphyspage == dataphyslastpage) {
-			curlen = len;
-		}
-#endif
-		else {
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-			/* must use multiple TDs, fill as much as possible. */
-			curlen = EHCI_QTD_NBUFFERS * EHCI_PAGE_SIZE -
-				 EHCI_PAGE_OFFSET(dataphys);
-#ifdef DIAGNOSTIC
-			if (curlen > len) {
-				printf("ehci_alloc_sqtd_chain: curlen=0x%x "
-				       "len=0x%x offs=0x%x\n", curlen, len,
-				       EHCI_PAGE_OFFSET(dataphys));
-				printf("lastpage=0x%x page=0x%x phys=0x%x\n",
-				       dataphyslastpage, dataphyspage,
-				       dataphys);
-				curlen = len;
+		for (i = 0; i < EHCI_QTD_NBUFFERS && curlen < len; i++) {
+			KASSERT(seg < dma->nsegs,
+			    ("ehci_alloc_sqtd_chain: overrun"));
+			dataphys = dma->segs[seg].ds_addr + segoff;
+			pagelen = dma->segs[seg].ds_len - segoff;
+			if (pagelen > len - curlen)
+				pagelen = len - curlen;
+			if (pagelen > EHCI_PAGE_SIZE -
+			    EHCI_PAGE_OFFSET(dataphys))
+				pagelen = EHCI_PAGE_SIZE -
+				    EHCI_PAGE_OFFSET(dataphys);
+			segoff += pagelen;
+			if (segoff >= dma->segs[seg].ds_len) {
+				KASSERT(segoff == dma->segs[seg].ds_len,
+				    ("ehci_alloc_sqtd_chain: overlap"));
+				seg++;
+				segoff = 0;
 			}
-#endif
-#elif defined(__FreeBSD__)
-			/* See comment above (XXX) */
-			curlen = EHCI_PAGE_SIZE -
-				 EHCI_PAGE_MASK(dataphys);
-#endif
-			/* the length must be a multiple of the max size */
-			curlen -= curlen % mps;
-			DPRINTFN(1,("ehci_alloc_sqtd_chain: multiple QTDs, "
-				    "curlen=%d\n", curlen));
-#ifdef DIAGNOSTIC
-			if (curlen == 0)
-				panic("ehci_alloc_std: curlen == 0");
-#endif
+
+			cur->qtd.qtd_buffer[i] = htole32(dataphys);
+			cur->qtd.qtd_buffer_hi[i] = 0;
+			curlen += pagelen;
+
+			/*
+			 * Must stop if there is any gap before or after
+			 * the page boundary.
+			 */
+			if (EHCI_PAGE_OFFSET(dataphys + pagelen) != 0)
+				break;
+			if (seg < dma->nsegs && EHCI_PAGE_OFFSET(segoff +
+			    dma->segs[seg].ds_addr) != 0)
+				break;
 		}
-		DPRINTFN(4,("ehci_alloc_sqtd_chain: dataphys=0x%08x "
-			    "dataphyslastpage=0x%08x len=%d curlen=%d\n",
-			    dataphys, dataphyslastpage,
-			    len, curlen));
+		/* Adjust down to a multiple of mps if not at the end. */
+		if (curlen < len && curlen % mps != 0) {
+			adj = curlen % mps;
+			curlen -= adj;
+			KASSERT(curlen > 0,
+			    ("ehci_alloc_sqtd_chain: need to copy"));
+			segoff -= adj;
+			if (segoff < 0) {
+				seg--;
+				segoff += dma->segs[seg].ds_len;
+			}
+			KASSERT(seg >= 0 && segoff >= 0,
+			    ("ehci_alloc_sqtd_chain: adjust to mps"));
+		}
+
 		len -= curlen;
 
-		if (len != 0) {
+		if (len != 0 || forceshort) {
 			next = ehci_alloc_sqtd(sc);
 			if (next == NULL)
 				goto nomem;
@@ -2443,19 +2442,6 @@ ehci_alloc_sqtd_chain(struct ehci_pipe *epipe, ehci_softc_t *sc,
 			nextphys = EHCI_NULL;
 		}
 
-		for (i = 0; i * EHCI_PAGE_SIZE < curlen; i++) {
-			ehci_physaddr_t a = dataphys + i * EHCI_PAGE_SIZE;
-			if (i != 0) /* use offset only in first buffer */
-				a = EHCI_PAGE(a);
-			cur->qtd.qtd_buffer[i] = htole32(a);
-			cur->qtd.qtd_buffer_hi[i] = 0;
-#ifdef DIAGNOSTIC
-			if (i >= EHCI_QTD_NBUFFERS) {
-				printf("ehci_alloc_sqtd_chain: i=%d\n", i);
-				goto nomem;
-			}
-#endif
-		}
 		cur->nextqtd = next;
 		cur->qtd.qtd_next = nextphys;
 		/* Make sure to stop after a short transfer. */
@@ -2464,22 +2450,23 @@ ehci_alloc_sqtd_chain(struct ehci_pipe *epipe, ehci_softc_t *sc,
 		    htole32(qtdstatus | EHCI_QTD_SET_BYTES(curlen));
 		cur->xfer = xfer;
 		cur->len = curlen;
-		DPRINTFN(10,("ehci_alloc_sqtd_chain: cbp=0x%08x end=0x%08x\n",
-			    dataphys, dataphys + curlen));
+		DPRINTFN(10,("ehci_alloc_sqtd_chain: curlen=%d\n", curlen));
 		if (iscontrol) {
 			/*
 			 * adjust the toggle based on the number of packets
 			 * in this qtd
 			 */
-			if (((curlen + mps - 1) / mps) & 1)
+			if ((((curlen + mps - 1) / mps) & 1) || curlen == 0)
 				qtdstatus ^= EHCI_QTD_TOGGLE_MASK;
 		}
-		if (len == 0)
-			break;
 		qtdstatus |= EHCI_QTD_ACTIVE;
+		if (len == 0) {
+			if (!forceshort)
+				break;
+			forceshort = 0;
+		}
 		DPRINTFN(10,("ehci_alloc_sqtd_chain: extend chain\n"));
 		offset += curlen;
-		dataphys = DMAADDR(dma, offset);
 		cur = next;
 	}
 	cur->qtd.qtd_status |= htole32(EHCI_QTD_IOC);
