@@ -58,6 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <sys/queue.h>
 #include <sys/lockmgr.h>
@@ -420,6 +422,30 @@ ehci_pci_attach(device_t self)
 	}
 	sc->sc_ncomp = ncomp;
 
+	/* Allocate a parent dma tag for DMA maps */
+	err = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
+	    BUS_SPACE_MAXADDR, NULL, NULL, BUS_SPACE_MAXSIZE_32BIT,
+	    USB_DMA_NSEG, BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL,
+	    &sc->sc_bus.parent_dmatag);
+	if (err) {
+		device_printf(self, "Could not allocate parent DMA tag (%d)\n",
+		    err);
+		ehci_pci_detach(self);
+		return ENXIO;
+	}
+
+	/* Allocate a dma tag for transfer buffers */
+	err = bus_dma_tag_create(sc->sc_bus.parent_dmatag, 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    BUS_SPACE_MAXSIZE_32BIT, USB_DMA_NSEG, BUS_SPACE_MAXSIZE_32BIT, 0,
+	    busdma_lock_mutex, &Giant, &sc->sc_bus.buffer_dmatag);
+	if (err) {
+		device_printf(self, "Could not allocate buffer DMA tag (%d)\n",
+		    err);
+		ehci_pci_detach(self);
+		return ENXIO;
+	}
+
 	ehci_pci_takecontroller(self);
 	err = ehci_init(sc);
 	if (!err) {
@@ -450,6 +476,10 @@ ehci_pci_detach(device_t self)
 	 */
 	if (sc->iot && sc->ioh)
 		bus_space_write_4(sc->iot, sc->ioh, EHCI_USBINTR, 0);
+	if (sc->sc_bus.parent_dmatag != NULL)
+		bus_dma_tag_destroy(sc->sc_bus.parent_dmatag);
+	if (sc->sc_bus.buffer_dmatag != NULL)
+		bus_dma_tag_destroy(sc->sc_bus.buffer_dmatag);
 
 	if (sc->irq_res && sc->ih) {
 		int err = bus_teardown_intr(self, sc->irq_res, sc->ih);

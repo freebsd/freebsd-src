@@ -220,7 +220,8 @@ typedef struct {
 	u_int16_t	itd_offset[OHCI_ITD_NOFFSET];	/* Buffer offsets */
 #define itd_pswn itd_offset				/* Packet Status Word*/
 #define OHCI_ITD_PAGE_SELECT	0x00001000
-#define OHCI_ITD_MK_OFFS(len)	(0xe000 | ((len) & 0x1fff))
+#define OHCI_ITD_MK_OFFS(page, off) \
+     (0xe000 | ((page) ? OHCI_ITD_PAGE_SELECT : 0) | ((off) & 0xfff))
 #define OHCI_ITD_PSW_LENGTH(x)	((x) & 0xfff)		/* Transfer length */
 #define OHCI_ITD_PSW_GET_CC(x)	((x) >> 12)		/* Condition Code */
 } ohci_itd_t;
