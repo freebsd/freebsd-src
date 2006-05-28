@@ -11,7 +11,7 @@ EXTRACT_ALL            = YES    # for undocumented src, no warnings enabled
 #--------------------------------------------------------------------------
 # configuration options related to the input files
 #---------------------------------------------------------------------------
-INPUT                  = $(DOXYGEN_SRC_PATH)/netinet/
+INPUT                  = $(DOXYGEN_SRC_PATH)/netinet/ $(NOTREVIEWED)
 
 GENERATE_TAGFILE       = netinet/netinet.tag
 
