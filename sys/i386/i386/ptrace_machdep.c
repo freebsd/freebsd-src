@@ -59,6 +59,8 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 	case PT_SETXMMREGS:
 		error = copyin(addr, &td->td_pcb->pcb_save.sv_xmm,
 		    sizeof(td->td_pcb->pcb_save.sv_xmm));
+		/* clear high 16 bits of mxcsr to avoid security problem. */
+		td->td_pcb->pcb_save.sv_xmm.sv_env.en_mxcsr &= 0xFFFF;
 		break;
 
 	default:
