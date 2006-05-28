@@ -1766,14 +1766,12 @@ uhci_alloc_std_chain(struct uhci_pipe *upipe, uhci_softc_t *sc, int len,
 		return (USBD_INVAL);
 	}
 	ntd = (len + maxp - 1) / maxp;
+	if (len == 0)
+		flags |= USBD_FORCE_SHORT_XFER;
 	if ((flags & USBD_FORCE_SHORT_XFER) && len % maxp == 0)
 		ntd++;
 	DPRINTFN(10, ("uhci_alloc_std_chain: maxp=%d ntd=%d\n", maxp, ntd));
-	if (ntd == 0) {
-		*sp = *ep = 0;
-		DPRINTFN(-1,("uhci_alloc_std_chain: ntd=0\n"));
-		return (USBD_NORMAL_COMPLETION);
-	}
+	KASSERT(ntd > 0, ("uhci_alloc_std_chain: ntd=0"));
 	tog = upipe->nexttoggle;
 	prevp = NULL;
 	startp = NULL;
@@ -1811,9 +1809,11 @@ uhci_alloc_std_chain(struct uhci_pipe *upipe, uhci_softc_t *sc, int len,
 		    htole32(rd ? UHCI_TD_IN (l, endpt, addr, tog) :
 				 UHCI_TD_OUT(l, endpt, addr, tog));
 
-		KASSERT(seg < dma->nsegs,
+		KASSERT(seg < dma->nsegs || l == 0,
 		    ("uhci_alloc_std_chain: too few segments"));
-		if (l > dma->segs[seg].ds_len - segoff) {
+		if (l == 0) {
+			p->td.td_buffer = 0;
+		} else if (l > dma->segs[seg].ds_len - segoff) {
 			/* UHCI can't handle non-contiguous data. */
 			err = uhci_aux_dma_alloc(sc, p, (char *)xfer->buffer +
 			    i * maxp, l);
@@ -1832,7 +1832,7 @@ uhci_alloc_std_chain(struct uhci_pipe *upipe, uhci_softc_t *sc, int len,
 			    segoff);
 		}
 		segoff += l;
-		if (segoff >= dma->segs[seg].ds_len) {
+		if (l > 0 && segoff >= dma->segs[seg].ds_len) {
 			KASSERT(segoff == dma->segs[seg].ds_len,
 			    ("uhci_alloc_std_chain: overlap"));
 			if (i * maxp + l != len) {
