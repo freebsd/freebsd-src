@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 11, 2006
+.Dd May 28, 2006
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -141,6 +141,8 @@ See
 .Xr devfs 8
 for information on how to use devfs rules to limit access to entries
 in the per-jail devfs.
+A simple devfs ruleset for jails is available as ruleset #4 in 
+.Pa /etc/defaults/devfs.rules .
 .Pp
 In many cases this example would put far more in the jail than needed.
 In the other extreme case a jail might contain only one file:
