@@ -427,8 +427,8 @@
 #define BFE_RX_RING_SIZE        512
 #define BFE_TX_RING_SIZE        512
 #define BFE_LINK_DOWN           5
-#define BFE_TX_LIST_CNT         511
-#define BFE_RX_LIST_CNT         511
+#define BFE_TX_LIST_CNT         128
+#define BFE_RX_LIST_CNT         128
 #define BFE_TX_LIST_SIZE        BFE_TX_LIST_CNT * sizeof(struct bfe_desc)
 #define BFE_RX_LIST_SIZE        BFE_RX_LIST_CNT * sizeof(struct bfe_desc)
 #define BFE_RX_OFFSET           30
