@@ -1032,7 +1032,7 @@ get_exportlist()
 		}
 
 		if (nmount(iov, iovlen, fsp->f_flags) < 0 &&
-		    errno != ENOENT) {
+		    errno != ENOENT && errno != ENOTSUP) {
 			syslog(LOG_ERR,
 			    "can't delete exports for %s: %m %s",
 			    fsp->f_mntonname, errmsg);
