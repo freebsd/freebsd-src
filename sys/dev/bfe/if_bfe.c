@@ -208,7 +208,7 @@ bfe_dma_alloc(device_t dev)
 			MAXBSIZE,                 /* maxsize */
 			BUS_SPACE_UNRESTRICTED,   /* num of segments */
 			BUS_SPACE_MAXSIZE_32BIT,  /* max segment size */
-			BUS_DMA_ALLOCNOW,                        /* flags */
+			0,                        /* flags */
 			NULL, NULL,               /* lockfunc, lockarg */
 			&sc->bfe_parent_tag);
 
@@ -221,7 +221,7 @@ bfe_dma_alloc(device_t dev)
 			BFE_TX_LIST_SIZE,
 			1,
 			BUS_SPACE_MAXSIZE_32BIT,
-			BUS_DMA_ALLOCNOW,
+			0,
 			NULL, NULL,
 			&sc->bfe_tx_tag);
 
@@ -239,7 +239,7 @@ bfe_dma_alloc(device_t dev)
 			BFE_RX_LIST_SIZE,
 			1,
 			BUS_SPACE_MAXSIZE_32BIT,
-			BUS_DMA_ALLOCNOW,
+			0,
 			NULL, NULL,
 			&sc->bfe_rx_tag);
 
