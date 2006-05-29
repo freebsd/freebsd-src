@@ -1116,7 +1116,7 @@ pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 		if ((data & TD_WIRED) != 0)
 			pm->pm_stats.wired_count--;
 		if ((data & TD_PV) != 0) {
-			if ((data & TD_W) != 0 && pmap_track_modified(pm, va))
+			if ((data & TD_W) != 0)
 				vm_page_dirty(m);
 			if ((data & TD_REF) != 0)
 				vm_page_flag_set(m, PG_REFERENCED);
@@ -1183,8 +1183,7 @@ pmap_remove_all(vm_page_t m)
 			pm->pm_stats.wired_count--;
 		if ((tp->tte_data & TD_REF) != 0)
 			vm_page_flag_set(m, PG_REFERENCED);
-		if ((tp->tte_data & TD_W) != 0 &&
-		    pmap_track_modified(pm, va))
+		if ((tp->tte_data & TD_W) != 0)
 			vm_page_dirty(m);
 		tp->tte_data &= ~TD_V;
 		tlb_page_demap(pm, va);
@@ -1209,7 +1208,7 @@ pmap_protect_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 		m = PHYS_TO_VM_PAGE(TD_PA(data));
 		if ((data & TD_REF) != 0)
 			vm_page_flag_set(m, PG_REFERENCED);
-		if ((data & TD_W) != 0 && pmap_track_modified(pm, va))
+		if ((data & TD_W) != 0)
 			vm_page_dirty(m);
 	}
 	return (1);
@@ -1325,8 +1324,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			if (wired) {
 				tp->tte_data |= TD_W;
 			}
-		} else if ((data & TD_W) != 0 &&
-		    pmap_track_modified(pm, va)) {
+		} else if ((data & TD_W) != 0) {
 			vm_page_dirty(m);
 		}
 
@@ -1769,9 +1767,7 @@ pmap_ts_referenced(vm_page_t m)
 			tpn = TAILQ_NEXT(tp, tte_link);
 			TAILQ_REMOVE(&m->md.tte_list, tp, tte_link);
 			TAILQ_INSERT_TAIL(&m->md.tte_list, tp, tte_link);
-			if ((tp->tte_data & TD_PV) == 0 ||
-			    !pmap_track_modified(TTE_GET_PMAP(tp),
-			     TTE_GET_VA(tp)))
+			if ((tp->tte_data & TD_PV) == 0)
 				continue;
 			data = atomic_clear_long(&tp->tte_data, TD_REF);
 			if ((data & TD_REF) != 0 && ++count > 4)
@@ -1790,8 +1786,7 @@ pmap_is_modified(vm_page_t m)
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
 		return (FALSE);
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
-		if ((tp->tte_data & TD_PV) == 0 ||
-		    !pmap_track_modified(TTE_GET_PMAP(tp), TTE_GET_VA(tp)))
+		if ((tp->tte_data & TD_PV) == 0)
 			continue;
 		if ((tp->tte_data & TD_W) != 0)
 			return (TRUE);
@@ -1863,9 +1858,7 @@ pmap_clear_write(vm_page_t m)
 			continue;
 		data = atomic_clear_long(&tp->tte_data, TD_SW | TD_W);
 		if ((data & TD_W) != 0) {
-			if (pmap_track_modified(TTE_GET_PMAP(tp),
-			    TTE_GET_VA(tp)))
-				vm_page_dirty(m);
+			vm_page_dirty(m);
 			tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
 		}
 	}
