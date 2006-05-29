@@ -263,6 +263,8 @@ static int	bridge_ip_checkbasic(struct mbuf **mp);
 # ifdef INET6
 static int	bridge_ip6_checkbasic(struct mbuf **mp);
 # endif /* INET6 */
+static int	bridge_fragment(struct ifnet *, struct mbuf *,
+		    struct ether_header *, int, struct llc *);
 
 SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_BRIDGE, bridge, CTLFLAG_RW, 0, "Bridge");
@@ -1499,13 +1501,22 @@ bridge_stop(struct ifnet *ifp, int disable)
 __inline void
 bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 {
-	int len, err;
+	int len, err = 0;
 	short mflags;
+	struct mbuf *m0;
 
 	len = m->m_pkthdr.len;
 	mflags = m->m_flags;
 
-	IFQ_ENQUEUE(&dst_ifp->if_snd, m, err);
+	/* We may be sending a framgment so traverse the mbuf */
+	for (; m; m = m0) {
+		m0 = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+		
+		if (err == 0)
+			IFQ_ENQUEUE(&dst_ifp->if_snd, m, err);
+	}
+
 	if (err == 0) {
 
 		sc->sc_ifp->if_opackets++;
@@ -2581,7 +2592,7 @@ bridge_rtnode_destroy(struct bridge_softc *sc, struct bridge_rtnode *brt)
 static int
 bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 {
-	int snap, error, i;
+	int snap, error, i, hlen;
 	struct ether_header *eh1, eh2;
 	struct ip_fw_args args;
 	struct ip *ip;
@@ -2763,12 +2774,38 @@ ipfwpass:
 			error = pfil_run_hooks(&inet_pfil_hook, mp, bifp,
 					dir, NULL);
 
-		/* Restore ip and the fields ntohs()'d. */
-		if (*mp != NULL && error == 0) {
-			ip = mtod(*mp, struct ip *);
-			ip->ip_len = htons(ip->ip_len);
-			ip->ip_off = htons(ip->ip_off);
+		if (*mp == NULL || error != 0) /* filter may consume */
+			break;
+
+		/* check if we need to fragment the packet */
+		if (pfil_member && ifp != NULL && dir == PFIL_OUT) {
+			i = (*mp)->m_pkthdr.len;
+			if (i > ifp->if_mtu) {
+				error = bridge_fragment(ifp, *mp, &eh2, snap,
+					    &llc1);
+				return (error);
+			}
 		}
+
+		/* Recalculate the ip checksum and restore byte ordering */
+		ip = mtod(*mp, struct ip *);
+		hlen = ip->ip_hl << 2;
+ 		if (hlen < sizeof(struct ip))
+ 			goto bad;
+ 		if (hlen > (*mp)->m_len) {
+ 			if ((*mp = m_pullup(*mp, hlen)) == 0)
+ 				goto bad;
+ 			ip = mtod(*mp, struct ip *);
+ 			if (ip == NULL)
+ 				goto bad;
+ 		}
+		ip->ip_len = htons(ip->ip_len);
+		ip->ip_off = htons(ip->ip_off);
+ 		ip->ip_sum = 0;
+ 		if (hlen == sizeof(struct ip))
+ 			ip->ip_sum = in_cksum_hdr(ip);
+ 		else
+ 			ip->ip_sum = in_cksum(*mp, hlen);
 
 		break;
 # ifdef INET6
@@ -2981,3 +3018,59 @@ bad:
 	return -1;
 }
 # endif /* INET6 */
+
+/*
+ * bridge_fragment:
+ *
+ *	Return a fragmented mbuf chain.
+ */
+static int
+bridge_fragment(struct ifnet *ifp, struct mbuf *m, struct ether_header *eh,
+    int snap, struct llc *llc)
+{
+	struct mbuf *m0;
+	struct ip *ip;
+	int error = -1;
+
+	if (m->m_len < sizeof(struct ip) &&
+	    (m = m_pullup(m, sizeof(struct ip))) == NULL)
+		goto out;
+	ip = mtod(m, struct ip *);
+
+	error = ip_fragment(ip, &m, ifp->if_mtu, ifp->if_hwassist,
+		    CSUM_DELAY_IP);
+	if (error)
+		goto out;
+
+	/* walk the chain and re-add the Ethernet header */
+	for (m0 = m; m0; m0 = m0->m_nextpkt) {
+		if (error == 0) {
+			if (snap) {
+				M_PREPEND(m0, sizeof(struct llc), M_DONTWAIT);
+				if (m0 == NULL) {
+					error = ENOBUFS;
+					continue;
+				}
+				bcopy(llc, mtod(m0, caddr_t),
+				    sizeof(struct llc));
+			}
+			M_PREPEND(m0, ETHER_HDR_LEN, M_DONTWAIT);
+			if (m0 == NULL) {
+				error = ENOBUFS;
+				continue;
+			}
+			bcopy(eh, mtod(m0, caddr_t), ETHER_HDR_LEN);
+		} else 
+			m_freem(m);
+	}
+
+	if (error == 0)
+		ipstat.ips_fragmented++;
+
+	return (error);
+
+out:
+	if (m != NULL)
+		m_freem(m);
+	return (error);
+}
