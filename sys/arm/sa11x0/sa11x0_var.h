@@ -64,15 +64,6 @@ struct sa11x0_softc {
 typedef void *sa11x0_chipset_tag_t;
 
 extern struct bus_space sa11x0_bs_tag;
-struct sa11x0_attach_args {
-	sa11x0_chipset_tag_t	sa_sc;		
-	bus_space_tag_t		sa_iot;		/* Bus tag */
-	bus_addr_t		sa_addr;	/* i/o address  */
-	bus_size_t		sa_size;
-
-	int			sa_intr;
-	int			sa_gpio;
-};
 
 void *sa11x0_intr_establish(sa11x0_chipset_tag_t, int, int, int, 
 			    int (*)(void *), void *);
