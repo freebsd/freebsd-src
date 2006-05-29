@@ -226,7 +226,7 @@ mpt_raid_async(void *callback_arg, u_int32_t code,
 			break;
 		}
 
-		mpt_lprt(mpt, MPT_PRT_DEBUG, " Callback for %d\n",
+		mpt_lprt(mpt, MPT_PRT_DEBUG, "Callback for %d\n",
 			 cgd->ccb_h.target_id);
 		
 		RAID_VOL_FOREACH(mpt, mpt_vol) {
@@ -779,9 +779,26 @@ mpt_map_physdisk(struct mpt_softc *mpt, union ccb *ccb, u_int *tgt)
 		*tgt = mpt_disk->config_page.PhysDiskID;
 		return (0);
 	}
-	mpt_lprt(mpt, MPT_PRT_DEBUG, "mpt_map_physdisk(%d) - Not Active\n",
+	mpt_lprt(mpt, MPT_PRT_DEBUG1, "mpt_map_physdisk(%d) - Not Active\n",
 		 ccb->ccb_h.target_id);
 	return (-1);
+}
+
+/* XXX Ignores that there may be multiple busses/IOCs involved. */
+int
+mpt_is_raid_volume(struct mpt_softc *mpt, int tgt)
+{
+	CONFIG_PAGE_IOC_2_RAID_VOL *ioc_vol;
+	CONFIG_PAGE_IOC_2_RAID_VOL *ioc_last_vol;
+
+	ioc_vol = mpt->ioc_page2->RaidVolume;
+	ioc_last_vol = ioc_vol + mpt->ioc_page2->NumActiveVolumes;
+	for (;ioc_vol != ioc_last_vol; ioc_vol++) {
+		if (ioc_vol->VolumeID == tgt) {
+			return (1);
+		}
+	}
+	return (0);
 }
 
 #if 0
