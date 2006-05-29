@@ -1050,7 +1050,7 @@ seq_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 	    }
 
 	    if (scp->music) {
-#if not_ever_ever
+#ifdef not_ever_ever
 		if (event[0] == EV_TIMING && 
 			(event[1] == TMR_START || event[1] == TMR_STOP) ) {
 		    /*
@@ -1543,7 +1543,7 @@ case EV_SEQ_LOCAL:
 		out[2] = chn;
 	used += 4;
 		break;
-#if notyet
+#ifdef notyet
 	    case SEQ_ECHO:
 		/*
 		 * This isn't handled here yet because I don't know if I can

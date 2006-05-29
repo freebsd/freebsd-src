@@ -431,7 +431,7 @@ exit:	mtx_unlock(&midistat_lock);
  * psignal at most once.
  */
 
-#if notdef
+#ifdef notdef
 static int      midi_lengths[] = {2, 2, 2, 2, 1, 1, 2, 0};
 #endif /* notdef */
 /* Number of bytes in a MIDI command */
@@ -1014,7 +1014,7 @@ midistat_prepare(struct sbuf * s)
 	return sbuf_len(s);
 }
 
-#if notdef
+#ifdef notdef
 /*
  * Convert IOCTL command to string for debugging
  */
