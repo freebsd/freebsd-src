@@ -260,9 +260,9 @@ static int	bridge_ioctl_delspan(struct bridge_softc *, void *);
 static int	bridge_pfil(struct mbuf **, struct ifnet *, struct ifnet *,
 		    int);
 static int	bridge_ip_checkbasic(struct mbuf **mp);
-# ifdef INET6
+#ifdef INET6
 static int	bridge_ip6_checkbasic(struct mbuf **mp);
-# endif /* INET6 */
+#endif /* INET6 */
 static int	bridge_fragment(struct ifnet *, struct mbuf *,
 		    struct ether_header *, int, struct llc *);
 
@@ -400,9 +400,9 @@ bridge_modevent(module_t mod, int type, void *data)
 		mtx_destroy(&bridge_list_mtx);
 		break;
 	default:
-		return EOPNOTSUPP;
+		return (EOPNOTSUPP);
 	}
-	return 0;
+	return (0);
 }
 
 static moduledata_t bridge_mod = {
@@ -441,7 +441,7 @@ sysctl_pfil_ipfw(SYSCTL_HANDLER_ARGS)
 		}
 	}
 
-	return error;
+	return (error);
 }
 SYSCTL_PROC(_net_link_bridge, OID_AUTO, ipfw, CTLTYPE_INT|CTLFLAG_RW,
 	    &pfil_ipfw, 0, &sysctl_pfil_ipfw, "I", "Layer2 filter with IPFW");
@@ -635,7 +635,7 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
-		bzero(&args, sizeof args);
+		bzero(&args, sizeof(args));
 		if (bc->bc_flags & BC_F_COPYIN) {
 			error = copyin(ifd->ifd_data, &args, ifd->ifd_len);
 			if (error)
@@ -706,7 +706,7 @@ bridge_mutecaps(struct bridge_iflist *bif, int mute)
 	if (ifp->if_ioctl == NULL)
 		return;
 
-	bzero(&ifr, sizeof ifr);
+	bzero(&ifr, sizeof(ifr));
 	ifr.ifr_reqcap = ifp->if_capenable;
 
 	if (mute) {
@@ -725,7 +725,6 @@ bridge_mutecaps(struct bridge_iflist *bif, int mute)
 		IFF_UNLOCKGIANT(ifp);
 	}
 }
-	
 
 /*
  * bridge_lookup_member:
@@ -1043,7 +1042,7 @@ bridge_ioctl_gifs(struct bridge_softc *sc, void *arg)
 
 	count = 0;
 	len = bifc->ifbic_len;
-	bzero(&breq, sizeof breq);
+	bzero(&breq, sizeof(breq));
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 		if (len < sizeof(breq))
 			break;
@@ -1097,7 +1096,7 @@ bridge_ioctl_rts(struct bridge_softc *sc, void *arg)
 		return (0);
 
 	len = bac->ifbac_len;
-	bzero(&bareq, sizeof bareq);
+	bzero(&bareq, sizeof(bareq));
 	LIST_FOREACH(brt, &sc->sc_rtlist, brt_list) {
 		if (len < sizeof(bareq))
 			goto out;
@@ -1466,7 +1465,6 @@ bridge_init(void *xsc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	bstp_initialization(sc);
 	BRIDGE_UNLOCK(sc);
-	return;
 }
 
 /*
@@ -1732,8 +1730,6 @@ bridge_start(struct ifnet *ifp)
 		}
 	}
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-
-	return;
 }
 
 /*
@@ -1950,10 +1946,6 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		 * If the packet is for us, set the packets source as the
 		 * bridge, and return the packet back to ether_input for
 		 * local processing.
-		 */
-
-		/* XXX Do we tap the packet for the member interface too?
-		 * BPF_MTAP(&m->m_pkthdr.rcvif, m);
 		 */
 
 		/* Mark the packet as arriving on the bridge interface */
@@ -2193,7 +2185,7 @@ bridge_span(struct bridge_softc *sc, struct mbuf *m)
 
 	LIST_FOREACH(bif, &sc->sc_spanlist, bif_next) {
 		dst_if = bif->bif_ifp;
-		
+
 		if ((dst_if->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			continue;
 
@@ -2606,14 +2598,14 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	KASSERT(M_WRITABLE(*mp), ("%s: modifying a shared mbuf", __func__));
 
 	if (pfil_bridge == 0 && pfil_member == 0 && pfil_ipfw == 0)
-		return 0; /* filtering is disabled */
+		return (0); /* filtering is disabled */
 
 	i = min((*mp)->m_pkthdr.len, max_protohdr);
 	if ((*mp)->m_len < i) {
 	    *mp = m_pullup(*mp, i);
 	    if (*mp == NULL) {
 		printf("%s: m_pullup failed\n", __func__);
-		return -1;
+		return (-1);
 	    }
 	}
 
@@ -2647,11 +2639,11 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	switch (ether_type) {
 		case ETHERTYPE_ARP:
 		case ETHERTYPE_REVARP:
-			return 0; /* Automatically pass */
+			return (0); /* Automatically pass */
 		case ETHERTYPE_IP:
-# ifdef INET6
+#ifdef INET6
 		case ETHERTYPE_IPV6:
-# endif /* INET6 */
+#endif /* INET6 */
 			break;
 		default:
 			/*
@@ -2681,11 +2673,11 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			case ETHERTYPE_IP:
 				error = bridge_ip_checkbasic(mp);
 				break;
-# ifdef INET6
+#ifdef INET6
 			case ETHERTYPE_IPV6:
 				error = bridge_ip6_checkbasic(mp);
 				break;
-# endif /* INET6 */
+#endif /* INET6 */
 			default:
 				error = 0;
 		}
@@ -2708,14 +2700,14 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 		*mp = args.m;
 
 		if (*mp == NULL)
-			return error;
+			return (error);
 
 		if (DUMMYNET_LOADED && (i == IP_FW_DUMMYNET)) {
 
 			/* put the Ethernet header back on */
 			M_PREPEND(*mp, ETHER_HDR_LEN, M_DONTWAIT);
 			if (*mp == NULL)
-				return error;
+				return (error);
 			bcopy(&eh2, mtod(*mp, caddr_t), ETHER_HDR_LEN);
 
 			/*
@@ -2724,7 +2716,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			 */
 			args.oif = ifp;
 			ip_dn_io_ptr(*mp, DN_TO_IFB_FWD, &args);
-			return error;
+			return (error);
 		}
 
 		if (i != IP_FW_PASS) /* drop */
@@ -2737,9 +2729,8 @@ ipfwpass:
 	/*
 	 * Run the packet through pfil
 	 */
-	switch (ether_type)
-	{
-	case ETHERTYPE_IP :
+	switch (ether_type) {
+	case ETHERTYPE_IP:
 		/*
 		 * before calling the firewall, swap fields the same as
 		 * IP does. here we assume the header is contiguous
@@ -2790,26 +2781,26 @@ ipfwpass:
 		/* Recalculate the ip checksum and restore byte ordering */
 		ip = mtod(*mp, struct ip *);
 		hlen = ip->ip_hl << 2;
- 		if (hlen < sizeof(struct ip))
- 			goto bad;
- 		if (hlen > (*mp)->m_len) {
- 			if ((*mp = m_pullup(*mp, hlen)) == 0)
- 				goto bad;
- 			ip = mtod(*mp, struct ip *);
- 			if (ip == NULL)
- 				goto bad;
- 		}
+		if (hlen < sizeof(struct ip))
+			goto bad;
+		if (hlen > (*mp)->m_len) {
+			if ((*mp = m_pullup(*mp, hlen)) == 0)
+				goto bad;
+			ip = mtod(*mp, struct ip *);
+			if (ip == NULL)
+				goto bad;
+		}
 		ip->ip_len = htons(ip->ip_len);
 		ip->ip_off = htons(ip->ip_off);
- 		ip->ip_sum = 0;
- 		if (hlen == sizeof(struct ip))
- 			ip->ip_sum = in_cksum_hdr(ip);
- 		else
- 			ip->ip_sum = in_cksum(*mp, hlen);
+		ip->ip_sum = 0;
+		if (hlen == sizeof(struct ip))
+			ip->ip_sum = in_cksum_hdr(ip);
+		else
+			ip->ip_sum = in_cksum(*mp, hlen);
 
 		break;
-# ifdef INET6
-	case ETHERTYPE_IPV6 :
+#ifdef INET6
+	case ETHERTYPE_IPV6:
 		if (pfil_bridge && dir == PFIL_OUT && bifp != NULL)
 			error = pfil_run_hooks(&inet6_pfil_hook, mp, bifp,
 					dir, NULL);
@@ -2828,14 +2819,14 @@ ipfwpass:
 			error = pfil_run_hooks(&inet6_pfil_hook, mp, bifp,
 					dir, NULL);
 		break;
-# endif
-	default :
+#endif
+	default:
 		error = 0;
 		break;
 	}
 
 	if (*mp == NULL)
-		return error;
+		return (error);
 	if (error != 0)
 		goto bad;
 
@@ -2847,21 +2838,21 @@ ipfwpass:
 	if (snap) {
 		M_PREPEND(*mp, sizeof(struct llc), M_DONTWAIT);
 		if (*mp == NULL)
-			return error;
+			return (error);
 		bcopy(&llc1, mtod(*mp, caddr_t), sizeof(struct llc));
 	}
 
 	M_PREPEND(*mp, ETHER_HDR_LEN, M_DONTWAIT);
 	if (*mp == NULL)
-		return error;
+		return (error);
 	bcopy(&eh2, mtod(*mp, caddr_t), ETHER_HDR_LEN);
 
-	return 0;
+	return (0);
 
 bad:
 	m_freem(*mp);
 	*mp = NULL;
-	return error;
+	return (error);
 }
 
 /*
@@ -2885,7 +2876,7 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	u_short sum;
 
 	if (*mp == NULL)
-		return -1;
+		return (-1);
 
 	if (IP_HDR_ALIGNED_P(mtod(m, caddr_t)) == 0) {
 		if ((m = m_copyup(m, sizeof(struct ip),
@@ -2958,14 +2949,14 @@ bridge_ip_checkbasic(struct mbuf **mp)
 
 	/* Checks out, proceed */
 	*mp = m;
-	return 0;
+	return (0);
 
 bad:
 	*mp = m;
-	return -1;
+	return (-1);
 }
 
-# ifdef INET6
+#ifdef INET6
 /*
  * Same as above, but for IPv6.
  * Cut-and-pasted from ip6_input.c.
@@ -3011,13 +3002,13 @@ bridge_ip6_checkbasic(struct mbuf **mp)
 
 	/* Checks out, proceed */
 	*mp = m;
-	return 0;
+	return (0);
 
 bad:
 	*mp = m;
-	return -1;
+	return (-1);
 }
-# endif /* INET6 */
+#endif /* INET6 */
 
 /*
  * bridge_fragment:
