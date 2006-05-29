@@ -942,41 +942,6 @@ npxsetregs(td, addr)
 	curthread->td_pcb->pcb_flags |= PCB_NPXINITDONE;
 }
 
-/*
- * POSIX requires new thread to inherit floating-point environment.
- */
-void
-npx_fork_thread(struct thread *td, struct thread *newtd)
-{
-	union savefpu	*state;
-	u_int32_t	mxcsr;
-	u_int32_t	cw;
-
-	if (!(td->td_pcb->pcb_flags & PCB_NPXINITDONE)) {
-		newtd->td_pcb->pcb_flags &= ~PCB_NPXINITDONE;
-		return;
-	}
-		
-	state = &newtd->td_pcb->pcb_save;
-	/* get control word */
-	if (npxgetregs(td, state))
-		return;
-	if (cpu_fxsr) {
-		mxcsr = state->sv_xmm.sv_env.en_mxcsr;
-		cw = state->sv_xmm.sv_env.en_cw;
-	} else {
-		cw = state->sv_87.sv_env.en_cw;
-		mxcsr = 0;
-	}
-	bcopy(&npx_cleanstate, state, sizeof(*state));
-	if (cpu_fxsr) {
-		state->sv_xmm.sv_env.en_cw = cw;
-		state->sv_xmm.sv_env.en_mxcsr = mxcsr;
-	} else
-		state->sv_87.sv_env.en_cw = cw;
-	newtd->td_pcb->pcb_flags |= PCB_NPXINITDONE;
-}
-
 static void
 fpusave(addr)
 	union savefpu *addr;
