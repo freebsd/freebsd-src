@@ -58,6 +58,9 @@
  *
  * Support from Chris Ellsworth in order to make SAS adapters work
  * is gratefully acknowledged.
+ *
+ * Support from LSI-Logic has also gone a great deal toward making this a
+ * workable subsystem and is gratefully acknowledged.
  */
 #ifndef _MPT_REG_H_
 #define	_MPT_REG_H_
