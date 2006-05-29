@@ -647,7 +647,7 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 static int
 mpt_set_initial_config_spi(struct mpt_softc *mpt)
 {
-	int i, pp1val = ((1 << mpt->mpt_ini_id) << 16) | mpt->mpt_ini_id;
+	int i, j, pp1val = ((1 << mpt->mpt_ini_id) << 16) | mpt->mpt_ini_id;
 	int error;
 
 	mpt->mpt_disc_enable = 0xff;
@@ -682,12 +682,17 @@ mpt_set_initial_config_spi(struct mpt_softc *mpt)
 	 * The purpose of this exercise is to get
 	 * all targets back to async/narrow.
 	 *
-	 * We skip this if the BIOS has already negotiated speeds with targets.
+	 * We skip this step if the BIOS has already negotiated
+	 * speeds with the targets and does not require us to
+	 * do Domain Validation.
 	 */
 	i = mpt->mpt_port_page2.PortSettings &
 	    MPI_SCSIPORTPAGE2_PORT_MASK_NEGO_MASTER_SETTINGS;
-	if (i == MPI_SCSIPORTPAGE2_PORT_ALL_MASTER_SETTINGS) {
-		mpt_lprt(mpt, /* MPT_PRT_INFO */ MPT_PRT_ALWAYS,
+	j = mpt->mpt_port_page2.PortFlags &
+	    MPI_SCSIPORTPAGE2_PORT_FLAGS_DV_MASK;
+	if (i == MPI_SCSIPORTPAGE2_PORT_ALL_MASTER_SETTINGS &&
+	    j == MPI_SCSIPORTPAGE2_PORT_FLAGS_OFF_DV) {
+		mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
 		    "honoring BIOS transfer negotiations\n");
 		return (0);
 	}
@@ -2782,7 +2787,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		uint8_t dval;
 		u_int period;
 		u_int offset;
-		int m;
+		int i, j;
 
 		cts = &ccb->cts;
 		if (!IS_CURRENT_SETTINGS(cts)) {
@@ -2790,26 +2795,36 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			mpt_set_ccb_status(ccb, CAM_REQ_INVALID);
 			break;
 		}
+
 		if (mpt->is_fc || mpt->is_sas) {
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 			break;
 		}
 
-		if (mpt->ioc_page2 && mpt->ioc_page2->MaxPhysDisks != 0 &&
-		    raid_passthru == 0) {
+		/*
+		 * Skip attempting settings on RAID volume disks.
+		 * Other devices on the bus get the normal treatment.
+		 */
+		if (mpt->phydisk_sim && raid_passthru == 0 &&
+		    mpt_is_raid_volume(mpt, tgt) != 0) {
+			mpt_lprt(mpt, MPT_PRT_ALWAYS,
+			    "skipping transfer settings for RAID volumes\n");
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 			break;
 		}
 
-		m = mpt->mpt_port_page2.PortSettings;
-		if ((m & MPI_SCSIPORTPAGE2_PORT_MASK_NEGO_MASTER_SETTINGS) ==
-		    MPI_SCSIPORTPAGE2_PORT_ALL_MASTER_SETTINGS) {
-mpt_prt(mpt, "master settings\n");
-if (raid_passthru == 0) {
+		i = mpt->mpt_port_page2.PortSettings &
+		    MPI_SCSIPORTPAGE2_PORT_MASK_NEGO_MASTER_SETTINGS;
+		j = mpt->mpt_port_page2.PortFlags &
+		    MPI_SCSIPORTPAGE2_PORT_FLAGS_DV_MASK;
+		if (i == MPI_SCSIPORTPAGE2_PORT_ALL_MASTER_SETTINGS &&
+		    j == MPI_SCSIPORTPAGE2_PORT_FLAGS_OFF_DV) {
+			mpt_lprt(mpt, MPT_PRT_ALWAYS,
+			    "honoring BIOS transfer negotiations\n");
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 			break;
-}
 		}
+
 
 		dval = 0;
 		period = 0;
@@ -2846,24 +2861,27 @@ if (raid_passthru == 0) {
 		spi = &cts->xport_specific.spi;
 
 		if ((spi->valid & CTS_SPI_VALID_DISC) != 0) {
-			if ((spi->flags & CTS_SPI_FLAGS_DISC_ENB) != 0)
+			if ((spi->flags & CTS_SPI_FLAGS_DISC_ENB) != 0) {
 				dval |= DP_DISC_ENABLE;
-			else
+			} else {
 				dval |= DP_DISC_DISABL;
+			}
 		}
 
 		if ((scsi->valid & CTS_SCSI_VALID_TQ) != 0) {
-			if ((scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0)
+			if ((scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0) {
 				dval |= DP_TQING_ENABLE;
-			else
+			} else {
 				dval |= DP_TQING_DISABL;
+			}
 		}
 
 		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0) {
-			if (spi->bus_width == MSG_EXT_WDTR_BUS_16_BIT)
+			if (spi->bus_width == MSG_EXT_WDTR_BUS_16_BIT) {
 				dval |= DP_WIDE;
-			else
+			} else {
 				dval |= DP_NARROW;
+			}
 		}
 
 		if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) &&
@@ -2874,6 +2892,9 @@ if (raid_passthru == 0) {
 			offset = spi->sync_offset;
 		}
 #endif
+		mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
+		    "mpt_action: SET tgt %d flags %x period %x off %x\n",
+		    tgt, dval, period, offset);
 		CAMLOCK_2_MPTLOCK(mpt);
 		if (dval & DP_DISC_ENABLE) {
 			mpt->mpt_disc_enable |= (1 << tgt);
@@ -2891,10 +2912,12 @@ if (raid_passthru == 0) {
 		if (dval & DP_SYNC) {
 			mpt_setsync(mpt, tgt, period, offset);
 		}
+		if (mpt_update_spi_config(mpt, tgt)) {
+			MPTLOCK_2_CAMLOCK(mpt);
+			mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
+			break;
+		}
 		MPTLOCK_2_CAMLOCK(mpt);
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-		    "SET tgt %d flags %x period %x off %x\n",
-		    tgt, dval, period, offset);
 		mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 		break;
 	}
@@ -2952,11 +2975,9 @@ if (raid_passthru == 0) {
 			sas->valid = CTS_SAS_VALID_SPEED;
 			sas->bitrate = 300000;	/* XXX: Default 3Gbps */
 #endif
-		} else {
-			if (mpt_get_spi_settings(mpt, cts) != 0) {
-				mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
-				break;
-			}
+		} else if (mpt_get_spi_settings(mpt, cts) != 0) {
+			mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
+			break;
 		}
 		mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 		break;
@@ -3005,10 +3026,17 @@ if (raid_passthru == 0) {
 			cpi->base_transfer_speed = 3300;
 			cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 		}
+
+		/*
+		 * We give our fake RAID passhtru bus a width that is MaxVolumes
+		 * wide, restrict it to one lun and have it *not* be a bus
+		 * that can have a SCSI bus reset.
+		 */
 		if (raid_passthru) {
+			cpi->max_target = mpt->ioc_page2->MaxPhysDisks - 1;
+			cpi->initiator_id = cpi->max_target+1;
 			cpi->max_lun = 0;
 			cpi->hba_misc = PIM_NOBUSRESET;
-			cpi->initiator_id = cpi->max_target+1;
 		}
 
 		if ((mpt->role & MPT_ROLE_INITIATOR) == 0) {
@@ -3109,30 +3137,12 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 	uint8_t dval, pval, oval;
 	int rv;
 
-	/*
-	 * Check to see if this is an Integrated Raid card.
-	 *
-	 * If it is, and we're the RAID bus side, both current
-	 * and goal settings are synthesized as we only look at
-	 * or change actual settings for the physical disk side.
-	 *
-	 * NB: In the future we can just do this on the blacked out
-	 * NB: portion that the RAID volume covers- there may be
-	 * NB: other entities on this bus as well.
-	 */
-
-	if (mpt->phydisk_sim) {
-		if (xpt_path_sim(cts->ccb_h.path) != mpt->phydisk_sim) {
-			dval = DP_WIDE|DP_DISC|DP_TQING;
-			oval = (mpt->mpt_port_page0.Capabilities >> 16);
-			pval = (mpt->mpt_port_page0.Capabilities >>  8);
-			tgt = cts->ccb_h.target_id;
-			goto skip;
+	if (xpt_path_sim(cts->ccb_h.path) == mpt->phydisk_sim) {
+		if (mpt_map_physdisk(mpt, (union ccb *)cts, &tgt)) {
+			return (-1);
 		}
-	}
-
-	if (mpt_map_physdisk(mpt, (union ccb *)cts, &tgt) != 0) {
-		return (-1);
+	} else {
+		tgt = cts->ccb_h.target_id;
 	}
 
 	/*
@@ -3156,10 +3166,6 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 			return (rv);
 		}
 		MPTLOCK_2_CAMLOCK(mpt);
-
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-		    "mpt_get_spi: SPI Tgt %d Page 0: NParms %x Info %x\n",
-		    tgt, tmp.NegotiatedParameters, tmp.Information);
 		if (tmp.NegotiatedParameters & MPI_SCSIDEVPAGE0_NP_WIDE) {
 			dval |= DP_WIDE;
 		}
@@ -3181,7 +3187,6 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 		oval = (mpt->mpt_port_page0.Capabilities >> 16);
 		pval = (mpt->mpt_port_page0.Capabilities >>  8);
 	}
- skip:
 #ifndef	CAM_NEW_TRAN_CODE
 	cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
 	if (dval & DP_DISC_ENABLE) {
@@ -3236,9 +3241,9 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 		scsi->valid = 0;
 	}
 #endif
-	mpt_lprt(mpt, MPT_PRT_DEBUG,
-	    "mpt_get_spi: tgt %d %s settings flags %x period %x offset %x\n",
-	    tgt, IS_CURRENT_SETTINGS(cts)? "ACTIVE" : "NVRAM",
+	mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
+	    "mpt_get_spi_settings: tgt %d %s settings flags 0x%x period 0x%x "
+	    "offset %x\n", tgt, IS_CURRENT_SETTINGS(cts)? "ACTIVE" : "NVRAM ",
 	    dval, pval, oval);
 	return (0);
 }
@@ -3246,27 +3251,27 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 static void
 mpt_setwidth(struct mpt_softc *mpt, int tgt, int onoff)
 {
-	PTR_CONFIG_PAGE_SCSI_DEVICE_1 tmp;
+	PTR_CONFIG_PAGE_SCSI_DEVICE_1 ptr;
 
-	tmp = &mpt->mpt_dev_page1[tgt];
+	ptr = &mpt->mpt_dev_page1[tgt];
 	if (onoff) {
-		tmp->RequestedParameters |= MPI_SCSIDEVPAGE1_RP_WIDE;
+		ptr->RequestedParameters |= MPI_SCSIDEVPAGE1_RP_WIDE;
 	} else {
-		tmp->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_WIDE;
+		ptr->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_WIDE;
 	}
 }
 
 static void
 mpt_setsync(struct mpt_softc *mpt, int tgt, int period, int offset)
 {
-	PTR_CONFIG_PAGE_SCSI_DEVICE_1 tmp;
+	PTR_CONFIG_PAGE_SCSI_DEVICE_1 ptr;
 
-	tmp = &mpt->mpt_dev_page1[tgt];
-	tmp->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_MIN_SYNC_PERIOD_MASK;
-	tmp->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_MAX_SYNC_OFFSET_MASK;
-	tmp->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_DT;
-	tmp->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_QAS;
-	tmp->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_IU;
+	ptr = &mpt->mpt_dev_page1[tgt];
+	ptr->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_MIN_SYNC_PERIOD_MASK;
+	ptr->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_MAX_SYNC_OFFSET_MASK;
+	ptr->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_DT;
+	ptr->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_QAS;
+	ptr->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_IU;
 
 	/*
 	 * XXX: For now, we're ignoring specific settings
@@ -3284,7 +3289,7 @@ mpt_setsync(struct mpt_softc *mpt, int tgt, int period, int offset)
 			np |= MPI_SCSIDEVPAGE1_RP_DT;
 		}
 		np |= (factor << 8) | (offset << 16);
-		tmp->RequestedParameters |= np;
+		ptr->RequestedParameters |= np;
 	}
 }
 
@@ -3308,9 +3313,9 @@ mpt_update_spi_config(struct mpt_softc *mpt, int tgt)
 		return (-1);
 	}
 	mpt->mpt_dev_page1[tgt] = tmp;
-	mpt_lprt(mpt, MPT_PRT_DEBUG,
-	    "mpt_update_spi_config[%d]: Page 1: RParams %x Config %x\n", tgt,
-	    mpt->mpt_dev_page1[tgt].RequestedParameters,
+	mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
+	    "mpt_update_spi_config[%d].page1: RParams 0x%x Config 0x%x\n",
+	    tgt, mpt->mpt_dev_page1[tgt].RequestedParameters,
 	    mpt->mpt_dev_page1[tgt].Configuration);
 	return (0);
 }
