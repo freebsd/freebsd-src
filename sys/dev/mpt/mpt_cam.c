@@ -57,6 +57,9 @@
  *
  * Support from Chris Ellsworth in order to make SAS adapters work
  * is gratefully acknowledged.
+ *
+ * Support from LSI-Logic has also gone a great deal toward making this a
+ * workable subsystem and is gratefully acknowledged.
  */
 /*-
  * Copyright (c) 2004, Avid Technology, Inc. and its contributors.

@@ -31,6 +31,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF THE COPYRIGHT
  * OWNER OR CONTRIBUTOR IS ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+/*-
+ * Some Breakage and Bug Fixing added later.
+ * Copyright (c) 2006, by Matthew Jacob
+ * All Rights Reserved
+ *
+ * Support from LSI-Logic has also gone a great deal toward making this a
+ * workable subsystem and is gratefully acknowledged.
+ */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
