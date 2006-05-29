@@ -130,6 +130,24 @@ test_lseek(void)
 	cleanfifo("testfifo", reader_fd, writer_fd);
 }
 
+/*
+ * truncate(2) on FIFO should silently return success.
+ */
+static void
+test_truncate(void)
+{
+
+	makefifo("testfifo", __func__);
+
+	if (truncate("testfifo", 1024) != 0) {
+		warn("%s: truncate", __func__);
+		cleanfifo("testfifo", -1, -1);
+		exit(-1);
+	}
+
+	cleanfifo("testfifo", -1, -1);
+}
+
 struct filter_entry {
 	int		 fe_filter;
 	const char	*fe_name;
@@ -326,6 +344,7 @@ main(int argc, char *argv[])
 		err(-1, "chdir %s", temp_dir);
 
 	test_lseek();
+	test_truncate();
 	test_kqueue();
 	test_ioctl();
 
