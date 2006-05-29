@@ -138,8 +138,6 @@ union	savefpu {
 
 #ifdef _KERNEL
 
-struct thread;
-
 #define	IO_NPX		0x0F0		/* Numeric Coprocessor */
 #define	IO_NPXSIZE	16		/* 80387/80487 NPX registers */
 
@@ -157,7 +155,6 @@ void	npxinit(u_short control);
 void	npxsave(union savefpu *addr);
 void	npxsetregs(struct thread *td, union savefpu *addr);
 int	npxtrap(void);
-void	npx_fork_thread(struct thread *td, struct thread *newtd);
 
 #endif
 
