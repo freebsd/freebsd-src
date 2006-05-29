@@ -113,14 +113,13 @@ exit1(struct thread *td, int rv)
 	struct proc *p, *nq, *q;
 	struct tty *tp;
 	struct vnode *ttyvp;
-	struct vmspace *vm;
 	struct vnode *vtmp;
 #ifdef KTRACE
 	struct vnode *tracevp;
 	struct ucred *tracecred;
 #endif
 	struct plimit *plim;
-	int locked, refcnt;
+	int locked;
 
 	/*
 	 * Drop Giant if caller has it.  Eventually we should warn about
@@ -300,33 +299,7 @@ retry:
 	}
 	mtx_unlock(&ppeers_lock);
 
-	/* The next two chunks should probably be moved to vmspace_exit. */
-	vm = p->p_vmspace;
-	/*
-	 * Release user portion of address space.
-	 * This releases references to vnodes,
-	 * which could cause I/O if the file has been unlinked.
-	 * Need to do this early enough that we can still sleep.
-	 * Can't free the entire vmspace as the kernel stack
-	 * may be mapped within that space also.
-	 *
-	 * Processes sharing the same vmspace may exit in one order, and
-	 * get cleaned up by vmspace_exit() in a different order.  The
-	 * last exiting process to reach this point releases as much of
-	 * the environment as it can, and the last process cleaned up
-	 * by vmspace_exit() (which decrements exitingcnt) cleans up the
-	 * remainder.
-	 */
-	atomic_add_int(&vm->vm_exitingcnt, 1);
-	do
-		refcnt = vm->vm_refcnt;
-	while (!atomic_cmpset_int(&vm->vm_refcnt, refcnt, refcnt - 1));
-	if (refcnt == 1) {
-		shmexit(vm);
-		pmap_remove_pages(vmspace_pmap(vm));
-		(void) vm_map_remove(&vm->vm_map, vm_map_min(&vm->vm_map),
-		    vm_map_max(&vm->vm_map));
-	}
+	vmspace_exit(td);
 
 	sx_xlock(&proctree_lock);
 	if (SESS_LEADER(p)) {
