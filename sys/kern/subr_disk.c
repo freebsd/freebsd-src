@@ -99,7 +99,7 @@ void
 bioq_insert_head(struct bio_queue_head *head, struct bio *bp)
 {
 
-	if (TAILQ_FIRST(&head->queue) == NULL)
+	if (TAILQ_EMPTY(&head->queue))
 		head->insert_point = bp;
 	TAILQ_INSERT_HEAD(&head->queue, bp, bio_queue);
 }
@@ -108,7 +108,7 @@ void
 bioq_insert_tail(struct bio_queue_head *head, struct bio *bp)
 {
 
-	if (TAILQ_FIRST(&head->queue) == NULL)
+	if (TAILQ_EMPTY(&head->queue))
 		head->insert_point = bp;
 	TAILQ_INSERT_TAIL(&head->queue, bp, bio_queue);
 }
