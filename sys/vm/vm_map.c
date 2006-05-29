@@ -148,6 +148,13 @@ static void vm_map_zdtor(void *mem, int size, void *arg);
 static void vmspace_zdtor(void *mem, int size, void *arg);
 #endif
 
+/* 
+ * PROC_VMSPACE_{UN,}LOCK() can be a noop as long as vmspaces are type
+ * stable.
+ */
+#define PROC_VMSPACE_LOCK(p) do { } while (0)
+#define PROC_VMSPACE_UNLOCK(p) do { } while (0)
+
 void
 vm_map_startup(void)
 {
@@ -261,7 +268,6 @@ vmspace_alloc(min, max)
 	vm->vm_taddr = 0;
 	vm->vm_daddr = 0;
 	vm->vm_maxsaddr = 0;
-	vm->vm_exitingcnt = 0;
 	return (vm);
 }
 
@@ -313,7 +319,7 @@ vmspace_free(struct vmspace *vm)
 	do
 		refcnt = vm->vm_refcnt;
 	while (!atomic_cmpset_int(&vm->vm_refcnt, refcnt, refcnt - 1));
-	if (refcnt == 1 && vm->vm_exitingcnt == 0)
+	if (refcnt == 1)
 		vmspace_dofree(vm);
 }
 
@@ -321,28 +327,93 @@ void
 vmspace_exitfree(struct proc *p)
 {
 	struct vmspace *vm;
-	int exitingcnt;
 
+	PROC_VMSPACE_LOCK(p);
 	vm = p->p_vmspace;
 	p->p_vmspace = NULL;
+	PROC_VMSPACE_UNLOCK(p);
+	KASSERT(vm == &vmspace0, ("vmspace_exitfree: wrong vmspace"));
+	vmspace_free(vm);
+}
+
+void
+vmspace_exit(struct thread *td)
+{
+	int refcnt;
+	struct vmspace *vm;
+	struct proc *p;
 
 	/*
-	 * cleanup by parent process wait()ing on exiting child.  vm_refcnt
-	 * may not be 0 (e.g. fork() and child exits without exec()ing).
-	 * exitingcnt may increment above 0 and drop back down to zero
-	 * several times while vm_refcnt is held non-zero.  vm_refcnt
-	 * may also increment above 0 and drop back down to zero several
-	 * times while vm_exitingcnt is held non-zero.
+	 * Release user portion of address space.
+	 * This releases references to vnodes,
+	 * which could cause I/O if the file has been unlinked.
+	 * Need to do this early enough that we can still sleep.
 	 *
-	 * The last wait on the exiting child's vmspace will clean up
-	 * the remainder of the vmspace.
+	 * The last exiting process to reach this point releases as
+	 * much of the environment as it can. vmspace_dofree() is the
+	 * slower fallback in case another process had a temporary
+	 * reference to the vmspace.
 	 */
-	do
-		exitingcnt = vm->vm_exitingcnt;
-	while (!atomic_cmpset_int(&vm->vm_exitingcnt, exitingcnt,
-	    exitingcnt - 1));
-	if (vm->vm_refcnt == 0 && exitingcnt == 1)
+
+	p = td->td_proc;
+	vm = p->p_vmspace;
+	atomic_add_int(&vmspace0.vm_refcnt, 1);
+	do {
+		refcnt = vm->vm_refcnt;
+		if (refcnt > 1 && p->p_vmspace != &vmspace0) {
+			/* Switch now since other proc might free vmspace */
+			PROC_VMSPACE_LOCK(p);
+			p->p_vmspace = &vmspace0;
+			PROC_VMSPACE_UNLOCK(p);
+			pmap_activate(td);
+		}
+	} while (!atomic_cmpset_int(&vm->vm_refcnt, refcnt, refcnt - 1));
+	if (refcnt == 1) {
+		if (p->p_vmspace != vm) {
+			/* vmspace not yet freed, switch back */
+			PROC_VMSPACE_LOCK(p);
+			p->p_vmspace = vm;
+			PROC_VMSPACE_UNLOCK(p);
+			pmap_activate(td);
+		}
+		pmap_remove_pages(vmspace_pmap(vm));
+		/* Switch now since this proc will free vmspace */
+		PROC_VMSPACE_LOCK(p);
+		p->p_vmspace = &vmspace0;
+		PROC_VMSPACE_UNLOCK(p);
+		pmap_activate(td);
 		vmspace_dofree(vm);
+	}
+}
+
+/* Acquire reference to vmspace owned by another process. */
+
+struct vmspace *
+vmspace_acquire_ref(struct proc *p)
+{
+	struct vmspace *vm;
+	int refcnt;
+
+	PROC_VMSPACE_LOCK(p);
+	vm = p->p_vmspace;
+	if (vm == NULL) {
+		PROC_VMSPACE_UNLOCK(p);
+		return (NULL);
+	}
+	do {
+		refcnt = vm->vm_refcnt;
+		if (refcnt <= 0) { 	/* Avoid 0->1 transition */
+			PROC_VMSPACE_UNLOCK(p);
+			return (NULL);
+		}
+	} while (!atomic_cmpset_int(&vm->vm_refcnt, refcnt, refcnt + 1));
+	if (vm != p->p_vmspace) {
+		PROC_VMSPACE_UNLOCK(p);
+		vmspace_free(vm);
+		return (NULL);
+	}
+	PROC_VMSPACE_UNLOCK(p);
+	return (vm);
 }
 
 void
@@ -2923,7 +2994,9 @@ vmspace_exec(struct proc *p, vm_offset_t minuser, vm_offset_t maxuser)
 	 * run it down.  Even though there is little or no chance of blocking
 	 * here, it is a good idea to keep this form for future mods.
 	 */
+	PROC_VMSPACE_LOCK(p);
 	p->p_vmspace = newvmspace;
+	PROC_VMSPACE_UNLOCK(p);
 	if (p == curthread->td_proc)		/* XXXKSE ? */
 		pmap_activate(curthread);
 	vmspace_free(oldvmspace);
@@ -2942,7 +3015,9 @@ vmspace_unshare(struct proc *p)
 	if (oldvmspace->vm_refcnt == 1)
 		return;
 	newvmspace = vmspace_fork(oldvmspace);
+	PROC_VMSPACE_LOCK(p);
 	p->p_vmspace = newvmspace;
+	PROC_VMSPACE_UNLOCK(p);
 	if (p == curthread->td_proc)		/* XXXKSE ? */
 		pmap_activate(curthread);
 	vmspace_free(oldvmspace);
