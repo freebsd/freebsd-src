@@ -631,11 +631,11 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 			break;
 
 		case TAPSDEBUG:
-			tapdebug = *(intptr_t *)data;
+			tapdebug = *(int *)data;
 			break;
 
 		case TAPGDEBUG:
-			*(intptr_t *)data = tapdebug;
+			*(int *)data = tapdebug;
 			break;
 
 		case FIONBIO:
@@ -644,7 +644,7 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 		case FIOASYNC:
 			s = splimp();
 			mtx_lock(&tp->tap_mtx);
-			if (*(intptr_t *)data)
+			if (*(int *)data)
 				tp->tap_flags |= TAP_ASYNC;
 			else
 				tp->tap_flags &= ~TAP_ASYNC;
@@ -657,27 +657,27 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 			if (ifp->if_snd.ifq_head) {
 				struct mbuf	*mb = ifp->if_snd.ifq_head;
 
-				for(*(intptr_t *)data = 0;mb != NULL;mb = mb->m_next)
-					*(intptr_t *)data += mb->m_len;
+				for(*(int *)data = 0;mb != NULL;mb = mb->m_next)
+					*(int *)data += mb->m_len;
 			} else
-				*(intptr_t *)data = 0;
+				*(int *)data = 0;
 			splx(s);
 			break;
 
 		case FIOSETOWN:
-			return (fsetown(*(intptr_t *)data, &tp->tap_sigio));
+			return (fsetown(*(int *)data, &tp->tap_sigio));
 
 		case FIOGETOWN:
-			*(intptr_t *)data = fgetown(&tp->tap_sigio);
+			*(int *)data = fgetown(&tp->tap_sigio);
 			return (0);
 
 		/* this is deprecated, FIOSETOWN should be used instead */
 		case TIOCSPGRP:
-			return (fsetown(-(*(intptr_t *)data), &tp->tap_sigio));
+			return (fsetown(-(*(int *)data), &tp->tap_sigio));
 
 		/* this is deprecated, FIOGETOWN should be used instead */
 		case TIOCGPGRP:
-			*(intptr_t *)data = -fgetown(&tp->tap_sigio);
+			*(int *)data = -fgetown(&tp->tap_sigio);
 			return (0);
 
 		/* VMware/VMnet port ioctl's */
