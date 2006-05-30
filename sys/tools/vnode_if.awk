@@ -191,8 +191,8 @@ if (cfile) {
 while ((getline < srcfile) > 0) {
 	if (NF == 0)
 		continue;
-	if ($1 ~ /^#%/) {
-		if (NF != 6  ||  $1 != "#%"  || \
+	if ($1 ~ /^%%/) {
+		if (NF != 6  ||  $1 != "%%"  || \
 		    $2 !~ /^[a-z]+$/  ||  $3 !~ /^[a-z]+$/  || \
 		    $4 !~ /^.$/  ||  $5 !~ /^.$/  ||  $6 !~ /^.$/)
 			continue;
@@ -202,15 +202,15 @@ while ((getline < srcfile) > 0) {
 		continue;
 	}
 
-	if ($1 ~ /^#!/) {
-		if (NF != 4 || $1 != "#!")
+	if ($1 ~ /^%!/) {
+		if (NF != 4 || $1 != "%!")
 			continue;
 		if ($3 != "pre" && $3 != "post")
 			continue;
 		lockdata["vop_" $2, $3] = $4;
 		continue;
 	}
-	if ($1 ~ /^#/)
+	if ($1 ~ /^#/ || $0 ~ /^$/)
 		continue;
 
 	# Get the function name.
