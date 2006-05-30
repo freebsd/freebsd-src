@@ -37,7 +37,6 @@
 . /etc/rc.subr
 
 load_rc_config 'XXX'
-/etc/rc.d/pccard start
 /etc/rc.d/devd start
 /etc/rc.d/hostname start
 /etc/rc.d/ipmon start
