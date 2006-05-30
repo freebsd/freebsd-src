@@ -1020,20 +1020,20 @@ bpf_setf(d, fp, cmd)
 {
 	struct bpf_insn *fcode, *old;
 	u_int wfilter, flen, size;
-#if BPF_JITTER
+#ifdef BPF_JITTER
 	bpf_jit_filter *ofunc;
 #endif
 
 	if (cmd == BIOCSETWF) {
 		old = d->bd_wfilter;
 		wfilter = 1;
-#if BPF_JITTER
+#ifdef BPF_JITTER
 		ofunc = NULL;
 #endif
 	} else {
 		wfilter = 0;
 		old = d->bd_rfilter;
-#if BPF_JITTER
+#ifdef BPF_JITTER
 		ofunc = d->bd_bfilter;
 #endif
 	}
@@ -1045,7 +1045,7 @@ bpf_setf(d, fp, cmd)
 			d->bd_wfilter = NULL;
 		else {
 			d->bd_rfilter = NULL;
-#if BPF_JITTER
+#ifdef BPF_JITTER
 			d->bd_bfilter = NULL;
 #endif
 		}
@@ -1053,7 +1053,7 @@ bpf_setf(d, fp, cmd)
 		BPFD_UNLOCK(d);
 		if (old != NULL)
 			free((caddr_t)old, M_BPF);
-#if BPF_JITTER
+#ifdef BPF_JITTER
 		if (ofunc != NULL)
 			bpf_destroy_jit_filter(ofunc);
 #endif
@@ -1072,7 +1072,7 @@ bpf_setf(d, fp, cmd)
 			d->bd_wfilter = fcode;
 		else {
 			d->bd_rfilter = fcode;
-#if BPF_JITTER
+#ifdef BPF_JITTER
 			d->bd_bfilter = bpf_jitter(fcode, flen);
 #endif
 		}
@@ -1080,7 +1080,7 @@ bpf_setf(d, fp, cmd)
 		BPFD_UNLOCK(d);
 		if (old != NULL)
 			free((caddr_t)old, M_BPF);
-#if BPF_JITTER
+#ifdef BPF_JITTER
 		if (ofunc != NULL)
 			bpf_destroy_jit_filter(ofunc);
 #endif
