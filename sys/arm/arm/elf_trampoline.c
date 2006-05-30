@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/inflate.h>
 #include <machine/elf.h>
 #include <machine/pte.h>
+#include <machine/cpufunc.h>
 
 #include <stdlib.h>
 
@@ -43,6 +44,24 @@ extern char kernel_end[];
 void __start(void);
 
 #define GZ_HEAD	0xa
+
+#ifdef CPU_ARM7TDMI
+#define cpu_idcache_wbinv_all	arm7tdmi_cache_flushID
+#elif defined(CPU_ARM8)
+#define cpu_idcache_wbinv_all	arm8_cache_purgeID
+#elif defined(CPU_ARM9)
+#define cpu_idcache_wbinv_all	arm9_dcache_wbinv_all
+#elif defined(CPU_ARM10)
+#define cpu_idcache_wbinv_all	arm10_idcache_wbinv_all
+#elif defined(CPU_SA110) || defined(CPU_SA1110) || defined(CPU_SA1100) || \
+    defined(CPU_IXP12X0)
+#define cpu_idcache_wbinv_all	sa1_cache_purgeID
+#elif defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
+    defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425)
+#define cpu_idcache_wbinv_all	xscale_cache_purgeID
+#endif
+int arm_pdcache_line_size = 32;
+int block_userspace_access = 0;
 
 static __inline void *
 memcpy(void *dst, const void *src, int len)
@@ -160,7 +179,7 @@ putstr(char *dummy)
 static int
 input(void *dummy)
 {
-	if ((size_t)(i_input - orig_input) >= KERNSIZE) {
+	if ((size_t)(i_input - orig_input) >= KERNCOMPSIZE) {
 		return (GZ_EOF);
 	}
 	return *i_input++;
@@ -383,7 +402,7 @@ void
 __start(void)
 {
 	void *curaddr;
-	void *dst;
+	void *dst, *altdst;
 	char *kernel = (char *)&kernel_start;
 
 	__asm __volatile("mov %0, pc"  :
@@ -393,11 +412,22 @@ __start(void)
 	if (*kernel == 0x1f && kernel[1] == 0x8b) {
 		int pt_addr = (((int)&_end + KERNSIZE + 0x100) & 
 		    ~(L1_TABLE_SIZE - 1)) + L1_TABLE_SIZE;
+		
 		setup_pagetables(pt_addr, (vm_paddr_t)curaddr,
 		    (vm_paddr_t)curaddr + 0x10000000);
 		/* Gzipped kernel */
 		dst = inflate_kernel(kernel, &_end);
 		kernel = (char *)&_end;
+		altdst = 4 + load_kernel((unsigned int)kernel, 
+		    (unsigned int)curaddr,
+		    (unsigned int)&func_end , 0);
+		if (altdst > dst)
+			dst = altdst;
+		cpu_idcache_wbinv_all();
+		__asm __volatile("mrc p15, 0, %0, c1, c0, 0\n"
+		    "bic %0, %0, #1\n" /* MMU_ENABLE */
+		    "mcr p15, 0, %0, c1, c0, 0\n"
+		    : "=r" (pt_addr));
 	} else
 #endif
 		dst = 4 + load_kernel((unsigned int)&kernel_start, 
