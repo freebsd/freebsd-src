@@ -376,6 +376,9 @@ isnow(endp, monthp, dayp, varp)
 #ifdef DEBUG
 	fprintf(stderr, "day2: day %d(%d-%d) yday %d\n", *dayp, day, cumdays[month], tp->tm_yday);
 #endif
+	if (day > cumdays [month + 1])			    /* off end of month */
+		return (0);
+
 	/* if today or today + offset days */
 	if (day >= tp->tm_yday - f_dayBefore &&
 	    day <= tp->tm_yday + offset + f_dayAfter)
