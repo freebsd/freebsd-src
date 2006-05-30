@@ -53,7 +53,8 @@
 #define	NFS_MAXTIMEO	(60 * NFS_HZ)	/* Max timeout to backoff to */
 #define	NFS_MINIDEMTIMEO (5 * NFS_HZ)	/* Min timeout for non-idempotent ops*/
 #define	NFS_MAXREXMIT	100		/* Stop counting after this many */
-#define	NFS_RETRANS	10		/* Num of retrans for soft mounts */
+#define	NFS_RETRANS	10		/* Num of retrans for UDP soft mounts */
+#define	NFS_RETRANS_TCP	2		/* Num of retrans for TCP soft mounts */
 #define	NFS_MAXGRPS	16		/* Max. size of groups list */
 #ifndef NFS_MINATTRTIMO
 #define	NFS_MINATTRTIMO 3		/* VREG attrib cache timeout in sec */
