@@ -47,6 +47,7 @@ function usage()
 
 function die(msg, what)
 {
+	printf srcfile "(" fnr "): " > "/dev/stderr";
 	printf msg "\n", what > "/dev/stderr";
 	exit 1;
 }
@@ -189,13 +190,16 @@ if (cfile) {
 }
 
 while ((getline < srcfile) > 0) {
+	fnr++;
 	if (NF == 0)
 		continue;
 	if ($1 ~ /^%%/) {
-		if (NF != 6  ||  $1 != "%%"  || \
-		    $2 !~ /^[a-z]+$/  ||  $3 !~ /^[a-z]+$/  || \
-		    $4 !~ /^.$/  ||  $5 !~ /^.$/  ||  $6 !~ /^.$/)
+		if (NF != 6 ||
+		    $2 !~ /^[a-z]+$/  ||  $3 !~ /^[a-z]+$/  ||
+		    $4 !~ /^.$/  ||  $5 !~ /^.$/  ||  $6 !~ /^.$/) {
+			die("Invalid %s construction", "%%");
 			continue;
+		}
 		lockdata["vop_" $2, $3, "Entry"] = $4;
 		lockdata["vop_" $2, $3, "OK"]    = $5;
 		lockdata["vop_" $2, $3, "Error"] = $6;			
@@ -203,14 +207,15 @@ while ((getline < srcfile) > 0) {
 	}
 
 	if ($1 ~ /^%!/) {
-		if (NF != 4 || $1 != "%!")
+		if (NF != 4 ||
+		    ($3 != "pre" && $3 != "post")) {
+			die("Invalid %s construction", "%!");
 			continue;
-		if ($3 != "pre" && $3 != "post")
-			continue;
+		}
 		lockdata["vop_" $2, $3] = $4;
 		continue;
 	}
-	if ($1 ~ /^#/ || $0 ~ /^$/)
+	if ($1 ~ /^#/)
 		continue;
 
 	# Get the function name.
@@ -225,6 +230,7 @@ while ((getline < srcfile) > 0) {
 			die("Unable to read through the arguments for \"%s\"",
 			    name);
 		}
+		fnr++;
 		if ($1 ~ /^\};/)
 			break;
 
