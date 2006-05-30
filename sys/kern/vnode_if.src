@@ -56,9 +56,6 @@
 # the AWK script at the head of the definition of "add_debug_code()".
 #
 
-#
-#% islocked	vp	= = =
-#
 vop_islocked {
 	IN struct vnode *vp;
 	IN struct thread *td;
@@ -279,10 +276,6 @@ vop_link {
 };
 
 #
-#% rename	fdvp	U U U
-#% rename	fvp	U U U
-#% rename	tdvp	E U U
-#% rename	tvp	X U U
 #! rename	pre	vop_rename_pre
 #! rename	post	vop_rename_post
 #
