@@ -405,7 +405,7 @@ initarm(void *arg, void *arg2)
 	 * After booting there are no gross reloations of the kernel thus
 	 * this problem will not occur after initarm().
 	 */
-/*	cpu_idcache_wbinv_all();*/
+	cpu_idcache_wbinv_all();
 
 
 	bootverbose = 1;
