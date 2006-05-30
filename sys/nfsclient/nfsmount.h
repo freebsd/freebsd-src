@@ -64,8 +64,8 @@ struct	nfsmount {
 	struct	sockaddr *nm_nam;	/* Addr of server */
 	int	nm_timeo;		/* Init timer for NFSMNT_DUMBTIMR */
 	int	nm_retry;		/* Max retries */
-	int	nm_srtt[4];		/* Timers for rpcs */
-	int	nm_sdrtt[4];
+	int	nm_srtt[NFS_MAX_TIMER],	/* RTT Timers for rpcs */
+		nm_sdrtt[NFS_MAX_TIMER];
 	int	nm_sent;		/* Request send count */
 	int	nm_cwnd;		/* Request send window */
 	int	nm_timeouts;		/* Request timeouts */
