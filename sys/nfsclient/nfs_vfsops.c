@@ -773,8 +773,9 @@ nfs_mount(struct mount *mp, struct thread *td)
 		goto out;
 	args.fh = nfh;
 	error = mountnfs(&args, mp, nam, hst, &vp, td->td_ucred);
-	mp->mnt_kern_flag |= MNTK_MPSAFE;
 out:
+	if (!error)
+		mp->mnt_kern_flag |= MNTK_MPSAFE;
 	return (error);
 }
 
