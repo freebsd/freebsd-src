@@ -97,6 +97,8 @@ agp_amd64_match(device_t dev)
 		return ("AMD 8151 AGP graphics tunnel");
 	case 0x07551039:
 		return ("SiS 755 host to AGP bridge");
+	case 0x07601039:
+		return ("SiS 760 host to AGP bridge");
 	case 0x168910b9:
 		return ("ULi M1689 AGP Controller");
 	case 0x00d110de:
