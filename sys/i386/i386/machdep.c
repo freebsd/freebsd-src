@@ -2710,9 +2710,9 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 			bcopy(&mcp->mc_fpstate, addr, sizeof(mcp->mc_fpstate));
 		}
 #ifdef DEV_NPX
-		/* clear high 16 bits of mxcsr to avoid security problem. */
-		if (cpu_fxsr)
-			addr->sv_xmm.sv_env.en_mxcsr &= 0xFFFF;
+#ifdef CPU_ENABLE_SSE
+		addr->sv_xmm.sv_env.en_mxcsr &= cpu_mxcsr_mask;
+#endif
 		/*
 		 * XXX we violate the dubious requirement that npxsetregs()
 		 * be called with interrupts disabled.
