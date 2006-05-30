@@ -221,6 +221,7 @@ initarm(void *arg, void *arg2)
 	vm_size_t pt_size;
 	int i = 0;
 	uint32_t fake_preload[35];
+	uint32_t memsize = 32 * 1024 * 1024;
 
 	boothowto = RB_VERBOSE | RB_SINGLE;
 	cninit();
@@ -257,7 +258,7 @@ initarm(void *arg, void *arg2)
 	fake_preload[i] = 0;
 	preload_metadata = (void *)fake_preload;
 
-	physmem =( 16 * 1024 * 1024) / PAGE_SIZE;
+	physmem = memsize / PAGE_SIZE;
 	pc = &__pcpu;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
@@ -444,7 +445,7 @@ initarm(void *arg, void *arg2)
 	init_param1();
 	init_param2(physmem);
 	kdb_init();
-	avail_end = 0xc0000000 + 0x02000000 - 1;
+	avail_end = 0xc0000000 + memsize - 1;
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
 }
