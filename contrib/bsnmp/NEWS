@@ -1,3 +1,7 @@
+1.12a
+	Support for ENUM and BITS in gensnmp{tree,def}. Include directives
+	and typedefs.
+
 1.12
 	A couple of man page fixes from various submitters.
 
