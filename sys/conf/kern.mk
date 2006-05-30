@@ -12,7 +12,10 @@ CWARNFLAGS=
 .else
 CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
-		-fformat-extensions -std=c99
+		${_wundef} -fformat-extensions -std=c99
+.if !defined(NO_UNDEF)
+_wundef=	-Wundef
+.endif
 .endif
 #
 # The following flags are next up for working on:
