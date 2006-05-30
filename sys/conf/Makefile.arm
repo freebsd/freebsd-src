@@ -59,6 +59,10 @@ SYSTEM_LD_TAIL +=;sed s/" + SIZEOF_HEADERS"// ldscript.$M\
 		${KERNEL_KO}.bin; \
 		rm ${FULLKERNEL}.noheader
 
+FILES_CPU_FUNC =	$S/$M/$M/cpufunc_asm_arm7tdmi.S \
+	$S/$M/$M/cpufunc_asm_arm8.S $S/$M/$M/cpufunc_asm_arm9.S \
+	$S/$M/$M/cpufunc_asm_sa1.S $S/$M/$M/cpufunc_asm_arm10.S \
+	$S/$M/$M/cpufunc_asm_xscale.S
 trampoline: ${KERNEL_KO}.tramp
 ${KERNEL_KO}.tramp: ${KERNEL_KO}
 	echo "#define KERNNAME \"${KERNEL_KO}.tmp\"" >opt_kernname.h 
@@ -85,10 +89,10 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO}
 	${CC} -O2 -DKZIP -I. -c $S/kern/inflate.c -o inflate-tramp.o
 	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.$M.tramp \
 	-DKZIP $S/$M/$M/elf_trampoline.c inflate-tramp.o $S/$M/$M/inckern.S \
-	-o ${KERNEL_KO}.gz.tramp
+	${FILES_CPU_FUNC} -o ${KERNEL_KO}.gz.tramp
 	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.$M.tramp.noheader \
 	-DKZIP $S/$M/$M/elf_trampoline.c inflate-tramp.o $S/$M/$M/inckern.S \
-	-o ${KERNEL_KO}.tramp.noheader
+	${FILES_CPU_FUNC} -o ${KERNEL_KO}.tramp.noheader
 	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.noheader \
 	${KERNEL_KO}.gz.tramp.bin
 	rm ${KERNEL_KO}.tmp.gz ${KERNEL_KO}.tramp.noheader opt_kernname.h \
