@@ -228,13 +228,13 @@ main(int argc, char * const argv[])
 		if (lp == NULL)
 			break;
 		while (lp->len > 0 && !aborting) {
-			i = MIN(lp->len, bigsize);
+			i = MIN(lp->len, (off_t)bigsize);
 			if (lp->state == 1)
-				i = MIN(lp->len, medsize);
+				i = MIN(lp->len, (off_t)medsize);
 			if (lp->state > 1)
-				i = MIN(lp->len, minsize);
+				i = MIN(lp->len, (off_t)minsize);
 			time(&t2);
-			if (t1 != t2 || lp->len < bigsize) {
+			if (t1 != t2 || lp->len < (off_t)bigsize) {
 				printf("\r%13jd %7zu %13jd %5d %13jd %13jd %.7f",
 				    (intmax_t)lp->start,
 				    i, 
