@@ -245,12 +245,18 @@ nfs_decode_args(struct nfsmount *nmp, struct nfs_args *argp)
 	int maxio;
 
 	s = splnet();
+
 	/*
 	 * Silently clear NFSMNT_NOCONN if it's a TCP mount, it makes
-	 * no sense in that context.
+	 * no sense in that context.  Also, set appropriate retransmit
+	 * and soft timeout behavior.
 	 */
-	if (argp->sotype == SOCK_STREAM)
+	if (argp->sotype == SOCK_STREAM) {
 		nmp->nm_flag &= ~NFSMNT_NOCONN;
+		nmp->nm_flag |= NFSMNT_DUMBTIMR;
+		nmp->nm_timeo = NFS_MAXTIMEO;
+		nmp->nm_retry = NFS_RETRANS_TCP;
+	}
 
 	nmp->nm_flag &= ~NFSMNT_RDIRPLUS;
 
