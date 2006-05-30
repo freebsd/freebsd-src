@@ -230,6 +230,8 @@ pmap_t kernel_pmap;
 
 static pt_entry_t *csrc_pte, *cdst_pte;
 static vm_offset_t csrcp, cdstp;
+static struct mtx cmtx;
+
 static void		pmap_init_l1(struct l1_ttable *, pd_entry_t *);
 /*
  * These routines are called when the CPU type is identified to set up
@@ -2541,6 +2543,7 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	virtual_end = lastaddr;
 	kernel_vm_end = pmap_curmaxkvaddr;
 	arm_nocache_startaddr = lastaddr;
+	mtx_init(&cmtx, "TMP mappings mtx", NULL, MTX_DEF);
 
 #ifdef ARM_USE_SMALL_ALLOC
 	mtx_init(&smallalloc_mtx, "Small alloc page list", NULL, MTX_DEF);
@@ -3429,9 +3432,11 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			simple_lock(&opg->mdpage.pvh_slock);
 #endif
 			pve = pmap_remove_pv(opg, pmap, va);
-			if (m && (m->flags & (PG_UNMANAGED | PG_FICTITIOUS)) && pve)
+			if (m && (m->flags & (PG_UNMANAGED | PG_FICTITIOUS)) &&
+			    pve)
 				pmap_free_pv_entry(pve);
-			else if (!pve)
+			else if (!pve && 
+			    !(m->flags & (PG_UNMANAGED | PG_FICTITIOUS)))
 				pve = pmap_get_pv_entry();
 			KASSERT(pve != NULL, ("No pv"));
 #if 0
@@ -4003,6 +4008,7 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 		return;
 
 
+	mtx_lock(&cmtx);
 	/*
 	 * Hook in the page, zero it, and purge the cache for that
 	 * zeroed page. Invalidate the TLB as needed.
@@ -4016,6 +4022,7 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 		bzero((void *)(cdstp + off), size);
 	else
 		bzero_page(cdstp);
+	mtx_unlock(&cmtx);
 	cpu_dcache_wbinv_range(cdstp, PAGE_SIZE);
 }
 #endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
@@ -4028,6 +4035,7 @@ pmap_zero_page_xscale(vm_paddr_t phys, int off, int size)
 	if (_arm_bzero && 
 	    _arm_bzero((void *)(phys + off), size, IS_PHYSICAL) == 0)
 		return;
+	mtx_lock(&cmtx);
 	/*
 	 * Hook in the page, zero it, and purge the cache for that
 	 * zeroed page. Invalidate the TLB as needed.
@@ -4042,6 +4050,7 @@ pmap_zero_page_xscale(vm_paddr_t phys, int off, int size)
 		bzero((void *)(cdstp + off), size);
 	else
 		bzero_page(cdstp);
+	mtx_unlock(&cmtx);
 	xscale_cache_clean_minidata();
 }
 
@@ -4264,6 +4273,7 @@ pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 	 * the cache for the appropriate page. Invalidate the TLB
 	 * as required.
 	 */
+	mtx_lock(&cmtx);
 	*csrc_pte = L2_S_PROTO | src |
 	    L2_S_PROT(PTE_KERNEL, VM_PROT_READ) | pte_l2_s_cache_mode;
 	PTE_SYNC(csrc_pte);
@@ -4274,6 +4284,7 @@ pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 	cpu_tlb_flushD_SE(cdstp);
 	cpu_cpwait();
 	bcopy_page(csrcp, cdstp);
+	mtx_unlock(&cmtx);
 	cpu_dcache_inv_range(csrcp, PAGE_SIZE);
 #if 0
 	mtx_lock(&src_pg->md.pvh_mtx);
@@ -4315,6 +4326,7 @@ pmap_copy_page_xscale(vm_paddr_t src, vm_paddr_t dst)
 	 * the cache for the appropriate page. Invalidate the TLB
 	 * as required.
 	 */
+	mtx_lock(&cmtx);
 	*csrc_pte = L2_S_PROTO | src |
 	    L2_S_PROT(PTE_KERNEL, VM_PROT_READ) |
 	    L2_C | L2_XSCALE_T_TEX(TEX_XSCALE_X);	/* mini-data */
@@ -4327,6 +4339,7 @@ pmap_copy_page_xscale(vm_paddr_t src, vm_paddr_t dst)
 	cpu_tlb_flushD_SE(cdstp);
 	cpu_cpwait();
 	bcopy_page(csrcp, cdstp);
+	mtx_unlock(&cmtx);
 	xscale_cache_clean_minidata();
 }
 #endif /* ARM_MMU_XSCALE == 1 */
