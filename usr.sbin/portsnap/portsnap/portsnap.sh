@@ -873,9 +873,7 @@ extract_run() {
 			grep -vE "${REFUSE}" ${WORKDIR}/INDEX
 		else
 			cat ${WORKDIR}/INDEX
-		fi | while read LINE; do
-		FILE=`echo ${LINE} | cut -f 1 -d '|'`
-		HASH=`echo ${LINE} | cut -f 2 -d '|'`
+		fi | tr '|' ' ' | while read FILE HASH; do
 		echo ${PORTSDIR}/${FILE}
 		if ! [ -r "${WORKDIR}/files/${HASH}.gz" ]; then
 			echo "files/${HASH}.gz not found -- snapshot corrupt."
@@ -883,8 +881,7 @@ extract_run() {
 		fi
 		case ${FILE} in
 		*/)
-			DIR=`echo ${FILE} | sed -e 's|/$||'`
-			rm -rf ${PORTSDIR}/${DIR}
+			rm -rf ${PORTSDIR}/${FILE%/}
 			mkdir -p ${PORTSDIR}/${FILE}
 			tar -xzf ${WORKDIR}/files/${HASH}.gz	\
 			    -C ${PORTSDIR}/${FILE}
