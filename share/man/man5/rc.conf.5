@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2006
+.Dd May 29, 2006
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3085,6 +3085,13 @@ When set, use as default value for
 .Va jail_ Ns Ao Ar jname Ac Ns Va _exec_start
 for every jail in 
 .Va jail_list .
+.It Va jail_exec_afterstart Ns Aq Ar N
+.Pq Vt str
+Unset by default.
+When set, use as default value for
+.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_afterstart Ns Aq Ar N
+for every jail in
+.Va jail_list .
 .It Va jail_exec_stop
 Unset by default.
 When set, use as default value for
@@ -3176,6 +3183,15 @@ Set to
 .Dq Li /bin/sh /etc/rc
 by default.
 This is the command executed at jail startup.
+.It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_afterstart Ns Aq Ar N
+.Pq Vt str
+Unset by default.
+This is the command run as
+.Ar N Ns 
+th command
+after jail startup, where 
+.Ar N
+is 1, 2, and so on.
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_stop
 .Pq Vt str
 Set to

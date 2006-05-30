@@ -36,6 +36,14 @@ init_variables()
 	eval _interface=\"\${jail_${_j}_interface:-${jail_interface}}\"
 	eval _exec=\"\$jail_${_j}_exec\"
 	eval _exec_start=\"\${jail_${_j}_exec_start:-${jail_exec_start}}\"
+
+	i=1
+	while [ true ]; do
+		eval _exec_afterstart${i}=\"\${jail_${_j}_exec_afterstart${i}:-\${jail_exec_afterstart${i}}}\"
+	[ -z "$(eval echo \"\$_exec_afterstart${i}\")" ] &&  break
+		i=$((i + 1))
+	done
+	
 	eval _exec_stop=\"\${jail_${_j}_exec_stop:-${jail_exec_stop}}\"
 	if [ -n "${_exec}" ]; then
 		#   simple/backward-compatible execution
@@ -84,6 +92,19 @@ init_variables()
 	debug "$_j ruleset: $_ruleset"
 	debug "$_j fstab: $_fstab"
 	debug "$_j exec start: $_exec_start"
+
+	i=1
+	while [ true ]; do
+		eval out=\"\${_exec_afterstart${i}:-''}\"
+
+		if [ -z "$out" ]; then
+			break;
+		fi
+
+		debug "$_j exec after start #${i}: ${out}"
+		i=$((i + 1))
+	done
+
 	debug "$_j exec stop: $_exec_stop"
 	debug "$_j flags: $_flags"
 
@@ -221,9 +242,22 @@ jail_start()
 		_tmp_jail=${_tmp_dir}/jail.$$
 		eval jail ${_flags} -i ${_rootdir} ${_hostname} \
 			${_ip} ${_exec_start} > ${_tmp_jail} 2>&1
+
 		if [ "$?" -eq 0 ] ; then
-			echo -n " $_hostname"
 			_jail_id=$(head -1 ${_tmp_jail})
+			i=1
+			while [ true ]; do
+				eval out=\"\${_exec_afterstart${i}:-''}\"
+
+				if [ -z "$out" ]; then
+					break;
+				fi
+
+				jexec "${_jail_id}" ${out}
+				i=$((i + 1))
+			done
+
+			echo -n " $_hostname"
 			tail +2 ${_tmp_jail} >${_rootdir}/var/log/console.log
 			echo ${_jail_id} > /var/run/jail_${_jail}.id
 		else
