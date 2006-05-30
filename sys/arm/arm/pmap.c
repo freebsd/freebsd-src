@@ -3067,6 +3067,7 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 
 	if (!pmap_get_pde_pte(pmap, addr, &pde, &pte))
 		return (FALSE);
+	KASSERT(pte != NULL, ("Valid mapping but no pte ?"));
 	if (*pte == 0)
 		return (TRUE);
 	return (FALSE);
