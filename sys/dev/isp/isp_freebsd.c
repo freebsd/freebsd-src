@@ -1899,7 +1899,7 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 			inot->message_args[0] = MSG_ABORT_TAG;
 			inot->message_args[1] = inp->in_seqid & 0xff;
 			inot->message_args[2] = (inp->in_seqid >> 8) & 0xff;
-			inot->ccb_h.status = CAM_MESSAGE_RECV|CAM_DEV_QFRZN;
+			inot->ccb_h.status = CAM_MESSAGE_RECV;
 			xpt_done((union ccb *)inot);
 		}
 		break;
