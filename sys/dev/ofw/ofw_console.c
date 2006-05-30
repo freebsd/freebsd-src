@@ -79,8 +79,7 @@ static cn_term_t	ofw_cnterm;
 static cn_getc_t	ofw_cngetc;
 static cn_putc_t	ofw_cnputc;
 
-CONSOLE_DRIVER(ofw)
-    ofw_cons_checkc, ofw_cons_putc, NULL);
+CONSOLE_DRIVER(ofw);
 
 static void
 cn_drvinit(void *unused)
@@ -227,7 +226,7 @@ ofw_timeout(void *v)
 
 	tp = (struct tty *)v;
 
-	while ((c = ofw_cons_checkc(NULL)) != -1) {
+	while ((c = ofw_cngetc(NULL)) != -1) {
 		if (tp->t_state & TS_ISOPEN) {
 			ttyld_rint(tp, c);
 		}
@@ -237,7 +236,7 @@ ofw_timeout(void *v)
 }
 
 static void
-ofw_cons_probe(struct consdev *cp)
+ofw_cnprobe(struct consdev *cp)
 {
 	int chosen;
 
@@ -269,7 +268,7 @@ ofw_cninit(struct consdev *cp)
 }
 
 static void
-ofw_cneterm(struct consdev *cp)
+ofw_cnterm(struct consdev *cp)
 {
 }
 
