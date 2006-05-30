@@ -7,7 +7,6 @@
        ${.CURDIR}/../../../${MACHINE_ARCH}/acpica
 
 KMOD=	acpi
-WARNS?=	2
 
 # ACPI CA sources
 CFLAGS+=   -I${.CURDIR}/../../../contrib/dev/acpica
