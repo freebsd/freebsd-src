@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 KMOD=	fdc
-WARNS?=	2
 
 .if ${MACHINE} == "pc98"
 .PATH:  ${.CURDIR}/../../pc98/cbus
