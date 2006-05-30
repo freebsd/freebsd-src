@@ -2261,8 +2261,8 @@ ciss_user_command(struct ciss_softc *sc, IOCTL_Command_struct *ioc)
     /*
      * Get a request.
      */
-    if ((error = ciss_get_request(sc, &cr)) != 0)
-	goto out;
+    while (ciss_get_request(sc, &cr) != 0)
+	tsleep(sc, PPAUSE, "cissREQ", hz);
     cc = CISS_FIND_COMMAND(cr);
 
     /*
