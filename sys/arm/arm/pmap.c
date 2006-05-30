@@ -4474,7 +4474,7 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 		pa += PAGE_SIZE;
 	}
 	
-	return ((void *)(va));
+	return ((void *)(va + offset));
 }
 
 #define BOOTSTRAP_DEBUG
