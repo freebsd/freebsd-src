@@ -87,12 +87,6 @@ const char *yp_procs[] = {
 	"ypproc_maplist"
 };
 
-#ifdef TCP_WRAPPER
-void
-load_securenets(void)
-{
-}
-#else
 struct securenet {
 	struct in_addr net;
 	struct in_addr mask;
@@ -177,7 +171,6 @@ load_securenets(void)
 	fclose(fp);
 
 }
-#endif
 
 /*
  * Access control functions.
@@ -219,11 +212,12 @@ yp_access(const char *map, const struct svc_req *rqstp)
 #endif
 {
 	struct sockaddr_in *rqhost;
-	int status = 0;
-	static unsigned long oldaddr = 0;
-#ifndef TCP_WRAPPER
-	struct securenet *tmp;
+	int status_securenets = 0;
+#ifdef TCP_WRAPPER
+	int status_tcpwrap;
 #endif
+	static unsigned long oldaddr = 0;
+	struct securenet *tmp;
 	const char *yp_procedure = NULL;
 	char procbuf[50];
 
@@ -274,21 +268,34 @@ not privileged", map, inet_ntoa(rqhost->sin_addr), ntohs(rqhost->sin_port));
 	}
 
 #ifdef TCP_WRAPPER
-	status = hosts_ctl("ypserv", STRING_UNKNOWN,
+	status_tcpwrap = hosts_ctl("ypserv", STRING_UNKNOWN,
 			   inet_ntoa(rqhost->sin_addr), "");
-#else
+#endif
 	tmp = securenets;
 	while (tmp) {
 		if (((rqhost->sin_addr.s_addr & ~tmp->mask.s_addr)
 		    | tmp->net.s_addr) == rqhost->sin_addr.s_addr) {
-			status = 1;
+			status_securenets = 1;
 			break;
 		}
 		tmp = tmp->next;
 	}
-#endif
 
-	if (!status) {
+#ifdef TCP_WRAPPER
+	if (status_securenets == 0 || status_tcpwrap == 0) {
+#else
+	if (status_securenets == 0) {
+#endif
+	/*
+	 * One of the following two events occured:
+	 *
+	 * (1) The /var/yp/securenets exists and the remote host does not
+	 *     match any of the networks specified in it.
+	 * (2) The hosts.allow file has denied access and TCP_WRAPPER is
+	 *     defined.
+	 *
+	 * In either case deny access.
+	 */
 		if (rqhost->sin_addr.s_addr != oldaddr) {
 			yp_error("connect from %s:%d to procedure %s refused",
 					inet_ntoa(rqhost->sin_addr),
