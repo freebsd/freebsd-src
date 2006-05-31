@@ -162,12 +162,15 @@ extern char	*__progname;		/* The name of program. */
  * Output the help message (-h switch).
  */
 static void
-usage(void)
+usage(int quick)
 {
 	const struct test_func *test_func;
 
-	fprintf(stderr, "Usage: %s [-dhz] [-t <socktype>] [testno]\n\n", __progname);
-	fprintf(stderr, " Options are:\n\
+	fprintf(stderr, "Usage: %s [-dhz] [-t <socktype>] [testno]\n",
+	    __progname);
+	if (quick)
+		return;
+	fprintf(stderr, "\n Options are:\n\
   -d\t\t\tOutput debugging information\n\
   -h\t\t\tOutput this help message and exit\n\
   -t <socktype>\t\tRun test only for the given socket type:\n\
@@ -314,15 +317,14 @@ main(int argc, char *argv[])
 	int opt, dgramflag, streamflag;
 	u_int testno1, testno2;
 
-	opterr = 0;
 	dgramflag = streamflag = 0;
-	while ((opt = getopt(argc, argv, ":dht:z")) != -1)
+	while ((opt = getopt(argc, argv, "dht:z")) != -1)
 		switch (opt) {
 		case 'd':
 			debug = 1;
 			break;
 		case 'h':
-			usage();
+			usage(0);
 			return (EX_OK);
 		case 't':
 			if (strcmp(optarg, "stream") == 0)
@@ -335,14 +337,10 @@ main(int argc, char *argv[])
 		case 'z':
 			no_control_data = 1;
 			break;
-		case ':':
-			errx(EX_USAGE, "option -%c requires an argument", optopt);
-			/* NOTREACHED */
 		case '?':
-			errx(EX_USAGE, "invalid switch -%c", optopt);
-			/* NOTREACHED */
 		default:
-			errx(EX_SOFTWARE, "unexpected option -%c", optopt);
+			usage(1);
+			return (EX_USAGE);
 		}
 
 	if (optind < argc) {
@@ -350,7 +348,7 @@ main(int argc, char *argv[])
 			errx(EX_USAGE, "too many arguments");
 		testno1 = strtonum(argv[optind], 0, UINT_MAX, &errstr);
 		if (errstr != NULL)
-			errx(EX_USAGE, "wrong test number");
+			errx(EX_USAGE, "wrong test number: %s", errstr);
 	} else
 		testno1 = 0;
 
