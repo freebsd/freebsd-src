@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 static int	fixup_pci_probe(device_t dev);
 static void	fixwsc_natoma(device_t dev);
+static void	fixc1_nforce2(device_t dev);
 
 static device_method_t fixup_pci_methods[] = {
     /* Device interface */
@@ -76,6 +77,9 @@ fixup_pci_probe(device_t dev)
     case 0x12378086:		/* Intel 82440FX (Natoma) */
 	fixwsc_natoma(dev);
 	break;
+    case 0x01e010de:		/* nVidia nForce2 */
+	fixc1_nforce2(dev);
+	break;
     }
     return(ENXIO);
 }
@@ -99,4 +103,38 @@ fixwsc_natoma(device_t dev)
 	pci_write_config(dev, 0x50, pmccfg, 2);
     }
 #endif
+}
+
+/*
+ * Set the SYSTEM_IDLE_TIMEOUT to 80 ns on nForce2 systems to work
+ * around a hang that is triggered when the CPU generates a very fast
+ * CONNECT/HALT cycle sequence.  Specifically, the hang can result in
+ * the lapic timer being stopped.
+ *
+ * This requires changing the value for config register at offset 0x6c
+ * for the Host-PCI bridge at bus/dev/function 0/0/0:
+ *
+ * Chip	Current Value	New Value
+ * ----	----------	----------
+ * C17	0x1F0FFF01	0x1F01FF01
+ * C18D	0x9F0FFF01	0x9F01FF01
+ *
+ * We do this by always clearing the bits in 0x000e0000.
+ *
+ * See also: http://lkml.org/lkml/2004/5/3/157
+ */
+static void
+fixc1_nforce2(device_t dev)
+{
+	uint32_t val;
+
+	if (pci_get_bus(dev) == 0 && pci_get_slot(dev) == 0 &&
+	    pci_get_function(dev) == 0) {
+		val = pci_read_config(dev, 0x6c, 4);
+		if (val & 0x000e0000) {
+			printf("Correcting nForce2 C1 CPU disconnect hangs\n");
+			val &= ~0x000e0000;
+			pci_write_config(dev, 0x6c, val, 4);
+		}
+	}
 }
