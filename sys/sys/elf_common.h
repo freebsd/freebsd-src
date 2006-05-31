@@ -48,8 +48,8 @@ typedef struct {
 	u_int32_t	n_type;		/* Type of this note. */
 } Elf_Note;
 
-/* Indexes into the e_ident array.  Keep synced with 
-   http://www.sco.com/developer/gabi/ch4.eheader.html */
+/* Indexes into the e_ident array.  Keep synced with
+   http://www.sco.com/developers/gabi/latest/ch4.eheader.html */
 #define EI_MAG0		0	/* Magic number, byte 0. */
 #define EI_MAG1		1	/* Magic number, byte 1. */
 #define EI_MAG2		2	/* Magic number, byte 2. */
