@@ -28,7 +28,7 @@ test-empty:	${PROG}
 	rm -f empty
 	touch empty
 	chmod +x empty
-	${RP} empty | diff ${OD}/empty -
+	${RP} empty | grep 'Exec format error'
 
 test-nonexist:	${PROG}
 	${RP} ${TD}/nonexistent | grep 'No such file or directory'
