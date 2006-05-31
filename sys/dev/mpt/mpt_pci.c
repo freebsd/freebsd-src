@@ -496,7 +496,7 @@ mpt_pci_attach(device_t dev)
 	/* Allocate dma memory */
 /* XXX JGibbs -Should really be done based on IOCFacts. */
 	if (mpt_dma_mem_alloc(mpt)) {
-		device_printf(dev, "Could not allocate DMA memory\n");
+		mpt_prt(mpt, "Could not allocate DMA memory\n");
 		goto bad;
 	}
 
@@ -640,7 +640,6 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	uint32_t pptr, end;
 	size_t len;
 	struct mpt_map_info mi;
-	device_t dev = mpt->dev;
 
 	/* Check if we alreay have allocated the reply memory */
 	if (mpt->reply_phys != 0) {
@@ -651,14 +650,14 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 #ifdef	RELENG_4
 	mpt->request_pool = (request_t *)malloc(len, M_DEVBUF, M_WAITOK);
 	if (mpt->request_pool == NULL) {
-		device_printf(dev, "cannot allocate request pool\n");
+		mpt_prt(mpt, "cannot allocate request pool\n");
 		return (1);
 	}
 	memset(mpt->request_pool, 0, len);
 #else
 	mpt->request_pool = (request_t *)malloc(len, M_DEVBUF, M_WAITOK|M_ZERO);
 	if (mpt->request_pool == NULL) {
-		device_printf(dev, "cannot allocate request pool\n");
+		mpt_prt(mpt, "cannot allocate request pool\n");
 		return (1);
 	}
 #endif
@@ -666,8 +665,8 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	/*
 	 * Create a parent dma tag for this device.
 	 *
-	 * Align at byte boundaries, limit to 32-bit addressing for
-	 * request/reply queues.
+	 * Align at byte boundaries,
+	 * Limit to 32-bit addressing for request/reply queues.
 	 */
 	if (mpt_dma_tag_create(mpt, /*parent*/NULL, /*alignment*/1,
 	    /*boundary*/0, /*lowaddr*/BUS_SPACE_MAXADDR,
@@ -676,24 +675,23 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	    /*nsegments*/BUS_SPACE_MAXSIZE_32BIT,
 	    /*maxsegsz*/BUS_SPACE_UNRESTRICTED, /*flags*/0,
 	    &mpt->parent_dmat) != 0) {
-		device_printf(dev, "cannot create parent dma tag\n");
+		mpt_prt(mpt, "cannot create parent dma tag\n");
 		return (1);
 	}
 
 	/* Create a child tag for reply buffers */
-	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, 2 * PAGE_SIZE,
-	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
+	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, PAGE_SIZE, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, 2 * PAGE_SIZE, 1, BUS_SPACE_MAXSIZE_32BIT, 0,
 	    &mpt->reply_dmat) != 0) {
-		device_printf(dev, "cannot create a dma tag for replies\n");
+		mpt_prt(mpt, "cannot create a dma tag for replies\n");
 		return (1);
 	}
 
 	/* Allocate some DMA accessable memory for replies */
 	if (bus_dmamem_alloc(mpt->reply_dmat, (void **)&mpt->reply,
 	    BUS_DMA_NOWAIT, &mpt->reply_dmap) != 0) {
-		device_printf(dev,
-		    "cannot allocate %lu bytes of reply memory\n",
+		mpt_prt(mpt, "cannot allocate %lu bytes of reply memory\n",
 		    (u_long) (2 * PAGE_SIZE));
 		return (1);
 	}
@@ -706,8 +704,8 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	    2 * PAGE_SIZE, mpt_map_rquest, &mi, 0);
 
 	if (mi.error) {
-		device_printf(dev,
-		    "error %d loading dma map for DMA reply queue\n", mi.error);
+		mpt_prt(mpt, "error %d loading dma map for DMA reply queue\n",
+		    mi.error);
 		return (1);
 	}
 	mpt->reply_phys = mi.phys;
@@ -724,25 +722,23 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	    NULL, NULL, MAXBSIZE, nsegs, BUS_SPACE_MAXSIZE_32BIT, 0,
 	    &mpt->buffer_dmat) != 0) {
-		device_printf(dev,
-		    "cannot create a dma tag for data buffers\n");
+		mpt_prt(mpt, "cannot create a dma tag for data buffers\n");
 		return (1);
 	}
 
 	/* Create a child tag for request buffers */
-	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, PAGE_SIZE,
-	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
+	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, PAGE_SIZE, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, MPT_REQ_MEM_SIZE(mpt), 1, BUS_SPACE_MAXSIZE_32BIT, 0,
 	    &mpt->request_dmat) != 0) {
-		device_printf(dev, "cannot create a dma tag for requests\n");
+		mpt_prt(mpt, "cannot create a dma tag for requests\n");
 		return (1);
 	}
 
 	/* Allocate some DMA accessable memory for requests */
 	if (bus_dmamem_alloc(mpt->request_dmat, (void **)&mpt->request,
 	    BUS_DMA_NOWAIT, &mpt->request_dmap) != 0) {
-		device_printf(dev,
-		    "cannot allocate %d bytes of request memory\n",
+		mpt_prt(mpt, "cannot allocate %d bytes of request memory\n",
 		    MPT_REQ_MEM_SIZE(mpt));
 		return (1);
 	}
@@ -755,13 +751,15 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	    MPT_REQ_MEM_SIZE(mpt), mpt_map_rquest, &mi, 0);
 
 	if (mi.error) {
-		device_printf(dev,
-		    "error %d loading dma map for DMA request queue\n",
+		mpt_prt(mpt, "error %d loading dma map for DMA request queue\n",
 		    mi.error);
 		return (1);
 	}
 	mpt->request_phys = mi.phys;
 
+	/*
+	 * Now create per-request dma maps
+	 */
 	i = 0;
 	pptr =  mpt->request_phys;
 	vptr =  mpt->request;
@@ -782,11 +780,12 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 
 		error = bus_dmamap_create(mpt->buffer_dmat, 0, &req->dmap);
 		if (error) {
-			device_printf(dev,
-			     "error %d creating per-cmd DMA maps\n", error);
+			mpt_prt(mpt, "error %d creating per-cmd DMA maps\n",
+			    error);
 			return (1);
 		}
 	}
+
 	return (0);
 }
 
@@ -801,8 +800,7 @@ mpt_dma_mem_free(struct mpt_softc *mpt)
 
         /* Make sure we aren't double destroying */
         if (mpt->reply_dmat == 0) {
-		if (mpt->verbose >= MPT_PRT_DEBUG)
-			device_printf(mpt->dev,"Already released dma memory\n");
+		mpt_lprt(mpt, MPT_PRT_DEBUG, "already released dma memory\n");
 		return;
         }
                 
