@@ -116,6 +116,11 @@
   <sect1 id="late-news">
     <title>Late-Breaking News</title>
 
-    <para>No news.</para>
+    <para>(31 May 2006) Thanks to the efforts of Paul Saab, torrents
+      for the various &os; &release.bugfix; ISO images are now
+      available at
+      <ulink url="http://torrents.freebsd.org:8080/"></ulink>.
+      </para>
+
   </sect1>
 </article>
