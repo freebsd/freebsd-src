@@ -509,22 +509,40 @@ ufs_setattr(ap)
 	}
 	if (vap->va_size != VNOVAL) {
 		/*
-		 * Disallow write attempts on read-only filesystems;
-		 * unless the file is a socket, fifo, or a block or
-		 * character device resident on the filesystem.
+		 * XXX most of this checking should be in callers instead
+		 * of in N filesystems.  The VDIR check mostly already is.
 		 */
 		switch (vp->v_type) {
 		case VDIR:
 			return (EISDIR);
 		case VLNK:
 		case VREG:
+			/*
+			 * Truncation should have an effect in these cases.
+			 * Disallow it if the filesystem is read-only or
+			 * the file is being snapshotted.
+			 *
+			 * XXX unfortunately the snapshot check can't be
+			 * more global since we want to check other things
+			 * first so as to return better error codes.  But
+			 * we miss several cases (file flags and ownership
+			 * changes at least) by not doing a central check.
+			 */
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
 			if ((ip->i_flags & SF_SNAPSHOT) != 0)
 				return (EPERM);
 			break;
 		default:
-			break;
+			/*
+			 * According to POSIX, the result is unspecified
+			 * for file types other than regular files,
+			 * directories and shared memory objects.  We
+			 * don't support shared memory objects in the file
+			 * system, and have dubious support for truncating
+			 * symlinks.  Just ignore the request in other cases.
+			 */
+			return (0);
 		}
 		if ((error = UFS_TRUNCATE(vp, vap->va_size, IO_NORMAL,
 		    cred, td)) != 0)
