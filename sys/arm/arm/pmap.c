@@ -915,20 +915,38 @@ pmap_alloc_l2_bucket(pmap_t pm, vm_offset_t va)
 
 	l1idx = L1_IDX(va);
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((l2 = pm->pm_l2[L2_IDX(l1idx)]) == NULL) {
 		/*
 		 * No mapping at this address, as there is
 		 * no entry in the L1 table.
 		 * Need to allocate a new l2_dtable.
 		 */
+again_l2table:
+		vm_page_unlock_queues();
 		if ((l2 = pmap_alloc_l2_dtable()) == NULL) {
+			vm_page_lock_queues();
 			return (NULL);
 		}
-		bzero(l2, sizeof(*l2));
-		/*
-		 * Link it into the parent pmap
-		 */
-		pm->pm_l2[L2_IDX(l1idx)] = l2;
+		vm_page_lock_queues();
+		if (pm->pm_l2[L2_IDX(l1idx)] != NULL) {
+			vm_page_unlock_queues();
+			uma_zfree(l2table_zone, l2);
+			vm_page_lock_queues();
+			l2 = pm->pm_l2[L2_IDX(l1idx)];
+			if (l2 == NULL)
+				goto again_l2table;
+			/*
+			 * Someone already allocated the l2_dtable while
+			 * we were doing the same.
+			 */
+		} else {
+			bzero(l2, sizeof(*l2));
+			/*
+			 * Link it into the parent pmap
+			 */
+			pm->pm_l2[L2_IDX(l1idx)] = l2;
+		}
 	} 
 
 	l2b = &l2->l2_bucket[L2_BUCKET(l1idx)];
@@ -943,7 +961,19 @@ pmap_alloc_l2_bucket(pmap_t pm, vm_offset_t va)
 		 * No L2 page table has been allocated. Chances are, this
 		 * is because we just allocated the l2_dtable, above.
 		 */
+again_ptep:
+		vm_page_unlock_queues();
 		ptep = (void*)uma_zalloc(l2zone, M_NOWAIT);
+		vm_page_lock_queues();
+		if (l2b->l2b_kva != 0) {
+			/* We lost the race. */
+			vm_page_unlock_queues();
+			uma_zfree(l2zone, ptep);
+			vm_page_lock_queues();
+			if (l2b->l2b_kva == 0)
+				goto again_ptep;
+			return (l2b);
+		}
 		l2b->l2b_phys = vtophys(ptep);
 		if (ptep == NULL) {
 			/*
