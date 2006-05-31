@@ -277,6 +277,15 @@ vm_page_startup(vm_offset_t vaddr)
 	mapped = pmap_map(&vaddr, new_end, end,
 	    VM_PROT_READ | VM_PROT_WRITE);
 	vm_page_array = (vm_page_t) mapped;
+#ifdef __amd64__
+	/*
+	 * pmap_map on amd64 comes out of the direct-map, not kvm like i386,
+	 * so the pages must be tracked for a crashdump to include this data.
+	 * This includes the vm_page_array and the early UMA bootstrap pages.
+	 */
+	for (pa = new_end; pa < phys_avail[biggestone + 1]; pa += PAGE_SIZE)
+		dump_add_page(pa);
+#endif	
 	phys_avail[biggestone + 1] = new_end;
 
 	/*
