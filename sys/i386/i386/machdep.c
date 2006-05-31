@@ -2711,7 +2711,8 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 		}
 #ifdef DEV_NPX
 #ifdef CPU_ENABLE_SSE
-		addr->sv_xmm.sv_env.en_mxcsr &= cpu_mxcsr_mask;
+		if (cpu_fxsr)
+			addr->sv_xmm.sv_env.en_mxcsr &= cpu_mxcsr_mask;
 #endif
 		/*
 		 * XXX we violate the dubious requirement that npxsetregs()
