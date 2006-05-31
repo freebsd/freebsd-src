@@ -161,11 +161,7 @@ pthread_key_allocate_data(void)
 	struct pthread_specific_elem *new_data;
 
 	new_data = (struct pthread_specific_elem *)
-	    malloc(sizeof(struct pthread_specific_elem) * PTHREAD_KEYS_MAX);
-	if (new_data != NULL) {
-		memset((void *) new_data, 0,
-		    sizeof(struct pthread_specific_elem) * PTHREAD_KEYS_MAX);
-	}
+	    calloc(1, sizeof(struct pthread_specific_elem) * PTHREAD_KEYS_MAX);
 	return (new_data);
 }
 
