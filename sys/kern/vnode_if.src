@@ -362,7 +362,6 @@ vop_reclaim {
 };
 
 
-#XXX lock		vp	? ? ?
 %! lock		pre	vop_lock_pre
 %! lock		post	vop_lock_post
 
@@ -373,7 +372,6 @@ vop_lock {
 };
 
 
-#XXX unlock		vp	L ? L
 %! unlock	pre	vop_unlock_pre
 %! unlock	post	vop_unlock_post
 
