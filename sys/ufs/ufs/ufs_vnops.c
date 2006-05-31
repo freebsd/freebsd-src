@@ -509,8 +509,9 @@ ufs_setattr(ap)
 	}
 	if (vap->va_size != VNOVAL) {
 		/*
-		 * XXX most of this checking should be in callers instead
-		 * of in N filesystems.  The VDIR check mostly already is.
+		 * XXX most of the following special cases should be in
+		 * callers instead of in N filesystems.  The VDIR check
+		 * mostly already is.
 		 */
 		switch (vp->v_type) {
 		case VDIR:
@@ -521,12 +522,6 @@ ufs_setattr(ap)
 			 * Truncation should have an effect in these cases.
 			 * Disallow it if the filesystem is read-only or
 			 * the file is being snapshotted.
-			 *
-			 * XXX unfortunately the snapshot check can't be
-			 * more global since we want to check other things
-			 * first so as to return better error codes.  But
-			 * we miss several cases (file flags and ownership
-			 * changes at least) by not doing a central check.
 			 */
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
