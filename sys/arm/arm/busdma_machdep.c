@@ -806,13 +806,16 @@ bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 
 	if (op & BUS_DMASYNC_PREWRITE)
 		cpu_dcache_wb_range((vm_offset_t)buf, len);
-	if (op & BUS_DMASYNC_POSTREAD) {
-		if ((((vm_offset_t)buf | len) & arm_dcache_align_mask) == 0)
-			cpu_dcache_inv_range((vm_offset_t)buf, len);
-		else    
-			cpu_dcache_wbinv_range((vm_offset_t)buf, len);
-
+	if (op & BUS_DMASYNC_PREREAD) {
+		if ((vm_offset_t)buf & arm_dcache_align_mask)
+			cpu_dcache_wbinv_range((vm_offset_t)buf &
+			    ~arm_dcache_align_mask, arm_dcache_align);
+		if (((vm_offset_t)buf + len) & arm_dcache_align_mask)
+			cpu_dcache_wbinv_range(((vm_offset_t)buf + len) & 
+			    ~arm_dcache_align_mask, arm_dcache_align);
 	}
+	if (op & BUS_DMASYNC_POSTREAD) 
+		cpu_dcache_inv_range((vm_offset_t)buf, len);
 }
 
 void
@@ -823,7 +826,7 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 	int resid;
 	struct iovec *iov;
 	
-	if (!(op & (BUS_DMASYNC_PREWRITE | BUS_DMASYNC_POSTREAD)))
+	if (op == BUS_DMASYNC_POSTWRITE)
 		return;
 	if (map->flags & DMAMAP_COHERENT)
 		return;
