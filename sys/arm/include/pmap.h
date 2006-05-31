@@ -51,7 +51,7 @@
 #define _MACHINE_PMAP_H_
 
 #include <machine/pte.h>
-
+#include <machine/cpuconf.h>
 /*
  * Pte related macros
  */
