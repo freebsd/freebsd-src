@@ -8,6 +8,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20060531:	p30	FreeBSD-SA-06:15.ypserv, FreeBSD-SA-06:16.smbfs
+	Enable inadvertantly disabled "securenet" access controls in
+	ypserv. [06:15]
+
+	Correct a bug in the handling of backslash characters in smbfs
+	which can allow an attacker to escape from a chroot(2). [06:16]
+
 20060419:	p29	FreeBSD-SA-06:14.fpu
 	Correct a local information leakage bug affecting AMD FPUs.
 

@@ -1038,10 +1038,17 @@ smbfs_advlock(ap)
 static int
 smbfs_pathcheck(struct smbmount *smp, const char *name, int nmlen, int nameiop)
 {
-	static const char *badchars = "*/\\:<>;?";
+	static const char *badchars = "*/:<>;?";
 	static const char *badchars83 = " +|,[]=";
 	const char *cp;
 	int i, error;
+
+	/*
+	 * Backslash characters, being a path delimiter, are prohibited
+	 * within a path component even for LOOKUP operations.
+	 */
+	if (index(name, '\\') != NULL)
+		return ENOENT;
 
 	if (nameiop == LOOKUP)
 		return 0;
