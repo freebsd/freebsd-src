@@ -5,7 +5,6 @@ NO_MAN=
 
 RP=	./${PROG}
 TD=	${.CURDIR}/tests
-OD=	${.CURDIR}/good
 
 TESTSCRIPTS=	nonexistshell devnullscript badinterplen goodscript \
 		scriptarg scriptarg-nospace
