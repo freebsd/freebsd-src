@@ -102,7 +102,18 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para></para>
+    <para>A bug in &man.ypserv.8;, which effectively disabled the
+      <filename>/var/yp/securenets</filename> access control mechanism,
+      has been corrected.  More details are available in security
+      advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:15.ypserv.asc">FreeBSD-SA-06:15.ypserv</ulink>.</para>
+
+    <para>A bug in the smbfs file system, which could allow an
+      attacker to escape out of &man.chroot.2 environments on an smbfs
+      mounted filesystem, has been fixed.  For more details, see
+      security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:16.smbfs.asc">FreeBSD-SA-06:16.smbfs</ulink>.</para>
+
   </sect2>
 
   <sect2 id="kernel">
