@@ -97,27 +97,27 @@
       an active network attacker to cause &man.telnet.1; to execute
       arbitrary code with the privileges of the user running it.
       More information can be found in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:01.telnet.asc">FreeBSD-SA-05:01.telnet</ulink>.
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-05:01.telnet.asc">FreeBSD-SA-05:01.telnet</ulink>.
       </para>
 
     <para>A information disclosure vulnerability in the
       &man.sendfile.2; system call, which could permit it to transmit
       random parts of kernel memory, has been fixed.  More details are
       in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:02.sendfile.asc">FreeBSD-SA-05:02.sendfile</ulink>.
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-05:02.sendfile.asc">FreeBSD-SA-05:02.sendfile</ulink>.
       </para>
 
     <para>An information leak vulnerability in the
       <literal>SIOCGIFCONF</literal> &man.ioctl.2;, which leaked 12
       bytes of kernel memory, has been fixed.  More details are in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:04.ifconf.asc">FreeBSD-SA-05:04.ifconf</ulink>.
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-05:04.ifconf.asc">FreeBSD-SA-05:04.ifconf</ulink>.
       </para>
 
     <para>Several programming errors in &man.cvs.1;, which could
       potentially cause arbitrary code to be executed on CVS servers,
       have been corrected.  Further information can be found in
       security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:05.cvs.asc">FreeBSD-SA-05:05.cvs</ulink>.
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-05:05.cvs.asc">FreeBSD-SA-05:05.cvs</ulink>.
       </para>
 
     <para>An error in the default permissions on the <filename
@@ -132,13 +132,13 @@
       input arguments, which may allow kernel memory may be disclosed
       to the user process, has been fixed.  For more information, see
        security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:07.ldt.asc">FreeBSD-SA-05:07.ldt</ulink>.
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-05:07.ldt.asc">FreeBSD-SA-05:07.ldt</ulink>.
       </para>
 
     <para>Several information disclosure vulnerabilities in various
       parts of the kernel have been fixed.  For more information, see
       security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:08.kmem.asc">FreeBSD-SA-05:08.kmem</ulink>.
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-05:08.kmem.asc">FreeBSD-SA-05:08.kmem</ulink>.
       </para>
 
     <para arch="i386">Because of an information disclosure vulnerability on
@@ -149,7 +149,7 @@
       disabled) on the 4-STABLE and 5-STABLE development branches and
       supported security fix branches.  More information can be found
       in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:09.htt.asc">FreeBSD-SA-05:09.htt</ulink>.
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-05:09.htt.asc">FreeBSD-SA-05:09.htt</ulink>.
       </para>
 
     <para>Two problems in the &man.gzip.1; utility have been fixed.
@@ -157,21 +157,21 @@
       of arbitrary files and overwrite arbitrary local
       files when uncompressing a file.
       For more information, see security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:11.gzip.asc">FreeBSD-SA-05:11.gzip</ulink>.
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-05:11.gzip.asc">FreeBSD-SA-05:11.gzip</ulink>.
       </para>
 
     <para>Two security-related problems have been fixed in
       &man.bzip2.1;.  These include a potential denial of service and
       unauthorized manipulation of file permissions.  For more
       information, see security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:14.bzip2.asc">FreeBSD-SA-05:14.bzip2</ulink>.
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-05:14.bzip2.asc">FreeBSD-SA-05:14.bzip2</ulink>.
       </para>
 
     <para>Two problems in &os;'s TCP stack have been fixed.  They
       could allow attackers to stall existing TCP connections,
       creating a denial-of-service situation.  More information is
       contained in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:15.tcp.asc">FreeBSD-SA-05:15.tcp</ulink>.
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-05:15.tcp.asc">FreeBSD-SA-05:15.tcp</ulink>.
       </para>
 
     <para>A bug in the smbfs file system, which could allow an
