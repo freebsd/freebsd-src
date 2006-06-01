@@ -1,8 +1,7 @@
-/* $FreeBSD$ */
-/*
+/*-
  * ISP Firmware Helper Pseudo Device for FreeBSD
  *
- * Copyright (c) 2000, by Matthew Jacob
+ * Copyright (c) 2000, 2001, by Matthew Jacob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,13 +26,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/buf.h>
-#include <sys/disk.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/linker.h>
+#include <sys/module.h>
 
 #include <dev/ispfw/asm_1040.h>
 #include <dev/ispfw/asm_1080.h>
@@ -41,6 +40,9 @@
 #include <dev/ispfw/asm_2100.h>
 #include <dev/ispfw/asm_2200.h>
 #include <dev/ispfw/asm_2300.h>
+#ifdef __sparc64__
+#include <dev/ispfw/asm_1000.h>
+#endif
 
 #define	ISPFW_VERSION	0
 
@@ -54,10 +56,14 @@
 #define	PCI_PRODUCT_QLOGIC_ISP2200	0x2200
 #define	PCI_PRODUCT_QLOGIC_ISP2300	0x2300
 #define	PCI_PRODUCT_QLOGIC_ISP2312	0x2312
+#define	PCI_PRODUCT_QLOGIC_ISP6312	0x6312
+#ifdef __sparc64__
+#define	SBUS_PRODUCT_QLOGIC_ISP1000	0x1000
+#endif
 
-typedef void ispfwfunc __P((int, int, int, const u_int16_t **));
+typedef void ispfwfunc(int, int, int, const u_int16_t **);
 extern ispfwfunc *isp_get_firmware_p;
-static void isp_get_firmware __P((int, int, int, const u_int16_t **));
+static void isp_get_firmware(int, int, int, const u_int16_t **);
 
 static int ncallers = 0;
 static const u_int16_t ***callp = NULL;
@@ -123,8 +129,16 @@ isp_get_firmware(int version, int tgtmode, int devid, const u_int16_t **ptrp)
 			break;
 		case PCI_PRODUCT_QLOGIC_ISP2300:
 		case PCI_PRODUCT_QLOGIC_ISP2312:
+		case PCI_PRODUCT_QLOGIC_ISP6312:
 			rp = isp_2300_risc_code;
 			break;
+#ifdef __sparc64__
+		case SBUS_PRODUCT_QLOGIC_ISP1000:
+			if (tgtmode)
+				break;
+			rp = isp_1000_risc_code;
+			break;
+#endif
 		default:
 			break;
 		}
@@ -152,6 +166,7 @@ isp_module_handler(module_t mod, int what, void *arg)
 		}
 		break;
 	default:
+		return (EOPNOTSUPP);
 		break;
 	}
 	return (0);
@@ -160,3 +175,5 @@ static moduledata_t ispfw_mod = {
 	"ispfw", isp_module_handler, NULL
 };
 DECLARE_MODULE(ispfw, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
+MODULE_VERSION(ispfw, ISPFW_VERSION);
+MODULE_DEPEND(ispfw, isp, 1, 1, 1);
