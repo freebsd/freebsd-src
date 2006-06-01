@@ -1,8 +1,8 @@
 /* $FreeBSD$ */
-/*
+/*-
  * Mailbox and Queue Entry Definitions for for Qlogic ISP SCSI adapters.
  *
- * Copyright (c) 1997, 1998, 1999, 2000 by Matthew Jacob
+ * Copyright (c) 1997-2006 by Matthew Jacob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -143,6 +143,7 @@
 #define	MBOX_SEND_CHANGE_REQUEST	0x0070
 #define	MBOX_FABRIC_LOGOUT		0x0071
 #define	MBOX_INIT_LIP_LOGIN		0x0072
+#define	MBOX_LUN_RESET			0x007E
 
 #define	MBOX_DRIVER_HEARTBEAT		0x005B
 #define	MBOX_FW_HEARTBEAT		0x005C
@@ -158,10 +159,6 @@
 #define	ISP2100_SET_PCI_PARAM		0x00ff
 
 #define	MBOX_BUSY			0x04
-
-typedef struct {
-	u_int16_t param[8];
-} mbreg_t;
 
 /*
  * Mailbox Command Complete Status Codes
@@ -251,22 +248,22 @@ typedef struct {
  */
 
 typedef struct {
-	u_int32_t	ds_base;
-	u_int32_t	ds_count;
+	uint32_t	ds_base;
+	uint32_t	ds_count;
 } ispds_t;
 
 typedef struct {
-	u_int32_t	ds_base;
-	u_int32_t	ds_basehi;
-	u_int32_t	ds_count;
+	uint32_t	ds_base;
+	uint32_t	ds_basehi;
+	uint32_t	ds_count;
 } ispds64_t;
 
 #define	DSTYPE_32BIT	0
 #define	DSTYPE_64BIT	1
 typedef struct {
-	u_int16_t	ds_type;	/* 0-> ispds_t, 1-> ispds64_t */
-	u_int32_t	ds_segment;	/* unused */
-	u_int32_t	ds_base;	/* 32 bit address of DSD list */
+	uint16_t	ds_type;	/* 0-> ispds_t, 1-> ispds64_t */
+	uint32_t	ds_segment;	/* unused */
+	uint32_t	ds_base;	/* 32 bit address of DSD list */
 } ispdslist_t;
 
 
@@ -274,16 +271,16 @@ typedef struct {
  * These elements get swizzled around for SBus instances.
  */
 #define	ISP_SWAP8(a, b)	{		\
-	u_int8_t tmp;			\
+	uint8_t tmp;			\
 	tmp = a;			\
 	a = b;				\
 	b = tmp;			\
 }
 typedef struct {
-	u_int8_t	rqs_entry_type;
-	u_int8_t	rqs_entry_count;
-	u_int8_t	rqs_seqno;
-	u_int8_t	rqs_flags;
+	uint8_t		rqs_entry_type;
+	uint8_t		rqs_entry_count;
+	uint8_t		rqs_seqno;
+	uint8_t		rqs_flags;
 } isphdr_t;
 
 /* RQS Flag definitions */
@@ -328,16 +325,16 @@ typedef struct {
 #define	ISP_RQDSEG	4
 typedef struct {
 	isphdr_t	req_header;
-	u_int32_t	req_handle;
-	u_int8_t	req_lun_trn;
-	u_int8_t	req_target;
-	u_int16_t	req_cdblen;
+	uint32_t	req_handle;
+	uint8_t		req_lun_trn;
+	uint8_t		req_target;
+	uint16_t	req_cdblen;
 #define	req_modifier	req_cdblen	/* marker packet */
-	u_int16_t	req_flags;
-	u_int16_t	req_reserved;
-	u_int16_t	req_time;
-	u_int16_t	req_seg_count;
-	u_int8_t	req_cdb[12];
+	uint16_t	req_flags;
+	uint16_t	req_reserved;
+	uint16_t	req_time;
+	uint16_t	req_seg_count;
+	uint8_t		req_cdb[12];
 	ispds_t		req_dataseg[ISP_RQDSEG];
 } ispreq_t;
 
@@ -350,38 +347,67 @@ typedef struct {
 #define SYNC_DEVICE	0
 #define SYNC_TARGET	1
 #define SYNC_ALL	2
+#define SYNC_LIP	3
 
 #define	ISP_RQDSEG_T2		3
 typedef struct {
 	isphdr_t	req_header;
-	u_int32_t	req_handle;
-	u_int8_t	req_lun_trn;
-	u_int8_t	req_target;
-	u_int16_t	req_scclun;
-	u_int16_t	req_flags;
-	u_int16_t	_res2;
-	u_int16_t	req_time;
-	u_int16_t	req_seg_count;
-	u_int8_t	req_cdb[16];
-	u_int32_t	req_totalcnt;
+	uint32_t	req_handle;
+	uint8_t		req_lun_trn;
+	uint8_t		req_target;
+	uint16_t	req_scclun;
+	uint16_t	req_flags;
+	uint16_t	_res2;
+	uint16_t	req_time;
+	uint16_t	req_seg_count;
+	uint8_t		req_cdb[16];
+	uint32_t	req_totalcnt;
 	ispds_t		req_dataseg[ISP_RQDSEG_T2];
 } ispreqt2_t;
+
+typedef struct {
+	isphdr_t	req_header;
+	uint32_t	req_handle;
+	uint16_t	req_target;
+	uint16_t	req_scclun;
+	uint16_t	req_flags;
+	uint16_t	_res2;
+	uint16_t	req_time;
+	uint16_t	req_seg_count;
+	uint8_t		req_cdb[16];
+	uint32_t	req_totalcnt;
+	ispds_t		req_dataseg[ISP_RQDSEG_T2];
+} ispreqt2e_t;
 
 #define	ISP_RQDSEG_T3		2
 typedef struct {
 	isphdr_t	req_header;
-	u_int32_t	req_handle;
-	u_int8_t	req_lun_trn;
-	u_int8_t	req_target;
-	u_int16_t	req_scclun;
-	u_int16_t	req_flags;
-	u_int16_t	_res2;
-	u_int16_t	req_time;
-	u_int16_t	req_seg_count;
-	u_int8_t	req_cdb[16];
-	u_int32_t	req_totalcnt;
+	uint32_t	req_handle;
+	uint8_t		req_lun_trn;
+	uint8_t		req_target;
+	uint16_t	req_scclun;
+	uint16_t	req_flags;
+	uint16_t	_res2;
+	uint16_t	req_time;
+	uint16_t	req_seg_count;
+	uint8_t		req_cdb[16];
+	uint32_t	req_totalcnt;
 	ispds64_t	req_dataseg[ISP_RQDSEG_T3];
 } ispreqt3_t;
+
+typedef struct {
+	isphdr_t	req_header;
+	uint32_t	req_handle;
+	uint16_t	req_target;
+	uint16_t	req_scclun;
+	uint16_t	req_flags;
+	uint16_t	_res2;
+	uint16_t	req_time;
+	uint16_t	req_seg_count;
+	uint8_t		req_cdb[16];
+	uint32_t	req_totalcnt;
+	ispds64_t	req_dataseg[ISP_RQDSEG_T3];
+} ispreqt3e_t;
 
 /* req_flag values */
 #define	REQFLAG_NODISCON	0x0001
@@ -406,21 +432,21 @@ typedef struct {
 
 typedef struct {
 	isphdr_t	req_header;
-	u_int32_t	req_handle;
-	u_int8_t	req_lun_trn;
-	u_int8_t	req_target;
-	u_int16_t	req_cdblen;
-	u_int16_t	req_flags;
-	u_int16_t	_res1;
-	u_int16_t	req_time;
-	u_int16_t	req_seg_count;
-	u_int8_t	req_cdb[44];
+	uint32_t	req_handle;
+	uint8_t		req_lun_trn;
+	uint8_t		req_target;
+	uint16_t	req_cdblen;
+	uint16_t	req_flags;
+	uint16_t	_res1;
+	uint16_t	req_time;
+	uint16_t	req_seg_count;
+	uint8_t		req_cdb[44];
 } ispextreq_t;
 
 #define	ISP_CDSEG	7
 typedef struct {
 	isphdr_t	req_header;
-	u_int32_t	_res1;
+	uint32_t	_res1;
 	ispds_t		req_dataseg[ISP_CDSEG];
 } ispcontreq_t;
 
@@ -432,22 +458,22 @@ typedef struct {
 
 typedef struct {
 	isphdr_t	req_header;
-	u_int32_t	req_handle;
-	u_int16_t	req_scsi_status;
-	u_int16_t	req_completion_status;
-	u_int16_t	req_state_flags;
-	u_int16_t	req_status_flags;
-	u_int16_t	req_time;
+	uint32_t	req_handle;
+	uint16_t	req_scsi_status;
+	uint16_t	req_completion_status;
+	uint16_t	req_state_flags;
+	uint16_t	req_status_flags;
+	uint16_t	req_time;
 #define	req_response_len	req_time	/* FC only */
-	u_int16_t	req_sense_len;
-	u_int32_t	req_resid;
-	u_int8_t	req_response[8];	/* FC only */
-	u_int8_t	req_sense_data[32];
+	uint16_t	req_sense_len;
+	uint32_t	req_resid;
+	uint8_t		req_response[8];	/* FC only */
+	uint8_t		req_sense_data[32];
 } ispstatusreq_t;
 
 typedef struct {
 	isphdr_t	req_header;
-	u_int8_t	req_sense_data[60];
+	uint8_t		req_sense_data[60];
 } ispstatus_cont_t;
 
 /* 
@@ -568,6 +594,12 @@ typedef struct {
 #define	ISP_FW_ATTR_CLASS2	0x08
 #define	ISP_FW_ATTR_FCTAPE	0x10
 #define	ISP_FW_ATTR_IP		0x20
+#define	ISP_FW_ATTR_VI		0x40
+#define	ISP_FW_ATTR_VI_SOLARIS	0x80
+#define	ISP_FW_ATTR_2KLOGINS	0x100	/* XXX: just a guess */
+
+#define	IS_2KLOGIN(isp)	\
+	(IS_FC(isp) && (FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_2KLOGINS))
 
 /*
  * Reduced Interrupt Operation Response Queue Entreis
@@ -575,12 +607,12 @@ typedef struct {
 
 typedef struct {
 	isphdr_t	req_header;
-	u_int32_t	req_handles[15];
+	uint32_t	req_handles[15];
 } isp_rio1_t;
 
 typedef struct {
 	isphdr_t	req_header;
-	u_int16_t	req_handles[30];
+	uint16_t	req_handles[30];
 } isp_rio2_t;
 
 /*
@@ -593,35 +625,35 @@ typedef struct {
  * Version One (prime) format.
  */
 typedef struct isp_icb {
-	u_int8_t	icb_version;
-	u_int8_t	_reserved0;
-	u_int16_t	icb_fwoptions;
-	u_int16_t	icb_maxfrmlen;
-	u_int16_t	icb_maxalloc;
-	u_int16_t	icb_execthrottle;
-	u_int8_t	icb_retry_count;
-	u_int8_t	icb_retry_delay;
-	u_int8_t	icb_portname[8];
-	u_int16_t	icb_hardaddr;
-	u_int8_t	icb_iqdevtype;
-	u_int8_t	icb_logintime;
-	u_int8_t	icb_nodename[8];
-	u_int16_t	icb_rqstout;
-	u_int16_t	icb_rspnsin;
-	u_int16_t	icb_rqstqlen;
-	u_int16_t	icb_rsltqlen;
-	u_int16_t	icb_rqstaddr[4];
-	u_int16_t	icb_respaddr[4];
-	u_int16_t	icb_lunenables;
-	u_int8_t	icb_ccnt;
-	u_int8_t	icb_icnt;
-	u_int16_t	icb_lunetimeout;
-	u_int16_t	_reserved1;
-	u_int16_t	icb_xfwoptions;
-	u_int8_t	icb_racctimer;
-	u_int8_t	icb_idelaytimer;
-	u_int16_t	icb_zfwoptions;
-	u_int16_t	_reserved2[13];
+	uint8_t		icb_version;
+	uint8_t		_reserved0;
+	uint16_t	icb_fwoptions;
+	uint16_t	icb_maxfrmlen;
+	uint16_t	icb_maxalloc;
+	uint16_t	icb_execthrottle;
+	uint8_t		icb_retry_count;
+	uint8_t		icb_retry_delay;
+	uint8_t		icb_portname[8];
+	uint16_t	icb_hardaddr;
+	uint8_t		icb_iqdevtype;
+	uint8_t		icb_logintime;
+	uint8_t		icb_nodename[8];
+	uint16_t	icb_rqstout;
+	uint16_t	icb_rspnsin;
+	uint16_t	icb_rqstqlen;
+	uint16_t	icb_rsltqlen;
+	uint16_t	icb_rqstaddr[4];
+	uint16_t	icb_respaddr[4];
+	uint16_t	icb_lunenables;
+	uint8_t		icb_ccnt;
+	uint8_t		icb_icnt;
+	uint16_t	icb_lunetimeout;
+	uint16_t	_reserved1;
+	uint16_t	icb_xfwoptions;
+	uint8_t		icb_racctimer;
+	uint8_t		icb_idelaytimer;
+	uint16_t	icb_zfwoptions;
+	uint16_t	_reserved2[13];
 } isp_icb_t;
 #define	ICB_VERSION1	1
 
@@ -676,6 +708,10 @@ typedef struct isp_icb {
 #define	ICB_DFLT_RDELAY		5
 #define	ICB_DFLT_RCOUNT		3
 
+#define	ICB_LOGIN_TOV		30
+#define	ICB_LUN_ENABLE_TOV	180
+
+
 
 #define	RQRSP_ADDR0015	0
 #define	RQRSP_ADDR1631	1
@@ -693,24 +729,24 @@ typedef struct isp_icb {
 #define	ICB_NNM7	0
 
 #define	MAKE_NODE_NAME_FROM_WWN(array, wwn)	\
-	array[ICB_NNM0] = (u_int8_t) ((wwn >>  0) & 0xff), \
-	array[ICB_NNM1] = (u_int8_t) ((wwn >>  8) & 0xff), \
-	array[ICB_NNM2] = (u_int8_t) ((wwn >> 16) & 0xff), \
-	array[ICB_NNM3] = (u_int8_t) ((wwn >> 24) & 0xff), \
-	array[ICB_NNM4] = (u_int8_t) ((wwn >> 32) & 0xff), \
-	array[ICB_NNM5] = (u_int8_t) ((wwn >> 40) & 0xff), \
-	array[ICB_NNM6] = (u_int8_t) ((wwn >> 48) & 0xff), \
-	array[ICB_NNM7] = (u_int8_t) ((wwn >> 56) & 0xff)
+	array[ICB_NNM0] = (uint8_t) ((wwn >>  0) & 0xff), \
+	array[ICB_NNM1] = (uint8_t) ((wwn >>  8) & 0xff), \
+	array[ICB_NNM2] = (uint8_t) ((wwn >> 16) & 0xff), \
+	array[ICB_NNM3] = (uint8_t) ((wwn >> 24) & 0xff), \
+	array[ICB_NNM4] = (uint8_t) ((wwn >> 32) & 0xff), \
+	array[ICB_NNM5] = (uint8_t) ((wwn >> 40) & 0xff), \
+	array[ICB_NNM6] = (uint8_t) ((wwn >> 48) & 0xff), \
+	array[ICB_NNM7] = (uint8_t) ((wwn >> 56) & 0xff)
 
 #define	MAKE_WWN_FROM_NODE_NAME(wwn, array)	\
-	wwn =	((u_int64_t) array[ICB_NNM0]) | \
-		((u_int64_t) array[ICB_NNM1] <<  8) | \
-		((u_int64_t) array[ICB_NNM2] << 16) | \
-		((u_int64_t) array[ICB_NNM3] << 24) | \
-		((u_int64_t) array[ICB_NNM4] << 32) | \
-		((u_int64_t) array[ICB_NNM5] << 40) | \
-		((u_int64_t) array[ICB_NNM6] << 48) | \
-		((u_int64_t) array[ICB_NNM7] << 56)
+	wwn =	((uint64_t) array[ICB_NNM0]) | \
+		((uint64_t) array[ICB_NNM1] <<  8) | \
+		((uint64_t) array[ICB_NNM2] << 16) | \
+		((uint64_t) array[ICB_NNM3] << 24) | \
+		((uint64_t) array[ICB_NNM4] << 32) | \
+		((uint64_t) array[ICB_NNM5] << 40) | \
+		((uint64_t) array[ICB_NNM6] << 48) | \
+		((uint64_t) array[ICB_NNM7] << 56)
 
 /*
  * FC-AL Position Map
@@ -723,9 +759,9 @@ typedef struct isp_icb {
  * f/w generated map.
  */
 typedef struct {
-	u_int8_t	fwmap	: 1,
+	uint8_t		fwmap	: 1,
 			count	: 7;
-	u_int8_t	map[127];
+	uint8_t		map[127];
 } fcpos_map_t;
 
 /*
@@ -733,45 +769,45 @@ typedef struct {
  */
 
 typedef struct {
-	u_int16_t	pdb_options;
-	u_int8_t	pdb_mstate;
-	u_int8_t	pdb_sstate;
+	uint16_t	pdb_options;
+	uint8_t		pdb_mstate;
+	uint8_t		pdb_sstate;
 #define	BITS2WORD(x)	((x)[0] << 16 | (x)[3] << 8 | (x)[2])
-	u_int8_t	pdb_hardaddr_bits[4];
-	u_int8_t	pdb_portid_bits[4];
-	u_int8_t	pdb_nodename[8];
-	u_int8_t	pdb_portname[8];
-	u_int16_t	pdb_execthrottle;
-	u_int16_t	pdb_exec_count;
-	u_int8_t	pdb_retry_count;
-	u_int8_t	pdb_retry_delay;
-	u_int16_t	pdb_resalloc;
-	u_int16_t	pdb_curalloc;
-	u_int16_t	pdb_qhead;
-	u_int16_t	pdb_qtail;
-	u_int16_t	pdb_tl_next;
-	u_int16_t	pdb_tl_last;
-	u_int16_t	pdb_features;	/* PLOGI, Common Service */
-	u_int16_t	pdb_pconcurrnt;	/* PLOGI, Common Service */
-	u_int16_t	pdb_roi;	/* PLOGI, Common Service */
-	u_int8_t	pdb_target;
-	u_int8_t	pdb_initiator;	/* PLOGI, Class 3 Control Flags */
-	u_int16_t	pdb_rdsiz;	/* PLOGI, Class 3 */
-	u_int16_t	pdb_ncseq;	/* PLOGI, Class 3 */
-	u_int16_t	pdb_noseq;	/* PLOGI, Class 3 */
-	u_int16_t	pdb_labrtflg;
-	u_int16_t	pdb_lstopflg;
-	u_int16_t	pdb_sqhead;
-	u_int16_t	pdb_sqtail;
-	u_int16_t	pdb_ptimer;
-	u_int16_t	pdb_nxt_seqid;
-	u_int16_t	pdb_fcount;
-	u_int16_t	pdb_prli_len;
-	u_int16_t	pdb_prli_svc0;
-	u_int16_t	pdb_prli_svc3;
-	u_int16_t	pdb_loopid;
-	u_int16_t	pdb_il_ptr;
-	u_int16_t	pdb_sl_ptr;
+	uint8_t		pdb_hardaddr_bits[4];
+	uint8_t		pdb_portid_bits[4];
+	uint8_t		pdb_nodename[8];
+	uint8_t		pdb_portname[8];
+	uint16_t	pdb_execthrottle;
+	uint16_t	pdb_exec_count;
+	uint8_t		pdb_retry_count;
+	uint8_t		pdb_retry_delay;
+	uint16_t	pdb_resalloc;
+	uint16_t	pdb_curalloc;
+	uint16_t	pdb_qhead;
+	uint16_t	pdb_qtail;
+	uint16_t	pdb_tl_next;
+	uint16_t	pdb_tl_last;
+	uint16_t	pdb_features;	/* PLOGI, Common Service */
+	uint16_t	pdb_pconcurrnt;	/* PLOGI, Common Service */
+	uint16_t	pdb_roi;	/* PLOGI, Common Service */
+	uint8_t		pdb_target;
+	uint8_t		pdb_initiator;	/* PLOGI, Class 3 Control Flags */
+	uint16_t	pdb_rdsiz;	/* PLOGI, Class 3 */
+	uint16_t	pdb_ncseq;	/* PLOGI, Class 3 */
+	uint16_t	pdb_noseq;	/* PLOGI, Class 3 */
+	uint16_t	pdb_labrtflg;
+	uint16_t	pdb_lstopflg;
+	uint16_t	pdb_sqhead;
+	uint16_t	pdb_sqtail;
+	uint16_t	pdb_ptimer;
+	uint16_t	pdb_nxt_seqid;
+	uint16_t	pdb_fcount;
+	uint16_t	pdb_prli_len;
+	uint16_t	pdb_prli_svc0;
+	uint16_t	pdb_prli_svc3;
+	uint16_t	pdb_loopid;
+	uint16_t	pdb_il_ptr;
+	uint16_t	pdb_sl_ptr;
 } isp_pdb_t;
 
 #define	PDB_OPTIONS_XMITTING	(1<<11)
@@ -806,18 +842,18 @@ typedef struct {
  */
 
 typedef struct {
-	u_int8_t	ct_revision;
-	u_int8_t	ct_portid[3];
-	u_int8_t	ct_fcs_type;
-	u_int8_t	ct_fcs_subtype;
-	u_int8_t	ct_options;
-	u_int8_t	ct_res0;
-	u_int16_t	ct_response;
-	u_int16_t	ct_resid;
-	u_int8_t	ct_res1;
-	u_int8_t	ct_reason;
-	u_int8_t	ct_explanation;
-	u_int8_t	ct_vunique;
+	uint8_t		ct_revision;
+	uint8_t		ct_portid[3];
+	uint8_t		ct_fcs_type;
+	uint8_t		ct_fcs_subtype;
+	uint8_t		ct_options;
+	uint8_t		ct_res0;
+	uint16_t	ct_response;
+	uint16_t	ct_resid;
+	uint8_t		ct_res1;
+	uint8_t		ct_reason;
+	uint8_t		ct_explanation;
+	uint8_t		ct_vunique;
 } ct_hdr_t;
 #define	FS_ACC	0x8002
 #define	FS_RJT	0x8001
@@ -833,112 +869,112 @@ typedef struct {
 #define	SNS_GID_FT	0x171
 #define	SNS_RFT_ID	0x217
 typedef struct {
-	u_int16_t	snscb_rblen;	/* response buffer length (words) */
-	u_int16_t	snscb_res0;
-	u_int16_t	snscb_addr[4];	/* response buffer address */
-	u_int16_t	snscb_sblen;	/* subcommand buffer length (words) */
-	u_int16_t	snscb_res1;
-	u_int16_t	snscb_data[1];	/* variable data */
+	uint16_t	snscb_rblen;	/* response buffer length (words) */
+	uint16_t	snscb_res0;
+	uint16_t	snscb_addr[4];	/* response buffer address */
+	uint16_t	snscb_sblen;	/* subcommand buffer length (words) */
+	uint16_t	snscb_res1;
+	uint16_t	snscb_data[1];	/* variable data */
 } sns_screq_t;	/* Subcommand Request Structure */
 
 typedef struct {
-	u_int16_t	snscb_rblen;	/* response buffer length (words) */
-	u_int16_t	snscb_res0;
-	u_int16_t	snscb_addr[4];	/* response buffer address */
-	u_int16_t	snscb_sblen;	/* subcommand buffer length (words) */
-	u_int16_t	snscb_res1;
-	u_int16_t	snscb_cmd;
-	u_int16_t	snscb_res2;
-	u_int32_t	snscb_res3;
-	u_int32_t	snscb_port;
+	uint16_t	snscb_rblen;	/* response buffer length (words) */
+	uint16_t	snscb_res0;
+	uint16_t	snscb_addr[4];	/* response buffer address */
+	uint16_t	snscb_sblen;	/* subcommand buffer length (words) */
+	uint16_t	snscb_res1;
+	uint16_t	snscb_cmd;
+	uint16_t	snscb_res2;
+	uint32_t	snscb_res3;
+	uint32_t	snscb_port;
 } sns_ga_nxt_req_t;
 #define	SNS_GA_NXT_REQ_SIZE	(sizeof (sns_ga_nxt_req_t))
 
 typedef struct {
-	u_int16_t	snscb_rblen;	/* response buffer length (words) */
-	u_int16_t	snscb_res0;
-	u_int16_t	snscb_addr[4];	/* response buffer address */
-	u_int16_t	snscb_sblen;	/* subcommand buffer length (words) */
-	u_int16_t	snscb_res1;
-	u_int16_t	snscb_cmd;
-	u_int16_t	snscb_res2;
-	u_int32_t	snscb_res3;
-	u_int32_t	snscb_portid;
+	uint16_t	snscb_rblen;	/* response buffer length (words) */
+	uint16_t	snscb_res0;
+	uint16_t	snscb_addr[4];	/* response buffer address */
+	uint16_t	snscb_sblen;	/* subcommand buffer length (words) */
+	uint16_t	snscb_res1;
+	uint16_t	snscb_cmd;
+	uint16_t	snscb_res2;
+	uint32_t	snscb_res3;
+	uint32_t	snscb_portid;
 } sns_gxn_id_req_t;
 #define	SNS_GXN_ID_REQ_SIZE	(sizeof (sns_gxn_id_req_t))
 
 typedef struct {
-	u_int16_t	snscb_rblen;	/* response buffer length (words) */
-	u_int16_t	snscb_res0;
-	u_int16_t	snscb_addr[4];	/* response buffer address */
-	u_int16_t	snscb_sblen;	/* subcommand buffer length (words) */
-	u_int16_t	snscb_res1;
-	u_int16_t	snscb_cmd;
-	u_int16_t	snscb_mword_div_2;
-	u_int32_t	snscb_res3;
-	u_int32_t	snscb_fc4_type;
+	uint16_t	snscb_rblen;	/* response buffer length (words) */
+	uint16_t	snscb_res0;
+	uint16_t	snscb_addr[4];	/* response buffer address */
+	uint16_t	snscb_sblen;	/* subcommand buffer length (words) */
+	uint16_t	snscb_res1;
+	uint16_t	snscb_cmd;
+	uint16_t	snscb_mword_div_2;
+	uint32_t	snscb_res3;
+	uint32_t	snscb_fc4_type;
 } sns_gid_ft_req_t;
 #define	SNS_GID_FT_REQ_SIZE	(sizeof (sns_gid_ft_req_t))
 
 typedef struct {
-	u_int16_t	snscb_rblen;	/* response buffer length (words) */
-	u_int16_t	snscb_res0;
-	u_int16_t	snscb_addr[4];	/* response buffer address */
-	u_int16_t	snscb_sblen;	/* subcommand buffer length (words) */
-	u_int16_t	snscb_res1;
-	u_int16_t	snscb_cmd;
-	u_int16_t	snscb_res2;
-	u_int32_t	snscb_res3;
-	u_int32_t	snscb_port;
-	u_int32_t	snscb_fc4_types[8];
+	uint16_t	snscb_rblen;	/* response buffer length (words) */
+	uint16_t	snscb_res0;
+	uint16_t	snscb_addr[4];	/* response buffer address */
+	uint16_t	snscb_sblen;	/* subcommand buffer length (words) */
+	uint16_t	snscb_res1;
+	uint16_t	snscb_cmd;
+	uint16_t	snscb_res2;
+	uint32_t	snscb_res3;
+	uint32_t	snscb_port;
+	uint32_t	snscb_fc4_types[8];
 } sns_rft_id_req_t;
 #define	SNS_RFT_ID_REQ_SIZE	(sizeof (sns_rft_id_req_t))
 
 typedef struct {
 	ct_hdr_t	snscb_cthdr;
-	u_int8_t	snscb_port_type;
-	u_int8_t	snscb_port_id[3];
-	u_int8_t	snscb_portname[8];
-	u_int16_t	snscb_data[1];	/* variable data */
+	uint8_t		snscb_port_type;
+	uint8_t		snscb_port_id[3];
+	uint8_t		snscb_portname[8];
+	uint16_t	snscb_data[1];	/* variable data */
 } sns_scrsp_t;	/* Subcommand Response Structure */
 
 typedef struct {
 	ct_hdr_t	snscb_cthdr;
-	u_int8_t	snscb_port_type;
-	u_int8_t	snscb_port_id[3];
-	u_int8_t	snscb_portname[8];
-	u_int8_t	snscb_pnlen;		/* symbolic port name length */
-	u_int8_t	snscb_pname[255];	/* symbolic port name */
-	u_int8_t	snscb_nodename[8];
-	u_int8_t	snscb_nnlen;		/* symbolic node name length */
-	u_int8_t	snscb_nname[255];	/* symbolic node name */
-	u_int8_t	snscb_ipassoc[8];
-	u_int8_t	snscb_ipaddr[16];
-	u_int8_t	snscb_svc_class[4];
-	u_int8_t	snscb_fc4_types[32];
-	u_int8_t	snscb_fpname[8];
-	u_int8_t	snscb_reserved;
-	u_int8_t	snscb_hardaddr[3];
+	uint8_t		snscb_port_type;
+	uint8_t		snscb_port_id[3];
+	uint8_t		snscb_portname[8];
+	uint8_t		snscb_pnlen;		/* symbolic port name length */
+	uint8_t		snscb_pname[255];	/* symbolic port name */
+	uint8_t		snscb_nodename[8];
+	uint8_t		snscb_nnlen;		/* symbolic node name length */
+	uint8_t		snscb_nname[255];	/* symbolic node name */
+	uint8_t		snscb_ipassoc[8];
+	uint8_t		snscb_ipaddr[16];
+	uint8_t		snscb_svc_class[4];
+	uint8_t		snscb_fc4_types[32];
+	uint8_t		snscb_fpname[8];
+	uint8_t		snscb_reserved;
+	uint8_t		snscb_hardaddr[3];
 } sns_ga_nxt_rsp_t;	/* Subcommand Response Structure */
 #define	SNS_GA_NXT_RESP_SIZE	(sizeof (sns_ga_nxt_rsp_t))
 
 typedef struct {
 	ct_hdr_t	snscb_cthdr;
-	u_int8_t	snscb_wwn[8];
+	uint8_t		snscb_wwn[8];
 } sns_gxn_id_rsp_t;
 #define	SNS_GXN_ID_RESP_SIZE	(sizeof (sns_gxn_id_rsp_t))
 
 typedef struct {
 	ct_hdr_t	snscb_cthdr;
-	u_int32_t	snscb_fc4_features[32];
+	uint32_t	snscb_fc4_features[32];
 } sns_gff_id_rsp_t;
 #define	SNS_GFF_ID_RESP_SIZE	(sizeof (sns_gff_id_rsp_t))
 
 typedef struct {
 	ct_hdr_t	snscb_cthdr;
 	struct {
-		u_int8_t	control;
-		u_int8_t	portid[3];
+		uint8_t		control;
+		uint8_t		portid[3];
 	} snscb_ports[1];
 } sns_gid_ft_rsp_t;
 #define	SNS_GID_FT_RESP_SIZE(x)	((sizeof (sns_gid_ft_rsp_t)) + ((x - 1) << 2))

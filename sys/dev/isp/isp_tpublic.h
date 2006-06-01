@@ -1,16 +1,16 @@
 /* $FreeBSD$ */
-/*
+/*-
  * Qlogic ISP Host Adapter Public Target Interface Structures && Routines
- *---------------------------------------
- * Copyright (c) 2000 by Matthew Jacob
+ *
+ * Copyright (c) 1997-2006 by Matthew Jacob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification, immediately at the beginning of the file.
+ *    notice immediately at the beginning of the file, without modification,
+ *    this list of conditions, and the following disclaimer.
  * 2. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
@@ -25,38 +25,119 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
- * Matthew Jacob
- * Feral Software
- * mjacob@feral.com
  */
+/*
+ * Host Adapter Public Target Interface Structures && Routines
+ */
+
+#ifndef    _ISP_TPUBLIC_H
+#define    _ISP_TPUBLIC_H    1
 
 /*
- * Required software target mode message and event handling structures.
- *
- * The message and event structures are used by the MI layer
- * to propagate messages and events upstream.
+ * Action codes set by the MD target driver for
+ * the external layer to figure out what to do with.
  */
+typedef enum {
+    QOUT_HBA_REG=0,     /* the argument is a pointer to a hba_register_t */
+    QOUT_ENABLE,        /* the argument is a pointer to a enadis_t */
+    QOUT_DISABLE,       /* the argument is a pointer to a enadis_t */
+    QOUT_TMD_START,     /* the argument is a pointer to a tmd_cmd_t */
+    QOUT_TMD_DONE,      /* the argument is a pointer to a tmd_cmd_t */
+    QOUT_NOTIFY,        /* the argument is a pointer to a tmd_notify_t */
+    QOUT_HBA_UNREG      /* the argument is a pointer to a hba_register_t */
+} tact_e;
 
-#ifndef	IN_MSGLEN
-#define	IN_MSGLEN	8
-#endif
-typedef struct {
-	void *		nt_hba;			/* HBA tag */
-	u_int64_t	nt_iid;			/* inititator id */
-	u_int64_t	nt_tgt;			/* target id */
-	u_int64_t	nt_lun;			/* logical unit */
-	u_int32_t	nt_tagval;		/* tag value */
-	u_int8_t	nt_bus;			/* bus */
-	u_int8_t	nt_tagtype;		/* tag type */
-	u_int8_t	nt_msg[IN_MSGLEN];	/* message content */
-} tmd_msg_t;
+/*
+ * Action codes set by the external layer for the
+ * MD driver to figure out what to do with.
+ */
+typedef enum {
+    QIN_HBA_REG=99,     /* the argument is a pointer to a hba_register_t */
+    QIN_ENABLE,         /* the argument is a pointer to a enadis_t */
+    QIN_DISABLE,        /* the argument is a pointer to a enadis_t */
+    QIN_TMD_CONT,       /* the argument is a pointer to a tmd_cmd_t */
+    QIN_TMD_FIN,        /* the argument is a pointer to a tmd_cmd_t */
+    QIN_NOTIFY_ACK,     /* the argument is a pointer to a tmd_notify_t */
+    QIN_HBA_UNREG,      /* the argument is a pointer to a hba_register_t */
+} qact_e;
 
+/*
+ * This structure is used to register to other software modules the
+ * binding of an HBA identifier, driver name and instance and the
+ * lun width capapbilities of this target driver. It's up to each
+ * platform to figure out how it wants to do this, but a typical
+ * sequence would be for the MD layer to find some external module's
+ * entry point and start by sending a QOUT_HBA_REG with info filled
+ * in, and the external module to call back with a QIN_HBA_REG that
+ * passes back the corresponding information.
+ */
+#define    QR_VERSION    10
 typedef struct {
-	void *		ev_hba;			/* HBA tag */
-	u_int32_t	ev_bus;			/* bus */
-	u_int32_t	ev_event;		/* type of async event */
-} tmd_event_t;
+    void *                  r_identity;
+    void                    (*r_action)(qact_e, void *);
+    char                    r_name[8];
+    int                     r_inst;
+    int                     r_version;
+    enum { R_FC, R_SCSI }   r_type;
+} hba_register_t;
+
+/*
+ * Notify structure
+ */
+typedef enum {
+    NT_ABORT_TASK=0x1000,
+    NT_ABORT_TASK_SET,
+    NT_CLEAR_ACA,
+    NT_CLEAR_TASK_SET,
+    NT_LUN_RESET,
+    NT_TARGET_RESET,
+    NT_BUS_RESET,
+    NT_LIP_RESET,
+    NT_LINK_UP,
+    NT_LINK_DOWN,
+    NT_LOGOUT,
+    NT_HBA_RESET
+} tmd_ncode_t;
+
+typedef struct tmd_notify {
+    void *      nt_hba;         /* HBA tag */
+    uint64_t    nt_iid;         /* inititator id */
+    uint64_t    nt_tgt;         /* target id */
+    uint16_t    nt_lun;         /* logical unit */
+    uint16_t    nt_padding;     /* padding */
+    uint32_t    nt_tagval;      /* tag value */
+    tmd_ncode_t nt_ncode;       /* action */
+    void *      nt_lreserved;
+    void *      nt_hreserved;
+} tmd_notify_t;
+#define LUN_ANY     0xffff
+#define TGT_ANY     ((uint64_t) -1)
+#define INI_ANY     ((uint64_t) -1)
+#define TAG_ANY     0
+#define MATCH_TMD(tmd, iid, lun, tag)                   \
+    (                                                   \
+        (tmd) &&                                        \
+        (iid == INI_ANY || iid == tmd->cd_iid) &&       \
+        (lun == LUN_ANY || lun == tmd->cd_lun) &&       \
+        (tag == TAG_ANY || tag == tmd->cd_tagval)       \
+    )
+
+/*
+ * A word about ENABLE/DISABLE: the argument is a pointer to a enadis_t
+ * with en_hba, en_iid, en_chan, en_tgt and en_lun filled out.
+ *
+ * If an error occurs in either enabling or disabling the described lun
+ * cd_error is set with an appropriate non-zero value.
+ */
+typedef struct {
+    void *          en_private;     /* for outer layer usage */
+    void *          en_hba;         /* HBA tag */
+    uint64_t        en_iid;         /* initiator ID */
+    uint64_t        en_tgt;         /* target id */
+    uint16_t        en_lun;         /* logical unit */
+    uint16_t        en_chan;        /* channel on card */
+    int             en_error;
+} enadis_t;
 
 /*
  * Suggested Software Target Mode Command Handling structure.
@@ -91,29 +172,23 @@ typedef struct {
  * mode command is coming from. The outer layer has to pass this back
  * unchanged to avoid chaos.
  *
- * The cd_iid, cd_tgt, cd_lun and cd_bus tags are used to identify the
+ * The cd_iid, cd_tgt, cd_lun and cd_port tags are used to identify the
  * id of the initiator who sent us a command, the target claim to be, the
- * lun on the target we claim to be, and the bus instance (for multiple
- * bus host adapters) that this applies to (consider it an extra Port
+ * lun on the target we claim to be, and the port instance (for multiple
+ * port host adapters) that this applies to (consider it an extra port
  * parameter). The iid, tgt and lun values are deliberately chosen to be
  * fat so that, for example, World Wide Names can be used instead of
- * the units that the Qlogic firmware uses (in the case where the MD
+ * the units that the firmware uses (in the case where the MD
  * layer maintains a port database, for example).
  *
- * The cd_tagtype field specifies what kind of command tag has been
- * sent with the command. The cd_tagval is the tag's value (low 16
- * bits). It also contains (in the upper 16 bits) any command handle.
- *
- *
- * N.B.: when the MD layer sends this command to outside software
- * the outside software likely *MUST* return the same cd_tagval that
- * was in place because this value is likely what the Qlogic f/w uses
- * to identify a command.
+ * The cd_tagtype field specifies what kind of command tag type, if
+ * any, has been sent with the command. Note that the Outer Layer
+ * still needs to pass the tag handle through unchanged even
+ * if the tag type is CD_UNTAGGED.
  *
  * The cd_cdb contains storage for the passed in command descriptor block.
- * This is the maximum size we can get out of the Qlogic f/w. There's no
- * passed in length because whoever decodes the command to act upon it
- * will know what the appropriate length is.
+ * There is no need to define length as the callee should be able to
+ * figure this out.
  *
  * The tag cd_lflags are the flags set by the MD driver when it gets
  * command incoming or when it needs to inform any outside entities
@@ -137,10 +212,11 @@ typedef struct {
  * The tag cd_data points to a data segment to either be filled or
  * read from depending on the direction of data movement. The tag
  * is undefined if no data direction is set. The MD layer and outer
- * layers must agree on the meaning of cd_data.
+ * layers must agree on the meaning of cd_data and it is specifically
+ * not defined here.
  *
  * The tag cd_totlen is the total data amount expected to be moved
- * over the life of the command. It *may* be set by the MD layer, possibly
+ * over the life of the command. It may be set by the MD layer, possibly
  * from the datalen field of an FCP CMND IU unit. If it shows up in the outer
  * layers set to zero and the CDB indicates data should be moved, the outer
  * layer should set it to the amount expected to be moved.
@@ -149,28 +225,14 @@ typedef struct {
  * The outer layers need to set this at the begining of command processing
  * to equal cd_totlen. As data is successfully moved, this value is decreased.
  * At the end of a command, any nonzero residual indicates the number of bytes
- * requested but not moved. XXXXXXXXXXXXXXXXXXXXXXX TOO VAGUE!!! 
+ * requested by the command but not moved.
  *
  * The tag cd_xfrlen is the length of the currently active data transfer.
  * This allows several interations between any outside software and the
  * MD layer to move data.
  *
  * The reason that total length and total residual have to be tracked
- * is that fibre channel FCP DATA IU units have to have a relative
- * offset field.
- *
- * N.B.: there is no necessary 1-to-1 correspondence between any one
- * data transfer segment and the number of CTIOs that will be generated
- * satisfy the current data transfer segment. It's not also possible to
- * predict how big a transfer can be before it will be 'too big'. Be
- * reasonable- a 64KB transfer is 'reasonable'. A 1MB transfer may not
- * be. A 32MB transfer is unreasonable. The problem here has to do with
- * how CTIOs can be used to map passed data pointers. In systems which
- * have page based scatter-gather requirements, each PAGESIZEd chunk will
- * consume one data segment descriptor- you get 3 or 4 of them per CTIO.
- * The size of the REQUEST QUEUE you drop a CTIO onto is finite (typically
- * it's 256, but on some systems it's even smaller, and note you have to
- * sure this queue with the initiator side of this driver).
+ * is to keep track of relative offset.
  *
  * The tags cd_sense and cd_scsi_status are pretty obvious.
  *
@@ -182,51 +244,53 @@ typedef struct {
  * 
  */
 
-#ifndef	TMD_CDBLEN
-#define	TMD_CDBLEN	16
+#ifndef    TMD_CDBLEN
+#define    TMD_CDBLEN       16
 #endif
-#ifndef	TMD_SENSELEN
-#define	TMD_SENSELEN	24
+#ifndef    TMD_SENSELEN
+#define    TMD_SENSELEN     18
 #endif
-#ifndef	QCDS
-#define	QCDS	8
+#ifndef    QCDS
+#define    QCDS             8
 #endif
 
 typedef struct tmd_cmd {
-	void *			cd_private;	/* private data pointer */
-	void *			cd_hba;		/* HBA tag */
-	void *			cd_data;	/* 'pointer' to data */
-	u_int64_t		cd_iid;		/* initiator ID */
-	u_int64_t		cd_tgt;		/* target id */
-	u_int64_t		cd_lun;		/* logical unit */
-	u_int32_t		cd_tagval;	/* tag value */
-	u_int32_t		cd_lflags;	/* flags lower level sets */
-	u_int32_t		cd_hflags;	/* flags higher level sets */
-	u_int32_t		cd_totlen;	/* total data requirement */
-	u_int32_t		cd_resid;	/* total data residual */
-	u_int32_t		cd_xfrlen;	/* current data requirement */
-	int32_t			cd_error;	/* current error */
-	u_int32_t
-		cd_scsi_status	: 16,	/* closing SCSI status */
-				: 7,
-	    	cd_chan		: 1,	/* channel on card */
-				: 2,
-		cd_tagtype	: 6;	/* tag type */
-	u_int8_t		cd_senselen;
-	u_int8_t		cd_cdblen;
-	u_int8_t		cd_sense[TMD_SENSELEN];
-	u_int8_t		cd_cdb[TMD_CDBLEN];	/* Command */
-	union {
-		void *		ptrs[QCDS / sizeof (void *)];
-		u_int64_t	llongs[QCDS / sizeof (u_int64_t)];
-		u_int32_t	longs[QCDS / sizeof (u_int32_t)];
-		u_int16_t	shorts[QCDS / sizeof (u_int16_t)];
-		u_int8_t	bytes[QCDS];
-	} cd_lreserved[2], cd_hreserved[2];
+    void *              cd_private; /* private data pointer */
+    void *              cd_hba;     /* HBA tag */
+    void *              cd_data;    /* 'pointer' to data */
+    uint64_t            cd_iid;     /* initiator ID */
+    uint64_t            cd_tgt;     /* target id */
+    uint64_t            cd_lun;     /* logical unit */
+    uint32_t            cd_tagval;  /* tag value */
+    uint32_t            cd_lflags;  /* flags lower level sets */
+    uint32_t            cd_hflags;  /* flags higher level sets */
+    uint32_t            cd_totlen;  /* total data load */
+    uint32_t            cd_resid;   /* total data residual */
+    uint32_t            cd_xfrlen;  /* current data load */
+    int32_t             cd_error;   /* current error */
+    uint8_t     cd_tagtype      : 4,
+                cd_port         : 4;    /* port number on HBA */
+    uint8_t             cd_scsi_status;
+    uint8_t             cd_sense[TMD_SENSELEN];
+    uint8_t             cd_cdb[TMD_CDBLEN];
+    union {
+        void *          ptrs[QCDS / sizeof (void *)];
+        uint64_t        llongs[QCDS / sizeof (uint64_t)];
+        uint32_t        longs[QCDS / sizeof (uint32_t)];
+        uint16_t        shorts[QCDS / sizeof (uint16_t)];
+        uint8_t         bytes[QCDS];
+    } cd_lreserved[2], cd_hreserved[2];
 } tmd_cmd_t;
 
-#ifndef	TMD_SIZE
-#define	TMD_SIZE	(sizeof (tmd_cmd_t))
+/* defined tags */
+#define CD_UNTAGGED     0
+#define CD_SIMPLE_TAG   1
+#define CD_ORDERED_TAG  2
+#define CD_HEAD_TAG     3
+#define CD_ACA_TAG      4
+
+#ifndef    TMD_SIZE
+#define    TMD_SIZE     (sizeof (tmd_cmd_t))
 #endif
 
 /*
@@ -242,148 +306,52 @@ typedef struct tmd_cmd {
  * be transferred in any QOUT_TMD_CONT call is cd_xfrlen- the
  * flags CDFH_DATA_IN and CDFH_DATA_OUT define which direction.
  */
-#define	CDFL_SNSVALID	0x01		/* sense data (from f/w) good */
-#define	CDFL_SENTSTATUS	0x02		/* last action sent status */
-#define	CDFL_DATA_IN	0x04		/* target (us) -> initiator (them) */
-#define	CDFL_DATA_OUT	0x08		/* initiator (them) -> target (us) */
-#define	CDFL_BIDIR	0x0C		/* bidirectional data */
-#define	CDFL_ERROR	0x10		/* last action ended in error */
-#define	CDFL_NODISC	0x20		/* disconnects disabled */
-#define	CDFL_SENTSENSE	0x40		/* last action sent sense data */
-#define	CDFL_BUSY	0x80		/* this command is not on a free list */
-#define	CDFL_PRIVATE	0xFF000000	/* private layer flags */
+#define    CDFL_SNSVALID        0x01            /* sense data (from f/w) good */
+#define    CDFL_SENTSTATUS      0x02            /* last action sent status */
+#define    CDFL_DATA_IN         0x04            /* target (us) -> initiator (them) */
+#define    CDFL_DATA_OUT        0x08            /* initiator (them) -> target (us) */
+#define    CDFL_BIDIR           0x0C            /* bidirectional data */
+#define    CDFL_ERROR           0x10            /* last action ended in error */
+#define    CDFL_NODISC          0x20            /* disconnects disabled */
+#define    CDFL_SENTSENSE       0x40            /* last action sent sense data */
+#define    CDFL_BUSY            0x80            /* this command is not on a free list */
+#define    CDFL_PRIVATE         0xFF000000      /* private layer flags */
 
-#define	CDFH_SNSVALID	0x01		/* sense data (from outer layer) good */
-#define	CDFH_STSVALID	0x02		/* status valid */
-#define	CDFH_DATA_IN	0x04		/* target (us) -> initiator (them) */
-#define	CDFH_DATA_OUT	0x08		/* initiator (them) -> target (us) */
-#define	CDFH_DATA_MASK	0x0C		/* mask to cover data direction */
-#define	CDFH_PRIVATE	0xFF000000	/* private layer flags */
-
-
-/*
- * Action codes set by the Qlogic MD target driver for
- * the external layer to figure out what to do with.
- */
-typedef enum {
-	QOUT_HBA_REG=0,	/* the argument is a pointer to a hba_register_t */
-	QOUT_ENABLE,	/* the argument is a pointer to a enadis_t */
-	QOUT_DISABLE,	/* the argument is a pointer to a enadis_t */
-	QOUT_TMD_START,	/* the argument is a pointer to a tmd_cmd_t */
-	QOUT_TMD_DONE,	/* the argument is a pointer to a tmd_cmd_t */
-	QOUT_TEVENT,	/* the argument is a pointer to a tmd_event_t */
-	QOUT_TMSG,	/* the argument is a pointer to a tmd_msg_t */
-	QOUT_IOCTL,	/* the argument is a pointer to a ioctl_cmd_t */
-	QOUT_HBA_UNREG	/* the argument is a pointer to a hba_register_t */
-} tact_e;
-
-/*
- * Action codes set by the external layer for the
- * MD Qlogic driver to figure out what to do with.
- */
-typedef enum {
-	QIN_HBA_REG=99,	/* the argument is a pointer to a hba_register_t */
-	QIN_ENABLE,	/* the argument is a pointer to a enadis_t */
-	QIN_DISABLE,	/* the argument is a pointer to a enadis_t */
-	QIN_TMD_CONT,	/* the argument is a pointer to a tmd_cmd_t */
-	QIN_TMD_FIN,	/* the argument is a pointer to a tmd_cmd_t */
-	QIN_IOCTL,	/* the argument is a pointer to a ioctl_cmd_t */
-	QIN_HBA_UNREG,	/* the argument is a pointer to a hba_register_t */
-} qact_e;
+#define    CDFH_SNSVALID        0x01            /* sense data (from outer layer) good */
+#define    CDFH_STSVALID        0x02            /* status valid */
+#define    CDFH_DATA_IN         0x04            /* target (us) -> initiator (them) */
+#define    CDFH_DATA_OUT        0x08            /* initiator (them) -> target (us) */
+#define    CDFH_DATA_MASK       0x0C            /* mask to cover data direction */
+#define    CDFH_PRIVATE         0xFF000000      /* private layer flags */
 
 
 /*
  * A word about the START/CONT/DONE/FIN dance:
  *
- *	When the HBA is enabled for receiving commands, one may	show up
- *	without notice. When that happens, the Qlogic target mode driver
- *	gets a tmd_cmd_t, fills it with the info that just arrived, and
- *	calls the outer layer with a QOUT_TMD_START code and pointer to
- *	the tmd_cmd_t.
+ *    When the HBA is enabled for receiving commands, one may show up
+ *    without notice. When that happens, the MD target mode driver
+ *    gets a tmd_cmd_t, fills it with the info that just arrived, and
+ *    calls the outer layer with a QOUT_TMD_START code and pointer to
+ *    the tmd_cmd_t.
  *
- *	The outer layer decodes the command, fetches data, prepares stuff,
- *	whatever, and starts by passing back the pointer with a QIN_TMD_CONT
- *	code which causes the Qlogic target mode driver to generate CTIOs to
- *	satisfy whatever action needs to be taken. When those CTIOs complete,
- *	the Qlogic target driver sends the pointer to the cmd_tmd_t back with
- *	a QOUT_TMD_DONE code. This repeats for as long as necessary.
+ *    The outer layer decodes the command, fetches data, prepares stuff,
+ *    whatever, and starts by passing back the pointer with a QIN_TMD_CONT
+ *    code which causes the MD target mode driver to generate CTIOs to
+ *    satisfy whatever action needs to be taken. When those CTIOs complete,
+ *    the MD target driver sends the pointer to the cmd_tmd_t back with
+ *    a QOUT_TMD_DONE code. This repeats for as long as necessary. These
+ *    may not be done in parallel- they are sequential operations.
  *
- *	The outer layer signals it wants to end the command by settings within
- *	the tmd_cmd_t itself. When the final QIN_TMD_CONT is reported completed,
- *	the outer layer frees the tmd_cmd_t by sending the pointer to it
- *	back with a QIN_TMD_FIN code.
+ *    The outer layer signals it wants to end the command by settings within
+ *    the tmd_cmd_t itself. When the final QIN_TMD_CONT is reported completed,
+ *    the outer layer frees the tmd_cmd_t by sending the pointer to it
+ *    back with a QIN_TMD_FIN code.
  *
- *	The graph looks like:
+ *    The graph looks like:
  *
- *	QOUT_TMD_START -> [ QIN_TMD_CONT -> QOUT_TMD_DONE ] * -> QIN_TMD_FIN.
+ *    QOUT_TMD_START -> [ QIN_TMD_CONT -> QOUT_TMD_DONE ] * -> QIN_TMD_FIN.
  *
  */
-
-/*
- * A word about ENABLE/DISABLE: the argument is a pointer to a enadis_t
- * with cd_hba, cd_iid, cd_chan, cd_tgt and cd_lun filled out.
- *
- * If an error occurs in either enabling or disabling the described lun
- * cd_error is set with an appropriate non-zero value.
- *
- * Logical unit zero must be the first enabled and the last disabled.
- */
-typedef struct {
-	void *			cd_private;	/* for outer layer usage */
-	void *			cd_hba;		/* HBA tag */
-	u_int64_t		cd_iid;		/* initiator ID */
-	u_int64_t		cd_tgt;		/* target id */
-	u_int64_t		cd_lun;		/* logical unit */
-	u_int8_t		cd_chan;	/* channel on card */
-	int32_t			cd_error;
-} enadis_t;
-
-/*
- * This structure is used to register to other software modules the
- * binding of an HBA identifier, driver name and instance and the
- * lun width capapbilities of this target driver. It's up to each
- * platform to figure out how it wants to do this, but a typical
- * sequence would be for the MD layer to find some external module's
- * entry point and start by sending a QOUT_HBA_REG with info filled
- * in, and the external module to call back with a QIN_HBA_REG that
- * passes back the corresponding information.
- */
-#define	QR_VERSION	1
-typedef struct {
-	void *	r_identity;
-	void   (*r_action)(qact_e, void *);
-	char	r_name[8];
-	int	r_inst;
-	int	r_version;
-	enum { R_FC, R_SCSI } r_type;
-} hba_register_t;
-
-/*
- * This structure is used to pass an encapsulated ioctl through to the
- * MD layer. In many implementations it's often convenient to open just
- * one device, but actions you want to take need to be taken on the
- * underlying HBA. Rather than invent a separate protocol for each action,
- * an ioctl passthrough seems simpler.
- *
- * In order to avoid cross domain copy problems, though, the caller will
- * be responsible for allocating and providing a staging area for all ioctl
- * related data. This, unavoidably, requires some ioctl decode capability
- * in the outer layer code.`
- *
- * And also, albeit being cheesy, we'll define a few internal ioctls here.
- */
-typedef struct {
-	void *	i_identity;	/* HBA tag */
-	void *	i_syncptr;	/* synchronization pointer */
-	int	i_cmd;		/* ioctl command */
-	void *	i_arg;		/* ioctl argument area */
-	int	i_errno;	/* ioctl error return */
-} ioctl_cmd_t;
-
-#define	QI_IOC	('Q' << 8)
-#define	QI_SCSI_TINI	QI_IOC|0
-#define	QI_SCSI_CMD	QI_IOC|1
-#define	QI_WWPN_XLT	QI_IOC|2
 
 /*
  * Target handler functions.
@@ -391,11 +359,14 @@ typedef struct {
  * The MD target handler function (the outer layer calls this)
  * should be be prototyped like:
  *
- *	void target_action(qact_e, void *arg)
+ *    void target_action(qact_e, void *arg)
  *
  * The outer layer target handler function (the MD layer calls this)
  * should be be prototyped like:
  *
- *	void system_target_handler(tact_e, void *arg)
+ *    void scsi_target_handler(tact_e, void *arg)
  */
-
+#endif    /* _ISP_TPUBLIC_H */
+/*
+ * vim:ts=4:sw=4:expandtab
+ */

@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*
+/*-
  * Qlogic Target Mode Structure and Flag Definitions
  *
  * Copyright (c) 1997, 1998
@@ -7,11 +7,8 @@
  * pms@psconsult.com
  * All rights reserved.
  *
- * Additional Copyright (c) 1999, 2000, 2001
- * Matthew Jacob
- * mjacob@feral.com
+ * Additonal Copyright (c) 1997-2006 by Matthew Jacob
  * All rights reserved.
- *
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,6 +25,8 @@
  * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
  * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
@@ -44,20 +43,20 @@
  */
 typedef struct {
 	isphdr_t	le_header;
-	u_int32_t	le_reserved;
-	u_int8_t	le_lun;
-	u_int8_t	le_rsvd;
-	u_int8_t	le_ops;		/* Modify LUN only */
-	u_int8_t	le_tgt;		/* Not for FC */
-	u_int32_t	le_flags;	/* Not for FC */
-	u_int8_t	le_status;
-	u_int8_t	le_reserved2;
-	u_int8_t	le_cmd_count;
-	u_int8_t	le_in_count;
-	u_int8_t	le_cdb6len;	/* Not for FC */
-	u_int8_t	le_cdb7len;	/* Not for FC */
-	u_int16_t	le_timeout;
-	u_int16_t	le_reserved3[20];
+	uint32_t	le_reserved;
+	uint8_t		le_lun;
+	uint8_t		le_rsvd;
+	uint8_t		le_ops;		/* Modify LUN only */
+	uint8_t		le_tgt;		/* Not for FC */
+	uint32_t	le_flags;	/* Not for FC */
+	uint8_t		le_status;
+	uint8_t		le_reserved2;
+	uint8_t		le_cmd_count;
+	uint8_t		le_in_count;
+	uint8_t		le_cdb6len;	/* Not for FC */
+	uint8_t		le_cdb7len;	/* Not for FC */
+	uint16_t	le_timeout;
+	uint16_t	le_reserved3[20];
 } lun_entry_t;
 
 /*
@@ -92,33 +91,44 @@ typedef struct {
 #define IN_RSVDLEN	8	/* 8 words */
 typedef struct {
 	isphdr_t	in_header;
-	u_int32_t	in_reserved;
-	u_int8_t	in_lun;		/* lun */
-	u_int8_t	in_iid;		/* initiator */
-	u_int8_t	in_reserved2;
-	u_int8_t	in_tgt;		/* target */
-	u_int32_t	in_flags;
-	u_int8_t	in_status;
-	u_int8_t	in_rsvd2;
-	u_int8_t	in_tag_val;	/* tag value */
-	u_int8_t	in_tag_type;	/* tag type */
-	u_int16_t	in_seqid;	/* sequence id */
-	u_int8_t	in_msg[IN_MSGLEN];	/* SCSI message bytes */
-	u_int16_t	in_reserved3[IN_RSVDLEN];
-	u_int8_t	in_sense[QLTM_SENSELEN];/* suggested sense data */
+	uint32_t	in_reserved;
+	uint8_t		in_lun;		/* lun */
+	uint8_t		in_iid;		/* initiator */
+	uint8_t		in_reserved2;
+	uint8_t		in_tgt;		/* target */
+	uint32_t	in_flags;
+	uint8_t		in_status;
+	uint8_t		in_rsvd2;
+	uint8_t		in_tag_val;	/* tag value */
+	uint8_t		in_tag_type;	/* tag type */
+	uint16_t	in_seqid;	/* sequence id */
+	uint8_t		in_msg[IN_MSGLEN];	/* SCSI message bytes */
+	uint16_t	in_reserved3[IN_RSVDLEN];
+	uint8_t		in_sense[QLTM_SENSELEN];/* suggested sense data */
 } in_entry_t;
 
 typedef struct {
 	isphdr_t	in_header;
-	u_int32_t	in_reserved;
-	u_int8_t	in_lun;		/* lun */
-	u_int8_t	in_iid;		/* initiator */
-	u_int16_t	in_scclun;
-	u_int32_t	in_reserved2;
-	u_int16_t	in_status;
-	u_int16_t	in_task_flags;
-	u_int16_t	in_seqid;	/* sequence id */
+	uint32_t	in_reserved;
+	uint8_t		in_lun;		/* lun */
+	uint8_t		in_iid;		/* initiator */
+	uint16_t	in_scclun;
+	uint32_t	in_reserved2;
+	uint16_t	in_status;
+	uint16_t	in_task_flags;
+	uint16_t	in_seqid;	/* sequence id */
 } in_fcentry_t;
+
+typedef struct {
+	isphdr_t	in_header;
+	uint32_t	in_reserved;
+	uint16_t	in_iid;		/* initiator */
+	uint16_t	in_scclun;
+	uint32_t	in_reserved2;
+	uint16_t	in_status;
+	uint16_t	in_task_flags;
+	uint16_t	in_seqid;	/* sequence id */
+} in_fcentry_e_t;
 
 /*
  * Values for the in_status field
@@ -172,16 +182,16 @@ typedef struct {
 #define NA_RSVDLEN	22
 typedef struct {
 	isphdr_t	na_header;
-	u_int32_t	na_reserved;
-	u_int8_t	na_lun;		/* lun */
-	u_int8_t	na_iid;		/* initiator */
-	u_int8_t	na_reserved2;
-	u_int8_t	na_tgt;		/* target */
-	u_int32_t	na_flags;
-	u_int8_t	na_status;
-	u_int8_t	na_event;
-	u_int16_t	na_seqid;	/* sequence id */
-	u_int16_t	na_reserved3[NA_RSVDLEN];
+	uint32_t	na_reserved;
+	uint8_t		na_lun;		/* lun */
+	uint8_t		na_iid;		/* initiator */
+	uint8_t		na_reserved2;
+	uint8_t		na_tgt;		/* target */
+	uint32_t	na_flags;
+	uint8_t		na_status;
+	uint8_t		na_event;
+	uint16_t	na_seqid;	/* sequence id */
+	uint16_t	na_reserved3[NA_RSVDLEN];
 } na_entry_t;
 
 /*
@@ -194,17 +204,31 @@ typedef struct {
 #define	NA2_RSVDLEN	21
 typedef struct {
 	isphdr_t	na_header;
-	u_int32_t	na_reserved;
-	u_int8_t	na_lun;		/* lun */
-	u_int8_t	na_iid;		/* initiator */
-	u_int16_t	na_scclun;
-	u_int16_t	na_flags;
-	u_int16_t	na_reserved2;
-	u_int16_t	na_status;
-	u_int16_t	na_task_flags;
-	u_int16_t	na_seqid;	/* sequence id */
-	u_int16_t	na_reserved3[NA2_RSVDLEN];
+	uint32_t	na_reserved;
+	uint8_t		na_lun;		/* lun */
+	uint8_t		na_iid;		/* initiator */
+	uint16_t	na_scclun;
+	uint16_t	na_flags;
+	uint16_t	na_reserved2;
+	uint16_t	na_status;
+	uint16_t	na_task_flags;
+	uint16_t	na_seqid;	/* sequence id */
+	uint16_t	na_reserved3[NA2_RSVDLEN];
 } na_fcentry_t;
+
+typedef struct {
+	isphdr_t	na_header;
+	uint32_t	na_reserved;
+	uint16_t	na_iid;		/* initiator */
+	uint16_t	na_scclun;
+	uint16_t	na_flags;
+	uint16_t	na_reserved2;
+	uint16_t	na_status;
+	uint16_t	na_task_flags;
+	uint16_t	na_seqid;	/* sequence id */
+	uint16_t	na_reserved3[NA2_RSVDLEN];
+} na_fcentry_e_t;
+
 #define	NAFC_RCOUNT	0x80	/* increment resource count */
 #define NAFC_RST_CLRD	0x20	/* Clear LIP Reset */
 /*
@@ -214,19 +238,19 @@ typedef struct {
 
 typedef struct {
 	isphdr_t	at_header;
-	u_int16_t	at_reserved;
-	u_int16_t	at_handle;
-	u_int8_t	at_lun;		/* lun */
-	u_int8_t	at_iid;		/* initiator */
-	u_int8_t	at_cdblen; 	/* cdb length */
-	u_int8_t	at_tgt;		/* target */
-	u_int32_t	at_flags;
-	u_int8_t	at_status;	/* firmware status */
-	u_int8_t	at_scsi_status;	/* scsi status */
-	u_int8_t	at_tag_val;	/* tag value */
-	u_int8_t	at_tag_type;	/* tag type */
-	u_int8_t	at_cdb[ATIO_CDBLEN];	/* received CDB */
-	u_int8_t	at_sense[QLTM_SENSELEN];/* suggested sense data */
+	uint16_t	at_reserved;
+	uint16_t	at_handle;
+	uint8_t		at_lun;		/* lun */
+	uint8_t		at_iid;		/* initiator */
+	uint8_t		at_cdblen; 	/* cdb length */
+	uint8_t		at_tgt;		/* target */
+	uint32_t	at_flags;
+	uint8_t		at_status;	/* firmware status */
+	uint8_t		at_scsi_status;	/* scsi status */
+	uint8_t		at_tag_val;	/* tag value */
+	uint8_t		at_tag_type;	/* tag type */
+	uint8_t		at_cdb[ATIO_CDBLEN];	/* received CDB */
+	uint8_t		at_sense[QLTM_SENSELEN];/* suggested sense data */
 } at_entry_t;
 
 /*
@@ -244,24 +268,48 @@ typedef struct {
 #define AT_NOCAP	0x16	/* Requested capability not available */
 #define AT_BDR_MSG	0x17	/* Bus Device Reset msg received */
 #define AT_CDB		0x3D	/* CDB received */
-
 /*
  * Macros to create and fetch and test concatenated handle and tag value macros
  */
 
-#define	AT_MAKE_TAGID(tid, aep)						\
-	tid = ((aep)->at_handle << 16);					\
-	if ((aep)->at_flags & AT_TQAE)					\
-		(tid) |= ((aep)->at_tag_val + 1)
+#define	AT_MAKE_TAGID(tid, inst, aep)					\
+	tid = aep->at_handle;						\
+	if (aep->at_flags & AT_TQAE) {					\
+		tid |= (aep->at_tag_val << 16);				\
+		tid |= (1 << 24);					\
+	}								\
+	tid |= (GET_BUS_VAL(aep->at_iid) << 25);			\
+	tid |= (inst << 26)
 
-#define	CT_MAKE_TAGID(tid, ct)						\
-	tid = ((ct)->ct_fwhandle << 16);				\
-	if ((ct)->ct_flags & CT_TQAE)					\
-		(tid) |= ((ct)->ct_tag_val + 1)
+#define	CT_MAKE_TAGID(tid, bus, inst, ct)				\
+	tid = ct->ct_fwhandle;						\
+	if (ct->ct_flags & CT_TQAE) {					\
+		tid |= (ct->ct_tag_val << 16);				\
+		tid |= (1 << 24);					\
+	}								\
+	tid |= ((bus & 0x1) << 25);					\
+	tid |= (inst << 26)
 
-#define	AT_HAS_TAG(val)		((val) & 0xffff)
-#define	AT_GET_TAG(val)		AT_HAS_TAG(val) - 1
-#define	AT_GET_HANDLE(val)	((val) >> 16)
+#define	AT_HAS_TAG(val)		((val) & (1 << 24))
+#define	AT_GET_TAG(val)		(((val) >> 16) & 0xff)
+#define	AT_GET_INST(val)	(((val) >> 26) & 0x3f)
+#define	AT_GET_BUS(val)		(((val) >> 25) & 0x1)
+#define	AT_GET_HANDLE(val)	((val) & 0xffff)
+
+#define	IN_MAKE_TAGID(tid, inst, inp)					\
+	tid = inp->in_seqid;						\
+	tid |= (inp->in_tag_val << 16);					\
+	tid |= (1 << 24);						\
+	tid |= (GET_BUS_VAL(inp->in_iid) << 25);			\
+	tid |= (inst << 26)
+
+#define	TAG_INSERT_INST(tid, inst)					\
+	tid &= ~(0x3ffffff);						\
+	tid |= (inst << 26)
+
+#define	TAG_INSERT_BUS(tid, bus)					\
+	tid &= ~(1 << 25);						\
+	tid |= (bus << 25)
 
 /*
  * Accept Target I/O Entry structure, Type 2
@@ -270,23 +318,42 @@ typedef struct {
 
 typedef struct {
 	isphdr_t	at_header;
-	u_int32_t	at_reserved;
-	u_int8_t	at_lun;		/* lun or reserved */
-	u_int8_t	at_iid;		/* initiator */
-	u_int16_t	at_rxid; 	/* response ID */
-	u_int16_t	at_flags;
-	u_int16_t	at_status;	/* firmware status */
-	u_int8_t	at_crn;		/* command reference number */
-	u_int8_t	at_taskcodes;
-	u_int8_t	at_taskflags;
-	u_int8_t	at_execodes;
-	u_int8_t	at_cdb[ATIO2_CDBLEN];	/* received CDB */
-	u_int32_t	at_datalen;		/* allocated data len */
-	u_int16_t	at_scclun;		/* SCC Lun or reserved */
-	u_int16_t	at_wwpn[4];		/* WWPN of initiator */
-	u_int16_t	at_reserved2[6];
-	u_int16_t	at_oxid;
+	uint32_t	at_reserved;
+	uint8_t		at_lun;		/* lun or reserved */
+	uint8_t		at_iid;		/* initiator */
+	uint16_t	at_rxid; 	/* response ID */
+	uint16_t	at_flags;
+	uint16_t	at_status;	/* firmware status */
+	uint8_t		at_crn;		/* command reference number */
+	uint8_t		at_taskcodes;
+	uint8_t		at_taskflags;
+	uint8_t		at_execodes;
+	uint8_t		at_cdb[ATIO2_CDBLEN];	/* received CDB */
+	uint32_t	at_datalen;		/* allocated data len */
+	uint16_t	at_scclun;		/* SCC Lun or reserved */
+	uint16_t	at_wwpn[4];		/* WWPN of initiator */
+	uint16_t	at_reserved2[6];
+	uint16_t	at_oxid;
 } at2_entry_t;
+
+typedef struct {
+	isphdr_t	at_header;
+	uint32_t	at_reserved;
+	uint16_t	at_iid;		/* initiator */
+	uint16_t	at_rxid; 	/* response ID */
+	uint16_t	at_flags;
+	uint16_t	at_status;	/* firmware status */
+	uint8_t		at_crn;		/* command reference number */
+	uint8_t		at_taskcodes;
+	uint8_t		at_taskflags;
+	uint8_t		at_execodes;
+	uint8_t		at_cdb[ATIO2_CDBLEN];	/* received CDB */
+	uint32_t	at_datalen;		/* allocated data len */
+	uint16_t	at_scclun;		/* SCC Lun or reserved */
+	uint16_t	at_wwpn[4];		/* WWPN of initiator */
+	uint16_t	at_reserved2[6];
+	uint16_t	at_oxid;
+} at2e_entry_t;
 
 #define	ATIO2_WWPN_OFFSET	0x2A
 #define	ATIO2_OXID_OFFSET	0x3E
@@ -300,6 +367,35 @@ typedef struct {
 
 #define	ATIO2_EX_WRITE		0x1
 #define	ATIO2_EX_READ		0x2
+/*
+ * Macros to create and fetch and test concatenated handle and tag value macros
+ */
+#define	AT2_MAKE_TAGID(tid, inst, aep)					\
+	tid = aep->at_rxid;						\
+	tid |= (inst << 16)
+
+#define	CT2_MAKE_TAGID(tid, inst, ct)					\
+	tid = ct->ct_rxid;						\
+	tid |= (inst << 16)
+
+#define	AT2_HAS_TAG(val)	1
+#define	AT2_GET_TAG(val)	((val) & 0xffff)
+#define	AT2_GET_INST(val)	((val) >> 16)
+#define	AT2_GET_HANDLE		AT2_GET_TAG
+
+#define	FC_HAS_TAG	AT2_HAS_TAG
+#define	FC_GET_TAG	AT2_GET_TAG
+#define	FC_GET_INST	AT2_GET_INST
+#define	FC_GET_HANDLE	AT2_GET_HANDLE
+
+#define	IN_FC_MAKE_TAGID(tid, inst, seqid)				\
+	tid = seqid;							\
+	tid |= (inst << 16)
+
+#define	FC_TAG_INSERT_INST(tid, inst)					\
+	tid &= ~0xffff;							\
+	tid |= (inst << 16)
+
 
 /*
  * Continue Target I/O Entry structure
@@ -310,22 +406,22 @@ typedef struct {
  */
 typedef struct {
 	isphdr_t	ct_header;
-	u_int16_t	ct_reserved;
+	uint16_t	ct_reserved;
 #define	ct_syshandle	ct_reserved	/* we use this */
-	u_int16_t	ct_fwhandle;	/* required by f/w */
-	u_int8_t	ct_lun;	/* lun */
-	u_int8_t	ct_iid;	/* initiator id */
-	u_int8_t	ct_reserved2;
-	u_int8_t	ct_tgt;	/* our target id */
-	u_int32_t	ct_flags;
-	u_int8_t 	ct_status;	/* isp status */
-	u_int8_t 	ct_scsi_status;	/* scsi status */
-	u_int8_t 	ct_tag_val;	/* tag value */
-	u_int8_t 	ct_tag_type;	/* tag type */
-	u_int32_t	ct_xfrlen;	/* transfer length */
-	u_int32_t	ct_resid;	/* residual length */
-	u_int16_t	ct_timeout;
-	u_int16_t	ct_seg_count;
+	uint16_t	ct_fwhandle;	/* required by f/w */
+	uint8_t		ct_lun;	/* lun */
+	uint8_t		ct_iid;	/* initiator id */
+	uint8_t		ct_reserved2;
+	uint8_t		ct_tgt;	/* our target id */
+	uint32_t	ct_flags;
+	uint8_t 	ct_status;	/* isp status */
+	uint8_t 	ct_scsi_status;	/* scsi status */
+	uint8_t 	ct_tag_val;	/* tag value */
+	uint8_t 	ct_tag_type;	/* tag type */
+	uint32_t	ct_xfrlen;	/* transfer length */
+	uint32_t	ct_resid;	/* residual length */
+	uint16_t	ct_timeout;
+	uint16_t	ct_seg_count;
 	/*
 	 * This is so we can share tag name space with
 	 * CTIO{2,3,4} with the minimum of pain.
@@ -341,8 +437,8 @@ typedef struct {
  * in the MSbit of ct_iid. Bit fields are a bit too awkward here.
  *
  * Note that this does not apply to FC adapters at all which can and
- * do report IIDs between 129 && 255 (these represent devices that have
- * logged in across a SCSI fabric).
+ * do report IIDs between 0x81 && 0xfe (or 0x7ff) which represent devices
+ * that have logged in across a SCSI fabric.
  */
 #define	GET_IID_VAL(x)		(x & 0x3f)
 #define	GET_BUS_VAL(x)		((x >> 7) & 0x1)
@@ -390,6 +486,8 @@ typedef struct {
 #define	CT_PORTCHANGED	0x2A	/* port changed */
 #define	CT_IDE		0x33	/* Initiator Detected Error */
 #define CT_NOACK	0x35	/* Outstanding Immed. Notify. entry */
+#define	CT_SRR		0x45	/* SRR Received */
+#define	CT_LUN_RESET	0x48	/* Lun Reset Received */
 
 /*
  * When the firmware returns a CTIO entry, it may overwrite the last
@@ -404,7 +502,7 @@ typedef struct {
  * Entry length in u_longs. All entries are the same size so
  * any one will do as the numerator.
  */
-#define UINT32_ENTRY_SIZE	(sizeof(at_entry_t)/sizeof(u_int32_t))
+#define UINT32_ENTRY_SIZE	(sizeof(at_entry_t)/sizeof(uint32_t))
 
 /*
  * QLA2100 CTIO (type 2) entry
@@ -412,16 +510,16 @@ typedef struct {
 #define	MAXRESPLEN	26
 typedef struct {
 	isphdr_t	ct_header;
-	u_int16_t	ct_reserved;
-	u_int16_t	ct_fwhandle;	/* just to match CTIO */
-	u_int8_t	ct_lun;		/* lun */
-	u_int8_t	ct_iid;		/* initiator id */
-	u_int16_t	ct_rxid;	/* response ID */
-	u_int16_t	ct_flags;
-	u_int16_t 	ct_status;	/* isp status */
-	u_int16_t	ct_timeout;
-	u_int16_t	ct_seg_count;
-	u_int32_t	ct_reloff;	/* relative offset */
+	uint16_t	ct_reserved;
+	uint16_t	ct_fwhandle;	/* just to match CTIO */
+	uint8_t		ct_lun;		/* lun */
+	uint8_t		ct_iid;		/* initiator id */
+	uint16_t	ct_rxid;	/* response ID */
+	uint16_t	ct_flags;
+	uint16_t 	ct_status;	/* isp status */
+	uint16_t	ct_timeout;
+	uint16_t	ct_seg_count;
+	uint32_t	ct_reloff;	/* relative offset */
 	int32_t		ct_resid;	/* residual length */
 	union {
 		/*
@@ -438,10 +536,10 @@ typedef struct {
 		 * in system memory as located by the isp_dataseg.
 		 */
 		struct {
-			u_int32_t _reserved;
-			u_int16_t _reserved2;
-			u_int16_t ct_scsi_status;
-			u_int32_t ct_xfrlen;
+			uint32_t _reserved;
+			uint16_t _reserved2;
+			uint16_t ct_scsi_status;
+			uint32_t ct_xfrlen;
 			union {
 				ispds_t ct_a[ISP_RQDSEG_T2];	/* CTIO2 */
 				ispds64_t ct_b[ISP_RQDSEG_T3];	/* CTIO3 */
@@ -452,22 +550,64 @@ typedef struct {
 #define	ct_dslist	_u.ct_c
 		} m0;
 		struct {
-			u_int16_t _reserved;
-			u_int16_t _reserved2;
-			u_int16_t ct_senselen;
-			u_int16_t ct_scsi_status;
-			u_int16_t ct_resplen;
-			u_int8_t  ct_resp[MAXRESPLEN];
+			uint16_t _reserved;
+			uint16_t _reserved2;
+			uint16_t ct_senselen;
+			uint16_t ct_scsi_status;
+			uint16_t ct_resplen;
+			uint8_t  ct_resp[MAXRESPLEN];
 		} m1;
 		struct {
-			u_int32_t _reserved;
-			u_int16_t _reserved2;
-			u_int16_t _reserved3;
-			u_int32_t ct_datalen;
+			uint32_t _reserved;
+			uint16_t _reserved2;
+			uint16_t _reserved3;
+			uint32_t ct_datalen;
 			ispds_t ct_fcp_rsp_iudata;
 		} m2;
 	} rsp;
 } ct2_entry_t;
+
+typedef struct {
+	isphdr_t	ct_header;
+	uint16_t	ct_reserved;
+	uint16_t	ct_fwhandle;	/* just to match CTIO */
+	uint16_t	ct_iid;		/* initiator id */
+	uint16_t	ct_rxid;	/* response ID */
+	uint16_t	ct_flags;
+	uint16_t 	ct_status;	/* isp status */
+	uint16_t	ct_timeout;
+	uint16_t	ct_seg_count;
+	uint32_t	ct_reloff;	/* relative offset */
+	int32_t		ct_resid;	/* residual length */
+	union {
+		struct {
+			uint32_t _reserved;
+			uint16_t _reserved2;
+			uint16_t ct_scsi_status;
+			uint32_t ct_xfrlen;
+			union {
+				ispds_t ct_a[ISP_RQDSEG_T2];	/* CTIO2 */
+				ispds64_t ct_b[ISP_RQDSEG_T3];	/* CTIO3 */
+				ispdslist_t ct_c;		/* CTIO4 */
+			} _u;
+		} m0;
+		struct {
+			uint16_t _reserved;
+			uint16_t _reserved2;
+			uint16_t ct_senselen;
+			uint16_t ct_scsi_status;
+			uint16_t ct_resplen;
+			uint8_t  ct_resp[MAXRESPLEN];
+		} m1;
+		struct {
+			uint32_t _reserved;
+			uint16_t _reserved2;
+			uint16_t _reserved3;
+			uint32_t ct_datalen;
+			ispds_t ct_fcp_rsp_iudata;
+		} m2;
+	} rsp;
+} ct2e_entry_t;
 
 /*
  * ct_flags values for CTIO2
@@ -506,7 +646,6 @@ typedef struct {
 #define	ISP_TDQE(isp, msg, idx, arg)	\
     if (isp->isp_dblev & ISP_LOGTDEBUG2) isp_print_qentry(isp, msg, idx, arg)
 
-#ifdef	ISP_TARGET_FUNCTIONS
 /*
  * The functions below are for the publicly available
  * target mode functions that are internal to the Qlogic driver.
@@ -515,20 +654,26 @@ typedef struct {
 /*
  * This function handles new response queue entry appropriate for target mode.
  */
-int isp_target_notify(struct ispsoftc *, void *, u_int16_t *);
+int isp_target_notify(ispsoftc_t *, void *, uint16_t *);
+
+/*
+ * This function externalizes the ability to acknowledge an Immediate Notify
+ * request.
+ */
+void isp_notify_ack(ispsoftc_t *, void *);
 
 /*
  * Enable/Disable/Modify a logical unit.
  * (softc, cmd, bus, tgt, lun, cmd_cnt, inotify_cnt, opaque)
  */
 #define	DFLT_CMND_CNT	0xfe	/* unmonitored */
-#define	DFLT_INOT_CNT	16
-int isp_lun_cmd(struct ispsoftc *, int, int, int, int, int, int, u_int32_t);
+#define	DFLT_INOT_CNT	0xfe	/* unmonitored */
+int isp_lun_cmd(ispsoftc_t *, int, int, int, int, int, int, uint32_t);
 
 /*
  * General request queue 'put' routine for target mode entries.
  */
-int isp_target_put_entry(struct ispsoftc *isp, void *);
+int isp_target_put_entry(ispsoftc_t *isp, void *);
 
 /*
  * General routine to put back an ATIO entry-
@@ -536,13 +681,13 @@ int isp_target_put_entry(struct ispsoftc *isp, void *);
  * The argument is a pointer to a source ATIO
  * or ATIO2.
  */
-int isp_target_put_atio(struct ispsoftc *, void *);
+int isp_target_put_atio(ispsoftc_t *, void *);
 
 /*
  * General routine to send a final CTIO for a command- used mostly for
  * local responses.
  */
-int isp_endcmd(struct ispsoftc *, void *, u_int32_t, u_int16_t);
+int isp_endcmd(ispsoftc_t *, void *, uint32_t, uint16_t);
 #define	ECMD_SVALID	0x100
 
 /*
@@ -550,7 +695,6 @@ int isp_endcmd(struct ispsoftc *, void *, u_int32_t, u_int16_t);
  *
  * Return nonzero if the interrupt that generated this event has been dismissed.
  */
+int isp_target_async(ispsoftc_t *, int, int);
 
-int isp_target_async(struct ispsoftc *, int, int);
-#endif
 #endif	/* _ISP_TARGET_H */

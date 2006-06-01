@@ -1,34 +1,29 @@
 /* $FreeBSD$ */
-/*
- * Copyright (c) 2001 by Matthew Jacob
+/*-
+ *
+ * Copyright (c) 1997-2006 by Matthew Jacob
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ *    notice immediately at the beginning of the file, without modification,
+ *    this list of conditions, and the following disclaimer.
+ * 2. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
- * the GNU Public License ("GPL", Library, Version 2).
- *
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * Matthew Jacob <mjacob@feral.com)
- *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 /*
  * ioctl definitions for Qlogic FC/SCSI HBA driver
@@ -51,7 +46,7 @@
 #define	ISP_RESETHBA	_IO(ISP_IOC, 2)
 
 /*
- * This ioctl performs a fibre chanel rescan.
+ * This ioctl performs a fibre channel rescan.
  */
 #define	ISP_RESCAN	_IO(ISP_IOC, 3)
 
@@ -63,8 +58,8 @@
 #define ISP_SETROLE     _IOWR(ISP_IOC, 4, int)
 
 #define ISP_ROLE_NONE           0x0
-#define ISP_ROLE_INITIATOR      0x1
-#define ISP_ROLE_TARGET         0x2
+#define ISP_ROLE_TARGET         0x1
+#define ISP_ROLE_INITIATOR      0x2
 #define ISP_ROLE_BOTH           (ISP_ROLE_TARGET|ISP_ROLE_INITIATOR)
 #ifndef ISP_DEFAULT_ROLES
 #define ISP_DEFAULT_ROLES       ISP_ROLE_BOTH
@@ -80,11 +75,11 @@
  */
 #define	ISP_STATS_VERSION	0
 typedef struct {
-	u_int8_t	isp_stat_version;
-	u_int8_t	isp_type;		/* (ro) reflects chip type */
-	u_int8_t	isp_revision;		/* (ro) reflects chip version */
-	u_int8_t	unused1;
-	u_int32_t	unused2;
+	uint8_t		isp_stat_version;
+	uint8_t		isp_type;		/* (ro) reflects chip type */
+	uint8_t		isp_revision;		/* (ro) reflects chip version */
+	uint8_t		unused1;
+	uint32_t	unused2;
 	/*
 	 * Statistics Counters
 	 */
@@ -97,7 +92,7 @@ typedef struct {
 #define	ISP_FPHCCMCPLT	5
 #define	ISP_RSCCHIWAT	6
 #define	ISP_FPCCHIWAT	7
-	u_int64_t	isp_stats[ISP_NSTATS];
+	uint64_t	isp_stats[ISP_NSTATS];
 } isp_stats_t;
 
 #define	ISP_GET_STATS	_IOR(ISP_IOC, 6, isp_stats_t)
@@ -115,10 +110,12 @@ typedef struct {
  * only), 24 bit Port ID and Node and Port WWNs.
  */
 struct isp_fc_device {
-	u_int32_t	loopid;	/* 0..255 */
-	u_int32_t	portid;	/* 24 bit Port ID */
-	u_int64_t	node_wwn;
-	u_int64_t	port_wwn;
+	uint32_t	loopid;		/* 0..255 */
+	uint32_t		: 6,
+			role 	: 2,
+			portid	: 24;	/* 24 bit Port ID */
+	uint64_t	node_wwn;
+	uint64_t	port_wwn;
 };
 #define	ISP_FC_GETDINFO	_IOWR(ISP_IOC, 9, struct isp_fc_device)
 
@@ -133,7 +130,7 @@ struct isp_fc_device {
  * topology and capabilities.
  */
 struct isp_hba_device {
-	u_int32_t
+	uint32_t
 					: 8,
 					: 4,
 		fc_speed		: 4,	/* Gbps */
@@ -143,14 +140,14 @@ struct isp_hba_device {
 		fc_scsi_supported	: 1,
 		fc_topology		: 3,
 		fc_loopid		: 8;
-	u_int8_t	fc_fw_major;
-	u_int8_t	fc_fw_minor;
-	u_int8_t	fc_fw_micro;
-	u_int8_t	reserved;
-	u_int64_t	nvram_node_wwn;
-	u_int64_t	nvram_port_wwn;
-	u_int64_t	active_node_wwn;
-	u_int64_t	active_port_wwn;
+	uint8_t		fc_fw_major;
+	uint8_t		fc_fw_minor;
+	uint8_t		fc_fw_micro;
+	uint8_t		reserved;
+	uint64_t	nvram_node_wwn;
+	uint64_t	nvram_port_wwn;
+	uint64_t	active_node_wwn;
+	uint64_t	active_port_wwn;
 };
 
 #define	ISP_TOPO_UNKNOWN	0	/* connection topology unknown */
@@ -178,8 +175,20 @@ struct isp_hba_device {
 
 struct isp_fc_param {
 	char		param_name[16];	/* null terminated */
-	u_int32_t	parameter;
+	uint32_t	parameter;
 };
 
 #define	ISP_GET_FC_PARAM	_IOWR(ISP_IOC, 98, struct isp_fc_param)
 #define	ISP_SET_FC_PARAM	_IOWR(ISP_IOC, 99, struct isp_fc_param)
+
+/*
+ * Various Reset Goodies
+ */
+struct isp_fc_tsk_mgmt {
+	uint32_t	loopid;		/* 0..255 */
+	uint32_t	lun;
+	enum {
+	    CLEAR_ACA, TARGET_RESET, LUN_RESET, CLEAR_TASK_SET, ABORT_TASK_SET
+	} action;
+};
+#define	ISP_TSK_MGMT		_IOWR(ISP_IOC, 97, struct isp_fc_tsk_mgmt)

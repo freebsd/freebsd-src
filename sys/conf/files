@@ -401,8 +401,9 @@ dev/ips/ips_pci.c	optional ips pci
 dev/ips/ips_disk.c	optional ips
 dev/ips/ips_commands.c	optional ips
 dev/ips/ips_ioctl.c	optional ips
-dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp.c		optional isp
+dev/isp/isp_library.c	optional isp
+dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp_pci.c	optional isp
 dev/isp/isp_target.c	optional isp
 dev/ispfw/ispfw.c	optional ispfw
