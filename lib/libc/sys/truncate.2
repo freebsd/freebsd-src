@@ -32,7 +32,7 @@
 .\"     @(#)truncate.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd June 1, 2006
 .Dt TRUNCATE 2
 .Os
 .Sh NAME
@@ -69,6 +69,10 @@ With
 the file must be open for writing.
 .Sh RETURN VALUES
 .Rv -std
+If the file to be modified is not a directory or
+a regular file, the
+.Fn truncate
+call has no effect and returns the value 0.
 .Sh ERRORS
 The
 .Fn truncate
