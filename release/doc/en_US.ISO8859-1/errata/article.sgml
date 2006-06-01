@@ -164,13 +164,13 @@
       <filename role="package">sysutils/smartmontools</filename>
       port.</para>
 
-    <para>(2006/05/27) On &os;/alpha, sysinstall sometimes does not allow
-      a disk to be labeled.  The disk is presented in sysinstall but
-      actions like 'A'auto do not result in a disklabel being presented.
-      Workaround is to boot the install CD, then select Fixit.  From
-      the Fixit prompt run disklabel manually.  For example:  
-      "disklabel -rw da1 auto" ensures a valid disklabel is written onto
-      da1.  Reboot from the install media.  sysinstall will now
+    <para>(2006/05/27, updated 2006/06/01) On &os;/alpha, &man.sysinstall.8; sometimes does not allow
+      a disk to be labeled.  The disk is presented in &man.sysinstall.8; but
+      actions like <guimenuitem>Auto</guimenuitem> do not result in a disklabel being presented.
+      One workaround is to boot the install CD, then select <guimenuitem>Fixit</guimenuitem>.  From
+      the <prompt>Fixit#</prompt> prompt, run &man.disklabel.8; manually.  For example:  
+      <command>disklabel -rw da1 auto</command> ensures a valid disklabel is written onto
+      <devicename>da1</devicename>.  Reboot from the install media.  &man.sysinstall.8; will now
       detect a valid disklabel on the disk and allow it to be partitioned
       to your preference.</para>
 
@@ -180,6 +180,53 @@
       with externally-maintained 10Gb Ethernet network drivers written
       for &os; 6.0-RELEASE.  This change should have been documented
       in the release notes.</para>
+
+    <para>(2006/06/01) A bug in the <filename>rc.d/jail</filename>
+      startup script could cause various problems for users attempting
+      to configure &man.jail.2; environments at system startup time.
+      A fix has been committed to HEAD and RELENG_6; it will be merged
+      to the RELENG_6_1 errata fix branch after more testing.</para>
+
+    <para>(2006/06/01) Deadlocks have been observed (and can be
+      reproduced) in some cases where snapshots and quotas are both
+      being used on a file system.  This problem has been fixed on the
+      HEAD and RELENG_6 branches; more testing is planned before a
+      merge to the RELENG_6_1 errata fix branch.</para>
+
+    <para>(2006/06/01) A bug in the Neighbor Discovery Protocol (NDP)
+      implementation causes spurious error messages for point-to-point
+      IPv6 links on &os; &release.bugfix;.  This behavior is a
+      regression from &os; 6.0-RELEASE.  A solution for this
+      problem is being analyzed and tested.</para>
+
+    <para>(2006/06/01) Problems have been observed when trying to load
+      packages from multiple CDROMs inside the &man.sysinstall.8;
+      environment.  Specifically, the disk-switching functionality in
+      &man.sysinstall.8; seems to become confused about the contents
+      of a disk that has just been requested.  This situation has been
+      seen primarily when installing the base system without &xorg;
+      (which lives on the first CDROM of a multi-disk set), and then
+      later using &man.sysinstall.8; to load some packages (such as
+      the GNOME or KDE desktop environments) from a subsequent CDROM
+      that depend on &xorg;.  As a workaround during a new install,
+      one should try to install &xorg; along with the base system, or
+      at least before any other packages that depend on it.</para>
+
+    <para>(2006/06/01) An error in the statistics-keeping logic in the
+      UMA kernel memory allocator has led to the number of
+      <literal>requests for mbufs denied</literal> (as reported by
+      <command>netstat -m</command>) to increase erroneously.  A fix
+      for this problem has been committed to HEAD and will be merged
+      to the RELENG_6 and RELENG_6_1 branches after additional
+      testing.</para>
+
+    <para>(2006/06/01) A longstanding bug in the i386 bootloader can
+      cause root file system corruption when the &man.nextboot.8;
+      utility is used and the <filename>/boot/nextboot.conf</filename>
+      configuration file happens to be located after cylinder 1023 on
+      the boot disk.  A bugfix has been committed to HEAD and planned
+      for merging after additional testing.</para>
+
   </sect1>
 
 </article>
