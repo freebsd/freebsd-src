@@ -3424,7 +3424,7 @@ xfs_symlink(
 
 	udqp = gdqp = NULL;
 
-#if XXXKAN
+#ifdef XXXKAN
 	if (vap->va_mask & XFS_AT_PROJID)
 		prid = (xfs_prid_t)vap->va_projid;
 	else

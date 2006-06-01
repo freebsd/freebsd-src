@@ -70,7 +70,7 @@ fs_tosspages(
 	xfs_off_t	last,
 	int		fiopt)
 {
-#if XXXKAN
+#ifdef XXXKAN
 	vnode_t		*vp = BHV_TO_VNODE(bdp);
 	struct inode	*ip = LINVFS_GET_IP(vp);
 
@@ -91,7 +91,7 @@ fs_flushinval_pages(
 	xfs_off_t	last,
 	int		fiopt)
 {
-#if XXXKAN
+#ifdef XXXKAN
 	vnode_t		*vp = BHV_TO_VNODE(bdp);
 	struct inode	*ip = LINVFS_GET_IP(vp);
 
@@ -117,7 +117,7 @@ fs_flush_pages(
 	uint64_t	flags,
 	int		fiopt)
 {
-#if XXXKAN
+#ifdef XXXKAN
 	vnode_t		*vp = BHV_TO_VNODE(bdp);
 	struct inode	*ip = LINVFS_GET_IP(vp);
 
