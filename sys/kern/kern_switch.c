@@ -267,7 +267,6 @@ remrunqueue(struct thread *td)
 	if ((td->td_proc->p_flag & P_HADTHREADS) == 0) {
 		/* remve from sys run queue and free up a slot */
 		sched_rem(td);
-		ke->ke_state = KES_THREAD;
 		return;
 	}
    	td3 = TAILQ_PREV(td, threadqueue, td_runq);
@@ -280,7 +279,6 @@ remrunqueue(struct thread *td)
 		 * see if we need to move the KSE in the run queues.
 		 */
 		sched_rem(td);
-		ke->ke_state = KES_THREAD;
 		td2 = kg->kg_last_assigned;
 		KASSERT((td2 != NULL), ("last assigned has wrong value"));
 		if (td2 == td)
