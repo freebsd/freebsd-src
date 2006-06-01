@@ -36,6 +36,7 @@
 
 #include "xfs.h"
 
+#include "xfs_macros.h"
 #include "xfs_fs.h"
 #include "xfs_inum.h"
 #include "xfs_log.h"
@@ -156,7 +157,7 @@ xfs_iozero(
 	size_t			count,	/* size of data to zero		*/
 	loff_t			end_size)	/* max file size to set */
 {
-#if XXXKAN
+#ifdef XXXKAN
 	unsigned		bytes;
 	struct page		*page;
 	struct address_space	*mapping;
@@ -307,7 +308,7 @@ xfs_read(
 
 	if (!(ioflags & IO_ISLOCKED))
 		xfs_ilock(ip, XFS_IOLOCK_SHARED);
-#if XXXKAN
+#ifdef XXXKAN
 	if (DM_EVENT_ENABLED(BHV_TO_VNODE(bdp)->v_vfsp, ip, DM_EVENT_READ) &&
 	    !(ioflags & IO_INVIS)) {
 		int error;
@@ -581,7 +582,7 @@ xfs_write(
 	int		ioflags,
 	cred_t          *credp)
 {
-#if XXXKAN
+#ifdef XXXKAN
 	xfs_inode_t	*xip;
 	xfs_mount_t	*mp;
 	ssize_t		ret;

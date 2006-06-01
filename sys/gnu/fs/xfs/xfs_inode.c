@@ -2762,7 +2762,7 @@ xfs_iunpin(
 	ASSERT(atomic_read(&ip->i_pincount) > 0);
 
 	if (atomic_dec_and_test(&ip->i_pincount)) {
-#if XXXKAN
+#ifdef XXXKAN
 		/*
 		 * Should I mark FreeBSD vnode as dirty here?
 		 */
@@ -3645,7 +3645,7 @@ xfs_iaccess(
 		    (S_ISREG(imode) || S_ISDIR(imode) || S_ISLNK(imode)))
 			return XFS_ERROR(EROFS);
 
-#if XXXKAN
+#ifdef XXXKAN
 		if (IS_IMMUTABLE(inode))
 			return XFS_ERROR(EACCES);
 #endif
@@ -3750,7 +3750,7 @@ xfs_ichgtime(xfs_inode_t *ip,
 	 */
 	SYNCHRONIZE();
 	ip->i_update_core = 1;
-#if XXXKAN
+#ifdef XXXKAN
 	if (!(inode->i_state & I_LOCK))
 		mark_inode_dirty_sync(inode);
 

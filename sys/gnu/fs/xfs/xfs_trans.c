@@ -537,7 +537,7 @@ xfs_trans_apply_sb_deltas(
 				  offsetof(xfs_sb_t, sb_frextents) +
 				  sizeof(sbp->sb_frextents) - 1);
 
-#if XXXKAN
+#ifdef XXXKAN
 	XFS_MTOVFS(tp->t_mountp)->vfs_super->s_dirt = 1;
 #endif
 	printf("XFS_MTOVFS(tp->t_mountp)->vfs_super->s_dirt = 1;");

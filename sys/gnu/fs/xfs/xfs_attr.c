@@ -2560,7 +2560,7 @@ attr_user_capable(
 	struct xfs_vnode	*vp,
 	cred_t		*cred)
 {
-#if XXXKAN
+#ifdef XXXKAN
 	struct inode	*inode = LINVFS_GET_IP(vp);
 
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
@@ -2580,7 +2580,7 @@ attr_trusted_capable(
 	struct xfs_vnode	*vp,
 	cred_t		*cred)
 {
-#if XXXKAN
+#ifdef XXXKAN
 	struct inode	*inode = LINVFS_GET_IP(vp);
 
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
@@ -2613,7 +2613,7 @@ attr_system_set(
 	if (!namesp)
 		return -EOPNOTSUPP;
 	error = namesp->attr_set(vp, name, data, size, xflags);
-#if XXXKAN
+#ifdef XXXKAN
 	if (!error)
 		error = vn_revalidate(vp);
 #endif
