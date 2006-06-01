@@ -721,6 +721,7 @@ files_group(void *retval, void *mdata, va_list ap)
 	gid_t			 gid;
 	char			*buffer;
 	size_t			 bufsize, linesize;
+	off_t			 pos;
 	int			 rv, stayopen, *errnop;
 
 	name = NULL;
@@ -757,6 +758,7 @@ files_group(void *retval, void *mdata, va_list ap)
 		stayopen = st->stayopen;
 	}
 	rv = NS_NOTFOUND;
+	pos = ftello(st->fp);
 	while ((line = fgetln(st->fp, &linesize)) != NULL) {
 		if (line[linesize-1] == '\n')
 			linesize--;
@@ -768,10 +770,12 @@ files_group(void *retval, void *mdata, va_list ap)
 		 * pointer for the member list terminator.
 		 */
 		if (bufsize <= linesize + _ALIGNBYTES + sizeof(char *)) {
+			fseeko(st->fp, pos, SEEK_SET);
 			*errnop = ERANGE;
 			rv = NS_RETURN;
 			break;
 		}
+		pos = ftello(st->fp);
 		memcpy(buffer, line, linesize);
 		buffer[linesize] = '\0';
 		rv = __gr_parse_entry(buffer, linesize, grp, 
@@ -1183,6 +1187,7 @@ compat_group(void *retval, void *mdata, va_list ap)
 	char			*buffer, *p;
 	void			*discard;
 	size_t			 bufsize, linesize;
+	off_t			 pos;
 	int			 rv, stayopen, *errnop;
 
 #define set_lookup_type(x, y) do { 				\
@@ -1286,6 +1291,7 @@ docompat:
 		break;
 	}
 	rv = NS_NOTFOUND;
+	pos = ftello(st->fp);
 	while ((line = fgetln(st->fp, &linesize)) != NULL) {
 		if (line[linesize-1] == '\n')
 			linesize--;
@@ -1316,10 +1322,12 @@ docompat:
 		 * pointer for the member list terminator.
 		 */
 		if (bufsize <= linesize + _ALIGNBYTES + sizeof(char *)) {
+			fseeko(st->fp, pos, SEEK_SET);
 			*errnop = ERANGE;
 			rv = NS_RETURN;
 			break;
 		}
+		pos = ftello(st->fp);
 		memcpy(buffer, line, linesize);
 		buffer[linesize] = '\0';
 		rv = __gr_parse_entry(buffer, linesize, grp, 
