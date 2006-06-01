@@ -138,7 +138,7 @@ find_parsenum(PLAN *plan, const char *option, char *vp, char *endch)
 	value = strtoq(str, &endchar, 10);
 	if (value == 0 && endchar == str)
 		errx(1, "%s: %s: illegal numeric value", option, vp);
-	if (endchar[0] && (endch == NULL || endchar[0] != *endch))
+	if (endchar[0] && endch == NULL)
 		errx(1, "%s: %s: illegal trailing character", option, vp);
 	if (endch)
 		*endch = endchar[0];
@@ -1366,7 +1366,8 @@ c_simple(OPTION *option, char ***argvp __unused)
  *
  *	True if the file size in bytes, divided by an implementation defined
  *	value and rounded up to the next integer, is n.  If n is followed by
- *	a c, the size is in bytes.
+ *      one of c k M G T P, the size is in bytes, kilobytes,
+ *      megabytes, gigabytes, terabytes or petabytes respectively.
  */
 #define	FIND_SIZE	512
 static int divsize = 1;
@@ -1387,6 +1388,7 @@ c_size(OPTION *option, char ***argvp)
 	char *size_str;
 	PLAN *new;
 	char endch;
+	off_t scale;
 
 	size_str = nextarg(option, argvp);
 	ftsoptions &= ~FTS_NOSTAT;
@@ -1394,8 +1396,38 @@ c_size(OPTION *option, char ***argvp)
 	new = palloc(option);
 	endch = 'c';
 	new->o_data = find_parsenum(new, option->name, size_str, &endch);
-	if (endch == 'c')
+	if (endch != '\0') {
 		divsize = 0;
+
+		switch (endch) {
+		case 'c':                       /* characters */
+			scale = 0x1LL;
+			break;
+		case 'k':                       /* kilobytes 1<<10 */
+			scale = 0x400LL;
+			break;
+		case 'M':                       /* megabytes 1<<20 */
+			scale = 0x100000LL;
+			break;
+		case 'G':                       /* gigabytes 1<<30 */
+			scale = 0x40000000LL;
+			break;
+		case 'T':                       /* terabytes 1<<40 */
+			scale = 0x1000000000LL;
+			break;
+		case 'P':                       /* petabytes 1<<50 */
+			scale = 0x4000000000000LL;
+			break;
+		default:
+			errx(1, "%s: %s: illegal trailing character",
+				option->name, size_str);
+			break;
+		}
+		if (new->o_data > QUAD_MAX / scale)
+			errx(1, "%s: %s: value too large",
+				option->name, size_str);
+		new->o_data *= scale;
+	}
 	return new;
 }
 
