@@ -98,7 +98,40 @@
   <sect1 id="security">
     <title>Security Advisories</title>
 
-    <para>No advisories.</para>
+    <para>The following security advisories pertain to &os; &release.bugfix;.
+      For more information, consult the individual advisories available from
+      <ulink url="http://security.FreeBSD.org/"></ulink>.</para>
+
+    <informaltable frame="none" pgwide="0">
+      <tgroup cols="3">
+	<colspec colwidth="1*">
+	<colspec colwidth="1*">
+	<colspec colwidth="3*">
+	<thead>
+	  <row>
+	    <entry>Advisory</entry>
+	    <entry>Date</entry>
+	    <entry>Topic</entry>
+	  </row>
+	</thead>
+
+	<tbody>
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:15.ypserv.asc"
+		>06:15.ypserv</ulink></entry>
+	    <entry>31&nbsp;May&nbsp;2006</entry>
+	    <entry><para>Inoperative access controls in &man.ypserv.8;</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:16.smbfs.asc"
+		>06:16.smbfs</ulink></entry>
+	    <entry>31&nbsp;May&nbsp;2006</entry>
+	    <entry><para>smbfs chroot escape</para></entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
   </sect1>
 
   <sect1 id="open-issues">
