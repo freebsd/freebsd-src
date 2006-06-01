@@ -4,8 +4,8 @@
 #
 
 # PROVIDE: devd
-# REQUIRE: NETWORKING
-# BEFORE: mountcritremote
+# REQUIRE: netif
+# BEFORE: NETWORKING mountcritremote
 # KEYWORD: nojail
 
 . /etc/rc.subr
