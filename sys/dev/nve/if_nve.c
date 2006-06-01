@@ -867,6 +867,17 @@ nve_ifstart_locked(struct ifnet *ifp)
 		if (m0 == NULL)
 			return;
 
+		/*
+		 * On nForce4, the chip doesn't interrupt on transmit,
+		 * so try to flush transmitted packets from the queue
+		 * if it's getting large (see note in nve_watchdog).
+		 */
+		if (sc->pending_txs > TX_RING_SIZE/2) {
+			sc->hwapi->pfnDisableInterrupts(sc->hwapi->pADCX);
+			sc->hwapi->pfnHandleInterrupt(sc->hwapi->pADCX);
+			sc->hwapi->pfnEnableInterrupts(sc->hwapi->pADCX);
+		}
+
 		/* Map MBUF for DMA access */
 		error = bus_dmamap_load_mbuf(sc->mtag, buf->map, m0,
 		    nve_dmamap_tx_cb, desc, BUS_DMA_NOWAIT);
@@ -1270,10 +1281,31 @@ static void
 nve_watchdog(struct ifnet *ifp)
 {
 	struct nve_softc *sc = ifp->if_softc;
+	int pending_txs_start;
+
+	NVE_LOCK(sc);
+
+	/*
+	 * The nvidia driver blob defers tx completion notifications.
+	 * Thus, sometimes the watchdog timer will go off when the
+	 * tx engine is fine, but the tx completions are just deferred.
+	 * Try kicking the driver blob to clear out any pending tx
+	 * completions.  If that clears up any of the pending tx
+	 * operations, then just return without printing the warning
+	 * message or resetting the adapter, as we can then conclude
+	 * the chip hasn't actually crashed (it's still sending packets).
+	 */
+	pending_txs_start = sc->pending_txs;
+	sc->hwapi->pfnDisableInterrupts(sc->hwapi->pADCX);
+	sc->hwapi->pfnHandleInterrupt(sc->hwapi->pADCX);
+	sc->hwapi->pfnEnableInterrupts(sc->hwapi->pADCX);
+	if (sc->pending_txs < pending_txs_start) {
+		NVE_UNLOCK(sc);
+		return;
+	}
 
 	device_printf(sc->dev, "device timeout (%d)\n", sc->pending_txs);
 
-	NVE_LOCK(sc);
 	sc->tx_errors++;
 
 	nve_stop(sc);
