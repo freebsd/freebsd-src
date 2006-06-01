@@ -71,6 +71,9 @@ network_start()
 		# Resync ipfilter
 		/etc/rc.d/ipfilter resync
 	fi
+	if [ -f /etc/rc.d/bridge -a -n "$_cmdifn" ] ; then
+		/etc/rc.d/bridge start $_cmdifn
+	fi
 }
 
 network_stop()
