@@ -460,7 +460,7 @@ __set_cpsr_c(u_int bic, u_int eor)
 		      (mask) & (I32_bit | F32_bit)))
 
 #define enable_interrupts(mask)						\
-	(__set_cpsr_c((mask | F32_bit) & (I32_bit | F32_bit), 0))
+	(__set_cpsr_c((mask) & (I32_bit | F32_bit), 0))
 
 #define restore_interrupts(old_cpsr)					\
 	(__set_cpsr_c((I32_bit | F32_bit), (old_cpsr) & (I32_bit | F32_bit)))
