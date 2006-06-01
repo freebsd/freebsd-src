@@ -57,14 +57,6 @@ static const char rcsid[] =
 
 #include "mntopts.h"
 
-static struct mntopt mopts[] = {
-	MOPT_STDOPTS,
-	MOPT_FORCE,
-	MOPT_SYNC,
-	MOPT_UPDATE,
-	MOPT_END
-};
-
 static gid_t	a_gid(char *);
 static uid_t	a_uid(char *);
 static mode_t	a_mask(char *);
@@ -78,7 +70,6 @@ main(int argc, char **argv)
 	int iovlen = 0;
 	struct stat sb;
 	int c, mntflags, set_gid, set_uid, set_mask, set_dirmask;
-	int optflags = 0;
 	char *dev, *dir, mntpath[MAXPATHLEN], *csp;
 	char fstype[] = "msdosfs";
 	char *cs_dos = NULL;
@@ -136,7 +127,6 @@ main(int argc, char **argv)
 		case 'o': {
 			char *p = NULL;
 			char *val = strdup("");
-			getmntopts(optarg, mopts, &mntflags, &optflags);
 			p = strchr(optarg, '=');
 			if (p != NULL) {
 				free(val);
