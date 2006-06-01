@@ -469,7 +469,7 @@ int
 bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		 bus_dmamap_t *mapp)
 {
-	int mflags, malloc_used, swasnull = 0;
+	int mflags;
 
 	if (flags & BUS_DMA_NOWAIT)
 		mflags = M_NOWAIT;
@@ -490,7 +490,6 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 			    __func__, dmat, dmat->flags, ENOMEM);
 			return (ENOMEM);
 		}
-		swasnull = 1;
 	}
 
 	/* 
@@ -499,13 +498,12 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	 * alignment guarantees of malloc need to be nailed down, and the
 	 * code below should be rewritten to take that into account.
 	 *
-	 * In the meantime, we'll return an error if malloc gets it wrong.
+	 * In the meantime, we'll warn the user if malloc gets it wrong.
 	 */
 	if ((dmat->maxsize <= PAGE_SIZE) &&
 	   (dmat->alignment < dmat->maxsize) &&
 	    dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem)) {
 		*vaddr = malloc(dmat->maxsize, M_DEVBUF, mflags);
-		malloc_used = 1;
 	} else {
 		/*
 		 * XXX Use Contigmalloc until it is merged into this facility
@@ -516,29 +514,13 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		*vaddr = contigmalloc(dmat->maxsize, M_DEVBUF, mflags,
 		    0ul, dmat->lowaddr, dmat->alignment? dmat->alignment : 1ul,
 		    dmat->boundary);
-		malloc_used = 0;
 	}
 	if (*vaddr == NULL) {
-		if (swasnull) {
-			free(dmat->segments, M_DEVBUF);
-			dmat->segments = NULL;
-		}
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 		    __func__, dmat, dmat->flags, ENOMEM);
 		return (ENOMEM);
-	}
-	if ((uintptr_t)*vaddr & (dmat->alignment - 1)) {
+	} else if ((uintptr_t)*vaddr & (dmat->alignment - 1)) {
 		printf("bus_dmamem_alloc failed to align memory properly.");
-		if (malloc_used) {
-			free(*vaddr, M_DEVBUF);
-		} else {
-			contigfree(*vaddr, dmat->maxsize, M_DEVBUF);
-		}
-		if (swasnull) {
-			free(dmat->segments, M_DEVBUF);
-			dmat->segments = NULL;
-		}
-		return (EINVAL);
 	}
 	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 	    __func__, dmat, dmat->flags, ENOMEM);
