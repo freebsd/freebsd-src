@@ -435,7 +435,7 @@ xfs_inode_lock_init(
 	mrlock_init(&ip->i_lock, MRLOCK_ALLOW_EQUAL_PRI|MRLOCK_BARRIER,
 		     "xfsino", (long)vp->v_number);
 	mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", vp->v_number);
-#if XXXKAN
+#ifdef XXXKAN
 	init_waitqueue_head(&ip->i_ipin_wait);
 #endif
 	atomic_set(&ip->i_pincount, 0);
@@ -653,7 +653,7 @@ xfs_iextract(
 		}
 	}
 
-#if XXXKAN
+#ifdef XXXKAN
 	/*
 	 * Not sure if while i_reclaim crap is needed on
 	 * FreeBSD, will revisit this later.

@@ -32,6 +32,7 @@
 
 #include "xfs.h"
 
+#include "xfs_macros.h"
 #include "xfs_fs.h"
 #include "xfs_inum.h"
 #include "xfs_log.h"
@@ -68,7 +69,7 @@
 #include "xfs_fsops.h"
 
 
-#if XXXKAN
+#ifdef XXXKAN
 /*
  * ioctl commands that are used by Linux filesystems
  */
