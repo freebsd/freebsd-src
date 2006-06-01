@@ -46,7 +46,7 @@
 #define	ISP_RESETHBA	_IO(ISP_IOC, 2)
 
 /*
- * This ioctl performs a fibre chanel rescan.
+ * This ioctl performs a fibre channel rescan.
  */
 #define	ISP_RESCAN	_IO(ISP_IOC, 3)
 
@@ -75,11 +75,11 @@
  */
 #define	ISP_STATS_VERSION	0
 typedef struct {
-	u_int8_t	isp_stat_version;
-	u_int8_t	isp_type;		/* (ro) reflects chip type */
-	u_int8_t	isp_revision;		/* (ro) reflects chip version */
-	u_int8_t	unused1;
-	u_int32_t	unused2;
+	uint8_t		isp_stat_version;
+	uint8_t		isp_type;		/* (ro) reflects chip type */
+	uint8_t		isp_revision;		/* (ro) reflects chip version */
+	uint8_t		unused1;
+	uint32_t	unused2;
 	/*
 	 * Statistics Counters
 	 */
@@ -92,7 +92,7 @@ typedef struct {
 #define	ISP_FPHCCMCPLT	5
 #define	ISP_RSCCHIWAT	6
 #define	ISP_FPCCHIWAT	7
-	u_int64_t	isp_stats[ISP_NSTATS];
+	uint64_t	isp_stats[ISP_NSTATS];
 } isp_stats_t;
 
 #define	ISP_GET_STATS	_IOR(ISP_IOC, 6, isp_stats_t)
@@ -110,12 +110,12 @@ typedef struct {
  * only), 24 bit Port ID and Node and Port WWNs.
  */
 struct isp_fc_device {
-	u_int32_t	loopid;		/* 0..255 */
-	u_int32_t		: 6,
+	uint32_t	loopid;		/* 0..255 */
+	uint32_t		: 6,
 			role 	: 2,
 			portid	: 24;	/* 24 bit Port ID */
-	u_int64_t	node_wwn;
-	u_int64_t	port_wwn;
+	uint64_t	node_wwn;
+	uint64_t	port_wwn;
 };
 #define	ISP_FC_GETDINFO	_IOWR(ISP_IOC, 9, struct isp_fc_device)
 
@@ -130,7 +130,7 @@ struct isp_fc_device {
  * topology and capabilities.
  */
 struct isp_hba_device {
-	u_int32_t
+	uint32_t
 					: 8,
 					: 4,
 		fc_speed		: 4,	/* Gbps */
@@ -140,14 +140,14 @@ struct isp_hba_device {
 		fc_scsi_supported	: 1,
 		fc_topology		: 3,
 		fc_loopid		: 8;
-	u_int8_t	fc_fw_major;
-	u_int8_t	fc_fw_minor;
-	u_int8_t	fc_fw_micro;
-	u_int8_t	reserved;
-	u_int64_t	nvram_node_wwn;
-	u_int64_t	nvram_port_wwn;
-	u_int64_t	active_node_wwn;
-	u_int64_t	active_port_wwn;
+	uint8_t		fc_fw_major;
+	uint8_t		fc_fw_minor;
+	uint8_t		fc_fw_micro;
+	uint8_t		reserved;
+	uint64_t	nvram_node_wwn;
+	uint64_t	nvram_port_wwn;
+	uint64_t	active_node_wwn;
+	uint64_t	active_port_wwn;
 };
 
 #define	ISP_TOPO_UNKNOWN	0	/* connection topology unknown */
@@ -175,7 +175,7 @@ struct isp_hba_device {
 
 struct isp_fc_param {
 	char		param_name[16];	/* null terminated */
-	u_int32_t	parameter;
+	uint32_t	parameter;
 };
 
 #define	ISP_GET_FC_PARAM	_IOWR(ISP_IOC, 98, struct isp_fc_param)
@@ -185,8 +185,8 @@ struct isp_fc_param {
  * Various Reset Goodies
  */
 struct isp_fc_tsk_mgmt {
-	u_int32_t	loopid;		/* 0..255 */
-	u_int32_t	lun;
+	uint32_t	loopid;		/* 0..255 */
+	uint32_t	lun;
 	enum {
 	    CLEAR_ACA, TARGET_RESET, LUN_RESET, CLEAR_TASK_SET, ABORT_TASK_SET
 	} action;
