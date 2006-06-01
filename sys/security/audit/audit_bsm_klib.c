@@ -489,10 +489,11 @@ canon_path(struct thread *td, char *path, char *cpath)
 	char *retbuf, *freebuf;
 	struct vnode *vnp;
 	struct filedesc *fdp;
-	int error, vfslocked;
+	int cisr, error, vfslocked;
 
 	fdp = td->td_proc->p_fd;
 	bufp = path;
+	cisr = 0;
 	FILEDESC_LOCK(fdp);
 	if (*(path) == '/') {
 		while (*(bufp) == '/')
@@ -511,6 +512,7 @@ canon_path(struct thread *td, char *path, char *cpath)
 		}
 	} else {
 		vnp = fdp->fd_cdir;	/* Prepend the current dir. */
+		cisr = (fdp->fd_rdir == fdp->fd_cdir);
 		vref(vnp);
 		bufp = path;
 	}
@@ -527,8 +529,14 @@ canon_path(struct thread *td, char *path, char *cpath)
 		vn_lock(vnp, LK_EXCLUSIVE | LK_RETRY, td);
 		error = vn_fullpath(td, vnp, &retbuf, &freebuf);
 		if (error == 0) {
-			/* Copy and free buffer allocated by vn_fullpath(). */
-			snprintf(cpath, MAXPATHLEN, "%s/%s", retbuf, bufp);
+			/* Copy and free buffer allocated by vn_fullpath().
+			 * If the current working directory was the same as
+			 * the root directory, and the path was a relative
+			 * pathname, do not separate the two components with
+			 * the '/' character.
+			 */
+			snprintf(cpath, MAXPATHLEN, "%s%s%s", retbuf,
+			    cisr ? "" : "/", bufp);
 			free(freebuf, M_TEMP);
 		} else
 			cpath[0] = '\0';
