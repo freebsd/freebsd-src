@@ -350,7 +350,7 @@ xfs_swapext(
 		break;
 	}
 
-#if XXXKAN /* Not necessary, vnodes are vrefed already by fgetvp */
+#ifdef XXXKAN /* Not necessary, vnodes are vrefed already by fgetvp */
 	/*
 	 * Increment vnode ref counts since xfs_trans_commit &
 	 * xfs_trans_cancel will both unlock the inodes and

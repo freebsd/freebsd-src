@@ -834,7 +834,7 @@ xfs_statvfs(
 
 	statp->f_fsid.val[0] = dev2udev(mp->m_dev);
 	statp->f_fsid.val[1] = 0;
-#if XXXKAN /* not defined for FreeBSD */
+#ifdef XXXKAN /* not defined for FreeBSD */
 	statp->f_namelen = MAXNAMELEN - 1;
 #endif
 	return 0;
