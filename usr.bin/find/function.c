@@ -952,7 +952,7 @@ c_fstype(OPTION *option, char ***argvp)
 int
 f_group(PLAN *plan, FTSENT *entry)
 {
-	return entry->fts_statp->st_gid == plan->g_data;
+	COMPARE(entry->fts_statp->st_gid, plan->g_data);
 }
 
 PLAN *
@@ -966,15 +966,19 @@ c_group(OPTION *option, char ***argvp)
 	gname = nextarg(option, argvp);
 	ftsoptions &= ~FTS_NOSTAT;
 
+	new = palloc(option);
 	g = getgrnam(gname);
 	if (g == NULL) {
+		char* cp = gname;
+		if( gname[0] == '-' || gname[0] == '+' )
+			gname++;
 		gid = atoi(gname);
 		if (gid == 0 && gname[0] != '0')
 			errx(1, "%s: %s: no such group", option->name, gname);
+		gid = find_parsenum(new, option->name, cp, NULL);
 	} else
 		gid = g->gr_gid;
 
-	new = palloc(option);
 	new->g_data = gid;
 	return new;
 }
@@ -1465,7 +1469,7 @@ c_type(OPTION *option, char ***argvp)
 int
 f_user(PLAN *plan, FTSENT *entry)
 {
-	return entry->fts_statp->st_uid == plan->u_data;
+	COMPARE(entry->fts_statp->st_uid, plan->u_data);
 }
 
 PLAN *
@@ -1479,15 +1483,19 @@ c_user(OPTION *option, char ***argvp)
 	username = nextarg(option, argvp);
 	ftsoptions &= ~FTS_NOSTAT;
 
+	new = palloc(option);
 	p = getpwnam(username);
 	if (p == NULL) {
+		char* cp = username;
+		if( username[0] == '-' || username[0] == '+' )
+			username++;
 		uid = atoi(username);
 		if (uid == 0 && username[0] != '0')
 			errx(1, "%s: %s: no such user", option->name, username);
+		uid = find_parsenum(new, option->name, cp, NULL);
 	} else
 		uid = p->pw_uid;
 
-	new = palloc(option);
 	new->u_data = uid;
 	return new;
 }
