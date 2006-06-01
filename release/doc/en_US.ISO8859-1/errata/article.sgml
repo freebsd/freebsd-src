@@ -118,14 +118,14 @@
 	<tbody>
 	  <row>
 	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:15.ypserv.asc"
-		>06:15.ypserv</ulink></entry>
+		>SA-06:15.ypserv</ulink></entry>
 	    <entry>31&nbsp;May&nbsp;2006</entry>
 	    <entry><para>Inoperative access controls in &man.ypserv.8;</para></entry>
 	  </row>
 
 	  <row>
 	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:16.smbfs.asc"
-		>06:16.smbfs</ulink></entry>
+		>SA-06:16.smbfs</ulink></entry>
 	    <entry>31&nbsp;May&nbsp;2006</entry>
 	    <entry><para>smbfs chroot escape</para></entry>
 	  </row>
