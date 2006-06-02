@@ -599,13 +599,13 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 	if (rv) {
 		mpt_prt(mpt, "failed to read SPI Port Page 2\n");
 	} else {
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-		    "SPI Port Page 2: Flags %x Settings %x\n",
+		mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
+		    "Port Page 2: Flags %x Settings %x\n",
 		    mpt->mpt_port_page2.PortFlags,
 		    mpt->mpt_port_page2.PortSettings);
 		for (i = 0; i < 16; i++) {
-			mpt_lprt(mpt, MPT_PRT_DEBUG,
-		  	    "SPI Port Page 2 Tgt %d: timo %x SF %x Flags %x\n",
+			mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
+		  	    " Port Page 2 Tgt %d: timo %x SF %x Flags %x\n",
 			    i, mpt->mpt_port_page2.DeviceSettings[i].Timeout,
 			    mpt->mpt_port_page2.DeviceSettings[i].SyncFactor,
 			    mpt->mpt_port_page2.DeviceSettings[i].DeviceFlags);
@@ -621,9 +621,9 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 			    "cannot read SPI Target %d Device Page 0\n", i);
 			continue;
 		}
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-		    "SPI Tgt %d Page 0: NParms %x Information %x", i,
-		    mpt->mpt_dev_page0[i].NegotiatedParameters,
+		mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
+		    "target %d page 0: Negotiated Params %x Information %x\n",
+		    i, mpt->mpt_dev_page0[i].NegotiatedParameters,
 		    mpt->mpt_dev_page0[i].Information);
 
 		rv = mpt_read_cur_cfg_page(mpt, i,
@@ -634,9 +634,9 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 			    "cannot read SPI Target %d Device Page 1\n", i);
 			continue;
 		}
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-		    "SPI Tgt %d Page 1: RParms %x Configuration %x\n", i,
-		    mpt->mpt_dev_page1[i].RequestedParameters,
+		mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
+		    "target %d page 1: Requested Params %x Configuration %x\n",
+		    i, mpt->mpt_dev_page1[i].RequestedParameters,
 		    mpt->mpt_dev_page1[i].Configuration);
 	}
 	return (0);
@@ -693,16 +693,20 @@ mpt_set_initial_config_spi(struct mpt_softc *mpt)
 	    MPI_SCSIPORTPAGE2_PORT_MASK_NEGO_MASTER_SETTINGS;
 	j = mpt->mpt_port_page2.PortFlags &
 	    MPI_SCSIPORTPAGE2_PORT_FLAGS_DV_MASK;
-	if (i == MPI_SCSIPORTPAGE2_PORT_ALL_MASTER_SETTINGS &&
-	    j == MPI_SCSIPORTPAGE2_PORT_FLAGS_OFF_DV) {
+	if (i == MPI_SCSIPORTPAGE2_PORT_ALL_MASTER_SETTINGS /* &&
+	    j == MPI_SCSIPORTPAGE2_PORT_FLAGS_OFF_DV */) {
 		mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
 		    "honoring BIOS transfer negotiations\n");
-		return (0);
-	}
-	for (i = 0; i < 16; i++) {
-		mpt->mpt_dev_page1[i].RequestedParameters = 0;
-		mpt->mpt_dev_page1[i].Configuration = 0;
-		(void) mpt_update_spi_config(mpt, i);
+		for (i = 0; i < 16; i++) {
+			mpt->mpt_dv[i].state = DV_STATE_DONE;
+		}
+	} else {
+		for (i = 0; i < 16; i++) {
+			mpt->mpt_dev_page1[i].RequestedParameters = 0;
+			mpt->mpt_dev_page1[i].Configuration = 0;
+			(void) mpt_update_spi_config(mpt, i);
+			mpt->mpt_dv[i].state = DV_STATE_0;
+		}
 	}
 	return (0);
 }
@@ -724,7 +728,7 @@ mpt_cam_enable(struct mpt_softc *mpt)
 		if (mpt_set_initial_config_sas(mpt)) {
 			return (EIO);
 		}
-	} else {
+	} else if (mpt->is_spi) {
 		if (mpt_read_config_info_spi(mpt)) {
 			return (EIO);
 		}
@@ -873,10 +877,17 @@ mpt_execute_req_a64(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			break;
 		}
 	}
+
+	if (error == 0 && ((uint32_t)nseg) >= mpt->max_seg_cnt) {
+		error = EFBIG;
+		mpt_prt(mpt, "segment count %d too large (max %u)\n",
+		    nseg, mpt->max_seg_cnt);
+	}
+
 bad:
 	if (error != 0) {
 		if (error != EFBIG && error != ENOMEM) {
-			mpt_prt(mpt, "mpt_execute_req: err %d\n", error);
+			mpt_prt(mpt, "mpt_execute_req_a64: err %d\n", error);
 		}
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG) {
 			cam_status status;
@@ -1275,12 +1286,8 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 bad:
 	if (error != 0) {
-		if (hdrp->Function == MPI_FUNCTION_TARGET_ASSIST) {
-			request_t *cmd_req =
-				MPT_TAG_2_REQ(mpt, ccb->csio.tag_id);
-			MPT_TGT_STATE(mpt, cmd_req)->state = TGT_STATE_IN_CAM;
-			MPT_TGT_STATE(mpt, cmd_req)->ccb = NULL;
-			MPT_TGT_STATE(mpt, cmd_req)->req = NULL;
+		if (error != EFBIG && error != ENOMEM) {
+			mpt_prt(mpt, "mpt_execute_req: err %d\n", error);
 		}
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG) {
 			cam_status status;
@@ -1299,6 +1306,13 @@ bad:
 				status = CAM_REQ_CMP_ERR;
 			}
 			mpt_set_ccb_status(ccb, status);
+		}
+		if (hdrp->Function == MPI_FUNCTION_TARGET_ASSIST) {
+			request_t *cmd_req =
+				MPT_TAG_2_REQ(mpt, ccb->csio.tag_id);
+			MPT_TGT_STATE(mpt, cmd_req)->state = TGT_STATE_IN_CAM;
+			MPT_TGT_STATE(mpt, cmd_req)->ccb = NULL;
+			MPT_TGT_STATE(mpt, cmd_req)->req = NULL;
 		}
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d\n", __LINE__));
@@ -1329,7 +1343,7 @@ bad:
 
 
 	flags = MPI_SGE_FLAGS_SIMPLE_ELEMENT;
-	if (istgt) {
+	if (istgt == 0) {
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
 			flags |= MPI_SGE_FLAGS_HOST_TO_IOC;
 		}
@@ -1382,6 +1396,9 @@ bad:
 
 		memset(se, 0,sizeof (*se));
 		se->Address = dm_segs->ds_addr;
+
+
+
 		MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
 		tf = flags;
 		if (seg == first_lim - 1) {
@@ -1452,8 +1469,12 @@ bad:
 		 */
 		chain_list_addr = trq->req_pbuf;
 		chain_list_addr += cur_off;
+
+
+
 		ce->Address = chain_list_addr;
 		ce->Flags = MPI_SGE_FLAGS_CHAIN_ELEMENT;
+
 
 		/*
 		 * If we have more than a frame's worth of segments left,
@@ -1489,6 +1510,10 @@ bad:
 		while (seg < this_seg_lim) {
 			memset(se, 0, sizeof (*se));
 			se->Address = dm_segs->ds_addr;
+
+
+
+
 			MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
 			tf = flags;
 			if (seg ==  this_seg_lim - 1) {
@@ -1554,7 +1579,8 @@ out:
 			MPT_TGT_STATE(mpt, cmd_req)->ccb = NULL;
 			MPT_TGT_STATE(mpt, cmd_req)->req = NULL;
 		}
-		mpt_prt(mpt, "mpt_execute_req: I/O cancelled (status 0x%x)\n",
+		mpt_prt(mpt,
+		    "mpt_execute_req: I/O cancelled (status 0x%x)\n",
 		    ccb->ccb_h.status & CAM_STATUS_MASK);
 		if (nseg && (ccb->ccb_h.flags & CAM_SG_LIST_PHYS) == 0) {
 			bus_dmamap_unload(mpt->buffer_dmat, req->dmap);
@@ -1584,6 +1610,7 @@ out:
 			mpt_dump_sgl(trq->req_vbuf, 0);
 		}
 	}
+
 	if (hdrp->Function == MPI_FUNCTION_TARGET_ASSIST) {
 		request_t *cmd_req = MPT_TAG_2_REQ(mpt, ccb->csio.tag_id);
 		mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, cmd_req);
@@ -1727,7 +1754,7 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 		}
 	}
 
-	if (mpt->is_fc == 0 && mpt->is_sas == 0) {
+	if (mpt->is_spi) {
 		if (ccb->ccb_h.flags & CAM_DIS_DISCONNECT) {
 			mpt_req->Control |= MPI_SCSIIO_CONTROL_NO_DISCONNECT;
 		}
@@ -2044,6 +2071,7 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 {
 	MSG_SCSI_IO_REQUEST *scsi_req;
 	union ccb *ccb;
+	target_id_t tgt;
 
 	if (req->state == REQ_STATE_FREE) {
 		mpt_prt(mpt, "mpt_scsi_reply_handler: req already free\n");
@@ -2053,14 +2081,24 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 	scsi_req = (MSG_SCSI_IO_REQUEST *)req->req_vbuf;
 	ccb = req->ccb;
 	if (ccb == NULL) {
+		/*
+		 * Peel off any 'by hand' commands here
+		 */
+		if (req->state & REQ_STATE_NEED_WAKEUP) {
+			req->state &= ~REQ_STATE_QUEUED;
+			req->state |= REQ_STATE_DONE;
+			wakeup(req);
+			return (TRUE);
+		}
 		mpt_prt(mpt, "req %p:%u without CCB (state %#x "
 		    "func %#x index %u rf %p)\n", req, req->serno, req->state,
 		    scsi_req->Function, req->index, reply_frame);
 		mpt_print_scsi_io_request(scsi_req);
 		return (TRUE);
 	}
-
+	tgt = scsi_req->TargetID;
 	untimeout(mpt_timeout, ccb, ccb->ccb_h.timeout_ch);
+	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
 		bus_dmasync_op_t op;
@@ -2087,24 +2125,25 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 	if (mpt->outofbeer) {
 		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 		mpt->outofbeer = 0;
-		mpt_lprt(mpt,  MPT_PRT_DEBUG, "THAWQ\n");
+		mpt_lprt(mpt, MPT_PRT_DEBUG, "THAWQ\n");
 	}
-	if (scsi_req->Function == MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH &&
-	    scsi_req->CDB[0] == INQUIRY && (scsi_req->CDB[1] & SI_EVPD) == 0) {
-		struct scsi_inquiry_data *inq;
-		/*
-		 * Fake out the device type so that only the
-		 * pass-thru device will attach.
-		 */
-		inq = (struct scsi_inquiry_data *)ccb->csio.data_ptr;
-		inq->device &= ~0x1F;
-		inq->device |= T_NODEVICE;
+	if (scsi_req->CDB[0] == INQUIRY && (scsi_req->CDB[1] & SI_EVPD) == 0) {
+		struct scsi_inquiry_data *iq = 
+		    (struct scsi_inquiry_data *)ccb->csio.data_ptr;
+		if (scsi_req->Function ==
+		    MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH) {
+			/*
+			 * Fake out the device type so that only the
+			 * pass-thru device will attach.
+			 */
+			iq->device &= ~0x1F;
+			iq->device |= T_NODEVICE;
+		}
 	}
 	if (mpt->verbose == MPT_PRT_DEBUG) {
 		mpt_prt(mpt, "mpt_scsi_reply_handler: %p:%u complete\n",
 		    req, req->serno);
 	}
-	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d\n", __LINE__));
 	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_done(ccb);
@@ -2116,16 +2155,12 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 		    req, req->serno);
 		TAILQ_REMOVE(&mpt->request_timeout_list, req, links);
 	}
-	if ((req->state & REQ_STATE_NEED_WAKEUP) == 0) {
+	KASSERT((req->state & REQ_STATE_NEED_WAKEUP) == 0,
+	    ("CCB req needed wakeup"));
 #ifdef	INVARIANTS
-		mpt_req_not_spcl(mpt, req, "mpt_scsi_reply_handler", __LINE__);
+	mpt_req_not_spcl(mpt, req, "mpt_scsi_reply_handler", __LINE__);
 #endif
-		mpt_free_request(mpt, req);
-		return (TRUE);
-	}
-	req->state &= ~REQ_STATE_QUEUED;
-	req->state |= REQ_STATE_DONE;
-	wakeup(req);
+	mpt_free_request(mpt, req);
 	return (TRUE);
 }
 
@@ -2828,7 +2863,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 		}
 
-
 		dval = 0;
 		period = 0;
 		offset = 0;
@@ -2846,13 +2880,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			else
 				dval |= DP_NARROW;
 		}
-		/*
-		 * Any SYNC RATE of nonzero and SYNC_OFFSET
-		 * of nonzero will cause us to go to the
-		 * selected (from NVRAM) maximum value for
-		 * this device. At a later point, we'll
-		 * allow finer control.
-		 */
 		if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) &&
 		    (cts->valid & CCB_TRANS_SYNC_OFFSET_VALID)) {
 			dval |= DP_SYNC;
@@ -2895,9 +2922,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			offset = spi->sync_offset;
 		}
 #endif
-		mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
-		    "mpt_action: SET tgt %d flags %x period %x off %x\n",
-		    tgt, dval, period, offset);
 		CAMLOCK_2_MPTLOCK(mpt);
 		if (dval & DP_DISC_ENABLE) {
 			mpt->mpt_disc_enable |= (1 << tgt);
@@ -2915,13 +2939,13 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		if (dval & DP_SYNC) {
 			mpt_setsync(mpt, tgt, period, offset);
 		}
+
 		if (mpt_update_spi_config(mpt, tgt)) {
-			MPTLOCK_2_CAMLOCK(mpt);
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
-			break;
+		} else {
+			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 		}
 		MPTLOCK_2_CAMLOCK(mpt);
-		mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 		break;
 	}
 	case XPT_GET_TRAN_SETTINGS:
@@ -3149,11 +3173,11 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 	}
 
 	/*
-	 * We aren't going off of Port PAGE2 params for
-	 * tagged queuing or disconnect capabilities
-	 * for current settings. For goal settings,
-	 * we assert all capabilities- we've had some
-	 * problems with reading NVRAM data.
+	 * XXX: We aren't looking Port Page 2 BIOS settings here.
+	 * XXX: For goal settings, we pick the max from port page 0
+	 * 
+	 * For current settings we read the current settings out from
+	 * device page 0 for that target.
 	 */
 	if (IS_CURRENT_SETTINGS(cts)) {
 		CONFIG_PAGE_SCSI_DEVICE_0 tmp;
@@ -3180,11 +3204,10 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 		}
 		oval = (tmp.NegotiatedParameters >> 16) & 0xff;
 		pval = (tmp.NegotiatedParameters >>  8) & 0xff;
+		mpt->mpt_dev_page0[tgt] = tmp;
 	} else {
 		/*
-		 * XXX: Fix wrt NVRAM someday. Attempts
-		 * XXX: to read port page2 device data
-		 * XXX: just returns zero in these areas.
+		 * XXX: Just make theoretical maximum.
 		 */
 		dval = DP_WIDE|DP_DISC|DP_TQING;
 		oval = (mpt->mpt_port_page0.Capabilities >> 16);
@@ -3245,9 +3268,8 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 	}
 #endif
 	mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
-	    "mpt_get_spi_settings: tgt %d %s settings flags 0x%x period 0x%x "
-	    "offset %x\n", tgt, IS_CURRENT_SETTINGS(cts)? "ACTIVE" : "NVRAM ",
-	    dval, pval, oval);
+	    "mpt_get_spi_settings[%d]: %s 0x%x period 0x%x offset %d\n", tgt,
+	    IS_CURRENT_SETTINGS(cts)? "ACTIVE" : "NVRAM ", dval, pval, oval);
 	return (0);
 }
 
@@ -3275,24 +3297,13 @@ mpt_setsync(struct mpt_softc *mpt, int tgt, int period, int offset)
 	ptr->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_DT;
 	ptr->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_QAS;
 	ptr->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_IU;
-
-	/*
-	 * XXX: For now, we're ignoring specific settings
-	 */
-	if (period && offset) {
-		int factor, offset, np;
-		factor = (mpt->mpt_port_page0.Capabilities >> 8) & 0xff;
-		offset = (mpt->mpt_port_page0.Capabilities >> 16) & 0xff;
-		np = 0;
-		if (factor < 0x9) {
-			np |= MPI_SCSIDEVPAGE1_RP_QAS;
-			np |= MPI_SCSIDEVPAGE1_RP_IU;
-		}
-		if (factor < 0xa) {
-			np |= MPI_SCSIDEVPAGE1_RP_DT;
-		}
-		np |= (factor << 8) | (offset << 16);
-		ptr->RequestedParameters |= np;
+	ptr->RequestedParameters |= (period << 8) | (offset << 16);
+	if (period < 0xa) {
+		ptr->RequestedParameters |= MPI_SCSIDEVPAGE1_RP_DT;
+	}
+	if (period < 0x9) {
+		ptr->RequestedParameters |= MPI_SCSIDEVPAGE1_RP_QAS;
+		ptr->RequestedParameters |= MPI_SCSIDEVPAGE1_RP_IU;
 	}
 }
 
@@ -3302,6 +3313,9 @@ mpt_update_spi_config(struct mpt_softc *mpt, int tgt)
 	CONFIG_PAGE_SCSI_DEVICE_1 tmp;
 	int rv;
 
+	mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
+	    "mpt_update_spi_config[%d].page1: Requested Params 0x%08x\n",
+	    tgt, mpt->mpt_dev_page1[tgt].RequestedParameters);
 	tmp = mpt->mpt_dev_page1[tgt];
 	rv = mpt_write_cur_cfg_page(mpt, tgt,
 	    &tmp.Header, sizeof(tmp), FALSE, 5000);
@@ -3309,17 +3323,6 @@ mpt_update_spi_config(struct mpt_softc *mpt, int tgt)
 		mpt_prt(mpt, "mpt_update_spi_config: write cur page failed\n");
 		return (-1);
 	}
-	rv = mpt_read_cur_cfg_page(mpt, tgt,
-	    &tmp.Header, sizeof(tmp), FALSE, 500);
-	if (rv) {
-		mpt_prt(mpt, "mpt_update_spi_config: read cur page failed\n");
-		return (-1);
-	}
-	mpt->mpt_dev_page1[tgt] = tmp;
-	mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
-	    "mpt_update_spi_config[%d].page1: RParams 0x%x Config 0x%x\n",
-	    tgt, mpt->mpt_dev_page1[tgt].RequestedParameters,
-	    mpt->mpt_dev_page1[tgt].Configuration);
 	return (0);
 }
 
@@ -3922,13 +3925,11 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 		memset(req->req_vbuf, 0, MPT_RQSL(mpt));
 		ta = req->req_vbuf;
 
-		if (mpt->is_fc) {
-			;
-		} else if (mpt->is_sas == 0) {
+		if (mpt->is_sas == 0) {
 			PTR_MPI_TARGET_SSP_CMD_BUFFER ssp =
 			     cmd_req->req_vbuf;
 			ta->QueueTag = ssp->InitiatorTag;
-		} else {
+		} else if (mpt->is_spi) {
 			PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER sp =
 			     cmd_req->req_vbuf;
 			ta->QueueTag = sp->Tag;

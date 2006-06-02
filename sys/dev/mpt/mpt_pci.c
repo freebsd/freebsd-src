@@ -387,6 +387,7 @@ mpt_pci_attach(device_t dev)
 		mpt->is_sas = 1;
 		break;
 	default:
+		mpt->is_spi = 1;
 		break;
 	}
 	mpt->dev = dev;
