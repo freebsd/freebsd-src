@@ -190,7 +190,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	/*
 	 * Let BPF tap off a copy before we encapsulate.
 	 */
-	if (ifp->if_bpf) {
+	if (bpf_peers_present(ifp->if_bpf)) {
 		struct fw_bpfhdr h;
 		if (unicast)
 			bcopy(destfw, h.firewire_dhost, 8);
@@ -565,7 +565,7 @@ firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src)
 	 * Give bpf a chance at the packet. The link-level driver
 	 * should have left us a tag with the EUID of the sender.
 	 */
-	if (ifp->if_bpf) {
+	if (bpf_peers_present(ifp->if_bpf)) {
 		struct fw_bpfhdr h;
 		struct m_tag *mtag;
 

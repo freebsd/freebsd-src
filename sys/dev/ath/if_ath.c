@@ -3635,7 +3635,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		ieee80211_dump_pkt(mtod(m0, caddr_t), m0->m_len,
 			sc->sc_hwmap[txrate].ieeerate, -1);
 
-	if (ic->ic_rawbpf)
+	if (bpf_peers_present(ic->ic_rawbpf))
 		bpf_mtap(ic->ic_rawbpf, m0);
 	if (bpf_peers_present(sc->sc_drvbpf)) {
 		u_int64_t tsf = ath_hal_gettsf64(ah);
