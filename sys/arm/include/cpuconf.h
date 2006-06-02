@@ -72,7 +72,7 @@
 #endif
 
 #define	ARM_NARCH	(ARM_ARCH_4 + ARM_ARCH_5)
-#if ARM_NARCH == 0 && !defined(KLD_MODULE)
+#if ARM_NARCH == 0 && !defined(KLD_MODULE) && defined(_KERNEL)
 #error ARM_NARCH is 0
 #endif
 
@@ -120,7 +120,7 @@
 
 #define	ARM_NMMUS		(ARM_MMU_MEMC + ARM_MMU_GENERIC +	\
 				 ARM_MMU_SA1 + ARM_MMU_XSCALE)
-#if ARM_NMMUS == 0 && !defined(KLD_MODULE)
+#if ARM_NMMUS == 0 && !defined(KLD_MODULE) && defined(_KERNEL)
 #error ARM_NMMUS is 0
 #endif
 
