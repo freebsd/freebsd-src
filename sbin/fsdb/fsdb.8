@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 14, 1995
+.Dd June 2, 2006
 .Dt FSDB 8
 .Os
 .Sh NAME
@@ -117,6 +117,12 @@ Print out the active inode.
 Print out the block list of the active inode.
 Note that the printout can become long for large files, since all
 indirect block pointers will also be printed.
+.Pp
+.It Cm findblk Ar disk block number ...
+Find the inode(s) owning the specified disk block(s) number(s).
+Note that these are not absolute disk blocks numbers, but offsets from the
+start of the partition.
+.Pp
 .It Cm uplink
 Increment the active inode's link count.
 .Pp
