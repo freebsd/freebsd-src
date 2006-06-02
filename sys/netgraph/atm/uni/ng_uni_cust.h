@@ -140,11 +140,11 @@ extern size_t unimem_sizes[UNIMEM_TYPES];
 
 #define	UNICORE								\
 size_t unimem_sizes[UNIMEM_TYPES] = {					\
-	[UNIMEM_INS]	sizeof(struct uni),				\
-	[UNIMEM_ALL]	sizeof(struct uni_all),				\
-	[UNIMEM_SIG]	sizeof(struct sig),				\
-	[UNIMEM_CALL]	sizeof(struct call),				\
-	[UNIMEM_PARTY]	sizeof(struct party)				\
+	[UNIMEM_INS]	= sizeof(struct uni),				\
+	[UNIMEM_ALL]	= sizeof(struct uni_all),			\
+	[UNIMEM_SIG]	= sizeof(struct sig),				\
+	[UNIMEM_CALL]	= sizeof(struct call),				\
+	[UNIMEM_PARTY]	= sizeof(struct party)				\
 };
 
 #define	memmove(T, F, L) bcopy((F), (T), (L))
