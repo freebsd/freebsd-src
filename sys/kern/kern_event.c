@@ -1708,7 +1708,7 @@ knlist_destroy(struct knlist *knl)
 void
 knlist_cleardel(struct knlist *knl, struct thread *td, int islocked, int killkn)
 {
-	struct knote *kn;
+	struct knote *kn, *kn2;
 	struct kqueue *kq;
 
 	if (islocked)
@@ -1719,7 +1719,7 @@ again:		/* need to reaquire lock since we have dropped it */
 		knl->kl_lock(knl->kl_lockarg);
 	}
 
-	SLIST_FOREACH(kn, &knl->kl_list, kn_selnext) {
+	SLIST_FOREACH_SAFE(kn, &knl->kl_list, kn_selnext, kn2) {
 		kq = kn->kn_kq;
 		KQ_LOCK(kq);
 		if ((kn->kn_status & KN_INFLUX)) {
