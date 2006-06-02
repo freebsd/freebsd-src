@@ -146,6 +146,7 @@ raw_uabort(struct socket *so)
 	KASSERT(rp != NULL, ("raw_uabort: rp == NULL"));
 	raw_disconnect(rp);
 	soisdisconnected(so);
+	raw_detach(rp);
 }
 
 /* pru_accept is EOPNOTSUPP */
