@@ -78,6 +78,8 @@ struct vmspace *vmspace_alloc(vm_offset_t, vm_offset_t);
 struct vmspace *vmspace_fork(struct vmspace *);
 void vmspace_exec(struct proc *, vm_offset_t, vm_offset_t);
 void vmspace_unshare(struct proc *);
+void vmspace_exit(struct thread *);
+struct vmspace *vmspace_acquire_ref(struct proc *);
 void vmspace_free(struct vmspace *);
 void vmspace_exitfree(struct proc *);
 void vnode_pager_setsize(struct vnode *, vm_ooffset_t);

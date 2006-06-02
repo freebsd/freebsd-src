@@ -242,7 +242,6 @@ struct vmspace {
 	caddr_t vm_taddr;	/* (c) user virtual address of text */
 	caddr_t vm_daddr;	/* (c) user virtual address of data */
 	caddr_t vm_maxsaddr;	/* user VA at max stack growth */
-	int	vm_exitingcnt;	/* several processes zombied in exit1  */
 	int	vm_refcnt;	/* number of references */
 };
 
