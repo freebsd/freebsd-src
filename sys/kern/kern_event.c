@@ -813,7 +813,7 @@ findkn:
 			if (fp->f_data == kq) {
 				FILEDESC_UNLOCK(fdp);
 				error = EINVAL;
-				goto done_noglobal;
+				goto done;
 			}
 
 			KQ_GLOBAL_LOCK(&kq_global, haskqglobal);
@@ -954,7 +954,6 @@ findkn:
 
 done:
 	KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
-done_noglobal:
 	if (fp != NULL)
 		fdrop(fp, td);
 	if (tkn != NULL)
