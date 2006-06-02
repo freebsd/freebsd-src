@@ -852,12 +852,9 @@ retry:
 		 * process may attempt to alter
 		 * the map.
 		 */
-		PROC_LOCK(p);
-		vm = p->p_vmspace;
-		KASSERT(vm != NULL,
-			("swapout_procs: a process has no address space"));
-		atomic_add_int(&vm->vm_refcnt, 1);
-		PROC_UNLOCK(p);
+		vm = vmspace_acquire_ref(p);
+		if (vm == NULL)
+			continue;
 		if (!vm_map_trylock(&vm->vm_map))
 			goto nextproc1;
 
