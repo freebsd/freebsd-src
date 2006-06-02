@@ -301,7 +301,6 @@ bpf_attachd(d, bp)
 	LIST_INSERT_HEAD(&bp->bif_dlist, d, bd_next);
 
 	bpf_bpfd_cnt++;
-	*bp->bif_driverp = bp;
 	BPFIF_UNLOCK(bp);
 }
 
@@ -327,12 +326,6 @@ bpf_detachd(d)
 	LIST_REMOVE(d, bd_next);
 
 	bpf_bpfd_cnt--;
-	/*
-	 * Let the driver know that there are no more listeners.
-	 */
-	if (LIST_EMPTY(&bp->bif_dlist))
-		*bp->bif_driverp = NULL;
-
 	d->bd_bif = NULL;
 	BPFD_UNLOCK(d);
 	BPFIF_UNLOCK(bp);
@@ -1106,51 +1099,33 @@ bpf_setif(d, ifr)
 	struct ifnet *theywant;
 
 	theywant = ifunit(ifr->ifr_name);
-	if (theywant == NULL)
-		return ENXIO;
+	if (theywant == NULL || theywant->if_bpf == NULL)
+		return (ENXIO);
 
+	bp = theywant->if_bpf;
 	/*
-	 * Look through attached interfaces for the named one.
+	 * Allocate the packet buffers if we need to.
+	 * If we're already attached to requested interface,
+	 * just flush the buffer.
 	 */
-	mtx_lock(&bpf_mtx);
-	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
-		struct ifnet *ifp = bp->bif_ifp;
-
-		if (ifp == NULL || ifp != theywant)
-			continue;
-		/* skip additional entry */
-		if (bp->bif_driverp != &ifp->if_bpf)
-			continue;
-
-		mtx_unlock(&bpf_mtx);
-		/*
-		 * We found the requested interface.
-		 * Allocate the packet buffers if we need to.
-		 * If we're already attached to requested interface,
-		 * just flush the buffer.
-		 */
-		if (d->bd_sbuf == NULL) {
-			error = bpf_allocbufs(d);
-			if (error != 0)
-				return (error);
-		}
-		if (bp != d->bd_bif) {
-			if (d->bd_bif)
-				/*
-				 * Detach if attached to something else.
-				 */
-				bpf_detachd(d);
-
-			bpf_attachd(d, bp);
-		}
-		BPFD_LOCK(d);
-		reset_d(d);
-		BPFD_UNLOCK(d);
-		return (0);
+	if (d->bd_sbuf == NULL) {
+		error = bpf_allocbufs(d);
+		if (error != 0)
+			return (error);
 	}
-	mtx_unlock(&bpf_mtx);
-	/* Not found. */
-	return (ENXIO);
+	if (bp != d->bd_bif) {
+		if (d->bd_bif)
+			/*
+			 * Detach if attached to something else.
+			 */
+			bpf_detachd(d);
+
+		bpf_attachd(d, bp);
+	}
+	BPFD_LOCK(d);
+	reset_d(d);
+	BPFD_UNLOCK(d);
+	return (0);
 }
 
 /*
@@ -1272,13 +1247,6 @@ bpf_tap(bp, pkt, pktlen)
 	struct bpf_d *d;
 	u_int slen;
 
-	/*
-	 * Lockless read to avoid cost of locking the interface if there are
-	 * no descriptors attached.
-	 */
-	if (LIST_EMPTY(&bp->bif_dlist))
-		return;
-
 	BPFIF_LOCK(bp);
 	LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
 		BPFD_LOCK(d);
@@ -1339,13 +1307,6 @@ bpf_mtap(bp, m)
 	struct bpf_d *d;
 	u_int pktlen, slen;
 
-	/*
-	 * Lockless read to avoid cost of locking the interface if there are
-	 * no descriptors attached.
-	 */
-	if (LIST_EMPTY(&bp->bif_dlist))
-		return;
-
 	pktlen = m_length(m, NULL);
 
 	BPFIF_LOCK(bp);
@@ -1390,13 +1351,6 @@ bpf_mtap2(bp, data, dlen, m)
 	struct mbuf mb;
 	struct bpf_d *d;
 	u_int pktlen, slen;
-
-	/*
-	 * Lockless read to avoid cost of locking the interface if there are
-	 * no descriptors attached.
-	 */
-	if (LIST_EMPTY(&bp->bif_dlist))
-		return;
 
 	pktlen = m_length(m, NULL);
 	/*
@@ -1589,16 +1543,15 @@ bpfattach2(ifp, dlt, hdrlen, driverp)
 		panic("bpfattach");
 
 	LIST_INIT(&bp->bif_dlist);
-	bp->bif_driverp = driverp;
 	bp->bif_ifp = ifp;
 	bp->bif_dlt = dlt;
 	mtx_init(&bp->bif_mtx, "bpf interface lock", NULL, MTX_DEF);
+	KASSERT(*driverp == NULL, ("bpfattach2: driverp already initialized"));
+	*driverp = bp;
 
 	mtx_lock(&bpf_mtx);
 	LIST_INSERT_HEAD(&bpf_iflist, bp, bif_next);
 	mtx_unlock(&bpf_mtx);
-
-	*bp->bif_driverp = NULL;
 
 	/*
 	 * Compute the length of the bpf header.  This is not necessarily

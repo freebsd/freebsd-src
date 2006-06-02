@@ -657,7 +657,7 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af)
 	SC2IFP(sc)->if_ipackets++;
 	SC2IFP(sc)->if_ibytes += m->m_pkthdr.len;
 
-	if (SC2IFP(sc)->if_bpf) {
+	if (bpf_peers_present(SC2IFP(sc)->if_bpf)) {
 		struct ip *ip = mtod(m, struct ip *);
 		uint32_t af1 = af;
 

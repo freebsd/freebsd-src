@@ -259,7 +259,7 @@ if_simloop(ifp, m, af, hlen)
 	m->m_pkthdr.rcvif = ifp;
 
 	/* Let BPF see incoming packet */
-	if (ifp->if_bpf) {
+	if (bpf_peers_present(ifp->if_bpf)) {
 		if (ifp->if_bpf->bif_dlt == DLT_NULL) {
 			u_int32_t af1 = af;	/* XXX beware sizeof(af) != 4 */
 			/*

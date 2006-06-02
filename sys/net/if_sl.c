@@ -662,7 +662,7 @@ sltstart(struct tty *tp)
 		 * queueing, and the connection id compression will get
 		 * munged when this happens.
 		 */
-		if (SL2IFP(sc)->if_bpf) {
+		if (bpf_peers_present(SL2IFP(sc)->if_bpf)) {
 			/*
 			 * We need to save the TCP/IP header before it's
 			 * compressed.  To avoid complicated code, we just
@@ -696,7 +696,7 @@ sltstart(struct tty *tp)
 				*mtod(m, u_char *) |= sl_compress_tcp(m, ip,
 				    &sc->sc_comp, 1);
 		}
-		if (SL2IFP(sc)->if_bpf && sc->bpfbuf) {
+		if (bpf_peers_present(SL2IFP(sc)->if_bpf) && sc->bpfbuf) {
 			/*
 			 * Put the SLIP pseudo-"link header" in place.  The
 			 * compressed header is now at the beginning of the
@@ -922,7 +922,7 @@ slinput(int c, struct tty *tp)
 			/* less than min length packet - ignore */
 			goto newpack;
 
-		if (SL2IFP(sc)->if_bpf) {
+		if (bpf_peers_present(SL2IFP(sc)->if_bpf)) {
 			/*
 			 * Save the compressed header, so we
 			 * can tack it on later.  Note that we
@@ -961,7 +961,7 @@ slinput(int c, struct tty *tp)
 			} else
 				goto error;
 		}
-		if (SL2IFP(sc)->if_bpf) {
+		if (bpf_peers_present(SL2IFP(sc)->if_bpf)) {
 			/*
 			 * Put the SLIP pseudo-"link header" in place.
 			 * We couldn't do this any earlier since

@@ -425,9 +425,7 @@ gif_output(ifp, m, dst, rt)
 	}
 
 	af = dst->sa_family;
-	if (ifp->if_bpf) {
-		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
-	}
+	BPF_MTAP2(ifp, &af, sizeof(af), m);
 	ifp->if_opackets++;	
 	ifp->if_obytes += m->m_pkthdr.len;
 
@@ -484,7 +482,7 @@ gif_input(m, af, ifp)
 	mac_create_mbuf_from_ifnet(ifp, m);
 #endif
 
-	if (ifp->if_bpf) {
+	if (bpf_peers_present(ifp->if_bpf)) {
 		u_int32_t af1 = af;
 		bpf_mtap2(ifp->if_bpf, &af1, sizeof(af1), m);
 	}

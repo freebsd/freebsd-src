@@ -476,7 +476,7 @@ stf_output(ifp, m, dst, rt)
 	}
 	bcopy(ptr, &in4, sizeof(in4));
 
-	if (ifp->if_bpf) {
+	if (bpf_peers_present(ifp->if_bpf)) {
 		/*
 		 * We need to prepend the address family as
 		 * a four byte field.  Cons up a dummy header
@@ -723,7 +723,7 @@ in_stf_input(m, off)
 
 	m->m_pkthdr.rcvif = ifp;
 	
-	if (ifp->if_bpf) {
+	if (bpf_peers_present(ifp->if_bpf)) {
 		/*
 		 * We need to prepend the address family as
 		 * a four byte field.  Cons up a dummy header
