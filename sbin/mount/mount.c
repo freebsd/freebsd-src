@@ -184,6 +184,26 @@ exec_mountprog(const char *name, const char *execname,
 	return (0);
 }
 
+static
+int specified_ro(const char *arg)
+{
+	char *optbuf, *opt;
+	int ret = 0;
+
+	optbuf = strdup(arg);
+	if (optbuf == NULL)
+		 err(1, NULL);
+
+	for (opt = optbuf; (opt = strtok(opt, ",")) != NULL; opt = NULL) {
+		if (strcmp(opt, "ro") == 0) {
+			ret = 1;
+			break;
+		}
+	}
+	free(optbuf);
+	return (ret);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -215,8 +235,11 @@ main(int argc, char *argv[])
 			init_flags |= MNT_FORCE;
 			break;
 		case 'o':
-			if (*optarg)
+			if (*optarg) {
 				options = catopt(options, optarg);
+				if (specified_ro(optarg))
+					ro = 1;
+			}
 			break;
 		case 'p':
 			fstab_style = 1;
