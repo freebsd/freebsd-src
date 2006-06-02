@@ -1355,7 +1355,7 @@ ural_start(struct ifnet *ifp)
 			ni = (struct ieee80211_node *)m0->m_pkthdr.rcvif;
 			m0->m_pkthdr.rcvif = NULL;
 
-			if (ic->ic_rawbpf != NULL)
+			if (bpf_peers_present(ic->ic_rawbpf))
 				bpf_mtap(ic->ic_rawbpf, m0);
 
 			if (ural_tx_mgt(sc, m0, ni) != 0)
@@ -1391,7 +1391,7 @@ ural_start(struct ifnet *ifp)
 				continue;
 			}
 
-			if (ic->ic_rawbpf != NULL)
+			if (bpf_peers_present(ic->ic_rawbpf))
 				bpf_mtap(ic->ic_rawbpf, m0);
 
 			if (ural_tx_data(sc, m0, ni) != 0) {

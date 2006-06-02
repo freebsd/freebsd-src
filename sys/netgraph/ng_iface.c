@@ -418,7 +418,7 @@ static void
 ng_iface_bpftap(struct ifnet *ifp, struct mbuf *m, sa_family_t family)
 {
 	KASSERT(family != AF_UNSPEC, ("%s: family=AF_UNSPEC", __func__));
-	if (ifp->if_bpf != NULL) {
+	if (bpf_peers_present(ifp->if_bpf)) {
 		int32_t family4 = (int32_t)family;
 		bpf_mtap2(ifp->if_bpf, &family4, sizeof(family4), m);
 	}
