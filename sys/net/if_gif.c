@@ -412,6 +412,7 @@ gif_output(ifp, m, dst, rt)
 
 	if (!(ifp->if_flags & IFF_UP) ||
 	    sc->gif_psrc == NULL || sc->gif_pdst == NULL) {
+		GIF_UNLOCK(sc);
 		m_freem(m);
 		error = ENETDOWN;
 		goto end;
@@ -453,13 +454,12 @@ gif_output(ifp, m, dst, rt)
 	default:
 		m_freem(m);		
 		error = ENETDOWN;
-		goto end;
 	}
 
+	GIF_UNLOCK(sc);
   end:
 	if (error)
 		ifp->if_oerrors++;
-	GIF_UNLOCK(sc);
 	return (error);
 }
 
