@@ -869,6 +869,7 @@ findkn:
 			kn = tkn;
 			tkn = NULL;
 			if (kn == NULL) {
+				KQ_UNLOCK(kq);
 				error = ENOMEM;
 				goto done;
 			}
