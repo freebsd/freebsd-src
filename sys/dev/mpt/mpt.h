@@ -502,8 +502,8 @@ struct mpt_softc {
 		shutdwn_raid    : 1,
 		shutdwn_recovery: 1,
 		outofbeer	: 1,
-				: 1,
 		disabled	: 1,
+		is_spi		: 1,
 		is_sas		: 1,
 		is_fc		: 1;
 
@@ -540,6 +540,10 @@ struct mpt_softc {
 			CONFIG_PAGE_SCSI_DEVICE_1	_dev_page1[16];
 			uint16_t			_tag_enable;
 			uint16_t			_disc_enable;
+			struct {
+				uint8_t inqdata[39];
+				uint8_t	state;
+			} _dv[16];
 		} spi;
 #define	mpt_port_page0		cfg.spi._port_page0
 #define	mpt_port_page1		cfg.spi._port_page1
@@ -548,6 +552,10 @@ struct mpt_softc {
 #define	mpt_dev_page1		cfg.spi._dev_page1
 #define	mpt_tag_enable		cfg.spi._tag_enable
 #define	mpt_disc_enable		cfg.spi._disc_enable
+#define	mpt_dv			cfg.spi._dv
+# define	DV_STATE_0	0
+# define	DV_STATE_1	1
+# define	DV_STATE_DONE	0xff
 		struct mpi_fc_cfg {
 			CONFIG_PAGE_FC_PORT_0 _port_page0;
 #define	mpt_fcport_page0	cfg.fc._port_page0
@@ -665,7 +673,7 @@ struct mpt_softc {
 	uint8_t		       *fw_image;
 	bus_dma_tag_t		fw_dmat;	/* DMA tag for firmware image */
 	bus_dmamap_t		fw_dmap;	/* DMA map for firmware image */
-	bus_addr_t		fw_phys;	/* BusAddr of request memory */
+	bus_addr_t		fw_phys;	/* BusAddr of firmware image */
 
 	/* Shutdown Event Handler. */
 	eventhandler_tag         eh;

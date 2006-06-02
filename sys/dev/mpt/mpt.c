@@ -2438,12 +2438,15 @@ mpt_configure_ioc(struct mpt_softc *mpt)
 		if (pfp.PortType == MPI_PORTFACTS_PORTTYPE_FC) {
 			mpt->is_fc = 1;
 			mpt->is_sas = 0;
+			mpt->is_spi = 0;
 		} else if (pfp.PortType == MPI_PORTFACTS_PORTTYPE_SAS) {
 			mpt->is_fc = 0;
 			mpt->is_sas = 1;
+			mpt->is_spi = 0;
 		} else {
 			mpt->is_fc = 0;
 			mpt->is_sas = 0;
+			mpt->is_spi = 1;
 		}
 		mpt->mpt_ini_id = pfp.PortSCSIID;
 		mpt->mpt_max_devices = pfp.MaxDevices;
