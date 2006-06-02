@@ -115,7 +115,6 @@ struct pthread_mutex {
 	volatile umtx_t			m_lock;
 	enum pthread_mutextype		m_type;
 	int				m_protocol;
-	TAILQ_HEAD(mutex_head, pthread)	m_queue;
 	struct pthread			*m_owner;
 	int				m_flags;
 	int				m_count;

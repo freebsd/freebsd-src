@@ -118,7 +118,6 @@ mutex_init(pthread_mutex_t *mutex,
 	_thr_umtx_init(&pmutex->m_lock);
 	pmutex->m_type = attr->m_type;
 	pmutex->m_protocol = attr->m_protocol;
-	TAILQ_INIT(&pmutex->m_queue);
 	pmutex->m_owner = NULL;
 	pmutex->m_flags = attr->m_flags | MUTEX_FLAGS_INITED;
 	if (private)
@@ -187,7 +186,6 @@ int
 _mutex_reinit(pthread_mutex_t *mutex)
 {
 	_thr_umtx_init(&(*mutex)->m_lock);
-	TAILQ_INIT(&(*mutex)->m_queue);
 	MUTEX_INIT_LINK(*mutex);
 	(*mutex)->m_owner = NULL;
 	(*mutex)->m_count = 0;
@@ -238,9 +236,7 @@ _pthread_mutex_destroy(pthread_mutex_t *mutex)
 		 * in use. Mostly for prority mutex types, or there
 		 * are condition variables referencing it.
 		 */
-		if (((*mutex)->m_owner != NULL) ||
-		    (TAILQ_FIRST(&(*mutex)->m_queue) != NULL) ||
-		    ((*mutex)->m_refcount != 0)) {
+		if ((*mutex)->m_owner != NULL || (*mutex)->m_refcount != 0) {
 			THR_UMTX_UNLOCK(curthread, &(*mutex)->m_lock);
 			ret = EBUSY;
 		} else {
