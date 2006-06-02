@@ -115,6 +115,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	vm_map_t map;
 	int paging;
 	struct thread *td;
+	struct vmspace *vm;
 
 	totalp = &total;
 	bzero(totalp, sizeof *totalp);
@@ -185,7 +186,10 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		 * Note active objects.
 		 */
 		paging = 0;
-		map = &p->p_vmspace->vm_map;
+		vm = vmspace_acquire_ref(p);
+		if (vm == NULL)
+			continue;
+		map = &vm->vm_map;
 		vm_map_lock_read(map);
 		for (entry = map->header.next;
 		    entry != &map->header; entry = entry->next) {
@@ -198,6 +202,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 			VM_OBJECT_UNLOCK(object);
 		}
 		vm_map_unlock_read(map);
+		vmspace_free(vm);
 		if (paging)
 			totalp->t_pw++;
 	}
