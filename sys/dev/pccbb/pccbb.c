@@ -465,7 +465,11 @@ cbb_child_detached(device_t brdev, device_t child)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
 
-	if (child != sc->cbdev && child != sc->exca[0].pccarddev)
+	if (child == sc->cbdev)
+		sc->cbdev = NULL;
+	else if (child == sc->exca[0].pccarddev)
+		sc->exca[0].pccarddev = NULL;
+	else
 		device_printf(brdev, "Unknown child detached: %s\n",
 		    device_get_nameunit(child));
 }
