@@ -36,7 +36,7 @@
 #    local startup files will not be used.
 #
 # create a kernel config file in /sys/i386/conf/DISKLESS with
-#	options MFS
+#	options MD_ROOT
 #	options BOOTP
 #	options BOOTP_NFSROOT
 #	options BOOTP_COMPAT
