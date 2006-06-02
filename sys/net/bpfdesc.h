@@ -120,19 +120,6 @@ struct bpf_d {
 	  (bd)->bd_slen != 0))
 
 /*
- * Descriptor associated with each attached hardware interface.
- */
-struct bpf_if {
-	LIST_ENTRY(bpf_if)	bif_next;	/* list of all interfaces */
-	LIST_HEAD(, bpf_d)	bif_dlist;	/* descriptor list */
-	struct bpf_if **bif_driverp;	/* pointer into softc */
-	u_int bif_dlt;			/* link layer type */
-	u_int bif_hdrlen;		/* length of header (with padding) */
-	struct ifnet *bif_ifp;		/* corresponding interface */
-	struct mtx	bif_mtx;	/* mutex for interface */
-};
-
-/*
  * External representation of the bpf descriptor
  */
 struct xbpf_d {
