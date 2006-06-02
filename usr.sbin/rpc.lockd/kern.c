@@ -136,6 +136,9 @@ client_request(void)
 		syslog(LOG_ERR, "open: %s: %m", _PATH_NFSLCKDEV);
 		goto err;
 	}
+
+	signal(SIGPIPE, SIG_IGN);
+
 	/*
 	 * Create a separate process, the client code is really a separate
 	 * daemon that shares a lot of code.
