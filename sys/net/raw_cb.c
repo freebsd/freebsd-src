@@ -113,7 +113,7 @@ raw_detach(rp)
 }
 
 /*
- * Disconnect and possibly release resources.
+ * Disconnect raw socket.
  */
 void
 raw_disconnect(rp)
@@ -125,8 +125,6 @@ raw_disconnect(rp)
 		m_freem(dtom(rp->rcb_faddr));
 	rp->rcb_faddr = 0;
 #endif
-	if (rp->rcb_socket->so_state & SS_NOFDREF)
-		raw_detach(rp);
 }
 
 #ifdef notdef
