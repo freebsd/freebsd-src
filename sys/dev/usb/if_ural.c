@@ -956,7 +956,7 @@ ural_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	m->m_pkthdr.len = m->m_len = (le32toh(desc->flags) >> 16) & 0xfff;
 	m->m_flags |= M_HASFCS;	/* h/w leaves FCS */
 
-	if (sc->sc_drvbpf != NULL) {
+	if (bpf_peers_present(sc->sc_drvbpf)) {
 		struct ural_rx_radiotap_header *tap = &sc->sc_rxtap;
 
 		tap->wr_flags = IEEE80211_RADIOTAP_F_FCS;   
@@ -1204,7 +1204,7 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 			flags |= RAL_TX_TIMESTAMP;
 	}
 
-	if (sc->sc_drvbpf != NULL) {
+	if (bpf_peers_present(sc->sc_drvbpf)) {
 		struct ural_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
@@ -1293,7 +1293,7 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		*(uint16_t *)wh->i_dur = htole16(dur);
 	}
 
-	if (sc->sc_drvbpf != NULL) {
+	if (bpf_peers_present(sc->sc_drvbpf)) {
 		struct ural_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;

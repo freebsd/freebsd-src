@@ -961,7 +961,7 @@ wi_start(struct ifnet *ifp)
                         wh = mtod(m0, struct ieee80211_frame *);
 		}
 #if NBPFILTER > 0
-		if (ic->ic_rawbpf)
+		if (bpf_peers_present(ic->ic_rawbpf))
 			bpf_mtap(ic->ic_rawbpf, m0);
 #endif
 		frmhdr.wi_tx_ctl = htole16(WI_ENC_TX_802_11|WI_TXCNTL_TX_EX);
@@ -980,7 +980,7 @@ wi_start(struct ifnet *ifp)
 			frmhdr.wi_tx_ctl |= htole16(WI_TXCNTL_NOCRYPT);
 		}
 #if NBPFILTER > 0
-		if (sc->sc_drvbpf) {
+		if (bpf_peers_present(ic->ic_rawbpf)) {
 			sc->sc_tx_th.wt_rate =
 				ni->ni_rates.rs_rates[ni->ni_txrate];
 			bpf_mtap2(sc->sc_drvbpf,
@@ -1534,7 +1534,7 @@ wi_rx_intr(struct wi_softc *sc)
 	}
 
 #if NBPFILTER > 0
-	if (sc->sc_drvbpf) {
+	if (bpf_peers_present(sc->sc_drvbpf)) {
 		/* XXX replace divide by table */
 		sc->sc_rx_th.wr_rate = frmhdr.wi_rx_rate / 5;
 		sc->sc_rx_th.wr_antsignal = frmhdr.wi_rx_signal;

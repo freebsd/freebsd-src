@@ -422,7 +422,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 		}
 
 		/* copy to listener after decrypt */
-		if (ic->ic_rawbpf)
+		if (bpf_peers_present(ic->ic_rawbpf))
 			bpf_mtap(ic->ic_rawbpf, m);
 
 		/*
@@ -536,7 +536,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 			wh = mtod(m, struct ieee80211_frame *);
 			wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
 		}
-		if (ic->ic_rawbpf)
+		if (bpf_peers_present(ic->ic_rawbpf))
 			bpf_mtap(ic->ic_rawbpf, m);
 		(*ic->ic_recv_mgmt)(ic, m, ni, subtype, rssi, rstamp);
 		m_freem(m);
@@ -563,7 +563,7 @@ err:
 	ifp->if_ierrors++;
 out:
 	if (m != NULL) {
-		if (ic->ic_rawbpf)
+		if (bpf_peers_present(ic->ic_rawbpf))
 			bpf_mtap(ic->ic_rawbpf, m);
 		m_freem(m);
 	}
@@ -719,7 +719,7 @@ ieee80211_deliver_data(struct ieee80211com *ic,
 	return;
   out:
 	if (m != NULL) {
-		if (ic->ic_rawbpf)
+		if (bpf_peers_present(ic->ic_rawbpf))
 			bpf_mtap(ic->ic_rawbpf, m);
 		m_freem(m);
 	}
