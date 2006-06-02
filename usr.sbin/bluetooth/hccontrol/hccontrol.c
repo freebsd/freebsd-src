@@ -99,16 +99,18 @@ socket_open(char const *node)
 {
 	struct sockaddr_hci			 addr;
 	struct ng_btsocket_hci_raw_filter	 filter;
-	int					 s, mib[4];
+	int					 s, mib[4], num;
 	size_t					 size;
 	struct nodeinfo 			*nodes;
 
-	if (find_hci_nodes(&nodes) == 0)
-		err(7, "Could not find HCI nodes");
+	num = find_hci_nodes(&nodes);
+	if (num == 0)
+		errx(7, "Could not find HCI nodes");
 
 	if (node == NULL) {
 		node = strdup(nodes[0].name);
-		fprintf(stdout, "Using HCI node: %s\n", node);
+		if (num > 1)
+			fprintf(stdout, "Using HCI node: %s\n", node);
 	}
 
 	free(nodes);
