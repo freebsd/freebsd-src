@@ -126,6 +126,7 @@
 
 #if __FreeBSD_version < 500000  
 #include <machine/bus.h>
+#include <machine/clock.h>
 #endif
 
 #include <sys/rman.h>
