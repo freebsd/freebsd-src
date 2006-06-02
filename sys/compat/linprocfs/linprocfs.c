@@ -222,9 +222,9 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 	default:
 		class = 0;
 		break;
-#else
+#else /* __amd64__ */
 	default:
-		class = 6;
+		class = 15;
 		break;
 #endif
 	}
