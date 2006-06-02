@@ -1224,23 +1224,21 @@ in_pcbsosetlabel(struct socket *so)
 }
 
 /*
- * ipport_tick runs once per second, determining if random port
- * allocation should be continued.  If more than ipport_randomcps
- * ports have been allocated in the last second, then we return to
- * sequential port allocation. We return to random allocation only
- * once we drop below ipport_randomcps for at least ipport_randomtime
- * seconds.
+ * ipport_tick runs once per second, determining if random port allocation
+ * should be continued.  If more than ipport_randomcps ports have been
+ * allocated in the last second, then we return to sequential port
+ * allocation. We return to random allocation only once we drop below
+ * ipport_randomcps for at least ipport_randomtime seconds.
  */
-
 void
 ipport_tick(void *xtp)
 {
-	if (ipport_tcpallocs > ipport_tcplastcount + ipport_randomcps) {
-		ipport_stoprandom = ipport_randomtime;
-	} else {
+
+	if (ipport_tcpallocs <= ipport_tcplastcount + ipport_randomcps) {
 		if (ipport_stoprandom > 0)
 			ipport_stoprandom--;
-	}
+	} else
+		ipport_stoprandom = ipport_randomtime;
 	ipport_tcplastcount = ipport_tcpallocs;
 	callout_reset(&ipport_tick_callout, hz, ipport_tick, NULL);
 }
