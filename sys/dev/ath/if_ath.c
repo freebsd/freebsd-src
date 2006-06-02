@@ -2905,7 +2905,7 @@ ath_rx_proc(void *arg, int npending)
 			 * pass decrypt+mic errors but others may be
 			 * interesting (e.g. crc).
 			 */
-			if (sc->sc_drvbpf != NULL &&
+			if (bpf_peers_present(sc->sc_drvbpf) &&
 			    (ds->ds_rxstat.rs_status & sc->sc_monpass)) {
 				bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
 				    BUS_DMASYNC_POSTREAD);
@@ -2936,7 +2936,8 @@ rx_accept:
 
 		sc->sc_stats.ast_ant_rx[ds->ds_rxstat.rs_antenna]++;
 
-		if (sc->sc_drvbpf != NULL && !ath_rx_tap(sc, m, ds, tsf, nf)) {
+		if (bpf_peers_present(sc->sc_drvbpf) &&
+		    !ath_rx_tap(sc, m, ds, tsf, nf)) {
 			m_freem(m);		/* XXX reclaim */
 			goto rx_next;
 		}
@@ -3636,7 +3637,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 
 	if (ic->ic_rawbpf)
 		bpf_mtap(ic->ic_rawbpf, m0);
-	if (sc->sc_drvbpf) {
+	if (bpf_peers_present(sc->sc_drvbpf)) {
 		u_int64_t tsf = ath_hal_gettsf64(ah);
 
 		sc->sc_tx_th.wt_tsf = htole64(tsf);
