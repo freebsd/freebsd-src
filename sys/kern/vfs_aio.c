@@ -2033,7 +2033,7 @@ do_lio_listio(struct thread *td, struct lio_listio_args *uap, int oldsigev)
 			kq = (struct kqueue *)kq_fp->f_data;
 			kev.filter = EVFILT_LIO;
 			kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1;
-			kev.ident = (uintptr_t)lj; /* something unique */
+			kev.ident = (uintptr_t)uap->acb_list; /* something unique */
 			kev.data = (intptr_t)lj;
 			/* pass user defined sigval data */
 			kev.udata = lj->lioj_signal.sigev_value.sival_ptr;
