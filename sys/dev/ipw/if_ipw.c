@@ -1495,7 +1495,7 @@ ipw_start(struct ifnet *ifp)
 			continue;
 		}
 
-		if (ic->ic_rawbpf != NULL)
+		if (bpf_peers_present(ic->ic_rawbpf))
 			bpf_mtap(ic->ic_rawbpf, m0);
 
 		if (ipw_tx_start(ifp, m0, ni) != 0) {

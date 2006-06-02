@@ -204,7 +204,7 @@ faithoutput(ifp, m, dst, rt)
 		dst->sa_family = af;
 	}
 
-	if (ifp->if_bpf) {
+	if (bpf_peers_present(ifp->if_bpf)) {
 		af = dst->sa_family;
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
 	}
