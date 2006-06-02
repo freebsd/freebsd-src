@@ -1984,7 +1984,7 @@ iwi_start(struct ifnet *ifp)
 			continue;
 		}
 
-		if (ic->ic_rawbpf != NULL)
+		if (bpf_peers_present(ic->ic_rawbpf))
 			bpf_mtap(ic->ic_rawbpf, m0);
 
 		if (iwi_tx_start(ifp, m0, ni, ac) != 0) {

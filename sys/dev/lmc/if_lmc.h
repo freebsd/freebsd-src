@@ -1242,7 +1242,7 @@ struct softc
 # define DMA_LOAD(map, addr, size)  bus_dmamap_load(ring->tag, map, addr, size, fbsd_dmamap_load, ring, 0)
 # if (NBPFILTER != 0)
 #  if (__FreeBSD_version >= 500000)
-#   define LMC_BPF_MTAP(mbuf)	if (sc->ifp->if_bpf) bpf_mtap(sc->ifp->if_bpf, mbuf)
+#   define LMC_BPF_MTAP(mbuf)	BPF_MTAP(sc->ifp, mbuf)
 #  else  /* FreeBSD-4 */
 #   define LMC_BPF_MTAP(mbuf)	if (sc->ifp->if_bpf) bpf_mtap(sc->ifp, mbuf)
 #  endif
