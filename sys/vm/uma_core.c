@@ -2417,8 +2417,7 @@ zfree_start:
 	 * If nothing else caught this, we'll just do an internal free.
 	 */
 zfree_internal:
-	uma_zfree_internal(zone, item, udata, SKIP_DTOR, ZFREE_STATFAIL |
-	    ZFREE_STATFREE);
+	uma_zfree_internal(zone, item, udata, SKIP_DTOR, ZFREE_STATFREE);
 
 	return;
 }
