@@ -49,6 +49,9 @@
 #include <sys/bus.h>
 
 #include <machine/bus.h>
+#if __FreeBSD_version < 500000
+#include <machine/clock.h>
+#endif
 #include <machine/cpu.h>
 
 #include <cam/cam.h>
