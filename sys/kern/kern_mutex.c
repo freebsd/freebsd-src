@@ -85,8 +85,7 @@ __FBSDID("$FreeBSD$");
  */
 #define mtx_unowned(m)	((m)->mtx_lock == MTX_UNOWNED)
 
-#define mtx_owner(m)	(mtx_unowned((m)) ? NULL \
-	: (struct thread *)((m)->mtx_lock & MTX_FLAGMASK))
+#define	mtx_owner(m)	((struct thread *)((m)->mtx_lock & (MTX_FLAGMASK|MTX_UNOWNED)))
 
 #ifdef DDB
 static void	db_show_mtx(struct lock_object *lock);
