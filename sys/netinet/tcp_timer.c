@@ -156,7 +156,8 @@ tcp_timer_delack(xtp)
 	}
 	INP_LOCK(inp);
 	INP_INFO_RUNLOCK(&tcbinfo);
-	if (callout_pending(tp->tt_delack) || !callout_active(tp->tt_delack)) {
+	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(tp->tt_delack)
+	    || !callout_active(tp->tt_delack)) {
 		INP_UNLOCK(inp);
 		return;
 	}
@@ -193,12 +194,13 @@ tcp_timer_2msl(xtp)
 	 */
 	if (inp == NULL) {
 		tcp_timer_race++;
-		INP_INFO_RUNLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&tcbinfo);
 		return;
 	}
 	INP_LOCK(inp);
 	tcp_free_sackholes(tp);
-	if (callout_pending(tp->tt_2msl) || !callout_active(tp->tt_2msl)) {
+	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(tp->tt_2msl) ||
+	    !callout_active(tp->tt_2msl)) {
 		INP_UNLOCK(tp->t_inpcb);
 		INP_INFO_WUNLOCK(&tcbinfo);
 		return;
@@ -323,11 +325,12 @@ tcp_timer_keep(xtp)
 	 */
 	if (inp == NULL) {
 		tcp_timer_race++;
-		INP_INFO_RUNLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&tcbinfo);
 		return;
 	}
 	INP_LOCK(inp);
-	if (callout_pending(tp->tt_keep) || !callout_active(tp->tt_keep)) {
+	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(tp->tt_keep)
+	    || !callout_active(tp->tt_keep)) {
 		INP_UNLOCK(inp);
 		INP_INFO_WUNLOCK(&tcbinfo);
 		return;
@@ -413,11 +416,12 @@ tcp_timer_persist(xtp)
 	 */
 	if (inp == NULL) {
 		tcp_timer_race++;
-		INP_INFO_RUNLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&tcbinfo);
 		return;
 	}
 	INP_LOCK(inp);
-	if (callout_pending(tp->tt_persist) || !callout_active(tp->tt_persist)){
+	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(tp->tt_persist)
+	    || !callout_active(tp->tt_persist)) {
 		INP_UNLOCK(inp);
 		INP_INFO_WUNLOCK(&tcbinfo);
 		return;
@@ -482,11 +486,12 @@ tcp_timer_rexmt(xtp)
 	 */
 	if (inp == NULL) {
 		tcp_timer_race++;
-		INP_INFO_RUNLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&tcbinfo);
 		return;
 	}
 	INP_LOCK(inp);
-	if (callout_pending(tp->tt_rexmt) || !callout_active(tp->tt_rexmt)) {
+	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(tp->tt_rexmt)
+	    || !callout_active(tp->tt_rexmt)) {
 		INP_UNLOCK(inp);
 		INP_INFO_WUNLOCK(&tcbinfo);
 		return;
