@@ -44,14 +44,6 @@ pxeboot		jhb	Pre-commit review requested.
 witness		jhb	Pre-commit review requested.
 twe		aradford@amcc.com	Pre-commit review requested
 twa		aradford@amcc.com	Pre-commit review requested
-busdma		scottl	Pre-commit review requested.
-aac		scottl	Pre-commit review requested.
-udf		scottl	Pre-commit review requested.
-ips		scottl	Pre-commit review requested.
-iir		scottl	Pre-commit review requested.
-mlx		scottl	Pre-commit review requested.
-mly		scottl	Pre-commit review requested.
-maestro3	scottl	Pre-commit review requested.
 CAM		gibbs,
 		ken	Pre-commit review requested. send to scsi@freebsd.org
 devstat(9)	ken	Pre-commit review requested.
