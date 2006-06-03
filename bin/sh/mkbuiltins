@@ -66,9 +66,14 @@ echo '};
 
 const struct builtincmd builtincmd[] = {'
 awk '{	for (i = 2 ; i <= NF ; i++) {
-		printf "\t{ \"%s\", %d },\n",  $i, NR-1
+		if ($i == "-s") {
+			spc = 1;
+		} else {
+			printf "\t{ \"%s\", %d, %d },\n",  $i, NR-1, spc
+			spc = 0;
+		}
 	}}' $temp
-echo '	{ NULL, 0 }
+echo '	{ NULL, 0, 0 }
 };'
 
 exec > ${objdir}/builtins.h
@@ -85,6 +90,7 @@ echo '
 struct builtincmd {
       char *name;
       int code;
+      int special;
 };
 
 extern int (*const builtinfunc[])(int, char **);
