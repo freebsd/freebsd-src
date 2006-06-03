@@ -962,12 +962,10 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 
 	inp = sotoinpcb(so);
 	KASSERT(inp == NULL, ("udp_attach: inp != NULL"));
-	INP_INFO_WLOCK(&udbinfo);
 	error = soreserve(so, udp_sendspace, udp_recvspace);
-	if (error) {
-		INP_INFO_WUNLOCK(&udbinfo);
+	if (error)
 		return error;
-	}
+	INP_INFO_WLOCK(&udbinfo);
 	error = in_pcballoc(so, &udbinfo, "udpinp");
 	if (error) {
 		INP_INFO_WUNLOCK(&udbinfo);
