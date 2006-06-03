@@ -633,6 +633,37 @@ cbb_route_interrupt(device_t pcib, device_t dev, int pin)
 	return (rman_get_start(sc->irq_res));
 }
 
+static int
+cbb_pci_shutdown(device_t brdev)
+{
+	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(brdev);
+
+	/*
+	 * Place the cards in reset, turn off the interrupts and power
+	 * down the socket.
+	 */
+	PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL, |CBBM_BRIDGECTRL_RESET, 2);
+	exca_clrb(&sc->exca[0], EXCA_INTR, EXCA_INTR_RESET);
+	cbb_set(sc, CBB_SOCKET_MASK, 0);
+	cbb_set(sc, CBB_SOCKET_EVENT, 0xffffffff);
+	cbb_power(brdev, CARD_OFF);
+
+	/* 
+	 * For paranoia, turn off all address decoding.  Really not needed,
+	 * it seems, but it can't hurt
+	 */
+	exca_putb(&sc->exca[0], EXCA_ADDRWIN_ENABLE, 0);
+	pci_write_config(brdev, CBBR_MEMBASE0, 0, 4);
+	pci_write_config(brdev, CBBR_MEMLIMIT0, 0, 4);
+	pci_write_config(brdev, CBBR_MEMBASE1, 0, 4);
+	pci_write_config(brdev, CBBR_MEMLIMIT1, 0, 4);
+	pci_write_config(brdev, CBBR_IOBASE0, 0, 4);
+	pci_write_config(brdev, CBBR_IOLIMIT0, 0, 4);
+	pci_write_config(brdev, CBBR_IOBASE1, 0, 4);
+	pci_write_config(brdev, CBBR_IOLIMIT1, 0, 4);
+	return (0);
+}
+
 static void
 cbb_pci_intr(void *arg)
 {
@@ -702,12 +733,46 @@ cbb_pci_intr(void *arg)
 	exca_getb(&sc->exca[0], EXCA_CSC);
 }
 
+/************************************************************************/
+/* PCI compat methods							*/
+/************************************************************************/
+
+static int
+cbb_maxslots(device_t brdev)
+{
+	return (0);
+}
+
+static uint32_t
+cbb_read_config(device_t brdev, int b, int s, int f, int reg, int width)
+{
+	uint32_t rv;
+
+	/*
+	 * Pass through to the next ppb up the chain (i.e. our grandparent).
+	 */
+	rv = PCIB_READ_CONFIG(device_get_parent(device_get_parent(brdev)),
+	    b, s, f, reg, width);
+	return (rv);
+}
+
+static void
+cbb_write_config(device_t brdev, int b, int s, int f, int reg, uint32_t val,
+    int width)
+{
+	/*
+	 * Pass through to the next ppb up the chain (i.e. our grandparent).
+	 */
+	PCIB_WRITE_CONFIG(device_get_parent(device_get_parent(brdev)),
+	    b, s, f, reg, val, width);
+}
+
 static device_method_t cbb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			cbb_pci_probe),
 	DEVMETHOD(device_attach,		cbb_pci_attach),
 	DEVMETHOD(device_detach,		cbb_detach),
-	DEVMETHOD(device_shutdown,		cbb_shutdown),
+	DEVMETHOD(device_shutdown,		cbb_pci_shutdown),
 	DEVMETHOD(device_suspend,		cbb_suspend),
 	DEVMETHOD(device_resume,		cbb_resume),
 

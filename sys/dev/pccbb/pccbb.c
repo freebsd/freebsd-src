@@ -347,37 +347,6 @@ cbb_detach(device_t brdev)
 }
 
 int
-cbb_shutdown(device_t brdev)
-{
-	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(brdev);
-
-	/*
-	 * Place the cards in reset, turn off the interrupts and power
-	 * down the socket.
-	 */
-	PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL, |CBBM_BRIDGECTRL_RESET, 2);
-	exca_clrb(&sc->exca[0], EXCA_INTR, EXCA_INTR_RESET);
-	cbb_set(sc, CBB_SOCKET_MASK, 0);
-	cbb_set(sc, CBB_SOCKET_EVENT, 0xffffffff);
-	cbb_power(brdev, CARD_OFF);
-
-	/* 
-	 * For paranoia, turn off all address decoding.  Really not needed,
-	 * it seems, but it can't hurt
-	 */
-	exca_putb(&sc->exca[0], EXCA_ADDRWIN_ENABLE, 0);
-	pci_write_config(brdev, CBBR_MEMBASE0, 0, 4);
-	pci_write_config(brdev, CBBR_MEMLIMIT0, 0, 4);
-	pci_write_config(brdev, CBBR_MEMBASE1, 0, 4);
-	pci_write_config(brdev, CBBR_MEMLIMIT1, 0, 4);
-	pci_write_config(brdev, CBBR_IOBASE0, 0, 4);
-	pci_write_config(brdev, CBBR_IOLIMIT0, 0, 4);
-	pci_write_config(brdev, CBBR_IOBASE1, 0, 4);
-	pci_write_config(brdev, CBBR_IOLIMIT1, 0, 4);
-	return (0);
-}
-
-int
 cbb_setup_intr(device_t dev, device_t child, struct resource *irq,
   int flags, driver_intr_t *intr, void *arg, void **cookiep)
 {
@@ -922,7 +891,7 @@ cbb_cardbus_reset(device_t brdev)
 	if (CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE))) {
 		PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL,
 		    &~CBBM_BRIDGECTRL_RESET, 2);
-		tsleep(sc, PZERO, "cbbP3", hz * delay / 1000);
+		tsleep(sc, PZERO, "cbbP4", hz * delay / 1000);
 	}
 }
 
@@ -1461,40 +1430,6 @@ cbb_write_ivar(device_t brdev, device_t child, int which, uintptr_t value)
 		return (0);
 	}
 	return (ENOENT);
-}
-
-/************************************************************************/
-/* PCI compat methods							*/
-/************************************************************************/
-
-int
-cbb_maxslots(device_t brdev)
-{
-	return (0);
-}
-
-uint32_t
-cbb_read_config(device_t brdev, int b, int s, int f, int reg, int width)
-{
-	uint32_t rv;
-
-	/*
-	 * Pass through to the next ppb up the chain (i.e. our grandparent).
-	 */
-	rv = PCIB_READ_CONFIG(device_get_parent(device_get_parent(brdev)),
-	    b, s, f, reg, width);
-	return (rv);
-}
-
-void
-cbb_write_config(device_t brdev, int b, int s, int f, int reg, uint32_t val,
-    int width)
-{
-	/*
-	 * Pass through to the next ppb up the chain (i.e. our grandparent).
-	 */
-	PCIB_WRITE_CONFIG(device_get_parent(device_get_parent(brdev)),
-	    b, s, f, reg, val, width);
 }
 
 int
