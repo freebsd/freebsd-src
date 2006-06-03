@@ -357,6 +357,16 @@ mi_switch(int flags, struct thread *newtd)
 	    ("mi_switch: switch must be voluntary or involuntary"));
 	KASSERT(newtd != curthread, ("mi_switch: preempting back to ourself"));
 
+	/*
+	 * Don't perform context switches from the debugger.
+	 */
+	if (kdb_active) {
+		mtx_unlock_spin(&sched_lock);
+		kdb_backtrace();
+		kdb_reenter();
+		panic("%s: did not reenter debugger", __func__);
+	}
+
 	if (flags & SW_VOL)
 		p->p_stats->p_ru.ru_nvcsw++;
 	else
@@ -376,16 +386,6 @@ mi_switch(int flags, struct thread *newtd)
 	td->td_sticks = 0;
 
 	td->td_generation++;	/* bump preempt-detect counter */
-
-	/*
-	 * Don't perform context switches from the debugger.
-	 */
-	if (kdb_active) {
-		mtx_unlock_spin(&sched_lock);
-		kdb_backtrace();
-		kdb_reenter();
-		panic("%s: did not reenter debugger", __func__);
-	}
 
 	/*
 	 * Check if the process exceeds its cpu resource allocation.  If
