@@ -52,6 +52,7 @@ struct cmdentry {
 		int index;
 		union node *func;
 	} u;
+	int special;
 };
 
 
@@ -62,7 +63,7 @@ void shellexec(char **, char **, char *, int);
 char *padvance(char **, char *);
 int hashcmd(int, char **);
 void find_command(char *, struct cmdentry *, int, char *);
-int find_builtin(char *);
+int find_builtin(char *, int *);
 void hashcd(void);
 void changepath(const char *);
 void deletefuncs(void);

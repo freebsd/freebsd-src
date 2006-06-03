@@ -36,13 +36,15 @@
 
 #
 # This file lists all the builtin commands.  The first column is the name
-# of a C routine.  The -j flag, if present, specifies that this command
-# is to be excluded from systems without job control, and the -h flag,
-# if present specifies that this command is to be excluded from systems
-# based on the NO_HISTORY compile-time symbol.  The rest of the line
-# specifies the command name or names used to run the command.  The entry
-# for bltincmd, which is run when the user does not specify a command, must
-# come first.
+# of a C routine.
+# The -j flag specifies that this command is to be excluded from systems
+# without job control.
+# The -h flag specifies that this command is to be excluded from systems
+# based on the NO_HISTORY compile-time symbol.
+# The -s flag specifies that this is a POSIX 'special built-in' command.
+# The rest of the line specifies the command name or names used to run the
+# command.  The entry for bltincmd, which is run when the user does not specify
+# a command, must come first.
 #
 # NOTE: bltincmd must come first!
 
@@ -50,16 +52,16 @@ bltincmd	builtin
 aliascmd	alias
 bgcmd -j	bg
 bindcmd		bind
-breakcmd	break continue
+breakcmd	-s break -s continue
 cdcmd		cd chdir
 commandcmd	command
-dotcmd		.
+dotcmd		-s .
 echocmd		echo
-evalcmd		eval
-execcmd		exec
-exitcmd		exit
+evalcmd		-s eval
+execcmd		-s exec
+exitcmd		-s exit
 expcmd		exp let
-exportcmd	export readonly
+exportcmd	-s export -s readonly
 #exprcmd		expr
 falsecmd	false
 fgcmd -j	fg
@@ -72,18 +74,18 @@ localcmd	local
 #printfcmd	printf
 pwdcmd		pwd
 readcmd		read
-returncmd	return
-setcmd		set
+returncmd	-s return
+setcmd		-s set
 setvarcmd	setvar
-shiftcmd	shift
+shiftcmd	-s shift
 testcmd		test [
-timescmd	times
-trapcmd		trap
-truecmd		: true
+timescmd	-s times
+trapcmd		-s trap
+truecmd		-s : true
 typecmd		type
 ulimitcmd	ulimit
 umaskcmd	umask
 unaliascmd	unalias
-unsetcmd	unset
+unsetcmd	-s unset
 waitcmd		wait
 wordexpcmd	wordexp
