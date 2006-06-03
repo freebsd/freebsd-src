@@ -117,6 +117,7 @@ __FBSDID("$FreeBSD$");
 		pci_read_config(DEV, REG, SIZE) MASK1) MASK2, SIZE)
 
 static void cbb_chipinit(struct cbb_softc *sc);
+static void cbb_pci_intr(void *arg);
 
 static struct yenta_chipinfo {
 	uint32_t yc_id;
@@ -397,7 +398,7 @@ cbb_pci_attach(device_t brdev)
 	}
 
 	if (bus_setup_intr(brdev, sc->irq_res, INTR_TYPE_AV | INTR_MPSAFE,
-	    cbb_intr, sc, &sc->intrhand)) {
+	    cbb_pci_intr, sc, &sc->intrhand)) {
 		device_printf(brdev, "couldn't establish interrupt\n");
 		goto err;
 	}
@@ -630,6 +631,75 @@ cbb_route_interrupt(device_t pcib, device_t dev, int pin)
 	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(pcib);
 
 	return (rman_get_start(sc->irq_res));
+}
+
+static void
+cbb_pci_intr(void *arg)
+{
+	struct cbb_softc *sc = arg;
+	uint32_t sockevent;
+
+	/*
+	 * Read the socket event.  Sometimes, the theory goes, the PCI
+	 * bus is so loaded that it cannot satisfy the read request, so
+	 * we get garbage back from the following read.  We have to filter
+	 * out the garbage so that we don't spontaneously reset the card
+	 * under high load.  PCI isn't supposed to act like this.  No doubt
+	 * this is a bug in the PCI bridge chipset (or cbb brige) that's being
+	 * used in certain amd64 laptops today.  Work around the issue by
+	 * assuming that any bits we don't know about being set means that
+	 * we got garbage.
+	 */
+	sockevent = cbb_get(sc, CBB_SOCKET_EVENT);
+	if (sockevent != 0 && (sockevent & ~CBB_SOCKET_EVENT_VALID_MASK) == 0) {
+		/* ack the interrupt */
+		cbb_set(sc, CBB_SOCKET_EVENT, sockevent);
+
+		/*
+		 * If anything has happened to the socket, we assume that
+		 * the card is no longer OK, and we shouldn't call its
+		 * ISR.  We set CARD_OK as soon as we've attached the
+		 * card.  This helps in a noisy eject, which happens
+		 * all too often when users are ejecting their PC Cards.
+		 *
+		 * We use this method in preference to checking to see if
+		 * the card is still there because the check suffers from
+		 * a race condition in the bouncing case.  Prior versions
+		 * of the pccard software used a similar trick and achieved
+		 * excellent results.
+		 */
+		if (sockevent & CBB_SOCKET_EVENT_CD) {
+			mtx_lock(&sc->mtx);
+			cbb_clrb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
+			sc->flags &= ~CBB_CARD_OK;
+			cbb_disable_func_intr(sc);
+			cv_signal(&sc->cv);
+			mtx_unlock(&sc->mtx);
+		}
+		/*
+		 * If we get a power interrupt, wakeup anybody that might
+		 * be waiting for one.
+		 */
+		if (sockevent & CBB_SOCKET_EVENT_POWER) {
+			mtx_lock(&sc->mtx);
+			sc->powerintr++;
+			cv_signal(&sc->powercv);
+			mtx_unlock(&sc->mtx);
+		}
+	}
+	/*
+	 * Some chips also require us to read the old ExCA registe for
+	 * card status change when we route CSC vis PCI.  This isn't supposed
+	 * to be required, but it clears the interrupt state on some chipsets.
+	 * Maybe there's a setting that would obviate its need.  Maybe we
+	 * should test the status bits and deal with them, but so far we've
+	 * not found any machines that don't also give us the socket status
+	 * indication above.
+	 *
+	 * We have to call this unconditionally because some bridges deliver
+	 * the event independent of the CBB_SOCKET_EVENT_CD above.
+	 */
+	exca_getb(&sc->exca[0], EXCA_CSC);
 }
 
 static device_method_t cbb_methods[] = {
