@@ -693,7 +693,7 @@ ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 	usbd_xfer_handle xfer;
 	usbd_status err;
 	int s;
-	int error = 0;
+	int error = 0, doneone = 0;
 	u_char buffer[UGEN_CHUNK];
 
 	DPRINTFN(5, ("%s: ugenread: %d\n", USBDEVNAME(sc->sc_dev), endpt));
@@ -757,9 +757,11 @@ ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 		xfer = usbd_alloc_xfer(sc->sc_udev);
 		if (xfer == 0)
 			return (ENOMEM);
-		while ((n = min(UGEN_BBSIZE, uio->uio_resid)) != 0) {
+		while ((n = min(UGEN_BBSIZE, uio->uio_resid)) != 0 ||
+		    !doneone) {
 			DPRINTFN(1, ("ugenread: start transfer %d bytes\n",n));
 			tn = n;
+			doneone = 1;
 			err = usbd_bulk_transfer(
 				  xfer, sce->pipeh,
 				  sce->state & UGEN_SHORT_OK ?
@@ -846,7 +848,7 @@ ugen_do_write(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 {
 	struct ugen_endpoint *sce = &sc->sc_endpoints[endpt][OUT];
 	u_int32_t n;
-	int error = 0;
+	int error = 0, doneone = 0;
 	char buf[UGEN_BBSIZE];
 	usbd_xfer_handle xfer;
 	usbd_status err;
@@ -875,7 +877,9 @@ ugen_do_write(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 		xfer = usbd_alloc_xfer(sc->sc_udev);
 		if (xfer == 0)
 			return (EIO);
-		while ((n = min(UGEN_BBSIZE, uio->uio_resid)) != 0) {
+		while ((n = min(UGEN_BBSIZE, uio->uio_resid)) != 0 ||
+		    !doneone) {
+			doneone = 1;
 			error = uiomove(buf, n, uio);
 			if (error)
 				break;
@@ -899,7 +903,8 @@ ugen_do_write(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 		if (xfer == 0)
 			return (EIO);
 		while ((n = min(UGETW(sce->edesc->wMaxPacketSize),
-		    uio->uio_resid)) != 0) {
+		    uio->uio_resid)) != 0 || !doneone) {
+			doneone = 1;
 			error = uiomove(buf, n, uio);
 			if (error)
 				break;
@@ -1304,6 +1309,8 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 		return (0);
 	case USB_SET_TIMEOUT:
 		sce = &sc->sc_endpoints[endpt][IN];
+		sce->timeout = *(int *)addr;
+		sce = &sc->sc_endpoints[endpt][OUT];
 		sce->timeout = *(int *)addr;
 		return (0);
 	default:
