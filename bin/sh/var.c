@@ -479,6 +479,21 @@ shprocvar(void)
 }
 
 
+static int
+var_compare(const void *a, const void *b)
+{
+	const char *const *sa, *const *sb;
+
+	sa = a;
+	sb = b;
+	/*
+	 * This compares two var=value strings which creates a different
+	 * order from what you would probably expect.  POSIX is somewhat
+	 * ambiguous on what should be sorted exactly.
+	 */
+	return strcoll(*sa, *sb);
+}
+
 
 /*
  * Command to list all variables which are set.  Currently this command
@@ -492,18 +507,41 @@ showvarscmd(int argc __unused, char **argv __unused)
 	struct var **vpp;
 	struct var *vp;
 	const char *s;
+	const char **vars;
+	int i, n;
 
-	for (vpp = vartab ; vpp < vartab + VTABSIZE ; vpp++) {
-		for (vp = *vpp ; vp ; vp = vp->next) {
-			if (vp->flags & VUNSET)
-				continue;
-			for (s = vp->text; *s != '='; s++)
-				out1c(*s);
-			out1c('=');
-			out1qstr(s + 1);
-			out1c('\n');
+	/*
+	 * POSIX requires us to sort the variables.
+	 */
+	n = 0;
+	for (vpp = vartab; vpp < vartab + VTABSIZE; vpp++) {
+		for (vp = *vpp; vp; vp = vp->next) {
+			if (!(vp->flags & VUNSET))
+				n++;
 		}
 	}
+
+	INTON;
+	vars = ckmalloc(n * sizeof(*vars));
+	i = 0;
+	for (vpp = vartab; vpp < vartab + VTABSIZE; vpp++) {
+		for (vp = *vpp; vp; vp = vp->next) {
+			if (!(vp->flags & VUNSET))
+				vars[i++] = vp->text;
+		}
+	}
+
+	qsort(vars, n, sizeof(*vars), var_compare);
+	for (i = 0; i < n; i++) {
+		for (s = vars[i]; *s != '='; s++)
+			out1c(*s);
+		out1c('=');
+		out1qstr(s + 1);
+		out1c('\n');
+	}
+	ckfree(vars);
+	INTOFF;
+
 	return 0;
 }
 
