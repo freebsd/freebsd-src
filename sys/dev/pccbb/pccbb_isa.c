@@ -207,7 +207,6 @@ static device_method_t cbb_methods[] = {
 	DEVMETHOD(device_probe,			cbb_isa_probe),
 	DEVMETHOD(device_attach,		cbb_isa_attach),
 	DEVMETHOD(device_detach,		cbb_detach),
-	DEVMETHOD(device_shutdown,		cbb_shutdown),
 	DEVMETHOD(device_suspend,		cbb_suspend),
 	DEVMETHOD(device_resume,		cbb_resume),
 
