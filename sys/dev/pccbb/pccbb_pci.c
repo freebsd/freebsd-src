@@ -392,13 +392,13 @@ cbb_pci_attach(device_t brdev)
 	sc->irq_res = bus_alloc_resource_any(brdev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->irq_res == NULL) {
-		printf("cbb: Unable to map IRQ...\n");
+		device_printf(brdev, "Unable to map IRQ...\n");
 		goto err;
 	}
 
 	if (bus_setup_intr(brdev, sc->irq_res, INTR_TYPE_AV | INTR_MPSAFE,
 	    cbb_intr, sc, &sc->intrhand)) {
-		device_printf(brdev, "couldn't establish interrupt");
+		device_printf(brdev, "couldn't establish interrupt\n");
 		goto err;
 	}
 
@@ -419,7 +419,7 @@ cbb_pci_attach(device_t brdev)
 
 	/* Start the thread */
 	if (kthread_create(cbb_event_thread, sc, &sc->event_thread, 0, 0,
-	    "%s", device_get_nameunit(brdev))) {
+	    "%s event thread", device_get_nameunit(brdev))) {
 		device_printf(brdev, "unable to create event thread.\n");
 		panic("cbb_create_event_thread");
 	}
