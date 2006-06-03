@@ -307,7 +307,6 @@ struct pthread_specific_elem {
 
 struct pthread_key {
 	volatile int	allocated;
-	volatile int	count;
 	int		seqno;
 	void            (*destructor)(void *);
 };
