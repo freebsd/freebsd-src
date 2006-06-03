@@ -123,8 +123,6 @@ int	cbb_detach(device_t brdev);
 void	cbb_disable_func_intr(struct cbb_softc *sc);
 void	cbb_driver_added(device_t brdev, driver_t *driver);
 void	cbb_event_thread(void *arg);
-void	cbb_intr(void *arg);
-int	cbb_maxslots(device_t brdev);
 int	cbb_pcic_set_memory_offset(device_t brdev, device_t child, int rid,
 	    uint32_t cardaddr, uint32_t *deltap);
 int	cbb_pcic_set_res_flags(device_t brdev, device_t child, int type,
@@ -132,8 +130,6 @@ int	cbb_pcic_set_res_flags(device_t brdev, device_t child, int type,
 int	cbb_power(device_t brdev, int volts);
 int	cbb_power_enable_socket(device_t brdev, device_t child);
 void	cbb_power_disable_socket(device_t brdev, device_t child);
-uint32_t cbb_read_config(device_t brdev, int b, int s, int f,
-	    int reg, int width);
 int	cbb_read_ivar(device_t brdev, device_t child, int which,
 	    uintptr_t *result);
 int	cbb_release_resource(device_t brdev, device_t child,
@@ -141,12 +137,9 @@ int	cbb_release_resource(device_t brdev, device_t child,
 int	cbb_resume(device_t self);
 int	cbb_setup_intr(device_t dev, device_t child, struct resource *irq,
 	    int flags, driver_intr_t *intr, void *arg, void **cookiep);
-int	cbb_shutdown(device_t brdev);
 int	cbb_suspend(device_t self);
 int	cbb_teardown_intr(device_t dev, device_t child, struct resource *irq,
 	    void *cookie);
-void	cbb_write_config(device_t brdev, int b, int s, int f,
-	    int reg, uint32_t val, int width);
 int	cbb_write_ivar(device_t brdev, device_t child, int which,
 	    uintptr_t value);
 
