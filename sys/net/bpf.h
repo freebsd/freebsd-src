@@ -603,6 +603,9 @@ struct bpf_dltlist {
 };
 
 #ifdef _KERNEL
+#include "opt_bpf.h"
+#include "opt_netgraph.h"
+
 /*
  * Descriptor associated with each attached hardware interface.
  */
