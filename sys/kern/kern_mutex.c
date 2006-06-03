@@ -85,7 +85,7 @@ __FBSDID("$FreeBSD$");
  */
 #define mtx_unowned(m)	((m)->mtx_lock == MTX_UNOWNED)
 
-#define	mtx_owner(m)	((struct thread *)((m)->mtx_lock & (MTX_FLAGMASK|MTX_UNOWNED)))
+#define	mtx_owner(m)	((struct thread *)((m)->mtx_lock & ~MTX_FLAGMASK))
 
 #ifdef DDB
 static void	db_show_mtx(struct lock_object *lock);
@@ -527,7 +527,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		 * If the current owner of the lock is executing on another
 		 * CPU, spin instead of blocking.
 		 */
-		owner = (struct thread *)(v & MTX_FLAGMASK);
+		owner = (struct thread *)(v & ~MTX_FLAGMASK);
 #ifdef ADAPTIVE_GIANT
 		if (TD_IS_RUNNING(owner)) {
 #else

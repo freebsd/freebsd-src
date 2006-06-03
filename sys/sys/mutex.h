@@ -71,7 +71,7 @@
 #define	MTX_RECURSED	0x00000001	/* lock recursed (for MTX_DEF only) */
 #define	MTX_CONTESTED	0x00000002	/* lock contested (for MTX_DEF only) */
 #define MTX_UNOWNED	0x00000004	/* Cookie for free mutex */
-#define	MTX_FLAGMASK	~(MTX_RECURSED | MTX_CONTESTED)
+#define	MTX_FLAGMASK	(MTX_RECURSED | MTX_CONTESTED | MTX_UNOWNED)
 
 #endif	/* _KERNEL */
 
@@ -322,7 +322,7 @@ extern struct mtx_pool *mtxpool_sleep;
 
 #define	mtx_initialized(m)	lock_initalized(&(m)->mtx_object)
 
-#define mtx_owned(m)	(((m)->mtx_lock & MTX_FLAGMASK) == (uintptr_t)curthread)
+#define mtx_owned(m)	(((m)->mtx_lock & ~MTX_FLAGMASK) == (uintptr_t)curthread)
 
 #define mtx_recursed(m)	((m)->mtx_recurse != 0)
 
