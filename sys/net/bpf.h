@@ -630,7 +630,11 @@ static __inline int
 bpf_peers_present(struct bpf_if *bpf)
 {
 
-	return !LIST_EMPTY(&bpf->bif_dlist);
+#if defined(DEV_BPF) || defined(NETGRAPH_BPF)
+	return (!LIST_EMPTY(&bpf->bif_dlist));
+#else
+	return (0);
+#endif	/* DEV_BPF || NETGRAPH_BPF */
 }
 
 #define	BPF_TAP(_ifp,_pkt,_pktlen) do {				\
