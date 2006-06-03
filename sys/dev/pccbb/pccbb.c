@@ -1527,7 +1527,7 @@ cbb_write_ivar(device_t brdev, device_t child, int which, uintptr_t value)
 	switch (which) {
 	case PCIB_IVAR_BUS:
 		sc->secbus = value;
-		break;
+		return (0);
 	}
 	return (ENOENT);
 }
