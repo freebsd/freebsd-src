@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2006
+.Dd June 4, 2006
 .Dt CRYPTO 9
 .Os
 .Sh NAME
@@ -74,6 +74,10 @@ struct cryptodesc {
 	int                crd_inject;
 	int                crd_flags;
 	struct cryptoini   CRD_INI;
+#define crd_iv          CRD_INI.cri_iv
+#define crd_key         CRD_INI.cri_key
+#define crd_alg         CRD_INI.cri_alg
+#define crd_klen        CRD_INI.cri_klen
 	struct cryptodesc *crd_next;
 };
 
@@ -318,6 +322,23 @@ information about what type of cryptographic operation should be done
 on the input buffer.
 The various fields are:
 .Bl -tag -width ".Va crd_inject"
+.It Va crd_iv
+The field where IV should be provided when the
+.Dv CRD_F_IV_EXPLICIT
+flag is given.
+.It Va crd_key
+When the
+.Dv CRD_F_KEY_EXPLICIT
+flag is given, the
+.Va crd_key
+points to a buffer with encryption or authentication key.
+.It Va crd_alg
+An algorithm to use.
+Must be the same as the one given at newsession time.
+.It Va crd_klen
+The
+.Va crd_key
+key length.
 .It Va crd_skip
 The offset in the input buffer where processing should start.
 .It Va crd_len
@@ -359,7 +380,7 @@ flag.
 .It Dv CRD_F_IV_EXPLICIT
 For encryption algorithms, this bit is set when the IV is explicitly
 provided by the consumer in the
-.Va cri_iv
+.Va crd_iv
 field.
 Otherwise, for encryption operations the IV is provided for by
 the driver used to perform the operation, whereas for decryption
@@ -372,11 +393,13 @@ by the consumer, and does not precede the data (some
 .Xr ipsec 4
 configurations, and the encrypted swap are two such examples).
 .It Dv CRD_F_KEY_EXPLICIT
-For encryption algorithms, this bit is set when the key is explicitly
-provided by the consumer in the
-.Va cri_key
+For encryption and authentication (MAC) algorithms, this bit is set when the key
+is explicitly provided by the consumer in the
+.Va crd_key
 field for the given operation.
-Otherwise, the key is taken at newsession time from the same field.
+Otherwise, the key is taken at newsession time from the
+.Va cri_key
+field.
 .It Dv CRD_F_COMP
 For compression algorithms, this bit is set when compression is required (when
 not set, decompression is performed).
