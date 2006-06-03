@@ -603,9 +603,6 @@ struct bpf_dltlist {
 };
 
 #ifdef _KERNEL
-#include "opt_bpf.h"
-#include "opt_netgraph.h"
-
 /*
  * Descriptor associated with each attached hardware interface.
  */
@@ -633,11 +630,9 @@ static __inline int
 bpf_peers_present(struct bpf_if *bpf)
 {
 
-#if defined(DEV_BPF) || defined(NETGRAPH_BPF)
-	return (!LIST_EMPTY(&bpf->bif_dlist));
-#else
+	if (bpf && !LIST_EMPTY(&bpf->bif_dlist))
+		return (1);
 	return (0);
-#endif	/* DEV_BPF || NETGRAPH_BPF */
 }
 
 #define	BPF_TAP(_ifp,_pkt,_pktlen) do {				\
