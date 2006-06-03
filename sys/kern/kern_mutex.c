@@ -596,9 +596,7 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 	if (LOCK_LOG_TEST(&m->mtx_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
 
-	for (;;) {
-		if (_obtain_lock(m, tid))
-			break;
+	while (!_obtain_lock(m, tid)) {
 
 		/* Give interrupts a chance while we spin. */
 		spinlock_exit();
