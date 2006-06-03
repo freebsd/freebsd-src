@@ -580,7 +580,7 @@ dovmstat(unsigned int interval, int reps)
 #define	rate(x)	(((x) + halfuptime) / uptime)	/* round */
 		(void)printf(" %7ld %6ld ", (long)vmstat_pgtok(total.t_avm),
 			     (long)vmstat_pgtok(total.t_free));
-		(void)printf("%4lu ",
+		(void)printf("%5lu ",
 		    (unsigned long)rate(sum.v_vm_faults - osum.v_vm_faults));
 		(void)printf("%3lu ",
 		    (unsigned long)rate(sum.v_reactivated - osum.v_reactivated));
@@ -590,12 +590,12 @@ dovmstat(unsigned int interval, int reps)
 		(void)printf("%3lu ",
 		    (unsigned long)rate(sum.v_swapout + sum.v_vnodeout -
 		    (osum.v_swapout + osum.v_vnodeout)));
-		(void)printf("%3lu ",
+		(void)printf("%5lu ",
 		    (unsigned long)rate(sum.v_tfree - osum.v_tfree));
 		(void)printf("%3lu ",
 		    (unsigned long)rate(sum.v_pdpages - osum.v_pdpages));
 		devstats();
-		(void)printf("%4lu %4lu %3lu ",
+		(void)printf("%4lu %4lu %4lu ",
 		    (unsigned long)rate(sum.v_intr - osum.v_intr),
 		    (unsigned long)rate(sum.v_syscall - osum.v_syscall),
 		    (unsigned long)rate(sum.v_swtch - osum.v_swtch));
@@ -630,14 +630,14 @@ printhdr(void)
 	else if (num_shown == 1)
 		(void)printf("disk");
 	(void)printf("   faults      cpu\n");
-	(void)printf(" r b w     avm    fre  flt  re  pi  po  fr  sr ");
+	(void)printf(" r b w     avm    fre   flt  re  pi  po    fr  sr ");
 	for (i = 0; i < num_devices; i++)
 		if ((dev_select[i].selected)
 		 && (dev_select[i].selected <= maxshowdevs))
 			(void)printf("%c%c%d ", dev_select[i].device_name[0],
 				     dev_select[i].device_name[1],
 				     dev_select[i].unit_number);
-	(void)printf("  in   sy  cs us sy id\n");
+	(void)printf("  in   sy   cs us sy id\n");
 	hdrcnt = winlines - 2;
 }
 
