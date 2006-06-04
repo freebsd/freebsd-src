@@ -61,19 +61,39 @@
 #define CRYPTO_DRIVERS_INITIAL	4
 #define CRYPTO_SW_SESSIONS	32
 
+/* Hash values */
+#define	NULL_HASH_LEN		16
+#define	MD5_HASH_LEN		16
+#define	SHA1_HASH_LEN		20
+#define	RIPEMD160_HASH_LEN	20
+#define	SHA2_256_HASH_LEN	32
+#define	SHA2_384_HASH_LEN	48
+#define	SHA2_512_HASH_LEN	64
+#define	MD5_KPDK_HASH_LEN	16
+#define	SHA1_KPDK_HASH_LEN	20
+
 /* HMAC values */
-#define HMAC_BLOCK_LEN		64
-#define HMAC_BLOCK_MAXLEN	128
-#define HMAC_IPAD_VAL		0x36
-#define HMAC_OPAD_VAL		0x5C
+#define	NULL_HMAC_BLOCK_LEN		64
+#define	MD5_HMAC_BLOCK_LEN		64
+#define	SHA1_HMAC_BLOCK_LEN		64
+#define	RIPEMD160_HMAC_BLOCK_LEN	64
+#define	SHA2_256_HMAC_BLOCK_LEN		64
+#define	SHA2_384_HMAC_BLOCK_LEN		128
+#define	SHA2_512_HMAC_BLOCK_LEN		128
+#define	HMAC_BLOCK_LEN			64
+#define	HMAC_BLOCK_MAXLEN		128
+#define	HMAC_IPAD_VAL			0x36
+#define	HMAC_OPAD_VAL			0x5C
 
 /* Encryption algorithm block sizes */
+#define NULL_BLOCK_LEN		4
 #define DES_BLOCK_LEN		8
 #define DES3_BLOCK_LEN		8
 #define BLOWFISH_BLOCK_LEN	8
 #define SKIPJACK_BLOCK_LEN	8
 #define CAST128_BLOCK_LEN	8
 #define RIJNDAEL128_BLOCK_LEN	16
+#define AES_BLOCK_LEN		RIJNDAEL128_BLOCK_LEN
 #define EALG_MAX_BLOCK_LEN	16 /* Keep this updated */
 
 /* Maximum hash algorithm result length */
