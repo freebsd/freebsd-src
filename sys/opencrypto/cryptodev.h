@@ -97,7 +97,7 @@
 #define CAST128_BLOCK_LEN	8
 #define RIJNDAEL128_BLOCK_LEN	16
 #define AES_BLOCK_LEN		RIJNDAEL128_BLOCK_LEN
-#define EALG_MAX_BLOCK_LEN	16 /* Keep this updated */
+#define EALG_MAX_BLOCK_LEN	AES_BLOCK_LEN /* Keep this updated */
 
 #define	CRYPTO_ALGORITHM_MIN	1
 #define CRYPTO_DES_CBC		1
@@ -152,8 +152,6 @@ struct crypt_op {
 	caddr_t		mac;		/* must be big enough for chosen MAC */
 	caddr_t		iv;
 };
-
-#define CRYPTO_MAX_MAC_LEN	20
 
 /* bignum parameter, in packed bytes, ... */
 struct crparam {
