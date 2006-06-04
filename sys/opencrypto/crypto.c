@@ -262,8 +262,9 @@ MODULE_DEPEND(crypto, zlib, 1, 1, 1);
 int
 crypto_newsession(u_int64_t *sid, struct cryptoini *cri, int hard)
 {
+	struct cryptocap *cap = NULL;
 	struct cryptoini *cr;
-	u_int32_t hid, lid;
+	u_int32_t hid = 0, lid;
 	int err = EINVAL;
 
 	CRYPTO_DRIVER_LOCK();
@@ -279,50 +280,85 @@ crypto_newsession(u_int64_t *sid, struct cryptoini *cri, int hard)
 	 * XXX another story altogether).
 	 */
 
-	for (hid = 0; hid < crypto_drivers_num; hid++) {
-		struct cryptocap *cap = &crypto_drivers[hid];
-		/*
-		 * If it's not initialized or has remaining sessions
-		 * referencing it, skip.
-		 */
-		if (cap->cc_newsession == NULL ||
-		    (cap->cc_flags & CRYPTOCAP_F_CLEANUP))
-			continue;
-
-		/* Hardware required -- ignore software drivers. */
-		if (hard > 0 && (cap->cc_flags & CRYPTOCAP_F_SOFTWARE))
-			continue;
-		/* Software required -- ignore hardware drivers. */
-		if (hard < 0 && (cap->cc_flags & CRYPTOCAP_F_SOFTWARE) == 0)
-			continue;
-
-		/* See if all the algorithms are supported. */
-		for (cr = cri; cr; cr = cr->cri_next)
-			if (cap->cc_alg[cr->cri_alg] == 0)
-				break;
-
-		if (cr == NULL) {
-			/* Ok, all algorithms are supported. */
-
+	/*
+	 * First try to find hardware crypto.
+	 */
+	if (hard >= 0) {
+		for (hid = 0; hid < crypto_drivers_num; hid++) {
+			cap = &crypto_drivers[hid];
 			/*
-			 * Can't do everything in one session.
-			 *
-			 * XXX Fix this. We need to inject a "virtual" session layer right
-			 * XXX about here.
+			 * If it's not initialized or has remaining sessions
+			 * referencing it, skip.
 			 */
+			if (cap->cc_newsession == NULL ||
+			    (cap->cc_flags & CRYPTOCAP_F_CLEANUP))
+				continue;
 
-			/* Call the driver initialization routine. */
-			lid = hid;		/* Pass the driver ID. */
-			err = (*cap->cc_newsession)(cap->cc_arg, &lid, cri);
-			if (err == 0) {
-				/* XXX assert (hid &~ 0xffffff) == 0 */
-				/* XXX assert (cap->cc_flags &~ 0xff) == 0 */
-				(*sid) = ((cap->cc_flags & 0xff) << 24) | hid;
-				(*sid) <<= 32;
-				(*sid) |= (lid & 0xffffffff);
-				cap->cc_sessions++;
+			/* Hardware required -- ignore software drivers. */
+			if (cap->cc_flags & CRYPTOCAP_F_SOFTWARE)
+				continue;
+
+			/* See if all the algorithms are supported. */
+			for (cr = cri; cr; cr = cr->cri_next)
+				if (cap->cc_alg[cr->cri_alg] == 0)
+					break;
+			if (cr == NULL) {
+				/* Ok, all algorithms are supported. */
+				break;
 			}
-			break;
+		}
+		if (hid == crypto_drivers_num)
+			cap = NULL;
+	}
+	/*
+	 * If no hardware crypto, look for software crypto.
+	 */
+	if (cap == NULL && hard <= 0) {
+		for (hid = 0; hid < crypto_drivers_num; hid++) {
+			cap = &crypto_drivers[hid];
+			/*
+			 * If it's not initialized or has remaining sessions
+			 * referencing it, skip.
+			 */
+			if (cap->cc_newsession == NULL ||
+			    (cap->cc_flags & CRYPTOCAP_F_CLEANUP))
+				continue;
+
+			/* Software required -- ignore hardware drivers. */
+			if (!(cap->cc_flags & CRYPTOCAP_F_SOFTWARE))
+				continue;
+
+			/* See if all the algorithms are supported. */
+			for (cr = cri; cr; cr = cr->cri_next)
+				if (cap->cc_alg[cr->cri_alg] == 0)
+					break;
+			if (cr == NULL) {
+				/* Ok, all algorithms are supported. */
+				break;
+			}
+		}
+		if (hid == crypto_drivers_num)
+			cap = NULL;
+	}
+
+	if (cap != NULL) {
+		/*
+		 * Can't do everything in one session.
+		 *
+		 * XXX Fix this. We need to inject a "virtual" session layer right
+		 * XXX about here.
+		 */
+
+		/* Call the driver initialization routine. */
+		lid = hid;		/* Pass the driver ID. */
+		err = (*cap->cc_newsession)(cap->cc_arg, &lid, cri);
+		if (err == 0) {
+			/* XXX assert (hid &~ 0xffffff) == 0 */
+			/* XXX assert (cap->cc_flags &~ 0xff) == 0 */
+			(*sid) = ((cap->cc_flags & 0xff) << 24) | hid;
+			(*sid) <<= 32;
+			(*sid) |= (lid & 0xffffffff);
+			cap->cc_sessions++;
 		}
 	}
 done:
