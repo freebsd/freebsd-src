@@ -831,6 +831,67 @@ feed1:
 	return;
 }
 
+static void
+ubsec_setup_enckey(struct ubsec_session *ses, int algo, caddr_t key)
+{
+
+	/* Go ahead and compute key in ubsec's byte order */
+	if (algo == CRYPTO_DES_CBC) {
+		bcopy(key, &ses->ses_deskey[0], 8);
+		bcopy(key, &ses->ses_deskey[2], 8);
+		bcopy(key, &ses->ses_deskey[4], 8);
+	} else
+		bcopy(key, ses->ses_deskey, 24);
+
+	SWAP32(ses->ses_deskey[0]);
+	SWAP32(ses->ses_deskey[1]);
+	SWAP32(ses->ses_deskey[2]);
+	SWAP32(ses->ses_deskey[3]);
+	SWAP32(ses->ses_deskey[4]);
+	SWAP32(ses->ses_deskey[5]);
+}
+
+static void
+ubsec_setup_mackey(struct ubsec_session *ses, int algo, caddr_t key, int klen)
+{
+	MD5_CTX md5ctx;
+	SHA1_CTX sha1ctx;
+	int i;
+
+	for (i = 0; i < klen; i++)
+		key[i] ^= HMAC_IPAD_VAL;
+
+	if (algo == CRYPTO_MD5_HMAC) {
+		MD5Init(&md5ctx);
+		MD5Update(&md5ctx, key, klen);
+		MD5Update(&md5ctx, hmac_ipad_buffer, HMAC_BLOCK_LEN - klen);
+		bcopy(md5ctx.state, ses->ses_hminner, sizeof(md5ctx.state));
+	} else {
+		SHA1Init(&sha1ctx);
+		SHA1Update(&sha1ctx, key, klen);
+		SHA1Update(&sha1ctx, hmac_ipad_buffer, HMAC_BLOCK_LEN - klen);
+		bcopy(sha1ctx.h.b32, ses->ses_hminner, sizeof(sha1ctx.h.b32));
+	}
+
+	for (i = 0; i < klen; i++)
+		key[i] ^= (HMAC_IPAD_VAL ^ HMAC_OPAD_VAL);
+
+	if (algo == CRYPTO_MD5_HMAC) {
+		MD5Init(&md5ctx);
+		MD5Update(&md5ctx, key, klen);
+		MD5Update(&md5ctx, hmac_opad_buffer, HMAC_BLOCK_LEN - klen);
+		bcopy(md5ctx.state, ses->ses_hmouter, sizeof(md5ctx.state));
+	} else {
+		SHA1Init(&sha1ctx);
+		SHA1Update(&sha1ctx, key, klen);
+		SHA1Update(&sha1ctx, hmac_opad_buffer, HMAC_BLOCK_LEN - klen);
+		bcopy(sha1ctx.h.b32, ses->ses_hmouter, sizeof(sha1ctx.h.b32));
+	}
+
+	for (i = 0; i < klen; i++)
+		key[i] ^= HMAC_OPAD_VAL;
+}
+
 /*
  * Allocate a new 'session' and return an encoded session id.  'sidp'
  * contains our registration id, and should contain an encoded session
@@ -842,9 +903,7 @@ ubsec_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 	struct cryptoini *c, *encini = NULL, *macini = NULL;
 	struct ubsec_softc *sc = arg;
 	struct ubsec_session *ses = NULL;
-	MD5_CTX md5ctx;
-	SHA1_CTX sha1ctx;
-	int i, sesn;
+	int sesn;
 
 	if (sidp == NULL || cri == NULL || sc == NULL)
 		return (EINVAL);
@@ -905,20 +964,10 @@ ubsec_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 		/* XXX may read fewer than requested */
 		read_random(ses->ses_iv, sizeof(ses->ses_iv));
 
-		/* Go ahead and compute key in ubsec's byte order */
-		if (encini->cri_alg == CRYPTO_DES_CBC) {
-			bcopy(encini->cri_key, &ses->ses_deskey[0], 8);
-			bcopy(encini->cri_key, &ses->ses_deskey[2], 8);
-			bcopy(encini->cri_key, &ses->ses_deskey[4], 8);
-		} else
-			bcopy(encini->cri_key, ses->ses_deskey, 24);
-
-		SWAP32(ses->ses_deskey[0]);
-		SWAP32(ses->ses_deskey[1]);
-		SWAP32(ses->ses_deskey[2]);
-		SWAP32(ses->ses_deskey[3]);
-		SWAP32(ses->ses_deskey[4]);
-		SWAP32(ses->ses_deskey[5]);
+		if (encini->cri_key != NULL) {
+			ubsec_setup_enckey(ses, encini->cri_alg,
+			    encini->cri_key);
+		}
 	}
 
 	if (macini) {
@@ -930,50 +979,10 @@ ubsec_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 				ses->ses_mlen = SHA1_RESULTLEN;
 		}
 
-		for (i = 0; i < macini->cri_klen / 8; i++)
-			macini->cri_key[i] ^= HMAC_IPAD_VAL;
-
-		if (macini->cri_alg == CRYPTO_MD5_HMAC) {
-			MD5Init(&md5ctx);
-			MD5Update(&md5ctx, macini->cri_key,
-			    macini->cri_klen / 8);
-			MD5Update(&md5ctx, hmac_ipad_buffer,
-			    HMAC_BLOCK_LEN - (macini->cri_klen / 8));
-			bcopy(md5ctx.state, ses->ses_hminner,
-			    sizeof(md5ctx.state));
-		} else {
-			SHA1Init(&sha1ctx);
-			SHA1Update(&sha1ctx, macini->cri_key,
-			    macini->cri_klen / 8);
-			SHA1Update(&sha1ctx, hmac_ipad_buffer,
-			    HMAC_BLOCK_LEN - (macini->cri_klen / 8));
-			bcopy(sha1ctx.h.b32, ses->ses_hminner,
-			    sizeof(sha1ctx.h.b32));
+		if (macini->cri_key != NULL) {
+			ubsec_setup_mackey(ses, macini->cri_alg,
+			    macini->cri_key, macini->cri_klen / 8);
 		}
-
-		for (i = 0; i < macini->cri_klen / 8; i++)
-			macini->cri_key[i] ^= (HMAC_IPAD_VAL ^ HMAC_OPAD_VAL);
-
-		if (macini->cri_alg == CRYPTO_MD5_HMAC) {
-			MD5Init(&md5ctx);
-			MD5Update(&md5ctx, macini->cri_key,
-			    macini->cri_klen / 8);
-			MD5Update(&md5ctx, hmac_opad_buffer,
-			    HMAC_BLOCK_LEN - (macini->cri_klen / 8));
-			bcopy(md5ctx.state, ses->ses_hmouter,
-			    sizeof(md5ctx.state));
-		} else {
-			SHA1Init(&sha1ctx);
-			SHA1Update(&sha1ctx, macini->cri_key,
-			    macini->cri_klen / 8);
-			SHA1Update(&sha1ctx, hmac_opad_buffer,
-			    HMAC_BLOCK_LEN - (macini->cri_klen / 8));
-			bcopy(sha1ctx.h.b32, ses->ses_hmouter,
-			    sizeof(sha1ctx.h.b32));
-		}
-
-		for (i = 0; i < macini->cri_klen / 8; i++)
-			macini->cri_key[i] ^= HMAC_OPAD_VAL;
 	}
 
 	*sidp = UBSEC_SID(device_get_unit(sc->sc_dev), sesn);
@@ -1089,13 +1098,6 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 	}
 	crd2 = crd1->crd_next;
 
-	if ((crd1->crd_flags & CRD_F_KEY_EXPLICIT) ||
-	    (crd2 != NULL && (crd2->crd_flags & CRD_F_KEY_EXPLICIT))) {
-		ubsecstats.hst_badflags++;
-		err = EINVAL;
-		goto errout;
-	}
-
 	if (crd2 == NULL) {
 		if (crd1->crd_alg == CRYPTO_MD5_HMAC ||
 		    crd1->crd_alg == CRYPTO_SHA1_HMAC) {
@@ -1136,6 +1138,11 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 	}
 
 	if (enccrd) {
+		if (enccrd->crd_flags & CRD_F_KEY_EXPLICIT) {
+			ubsec_setup_enckey(ses, enccrd->crd_alg,
+			    enccrd->crd_key);
+		}
+
 		encoffset = enccrd->crd_skip;
 		ctx.pc_flags |= htole16(UBS_PKTCTX_ENC_3DES);
 
@@ -1184,6 +1191,11 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 	}
 
 	if (maccrd) {
+		if (maccrd->crd_flags & CRD_F_KEY_EXPLICIT) {
+			ubsec_setup_mackey(ses, maccrd->crd_alg,
+			    maccrd->crd_key, maccrd->crd_klen / 8);
+		}
+
 		macoffset = maccrd->crd_skip;
 
 		if (maccrd->crd_alg == CRYPTO_MD5_HMAC)
