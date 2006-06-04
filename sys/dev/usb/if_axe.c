@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
+#include <sys/sx.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -184,6 +185,7 @@ axe_cmd(struct axe_softc *sc, int cmd, int index, int val, void *buf)
 	usb_device_request_t	req;
 	usbd_status		err;
 
+	AXE_SLEEPLOCKASSERT(sc);
 	if (sc->axe_dying)
 		return(0);
 
@@ -214,6 +216,7 @@ axe_miibus_readreg(device_ptr_t dev, int phy, int reg)
 	if (sc->axe_dying)
 		return(0);
 
+	AXE_SLEEPLOCKASSERT(sc);
 #ifdef notdef
 	/*
 	 * The chip tells us the MII address of any supported
@@ -255,6 +258,7 @@ axe_miibus_writereg(device_ptr_t dev, int phy, int reg, int val)
 	if (sc->axe_dying)
 		return(0);
 
+	AXE_SLEEPLOCKASSERT(sc);
 	AXE_LOCK(sc);
 	axe_cmd(sc, AXE_CMD_MII_OPMODE_SW, 0, 0, NULL);
 	err = axe_cmd(sc, AXE_CMD_MII_WRITE_REG, reg, phy, (void *)&val);
@@ -466,6 +470,8 @@ USB_ATTACH(axe)
 	mtx_init(&sc->axe_mtx, device_get_nameunit(self), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
 #endif
+	sx_init(&sc->axe_sleeplock, device_get_nameunit(self));
+	AXE_SLEEPLOCK(sc);
 	AXE_LOCK(sc);
 
 	/*
@@ -489,6 +495,8 @@ USB_ATTACH(axe)
 	if (ifp == NULL) {
 		printf("axe%d: can not if_alloc()\n", sc->axe_unit);
 		AXE_UNLOCK(sc);
+		AXE_SLEEPUNLOCK(sc);
+		sx_destroy(&sc->axe_sleeplock);
 #if __FreeBSD_version >= 500000
 		mtx_destroy(&sc->axe_mtx);
 #endif
@@ -513,6 +521,8 @@ USB_ATTACH(axe)
 		printf("axe%d: MII without any PHY!\n", sc->axe_unit);
 		if_free(ifp);
 		AXE_UNLOCK(sc);
+		AXE_SLEEPUNLOCK(sc);
+		sx_destroy(&sc->axe_sleeplock);
 #if __FreeBSD_version >= 500000
 		mtx_destroy(&sc->axe_mtx);
 #endif
@@ -534,6 +544,7 @@ USB_ATTACH(axe)
 	sc->axe_dying = 0;
 
 	AXE_UNLOCK(sc);
+	AXE_SLEEPUNLOCK(sc);
 
 	USB_ATTACH_SUCCESS_RETURN;
 }
@@ -567,6 +578,7 @@ axe_detach(device_ptr_t dev)
 		usbd_abort_pipe(sc->axe_ep[AXE_ENDPT_INTR]);
 
 	AXE_UNLOCK(sc);
+	sx_destroy(&sc->axe_sleeplock);
 #if __FreeBSD_version >= 500000
 	mtx_destroy(&sc->axe_mtx);
 #endif
@@ -745,12 +757,14 @@ axe_tick_task(void *xsc)
 	if (sc == NULL)
 		return;
 
+	AXE_SLEEPLOCK(sc);
 	AXE_LOCK(sc);
 
 	ifp = sc->axe_ifp;
 	mii = GET_MII(sc);
 	if (mii == NULL) {
 		AXE_UNLOCK(sc);
+		AXE_SLEEPUNLOCK(sc);
 		return;
 	}
 
@@ -765,6 +779,7 @@ axe_tick_task(void *xsc)
 	sc->axe_stat_ch = timeout(axe_tick, sc, hz);
 
 	AXE_UNLOCK(sc);
+	AXE_SLEEPUNLOCK(sc);
 
 	return;
 }
@@ -791,7 +806,10 @@ axe_encap(struct axe_softc *sc, struct mbuf *m, int idx)
 	/* Transmit */
 	err = usbd_transfer(c->ue_xfer);
 	if (err != USBD_IN_PROGRESS) {
+		/* XXX probably don't want to sleep here */
+		AXE_SLEEPLOCK(sc);
 		axe_stop(sc);
+		AXE_SLEEPUNLOCK(sc);
 		return(EIO);
 	}
 
@@ -862,6 +880,7 @@ axe_init(void *xsc)
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
 
+	AXE_SLEEPLOCK(sc);
 	AXE_LOCK(sc);
 
 	/*
@@ -882,6 +901,7 @@ axe_init(void *xsc)
 	    sc->axe_udev) == ENOBUFS) {
 		printf("axe%d: tx list init failed\n", sc->axe_unit);
 		AXE_UNLOCK(sc);
+		AXE_SLEEPUNLOCK(sc);
 		return;
 	}
 
@@ -890,6 +910,7 @@ axe_init(void *xsc)
 	    sc->axe_udev) == ENOBUFS) {
 		printf("axe%d: rx list init failed\n", sc->axe_unit);
 		AXE_UNLOCK(sc);
+		AXE_SLEEPUNLOCK(sc);
 		return;
 	}
 
@@ -920,6 +941,7 @@ axe_init(void *xsc)
 		printf("axe%d: open rx pipe failed: %s\n",
 		    sc->axe_unit, usbd_errstr(err));
 		AXE_UNLOCK(sc);
+		AXE_SLEEPUNLOCK(sc);
 		return;
 	}
 
@@ -929,6 +951,7 @@ axe_init(void *xsc)
 		printf("axe%d: open tx pipe failed: %s\n",
 		    sc->axe_unit, usbd_errstr(err));
 		AXE_UNLOCK(sc);
+		AXE_SLEEPUNLOCK(sc);
 		return;
 	}
 
@@ -945,6 +968,7 @@ axe_init(void *xsc)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	AXE_UNLOCK(sc);
+	AXE_SLEEPUNLOCK(sc);
 
 	sc->axe_stat_ch = timeout(axe_tick, sc, hz);
 
@@ -966,6 +990,7 @@ axe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
 			    !(sc->axe_if_flags & IFF_PROMISC)) {
+				AXE_SLEEPLOCK(sc);
 				AXE_LOCK(sc);
 				axe_cmd(sc, AXE_CMD_RXCTL_READ,
 					0, 0, (void *)&rxmode);
@@ -974,9 +999,11 @@ axe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 					0, rxmode, NULL);
 				AXE_UNLOCK(sc);
 				axe_setmulti(sc);
+				AXE_SLEEPUNLOCK(sc);
 			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    !(ifp->if_flags & IFF_PROMISC) &&
 			    sc->axe_if_flags & IFF_PROMISC) {
+				AXE_SLEEPLOCK(sc);
 				AXE_LOCK(sc);
 				axe_cmd(sc, AXE_CMD_RXCTL_READ,
 					0, 0, (void *)&rxmode);
@@ -985,32 +1012,38 @@ axe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 					0, rxmode, NULL);
 				AXE_UNLOCK(sc);
 				axe_setmulti(sc);
+				AXE_SLEEPUNLOCK(sc);
 			} else if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				axe_init(sc);
 		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				AXE_SLEEPLOCK(sc);
 				axe_stop(sc);
+				AXE_SLEEPUNLOCK(sc);
+			}
 		}
 		sc->axe_if_flags = ifp->if_flags;
 		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		AXE_SLEEPLOCK(sc);
 		axe_setmulti(sc);
+		AXE_SLEEPUNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
+		AXE_SLEEPLOCK(sc);
 		mii = GET_MII(sc);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
+		AXE_SLEEPUNLOCK(sc);
 		break;
 
 	default:
 		error = ether_ioctl(ifp, command, data);
 		break;
 	}
-
-	AXE_UNLOCK(sc);
 
 	return(error);
 }
@@ -1050,6 +1083,7 @@ axe_stop(struct axe_softc *sc)
 	usbd_status		err;
 	struct ifnet		*ifp;
 
+	AXE_SLEEPLOCKASSERT(sc);
 	AXE_LOCK(sc);
 
 	ifp = sc->axe_ifp;
@@ -1125,7 +1159,9 @@ axe_shutdown(device_ptr_t dev)
 
 	sc = device_get_softc(dev);
 
+	AXE_SLEEPLOCK(sc);
 	axe_stop(sc);
+	AXE_SLEEPUNLOCK(sc);
 
 	return;
 }
