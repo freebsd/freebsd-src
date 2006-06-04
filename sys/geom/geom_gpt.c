@@ -358,8 +358,8 @@ g_gpt_ctl_remove(struct gctl_req *req, const char *flags, struct g_geom *gp,
 static int
 g_gpt_has_pmbr(struct g_consumer *cp, int *error)
 {
-	struct dos_partition *part;
 	char *buf;
+	uint8_t *typ;
 	int i, pmbr;
 	uint16_t magic;
 
@@ -373,9 +373,10 @@ g_gpt_has_pmbr(struct g_consumer *cp, int *error)
 	if (magic != DOSMAGIC)
 		goto out;
 
-	part = (struct dos_partition *)(uintptr_t)(buf + DOSPARTOFF);
 	for (i = 0; i < 4; i++) {
-		if (part[i].dp_typ != 0 && part[i].dp_typ != DOSPTYP_PMBR)
+		typ = buf + DOSPARTOFF + i * sizeof(struct dos_partition) +
+		    offsetof(struct dos_partition, dp_typ);
+		if (*typ != 0 && *typ != DOSPTYP_PMBR)
 			goto out;
 	}
 
