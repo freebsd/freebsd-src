@@ -52,33 +52,6 @@ struct swcr_data **swcr_sessions = NULL;
 u_int32_t swcr_sesnum = 0;
 int32_t swcr_id = -1;
 
-#define COPYBACK(type, buf, off, size, in)	do {			\
-	switch (type) {							\
-	case CRYPTO_BUF_CONTIG:						\
-		bcopy(in, (u_char *)(buf) + (off), size);		\
-		break;							\
-	case CRYPTO_BUF_MBUF:						\
-		m_copyback((struct mbuf *)(buf), off, size, in);	\
-		break;							\
-	case CRYPTO_BUF_IOV:						\
-		cuio_copyback((struct uio *)(buf), off, size, in);	\
-		break;							\
-	}								\
-} while (0)
-#define COPYDATA(type, buf, off, size, out)	do {			\
-	switch (type) {							\
-	case CRYPTO_BUF_CONTIG:						\
-		bcopy((u_char *)(buf) + (off), out, size);		\
-		break;							\
-	case CRYPTO_BUF_MBUF:						\
-		m_copydata((struct mbuf *)(buf), off, size, out);	\
-		break;							\
-	case CRYPTO_BUF_IOV:						\
-		cuio_copydata((struct uio *)(buf), off, size, out);	\
-		break;							\
-	}								\
-} while (0)
-
 static	int swcr_encdec(struct cryptodesc *, struct swcr_data *, caddr_t, int);
 static	int swcr_authcompute(struct cryptodesc *crd, struct swcr_data *sw,
 			     caddr_t buf, int outtype);
