@@ -141,6 +141,7 @@ struct axe_softc {
 #if __FreeBSD_version >= 500000
 	struct mtx		axe_mtx;
 #endif
+	struct sx		axe_sleeplock;
 	char			axe_dying;
 	int			axe_link;
 	unsigned char		axe_ipgs[3];
@@ -157,3 +158,6 @@ struct axe_softc {
 #define	AXE_LOCK(_sc)
 #define	AXE_UNLOCK(_sc)
 #endif
+#define	AXE_SLEEPLOCK(_sc)	sx_xlock(&(_sc)->axe_sleeplock)
+#define	AXE_SLEEPUNLOCK(_sc)	sx_xunlock(&(_sc)->axe_sleeplock)
+#define	AXE_SLEEPLOCKASSERT(_sc) sx_assert(&(_sc)->axe_sleeplock, SX_XLOCKED)
