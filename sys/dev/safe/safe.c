@@ -640,6 +640,68 @@ safe_feed(struct safe_softc *sc, struct safe_ringentry *re)
 	WRITE_REG(sc, SAFE_HI_RD_DESCR, 0);
 }
 
+#define	N(a)	(sizeof(a) / sizeof (a[0]))
+static void
+safe_setup_enckey(struct safe_session *ses, caddr_t key)
+{
+	int i;
+
+	bcopy(key, ses->ses_key, ses->ses_klen / 8);
+
+	/* PE is little-endian, insure proper byte order */
+	for (i = 0; i < N(ses->ses_key); i++)
+		ses->ses_key[i] = htole32(ses->ses_key[i]);
+}
+
+static void
+safe_setup_mackey(struct safe_session *ses, int algo, caddr_t key, int klen)
+{
+	MD5_CTX md5ctx;
+	SHA1_CTX sha1ctx;
+	int i;
+
+
+	for (i = 0; i < klen; i++)
+		key[i] ^= HMAC_IPAD_VAL;
+
+	if (algo == CRYPTO_MD5_HMAC) {
+		MD5Init(&md5ctx);
+		MD5Update(&md5ctx, key, klen);
+		MD5Update(&md5ctx, hmac_ipad_buffer, HMAC_BLOCK_LEN - klen);
+		bcopy(md5ctx.state, ses->ses_hminner, sizeof(md5ctx.state));
+	} else {
+		SHA1Init(&sha1ctx);
+		SHA1Update(&sha1ctx, key, klen);
+		SHA1Update(&sha1ctx, hmac_ipad_buffer, HMAC_BLOCK_LEN - klen);
+		bcopy(sha1ctx.h.b32, ses->ses_hminner, sizeof(sha1ctx.h.b32));
+	}
+
+	for (i = 0; i < klen; i++)
+		key[i] ^= (HMAC_IPAD_VAL ^ HMAC_OPAD_VAL);
+
+	if (algo == CRYPTO_MD5_HMAC) {
+		MD5Init(&md5ctx);
+		MD5Update(&md5ctx, key, klen);
+		MD5Update(&md5ctx, hmac_opad_buffer, HMAC_BLOCK_LEN - klen);
+		bcopy(md5ctx.state, ses->ses_hmouter, sizeof(md5ctx.state));
+	} else {
+		SHA1Init(&sha1ctx);
+		SHA1Update(&sha1ctx, key, klen);
+		SHA1Update(&sha1ctx, hmac_opad_buffer, HMAC_BLOCK_LEN - klen);
+		bcopy(sha1ctx.h.b32, ses->ses_hmouter, sizeof(sha1ctx.h.b32));
+	}
+
+	for (i = 0; i < klen; i++)
+		key[i] ^= HMAC_OPAD_VAL;
+
+	/* PE is little-endian, insure proper byte order */
+	for (i = 0; i < N(ses->ses_hminner); i++) {
+		ses->ses_hminner[i] = htole32(ses->ses_hminner[i]);
+		ses->ses_hmouter[i] = htole32(ses->ses_hmouter[i]);
+	}
+}
+#undef N
+
 /*
  * Allocate a new 'session' and return an encoded session id.  'sidp'
  * contains our registration id, and should contain an encoded session
@@ -648,13 +710,10 @@ safe_feed(struct safe_softc *sc, struct safe_ringentry *re)
 static int
 safe_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 {
-#define	N(a)	(sizeof(a) / sizeof (a[0]))
 	struct cryptoini *c, *encini = NULL, *macini = NULL;
 	struct safe_softc *sc = arg;
 	struct safe_session *ses = NULL;
-	MD5_CTX md5ctx;
-	SHA1_CTX sha1ctx;
-	int i, sesn;
+	int sesn;
 
 	if (sidp == NULL || cri == NULL || sc == NULL)
 		return (EINVAL);
@@ -738,11 +797,8 @@ safe_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 		read_random(ses->ses_iv, sizeof(ses->ses_iv));
 
 		ses->ses_klen = encini->cri_klen;
-		bcopy(encini->cri_key, ses->ses_key, ses->ses_klen / 8);
-
-		/* PE is little-endian, insure proper byte order */
-		for (i = 0; i < N(ses->ses_key); i++)
-			ses->ses_key[i] = htole32(ses->ses_key[i]);
+		if (encini->cri_key != NULL)
+			safe_setup_enckey(ses, encini->cri_key);
 	}
 
 	if (macini) {
@@ -754,61 +810,14 @@ safe_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 				ses->ses_mlen = SHA1_RESULTLEN;
 		}
 
-		for (i = 0; i < macini->cri_klen / 8; i++)
-			macini->cri_key[i] ^= HMAC_IPAD_VAL;
-
-		if (macini->cri_alg == CRYPTO_MD5_HMAC) {
-			MD5Init(&md5ctx);
-			MD5Update(&md5ctx, macini->cri_key,
+		if (macini->cri_key != NULL) {
+			safe_setup_mackey(ses, macini->cri_alg, macini->cri_key,
 			    macini->cri_klen / 8);
-			MD5Update(&md5ctx, hmac_ipad_buffer,
-			    HMAC_BLOCK_LEN - (macini->cri_klen / 8));
-			bcopy(md5ctx.state, ses->ses_hminner,
-			    sizeof(md5ctx.state));
-		} else {
-			SHA1Init(&sha1ctx);
-			SHA1Update(&sha1ctx, macini->cri_key,
-			    macini->cri_klen / 8);
-			SHA1Update(&sha1ctx, hmac_ipad_buffer,
-			    HMAC_BLOCK_LEN - (macini->cri_klen / 8));
-			bcopy(sha1ctx.h.b32, ses->ses_hminner,
-			    sizeof(sha1ctx.h.b32));
-		}
-
-		for (i = 0; i < macini->cri_klen / 8; i++)
-			macini->cri_key[i] ^= (HMAC_IPAD_VAL ^ HMAC_OPAD_VAL);
-
-		if (macini->cri_alg == CRYPTO_MD5_HMAC) {
-			MD5Init(&md5ctx);
-			MD5Update(&md5ctx, macini->cri_key,
-			    macini->cri_klen / 8);
-			MD5Update(&md5ctx, hmac_opad_buffer,
-			    HMAC_BLOCK_LEN - (macini->cri_klen / 8));
-			bcopy(md5ctx.state, ses->ses_hmouter,
-			    sizeof(md5ctx.state));
-		} else {
-			SHA1Init(&sha1ctx);
-			SHA1Update(&sha1ctx, macini->cri_key,
-			    macini->cri_klen / 8);
-			SHA1Update(&sha1ctx, hmac_opad_buffer,
-			    HMAC_BLOCK_LEN - (macini->cri_klen / 8));
-			bcopy(sha1ctx.h.b32, ses->ses_hmouter,
-			    sizeof(sha1ctx.h.b32));
-		}
-
-		for (i = 0; i < macini->cri_klen / 8; i++)
-			macini->cri_key[i] ^= HMAC_OPAD_VAL;
-
-		/* PE is little-endian, insure proper byte order */
-		for (i = 0; i < N(ses->ses_hminner); i++) {
-			ses->ses_hminner[i] = htole32(ses->ses_hminner[i]);
-			ses->ses_hmouter[i] = htole32(ses->ses_hmouter[i]);
 		}
 	}
 
 	*sidp = SAFE_SID(device_get_unit(sc->sc_dev), sesn);
 	return (0);
-#undef N
 }
 
 /*
@@ -911,13 +920,6 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 	}
 	crd2 = crd1->crd_next;
 
-	if ((crd1->crd_flags & CRD_F_KEY_EXPLICIT) ||
-	    (crd2 != NULL && (crd2->crd_flags & CRD_F_KEY_EXPLICIT))) {
-		safestats.st_badflags++;
-		err = EINVAL;
-		goto errout;
-	}
-
 	cmd0 = SAFE_SA_CMD0_BASIC;		/* basic group operation */
 	cmd1 = 0;
 	if (crd2 == NULL) {
@@ -969,6 +971,9 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 	}
 
 	if (enccrd) {
+		if (enccrd->crd_flags & CRD_F_KEY_EXPLICIT)
+			safe_setup_enckey(ses, enccrd->crd_key);
+
 		if (enccrd->crd_alg == CRYPTO_DES_CBC) {
 			cmd0 |= SAFE_SA_CMD0_DES;
 			cmd1 |= SAFE_SA_CMD1_CBC;
@@ -1050,6 +1055,11 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 	}
 
 	if (maccrd) {
+		if (maccrd->crd_flags & CRD_F_KEY_EXPLICIT) {
+			safe_setup_mackey(ses, maccrd->crd_alg,
+			    maccrd->crd_key, maccrd->crd_klen / 8);
+		}
+
 		if (maccrd->crd_alg == CRYPTO_MD5_HMAC) {
 			cmd0 |= SAFE_SA_CMD0_MD5;
 			cmd1 |= SAFE_SA_CMD1_HMAC;	/* NB: enable HMAC */
