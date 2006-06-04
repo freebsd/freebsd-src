@@ -473,7 +473,7 @@ static int
 swcr_authcompute(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
     int outtype)
 {
-	unsigned char aalg[AALG_MAX_RESULT_LEN];
+	unsigned char aalg[HASH_MAX_LEN];
 	struct auth_hash *axf;
 	union authctx ctx;
 	int err;
