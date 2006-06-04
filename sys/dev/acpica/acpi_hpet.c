@@ -29,14 +29,14 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/time.h>
 #include <sys/timetc.h>
-#include <sys/bus.h>
+
 #include <contrib/dev/acpica/acpi.h>
-#include "acpi_if.h"
 #include <dev/acpica/acpivar.h>
 
 ACPI_SERIAL_DECL(hpet, "ACPI HPET support");
@@ -47,11 +47,20 @@ ACPI_MODULE_NAME("HPET")
 
 struct acpi_hpet_softc {
 	device_t		dev;
-	struct resource		*res[1];
+	struct resource		*mem_res;
 	ACPI_HANDLE		handle;
 };
 
-static unsigned hpet_get_timecount(struct timecounter *tc);
+static u_int hpet_get_timecount(struct timecounter *tc);
+static void acpi_hpet_test(struct acpi_hpet_softc *sc);
+
+static char *hpet_ids[] = { "PNP0103", NULL };
+
+#define HPET_MEM_WIDTH		0x400	/* Expected memory region size */
+#define HPET_OFFSET_INFO	0	/* Location of info in region */
+#define HPET_OFFSET_PERIOD	4	/* Location of period (1/hz) */
+#define HPET_OFFSET_ENABLE	0x10	/* Location of enable word */
+#define HPET_OFFSET_VALUE	0xf0	/* Location of actual timer value */
 
 struct timecounter hpet_timecounter = {
 	.tc_get_timecount =	hpet_get_timecount,
@@ -60,40 +69,36 @@ struct timecounter hpet_timecounter = {
 	.tc_quality =		-200,
 };
 
-static char *hpet_ids[] = { "PNP0103", NULL };
-
-static unsigned
+static u_int
 hpet_get_timecount(struct timecounter *tc)
 {
 	struct acpi_hpet_softc *sc;
 
 	sc = tc->tc_priv;
-	return (bus_read_4(sc->res[0], 0xf0));
+	return (bus_read_4(sc->mem_res, HPET_OFFSET_VALUE));
 }
 
 static int
 acpi_hpet_probe(device_t dev)
 {
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
+
 	if (acpi_disabled("hpet") ||
 	    ACPI_ID_PROBE(device_get_parent(dev), dev, hpet_ids) == NULL ||
 	    device_get_unit(dev) != 0)
 		return (ENXIO);
 
-	device_set_desc(dev, "HPET - High Precision Event Timers");
+	device_set_desc(dev, "High Precision Event Timer");
 	return (0);
 }
-
-static struct resource_spec hpet_res_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE},
-	{ -1, 0, 0}
-};
 
 static int
 acpi_hpet_attach(device_t dev)
 {
-	struct acpi_hpet_softc	*sc;
-	int error;
-	uint32_t u;
+	struct acpi_hpet_softc *sc;
+	int rid;
+	uint32_t val;
+	uintmax_t freq;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 
@@ -101,57 +106,40 @@ acpi_hpet_attach(device_t dev)
 	sc->dev = dev;
 	sc->handle = acpi_get_handle(dev);
 
-	error = bus_alloc_resources(dev, hpet_res_spec, sc->res);
-	if (error)
-		return (error);
+	rid = 0;
+	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
+	if (sc->mem_res == NULL)
+		return (ENOMEM);
 
-	u = bus_read_4(sc->res[0], 0x0);
-	device_printf(dev, "Vendor: 0x%x\n", u >> 16);
-	device_printf(dev, "Leg_Route_Cap: %d\n", (u >> 15) & 1);
-	device_printf(dev, "Count_Size_Cap: %d\n", (u >> 13) & 1);
-	device_printf(dev, "Num_Tim_Cap: %d\n", (u >> 18) & 0xf);
-	device_printf(dev, "Rev_id: 0x%x\n", u & 0xff);
-
-	u = bus_read_4(sc->res[0], 0x4);
-	device_printf(dev, "Period: %d fs (%jd Hz)\n",
-	    u, (intmax_t)((1000000000000000LL + u / 2) / u));
-
-	hpet_timecounter.tc_frequency = (1000000000000000LL + u / 2) / u;
-
-	bus_write_4(sc->res[0], 0x10, 1);
-
-#if 0
-	{
-	int i;
-	uint32_t u1, u2;
-	struct bintime b0, b1, b2;
-	struct timespec ts;
-
-	binuptime(&b0);
-	binuptime(&b0);
-	binuptime(&b1);
-	u1 = bus_read_4(sc->res[0], 0xf0);
-	for (i = 1; i < 1000; i++)
-		u2 = bus_read_4(sc->res[0], 0xf0);
-	binuptime(&b2);
-	u2 = bus_read_4(sc->res[0], 0xf0);
-
-	bintime_sub(&b2, &b1);
-	bintime_sub(&b1, &b0);
-	bintime_sub(&b2, &b1);
-	bintime2timespec(&b2, &ts);
-
-	device_printf(dev, "%ld.%09ld: %u ... %u = %u\n",
-	    (long)ts.tv_sec, ts.tv_nsec, u1, u2, u2 - u1);
-
-	device_printf(dev, "time per call: %ld ns\n", ts.tv_nsec / 1000);
+	/* Validate that we can access the whole region. */
+	if (rman_get_size(sc->mem_res) < HPET_MEM_WIDTH) {
+		device_printf(dev, "memory region width %ld too small\n",
+		    rman_get_size(sc->mem_res));
+		bus_free_resource(dev, SYS_RES_MEMORY, sc->mem_res);
+		return (ENXIO);
 	}
-#endif
 
-	device_printf(sc->dev, "HPET attach\n");
+	/* Read basic statistics about the timer. */
+	val = bus_read_4(sc->mem_res, HPET_OFFSET_PERIOD);
+	freq = (1000000000000000LL + val / 2) / val;
+	if (bootverbose) {
+		val = bus_read_4(sc->mem_res, HPET_OFFSET_INFO);
+		device_printf(dev,
+		    "vend: 0x%x rev: 0x%x num: %d hz: %jd opts:%s%s\n",
+		    val >> 16, val & 0xff, (val >> 18) & 0xf, freq,
+		    ((val >> 15) & 1) ? " leg_route" : "",
+		    ((val >> 13) & 1) ? " count_size" : "");
+	}
 
+	/* Be sure it is enabled. */
+	bus_write_4(sc->mem_res, HPET_OFFSET_ENABLE, 1);
+
+	if (testenv("debug.acpi.hpet_test"))
+		acpi_hpet_test(sc);
+
+	hpet_timecounter.tc_frequency = freq;
 	hpet_timecounter.tc_priv = sc;
-
 	tc_init(&hpet_timecounter);
 
 	return (0);
@@ -162,15 +150,37 @@ acpi_hpet_detach(device_t dev)
 {
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 
-#if 1
+	/* XXX Without a tc_remove() function, we can't detach. */
 	return (EBUSY);
-#else
-	struct acpi_hpet_softc *sc = device_get_softc(dev);
-	bus_release_resources(dev, hpet_res_spec, sc->res);
+}
 
-	device_printf(sc->dev, "HPET detach\n");
-	return (0);
-#endif
+/* Print some basic latency/rate information to assist in debugging. */
+static void
+acpi_hpet_test(struct acpi_hpet_softc *sc)
+{
+	int i;
+	uint32_t u1, u2;
+	struct bintime b0, b1, b2;
+	struct timespec ts;
+
+	binuptime(&b0);
+	binuptime(&b0);
+	binuptime(&b1);
+	u1 = bus_read_4(sc->mem_res, HPET_OFFSET_VALUE);
+	for (i = 1; i < 1000; i++)
+		u2 = bus_read_4(sc->mem_res, HPET_OFFSET_VALUE);
+	binuptime(&b2);
+	u2 = bus_read_4(sc->mem_res, HPET_OFFSET_VALUE);
+
+	bintime_sub(&b2, &b1);
+	bintime_sub(&b1, &b0);
+	bintime_sub(&b2, &b1);
+	bintime2timespec(&b2, &ts);
+
+	device_printf(sc->dev, "%ld.%09ld: %u ... %u = %u\n",
+	    (long)ts.tv_sec, ts.tv_nsec, u1, u2, u2 - u1);
+
+	device_printf(sc->dev, "time per call: %ld ns\n", ts.tv_nsec / 1000);
 }
 
 static device_method_t acpi_hpet_methods[] = {
