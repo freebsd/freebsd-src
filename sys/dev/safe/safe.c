@@ -1016,12 +1016,8 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 			else
 				iv = (caddr_t) ses->ses_iv;
 			if ((enccrd->crd_flags & CRD_F_IV_PRESENT) == 0) {
-				if (crp->crp_flags & CRYPTO_F_IMBUF)
-					m_copyback(re->re_src_m,
-						enccrd->crd_inject, ivsize, iv);
-				else if (crp->crp_flags & CRYPTO_F_IOV)
-					cuio_copyback(re->re_src_io,
-						enccrd->crd_inject, ivsize, iv);
+				crypto_copyback(crp->crp_flags, crp->crp_buf,
+				    enccrd->crd_inject, ivsize, iv);
 			}
 			bcopy(iv, re->re_sastate.sa_saved_iv, ivsize);
 			cmd0 |= SAFE_SA_CMD0_IVLD_STATE | SAFE_SA_CMD0_SAVEIV;
@@ -1029,17 +1025,14 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 		} else {
 			cmd0 |= SAFE_SA_CMD0_INBOUND;
 
-			if (enccrd->crd_flags & CRD_F_IV_EXPLICIT)
+			if (enccrd->crd_flags & CRD_F_IV_EXPLICIT) {
 				bcopy(enccrd->crd_iv,
 					re->re_sastate.sa_saved_iv, ivsize);
-			else if (crp->crp_flags & CRYPTO_F_IMBUF)
-				m_copydata(re->re_src_m, enccrd->crd_inject,
-					ivsize,
-					(caddr_t)re->re_sastate.sa_saved_iv);
-			else if (crp->crp_flags & CRYPTO_F_IOV)
-				cuio_copydata(re->re_src_io, enccrd->crd_inject,
-					ivsize,
-					(caddr_t)re->re_sastate.sa_saved_iv);
+			} else {
+				crypto_copydata(crp->crp_flags, crp->crp_buf,
+				    enccrd->crd_inject, ivsize,
+				    (caddr_t)re->re_sastate.sa_saved_iv);
+			}
 			cmd0 |= SAFE_SA_CMD0_IVLD_STATE;
 		}
 		/*
@@ -1567,17 +1560,9 @@ safe_callback(struct safe_softc *sc, struct safe_ringentry *re)
 				ivsize = 4*sizeof(u_int32_t);
 			} else
 				continue;
-			if (crp->crp_flags & CRYPTO_F_IMBUF) {
-				m_copydata((struct mbuf *)crp->crp_buf,
-					crd->crd_skip + crd->crd_len - ivsize,
-					ivsize,
-					(caddr_t) sc->sc_sessions[re->re_sesn].ses_iv);
-			} else if (crp->crp_flags & CRYPTO_F_IOV) {
-				cuio_copydata((struct uio *)crp->crp_buf,
-					crd->crd_skip + crd->crd_len - ivsize,
-					ivsize,
-					(caddr_t)sc->sc_sessions[re->re_sesn].ses_iv);
-			}
+			crypto_copydata(crp->crp_flags, crp->crp_buf,
+			    crd->crd_skip + crd->crd_len - ivsize, ivsize,
+			    (caddr_t)sc->sc_sessions[re->re_sesn].ses_iv);
 			break;
 		}
 	}
@@ -1598,17 +1583,10 @@ safe_callback(struct safe_softc *sc, struct safe_ringentry *re)
 				bswap32(re->re_sastate.sa_saved_indigest[1]);
 				bswap32(re->re_sastate.sa_saved_indigest[2]);
 			}
-			if (crp->crp_flags & CRYPTO_F_IMBUF) {
-				m_copyback((struct mbuf *)crp->crp_buf,
-					crd->crd_inject,
-					sc->sc_sessions[re->re_sesn].ses_mlen,
-					(caddr_t)re->re_sastate.sa_saved_indigest);
-			} else if (crp->crp_flags & CRYPTO_F_IOV) {
-				cuio_copyback((struct uio *)crp->crp_buf,
-					crd->crd_inject,
-					sc->sc_sessions[re->re_sesn].ses_mlen,
-					(caddr_t)re->re_sastate.sa_saved_indigest);
-			}
+			crypto_copyback(crp->crp_flags, crp->crp_buf,
+			    crd->crd_inject,
+			    sc->sc_sessions[re->re_sesn].ses_mlen,
+			    (caddr_t)re->re_sastate.sa_saved_indigest);
 			break;
 		}
 	}
