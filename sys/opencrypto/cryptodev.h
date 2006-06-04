@@ -72,6 +72,9 @@
 #define	MD5_KPDK_HASH_LEN	16
 #define	SHA1_KPDK_HASH_LEN	20
 
+/* Maximum hash algorithm result length */
+#define	HASH_MAX_LEN		SHA2_512_HASH_LEN /* Keep this updated */
+
 /* HMAC values */
 #define	NULL_HMAC_BLOCK_LEN		64
 #define	MD5_HMAC_BLOCK_LEN		64
@@ -95,9 +98,6 @@
 #define RIJNDAEL128_BLOCK_LEN	16
 #define AES_BLOCK_LEN		RIJNDAEL128_BLOCK_LEN
 #define EALG_MAX_BLOCK_LEN	16 /* Keep this updated */
-
-/* Maximum hash algorithm result length */
-#define AALG_MAX_RESULT_LEN	64 /* Keep this updated */
 
 #define	CRYPTO_ALGORITHM_MIN	1
 #define CRYPTO_DES_CBC		1
