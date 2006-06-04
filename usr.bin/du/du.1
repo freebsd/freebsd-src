@@ -32,7 +32,7 @@
 .\"	@(#)du.1	8.2 (Berkeley) 4/1/94
 .\" $FreeBSD$
 .\"
-.Dd June 2, 2004
+.Dd May 6, 2006
 .Dt DU 1
 .Os
 .Sh NAME
@@ -44,6 +44,7 @@
 .Op Fl a | s | d Ar depth
 .Op Fl c
 .Op Fl h | k | m
+.Op Fl n
 .Op Fl x
 .Op Fl I Ar mask
 .Op Ar
@@ -95,6 +96,8 @@ Display a grand total.
 Display block counts in 1024-byte (1-Kbyte) blocks.
 .It Fl m
 Display block counts in 1048576-byte (1-Mbyte) blocks.
+.It Fl n
+Ignore files and directories with user "nodump" flag (UF_NODUMP) set.
 .It Fl x
 File system mount points are not traversed.
 .El
@@ -135,6 +138,7 @@ option is not specified, the block counts will be displayed in 512-byte blocks.
 .El
 .Sh SEE ALSO
 .Xr df 1 ,
+.Xr chflags 2 ,
 .Xr fts 3 ,
 .Xr symlink 7 ,
 .Xr quot 8
