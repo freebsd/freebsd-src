@@ -71,7 +71,6 @@
 #define	SHA2_512_HASH_LEN	64
 #define	MD5_KPDK_HASH_LEN	16
 #define	SHA1_KPDK_HASH_LEN	20
-
 /* Maximum hash algorithm result length */
 #define	HASH_MAX_LEN		SHA2_512_HASH_LEN /* Keep this updated */
 
@@ -84,7 +83,8 @@
 #define	SHA2_384_HMAC_BLOCK_LEN		128
 #define	SHA2_512_HMAC_BLOCK_LEN		128
 #define	HMAC_BLOCK_LEN			64
-#define	HMAC_BLOCK_MAXLEN		128
+/* Maximum HMAC block length */
+#define	HMAC_MAX_BLOCK_LEN		SHA2_512_HMAC_BLOCK_LEN /* Keep this updated */
 #define	HMAC_IPAD_VAL			0x36
 #define	HMAC_OPAD_VAL			0x5C
 
