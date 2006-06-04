@@ -1159,27 +1159,18 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 			}
 
 			if ((enccrd->crd_flags & CRD_F_IV_PRESENT) == 0) {
-				if (crp->crp_flags & CRYPTO_F_IMBUF)
-					m_copyback(q->q_src_m,
-					    enccrd->crd_inject,
-					    8, (caddr_t)ctx.pc_iv);
-				else if (crp->crp_flags & CRYPTO_F_IOV)
-					cuio_copyback(q->q_src_io,
-					    enccrd->crd_inject,
-					    8, (caddr_t)ctx.pc_iv);
+				crypto_copyback(crp->crp_flags, crp->crp_buf,
+				    enccrd->crd_inject, 8, (caddr_t)ctx.pc_iv);
 			}
 		} else {
 			ctx.pc_flags |= htole16(UBS_PKTCTX_INBOUND);
 
 			if (enccrd->crd_flags & CRD_F_IV_EXPLICIT)
 				bcopy(enccrd->crd_iv, ctx.pc_iv, 8);
-			else if (crp->crp_flags & CRYPTO_F_IMBUF)
-				m_copydata(q->q_src_m, enccrd->crd_inject,
-				    8, (caddr_t)ctx.pc_iv);
-			else if (crp->crp_flags & CRYPTO_F_IOV)
-				cuio_copydata(q->q_src_io,
-				    enccrd->crd_inject, 8,
-				    (caddr_t)ctx.pc_iv);
+			else {
+				crypto_copydata(crp->crp_flags, crp->crp_buf,
+				    enccrd->crd_inject, 8, (caddr_t)ctx.pc_iv);
+			}
 		}
 
 		ctx.pc_deskey[0] = ses->ses_deskey[0];
@@ -1614,15 +1605,9 @@ ubsec_callback(struct ubsec_softc *sc, struct ubsec_q *q)
 			if (crd->crd_alg != CRYPTO_DES_CBC &&
 			    crd->crd_alg != CRYPTO_3DES_CBC)
 				continue;
-			if (crp->crp_flags & CRYPTO_F_IMBUF)
-				m_copydata((struct mbuf *)crp->crp_buf,
-				    crd->crd_skip + crd->crd_len - 8, 8,
-				    (caddr_t)sc->sc_sessions[q->q_sesn].ses_iv);
-			else if (crp->crp_flags & CRYPTO_F_IOV) {
-				cuio_copydata((struct uio *)crp->crp_buf,
-				    crd->crd_skip + crd->crd_len - 8, 8,
-				    (caddr_t)sc->sc_sessions[q->q_sesn].ses_iv);
-			}
+			crypto_copydata(crp->crp_flags, crp->crp_buf,
+			    crd->crd_skip + crd->crd_len - 8, 8,
+			    (caddr_t)sc->sc_sessions[q->q_sesn].ses_iv);
 			break;
 		}
 	}
@@ -1631,16 +1616,9 @@ ubsec_callback(struct ubsec_softc *sc, struct ubsec_q *q)
 		if (crd->crd_alg != CRYPTO_MD5_HMAC &&
 		    crd->crd_alg != CRYPTO_SHA1_HMAC)
 			continue;
-		if (crp->crp_flags & CRYPTO_F_IMBUF)
-			m_copyback((struct mbuf *)crp->crp_buf,
-			    crd->crd_inject,
-			    sc->sc_sessions[q->q_sesn].ses_mlen,
-			    (caddr_t)dmap->d_dma->d_macbuf);
-		else if (crp->crp_flags & CRYPTO_F_IOV)
-			cuio_copyback((struct uio *)crp->crp_buf,
-			    crd->crd_inject,
-			    sc->sc_sessions[q->q_sesn].ses_mlen,
-			    (caddr_t)dmap->d_dma->d_macbuf);
+		crypto_copyback(crp->crp_flags, crp->crp_buf, crd->crd_inject,
+		    sc->sc_sessions[q->q_sesn].ses_mlen,
+		    (caddr_t)dmap->d_dma->d_macbuf);
 		break;
 	}
 	mtx_lock(&sc->sc_freeqlock);
