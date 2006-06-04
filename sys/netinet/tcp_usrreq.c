@@ -120,7 +120,6 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 
 	inp = sotoinpcb(so);
 	KASSERT(inp == NULL, ("tcp_usr_attach: inp != NULL"));
-	INP_INFO_WLOCK(&tcbinfo);
 	TCPDEBUG1();
 
 	error = tcp_attach(so);
@@ -134,7 +133,6 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 	tp = intotcpcb(inp);
 out:
 	TCPDEBUG2(PRU_ATTACH);
-	INP_INFO_WUNLOCK(&tcbinfo);
 	return error;
 }
 
@@ -1399,17 +1397,19 @@ tcp_attach(so)
 	int isipv6 = INP_CHECK_SOCKAF(so, AF_INET6) != 0;
 #endif
 
-	INP_INFO_WLOCK_ASSERT(&tcbinfo);
-
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
 		error = soreserve(so, tcp_sendspace, tcp_recvspace);
 		if (error)
 			return (error);
 	}
+	INP_INFO_WLOCK(&tcbinfo);
 	error = in_pcballoc(so, &tcbinfo, "tcpinp");
-	if (error)
+	if (error) {
+		INP_INFO_WUNLOCK(&tcbinfo);
 		return (error);
+	}
 	inp = sotoinpcb(so);
+	INP_LOCK(inp);
 #ifdef INET6
 	if (isipv6) {
 		inp->inp_vflag |= INP_IPV6;
@@ -1420,7 +1420,6 @@ tcp_attach(so)
 	inp->inp_vflag |= INP_IPV4;
 	tp = tcp_newtcpcb(inp);
 	if (tp == NULL) {
-		INP_LOCK(inp);
 #ifdef INET6
 		if (isipv6) {
 			in6_pcbdetach(inp);
@@ -1432,9 +1431,12 @@ tcp_attach(so)
 #ifdef INET6
 		}
 #endif
+		INP_INFO_WUNLOCK(&tcbinfo);
 		return (ENOBUFS);
 	}
 	tp->t_state = TCPS_CLOSED;
+	INP_UNLOCK(inp);
+	INP_INFO_WUNLOCK(&tcbinfo);
 	return (0);
 }
 
