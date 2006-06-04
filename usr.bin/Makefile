@@ -68,6 +68,7 @@ SUBDIR=	alias \
 	gcore \
 	gencat \
 	getconf \
+	getent \
 	getopt \
 	${_gprof} \
 	head \
