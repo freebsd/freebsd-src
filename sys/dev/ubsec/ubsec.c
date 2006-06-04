@@ -527,6 +527,7 @@ ubsec_detach(device_t dev)
 		free(q, M_DEVBUF);
 	}
 	mtx_destroy(&sc->sc_mcr1lock);
+	mtx_destroy(&sc->sc_freeqlock);
 #ifndef UBSEC_NO_RNG
 	if (sc->sc_flags & UBS_FLAGS_RNG) {
 		ubsec_dma_free(sc, &sc->sc_rng.rng_q.q_mcr);
