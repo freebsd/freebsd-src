@@ -1030,11 +1030,11 @@ swcr_init(void)
 {
 	u_int i;
 
-	hmac_ipad_buffer = malloc(HMAC_BLOCK_MAXLEN, M_CRYPTO_DATA, M_WAITOK);
-	for (i = 0; i < HMAC_BLOCK_MAXLEN; i++)
+	hmac_ipad_buffer = malloc(HMAC_MAX_BLOCK_LEN, M_CRYPTO_DATA, M_WAITOK);
+	for (i = 0; i < HMAC_MAX_BLOCK_LEN; i++)
 		hmac_ipad_buffer[i] = HMAC_IPAD_VAL;
-	hmac_opad_buffer = malloc(HMAC_BLOCK_MAXLEN, M_CRYPTO_DATA, M_WAITOK);
-	for (i = 0; i < HMAC_BLOCK_MAXLEN; i++)
+	hmac_opad_buffer = malloc(HMAC_MAX_BLOCK_LEN, M_CRYPTO_DATA, M_WAITOK);
+	for (i = 0; i < HMAC_MAX_BLOCK_LEN; i++)
 		hmac_opad_buffer[i] = HMAC_OPAD_VAL;
 
 	swcr_id = crypto_get_driverid(CRYPTOCAP_F_SOFTWARE | CRYPTOCAP_F_SYNC);
