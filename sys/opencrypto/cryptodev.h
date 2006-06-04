@@ -413,32 +413,12 @@ extern	void cuio_copyback(struct uio* uio, int off, int len, caddr_t cp);
 extern	struct iovec *cuio_getptr(struct uio *uio, int loc, int *off);
 extern	int cuio_apply(struct uio *uio, int off, int len,
 	    int (*f)(void *, void *, u_int), void *arg);
-struct mbuf;
-#define COPYBACK(type, buf, off, size, in)	do {			\
-	switch (type) {							\
-	case CRYPTO_BUF_CONTIG:						\
-		bcopy(in, (u_char *)(buf) + (off), size);		\
-		break;							\
-	case CRYPTO_BUF_MBUF:						\
-		m_copyback((struct mbuf *)(buf), off, size, in);	\
-		break;							\
-	case CRYPTO_BUF_IOV:						\
-		cuio_copyback((struct uio *)(buf), off, size, in);	\
-		break;							\
-	}								\
-} while (0)
-#define COPYDATA(type, buf, off, size, out)	do {			\
-	switch (type) {							\
-	case CRYPTO_BUF_CONTIG:						\
-		bcopy((u_char *)(buf) + (off), out, size);		\
-		break;							\
-	case CRYPTO_BUF_MBUF:						\
-		m_copydata((struct mbuf *)(buf), off, size, out);	\
-		break;							\
-	case CRYPTO_BUF_IOV:						\
-		cuio_copydata((struct uio *)(buf), off, size, out);	\
-		break;							\
-	}								\
-} while (0)
+
+extern	void crypto_copyback(int flags, caddr_t buf, int off, int size,
+	    caddr_t in);
+extern	void crypto_copydata(int flags, caddr_t buf, int off, int size,
+	    caddr_t out);
+extern	int crypto_apply(int flags, caddr_t buf, int off, int len,
+	    int (*f)(void *, void *, u_int), void *arg);
 #endif /* _KERNEL */
 #endif /* _CRYPTO_CRYPTO_H_ */
