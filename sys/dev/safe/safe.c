@@ -807,9 +807,9 @@ safe_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 		ses->ses_mlen = macini->cri_mlen;
 		if (ses->ses_mlen == 0) {
 			if (macini->cri_alg == CRYPTO_MD5_HMAC)
-				ses->ses_mlen = MD5_DIGEST_LENGTH;
+				ses->ses_mlen = MD5_HASH_LEN;
 			else
-				ses->ses_mlen = SHA1_RESULTLEN;
+				ses->ses_mlen = SHA1_HASH_LEN;
 		}
 
 		if (macini->cri_key != NULL) {
