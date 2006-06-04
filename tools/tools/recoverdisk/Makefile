@@ -1,10 +1,7 @@
 # $FreeBSD$
 
 PROG=	recoverdisk
-
-NO_MAN=
-
-WARNS?=	5
+WARNS?=	6
 
 .include <bsd.prog.mk>
 
