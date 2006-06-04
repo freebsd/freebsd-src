@@ -80,8 +80,8 @@ int32_t swcr_id = -1;
 } while (0)
 
 static	int swcr_encdec(struct cryptodesc *, struct swcr_data *, caddr_t, int);
-static	int swcr_authcompute(struct cryptop *crp, struct cryptodesc *crd,
-			     struct swcr_data *sw, caddr_t buf, int outtype);
+static	int swcr_authcompute(struct cryptodesc *crd, struct swcr_data *sw,
+			     caddr_t buf, int outtype);
 static	int swcr_compdec(struct cryptodesc *, struct swcr_data *, caddr_t, int);
 static	int swcr_process(void *, struct cryptop *, int);
 static	int swcr_newsession(void *, u_int32_t *, struct cryptoini *);
@@ -470,8 +470,8 @@ swcr_authprepare(struct auth_hash *axf, struct swcr_data *sw, u_char *key,
  * Compute keyed-hash authenticator.
  */
 static int
-swcr_authcompute(struct cryptop *crp, struct cryptodesc *crd,
-    struct swcr_data *sw, caddr_t buf, int outtype)
+swcr_authcompute(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
+    int outtype)
 {
 	unsigned char aalg[AALG_MAX_RESULT_LEN];
 	struct auth_hash *axf;
@@ -997,7 +997,7 @@ swcr_process(void *arg, struct cryptop *crp, int hint)
 		case CRYPTO_SHA1_KPDK:
 		case CRYPTO_MD5:
 		case CRYPTO_SHA1:
-			if ((crp->crp_etype = swcr_authcompute(crp, crd, sw,
+			if ((crp->crp_etype = swcr_authcompute(crd, sw,
 			    crp->crp_buf, type)) != 0)
 				goto done;
 			break;
