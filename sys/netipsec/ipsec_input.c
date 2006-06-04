@@ -365,7 +365,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 			goto bad;
 		}
 	}
-#if INET6
+#ifdef INET6
 	/* IPv6-in-IP encapsulation. */
 	if (prot == IPPROTO_IPV6) {
 		struct ip6_hdr ip6n;
