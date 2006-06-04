@@ -53,8 +53,7 @@ u_int32_t swcr_sesnum = 0;
 int32_t swcr_id = -1;
 
 static	int swcr_encdec(struct cryptodesc *, struct swcr_data *, caddr_t, int);
-static	int swcr_authcompute(struct cryptodesc *crd, struct swcr_data *sw,
-			     caddr_t buf, int outtype);
+static	int swcr_authcompute(struct cryptodesc *, struct swcr_data *, caddr_t, int);
 static	int swcr_compdec(struct cryptodesc *, struct swcr_data *, caddr_t, int);
 static	int swcr_process(void *, struct cryptop *, int);
 static	int swcr_newsession(void *, u_int32_t *, struct cryptoini *);
@@ -65,7 +64,7 @@ static	int swcr_freesession(void *, u_int64_t);
  */
 static int
 swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
-    int outtype)
+    int flags)
 {
 	unsigned char iv[EALG_MAX_BLOCK_LEN], blk[EALG_MAX_BLOCK_LEN], *idat;
 	unsigned char *ivp, piv[EALG_MAX_BLOCK_LEN];
@@ -88,9 +87,8 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 			arc4rand(iv, blks, 0);
 
 		/* Do we need to write the IV */
-		if (!(crd->crd_flags & CRD_F_IV_PRESENT)) {
-			COPYBACK(outtype, buf, crd->crd_inject, blks, iv);
-		}
+		if (!(crd->crd_flags & CRD_F_IV_PRESENT))
+			crypto_copyback(flags, buf, crd->crd_inject, blks, iv);
 
 	} else {	/* Decryption */
 			/* IV explicitly provided ? */
@@ -98,7 +96,7 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 			bcopy(crd->crd_iv, iv, blks);
 		else {
 			/* Get IV off buf */
-			COPYDATA(outtype, buf, crd->crd_inject, blks, iv);
+			crypto_copydata(flags, buf, crd->crd_inject, blks, iv);
 		}
 	}
 
@@ -114,40 +112,7 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 	}
 	ivp = iv;
 
-	if (outtype == CRYPTO_BUF_CONTIG) {
-		if (crd->crd_flags & CRD_F_ENCRYPT) {
-			for (i = crd->crd_skip;
-			    i < crd->crd_skip + crd->crd_len; i += blks) {
-				/* XOR with the IV/previous block, as appropriate. */
-				if (i == crd->crd_skip)
-					for (k = 0; k < blks; k++)
-						buf[i + k] ^= ivp[k];
-				else
-					for (k = 0; k < blks; k++)
-						buf[i + k] ^= buf[i + k - blks];
-				exf->encrypt(sw->sw_kschedule, buf + i);
-			}
-		} else {		/* Decrypt */
-			/*
-			 * Start at the end, so we don't need to keep the encrypted
-			 * block as the IV for the next block.
-			 */
-			for (i = crd->crd_skip + crd->crd_len - blks;
-			    i >= crd->crd_skip; i -= blks) {
-				exf->decrypt(sw->sw_kschedule, buf + i);
-
-				/* XOR with the IV/previous block, as appropriate */
-				if (i == crd->crd_skip)
-					for (k = 0; k < blks; k++)
-						buf[i + k] ^= ivp[k];
-				else
-					for (k = 0; k < blks; k++)
-						buf[i + k] ^= buf[i + k - blks];
-			}
-		}
-
-		return 0;
-	} else if (outtype == CRYPTO_BUF_MBUF) {
+	if (flags & CRYPTO_F_IMBUF) {
 		struct mbuf *m = (struct mbuf *) buf;
 
 		/* Find beginning of data */
@@ -272,7 +237,7 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 		}
 
 		return 0; /* Done with mbuf encryption/decryption */
-	} else if (outtype == CRYPTO_BUF_IOV) {
+	} else if (flags & CRYPTO_F_IOV) {
 		struct uio *uio = (struct uio *) buf;
 		struct iovec *iov;
 
@@ -386,6 +351,39 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 		}
 
 		return 0; /* Done with iovec encryption/decryption */
+	} else {	/* contiguous buffer */
+		if (crd->crd_flags & CRD_F_ENCRYPT) {
+			for (i = crd->crd_skip;
+			    i < crd->crd_skip + crd->crd_len; i += blks) {
+				/* XOR with the IV/previous block, as appropriate. */
+				if (i == crd->crd_skip)
+					for (k = 0; k < blks; k++)
+						buf[i + k] ^= ivp[k];
+				else
+					for (k = 0; k < blks; k++)
+						buf[i + k] ^= buf[i + k - blks];
+				exf->encrypt(sw->sw_kschedule, buf + i);
+			}
+		} else {		/* Decrypt */
+			/*
+			 * Start at the end, so we don't need to keep the encrypted
+			 * block as the IV for the next block.
+			 */
+			for (i = crd->crd_skip + crd->crd_len - blks;
+			    i >= crd->crd_skip; i -= blks) {
+				exf->decrypt(sw->sw_kschedule, buf + i);
+
+				/* XOR with the IV/previous block, as appropriate */
+				if (i == crd->crd_skip)
+					for (k = 0; k < blks; k++)
+						buf[i + k] ^= ivp[k];
+				else
+					for (k = 0; k < blks; k++)
+						buf[i + k] ^= buf[i + k - blks];
+			}
+		}
+
+		return 0; /* Done with contiguous buffer encryption/decryption */
 	}
 
 	/* Unreachable */
@@ -444,7 +442,7 @@ swcr_authprepare(struct auth_hash *axf, struct swcr_data *sw, u_char *key,
  */
 static int
 swcr_authcompute(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
-    int outtype)
+    int flags)
 {
 	unsigned char aalg[HASH_MAX_LEN];
 	struct auth_hash *axf;
@@ -461,27 +459,10 @@ swcr_authcompute(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 
 	bcopy(sw->sw_ictx, &ctx, axf->ctxsize);
 
-	switch (outtype) {
-	case CRYPTO_BUF_CONTIG:
-		axf->Update(&ctx, buf + crd->crd_skip, crd->crd_len);
-		break;
-	case CRYPTO_BUF_MBUF:
-		err = m_apply((struct mbuf *) buf, crd->crd_skip, crd->crd_len,
-		    (int (*)(void *, void *, unsigned int)) axf->Update,
-		    (caddr_t) &ctx);
-		if (err)
-			return err;
-		break;
-	case CRYPTO_BUF_IOV:
-		err = cuio_apply((struct uio *) buf, crd->crd_skip, crd->crd_len,
-		    (int (*)(void *, void *, unsigned int)) axf->Update,
-		    (caddr_t) &ctx);
-		if (err)
-			return err;
-		break;
-	default:
-		return EINVAL;
-	}
+	err = crypto_apply(flags, buf, crd->crd_skip, crd->crd_len,
+	    (int (*)(void *, void *, unsigned int))axf->Update, (caddr_t)&ctx);
+	if (err)
+		return err;
 
 	switch (sw->sw_alg) {
 	case CRYPTO_MD5_HMAC:
@@ -514,7 +495,7 @@ swcr_authcompute(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 	}
 
 	/* Inject the authentication data */
-	COPYBACK(outtype, buf, crd->crd_inject,
+	crypto_copyback(flags, buf, crd->crd_inject,
 	    sw->sw_mlen == 0 ? axf->hashsize : sw->sw_mlen, aalg);
 	return 0;
 }
@@ -524,7 +505,7 @@ swcr_authcompute(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
  */
 static int
 swcr_compdec(struct cryptodesc *crd, struct swcr_data *sw,
-    caddr_t buf, int outtype)
+    caddr_t buf, int flags)
 {
 	u_int8_t *data, *out;
 	struct comp_algo *cxf;
@@ -541,7 +522,7 @@ swcr_compdec(struct cryptodesc *crd, struct swcr_data *sw,
 	MALLOC(data, u_int8_t *, crd->crd_len, M_CRYPTO_DATA,  M_NOWAIT);
 	if (data == NULL)
 		return (EINVAL);
-	COPYDATA(outtype, buf, crd->crd_skip, crd->crd_len, data);
+	crypto_copydata(flags, buf, crd->crd_skip, crd->crd_len, data);
 
 	if (crd->crd_flags & CRD_F_COMP)
 		result = cxf->compress(data, crd->crd_len, &out);
@@ -565,13 +546,13 @@ swcr_compdec(struct cryptodesc *crd, struct swcr_data *sw,
 		}
 	}
 
-	COPYBACK(outtype, buf, crd->crd_skip, result, out);
+	crypto_copyback(flags, buf, crd->crd_skip, result, out);
 	if (result < crd->crd_len) {
 		adj = result - crd->crd_len;
-		if (outtype == CRYPTO_BUF_MBUF) {
+		if (flags & CRYPTO_F_IMBUF) {
 			adj = result - crd->crd_len;
 			m_adj((struct mbuf *)buf, adj);
-		} else {
+		} else if (flags & CRYPTO_F_IOV) {
 			struct uio *uio = (struct uio *)buf;
 			int ind;
 
@@ -898,7 +879,6 @@ swcr_process(void *arg, struct cryptop *crp, int hint)
 	struct cryptodesc *crd;
 	struct swcr_data *sw;
 	u_int32_t lid;
-	int type;
 
 	/* Sanity check */
 	if (crp == NULL)
@@ -913,14 +893,6 @@ swcr_process(void *arg, struct cryptop *crp, int hint)
 	if (lid >= swcr_sesnum || lid == 0 || swcr_sessions[lid] == NULL) {
 		crp->crp_etype = ENOENT;
 		goto done;
-	}
-
-	if (crp->crp_flags & CRYPTO_F_IMBUF) {
-		type = CRYPTO_BUF_MBUF;
-	} else if (crp->crp_flags & CRYPTO_F_IOV) {
-		type = CRYPTO_BUF_IOV;
-	} else {
-		type = CRYPTO_BUF_CONTIG;
 	}
 
 	/* Go through crypto descriptors, processing as we go */
@@ -953,7 +925,7 @@ swcr_process(void *arg, struct cryptop *crp, int hint)
 		case CRYPTO_SKIPJACK_CBC:
 		case CRYPTO_RIJNDAEL128_CBC:
 			if ((crp->crp_etype = swcr_encdec(crd, sw,
-			    crp->crp_buf, type)) != 0)
+			    crp->crp_buf, crp->crp_flags)) != 0)
 				goto done;
 			break;
 		case CRYPTO_NULL_CBC:
@@ -971,13 +943,13 @@ swcr_process(void *arg, struct cryptop *crp, int hint)
 		case CRYPTO_MD5:
 		case CRYPTO_SHA1:
 			if ((crp->crp_etype = swcr_authcompute(crd, sw,
-			    crp->crp_buf, type)) != 0)
+			    crp->crp_buf, crp->crp_flags)) != 0)
 				goto done;
 			break;
 
 		case CRYPTO_DEFLATE_COMP:
 			if ((crp->crp_etype = swcr_compdec(crd, sw, 
-			    crp->crp_buf, type)) != 0)
+			    crp->crp_buf, crp->crp_flags)) != 0)
 				goto done;
 			else
 				crp->crp_olen = (int)sw->sw_size;

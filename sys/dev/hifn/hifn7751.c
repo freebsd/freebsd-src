@@ -2541,24 +2541,18 @@ hifn_process(void *arg, struct cryptop *crp, int hint)
 
 				if ((enccrd->crd_flags & CRD_F_IV_PRESENT)
 				    == 0) {
-					if (crp->crp_flags & CRYPTO_F_IMBUF)
-						m_copyback(cmd->src_m,
-						    enccrd->crd_inject,
-						    ivlen, cmd->iv);
-					else if (crp->crp_flags & CRYPTO_F_IOV)
-						cuio_copyback(cmd->src_io,
-						    enccrd->crd_inject,
-						    ivlen, cmd->iv);
+					crypto_copyback(crp->crp_flags,
+					    crp->crp_buf, enccrd->crd_inject,
+					    ivlen, cmd->iv);
 				}
 			} else {
 				if (enccrd->crd_flags & CRD_F_IV_EXPLICIT)
 					bcopy(enccrd->crd_iv, cmd->iv, ivlen);
-				else if (crp->crp_flags & CRYPTO_F_IMBUF)
-					m_copydata(cmd->src_m,
-					    enccrd->crd_inject, ivlen, cmd->iv);
-				else if (crp->crp_flags & CRYPTO_F_IOV)
-					cuio_copydata(cmd->src_io,
-					    enccrd->crd_inject, ivlen, cmd->iv);
+				else {
+					crypto_copydata(crp->crp_flags,
+					    crp->crp_buf, enccrd->crd_inject,
+					    ivlen, cmd->iv);
+				}
 			}
 		}
 
@@ -2769,14 +2763,9 @@ hifn_callback(struct hifn_softc *sc, struct hifn_command *cmd, u_int8_t *macbuf)
 	}
 
 	if (cmd->sloplen != 0) {
-		if (crp->crp_flags & CRYPTO_F_IMBUF)
-			m_copyback((struct mbuf *)crp->crp_buf,
-			    cmd->src_mapsize - cmd->sloplen,
-			    cmd->sloplen, (caddr_t)&dma->slop[cmd->slopidx]);
-		else if (crp->crp_flags & CRYPTO_F_IOV)
-			cuio_copyback((struct uio *)crp->crp_buf,
-			    cmd->src_mapsize - cmd->sloplen,
-			    cmd->sloplen, (caddr_t)&dma->slop[cmd->slopidx]);
+		crypto_copyback(crp->crp_flags, crp->crp_buf,
+		    cmd->src_mapsize - cmd->sloplen, cmd->sloplen,
+		    (caddr_t)&dma->slop[cmd->slopidx]);
 	}
 
 	i = dma->dstk; u = dma->dstu;
@@ -2805,15 +2794,9 @@ hifn_callback(struct hifn_softc *sc, struct hifn_command *cmd, u_int8_t *macbuf)
 				continue;
 			ivlen = ((crd->crd_alg == CRYPTO_AES_CBC) ?
 				HIFN_AES_IV_LENGTH : HIFN_IV_LENGTH);
-			if (crp->crp_flags & CRYPTO_F_IMBUF)
-				m_copydata((struct mbuf *)crp->crp_buf,
-				    crd->crd_skip + crd->crd_len - ivlen, ivlen,
-				    cmd->softc->sc_sessions[cmd->session_num].hs_iv);
-			else if (crp->crp_flags & CRYPTO_F_IOV) {
-				cuio_copydata((struct uio *)crp->crp_buf,
-				    crd->crd_skip + crd->crd_len - ivlen, ivlen,
-				    cmd->softc->sc_sessions[cmd->session_num].hs_iv);
-			}
+			crypto_copydata(crp->crp_flags, crp->crp_buf,
+			    crd->crd_skip + crd->crd_len - ivlen, ivlen,
+			    cmd->softc->sc_sessions[cmd->session_num].hs_iv);
 			break;
 		}
 	}
@@ -2829,12 +2812,8 @@ hifn_callback(struct hifn_softc *sc, struct hifn_command *cmd, u_int8_t *macbuf)
 				continue;
 			}
 			len = cmd->softc->sc_sessions[cmd->session_num].hs_mlen;
-			if (crp->crp_flags & CRYPTO_F_IMBUF)
-				m_copyback((struct mbuf *)crp->crp_buf,
-                                   crd->crd_inject, len, macbuf);
-			else if (crp->crp_flags & CRYPTO_F_IOV)
-				cuio_copyback((struct uio *)crp->crp_buf,
-				    crd->crd_inject, len, macbuf);
+			crypto_copyback(crp->crp_flags, crp->crp_buf,
+			    crd->crd_inject, len, macbuf);
 			break;
 		}
 	}
