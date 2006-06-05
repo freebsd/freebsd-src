@@ -209,6 +209,8 @@ static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t locked_pmap, int try);
 static void	pmap_clear_ptes(vm_page_t m, long bit);
 
+static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
+    vm_page_t m, vm_prot_t prot, vm_page_t mpte);
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq,
 		vm_offset_t sva, pd_entry_t ptepde);
 static void pmap_remove_page(pmap_t pmap, vm_offset_t va, pd_entry_t *pde);
@@ -2310,6 +2312,37 @@ validate:
 }
 
 /*
+ * Maps a sequence of resident pages belonging to the same object.
+ * The sequence begins with the given page m_start.  This page is
+ * mapped at the given virtual address start.  Each subsequent page is
+ * mapped at a virtual address that is offset from start by the same
+ * amount as the page is offset from m_start within the object.  The
+ * last page in the sequence is the page with the largest offset from
+ * m_start that can be mapped at a virtual address less than the given
+ * virtual address end.  Not every virtual page between start and end
+ * is mapped; only those for which a resident page exists with the
+ * corresponding offset from m_start are mapped.
+ */
+void
+pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
+    vm_page_t m_start, vm_prot_t prot)
+{
+	vm_page_t m, mpte;
+	vm_pindex_t diff, psize;
+
+	psize = atop(end - start);
+	mpte = NULL;
+	m = m_start;
+	PMAP_LOCK(pmap);
+	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
+		mpte = pmap_enter_quick_locked(pmap, start + ptoa(diff), m,
+		    prot, mpte);
+		m = TAILQ_NEXT(m, listq);
+	}
+ 	PMAP_UNLOCK(pmap);
+}
+
+/*
  * this code makes some *MAJOR* assumptions:
  * 1. Current pmap & pmap exists.
  * 2. Not wired.
@@ -2322,15 +2355,26 @@ vm_page_t
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
     vm_page_t mpte)
 {
+
+	PMAP_LOCK(pmap);
+	mpte = pmap_enter_quick_locked(pmap, va, m, prot, mpte);
+	PMAP_UNLOCK(pmap);
+	return (mpte);
+}
+
+static vm_page_t
+pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
+    vm_prot_t prot, vm_page_t mpte)
+{
 	pt_entry_t *pte;
 	vm_paddr_t pa;
 
 	KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva ||
 	    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0,
-	    ("pmap_enter_quick: managed mapping within the clean submap"));
+	    ("pmap_enter_quick_locked: managed mapping within the clean submap"));
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
-	PMAP_LOCK(pmap);
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
 	/*
 	 * In the case that a page table page is not
@@ -2395,7 +2439,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			pmap_unwire_pte_hold(pmap, va, mpte);
 			mpte = NULL;
 		}
-		goto out;
+		return (mpte);
 	}
 
 	/*
@@ -2422,8 +2466,6 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pte_store(pte, pa | PG_V | PG_U);
 	else
 		pte_store(pte, pa | PG_V | PG_U | PG_MANAGED);
-out:
-	PMAP_UNLOCK(pmap);
 	return mpte;
 }
 
