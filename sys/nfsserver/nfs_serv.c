@@ -570,6 +570,10 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 			error = lookup(&ind);
 			ind.ni_dvp = NULL;
+			if (ind.ni_cnd.cn_flags & GIANTHELD) {
+				mtx_unlock(&Giant);
+				ind.ni_cnd.cn_flags &= ~GIANTHELD;
+			}
 
 			if (error == 0) {
 				/*
@@ -1918,6 +1922,10 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 			error = lookup(&nd);
 			nd.ni_dvp = NULL;
+			if (nd.ni_cnd.cn_flags & GIANTHELD) {
+				mtx_unlock(&Giant);
+				nd.ni_cnd.cn_flags &= ~GIANTHELD;
+			}
 			if (error)
 				goto ereply;
 
@@ -2145,6 +2153,10 @@ nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 		error = lookup(&nd);
 		nd.ni_dvp = NULL;
+		if (nd.ni_cnd.cn_flags & GIANTHELD) {
+			mtx_unlock(&Giant);
+			nd.ni_cnd.cn_flags &= ~GIANTHELD;
+		}
 
 		if (error)
 			goto out;
@@ -2886,6 +2898,10 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 		error = lookup(&nd);
 		nd.ni_dvp = NULL;
+		if (nd.ni_cnd.cn_flags & GIANTHELD) {
+			mtx_unlock(&Giant);
+			nd.ni_cnd.cn_flags &= ~GIANTHELD;
+		}
 
 		if (error == 0) {
 			bzero((caddr_t)fhp, sizeof(nfh));
