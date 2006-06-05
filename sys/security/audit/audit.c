@@ -395,7 +395,7 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 		mtx_lock(&audit_mtx);
 		audit_pre_q_len--;
 		mtx_unlock(&audit_mtx);
-		uma_zfree(audit_record_zone, ar);
+		audit_free(ar);
 		return;
 	}
 
@@ -421,7 +421,7 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	if (audit_suspended || !audit_enabled) {
 		audit_pre_q_len--;
 		mtx_unlock(&audit_mtx);
-		uma_zfree(audit_record_zone, ar);
+		audit_free(ar);
 		return;
 	}
 
