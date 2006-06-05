@@ -250,15 +250,30 @@ g_eli_ctl_onetime(struct gctl_req *req, struct g_class *mp)
 	if (*detach)
 		md.md_flags |= G_ELI_FLAG_WO_DETACH;
 
-	name = gctl_get_asciiparam(req, "algo");
+	name = gctl_get_asciiparam(req, "aalgo");
 	if (name == NULL) {
-		gctl_error(req, "No '%s' argument.", "algo");
+		gctl_error(req, "No '%s' argument.", "aalgo");
 		return;
 	}
-	md.md_algo = g_eli_str2algo(name);
-	if (md.md_algo < CRYPTO_ALGORITHM_MIN ||
-	    md.md_algo > CRYPTO_ALGORITHM_MAX) {
-		gctl_error(req, "Invalid '%s' argument.", "algo");
+	if (strcmp(name, "none") != 0) {
+		md.md_aalgo = g_eli_str2aalgo(name);
+		if (md.md_aalgo < CRYPTO_ALGORITHM_MIN ||
+		    md.md_aalgo > CRYPTO_ALGORITHM_MAX) {
+			gctl_error(req, "Invalid authentication algorithm.");
+			return;
+		}
+		md.md_flags |= G_ELI_FLAG_AUTH;
+	}
+
+	name = gctl_get_asciiparam(req, "ealgo");
+	if (name == NULL) {
+		gctl_error(req, "No '%s' argument.", "ealgo");
+		return;
+	}
+	md.md_ealgo = g_eli_str2ealgo(name);
+	if (md.md_ealgo < CRYPTO_ALGORITHM_MIN ||
+	    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
+		gctl_error(req, "Invalid encryption algorithm.");
 		return;
 	}
 
@@ -267,7 +282,7 @@ g_eli_ctl_onetime(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No '%s' argument.", "keylen");
 		return;
 	}
-	md.md_keylen = g_eli_keylen(md.md_algo, *keylen);
+	md.md_keylen = g_eli_keylen(md.md_ealgo, *keylen);
 	if (md.md_keylen == 0) {
 		gctl_error(req, "Invalid '%s' argument.", "keylen");
 		return;
@@ -395,12 +410,10 @@ g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 	mkeydst = md.md_mkeys + nkey * G_ELI_MKEYLEN;
 	md.md_keys |= (1 << nkey);
 
-	bcopy(sc->sc_ivkey, mkeydst, sizeof(sc->sc_ivkey));
-	bcopy(sc->sc_datakey, mkeydst + sizeof(sc->sc_ivkey),
-	    sizeof(sc->sc_datakey));
+	bcopy(sc->sc_mkey, mkeydst, sizeof(sc->sc_mkey));
 
 	/* Encrypt Master Key with the new key. */
-	error = g_eli_mkey_encrypt(md.md_algo, key, md.md_keylen, mkeydst);
+	error = g_eli_mkey_encrypt(md.md_ealgo, key, md.md_keylen, mkeydst);
 	bzero(key, sizeof(key));
 	if (error != 0) {
 		bzero(&md, sizeof(md));
