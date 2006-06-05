@@ -980,7 +980,7 @@ wi_start(struct ifnet *ifp)
 			frmhdr.wi_tx_ctl |= htole16(WI_TXCNTL_NOCRYPT);
 		}
 #if NBPFILTER > 0
-		if (bpf_peers_present(ic->ic_drvbpf)) {
+		if (bpf_peers_present(sc->sc_drvbpf)) {
 			sc->sc_tx_th.wt_rate =
 				ni->ni_rates.rs_rates[ni->ni_txrate];
 			bpf_mtap2(sc->sc_drvbpf,
