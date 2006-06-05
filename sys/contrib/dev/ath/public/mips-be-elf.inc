@@ -33,7 +33,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGES.
 #
-# $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/public/mips-be-elf.inc#19 $
+# $Id: //depot/sw/branches/sam_hal/public/mips-be-elf.inc#2 $
 #
 
 #
@@ -63,6 +63,11 @@ LD=	${TOOLPREFIX}ld
 STRIP=	${TOOLPREFIX}strip
 OBJCOPY=${TOOLPREFIX}objcopy
 NM=	${TOOLPREFIX}nm
+
+#
+# Force register read/write operations to go through a function.
+#
+AH_REGOPS_FUNC=1
 
 LDOPTS=	-EB
 COPTS+=	-DAH_BYTE_ORDER=AH_BIG_ENDIAN

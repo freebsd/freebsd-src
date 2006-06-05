@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/ah_devid.h#19 $
+ * $Id: //depot/sw/branches/sam_hal/ah_devid.h#1 $
  */
 
 #ifndef _DEV_ATH_DEVID_H_
