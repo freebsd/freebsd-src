@@ -236,6 +236,8 @@ static struct ia64_lpte *pmap_find_vhpt(vm_offset_t va);
 static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t locked_pmap);
 
+static void	pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
+		    vm_page_t m, vm_prot_t prot);
 static pmap_t	pmap_install(pmap_t);
 static void	pmap_invalidate_all(pmap_t pmap);
 static int	pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte,
@@ -1626,6 +1628,35 @@ validate:
 }
 
 /*
+ * Maps a sequence of resident pages belonging to the same object.
+ * The sequence begins with the given page m_start.  This page is
+ * mapped at the given virtual address start.  Each subsequent page is
+ * mapped at a virtual address that is offset from start by the same
+ * amount as the page is offset from m_start within the object.  The
+ * last page in the sequence is the page with the largest offset from
+ * m_start that can be mapped at a virtual address less than the given
+ * virtual address end.  Not every virtual page between start and end
+ * is mapped; only those for which a resident page exists with the
+ * corresponding offset from m_start are mapped.
+ */
+void
+pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
+    vm_page_t m_start, vm_prot_t prot)
+{
+	vm_page_t m;
+	vm_pindex_t diff, psize;
+
+	psize = atop(end - start);
+	m = m_start;
+	PMAP_LOCK(pmap);
+	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
+		pmap_enter_quick_locked(pmap, start + ptoa(diff), m, prot);
+		m = TAILQ_NEXT(m, listq);
+	}
+ 	PMAP_UNLOCK(pmap);
+}
+
+/*
  * this code makes some *MAJOR* assumptions:
  * 1. Current pmap & pmap exists.
  * 2. Not wired.
@@ -1638,16 +1669,27 @@ vm_page_t
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
     vm_page_t mpte)
 {
+
+	PMAP_LOCK(pmap);
+	pmap_enter_quick_locked(pmap, va, m, prot);
+	PMAP_UNLOCK(pmap);
+	return (NULL);
+}
+
+static void
+pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
+    vm_prot_t prot)
+{
 	struct ia64_lpte *pte;
 	pmap_t oldpmap;
 	boolean_t managed;
 
 	KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva ||
 	    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0,
-	    ("pmap_enter_quick: managed mapping within the clean submap"));
+	    ("pmap_enter_quick_locked: managed mapping within the clean submap"));
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
-	PMAP_LOCK(pmap);
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	oldpmap = pmap_install(pmap);
 
 	while ((pte = pmap_find_pte(va)) == NULL) {
@@ -1683,8 +1725,6 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	}
 
 	pmap_install(oldpmap);
-	PMAP_UNLOCK(pmap);
-	return (NULL);
 }
 
 /*

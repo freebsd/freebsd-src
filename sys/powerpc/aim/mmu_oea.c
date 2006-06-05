@@ -290,6 +290,8 @@ static struct	pte *moea_pvo_to_pte(const struct pvo_entry *, int);
 /*
  * Utility routines.
  */
+static void		moea_enter_locked(pmap_t, vm_offset_t, vm_page_t,
+			    vm_prot_t, boolean_t);
 static struct		pvo_entry *moea_rkva_alloc(mmu_t);
 static void		moea_pa_map(struct pvo_entry *, vm_offset_t,
 			    struct pte *, int *);
@@ -309,6 +311,8 @@ void moea_clear_modify(mmu_t, vm_page_t);
 void moea_clear_reference(mmu_t, vm_page_t);
 void moea_copy_page(mmu_t, vm_page_t, vm_page_t);
 void moea_enter(mmu_t, pmap_t, vm_offset_t, vm_page_t, vm_prot_t, boolean_t);
+void moea_enter_object(mmu_t, pmap_t, vm_offset_t, vm_offset_t, vm_page_t,
+    vm_prot_t);
 vm_page_t moea_enter_quick(mmu_t, pmap_t, vm_offset_t, vm_page_t, vm_prot_t,
     vm_page_t);
 vm_paddr_t moea_extract(mmu_t, pmap_t, vm_offset_t);
@@ -345,6 +349,7 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_clear_reference,	moea_clear_reference),
 	MMUMETHOD(mmu_copy_page,	moea_copy_page),
 	MMUMETHOD(mmu_enter,		moea_enter),
+	MMUMETHOD(mmu_enter_object,	moea_enter_object),
 	MMUMETHOD(mmu_enter_quick,	moea_enter_quick),
 	MMUMETHOD(mmu_extract,		moea_extract),
 	MMUMETHOD(mmu_extract_and_hold,	moea_extract_and_hold),
@@ -828,7 +833,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 			struct	vm_page m;
 
 			m.phys_addr = translations[i].om_pa + off;
-			moea_enter(mmup, &ofw_pmap,
+			moea_enter_locked(&ofw_pmap,
 				   translations[i].om_va + off, &m,
 				   VM_PROT_ALL, 1);
 			ofw_mappings++;
@@ -1031,6 +1036,25 @@ void
 moea_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	   boolean_t wired)
 {
+
+	vm_page_lock_queues();
+	PMAP_LOCK(pmap);
+	pmap_enter_locked(pmap, va, m, prot, wired);
+	vm_page_unlock_queues();
+	PMAP_UNLOCK(pmap);
+}
+
+/*
+ * Map the given physical page at the specified virtual address in the
+ * target pmap with the protection requested.  If specified the page
+ * will be wired down.
+ *
+ * The page queues and pmap must be locked.
+ */
+static void
+moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    boolean_t wired)
+{
 	struct		pvo_head *pvo_head;
 	uma_zone_t	zone;
 	vm_page_t	pg;
@@ -1051,8 +1075,8 @@ moea_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		was_exec = 0;
 	}
 	if (pmap_bootstrapped)
-		vm_page_lock_queues();
-	PMAP_LOCK(pmap);
+		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
 	/* XXX change the pvo head for fake pages */
 	if ((m->flags & PG_FICTITIOUS) == PG_FICTITIOUS)
@@ -1115,12 +1139,39 @@ moea_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if (pg != NULL)
 			moea_attr_save(pg, PTE_EXEC);
 	}
-	if (pmap_bootstrapped)
-		vm_page_unlock_queues();
 
 	/* XXX syncicache always until problems are sorted */
 	moea_syncicache(VM_PAGE_TO_PHYS(m), PAGE_SIZE);
-	PMAP_UNLOCK(pmap);
+}
+
+/*
+ * Maps a sequence of resident pages belonging to the same object.
+ * The sequence begins with the given page m_start.  This page is
+ * mapped at the given virtual address start.  Each subsequent page is
+ * mapped at a virtual address that is offset from start by the same
+ * amount as the page is offset from m_start within the object.  The
+ * last page in the sequence is the page with the largest offset from
+ * m_start that can be mapped at a virtual address less than the given
+ * virtual address end.  Not every virtual page between start and end
+ * is mapped; only those for which a resident page exists with the
+ * corresponding offset from m_start are mapped.
+ */
+void
+moea_enter_object(mmu_t mmu, pmap_t pm, vm_offset_t start, vm_offset_t end,
+    vm_page_t m_start, vm_prot_t prot)
+{
+	vm_page_t m;
+	vm_pindex_t diff, psize;
+
+	psize = atop(end - start);
+	m = m_start;
+	PMAP_LOCK(pm);
+	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
+		moea_enter_locked(pm, start + ptoa(diff), m, prot &
+		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
+		m = TAILQ_NEXT(m, listq);
+	}
+	PMAP_UNLOCK(pm);
 }
 
 vm_page_t
@@ -1128,16 +1179,10 @@ moea_enter_quick(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_page_t m,
     vm_prot_t prot, vm_page_t mpte)
 {
 
-	vm_page_busy(m);
-	vm_page_unlock_queues();
-	VM_OBJECT_UNLOCK(m->object);
-	mtx_lock(&Giant);
-	moea_enter(mmu, pm, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
+	PMAP_LOCK(pm);
+	moea_enter_locked(pm, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
 	    FALSE);
-	mtx_unlock(&Giant);
-	VM_OBJECT_LOCK(m->object);
-	vm_page_lock_queues();
-	vm_page_wakeup(m);
+	PMAP_UNLOCK(pm);
 	return (NULL);
 }
 
