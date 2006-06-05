@@ -109,15 +109,17 @@ static int			audit_file_rotate_wait;
  * we accounted for.
  */
 static int
-audit_record_write(struct vnode *vp, struct kaudit_record *ar,
-    struct ucred *cred, struct thread *td)
+audit_record_write(struct vnode *vp, struct ucred *cred, struct thread *td,
+    void *data, size_t len)
 {
 	int ret;
 	long temp;
-	struct au_record *bsm;
 	struct vattr vattr;
 	struct statfs *mnt_stat = &vp->v_mount->mnt_stat;
 	int vfslocked;
+
+	if (vp == NULL)
+		return (0);
 
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 
@@ -214,74 +216,8 @@ audit_record_write(struct vnode *vp, struct kaudit_record *ar,
 		audit_in_failure = 1;
 	}
 
-	/*
-	 * If there is a user audit record attached to the kernel record,
-	 * then write the user record.
-	 *
-	 * XXX Need to decide a few things here: IF the user audit record is
-	 * written, but the write of the kernel record fails, what to do?
-	 * Should the kernel record come before or after the user record?
-	 * For now, we write the user record first, and we ignore errors.
-	 */
-	if (ar->k_ar_commit & AR_COMMIT_USER) {
-		/*
-		 * Try submitting the record to any active audit pipes.
-		 */
-		audit_pipe_submit((void *)ar->k_udata, ar->k_ulen);
-
-		/*
-		 * And to disk.
-		 */
-		ret = vn_rdwr(UIO_WRITE, vp, (void *)ar->k_udata, ar->k_ulen,
-		    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, cred, NULL,
-		    NULL, td);
-		if (ret)
-			goto out;
-	}
-
-	/*
-	 * Convert the internal kernel record to BSM format and write it out
-	 * if everything's OK.
-	 */
-	if (!(ar->k_ar_commit & AR_COMMIT_KERNEL)) {
-		ret = 0;
-		goto out;
-	}
-
-	/*
-	 * XXXAUDIT: Should we actually allow this conversion to fail?  With
-	 * sleeping memory allocation and invariants checks, perhaps not.
-	 */
-	ret = kaudit_to_bsm(ar, &bsm);
-	if (ret == BSM_NOAUDIT) {
-		ret = 0;
-		goto out;
-	}
-
-	/*
-	 * XXX: We drop the record on BSM conversion failure, but really this
-	 * is an assertion failure.
-	 */
-	if (ret == BSM_FAILURE) {
-		AUDIT_PRINTF(("BSM conversion failure\n"));
-		ret = EINVAL;
-		goto out;
-	}
-
-	/*
-	 * Try submitting the record to any active audit pipes.
-	 */
-	audit_pipe_submit((void *)bsm->data, bsm->len);
-
-	/*
-	 * XXX We should break the write functionality away from the BSM
-	 * record generation and have the BSM generation done before this
-	 * function is called. This function will then take the BSM record as
-	 * a parameter.
-	 */
-	ret = (vn_rdwr(UIO_WRITE, vp, (void *)bsm->data, bsm->len, (off_t)0,
-	    UIO_SYSSPACE, IO_APPEND|IO_UNIT, cred, NULL, NULL, td));
-	kau_free(bsm);
+	ret = vn_rdwr(UIO_WRITE, vp, data, len, (off_t)0, UIO_SYSSPACE,
+	    IO_APPEND|IO_UNIT, cred, NULL, NULL, td);
 
 out:
 	/*
@@ -386,27 +322,55 @@ audit_worker_drain(void)
 }
 
 /*
- * Given a kernel audit record, process as required.  Currently, that means
- * passing it to audit_record_write(), but in the future it will mean
- * converting it to BSM and then routing it to various possible output
- * streams, including the audit trail and audit pipes.  The caller will free
- * the record.
+ * Given a kernel audit record, process as required.  Kernel audit records
+ * are converted to one, or possibly two, BSM records, depending on whether
+ * there is a user audit record present also.  Kernel records need be
+ * converted to BSM before they can be written out.  Both types will be
+ * written to disk, and audit pipes.
  */
 static void
 audit_worker_process_record(struct vnode *audit_vp, struct ucred *audit_cred,
     struct thread *audit_td, struct kaudit_record *ar)
 {
-	int error;
+	struct au_record *bsm;
+	int error, ret;
 
-	if (audit_vp == NULL)
-		return;
-
-	error = audit_record_write(audit_vp, ar, audit_cred, audit_td);
-	if (error) {
-		if (audit_panic_on_write_fail)
+	if (ar->k_ar_commit & AR_COMMIT_USER) {
+		error = audit_record_write(audit_vp, audit_cred, audit_td,
+		    ar->k_udata, ar->k_ulen);
+		if (error && audit_panic_on_write_fail)
 			panic("audit_worker: write error %d\n", error);
-		else
+		else if (error)
 			printf("audit_worker: write error %d\n", error);
+		audit_pipe_submit(ar->k_udata, ar->k_ulen);
+	}
+
+	if (ar->k_ar_commit & AR_COMMIT_KERNEL) {
+		ret = kaudit_to_bsm(ar, &bsm);
+		switch (ret) {
+		case BSM_NOAUDIT:
+			break;
+
+		case BSM_FAILURE:
+			printf("audit_worker_process_record: BSM_FAILURE\n");
+			break;
+
+		case BSM_SUCCESS:
+			error = audit_record_write(audit_vp, audit_cred,
+			    audit_td, bsm->data, bsm->len);
+			if (error && audit_panic_on_write_fail)
+				panic("audit_worker: write error %d\n",
+				    error);
+			else if (error)
+				printf("audit_worker: write error %d\n",
+				    error);
+			audit_pipe_submit(bsm->data, bsm->len);
+			kau_free(bsm);
+			break;
+
+		default:
+			panic("kaudit_to_bsm returned %d", ret);
+		}
 	}
 }
 
