@@ -376,10 +376,37 @@ audit_worker_drain(void)
 {
 	struct kaudit_record *ar;
 
+	mtx_assert(&audit_mtx, MA_OWNED);
+
 	while ((ar = TAILQ_FIRST(&audit_q))) {
 		TAILQ_REMOVE(&audit_q, ar, k_q);
 		audit_free(ar);
 		audit_q_len--;
+	}
+}
+
+/*
+ * Given a kernel audit record, process as required.  Currently, that means
+ * passing it to audit_record_write(), but in the future it will mean
+ * converting it to BSM and then routing it to various possible output
+ * streams, including the audit trail and audit pipes.  The caller will free
+ * the record.
+ */
+static void
+audit_worker_process_record(struct vnode *audit_vp, struct ucred *audit_cred,
+    struct thread *audit_td, struct kaudit_record *ar)
+{
+	int error;
+
+	if (audit_vp == NULL)
+		return;
+
+	error = audit_record_write(audit_vp, ar, audit_cred, audit_td);
+	if (error) {
+		if (audit_panic_on_write_fail)
+			panic("audit_worker: write error %d\n", error);
+		else
+			printf("audit_worker: write error %d\n", error);
 	}
 }
 
@@ -399,7 +426,7 @@ audit_worker(void *arg)
 	struct ucred *audit_cred;
 	struct thread *audit_td;
 	struct vnode *audit_vp;
-	int error, lowater_signal;
+	int lowater_signal;
 
 	AUDIT_PRINTF(("audit_worker starting\n"));
 
@@ -465,16 +492,8 @@ audit_worker(void *arg)
 		mtx_unlock(&audit_mtx);
 		while ((ar = TAILQ_FIRST(&ar_worklist))) {
 			TAILQ_REMOVE(&ar_worklist, ar, k_q);
-			if (audit_vp != NULL) {
-				error = audit_record_write(audit_vp, ar,
-				    audit_cred, audit_td);
-				if (error && audit_panic_on_write_fail)
-					panic("audit_worker: write error %d\n",
-					    error);
-				else if (error)
-					printf("audit_worker: write error %d\n",
-					    error);
-			}
+			audit_worker_process_record(audit_vp, audit_cred,
+			    audit_td, ar);
 			audit_free(ar);
 		}
 		mtx_lock(&audit_mtx);
