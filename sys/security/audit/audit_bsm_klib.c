@@ -154,24 +154,21 @@ au_evclassmap_init(void)
  * event is part of against the given mask.
  */
 int
-au_preselect(au_event_t event, au_mask_t *mask_p, int sorf)
+au_preselect(au_event_t event, au_class_t class, au_mask_t *mask_p, int sorf)
 {
 	au_class_t effmask = 0;
-	au_class_t ae_class;
 
 	if (mask_p == NULL)
 		return (-1);
-
-	ae_class = au_event_class(event);
 
 	/*
 	 * Perform the actual check of the masks against the event.
 	 */
 	if (sorf & AU_PRS_SUCCESS)
-		effmask |= (mask_p->am_success & ae_class);
+		effmask |= (mask_p->am_success & class);
 
 	if (sorf & AU_PRS_FAILURE)
-		effmask |= (mask_p->am_failure & ae_class);
+		effmask |= (mask_p->am_failure & class);
 
 	if (effmask)
 		return (1);
