@@ -35,29 +35,28 @@
 .Nm ahd
 .Nd Adaptec PCI/PCI-X Ultra320 SCSI host adapter driver
 .Sh SYNOPSIS
-For one or more PCI/PCI-X cards:
-.Bd -ragged -offset indent -compact
-.Cd device pci
-.Cd device ahd
-.Ed
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device scbus"
+.Cd "device ahd"
 .Pp
 To compile in debugging code:
-.Bd -ragged -offset indent -compact
 .Cd options AHD_DEBUG
 .Cd options AHD_DEBUG_OPTS=<bitmask of options>
 .Cd options AHD_REG_PRETTY_PRINT
-.Ed
 .Pp
 To configure one or more controllers to assume the target role:
-.Bd -ragged -offset indent -compact
 .Cd options AHD_TMODE_ENABLE=<bitmask of units>
 .Ed
 .Pp
-For one or more
-.Tn SCSI
-busses:
-.Bd -ragged -offset indent -compact
-.Cd device scbus
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ahd_load="YES"
 .Ed
 .Sh DESCRIPTION
 This driver provides access to the
