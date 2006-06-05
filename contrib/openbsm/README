@@ -27,7 +27,7 @@ POSIX-like systems.
 
 OpenBSM is currently built using autoconf and automake, which should allow
 for building on a range of operating systems, including FreeBSD, Mac OS X,
-and Linux.  Depending on the availability of audit facailities in the
+and Linux.  Depending on the availability of audit facilities in the
 underlying operating system, some components that depend on kernel audit
 support are built conditionally.  Typically, build will be performed using
 
@@ -95,4 +95,4 @@ Information on TrustedBSD may be found on the TrustedBSD home page:
 
     http://www.TrustedBSD.org/
 
-$P4: //depot/projects/trustedbsd/openbsm/README#16 $
+$P4: //depot/projects/trustedbsd/openbsm/README#17 $
