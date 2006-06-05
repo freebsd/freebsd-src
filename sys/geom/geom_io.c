@@ -186,6 +186,31 @@ g_clone_bio(struct bio *bp)
 	return(bp2);
 }
 
+struct bio *
+g_duplicate_bio(struct bio *bp)
+{
+	struct bio *bp2;
+
+	bp2 = uma_zalloc(biozone, M_WAITOK | M_ZERO);
+	bp2->bio_parent = bp;
+	bp2->bio_cmd = bp->bio_cmd;
+	bp2->bio_length = bp->bio_length;
+	bp2->bio_offset = bp->bio_offset;
+	bp2->bio_data = bp->bio_data;
+	bp2->bio_attribute = bp->bio_attribute;
+	bp->bio_children++;
+#ifdef KTR
+	if (KTR_COMPILE & KTR_GEOM) {
+		struct stack st;
+
+		CTR2(KTR_GEOM, "g_duplicate_bio(%p): %p", bp, bp2);
+		stack_save(&st);
+		CTRSTACK(KTR_GEOM, &st, 3, 0);
+	}
+#endif
+	return(bp2);
+}
+
 void
 g_io_init()
 {
