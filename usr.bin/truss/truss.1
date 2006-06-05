@@ -10,10 +10,12 @@
 .Nm
 .Op Fl faedDS
 .Op Fl o Ar file
+.Op Fl s Ar strsize
 .Fl p Ar pid
 .Nm
 .Op Fl faedDS
 .Op Fl o Ar file
+.Op Fl s Ar strsize
 command
 .Op args
 .Sh DESCRIPTION
@@ -54,6 +56,16 @@ displays signal as well as system call events.)
 Print the output to the specified
 .Ar file
 instead of standard error.
+.It Fl s Ar strsize
+Display strings using at most
+.Ar strsize
+characters.
+If the buffer is larger,
+.Qq ...
+will be displayed at the end of the string.
+The default
+.Ar strsize
+is 32.
 .It Fl p Ar pid
 Follow the process specified by
 .Ar pid
