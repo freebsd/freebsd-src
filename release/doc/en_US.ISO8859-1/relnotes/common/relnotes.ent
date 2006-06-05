@@ -4,9 +4,6 @@
 
 <!-- Text constants which probably don't need to be changed.-->
 
-<!-- The marker for MFCs. -->
-<!ENTITY merged "[MERGED]">
-
 <!ENTITY % include.historic "IGNORE">
 <!ENTITY % no.include.historic "IGNORE">
 
