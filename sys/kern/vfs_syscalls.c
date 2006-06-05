@@ -183,6 +183,8 @@ quotactl(td, uap)
 	int error;
 	struct nameidata nd;
 
+	AUDIT_ARG(cmd, uap->cmd);
+	AUDIT_ARG(uid, uap->uid);
 	if (jailed(td->td_ucred) && !prison_quotas)
 		return (EPERM);
 	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE | AUDITVNODE1,
@@ -1303,6 +1305,7 @@ kern_mkfifo(struct thread *td, char *path, enum uio_seg pathseg, int mode)
 	struct nameidata nd;
 	int vfslocked;
 
+	AUDIT_ARG(mode, mode);
 restart:
 	bwillwrite();
 	NDINIT(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE1,
@@ -1518,6 +1521,7 @@ kern_symlink(struct thread *td, char *path, char *link, enum uio_seg segflg)
 		if ((error = copyinstr(path, syspath, MAXPATHLEN, NULL)) != 0)
 			goto out;
 	}
+	AUDIT_ARG(text, syspath);
 restart:
 	bwillwrite();
 	NDINIT(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE1,
