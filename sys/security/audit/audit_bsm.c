@@ -223,20 +223,17 @@ kau_free(struct au_record *rec)
 } while (0)
 
 #define PROCESS_PID_TOKENS(argn) do {					\
-	if (ARG_IS_VALID(kar, ARG_PID)) {				\
-		if ((ar->ar_arg_pid > 0) /* Kill a single process */	\
-		    && (ARG_IS_VALID(kar, ARG_PROCESS))) {		\
-			tok = au_to_process(ar->ar_arg_auid,		\
-			    ar->ar_arg_euid, ar->ar_arg_egid,		\
-			    ar->ar_arg_ruid, ar->ar_arg_rgid,		\
-			    ar->ar_arg_pid, ar->ar_arg_asid,		\
-			    &ar->ar_arg_termid);			\
-			kau_write(rec, tok);				\
-		} else {						\
-			tok = au_to_arg32(argn, "process",		\
-			    ar->ar_arg_pid);				\
-			kau_write(rec, tok);				\
-		}							\
+	if ((ar->ar_arg_pid > 0) /* Reference a single process */	\
+	    && (ARG_IS_VALID(kar, ARG_PROCESS))) {			\
+		tok = au_to_process(ar->ar_arg_auid,			\
+		    ar->ar_arg_euid, ar->ar_arg_egid,			\
+		    ar->ar_arg_ruid, ar->ar_arg_rgid,			\
+		    ar->ar_arg_pid, ar->ar_arg_asid,			\
+		    &ar->ar_arg_termid);				\
+		kau_write(rec, tok);					\
+	} else if (ARG_IS_VALID(kar, ARG_PID)) {			\
+		tok = au_to_arg32(argn, "process", ar->ar_arg_pid);	\
+		kau_write(rec, tok);					\
 	}								\
 } while (0)								\
 
