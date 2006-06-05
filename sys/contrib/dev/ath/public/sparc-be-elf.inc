@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2002-2006 Sam Leffler, Errno Consulting
+# Copyright (c) 2002-2004 Sam Leffler, Errno Consulting
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,20 +33,18 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGES.
 #
-# $Id: //depot/sw/branches/sam_hal/public/armv4-le-elf.inc#3 $
+# $Id$
 #
 
 #
-# Compilation configuration for building little-endian ARMv4.
-#
-
+# Compilation configuration for building big-endian Sparc for 32-bit.
 #
 # Built with GNU cross-devel tools:
 #
 # PREFIX=/pub/gnu
 # BINUTILS=binutils-2.14
 # GCC=gcc-3.3.2
-# target=arm-elf
+# target=sparc-elf
 #
 # ${BINUTILS}/configure --target=$target --prefix=${PREFIX}
 # ${GCC}/configure --target=$target   --prefix=${PREFIX} \
@@ -54,7 +52,7 @@
 #	--with-newlib   --with-gxx-include-dir=${PREFIX}/$target/include
 #
 ifndef TOOLPREFIX
-TOOLPREFIX=	/pub/gnu/bin/arm-elf-
+TOOLPREFIX=	/pub/gnu/bin/sparc-elf-
 endif
 #
 CC=	${TOOLPREFIX}gcc
@@ -68,7 +66,7 @@ NM=	${TOOLPREFIX}nm
 #
 AH_REGOPS_FUNC=1
 
-LDOPTS=	-EL
-COPTS+=	-DAH_BYTE_ORDER=AH_LITTLE_ENDIAN
-COPTS+= -march=armv4 -mlittle-endian -msoft-float \
-	-fno-strict-aliasing -fno-common
+LDOPTS=	-EB
+COPTS+=	-DAH_BYTE_ORDER=AH_BIG_ENDIAN
+COPTS+= -m32
+COPTS+= -mno-fpu
