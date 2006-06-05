@@ -42,8 +42,20 @@
 .Nm mpt
 .Nd LSI Fusion-MPT SCSI/Fibre Channel driver
 .Sh SYNOPSIS
-.Cd "device mpt"
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device scbus"
+.Cd "device mpt"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mpt_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
