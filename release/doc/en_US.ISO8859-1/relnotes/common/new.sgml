@@ -96,8 +96,6 @@
   <para>This section describes
     the most user-visible new or changed features in &os;
     since &release.prev;.
-    In general, changes described here are unique to the &release.branch;
-    branch unless specifically marked as &merged; features.
   </para>
 
   <para>Typical release note items
