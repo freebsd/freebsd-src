@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 1, 2006
+.Dd June 5, 2006
 .Dt PADLOCK 4 i386
 .Os
 .Sh NAME
@@ -36,7 +36,6 @@ place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device crypto"
-.Cd "device cryptodev"
 .Cd "device padlock"
 .Ed
 .Pp
@@ -54,6 +53,11 @@ The
 .Nm
 driver registers itself to accelerate AES operations for
 .Xr crypto 4 .
+It also registers itself to accelerate various HMAC algorithms, but there is no
+hardware acceleration for those algorithms, this is only needed, so
+.Nm
+can work with
+.Xr fast_ipsec 4 .
 .Pp
 The hardware random number generator supplies data for the kernel
 .Xr random 4
