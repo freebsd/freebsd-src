@@ -30,24 +30,16 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_record.h#8 $
+ * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_record.h#13 $
  * $FreeBSD$
  */
 
 #ifndef _BSM_AUDIT_RECORD_H_
 #define _BSM_AUDIT_RECORD_H_
 
-/* Various token id types */
-
 /*
- * Values inside the comments are not documented in the BSM pages and
- * have been picked up from the header files
+ * Token type identifiers.
  */
-
-/*
- * Values marked as XXX do not have a value defined in the BSM header files
- */
-
 #define	AUT_INVALID		0x00
 #define	AUT_OTHER_FILE32	0x11
 #define	AUT_OHEADER		0x12
@@ -188,13 +180,19 @@
 
 /* data-types for the arbitrary token */
 #define AUR_BYTE        0
+#define AUR_CHAR        AUR_BYTE
 #define AUR_SHORT       1
-#define AUR_LONG        2
+#define AUR_INT32       2
+#define AUR_INT         AUR_INT
+#define AUR_INT64       3
 
 /* ... and their sizes */
 #define AUR_BYTE_SIZE       sizeof(u_char)
+#define AUR_CHAR_SIZE       AUR_BYTE_SIZE
 #define AUR_SHORT_SIZE      sizeof(uint16_t)
-#define AUR_LONG_SIZE       sizeof(uint32_t)
+#define AUR_INT32_SIZE      sizeof(uint32_t)
+#define AUR_INT_SIZE        AUR_INT32_SIZE
+#define AUR_INT64_SIZE      sizeof(uint64_t)
 
 /* Modifiers for the header token */
 #define PAD_NOTATTR  0x4000   /* nonattributable event */
@@ -231,24 +229,18 @@ int	 au_open(void);
 int	 au_write(int d, token_t *m);
 int	 au_close(int d, int keep, short event);
 int	 au_close_buffer(int d, short event, u_char *buffer, size_t *buflen);
+int	 au_close_token(token_t *tok, u_char *buffer, size_t *buflen);
 
-#if defined(KERNEL) || defined(_KERNEL)
 token_t	*au_to_file(char *file, struct timeval tm);
-#else
-token_t	*au_to_file(char *file);
-#endif
 
-#if defined(KERNEL) || defined(_KERNEL)
-token_t	*au_to_header(int rec_size, au_event_t e_type, au_emod_t e_mod,
+token_t	*au_to_header32_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
 	    struct timeval tm);
-token_t	*au_to_header32(int rec_size, au_event_t e_type, au_emod_t e_mod,
-	    struct timeval tm);
-#else
+#if !defined(KERNEL) && !defined(_KERNEL)
 token_t	*au_to_header(int rec_size, au_event_t e_type, au_emod_t e_mod);
 token_t	*au_to_header32(int rec_size, au_event_t e_type, au_emod_t e_mod);
+token_t	*au_to_header64(int rec_size, au_event_t e_type, au_emod_t e_mod);
 #endif
 
-token_t	*au_to_header64(int rec_size, au_event_t e_type, au_emod_t e_mod);
 token_t	*au_to_me(void);
 token_t	*au_to_arg(char n, char *text, uint32_t v);
 token_t	*au_to_arg32(char n, char *text, uint32_t v);
