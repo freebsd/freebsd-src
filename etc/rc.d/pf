@@ -40,7 +40,7 @@ pf_prestart()
 pf_start()
 {
 	echo "Enabling pf."
-	$pf_program -Fall > /dev/null 2>&1
+	$pf_program -F all > /dev/null 2>&1
 	$pf_program -f "$pf_rules" $pf_flags
 	if ! $pf_program -s info | grep -q "Enabled" ; then
 		$pf_program -e
