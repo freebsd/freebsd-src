@@ -5313,7 +5313,7 @@ xpt_find_device(struct cam_et *target, lun_id_t lun_id)
 typedef struct {
 	union	ccb *request_ccb;
 	struct 	ccb_pathinq *cpi;
-	int	pending_count;
+	int	counter;
 } xpt_scan_bus_info;
 
 /*
@@ -5370,17 +5370,23 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		max_target = scan_info->cpi->max_target;
 		initiator_id = scan_info->cpi->initiator_id;
 
-		/*
-		 * Don't count the initiator if the
-		 * initiator is addressable.
-		 */
-		scan_info->pending_count = max_target + 1;
-		if (initiator_id <= max_target)
-			scan_info->pending_count--;
 
+		/*
+		 * We can scan all targets in parallel, or do it sequentially.
+		 */
+		if (scan_info->cpi->hba_misc & PIM_SEQSCAN) {
+			max_target = 0;
+			scan_info->counter = 0;
+		} else {
+			scan_info->counter = scan_info->cpi->max_target + 1;
+			if (scan_info->cpi->initiator_id < scan_info->counter) {
+				scan_info->counter--;
+			}
+		}
+		
 		for (i = 0; i <= max_target; i++) {
 			cam_status status;
-		 	if (i == initiator_id)
+			if (i == initiator_id)
 				continue;
 
 			status = xpt_create_path(&path, xpt_periph,
@@ -5390,6 +5396,10 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				printf("xpt_scan_bus: xpt_create_path failed"
 				       " with status %#x, bus scan halted\n",
 				       status);
+				free(scan_info, M_TEMP);
+				request_ccb->ccb_h.status = status;
+				xpt_free_ccb(work_ccb);
+				xpt_done(request_ccb);
 				break;
 			}
 			work_ccb = xpt_alloc_ccb();
@@ -5405,6 +5415,8 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 	}
 	case XPT_SCAN_LUN:
 	{
+		cam_status status;
+		struct cam_path *path;
 		xpt_scan_bus_info *scan_info;
 		path_id_t path_id;
 		target_id_t target_id;
@@ -5466,44 +5478,79 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			}
 		}
 
+		/*
+		 * Free the current request path- we're done with it.
+		 */
 		xpt_free_path(request_ccb->ccb_h.path);
 
-		/* Check Bounds */
-		if ((lun_id == request_ccb->ccb_h.target_lun)
-		 || lun_id > scan_info->cpi->max_lun) {
-			/* We're done */
+		/*
+		 * Check to see if we scan any further luns.
+		 */
+		if (lun_id == request_ccb->ccb_h.target_lun
+                 || lun_id > scan_info->cpi->max_lun) {
+			int done;
 
-			xpt_free_ccb(request_ccb);
-			scan_info->pending_count--;
-			if (scan_info->pending_count == 0) {
+ hop_again:
+			done = 0;
+			if (scan_info->cpi->hba_misc & PIM_SEQSCAN) {
+				scan_info->counter++;
+				if (scan_info->counter == 
+				    scan_info->cpi->initiator_id) {
+					scan_info->counter++;
+				}
+				if (scan_info->counter >=
+				    scan_info->cpi->max_target+1) {
+					done = 1;
+				}
+			} else {
+				scan_info->counter--;
+				if (scan_info->counter == 0) {
+					done = 1;
+				}
+			}
+			if (done) {
+				xpt_free_ccb(request_ccb);
 				xpt_free_ccb((union ccb *)scan_info->cpi);
 				request_ccb = scan_info->request_ccb;
 				free(scan_info, M_TEMP);
 				request_ccb->ccb_h.status = CAM_REQ_CMP;
 				xpt_done(request_ccb);
+				break;
 			}
-		} else {
-			/* Try the next device */
-			struct cam_path *path;
-			cam_status status;
 
+			if ((scan_info->cpi->hba_misc & PIM_SEQSCAN) == 0) {
+				break;
+			}
+			status = xpt_create_path(&path, xpt_periph,
+			    scan_info->request_ccb->ccb_h.path_id,
+			    scan_info->counter, 0);
+			if (status != CAM_REQ_CMP) {
+				printf("xpt_scan_bus: xpt_create_path failed"
+				    " with status %#x, bus scan halted\n",
+			       	    status);
+				xpt_free_ccb(request_ccb);
+				xpt_free_ccb((union ccb *)scan_info->cpi);
+				request_ccb = scan_info->request_ccb;
+				free(scan_info, M_TEMP);
+				request_ccb->ccb_h.status = status;
+				xpt_done(request_ccb);
+				break;
+			}
+			xpt_setup_ccb(&request_ccb->ccb_h, path,
+			    request_ccb->ccb_h.pinfo.priority);
+			request_ccb->ccb_h.func_code = XPT_SCAN_LUN;
+			request_ccb->ccb_h.cbfcnp = xpt_scan_bus;
+			request_ccb->ccb_h.ppriv_ptr0 = scan_info;
+			request_ccb->crcn.flags =
+			    scan_info->request_ccb->crcn.flags;
+		} else {
 			status = xpt_create_path(&path, xpt_periph,
 						 path_id, target_id, lun_id);
 			if (status != CAM_REQ_CMP) {
 				printf("xpt_scan_bus: xpt_create_path failed "
 				       "with status %#x, halting LUN scan\n",
 			 	       status);
-				xpt_free_ccb(request_ccb);
-				scan_info->pending_count--;
-				if (scan_info->pending_count == 0) {
-					xpt_free_ccb(
-						(union ccb *)scan_info->cpi);
-					request_ccb = scan_info->request_ccb;
-					free(scan_info, M_TEMP);
-					request_ccb->ccb_h.status = CAM_REQ_CMP;
-					xpt_done(request_ccb);
-				}
-				break;
+				goto hop_again;
 			}
 			xpt_setup_ccb(&request_ccb->ccb_h, path,
 				      request_ccb->ccb_h.pinfo.priority);
@@ -5512,8 +5559,8 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			request_ccb->ccb_h.ppriv_ptr0 = scan_info;
 			request_ccb->crcn.flags =
 				scan_info->request_ccb->crcn.flags;
-			xpt_action(request_ccb);
 		}
+		xpt_action(request_ccb);
 		break;
 	}
 	default:
