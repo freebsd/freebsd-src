@@ -332,6 +332,9 @@ audit_free(struct kaudit_record *ar)
 void
 audit_commit(struct kaudit_record *ar, int error, int retval)
 {
+	au_event_t event;
+	au_class_t class;
+	au_id_t auid;
 	int sorf;
 	struct au_mask *aumask;
 
@@ -377,14 +380,18 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 		break;
 	}
 
-	if (au_preselect(ar->k_ar.ar_event, aumask, sorf) != 0)
-		ar->k_ar_commit |= AR_COMMIT_KERNEL;
+	auid = ar->k_ar.ar_subj_auid;
+	event = ar->k_ar.ar_event;
+	class = au_event_class(event);
 
-	/*
-	 * XXXRW: Why is this necessary?  Should we ever accept a record that
-	 * we're not willing to commit?
-	 */
-	if ((ar->k_ar_commit & (AR_COMMIT_USER | AR_COMMIT_KERNEL)) == 0) {
+	ar->k_ar_commit |= AR_COMMIT_KERNEL;
+	if (au_preselect(event, class, aumask, sorf) != 0)
+		ar->k_ar_commit |= AR_PRESELECT_TRAIL;
+	if (audit_pipe_preselect(auid, event, class, sorf,
+	    ar->k_ar_commit & AR_PRESELECT_TRAIL) != 0)
+		ar->k_ar_commit |= AR_PRESELECT_PIPE;
+	if ((ar->k_ar_commit & (AR_PRESELECT_TRAIL | AR_PRESELECT_PIPE)) ==
+	    0) {
 		mtx_lock(&audit_mtx);
 		audit_pre_q_len--;
 		mtx_unlock(&audit_mtx);
@@ -446,8 +453,10 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 void
 audit_syscall_enter(unsigned short code, struct thread *td)
 {
-	int audit_event;
 	struct au_mask *aumask;
+	au_class_t class;
+	au_event_t event;
+	au_id_t auid;
 
 	KASSERT(td->td_ar == NULL, ("audit_syscall_enter: td->td_ar != NULL"));
 
@@ -464,15 +473,16 @@ audit_syscall_enter(unsigned short code, struct thread *td)
 	if (code >= td->td_proc->p_sysent->sv_size)
 		return;
 
-	audit_event = td->td_proc->p_sysent->sv_table[code].sy_auevent;
-	if (audit_event == AUE_NULL)
+	event = td->td_proc->p_sysent->sv_table[code].sy_auevent;
+	if (event == AUE_NULL)
 		return;
 
 	/*
 	 * Check which audit mask to use; either the kernel non-attributable
 	 * event mask or the process audit mask.
 	 */
-	if (td->td_proc->p_au->ai_auid == AU_DEFAUDITID)
+	auid = td->td_proc->p_au->ai_auid;
+	if (auid == AU_DEFAUDITID)
 		aumask = &audit_nae_mask;
 	else
 		aumask = &td->td_proc->p_au->ai_mask;
@@ -481,8 +491,8 @@ audit_syscall_enter(unsigned short code, struct thread *td)
 	 * Allocate an audit record, if preselection allows it, and store
 	 * in the thread for later use.
 	 */
-	if (au_preselect(audit_event, aumask,
-			AU_PRS_FAILURE | AU_PRS_SUCCESS)) {
+	class = au_event_class(event);
+	if (au_preselect(event, class, aumask, AU_PRS_BOTH)) {
 		/*
 		 * If we're out of space and need to suspend unprivileged
 		 * processes, do that here rather than trying to allocate
@@ -499,8 +509,10 @@ audit_syscall_enter(unsigned short code, struct thread *td)
 			cv_wait(&audit_fail_cv, &audit_mtx);
 			panic("audit_failing_stop: thread continued");
 		}
-		td->td_ar = audit_new(audit_event, td);
-	} else
+		td->td_ar = audit_new(event, td);
+	} else if (audit_pipe_preselect(auid, event, class, AU_PRS_BOTH, 0))
+		td->td_ar = audit_new(event, td);
+	else
 		td->td_ar = NULL;
 }
 

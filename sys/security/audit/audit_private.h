@@ -84,10 +84,15 @@ extern int			audit_fail_stop;
 #define	BSM_NOAUDIT	2
 
 /*
- * Defines for the kernel audit record k_ar_commit field.
+ * Defines for the kernel audit record k_ar_commit field.  Flags are set to
+ * indicate what sort of record it is, and which preselection mechanism
+ * selected it.
  */
 #define	AR_COMMIT_KERNEL	0x00000001U
 #define	AR_COMMIT_USER		0x00000010U
+
+#define	AR_PRESELECT_TRAIL	0x00001000U
+#define	AR_PRESELECT_PIPE	0x00002000U
 
 /*
  * Audit data is generated as a stream of struct audit_record structures,
@@ -296,7 +301,8 @@ token_t		*kau_to_socket(struct socket_au_info *soi);
 /*
  * audit_klib prototypes
  */
-int		 au_preselect(au_event_t event, au_mask_t *mask_p, int sorf);
+int		 au_preselect(au_event_t event, au_class_t class,
+		    au_mask_t *mask_p, int sorf);
 au_event_t	 flags_and_error_to_openevent(int oflags, int error);
 void		 au_evclassmap_init(void);
 void		 au_evclassmap_insert(au_event_t event, au_class_t class);
@@ -327,6 +333,10 @@ void			 audit_worker_init(void);
 /*
  * Audit pipe functions.
  */
-void	 audit_pipe_submit(void *record, u_int record_len);
+int	 audit_pipe_preselect(au_id_t auid, au_event_t event,
+	    au_class_t class, int sorf, int trail_select);
+void	 audit_pipe_submit(au_id_t auid, au_event_t event, au_class_t class,
+	    int sorf, int trail_select, void *record, u_int record_len);
+void	 audit_pipe_submit_user(void *record, u_int record_len);
 
 #endif /* ! _SECURITY_AUDIT_PRIVATE_H_ */
