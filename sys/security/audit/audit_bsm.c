@@ -538,6 +538,12 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		 */
 		break;
 
+	case AUE_MKFIFO:
+		if (ARG_IS_VALID(kar, ARG_MODE)) {
+			tok = au_to_arg32(2, "mode", ar->ar_arg_mode);
+			kau_write(rec, tok);
+		}
+		/* fall through */
 	case AUE_ACCESS:
 	case AUE_CHDIR:
 	case AUE_CHROOT:
@@ -546,7 +552,6 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_GETATTRLIST:
 	case AUE_NFS_GETFH:
 	case AUE_LSTAT:
-	case AUE_MKFIFO:
 	case AUE_PATHCONF:
 	case AUE_READLINK:
 	case AUE_REVOKE:
