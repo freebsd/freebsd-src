@@ -269,8 +269,8 @@ void	 kau_init(void);
  * be abstracted so that only accessor methods are exposed.
  */
 extern struct mtx		audit_mtx;
-extern struct cv		audit_commit_cv;
-extern struct cv		audit_cv;
+extern struct cv		audit_watermark_cv;
+extern struct cv		audit_worker_cv;
 extern struct kaudit_queue	audit_q;
 extern int			audit_q_len;
 extern int			audit_pre_q_len;

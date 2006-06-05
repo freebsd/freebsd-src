@@ -420,7 +420,7 @@ audit_worker(void *arg)
 		 */
 		while (!audit_replacement_flag && TAILQ_EMPTY(&audit_q)) {
 			AUDIT_PRINTF(("audit_worker waiting\n"));
-			cv_wait(&audit_cv, &audit_mtx);
+			cv_wait(&audit_worker_cv, &audit_mtx);
 			AUDIT_PRINTF(("audit_worker woken up\n"));
 			AUDIT_PRINTF(("audit_worker: new vp = %p; value of "
 			    "flag %d\n", audit_replacement_vp,
@@ -460,7 +460,7 @@ audit_worker(void *arg)
 			TAILQ_INSERT_TAIL(&ar_worklist, ar, k_q);
 		}
 		if (lowater_signal)
-			cv_broadcast(&audit_commit_cv);
+			cv_broadcast(&audit_watermark_cv);
 
 		mtx_unlock(&audit_mtx);
 		while ((ar = TAILQ_FIRST(&ar_worklist))) {
@@ -525,7 +525,7 @@ audit_rotate_vnode(struct ucred *cred, struct vnode *vp)
 	 * Wake up the audit worker to perform the exchange once we
 	 * release the mutex.
 	 */
-	cv_signal(&audit_cv);
+	cv_signal(&audit_worker_cv);
 
 	/*
 	 * Wait for the audit_worker to broadcast that a replacement has

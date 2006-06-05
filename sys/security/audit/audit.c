@@ -136,16 +136,14 @@ struct au_qctrl		audit_qctrl;
  * either new records are in the queue, or a log replacement is taking
  * place.
  */
-struct cv		audit_cv;
+struct cv		audit_worker_cv;
 
 /*
- * Condition variable to signal to the worker that it has work to do:
- * either new records are in the queue, or a log replacement is taking
- * place.
- *
- * XXXRW: This description is incorrect.
+ * Condition variable to flag when crossing the low watermark, meaning that
+ * threads blocked due to hitting the high watermark can wake up and continue
+ * to commit records.
  */
-struct cv		audit_commit_cv;
+struct cv		audit_watermark_cv;
 
 /*
  * Condition variable for  auditing threads wait on when in fail-stop mode.
@@ -239,8 +237,8 @@ audit_init(void)
 	audit_qctrl.aq_minfree = AU_FS_MINFREE;
 
 	mtx_init(&audit_mtx, "audit_mtx", NULL, MTX_DEF);
-	cv_init(&audit_cv, "audit_cv");
-	cv_init(&audit_commit_cv, "audit_commit_cv");
+	cv_init(&audit_worker_cv, "audit_worker_cv");
+	cv_init(&audit_watermark_cv, "audit_watermark_cv");
 	cv_init(&audit_fail_cv, "audit_fail_cv");
 
 	audit_record_zone = uma_zcreate("audit_record_zone",
@@ -427,7 +425,7 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	while (audit_q_len >= audit_qctrl.aq_hiwater) {
 		AUDIT_PRINTF(("audit_commit: sleeping to wait for "
 		   "audit queue to drain below high water mark\n"));
-		cv_wait(&audit_commit_cv, &audit_mtx);
+		cv_wait(&audit_watermark_cv, &audit_mtx);
 		AUDIT_PRINTF(("audit_commit: woke up waiting for "
 		   "audit queue draining\n"));
 	}
@@ -435,7 +433,7 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	TAILQ_INSERT_TAIL(&audit_q, ar, k_q);
 	audit_q_len++;
 	audit_pre_q_len--;
-	cv_signal(&audit_cv);
+	cv_signal(&audit_worker_cv);
 	mtx_unlock(&audit_mtx);
 }
 
