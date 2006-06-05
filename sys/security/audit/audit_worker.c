@@ -315,45 +315,67 @@ audit_worker_process_record(struct vnode *audit_vp, struct ucred *audit_cred,
     struct thread *audit_td, struct kaudit_record *ar)
 {
 	struct au_record *bsm;
+	au_class_t class;
+	au_event_t event;
 	int error, ret;
+	au_id_t auid;
+	int sorf;
 
-	if (ar->k_ar_commit & AR_COMMIT_USER) {
+	if ((ar->k_ar_commit & AR_COMMIT_USER) &&
+	    (ar->k_ar_commit & AR_PRESELECT_TRAIL)) {
 		error = audit_record_write(audit_vp, audit_cred, audit_td,
 		    ar->k_udata, ar->k_ulen);
 		if (error && audit_panic_on_write_fail)
 			panic("audit_worker: write error %d\n", error);
 		else if (error)
 			printf("audit_worker: write error %d\n", error);
-		audit_pipe_submit(ar->k_udata, ar->k_ulen);
+	}
+	if ((ar->k_ar_commit & AR_COMMIT_USER) &&
+	    (ar->k_ar_commit & AR_PRESELECT_PIPE))
+		audit_pipe_submit_user(ar->k_udata, ar->k_ulen);
+
+	if (!(ar->k_ar_commit & AR_COMMIT_KERNEL))
+		return;
+
+	auid = ar->k_ar.ar_subj_auid;
+	event = ar->k_ar.ar_event;
+	class = au_event_class(event);
+	if (ar->k_ar.ar_errno == 0)
+		sorf = AU_PRS_SUCCESS;
+	else
+		sorf = AU_PRS_FAILURE;
+
+	ret = kaudit_to_bsm(ar, &bsm);
+	switch (ret) {
+	case BSM_NOAUDIT:
+		return;
+
+	case BSM_FAILURE:
+		printf("audit_worker_process_record: BSM_FAILURE\n");
+		return;
+
+	case BSM_SUCCESS:
+		break;
+
+	default:
+		panic("kaudit_to_bsm returned %d", ret);
 	}
 
-	if (ar->k_ar_commit & AR_COMMIT_KERNEL) {
-		ret = kaudit_to_bsm(ar, &bsm);
-		switch (ret) {
-		case BSM_NOAUDIT:
-			break;
-
-		case BSM_FAILURE:
-			printf("audit_worker_process_record: BSM_FAILURE\n");
-			break;
-
-		case BSM_SUCCESS:
-			error = audit_record_write(audit_vp, audit_cred,
-			    audit_td, bsm->data, bsm->len);
-			if (error && audit_panic_on_write_fail)
-				panic("audit_worker: write error %d\n",
-				    error);
-			else if (error)
-				printf("audit_worker: write error %d\n",
-				    error);
-			audit_pipe_submit(bsm->data, bsm->len);
-			kau_free(bsm);
-			break;
-
-		default:
-			panic("kaudit_to_bsm returned %d", ret);
-		}
+	if (ar->k_ar_commit & AR_PRESELECT_TRAIL) {
+		error = audit_record_write(audit_vp, audit_cred,
+		    audit_td, bsm->data, bsm->len);
+		if (error && audit_panic_on_write_fail)
+			panic("audit_worker: write error %d\n",
+			    error);
+		else if (error)
+			printf("audit_worker: write error %d\n",
+			    error);
 	}
+	if (ar->k_ar_commit & AR_PRESELECT_PIPE)
+		audit_pipe_submit(auid, event, class, sorf,
+		    ar->k_ar_commit & AR_PRESELECT_TRAIL, bsm->data,
+		    bsm->len);
+	kau_free(bsm);
 }
 
 /*

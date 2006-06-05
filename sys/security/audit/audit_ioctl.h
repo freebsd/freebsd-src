@@ -34,6 +34,25 @@
 #define	AUDITPIPE_IOBASE	'A'
 
 /*
+ * Data structures used for complex ioctl arguments.  Do not change existing
+ * structures, add new revised ones to be used by new ioctls, and keep the
+ * old structures and ioctls for backwards compatibility.
+ */
+struct auditpipe_ioctl_preselect {
+	au_id_t		aip_auid;
+	au_mask_t	aip_mask;
+};
+
+/*
+ * Possible modes of operation for audit pipe preselection.
+ */
+#define	AUDITPIPE_PRESELECT_MODE_TRAIL	1	/* Global audit trail. */
+#define	AUDITPIPE_PRESELECT_MODE_LOCAL	2	/* Local audit trail. */
+#ifdef NOTYET
+#define	AUDITPIPE_PRESELECT_MODE_PRIORITY	3	/* Prioritized trail. */
+#endif
+
+/*
  * Ioctls to read and control the behavior of individual audit pipe devices.
  */
 #define	AUDITPIPE_GET_QLEN		_IOR(AUDITPIPE_IOBASE, 1, u_int)
@@ -41,6 +60,19 @@
 #define	AUDITPIPE_SET_QLIMIT		_IOW(AUDITPIPE_IOBASE, 3, u_int)
 #define	AUDITPIPE_GET_QLIMIT_MIN	_IOR(AUDITPIPE_IOBASE, 4, u_int)
 #define	AUDITPIPE_GET_QLIMIT_MAX	_IOR(AUDITPIPE_IOBASE, 5, u_int)
+#define	AUDITPIPE_GET_PRESELECT_FLAGS	_IOR(AUDITPIPE_IOBASE, 6, au_mask_t)
+#define	AUDITPIPE_SET_PRESELECT_FLAGS	_IOW(AUDITPIPE_IOBASE, 7, au_mask_t)
+#define	AUDITPIPE_GET_PRESELECT_NAFLAGS	_IOR(AUDITPIPE_IOBASE, 8, au_mask_t)
+#define	AUDITPIPE_SET_PRESELECT_NAFLAGS	_IOW(AUDITPIPE_IOBASE, 9, au_mask_t)
+#define	AUDITPIPE_GET_PRESELECT_AUID	_IOR(AUDITPIPE_IOBASE, 10,	\
+					    struct auditpipe_ioctl_preselect)
+#define	AUDITPIPE_SET_PRESELECT_AUID	_IOW(AUDITPIPE_IOBASE, 11,	\
+					    struct auditpipe_ioctl_preselect)
+#define	AUDITPIPE_DELETE_PRESELECT_AUID	_IOW(AUDITPIPE_IOBASE, 12, au_id_t)
+#define	AUDITPIPE_FLUSH_PRESELECT_AUID	_IO(AUDITPIPE_IOBASE, 13)
+#define	AUDITPIPE_GET_PRESELECT_MODE	_IOR(AUDITPIPE_IOBASE, 14, int)
+#define	AUDITPIPE_SET_PRESELECT_MODE	_IOW(AUDITPIPE_IOBASE, 15, int)
+#define	AUDITPIPE_FLUSH			_IO(AUDITPIPE_IOBASE, 16)
 
 /*
  * Ioctls to retrieve audit pipe statistics.
