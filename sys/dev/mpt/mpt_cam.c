@@ -117,6 +117,7 @@ static void mpt_setwidth(struct mpt_softc *, int, int);
 static void mpt_setsync(struct mpt_softc *, int, int, int);
 static int mpt_update_spi_config(struct mpt_softc *, int);
 static void mpt_calc_geometry(struct ccb_calc_geometry *ccg, int extended);
+
 static mpt_reply_handler_t mpt_scsi_reply_handler;
 static mpt_reply_handler_t mpt_scsi_tmf_reply_handler;
 static mpt_reply_handler_t mpt_fc_els_reply_handler;
@@ -697,15 +698,11 @@ mpt_set_initial_config_spi(struct mpt_softc *mpt)
 	    j == MPI_SCSIPORTPAGE2_PORT_FLAGS_OFF_DV */) {
 		mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
 		    "honoring BIOS transfer negotiations\n");
-		for (i = 0; i < 16; i++) {
-			mpt->mpt_dv[i].state = DV_STATE_DONE;
-		}
 	} else {
 		for (i = 0; i < 16; i++) {
 			mpt->mpt_dev_page1[i].RequestedParameters = 0;
 			mpt->mpt_dev_page1[i].Configuration = 0;
 			(void) mpt_update_spi_config(mpt, i);
-			mpt->mpt_dv[i].state = DV_STATE_0;
 		}
 	}
 	return (0);
@@ -2081,21 +2078,11 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 	scsi_req = (MSG_SCSI_IO_REQUEST *)req->req_vbuf;
 	ccb = req->ccb;
 	if (ccb == NULL) {
-		/*
-		 * Peel off any 'by hand' commands here
-		 */
-		if (req->state & REQ_STATE_NEED_WAKEUP) {
-			req->state &= ~REQ_STATE_QUEUED;
-			req->state |= REQ_STATE_DONE;
-			wakeup(req);
-			return (TRUE);
-		}
-		mpt_prt(mpt, "req %p:%u without CCB (state %#x "
-		    "func %#x index %u rf %p)\n", req, req->serno, req->state,
-		    scsi_req->Function, req->index, reply_frame);
-		mpt_print_scsi_io_request(scsi_req);
+		mpt_prt(mpt, "mpt_scsi_reply_handler: req %p:%u with no ccb\n",
+		    req, req->serno);
 		return (TRUE);
 	}
+
 	tgt = scsi_req->TargetID;
 	untimeout(mpt_timeout, ccb, ccb->ccb_h.timeout_ch);
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
@@ -2190,7 +2177,6 @@ mpt_scsi_tmf_reply_handler(struct mpt_softc *mpt, request_t *req,
 	}
 	return (TRUE);
 }
-
 
 /*
  * XXX: Move to definitions file
@@ -2707,10 +2693,10 @@ XXXX
 static void
 mpt_action(struct cam_sim *sim, union ccb *ccb)
 {
-	struct	mpt_softc *mpt;
-	struct	ccb_trans_settings *cts;
+	struct mpt_softc *mpt;
+	struct ccb_trans_settings *cts;
 	target_id_t tgt;
-	int	raid_passthru;
+	int raid_passthru;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("mpt_action\n"));
 
@@ -2845,7 +2831,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		 */
 		if (mpt->phydisk_sim && raid_passthru == 0 &&
 		    mpt_is_raid_volume(mpt, tgt) != 0) {
-			mpt_lprt(mpt, MPT_PRT_ALWAYS,
+			mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
 			    "skipping transfer settings for RAID volumes\n");
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 			break;
@@ -3048,7 +3034,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->hba_inquiry = PI_TAG_ABLE;
 		} else {
 			cpi->max_target = 15;
-			cpi->hba_misc = 0;
+			cpi->hba_misc = PIM_SEQSCAN;
 			cpi->initiator_id = mpt->mpt_ini_id;
 			cpi->base_transfer_speed = 3300;
 			cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
@@ -3061,9 +3047,9 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		 */
 		if (raid_passthru) {
 			cpi->max_target = mpt->ioc_page2->MaxPhysDisks - 1;
-			cpi->initiator_id = cpi->max_target+1;
+			cpi->initiator_id = cpi->max_target + 1;
 			cpi->max_lun = 0;
-			cpi->hba_misc = PIM_NOBUSRESET;
+			cpi->hba_misc |= PIM_NOBUSRESET;
 		}
 
 		if ((mpt->role & MPT_ROLE_INITIATOR) == 0) {

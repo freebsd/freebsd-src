@@ -305,7 +305,7 @@ struct req_entry {
 	void	       *sense_vbuf;	/* Virtual Address of sense data */
 	bus_addr_t	req_pbuf;	/* Physical Address of Entry */
 	bus_addr_t	sense_pbuf;	/* Physical Address of sense data */
-	bus_dmamap_t	dmap;		/* DMA map for data buffer */
+	bus_dmamap_t	dmap;		/* DMA map for data buffers */
 	struct req_entry *chain;	/* for SGE overallocations */
 };
 
@@ -541,10 +541,6 @@ struct mpt_softc {
 			CONFIG_PAGE_SCSI_DEVICE_1	_dev_page1[16];
 			uint16_t			_tag_enable;
 			uint16_t			_disc_enable;
-			struct {
-				uint8_t inqdata[39];
-				uint8_t	state;
-			} _dv[16];
 		} spi;
 #define	mpt_port_page0		cfg.spi._port_page0
 #define	mpt_port_page1		cfg.spi._port_page1
@@ -553,10 +549,6 @@ struct mpt_softc {
 #define	mpt_dev_page1		cfg.spi._dev_page1
 #define	mpt_tag_enable		cfg.spi._tag_enable
 #define	mpt_disc_enable		cfg.spi._disc_enable
-#define	mpt_dv			cfg.spi._dv
-# define	DV_STATE_0	0
-# define	DV_STATE_1	1
-# define	DV_STATE_DONE	0xff
 		struct mpi_fc_cfg {
 			CONFIG_PAGE_FC_PORT_0 _port_page0;
 #define	mpt_fcport_page0	cfg.fc._port_page0
@@ -643,6 +635,7 @@ struct mpt_softc {
 	 * Deferred frame acks due to resource shortage.
 	 */
 	struct mpt_evtf_list	ack_frames;
+
 	/*
 	 * Target Mode Support
 	 */
@@ -666,7 +659,7 @@ struct mpt_softc {
 	uint16_t		pad3;
 
 
-	/* Opposing port in a 929 or 1030, or NULL */
+	/* Paired port in some dual adapters configurations */
 	struct mpt_softc *	mpt2;
 
 	/* FW Image management */
