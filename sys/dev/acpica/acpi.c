@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/acpi.h>
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
+#include <contrib/dev/acpica/achware.h>
 #include <contrib/dev/acpica/acnamesp.h>
 
 #include "pci_if.h"
@@ -1643,6 +1644,16 @@ acpi_shutdown_final(void *arg, int howto)
 	} else {
 	    DELAY(1000000);
 	    printf("ACPI power-off failed - timeout\n");
+	}
+    } else if ((howto & RB_AUTOBOOT) != 0 && AcpiGbl_FADT->ResetRegSup) {
+	status = AcpiHwLowLevelWrite(
+	    AcpiGbl_FADT->ResetRegister.RegisterBitWidth,
+	    AcpiGbl_FADT->ResetValue, &AcpiGbl_FADT->ResetRegister);
+	if (ACPI_FAILURE(status)) {
+	    printf("ACPI reset failed - %s\n", AcpiFormatException(status));
+	} else {
+	    DELAY(1000000);
+	    printf("ACPI reset failed - timeout\n");
 	}
     } else if (panicstr == NULL) {
 	printf("Shutting down ACPI\n");
