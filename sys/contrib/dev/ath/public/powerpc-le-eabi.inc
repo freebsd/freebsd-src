@@ -33,7 +33,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGES.
 #
-# $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/public/powerpc-le-eabi.inc#25 $
+# $Id: //depot/sw/branches/sam_hal/public/powerpc-le-eabi.inc#2 $
 #
 
 #
@@ -63,8 +63,13 @@ STRIP=	${TOOLPREFIX}strip
 OBJCOPY=${TOOLPREFIX}objcopy
 NM=	${TOOLPREFIX}nm
 
+#
+# Force register read/write operations to go through a function.
+#
+AH_REGOPS_FUNC=1
+ 
 LDOPTS=	-EL
-COPTS+=	-DAH_BYTE_ORDER=AH_LITTLE_ENDIAN -DAH_REGOPS_FUNC
+COPTS+=	-DAH_BYTE_ORDER=AH_LITTLE_ENDIAN
 COPTS+= -mlittle-endian
 # NB: explicitly disable multiple and string instructions for little-endian
 COPTS+= -msoft-float -ffixed-r2 -mno-multiple -mno-string

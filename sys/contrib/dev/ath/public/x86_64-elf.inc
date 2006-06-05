@@ -33,7 +33,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGES.
 #
-# $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/public/x86_64-elf.inc#20 $
+# $Id: //depot/sw/branches/sam_hal/public/x86_64-elf.inc#1 $
 #
 
 #
