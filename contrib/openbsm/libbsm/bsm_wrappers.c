@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_wrappers.c#18 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_wrappers.c#23 $
  */
 
 #ifdef __APPLE__
@@ -46,12 +46,122 @@
 
 #include <unistd.h>
 #include <syslog.h>
+#include <stdarg.h>
 #include <string.h>
 #include <errno.h>
 
 /* These are not advertised in libbsm.h */
 int audit_set_terminal_port(dev_t *p);
 int audit_set_terminal_host(uint32_t *m);
+
+/*
+ * General purpose audit submission mechanism for userspace.
+ */
+int
+audit_submit(short au_event, au_id_t auid, char status,
+    int reterr, const char *fmt, ...)
+{
+	char text[MAX_AUDITSTRING_LEN];
+	token_t *token;
+	long acond;
+	va_list ap;
+	pid_t pid;
+	int error, afd;
+	struct auditinfo ai;
+
+	if (auditon(A_GETCOND, &acond, sizeof(acond)) < 0) {
+		/*
+		 * If auditon(2) returns ENOSYS, then audit has not been
+		 * compiled into the kernel, so just return.
+		 */
+		if (errno == ENOSYS)
+			return (0);
+		error = errno;
+		syslog(LOG_AUTH | LOG_ERR, "audit: auditon failed: %s",
+		    strerror(errno));
+		errno = error;
+		return (-1);
+	}
+	if (acond == AUC_NOAUDIT)
+		return (0);
+	afd = au_open();
+	if (afd < 0) {
+		error = errno;
+		syslog(LOG_AUTH | LOG_ERR, "audit: au_open failed: %s",
+		    strerror(errno));
+		errno = error;
+		return (-1);
+	}
+	if (getaudit(&ai) < 0) {
+		error = errno;
+		syslog(LOG_AUTH | LOG_ERR, "audit: getaudit failed: %s",
+		    strerror(errno));
+		errno = error;
+		return (-1);
+	}
+	pid = getpid();
+	token = au_to_subject32(auid, geteuid(), getegid(),
+	    getuid(), getgid(), pid, pid, &ai.ai_termid);
+	if (token == NULL) {
+		syslog(LOG_AUTH | LOG_ERR,
+		    "audit: unable to build subject token");
+		(void) au_close(afd, AU_TO_NO_WRITE, au_event);
+		errno = EPERM;
+		return (-1);
+	}
+	if (au_write(afd, token) < 0) {
+		error = errno;
+		syslog(LOG_AUTH | LOG_ERR,
+		    "audit: au_write failed: %s", strerror(errno));
+		(void) au_close(afd, AU_TO_NO_WRITE, au_event);
+		errno = error;
+		return (-1);
+	}
+	if (fmt != NULL) {
+		va_start(ap, fmt);
+		(void) vsnprintf(text, MAX_AUDITSTRING_LEN, fmt, ap);
+		va_end(ap);
+		token = au_to_text(text);
+		if (token == NULL) {
+			syslog(LOG_AUTH | LOG_ERR,
+			    "audit: failed to generate text token");
+			(void) au_close(afd, AU_TO_NO_WRITE, au_event);
+			errno = EPERM;
+			return (-1);
+		}
+		if (au_write(afd, token) < 0) {
+			error = errno;
+			syslog(LOG_AUTH | LOG_ERR,
+			    "audit: au_write failed: %s", strerror(errno));
+			(void) au_close(afd, AU_TO_NO_WRITE, au_event);
+			errno = error;
+			return (-1);
+		}
+	}
+	token = au_to_return32(status, reterr);
+	if (token == NULL) {
+		syslog(LOG_AUTH | LOG_ERR,
+		    "audit: enable to build return token");
+		(void) au_close(afd, AU_TO_NO_WRITE, au_event);
+		errno = EPERM;
+		return (-1);
+	}
+	if (au_write(afd, token) < 0) {
+		error = errno;
+		syslog(LOG_AUTH | LOG_ERR,
+		    "audit: au_write failed: %s", strerror(errno));
+		(void) au_close(afd, AU_TO_NO_WRITE, au_event);
+		errno = error;
+		return (-1);
+	}
+	if (au_close(afd, AU_TO_WRITE, au_event) < 0) {
+		error = errno;
+		syslog(LOG_AUTH | LOG_ERR, "audit: record not committed");
+		errno = error;
+		return (-1);
+	}
+	return (0);
+}
 
 int
 audit_set_terminal_port(dev_t *p)
@@ -130,7 +240,7 @@ audit_set_terminal_id(au_tid_t *tid)
  * tok = au_to_random_token_2(...);
  * au_write(aufd, tok);
  * ...
- * au_close(aufd, 1, AUE_your_event_type);
+ * au_close(aufd, AU_TO_WRITE, AUE_your_event_type);
  *
  * Assumes, like all wrapper calls, that the caller has previously checked
  * that auditing is enabled via the audit_get_state() call.
@@ -156,7 +266,7 @@ audit_write(short event_code, token_t *subject, token_t *misctok, char retval,
 	if (subject && au_write(aufd, subject) == -1) {
 		au_free_token(subject);
 		au_free_token(misctok);
-		(void)au_close(aufd, 0, event_code);
+		(void)au_close(aufd, AU_TO_WRITE, event_code);
 		syslog(LOG_ERR, "%s: write of subject failed", func);
 		return (kAUWriteSubjectTokErr);
 	}
@@ -164,31 +274,30 @@ audit_write(short event_code, token_t *subject, token_t *misctok, char retval,
 	/* Save the event-specific token. */
 	if (misctok && au_write(aufd, misctok) == -1) {
 		au_free_token(misctok);
-		(void)au_close(aufd, 0, event_code);
+		(void)au_close(aufd, AU_TO_NO_WRITE, event_code);
 		syslog(LOG_ERR, "%s: write of caller token failed", func);
 		return (kAUWriteCallerTokErr);
 	}
 
 	/* Tokenize and save the return value. */
 	if ((rettok = au_to_return32(retval, errcode)) == NULL) {
-		(void)au_close(aufd, 0, event_code);
+		(void)au_close(aufd, AU_TO_NO_WRITE, event_code);
 		syslog(LOG_ERR, "%s: au_to_return32() failed", func);
 		return (kAUMakeReturnTokErr);
 	}
 
 	if (au_write(aufd, rettok) == -1) {
 		au_free_token(rettok);
-		(void)au_close(aufd, 0, event_code);
+		(void)au_close(aufd, AU_TO_NO_WRITE, event_code);
 		syslog(LOG_ERR, "%s: write of return code failed", func);
 		return (kAUWriteReturnTokErr);
 	}
 
 	/*
-	 * au_close()'s second argument is "keep": if keep == 0, the record is
-	 * discarded.  We assume the caller wouldn't have bothered with this
+	 * We assume the caller wouldn't have bothered with this
 	 * function if it hadn't already decided to keep the record.
 	 */
-	if (au_close(aufd, 1, event_code) < 0) {
+	if (au_close(aufd, AU_TO_WRITE, event_code) < 0) {
 		syslog(LOG_ERR, "%s: au_close() failed", func);
 		return (kAUCloseErr);
 	}

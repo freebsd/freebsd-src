@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#13 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#16 $
  */
 
 #include <sys/types.h>
@@ -44,6 +44,7 @@
 #include <bsm/audit_uevents.h>
 #include <bsm/libbsm.h>
 
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
@@ -63,6 +64,7 @@ static int	 ret, minval;
 static char	*lastfile = NULL;
 static int	 allhardcount = 0;
 static int	 triggerfd = 0;
+static int	 sigchlds, sigchlds_handled;
 static int	 sighups, sighups_handled;
 static int	 sigterms, sigterms_handled;
 static long	 global_flags;
@@ -127,7 +129,7 @@ affixdir(char *name, struct dir_ent *dirent)
 	const char *sep = "/";
 
 	curdir = dirent->dirname;
-	syslog(LOG_INFO, "dir = %s\n", dirent->dirname);
+	syslog(LOG_DEBUG, "dir = %s", dirent->dirname);
 
 	fn = malloc(strlen(curdir) + strlen(sep) + (2 * POSTFIX_LEN) + 1);
 	if (fn == NULL)
@@ -158,10 +160,10 @@ close_lastfile(char *TS)
 			*ptr = '.';
 			strcpy(ptr+1, TS);
 			if (rename(oldname, lastfile) != 0)
-				syslog(LOG_ERR, "Could not rename %s to %s \n",
+				syslog(LOG_ERR, "Could not rename %s to %s",
 				    oldname, lastfile);
 			else
-				syslog(LOG_INFO, "renamed %s to %s \n",
+				syslog(LOG_INFO, "renamed %s to %s",
 				    oldname, lastfile);
 		}
 		free(lastfile);
@@ -241,7 +243,7 @@ swap_audit_file(void)
 	/* Try until we succeed. */
 	while ((dirent = TAILQ_FIRST(&dir_q))) {
 		if ((fn = affixdir(timestr, dirent)) == NULL) {
-			syslog(LOG_INFO, "Failed to swap log  at time %s\n",
+			syslog(LOG_INFO, "Failed to swap log at time %s",
 				timestr);
 			return (-1);
 		}
@@ -250,7 +252,7 @@ swap_audit_file(void)
 		 * Create and open the file; then close and pass to the
 		 * kernel if all went well.
 		 */
-		syslog(LOG_INFO, "New audit file is %s\n", fn);
+		syslog(LOG_INFO, "New audit file is %s", fn);
 #ifdef AUDIT_REVIEW_GROUP
 		fd = open_trail(fn, uid, gid);
 #else
@@ -262,7 +264,7 @@ swap_audit_file(void)
 			error = auditctl(fn);
 			if (error) {
 				syslog(LOG_ERR,
-				    "auditctl failed setting log file! : %s\n",
+				    "auditctl failed setting log file! : %s",
 				    strerror(errno));
 				close(fd);
 			} else {
@@ -284,7 +286,7 @@ swap_audit_file(void)
 		free(dirent->dirname);
 		free(dirent);
 	}
-	syslog(LOG_INFO, "Log directories exhausted\n");
+	syslog(LOG_ERR, "Log directories exhausted\n");
 	return (-1);
 }
 
@@ -326,7 +328,7 @@ read_control_file(void)
 
 	allhardcount = 0;
 	if (swap_audit_file() == -1) {
-		syslog(LOG_ERR, "Could not swap audit file\n");
+		syslog(LOG_ERR, "Could not swap audit file");
 		/*
 		 * XXX Faulty directory listing? - user should be given
 		 * XXX an opportunity to change the audit_control file
@@ -341,16 +343,16 @@ read_control_file(void)
 	 * XXX is generated here?
 	 */
 	if (0 == (ret = getacmin(&minval))) {
-		syslog(LOG_INFO, "min free = %d\n", minval);
+		syslog(LOG_DEBUG, "min free = %d\n", minval);
 		if (auditon(A_GETQCTRL, &qctrl, sizeof(qctrl)) != 0) {
 			syslog(LOG_ERR,
-			    "could not get audit queue settings\n");
+			    "could not get audit queue settings");
 				return (-1);
 		}
 		qctrl.aq_minfree = minval;
 		if (auditon(A_SETQCTRL, &qctrl, sizeof(qctrl)) != 0) {
 			syslog(LOG_ERR,
-			    "could not set audit queue settings\n");
+			    "could not set audit queue settings");
 			return (-1);
 		}
 	}
@@ -372,20 +374,20 @@ close_all(void)
 
 	/* Generate an audit record. */
 	if ((aufd = au_open()) == -1)
-		syslog(LOG_ERR, "Could not create audit shutdown event.\n");
+		syslog(LOG_ERR, "Could not create audit shutdown event.");
 	else {
 		if ((tok = au_to_text("auditd::Audit shutdown")) != NULL)
 			au_write(aufd, tok);
 		if (au_close(aufd, 1, AUE_audit_shutdown) == -1)
 			syslog(LOG_ERR,
-			    "Could not close audit shutdown event.\n");
+			    "Could not close audit shutdown event.");
 	}
 
 	/* Flush contents. */
 	cond = AUC_DISABLED;
 	err_ret = auditon(A_SETCOND, &cond, sizeof(cond));
 	if (err_ret != 0) {
-		syslog(LOG_ERR, "Disabling audit failed! : %s\n",
+		syslog(LOG_ERR, "Disabling audit failed! : %s",
 		    strerror(errno));
 		err_ret = 1;
 	}
@@ -396,15 +398,15 @@ close_all(void)
 
 	free_dir_q();
 	if ((remove(AUDITD_PIDFILE) == -1) || err_ret) {
-		syslog(LOG_ERR, "Could not unregister\n");
+		syslog(LOG_ERR, "Could not unregister");
 		audit_warn_postsigterm();
 		return (1);
 	}
 	endac();
 
 	if (close(triggerfd) != 0)
-		syslog(LOG_ERR, "Error closing control file\n");
-	syslog(LOG_INFO, "Finished.\n");
+		syslog(LOG_ERR, "Error closing control file");
+	syslog(LOG_INFO, "Finished");
 	return (0);
 }
 
@@ -422,6 +424,8 @@ relay_signal(int signal)
 		sighups++;
 	if (signal == SIGTERM)
 		sigterms++;
+	if (signal == SIGCHLD)
+		sigchlds++;
 }
 
 /*
@@ -437,23 +441,22 @@ register_daemon(void)
 	/* Set up the signal hander. */
 	if (signal(SIGTERM, relay_signal) == SIG_ERR) {
 		syslog(LOG_ERR,
-		    "Could not set signal handler for SIGTERM\n");
+		    "Could not set signal handler for SIGTERM");
 		fail_exit();
 	}
 	if (signal(SIGCHLD, relay_signal) == SIG_ERR) {
 		syslog(LOG_ERR,
-		    "Could not set signal handler for SIGCHLD\n");
+		    "Could not set signal handler for SIGCHLD");
 		fail_exit();
 	}
 	if (signal(SIGHUP, relay_signal) == SIG_ERR) {
 		syslog(LOG_ERR,
-		    "Could not set signal handler for SIGHUP\n");
+		    "Could not set signal handler for SIGHUP");
 		fail_exit();
 	}
 
 	if ((pidfile = fopen(AUDITD_PIDFILE, "a")) == NULL) {
-		syslog(LOG_ERR,
-		    "Could not open PID file\n");
+		syslog(LOG_ERR, "Could not open PID file");
 		audit_warn_tmpfile();
 		return (-1);
 	}
@@ -462,7 +465,7 @@ register_daemon(void)
 	fd = fileno(pidfile);
 	if (flock(fd, LOCK_EX | LOCK_NB) < 0) {
 		syslog(LOG_ERR,
-		    "PID file is locked (is another auditd running?).\n");
+		    "PID file is locked (is another auditd running?).");
 		audit_warn_ebusy();
 		return (-1);
 	}
@@ -490,7 +493,6 @@ handle_audit_trigger(int trigger)
 	static int last_trigger;
 	static time_t last_time;
 	struct dir_ent *dirent;
-	int rc;
 
 	/*
 	 * Suppres duplicate messages from the kernel within the specified
@@ -516,7 +518,7 @@ handle_audit_trigger(int trigger)
 	switch(trigger) {
 
 	case AUDIT_TRIGGER_LOW_SPACE:
-		syslog(LOG_INFO, "Got low space trigger\n");
+		syslog(LOG_INFO, "Got low space trigger");
 		if (dirent && (dirent->softlim != 1)) {
 			TAILQ_REMOVE(&dir_q, dirent, dirs);
 				/* Add this node to the end of the list. */
@@ -526,7 +528,7 @@ handle_audit_trigger(int trigger)
 
 			if (TAILQ_NEXT(TAILQ_FIRST(&dir_q), dirs) != NULL &&
 			    swap_audit_file() == -1)
-				syslog(LOG_ERR, "Error swapping audit file\n");
+				syslog(LOG_ERR, "Error swapping audit file");
 
 			/*
 			 * Check if the next dir has already reached its soft
@@ -548,7 +550,7 @@ handle_audit_trigger(int trigger)
 		break;
 
 	case AUDIT_TRIGGER_NO_SPACE:
-		syslog(LOG_INFO, "Got no space trigger\n");
+		syslog(LOG_INFO, "Got no space trigger");
 
 		/* Delete current dir, go on to next. */
 		TAILQ_REMOVE(&dir_q, dirent, dirs);
@@ -557,7 +559,7 @@ handle_audit_trigger(int trigger)
 		free(dirent);
 
 		if (swap_audit_file() == -1)
-			syslog(LOG_ERR, "Error swapping audit file\n");
+			syslog(LOG_ERR, "Error swapping audit file");
 
 		/* We are out of log directories. */
 		audit_warn_allhard(++allhardcount);
@@ -568,21 +570,21 @@ handle_audit_trigger(int trigger)
 		 * Create a new file and swap with the one being used in
 		 * kernel
 		 */
-		syslog(LOG_INFO, "Got open new trigger\n");
+		syslog(LOG_INFO, "Got open new trigger");
 		if (swap_audit_file() == -1)
-			syslog(LOG_ERR, "Error swapping audit file\n");
+			syslog(LOG_ERR, "Error swapping audit file");
 		break;
 
 	case AUDIT_TRIGGER_READ_FILE:
-		syslog(LOG_INFO, "Got read file trigger\n");
+		syslog(LOG_INFO, "Got read file trigger");
 		if (read_control_file() == -1)
-			syslog(LOG_ERR, "Error in audit control file\n");
+			syslog(LOG_ERR, "Error in audit control file");
 		if (config_audit_controls() == -1)
-			syslog(LOG_ERR, "Error setting audit controls\n");
+			syslog(LOG_ERR, "Error setting audit controls");
 		break;
 
 	default:
-		syslog(LOG_ERR, "Got unknown trigger %d\n", trigger);
+		syslog(LOG_ERR, "Got unknown trigger %d", trigger);
 		break;
 	}
 }
@@ -593,44 +595,6 @@ handle_sighup(void)
 
 	sighups_handled = sighups;
 	config_audit_controls();
-}
-
-/*
- * Read the control file for triggers and handle appropriately.
- */
-static int
-wait_for_triggers(void)
-{
-	int num;
-	unsigned int trigger;
-
-	for (;;) {
-		num = read(triggerfd, &trigger, sizeof(trigger));
-		if ((num == -1) && (errno != EINTR)) {
-			syslog(LOG_ERR, "%s: error %d\n", __FUNCTION__, errno);
-			return (-1);
-		}
-		if (sigterms != sigterms_handled) {
-			syslog(LOG_INFO, "%s: SIGTERM", __FUNCTION__);
-			break;
-		}
-		if (sighups != sighups_handled) {
-			syslog(LOG_INFO, "%s: SIGHUP", __FUNCTION__);
-			handle_sighup();
-		}
-		if ((num == -1) && (errno == EINTR))
-			continue;
-		if (num == 0) {
-			syslog(LOG_INFO, "%s: read EOF\n", __FUNCTION__);
-			return (-1);
-		}
-		syslog(LOG_INFO, "%s: read %d\n", __FUNCTION__, trigger);
-		if (trigger == AUDIT_TRIGGER_CLOSE_AND_DIE)
-			break;
-		else
-			handle_audit_trigger(trigger);
-	}
-	return (close_all());
 }
 
 /*
@@ -645,12 +609,62 @@ reap_children(void)
 	while ((child = waitpid(-1, &wstatus, WNOHANG)) > 0) {
 		if (!wstatus)
 			continue;
-		syslog(LOG_INFO, "warn process [pid=%d] %s %d.\n", child,
+		syslog(LOG_INFO, "warn process [pid=%d] %s %d.", child,
 		    ((WIFEXITED(wstatus)) ? "exited with non-zero status" :
 		    "exited as a result of signal"),
 		    ((WIFEXITED(wstatus)) ? WEXITSTATUS(wstatus) :
 		    WTERMSIG(wstatus)));
 	}
+}
+
+static void
+handle_sigchld(void)
+{
+
+	sigchlds_handled = sigchlds;
+	reap_children();
+}
+
+/*
+ * Read the control file for triggers/signals and handle appropriately.
+ */
+static int
+wait_for_events(void)
+{
+	int num;
+	unsigned int trigger;
+
+	for (;;) {
+		num = read(triggerfd, &trigger, sizeof(trigger));
+		if ((num == -1) && (errno != EINTR)) {
+			syslog(LOG_ERR, "%s: error %d", __FUNCTION__, errno);
+			return (-1);
+		}
+		if (sigterms != sigterms_handled) {
+			syslog(LOG_DEBUG, "%s: SIGTERM", __FUNCTION__);
+			break;
+		}
+		if (sigchlds != sigchlds_handled) {
+			syslog(LOG_DEBUG, "%s: SIGCHLD", __FUNCTION__);
+			handle_sigchld();
+		}
+		if (sighups != sighups_handled) {
+			syslog(LOG_DEBUG, "%s: SIGHUP", __FUNCTION__);
+			handle_sighup();
+		}
+		if ((num == -1) && (errno == EINTR))
+			continue;
+		if (num == 0) {
+			syslog(LOG_ERR, "%s: read EOF", __FUNCTION__);
+			return (-1);
+		}
+		syslog(LOG_DEBUG, "%s: read %d", __FUNCTION__, trigger);
+		if (trigger == AUDIT_TRIGGER_CLOSE_AND_DIE)
+			break;
+		else
+			handle_audit_trigger(trigger);
+	}
+	return (close_all());
 }
 
 /*
@@ -700,7 +714,7 @@ config_audit_controls(void)
 	if (ctr == 0)
 		syslog(LOG_ERR, "No events to class mappings registered.");
 	else
-		syslog(LOG_INFO, "Registered %d event to class mappings.",
+		syslog(LOG_DEBUG, "Registered %d event to class mappings.",
 		    ctr);
 
 	/*
@@ -713,7 +727,7 @@ config_audit_controls(void)
 			syslog(LOG_ERR,
 			    "Failed to register non-attributable event mask.");
 		else
-			syslog(LOG_INFO,
+			syslog(LOG_DEBUG,
 			    "Registered non-attributable event mask.");
 	} else
 		syslog(LOG_ERR,
@@ -731,35 +745,53 @@ config_audit_controls(void)
 static void
 setup(void)
 {
+	auditinfo_t auinfo;
 	int aufd;
 	token_t *tok;
 
 	if ((triggerfd = open(AUDIT_TRIGGER_FILE, O_RDONLY, 0)) < 0) {
-		syslog(LOG_ERR, "Error opening trigger file\n");
+		syslog(LOG_ERR, "Error opening trigger file");
+		fail_exit();
+	}
+
+	/*
+	 * To provide event feedback cycles and avoid auditd becoming
+	 * stalled if auditing is suspended, auditd and its children run
+	 * without their events being audited.  We allow the uid, tid, and
+	 * mask fields to be implicitly set to zero, but do set the pid.  We
+	 * run this after opening the trigger device to avoid configuring
+	 * audit state without audit present in the system.
+	 *
+	 * XXXRW: Is there more to it than this?
+	 */
+	bzero(&auinfo, sizeof(auinfo));
+	auinfo.ai_asid = getpid();
+	if (setaudit(&auinfo) == -1) {
+		syslog(LOG_ERR, "Error setting audit stat");
 		fail_exit();
 	}
 
 	TAILQ_INIT(&dir_q);
 	if (read_control_file() == -1) {
-		syslog(LOG_ERR, "Error reading control file\n");
+		syslog(LOG_ERR, "Error reading control file");
 		fail_exit();
 	}
 
 	/* Generate an audit record. */
 	if ((aufd = au_open()) == -1)
-		syslog(LOG_ERR, "Could not create audit startup event.\n");
+		syslog(LOG_ERR, "Could not create audit startup event.");
 	else {
 		if ((tok = au_to_text("auditd::Audit startup")) != NULL)
 			au_write(aufd, tok);
 		if (au_close(aufd, 1, AUE_audit_startup) == -1)
 			syslog(LOG_ERR,
-			    "Could not close audit startup event.\n");
+			    "Could not close audit startup event.");
 	}
 
 	if (config_audit_controls() == 0)
-		syslog(LOG_INFO, "Audit controls init successful\n");
+		syslog(LOG_INFO, "Audit controls init successful");
 	else
-		syslog(LOG_INFO, "Audit controls init failed\n");
+		syslog(LOG_ERR, "Audit controls init failed");
 }
 
 int
@@ -800,22 +832,22 @@ main(int argc, char **argv)
 #else
 	openlog("auditd", LOG_CONS | LOG_PID, LOG_AUTH);
 #endif
-	syslog(LOG_INFO, "starting...\n");
+	syslog(LOG_INFO, "starting...");
 
 	if (debug == 0 && daemon(0, 0) == -1) {
-		syslog(LOG_ERR, "Failed to daemonize\n");
+		syslog(LOG_ERR, "Failed to daemonize");
 		exit(1);
 	}
 
 	if (register_daemon() == -1) {
-		syslog(LOG_ERR, "Could not register as daemon\n");
+		syslog(LOG_ERR, "Could not register as daemon");
 		exit(1);
 	}
 
 	setup();
 
-	rc = wait_for_triggers();
-	syslog(LOG_INFO, "auditd exiting.\n");
+	rc = wait_for_events();
+	syslog(LOG_INFO, "auditd exiting.");
 
 	exit(rc);
 }
