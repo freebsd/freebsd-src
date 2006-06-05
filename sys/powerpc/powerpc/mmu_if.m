@@ -201,6 +201,25 @@ METHOD void enter {
 
 
 /**
+ * @brief Maps a sequence of resident pages belonging to the same object.
+ *
+ * @param _pmap		physical map
+ * @param _start	virtual range start
+ * @param _end		virtual range end
+ * @param _m_start	physical page mapped at start
+ * @param _prot		mapping page protection
+ */
+METHOD void enter_object {
+	mmu_t		_mmu;
+	pmap_t		_pmap;
+	vm_offset_t	_start;
+	vm_offset_t	_end;
+	vm_page_t	_m_start;
+	vm_prot_t	_prot;
+};
+
+
+/**
  * @brief A faster entry point for page mapping where it is possible
  * to short-circuit some of the tests in pmap_enter.
  *

@@ -1437,9 +1437,9 @@ void
 vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
     vm_object_t object, vm_pindex_t pindex, vm_size_t size, int flags)
 {
-	vm_offset_t tmpidx;
+	vm_offset_t start, tmpidx;
 	int psize;
-	vm_page_t p, mpte;
+	vm_page_t p, p_start;
 	boolean_t are_queues_locked;
 
 	if ((prot & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0 || object == NULL)
@@ -1465,7 +1465,8 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 	}
 
 	are_queues_locked = FALSE;
-	mpte = NULL;
+	start = 0;
+	p_start = NULL;
 
 	if ((p = TAILQ_FIRST(&object->memq)) != NULL) {
 		if (p->pindex < pindex) {
@@ -1493,16 +1494,25 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 		if ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL &&
 		    (p->busy == 0) &&
 		    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
+			if (p_start == NULL) {
+				start = addr + ptoa(tmpidx);
+				p_start = p;
+			}
 			if (!are_queues_locked) {
 				are_queues_locked = TRUE;
 				vm_page_lock_queues();
 			}
 			if (VM_PAGE_INQUEUE1(p, PQ_CACHE))
 				vm_page_deactivate(p);
-			mpte = pmap_enter_quick(map->pmap,
-			    addr + ptoa(tmpidx), p, prot, mpte);
+		} else if (p_start != NULL) {
+			pmap_enter_object(map->pmap, start, addr +
+			    ptoa(tmpidx), p_start, prot);
+			p_start = NULL;
 		}
 	}
+	if (p_start != NULL)
+		pmap_enter_object(map->pmap, start, addr + size, p_start,
+		    prot);
 	if (are_queues_locked)
 		vm_page_unlock_queues();
 unlock_return:
