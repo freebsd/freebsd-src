@@ -1698,6 +1698,7 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	struct pv_chunk *pc;
 	int idx, field, bit;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PV_STAT(pv_entry_frees++);
 	PV_STAT(pv_entry_spare++);
 	pv_entry_count--;
@@ -1719,10 +1720,8 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 	m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
 	pmap_qremove((vm_offset_t)pc, 1);
-	vm_page_lock_queues();
 	vm_page_unwire(m, 0);
 	vm_page_free(m);
-	vm_page_unlock_queues();
 	pmap_ptelist_free(&pv_vafree, (vm_offset_t)pc);
 }
 
@@ -2970,17 +2969,15 @@ pmap_remove_pages(pmap_t pmap)
 			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 			m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
 			pmap_qremove((vm_offset_t)pc, 1);
-			vm_page_lock_queues();
 			vm_page_unwire(m, 0);
 			vm_page_free(m);
-			vm_page_unlock_queues();
 			pmap_ptelist_free(&pv_vafree, (vm_offset_t)pc);
 		}
 	}
 	sched_unpin();
+	vm_page_unlock_queues();
 	pmap_invalidate_all(pmap);
 	PMAP_UNLOCK(pmap);
-	vm_page_unlock_queues();
 }
 
 /*
