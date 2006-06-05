@@ -962,6 +962,10 @@ rt2661_tx_intr(struct rt2661_softc *sc)
 		data = &txq->data[txq->stat];
 		rn = (struct rt2661_node *)data->ni;
 
+		/* if no frame has been sent, ignore */
+		if (rn == NULL)
+			continue;
+
 		switch (RT2661_TX_RESULT(val)) {
 		case RT2661_TX_SUCCESS:
 			retrycnt = RT2661_TX_RETRYCNT(val);
