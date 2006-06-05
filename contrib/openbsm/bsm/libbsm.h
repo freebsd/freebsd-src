@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#18 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#20 $
  */
 
 #ifndef _LIBBSM_H_
@@ -694,6 +694,9 @@ struct tokenstr {
 };
 
 typedef struct tokenstr tokenstr_t;
+
+int			 audit_submit(short au_event, au_id_t auid,
+			    char status, int reterr, const char *fmt, ...);
 
 /*
  * Functions relating to querying audit class information.
