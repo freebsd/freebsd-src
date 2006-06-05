@@ -123,10 +123,10 @@ g_eli_mkey_decrypt(const struct g_eli_metadata *md, const unsigned char *key,
 	nkey = 0;
 	for (nkey = 0; nkey < G_ELI_MAXMKEYS; nkey++, mmkey += G_ELI_MKEYLEN) {
 		bit = (1 << nkey);
-		if ((md->md_keys & bit) == 0)
+		if (!(md->md_keys & bit))
 			continue;
 		bcopy(mmkey, tmpmkey, G_ELI_MKEYLEN);
-		error = g_eli_crypto_decrypt(md->md_algo, tmpmkey,
+		error = g_eli_crypto_decrypt(md->md_ealgo, tmpmkey,
 		    G_ELI_MKEYLEN, enckey, md->md_keylen);
 		if (error != 0) {
 			bzero(tmpmkey, sizeof(tmpmkey));
@@ -177,3 +177,33 @@ g_eli_mkey_encrypt(unsigned algo, const unsigned char *key, unsigned keylen,
 
 	return (error);
 }
+
+#ifdef _KERNEL
+/*
+ * When doing encryption only, copy IV key and encryption key.
+ * When doing encryption and authentication, copy IV key, generate encryption
+ * key and generate authentication key.
+ */
+void
+g_eli_mkey_propagate(struct g_eli_softc *sc, const unsigned char *mkey)
+{
+
+	/* Remember the Master Key. */
+	bcopy(mkey, sc->sc_mkey, sizeof(sc->sc_mkey));
+
+	bcopy(mkey, sc->sc_ivkey, sizeof(sc->sc_ivkey));
+	mkey += sizeof(sc->sc_ivkey);
+
+	if (!(sc->sc_flags & G_ELI_FLAG_AUTH)) {
+		bcopy(mkey, sc->sc_ekey, sizeof(sc->sc_ekey));
+	} else {
+		/*
+		 * The encryption key is: ekey = HMAC_SHA512(Master-Key, 0x10)
+		 * The authentication key is: akey = HMAC_SHA512(Master-Key, 0x11)
+		 */
+		g_eli_crypto_hmac(mkey, G_ELI_MAXKEYLEN, "\x10", 1, sc->sc_ekey, 0);
+		g_eli_crypto_hmac(mkey, G_ELI_MAXKEYLEN, "\x11", 1, sc->sc_akey, 0);
+	}
+
+}
+#endif
