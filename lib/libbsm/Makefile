@@ -40,7 +40,8 @@ MAN=	libbsm.3							\
 	au_io.3								\
 	au_mask.3							\
 	au_token.3							\
-	au_user.3
+	au_user.3							\
+	audit_submit.3
 
 #
 # It seems like maybe some of these should be installed separately, since
