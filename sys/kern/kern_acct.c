@@ -171,8 +171,8 @@ acct(struct thread *td, struct acct_args *uap)
 	 * appending and make sure it's a 'normal'.
 	 */
 	if (uap->path != NULL) {
-		NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_USERSPACE,
-		    uap->path, td);
+		NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE | AUDITVNODE1,
+		    UIO_USERSPACE, uap->path, td);
 		flags = FWRITE | O_APPEND;
 		error = vn_open(&nd, &flags, 0, -1);
 		if (error)
