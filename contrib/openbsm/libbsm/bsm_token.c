@@ -30,7 +30,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#43 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#47 $
  */
 
 #include <sys/types.h>
@@ -243,6 +243,7 @@ au_to_data(char unit_print, char unit_type, char unit_count, char *p)
 	/* Determine the size of the basic unit. */
 	switch (unit_type) {
 	case AUR_BYTE:
+	/* case AUR_CHAR: */
 		datasize = AUR_BYTE_SIZE;
 		break;
 
@@ -250,8 +251,13 @@ au_to_data(char unit_print, char unit_type, char unit_count, char *p)
 		datasize = AUR_SHORT_SIZE;
 		break;
 
-	case AUR_LONG:
-		datasize = AUR_LONG_SIZE;
+	case AUR_INT32:
+	/* case AUR_INT: */
+		datasize = AUR_INT32_SIZE;
+		break;
+
+	case AUR_INT64:
+		datasize = AUR_INT64_SIZE;
 		break;
 
 	default:
@@ -261,7 +267,7 @@ au_to_data(char unit_print, char unit_type, char unit_count, char *p)
 
 	totdata = datasize * unit_count;
 
-	GET_TOKEN_AREA(t, dptr, totdata + 4 * sizeof(u_char));
+	GET_TOKEN_AREA(t, dptr, 4 * sizeof(u_char) + totdata);
 	if (t == NULL)
 		return (NULL);
 
@@ -341,12 +347,12 @@ au_to_in_addr(struct in_addr *internet_addr)
 	token_t *t;
 	u_char *dptr = NULL;
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(u_int32_t));
+	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(uint32_t));
 	if (t == NULL)
 		return (NULL);
 
 	ADD_U_CHAR(dptr, AUT_IN_ADDR);
-	ADD_U_INT32(dptr, internet_addr->s_addr);
+	ADD_MEM(dptr, &internet_addr->s_addr, sizeof(uint32_t));
 
 	return (t);
 }
@@ -363,13 +369,13 @@ au_to_in_addr_ex(struct in6_addr *internet_addr)
 	u_char *dptr = NULL;
 	u_int32_t type = AF_INET6;
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 5 * sizeof(u_int32_t));
+	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 5 * sizeof(uint32_t));
 	if (t == NULL)
 		return (NULL);
 
 	ADD_U_CHAR(dptr, AUT_IN_ADDR_EX);
 	ADD_U_INT32(dptr, type);
-	ADD_MEM(dptr, internet_addr, sizeof(*internet_addr));
+	ADD_MEM(dptr, internet_addr, 5 * sizeof(uint32_t));
 
 	return (t);
 }
@@ -528,23 +534,12 @@ au_to_opaque(char *data, u_int16_t bytes)
  * file pathname           N bytes + 1 terminating NULL byte
  */
 token_t *
-#if defined(KERNEL) || defined(_KERNEL)
 au_to_file(char *file, struct timeval tm)
-#else
-au_to_file(char *file)
-#endif
 {
 	token_t *t;
 	u_char *dptr = NULL;
 	u_int16_t filelen;
 	u_int32_t timems;
-#if !defined(KERNEL) && !defined(_KERNEL)
-	struct timeval tm;
-	struct timezone tzp;
-
-	if (gettimeofday(&tm, &tzp) == -1)
-		return (NULL);
-#endif
 
 	filelen = strlen(file);
 	filelen += 1;
@@ -650,7 +645,7 @@ au_to_process32(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
 	ADD_U_INT32(dptr, pid);
 	ADD_U_INT32(dptr, sid);
 	ADD_U_INT32(dptr, tid->port);
-	ADD_U_INT32(dptr, tid->machine);
+	ADD_MEM(dptr, &tid->machine, sizeof(u_int32_t));
 
 	return (t);
 }
@@ -837,21 +832,28 @@ au_to_sock_inet32(struct sockaddr_in *so)
 {
 	token_t *t;
 	u_char *dptr = NULL;
+	uint16_t family;
 
-	GET_TOKEN_AREA(t, dptr, 3 * sizeof(u_char) + sizeof(u_int16_t) +
-	    sizeof(u_int32_t));
+	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 2 * sizeof(uint16_t) +
+	    sizeof(uint32_t));
 	if (t == NULL)
 		return (NULL);
 
 	ADD_U_CHAR(dptr, AUT_SOCKINET32);
 	/*
-	 * In Darwin, sin_family is one octet, but BSM defines the token
- 	 * to store two. So we copy in a 0 first.
+	 * BSM defines the family field as 16 bits, but many operating
+	 * systems have an 8-bit sin_family field.  Extend to 16 bits before
+	 * writing into the token.  Assume that both the port and the address
+	 * in the sockaddr_in are already in network byte order, but family
+	 * is in local byte order.
+	 *
+	 * XXXRW: Should a name space conversion be taking place on the value
+	 * of sin_family?
  	 */
-	ADD_U_CHAR(dptr, 0);
-	ADD_U_CHAR(dptr, so->sin_family);
-	ADD_U_INT16(dptr, so->sin_port);
-	ADD_U_INT32(dptr, so->sin_addr.s_addr);
+	family = so->sin_family;
+	ADD_U_INT16(dptr, family);
+	ADD_MEM(dptr, &so->sin_port, sizeof(uint16_t));
+	ADD_MEM(dptr, &so->sin_addr.s_addr, sizeof(uint32_t));
 
 	return (t);
 
@@ -877,7 +879,7 @@ au_to_sock_inet128(struct sockaddr_in6 *so)
 	ADD_U_CHAR(dptr, so->sin6_family);
 
 	ADD_U_INT16(dptr, so->sin6_port);
-	ADD_MEM(dptr, &so->sin6_addr, sizeof(so->sin6_addr));
+	ADD_MEM(dptr, &so->sin6_addr, 4 * sizeof(uint32_t));
 
 	return (t);
 
@@ -923,7 +925,7 @@ au_to_subject32(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
 	ADD_U_INT32(dptr, pid);
 	ADD_U_INT32(dptr, sid);
 	ADD_U_INT32(dptr, tid->port);
-	ADD_U_INT32(dptr, tid->machine);
+	ADD_MEM(dptr, &tid->machine, sizeof(u_int32_t));
 
 	return (t);
 }
@@ -1117,23 +1119,12 @@ au_to_exec_env(const char **env)
  * milliseconds of time    4 bytes/8 bytes (32-bit/64-bit value)
  */
 token_t *
-#if defined(KERNEL) || defined(_KERNEL)
-au_to_header32(int rec_size, au_event_t e_type, au_emod_t e_mod,
+au_to_header32_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
     struct timeval tm)
-#else
-au_to_header32(int rec_size, au_event_t e_type, au_emod_t e_mod)
-#endif
 {
 	token_t *t;
 	u_char *dptr = NULL;
 	u_int32_t timems;
-#if !defined(KERNEL) && !defined(_KERNEL)
-	struct timeval tm;
-	struct timezone tzp;
-
-	if (gettimeofday(&tm, &tzp) == -1)
-		return (NULL);
-#endif
 
 	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(u_int32_t) +
 	    sizeof(u_char) + 2 * sizeof(u_int16_t) + 2 * sizeof(u_int32_t));
@@ -1154,6 +1145,17 @@ au_to_header32(int rec_size, au_event_t e_type, au_emod_t e_mod)
 	return (t);
 }
 
+#if !defined(KERNEL) && !defined(_KERNEL)
+token_t *
+au_to_header32(int rec_size, au_event_t e_type, au_emod_t e_mod)
+{
+	struct timeval tm;
+
+	if (gettimeofday(&tm, NULL) == -1)
+		return (NULL);
+	return (au_to_header32_tm(rec_size, e_type, e_mod, tm));
+}
+
 token_t *
 au_to_header64(__unused int rec_size, __unused au_event_t e_type,
     __unused au_emod_t e_mod)
@@ -1169,6 +1171,7 @@ au_to_header(int rec_size, au_event_t e_type, au_emod_t e_mod)
 
 	return (au_to_header32(rec_size, e_type, e_mod));
 }
+#endif
 
 /*
  * token ID                1 byte

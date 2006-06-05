@@ -42,9 +42,6 @@
 /* Define if ipc_perm.__seq instead of seq */
 #undef HAVE_IPC_PERM___SEQ
 
-/* Define to 1 if you have the `bsm' library (-lbsm). */
-#undef HAVE_LIBBSM
-
 /* Define to 1 if you have the <machine/endian.h> header file. */
 #undef HAVE_MACHINE_ENDIAN_H
 

@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 #
-# $P4: //depot/projects/trustedbsd/openbsm/bsm/Makefile.in#3 $
+# $P4: //depot/projects/trustedbsd/openbsm/bsm/Makefile.in#4 $
 #
 
 srcdir = @srcdir@
@@ -168,6 +168,7 @@ target_alias = @target_alias@
 openbsmdir = $(includedir)/bsm
 openbsm_HEADERS = \
 	audit.h			\
+	audit_filter.h		\
 	audit_internal.h	\
 	audit_kevents.h		\
 	audit_record.h		\
