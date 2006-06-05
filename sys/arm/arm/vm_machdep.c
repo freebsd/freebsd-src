@@ -471,14 +471,13 @@ arm_add_smallalloc_pages(void *list, void *mem, int bytes, int pagetable)
 }
 
 static void *
-arm_uma_do_alloc(struct arm_small_page **pglist, int bytes, int pagetable, 
-    int flags)
+arm_uma_do_alloc(struct arm_small_page **pglist, int bytes, int pagetable)
 {
 	void *ret;
 	vm_page_t page_array = NULL;
 	    
 	*pglist = (void *)kmem_malloc(kmem_map, (0x100000 / PAGE_SIZE) *
-	    sizeof(struct arm_small_page), flags);
+	    sizeof(struct arm_small_page), M_WAITOK);
 	if (*pglist && alloc_curaddr < 0xf0000000) {/* XXX */
 		mtx_lock(&Giant);
 		page_array = vm_page_alloc_contig(0x100000 / PAGE_SIZE,
@@ -533,22 +532,24 @@ retry:
 
 	if (!sp) {
 		/* No more free pages, need to alloc more. */
-		if (in_alloc && (wait & M_WAITOK)) {
+		if (!(wait & M_WAITOK)) {
+			mtx_unlock(&smallalloc_mtx);
+			*flags = UMA_SLAB_KMEM;
+			return ((void *)kmem_malloc(kmem_map, bytes, M_NOWAIT));
+		}
+		if (in_alloc) {
 			/* Somebody else is already doing the allocation. */
 			in_sleep++;
 			msleep(&in_alloc, &smallalloc_mtx, PWAIT, 
 			    "smallalloc", 0);
 			in_sleep--;
 			goto retry;
-		} else if (in_alloc) {
-			mtx_unlock(&smallalloc_mtx);
-			return (NULL);
 		}
 		in_alloc = 1;
 		mtx_unlock(&smallalloc_mtx);
 		/* Try to alloc 1MB of contiguous memory. */
 		ret = arm_uma_do_alloc(&sp, bytes, zone == l2zone ?
-		    SECTION_PT : SECTION_CACHE, wait);
+		    SECTION_PT : SECTION_CACHE);
 		mtx_lock(&smallalloc_mtx);
 		in_alloc = 0;
 		if (in_sleep)
