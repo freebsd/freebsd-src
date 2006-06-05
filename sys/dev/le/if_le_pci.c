@@ -263,8 +263,16 @@ static void
 le_pci_hwreset(struct lance_softc *sc)
 {
 
-	/* Chip is stopped. Set software style to ILACC (32-bit). */
-	le_pci_wrbcr(sc, LE_BCR20, LE_B20_SSTYLE_ILACC);
+	/*
+	 * Chip is stopped. Set software style to PCnet-PCI (32-bit).
+	 * Actually, am79900.c implements ILACC support (hence its
+	 * name) but unfortunately VMware does not. As far as this
+	 * driver is concerned that should not make a difference
+	 * though, as the settings used have the same meaning for
+	 * both, ILACC and PCnet-PCI (note that there would be a
+	 * difference for the ADD_FCS/NO_FCS bit if used).
+	 */
+	le_pci_wrbcr(sc, LE_BCR20, LE_B20_SSTYLE_PCNETPCI2);
 }
 
 static void
