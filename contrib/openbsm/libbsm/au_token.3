@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_token.3#5 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_token.3#7 $
 .\"
 .Dd April 19, 2005
 .Dt AU_TOKEN 3
@@ -57,9 +57,6 @@
 .Nm au_to_return64 ,
 .Nm au_to_return ,
 .Nm au_to_seq ,
-.Nm au_to_socket ,
-.Nm au_to_socket_ex_32 ,
-.Nm au_to_socket_ex_128 ,
 .Nm au_to_sock_inet32 ,
 .Nm au_to_sock_inet128 ,
 .Nm au_to_sock_inet ,
@@ -116,9 +113,7 @@
 .Ft token_t *
 .Fn au_to_opaque "char *data" "u_int64_t bytes"
 .Ft token_t *
-.Fn au_to_file "char *file"
-.Ft token_t *
-.Fn au_to_file "char *file"
+.Fn au_to_file "char *file" "struct timeval tm"
 .Ft token_t *
 .Fn au_to_text "char *text"
 .Ft token_t *
@@ -139,12 +134,6 @@
 .Fn au_to_return "char status" "u_int32_t ret"
 .Ft token_t *
 .Fn au_to_seq "long audit_count"
-.Ft token_t *
-.Fn au_to_socket "struct socket *so"
-.Ft token_t *
-.Fn au_to_socket_ex_32 "struct socket *so"
-.Ft token_t *
-.Fn au_to_socket_ex_128 "struct socket *so"
 .Ft token_t *
 .Fn au_to_sock_inet32 "struct sockaddr_in *so"
 .Ft token_t *

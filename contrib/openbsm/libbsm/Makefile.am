@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/libbsm/Makefile.am#2 $
+# $P4: //depot/projects/trustedbsd/openbsm/libbsm/Makefile.am#3 $
 #
 
 INCLUDES = -I$(top_srcdir)
@@ -30,6 +30,7 @@ man3_MANS =		\
 	au_free_token.3	\
 	au_io.3		\
 	au_mask.3	\
+	au_open.3	\
 	au_token.3	\
 	au_user.3	\
 	libbsm.3
