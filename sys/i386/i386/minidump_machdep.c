@@ -275,7 +275,7 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.paemode = 1;
 #endif
 
-	mkdumpheader(&kdh, KERNELDUMP_AMD64_VERSION, dumpsize, di->blocksize);
+	mkdumpheader(&kdh, KERNELDUMP_I386_VERSION, dumpsize, di->blocksize);
 
 	printf("Physical memory: %ju MB\n", ptoa((uintmax_t)physmem) / 1048576);
 	printf("Dumping %llu MB:", (long long)dumpsize >> 20);
