@@ -304,24 +304,6 @@ audit_worker_rotate(struct ucred **audit_credp, struct vnode **audit_vpp,
 }
 
 /*
- * Drain the audit commit queue and free the records.  Used if there are
- * records present, but no audit log target.
- */
-static void
-audit_worker_drain(void)
-{
-	struct kaudit_record *ar;
-
-	mtx_assert(&audit_mtx, MA_OWNED);
-
-	while ((ar = TAILQ_FIRST(&audit_q))) {
-		TAILQ_REMOVE(&audit_q, ar, k_q);
-		audit_free(ar);
-		audit_q_len--;
-	}
-}
-
-/*
  * Given a kernel audit record, process as required.  Kernel audit records
  * are converted to one, or possibly two, BSM records, depending on whether
  * there is a user audit record present also.  Kernel records need be
@@ -424,23 +406,11 @@ audit_worker(void *arg)
 		audit_worker_rotate(&audit_cred, &audit_vp, audit_td);
 
 		/*
-		 * If we have records, but there's no active vnode to write
-		 * to, drain the record queue.  Generally, we prevent the
-		 * unnecessary allocation of records elsewhere, but we need
-		 * to allow for races between conditional allocation and
-		 * queueing.  Go back to waiting when we're done.
-		 */
-		if (audit_vp == NULL) {
-			audit_worker_drain();
-			continue;
-		}
-
-		/*
-		 * We have both records to write and an active vnode to write
-		 * to.  Dequeue a record, and start the write.  Eventually,
-		 * it might make sense to dequeue several records and perform
-		 * our own clustering, if the lower layers aren't doing it
-		 * automatically enough.
+		 * If there are records in the global audit record queue,
+		 * transfer them to a thread-local queue and process them
+		 * one by one.  If we cross the low watermark threshold,
+		 * signal any waiting processes that they may wake up and
+		 * continue generating records.
 		 */
 		lowater_signal = 0;
 		while ((ar = TAILQ_FIRST(&audit_q))) {
