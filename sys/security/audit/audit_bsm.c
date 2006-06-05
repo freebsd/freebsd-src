@@ -122,7 +122,7 @@ kau_close(struct au_record *rec, struct timespec *ctime, short event)
 		/* Create the header token */
 		tm.tv_usec = ctime->tv_nsec / 1000;
 		tm.tv_sec = ctime->tv_sec;
-		hdr = au_to_header32(tot_rec_size, event, 0, tm);
+		hdr = au_to_header32_tm(tot_rec_size, event, 0, tm);
 		TAILQ_INSERT_HEAD(&rec->token_q, hdr, tokens);
 
 		trail = au_to_trailer(tot_rec_size);
