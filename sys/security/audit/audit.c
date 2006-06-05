@@ -241,7 +241,7 @@ audit_init(void)
 	cv_init(&audit_watermark_cv, "audit_watermark_cv");
 	cv_init(&audit_fail_cv, "audit_fail_cv");
 
-	audit_record_zone = uma_zcreate("audit_record_zone",
+	audit_record_zone = uma_zcreate("audit_record",
 	    sizeof(struct kaudit_record), audit_record_ctor,
 	    audit_record_dtor, NULL, NULL, UMA_ALIGN_PTR, 0);
 
