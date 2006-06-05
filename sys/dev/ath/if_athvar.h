@@ -181,8 +181,8 @@ struct ath_softc {
 					enum ieee80211_state, int);
 	void 			(*sc_node_free)(struct ieee80211_node *);
 	device_t		sc_dev;
-	bus_space_tag_t		sc_st;		/* bus space tag */
-	bus_space_handle_t	sc_sh;		/* bus space handle */
+	HAL_BUS_TAG		sc_st;		/* bus space tag */
+	HAL_BUS_HANDLE		sc_sh;		/* bus space handle */
 	bus_dma_tag_t		sc_dmat;	/* bus DMA tag */
 	struct mtx		sc_mtx;		/* master lock (recursive) */
 	struct taskqueue	*sc_tq;		/* private task queue */
