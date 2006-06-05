@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 15, 2004
+.Dd June 5, 2006
 .Dt MPT 4
 .Os
 .Sh NAME
@@ -64,6 +64,8 @@ for the LSI Logic Fusion-MPT family of
 .Tn SCSI
 and
 .Tn Fibre Channel
+and
+.Tn SAS
 controllers.
 .Sh HARDWARE
 The following controllers are supported by the
@@ -72,9 +74,15 @@ driver:
 .Pp
 .Bl -bullet -compact
 .It
-LSI Logic 53c1030
-(Dual Ultra320
+LSI Logic 53c1030,
+LSI Logic LSI2x320-X
+(Single and Dual Ultra320
 .Tn SCSI )
+.It
+LSI Logic AS1064,
+LSI Logic AS1068
+(
+.Tn SAS/SATA )
 .It
 LSI Logic FC909
 (1Gb/s
@@ -84,13 +92,19 @@ LSI Logic FC909A
 (Dual 1Gb/s
 .Tn Fibre Channel )
 .It
-LSI Logic FC919
-(2Gb/s
+LSI Logic FC919,
+LSI Logic 7102XP-LC
+(Single 2Gb/s
 .Tn Fibre Channel )
 .It
 LSI Logic FC929,
-LSI Logic FC929X
+LSI Logic FC929X,
+LSI Logic 7202XP-LC
 (Dual 2Gb/s
+.Tn Fibre Channel )
+.It
+LSI Logic FC949X
+(Dual 4Gb/s
 .Tn Fibre Channel )
 .El
 .Pp
@@ -102,10 +116,23 @@ driver can be found onboard on many systems including:
 .Pp
 .Bl -bullet -compact
 .It
-Dell PowerEdge 1750
+Dell PowerEdge 1750 thru 2850
 .It
 IBM eServer xSeries 335
 .El
+These systems also contain Integrated Raid Mirroring and Integrated
+Raid Mirroring Enhanced which this driver also supports.
+.Pp
+The
+.Tn SAS
+controller chips are also present on many new AMD/Opteron based systems,
+like the Sun 4100.  Note that this controller can drive both SAS and SATA
+drives or a mix of them at the same time.
+.Pp
+This driver also supports target mode for Fibre Channel cards. This
+support may be enabled via setting the desired role of the core via
+the LSI Logic firmware utility that establishes what roles the card
+can take on - no separate compilation is required.
 .Sh SEE ALSO
 .Xr cd 4 ,
 .Xr ch 4 ,
@@ -113,10 +140,16 @@ IBM eServer xSeries 335
 .Xr pci 4 ,
 .Xr sa 4 ,
 .Xr scsi 4
+.Xr targ 4
 .Rs
 .%T "LSI Logic Website"
 .%O http://www.lsilogic.com/
 .Re
+.Sh BUGS
+.Pp
+This driver has been reported to have problems under the Vmware ESX server.
+.Pp
+This driver does not yet work on big endian machines like Sparc64.
 .Sh HISTORY
 The
 .Nm
@@ -132,4 +165,6 @@ by
 .An Greg Ansley
 and substantially improved upon
 by
-.An Matt Jacob Aq mjacob@FreeBSD.org .
+.An Matt Jacob Aq mjacob@FreeBSD.org
+and
+.An Justin Gibbs Aq gibbs@FreeBSD.org .
