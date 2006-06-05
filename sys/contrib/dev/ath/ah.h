@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/ah.h#134 $
+ * $Id: //depot/sw/branches/sam_hal/ah.h#10 $
  */
 
 #ifndef _ATH_AH_H_
@@ -46,6 +46,19 @@
  * follow must call back into the HAL through interface, supplying the
  * reference as the first parameter.
  */
+
+/*
+ * Bus i/o type definitions.  We define a platform-independent
+ * set of types that are mapped to platform-dependent data for
+ * register read/write operations.  We use types that are large
+ * enough to hold a pointer; smaller data should fit and only
+ * require type coercion to work.  Larger data can be stored
+ * elsewhere and a reference passed for the bus tag and/or handle.
+ */
+typedef void* HAL_SOFTC;		/* pointer to driver/OS state */
+typedef void* HAL_BUS_TAG;		/* opaque bus i/o id tag */
+typedef void* HAL_BUS_HANDLE;		/* opaque bus i/o handle */
+
 #include "ah_osdep.h"
 
 /*
@@ -117,6 +130,7 @@ typedef enum {
 	HAL_CAP_TPC_ACK		= 26,	/* ack txpower with per-packet tpc */
 	HAL_CAP_TPC_CTS		= 27,	/* cts txpower with per-packet tpc */
 	HAL_CAP_11D		= 28,   /* 11d beacon support for changing cc */
+	HAL_CAP_INTMIT		= 29,	/* interference mitigation */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -380,8 +394,8 @@ typedef struct {
 	u_int16_t	channelFlags;	/* see below */
 	u_int8_t	privFlags;
 	int8_t		maxRegTxPower;	/* max regulatory tx power in dBm */
-	int8_t		maxTxPower;	/* max true tx power in 0.25 dBm */
-	int8_t		minTxPower;	/* min true tx power in 0.25 dBm */
+	int8_t		maxTxPower;	/* max true tx power in 0.5 dBm */
+	int8_t		minTxPower;	/* min true tx power in 0.5 dBm */
 } HAL_CHANNEL;
 
 /* channelFlags */
@@ -486,10 +500,16 @@ typedef struct {
 	u_int8_t	rs_rates[32];		/* rates */
 } HAL_RATE_SET;
 
+/*
+ * Antenna switch control.  By default antenna selection
+ * enables multiple (2) antenna use.  To force use of the
+ * A or B antenna only specify a fixed setting.  Fixing
+ * the antenna will also disable any diversity support.
+ */
 typedef enum {
 	HAL_ANT_VARIABLE = 0,			/* variable by programming */
-	HAL_ANT_FIXED_A	 = 1,			/* fixed to 11a frequencies */
-	HAL_ANT_FIXED_B	 = 2,			/* fixed to 11b frequencies */
+	HAL_ANT_FIXED_A	 = 1,			/* fixed antenna A */
+	HAL_ANT_FIXED_B	 = 2,			/* fixed antenna B */
 } HAL_ANT_SETTING;
 
 typedef enum {
@@ -519,6 +539,7 @@ typedef enum {
 } HAL_CIPHER;
 
 enum {
+	HAL_SLOT_TIME_6	 = 6,			/* NB: for turbo mode */
 	HAL_SLOT_TIME_9	 = 9,
 	HAL_SLOT_TIME_20 = 20,
 };
@@ -547,6 +568,18 @@ typedef struct {
 } HAL_BEACON_STATE;
 
 /*
+ * Like HAL_BEACON_STATE but for non-station mode setup.
+ * NB: see above flag definitions 
+ */
+typedef struct {
+	u_int32_t	bt_intval;		/* beacon interval+flags */
+	u_int32_t	bt_nexttbtt;		/* next beacon in TU */
+	u_int32_t	bt_nextatim;		/* next ATIM in TU */
+	u_int32_t	bt_nextdba;		/* next DBA in 1/8th TU */
+	u_int32_t	bt_nextswba;		/* next SWBA in 1/8th TU */
+} HAL_BEACON_TIMERS;
+
+/*
  * Per-node statistics maintained by the driver for use in
  * optimizing signal quality and other operational aspects.
  */
@@ -573,7 +606,7 @@ struct ath_desc;
 struct ath_hal {
 	u_int32_t	ah_magic;	/* consistency check magic number */
 	u_int32_t	ah_abi;		/* HAL ABI version */
-#define	HAL_ABI_VERSION	0x05122200	/* YYMMDDnn */
+#define	HAL_ABI_VERSION	0x06052200	/* YYMMDDnn */
 	u_int16_t	ah_devid;	/* PCI device ID */
 	u_int16_t	ah_subvendorid;	/* PCI subvendor ID */
 	HAL_SOFTC	ah_sc;		/* back pointer to driver/os state */
@@ -597,6 +630,7 @@ struct ath_hal {
 				HAL_CHANNEL *, HAL_BOOL bChannelChange,
 				HAL_STATUS *status);
 	HAL_BOOL  __ahdecl(*ah_phyDisable)(struct ath_hal *);
+	HAL_BOOL  __ahdecl(*ah_disable)(struct ath_hal *);
 	void	  __ahdecl(*ah_setPCUConfig)(struct ath_hal *);
 	HAL_BOOL  __ahdecl(*ah_perCalibration)(struct ath_hal*, HAL_CHANNEL *, HAL_BOOL *);
 	HAL_BOOL  __ahdecl(*ah_setTxPowerLimit)(struct ath_hal *, u_int32_t);
@@ -703,15 +737,19 @@ struct ath_hal {
 	HAL_RFGAIN __ahdecl(*ah_getRfGain)(struct ath_hal*);
 	u_int	  __ahdecl(*ah_getDefAntenna)(struct ath_hal*);
 	void	  __ahdecl(*ah_setDefAntenna)(struct ath_hal*, u_int);
+	HAL_ANT_SETTING	 __ahdecl(*ah_getAntennaSwitch)(struct ath_hal*);
+	HAL_BOOL  __ahdecl(*ah_setAntennaSwitch)(struct ath_hal*,
+				HAL_ANT_SETTING);
 	HAL_BOOL  __ahdecl(*ah_setSlotTime)(struct ath_hal*, u_int);
 	u_int	  __ahdecl(*ah_getSlotTime)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_setAckTimeout)(struct ath_hal*, u_int);
 	u_int	  __ahdecl(*ah_getAckTimeout)(struct ath_hal*);
+	HAL_BOOL  __ahdecl(*ah_setAckCTSRate)(struct ath_hal*, u_int);
+	u_int	  __ahdecl(*ah_getAckCTSRate)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_setCTSTimeout)(struct ath_hal*, u_int);
 	u_int	  __ahdecl(*ah_getCTSTimeout)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_setDecompMask)(struct ath_hal*, u_int16_t, int);
 	void	  __ahdecl(*ah_setCoverageClass)(struct ath_hal*, u_int8_t, int);
-
 
 	/* Key Cache Functions */
 	u_int32_t __ahdecl(*ah_getKeyCacheSize)(struct ath_hal*);
@@ -732,13 +770,14 @@ struct ath_hal {
 
 
 	/* Beacon Management Functions */
+	void	  __ahdecl(*ah_setBeaconTimers)(struct ath_hal*,
+				const HAL_BEACON_TIMERS *);
+	/* NB: deprecated, use ah_setBeaconTimers instead */
 	void	  __ahdecl(*ah_beaconInit)(struct ath_hal *,
 				u_int32_t nexttbtt, u_int32_t intval);
 	void	  __ahdecl(*ah_setStationBeaconTimers)(struct ath_hal*,
 				const HAL_BEACON_STATE *);
 	void	  __ahdecl(*ah_resetStationBeaconTimers)(struct ath_hal*);
-	HAL_BOOL  __ahdecl(*ah_waitForBeaconDone)(struct ath_hal *,
-				HAL_BUS_ADDR);
 
 	/* Interrupt functions */
 	HAL_BOOL  __ahdecl(*ah_isInterruptPending)(struct ath_hal*);

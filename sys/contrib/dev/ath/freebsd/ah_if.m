@@ -33,7 +33,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGES.
 #
-# $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/freebsd/ah_if.m#6 $
+# $Id: //depot/sw/branches/sam_hal/freebsd/ah_if.m#1 $
 #
 
 INTERFACE ath_hal;

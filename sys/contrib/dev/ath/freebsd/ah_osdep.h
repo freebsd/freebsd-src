@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/freebsd/ah_osdep.h#17 $
+ * $Id: //depot/sw/branches/sam_hal/freebsd/ah_osdep.h#2 $
  */
 #ifndef _ATH_AH_OSDEP_H_
 #define _ATH_AH_OSDEP_H_
@@ -45,11 +45,6 @@
 #include <sys/endian.h>
 
 #include <machine/bus.h>
-
-typedef void* HAL_SOFTC;
-typedef bus_space_tag_t HAL_BUS_TAG;
-typedef bus_space_handle_t HAL_BUS_HANDLE;
-typedef bus_addr_t HAL_BUS_ADDR;
 
 /*
  * Delay n microseconds.
@@ -70,12 +65,14 @@ extern	u_int32_t ath_hal_getuptime(struct ath_hal *);
 #define	OS_GETUPTIME(_ah)	ath_hal_getuptime(_ah)
 
 /*
- * Register read/write; we assume the registers will always
- * be memory-mapped.  Note that register accesses are done
- * using target-specific functions when debugging is enabled
- * (AH_DEBUG) or we are explicitly configured this way.  The
- * latter is used on some platforms where the full i/o space
- * cannot be directly mapped.
+ * Register read/write operations are either handled through
+ * platform-dependent routines (or when debugging is enabled
+ * with AH_DEBUG); or they are inline expanded using the macros
+ * defined below.  For public builds we inline expand only for
+ * platforms where it is certain what the requirements are to
+ * read/write registers--typically they are memory-mapped and
+ * no explicit synchronization or memory invalidation operations
+ * are required (e.g. i386).
  */
 #if defined(AH_DEBUG) || defined(AH_REGOPS_FUNC) || defined(AH_DEBUG_ALQ)
 #define	OS_REG_WRITE(_ah, _reg, _val)	ath_hal_reg_write(_ah, _reg, _val)
@@ -89,7 +86,7 @@ extern	u_int32_t ath_hal_reg_read(struct ath_hal *ah, u_int reg);
  * Big-endian hosts are handled by enabling hardware byte-swap
  * of register reads and writes at reset.  But the PCI clock
  * domain registers are not byte swapped!  Thus, on big-endian
- * platforms we have to byte-swap thoese registers specifically.
+ * platforms we have to explicitly byte-swap those registers.
  * Most of this code is collapsed at compile time because the
  * register values are constants.
  */
@@ -99,22 +96,25 @@ extern	u_int32_t ath_hal_reg_read(struct ath_hal *ah, u_int reg);
 #if _BYTE_ORDER == _BIG_ENDIAN
 #define OS_REG_WRITE(_ah, _reg, _val) do {				\
 	if ( (_reg) >= 0x4000 && (_reg) < 0x5000)			\
-		bus_space_write_4((_ah)->ah_st, (_ah)->ah_sh,		\
-			(_reg), htole32(_val));			\
+		bus_space_write_4((bus_space_tag_t)(_ah)->ah_st,	\
+		    (bus_space_handle_t)(_ah)->ah_sh, (_reg), (_val));	\
 	else								\
-		bus_space_write_4((_ah)->ah_st, (_ah)->ah_sh,		\
-			(_reg), (_val));				\
+		bus_space_write_stream_4((bus_space_tag_t)(_ah)->ah_st,	\
+		    (bus_space_handle_t)(_ah)->ah_sh, (_reg), (_val));	\
 } while (0)
 #define OS_REG_READ(_ah, _reg)						\
 	(((_reg) >= 0x4000 && (_reg) < 0x5000) ?			\
-		le32toh(bus_space_read_4((_ah)->ah_st, (_ah)->ah_sh,	\
-			(_reg))) :					\
-		bus_space_read_4((_ah)->ah_st, (_ah)->ah_sh, (_reg)))
+		bus_space_read_4((bus_space_tag_t)(_ah)->ah_st,		\
+		    (bus_space_handle_t)(_ah)->ah_sh, (_reg)) :		\
+		bus_space_read_stream_4((bus_space_tag_t)(_ah)->ah_st,	\
+		    (bus_space_handle_t)(_ah)->ah_sh, (_reg)))
 #else /* _BYTE_ORDER == _LITTLE_ENDIAN */
 #define	OS_REG_WRITE(_ah, _reg, _val)					\
-	bus_space_write_4((_ah)->ah_st, (_ah)->ah_sh, (_reg), (_val))
+	bus_space_write_4((bus_space_tag_t)(_ah)->ah_st,		\
+	    (bus_space_handle_t)(_ah)->ah_sh, (_reg), (_val))
 #define	OS_REG_READ(_ah, _reg)						\
-	((u_int32_t) bus_space_read_4((_ah)->ah_st, (_ah)->ah_sh, (_reg)))
+	bus_space_read_4((bus_space_tag_t)(_ah)->ah_st,			\
+	    (bus_space_handle_t)(_ah)->ah_sh, (_reg))
 #endif /* _BYTE_ORDER */
 #endif /* AH_DEBUG || AH_REGFUNC || AH_DEBUG_ALQ */
 
