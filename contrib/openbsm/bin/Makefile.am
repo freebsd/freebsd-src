@@ -1,8 +1,9 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/bin/Makefile.am#2 $
+# $P4: //depot/projects/trustedbsd/openbsm/bin/Makefile.am#3 $
 #
 
 SUBDIRS =		\
+	auditfilterd	\
 	auditreduce	\
 	praudit
 

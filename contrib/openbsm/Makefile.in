@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 #
-# $P4: //depot/projects/trustedbsd/openbsm/Makefile.in#3 $
+# $P4: //depot/projects/trustedbsd/openbsm/Makefile.in#4 $
 #
 srcdir = @srcdir@
 top_srcdir = @top_srcdir@
@@ -181,7 +181,8 @@ SUBDIRS = \
 	bsm		\
 	libbsm		\
 	bin		\
-	man
+	man		\
+	modules
 
 EXTRA_DIST = \
 	CHANGELOG	\

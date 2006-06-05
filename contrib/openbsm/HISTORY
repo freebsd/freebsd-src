@@ -1,3 +1,44 @@
+OpenBSM 1.0 alpha 6
+
+- Use AU_TO_WRITE and AU_NO_TO_WRITE for the 'keep' argument to au_close();
+  previously we used hard-coded 0 and 1 values.
+- Add man page for au_open(), au_write(), au_close(), and
+  au_close_buffer().
+- Support a more complete range of data types for the arbitrary data token:
+  add AUR_CHAR (alias to AUR_BYTE), remove AUR_LONG, add AUR_INT32 (alias
+  to AUR_INT), add AUR_INT64.
+- Add au_close_token(), which allows writing a single token_t to a memory
+  buffer.  Not likely to be used much by applications, but useful for
+  writing test tools.
+- Modify au_to_file() so that it accepts a timeval in user space, not just
+  kernel -- this is not a Solaris BSM API so can be modified without
+  causing compatibility issues.
+- Define a new API, au_to_header32_tm(), which adds a struct timeval
+  argument to the ordinary au_to_header32(), which is now implemented by
+  wrapping au_to_header32_tm() and calling gettimeofday().  #ifndef KERNEL
+  the APIs that invoke gettimeofday(), rather than having a variable
+  definition.  Don't try to retrieve time zone information using
+  gettimeofday(), as it's not needed, and introduces possible failure
+  modes.
+- Don't perform byte order transformations on the addr/machine fields of
+  the terminal ID that appears in the process32/subject32 tokens.  These
+  are assumed to be IP addresses, and as such, to be in network byte
+  order.
+- Universally, APIs now assume that IP addresses and ports are provided
+  in network byte order.  APIs now generally provide these types in
+  network byte order when decoding.
+- Beginnings of an OpenBSM test framework can now be found in openbsm/test.
+  This code is not built or installed by default.
+- auditd now assigns more appropriate syslog levels to its debugging and
+  error information.
+- Support for audit filters introduced: audit filters are dynamically
+  loaded shared objects that run in the context of a new daemon,
+  auditfilterd.  The daemon reads from an audit pipe and feeds both BSM and
+  parsed versions of records to shared objects using a module API.  This
+  will provide a framework for the writing of intrusion detection services.
+- New utility API, audit_submit(), added to capture common elements of audit
+  record submission for many applications.
+
 OpenBSM 1.0 alpha 5
 
 - Update install notes to indicate /etc files are to be installed manually.
@@ -124,4 +165,4 @@ OpenBSM 1.0 alpha 1
   to support reloading of kernel event table.
 - Allow comments in /etc/security configuration files.
 
-$P4: //depot/projects/trustedbsd/openbsm/HISTORY#2 $
+$P4: //depot/projects/trustedbsd/openbsm/HISTORY#12 $

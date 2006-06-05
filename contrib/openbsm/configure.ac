@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([OpenBSM], [1.0a5], [trustedbsd-audit@TrustesdBSD.org],[openbsm])
-AC_REVISION([$P4: //depot/projects/trustedbsd/openbsm/configure.ac#16 $])
+AC_INIT([OpenBSM], [1.0a6], [trustedbsd-audit@TrustesdBSD.org],[openbsm])
+AC_REVISION([$P4: //depot/projects/trustedbsd/openbsm/configure.ac#22 $])
 AC_CONFIG_SRCDIR([bin/auditreduce/auditreduce.c])
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_HEADER([config/config.h])
@@ -16,9 +16,8 @@ AC_PROG_LIBTOOL
 
 AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
 
-# Checks for libraries.
-# FIXME: Replace `main' with a function in `-lbsm':
-AC_CHECK_LIB([bsm], [main])
+AC_SEARCH_LIBS(dlsym, dl)
+AC_SEARCH_LIBS(clock_gettime, rt)
 
 # Checks for header files.
 AC_HEADER_STDC
@@ -99,11 +98,16 @@ AC_CONFIG_FILES([Makefile
                  bin/Makefile
                  bin/audit/Makefile
                  bin/auditd/Makefile
+                 bin/auditfilterd/Makefile
                  bin/auditreduce/Makefile
                  bin/praudit/Makefile
                  bsm/Makefile
                  libbsm/Makefile
+                 modules/Makefile
+                 modules/auditfilter_noop/Makefile
                  man/Makefile
+                 test/Makefile
+                 test/bsm/Makefile
                  tools/Makefile])
 
 AC_OUTPUT

@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.c#13 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.c#14 $
  */
 
 /* 
@@ -42,11 +42,12 @@
 
 #include <bsm/libbsm.h>
 
+#include <err.h>
+#include <grp.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sysexits.h>
-#include <grp.h>
-#include <pwd.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>

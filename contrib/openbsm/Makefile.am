@@ -1,12 +1,13 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/Makefile.am#1 $
+# $P4: //depot/projects/trustedbsd/openbsm/Makefile.am#2 $
 #
 
 SUBDIRS =		\
 	bsm		\
 	libbsm		\
 	bin		\
-	man
+	man		\
+	modules
 
 EXTRA_DIST =		\
 	CHANGELOG	\
