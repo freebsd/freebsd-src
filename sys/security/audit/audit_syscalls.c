@@ -30,6 +30,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/sysproto.h>
@@ -520,7 +521,7 @@ auditctl(struct thread *td, struct auditctl_args *uap)
 	struct ucred *cred;
 	struct vnode *vp;
 	int error = 0;
-	int flags;
+	int flags, vfslocked;
 
 	error = suser(td);
 	if (error)
@@ -539,25 +540,21 @@ auditctl(struct thread *td, struct auditctl_args *uap)
 	if (uap->path == NULL)
 		return (EINVAL);
 
-	/*
-	 * XXXAUDIT: Giant may no longer be required here.
-	 */
-	mtx_lock(&Giant);
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE, UIO_USERSPACE,
+	    uap->path, td);
 	flags = AUDIT_OPEN_FLAGS;
 	error = vn_open(&nd, &flags, 0, -1);
-	if (error) {
-		mtx_unlock(&Giant);
-		goto err_out;
-	}
+	if (error)
+		return (error);
+	vfslocked = NDHASGIANT(&nd);
 	VOP_UNLOCK(nd.ni_vp, 0, td);
 	vp = nd.ni_vp;
 	if (vp->v_type != VREG) {
 		vn_close(vp, AUDIT_CLOSE_FLAGS, td->td_ucred, td);
-		mtx_unlock(&Giant);
-		error = EINVAL;
-		goto err_out;
+		VFS_UNLOCK_GIANT(vfslocked);
+		return (EINVAL);
 	}
+	VFS_UNLOCK_GIANT(vfslocked);
 	cred = td->td_ucred;
 	crhold(cred);
 
@@ -567,10 +564,8 @@ auditctl(struct thread *td, struct auditctl_args *uap)
 	 */
 	audit_suspended = 0;
 
-	mtx_unlock(&Giant);
 	audit_rotate_vnode(cred, vp);
 
-err_out:
 	return (error);
 }
 
