@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 6, 2006
+.Dd May 5, 2006
 .Os
 .Dt AUDIT 4
 .Sh NAME
@@ -62,37 +62,11 @@ to monitor for audit events, such as requests to cycle the log, low disk
 space conditions, and requests to terminate auditing.
 This device is not intended for use by applications.
 .Ss Audit Pipe Special Devices
-While audit trail files maintained by
-.Xr auditd 8
-provide a reliable long-term store for audit log information, current log
-files are owned by the audit daemon until terminated making them somewhat
-unwieldy for live montoring applications such as host-based intrusion
-detection.
-For example, the log may be cycled and new records written to a new file
-without notice to applications that may be accessing the file.
-.Pp
-The audit facility provides an audit pipe facility for applications requiring
-direct access to live BSM audit data for the purposes of real-time
-monitoring.
-Audit pipes are available via a clonable special device,
-.Pa /dev/auditpipe ,
-subject to the permissions on the device node, and provide a 
-.Qq tee
-of the audit event stream.
-As the device is clonable, more than one instance of the device may be opened
-at a time; each device instance will provide access to all records.
-.Pp
-The audit pipe device provides discreet BSM audit records; if the read buffer
-passed by the application is too small to hold the next record in the
-sequence, it will be dropped.
-Unlike audit data written to the audit trail, the reliability of record
-delivery is not guaranteed.
-In particular, when an audit pipe queue fills, records will be dropped.
-Audit pipe devices are blocking by default, but support non-blocking I/O,
-asynchronous I/O using SIGIO, and support for polled operation via
-.Xr select 2
-and
-.Xr poll 2 .
+Audit pipe special devices, discussed in
+.Xr auditpipe 4 ,
+provide a configurable live tracking mechanism to allow applications to
+tee the audit trail, as well as to configure custom preselection paramaters
+to track users and events in a fine-grained manner.
 .Sh SEE ALSO
 .Xr auditreduce 1 ,
 .Xr praudit 1 ,
@@ -106,6 +80,7 @@ and
 .Xr setaudit 2 ,
 .Xr setauid 2 ,
 .Xr libbsm 3 ,
+.Xr auditpipe 4 ,
 .Xr audit.log 5 ,
 .Xr audit_class 5 ,
 .Xr audit_control 5 ,
