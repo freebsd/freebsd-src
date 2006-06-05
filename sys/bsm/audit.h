@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit.h#24 $
+ * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit.h#27 $
  * $FreeBSD$
  */
 
@@ -282,11 +282,11 @@ struct audit_stat {
 	unsigned int	as_version;
 	unsigned int	as_numevent;
 	int		as_generated;
-	int		as_nonattring;
+	int		as_nonattrib;
 	int		as_kernel;
 	int		as_audit;
 	int		as_auditctl;
-	int		as_enqueu;
+	int		as_enqueue;
 	int		as_written;
 	int		as_wblocked;
 	int		as_rblocked;
