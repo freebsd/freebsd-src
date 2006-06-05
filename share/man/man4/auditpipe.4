@@ -40,7 +40,7 @@ and maintained by
 .Xr auditd 8
 provide a reliable long-term store for audit log information, current log
 files are owned by the audit daemon until terminated making them somewhat
-unwieldy for live montoring applications such as host-based intrusion
+unwieldy for live monitoring applications such as host-based intrusion
 detection.
 For example, the log may be cycled and new records written to a new file
 without notice to applications that may be accessing the file.
@@ -126,7 +126,7 @@ Use the global audit trail preselection parameters to select records for the
 audit pipe.
 .It AUDITPIPE_PRESELECT_MODE_LOCAL
 Use local audit pipe preselection; this model is similar to the global audit
-trail configuration model, consisting of global flags and naflags paramaters,
+trail configuration model, consisting of global flags and naflags parameters,
 as well as a set of per-auid masks.
 These parameters are configured using further ioctls.
 .El
@@ -136,7 +136,7 @@ earlier preselection configuration may still be in the audit pipe queue.
 The application may flush the current record queue after changing the
 configuration to remove possibly undesired records.
 .Ss Audit Pipe Local Preselection Mode Ioctls
-The following ioctls configure the preselection paramaters used when an audit
+The following ioctls configure the preselection parameters used when an audit
 pipe is configured for the
 .Dv AUDITPIPE_PRESELECT_MODE_LOCAL
 preselection mode.
