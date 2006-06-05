@@ -394,7 +394,7 @@ audit_worker_drain(void)
 static void
 audit_worker(void *arg)
 {
-	TAILQ_HEAD(, kaudit_record) ar_worklist;
+	struct kaudit_queue ar_worklist;
 	struct kaudit_record *ar;
 	struct ucred *audit_cred;
 	struct thread *audit_td;
