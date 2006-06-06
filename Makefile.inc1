@@ -468,6 +468,15 @@ WMAKE_TGTS+=	build32
 buildworld: ${WMAKE_TGTS}
 .ORDER: ${WMAKE_TGTS}
 
+
+#
+# We need to have this as a target because the indirection between Makefile
+# and Makefile.inc1 causes the correct PATH to be used, rather than a
+# modification of the current environment's PATH.
+# 
+buildenvvars:
+	@echo ${WMAKEENV}
+
 buildenv:
 	@echo Entering world for ${TARGET_ARCH}:${TARGET}
 	@cd ${.CURDIR} && env ${WMAKEENV} sh || true

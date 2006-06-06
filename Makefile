@@ -68,9 +68,9 @@
 # developer convenience only.  They are intentionally not documented and
 # completely subject to change without notice.
 #
-TGTS=	all all-man buildenv buildkernel buildworld check-old checkdpadd \
-	clean cleandepend cleandir delete-old delete-old-libs depend \
-	distribute distributeworld distrib-dirs distribution doxygen \
+TGTS=	all all-man buildenv buildenvvars buildkernel buildworld check-old \
+	checkdpadd clean cleandepend cleandir delete-old delete-old-libs \
+	depend distribute distributeworld distrib-dirs distribution doxygen \
 	everything hierarchy install installcheck installkernel \
 	installkernel.debug reinstallkernel reinstallkernel.debug \
 	installworld kernel-toolchain libraries lint maninstall \
