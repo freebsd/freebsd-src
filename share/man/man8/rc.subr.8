@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 22, 2006
+.Dd June 6, 2006
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -64,7 +64,9 @@
 .It
 .Ic info Ar message
 .It
-.Ic load_rc_config Ar command
+.Ic load_rc_config Ar name
+.It
+.Ic load_rc_config_var Ar name Ar var
 .It
 .Ic mount_critical_filesystems Ar type
 .It
@@ -310,14 +312,14 @@ turned on or off by the
 .Xr rc.conf 5
 variable
 .Va rc_info .
-.It Ic load_rc_config Ar command
+.It Ic load_rc_config Ar name
 Source in the configuration files for
-.Ar command .
+.Ar name .
 First,
 .Pa /etc/rc.conf
 is sourced if it has not yet been read in.
 Then,
-.Pa /etc/rc.conf.d/ Ns Ar command
+.Pa /etc/rc.conf.d/ Ns Ar name
 is sourced if it is an existing file.
 The latter may also contain other variable assignments to override
 .Ic run_rc_command
@@ -325,6 +327,17 @@ arguments defined by the calling script, to provide an easy
 mechanism for an administrator to override the behaviour of a given
 .Xr rc.d 8
 script without requiring the editing of that script.
+.It Ic load_rc_config_var Ar name Ar var
+Read the
+.Xr rc.conf 5
+variable
+.Ar var
+for
+.Ar name
+and set in the current shell, using
+.Ic load_rc_config
+in a sub-shell to prevent unwanted side effects from other variable
+assignments.
 .It Ic mount_critical_filesystems Ar type
 Go through a list of critical file systems,
 as found in the
