@@ -104,7 +104,7 @@ __FBSDID("$FreeBSD$");
 #define KERNEL_PT_KERNEL	1	/* Page table for mapping kernel */
 #define KERNEL_PT_L1		4	/* Page table for mapping l1pt */
 #define	KERNEL_PT_VMDATA	5	/* Page tables for mapping kernel VM */
-#define	KERNEL_PT_VMDATA_NUM	4	/* start with 16MB of KVM */
+#define	KERNEL_PT_VMDATA_NUM	7	/* start with 16MB of KVM */
 #define	NUM_KERNEL_PTS		(KERNEL_PT_VMDATA + KERNEL_PT_VMDATA_NUM)
 
 /* Define various stack sizes in pages */
@@ -115,7 +115,7 @@ __FBSDID("$FreeBSD$");
 #else
 #define UND_STACK_SIZE	1
 #endif
-#define	KERNEL_VM_BASE		(KERNBASE + 0x00c00000)
+#define	KERNEL_VM_BASE		(KERNBASE + 0x00100000)
 #define	KERNEL_VM_SIZE		0x05000000
 
 extern u_int data_abort_handler_address;
@@ -287,9 +287,18 @@ initarm(void *arg, void *arg2)
 	valloc_pages(kernel_l1pt, L1_TABLE_SIZE / PAGE_SIZE);
 	valloc_pages(md_bla, L2_TABLE_SIZE / PAGE_SIZE);
 	alloc_pages(sa1_cache_clean_addr, CPU_SA110_CACHE_CLEAN_SIZE / PAGE_SIZE);
+
 	for (loop = 0; loop < NUM_KERNEL_PTS; ++loop) {
-		valloc_pages(kernel_pt_table[loop],
-		    L2_TABLE_SIZE / PAGE_SIZE);
+		if (!(loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL))) {
+			valloc_pages(kernel_pt_table[loop],
+			    L2_TABLE_SIZE / PAGE_SIZE);
+		} else {
+			kernel_pt_table[loop].pv_pa = freemempos +
+			    (loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
+			    L2_TABLE_SIZE_REAL;
+			kernel_pt_table[loop].pv_va = 
+			    kernel_pt_table[loop].pv_pa;
+		}
 	}
 
 	valloc_pages(systempage, 1);
@@ -336,10 +345,10 @@ initarm(void *arg, void *arg2)
 	pmap_link_l2pt(l1pagetable, MDROOT_ADDR,
 	    &md_bla);
 	for (loop = 0; loop < KERNEL_PT_VMDATA_NUM; ++loop)
-		pmap_link_l2pt(l1pagetable, KERNEL_VM_BASE + loop * 0x00400000,
+		pmap_link_l2pt(l1pagetable, KERNEL_VM_BASE + loop * 0x00100000,
 		    &kernel_pt_table[KERNEL_PT_VMDATA + loop]);
 	pmap_map_chunk(l1pagetable, KERNBASE, KERNBASE,
-	   (uint32_t)&end - KERNBASE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+	   ((uint32_t)&end - KERNBASE), VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	/* Map the stack pages */
 	pmap_map_chunk(l1pagetable, irqstack.pv_va, irqstack.pv_pa,
 	    IRQ_STACK_SIZE * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
