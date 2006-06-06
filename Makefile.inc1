@@ -472,10 +472,11 @@ buildworld: ${WMAKE_TGTS}
 #
 # We need to have this as a target because the indirection between Makefile
 # and Makefile.inc1 causes the correct PATH to be used, rather than a
-# modification of the current environment's PATH.
+# modification of the current environment's PATH.  In addition, we need
+# to quote multiword values.
 # 
 buildenvvars:
-	@echo ${WMAKEENV}
+	@echo ${WMAKEENV:Q}
 
 buildenv:
 	@echo Entering world for ${TARGET_ARCH}:${TARGET}
