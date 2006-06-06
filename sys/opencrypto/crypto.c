@@ -903,6 +903,27 @@ crypto_freereq(struct cryptop *crp)
 	if (crp == NULL)
 		return;
 
+#ifdef DIAGNOSTIC
+	{
+		struct cryptop *crp2;
+
+		CRYPTO_Q_LOCK();
+		TAILQ_FOREACH(crp2, &crp_q, crp_next) {
+			KASSERT(crp2 != crp,
+			    ("Freeing cryptop from the crypto queue (%p).",
+			    crp));
+		}
+		CRYPTO_Q_UNLOCK();
+		CRYPTO_RETQ_LOCK();
+		TAILQ_FOREACH(crp2, &crp_ret_q, crp_next) {
+			KASSERT(crp2 != crp,
+			    ("Freeing cryptop from the return queue (%p).",
+			    crp));
+		}
+		CRYPTO_RETQ_UNLOCK();
+	}
+#endif
+
 	while ((crd = crp->crp_desc) != NULL) {
 		crp->crp_desc = crd->crd_next;
 		uma_zfree(cryptodesc_zone, crd);
