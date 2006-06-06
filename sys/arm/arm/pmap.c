@@ -272,9 +272,6 @@ void		(*pmap_zero_page_func)(vm_paddr_t, int, int);
  */
 union pmap_cache_state *pmap_cache_state;
 
-LIST_HEAD(pmaplist, pmap);
-struct pmaplist allpmaps;
-
 /* static pt_entry_t *msgbufmap;*/
 struct msgbuf *msgbufp = 0;
 
@@ -1944,6 +1941,8 @@ pmap_pinit0(struct pmap *pmap)
 	dprintf("pmap_pinit0: pmap = %08x, pm_pdir = %08x\n",
 		(u_int32_t) pmap, (u_int32_t) pmap->pm_pdir);
 	bcopy(kernel_pmap, pmap, sizeof(*pmap));
+	bzero(&pmap->pm_mtx, sizeof(pmap->pm_mtx));
+	PMAP_LOCK_INIT(pmap);
 }
 
 /*
@@ -2536,11 +2535,10 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	cpu_tlb_flushID();
 	cpu_cpwait();
 
+	PMAP_LOCK_INIT(kernel_pmap);
 	kernel_pmap->pm_active = -1;
 	kernel_pmap->pm_domain = PMAP_DOMAIN_KERNEL;
-	LIST_INIT(&allpmaps);
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
-	LIST_INSERT_HEAD(&allpmaps, kernel_pmap, pm_list);
 	
 	/*
 	 * Reserve some special page table entries/VA space for temporary
@@ -2601,7 +2599,6 @@ pmap_release(pmap_t pmap)
 	pmap_idcache_wbinv_all(pmap);
 	pmap_tlb_flushID(pmap);
 	cpu_cpwait();
-	LIST_REMOVE(pmap, pm_list);
 	if (vector_page < KERNBASE) {
 		struct pcb *curpcb = PCPU_GET(curpcb);
 		pcb = thread0.td_pcb;
@@ -2630,6 +2627,7 @@ pmap_release(pmap_t pmap)
 
 	}
 	pmap_free_l1(pmap);
+	PMAP_LOCK_DESTROY(pmap);
 	
 	dprintf("pmap_release()\n");
 }
@@ -3360,6 +3358,7 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	u_int oflags;
 	vm_paddr_t pa;
 
+	PMAP_ASSERT_LOCKED(pmap);
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (va == vector_page) {
 		pa = systempage.pv_pa;
@@ -3599,11 +3598,13 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 
 	psize = atop(end - start);
 	m = m_start;
+	PMAP_LOCK(pmap);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		pmap_enter_locked(pmap, start + ptoa(diff), m, prot &
 		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
 		m = TAILQ_NEXT(m, listq);
 	}
+ 	PMAP_UNLOCK(pmap);
 }
 
 /*
@@ -3620,8 +3621,10 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
     vm_page_t mpte)
 {
 
+ 	PMAP_LOCK(pmap);
 	pmap_enter_locked(pmap, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
 	    FALSE);
+ 	PMAP_UNLOCK(pmap);
 	return (NULL);
 }
 
@@ -3639,6 +3642,7 @@ pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 	pt_entry_t *ptep, pte;
 	vm_page_t pg;
 
+ 	PMAP_LOCK(pmap);
 	l2b = pmap_get_l2_bucket(pmap, va);
 	KASSERT(l2b, ("No l2b bucket in pmap_change_wiring"));
 	ptep = &l2b->l2b_kva[l2pte_index(va)];
@@ -3646,6 +3650,7 @@ pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 	pg = PHYS_TO_VM_PAGE(l2pte_pa(pte));
 	if (pg) 
 		pmap_modify_pv(pg, pmap, va, PVF_WIRED, wired);
+ 	PMAP_UNLOCK(pmap);
 }
 
 
@@ -3740,6 +3745,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	l1pd = *pl1pd;
 
 	vm_page_lock_queues();
+ 	PMAP_LOCK(pmap);
 	if (l1pte_section_p(l1pd)) {
 		/*
 		 * These should only happen for pmap_kernel()
@@ -3761,6 +3767,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 
 		if (l2 == NULL ||
 		    (ptep = l2->l2_bucket[L2_BUCKET(l1idx)].l2b_kva) == NULL) {
+		 	PMAP_UNLOCK(pmap);
 			vm_page_unlock_queues();
 			return (NULL);
 		}
@@ -3769,6 +3776,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 		pte = *ptep;
 
 		if (pte == 0) {
+		 	PMAP_UNLOCK(pmap);
 			vm_page_unlock_queues();
 			return (NULL);
 		}
@@ -3787,6 +3795,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 		}
 	}
 
+ 	PMAP_UNLOCK(pmap);
 	vm_page_unlock_queues();
 	return (m);
 }
@@ -3801,10 +3810,10 @@ pmap_pinit(pmap_t pmap)
 {
 	PDEBUG(1, printf("pmap_pinit: pmap = %08x\n", (uint32_t) pmap));
 	
+	PMAP_LOCK_INIT(pmap);
 	pmap_alloc_l1(pmap);
 	bzero(pmap->pm_l2, sizeof(pmap->pm_l2));
 
-	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
 	pmap->pm_count = 1;
 	pmap->pm_active = 0;
 		
