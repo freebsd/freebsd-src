@@ -529,8 +529,8 @@ int32_t            sdp_search     (void *xs,
                                    uint32_t alen, uint32_t const *ap,
                                    uint32_t vlen, sdp_attr_t *vp);
 
-char const * const sdp_attr2desc  (uint16_t attr);
-char const * const sdp_uuid2desc  (uint16_t uuid);
+char const *	   sdp_attr2desc  (uint16_t attr);
+char const *	   sdp_uuid2desc  (uint16_t uuid);
 void               sdp_print      (uint32_t level, uint8_t const *start,
                                    uint8_t const *end);
 
