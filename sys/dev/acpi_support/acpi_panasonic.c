@@ -455,7 +455,7 @@ acpi_panasonic_hkey_action(struct acpi_panasonic_softc *sc, ACPI_HANDLE h,
 		break;
 	case 7:
 		/* Suspend. */
-		acpi_SetSleepState(acpi_sc, ACPI_STATE_S3);
+		acpi_event_sleep_button_sleep(acpi_sc);
 		break;
 	}
 }
