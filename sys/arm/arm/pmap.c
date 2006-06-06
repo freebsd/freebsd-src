@@ -412,7 +412,6 @@ static vm_offset_t pmap_kernel_l2dtable_kva;
 static vm_offset_t pmap_kernel_l2ptp_kva;
 static vm_paddr_t pmap_kernel_l2ptp_phys;
 static struct vm_object pvzone_obj;
-static struct vm_object l2zone_obj;
 static int pv_entry_count=0, pv_entry_max=0, pv_entry_high_water=0;
 int pmap_pagedaemon_waken = 0;
 
@@ -456,14 +455,8 @@ kernel_pt_lookup(vm_paddr_t pa)
 	struct pv_addr *pv;
 
 	SLIST_FOREACH(pv, &kernel_pt_list, pv_list) {
-#ifndef ARM32_NEW_VM_LAYOUT
-		if (pv->pv_pa == (pa & ~PAGE_MASK)) {
-			return (pv->pv_va | (pa & PAGE_MASK));
-			}
-#else
 		if (pv->pv_pa == pa)
 			return (pv->pv_va);
-#endif
 	}
 	return (0);
 }
@@ -715,21 +708,12 @@ xscale_setup_minidata(vm_offset_t l1pt, vm_offset_t va, vm_paddr_t pa)
 
 	for (; size != 0;
 	     va += L2_S_SIZE, pa += L2_S_SIZE, size -= L2_S_SIZE) {
-#ifndef ARM32_NEW_VM_LAYOUT
-		pte = (pt_entry_t *)
-		    kernel_pt_lookup(pde[va >> L1_S_SHIFT] & L2_S_FRAME);
-#else
 		pte = (pt_entry_t *) kernel_pt_lookup(
 		    pde[L1_IDX(va)] & L1_C_ADDR_MASK);
-#endif
 		if (pte == NULL)
 			panic("xscale_setup_minidata: can't find L2 table for "
 			    "VA 0x%08x", (u_int32_t) va);
-#ifndef ARM32_NEW_VM_LAYOUT
-		pte[(va >> PAGE_SHIFT) & 0x3ff] =
-#else
 		pte[l2pte_index(va)] =
-#endif
 		    L2_S_PROTO | pa | L2_S_PROT(PTE_KERNEL, VM_PROT_READ) |
 		    L2_C | L2_XSCALE_T_TEX(TEX_XSCALE_X);
 	}
@@ -1985,7 +1969,6 @@ pmap_init(void)
 	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
 
 	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
-	uma_zone_set_obj(l2zone, &l2zone_obj, pv_entry_max);
 
 }
 
@@ -4618,22 +4601,10 @@ pmap_link_l2pt(vm_offset_t l1pt, vm_offset_t va, struct pv_addr *l2pv)
 	pd_entry_t *pde = (pd_entry_t *) l1pt, proto;
 	u_int slot = va >> L1_S_SHIFT;
 
-#ifndef ARM32_NEW_VM_LAYOUT
-	KASSERT((va & ((L1_S_SIZE * 4) - 1)) == 0, ("blah"));
-	KASSERT((l2pv->pv_pa & PAGE_MASK) == 0, ("ouin"));
-#endif
-
 	proto = L1_S_DOM(PMAP_DOMAIN_KERNEL) | L1_C_PROTO;
 
 	pde[slot + 0] = proto | (l2pv->pv_pa + 0x000);
-#ifdef ARM32_NEW_VM_LAYOUT
 	PTE_SYNC(&pde[slot]);
-#else
-	pde[slot + 1] = proto | (l2pv->pv_pa + 0x400);
-	pde[slot + 2] = proto | (l2pv->pv_pa + 0x800);
-	pde[slot + 3] = proto | (l2pv->pv_pa + 0xc00);
-	PTE_SYNC_RANGE(&pde[slot + 0], 4);
-#endif
 
 	SLIST_INSERT_HEAD(&kernel_pt_list, l2pv, pv_list);
 
@@ -4673,25 +4644,14 @@ pmap_map_entry(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa, int prot,
 	if ((pde[va >> L1_S_SHIFT] & L1_TYPE_MASK) != L1_TYPE_C)
 		panic("pmap_map_entry: no L2 table for VA 0x%08x", va);
 
-#ifndef ARM32_NEW_VM_LAYOUT
-	pte = (pt_entry_t *)
-	    kernel_pt_lookup(pde[va >> L1_S_SHIFT] & L2_S_FRAME);
-#else
 	pte = (pt_entry_t *) kernel_pt_lookup(pde[L1_IDX(va)] & L1_C_ADDR_MASK);
-#endif
 
 	if (pte == NULL)
 		panic("pmap_map_entry: can't find L2 table for VA 0x%08x", va);
 
-#ifndef ARM32_NEW_VM_LAYOUT
-	pte[(va >> PAGE_SHIFT) & 0x3ff] =
-	    L2_S_PROTO | pa | L2_S_PROT(PTE_KERNEL, prot) | fl;
-	PTE_SYNC(&pte[(va >> PAGE_SHIFT) & 0x3ff]);
-#else
 	pte[l2pte_index(va)] =
 	    L2_S_PROTO | pa | L2_S_PROT(PTE_KERNEL, prot) | fl;
 	PTE_SYNC(&pte[l2pte_index(va)]);
-#endif
 }
 
 /*
@@ -4767,13 +4727,8 @@ pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
 		if ((pde[va >> L1_S_SHIFT] & L1_TYPE_MASK) != L1_TYPE_C)
 			panic("pmap_map_chunk: no L2 table for VA 0x%08x", va);
 
-#ifndef ARM32_NEW_VM_LAYOUT
-		pte = (pt_entry_t *)
-		    kernel_pt_lookup(pde[va >> L1_S_SHIFT] & L2_S_FRAME);
-#else
 		pte = (pt_entry_t *) kernel_pt_lookup(
 		    pde[L1_IDX(va)] & L1_C_ADDR_MASK);
-#endif
 		if (pte == NULL)
 			panic("pmap_map_chunk: can't find L2 table for VA"
 			    "0x%08x", va);
@@ -4783,17 +4738,10 @@ pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
 			printf("L");
 #endif
 			for (i = 0; i < 16; i++) {
-#ifndef ARM32_NEW_VM_LAYOUT
-				pte[((va >> PAGE_SHIFT) & 0x3f0) + i] =
-				    L2_L_PROTO | pa |
-				    L2_L_PROT(PTE_KERNEL, prot) | f2l;
-				PTE_SYNC(&pte[((va >> PAGE_SHIFT) & 0x3f0) + i]);
-#else
 				pte[l2pte_index(va) + i] =
 				    L2_L_PROTO | pa |
 				    L2_L_PROT(PTE_KERNEL, prot) | f2l;
 				PTE_SYNC(&pte[l2pte_index(va) + i]);
-#endif
 			}
 			va += L2_L_SIZE;
 			pa += L2_L_SIZE;
@@ -4805,15 +4753,9 @@ pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
 #ifdef VERBOSE_INIT_ARM
 		printf("P");
 #endif
-#ifndef ARM32_NEW_VM_LAYOUT
-		pte[(va >> PAGE_SHIFT) & 0x3ff] =
-		    L2_S_PROTO | pa | L2_S_PROT(PTE_KERNEL, prot) | f2s;
-		PTE_SYNC(&pte[(va >> PAGE_SHIFT) & 0x3ff]);
-#else
 		pte[l2pte_index(va)] =
 		    L2_S_PROTO | pa | L2_S_PROT(PTE_KERNEL, prot) | f2s;
 		PTE_SYNC(&pte[l2pte_index(va)]);
-#endif
 		va += PAGE_SIZE;
 		pa += PAGE_SIZE;
 		resid -= PAGE_SIZE;
