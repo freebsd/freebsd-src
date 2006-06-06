@@ -115,12 +115,13 @@ audit_record_write(struct vnode *vp, struct ucred *cred, struct thread *td,
 	int ret;
 	long temp;
 	struct vattr vattr;
-	struct statfs *mnt_stat = &vp->v_mount->mnt_stat;
+	struct statfs *mnt_stat;
 	int vfslocked;
 
 	if (vp == NULL)
 		return (0);
 
+ 	mnt_stat = &vp->v_mount->mnt_stat;
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 
 	/*
