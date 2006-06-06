@@ -1597,7 +1597,6 @@ ubsec_callback(struct ubsec_softc *sc, struct ubsec_q *q)
 		m_freem(q->q_src_m);
 		crp->crp_buf = (caddr_t)q->q_dst_m;
 	}
-	ubsecstats.hst_obytes += ((struct mbuf *)crp->crp_buf)->m_len;
 
 	/* copy out IV for future use */
 	if (q->q_flags & UBSEC_QFLAGS_COPYOUTIV) {
