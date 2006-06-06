@@ -250,6 +250,7 @@ g_eli_ctl_onetime(struct gctl_req *req, struct g_class *mp)
 	if (*detach)
 		md.md_flags |= G_ELI_FLAG_WO_DETACH;
 
+	md.md_ealgo = CRYPTO_ALGORITHM_MIN - 1;
 	name = gctl_get_asciiparam(req, "aalgo");
 	if (name == NULL) {
 		gctl_error(req, "No '%s' argument.", "aalgo");
@@ -257,24 +258,41 @@ g_eli_ctl_onetime(struct gctl_req *req, struct g_class *mp)
 	}
 	if (strcmp(name, "none") != 0) {
 		md.md_aalgo = g_eli_str2aalgo(name);
-		if (md.md_aalgo < CRYPTO_ALGORITHM_MIN ||
-		    md.md_aalgo > CRYPTO_ALGORITHM_MAX) {
-			gctl_error(req, "Invalid authentication algorithm.");
-			return;
+		if (md.md_aalgo >= CRYPTO_ALGORITHM_MIN &&
+		    md.md_aalgo <= CRYPTO_ALGORITHM_MAX) {
+			md.md_flags |= G_ELI_FLAG_AUTH;
+		} else {
+			/*
+			 * For backward compatibility, check if the -a option
+			 * was used to provide encryption algorithm.
+			 */
+			md.md_ealgo = g_eli_str2ealgo(name);
+			if (md.md_ealgo < CRYPTO_ALGORITHM_MIN ||
+			    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
+				gctl_error(req,
+				    "Invalid authentication algorithm.");
+				return;
+			} else {
+				gctl_error(req, "warning: The -e option, not "
+				    "the -a option is now used to specify "
+				    "encryption algorithm to use.");
+			}
 		}
-		md.md_flags |= G_ELI_FLAG_AUTH;
 	}
 
-	name = gctl_get_asciiparam(req, "ealgo");
-	if (name == NULL) {
-		gctl_error(req, "No '%s' argument.", "ealgo");
-		return;
-	}
-	md.md_ealgo = g_eli_str2ealgo(name);
 	if (md.md_ealgo < CRYPTO_ALGORITHM_MIN ||
 	    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
-		gctl_error(req, "Invalid encryption algorithm.");
-		return;
+		name = gctl_get_asciiparam(req, "ealgo");
+		if (name == NULL) {
+			gctl_error(req, "No '%s' argument.", "ealgo");
+			return;
+		}
+		md.md_ealgo = g_eli_str2ealgo(name);
+		if (md.md_ealgo < CRYPTO_ALGORITHM_MIN ||
+		    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
+			gctl_error(req, "Invalid encryption algorithm.");
+			return;
+		}
 	}
 
 	keylen = gctl_get_paraml(req, "keylen", sizeof(*keylen));
