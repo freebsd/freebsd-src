@@ -425,6 +425,7 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 	/* Destination offset, used for IV generation. */
 	dstoff = (bp->bio_offset / bp->bio_to->sectorsize) * sc->sc_bytes_per_sector;
 
+	auth = NULL;	/* Silence compiler warning. */
 	plaindata = bp->bio_data;
 	if (bp->bio_cmd == BIO_READ) {
 		data = bp->bio_driver2;
@@ -481,8 +482,7 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		uio->uio_resid = iov->iov_len;
 
 		crp->crp_sid = wr->w_sid;
-		crp->crp_ilen = data_secsize;
-		crp->crp_olen = data_secsize;
+		crp->crp_ilen = uio->uio_resid;
 		crp->crp_opaque = (void *)bp;
 		crp->crp_buf = (void *)uio;
 		crp->crp_flags = CRYPTO_F_IOV | CRYPTO_F_CBIFSYNC | CRYPTO_F_REL;
