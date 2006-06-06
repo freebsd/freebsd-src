@@ -1039,7 +1039,7 @@ moea_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
-	pmap_enter_locked(pmap, va, m, prot, wired);
+	moea_enter_locked(pmap, va, m, prot, wired);
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
 }
