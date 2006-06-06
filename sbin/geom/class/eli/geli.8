@@ -611,10 +611,8 @@ If data is modified or copied from one place on the disk
 to another,
 .Nm
 should be able to detect such a modification.
-If an attacker can remember the encrypted data, he can write them back to the
-same place.
-This will not be detected even if the data were legally modified
-between read and write operations of the attacker.
+If an attacker can remember the encrypted data, modify them and write them
+back to the same place, the modification will not be detected.
 .Nm
 will not protect your data against replay attacks.
 .Sh SEE ALSO
