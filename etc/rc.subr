@@ -1,4 +1,4 @@
-# $NetBSD: rc.subr,v 1.60 2003/07/26 05:13:47 lukem Exp $
+# $NetBSD: rc.subr,v 1.66 2006/04/01 10:05:50 he Exp $
 # $FreeBSD$
 #
 # Copyright (c) 1997-2002 The NetBSD Foundation, Inc.
@@ -38,6 +38,8 @@
 # rc.subr
 #	functions used by various rc scripts
 #
+
+: ${rcvar_manpage:='rc.conf(5)'}
 
 #
 #	Operating System dependent/independent variables
@@ -139,12 +141,13 @@ checkyesno()
 		return 1
 		;;
 	*)
-		warn "\$${1} is not set properly - see rc.conf(5)."
+		warn "\$${1} is not set properly - see ${rcvar_manpage}."
 		return 1
 		;;
 	esac
 }
 
+#
 # reverse_list list
 #	print the list in reverse order
 #
@@ -242,7 +245,9 @@ check_process()
 #	If interpreter != ".", read the first line of procname, remove the
 #	leading #!, normalise whitespace, append procname, and attempt to
 #	match that against each command, either as is, or with extra words
-#	at the end.
+#	at the end.  As an alternative, to deal with interpreted daemons
+#	using perl, the basename of the interpreter plus a colon is also
+#	tried as the prefix to procname.
 #
 _find_processes()
 {
@@ -262,9 +267,10 @@ _find_processes()
 			warn "\$command_interpreter $_interpreter != $1"
 		fi
 		_interp="$* $_procname"		# cleanup spaces, add _procname
+		_interpbn=${1##*/}
 		_fp_args='_argv'
 		_fp_match='case "$_argv" in
-		    ${_interp}|"${_interp} "*)'
+		    ${_interp}|"${_interp} "*|"${_interpbn}: ${_procname}"*)'
 	else					# a normal daemon
 		_procnamebn=${_procname##*/}
 		_fp_args='_arg0 _argv'
@@ -498,8 +504,8 @@ run_rc_command()
 		;;
 	esac
 
-	eval _overide_command=\$${name}_program
-	command=${command:+${_overide_command:-$command}}
+	eval _override_command=\$${name}_program
+	command=${command:+${_override_command:-$command}}
 
 	_keywords="start stop restart rcvar $extra_commands"
 	rc_pid=
@@ -601,7 +607,7 @@ run_rc_command()
 
 		start)
 			if [ -z "$rc_fast" -a -n "$rc_pid" ]; then
-				echo "${name} already running? (pid=$rc_pid)."
+				echo 1>&2 "${name} already running? (pid=$rc_pid)."
 				return 1
 			fi
 
@@ -615,7 +621,7 @@ run_rc_command()
 					#
 			for _f in $required_vars; do
 				if ! checkyesno $_f; then
-					warn "\$${_f} is not set."
+					warn "\$${_f} is not enabled."
 					if [ -z "$rc_force" ]; then
 						return 1
 					fi
@@ -687,10 +693,10 @@ $command $rc_flags $command_args"
 			if [ -z "$rc_pid" ]; then
 				[ -n "$rc_fast" ] && return 0
 				if [ -n "$pidfile" ]; then
-					echo \
+					echo 1>&2 \
 				    "${name} not running? (check $pidfile)."
 				else
-					echo "${name} not running?"
+					echo 1>&2 "${name} not running?"
 				fi
 				return 1
 			fi
@@ -732,10 +738,10 @@ $command $rc_flags $command_args"
 		reload)
 			if [ -z "$rc_pid" ]; then
 				if [ -n "$pidfile" ]; then
-					echo \
+					echo 1>&2 \
 				    "${name} not running? (check $pidfile)."
 				else
-					echo "${name} not running?"
+					echo 1>&2 "${name} not running?"
 				fi
 				return 1
 			fi
@@ -857,7 +863,7 @@ run_rc_script()
 }
 
 #
-# load_rc_config
+# load_rc_config command
 #	Source in the configuration file for a given command.
 #
 load_rc_config()
@@ -900,6 +906,25 @@ load_rc_config()
 		[ -n "$dhcp_flags" ] && dhclient_flags="$dhcp_flags"
 		;;
 	esac
+}
+  
+#
+# load_rc_config_var cmd var
+#	Read the rc.conf(5) var for cmd and set in the
+#	current shell, using load_rc_config in a subshell to prevent
+#	unwanted side effects from other variable assignments.
+#
+load_rc_config_var()
+{
+	if [ $# -ne 2 ]; then
+		err 3 'USAGE: load_rc_config_var cmd var'
+	fi
+	eval $(eval '(
+		load_rc_config '$1' >/dev/null;
+                if [ -n "${'$2'}" -o "${'$2'-UNSET}" != "UNSET" ]; then
+			echo '$2'=\'\''${'$2'}\'\'';
+		fi
+	)' )
 }
 
 #
@@ -1407,3 +1432,5 @@ find_local_scripts_new () {
 }
 
 fi
+
+_rc_subr_loaded=:
