@@ -84,7 +84,7 @@ struct kse {
 	TAILQ_ENTRY(kse) ke_procq;	/* (j/z) Run queue. */
 	struct thread	*ke_thread;	/* (*) Active associated thread. */
 	fixpt_t		ke_pctcpu;	/* (j) %cpu during p_swtime. */
-	char		ke_rqindex;	/* (j) Run queue index. */
+	u_char		ke_rqindex;	/* (j) Run queue index. */
 	enum {
 		KES_THREAD = 0x0,	/* slaved to thread state */
 		KES_ONRUNQ
