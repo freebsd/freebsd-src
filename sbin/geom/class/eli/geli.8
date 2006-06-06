@@ -443,39 +443,6 @@ Additional options include:
 .It Fl v
 Be more verbose.
 .El
-.Sh COMPONENTS
-.Ss User derived key (Derived-Key).
-This is a SHA-512 hash calculated from concatenated components: data from
-specified keyfiles and user's passphrase.
-Passphrase is by default strengthen with PKCS#5v2/SHA-1 before it goes through
-SHA-512.
-There could be up to two such keys based on independed passphrases and keyfiles.
-This key is used to protect (encrypt) the
-.Sy Master-Key
-stored on provider (inside metadata).
-.Ss Master-Key.
-This is 128 bytes long random data. First 64 bytes are used as the
-.Sy Data-Key
-and the second 64 bytes are used as the
-.Sy IV-Key .
-There is also another 64 bytes after the Master-Key, which are reserved for
-.Fn HMAC_SHA512 "HMAC_SHA512(Derived-Key, 0)" "Master-Key"
-(used to verify correctness of the
-.Sy Derived-Key ) .
-The entire
-.Sy Master-Key
-and
-.Fn HMAC
-result is encrypted with the given encryption algorithm.
-Key for encryption is
-.Fn HMAC_SHA512 "Derived-Key" "1"
-.Ss Data-Key.
-This is the key used to encrypt every single sector with the given algorithm in
-CBC mode.
-.Ss IV-Key.
-This is the key used for creating IV.
-IV is calculated with: SHA-256(IV-Key + sector-byte-offset).
-.\" TODO
 .Sh SYSCTL VARIABLES
 The following
 .Xr sysctl 8
