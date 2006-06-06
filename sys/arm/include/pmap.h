@@ -62,6 +62,8 @@
 #ifndef LOCORE
 
 #include <sys/queue.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 
 #define PDESIZE		sizeof(pd_entry_t)	/* for assembly files */
 #define PTESIZE		sizeof(pt_entry_t)	/* for assembly files */
@@ -136,6 +138,7 @@ struct l2_dtable;
 #define	L2_SIZE		(1 << L2_LOG2)
 
 struct	pmap {
+	struct mtx		pm_mtx;
 	u_int8_t		pm_domain;
 	struct l1_ttable	*pm_l1;
 	struct l2_dtable	*pm_l2[L2_SIZE];
@@ -144,7 +147,6 @@ struct	pmap {
 	int			pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statictics */
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
-	LIST_ENTRY(pmap)	pm_list;	/* List of all pmaps */
 };
 
 typedef struct pmap *pmap_t;
@@ -153,6 +155,16 @@ typedef struct pmap *pmap_t;
 extern pmap_t	kernel_pmap;
 #define pmap_kernel() kernel_pmap
 
+#define	PMAP_ASSERT_LOCKED(pmap) \
+				mtx_assert(&(pmap)->pm_mtx, MA_OWNED)
+#define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)
+#define	PMAP_LOCK_DESTROY(pmap)	mtx_destroy(&(pmap)->pm_mtx)
+#define	PMAP_LOCK_INIT(pmap)	mtx_init(&(pmap)->pm_mtx, "pmap", \
+				    NULL, MTX_DEF | MTX_DUPOK)
+#define	PMAP_OWNED(pmap)	mtx_owned(&(pmap)->pm_mtx)
+#define	PMAP_MTX(pmap)		(&(pmap)->pm_mtx)
+#define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
+#define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 #endif
 
 
