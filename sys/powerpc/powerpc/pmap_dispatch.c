@@ -115,6 +115,13 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t p, vm_prot_t prot,
 	MMU_ENTER(mmu_obj, pmap, va, p, prot, wired);
 }
 
+void
+pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
+    vm_page_t m_start, vm_prot_t prot)
+{
+	MMU_ENTER_OBJECT(mmu_obj, pmap, start, end, m_start, prot);
+}
+
 vm_page_t
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
     vm_page_t mpte)
