@@ -8,6 +8,7 @@
 # PROVIDE: auditd
 # REQUIRE: syslogd
 # BEFORE:  DAEMON
+# KEYWORD: shutdown
 
 . /etc/rc.subr
 
@@ -23,11 +24,7 @@ required_files="/etc/security/audit_class /etc/security/audit_control
 auditd_stop()
 {
 
-	if [ -f /var/run/auditd.pid ]; then
-		/usr/sbin/audit -t
-	else
-		echo "The audit daemon is not running";
-	fi
+	/usr/sbin/audit -t
 }
 
 load_rc_config $name
