@@ -4703,7 +4703,7 @@ pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
 		panic("pmap_map_chunk: no L1 table provided");
 
 #ifdef VERBOSE_INIT_ARM     
-	printf("pmap_map_chunk: pa=0x%lx va=0x%lx size=0x%lx resid=0x%lx "
+	printf("pmap_map_chunk: pa=0x%x va=0x%x size=0x%x resid=0x%x "
 	    "prot=0x%x cache=%d\n", pa, va, size, resid, prot, cache);
 #endif
 
@@ -4842,7 +4842,7 @@ pmap_devmap_bootstrap(vm_offset_t l1pt, const struct pmap_devmap *table)
 
 	for (i = 0; pmap_devmap_table[i].pd_size != 0; i++) {
 #ifdef VERBOSE_INIT_ARM
-		printf("devmap: %08lx -> %08lx @ %08lx\n",
+		printf("devmap: %08x -> %08x @ %08x\n",
 		    pmap_devmap_table[i].pd_pa,
 		    pmap_devmap_table[i].pd_pa +
 			pmap_devmap_table[i].pd_size - 1,
