@@ -527,22 +527,40 @@ eli_init(struct gctl_req *req)
 	md.md_flags = 0;
 	if (gctl_get_int(req, "boot"))
 		md.md_flags |= G_ELI_FLAG_BOOT;
+	md.md_ealgo = CRYPTO_ALGORITHM_MIN - 1;
 	str = gctl_get_ascii(req, "aalgo");
 	if (strcmp(str, "none") != 0) {
 		md.md_aalgo = g_eli_str2aalgo(str);
-		if (md.md_aalgo < CRYPTO_ALGORITHM_MIN ||
-		    md.md_aalgo > CRYPTO_ALGORITHM_MAX) {
-			gctl_error(req, "Invalid authentication algorithm.");
-			return;
+		if (md.md_aalgo >= CRYPTO_ALGORITHM_MIN &&
+		    md.md_aalgo <= CRYPTO_ALGORITHM_MAX) {
+			md.md_flags |= G_ELI_FLAG_AUTH;
+		} else {
+			/*
+			 * For backward compatibility, check if the -a option
+			 * was used to provide encryption algorithm.
+			 */
+			md.md_ealgo = g_eli_str2ealgo(str);
+			if (md.md_ealgo < CRYPTO_ALGORITHM_MIN ||
+			    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
+				gctl_error(req,
+				    "Invalid authentication algorithm.");
+				return;
+			} else {
+				fprintf(stderr, "warning: The -e option, not "
+				    "the -a option is now used to specify "
+				    "encryption algorithm to use.\n");
+			}
 		}
-		md.md_flags |= G_ELI_FLAG_AUTH;
 	}
-	str = gctl_get_ascii(req, "ealgo");
-	md.md_ealgo = g_eli_str2ealgo(str);
 	if (md.md_ealgo < CRYPTO_ALGORITHM_MIN ||
 	    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
-		gctl_error(req, "Invalid encryption algorithm.");
-		return;
+		str = gctl_get_ascii(req, "ealgo");
+		md.md_ealgo = g_eli_str2ealgo(str);
+		if (md.md_ealgo < CRYPTO_ALGORITHM_MIN ||
+		    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
+			gctl_error(req, "Invalid encryption algorithm.");
+			return;
+		}
 	}
 	val = gctl_get_intmax(req, "keylen");
 	md.md_keylen = val;
