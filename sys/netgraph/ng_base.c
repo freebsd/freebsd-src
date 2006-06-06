@@ -3581,9 +3581,7 @@ ng_callout_trampoline(void *arg)
 {
 	item_p item = arg;
 
-	NET_LOCK_GIANT();
 	ng_snd_item(item, 0);
-	NET_UNLOCK_GIANT();
 }
 
 
