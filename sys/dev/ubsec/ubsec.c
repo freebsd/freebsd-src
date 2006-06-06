@@ -1024,9 +1024,11 @@ ubsec_op_cb(void *arg, bus_dma_segment_t *seg, int nsegs, bus_size_t mapsize, in
 		("Too many DMA segments returned when mapping operand"));
 #ifdef UBSEC_DEBUG
 	if (ubsec_debug)
-		printf("ubsec_op_cb: mapsize %u nsegs %d\n",
-			(u_int) mapsize, nsegs);
+		printf("ubsec_op_cb: mapsize %u nsegs %d error %d\n",
+			(u_int) mapsize, nsegs, error);
 #endif
+	if (error != 0)
+		return;
 	op->mapsize = mapsize;
 	op->nsegs = nsegs;
 	bcopy(seg, op->segs, nsegs * sizeof (seg[0]));
