@@ -184,10 +184,6 @@ static int	em_detach(device_t);
 static int	em_shutdown(device_t);
 static int	em_suspend(device_t);
 static int	em_resume(device_t);
-static void	em_intr(void *);
-#ifndef NO_EM_FASTINTR
-static void	em_intr_fast(void *);
-#endif
 static void	em_start(struct ifnet *);
 static void	em_start_locked(struct ifnet *ifp);
 static int	em_ioctl(struct ifnet *, u_long, caddr_t);
@@ -252,14 +248,20 @@ static uint32_t	em_fill_descriptors (bus_addr_t address, uint32_t length,
 static int	em_sysctl_int_delay(SYSCTL_HANDLER_ARGS);
 static void	em_add_int_delay_sysctl(struct em_softc *, const char *,
 		const char *, struct em_int_delay_info *, int, int);
-#ifndef NO_EM_FASTINTR
+
+/*
+ * Fast interrupt handler and legacy ithread/polling modes are
+ * mutually exclusive.
+ */
+#ifdef DEVICE_POLLING
+static poll_handler_t em_poll;
+static void	em_intr(void *);
+#else
+static void	em_intr_fast(void *);
 static void	em_add_int_process_limit(struct em_softc *, const char *,
 		const char *, int *, int);
 static void	em_handle_rxtx(void *context, int pending);
 static void	em_handle_link(void *context, int pending);
-#endif
-#ifdef DEVICE_POLLING
-static poll_handler_t em_poll;
 #endif
 
 /*********************************************************************
@@ -306,7 +308,7 @@ TUNABLE_INT("hw.em.tx_abs_int_delay", &em_tx_abs_int_delay_dflt);
 TUNABLE_INT("hw.em.rx_abs_int_delay", &em_rx_abs_int_delay_dflt);
 TUNABLE_INT("hw.em.rxd", &em_rxd);
 TUNABLE_INT("hw.em.txd", &em_txd);
-#ifndef NO_EM_FASTINTR
+#ifndef DEVICE_POLLING
 static int em_rx_process_limit = 100;
 TUNABLE_INT("hw.em.rx_process_limit", &em_rx_process_limit);
 #endif
@@ -422,8 +424,8 @@ em_attach(device_t dev)
 		    em_tx_abs_int_delay_dflt);
 	}
 
+#ifndef DEVICE_POLLING
 	/* Sysctls for limiting the amount of work done in the taskqueue */
-#ifndef NO_EM_FASTINTR
 	em_add_int_process_limit(sc, "rx_processing_limit",
 	    "max number of rx packets to process", &sc->rx_process_limit,
 	    em_rx_process_limit);
@@ -1049,13 +1051,22 @@ em_init(void *arg)
 
 
 #ifdef DEVICE_POLLING
+/*********************************************************************
+ *
+ *  Legacy polling routine  
+ *
+ *********************************************************************/
 static void
-em_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
+em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct em_softc *sc = ifp->if_softc;
 	uint32_t reg_icr;
 
-	EM_LOCK_ASSERT(sc);
+	EM_LOCK(sc);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		EM_UNLOCK(sc);
+		return;
+	}
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
 		reg_icr = E1000_READ_REG(&sc->hw, ICR);
@@ -1072,21 +1083,74 @@ em_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		em_start_locked(ifp);
-}
-
-static void
-em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
-{
-	struct em_softc *sc = ifp->if_softc;
-
-	EM_LOCK(sc);
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		em_poll_locked(ifp, cmd, count);
 	EM_UNLOCK(sc);
 }
-#endif /* DEVICE_POLLING */
 
-#ifndef NO_EM_FASTINTR
+/*********************************************************************
+ *
+ *  Legacy Interrupt Service routine  
+ *
+ *********************************************************************/
+static void
+em_intr(void *arg)
+{
+	struct em_softc	*sc = arg;
+	struct ifnet	*ifp;
+	uint32_t	reg_icr;
+
+	EM_LOCK(sc);
+
+	ifp = sc->ifp;
+
+	if (ifp->if_capenable & IFCAP_POLLING) {
+		EM_UNLOCK(sc);
+		return;
+	}
+
+	for (;;) {
+		reg_icr = E1000_READ_REG(&sc->hw, ICR);
+		if (sc->hw.mac_type >= em_82571 &&
+		    (reg_icr & E1000_ICR_INT_ASSERTED) == 0)
+			break;
+		else if (reg_icr == 0)
+			break;
+
+		/*
+		 * XXX: some laptops trigger several spurious interrupts
+		 * on em(4) when in the resume cycle. The ICR register
+		 * reports all-ones value in this case. Processing such
+		 * interrupts would lead to a freeze. I don't know why.
+		 */
+		if (reg_icr == 0xffffffff)
+			break;
+
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			em_rxeof(sc, -1);
+			em_txeof(sc);
+		}
+
+		/* Link status change */
+		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
+			callout_stop(&sc->timer);
+			sc->hw.get_link_status = 1;
+			em_check_for_link(&sc->hw);
+			em_update_link_status(sc);
+			callout_reset(&sc->timer, hz, em_local_timer, sc);
+		}
+
+		if (reg_icr & E1000_ICR_RXO)
+			sc->rx_overruns++;
+	}
+
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
+	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		em_start_locked(ifp);
+
+	EM_UNLOCK(sc);
+}
+
+#else  /* if not DEVICE_POLLING, then fast interrupt routines only */
+
 static void
 em_handle_link(void *context, int pending)
 {
@@ -1132,14 +1196,12 @@ em_handle_rxtx(void *context, int pending)
 	em_enable_intr(sc);
 	NET_UNLOCK_GIANT();
 }
-#endif
 
 /*********************************************************************
  *
- *  Interrupt Service routine
+ *  Fast Interrupt Service routine  
  *
- **********************************************************************/
-#ifndef NO_EM_FASTINTR
+ *********************************************************************/
 static void
 em_intr_fast(void *arg)
 {
@@ -1148,11 +1210,6 @@ em_intr_fast(void *arg)
 	uint32_t	reg_icr;
 
 	ifp = sc->ifp;
-
-#ifdef DEVICE_POLLING
-	if (ifp->if_capenable & IFCAP_POLLING)
-		return;
-#endif /* DEVICE_POLLING */
 
 	reg_icr = E1000_READ_REG(&sc->hw, ICR);
 
@@ -1187,73 +1244,7 @@ em_intr_fast(void *arg)
 	if (reg_icr & E1000_ICR_RXO)
 		sc->rx_overruns++;
 }
-#endif
-
-static void
-em_intr(void *arg)
-{
-	struct em_softc	*sc = arg;
-	struct ifnet	*ifp;
-	uint32_t	reg_icr;
-	int		wantinit = 0;
-
-	EM_LOCK(sc);
-
-	ifp = sc->ifp;
-
-#ifdef DEVICE_POLLING
-	if (ifp->if_capenable & IFCAP_POLLING) {
-		EM_UNLOCK(sc);
-		return;
-	}
-#endif
-
-	for (;;) {
-		reg_icr = E1000_READ_REG(&sc->hw, ICR);
-		if (sc->hw.mac_type >= em_82571 &&
-		    (reg_icr & E1000_ICR_INT_ASSERTED) == 0)
-			break;
-		else if (reg_icr == 0)
-			break;
-
-		/*
-		 * XXX: some laptops trigger several spurious interrupts
-		 * on em(4) when in the resume cycle. The ICR register
-		 * reports all-ones value in this case. Processing such
-		 * interrupts would lead to a freeze. I don't know why.
-		 */
-		if (reg_icr == 0xffffffff)
-			break;
-
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			em_rxeof(sc, -1);
-			em_txeof(sc);
-		}
-
-		/* Link status change */
-		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
-			callout_stop(&sc->timer);
-			sc->hw.get_link_status = 1;
-			em_check_for_link(&sc->hw);
-			em_update_link_status(sc);
-			callout_reset(&sc->timer, hz, em_local_timer, sc);
-		}
-
-		if (reg_icr & E1000_ICR_RXO) {
-			sc->rx_overruns++;
-			wantinit = 1;
-		}
-	}
-#if 0
-	if (wantinit)
-		em_init_locked(sc);
-#endif
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		em_start_locked(ifp);
-
-	EM_UNLOCK(sc);
-}
+#endif /* ! DEVICE_POLLING */
 
 /*********************************************************************
  *
@@ -1982,13 +1973,18 @@ em_allocate_intr(struct em_softc *sc)
 	/* Manually turn off all interrupts */
 	E1000_WRITE_REG(&sc->hw, IMC, 0xffffffff);
 
+#ifdef DEVICE_POLLING
+	if (sc->int_handler_tag == NULL && (error = bus_setup_intr(dev,
+	    sc->res_interrupt, INTR_TYPE_NET | INTR_MPSAFE, em_intr, sc,
+	    &sc->int_handler_tag)) != 0) {
+		device_printf(dev, "Failed to register interrupt handler");
+		return (error);
+	}
+#else
 	/*
 	 * Try allocating a fast interrupt and the associated deferred
-	 * processing contexts.  If that doesn't work, try just using an
-	 * ithread.
+	 * processing contexts.
 	 */
-#ifndef NO_EM_FASTINTR
-	/* Init the deferred processing contexts. */
 	TASK_INIT(&sc->rxtx_task, 0, em_handle_rxtx, sc);
 	TASK_INIT(&sc->link_task, 0, em_handle_link, sc);
 	sc->tq = taskqueue_create_fast("em_taskq", M_NOWAIT,
@@ -2002,14 +1998,9 @@ em_allocate_intr(struct em_softc *sc)
 			    "handler: %d\n", error);
 		taskqueue_free(sc->tq);
 		sc->tq = NULL;
-	}
-#endif
-	if (sc->int_handler_tag == NULL && (error = bus_setup_intr(dev,
-	    sc->res_interrupt, INTR_TYPE_NET | INTR_MPSAFE, em_intr, sc,
-	    &sc->int_handler_tag)) != 0) {
-		device_printf(dev, "Failed to register interrupt handler");
 		return (error);
 	}
+#endif
 
 	em_enable_intr(sc);
 	return (0);
@@ -3135,7 +3126,13 @@ skip:
 			i = 0;
 		if (m != NULL) {
 			sc->next_rx_desc_to_check = i;
+#ifdef DEVICE_POLLING
+			EM_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);
+			EM_LOCK(sc);
+#else
+			(*ifp->if_input)(ifp, m);
+#endif
 			i = sc->next_rx_desc_to_check;
 		}
 		current_desc = &sc->rx_desc_base[i];
@@ -3665,7 +3662,7 @@ em_add_int_delay_sysctl(struct em_softc *sc, const char *name,
 	    info, 0, em_sysctl_int_delay, "I", description);
 }
 
-#ifndef NO_EM_FASTINTR
+#ifndef DEVICE_POLLING
 static void
 em_add_int_process_limit(struct em_softc *sc, const char *name,
 	const char *description, int *limit, int value)
