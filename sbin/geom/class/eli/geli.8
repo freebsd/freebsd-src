@@ -146,16 +146,15 @@ Supports many cryptographic algorithms (currently
 and
 .Nm 3DES ) .
 .It
-Can optionally perform data authentication (integrity verification) with one of
-the
+Can optionally perform data authentication (integrity verification) utilizing
+one of the following algorithms:
 .Nm HMAC/MD5 ,
 .Nm HMAC/SHA1 ,
 .Nm HMAC/RIPEMD160 ,
 .Nm HMAC/SHA256 ,
 .Nm HMAC/SHA384
 or
-.Nm HMAC/SHA512
-algorithms.
+.Nm HMAC/SHA512 .
 .It
 Can create a key from a couple of components (user entered passphrase, random
 bits from a file, etc.).
@@ -586,7 +585,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"
 .Ed
 .Pp
 Not only configure encryption, but also data integrity verification using
-.Nm HMAC/SHA256.
+.Nm HMAC/SHA256 .
 .Bd -literal -offset indent
 # geli init -a hmac/sha256 -s 4096 /dev/da0
 Enter new passphrase:
@@ -599,24 +598,25 @@ Enter passphrase:
 .Ed
 .Sh DATA AUTHENTICATION
 .Nm
-can verify data integrity when authentication algorithm is specified.
+can verify data integrity when an authentication algorithm is specified.
 When data corruption/modification is detected,
 .Nm
-will not return any data, instead will return an error
-.Er ( EINVAL ) .
-The offset and size of corrupted data will be printed on the console.
+will not return any data, but instead will return an error
+.Pq Er EINVAL .
+The offset and size of the corrupted data will be printed on the console.
 It is important to know against which attacks
 .Nm
-can protect your data. If data is modified or copied from one place on the disk
+provides protection for your data.
+If data is modified or copied from one place on the disk
 to another,
 .Nm
-should be able to detect such modification.
+should be able to detect such a modification.
 If an attacker can remember the encrypted data, he can write them back to the
-same place and this won't be detected even if the data was legally modified
-between attacker read and write.
+same place.
+This will not be detected even if the data were legally modified
+between read and write operations of the attacker.
 .Nm
-won't protect your data against replay attacks.
-.Ed
+will not protect your data against replay attacks.
 .Sh SEE ALSO
 .Xr crypto 4 ,
 .Xr gbde 4 ,
