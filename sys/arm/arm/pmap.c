@@ -1306,6 +1306,7 @@ pmap_vac_me_harder(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 {
 	int nattr;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	nattr = pmap_get_vac_flags(pg);
 
 	if (nattr < 0) {
@@ -1983,11 +1984,9 @@ pmap_fault_fixup(pmap_t pm, vm_offset_t va, vm_prot_t ftype, int user)
 	u_int l1idx;
 	int rv = 0;
 
-#if 0
-	PMAP_MAP_TO_HEAD_LOCK();
-	pmap_acquire_pmap_lock(pm);
-#endif
 	l1idx = L1_IDX(va);
+	vm_page_lock_queues();
+	PMAP_LOCK(pm);
 
 	/*
 	 * If there is no l2_dtable for this address, then the process
@@ -2079,18 +2078,13 @@ pmap_fault_fixup(pmap_t pm, vm_offset_t va, vm_prot_t ftype, int user)
 		struct vm_page *pg;
 
 		/* Extract the physical address of the page */
-		vm_page_lock_queues();
-		if ((pg = PHYS_TO_VM_PAGE(pa)) == NULL) {
-			vm_page_unlock_queues();
+		if ((pg = PHYS_TO_VM_PAGE(pa)) == NULL)
 			goto out;
-		}
 		/* Get the current flags for this page. */
 
 		pv = pmap_find_pv(pg, pm, va);
-		if (pv == NULL) {
-			vm_page_unlock_queues();
+		if (pv == NULL)
 			goto out;
-		}
 
 		pg->md.pvh_attrs |= PVF_REF;
 		pv->pv_flags |= PVF_REF;
@@ -2099,7 +2093,6 @@ pmap_fault_fixup(pmap_t pm, vm_offset_t va, vm_prot_t ftype, int user)
 		*ptep = (pte & ~L2_TYPE_MASK) | L2_S_PROTO;
 		PTE_SYNC(ptep);
 		rv = 1;
-		vm_page_unlock_queues();
 	}
 
 	/*
@@ -2190,10 +2183,8 @@ pmap_fault_fixup(pmap_t pm, vm_offset_t va, vm_prot_t ftype, int user)
 	rv = 1;
 
 out:
-#if 0
-	pmap_release_pmap_lock(pm);
-	PMAP_MAP_TO_HEAD_UNLOCK();
-#endif
+	vm_page_unlock_queues();
+	PMAP_UNLOCK(pm);
 	return (rv);
 }
 
