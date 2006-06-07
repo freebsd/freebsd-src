@@ -8,7 +8,7 @@
 # buildworld          - Rebuild *everything*, including glue to help do
 #                       upgrades.
 # installworld        - Install everything built by "buildworld".
-# world               - buildworld + installworld.
+# world               - buildworld + installworld, no kernel.
 # buildkernel         - Rebuild the kernel and the kernel-modules.
 # installkernel       - Install the kernel and the kernel-modules.
 # installkernel.debug
@@ -37,7 +37,8 @@
 # system, the simple instructions are:
 #
 # 1.  `cd /usr/src'  (or to the directory containing your source tree).
-# 2.  `make world'
+# 2.  Define `HISTORICAL_MAKE_WORLD' variable (see README).
+# 3.  `make world'
 #
 # For individuals wanting to upgrade their sources (even if only a
 # delta of a few days):
