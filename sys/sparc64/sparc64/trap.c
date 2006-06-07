@@ -37,8 +37,10 @@
  *
  *      from: @(#)trap.c        7.4 (Berkeley) 5/13/91
  * 	from: FreeBSD: src/sys/i386/i386/trap.c,v 1.197 2001/07/19
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_ktr.h"
@@ -164,7 +166,7 @@ const char *trap_msg[] = {
 	"kernel stack fault",
 };
 
-const int trap_sig[] = {
+static const int trap_sig[] = {
 	SIGILL,			/* reserved */
 	SIGILL,			/* instruction access exception */
 	SIGILL,			/* instruction access error */
