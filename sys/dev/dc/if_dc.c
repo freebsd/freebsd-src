@@ -220,6 +220,8 @@ static struct dc_type dc_devs[] = {
 		"Microsoft MN-120 CardBus 10/100" },
 	{ DC_DEVID(DC_VENDORID_MICROSOFT, DC_DEVICEID_MSMN130), 0,
 		"Microsoft MN-130 10/100" },
+	{ DC_DEVID(DC_VENDORID_LINKSYS, DC_DEVICEID_PCMPC200), 0,
+		"Linksys PCMPC200 10/100" },
 	{ 0, 0, NULL }
 };
 
