@@ -45,8 +45,6 @@ __FBSDID("$FreeBSD$");
 
 #define      DEFAULT_RCLK    3686400
 
-extern int got_mmu;
-
 /*
  * Low-level UART interface.
  */
@@ -56,8 +54,6 @@ static void sa1110_term(struct uart_bas *bas);
 static void sa1110_putc(struct uart_bas *bas, int);
 static int sa1110_poll(struct uart_bas *bas);
 static int sa1110_getc(struct uart_bas *bas, struct mtx *mtx);
-
-int did_mmu = 0;
 
 extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
 
@@ -77,22 +73,11 @@ sa1110_probe(struct uart_bas *bas)
 }
 
 static void
-sa1110_addr_change(struct uart_bas *bas)
-{
-	
-	bas->bsh = SACOM1_VBASE;
-	did_mmu = 1;
-}
-
-static void
 sa1110_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
     int parity)
 {
 	int brd;
 	
-	/* XXX: sigh. */
-	if (!did_mmu && got_mmu) 
-		sa1110_addr_change(bas);
 	if (bas->rclk == 0)
 		bas->rclk = DEFAULT_RCLK;
 	while (uart_getreg(bas, SACOM_SR1) & SR1_TBY);
@@ -112,10 +97,6 @@ sa1110_term(struct uart_bas *bas)
 static void
 sa1110_putc(struct uart_bas *bas, int c)
 {
-	/* XXX: sigh. */
-	if (!did_mmu && got_mmu) 
-		sa1110_addr_change(bas);
-
 	while (!uart_getreg(bas, SACOM_SR1) & SR1_TNF);
 	uart_setreg(bas, SACOM_DR, c);
 }
@@ -123,10 +104,6 @@ sa1110_putc(struct uart_bas *bas, int c)
 static int
 sa1110_poll(struct uart_bas *bas)
 {
-	/* XXX: sigh. */
-	if (!did_mmu && got_mmu) 
-		sa1110_addr_change(bas);
-
 	if (!(uart_getreg(bas, SACOM_SR1) & SR1_RNE))
 		return (-1);
 	return (uart_getreg(bas, SACOM_DR) & 0xff);
@@ -136,9 +113,6 @@ static int
 sa1110_getc(struct uart_bas *bas, struct mtx *mtx)
 {
 	int c;
-	/* XXX: sigh. */
-	if (!did_mmu && got_mmu) 
-		sa1110_addr_change(bas);
 
 	while (!(uart_getreg(bas, SACOM_SR1) & SR1_RNE)) {
 		u_int32_t sr0;
