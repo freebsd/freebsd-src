@@ -192,84 +192,76 @@ static struct bge_type bge_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int bge_probe		(device_t);
-static int bge_attach		(device_t);
-static int bge_detach		(device_t);
-static int bge_suspend		(device_t);
-static int bge_resume		(device_t);
-static void bge_release_resources
-				(struct bge_softc *);
-static void bge_dma_map_addr	(void *, bus_dma_segment_t *, int, int);
-static int bge_dma_alloc	(device_t);
-static void bge_dma_free	(struct bge_softc *);
+static int bge_probe(device_t);
+static int bge_attach(device_t);
+static int bge_detach(device_t);
+static int bge_suspend(device_t);
+static int bge_resume(device_t);
+static void bge_release_resources(struct bge_softc *);
+static void bge_dma_map_addr(void *, bus_dma_segment_t *, int, int);
+static int bge_dma_alloc(device_t);
+static void bge_dma_free(struct bge_softc *);
 
-static void bge_txeof		(struct bge_softc *);
-static void bge_rxeof		(struct bge_softc *);
+static void bge_txeof(struct bge_softc *);
+static void bge_rxeof(struct bge_softc *);
 
-static void bge_tick_locked	(struct bge_softc *);
-static void bge_tick		(void *);
-static void bge_stats_update	(struct bge_softc *);
-static void bge_stats_update_regs
-				(struct bge_softc *);
-static int bge_encap		(struct bge_softc *, struct mbuf *,
-					u_int32_t *);
+static void bge_tick_locked(struct bge_softc *);
+static void bge_tick(void *);
+static void bge_stats_update(struct bge_softc *);
+static void bge_stats_update_regs(struct bge_softc *);
+static int bge_encap(struct bge_softc *, struct mbuf *, uint32_t *);
 
-static void bge_intr		(void *);
-static void bge_start_locked	(struct ifnet *);
-static void bge_start		(struct ifnet *);
-static int bge_ioctl		(struct ifnet *, u_long, caddr_t);
-static void bge_init_locked	(struct bge_softc *);
-static void bge_init		(void *);
-static void bge_stop		(struct bge_softc *);
-static void bge_watchdog		(struct ifnet *);
-static void bge_shutdown		(device_t);
-static int bge_ifmedia_upd	(struct ifnet *);
-static void bge_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
+static void bge_intr(void *);
+static void bge_start_locked(struct ifnet *);
+static void bge_start(struct ifnet *);
+static int bge_ioctl(struct ifnet *, u_long, caddr_t);
+static void bge_init_locked(struct bge_softc *);
+static void bge_init(void *);
+static void bge_stop(struct bge_softc *);
+static void bge_watchdog(struct ifnet *);
+static void bge_shutdown(device_t);
+static int bge_ifmedia_upd(struct ifnet *);
+static void bge_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
-static u_int8_t	bge_eeprom_getbyte	(struct bge_softc *, int, u_int8_t *);
-static int bge_read_eeprom	(struct bge_softc *, caddr_t, int, int);
+static uint8_t bge_eeprom_getbyte(struct bge_softc *, int, uint8_t *);
+static int bge_read_eeprom(struct bge_softc *, caddr_t, int, int);
 
-static void bge_setmulti	(struct bge_softc *);
+static void bge_setmulti(struct bge_softc *);
 
-static int bge_newbuf_std	(struct bge_softc *, int, struct mbuf *);
-static int bge_newbuf_jumbo	(struct bge_softc *, int, struct mbuf *);
-static int bge_init_rx_ring_std	(struct bge_softc *);
-static void bge_free_rx_ring_std	(struct bge_softc *);
-static int bge_init_rx_ring_jumbo	(struct bge_softc *);
-static void bge_free_rx_ring_jumbo	(struct bge_softc *);
-static void bge_free_tx_ring	(struct bge_softc *);
-static int bge_init_tx_ring	(struct bge_softc *);
+static int bge_newbuf_std(struct bge_softc *, int, struct mbuf *);
+static int bge_newbuf_jumbo(struct bge_softc *, int, struct mbuf *);
+static int bge_init_rx_ring_std(struct bge_softc *);
+static void bge_free_rx_ring_std(struct bge_softc *);
+static int bge_init_rx_ring_jumbo(struct bge_softc *);
+static void bge_free_rx_ring_jumbo(struct bge_softc *);
+static void bge_free_tx_ring(struct bge_softc *);
+static int bge_init_tx_ring(struct bge_softc *);
 
-static int bge_chipinit		(struct bge_softc *);
-static int bge_blockinit	(struct bge_softc *);
+static int bge_chipinit(struct bge_softc *);
+static int bge_blockinit(struct bge_softc *);
 
 #ifdef notdef
-static u_int8_t bge_vpd_readbyte(struct bge_softc *, int);
-static void bge_vpd_read_res	(struct bge_softc *, struct vpd_res *, int);
-static void bge_vpd_read	(struct bge_softc *);
+static uint8_t bge_vpd_readbyte(struct bge_softc *, int);
+static void bge_vpd_read_res(struct bge_softc *, struct vpd_res *, int);
+static void bge_vpd_read(struct bge_softc *);
 #endif
 
-static u_int32_t bge_readmem_ind
-				(struct bge_softc *, int);
-static void bge_writemem_ind	(struct bge_softc *, int, int);
+static uint32_t bge_readmem_ind(struct bge_softc *, int);
+static void bge_writemem_ind(struct bge_softc *, int, int);
 #ifdef notdef
-static u_int32_t bge_readreg_ind
-				(struct bge_softc *, int);
+static uint32_t bge_readreg_ind(struct bge_softc *, int);
 #endif
-static void bge_writereg_ind	(struct bge_softc *, int, int);
+static void bge_writereg_ind(struct bge_softc *, int, int);
 
-static int bge_miibus_readreg	(device_t, int, int);
-static int bge_miibus_writereg	(device_t, int, int, int);
-static void bge_miibus_statchg	(device_t);
+static int bge_miibus_readreg(device_t, int, int);
+static int bge_miibus_writereg(device_t, int, int, int);
+static void bge_miibus_statchg(device_t);
 #ifdef DEVICE_POLLING
-static void bge_poll		(struct ifnet *ifp, enum poll_cmd cmd,
-				    int count);
-static void bge_poll_locked	(struct ifnet *ifp, enum poll_cmd cmd,
-				    int count);
+static void bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
 #endif
 
-static void bge_reset		(struct bge_softc *);
-static void bge_link_upd	(struct bge_softc *);
+static void bge_reset(struct bge_softc *);
+static void bge_link_upd(struct bge_softc *);
 
 static device_method_t bge_methods[] = {
 	/* Device interface */
@@ -306,23 +298,19 @@ DRIVER_MODULE(miibus, bge, miibus_driver, miibus_devclass, 0, 0);
 static int bge_fake_autoneg = 0;
 TUNABLE_INT("hw.bge.fake_autoneg", &bge_fake_autoneg);
 
-static u_int32_t
-bge_readmem_ind(sc, off)
-	struct bge_softc *sc;
-	int off;
+static uint32_t
+bge_readmem_ind(struct bge_softc *sc, int off)
 {
 	device_t dev;
 
 	dev = sc->bge_dev;
 
 	pci_write_config(dev, BGE_PCI_MEMWIN_BASEADDR, off, 4);
-	return(pci_read_config(dev, BGE_PCI_MEMWIN_DATA, 4));
+	return (pci_read_config(dev, BGE_PCI_MEMWIN_DATA, 4));
 }
 
 static void
-bge_writemem_ind(sc, off, val)
-	struct bge_softc *sc;
-	int off, val;
+bge_writemem_ind(struct bge_softc *sc, int off, int val)
 {
 	device_t dev;
 
@@ -330,29 +318,23 @@ bge_writemem_ind(sc, off, val)
 
 	pci_write_config(dev, BGE_PCI_MEMWIN_BASEADDR, off, 4);
 	pci_write_config(dev, BGE_PCI_MEMWIN_DATA, val, 4);
-
-	return;
 }
 
 #ifdef notdef
-static u_int32_t
-bge_readreg_ind(sc, off)
-	struct bge_softc *sc;
-	int off;
+static uint32_t
+bge_readreg_ind(struct bge_softc *sc, int off)
 {
 	device_t dev;
 
 	dev = sc->bge_dev;
 
 	pci_write_config(dev, BGE_PCI_REG_BASEADDR, off, 4);
-	return(pci_read_config(dev, BGE_PCI_REG_DATA, 4));
+	return (pci_read_config(dev, BGE_PCI_REG_DATA, 4));
 }
 #endif
 
 static void
-bge_writereg_ind(sc, off, val)
-	struct bge_softc *sc;
-	int off, val;
+bge_writereg_ind(struct bge_softc *sc, int off, int val)
 {
 	device_t dev;
 
@@ -360,8 +342,6 @@ bge_writereg_ind(sc, off, val)
 
 	pci_write_config(dev, BGE_PCI_REG_BASEADDR, off, 4);
 	pci_write_config(dev, BGE_PCI_REG_DATA, val, 4);
-
-	return;
 }
 
 /*
@@ -369,11 +349,7 @@ bge_writereg_ind(sc, off, val)
  */
 
 static void
-bge_dma_map_addr(arg, segs, nseg, error)
-	void *arg;
-	bus_dma_segment_t *segs;
-	int nseg;
-	int error;
+bge_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	struct bge_dmamap_arg *ctx;
 
@@ -388,19 +364,15 @@ bge_dma_map_addr(arg, segs, nseg, error)
 	}
 
 	ctx->bge_busaddr = segs->ds_addr;
-
-	return;
 }
 
 #ifdef notdef
-static u_int8_t
-bge_vpd_readbyte(sc, addr)
-	struct bge_softc *sc;
-	int addr;
+static uint8_t
+bge_vpd_readbyte(struct bge_softc *sc, int addr)
 {
 	int i;
 	device_t dev;
-	u_int32_t val;
+	uint32_t val;
 
 	dev = sc->bge_dev;
 	pci_write_config(dev, BGE_PCI_VPD_ADDR, addr, 2);
@@ -412,36 +384,30 @@ bge_vpd_readbyte(sc, addr)
 
 	if (i == BGE_TIMEOUT) {
 		device_printf(sc->bge_dev, "VPD read timed out\n");
-		return(0);
+		return (0);
 	}
 
 	val = pci_read_config(dev, BGE_PCI_VPD_DATA, 4);
 
-	return((val >> ((addr % 4) * 8)) & 0xFF);
+	return ((val >> ((addr % 4) * 8)) & 0xFF);
 }
 
 static void
-bge_vpd_read_res(sc, res, addr)
-	struct bge_softc *sc;
-	struct vpd_res *res;
-	int addr;
+bge_vpd_read_res(struct bge_softc *sc, struct vpd_res *res, int addr)
 {
 	int i;
-	u_int8_t *ptr;
+	uint8_t *ptr;
 
-	ptr = (u_int8_t *)res;
+	ptr = (uint8_t *)res;
 	for (i = 0; i < sizeof(struct vpd_res); i++)
 		ptr[i] = bge_vpd_readbyte(sc, i + addr);
-
-	return;
 }
 
 static void
-bge_vpd_read(sc)
-	struct bge_softc *sc;
+bge_vpd_read(struct bge_softc *sc)
 {
-	int pos = 0, i;
 	struct vpd_res res;
+	int i, pos = 0;
 
 	if (sc->bge_vpd_prodname != NULL)
 		free(sc->bge_vpd_prodname, M_DEVBUF);
@@ -479,8 +445,6 @@ bge_vpd_read(sc)
 	sc->bge_vpd_readonly = malloc(res.vr_len, M_DEVBUF, M_NOWAIT);
 	for (i = 0; i < res.vr_len + 1; i++)
 		sc->bge_vpd_readonly[i] = bge_vpd_readbyte(sc, i + pos);
-
-	return;
 }
 #endif
 
@@ -490,14 +454,11 @@ bge_vpd_read(sc)
  * auto access interface for reading the EEPROM. We use the auto
  * access method.
  */
-static u_int8_t
-bge_eeprom_getbyte(sc, addr, dest)
-	struct bge_softc *sc;
-	int addr;
-	u_int8_t *dest;
+static uint8_t
+bge_eeprom_getbyte(struct bge_softc *sc, int addr, uint8_t *dest)
 {
 	int i;
-	u_int32_t byte = 0;
+	uint32_t byte = 0;
 
 	/*
 	 * Enable use of auto EEPROM access so we can avoid
@@ -522,7 +483,7 @@ bge_eeprom_getbyte(sc, addr, dest)
 
 	if (i == BGE_TIMEOUT) {
 		device_printf(sc->bge_dev, "EEPROM read timed out\n");
-		return(1);
+		return (1);
 	}
 
 	/* Get result. */
@@ -530,39 +491,33 @@ bge_eeprom_getbyte(sc, addr, dest)
 
 	*dest = (byte >> ((addr % 4) * 8)) & 0xFF;
 
-	return(0);
+	return (0);
 }
 
 /*
  * Read a sequence of bytes from the EEPROM.
  */
 static int
-bge_read_eeprom(sc, dest, off, cnt)
-	struct bge_softc *sc;
-	caddr_t dest;
-	int off;
-	int cnt;
+bge_read_eeprom(struct bge_softc *sc, caddr_t dest, int off, int cnt)
 {
-	int err = 0, i;
-	u_int8_t byte = 0;
+	int i, error = 0;
+	uint8_t byte = 0;
 
 	for (i = 0; i < cnt; i++) {
-		err = bge_eeprom_getbyte(sc, off + i, &byte);
-		if (err)
+		error = bge_eeprom_getbyte(sc, off + i, &byte);
+		if (error)
 			break;
 		*(dest + i) = byte;
 	}
 
-	return(err ? 1 : 0);
+	return (error ? 1 : 0);
 }
 
 static int
-bge_miibus_readreg(dev, phy, reg)
-	device_t dev;
-	int phy, reg;
+bge_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct bge_softc *sc;
-	u_int32_t val, autopoll;
+	uint32_t val, autopoll;
 	int i;
 
 	sc = device_get_softc(dev);
@@ -577,7 +532,7 @@ bge_miibus_readreg(dev, phy, reg)
 	 * special-cased.
 	 */
 	if (phy != 1)
-		return(0);
+		return (0);
 
 	/* Reading with autopolling on may trigger PCI errors */
 	autopoll = CSR_READ_4(sc, BGE_MI_MODE);
@@ -610,18 +565,16 @@ done:
 	}
 
 	if (val & BGE_MICOMM_READFAIL)
-		return(0);
+		return (0);
 
-	return(val & 0xFFFF);
+	return (val & 0xFFFF);
 }
 
 static int
-bge_miibus_writereg(dev, phy, reg, val)
-	device_t dev;
-	int phy, reg, val;
+bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 {
 	struct bge_softc *sc;
-	u_int32_t autopoll;
+	uint32_t autopoll;
 	int i;
 
 	sc = device_get_softc(dev);
@@ -648,15 +601,14 @@ bge_miibus_writereg(dev, phy, reg, val)
 
 	if (i == BGE_TIMEOUT) {
 		if_printf(sc->bge_ifp, "PHY read timed out\n");
-		return(0);
+		return (0);
 	}
 
-	return(0);
+	return (0);
 }
 
 static void
-bge_miibus_statchg(dev)
-	device_t dev;
+bge_miibus_statchg(device_t dev)
 {
 	struct bge_softc *sc;
 	struct mii_data *mii;
@@ -665,39 +617,32 @@ bge_miibus_statchg(dev)
 	mii = device_get_softc(sc->bge_miibus);
 
 	BGE_CLRBIT(sc, BGE_MAC_MODE, BGE_MACMODE_PORTMODE);
-	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T) {
+	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T)
 		BGE_SETBIT(sc, BGE_MAC_MODE, BGE_PORTMODE_GMII);
-	} else {
+	else
 		BGE_SETBIT(sc, BGE_MAC_MODE, BGE_PORTMODE_MII);
-	}
 
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
+	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX)
 		BGE_CLRBIT(sc, BGE_MAC_MODE, BGE_MACMODE_HALF_DUPLEX);
-	} else {
+	else
 		BGE_SETBIT(sc, BGE_MAC_MODE, BGE_MACMODE_HALF_DUPLEX);
-	}
-
-	return;
 }
 
 /*
  * Intialize a standard receive ring descriptor.
  */
 static int
-bge_newbuf_std(sc, i, m)
-	struct bge_softc	*sc;
-	int			i;
-	struct mbuf		*m;
+bge_newbuf_std(struct bge_softc *sc, int i, struct mbuf *m)
 {
-	struct mbuf		*m_new = NULL;
-	struct bge_rx_bd	*r;
-	struct bge_dmamap_arg	ctx;
-	int			error;
+	struct mbuf *m_new = NULL;
+	struct bge_rx_bd *r;
+	struct bge_dmamap_arg ctx;
+	int error;
 
 	if (m == NULL) {
 		m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 		if (m_new == NULL)
-			return(ENOBUFS);
+			return (ENOBUFS);
 		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
 	} else {
 		m_new = m;
@@ -719,7 +664,7 @@ bge_newbuf_std(sc, i, m)
 			sc->bge_cdata.bge_rx_std_chain[i] = NULL;
 			m_freem(m_new);
 		}
-		return(ENOMEM);
+		return (ENOMEM);
 	}
 	r->bge_addr.bge_addr_lo = BGE_ADDR_LO(ctx.bge_busaddr);
 	r->bge_addr.bge_addr_hi = BGE_ADDR_HI(ctx.bge_busaddr);
@@ -731,7 +676,7 @@ bge_newbuf_std(sc, i, m)
 	    sc->bge_cdata.bge_rx_std_dmamap[i],
 	    BUS_DMASYNC_PREREAD);
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -739,10 +684,7 @@ bge_newbuf_std(sc, i, m)
  * a jumbo buffer from the pool managed internally by the driver.
  */
 static int
-bge_newbuf_jumbo(sc, i, m)
-	struct bge_softc *sc;
-	int i;
-	struct mbuf *m;
+bge_newbuf_jumbo(struct bge_softc *sc, int i, struct mbuf *m)
 {
 	bus_dma_segment_t segs[BGE_NSEG_JUMBO];
 	struct bge_extrx_bd *r;
@@ -753,12 +695,12 @@ bge_newbuf_jumbo(sc, i, m)
 	if (m == NULL) {
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL)
-			return(ENOBUFS);
+			return (ENOBUFS);
 
 		m_cljget(m_new, M_DONTWAIT, MJUM9BYTES);
 		if (!(m_new->m_flags & M_EXT)) {
 			m_freem(m_new);
-			return(ENOBUFS);
+			return (ENOBUFS);
 		}
 		m_new->m_len = m_new->m_pkthdr.len = MJUM9BYTES;
 	} else {
@@ -776,7 +718,7 @@ bge_newbuf_jumbo(sc, i, m)
 	if (error) {
 		if (m == NULL)
 			m_freem(m_new);
-		return(error);
+		return (error);
 	}
 	sc->bge_cdata.bge_rx_jumbo_chain[i] = m_new;
 
@@ -823,14 +765,13 @@ bge_newbuf_jumbo(sc, i, m)
  * the NIC.
  */
 static int
-bge_init_rx_ring_std(sc)
-	struct bge_softc *sc;
+bge_init_rx_ring_std(struct bge_softc *sc)
 {
 	int i;
 
 	for (i = 0; i < BGE_SSLOTS; i++) {
 		if (bge_newbuf_std(sc, i, NULL) == ENOBUFS)
-			return(ENOBUFS);
+			return (ENOBUFS);
 	};
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
@@ -840,12 +781,11 @@ bge_init_rx_ring_std(sc)
 	sc->bge_std = i - 1;
 	CSR_WRITE_4(sc, BGE_MBX_RX_STD_PROD_LO, sc->bge_std);
 
-	return(0);
+	return (0);
 }
 
 static void
-bge_free_rx_ring_std(sc)
-	struct bge_softc *sc;
+bge_free_rx_ring_std(struct bge_softc *sc)
 {
 	int i;
 
@@ -862,20 +802,17 @@ bge_free_rx_ring_std(sc)
 		bzero((char *)&sc->bge_ldata.bge_rx_std_ring[i],
 		    sizeof(struct bge_rx_bd));
 	}
-
-	return;
 }
 
 static int
-bge_init_rx_ring_jumbo(sc)
-	struct bge_softc *sc;
+bge_init_rx_ring_jumbo(struct bge_softc *sc)
 {
 	struct bge_rcb *rcb;
 	int i;
 
 	for (i = 0; i < BGE_JUMBO_RX_RING_CNT; i++) {
 		if (bge_newbuf_jumbo(sc, i, NULL) == ENOBUFS)
-			return(ENOBUFS);
+			return (ENOBUFS);
 	};
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
@@ -891,12 +828,11 @@ bge_init_rx_ring_jumbo(sc)
 
 	CSR_WRITE_4(sc, BGE_MBX_RX_JUMBO_PROD_LO, sc->bge_jumbo);
 
-	return(0);
+	return (0);
 }
 
 static void
-bge_free_rx_ring_jumbo(sc)
-	struct bge_softc *sc;
+bge_free_rx_ring_jumbo(struct bge_softc *sc)
 {
 	int i;
 
@@ -913,13 +849,10 @@ bge_free_rx_ring_jumbo(sc)
 		bzero((char *)&sc->bge_ldata.bge_rx_jumbo_ring[i],
 		    sizeof(struct bge_extrx_bd));
 	}
-
-	return;
 }
 
 static void
-bge_free_tx_ring(sc)
-	struct bge_softc *sc;
+bge_free_tx_ring(struct bge_softc *sc)
 {
 	int i;
 
@@ -939,13 +872,10 @@ bge_free_tx_ring(sc)
 		bzero((char *)&sc->bge_ldata.bge_tx_ring[i],
 		    sizeof(struct bge_tx_bd));
 	}
-
-	return;
 }
 
 static int
-bge_init_tx_ring(sc)
-	struct bge_softc *sc;
+bge_init_tx_ring(struct bge_softc *sc)
 {
 	sc->bge_txcnt = 0;
 	sc->bge_tx_saved_considx = 0;
@@ -964,16 +894,15 @@ bge_init_tx_ring(sc)
 	if (sc->bge_chiprev == BGE_CHIPREV_5700_BX)
 		CSR_WRITE_4(sc, BGE_MBX_TX_NIC_PROD0_LO, 0);
 
-	return(0);
+	return (0);
 }
 
 static void
-bge_setmulti(sc)
-	struct bge_softc *sc;
+bge_setmulti(struct bge_softc *sc)
 {
 	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
-	u_int32_t hashes[4] = { 0, 0, 0, 0 };
+	uint32_t hashes[4] = { 0, 0, 0, 0 };
 	int h, i;
 
 	BGE_LOCK_ASSERT(sc);
@@ -1003,8 +932,6 @@ bge_setmulti(sc)
 
 	for (i = 0; i < 4; i++)
 		CSR_WRITE_4(sc, BGE_MAR0 + (i * 4), hashes[i]);
-
-	return;
 }
 
 /*
@@ -1012,11 +939,10 @@ bge_setmulti(sc)
  * self-test results.
  */
 static int
-bge_chipinit(sc)
-	struct bge_softc *sc;
+bge_chipinit(struct bge_softc *sc)
 {
-	int			i;
-	u_int32_t		dma_rw_ctl;
+	uint32_t dma_rw_ctl;
+	int i;
 
 	/* Set endian type before we access any non-PCI registers. */
 	pci_write_config(sc->bge_dev, BGE_PCI_MISC_CTL, BGE_INIT, 4);
@@ -1027,7 +953,7 @@ bge_chipinit(sc)
 	 */
 	if (CSR_READ_4(sc, BGE_RXCPU_MODE) & BGE_RXCPUMODE_ROMFAIL) {
 		device_printf(sc->bge_dev, "RX CPU self-diagnostics failed!\n");
-		return(ENODEV);
+		return (ENODEV);
 	}
 
 	/* Clear the MAC control register */
@@ -1038,11 +964,11 @@ bge_chipinit(sc)
 	 * internal memory.
 	 */
 	for (i = BGE_STATS_BLOCK;
-	    i < BGE_STATS_BLOCK_END + 1; i += sizeof(u_int32_t))
+	    i < BGE_STATS_BLOCK_END + 1; i += sizeof(uint32_t))
 		BGE_MEMWIN_WRITE(sc, i, 0);
 
 	for (i = BGE_STATUS_BLOCK;
-	    i < BGE_STATUS_BLOCK_END + 1; i += sizeof(u_int32_t))
+	    i < BGE_STATUS_BLOCK_END + 1; i += sizeof(uint32_t))
 		BGE_MEMWIN_WRITE(sc, i, 0);
 
 	/* Set up the PCI DMA control register. */
@@ -1079,7 +1005,7 @@ bge_chipinit(sc)
 		 */
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5703 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5704) {
-			u_int32_t tmp;
+			uint32_t tmp;
 
 			tmp = CSR_READ_4(sc, BGE_PCI_CLKCTL) & 0x1f;
 			if (tmp == 0x6 || tmp == 0x7)
@@ -1121,12 +1047,11 @@ bge_chipinit(sc)
 	/* Set the timer prescaler (always 66Mhz) */
 	CSR_WRITE_4(sc, BGE_MISC_CFG, 65 << 1/*BGE_32BITTIME_66MHZ*/);
 
-	return(0);
+	return (0);
 }
 
 static int
-bge_blockinit(sc)
-	struct bge_softc *sc;
+bge_blockinit(struct bge_softc *sc)
 {
 	struct bge_rcb *rcb;
 	bus_size_t vrcb;
@@ -1199,7 +1124,7 @@ bge_blockinit(sc)
 		if (i == BGE_TIMEOUT) {
 			device_printf(sc->bge_dev,
 			    "buffer manager failed to start\n");
-			return(ENXIO);
+			return (ENXIO);
 		}
 	}
 
@@ -1216,7 +1141,7 @@ bge_blockinit(sc)
 
 	if (i == BGE_TIMEOUT) {
 		device_printf(sc->bge_dev, "flow-through queue init failed\n");
-		return(ENXIO);
+		return (ENXIO);
 	}
 
 	/* Initialize the standard RX ring control block */
@@ -1327,7 +1252,7 @@ bge_blockinit(sc)
 		    BGE_RCB_FLAG_RING_DISABLED));
 		RCB_WRITE_4(sc, vrcb, bge_nicaddr, 0);
 		CSR_WRITE_4(sc, BGE_MBX_RX_CONS0_LO +
-		    (i * (sizeof(u_int64_t))), 0);
+		    (i * (sizeof(uint64_t))), 0);
 		vrcb += sizeof(struct bge_rcb);
 	}
 
@@ -1389,7 +1314,7 @@ bge_blockinit(sc)
 	if (i == BGE_TIMEOUT) {
 		device_printf(sc->bge_dev,
 		    "host coalescing engine failed to idle\n");
-		return(ENXIO);
+		return (ENXIO);
 	}
 
 	/* Set up host coalescing defaults */
@@ -1535,7 +1460,7 @@ bge_blockinit(sc)
 	/* Enable link state change attentions. */
 	BGE_SETBIT(sc, BGE_MAC_EVT_ENB, BGE_EVTENB_LINK_CHANGED);
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -1547,8 +1472,7 @@ bge_blockinit(sc)
  * we'll always announce the right product name.
  */
 static int
-bge_probe(dev)
-	device_t dev;
+bge_probe(device_t dev)
 {
 	struct bge_type *t;
 	struct bge_softc *sc;
@@ -1569,7 +1493,7 @@ bge_probe(dev)
 #endif
 			descbuf = malloc(BGE_DEVDESC_MAX, M_TEMP, M_NOWAIT);
 			if (descbuf == NULL)
-				return(ENOMEM);
+				return (ENOMEM);
 			snprintf(descbuf, BGE_DEVDESC_MAX,
 			    "%s, ASIC rev. %#04x", t->bge_name,
 			    pci_read_config(dev, BGE_PCI_MISC_CTL, 4) >> 16);
@@ -1577,39 +1501,34 @@ bge_probe(dev)
 			if (pci_get_subvendor(dev) == DELL_VENDORID)
 				sc->bge_no_3_led = 1;
 			free(descbuf, M_TEMP);
-			return(0);
+			return (0);
 		}
 		t++;
 	}
 
-	return(ENXIO);
+	return (ENXIO);
 }
 
 static void
-bge_dma_free(sc)
-	struct bge_softc *sc;
+bge_dma_free(struct bge_softc *sc)
 {
 	int i;
 
-
-	/* Destroy DMA maps for RX buffers */
-
+	/* Destroy DMA maps for RX buffers. */
 	for (i = 0; i < BGE_STD_RX_RING_CNT; i++) {
 		if (sc->bge_cdata.bge_rx_std_dmamap[i])
 			bus_dmamap_destroy(sc->bge_cdata.bge_mtag,
 			    sc->bge_cdata.bge_rx_std_dmamap[i]);
 	}
 
-	/* Destroy DMA maps for jumbo RX buffers */
-
+	/* Destroy DMA maps for jumbo RX buffers. */
 	for (i = 0; i < BGE_JUMBO_RX_RING_CNT; i++) {
 		if (sc->bge_cdata.bge_rx_jumbo_dmamap[i])
 			bus_dmamap_destroy(sc->bge_cdata.bge_mtag_jumbo,
 			    sc->bge_cdata.bge_rx_jumbo_dmamap[i]);
 	}
 
-	/* Destroy DMA maps for TX buffers */
-
+	/* Destroy DMA maps for TX buffers. */
 	for (i = 0; i < BGE_TX_RING_CNT; i++) {
 		if (sc->bge_cdata.bge_tx_dmamap[i])
 			bus_dmamap_destroy(sc->bge_cdata.bge_mtag,
@@ -1620,8 +1539,7 @@ bge_dma_free(sc)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_mtag);
 
 
-	/* Destroy standard RX ring */
-
+	/* Destroy standard RX ring. */
 	if (sc->bge_cdata.bge_rx_std_ring_map)
 		bus_dmamap_unload(sc->bge_cdata.bge_rx_std_ring_tag,
 		    sc->bge_cdata.bge_rx_std_ring_map);
@@ -1633,8 +1551,7 @@ bge_dma_free(sc)
 	if (sc->bge_cdata.bge_rx_std_ring_tag)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_rx_std_ring_tag);
 
-	/* Destroy jumbo RX ring */
-
+	/* Destroy jumbo RX ring. */
 	if (sc->bge_cdata.bge_rx_jumbo_ring_map)
 		bus_dmamap_unload(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map);
@@ -1648,8 +1565,7 @@ bge_dma_free(sc)
 	if (sc->bge_cdata.bge_rx_jumbo_ring_tag)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_rx_jumbo_ring_tag);
 
-	/* Destroy RX return ring */
-
+	/* Destroy RX return ring. */
 	if (sc->bge_cdata.bge_rx_return_ring_map)
 		bus_dmamap_unload(sc->bge_cdata.bge_rx_return_ring_tag,
 		    sc->bge_cdata.bge_rx_return_ring_map);
@@ -1663,8 +1579,7 @@ bge_dma_free(sc)
 	if (sc->bge_cdata.bge_rx_return_ring_tag)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_rx_return_ring_tag);
 
-	/* Destroy TX ring */
-
+	/* Destroy TX ring. */
 	if (sc->bge_cdata.bge_tx_ring_map)
 		bus_dmamap_unload(sc->bge_cdata.bge_tx_ring_tag,
 		    sc->bge_cdata.bge_tx_ring_map);
@@ -1677,8 +1592,7 @@ bge_dma_free(sc)
 	if (sc->bge_cdata.bge_tx_ring_tag)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_tx_ring_tag);
 
-	/* Destroy status block */
-
+	/* Destroy status block. */
 	if (sc->bge_cdata.bge_status_map)
 		bus_dmamap_unload(sc->bge_cdata.bge_status_tag,
 		    sc->bge_cdata.bge_status_map);
@@ -1691,8 +1605,7 @@ bge_dma_free(sc)
 	if (sc->bge_cdata.bge_status_tag)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_status_tag);
 
-	/* Destroy statistics block */
-
+	/* Destroy statistics block. */
 	if (sc->bge_cdata.bge_stats_map)
 		bus_dmamap_unload(sc->bge_cdata.bge_stats_tag,
 		    sc->bge_cdata.bge_stats_map);
@@ -1705,21 +1618,17 @@ bge_dma_free(sc)
 	if (sc->bge_cdata.bge_stats_tag)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_stats_tag);
 
-	/* Destroy the parent tag */
-
+	/* Destroy the parent tag. */
 	if (sc->bge_cdata.bge_parent_tag)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_parent_tag);
-
-	return;
 }
 
 static int
-bge_dma_alloc(dev)
-	device_t dev;
+bge_dma_alloc(device_t dev)
 {
+	struct bge_dmamap_arg ctx;
 	struct bge_softc *sc;
 	int i, error;
-	struct bge_dmamap_arg ctx;
 
 	sc = device_get_softc(dev);
 
@@ -1756,32 +1665,29 @@ bge_dma_alloc(dev)
 		return (ENOMEM);
 	}
 
-	/* Create DMA maps for RX buffers */
-
+	/* Create DMA maps for RX buffers. */
 	for (i = 0; i < BGE_STD_RX_RING_CNT; i++) {
 		error = bus_dmamap_create(sc->bge_cdata.bge_mtag, 0,
 			    &sc->bge_cdata.bge_rx_std_dmamap[i]);
 		if (error) {
 			device_printf(sc->bge_dev,
 			    "can't create DMA map for RX\n");
-			return(ENOMEM);
+			return (ENOMEM);
 		}
 	}
 
-	/* Create DMA maps for TX buffers */
-
+	/* Create DMA maps for TX buffers. */
 	for (i = 0; i < BGE_TX_RING_CNT; i++) {
 		error = bus_dmamap_create(sc->bge_cdata.bge_mtag, 0,
 			    &sc->bge_cdata.bge_tx_dmamap[i]);
 		if (error) {
 			device_printf(sc->bge_dev,
 			    "can't create DMA map for RX\n");
-			return(ENOMEM);
+			return (ENOMEM);
 		}
 	}
 
-	/* Create tag for standard RX ring */
-
+	/* Create tag for standard RX ring. */
 	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
 	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
 	    NULL, BGE_STD_RX_RING_SZ, 1, BGE_STD_RX_RING_SZ, 0,
@@ -1792,8 +1698,7 @@ bge_dma_alloc(dev)
 		return (ENOMEM);
 	}
 
-	/* Allocate DMA'able memory for standard RX ring */
-
+	/* Allocate DMA'able memory for standard RX ring. */
 	error = bus_dmamem_alloc(sc->bge_cdata.bge_rx_std_ring_tag,
 	    (void **)&sc->bge_ldata.bge_rx_std_ring, BUS_DMA_NOWAIT,
 	    &sc->bge_cdata.bge_rx_std_ring_map);
@@ -1802,8 +1707,7 @@ bge_dma_alloc(dev)
 
 	bzero((char *)sc->bge_ldata.bge_rx_std_ring, BGE_STD_RX_RING_SZ);
 
-	/* Load the address of the standard RX ring */
-
+	/* Load the address of the standard RX ring. */
 	ctx.bge_maxsegs = 1;
 	ctx.sc = sc;
 
@@ -1816,38 +1720,20 @@ bge_dma_alloc(dev)
 
 	sc->bge_ldata.bge_rx_std_ring_paddr = ctx.bge_busaddr;
 
+	/* Create tags for jumbo mbufs. */
 	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750) {
-
-		/*
-		 * Create tag for jumbo mbufs.
-		 * This is really a bit of a kludge. We allocate a special
-		 * jumbo buffer pool which (thanks to the way our DMA
-		 * memory allocation works) will consist of contiguous
-		 * pages. This means that even though a jumbo buffer might
-		 * be larger than a page size, we don't really need to
-		 * map it into more than one DMA segment. However, the
-		 * default mbuf tag will result in multi-segment mappings,
-		 * so we have to create a special jumbo mbuf tag that
-		 * lets us get away with mapping the jumbo buffers as
-		 * a single segment. I think eventually the driver should
-		 * be changed so that it uses ordinary mbufs and cluster
-		 * buffers, i.e. jumbo frames can span multiple DMA
-		 * descriptors. But that's a project for another day.
-		 */
-
 		error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
 		    1, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
 		    NULL, MJUM9BYTES, BGE_NSEG_JUMBO, PAGE_SIZE,
 		    0, NULL, NULL, &sc->bge_cdata.bge_mtag_jumbo);
-
 		if (error) {
 			device_printf(sc->bge_dev,
-			    "could not allocate dma tag\n");
+			    "could not allocate jumbo dma tag\n");
 			return (ENOMEM);
 		}
 
-		/* Create tag for jumbo RX ring */
+		/* Create tag for jumbo RX ring. */
 		error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
 		    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
 		    NULL, BGE_JUMBO_RX_RING_SZ, 1, BGE_JUMBO_RX_RING_SZ, 0,
@@ -1855,11 +1741,11 @@ bge_dma_alloc(dev)
 
 		if (error) {
 			device_printf(sc->bge_dev,
-			    "could not allocate dma tag\n");
+			    "could not allocate jumbo ring dma tag\n");
 			return (ENOMEM);
 		}
 
-		/* Allocate DMA'able memory for jumbo RX ring */
+		/* Allocate DMA'able memory for jumbo RX ring. */
 		error = bus_dmamem_alloc(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    (void **)&sc->bge_ldata.bge_rx_jumbo_ring,
 		    BUS_DMA_NOWAIT | BUS_DMA_ZERO,
@@ -1867,7 +1753,7 @@ bge_dma_alloc(dev)
 		if (error)
 			return (ENOMEM);
 
-		/* Load the address of the jumbo RX ring */
+		/* Load the address of the jumbo RX ring. */
 		ctx.bge_maxsegs = 1;
 		ctx.sc = sc;
 
@@ -1881,22 +1767,20 @@ bge_dma_alloc(dev)
 
 		sc->bge_ldata.bge_rx_jumbo_ring_paddr = ctx.bge_busaddr;
 
-		/* Create DMA maps for jumbo RX buffers */
-
+		/* Create DMA maps for jumbo RX buffers. */
 		for (i = 0; i < BGE_JUMBO_RX_RING_CNT; i++) {
 			error = bus_dmamap_create(sc->bge_cdata.bge_mtag_jumbo,
 				    0, &sc->bge_cdata.bge_rx_jumbo_dmamap[i]);
 			if (error) {
 				device_printf(sc->bge_dev,
-				    "can't create DMA map for RX\n");
-				return(ENOMEM);
+				    "can't create DMA map for jumbo RX\n");
+				return (ENOMEM);
 			}
 		}
 
 	}
 
-	/* Create tag for RX return ring */
-
+	/* Create tag for RX return ring. */
 	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
 	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
 	    NULL, BGE_RX_RTN_RING_SZ(sc), 1, BGE_RX_RTN_RING_SZ(sc), 0,
@@ -1907,8 +1791,7 @@ bge_dma_alloc(dev)
 		return (ENOMEM);
 	}
 
-	/* Allocate DMA'able memory for RX return ring */
-
+	/* Allocate DMA'able memory for RX return ring. */
 	error = bus_dmamem_alloc(sc->bge_cdata.bge_rx_return_ring_tag,
 	    (void **)&sc->bge_ldata.bge_rx_return_ring, BUS_DMA_NOWAIT,
 	    &sc->bge_cdata.bge_rx_return_ring_map);
@@ -1918,8 +1801,7 @@ bge_dma_alloc(dev)
 	bzero((char *)sc->bge_ldata.bge_rx_return_ring,
 	    BGE_RX_RTN_RING_SZ(sc));
 
-	/* Load the address of the RX return ring */
-
+	/* Load the address of the RX return ring. */
 	ctx.bge_maxsegs = 1;
 	ctx.sc = sc;
 
@@ -1933,8 +1815,7 @@ bge_dma_alloc(dev)
 
 	sc->bge_ldata.bge_rx_return_ring_paddr = ctx.bge_busaddr;
 
-	/* Create tag for TX ring */
-
+	/* Create tag for TX ring. */
 	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
 	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
 	    NULL, BGE_TX_RING_SZ, 1, BGE_TX_RING_SZ, 0, NULL, NULL,
@@ -1945,8 +1826,7 @@ bge_dma_alloc(dev)
 		return (ENOMEM);
 	}
 
-	/* Allocate DMA'able memory for TX ring */
-
+	/* Allocate DMA'able memory for TX ring. */
 	error = bus_dmamem_alloc(sc->bge_cdata.bge_tx_ring_tag,
 	    (void **)&sc->bge_ldata.bge_tx_ring, BUS_DMA_NOWAIT,
 	    &sc->bge_cdata.bge_tx_ring_map);
@@ -1955,8 +1835,7 @@ bge_dma_alloc(dev)
 
 	bzero((char *)sc->bge_ldata.bge_tx_ring, BGE_TX_RING_SZ);
 
-	/* Load the address of the TX ring */
-
+	/* Load the address of the TX ring. */
 	ctx.bge_maxsegs = 1;
 	ctx.sc = sc;
 
@@ -1969,8 +1848,7 @@ bge_dma_alloc(dev)
 
 	sc->bge_ldata.bge_tx_ring_paddr = ctx.bge_busaddr;
 
-	/* Create tag for status block */
-
+	/* Create tag for status block. */
 	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
 	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
 	    NULL, BGE_STATUS_BLK_SZ, 1, BGE_STATUS_BLK_SZ, 0,
@@ -1981,8 +1859,7 @@ bge_dma_alloc(dev)
 		return (ENOMEM);
 	}
 
-	/* Allocate DMA'able memory for status block */
-
+	/* Allocate DMA'able memory for status block. */
 	error = bus_dmamem_alloc(sc->bge_cdata.bge_status_tag,
 	    (void **)&sc->bge_ldata.bge_status_block, BUS_DMA_NOWAIT,
 	    &sc->bge_cdata.bge_status_map);
@@ -1991,8 +1868,7 @@ bge_dma_alloc(dev)
 
 	bzero((char *)sc->bge_ldata.bge_status_block, BGE_STATUS_BLK_SZ);
 
-	/* Load the address of the status block */
-
+	/* Load the address of the status block. */
 	ctx.sc = sc;
 	ctx.bge_maxsegs = 1;
 
@@ -2005,8 +1881,7 @@ bge_dma_alloc(dev)
 
 	sc->bge_ldata.bge_status_block_paddr = ctx.bge_busaddr;
 
-	/* Create tag for statistics block */
-
+	/* Create tag for statistics block. */
 	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
 	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
 	    NULL, BGE_STATS_SZ, 1, BGE_STATS_SZ, 0, NULL, NULL,
@@ -2017,8 +1892,7 @@ bge_dma_alloc(dev)
 		return (ENOMEM);
 	}
 
-	/* Allocate DMA'able memory for statistics block */
-
+	/* Allocate DMA'able memory for statistics block. */
 	error = bus_dmamem_alloc(sc->bge_cdata.bge_stats_tag,
 	    (void **)&sc->bge_ldata.bge_stats, BUS_DMA_NOWAIT,
 	    &sc->bge_cdata.bge_stats_map);
@@ -2027,8 +1901,7 @@ bge_dma_alloc(dev)
 
 	bzero((char *)sc->bge_ldata.bge_stats, BGE_STATS_SZ);
 
-	/* Load the address of the statstics block */
-
+	/* Load the address of the statstics block. */
 	ctx.sc = sc;
 	ctx.bge_maxsegs = 1;
 
@@ -2041,17 +1914,16 @@ bge_dma_alloc(dev)
 
 	sc->bge_ldata.bge_stats_paddr = ctx.bge_busaddr;
 
-	return(0);
+	return (0);
 }
 
 static int
-bge_attach(dev)
-	device_t dev;
+bge_attach(device_t dev)
 {
 	struct ifnet *ifp;
 	struct bge_softc *sc;
-	u_int32_t hwcfg = 0;
-	u_int32_t mac_tmp = 0;
+	uint32_t hwcfg = 0;
+	uint32_t mac_tmp = 0;
 	u_char eaddr[6];
 	int error = 0, rid;
 
@@ -2076,7 +1948,7 @@ bge_attach(dev)
 	sc->bge_btag = rman_get_bustag(sc->bge_res);
 	sc->bge_bhandle = rman_get_bushandle(sc->bge_res);
 
-	/* Allocate interrupt */
+	/* Allocate interrupt. */
 	rid = 0;
 
 	sc->bge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
@@ -2111,7 +1983,7 @@ bge_attach(dev)
 	 * PCI-Express?
 	 */
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5750) {
-		u_int32_t v;
+		uint32_t v;
 
 		v = pci_read_config(dev, BGE_PCI_MSI_CAPID, 4);
 		if (((v >> 8) & 0xff) == BGE_PCIE_CAPID_REG) {
@@ -2300,12 +2172,11 @@ bge_attach(dev)
 	}
 
 fail:
-	return(error);
+	return (error);
 }
 
 static int
-bge_detach(dev)
-	device_t dev;
+bge_detach(device_t dev)
 {
 	struct bge_softc *sc;
 	struct ifnet *ifp;
@@ -2334,12 +2205,11 @@ bge_detach(dev)
 
 	bge_release_resources(sc);
 
-	return(0);
+	return (0);
 }
 
 static void
-bge_release_resources(sc)
-	struct bge_softc *sc;
+bge_release_resources(struct bge_softc *sc)
 {
 	device_t dev;
 
@@ -2368,16 +2238,13 @@ bge_release_resources(sc)
 
 	if (mtx_initialized(&sc->bge_mtx))	/* XXX */
 		BGE_LOCK_DESTROY(sc);
-
-	return;
 }
 
 static void
-bge_reset(sc)
-	struct bge_softc *sc;
+bge_reset(struct bge_softc *sc)
 {
 	device_t dev;
-	u_int32_t cachesize, command, pcistate, reset;
+	uint32_t cachesize, command, pcistate, reset;
 	int i, val = 0;
 
 	dev = sc->bge_dev;
@@ -2422,7 +2289,7 @@ bge_reset(sc)
 		pci_write_config(dev, 0xd8, 0xf5000, 4);
 	}
 
-	/* Reset some of the PCI state that got zapped by reset */
+	/* Reset some of the PCI state that got zapped by reset. */
 	pci_write_config(dev, BGE_PCI_MISC_CTL,
 	    BGE_PCIMISCCTL_INDIRECT_ACCESS|BGE_PCIMISCCTL_MASK_PCI_INTR|
 	    BGE_HIF_SWAP_OPTIONS|BGE_PCIMISCCTL_PCISTATE_RW, 4);
@@ -2472,7 +2339,7 @@ bge_reset(sc)
 		DELAY(10);
 	}
 
-	/* Fix up byte swapping */
+	/* Fix up byte swapping. */
 	CSR_WRITE_4(sc, BGE_MODE_CTL, BGE_DMA_SWAP_OPTIONS|
 	    BGE_MODECTL_BYTESWAP_DATA);
 
@@ -2498,8 +2365,6 @@ bge_reset(sc)
 		CSR_WRITE_4(sc, 0x7c00, v | (1<<25));
 	}
 	DELAY(10000);
-
-	return;
 }
 
 /*
@@ -2512,15 +2377,14 @@ bge_reset(sc)
  */
 
 static void
-bge_rxeof(sc)
-	struct bge_softc *sc;
+bge_rxeof(struct bge_softc *sc)
 {
 	struct ifnet *ifp;
 	int stdcnt = 0, jumbocnt = 0;
 
 	BGE_LOCK_ASSERT(sc);
 
-	/* Nothing to do */
+	/* Nothing to do. */
 	if (sc->bge_rx_saved_considx ==
 	    sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx)
 		return;
@@ -2541,9 +2405,9 @@ bge_rxeof(sc)
 	while(sc->bge_rx_saved_considx !=
 	    sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx) {
 		struct bge_rx_bd	*cur_rx;
-		u_int32_t		rxidx;
+		uint32_t		rxidx;
 		struct mbuf		*m = NULL;
-		u_int16_t		vlan_tag = 0;
+		uint16_t		vlan_tag = 0;
 		int			have_tag = 0;
 
 #ifdef DEVICE_POLLING
@@ -2673,15 +2537,14 @@ bge_rxeof(sc)
 }
 
 static void
-bge_txeof(sc)
-	struct bge_softc *sc;
+bge_txeof(struct bge_softc *sc)
 {
 	struct bge_tx_bd *cur_tx = NULL;
 	struct ifnet *ifp;
 
 	BGE_LOCK_ASSERT(sc);
 
-	/* Nothing to do */
+	/* Nothing to do. */
 	if (sc->bge_tx_saved_considx ==
 	    sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx)
 		return;
@@ -2697,7 +2560,7 @@ bge_txeof(sc)
 	 */
 	while (sc->bge_tx_saved_considx !=
 	    sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx) {
-		u_int32_t		idx = 0;
+		uint32_t		idx = 0;
 
 		idx = sc->bge_tx_saved_considx;
 		cur_tx = &sc->bge_ldata.bge_tx_ring[idx];
@@ -2726,25 +2589,19 @@ static void
 bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct bge_softc *sc = ifp->if_softc;
+	uint32_t statusword;
 	
 	BGE_LOCK(sc);
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		bge_poll_locked(ifp, cmd, count);
-	BGE_UNLOCK(sc);
-}
-
-static void
-bge_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
-{
-	struct bge_softc *sc = ifp->if_softc;
-	uint32_t statusword;
-
-	BGE_LOCK_ASSERT(sc);
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		BGE_UNLOCK(sc);
+		return;
+	}
 
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
 	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_POSTREAD);
 
-	statusword = atomic_readandclear_32(&sc->bge_ldata.bge_status_block->bge_status);
+	statusword = atomic_readandclear_32(
+	    &sc->bge_ldata.bge_status_block->bge_status);
 
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
 	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_PREREAD);
@@ -2764,12 +2621,13 @@ bge_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	bge_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		bge_start_locked(ifp);
+
+	BGE_UNLOCK(sc);
 }
 #endif /* DEVICE_POLLING */
 
 static void
-bge_intr(xsc)
-	void *xsc;
+bge_intr(void *xsc)
 {
 	struct bge_softc *sc;
 	struct ifnet *ifp;
@@ -2808,10 +2666,10 @@ bge_intr(xsc)
 		bge_link_upd(sc);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		/* Check RX return ring producer/consumer */
+		/* Check RX return ring producer/consumer. */
 		bge_rxeof(sc);
 
-		/* Check TX ring producer/consumer */
+		/* Check TX ring producer/consumer. */
 		bge_txeof(sc);
 	}
 
@@ -2823,13 +2681,10 @@ bge_intr(xsc)
 		bge_start_locked(ifp);
 
 	BGE_UNLOCK(sc);
-
-	return;
 }
 
 static void
-bge_tick_locked(sc)
-	struct bge_softc *sc;
+bge_tick_locked(struct bge_softc *sc)
 {
 	struct mii_data *mii = NULL;
 
@@ -2851,7 +2706,7 @@ bge_tick_locked(sc)
 		 * and trigger interrupt.
 		 */
 #ifdef DEVICE_POLLING
-		/* In polling mode we poll link state in bge_poll_locked() */
+		/* In polling mode we poll link state in bge_poll(). */
 		if (!(sc->bge_ifp->if_capenable & IFCAP_POLLING))
 #endif
 		{
@@ -2864,8 +2719,7 @@ bge_tick_locked(sc)
 }
 
 static void
-bge_tick(xsc)
-	void *xsc;
+bge_tick(void *xsc)
 {
 	struct bge_softc *sc;
 
@@ -2877,18 +2731,17 @@ bge_tick(xsc)
 }
 
 static void
-bge_stats_update_regs(sc)
-	struct bge_softc *sc;
+bge_stats_update_regs(struct bge_softc *sc)
 {
-	struct ifnet *ifp;
 	struct bge_mac_stats_regs stats;
-	u_int32_t *s;
-	u_long cnt;			/* current register value */
+	struct ifnet *ifp;
+	uint32_t *s;
+	u_long cnt;	/* current register value */
 	int i;
 
 	ifp = sc->bge_ifp;
 
-	s = (u_int32_t *)&stats;
+	s = (uint32_t *)&stats;
 	for (i = 0; i < sizeof(struct bge_mac_stats_regs); i += 4) {
 		*s = CSR_READ_4(sc, BGE_RX_STATS + i);
 		s++;
@@ -2904,12 +2757,11 @@ bge_stats_update_regs(sc)
 }
 
 static void
-bge_stats_update(sc)
-	struct bge_softc *sc;
+bge_stats_update(struct bge_softc *sc)
 {
 	struct ifnet *ifp;
 	bus_size_t stats;
-	u_long cnt;			/* current register value */
+	u_long cnt;	/* current register value */
 
 	ifp = sc->bge_ifp;
 
@@ -2993,10 +2845,7 @@ bge_cksum_pad(struct mbuf *m)
  * pointers to descriptors.
  */
 static int
-bge_encap(sc, m_head, txidx)
-	struct bge_softc *sc;
-	struct mbuf *m_head;
-	uint32_t *txidx;
+bge_encap(struct bge_softc *sc, struct mbuf *m_head, uint32_t *txidx)
 {
 	bus_dma_segment_t	segs[BGE_NSEG_NEW];
 	bus_dmamap_t		map;
@@ -3094,8 +2943,7 @@ bge_encap(sc, m_head, txidx)
  * to the mbuf data regions directly in the transmit descriptors.
  */
 static void
-bge_start_locked(ifp)
-	struct ifnet *ifp;
+bge_start_locked(struct ifnet *ifp)
 {
 	struct bge_softc *sc;
 	struct mbuf *m_head = NULL;
@@ -3156,12 +3004,11 @@ bge_start_locked(ifp)
 		BPF_MTAP(ifp, m_head);
 	}
 
-	if (count == 0) {
-		/* no packets were dequeued */
+	if (count == 0)
+		/* No packets were dequeued. */
 		return;
-	}
 
-	/* Transmit */
+	/* Transmit. */
 	CSR_WRITE_4(sc, BGE_MBX_TX_HOST_PROD0_LO, prodidx);
 	/* 5700 b2 errata */
 	if (sc->bge_chiprev == BGE_CHIPREV_5700_BX)
@@ -3173,8 +3020,6 @@ bge_start_locked(ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	ifp->if_timer = 5;
-
-	return;
 }
 
 /*
@@ -3182,8 +3027,7 @@ bge_start_locked(ifp)
  * to the mbuf data regions directly in the transmit descriptors.
  */
 static void
-bge_start(ifp)
-	struct ifnet *ifp;
+bge_start(struct ifnet *ifp)
 {
 	struct bge_softc *sc;
 
@@ -3194,11 +3038,10 @@ bge_start(ifp)
 }
 
 static void
-bge_init_locked(sc)
-	struct bge_softc *sc;
+bge_init_locked(struct bge_softc *sc)
 {
 	struct ifnet *ifp;
-	u_int16_t *m;
+	uint16_t *m;
 
 	BGE_LOCK_ASSERT(sc);
 
@@ -3228,7 +3071,7 @@ bge_init_locked(sc)
 	    ETHER_HDR_LEN + ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN);
 
 	/* Load our MAC address. */
-	m = (u_int16_t *)IF_LLADDR(sc->bge_ifp);
+	m = (uint16_t *)IF_LLADDR(sc->bge_ifp);
 	CSR_WRITE_4(sc, BGE_MAC_ADDR1_LO, htons(m[0]));
 	CSR_WRITE_4(sc, BGE_MAC_ADDR1_HI, (htons(m[1]) << 16) | htons(m[2]));
 
@@ -3251,7 +3094,7 @@ bge_init_locked(sc)
 	 * entry of the ring.
 	 */
 	if (sc->bge_chipid == BGE_CHIPID_BCM5705_A0) {
-		u_int32_t		v, i;
+		uint32_t		v, i;
 		for (i = 0; i < 10; i++) {
 			DELAY(20);
 			v = bge_readmem_ind(sc, BGE_STD_RX_RINGS + 8);
@@ -3267,16 +3110,16 @@ bge_init_locked(sc)
 	if (ifp->if_mtu > (ETHERMTU + ETHER_HDR_LEN + ETHER_CRC_LEN))
 		bge_init_rx_ring_jumbo(sc);
 
-	/* Init our RX return ring index */
+	/* Init our RX return ring index. */
 	sc->bge_rx_saved_considx = 0;
 
 	/* Init TX ring. */
 	bge_init_tx_ring(sc);
 
-	/* Turn on transmitter */
+	/* Turn on transmitter. */
 	BGE_SETBIT(sc, BGE_TX_MODE, BGE_TXMODE_ENABLE);
 
-	/* Turn on receiver */
+	/* Turn on receiver. */
 	BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_ENABLE);
 
 	/* Tell firmware we're alive. */
@@ -3309,24 +3152,20 @@ bge_init_locked(sc)
 }
 
 static void
-bge_init(xsc)
-	void *xsc;
+bge_init(void *xsc)
 {
 	struct bge_softc *sc = xsc;
 
 	BGE_LOCK(sc);
 	bge_init_locked(sc);
 	BGE_UNLOCK(sc);
-
-	return;
 }
 
 /*
  * Set media options.
  */
 static int
-bge_ifmedia_upd(ifp)
-	struct ifnet *ifp;
+bge_ifmedia_upd(struct ifnet *ifp)
 {
 	struct bge_softc *sc;
 	struct mii_data *mii;
@@ -3338,7 +3177,7 @@ bge_ifmedia_upd(ifp)
 	/* If this is a 1000baseX NIC, enable the TBI port. */
 	if (sc->bge_tbi) {
 		if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
-			return(EINVAL);
+			return (EINVAL);
 		switch(IFM_SUBTYPE(ifm->ifm_media)) {
 		case IFM_AUTO:
 			/*
@@ -3370,9 +3209,9 @@ bge_ifmedia_upd(ifp)
 			}
 			break;
 		default:
-			return(EINVAL);
+			return (EINVAL);
 		}
-		return(0);
+		return (0);
 	}
 
 	sc->bge_link_evt++;
@@ -3385,16 +3224,14 @@ bge_ifmedia_upd(ifp)
 	}
 	mii_mediachg(mii);
 
-	return(0);
+	return (0);
 }
 
 /*
  * Report current media status.
  */
 static void
-bge_ifmedia_sts(ifp, ifmr)
-	struct ifnet *ifp;
-	struct ifmediareq *ifmr;
+bge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct bge_softc *sc;
 	struct mii_data *mii;
@@ -3419,22 +3256,17 @@ bge_ifmedia_sts(ifp, ifmr)
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
-
-	return;
 }
 
 static int
-bge_ioctl(ifp, command, data)
-	struct ifnet *ifp;
-	u_long command;
-	caddr_t data;
+bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct bge_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
-	int mask, error = 0;
 	struct mii_data *mii;
+	int mask, error = 0;
 
-	switch(command) {
+	switch (command) {
 	case SIOCSIFMTU:
 		/* Disallow jumbo frames on 5705. */
 		if (((sc->bge_asicrev == BGE_ASICREV_BCM5705 ||
@@ -3509,7 +3341,7 @@ bge_ioctl(ifp, command, data)
 			if (ifr->ifr_reqcap & IFCAP_POLLING) {
 				error = ether_poll_register(bge_poll, ifp);
 				if (error)
-					return(error);
+					return (error);
 				BGE_LOCK(sc);
 				BGE_SETBIT(sc, BGE_PCI_MISC_CTL,
 				    BGE_PCIMISCCTL_MASK_PCI_INTR);
@@ -3547,12 +3379,11 @@ bge_ioctl(ifp, command, data)
 		break;
 	}
 
-	return(error);
+	return (error);
 }
 
 static void
-bge_watchdog(ifp)
-	struct ifnet *ifp;
+bge_watchdog(struct ifnet *ifp)
 {
 	struct bge_softc *sc;
 
@@ -3564,8 +3395,6 @@ bge_watchdog(ifp)
 	bge_init(sc);
 
 	ifp->if_oerrors++;
-
-	return;
 }
 
 /*
@@ -3573,8 +3402,7 @@ bge_watchdog(ifp)
  * RX and TX lists.
  */
 static void
-bge_stop(sc)
-	struct bge_softc *sc;
+bge_stop(struct bge_softc *sc)
 {
 	struct ifnet *ifp;
 	struct ifmedia_entry *ifm;
@@ -3591,7 +3419,7 @@ bge_stop(sc)
 	callout_stop(&sc->bge_stat_ch);
 
 	/*
-	 * Disable all of the receiver blocks
+	 * Disable all of the receiver blocks.
 	 */
 	BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_ENABLE);
 	BGE_CLRBIT(sc, BGE_RBDI_MODE, BGE_RBDIMODE_ENABLE);
@@ -3604,7 +3432,7 @@ bge_stop(sc)
 	BGE_CLRBIT(sc, BGE_RBDC_MODE, BGE_RBDCMODE_ENABLE);
 
 	/*
-	 * Disable all of the transmit blocks
+	 * Disable all of the transmit blocks.
 	 */
 	BGE_CLRBIT(sc, BGE_SRS_MODE, BGE_SRSMODE_ENABLE);
 	BGE_CLRBIT(sc, BGE_SBDI_MODE, BGE_SBDIMODE_ENABLE);
@@ -3694,8 +3522,7 @@ bge_stop(sc)
  * get confused by errant DMAs when rebooting.
  */
 static void
-bge_shutdown(dev)
-	device_t dev;
+bge_shutdown(device_t dev)
 {
 	struct bge_softc *sc;
 
@@ -3705,8 +3532,6 @@ bge_shutdown(dev)
 	bge_stop(sc);
 	bge_reset(sc);
 	BGE_UNLOCK(sc);
-
-	return;
 }
 
 static int
@@ -3742,15 +3567,14 @@ bge_resume(device_t dev)
 }
 
 static void
-bge_link_upd(sc)
-	struct bge_softc *sc;
+bge_link_upd(struct bge_softc *sc)
 {
 	struct mii_data *mii;
 	uint32_t link, status;
 
 	BGE_LOCK_ASSERT(sc);
 
-	/* Clear 'pending link event' flag */
+	/* Clear 'pending link event' flag. */
 	sc->bge_link_evt = 0;
 
 	/*
@@ -3790,7 +3614,7 @@ bge_link_upd(sc)
 					if_printf(sc->bge_ifp, "link DOWN\n");
 			}
 
-			/* Clear the interrupt */
+			/* Clear the interrupt. */
 			CSR_WRITE_4(sc, BGE_MAC_EVT_ENB,
 			    BGE_EVTENB_MI_INTERRUPT);
 			bge_miibus_readreg(sc->bge_dev, 1, BRGPHY_MII_ISR);
@@ -3811,7 +3635,8 @@ bge_link_upd(sc)
 				CSR_WRITE_4(sc, BGE_MAC_STS, 0xFFFFFFFF);
 				if (bootverbose)
 					if_printf(sc->bge_ifp, "link UP\n");
-				if_link_state_change(sc->bge_ifp, LINK_STATE_UP);
+				if_link_state_change(sc->bge_ifp,
+				    LINK_STATE_UP);
 			}
 		} else if (sc->bge_link) {
 			sc->bge_link = 0;
@@ -3850,7 +3675,7 @@ bge_link_upd(sc)
 		}
 	}
 
-	/* Clear the attention */
+	/* Clear the attention. */
 	CSR_WRITE_4(sc, BGE_MAC_STS, BGE_MACSTAT_SYNC_CHANGED|
 	    BGE_MACSTAT_CFG_CHANGED|BGE_MACSTAT_MI_COMPLETE|
 	    BGE_MACSTAT_LINK_CHANGED);
