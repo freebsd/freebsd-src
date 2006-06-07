@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2006
+.Dd June 7, 2006
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -316,12 +316,38 @@ variable
 Source in the configuration files for
 .Ar name .
 First,
+.Pa /etc/defaults/rc.conf
+and
 .Pa /etc/rc.conf
-is sourced if it has not yet been read in.
+are sourced if they have not yet been read in.
 Then,
-.Pa /etc/rc.conf.d/ Ns Ar name
-is sourced if it is an existing file.
-The latter may also contain other variable assignments to override
+.Va etcdir
+is set to
+.Pa /etc
+if
+.Va command Ap s
+prefix (or
+.Va ${name} Ns Va _program Ap s
+if it is defined) is
+.Pa /
+or
+.Pa /usr ,
+otherwise
+.Va etcdir
+is set to
+.Pa ${prefix} Ns Pa /etc .
+Once those variables are set accordingly,
+.Pa /etc/rc.conf.d/ Ns Va ${name}
+is sourced if the file exists (but it is deprecated if
+.Va etcdir
+is different than
+.Pa /etc )
+and then
+.Pa ${etcdir} Ns Pa /defaults/ Ns Va ${name}
+and
+.Va ${etcdir} Ns Pa /rc.conf.d/ Ns Va ${name}
+are sourced if these files exist.
+All these files may also contain other variable assignments to override
 .Ic run_rc_command
 arguments defined by the calling script, to provide an easy
 mechanism for an administrator to override the behaviour of a given
