@@ -463,6 +463,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct proc *p;
 	int oonstack;
 	u_long sp;
+	register_t addr;
 
 	oonstack = 0;
 	td = curthread;
@@ -480,7 +481,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/* Make sure we have a signal trampoline to return to. */
 	if (p->p_md.md_sigtramp == NULL) {
 		/*
-		 * No signal tramoline... kill the process.
+		 * No signal trampoline... kill the process.
 		 */
 		CTR0(KTR_SIG, "sendsig: no sigtramp");
 		printf("sendsig: %s is too old, rebuild it\n", p->p_comm);
@@ -514,13 +515,25 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	/* Build the argument list for the signal handler. */
 	tf->tf_out[0] = sig;
-	tf->tf_out[1] = (register_t)&sfp->sf_si;
 	tf->tf_out[2] = (register_t)&sfp->sf_uc;
 	tf->tf_out[4] = (register_t)catcher;
-	/* Fill siginfo structure. */
-	sf.sf_si.si_signo = sig;
-	sf.sf_si.si_code = code;
-	sf.sf_si.si_addr = (void *)tf->tf_sfar;
+	if (tf->tf_type == T_DATA_MISS || tf->tf_type == T_DATA_PROTECTION)
+		addr = tf->tf_sfar;
+	else
+		addr = tf->tf_tpc;
+	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
+		/* Signal handler installed with SA_SIGINFO. */
+		tf->tf_out[1] = (register_t)&sfp->sf_si;
+
+		/* Fill in POSIX parts. */
+		sf.sf_si.si_signo = sig; /* maybe a translated signal */
+		sf.sf_si.si_code = code;
+		sf.sf_si.si_addr = (void *)addr;
+	} else {
+		/* Old FreeBSD-style arguments. */
+		tf->tf_out[1] = code;
+		tf->tf_out[3] = addr;
+	}
 
 	/* Copy the sigframe out to the user's stack. */
 	if (rwindow_save(td) != 0 || copyout(&sf, sfp, sizeof(*sfp)) != 0 ||
@@ -554,14 +567,20 @@ cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
 {
 	struct proc *p;
 	struct thread *td;
+	struct trapframe *tf;
 
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	tf = td->td_frame;
 
 	bzero(si, sizeof(*si));
 	si->si_signo = sig;
 	si->si_code = code;
+	if (tf->tf_type == T_DATA_MISS || tf->tf_type == T_DATA_PROTECTION)
+		si->si_addr = (void *)tf->tf_sfar;
+	else
+		si->si_addr = (void *)tf->tf_tpc;
 	/* XXXKSE fill other fields */
 }
 
