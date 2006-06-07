@@ -52,6 +52,20 @@
 
 #include <contrib/dev/ath/ah.h>
 
+/*
+ * WiSoC boards overload the bus tag with information about the
+ * board layout.  We must extract the bus space tag from that
+ * indirect structure.  For everyone else the tag is passed in
+ * directly.
+ * XXX cache indirect ref privately
+ */
+#ifdef AH_SUPPORT_AR5312
+#define	BUSTAG(ah) \
+	((bus_space_tag_t) ((struct ar531x_config *)((ah)->ah_st))->tag)
+#else
+#define	BUSTAG(ah)	((bus_space_tag_t) (ah)->ah_st)
+#endif
+
 extern	void ath_hal_printf(struct ath_hal *, const char*, ...)
 		__printflike(2,3);
 extern	void ath_hal_vprintf(struct ath_hal *, const char*, __va_list)
@@ -247,20 +261,6 @@ ath_hal_alq_get(struct ath_hal *ah)
 		ath_hal_alq_lost++;
 	return ale;
 }
-
-/*
- * WiSoC boards overload the bus tag with information about the
- * board layout.  We must extract the bus space tag from that
- * indirect structure.  For everyone else the tag is passed in
- * directly.
- * XXX cache indirect ref privately
- */
-#ifdef AH_SUPPORT_AR5312
-#define	BUSTAG(ah) \
-	((bus_space_tag_t) ((struct ar531x_config *)((ah)->ah_st))->tag)
-#else
-#define	BUSTAG(ah)	((bus_space_tag_t) (ah)->ah_st)
-#endif
 
 void
 ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
