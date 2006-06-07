@@ -3720,17 +3720,16 @@ vm_page_t
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
 	struct l2_dtable *l2;
-	pd_entry_t *pl1pd, l1pd;
+	pd_entry_t l1pd;
 	pt_entry_t *ptep, pte;
 	vm_paddr_t pa;
 	vm_page_t m = NULL;
 	u_int l1idx;
 	l1idx = L1_IDX(va);
-	pl1pd = &pmap->pm_l1->l1_kva[l1idx];
-	l1pd = *pl1pd;
 
 	vm_page_lock_queues();
  	PMAP_LOCK(pmap);
+	l1pd = pmap->pm_l1->l1_kva[l1idx];
 	if (l1pte_section_p(l1pd)) {
 		/*
 		 * These should only happen for pmap_kernel()
