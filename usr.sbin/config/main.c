@@ -518,8 +518,7 @@ remember(const char *file)
 			return;
 		}
 	}
-	hl = malloc(sizeof(*hl));
-	bzero(hl, sizeof(*hl));
+	hl = calloc(1, sizeof(*hl));
 	hl->h_name = s;
 	hl->h_next = htab;
 	htab = hl;

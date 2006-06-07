@@ -97,8 +97,7 @@ new_fent(void)
 {
 	struct file_list *fp;
 
-	fp = (struct file_list *) malloc(sizeof *fp);
-	bzero(fp, sizeof *fp);
+	fp = (struct file_list *) calloc(1, sizeof *fp);
 	STAILQ_INSERT_TAIL(&ftab, fp, f_next);
 	return (fp);
 }
