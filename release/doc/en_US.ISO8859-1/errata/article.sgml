@@ -181,7 +181,7 @@
       for &os; 6.0-RELEASE.  This change should have been documented
       in the release notes.</para>
 
-    <para>(2006/06/01) A bug in the <filename>rc.d/jail</filename>
+    <para>(2006/06/01, updated 2006/06/07) A bug in the <filename>rc.d/jail</filename>
       startup script could cause various problems for users attempting
       to configure &man.jail.2; environments at system startup time.
       A fix has been committed to HEAD and RELENG_6; it will be merged
@@ -212,12 +212,12 @@
       one should try to install &xorg; along with the base system, or
       at least before any other packages that depend on it.</para>
 
-    <para>(2006/06/01) An error in the statistics-keeping logic in the
+    <para>(2006/06/01, updated 2006/06/07) An error in the statistics-keeping logic in the
       UMA kernel memory allocator has led to the number of
       <literal>requests for mbufs denied</literal> (as reported by
       <command>netstat -m</command>) to increase erroneously.  A fix
-      for this problem has been committed to HEAD and will be merged
-      to the RELENG_6 and RELENG_6_1 branches after additional
+      for this problem has been committed to HEAD and RELENG_6 and will be merged
+      to the RELENG_6_1 branche after additional
       testing.</para>
 
     <para>(2006/06/01) A longstanding bug in the i386 bootloader can
