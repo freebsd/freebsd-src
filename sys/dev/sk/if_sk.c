@@ -2870,10 +2870,17 @@ sk_watchdog(ifp)
 	sc_if = ifp->if_softc;
 
 	SK_IF_LOCK(sc_if);
-	if_printf(sc_if->sk_ifp, "watchdog timeout\n");
-	ifp->if_oerrors++;
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	sk_init_locked(sc_if);
+	/*
+	 * Reclaim first as there is a possibility of loosing Tx completion
+	 * interrupt.
+	 */
+	sk_txeof(sc_if);
+	if (sc_if->sk_cdata.sk_tx_cnt != 0) {
+		if_printf(sc_if->sk_ifp, "watchdog timeout\n");
+		ifp->if_oerrors++;
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		sk_init_locked(sc_if);
+	}
 	SK_IF_UNLOCK(sc_if);
 
 	return;
@@ -3425,8 +3432,7 @@ sk_intr(xsc)
 	if (sc_if1 != NULL)
 		ifp1 = sc_if1->sk_ifp;
 
-	status &= sc->sk_intrmask;
-	if ((status & sc->sk_intrmask) != 0) {
+	for (; (status &= sc->sk_intrmask) != 0;) {
 		/* Handle receive interrupts first. */
 		if (status & SK_ISR_RX1_EOF) {
 			if (ifp0->if_mtu > SK_MAX_FRAMELEN)
@@ -3480,6 +3486,7 @@ sk_intr(xsc)
 			    sc_if1->sk_phytype == SK_PHYTYPE_BCOM)
 				sk_intr_bcom(sc_if1);
 		}
+		status = CSR_READ_4(sc, SK_ISSR);
 	}
 
 	CSR_WRITE_4(sc, SK_IMR, sc->sk_intrmask);
