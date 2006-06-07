@@ -1005,6 +1005,16 @@ struct dc_softc {
 #define DC_DEVICEID_MSMN120	0x0001
 #define DC_DEVICEID_MSMN130	0x0002
 
+/*
+ * Linksys vendor ID.
+ */
+#define DC_VENDORID_LINKSYS	0x1737
+
+/*
+ * Linksys device IDs.
+ */
+#define DC_DEVICEID_PCMPC200	0xab08
+
 #define	DC_DEVID(vendor, device)	((device) << 16 | (vendor))
 
 /*
