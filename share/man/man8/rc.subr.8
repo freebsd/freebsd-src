@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 4, 2006
+.Dd June 7, 2006
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -64,9 +64,9 @@
 .It
 .Ic info Ar message
 .It
-.Ic load_rc_config Ar command
+.Ic load_rc_config Ar name
 .It
-.Ic load_rc_config_var Ar command Ar var
+.Ic load_rc_config_var Ar name Ar var
 .It
 .Ic mount_critical_filesystems Ar type
 .It
@@ -312,28 +312,54 @@ turned on or off by the
 .Xr rc.conf 5
 variable
 .Va rc_info .
-.It Ic load_rc_config Ar command
+.It Ic load_rc_config Ar name
 Source in the configuration files for
-.Ar command .
+.Ar name .
 First,
+.Pa /etc/defaults/rc.conf
+and
 .Pa /etc/rc.conf
-is sourced if it has not yet been read in.
+are sourced if they have not yet been read in.
 Then,
-.Pa /etc/rc.conf.d/ Ns Ar command
-is sourced if it is an existing file.
-The latter may also contain other variable assignments to override
+.Va etcdir
+is set to
+.Pa /etc
+if
+.Va command Ap s
+prefix (or
+.Va ${name} Ns Va _program Ap s
+if it is defined) is
+.Pa /
+or
+.Pa /usr ,
+otherwise
+.Va etcdir
+is set to
+.Pa ${prefix} Ns Pa /etc .
+Once those variables are set accordingly,
+.Pa /etc/rc.conf.d/ Ns Va ${name}
+is sourced if the file exists (but it is deprecated if
+.Va etcdir
+is different than
+.Pa /etc )
+and then
+.Pa ${etcdir} Ns Pa /defaults/ Ns Va ${name}
+and
+.Va ${etcdir} Ns Pa /rc.conf.d/ Ns Va ${name}
+are sourced if these files exist.
+All these files may also contain other variable assignments to override
 .Ic run_rc_command
 arguments defined by the calling script, to provide an easy
 mechanism for an administrator to override the behaviour of a given
 .Xr rc.d 8
 script without requiring the editing of that script.
-.It Ic load_rc_config_var Ar command Ar var
+.It Ic load_rc_config_var Ar name Ar var
 Read the
 .Xr rc.conf 5
 variable
 .Ar var
 for
-.Ar command
+.Ar name
 and set in the current shell, using
 .Ic load_rc_config
 in a sub-shell to prevent unwanted side effects from other variable
