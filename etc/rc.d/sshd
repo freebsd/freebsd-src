@@ -25,7 +25,7 @@ user_reseed()
 {
 	(
 	seeded=`sysctl -n kern.random.sys.seeded 2>/dev/null`
-	if [ "${seeded}" != "" ] ; then
+	if [ "x${seeded}" != "x" ] && [ ${seeded} -eq 0 ] ; then
 		warn "Setting entropy source to blocking mode."
 		echo "===================================================="
 		echo "Type a full screenful of random junk to unblock"
