@@ -154,8 +154,7 @@ Config_spec:
 	CPU Save_id
 	      = {
 		struct cputype *cp =
-		    (struct cputype *)malloc(sizeof (struct cputype));
-		memset(cp, 0, sizeof(*cp));
+		    (struct cputype *)calloc(1, sizeof (struct cputype));
 		cp->cpu_name = $2;
 		SLIST_INSERT_HEAD(&cputype, cp, cpu_next);
 	      } |
@@ -336,8 +335,7 @@ newfile(char *name)
 {
 	struct files_name *nl;
 	
-	nl = (struct files_name *) malloc(sizeof *nl);
-	bzero(nl, sizeof *nl);
+	nl = (struct files_name *) calloc(1, sizeof *nl);
 	nl->f_name = name;
 	STAILQ_INSERT_TAIL(&fntab, nl, f_next);
 }
@@ -370,8 +368,7 @@ newdev(char *name)
 		return;
 	}
 
-	np = (struct device *) malloc(sizeof *np);
-	memset(np, 0, sizeof(*np));
+	np = (struct device *) calloc(1, sizeof *np);
 	np->d_name = name;
 	STAILQ_INSERT_TAIL(&dtab, np, d_next);
 }
@@ -420,8 +417,7 @@ newopt(struct opt_head *list, char *name, char *value)
 		return;
 	}
 
-	op = (struct opt *)malloc(sizeof (struct opt));
-	memset(op, 0, sizeof(*op));
+	op = (struct opt *)calloc(1, sizeof (struct opt));
 	op->op_name = name;
 	op->op_ownfile = 0;
 	op->op_value = value;
