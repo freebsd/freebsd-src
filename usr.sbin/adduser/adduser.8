@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2004
+.Dd June 7, 2006
 .Dt ADDUSER 8
 .Os
 .Sh NAME
@@ -66,7 +66,9 @@ The user name is restricted to whatever
 .Xr pw 8
 will accept.
 Generally this means it
-may contain only lowercase characters or digits.
+may contain only lowercase characters or digits but cannot begin with
+.Sq Fl
+character.
 Maximum length
 is 16 characters.
 The reasons for this limit are historical.
@@ -81,7 +83,7 @@ in
 and recompile the
 world; people have done this and it works, but you will have problems
 with any precompiled programs, or source that assumes the 8-character
-name limit and NIS.
+name limit, such as NIS.
 The NIS protocol mandates an 8-character username.
 If you need a longer login name for e-mail addresses,
 you can define an alias in
@@ -431,6 +433,7 @@ logfile for
 .Xr login.conf 5 ,
 .Xr passwd 5 ,
 .Xr shells 5 ,
+.Xr adding_user 8 ,
 .Xr pw 8 ,
 .Xr pwd_mkdb 8 ,
 .Xr rmuser 8 ,
