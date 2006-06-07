@@ -128,7 +128,13 @@ struct protosw {
 #define	PR_LASTHDR	0x40		/* enforce ipsec policy; last header */
 
 /*
- * The arguments to usrreq are:
+ * In earlier BSD network stacks, a single pr_usrreq() function pointer was
+ * invoked with an operation number indicating what operation was desired.
+ * We now provide individual function pointers which protocols can implement,
+ * which offers a number of benefits (such as type checking for arguments).
+ * These older constants are still present in order to support TCP debugging.
+ *
+ * The arguments to usrreq were:
  *	(*protosw[].pr_usrreq)(up, req, m, nam, opt);
  * where up is a (struct socket *), req is one of these requests,
  * m is an optional mbuf chain containing a message,
@@ -186,10 +192,8 @@ struct ucred;
 struct uio;
 
 /*
- * If the ordering here looks odd, that's because it's alphabetical.
- * Having this structure separated out from the main protoswitch is allegedly
- * a big (12 cycles per call) lose on high-end CPUs.  We will eventually
- * migrate this stuff back into the main structure.
+ * If the ordering here looks odd, that's because it's alphabetical.  These
+ * should eventually be merged back into struct protosw.
  *
  * Some fields initialized to defaults if they are NULL.
  * See uipc_domain.c:net_init_domain()
@@ -224,7 +228,7 @@ struct pr_usrreqs {
 	int	(*pru_sockaddr)(struct socket *so, struct sockaddr **nam);
 	 
 	/*
-	 * These three added later, so they are out of order.  They are used
+	 * These four added later, so they are out of order.  They are used
 	 * for shortcutting (fast path input/output) in some protocols.
 	 * XXX - that's a lie, they are not implemented yet
 	 * Rather than calling sosend() etc. directly, calls are made
