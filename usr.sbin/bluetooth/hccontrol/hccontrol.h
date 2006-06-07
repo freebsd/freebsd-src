@@ -37,6 +37,8 @@
 #define	FAILED			2	/* error was reported */
 #define	USAGE			3	/* invalid parameters */
 
+#define	MAX_NODE_NUM		16	/* max number of nodes */
+
 struct hci_command {
 	char const		*command;
 	char const		*description;
