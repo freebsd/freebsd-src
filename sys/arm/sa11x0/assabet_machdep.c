@@ -126,7 +126,7 @@ struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 extern void *_end;
 
-int got_mmu = 0;
+extern vm_offset_t sa1110_uart_vaddr;
 
 extern vm_offset_t sa1_cache_clean_addr;
 
@@ -222,6 +222,7 @@ initarm(void *arg, void *arg2)
 	int i = 0;
 	uint32_t fake_preload[35];
 	uint32_t memsize = 32 * 1024 * 1024;
+	sa1110_uart_vaddr = SACOM1_VBASE;
 
 	boothowto = RB_VERBOSE | RB_SINGLE;
 	cninit();
@@ -433,7 +434,6 @@ initarm(void *arg, void *arg2)
 	/* Enable MMU, I-cache, D-cache, write buffer. */
 
 	cpufunc_control(0x337f, 0x107d);
-	got_mmu = 1;
 	arm_vector_init(ARM_VECTORS_LOW, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = freemempos + KERNEL_PT_VMDATA_NUM * 0x400000;

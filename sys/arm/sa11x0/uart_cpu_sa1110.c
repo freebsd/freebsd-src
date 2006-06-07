@@ -50,15 +50,13 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 	return ((b1->bsh == b2->bsh && b1->bst == b2->bst) ? 1 : 0);
 }
 
-extern int got_mmu;
-
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
 	di->ops = uart_sa1110_ops;
 	di->bas.chan = 0;
 	di->bas.bst = &sa11x0_bs_tag;
-	di->bas.bsh = SACOM1_BASE;
+	di->bas.bsh = sa1110_uart_vaddr;
 	di->bas.regshft = 0;
 	di->bas.rclk = 0;
 	di->baudrate = 9600;
