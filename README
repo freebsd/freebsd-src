@@ -11,8 +11,13 @@ The Makefile in this directory supports a number of targets for
 building components (or all) of the FreeBSD source tree, the most
 commonly used one being ``world'', which rebuilds and installs
 everything in the FreeBSD system from the source tree except the
-kernel, the kernel-modules and the contents of /etc.  The
-``buildkernel'' and ``installkernel'' targets build and install
+kernel, the kernel-modules and the contents of /etc.  The ``world''
+target should only be used in cases where the source tree has not
+changed from the currently running version.  See:
+http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
+for more information, including setting make(1) variables.
+
+The ``buildkernel'' and ``installkernel'' targets build and install
 the kernel and the modules (see below).  Please see the top of
 the Makefile in this directory for more information on the
 standard build targets and compile-time flags.
