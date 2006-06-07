@@ -50,7 +50,7 @@ the removal from its mount point vnode list.
 If the vnode has a
 .Va v_usecount
 of zero, and its
-.Dv VDOOMED
+.Dv VI_DOOMED
 flag is not set, it is moved to the head of the free list
 as in most cases the vnode
 is about to be reused, or its file system being unmounted.
@@ -66,8 +66,6 @@ locks the vnode interlock and then calls
 while
 .Fn vgonel
 expects the interlock to already be locked.
-.Sh SEE ALSO
-.Xr vclean 9
 .Sh AUTHORS
 This manual page was written by
 .An Chad David Aq davidc@acns.ab.ca .
