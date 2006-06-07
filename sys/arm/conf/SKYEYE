@@ -84,7 +84,6 @@ device		uart
 device		mem			# Memory and kernel memory devices
 device md
 options		SKYEYE_WORKAROUNDS
-options		ARM32_NEW_VM_LAYOUT
 # Floppy drives
 
 
