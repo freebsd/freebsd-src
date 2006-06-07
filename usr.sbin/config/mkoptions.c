@@ -69,8 +69,7 @@ options(void)
 
 	/* Fake the cpu types as options. */
 	SLIST_FOREACH(cp, &cputype, cpu_next) {
-		op = (struct opt *)malloc(sizeof(*op));
-		memset(op, 0, sizeof(*op));
+		op = (struct opt *)calloc(1, sizeof(*op));
 		op->op_name = ns(cp->cpu_name);
 		SLIST_INSERT_HEAD(&opt, op, op_next);
 	}	
@@ -84,8 +83,7 @@ options(void)
 		printf("warning: maxusers > %d (%d)\n", users.u_max, maxusers);
 
 	/* Fake MAXUSERS as an option. */
-	op = (struct opt *)malloc(sizeof(*op));
-	memset(op, 0, sizeof(*op));
+	op = (struct opt *)calloc(1, sizeof(*op));
 	op->op_name = ns("MAXUSERS");
 	snprintf(buf, sizeof(buf), "%d", maxusers);
 	op->op_value = ns(buf);
@@ -200,8 +198,7 @@ do_option(char *name)
 				inw, basefile, ol->o_file);
 			tidy++;
 		} else {
-			op = (struct opt *) malloc(sizeof *op);
-			bzero(op, sizeof(*op));
+			op = (struct opt *) calloc(1, sizeof *op);
 			op->op_name = inw;
 			op->op_value = invalue;
 			SLIST_INSERT_HEAD(&op_head, op, op_next);
@@ -227,8 +224,7 @@ do_option(char *name)
 
 	if (value && !seen) {
 		/* New option appears */
-		op = (struct opt *) malloc(sizeof *op);
-		bzero(op, sizeof(*op));
+		op = (struct opt *) calloc(1, sizeof *op);
 		op->op_name = ns(name);
 		op->op_value = value ? ns(value) : NULL;
 		SLIST_INSERT_HEAD(&op_head, op, op_next);
@@ -339,8 +335,7 @@ next:
 		}
 	}
 	
-	po = (struct opt_list *) malloc(sizeof *po);
-	bzero(po, sizeof(*po));
+	po = (struct opt_list *) calloc(1, sizeof *po);
 	po->o_name = this;
 	po->o_file = val;
 	SLIST_INSERT_HEAD(&otab, po, o_next);
