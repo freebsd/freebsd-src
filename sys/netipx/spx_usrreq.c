@@ -1344,29 +1344,31 @@ spx_attach(struct socket *so, int proto, struct thread *td)
 	ipxp = sotoipxpcb(so);
 	KASSERT(ipxp == NULL, ("spx_attach: ipxp != NULL"));
 
-	IPX_LIST_LOCK();
-	error = ipx_pcballoc(so, &ipxpcb_list, td);
-	if (error)
-		goto spx_attach_end;
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
 		error = soreserve(so, (u_long) 3072, (u_long) 3072);
 		if (error)
-			goto spx_attach_end;
+			return (error);
 	}
-	ipxp = sotoipxpcb(so);
 
 	MALLOC(cb, struct spxpcb *, sizeof *cb, M_PCB, M_NOWAIT | M_ZERO);
-	if (cb == NULL) {
-		error = ENOBUFS;
-		goto spx_attach_end;
-	}
-
+	if (cb == NULL)
+		return (ENOBUFS);
 	mm = m_getclr(M_DONTWAIT, MT_HEADER);
 	if (mm == NULL) {
 		FREE(cb, M_PCB);
-		error = ENOBUFS;
-		goto spx_attach_end;
+		return (ENOBUFS);
 	}
+
+	IPX_LIST_LOCK();
+	error = ipx_pcballoc(so, &ipxpcb_list, td);
+	if (error) {
+		IPX_LIST_UNLOCK();
+		m_free(mm);
+		FREE(cb, M_PCB);
+		return (error);
+	}
+	ipxp = sotoipxpcb(so);
+
 	cb->s_ipx = mtod(mm, struct ipx *);
 	cb->s_state = TCPS_LISTEN;
 	cb->s_smax = -1;
@@ -1388,7 +1390,6 @@ spx_attach(struct socket *so, int proto, struct thread *td)
 	    ((SPXTV_SRTTBASE >> 2) + (SPXTV_SRTTDFLT << 2)) >> 1,
 	    SPXTV_MIN, SPXTV_REXMTMAX);
 	ipxp->ipxp_pcb = (caddr_t)cb;
-spx_attach_end:
 	IPX_LIST_UNLOCK();
 	return (error);
 }
@@ -1649,16 +1650,26 @@ spx_shutdown(struct socket *so)
 static int
 spx_sp_attach(struct socket *so, int proto, struct thread *td)
 {
-	int error;
 	struct ipxpcb *ipxp;
+	struct spxpcb *cb;
+	int error;
+
+	KASSERT(so->so_pcb == NULL, ("spx_sp_attach: so_pcb != NULL"));
 
 	error = spx_attach(so, proto, td);
-	if (error == 0) {
-		ipxp = sotoipxpcb(so);
-		((struct spxpcb *)ipxp->ipxp_pcb)->s_flags |=
-		    (SF_HI | SF_HO | SF_PI);
-	}
-	return (error);
+	if (error)
+		return (error);
+
+	ipxp = sotoipxpcb(so);
+	KASSERT(ipxp != NULL, ("spx_sp_attach: ipxp == NULL"));
+
+	cb = ipxtospxpcb(ipxp);
+	KASSERT(cb != NULL, ("spx_sp_attach: cb == NULL"));
+
+	IPX_LOCK(ipxp);
+	cb->s_flags |= (SF_HI | SF_HO | SF_PI);
+	IPX_UNLOCK(ipxp);
+	return (0);
 }
 
 /*
