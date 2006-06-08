@@ -294,28 +294,8 @@ ipx_ctlinput(cmd, arg_as_sa, dummy)
 	struct sockaddr *arg_as_sa;	/* XXX should be swapped with dummy */
 	void *dummy;
 {
-	caddr_t arg = (/* XXX */ caddr_t)arg_as_sa;
-	struct ipx_addr *ipx;
 
-	if (cmd < 0 || cmd >= PRC_NCMDS)
-		return;
-	switch (cmd) {
-		struct sockaddr_ipx *sipx;
-
-	case PRC_IFDOWN:
-	case PRC_HOSTDEAD:
-	case PRC_HOSTUNREACH:
-		sipx = (struct sockaddr_ipx *)arg;
-		if (sipx->sipx_family != AF_IPX)
-			return;
-		ipx = &sipx->sipx_addr;
-		break;
-
-	default:
-		if (ipxprintfs)
-			printf("ipx_ctlinput: cmd %d.\n", cmd);
-		break;
-	}
+	/* Currently, nothing. */
 }
 
 /*
