@@ -59,7 +59,7 @@ audit_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	int error;
 
-	// Only one process may open the device at a time
+	/* Only one process may open the device at a time. */
 	mtx_lock(&audit_trigger_mtx);
 	if (!audit_isopen) {
 		error = 0;
