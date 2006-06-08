@@ -34,7 +34,7 @@
 
 #include "assym.s"
 
-	.align 4
+	.align 4096
 	.code16
 wakeup_16:
 	nop
@@ -49,9 +49,21 @@ wakeup_16:
 	movw	%ax,%ss
 	movw	$PAGE_SIZE,%sp
 
+	/* To debug resume hangs, beep the speaker if the user requested. */
+	cmpl	$1,resume_beep
+	jne	nobeep
+	movb	$0xc0,%al
+	outb	%al,$0x42
+	movb	$0x04,%al
+	outb	%al,$0x42
+	inb	$0x61,%al
+	orb	$0x3,%al
+	outb	%al,$0x61
+nobeep:
+
 	/* Re-initialize video BIOS if the reset_video tunable is set. */
-	cmp	$0,reset_video
-	je	wakeup_16_gdt
+	cmpl	$1,reset_video
+	jne	nobiosreset
 	lcall	$0xc000,$3
 
 	/*
@@ -61,8 +73,8 @@ wakeup_16:
 	movw	%cs,%ax
 	movw	%ax,%ds
 	movw	%ax,%ss
+nobiosreset:
 
-wakeup_16_gdt:
 	/* Load GDT for real mode */
 	lgdt	physical_gdt
 
@@ -220,6 +232,7 @@ physical_esp:		.long 0
 previous_cr2:		.long 0
 previous_cr3:		.long 0
 previous_cr4:		.long 0
+resume_beep:		.long 0
 reset_video:		.long 0
 
 /* transfer from real mode to protected mode */

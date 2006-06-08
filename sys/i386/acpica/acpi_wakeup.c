@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+extern uint32_t	acpi_resume_beep;
 extern uint32_t	acpi_reset_video;
 extern void	initializecpu(void);
 
@@ -227,6 +228,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(previous_cr3, uint32_t, r_cr3);
 		WAKECODE_FIXUP(previous_cr4, uint32_t, r_cr4);
 
+		WAKECODE_FIXUP(resume_beep, uint32_t, acpi_resume_beep);
 		WAKECODE_FIXUP(reset_video, uint32_t, acpi_reset_video);
 
 		WAKECODE_FIXUP(previous_tr,  uint16_t, r_tr);
