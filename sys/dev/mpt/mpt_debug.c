@@ -25,7 +25,42 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Additional Copyright (c) 2002 by Matthew Jacob under same license.
+ */
+/*-
+ * Copyright (c) 2002, 2006 by Matthew Jacob
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon including
+ *    a substantially similar Disclaimer requirement for further binary
+ *    redistribution.
+ * 3. Neither the names of the above listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF THE COPYRIGHT
+ * OWNER OR CONTRIBUTOR IS ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Support from Chris Ellsworth in order to make SAS adapters work
+ * is gratefully acknowledged.
+ *
+ * Support from LSI-Logic has also gone a great deal toward making this a
+ * workable subsystem and is gratefully acknowledged.
  */
 
 #include <sys/cdefs.h>
@@ -36,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mpt/mpilib/mpi_ioc.h>
 #include <dev/mpt/mpilib/mpi_init.h>
 #include <dev/mpt/mpilib/mpi_fc.h>
+#include <dev/mpt/mpilib/mpi_targ.h>
 
 #include <cam/scsi/scsi_all.h>
 
@@ -112,29 +148,6 @@ static const struct Error_Map IOC_Func[] = {
 { MPI_FUNCTION_TARGET_ASSIST,                "Target Assist" },
 { MPI_FUNCTION_TARGET_STATUS_SEND,           "Target Status Send" },
 { MPI_FUNCTION_TARGET_MODE_ABORT,            "Target Mode Abort" },
-{ MPI_FUNCTION_TARGET_FC_BUF_POST_LINK_SRVC, "FC: Link Service Buffers" },
-{ MPI_FUNCTION_TARGET_FC_RSP_LINK_SRVC,      "FC: Link Service Response" },
-{ MPI_FUNCTION_TARGET_FC_EX_SEND_LINK_SRVC,  "FC: Send Extended Link Service" },
-{ MPI_FUNCTION_TARGET_FC_ABORT,              "FC: Abort" },
-{ MPI_FUNCTION_FC_LINK_SRVC_BUF_POST,        "FC: Link Service Buffers" },
-{ MPI_FUNCTION_FC_LINK_SRVC_RSP,             "FC: Link Server Response" },
-{ MPI_FUNCTION_FC_EX_LINK_SRVC_SEND,         "FC: Send Extended Link Service" },
-{ MPI_FUNCTION_FC_ABORT,                     "FC: Abort" },
-{ MPI_FUNCTION_FW_UPLOAD,                    "FW Upload" },
-{ MPI_FUNCTION_FC_COMMON_TRANSPORT_SEND,     "FC: Send Common Transport" },
-{ MPI_FUNCTION_FC_PRIMITIVE_SEND,            "FC: Send Primitive" },
-{ MPI_FUNCTION_RAID_ACTION,                  "RAID Action" },
-{ MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH,     "RAID SCSI Pass-Through" },
-{ MPI_FUNCTION_TOOLBOX,                      "Toolbox Command" },
-{ MPI_FUNCTION_SCSI_ENCLOSURE_PROCESSOR,     "SCSI Enclosure Proc. Command" },
-{ MPI_FUNCTION_MAILBOX,                      "Mailbox Command" },
-{ MPI_FUNCTION_LAN_SEND,                     "LAN Send" },
-{ MPI_FUNCTION_LAN_RECEIVE,                  "LAN Recieve" },
-{ MPI_FUNCTION_LAN_RESET,                    "LAN Reset" },
-{ MPI_FUNCTION_IOC_MESSAGE_UNIT_RESET,       "IOC Message Unit Reset" },
-{ MPI_FUNCTION_IO_UNIT_RESET,                "IO Unit Reset" },
-{ MPI_FUNCTION_HANDSHAKE,                    "Handshake" },
-{ MPI_FUNCTION_REPLY_FRAME_REMOVAL,          "Reply Frame Removal" },
 { -1, 0},
 };
 
@@ -195,8 +208,6 @@ static const struct Error_Map IOC_SCSITMType[] = {
 { -1, 0 },
 };
 
-static void mpt_dump_sgl(SGE_IO_UNION *sgl);
-
 static char *
 mpt_ioc_status(int code)
 {
@@ -242,6 +253,7 @@ mpt_ioc_function(int code)
 	snprintf(buf, sizeof buf, "Unknown (0x%08x)", code);
 	return buf;
 }
+
 static char *
 mpt_ioc_event(int code)
 {
@@ -255,6 +267,7 @@ mpt_ioc_event(int code)
 	snprintf(buf, sizeof buf, "Unknown (0x%08x)", code);
 	return buf;
 }
+
 static char *
 mpt_scsi_state(int code)
 {
@@ -483,6 +496,7 @@ mpt_print_reply(void *vmsg)
 		mpt_print_init_reply((MSG_IOC_INIT_REPLY *)msg);
 		break;
 	case MPI_FUNCTION_SCSI_IO_REQUEST:
+	case MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH:
 		mpt_print_scsi_io_reply((MSG_SCSI_IO_REPLY *)msg);
 		break;
 	default:
@@ -550,7 +564,12 @@ mpt_print_scsi_io_request(MSG_SCSI_IO_REQUEST *orig_msg)
 	for (i = 0; i < msg->CDBLength; i++)
 		printf("%02x ", msg->CDB[i]);
 	printf("\n");
-	mpt_dump_sgl(&orig_msg->SGL);
+
+	if ((msg->Control & MPI_SCSIIO_CONTROL_DATADIRECTION_MASK) !=
+	   MPI_SCSIIO_CONTROL_NODATATRANSFER ) {
+		mpt_dump_sgl(&orig_msg->SGL,
+		    ((char *)&orig_msg->SGL)-(char *)orig_msg);
+	}
 }
 
 static void
@@ -562,6 +581,35 @@ mpt_print_scsi_tmf_request(MSG_SCSI_TASK_MGMT *msg)
 	printf("\tTaskMsgContext  0x%08x\n", msg->TaskMsgContext);
 }
 
+
+static void
+mpt_print_scsi_target_assist_request(PTR_MSG_TARGET_ASSIST_REQUEST msg)
+{
+	mpt_print_request_hdr((MSG_REQUEST_HEADER *)msg);
+	printf("\tStatusCode    0x%02x\n", msg->StatusCode);
+	printf("\tTargetAssist  0x%02x\n", msg->TargetAssistFlags);
+	printf("\tQueueTag      0x%04x\n", msg->QueueTag);
+	printf("\tReplyWord     0x%08x\n", msg->ReplyWord);
+	printf("\tLun           0x%02x\n", msg->LUN[1]);
+	printf("\tRelativeOff   0x%08x\n", msg->RelativeOffset);
+	printf("\tDataLength    0x%08x\n", msg->DataLength);
+	mpt_dump_sgl(msg->SGL, 0);
+}
+
+static void
+mpt_print_scsi_target_status_send_request(MSG_TARGET_STATUS_SEND_REQUEST *msg)
+{
+	SGE_IO_UNION x;
+	mpt_print_request_hdr((MSG_REQUEST_HEADER *)msg);
+	printf("\tStatusCode    0x%02x\n", msg->StatusCode);
+	printf("\tStatusFlags   0x%02x\n", msg->StatusFlags);
+	printf("\tQueueTag      0x%04x\n", msg->QueueTag);
+	printf("\tReplyWord     0x%08x\n", msg->ReplyWord);
+	printf("\tLun           0x%02x\n", msg->LUN[1]);
+	x.u.Simple = msg->StatusDataSGE;
+	mpt_dump_sgl(&x, 0);
+}
+
 void
 mpt_print_request(void *vreq)
 {
@@ -569,10 +617,20 @@ mpt_print_request(void *vreq)
 
 	switch (req->Function) {
 	case MPI_FUNCTION_SCSI_IO_REQUEST:
+	case MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH:
 		mpt_print_scsi_io_request((MSG_SCSI_IO_REQUEST *)req);
 		break;
 	case MPI_FUNCTION_SCSI_TASK_MGMT:
 		mpt_print_scsi_tmf_request((MSG_SCSI_TASK_MGMT *)req);
+		break;
+	case MPI_FUNCTION_TARGET_ASSIST:
+		mpt_print_scsi_target_assist_request(
+		    (PTR_MSG_TARGET_ASSIST_REQUEST)req);
+		break;
+	case MPI_FUNCTION_TARGET_STATUS_SEND:
+		mpt_print_scsi_target_status_send_request(
+		    (MSG_TARGET_STATUS_SEND_REQUEST *)req);
+		break;
 	default:
 		mpt_print_request_hdr(req);
 		break;
@@ -648,35 +706,69 @@ mpt_req_state(mpt_req_state_t state)
 			 "REQ_STATE", state, NULL, 80);
 }
 
-static void
-mpt_dump_sgl(SGE_IO_UNION *su)
+#define	LAST_SGE	(		\
+	MPI_SGE_FLAGS_END_OF_LIST |	\
+	MPI_SGE_FLAGS_END_OF_BUFFER|	\
+	MPI_SGE_FLAGS_LAST_ELEMENT) 
+void
+mpt_dump_sgl(SGE_IO_UNION *su, int offset)
 {
 	SGE_SIMPLE32 *se = (SGE_SIMPLE32 *) su;
-	int iCount, flags;
+	const char allfox[4] = { 0xff, 0xff, 0xff, 0xff };
+	void *nxtaddr = se;
+	void *lim;
+	int flags;
 
-	iCount = MPT_SGL_MAX;
+	/*
+	 * Can't be any bigger than this.
+	 */
+	lim = &((char *)se)[MPT_REQUEST_AREA - offset];
+
 	do {
 		int iprt;
 
 		printf("\t");
+		if (memcmp(se, allfox, 4) == 0) {
+			uint32_t *nxt = (uint32_t *)se;
+			printf("PAD  %p\n", se);
+			nxtaddr = nxt + 1;
+			se = nxtaddr;
+			flags = 0;
+			continue;
+		}
+		nxtaddr = se + 1;
 		flags = MPI_SGE_GET_FLAGS(se->FlagsLength);
 		switch (flags & MPI_SGE_FLAGS_ELEMENT_MASK) {
 		case MPI_SGE_FLAGS_SIMPLE_ELEMENT:
-		{
-			printf("SE32 %p: Addr=0x%0x FlagsLength=0x%0x\n",
-			    se, se->Address, se->FlagsLength);
+			if (flags & MPI_SGE_FLAGS_64_BIT_ADDRESSING) {
+				SGE_SIMPLE64 *se64 = (SGE_SIMPLE64 *)se;
+				printf("SE64 %p: Addr=0x%08x%08x FlagsLength"
+				    "=0x%0x\n", se64, se64->Address.High,
+				    se64->Address.Low, se64->FlagsLength);
+				nxtaddr = se64 + 1;
+			} else {
+				printf("SE32 %p: Addr=0x%0x FlagsLength=0x%0x"
+	                            "\n", se, se->Address, se->FlagsLength);
+			}
 			printf(" ");
 			break;
-		}
 		case MPI_SGE_FLAGS_CHAIN_ELEMENT:
-		{
-			SGE_CHAIN32 *ce = (SGE_CHAIN32 *) se;
-			printf("CE32 %p: Addr=0x%0x NxtChnO=0x%x Flgs=0x%x "
-			    "Len=0x%0x\n", ce, ce->Address, ce->NextChainOffset,
-			    ce->Flags, ce->Length);
+			if (flags & MPI_SGE_FLAGS_64_BIT_ADDRESSING) {
+				SGE_CHAIN64 *ce64 = (SGE_CHAIN64 *) se;
+				printf("CE64 %p: Addr=0x%08x%08x NxtChnO=0x%x "
+				    "Flgs=0x%x Len=0x%0x\n", ce64,
+				    ce64->Address.High, ce64->Address.Low,
+				    ce64->NextChainOffset,
+				    ce64->Flags, ce64->Length);
+				nxtaddr = ce64 + 1;
+			} else {
+				SGE_CHAIN32 *ce = (SGE_CHAIN32 *) se;
+				printf("CE32 %p: Addr=0x%0x NxtChnO=0x%x "
+				    " Flgs=0x%x Len=0x%0x\n", ce, ce->Address,
+				    ce->NextChainOffset, ce->Flags, ce->Length);
+			}
 			flags = 0;
 			break;
-		}
 		case MPI_SGE_FLAGS_TRANSACTION_ELEMENT:
 			printf("TE32 @ %p\n", se);
 			flags = 0;
@@ -701,10 +793,59 @@ mpt_dump_sgl(SGE_IO_UNION *su)
 #undef MPT_PRINT_FLAG
 		if (iprt)
 			printf("\n");
-		se++;
-		iCount -= 1;
-	} while ((flags & MPI_SGE_FLAGS_END_OF_LIST) == 0 && iCount != 0);
+		se = nxtaddr;
+		if ((flags & LAST_SGE) == LAST_SGE) {
+			break;
+		}
+	} while ((flags & MPI_SGE_FLAGS_END_OF_LIST) == 0 && nxtaddr < lim);
 }
+
+void
+mpt_dump_request(struct mpt_softc *mpt, request_t *req)
+{
+        uint32_t *pReq = req->req_vbuf;
+	int offset;
+#if __FreeBSD_version >= 500000
+	mpt_prt(mpt, "Send Request %d (%jx):",
+	    req->index, (uintmax_t) req->req_pbuf);
+#else
+	mpt_prt(mpt, "Send Request %d (%llx):",
+	    req->index, (unsigned long long) req->req_pbuf);
+#endif
+	for (offset = 0; offset < mpt->request_frame_size; offset++) {
+		if ((offset & 0x7) == 0) {
+			mpt_prtc(mpt, "\n");
+			mpt_prt(mpt, " ");
+		}
+		mpt_prtc(mpt, " %08x", pReq[offset]);
+	}
+	mpt_prtc(mpt, "\n");
+}
+
+#if __FreeBSD_version < 500000
+void
+mpt_lprt(struct mpt_softc *mpt, int level, const char *fmt, ...)
+{
+	va_list ap;
+        if (level <= mpt->verbose) {
+		printf("%s: ", device_get_nameunit(mpt->dev));
+		va_start(ap, fmt);
+		vprintf(fmt, ap);
+		va_end(ap);
+	}
+}
+
+void
+mpt_lprtc(struct mpt_softc *mpt, int level, const char *fmt, ...)
+{
+	va_list ap;
+        if (level <= mpt->verbose) {
+		va_start(ap, fmt);
+		vprintf(fmt, ap);
+		va_end(ap);
+	}
+}
+#endif
 
 void
 mpt_prt(struct mpt_softc *mpt, const char *fmt, ...)

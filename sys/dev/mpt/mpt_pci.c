@@ -29,6 +29,42 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/*-
+ * Copyright (c) 2002, 2006 by Matthew Jacob
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon including
+ *    a substantially similar Disclaimer requirement for further binary
+ *    redistribution.
+ * 3. Neither the names of the above listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF THE COPYRIGHT
+ * OWNER OR CONTRIBUTOR IS ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Support from Chris Ellsworth in order to make SAS adapters work
+ * is gratefully acknowledged.
+ *
+ * Support from LSI-Logic has also gone a great deal toward making this a
+ * workable subsystem and is gratefully acknowledged.
+ */
 /*
  * Copyright (c) 2004, Avid Technology, Inc. and its contributors.
  * Copyright (c) 2005, WHEEL Sp. z o.o.
@@ -69,13 +105,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mpt/mpt_cam.h>
 #include <dev/mpt/mpt_raid.h>
 
-#if __FreeBSD_version < 500000  
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
-#else
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
-#endif
 
 #ifndef	PCI_VENDOR_LSI
 #define	PCI_VENDOR_LSI			0x1000
@@ -101,14 +130,49 @@ __FBSDID("$FreeBSD$");
 #define	PCI_PRODUCT_LSI_FC929X		0x0626
 #endif
 
+#ifndef	PCI_PRODUCT_LSI_FC7X04X
+#define	PCI_PRODUCT_LSI_FC7X04X		0x0640
+#endif
+
 #ifndef	PCI_PRODUCT_LSI_1030
 #define	PCI_PRODUCT_LSI_1030		0x0030
+#endif
+
+#ifndef	PCI_PRODUCT_LSI_SAS1064
+#define PCI_PRODUCT_LSI_SAS1064		0x0050
+#endif
+
+#ifndef PCI_PRODUCT_LSI_SAS1064A
+#define PCI_PRODUCT_LSI_SAS1064A	0x005C
+#endif
+
+#ifndef PCI_PRODUCT_LSI_SAS1064E
+#define PCI_PRODUCT_LSI_SAS1064E	0x0056
+#endif
+
+#ifndef PCI_PRODUCT_LSI_SAS1066
+#define PCI_PRODUCT_LSI_SAS1066		0x005E
+#endif
+
+#ifndef PCI_PRODUCT_LSI_SAS1066E
+#define PCI_PRODUCT_LSI_SAS1066E	0x005A
+#endif
+
+#ifndef PCI_PRODUCT_LSI_SAS1068
+#define PCI_PRODUCT_LSI_SAS1068		0x0054
+#endif
+
+#ifndef PCI_PRODUCT_LSI_SAS1068E
+#define PCI_PRODUCT_LSI_SAS1068E	0x0058
+#endif
+
+#ifndef PCI_PRODUCT_LSI_SAS1078
+#define PCI_PRODUCT_LSI_SAS1078		0x0060
 #endif
 
 #ifndef	PCIM_CMD_SERRESPEN
 #define	PCIM_CMD_SERRESPEN	0x0100
 #endif
-
 
 
 #define	MPT_IO_BAR	0
@@ -162,10 +226,23 @@ mpt_pci_probe(device_t dev)
 		desc = "LSILogic FC929 FC Adapter";
 		break;
 	case PCI_PRODUCT_LSI_FC929X:
-		desc = "LSILogic FC929X FC Adapter";
+		desc = "LSILogic FC929X 2Gb/s FC Adapter";
+		break;
+	case PCI_PRODUCT_LSI_FC7X04X:
+		desc = "LSILogic FC7X04X 4Gb/s FC Adapter";
 		break;
 	case PCI_PRODUCT_LSI_1030:
 		desc = "LSILogic 1030 Ultra4 Adapter";
+		break;
+	case PCI_PRODUCT_LSI_SAS1064:
+	case PCI_PRODUCT_LSI_SAS1064A:
+	case PCI_PRODUCT_LSI_SAS1064E:
+	case PCI_PRODUCT_LSI_SAS1066:
+	case PCI_PRODUCT_LSI_SAS1066E:
+	case PCI_PRODUCT_LSI_SAS1068:
+	case PCI_PRODUCT_LSI_SAS1068E:
+	case PCI_PRODUCT_LSI_SAS1078:
+		desc = "LSILogic SAS Adapter";
 		break;
 	default:
 		return (ENXIO);
@@ -175,7 +252,7 @@ mpt_pci_probe(device_t dev)
 	return (0);
 }
 
-#ifdef	RELENG_4
+#if	__FreeBSD_version < 500000  
 static void
 mpt_set_options(struct mpt_softc *mpt)
 {
@@ -187,14 +264,30 @@ mpt_set_options(struct mpt_softc *mpt)
 			mpt->disabled = 1;
 		}
 	}
-
 	bitmap = 0;
 	if (getenv_int("mpt_debug", &bitmap)) {
 		if (bitmap & (1 << mpt->unit)) {
 			mpt->verbose = MPT_PRT_DEBUG;
 		}
 	}
-
+	bitmap = 0;
+	if (getenv_int("mpt_debug1", &bitmap)) {
+		if (bitmap & (1 << mpt->unit)) {
+			mpt->verbose = MPT_PRT_DEBUG1;
+		}
+	}
+	bitmap = 0;
+	if (getenv_int("mpt_debug2", &bitmap)) {
+		if (bitmap & (1 << mpt->unit)) {
+			mpt->verbose = MPT_PRT_DEBUG2;
+		}
+	}
+	bitmap = 0;
+	if (getenv_int("mpt_debug3", &bitmap)) {
+		if (bitmap & (1 << mpt->unit)) {
+			mpt->verbose = MPT_PRT_DEBUG3;
+		}
+	}
 }
 #else
 static void
@@ -210,7 +303,13 @@ mpt_set_options(struct mpt_softc *mpt)
 	tval = 0;
 	if (resource_int_value(device_get_name(mpt->dev),
 	    device_get_unit(mpt->dev), "debug", &tval) == 0 && tval != 0) {
-		mpt->verbose += tval;
+		mpt->verbose = tval;
+	}
+	tval = 0;
+	if (resource_int_value(device_get_name(mpt->dev),
+	    device_get_unit(mpt->dev), "role", &tval) == 0 && tval != 0 &&
+	    tval <= 3) {
+		mpt->role = tval;
 	}
 }
 #endif
@@ -221,9 +320,9 @@ mpt_link_peer(struct mpt_softc *mpt)
 {
 	struct mpt_softc *mpt2;
 
-	if (mpt->unit == 0)
+	if (mpt->unit == 0) {
 		return;
-
+	}
 	/*
 	 * XXX: depends on probe order
 	 */
@@ -246,6 +345,14 @@ mpt_link_peer(struct mpt_softc *mpt)
 	}
 }
 
+static void
+mpt_unlink_peer(struct mpt_softc *mpt)
+{
+	if (mpt->mpt2) {
+		mpt->mpt2->mpt2 = NULL;
+	}
+}
+
 
 static int
 mpt_pci_attach(device_t dev)
@@ -260,15 +367,27 @@ mpt_pci_attach(device_t dev)
 		device_printf(dev, "cannot allocate softc\n");
 		return (ENOMEM);
 	}
-	bzero(mpt, sizeof(struct mpt_softc));
+	memset(mpt, 0, sizeof(struct mpt_softc));
 	switch ((pci_get_device(dev) & ~1)) {
 	case PCI_PRODUCT_LSI_FC909:
 	case PCI_PRODUCT_LSI_FC909A:
 	case PCI_PRODUCT_LSI_FC919:
 	case PCI_PRODUCT_LSI_FC929:
+	case PCI_PRODUCT_LSI_FC7X04X:
 		mpt->is_fc = 1;
 		break;
+	case PCI_PRODUCT_LSI_SAS1064:
+	case PCI_PRODUCT_LSI_SAS1064A:
+	case PCI_PRODUCT_LSI_SAS1064E:
+	case PCI_PRODUCT_LSI_SAS1066:
+	case PCI_PRODUCT_LSI_SAS1066E:
+	case PCI_PRODUCT_LSI_SAS1068:
+	case PCI_PRODUCT_LSI_SAS1068E:
+	case PCI_PRODUCT_LSI_SAS1078:
+		mpt->is_sas = 1;
+		break;
 	default:
+		mpt->is_spi = 1;
 		break;
 	}
 	mpt->dev = dev;
@@ -276,15 +395,19 @@ mpt_pci_attach(device_t dev)
 	mpt->raid_resync_rate = MPT_RAID_RESYNC_RATE_DEFAULT;
 	mpt->raid_mwce_setting = MPT_RAID_MWCE_DEFAULT;
 	mpt->raid_queue_depth = MPT_RAID_QUEUE_DEPTH_DEFAULT;
+	mpt->verbose = MPT_PRT_NONE;
+	mpt->role = MPT_ROLE_NONE;
 	mpt_set_options(mpt);
-	mpt->verbose = MPT_PRT_INFO;
-	mpt->verbose += (bootverbose != 0)? 1 : 0;
-
+	if (mpt->verbose == MPT_PRT_NONE) {
+		mpt->verbose = MPT_PRT_WARN;
+		/* Print INFO level (if any) if bootverbose is set */
+		mpt->verbose += (bootverbose != 0)? 1 : 0;
+	}
 	/* Make sure memory access decoders are enabled */
 	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
 	if ((cmd & PCIM_CMD_MEMEN) == 0) {
 		device_printf(dev, "Memory accesses disabled");
-		goto bad;
+		return (ENXIO);
 	}
 
 	/*
@@ -307,13 +430,15 @@ mpt_pci_attach(device_t dev)
 	 * If so, link with our partner (around yet)
 	 */
 	if ((pci_get_device(dev) & ~1) == PCI_PRODUCT_LSI_FC929 ||
+	    (pci_get_device(dev) & ~1) == PCI_PRODUCT_LSI_FC7X04X ||
 	    (pci_get_device(dev) & ~1) == PCI_PRODUCT_LSI_1030) {
 		mpt_link_peer(mpt);
 	}
 
 	/*
 	 * Set up register access.  PIO mode is required for
-	 * certain reset operations.
+	 * certain reset operations (but must be disabled for
+	 * some cards otherwise).
 	 */
 	mpt->pci_pio_rid = PCIR_BAR(MPT_IO_BAR);
 	mpt->pci_pio_reg = bus_alloc_resource(dev, SYS_RES_IOPORT,
@@ -331,6 +456,10 @@ mpt_pci_attach(device_t dev)
 			&mpt->pci_mem_rid, 0, ~0, 0, RF_ACTIVE);
 	if (mpt->pci_reg == NULL) {
 		device_printf(dev, "Unable to memory map registers.\n");
+		if (mpt->is_sas) {
+			device_printf(dev, "Giving Up.\n");
+			goto bad;
+		}
 		device_printf(dev, "Falling back to PIO mode.\n");
 		mpt->pci_st = mpt->pci_pio_st;
 		mpt->pci_sh = mpt->pci_pio_sh;
@@ -368,7 +497,7 @@ mpt_pci_attach(device_t dev)
 	/* Allocate dma memory */
 /* XXX JGibbs -Should really be done based on IOCFacts. */
 	if (mpt_dma_mem_alloc(mpt)) {
-		device_printf(dev, "Could not allocate DMA memory\n");
+		mpt_prt(mpt, "Could not allocate DMA memory\n");
 		goto bad;
 	}
 
@@ -384,6 +513,11 @@ mpt_pci_attach(device_t dev)
 
 	mpt_read_config_regs(mpt);
 
+	/*
+	 * Disable PIO until we need it
+	 */
+	pci_disable_io(dev, SYS_RES_IOPORT);
+
 	/* Initialize the hardware */
 	if (mpt->disabled == 0) {
 		MPT_LOCK(mpt);
@@ -391,13 +525,31 @@ mpt_pci_attach(device_t dev)
 			MPT_UNLOCK(mpt);
 			goto bad;
 		}
+		MPT_UNLOCK(mpt);
+	} else {
+		mpt_prt(mpt, "device disabled at user request\n");
+		goto bad;
 	}
 
+	mpt->eh = EVENTHANDLER_REGISTER(shutdown_post_sync, mpt_pci_shutdown,
+	    dev, SHUTDOWN_PRI_DEFAULT);
+
+	if (mpt->eh == NULL) {
+		mpt_prt(mpt, "shutdown event registration failed\n");
+		MPT_LOCK(mpt);
+		(void) mpt_detach(mpt);
+		MPT_UNLOCK(mpt);
+		goto bad;
+	}
+	KASSERT(MPT_OWNED(mpt) == 0, ("leaving attach with device locked"));
 	return (0);
 
 bad:
 	mpt_dma_mem_free(mpt);
 	mpt_free_bus_resources(mpt);
+	mpt_unlink_peer(mpt);
+
+	MPT_LOCK_DESTROY(mpt);
 
 	/*
 	 * but return zero to preserve unit numbering
@@ -444,36 +596,19 @@ mpt_pci_detach(device_t dev)
 	struct mpt_softc *mpt;
 
 	mpt  = (struct mpt_softc*)device_get_softc(dev);
-	mpt_prt(mpt, "mpt_detach\n");
 
 	if (mpt) {
+		MPT_LOCK(mpt);
 		mpt_disable_ints(mpt);
 		mpt_detach(mpt);
 		mpt_reset(mpt, /*reinit*/FALSE);
 		mpt_dma_mem_free(mpt);
 		mpt_free_bus_resources(mpt);
-		if (mpt->raid_volumes != NULL
-		 && mpt->ioc_page2 != NULL) {
-			int i;
-
-			for (i = 0; i < mpt->ioc_page2->MaxVolumes; i++) {
-				struct mpt_raid_volume *mpt_vol;
-				
-				mpt_vol = &mpt->raid_volumes[i];
-				if (mpt_vol->config_page)
-					free(mpt_vol->config_page, M_DEVBUF);
-			}
-		}
-		if (mpt->ioc_page2 != NULL)
-			free(mpt->ioc_page2, M_DEVBUF);
-		if (mpt->ioc_page3 != NULL)
-			free(mpt->ioc_page3, M_DEVBUF);
-		if (mpt->raid_volumes != NULL)
-			free(mpt->raid_volumes, M_DEVBUF);
-		if (mpt->raid_disks != NULL)
-			free(mpt->raid_disks, M_DEVBUF);
-		if (mpt->eh != NULL)
+		mpt_raid_free_mem(mpt);
+		if (mpt->eh != NULL) {
                         EVENTHANDLER_DEREGISTER(shutdown_final, mpt->eh);
+		}
+		MPT_UNLOCK(mpt);
 	}
 	return(0);
 }
@@ -481,7 +616,6 @@ mpt_pci_detach(device_t dev)
 
 /*
  * Disable the hardware
- * XXX - Called too early by New Bus!!!  ???
  */
 static int
 mpt_pci_shutdown(device_t dev)
@@ -489,20 +623,24 @@ mpt_pci_shutdown(device_t dev)
 	struct mpt_softc *mpt;
 
 	mpt = (struct mpt_softc *)device_get_softc(dev);
-	if (mpt)
-		return (mpt_shutdown(mpt));
+	if (mpt) {
+		int r;
+		MPT_LOCK(mpt);
+		r = mpt_shutdown(mpt);
+		MPT_UNLOCK(mpt);
+		return (r);
+	}
 	return(0);
 }
 
 static int
 mpt_dma_mem_alloc(struct mpt_softc *mpt)
 {
-	int i, error;
+	int i, error, nsegs;
 	uint8_t *vptr;
 	uint32_t pptr, end;
 	size_t len;
 	struct mpt_map_info mi;
-	device_t dev = mpt->dev;
 
 	/* Check if we alreay have allocated the reply memory */
 	if (mpt->reply_phys != 0) {
@@ -513,49 +651,49 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 #ifdef	RELENG_4
 	mpt->request_pool = (request_t *)malloc(len, M_DEVBUF, M_WAITOK);
 	if (mpt->request_pool == NULL) {
-		device_printf(dev, "cannot allocate request pool\n");
+		mpt_prt(mpt, "cannot allocate request pool\n");
 		return (1);
 	}
-	bzero(mpt->request_pool, len);
+	memset(mpt->request_pool, 0, len);
 #else
 	mpt->request_pool = (request_t *)malloc(len, M_DEVBUF, M_WAITOK|M_ZERO);
 	if (mpt->request_pool == NULL) {
-		device_printf(dev, "cannot allocate request pool\n");
+		mpt_prt(mpt, "cannot allocate request pool\n");
 		return (1);
 	}
 #endif
 
 	/*
-	 * Create a parent dma tag for this device
+	 * Create a parent dma tag for this device.
 	 *
-	 * Align at byte boundaries, limit to 32-bit addressing
-	 * (The chip supports 64-bit addressing, but this driver doesn't)
+	 * Align at byte boundaries,
+	 * Limit to 32-bit addressing for request/reply queues.
 	 */
 	if (mpt_dma_tag_create(mpt, /*parent*/NULL, /*alignment*/1,
-	    /*boundary*/0, /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
+	    /*boundary*/0, /*lowaddr*/BUS_SPACE_MAXADDR,
 	    /*highaddr*/BUS_SPACE_MAXADDR, /*filter*/NULL, /*filterarg*/NULL,
 	    /*maxsize*/BUS_SPACE_MAXSIZE_32BIT,
 	    /*nsegments*/BUS_SPACE_MAXSIZE_32BIT,
 	    /*maxsegsz*/BUS_SPACE_UNRESTRICTED, /*flags*/0,
 	    &mpt->parent_dmat) != 0) {
-		device_printf(dev, "cannot create parent dma tag\n");
+		mpt_prt(mpt, "cannot create parent dma tag\n");
 		return (1);
 	}
 
 	/* Create a child tag for reply buffers */
-	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, PAGE_SIZE,
-	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
-	    NULL, NULL, PAGE_SIZE, 1, BUS_SPACE_MAXSIZE_32BIT, 0,
+	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, PAGE_SIZE, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
+	    NULL, NULL, 2 * PAGE_SIZE, 1, BUS_SPACE_MAXSIZE_32BIT, 0,
 	    &mpt->reply_dmat) != 0) {
-		device_printf(dev, "cannot create a dma tag for replies\n");
+		mpt_prt(mpt, "cannot create a dma tag for replies\n");
 		return (1);
 	}
 
 	/* Allocate some DMA accessable memory for replies */
 	if (bus_dmamem_alloc(mpt->reply_dmat, (void **)&mpt->reply,
 	    BUS_DMA_NOWAIT, &mpt->reply_dmap) != 0) {
-		device_printf(dev, "cannot allocate %lu bytes of reply memory\n",
-		     (u_long)PAGE_SIZE);
+		mpt_prt(mpt, "cannot allocate %lu bytes of reply memory\n",
+		    (u_long) (2 * PAGE_SIZE));
 		return (1);
 	}
 
@@ -564,39 +702,44 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 
 	/* Load and lock it into "bus space" */
 	bus_dmamap_load(mpt->reply_dmat, mpt->reply_dmap, mpt->reply,
-	    PAGE_SIZE, mpt_map_rquest, &mi, 0);
+	    2 * PAGE_SIZE, mpt_map_rquest, &mi, 0);
 
 	if (mi.error) {
-		device_printf(dev,
-		    "error %d loading dma map for DMA reply queue\n", mi.error);
+		mpt_prt(mpt, "error %d loading dma map for DMA reply queue\n",
+		    mi.error);
 		return (1);
 	}
 	mpt->reply_phys = mi.phys;
 
 	/* Create a child tag for data buffers */
+
+	/*
+	 * XXX: we should say that nsegs is 'unrestricted, but that
+	 * XXX: tickles a horrible bug in the busdma code. Instead,
+	 * XXX: we'll derive a reasonable segment limit from MAXPHYS
+	 */
+	nsegs = (MAXPHYS / PAGE_SIZE) + 1;
 	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, 1,
 	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
-	    NULL, NULL, MAXBSIZE, MPT_SGL_MAX, BUS_SPACE_MAXSIZE_32BIT, 0,
+	    NULL, NULL, MAXBSIZE, nsegs, BUS_SPACE_MAXSIZE_32BIT, 0,
 	    &mpt->buffer_dmat) != 0) {
-		device_printf(dev,
-		    "cannot create a dma tag for data buffers\n");
+		mpt_prt(mpt, "cannot create a dma tag for data buffers\n");
 		return (1);
 	}
 
 	/* Create a child tag for request buffers */
-	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, PAGE_SIZE,
-	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
+	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, PAGE_SIZE, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, MPT_REQ_MEM_SIZE(mpt), 1, BUS_SPACE_MAXSIZE_32BIT, 0,
 	    &mpt->request_dmat) != 0) {
-		device_printf(dev, "cannot create a dma tag for requests\n");
+		mpt_prt(mpt, "cannot create a dma tag for requests\n");
 		return (1);
 	}
 
 	/* Allocate some DMA accessable memory for requests */
 	if (bus_dmamem_alloc(mpt->request_dmat, (void **)&mpt->request,
 	    BUS_DMA_NOWAIT, &mpt->request_dmap) != 0) {
-		device_printf(dev,
-		    "cannot allocate %d bytes of request memory\n",
+		mpt_prt(mpt, "cannot allocate %d bytes of request memory\n",
 		    MPT_REQ_MEM_SIZE(mpt));
 		return (1);
 	}
@@ -609,13 +752,15 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	    MPT_REQ_MEM_SIZE(mpt), mpt_map_rquest, &mi, 0);
 
 	if (mi.error) {
-		device_printf(dev,
-		    "error %d loading dma map for DMA request queue\n",
+		mpt_prt(mpt, "error %d loading dma map for DMA request queue\n",
 		    mi.error);
 		return (1);
 	}
 	mpt->request_phys = mi.phys;
 
+	/*
+	 * Now create per-request dma maps
+	 */
 	i = 0;
 	pptr =  mpt->request_phys;
 	vptr =  mpt->request;
@@ -636,11 +781,12 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 
 		error = bus_dmamap_create(mpt->buffer_dmat, 0, &req->dmap);
 		if (error) {
-			device_printf(dev,
-			     "error %d creating per-cmd DMA maps\n", error);
+			mpt_prt(mpt, "error %d creating per-cmd DMA maps\n",
+			    error);
 			return (1);
 		}
 	}
+
 	return (0);
 }
 
@@ -655,8 +801,7 @@ mpt_dma_mem_free(struct mpt_softc *mpt)
 
         /* Make sure we aren't double destroying */
         if (mpt->reply_dmat == 0) {
-		if (mpt->verbose >= MPT_PRT_DEBUG)
-			device_printf(mpt->dev,"Already released dma memory\n");
+		mpt_lprt(mpt, MPT_PRT_DEBUG, "already released dma memory\n");
 		return;
         }
                 
