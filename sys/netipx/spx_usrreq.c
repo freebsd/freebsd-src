@@ -1451,7 +1451,12 @@ spx_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
+	if (ipxp->ipxp_flags & IPXP_DROPPED) {
+		error = EINVAL;
+		goto out;
+	}
 	error = ipx_pcbbind(ipxp, nam, td);
+out:
 	IPX_UNLOCK(ipxp);
 	IPX_LIST_UNLOCK();
 	return (error);
@@ -1477,6 +1482,10 @@ spx_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
+	if (ipxp->ipxp_flags & IPXP_DROPPED) {
+		error = EINVAL;
+		goto spx_connect_end;
+	}
 	if (ipxp->ipxp_lport == 0) {
 		error = ipx_pcbbind(ipxp, NULL, td);
 		if (error)
@@ -1540,6 +1549,7 @@ spx_usr_disconnect(struct socket *so)
 {
 	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
+	int error;
 
 	ipxp = sotoipxpcb(so);
 	KASSERT(ipxp != NULL, ("spx_usr_disconnect: ipxp == NULL"));
@@ -1549,10 +1559,16 @@ spx_usr_disconnect(struct socket *so)
 
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
+	if (ipxp->ipxp_flags & IPXP_DROPPED) {
+		error = EINVAL;
+		goto out;
+	}
 	spx_disconnect(cb);
+	error = 0;
+out:
 	IPX_UNLOCK(ipxp);
 	IPX_LIST_UNLOCK();
-	return (0);
+	return (error);
 }
 
 static int
@@ -1571,6 +1587,10 @@ spx_listen(struct socket *so, struct thread *td)
 
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
+	if (ipxp->ipxp_flags & IPXP_DROPPED) {
+		error = EINVAL;
+		goto out;
+	}
 	SOCK_LOCK(so);
 	error = solisten_proto_check(so);
 	if (error == 0 && ipxp->ipxp_lport == 0)
@@ -1580,6 +1600,7 @@ spx_listen(struct socket *so, struct thread *td)
 		solisten_proto(so);
 	}
 	SOCK_UNLOCK(so);
+out:
 	IPX_UNLOCK(ipxp);
 	IPX_LIST_UNLOCK();
 	return (error);
@@ -1593,6 +1614,7 @@ spx_rcvd(struct socket *so, int flags)
 {
 	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
+	int error;
 
 	ipxp = sotoipxpcb(so);
 	KASSERT(ipxp != NULL, ("spx_rcvd: ipxp == NULL"));
@@ -1601,11 +1623,17 @@ spx_rcvd(struct socket *so, int flags)
 	KASSERT(cb != NULL, ("spx_rcvd: cb == NULL"));
 
 	IPX_LOCK(ipxp);
+	if (ipxp->ipxp_flags & IPXP_DROPPED) {
+		error = EINVAL;
+		goto out;
+	}
 	cb->s_flags |= SF_RVD;
 	spx_output(cb, NULL);
 	cb->s_flags &= ~SF_RVD;
+	error = 0;
+out:
 	IPX_UNLOCK(ipxp);
-	return (0);
+	return (error);
 }
 
 static int
@@ -1613,6 +1641,7 @@ spx_rcvoob(struct socket *so, struct mbuf *m, int flags)
 {
 	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
+	int error;
 
 	ipxp = sotoipxpcb(so);
 	KASSERT(ipxp != NULL, ("spx_rcvoob: ipxp == NULL"));
@@ -1621,27 +1650,33 @@ spx_rcvoob(struct socket *so, struct mbuf *m, int flags)
 	KASSERT(cb != NULL, ("spx_rcvoob: cb == NULL"));
 
 	IPX_LOCK(ipxp);
+	if (ipxp->ipxp_flags & IPXP_DROPPED) {
+		error = EINVAL;
+		goto out;
+	}
 	SOCKBUF_LOCK(&so->so_rcv);
 	if ((cb->s_oobflags & SF_IOOB) || so->so_oobmark ||
 	    (so->so_rcv.sb_state & SBS_RCVATMARK)) {
 		SOCKBUF_UNLOCK(&so->so_rcv);
 		m->m_len = 1;
 		*mtod(m, caddr_t) = cb->s_iobc;
-		IPX_UNLOCK(ipxp);
-		return (0);
+		error = 0;
+		goto out;
 	}
 	SOCKBUF_UNLOCK(&so->so_rcv);
+	error = EINVAL;
+out:
 	IPX_UNLOCK(ipxp);
-	return (EINVAL);
+	return (error);
 }
 
 static int
 spx_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
     struct mbuf *controlp, struct thread *td)
 {
-	int error;
 	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
+	int error;
 
 	ipxp = sotoipxpcb(so);
 	KASSERT(ipxp != NULL, ("spx_send: ipxp == NULL"));
@@ -1651,6 +1686,10 @@ spx_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 
 	error = 0;
 	IPX_LOCK(ipxp);
+	if (ipxp->ipxp_flags & IPXP_DROPPED) {
+		error = ECONNRESET;
+		goto spx_send_end;
+	}
 	if (flags & PRUS_OOB) {
 		if (sbspace(&so->so_snd) < -512) {
 			error = ENOBUFS;
@@ -1684,6 +1723,7 @@ spx_shutdown(struct socket *so)
 {
 	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
+	int error;
 
 	ipxp = sotoipxpcb(so);
 	KASSERT(ipxp != NULL, ("spx_shutdown: ipxp == NULL"));
@@ -1694,10 +1734,16 @@ spx_shutdown(struct socket *so)
 	socantsendmore(so);
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
+	if (ipxp->ipxp_flags & IPXP_DROPPED) {
+		error = EINVAL;
+		goto out;
+	}
 	spx_usrclosed(cb);
+	error = 0;
+out:
 	IPX_UNLOCK(ipxp);
 	IPX_LIST_UNLOCK();
-	return (0);
+	return (error);
 }
 
 static int
