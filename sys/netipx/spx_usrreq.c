@@ -698,30 +698,8 @@ spx_ctlinput(cmd, arg_as_sa, dummy)
 	struct sockaddr *arg_as_sa;	/* XXX should be swapped with dummy */
 	void *dummy;
 {
-	caddr_t arg = (/* XXX */ caddr_t)arg_as_sa;
-	struct ipx_addr *na;
-	struct sockaddr_ipx *sipx;
 
-	if (cmd < 0 || cmd >= PRC_NCMDS)
-		return;
-
-	switch (cmd) {
-
-	case PRC_ROUTEDEAD:
-		return;
-
-	case PRC_IFDOWN:
-	case PRC_HOSTDEAD:
-	case PRC_HOSTUNREACH:
-		sipx = (struct sockaddr_ipx *)arg;
-		if (sipx->sipx_family != AF_IPX)
-			return;
-		na = &sipx->sipx_addr;
-		break;
-
-	default:
-		break;
-	}
+	/* Currently, nothing. */
 }
 
 static int
