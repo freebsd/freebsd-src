@@ -521,11 +521,13 @@ _xe=		xe
 
 .if ${MACHINE_ARCH} == "powerpc"
 _an=		an
+_ath_hal=	ath_hal
 _gem=		gem
 _smbfs=		smbfs
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
+_ath_hal=	ath_hal
 _auxio=		auxio
 _em=		em
 _gem=		gem
