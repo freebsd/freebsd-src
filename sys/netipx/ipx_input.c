@@ -447,6 +447,10 @@ register struct route *ro;
 	}
 }
 
+/*
+ * XXXRW: This code should be run in its own netisr dispatch to avoid a call
+ * back into the socket code from the IPX output path.
+ */
 void
 ipx_watch_output(m, ifp)
 struct mbuf *m;
