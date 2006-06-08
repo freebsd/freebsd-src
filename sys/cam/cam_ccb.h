@@ -513,7 +513,8 @@ typedef enum {
 	PIM_NOREMOVE	= 0x40,	/* Removeable devices not included in scan */
 	PIM_NOINITIATOR	= 0x20,	/* Initiator role not supported. */
 	PIM_NOBUSRESET	= 0x10,	/* User has disabled initial BUS RESET */
-	PIM_NO_6_BYTE	= 0x08	/* Do not send 6-byte commands */
+	PIM_NO_6_BYTE	= 0x08,	/* Do not send 6-byte commands */
+	PIM_SEQSCAN	= 0x04	/* Do bus scans sequentially, not in parallel */
 } pi_miscflag;
 
 #ifdef CAM_NEW_TRAN_CODE
