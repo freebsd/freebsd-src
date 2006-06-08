@@ -1,8 +1,9 @@
 /*-
- * Copyright (c) 2004-2005 Robert N. M. Watson
- * Copyright (c) 1995, Mike Mitchell
  * Copyright (c) 1984, 1985, 1986, 1987, 1993
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * Copyright (c) 1995, Mike Mitchell
+ * Copyright (c) 2004-2006 Robert N. M. Watson
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -144,20 +145,18 @@ struct	pr_usrreqs spx_usrreq_sps = {
 };
 
 void
-spx_init()
+spx_init(void)
 {
 
 	spx_iss = 1; /* WRONG !! should fish it out of TODR */
 }
 
 void
-spx_input(m, ipxp)
-	register struct mbuf *m;
-	register struct ipxpcb *ipxp;
+spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 {
-	register struct spxpcb *cb;
-	register struct spx *si = mtod(m, struct spx *);
-	register struct socket *so;
+	struct spxpcb *cb;
+	struct spx *si = mtod(m, struct spx *);
+	struct socket *so;
 	struct spx spx_savesi;
 	int dropsocket = 0;
 	short ostate = 0;
@@ -390,13 +389,11 @@ static int spxrexmtthresh = 3;
  * packets up, and suppresses duplicates.
  */
 static int
-spx_reass(cb, si)
-register struct spxpcb *cb;
-register struct spx *si;
+spx_reass(struct spxpcb *cb, struct spx *si)
 {
-	register struct spx_q *q;
-	register struct mbuf *m;
-	register struct socket *so = cb->s_ipxpcb->ipxp_socket;
+	struct spx_q *q;
+	struct mbuf *m;
+	struct socket *so = cb->s_ipxpcb->ipxp_socket;
 	char packetp = cb->s_flags & SF_HI;
 	int incr;
 	char wakeup = 0;
@@ -463,7 +460,7 @@ register struct spx *si;
 	if (cb->s_rtt && SSEQ_GT(si->si_ack, cb->s_rtseq)) {
 		spxstat.spxs_rttupdated++;
 		if (cb->s_srtt != 0) {
-			register short delta;
+			short delta;
 			delta = cb->s_rtt - (cb->s_srtt >> 3);
 			if ((cb->s_srtt += delta) <= 0)
 				cb->s_srtt = 1;
@@ -561,7 +558,7 @@ update_window:
 			 * which are then touched by spx_input() after the
 			 * return from spx_reass().
 			 */
-			/*register struct socket *so = cb->s_ipxpcb->ipxp_socket;
+			/*struct socket *so = cb->s_ipxpcb->ipxp_socket;
 			if (so->so_state && SS_NOFDREF) {
 				spx_close(cb);
 			} else
@@ -693,24 +690,19 @@ present:
 }
 
 void
-spx_ctlinput(cmd, arg_as_sa, dummy)
-	int cmd;
-	struct sockaddr *arg_as_sa;	/* XXX should be swapped with dummy */
-	void *dummy;
+spx_ctlinput(int cmd, struct sockaddr *arg_as_sa, void *dummy)
 {
 
 	/* Currently, nothing. */
 }
 
 static int
-spx_output(cb, m0)
-	register struct spxpcb *cb;
-	struct mbuf *m0;
+spx_output(struct spxpcb *cb, struct mbuf *m0)
 {
 	struct socket *so = cb->s_ipxpcb->ipxp_socket;
-	register struct mbuf *m;
-	register struct spx *si = NULL;
-	register struct sockbuf *sb = &so->so_snd;
+	struct mbuf *m;
+	struct spx *si = NULL;
+	struct sockbuf *sb = &so->so_snd;
 	int len = 0, win, rcv_win;
 	short span, off, recordp = 0;
 	u_short alo;
@@ -807,7 +799,7 @@ spx_output(cb, m0)
 		si->si_i = *cb->s_ipx;
 		si->si_s = cb->s_shdr;
 		if ((cb->s_flags & SF_PI) && (cb->s_flags & SF_HO)) {
-			register struct spxhdr *sh;
+			struct spxhdr *sh;
 			if (m0->m_len < sizeof(*sh)) {
 				if((m0 = m_pullup(m0, sizeof(*sh))) == NULL) {
 					m_free(m);
@@ -1116,10 +1108,9 @@ send:
 static int spx_do_persist_panics = 0;
 
 static void
-spx_setpersist(cb)
-	register struct spxpcb *cb;
+spx_setpersist(struct spxpcb *cb)
 {
-	register int t = ((cb->s_srtt >> 2) + cb->s_rttvar) >> 1;
+	int t = ((cb->s_srtt >> 2) + cb->s_rttvar) >> 1;
 
 	IPX_LOCK_ASSERT(cb->s_ipxpcb);
 
@@ -1136,12 +1127,10 @@ spx_setpersist(cb)
 }
 
 int
-spx_ctloutput(so, sopt)
-	struct socket *so;
-	struct sockopt *sopt;
+spx_ctloutput(struct socket *so, struct sockopt *sopt)
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
-	register struct spxpcb *cb;
+	struct spxpcb *cb;
 	int mask, error;
 	short soptval;
 	u_short usoptval;
@@ -1274,8 +1263,7 @@ spx_ctloutput(so, sopt)
 }
 
 static int
-spx_usr_abort(so)
-	struct socket *so;
+spx_usr_abort(struct socket *so)
 {
 	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
@@ -1296,9 +1284,7 @@ spx_usr_abort(so)
  * of the peer, storing through addr.
  */
 static int
-spx_accept(so, nam)
-	struct socket *so;
-	struct sockaddr **nam;
+spx_accept(struct socket *so, struct sockaddr **nam)
 {
 	struct ipxpcb *ipxp;
 	struct sockaddr_ipx *sipx, ssipx;
@@ -1316,10 +1302,7 @@ spx_accept(so, nam)
 }
 
 static int
-spx_attach(so, proto, td)
-	struct socket *so;
-	int proto;
-	struct thread *td;
+spx_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
@@ -1379,10 +1362,7 @@ spx_attach_end:
 }
 
 static int
-spx_bind(so, nam, td)
-	struct socket *so;
-	struct sockaddr *nam;
-	struct thread *td;
+spx_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct ipxpcb *ipxp;
 	int error;
@@ -1404,10 +1384,7 @@ spx_bind(so, nam, td)
  * Send initial system packet requesting connection.
  */
 static int
-spx_connect(so, nam, td)
-	struct socket *so;
-	struct sockaddr *nam;
-	struct thread *td;
+spx_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
@@ -1450,8 +1427,7 @@ spx_connect_end:
 }
 
 static int
-spx_detach(so)
-	struct socket *so;
+spx_detach(struct socket *so)
 {
 	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
@@ -1475,8 +1451,7 @@ spx_detach(so)
  * here is the hook to do it:
  */
 static int
-spx_usr_disconnect(so)
-	struct socket *so;
+spx_usr_disconnect(struct socket *so)
 {
 	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
@@ -1492,9 +1467,7 @@ spx_usr_disconnect(so)
 }
 
 static int
-spx_listen(so, td)
-	struct socket *so;
-	struct thread *td;
+spx_listen(struct socket *so, struct thread *td)
 {
 	int error;
 	struct ipxpcb *ipxp;
@@ -1525,9 +1498,7 @@ spx_listen(so, td)
  * updating allocation.
  */
 static int
-spx_rcvd(so, flags)
-	struct socket *so;
-	int flags;
+spx_rcvd(struct socket *so, int flags)
 {
 	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
@@ -1544,10 +1515,7 @@ spx_rcvd(so, flags)
 }
 
 static int
-spx_rcvoob(so, m, flags)
-	struct socket *so;
-	struct mbuf *m;
-	int flags;
+spx_rcvoob(struct socket *so, struct mbuf *m, int flags)
 {
 	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
@@ -1569,13 +1537,8 @@ spx_rcvoob(so, m, flags)
 }
 
 static int
-spx_send(so, flags, m, addr, controlp, td)
-	struct socket *so;
-	int flags;
-	struct mbuf *m;
-	struct sockaddr *addr;
-	struct mbuf *controlp;
-	struct thread *td;
+spx_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
+    struct mbuf *controlp, struct thread *td)
 {
 	int error;
 	struct ipxpcb *ipxp;
@@ -1615,8 +1578,7 @@ spx_send_end:
 }
 
 static int
-spx_shutdown(so)
-	struct socket *so;
+spx_shutdown(struct socket *so)
 {
 	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
@@ -1633,10 +1595,7 @@ spx_shutdown(so)
 }
 
 static int
-spx_sp_attach(so, proto, td)
-	struct socket *so;
-	int proto;
-	struct thread *td;
+spx_sp_attach(struct socket *so, int proto, struct thread *td)
 {
 	int error;
 	struct ipxpcb *ipxp;
@@ -1657,12 +1616,11 @@ spx_sp_attach(so, proto, td)
  * minimizing the amount of work necessary when the connection is used.
  */
 static void
-spx_template(cb)
-	register struct spxpcb *cb;
+spx_template(struct spxpcb *cb)
 {
-	register struct ipxpcb *ipxp = cb->s_ipxpcb;
-	register struct ipx *ipx = cb->s_ipx;
-	register struct sockbuf *sb = &(ipxp->ipxp_socket->so_snd);
+	struct ipxpcb *ipxp = cb->s_ipxpcb;
+	struct ipx *ipx = cb->s_ipx;
+	struct sockbuf *sb = &(ipxp->ipxp_socket->so_snd);
 
 	IPX_LOCK_ASSERT(ipxp);
 
@@ -1688,13 +1646,12 @@ spx_template(cb)
  * cb will always be invalid after this call.
  */
 void
-spx_close(cb)
-	register struct spxpcb *cb;
+spx_close(struct spxpcb *cb)
 {
-	register struct spx_q *s;
+	struct spx_q *s;
 	struct ipxpcb *ipxp = cb->s_ipxpcb;
 	struct socket *so = ipxp->ipxp_socket;
-	register struct mbuf *m;
+	struct mbuf *m;
 
 	IPX_LIST_LOCK_ASSERT();
 	IPX_LOCK_ASSERT(ipxp);
@@ -1721,8 +1678,7 @@ spx_close(cb)
  * cb will always be invalid after this call.
  */
 static void
-spx_usrclosed(cb)
-	register struct spxpcb *cb;
+spx_usrclosed(struct spxpcb *cb)
 {
 
 	IPX_LIST_LOCK_ASSERT();
@@ -1735,8 +1691,7 @@ spx_usrclosed(cb)
  * cb will always be invalid after this call.
  */
 static void
-spx_disconnect(cb)
-	register struct spxpcb *cb;
+spx_disconnect(struct spxpcb *cb)
 {
 
 	IPX_LIST_LOCK_ASSERT();
@@ -1751,9 +1706,7 @@ spx_disconnect(cb)
  * cb will always be invalid after this call.
  */
 static void
-spx_drop(cb, errno)
-	register struct spxpcb *cb;
-	int errno;
+spx_drop(struct spxpcb *cb, int errno)
 {
 	struct socket *so = cb->s_ipxpcb->ipxp_socket;
 
@@ -1779,7 +1732,7 @@ spx_drop(cb, errno)
  * Fast timeout routine for processing delayed acks
  */
 void
-spx_fasttimo()
+spx_fasttimo(void)
 {
 	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
@@ -1805,7 +1758,7 @@ spx_fasttimo()
  * causes finite state machine actions if timers expire.
  */
 void
-spx_slowtimo()
+spx_slowtimo(void)
 {
 	struct ipxpcb *ip, *ip_temp;
 	struct spxpcb *cb;
@@ -1850,9 +1803,7 @@ spx_slowtimo()
  * SPX timer processing.
  */
 static struct spxpcb *
-spx_timers(cb, timer)
-	register struct spxpcb *cb;
-	int timer;
+spx_timers(struct spxpcb *cb, int timer)
 {
 	long rexmt;
 	int win;
