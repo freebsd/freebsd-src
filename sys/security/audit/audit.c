@@ -171,20 +171,19 @@ audit_record_ctor(void *mem, int size, void *arg, int flags)
 
 	/*
 	 * Export the subject credential.
-	 *
-	 * XXXAUDIT: td_ucred access is OK without proc lock, but some other
-	 * fields here may require the proc lock.
 	 */
 	cru2x(td->td_ucred, &ar->k_ar.ar_subj_cred);
 	ar->k_ar.ar_subj_ruid = td->td_ucred->cr_ruid;
 	ar->k_ar.ar_subj_rgid = td->td_ucred->cr_rgid;
 	ar->k_ar.ar_subj_egid = td->td_ucred->cr_groups[0];
+	PROC_LOCK(td->td_proc);
 	ar->k_ar.ar_subj_auid = td->td_proc->p_au->ai_auid;
 	ar->k_ar.ar_subj_asid = td->td_proc->p_au->ai_asid;
 	ar->k_ar.ar_subj_pid = td->td_proc->p_pid;
 	ar->k_ar.ar_subj_amask = td->td_proc->p_au->ai_mask;
 	ar->k_ar.ar_subj_term = td->td_proc->p_au->ai_termid;
 	bcopy(td->td_proc->p_comm, ar->k_ar.ar_subj_comm, MAXCOMLEN);
+	PROC_UNLOCK(td->td_proc);
 
 	return (0);
 }
