@@ -52,7 +52,9 @@ __FBSDID("$FreeBSD$");
 
 #include <i386/bios/apm.h>
 
-uint32_t acpi_reset_video = 1;
+uint32_t acpi_resume_beep;
+TUNABLE_INT("hw.acpi.resume_beep", &acpi_resume_beep);
+uint32_t acpi_reset_video;
 TUNABLE_INT("hw.acpi.reset_video", &acpi_reset_video);
 
 static int intr_model = ACPI_INTR_PIC;
@@ -318,6 +320,10 @@ acpi_machdep_init(device_t dev)
 	else
 		acpi_SetIntrModel(intr_model);
 
+	SYSCTL_ADD_UINT(&sc->acpi_sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->acpi_sysctl_tree), OID_AUTO,
+	    "resume_beep", CTLFLAG_RD | CTLFLAG_RW, &acpi_resume_beep, 0,
+	    "Beep the PC speaker when resuming");
 	SYSCTL_ADD_UINT(&sc->acpi_sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->acpi_sysctl_tree), OID_AUTO,
 	    "reset_video", CTLFLAG_RD | CTLFLAG_RW, &acpi_reset_video, 0,
