@@ -1974,8 +1974,8 @@ bge_attach(device_t dev)
 	 * Treat the 5714 and the 5752 like the 5750 until we have more info
 	 * on this chip.
 	 */
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5714 || 
-            sc->bge_asicrev == BGE_ASICREV_BCM5752)
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5714 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5752)
 		sc->bge_asicrev = BGE_ASICREV_BCM5750;
 
 	/*
@@ -2072,7 +2072,7 @@ bge_attach(device_t dev)
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
 
-        /*
+	/*
 	 * 5700 B0 chips do not support checksumming correctly due
 	 * to hardware bugs.
 	 */
@@ -2875,7 +2875,7 @@ bge_encap(struct bge_softc *sc, struct mbuf *m_head, uint32_t *txidx)
 	map = sc->bge_cdata.bge_tx_dmamap[idx];
 	error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_mtag, map,
 	    m_head, segs, &nsegs, BUS_DMA_NOWAIT);
-        if (error) {
+	if (error) {
 		if (error == EFBIG) {
 			struct mbuf *m0;
 
@@ -2887,7 +2887,7 @@ bge_encap(struct bge_softc *sc, struct mbuf *m_head, uint32_t *txidx)
 			    map, m_head, segs, &nsegs, BUS_DMA_NOWAIT);
 		}
 		if (error)
-			return (error); 
+			return (error);
 	}
 
 	/*
@@ -3270,7 +3270,7 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFMTU:
 		/* Disallow jumbo frames on 5705. */
 		if (((sc->bge_asicrev == BGE_ASICREV_BCM5705 ||
-		      sc->bge_asicrev == BGE_ASICREV_BCM5750) &&
+		    sc->bge_asicrev == BGE_ASICREV_BCM5750) &&
 		    ifr->ifr_mtu > ETHERMTU) || ifr->ifr_mtu > BGE_JUMBO_MTU)
 			error = EINVAL;
 		else {
@@ -3348,7 +3348,7 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 1);
 				CSR_WRITE_4(sc, BGE_HCC_RX_MAX_COAL_BDS_INT, 1);
 				CSR_WRITE_4(sc, BGE_HCC_TX_MAX_COAL_BDS_INT, 1);
-				ifp->if_capenable |= IFCAP_POLLING;   
+				ifp->if_capenable |= IFCAP_POLLING;
 				BGE_UNLOCK(sc);
 			} else {
 				error = ether_poll_deregister(ifp);
@@ -3622,7 +3622,7 @@ bge_link_upd(struct bge_softc *sc)
 			    BRGPHY_INTRS);
 		}
 		return;
-	} 
+	}
 
 	if (sc->bge_tbi) {
 		status = CSR_READ_4(sc, BGE_MAC_STS);
@@ -3646,7 +3646,7 @@ bge_link_upd(struct bge_softc *sc)
 		}
 	/* Discard link events for MII/GMII cards if MI auto-polling disabled */
 	} else if (CSR_READ_4(sc, BGE_MI_MODE) & BGE_MIMODE_AUTOPOLL) {
-		/* 
+		/*
 		 * Some broken BCM chips have BGE_STATFLAG_LINKSTATE_CHANGED bit
 		 * in status word always set. Workaround this bug by reading
 		 * PHY link status directly.
