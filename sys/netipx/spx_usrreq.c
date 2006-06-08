@@ -759,11 +759,12 @@ spx_output(struct spxpcb *cb, struct mbuf *m0)
 
 				cb->s_cc &= ~SPX_EM;
 				while (len > mtu) {
-					/*
-					 * Here we are only being called from
-					 * usrreq(), so it is OK to block.
-					 */
-					m = m_copym(m0, 0, mtu, M_TRYWAIT);
+					m = m_copym(m0, 0, mtu, M_DONTWAIT);
+					if (m == NULL) {
+					    cb->s_cc |= oldEM;
+					    m_freem(m0);
+					    return (ENOBUFS);
+					}
 					if (cb->s_flags & SF_NEWCALL) {
 					    struct mbuf *mm = m;
 					    spx_newchecks[7]++;
