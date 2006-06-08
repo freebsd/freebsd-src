@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 /*
  * SPX protocol implementation.
  */
+static struct	mtx spx_mtx;			/* Protects only spx_iss. */
 static u_short 	spx_iss;
 static u_short	spx_newchecks[50];
 static int	spx_hardnosed;
@@ -73,6 +74,10 @@ static int	spx_use_delack = 0;
 static int	traceallspxs = 0;
 static struct	spx_istat spx_istat;
 static int	spxrexmtthresh = 3;
+
+#define	SPX_LOCK_INIT()	mtx_init(&spx_mtx, "spx_mtx", NULL, MTX_DEF)
+#define	SPX_LOCK()	mtx_lock(&spx_mtx)
+#define	SPX_UNLOCK()	mtx_unlock(&spx_mtx)
 
 /* Following was struct spxstat spxstat; */
 #ifndef spxstat
@@ -149,6 +154,7 @@ void
 spx_init(void)
 {
 
+	SPX_LOCK_INIT();
 	spx_iss = 1; /* WRONG !! should fish it out of TODR */
 }
 
@@ -1626,8 +1632,10 @@ spx_template(struct spxpcb *cb)
 	ipx->ipx_pt = IPXPROTO_SPX;
 	ipx->ipx_sna = ipxp->ipxp_laddr;
 	ipx->ipx_dna = ipxp->ipxp_faddr;
+	SPX_LOCK();
 	cb->s_sid = htons(spx_iss);
 	spx_iss += SPX_ISSINCR/2;
+	SPX_UNLOCK();
 	cb->s_alo = 1;
 	cb->s_cwnd = (sbspace(sb) * CUNIT) / cb->s_mtu;
 	cb->s_ssthresh = cb->s_cwnd; /* Try to expand fast to full complement
@@ -1794,8 +1802,10 @@ spx_slowtimo(void)
 			IPX_UNLOCK(cb->s_ipxpcb);
 		}
 	}
-	spx_iss += SPX_ISSINCR/PR_SLOWHZ;		/* increment iss */
 	IPX_LIST_UNLOCK();
+	SPX_LOCK();
+	spx_iss += SPX_ISSINCR/PR_SLOWHZ;		/* increment iss */
+	SPX_UNLOCK();
 }
 
 /*
