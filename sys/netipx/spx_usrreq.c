@@ -1145,14 +1145,13 @@ spx_setpersist(struct spxpcb *cb)
 int
 spx_ctloutput(struct socket *so, struct sockopt *sopt)
 {
-	struct ipxpcb *ipxp = sotoipxpcb(so);
+	struct spxhdr spxhdr;
+	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
 	int mask, error;
 	short soptval;
 	u_short usoptval;
 	int optval;
-
-	error = 0;
 
 	/*
 	 * This will have to be changed when we do more general stacking of
@@ -1160,12 +1159,16 @@ spx_ctloutput(struct socket *so, struct sockopt *sopt)
 	 */
 	if (sopt->sopt_level != IPXPROTO_SPX)
 		return (ipx_ctloutput(so, sopt));
+
+	ipxp = sotoipxpcb(so);
 	if (ipxp == NULL)
 		return (EINVAL);
-	else
-		cb = ipxtospxpcb(ipxp);
+
+	IPX_LOCK(ipxp);
+	cb = ipxtospxpcb(ipxp);
 	KASSERT(cb != NULL, ("spx_ctloutput: cb == NULL"));
 
+	error = 0;
 	switch (sopt->sopt_dir) {
 	case SOPT_GET:
 		switch (sopt->sopt_name) {
@@ -1176,30 +1179,33 @@ spx_ctloutput(struct socket *so, struct sockopt *sopt)
 		case SO_HEADERS_ON_OUTPUT:
 			mask = SF_HO;
 		get_flags:
-			/* Unlocked read. */
 			soptval = cb->s_flags & mask;
-			error = sooptcopyout(sopt, &soptval, sizeof soptval);
+			IPX_UNLOCK(ipxp);
+			error = sooptcopyout(sopt, &soptval,
+			    sizeof(soptval));
 			break;
 
 		case SO_MTU:
-			/* Unlocked read. */
 			usoptval = cb->s_mtu;
-			error = sooptcopyout(sopt, &usoptval, sizeof usoptval);
+			IPX_UNLOCK(ipxp);
+			error = sooptcopyout(sopt, &usoptval,
+			    sizeof(usoptval));
 			break;
 
 		case SO_LAST_HEADER:
-			/* Unlocked read. */
-			error = sooptcopyout(sopt, &cb->s_rhdr,
-					     sizeof cb->s_rhdr);
+			spxhdr = cb->s_rhdr;
+			IPX_UNLOCK(ipxp);
+			error = sooptcopyout(sopt, &spxhdr, sizeof(spxhdr));
 			break;
 
 		case SO_DEFAULT_HEADERS:
-			/* Unlocked read. */
-			error = sooptcopyout(sopt, &cb->s_shdr,
-					     sizeof cb->s_shdr);
+			spxhdr = cb->s_shdr;
+			IPX_UNLOCK(ipxp);
+			error = sooptcopyout(sopt, &spxhdr, sizeof(spxhdr));
 			break;
 
 		default:
+			IPX_UNLOCK(ipxp);
 			error = ENOPROTOOPT;
 		}
 		break;
@@ -1209,6 +1215,7 @@ spx_ctloutput(struct socket *so, struct sockopt *sopt)
 		 * XXX Why are these shorts on get and ints on set?  That
 		 * doesn't make any sense...
 		 */
+		IPX_UNLOCK(ipxp);
 		switch (sopt->sopt_name) {
 		case SO_HEADERS_ON_INPUT:
 			mask = SF_HI;
@@ -1278,6 +1285,9 @@ spx_ctloutput(struct socket *so, struct sockopt *sopt)
 			error = ENOPROTOOPT;
 		}
 		break;
+
+	default:
+		panic("spx_ctloutput: bad socket option direction");
 	}
 	return (error);
 }
