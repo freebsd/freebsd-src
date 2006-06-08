@@ -28,13 +28,13 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF THE COPYRIGHT
  * OWNER OR CONTRIBUTOR IS ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *
- *           Name:  MPI_TYPE.H
+ * 
+ * 
+ *           Name:  mpi_type.h
  *          Title:  MPI Basic type definitions
  *  Creation Date:  June 6, 2000
  *
- *    MPI Version:  01.02.01
+ *    mpi_type.h Version:  01.05.02
  *
  *  Version History
  *  ---------------
@@ -46,6 +46,9 @@
  *  11-02-00  01.01.01  Original release for post 1.0 work
  *  02-20-01  01.01.02  Added define and ifdef for MPI_POINTER.
  *  08-08-01  01.02.01  Original release for v1.2 work.
+ *  05-11-04  01.03.01  Original release for MPI v1.3.
+ *  08-19-04  01.05.01  Original release for MPI v1.5.
+ *  08-30-05  01.05.02  Added PowerPC option to #ifdef's.
  *  --------------------------------------------------------------------------
  */
 
@@ -69,12 +72,31 @@
 *
 *****************************************************************************/
 
-typedef int8_t   S8;
-typedef uint8_t  U8;
-typedef int16_t  S16;
-typedef uint16_t U16;
+typedef signed   char   S8;
+typedef unsigned char   U8;
+typedef signed   short  S16;
+typedef unsigned short  U16;
+
+#ifdef	__FreeBSD__
+
 typedef int32_t  S32;
 typedef uint32_t U32;
+
+#else
+
+#if defined(unix) || defined(__arm) || defined(ALPHA) || defined(__PPC__) || defined(__ppc)
+
+    typedef signed   int   S32;
+    typedef unsigned int   U32;
+
+#else
+
+    typedef signed   long  S32;
+    typedef unsigned long  U32;
+
+#endif
+#endif
+
 
 typedef struct _S64
 {
