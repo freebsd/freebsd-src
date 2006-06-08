@@ -523,13 +523,14 @@ padlock_process(void *arg __unused, struct cryptop *crp, int hint __unused)
 	u_char *buf, *abuf;
 	int error = 0;
 
+	enccrd = maccrd = NULL;
 	buf = NULL;
+
 	if (crp == NULL || crp->crp_callback == NULL || crp->crp_desc == NULL) {
 		error = EINVAL;
 		goto out;
 	}
 
-	enccrd = maccrd = NULL;
 	for (crd = crp->crp_desc; crd != NULL; crd = crd->crd_next) {
 		switch (crd->crd_alg) {
 		case CRYPTO_NULL_HMAC:
