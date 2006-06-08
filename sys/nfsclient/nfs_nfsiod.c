@@ -90,7 +90,7 @@ SYSCTL_UINT(_vfs_nfs, OID_AUTO, iodmaxidle, CTLFLAG_RW, &nfs_iodmaxidle, 0, "");
 unsigned int nfs_iodmax = 20;
 
 /* Minimum number of nfsiod kthreads to keep as spares */
-static unsigned int nfs_iodmin = 4;
+static unsigned int nfs_iodmin = 0;
 
 static int
 sysctl_iodmin(SYSCTL_HANDLER_ARGS)
