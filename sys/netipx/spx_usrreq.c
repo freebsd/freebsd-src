@@ -70,7 +70,6 @@ static u_short	spx_newchecks[50];
 static int	spx_hardnosed;
 static int	spx_use_delack = 0;
 static int	traceallspxs = 0;
-static struct	spx 	spx_savesi;
 static struct	spx_istat spx_istat;
 
 /* Following was struct spxstat spxstat; */
@@ -159,6 +158,7 @@ spx_input(m, ipxp)
 	register struct spxpcb *cb;
 	register struct spx *si = mtod(m, struct spx *);
 	register struct socket *so;
+	struct spx spx_savesi;
 	int dropsocket = 0;
 	short ostate = 0;
 
