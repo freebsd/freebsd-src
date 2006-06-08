@@ -169,7 +169,7 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 	short ostate = 0;
 
 	spxstat.spxs_rcvtotal++;
-	KASSERT(ipxp != NULL, ("spx_input: NULL ipxpcb"));
+	KASSERT(ipxp != NULL, ("spx_input: ipxpcb == NULL"));
 
 	/*
 	 * spx_input() assumes that the caller will hold both the pcb list
@@ -198,6 +198,7 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 	si->si_alo = ntohs(si->si_alo);
 
 	so = ipxp->ipxp_socket;
+	KASSERT(so != NULL, ("spx_input: so == NULL"));
 
 	if (so->so_options & SO_DEBUG || traceallspxs) {
 		ostate = cb->s_state;
@@ -207,19 +208,18 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 		struct spxpcb *ocb = cb;
 
 		so = sonewconn(so, 0);
-		if (so == NULL) {
+		if (so == NULL)
 			goto drop;
-		}
+
 		/*
 		 * This is ugly, but ....
 		 *
-		 * Mark socket as temporary until we're
-		 * committed to keeping it.  The code at
-		 * ``drop'' and ``dropwithreset'' check the
-		 * flag dropsocket to see if the temporary
-		 * socket created here should be discarded.
-		 * We mark the socket as discardable until
-		 * we're committed to it below in TCPS_LISTEN.
+		 * Mark socket as temporary until we're committed to keeping
+		 * it.  The code at ``drop'' and ``dropwithreset'' check the
+		 * flag dropsocket to see if the temporary socket created
+		 * here should be discarded.  We mark the socket as
+		 * discardable until we're committed to it below in
+		 * TCPS_LISTEN.
 		 */
 		dropsocket++;
 		IPX_UNLOCK(ipxp);
@@ -232,24 +232,24 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 		cb->s_flags2 = ocb->s_flags2;	/* preserve sockopts */
 		cb->s_state = TCPS_LISTEN;
 	}
+	IPX_LOCK_ASSERT(ipxp);
 
 	/*
-	 * Packet received on connection.
-	 * reset idle time and keep-alive timer;
+	 * Packet received on connection.  Reset idle time and keep-alive
+	 * timer.
 	 */
 	cb->s_idle = 0;
 	cb->s_timer[SPXT_KEEP] = SPXTV_KEEP;
 
 	switch (cb->s_state) {
-
 	case TCPS_LISTEN:{
 		struct sockaddr_ipx *sipx, ssipx;
 		struct ipx_addr laddr;
 
 		/*
-		 * If somebody here was carying on a conversation
-		 * and went away, and his pen pal thinks he can
-		 * still talk, we get the misdirected packet.
+		 * If somebody here was carying on a conversation and went
+		 * away, and his pen pal thinks he can still talk, we get the
+		 * misdirected packet.
 		 */
 		if (spx_hardnosed && (si->si_did != 0 || si->si_seq != 0)) {
 			spx_istat.gonawy++;
@@ -281,13 +281,13 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 		cb->s_timer[SPXT_KEEP] = SPXTV_KEEP;
 		}
 		break;
-	/*
-	 * This state means that we have heard a response
-	 * to our acceptance of their connection
-	 * It is probably logically unnecessary in this
-	 * implementation.
-	 */
+
 	 case TCPS_SYN_RECEIVED: {
+		/*
+		 * This state means that we have heard a response to our
+		 * acceptance of their connection.  It is probably logically
+		 * unnecessary in this implementation.
+		 */
 		if (si->si_did != cb->s_sid) {
 			spx_istat.wrncon++;
 			goto drop;
@@ -302,16 +302,15 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 		}
 		break;
 
-	/*
-	 * This state means that we have gotten a response
-	 * to our attempt to establish a connection.
-	 * We fill in the data from the other side,
-	 * telling us which port to respond to, instead of the well-
-	 * known one we might have sent to in the first place.
-	 * We also require that this is a response to our
-	 * connection id.
-	 */
 	case TCPS_SYN_SENT:
+		/*
+		 * This state means that we have gotten a response to our
+		 * attempt to establish a connection.  We fill in the data
+		 * from the other side, telling us which port to respond to,
+		 * instead of the well-known one we might have sent to in the
+		 * first place.  We also require that this is a response to
+		 * our connection id.
+		 */
 		if (si->si_did != cb->s_sid) {
 			spx_istat.notme++;
 			goto drop;
@@ -325,7 +324,9 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 		cb->s_flags |= SF_ACKNOW;
 		soisconnected(so);
 		cb->s_state = TCPS_ESTABLISHED;
-		/* Use roundtrip time of connection request for initial rtt */
+		/*
+		 * Use roundtrip time of connection request for initial rtt.
+		 */
 		if (cb->s_rtt) {
 			cb->s_srtt = cb->s_rtt << 3;
 			cb->s_rttvar = cb->s_rtt << 1;
@@ -335,6 +336,7 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 			    cb->s_rtt = 0;
 		}
 	}
+
 	if (so->so_options & SO_DEBUG || traceallspxs)
 		spx_trace(SA_INPUT, (u_char)ostate, cb, &spx_savesi, 0);
 
@@ -342,9 +344,8 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 	m->m_pkthdr.len -= sizeof(struct ipx);
 	m->m_data += sizeof(struct ipx);
 
-	if (spx_reass(cb, si)) {
+	if (spx_reass(cb, si))
 		m_freem(m);
-	}
 	if (cb->s_force || (cb->s_flags & (SF_ACKNOW|SF_WIN|SF_RXT)))
 		spx_output(cb, NULL);
 	cb->s_flags &= ~(SF_WIN|SF_RXT);
@@ -353,6 +354,7 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 	return;
 
 dropwithreset:
+	IPX_LOCK_ASSERT(ipxp);
 	IPX_UNLOCK(ipxp);
 	if (dropsocket) {
 		struct socket *head;
@@ -380,6 +382,7 @@ dropwithreset:
 
 drop:
 bad:
+	IPX_LOCK_ASSERT(ipxp);
 	if (cb == NULL || cb->s_ipxpcb->ipxp_socket->so_options & SO_DEBUG ||
             traceallspxs)
 		spx_trace(SA_DROP, (u_char)ostate, cb, &spx_savesi, 0);
@@ -389,9 +392,9 @@ bad:
 }
 
 /*
- * This is structurally similar to the tcp reassembly routine
- * but its function is somewhat different:  It merely queues
- * packets up, and suppresses duplicates.
+ * This is structurally similar to the tcp reassembly routine but its
+ * function is somewhat different:  It merely queues packets up, and
+ * suppresses duplicates.
  */
 static int
 spx_reass(struct spxpcb *cb, struct spx *si)
@@ -418,10 +421,10 @@ spx_reass(struct spxpcb *cb, struct spx *si)
 		if ((si->si_cc & SPX_SP) && cb->s_rack != (cb->s_smax + 1)) {
 			spxstat.spxs_rcvdupack++;
 			/*
-			 * If this is a completely duplicate ack
-			 * and other conditions hold, we assume
-			 * a packet has been dropped and retransmit
-			 * it exactly as in tcp_input().
+			 * If this is a completely duplicate ack and other
+			 * conditions hold, we assume a packet has been
+			 * dropped and retransmit it exactly as in
+			 * tcp_input().
 			 */
 			if (si->si_ack != cb->s_rack ||
 			    si->si_alo != cb->s_ralo)
@@ -447,20 +450,21 @@ spx_reass(struct spxpcb *cb, struct spx *si)
 		goto update_window;
 	}
 	cb->s_dupacks = 0;
+
 	/*
-	 * If our correspondent acknowledges data we haven't sent
-	 * TCP would drop the packet after acking.  We'll be a little
-	 * more permissive
+	 * If our correspondent acknowledges data we haven't sent TCP would
+	 * drop the packet after acking.  We'll be a little more permissive.
 	 */
 	if (SSEQ_GT(si->si_ack, (cb->s_smax + 1))) {
 		spxstat.spxs_rcvacktoomuch++;
 		si->si_ack = cb->s_smax + 1;
 	}
 	spxstat.spxs_rcvackpack++;
+
 	/*
-	 * If transmit timer is running and timed sequence
-	 * number was acked, update smoothed round trip time.
-	 * See discussion of algorithm in tcp_input.c
+	 * If transmit timer is running and timed sequence number was acked,
+	 * update smoothed round trip time.  See discussion of algorithm in
+	 * tcp_input.c
 	 */
 	if (cb->s_rtt && SSEQ_GT(si->si_ack, cb->s_rtseq)) {
 		spxstat.spxs_rttupdated++;
@@ -476,7 +480,7 @@ spx_reass(struct spxpcb *cb, struct spx *si)
 				cb->s_rttvar = 1;
 		} else {
 			/*
-			 * No rtt measurement yet
+			 * No rtt measurement yet.
 			 */
 			cb->s_srtt = cb->s_rtt << 3;
 			cb->s_rttvar = cb->s_rtt << 1;
@@ -487,27 +491,30 @@ spx_reass(struct spxpcb *cb, struct spx *si)
 			((cb->s_srtt >> 2) + cb->s_rttvar) >> 1,
 			SPXTV_MIN, SPXTV_REXMTMAX);
 	}
+
 	/*
-	 * If all outstanding data is acked, stop retransmit
-	 * timer and remember to restart (more output or persist).
-	 * If there is more data to be acked, restart retransmit
-	 * timer, using current (possibly backed-off) value;
+	 * If all outstanding data is acked, stop retransmit timer and
+	 * remember to restart (more output or persist).  If there is more
+	 * data to be acked, restart retransmit timer, using current
+	 * (possibly backed-off) value;
 	 */
 	if (si->si_ack == cb->s_smax + 1) {
 		cb->s_timer[SPXT_REXMT] = 0;
 		cb->s_flags |= SF_RXT;
 	} else if (cb->s_timer[SPXT_PERSIST] == 0)
 		cb->s_timer[SPXT_REXMT] = cb->s_rxtcur;
+
 	/*
-	 * When new data is acked, open the congestion window.
-	 * If the window gives us less than ssthresh packets
-	 * in flight, open exponentially (maxseg at a time).
-	 * Otherwise open linearly (maxseg^2 / cwnd at a time).
+	 * When new data is acked, open the congestion window.  If the window
+	 * gives us less than ssthresh packets in flight, open exponentially
+	 * (maxseg at a time).  Otherwise open linearly (maxseg^2 / cwnd at a
+	 * time).
 	 */
 	incr = CUNIT;
 	if (cb->s_cwnd > cb->s_ssthresh)
 		incr = max(incr * incr / cb->s_cwnd, 1);
 	cb->s_cwnd = min(cb->s_cwnd + incr, cb->s_cwmx);
+
 	/*
 	 * Trim Acked data from output queue.
 	 */
@@ -540,9 +547,10 @@ update_window:
 			cb->s_smxw = cb->s_swnd;
 		cb->s_flags |= SF_WIN;
 	}
+
 	/*
-	 * If this packet number is higher than that which
-	 * we have allocated refuse it, unless urgent
+	 * If this packet number is higher than that which we have allocated
+	 * refuse it, unless urgent.
 	 */
 	if (SSEQ_GT(si->si_seq, cb->s_alo)) {
 		if (si->si_cc & SPX_SP) {
@@ -574,13 +582,15 @@ update_window:
 			return (0);
 		}
 	}
+
 	/*
-	 * If this is a system packet, we don't need to
-	 * queue it up, and won't update acknowledge #
+	 * If this is a system packet, we don't need to queue it up, and
+	 * won't update acknowledge #.
 	 */
 	if (si->si_cc & SPX_SP) {
 		return (1);
 	}
+
 	/*
 	 * We have already seen this packet, so drop.
 	 */
@@ -591,9 +601,10 @@ update_window:
 			spx_istat.lstdup++;
 		return (1);
 	}
+
 	/*
-	 * Loop through all packets queued up to insert in
-	 * appropriate sequence.
+	 * Loop through all packets queued up to insert in appropriate
+	 * sequence.
 	 */
 	for (q = cb->s_q.si_next; q != &cb->s_q; q = q->si_next) {
 		if (si->si_seq == SI(q)->si_seq) {
@@ -617,10 +628,11 @@ update_window:
 present:
 #define SPINC sizeof(struct spxhdr)
 	SOCKBUF_LOCK(&so->so_rcv);
+
 	/*
-	 * Loop through all packets queued up to update acknowledge
-	 * number, and present all acknowledged data to user;
-	 * If in packet interface mode, show packet headers.
+	 * Loop through all packets queued up to update acknowledge number,
+	 * and present all acknowledged data to user; if in packet interface
+	 * mode, show packet headers.
 	 */
 	for (q = cb->s_q.si_next; q != &cb->s_q; q = q->si_next) {
 		  if (SI(q)->si_seq == cb->s_ack) {
@@ -722,6 +734,7 @@ spx_output(struct spxpcb *cb, struct mbuf *m0)
 	if (m0 != NULL) {
 		int mtu = cb->s_mtu;
 		int datalen;
+
 		/*
 		 * Make sure that packet isn't too big.
 		 */
@@ -743,9 +756,8 @@ spx_output(struct spxpcb *cb, struct mbuf *m0)
 				cb->s_cc &= ~SPX_EM;
 				while (len > mtu) {
 					/*
-					 * Here we are only being called
-					 * from usrreq(), so it is OK to
-					 * block.
+					 * Here we are only being called from
+					 * usrreq(), so it is OK to block.
 					 */
 					m = m_copym(m0, 0, mtu, M_TRYWAIT);
 					if (cb->s_flags & SF_NEWCALL) {
@@ -768,6 +780,7 @@ spx_output(struct spxpcb *cb, struct mbuf *m0)
 				cb->s_cc |= oldEM;
 			}
 		}
+
 		/*
 		 * Force length even, by adding a "garbage byte" if
 		 * necessary.
@@ -793,9 +806,10 @@ spx_output(struct spxpcb *cb, struct mbuf *m0)
 			m_freem(m0);
 			return (ENOBUFS);
 		}
+
 		/*
-		 * Fill in mbuf with extended SP header
-		 * and addresses and length put into network format.
+		 * Fill in mbuf with extended SP header and addresses and
+		 * length put into network format.
 		 */
 		MH_ALIGN(m, sizeof(struct spx));
 		m->m_len = sizeof(struct spx);
@@ -827,12 +841,11 @@ spx_output(struct spxpcb *cb, struct mbuf *m0)
 		}
 		if (cb->s_oobflags & SF_SOOB) {
 			/*
-			 * Per jqj@cornell:
-			 * make sure OB packets convey exactly 1 byte.
-			 * If the packet is 1 byte or larger, we
-			 * have already guaranted there to be at least
-			 * one garbage byte for the checksum, and
-			 * extra bytes shouldn't hurt!
+			 * Per jqj@cornell: Make sure OB packets convey
+			 * exactly 1 byte.  If the packet is 1 byte or
+			 * larger, we have already guaranted there to be at
+			 * least one garbage byte for the checksum, and extra
+			 * bytes shouldn't hurt!
 			 */
 			if (len > sizeof(*si)) {
 				si->si_cc |= SPX_OB;
@@ -841,8 +854,9 @@ spx_output(struct spxpcb *cb, struct mbuf *m0)
 		}
 		si->si_len = htons((u_short)len);
 		m->m_pkthdr.len = ((len - 1) | 1) + 1;
+
 		/*
-		 * queue stuff up for output
+		 * Queue stuff up for output.
 		 */
 		sbappendrecord(sb, m);
 		cb->s_seq++;
@@ -856,10 +870,9 @@ again:
 	win = min(cb->s_swnd, (cb->s_cwnd / CUNIT));
 
 	/*
-	 * If in persist timeout with window of 0, send a probe.
-	 * Otherwise, if window is small but nonzero
-	 * and timer expired, send what we can and go into
-	 * transmit state.
+	 * If in persist timeout with window of 0, send a probe.  Otherwise,
+	 * if window is small but nonzero and timer expired, send what we can
+	 * and go into transmit state.
 	 */
 	if (cb->s_force == 1 + SPXT_PERSIST) {
 		if (win != 0) {
@@ -872,12 +885,10 @@ again:
 
 	if (len < 0) {
 		/*
-		 * Window shrank after we went into it.
-		 * If window shrank to 0, cancel pending
-		 * restransmission and pull s_snxt back
-		 * to (closed) window.  We will enter persist
-		 * state below.  If the widndow didn't close completely,
-		 * just wait for an ACK.
+		 * Window shrank after we went into it.  If window shrank to
+		 * 0, cancel pending restransmission and pull s_snxt back to
+		 * (closed) window.  We will enter persist state below.  If
+		 * the widndow didn't close completely, just wait for an ACK.
 		 */
 		len = 0;
 		if (win == 0) {
@@ -894,7 +905,7 @@ again:
 	 */
 	if (cb->s_oobflags & SF_SOOB) {
 		/*
-		 * must transmit this out of band packet
+		 * Must transmit this out of band packet.
 		 */
 		cb->s_oobflags &= ~ SF_SOOB;
 		sendalot = 1;
@@ -905,18 +916,18 @@ again:
 		goto send;
 	if (cb->s_state < TCPS_ESTABLISHED)
 		goto send;
+
 	/*
-	 * Silly window can't happen in spx.
-	 * Code from tcp deleted.
+	 * Silly window can't happen in spx.  Code from TCP deleted.
 	 */
 	if (len)
 		goto send;
+
 	/*
-	 * Compare available window to amount of window
-	 * known to peer (as advertised window less
-	 * next expected input.)  If the difference is at least two
-	 * packets or at least 35% of the mximum possible window,
-	 * then want to send a window update to peer.
+	 * Compare available window to amount of window known to peer (as
+	 * advertised window less next expected input.)  If the difference is
+	 * at least two packets or at least 35% of the mximum possible
+	 * window, then want to send a window update to peer.
 	 */
 	if (rcv_win > 0) {
 		u_short delta =  1 + cb->s_alo - cb->s_ack;
@@ -930,20 +941,20 @@ again:
 		}
 
 	}
+
 	/*
-	 * Many comments from tcp_output.c are appropriate here
-	 * including . . .
+	 * Many comments from tcp_output.c are appropriate here including ...
 	 * If send window is too small, there is data to transmit, and no
-	 * retransmit or persist is pending, then go to persist state.
-	 * If nothing happens soon, send when timer expires:
-	 * if window is nonzero, transmit what we can,
-	 * otherwise send a probe.
+	 * retransmit or persist is pending, then go to persist state.  If
+	 * nothing happens soon, send when timer expires: if window is
+	 * nonzero, transmit what we can, otherwise send a probe.
 	 */
 	if (so->so_snd.sb_cc && cb->s_timer[SPXT_REXMT] == 0 &&
 		cb->s_timer[SPXT_PERSIST] == 0) {
 			cb->s_rxtshift = 0;
 			spx_setpersist(cb);
 	}
+
 	/*
 	 * No reason to send a packet, just return.
 	 */
@@ -970,8 +981,9 @@ send:
 					spxstat.spxs_sndvoid++, si = 0;
 		}
 	}
+
 	/*
-	 * update window
+	 * Update window.
 	 */
 	if (rcv_win < 0)
 		rcv_win = 0;
@@ -981,13 +993,12 @@ send:
 
 	if (si != NULL) {
 		/*
-		 * must make a copy of this packet for
-		 * ipx_output to monkey with
+		 * Must make a copy of this packet for ipx_output to monkey
+		 * with.
 		 */
 		m = m_copy(dtom(si), 0, (int)M_COPYALL);
-		if (m == NULL) {
+		if (m == NULL)
 			return (ENOBUFS);
-		}
 		si = mtod(m, struct spx *);
 		if (SSEQ_LT(si->si_seq, cb->s_smax))
 			spxstat.spxs_sndrexmitpack++;
@@ -995,7 +1006,7 @@ send:
 			spxstat.spxs_sndpack++;
 	} else if (cb->s_force || cb->s_flags & SF_ACKNOW) {
 		/*
-		 * Must send an acknowledgement or a probe
+		 * Must send an acknowledgement or a probe.
 		 */
 		if (cb->s_force)
 			spxstat.spxs_sndprobe++;
@@ -1004,9 +1015,10 @@ send:
 		m = m_gethdr(M_DONTWAIT, MT_HEADER);
 		if (m == NULL)
 			return (ENOBUFS);
+
 		/*
-		 * Fill in mbuf with extended SP header
-		 * and addresses and length put into network format.
+		 * Fill in mbuf with extended SP header and addresses and
+		 * length put into network format.
 		 */
 		MH_ALIGN(m, sizeof(struct spx));
 		m->m_len = sizeof(*si);
@@ -1041,12 +1053,13 @@ send:
 					cb->s_rtt = 1;
 				}
 			}
+
 			/*
-			 * Set rexmt timer if not currently set,
-			 * Initial value for retransmit timer is smoothed
-			 * round-trip time + 2 * round-trip time variance.
-			 * Initialize shift counter which is used for backoff
-			 * of retransmit time.
+			 * Set rexmt timer if not currently set, initial
+			 * value for retransmit timer is smoothed round-trip
+			 * time + 2 * round-trip time variance.  Initialize
+			 * shift counter which is used for backoff of
+			 * retransmit time.
 			 */
 			if (cb->s_timer[SPXT_REXMT] == 0 &&
 			    cb->s_snxt != cb->s_rack) {
@@ -1056,49 +1069,46 @@ send:
 					cb->s_rxtshift = 0;
 				}
 			}
-		} else if (SSEQ_LT(cb->s_smax, si->si_seq)) {
+		} else if (SSEQ_LT(cb->s_smax, si->si_seq))
 			cb->s_smax = si->si_seq;
-		}
 	} else if (cb->s_state < TCPS_ESTABLISHED) {
 		if (cb->s_rtt == 0)
 			cb->s_rtt = 1; /* Time initial handshake */
 		if (cb->s_timer[SPXT_REXMT] == 0)
 			cb->s_timer[SPXT_REXMT] = cb->s_rxtcur;
 	}
-	{
-		/*
-		 * Do not request acks when we ack their data packets or
-		 * when we do a gratuitous window update.
-		 */
-		if (((si->si_cc & SPX_SP) == 0) || cb->s_force)
-				si->si_cc |= SPX_SA;
-		si->si_seq = htons(si->si_seq);
-		si->si_alo = htons(alo);
-		si->si_ack = htons(cb->s_ack);
 
-		if (ipxcksum) {
-			si->si_sum = ipx_cksum(m, ntohs(si->si_len));
-		} else
-			si->si_sum = 0xffff;
-
-		cb->s_outx = 4;
-		if (so->so_options & SO_DEBUG || traceallspxs)
-			spx_trace(SA_OUTPUT, cb->s_state, cb, si, 0);
-
-		if (so->so_options & SO_DONTROUTE)
-			error = ipx_outputfl(m, NULL, IPX_ROUTETOIF);
-		else
-			error = ipx_outputfl(m, &cb->s_ipxpcb->ipxp_route, 0);
-	}
-	if (error) {
-		return (error);
-	}
-	spxstat.spxs_sndtotal++;
 	/*
-	 * Data sent (as far as we can tell).
-	 * If this advertises a larger window than any other segment,
-	 * then remember the size of the advertized window.
-	 * Any pending ACK has now been sent.
+	 * Do not request acks when we ack their data packets or when we do a
+	 * gratuitous window update.
+	 */
+	if (((si->si_cc & SPX_SP) == 0) || cb->s_force)
+		si->si_cc |= SPX_SA;
+	si->si_seq = htons(si->si_seq);
+	si->si_alo = htons(alo);
+	si->si_ack = htons(cb->s_ack);
+
+	if (ipxcksum)
+		si->si_sum = ipx_cksum(m, ntohs(si->si_len));
+	else
+		si->si_sum = 0xffff;
+
+	cb->s_outx = 4;
+	if (so->so_options & SO_DEBUG || traceallspxs)
+		spx_trace(SA_OUTPUT, cb->s_state, cb, si, 0);
+
+	if (so->so_options & SO_DONTROUTE)
+		error = ipx_outputfl(m, NULL, IPX_ROUTETOIF);
+	else
+		error = ipx_outputfl(m, &cb->s_ipxpcb->ipxp_route, 0);
+	if (error)
+		return (error);
+	spxstat.spxs_sndtotal++;
+
+	/*
+	 * Data sent (as far as we can tell).  If this advertises a larger
+	 * window than any other segment, then remember the size of the
+	 * advertized window.  Any pending ACK has now been sent.
 	 */
 	cb->s_force = 0;
 	cb->s_flags &= ~(SF_ACKNOW|SF_DELACK);
@@ -1121,6 +1131,7 @@ spx_setpersist(struct spxpcb *cb)
 
 	if (cb->s_timer[SPXT_REXMT] && spx_do_persist_panics)
 		panic("spx_output REXMT");
+
 	/*
 	 * Start/restart persistance timer.
 	 */
@@ -1143,15 +1154,17 @@ spx_ctloutput(struct socket *so, struct sockopt *sopt)
 
 	error = 0;
 
-	if (sopt->sopt_level != IPXPROTO_SPX) {
-		/* This will have to be changed when we do more general
-		   stacking of protocols */
+	/*
+	 * This will have to be changed when we do more general stacking of
+	 * protocols.
+	 */
+	if (sopt->sopt_level != IPXPROTO_SPX)
 		return (ipx_ctloutput(so, sopt));
-	}
 	if (ipxp == NULL)
 		return (EINVAL);
 	else
 		cb = ipxtospxpcb(ipxp);
+	KASSERT(cb != NULL, ("spx_ctloutput: cb == NULL"));
 
 	switch (sopt->sopt_dir) {
 	case SOPT_GET:
@@ -1192,9 +1205,11 @@ spx_ctloutput(struct socket *so, struct sockopt *sopt)
 		break;
 
 	case SOPT_SET:
+		/*
+		 * XXX Why are these shorts on get and ints on set?  That
+		 * doesn't make any sense...
+		 */
 		switch (sopt->sopt_name) {
-			/* XXX why are these shorts on get and ints on set?
-			   that doesn't make any sense... */
 		case SO_HEADERS_ON_INPUT:
 			mask = SF_HI;
 			goto set_head;
@@ -1274,7 +1289,10 @@ spx_usr_abort(struct socket *so)
 	struct spxpcb *cb;
 
 	ipxp = sotoipxpcb(so);
+	KASSERT(ipxp != NULL, ("spx_usr_abort: ipxp == NULL"));
+
 	cb = ipxtospxpcb(ipxp);
+	KASSERT(cb != NULL, ("spx_usr_abort: cb == NULL"));
 
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
@@ -1284,9 +1302,8 @@ spx_usr_abort(struct socket *so)
 }
 
 /*
- * Accept a connection.  Essentially all the work is
- * done at higher levels; just return the address
- * of the peer, storing through addr.
+ * Accept a connection.  Essentially all the work is done at higher levels;
+ * just return the address of the peer, storing through addr.
  */
 static int
 spx_accept(struct socket *so, struct sockaddr **nam)
@@ -1295,6 +1312,8 @@ spx_accept(struct socket *so, struct sockaddr **nam)
 	struct sockaddr_ipx *sipx, ssipx;
 
 	ipxp = sotoipxpcb(so);
+	KASSERT(ipxp == NULL, ("spx_accept: ipxp == NULL"));
+
 	sipx = &ssipx;
 	bzero(sipx, sizeof *sipx);
 	sipx->sipx_len = sizeof *sipx;
@@ -1316,7 +1335,7 @@ spx_attach(struct socket *so, int proto, struct thread *td)
 	int error;
 
 	ipxp = sotoipxpcb(so);
-	cb = ipxtospxpcb(ipxp);
+	KASSERT(ipxp == NULL, ("spx_attach: ipxp != NULL"));
 
 	IPX_LIST_LOCK();
 	error = ipx_pcballoc(so, &ipxpcb_list, td);
@@ -1330,12 +1349,10 @@ spx_attach(struct socket *so, int proto, struct thread *td)
 	ipxp = sotoipxpcb(so);
 
 	MALLOC(cb, struct spxpcb *, sizeof *cb, M_PCB, M_NOWAIT | M_ZERO);
-
 	if (cb == NULL) {
 		error = ENOBUFS;
 		goto spx_attach_end;
 	}
-	sb = &so->so_snd;
 
 	mm = m_getclr(M_DONTWAIT, MT_HEADER);
 	if (mm == NULL) {
@@ -1350,11 +1367,14 @@ spx_attach(struct socket *so, int proto, struct thread *td)
 	cb->s_q.si_next = cb->s_q.si_prev = &cb->s_q;
 	cb->s_ipxpcb = ipxp;
 	cb->s_mtu = 576 - sizeof(struct spx);
+	sb = &so->so_snd;
 	cb->s_cwnd = sbspace(sb) * CUNIT / cb->s_mtu;
 	cb->s_ssthresh = cb->s_cwnd;
 	cb->s_cwmx = sbspace(sb) * CUNIT / (2 * sizeof(struct spx));
-	/* Above is recomputed when connecting to account
-	   for changed buffering or mtu's */
+	/*
+	 * Above is recomputed when connecting to account for changed
+	 * buffering or mtu's.
+	 */
 	cb->s_rtt = SPXTV_SRTTBASE;
 	cb->s_rttvar = SPXTV_SRTTDFLT << 2;
 	SPXT_RANGESET(cb->s_rxtcur,
@@ -1373,6 +1393,7 @@ spx_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	int error;
 
 	ipxp = sotoipxpcb(so);
+	KASSERT(ipxp != NULL, ("spx_bind: ipxp == NULL"));
 
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
@@ -1383,10 +1404,9 @@ spx_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 }
 
 /*
- * Initiate connection to peer.
- * Enter SYN_SENT state, and mark socket as connecting.
- * Start keep-alive timer, setup prototype header,
- * Send initial system packet requesting connection.
+ * Initiate connection to peer.  Enter SYN_SENT state, and mark socket as
+ * connecting.  Start keep-alive timer, setup prototype header, send initial
+ * system packet requesting connection.
  */
 static int
 spx_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
@@ -1396,7 +1416,10 @@ spx_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	int error;
 
 	ipxp = sotoipxpcb(so);
+	KASSERT(ipxp != NULL, ("spx_connect: ipxp == NULL"));
+
 	cb = ipxtospxpcb(ipxp);
+	KASSERT(cb != NULL, ("spx_connect: cb == NULL"));
 
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
@@ -1416,11 +1439,9 @@ spx_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	cb->s_timer[SPXT_KEEP] = SPXTV_KEEP;
 	cb->s_force = 1 + SPXTV_KEEP;
 	/*
-	 * Other party is required to respond to
-	 * the port I send from, but he is not
-	 * required to answer from where I am sending to,
-	 * so allow wildcarding.
-	 * original port I am sending to is still saved in
+	 * Other party is required to respond to the port I send from, but he
+	 * is not required to answer from where I am sending to, so allow
+	 * wildcarding.  Original port I am sending to is still saved in
 	 * cb->s_dport.
 	 */
 	ipxp->ipxp_fport = 0;
@@ -1438,7 +1459,10 @@ spx_detach(struct socket *so)
 	struct spxpcb *cb;
 
 	ipxp = sotoipxpcb(so);
+	KASSERT(ipxp != NULL, ("spx_detach: ipxp == NULL"));
+
 	cb = ipxtospxpcb(ipxp);
+	KASSERT(cb != NULL, ("spx_detach: cb == NULL"));
 
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
@@ -1451,9 +1475,8 @@ spx_detach(struct socket *so)
 }
 
 /*
- * We may decide later to implement connection closing
- * handshaking at the spx level optionally.
- * here is the hook to do it:
+ * We may decide later to implement connection closing handshaking at the spx
+ * level optionally.  Here is the hook to do it:
  */
 static int
 spx_usr_disconnect(struct socket *so)
@@ -1462,7 +1485,10 @@ spx_usr_disconnect(struct socket *so)
 	struct spxpcb *cb;
 
 	ipxp = sotoipxpcb(so);
+	KASSERT(ipxp != NULL, ("spx_usr_disconnect: ipxp == NULL"));
+
 	cb = ipxtospxpcb(ipxp);
+	KASSERT(cb != NULL, ("spx_usr_disconnect: cb == NULL"));
 
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
@@ -1480,7 +1506,10 @@ spx_listen(struct socket *so, struct thread *td)
 
 	error = 0;
 	ipxp = sotoipxpcb(so);
+	KASSERT(ipxp != NULL, ("spx_listen: ipxp == NULL"));
+
 	cb = ipxtospxpcb(ipxp);
+	KASSERT(cb != NULL, ("spx_listen: cb == NULL"));
 
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
@@ -1499,8 +1528,7 @@ spx_listen(struct socket *so, struct thread *td)
 }
 
 /*
- * After a receive, possibly send acknowledgment
- * updating allocation.
+ * After a receive, possibly send acknowledgment updating allocation.
  */
 static int
 spx_rcvd(struct socket *so, int flags)
@@ -1509,7 +1537,10 @@ spx_rcvd(struct socket *so, int flags)
 	struct spxpcb *cb;
 
 	ipxp = sotoipxpcb(so);
+	KASSERT(ipxp != NULL, ("spx_rcvd: ipxp == NULL"));
+
 	cb = ipxtospxpcb(ipxp);
+	KASSERT(cb != NULL, ("spx_rcvd: cb == NULL"));
 
 	IPX_LOCK(ipxp);
 	cb->s_flags |= SF_RVD;
@@ -1526,7 +1557,10 @@ spx_rcvoob(struct socket *so, struct mbuf *m, int flags)
 	struct spxpcb *cb;
 
 	ipxp = sotoipxpcb(so);
+	KASSERT(ipxp != NULL, ("spx_rcvoob: ipxp == NULL"));
+
 	cb = ipxtospxpcb(ipxp);
+	KASSERT(cb != NULL, ("spx_rcvoob: cb == NULL"));
 
 	SOCKBUF_LOCK(&so->so_rcv);
 	if ((cb->s_oobflags & SF_IOOB) || so->so_oobmark ||
@@ -1549,10 +1583,13 @@ spx_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
 
-	error = 0;
 	ipxp = sotoipxpcb(so);
-	cb = ipxtospxpcb(ipxp);
+	KASSERT(ipxp != NULL, ("spx_send: ipxp == NULL"));
 
+	cb = ipxtospxpcb(ipxp);
+	KASSERT(cb != NULL, ("spx_send: cb == NULL"));
+
+	error = 0;
 	IPX_LOCK(ipxp);
 	if (flags & PRUS_OOB) {
 		if (sbspace(&so->so_snd) < -512) {
@@ -1589,7 +1626,10 @@ spx_shutdown(struct socket *so)
 	struct spxpcb *cb;
 
 	ipxp = sotoipxpcb(so);
+	KASSERT(ipxp != NULL, ("spx_shutdown: ipxp == NULL"));
+
 	cb = ipxtospxpcb(ipxp);
+	KASSERT(cb != NULL, ("spx_shutdown: cb == NULL"));
 
 	socantsendmore(so);
 	IPX_LIST_LOCK();
@@ -1609,16 +1649,16 @@ spx_sp_attach(struct socket *so, int proto, struct thread *td)
 	if (error == 0) {
 		ipxp = sotoipxpcb(so);
 		((struct spxpcb *)ipxp->ipxp_pcb)->s_flags |=
-					(SF_HI | SF_HO | SF_PI);
+		    (SF_HI | SF_HO | SF_PI);
 	}
 	return (error);
 }
 
 /*
- * Create template to be used to send spx packets on a connection.
- * Called after host entry created, fills
- * in a skeletal spx header (choosing connection id),
- * minimizing the amount of work necessary when the connection is used.
+ * Create template to be used to send spx packets on a connection.  Called
+ * after host entry created, fills in a skeletal spx header (choosing
+ * connection id), minimizing the amount of work necessary when the
+ * connection is used.
  */
 static void
 spx_template(struct spxpcb *cb)
@@ -1638,11 +1678,11 @@ spx_template(struct spxpcb *cb)
 	SPX_UNLOCK();
 	cb->s_alo = 1;
 	cb->s_cwnd = (sbspace(sb) * CUNIT) / cb->s_mtu;
-	cb->s_ssthresh = cb->s_cwnd; /* Try to expand fast to full complement
-					of large packets */
+	/* Try to expand fast to full complement of large packets. */
+	cb->s_ssthresh = cb->s_cwnd;
 	cb->s_cwmx = (sbspace(sb) * CUNIT) / (2 * sizeof(struct spx));
+	/* But allow for lots of little packets as well. */
 	cb->s_cwmx = max(cb->s_cwmx, cb->s_cwnd);
-		/* But allow for lots of little packets as well */
 }
 
 /*
@@ -1660,6 +1700,7 @@ spx_close(struct spxpcb *cb)
 	struct socket *so = ipxp->ipxp_socket;
 	struct mbuf *m;
 
+	KASSERT(ipxp != NULL, ("spx_close: ipxp == NULL"));
 	IPX_LIST_LOCK_ASSERT();
 	IPX_LOCK_ASSERT(ipxp);
 
@@ -1679,10 +1720,9 @@ spx_close(struct spxpcb *cb)
 }
 
 /*
- *	Someday we may do level 3 handshaking
- *	to close a connection or send a xerox style error.
- *	For now, just close.
- * cb will always be invalid after this call.
+ * Someday we may do level 3 handshaking to close a connection or send a
+ * xerox style error.  For now, just close.  cb will always be invalid after
+ * this call.
  */
 static void
 spx_usrclosed(struct spxpcb *cb)
@@ -1708,9 +1748,8 @@ spx_disconnect(struct spxpcb *cb)
 }
 
 /*
- * Drop connection, reporting
- * the specified error.
- * cb will always be invalid after this call.
+ * Drop connection, reporting the specified error.  cb will always be invalid
+ * after this call.
  */
 static void
 spx_drop(struct spxpcb *cb, int errno)
@@ -1721,9 +1760,8 @@ spx_drop(struct spxpcb *cb, int errno)
 	IPX_LOCK_ASSERT(cb->s_ipxpcb);
 
 	/*
-	 * someday, in the xerox world
-	 * we will generate error protocol packets
-	 * announcing that the socket has gone away.
+	 * Someday, in the xerox world we will generate error protocol
+	 * packets announcing that the socket has gone away.
 	 */
 	if (TCPS_HAVERCVDSYN(cb->s_state)) {
 		spxstat.spxs_drops++;
@@ -1736,7 +1774,7 @@ spx_drop(struct spxpcb *cb, int errno)
 }
 
 /*
- * Fast timeout routine for processing delayed acks
+ * Fast timeout routine for processing delayed acks.
  */
 void
 spx_fasttimo(void)
@@ -1760,9 +1798,8 @@ spx_fasttimo(void)
 }
 
 /*
- * spx protocol timeout routine called every 500 ms.
- * Updates the timers in all active pcb's and
- * causes finite state machine actions if timers expire.
+ * spx protocol timeout routine called every 500 ms.  Updates the timers in
+ * all active pcb's and causes finite state machine actions if timers expire.
  */
 void
 spx_slowtimo(void)
@@ -1833,9 +1870,9 @@ spx_timers(struct spxpcb *cb, int timer)
 		break;
 
 	/*
-	 * Retransmission timer went off.  Message has not
-	 * been acked within retransmit interval.  Back off
-	 * to a longer retransmit interval and retransmit one packet.
+	 * Retransmission timer went off.  Message has not been acked within
+	 * retransmit interval.  Back off to a longer retransmit interval and
+	 * retransmit one packet.
 	 */
 	case SPXT_REXMT:
 		if (++cb->s_rxtshift > SPX_MAXRXTSHIFT) {
@@ -1850,25 +1887,27 @@ spx_timers(struct spxpcb *cb, int timer)
 		rexmt *= spx_backoff[cb->s_rxtshift];
 		SPXT_RANGESET(cb->s_rxtcur, rexmt, SPXTV_MIN, SPXTV_REXMTMAX);
 		cb->s_timer[SPXT_REXMT] = cb->s_rxtcur;
+
 		/*
-		 * If we have backed off fairly far, our srtt
-		 * estimate is probably bogus.  Clobber it
-		 * so we'll take the next rtt measurement as our srtt;
-		 * move the current srtt into rttvar to keep the current
-		 * retransmit times until then.
+		 * If we have backed off fairly far, our srtt estimate is
+		 * probably bogus.  Clobber it so we'll take the next rtt
+		 * measurement as our srtt; move the current srtt into rttvar
+		 * to keep the current retransmit times until then.
 		 */
 		if (cb->s_rxtshift > SPX_MAXRXTSHIFT / 4 ) {
 			cb->s_rttvar += (cb->s_srtt >> 2);
 			cb->s_srtt = 0;
 		}
 		cb->s_snxt = cb->s_rack;
+
 		/*
 		 * If timing a packet, stop the timer.
 		 */
 		cb->s_rtt = 0;
+
 		/*
 		 * See very long discussion in tcp_timer.c about congestion
-		 * window and sstrhesh
+		 * window and sstrhesh.
 		 */
 		win = min(cb->s_swnd, (cb->s_cwnd/CUNIT)) / 2;
 		if (win < 2)
@@ -1878,21 +1917,21 @@ spx_timers(struct spxpcb *cb, int timer)
 		spx_output(cb, NULL);
 		break;
 
-	/*
-	 * Persistance timer into zero window.
-	 * Force a probe to be sent.
-	 */
 	case SPXT_PERSIST:
+		/*
+		 * Persistance timer into zero window.  Force a probe to be
+		 * sent.
+		 */
 		spxstat.spxs_persisttimeo++;
 		spx_setpersist(cb);
 		spx_output(cb, NULL);
 		break;
 
-	/*
-	 * Keep-alive timer went off; send something
-	 * or drop connection if idle for too long.
-	 */
 	case SPXT_KEEP:
+		/*
+		 * Keep-alive timer went off; send something or drop
+		 * connection if idle for too long.
+		 */
 		spxstat.spxs_keeptimeo++;
 		if (cb->s_state < TCPS_ESTABLISHED)
 			goto dropit;
@@ -1905,6 +1944,7 @@ spx_timers(struct spxpcb *cb, int timer)
 			cb->s_idle = 0;
 		cb->s_timer[SPXT_KEEP] = SPXTV_KEEP;
 		break;
+
 	dropit:
 		spxstat.spxs_keepdrops++;
 		spx_drop(cb, ETIMEDOUT);
