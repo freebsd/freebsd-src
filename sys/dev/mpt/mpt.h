@@ -25,8 +25,43 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ */
+/*-
+ * Copyright (c) 2002, 2006 by Matthew Jacob
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon including
+ *    a substantially similar Disclaimer requirement for further binary
+ *    redistribution.
+ * 3. Neither the names of the above listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF THE COPYRIGHT
+ * OWNER OR CONTRIBUTOR IS ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Additional Copyright (c) 2002 by Matthew Jacob under same license.
+ * Support from Chris Ellsworth in order to make SAS adapters work
+ * is gratefully acknowledged.
+ *
+ *
+ * Support from LSI-Logic has also gone a great deal toward making this a
+ * workable subsystem and is gratefully acknowledged.
  */
 /*
  * Copyright (c) 2004, Avid Technology, Inc. and its contributors.
@@ -86,13 +121,25 @@
 #include <sys/bus.h>
 #include <sys/module.h>
 
-#include <machine/bus.h>
-#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/resource.h>
 
+#if __FreeBSD_version < 500000  
+#include <machine/bus.h>
+#include <machine/clock.h>
+#endif
+
 #include <sys/rman.h>
 
+#if __FreeBSD_version < 500000  
+#include <pci/pcireg.h>
+#include <pci/pcivar.h>
+#else
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#endif
+
+#include <machine/bus.h>
 #include "opt_ddb.h"
 
 /**************************** Register Definitions ****************************/
@@ -114,6 +161,12 @@
 
 #define NUM_ELEMENTS(array) (sizeof(array) / sizeof(*array))
 
+#define	MPT_ROLE_NONE		0
+#define	MPT_ROLE_INITIATOR	1
+#define	MPT_ROLE_TARGET		2
+#define	MPT_ROLE_BOTH		3
+#define	MPT_ROLE_DEFAULT	MPT_ROLE_INITIATOR
+
 /**************************** Forward Declarations ****************************/
 struct mpt_softc;
 struct mpt_personality;
@@ -123,6 +176,7 @@ typedef struct req_entry request_t;
 typedef int mpt_load_handler_t(struct mpt_personality *);
 typedef int mpt_probe_handler_t(struct mpt_softc *);
 typedef int mpt_attach_handler_t(struct mpt_softc *);
+typedef int mpt_enable_handler_t(struct mpt_softc *);
 typedef int mpt_event_handler_t(struct mpt_softc *, request_t *,
 				MSG_EVENT_NOTIFY_REPLY *);
 typedef void mpt_reset_handler_t(struct mpt_softc *, int /*type*/);
@@ -140,6 +194,7 @@ struct mpt_personality
 #define MPT_PERS_FIRST_HANDLER(pers) (&(pers)->load)
 	mpt_probe_handler_t	*probe;		/* configure personailty */
 	mpt_attach_handler_t	*attach;	/* initialize device instance */
+	mpt_enable_handler_t	*enable;	/* enable device */
 	mpt_event_handler_t	*event;		/* Handle MPI event. */
 	mpt_reset_handler_t	*reset;		/* Re-init after reset. */
 	mpt_shutdown_handler_t	*shutdown;	/* Shutdown instance. */
@@ -227,12 +282,14 @@ u64toh(U64 s)
 
 /**************************** MPI Transaction State ***************************/
 typedef enum {
-	REQ_STATE_FREE		= 0x00,
-	REQ_STATE_ALLOCATED	= 0x01,
-	REQ_STATE_QUEUED	= 0x02,
-	REQ_STATE_DONE		= 0x04,
-	REQ_STATE_TIMEDOUT	= 0x08,
-	REQ_STATE_NEED_WAKEUP	= 0x10,
+	REQ_STATE_NIL		= 0x00,
+	REQ_STATE_FREE		= 0x01,
+	REQ_STATE_ALLOCATED	= 0x02,
+	REQ_STATE_QUEUED	= 0x04,
+	REQ_STATE_DONE		= 0x08,
+	REQ_STATE_TIMEDOUT	= 0x10,
+	REQ_STATE_NEED_WAKEUP	= 0x20,
+	REQ_STATE_LOCKED	= 0x80,	/* can't be freed */
 	REQ_STATE_MASK		= 0xFF
 } mpt_req_state_t; 
 
@@ -241,13 +298,69 @@ struct req_entry {
 	mpt_req_state_t	state;		/* Request State Information */
 	uint16_t	index;		/* Index of this entry */
 	uint16_t	IOCStatus;	/* Completion status */
+	uint16_t	ResponseCode;	/* TMF Reponse Code */
+	uint16_t	serno;		/* serial number */
 	union ccb      *ccb;		/* CAM request */
 	void	       *req_vbuf;	/* Virtual Address of Entry */
 	void	       *sense_vbuf;	/* Virtual Address of sense data */
 	bus_addr_t	req_pbuf;	/* Physical Address of Entry */
 	bus_addr_t	sense_pbuf;	/* Physical Address of sense data */
-	bus_dmamap_t	dmap;		/* DMA map for data buffer */
+	bus_dmamap_t	dmap;		/* DMA map for data buffers */
+	struct req_entry *chain;	/* for SGE overallocations */
 };
+
+/**************************** MPI Target State Info ***************************/
+
+typedef struct {
+	uint32_t reply_desc;	/* current reply descriptor */
+	uint32_t resid;		/* current data residual */
+	uint32_t bytes_xfered;	/* current relative offset */
+	union ccb *ccb;		/* pointer to currently active ccb */
+	request_t *req;		/* pointer to currently active assist request */
+	int	nxfers;
+	uint32_t tag_id;
+	enum {
+		TGT_STATE_NIL,
+		TGT_STATE_LOADING,
+		TGT_STATE_LOADED,
+		TGT_STATE_IN_CAM,
+                TGT_STATE_SETTING_UP_FOR_DATA,
+                TGT_STATE_MOVING_DATA,
+                TGT_STATE_MOVING_DATA_AND_STATUS,
+                TGT_STATE_SENDING_STATUS
+	} state;
+} mpt_tgt_state_t;
+
+/*
+ * When we get an incoming command it has its own tag which is called the
+ * IoIndex. This is the value we gave that particular command buffer when
+ * we originally assigned it. It's just a number, really. The FC card uses
+ * it as an RX_ID. We can use it to index into mpt->tgt_cmd_ptrs, which
+ * contains pointers the request_t structures related to that IoIndex.
+ *
+ * What *we* do is construct a tag out of the index for the target command
+ * which owns the incoming ATIO plus a rolling sequence number.
+ */
+#define	MPT_MAKE_TAGID(mpt, req, ioindex)	\
+ ((ioindex << 18) | (((mpt->sequence++) & 0x3f) << 12) | (req->index & 0xfff))
+
+#ifdef	INVARIANTS
+#define	MPT_TAG_2_REQ(a, b)		mpt_tag_2_req(a, (uint32_t) b)
+#else
+#define	MPT_TAG_2_REQ(mpt, tag)		mpt->tgt_cmd_ptrs[tag >> 18]
+#endif
+
+#define	MPT_TGT_STATE(mpt, req) ((mpt_tgt_state_t *) \
+    (&((uint8_t *)req->req_vbuf)[MPT_RQSL(mpt) - sizeof (mpt_tgt_state_t)]))
+
+STAILQ_HEAD(mpt_hdr_stailq, ccb_hdr);
+#define	MPT_MAX_LUNS	256
+typedef struct {
+	struct mpt_hdr_stailq	atios;
+	struct mpt_hdr_stailq	inots;
+	int enabled;
+} tgt_resource_t;
+#define	MPT_MAX_ELS	64
 
 /**************************** Handler Registration ****************************/
 /*
@@ -270,12 +383,12 @@ struct req_entry {
  * all commonly executed handlers fit in a single cache
  * line.
  */
-#define MPT_NUM_REPLY_HANDLERS		(16)
+#define MPT_NUM_REPLY_HANDLERS		(32)
 #define MPT_REPLY_HANDLER_EVENTS	MPT_CBI_TO_HID(0)
 #define MPT_REPLY_HANDLER_CONFIG	MPT_CBI_TO_HID(MPT_NUM_REPLY_HANDLERS-1)
 #define MPT_REPLY_HANDLER_HANDSHAKE	MPT_CBI_TO_HID(MPT_NUM_REPLY_HANDLERS-2)
 typedef int mpt_reply_handler_t(struct mpt_softc *mpt, request_t *request,
-				 MSG_DEFAULT_REPLY *reply_frame);
+    uint32_t reply_desc, MSG_DEFAULT_REPLY *reply_frame);
 typedef union {
 	mpt_reply_handler_t	*reply_handler;
 } mpt_handler_t;
@@ -338,7 +451,7 @@ struct mpt_raid_volume {
 	CONFIG_PAGE_RAID_VOL_0	       *config_page;
 	MPI_RAID_VOL_INDICATOR		sync_progress;
 	mpt_raid_volume_flags		flags;
-	u_int				quieced_disks;
+	u_int				quiesced_disks;
 };
 
 typedef enum {
@@ -370,23 +483,30 @@ LIST_HEAD(mpt_evtf_list, mpt_evtf_record);
 struct mpt_softc {
 	device_t		dev;
 #if __FreeBSD_version < 500000  
-	int			mpt_splsaved;
 	uint32_t		mpt_islocked;	
+	int			mpt_splsaved;
 #else
 	struct mtx		mpt_lock;
+	int			mpt_locksetup;
 #endif
 	uint32_t		mpt_pers_mask;
-	uint32_t		: 15,
+	uint32_t		: 8,
+		unit		: 8,
+				: 1,
+		twildcard	: 1,
+		tenabled	: 1,
+		role		: 2,	/* none, ini, target, both */
+				: 1,
+		raid_enabled	: 1,
 		raid_mwce_set	: 1,
 		getreqwaiter	: 1,
 		shutdwn_raid    : 1,
 		shutdwn_recovery: 1,
-		unit		: 8,
 		outofbeer	: 1,
-		mpt_locksetup	: 1,
 		disabled	: 1,
-		is_fc		: 1,
-		bus		: 1;	/* FC929/1030 have two busses */
+		is_spi		: 1,
+		is_sas		: 1,
+		is_fc		: 1;
 
 	u_int			verbose;
 
@@ -397,6 +517,8 @@ struct mpt_softc {
 	uint16_t	request_frame_size;
 	uint8_t		mpt_max_devices;
 	uint8_t		mpt_max_buses;
+	uint8_t		ioc_facts_flags;
+	uint8_t		padding0;
 
 	/*
 	 * Port Facts
@@ -405,6 +527,7 @@ struct mpt_softc {
 	uint16_t	mpt_ini_id;
 	uint16_t	mpt_port_type;
 	uint16_t	mpt_proto_flags;
+	uint16_t	mpt_max_tgtcmds;
 
 	/*
 	 * Device Configuration Information
@@ -418,8 +541,6 @@ struct mpt_softc {
 			CONFIG_PAGE_SCSI_DEVICE_1	_dev_page1[16];
 			uint16_t			_tag_enable;
 			uint16_t			_disc_enable;
-			uint16_t			_update_params0;
-			uint16_t			_update_params1;
 		} spi;
 #define	mpt_port_page0		cfg.spi._port_page0
 #define	mpt_port_page1		cfg.spi._port_page1
@@ -428,14 +549,13 @@ struct mpt_softc {
 #define	mpt_dev_page1		cfg.spi._dev_page1
 #define	mpt_tag_enable		cfg.spi._tag_enable
 #define	mpt_disc_enable		cfg.spi._disc_enable
-#define	mpt_update_params0	cfg.spi._update_params0
-#define	mpt_update_params1	cfg.spi._update_params1
 		struct mpi_fc_cfg {
-			uint8_t	nada;
+			CONFIG_PAGE_FC_PORT_0 _port_page0;
+#define	mpt_fcport_page0	cfg.fc._port_page0
 		} fc;
 	} cfg;
 
-	/* Controller Info */
+	/* Controller Info for RAID information */
 	CONFIG_PAGE_IOC_2 *	ioc_page2;
 	CONFIG_PAGE_IOC_3 *	ioc_page3;
 
@@ -450,6 +570,7 @@ struct mpt_softc {
 	u_int			raid_resync_rate;
 	u_int			raid_mwce_setting;
 	u_int			raid_queue_depth;
+	u_int			raid_nonopt_volumes;
 	struct proc	       *raid_thread;
 	struct callout		raid_timer;
 
@@ -483,8 +604,13 @@ struct mpt_softc {
 	bus_dma_tag_t		request_dmat;	/* DMA tag for request memroy */
 	bus_dmamap_t		request_dmap;	/* DMA map for request memroy */
 	uint8_t		       *request;	/* KVA of Request memory */
-	bus_addr_t		request_phys;	/* BusADdr of request memory */
+	bus_addr_t		request_phys;	/* BusAddr of request memory */
 
+	uint32_t		max_seg_cnt;	/* calculated after IOC facts */
+
+	/*
+	 * Hardware management
+	 */
 	u_int			reset_cnt;
 
 	/*
@@ -494,11 +620,6 @@ struct mpt_softc {
 	struct req_queue	request_free_list;
 	struct req_queue	request_pending_list;
 	struct req_queue	request_timeout_list;
-
-	/*
-	 * Deferred frame acks due to resource shortage.
-	 */
-	struct mpt_evtf_list	ack_frames;
 
 
 	struct cam_sim	       *sim;
@@ -510,11 +631,35 @@ struct mpt_softc {
 	struct proc	       *recovery_thread;
 	request_t	       *tmf_req;
 
-	uint32_t		sequence;	/* Sequence Number */
-	uint32_t		timeouts;	/* timeout count */
-	uint32_t		success;	/* successes afer timeout */
+	/*
+	 * Deferred frame acks due to resource shortage.
+	 */
+	struct mpt_evtf_list	ack_frames;
 
-	/* Opposing port in a 929 or 1030, or NULL */
+	/*
+	 * Target Mode Support
+	 */
+	uint32_t		scsi_tgt_handler_id;
+	request_t **		tgt_cmd_ptrs;
+	request_t **		els_cmd_ptrs;	/* FC only */
+
+	/*
+	 * *snork*- this is chosen to be here *just in case* somebody
+	 * forgets to point to it exactly and we index off of trt with
+	 * CAM_LUN_WILDCARD.
+	 */
+	tgt_resource_t		trt_wildcard;	/* wildcard luns */
+	tgt_resource_t		trt[MPT_MAX_LUNS];
+	uint16_t		tgt_cmds_allocated;
+	uint16_t		els_cmds_allocated;	/* FC only */
+
+	uint16_t		timeouts;	/* timeout count */
+	uint16_t		success;	/* successes afer timeout */
+	uint16_t		sequence;	/* Sequence Number */
+	uint16_t		pad3;
+
+
+	/* Paired port in some dual adapters configurations */
 	struct mpt_softc *	mpt2;
 
 	/* FW Image management */
@@ -522,7 +667,7 @@ struct mpt_softc {
 	uint8_t		       *fw_image;
 	bus_dma_tag_t		fw_dmat;	/* DMA tag for firmware image */
 	bus_dmamap_t		fw_dmap;	/* DMA map for firmware image */
-	bus_addr_t		fw_phys;	/* BusAddr of request memory */
+	bus_addr_t		fw_phys;	/* BusAddr of firmware image */
 
 	/* Shutdown Event Handler. */
 	eventhandler_tag         eh;
@@ -530,11 +675,22 @@ struct mpt_softc {
 	TAILQ_ENTRY(mpt_softc)	links;
 };
 
-/***************************** Locking Primatives *****************************/
+static __inline void mpt_assign_serno(struct mpt_softc *, request_t *);
+
+static __inline void
+mpt_assign_serno(struct mpt_softc *mpt, request_t *req)
+{
+	if ((req->serno = mpt->sequence++) == 0) {
+		req->serno = mpt->sequence++;
+	}
+}
+
+/***************************** Locking Primitives *****************************/
 #if __FreeBSD_version < 500000  
 #define	MPT_IFLAGS		INTR_TYPE_CAM
 #define	MPT_LOCK(mpt)		mpt_lockspl(mpt)
 #define	MPT_UNLOCK(mpt)		mpt_unlockspl(mpt)
+#define	MPT_OWNED(mpt)		mpt->mpt_islocked
 #define	MPTLOCK_2_CAMLOCK	MPT_UNLOCK
 #define	CAMLOCK_2_MPTLOCK	MPT_LOCK
 #define	MPT_LOCK_SETUP(mpt)
@@ -581,14 +737,14 @@ mpt_sleep(struct mpt_softc *mpt, void *ident, int priority,
 	saved_spl = mpt->mpt_splsaved;
 	mpt->mpt_islocked = 0;
 	error = tsleep(ident, priority, wmesg, timo);
-	KASSERT(mpt->mpt_islocked = 0, ("Invalid lock count on wakeup"));
+	KASSERT(mpt->mpt_islocked == 0, ("Invalid lock count on wakeup"));
 	mpt->mpt_islocked = saved_cnt;
 	mpt->mpt_splsaved = saved_spl;
 	return (error);
 }
 
 #else
-#if	LOCKING_WORKED_AS_IT_SHOULD
+#ifdef	LOCKING_WORKED_AS_IT_SHOULD
 #error "Shouldn't Be Here!"
 #define	MPT_IFLAGS		INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE
 #define	MPT_LOCK_SETUP(mpt)						\
@@ -602,22 +758,56 @@ mpt_sleep(struct mpt_softc *mpt, void *ident, int priority,
 
 #define	MPT_LOCK(mpt)		mtx_lock(&(mpt)->mpt_lock)
 #define	MPT_UNLOCK(mpt)		mtx_unlock(&(mpt)->mpt_lock)
+#define	MPT_OWNED(mpt)		mtx_owned(&(mpt)->mpt_lock)
 #define	MPTLOCK_2_CAMLOCK(mpt)	\
 	mtx_unlock(&(mpt)->mpt_lock); mtx_lock(&Giant)
 #define	CAMLOCK_2_MPTLOCK(mpt)	\
 	mtx_unlock(&Giant); mtx_lock(&(mpt)->mpt_lock)
 #define mpt_sleep(mpt, ident, priority, wmesg, timo) \
 	msleep(ident, &(mpt)->mpt_lock, priority, wmesg, timo)
+
 #else
+
 #define	MPT_IFLAGS		INTR_TYPE_CAM | INTR_ENTROPY
 #define	MPT_LOCK_SETUP(mpt)	do { } while (0)
 #define	MPT_LOCK_DESTROY(mpt)	do { } while (0)
-#define	MPT_LOCK(mpt)		do { } while (0)
-#define	MPT_UNLOCK(mpt)		do { } while (0)
-#define	MPTLOCK_2_CAMLOCK(mpt)	do { } while (0)
-#define	CAMLOCK_2_MPTLOCK(mpt)	do { } while (0)
-#define mpt_sleep(mpt, ident, priority, wmesg, timo) \
-	tsleep(ident, priority, wmesg, timo)
+#if	0
+#define	MPT_LOCK(mpt)		\
+	device_printf(mpt->dev, "LOCK %s:%d\n", __FILE__, __LINE__); 	\
+	KASSERT(mpt->mpt_locksetup == 0,				\
+	    ("recursive lock acquire at %s:%d", __FILE__, __LINE__));	\
+	mpt->mpt_locksetup = 1
+#define	MPT_UNLOCK(mpt)		\
+	device_printf(mpt->dev, "UNLK %s:%d\n", __FILE__, __LINE__); 	\
+	KASSERT(mpt->mpt_locksetup == 1,				\
+	    ("release unowned lock at %s:%d", __FILE__, __LINE__));	\
+	mpt->mpt_locksetup = 0
+#else
+#define	MPT_LOCK(mpt)							\
+	KASSERT(mpt->mpt_locksetup == 0,				\
+	    ("recursive lock acquire at %s:%d", __FILE__, __LINE__));	\
+	mpt->mpt_locksetup = 1
+#define	MPT_UNLOCK(mpt)							\
+	KASSERT(mpt->mpt_locksetup == 1,				\
+	    ("release unowned lock at %s:%d", __FILE__, __LINE__));	\
+	mpt->mpt_locksetup = 0
+#endif
+#define	MPT_OWNED(mpt)		mpt->mpt_locksetup
+#define	MPTLOCK_2_CAMLOCK(mpt)	MPT_UNLOCK(mpt)
+#define	CAMLOCK_2_MPTLOCK(mpt)	MPT_LOCK(mpt)
+
+static __inline int
+mpt_sleep(struct mpt_softc *, void *, int, const char *, int);
+
+static __inline int
+mpt_sleep(struct mpt_softc *mpt, void *i, int p, const char *w, int t)
+{
+	int r;
+	MPT_UNLOCK(mpt);
+	r = tsleep(i, p, w, t);
+	MPT_LOCK(mpt);
+	return (r);
+}
 #endif
 #endif
 
@@ -657,21 +847,23 @@ mpt_pio_read(struct mpt_softc *mpt, int offset)
 }
 /*********************** Reply Frame/Request Management ***********************/
 /* Max MPT Reply we are willing to accept (must be power of 2) */
-#define MPT_REPLY_SIZE   	128
+#define MPT_REPLY_SIZE   	256
 
-#define MPT_MAX_REQUESTS(mpt)	((mpt)->is_fc ? 1024 : 256)
-#define MPT_REQUEST_AREA 512
-#define MPT_SENSE_SIZE    32	/* included in MPT_REQUEST_SIZE */
+/*
+ * Must be less than 16384 in order for target mode to work
+ */
+#define MPT_MAX_REQUESTS(mpt)	512
+#define MPT_REQUEST_AREA	512
+#define MPT_SENSE_SIZE		32	/* included in MPT_REQUEST_AREA */
 #define MPT_REQ_MEM_SIZE(mpt)	(MPT_MAX_REQUESTS(mpt) * MPT_REQUEST_AREA)
 
 #define MPT_CONTEXT_CB_SHIFT	(16)
-#define MPT_CBI(handle)	(handle >> MPT_CONTEXT_CB_SHIFT)
+#define MPT_CBI(handle)		(handle >> MPT_CONTEXT_CB_SHIFT)
 #define MPT_CBI_TO_HID(cbi)	((cbi) << MPT_CONTEXT_CB_SHIFT)
 #define MPT_CONTEXT_TO_CBI(x)	\
     (((x) >> MPT_CONTEXT_CB_SHIFT) & (MPT_NUM_REPLY_HANDLERS - 1))
-#define MPT_CONTEXT_REQI_MASK 0xFFFF
-#define MPT_CONTEXT_TO_REQI(x)	\
-    ((x) & MPT_CONTEXT_REQI_MASK)
+#define MPT_CONTEXT_REQI_MASK	0xFFFF
+#define MPT_CONTEXT_TO_REQI(x)	((x) & MPT_CONTEXT_REQI_MASK)
 
 /*
  * Convert a 32bit physical address returned from IOC to an
@@ -686,7 +878,7 @@ mpt_pio_read(struct mpt_softc *mpt, int offset)
 
 #define	MPT_DUMP_REPLY_FRAME(mpt, reply_frame)		\
 do {							\
-	if (mpt->verbose >= MPT_PRT_DEBUG)		\
+	if (mpt->verbose > MPT_PRT_DEBUG)		\
 		mpt_dump_reply_frame(mpt, reply_frame);	\
 } while(0)
 
@@ -710,41 +902,34 @@ mpt_pop_reply_queue(struct mpt_softc *mpt)
      return mpt_read(mpt, MPT_OFFSET_REPLY_Q);
 }
 
-void mpt_complete_request_chain(struct mpt_softc *mpt,
-				struct req_queue *chain, u_int iocstatus);
+void
+mpt_complete_request_chain(struct mpt_softc *, struct req_queue *, u_int);
+
 /************************** Scatter Gather Managment **************************/
-/*
- * We cannot tell prior to getting IOC facts how big the IOC's request
- * area is. Because of this we cannot tell at compile time how many
- * simple SG elements we can fit within an IOC request prior to having
- * to put in a chain element.
- * 
- * Experimentally we know that the Ultra4 parts have a 96 byte request
- * element size and the Fibre Channel units have a 144 byte request
- * element size. Therefore, if we have 512-32 (== 480) bytes of request
- * area to play with, we have room for between 3 and 5 request sized
- * regions- the first of which is the command  plus a simple SG list,
- * the rest of which are chained continuation SG lists. Given that the
- * normal request we use is 48 bytes w/o the first SG element, we can
- * assume we have 480-48 == 432 bytes to have simple SG elements and/or
- * chain elements. If we assume 32 bit addressing, this works out to
- * 54 SG or chain elements. If we assume 5 chain elements, then we have
- * a maximum of 49 seperate actual SG segments.
- */
-#define MPT_SGL_MAX		49
-
+/* MPT_RQSL- size of request frame, in bytes */
 #define	MPT_RQSL(mpt)		(mpt->request_frame_size << 2)
-#define	MPT_NSGL(mpt)		(MPT_RQSL(mpt) / sizeof (SGE_SIMPLE32))
 
-#define	MPT_NSGL_FIRST(mpt)				\
-	(((mpt->request_frame_size << 2) -		\
-	sizeof (MSG_SCSI_IO_REQUEST) -			\
-	sizeof (SGE_IO_UNION)) / sizeof (SGE_SIMPLE32))
+/* MPT_NSGL- how many SG entries can fit in a request frame size */
+#define	MPT_NSGL(mpt)		(MPT_RQSL(mpt) / sizeof (SGE_IO_UNION))
+
+/* MPT_NRFM- how many request frames can fit in each request alloc we make */
+#define	MPT_NRFM(mpt)		(MPT_REQUEST_AREA / MPT_RQSL(mpt))
+
+/*
+ * MPT_NSGL_FIRST- # of SG elements that can fit after
+ * an I/O request but still within the request frame.
+ * Do this safely based upon SGE_IO_UNION.
+ *
+ * Note that the first element is *within* the SCSI request.
+ */
+#define	MPT_NSGL_FIRST(mpt)	\
+    ((MPT_RQSL(mpt) - sizeof (MSG_SCSI_IO_REQUEST) + sizeof (SGE_IO_UNION)) / \
+    sizeof (SGE_IO_UNION))
 
 /***************************** IOC Initialization *****************************/
 int mpt_reset(struct mpt_softc *, int /*reinit*/);
 
-/****************************** Debugging/Logging *****************************/
+/****************************** Debugging ************************************/
 typedef struct mpt_decode_entry {
 	char    *name;
 	u_int	 value;
@@ -755,16 +940,24 @@ int mpt_decode_value(mpt_decode_entry_t *table, u_int num_entries,
 		     const char *name, u_int value, u_int *cur_column,
 		     u_int wrap_point);
 
+void mpt_dump_request(struct mpt_softc *, request_t *);
+
 enum {
 	MPT_PRT_ALWAYS,
 	MPT_PRT_FATAL,
 	MPT_PRT_ERROR,
 	MPT_PRT_WARN,
 	MPT_PRT_INFO,
+	MPT_PRT_NEGOTIATION,
 	MPT_PRT_DEBUG,
-	MPT_PRT_TRACE
+	MPT_PRT_DEBUG1,
+	MPT_PRT_DEBUG2,
+	MPT_PRT_DEBUG3,
+	MPT_PRT_TRACE,
+	MPT_PRT_NONE=100
 };
 
+#if __FreeBSD_version > 500000
 #define mpt_lprt(mpt, level, ...)		\
 do {						\
 	if (level <= (mpt)->verbose)		\
@@ -776,9 +969,143 @@ do {						 \
 	if (level <= (mpt)->debug_level)	 \
 		mpt_prtc(mpt, __VA_ARGS__);	 \
 } while (0)
+#else
+void mpt_lprt(struct mpt_softc *, int, const char *, ...)
+	__printflike(3, 4);
+void mpt_lprtc(struct mpt_softc *, int, const char *, ...)
+	__printflike(3, 4);
+#endif
+void mpt_prt(struct mpt_softc *, const char *, ...)
+	__printflike(2, 3);
+void mpt_prtc(struct mpt_softc *, const char *, ...)
+	__printflike(2, 3);
 
-void mpt_prt(struct mpt_softc *, const char *, ...);
-void mpt_prtc(struct mpt_softc *, const char *, ...);
+/**************************** Target Mode Related ***************************/
+static __inline int mpt_cdblen(uint8_t, int);
+static __inline int
+mpt_cdblen(uint8_t cdb0, int maxlen)
+{
+	int group = cdb0 >> 5;
+	switch (group) {
+	case 0:
+		return (6);
+	case 1:
+		return (10);
+	case 4:
+	case 5:
+		return (12);
+	default:
+		return (16);
+	}
+}
+#ifdef	INVARIANTS
+static __inline request_t * mpt_tag_2_req(struct mpt_softc *, uint32_t);
+static __inline request_t *
+mpt_tag_2_req(struct mpt_softc *mpt, uint32_t tag)
+{
+	uint16_t rtg = (tag >> 18);
+	KASSERT(rtg < mpt->tgt_cmds_allocated, ("bad tag %d\n", tag));
+	KASSERT(mpt->tgt_cmd_ptrs, ("no cmd backpointer array"));
+	KASSERT(mpt->tgt_cmd_ptrs[rtg], ("no cmd backpointer"));
+	return (mpt->tgt_cmd_ptrs[rtg]);
+}
+
+
+static __inline int
+mpt_req_on_free_list(struct mpt_softc *, request_t *);
+static __inline int
+mpt_req_on_pending_list(struct mpt_softc *, request_t *);
+
+static __inline void
+mpt_req_spcl(struct mpt_softc *, request_t *, const char *, int);
+static __inline void
+mpt_req_not_spcl(struct mpt_softc *, request_t *, const char *, int);
+
+
+/*
+ * Is request on freelist?
+ */
+static __inline int
+mpt_req_on_free_list(struct mpt_softc *mpt, request_t *req)
+{
+	request_t *lrq;
+
+	TAILQ_FOREACH(lrq, &mpt->request_free_list, links) {
+		if (lrq == req) {
+			return (1);
+		}
+	}
+	return (0);
+}
+
+/*
+ * Is request on pending list?
+ */
+static __inline int
+mpt_req_on_pending_list(struct mpt_softc *mpt, request_t *req)
+{
+	request_t *lrq;
+
+	TAILQ_FOREACH(lrq, &mpt->request_pending_list, links) {
+		if (lrq == req) {
+			return (1);
+		}
+	}
+	return (0);
+}
+
+/*
+ * Make sure that req *is* part of one of the special lists
+ */
+static __inline void
+mpt_req_spcl(struct mpt_softc *mpt, request_t *req, const char *s, int line)
+{
+	int i;
+	for (i = 0; i < mpt->els_cmds_allocated; i++) {
+		if (req == mpt->els_cmd_ptrs[i]) {
+			return;
+		}
+	}
+	for (i = 0; i < mpt->tgt_cmds_allocated; i++) {
+		if (req == mpt->tgt_cmd_ptrs[i]) {
+			return;
+		}
+	}
+	panic("%s(%d): req %p:%u function %x not in els or tgt ptrs\n",
+	    s, line, req, req->serno,
+	    ((PTR_MSG_REQUEST_HEADER)req->req_vbuf)->Function);
+}
+
+/*
+ * Make sure that req is *not* part of one of the special lists.
+ */
+static __inline void
+mpt_req_not_spcl(struct mpt_softc *mpt, request_t *req, const char *s, int line)
+{
+	int i;
+	for (i = 0; i < mpt->els_cmds_allocated; i++) {
+		KASSERT(req != mpt->els_cmd_ptrs[i],
+		    ("%s(%d): req %p:%u func %x in els ptrs at ioindex %d\n",
+		    s, line, req, req->serno,
+		    ((PTR_MSG_REQUEST_HEADER)req->req_vbuf)->Function, i));
+	}
+	for (i = 0; i < mpt->tgt_cmds_allocated; i++) {
+		KASSERT(req != mpt->tgt_cmd_ptrs[i],
+		    ("%s(%d): req %p:%u func %x in tgt ptrs at ioindex %d\n",
+		    s, line, req, req->serno,
+		    ((PTR_MSG_REQUEST_HEADER)req->req_vbuf)->Function, i));
+	}
+}
+#endif
+
+typedef enum {
+	MPT_ABORT_TASK_SET=1234,
+	MPT_CLEAR_TASK_SET,
+	MPT_TARGET_RESET,
+	MPT_CLEAR_ACA,
+	MPT_TERMINATE_TASK,
+	MPT_NIL_TMT_VALUE=5678
+} mpt_task_mgmt_t;
 
 /**************************** Unclassified Routines ***************************/
 void		mpt_send_cmd(struct mpt_softc *mpt, request_t *req);
@@ -849,4 +1176,5 @@ void mpt_req_state(mpt_req_state_t state);
 void mpt_print_config_request(void *vmsg);
 void mpt_print_request(void *vmsg);
 void mpt_print_scsi_io_request(MSG_SCSI_IO_REQUEST *msg);
+void mpt_dump_sgl(SGE_IO_UNION *se, int offset);
 #endif /* _MPT_H_ */

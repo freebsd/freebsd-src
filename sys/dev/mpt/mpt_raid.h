@@ -32,6 +32,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF THE COPYRIGHT
  * OWNER OR CONTRIBUTOR IS ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+/*-
+ * Some Breakage and Bug Fixing added later.
+ * Copyright (c) 2006, by Matthew Jacob
+ * All Rights Reserved
+ *
+ * Support from LSI-Logic has also gone a great deal toward making this a
+ * workable subsystem and is gratefully acknowledged.
+ */
 #ifndef  _MPT_RAID_H_
 #define  _MPT_RAID_H_
 
@@ -45,30 +53,28 @@ typedef enum {
 	MPT_RAID_MWCE_NC
 } mpt_raid_mwce_t;
 
-const char *
-	mpt_vol_type(struct mpt_raid_volume *);
-const char *
-	mpt_vol_state(struct mpt_raid_volume *);
-const char *
-	mpt_disk_state(struct mpt_raid_disk *);
-void	mpt_vol_prt(struct mpt_softc *, struct mpt_raid_volume *,
-		    const char *fmt, ...);
-void	mpt_disk_prt(struct mpt_softc *mpt, struct mpt_raid_disk *disk,
-		     const char *fmt, ...);
+const char *mpt_vol_type(struct mpt_raid_volume *);
+const char *mpt_vol_state(struct mpt_raid_volume *);
+const char *mpt_disk_state(struct mpt_raid_disk *);
+void
+mpt_vol_prt(struct mpt_softc *, struct mpt_raid_volume *, const char *fmt, ...);
+void
+mpt_disk_prt(struct mpt_softc *, struct mpt_raid_disk *, const char *, ...);
 
-int	mpt_issue_raid_req(struct mpt_softc *mpt, struct mpt_raid_volume *vol,
-			   struct mpt_raid_disk *disk, request_t *req,
-			   u_int Action, uint32_t ActionDataWord,
-			   bus_addr_t addr, bus_size_t len, int write,
-			   int wait);
+int
+mpt_issue_raid_req(struct mpt_softc *, struct mpt_raid_volume *,
+    struct mpt_raid_disk *, request_t *, u_int, uint32_t, bus_addr_t,
+    bus_size_t, int, int);
+
 cam_status
-	mpt_map_physdisk(struct mpt_softc *mpt, union ccb *, u_int *tgt);
+mpt_map_physdisk(struct mpt_softc *, union ccb *, target_id_t *);
+int mpt_is_raid_volume(struct mpt_softc *, int);
 cam_status
-	mpt_raid_quiesce_disk(struct mpt_softc *mpt,
-			     struct mpt_raid_disk *mpt_disk,
-			     request_t *req);
-void	mpt_refresh_raid_data(struct mpt_softc *);
-void	mpt_schedule_raid_refresh(struct mpt_softc *mpt);
+mpt_raid_quiesce_disk(struct mpt_softc *, struct mpt_raid_disk *, request_t *);
+
+int	mpt_refresh_raid_data(struct mpt_softc *);
+void	mpt_schedule_raid_refresh(struct mpt_softc *);
+void	mpt_raid_free_mem(struct mpt_softc *);
 
 static __inline void
 mpt_raid_wakeup(struct mpt_softc *mpt)
