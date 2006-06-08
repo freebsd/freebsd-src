@@ -1,8 +1,9 @@
 /*-
- * Copyright (c) 2004-2005 Robert N. M. Watson
- * Copyright (c) 1995, Mike Mitchell
  * Copyright (c) 1984, 1985, 1986, 1987, 1993
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * Copyright (c) 1995, Mike Mitchell
+ * Copyright (c) 2004-2006 Robert N. M. Watson
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -327,9 +328,8 @@ ipx_ctloutput(so, sopt)
 	struct ipx ioptval;
 	long seq;
 
+	KASSERT(ipxp != NULL, ("ipx_ctloutput: ipxp == NULL"));
 	error = 0;
-	if (ipxp == NULL)
-		return (EINVAL);
 
 	switch (sopt->sopt_dir) {
 	case SOPT_GET:
@@ -434,9 +434,11 @@ ipx_usr_abort(so)
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
+	KASSERT(ipxp != NULL, ("ipx_usr_abort: ipxp == NULL"));
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
 	ipx_pcbdetach(ipxp);
+	ipx_pcbfree(ipxp);
 	IPX_LIST_UNLOCK();
 	soisdisconnected(so);
 	ACCEPT_LOCK();
@@ -454,13 +456,13 @@ ipx_attach(so, proto, td)
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 	int error;
 
-	if (ipxp != NULL)
-		return (EINVAL);
+	KASSERT(ipxp == NULL, ("ipx_attach: ipxp != NULL"));
+	error = soreserve(so, ipxsendspace, ipxrecvspace);
+	if (error != 0)
+		return (error);
 	IPX_LIST_LOCK();
 	error = ipx_pcballoc(so, &ipxpcb_list, td);
 	IPX_LIST_UNLOCK();
-	if (error == 0)
-		error = soreserve(so, ipxsendspace, ipxrecvspace);
 	return (error);
 }
 
@@ -473,6 +475,7 @@ ipx_bind(so, nam, td)
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 	int error;
 
+	KASSERT(ipxp != NULL, ("ipx_bind: ipxp == NULL"));
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
 	error = ipx_pcbbind(ipxp, nam, td);
@@ -490,6 +493,7 @@ ipx_connect(so, nam, td)
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 	int error;
 
+	KASSERT(ipxp != NULL, ("ipx_connect: ipxp == NULL"));
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
 	if (!ipx_nullhost(ipxp->ipxp_faddr)) {
@@ -511,11 +515,11 @@ ipx_detach(so)
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
-	if (ipxp == NULL)
-		return (ENOTCONN);
+	KASSERT(ipxp != NULL, ("ipx_detach: ipxp == NULL"));
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
 	ipx_pcbdetach(ipxp);
+	ipx_pcbfree(ipxp);
 	IPX_LIST_UNLOCK();
 	return (0);
 }
@@ -527,6 +531,7 @@ ipx_disconnect(so)
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 	int error;
 
+	KASSERT(ipxp != NULL, ("ipx_disconnect: ipxp == NULL"));
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
 	error = 0;
@@ -549,6 +554,7 @@ ipx_peeraddr(so, nam)
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
+	KASSERT(ipxp != NULL, ("ipx_peeraddr: ipxp == NULL"));
 	ipx_setpeeraddr(ipxp, nam);
 	return (0);
 }
@@ -566,6 +572,7 @@ ipx_send(so, flags, m, nam, control, td)
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 	struct ipx_addr laddr;
 
+	KASSERT(ipxp != NULL, ("ipxp_send: ipxp == NULL"));
 	/*
 	 * Attempt to only acquire the necessary locks: if the socket is
 	 * already connected, we don't need to hold the IPX list lock to be
@@ -619,6 +626,8 @@ static int
 ipx_shutdown(so)
 	struct socket *so;
 {
+
+	KASSERT(so->so_pcb != NULL, ("ipx_shutdown: so_pcb == NULL"));
 	socantsendmore(so);
 	return (0);
 }
@@ -630,6 +639,7 @@ ipx_sockaddr(so, nam)
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
+	KASSERT(ipxp != NULL, ("ipx_sockaddr: ipxp == NULL"));
 	ipx_setsockaddr(ipxp, nam);
 	return (0);
 }
@@ -643,6 +653,7 @@ ripx_attach(so, proto, td)
 	int error = 0;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
+	KASSERT(ipxp == NULL, ("ripx_attach: ipxp != NULL"));
 	if (td != NULL && (error = suser(td)) != 0)
 		return (error);
 	/*
