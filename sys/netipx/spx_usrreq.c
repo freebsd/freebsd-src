@@ -94,7 +94,7 @@ static	int spx_output(struct spxpcb *cb, struct mbuf *m0);
 static	int spx_reass(struct spxpcb *cb, struct spx *si);
 static	void spx_setpersist(struct spxpcb *cb);
 static	void spx_template(struct spxpcb *cb);
-static	struct spxpcb *spx_timers(struct spxpcb *cb, int timer);
+static	void spx_timers(struct spxpcb *cb, int timer);
 static	void spx_usrclosed(struct spxpcb *cb);
 
 static	int spx_usr_abort(struct socket *so);
@@ -104,6 +104,7 @@ static	int spx_bind(struct socket *so, struct sockaddr *nam, struct thread *td);
 static	int spx_connect(struct socket *so, struct sockaddr *nam,
 			struct thread *td);
 static	int spx_detach(struct socket *so);
+static	void spx_pcbdetach(struct ipxpcb *ipxp);
 static	int spx_usr_disconnect(struct socket *so);
 static	int spx_listen(struct socket *so, struct thread *td);
 static	int spx_rcvd(struct socket *so, int flags);
@@ -181,8 +182,10 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 	IPX_LOCK_ASSERT(ipxp);
 
 	cb = ipxtospxpcb(ipxp);
-	if (cb == NULL)
-		goto bad;
+	KASSERT(cb != NULL, ("spx_input: cb == NULL"));
+
+	if (ipxp->ipxp_flags & IPXP_DROPPED)
+		goto drop;
 
 	if (m->m_len < sizeof(*si)) {
 		if ((m = m_pullup(m, sizeof(*si))) == NULL) {
@@ -220,6 +223,14 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 		 * here should be discarded.  We mark the socket as
 		 * discardable until we're committed to it below in
 		 * TCPS_LISTEN.
+		 *
+		 * XXXRW: In the new world order of real kernel parallelism,
+		 * temporarily allocating the socket when we're "not sure"
+		 * seems like a bad idea, as we might race to remove it if
+		 * the listen socket is closed...?
+		 *
+		 * We drop the lock of the listen socket ipxp, and acquire
+		 * the lock of the new socket ippx.
 		 */
 		dropsocket++;
 		IPX_UNLOCK(ipxp);
@@ -355,6 +366,9 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 
 dropwithreset:
 	IPX_LOCK_ASSERT(ipxp);
+	if (cb == NULL && (cb->s_ipxpcb->ipxp_socket->so_options & SO_DEBUG ||
+	    traceallspxs))
+		spx_trace(SA_DROP, (u_char)ostate, cb, &spx_savesi, 0);
 	IPX_UNLOCK(ipxp);
 	if (dropsocket) {
 		struct socket *head;
@@ -368,20 +382,14 @@ dropwithreset:
 		so->so_head = NULL;
 		ACCEPT_UNLOCK();
 		soabort(so);
-		cb = NULL;
 	}
 	IPX_LIST_UNLOCK();
 	m_freem(dtom(si));
-	if (cb == NULL || cb->s_ipxpcb->ipxp_socket->so_options & SO_DEBUG ||
-	    traceallspxs)
-		spx_trace(SA_DROP, (u_char)ostate, cb, &spx_savesi, 0);
 	return;
 
 drop:
-bad:
 	IPX_LOCK_ASSERT(ipxp);
-	if (cb == NULL || cb->s_ipxpcb->ipxp_socket->so_options & SO_DEBUG ||
-            traceallspxs)
+	if (cb->s_ipxpcb->ipxp_socket->so_options & SO_DEBUG || traceallspxs)
 		spx_trace(SA_DROP, (u_char)ostate, cb, &spx_savesi, 0);
 	IPX_UNLOCK(ipxp);
 	IPX_LIST_UNLOCK();
@@ -584,9 +592,8 @@ update_window:
 	 * If this is a system packet, we don't need to queue it up, and
 	 * won't update acknowledge #.
 	 */
-	if (si->si_cc & SPX_SP) {
+	if (si->si_cc & SPX_SP)
 		return (1);
-	}
 
 	/*
 	 * We have already seen this packet, so drop.
@@ -684,9 +691,9 @@ present:
 					sbappend_locked(&so->so_rcv, m);
 			} else
 #endif
-			if (packetp) {
+			if (packetp)
 				sbappendrecord_locked(&so->so_rcv, m);
-			} else {
+			else {
 				cb->s_rhdr = *mtod(m, struct spxhdr *);
 				m->m_data += SPINC;
 				m->m_len -= SPINC;
@@ -947,9 +954,9 @@ again:
 	 * nonzero, transmit what we can, otherwise send a probe.
 	 */
 	if (so->so_snd.sb_cc && cb->s_timer[SPXT_REXMT] == 0 &&
-		cb->s_timer[SPXT_PERSIST] == 0) {
-			cb->s_rxtshift = 0;
-			spx_setpersist(cb);
+	    cb->s_timer[SPXT_PERSIST] == 0) {
+		cb->s_rxtshift = 0;
+		spx_setpersist(cb);
 	}
 
 	/*
@@ -1150,6 +1157,9 @@ spx_ctloutput(struct socket *so, struct sockopt *sopt)
 	u_short usoptval;
 	int optval;
 
+	ipxp = sotoipxpcb(so);
+	KASSERT(ipxp != NULL, ("spx_ctloutput: ipxp == NULL"));
+
 	/*
 	 * This will have to be changed when we do more general stacking of
 	 * protocols.
@@ -1157,9 +1167,11 @@ spx_ctloutput(struct socket *so, struct sockopt *sopt)
 	if (sopt->sopt_level != IPXPROTO_SPX)
 		return (ipx_ctloutput(so, sopt));
 
-	ipxp = sotoipxpcb(so);
-	if (ipxp == NULL)
-		return (EINVAL);
+	IPX_LOCK(ipxp);
+	if (ipxp->ipxp_flags & IPXP_DROPPED) {
+		IPX_UNLOCK(ipxp);
+		return (ECONNRESET);
+	}
 
 	IPX_LOCK(ipxp);
 	cb = ipxtospxpcb(ipxp);
@@ -1211,6 +1223,9 @@ spx_ctloutput(struct socket *so, struct sockopt *sopt)
 		/*
 		 * XXX Why are these shorts on get and ints on set?  That
 		 * doesn't make any sense...
+		 *
+		 * XXXRW: Note, when we re-acquire the ipxp lock, we should
+		 * re-check that it's not dropped.
 		 */
 		IPX_UNLOCK(ipxp);
 		switch (sopt->sopt_name) {
@@ -1304,7 +1319,13 @@ spx_usr_abort(struct socket *so)
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
 	spx_drop(cb, ECONNABORTED);
+	spx_pcbdetach(ipxp);
+	ipx_pcbdetach(ipxp);
+	ipx_pcbfree(ipxp);
 	IPX_LIST_UNLOCK();
+	ACCEPT_LOCK();
+	SOCK_LOCK(so);
+	sotryfree(so);
 	return (0);
 }
 
@@ -1391,7 +1412,29 @@ spx_attach(struct socket *so, int proto, struct thread *td)
 	    SPXTV_MIN, SPXTV_REXMTMAX);
 	ipxp->ipxp_pcb = (caddr_t)cb;
 	IPX_LIST_UNLOCK();
-	return (error);
+	return (0);
+}
+
+static void
+spx_pcbdetach(struct ipxpcb *ipxp)
+{
+	struct spxpcb *cb;
+	struct spx_q *s;
+	struct mbuf *m;
+
+	IPX_LOCK_ASSERT(ipxp);
+
+	cb = ipxtospxpcb(ipxp);
+	KASSERT(cb != NULL, ("spx_pcbdetach: cb == NULL"));
+
+	for (s = cb->s_q.si_next; s != NULL; s = cb->s_q.si_next) {
+		remque(s);
+		m = dtom(s);
+		m_freem(m);
+	}
+	m_free(dtom(cb->s_ipx));
+	FREE(cb, M_PCB);
+	ipxp->ipxp_pcb = NULL;
 }
 
 static int
@@ -1478,6 +1521,9 @@ spx_detach(struct socket *so)
 		spx_disconnect(cb);
 	else
 		spx_close(cb);
+	spx_pcbdetach(ipxp);
+	ipx_pcbdetach(ipxp);
+	ipx_pcbfree(ipxp);
 	IPX_LIST_UNLOCK();
 	return (0);
 }
@@ -1501,6 +1547,7 @@ spx_usr_disconnect(struct socket *so)
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
 	spx_disconnect(cb);
+	IPX_UNLOCK(ipxp);
 	IPX_LIST_UNLOCK();
 	return (0);
 }
@@ -1570,16 +1617,18 @@ spx_rcvoob(struct socket *so, struct mbuf *m, int flags)
 	cb = ipxtospxpcb(ipxp);
 	KASSERT(cb != NULL, ("spx_rcvoob: cb == NULL"));
 
+	IPX_LOCK(ipxp);
 	SOCKBUF_LOCK(&so->so_rcv);
 	if ((cb->s_oobflags & SF_IOOB) || so->so_oobmark ||
 	    (so->so_rcv.sb_state & SBS_RCVATMARK)) {
 		SOCKBUF_UNLOCK(&so->so_rcv);
 		m->m_len = 1;
-		/* Unlocked read. */
 		*mtod(m, caddr_t) = cb->s_iobc;
+		IPX_UNLOCK(ipxp);
 		return (0);
 	}
 	SOCKBUF_UNLOCK(&so->so_rcv);
+	IPX_UNLOCK(ipxp);
 	return (EINVAL);
 }
 
@@ -1643,6 +1692,7 @@ spx_shutdown(struct socket *so)
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
 	spx_usrclosed(cb);
+	IPX_UNLOCK(ipxp);
 	IPX_LIST_UNLOCK();
 	return (0);
 }
@@ -1704,36 +1754,22 @@ spx_template(struct spxpcb *cb)
 }
 
 /*
- * Close a SPIP control block:
- *	discard spx control block itself
- *	discard ipx protocol control block
- *	wake up any sleepers
- * cb will always be invalid after this call.
+ * Close a SPIP control block.  Wake up any sleepers.  We used to free any
+ * queued packets and cb->s_ipx here, but now we defer that until the pcb is
+ * discarded.
  */
 void
 spx_close(struct spxpcb *cb)
 {
-	struct spx_q *s;
 	struct ipxpcb *ipxp = cb->s_ipxpcb;
 	struct socket *so = ipxp->ipxp_socket;
-	struct mbuf *m;
 
 	KASSERT(ipxp != NULL, ("spx_close: ipxp == NULL"));
 	IPX_LIST_LOCK_ASSERT();
 	IPX_LOCK_ASSERT(ipxp);
 
-	s = cb->s_q.si_next;
-	while (s != &(cb->s_q)) {
-		s = s->si_next;
-		m = dtom(s->si_prev);
-		remque(s->si_prev);
-		m_freem(m);
-	}
-	m_free(dtom(cb->s_ipx));
-	FREE(cb, M_PCB);
-	ipxp->ipxp_pcb = NULL;
+	ipxp->ipxp_flags |= IPXP_DROPPED;
 	soisdisconnected(so);
-	ipx_pcbdetach(ipxp);
 	spxstat.spxs_closed++;
 }
 
@@ -1803,12 +1839,14 @@ spx_fasttimo(void)
 	IPX_LIST_LOCK();
 	LIST_FOREACH(ipxp, &ipxpcb_list, ipxp_list) {
 		IPX_LOCK(ipxp);
-		if ((cb = (struct spxpcb *)ipxp->ipxp_pcb) != NULL &&
-		    (cb->s_flags & SF_DELACK)) {
-			cb->s_flags &= ~SF_DELACK;
-			cb->s_flags |= SF_ACKNOW;
-			spxstat.spxs_delack++;
-			spx_output(cb, NULL);
+		if (!(ipxp->ipxp_flags & IPXP_DROPPED)) {
+			cb = ipxtospxpcb(ipxp);
+			if (cb->s_flags & SF_DELACK) {
+				cb->s_flags &= ~SF_DELACK;
+				cb->s_flags |= SF_ACKNOW;
+				spxstat.spxs_delack++;
+				spx_output(cb, NULL);
+			}
 		}
 		IPX_UNLOCK(ipxp);
 	}
@@ -1822,40 +1860,37 @@ spx_fasttimo(void)
 void
 spx_slowtimo(void)
 {
-	struct ipxpcb *ip, *ip_temp;
+	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
 	int i;
 
 	/*
-	 * Search through tcb's and update active timers.  Note that timers
-	 * may free the ipxpcb, so be sure to handle that case.
-	 *
-	 * spx_timers() may remove an ipxpcb entry, so we have to be ready to
-	 * continue despite that.  The logic here is a bit obfuscated.
+	 * Search through tcb's and update active timers.  Once, timers could
+	 * free ipxp's, but now we do that only when detaching a socket.
 	 */
 	IPX_LIST_LOCK();
-	LIST_FOREACH_SAFE(ip, &ipxpcb_list, ipxp_list, ip_temp) {
-		cb = ipxtospxpcb(ip);
-		if (cb == NULL)
+	LIST_FOREACH(ipxp, &ipxpcb_list, ipxp_list) {
+		IPX_LOCK(ipxp);
+		if (ipxp->ipxp_flags & IPXP_DROPPED) {
+			IPX_UNLOCK(ipxp);
 			continue;
-		IPX_LOCK(cb->s_ipxpcb);
+		}
+
+		cb = (struct spxpcb *)ipxp->ipxp_pcb;
+		KASSERT(cb != NULL, ("spx_slowtimo: cb == NULL"));
 		for (i = 0; i < SPXT_NTIMERS; i++) {
 			if (cb->s_timer[i] && --cb->s_timer[i] == 0) {
-				/*
-				 * spx_timers() returns (NULL) if it free'd
-				 * the pcb.
-				 */
-				cb = spx_timers(cb, i);
-				if (cb == NULL)
+				spx_timers(cb, i);
+				if (ipxp->ipxp_flags & IPXP_DROPPED)
 					break;
 			}
 		}
-		if (cb != NULL) {
+		if (!(ipxp->ipxp_flags & IPXP_DROPPED)) {
 			cb->s_idle++;
 			if (cb->s_rtt)
 				cb->s_rtt++;
-			IPX_UNLOCK(cb->s_ipxpcb);
 		}
+		IPX_UNLOCK(ipxp);
 	}
 	IPX_LIST_UNLOCK();
 	SPX_LOCK();
@@ -1866,7 +1901,7 @@ spx_slowtimo(void)
 /*
  * SPX timer processing.
  */
-static struct spxpcb *
+static void
 spx_timers(struct spxpcb *cb, int timer)
 {
 	long rexmt;
@@ -1896,7 +1931,6 @@ spx_timers(struct spxpcb *cb, int timer)
 			cb->s_rxtshift = SPX_MAXRXTSHIFT;
 			spxstat.spxs_timeoutdrop++;
 			spx_drop(cb, ETIMEDOUT);
-			cb = NULL;
 			break;
 		}
 		spxstat.spxs_rexmttimeo++;
@@ -1965,11 +1999,9 @@ spx_timers(struct spxpcb *cb, int timer)
 	dropit:
 		spxstat.spxs_keepdrops++;
 		spx_drop(cb, ETIMEDOUT);
-		cb = NULL;
 		break;
 
 	default:
 		panic("spx_timers: unknown timer %d", timer);
 	}
-	return (cb);
 }
