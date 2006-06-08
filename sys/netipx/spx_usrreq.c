@@ -1389,6 +1389,7 @@ spx_attach(struct socket *so, int proto, struct thread *td)
 		return (error);
 	}
 	ipxp = sotoipxpcb(so);
+	ipxp->ipxp_flags |= IPXP_SPX;
 
 	cb->s_ipx = mtod(mm, struct ipx *);
 	cb->s_state = TCPS_LISTEN;
@@ -1841,14 +1842,17 @@ spx_fasttimo(void)
 	IPX_LIST_LOCK();
 	LIST_FOREACH(ipxp, &ipxpcb_list, ipxp_list) {
 		IPX_LOCK(ipxp);
-		if (!(ipxp->ipxp_flags & IPXP_DROPPED)) {
-			cb = ipxtospxpcb(ipxp);
-			if (cb->s_flags & SF_DELACK) {
-				cb->s_flags &= ~SF_DELACK;
-				cb->s_flags |= SF_ACKNOW;
-				spxstat.spxs_delack++;
-				spx_output(cb, NULL);
-			}
+		if (!(ipxp->ipxp_flags & IPXP_SPX) ||
+		    (ipxp->ipxp_flags & IPXP_DROPPED)) {
+			IPX_UNLOCK(ipxp);
+			continue;
+		}
+		cb = ipxtospxpcb(ipxp);
+		if (cb->s_flags & SF_DELACK) {
+			cb->s_flags &= ~SF_DELACK;
+			cb->s_flags |= SF_ACKNOW;
+			spxstat.spxs_delack++;
+			spx_output(cb, NULL);
 		}
 		IPX_UNLOCK(ipxp);
 	}
@@ -1873,7 +1877,8 @@ spx_slowtimo(void)
 	IPX_LIST_LOCK();
 	LIST_FOREACH(ipxp, &ipxpcb_list, ipxp_list) {
 		IPX_LOCK(ipxp);
-		if (ipxp->ipxp_flags & IPXP_DROPPED) {
+		if (!(ipxp->ipxp_flags & IPXP_SPX) ||
+		    (ipxp->ipxp_flags & IPXP_DROPPED)) {
 			IPX_UNLOCK(ipxp);
 			continue;
 		}
