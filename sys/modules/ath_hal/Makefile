@@ -62,6 +62,8 @@ CFLAGS+= -I. -I${HAL}/freebsd -I${HAL}
 ATH_MODULE_ARCH=x86_64
 .elif ${MACHINE_ARCH} == "sparc64"
 ATH_MODULE_ARCH=sparc64-be
+.elif ${MACHINE_ARCH} == "powerpc"
+ATH_MODULE_ARCH=powerpc-be
 .else
 ATH_MODULE_ARCH=${MACHINE_ARCH}
 .endif
