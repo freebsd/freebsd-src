@@ -2084,6 +2084,7 @@ device		ahd		# AIC79xx devices
 device		amd		# AMD 53C974 (Tekram DC-390(T))
 device		isp		# Qlogic family
 device		ispfw		# Firmware for QLogic HBAs
+device		mpt		# LSI-Logic MPT/Fusion
 device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets)
 device		trm		# Tekram DC395U/UW/F and DC315U

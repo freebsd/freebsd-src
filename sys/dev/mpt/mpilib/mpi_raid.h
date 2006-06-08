@@ -1,34 +1,40 @@
 /* $FreeBSD$ */
-/*
- * Copyright (c) 2000, 2001 by LSI Logic Corporation
- *
+/*-
+ * Copyright (c) 2000-2005, LSI Logic Corporation and its contributors.
+ * All rights reserved.
+ * 
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ * modification, are permitted provided that the following conditions are
+ * met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
- * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon including
+ *    a substantially similar Disclaimer requirement for further binary
+ *    redistribution.
+ * 3. Neither the name of the LSI Logic Corporation nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- *
- *           Name:  MPI_RAID.H
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF THE COPYRIGHT
+ * OWNER OR CONTRIBUTOR IS ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * 
+ *           Name:  mpi_raid.h
  *          Title:  MPI RAID message and structures
  *  Creation Date:  February 27, 2001
  *
- *    MPI Version:  01.02.04
+ *    mpi_raid.h Version:  01.05.02
  *
  *  Version History
  *  ---------------
@@ -42,6 +48,18 @@
  *  10-04-01  01.02.03  Added ActionData defines for
  *                      MPI_RAID_ACTION_DELETE_VOLUME action.
  *  11-01-01  01.02.04  Added define for MPI_RAID_ACTION_ADATA_DO_NOT_SYNC.
+ *  03-14-02  01.02.05  Added define for MPI_RAID_ACTION_ADATA_LOW_LEVEL_INIT.
+ *  05-07-02  01.02.06  Added define for MPI_RAID_ACTION_ACTIVATE_VOLUME,
+ *                      MPI_RAID_ACTION_INACTIVATE_VOLUME, and
+ *                      MPI_RAID_ACTION_ADATA_INACTIVATE_ALL.
+ *  07-12-02  01.02.07  Added structures for Mailbox request and reply.
+ *  11-15-02  01.02.08  Added missing MsgContext field to MSG_MAILBOX_REQUEST.
+ *  04-01-03  01.02.09  New action data option flag for
+ *                      MPI_RAID_ACTION_DELETE_VOLUME.
+ *  05-11-04  01.03.01  Original release for MPI v1.3.
+ *  08-19-04  01.05.01  Original release for MPI v1.5.
+ *  01-15-05  01.05.02  Added defines for the two new RAID Actions for
+ *                      _SET_RESYNC_RATE and _SET_DATA_SCRUB_RATE.
  *  --------------------------------------------------------------------------
  */
 
@@ -57,7 +75,7 @@
 
 
 /****************************************************************************/
-/* RAID Volume Request                                                      */
+/* RAID Action Request                                                      */
 /****************************************************************************/
 
 typedef struct _MSG_RAID_ACTION
@@ -96,13 +114,31 @@ typedef struct _MSG_RAID_ACTION
 #define MPI_RAID_ACTION_DELETE_PHYSDISK             (0x0E)
 #define MPI_RAID_ACTION_FAIL_PHYSDISK               (0x0F)
 #define MPI_RAID_ACTION_REPLACE_PHYSDISK            (0x10)
+#define MPI_RAID_ACTION_ACTIVATE_VOLUME             (0x11)
+#define MPI_RAID_ACTION_INACTIVATE_VOLUME           (0x12)
+#define MPI_RAID_ACTION_SET_RESYNC_RATE             (0x13)
+#define MPI_RAID_ACTION_SET_DATA_SCRUB_RATE         (0x14)
 
 /* ActionDataWord defines for use with MPI_RAID_ACTION_CREATE_VOLUME action */
 #define MPI_RAID_ACTION_ADATA_DO_NOT_SYNC           (0x00000001)
+#define MPI_RAID_ACTION_ADATA_LOW_LEVEL_INIT        (0x00000002)
 
 /* ActionDataWord defines for use with MPI_RAID_ACTION_DELETE_VOLUME action */
 #define MPI_RAID_ACTION_ADATA_KEEP_PHYS_DISKS       (0x00000000)
 #define MPI_RAID_ACTION_ADATA_DEL_PHYS_DISKS        (0x00000001)
+
+#define MPI_RAID_ACTION_ADATA_KEEP_LBA0             (0x00000000)
+#define MPI_RAID_ACTION_ADATA_ZERO_LBA0             (0x00000002)
+
+/* ActionDataWord defines for use with MPI_RAID_ACTION_ACTIVATE_VOLUME action */
+#define MPI_RAID_ACTION_ADATA_INACTIVATE_ALL        (0x00000001)
+
+/* ActionDataWord defines for use with MPI_RAID_ACTION_SET_RESYNC_RATE action */
+#define MPI_RAID_ACTION_ADATA_RESYNC_RATE_MASK      (0x000000FF)
+
+/* ActionDataWord defines for use with MPI_RAID_ACTION_SET_DATA_SCRUB_RATE action */
+#define MPI_RAID_ACTION_ADATA_DATA_SCRUB_RATE_MASK  (0x000000FF)
+
 
 
 /* RAID Action reply message */
@@ -193,6 +229,43 @@ typedef struct _MSG_SCSI_IO_RAID_PT_REPLY
 } MSG_SCSI_IO_RAID_PT_REPLY, MPI_POINTER PTR_MSG_SCSI_IO_RAID_PT_REPLY,
   SCSIIORaidPassthroughReply_t, MPI_POINTER pSCSIIORaidPassthroughReply_t;
 
+
+/****************************************************************************/
+/* Mailbox reqeust structure */
+/****************************************************************************/
+
+typedef struct _MSG_MAILBOX_REQUEST
+{
+    U16                     Reserved1;
+    U8                      ChainOffset;
+    U8                      Function;
+    U16                     Reserved2;
+    U8                      Reserved3;
+    U8                      MsgFlags;
+    U32                     MsgContext;
+    U8                      Command[10];
+    U16                     Reserved4;
+    SGE_IO_UNION            SGL;
+} MSG_MAILBOX_REQUEST, MPI_POINTER PTR_MSG_MAILBOX_REQUEST,
+  MailboxRequest_t, MPI_POINTER pMailboxRequest_t;
+
+
+/* Mailbox reply structure */
+typedef struct _MSG_MAILBOX_REPLY
+{
+    U16                     Reserved1;          /* 00h */
+    U8                      MsgLength;          /* 02h */
+    U8                      Function;           /* 03h */
+    U16                     Reserved2;          /* 04h */
+    U8                      Reserved3;          /* 06h */
+    U8                      MsgFlags;           /* 07h */
+    U32                     MsgContext;         /* 08h */
+    U16                     MailboxStatus;      /* 0Ch */
+    U16                     IOCStatus;          /* 0Eh */
+    U32                     IOCLogInfo;         /* 10h */
+    U32                     Reserved4;          /* 14h */
+} MSG_MAILBOX_REPLY, MPI_POINTER PTR_MSG_MAILBOX_REPLY,
+  MailboxReply_t, MPI_POINTER pMailboxReply_t;
 
 #endif
 

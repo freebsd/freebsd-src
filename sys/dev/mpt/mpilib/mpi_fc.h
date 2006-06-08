@@ -1,34 +1,40 @@
 /* $FreeBSD$ */
-/*
- * Copyright (c) 2000, 2001 by LSI Logic Corporation
- *
+/*-
+ * Copyright (c) 2000-2005, LSI Logic Corporation and its contributors.
+ * All rights reserved.
+ * 
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ * modification, are permitted provided that the following conditions are
+ * met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
- * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon including
+ *    a substantially similar Disclaimer requirement for further binary
+ *    redistribution.
+ * 3. Neither the name of the LSI Logic Corporation nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- *
- *           Name:  MPI_FC.H
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF THE COPYRIGHT
+ * OWNER OR CONTRIBUTOR IS ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * 
+ *           Name:  mpi_fc.h
  *          Title:  MPI Fibre Channel messages and structures
  *  Creation Date:  June 12, 2000
  *
- *    MPI Version:  01.02.02
+ *    mpi_fc.h Version:  01.05.01
  *
  *  Version History
  *  ---------------
@@ -57,6 +63,10 @@
  *  08-08-01  01.02.01  Original release for v1.2 work.
  *  09-28-01  01.02.02  Change name of reserved field in
  *                      MSG_LINK_SERVICE_RSP_REPLY.
+ *  05-31-02  01.02.03  Adding AliasIndex to FC Direct Access requests.
+ *  01-16-04  01.02.04  Added define for MPI_FC_PRIM_SEND_FLAGS_ML_RESET_LINK.
+ *  05-11-04  01.03.01  Original release for MPI v1.3.
+ *  08-19-04  01.05.01  Original release for MPI v1.5.
  *  --------------------------------------------------------------------------
  */
 
@@ -66,7 +76,7 @@
 
 /*****************************************************************************
 *
-*        F C    T a r g e t    M o d e    M e s s a g e s
+*        F C    D i r e c t    A c c e s s     M e s s a g e s
 *
 *****************************************************************************/
 
@@ -215,7 +225,7 @@ typedef struct _MSG_LINK_SERVICE_RSP_REPLY
 typedef struct _MSG_EXLINK_SERVICE_SEND_REQUEST
 {
     U8                      SendFlags;          /* 00h */
-    U8                      Reserved;           /* 01h */
+    U8                      AliasIndex;         /* 01h */
     U8                      ChainOffset;        /* 02h */
     U8                      Function;           /* 03h */
     U32                     MsgFlags_Did;       /* 04h */
@@ -234,7 +244,8 @@ typedef struct _MSG_EXLINK_SERVICE_SEND_REQUEST
 /* Extended Link Service Send Reply */
 typedef struct _MSG_EXLINK_SERVICE_SEND_REPLY
 {
-    U16                     Reserved;           /* 00h */
+    U8                      Reserved;           /* 00h */
+    U8                      AliasIndex;         /* 01h */
     U8                      MsgLength;          /* 02h */
     U8                      Function;           /* 03h */
     U16                     Reserved1;          /* 04h */
@@ -297,7 +308,7 @@ typedef struct _MSG_FC_ABORT_REPLY
 typedef struct _MSG_FC_COMMON_TRANSPORT_SEND_REQUEST
 {
     U8                      SendFlags;          /* 00h */
-    U8                      Reserved;           /* 01h */
+    U8                      AliasIndex;         /* 01h */
     U8                      ChainOffset;        /* 02h */
     U8                      Function;           /* 03h */
     U32                     MsgFlags_Did;       /* 04h */
@@ -319,7 +330,8 @@ typedef struct _MSG_FC_COMMON_TRANSPORT_SEND_REQUEST
 /* FC Common Transport Send Reply */
 typedef struct _MSG_FC_COMMON_TRANSPORT_SEND_REPLY
 {
-    U16                     Reserved;           /* 00h */
+    U8                      Reserved;           /* 00h */
+    U8                      AliasIndex;         /* 01h */
     U8                      MsgLength;          /* 02h */
     U8                      Function;           /* 03h */
     U16                     Reserved1;          /* 04h */
@@ -353,6 +365,7 @@ typedef struct _MSG_FC_PRIMITIVE_SEND_REQUEST
   FcPrimitiveSendRequest_t, MPI_POINTER pFcPrimitiveSendRequest_t;
 
 #define MPI_FC_PRIM_SEND_FLAGS_PORT_MASK       (0x01)
+#define MPI_FC_PRIM_SEND_FLAGS_ML_RESET_LINK   (0x02)
 #define MPI_FC_PRIM_SEND_FLAGS_RESET_LINK      (0x04)
 #define MPI_FC_PRIM_SEND_FLAGS_STOP_SEND       (0x08)
 #define MPI_FC_PRIM_SEND_FLAGS_SEND_ONCE       (0x10)
