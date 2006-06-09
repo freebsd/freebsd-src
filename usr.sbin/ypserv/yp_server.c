@@ -164,9 +164,9 @@ ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 	 */
 
 #ifdef DB_CACHE
-	if (result.stat != YP_TRUE &&
+	if (do_dns && result.stat != YP_TRUE &&
 	    (yp_testflag(argp->map, argp->domain, YP_INTERDOMAIN) ||
-	     ((strstr(argp->map, "hosts") || strstr(argp->map, "ipnodes")) && do_dns))) {
+	    (strstr(argp->map, "hosts") || strstr(argp->map, "ipnodes")))) {
 #else
 	if (do_dns && result.stat != YP_TRUE &&
 	    (strstr(argp->map, "hosts") || strstr(argp->map, "ipnodes"))) {
