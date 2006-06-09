@@ -73,7 +73,6 @@
 #include <xfs_fs_subr.h>
 #include <xfs_buf.h>
 #include <xfs_frw.h>
-#include <xfs_log.h>
 
 /*
  * Feature macros (disable/enable)
@@ -85,14 +84,12 @@
 #define EVMS_MAJOR 117
 #endif
 
-#define xfs_refcache_size	xfs_params.refcache_size.val
-#define xfs_refcache_purge_count xfs_params.refcache_purge.val
 #define restricted_chown	xfs_params.restrict_chown.val
 #define irix_sgid_inherit	xfs_params.sgid_inherit.val
 #define irix_symlink_mode	xfs_params.symlink_mode.val
 #define xfs_panic_mask		xfs_params.panic_mask.val
 #define xfs_error_level		xfs_params.error_level.val
-#define xfs_syncd_interval	xfs_params.sync_interval.val
+#define xfs_syncd_centisecs	xfs_params.syncd_timer.val
 #define xfs_probe_dmapi		xfs_params.probe_dmapi.val
 #define xfs_probe_ioops		xfs_params.probe_ioops.val
 #define xfs_probe_quota		xfs_params.probe_quota.val
@@ -100,9 +97,10 @@
 #define xfs_inherit_sync	xfs_params.inherit_sync.val
 #define xfs_inherit_nodump	xfs_params.inherit_nodump.val
 #define xfs_inherit_noatime	xfs_params.inherit_noatim.val
-#define xfs_flush_interval	xfs_params.flush_interval.val
-#define xfs_age_buffer		xfs_params.age_buffer.val
-#define xfs_io_bypass		xfs_params.io_bypass.val
+#define xfs_buf_timer_centisecs	xfs_params.xfs_buf_timer.val
+#define xfs_buf_age_centisecs	xfs_params.xfs_buf_age.val
+#define xfs_inherit_nosymlinks	xfs_params.inherit_nosym.val
+#define xfs_rotorstep		xfs_params.rotorstep.val
 
 #define current_cpu()		smp_processor_id()
 #define current_pid()		(curthread->td_proc->p_pid)
@@ -118,8 +116,20 @@
 #define	NBPC		PAGE_SIZE	/* Number of bytes per click */
 #define	BPCSHIFT	PAGE_SHIFT	/* LOG2(NBPC) if exact */
 
+/*
+ * Size of block device i/o is parameterized here.
+ * Currently the system supports page-sized i/o.
+ */
+#define	BLKDEV_IOSHIFT		BPCSHIFT
+#ifndef BLKDEV_IOSIZE
+#define	BLKDEV_IOSIZE		(1<<BLKDEV_IOSHIFT)
+#else
+# if NBPC != BLKDEV_IOSIZE
+#   error Wrong BLKDEV_IOSIZE
+# endif
+#endif
 /* number of BB's per block device block */
-#define	BLKDEV_BB	BTOBB(BLKDEV_IOSIZE)
+#define	BLKDEV_BB		BTOBB(BLKDEV_IOSIZE)
 
 /* bytes to clicks */
 #define	btoct(x)	((__psunsigned_t)(x)>>BPCSHIFT)
@@ -194,9 +204,13 @@
 #define howmany(x, y)	(((x)+((y)-1))/(y))
 #define roundup(x, y)	((((x)+((y)-1))/(y))*(y))
 
-#ifndef __user
-#define __user
-#endif
+#define xfs_sort(a,n,s,fn)	qsort(a,n,s,fn)
+
+
+static inline int xfs_itruncate_data(void *ip, xfs_off_t off)  {
+	printf ("xfs_itruncate_data NI\n");
+	return 0;
+}
 
 /*
  * Juggle IRIX device numbers - still used in ondisk structures
@@ -220,6 +234,12 @@ static inline void xfs_stack_trace(void)
 {
 	kdb_backtrace();
 }
+
+#define xfs_statvfs_fsid(statp, mp)	\
+	({				   \
+		(statp)->f_fsid.val[0] = /*dev2udev(mp->m_dev) */ 1;	\
+		(statp)->f_fsid.val[1] = 0;			\
+	})	
 
 
 /* Move the kernel do_div definition off to one side */
@@ -337,12 +357,6 @@ static inline __uint64_t roundup_64(__uint64_t x, __uint32_t y)
 	x += y - 1;
 	do_div(x, y);
 	return(x * y);
-}
-
-static inline unsigned long ffz(unsigned long val)
-{
-        val = ffsl(~val);
-        return val;
 }
 
 #endif /* __XFS_FREEBSD__ */

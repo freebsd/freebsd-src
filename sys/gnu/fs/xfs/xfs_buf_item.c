@@ -1,61 +1,35 @@
 /*
- * Copyright (c) 2000-2002 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
-/*
- * This file contains the implementation of the xfs_buf_log_item.
- * It contains the item operations used to manipulate the buf log
- * items as well as utility routines used by the buffer specific
- * transaction routines.
- */
-
 #include "xfs.h"
-
-#include "xfs_macros.h"
+#include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
-#include "xfs_buf_item.h"
 #include "xfs_sb.h"
 #include "xfs_dir.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
+#include "xfs_buf_item.h"
 #include "xfs_trans_priv.h"
-#include "xfs_rw.h"
-#include "xfs_bit.h"
 #include "xfs_error.h"
 
-
-#define	ROUNDUPNBWORD(x)	(((x) + (NBWORD - 1)) & ~(NBWORD - 1))
 
 kmem_zone_t	*xfs_buf_item_zone;
 
@@ -124,12 +98,12 @@ xfs_buf_item_flush_log_debug(
 }
 
 /*
- * This function is called to verify that our caller's have logged
+ * This function is called to verify that our callers have logged
  * all the bytes that they changed.
  *
  * It does this by comparing the original copy of the buffer stored in
  * the buf log item's bli_orig array to the current copy of the buffer
- * and ensuring that all bytes which miscompare are set in the bli_logged
+ * and ensuring that all bytes which mismatch are set in the bli_logged
  * array of the buf log item.
  */
 STATIC void
@@ -276,6 +250,7 @@ xfs_buf_item_format(
 		       ((bip->bli_format.blf_map_size - 1) * sizeof(uint)));
 	vecp->i_addr = (xfs_caddr_t)&bip->bli_format;
 	vecp->i_len = base_size;
+	XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_BFORMAT);
 	vecp++;
 	nvecs = 1;
 
@@ -322,12 +297,14 @@ xfs_buf_item_format(
 			buffer_offset = first_bit * XFS_BLI_CHUNK;
 			vecp->i_addr = xfs_buf_offset(bp, buffer_offset);
 			vecp->i_len = nbits * XFS_BLI_CHUNK;
+			XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_BCHUNK);
 			nvecs++;
 			break;
 		} else if (next_bit != last_bit + 1) {
 			buffer_offset = first_bit * XFS_BLI_CHUNK;
 			vecp->i_addr = xfs_buf_offset(bp, buffer_offset);
 			vecp->i_len = nbits * XFS_BLI_CHUNK;
+			XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_BCHUNK);
 			nvecs++;
 			vecp++;
 			first_bit = next_bit;
@@ -339,6 +316,7 @@ xfs_buf_item_format(
 			buffer_offset = first_bit * XFS_BLI_CHUNK;
 			vecp->i_addr = xfs_buf_offset(bp, buffer_offset);
 			vecp->i_len = nbits * XFS_BLI_CHUNK;
+			XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_BCHUNK);
 /* You would think we need to bump the nvecs here too, but we do not
  * this number is used by recovery, and it gets confused by the boundary
  * split here
@@ -703,7 +681,7 @@ xfs_buf_item_committing(xfs_buf_log_item_t *bip, xfs_lsn_t commit_lsn)
 /*
  * This is the ops vector shared by all buf log items.
  */
-struct xfs_item_ops xfs_buf_item_ops = {
+STATIC struct xfs_item_ops xfs_buf_item_ops = {
 	.iop_size	= (uint(*)(xfs_log_item_t*))xfs_buf_item_size,
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_buf_item_format,

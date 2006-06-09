@@ -35,30 +35,58 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 
-/* XXX: move this into buf.h */
-#ifndef B_MANAGED
-#define B_MANAGED B_08000000 
-#endif
-
 struct xfs_buf;
 struct xfs_mount;
 struct vnode;
+typedef struct buf xfs_buf_t;
+typedef uint32_t xfs_buf_flags_t;
+#define xfs_buf buf
+
+extern struct buf_ops xfs_bo_ops;
+
+typedef enum {
+	XBRW_READ = 1,			/* transfer into target memory */
+	XBRW_WRITE = 2,			/* transfer from target memory */
+	XBRW_ZERO = 3,			/* Zero target memory */
+} xfs_buf_rw_t;
+
+/* Buffer Read and Write Routines */
+extern void xfs_buf_ioend(xfs_buf_t *,	int);
+extern void xfs_buf_ioerror(xfs_buf_t *, int);
+extern int xfs_buf_iostart(xfs_buf_t *, xfs_buf_flags_t);
+extern int xfs_buf_iorequest(xfs_buf_t *);
+extern int xfs_buf_iowait(xfs_buf_t *);
+extern void xfs_buf_iomove(xfs_buf_t *, size_t, size_t, xfs_caddr_t, xfs_buf_rw_t);
+
+/* Pinning Buffer Storage in Memory */
+extern void xfs_buf_pin(xfs_buf_t *);
+extern void xfs_buf_unpin(xfs_buf_t *);
+extern int xfs_buf_ispin(xfs_buf_t *);
+
 
 typedef void (*xfs_buf_iodone_t)(struct xfs_buf *); /* call-back function on I/O completion */
 typedef void (*xfs_buf_relse_t)(struct xfs_buf *); /* call-back function on I/O completion */
 typedef int (*xfs_buf_bdstrat_t)(struct xfs_buf *);
 
 typedef struct xfs_buftarg {
+	/* this probaby redundant info, but stick with linux conventions for now */
+	unsigned int	bt_bsize;
+	unsigned int	bt_sshift;
+	size_t		bt_smask;
 	struct cdev	*dev;
 	struct vnode	*specvp;
 } xfs_buftarg_t;
 
-typedef struct buf xfs_buf_t;
-#define xfs_buf buf
+
+/* Finding and Reading Buffers */
+extern void xfs_buf_readahead(xfs_buftarg_t *, xfs_off_t, size_t, xfs_buf_flags_t);
+/* Misc buffer rountines */
+extern int xfs_readonly_buftarg(xfs_buftarg_t *);
 
 /* These are just for xfs_syncsub... it sets an internal variable
  * then passes it to VOP_FLUSH_PAGES or adds the flags to a newly gotten buf_t
  */
+#define XBF_DONT_BLOCK		0
 
 #define	XFS_B_ASYNC		B_ASYNC
 #define	XFS_B_DELWRI		B_DELWRI
@@ -71,13 +99,15 @@ typedef struct buf xfs_buf_t;
 #define	XFS_BUF_MAPPED		0
 #define	BUF_BUSY		0
 
+#define	XBF_ORDERED             0
+
 				/* debugging routines might need this */
 #define XFS_BUF_BFLAGS(x)	((x)->b_flags)
 #define XFS_BUF_ZEROFLAGS(x)	((x)->b_flags = 0)
-#define XFS_BUF_STALE(x)	((x)->b_flags |= XFS_B_STALE)
-#define XFS_BUF_UNSTALE(x)	((x)->b_flags &= ~XFS_B_STALE)
-#define XFS_BUF_ISSTALE(x)	((x)->b_flags & XFS_B_STALE)
-#define XFS_BUF_SUPER_STALE(x)	{(x)->b_flags |= XFS_B_STALE;\
+#define XFS_BUF_STALE(x)	((x)->b_flags |= (XFS_B_STALE|B_NOCACHE))
+#define XFS_BUF_UNSTALE(x)	((x)->b_flags &= ~(XFS_B_STALE|B_NOCACHE))
+#define XFS_BUF_ISSTALE(x)	((x)->b_flags & (XFS_B_STALE|B_NOCACHE))
+#define XFS_BUF_SUPER_STALE(x)	{(x)->b_flags |= (XFS_B_STALE|B_NOCACHE); \
 				(x)->b_flags &= ~(XFS_B_DELWRI|B_CACHE);}
 
 #define XFS_BUF_MANAGE		B_MANAGED
@@ -115,6 +145,10 @@ xfs_buf_get_error(struct buf *bp)
 #define XFS_BUF_ASYNC(x)	((x)->b_flags |=  B_ASYNC)
 #define XFS_BUF_UNASYNC(x)	((x)->b_flags &= ~B_ASYNC)
 #define XFS_BUF_ISASYNC(x)	((x)->b_flags &   B_ASYNC)
+
+#define XFS_BUF_ORDERED(bp)	((bp)->b_flags |= XBF_ORDERED)
+#define XFS_BUF_UNORDERED(bp)	((bp)->b_flags &= ~XBF_ORDERED)
+#define XFS_BUF_ISORDERED(bp)	((bp)->b_flags & XBF_ORDERED)
 
 #define XFS_BUF_FLUSH(x)	((x)->b_flags |=  B_00800000)
 #define XFS_BUF_UNFLUSH(x)	((x)->b_flags &= ~B_00800000)
@@ -203,8 +237,10 @@ xfs_buf_offset(xfs_buf_t *bp, size_t offset)
 #define	XFS_BUF_VALUSEMA(bp)	(BUF_REFCNT(bp)? 0 : 1)
 #define	XFS_BUF_CPSEMA(bp) \
 	(BUF_LOCK(bp, LK_EXCLUSIVE|LK_CANRECURSE | LK_SLEEPFAIL, NULL) == 0)
+
 #define	XFS_BUF_PSEMA(bp,x)	BUF_LOCK(bp, LK_EXCLUSIVE|LK_CANRECURSE, NULL)
 #define	XFS_BUF_VSEMA(bp)	BUF_UNLOCK(bp)
+
 #define	XFS_BUF_V_IODONESEMA(bp) bdone(bp)
 
 /* setup the buffer target from a buftarg structure */
@@ -222,7 +258,7 @@ xfs_buftarg_t *xfs_buf_get_target(xfs_buf_t *);
 #define XFS_BUF_SET_VTYPE(bp, type)
 #define XFS_BUF_SET_REF(bp, ref)
 
-#define XFS_BUF_ISPINNED(bp)	xfs_ispin(bp)
+#define XFS_BUF_ISPINNED(bp)	xfs_buf_ispin(bp)
 
 xfs_buf_t *
 xfs_buf_read_flags(xfs_buftarg_t *, xfs_daddr_t, size_t, int);
@@ -238,16 +274,34 @@ xfs_buf_get_flags(xfs_buftarg_t *, xfs_daddr_t, size_t, int);
                 xfs_buf_get_flags(target, blkno, len, \
                        XFS_BUF_LOCK | XFS_BUF_MAPPED)
 
-#define xfs_bdwrite(mp, bp) bdwrite(bp)
-/*
-	{ ((bp)->b_vp == NULL) ? (bp)->b_bdstrat = xfs_bdstrat_cb: 0; \
-		(bp)->b_fsprivate3 = (mp); bdwrite(bp);}
-*/
-#define xfs_bawrite(mp, bp) bawrite(bp)
-/*
-	{ ((bp)->b_vp == NULL) ? (bp)->b_bdstrat = xfs_bdstrat_cb: 0; \
-		(bp)->b_fsprivate3 = (mp); bawrite(bp);}
-*/
+/* the return value is never used ... why does linux define this functions this way? */
+static inline int xfs_bawrite(void *mp, xfs_buf_t *bp)
+{
+	/* Ditto for xfs_bawrite
+	bp->b_fspriv3 = mp;
+	bp->b_strat = xfs_bdstrat_cb;
+	xfs_buf_delwri_dequeue(bp);
+	return xfs_buf_iostart(bp, XBF_WRITE | XBF_ASYNC | _XBF_RUN_QUEUES);
+	*/
+	bawrite(bp);
+	return 0;
+}
+
+static inline int xfs_bdwrite(void *mp, xfs_buf_t *bp)
+{
+  /* this is for io shutdown checking need to do this at some point RMC */
+  /* probably should just change xfs to call a buf write function */
+#if 0 /* RMC */
+	bp->b_strat = xfs_bdstrat_cb;
+	bp->b_fspriv3 = mp;
+	return xfs_buf_iostart(bp, XBF_DELWRI | XBF_ASYNC);
+#endif
+	bdwrite(bp);
+	return 0;
+}
+
+#define xfs_bpin(bp)		xfs_buf_pin(bp)
+#define xfs_bunpin(bp)		xfs_buf_unpin(bp)
 
 #define xfs_buf_relse(bp)            brelse(bp)
 #define xfs_bp_mapin(bp)             bp_mapin(bp)
@@ -258,32 +312,21 @@ xfs_buf_get_flags(xfs_buftarg_t *, xfs_daddr_t, size_t, int);
 #define xfs_incore(xfs_buftarg,blkno,len,lockit)  \
 			  incore(&xfs_buftarg->specvp->v_bufobj, blkno);
 
-#define xfs_biomove(pb, off, len, data, rw) \
-		panic("%s:%d: xfs_biomove NI", __FILE__, __LINE__)
+#define xfs_biomove(bp, off, len, data, rw) \
+	xfs_buf_iomove((bp), (off), (len), (data),			\
+		       ((rw) == XFS_B_WRITE) ? XBRW_WRITE : XBRW_READ)
 
-#define xfs_biozero(pb, off, len) \
-		panic("%s:%d: xfs_biozero NI", __FILE__, __LINE__)
+#define xfs_biozero(bp, off, len) \
+	xfs_buf_iomove((bp), (off), (len), NULL, XBRW_ZERO)
 
 /* already a function xfs_bwrite... fix this */
-#define XFS_bdwrite(bp)              bdwrite(bp)
-#define xfs_iowait(bp)               bufwait(bp)
+#define XFS_bdwrite(bp)			bdwrite(bp)
+#define xfs_iowait(bp)			bufwait(bp)
 
-#define xfs_binval(buftarg)          printf("binval(buftarg.dev) NI\n")
-#define XFS_bflush(buftarg)          printf("bflush(buftarg.dev) NI\n")
+#define XFS_bdstrat(bp)			xfs_buf_iorequest(bp)
 
-#define XFS_bdstrat(bp)		     printf("XFS_bdstrat NI\n")
-
-#define xfs_incore_relse(buftarg,delwri_only,wait) \
-            printf("incore_relse(buftarg.dev,delwri_only,wait) NI\n")
-
-#define xfs_incore_match(buftarg,blkno,len,field,value) \
-            printf("incore_match(buftarg.dev,blkno,len,field,value) NI \n")
-
-void xfs_baread(xfs_buftarg_t *targp, xfs_daddr_t ioff, size_t isize);
-
-extern void pdflush(struct vnode *, uint64_t);
-#define XFS_pdflush(vnode,flags) \
-            pdflush(vnode,flags)
+#define xfs_baread(target, rablkno, ralen)  \
+	xfs_buf_readahead((target), (rablkno), (ralen), XBF_DONT_BLOCK)
 
 struct xfs_mount;
 
@@ -291,14 +334,16 @@ int XFS_bwrite(xfs_buf_t *bp);
 xfs_buf_t* xfs_buf_get_empty(size_t, xfs_buftarg_t *targ);
 xfs_buf_t* xfs_buf_get_noaddr(size_t, xfs_buftarg_t *targ);
 void xfs_buf_free(xfs_buf_t *);
-int xfs_buf_iorequest(struct xfs_buf *bp);
 
-void XFS_freerbuf(xfs_buf_t *bp);
-void XFS_nfreerbuf(xfs_buf_t *bp);
+extern void xfs_bwait_unpin(xfs_buf_t *bp);
+extern xfs_buftarg_t *xfs_alloc_buftarg(struct vnode *, int);
+extern void xfs_free_buftarg(xfs_buftarg_t *, int);
+extern void xfs_wait_buftarg(xfs_buftarg_t *);
+extern int xfs_setsize_buftarg(xfs_buftarg_t *, unsigned int, unsigned int);
+extern unsigned int xfs_getsize_buftarg(struct xfs_buftarg *);
+extern int xfs_flush_buftarg(xfs_buftarg_t *, int);
 
-void xfs_bpin(xfs_buf_t *bp);
-void xfs_bunpin(xfs_buf_t *bp);
-int  xfs_ispin(xfs_buf_t *bp);
-void xfs_bwait_unpin(xfs_buf_t *bp);
+#define xfs_binval(buftarg)		xfs_flush_buftarg(buftarg, 1)
+#define XFS_bflush(buftarg)		xfs_flush_buftarg(buftarg, 1)
 
 #endif

@@ -1,37 +1,24 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_DMAPI_H__
 #define __XFS_DMAPI_H__
 
+//#include <linux/version.h>
 /*	Values used to define the on-disk version of dm_attrname_t. All
  *	on-disk attribute names start with the 8-byte string "SGI_DMI_".
  *
@@ -165,22 +152,36 @@ typedef enum {
 
 #define DM_FLAGS_NDELAY		0x001	/* return EAGAIN after dm_pending() */
 #define DM_FLAGS_UNWANTED	0x002	/* event not in fsys dm_eventset_t */
-#define DM_FLAGS_ISEM		0x004	/* thread holds i_sem */
+#define DM_FLAGS_IMUX		0x004	/* thread holds i_mutex */
 #define DM_FLAGS_IALLOCSEM_RD	0x010	/* thread holds i_alloc_sem rd */
 #define DM_FLAGS_IALLOCSEM_WR	0x020	/* thread holds i_alloc_sem wr */
 
 /*
  *	Based on IO_ISDIRECT, decide which i_ flag is set.
  */
-#ifdef DM_FLAGS_IALLOCSEM_RD
+#if 0
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
 #define DM_SEM_FLAG_RD(ioflags) (((ioflags) & IO_ISDIRECT) ? \
-			      DM_FLAGS_IALLOCSEM_RD : DM_FLAGS_ISEM)
-#define DM_SEM_FLAG_WR	(DM_FLAGS_IALLOCSEM_WR | DM_FLAGS_ISEM)
-#else
-#define DM_SEM_FLAG_RD(ioflags) (((ioflags) & IO_ISDIRECT) ? \
-			      0 : DM_FLAGS_ISEM)
-#define DM_SEM_FLAG_WR	(DM_FLAGS_ISEM)
+			      DM_FLAGS_IMUX : 0)
+#define DM_SEM_FLAG_WR	(DM_FLAGS_IALLOCSEM_WR | DM_FLAGS_IMUX)
 #endif
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)) && \
+    (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,22))
+#define DM_SEM_FLAG_RD(ioflags) (((ioflags) & IO_ISDIRECT) ? \
+			      DM_FLAGS_IALLOCSEM_RD : DM_FLAGS_IMUX)
+#define DM_SEM_FLAG_WR	(DM_FLAGS_IALLOCSEM_WR | DM_FLAGS_IMUX)
+#endif
+
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,4,21)
+#define DM_SEM_FLAG_RD(ioflags) (((ioflags) & IO_ISDIRECT) ? \
+			      0 : DM_FLAGS_IMUX)
+#define DM_SEM_FLAG_WR	(DM_FLAGS_IMUX)
+#endif
+
+#endif
+
+#define DM_SEM_FLAG_WR	0 /* RMC */
 
 /*
  *	Macros to turn caller specified delay/block flags into
@@ -193,8 +194,5 @@ typedef enum {
 
 
 extern struct bhv_vfsops xfs_dmops;
-
-extern int dmapi_init(void);
-extern void dmapi_uninit(void);
 
 #endif  /* __XFS_DMAPI_H__ */

@@ -31,7 +31,6 @@
 
 #include "xfs.h"
 
-#include "xfs_macros.h"
 #include "xfs_types.h"
 #include "xfs_inum.h"
 #include "xfs_log.h"
@@ -51,12 +50,14 @@ nopkg()
 	return (ENOSYS);
 }
 
+int dmapi_init(void);
 int
 dmapi_init (void)
 {
 	return (0);
 }
 
+void dmapi_uninit(void);
 void
 dmapi_uninit (void)
 {

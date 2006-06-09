@@ -1,44 +1,26 @@
 /*
- * Copyright (c) 2000-2002 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
-/*
- * Free realtime space allocation for XFS.
- */
-
 #include "xfs.h"
-#include "xfs_macros.h"
+#include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
@@ -46,19 +28,18 @@
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_btree.h"
+#include "xfs_ialloc.h"
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
-#include "xfs_bit.h"
 #include "xfs_rtalloc.h"
 #include "xfs_fsops.h"
 #include "xfs_error.h"
@@ -100,7 +81,9 @@ STATIC int
 xfs_lowbit32(
 	__uint32_t	v)
 {
-	return ffs(v)-1;
+	if (v)
+		return ffs(v) - 1;
+	return -1;
 }
 
 /*
@@ -147,7 +130,8 @@ xfs_growfs_rt_alloc(
 		/*
 		 * Lock the inode.
 		 */
-		if ((error = xfs_trans_iget(mp, tp, ino, XFS_ILOCK_EXCL, &ip)))
+		if ((error = xfs_trans_iget(mp, tp, ino, 0,
+						XFS_ILOCK_EXCL, &ip)))
 			goto error_exit;
 		XFS_BMAP_INIT(&flist, &firstblock);
 		/*
@@ -157,7 +141,7 @@ xfs_growfs_rt_alloc(
 		cancelflags |= XFS_TRANS_ABORT;
 		error = xfs_bmapi(tp, ip, oblocks, nblocks - oblocks,
 			XFS_BMAPI_WRITE | XFS_BMAPI_METADATA, &firstblock,
-			resblks, &map, &nmap, &flist);
+			resblks, &map, &nmap, &flist, NULL);
 		if (!error && nmap < 1)
 			error = XFS_ERROR(ENOSPC);
 		if (error)
@@ -187,8 +171,8 @@ xfs_growfs_rt_alloc(
 			/*
 			 * Lock the bitmap inode.
 			 */
-			if ((error = xfs_trans_iget(mp, tp, ino, XFS_ILOCK_EXCL,
-					&ip)))
+			if ((error = xfs_trans_iget(mp, tp, ino, 0,
+							XFS_ILOCK_EXCL, &ip)))
 				goto error_exit;
 			/*
 			 * Get a buffer for the block.
@@ -1964,7 +1948,8 @@ xfs_growfs_rt(
 	/*
 	 * Calculate new parameters.  These are the final values to be reached.
 	 */
-	nrextents = do_div(nrblocks, in->extsize);
+	nrextents = nrblocks;
+	do_div(nrextents, in->extsize);
 	nrbmblocks = roundup_64(nrextents, NBBY * sbp->sb_blocksize);
 	nrextslog = xfs_highbit32(nrextents);
 	nrsumlevels = nrextslog + 1;
@@ -2019,7 +2004,8 @@ xfs_growfs_rt(
 			XFS_RTMIN(nrblocks,
 				  nsbp->sb_rbmblocks * NBBY *
 				  nsbp->sb_blocksize * nsbp->sb_rextsize);
-		nsbp->sb_rextents = do_div(nsbp->sb_rblocks, nsbp->sb_rextsize);
+		nsbp->sb_rextents = nsbp->sb_rblocks;
+		do_div(nsbp->sb_rextents, nsbp->sb_rextsize);
 		nsbp->sb_rextslog = xfs_highbit32(nsbp->sb_rextents);
 		nrsumlevels = nmp->m_rsumlevels = nsbp->sb_rextslog + 1;
 		nrsumsize =
@@ -2038,8 +2024,8 @@ xfs_growfs_rt(
 		/*
 		 * Lock out other callers by grabbing the bitmap inode lock.
 		 */
-		if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino,
-				XFS_ILOCK_EXCL, &ip)))
+		if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, 0,
+						XFS_ILOCK_EXCL, &ip)))
 			goto error_exit;
 		ASSERT(ip == mp->m_rbmip);
 		/*
@@ -2052,8 +2038,8 @@ xfs_growfs_rt(
 		/*
 		 * Get the summary inode into the transaction.
 		 */
-		if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rsumino,
-				XFS_ILOCK_EXCL, &ip)))
+		if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rsumino, 0,
+						XFS_ILOCK_EXCL, &ip)))
 			goto error_exit;
 		ASSERT(ip == mp->m_rsumip);
 		/*
@@ -2173,10 +2159,9 @@ xfs_rtallocate_extent(
 	/*
 	 * Lock out other callers by grabbing the bitmap inode lock.
 	 */
-	error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, XFS_ILOCK_EXCL, &ip);
-	if (error) {
+	if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, 0,
+					XFS_ILOCK_EXCL, &ip)))
 		return error;
-	}
 	sumbp = NULL;
 	/*
 	 * Allocate by size, or near another block, or exactly at some block.
@@ -2236,10 +2221,9 @@ xfs_rtfree_extent(
 	/*
 	 * Synchronize by locking the bitmap inode.
 	 */
-	error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, XFS_ILOCK_EXCL, &ip);
-	if (error) {
+	if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, 0,
+					XFS_ILOCK_EXCL, &ip)))
 		return error;
-	}
 #if defined(__KERNEL__) && defined(DEBUG)
 	/*
 	 * Check to see that this whole range is currently allocated.
@@ -2344,20 +2328,14 @@ xfs_rtmount_inodes(
 	sbp = &mp->m_sb;
 	if (sbp->sb_rbmino == NULLFSINO)
 		return 0;
-	error = xfs_iget(mp, NULL, sbp->sb_rbmino, 0, &mp->m_rbmip, 0);
+	error = xfs_iget(mp, NULL, sbp->sb_rbmino, 0, 0, &mp->m_rbmip, 0);
 	if (error)
 		return error;
 	ASSERT(mp->m_rbmip != NULL);
 	ASSERT(sbp->sb_rsumino != NULLFSINO);
-	error = xfs_iget(mp, NULL, sbp->sb_rsumino, 0, &mp->m_rsumip, 0);
+	error = xfs_iget(mp, NULL, sbp->sb_rsumino, 0, 0, &mp->m_rsumip, 0);
 	if (error) {
-		xfs_vnode_t	*rbmvp;		/* vnode for bitmap file */
-		vmap_t		vmap;		/* vmap to delete vnode */
-
-		rbmvp = XFS_ITOV(mp->m_rbmip);
-		VMAP(rbmvp, vmap);
-		VN_RELE(rbmvp);
-		vn_purge(rbmvp, &vmap);
+		VN_RELE(XFS_ITOV(mp->m_rbmip));
 		return error;
 	}
 	ASSERT(mp->m_rsumip != NULL);
@@ -2386,8 +2364,8 @@ xfs_rtpick_extent(
 	__uint64_t	seq;		/* sequence number of file creation */
 	__uint64_t	*seqp;		/* pointer to seqno in inode */
 
-	error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, XFS_ILOCK_EXCL, &ip);
-	if (error)
+	if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, 0,
+					XFS_ILOCK_EXCL, &ip)))
 		return error;
 	ASSERT(ip == mp->m_rbmip);
 	seqp = (__uint64_t *)&ip->i_d.di_atime;
