@@ -129,7 +129,7 @@ struct getbmapx {
 	p2.bmv_count = p1.bmv_count;	\
 	p2.bmv_entries = p1.bmv_entries; \
 	\
-printf("offset 0x%llx block 0x%llx length 0x%llx count 0x%llx entries %d\n", \
+printf("offset 0x%jx block 0x%jx length 0x%jx count 0x%jx entries %d\n", \
        (uint64_t)p2.bmv_offset, \
        (uint64_t)p2.bmv_block, \
        (uint64_t)p2.bmv_length, \
