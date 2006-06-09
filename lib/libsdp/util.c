@@ -244,7 +244,7 @@ static sdp_attr_desc_t	sdp_attrs_desc[] = {
 { 0xffff, NULL, }
 };
 
-char const * const
+char const *
 sdp_attr2desc(uint16_t attr)
 {
 	register sdp_attr_desc_p	a = sdp_attrs_desc;
@@ -256,7 +256,7 @@ sdp_attr2desc(uint16_t attr)
 	return ((a->desc != NULL)? a->desc : "Unknown");
 }
 
-char const * const
+char const *
 sdp_uuid2desc(uint16_t uuid)
 {
 	register sdp_attr_desc_p	a = sdp_uuids_desc;
