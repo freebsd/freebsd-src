@@ -1317,4 +1317,11 @@ int 	__sys_poll(struct pollfd *, unsigned, int);
 int	__sys_msync(void *, size_t, int);
 #endif
 
+static __inline int
+_thr_dump_enabled(void)
+{
+
+	return ((_thr_debug_flags & DBG_INFO_DUMP) != 0);
+}
+
 #endif  /* !_THR_PRIVATE_H */
