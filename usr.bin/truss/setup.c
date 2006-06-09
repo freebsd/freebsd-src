@@ -71,6 +71,7 @@ setup_and_wait(char *command[])
 	int fd;
 	int pid;
 	int flags;
+	int loop;
 
 	pid = fork();
 	if (pid == -1) {
@@ -108,15 +109,30 @@ setup_and_wait(char *command[])
 	}
 
 	sprintf(buf, "/proc/%d/mem", pid);
-	if ((fd = open(buf, O_RDWR)) == -1)
-		err(5, "cannot open %s", buf);
-	if (ioctl(fd, PIOCWAIT, &pfs) == -1)
-		err(6, "PIOCWAIT");
-	if (pfs.why == S_EXIT) {
-		warnx("process exited before exec'ing");
-		ioctl(fd, PIOCCONT, 0);
-		wait(0);
-		exit(7);
+
+	/* Try 6 times to trace our child, waiting 1/2 second each time */
+	for (loop=6 ;; loop--) {
+		if (loop != 6)
+			usleep(500000);
+		if ((fd = open(buf, O_RDWR)) == -1) {
+			if (loop > 0)
+				continue;
+			else
+				err(5, "cannot open1 %s", buf);
+		}
+		if (ioctl(fd, PIOCWAIT, &pfs) == -1) {
+			if (loop >= 0)
+				continue;
+			else
+				err(6, "PIOCWAIT");
+		}
+		if (pfs.why == S_EXIT) {
+			warnx("process exited before exec'ing");
+			ioctl(fd, PIOCCONT, 0);
+			wait(0);
+			exit(7);
+		} else
+			break;
 	}
 	close(fd);
 	return (pid);
@@ -136,6 +152,7 @@ start_tracing(int pid, int failisfatal, int eventflags, int flags)
 	struct procfs_status tmp;
 
 	sprintf(buf, "/proc/%d/mem", pid);
+	/* usleep(500000); */
 
 	fd = open(buf, O_RDWR);
 	if (fd == -1) {
@@ -146,7 +163,7 @@ start_tracing(int pid, int failisfatal, int eventflags, int flags)
 		 */
 		if (!failisfatal && kill(pid, 0) == -1)
 			return (-1);
-		err(8, "cannot open %s", buf);
+		err(8, "cannot open2 %s", buf);
 	}
 
 	if (ioctl(fd, PIOCSTATUS, &tmp) == -1) {
