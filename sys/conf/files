@@ -1991,8 +1991,6 @@ gnu/fs/xfs/xfs_log.c		optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/xfs_log_recover.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_macros.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/xfs_mount.c		optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/xfs_rename.c		optional xfs \
@@ -2025,7 +2023,9 @@ gnu/fs/xfs/xfs_dmops.c		optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/xfs_qmops.c		optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/xfs_iget.c	optional xfs \
+gnu/fs/xfs/xfs_iget.c	optional xfs \
+	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
+gnu/fs/xfs/FreeBSD/xfs_freebsd_iget.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/xfs_mountops.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
