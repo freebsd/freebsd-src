@@ -28,6 +28,7 @@ SRCS =  vnode_if.h \
 	xfs_dir_leaf.c \
 	xfs_error.c \
 	xfs_extfree_item.c \
+	xfs_freebsd_iget.c \
 	xfs_fsops.c \
 	xfs_ialloc.c \
 	xfs_ialloc_btree.c \
@@ -38,7 +39,6 @@ SRCS =  vnode_if.h \
 	xfs_dfrag.c \
 	xfs_log.c \
 	xfs_log_recover.c \
-	xfs_macros.c \
 	xfs_mount.c \
 	xfs_rename.c \
 	xfs_trans.c \
