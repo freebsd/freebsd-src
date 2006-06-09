@@ -1,59 +1,43 @@
 /*
- * Copyright (c) 2000-2001 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2001,2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
-
-#include "xfs_macros.h"
+#include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_inum.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
-#include "xfs_alloc_btree.h"
+#include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
 #include "xfs_alloc.h"
 #include "xfs_btree.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
-#include "xfs_da_btree.h"
 #include "xfs_dir_leaf.h"
 #include "xfs_error.h"
 
@@ -192,11 +176,23 @@ xfs_dir_mount(xfs_mount_t *mp)
 	uint shortcount, leafcount, count;
 
 	mp->m_dirversion = 1;
-	shortcount = (mp->m_attroffset - (uint)sizeof(xfs_dir_sf_hdr_t)) /
-		     (uint)sizeof(xfs_dir_sf_entry_t);
-	leafcount = (XFS_LBSIZE(mp) - (uint)sizeof(xfs_dir_leaf_hdr_t)) /
-		    ((uint)sizeof(xfs_dir_leaf_entry_t) +
-		     (uint)sizeof(xfs_dir_leaf_name_t));
+	if (!(mp->m_flags & XFS_MOUNT_ATTR2)) {
+		shortcount = (mp->m_attroffset -
+				(uint)sizeof(xfs_dir_sf_hdr_t)) /
+				 (uint)sizeof(xfs_dir_sf_entry_t);
+		leafcount = (XFS_LBSIZE(mp) -
+				(uint)sizeof(xfs_dir_leaf_hdr_t)) /
+				 ((uint)sizeof(xfs_dir_leaf_entry_t) +
+				  (uint)sizeof(xfs_dir_leaf_name_t));
+	} else {
+		shortcount = (XFS_BMDR_SPACE_CALC(MINABTPTRS) -
+			      (uint)sizeof(xfs_dir_sf_hdr_t)) /
+			       (uint)sizeof(xfs_dir_sf_entry_t);
+		leafcount = (XFS_LBSIZE(mp) -
+			    (uint)sizeof(xfs_dir_leaf_hdr_t)) /
+			     ((uint)sizeof(xfs_dir_leaf_entry_t) +
+			      (uint)sizeof(xfs_dir_leaf_name_t));
+	}
 	count = shortcount > leafcount ? shortcount : leafcount;
 	mp->m_dircook_elog = xfs_da_log2_roundup(count + 1);
 	ASSERT(mp->m_dircook_elog <= mp->m_sb.sb_blocklog);
@@ -557,7 +553,7 @@ xfs_dir_shortform_validate_ondisk(xfs_mount_t *mp, xfs_dinode_t *dp)
 		return 1;
 	}
 	sf = (xfs_dir_shortform_t *)(&dp->di_u.di_dirsf);
-	ino = XFS_GET_DIR_INO_ARCH(mp, sf->hdr.parent, ARCH_CONVERT);
+	ino = XFS_GET_DIR_INO8(sf->hdr.parent);
 	if (xfs_dir_ino_validate(mp, ino))
 		return 1;
 
@@ -575,7 +571,7 @@ xfs_dir_shortform_validate_ondisk(xfs_mount_t *mp, xfs_dinode_t *dp)
 	namelen_sum = 0;
 	sfe = &sf->list[0];
 	for (i = sf->hdr.count - 1; i >= 0; i--) {
-		ino = XFS_GET_DIR_INO_ARCH(mp, sfe->inumber, ARCH_CONVERT);
+		ino = XFS_GET_DIR_INO8(sfe->inumber);
 		xfs_dir_ino_validate(mp, ino);
 		if (sfe->namelen >= XFS_LITINO(mp)) {
 			xfs_fs_cmn_err(CE_WARN, mp,
@@ -638,7 +634,7 @@ xfs_dir_leaf_removename(xfs_da_args_t *args, int *count, int *totallen)
 		return(retval);
 	ASSERT(bp != NULL);
 	leaf = bp->data;
-	ASSERT(INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) == XFS_DIR_LEAF_MAGIC);
+	ASSERT(be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR_LEAF_MAGIC);
 	retval = xfs_dir_leaf_lookup_int(bp, args, &index);
 	if (retval == EEXIST) {
 		(void)xfs_dir_leaf_remove(args->trans, bp, index);
@@ -716,7 +712,7 @@ xfs_dir_leaf_replace(xfs_da_args_t *args)
 		entry = &leaf->entries[index];
 		namest = XFS_DIR_LEAF_NAMESTRUCT(leaf, INT_GET(entry->nameidx, ARCH_CONVERT));
 		/* XXX - replace assert? */
-		XFS_DIR_SF_PUT_DIRINO_ARCH(&inum, &namest->inumber, ARCH_CONVERT);
+		XFS_DIR_SF_PUT_DIRINO(&inum, &namest->inumber);
 		xfs_da_log_buf(args->trans, bp,
 		    XFS_DA_LOGRANGE(leaf, namest, sizeof(namest->inumber)));
 		xfs_da_buf_done(bp);
@@ -916,7 +912,7 @@ xfs_dir_node_getdents(xfs_trans_t *trans, xfs_inode_t *dp, uio_t *uio,
 			return(error);
 		if (bp)
 			leaf = bp->data;
-		if (bp && INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) != XFS_DIR_LEAF_MAGIC) {
+		if (bp && be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR_LEAF_MAGIC) {
 			xfs_dir_trace_g_dub("node: block not a leaf",
 						   dp, uio, bno);
 			xfs_da_brelse(trans, bp);
@@ -953,17 +949,17 @@ xfs_dir_node_getdents(xfs_trans_t *trans, xfs_inode_t *dp, uio_t *uio,
 			if (bp == NULL)
 				return(XFS_ERROR(EFSCORRUPTED));
 			node = bp->data;
-			if (INT_GET(node->hdr.info.magic, ARCH_CONVERT) != XFS_DA_NODE_MAGIC)
+			if (be16_to_cpu(node->hdr.info.magic) != XFS_DA_NODE_MAGIC)
 				break;
 			btree = &node->btree[0];
 			xfs_dir_trace_g_dun("node: node detail", dp, uio, node);
-			for (i = 0; i < INT_GET(node->hdr.count, ARCH_CONVERT); btree++, i++) {
-				if (INT_GET(btree->hashval, ARCH_CONVERT) >= cookhash) {
-					bno = INT_GET(btree->before, ARCH_CONVERT);
+			for (i = 0; i < be16_to_cpu(node->hdr.count); btree++, i++) {
+				if (be32_to_cpu(btree->hashval) >= cookhash) {
+					bno = be32_to_cpu(btree->before);
 					break;
 				}
 			}
-			if (i == INT_GET(node->hdr.count, ARCH_CONVERT)) {
+			if (i == be16_to_cpu(node->hdr.count)) {
 				xfs_da_brelse(trans, bp);
 				xfs_dir_trace_g_du("node: hash beyond EOF",
 							  dp, uio);
@@ -986,7 +982,7 @@ xfs_dir_node_getdents(xfs_trans_t *trans, xfs_inode_t *dp, uio_t *uio,
 	 */
 	for (;;) {
 		leaf = bp->data;
-		if (unlikely(INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) != XFS_DIR_LEAF_MAGIC)) {
+		if (unlikely(be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR_LEAF_MAGIC)) {
 			xfs_dir_trace_g_dul("node: not a leaf", dp, uio, leaf);
 			xfs_da_brelse(trans, bp);
 			XFS_CORRUPTION_ERROR("xfs_dir_node_getdents(1)",
@@ -994,7 +990,7 @@ xfs_dir_node_getdents(xfs_trans_t *trans, xfs_inode_t *dp, uio_t *uio,
 			return XFS_ERROR(EFSCORRUPTED);
 		}
 		xfs_dir_trace_g_dul("node: leaf detail", dp, uio, leaf);
-		if ((nextbno = INT_GET(leaf->hdr.info.forw, ARCH_CONVERT))) {
+		if ((nextbno = be32_to_cpu(leaf->hdr.info.forw))) {
 			nextda = xfs_da_reada_buf(trans, dp, nextbno,
 						  XFS_DATA_FORK);
 		} else
@@ -1065,7 +1061,7 @@ xfs_dir_node_replace(xfs_da_args_t *args)
 		entry = &leaf->entries[blk->index];
 		namest = XFS_DIR_LEAF_NAMESTRUCT(leaf, INT_GET(entry->nameidx, ARCH_CONVERT));
 		/* XXX - replace assert ? */
-		XFS_DIR_SF_PUT_DIRINO_ARCH(&inum, &namest->inumber, ARCH_CONVERT);
+		XFS_DIR_SF_PUT_DIRINO(&inum, &namest->inumber);
 		xfs_da_log_buf(args->trans, bp,
 		    XFS_DA_LOGRANGE(leaf, namest, sizeof(namest->inumber)));
 		xfs_da_buf_done(bp);
@@ -1122,21 +1118,20 @@ void
 xfs_dir_trace_g_dun(char *where, xfs_inode_t *dp, uio_t *uio,
 			xfs_da_intnode_t *node)
 {
-	int	last = INT_GET(node->hdr.count, ARCH_CONVERT) - 1;
+	int	last = be16_to_cpu(node->hdr.count) - 1;
 
 	xfs_dir_trace_enter(XFS_DIR_KTRACE_G_DUN, where,
 		     (void *)dp, (void *)dp->i_mount,
 		     (void *)((unsigned long)(uio->uio_offset >> 32)),
 		     (void *)((unsigned long)(uio->uio_offset & 0xFFFFFFFF)),
 		     (void *)(unsigned long)uio->uio_resid,
+		     (void *)(unsigned long)be32_to_cpu(node->hdr.info.forw),
 		     (void *)(unsigned long)
-			INT_GET(node->hdr.info.forw, ARCH_CONVERT),
+			be16_to_cpu(node->hdr.count),
 		     (void *)(unsigned long)
-			INT_GET(node->hdr.count, ARCH_CONVERT),
+			be32_to_cpu(node->btree[0].hashval),
 		     (void *)(unsigned long)
-			INT_GET(node->btree[0].hashval, ARCH_CONVERT),
-		     (void *)(unsigned long)
-			INT_GET(node->btree[last].hashval, ARCH_CONVERT),
+			be32_to_cpu(node->btree[last].hashval),
 		     NULL, NULL, NULL);
 }
 
@@ -1154,8 +1149,7 @@ xfs_dir_trace_g_dul(char *where, xfs_inode_t *dp, uio_t *uio,
 		     (void *)((unsigned long)(uio->uio_offset >> 32)),
 		     (void *)((unsigned long)(uio->uio_offset & 0xFFFFFFFF)),
 		     (void *)(unsigned long)uio->uio_resid,
-		     (void *)(unsigned long)
-			INT_GET(leaf->hdr.info.forw, ARCH_CONVERT),
+		     (void *)(unsigned long)be32_to_cpu(leaf->hdr.info.forw),
 		     (void *)(unsigned long)
 			INT_GET(leaf->hdr.count, ARCH_CONVERT),
 		     (void *)(unsigned long)

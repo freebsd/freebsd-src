@@ -26,26 +26,47 @@ typedef unsigned long xfs_pflags_t;
 #define PFLAGS_DUP(OSTATEP, NSTATEP) do { \
 } while (0)
 
+/* Restore the PF_FSTRANS state to what was saved in STATEP */
+#define PFLAGS_RESTORE_FSTRANS(STATEP) do {     		\
+} while (0)
+
 /*
  * memory management routines
  */
 #define KM_SLEEP	M_WAITOK
-#define KM_SLEEP_IO	M_WAITOK
-#define KM_NOFS		M_WAITOK
 #define KM_NOSLEEP	M_NOWAIT
-#define KM_CACHEALIGN	0
+#define KM_NOFS		M_WAITOK
+#define KM_MAYFAIL	0
 
 #define kmem_zone	uma_zone
 
 typedef struct uma_zone kmem_zone_t;
 typedef struct uma_zone xfs_zone_t;
 
+
+#define KM_ZONE_HWALIGN	0
+#define KM_ZONE_RECLAIM	0
+#define KM_ZONE_SPREAD	0
+
 #define kmem_zone_init(len, name)		\
 	uma_zcreate(name, len, NULL, NULL, NULL, NULL, 0, 0)
+
+static inline kmem_zone_t *
+kmem_zone_init_flags(int size, char *zone_name, unsigned long flags,
+		     void (*construct)(void *, kmem_zone_t *, unsigned long))
+{
+	return uma_zcreate(zone_name, size, NULL, NULL, NULL, NULL, 0, 0);
+}
+
 #define kmem_zone_free(zone, ptr)		\
 	uma_zfree(zone, ptr)
-#define kmem_cache_destroy(zone)		\
-	uma_zdestroy(zone)
+
+static inline void
+kmem_zone_destroy(kmem_zone_t *zone)
+{
+	uma_zdestroy(zone);
+}
+
 #define kmem_zone_alloc(zone, flg)		\
 	uma_zalloc(zone, flg)
 #define kmem_zone_zalloc(zone, flg)		\

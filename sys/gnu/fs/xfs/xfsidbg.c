@@ -1,65 +1,50 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
 
-#include "xfs_macros.h"
+#include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_alloc.h"
-#include "xfs_ag.h"
+#include "xfs_da_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
-#include "xfs_buf_item.h"
-#include "xfs_extfree_item.h"
-#include "xfs_inode_item.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
-#include "xfs_dir2_trace.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
+#include "xfs_inode.h"
+#include "xfs_btree.h"
+#include "xfs_buf_item.h"
+#include "xfs_inode_item.h"
+#include "xfs_extfree_item.h"
 #include "xfs_rw.h"
 #include "xfs_bmap.h"
-#include "xfs_inode.h"
-#include "xfs_da_btree.h"
 #include "xfs_attr.h"
 #include "xfs_attr_leaf.h"
 #include "xfs_dir_leaf.h"
@@ -67,9 +52,9 @@
 #include "xfs_dir2_leaf.h"
 #include "xfs_dir2_block.h"
 #include "xfs_dir2_node.h"
+#include "xfs_dir2_trace.h"
 #include "xfs_log_priv.h"
 #include "xfs_log_recover.h"
-#include "xfs_bit.h"
 #include "xfs_quota.h"
 #include "quota/xfs_qm.h"
 #include "xfs_iomap.h"
@@ -119,9 +104,6 @@ static void	xfsidbg_xlog_granttrace(xlog_t *);
 #endif
 #ifdef XFS_DQUOT_TRACE
 static void	xfsidbg_xqm_dqtrace(xfs_dquot_t *);
-#endif
-#ifdef XFS_RW_TRACE
-static void	xfsidbg_xrwtrace(xfs_inode_t *);
 #endif
 
 
@@ -181,7 +163,8 @@ static void	xfsidbg_xqm_dquot(xfs_dquot_t *);
 static void	xfsidbg_xqm_mplist(xfs_mount_t *);
 static void	xfsidbg_xqm_qinfo(xfs_mount_t *mp);
 static void	xfsidbg_xqm_tpdqinfo(xfs_trans_t *tp);
-static void	xfsidbg_xsb(xfs_sb_t *, int convert);
+static void	xfsidbg_xsb(xfs_sb_t *);
+static void	xfsidbg_xsb_convert(xfs_sb_t *);
 static void	xfsidbg_xtp(xfs_trans_t *);
 static void	xfsidbg_xtrans_res(xfs_mount_t *);
 #ifdef CONFIG_XFS_QUOTA
@@ -195,6 +178,59 @@ static void	xfsidbg_xqm_freelist(void);
 static void	xfs_convert_extent(xfs_bmbt_rec_32_t *, xfs_dfiloff_t *,
 				xfs_dfsbno_t *, xfs_dfilblks_t *, int *);
 #endif
+
+/*
+ * Prototypes for static functions.
+ */
+#ifdef XFS_ALLOC_TRACE
+static int	xfs_alloc_trace_entry(ktrace_entry_t *ktep);
+#endif
+#ifdef XFS_ATTR_TRACE
+static int	xfs_attr_trace_entry(ktrace_entry_t *ktep);
+#endif
+#ifdef XFS_BMAP_TRACE
+static int	xfs_bmap_trace_entry(ktrace_entry_t *ktep);
+#endif
+#ifdef XFS_BMAP_TRACE
+static int	xfs_bmbt_trace_entry(ktrace_entry_t *ktep);
+#endif
+#ifdef XFS_DIR_TRACE
+static int	xfs_dir_trace_entry(ktrace_entry_t *ktep);
+#endif
+#ifdef XFS_DIR2_TRACE
+static int	xfs_dir2_trace_entry(ktrace_entry_t *ktep);
+#endif
+#ifdef XFS_RW_TRACE
+static void	xfs_bunmap_trace_entry(ktrace_entry_t   *ktep);
+static void	xfs_rw_enter_trace_entry(ktrace_entry_t *ktep);
+static void	xfs_page_trace_entry(ktrace_entry_t *ktep);
+static int	xfs_rw_trace_entry(ktrace_entry_t *ktep);
+#endif
+static void	xfs_broot(xfs_inode_t *ip, xfs_ifork_t *f);
+static void	xfs_btalloc(xfs_alloc_block_t *bt, int bsz);
+static void	xfs_btbmap(xfs_bmbt_block_t *bt, int bsz);
+static void	xfs_btino(xfs_inobt_block_t *bt, int bsz);
+static void	xfs_buf_item_print(xfs_buf_log_item_t *blip, int summary);
+static void	xfs_dastate_path(xfs_da_state_path_t *p);
+static void	xfs_dir2data(void *addr, int size);
+static void	xfs_dir2leaf(xfs_dir2_leaf_t *leaf, int size);
+static void	xfs_dquot_item_print(xfs_dq_logitem_t *lip, int summary);
+static void	xfs_efd_item_print(xfs_efd_log_item_t *efdp, int summary);
+static void	xfs_efi_item_print(xfs_efi_log_item_t *efip, int summary);
+static char *	xfs_fmtformat(xfs_dinode_fmt_t f);
+char *		xfs_fmtfsblock(xfs_fsblock_t bno, xfs_mount_t *mp);
+static char *	xfs_fmtino(xfs_ino_t ino, xfs_mount_t *mp);
+static char *	xfs_fmtlsn(xfs_lsn_t *lsnp);
+static char *	xfs_fmtmode(int m);
+static char *	xfs_fmtsize(size_t i);
+static char *	xfs_fmtuuid(uuid_t *);
+static void	xfs_inode_item_print(xfs_inode_log_item_t *ilip, int summary);
+static void	xfs_inodebuf(xfs_buf_t *bp);
+static void	xfs_prdinode_core(xfs_dinode_core_t *dip);
+static void	xfs_qoff_item_print(xfs_qoff_logitem_t *lip, int summary);
+static void	xfs_xexlist_fork(xfs_inode_t *ip, int whichfork);
+static void	xfs_xnode_fork(char *name, xfs_ifork_t *f);
+
 
 /* kdb wrappers */
 
@@ -706,10 +742,13 @@ static int	kdbm_xfs_xrwtrace(
 	const char **envp,
 	struct pt_regs *regs)
 {
-	unsigned long addr;
-	int nextarg = 1;
-	long offset = 0;
-	int diag;
+	unsigned long	addr;
+	int		nextarg = 1;
+	long 		offset = 0;
+	int 		diag;
+	ktrace_entry_t	*ktep;
+	ktrace_snap_t	kts;
+	xfs_inode_t	*ip;
 
 	if (argc != 1)
 		return KDB_ARGCOUNT;
@@ -718,7 +757,18 @@ static int	kdbm_xfs_xrwtrace(
 	if (diag)
 		return diag;
 
-	xfsidbg_xrwtrace((xfs_inode_t *) addr);
+	ip = (xfs_inode_t *) addr;
+	if (ip->i_rwtrace == NULL) {
+		qprintf("The inode trace buffer is not initialized\n");
+		return 0;
+	}
+	qprintf("i_rwtrace = 0x%p\n", ip->i_rwtrace);
+	ktep = ktrace_first(ip->i_rwtrace, &kts);
+	while (ktep != NULL) {
+		if (xfs_rw_trace_entry(ktep))
+			qprintf("\n");
+		ktep = ktrace_next(ip->i_rwtrace, &kts);
+	}
 	return 0;
 }
 #endif
@@ -1857,7 +1907,10 @@ static int	kdbm_xfs_xsb(
 		    return diag;
 	}
 
-	xfsidbg_xsb((xfs_sb_t *) addr, (int)convert);
+	if (convert)
+		xfsidbg_xsb_convert((xfs_sb_t *) addr);
+	else
+		xfsidbg_xsb((xfs_sb_t *) addr);
 	return 0;
 }
 
@@ -1941,12 +1994,7 @@ char *tab_vflags[] = {
 	"VOPLOCK",		/* 0x20000000 */
 	"VPURGE",		/* 0x40000000 */
 	"INVALID0x80000000",	/* 0x80000000 */
-	0
-};
-
-
-static char *vnode_type[] = {
-	"VNON", "VREG", "VDIR", "VBLK", "VLNK", "VFIFO", "VBAD", "VSOCK"
+	NULL
 };
 
 static void
@@ -1977,6 +2025,7 @@ printflags(register uint64_t flags,
 
 static void printbhv(bhv_desc_t *bdp)
 {
+	int maxbhv = 20; /* if you get 20 bhvs you're in trouble already */
 	kdb_symtab_t	 symtab;
 
 	if (bdp == NULL) {
@@ -1985,7 +2034,7 @@ static void printbhv(bhv_desc_t *bdp)
 	}
 
 	kdb_printf("bhv at 0x%p\n", bdp);
-	while (bdp) {
+	while (bdp && maxbhv--) {
 		if (kdbnearsym((unsigned long)bdp->bd_ops, &symtab))
 			kdb_printf("  ops %s", symtab.sym_name);
 		else
@@ -2001,11 +2050,7 @@ static void printbhv(bhv_desc_t *bdp)
 
 static void	printvnode(xfs_vnode_t *vp, unsigned long addr)
 {
-	kdb_printf("vnode: 0x%lx type ", addr);
-	if ((size_t)vp->v_type >= sizeof(vnode_type)/sizeof(vnode_type[0]))
-		kdb_printf("out of range 0x%x", vp->v_type);
-	else
-		kdb_printf("%s", vnode_type[vp->v_type]);
+	kdb_printf("vnode: 0x%lx\n", addr);
 	kdb_printf(" v_bh 0x%p\n", &vp->v_bh);
 
 	printbhv(vp->v_fbhv);
@@ -2354,7 +2399,7 @@ static void	printinode(struct inode *ip)
 					addr + offsetof(struct inode, i_data),
 					ip->i_data.nrpages);
 
-	kdb_printf("  vnode ptr 0x%p\n", LINVFS_GET_VP(ip));
+	kdb_printf("  vnode ptr 0x%p\n", vn_from_inode(ip));
 }
 
 #endif
@@ -2390,7 +2435,7 @@ static int	kdbm_vn(
 		return diag;
 
 #ifdef __linux__
-	ip = LINVFS_GET_IP((xfs_vnode_t *)addr);
+	ip = vn_to_inode((vnode_t *)addr);
 	kdb_printf("--> Inode @ 0x%p\n", ip);
 	printinode(ip);
 #endif
@@ -2416,16 +2461,12 @@ static int	kdbm_vn(
 
 #ifdef __linux__
 
-/* pagebuf stuff */
-
-static char	*pb_flag_vals[] = {
+static char	*bp_flag_vals[] = {
 /*  0 */ "READ", "WRITE", "MAPPED", "PARTIAL", "ASYNC",
-/*  5 */ "NONE", "DELWRI", "INVALID0x07", "INVALID0x08", "INVALID0x09",
-/* 10 */ "STALE", "FS_MANAGED", "FS_DATAIOD", "LOCK", "TRYLOCK",
-/* 15 */ "DONT_BLOCK", "PAGECACHE", "PRIVATE_BH", "ALL_PAGES_MAPPED", 
-	 "ADDR_ALLOCATED",
-/* 20 */ "MEM_ALLOCATED", "MEM_SLAB", "FORCEIO", "FLUSH", "READ_AHEAD",
-/* 25 */ "RUN_QUEUES", "DIRECTIO",
+/*  5 */ "NONE", "DELWRI",  "STALE", "FS_MANAGED", "FS_DATAIOD",
+/* 10 */ "FORCEIO", "FLUSH", "READ_AHEAD", "DIRECTIO", "LOCK",
+/* 15 */ "TRYLOCK", "DONT_BLOCK", "PAGE_CACHE", "KMEM_ALLOC", "RUN_QUEUES",
+/* 20 */ "PRIVATE_BH", "DELWRI_Q",
 	 NULL };
 
 #endif
@@ -2463,13 +2504,13 @@ static char	*map_flags(unsigned long flags, char *mapping[])
 
 #ifdef __linux__
 
-static char	*pb_flags(page_buf_flags_t pb_flag)
+static char	*bp_flags(xfs_buf_flags_t bp_flag)
 {
-	return(map_flags((unsigned long) pb_flag, pb_flag_vals));
+	return(map_flags((unsigned long) bp_flag, bp_flag_vals));
 }
 
 static int
-kdbm_pb_flags(int argc, const char **argv, const char **envp, struct pt_regs *regs)
+kdbm_bp_flags(int argc, const char **argv, const char **envp, struct pt_regs *regs)
 {
 	unsigned long flags;
 	int diag;
@@ -2481,55 +2522,57 @@ kdbm_pb_flags(int argc, const char **argv, const char **envp, struct pt_regs *re
 	if (diag)
 		return diag;
 
-	kdb_printf("pb flags 0x%lx = %s\n", flags, pb_flags(flags));
+	kdb_printf("bp flags 0x%lx = %s\n", flags, bp_flags(flags));
 
 	return 0;
 }
 
 static void
-print_pagebuf(
-	xfs_buf_t	*pb,
-	unsigned long addr)
+print_xfs_buf(
+	xfs_buf_t	*bp,
+	unsigned long	addr)
 {
+	unsigned long	age = (xfs_buf_age_centisecs * HZ) / 100;
+
 	kdb_printf("xfs_buf_t at 0x%lx\n", addr);
-	kdb_printf("  pb_flags %s\n", pb_flags(pb->pb_flags));
-	kdb_printf("  pb_target 0x%p pb_hold %d pb_next 0x%p pb_prev 0x%p\n",
-		   pb->pb_target, pb->pb_hold.counter,
-		   list_entry(pb->pb_list.next, xfs_buf_t, pb_list),
-		   list_entry(pb->pb_list.prev, xfs_buf_t, pb_list));
-	kdb_printf("  pb_hash_index %d pb_hash_next 0x%p pb_hash_prev 0x%p\n",
-		   pb->pb_hash_index,
-		   list_entry(pb->pb_hash_list.next, xfs_buf_t, pb_hash_list),
-		   list_entry(pb->pb_hash_list.prev, xfs_buf_t, pb_hash_list));
-	kdb_printf("  pb_file_offset 0x%llx pb_buffer_length 0x%llx pb_addr 0x%p\n",
-		   (unsigned long long) pb->pb_file_offset,
-		   (unsigned long long) pb->pb_buffer_length,
-		   pb->pb_addr);
-	kdb_printf("  pb_bn 0x%Lx pb_count_desired 0x%lx pb_locked %d\n",
-		   pb->pb_bn,
-		   (unsigned long) pb->pb_count_desired, (int)pb->pb_locked);
-	kdb_printf("  pb_flushtime %ld (%ld) pb_io_remaining %d pb_error %u\n",
-		   pb->pb_flushtime, pb->pb_flushtime - jiffies,
-		   pb->pb_io_remaining.counter, pb->pb_error);
-	kdb_printf("  pb_page_count %u pb_offset 0x%x pb_pages 0x%p\n",
-		pb->pb_page_count, pb->pb_offset,
-		pb->pb_pages);
-	kdb_printf("  pb_iodonesema (%d,%d) pb_sema (%d,%d) pincount (%d)\n",
-		   pb->pb_iodonesema.count.counter,
-		   pb->pb_iodonesema.sleepers,
-		   pb->pb_sema.count.counter, pb->pb_sema.sleepers,
-		   pb->pb_pin_count.counter);
-#ifdef PAGEBUF_LOCK_TRACKING
-	kdb_printf("  last holder %d\n", pb->pb_last_holder);
+	kdb_printf("  b_flags %s\n", bp_flags(bp->b_flags));
+	kdb_printf("  b_target 0x%p b_hold %d b_next 0x%p b_prev 0x%p\n",
+		   bp->b_target, bp->b_hold.counter,
+		   list_entry(bp->b_list.next, xfs_buf_t, b_list),
+		   list_entry(bp->b_list.prev, xfs_buf_t, b_list));
+	kdb_printf("  b_hash 0x%p b_hash_next 0x%p b_hash_prev 0x%p\n",
+		   bp->b_hash,
+		   list_entry(bp->b_hash_list.next, xfs_buf_t, b_hash_list),
+		   list_entry(bp->b_hash_list.prev, xfs_buf_t, b_hash_list));
+	kdb_printf("  b_file_offset 0x%llx b_buffer_length 0x%llx b_addr 0x%p\n",
+		   (unsigned long long) bp->b_file_offset,
+		   (unsigned long long) bp->b_buffer_length,
+		   bp->b_addr);
+	kdb_printf("  b_bn 0x%llx b_count_desired 0x%lx b_locked %d\n",
+		   (unsigned long long)bp->b_bn,
+		   (unsigned long) bp->b_count_desired, (int)bp->b_locked);
+	kdb_printf("  b_queuetime %ld (now=%ld/age=%ld) b_io_remaining %d\n",
+		   bp->b_queuetime, jiffies, bp->b_queuetime + age,
+		   bp->b_io_remaining.counter);
+	kdb_printf("  b_page_count %u b_offset 0x%x b_pages 0x%p b_error %u\n",
+		   bp->b_page_count, bp->b_offset,
+		   bp->b_pages, bp->b_error);
+	kdb_printf("  b_iodonesema (%d,%d) b_sema (%d,%d) b_pincount (%d)\n",
+		   bp->b_iodonesema.count.counter,
+		   bp->b_iodonesema.sleepers,
+		   bp->b_sema.count.counter, bp->b_sema.sleepers,
+		   bp->b_pin_count.counter);
+#ifdef XFS_BUF_LOCK_TRACKING
+	kdb_printf("  last holder %d\n", bp->b_last_holder);
 #endif
-	if (pb->pb_fspriv || pb->pb_fspriv2) {
-		kdb_printf(  "  pb_fspriv 0x%p pb_fspriv2 0x%p\n",
-			   pb->pb_fspriv, pb->pb_fspriv2);
+	if (bp->b_fspriv || bp->b_fspriv2) {
+		kdb_printf(  "  b_fspriv 0x%p b_fspriv2 0x%p\n",
+			   bp->b_fspriv, bp->b_fspriv2);
 	}
 }
 
 static int
-kdbm_pb(int argc, const char **argv, const char **envp, struct pt_regs *regs)
+kdbm_bp(int argc, const char **argv, const char **envp, struct pt_regs *regs)
 {
 	xfs_buf_t bp;
 	unsigned long addr;
@@ -2545,23 +2588,22 @@ kdbm_pb(int argc, const char **argv, const char **envp, struct pt_regs *regs)
 	    (diag = kdb_getarea(bp, addr)))
 		return diag;
 
-	print_pagebuf(&bp, addr);
+	print_xfs_buf(&bp, addr);
 
 	return 0;
 }
 
 static int
-kdbm_pbdelay(int argc, const char **argv, const char **envp,
+kdbm_bpdelay(int argc, const char **argv, const char **envp,
 	struct pt_regs *regs)
 {
 #ifdef DEBUG
-	unsigned long	verbose = 0;
-	int	count = 0;
+	extern struct list_head xfs_buftarg_list;
 	struct list_head	*curr, *next;
-	xfs_buf_t	bp;
-	unsigned long addr;
-	int diag;
-	extern struct list_head pbd_delwrite_queue;
+	xfs_buftarg_t		*tp, *n;
+	xfs_buf_t		bp;
+	unsigned long		addr, verbose = 0;
+	int			diag, count = 0;
 
 	if (argc > 1)
 		return KDB_ARGCOUNT;
@@ -2573,25 +2615,28 @@ kdbm_pbdelay(int argc, const char **argv, const char **envp,
 	}
 
 	if (!verbose) {
-		kdb_printf("index pb       pin   flushtime\n");
+		kdb_printf("index bp       pin   queuetime\n");
 	}
 
-	list_for_each_safe(curr, next, &pbd_delwrite_queue) {
-		addr = (unsigned long)list_entry(curr, xfs_buf_t, pb_list);
-		if ((diag = kdb_getarea(bp, addr)))
-			return diag;
 
-		if (verbose) {
-			print_pagebuf(&bp, addr);
-		} else {
-			kdb_printf("%4d  0x%lx   %d   %ld\n",
-				count++, addr, 
-				bp.pb_pin_count.counter,
-				bp.pb_flushtime - jiffies);
+	list_for_each_entry_safe(tp, n, &xfs_buftarg_list, bt_list) {
+		list_for_each_safe(curr, next, &tp->bt_delwrite_queue) {
+			addr = (unsigned long)list_entry(curr, xfs_buf_t, b_list);
+			if ((diag = kdb_getarea(bp, addr)))
+				return diag;
+
+			if (verbose) {
+				print_xfs_buf(&bp, addr);
+			} else {
+				kdb_printf("%4d  0x%lx   %d   %ld\n",
+					count++, addr,
+					bp.b_pin_count.counter,
+					bp.b_queuetime);
+			}
 		}
 	}
 #else
-	kdb_printf("pbd_delwrite_queue inaccessible (non-debug)\n");
+	kdb_printf("bt_delwrite_queue inaccessible (non-debug)\n");
 #endif
 	return 0;
 }
@@ -2611,28 +2656,60 @@ kdbm_iomap(int argc, const char **argv, const char **envp,
 		return KDB_ARGCOUNT;
 
 	nextarg = 1;
-	if ((diag = kdbgetaddrarg(argc, argv, &nextarg, &addr, &offset, NULL, regs)) ||
-	    (diag = kdb_getarea(iomap, addr)))
+	if ((diag = kdbgetaddrarg(argc, argv, &nextarg, &addr, &offset, NULL, regs)))
+		return diag;
+	if ((diag = kdb_getarea(iomap, addr)))
+		return diag;
 
 	kdb_printf("iomap_t at 0x%lx\n", addr);
-	kdb_printf("  iomap_bn 0x%llx iomap_offset 0x%Lx iomap_delta 0x%lx iomap_bsize 0x%llx\n",
+	kdb_printf("  bn 0x%llx offset 0x%Lx delta 0x%lx bsize 0x%llx\n",
 		(long long) iomap.iomap_bn, iomap.iomap_offset,
 		(unsigned long)iomap.iomap_delta, (long long)iomap.iomap_bsize);
-
-	kdb_printf("  iomap_flags %s\n", map_flags(iomap.iomap_flags, iomap_flag_vals));
+	kdb_printf("  iomap_flags %s\n",
+		map_flags(iomap.iomap_flags, iomap_flag_vals));
 
 	return 0;
 }
 
-#ifdef PAGEBUF_TRACE
-static int pagebuf_trace_entry(ktrace_entry_t *ktep)
+static int
+kdbm_i2vnode(int argc, const char **argv, const char **envp,
+	struct pt_regs *regs)
+{
+	struct vnode vp;
+	struct inode *ip;
+	unsigned long addr;
+	long offset=0;
+	int nextarg;
+	int diag;
+
+	if (argc != 1)
+		return KDB_ARGCOUNT;
+
+	nextarg = 1;
+	if ((diag = kdbgetaddrarg(argc, argv, &nextarg, &addr, &offset, NULL, regs)))
+		return diag;
+	ip = (struct inode *)addr;
+	if ((diag = kdb_getarea(vp, (unsigned long)vn_from_inode(ip))))
+		return diag;
+
+	kdb_printf("--> Inode @ 0x%p\n", ip);
+	printinode(ip);
+
+	kdb_printf("--> Vnode @ 0x%p\n", vn_from_inode(ip));
+	printvnode(&vp, (unsigned long)vn_from_inode(ip));
+
+	return 0;
+}
+
+#ifdef XFS_BUF_TRACE
+static int xfs_buf_trace_entry(ktrace_entry_t *ktep)
 {
 	unsigned long long daddr;
 
 	daddr = ((unsigned long long)(unsigned long)ktep->val[8] << 32)
 		| ((unsigned long long)(unsigned long)ktep->val[9]);
 
-	kdb_printf("pb 0x%p [%s] (hold %lu lock %ld) data 0x%p",
+	kdb_printf("bp 0x%p [%s] (hold %lu lock %ld) data 0x%p",
 		ktep->val[0],
 		(char *)ktep->val[1],
 		(unsigned long)ktep->val[3],
@@ -2642,16 +2719,16 @@ static int pagebuf_trace_entry(ktrace_entry_t *ktep)
 		KDB_SP_SPACEB|KDB_SP_PAREN|KDB_SP_NEWLINE);
 	kdb_printf("    offset 0x%llx size 0x%lx task 0x%p\n",
 		daddr, (long)ktep->val[10], ktep->val[5]);
-	kdb_printf("    flags: %s\n", pb_flags((int)(long)ktep->val[2]));
+	kdb_printf("    flags: %s\n", bp_flags((int)(long)ktep->val[2]));
 	return 1;
 }
 
 static int
-kdbm_pbtrace_offset(int argc, const char **argv, const char **envp,
+kdbm_bptrace_offset(int argc, const char **argv, const char **envp,
 	struct pt_regs *regs)
 {
 	long		mask = 0;
-	unsigned long	offset = 0;
+	unsigned long	got_offset = 0, offset = 0;
 	int		diag;
 	ktrace_entry_t	*ktep;
 	ktrace_snap_t	kts;
@@ -2663,6 +2740,7 @@ kdbm_pbtrace_offset(int argc, const char **argv, const char **envp,
 		diag = kdbgetularg(argv[1], &offset);
 		if (diag)
 			return diag;
+		got_offset = 1;		/* allows tracing offset zero */
 	}
 
 	if (argc > 1) {
@@ -2671,23 +2749,24 @@ kdbm_pbtrace_offset(int argc, const char **argv, const char **envp,
 			return diag;
 	}
 
-	ktep = ktrace_first(pagebuf_trace_buf, &kts);
-	while (ktep != NULL) {
+	ktep = ktrace_first(xfs_buf_trace_buf, &kts);
+	do {
 		unsigned long long daddr;
 
+		if (ktep == NULL)
+			break;
 		daddr = ((unsigned long long)(unsigned long)ktep->val[8] << 32)
 			| ((unsigned long long)(unsigned long)ktep->val[9]);
-		if (offset && ((daddr & ~mask) != offset))
+		if (got_offset && ((daddr & ~mask) != offset))
 			continue;
-		if (pagebuf_trace_entry(ktep))
+		if (xfs_buf_trace_entry(ktep))
 			kdb_printf("\n");
-		ktep = ktrace_next(pagebuf_trace_buf, &kts);
-	}
+	} while ((ktep = ktrace_next(xfs_buf_trace_buf, &kts)) != NULL);
 	return 0;
 }
 
 static int
-kdbm_pbtrace(int argc, const char **argv, const char **envp,
+kdbm_bptrace(int argc, const char **argv, const char **envp,
 	struct pt_regs *regs)
 {
 	unsigned long	addr = 0;
@@ -2716,16 +2795,18 @@ kdbm_pbtrace(int argc, const char **argv, const char **envp,
 		}
 	}
 
-	ktep = ktrace_first(pagebuf_trace_buf, &kts);
-	while (ktep != NULL) {
+	ktep = ktrace_first(xfs_buf_trace_buf, &kts);
+	do {
+		if (ktep == NULL)
+			break;
 		if (addr && (ktep->val[0] != (void *)addr))
 			continue;
 		if (event_match && strcmp((char *)ktep->val[1], event_match))
 			continue;
-		if (pagebuf_trace_entry(ktep))
+		if (xfs_buf_trace_entry(ktep))
 			qprintf("\n");
-		ktep = ktrace_next(pagebuf_trace_buf, &kts);
-	}
+	} while ((ktep = ktrace_next(xfs_buf_trace_buf, &kts)) != NULL);
+
 	return 0;
 }
 #endif
@@ -2866,7 +2947,7 @@ static struct xif xfsidbg_funcs[] = {
   {  "xexlist",	kdbm_xfs_xexlist,	"<xfs_inode_t>",
 				"Dump XFS bmap extents in inode"},
   {  "xflist",	kdbm_xfs_xflist,	"<xfs_bmap_free_t>",
-				"Dump XFS to-be-freed extent list"},
+				"Dump XFS to-be-freed extent records"},
   {  "xhelp",	kdbm_xfs_xhelp,		"",
 				"Print idbg-xfs help"},
   {  "xicall",	kdbm_xfs_xiclogall,	"<xlog_in_core_t>",
@@ -2937,21 +3018,20 @@ static struct xif xfsidbg_funcs[] = {
 				"Dump XFS transaction structure"},
   {  "xtrres",	kdbm_xfs_xtrans_res,	"<xfs_mount_t>",
 				"Dump XFS reservation values"},
-  {  0,		0,	0 }
+  {  NULL,		NULL,	NULL }
 };
 
-static struct xif pb_funcs[] = {
-#ifdef __linux__
-  {  "pb",	kdbm_pb,	"<vaddr>",	"Display xfs_buf_t" },
-  {  "pbflags",	kdbm_pb_flags,	"<flags>",	"Display page_buf flags" },
-  {  "pbdelay",	kdbm_pbdelay,	"0|1",		"Display delwri pagebufs" },
+static struct xif xfsbuf_funcs[] = {
+  {  "bp",	kdbm_bp,	"<vaddr>",	"Display xfs_buf_t" },
+  {  "bpflags",	kdbm_bp_flags,	"<flags>",	"Display xfs_buf flags" },
+  {  "xiomap",	kdbm_iomap,	"<xfs_iomap_t *>",	"Display IOmap" },
+  {  "i2vnode",	kdbm_i2vnode,	"<inode *>",	"Display Vnode" },
+  {  "bpdelay",	kdbm_bpdelay,	"0|1",		"Display delwri buffers" },
+#ifdef XFS_BUF_TRACE
+  {  "bptrace",	kdbm_bptrace,	"<vaddr>|<count>",	"xfs_buf_t trace" },
+  {  "bpoffset",kdbm_bptrace_offset, "<daddr> [<mask>]","xfs_buf_t trace" },
 #endif
-  {  "iomapap",	kdbm_iomap,	"<iomap_t *>",	"Display IOmap" },
-#ifdef PAGEBUF_TRACE
-  {  "pbtrace",	kdbm_pbtrace,	"<vaddr>|<count>",	"xfs_buf_t trace" },
-  {  "pboffset",kdbm_pbtrace_offset, "<daddr> [<mask>]","xfs_buf_t trace" },
-#endif
-  {  0,		0,	0 }
+  {  NULL,		NULL,	NULL }
 };
 
 static int
@@ -2961,7 +3041,7 @@ xfsidbg_init(void)
 
 	for (p = xfsidbg_funcs; p->name; p++)
 		kdb_register(p->name, p->func, p->args, p->help, 0);
-	for (p = pb_funcs; p->name; p++)
+	for (p = xfsbuf_funcs; p->name; p++)
 		kdb_register(p->name, p->func, p->args, p->help, 0);
 	return 0;
 }
@@ -2973,7 +3053,7 @@ xfsidbg_exit(void)
 
 	for (p = xfsidbg_funcs; p->name; p++)
 		kdb_unregister(p->name);
-	for (p = pb_funcs; p->name; p++)
+	for (p = xfsbuf_funcs; p->name; p++)
 		kdb_unregister(p->name);
 }
 
@@ -2984,60 +3064,6 @@ static char *xfs_alloctype[] = {
 	"any_ag", "first_ag", "start_ag", "this_ag",
 	"start_bno", "near_bno", "this_bno"
 };
-
-static int xargument = 0;
-
-/*
- * Prototypes for static functions.
- */
-#ifdef XFS_ALLOC_TRACE
-static int xfs_alloc_trace_entry(ktrace_entry_t *ktep);
-#endif
-#ifdef XFS_ATTR_TRACE
-static int xfs_attr_trace_entry(ktrace_entry_t *ktep);
-#endif
-#ifdef XFS_BMAP_TRACE
-static int xfs_bmap_trace_entry(ktrace_entry_t *ktep);
-#endif
-#ifdef XFS_BMAP_TRACE
-static int xfs_bmbt_trace_entry(ktrace_entry_t *ktep);
-#endif
-static void xfs_broot(xfs_inode_t *ip, xfs_ifork_t *f);
-static void xfs_btalloc(xfs_alloc_block_t *bt, int bsz);
-static void xfs_btbmap(xfs_bmbt_block_t *bt, int bsz);
-static void xfs_btino(xfs_inobt_block_t *bt, int bsz);
-static void xfs_buf_item_print(xfs_buf_log_item_t *blip, int summary);
-static void xfs_dastate_path(xfs_da_state_path_t *p);
-#ifdef XFS_DIR_TRACE
-static int xfs_dir_trace_entry(ktrace_entry_t *ktep);
-#endif
-#ifdef XFS_DIR2_TRACE
-static int xfs_dir2_trace_entry(ktrace_entry_t *ktep);
-#endif
-static void xfs_dir2data(void *addr, int size);
-static void xfs_dir2leaf(xfs_dir2_leaf_t *leaf, int size);
-static void xfs_dquot_item_print(xfs_dq_logitem_t *lip, int summary);
-static void xfs_efd_item_print(xfs_efd_log_item_t *efdp, int summary);
-static void xfs_efi_item_print(xfs_efi_log_item_t *efip, int summary);
-static char *xfs_fmtformat(xfs_dinode_fmt_t f);
-static char *xfs_fmtfsblock(xfs_fsblock_t bno, xfs_mount_t *mp);
-static char *xfs_fmtino(xfs_ino_t ino, xfs_mount_t *mp);
-static char *xfs_fmtlsn(xfs_lsn_t *lsnp);
-static char *xfs_fmtmode(int m);
-static char *xfs_fmtsize(size_t i);
-static char *xfs_fmtuuid(uuid_t *);
-static void xfs_inode_item_print(xfs_inode_log_item_t *ilip, int summary);
-static void xfs_inodebuf(xfs_buf_t *bp);
-static void xfs_prdinode(xfs_dinode_t *di, int coreonly, int convert);
-static void xfs_prdinode_core(xfs_dinode_core_t *dip, int convert);
-static void xfs_qoff_item_print(xfs_qoff_logitem_t *lip, int summary);
-#ifdef XFS_RW_TRACE
-static void xfs_rw_enter_trace_entry(ktrace_entry_t *ktep);
-static void xfs_page_trace_entry(ktrace_entry_t *ktep);
-static int xfs_rw_trace_entry(ktrace_entry_t *ktep);
-#endif
-static void xfs_xexlist_fork(xfs_inode_t *ip, int whichfork);
-static void xfs_xnode_fork(char *name, xfs_ifork_t *f);
 
 /*
  * Static functions.
@@ -3430,10 +3456,13 @@ xfs_broot(xfs_inode_t *ip, xfs_ifork_t *f)
 	}
 	broot = f->if_broot;
 	kdb_printf("block @0x%p magic %x level %d numrecs %d\n",
-		broot, INT_GET(broot->bb_magic, ARCH_CONVERT), INT_GET(broot->bb_level, ARCH_CONVERT), INT_GET(broot->bb_numrecs, ARCH_CONVERT));
+		broot,
+		be32_to_cpu(broot->bb_magic),
+		be16_to_cpu(broot->bb_level),
+		be16_to_cpu(broot->bb_numrecs));
 	kp = XFS_BMAP_BROOT_KEY_ADDR(broot, 1, f->if_broot_bytes);
 	pp = XFS_BMAP_BROOT_PTR_ADDR(broot, 1, f->if_broot_bytes);
-	for (i = 1; i <= INT_GET(broot->bb_numrecs, ARCH_CONVERT); i++)
+	for (i = 1; i <= be16_to_cpu(broot->bb_numrecs); i++)
 		kdb_printf("\t%d: startoff %Ld ptr %Lx %s\n",
 			i, INT_GET(kp[i - 1].br_startoff, ARCH_CONVERT), INT_GET(pp[i - 1], ARCH_CONVERT),
 			xfs_fmtfsblock(INT_GET(pp[i - 1], ARCH_CONVERT), ip->i_mount));
@@ -3448,29 +3477,36 @@ xfs_btalloc(xfs_alloc_block_t *bt, int bsz)
 	int i;
 
 	kdb_printf("magic 0x%x level %d numrecs %d leftsib 0x%x rightsib 0x%x\n",
-		INT_GET(bt->bb_magic, ARCH_CONVERT), INT_GET(bt->bb_level, ARCH_CONVERT), INT_GET(bt->bb_numrecs, ARCH_CONVERT),
-		INT_GET(bt->bb_leftsib, ARCH_CONVERT), INT_GET(bt->bb_rightsib, ARCH_CONVERT));
-	if (INT_ISZERO(bt->bb_level, ARCH_CONVERT)) {
-
-		for (i = 1; i <= INT_GET(bt->bb_numrecs, ARCH_CONVERT); i++) {
+		be32_to_cpu(bt->bb_magic),
+		be16_to_cpu(bt->bb_level),
+		be16_to_cpu(bt->bb_numrecs),
+		be32_to_cpu(bt->bb_leftsib),
+		be32_to_cpu(bt->bb_rightsib));
+	if (!bt->bb_level) {
+		for (i = 1; i <= be16_to_cpu(bt->bb_numrecs); i++) {
 			xfs_alloc_rec_t *r;
 
 			r = XFS_BTREE_REC_ADDR(bsz, xfs_alloc, bt, i, 0);
 			kdb_printf("rec %d startblock 0x%x blockcount %d\n",
-				i, INT_GET(r->ar_startblock, ARCH_CONVERT), INT_GET(r->ar_blockcount, ARCH_CONVERT));
+				i,
+				be32_to_cpu(r->ar_startblock),
+				be32_to_cpu(r->ar_blockcount));
 		}
 	} else {
 		int mxr;
 
 		mxr = XFS_BTREE_BLOCK_MAXRECS(bsz, xfs_alloc, 0);
-		for (i = 1; i <= INT_GET(bt->bb_numrecs, ARCH_CONVERT); i++) {
+		for (i = 1; i <= be16_to_cpu(bt->bb_numrecs); i++) {
 			xfs_alloc_key_t *k;
 			xfs_alloc_ptr_t *p;
 
 			k = XFS_BTREE_KEY_ADDR(bsz, xfs_alloc, bt, i, mxr);
 			p = XFS_BTREE_PTR_ADDR(bsz, xfs_alloc, bt, i, mxr);
 			kdb_printf("key %d startblock 0x%x blockcount %d ptr 0x%x\n",
-				i, INT_GET(k->ar_startblock, ARCH_CONVERT), INT_GET(k->ar_blockcount, ARCH_CONVERT), *p);
+				i,
+				be32_to_cpu(k->ar_startblock),
+				be32_to_cpu(k->ar_blockcount),
+				be32_to_cpu(*p));
 		}
 	}
 }
@@ -3483,14 +3519,14 @@ xfs_btbmap(xfs_bmbt_block_t *bt, int bsz)
 {
 	int i;
 
-	kdb_printf("magic 0x%x level %d numrecs %d leftsib %Lx ",
-		INT_GET(bt->bb_magic, ARCH_CONVERT),
-		INT_GET(bt->bb_level, ARCH_CONVERT),
-		INT_GET(bt->bb_numrecs, ARCH_CONVERT),
-		INT_GET(bt->bb_leftsib, ARCH_CONVERT));
-	kdb_printf("rightsib %Lx\n", INT_GET(bt->bb_rightsib, ARCH_CONVERT));
-	if (INT_ISZERO(bt->bb_level, ARCH_CONVERT)) {
-		for (i = 1; i <= INT_GET(bt->bb_numrecs, ARCH_CONVERT); i++) {
+	kdb_printf("magic 0x%x level %d numrecs %d leftsib %Lx rightsib %Lx\n",
+		be32_to_cpu(bt->bb_magic),
+		be16_to_cpu(bt->bb_level),
+		be16_to_cpu(bt->bb_numrecs),
+		be64_to_cpu(bt->bb_leftsib),
+		be64_to_cpu(bt->bb_rightsib));
+	if (!bt->bb_level) {
+		for (i = 1; i <= be16_to_cpu(bt->bb_numrecs); i++) {
 			xfs_bmbt_rec_t *r;
 			xfs_bmbt_irec_t	irec;
 
@@ -3507,7 +3543,7 @@ xfs_btbmap(xfs_bmbt_block_t *bt, int bsz)
 		int mxr;
 
 		mxr = XFS_BTREE_BLOCK_MAXRECS(bsz, xfs_bmbt, 0);
-		for (i = 1; i <= INT_GET(bt->bb_numrecs, ARCH_CONVERT); i++) {
+		for (i = 1; i <= be16_to_cpu(bt->bb_numrecs); i++) {
 			xfs_bmbt_key_t *k;
 			xfs_bmbt_ptr_t *p;
 
@@ -3529,14 +3565,13 @@ xfs_btino(xfs_inobt_block_t *bt, int bsz)
 	int i;
 
 	kdb_printf("magic 0x%x level %d numrecs %d leftsib 0x%x rightsib 0x%x\n",
-		INT_GET(bt->bb_magic, ARCH_CONVERT),
-		INT_GET(bt->bb_level, ARCH_CONVERT),
-		INT_GET(bt->bb_numrecs, ARCH_CONVERT),
-		INT_GET(bt->bb_leftsib, ARCH_CONVERT),
-		INT_GET(bt->bb_rightsib, ARCH_CONVERT));
-	if (INT_ISZERO(bt->bb_level, ARCH_CONVERT)) {
-
-		for (i = 1; i <= INT_GET(bt->bb_numrecs, ARCH_CONVERT); i++) {
+		be32_to_cpu(bt->bb_magic),
+		be16_to_cpu(bt->bb_level),
+		be16_to_cpu(bt->bb_numrecs),
+		be32_to_cpu(bt->bb_leftsib),
+		be32_to_cpu(bt->bb_rightsib));
+	if (!bt->bb_level) {
+		for (i = 1; i <= be16_to_cpu(bt->bb_numrecs); i++) {
 			xfs_inobt_rec_t *r;
 
 			r = XFS_BTREE_REC_ADDR(bsz, xfs_inobt, bt, i, 0);
@@ -3549,7 +3584,7 @@ xfs_btino(xfs_inobt_block_t *bt, int bsz)
 		int mxr;
 
 		mxr = XFS_BTREE_BLOCK_MAXRECS(bsz, xfs_inobt, 0);
-		for (i = 1; i <= INT_GET(bt->bb_numrecs, ARCH_CONVERT); i++) {
+		for (i = 1; i <= be16_to_cpu(bt->bb_numrecs); i++) {
 			xfs_inobt_key_t *k;
 			xfs_inobt_ptr_t *p;
 
@@ -3557,7 +3592,7 @@ xfs_btino(xfs_inobt_block_t *bt, int bsz)
 			p = XFS_BTREE_PTR_ADDR(bsz, xfs_inobt, bt, i, mxr);
 			kdb_printf("key %d startino 0x%x ptr 0x%x\n",
 				i, INT_GET(k->ir_startino, ARCH_CONVERT),
-				INT_GET(*p, ARCH_CONVERT));
+				be32_to_cpu(*p));
 		}
 	}
 }
@@ -3575,12 +3610,12 @@ xfs_buf_item_print(xfs_buf_log_item_t *blip, int summary)
 		"logged",	/* 0x8 */
 		"ialloc",	/* 0x10 */
 		"inode_stale",  /* 0x20 */
-		0
+		NULL
 		};
 	static char *blf_flags[] = {
 		"inode",	/* 0x1 */
 		"cancel",	/* 0x2 */
-		0
+		NULL
 		};
 
 	if (summary) {
@@ -3842,7 +3877,7 @@ xfs_efi_item_print(xfs_efi_log_item_t *efip, int summary)
 		"recovered",	/* 0x1 */
 		"committed",	/* 0x2 */
 		"cancelled",	/* 0x4 */
-		0,
+		NULL,
 		};
 
 	if (summary) {
@@ -3885,7 +3920,7 @@ xfs_fmtformat(xfs_dinode_fmt_t f)
 /*
  * Format fsblock number into a static buffer & return it.
  */
-static char *
+char *
 xfs_fmtfsblock(xfs_fsblock_t bno, xfs_mount_t *mp)
 {
 	static char rval[50];
@@ -4006,7 +4041,7 @@ xfs_inode_item_print(xfs_inode_log_item_t *ilip, int summary)
 		"hold",		/* 0x1 */
 		"iolock excl",	/* 0x2 */
 		"iolock shrd",	/* 0x4 */
-		0
+		NULL
 		};
 	static char *ilf_fields[] = {
 		"core",		/* 0x001 */
@@ -4018,7 +4053,7 @@ xfs_inode_item_print(xfs_inode_log_item_t *ilip, int summary)
 		"adata",	/* 0x040 */
 		"aext",		/* 0x080 */
 		"abroot",	/* 0x100 */
-		0
+		NULL
 		};
 
 	if (summary) {
@@ -4090,13 +4125,19 @@ static void
 xfs_inodebuf(xfs_buf_t *bp)
 {
 	xfs_dinode_t *di;
+	xfs_dinode_core_t dic;
 	int n, i;
 
 	n = XFS_BUF_COUNT(bp) >> 8;
 	for (i = 0; i < n; i++) {
 		di = (xfs_dinode_t *)xfs_buf_offset(bp,
 					i * 256);
-		xfs_prdinode(di, 0, ARCH_CONVERT);
+
+		xfs_xlate_dinode_core((xfs_caddr_t)&di->di_core, &dic, 1);
+		xfs_prdinode_core(&dic);
+		kdb_printf("next_unlinked 0x%x u@0x%p\n",
+			   INT_GET(di->di_next_unlinked, ARCH_CONVERT),
+			   &di->di_u);
 	}
 }
 
@@ -4114,9 +4155,10 @@ xfs_iomap_enter_trace_entry(ktrace_entry_t *ktep)
 		(unsigned int)(long)ktep->val[4],
 		(unsigned int)(long)ktep->val[5],
 		(unsigned int)(long)ktep->val[6]);
-	qprintf("io new size 0x%x%x\n",
+	qprintf("io new size 0x%x%x pid=%d\n",
 		(unsigned int)(long)ktep->val[7],
-		(unsigned int)(long)ktep->val[8]);
+		(unsigned int)(long)ktep->val[8],
+		(unsigned int)(long)ktep->val[9]);
 }
 
 /*
@@ -4136,7 +4178,7 @@ xfs_iomap_map_trace_entry(ktrace_entry_t *ktep)
 		"sync",		/* BMAPI_SYNC */
 		"trylock",	/* BMAPI_TRYLOCK */
 		"device",	/* BMAPI_DEVICE */
-		0
+		NULL
 	};
 
 	qprintf("ip 0x%p size 0x%x%x offset 0x%x%x count 0x%x\n",
@@ -4172,12 +4214,13 @@ xfs_itrunc_trace_entry(ktrace_entry_t   *ktep)
 		(long)ktep->val[4],
 		(unsigned int)(long)ktep->val[5],
 		(unsigned int)(long)ktep->val[6]);
-	qprintf("toss start 0x%x%x toss finish 0x%x%x cpu id %ld\n",
+	qprintf("toss start 0x%x%x toss finish 0x%x%x cpu id %ld pid %d\n",
 		(unsigned int)(long)ktep->val[7],
 		(unsigned int)(long)ktep->val[8],
 		(unsigned int)(long)ktep->val[9],
 		(unsigned int)(long)ktep->val[10],
-		(long)ktep->val[11]);
+		(long)ktep->val[11],
+		(unsigned int)(long)ktep->val[12]);
 }
 
 /*
@@ -4195,7 +4238,7 @@ xfs_bunmap_trace_entry(ktrace_entry_t   *ktep)
 		"attrfork",     /* 0x20 */
 		"async",	/* 0x40 */
 		"rsvblocks",    /* 0x80 */
-		0
+		NULL
 	};
 
 	qprintf("ip 0x%p size 0x%x%x bno 0x%x%x len 0x%x cpu id %ld\n",
@@ -4206,9 +4249,8 @@ xfs_bunmap_trace_entry(ktrace_entry_t   *ktep)
 		(unsigned int)(long)ktep->val[5],
 		(unsigned int)(long)ktep->val[6],
 		(long)ktep->val[8]);
-	qprintf("ra 0x%p ", ktep->val[9]);
+	qprintf("ra 0x%p pid %d ", ktep->val[9], (int)(long)ktep->val[10]);
 	printflags((__psint_t)ktep->val[7], bunmapi_flags, "flags");
-	qprintf("\n");
 }
 
 /*
@@ -4217,7 +4259,7 @@ xfs_bunmap_trace_entry(ktrace_entry_t   *ktep)
 static void
 xfs_inval_cached_trace_entry(ktrace_entry_t     *ktep)
 {
-	qprintf("ip 0x%p offset 0x%x%x len 0x%x%x first 0x%x%x last 0x%x%x\n",
+	qprintf("ip 0x%p offset 0x%x%x len 0x%x%x first 0x%x%x last 0x%x%x pid %d\n",
 		ktep->val[1],
 		(unsigned int)(long)ktep->val[2],
 		(unsigned int)(long)ktep->val[3],
@@ -4226,29 +4268,17 @@ xfs_inval_cached_trace_entry(ktrace_entry_t     *ktep)
 		(unsigned int)(long)ktep->val[6],
 		(unsigned int)(long)ktep->val[7],
 		(unsigned int)(long)ktep->val[8],
-		(unsigned int)(long)ktep->val[9]);
+		(unsigned int)(long)ktep->val[9],
+		(unsigned int)(long)ktep->val[10]);
 }
 #endif
 
 
 /*
- * Print disk inode.
- */
-static void
-xfs_prdinode(xfs_dinode_t *di, int coreonly, int convert)
-{
-	xfs_prdinode_core(&di->di_core, convert);
-	if (!coreonly)
-		kdb_printf("next_unlinked 0x%x u@0x%p\n",
-			INT_GET(di->di_next_unlinked, convert),
-			&di->di_u);
-}
-
-/*
  * Print disk inode core.
  */
 static void
-xfs_prdinode_core(xfs_dinode_core_t *dip, int convert)
+xfs_prdinode_core(xfs_dinode_core_t *dip)
 {
 	static char *diflags[] = {
 		"realtime",		/* XFS_DIFLAG_REALTIME */
@@ -4259,45 +4289,39 @@ xfs_prdinode_core(xfs_dinode_core_t *dip, int convert)
 		"sync",			/* XFS_DIFLAG_SYNC */
 		"noatime",		/* XFS_DIFLAG_NOATIME */
 		"nodump",		/* XFS_DIFLAG_NODUMP */
+		"rtinherit",		/* XFS_DIFLAG_RTINHERIT */
+		"projinherit",		/* XFS_DIFLAG_PROJINHERIT */
+		"nosymlinks",		/* XFS_DIFLAG_NOSYMLINKS */
+		"extsize",		/* XFS_DIFLAG_EXTSIZE */
+		"extszinherit",		/* XFS_DIFLAG_EXTSZINHERIT */
 		NULL
 	};
 
 	kdb_printf("magic 0x%x mode 0%o (%s) version 0x%x format 0x%x (%s)\n",
-		INT_GET(dip->di_magic, convert),
-		INT_GET(dip->di_mode, convert),
-		xfs_fmtmode(INT_GET(dip->di_mode, convert)),
-		INT_GET(dip->di_version, convert),
-		INT_GET(dip->di_format, convert),
-		xfs_fmtformat(
-		    (xfs_dinode_fmt_t)INT_GET(dip->di_format, convert)));
+		dip->di_magic, dip->di_mode,
+		xfs_fmtmode(dip->di_mode),
+		dip->di_version, dip->di_format,
+		xfs_fmtformat((xfs_dinode_fmt_t)dip->di_format));
 	kdb_printf("nlink %d uid %d gid %d projid %d flushiter %u\n",
-		INT_GET(dip->di_nlink, convert),
-		INT_GET(dip->di_uid, convert),
-		INT_GET(dip->di_gid, convert),
-		(uint)INT_GET(dip->di_projid, convert),
-		(uint)INT_GET(dip->di_flushiter, convert));
+		dip->di_nlink,
+		dip->di_uid,
+		dip->di_gid,
+		(uint)dip->di_projid,
+		(uint)dip->di_flushiter);
 	kdb_printf("atime %u:%u mtime %ud:%u ctime %u:%u\n",
-		INT_GET(dip->di_atime.t_sec, convert),
-		INT_GET(dip->di_atime.t_nsec, convert),
-		INT_GET(dip->di_mtime.t_sec, convert),
-		INT_GET(dip->di_mtime.t_nsec, convert),
-		INT_GET(dip->di_ctime.t_sec, convert),
-		INT_GET(dip->di_ctime.t_nsec, convert));
-	kdb_printf("size %Ld ", INT_GET(dip->di_size, convert));
+		dip->di_atime.t_sec, dip->di_atime.t_nsec,
+		dip->di_mtime.t_sec, dip->di_mtime.t_nsec,
+		dip->di_ctime.t_sec, dip->di_ctime.t_nsec);
+	kdb_printf("size %Ld ", dip->di_size);
 	kdb_printf("nblocks %Ld extsize 0x%x nextents 0x%x anextents 0x%x\n",
-		INT_GET(dip->di_nblocks, convert),
-		INT_GET(dip->di_extsize, convert),
-		INT_GET(dip->di_nextents, convert),
-		INT_GET(dip->di_anextents, convert));
+		dip->di_nblocks, dip->di_extsize, dip->di_nextents,
+		dip->di_anextents);
 	kdb_printf("forkoff %d aformat 0x%x (%s) dmevmask 0x%x dmstate 0x%x ",
-		INT_GET(dip->di_forkoff, convert),
-		INT_GET(dip->di_aformat, convert),
-		xfs_fmtformat(
-		    (xfs_dinode_fmt_t)INT_GET(dip->di_aformat, convert)),
-		INT_GET(dip->di_dmevmask, convert),
-		INT_GET(dip->di_dmstate, convert));
-	printflags(INT_GET(dip->di_flags, convert), diflags, "flags");
-	kdb_printf("gen 0x%x\n", INT_GET(dip->di_gen, convert));
+		dip->di_forkoff, dip->di_aformat,
+		xfs_fmtformat((xfs_dinode_fmt_t)dip->di_aformat),
+		dip->di_dmevmask, dip->di_dmstate);
+	printflags(dip->di_flags, diflags, "flags");
+	kdb_printf("gen 0x%x\n", dip->di_gen);
 }
 
 #ifdef XFS_RW_TRACE
@@ -4313,12 +4337,13 @@ xfs_rw_enter_trace_entry(ktrace_entry_t *ktep)
 		(unsigned int)(long)ktep->val[3],
 		ktep->val[4],
 		(unsigned long)ktep->val[5]);
-	qprintf("io offset 0x%x%x ioflags 0x%x new size 0x%x%x\n",
+	qprintf("io offset 0x%x%x ioflags 0x%x new size 0x%x%x pid %d\n",
 		(unsigned int)(long)ktep->val[6],
 		(unsigned int)(long)ktep->val[7],
 		(unsigned int)(long)ktep->val[8],
 		(unsigned int)(long)ktep->val[9],
-		(unsigned int)(long)ktep->val[10]);
+		(unsigned int)(long)ktep->val[10],
+		(unsigned int)(long)ktep->val[11]);
 }
 
 /*
@@ -4327,17 +4352,18 @@ xfs_rw_enter_trace_entry(ktrace_entry_t *ktep)
 static void
 xfs_page_trace_entry(ktrace_entry_t *ktep)
 {
-	qprintf("ip 0x%p inode 0x%p 0x%p page 0x%p\n",
-		ktep->val[1], ktep->val[2], ktep->val[3], ktep->val[4]);
+	qprintf("ip 0x%p inode 0x%p page 0x%p\n",
+		ktep->val[1], ktep->val[2], ktep->val[3]);
 	qprintf("mask 0x%x di_size 0x%x%x isize 0x%x%x offset 0x%x%x\n",
+		(unsigned int)(long)ktep->val[4],
 		(unsigned int)(long)ktep->val[5],
 		(unsigned int)(long)ktep->val[6],
 		(unsigned int)(long)ktep->val[7],
 		(unsigned int)(long)ktep->val[8],
 		(unsigned int)(long)ktep->val[9],
-		(unsigned int)(long)ktep->val[10],
-		(unsigned int)(long)ktep->val[11]);
-	qprintf("delalloc %d unmapped %d unwritten %d\n",
+		(unsigned int)(long)ktep->val[10]);
+	qprintf("delalloc %d unmapped %d unwritten %d pid %d\n",
+		(unsigned int)(long)ktep->val[11],
 		(unsigned int)(long)ktep->val[12],
 		(unsigned int)(long)ktep->val[13],
 		(unsigned int)(long)ktep->val[14]);
@@ -4418,8 +4444,8 @@ xfs_rw_trace_entry(ktrace_entry_t *ktep)
 		qprintf("CTRUNC6:\n");
 		xfs_ctrunc_trace_entry(ktep);
 		break;
-	case XFS_BUNMAPI:
-		qprintf("BUNMAPI:\n");
+	case XFS_BUNMAP:
+		qprintf("BUNMAP:\n");
 		xfs_bunmap_trace_entry(ktep);
 		break;
 	case XFS_INVAL_CACHED:
@@ -4440,6 +4466,10 @@ xfs_rw_trace_entry(ktrace_entry_t *ktep)
 		break;
 	case XFS_RELEASEPAGE_ENTER:
 		qprintf("PAGE RELEASE:\n");
+		xfs_page_trace_entry(ktep);
+		break;
+	case XFS_INVALIDPAGE_ENTER:
+		qprintf("PAGE INVALIDATE:\n");
 		xfs_page_trace_entry(ktep);
 		break;
 	case XFS_IOMAP_ALLOC_ENTER:
@@ -4465,7 +4495,7 @@ xfs_rw_trace_entry(ktrace_entry_t *ktep)
 #endif
 
 /*
- * Print xfs extent list for a fork.
+ * Print xfs extent records for a fork.
  */
 static void
 xfs_xexlist_fork(xfs_inode_t *ip, int whichfork)
@@ -4476,11 +4506,12 @@ xfs_xexlist_fork(xfs_inode_t *ip, int whichfork)
 
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	if (ifp->if_flags & XFS_IFEXTENTS) {
-		nextents = ifp->if_bytes / sizeof(xfs_bmbt_rec_64_t);
+		nextents = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
 		kdb_printf("inode 0x%p %cf extents 0x%p nextents 0x%x\n",
-			ip, "da"[whichfork], ifp->if_u1.if_extents, nextents);
+			ip, "da"[whichfork], xfs_iext_get_ext(ifp, 0),
+			nextents);
 		for (i = 0; i < nextents; i++) {
-			xfs_bmbt_get_all(&ifp->if_u1.if_extents[i], &irec);
+			xfs_bmbt_get_all(xfs_iext_get_ext(ifp, i), &irec);
 			kdb_printf(
 		"%d: startoff %Ld startblock %s blockcount %Ld flag %d\n",
 			i, irec.br_startoff,
@@ -4537,21 +4568,21 @@ static void
 xfsidbg_xagf(xfs_agf_t *agf)
 {
 	kdb_printf("magicnum 0x%x versionnum 0x%x seqno 0x%x length 0x%x\n",
-		INT_GET(agf->agf_magicnum, ARCH_CONVERT),
-		INT_GET(agf->agf_versionnum, ARCH_CONVERT),
-		INT_GET(agf->agf_seqno, ARCH_CONVERT),
-		INT_GET(agf->agf_length, ARCH_CONVERT));
+		be32_to_cpu(agf->agf_magicnum),
+		be32_to_cpu(agf->agf_versionnum),
+		be32_to_cpu(agf->agf_seqno),
+		be32_to_cpu(agf->agf_length));
 	kdb_printf("roots b 0x%x c 0x%x levels b %d c %d\n",
-		INT_GET(agf->agf_roots[XFS_BTNUM_BNO], ARCH_CONVERT),
-		INT_GET(agf->agf_roots[XFS_BTNUM_CNT], ARCH_CONVERT),
-		INT_GET(agf->agf_levels[XFS_BTNUM_BNO], ARCH_CONVERT),
-		INT_GET(agf->agf_levels[XFS_BTNUM_CNT], ARCH_CONVERT));
+		be32_to_cpu(agf->agf_roots[XFS_BTNUM_BNO]),
+		be32_to_cpu(agf->agf_roots[XFS_BTNUM_CNT]),
+		be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNO]),
+		be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNT]));
 	kdb_printf("flfirst %d fllast %d flcount %d freeblks %d longest %d\n",
-		INT_GET(agf->agf_flfirst, ARCH_CONVERT),
-		INT_GET(agf->agf_fllast, ARCH_CONVERT),
-		INT_GET(agf->agf_flcount, ARCH_CONVERT),
-		INT_GET(agf->agf_freeblks, ARCH_CONVERT),
-		INT_GET(agf->agf_longest, ARCH_CONVERT));
+		be32_to_cpu(agf->agf_flfirst),
+		be32_to_cpu(agf->agf_fllast),
+		be32_to_cpu(agf->agf_flcount),
+		be32_to_cpu(agf->agf_freeblks),
+		be32_to_cpu(agf->agf_longest));
 }
 
 /*
@@ -4564,24 +4595,24 @@ xfsidbg_xagi(xfs_agi_t *agi)
 	int	j;
 
 	kdb_printf("magicnum 0x%x versionnum 0x%x seqno 0x%x length 0x%x\n",
-		INT_GET(agi->agi_magicnum, ARCH_CONVERT),
-		INT_GET(agi->agi_versionnum, ARCH_CONVERT),
-		INT_GET(agi->agi_seqno, ARCH_CONVERT),
-		INT_GET(agi->agi_length, ARCH_CONVERT));
+		be32_to_cpu(agi->agi_magicnum),
+		be32_to_cpu(agi->agi_versionnum),
+		be32_to_cpu(agi->agi_seqno),
+		be32_to_cpu(agi->agi_length));
 	kdb_printf("count 0x%x root 0x%x level 0x%x\n",
-		INT_GET(agi->agi_count, ARCH_CONVERT),
-		INT_GET(agi->agi_root, ARCH_CONVERT),
-		INT_GET(agi->agi_level, ARCH_CONVERT));
+		be32_to_cpu(agi->agi_count),
+		be32_to_cpu(agi->agi_root),
+		be32_to_cpu(agi->agi_level));
 	kdb_printf("freecount 0x%x newino 0x%x dirino 0x%x\n",
-		INT_GET(agi->agi_freecount, ARCH_CONVERT),
-		INT_GET(agi->agi_newino, ARCH_CONVERT),
-		INT_GET(agi->agi_dirino, ARCH_CONVERT));
+		be32_to_cpu(agi->agi_freecount),
+		be32_to_cpu(agi->agi_newino),
+		be32_to_cpu(agi->agi_dirino));
 
 	kdb_printf("unlinked buckets\n");
 	for (i = 0; i < XFS_AGI_UNLINKED_BUCKETS; i++) {
 		for (j = 0; j < 4; j++, i++) {
 			kdb_printf("0x%08x ",
-				INT_GET(agi->agi_unlinked[i], ARCH_CONVERT));
+				be32_to_cpu(agi->agi_unlinked[i]));
 		}
 		kdb_printf("\n");
 	}
@@ -4764,6 +4795,8 @@ xfsidbg_xalttrace(int tag)
 	}
 }
 #endif
+
+static int xargument = 0;
 
 /*
  * Set xtra argument, used by xchksum.
@@ -4979,11 +5012,11 @@ xfsidbg_xblitrace(xfs_buf_log_item_t *bip)
 		"dirty",	/* 0x02 */
 		"stale",	/* 0x04 */
 		"logged",	/* 0x08 */
-		0
+		NULL
 		};
 	static char *xli_flags[] = {
 		"in ail",       /* 0x1 */
-		0
+		NULL
 		};
 
 	if (bip->bli_trace == NULL) {
@@ -5006,7 +5039,7 @@ xfsidbg_xblitrace(xfs_buf_log_item_t *bip)
 			(((uint64_t)(unsigned long)ktep->val[8]) &
 					0x00000000FFFFFFFFULL);
 		qprintf("bp flags ");
-		printflags(flags, pb_flag_vals, 0);
+		printflags(flags, bp_flag_vals, NULL);
 		qprintf("\n");
 		qprintf("fspriv 0x%p fspriv2 0x%p pincount %ld iodone 0x%p\n",
 			ktep->val[9], ktep->val[10],
@@ -5035,9 +5068,9 @@ xfsidbg_xbmalla(xfs_bmalloca_t *a)
 	kdb_printf("off %s wasdel %d userdata %d minlen %d\n",
 		xfs_fmtfsblock(a->off, a->ip->i_mount), a->wasdel,
 		a->userdata, a->minlen);
-	kdb_printf("minleft %d low %d rval %s aeof %d\n",
+	kdb_printf("minleft %d low %d rval %s aeof %d conv %d\n",
 		a->minleft, a->low, xfs_fmtfsblock(a->rval, a->ip->i_mount),
-		a->aeof);
+		a->aeof, a->conv);
 }
 
 #ifdef XFS_BMAP_TRACE
@@ -5261,50 +5294,50 @@ xfsidbg_xbuf_real(xfs_buf_t *bp, int summary)
 	xfs_dir2_free_t *d2free;
 
 	d = XFS_BUF_PTR(bp);
-	if (INT_GET((agf = d)->agf_magicnum, ARCH_CONVERT) == XFS_AGF_MAGIC) {
+	if (be32_to_cpu((agf = d)->agf_magicnum) == XFS_AGF_MAGIC) {
 		if (summary) {
 			kdb_printf("freespace hdr for AG %d (at 0x%p)\n",
-				INT_GET(agf->agf_seqno, ARCH_CONVERT), agf);
+				be32_to_cpu(agf->agf_seqno), agf);
 		} else {
 			kdb_printf("buf 0x%p agf 0x%p\n", bp, agf);
 			xfsidbg_xagf(agf);
 		}
-	} else if (INT_GET((agi = d)->agi_magicnum, ARCH_CONVERT) == XFS_AGI_MAGIC) {
+	} else if (be32_to_cpu((agi = d)->agi_magicnum) == XFS_AGI_MAGIC) {
 		if (summary) {
 			kdb_printf("Inode hdr for AG %d (at 0x%p)\n",
-			       INT_GET(agi->agi_seqno, ARCH_CONVERT), agi);
+			       be32_to_cpu(agi->agi_seqno), agi);
 		} else {
 			kdb_printf("buf 0x%p agi 0x%p\n", bp, agi);
 			xfsidbg_xagi(agi);
 		}
-	} else if (INT_GET((bta = d)->bb_magic, ARCH_CONVERT) == XFS_ABTB_MAGIC) {
+	} else if (be32_to_cpu((bta = d)->bb_magic) == XFS_ABTB_MAGIC) {
 		if (summary) {
 			kdb_printf("Alloc BNO Btree blk, level %d (at 0x%p)\n",
-				       INT_GET(bta->bb_level, ARCH_CONVERT), bta);
+				       be16_to_cpu(bta->bb_level), bta);
 		} else {
 			kdb_printf("buf 0x%p abtbno 0x%p\n", bp, bta);
 			xfs_btalloc(bta, XFS_BUF_COUNT(bp));
 		}
-	} else if (INT_GET((bta = d)->bb_magic, ARCH_CONVERT) == XFS_ABTC_MAGIC) {
+	} else if (be32_to_cpu((bta = d)->bb_magic) == XFS_ABTC_MAGIC) {
 		if (summary) {
 			kdb_printf("Alloc COUNT Btree blk, level %d (at 0x%p)\n",
-				       INT_GET(bta->bb_level, ARCH_CONVERT), bta);
+				       be16_to_cpu(bta->bb_level), bta);
 		} else {
 			kdb_printf("buf 0x%p abtcnt 0x%p\n", bp, bta);
 			xfs_btalloc(bta, XFS_BUF_COUNT(bp));
 		}
-	} else if (INT_GET((btb = d)->bb_magic, ARCH_CONVERT) == XFS_BMAP_MAGIC) {
+	} else if (be32_to_cpu((btb = d)->bb_magic) == XFS_BMAP_MAGIC) {
 		if (summary) {
 			kdb_printf("Bmap Btree blk, level %d (at 0x%p)\n",
-				      INT_GET(btb->bb_level, ARCH_CONVERT), btb);
+				      be16_to_cpu(btb->bb_level), btb);
 		} else {
 			kdb_printf("buf 0x%p bmapbt 0x%p\n", bp, btb);
 			xfs_btbmap(btb, XFS_BUF_COUNT(bp));
 		}
-	} else if (INT_GET((bti = d)->bb_magic, ARCH_CONVERT) == XFS_IBT_MAGIC) {
+	} else if (be32_to_cpu((bti = d)->bb_magic) == XFS_IBT_MAGIC) {
 		if (summary) {
 			kdb_printf("Inode Btree blk, level %d (at 0x%p)\n",
-				       INT_GET(bti->bb_level, ARCH_CONVERT), bti);
+				       be16_to_cpu(bti->bb_level), bti);
 		} else {
 			kdb_printf("buf 0x%p inobt 0x%p\n", bp, bti);
 			xfs_btino(bti, XFS_BUF_COUNT(bp));
@@ -5346,14 +5379,15 @@ xfsidbg_xbuf_real(xfs_buf_t *bp, int summary)
 		} else {
 			kdb_printf("buf 0x%p sb 0x%p\n", bp, sb);
 			/* SB in a buffer - we need to convert */
-			xfsidbg_xsb(sb, 1);
+			xfsidbg_xsb_convert(sb);
 		}
-	} else if ((dqb = d)->d_magic == XFS_DQUOT_MAGIC) {
+	} else if ((dqb = d)->d_magic == cpu_to_be16(XFS_DQUOT_MAGIC)) {
 #define XFSIDBG_DQTYPESTR(d)     \
-	((INT_GET((d)->d_flags, ARCH_CONVERT) & XFS_DQ_USER) ? "USR" : \
-	((INT_GET((d)->d_flags, ARCH_CONVERT) & XFS_DQ_GROUP) ? "GRP" : "???"))
+	(((d)->d_flags & XFS_DQ_USER) ? "USR" : \
+	(((d)->d_flags & XFS_DQ_GROUP) ? "GRP" : \
+	(((d)->d_flags & XFS_DQ_PROJ) ? "PRJ" : "???")))
 		kdb_printf("Quota blk starting ID [%d], type %s at 0x%p\n",
-			INT_GET(dqb->d_id, ARCH_CONVERT), XFSIDBG_DQTYPESTR(dqb), dqb);
+			be32_to_cpu(dqb->d_id), XFSIDBG_DQTYPESTR(dqb), dqb);
 
 	} else if (INT_GET((d2block = d)->hdr.magic, ARCH_CONVERT) == XFS_DIR2_BLOCK_MAGIC) {
 		if (summary) {
@@ -5501,7 +5535,7 @@ xfsidbg_xilock_trace_entry(ktrace_entry_t *ktep)
 		"ILOCK_EXCL",
 		"ILOCK_SHAR",
 		"IUNLK_NONOT",
-		0
+		NULL
 	};
 
 	if ((__psint_t)ktep->val[0] &&
@@ -5558,7 +5592,7 @@ xfsidbg_xilock_trace(xfs_inode_t *ip)
 		"ILOCK_EXCL",
 		"ILOCK_SHAR",
 		"IUNLK_NONOT",
-		0
+		NULL
 	};
 
 	ktrace_entry_t  *ktep;
@@ -5830,7 +5864,7 @@ xfsidbg_xdirleaf(xfs_dir_leafblock_t *leaf)
 	}
 	for (j = 0, e = leaf->entries; j < INT_GET(h->count, ARCH_CONVERT); j++, e++) {
 		n = XFS_DIR_LEAF_NAMESTRUCT(leaf, INT_GET(e->nameidx, ARCH_CONVERT));
-		XFS_DIR_SF_GET_DIRINO_ARCH(&n->inumber, &ino, ARCH_CONVERT);
+		XFS_DIR_SF_GET_DIRINO(&n->inumber, &ino);
 		kdb_printf("leaf %d hashval 0x%x nameidx %d inumber %llu ",
 			j, (uint_t)INT_GET(e->hashval, ARCH_CONVERT),
 			INT_GET(e->nameidx, ARCH_CONVERT),
@@ -5876,7 +5910,7 @@ xfs_dir2data(void *addr, int size)
 		/* XFS_DIR2_BLOCK_TAIL_P */
 		tail = (xfs_dir2_block_tail_t *)
 		       ((char *)bb + size - sizeof(xfs_dir2_block_tail_t));
-		l = XFS_DIR2_BLOCK_LEAF_P_ARCH(tail, ARCH_CONVERT);
+		l = XFS_DIR2_BLOCK_LEAF_P(tail);
 		t = (char *)l;
 	}
 	for (p = (char *)(h + 1); p < t; ) {
@@ -5886,7 +5920,7 @@ xfs_dir2data(void *addr, int size)
 				(unsigned long) (p - (char *)addr),
 				INT_GET(u->freetag, ARCH_CONVERT),
 				INT_GET(u->length, ARCH_CONVERT),
-				INT_GET(*XFS_DIR2_DATA_UNUSED_TAG_P_ARCH(u, ARCH_CONVERT), ARCH_CONVERT));
+				INT_GET(*XFS_DIR2_DATA_UNUSED_TAG_P(u), ARCH_CONVERT));
 			p += INT_GET(u->length, ARCH_CONVERT);
 			continue;
 		}
@@ -5943,7 +5977,7 @@ xfs_dir2leaf(xfs_dir2_leaf_t *leaf, int size)
 		return;
 	/* XFS_DIR2_LEAF_TAIL_P */
 	t = (xfs_dir2_leaf_tail_t *)((char *)leaf + size - sizeof(*t));
-	b = XFS_DIR2_LEAF_BESTS_P_ARCH(t, ARCH_CONVERT);
+	b = XFS_DIR2_LEAF_BESTS_P(t);
 	for (j = 0; j < INT_GET(t->bestcount, ARCH_CONVERT); j++, b++) {
 		kdb_printf("0x%lx best %d 0x%x\n",
 			(unsigned long) ((char *)b - (char *)leaf), j,
@@ -5964,11 +5998,11 @@ xfsidbg_xdirsf(xfs_dir_shortform_t *s)
 	int i, j;
 
 	sfh = &s->hdr;
-	XFS_DIR_SF_GET_DIRINO_ARCH(&sfh->parent, &ino, ARCH_CONVERT);
+	XFS_DIR_SF_GET_DIRINO(&sfh->parent, &ino);
 	kdb_printf("hdr parent %llu", (unsigned long long)ino);
 	kdb_printf(" count %d\n", sfh->count);
 	for (i = 0, sfe = s->list; i < sfh->count; i++) {
-		XFS_DIR_SF_GET_DIRINO_ARCH(&sfe->inumber, &ino, ARCH_CONVERT);
+		XFS_DIR_SF_GET_DIRINO(&sfe->inumber, &ino);
 		kdb_printf("entry %d inumber %llu", i, (unsigned long long)ino);
 		kdb_printf(" namelen %d name \"", sfe->namelen);
 		for (j = 0; j < sfe->namelen; j++)
@@ -5990,14 +6024,14 @@ xfsidbg_xdir2sf(xfs_dir2_sf_t *s)
 	int i, j;
 
 	sfh = &s->hdr;
-	ino = XFS_DIR2_SF_GET_INUMBER_ARCH(s, &sfh->parent, ARCH_CONVERT);
+	ino = XFS_DIR2_SF_GET_INUMBER(s, &sfh->parent);
 	kdb_printf("hdr count %d i8count %d parent %llu\n",
 		sfh->count, sfh->i8count, (unsigned long long) ino);
 	for (i = 0, sfe = XFS_DIR2_SF_FIRSTENTRY(s); i < sfh->count; i++) {
-		ino = XFS_DIR2_SF_GET_INUMBER_ARCH(s, XFS_DIR2_SF_INUMBERP(sfe), ARCH_CONVERT);
+		ino = XFS_DIR2_SF_GET_INUMBER(s, XFS_DIR2_SF_INUMBERP(sfe));
 		kdb_printf("entry %d inumber %llu offset 0x%x namelen %d name \"",
 			i, (unsigned long long) ino,
-			XFS_DIR2_SF_GET_OFFSET_ARCH(sfe, ARCH_CONVERT),
+			XFS_DIR2_SF_GET_OFFSET(sfe),
 			sfe->namelen);
 		for (j = 0; j < sfe->namelen; j++)
 			kdb_printf("%c", sfe->name[j]);
@@ -6137,7 +6171,7 @@ xfsidbg_xdir2itrace(xfs_inode_t *ip)
 #endif
 
 /*
- * Print xfs extent list.
+ * Print xfs extent records.
  */
 static void
 xfsidbg_xexlist(xfs_inode_t *ip)
@@ -6148,7 +6182,7 @@ xfsidbg_xexlist(xfs_inode_t *ip)
 }
 
 /*
- * Print an xfs free-extent list.
+ * Print an xfs free-extent records.
  */
 static void
 xfsidbg_xflist(xfs_bmap_free_t *flist)
@@ -6193,7 +6227,7 @@ xfsidbg_xiclog(xlog_in_core_t *iclog)
 		"DIRTY",	/* 0X0040 */
 		"IOERROR",	/* 0X0080 */
 		"NOTUSED",	/* 0X8000 */
-		0
+		NULL
 	};
 
 	kdb_printf("xlog_in_core/header at 0x%p/0x%p\n",
@@ -6215,9 +6249,8 @@ xfsidbg_xiclog(xlog_in_core_t *iclog)
 	kdb_printf("data: 0x%p  &forcesema: 0x%p  next: 0x%p bp: 0x%p\n",
 		iclog->ic_datap, &iclog->ic_forcesema, iclog->ic_next,
 		iclog->ic_bp);
-	kdb_printf("log: 0x%p  callb: 0x%p  callb_tail: 0x%p  roundoff: %d\n",
-		iclog->ic_log, iclog->ic_callback, iclog->ic_callback_tail,
-		iclog->ic_roundoff);
+	kdb_printf("log: 0x%p  callb: 0x%p  callb_tail: 0x%p\n",
+		iclog->ic_log, iclog->ic_callback, iclog->ic_callback_tail);
 	kdb_printf("size: %d (OFFSET: %d) trace: 0x%p refcnt: %d bwritecnt: %d",
 		iclog->ic_size, iclog->ic_offset,
 #ifdef XFS_LOG_TRACE
@@ -6412,14 +6445,12 @@ xfsidbg_get_cstate(int state)
 static void
 xfsidbg_xlog(xlog_t *log)
 {
-	int rbytes;
-	int wbytes;
 	static char *t_flags[] = {
 		"CHKSUM_MISMATCH",	/* 0x01 */
 		"ACTIVE_RECOVERY",	/* 0x02 */
 		"RECOVERY_NEEDED",	/* 0x04 */
 		"IO_ERROR",		/* 0x08 */
-		0
+		NULL
 	};
 
 	kdb_printf("xlog at 0x%p\n", log);
@@ -6431,8 +6462,8 @@ xfsidbg_xlog(xlog_t *log)
 	kdb_printf("&icloglock: 0x%p  tail_lsn: %s  last_sync_lsn: %s \n",
 		&log->l_icloglock, xfs_fmtlsn(&log->l_tail_lsn),
 		xfs_fmtlsn(&log->l_last_sync_lsn));
-	kdb_printf("mp: 0x%p  xbuf: 0x%p  roundoff: %d  l_covered_state: %s \n",
-		log->l_mp, log->l_xbuf, log->l_roundoff,
+	kdb_printf("mp: 0x%p  xbuf: 0x%p  l_covered_state: %s \n",
+		log->l_mp, log->l_xbuf,
 			xfsidbg_get_cstate(log->l_covered_state));
 	kdb_printf("flags: ");
 	printflags(log->l_flags, t_flags,"log");
@@ -6454,15 +6485,60 @@ xfsidbg_xlog(xlog_t *log)
 	kdb_printf("GResCycle: %d  GResBytes: %d  GWrCycle: %d  GWrBytes: %d\n",
 		log->l_grant_reserve_cycle, log->l_grant_reserve_bytes,
 		log->l_grant_write_cycle, log->l_grant_write_bytes);
-	rbytes = log->l_grant_reserve_bytes + log->l_roundoff;
-	wbytes = log->l_grant_write_bytes + log->l_roundoff;
 	qprintf("GResBlocks: %d GResRemain: %d  GWrBlocks: %d GWrRemain: %d\n",
-	       rbytes / BBSIZE, rbytes % BBSIZE,
-	       wbytes / BBSIZE, wbytes % BBSIZE);
+		(int)BTOBBT(log->l_grant_reserve_bytes),
+		log->l_grant_reserve_bytes % BBSIZE,
+		(int)BTOBBT(log->l_grant_write_bytes),
+		log->l_grant_write_bytes % BBSIZE);
 #ifdef XFS_LOG_TRACE
 	qprintf("trace: 0x%p  grant_trace: use xlog value\n", log->l_trace);
 #endif
 }	/* xfsidbg_xlog */
+
+static void
+xfsidbg_print_trans_type(unsigned int t_type)
+{
+	switch (t_type) {
+	case XFS_TRANS_SETATTR_NOT_SIZE: kdb_printf("SETATTR_NOT_SIZE");break;
+	case XFS_TRANS_SETATTR_SIZE:	kdb_printf("SETATTR_SIZE");	break;
+	case XFS_TRANS_INACTIVE:	kdb_printf("INACTIVE");		break;
+	case XFS_TRANS_CREATE:		kdb_printf("CREATE");		break;
+	case XFS_TRANS_CREATE_TRUNC:	kdb_printf("CREATE_TRUNC");	break;
+	case XFS_TRANS_TRUNCATE_FILE:	kdb_printf("TRUNCATE_FILE");	break;
+	case XFS_TRANS_REMOVE:		kdb_printf("REMOVE");		break;
+	case XFS_TRANS_LINK:		kdb_printf("LINK");		break;
+	case XFS_TRANS_RENAME:		kdb_printf("RENAME");		break;
+	case XFS_TRANS_MKDIR:		kdb_printf("MKDIR");		break;
+	case XFS_TRANS_RMDIR:		kdb_printf("RMDIR");		break;
+	case XFS_TRANS_SYMLINK:		kdb_printf("SYMLINK");		break;
+	case XFS_TRANS_SET_DMATTRS:	kdb_printf("SET_DMATTRS");	break;
+	case XFS_TRANS_GROWFS:		kdb_printf("GROWFS");		break;
+	case XFS_TRANS_STRAT_WRITE:	kdb_printf("STRAT_WRITE");	break;
+	case XFS_TRANS_DIOSTRAT:	kdb_printf("DIOSTRAT");		break;
+	case XFS_TRANS_WRITE_SYNC:	kdb_printf("WRITE_SYNC");	break;
+	case XFS_TRANS_WRITEID:		kdb_printf("WRITEID");		break;
+	case XFS_TRANS_ADDAFORK:	kdb_printf("ADDAFORK");		break;
+	case XFS_TRANS_ATTRINVAL:	kdb_printf("ATTRINVAL");	break;
+	case XFS_TRANS_ATRUNCATE:	kdb_printf("ATRUNCATE");	break;
+	case XFS_TRANS_ATTR_SET:	kdb_printf("ATTR_SET");		break;
+	case XFS_TRANS_ATTR_RM:		kdb_printf("ATTR_RM");		break;
+	case XFS_TRANS_ATTR_FLAG:	kdb_printf("ATTR_FLAG");	break;
+	case XFS_TRANS_CLEAR_AGI_BUCKET:kdb_printf("CLEAR_AGI_BUCKET");	break;
+	case XFS_TRANS_QM_SBCHANGE:	kdb_printf("QM_SBCHANGE");	break;
+	case XFS_TRANS_QM_QUOTAOFF:	kdb_printf("QM_QUOTAOFF");	break;
+	case XFS_TRANS_QM_DQALLOC:	kdb_printf("QM_DQALLOC");	break;
+	case XFS_TRANS_QM_SETQLIM:	kdb_printf("QM_SETQLIM");	break;
+	case XFS_TRANS_QM_DQCLUSTER:	kdb_printf("QM_DQCLUSTER");	break;
+	case XFS_TRANS_QM_QINOCREATE:	kdb_printf("QM_QINOCREATE");	break;
+	case XFS_TRANS_QM_QUOTAOFF_END:	kdb_printf("QM_QOFF_END");	break;
+	case XFS_TRANS_SB_UNIT:		kdb_printf("SB_UNIT");		break;
+	case XFS_TRANS_FSYNC_TS:	kdb_printf("FSYNC_TS");		break;
+	case XFS_TRANS_GROWFSRT_ALLOC:	kdb_printf("GROWFSRT_ALLOC");	break;
+	case XFS_TRANS_GROWFSRT_ZERO:	kdb_printf("GROWFSRT_ZERO");	break;
+	case XFS_TRANS_GROWFSRT_FREE:	kdb_printf("GROWFSRT_FREE");	break;
+	default:			kdb_printf("unknown(0x%x)", t_type); break;
+	}
+}
 
 #ifdef XFS_LOG_TRACE
 /*
@@ -6474,6 +6550,8 @@ xfsidbg_xlog_granttrace(xlog_t *log)
 	ktrace_entry_t  *ktep;
 	ktrace_snap_t   kts;
 	ktrace_t	*kt;
+	int		i = 0;
+	unsigned long	cnts,t_ocnt, t_cnt;
 
 	if (((__psint_t)log) == ((__psint_t)-1)) {
 		qprintf("Usage: xl_grtr <log>\n");
@@ -6487,7 +6565,18 @@ xfsidbg_xlog_granttrace(xlog_t *log)
 	}
 	ktep = ktrace_first(kt, &kts);
 	while (ktep != NULL) {
-		qprintf("%s\n", (char *)ktep->val[11]);
+		/* split cnts into two parts: cnt and ocnt */
+		cnts = (unsigned long)ktep->val[13];
+		t_ocnt = 0xff & cnts;
+		t_cnt =  cnts >> 8;
+
+		qprintf("%d: %s [", i++, (char *)ktep->val[11]);
+		xfsidbg_print_trans_type((unsigned long)ktep->val[12]);
+		qprintf("]\n");
+		qprintf("  t_ocnt = %lu, t_cnt = %lu, t_curr_res = %lu, "
+			"t_unit_res = %lu\n", 
+			t_ocnt, t_cnt, (unsigned long)ktep->val[14],
+			(unsigned long)ktep->val[15]);
 		qprintf("  tic:0x%p resQ:0x%p wrQ:0x%p ",
 			ktep->val[0], ktep->val[1], ktep->val[2]);
 		qprintf("  GrResC:%ld GrResB:%ld GrWrC:%ld GrWrB:%ld \n",
@@ -6562,7 +6651,8 @@ xfsidbg_xlog_buf_logitem(xlog_recover_item_t *item)
 	if (buf_f->blf_flags & XFS_BLI_INODE_BUF) {
 		kdb_printf("\tINODE BUF <blkno=0x%Lx, len=0x%x>\n",
 			buf_f->blf_blkno, buf_f->blf_len);
-	} else if (buf_f->blf_flags & (XFS_BLI_UDQUOT_BUF | XFS_BLI_GDQUOT_BUF)) {
+	} else if (buf_f->blf_flags &
+		  (XFS_BLI_UDQUOT_BUF|XFS_BLI_PDQUOT_BUF|XFS_BLI_GDQUOT_BUF)) {
 		kdb_printf("\tDQUOT BUF <blkno=0x%Lx, len=0x%x>\n",
 			buf_f->blf_blkno, buf_f->blf_len);
 	} else {
@@ -6648,7 +6738,7 @@ xfsidbg_xlog_tic(xlog_ticket_t *tic)
 		"INIT",		/* 0x1 */
 		"PERM_RES",	/* 0x2 */
 		"IN_Q",		/* 0x4 */
-		0
+		NULL
 	};
 
 	kdb_printf("xlog_ticket at 0x%p\n", tic);
@@ -6660,6 +6750,9 @@ xfsidbg_xlog_tic(xlog_ticket_t *tic)
 	kdb_printf("clientid: %c  \n", tic->t_clientid);
 	printflags(tic->t_flags, t_flags,"ticket");
 	kdb_printf("\n");
+	qprintf("trans type: ");
+	xfsidbg_print_trans_type(tic->t_trans_type);
+	qprintf("\n");
 }	/* xfsidbg_xlog_tic */
 
 /*
@@ -6681,11 +6774,11 @@ xfsidbg_xlogitem(xfs_log_item_t *lip)
 		"inode",	/* 8 */
 		"buf",		/* 9 */
 		"dquot",	/* 10 */
-		0
+		NULL
 		};
 	static char *li_flags[] = {
 		"in ail",	/* 0x1 */
-		0
+		NULL
 		};
 
 	kdb_printf("type %s mountp 0x%p flags ",
@@ -6753,11 +6846,11 @@ xfsidbg_xaildump(xfs_mount_t *mp)
 		"inode",	/* 8 */
 		"buf",		/* 9 */
 		"dquot",	/* 10 */
-		0
+		NULL
 		};
 	static char *li_flags[] = {
 		"in ail",	/* 0x1 */
-		0
+		NULL
 		};
 	int count;
 
@@ -6814,36 +6907,42 @@ xfsidbg_xmount(xfs_mount_t *mp)
 	static char *xmount_flags[] = {
 		"WSYNC",	/* 0x0001 */
 		"INO64",	/* 0x0002 */
-		"RQCHK",	/* 0x0004 */
-		"FSCLEAN",	/* 0x0008 */
-		"FSSHUTDN",	/* 0x0010 */
+		"UNUSED_4",	/* 0x0004 */
+		"UNUSED_8",	/* 0x0008 */
+		"FSSHUTDOWN",	/* 0x0010 */
 		"NOATIME",	/* 0x0020 */
 		"RETERR",	/* 0x0040 */
 		"NOALIGN",	/* 0x0080 */
-		"UNSHRD",	/* 0x0100 */
-		"RGSTRD",	/* 0x0200 */
-		"NORECVR",	/* 0x0400 */
-		"SHRD",		/* 0x0800 */
-		"IOSZ",		/* 0x1000 */
-		"OSYNC",	/* 0x2000 */
-		"NOUUID",	/* 0x4000 */
-		"32BIT",	/* 0x8000 */
-		"NOLOGFLUSH",	/* 0x10000 */
-		0
+		"ATTR2",	/* 0x0100 */
+		"UNUSED_200",	/* 0x0200 */
+		"NORECOVERY",	/* 0x0400 */
+		"SHARED",	/* 0x0800 */
+		"DFLT_IOSIZE",	/* 0x1000 */
+		"OSYNCISOSYNC",	/* 0x2000 */
+		"32BITINODES",	/* 0x4000 */
+		"32BITINOOPT",	/* 0x8000 */
+		"NOUUID",	/* 0x10000 */
+		"BARRIER",	/* 0x20000 */
+		"IDELETE",	/* 0x40000 */
+		"SWALLOC",	/* 0x80000 */
+		"IHASHSIZE",	/* 0x100000 */
+		"DIRSYNC",	/* 0x200000 */
+		"COMPAT_IOSIZE",/* 0x400000 */
+		NULL
 	};
 
 	static char *quota_flags[] = {
 		"UQ",		/* 0x0001 */
 		"UQE",		/* 0x0002 */
 		"UQCHKD",	/* 0x0004 */
-		"PQ",		/* 0x0008 (IRIX ondisk) */
+		"PQ",		/* 0x0008 */
 		"GQE",		/* 0x0010 */
 		"GQCHKD",	/* 0x0020 */
 		"GQ",		/* 0x0040 */
 		"UQACTV",	/* 0x0080 */
 		"GQACTV",	/* 0x0100 */
 		"QMAYBE",	/* 0x0200 */
-		0
+		NULL
 	};
 
 	kdb_printf("xfs_mount at 0x%p\n", mp);
@@ -6856,8 +6955,9 @@ xfsidbg_xmount(xfs_mount_t *mp)
 		mp->m_ddev_targp ? devtoname(mp->m_ddev_targp->dev) : 0,
 		mp->m_logdev_targp ? devtoname(mp->m_logdev_targp->dev) : 0,
 		mp->m_rtdev_targp ? devtoname(mp->m_rtdev_targp->dev) : 0);
-	kdb_printf("bsize %d agfrotor %d agirotor %d ihash 0x%p ihsize %d\n",
-		mp->m_bsize, mp->m_agfrotor, mp->m_agirotor,
+	kdb_printf("bsize %d agfrotor %d xfs_rotorstep %d agirotor %d\n",
+		mp->m_bsize, mp->m_agfrotor, xfs_rotorstep, mp->m_agirotor);
+	kdb_printf("ihash 0x%p ihsize %d\n",
 		mp->m_ihash, mp->m_ihsize);
 	kdb_printf("inodes 0x%p ilock 0x%p ireclaims 0x%x\n",
 		mp->m_inodes, &mp->m_ilock, mp->m_ireclaims);
@@ -6929,8 +7029,6 @@ xfsidbg_xmount(xfs_mount_t *mp)
 		(xfs_dfiloff_t)mp->m_dirfreeblk);
 	kdb_printf("chsize %d chash 0x%p\n",
 		mp->m_chsize, mp->m_chash);
-	kdb_printf("m_frozen %d m_active_trans %d\n",
-		mp->m_frozen, mp->m_active_trans.val);
 	if (mp->m_fsname != NULL)
 		kdb_printf("mountpoint \"%s\"\n", mp->m_fsname);
 	else
@@ -7076,7 +7174,7 @@ xfsidbg_xnode(xfs_inode_t *ip)
 	xfs_xnode_fork("data", &ip->i_df);
 	xfs_xnode_fork("attr", ip->i_afp);
 	kdb_printf("\n");
-	xfs_prdinode_core(&ip->i_d, ARCH_NOCONVERT);
+	xfs_prdinode_core(&ip->i_d);
 }
 
 static void
@@ -7173,14 +7271,14 @@ xfsidbg_xperag(xfs_mount_t *mp)
 
 #ifdef CONFIG_XFS_QUOTA
 static void
-xfsidbg_xqm()
+xfsidbg_xqm(void)
 {
 	if (xfs_Gqm == NULL) {
 		kdb_printf("NULL XQM!!\n");
 		return;
 	}
 
-	kdb_printf("usrhtab 0x%p\tgrphtab 0x%p\tndqfree 0x%x\thashmask 0x%x\n",
+	kdb_printf("usrhtab 0x%p grphtab 0x%p  ndqfree 0x%x  hashmask 0x%x\n",
 		xfs_Gqm->qm_usr_dqhtable,
 		xfs_Gqm->qm_grp_dqhtable,
 		xfs_Gqm->qm_dqfreelist.qh_nelems,
@@ -7196,37 +7294,36 @@ static void
 xfsidbg_xqm_diskdq(xfs_disk_dquot_t *d)
 {
 	kdb_printf("magic 0x%x\tversion 0x%x\tID 0x%x (%d)\t\n",
-		INT_GET(d->d_magic, ARCH_CONVERT),
-		INT_GET(d->d_version, ARCH_CONVERT),
-		INT_GET(d->d_id, ARCH_CONVERT),
-		INT_GET(d->d_id, ARCH_CONVERT));
+		be16_to_cpu(d->d_magic), d->d_version,
+		be32_to_cpu(d->d_id), be32_to_cpu(d->d_id));
 	kdb_printf("bhard 0x%llx\tbsoft 0x%llx\tihard 0x%llx\tisoft 0x%llx\n",
-		(unsigned long long)INT_GET(d->d_blk_hardlimit, ARCH_CONVERT),
-		(unsigned long long)INT_GET(d->d_blk_softlimit, ARCH_CONVERT),
-		(unsigned long long)INT_GET(d->d_ino_hardlimit, ARCH_CONVERT),
-		(unsigned long long)INT_GET(d->d_ino_softlimit, ARCH_CONVERT));
+		be64_to_cpu(d->d_blk_hardlimit),
+		be64_to_cpu(d->d_blk_softlimit),
+		be64_to_cpu(d->d_ino_hardlimit),
+		be64_to_cpu(d->d_ino_softlimit));
 	kdb_printf("bcount 0x%llx icount 0x%llx\n",
-		(unsigned long long)INT_GET(d->d_bcount, ARCH_CONVERT),
-		(unsigned long long)INT_GET(d->d_icount, ARCH_CONVERT));
+		be64_to_cpu(d->d_bcount),
+		be64_to_cpu(d->d_icount));
 	kdb_printf("btimer 0x%x itimer 0x%x \n",
-		(int)INT_GET(d->d_btimer, ARCH_CONVERT),
-		(int)INT_GET(d->d_itimer, ARCH_CONVERT));
+		be32_to_cpu(d->d_btimer),
+		be32_to_cpu(d->d_itimer));
 }
+
+static char *xdq_flags[] = {
+	"USER",		/* XFS_DQ_USER */
+	"PROJ",		/* XFS_DQ_PROJ */
+	"GROUP",	/* XFS_DQ_GROUP */
+	"FLKD",		/* XFS_DQ_FLOCKED */
+	"DIRTY",	/* XFS_DQ_DIRTY */
+	"WANT",		/* XFS_DQ_WANT */
+	"INACT",	/* XFS_DQ_INACTIVE */
+	"MARKER",	/* XFS_DQ_MARKER */
+	NULL
+};
 
 static void
 xfsidbg_xqm_dquot(xfs_dquot_t *dqp)
 {
-	static char *qflags[] = {
-		"USR",
-		"GRP",
-		"LCKD",
-		"FLKD",
-		"DIRTY",
-		"WANT",
-		"INACT",
-		"MARKER",
-		0
-	};
 	kdb_printf("mount 0x%p hash 0x%p gdquotp 0x%p HL_next 0x%p HL_prevp 0x%p\n",
 		dqp->q_mount,
 		dqp->q_hash,
@@ -7239,11 +7336,13 @@ xfsidbg_xqm_dquot(xfs_dquot_t *dqp)
 		dqp->dq_flnext,
 		dqp->dq_flprev);
 
-	kdb_printf("nrefs 0x%x, res_bcount %d, ",
-		dqp->q_nrefs, (int) dqp->q_res_bcount);
-	printflags(dqp->dq_flags, qflags, "flags:");
-	kdb_printf("\nblkno 0x%llx\tboffset 0x%x\n",
-		(unsigned long long) dqp->q_blkno, (int) dqp->q_bufoffset);
+	kdb_printf("nrefs 0x%x blkno 0x%llx boffset 0x%x ", dqp->q_nrefs,
+		(unsigned long long)dqp->q_blkno, dqp->q_bufoffset);
+	printflags(dqp->dq_flags, xdq_flags, "flags:");
+	kdb_printf("res_bcount %llu res_icount %llu res_rtbcount %llu\n",
+		(unsigned long long)dqp->q_res_bcount,
+		(unsigned long long)dqp->q_res_icount,
+		(unsigned long long)dqp->q_res_rtbcount);
 	kdb_printf("qlock 0x%p  flock 0x%p (%s) pincount 0x%x\n",
 		&dqp->q_qlock,
 		&dqp->q_flock,
@@ -7266,10 +7365,10 @@ xfsidbg_xqm_dquot(xfs_dquot_t *dqp)
 	  for (dqp = (l)->qh_next; dqp != NULL; dqp = dqp->NXT) {\
 	   kdb_printf( \
 	      "\t%d. [0x%p] \"%d (%s)\"\t blks = %d, inos = %d refs = %d\n", \
-			 ++i, dqp, (int) INT_GET(dqp->q_core.d_id, ARCH_CONVERT), \
+			 ++i, dqp, (int) be32_to_cpu(dqp->q_core.d_id), \
 			 DQFLAGTO_TYPESTR(dqp),      \
-			 (int) INT_GET(dqp->q_core.d_bcount, ARCH_CONVERT), \
-			 (int) INT_GET(dqp->q_core.d_icount, ARCH_CONVERT), \
+			 (int) be64_to_cpu(dqp->q_core.d_bcount), \
+			 (int) be64_to_cpu(dqp->q_core.d_icount), \
 			 (int) dqp->q_nrefs); }\
 	  kdb_printf("\n"); \
 }
@@ -7306,10 +7405,10 @@ xfsidbg_xqm_freelist_print(xfs_frlist_t *qlist, char *title)
 	FOREACH_DQUOT_IN_FREELIST(dq, qlist) {
 		kdb_printf("\t%d.\t\"%d (%s:0x%p)\"\t bcnt = %d, icnt = %d "
 		       "refs = %d\n",
-		       ++i, (int) INT_GET(dq->q_core.d_id, ARCH_CONVERT),
+		       ++i, (int) be32_to_cpu(dq->q_core.d_id),
 		       DQFLAGTO_TYPESTR(dq), dq,
-		       (int) INT_GET(dq->q_core.d_bcount, ARCH_CONVERT),
-		       (int) INT_GET(dq->q_core.d_icount, ARCH_CONVERT),
+		       (int) be64_to_cpu(dq->q_core.d_bcount),
+		       (int) be64_to_cpu(dq->q_core.d_icount),
 		       (int) dq->q_nrefs);
 	}
 }
@@ -7343,7 +7442,7 @@ xfsidbg_xqm_htab(void)
 	for (i = 0; i <= xfs_Gqm->qm_dqhashmask; i++) {
 		h = &xfs_Gqm->qm_grp_dqhtable[i];
 		if (h->qh_next) {
-			kdb_printf("GRP %d: ", i);
+			kdb_printf("GRP/PRJ %d: ", i);
 			XQMIDBG_LIST_PRINT(h, HL_NEXT);
 		}
 	}
@@ -7354,19 +7453,6 @@ xfsidbg_xqm_htab(void)
 static int
 xfsidbg_xqm_pr_dqentry(ktrace_entry_t *ktep)
 {
-	static char *xdq_flags[] = {
-		"USR",	  /* 0x1 */
-		"PRJ",	  /* 0x2 */
-		"LCKD",	 /* 0x4 */
-		"GRP",	  /* 0x8 */
-		"FLOCKD",       /* 0x08 */
-		"DIRTY",	/* 0x10 */
-		"WANT",	 /* 0x20 */
-		"INACT",	/* 0x40 */
-		"MARKER",       /* 0x80 */
-		0
-	};
-
 	if ((__psint_t)ktep->val[0] == 0)
 		return 0;
 	switch ((__psint_t)ktep->val[0]) {
@@ -7451,16 +7537,18 @@ xfsidbg_xqm_qinfo(xfs_mount_t *mp)
 		&mp->m_quotainfo->qi_pinlock,
 		&mp->m_quotainfo->qi_dqlist);
 
-	kdb_printf("nreclaims %d, btmlimit 0x%x, itmlimit 0x%x, RTbtmlim 0x%x\n",
-		(int)mp->m_quotainfo->qi_dqreclaims,
+	kdb_printf("btmlimit 0x%x, itmlimit 0x%x, RTbtmlim 0x%x\n",
 		(int)mp->m_quotainfo->qi_btimelimit,
 		(int)mp->m_quotainfo->qi_itimelimit,
 		(int)mp->m_quotainfo->qi_rtbtimelimit);
 
-	kdb_printf("bwarnlim 0x%x, iwarnlim 0x%x, &qofflock 0x%p, "
-		"chunklen 0x%x, dqperchunk 0x%x\n",
+	kdb_printf("bwarnlim 0x%x, iwarnlim 0x%x, RTbwarnlim 0x%x\n",
 		(int)mp->m_quotainfo->qi_bwarnlimit,
 		(int)mp->m_quotainfo->qi_iwarnlimit,
+		(int)mp->m_quotainfo->qi_rtbwarnlimit);
+
+	kdb_printf("nreclaims %d, &qofflock 0x%p, chunklen 0x%x, dqperchunk 0x%x\n",
+		(int)mp->m_quotainfo->qi_dqreclaims,
 		&mp->m_quotainfo->qi_quotaofflock,
 		(int)mp->m_quotainfo->qi_dqchunklen,
 		(int)mp->m_quotainfo->qi_dqperchunk);
@@ -7484,7 +7572,7 @@ xfsidbg_xqm_tpdqinfo(xfs_trans_t *tp)
 			q = &qa[i];
 			kdb_printf(
   "\"%d\"[0x%p]: bres %d, bres-used %d, bdelta %d, del-delta %d, icnt-delta %d\n",
-				(int) q->qt_dquot->q_core.d_id,
+				(int) be32_to_cpu(q->qt_dquot->q_core.d_id),
 				q->qt_dquot,
 				(int) q->qt_blk_res,
 				(int) q->qt_blk_res_used,
@@ -7494,120 +7582,61 @@ xfsidbg_xqm_tpdqinfo(xfs_trans_t *tp)
 		}
 		if (j == 0) {
 			qa = tp->t_dqinfo->dqa_grpdquots;
-			kdb_printf("GRP: \n");
+			kdb_printf("GRP/PRJ: \n");
 		}
 	}
-
 }
-
-#ifdef XFS_RW_TRACE
-/*
- * Print out the read/write trace buffer attached to the given inode.
- */
-static void
-xfsidbg_xrwtrace(xfs_inode_t *ip)
-{
-	ktrace_entry_t	*ktep;
-	ktrace_snap_t	kts;
-	int		nentries;
-	int		skip_entries;
-	int		count = xargument;
-
-	if (ip->i_rwtrace == NULL) {
-		qprintf("The inode trace buffer is not initialized\n");
-		return;
-	}
-	qprintf("i_rwtrace = 0x%p\n", ip->i_rwtrace);
-
-	nentries = ktrace_nentries(ip->i_rwtrace);
-	if (count == -1) {
-		count = nentries;
-	}
-	if ((count <= 0) || (count > nentries)) {
-		qprintf("Invalid count.  There are %d entries.\n", nentries);
-		return;
-	}
-
-	ktep = ktrace_first(ip->i_rwtrace, &kts);
-	if (count != nentries) {
-		/*
-		 * Skip the total minus the number to look at minus one
-		 * for the entry returned by ktrace_first().
-		 */
-		skip_entries = count - nentries - 1;
-		ktep = ktrace_skip(ip->i_rwtrace, skip_entries, &kts);
-		if (ktep == NULL) {
-			qprintf("Skipped them all\n");
-			return;
-		}
-	}
-	while (ktep != NULL) {
-		if (xfs_rw_trace_entry(ktep))
-			qprintf("\n");
-		ktep = ktrace_next(ip->i_rwtrace, &kts);
-	}
-}
-#endif
 
 /*
  * Print xfs superblock.
  */
 static void
-xfsidbg_xsb(xfs_sb_t *sbp, int convert)
+xfsidbg_xsb(xfs_sb_t *sbp)
 {
-	xfs_arch_t arch=convert?ARCH_CONVERT:ARCH_NOCONVERT;
-
-	kdb_printf(convert?"<converted>\n":"<unconverted>\n");
-
 	kdb_printf("magicnum 0x%x blocksize 0x%x dblocks %Ld rblocks %Ld\n",
-		INT_GET(sbp->sb_magicnum, arch), INT_GET(sbp->sb_blocksize, arch),
-		INT_GET(sbp->sb_dblocks, arch), INT_GET(sbp->sb_rblocks, arch));
+		sbp->sb_magicnum, sbp->sb_blocksize,
+		sbp->sb_dblocks, sbp->sb_rblocks);
 	kdb_printf("rextents %Ld uuid %s logstart %s\n",
-		INT_GET(sbp->sb_rextents, arch),
-		xfs_fmtuuid(&sbp->sb_uuid),
-		xfs_fmtfsblock(INT_GET(sbp->sb_logstart, arch), NULL));
-	kdb_printf("rootino %s ",
-		xfs_fmtino(INT_GET(sbp->sb_rootino, arch), NULL));
-	kdb_printf("rbmino %s ",
-		xfs_fmtino(INT_GET(sbp->sb_rbmino, arch), NULL));
-	kdb_printf("rsumino %s\n",
-		xfs_fmtino(INT_GET(sbp->sb_rsumino, arch), NULL));
+		sbp->sb_rextents, xfs_fmtuuid(&sbp->sb_uuid),
+		xfs_fmtfsblock(sbp->sb_logstart, NULL));
+	kdb_printf("rootino %s ", xfs_fmtino(sbp->sb_rootino, NULL));
+	kdb_printf("rbmino %s ", xfs_fmtino(sbp->sb_rbmino, NULL));
+	kdb_printf("rsumino %s\n", xfs_fmtino(sbp->sb_rsumino, NULL));
 	kdb_printf("rextsize 0x%x agblocks 0x%x agcount 0x%x rbmblocks 0x%x\n",
-		INT_GET(sbp->sb_rextsize, arch),
-		INT_GET(sbp->sb_agblocks, arch),
-		INT_GET(sbp->sb_agcount, arch),
-		INT_GET(sbp->sb_rbmblocks, arch));
+		sbp->sb_rextsize, sbp->sb_agblocks, sbp->sb_agcount,
+		sbp->sb_rbmblocks);
 	kdb_printf("logblocks 0x%x versionnum 0x%x sectsize 0x%x inodesize 0x%x\n",
-		INT_GET(sbp->sb_logblocks, arch),
-		INT_GET(sbp->sb_versionnum, arch),
-		INT_GET(sbp->sb_sectsize, arch),
-		INT_GET(sbp->sb_inodesize, arch));
+		sbp->sb_logblocks, sbp->sb_versionnum, sbp->sb_sectsize,
+		sbp->sb_inodesize);
 	kdb_printf("inopblock 0x%x blocklog 0x%x sectlog 0x%x inodelog 0x%x\n",
-		INT_GET(sbp->sb_inopblock, arch),
-		INT_GET(sbp->sb_blocklog, arch),
-		INT_GET(sbp->sb_sectlog, arch),
-		INT_GET(sbp->sb_inodelog, arch));
+		sbp->sb_inopblock, sbp->sb_blocklog, sbp->sb_sectlog,
+		sbp->sb_inodelog);
 	kdb_printf("inopblog %d agblklog %d rextslog %d inprogress %d imax_pct %d\n",
-		INT_GET(sbp->sb_inopblog, arch),
-		INT_GET(sbp->sb_agblklog, arch),
-		INT_GET(sbp->sb_rextslog, arch),
-		INT_GET(sbp->sb_inprogress, arch),
-		INT_GET(sbp->sb_imax_pct, arch));
+		sbp->sb_inopblog, sbp->sb_agblklog, sbp->sb_rextslog,
+		sbp->sb_inprogress, sbp->sb_imax_pct);
 	kdb_printf("icount %Lx ifree %Lx fdblocks %Lx frextents %Lx\n",
-		INT_GET(sbp->sb_icount, arch),
-		INT_GET(sbp->sb_ifree, arch),
-		INT_GET(sbp->sb_fdblocks, arch),
-		INT_GET(sbp->sb_frextents, arch));
-	kdb_printf("uquotino %s ", xfs_fmtino(INT_GET(sbp->sb_uquotino, arch), NULL));
-	kdb_printf("gquotino %s ", xfs_fmtino(INT_GET(sbp->sb_gquotino, arch), NULL));
+		sbp->sb_icount, sbp->sb_ifree,
+		sbp->sb_fdblocks, sbp->sb_frextents);
+	kdb_printf("uquotino %s ", xfs_fmtino(sbp->sb_uquotino, NULL));
+	kdb_printf("gquotino %s ", xfs_fmtino(sbp->sb_gquotino, NULL));
 	kdb_printf("qflags 0x%x flags 0x%x shared_vn %d inoaligmt %d\n",
-		INT_GET(sbp->sb_qflags, arch), INT_GET(sbp->sb_flags, arch), INT_GET(sbp->sb_shared_vn, arch),
-		INT_GET(sbp->sb_inoalignmt, arch));
+		sbp->sb_qflags, sbp->sb_flags, sbp->sb_shared_vn,
+		sbp->sb_inoalignmt);
 	kdb_printf("unit %d width %d dirblklog %d\n",
-		INT_GET(sbp->sb_unit, arch), INT_GET(sbp->sb_width, arch), INT_GET(sbp->sb_dirblklog, arch));
-	kdb_printf("log sunit %d\n", INT_GET(sbp->sb_logsunit, arch));
+		sbp->sb_unit, sbp->sb_width, sbp->sb_dirblklog);
+	kdb_printf("log sunit %d\n", sbp->sb_logsunit);
 }
 
+static void
+xfsidbg_xsb_convert(xfs_sb_t *sbp)
+{
+	xfs_sb_t sb;
+
+	xfs_xlatesb(sbp, &sb, 1, XFS_SB_ALL_BITS);
+
+	kdb_printf("<converted>\n");
+	xfsidbg_xsb(&sb);
+}
 
 /*
  * Print out an XFS transaction structure.  Print summaries for
@@ -7625,59 +7654,20 @@ xfsidbg_xtp(xfs_trans_t *tp)
 		"dirty",	/* 0x1 */
 		"sb_dirty",	/* 0x2 */
 		"perm_log_res",	/* 0x4 */
-		"sync",		 /* 0x08 */
+		"sync",		/* 0x08 */
 		"dq_dirty",     /* 0x10 */
-		0
+		NULL
 		};
 	static char *lid_flags[] = {
 		"dirty",	/* 0x1 */
 		"pinned",	/* 0x2 */
 		"sync unlock",	/* 0x4 */
 		"buf stale",	/* 0x8 */
-		0
+		NULL
 		};
 
 	kdb_printf("tp 0x%p type ", tp);
-	switch (tp->t_type) {
-	case XFS_TRANS_SETATTR_NOT_SIZE: kdb_printf("SETATTR_NOT_SIZE");break;
-	case XFS_TRANS_SETATTR_SIZE:	kdb_printf("SETATTR_SIZE");	break;
-	case XFS_TRANS_INACTIVE:	kdb_printf("INACTIVE");		break;
-	case XFS_TRANS_CREATE:		kdb_printf("CREATE");		break;
-	case XFS_TRANS_CREATE_TRUNC:	kdb_printf("CREATE_TRUNC");	break;
-	case XFS_TRANS_TRUNCATE_FILE:	kdb_printf("TRUNCATE_FILE");	break;
-	case XFS_TRANS_REMOVE:		kdb_printf("REMOVE");		break;
-	case XFS_TRANS_LINK:		kdb_printf("LINK");		break;
-	case XFS_TRANS_RENAME:		kdb_printf("RENAME");		break;
-	case XFS_TRANS_MKDIR:		kdb_printf("MKDIR");		break;
-	case XFS_TRANS_RMDIR:		kdb_printf("RMDIR");		break;
-	case XFS_TRANS_SYMLINK:		kdb_printf("SYMLINK");		break;
-	case XFS_TRANS_SET_DMATTRS:	kdb_printf("SET_DMATTRS");	break;
-	case XFS_TRANS_GROWFS:		kdb_printf("GROWFS");		break;
-	case XFS_TRANS_STRAT_WRITE:	kdb_printf("STRAT_WRITE");	break;
-	case XFS_TRANS_DIOSTRAT:	kdb_printf("DIOSTRAT");		break;
-	case XFS_TRANS_WRITE_SYNC:	kdb_printf("WRITE_SYNC");	break;
-	case XFS_TRANS_WRITEID:		kdb_printf("WRITEID");		break;
-	case XFS_TRANS_ADDAFORK:	kdb_printf("ADDAFORK");		break;
-	case XFS_TRANS_ATTRINVAL:	kdb_printf("ATTRINVAL");	break;
-	case XFS_TRANS_ATRUNCATE:	kdb_printf("ATRUNCATE");	break;
-	case XFS_TRANS_ATTR_SET:	kdb_printf("ATTR_SET");		break;
-	case XFS_TRANS_ATTR_RM:		kdb_printf("ATTR_RM");		break;
-	case XFS_TRANS_ATTR_FLAG:	kdb_printf("ATTR_FLAG");	break;
-	case XFS_TRANS_CLEAR_AGI_BUCKET:kdb_printf("CLEAR_AGI_BUCKET");	break;
-	case XFS_TRANS_QM_SBCHANGE:	kdb_printf("QM_SBCHANGE");	break;
-	case XFS_TRANS_QM_QUOTAOFF:	kdb_printf("QM_QUOTAOFF");	break;
-	case XFS_TRANS_QM_DQALLOC:	kdb_printf("QM_DQALLOC");	break;
-	case XFS_TRANS_QM_SETQLIM:	kdb_printf("QM_SETQLIM");	break;
-	case XFS_TRANS_QM_DQCLUSTER:	kdb_printf("QM_DQCLUSTER");	break;
-	case XFS_TRANS_QM_QINOCREATE:	kdb_printf("QM_QINOCREATE");	break;
-	case XFS_TRANS_QM_QUOTAOFF_END:	kdb_printf("QM_QOFF_END");	break;
-	case XFS_TRANS_SB_UNIT:		kdb_printf("SB_UNIT");		break;
-	case XFS_TRANS_FSYNC_TS:	kdb_printf("FSYNC_TS");		break;
-	case XFS_TRANS_GROWFSRT_ALLOC:	kdb_printf("GROWFSRT_ALLOC");	break;
-	case XFS_TRANS_GROWFSRT_ZERO:	kdb_printf("GROWFSRT_ZERO");	break;
-	case XFS_TRANS_GROWFSRT_FREE:	kdb_printf("GROWFSRT_FREE");	break;
-	default:			kdb_printf("0x%x", tp->t_type);	break;
-	}
+	xfsidbg_print_trans_type(tp->t_type);
 	kdb_printf(" mount 0x%p\n", tp->t_mountp);
 	kdb_printf("flags ");
 	printflags(tp->t_flags, xtp_flags,"xtp");

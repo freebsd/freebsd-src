@@ -1,3 +1,31 @@
+/*
+ * Copyright (c) 2001,2006 Alexander Kabaev, Russell Cattelan Digital Elves Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -11,8 +39,8 @@
 #include <geom/geom_vfs.h>
 
 #include "xfs.h"
-#include "xfs_macros.h"
 #include "xfs_types.h"
+#include "xfs_bit.h"
 #include "xfs_inum.h"
 #include "xfs_log.h"
 #include "xfs_trans.h"
@@ -26,17 +54,16 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_ialloc_btree.h"
 #include "xfs_btree.h"
-#include "xfs_ialloc.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_dinode.h"
+#include "xfs_ialloc.h"
 #include "xfs_inode.h"
 #include "xfs_alloc.h"
 #include "xfs_rtalloc.h"
 #include "xfs_bmap.h"
 #include "xfs_error.h"
-#include "xfs_bit.h"
 #include "xfs_rw.h"
 #include "xfs_quota.h"
 #include "xfs_fsops.h"
@@ -54,7 +81,6 @@ static vfs_statfs_t	_xfs_statfs;
 static vfs_sync_t	_xfs_sync;
 static vfs_vget_t	_xfs_vget;
 static vfs_fhtovp_t	_xfs_fhtovp;
-static vfs_checkexp_t	_xfs_checkexp;
 static vfs_vptofh_t	_xfs_vptofh;
 static vfs_init_t	_xfs_init;
 static vfs_uninit_t	_xfs_uninit;
@@ -168,15 +194,8 @@ _xfs_mount(struct mount		*mp,
 	if (vfs_filteropt(mp->mnt_optnew, xfs_opts))
 		return (EINVAL);
 
-	if (mp->mnt_flag & MNT_UPDATE) {
-		/*
-		 * XXX: Only support update mounts for NFS export.
-		*/
-		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0))
-			return (0);
-		else
-			return EOPNOTSUPP;
-	}
+	if (mp->mnt_flag & MNT_UPDATE)
+		return (0);
 
         xmp = xfsmount_allocate(mp);
         if (xmp == NULL)
@@ -184,10 +203,6 @@ _xfs_mount(struct mount		*mp,
 
 	if((error = _xfs_param_copyin(mp, td)) != 0)
 		goto fail;
-
-	/* Force read-only mounts in this branch. */
-	XFSTOVFS(xmp)->vfs_flag |= VFS_RDONLY;
-        mp->mnt_flag |= MNT_RDONLY;
 
 	curcred = td->td_ucred;
 	XVFS_MOUNT(XFSTOVFS(xmp), &xmp->m_args, curcred, error);
@@ -198,13 +213,13 @@ _xfs_mount(struct mount		*mp,
 	if (error)
 		goto fail_unmount;
 
-	ddev = XFS_VFSTOM(XFSTOVFS(xmp))->m_dev;
+	ddev = XFS_VFSTOM(XFSTOVFS(xmp))->m_ddev_targp->dev;
  	if (ddev->si_iosize_max != 0)
 		mp->mnt_iosize_max = ddev->si_iosize_max;
         if (mp->mnt_iosize_max > MAXPHYS)
 		mp->mnt_iosize_max = MAXPHYS;
 
-        mp->mnt_flag |= MNT_LOCAL | MNT_RDONLY;
+        mp->mnt_flag |= MNT_LOCAL;
         mp->mnt_stat.f_fsid.val[0] = dev2udev(ddev);
         mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 
@@ -269,7 +284,7 @@ _xfs_quotactl(mp, cmd, uid, arg, td)
 	struct thread *td;
 {
 	printf("xfs_quotactl\n");
-	return ENOSYS;
+	return EOPNOTSUPP;
 }
 
 static int
@@ -335,17 +350,6 @@ _xfs_fhtovp(mp, fidp, vpp)
 }
 
 static int
-_xfs_checkexp(mp, nam, extflagsp, credanonp)
-	struct mount *mp;
-	struct sockaddr *nam;
-	int *extflagsp;
-	struct ucred **credanonp;
-{
-	printf("xfs_checkexp\n");
-	return ENOSYS;
-}
-
-static int
 _xfs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
@@ -392,15 +396,13 @@ static struct vfsops xfs_fsops = {
 	.vfs_sync =	_xfs_sync,
 	.vfs_vget =	_xfs_vget,
 	.vfs_fhtovp =	_xfs_fhtovp,
-	.vfs_checkexp =	_xfs_checkexp,
 	.vfs_vptofh =	_xfs_vptofh,
 	.vfs_init =	_xfs_init,
 	.vfs_uninit =	_xfs_uninit,
 	.vfs_extattrctl = _xfs_extattrctl,
 };
 
-/* XXX: Read-only for now */
-VFS_SET(xfs_fsops, xfs, VFCF_READONLY);
+VFS_SET(xfs_fsops, xfs, 0);
 
 /*
  *  Copy GEOM VFS functions here to provide a conveniet place to
@@ -456,9 +458,15 @@ xfs_geom_bufwrite(struct buf *bp)
 	return bufwrite(bp);
 }
 
-struct buf_ops xfs_ops = {
+static int
+xfs_geom_bufsync(struct bufobj *bo, int waitfor, struct thread *td)
+{
+	return bufsync(bo,waitfor,td);
+}
+
+struct buf_ops xfs_bo_ops = {
 	.bop_name =     "XFS",
 	.bop_write =    xfs_geom_bufwrite,
 	.bop_strategy = xfs_geom_strategy,
-	.bop_sync =     bufsync,
+	.bop_sync =     xfs_geom_bufsync,
 };

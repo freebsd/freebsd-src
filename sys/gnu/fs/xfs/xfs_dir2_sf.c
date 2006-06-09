@@ -1,60 +1,39 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
-/*
- * xfs_dir2_sf.c
- * Shortform directory implementation for v2 directories.
- */
-
 #include "xfs.h"
-
-#include "xfs_macros.h"
+#include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_inum.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
+#include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
-#include "xfs_inode_item.h"
 #include "xfs_inode.h"
-#include "xfs_da_btree.h"
+#include "xfs_inode_item.h"
 #include "xfs_dir_leaf.h"
 #include "xfs_error.h"
 #include "xfs_dir2_data.h"
@@ -107,20 +86,20 @@ xfs_dir2_block_sfsize(
 	int			isdotdot;	/* entry is ".." */
 	xfs_mount_t		*mp;		/* mount structure pointer */
 	int			namelen;	/* total name bytes */
-	xfs_ino_t		parent;		/* parent inode number */
+	xfs_ino_t		parent = 0;	/* parent inode number */
 	int			size=0;		/* total computed size */
 
 	mp = dp->i_mount;
 
 	count = i8count = namelen = 0;
 	btp = XFS_DIR2_BLOCK_TAIL_P(mp, block);
-	blp = XFS_DIR2_BLOCK_LEAF_P_ARCH(btp, ARCH_CONVERT);
+	blp = XFS_DIR2_BLOCK_LEAF_P(btp);
 
 	/*
 	 * Iterate over the block's data entries by using the leaf pointers.
 	 */
-	for (i = 0; i < INT_GET(btp->count, ARCH_CONVERT); i++) {
-		if ((addr = INT_GET(blp[i].address, ARCH_CONVERT)) == XFS_DIR2_NULL_DATAPTR)
+	for (i = 0; i < be32_to_cpu(btp->count); i++) {
+		if ((addr = be32_to_cpu(blp[i].address)) == XFS_DIR2_NULL_DATAPTR)
 			continue;
 		/*
 		 * Calculate the pointer to the entry at hand.
@@ -163,7 +142,7 @@ xfs_dir2_block_sfsize(
 	 */
 	sfhp->count = count;
 	sfhp->i8count = i8count;
-	XFS_DIR2_SF_PUT_INUMBER_ARCH((xfs_dir2_sf_t *)sfhp, &parent, &sfhp->parent, ARCH_CONVERT);
+	XFS_DIR2_SF_PUT_INUMBER((xfs_dir2_sf_t *)sfhp, &parent, &sfhp->parent);
 	return size;
 }
 
@@ -230,7 +209,7 @@ xfs_dir2_block_to_sf(
 	 */
 	btp = XFS_DIR2_BLOCK_TAIL_P(mp, block);
 	ptr = (char *)block->u;
-	endptr = (char *)XFS_DIR2_BLOCK_LEAF_P_ARCH(btp, ARCH_CONVERT);
+	endptr = (char *)XFS_DIR2_BLOCK_LEAF_P(btp);
 	sfep = XFS_DIR2_SF_FIRSTENTRY(sfp);
 	/*
 	 * Loop over the active and unused entries.
@@ -241,8 +220,8 @@ xfs_dir2_block_to_sf(
 		 * If it's unused, just skip over it.
 		 */
 		dup = (xfs_dir2_data_unused_t *)ptr;
-		if (INT_GET(dup->freetag, ARCH_CONVERT) == XFS_DIR2_DATA_FREE_TAG) {
-			ptr += INT_GET(dup->length, ARCH_CONVERT);
+		if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
+			ptr += be16_to_cpu(dup->length);
 			continue;
 		}
 		dep = (xfs_dir2_data_entry_t *)ptr;
@@ -257,19 +236,19 @@ xfs_dir2_block_to_sf(
 		else if (dep->namelen == 2 &&
 			 dep->name[0] == '.' && dep->name[1] == '.')
 			ASSERT(INT_GET(dep->inumber, ARCH_CONVERT) ==
-			       XFS_DIR2_SF_GET_INUMBER_ARCH(sfp, &sfp->hdr.parent, ARCH_CONVERT));
+			       XFS_DIR2_SF_GET_INUMBER(sfp, &sfp->hdr.parent));
 		/*
 		 * Normal entry, copy it into shortform.
 		 */
 		else {
 			sfep->namelen = dep->namelen;
-			XFS_DIR2_SF_PUT_OFFSET_ARCH(sfep,
+			XFS_DIR2_SF_PUT_OFFSET(sfep,
 				(xfs_dir2_data_aoff_t)
-				((char *)dep - (char *)block), ARCH_CONVERT);
+				((char *)dep - (char *)block));
 			memcpy(sfep->name, dep->name, dep->namelen);
 			temp=INT_GET(dep->inumber, ARCH_CONVERT);
-			XFS_DIR2_SF_PUT_INUMBER_ARCH(sfp, &temp,
-				XFS_DIR2_SF_INUMBERP(sfep), ARCH_CONVERT);
+			XFS_DIR2_SF_PUT_INUMBER(sfp, &temp,
+				XFS_DIR2_SF_INUMBERP(sfep));
 			sfep = XFS_DIR2_SF_NEXTENTRY(sfp, sfep);
 		}
 		ptr += XFS_DIR2_DATA_ENTSIZE(dep->namelen);
@@ -298,11 +277,11 @@ xfs_dir2_sf_addname(
 	int			incr_isize;	/* total change in size */
 	int			new_isize;	/* di_size after adding name */
 	int			objchange;	/* changing to 8-byte inodes */
-	xfs_dir2_data_aoff_t	offset;		/* offset for new entry */
+	xfs_dir2_data_aoff_t	offset = 0;	/* offset for new entry */
 	int			old_isize;	/* di_size before adding name */
 	int			pick;		/* which algorithm to use */
 	xfs_dir2_sf_t		*sfp;		/* shortform structure */
-	xfs_dir2_sf_entry_t	*sfep;		/* shortform entry */
+	xfs_dir2_sf_entry_t	*sfep = NULL;	/* shortform entry */
 
 	xfs_dir2_trace_args("sf_addname", args);
 	ASSERT(xfs_dir2_sf_lookup(args) == ENOENT);
@@ -427,10 +406,10 @@ xfs_dir2_sf_addname_easy(
 	 * Fill in the new entry.
 	 */
 	sfep->namelen = args->namelen;
-	XFS_DIR2_SF_PUT_OFFSET_ARCH(sfep, offset, ARCH_CONVERT);
+	XFS_DIR2_SF_PUT_OFFSET(sfep, offset);
 	memcpy(sfep->name, args->name, sfep->namelen);
-	XFS_DIR2_SF_PUT_INUMBER_ARCH(sfp, &args->inumber,
-		XFS_DIR2_SF_INUMBERP(sfep), ARCH_CONVERT);
+	XFS_DIR2_SF_PUT_INUMBER(sfp, &args->inumber,
+		XFS_DIR2_SF_INUMBERP(sfep));
 	/*
 	 * Update the header and inode.
 	 */
@@ -494,7 +473,7 @@ xfs_dir2_sf_addname_hard(
 	     offset = new_offset + XFS_DIR2_DATA_ENTSIZE(oldsfep->namelen),
 	      oldsfep = XFS_DIR2_SF_NEXTENTRY(oldsfp, oldsfep),
 	      eof = (char *)oldsfep == &buf[old_isize]) {
-		new_offset = XFS_DIR2_SF_GET_OFFSET_ARCH(oldsfep, ARCH_CONVERT);
+		new_offset = XFS_DIR2_SF_GET_OFFSET(oldsfep);
 		if (offset + add_datasize <= new_offset)
 			break;
 	}
@@ -519,10 +498,10 @@ xfs_dir2_sf_addname_hard(
 	 * Fill in the new entry, and update the header counts.
 	 */
 	sfep->namelen = args->namelen;
-	XFS_DIR2_SF_PUT_OFFSET_ARCH(sfep, offset, ARCH_CONVERT);
+	XFS_DIR2_SF_PUT_OFFSET(sfep, offset);
 	memcpy(sfep->name, args->name, sfep->namelen);
-	XFS_DIR2_SF_PUT_INUMBER_ARCH(sfp, &args->inumber,
-		XFS_DIR2_SF_INUMBERP(sfep), ARCH_CONVERT);
+	XFS_DIR2_SF_PUT_INUMBER(sfp, &args->inumber,
+		XFS_DIR2_SF_INUMBERP(sfep));
 	sfp->hdr.count++;
 #if XFS_BIG_INUMS
 	if (args->inumber > XFS_DIR2_MAX_SHORT_INUM && !objchange)
@@ -579,8 +558,8 @@ xfs_dir2_sf_addname_pick(
 	 */
 	for (i = 0; i < sfp->hdr.count; i++) {
 		if (!holefit)
-			holefit = offset + size <= XFS_DIR2_SF_GET_OFFSET_ARCH(sfep, ARCH_CONVERT);
-		offset = XFS_DIR2_SF_GET_OFFSET_ARCH(sfep, ARCH_CONVERT) +
+			holefit = offset + size <= XFS_DIR2_SF_GET_OFFSET(sfep);
+		offset = XFS_DIR2_SF_GET_OFFSET(sfep) +
 			 XFS_DIR2_DATA_ENTSIZE(sfep->namelen);
 		sfep = XFS_DIR2_SF_NEXTENTRY(sfp, sfep);
 	}
@@ -641,17 +620,17 @@ xfs_dir2_sf_check(
 
 	sfp = (xfs_dir2_sf_t *)dp->i_df.if_u1.if_data;
 	offset = XFS_DIR2_DATA_FIRST_OFFSET;
-	ino = XFS_DIR2_SF_GET_INUMBER_ARCH(sfp, &sfp->hdr.parent, ARCH_CONVERT);
+	ino = XFS_DIR2_SF_GET_INUMBER(sfp, &sfp->hdr.parent);
 	i8count = ino > XFS_DIR2_MAX_SHORT_INUM;
 
 	for (i = 0, sfep = XFS_DIR2_SF_FIRSTENTRY(sfp);
 	     i < sfp->hdr.count;
 	     i++, sfep = XFS_DIR2_SF_NEXTENTRY(sfp, sfep)) {
-		ASSERT(XFS_DIR2_SF_GET_OFFSET_ARCH(sfep, ARCH_CONVERT) >= offset);
-		ino = XFS_DIR2_SF_GET_INUMBER_ARCH(sfp, XFS_DIR2_SF_INUMBERP(sfep), ARCH_CONVERT);
+		ASSERT(XFS_DIR2_SF_GET_OFFSET(sfep) >= offset);
+		ino = XFS_DIR2_SF_GET_INUMBER(sfp, XFS_DIR2_SF_INUMBERP(sfep));
 		i8count += ino > XFS_DIR2_MAX_SHORT_INUM;
 		offset =
-			XFS_DIR2_SF_GET_OFFSET_ARCH(sfep, ARCH_CONVERT) +
+			XFS_DIR2_SF_GET_OFFSET(sfep) +
 			XFS_DIR2_DATA_ENTSIZE(sfep->namelen);
 	}
 	ASSERT(i8count == sfp->hdr.i8count);
@@ -708,7 +687,7 @@ xfs_dir2_sf_create(
 	/*
 	 * Now can put in the inode number, since i8count is set.
 	 */
-	XFS_DIR2_SF_PUT_INUMBER_ARCH(sfp, &pino, &sfp->hdr.parent, ARCH_CONVERT);
+	XFS_DIR2_SF_PUT_INUMBER(sfp, &pino, &sfp->hdr.parent);
 	sfp->hdr.count = 0;
 	dp->i_d.di_size = size;
 	xfs_dir2_sf_check(args);
@@ -800,8 +779,7 @@ xfs_dir2_sf_getdents(
 					       XFS_DIR2_DATA_DOTDOT_OFFSET)) {
 		p.cook = XFS_DIR2_DB_OFF_TO_DATAPTR(mp, mp->m_dirdatablk,
 						XFS_DIR2_DATA_FIRST_OFFSET);
-		p.ino = XFS_DIR2_SF_GET_INUMBER_ARCH(sfp, &sfp->hdr.parent,
-						ARCH_CONVERT);
+		p.ino = XFS_DIR2_SF_GET_INUMBER(sfp, &sfp->hdr.parent);
 #if XFS_BIG_INUMS
 		p.ino += mp->m_inoadd;
 #endif
@@ -826,7 +804,7 @@ xfs_dir2_sf_getdents(
 			     i++, sfep = XFS_DIR2_SF_NEXTENTRY(sfp, sfep)) {
 
 		off = XFS_DIR2_DB_OFF_TO_DATAPTR(mp, mp->m_dirdatablk,
-				XFS_DIR2_SF_GET_OFFSET_ARCH(sfep, ARCH_CONVERT));
+				XFS_DIR2_SF_GET_OFFSET(sfep));
 
 		if (dir_offset > off)
 			continue;
@@ -834,11 +812,10 @@ xfs_dir2_sf_getdents(
 		p.namelen = sfep->namelen;
 
 		p.cook = XFS_DIR2_DB_OFF_TO_DATAPTR(mp, mp->m_dirdatablk,
-			XFS_DIR2_SF_GET_OFFSET_ARCH(sfep, ARCH_CONVERT) +
+			XFS_DIR2_SF_GET_OFFSET(sfep) +
 			XFS_DIR2_DATA_ENTSIZE(p.namelen));
 
-		p.ino = XFS_DIR2_SF_GET_INUMBER_ARCH(sfp,
-				XFS_DIR2_SF_INUMBERP(sfep), ARCH_CONVERT);
+		p.ino = XFS_DIR2_SF_GET_INUMBER(sfp, XFS_DIR2_SF_INUMBERP(sfep));
 #if XFS_BIG_INUMS
 		p.ino += mp->m_inoadd;
 #endif
@@ -904,7 +881,7 @@ xfs_dir2_sf_lookup(
 	 */
 	if (args->namelen == 2 &&
 	    args->name[0] == '.' && args->name[1] == '.') {
-		args->inumber = XFS_DIR2_SF_GET_INUMBER_ARCH(sfp, &sfp->hdr.parent, ARCH_CONVERT);
+		args->inumber = XFS_DIR2_SF_GET_INUMBER(sfp, &sfp->hdr.parent);
 		return XFS_ERROR(EEXIST);
 	}
 	/*
@@ -917,8 +894,8 @@ xfs_dir2_sf_lookup(
 		    sfep->name[0] == args->name[0] &&
 		    memcmp(args->name, sfep->name, args->namelen) == 0) {
 			args->inumber =
-				XFS_DIR2_SF_GET_INUMBER_ARCH(sfp,
-					XFS_DIR2_SF_INUMBERP(sfep), ARCH_CONVERT);
+				XFS_DIR2_SF_GET_INUMBER(sfp,
+					XFS_DIR2_SF_INUMBERP(sfep));
 			return XFS_ERROR(EEXIST);
 		}
 	}
@@ -971,8 +948,8 @@ xfs_dir2_sf_removename(
 		if (sfep->namelen == args->namelen &&
 		    sfep->name[0] == args->name[0] &&
 		    memcmp(sfep->name, args->name, args->namelen) == 0) {
-			ASSERT(XFS_DIR2_SF_GET_INUMBER_ARCH(sfp,
-					XFS_DIR2_SF_INUMBERP(sfep), ARCH_CONVERT) ==
+			ASSERT(XFS_DIR2_SF_GET_INUMBER(sfp,
+					XFS_DIR2_SF_INUMBERP(sfep)) ==
 				args->inumber);
 			break;
 		}
@@ -1093,10 +1070,10 @@ xfs_dir2_sf_replace(
 	if (args->namelen == 2 &&
 	    args->name[0] == '.' && args->name[1] == '.') {
 #if XFS_BIG_INUMS || defined(DEBUG)
-		ino = XFS_DIR2_SF_GET_INUMBER_ARCH(sfp, &sfp->hdr.parent, ARCH_CONVERT);
+		ino = XFS_DIR2_SF_GET_INUMBER(sfp, &sfp->hdr.parent);
 		ASSERT(args->inumber != ino);
 #endif
-		XFS_DIR2_SF_PUT_INUMBER_ARCH(sfp, &args->inumber, &sfp->hdr.parent, ARCH_CONVERT);
+		XFS_DIR2_SF_PUT_INUMBER(sfp, &args->inumber, &sfp->hdr.parent);
 	}
 	/*
 	 * Normal entry, look for the name.
@@ -1109,12 +1086,12 @@ xfs_dir2_sf_replace(
 			    sfep->name[0] == args->name[0] &&
 			    memcmp(args->name, sfep->name, args->namelen) == 0) {
 #if XFS_BIG_INUMS || defined(DEBUG)
-				ino = XFS_DIR2_SF_GET_INUMBER_ARCH(sfp,
-					XFS_DIR2_SF_INUMBERP(sfep), ARCH_CONVERT);
+				ino = XFS_DIR2_SF_GET_INUMBER(sfp,
+					XFS_DIR2_SF_INUMBERP(sfep));
 				ASSERT(args->inumber != ino);
 #endif
-				XFS_DIR2_SF_PUT_INUMBER_ARCH(sfp, &args->inumber,
-					XFS_DIR2_SF_INUMBERP(sfep), ARCH_CONVERT);
+				XFS_DIR2_SF_PUT_INUMBER(sfp, &args->inumber,
+					XFS_DIR2_SF_INUMBERP(sfep));
 				break;
 			}
 		}
@@ -1215,8 +1192,8 @@ xfs_dir2_sf_toino4(
 	 */
 	sfp->hdr.count = oldsfp->hdr.count;
 	sfp->hdr.i8count = 0;
-	ino = XFS_DIR2_SF_GET_INUMBER_ARCH(oldsfp, &oldsfp->hdr.parent, ARCH_CONVERT);
-	XFS_DIR2_SF_PUT_INUMBER_ARCH(sfp, &ino, &sfp->hdr.parent, ARCH_CONVERT);
+	ino = XFS_DIR2_SF_GET_INUMBER(oldsfp, &oldsfp->hdr.parent);
+	XFS_DIR2_SF_PUT_INUMBER(sfp, &ino, &sfp->hdr.parent);
 	/*
 	 * Copy the entries field by field.
 	 */
@@ -1228,9 +1205,9 @@ xfs_dir2_sf_toino4(
 		sfep->namelen = oldsfep->namelen;
 		sfep->offset = oldsfep->offset;
 		memcpy(sfep->name, oldsfep->name, sfep->namelen);
-		ino = XFS_DIR2_SF_GET_INUMBER_ARCH(oldsfp,
-			XFS_DIR2_SF_INUMBERP(oldsfep), ARCH_CONVERT);
-		XFS_DIR2_SF_PUT_INUMBER_ARCH(sfp, &ino, XFS_DIR2_SF_INUMBERP(sfep), ARCH_CONVERT);
+		ino = XFS_DIR2_SF_GET_INUMBER(oldsfp,
+			XFS_DIR2_SF_INUMBERP(oldsfep));
+		XFS_DIR2_SF_PUT_INUMBER(sfp, &ino, XFS_DIR2_SF_INUMBERP(sfep));
 	}
 	/*
 	 * Clean up the inode.
@@ -1292,8 +1269,8 @@ xfs_dir2_sf_toino8(
 	 */
 	sfp->hdr.count = oldsfp->hdr.count;
 	sfp->hdr.i8count = 1;
-	ino = XFS_DIR2_SF_GET_INUMBER_ARCH(oldsfp, &oldsfp->hdr.parent, ARCH_CONVERT);
-	XFS_DIR2_SF_PUT_INUMBER_ARCH(sfp, &ino, &sfp->hdr.parent, ARCH_CONVERT);
+	ino = XFS_DIR2_SF_GET_INUMBER(oldsfp, &oldsfp->hdr.parent);
+	XFS_DIR2_SF_PUT_INUMBER(sfp, &ino, &sfp->hdr.parent);
 	/*
 	 * Copy the entries field by field.
 	 */
@@ -1305,9 +1282,9 @@ xfs_dir2_sf_toino8(
 		sfep->namelen = oldsfep->namelen;
 		sfep->offset = oldsfep->offset;
 		memcpy(sfep->name, oldsfep->name, sfep->namelen);
-		ino = XFS_DIR2_SF_GET_INUMBER_ARCH(oldsfp,
-			XFS_DIR2_SF_INUMBERP(oldsfep), ARCH_CONVERT);
-		XFS_DIR2_SF_PUT_INUMBER_ARCH(sfp, &ino, XFS_DIR2_SF_INUMBERP(sfep), ARCH_CONVERT);
+		ino = XFS_DIR2_SF_GET_INUMBER(oldsfp,
+			XFS_DIR2_SF_INUMBERP(oldsfep));
+		XFS_DIR2_SF_PUT_INUMBER(sfp, &ino, XFS_DIR2_SF_INUMBERP(sfep));
 	}
 	/*
 	 * Clean up the inode.

@@ -1,40 +1,25 @@
 /*
- * Copyright (c) 2000-2002 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
-#include "xfs_macros.h"
+#include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_inum.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 
@@ -94,7 +79,7 @@ xfs_trans_add_item(xfs_trans_t *tp, xfs_log_item_t *lip)
 		lidp->lid_size = 0;
 		lip->li_desc = lidp;
 		lip->li_mountp = tp->t_mountp;
-		return (lidp);
+		return lidp;
 	}
 
 	/*
@@ -135,7 +120,7 @@ xfs_trans_add_item(xfs_trans_t *tp, xfs_log_item_t *lip)
 	lidp->lid_size = 0;
 	lip->li_desc = lidp;
 	lip->li_mountp = tp->t_mountp;
-	return (lidp);
+	return lidp;
 }
 
 /*
@@ -196,7 +181,7 @@ xfs_trans_find_item(xfs_trans_t	*tp, xfs_log_item_t *lip)
 {
 	ASSERT(lip->li_desc != NULL);
 
-	return (lip->li_desc);
+	return lip->li_desc;
 }
 
 
@@ -235,10 +220,10 @@ xfs_trans_first_item(xfs_trans_t *tp)
 			continue;
 		}
 
-		return (XFS_LIC_SLOT(licp, i));
+		return XFS_LIC_SLOT(licp, i);
 	}
 	cmn_err(CE_WARN, "xfs_trans_first_item() -- no first item");
-	return(NULL);
+	return NULL;
 }
 
 
@@ -268,7 +253,7 @@ xfs_trans_next_item(xfs_trans_t *tp, xfs_log_item_desc_t *lidp)
 			continue;
 		}
 
-		return (XFS_LIC_SLOT(licp, i));
+		return XFS_LIC_SLOT(licp, i);
 	}
 
 	/*
@@ -277,7 +262,7 @@ xfs_trans_next_item(xfs_trans_t *tp, xfs_log_item_desc_t *lidp)
 	 * If there is no next chunk, return NULL.
 	 */
 	if (licp->lic_next == NULL) {
-		return (NULL);
+		return NULL;
 	}
 
 	licp = licp->lic_next;
@@ -287,11 +272,11 @@ xfs_trans_next_item(xfs_trans_t *tp, xfs_log_item_desc_t *lidp)
 			continue;
 		}
 
-		return (XFS_LIC_SLOT(licp, i));
+		return XFS_LIC_SLOT(licp, i);
 	}
 	ASSERT(0);
 	/* NOTREACHED */
-	return 0; /* keep gcc quite */
+	return NULL; /* keep gcc quite */
 }
 
 /*
@@ -398,7 +383,8 @@ xfs_trans_unlock_items(xfs_trans_t *tp, xfs_lsn_t commit_lsn)
  * Stamp the commit lsn into each item if necessary.
  * Free descriptors pointing to items which are not dirty if freeing_chunk
  * is zero. If freeing_chunk is non-zero, then we need to unlock all
- * items in the chunk including those with XFS_LID_SYNC_UNLOCK set.
+ * items in the chunk.
+ * 
  * Return the number of descriptors freed.
  */
 STATIC int
@@ -424,18 +410,9 @@ xfs_trans_unlock_chunk(
 
 		if (commit_lsn != NULLCOMMITLSN)
 			IOP_COMMITTING(lip, commit_lsn);
-
-		/* XXXsup */
 		if (abort)
 			lip->li_flags |= XFS_LI_ABORTED;
-
-		/* if (abort) {
-			IOP_ABORT(lip);
-		} else */
-		if (!(lidp->lid_flags & XFS_LID_SYNC_UNLOCK) ||
-			   freeing_chunk || abort) {
-			IOP_UNLOCK(lip);
-		}
+		IOP_UNLOCK(lip);
 
 		/*
 		 * Free the descriptor if the item is not dirty
@@ -449,7 +426,7 @@ xfs_trans_unlock_chunk(
 		}
 	}
 
-	return (freed);
+	return freed;
 }
 
 
@@ -502,7 +479,7 @@ xfs_trans_add_busy(xfs_trans_t *tp, xfs_agnumber_t ag, xfs_extlen_t idx)
 		 */
 		lbsp->lbc_ag = ag;
 		lbsp->lbc_idx = idx;
-		return (lbsp);
+		return lbsp;
 	}
 
 	/*
@@ -536,7 +513,7 @@ xfs_trans_add_busy(xfs_trans_t *tp, xfs_agnumber_t ag, xfs_extlen_t idx)
 	tp->t_busy_free--;
 	lbsp->lbc_ag = ag;
 	lbsp->lbc_idx = idx;
-	return (lbsp);
+	return lbsp;
 }
 
 

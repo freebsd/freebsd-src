@@ -63,7 +63,6 @@
 #include <sys/namei.h>
 
 struct  xfs_iomap;
-typedef xfs_ino_t vnumber_t;
 typedef struct componentname vname_t;
 typedef bhv_head_t vn_bhv_head_t;
 
@@ -74,9 +73,8 @@ typedef bhv_head_t vn_bhv_head_t;
  */
 typedef struct xfs_vnode {
 	__u32		v_flag;			/* vnode flags (see below) */
-	enum vtype	v_type;			/* vnode type */
 	struct xfs_vfs	*v_vfsp;		/* ptr to containing VFS */
-	vnumber_t	v_number;		/* in-core vnode number */
+	xfs_ino_t	v_number;		/* in-core vnode number */
 	vn_bhv_head_t	v_bh;			/* behavior head */
 	struct vnode	*v_vnode;		/* FreeBSD vnode */
 	struct xfs_inode *v_inode;		/* XFS inode */
@@ -84,6 +82,15 @@ typedef struct xfs_vnode {
 	struct ktrace	*v_trace;		/* trace header structure    */
 #endif
 } xfs_vnode_t;
+
+
+/* vnode types */
+#define VN_ISLNK(vp)	((vp)->v_vnode->v_type & VLNK)
+#define VN_ISREG(vp)	((vp)->v_vnode->v_type & VREG)
+#define VN_ISDIR(vp)	((vp)->v_vnode->v_type & VDIR)
+#define VN_ISCHR(vp)	((vp)->v_vnode->v_type & VCHR)
+#define VN_ISBLK(vp)	((vp)->v_vnode->v_type & VBLK)
+#define VN_BAD(vp)	((vp)->v_vnode->v_type & VBAD)
 
 #define v_fbhv			v_bh.bh_first	       /* first behavior */
 #define v_fops			v_bh.bh_first->bd_ops  /* first behavior ops */
@@ -125,19 +132,6 @@ typedef enum {
  */
 #define LINVFS_GET_VP(inode)	((xfs_vnode_t *)NULL)
 #define LINVFS_GET_IP(vp)	((xfs_inode_t *)NULL)
-
-#ifndef __FreeBSD__
-/*
- * Convert between vnode types and inode formats (since POSIX.1
- * defines mode word of stat structure in terms of inode formats).
- */
-extern enum vtype	iftovt_tab[];
-extern u_short		vttoif_tab[];
-#define IFTOVT(mode)	(iftovt_tab[((mode) & S_IFMT) >> 12])
-#define VTTOIF(indx)	(vttoif_tab[(int)(indx)])
-#define MAKEIMODE(indx, mode)	(int)(VTTOIF(indx) | (mode))
-#endif
-
 
 /*
  * Vnode flags.
@@ -188,7 +182,7 @@ typedef int	(*xfs_vop_open_t)(bhv_desc_t *, struct cred *);
 typedef ssize_t (*xfs_vop_read_t)(bhv_desc_t *, uio_t *, int, struct cred *);
 typedef ssize_t (*xfs_vop_write_t)(bhv_desc_t *, uio_t *, int, struct cred *);
 typedef int	(*xfs_vop_ioctl_t)(bhv_desc_t *, struct inode *, struct file *,
-				int, unsigned int, unsigned long);
+				int, unsigned int, void *);
 typedef int	(*xfs_vop_getattr_t)(bhv_desc_t *, struct xfs_vattr *, int,
 				struct cred *);
 typedef int	(*xfs_vop_setattr_t)(bhv_desc_t *, struct xfs_vattr *, int,
@@ -198,7 +192,7 @@ typedef int	(*xfs_vop_lookup_t)(bhv_desc_t *, vname_t *, xfs_vnode_t **,
 				int, xfs_vnode_t *, struct cred *);
 typedef int	(*xfs_vop_create_t)(bhv_desc_t *, vname_t *, struct xfs_vattr *,
 				xfs_vnode_t **, struct cred *);
-typedef int	(*xfs_vop_remove_t)(bhv_desc_t *, vname_t *, struct cred *);
+typedef int	(*xfs_vop_remove_t)(bhv_desc_t *, bhv_desc_t *, vname_t *, struct cred *);
 typedef int	(*xfs_vop_link_t)(bhv_desc_t *, xfs_vnode_t *, vname_t *,
 				struct cred *);
 typedef int	(*xfs_vop_rename_t)(bhv_desc_t *, vname_t *, xfs_vnode_t *, vname_t *,
@@ -378,7 +372,7 @@ typedef struct xfs_vnodeops {
  */
 #define IO_ISDIRECT	IO_DIRECT	/* bypass page cache */
 #define IO_INVIS	0x02000		/* don't update inode timestamps */
-#define IO_ISLOCKED	0x04000		/* don't do inode locking */
+/* #define IO_ISLOCKED	0x04000		don't do inode locking, strictly a CXFS thing */
 
 /*
  * Flags for VOP_IFLUSH call
@@ -404,7 +398,6 @@ typedef struct xfs_vnodeops {
  */
 typedef struct xfs_vattr {
 	int		va_mask;	/* bit-mask of attributes present */
-	enum vtype	va_type;	/* vnode type (for create) */
 	mode_t		va_mode;	/* file access mode and type */
 	nlink_t		va_nlink;	/* number of references to file */
 	uid_t		va_uid;		/* owner user id */
@@ -496,10 +489,11 @@ typedef struct xfs_vattr {
  * Check whether mandatory file locking is enabled.
  */
 #define MANDLOCK(vp, mode)	\
-	((vp)->v_type == VREG && ((mode) & (VSGID|(VEXEC>>3))) == VSGID)
+	((vp)->v_vnode->v_type == VREG && ((mode) & (VSGID|(VEXEC>>3))) == VSGID)
 
-extern void	vn_init(void);
-extern int	vn_wait(struct xfs_vnode *);
+extern void		vn_init(void);
+extern int		vn_wait(struct xfs_vnode *);
+extern void		vn_iowait(struct xfs_vnode *);
 extern xfs_vnode_t	*vn_initialize(struct xfs_vnode *);
 
 /*
@@ -525,16 +519,17 @@ typedef struct vnode_map {
 	struct vnode	*v_vp;
 } vmap_t;
 
+#if 1
 #define VMAP(vp, vmap)	{(vmap).v_vfsp	 = (vp)->v_vfsp;	\
 			 (vmap).v_vp     = (vp)->v_vnode;	\
 			 (vmap).v_ino	 = (vp)->v_inode->i_ino;\
 			 vhold((vp)->v_vnode);			\
 			}
+#endif
 
-extern void	vn_purge(struct xfs_vnode *, vmap_t *);
+extern void	vn_purge(struct xfs_vnode *);
 extern xfs_vnode_t	*vn_get(struct xfs_vnode *, vmap_t *);
 extern int	vn_revalidate(struct xfs_vnode *);
-extern void	vn_remove(struct xfs_vnode *);
 
 static inline int vn_count(struct xfs_vnode *vp)
 {
@@ -604,6 +599,7 @@ static __inline__ void vn_flagclr(struct xfs_vnode *vp, __u32 flag)
 #define VMODIFY(vp)	VN_FLAGSET(vp, VMODIFIED)
 #define VUNMODIFY(vp)	VN_FLAGCLR(vp, VMODIFIED)
 
+
 /*
  * Flags to VOP_SETATTR/VOP_GETATTR.
  */
@@ -611,6 +607,8 @@ static __inline__ void vn_flagclr(struct xfs_vnode *vp, __u32 flag)
 #define	ATTR_DMI	0x08	/* invocation from a DMI function */
 #define	ATTR_LAZY	0x80	/* set/get attributes lazily */
 #define	ATTR_NONBLOCK	0x100	/* return EAGAIN if operation would block */
+#define ATTR_NOLOCK	0x200	/* Don't grab any conflicting locks */
+#define ATTR_NOSIZETOK	0x400	/* Don't get the SIZE token */
 
 /*
  * Flags to VOP_FSYNC and VOP_RECLAIM.
@@ -619,6 +617,27 @@ static __inline__ void vn_flagclr(struct xfs_vnode *vp, __u32 flag)
 #define FSYNC_WAIT	0x1	/* synchronous fsync or forced reclaim */
 #define FSYNC_INVAL	0x2	/* flush and invalidate cached data */
 #define FSYNC_DATA	0x4	/* synchronous fsync of data only */
+
+
+static inline struct xfs_vnode *vn_grab(struct xfs_vnode *vp)
+{
+	printf("vn_grab NI\n");
+//	struct inode *inode = igrab(vn_to_inode(vp));
+//	return inode ? vn_from_inode(inode) : NULL;
+	return NULL;
+}
+
+static inline void vn_atime_to_bstime(struct xfs_vnode *vp, xfs_bstime_t *bs_atime)
+{
+	printf("%s NI\n", __func__);
+//        bs_atime->tv_sec = vp->v_inode.i_atime.tv_sec;
+//        bs_atime->tv_nsec = vp->v_inode.i_atime.tv_nsec;
+} 
+
+static inline void vn_atime_to_timespec(struct xfs_vnode *vp, struct timespec *ts)
+{
+//	*ts = vp->v_vnode->va_atime;
+}
 
 /*
  * Tracking vnode activity.
@@ -637,6 +656,8 @@ extern void vn_trace_exit(struct xfs_vnode *, char *, inst_t *);
 extern void vn_trace_hold(struct xfs_vnode *, char *, int, inst_t *);
 extern void vn_trace_ref(struct xfs_vnode *, char *, int, inst_t *);
 extern void vn_trace_rele(struct xfs_vnode *, char *, int, inst_t *);
+
+
 
 #define	VN_TRACE(vp)		\
 	vn_trace_ref(vp, __FILE__, __LINE__, (inst_t *)__return_address)

@@ -14,6 +14,7 @@ typedef int    wait_queue_head_t;
 #define	read_lock(lock)		sx_slock(lock)
 #define	read_unlock(lock)	sx_sunlock(lock)
 #define	write_lock(lock)	sx_xlock(lock)
+#define write_trylock(lock)	sx_try_xlock(lock)
 #define	write_unlock(lock)	sx_xunlock(lock)
 #define	rwlock_trypromote(lock)	sx_try_upgrade(lock)
 #define	rwlock_demote(lock)	sx_downgrade(lock)

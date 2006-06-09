@@ -84,7 +84,7 @@ typedef enum {
 #define VFS_RDONLY		0x0001	/* read-only vfs */
 #define VFS_GRPID		0x0002	/* group-ID assigned from directory */
 #define VFS_DMI			0x0004	/* filesystem has the DMI enabled */
-#define VFS_UMOUNT		0x0008	/* unmount in progress */
+#define VFS_32BITINODES		0x0008	/* do not use inums above 32 bits */
 #define VFS_END			0x0008	/* max flag */
 
 #define SYNC_ATTR		0x0001	/* sync attributes */
@@ -95,6 +95,7 @@ typedef enum {
 #define SYNC_FSDATA		0x0020	/* flush fs data (e.g. superblocks) */
 #define SYNC_REFCACHE		0x0040  /* prune some of the nfs ref cache */
 #define SYNC_REMOUNT		0x0080  /* remount readonly, no dummy LRs */
+#define SYNC_QUIESCE		0x0100  /* quiesce filesystem for a snapshot */
 
 #define IGET_NOALLOC		0x0001	/* vfs_get_inode may return NULL */
 
@@ -116,6 +117,7 @@ typedef void	(*xvfs_init_vnode_t)(bhv_desc_t *,
 				struct xfs_vnode *, bhv_desc_t *, int);
 typedef void	(*xvfs_force_shutdown_t)(bhv_desc_t *, int, char *, int);
 typedef	struct inode * (*xvfs_get_inode_t)(bhv_desc_t *, xfs_ino_t, int);
+typedef void	(*xvfs_freeze_t)(bhv_desc_t *);
 
 typedef struct xvfsops {
 	bhv_position_t		xvfs_position;	/* behavior chain position */
@@ -133,6 +135,7 @@ typedef struct xvfsops {
 	xvfs_get_inode_t	xvfs_get_inode;	/* bhv specific iget */
 	xvfs_init_vnode_t	xvfs_init_vnode;	/* initialize a new vnode */
 	xvfs_force_shutdown_t	xvfs_force_shutdown;	/* crash and burn */
+	xvfs_freeze_t		xvfs_freeze;	/* freeze fs for snapshot */
 } xvfsops_t;
 
 /*
