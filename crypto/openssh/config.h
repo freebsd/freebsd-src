@@ -122,10 +122,10 @@
 /* #undef GETSPNAM_CONFLICTING_DEFS */
 
 /* Define if your system glob() function has the GLOB_ALTDIRFUNC extension */
-/* #undef GLOB_HAS_ALTDIRFUNC */
+#define GLOB_HAS_ALTDIRFUNC 1
 
 /* Define if your system glob() function has gl_matchc options in glob_t */
-/* #undef GLOB_HAS_GL_MATCHC */
+#define GLOB_HAS_GL_MATCHC 1
 
 /* Define this if you want GSSAPI support in the version 2 protocol */
 /* #undef GSSAPI */
