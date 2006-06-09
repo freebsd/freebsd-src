@@ -180,7 +180,8 @@ i386_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   if (read(Procfd, fsc.args, nargs * sizeof(unsigned long)) == -1)
     return;
 
-  sc = get_syscall(fsc.name);
+  if (fsc.name)
+  	sc = get_syscall(fsc.name);
   if (sc) {
     fsc.nargs = sc->nargs;
   } else {
@@ -316,7 +317,7 @@ i386_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
       char *temp;
       if (sc->args[i].type & OUT) {
 	/*
-	 * If an error occurred, than don't bothe getting the data;
+	 * If an error occurred, then don't bother getting the data;
 	 * it may not be valid.
 	 */
 	if (errorp)
@@ -326,6 +327,19 @@ i386_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
 	fsc.s_args[i] = temp;
       }
     }
+  }
+
+  /*
+   * The pipe syscall returns its fds in two registers and has assembly glue
+   * to provide the libc API, so it cannot be handled like regular syscalls.
+   * The nargs check is so we don't have to do yet another strcmp on every
+   * syscall.
+   */
+  if (!errorp && fsc.nargs == 0 && fsc.name && strcmp(fsc.name, "pipe") == 0) {
+      fsc.nargs = 1;
+      fsc.s_args = malloc((1+fsc.nargs) * sizeof(char*));
+      asprintf(&fsc.s_args[0], "[%d,%d]", (int)retval, regs.r_edx);
+      retval = 0;
   }
 
   /*
