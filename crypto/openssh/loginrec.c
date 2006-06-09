@@ -1388,10 +1388,8 @@ syslogin_perform_login(struct logininfo *li)
 {
 	struct utmp *ut;
 
-	debug("%s(%s)", __func__, li->username);
 	ut = xmalloc(sizeof(*ut));
 	construct_utmp(li, ut);
-	debug("login({%s, %s, %s, %u})", ut->ut_line, ut->ut_name, ut->ut_host, ut->ut_time);
 	login(ut);
 	free(ut);
 
