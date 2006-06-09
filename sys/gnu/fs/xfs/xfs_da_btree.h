@@ -1,33 +1,19 @@
 /*
- * Copyright (c) 2000, 2002 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000,2002,2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_DA_BTREE_H__
 #define	__XFS_DA_BTREE_H__
@@ -59,10 +45,10 @@ struct zone;
 	(XFS_DIR_IS_V1(mp) ? XFS_DIR_LEAF_MAGIC : XFS_DIR2_LEAFN_MAGIC)
 
 typedef struct xfs_da_blkinfo {
-	xfs_dablk_t forw;			/* previous block in list */
-	xfs_dablk_t back;			/* following block in list */
-	__uint16_t magic;			/* validity check on block */
-	__uint16_t pad;				/* unused */
+	__be32		forw;			/* previous block in list */
+	__be32		back;			/* following block in list */
+	__be16		magic;			/* validity check on block */
+	__be16		pad;			/* unused */
 } xfs_da_blkinfo_t;
 
 /*
@@ -79,12 +65,12 @@ typedef struct xfs_da_blkinfo {
 typedef struct xfs_da_intnode {
 	struct xfs_da_node_hdr {	/* constant-structure header block */
 		xfs_da_blkinfo_t info;	/* block type, links, etc. */
-		__uint16_t count;	/* count of active entries */
-		__uint16_t level;	/* level above leaves (leaf == 0) */
+		__be16	count;		/* count of active entries */
+		__be16	level;		/* level above leaves (leaf == 0) */
 	} hdr;
 	struct xfs_da_node_entry {
-		xfs_dahash_t hashval;	/* hash value for this descendant */
-		xfs_dablk_t before;	/* Btree block before this key */
+		__be32	hashval;	/* hash value for this descendant */
+		__be32	before;		/* Btree block before this key */
 	} btree[1];			/* variable sized array of keys */
 } xfs_da_intnode_t;
 typedef struct xfs_da_node_hdr xfs_da_node_hdr_t;
@@ -92,98 +78,24 @@ typedef struct xfs_da_node_entry xfs_da_node_entry_t;
 
 #define XFS_DA_MAXHASH	((xfs_dahash_t)-1) /* largest valid hash value */
 
-/*
- * Macros used by directory code to interface to the filesystem.
- */
-#if XFS_WANT_FUNCS || XFS_WANT_FUNCS_C || (XFS_WANT_SPACE && XFSSO_XFS_LBSIZE)
-int xfs_lbsize(struct xfs_mount *mp);
-#endif
+#define	XFS_LBSIZE(mp)	(mp)->m_sb.sb_blocksize
+#define	XFS_LBLOG(mp)	(mp)->m_sb.sb_blocklog
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_LBSIZE)
-#define	XFS_LBSIZE(mp)			xfs_lbsize(mp)
-#else
-#define	XFS_LBSIZE(mp)	((mp)->m_sb.sb_blocksize)
-#endif
-
-#if XFS_WANT_FUNCS || XFS_WANT_FUNCS_C || (XFS_WANT_SPACE && XFSSO_XFS_LBLOG)
-int xfs_lblog(struct xfs_mount *mp);
-#endif
-
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_LBLOG)
-#define	XFS_LBLOG(mp)			xfs_lblog(mp)
-#else
-#define	XFS_LBLOG(mp)	((mp)->m_sb.sb_blocklog)
-#endif
-
-/*
- * Macros used by directory code to interface to the kernel
- */
-
-/*
- * Macros used to manipulate directory off_t's
- */
-#if XFS_WANT_FUNCS || XFS_WANT_FUNCS_C || (XFS_WANT_SPACE && XFSSO_XFS_DA_MAKE_BNOENTRY)
-__uint32_t xfs_da_make_bnoentry(struct xfs_mount *mp, xfs_dablk_t bno,
-				int entry);
-#endif
-
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DA_MAKE_BNOENTRY)
 #define	XFS_DA_MAKE_BNOENTRY(mp,bno,entry)	\
-	xfs_da_make_bnoentry(mp,bno,entry)
-#else
-#define	XFS_DA_MAKE_BNOENTRY(mp,bno,entry) \
 	(((bno) << (mp)->m_dircook_elog) | (entry))
-#endif
-
-#if XFS_WANT_FUNCS || XFS_WANT_FUNCS_C || (XFS_WANT_SPACE && XFSSO_XFS_DA_MAKE_COOKIE)
-xfs_off_t xfs_da_make_cookie(struct xfs_mount *mp, xfs_dablk_t bno, int entry,
-				xfs_dahash_t hash);
-#endif
-
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DA_MAKE_COOKIE)
 #define	XFS_DA_MAKE_COOKIE(mp,bno,entry,hash)	\
-	xfs_da_make_cookie(mp,bno,entry,hash)
-#else
-#define	XFS_DA_MAKE_COOKIE(mp,bno,entry,hash) \
 	(((xfs_off_t)XFS_DA_MAKE_BNOENTRY(mp, bno, entry) << 32) | (hash))
-#endif
-
-#if XFS_WANT_FUNCS || XFS_WANT_FUNCS_C || (XFS_WANT_SPACE && XFSSO_XFS_DA_COOKIE_HASH)
-xfs_dahash_t xfs_da_cookie_hash(struct xfs_mount *mp, xfs_off_t cookie);
-#endif
-
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DA_COOKIE_HASH)
-#define	XFS_DA_COOKIE_HASH(mp,cookie)		xfs_da_cookie_hash(mp,cookie)
-#else
-#define	XFS_DA_COOKIE_HASH(mp,cookie)	((xfs_dahash_t)(cookie))
-#endif
-
-#if XFS_WANT_FUNCS || XFS_WANT_FUNCS_C || (XFS_WANT_SPACE && XFSSO_XFS_DA_COOKIE_BNO)
-xfs_dablk_t xfs_da_cookie_bno(struct xfs_mount *mp, xfs_off_t cookie);
-#endif
-
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DA_COOKIE_BNO)
-#define	XFS_DA_COOKIE_BNO(mp,cookie)		xfs_da_cookie_bno(mp,cookie)
-#else
-#define	XFS_DA_COOKIE_BNO(mp,cookie) \
-	(((xfs_off_t)(cookie) >> 31) == -1LL ? \
+#define	XFS_DA_COOKIE_HASH(mp,cookie)		((xfs_dahash_t)cookie)
+#define	XFS_DA_COOKIE_BNO(mp,cookie)		\
+	((((xfs_off_t)(cookie) >> 31) == -1LL ? \
 		(xfs_dablk_t)0 : \
-		(xfs_dablk_t)((xfs_off_t)(cookie) >> ((mp)->m_dircook_elog + 32)))
-#endif
-
-#if XFS_WANT_FUNCS || XFS_WANT_FUNCS_C || (XFS_WANT_SPACE && XFSSO_XFS_DA_COOKIE_ENTRY)
-int xfs_da_cookie_entry(struct xfs_mount *mp, xfs_off_t cookie);
-#endif
-
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DA_COOKIE_ENTRY)
-#define	XFS_DA_COOKIE_ENTRY(mp,cookie)		xfs_da_cookie_entry(mp,cookie)
-#else
-#define	XFS_DA_COOKIE_ENTRY(mp,cookie) \
-	(((xfs_off_t)(cookie) >> 31) == -1LL ? \
+		(xfs_dablk_t)((xfs_off_t)(cookie) >> \
+				((mp)->m_dircook_elog + 32))))
+#define	XFS_DA_COOKIE_ENTRY(mp,cookie)		\
+	((((xfs_off_t)(cookie) >> 31) == -1LL ?	\
 		(xfs_dablk_t)0 : \
 		(xfs_dablk_t)(((xfs_off_t)(cookie) >> 32) & \
-			      ((1 << (mp)->m_dircook_elog) - 1)))
-#endif
+				((1 << (mp)->m_dircook_elog) - 1))))
 
 
 /*========================================================================
@@ -322,8 +234,6 @@ int	xfs_da_path_shift(xfs_da_state_t *state, xfs_da_state_path_t *path,
 /*
  * Utility routines.
  */
-int	xfs_da_blk_unlink(xfs_da_state_t *state, xfs_da_state_blk_t *drop_blk,
-					 xfs_da_state_blk_t *save_blk);
 int	xfs_da_blk_link(xfs_da_state_t *state, xfs_da_state_blk_t *old_blk,
 				       xfs_da_state_blk_t *new_blk);
 
@@ -346,7 +256,6 @@ uint xfs_da_hashname(const uchar_t *name_string, int name_length);
 uint xfs_da_log2_roundup(uint i);
 xfs_da_state_t *xfs_da_state_alloc(void);
 void xfs_da_state_free(xfs_da_state_t *state);
-void xfs_da_state_kill_altpath(xfs_da_state_t *state);
 
 void xfs_da_buf_done(xfs_dabuf_t *dabuf);
 void xfs_da_log_buf(struct xfs_trans *tp, xfs_dabuf_t *dabuf, uint first,

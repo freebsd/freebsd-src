@@ -1,34 +1,19 @@
 /*
- * Copyright (c) 1995-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 1995-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2.1 of the GNU Lesser General Public License
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
  * as published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.	 Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this program; if not, write the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston MA 02111-1307,
- * USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_FS_H__
 #define __XFS_FS_H__
@@ -60,7 +45,8 @@ struct fsxattr {
 	__u32		fsx_xflags;	/* xflags field value (get/set) */
 	__u32		fsx_extsize;	/* extsize field value (get/set)*/
 	__u32		fsx_nextents;	/* nextents field value (get)	*/
-	unsigned char	fsx_pad[16];
+	__u32		fsx_projid;	/* project identifier (get/set) */
+	unsigned char	fsx_pad[12];
 };
 #endif
 
@@ -76,6 +62,11 @@ struct fsxattr {
 #define XFS_XFLAG_SYNC		0x00000020	/* all writes synchronous */
 #define XFS_XFLAG_NOATIME	0x00000040	/* do not update access time */
 #define XFS_XFLAG_NODUMP	0x00000080	/* do not include in backups */
+#define XFS_XFLAG_RTINHERIT	0x00000100	/* create with rt bit set */
+#define XFS_XFLAG_PROJINHERIT	0x00000200	/* create with parents projid */
+#define XFS_XFLAG_NOSYMLINKS	0x00000400	/* disallow symlink creation */
+#define XFS_XFLAG_EXTSIZE	0x00000800	/* extent size allocator hint */
+#define XFS_XFLAG_EXTSZINHERIT	0x00001000	/* inherit inode extent size */
 #define XFS_XFLAG_HASATTR	0x80000000	/* no DIFLAG for this	*/
 
 /*
@@ -136,7 +127,15 @@ struct getbmapx {
 	p2.bmv_block = p1.bmv_block;	\
 	p2.bmv_length = p1.bmv_length;	\
 	p2.bmv_count = p1.bmv_count;	\
-	p2.bmv_entries = p1.bmv_entries;  }
+	p2.bmv_entries = p1.bmv_entries; \
+	\
+printf("offset 0x%llx block 0x%llx length 0x%llx count 0x%llx entries %d\n", \
+       (uint64_t)p2.bmv_offset, \
+       (uint64_t)p2.bmv_block, \
+       (uint64_t)p2.bmv_length, \
+       (uint64_t)p2.bmv_count, \
+       p2.bmv_entries); \
+  }
 
 
 /*
@@ -164,7 +163,7 @@ typedef struct xfs_flock64 {
 	__s64		l_start;
 	__s64		l_len;		/* len == 0 means until end of file */
 	__s32		l_sysid;
-	pid_t		l_pid;
+	__u32		l_pid;
 	__s32		l_pad[4];	/* reserve area			    */
 } xfs_flock64_t;
 
@@ -247,6 +246,7 @@ typedef struct xfs_fsop_resblks {
 #define XFS_FSOP_GEOM_FLAGS_DIRV2	0x0080	/* directory version 2	*/
 #define XFS_FSOP_GEOM_FLAGS_LOGV2	0x0100	/* log format version 2	*/
 #define XFS_FSOP_GEOM_FLAGS_SECTOR	0x0200	/* sector sizes >1BB	*/
+#define XFS_FSOP_GEOM_FLAGS_ATTR2	0x0400	/* inline attributes rework */
 
 
 /*
@@ -313,10 +313,10 @@ typedef struct xfs_bstat {
  * The user-level BulkStat Request interface structure.
  */
 typedef struct xfs_fsop_bulkreq {
-	__u64		*lastip;	/* last inode # pointer		*/
+	__u64		__user *lastip;	/* last inode # pointer		*/
 	__s32		icount;		/* count of entries in buffer	*/
-	void		*ubuffer;	/* user buffer for inode desc.	*/
-	__s32		*ocount;	/* output count pointer		*/
+	void		__user *ubuffer;/* user buffer for inode desc.	*/
+	__s32		__user *ocount;	/* output count pointer		*/
 } xfs_fsop_bulkreq_t;
 
 
@@ -344,12 +344,12 @@ typedef struct xfs_error_injection {
  */
 typedef struct xfs_fsop_handlereq {
 	__u32		fd;		/* fd for FD_TO_HANDLE		*/
-	void		*path;		/* user pathname		*/
+	void		__user *path;	/* user pathname		*/
 	__u32		oflags;		/* open flags			*/
-	void		*ihandle;	/* user supplied handle		*/
+	void		__user *ihandle;/* user supplied handle		*/
 	__u32		ihandlen;	/* user supplied length		*/
-	void		*ohandle;	/* user buffer for handle	*/
-	__u32		*ohandlen;	/* user buffer length		*/
+	void		__user *ohandle;/* user buffer for handle	*/
+	__u32		__user *ohandlen;/* user buffer length		*/
 } xfs_fsop_handlereq_t;
 
 /*
@@ -360,35 +360,35 @@ typedef struct xfs_fsop_handlereq {
  */
 
 typedef struct xfs_fsop_setdm_handlereq {
-	struct xfs_fsop_handlereq hreq; /* handle interface structure */
-	struct fsdmidata *data;		/* DMAPI data to set	      */
+	struct xfs_fsop_handlereq	hreq;	/* handle information	*/
+	struct fsdmidata		__user *data;	/* DMAPI data	*/
 } xfs_fsop_setdm_handlereq_t;
 
 typedef struct xfs_attrlist_cursor {
-	__u32	opaque[4];
+	__u32		opaque[4];
 } xfs_attrlist_cursor_t;
 
 typedef struct xfs_fsop_attrlist_handlereq {
-	struct xfs_fsop_handlereq hreq; /* handle interface structure */
-	struct xfs_attrlist_cursor pos; /* opaque cookie, list offset */
-	__u32 flags;			/* flags, use ROOT/USER names */
-	__u32 buflen;			/* length of buffer supplied  */
-	void *buffer;			/* attrlist data to return    */
+	struct xfs_fsop_handlereq	hreq; /* handle interface structure */
+	struct xfs_attrlist_cursor	pos; /* opaque cookie, list offset */
+	__u32				flags;	/* which namespace to use */
+	__u32				buflen;	/* length of buffer supplied */
+	void				__user *buffer;	/* returned names */
 } xfs_fsop_attrlist_handlereq_t;
 
 typedef struct xfs_attr_multiop {
-	__u32	am_opcode;
-	__s32	am_error;
-	void	*am_attrname;
-	void	*am_attrvalue;
-	__u32	am_length;
-	__u32	am_flags;
+	__u32		am_opcode;
+	__s32		am_error;
+	void		__user *am_attrname;
+	void		__user *am_attrvalue;
+	__u32		am_length;
+	__u32		am_flags;
 } xfs_attr_multiop_t;
 
 typedef struct xfs_fsop_attrmulti_handlereq {
-	struct xfs_fsop_handlereq hreq; /* handle interface structure */
-	__u32 opcount;			/* count of following multiop */
-	struct xfs_attr_multiop *ops;	/* attr_multi data to get/set */
+	struct xfs_fsop_handlereq	hreq; /* handle interface structure */
+	__u32				opcount;/* count of following multiop */
+	struct xfs_attr_multiop		__user *ops; /* attr_multi data */
 } xfs_fsop_attrmulti_handlereq_t;
 
 /*
@@ -445,6 +445,13 @@ typedef struct xfs_handle {
 #define XFS_FSOP_GOING_FLAGS_NOLOGFLUSH		0x2	/* don't flush log nor data */
 
 /*
+ * ioctl commands that are used by Linux filesystems
+ */
+#define XFS_IOC_GETXFLAGS	_IOR('f', 1, long)
+#define XFS_IOC_SETXFLAGS	_IOW('f', 2, long)
+#define XFS_IOC_GETVERSION	_IOR('v', 1, long)
+
+/*
  * ioctl commands that replace IRIX fcntl()'s
  * For 'documentation' purposed more than anything else,
  * the "cmd #" field reflects the IRIX fcntl number.
@@ -466,7 +473,9 @@ typedef struct xfs_handle {
 #define XFS_IOC_FSGETXATTRA	_IOR ('X', 45, struct fsxattr)
 /*	XFS_IOC_SETBIOSIZE ---- deprecated 46	   */
 /*	XFS_IOC_GETBIOSIZE ---- deprecated 47	   */
-#define XFS_IOC_GETBMAPX	_IOWR('X', 56, struct getbmap)
+//#define XFS_IOC_GETBMAPX	_IOWR('X', 56, struct getbmapx)
+#define XFS_IOC_GETBMAPX	_IOC(IOC_INOUT, 'X', 56, (256 * sizeof(struct getbmapx)))
+
 
 /*
  * ioctl commands that replace IRIX syssgi()'s

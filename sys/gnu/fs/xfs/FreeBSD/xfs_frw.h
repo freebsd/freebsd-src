@@ -98,12 +98,9 @@ extern void xfs_inval_cached_pages(struct xfs_vnode*, struct xfs_iocore *,
 				xfs_off_t, int, int);
 extern ssize_t xfs_read(bhv_desc_t *, uio_t *, int, cred_t *);
 extern ssize_t xfs_write(bhv_desc_t *, uio_t *, int, cred_t *);
-
 extern int xfs_dev_is_read_only(struct xfs_mount *, char *);
 
-#define XFS_FSB_TO_DB_IO(io,fsb) \
-		(((io)->io_flags & XFS_IOCORE_RT) ? \
-		 XFS_FSB_TO_BB((io)->io_mount, (fsb)) : \
-		 XFS_FSB_TO_DADDR((io)->io_mount, (fsb)))
-
+extern int xfs_read_file(struct xfs_mount *mp, struct xfs_inode *ip, struct uio *uio,
+		    int ioflag);
+extern int xfs_write_file(struct xfs_inode *, struct uio *, int);
 #endif	/* __XFS_FRW_H__ */

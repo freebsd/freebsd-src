@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2001, Alexander Kabaev
+ * Copyright (c) 2006, Russell Cattelan Digital Elves Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,7 +37,6 @@
 #include <sys/dirent.h>
 #include <sys/ioccom.h>
 #include <sys/malloc.h>
-#include <sys/extattr.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -49,8 +49,8 @@
 
 #define NO_VFS_MACROS
 #include "xfs.h"
-#include "xfs_macros.h"
 #include "xfs_types.h"
+#include "xfs_bit.h"
 #include "xfs_inum.h"
 #include "xfs_log.h"
 #include "xfs_trans.h"
@@ -66,15 +66,14 @@
 #include "xfs_ialloc_btree.h"
 #include "xfs_btree.h"
 #include "xfs_imap.h"
-#include "xfs_alloc.h"
-#include "xfs_ialloc.h"
-#include "xfs_attr.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_dinode.h"
-#include "xfs_inode_item.h"
+#include "xfs_ialloc.h"
+#include "xfs_alloc.h"
 #include "xfs_inode.h"
+#include "xfs_inode_item.h"
 #include "xfs_acl.h"
 #include "xfs_cap.h"
 #include "xfs_mac.h"
@@ -93,11 +92,9 @@ static vop_close_t		_xfs_close;
 static vop_create_t		_xfs_create;
 static vop_fsync_t		_xfs_fsync;
 static vop_getattr_t		_xfs_getattr;
-static vop_getextattr_t		_xfs_getextattr;
 static vop_inactive_t		_xfs_inactive;
 static vop_ioctl_t		_xfs_ioctl;
 static vop_link_t		_xfs_link;
-static vop_listextattr_t	_xfs_listextattr;
 static vop_mkdir_t		_xfs_mkdir;
 static vop_mknod_t		_xfs_mknod;
 static vop_open_t		_xfs_open;
@@ -123,11 +120,9 @@ struct vop_vector xfs_vnops = {
 	.vop_create =		_xfs_create,
 	.vop_fsync =		_xfs_fsync,
 	.vop_getattr =		_xfs_getattr,
-	.vop_getextattr =	_xfs_getextattr,
 	.vop_inactive =		_xfs_inactive,
 	.vop_ioctl =		_xfs_ioctl,
 	.vop_link =		_xfs_link,
-	.vop_listextattr =	_xfs_listextattr,
 	.vop_lookup =		vfs_cache_lookup,
 	.vop_mkdir =		_xfs_mkdir,
 	.vop_mknod =		_xfs_mknod,
@@ -230,18 +225,20 @@ _xfs_getattr(
 	struct mount	*mp;
 	xfs_vattr_t	va;
 	int		error;
-
+	/* extract the xfs vnode from the private data */
+	//xfs_vnode_t	*xvp = (xfs_vnode_t *)vp->v_data;
 
 	VATTR_NULL(vap);
 	memset(&va,0,sizeof(xfs_vattr_t));
 	va.va_mask = XFS_AT_STAT|XFS_AT_GENCOUNT|XFS_AT_XFLAGS;
 
 	XVOP_GETATTR(VPTOXFSVP(vp), &va, 0, ap->a_cred, error);
-	if (error) return (error);
+	if (error)
+		return (error);
 
 	mp  = vp->v_mount;
 
-	vap->va_type = va.va_type;
+	vap->va_type = IFTOVT(((xfs_vnode_t *)vp->v_data)->v_inode->i_d.di_mode);
 	vap->va_mode = va.va_mode;
 	vap->va_nlink = va.va_nlink;
 	vap->va_uid = va.va_uid;
@@ -294,11 +291,13 @@ _xfs_setattr(
 	/*
 	 * Check for unsettable attributes.
 	 */
+#ifdef RMC
 	if ((vap->va_type != VNON) || (vap->va_nlink != VNOVAL) ||
 	    (vap->va_fsid != VNOVAL) || (vap->va_fileid != VNOVAL) ||
 	    (vap->va_blocksize != VNOVAL) || (vap->va_rdev != VNOVAL) ||
 	    ((int)vap->va_bytes != VNOVAL) || (vap->va_gen != VNOVAL))
 		return (EINVAL);
+#endif
 
 	memset(&va, 0, sizeof(va));
 
@@ -375,9 +374,6 @@ _xfs_read(
 	XVOP_READ(VPTOXFSVP(vp), uio, ap->a_ioflag, ap->a_cred, error);
 	return error;
 }
-
-int
-xfs_read_file(xfs_mount_t *mp, xfs_inode_t *ip, struct uio *uio, int ioflag);
 
 int
 xfs_read_file(xfs_mount_t *mp, xfs_inode_t *ip, struct uio *uio, int ioflag)
@@ -553,11 +549,164 @@ _xfs_write(struct vop_write_args /* {
 	} */ *ap)
 {
 	struct vnode *vp = ap->a_vp;
-/* 	struct uio *uio = ap->a_uio; */
+	struct uio *uio = ap->a_uio;
+	int ioflag = ap->a_ioflag;
+	int error;
 
-	if (vp->v_type != VREG)
-		return (EPERM);
-	return (EPERM);
+	xfs_vnode_t *xvp = (xfs_vnode_t *)vp->v_data;
+
+	error = xfs_write(xvp->v_bh.bh_first, uio, ioflag, ap->a_cred);
+
+	if (error < 0) {
+		printf("Xfs_write got error %d\n",error);
+		return -error;
+	}
+	return 0;
+}
+
+
+int
+xfs_write_file(xfs_inode_t *xip, struct uio *uio, int ioflag)
+{
+	struct buf	*bp;
+	//struct thread	*td;
+	daddr_t		lbn;
+	off_t		osize = 0;
+	off_t		offset= 0;
+	int		blkoffset, error, resid, xfersize;
+	int		fsblocksize;
+	int		seqcount;
+	xfs_iomap_t	iomap;
+	int		maps = 1;
+
+	xfs_vnode_t	*xvp = XFS_ITOV(xip);
+	struct vnode	*vp = xvp->v_vnode;
+
+	xfs_mount_t	*mp = (&xip->i_iocore)->io_mount;
+
+	seqcount = ioflag >> IO_SEQSHIFT;
+
+	memset(&iomap,0,sizeof(xfs_iomap_t));
+
+	/*
+	 * Maybe this should be above the vnode op call, but so long as
+	 * file servers have no limits, I don't think it matters.
+	 */
+#if 0
+	td = uio->uio_td;
+	if (vp->v_type == VREG && td != NULL) {
+		PROC_LOCK(td->td_proc);
+		if (uio->uio_offset + uio->uio_resid >
+		    lim_cur(td->td_proc, RLIMIT_FSIZE)) {
+			psignal(td->td_proc, SIGXFSZ);
+			PROC_UNLOCK(td->td_proc);
+			return (EFBIG);
+		}
+		PROC_UNLOCK(td->td_proc);
+	}
+#endif
+
+	resid = uio->uio_resid;
+	offset = uio->uio_offset;
+	osize = xip->i_d.di_size;
+
+   /* xfs bmap wants bytes for both offset and size */
+	XVOP_BMAP(xvp,
+		  uio->uio_offset,
+		  uio->uio_resid,
+		  BMAPI_WRITE|BMAPI_DIRECT,
+		  &iomap, &maps, error);
+	if(error) {
+		printf("XVOP_BMAP failed\n");
+		goto error;
+	}
+
+	for (error = 0; uio->uio_resid > 0;) {
+
+		lbn = XFS_B_TO_FSBT(mp, offset);
+		blkoffset = XFS_B_FSB_OFFSET(mp, offset);
+		xfersize = mp->m_sb.sb_blocksize - blkoffset;
+		fsblocksize = mp->m_sb.sb_blocksize;
+
+		if (uio->uio_resid < xfersize)
+			xfersize = uio->uio_resid;
+
+		/*
+		 * getblk sets buf by  blkno *  bo->bo_bsize
+		 * bo_bsize is set from the mnt point fsize
+		 * so we call getblk in the case using fsblocks
+		 * not basic blocks
+		 */
+
+		bp = getblk(vp, lbn, fsblocksize, 0, 0, 0);
+		if(!bp) {
+			printf("getblk failed\n");
+			error = EINVAL;
+			break;
+		}
+
+		if (!(bp->b_flags & B_CACHE)  && fsblocksize > xfersize)
+			vfs_bio_clrbuf(bp);
+
+		if (offset + xfersize >  xip->i_d.di_size) {
+			xip->i_d.di_size = offset + xfersize;
+			vnode_pager_setsize(vp, offset + fsblocksize);
+		}
+
+		/* move the offset for the next itteration of the loop */
+		offset += xfersize;
+
+		error = uiomove((char *)bp->b_data + blkoffset, xfersize, uio);
+
+		if ((ioflag & IO_VMIO) &&
+		   (LIST_FIRST(&bp->b_dep) == NULL)) /* in ext2fs? */
+			bp->b_flags |= B_RELBUF;
+
+		/* force to full direct for now */
+		bp->b_flags |= B_DIRECT;
+		/* and sync ... the delay path is not pushing data out */
+		ioflag |= IO_SYNC;
+
+		if (ioflag & IO_SYNC) {
+			(void)bwrite(bp);
+		} else if (0 /* RMC xfersize + blkoffset == fs->s_frag_size */) {
+			if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0) {
+				bp->b_flags |= B_CLUSTEROK;
+				cluster_write(vp, bp, osize, seqcount);
+			} else {
+				bawrite(bp);
+			}
+		} else {
+			bp->b_flags |= B_CLUSTEROK;
+			bdwrite(bp);
+		}
+		if (error || xfersize == 0)
+			break;
+	}
+	/*
+	 * If we successfully wrote any data, and we are not the superuser
+	 * we clear the setuid and setgid bits as a precaution against
+	 * tampering.
+	 */
+#if 0
+	if (resid > uio->uio_resid && ap->a_cred && ap->a_cred->cr_uid != 0)
+		ip->i_mode &= ~(ISUID | ISGID);
+#endif
+	if (error) {
+		if (ioflag & IO_UNIT) {
+#if 0
+			(void)ext2_truncate(vp, osize,
+			    ioflag & IO_SYNC, ap->a_cred, uio->uio_td);
+#endif
+			uio->uio_offset -= resid - uio->uio_resid;
+			uio->uio_resid = resid;
+		}
+	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC)) {
+		/* Update the vnode here? */
+	}
+
+error:
+	return error;
 }
 
 static int
@@ -582,7 +731,7 @@ _xfs_create(
 	va.va_mask |= XFS_AT_MODE;
 	va.va_mode = vap->va_mode;
 	va.va_mask |= XFS_AT_TYPE;
-	va.va_type = vap->va_type;
+	va.va_mode |=  VTTOIF(vap->va_type);
 
 	xvp = NULL;
 	XVOP_CREATE(VPTOXFSVP(dvp), cnp, &va, &xvp, credp, error);
@@ -595,6 +744,8 @@ _xfs_create(
 	return (error);
 }
 
+extern int xfs_remove(bhv_desc_t *, bhv_desc_t *, vname_t *, cred_t *);
+
 static int
 _xfs_remove(
 	struct vop_remove_args /* {
@@ -605,6 +756,8 @@ _xfs_remove(
 	} */ *ap)
 {
 	struct vnode *vp = ap->a_vp;
+	struct thread *td = curthread;
+	struct ucred  *credp = td->td_ucred;
 	/*
 	struct vnode *dvp = ap->a_dvp; 
  	struct componentname *cnp = ap->a_cnp;
@@ -614,9 +767,12 @@ _xfs_remove(
 	if (vp->v_type == VDIR || vp->v_usecount != 1)
 		return (EPERM);
 
-	error = 0;
+	error = xfs_remove(VPTOXFSVP(ap->a_dvp)->v_bh.bh_first,
+			   VPTOXFSVP(ap->a_vp)->v_bh.bh_first,
+			   ap->a_cnp,credp);
+
 	cache_purge(vp);
-	return (error);
+	return error;
 }
 
 static int
@@ -711,7 +867,8 @@ _xfs_symlink(
 	va.va_mask |= XFS_AT_MODE;
 	va.va_mode = ap->a_vap->va_mode;
 	va.va_mask |= XFS_AT_TYPE;
-	va.va_type = ap->a_vap->va_type;
+	printf("_xfs_symlink need to implement inode type 0x%x\n",ap->a_vap->va_type);
+	//va.va_type = ap->a_vap->va_type;
 
 	XVOP_SYMLINK(VPTOXFSVP(ap->a_dvp), ap->a_cnp, &va, ap->a_target,
 	    &xvp, credp, error);
@@ -746,7 +903,8 @@ _xfs_mknod(
 	va.va_mask |= XFS_AT_MODE;
 	va.va_mode = vap->va_mode;
 	va.va_mask |= XFS_AT_TYPE;
-	va.va_type = vap->va_type;
+	printf("_xfs_mknod need to implement inode type 0x%x\n",vap->va_type);
+//	va.va_type = vap->va_type;
 	va.va_mask |= XFS_AT_RDEV;
 	va.va_rdev = vap->va_rdev;
 
@@ -783,7 +941,8 @@ _xfs_mkdir(
 	va.va_mask |= XFS_AT_MODE;
 	va.va_mode = vap->va_mode;
 	va.va_mask |= XFS_AT_TYPE;
-	va.va_type = vap->va_type;
+	printf("_xfs_mkdir need to implement inode type 0x%x\n",vap->va_type);
+//	va.va_type = vap->va_type;
 
 	xvp = NULL;
 	XVOP_MKDIR(VPTOXFSVP(dvp), cnp, &va, &xvp, credp, error);
@@ -888,8 +1047,7 @@ _xfs_fsync(
 
 	if (ap->a_waitfor == MNT_WAIT)
 		flags |= FSYNC_WAIT;
-	XVOP_FSYNC(vp, flags, ap->a_td->td_ucred, (xfs_off_t)-1, (xfs_off_t)-1,
-	    error);
+	XVOP_FSYNC(vp, flags, ap->a_td->td_ucred, (xfs_off_t)0, (xfs_off_t)-1, error);
 
 	return (error);
 }
@@ -1012,11 +1170,14 @@ _xfs_ioctl(
 /* 	struct file *fp; */
 	int error;
 
-	switch (ap->a_command) {
-	default:
-		error = EINVAL;
-	}
-	return (error);
+	xfs_vnode_t *xvp = VPTOXFSVP(ap->a_vp);
+
+	printf("_xfs_ioctl cmd 0x%lx data %p\n",ap->a_command,ap->a_data);
+
+//	XVOP_IOCTL(xvp,(void *)NULL,(void *)NULL,ap->a_fflag,ap->a_command,ap->a_data,error);
+	error = xfs_ioctl(xvp->v_bh.bh_first,NULL,NULL,ap->a_fflag,ap->a_command,ap->a_data);
+
+	return error;
 }
 
 int
@@ -1212,13 +1373,10 @@ _xfs_kqfilter(
 	return (0);
 }
 
-static __inline
 struct xfs_inode *
-xfs_vtoi(struct vnode *vp)
+xfs_vtoi(struct xfs_vnode *xvp)
 {
-	if (VPTOXFSVP(vp) != 0)
-		return (XFS_BHVTOI(VPTOXFSVP(vp)->v_fbhv));
-	return (NULL);
+	return(XFS_BHVTOI(xvp->v_fbhv));
 }
 
 /*
@@ -1240,7 +1398,7 @@ _xfsfifo_read(
 	uio = ap->a_uio;
 	resid = uio->uio_resid;
 	error = fifo_specops.vop_read(ap);
-	ip = xfs_vtoi(ap->a_vp);
+	ip = xfs_vtoi(VPTOXFSVP(ap->a_vp));
 	if ((ap->a_vp->v_mount->mnt_flag & MNT_NOATIME) == 0 && ip != NULL &&
 	    (uio->uio_resid != resid || (error == 0 && resid != 0)))
 		xfs_ichgtime(ip, XFS_ICHGTIME_ACC);
@@ -1266,7 +1424,7 @@ _xfsfifo_write(
 	uio = ap->a_uio;
 	resid = uio->uio_resid;
 	error = fifo_specops.vop_write(ap);
-	ip = xfs_vtoi(ap->a_vp);
+	ip = xfs_vtoi(VPTOXFSVP(ap->a_vp));
 	if (ip != NULL && (uio->uio_resid != resid ||
 	    (error == 0 && resid != 0)))
 		xfs_ichgtime(ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
@@ -1311,121 +1469,3 @@ _xfsfifo_kqfilter(
 		error = _xfs_kqfilter(ap);
 	return (error);
 }
-
-static int
-_xfs_getextattr(
-	struct vop_getextattr_args /* {
-		struct vnode *a_vp;
-		int a_attrnamespace;
-		const char *a_name;
-		struct uio *a_uio;
-		size_t *a_size;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap)
-{
-	int error;
-	char *value;
-	int size;
-
-	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
-	    ap->a_cred, ap->a_td, VREAD);
-        if (error)
-		return (error);
-
-	size = ATTR_MAX_VALUELEN;
-	value = (char *)kmem_zalloc(size, KM_SLEEP);
-	if (value == NULL)
-		return (ENOMEM);
-
-	XVOP_ATTR_GET(VPTOXFSVP(ap->a_vp), ap->a_name, value, &size, 1,
-	    ap->a_cred, error);
-
-	if (ap->a_uio != NULL) {
-		if (ap->a_uio->uio_iov->iov_len < size)
-			error = ERANGE;
-		else
-			uiomove(value, size, ap->a_uio);
-	}
-
-	if (ap->a_size != NULL)
-		*ap->a_size = size;
-
-	kmem_free(value, ATTR_MAX_VALUELEN);
-	return (error);
-}		
-
-static int
-_xfs_listextattr(
-	struct vop_listextattr_args /* {
-		struct vnode *a_vp;
-		int a_attrnamespace;
-		struct uio *a_uio;
-		size_t *a_size;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap)
-{
-	int error;
-	char *buf = NULL;
-	int buf_len = 0;
-	attrlist_cursor_kern_t  cursor = { 0 };
-	int i;
-	char name_len;
-	int attrnames_len = 0;
-	int xfs_flags = ATTR_KERNAMELS;
-
-	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
-	    ap->a_cred, ap->a_td, VREAD);
-        if (error)
-		return (error);
-
-	if (ap->a_attrnamespace & EXTATTR_NAMESPACE_USER)
-		xfs_flags |= ATTR_KERNORMALS;
-
-	if (ap->a_attrnamespace & EXTATTR_NAMESPACE_SYSTEM)
-		xfs_flags |= ATTR_KERNROOTLS;
-
-	if (ap->a_uio == NULL || ap->a_uio->uio_iov[0].iov_base == NULL) {
-		xfs_flags |= ATTR_KERNOVAL;
-		buf_len = 0;
-	} else {
-		buf = ap->a_uio->uio_iov[0].iov_base;
-		buf_len = ap->a_uio->uio_iov[0].iov_len;
-	}
-
-	XVOP_ATTR_LIST(VPTOXFSVP(ap->a_vp), buf, buf_len, xfs_flags,
-		    &cursor, ap->a_cred, error);
-	if (error < 0) {
-		attrnames_len = -error;
-		error = 0;
-	}
-	if (buf == NULL)
-		goto done;
-
-	/*
-	 * extattr_list expects a list of names.  Each list
-	 * entry consists of one byte for the name length, followed
-	 * by the name (not null terminated)
-	 */
-	name_len=0;
-	for(i=attrnames_len-1; i > 0 ; --i) {
-		buf[i] = buf[i-1];
-		if (buf[i])
-			++name_len;
-		else {
-			buf[i] = name_len;
-			name_len = 0;
-		}
-	} 
-	buf[0] = name_len;
-
-	if (ap->a_uio != NULL)
-		ap->a_uio->uio_resid -= attrnames_len;
-
-done:
-	if (ap->a_size != NULL)
-		*ap->a_size = attrnames_len;
-
-	return (error);
-}		

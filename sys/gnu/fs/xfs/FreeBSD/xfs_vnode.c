@@ -31,8 +31,8 @@
  */
 
 #include "xfs.h"
-#include "xfs_macros.h"
 #include "xfs_types.h"
+#include "xfs_bit.h"
 #include "xfs_inum.h"
 #include "xfs_log.h"
 #include "xfs_trans.h"
@@ -49,17 +49,24 @@
 #include "xfs_btree.h"
 #include "xfs_imap.h"
 #include "xfs_alloc.h"
-#include "xfs_ialloc.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_dinode.h"
-#include "xfs_inode_item.h"
+#include "xfs_ialloc.h"
 #include "xfs_inode.h"
+#include "xfs_inode_item.h"
 
 void
 vn_init(void)
 {
+}
+
+void
+vn_iowait(
+	  struct xfs_vnode *vp)
+{
+	printf("vn_iowait doing nothing on FreeBSD?\n");
 }
 
 struct xfs_vnode *
@@ -120,44 +127,94 @@ vn_get(
  * get a handle (via vn_get) on the vnode (usually done via a mount/vfs lock).
  */
 void
-vn_purge(
-	struct xfs_vnode	*xfs_vp,
-	vmap_t			*vmap)
+vn_purge(struct xfs_vnode        *xfs_vp)
 {
-	struct vnode *vp;
+        struct vnode *vp;
 
-	vn_trace_entry(vp, "vn_purge", (inst_t *)__return_address);
+        vn_trace_entry(vp, "vn_purge", (inst_t *)__return_address);
 
-	vp = vmap->v_vp;
+        vp = xfs_vp->v_vnode;
 
-	vn_lock(vp, LK_EXCLUSIVE, curthread);
+        vn_lock(vp, LK_EXCLUSIVE, curthread);
+	if (vp->v_holdcnt == 0)
+		vhold(vp);
 	vgone(vp);
-	VOP_UNLOCK(vp, 0, curthread);
-	vdrop(vp);
+        VOP_UNLOCK(vp, 0, curthread);
 }
+
+void xfs_ichgtime(
+	xfs_inode_t	*ip,
+	int		flags)
+{
+	timespec_t  tv;
+	
+	vfs_timestamp(&tv);
+	if (flags & XFS_ICHGTIME_MOD) {
+		ip->i_d.di_mtime.t_sec = (__int32_t)tv.tv_sec;
+		ip->i_d.di_mtime.t_nsec = (__int32_t)tv.tv_nsec;
+	}
+	if (flags & XFS_ICHGTIME_ACC) {
+		ip->i_d.di_atime.t_sec = (__int32_t)tv.tv_sec;
+		ip->i_d.di_atime.t_nsec = (__int32_t)tv.tv_nsec;
+	}
+	if (flags & XFS_ICHGTIME_CHG) {
+		ip->i_d.di_ctime.t_sec = (__int32_t)tv.tv_sec;
+		ip->i_d.di_ctime.t_nsec = (__int32_t)tv.tv_nsec;
+	}
+	
+//printf ("xfs_ichgtime NI\n");
+
+}
+
 
 /*
- * Finish the removal of a vnode.
+ * Bring the atime in the XFS inode uptodate.
+ * Used before logging the inode to disk or when the Linux inode goes away.
  */
+
+/*
+ * It's unclear if we need this since this is for syncing the linux inode's atime
+ * to the xfs inode's atime.
+ * Since FreeBSD doesn't have atime in the vnode is there anything to really
+ * sync over?
+ * For now just make this a update atime call
+ */
+
 void
-vn_remove(
-	struct xfs_vnode *vp)
+xfs_synchronize_atime(
+	xfs_inode_t	*ip)
 {
-	vmap_t		vmap;
+#if 0
+	xfs_vnode_t	*vp;
+#endif
 
-	/* Make sure we don't do this to the same vnode twice */
-	if (!(vp->v_fbhv))
-		return;
+	timespec_t  tv;
+	
+/* vfs_timestamp looks at the system time accuracy variable */
+	vfs_timestamp(&tv);
+#if 0
+	printf("xfs_synchronize_atime old (%d,%d) new (%d,%ld)\n",
+	       ip->i_d.di_atime.t_sec,
+	       ip->i_d.di_atime.t_nsec,
+	       tv.tv_sec,
+	       tv.tv_nsec);
+#endif
 
-	XFS_STATS_INC(vn_remove);
-	vn_trace_exit(vp, "vn_remove", (inst_t *)__return_address);
-	/*
-	 * After the following purge the vnode
-	 * will no longer exist.
-	 */
-	VMAP(vp, vmap);
-	vn_purge(vp, &vmap);
+	ip->i_d.di_atime.t_sec = (__int32_t)tv.tv_sec;
+	ip->i_d.di_atime.t_nsec = (__int32_t)tv.tv_nsec;
 }
+
+#ifdef RMC
+/*
+ * Extracting atime values in various formats
+ */
+void vn_atime_to_bstime(struct xfs_vnode *vp, xfs_bstime_t *bs_atime)
+{
+	bs_atime->tv_sec = vp->v_inode.i_atime.tv_sec;
+	bs_atime->tv_nsec = vp->v_inode.i_atime.tv_nsec;
+	printf("vn_atime_to_bstime NI\n");
+}
+#endif
 
 
 #ifdef	CONFIG_XFS_VNODE_TRACING
