@@ -650,7 +650,7 @@ release.5:
 	# Remove all the directories we don't need.
 	-cd ${RD}/trees && \
 		(find ${OTHER_DISTS} -path '*/var/empty' | xargs chflags noschg; \
-		find ${OTHER_DISTS} -depth -type d -print | xargs rmdir)
+		find ${OTHER_DISTS} -depth -type d -empty -print | xargs rmdir)
 	touch ${.TARGET}
 
 #
