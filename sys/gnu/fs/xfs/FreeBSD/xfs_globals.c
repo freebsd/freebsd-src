@@ -36,7 +36,6 @@
  */
 
 #include "xfs.h"
-#include "xfs_macros.h"
 #include "xfs_types.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_bit.h"
@@ -53,16 +52,23 @@ xfs_param_t xfs_params = {
 	.refcache_size	= {	0,	128,	XFS_REFCACHE_SIZE_MAX },
 	.refcache_purge	= {	0,	32,	XFS_REFCACHE_SIZE_MAX },
 #endif
-	.restrict_chown	= {	0,	1,	1	},
-	.sgid_inherit	= {	0,	0,	1	},
-	.symlink_mode	= {	0,	0,	1	},
-	.panic_mask	= {	0,	0,	127	},
-	.error_level	= {	0,	3,	11	},
-	.sync_interval	= {	1,	30,	60	},
-	.stats_clear	= {	0,	0,	1	},
-	.inherit_sync	= {	0,	1,	1	},
-	.inherit_nodump	= {	0,	1,	1	},
-	.inherit_noatim = {	0,	1,	1	},
+	.restrict_chown	= {	0,		1,		1	},
+	.sgid_inherit	= {	0,		0,		1	},
+	.symlink_mode	= {	0,		0,		1	},
+	.panic_mask	= {	0,		0,		127	},
+	.error_level	= {	0,		3,		11	},
+	.syncd_timer	= {	1*100,		30*100,		7200*100},
+	.probe_dmapi	= {	0,		0,		1	},
+	.probe_ioops	= {	0,		0,		1	},
+	.probe_quota	= {	0,		1,		1	},
+	.stats_clear	= {	0,		0,		1	},
+	.inherit_sync	= {	0,		1,		1	},
+	.inherit_nodump	= {	0,		1,		1	},
+	.inherit_noatim = {	0,		1,		1	},
+	.xfs_buf_timer	= {	100/2,		1*100,		30*100	},
+	.xfs_buf_age	= {	1*100,		15*100,		7200*100},
+	.inherit_nosym	= {	0,		0,		1	},
+	.rotorstep	= {	1,		1,		255	},
 };
 
 /*

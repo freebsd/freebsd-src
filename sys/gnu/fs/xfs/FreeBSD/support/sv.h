@@ -3,8 +3,8 @@
 
 #include <sys/condvar.h>
 
-/*
- * Synchronisation variables
+/* 
+ * Synchronisation variables 
  *
  * parameters "pri", "svf" and "rts" are not (yet?) implemented
  *
@@ -12,18 +12,14 @@
 
 typedef struct cv sv_t;
 
-#define init_sv(sv,type,name,flag) \
-            cv_init(sv, name)
-#define sv_init(sv,flag,name) \
-            cv_init(sv, name)
-#define sv_wait(sv, pri, lock, spl) \
-            cv_wait_unlock(sv, lock)
-#define sv_signal(sv) \
-            cv_signal(sv)
-#define sv_broadcast(sv) \
-            cv_broadcast(sv)
-#define sv_destroy(sv) \
-            cv_destroy(sv)
+#define init_sv(sv,type,name,flag)	cv_init(sv, name)
+#define sv_init(sv,flag,name)		cv_init(sv, name)
+/* sv_wait should exit with lock unlocked */
+#define sv_wait(sv, pri, lock, spl)	cv_wait_unlock(sv, lock)
+#define sv_wait_sig(sv, pri, lock, spl) cv_wait_sig_nolock(sv, lock)
+#define sv_signal(sv)			cv_signal(sv)
+#define sv_broadcast(sv)		cv_broadcast(sv)
+#define sv_destroy(sv)			cv_destroy(sv)
 
 #define SV_FIFO         0x0             /* sv_t is FIFO type */
 #define SV_LIFO         0x2             /* sv_t is LIFO type */

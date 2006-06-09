@@ -1,42 +1,43 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_BMAP_H__
 #define	__XFS_BMAP_H__
 
 struct getbmap;
 struct xfs_bmbt_irec;
+struct xfs_ifork;
 struct xfs_inode;
 struct xfs_mount;
 struct xfs_trans;
+
+/*
+ * DELTA: describe a change to the in-core extent list.
+ *
+ * Internally the use of xed_blockount is somewhat funky.
+ * xed_blockcount contains an offset much of the time because this
+ * makes merging changes easier.  (xfs_fileoff_t and xfs_filblks_t are
+ * the same underlying type).
+ */
+typedef struct xfs_extdelta
+{
+	xfs_fileoff_t		xed_startoff;	/* offset of range */
+	xfs_filblks_t		xed_blockcount;	/* blocks in range */
+} xfs_extdelta_t;
 
 /*
  * List of extents to be free "later".
@@ -76,16 +77,16 @@ typedef	struct xfs_bmap_free
 #define	XFS_BMAPI_IGSTATE	0x200	/* Ignore state - */
 					/* combine contig. space */
 #define	XFS_BMAPI_CONTIG	0x400	/* must allocate only one extent */
+/*	XFS_BMAPI_DIRECT_IO	0x800	*/
+#define XFS_BMAPI_CONVERT	0x1000	/* unwritten extent conversion - */
+					/* need write cache flushing and no */
+					/* additional allocation alignments */
 
-#if XFS_WANT_FUNCS || XFS_WANT_FUNCS_C || (XFS_WANT_SPACE && XFSSO_XFS_BMAPI_AFLAG)
-int xfs_bmapi_aflag(int w);
-#endif
-
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_BMAPI_AFLAG)
 #define	XFS_BMAPI_AFLAG(w)	xfs_bmapi_aflag(w)
-#else
-#define	XFS_BMAPI_AFLAG(w)	((w) == XFS_ATTR_FORK ? XFS_BMAPI_ATTRFORK : 0)
-#endif
+static inline int xfs_bmapi_aflag(int w)
+{
+	return (w == XFS_ATTR_FORK ? XFS_BMAPI_ATTRFORK : 0);
+}
 
 /*
  * Special values for xfs_bmbt_irec_t br_startblock field.
@@ -93,17 +94,12 @@ int xfs_bmapi_aflag(int w);
 #define	DELAYSTARTBLOCK		((xfs_fsblock_t)-1LL)
 #define	HOLESTARTBLOCK		((xfs_fsblock_t)-2LL)
 
-#if XFS_WANT_FUNCS || XFS_WANT_FUNCS_C || (XFS_WANT_SPACE && XFSSO_XFS_BMAP_INIT)
-void xfs_bmap_init(xfs_bmap_free_t *flp, xfs_fsblock_t *fbp);
-#endif
-
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_BMAP_INIT)
 #define	XFS_BMAP_INIT(flp,fbp)	xfs_bmap_init(flp,fbp)
-#else
-#define	XFS_BMAP_INIT(flp,fbp)	\
+static inline void xfs_bmap_init(xfs_bmap_free_t *flp, xfs_fsblock_t *fbp)
+{
 	((flp)->xbf_first = NULL, (flp)->xbf_count = 0, \
-	 (flp)->xbf_low = 0, *(fbp) = NULLFSBLOCK)
-#endif
+		(flp)->xbf_low = 0, *(fbp) = NULLFSBLOCK);
+}
 
 /*
  * Argument structure for xfs_bmap_alloc.
@@ -124,7 +120,8 @@ typedef struct xfs_bmalloca {
 	char			wasdel;	/* replacing a delayed allocation */
 	char			userdata;/* set if is user data */
 	char			low;	/* low on space, using seq'l ags */
-	char			aeof;   /* allocated space at eof */
+	char			aeof;	/* allocated space at eof */
+	char			conv;	/* overwriting unwritten extents */
 } xfs_bmalloca_t;
 
 #ifdef __KERNEL__
@@ -162,7 +159,8 @@ xfs_bmap_trace_exlist(
 int					/* error code */
 xfs_bmap_add_attrfork(
 	struct xfs_inode	*ip,	/* incore inode pointer */
-	int					rsvd);	/* flag for reserved block allocation */
+	int			size,	/* space needed for new attribute */
+	int			rsvd);	/* flag for reserved block allocation */
 
 /*
  * Add the extent to the list of extents to be free at transaction end.
@@ -182,13 +180,6 @@ xfs_bmap_add_free(
 void
 xfs_bmap_cancel(
 	xfs_bmap_free_t		*flist);	/* free list to clean up */
-
-/*
- * Routine to check if a specified inode is swap capable.
- */
-int
-xfs_bmap_check_swappable(
-	struct xfs_inode	*ip);		/* incore inode */
 
 /*
  * Compute and fill in the value of the maximum depth of a bmap btree
@@ -298,7 +289,9 @@ xfs_bmapi(
 	xfs_extlen_t		total,		/* total blocks needed */
 	struct xfs_bmbt_irec	*mval,		/* output: map values */
 	int			*nmap,		/* i/o: mval size/count */
-	xfs_bmap_free_t		*flist);	/* i/o: list extents to free */
+	xfs_bmap_free_t		*flist,		/* i/o: list extents to free */
+	xfs_extdelta_t		*delta);	/* o: change made to incore
+						   extents */
 
 /*
  * Map file blocks to filesystem blocks, simple version.
@@ -332,6 +325,8 @@ xfs_bunmapi(
 	xfs_fsblock_t		*firstblock,	/* first allocated block
 						   controls a.g. for allocs */
 	xfs_bmap_free_t		*flist,		/* i/o: list extents to free */
+	xfs_extdelta_t		*delta,		/* o: change made to incore
+						   extents */
 	int			*done);		/* set if not done yet */
 
 /*
@@ -341,21 +336,8 @@ int						/* error code */
 xfs_getbmap(
 	bhv_desc_t		*bdp,		/* XFS behavior descriptor*/
 	struct getbmap		*bmv,		/* user bmap structure */
-	void			*ap,		/* pointer to user's array */
+	void			__user *ap,	/* pointer to user's array */
 	int			iflags);	/* interface flags */
-
-/*
- * Check the last inode extent to determine whether this allocation will result
- * in blocks being allocated at the end of the file. When we allocate new data
- * blocks at the end of the file which do not start at the previous data block,
- * we will try to align the new blocks at stripe unit boundaries.
- */
-int
-xfs_bmap_isaeof(
-	struct xfs_inode	*ip,
-	xfs_fileoff_t		off,
-	int			whichfork,
-	char			*aeof);
 
 /*
  * Check if the endoff is outside the last extent. If so the caller will grow
@@ -384,8 +366,20 @@ xfs_bmap_count_blocks(
  */
 int
 xfs_check_nostate_extents(
-	xfs_bmbt_rec_t		*ep,
+	struct xfs_ifork	*ifp,
+	xfs_extnum_t		idx,
 	xfs_extnum_t		num);
+
+/*
+ * Search the extent records for the entry containing block bno.
+ * If bno lies in a hole, point to the next entry.  If bno lies
+ * past eof, *eofp will be set, and *prevp will contain the last
+ * entry (null if none).  Else, *lastxp will be set to the index
+ * of the found entry; *gotp will contain the entry.
+ */
+xfs_bmbt_rec_t *
+xfs_bmap_search_multi_extents(struct xfs_ifork *, xfs_fileoff_t, int *,
+			xfs_extnum_t *, xfs_bmbt_irec_t *, xfs_bmbt_irec_t *);
 
 #endif	/* __KERNEL__ */
 

@@ -44,6 +44,9 @@
 extern void icmn_err(int, char *, va_list);
 extern void cmn_err(int, char *, ...);
 
+#define prdev(fmt,targ,args...) \
+	printf("Device %s - " fmt "\n", XFS_BUFTARG_NAME(targ), ## args)
+
 #ifndef STATIC
 # define STATIC static
 #endif

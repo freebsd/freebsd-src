@@ -42,6 +42,11 @@ typedef unsigned int		__u32;
 typedef signed long long int	__s64;
 typedef unsigned long long int	__u64;
 
+/* linus now has sparse which expects big endian or little endian */
+typedef __u16 __be16;
+typedef __u32 __be32;
+typedef __u64 __be64;
+
 /*
  * Linux types with direct FreeBSD conterparts
  */
@@ -70,6 +75,7 @@ typedef dev_t			os_dev_t;
 #define	BITS_PER_LONG		32
 #endif
 
+#define rol32(x, y)	(((x)<<(y))|((x)>>(32-(y))))
 /*
  * boolean_t is enum on Linux, int on FreeBSD.
  * Provide value defines.
@@ -156,10 +162,20 @@ typedef dev_t			os_dev_t;
 #define	max_t(type,x,y)		MAX((x),(y)) 
 
 
+typedef struct mtx xfs_mutex_t;
 /*
  * Cedentials manipulation.
  */
 #define current_fsuid(credp)	(credp)->cr_uid
 #define current_fsgid(credp)	(credp)->cr_groups[0]
+
+#define PAGE_CACHE_SIZE PAGE_SIZE
+
+#define IS_ERR(err) (err)
+
+static inline unsigned long ffz(unsigned long val)
+{
+        return ffsl(~val);
+}
 
 #endif /* __XFS_COMPAT_H__ */

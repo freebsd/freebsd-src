@@ -1,33 +1,19 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_SUPER_H__
 #define __XFS_SUPER_H__
@@ -111,24 +97,17 @@ extern __uint64_t xfs_max_file_offset(unsigned int);
 
 extern void xfs_initialize_vnode(bhv_desc_t *, xfs_vnode_t *, bhv_desc_t *, int);
 
-extern struct vnode * xfs_get_inode( bhv_desc_t *, xfs_ino_t, int);
 extern void xfs_flush_inode(struct xfs_inode *);
 extern void xfs_flush_device(struct xfs_inode *);
 
 extern int  xfs_blkdev_get(struct xfs_mount *, const char *,
 				struct block_device **);
 extern void xfs_blkdev_put(struct block_device *);
+extern void xfs_blkdev_issue_flush(struct xfs_buftarg *);
 
-extern struct xfs_buftarg *xfs_alloc_buftarg(struct vnode *);
-extern void xfs_relse_buftarg(struct xfs_buftarg *);
-extern void xfs_free_buftarg(struct xfs_buftarg *);
-extern void xfs_flush_buftarg(struct xfs_buftarg *);
-extern int xfs_readonly_buftarg(struct xfs_buftarg *);
-extern void xfs_setsize_buftarg(struct xfs_buftarg *, unsigned int, unsigned int);
-extern unsigned int xfs_getsize_buftarg(struct xfs_buftarg *);
+extern struct export_operations xfs_export_operations;
 
 extern int init_xfs_fs(void);
 extern void exit_xfs_fs(void);
 
 #endif	/* __XFS_SUPER_H__ */
-

@@ -1,61 +1,45 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
-
-#include "xfs_macros.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
 #include "xfs_clnt.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_alloc.h"
 #include "xfs_dmapi.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_btree.h"
+#include "xfs_ialloc.h"
 #include "xfs_bmap.h"
-#include "xfs_bit.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_itable.h"
@@ -67,12 +51,13 @@
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
 #include "xfs_version.h"
+#include "xfs_buf.h"
 
 #include <geom/geom.h>
 #include <geom/geom_vfs.h>
 
 extern struct vop_vector xfs_fifoops;
-extern struct buf_ops xfs_ops;
+extern struct xfs_vnodeops xfs_vnodeops;
 
 __uint64_t
 xfs_max_file_offset(
@@ -85,16 +70,16 @@ xfs_max_file_offset(
 void
 xfs_initialize_vnode(
 	bhv_desc_t		*bdp,
-	xfs_vnode_t		*vp,
+	xfs_vnode_t		*xvp,
 	bhv_desc_t		*inode_bhv,
 	int			unlock)
 {
 	xfs_inode_t		*ip = XFS_BHVTOI(inode_bhv);
 
 	if (!inode_bhv->bd_vobj) {
-		vp->v_vfsp = bhvtovfs(bdp);
-		bhv_desc_init(inode_bhv, ip, vp, &xfs_vnodeops);
-		bhv_insert(VN_BHV_HEAD(vp), inode_bhv);
+		xvp->v_vfsp = bhvtovfs(bdp);
+		bhv_desc_init(inode_bhv, ip, xvp, &xfs_vnodeops);
+		bhv_insert(VN_BHV_HEAD(xvp), inode_bhv);
 	}
 
 	/*
@@ -103,24 +88,25 @@ xfs_initialize_vnode(
 	 * This is _not_ like the same place in Linux version of
 	 * routine.
 	 */
-	if (vp->v_type != VNON)
-		return;
 
-	vp->v_type = IFTOVT(ip->i_d.di_mode);
-	vp->v_vnode->v_type = vp->v_type;
+	if (xvp->v_vnode->v_type != VNON)
+	  return;
 
-	if (vp->v_type == VFIFO)
-		vp->v_vnode->v_op = &xfs_fifoops;
+	xvp->v_vnode->v_type =  IFTOVT(ip->i_d.di_mode);
 
-	ASSERT_VOP_LOCKED(vp->v_vnode, "xfs_initialize_vnode");
+	if (xvp->v_vnode->v_type == VFIFO)
+		xvp->v_vnode->v_op = &xfs_fifoops;
+
+	ASSERT_VOP_LOCKED(xvp->v_vnode, "xfs_initialize_vnode");
 
 	/* For new inodes we need to set the ops vectors,
 	 * and unlock the inode.
 	 */
-	if (unlock)
-		VOP_UNLOCK(vp->v_vnode, 0, curthread);
+	if (ip->i_d.di_mode != 0 && unlock)
+		VOP_UNLOCK(xvp->v_vnode, 0, curthread);
 }
 
+#if 0
 struct vnode *
 xfs_get_inode(
 	bhv_desc_t	*bdp,
@@ -129,21 +115,7 @@ xfs_get_inode(
 {
 	return NULL;
 }
-
-void
-xfs_flush_inode(
-        xfs_inode_t     *ip)
-{
-	printf("xfs_flush_inode NI\n");
-}
-
-void
-xfs_flush_device(
-        xfs_inode_t     *ip)
-{
-	printf("xfs_flush_device NI\n");
-        xfs_log_force(ip->i_mount, (xfs_lsn_t)0, XFS_LOG_FORCE|XFS_LOG_SYNC);
-}
+#endif
 
 /*ARGSUSED*/
 int
@@ -217,7 +189,7 @@ xfs_blkdev_get(
 	}
 
 	devvp->v_bufobj.bo_private = cp;
-	devvp->v_bufobj.bo_ops = &xfs_ops;
+	devvp->v_bufobj.bo_ops = &xfs_bo_ops;
 
 	*bdevp = devvp;
 	return (0);
@@ -245,70 +217,32 @@ xfs_blkdev_put(
 }
 
 void
-xfs_flush_buftarg(
-	xfs_buftarg_t		*btp)
+xfs_mountfs_check_barriers(xfs_mount_t *mp)
 {
-	printf("xfs_flush_buftarg NI %p\n",btp);
+	printf("xfs_mountfs_check_barriers NI\n");
 }
 
 void
-xfs_free_buftarg(
-	xfs_buftarg_t		*btp)
+xfs_flush_inode(
+		xfs_inode_t	*ip)
 {
-	xfs_flush_buftarg(btp);
-	kmem_free(btp, sizeof(*btp));
-}
-
-int
-xfs_readonly_buftarg(
-	xfs_buftarg_t		*btp)
-{
-	struct g_consumer *cp;
-
-	KASSERT(btp->specvp->v_bufobj.bo_ops == &xfs_ops,
-	   ("Bogus xfs_buftarg_t pointer"));
-	cp = btp->specvp->v_bufobj.bo_private;
-	
-	return (cp->acw == 0);
+	printf("xfs_flush_inode NI\n");
 }
 
 void
-xfs_relse_buftarg(
-	xfs_buftarg_t		*btp)
+xfs_flush_device(
+		 xfs_inode_t	*ip)
 {
-	printf("xfs_readonly_buftarg NI %p\n",btp);
+	printf("xfs_flush_device NI\n");
+        xfs_log_force(ip->i_mount, (xfs_lsn_t)0, XFS_LOG_FORCE|XFS_LOG_SYNC);
 }
 
-unsigned int
-xfs_getsize_buftarg(
-	xfs_buftarg_t		*btp)
-{
-	struct g_consumer	*cp;
-	cp = btp->specvp->v_bufobj.bo_private;
-	return (cp->provider->sectorsize);
-}
 
 void
-xfs_setsize_buftarg(
-	xfs_buftarg_t		*btp,
-	unsigned int		blocksize,
-	unsigned int		sectorsize)
+xfs_blkdev_issue_flush(
+	xfs_buftarg_t		*buftarg)
 {
-	printf("xfs_setsize_buftarg NI %p\n",btp);
-}
-
-xfs_buftarg_t *
-xfs_alloc_buftarg(
-	struct vnode	*bdev)
-{
-	xfs_buftarg_t		*btp;
-
-	btp = kmem_zalloc(sizeof(*btp), KM_SLEEP);
-
-	btp->dev    = bdev->v_rdev;
-	btp->specvp = bdev;
-
-	return btp;
+	printf("xfs_blkdev_issue_flush NI\n");
 }
 
 int
@@ -322,7 +256,9 @@ init_xfs_fs( void )
 	vn_init();
 	xfs_init();
 	uuid_init();
+#ifdef RMC
 	vfs_initdmapi();
+#endif
 	vfs_initquota();
 
 	return 0;
@@ -333,7 +269,8 @@ exit_xfs_fs(void)
 {
 	xfs_cleanup();
 	vfs_exitquota();
+#ifdef RMC
 	vfs_exitdmapi();
-	uuid_cleanup();
+#endif
 }
 

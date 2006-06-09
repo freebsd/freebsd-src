@@ -14,7 +14,6 @@ typedef struct {
 #define	atomic_inc(v)			atomic_add_int(&(v)->val, 1)
 #define	atomic_dec(v)			atomic_subtract_int(&(v)->val, 1)
 #define	atomic_sub(i, v)		atomic_subtract_int(&(v)->val, (i))
-#define	atomic_sub_and_test(i, v)	(atomic_fetchadd_int(&(v)->val, (-i) == i)
 #define	atomic_dec_and_test(v)		(atomic_fetchadd_int(&(v)->val, -1) == 1)
 
 /*

@@ -1,58 +1,44 @@
 /*
- * Copyright (c) 2000-2002 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
-#include "xfs_macros.h"
+#include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
-#include "xfs_ag.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
-#include "xfs_inode_item.h"
 #include "xfs_inode.h"
+#include "xfs_inode_item.h"
 #include "xfs_bmap.h"
+#include "xfs_btree.h"
 #include "xfs_ialloc.h"
 #include "xfs_itable.h"
 #include "xfs_dfrag.h"
@@ -67,63 +53,59 @@
  */
 int
 xfs_swapext(
-	xfs_swapext_t   *sxp)
+	xfs_swapext_t	__user *sxu)
 {
-	xfs_swapext_t	sx;
-	xfs_inode_t     *ip=NULL, *tip=NULL, *ips[2];
-	xfs_trans_t     *tp;
+	xfs_swapext_t	*sxp;
+	xfs_inode_t     *ip=NULL, *tip=NULL;
 	xfs_mount_t     *mp;
-	xfs_bstat_t	*sbp;
 	xfs_vnode_t	*vp = NULL, *tvp = NULL;
 	struct vnode	*bvp, *btvp;
-	bhv_desc_t      *bdp, *tbdp;
-	vn_bhv_head_t   *bhp, *tbhp;
-	uint		lock_flags=0;
-	int		ilf_fields, tilf_fields;
 	int		error = 0;
-	xfs_ifork_t	tempif, *ifp, *tifp;
-	__uint64_t	tmp;
-	int		aforkblks = 0;
-	int		taforkblks = 0;
-	int		locked = 0;
+
+	sxp = kmem_alloc(sizeof(xfs_swapext_t), KM_MAYFAIL);
+	if (!sxp) {
+		error = XFS_ERROR(ENOMEM);
+		goto error0;
+	}
 	struct thread	*td;
 	struct cred	*cred;
 
 	td = curthread;
 	cred = td->td_ucred;
 
-	if (copy_from_user(&sx, sxp, sizeof(sx)))
-		return XFS_ERROR(EFAULT);
+	if (copy_from_user(sxp, sxu, sizeof(xfs_swapext_t))) {
+		error = XFS_ERROR(EFAULT);
+		goto error0;
+	}
 
 	/* Pull information for the target fd */
-	if (fgetvp(td, (int)sx.sx_fdtarget, &bvp) != 0) {
+	if (fgetvp(td, (int)sxp->sx_fdtarget, &bvp) != 0) {
 		error = XFS_ERROR(EINVAL);
 		goto error0;
 	}
 
 	vp = VPTOXFSVP(bvp);
-	bhp = VN_BHV_HEAD(vp);
-	bdp = vn_bhv_lookup(bhp, &xfs_vnodeops);
-	if (bdp == NULL) {
+	ip = xfs_vtoi(vp);
+	if (ip == NULL) {
 		error = XFS_ERROR(EBADF);
 		goto error0;
-	} else {
-		ip = XFS_BHVTOI(bdp);
 	}
 
-	if (fgetvp(td, (int)sx.sx_fdtmp, &btvp) != 0) {
+	if (fgetvp(td, (int)sxp->sx_fdtmp, &btvp) != 0) {
 		error = XFS_ERROR(EINVAL);
 		goto error0;
 	}
 
 	tvp = VPTOXFSVP(btvp);
-	tbhp = VN_BHV_HEAD(tvp);
-	tbdp = vn_bhv_lookup(tbhp, &xfs_vnodeops);
-	if (tbdp == NULL) {
+	tip = xfs_vtoi(tvp);
+	if (tip == NULL) {
 		error = XFS_ERROR(EBADF);
 		goto error0;
-	} else {
-		tip = XFS_BHVTOI(tbdp);
+	}
+
+	if (ip->i_mount != tip->i_mount) {
+		error =  XFS_ERROR(EINVAL);
+		goto error0;
 	}
 
 	if (ip->i_ino == tip->i_ino) {
@@ -133,14 +115,58 @@ xfs_swapext(
 
 	mp = ip->i_mount;
 
-	sbp = &sx.sx_stat;
-
 	if (XFS_FORCED_SHUTDOWN(mp)) {
 		error =  XFS_ERROR(EIO);
 		goto error0;
 	}
 
-	locked = 1;
+	error = XFS_SWAP_EXTENTS(mp, &ip->i_iocore, &tip->i_iocore, sxp);
+
+ error0:
+#ifdef RMC
+	if (fp != NULL)
+		fput(fp);
+	if (tfp != NULL)
+		fput(tfp);
+#endif
+
+	if (sxp != NULL)
+		kmem_free(sxp, sizeof(xfs_swapext_t));
+
+	return error;
+}
+
+int
+xfs_swap_extents(
+	xfs_inode_t	*ip,
+	xfs_inode_t	*tip,
+	xfs_swapext_t	*sxp)
+{
+	xfs_mount_t	*mp;
+	xfs_inode_t	*ips[2];
+	xfs_trans_t	*tp;
+	xfs_bstat_t	*sbp = &sxp->sx_stat;
+	xfs_vnode_t	*vp, *tvp;
+	xfs_ifork_t	*tempifp, *ifp, *tifp;
+	int		ilf_fields, tilf_fields;
+	static uint	lock_flags = XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL;
+	int		error = 0;
+	int		aforkblks = 0;
+	int		taforkblks = 0;
+	__uint64_t	tmp;
+	char		locked = 0;
+
+	mp = ip->i_mount;
+
+	tempifp = kmem_alloc(sizeof(xfs_ifork_t), KM_MAYFAIL);
+	if (!tempifp) {
+		error = XFS_ERROR(ENOMEM);
+		goto error0;
+	}
+
+	sbp = &sxp->sx_stat;
+	vp = XFS_ITOV(ip);
+	tvp = XFS_ITOV(tip);
 
 	/* Lock in i_ino order */
 	if (ip->i_ino < tip->i_ino) {
@@ -150,24 +176,22 @@ xfs_swapext(
 		ips[0] = tip;
 		ips[1] = ip;
 	}
-	lock_flags = XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL;
+
 	xfs_lock_inodes(ips, 2, 0, lock_flags);
+	locked = 1;
 
 	/* Check permissions */
-	if ((error = _MAC_XFS_IACCESS(ip, MACWRITE, NULL))) {
+	error = xfs_iaccess(ip, S_IWUSR, NULL);
+	if (error)
 		goto error0;
-	}
-	if ((error = _MAC_XFS_IACCESS(tip, MACWRITE, NULL))) {
+
+	error = xfs_iaccess(tip, S_IWUSR, NULL);
+	if (error)
 		goto error0;
-	}
-	if ((current_fsuid(cred) != ip->i_d.di_uid) &&
-	    (error = xfs_iaccess(ip, S_IWUSR, NULL)) &&
-	    !capable_cred(NULL, CAP_FOWNER)) {
-		goto error0;
-	}
-	if ((current_fsuid(cred) != tip->i_d.di_uid) &&
-	    (error = xfs_iaccess(tip, S_IWUSR, NULL)) &&
-	    !capable_cred(NULL, CAP_FOWNER)) {
+
+	/* Verify that both files have the same format */
+	if ((ip->i_d.di_mode & S_IFMT) != (tip->i_d.di_mode & S_IFMT)) {
+		error = XFS_ERROR(EINVAL);
 		goto error0;
 	}
 
@@ -185,9 +209,10 @@ xfs_swapext(
 		goto error0;
 	}
 
-	if (VN_CACHED(tvp) != 0)
-		xfs_inval_cached_pages(XFS_ITOV(tip), &(tip->i_iocore),
-						(loff_t)0, 0, 0);
+	if (VN_CACHED(tvp) != 0) {
+		xfs_inval_cached_trace(&tip->i_iocore, 0, -1, 0, -1);
+		XVOP_FLUSHINVAL_PAGES(tvp, 0, -1, FI_REMAPF_LOCKED);
+	}
 
 	/* Verify O_DIRECT for ftmp */
 	if (VN_CACHED(tvp) != 0) {
@@ -196,9 +221,9 @@ xfs_swapext(
 	}
 
 	/* Verify all data are being swapped */
-	if (sx.sx_offset != 0 ||
-	    sx.sx_length != ip->i_d.di_size ||
-	    sx.sx_length != tip->i_d.di_size) {
+	if (sxp->sx_offset != 0 ||
+	    sxp->sx_length != ip->i_d.di_size ||
+	    sxp->sx_length != tip->i_d.di_size) {
 		error = XFS_ERROR(EFAULT);
 		goto error0;
 	}
@@ -259,7 +284,8 @@ xfs_swapext(
 		xfs_iunlock(ip,  XFS_IOLOCK_EXCL);
 		xfs_iunlock(tip, XFS_IOLOCK_EXCL);
 		xfs_trans_cancel(tp, 0);
-		return error;
+		locked = 0;
+		goto error0;
 	}
 	xfs_lock_inodes(ips, 2, 0, XFS_ILOCK_EXCL);
 
@@ -270,10 +296,8 @@ xfs_swapext(
 	     (ip->i_d.di_aformat != XFS_DINODE_FMT_LOCAL)) {
 		error = xfs_bmap_count_blocks(tp, ip, XFS_ATTR_FORK, &aforkblks);
 		if (error) {
-			xfs_iunlock(ip,  lock_flags);
-			xfs_iunlock(tip, lock_flags);
 			xfs_trans_cancel(tp, 0);
-			return error;
+			goto error0;
 		}
 	}
 	if ( ((XFS_IFORK_Q(tip) != 0) && (tip->i_d.di_anextents > 0)) &&
@@ -281,10 +305,8 @@ xfs_swapext(
 		error = xfs_bmap_count_blocks(tp, tip, XFS_ATTR_FORK,
 			&taforkblks);
 		if (error) {
-			xfs_iunlock(ip,  lock_flags);
-			xfs_iunlock(tip, lock_flags);
 			xfs_trans_cancel(tp, 0);
-			return error;
+			goto error0;
 		}
 	}
 
@@ -293,9 +315,9 @@ xfs_swapext(
 	 */
 	ifp = &ip->i_df;
 	tifp = &tip->i_df;
-	tempif = *ifp;	/* struct copy */
-	*ifp = *tifp;	/* struct copy */
-	*tifp = tempif;	/* struct copy */
+	*tempifp = *ifp;	/* struct copy */
+	*ifp = *tifp;		/* struct copy */
+	*tifp = *tempifp;	/* struct copy */
 
 	/*
 	 * Fix the on-disk inode values
@@ -376,16 +398,14 @@ xfs_swapext(
 
 	error = xfs_trans_commit(tp, XFS_TRANS_SWAPEXT, NULL);
 
-	return error;
+	locked = 0;
 
  error0:
 	if (locked) {
 		xfs_iunlock(ip,  lock_flags);
 		xfs_iunlock(tip, lock_flags);
 	}
-
-	if (vp != NULL)  VN_RELE(vp);
-	if (tvp != NULL) VN_RELE(tvp);
-
+	if (tempifp != NULL)
+		kmem_free(tempifp, sizeof(xfs_ifork_t));
 	return error;
 }
