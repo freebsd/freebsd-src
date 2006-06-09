@@ -3654,14 +3654,14 @@ vm_paddr_t
 pmap_extract(pmap_t pm, vm_offset_t va)
 {
 	struct l2_dtable *l2;
-	pd_entry_t *pl1pd, l1pd;
+	pd_entry_t l1pd;
 	pt_entry_t *ptep, pte;
 	vm_paddr_t pa;
 	u_int l1idx;
 	l1idx = L1_IDX(va);
-	pl1pd = &pm->pm_l1->l1_kva[l1idx];
-	l1pd = *pl1pd;
 
+	PMAP_LOCK(pm);
+	l1pd = pm->pm_l1->l1_kva[l1idx];
 	if (l1pte_section_p(l1pd)) {
 		/*
 		 * These should only happen for pmap_kernel()
@@ -3678,14 +3678,17 @@ pmap_extract(pmap_t pm, vm_offset_t va)
 
 		if (l2 == NULL ||
 		    (ptep = l2->l2_bucket[L2_BUCKET(l1idx)].l2b_kva) == NULL) {
+			PMAP_UNLOCK(pm);
 			return (0);
 		}
 
 		ptep = &ptep[l2pte_index(va)];
 		pte = *ptep;
 
-		if (pte == 0)
+		if (pte == 0) {
+			PMAP_UNLOCK(pm);
 			return (0);
+		}
 
 		switch (pte & L2_TYPE_MASK) {
 		case L2_TYPE_L:
@@ -3698,6 +3701,7 @@ pmap_extract(pmap_t pm, vm_offset_t va)
 		}
 	}
 
+	PMAP_UNLOCK(pm);
 	return (pa);
 }
 
