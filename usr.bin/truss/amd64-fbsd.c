@@ -216,7 +216,7 @@ amd64_syscall_entry(struct trussinfo *trussinfo, int nargs) {
 #endif
     for (i = 0; i < fsc.nargs; i++) {
 #if DEBUG
-      fprintf(stderr, "0x%x%s",
+      fprintf(stderr, "0x%lx%s",
 	      sc
 	      ? fsc.args[sc->args[i].offset]
 	      : fsc.args[i],
@@ -242,7 +242,8 @@ amd64_syscall_entry(struct trussinfo *trussinfo, int nargs) {
    * parameter?
    */
 
-  if (!strcmp(fsc.name, "execve") || !strcmp(fsc.name, "exit")) {
+  if (fsc.name != NULL &&
+      (!strcmp(fsc.name, "execve") || !strcmp(fsc.name, "exit"))) {
 
     /* XXX
      * This could be done in a more general
