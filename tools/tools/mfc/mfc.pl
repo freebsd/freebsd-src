@@ -56,7 +56,7 @@ my $mfchome = $MFCHOME ? $MFCHOME : "/var/tmp/mfc";
 my $mfclogin = $MFCLOGIN ? $MFCLOGIN : "";
 my $cvsroot = $MFCCVSROOT ? $MFCCVSROOT : ':pserver:anoncvs@anoncvs.at.FreeBSD.org:/home/ncvs';
 
-my $version = "1.0.2";
+my $version = "1.1.0";
 my %opt;
 my $commit_author;
 my $commit_date;
@@ -88,7 +88,7 @@ sub init()
 	$cdiff = `which colordiff` if ($cdiff =~ /^$/);
 
 	# Parse command-line options.
-	my $opt_string = 'f:hi:m:s:v';
+	my $opt_string = 'bf:hi:m:s:v';
 	getopts( "$opt_string", \%opt ) or usage();
 	usage() if !$opt{i} or $opt{h};
 	@msgids = split / /, $opt{m} if (defined($opt{m}));
@@ -100,10 +100,11 @@ sub usage()
 $0 version $version 
 
 Usage: $0 [-v] -h
-       $0 [-v] -f file -i id
-       $0 [-v] -m msg-id -i id
-       $0 [-v] -s query -i id
+       $0 [-vb] -f file -i id
+       $0 [-vb] -m msg-id -i id
+       $0 [-vb] -s query -i id
 Options:
+  -b         : generate a backout patch
   -f file    : commit mail file to use ('-' for stdin)
   -h         : this (help) message
   -i id      : identifier used to save commit log message and patch
@@ -193,7 +194,11 @@ sub fetch_diff($)
 	my $new = $mfc_files{$name}{"to"};
 
 	# CVSWeb uses rcsdiff instead of cvs rdiff, that's a problem for deleted and new files.
-	if (exists($new_files{$name}) or exists($dead_files{$name})) {
+	# Need to use cvs to generate reversed diff for backout commits.
+	if ($opt{b}) {
+		print "    Generating reversed diff for $name using cvs diff...\n";
+		system("cvs -d $cvsroot diff -u -j$new -j$old $name >> $mfchome/$opt{i}/patch 2>/dev/null");
+	} elsif (exists($new_files{$name}) or exists($dead_files{$name})) {
 		print "    Generating diff for $name using cvs rdiff...\n";
 		system("cvs -d $cvsroot rdiff -u -r$old -r$new $name >> $mfchome/$opt{i}/patch 2>/dev/null");
 	} else {
@@ -385,12 +390,18 @@ if ($mfclogin) {
 	print "Processing commit message...\n";
 	# Chop empty lines Template lines like "Approved by: (might be dangerous)".
 	open MSG, "> $mfchome/$opt{i}/msg" || die "Can't open $mfchome/$opt{i}/msg for writing.";
-	print MSG "MFC:\n\n";
+	if ($opt{b}) {
+		print MSG "Backout this commit:\n\n";
+	} else {
+		print MSG "MFC:\n\n";
+	}
 	
 	# Append merged file names and revisions to the commit message.
 	print MSG $_ foreach (@logmsg);
-	print MSG "\n";
-	print MSG "      ", $_, ": rev ", $mfc_files{$_}{"from"}, " -> ", $mfc_files{$_}{"to"}, "\n" foreach (keys(%mfc_files));
+	if (!$opt{b}) {
+		print MSG "\n";
+		print MSG "      ", $_, ": rev ", $mfc_files{$_}{"from"}, " -> ", $mfc_files{$_}{"to"}, "\n" foreach (keys(%mfc_files));
+	}
 
 	# Append useful info gathered from Submitted/Obtained/... lines.
 	print MSG "\n";
