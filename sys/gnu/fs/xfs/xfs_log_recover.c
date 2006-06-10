@@ -3827,6 +3827,11 @@ xlog_do_recover(
 	xfs_sb_t	*sbp;
 
 	/*
+	 * XXX: Disable log recovery for now, until we fix panics.
+	 */
+	printf("XFS log recovery disabled.\n");
+	return (EOPNOTSUPP);
+	/*
 	 * First replay the images in the log.
 	 */
 	error = xlog_do_log_recovery(log, head_blk, tail_blk);
