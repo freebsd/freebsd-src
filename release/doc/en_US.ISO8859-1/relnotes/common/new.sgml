@@ -359,6 +359,12 @@
 
       <para arch="pc98">A bootable CDROM loader has been implemented
 	for the pc98 platform.</para>
+
+      <para arch="i386">A bug in the i386 boot loader, which could
+	cause filesystem corruption if
+	a <filename>nextboot.conf</filename> file was used and landed
+	after cylinder 1023, has been fixed.</para>
+
     </sect3>
 
     <sect3 id="proc">
@@ -556,6 +562,8 @@
 	  by lnc(4).</para>
 
 	<para>The &man.my.4; driver is now MPSAFE. &merged;</para>
+
+	<para>The &man.my.4; driver now supports &man.altq.4;</para>
 
 	<para arch="i386,amd64">The &man.myri10ge.4; driver,
 	  which supports Myricom Myri10GE 10 Gigabit Ethernet
@@ -880,6 +888,13 @@ geli_da1s3a_keyfile0_load="YES"
 geli_da1s3a_keyfile0_type="da1s3a:geli_keyfile0"
 geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
+      <para>&man.geli.8; is now able to perform data integrity
+        verification (data authentication) of encrypted data stored on
+        disk.  Note that the encryption algorithm is now specified to
+        the &man.geli.8; control program using the <option>-e</option>
+        option; the <option>-a</option> option is now used to specify
+        the authentication algorithm</para>
+
       <para>The &man.umass.4; driver now supports
 	<literal>PLAY_MSF</literal>,
 	<literal>PLAY_TRACK</literal>,
@@ -915,7 +930,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 	been updated to a snapshot from DRI CVS as of 20051202.  &merged;</para>
 
       <para>TrustedBSD <application>OpenBSM</application>,
-	version 1.0 alpha 5, an implementation of the documented Sun Basic
+	version 1.0 alpha 6, an implementation of the documented Sun Basic
 	Security Module (BSM) Audit API and file format, as well as local
 	extensions to support the Mac OS X and FreeBSD operating systems
 	has been added.  This also includes command line tools for audit
@@ -984,7 +999,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The &man.du.1; program now supports a <option>-n</option>
       flag, which causes it to ignore files and directories with
-      the <literal>nodump</literal> flag set.</para>
+      the <literal>nodump</literal> flag set. &merged;</para>
 
     <para>The &man.find.1; program now supports <option>-Btime</option>
       and other related primaries, which can be used to create expressions
@@ -1006,7 +1021,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.getent.1; utility has been imported from NetBSD.
       It retrieves and displays information from an administrative
       database (such as <filename>hosts</filename>) using the lookup
-      order specified in &man.nsswitch.conf.5;.</para>
+      order specified in &man.nsswitch.conf.5;. &merged;</para>
 
     <para>The &man.gpt.8; utility now supports setting GPT partition labels.</para>
 
@@ -1571,7 +1586,8 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>Documentation of existing functionality has been improved by
       the addition of the following manual pages:
-      &man.acpi.sony.4;, &man.ext2fs.5;,
+      &man.acpi.sony.4;, &man.device.get.sysctl.9;,
+      &man.ext2fs.5;,
       &man.mca.8;,
       &man.snd.mss.4;, &man.snd.t4dwave.4;,
       &man.sysctl.9;.</para>
