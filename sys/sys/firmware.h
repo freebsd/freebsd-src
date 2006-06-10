@@ -48,9 +48,13 @@ struct firmware {
 	size_t		 datasize;	/* size of image in bytes */
 	unsigned int	 version;	/* version of the image */
 	int		 refcnt;	/* held references */
+	int		 flags;		/* FIRMWAREFLAG_ flags */
 	struct firmware *parent;	/* not null if a subimage */
 	linker_file_t	 file;		/* loadable module */
 };
+
+/* "flags" field definitions */
+#define FIRMWAREFLAG_KEEPKLDREF	0x0001	/* don't release KLD reference */
 
 struct firmware	*firmware_register(const char *, const void *, size_t,
     unsigned int, struct firmware *);
