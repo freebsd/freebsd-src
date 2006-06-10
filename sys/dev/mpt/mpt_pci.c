@@ -130,6 +130,10 @@ __FBSDID("$FreeBSD$");
 #define	PCI_PRODUCT_LSI_FC929X		0x0626
 #endif
 
+#ifndef	PCI_PRODUCT_LSI_FC919X
+#define	PCI_PRODUCT_LSI_FC919X		0x0628
+#endif
+
 #ifndef	PCI_PRODUCT_LSI_FC7X04X
 #define	PCI_PRODUCT_LSI_FC7X04X		0x0640
 #endif
@@ -224,6 +228,9 @@ mpt_pci_probe(device_t dev)
 		break;
 	case PCI_PRODUCT_LSI_FC929:
 		desc = "LSILogic FC929 FC Adapter";
+		break;
+	case PCI_PRODUCT_LSI_FC919X:
+		desc = "LSILogic FC919X FC Adapter";
 		break;
 	case PCI_PRODUCT_LSI_FC929X:
 		desc = "LSILogic FC929X 2Gb/s FC Adapter";
@@ -373,6 +380,7 @@ mpt_pci_attach(device_t dev)
 	case PCI_PRODUCT_LSI_FC909A:
 	case PCI_PRODUCT_LSI_FC919:
 	case PCI_PRODUCT_LSI_FC929:
+	case PCI_PRODUCT_LSI_FC919X:
 	case PCI_PRODUCT_LSI_FC7X04X:
 		mpt->is_fc = 1;
 		break;
