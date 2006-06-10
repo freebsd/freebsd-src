@@ -92,7 +92,6 @@ int nsfbufs;
 int nsfbufspeak;
 int nsfbufsused;
 
-SYSCTL_DECL(_kern_ipc);
 SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
     "Maximum number of sendfile(2) sf_bufs available");
 SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufspeak, CTLFLAG_RD, &nsfbufspeak, 0,

@@ -181,8 +181,6 @@ static int pipeallocfail;
 static int piperesizefail;
 static int piperesizeallowed = 1;
 
-SYSCTL_DECL(_kern_ipc);
-
 SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipekva, CTLFLAG_RDTUN,
 	   &maxpipekva, 0, "Pipe KVA limit");
 SYSCTL_INT(_kern_ipc, OID_AUTO, pipes, CTLFLAG_RD,

@@ -1311,7 +1311,6 @@ sysctl_msqids(SYSCTL_HANDLER_ARGS)
 	    sizeof(struct msqid_kernel) * msginfo.msgmni));
 }
 
-SYSCTL_DECL(_kern_ipc);
 SYSCTL_INT(_kern_ipc, OID_AUTO, msgmax, CTLFLAG_RD, &msginfo.msgmax, 0,
     "Maximum message size");
 SYSCTL_INT(_kern_ipc, OID_AUTO, msgmni, CTLFLAG_RDTUN, &msginfo.msgmni, 0,

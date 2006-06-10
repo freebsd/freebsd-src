@@ -109,6 +109,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>			/* for struct knote */
 #include <sys/kernel.h>
 #include <sys/event.h>
+#include <sys/eventhandler.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
@@ -148,10 +149,10 @@ static struct filterops sowrite_filtops =
 uma_zone_t socket_zone;
 so_gen_t	so_gencnt;	/* generation count for sockets */
 
+int	maxsockets;
+
 MALLOC_DEFINE(M_SONAME, "soname", "socket name");
 MALLOC_DEFINE(M_PCB, "pcb", "protocol control block");
-
-SYSCTL_DECL(_kern_ipc);
 
 static int somaxconn = SOMAXCONN;
 static int somaxconn_sysctl(SYSCTL_HANDLER_ARGS);
@@ -188,6 +189,43 @@ MTX_SYSINIT(accept_mtx, &accept_mtx, "accept", MTX_DEF);
 static struct mtx so_global_mtx;
 MTX_SYSINIT(so_global_mtx, &so_global_mtx, "so_glabel", MTX_DEF);
 
+SYSCTL_NODE(_kern, KERN_IPC, ipc, CTLFLAG_RW, 0, "IPC");
+
+static int
+sysctl_maxsockets(SYSCTL_HANDLER_ARGS)
+{
+	int error, newmaxsockets;
+
+	newmaxsockets = maxsockets;
+	error = sysctl_handle_int(oidp, &newmaxsockets, sizeof(int), req); 
+	if (error == 0 && req->newptr) {
+		if (newmaxsockets > maxsockets) {
+			maxsockets = newmaxsockets;
+			if (maxsockets > ((maxfiles / 4) * 3)) {
+				maxfiles = (maxsockets * 5) / 4;
+				maxfilesperproc = (maxfiles * 9) / 10;
+			}
+			EVENTHANDLER_INVOKE(maxsockets_change);
+		} else
+			error = EINVAL;
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_kern_ipc, OID_AUTO, maxsockets, CTLTYPE_INT|CTLFLAG_RW,
+    &maxsockets, 0, sysctl_maxsockets, "IU",
+    "Maximum number of sockets avaliable");
+
+/*
+ * Initialise maxsockets 
+ */
+static void init_maxsockets(void *ignored)
+{
+	TUNABLE_INT_FETCH("kern.ipc.maxsockets", &maxsockets);
+	maxsockets = imax(maxsockets, imax(maxfiles, nmbclusters));
+}
+SYSINIT(param, SI_SUB_TUNABLES, SI_ORDER_ANY, init_maxsockets, NULL);
+
 /*
  * Socket operation routines.
  * These routines are called by the routines in
@@ -204,7 +242,7 @@ MTX_SYSINIT(so_global_mtx, &so_global_mtx, "so_glabel", MTX_DEF);
  *
  * soalloc() returns a socket with a ref count of 0.
  */
-struct socket *
+static struct socket *
 soalloc(int mflags)
 {
 	struct socket *so;
@@ -226,6 +264,39 @@ soalloc(int mflags)
 	++numopensockets;
 	mtx_unlock(&so_global_mtx);
 	return (so);
+}
+
+static void
+sodealloc(struct socket *so)
+{
+
+	KASSERT(so->so_count == 0, ("sodealloc(): so_count %d", so->so_count));
+	KASSERT(so->so_pcb == NULL, ("sodealloc(): so_pcb != NULL"));
+
+	mtx_lock(&so_global_mtx);
+	so->so_gencnt = ++so_gencnt;
+	mtx_unlock(&so_global_mtx);
+	if (so->so_rcv.sb_hiwat)
+		(void)chgsbsize(so->so_cred->cr_uidinfo,
+		    &so->so_rcv.sb_hiwat, 0, RLIM_INFINITY);
+	if (so->so_snd.sb_hiwat)
+		(void)chgsbsize(so->so_cred->cr_uidinfo,
+		    &so->so_snd.sb_hiwat, 0, RLIM_INFINITY);
+#ifdef INET
+	/* remove acccept filter if one is present. */
+	if (so->so_accf != NULL)
+		do_setopt_accept_filter(so, NULL);
+#endif
+#ifdef MAC
+	mac_destroy_socket(so);
+#endif
+	crfree(so->so_cred);
+	SOCKBUF_LOCK_DESTROY(&so->so_snd);
+	SOCKBUF_LOCK_DESTROY(&so->so_rcv);
+	uma_zfree(socket_zone, so);
+	mtx_lock(&so_global_mtx);
+	--numopensockets;
+	mtx_unlock(&so_global_mtx);
 }
 
 /*
@@ -292,6 +363,103 @@ socreate(dom, aso, type, proto, cred, td)
 	return (0);
 }
 
+#ifdef REGRESSION
+static int regression_sonewconn_earlytest = 1;
+SYSCTL_INT(_regression, OID_AUTO, sonewconn_earlytest, CTLFLAG_RW,
+    &regression_sonewconn_earlytest, 0, "Perform early sonewconn limit test");
+#endif
+
+/*
+ * When an attempt at a new connection is noted on a socket
+ * which accepts connections, sonewconn is called.  If the
+ * connection is possible (subject to space constraints, etc.)
+ * then we allocate a new structure, propoerly linked into the
+ * data structure of the original socket, and return this.
+ * Connstatus may be 0, or SO_ISCONFIRMING, or SO_ISCONNECTED.
+ *
+ * note: the ref count on the socket is 0 on return
+ */
+struct socket *
+sonewconn(head, connstatus)
+	register struct socket *head;
+	int connstatus;
+{
+	register struct socket *so;
+	int over;
+
+	ACCEPT_LOCK();
+	over = (head->so_qlen > 3 * head->so_qlimit / 2);
+	ACCEPT_UNLOCK();
+#ifdef REGRESSION
+	if (regression_sonewconn_earlytest && over)
+#else
+	if (over)
+#endif
+		return (NULL);
+	so = soalloc(M_NOWAIT);
+	if (so == NULL)
+		return (NULL);
+	if ((head->so_options & SO_ACCEPTFILTER) != 0)
+		connstatus = 0;
+	so->so_head = head;
+	so->so_type = head->so_type;
+	so->so_options = head->so_options &~ SO_ACCEPTCONN;
+	so->so_linger = head->so_linger;
+	so->so_state = head->so_state | SS_NOFDREF;
+	so->so_proto = head->so_proto;
+	so->so_timeo = head->so_timeo;
+	so->so_cred = crhold(head->so_cred);
+#ifdef MAC
+	SOCK_LOCK(head);
+	mac_create_socket_from_socket(head, so);
+	SOCK_UNLOCK(head);
+#endif
+	knlist_init(&so->so_rcv.sb_sel.si_note, SOCKBUF_MTX(&so->so_rcv),
+	    NULL, NULL, NULL);
+	knlist_init(&so->so_snd.sb_sel.si_note, SOCKBUF_MTX(&so->so_snd),
+	    NULL, NULL, NULL);
+	if (soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat) ||
+	    (*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
+		sodealloc(so);
+		return (NULL);
+	}
+	so->so_state |= connstatus;
+	ACCEPT_LOCK();
+	if (connstatus) {
+		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
+		so->so_qstate |= SQ_COMP;
+		head->so_qlen++;
+	} else {
+		/*
+		 * Keep removing sockets from the head until there's room for
+		 * us to insert on the tail.  In pre-locking revisions, this
+		 * was a simple if(), but as we could be racing with other
+		 * threads and soabort() requires dropping locks, we must
+		 * loop waiting for the condition to be true.
+		 */
+		while (head->so_incqlen > head->so_qlimit) {
+			struct socket *sp;
+			sp = TAILQ_FIRST(&head->so_incomp);
+			TAILQ_REMOVE(&head->so_incomp, sp, so_list);
+			head->so_incqlen--;
+			sp->so_qstate &= ~SQ_INCOMP;
+			sp->so_head = NULL;
+			ACCEPT_UNLOCK();
+			soabort(sp);
+			ACCEPT_LOCK();
+		}
+		TAILQ_INSERT_TAIL(&head->so_incomp, so, so_list);
+		so->so_qstate |= SQ_INCOMP;
+		head->so_incqlen++;
+	}
+	ACCEPT_UNLOCK();
+	if (connstatus) {
+		sorwakeup(head);
+		wakeup_one(&head->so_timeo);
+	}
+	return (so);
+}
+
 int
 sobind(so, nam, td)
 	struct socket *so;
@@ -300,39 +468,6 @@ sobind(so, nam, td)
 {
 
 	return ((*so->so_proto->pr_usrreqs->pru_bind)(so, nam, td));
-}
-
-void
-sodealloc(struct socket *so)
-{
-
-	KASSERT(so->so_count == 0, ("sodealloc(): so_count %d", so->so_count));
-	KASSERT(so->so_pcb == NULL, ("sodealloc(): so_pcb != NULL"));
-
-	mtx_lock(&so_global_mtx);
-	so->so_gencnt = ++so_gencnt;
-	mtx_unlock(&so_global_mtx);
-	if (so->so_rcv.sb_hiwat)
-		(void)chgsbsize(so->so_cred->cr_uidinfo,
-		    &so->so_rcv.sb_hiwat, 0, RLIM_INFINITY);
-	if (so->so_snd.sb_hiwat)
-		(void)chgsbsize(so->so_cred->cr_uidinfo,
-		    &so->so_snd.sb_hiwat, 0, RLIM_INFINITY);
-#ifdef INET
-	/* remove acccept filter if one is present. */
-	if (so->so_accf != NULL)
-		do_setopt_accept_filter(so, NULL);
-#endif
-#ifdef MAC
-	mac_destroy_socket(so);
-#endif
-	crfree(so->so_cred);
-	SOCKBUF_LOCK_DESTROY(&so->so_snd);
-	SOCKBUF_LOCK_DESTROY(&so->so_rcv);
-	uma_zfree(socket_zone, so);
-	mtx_lock(&so_global_mtx);
-	--numopensockets;
-	mtx_unlock(&so_global_mtx);
 }
 
 /*

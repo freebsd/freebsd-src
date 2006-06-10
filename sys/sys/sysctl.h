@@ -591,6 +591,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
  */
 extern struct sysctl_oid_list sysctl__children;
 SYSCTL_DECL(_kern);
+SYSCTL_DECL(_kern_ipc);
 SYSCTL_DECL(_sysctl);
 SYSCTL_DECL(_vm);
 SYSCTL_DECL(_vfs);
