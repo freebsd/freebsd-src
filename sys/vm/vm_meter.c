@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Virtual memory MPSAFE temporary workarounds.
  */
-#if !defined(__arm__) && !defined(__powerpc__)
+#if !defined(__powerpc__)
 int debug_mpsafevm = 1;
 #else
 int debug_mpsafevm;
