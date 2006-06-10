@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2003
+.Dd May 20, 2006
 .Dt GSTAT 8
 .Os
 .Sh NAME
@@ -33,6 +33,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl acd
+.Op Fl f Ar filter
 .Op Fl I Ar interval
 .Sh DESCRIPTION
 The
@@ -56,6 +57,14 @@ producers.
 Enable display of statistics for delete
 .Pq Dv BIO_DELETE
 operations.
+.It Fl f Ar filter
+A regular expression that can be used to only show statistics for some
+devices.
+Only devices which name match
+.Ar filter
+will be displayed.
+The format of the regular expression is described in
+.Xr re_format 7 .
 .It Fl I Ar interval
 Refresh the
 .Nm
