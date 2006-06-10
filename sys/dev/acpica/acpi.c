@@ -218,7 +218,7 @@ static struct rman acpi_rman_io, acpi_rman_mem;
 static const char* sleep_state_names[] = {
     "S0", "S1", "S2", "S3", "S4", "S5", "NONE"};
 
-SYSCTL_NODE(_debug, OID_AUTO, acpi, CTLFLAG_RW, NULL, "ACPI debugging");
+SYSCTL_NODE(_debug, OID_AUTO, acpi, CTLFLAG_RD, NULL, "ACPI debugging");
 static char acpi_ca_version[12];
 SYSCTL_STRING(_debug_acpi, OID_AUTO, acpi_ca_version, CTLFLAG_RD,
 	      acpi_ca_version, 0, "Version of Intel ACPI-CA");
@@ -516,14 +516,12 @@ acpi_attach(device_t dev)
 	OID_AUTO, "suspend_state", CTLTYPE_STRING | CTLFLAG_RW,
 	&sc->acpi_suspend_sx, 0, acpi_sleep_state_sysctl, "A", "");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "sleep_delay", CTLFLAG_RD | CTLFLAG_RW,
-	&sc->acpi_sleep_delay, 0, "sleep delay");
+	OID_AUTO, "sleep_delay", CTLFLAG_RW, &sc->acpi_sleep_delay, 0,
+	"sleep delay");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "s4bios", CTLFLAG_RD | CTLFLAG_RW,
-	&sc->acpi_s4bios, 0, "S4BIOS mode");
+	OID_AUTO, "s4bios", CTLFLAG_RW, &sc->acpi_s4bios, 0, "S4BIOS mode");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "verbose", CTLFLAG_RD | CTLFLAG_RW,
-	&sc->acpi_verbose, 0, "verbose mode");
+	OID_AUTO, "verbose", CTLFLAG_RW, &sc->acpi_verbose, 0, "verbose mode");
 
     /*
      * Default to 1 second before sleeping to give some machines time to
