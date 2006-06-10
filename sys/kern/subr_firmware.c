@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 
 #define	FIRMWARE_MAX	30
-static char *name_unload = "UNLOADING";
 static struct firmware firmware_table[FIRMWARE_MAX];
 struct task firmware_task;
 struct mtx firmware_mtx;
@@ -88,6 +87,7 @@ firmware_register(const char *imagename, const void *data, size_t datasize,
 	frp->datasize = datasize;
 	frp->version = version;
 	frp->refcnt = 0;
+	frp->flags = 0;
 	if (parent != NULL)
 		parent->refcnt++;
 	frp->parent = parent;
@@ -97,18 +97,15 @@ firmware_register(const char *imagename, const void *data, size_t datasize,
 }
 
 static void
-clearentry(struct firmware *fp, int keep_file)
+clearentry(struct firmware *fp)
 {
 	KASSERT(fp->refcnt == 0, ("image %s refcnt %u", fp->name, fp->refcnt));
-	if (keep_file && (fp->file != NULL))
-		fp->name = name_unload;
-	else {
-		fp->name = NULL;
-		fp->file = NULL;
-	}
+	fp->name = NULL;
+	fp->file = NULL;
 	fp->data = NULL;
 	fp->datasize = 0;
 	fp->version = 0;
+	fp->flags = 0;
 	if (fp->parent != NULL) {	/* release parent reference */
 		fp->parent->refcnt--;
 		fp->parent = NULL;
@@ -150,7 +147,7 @@ firmware_unregister(const char *imagename)
 	if (fp != NULL) {
 		refcnt = fp->refcnt;
 		if (refcnt == 0)
-			clearentry(fp, 0);
+			clearentry(fp);
 	}
 	mtx_unlock(&firmware_mtx);
 	return (refcnt != 0 ? EBUSY : 0);
@@ -208,20 +205,30 @@ static void
 unloadentry(void *unused1, int unused2)
 {
 	struct firmware *fp;
+	linker_file_t file;
+	int i;
 
 	mtx_lock(&firmware_mtx);
-	while ((fp = lookup(name_unload))) {
-		/*
-		 * XXX: ugly, we should be able to lookup unlocked here if
-		 * we properly lock around clearentry below to avoid double
-		 * unload.  Play it safe for now.
-		 */
+	for (;;) {
+		/* Look for an unwanted entry that we explicitly loaded. */
+		for (i = 0; i < FIRMWARE_MAX; i++) {
+			fp = &firmware_table[i];
+			if (fp->name != NULL && fp->file != NULL &&
+			    fp->refcnt == 0 &&
+			    (fp->flags & FIRMWAREFLAG_KEEPKLDREF) == 0)
+				break;
+			fp = NULL;
+		}
+		if (fp == NULL)
+			break;
+		file = fp->file;
+		/* No longer explicitly loaded. */
+		fp->file = NULL;
 		mtx_unlock(&firmware_mtx);
 
-		linker_file_unload(fp->file, LINKER_UNLOAD_NORMAL);
+		linker_file_unload(file, LINKER_UNLOAD_NORMAL);
 
 		mtx_lock(&firmware_mtx);
-		clearentry(fp, 0);
 	}
 	mtx_unlock(&firmware_mtx);
 }
@@ -237,8 +244,10 @@ firmware_put(struct firmware *fp, int flags)
 {
 	mtx_lock(&firmware_mtx);
 	fp->refcnt--;
-	if (fp->refcnt == 0 && (flags & FIRMWARE_UNLOAD))
-		clearentry(fp, 1);
+	if (fp->refcnt == 0) {
+		if ((flags & FIRMWARE_UNLOAD) == 0)
+			fp->flags |= FIRMWAREFLAG_KEEPKLDREF;
+	}
 	if (fp->file)
 		taskqueue_enqueue(taskqueue_thread, &firmware_task);
 	mtx_unlock(&firmware_mtx);
@@ -250,11 +259,18 @@ firmware_put(struct firmware *fp, int flags)
 static int
 firmware_modevent(module_t mod, int type, void *unused)
 {
+	int i;
+
 	switch (type) {
 	case MOD_LOAD:
 		TASK_INIT(&firmware_task, 0, unloadentry, NULL);
 		return 0;
 	case MOD_UNLOAD:
+		for (i = 0; i < FIRMWARE_MAX; i++) {
+			struct firmware *fp = &firmware_table[i];
+			fp->flags &= ~FIRMWAREFLAG_KEEPKLDREF;
+		}
+		taskqueue_enqueue(taskqueue_thread, &firmware_task);
 		taskqueue_drain(taskqueue_thread, &firmware_task);
 		return 0;
 	}
