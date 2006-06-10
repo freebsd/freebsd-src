@@ -1824,6 +1824,7 @@ pmap_remove_pv(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 {
 	struct pv_entry *pve;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	pve = TAILQ_FIRST(&pg->md.pv_list);
 
 	while (pve) {
@@ -3416,15 +3417,9 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		/*
 		 * We're changing the attrs of an existing mapping.
 		 */
-#if 0
-		simple_lock(&pg->mdpage.pvh_slock);
-#endif
 		oflags = pmap_modify_pv(m, pmap, va,
 		    PVF_WRITE | PVF_EXEC | PVF_WIRED |
 		    PVF_MOD | PVF_REF, nflags);
-#if 0
-		simple_unlock(&pg->mdpage.pvh_slock);
-#endif
 		
 		/*
 		 * We may need to flush the cache if we're
@@ -3446,9 +3441,6 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			 * It is part of our managed memory so we
 			 * must remove it from the PV list
 			 */
-#if 0
-			simple_lock(&opg->mdpage.pvh_slock);
-#endif
 			pve = pmap_remove_pv(opg, pmap, va);
 			if (m && (m->flags & (PG_UNMANAGED | PG_FICTITIOUS)) &&
 			    pve)
@@ -3457,9 +3449,6 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			    !(m->flags & (PG_UNMANAGED | PG_FICTITIOUS)))
 				pve = pmap_get_pv_entry();
 			KASSERT(pve != NULL, ("No pv"));
-#if 0
-			simple_unlock(&opg->mdpage.pvh_slock);
-#endif
 			oflags = pve->pv_flags;
 			
 			/*
@@ -3866,10 +3855,6 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 	/*
 	 * we lock in the pmap => pv_head direction
 	 */
-#if 0
-	PMAP_MAP_TO_HEAD_LOCK();
-	pmap_acquire_pmap_lock(pm);
-#endif
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pm);
@@ -3924,18 +3909,11 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 			 */
 			if ((pg = PHYS_TO_VM_PAGE(pa)) != NULL) {
 				struct pv_entry *pve;
-#if 0
-				simple_lock(&pg->mdpage.pvh_slock);
-#endif
+
 				pve = pmap_remove_pv(pg, pm, sva);
 				if (pve) {
-#if 0
-				simple_unlock(&pg->mdpage.pvh_slock);
-#endif
-						is_exec =
-						   PV_BEEN_EXECD(pve->pv_flags);
-						is_refd =
-						   PV_BEEN_REFD(pve->pv_flags);
+					is_exec = PV_BEEN_EXECD(pve->pv_flags);
+					is_refd = PV_BEEN_REFD(pve->pv_flags);
 					pmap_free_pv_entry(pve);
 				}
 			}
@@ -4030,10 +4008,6 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 	if (flushall)
 		cpu_tlb_flushID();
  	PMAP_UNLOCK(pm);
-#if 0
-	pmap_release_pmap_lock(pm);
-	PMAP_MAP_TO_HEAD_UNLOCK();
-#endif
 }
 
 
@@ -4314,9 +4288,6 @@ pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 	 * be created while we have a potentially aliased mapping.
 	 */
 #if 0
-	mtx_lock(&src_pg->md.pvh_mtx);
-#endif
-#if 0
 	/*
 	 * XXX: Not needed while we call cpu_dcache_wbinv_all() in
 	 * pmap_copy_page().
@@ -4341,9 +4312,6 @@ pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 	bcopy_page(csrcp, cdstp);
 	mtx_unlock(&cmtx);
 	cpu_dcache_inv_range(csrcp, PAGE_SIZE);
-#if 0
-	mtx_lock(&src_pg->md.pvh_mtx);
-#endif
 	cpu_dcache_wbinv_range(cdstp, PAGE_SIZE);
 }
 #endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
