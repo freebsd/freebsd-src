@@ -482,7 +482,7 @@ acpi_battery_init(void)
 	NULL, 0, acpi_battery_units_sysctl, "I", "number of batteries");
     SYSCTL_ADD_INT(&acpi_battery_sysctl_ctx,
 	SYSCTL_CHILDREN(acpi_battery_sysctl_tree),
-	OID_AUTO, "info_expire", CTLFLAG_RD | CTLFLAG_RW,
+	OID_AUTO, "info_expire", CTLFLAG_RW,
 	&acpi_battery_info_expire, 0,
 	"time in seconds until info is refreshed");
 
