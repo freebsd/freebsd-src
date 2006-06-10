@@ -187,9 +187,13 @@ _xfs_mount(struct mount		*mp,
 	struct xfsmount		*xmp;
 	struct xfs_vnode	*rootvp;
 	struct ucred		*curcred;
-	struct vnode		*rvp;
+	struct vnode		*rvp, *devvp;
 	struct cdev		*ddev;
+	struct g_consumer	*cp;
 	int			error;
+	
+	ddev = NULL;
+	cp = NULL;
 
 	if (vfs_filteropt(mp->mnt_optnew, xfs_opts))
 		return (EINVAL);
@@ -210,10 +214,11 @@ _xfs_mount(struct mount		*mp,
 		goto fail;
 
  	XVFS_ROOT(XFSTOVFS(xmp), &rootvp, error);
+	ddev = XFS_VFSTOM(XFSTOVFS(xmp))->m_ddev_targp->dev;
+	devvp = XFS_VFSTOM(XFSTOVFS(xmp))->m_ddev_targp->specvp;
 	if (error)
 		goto fail_unmount;
 
-	ddev = XFS_VFSTOM(XFSTOVFS(xmp))->m_ddev_targp->dev;
  	if (ddev->si_iosize_max != 0)
 		mp->mnt_iosize_max = ddev->si_iosize_max;
         if (mp->mnt_iosize_max > MAXPHYS)
@@ -235,6 +240,17 @@ _xfs_mount(struct mount		*mp,
  fail_unmount:
 	XVFS_UNMOUNT(XFSTOVFS(xmp), 0, curcred, error);
 
+	if (devvp != NULL) {
+		cp = devvp->v_bufobj.bo_private;
+		if (cp != NULL) {
+			DROP_GIANT();
+			g_topology_lock();
+			g_vfs_close(cp, td);
+			g_topology_unlock();
+			PICKUP_GIANT();
+		}
+	}
+
  fail:
 	if (xmp != NULL)
 		xfsmount_deallocate(xmp);
@@ -251,9 +267,26 @@ _xfs_unmount(mp, mntflags, td)
 	int mntflags;
 	struct thread *td;
 {
+	struct vnode *devvp;
+	struct g_consumer *cp;
 	int error;
+	cp = NULL;
+	devvp = NULL;
+
+	devvp = XFS_VFSTOM((MNTTOVFS(mp)))->m_ddev_targp->specvp;
+	if (devvp != NULL)
+		cp = devvp->v_bufobj.bo_private;
 
 	XVFS_UNMOUNT(MNTTOVFS(mp), 0, td->td_ucred, error);
+	if (error == 0) {
+		if (cp != NULL) {
+			DROP_GIANT();
+			g_topology_lock();
+			g_vfs_close(cp, td);
+			g_topology_unlock();
+			PICKUP_GIANT();
+		}
+	}
 	return (error);
 }
 
