@@ -865,10 +865,8 @@ _xfs_symlink(
 	memset(&va, 0, sizeof (va));
 
 	va.va_mask |= XFS_AT_MODE;
-	va.va_mode = ap->a_vap->va_mode;
+	va.va_mode = ap->a_vap->va_mode | S_IFLNK;
 	va.va_mask |= XFS_AT_TYPE;
-	printf("_xfs_symlink need to implement inode type 0x%x\n",ap->a_vap->va_type);
-	//va.va_type = ap->a_vap->va_type;
 
 	XVOP_SYMLINK(VPTOXFSVP(ap->a_dvp), ap->a_cnp, &va, ap->a_target,
 	    &xvp, credp, error);
@@ -901,10 +899,8 @@ _xfs_mknod(
 
 	memset(&va, 0, sizeof (va));
 	va.va_mask |= XFS_AT_MODE;
-	va.va_mode = vap->va_mode;
+	va.va_mode = vap->va_mode | S_IFIFO;
 	va.va_mask |= XFS_AT_TYPE;
-	printf("_xfs_mknod need to implement inode type 0x%x\n",vap->va_type);
-//	va.va_type = vap->va_type;
 	va.va_mask |= XFS_AT_RDEV;
 	va.va_rdev = vap->va_rdev;
 
@@ -939,10 +935,8 @@ _xfs_mkdir(
 
 	memset(&va, 0, sizeof (va));
 	va.va_mask |= XFS_AT_MODE;
-	va.va_mode = vap->va_mode;
+	va.va_mode = vap->va_mode | S_IFDIR;
 	va.va_mask |= XFS_AT_TYPE;
-	printf("_xfs_mkdir need to implement inode type 0x%x\n",vap->va_type);
-//	va.va_type = vap->va_type;
 
 	xvp = NULL;
 	XVOP_MKDIR(VPTOXFSVP(dvp), cnp, &va, &xvp, credp, error);
