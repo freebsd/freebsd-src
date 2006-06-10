@@ -32,7 +32,7 @@
 .Nd merge configuration files, et al during an upgrade
 .Sh SYNOPSIS
 .Nm
-.Op Fl scrvahipCP
+.Op Fl scrvahipCPU
 .Op Fl m Ar /path/to/sources
 .Op Fl t Ar /path/to/temp/root
 .Op Fl d
@@ -242,6 +242,8 @@ Specify an alternative
 architecture name.
 .It Fl D Ar /path
 Specify the destination directory for the installed files.
+.It Fl U
+Attempt to auto upgrade files that have not been user modified.
 .El
 .Sh ENVIRONMENT
 The
