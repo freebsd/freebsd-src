@@ -48,9 +48,9 @@ struct firmware {
 	size_t		 datasize;	/* size of image in bytes */
 	unsigned int	 version;	/* version of the image */
 	int		 refcnt;	/* held references */
-	int		 flags;		/* FIRMWAREFLAG_ flags */
 	struct firmware *parent;	/* not null if a subimage */
 	linker_file_t	 file;		/* loadable module */
+	int		 flags;		/* FIRMWAREFLAG_ flags */
 };
 
 /* "flags" field definitions */
