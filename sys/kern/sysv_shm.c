@@ -180,7 +180,6 @@ struct	shminfo shminfo = {
 static int shm_use_phys;
 static int shm_allow_removed;
 
-SYSCTL_DECL(_kern_ipc);
 SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmmax, CTLFLAG_RW, &shminfo.shmmax, 0,
     "Maximum shared memory segment size");
 SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmmin, CTLFLAG_RW, &shminfo.shmmin, 0,

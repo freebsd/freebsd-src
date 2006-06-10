@@ -496,7 +496,6 @@ int	sbwait(struct sockbuf *sb);
 int	sb_lock(struct sockbuf *sb);
 void	soabort(struct socket *so);
 int	soaccept(struct socket *so, struct sockaddr **nam);
-struct	socket *soalloc(int mflags);
 int	socheckuid(struct socket *so, uid_t uid);
 int	sobind(struct socket *so, struct sockaddr *nam, struct thread *td);
 void	socantrcvmore(struct socket *so);
@@ -509,7 +508,6 @@ int	soconnect2(struct socket *so1, struct socket *so2);
 int	socow_setup(struct mbuf *m0, struct uio *uio);
 int	socreate(int dom, struct socket **aso, int type, int proto,
 	    struct ucred *cred, struct thread *td);
-void	sodealloc(struct socket *so);
 int	sodisconnect(struct socket *so);
 struct	sockaddr *sodupsockaddr(const struct sockaddr *sa, int mflags);
 void	sofree(struct socket *so);
