@@ -34,7 +34,7 @@
 
 #include "assym.s"
 
-	.align 4096
+	.align 4
 	.code16
 wakeup_16:
 	nop
