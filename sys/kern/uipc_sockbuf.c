@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
-int	maxsockets;
-
 void (*aio_swake)(struct socket *, struct sockbuf *);
 
 /*
@@ -70,12 +68,6 @@ static	u_long sb_max_adj =
     SB_MAX * MCLBYTES / (MSIZE + MCLBYTES); /* adjusted sb_max */
 
 static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
-
-#ifdef REGRESSION
-static int regression_sonewconn_earlytest = 1;
-SYSCTL_INT(_regression, OID_AUTO, sonewconn_earlytest, CTLFLAG_RW,
-    &regression_sonewconn_earlytest, 0, "Perform early sonewconn limit test");
-#endif
 
 /*
  * Procedures to manipulate state flags of socket
@@ -199,97 +191,6 @@ soisdisconnected(so)
 	sbdrop_locked(&so->so_snd, so->so_snd.sb_cc);
 	sowwakeup_locked(so);
 	wakeup(&so->so_timeo);
-}
-
-/*
- * When an attempt at a new connection is noted on a socket
- * which accepts connections, sonewconn is called.  If the
- * connection is possible (subject to space constraints, etc.)
- * then we allocate a new structure, propoerly linked into the
- * data structure of the original socket, and return this.
- * Connstatus may be 0, or SO_ISCONFIRMING, or SO_ISCONNECTED.
- *
- * note: the ref count on the socket is 0 on return
- */
-struct socket *
-sonewconn(head, connstatus)
-	register struct socket *head;
-	int connstatus;
-{
-	register struct socket *so;
-	int over;
-
-	ACCEPT_LOCK();
-	over = (head->so_qlen > 3 * head->so_qlimit / 2);
-	ACCEPT_UNLOCK();
-#ifdef REGRESSION
-	if (regression_sonewconn_earlytest && over)
-#else
-	if (over)
-#endif
-		return (NULL);
-	so = soalloc(M_NOWAIT);
-	if (so == NULL)
-		return (NULL);
-	if ((head->so_options & SO_ACCEPTFILTER) != 0)
-		connstatus = 0;
-	so->so_head = head;
-	so->so_type = head->so_type;
-	so->so_options = head->so_options &~ SO_ACCEPTCONN;
-	so->so_linger = head->so_linger;
-	so->so_state = head->so_state | SS_NOFDREF;
-	so->so_proto = head->so_proto;
-	so->so_timeo = head->so_timeo;
-	so->so_cred = crhold(head->so_cred);
-#ifdef MAC
-	SOCK_LOCK(head);
-	mac_create_socket_from_socket(head, so);
-	SOCK_UNLOCK(head);
-#endif
-	knlist_init(&so->so_rcv.sb_sel.si_note, SOCKBUF_MTX(&so->so_rcv),
-	    NULL, NULL, NULL);
-	knlist_init(&so->so_snd.sb_sel.si_note, SOCKBUF_MTX(&so->so_snd),
-	    NULL, NULL, NULL);
-	if (soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat) ||
-	    (*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
-		sodealloc(so);
-		return (NULL);
-	}
-	so->so_state |= connstatus;
-	ACCEPT_LOCK();
-	if (connstatus) {
-		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
-		so->so_qstate |= SQ_COMP;
-		head->so_qlen++;
-	} else {
-		/*
-		 * Keep removing sockets from the head until there's room for
-		 * us to insert on the tail.  In pre-locking revisions, this
-		 * was a simple if(), but as we could be racing with other
-		 * threads and soabort() requires dropping locks, we must
-		 * loop waiting for the condition to be true.
-		 */
-		while (head->so_incqlen > head->so_qlimit) {
-			struct socket *sp;
-			sp = TAILQ_FIRST(&head->so_incomp);
-			TAILQ_REMOVE(&head->so_incomp, sp, so_list);
-			head->so_incqlen--;
-			sp->so_qstate &= ~SQ_INCOMP;
-			sp->so_head = NULL;
-			ACCEPT_UNLOCK();
-			soabort(sp);
-			ACCEPT_LOCK();
-		}
-		TAILQ_INSERT_TAIL(&head->so_incomp, so, so_list);
-		so->so_qstate |= SQ_INCOMP;
-		head->so_incqlen++;
-	}
-	ACCEPT_UNLOCK();
-	if (connstatus) {
-		sorwakeup(head);
-		wakeup_one(&head->so_timeo);
-	}
-	return (so);
 }
 
 /*
@@ -1498,49 +1399,10 @@ sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb)
 	xsb->sb_timeo = sb->sb_timeo;
 }
 
-/*
- * Here is the definition of some of the basic objects in the kern.ipc
- * branch of the MIB.
- */
-SYSCTL_NODE(_kern, KERN_IPC, ipc, CTLFLAG_RW, 0, "IPC");
-
 /* This takes the place of kern.maxsockbuf, which moved to kern.ipc. */
 static int dummy;
 SYSCTL_INT(_kern, KERN_DUMMY, dummy, CTLFLAG_RW, &dummy, 0, "");
 SYSCTL_OID(_kern_ipc, KIPC_MAXSOCKBUF, maxsockbuf, CTLTYPE_ULONG|CTLFLAG_RW, 
     &sb_max, 0, sysctl_handle_sb_max, "LU", "Maximum socket buffer size");
-static int
-sysctl_maxsockets(SYSCTL_HANDLER_ARGS)
-{
-	int error, newmaxsockets;
-
-	newmaxsockets = maxsockets;
-	error = sysctl_handle_int(oidp, &newmaxsockets, sizeof(int), req); 
-	if (error == 0 && req->newptr) {
-		if (newmaxsockets > maxsockets) {
-			maxsockets = newmaxsockets;
-			if (maxsockets > ((maxfiles / 4) * 3)) {
-				maxfiles = (maxsockets * 5) / 4;
-				maxfilesperproc = (maxfiles * 9) / 10;
-			}
-			EVENTHANDLER_INVOKE(maxsockets_change);
-		} else
-			error = EINVAL;
-	}
-	return (error);
-}
-SYSCTL_PROC(_kern_ipc, OID_AUTO, maxsockets, CTLTYPE_INT|CTLFLAG_RW,
-    &maxsockets, 0, sysctl_maxsockets, "IU",
-    "Maximum number of sockets avaliable");
 SYSCTL_ULONG(_kern_ipc, KIPC_SOCKBUF_WASTE, sockbuf_waste_factor, CTLFLAG_RW,
     &sb_efficiency, 0, "");
-
-/*
- * Initialise maxsockets 
- */
-static void init_maxsockets(void *ignored)
-{
-	TUNABLE_INT_FETCH("kern.ipc.maxsockets", &maxsockets);
-	maxsockets = imax(maxsockets, imax(maxfiles, nmbclusters));
-}
-SYSINIT(param, SI_SUB_TUNABLES, SI_ORDER_ANY, init_maxsockets, NULL);

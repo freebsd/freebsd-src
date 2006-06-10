@@ -64,7 +64,6 @@ int	m_defragrandomfailures;
 /*
  * sysctl(8) exported objects
  */
-SYSCTL_DECL(_kern_ipc);
 SYSCTL_INT(_kern_ipc, KIPC_MAX_LINKHDR, max_linkhdr, CTLFLAG_RD,
 	   &max_linkhdr, 0, "Size of largest link layer header");
 SYSCTL_INT(_kern_ipc, KIPC_MAX_PROTOHDR, max_protohdr, CTLFLAG_RD,

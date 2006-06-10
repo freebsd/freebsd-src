@@ -196,7 +196,6 @@ struct seminfo seminfo = {
                 SEMAEM          /* adjust on exit max value */
 };
 
-SYSCTL_DECL(_kern_ipc);
 SYSCTL_INT(_kern_ipc, OID_AUTO, semmap, CTLFLAG_RW, &seminfo.semmap, 0,
     "Number of entries in the semaphore map");
 SYSCTL_INT(_kern_ipc, OID_AUTO, semmni, CTLFLAG_RDTUN, &seminfo.semmni, 0,
