@@ -30,32 +30,44 @@
  */
 
 
-#include <stdio.h>
+#include <sys/devicestat.h>
+#include <sys/mman.h>
+#include <sys/resource.h>
+#include <sys/time.h>
+
+#include <curses.h>
+#include <devstat.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <histedit.h>
+#include <libgeom.h>
+#include <paths.h>
+#include <regex.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <paths.h>
-#include <curses.h>
+#include <sysexits.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <err.h>
-#include <sys/mman.h>
-#include <sys/time.h>
-#include <libgeom.h>
-#include <sys/resource.h>
-#include <devstat.h>
-#include <sys/devicestat.h>
 
 static int flag_a, flag_c, flag_d;
 static int flag_I = 500000;
 
 static void usage(void);
 
+static const char*
+el_prompt(void)
+{
+
+	return ("Filter: ");
+}
+
 int
 main(int argc, char **argv)
 {
 	int error, i, quit;
+	int curx, cury, maxx, maxy, line_len, max_flen;
 	struct devstat *gsp, *gsq;
 	void *sp, *sq;
 	double dt;
@@ -64,12 +76,19 @@ main(int argc, char **argv)
 	struct gprovider *pp;
 	struct gconsumer *cp;
 	struct gident *gid;
+	regex_t f_re, tmp_f_re;
 	short cf, cb;
 	char *p;
+	char f_s[100], pf_s[100], tmp_f_s[100];
+	const char *line;
 	long double ld[11];
 	uint64_t u64;
+	EditLine *el;
+	History *hist;
+	HistEvent hist_ev;
 
-	while ((i = getopt(argc, argv, "adcI:")) != -1) {
+	f_s[0] = '\0';
+	while ((i = getopt(argc, argv, "adcf:I:")) != -1) {
 		switch (i) {
 		case 'a':
 			flag_a = 1;
@@ -79,6 +98,14 @@ main(int argc, char **argv)
 			break;
 		case 'd':
 			flag_d = 1;
+			break;
+		case 'f':
+			if (strlen(optarg) > sizeof(f_s) - 1)
+				errx(EX_USAGE, "Filter string too long");
+			if (regcomp(&f_re, optarg, REG_EXTENDED) != 0)
+				errx(EX_USAGE,
+				    "Invalid filter - see re_format(7)");
+			strncpy(f_s, optarg, sizeof(f_s));
 			break;
 		case 'I':
 			p = NULL;
@@ -114,6 +141,7 @@ main(int argc, char **argv)
 	sq = geom_stats_snapshot_get();
 	if (sq == NULL)
 		err(1, "geom_stats_snapshot()");
+	/* Setup curses */
 	initscr();
 	start_color();
 	use_default_colors();
@@ -127,6 +155,20 @@ main(int argc, char **argv)
 	nodelay(stdscr, 1);
 	intrflush(stdscr, FALSE);
 	keypad(stdscr, TRUE);
+	/* Setup libedit */
+	hist = history_init();
+	if (hist == NULL)
+		err(EX_SOFTWARE, "history_init()");
+	history(hist, &hist_ev, H_SETSIZE, 100);
+	el = el_init("gstat", stdin, stdout, stderr);
+	if (el == NULL)
+		err(EX_SOFTWARE, "el_init");
+	el_set(el, EL_EDITOR, "emacs");
+	el_set(el, EL_SIGNAL, 1);
+	el_set(el, EL_HIST, history, hist);
+	el_set(el, EL_PROMPT, el_prompt);
+	if (f_s[0] != '\0')
+		history(hist, &hist_ev, H_ENTER, f_s);
 	geom_stats_snapshot_timestamp(sq, &tq);
 	for (quit = 0; !quit;) {
 		sp = geom_stats_snapshot_get();
@@ -140,8 +182,26 @@ main(int argc, char **argv)
 		geom_stats_snapshot_reset(sp);
 		geom_stats_snapshot_reset(sq);
 		move(0,0);
-		printw("dT: %5.3f  flag_I %dus  sizeof %d  i %d\n",
-		    dt, flag_I, sizeof(*gsp), i);
+		printw("dT: %5.3fs  w: %.3fs",
+		    dt, (float)flag_I / 1000000);
+		if (f_s[0] != '\0') {
+			printw("  filter: ");
+			getyx(stdscr, cury, curx);
+			getmaxyx(stdscr, maxy, maxx);
+			strncpy(pf_s, f_s, sizeof(pf_s));
+			max_flen = maxx - curx - 1;
+			if ((int)strlen(f_s) > max_flen && max_flen >= 0) {
+				if (max_flen > 3)
+					pf_s[max_flen - 3] = '.';
+				if (max_flen > 2)
+					pf_s[max_flen - 2] = '.';
+				if (max_flen > 1)
+					pf_s[max_flen - 1] = '.';
+				pf_s[max_flen] = '\0';
+			}
+			printw("%s", pf_s);
+		}
+		printw("\n");
 		printw(" L(q)  ops/s   ");
 		printw(" r/s   kBps   ms/r   ");
 		printw(" w/s   kBps   ms/w   ");
@@ -165,9 +225,19 @@ main(int argc, char **argv)
 			}
 			if (gid == NULL)
 				continue;
-			if (gid != NULL && gid->lg_what == ISCONSUMER &&
-			    !flag_c)
+			if (gid->lg_what == ISCONSUMER && !flag_c)
 				continue;
+			/* Do not print past end of window */
+			getyx(stdscr, cury, curx);
+			if (curx > 0)
+				continue;
+			if ((gid->lg_what == ISPROVIDER
+			    || gid->lg_what == ISCONSUMER) && f_s[0] != '\0') {
+				pp = gid->lg_ptr;
+				if ((regexec(&f_re, pp->lg_name, 0, NULL, 0)
+				     != 0))
+				  continue;
+			}
 			if (gsp->sequence0 != gsp->sequence1) {
 				printw("*\n");
 				continue;
@@ -237,38 +307,77 @@ main(int argc, char **argv)
 			*gsq = *gsp;
 		}
 		geom_stats_snapshot_free(sp);
+		getyx(stdscr, cury, curx);
+		getmaxyx(stdscr, maxy, maxx);
 		clrtobot();
+		if (maxy - 1 <= cury)
+			move(maxy - 1, 0);
 		refresh();
 		usleep(flag_I);
-		i = getch();
-		switch (i) {
-		case '>':
-			flag_I *= 2;
-			break;
-		case '<':
-			flag_I /= 2;
-			if (flag_I < 1000)
-				flag_I = 1000;
-			break;
-		case 'c':
-			flag_c = !flag_c;
-			break;
-		case 'q':
-			quit = 1;
-			break;
-		default:
-			break;
+		while((i = getch()) != ERR) {
+			switch (i) {
+			case '>':
+				flag_I *= 2;
+				break;
+			case '<':
+				flag_I /= 2;
+				if (flag_I < 1000)
+					flag_I = 1000;
+				break;
+			case 'c':
+				flag_c = !flag_c;
+				break;
+			case 'f':
+				move(0,0);
+				clrtoeol();
+				refresh();
+				line = el_gets(el, &line_len);
+				if (line == NULL)
+					err(1, "el_gets");
+				if (line_len > 1)
+					history(hist, &hist_ev, H_ENTER, line);
+				strncpy(tmp_f_s, line, sizeof(f_s));
+				if ((p = strchr(tmp_f_s, '\n')) != NULL)
+					*p = '\0';
+				/*
+				 * We have to clear since we messed up
+				 * curses idea of the screen by using
+				 * libedit.
+				 */
+				clear();
+				refresh();
+				if (regcomp(&tmp_f_re, tmp_f_s, REG_EXTENDED)
+				    != 0) {
+					move(0, 0);
+					printw("Invalid filter");
+					refresh();
+					sleep(1);
+				} else {
+					strncpy(f_s, tmp_f_s, sizeof(f_s));
+					f_re = tmp_f_re;
+				}
+				break;
+			case 'F':
+				f_s[0] = '\0';
+				break;
+			case 'q':
+				quit = 1;
+				break;
+			default:
+				break;
+			}
 		}
 	}
 
 	endwin();
-	exit (0);
+	el_end(el);
+	exit(EX_OK);
 }
 
 static void
 usage(void)
 {
-        fprintf(stderr, "usage: gstat [-acd] [-I interval]\n");
-        exit(1);
+	fprintf(stderr, "usage: gstat [-acd] [-f filter] [-I interval]\n");
+	exit(EX_USAGE);
         /* NOTREACHED */
 }
