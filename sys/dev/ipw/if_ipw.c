@@ -390,6 +390,11 @@ ipw_detach(device_t dev)
 	if (ifp != NULL)
 		if_free(ifp);
 
+	if (sc->sc_firmware != NULL) {
+		firmware_put(sc->sc_firmware, FIRMWARE_UNLOAD);
+		sc->sc_firmware = NULL;
+	}
+
 	mtx_destroy(&sc->sc_mtx);
 
 	return 0;
@@ -2002,16 +2007,22 @@ ipw_init(void *priv)
 	 * Load firmware image using the firmware(9) subsystem.  We need to
 	 * release the driver's lock first.
 	 */
-	mtx_unlock(&sc->sc_mtx);
-	fp = firmware_get(imagename);
-	mtx_lock(&sc->sc_mtx);
+	if (sc->sc_firmware == NULL || strcmp(sc->sc_firmware->name,
+	    imagename) != 0) {
+		mtx_unlock(&sc->sc_mtx);
+		if (sc->sc_firmware != NULL)
+			firmware_put(sc->sc_firmware, FIRMWARE_UNLOAD);
+		sc->sc_firmware = firmware_get(imagename);
+		mtx_lock(&sc->sc_mtx);
+	}
 
-	if (fp == NULL) {
+	if (sc->sc_firmware == NULL) {
 		device_printf(sc->sc_dev,
 		    "could not load firmware image '%s'\n", imagename);
 		goto fail1;
 	}
 
+	fp = sc->sc_firmware;
 	if (fp->datasize < sizeof *hdr) {
 		device_printf(sc->sc_dev,
 		    "firmware image too short %zu\n", fp->datasize);
@@ -2061,7 +2072,6 @@ ipw_init(void *priv)
 		goto fail2;
 	}
 
-	firmware_put(fp, FIRMWARE_UNLOAD);
 	sc->flags |= IPW_FLAG_FW_INITED;
 
 	/* retrieve information tables base addresses */
@@ -2086,6 +2096,7 @@ ipw_init(void *priv)
 	return;
 
 fail2:	firmware_put(fp, FIRMWARE_UNLOAD);
+	sc->sc_firmware = NULL;
 fail1:	ifp->if_flags &= ~IFF_UP;
 	ipw_stop(sc);
 	sc->flags &=~ IPW_FLAG_INIT_LOCKED;
