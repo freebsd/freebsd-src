@@ -52,6 +52,9 @@ __FBSDID("$FreeBSD$");
 
 #include "acpi_wakecode.h"
 
+/* Make sure the code is less than one page and leave room for the stack. */
+CTASSERT(sizeof(wakecode) < PAGE_SIZE - 1024);
+
 #ifndef _SYS_CDEFS_H_
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
@@ -67,7 +70,7 @@ static uint32_t		r_eax, r_ebx, r_ecx, r_edx, r_ebp, r_esi, r_edi,
 			r_efl, r_cr0, r_cr2, r_cr3, r_cr4, ret_addr;
 
 static uint16_t		r_cs, r_ds, r_es, r_fs, r_gs, r_ss, r_tr;
-static uint32_t		r_esp = 0;
+static uint32_t		r_esp;
 
 static void		acpi_printcpu(void);
 static void		acpi_realmodeinst(void *arg, bus_dma_segment_t *segs,
@@ -282,7 +285,7 @@ out:
 
 static bus_dma_tag_t	acpi_waketag;
 static bus_dmamap_t	acpi_wakemap;
-static vm_offset_t	acpi_wakeaddr = 0;
+static vm_offset_t	acpi_wakeaddr;
 
 static void
 acpi_alloc_wakeup_handler(void)
@@ -292,16 +295,21 @@ acpi_alloc_wakeup_handler(void)
 	if (!cold)
 		return;
 
-	if (bus_dma_tag_create(/* parent */ NULL, /* alignment */ 2, 0,
-			       /* lowaddr below 1MB */ 0x9ffff,
-			       /* highaddr */ BUS_SPACE_MAXADDR, NULL, NULL,
-				PAGE_SIZE, 1, PAGE_SIZE, 0, busdma_lock_mutex,
-				&Giant, &acpi_waketag) != 0) {
+	/*
+	 * Specify the region for our wakeup code.  We want it in the low 1 MB
+	 * region, excluding video memory and above (0xa0000).  We ask for
+	 * it to be page-aligned, just to be safe.
+	 */
+	if (bus_dma_tag_create(/*parent*/ NULL,
+	    /*alignment*/ PAGE_SIZE, /*no boundary*/ 0,
+	    /*lowaddr*/ 0x9ffff, /*highaddr*/ BUS_SPACE_MAXADDR, NULL, NULL,
+	    /*maxsize*/ PAGE_SIZE, /*segments*/ 1, /*maxsegsize*/ PAGE_SIZE,
+	    0, busdma_lock_mutex, &Giant, &acpi_waketag) != 0) {
 		printf("acpi_alloc_wakeup_handler: can't create wake tag\n");
 		return;
 	}
-	if (bus_dmamem_alloc(acpi_waketag, &wakeaddr,
-			     BUS_DMA_NOWAIT, &acpi_wakemap)) {
+	if (bus_dmamem_alloc(acpi_waketag, &wakeaddr, BUS_DMA_NOWAIT,
+	    &acpi_wakemap) != 0) {
 		printf("acpi_alloc_wakeup_handler: can't alloc wake memory\n");
 		return;
 	}
@@ -313,13 +321,21 @@ SYSINIT(acpiwakeup, SI_SUB_KMEM, SI_ORDER_ANY, acpi_alloc_wakeup_handler, 0)
 static void
 acpi_realmodeinst(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
-	struct acpi_softc	*sc = arg;
-	uint32_t		*addr;
+	struct acpi_softc *sc;
+	uint32_t *addr;
 
-	addr = (uint32_t *)&wakecode[wakeup_sw32 + 2];
-	*addr = segs[0].ds_addr + wakeup_32;
-	bcopy(wakecode, (void *)sc->acpi_wakeaddr, sizeof(wakecode));
+	/* Overwrite the ljmp target with the real address */
+	sc = arg;
 	sc->acpi_wakephys = segs[0].ds_addr;
+	addr = (uint32_t *)&wakecode[wakeup_sw32 + 2];
+	*addr = sc->acpi_wakephys + wakeup_32;
+
+	/* Copy the wake code into our low page and save its physical addr. */
+	bcopy(wakecode, (void *)sc->acpi_wakeaddr, sizeof(wakecode));
+	if (bootverbose) {
+		device_printf(sc->acpi_dev, "wakeup code va %#x pa %#x\n",
+		    acpi_wakeaddr, sc->acpi_wakephys);
+	}
 }
 
 void
@@ -333,6 +349,5 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 	sc->acpi_wakemap = acpi_wakemap;
 
 	bus_dmamap_load(sc->acpi_waketag, sc->acpi_wakemap,
-			(void *)sc->acpi_wakeaddr, PAGE_SIZE,
-			acpi_realmodeinst, sc, 0);
+	    (void *)sc->acpi_wakeaddr, PAGE_SIZE, acpi_realmodeinst, sc, 0);
 }
