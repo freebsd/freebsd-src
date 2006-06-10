@@ -182,11 +182,11 @@ xfs_blkdev_get(
 	g_topology_unlock();
 	PICKUP_GIANT();
 
-	VOP_UNLOCK(devvp, 0, td);
 	if (error) {
 		vput(devvp);
 		return (error);
 	}
+	VOP_UNLOCK(devvp, 0, td);
 
 	devvp->v_bufobj.bo_private = cp;
 	devvp->v_bufobj.bo_ops = &xfs_bo_ops;
