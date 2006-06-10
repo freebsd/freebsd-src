@@ -74,7 +74,7 @@ struct statfs *getmntpt(const char *);
 int	hasopt(const char *, const char *);
 int	ismounted(struct fstab *, struct statfs *, int);
 int	isremountable(const char *);
-void	mangle(char *, int *, char **);
+void	mangle(char *, int *, char *[]);
 char   *update_options(char *, char *, int);
 int	mountfs(const char *, const char *, const char *,
 			int, const char *, const char *);
@@ -138,17 +138,16 @@ use_mountprog(const char *vfstype)
 	NULL
 	};
 
-	for (i=0; fs[i] != NULL; ++i) {
+	for (i = 0; fs[i] != NULL; ++i) {
 		if (strcmp(vfstype, fs[i]) == 0)
-			return 1;
+			return (1);
 	}
 	
-	return 0;
+	return (0);
 }
 
 static int
-exec_mountprog(const char *name, const char *execname,
-	char *const argv[])
+exec_mountprog(const char *name, const char *execname, char *const argv[])
 {
 	pid_t pid;
 	int status;
@@ -596,7 +595,7 @@ catopt(char *s0, const char *s1)
 	char *cp;
 
 	if (s1 == NULL || *s1 == '\0')
-		return s0;
+		return (s0);
 
 	if (s0 && *s0) {
 		i = strlen(s0) + strlen(s1) + 1 + 1;
@@ -612,10 +611,7 @@ catopt(char *s0, const char *s1)
 }
 
 void
-mangle(options, argcp, argv)
-	char *options;
-	int *argcp;
-	char **argv;
+mangle(char *options, int *argcp, char *argv[])
 {
 	char *p, *s;
 	int argc;
@@ -660,17 +656,14 @@ mangle(options, argcp, argv)
 
 
 char *
-update_options(opts, fstab, curflags)
-	char *opts;
-	char *fstab;
-	int curflags;
+update_options(char *opts, char *fstab, int curflags)
 {
 	char *o, *p;
 	char *cur;
 	char *expopt, *newopt, *tmpopt;
 
 	if (opts == NULL)
-		return strdup("");
+		return (strdup(""));
 
 	/* remove meta options from list */
 	remopt(fstab, MOUNT_META_OPTION_FSTAB);
@@ -714,13 +707,11 @@ update_options(opts, fstab, curflags)
 	}
 	free(expopt);
 
-	return newopt;
+	return (newopt);
 }
 
 void
-remopt(string, opt)
-	char *string;
-	const char *opt;
+remopt(char *string, const char *opt)
 {
 	char *o, *p, *r;
 
@@ -742,7 +733,7 @@ remopt(string, opt)
 }
 
 void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
@@ -753,8 +744,7 @@ usage()
 }
 
 void
-putfsent(ent)
-	const struct statfs *ent;
+putfsent(const struct statfs *ent)
 {
 	struct fstab *fst;
 	char *opts;
@@ -784,8 +774,7 @@ putfsent(ent)
 
 
 char *
-flags2opts(flags)
-	int flags;
+flags2opts(int flags)
 {
 	char *res;
 
@@ -805,5 +794,5 @@ flags2opts(flags)
 	if (flags & MNT_MULTILABEL)	res = catopt(res, "multilabel");
 	if (flags & MNT_ACLS)		res = catopt(res, "acls");
 
-	return res;
+	return (res);
 }
