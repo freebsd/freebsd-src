@@ -62,10 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/resource.h>
 
-#if __FreeBSD_version < 500000
-#include <machine/clock.h>
-#endif
-
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
@@ -86,25 +82,6 @@ MODULE_DEPEND(if_cm, arcnet, 1, 1, 1);
 
 /* for watchdog timer. This should be more than enough. */
 #define ARCTIMEOUT (5*IFNET_SLOWHZ)
-
-/* short notation */
-
-#define GETREG(off)							\
-	bus_space_read_1(rman_get_bustag((sc)->port_res),		\
-			 rman_get_bushandle((sc)->port_res),		\
-			 (off))
-#define PUTREG(off, value)						\
-	bus_space_write_1(rman_get_bustag((sc)->port_res),		\
-			  rman_get_bushandle((sc)->port_res),		\
-			  (off), (value))
-#define GETMEM(off)							\
-	bus_space_read_1(rman_get_bustag((sc)->mem_res),		\
-			 rman_get_bushandle((sc)->mem_res),		\
-			 (off))
-#define PUTMEM(off, value)						\
-	bus_space_write_1(rman_get_bustag((sc)->mem_res),		\
-			  rman_get_bushandle((sc)->mem_res),		\
-			  (off), (value))
 
 devclass_t cm_devclass;
 
@@ -134,7 +111,7 @@ devclass_t cm_devclass;
  * case 2: set IFF_DRV_OACTIVE to stop arc_output from filling us.
  * case 1: start tx
  *
- * tint clears IFF_OCATIVE, decrements and checks tx_fillcount
+ * tint clears IFF_OACTIVE, decrements and checks tx_fillcount
  * case 1: start tx on tx_act ^ 1, softcall cm_start
  * case 0: softcall cm_start
  *
@@ -142,103 +119,15 @@ devclass_t cm_devclass;
  */
 
 void	cm_init(void *);
-void	cm_reset(struct cm_softc *);
+static void cm_init_locked(struct cm_softc *);
+static void cm_reset_locked(struct cm_softc *);
 void	cm_start(struct ifnet *);
+void	cm_start_locked(struct ifnet *);
 int	cm_ioctl(struct ifnet *, unsigned long, caddr_t);
 void	cm_watchdog(struct ifnet *);
-void	cm_srint(void *vsc);
-static	void cm_tint(struct cm_softc *, int);
-void	cm_reconwatch(void *);
-
-int
-cm_probe(dev)
-	device_t dev;
-{
-	int error;
-	struct cm_softc *sc = device_get_softc(dev);
-
-	error = cm_alloc_port(dev, 0, CM_IO_PORTS);
-	if (error)
-		return error;
-
-	if (GETREG(CMSTAT) == 0xff)
-		return ENXIO;
-
-	error = cm_alloc_memory(dev, 0, 0x800);
-	if (error)
-		return error;
-
-	return 0;
-}
-
-/*
- * Allocate a port resource with the given resource id.
- */
-int
-cm_alloc_port(dev, rid, size)
-	device_t dev;
-	int rid;
-	int size;
-{
-	struct cm_softc *sc = device_get_softc(dev);
-	struct resource *res;
-
-	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				 0ul, ~0ul, size, RF_ACTIVE);
-	if (res) {
-		sc->port_rid = rid;
-		sc->port_res = res;
-		sc->port_used = size;
-		return (0);
-	} else {
-		return (ENOENT);
-	}
-}
-
-/*
- * Allocate a memory resource with the given resource id.
- */
-int
-cm_alloc_memory(dev, rid, size)
-	device_t dev;
-	int rid;
-	int size;
-{
-	struct cm_softc *sc = device_get_softc(dev);
-	struct resource *res;
-
-	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-				 0ul, ~0ul, size, RF_ACTIVE);
-	if (res) {
-		sc->mem_rid = rid;
-		sc->mem_res = res;
-		sc->mem_used = size;
-		return (0);
-	} else {
-		return (ENOENT);
-	}
-}
-
-/*
- * Allocate an irq resource with the given resource id.
- */
-int
-cm_alloc_irq(dev, rid)
-	device_t dev;
-	int rid;
-{
-	struct cm_softc *sc = device_get_softc(dev);
-	struct resource *res;
-
-	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
-	if (res) {
-		sc->irq_rid = rid;
-		sc->irq_res = res;
-		return (0);
-	} else {
-		return (ENOENT);
-	}
-}
+void	cm_srint_locked(void *vsc);
+static	void cm_tint_locked(struct cm_softc *, int);
+void	cm_reconwatch_locked(void *);
 
 /*
  * Release all resources
@@ -249,26 +138,26 @@ cm_release_resources(dev)
 {
 	struct cm_softc *sc = device_get_softc(dev);
 
-	if (sc->port_res) {
+	if (sc->port_res != NULL) {
 		bus_deactivate_resource(dev, SYS_RES_IOPORT,
-				     sc->port_rid, sc->port_res);
+				     0, sc->port_res);
 		bus_release_resource(dev, SYS_RES_IOPORT,
-				     sc->port_rid, sc->port_res);
-		sc->port_res = 0;
+				     0, sc->port_res);
+		sc->port_res = NULL;
 	}
-	if (sc->mem_res) {
+	if (sc->mem_res != NULL) {
 		bus_deactivate_resource(dev, SYS_RES_MEMORY,
-				     sc->mem_rid, sc->mem_res);
+				     0, sc->mem_res);
 		bus_release_resource(dev, SYS_RES_MEMORY,
-				     sc->mem_rid, sc->mem_res);
-		sc->mem_res = 0;
+				     0, sc->mem_res);
+		sc->mem_res = NULL;
 	}
-	if (sc->irq_res) {
+	if (sc->irq_res != NULL) {
 		bus_deactivate_resource(dev, SYS_RES_IRQ,
-				     sc->irq_rid, sc->irq_res);
+				     0, sc->irq_res);
 		bus_release_resource(dev, SYS_RES_IRQ,
-				     sc->irq_rid, sc->irq_res);
-		sc->irq_res = 0;
+				     0, sc->irq_res);
+		sc->irq_res = NULL;
 	}
 }
 
@@ -278,29 +167,22 @@ cm_attach(dev)
 {
 	struct cm_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp;
-	int s;
 	u_int8_t linkaddress;
 
 	ifp = sc->sc_ifp = if_alloc(IFT_ARCNET);
-	if (ifp == NULL) {
+	if (ifp == NULL)
 		return (ENOSPC);
-	}
-
-	s = splhigh();
 
 	/*
 	 * read the arcnet address from the board
 	 */
-
 	GETREG(CMRESET);
 	do {
 		DELAY(200);
 	} while (!(GETREG(CMSTAT) & CM_POR));
-
 	linkaddress = GETMEM(CMMACOFF);
 
 	/* clear the int mask... */
-
 	sc->sc_intmask = 0;
 	PUTREG(CMSTAT, 0);
 
@@ -308,13 +190,10 @@ cm_attach(dev)
 	PUTREG(CMCMD, CM_CLR(CLR_POR|CLR_RECONFIG));
 	sc->sc_recontime = sc->sc_reconcount = 0;
 
-	/* and reenable kernel int level */
-	splx(s);
-
 	/*
 	 * set interface to stopped condition (reset)
 	 */
-	cm_stop(sc);
+	cm_stop_locked(sc);
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
@@ -326,7 +205,7 @@ cm_attach(dev)
 	/* XXX IFQ_SET_READY(&ifp->if_snd); */
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	ifp->if_timer = 0;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
 
 	arc_ifattach(ifp, linkaddress);
 
@@ -336,11 +215,7 @@ cm_attach(dev)
 		(void (*)(void *))cm_start, ifp);
 #endif
 
-#if __FreeBSD_version < 500000
-	callout_init(&sc->sc_recon_ch);
-#else
-	callout_init(&sc->sc_recon_ch, 0);
-#endif
+	callout_init_mtx(&sc->sc_recon_ch, &sc->sc_mtx, 0);
 
 	if_printf(ifp, "link addr 0x%02x (%d)\n", linkaddress, linkaddress);
 	return 0;
@@ -355,28 +230,30 @@ cm_init(xsc)
 	void *xsc;
 {
 	struct cm_softc *sc = (struct cm_softc *)xsc;
-	struct ifnet *ifp;
-	int s;
 
-	ifp = sc->sc_ifp;
+	CM_LOCK(sc);
+	cm_init_locked(sc);
+	CM_UNLOCK(sc);
+}
+
+static void
+cm_init_locked(struct cm_softc *sc)
+{
+	struct ifnet *ifp = sc->sc_ifp;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		s = splimp();
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
-		cm_reset(sc);
-		cm_start(ifp);
-		splx(s);
+		cm_reset_locked(sc);
 	}
 }
 
 /*
  * Reset the interface...
  *
- * this assumes that it is called inside a critical section...
- *
+ * Assumes that it is called with sc_mtx held
  */
 void
-cm_reset(sc)
+cm_reset_locked(sc)
 	struct cm_softc *sc;
 {
 	struct ifnet *ifp;
@@ -444,14 +321,14 @@ cm_reset(sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	cm_start(ifp);
+	cm_start_locked(ifp);
 }
 
 /*
  * Take interface offline
  */
 void
-cm_stop(sc)
+cm_stop_locked(sc)
 	struct cm_softc *sc;
 {
 	/* Stop the interrupts */
@@ -464,24 +341,32 @@ cm_stop(sc)
 	sc->sc_ifp->if_timer = 0;
 }
 
+void
+cm_start(struct ifnet *ifp)
+{
+	struct cm_softc *sc = ifp->if_softc;
+
+	CM_LOCK(sc);
+	cm_start_locked(ifp);
+	CM_UNLOCK(sc);
+}
+
 /*
  * Start output on interface. Get another datagram to send
  * off the interface queue, and copy it to the
  * interface becore starting the output
  *
- * this assumes that it is called inside a critical section...
- * XXX hm... does it still?
- *
+ * Assumes that sc_mtx is held
  */
 void
-cm_start(ifp)
+cm_start_locked(ifp)
 	struct ifnet *ifp;
 {
 	struct cm_softc *sc = ifp->if_softc;
-	struct mbuf *m,*mp;
+	struct mbuf *m, *mp;
 
 	int cm_ram_ptr;
-	int len, tlen, offset, s, buffer;
+	int len, tlen, offset, buffer;
 #ifdef CMTIMINGS
 	u_long copystart, lencopy, perbyte;
 #endif
@@ -493,17 +378,11 @@ cm_start(ifp)
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
-	s = splimp();
-
-	if (sc->sc_tx_fillcount >= 2) {
-		splx(s);
+	if (sc->sc_tx_fillcount >= 2)
 		return;
-	}
 
 	m = arc_frag_next(ifp);
 	buffer = sc->sc_tx_act ^ 1;
-
-	splx(s);
 
 	if (m == 0)
 		return;
@@ -569,9 +448,6 @@ cm_start(ifp)
 	sc->sc_broadcast[buffer] = (m->m_flags & M_BCAST) != 0;
 	sc->sc_retransmits[buffer] = (m->m_flags & M_BCAST) ? 1 : 5;
 
-	/* actually transmit the packet */
-	s = splimp();
-
 	if (++sc->sc_tx_fillcount > 1) {
 		/*
 		 * We are filled up to the rim. No more bufs for the moment,
@@ -596,7 +472,6 @@ cm_start(ifp)
 
 		ifp->if_timer = ARCTIMEOUT;
 	}
-	splx(s);
 	m_freem(m);
 
 	/*
@@ -605,20 +480,30 @@ cm_start(ifp)
 	 * the hardware retries till shutdown.
 	 * This is integrated now in the code above.
 	 */
-
-	return;
 }
+
+#ifdef CMSOFTCOPY
+void
+cm_srint(void *vsc)
+{
+	struct cm_softc *sc = (struct cm_softc *)vsc;
+
+	CM_LOCK(sc);
+	cm_srint_locked(vsc);
+	CM_UNLOCK(sc);
+}
+#endif
 
 /*
  * Arcnet interface receiver soft interrupt:
  * get the stuff out of any filled buffer we find.
  */
 void
-cm_srint(vsc)
+cm_srint_locked(vsc)
 	void *vsc;
 {
 	struct cm_softc *sc = (struct cm_softc *)vsc;
-	int buffer, len, offset, s, type;
+	int buffer, len, offset, type;
 	int cm_ram_ptr;
 	struct mbuf *m;
 	struct arc_header *ah;
@@ -626,9 +511,7 @@ cm_srint(vsc)
 
 	ifp = sc->sc_ifp;
 
-	s = splimp();
 	buffer = sc->sc_rx_act ^ 1;
-	splx(s);
 
 	/* Allocate header mbuf */
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
@@ -695,7 +578,9 @@ cm_srint(vsc)
 	    rman_get_bustag(sc->mem_res), rman_get_bushandle(sc->mem_res),
 	    cm_ram_ptr + offset, mtod(m, u_char *) + 2, len);
 
+	CM_UNLOCK(sc);
 	arc_input(ifp, m);
+	CM_LOCK(sc);
 
 	m = NULL;
 	ifp->if_ipackets++;
@@ -707,8 +592,6 @@ cleanup:
 
 	/* mark buffer as invalid by source id 0 */
 	PUTMEM(buffer << 9, 0);
-	s = splimp();
-
 	if (--sc->sc_rx_fillcount == 2 - 1) {
 
 		/* was off, restart it on buffer just emptied */
@@ -723,11 +606,10 @@ cleanup:
 		if_printf(ifp, "srint: restarted rx on buf %d\n", buffer);
 #endif
 	}
-	splx(s);
 }
 
 __inline static void
-cm_tint(sc, isr)
+cm_tint_locked(sc, isr)
 	struct cm_softc *sc;
 	int isr;
 {
@@ -807,7 +689,7 @@ cm_tint(sc, isr)
 	softintr_schedule(sc->sc_txcookie);
 #else
 	/* call it directly */
-	cm_start(ifp);
+	cm_start_locked(ifp);
 #endif
 }
 
@@ -825,10 +707,15 @@ cmintr(arg)
 	int buffer;
 	u_long newsec;
 
+	CM_LOCK(sc);
+
 	isr = GETREG(CMSTAT);
 	maskedisr = isr & sc->sc_intmask;
-	if (!maskedisr)
+	if (!maskedisr || (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		CM_UNLOCK(sc);
 		return;
+	}
+
 	do {
 
 #if defined(CM_DEBUG) && (CM_DEBUG > 1)
@@ -881,7 +768,7 @@ cmintr(arg)
 			}
 			sc->sc_recontime = newsec;
 			callout_reset(&sc->sc_recon_ch, 15 * hz,
-			    cm_reconwatch, (void *)sc);
+			    cm_reconwatch_locked, (void *)sc);
 		}
 
 		if (maskedisr & CM_RI) {
@@ -936,12 +823,12 @@ cmintr(arg)
 				softintr_schedule(sc->sc_rxcookie);
 #else
 				/* this one does the copy here */
-				cm_srint(sc);
+				cm_srint_locked(sc);
 #endif
 			}
 		}
 		if (maskedisr & CM_TA) {
-			cm_tint(sc, isr);
+			cm_tint_locked(sc, isr);
 		}
 		isr = GETREG(CMSTAT);
 		maskedisr = isr & sc->sc_intmask;
@@ -950,10 +837,11 @@ cmintr(arg)
 	if_printf(ifp, "intr (exit): status 0x%02x, intmask 0x%02x\n",
 	    isr, sc->sc_intmask);
 #endif
+	CM_UNLOCK(sc);
 }
 
 void
-cm_reconwatch(arg)
+cm_reconwatch_locked(arg)
 	void *arg;
 {
 	struct cm_softc *sc = arg;
@@ -981,13 +869,12 @@ cm_ioctl(ifp, command, data)
 	struct cm_softc *sc;
 	struct ifaddr *ifa;
 	struct ifreq *ifr;
-	int s, error;
+	int error;
 
 	error = 0;
 	sc = ifp->if_softc;
 	ifa = (struct ifaddr *)data;
 	ifr = (struct ifreq *)data;
-	s = splimp();
 
 #if defined(CM_DEBUG) && (CM_DEBUG > 2)
 	if_printf(ifp, "ioctl() called, cmd = 0x%lx\n", command);
@@ -1003,13 +890,14 @@ cm_ioctl(ifp, command, data)
 		break;
 
 	case SIOCSIFFLAGS:
+		CM_LOCK(sc);
 		if ((ifp->if_flags & IFF_UP) == 0 &&
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 			/*
 			 * If interface is marked down and it is running,
 			 * then stop it.
 			 */
-			cm_stop(sc);
+			cm_stop_locked(sc);
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		} else if ((ifp->if_flags & IFF_UP) != 0 &&
 			   (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
@@ -1017,8 +905,9 @@ cm_ioctl(ifp, command, data)
 			 * If interface is marked up and it is stopped, then
 			 * start it.
 			 */
-			cm_init(sc);
+			cm_init_locked(sc);
 		}
+		CM_UNLOCK(sc);
 		break;
 
 	default:
@@ -1026,7 +915,6 @@ cm_ioctl(ifp, command, data)
 		break;
 	}
 
-	splx(s);
 	return (error);
 }
 
@@ -1040,16 +928,14 @@ cm_ioctl(ifp, command, data)
  * Only thing we do is disable transmitter. We'll get a transmit timeout,
  * and the int handler will have to decide not to retransmit (in case
  * retransmission is implemented).
- *
- * This one assumes being called inside splimp()
  */
-
 void
 cm_watchdog(ifp)
 	struct ifnet *ifp;
 {
 	struct cm_softc *sc = ifp->if_softc;
 
+	CM_LOCK(sc);
 	PUTREG(CMCMD, CM_TXDIS);
-	return;
+	CM_UNLOCK(sc);
 }
