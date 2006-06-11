@@ -37,6 +37,7 @@
 #include <sys/dirent.h>
 #include <sys/ioccom.h>
 #include <sys/malloc.h>
+#include <sys/extattr.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -66,6 +67,7 @@
 #include "xfs_ialloc_btree.h"
 #include "xfs_btree.h"
 #include "xfs_imap.h"
+#include "xfs_attr.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
@@ -92,9 +94,11 @@ static vop_close_t		_xfs_close;
 static vop_create_t		_xfs_create;
 static vop_fsync_t		_xfs_fsync;
 static vop_getattr_t		_xfs_getattr;
+static vop_getextattr_t		_xfs_getextattr;
 static vop_inactive_t		_xfs_inactive;
 static vop_ioctl_t		_xfs_ioctl;
 static vop_link_t		_xfs_link;
+static vop_listextattr_t	_xfs_listextattr;
 static vop_mkdir_t		_xfs_mkdir;
 static vop_mknod_t		_xfs_mknod;
 static vop_open_t		_xfs_open;
@@ -120,9 +124,11 @@ struct vop_vector xfs_vnops = {
 	.vop_create =		_xfs_create,
 	.vop_fsync =		_xfs_fsync,
 	.vop_getattr =		_xfs_getattr,
+	.vop_getextattr =	_xfs_getextattr,
 	.vop_inactive =		_xfs_inactive,
 	.vop_ioctl =		_xfs_ioctl,
 	.vop_link =		_xfs_link,
+	.vop_listextattr =	_xfs_listextattr,
 	.vop_lookup =		vfs_cache_lookup,
 	.vop_mkdir =		_xfs_mkdir,
 	.vop_mknod =		_xfs_mknod,
@@ -1463,3 +1469,121 @@ _xfsfifo_kqfilter(
 		error = _xfs_kqfilter(ap);
 	return (error);
 }
+
+static int
+_xfs_getextattr(
+	struct vop_getextattr_args /* {
+		struct vnode *a_vp;
+		int a_attrnamespace;
+		const char *a_name;
+		struct uio *a_uio;
+		size_t *a_size;
+		struct ucred *a_cred;
+		struct thread *a_td;
+	} */ *ap)
+{
+	int error;
+	char *value;
+	int size;
+
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, VREAD);
+        if (error)
+		return (error);
+
+	size = ATTR_MAX_VALUELEN;
+	value = (char *)kmem_zalloc(size, KM_SLEEP);
+	if (value == NULL)
+		return (ENOMEM);
+
+	XVOP_ATTR_GET(VPTOXFSVP(ap->a_vp), ap->a_name, value, &size, 1,
+	    ap->a_cred, error);
+
+	if (ap->a_uio != NULL) {
+		if (ap->a_uio->uio_iov->iov_len < size)
+			error = ERANGE;
+		else
+			uiomove(value, size, ap->a_uio);
+	}
+
+	if (ap->a_size != NULL)
+		*ap->a_size = size;
+
+	kmem_free(value, ATTR_MAX_VALUELEN);
+	return (error);
+}		
+
+static int
+_xfs_listextattr(
+	struct vop_listextattr_args /* {
+		struct vnode *a_vp;
+		int a_attrnamespace;
+		struct uio *a_uio;
+		size_t *a_size;
+		struct ucred *a_cred;
+		struct thread *a_td;
+	} */ *ap)
+{
+	int error;
+	char *buf = NULL;
+	int buf_len = 0;
+	attrlist_cursor_kern_t  cursor = { 0 };
+	int i;
+	char name_len;
+	int attrnames_len = 0;
+	int xfs_flags = ATTR_KERNAMELS;
+
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, VREAD);
+        if (error)
+		return (error);
+
+	if (ap->a_attrnamespace & EXTATTR_NAMESPACE_USER)
+		xfs_flags |= ATTR_KERNORMALS;
+
+	if (ap->a_attrnamespace & EXTATTR_NAMESPACE_SYSTEM)
+		xfs_flags |= ATTR_KERNROOTLS;
+
+	if (ap->a_uio == NULL || ap->a_uio->uio_iov[0].iov_base == NULL) {
+		xfs_flags |= ATTR_KERNOVAL;
+		buf_len = 0;
+	} else {
+		buf = ap->a_uio->uio_iov[0].iov_base;
+		buf_len = ap->a_uio->uio_iov[0].iov_len;
+	}
+
+	XVOP_ATTR_LIST(VPTOXFSVP(ap->a_vp), buf, buf_len, xfs_flags,
+		    &cursor, ap->a_cred, error);
+	if (error < 0) {
+		attrnames_len = -error;
+		error = 0;
+	}
+	if (buf == NULL)
+		goto done;
+
+	/*
+	 * extattr_list expects a list of names.  Each list
+	 * entry consists of one byte for the name length, followed
+	 * by the name (not null terminated)
+	 */
+	name_len=0;
+	for(i=attrnames_len-1; i > 0 ; --i) {
+		buf[i] = buf[i-1];
+		if (buf[i])
+			++name_len;
+		else {
+			buf[i] = name_len;
+			name_len = 0;
+		}
+	} 
+	buf[0] = name_len;
+
+	if (ap->a_uio != NULL)
+		ap->a_uio->uio_resid -= attrnames_len;
+
+done:
+	if (ap->a_size != NULL)
+		*ap->a_size = attrnames_len;
+
+	return (error);
+}		
