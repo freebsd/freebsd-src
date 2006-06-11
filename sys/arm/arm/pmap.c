@@ -413,7 +413,6 @@ static vm_offset_t pmap_kernel_l2ptp_kva;
 static vm_paddr_t pmap_kernel_l2ptp_phys;
 static struct vm_object pvzone_obj;
 static int pv_entry_count=0, pv_entry_max=0, pv_entry_high_water=0;
-int pmap_pagedaemon_waken = 0;
 
 /*
  * This list exists for the benefit of pmap_map_chunk().  It keeps track
@@ -3814,11 +3813,8 @@ pmap_get_pv_entry(void)
 	pv_entry_t ret_value;
 	
 	pv_entry_count++;
-	if ((pv_entry_count > pv_entry_high_water) &&
-	    (pmap_pagedaemon_waken == 0)) {
-	    	pmap_pagedaemon_waken = 1;
-	    	wakeup (&vm_pages_needed);
-	}
+	if (pv_entry_count > pv_entry_high_water)
+		pagedaemon_wakeup();
 	ret_value = uma_zalloc(pvzone, M_NOWAIT);
 	return ret_value;
 }
