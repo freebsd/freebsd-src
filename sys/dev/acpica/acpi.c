@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/smp.h>
 
-#include <machine/clock.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -219,7 +218,7 @@ static struct rman acpi_rman_io, acpi_rman_mem;
 static const char* sleep_state_names[] = {
     "S0", "S1", "S2", "S3", "S4", "S5", "NONE"};
 
-SYSCTL_NODE(_debug, OID_AUTO, acpi, CTLFLAG_RW, NULL, "ACPI debugging");
+SYSCTL_NODE(_debug, OID_AUTO, acpi, CTLFLAG_RD, NULL, "ACPI debugging");
 static char acpi_ca_version[12];
 SYSCTL_STRING(_debug_acpi, OID_AUTO, acpi_ca_version, CTLFLAG_RD,
 	      acpi_ca_version, 0, "Version of Intel ACPI-CA");
@@ -517,14 +516,15 @@ acpi_attach(device_t dev)
 	OID_AUTO, "suspend_state", CTLTYPE_STRING | CTLFLAG_RW,
 	&sc->acpi_suspend_sx, 0, acpi_sleep_state_sysctl, "A", "");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "sleep_delay", CTLFLAG_RD | CTLFLAG_RW,
-	&sc->acpi_sleep_delay, 0, "sleep delay");
+	OID_AUTO, "sleep_delay", CTLFLAG_RW, &sc->acpi_sleep_delay, 0,
+	"sleep delay");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "s4bios", CTLFLAG_RD | CTLFLAG_RW,
-	&sc->acpi_s4bios, 0, "S4BIOS mode");
+	OID_AUTO, "s4bios", CTLFLAG_RW, &sc->acpi_s4bios, 0, "S4BIOS mode");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "verbose", CTLFLAG_RD | CTLFLAG_RW,
-	&sc->acpi_verbose, 0, "verbose mode");
+	OID_AUTO, "verbose", CTLFLAG_RW, &sc->acpi_verbose, 0, "verbose mode");
+    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "disable_on_reboot", CTLFLAG_RW,
+	&sc->acpi_do_disable, 0, "Disable ACPI when rebooting/halting system");
 
     /*
      * Default to 1 second before sleeping to give some machines time to
@@ -1034,6 +1034,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	    goto out;
 
 	/* Copy the bus tag and handle from the pre-allocated resource. */
+	rman_set_rid(res, *rid);
 	rman_set_bustag(res, rman_get_bustag(rle->res));
 	rman_set_bushandle(res, rman_get_start(res));
 
@@ -1530,6 +1531,7 @@ static ACPI_STATUS
 acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 {
     ACPI_OBJECT_TYPE type;
+    ACPI_HANDLE h;
     device_t bus, child;
     int order;
     char *handle_str, **search;
@@ -1589,8 +1591,17 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     * "functional" (i.e. if disabled).  Go ahead and probe them
 	     * anyway since we may enable them later.
 	     */
-	    if (type == ACPI_TYPE_DEVICE && !acpi_DeviceIsPresent(child) &&
-		!acpi_MatchHid(handle, "PNP0C0F")) {
+	    if (type == ACPI_TYPE_DEVICE && !acpi_DeviceIsPresent(child)) {
+		/* Never disable PCI link devices. */
+		if (acpi_MatchHid(handle, "PNP0C0F"))
+		    break;
+		/*
+		 * Docking stations should remain enabled since the system
+		 * may be undocked at boot.
+		 */
+		if (ACPI_SUCCESS(AcpiGetHandle(handle, "_DCK", &h)))
+		    break;
+
 		device_disable(child);
 		break;
 	    }
@@ -1622,13 +1633,15 @@ acpi_fake_objhandler(ACPI_HANDLE h, UINT32 fn, void *data)
 static void
 acpi_shutdown_final(void *arg, int howto)
 {
-    ACPI_STATUS	status;
+    struct acpi_softc *sc;
+    ACPI_STATUS status;
 
     /*
      * XXX Shutdown code should only run on the BSP (cpuid 0).
      * Some chipsets do not power off the system correctly if called from
      * an AP.
      */
+    sc = arg;
     if ((howto & RB_POWEROFF) != 0) {
 	status = AcpiEnterSleepStatePrep(ACPI_STATE_S5);
 	if (ACPI_FAILURE(status)) {
@@ -1645,7 +1658,8 @@ acpi_shutdown_final(void *arg, int howto)
 	    DELAY(1000000);
 	    printf("ACPI power-off failed - timeout\n");
 	}
-    } else if ((howto & RB_AUTOBOOT) != 0 && AcpiGbl_FADT->ResetRegSup) {
+    } else if ((howto & RB_HALT) == 0 && AcpiGbl_FADT->ResetRegSup) {
+	/* Reboot using the reset register. */
 	status = AcpiHwLowLevelWrite(
 	    AcpiGbl_FADT->ResetRegister.RegisterBitWidth,
 	    AcpiGbl_FADT->ResetValue, &AcpiGbl_FADT->ResetRegister);
@@ -1655,7 +1669,11 @@ acpi_shutdown_final(void *arg, int howto)
 	    DELAY(1000000);
 	    printf("ACPI reset failed - timeout\n");
 	}
-    } else if (panicstr == NULL) {
+    } else if (sc->acpi_do_disable && panicstr == NULL) {
+	/*
+	 * Only disable ACPI if the user requested.  On some systems, writing
+	 * the disable value to SMI_CMD hangs the system.
+	 */
 	printf("Shutting down ACPI\n");
 	AcpiTerminate();
     }
