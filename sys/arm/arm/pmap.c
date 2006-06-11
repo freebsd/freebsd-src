@@ -2262,7 +2262,6 @@ pmap_activate(struct thread *td)
 {
 	pmap_t pm;
 	struct pcb *pcb;
-	int s;
 
 	pm = vmspace_pmap(td->td_proc->p_vmspace);
 	pcb = td->td_pcb;
@@ -2306,8 +2305,6 @@ pmap_activate(struct thread *td)
 
 		cpu_domains(pcb->pcb_dacr);
 		cpu_setttb(pcb->pcb_pagedir);
-
-		splx(s);
 	}
 	critical_exit();
 }
@@ -2738,7 +2735,6 @@ void
 pmap_growkernel(vm_offset_t addr)
 {
 	pmap_t kpm = pmap_kernel();
-	int s;
 
 	if (addr <= pmap_curmaxkvaddr)
 		return;		/* we are OK */
@@ -2746,8 +2742,6 @@ pmap_growkernel(vm_offset_t addr)
 	/*
 	 * whoops!   we need to add kernel PTPs
 	 */
-
-	s = splhigh();	/* to be safe */
 
 	/* Map 1MB at a time */
 	for (; pmap_curmaxkvaddr < addr; pmap_curmaxkvaddr += L1_S_SIZE)
@@ -4390,13 +4384,10 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 {
 	pv_entry_t pv;
 	int loops = 0;
-	int s;
 	
 	if (m->flags & PG_FICTITIOUS)
 		return (FALSE);
 		
-	s = splvm();
-	
 	/*
 	 * Not found, check current mappings returning immediately
 	 */
@@ -4404,14 +4395,12 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	    pv;
 	    pv = TAILQ_NEXT(pv, pv_list)) {
 	    	if (pv->pv_pmap == pmap) {
-	    		splx(s);
 	    		return (TRUE);
 	    	}
 		loops++;
 		if (loops >= 16)
 			break;
 	}
-	splx(s);
 	return (FALSE);
 }
 
