@@ -146,6 +146,30 @@ static struct acpi_asus_model acpi_asus_models[] = {
 		.disp_set	= "SDSP"
 	},
 	{
+		.name		= "A4D",
+		.mled_set	= "MLED",
+		.brn_up		= "\\_SB_.PCI0.SBRG.EC0._Q0E",
+		.brn_dn		= "\\_SB_.PCI0.SBRG.EC0._Q0F",
+		.brn_get	= "GPLV",
+		.brn_set	= "SPLV",
+#ifdef notyet
+		.disp_get	= "\\_SB_.PCI0.SBRG.EC0._Q10",
+		.disp_set	= "\\_SB_.PCI0.SBRG.EC0._Q11"
+#endif
+	},
+	{
+		.name		= "A6V",
+		.bled_set	= "BLED",
+		.mled_set	= "MLED",
+		.wled_set	= "WLED",
+		.lcd_get	= NULL,
+		.lcd_set	= "\\_SB.PCI0.SBRG.EC0._Q10",
+		.brn_get	= "GPLV",
+		.brn_set	= "SPLV",
+		.disp_get	= "\\_SB.PCI0.P0P3.VGA.GETD",
+		.disp_set	= "SDSP"
+	},
+	{
 		.name		= "D1x",
 		.mled_set	= "MLED",
 		.lcd_get	= "\\GP11",
@@ -285,6 +309,16 @@ static struct acpi_asus_model acpi_asus_models[] = {
 		.brn_get	= "GPLV",
 		.brn_set	= "SPLV",
 		.disp_get	= "\\_SB.PCI0.P0P1.VGA.GETD",
+		.disp_set	= "SDSP"
+	},
+	{
+		.name		= "W5A",
+		.bled_set	= "BLED",
+		.lcd_get	= "\\BKLT",
+		.lcd_set	= "\\_SB.PCI0.SBRG.EC0._Q10",
+		.brn_get	= "GPLV",
+		.brn_set	= "SPLV",
+		.disp_get	= "\\_SB.PCI0.P0P2.VGA.GETD",
 		.disp_set	= "SDSP"
 	},
 
