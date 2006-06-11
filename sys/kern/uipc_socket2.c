@@ -71,6 +71,12 @@ static	u_long sb_max_adj =
 
 static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
 
+#ifdef REGRESSION
+static int regression_sonewconn_earlytest = 1;
+SYSCTL_INT(_regression, OID_AUTO, sonewconn_earlytest, CTLFLAG_RW,
+    &regression_sonewconn_earlytest, 0, "Perform early sonewconn limit test");
+#endif
+
 /*
  * Procedures to manipulate state flags of socket
  * and do appropriate wakeups.  Normal sequence from the
@@ -216,7 +222,11 @@ sonewconn(head, connstatus)
 	ACCEPT_LOCK();
 	over = (head->so_qlen > 3 * head->so_qlimit / 2);
 	ACCEPT_UNLOCK();
+#ifdef REGRESSION
+	if (regression_sonewconn_earlytest && over)
+#else
 	if (over)
+#endif
 		return (NULL);
 	so = soalloc(M_NOWAIT);
 	if (so == NULL)
