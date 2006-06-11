@@ -48,10 +48,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
 
 #include <net/if.h>
 #include <net/if_arc.h>
 
+#include <dev/cm/smc90cx6reg.h>
 #include <dev/cm/smc90cx6var.h>
 
 static int cm_isa_probe		(device_t);
@@ -62,20 +65,35 @@ cm_isa_probe(dev)
 	device_t dev;
 {
 	struct cm_softc *sc = device_get_softc(dev);
-	int error;
+	int rid;
 
-	bzero(sc, sizeof(struct cm_softc));
+	rid = 0;
+	sc->port_res = bus_alloc_resource(
+	    dev, SYS_RES_IOPORT, &rid, 0ul, ~0ul, CM_IO_PORTS, RF_ACTIVE);
+	if (sc->port_res == NULL)
+		return (ENOENT);
 
-	error = cm_probe(dev);
-	if (error == 0)
-		goto end;
+	if (GETREG(CMSTAT) == 0xff) {
+		cm_release_resources(dev);
+		return (ENXIO);
+	}
 
-end:
-	if (error == 0)
-		error = cm_alloc_irq(dev, 0);
+	rid = 0;
+	sc->mem_res = bus_alloc_resource(
+	    dev, SYS_RES_MEMORY, &rid, 0ul, ~0ul, CM_MEM_SIZE, RF_ACTIVE);
+	if (sc->mem_res == NULL) {
+		cm_release_resources(dev);
+		return (ENOENT);
+	}
 
-	cm_release_resources(dev);
-	return (error);
+	rid = 0;
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
+	if (sc->irq_res == NULL) {
+		cm_release_resources(dev);
+		return (ENOENT);
+	}
+
+	return (0);
 }
 
 static int
@@ -85,18 +103,25 @@ cm_isa_attach(dev)
 	struct cm_softc *sc = device_get_softc(dev);
 	int error;
 
-	cm_alloc_port(dev, sc->port_rid, sc->port_used);
-	cm_alloc_memory(dev, sc->mem_rid, sc->mem_used);
-	cm_alloc_irq(dev, sc->irq_rid);
+	/* init mtx and setup interrupt */
+	mtx_init(&sc->sc_mtx, device_get_nameunit(dev),
+	    MTX_NETWORK_LOCK, MTX_DEF);
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
+	    cmintr, sc, &sc->irq_handle);
+	if (error)
+		goto err;
 
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-			       cmintr, sc, &sc->irq_handle);
-	if (error) {
-		cm_release_resources(dev);
-		return (error);
-	}
+	/* attach */
+	error = cm_attach(dev);
+	if (error)
+		goto err;
 
-	return cm_attach(dev);
+	return 0;
+
+err:
+	mtx_destroy(&sc->sc_mtx);
+	cm_release_resources(dev);
+	return (error);
 }
 
 static int
@@ -104,19 +129,23 @@ cm_isa_detach(device_t dev)
 {
 	struct cm_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->sc_ifp;
-	int s;
 
-	cm_stop(sc);
+	/* stop and detach */
+	CM_LOCK(sc);
+	cm_stop_locked(sc);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	CM_UNLOCK(sc);
 
-	s = splimp();
+	callout_drain(&sc->sc_recon_ch);
 	arc_ifdetach(ifp);
-	splx(s);
 
+	/* teardown interrupt, destroy mtx and release resources */
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
+	mtx_destroy(&sc->sc_mtx);
 	if_free(ifp);
 	cm_release_resources(dev);
 
+	bus_generic_detach(dev);
 	return (0);
 }
 
