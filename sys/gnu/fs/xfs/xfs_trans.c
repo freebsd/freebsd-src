@@ -629,7 +629,6 @@ xfs_trans_apply_sb_deltas(
 #ifdef XXXKAN
 	XFS_MTOVFS(tp->t_mountp)->vfs_super->s_dirt = 1;
 #endif
-	printf("XFS_MTOVFS(tp->t_mountp)->vfs_super->s_dirt = 1;");
 }
 
 /*
