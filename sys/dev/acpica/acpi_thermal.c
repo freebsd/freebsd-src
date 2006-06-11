@@ -242,12 +242,12 @@ acpi_tz_attach(device_t dev)
 			      OID_AUTO, "thermal", CTLFLAG_RD, 0, "");
 	SYSCTL_ADD_INT(&acpi_tz_sysctl_ctx,
 		       SYSCTL_CHILDREN(acpi_tz_sysctl_tree),
-		       OID_AUTO, "min_runtime", CTLFLAG_RD | CTLFLAG_RW,
+		       OID_AUTO, "min_runtime", CTLFLAG_RW,
 		       &acpi_tz_min_runtime, 0,
 		       "minimum cooling run time in sec");
 	SYSCTL_ADD_INT(&acpi_tz_sysctl_ctx,
 		       SYSCTL_CHILDREN(acpi_tz_sysctl_tree),
-		       OID_AUTO, "polling_rate", CTLFLAG_RD | CTLFLAG_RW,
+		       OID_AUTO, "polling_rate", CTLFLAG_RW,
 		       &acpi_tz_polling_rate, 0, "monitor polling rate");
     }
     sysctl_ctx_init(&sc->tz_sysctl_ctx);
