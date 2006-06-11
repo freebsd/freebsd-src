@@ -128,8 +128,8 @@ struct inpcb {
 	u_char	inp_vflag;		/* IP version flag (v4/v6) */
 #define	INP_IPV4	0x1
 #define	INP_IPV6	0x2
-#define INP_IPV6PROTO	0x4		/* opened under IPv6 protocol */
-#define INP_TIMEWAIT	0x8		/* .. probably doesn't go here */
+#define	INP_IPV6PROTO	0x4		/* opened under IPv6 protocol */
+#define	INP_TIMEWAIT	0x8		/* .. probably doesn't go here */
 #define	INP_ONESBCAST	0x10		/* send all-ones broadcast */
 	u_char	inp_ip_ttl;		/* time to live proto */
 	u_char	inp_ip_p;		/* protocol proto */
@@ -141,8 +141,8 @@ struct inpcb {
 		struct	mbuf *inp4_options;	/* IP options */
 		struct	ip_moptions *inp4_moptions; /* IP multicast options */
 	} inp_depend4;
-#define inp_fport	inp_inc.inc_fport
-#define inp_lport	inp_inc.inc_lport
+#define	inp_fport	inp_inc.inc_fport
+#define	inp_lport	inp_inc.inc_lport
 #define	inp_faddr	inp_inc.inc_faddr
 #define	inp_laddr	inp_inc.inc_laddr
 #define	inp_ip_tos	inp_depend4.inp4_ip_tos
