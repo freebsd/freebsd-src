@@ -31,7 +31,7 @@ case "$daily_status_named_enable" in
 
 	start=`date -v-1d '+%b %e'`
 	rc=$(catmsgs |
-	    fgrep -E ".*named\[[[:digit:]]+\]: transfer of .*failed .*: REFUSED" |
+	    fgrep -E "^$start.*named\[[[:digit:]]+\]: transfer of .*failed .*: REFUSED" |
 	    sed -e "s/.*transfer of \'\(.*\)\/IN\' from \(.*\)#[0-9]*: .*/\1 from \2/" |
 	    sort -f | uniq -ic | (
 		usedns=0
