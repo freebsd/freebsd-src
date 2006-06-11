@@ -45,6 +45,7 @@
 #define _SMC90CXVAR_H_
 
 #define CM_IO_PORTS 16
+#define CM_MEM_SIZE	0x800
 
 /* register offsets */
 

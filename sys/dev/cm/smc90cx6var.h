@@ -57,14 +57,13 @@
 
 struct cm_softc {
 	struct	ifnet	*sc_ifp;	/* Common arcnet structures */
+	struct	mtx	sc_mtx;		/* sc mutex */
 
 	int	port_rid;		/* resource id for port range */
 	struct resource *port_res;	/* resource for port range */
-	int	port_used;		/* ports used */
 
 	int	mem_rid;		/* resource id for memory range */
 	struct resource *mem_res;	/* resource for memory range */
-	int	mem_used;		/* memory used */
 
 	int	irq_rid;		/* resource id for irq */
 	struct resource *irq_res;	/* resource for irq */
@@ -89,15 +88,30 @@ struct cm_softc {
 
 int	cm_attach(device_t dev);
 void	cmintr(void *);
-
-int	cm_probe(device_t dev);
-void	cm_stop(struct cm_softc *sc);
-
-int	cm_alloc_port(device_t dev, int rid, int size);
-int	cm_alloc_memory(device_t dev, int rid, int size);
-int	cm_alloc_irq(device_t dev, int rid);
+void	cm_stop_locked(struct cm_softc *sc);
 void	cm_release_resources(device_t dev);
 
 extern	devclass_t cm_devclass;
+
+#define CM_LOCK(sc)	mtx_lock(&(sc)->sc_mtx)
+#define CM_UNLOCK(sc)	mtx_unlock(&(sc)->sc_mtx)
+
+/* short notation */
+#define GETREG(off)							\
+	bus_space_read_1(rman_get_bustag((sc)->port_res),		\
+			 rman_get_bushandle((sc)->port_res),		\
+			 (off))
+#define PUTREG(off, value)						\
+	bus_space_write_1(rman_get_bustag((sc)->port_res),		\
+			  rman_get_bushandle((sc)->port_res),		\
+			  (off), (value))
+#define GETMEM(off)							\
+	bus_space_read_1(rman_get_bustag((sc)->mem_res),		\
+			 rman_get_bushandle((sc)->mem_res),		\
+			 (off))
+#define PUTMEM(off, value)						\
+	bus_space_write_1(rman_get_bustag((sc)->mem_res),		\
+			  rman_get_bushandle((sc)->mem_res),		\
+			  (off), (value))
 
 #endif
