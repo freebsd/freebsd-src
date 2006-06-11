@@ -172,8 +172,10 @@ cron_popen(program, type, e)
 				/* fall back to the old method */
 				(void) endpwent();
 # endif
-				/* set our directory, uid and gid.  Set gid first,
-				 * since once we set uid, we've lost root privledges.
+				/*
+				 * Set our directory, uid and gid.  Set gid
+				 * first since once we set uid, we've lost
+				 * root priviledges.
 				 */
 				if (setgid(e->gid) != 0)
 					_exit(ERROR_EXIT);
