@@ -522,6 +522,9 @@ acpi_attach(device_t dev)
 	OID_AUTO, "s4bios", CTLFLAG_RW, &sc->acpi_s4bios, 0, "S4BIOS mode");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "verbose", CTLFLAG_RW, &sc->acpi_verbose, 0, "verbose mode");
+    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "disable_on_reboot", CTLFLAG_RW,
+	&sc->acpi_do_disable, 0, "Disable ACPI when rebooting/halting system");
 
     /*
      * Default to 1 second before sleeping to give some machines time to
@@ -1630,13 +1633,15 @@ acpi_fake_objhandler(ACPI_HANDLE h, UINT32 fn, void *data)
 static void
 acpi_shutdown_final(void *arg, int howto)
 {
-    ACPI_STATUS	status;
+    struct acpi_softc *sc;
+    ACPI_STATUS status;
 
     /*
      * XXX Shutdown code should only run on the BSP (cpuid 0).
      * Some chipsets do not power off the system correctly if called from
      * an AP.
      */
+    sc = arg;
     if ((howto & RB_POWEROFF) != 0) {
 	status = AcpiEnterSleepStatePrep(ACPI_STATE_S5);
 	if (ACPI_FAILURE(status)) {
@@ -1653,7 +1658,8 @@ acpi_shutdown_final(void *arg, int howto)
 	    DELAY(1000000);
 	    printf("ACPI power-off failed - timeout\n");
 	}
-    } else if ((howto & RB_AUTOBOOT) != 0 && AcpiGbl_FADT->ResetRegSup) {
+    } else if ((howto & RB_HALT) == 0 && AcpiGbl_FADT->ResetRegSup) {
+	/* Reboot using the reset register. */
 	status = AcpiHwLowLevelWrite(
 	    AcpiGbl_FADT->ResetRegister.RegisterBitWidth,
 	    AcpiGbl_FADT->ResetValue, &AcpiGbl_FADT->ResetRegister);
@@ -1663,7 +1669,11 @@ acpi_shutdown_final(void *arg, int howto)
 	    DELAY(1000000);
 	    printf("ACPI reset failed - timeout\n");
 	}
-    } else if (panicstr == NULL) {
+    } else if (sc->acpi_do_disable && panicstr == NULL) {
+	/*
+	 * Only disable ACPI if the user requested.  On some systems, writing
+	 * the disable value to SMI_CMD hangs the system.
+	 */
 	printf("Shutting down ACPI\n");
 	AcpiTerminate();
     }
