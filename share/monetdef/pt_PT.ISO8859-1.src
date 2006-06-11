@@ -7,8 +7,8 @@
 EUR 
 # currency_symbol
 Eu
-# mon_decimal_point (possibly incorrect for pt_PT)
-.
+# mon_decimal_point
+,
 # mon_thousands_sep
 .
 # mon_grouping, separated by ;
