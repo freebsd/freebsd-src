@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 28, 2006
+.Dd June 11, 2006
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -161,7 +161,7 @@ Do what was described in
 to build the jail directory tree.
 For the sake of this example, we will
 assume you built it in
-.Pa /data/jail/192.168.11.100 ,
+.Pa /data/jail/192.0.2.100 ,
 named for the jailed IP address.
 Substitute below as needed with your
 own directory, IP address, and hostname.
@@ -187,11 +187,11 @@ Add the following to
 in the host environment:
 .Bd -literal -offset indent
 sendmail_enable="NO"
-inetd_flags="-wW -a 192.168.11.23"
+inetd_flags="-wW -a 192.0.2.23"
 rpcbind_enable="NO"
 .Ed
 .Pp
-.Li 192.168.11.23
+.Li 192.0.2.23
 is the native IP address for the host system, in this example.
 Daemons that run out of
 .Xr inetd 8
@@ -260,7 +260,7 @@ or for running a virtual server.
 .Pp
 Start a shell in the jail:
 .Pp
-.Dl "jail /data/jail/192.168.11.100 testhostname 192.168.11.100 /bin/sh"
+.Dl "jail /data/jail/192.0.2.100 testhostname 192.0.2.100 /bin/sh"
 .Pp
 Assuming no errors, you will end up with a shell prompt within the jail.
 You can now run
@@ -313,7 +313,7 @@ If you are not using a virtual server, you may wish to modify
 .Xr syslogd 8
 in the host environment to listen on the syslog socket in the jail
 environment; in this example, the syslog socket would be stored in
-.Pa /data/jail/192.168.11.100/var/run/log .
+.Pa /data/jail/192.0.2.100/var/run/log .
 .Pp
 Exit from the shell, and the jail will be shut down.
 .Ss "Starting the Jail"
@@ -340,9 +340,9 @@ may be a good idea.
 If you do decide to set this variable,
 it must be set before starting any jails, and once each boot.
 .Bd -literal -offset indent
-ifconfig ed0 inet alias 192.168.11.100/32
-mount -t procfs proc /data/jail/192.168.11.100/proc
-jail /data/jail/192.168.11.100 testhostname 192.168.11.100 \\
+ifconfig ed0 inet alias 192.0.2.100/32
+mount -t procfs proc /data/jail/192.0.2.100/proc
+jail /data/jail/192.0.2.100 testhostname 192.0.2.100 \\
 	/bin/sh /etc/rc
 .Ed
 .Pp
