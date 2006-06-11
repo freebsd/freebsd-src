@@ -799,6 +799,7 @@ findpcb:
 		goto drop;
 #endif
 	so = inp->inp_socket;
+	KASSERT(so != NULL, ("tcp_input: so == NULL"));
 #ifdef TCPDEBUG
 	if (so->so_options & SO_DEBUG) {
 		ostate = tp->t_state;
@@ -2560,7 +2561,7 @@ dropwithreset:
 			    (tcp_seq)0, TH_RST|TH_ACK);
 	}
 
-	if (tp)
+	if (tp != NULL)
 		INP_UNLOCK(inp);
 	if (headlocked)
 		INP_INFO_WUNLOCK(&tcbinfo);
@@ -2571,11 +2572,11 @@ drop:
 	 * Drop space held by incoming segment and return.
 	 */
 #ifdef TCPDEBUG
-	if (tp == 0 || (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
+	if (tp == NULL || (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
 			  &tcp_savetcp, 0);
 #endif
-	if (tp)
+	if (tp != NULL)
 		INP_UNLOCK(inp);
 	if (headlocked)
 		INP_INFO_WUNLOCK(&tcbinfo);
