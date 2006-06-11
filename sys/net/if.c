@@ -2279,9 +2279,9 @@ void
 if_deregister_com_alloc(u_char type)
 {
 	
-	KASSERT(if_com_alloc[type] == NULL,
+	KASSERT(if_com_alloc[type] != NULL,
 	    ("if_deregister_com_alloc: %d not registered", type));
-	KASSERT(if_com_free[type] == NULL,
+	KASSERT(if_com_free[type] != NULL,
 	    ("if_deregister_com_alloc: %d free not registered", type));
 	if_com_alloc[type] = NULL;
 	if_com_free[type] = NULL;
