@@ -92,6 +92,7 @@ static vop_bmap_t		_xfs_bmap;
 static vop_cachedlookup_t	_xfs_cachedlookup;
 static vop_close_t		_xfs_close;
 static vop_create_t		_xfs_create;
+static vop_deleteextattr_t	_xfs_deleteextattr;
 static vop_fsync_t		_xfs_fsync;
 static vop_getattr_t		_xfs_getattr;
 static vop_getextattr_t		_xfs_getextattr;
@@ -110,6 +111,7 @@ static vop_remove_t		_xfs_remove;
 static vop_rename_t		_xfs_rename;
 static vop_rmdir_t		_xfs_rmdir;
 static vop_setattr_t		_xfs_setattr;
+static vop_setextattr_t		_xfs_setextattr;
 static vop_strategy_t		_xfs_strategy;
 static vop_symlink_t		_xfs_symlink;
 static vop_write_t		_xfs_write;
@@ -122,6 +124,7 @@ struct vop_vector xfs_vnops = {
 	.vop_cachedlookup =	_xfs_cachedlookup,
 	.vop_close =		_xfs_close,
 	.vop_create =		_xfs_create,
+	.vop_deleteextattr =	_xfs_deleteextattr,
 	.vop_fsync =		_xfs_fsync,
 	.vop_getattr =		_xfs_getattr,
 	.vop_getextattr =	_xfs_getextattr,
@@ -141,6 +144,7 @@ struct vop_vector xfs_vnops = {
 	.vop_rename =		_xfs_rename,
 	.vop_rmdir =		_xfs_rmdir,
 	.vop_setattr =		_xfs_setattr,
+	.vop_setextattr =	_xfs_setextattr,
 	.vop_strategy =		_xfs_strategy,
 	.vop_symlink =		_xfs_symlink,
 	.vop_write =		_xfs_write,
@@ -1586,4 +1590,94 @@ done:
 		*ap->a_size = attrnames_len;
 
 	return (error);
-}		
+}
+
+static int
+_xfs_setextattr(struct vop_setextattr_args *ap)
+/*
+vop_setextattr {
+	IN struct vnode *a_vp;
+	IN int a_attrnamespace;
+	IN const char *a_name;
+	INOUT struct uio *a_uio;
+	IN struct ucred *a_cred;
+	IN struct thread *a_td;
+};
+*/
+{
+	char *val;
+	size_t vallen;
+	int error, xfs_flags;
+
+	if (ap->a_vp->v_type == VCHR)
+		return (EOPNOTSUPP);
+
+	if (ap->a_uio == NULL)
+		return (EINVAL);
+	vallen = ap->a_uio->uio_resid;
+	if (vallen > ATTR_MAX_VALUELEN)
+		return (EOVERFLOW);
+
+	if (ap->a_name[0] == '\0')
+		return (EINVAL);
+
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, VWRITE);
+	if (error)
+		return (error);
+
+	xfs_flags = 0;
+	if (ap->a_attrnamespace & EXTATTR_NAMESPACE_USER)
+		xfs_flags |= ATTR_KERNORMALS;
+	if (ap->a_attrnamespace & EXTATTR_NAMESPACE_SYSTEM)
+		xfs_flags |= ATTR_KERNROOTLS;
+
+	val = (char *)kmem_zalloc(vallen, KM_SLEEP);
+	if (val == NULL)
+		return (ENOMEM);
+	error = uiomove(val, (int)vallen, ap->a_uio);
+	if (error)
+		goto err_out;
+
+	XVOP_ATTR_SET(VPTOXFSVP(ap->a_vp), ap->a_name, val, vallen, xfs_flags,
+	    ap->a_cred, error);
+err_out:
+	kmem_free(val, vallen);
+	return(error);
+}
+
+static int
+_xfs_deleteextattr(struct vop_deleteextattr_args *ap)
+/*
+vop_deleteextattr {
+	IN struct vnode *a_vp;
+	IN int a_attrnamespace;
+	IN const char *a_name;
+	IN struct ucred *a_cred;
+	IN struct thread *a_td;
+};
+*/
+{
+	int error, xfs_flags;
+
+	if (ap->a_vp->v_type == VCHR)
+		return (EOPNOTSUPP);
+
+	if (ap->a_name[0] == '\0')
+		return (EINVAL);
+
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, VWRITE);
+	if (error)
+		return (error);
+
+	xfs_flags = 0;
+	if (ap->a_attrnamespace & EXTATTR_NAMESPACE_USER)
+		xfs_flags |= ATTR_KERNORMALS;
+	if (ap->a_attrnamespace & EXTATTR_NAMESPACE_SYSTEM)
+		xfs_flags |= ATTR_KERNROOTLS;
+
+	XVOP_ATTR_REMOVE(VPTOXFSVP(ap->a_vp), ap->a_name, xfs_flags,
+	    ap->a_cred, error);
+	return (error);
+}
