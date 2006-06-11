@@ -1,11 +1,13 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 #	$FreeBSD$
 
+SHLIBDIR?= /lib
+
 .include <bsd.own.mk>
 
 LIB=	util
 SHLIB_MAJOR= 6
-SHLIBDIR?= /lib
+
 CFLAGS+=-DLIBC_SCCS -I${.CURDIR} -I${.CURDIR}/../libc/gen/
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=-DINET6
