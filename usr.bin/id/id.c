@@ -252,14 +252,14 @@ id_print(struct passwd *pw, int use_ggl, int p_euid, int p_egid)
 	}
 
 	printf("uid=%u(%s)", uid, pw->pw_name);
+	printf(" gid=%u", gid);
+	if ((gr = getgrgid(gid)))
+		(void)printf("(%s)", gr->gr_name);
 	if (p_euid && (euid = geteuid()) != uid) {
 		(void)printf(" euid=%u", euid);
 		if ((pw = getpwuid(euid)))
 			(void)printf("(%s)", pw->pw_name);
 	}
-	printf(" gid=%u", gid);
-	if ((gr = getgrgid(gid)))
-		(void)printf("(%s)", gr->gr_name);
 	if (p_egid && (egid = getegid()) != gid) {
 		(void)printf(" egid=%u", egid);
 		if ((gr = getgrgid(egid)))
