@@ -195,11 +195,11 @@ tcp_timer_2msl(xtp)
 		tp = tcp_close(tp);
 
 #ifdef TCPDEBUG
-	if (tp && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
+	if (tp != NULL && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
-	if (tp)
+	if (tp != NULL)
 		INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&tcbinfo);
 }
@@ -353,11 +353,11 @@ dropit:
 	tp = tcp_drop(tp, ETIMEDOUT);
 
 #ifdef TCPDEBUG
-	if (tp && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
+	if (tp != NULL && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
-	if (tp)
+	if (tp != NULL)
 		INP_UNLOCK(tp->t_inpcb);
 	INP_INFO_WUNLOCK(&tcbinfo);
 }
@@ -412,11 +412,11 @@ tcp_timer_persist(xtp)
 
 out:
 #ifdef TCPDEBUG
-	if (tp && tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
+	if (tp != NULL && tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
-	if (tp)
+	if (tp != NULL)
 		INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&tcbinfo);
 }
@@ -560,11 +560,11 @@ tcp_timer_rexmt(xtp)
 
 out:
 #ifdef TCPDEBUG
-	if (tp && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
+	if (tp != NULL && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
-	if (tp)
+	if (tp != NULL)
 		INP_UNLOCK(inp);
 	if (headlocked)
 		INP_INFO_WUNLOCK(&tcbinfo);
