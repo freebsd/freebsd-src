@@ -243,7 +243,7 @@ child_process(e, u)
 			(void) endpwent();
 # endif
 			/* set our directory, uid and gid.  Set gid first,
-			 * since once we set uid, we've lost root priviledges.
+			 * since once we set uid, we've lost root privileges.
 			 */
 			if (setgid(e->gid) != 0) {
 				log_it(usernm, getpid(),
