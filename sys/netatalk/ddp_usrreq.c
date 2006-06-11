@@ -269,9 +269,8 @@ at_setsockaddr(struct socket *so, struct sockaddr **nam)
 	struct ddpcb	*ddp;
 
 	ddp = sotoddpcb(so);
-	if (ddp == NULL) {
-	    return (EINVAL);
-	}
+	KASSERT(ddp != NULL, ("at_setsockaddr: ddp == NULL"));
+
 	DDP_LOCK(ddp);
 	at_sockaddr(ddp, nam);
 	DDP_UNLOCK(ddp);
