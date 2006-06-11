@@ -175,7 +175,7 @@ cron_popen(program, type, e)
 				/*
 				 * Set our directory, uid and gid.  Set gid
 				 * first since once we set uid, we've lost
-				 * root priviledges.
+				 * root privileges.
 				 */
 				if (setgid(e->gid) != 0)
 					_exit(ERROR_EXIT);
