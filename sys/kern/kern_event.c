@@ -754,15 +754,12 @@ kqueue_fo_release(int filt)
 int
 kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td, int waitok)
 {
-	struct filedesc *fdp;
 	struct filterops *fops;
 	struct file *fp;
 	struct knote *kn, *tkn;
 	int error, filt, event;
 	int haskqglobal;
-	int fd;
 
-	fdp = NULL;
 	fp = NULL;
 	kn = NULL;
 	error = 0;
@@ -778,22 +775,13 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td, int wa
 findkn:
 	if (fops->f_isfd) {
 		KASSERT(td != NULL, ("td is NULL"));
-		fdp = td->td_proc->p_fd;
-		FILEDESC_LOCK(fdp);
-		/* validate descriptor */
-		fd = kev->ident;
-		if (fd < 0 || fd >= fdp->fd_nfiles ||
-		    (fp = fdp->fd_ofiles[fd]) == NULL) {
-			FILEDESC_UNLOCK(fdp);
-			error = EBADF;
+		error = fget(td, kev->ident, &fp);
+		if (error)
 			goto done;
-		}
-		fhold(fp);
 
 		if ((kev->flags & EV_ADD) == EV_ADD && kqueue_expand(kq, fops,
 		    kev->ident, 0) != 0) {
-			/* unlock and try again */
-			FILEDESC_UNLOCK(fdp);
+			/* try again */
 			fdrop(fp, td);
 			fp = NULL;
 			error = kqueue_expand(kq, fops, kev->ident, waitok);
@@ -811,7 +799,6 @@ findkn:
 			 * they are the same thing.
 			 */
 			if (fp->f_data == kq) {
-				FILEDESC_UNLOCK(fdp);
 				error = EINVAL;
 				goto done;
 			}
@@ -819,7 +806,6 @@ findkn:
 			KQ_GLOBAL_LOCK(&kq_global, haskqglobal);
 		}
 
-		FILEDESC_UNLOCK(fdp);
 		KQ_LOCK(kq);
 		if (kev->ident < kq->kq_knlistsize) {
 			SLIST_FOREACH(kn, &kq->kq_knlist[kev->ident], kn_link)
