@@ -230,9 +230,9 @@ int		version_cmp(const char *, const char *);
 
 /* Externs */
 extern Boolean	Quiet;
-extern Boolean	Verbose;
 extern Boolean	Fake;
 extern Boolean  Force;
 extern int	AutoAnswer;
+extern int	Verbose;
 
 #endif /* _INST_LIB_LIB_H_ */
