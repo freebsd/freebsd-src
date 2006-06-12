@@ -201,7 +201,16 @@
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para></para>
+    <para>The supported version of
+      the <application>GNOME</application> desktop environment
+      (<filename role="package">x11/gnome2</filename>) has been
+      updated from 2.12.3 to 2.14.2.</para>
+
+    <para>The supported version of
+      the <application>KDE</application> desktop environment
+      (<filename role="package">x11/kde3</filename>) has been
+      updated from 3.5.1 to 3.5.3.</para>
+
   </sect2>
 
   <sect2 id="doc">
