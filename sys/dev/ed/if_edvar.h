@@ -106,6 +106,8 @@ struct ed_softc {
 	u_char  rec_page_start;	/* first page of RX ring-buffer */
 	u_char  rec_page_stop;	/* last page of RX ring-buffer */
 	u_char  next_packet;	/* pointer to next unread RX packet */
+	u_int	tx_mem;		/* Total amount of RAM for tx */
+	u_int	rx_mem;		/* Total amount of RAM for rx */
 	struct	ifmib_iso_8802_3 mibdata; /* stuff for network mgmt */
 };
 
