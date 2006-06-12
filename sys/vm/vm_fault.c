@@ -813,7 +813,7 @@ readrest:
 			    &fs.entry, &retry_object, &retry_pindex, &retry_prot, &wired);
 
 			/*
-			 * If we don't need the page any longer, put it on the active
+			 * If we don't need the page any longer, put it on the inactive
 			 * list (the easiest thing to do here).  If no one needs it,
 			 * pageout will grab it eventually.
 			 */
