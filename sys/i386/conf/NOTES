@@ -498,12 +498,16 @@ hint.mse.0.irq="5"
 #       (requires miibus)
 # ie:   AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210;
 #       Intel EtherExpress
+# ipw:	Intel PRO/Wireless 2100 IEEE 802.11 adapter
+# iwi:	Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 adapters
 # nve:	nVidia nForce MCP on-board Ethernet Networking
 # oltr: Olicom ISA token-ring adapters OC-3115, OC-3117, OC-3118 and OC-3133.
 #       Olicom PCI token-ring adapters OC-3136, OC-3137, OC-3139, OC-3140,
 #       OC-3141, OC-3540 and OC-3250.
+# ral:	Ralink Technology IEEE 802.11 wireless adapter
 # sbni: Granch SBNI12-xx ISA and PCI adapters
 # sr:   RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
+# ural:	Ralink Technology RT2500USB IEEE 802.11 wireless adapter
 # wl:   Lucent Wavelan (ISA card only).
 
 # Order for ISA/EISA devices is important here
@@ -546,12 +550,17 @@ hint.ie.2.at="isa"
 hint.ie.2.port="0x300"
 hint.ie.2.irq="5"
 hint.ie.2.maddr="0xd0000"
+device		iwi
+device		ipw
 # Hint for the i386-only ISA front-end of le(4).
 hint.le.0.at="isa"
 hint.le.0.port="0x280"
 hint.le.0.irq="10"
 hint.le.0.drq="0"
 device		nve		# nVidia nForce MCP on-board Ethernet Networking
+device		oltr
+hint.oltr.0.at="isa"
+device		ral
 device		sbni
 hint.sbni.0.at="isa"
 hint.sbni.0.port="0x210"
@@ -562,8 +571,7 @@ hint.sr.0.at="isa"
 hint.sr.0.port="0x300"
 hint.sr.0.irq="5"
 hint.sr.0.maddr="0xd0000"
-device		oltr
-hint.oltr.0.at="isa"
+device		ural
 device		wl
 hint.wl.0.at="isa"
 hint.wl.0.port="0x300"
@@ -1044,6 +1052,10 @@ options		LINSYSFS
 options 	COMPAT_SVR4	# build emulator statically
 options 	DEBUG_SVR4	# enable verbose debugging
 device		streams		# STREAMS network driver (required for svr4).
+
+# Enable NDIS binary driver support
+options 	NDISAPI
+device		ndis
 
 
 #####################################################################
