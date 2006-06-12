@@ -597,7 +597,9 @@ cardbus_parse_cis(device_t cbdev, device_t child,
 	bzero(tupledata, MAXTUPLESIZE);
 	expect_linktarget = TRUE;
 	if ((start = pci_read_config(child, PCIR_CIS, 4)) == 0) {
-		device_printf(cbdev, "CIS pointer is 0!\n");
+		if (cardbus_cis_debug)
+			device_printf(cbdev,
+			    "Warning: CIS pointer 0 (no CIS present)\n");
 		return (ENXIO);
 	}
 	if (cardbus_cis_debug)
