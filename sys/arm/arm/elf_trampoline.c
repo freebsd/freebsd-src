@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/pte.h>
 #include <machine/cpufunc.h>
+#include <machine/armreg.h>
 
 #include <stdlib.h>
 
@@ -40,6 +41,8 @@ __FBSDID("$FreeBSD$");
 
 extern char kernel_start[];
 extern char kernel_end[];
+
+extern void *_end;
 
 void __start(void);
 
@@ -50,7 +53,7 @@ void __start(void);
 #elif defined(CPU_ARM8)
 #define cpu_idcache_wbinv_all	arm8_cache_purgeID
 #elif defined(CPU_ARM9)
-#define cpu_idcache_wbinv_all	arm9_dcache_wbinv_all
+#define cpu_idcache_wbinv_all	arm9_idcache_wbinv_all
 #elif defined(CPU_ARM10)
 #define cpu_idcache_wbinv_all	arm10_idcache_wbinv_all
 #elif defined(CPU_SA110) || defined(CPU_SA1110) || defined(CPU_SA1100) || \
@@ -60,8 +63,35 @@ void __start(void);
     defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425)
 #define cpu_idcache_wbinv_all	xscale_cache_purgeID
 #endif
-int arm_pdcache_line_size = 32;
+
+#ifdef KZIP
+int     arm_picache_size;
+int     arm_picache_line_size;
+int     arm_picache_ways;
+
+int     arm_pdcache_size;       /* and unified */
+int     arm_pdcache_line_size = 32;
+int     arm_pdcache_ways;
+
+int     arm_pcache_type;
+int     arm_pcache_unified;
+
+int     arm_dcache_align;
+int     arm_dcache_align_mask;
+
+/* Additional cache information local to this file.  Log2 of some of the
+      above numbers.  */
+static int      arm_dcache_l2_nsets;
+static int      arm_dcache_l2_assoc;
+static int      arm_dcache_l2_linesize;
+
+
 int block_userspace_access = 0;
+extern int arm9_dcache_sets_inc;
+extern int arm9_dcache_sets_max;
+extern int arm9_dcache_index_max;
+extern int arm9_dcache_index_inc;
+#endif
 
 static __inline void *
 memcpy(void *dst, const void *src, int len)
@@ -107,13 +137,18 @@ _start(void)
 {
 	int physaddr = KERNPHYSADDR;
 	int tmp1;
+	unsigned int sp = (unsigned int)&_end;
+#ifdef KZIP
+	sp += KERNSIZE + 0x100;
+	sp &= ~(L1_TABLE_SIZE - 1);
+	sp += 2 * L1_TABLE_SIZE;
+#endif
+	sp += 1024 * 1024; /* Should be enough for a stack */
 	
 	__asm __volatile("adr %0, 2f\n"
 	    		 "bic %0, %0, #0xff000000\n"
-			 "bic sp, sp, #0xff000000\n"
 			 "and %1, %1, #0xff000000\n"
 			 "orr %0, %0, %1\n"
-			 "orr sp, sp, %1\n"
 			 "mrc p15, 0, %1, c1, c0, 0\n"
 			 "bic %1, %1, #1\n" /* Disable MMU */
 			 "orr %1, %1, #(4 | 8)\n" /* Add DC enable, 
@@ -127,11 +162,92 @@ _start(void)
 			 "nop\n"
 			 "mov pc, %0\n"
 			 "2: nop\n"
-			 : "=r" (tmp1), "+r" (physaddr));
+			 "mov sp, %2\n"
+			 : "=r" (tmp1), "+r" (physaddr), "+r" (sp));
 	__start();
 }
 
 #ifdef KZIP
+static void
+get_cachetype_cp15()
+{
+	u_int ctype, isize, dsize;
+	u_int multiplier;
+
+	__asm __volatile("mrc p15, 0, %0, c0, c0, 1"
+	    : "=r" (ctype));
+	
+	/*
+	 * ...and thus spake the ARM ARM:
+	 *
+ 	 * If an <opcode2> value corresponding to an unimplemented or
+	 * reserved ID register is encountered, the System Control
+	 * processor returns the value of the main ID register.
+	 */
+	if (ctype == cpufunc_id())
+		goto out;
+	
+	if ((ctype & CPU_CT_S) == 0)
+		arm_pcache_unified = 1;
+
+	/*
+	 * If you want to know how this code works, go read the ARM ARM.
+	 */
+	
+	arm_pcache_type = CPU_CT_CTYPE(ctype);
+        if (arm_pcache_unified == 0) {
+		isize = CPU_CT_ISIZE(ctype);
+	    	multiplier = (isize & CPU_CT_xSIZE_M) ? 3 : 2;
+		arm_picache_line_size = 1U << (CPU_CT_xSIZE_LEN(isize) + 3);
+		if (CPU_CT_xSIZE_ASSOC(isize) == 0) {
+			if (isize & CPU_CT_xSIZE_M)
+				arm_picache_line_size = 0; /* not present */
+			else
+				arm_picache_ways = 1;
+		} else {
+			arm_picache_ways = multiplier <<
+			    (CPU_CT_xSIZE_ASSOC(isize) - 1);
+		}
+		arm_picache_size = multiplier << (CPU_CT_xSIZE_SIZE(isize) + 8);
+	}
+	
+	dsize = CPU_CT_DSIZE(ctype);
+	multiplier = (dsize & CPU_CT_xSIZE_M) ? 3 : 2;
+	arm_pdcache_line_size = 1U << (CPU_CT_xSIZE_LEN(dsize) + 3);
+	if (CPU_CT_xSIZE_ASSOC(dsize) == 0) {
+		if (dsize & CPU_CT_xSIZE_M)
+			arm_pdcache_line_size = 0; /* not present */
+		else
+			arm_pdcache_ways = 1;
+	} else {
+		arm_pdcache_ways = multiplier <<
+		    (CPU_CT_xSIZE_ASSOC(dsize) - 1);
+	}
+	arm_pdcache_size = multiplier << (CPU_CT_xSIZE_SIZE(dsize) + 8);
+	
+	arm_dcache_align = arm_pdcache_line_size;
+	
+	arm_dcache_l2_assoc = CPU_CT_xSIZE_ASSOC(dsize) + multiplier - 2;
+	arm_dcache_l2_linesize = CPU_CT_xSIZE_LEN(dsize) + 3;
+	arm_dcache_l2_nsets = 6 + CPU_CT_xSIZE_SIZE(dsize) -
+	    CPU_CT_xSIZE_ASSOC(dsize) - CPU_CT_xSIZE_LEN(dsize);
+ out:
+	arm_dcache_align_mask = arm_dcache_align - 1;
+}
+
+static void
+arm9_setup(void)
+{
+	
+	get_cachetype_cp15();
+	arm9_dcache_sets_inc = 1U << arm_dcache_l2_linesize;
+	arm9_dcache_sets_max = (1U << (arm_dcache_l2_linesize +
+	    arm_dcache_l2_nsets)) - arm9_dcache_sets_inc;
+	arm9_dcache_index_inc = 1U << (32 - arm_dcache_l2_assoc);
+	arm9_dcache_index_max = 0U - arm9_dcache_index_inc;
+}
+
+
 static  unsigned char *orig_input, *i_input, *i_output;
 
 
@@ -354,7 +470,6 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 
 extern char func_end[];
 
-extern void *_end;
 
 #define PMAP_DOMAIN_KERNEL	15 /*
 				    * Just define it instead of including the
@@ -404,6 +519,7 @@ __start(void)
 	void *curaddr;
 	void *dst, *altdst;
 	char *kernel = (char *)&kernel_start;
+	int sp;
 
 	__asm __volatile("mov %0, pc"  :
 	    "=r" (curaddr));
@@ -413,6 +529,11 @@ __start(void)
 		int pt_addr = (((int)&_end + KERNSIZE + 0x100) & 
 		    ~(L1_TABLE_SIZE - 1)) + L1_TABLE_SIZE;
 		
+#ifdef CPU_ARM9
+		/* So that idcache_wbinv works; */
+		if ((cpufunc_id() & 0x0000f000) == 0x00009000)
+			arm9_setup();
+#endif
 		setup_pagetables(pt_addr, (vm_paddr_t)curaddr,
 		    (vm_paddr_t)curaddr + 0x10000000);
 		/* Gzipped kernel */
@@ -433,10 +554,10 @@ __start(void)
 		dst = 4 + load_kernel((unsigned int)&kernel_start, 
 	    (unsigned int)curaddr, 
 	    (unsigned int)&func_end, 0);
+	sp = (vm_offset_t)dst + 4096;
+	dst = (void *)sp;
 	memcpy((void *)dst, (void *)&load_kernel, (unsigned int)&func_end - 
 	    (unsigned int)&load_kernel);
-	((void (*)())dst)((unsigned int)kernel, 
-			  (unsigned int)curaddr,
-			  dst + (unsigned int)(&func_end) - 
-			  (unsigned int)(&load_kernel), 1);
+	do_call(dst, kernel, dst + (unsigned int)(&func_end) - 
+	    (unsigned int)(&load_kernel), sp);
 }
