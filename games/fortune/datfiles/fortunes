@@ -33728,6 +33728,10 @@ The one day you'd sell your soul for something, souls are a glut.
 %
 Massachusetts has the best politicians money can buy.
 %
+Mastery of UNIX, like mastery of language, offers real freedom.  The
+price of freedom is always dear, but there's no substitute.
+                -- Thomas Scoville
+%
 Masturbation is the thinking man's television.
 		-- Christopher Hampton
 %
@@ -39874,6 +39878,12 @@ A:	We are Vaxen.
 %
 Q:	Do you know what the death rate around here is?
 A:	One per person.
+%
+Q:      do you think the idea of "one tool doing one job" has been
+        abandoned? ...
+A:      Those days are dead and gone and the eulogy was delivered by
+        Perl.
+		-- Rob Pike
 %
 Q:	Have you heard about the man who didn't pay for his exorcism?
 A:	He got re-possessed!
@@ -60886,14 +60896,14 @@ power outages, spontaneously generated mini (or larger) black holes,
 planetary disruptions, or personal injury or worse that may result from the
 use of this material.
 		-- taken from Samuel M. Goldwasser's
-		   Sam's Strobe FAQ Notes on the Troubleshooting 
+		   Sam's Strobe FAQ Notes on the Troubleshooting
 		   and Repair of Electronic Flash Units and Strobe Lights
 %
 The Microsoft Exchange MTA Stacks service depends on the Microsoft Exchange
 System Attendant service which failed to start because of the following
-error: 
+error:
 
-The operation completed successfully. 
+The operation completed successfully.
 
 For more information, see Help and Support Center at
 http://go.microsoft.com/fwlink/events.asp.
