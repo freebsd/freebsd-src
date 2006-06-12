@@ -32,6 +32,11 @@
  * $FreeBSD$
  */
 
+/* The 'ret' macro doesn't work in this file if GPROF is enabled. */
+#ifdef GPROF
+#undef GPROF
+#endif
+
 #include <machine/asmacros.h>
 
 /*
