@@ -501,8 +501,8 @@ bridge_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_hdrlen = ETHER_HDR_LEN;
 
 	/*
-	 * Generate a random ethernet address and use the private AC:DE:48
-	 * OUI code.
+	 * Generate a random ethernet address with a locally administered
+	 * address.
 	 *
 	 * Since we are using random ethernet addresses for the bridge, it is
 	 * possible that we might have address collisions, so make sure that
@@ -510,9 +510,8 @@ bridge_clone_create(struct if_clone *ifc, int unit)
 	 */
 	for (retry = 1; retry != 0;) {
 		arc4rand(eaddr, ETHER_ADDR_LEN, 1);
-		eaddr[0] = 0xAC;
-		eaddr[1] = 0xDE;
-		eaddr[2] = 0x48;
+		eaddr[0] &= ~1;		/* clear multicast bit */
+		eaddr[0] |= 2;		/* set the LAA bit */
 		retry = 0;
 		mtx_lock(&bridge_list_mtx);
 		LIST_FOREACH(sc2, &bridge_list, sc_list) {
