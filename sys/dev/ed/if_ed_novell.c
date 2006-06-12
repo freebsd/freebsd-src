@@ -289,8 +289,10 @@ ed_Novell_read_mac(struct ed_softc *sc)
 	uint8_t romdata[16];
 
 	/*
-	 * Pull the MAC address out of the roms that are on the isa
-	 * version of these cards.
+	 * Most ne1000/ne2000 compatible cards have their MAC address
+	 * located in the first few words of the address space.  This seems
+	 * universally true for ISA and PCI implementations, but PC Card
+	 * devices seem to have more variance.
 	 */
 	ed_pio_readmem(sc, 0, romdata, 16);
 	for (n = 0; n < ETHER_ADDR_LEN; n++)
