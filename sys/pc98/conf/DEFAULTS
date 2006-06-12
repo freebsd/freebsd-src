@@ -8,6 +8,7 @@ options 	PC98
 
 # Bus support.
 device		isa
+options		ISAPNP
 
 # Floating point support.
 device		npx

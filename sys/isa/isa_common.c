@@ -60,6 +60,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_isa.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -652,8 +654,10 @@ isa_print_all_resources(device_t dev)
 	retval += resource_list_print_type(rl, "drq", SYS_RES_DRQ, "%ld");
 	if (device_get_flags(dev))
 		retval += printf(" flags %#x", device_get_flags(dev));
+#ifdef ISAPNP
 	if (idev->id_vendorid)
 		retval += printf(" pnpid %s", pnp_eisaformat(idev->id_vendorid));
+#endif
 
 	return (retval);
 }
@@ -1062,11 +1066,13 @@ static int
 isa_child_pnpinfo_str(device_t bus, device_t child, char *buf,
     size_t buflen)
 {
+#ifdef ISAPNP
 	struct isa_device *idev = DEVTOISA(child);
 
 	if (idev->id_vendorid)
 		snprintf(buf, buflen, "pnpid=%s",
 		    pnp_eisaformat(idev->id_vendorid));
+#endif
 	return (0);
 }
 
