@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
+#include <machine/bus.h>
 
 #include <dev/atkbdc/atkbdc_subr.h>
 #include <dev/atkbdc/atkbdcreg.h>
