@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 
 #include <sys/bus.h>
@@ -330,7 +331,25 @@ ed_attach(device_t dev)
 	ether_ifattach(ifp, sc->enaddr);
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 
-	if (bootverbose || 1) {
+	sc->tx_mem = sc->txb_cnt * ED_PAGE_SIZE * ED_TXBUF_SIZE;
+	sc->rx_mem = (sc->rec_page_stop - sc->rec_page_start) * ED_PAGE_SIZE;
+	SYSCTL_ADD_STRING(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    0, "type", CTLTYPE_STRING | CTLFLAG_RD, sc->type_str, 0,
+	    "Type of chip in card");
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    1, "TxMem", CTLTYPE_STRING | CTLFLAG_RD, &sc->tx_mem, 0,
+	    "Memory set aside for transmitting packets");
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    2, "RxMem", CTLTYPE_STRING | CTLFLAG_RD, &sc->rx_mem, 0,
+	    "Memory  set aside for receiving packets");
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    3, "Mem", CTLTYPE_STRING | CTLFLAG_RD, &sc->mem_size, 0,
+	    "Total Card Memory");
+	if (bootverbose) {
 		if (sc->type_str && (*sc->type_str != 0))
 			device_printf(dev, "type %s ", sc->type_str);
 		else
