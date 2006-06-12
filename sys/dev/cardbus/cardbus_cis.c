@@ -641,7 +641,6 @@ cardbus_parse_cis(device_t cbdev, device_t child,
 int
 cardbus_do_cis(device_t cbdev, device_t child)
 {
-	int ret;
 	struct tuple_callbacks init_callbacks[] = {
 		MAKETUPLE(LONGLINK_CB,		unhandled),
 		MAKETUPLE(INDIRECT,		unhandled),
@@ -658,8 +657,5 @@ cardbus_do_cis(device_t cbdev, device_t child)
 		MAKETUPLE(GENERIC,		generic),
 	};
 
-	ret = cardbus_parse_cis(cbdev, child, init_callbacks, NULL);
-	if (ret < 0)
-		return (ret);
-	return 0;
+	return (cardbus_parse_cis(cbdev, child, init_callbacks, NULL));
 }
