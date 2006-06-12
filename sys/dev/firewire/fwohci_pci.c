@@ -169,7 +169,7 @@ fwohci_pci_probe( device_t dev )
 		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_SONY | FW_DEVICE_CXD1947)) {
-		device_printf(dev, "Sony i.LINK (CXD1947) not supported");
+		device_printf(dev, "Sony i.LINK (CXD1947) not supported\n");
 		return ENXIO;
 	}
 	if (id == (FW_VENDORID_SONY | FW_DEVICE_CXD3222)) {
