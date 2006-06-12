@@ -1006,17 +1006,22 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
  * Note: SMP coherent.  Uses a ranged shootdown IPI.
  */
 void
-pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
+pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 {
-	vm_offset_t va;
+	pt_entry_t *endpte, oldpte, *pte;
 
-	va = sva;
-	while (count-- > 0) {
-		pmap_kenter(va, VM_PAGE_TO_PHYS(*m));
-		va += PAGE_SIZE;
-		m++;
+	oldpte = 0;
+	pte = vtopte(sva);
+	endpte = pte + count;
+	while (pte < endpte) {
+		oldpte |= *pte;
+		pte_store(pte, VM_PAGE_TO_PHYS(*ma) | PG_G | PG_RW | PG_V);
+		pte++;
+		ma++;
 	}
-	pmap_invalidate_range(kernel_pmap, sva, va);
+	if ((oldpte & PG_V) != 0)
+		pmap_invalidate_range(kernel_pmap, sva, sva + count *
+		    PAGE_SIZE);
 }
 
 /*
