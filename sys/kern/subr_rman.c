@@ -183,6 +183,16 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 }
 
 int
+rman_init_from_resource(struct rman *rm, struct resource *r)
+{
+	int rv;
+
+	if ((rv = rman_init(rm)) != 0)
+		return (rv);
+	return (rman_manage_region(rm, r->__r_i->r_start, r->__r_i->r_end));
+}
+
+int
 rman_fini(struct rman *rm)
 {
 	struct resource_i *r;

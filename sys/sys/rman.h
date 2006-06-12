@@ -35,7 +35,7 @@
 #ifndef	_KERNEL
 #include <sys/queue.h>
 #else
-#include <machine/bus.h>
+#include <machine/_bus.h>
 #include <machine/resource.h>
 #endif
 
@@ -129,6 +129,7 @@ void   *rman_get_virtual(struct resource *);
 int	rman_deactivate_resource(struct resource *r);
 int	rman_fini(struct rman *rm);
 int	rman_init(struct rman *rm);
+int	rman_init_from_resource(struct rman *rm, struct resource *r);
 uint32_t rman_make_alignment_flags(uint32_t size);
 int	rman_manage_region(struct rman *rm, u_long start, u_long end);
 int	rman_is_region_manager(struct resource *r, struct rman *rm);
