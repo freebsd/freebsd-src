@@ -124,8 +124,9 @@ cdcmd(int argc, char **argv)
 				 * XXX - rethink
 				 */
 				if (p[0] == '.' && p[1] == '/' && p[2] != '\0')
-					p += 2;
-				print = strcmp(p, dest);
+					print = strcmp(p + 2, dest);
+				else
+					print = strcmp(p, dest);
 			}
 			if (docd(p, print, phys) >= 0)
 				return 0;
