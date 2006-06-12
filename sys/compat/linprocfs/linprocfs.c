@@ -185,6 +185,9 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 static int
 linprocfs_docpuinfo(PFS_FILL_ARGS)
 {
+	int hw_model[2];
+	char model[128];
+	size_t size;
 	int class, fqmhz, fqkhz;
 	int i;
 
@@ -229,15 +232,22 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 #endif
 	}
 
+	hw_model[0] = CTL_HW;
+	hw_model[1] = HW_MODEL;
+	model[0] = '\0';
+	size = sizeof(model);
+	if (kernel_sysctl(td, hw_model, 2, &model, &size, 0, 0, 0, 0) != 0)
+		strcpy(model, "unknown");
 	for (i = 0; i < mp_ncpus; ++i) {
 		sbuf_printf(sb,
 		    "processor\t: %d\n"
 		    "vendor_id\t: %.20s\n"
 		    "cpu family\t: %d\n"
 		    "model\t\t: %d\n"
+		    "model name\t: %s\n"
 		    "stepping\t: %d\n",
-		    i, cpu_vendor, class, cpu, cpu_id & 0xf);
-		/* XXX per-cpu vendor / class / id? */
+		    i, cpu_vendor, class, cpu, model, cpu_id & 0xf);
+		/* XXX per-cpu vendor / class / model / id? */
 	}
 
 	sbuf_cat(sb,
