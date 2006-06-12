@@ -26,6 +26,14 @@
 
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$")
+ENTRY(do_call)
+	mov	r6, r0
+	mov	r0, r1
+	ldr	r1, =0xfff00000
+	and	r1, pc, r1
+	mov	sp, r3
+	mov	r3, #1
+	mov	pc, r6
 .section ".real_kernel","aw"
 .globl kernel_start;
 kernel_start:

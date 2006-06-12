@@ -62,7 +62,7 @@ SYSTEM_LD_TAIL +=;sed s/" + SIZEOF_HEADERS"// ldscript.$M\
 FILES_CPU_FUNC =	$S/$M/$M/cpufunc_asm_arm7tdmi.S \
 	$S/$M/$M/cpufunc_asm_arm8.S $S/$M/$M/cpufunc_asm_arm9.S \
 	$S/$M/$M/cpufunc_asm_sa1.S $S/$M/$M/cpufunc_asm_arm10.S \
-	$S/$M/$M/cpufunc_asm_xscale.S
+	$S/$M/$M/cpufunc_asm_xscale.S $S/$M/$M/cpufunc_asm.S
 trampoline: ${KERNEL_KO}.tramp
 ${KERNEL_KO}.tramp: ${KERNEL_KO}
 	echo "#define KERNNAME \"${KERNEL_KO}.tmp\"" >opt_kernname.h 
@@ -71,6 +71,8 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO}
 	ldscript.$M.tramp.noheader
 	${OBJCOPY} --strip-symbol '$$d' --strip-symbol '$$a' \
 	-g --strip-symbol '$$t' ${FULLKERNEL} ${KERNEL_KO}.tmp
+	eval $$(stat -s ${KERNEL_KO}.tmp) && \
+	echo "#define KERNSIZE $$st_size" >>opt_kernname.h
 	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.$M.tramp \
 	$S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S -o ${KERNEL_KO}.tramp
 	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.$M.tramp.noheader \
