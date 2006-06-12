@@ -192,11 +192,8 @@ cardbus_attach_card(device_t cbdev)
 		dinfo->pci.cfg.dev = child;
 		resource_list_init(&dinfo->pci.resources);
 		device_set_ivars(child, dinfo);
-		if (cardbus_do_cis(cbdev, child) != 0) {
-			DEVPRINTF((cbdev, "Can't parse cis\n"));
-			pci_freecfg((struct pci_devinfo *)dinfo);
-			continue;
-		}
+		if (cardbus_do_cis(cbdev, child) != 0)
+			DEVPRINTF((cbdev, "Warning: Bogus CIS ignored\n"));
 		pci_cfg_save(dinfo->pci.cfg.dev, &dinfo->pci, 0);
 		pci_cfg_restore(dinfo->pci.cfg.dev, &dinfo->pci);
 		pci_add_resources(cbdev, child, 1, dinfo->mprefetchable);
