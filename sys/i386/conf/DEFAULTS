@@ -7,6 +7,7 @@ machine		i386
 
 # Bus support.
 device		isa
+options		ISAPNP
 
 # Floating point support.
 device		npx

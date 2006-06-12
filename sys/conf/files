@@ -1245,8 +1245,8 @@ isa/isa_if.m			standard
 isa/isa_common.c		optional isa
 isa/isahint.c			optional isa
 isa/orm.c			optional isa
-isa/pnp.c			optional isa
-isa/pnpparse.c			optional isa
+isa/pnp.c			optional isa isapnp
+isa/pnpparse.c			optional isa isapnp
 isofs/cd9660/cd9660_bmap.c	optional cd9660
 isofs/cd9660/cd9660_lookup.c	optional cd9660
 isofs/cd9660/cd9660_node.c	optional cd9660
