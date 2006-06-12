@@ -96,7 +96,7 @@ __FBSDID("$FreeBSD$");
 
 #define KERNEL_PT_SYS		0	/* Page table for mapping proc0 zero page */
 #define KERNEL_PT_KERN		1	
-#define KERNEL_PT_KERN_NUM	8
+#define KERNEL_PT_KERN_NUM	22
 #define KERNEL_PT_AFKERNEL	KERNEL_PT_KERN + KERNEL_PT_KERN_NUM	/* L2 table for mapping after kernel */
 #define	KERNEL_PT_AFKERNEL_NUM	5
 
