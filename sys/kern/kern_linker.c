@@ -487,8 +487,6 @@ linker_file_unload(linker_file_t file, int flags)
 	struct common_symbol *cp;
 	int error, i;
 
-	error = 0;
-
 	/* Refuse to unload modules if securelevel raised. */
 	if (securelevel > 0)
 		return (EPERM);
@@ -499,35 +497,37 @@ linker_file_unload(linker_file_t file, int flags)
 #endif
 
 	KLD_DPF(FILE, ("linker_file_unload: lf->refs=%d\n", file->refs));
-	if (file->refs == 1) {
-		KLD_DPF(FILE, ("linker_file_unload: file is unloading,"
-		    " informing modules\n"));
+
+	/* Easy case of just dropping a reference. */
+	if (file->refs > 1) {
+		file->refs--;
+		return (0);
+	}
+
+	KLD_DPF(FILE, ("linker_file_unload: file is unloading,"
+	    " informing modules\n"));
+
+	/*
+	 * Inform any modules associated with this file.
+	 */
+	MOD_XLOCK;
+	for (mod = TAILQ_FIRST(&file->modules); mod; mod = next) {
+		next = module_getfnext(mod);
+		MOD_XUNLOCK;
 
 		/*
-		 * Inform any modules associated with this file.
+		 * Give the module a chance to veto the unload.
 		 */
-		MOD_XLOCK;
-		for (mod = TAILQ_FIRST(&file->modules); mod; mod = next) {
-			next = module_getfnext(mod);
-			MOD_XUNLOCK;
-
-			/*
-			 * Give the module a chance to veto the unload.
-			 */
-			if ((error = module_unload(mod, flags)) != 0) {
-				KLD_DPF(FILE, ("linker_file_unload: module %p"
-				    " vetoes unload\n", mod));
-				goto out;
-			} else
-				MOD_XLOCK;
-			module_release(mod);
+		if ((error = module_unload(mod, flags)) != 0) {
+			KLD_DPF(FILE, ("linker_file_unload: module %p"
+			    " vetoes unload\n", mod));
+			return (error);
 		}
-		MOD_XUNLOCK;
+		MOD_XLOCK;
+		module_release(mod);
 	}
-	file->refs--;
-	if (file->refs > 0) {
-		goto out;
-	}
+	MOD_XUNLOCK;
+
 	for (ml = TAILQ_FIRST(&found_modules); ml; ml = nextml) {
 		nextml = TAILQ_NEXT(ml, link);
 		if (ml->container == file) {
@@ -566,8 +566,7 @@ linker_file_unload(linker_file_t file, int flags)
 		file->filename = NULL;
 	}
 	kobj_delete((kobj_t) file, M_LINKER);
-out:
-	return (error);
+	return (0);
 }
 
 int
