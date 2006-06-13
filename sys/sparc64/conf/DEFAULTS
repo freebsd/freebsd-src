@@ -10,5 +10,5 @@ device		mem		# Memory and kernel memory devices
 
 # UART chips on this platform
 device		uart_ns8250
-device		uart_sab82352
-device		uart_z8350
+device		uart_sab82532
+device		uart_z8530
