@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 
 #include "linker_if.h"
@@ -745,45 +746,38 @@ linker_ddb_symbol_values(c_linker_sym_t sym, linker_symval_t *symval)
  * MPSAFE
  */
 int
-kldload(struct thread *td, struct kldload_args *uap)
+kern_kldload(struct thread *td, const char *file, int *fileid)
 {
 #ifdef HWPMC_HOOKS
 	struct pmckern_map_in pkm;
 #endif
-	char *kldname, *modname;
-	char *pathname = NULL;
+	const char *kldname, *modname;
 	linker_file_t lf;
-	int error = 0;
-
-	td->td_retval[0] = -1;
-
-	mtx_lock(&Giant);
+	int error;
 
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
-		goto out;
+		return (error);
 
 	if ((error = suser(td)) != 0)
-		goto out;
-
-	pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	if ((error = copyinstr(uap->file, pathname, MAXPATHLEN, NULL)) != 0)
-		goto out;
+		return (error);
 
 	/*
-	 * If path do not contain qualified name or any dot in it
+	 * If file does not contain qualified name or any dot in it
 	 * (kldname.ko, or kldname.ver.ko) treat it as interface
 	 * name.
 	 */
-	if (index(pathname, '/') || index(pathname, '.')) {
-		kldname = pathname;
+	if (index(file, '/') || index(file, '.')) {
+		kldname = file;
 		modname = NULL;
 	} else {
 		kldname = NULL;
-		modname = pathname;
+		modname = file;
 	}
+
+	mtx_lock(&Giant);
 	error = linker_load_module(kldname, modname, NULL, NULL, &lf);
 	if (error)
-		goto out;
+		goto unlock;
 
 #ifdef HWPMC_HOOKS
 	pkm.pm_file = lf->filename;
@@ -791,18 +785,34 @@ kldload(struct thread *td, struct kldload_args *uap)
 	PMC_CALL_HOOK(td, PMC_FN_KLD_LOAD, (void *) &pkm);
 #endif
 	lf->userrefs++;
-	td->td_retval[0] = lf->id;
-out:
-	if (pathname)
-		free(pathname, M_TEMP);
+	if (fileid != NULL)
+		*fileid = lf->id;
+unlock:
 	mtx_unlock(&Giant);
+	return (error);
+}
+
+int
+kldload(struct thread *td, struct kldload_args *uap)
+{
+	char *pathname = NULL;
+	int error;
+
+	td->td_retval[0] = -1;
+
+	pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+	error = copyinstr(uap->file, pathname, MAXPATHLEN, NULL);
+	if (error == 0)
+		error = kern_kldload(td, pathname, &td->td_retval[0]);
+
+	free(pathname, M_TEMP);
 	return (error);
 }
 
 /*
  * MPSAFE
  */
-static int
+int
 kern_kldunload(struct thread *td, int fileid, int flags)
 {
 #ifdef HWPMC_HOOKS
@@ -811,14 +821,13 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 	linker_file_t lf;
 	int error = 0;
 
-	mtx_lock(&Giant);
-
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
-		goto out;
+		return (error);
 
 	if ((error = suser(td)) != 0)
-		goto out;
+		return (error);
 
+	mtx_lock(&Giant);
 	lf = linker_find_file_by_id(fileid);
 	if (lf) {
 		KLD_DPF(FILE, ("kldunload: lf->userrefs=%d\n", lf->userrefs));
@@ -828,18 +837,18 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 			 */
 			printf("kldunload: attempt to unload file that was"
 			    " loaded by the kernel\n");
-			error = EBUSY;
-			goto out;
-		}
-		lf->userrefs--;
+			error = EBUSY;			
+		} else {
 #ifdef HWPMC_HOOKS
-		/* Save data needed by hwpmc(4) before unloading the kld. */
-		pkm.pm_address = (uintptr_t) lf->address;
-		pkm.pm_size = lf->size;
+			/* Save data needed by hwpmc(4) before unloading. */
+			pkm.pm_address = (uintptr_t) lf->address;
+			pkm.pm_size = lf->size;
 #endif
-		error = linker_file_unload(lf, flags);
-		if (error)
-			lf->userrefs++;
+			lf->userrefs--;
+			error = linker_file_unload(lf, flags);
+			if (error)
+				lf->userrefs++;
+		}
 	} else
 		error = ENOENT;
 
@@ -847,7 +856,6 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 	if (error == 0)
 		PMC_CALL_HOOK(td, PMC_FN_KLD_UNLOAD, (void *) &pkm);
 #endif
-out:
 	mtx_unlock(&Giant);
 	return (error);
 }
