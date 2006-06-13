@@ -875,6 +875,10 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 	}
 	if (!lockleaf)
 		cnp->cn_flags &= ~LOCKLEAF;
+	if (cnp->cn_flags & GIANTHELD) {
+		mtx_unlock(&Giant);
+		cnp->cn_flags &= ~GIANTHELD;
+	}
 
 	/*
 	 * nfs_namei() guarentees that fields will not contain garbage
