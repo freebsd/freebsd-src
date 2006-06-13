@@ -715,7 +715,7 @@ sched_is_timeshare(struct ksegrp *kg)
 	 * readonly flag resides in a volatile member p_flag, reading
 	 * it could cause lots of cache line sharing and invalidating.
 	 */
-	return (kg->kg_pri_class != PRI_TIMESHARE);
+	return (kg->kg_pri_class == PRI_TIMESHARE);
 }
 
 static int
