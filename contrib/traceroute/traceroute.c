@@ -1017,6 +1017,41 @@ main(int argc, char **argv)
 					Printf(" !S");
 					break;
 
+				case ICMP_UNREACH_NET_UNKNOWN:
+					++unreachable;
+					Printf(" !U");
+					break;
+
+				case ICMP_UNREACH_HOST_UNKNOWN:
+					++unreachable;
+					Printf(" !W");
+					break;
+
+				case ICMP_UNREACH_ISOLATED:
+					++unreachable;
+					Printf(" !I");
+					break;
+
+				case ICMP_UNREACH_NET_PROHIB:
+					++unreachable;
+					Printf(" !A");
+					break;
+
+				case ICMP_UNREACH_HOST_PROHIB:
+					++unreachable;
+					Printf(" !Z");
+					break;
+
+				case ICMP_UNREACH_TOSNET:
+					++unreachable;
+					Printf(" !Q");
+					break;
+
+				case ICMP_UNREACH_TOSHOST:
+					++unreachable;
+					Printf(" !T");
+					break;
+
 				case ICMP_UNREACH_FILTER_PROHIB:
 					++unreachable;
 					Printf(" !X");
