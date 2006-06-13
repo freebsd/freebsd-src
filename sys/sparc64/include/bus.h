@@ -110,11 +110,6 @@ extern int bus_stream_asi[];
 
 #define BUS_SPACE_UNRESTRICTED	(~0)
 
-/*
- * Access methods for bus resources and address space.
- */
-typedef struct bus_space_tag	*bus_space_tag_t;
-
 struct bus_space_tag {
 	void		*bst_cookie;
 	bus_space_tag_t	bst_parent;
