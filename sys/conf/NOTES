@@ -166,6 +166,7 @@ options 	ROOTDEVNAME=\"ufs:da0s2e\"
 # over time.
 #
 options 	SCHED_4BSD
+#options 	SCHED_CORE
 #options 	SCHED_ULE
 
 #####################################################################
