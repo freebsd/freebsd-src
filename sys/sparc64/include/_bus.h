@@ -31,12 +31,9 @@
 #ifndef SPARC64_INCLUDE__BUS_H
 #define SPARC64_INCLUDE__BUS_H
 
-/*
- * Bus address and size types
- */
-typedef	u_long		bus_space_handle_t;
-typedef int		bus_type_t;
-typedef u_long		bus_addr_t;
-typedef u_long		bus_size_t;
+typedef u_long bus_addr_t;
+typedef u_long bus_size_t;
+typedef u_long bus_space_handle_t;
+typedef struct bus_space_tag *bus_space_tag_t;
 
 #endif /* SPARC64_INCLUDE__BUS_H */
