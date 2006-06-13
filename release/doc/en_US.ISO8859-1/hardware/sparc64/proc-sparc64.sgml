@@ -76,6 +76,9 @@
           <para>SPARCEngine Ultra AXmp</para>
         </listitem>
         <listitem>
+          <para>Ultra 1</para>
+        </listitem>
+        <listitem>
           <para>Ultra 1E</para>
         </listitem>
         <listitem>
@@ -126,9 +129,6 @@
       <itemizedlist>
         <listitem>
           <para>All systems containing UltraSPARC III processor(s).</para>
-        </listitem>
-        <listitem>
-          <para>Ultra 1</para>
         </listitem>
       </itemizedlist>
   </sect2>
