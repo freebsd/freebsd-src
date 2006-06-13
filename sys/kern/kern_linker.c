@@ -330,7 +330,7 @@ linker_load_file(const char *filename, linker_file_t *result)
 {
 	linker_class_t lc;
 	linker_file_t lf;
-	int foundfile, error = 0;
+	int foundfile, error;
 
 	/* Refuse to load modules if securelevel raised */
 	if (securelevel > 0)
@@ -342,10 +342,11 @@ linker_load_file(const char *filename, linker_file_t *result)
 		    " incrementing refs\n", filename));
 		*result = lf;
 		lf->refs++;
-		goto out;
+		return (0);
 	}
 	lf = NULL;
 	foundfile = 0;
+	error = 0;
 
 	/*
 	 * We do not need to protect (lock) classes here because there is
@@ -366,14 +367,13 @@ linker_load_file(const char *filename, linker_file_t *result)
 			error = linker_file_register_modules(lf);
 			if (error == EEXIST) {
 				linker_file_unload(lf, LINKER_UNLOAD_FORCE);
-				goto out;
+				return (error);
 			}
 			linker_file_register_sysctls(lf);
 			linker_file_sysinit(lf);
 			lf->flags |= LINKER_FILE_LINKED;
 			*result = lf;
-			error = 0;
-			goto out;
+			return (0);
 		}
 	}
 	/*
@@ -393,7 +393,6 @@ linker_load_file(const char *filename, linker_file_t *result)
 			error = ENOEXEC;
 	} else
 		error = ENOENT;		/* Nothing found */
-out:
 	return (error);
 }
 
@@ -415,12 +414,10 @@ linker_reference_module(const char *modname, struct mod_depend *verinfo,
 linker_file_t
 linker_find_file_by_name(const char *filename)
 {
-	linker_file_t lf = 0;
+	linker_file_t lf;
 	char *koname;
 
 	koname = malloc(strlen(filename) + 4, M_LINKER, M_WAITOK);
-	if (koname == NULL)
-		goto out;
 	sprintf(koname, "%s.ko", filename);
 
 	mtx_lock(&kld_mtx);
@@ -431,16 +428,14 @@ linker_find_file_by_name(const char *filename)
 			break;
 	}
 	mtx_unlock(&kld_mtx);
-out:
-	if (koname)
-		free(koname, M_LINKER);
+	free(koname, M_LINKER);
 	return (lf);
 }
 
 linker_file_t
 linker_find_file_by_id(int fileid)
 {
-	linker_file_t lf = 0;
+	linker_file_t lf;
 	
 	mtx_lock(&kld_mtx);
 	TAILQ_FOREACH(lf, &linker_files, link)
@@ -456,13 +451,12 @@ linker_make_file(const char *pathname, linker_class_t lc)
 	linker_file_t lf;
 	const char *filename;
 
-	lf = NULL;
 	filename = linker_basename(pathname);
 
 	KLD_DPF(FILE, ("linker_make_file: new file, filename=%s\n", filename));
 	lf = (linker_file_t)kobj_create((kobj_class_t)lc, M_LINKER, M_WAITOK);
 	if (lf == NULL)
-		goto out;
+		return (NULL);
 	lf->refs = 1;
 	lf->userrefs = 0;
 	lf->flags = 0;
@@ -475,7 +469,6 @@ linker_make_file(const char *pathname, linker_class_t lc)
 	mtx_lock(&kld_mtx);
 	TAILQ_INSERT_TAIL(&linker_files, lf, link);
 	mtx_unlock(&kld_mtx);
-out:
 	return (lf);
 }
 
