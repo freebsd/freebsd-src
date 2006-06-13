@@ -957,10 +957,18 @@ out:
 int
 kldstat(struct thread *td, struct kldstat_args *uap)
 {
+	struct kld_file_stat stat;
 	linker_file_t lf;
-	int error = 0;
-	int namelen, version;
-	struct kld_file_stat *stat;
+	int error, namelen;
+
+	/*
+	 * Check the version of the user's structure.
+	 */
+	error = copyin(uap->stat, &stat, sizeof(struct kld_file_stat));
+	if (error)
+		return (error);
+	if (stat.version != sizeof(struct kld_file_stat))
+		return (EINVAL);
 
 #ifdef MAC
 	error = mac_check_kld_stat(td->td_ucred);
@@ -972,39 +980,23 @@ kldstat(struct thread *td, struct kldstat_args *uap)
 
 	lf = linker_find_file_by_id(uap->fileid);
 	if (lf == NULL) {
-		error = ENOENT;
-		goto out;
+		mtx_unlock(&Giant);
+		return (ENOENT);
 	}
-	stat = uap->stat;
 
-	/*
-	 * Check the version of the user's structure.
-	 */
-	if ((error = copyin(&stat->version, &version, sizeof(version))) != 0)
-		goto out;
-	if (version != sizeof(struct kld_file_stat)) {
-		error = EINVAL;
-		goto out;
-	}
 	namelen = strlen(lf->filename) + 1;
 	if (namelen > MAXPATHLEN)
 		namelen = MAXPATHLEN;
-	if ((error = copyout(lf->filename, &stat->name[0], namelen)) != 0)
-		goto out;
-	if ((error = copyout(&lf->refs, &stat->refs, sizeof(int))) != 0)
-		goto out;
-	if ((error = copyout(&lf->id, &stat->id, sizeof(int))) != 0)
-		goto out;
-	if ((error = copyout(&lf->address, &stat->address,
-	    sizeof(caddr_t))) != 0)
-		goto out;
-	if ((error = copyout(&lf->size, &stat->size, sizeof(size_t))) != 0)
-		goto out;
+	bcopy(lf->filename, &stat.name[0], namelen);
+	stat.refs = lf->refs;
+	stat.id = lf->id;
+	stat.address = lf->address;
+	stat.size = lf->size;
+	mtx_unlock(&Giant);
 
 	td->td_retval[0] = 0;
-out:
-	mtx_unlock(&Giant);
-	return (error);
+
+	return (copyout(&stat, uap->stat, sizeof(struct kld_file_stat)));
 }
 
 /*
