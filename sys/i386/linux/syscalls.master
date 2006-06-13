@@ -162,7 +162,7 @@
 82	AUE_SELECT	MSTD	{ int linux_old_select( \
 				    struct l_old_select_argv *ptr); }
 83	AUE_SYMLINK	MSTD	{ int linux_symlink(char *path, char *to); }
-84	AUE_STAT	MSTD	{ int linux_lstat(char *path, struct ostat *up); }
+84	AUE_LSTAT	MSTD	{ int linux_lstat(char *path, struct ostat *up); }
 85	AUE_READLINK	MSTD	{ int linux_readlink(char *name, char *buf, \
 				    l_int count); }
 86	AUE_USELIB	STD	{ int linux_uselib(char *library); }
@@ -434,3 +434,46 @@
 265	AUE_NULL	UNIMPL	linux_clock_gettime
 266	AUE_NULL	UNIMPL	linux_clock_getres
 267	AUE_NULL	UNIMPL	linux_clock_nanosleep
+268	AUE_NULL	UNIMPL	linux_statfs64
+269	AUE_NULL	UNIMPL	linux_fstatfs64
+270	AUE_NULL	UNIMPL	linux_tgkill	/* 270 */
+271	AUE_NULL	UNIMPL	linux_utimes
+272	AUE_NULL	UNIMPL	linux_fadvise64_64
+273	AUE_NULL	UNIMPL	linux_ni_syscall	/* linux_vserver */
+274	AUE_NULL	UNIMPL	linux_mbind
+275	AUE_NULL	UNIMPL	linux_get_mempolicy
+276	AUE_NULL	UNIMPL	linux_set_mempolicy
+277	AUE_NULL	UNIMPL	linux_mq_open
+278	AUE_NULL	UNIMPL	linux_mq_unlink
+279	AUE_NULL	UNIMPL	linux_mq_timedsend
+280	AUE_NULL	UNIMPL	linux_mq_timedreceive	/* 280 */
+281	AUE_NULL	UNIMPL	linux_mq_notify
+282	AUE_NULL	UNIMPL	linux_mq_getsetattr
+283	AUE_NULL	UNIMPL	linux_kexec_load
+284	AUE_NULL	UNIMPL	linux_waitid
+285	AUE_NULL	UNIMPL	linux_ni_syscall		/* 285 */ /* available */
+286	AUE_NULL	UNIMPL	linux_add_key
+287	AUE_NULL	UNIMPL	linux_request_key
+288	AUE_NULL	UNIMPL	linux_keyctl
+289	AUE_NULL	UNIMPL	linux_ioprio_set
+290	AUE_NULL	UNIMPL	linux_ioprio_get		/* 290 */
+291	AUE_NULL	UNIMPL	linux_inotify_init
+292	AUE_NULL	UNIMPL	linux_inotify_add_watch
+293	AUE_NULL	UNIMPL	linux_inotify_rm_watch
+294	AUE_NULL	UNIMPL	linux_migrate_pages
+295	AUE_NULL	UNIMPL	linux_openat		/* 295 */
+296	AUE_NULL	UNIMPL	linux_mkdirat
+297	AUE_NULL	UNIMPL	linux_mknodat
+298	AUE_NULL	UNIMPL	linux_fchownat
+299	AUE_NULL	UNIMPL	linux_futimesat
+300	AUE_NULL	UNIMPL	linux_fstatat64		/* 300 */
+301	AUE_NULL	UNIMPL	linux_unlinkat
+302	AUE_NULL	UNIMPL	linux_renameat
+303	AUE_NULL	UNIMPL	linux_linkat
+304	AUE_NULL	UNIMPL	linux_symlinkat
+305	AUE_NULL	UNIMPL	linux_readlinkat		/* 305 */
+306	AUE_NULL	UNIMPL	linux_fchmodat
+307	AUE_NULL	UNIMPL	linux_faccessat
+308	AUE_NULL	UNIMPL	linux_pselect6
+309	AUE_NULL	UNIMPL	linux_ppoll
+310	AUE_NULL	UNIMPL	linux_unshare		/* 310 */
