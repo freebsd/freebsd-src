@@ -160,6 +160,7 @@ SUBDIR=	${_3dfx} \
 	msdosfs \
 	msdosfs_iconv \
 	${_mse} \
+	${_mxge} \
 	my \
 	${_ncp} \
 	${_ncv} \
@@ -413,6 +414,7 @@ _ips=		ips
 _ipw=		ipw
 _iwi=		iwi
 _mly=		mly
+_mxge=		mxge
 _nve=		nve
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 .if exists(${.CURDIR}/../crypto/via)
@@ -469,6 +471,7 @@ _ips=		ips
 _ipw=		ipw
 _iwi=		iwi
 _mly=		mly
+_mxge=		mxge
 _ndis=		ndis
 _nve=		nve
 _pccard=	pccard

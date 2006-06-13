@@ -165,6 +165,7 @@ MAN=	aac.4 \
 	mpt.4 \
 	mtio.4 \
 	multicast.4 \
+	mxge.4 \
 	my.4 \
 	natm.4 \
 	natmip.4 \
