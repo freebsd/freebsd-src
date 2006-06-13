@@ -521,8 +521,7 @@ linker_file_unload(linker_file_t file, int flags)
 	}
 	MOD_XUNLOCK;
 
-	for (ml = TAILQ_FIRST(&found_modules); ml; ml = nextml) {
-		nextml = TAILQ_NEXT(ml, link);
+	TAILQ_FOREACH_SAFE(ml, &found_modules, link, nextml) {
 		if (ml->container == file) {
 			TAILQ_REMOVE(&found_modules, ml, link);
 			free(ml, M_LINKER);
@@ -1133,8 +1132,7 @@ modlist_lookup2(const char *name, struct mod_depend *verinfo)
 	if (verinfo == NULL)
 		return (modlist_lookup(name, 0));
 	bestmod = NULL;
-	for (mod = TAILQ_FIRST(&found_modules); mod;
-	    mod = TAILQ_NEXT(mod, link)) {
+	TAILQ_FOREACH(mod, &found_modules, link) {
 		if (strcmp(mod->name, name) != 0)
 			continue;
 		ver = mod->version;
