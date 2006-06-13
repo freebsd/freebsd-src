@@ -59,7 +59,9 @@ static int	mfi_polled_command(struct mfi_softc *, struct mfi_command *);
 static int	mfi_get_controller_info(struct mfi_softc *);
 static int	mfi_get_log_state(struct mfi_softc *,
 		    struct mfi_evt_log_state *);
+#ifdef NOTYET
 static int	mfi_get_entry(struct mfi_softc *, int);
+#endif
 static void	mfi_data_cb(void *, bus_dma_segment_t *, int, int);
 static void	mfi_startup(void *arg);
 static void	mfi_intr(void *arg);
@@ -608,7 +610,7 @@ mfi_aen_setup(struct mfi_softc *sc, uint32_t seq_start)
 		 * the AEN mechanism via setting it lower then
 		 * current.  The firmware will iterate through them.
 		 */
-#if 0
+#ifdef NOTYET
 		for (seq = log_state.shutdown_seq_num;
 		     seq <= log_state.newest_seq_num; seq++) {
 			mfi_get_entry(sc, seq);
@@ -930,7 +932,7 @@ mfi_ldprobe_tur_complete(struct mfi_command *cm)
 	mfi_ldprobe_capacity(sc, hdr->target_id);
 }
 
-#ifndef MFI_DECODE_LOG
+#ifdef NOTYET
 static void
 mfi_decode_log(struct mfi_softc *sc, struct mfi_log_detail *detail)
 {
@@ -943,9 +945,6 @@ mfi_decode_log(struct mfi_softc *sc, struct mfi_log_detail *detail)
 		break;
 	}
 }
-#else
-#include <dev/mfi/mfilog.h>
-#include <dev/mfi/mfi_log.c>
 #endif
 
 static void
@@ -953,12 +952,14 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 {
 	switch (detail->arg_type) {
 	case MR_EVT_ARGS_NONE:
-		/* Try to get info from log entry */
-		mfi_get_entry(sc, detail->seq);
+		device_printf(sc->mfi_dev, "%d - %s\n",
+		    detail->seq,
+		    detail->description
+		    );
 		break;
 	case MR_EVT_ARGS_CDB_SENSE:
 		device_printf(sc->mfi_dev, "%d - PD %02d(e%d/s%d) CDB %*D"
-		    "Sense %*D\n: %s",
+		    "Sense %*D\n: %s\n",
 		    detail->seq,
 		    detail->args.cdb_sense.pd.device_id,
 		    detail->args.cdb_sense.pd.enclosure_index,
@@ -1284,6 +1285,7 @@ mfi_aen_complete(struct mfi_command *cm)
 	}
 }
 
+#ifdef NOTYET
 static int
 mfi_get_entry(struct mfi_softc *sc, int seq)
 {
@@ -1349,6 +1351,7 @@ mfi_get_entry(struct mfi_softc *sc, int seq)
 	mtx_unlock(&sc->mfi_io_lock);
 	return (0);
 }
+#endif
 
 static int
 mfi_ldprobe_capacity(struct mfi_softc *sc, int id)
