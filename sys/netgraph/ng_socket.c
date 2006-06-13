@@ -65,6 +65,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sx.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #ifdef NOTYET
@@ -271,24 +272,22 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 
 		if ((type = ng_findtype(mkp->type)) == NULL) {
 			char filename[NG_TYPESIZ + 3];
-			linker_file_t lf;
+			int fileid;
 
 			/* Not found, try to load it as a loadable module. */
 			snprintf(filename, sizeof(filename), "ng_%s",
 			    mkp->type);
-			mtx_lock(&Giant);
-			error = linker_load_module(NULL, filename, NULL, NULL,
-			    &lf);
-			mtx_unlock(&Giant);
+			error = kern_kldload(curthread, filename, &fileid);
 			if (error != 0) {
 				FREE(msg, M_NETGRAPH_MSG);
 				goto release;
 			}
-			lf->userrefs++;
 
 			/* See if type has been loaded successfully. */
 			if ((type = ng_findtype(mkp->type)) == NULL) {
 				FREE(msg, M_NETGRAPH_MSG);
+				(void)kern_kldunload(curthread, fileid,
+				    LINKER_UNLOAD_NORMAL);
 				error =  ENXIO;
 				goto release;
 			}
