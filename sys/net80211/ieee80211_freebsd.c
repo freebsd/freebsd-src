@@ -310,14 +310,9 @@ ieee80211_notify_michael_failure(struct ieee80211com *ic,
 void
 ieee80211_load_module(const char *modname)
 {
-#ifdef notyet
-	struct thread *td = curthread;
 
-	if (suser(td) == 0 && securelevel_gt(td->td_ucred, 0) == 0) {
-		mtx_lock(&Giant);
-		(void) linker_load_module(modname, NULL, NULL, NULL, NULL);
-		mtx_unlock(&Giant);
-	}
+#ifdef notyet
+	(void)kern_kldload(curthread, modname, NULL);
 #else
 	printf("%s: load the %s module by hand for now.\n", __func__, modname);
 #endif
