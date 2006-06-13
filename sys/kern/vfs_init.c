@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
@@ -108,7 +109,7 @@ struct vfsconf *
 vfs_byname_kld(const char *fstype, struct thread *td, int *error)
 {
 	struct vfsconf *vfsp;
-	linker_file_t lf;
+	int fileid;
 
 	vfsp = vfs_byname(fstype);
 	if (vfsp != NULL)
@@ -121,17 +122,14 @@ vfs_byname_kld(const char *fstype, struct thread *td, int *error)
 	*error = securelevel_gt(td->td_ucred, 0);
 	if (*error) 
 		return (NULL);
-	*error = linker_load_module(NULL, fstype, NULL, NULL, &lf);
-	if (lf == NULL)
-		*error = ENODEV;
+	*error = kern_kldload(td, fstype, &fileid);
 	if (*error)
 		return (NULL);
-	lf->userrefs++;
+
 	/* Look up again to see if the VFS was loaded. */
 	vfsp = vfs_byname(fstype);
 	if (vfsp == NULL) {
-		lf->userrefs--;
-		linker_file_unload(lf, LINKER_UNLOAD_FORCE);
+		(void)kern_kldunload(td, fileid, LINKER_UNLOAD_FORCE);
 		*error = ENODEV;
 		return (NULL);
 	}
