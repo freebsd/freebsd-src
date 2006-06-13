@@ -86,6 +86,8 @@ int	kern_getsockopt(struct thread *td, int s, int level, int name,
 	    void *optval, enum uio_seg valseg, socklen_t *valsize);
 int	kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 	    struct kevent_copyops *k_ops, const struct timespec *timeout);
+int	kern_kldload(struct thread *td, const char *file, int *fileid);
+int	kern_kldunload(struct thread *td, int fileid, int flags);
 int	kern_lchown(struct thread *td, char *path, enum uio_seg pathseg,
 	    int uid, int gid);
 int	kern_link(struct thread *td, char *path, char *link,
