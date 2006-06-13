@@ -22,7 +22,7 @@
 
 #define YU_GPSR_SPEED		0x8000	/* speed 0 - 10Mbps, 1 - 100Mbps */
 #define YU_GPSR_DUPLEX		0x4000	/* 0 - half duplex, 1 - full duplex */
-#define YU_GPSR_FCTL_TX		0x2000	/* Tx flow control, 1 - disabled */
+#define YU_GPSR_FCTL_TX		0x2000	/* flow control */
 #define YU_GPSR_LINK		0x1000	/* link status (down/up) */
 #define YU_GPSR_PAUSE		0x0800	/* flow control enable/disable */
 #define YU_GPSR_TX_IN_PROG	0x0400	/* transmit in progress */
@@ -31,26 +31,25 @@
 #define YU_GPSR_MII_PHY_STC	0x0020	/* MII PHY status change */
 #define YU_GPSR_GIG_SPEED	0x0010	/* Gigabit Speed (0 - use speed bit) */
 #define YU_GPSR_PARTITION	0x0008	/* partition mode */
-#define YU_GPSR_FCTL_RX		0x0004	/* Rx flow control, 1 - disabled */
-#define YU_GPSR_PROMS_EN	0x0002	/* promiscuous mode, 1 - enabled */
+#define YU_GPSR_FCTL_RX		0x0004	/* flow control enable/disable */
+#define YU_GPSR_PROMS_EN	0x0002	/* promiscuous mode enable/disable */
 
 /* General Purpose Control Register (GPCR) */
 #define YUKON_GPCR		0x0004
 
-#define YU_GPCR_FCTL_TX_DIS	0x2000	/* Disable Tx flow control 802.3x */
+#define YU_GPCR_FCTL_TX		0x2000	/* Transmit flow control 802.3x */
 #define YU_GPCR_TXEN		0x1000	/* Transmit Enable */
 #define YU_GPCR_RXEN		0x0800	/* Receive Enable */
-#define YU_GPCR_BURSTEN		0x0400	/* Burst Mode Enable */
-#define YU_GPCR_LPBK		0x0200	/* MAC Loopback Enable */
+#define YU_GPCR_LPBK		0x0200	/* Loopback Enable */
 #define YU_GPCR_PAR		0x0100	/* Partition Enable */
-#define YU_GPCR_GIG		0x0080	/* Gigabit Speed 1000Mbps */
+#define YU_GPCR_GIG		0x0080	/* Gigabit Speed */
 #define YU_GPCR_FLP		0x0040	/* Force Link Pass */
 #define YU_GPCR_DUPLEX		0x0020	/* Duplex Enable */
-#define YU_GPCR_FCTL_RX_DIS	0x0010	/* Disable Rx flow control 802.3x */
-#define YU_GPCR_SPEED		0x0008	/* Port Speed 100Mbps */
-#define YU_GPCR_DPLX_DIS	0x0004	/* Disable Auto-Update for duplex */
-#define YU_GPCR_FCTL_DIS	0x0002	/* Disable Auto-Update for 802.3x */
-#define YU_GPCR_SPEED_DIS	0x0001	/* Disable Auto-Update for speed */
+#define YU_GPCR_FCTL_RX		0x0010	/* Receive flow control 802.3x */
+#define YU_GPCR_SPEED		0x0008	/* Port Speed */
+#define YU_GPCR_DPLX_EN		0x0004	/* Enable Auto-Update for duplex */
+#define YU_GPCR_FCTL_EN		0x0002	/* Enabel Auto-Update for 802.3x */
+#define YU_GPCR_SPEED_EN	0x0001	/* Enable Auto-Update for speed */
 
 /* Transmit Control Register (TCR) */
 #define YUKON_TCR		0x0008
@@ -170,21 +169,3 @@
 
 #define YU_PAR_MIB_CLR		0x0020	/* MIB Counters Clear Mode */
 #define YU_PAR_LOAD_TSTCNT	0x0010	/* Load count 0xfffffff0 into cntr */
-
-/* Receive status */
-#define	YU_RXSTAT_FOFL		0x00000001	/* Rx FIFO overflow */
-#define	YU_RXSTAT_CRCERR	0x00000002	/* CRC error */
-#define	YU_RXSTAT_FRAGMENT	0x00000008	/* fragment */
-#define	YU_RXSTAT_LONGERR	0x00000010	/* too long packet */
-#define YU_RXSTAT_MIIERR	0x00000020	/* MII error */
-#define	YU_RXSTAT_BADFC		0x00000040	/* bad flow-control packet */
-#define	YU_RXSTAT_GOODFC	0x00000080	/* good flow-control packet */
-#define YU_RXSTAT_RXOK		0x00000100	/* receice OK (Good packet) */
-#define	YU_RXSTAT_BROADCAST	0x00000200	/* broadcast packet */
-#define	YU_RXSTAT_MULTICAST	0x00000400	/* multicast packet */
-#define	YU_RXSTAT_RUNT		0x00000800	/* undersize packet */
-#define	YU_RXSTAT_JABBER	0x00001000	/* jabber packet */
-#define	YU_RXSTAT_VLAN		0x00002000	/* VLAN packet */
-#define	YU_RXSTAT_LENSHIFT	16
-
-#define	YU_RXSTAT_BYTES(x)	((x) >> YU_RXSTAT_LENSHIFT)

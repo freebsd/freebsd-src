@@ -791,6 +791,7 @@ dev/si/si_pci.c			optional si pci
 dev/sio/sio_pccard.c		optional sio pccard
 dev/sio/sio_pci.c		optional sio pci
 dev/sio/sio_puc.c		optional sio puc pci
+dev/sk/if_sk.c			optional sk pci
 dev/smbus/smb.c			optional smb
 dev/smbus/smbconf.c		optional smbus
 dev/smbus/smbus.c		optional smbus
@@ -1775,7 +1776,6 @@ pci/if_pcn.c			optional pcn pci
 pci/if_rl.c			optional rl pci
 pci/if_sf.c			optional sf pci
 pci/if_sis.c			optional sis pci
-pci/if_sk.c			optional sk pci
 pci/if_ste.c			optional ste pci
 pci/if_ti.c			optional ti pci
 pci/if_tl.c			optional tl pci
