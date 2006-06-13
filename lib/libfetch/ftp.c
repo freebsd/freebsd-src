@@ -294,6 +294,8 @@ _ftp_cwd(conn_t *conn, const char *file)
 		}
 	}
 	for (beg = file + i; beg < end; beg = file + i + 1) {
+		while (*beg == '/')
+			++beg, ++i;
 		for (++i; file + i < end && file[i] != '/'; ++i)
 			/* nothing */ ;
 		e = _ftp_cmd(conn, "CWD %.*s", file + i - beg, beg);
