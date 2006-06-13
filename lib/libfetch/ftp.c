@@ -596,6 +596,7 @@ _ftp_transfer(conn_t *conn, const char *oper, const char *file,
 	struct sockaddr_storage sa;
 	struct sockaddr_in6 *sin6;
 	struct sockaddr_in *sin4;
+	const char *bindaddr;
 	const char *filename;
 	int filenamelen, type;
 	int low, pasv, verbose;
@@ -740,6 +741,10 @@ _ftp_transfer(conn_t *conn, const char *oper, const char *file,
 		/* connect to data port */
 		if (verbose)
 			_fetch_info("opening data connection");
+		bindaddr = getenv("FETCH_BIND_ADDRESS");
+		if (bindaddr != NULL && *bindaddr != '\0' &&
+		    _fetch_bind(sd, sa.ss_family, bindaddr) != 0)
+			goto sysouch;
 		if (connect(sd, (struct sockaddr *)&sa, sa.ss_len) == -1)
 			goto sysouch;
 
