@@ -1324,6 +1324,7 @@ kern/linker_if.m		standard
 kern/md4c.c			optional netsmb
 kern/md5c.c			standard
 kern/sched_4bsd.c		optional sched_4bsd
+kern/sched_core.c		optional sched_core
 kern/sched_ule.c		optional sched_ule
 kern/serdev_if.m		optional puc | scc
 kern/subr_autoconf.c		standard

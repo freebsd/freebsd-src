@@ -308,7 +308,12 @@ adjustrunqueue( struct thread *td, int newpri)
 	if ((td->td_proc->p_flag & P_HADTHREADS) == 0) {
 		/* We only care about the kse in the run queue. */
 		td->td_priority = newpri;
-		if (ke->ke_rqindex != (newpri / RQ_PPQ)) {
+#ifndef SCHED_CORE
+		if (ke->ke_rqindex != (newpri / RQ_PPQ))
+#else
+		if (ke->ke_rqindex != newpri)
+#endif
+		{
 			sched_rem(td);
 			sched_add(td, SRQ_BORING);
 		}

@@ -1386,5 +1386,10 @@ sched_pctcpu(struct thread *td)
 
 	return (0);
 }
+
+void
+sched_tick(void)
+{
+}
 #define KERN_SWITCH_INCLUDE 1
 #include "kern/kern_switch.c"

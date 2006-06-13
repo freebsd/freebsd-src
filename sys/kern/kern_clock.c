@@ -201,6 +201,7 @@ hardclock_cpu(int usermode)
 	 * Run current process's virtual and profile time, as needed.
 	 */
 	mtx_lock_spin_flags(&sched_lock, MTX_QUIET);
+	sched_tick();
 	if (p->p_flag & P_SA) {
 		/* XXXKSE What to do? */
 	} else {
