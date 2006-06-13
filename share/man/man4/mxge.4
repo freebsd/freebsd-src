@@ -35,7 +35,7 @@
 .Dt MYRI10GE 4
 .Os
 .Sh NAME
-.Nm myri10ge
+.Nm mxge
 .Nd "Myricom Myri10GE 10 Gigabit Ethernet adapter driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
@@ -43,16 +43,16 @@ place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device firmware"
-.Cd "device myri10ge"
+.Cd "device mxge"
 .Ed
 .Pp
 Alternatively, to load the driver as a
 module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-if_myri10ge_load="YES"
-myri10ge_ethp_z8e_load="YES"
-myri10ge_eth_z8e_load="YES"
+if_mxge_load="YES"
+mxge_ethp_z8e_load="YES"
+mxge_eth_z8e_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
@@ -96,13 +96,13 @@ Tunables can be set at the
 prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
 .Bl -tag -width indent
-.It Va hw.myri10ge.flow_control_enabled
+.It Va hw.mxge.flow_control_enabled
 Whether or not hardware flow control is enabled on the adapter.
 The default value is 1.
-.It Va hw.myri10ge.intr_coal_delay
+.It Va hw.mxge.intr_coal_delay
 This value delays the generation of all interrupts in units of
 1 microsecond. The default value is 30.
-.It Va hw.myri10ge.skip_pio_read
+.It Va hw.mxge.skip_pio_read
 This value determines whether or not the driver may omit doing a
 pio read in the interrupt handler which ensures that the interrupt
 line has been deasserted when using xPIC interrupts. A non-zero value 
@@ -111,11 +111,11 @@ spurious interrupts. The default value is 0.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
-.It "myri10ge%d: Unable to allocate bus resource: memory"
+.It "mxge%d: Unable to allocate bus resource: memory"
 A fatal initialization error has occurred.
-.It "myri10ge%d: Unable to allocate bus resource: interrupt"
+.It "mxge%d: Unable to allocate bus resource: interrupt"
 A fatal initialization error has occurred.
-.It "myri10ge%d: Could not find firmware image %s"
+.It "mxge%d: Could not find firmware image %s"
 The appropriate firmware kld module was not installed.  This is a 
 fatal initialization error.
 .El
