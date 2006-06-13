@@ -55,12 +55,22 @@
 #define SK_YUKON		0xB0
 #define SK_YUKON_LITE		0xB1
 #define SK_YUKON_LP		0xB2
+#define SK_YUKON_XL		0xB3
+#define SK_YUKON_EC_U		0xB4
+#define SK_YUKON_EC		0xB6
+#define SK_YUKON_FE		0xB7
 #define SK_YUKON_FAMILY(x) ((x) & 0xB0)
+#define SK_IS_YUKON2(sc) \
+    ((sc)->sk_type >= SK_YUKON_XL && (sc)->sk_type <= SK_YUKON_FE)
 
 /* Known revisions in SK_CONFIG. */
 #define SK_YUKON_LITE_REV_A0	0x0 /* invented, see test in skc_attach. */
 #define SK_YUKON_LITE_REV_A1	0x3
 #define SK_YUKON_LITE_REV_A3	0x7
+
+#define SK_YUKON_EC_REV_A1	0x0
+#define SK_YUKON_EC_REV_A2	0x1
+#define SK_YUKON_EC_REV_A3	0x2
 
 /*
  * SysKonnect PCI vendor ID
@@ -77,6 +87,13 @@
  */
 #define DEVICEID_SK_V1		0x4300
 #define DEVICEID_SK_V2		0x4320
+
+/*
+ * Marvell gigabit ethernet device IDs
+ */
+#define DEVICEID_MRVL_4360	0x4360
+#define DEVICEID_MRVL_4361	0x4361
+#define DEVICEID_MRVL_4362	0x4362
 
 /*
  * Belkin F5D5005
@@ -345,8 +362,10 @@
 #define SK_CONFIG	0x011A
 #define SK_CHIPVER	0x011B
 #define SK_EPROM0	0x011C
-#define SK_EPROM1	0x011D
-#define SK_EPROM2	0x011E
+#define SK_EPROM1	0x011D		/* yukon/genesis */
+#define SK_Y2_CLKGATE	0x011D		/* yukon 2 */
+#define SK_EPROM2	0x011E		/* yukon/genesis */
+#define SK_Y2_HWRES	0x011E		/* yukon 2 */
 #define SK_EPROM3	0x011F
 #define SK_EP_ADDR	0x0120
 #define SK_EP_DATA	0x0124
@@ -451,6 +470,13 @@
 #define SK_GPIO_DIR7		0x00800000
 #define SK_GPIO_DIR8		0x01000000
 #define SK_GPIO_DIR9		0x02000000
+
+#define SK_Y2_CLKGATE_LINK2_INACTIVE	0x80		/* port 2 inactive */
+
+#define SK_Y2_HWRES_LINK_1	0x01
+#define SK_Y2_HWRES_LINK_2	0x02
+#define SK_Y2_HWRES_LINK_MASK	(SK_Y2_HWRES_LINK_1 | SK_Y2_HWRES_LINK_2)
+#define SK_Y2_HWRES_LINK_DUAL	(SK_Y2_HWRES_LINK_1 | SK_Y2_HWRES_LINK_2)
 
 /* Block 3 Ram interface and MAC arbiter registers */
 #define SK_RAMADDR	0x0180
@@ -793,13 +819,13 @@
 	(SK_TXBMU_TRANSFER_SM_UNRESET|SK_TXBMU_DESCWR_SM_UNRESET|	\
 	SK_TXBMU_DESCRD_SM_UNRESET|SK_TXBMU_SUPERVISOR_SM_UNRESET|	\
 	SK_TXBMU_PFI_SM_UNRESET|SK_TXBMU_FIFO_UNRESET|			\
-	SK_TXBMU_DESC_UNRESET)
+	SK_TXBMU_DESC_UNRESET|SK_TXBMU_POLL_ON)
 
 #define SK_TXBMU_OFFLINE		\
 	(SK_TXBMU_TRANSFER_SM_RESET|SK_TXBMU_DESCWR_SM_RESET|	\
 	SK_TXBMU_DESCRD_SM_RESET|SK_TXBMU_SUPERVISOR_SM_RESET|	\
 	SK_TXBMU_PFI_SM_RESET|SK_TXBMU_FIFO_RESET|		\
-	SK_TXBMU_DESC_RESET)
+	SK_TXBMU_DESC_RESET|SK_TXBMU_POLL_OFF)
 
 /* Block 16 -- Receive RAMbuffer 1 */
 #define SK_RXRB1_START		0x0800
@@ -894,23 +920,30 @@
 #define SK_RXMF1_END		0x0C40
 #define SK_RXMF1_THRESHOLD	0x0C44
 #define SK_RXMF1_CTRL_TEST	0x0C48
+#define SK_RXMF1_FLUSH_MASK	0x0C4C
+#define SK_RXMF1_FLUSH_THRESHOLD	0x0C50
 #define SK_RXMF1_WRITE_PTR	0x0C60
 #define SK_RXMF1_WRITE_LEVEL	0x0C68
 #define SK_RXMF1_READ_PTR	0x0C70
 #define SK_RXMF1_READ_LEVEL	0x0C78
 
+/* Receive MAC FIFO 1 Control/Test */
 #define SK_RFCTL_WR_PTR_TST_ON	0x00004000	/* Write pointer test on*/
 #define SK_RFCTL_WR_PTR_TST_OFF	0x00002000	/* Write pointer test off */
 #define SK_RFCTL_WR_PTR_STEP	0x00001000	/* Write pointer increment */
 #define SK_RFCTL_RD_PTR_TST_ON	0x00000400	/* Read pointer test on */
 #define SK_RFCTL_RD_PTR_TST_OFF	0x00000200	/* Read pointer test off */
 #define SK_RFCTL_RD_PTR_STEP	0x00000100	/* Read pointer increment */
-#define SK_RFCTL_RX_FIFO_OVER	0x00000040	/* Clear IRQ RX FIFO Overrun */
+#define SK_RFCTL_FIFO_FLUSH_OFF	0x00000080	/* RX FIFO Flsuh mode off */
+#define SK_RFCTL_FIFO_FLUSH_ON	0x00000040	/* RX FIFO Flush mode on */
+#define SK_RFCTL_RX_FIFO_OVER	0x00000020	/* Clear IRQ RX FIFO Overrun */
 #define SK_RFCTL_FRAME_RX_DONE	0x00000010	/* Clear IRQ Frame RX Done */
 #define SK_RFCTL_OPERATION_ON	0x00000008	/* Operational mode on */
 #define SK_RFCTL_OPERATION_OFF	0x00000004	/* Operational mode off */
 #define SK_RFCTL_RESET_CLEAR	0x00000002	/* MAC FIFO Reset Clear */
 #define SK_RFCTL_RESET_SET	0x00000001	/* MAC FIFO Reset Set */
+
+#define SK_RFCTL_FIFO_THRESHOLD	0x0a	/* flush threshold (default) */
 
 /* Block 25 -- RX MAC FIFO 2 regisrers and LINK_SYNC counter */
 #define SK_RXF2_END		0x0C80
@@ -971,7 +1004,7 @@
 #define SK_TXLED1_CTL		0x0D28
 #define SK_TXLED1_TST		0x0D29
 
-/* Receive MAC FIFO 1 (Yukon Only) */
+/* Transmit MAC FIFO 1 (Yukon Only) */
 #define SK_TXMF1_END		0x0D40
 #define SK_TXMF1_THRESHOLD	0x0D44
 #define SK_TXMF1_CTRL_TEST	0x0D48
@@ -982,6 +1015,7 @@
 #define SK_TXMF1_RESTART_PTR	0x0D74
 #define SK_TXMF1_READ_LEVEL	0x0D78
 
+/* Transmit MAC FIFO Control/Test */
 #define SK_TFCTL_WR_PTR_TST_ON	0x00004000	/* Write pointer test on*/
 #define SK_TFCTL_WR_PTR_TST_OFF	0x00002000	/* Write pointer test off */
 #define SK_TFCTL_WR_PTR_STEP	0x00001000	/* Write pointer increment */
@@ -1039,6 +1073,8 @@
 #define SK_DPT_INIT		0x0e00	/* Initial value 24 bits */
 #define SK_DPT_TIMER		0x0e04	/* Mul of 78.12MHz clk (24b) */
 
+#define SK_DPT_TIMER_MAX	0x00ffffffff	/* 214.75ms at 78.125MHz */
+
 #define SK_DPT_TIMER_CTRL	0x0e08	/* Timer Control 16 bits */
 #define SK_DPT_TCTL_STOP	0x0001	/* Stop Timer */
 #define SK_DPT_TCTL_START	0x0002	/* Start Timer */
@@ -1054,7 +1090,7 @@
 #define SK_GMAC_CTRL		0x0f00	/* GMAC Control Register */
 #define SK_GPHY_CTRL		0x0f04	/* GPHY Control Register */
 #define SK_GMAC_ISR		0x0f08	/* GMAC Interrupt Source Register */
-#define SK_GMAC_IMR		0x0f08	/* GMAC Interrupt Mask Register */
+#define SK_GMAC_IMR		0x0f0c	/* GMAC Interrupt Mask Register */
 #define SK_LINK_CTRL		0x0f10	/* Link Control Register (LCR) */
 #define SK_WOL_CTRL		0x0f20	/* Wake on LAN Control Register */
 #define SK_MAC_ADDR_LOW		0x0f24	/* Mack Address Registers LOW */
@@ -1310,6 +1346,11 @@ struct sk_type {
 	char			*sk_name;
 };
 
+#define SK_ADDR_LO(x)	((u_int64_t) (x) & 0xffffffff)
+#define SK_ADDR_HI(x)	((u_int64_t) (x) >> 32)
+
+#define SK_RING_ALIGN	64
+
 /* RX queue descriptor data structure */
 struct sk_rx_desc {
 	u_int32_t		sk_ctl;
@@ -1318,10 +1359,8 @@ struct sk_rx_desc {
 	u_int32_t		sk_data_hi;
 	u_int32_t		sk_xmac_rxstat;
 	u_int32_t		sk_timestamp;
-	u_int16_t		sk_csum2;
-	u_int16_t		sk_csum1;
-	u_int16_t		sk_csum2_start;
-	u_int16_t		sk_csum1_start;
+	u_int32_t		sk_csum;
+	u_int32_t		sk_csum_start;
 };
 
 #define SK_OPCODE_DEFAULT	0x00550000
@@ -1339,8 +1378,7 @@ struct sk_rx_desc {
 #define SK_RXCTL_OWN		0x80000000
 
 #define SK_RXSTAT	\
-	(SK_OPCODE_DEFAULT|SK_RXCTL_EOF_INTR|SK_RXCTL_LASTFRAG| \
-	 SK_RXCTL_FIRSTFRAG|SK_RXCTL_OWN)
+	(SK_RXCTL_EOF_INTR|SK_RXCTL_LASTFRAG|SK_RXCTL_FIRSTFRAG|SK_RXCTL_OWN)
 
 struct sk_tx_desc {
 	u_int32_t		sk_ctl;
@@ -1348,10 +1386,8 @@ struct sk_tx_desc {
 	u_int32_t		sk_data_lo;
 	u_int32_t		sk_data_hi;
 	u_int32_t		sk_xmac_txstat;
-	u_int16_t		sk_rsvd0;
-	u_int16_t		sk_csum_startval;
-	u_int16_t		sk_csum_startpos;
-	u_int16_t		sk_csum_writepos;
+	u_int32_t		sk_csum_startval;
+	u_int32_t		sk_csum_start;
 	u_int32_t		sk_rsvd1;
 };
 
@@ -1369,11 +1405,14 @@ struct sk_tx_desc {
 #define SK_TXSTAT	\
 	(SK_OPCODE_DEFAULT|SK_TXCTL_EOF_INTR|SK_TXCTL_LASTFRAG|SK_TXCTL_OWN)
 
-#define SK_RXBYTES(x)		(x) & 0x0000FFFF;
+#define SK_RXBYTES(x)		((x) & 0x0000FFFF)
 #define SK_TXBYTES		SK_RXBYTES
 
 #define SK_TX_RING_CNT		512
 #define SK_RX_RING_CNT		256
+#define SK_JUMBO_RX_RING_CNT	256
+#define SK_MAXTXSEGS		32
+#define SK_MAXRXSEGS		32
 
 /*
  * Jumbo buffer stuff. Note that we must allocate more jumbo
@@ -1385,6 +1424,9 @@ struct sk_tx_desc {
  */
 #define SK_JUMBO_FRAMELEN	9018
 #define SK_JUMBO_MTU		(SK_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
+#define SK_MAX_FRAMELEN		\
+	(ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN - ETHER_CRC_LEN)
+#define SK_MIN_FRAMELEN		(ETHER_MIN_LEN - ETHER_CRC_LEN)
 #define SK_JSLOTS		((SK_RX_RING_CNT * 3) / 2)
 
 #define SK_JRAWLEN (SK_JUMBO_FRAMELEN + ETHER_ALIGN)
@@ -1399,31 +1441,72 @@ struct sk_jpool_entry {
 	SLIST_ENTRY(sk_jpool_entry)	jpool_entries;
 };
 
-struct sk_chain {
-	void			*sk_desc;
-	struct mbuf		*sk_mbuf;
-	struct sk_chain		*sk_next;
+struct sk_txdesc {
+	struct mbuf		*tx_m;
+	bus_dmamap_t		tx_dmamap;
+	STAILQ_ENTRY(sk_txdesc)	tx_q;
+};
+
+STAILQ_HEAD(sk_txdq, sk_txdesc);
+
+struct sk_rxdesc {
+	struct mbuf		*rx_m;
+	bus_dmamap_t		rx_dmamap;
 };
 
 struct sk_chain_data {
-	struct sk_chain		sk_tx_chain[SK_TX_RING_CNT];
-	struct sk_chain		sk_rx_chain[SK_RX_RING_CNT];
+	bus_dma_tag_t		sk_parent_tag;
+	bus_dma_tag_t		sk_tx_tag;
+	struct sk_txdesc	sk_txdesc[SK_TX_RING_CNT];
+	struct sk_txdq		sk_txfreeq;
+	struct sk_txdq		sk_txbusyq;
+	bus_dma_tag_t		sk_rx_tag;
+	struct sk_rxdesc	sk_rxdesc[SK_RX_RING_CNT];
+	bus_dma_tag_t		sk_tx_ring_tag;
+	bus_dma_tag_t		sk_rx_ring_tag;
+	bus_dmamap_t		sk_tx_ring_map;
+	bus_dmamap_t		sk_rx_ring_map;
+	bus_dmamap_t		sk_rx_sparemap;
+	bus_dma_tag_t		sk_jumbo_rx_tag;
+	bus_dma_tag_t		sk_jumbo_tag;
+	bus_dmamap_t		sk_jumbo_map;
+	bus_dma_tag_t		sk_jumbo_mtag;
+	caddr_t			sk_jslots[SK_JSLOTS];
+	struct sk_rxdesc	sk_jumbo_rxdesc[SK_JUMBO_RX_RING_CNT];
+	bus_dma_tag_t		sk_jumbo_rx_ring_tag;
+	bus_dmamap_t		sk_jumbo_rx_ring_map;
+	bus_dmamap_t		sk_jumbo_rx_sparemap;
 	int			sk_tx_prod;
 	int			sk_tx_cons;
 	int			sk_tx_cnt;
-	int			sk_rx_prod;
 	int			sk_rx_cons;
-	int			sk_rx_cnt;
-	/* Stick the jumbo mem management stuff here too. */
-	caddr_t			sk_jslots[SK_JSLOTS];
-	void			*sk_jumbo_buf;
-
+	int			sk_jumbo_rx_cons;
 };
 
 struct sk_ring_data {
-	struct sk_tx_desc	sk_tx_ring[SK_TX_RING_CNT];
-	struct sk_rx_desc	sk_rx_ring[SK_RX_RING_CNT];
+	struct sk_tx_desc	*sk_tx_ring;
+	bus_addr_t		sk_tx_ring_paddr;
+	struct sk_rx_desc	*sk_rx_ring;
+	bus_addr_t		sk_rx_ring_paddr;
+	struct sk_rx_desc	*sk_jumbo_rx_ring;
+	bus_addr_t		sk_jumbo_rx_ring_paddr;
+	void			*sk_jumbo_buf;
+	bus_addr_t		sk_jumbo_buf_paddr;
 };
+
+#define SK_TX_RING_ADDR(sc, i)	\
+    ((sc)->sk_rdata.sk_tx_ring_paddr + sizeof(struct sk_tx_desc) * (i))
+#define SK_RX_RING_ADDR(sc, i) \
+    ((sc)->sk_rdata.sk_rx_ring_paddr + sizeof(struct sk_rx_desc) * (i))
+#define SK_JUMBO_RX_RING_ADDR(sc, i) \
+    ((sc)->sk_rdata.sk_jumbo_rx_ring_paddr + sizeof(struct sk_rx_desc) * (i))
+
+#define SK_TX_RING_SZ		\
+    (sizeof(struct sk_tx_desc) * SK_TX_RING_CNT)
+#define SK_RX_RING_SZ		\
+    (sizeof(struct sk_rx_desc) * SK_RX_RING_CNT)
+#define SK_JUMBO_RX_RING_SZ		\
+    (sizeof(struct sk_rx_desc) * SK_JUMBO_RX_RING_CNT)
 
 struct sk_bcom_hack {
 	int			reg;
@@ -1442,7 +1525,7 @@ struct sk_softc {
 	void			*sk_intrhand;	/* irq handler handle */
 	struct resource		*sk_irq;	/* IRQ resource handle */
 	struct resource		*sk_res;	/* I/O or shared mem handle */
-	u_int8_t		sk_unit;	/* controller number */
+	device_t		sk_dev;
 	u_int8_t		sk_type;
 	u_int8_t		sk_rev;
 	u_int8_t		spare;
@@ -1452,11 +1535,14 @@ struct sk_softc {
 	u_int32_t		sk_rboff;	/* RAMbuffer offset */
 	u_int32_t		sk_ramsize;	/* amount of RAM on NIC */
 	u_int32_t		sk_pmd;		/* physical media type */
+	u_int32_t		sk_coppertype;
 	u_int32_t		sk_intrmask;
 	int			sk_int_mod;
 	int			sk_int_ticks;
+	int			sk_suspended;
 	struct sk_if_softc	*sk_if[2];
 	device_t		sk_devs[2];
+	struct mtx		sk_mii_mtx;
 	struct mtx		sk_mtx;
 };
 
@@ -1466,12 +1552,14 @@ struct sk_softc {
 #define	SK_IF_LOCK(_sc)		SK_LOCK((_sc)->sk_softc)
 #define	SK_IF_UNLOCK(_sc)	SK_UNLOCK((_sc)->sk_softc)
 #define	SK_IF_LOCK_ASSERT(_sc)	SK_LOCK_ASSERT((_sc)->sk_softc)
+#define	SK_IF_MII_LOCK(_sc)	mtx_lock(&(_sc)->sk_softc->sk_mii_mtx)
+#define	SK_IF_MII_UNLOCK(_sc)	mtx_unlock(&(_sc)->sk_softc->sk_mii_mtx)
 
 /* Softc for each logical interface */
 struct sk_if_softc {
 	struct ifnet		*sk_ifp;	/* interface info */
 	device_t		sk_miibus;
-	u_int8_t		sk_unit;	/* interface number */
+	device_t		sk_if_dev;
 	u_int8_t		sk_port;	/* port # on controller */
 	u_int8_t		sk_xmac_rev;	/* XMAC chip rev (B2 or C1) */
 	u_int32_t		sk_rx_ramstart;
@@ -1480,12 +1568,10 @@ struct sk_if_softc {
 	u_int32_t		sk_tx_ramend;
 	int			sk_phytype;
 	int			sk_phyaddr;
-	device_t		sk_dev;
-	int			sk_cnt;
 	int			sk_link;
-	struct callout_handle	sk_tick_ch;
+	struct callout		sk_tick_ch;
 	struct sk_chain_data	sk_cdata;
-	struct sk_ring_data	*sk_rdata;
+	struct sk_ring_data	sk_rdata;
 	struct sk_softc		*sk_softc;	/* parent controller */
 	int			sk_tx_bmu;	/* TX BMU register */
 	int			sk_if_flags;
@@ -1497,11 +1583,4 @@ struct sk_if_softc {
 #define	SK_JLIST_LOCK(_sc)	mtx_lock(&(_sc)->sk_jlist_mtx)
 #define	SK_JLIST_UNLOCK(_sc)	mtx_unlock(&(_sc)->sk_jlist_mtx)
 
-#define SK_MAXUNIT	256
 #define SK_TIMEOUT	1000
-#define ETHER_ALIGN	2
-
-#ifdef __alpha__
-#undef vtophys
-#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
-#endif
