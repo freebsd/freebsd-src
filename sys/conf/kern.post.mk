@@ -68,15 +68,6 @@ ${KERNEL_KO}: ${FULLKERNEL} ${KERNEL_KO}.symbols
 	    ${FULLKERNEL} ${.TARGET}
 ${KERNEL_KO}.symbols: ${FULLKERNEL}
 	${OBJCOPY} --only-keep-debug ${FULLKERNEL} ${.TARGET}
-.if defined(MFS_IMAGE)
-	@dd if="${MFS_IMAGE}" ibs=8192 of="${KERNEL_KO}"		\
-	   obs=`strings -at d "${KERNEL_KO}" |				\
-	         grep "MFS Filesystem goes here" | awk '{print $$1}'`	\
-	   oseek=1 conv=notrunc 2>/dev/null &&				\
-	 strings ${KERNEL_KO} |						\
-	 grep 'MFS Filesystem had better STOP here' > /dev/null ||	\
-	 (rm ${KERNEL_KO} && echo 'MFS image too large' && false)
-.endif
 install.debug reinstall.debug: gdbinit
 	cd ${.CURDIR}; ${MAKE} ${.TARGET:R}
 
@@ -99,6 +90,15 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
 	${SYSTEM_LD_TAIL}
+.if defined(MFS_IMAGE)
+	@dd if="${MFS_IMAGE}" ibs=8192 of="${KERNEL_KO}"		\
+	   obs=`strings -at d "${KERNEL_KO}" |				\
+	         grep "MFS Filesystem goes here" | awk '{print $$1}'`	\
+	   oseek=1 conv=notrunc 2>/dev/null &&				\
+	 strings ${KERNEL_KO} |						\
+	 grep 'MFS Filesystem had better STOP here' > /dev/null ||	\
+	 (rm ${KERNEL_KO} && echo 'MFS image too large' && false)
+.endif
 
 .if !exists(${.OBJDIR}/.depend)
 ${SYSTEM_OBJS}: assym.s vnode_if.h ${BEFORE_DEPEND:M*.h} ${MFILES:T:S/.m$/.h/}
