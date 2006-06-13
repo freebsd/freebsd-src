@@ -115,10 +115,11 @@ clearentry(struct firmware *fp)
 static struct firmware *
 lookup(const char *name)
 {
+	struct firmware *fp;
 	int i;
 
 	for (i = 0; i < FIRMWARE_MAX; i++) {
-		struct firmware * fp = &firmware_table[i];
+		fp = &firmware_table[i];
 		if (fp->name != NULL && strcasecmp(name, fp->name) == 0)
 			return fp;
 	}
@@ -259,6 +260,7 @@ firmware_put(struct firmware *fp, int flags)
 static int
 firmware_modevent(module_t mod, int type, void *unused)
 {
+	struct firmware *fp;
 	int i;
 
 	switch (type) {
@@ -267,7 +269,7 @@ firmware_modevent(module_t mod, int type, void *unused)
 		return 0;
 	case MOD_UNLOAD:
 		for (i = 0; i < FIRMWARE_MAX; i++) {
-			struct firmware *fp = &firmware_table[i];
+			fp = &firmware_table[i];
 			fp->flags &= ~FIRMWAREFLAG_KEEPKLDREF;
 		}
 		taskqueue_enqueue(taskqueue_thread, &firmware_task);
