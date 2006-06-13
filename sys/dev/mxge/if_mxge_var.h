@@ -33,36 +33,36 @@ $FreeBSD$
 
 ***************************************************************************/
 
-#define MYRI10GE_MAX_ETHER_MTU 9014
+#define MXGE_MAX_ETHER_MTU 9014
 
-#define MYRI10GE_ETH_STOPPED 0
-#define MYRI10GE_ETH_STOPPING 1
-#define MYRI10GE_ETH_STARTING 2
-#define MYRI10GE_ETH_RUNNING 3
-#define MYRI10GE_ETH_OPEN_FAILED 4
+#define MXGE_ETH_STOPPED 0
+#define MXGE_ETH_STOPPING 1
+#define MXGE_ETH_STARTING 2
+#define MXGE_ETH_RUNNING 3
+#define MXGE_ETH_OPEN_FAILED 4
 
-#define MYRI10GE_FW_OFFSET 1024*1024
-#define MYRI10GE_EEPROM_STRINGS_SIZE 256
-#define MYRI10GE_NUM_INTRQS 2
+#define MXGE_FW_OFFSET 1024*1024
+#define MXGE_EEPROM_STRINGS_SIZE 256
+#define MXGE_NUM_INTRQS 2
 
 typedef struct {
 	void *addr;
 	bus_addr_t bus_addr;
 	bus_dma_tag_t dmat;
 	bus_dmamap_t map;
-} myri10ge_dma_t;
+} mxge_dma_t;
 
-typedef struct myri10ge_intrq
+typedef struct mxge_intrq
 {
-  mcp_slot_t *q[MYRI10GE_NUM_INTRQS];
+  mcp_slot_t *q[MXGE_NUM_INTRQS];
   int intrq;
   int slot;
   int maxslots;
   uint32_t seqnum;
   uint32_t spurious;
   uint32_t cnt;
-  myri10ge_dma_t dma[MYRI10GE_NUM_INTRQS];
-} myri10ge_intrq_t;
+  mxge_dma_t dma[MXGE_NUM_INTRQS];
+} mxge_intrq_t;
 
 
 typedef struct
@@ -70,9 +70,9 @@ typedef struct
   uint32_t data0;
   uint32_t data1;
   uint32_t data2;
-} myri10ge_cmd_t;
+} mxge_cmd_t;
 
-struct myri10ge_buffer_state {
+struct mxge_buffer_state {
 	struct mbuf *m;
 	bus_dmamap_t map;
 };
@@ -82,13 +82,13 @@ typedef struct
 	volatile mcp_kreq_ether_recv_t *lanai;	/* lanai ptr for recv ring */
 	volatile uint8_t *wc_fifo;	/* w/c rx dma addr fifo address */
 	mcp_kreq_ether_recv_t *shadow;	/* host shadow of recv ring */
-	struct myri10ge_buffer_state *info;
+	struct mxge_buffer_state *info;
 	bus_dma_tag_t dmat;
 	bus_dmamap_t extra_map;
 	int cnt;
 	int alloc_fail;
 	int mask;			/* number of rx slots -1 */
-} myri10ge_rx_buf_t;
+} mxge_rx_buf_t;
 
 typedef struct
 {
@@ -96,13 +96,13 @@ typedef struct
 	volatile uint8_t *wc_fifo;		/* w/c send fifo address */
 	mcp_kreq_ether_send_t *req_list;	/* host shadow of sendq */
 	char *req_bytes;
-	struct myri10ge_buffer_state *info;
+	struct mxge_buffer_state *info;
 	bus_dma_tag_t dmat;
 	int req;			/* transmits submitted	*/
 	int mask;			/* number of transmit slots -1 */
 	int done;			/* transmits completed	*/
 	int boundary;			/* boundary transmits cannot cross*/
-} myri10ge_tx_buf_t;
+} mxge_tx_buf_t;
 
 typedef struct {
 	struct ifnet* ifp;
@@ -110,9 +110,9 @@ typedef struct {
 	struct mtx tx_lock;
 	int csum_flag;			/* rx_csums? 		*/
 	uint8_t	mac_addr[6];		/* eeprom mac address */
-	myri10ge_tx_buf_t tx;	/* transmit ring 	*/
-	myri10ge_rx_buf_t rx_small;
-	myri10ge_rx_buf_t rx_big;
+	mxge_tx_buf_t tx;	/* transmit ring 	*/
+	mxge_rx_buf_t rx_small;
+	mxge_rx_buf_t rx_big;
 	bus_dma_tag_t	parent_dmat;
 	volatile uint8_t *sram;
 	int sram_size;
@@ -120,13 +120,13 @@ typedef struct {
 	char *mac_addr_string;
 	char *product_code_string;
 	mcp_cmd_response_t *cmd;
-	myri10ge_dma_t cmd_dma;
-	myri10ge_dma_t zeropad_dma;
+	mxge_dma_t cmd_dma;
+	mxge_dma_t zeropad_dma;
 	mcp_stats_t *fw_stats;
-	myri10ge_dma_t fw_stats_dma;
+	mxge_dma_t fw_stats_dma;
 	struct pci_dev *pdev;
 	int msi_enabled;
-	myri10ge_intrq_t intr;
+	mxge_intrq_t intr;
 	int link_state;
 	unsigned int rdma_tags_available;
 	int intr_coal_delay;
@@ -143,19 +143,19 @@ typedef struct {
 	struct resource *irq_res;
 	void *ih; 
 	char *fw_name;
-	char eeprom_strings[MYRI10GE_EEPROM_STRINGS_SIZE];
+	char eeprom_strings[MXGE_EEPROM_STRINGS_SIZE];
 	char fw_version[128];
 	device_t dev;
 	struct ifmedia media;
 
-} myri10ge_softc_t;
+} mxge_softc_t;
 
-#define MYRI10GE_PCI_VENDOR_MYRICOM 	0x14c1
-#define MYRI10GE_PCI_DEVICE_Z8E 	0x0008
+#define MXGE_PCI_VENDOR_MYRICOM 	0x14c1
+#define MXGE_PCI_DEVICE_Z8E 	0x0008
 
-#define MYRI10GE_HIGHPART_TO_U32(X) \
+#define MXGE_HIGHPART_TO_U32(X) \
 (sizeof (X) == 8) ? ((uint32_t)((uint64_t)(X) >> 32)) : (0)
-#define MYRI10GE_LOWPART_TO_U32(X) ((uint32_t)(X))
+#define MXGE_LOWPART_TO_U32(X) ((uint32_t)(X))
 
 
 /* implement our own memory barriers, since bus_space_barrier
@@ -176,7 +176,7 @@ typedef struct {
 #endif
 
 static inline void
-myri10ge_pio_copy(volatile void *to_v, void *from_v, size_t size)
+mxge_pio_copy(volatile void *to_v, void *from_v, size_t size)
 {
   register volatile uintptr_t *to;
   volatile uintptr_t *from;
