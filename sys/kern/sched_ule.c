@@ -2007,5 +2007,10 @@ sched_sizeof_thread(void)
 {
 	return (sizeof(struct thread) + sizeof(struct td_sched));
 }
+
+void
+sched_tick(void)
+{
+}
 #define KERN_SWITCH_INCLUDE 1
 #include "kern/kern_switch.c"
