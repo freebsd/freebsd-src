@@ -1566,7 +1566,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	 */
 	if (__predict_false(td == PCPU_GET(idlethread))) {
 		TD_SET_CAN_RUN(td);
-	} else if (__predict_false(ke->ke_flags & KEF_MIGRATING)) {
+	} else if (__predict_false((ke->ke_flags & KEF_MIGRATING) != 0)) {
 		SLOT_RELEASE(td->td_ksegrp);
 	} else {
 		/* We are ending our run so make our slot available again */
@@ -2192,7 +2192,6 @@ sched_rem(struct thread *td)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	ke = td->td_kse;
-	SLOT_RELEASE(td->td_ksegrp);
 	ke->ke_flags &= ~KEF_PREEMPTED;
 	KASSERT((ke->ke_state == KES_ONRUNQ),
 	    ("sched_rem: KSE not on run queue"));
@@ -2209,6 +2208,7 @@ sched_rem(struct thread *td)
 	{
 		KASSERT((ke->ke_state == KES_ONRUNQ),
 		    ("sched_rem: KSE not on run queue"));
+		SLOT_RELEASE(td->td_ksegrp);
 		kseq_runq_rem(kseq, ke);
 		kseq_load_rem(kseq, ke);
 	}
