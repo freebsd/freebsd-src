@@ -2150,8 +2150,10 @@ activate_it:
 	if (ke->ke_runq == my_ksq->ksq_curr &&
 	    td->td_priority < curthread->td_priority) {
 		curthread->td_flags |= TDF_NEEDRESCHED;
+		ke->ke_runq = NULL;
 		if (preemptive && maybe_preempt(td))
 			return;
+		ke->ke_runq = my_ksq->ksq_curr;
 		if (curthread->td_ksegrp->kg_pri_class == PRI_IDLE)
 			td->td_owepreempt = 1;
 	}
