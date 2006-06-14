@@ -565,10 +565,10 @@
 
 	<para>The &man.my.4; driver now supports &man.altq.4;</para>
 
-	<para arch="i386,amd64">The &man.myri10ge.4; driver,
+	<para arch="i386,amd64">The &man.mxge.4; driver,
 	  which supports Myricom Myri10GE 10 Gigabit Ethernet
 	  adapters, has been added.  For more details, see
-	  &man.myri10ge.4;.</para>
+	  &man.mxge.4;.</para>
 
 	<para>The &man.nve.4; driver has been updated to version 1.0-0310
 	  (23-Nov-2005).  It also now has &man.altq.4; support.</para>
