@@ -1401,7 +1401,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       &merged;</para>
 
     <para><application>sendmail</application> has been updated from
-      8.13.4 to 8.13.6. &merged;</para>
+      8.13.4 to 8.13.7. &merged;</para>
 
     <para>The timezone database has been updated from the
       <application>tzdata2005l</application> release to the
