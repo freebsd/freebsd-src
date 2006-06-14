@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@wiz.smi.sendmail.com on Sun Mar 19 22:37:26 PST 2006
-##### in /extra/home/ca/sm-8.13.6/OpenSource/sendmail-8.13.6/cf/cf
+##### built by ca@nother.smi.sendmail.com on Mon Jun 5 15:34:16 PDT 2006
+##### in /extra/home/ca/sm-8.13.7/OpenSource/sendmail-8.13.7/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -29,13 +29,13 @@
 
 #####  $Id: cfhead.m4,v 8.116 2004/01/28 22:02:22 ca Exp $  #####
 #####  $Id: cf.m4,v 8.32 1999/02/07 07:26:14 gshapiro Exp $  #####
-#####  $Id: submit.mc,v 8.13 2003/09/10 22:12:48 ca Exp $  #####
+#####  $Id: submit.mc,v 8.14 2006/04/05 05:54:41 ca Exp $  #####
 #####  $Id: msp.m4,v 1.33 2004/02/09 22:32:38 ca Exp $  #####
 
 #####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.718 2005/08/24 18:07:23 ca Exp $  #####
+#####  $Id: proto.m4,v 8.719 2006/03/30 20:50:13 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -114,7 +114,7 @@ D{MTAHost}[127.0.0.1]
 
 
 # Configuration version number
-DZ8.13.6/Submit
+DZ8.13.7/Submit
 
 
 ###############
@@ -1441,7 +1441,7 @@ Mrelay,		P=[IPC], F=mDFMuXa8k, S=EnvFromSMTP/HdrFromSMTP, R=MasqSMTP, E=\r\n, L=
 # #
 # 
 # divert(0)dnl
-# VERSIONID(`$Id: submit.mc,v 8.13 2003/09/10 22:12:48 ca Exp $')
+# VERSIONID(`$Id: submit.mc,v 8.14 2006/04/05 05:54:41 ca Exp $')
 # define(`confCF_VERSION', `Submit')dnl
 # define(`__OSTYPE__',`')dnl dirty hack to keep proto.m4 from complaining
 # define(`_USE_DECNET_SYNTAX_', `1')dnl support DECnet

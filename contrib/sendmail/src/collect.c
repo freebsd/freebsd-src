@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: collect.c,v 8.272 2006/03/02 19:09:26 ca Exp $")
+SM_RCSID("@(#)$Id: collect.c,v 8.273 2006/03/31 18:51:47 ca Exp $")
 
 static void	eatfrom __P((char *volatile, ENVELOPE *));
 static void	collect_doheader __P((ENVELOPE *));
@@ -857,6 +857,8 @@ readerr:
 			q->q_state = QS_FATALERR;
 		}
 
+		(void) sm_io_close(df, SM_TIME_DEFAULT);
+		df = NULL;
 		finis(true, true, ExitStat);
 		/* NOTREACHED */
 	}

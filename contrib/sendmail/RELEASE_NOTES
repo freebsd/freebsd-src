@@ -1,10 +1,57 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.1765 2006/03/08 02:15:03 ca Exp $
+      $Id: RELEASE_NOTES,v 8.1777.2.6 2006/06/05 22:32:41 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.13.7/8.13.7	2006/06/14
+	A malformed MIME structure with many parts can cause sendmail to
+		crash while trying to send a mail due to a stack overflow,
+		e.g., if the stack size is limited (ulimit -s).  This
+		happens because the recursion of the function mime8to7()
+		was not restricted.  The function is called for MIME 8 to
+		7 bit conversion and also to enforce MaxMimeHeaderLength.
+		To work around this problem, recursive calls are limited to
+		a depth of MAXMIMENESTING (20); message content after this
+		limit is treated as opaque and is not checked further.
+		Problem noted by Frank Sheiness.
+	The changes to the I/O layer in 8.13.6 caused a regression for
+		SASL mechanisms that use the security layer, e.g.,
+		DIGEST-MD5.  Problem noted by Robert Stampfli.
+	If a timeout occurs while reading a message (during the DATA phase)
+		a df file might have been left behind in the queue.
+		This was another side effect of the changes to the I/O
+		layer made in 8.13.6.
+	Several minor problems have been fixed that were found by a
+		Coverity scan of sendmail 8 as part of the NetBSD
+		distribution. See http://scan.coverity.com/
+		Note: the scan generated also a lot of "false positives",
+		e.g., "error" reports about situations that cannot happen.
+		Most of those code places are marked with lint(1) comments
+		like NOTREACHED, but Coverity does not understand those.
+		Hence an explicit assertion has been added in some cases
+		to avoid those false positives.
+	If the start of the sendmail daemon fails due to a configuration
+		error then in some cases shared memory segments or pid
+		files were not removed.
+	If DSN support is disabled via access_db, then related ESMTP
+		parameters for MAIL and RCPT should be rejected.  Problem
+		reported by Akihiro Sagawa.
+	Enabling zlib compression in OpenSSL 0.9.8[ab] breaks the padding
+		bug work-around.  Hence if sendmail is linked against
+		either of these versions and compression is available,
+		the padding bug work-around is turned off.  Based on
+		patch from Victor Duchovni of Morgan Stanley.
+	CONFIG: FEATURE(`dnsbl') and FEATURE(`enhdnsbl') used
+		blackholes.mail-abuse.org as default domain for lookups,
+		however, that list is no longer available.  To avoid
+		further problems, no default value is available anymore,
+		but an argument must be specified.
+	Portability:
+		Fix compilation on OSF/1 for sfsasl.c.  Patch from
+		Pieter Bowman of the University of Utah.
 
 8.13.6/8.13.6	2006/03/22
 	SECURITY: Replace unsafe use of setjmp(3)/longjmp(3) in the server
