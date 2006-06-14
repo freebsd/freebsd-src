@@ -796,15 +796,17 @@ int
 kldload(struct thread *td, struct kldload_args *uap)
 {
 	char *pathname = NULL;
-	int error;
+	int error, fileid;
 
 	td->td_retval[0] = -1;
 
 	pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	error = copyinstr(uap->file, pathname, MAXPATHLEN, NULL);
-	if (error == 0)
-		error = kern_kldload(td, pathname, &td->td_retval[0]);
-
+	if (error == 0) {
+		error = kern_kldload(td, pathname, &fileid);
+		if (error == 0)
+			td->td_retval[0] = fileid;
+	}
 	free(pathname, M_TEMP);
 	return (error);
 }
