@@ -257,7 +257,7 @@ hardclock(int usermode, uintfptr_t pc)
 	 */
 	mtx_lock_spin_flags(&callout_lock, MTX_QUIET);
 	ticks++;
-	if (TAILQ_FIRST(&callwheel[ticks & callwheelmask]) != NULL) {
+	if (!TAILQ_EMPTY(&callwheel[ticks & callwheelmask])) {
 		need_softclock = 1;
 	} else if (softticks + 1 == ticks)
 		++softticks;
