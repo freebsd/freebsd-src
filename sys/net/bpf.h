@@ -630,7 +630,7 @@ static __inline int
 bpf_peers_present(struct bpf_if *bpf)
 {
 
-	if (bpf && !LIST_EMPTY(&bpf->bif_dlist))
+	if (!LIST_EMPTY(&bpf->bif_dlist))
 		return (1);
 	return (0);
 }
