@@ -43,7 +43,7 @@ $FreeBSD$
 
 #define MXGE_FW_OFFSET 1024*1024
 #define MXGE_EEPROM_STRINGS_SIZE 256
-#define MXGE_NUM_INTRQS 2
+#define MXGE_MAX_SEND_DESC 12
 
 typedef struct {
 	void *addr;
@@ -52,18 +52,13 @@ typedef struct {
 	bus_dmamap_t map;
 } mxge_dma_t;
 
-typedef struct mxge_intrq
-{
-  mcp_slot_t *q[MXGE_NUM_INTRQS];
-  int intrq;
-  int slot;
-  int maxslots;
-  uint32_t seqnum;
-  uint32_t spurious;
-  uint32_t cnt;
-  mxge_dma_t dma[MXGE_NUM_INTRQS];
-} mxge_intrq_t;
 
+typedef struct {
+	mcp_slot_t *entry;
+	mxge_dma_t dma;
+	int cnt;
+	int idx;
+} mxge_rx_done_t;
 
 typedef struct
 {
@@ -72,9 +67,15 @@ typedef struct
   uint32_t data2;
 } mxge_cmd_t;
 
-struct mxge_buffer_state {
+struct mxge_rx_buffer_state {
 	struct mbuf *m;
 	bus_dmamap_t map;
+};
+
+struct mxge_tx_buffer_state {
+	struct mbuf *m;
+	bus_dmamap_t map;
+	int flag;
 };
 
 typedef struct
@@ -82,7 +83,7 @@ typedef struct
 	volatile mcp_kreq_ether_recv_t *lanai;	/* lanai ptr for recv ring */
 	volatile uint8_t *wc_fifo;	/* w/c rx dma addr fifo address */
 	mcp_kreq_ether_recv_t *shadow;	/* host shadow of recv ring */
-	struct mxge_buffer_state *info;
+	struct mxge_rx_buffer_state *info;
 	bus_dma_tag_t dmat;
 	bus_dmamap_t extra_map;
 	int cnt;
@@ -96,11 +97,12 @@ typedef struct
 	volatile uint8_t *wc_fifo;		/* w/c send fifo address */
 	mcp_kreq_ether_send_t *req_list;	/* host shadow of sendq */
 	char *req_bytes;
-	struct mxge_buffer_state *info;
+	struct mxge_tx_buffer_state *info;
 	bus_dma_tag_t dmat;
 	int req;			/* transmits submitted	*/
 	int mask;			/* number of transmit slots -1 */
 	int done;			/* transmits completed	*/
+	int pkt_done;			/* packets completed */
 	int boundary;			/* boundary transmits cannot cross*/
 } mxge_tx_buf_t;
 
@@ -113,23 +115,23 @@ typedef struct {
 	mxge_tx_buf_t tx;	/* transmit ring 	*/
 	mxge_rx_buf_t rx_small;
 	mxge_rx_buf_t rx_big;
+	mxge_rx_done_t rx_done;
+	mcp_irq_data_t *fw_stats;
 	bus_dma_tag_t	parent_dmat;
 	volatile uint8_t *sram;
 	int sram_size;
+	volatile uint32_t *irq_deassert;
 	volatile uint32_t *irq_claim;
-	char *mac_addr_string;
-	char *product_code_string;
 	mcp_cmd_response_t *cmd;
 	mxge_dma_t cmd_dma;
 	mxge_dma_t zeropad_dma;
-	mcp_stats_t *fw_stats;
 	mxge_dma_t fw_stats_dma;
 	struct pci_dev *pdev;
 	int msi_enabled;
-	mxge_intrq_t intr;
 	int link_state;
 	unsigned int rdma_tags_available;
 	int intr_coal_delay;
+	volatile uint32_t *intr_coal_delay_ptr;
 	int wc;
 	struct mtx cmd_lock;
 	struct sx driver_lock;
@@ -147,6 +149,12 @@ typedef struct {
 	char fw_version[128];
 	device_t dev;
 	struct ifmedia media;
+	int read_dma;
+	int write_dma;
+	int read_write_dma;
+	char *mac_addr_string;
+	char product_code_string[64];
+	char serial_number_string[64];
 
 } mxge_softc_t;
 
