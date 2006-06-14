@@ -1277,32 +1277,30 @@ drop:
 }
 
 
-static void
+
+
+static inline void
 mxge_start_locked(mxge_softc_t *sc)
 {
-	int avail;
 	struct mbuf *m;
 	struct ifnet *ifp;
 
-
 	ifp = sc->ifp;
-	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-		 /* dequeue the packet */
+	while ((sc->tx.mask - (sc->tx.req - sc->tx.done))
+	       > MXGE_MAX_SEND_DESC) {
+	
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-
+		if (m == NULL) {
+			return;
+		}
 		/* let BPF see it */
 		BPF_MTAP(ifp, m);
 
 		/* give it to the nic */
 		mxge_encap(sc, m);
-
-		/* leave an extra slot keep the ring from wrapping */
-		avail = sc->tx.mask - (sc->tx.req - sc->tx.done);
-		if (avail < MXGE_MAX_SEND_DESC) {
-			sc->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			return;
-		}
 	}
+	/* ran out of transmit slots */
+	sc->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 }
 
 static void
