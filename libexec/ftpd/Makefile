@@ -6,7 +6,6 @@ MAN=	ftpd.8 ftpchroot.5
 SRCS=	ftpd.c ftpcmd.y logwtmp.c popen.c
 
 CFLAGS+=-DSETPROCTITLE -DLOGIN_CAP -DVIRTUAL_HOSTING
-CFLAGS+=-DINET6
 CFLAGS+=-I${.CURDIR}
 YFLAGS=
 WARNS?=	2
@@ -25,6 +24,10 @@ SRCS+=	ls.c cmp.c print.c util.c
 CFLAGS+=-Dmain=ls_main -I${.CURDIR}/${LSDIR}
 DPADD+=	${LIBM}
 LDADD+=	-lm
+
+.if !defined(NO_INET6)
+CFLAGS+=-DINET6
+.endif
 
 .if !defined(NO_PAM)
 CFLAGS+=-DUSE_PAM
