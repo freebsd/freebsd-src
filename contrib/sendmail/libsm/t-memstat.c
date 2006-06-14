@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2005, 2006 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,16 +8,20 @@
  */
 
 #include <sm/gen.h>
-SM_IDSTR(id, "@(#)$Id: t-memstat.c,v 1.5 2005/12/22 19:05:42 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: t-memstat.c,v 1.6 2006/03/27 22:34:47 ca Exp $")
 
 /*
-** Simple test program for memstat
+**  Simple test program for memstat
 */
 
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <strings.h>
+#include <string.h>
+
+extern char *optarg;
+extern int optind;
 
 int
 main(argc, argv)

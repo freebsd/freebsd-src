@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/sem.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.951 2006/03/02 19:13:38 ca Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.954 2006/04/22 01:07:00 ca Exp $")
 
 #include <dirent.h>
 
@@ -3902,6 +3902,7 @@ readqf(e, openonly)
 	**  Read and process the file.
 	*/
 
+	bp = NULL;
 	(void) sm_strlcpy(qf, queuename(e, ANYQFL_LETTER), sizeof qf);
 	qfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, qf, SM_IO_RDWR_B, NULL);
 	if (qfp == NULL)
@@ -4033,6 +4034,7 @@ readqf(e, openonly)
 		}
 		if (delim != '\0')
 			*bp = delim;
+		bp = NULL;
 	}
 	if (!bogus)
 		bogus = bitset(qsafe, st.st_mode);
@@ -4468,7 +4470,10 @@ readqf(e, openonly)
 		}
 
 		if (bp != buf)
+		{
 			sm_free(bp); /* XXX */
+			bp = NULL;
+		}
 	}
 
 	/*
@@ -4541,6 +4546,11 @@ readqf(e, openonly)
 	**	queueup() with bogus data.
 	*/
 
+	if (bp != NULL && bp != buf)
+	{
+		sm_free(bp); /* XXX */
+		bp = NULL;
+	}
 	if (qfp != NULL)
 		(void) sm_io_close(qfp, SM_TIME_DEFAULT);
 	e->e_lockfp = NULL;
@@ -5180,7 +5190,7 @@ queuename(e, type)
 	else
 	{
 		if (e->e_qgrp == NOQGRP || e->e_qdir == NOQDIR)
-			setnewqueue(e);
+			(void) setnewqueue(e);
 		if (type ==  DATAFL_LETTER)
 		{
 			qd = e->e_dfqdir;
@@ -5194,7 +5204,7 @@ queuename(e, type)
 	}
 
 	/* xf files always have a valid qd and qg picked above */
-	if (e->e_qdir == NOQDIR && type != XSCRPT_LETTER)
+	if ((qd == NOQDIR || qg == NOQGRP) && type != XSCRPT_LETTER)
 		(void) sm_strlcpyn(buf, sizeof buf, 2, pref, e->e_id);
 	else
 	{
@@ -6397,7 +6407,7 @@ filesys_update()
 
 #if SM_CONF_SHM
 	/* only the daemon updates this structure */
-	if (ShmId != SM_SHM_NO_ID && DaemonPid != CurrentPid)
+	if (ShmId == SM_SHM_NO_ID || DaemonPid != CurrentPid)
 		return;
 #endif /* SM_CONF_SHM */
 	now = curtime();

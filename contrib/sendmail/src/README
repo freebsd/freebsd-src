@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.388 2005/07/26 05:45:39 ca Exp $
+#	$Id: README,v 8.389 2006/05/02 16:58:50 ca Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -1716,6 +1716,18 @@ Regular Expressions (MAP_REGEX)
 	Make sure, your compiler reads regex.h from the distribution,
 	not from /usr/include, otherwise sendmail will dump a core.
 
+Fedora Core 5, 64 bit version
+	If the ld stage fails with undefined functions like
+	__res_querydomain, __dn_expand
+	then add these lines to devtools/Site/site.config.m4
+
+	APPENDDEF(`confLIBDIRS', `-L/usr/lib64')
+	APPENDDEF(`confINCDIRS', `-I/usr/include/bind9')
+
+	and rebuild (sh ./Build -c).
+
+	Problem noted by Daniel Krones, solution suggested by
+	Anthony Howe.
 
 +--------------+
 | MANUAL PAGES |
@@ -1832,4 +1844,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.388 $, last update $Date: 2005/07/26 05:45:39 $ )
+(Version $Revision: 8.389 $, last update $Date: 2006/05/02 16:58:50 $ )
