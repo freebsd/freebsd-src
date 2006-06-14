@@ -1831,8 +1831,9 @@ mxge_alloc_rings(mxge_softc_t *sc)
 
 	tx_ring_entries = tx_ring_size / sizeof (mcp_kreq_ether_send_t);
 	rx_ring_entries = rx_ring_size / sizeof (mcp_dma_addr_t);
-	sc->ifp->if_snd.ifq_maxlen = tx_ring_entries - 1;
 	sc->ifp->if_snd.ifq_drv_maxlen = sc->ifp->if_snd.ifq_maxlen;
+	IFQ_SET_MAXLEN(&sc->ifp->if_snd, tx_ring_entries - 1);
+	IFQ_SET_READY(&sc->ifp->if_snd);
 
 	sc->tx.mask = tx_ring_entries - 1;
 	sc->rx_small.mask = sc->rx_big.mask = rx_ring_entries - 1;
