@@ -221,6 +221,7 @@ pfsync_clone_create(struct if_clone *ifc, int unit)
 	sc->sc_statep.s = NULL;
 	sc->sc_statep_net.s = NULL;
 	sc->sc_maxupdates = 128;
+	sc->sc_sync_peer.s_addr = htonl(INADDR_PFSYNC_GROUP);
 	sc->sc_sendaddr.s_addr = htonl(INADDR_PFSYNC_GROUP);
 	sc->sc_ureq_received = 0;
 	sc->sc_ureq_sent = 0;
@@ -1054,7 +1055,11 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			return (error);
 
 		if (pfsyncr.pfsyncr_syncpeer.s_addr == 0)
+#ifdef __FreeBSD__
+			sc->sc_sync_peer.s_addr = htonl(INADDR_PFSYNC_GROUP);
+#else
 			sc->sc_sync_peer.s_addr = INADDR_PFSYNC_GROUP;
+#endif
 		else
 			sc->sc_sync_peer.s_addr =
 			    pfsyncr.pfsyncr_syncpeer.s_addr;
@@ -1118,7 +1123,11 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 
 		if (sc->sc_sync_ifp &&
+#ifdef __FreeBSD__
+		    sc->sc_sync_peer.s_addr == htonl(INADDR_PFSYNC_GROUP)) {
+#else
 		    sc->sc_sync_peer.s_addr == INADDR_PFSYNC_GROUP) {
+#endif
 			struct in_addr addr;
 
 			if (!(sc->sc_sync_ifp->if_flags & IFF_MULTICAST)) {
@@ -1152,7 +1161,11 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 
 		if (sc->sc_sync_ifp ||
+#ifdef __FreeBSD__
+		    sc->sc_sendaddr.s_addr != htonl(INADDR_PFSYNC_GROUP)) {
+#else
 		    sc->sc_sendaddr.s_addr != INADDR_PFSYNC_GROUP) {
+#endif
 			/* Request a full state table update. */
 			sc->sc_ureq_sent = time_uptime;
 #if NCARP > 0
@@ -1321,7 +1334,11 @@ pfsync_pack_state(u_int8_t action, struct pf_state *st, int flags)
 	 * hear, does it make a sound?
 	 */
 	if (ifp->if_bpf == NULL && sc->sc_sync_ifp == NULL &&
+#ifdef __FreeBSD__
+	    sc->sc_sync_peer.s_addr == htonl(INADDR_PFSYNC_GROUP)) {
+#else
 	    sc->sc_sync_peer.s_addr == INADDR_PFSYNC_GROUP) {
+#endif
 		/* Don't leave any stale pfsync packets hanging around. */
 		if (sc->sc_mbuf != NULL) {
 			m_freem(sc->sc_mbuf);
@@ -1773,7 +1790,12 @@ pfsync_sendout(sc)
 		sc->sc_statep_net.s = NULL;
 	}
 
-	if (sc->sc_sync_ifp || sc->sc_sync_peer.s_addr != INADDR_PFSYNC_GROUP) {
+#ifdef __FreeBSD__
+	if (sc->sc_sync_ifp ||
+	    sc->sc_sync_peer.s_addr != htonl(INADDR_PFSYNC_GROUP)) {
+#else
+	if (sc->sc_sync_ifp ||sc->sc_sync_peer.s_addr != INADDR_PFSYNC_GROUP) {
+#endif
 		struct ip *ip;
 		struct sockaddr sa;
 
@@ -1811,12 +1833,7 @@ pfsync_sendout(sc)
 #endif
 			m->m_flags |= M_MCAST;
 		ip->ip_dst = sc->sc_sendaddr;
-#ifdef __FreeBSD__
-		/* XXX_IMPORT */
-		sc->sc_sendaddr.s_addr = htonl(sc->sc_sync_peer.s_addr);
-#else
 		sc->sc_sendaddr.s_addr = sc->sc_sync_peer.s_addr;
-#endif
 
 		pfsyncstats.pfsyncs_opackets++;
 #ifdef __FreeBSD__
