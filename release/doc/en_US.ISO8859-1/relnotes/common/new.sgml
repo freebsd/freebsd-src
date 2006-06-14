@@ -114,6 +114,12 @@
       security advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:16.smbfs.asc">FreeBSD-SA-06:16.smbfs</ulink>.</para>
 
+    <para>A potential denial of service problem in &man.sendmail.8;
+      caused by excessive recursion which leads to stack
+      exhaustion when attempting delivery of a malformed
+      MIME message, has been fixed.  For more details,
+      see security advisory <ulink
+      url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:17.sendmail.asc">FreeBSD-SA-06:17.sendmail</ulink>.</para>
   </sect2>
 
   <sect2 id="kernel">
