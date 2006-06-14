@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: envelope.c,v 8.295 2005/06/15 20:32:18 ca Exp $")
+SM_RCSID("@(#)$Id: envelope.c,v 8.296 2006/03/31 18:53:50 ca Exp $")
 
 /*
 **  CLRSESSENVELOPE -- clear session oriented data in an envelope
@@ -519,7 +519,14 @@ simpledrop:
 			printenvflags(e);
 		}
 		if (!panic)
+		{
+			if (e->e_dfp != NULL)
+			{
+				(void) sm_io_close(e->e_dfp, SM_TIME_DEFAULT);
+				e->e_dfp = NULL;
+			}
 			(void) xunlink(queuename(e, DATAFL_LETTER));
+		}
 		if (panic && QueueMode == QM_LOST)
 		{
 			/*

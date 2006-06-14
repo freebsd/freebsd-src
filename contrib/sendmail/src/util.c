@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: util.c,v 8.392 2006/03/09 19:49:35 ca Exp $")
+SM_RCSID("@(#)$Id: util.c,v 8.394 2006/05/03 23:55:29 ca Exp $")
 
 #include <sysexits.h>
 #include <sm/xtrap.h>
@@ -2044,7 +2044,15 @@ prog_open(argv, pfd, e)
 
 	/* this process has no right to the queue file */
 	if (e->e_lockfp != NULL)
-		(void) close(sm_io_getinfo(e->e_lockfp, SM_IO_WHAT_FD, NULL));
+	{
+		int fd;
+
+		fd = sm_io_getinfo(e->e_lockfp, SM_IO_WHAT_FD, NULL);
+		if (fd >= 0)
+			(void) close(fd);
+		else
+			syserr("%s: lockfp does not have a fd", argv[0]);
+	}
 
 	/* chroot to the program mailer directory, if defined */
 	if (ProgMailer != NULL && ProgMailer->m_rootdir != NULL)
@@ -2737,7 +2745,7 @@ proc_list_probe()
 		CurChildren = 0;
 	if (chldwasblocked == 0)
 		(void) sm_releasesignal(SIGCHLD);
-	if (LogLevel > 10 && children != CurChildren)
+	if (LogLevel > 10 && children != CurChildren && CurrentPid == DaemonPid)
 	{
 		sm_syslog(LOG_ERR, NOQID,
 			  "proc_list_probe: found %d children, expected %d",

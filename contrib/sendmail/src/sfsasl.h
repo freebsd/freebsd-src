@@ -6,15 +6,15 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: sfsasl.h,v 8.19 2006/02/27 19:53:37 ca Exp $"
+ *	$Id: sfsasl.h,v 8.20 2006/03/27 21:31:00 ca Exp $"
  */
 
 #ifndef SFSASL_H
 # define SFSASL_H
 
-#if SASL
-extern int	sfdcsasl __P((SM_FILE_T **, SM_FILE_T **, sasl_conn_t *));
-#endif /* SASL */
+# if SASL
+extern int	sfdcsasl __P((SM_FILE_T **, SM_FILE_T **, sasl_conn_t *, int));
+# endif /* SASL */
 
 # if STARTTLS
 extern int	tls_retry __P((SSL *, int, int, time_t, int, int,

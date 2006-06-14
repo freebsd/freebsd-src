@@ -1,6 +1,6 @@
 #vers	2
 cpyr
-cpyr	Copyright (c) 1998-2000, 2002, 2004, 2005 Sendmail, Inc. and its suppliers.
+cpyr	Copyright (c) 1998-2000, 2002, 2004-2006 Sendmail, Inc. and its suppliers.
 cpyr	    All rights reserved.
 cpyr	Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
 cpyr	Copyright (c) 1988, 1993
@@ -11,7 +11,7 @@ cpyr	By using this file, you agree to the terms and conditions set
 cpyr	forth in the LICENSE file which can be found at the top level of
 cpyr	the sendmail distribution.
 cpyr
-cpyr	$$Id: helpfile,v 8.45 2005/09/13 00:05:23 ca Exp $$
+cpyr	$$Id: helpfile,v 8.47 2006/04/26 18:22:54 ca Exp $$
 cpyr
 smtp	This is sendmail version $v
 smtp	Topics:
@@ -20,8 +20,8 @@ smtp		RSET	NOOP	QUIT	HELP	VRFY
 smtp		EXPN	VERB	ETRN	DSN	AUTH
 smtp		STARTTLS
 smtp	For more info use "HELP <topic>".
-smtp	To report bugs in the implementation send email to
-smtp		sendmail-bugs@sendmail.org.
+smtp	To report bugs in the implementation see
+smtp		http://www.sendmail.org/email-addresses.html
 smtp	For local information send email to Postmaster at your site.
 help	HELP [ <topic> ]
 help		The HELP command gives help info.
@@ -77,14 +77,14 @@ expn		Expand an address.  If the address indicates a mailing
 expn		list, return the contents of that list.
 noop	NOOP
 noop		Do nothing.
-send	SEND FROM: <sender>
+send	SEND FROM:<sender>
 send		replaces the MAIL command, and can be used to send
 send		directly to a users terminal.  Not supported in this
 send		implementation.
-soml	SOML FROM: <sender>
+soml	SOML FROM:<sender>
 soml		Send or mail.  If the user is logged in, send directly,
 soml		otherwise mail.  Not supported in this implementation.
-saml	SAML FROM: <sender>
+saml	SAML FROM:<sender>
 saml		Send and mail.  Send directly to the user's terminal,
 saml		and also mail a letter.  Not supported in this
 saml		implementation.
@@ -95,8 +95,8 @@ etrn	ETRN [ <hostname> | @<domain> | \#<queuename> ]
 etrn		Run the queue for the specified <hostname>, or
 etrn		all hosts within a given <domain>, or a specially-named
 etrn		<queuename> (implementation-specific).
-dsn	MAIL FROM: <sender> [ RET={ FULL | HDRS} ] [ ENVID=<envid> ]
-dsn	RCPT TO: <recipient> [ NOTIFY={NEVER,SUCCESS,FAILURE,DELAY} ]
+dsn	MAIL From:<sender> [ RET={ FULL | HDRS} ] [ ENVID=<envid> ]
+dsn	RCPT To:<recipient> [ NOTIFY={NEVER,SUCCESS,FAILURE,DELAY} ]
 dsn			     [ ORCPT=<recipient> ]
 dsn		SMTP Delivery Status Notifications.
 dsn	Descriptions:
