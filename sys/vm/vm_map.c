@@ -1489,6 +1489,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 		 */
 		if ((flags & MAP_PREFAULT_MADVISE) &&
 		    cnt.v_free_count < cnt.v_free_reserved) {
+			size = ptoa(tmpidx);
 			break;
 		}
 		if ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL &&
