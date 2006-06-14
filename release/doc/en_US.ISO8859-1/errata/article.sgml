@@ -208,6 +208,13 @@
 	    <entry>31&nbsp;May&nbsp;2006</entry>
 	    <entry><para>smbfs chroot escape</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:17.sendmail.asc"
+		>SA-06:17.sendmail</ulink></entry>
+	    <entry>14&nbsp;June&nbsp;2006</entry>
+	    <entry><para>Incorrect multipart message handling in Sendmail</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
