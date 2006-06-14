@@ -1145,10 +1145,14 @@ static void	 help(struct tab *, char *);
 static struct tab *
 		 lookup(struct tab *, char *);
 static int	 port_check(const char *);
+#ifdef INET6
 static int	 port_check_v6(const char *);
+#endif
 static void	 sizecmd(char *);
 static void	 toolong(int);
+#ifdef INET6
 static void	 v4map_data_dest(void);
+#endif
 static int	 yylex(void);
 
 static struct tab *
