@@ -123,7 +123,7 @@ static mpt_reply_handler_t mpt_scsi_tmf_reply_handler;
 static mpt_reply_handler_t mpt_fc_els_reply_handler;
 static int mpt_scsi_reply_frame_handler(struct mpt_softc *, request_t *,
 					MSG_DEFAULT_REPLY *);
-static int mpt_bus_reset(struct mpt_softc *, int);
+static int mpt_bus_reset(struct mpt_softc *, target_id_t, lun_id_t, int);
 static int mpt_fc_reset_link(struct mpt_softc *, int);
 
 static int mpt_spawn_recovery_thread(struct mpt_softc *mpt);
@@ -1847,15 +1847,22 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 }
 
 static int
-mpt_bus_reset(struct mpt_softc *mpt, int sleep_ok)
+mpt_bus_reset(struct mpt_softc *mpt, target_id_t tgt, lun_id_t lun,
+    int sleep_ok)
 {
 	int   error;
 	uint16_t status;
 	uint8_t response;
 
-	error = mpt_scsi_send_tmf(mpt, MPI_SCSITASKMGMT_TASKTYPE_RESET_BUS,
+	error = mpt_scsi_send_tmf(mpt,
+	    (tgt != CAM_TARGET_WILDCARD || lun != CAM_LUN_WILDCARD) ?
+	    MPI_SCSITASKMGMT_TASKTYPE_TARGET_RESET :
+	    MPI_SCSITASKMGMT_TASKTYPE_RESET_BUS,
 	    mpt->is_fc ? MPI_SCSITASKMGMT_MSGFLAGS_LIP_RESET_OPTION : 0,
-	    0, 0, 0, 0, sleep_ok);
+	    0,	/* XXX How do I get the channel ID? */
+	    tgt != CAM_TARGET_WILDCARD ? tgt : 0,
+	    lun != CAM_LUN_WILDCARD ? lun : 0,
+	    0, sleep_ok);
 
 	if (error != 0) {
 		/*
@@ -2696,6 +2703,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	struct mpt_softc *mpt;
 	struct ccb_trans_settings *cts;
 	target_id_t tgt;
+	lun_id_t lun;
 	int raid_passthru;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("mpt_action\n"));
@@ -2705,8 +2713,10 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	raid_passthru = (sim == mpt->phydisk_sim);
 
 	tgt = ccb->ccb_h.target_id;
+	lun = ccb->ccb_h.target_lun;
 	if (raid_passthru && ccb->ccb_h.func_code != XPT_PATH_INQ &&
-	    ccb->ccb_h.func_code != XPT_RESET_BUS) {
+	    ccb->ccb_h.func_code != XPT_RESET_BUS &&
+	    ccb->ccb_h.func_code != XPT_RESET_DEV) {
 		CAMLOCK_2_MPTLOCK(mpt);
 		if (mpt_map_physdisk(mpt, ccb, &tgt) != 0) {
 			MPTLOCK_2_CAMLOCK(mpt);
@@ -2744,10 +2754,13 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		return;
 
 	case XPT_RESET_BUS:
-		mpt_lprt(mpt, MPT_PRT_DEBUG, "XPT_RESET_BUS\n");
+	case XPT_RESET_DEV:
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+			ccb->ccb_h.func_code == XPT_RESET_BUS ?
+			"XPT_RESET_BUS\n" : "XPT_RESET_DEV\n");
 
 		CAMLOCK_2_MPTLOCK(mpt);
-		(void) mpt_bus_reset(mpt, FALSE);
+		(void) mpt_bus_reset(mpt, tgt, lun, FALSE);
 		MPTLOCK_2_CAMLOCK(mpt);
 
 		/*
@@ -2784,9 +2797,9 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	}
 
 #ifdef	CAM_NEW_TRAN_CODE
-#define	IS_CURRENT_SETTINGS(c)	(c->type == CTS_TYPE_CURRENT_SETTINGS)
+#define	IS_CURRENT_SETTINGS(c)	((c)->type == CTS_TYPE_CURRENT_SETTINGS)
 #else
-#define	IS_CURRENT_SETTINGS(c)	(c->flags & CCB_TRANS_CURRENT_SETTINGS)
+#define	IS_CURRENT_SETTINGS(c)	((c)->flags & CCB_TRANS_CURRENT_SETTINGS)
 #endif
 #define	DP_DISC_ENABLE	0x1
 #define	DP_DISC_DISABL	0x2
@@ -2814,11 +2827,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		int i, j;
 
 		cts = &ccb->cts;
-		if (!IS_CURRENT_SETTINGS(cts)) {
-			mpt_prt(mpt, "Attempt to set User settings\n");
-			mpt_set_ccb_status(ccb, CAM_REQ_INVALID);
-			break;
-		}
 
 		if (mpt->is_fc || mpt->is_sas) {
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
@@ -2854,18 +2862,20 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		offset = 0;
 
 #ifndef	CAM_NEW_TRAN_CODE
-		if (cts->valid & CCB_TRANS_DISC_VALID) {
-			dval |= DP_DISC_ENABLE;
+		if ((cts->valid & CCB_TRANS_DISC_VALID) != 0) {
+			dval |= (cts->flags & CCB_TRANS_DISC_ENB) ?
+			    DP_DISC_ENABLE : DP_DISC_DISABL;
 		}
-		if (cts->valid & CCB_TRANS_TQ_VALID) {
-			dval |= DP_TQING_ENABLE;
+
+		if ((cts->valid & CCB_TRANS_TQ_VALID) != 0) {
+			dval |= (cts->flags & CCB_TRANS_TAG_ENB) ?
+			    DP_TQING_ENABLE : DP_TQING_DISABL;
 		}
-		if (cts->valid & CCB_TRANS_BUS_WIDTH_VALID) {
-			if (cts->bus_width)
-				dval |= DP_WIDE;
-			else
-				dval |= DP_NARROW;
+
+		if ((cts->valid & CCB_TRANS_BUS_WIDTH_VALID) != 0) {
+			dval |= cts->bus_width ? DP_WIDE : DP_NARROW;
 		}
+
 		if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) &&
 		    (cts->valid & CCB_TRANS_SYNC_OFFSET_VALID)) {
 			dval |= DP_SYNC;
@@ -2877,27 +2887,18 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		spi = &cts->xport_specific.spi;
 
 		if ((spi->valid & CTS_SPI_VALID_DISC) != 0) {
-			if ((spi->flags & CTS_SPI_FLAGS_DISC_ENB) != 0) {
-				dval |= DP_DISC_ENABLE;
-			} else {
-				dval |= DP_DISC_DISABL;
-			}
+			dval |= (spi->flags & CTS_SPI_FLAGS_DISC_ENB) != 0) ?
+			    DP_DISC_ENABLE : DP_DISC_DISABL;
 		}
 
 		if ((scsi->valid & CTS_SCSI_VALID_TQ) != 0) {
-			if ((scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0) {
-				dval |= DP_TQING_ENABLE;
-			} else {
-				dval |= DP_TQING_DISABL;
-			}
+			dval |= (scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0) ?
+			    DP_TQING_ENABLE : DP_TQING_DISABL;
 		}
 
 		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0) {
-			if (spi->bus_width == MSG_EXT_WDTR_BUS_16_BIT) {
-				dval |= DP_WIDE;
-			} else {
-				dval |= DP_NARROW;
-			}
+			dval |= (spi->bus_width == MSG_EXT_WDTR_BUS_16_BIT) ?
+			    DP_WIDE : DP_NARROW;
 		}
 
 		if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) &&
@@ -3179,15 +3180,12 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 			return (rv);
 		}
 		MPTLOCK_2_CAMLOCK(mpt);
-		if (tmp.NegotiatedParameters & MPI_SCSIDEVPAGE0_NP_WIDE) {
-			dval |= DP_WIDE;
-		}
-		if (mpt->mpt_disc_enable & (1 << tgt)) {
-			dval |= DP_DISC_ENABLE;
-		}
-		if (mpt->mpt_tag_enable & (1 << tgt)) {
-			dval |= DP_TQING_ENABLE;
-		}
+		dval |= (tmp.NegotiatedParameters & MPI_SCSIDEVPAGE0_NP_WIDE) ?
+		    DP_WIDE : DP_NARROW;
+		dval |= (mpt->mpt_disc_enable & (1 << tgt)) ?
+		    DP_DISC_ENABLE : DP_DISC_DISABL;
+		dval |= (mpt->mpt_tag_enable & (1 << tgt)) ?
+		    DP_TQING_ENABLE : DP_TQING_DISABL;
 		oval = (tmp.NegotiatedParameters >> 16) & 0xff;
 		pval = (tmp.NegotiatedParameters >>  8) & 0xff;
 		mpt->mpt_dev_page0[tgt] = tmp;
@@ -3195,9 +3193,9 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 		/*
 		 * XXX: Just make theoretical maximum.
 		 */
-		dval = DP_WIDE|DP_DISC|DP_TQING;
-		oval = (mpt->mpt_port_page0.Capabilities >> 16);
-		pval = (mpt->mpt_port_page0.Capabilities >>  8);
+		dval = DP_WIDE|DP_DISC_ENABLE|DP_TQING_ENABLE;
+		oval = (mpt->mpt_port_page0.Capabilities >> 16) & 0xff;
+		pval = (mpt->mpt_port_page0.Capabilities >>  8) & 0xff;
 	}
 #ifndef	CAM_NEW_TRAN_CODE
 	cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
