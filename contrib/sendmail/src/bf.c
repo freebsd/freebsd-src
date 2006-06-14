@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2002, 2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2002, 2004, 2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -18,7 +18,7 @@
 */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: bf.c,v 8.61 2004/08/03 23:59:02 ca Exp $")
+SM_RCSID("@(#)$Id: bf.c,v 8.62 2006/03/31 18:45:56 ca Exp $")
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -540,13 +540,16 @@ sm_bfwrite(fp, buf, nbytes)
 		if (!bfp->bf_ondisk)
 		{
 			MODE_T omask;
+			int save_errno;
 
 			/* Clear umask as bf_filemode are the true perms */
 			omask = umask(0);
 			retval = OPEN(bfp->bf_filename,
 				      O_RDWR | O_CREAT | O_TRUNC | QF_O_EXTRA,
 				      bfp->bf_filemode, bfp->bf_flags);
+			save_errno = errno;
 			(void) umask(omask);
+			errno = save_errno;
 
 			/* Couldn't create file: failure */
 			if (retval < 0)

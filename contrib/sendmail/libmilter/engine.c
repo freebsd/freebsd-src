@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2003 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2004, 2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: engine.c,v 8.120 2004/10/20 21:09:00 ca Exp $")
+SM_RCSID("@(#)$Id: engine.c,v 8.121 2006/04/18 21:01:46 ca Exp $")
 
 #include "libmilter.h"
 
@@ -165,6 +165,8 @@ static int next_states[] =
 	NX_ABRT,
 	NX_UNKN
 };
+
+#define SIZE_NEXT_STATES	(sizeof(next_states) / sizeof(next_states[0]))
 
 /* commands received by milter */
 static cmdfct cmds[] =
@@ -1076,6 +1078,8 @@ trans_ok(old, new)
 	int s, n;
 
 	s = old;
+	if (s >= SIZE_NEXT_STATES)
+		return false;
 	do
 	{
 		/* is this state transition allowed? */
@@ -1089,6 +1093,8 @@ trans_ok(old, new)
 		*/
 
 		n = s + 1;
+		if (n >= SIZE_NEXT_STATES)
+			return false;
 
 		/*
 		**  can we actually "skip" this state?
@@ -1100,7 +1106,7 @@ trans_ok(old, new)
 			s = n;
 		else
 			return false;
-	} while (s <= ST_LAST);
+	} while (s < SIZE_NEXT_STATES);
 	return false;
 }
 /*
