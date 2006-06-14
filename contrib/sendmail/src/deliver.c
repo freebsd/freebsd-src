@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.1000 2006/03/02 01:37:39 ca Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.1003.2.1 2006/05/23 01:32:08 ca Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>
@@ -3127,15 +3127,18 @@ reconnect:	/* after switching to an encrypted connection */
 
 				if (result == SASL_OK && *ssf > 0)
 				{
+					int tmo;
+
 					/*
 					**  Convert I/O layer to use SASL.
 					**  If the call fails, the connection
 					**  is aborted.
 					*/
 
+					tmo = DATA_PROGRESS_TIMEOUT * 1000;
 					if (sfdcsasl(&mci->mci_in,
 						     &mci->mci_out,
-						     mci->mci_conn) == 0)
+						     mci->mci_conn, tmo) == 0)
 					{
 						mci->mci_flags &= ~MCIF_EXTENS;
 						mci->mci_flags |= MCIF_AUTHACT|
@@ -3961,7 +3964,11 @@ giveresponse(status, dsn, m, mci, ctladdr, xstart, e, to)
 	char *exmsg;
 
 	if (e == NULL)
+	{
 		syserr("giveresponse: null envelope");
+		/* NOTREACHED */
+		SM_ASSERT(0);
+	}
 
 	/*
 	**  Compute status message from code.
@@ -4623,7 +4630,7 @@ putbody(mci, e, separator)
 		/* now do the hard work */
 		boundaries[0] = NULL;
 		mci->mci_flags |= MCIF_INHEADER;
-		if (mime8to7(mci, e->e_header, e, boundaries, M87F_OUTER) ==
+		if (mime8to7(mci, e->e_header, e, boundaries, M87F_OUTER, 0) ==
 								SM_IO_EOF)
 			goto writeerr;
 	}
@@ -4654,7 +4661,7 @@ putbody(mci, e, separator)
 			SuprErrs = true;
 
 		if (mime8to7(mci, e->e_header, e, boundaries,
-				M87F_OUTER|M87F_NO8TO7) == SM_IO_EOF)
+				M87F_OUTER|M87F_NO8TO7, 0) == SM_IO_EOF)
 			goto writeerr;
 
 		/* restore SuprErrs */
@@ -5217,8 +5224,14 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 		CurrentPid = getpid();
 
 		if (e->e_lockfp != NULL)
-			(void) close(sm_io_getinfo(e->e_lockfp, SM_IO_WHAT_FD,
-				     NULL));
+		{
+			int fd;
+
+			fd = sm_io_getinfo(e->e_lockfp, SM_IO_WHAT_FD, NULL);
+			/* SM_ASSERT(fd >= 0); */
+			if (fd >= 0)
+				(void) close(fd);
+		}
 
 		(void) sm_signal(SIGINT, SIG_DFL);
 		(void) sm_signal(SIGHUP, SIG_DFL);
