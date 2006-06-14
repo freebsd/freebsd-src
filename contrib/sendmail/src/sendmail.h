@@ -52,7 +52,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1006 2006/02/27 17:49:09 ca Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1008.2.1 2006/05/23 01:32:07 ca Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -942,6 +942,7 @@ struct envelope
 #define EF_TOOBIG	0x02000000L	/* message is too big */
 #define EF_SPLIT	0x04000000L	/* envelope has been split */
 #define EF_UNSAFE	0x08000000L	/* unsafe: read from untrusted source */
+#define EF_TOODEEP	0x10000000L	/* message is nested too deep */
 
 #define DLVR_NOTIFY	0x01
 #define DLVR_RETURN	0x02
@@ -1655,7 +1656,7 @@ EXTERN unsigned long	PrivacyFlags;	/* privacy flags */
 
 /* functions */
 extern bool	mime7to8 __P((MCI *, HDR *, ENVELOPE *));
-extern int	mime8to7 __P((MCI *, HDR *, ENVELOPE *, char **, int));
+extern int	mime8to7 __P((MCI *, HDR *, ENVELOPE *, char **, int, int));
 
 /*
 **  Flags passed to returntosender.
@@ -2224,7 +2225,7 @@ EXTERN int	MaxNOOPCommands; /* max "noise" commands before slowdown */
 EXTERN int	MaxRcptPerMsg;	/* max recipients per SMTP message */
 EXTERN int	MaxRuleRecursion;	/* maximum depth of ruleset recursion */
 #if _FFR_MSG_ACCEPT
-EXTERN char	*MessageAccept;
+EXTERN char	*MessageAccept; /* "Message accepted for delivery" reply text */
 #endif /* _FFR_MSG_ACCEPT */
 
 EXTERN int	MimeMode;	/* MIME processing mode */

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: headers.c,v 8.290 2006/02/25 02:16:52 ca Exp $")
+SM_RCSID("@(#)$Id: headers.c,v 8.291 2006/03/24 01:01:56 ca Exp $")
 
 static HDR	*allocheader __P((char *, char *, int, SM_RPOOL_T *));
 static size_t	fix_mime_header __P((HDR *, ENVELOPE *));
@@ -1542,7 +1542,7 @@ crackaddr(addr, e)
 **		flags -- MIME conversion flags.
 **
 **	Returns:
-**		success
+**		true iff header part was written successfully
 **
 **	Side Effects:
 **		none.
@@ -1810,7 +1810,7 @@ putheader(mci, hdr, e, flags)
 **		mci -- the connection info for output
 **
 **	Returns:
-**		success
+**		true iff header was written successfully
 */
 
 static bool
@@ -1871,7 +1871,7 @@ put_vanilla_header(h, v, mci)
 **		e -- the envelope containing the message.
 **
 **	Returns:
-**		success
+**		true iff header field was written successfully
 **
 **	Side Effects:
 **		outputs "p" to file "fp".
