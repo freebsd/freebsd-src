@@ -1,4 +1,4 @@
-.\" Copyright (c) 2005 Robert N. M. Watson
+.\" Copyright (c) 2006 Xin LI
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,52 +24,66 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 7, 2005
+.Dd June 14, 2006
 .Os
-.Dt SCHED_4BSD 4
+.Dt SCHED_CORE 4
 .Sh NAME
-.Nm sched_4bsd
-.Nd "4.4BSD scheduler"
+.Nm sched_core
+.Nd CORE Scheduler
 .Sh SYNOPSIS
-.Cd "options SCHED_4BSD"
+.Cd "options SCHED_CORE"
 .Sh DESCRIPTION
 The
 .Nm
 scheduler
-is the default system scheduler, providing both high throughput and solid
-interactive response in the presence of load.
+is an experimental scheduler that provides a number of advanced scheduler
+features not present in
+.Xr sched_4bsd 4 ,
+the default system scheduler, nor
+.Xr sched_ule 4 where it is forked off.
+These features address SMP and interactivity and include:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+Nice value of timesharing processes is respected.  Allocation of
+timeslice and interaction detection algorithm are based on
+nice value.
+.It
+Per-cpu scheduling queue and load balancing.
+.It
+O(1) scheduling.
+.It
+Some cpu affinity code in wakeup path.
+.It
+Support for POSIX SCHED_FIFO and SCHED_RR.
+.El
 .Pp
 The following sysctls are relevant to the operation of
 .Nm :
 .Bl -tag -width indent
 .It Va kern.sched.name
 This read-only sysctl reports the name of the active scheduler.
-.It Va kern.sched.quantum
-This read-write sysctl reports or sets the length of the quantum (in
-micro-seconds) granted to a thread.
-.It Va kern.sched.ipiwakeup.enabled
-This read-write sysctl sets whether or not the scheduler will generate an
-inter-processor interrupt (IPI) to an idle CPU when a thread is woken up.
-Otherwise, idle CPUs will wait until the next clock tick before looking for
-new work.
-.It Va kern.sched.preemption
-This read-only sysctl reports whether or not the kernel is configured to
-support preemption, which reduces the latency to run lower priority threads
-on wakeup.
+.It Va kern.sched.imbalance_pct
+(SMP specific) Lower watermark that triggers thread migration
+if the differce is above this percentage.
+.It Va kern.sched.imbalance_pct2
+(SMP specific) Higher watermark where the current CPU is not
+considered the perferred one for migration.
 .El
 .Pp
-Some sysctls will be available only on systems supporting SMP.
+The
+.Nm
+scheduler
+is not enabled by default as it is experimental.
 .Sh SEE ALSO
-.Xr sched_core 4 ,
+.Xr sched_4bsd 4 ,
 .Xr sched_ule 4 ,
 .Xr sysctl 8
 .Sh HISTORY
 The
 .Nm
-scheduler has been present, in various forms, since the inception of
-.Bx .
-.Sh BUGS
-While a highly robust and time-tested scheduler,
-.Nm
-lacks specific knowledge of how to schedule advantageously in non-symmetric
-processor configurations, such as hyper-threading.
+scheduler first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+.An David Xu
+.Aq davidxu@FreeBSD.org
