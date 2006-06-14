@@ -79,7 +79,7 @@ For more information on configuring this device, see
 .Sh HARDWARE
 The
 .Nm
-driver supports 10 Gigabit Ethernet adapters based on the 
+driver supports 10 Gigabit Ethernet adapters based on the
 Myricom LANai Z8E chips:
 .Pp
 .Bl -bullet -compact
@@ -101,13 +101,16 @@ Whether or not hardware flow control is enabled on the adapter.
 The default value is 1.
 .It Va hw.mxge.intr_coal_delay
 This value delays the generation of all interrupts in units of
-1 microsecond. The default value is 30.
+1 microsecond.
+The default value is 30.
 .It Va hw.mxge.skip_pio_read
 This value determines whether or not the driver may omit doing a
 pio read in the interrupt handler which ensures that the interrupt
-line has been deasserted when using xPIC interrupts. A non-zero value 
-may result in lower CPU overhead, however it may also result in 
-spurious interrupts. The default value is 0.
+line has been deasserted when using xPIC interrupts.
+A non-zero value 
+may result in lower CPU overhead, however it may also result in
+spurious interrupts.
+The default value is 0.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -116,8 +119,8 @@ A fatal initialization error has occurred.
 .It "mxge%d: Unable to allocate bus resource: interrupt"
 A fatal initialization error has occurred.
 .It "mxge%d: Could not find firmware image %s"
-The appropriate firmware kld module was not installed.  This is a 
-fatal initialization error.
+The appropriate firmware kld module was not installed.
+This is a fatal initialization error.
 .El
 .Sh SUPPORT
 For general information and support,
@@ -142,5 +145,4 @@ device driver first appeared in
 The
 .Nm
 driver was written by
-.An Andrew Gallatin Aq gallatin@freebsd.org .
-
+.An Andrew Gallatin Aq gallatin@FreeBSD.org .
