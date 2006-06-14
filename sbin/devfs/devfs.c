@@ -162,8 +162,7 @@ efgetln(FILE *fp, char **line)
 		*line = malloc(rv + 1);
 		if (*line == NULL)
 			errx(1, "cannot allocate memory");
-		memcpy(*line, cp, rv);
-		*line[rv] = '\0';
+		rv = strlcpy(*line, cp, rv + 1);
 	}
 	assert(rv == strlen(*line));
 	return (rv);
