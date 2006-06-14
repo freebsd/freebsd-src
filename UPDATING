@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060614:	p9	FreeBSD-SA-06:17.sendmail
+	Correct a bug in the handling of multipart messages by sendmail(8)
+	which can allow a malformed message to crash a sendmail queue
+	processing process.
+
 20060531:	p8	FreeBSD-SA-06:15.ypserv, FreeBSD-SA-06:16.smbfs
 	Enable inadvertantly disabled "securenet" access controls in
 	ypserv. [06:15]
