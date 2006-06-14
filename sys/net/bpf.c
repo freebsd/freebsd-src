@@ -1790,6 +1790,7 @@ SYSINIT(bpfdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,bpf_drvinit,NULL)
  * A 'better' implementation would allow the core bpf functionality
  * to be loaded at runtime.
  */
+static struct bpf_if bp_null;
 
 void
 bpf_tap(bp, pkt, pktlen)
@@ -1820,6 +1821,8 @@ bpfattach(ifp, dlt, hdrlen)
 	struct ifnet *ifp;
 	u_int dlt, hdrlen;
 {
+
+	bpfattach2(ifp, dlt, hdrlen, &ifp->if_bpf);
 }
 
 void
@@ -1828,6 +1831,8 @@ bpfattach2(ifp, dlt, hdrlen, driverp)
 	u_int dlt, hdrlen;
 	struct bpf_if **driverp;
 {
+
+	*driverp = &bp_null;
 }
 
 void
