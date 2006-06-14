@@ -14,7 +14,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.1081 2006/02/24 02:21:53 ca Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.1082 2006/03/22 22:49:33 ca Exp $")
 
 #include <sendmail/pathnames.h>
 #if NEWDB
@@ -2198,7 +2198,7 @@ shouldqueue(pri, ct)
 	    memfree < QueueLowMem)
 	{
 		if (tTd(3, 30))
-			sm_dprintf("true (memfree=%ld < QueueLowMem)\n",
+			sm_dprintf("true (memfree=%ld < QueueLowMem=%ld)\n",
 				memfree, QueueLowMem);
 		return true;
 	}

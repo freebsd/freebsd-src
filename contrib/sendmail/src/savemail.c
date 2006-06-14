@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003, 2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -15,7 +15,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: savemail.c,v 8.306 2006/02/25 02:16:53 ca Exp $")
+SM_RCSID("@(#)$Id: savemail.c,v 8.308 2006/04/18 01:31:33 ca Exp $")
 
 static bool	errbody __P((MCI *, ENVELOPE *, char *));
 static bool	pruneroute __P((char *));
@@ -735,7 +735,7 @@ returntosender(msg, returnq, flags, e)
 **		separator -- any possible MIME separator (unused).
 **
 **	Returns:
-**		success
+**		true iff body was written successfully
 **
 **	Side Effects:
 **		Outputs the body of an error message.
@@ -1266,8 +1266,8 @@ errbody(mci, e, separator)
 			/* Diagnostic-Code: -- actual result from other end */
 			if (q->q_rstatus != NULL)
 			{
-				p = q->q_mailer->m_diagtype;
-				if (p == NULL)
+				if (q->q_mailer == NULL ||
+				    (p = q->q_mailer->m_diagtype) == NULL)
 					p = "smtp";
 				(void) sm_snprintf(buf, sizeof buf,
 						"Diagnostic-Code: %s; %.800s",
