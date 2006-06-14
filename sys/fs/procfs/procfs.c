@@ -98,9 +98,7 @@ procfs_attr(PFS_ATTR_ARGS)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	/* XXX inefficient, split into separate functions */
-	if (p->p_flag & P_SUGID)
-		vap->va_mode = 0;
-	else if (strcmp(pn->pn_name, "ctl") == 0 ||
+	if (strcmp(pn->pn_name, "ctl") == 0 ||
 	    strcmp(pn->pn_name, "note") == 0 ||
 	    strcmp(pn->pn_name, "notepg") == 0)
 		vap->va_mode = 0200;
@@ -109,6 +107,9 @@ procfs_attr(PFS_ATTR_ARGS)
 	    strcmp(pn->pn_name, "dbregs") == 0 ||
 	    strcmp(pn->pn_name, "fpregs") == 0)
 		vap->va_mode = 0600;
+
+	if ((p->p_flag & P_SUGID) && pn->pn_type != pfstype_procdir)
+		vap->va_mode = 0;
 
 	vap->va_uid = p->p_ucred->cr_uid;
 	vap->va_gid = p->p_ucred->cr_gid;
