@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd December 8, 2005
+.Dd June 15, 2006
 .Dt SH 1
 .Os
 .Sh NAME
@@ -305,8 +305,9 @@ as it is read.
 Useful for debugging.
 .It Fl x Li xtrace
 Write each command
-(preceded by
-.Dq Li "+ " )
+(preceded by the value of the 
+.Ev PS4
+variable)
 to standard error before it is executed.
 Useful for debugging.
 .El
@@ -2197,6 +2198,12 @@ unless you are the superuser, in which case it defaults to
 .It Ev PS2
 The secondary prompt string, which defaults to
 .Dq Li "> " .
+.It Ev PS4
+The prefix for the trace output (if
+.Fl x
+is active).
+The default is
+.Dq Li "+ " .
 .It Ev TERM
 The default terminal setting for the shell.
 This is inherited by children of the shell, and is used in the history
