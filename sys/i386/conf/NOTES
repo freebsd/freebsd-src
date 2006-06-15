@@ -1020,6 +1020,9 @@ options 	COMPAT_AOUT
 # and PSEUDOFS)
 options 	LINPROCFS
 
+#Enable the linux-like sys filesystem support (requires COMPAT_LINUX)
+options		LINSYSFS
+
 #
 # SysVR4 ABI emulation
 #
