@@ -1417,61 +1417,62 @@ lookup_dyn_parent(struct ipfw_flow_id *pkt, struct ip_fw *rule)
  */
 static int
 install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
-	struct ip_fw_args *args)
+    struct ip_fw_args *args)
 {
 	static int last_log;
 
 	ipfw_dyn_rule *q;
 
-	DEB(printf("ipfw: install state type %d 0x%08x %u -> 0x%08x %u\n",
-	    cmd->o.opcode,
+	DEB(
+	printf("ipfw: %s: type %d 0x%08x %u -> 0x%08x %u\n",
+	    __func__, cmd->o.opcode,
 	    (args->f_id.src_ip), (args->f_id.src_port),
-	    (args->f_id.dst_ip), (args->f_id.dst_port) );)
+	    (args->f_id.dst_ip), (args->f_id.dst_port));
+	)
 
 	IPFW_DYN_LOCK();
 
 	q = lookup_dyn_rule_locked(&args->f_id, NULL, NULL);
 
-	if (q != NULL) { /* should never occur */
+	if (q != NULL) {	/* should never occur */
 		if (last_log != time_uptime) {
 			last_log = time_uptime;
-			printf("ipfw: install_state: entry already present, done\n");
+			printf("ipfw: %s: entry already present, done\n",
+			    __func__);
 		}
 		IPFW_DYN_UNLOCK();
-		return 0;
+		return (0);
 	}
 
 	if (dyn_count >= dyn_max)
-		/*
-		 * Run out of slots, try to remove any expired rule.
-		 */
+		/* Run out of slots, try to remove any expired rule. */
 		remove_dyn_rule(NULL, (ipfw_dyn_rule *)1);
 
 	if (dyn_count >= dyn_max) {
 		if (last_log != time_uptime) {
 			last_log = time_uptime;
-			printf("ipfw: install_state: Too many dynamic rules\n");
+			printf("ipfw: %s: Too many dynamic rules\n", __func__);
 		}
 		IPFW_DYN_UNLOCK();
-		return 1; /* cannot install, notify caller */
+		return (1);	/* cannot install, notify caller */
 	}
 
 	switch (cmd->o.opcode) {
-	case O_KEEP_STATE: /* bidir rule */
+	case O_KEEP_STATE:	/* bidir rule */
 		add_dyn_rule(&args->f_id, O_KEEP_STATE, rule);
 		break;
 
-	case O_LIMIT: /* limit number of sessions */
-	    {
-		u_int16_t limit_mask = cmd->limit_mask;
+	case O_LIMIT: {		/* limit number of sessions */
 		struct ipfw_flow_id id;
 		ipfw_dyn_rule *parent;
+		uint16_t limit_mask = cmd->limit_mask;
 
-		DEB(printf("ipfw: installing dyn-limit rule %d\n",
-		    cmd->conn_limit);)
+		DEB(
+		printf("ipfw: %s: O_LIMIT rule, conn_limit: %u\n",
+		    __func__, cmd->conn_limit);
+		)
 
-		id.dst_ip = id.src_ip = 0;
-		id.dst_port = id.src_port = 0;
+		id.dst_ip = id.src_ip = id.dst_port = id.src_port = 0;
 		id.proto = args->f_id.proto;
 		id.addr_type = args->f_id.addr_type;
 
@@ -1490,16 +1491,14 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 			id.src_port = args->f_id.src_port;
 		if (limit_mask & DYN_DST_PORT)
 			id.dst_port = args->f_id.dst_port;
-		parent = lookup_dyn_parent(&id, rule);
-		if (parent == NULL) {
-			printf("ipfw: add parent failed\n");
+		if ((parent = lookup_dyn_parent(&id, rule)) == NULL) {
+			printf("ipfw: %s: add parent failed\n", __func__);
 			IPFW_DYN_UNLOCK();
-			return 1;
+			return (1);
 		}
+
 		if (parent->count >= cmd->conn_limit) {
-			/*
-			 * See if we can remove some expired rule.
-			 */
+			/* See if we can remove some expired rule. */
 			remove_dyn_rule(rule, parent);
 			if (parent->count >= cmd->conn_limit) {
 				if (fw_verbose && last_log != time_uptime) {
@@ -1508,20 +1507,24 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 					    "drop session, too many entries\n");
 				}
 				IPFW_DYN_UNLOCK();
-				return 1;
+				return (1);
 			}
 		}
 		add_dyn_rule(&args->f_id, O_LIMIT, (struct ip_fw *)parent);
-	    }
 		break;
-	default:
-		printf("ipfw: unknown dynamic rule type %u\n", cmd->o.opcode);
-		IPFW_DYN_UNLOCK();
-		return 1;
 	}
-	lookup_dyn_rule_locked(&args->f_id, NULL, NULL); /* XXX just set lifetime */
+	default:
+		printf("ipfw: %s: unknown dynamic rule type %u\n",
+		    __func__, cmd->o.opcode);
+		IPFW_DYN_UNLOCK();
+		return (1);
+	}
+
+	/* XXX just set lifetime */
+	lookup_dyn_rule_locked(&args->f_id, NULL, NULL);
+
 	IPFW_DYN_UNLOCK();
-	return 0;
+	return (0);
 }
 
 /*
