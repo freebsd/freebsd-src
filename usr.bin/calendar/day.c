@@ -361,6 +361,11 @@ isnow(endp, monthp, dayp, varp)
 	}
 
 	if (!(flags & F_EASTER)) {
+	    if (day + cumdays[month] > cumdays[month + 1]) {    /* off end of month */
+		day -= (cumdays[month + 1] - cumdays[month]);   /* adjust */
+		if (++month > 12)                               /* next year */
+		    month = 1;
+	    }
 	    *monthp = month;
 	    *dayp = day;
 	    day = cumdays[month] + day;
