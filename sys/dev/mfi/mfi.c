@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/poll.h>
+#include <sys/selinfo.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/eventhandler.h>
@@ -40,6 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus_dma.h>
 #include <sys/bio.h>
 #include <sys/ioccom.h>
+#include <sys/uio.h>
+#include <sys/proc.h>
+#include <sys/signalvar.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -53,6 +58,11 @@ static void	mfi_release_command(struct mfi_command *cm);
 static int	mfi_comms_init(struct mfi_softc *);
 static int	mfi_polled_command(struct mfi_softc *, struct mfi_command *);
 static int	mfi_get_controller_info(struct mfi_softc *);
+static int	mfi_get_log_state(struct mfi_softc *,
+		    struct mfi_evt_log_state *);
+#ifdef NOTYET
+static int	mfi_get_entry(struct mfi_softc *, int);
+#endif
 static void	mfi_data_cb(void *, bus_dma_segment_t *, int, int);
 static void	mfi_startup(void *arg);
 static void	mfi_intr(void *arg);
@@ -63,17 +73,23 @@ static int	mfi_ldprobe_capacity(struct mfi_softc *sc, int id);
 static void	mfi_ldprobe_capacity_complete(struct mfi_command *);
 static int	mfi_ldprobe_tur(struct mfi_softc *sc, int id);
 static void	mfi_ldprobe_tur_complete(struct mfi_command *);
+static int	mfi_aen_register(struct mfi_softc *sc, int seq, int locale);
+static void	mfi_aen_complete(struct mfi_command *);
+static int	mfi_aen_setup(struct mfi_softc *, uint32_t);
 static int	mfi_add_ld(struct mfi_softc *sc, int id, uint64_t, uint32_t);
 static struct mfi_command * mfi_bio_command(struct mfi_softc *);
 static void	mfi_bio_complete(struct mfi_command *);
 static int	mfi_mapcmd(struct mfi_softc *, struct mfi_command *);
 static int	mfi_send_frame(struct mfi_softc *, struct mfi_command *);
 static void	mfi_complete(struct mfi_softc *, struct mfi_command *);
+static int	mfi_abort(struct mfi_softc *, struct mfi_command *);
+static int	mfi_linux_ioctl_int(struct cdev *, u_long, caddr_t, int, d_thread_t *);
 
 /* Management interface */
 static d_open_t		mfi_open;
 static d_close_t	mfi_close;
 static d_ioctl_t	mfi_ioctl;
+static d_poll_t		mfi_poll;
 
 static struct cdevsw mfi_cdevsw = {
 	.d_version = 	D_VERSION,
@@ -81,12 +97,13 @@ static struct cdevsw mfi_cdevsw = {
 	.d_open = 	mfi_open,
 	.d_close =	mfi_close,
 	.d_ioctl =	mfi_ioctl,
+	.d_poll =	mfi_poll,
 	.d_name =	"mfi",
 };
 
 MALLOC_DEFINE(M_MFIBUF, "mfibuf", "Buffers for the MFI driver");
 
-#define MFI_INQ_LENGTH SHORT_INQUIRY_LENGTH 
+#define MFI_INQ_LENGTH SHORT_INQUIRY_LENGTH
 
 static int
 mfi_transition_firmware(struct mfi_softc *sc)
@@ -160,6 +177,7 @@ mfi_attach(struct mfi_softc *sc)
 
 	mtx_init(&sc->mfi_io_lock, "MFI I/O lock", NULL, MTX_DEF);
 	TAILQ_INIT(&sc->mfi_ld_tqh);
+	TAILQ_INIT(&sc->mfi_aen_pids);
 
 	mfi_initq_free(sc);
 	mfi_initq_ready(sc);
@@ -315,10 +333,8 @@ mfi_attach(struct mfi_softc *sc)
 	if ((error = mfi_get_controller_info(sc)) != 0)
 		return (error);
 
-#if 0
-	if ((error = mfi_setup_aen(sc)) != 0)
+	if ((error = mfi_aen_setup(sc, 0), 0) != 0)
 		return (error);
-#endif
 
 	/*
 	 * Set up the interrupt handler.  XXX This should happen in
@@ -360,6 +376,8 @@ mfi_attach(struct mfi_softc *sc)
 	unit = device_get_unit(sc->mfi_dev);
 	sc->mfi_cdev = make_dev(&mfi_cdevsw, unit, UID_ROOT, GID_OPERATOR,
 	    0640, "mfi%d", unit);
+	if (unit == 0)
+		make_dev_alias(sc->mfi_cdev, "megaraid_sas_ioctl_node");
 	if (sc->mfi_cdev != NULL)
 		sc->mfi_cdev->si_drv1 = sc;
 
@@ -382,7 +400,7 @@ mfi_alloc_commands(struct mfi_softc *sc)
 
 	for (i = 0; i < ncmds; i++) {
 		cm = &sc->mfi_commands[i];
-		cm->cm_frame = (union mfi_frame *)((uintptr_t)sc->mfi_frames + 
+		cm->cm_frame = (union mfi_frame *)((uintptr_t)sc->mfi_frames +
 		    sc->mfi_frame_size * i);
 		cm->cm_frame_busaddr = sc->mfi_frames_busaddr +
 		    sc->mfi_frame_size * i;
@@ -525,6 +543,90 @@ mfi_get_controller_info(struct mfi_softc *sc)
 }
 
 static int
+mfi_get_log_state(struct mfi_softc *sc, struct mfi_evt_log_state *log_state)
+{
+	struct mfi_command *cm;
+	struct mfi_dcmd_frame *dcmd;
+	int error;
+
+	if ((cm = mfi_dequeue_free(sc)) == NULL)
+		return (EBUSY);
+
+
+	dcmd = &cm->cm_frame->dcmd;
+	bzero(dcmd->mbox, MFI_MBOX_SIZE);
+	dcmd->header.cmd = MFI_CMD_DCMD;
+	dcmd->header.timeout = 0;
+	dcmd->header.data_len = sizeof(struct mfi_evt_log_state);
+	dcmd->opcode = MFI_DCMD_CTRL_EVENT_GETINFO;
+	cm->cm_sg = &dcmd->sgl;
+	cm->cm_total_frame_size = MFI_DCMD_FRAME_SIZE;
+	cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_POLLED;
+	cm->cm_data = log_state;
+	cm->cm_len = sizeof(struct mfi_evt_log_state);
+
+	if ((error = mfi_mapcmd(sc, cm)) != 0) {
+		device_printf(sc->mfi_dev, "Controller info buffer map failed");
+		mfi_release_command(cm);
+		return (error);
+	}
+
+	/* It's ok if this fails, just use default info instead */
+	if ((error = mfi_polled_command(sc, cm)) != 0) {
+		device_printf(sc->mfi_dev, "Failed to get controller state\n");
+		sc->mfi_max_io = (sc->mfi_total_sgl - 1) * PAGE_SIZE /
+		    MFI_SECTOR_LEN;
+		mfi_release_command(cm);
+		return (0);
+	}
+
+	bus_dmamap_sync(sc->mfi_buffer_dmat, cm->cm_dmamap,
+	    BUS_DMASYNC_POSTREAD);
+	bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
+
+	mfi_release_command(cm);
+
+	return (error);
+}
+
+static int
+mfi_aen_setup(struct mfi_softc *sc, uint32_t seq_start)
+{
+	struct mfi_evt_log_state log_state;
+	union mfi_evt class_locale;
+	int error = 0;
+	uint32_t seq;
+
+	class_locale.members.reserved = 0;
+	class_locale.members.locale = MFI_EVT_LOCALE_ALL;
+	class_locale.members.class  = MFI_EVT_CLASS_DEBUG;
+
+	if (seq_start == 0) {
+		error = mfi_get_log_state(sc, &log_state);
+		if (error)
+			return (error);
+		/*
+		 * Don't run them yet since we can't parse them.
+		 * We can indirectly get the contents from
+		 * the AEN mechanism via setting it lower then
+		 * current.  The firmware will iterate through them.
+		 */
+#ifdef NOTYET
+		for (seq = log_state.shutdown_seq_num;
+		     seq <= log_state.newest_seq_num; seq++) {
+			mfi_get_entry(sc, seq);
+		}
+#endif
+
+		seq = log_state.shutdown_seq_num + 1;
+	} else
+		seq = seq_start;
+	mfi_aen_register(sc, seq, class_locale.word);
+
+	return 0;
+}
+
+static int
 mfi_polled_command(struct mfi_softc *sc, struct mfi_command *cm)
 {
 	struct mfi_frame_header *hdr;
@@ -638,7 +740,6 @@ mfi_intr(void *arg)
 
 	pi = sc->mfi_comms->hw_pi;
 	ci = sc->mfi_comms->hw_ci;
-
 	mtx_lock(&sc->mfi_io_lock);
 	while (ci != pi) {
 		context = sc->mfi_comms->hw_reply_q[ci];
@@ -673,7 +774,8 @@ mfi_shutdown(struct mfi_softc *sc)
 	if ((cm = mfi_dequeue_free(sc)) == NULL)
 		return (EBUSY);
 
-	/* AEN? */
+	if (sc->mfi_aen_cm != NULL)
+		mfi_abort(sc, sc->mfi_aen_cm);
 
 	dcmd = &cm->cm_frame->dcmd;
 	bzero(dcmd->mbox, MFI_MBOX_SIZE);
@@ -715,7 +817,9 @@ mfi_ldprobe_inq(struct mfi_softc *sc)
 			break;
 		cm = mfi_dequeue_free(sc);
 		if (cm == NULL) {
-			tsleep(mfi_startup, 0, "mfistart", 5 * hz);
+			free(inq, M_MFIBUF);
+			msleep(mfi_startup, &sc->mfi_io_lock, 0, "mfistart",
+			    5 * hz);
 			i--;
 			continue;
 		}
@@ -829,6 +933,427 @@ mfi_ldprobe_tur_complete(struct mfi_command *cm)
 	mfi_ldprobe_capacity(sc, hdr->target_id);
 }
 
+#ifdef NOTYET
+static void
+mfi_decode_log(struct mfi_softc *sc, struct mfi_log_detail *detail)
+{
+        switch (detail->arg_type) {
+	default:
+		device_printf(sc->mfi_dev, "%d - Log entry type %d\n",
+		    detail->seq,
+		    detail->arg_type
+		);
+		break;
+	}
+}
+#endif
+
+static void
+mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
+{
+	switch (detail->arg_type) {
+	case MR_EVT_ARGS_NONE:
+		device_printf(sc->mfi_dev, "%d - %s\n",
+		    detail->seq,
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_CDB_SENSE:
+		device_printf(sc->mfi_dev, "%d - PD %02d(e%d/s%d) CDB %*D"
+		    "Sense %*D\n: %s\n",
+		    detail->seq,
+		    detail->args.cdb_sense.pd.device_id,
+		    detail->args.cdb_sense.pd.enclosure_index,
+		    detail->args.cdb_sense.pd.slot_number,
+		    detail->args.cdb_sense.cdb_len,
+		    detail->args.cdb_sense.cdb,
+		    ":",
+		    detail->args.cdb_sense.sense_len,
+		    detail->args.cdb_sense.sense,
+		    ":",
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_LD:
+		device_printf(sc->mfi_dev, "%d - VD %02d/%d "
+		    "event: %s\n",
+		    detail->seq,
+		    detail->args.ld.ld_index,
+		    detail->args.ld.target_id,
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_LD_COUNT:
+		device_printf(sc->mfi_dev, "%d - VD %02d/%d "
+		    "count %lld: %s\n",
+		    detail->seq,
+		    detail->args.ld_count.ld.ld_index,
+		    detail->args.ld_count.ld.target_id,
+		    (long long)detail->args.ld_count.count,
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_LD_LBA:
+		device_printf(sc->mfi_dev, "%d - VD %02d/%d "
+		    "lba %lld: %s\n",
+		    detail->seq,
+		    detail->args.ld_lba.ld.ld_index,
+		    detail->args.ld_lba.ld.target_id,
+		    (long long)detail->args.ld_lba.lba,
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_LD_OWNER:
+		device_printf(sc->mfi_dev, "%d - VD %02d/%d "
+		    "owner changed: prior %d, new %d: %s\n",
+		    detail->seq,
+		    detail->args.ld_owner.ld.ld_index,
+		    detail->args.ld_owner.ld.target_id,
+		    detail->args.ld_owner.pre_owner,
+		    detail->args.ld_owner.new_owner,
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_LD_LBA_PD_LBA:
+		device_printf(sc->mfi_dev, "%d - VD %02d/%d "
+		    "lba %lld, physical drive PD %02d(e%d/s%d) lba %lld: %s\n",
+		    detail->seq,
+		    detail->args.ld_lba_pd_lba.ld.ld_index,
+		    detail->args.ld_lba_pd_lba.ld.target_id,
+		    (long long)detail->args.ld_lba_pd_lba.ld_lba,
+		    detail->args.ld_lba_pd_lba.pd.device_id,
+		    detail->args.ld_lba_pd_lba.pd.enclosure_index,
+		    detail->args.ld_lba_pd_lba.pd.slot_number,
+		    (long long)detail->args.ld_lba_pd_lba.pd_lba,
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_LD_PROG:
+		device_printf(sc->mfi_dev, "%d - VD %02d/%d "
+		    "progress %d%% in %ds: %s\n",
+		    detail->seq,
+		    detail->args.ld_prog.ld.ld_index,
+		    detail->args.ld_prog.ld.target_id,
+		    detail->args.ld_prog.prog.progress/655,
+		    detail->args.ld_prog.prog.elapsed_seconds,
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_LD_STATE:
+		device_printf(sc->mfi_dev, "%d - VD %02d/%d "
+		    "state prior %d new %d: %s\n",
+		    detail->seq,
+		    detail->args.ld_state.ld.ld_index,
+		    detail->args.ld_state.ld.target_id,
+		    detail->args.ld_state.prev_state,
+		    detail->args.ld_state.new_state,
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_LD_STRIP:
+		device_printf(sc->mfi_dev, "%d - VD %02d/%d "
+		    "strip %lld: %s\n",
+		    detail->seq,
+		    detail->args.ld_strip.ld.ld_index,
+		    detail->args.ld_strip.ld.target_id,
+		    (long long)detail->args.ld_strip.strip,
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_PD:
+		device_printf(sc->mfi_dev, "%d - PD %02d(e%d/s%d) "
+		    "event: %s\n",
+		    detail->seq,
+		    detail->args.pd.device_id,
+		    detail->args.pd.enclosure_index,
+		    detail->args.pd.slot_number,
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_PD_ERR:
+		device_printf(sc->mfi_dev, "%d - PD %02d(e%d/s%d) "
+		    "err %d: %s\n",
+		    detail->seq,
+		    detail->args.pd_err.pd.device_id,
+		    detail->args.pd_err.pd.enclosure_index,
+		    detail->args.pd_err.pd.slot_number,
+		    detail->args.pd_err.err,
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_PD_LBA:
+		device_printf(sc->mfi_dev, "%d - PD %02d(e%d/s%d) "
+		    "lba %lld: %s\n",
+		    detail->seq,
+		    detail->args.pd_lba.pd.device_id,
+		    detail->args.pd_lba.pd.enclosure_index,
+		    detail->args.pd_lba.pd.slot_number,
+		    (long long)detail->args.pd_lba.lba,
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_PD_LBA_LD:
+		device_printf(sc->mfi_dev, "%d - PD %02d(e%d/s%d) "
+		    "lba %lld VD %02d/%d: %s\n",
+		    detail->seq,
+		    detail->args.pd_lba_ld.pd.device_id,
+		    detail->args.pd_lba_ld.pd.enclosure_index,
+		    detail->args.pd_lba_ld.pd.slot_number,
+		    (long long)detail->args.pd_lba.lba,
+		    detail->args.pd_lba_ld.ld.ld_index,
+		    detail->args.pd_lba_ld.ld.target_id,
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_PD_PROG:
+		device_printf(sc->mfi_dev, "%d - PD %02d(e%d/s%d) "
+		    "progress %d%% seconds %ds: %s\n",
+		    detail->seq,
+		    detail->args.pd_prog.pd.device_id,
+		    detail->args.pd_prog.pd.enclosure_index,
+		    detail->args.pd_prog.pd.slot_number,
+		    detail->args.pd_prog.prog.progress/655,
+		    detail->args.pd_prog.prog.elapsed_seconds,
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_PD_STATE:
+		device_printf(sc->mfi_dev, "%d - PD %02d(e%d/s%d) "
+		    "state prior %d new %d: %s\n",
+		    detail->seq,
+		    detail->args.pd_prog.pd.device_id,
+		    detail->args.pd_prog.pd.enclosure_index,
+		    detail->args.pd_prog.pd.slot_number,
+		    detail->args.pd_state.prev_state,
+		    detail->args.pd_state.new_state,
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_PCI:
+		device_printf(sc->mfi_dev, "%d - PCI 0x04%x 0x04%x "
+		    "0x04%x 0x04%x: %s\n",
+		    detail->seq,
+		    detail->args.pci.venderId,
+		    detail->args.pci.deviceId,
+		    detail->args.pci.subVenderId,
+		    detail->args.pci.subDeviceId,
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_RATE:
+		device_printf(sc->mfi_dev, "%d - Rebuild rate %d: %s\n",
+		    detail->seq,
+		    detail->args.rate,
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_TIME:
+		device_printf(sc->mfi_dev, "%d - Adapter ticks %d "
+		    "elapsed %ds: %s\n",
+		    detail->seq,
+		    detail->args.time.rtc,
+		    detail->args.time.elapsedSeconds,
+		    detail->description
+		    );
+		break;
+	case MR_EVT_ARGS_ECC:
+		device_printf(sc->mfi_dev, "%d - Adapter ECC %x,%x: %s: %s\n",
+		    detail->seq,
+		    detail->args.ecc.ecar,
+		    detail->args.ecc.elog,
+		    detail->args.ecc.str,
+		    detail->description
+		    );
+		break;
+	default:
+		device_printf(sc->mfi_dev, "%d - Type %d: %s\n",
+		    detail->seq,
+		    detail->arg_type, detail->description
+		    );
+	}
+}
+
+static int
+mfi_aen_register(struct mfi_softc *sc, int seq, int locale)
+{
+	struct mfi_command *cm;
+	struct mfi_dcmd_frame *dcmd;
+	union mfi_evt current_aen, prior_aen;
+	struct mfi_evt_detail *ed;
+
+	current_aen.word = locale;
+	if (sc->mfi_aen_cm != NULL) {
+		prior_aen.word =
+		    ((uint32_t *)&sc->mfi_aen_cm->cm_frame->dcmd.mbox)[1];
+		if (prior_aen.members.class <= current_aen.members.class &&
+		    !((prior_aen.members.locale & current_aen.members.locale)
+		    ^current_aen.members.locale)) {
+			return (0);
+		} else {
+			prior_aen.members.locale |= current_aen.members.locale;
+			if (prior_aen.members.class
+			    < current_aen.members.class)
+				current_aen.members.class =
+				    prior_aen.members.class;
+			mfi_abort(sc, sc->mfi_aen_cm);
+		}
+	}
+
+	mtx_lock(&sc->mfi_io_lock);
+	if ((cm = mfi_dequeue_free(sc)) == NULL) {
+		mtx_unlock(&sc->mfi_io_lock);
+		return (EBUSY);
+	}
+	mtx_unlock(&sc->mfi_io_lock);
+
+	ed = malloc(sizeof(struct mfi_evt_detail), M_MFIBUF,
+	    M_NOWAIT | M_ZERO);
+	if (ed == NULL) {
+		mtx_lock(&sc->mfi_io_lock);
+		mfi_release_command(cm);
+		mtx_unlock(&sc->mfi_io_lock);
+		return (ENOMEM);
+	}
+
+	dcmd = &cm->cm_frame->dcmd;
+	bzero(dcmd->mbox, MFI_MBOX_SIZE);
+	dcmd->header.cmd = MFI_CMD_DCMD;
+	dcmd->header.timeout = 0;
+	dcmd->header.data_len = sizeof(struct mfi_evt_detail);
+	dcmd->opcode = MFI_DCMD_CTRL_EVENT_WAIT;
+	((uint32_t *)&dcmd->mbox)[0] = seq;
+	((uint32_t *)&dcmd->mbox)[1] = locale;
+	cm->cm_sg = &dcmd->sgl;
+	cm->cm_total_frame_size = MFI_DCMD_FRAME_SIZE;
+	cm->cm_flags = MFI_CMD_DATAIN;
+	cm->cm_data = ed;
+	cm->cm_len = sizeof(struct mfi_evt_detail);
+	cm->cm_complete = mfi_aen_complete;
+
+	sc->mfi_aen_cm = cm;
+
+	mfi_enqueue_ready(cm);
+	mfi_startio(sc);
+
+	return (0);
+}
+
+static void
+mfi_aen_complete(struct mfi_command *cm)
+{
+	struct mfi_frame_header *hdr;
+	struct mfi_softc *sc;
+	struct mfi_evt_detail *detail;
+	struct mfi_aen *mfi_aen_entry;
+	int seq = 0, aborted = 0;
+
+	sc = cm->cm_sc;
+	hdr = &cm->cm_frame->header;
+
+	if (sc->mfi_aen_cm == NULL)
+		return;
+
+	if (sc->mfi_aen_cm->cm_aen_abort || hdr->cmd_status == 0xff) {
+		sc->mfi_aen_cm->cm_aen_abort = 0;
+		aborted = 1;
+	} else {
+		sc->mfi_aen_triggered = 1;
+		if (sc->mfi_poll_waiting)
+			selwakeup(&sc->mfi_select);
+		detail = cm->cm_data;
+		mtx_unlock(&sc->mfi_io_lock);
+		mfi_decode_evt(sc, detail);
+		mtx_lock(&sc->mfi_io_lock);
+		seq = detail->seq + 1;
+		TAILQ_FOREACH(mfi_aen_entry, &sc->mfi_aen_pids, aen_link) {
+			TAILQ_REMOVE(&sc->mfi_aen_pids, mfi_aen_entry,
+			    aen_link);
+			psignal(mfi_aen_entry->p, SIGIO);
+			free(mfi_aen_entry, M_MFIBUF);
+		}
+	}
+
+	free(cm->cm_data, M_MFIBUF);
+	sc->mfi_aen_cm = NULL;
+	wakeup(&sc->mfi_aen_cm);
+	mfi_release_command(cm);
+
+	/* set it up again so the driver can catch more events */
+	if (!aborted) {
+		mtx_unlock(&sc->mfi_io_lock);
+		mfi_aen_setup(sc, seq);
+		mtx_lock(&sc->mfi_io_lock);
+	}
+}
+
+#ifdef NOTYET
+static int
+mfi_get_entry(struct mfi_softc *sc, int seq)
+{
+	struct mfi_command *cm;
+	struct mfi_dcmd_frame *dcmd;
+	struct mfi_log_detail *ed;
+	int error;
+
+	mtx_lock(&sc->mfi_io_lock);
+	if ((cm = mfi_dequeue_free(sc)) == NULL) {
+		mtx_unlock(&sc->mfi_io_lock);
+		return (EBUSY);
+	}
+	mtx_unlock(&sc->mfi_io_lock);
+
+	ed = malloc(sizeof(struct mfi_log_detail), M_MFIBUF, M_NOWAIT | M_ZERO);
+	if (ed == NULL) {
+		mtx_lock(&sc->mfi_io_lock);
+		mfi_release_command(cm);
+		mtx_unlock(&sc->mfi_io_lock);
+		return (ENOMEM);
+	}
+
+	dcmd = &cm->cm_frame->dcmd;
+	bzero(dcmd->mbox, MFI_MBOX_SIZE);
+	dcmd->header.cmd = MFI_CMD_DCMD;
+	dcmd->header.timeout = 0;
+	dcmd->header.data_len = sizeof(struct mfi_log_detail);
+	dcmd->opcode = MFI_DCMD_CTRL_EVENT_GET;
+	((uint32_t *)&dcmd->mbox)[0] = seq;
+	((uint32_t *)&dcmd->mbox)[1] = MFI_EVT_LOCALE_ALL;
+	cm->cm_sg = &dcmd->sgl;
+	cm->cm_total_frame_size = MFI_DCMD_FRAME_SIZE;
+	cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_POLLED;
+	cm->cm_data = ed;
+	cm->cm_len = sizeof(struct mfi_evt_detail);
+
+	if ((error = mfi_mapcmd(sc, cm)) != 0) {
+		device_printf(sc->mfi_dev, "Controller info buffer map failed");
+		free(ed, M_MFIBUF);
+		mfi_release_command(cm);
+		return (error);
+	}
+
+	if ((error = mfi_polled_command(sc, cm)) != 0) {
+		device_printf(sc->mfi_dev, "Failed to get controller entry\n");
+		sc->mfi_max_io = (sc->mfi_total_sgl - 1) * PAGE_SIZE /
+		    MFI_SECTOR_LEN;
+		free(ed, M_MFIBUF);
+		mfi_release_command(cm);
+		return (0);
+	}
+
+	bus_dmamap_sync(sc->mfi_buffer_dmat, cm->cm_dmamap,
+	    BUS_DMASYNC_POSTREAD);
+	bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
+
+	mfi_decode_log(sc, ed);
+
+	mtx_lock(&sc->mfi_io_lock);
+	free(cm->cm_data, M_MFIBUF);
+	mfi_release_command(cm);
+	mtx_unlock(&sc->mfi_io_lock);
+	return (0);
+}
+#endif
+
 static int
 mfi_ldprobe_capacity(struct mfi_softc *sc, int id)
 {
@@ -840,8 +1365,10 @@ mfi_ldprobe_capacity(struct mfi_softc *sc, int id)
 	if (cap == NULL)
 		return (ENOMEM);
 	cm = mfi_dequeue_free(sc);
-	if (cm == NULL)
+	if (cm == NULL) {
+		free(cap, M_MFIBUF);
 		return (EBUSY);
+	}
 	pass = &cm->cm_frame->pass;
 	pass->header.cmd = MFI_CMD_LD_SCSI_IO;
 	pass->header.target_id = id;
@@ -925,6 +1452,7 @@ mfi_add_ld(struct mfi_softc *sc, int id, uint64_t sectors, uint32_t secsize)
 
 	if ((child = device_add_child(sc->mfi_dev, "mfid", -1)) == NULL) {
 		device_printf(sc->mfi_dev, "Failed to add logical disk\n");
+		free(ld, M_MFIBUF);
 		return (EINVAL);
 	}
 
@@ -950,7 +1478,7 @@ mfi_bio_command(struct mfi_softc *sc)
 	struct mfi_io_frame *io;
 	struct mfi_command *cm;
 	struct bio *bio;
-	int flags, blkcount;;
+	int flags, blkcount;
 
 	if ((cm = mfi_dequeue_free(sc)) == NULL)
 		return (NULL);
@@ -1176,6 +1704,41 @@ mfi_complete(struct mfi_softc *sc, struct mfi_command *cm)
 	mfi_startio(sc);
 }
 
+static int
+mfi_abort(struct mfi_softc *sc, struct mfi_command *cm_abort)
+{
+	struct mfi_command *cm;
+	struct mfi_abort_frame *abort;
+
+	mtx_lock(&sc->mfi_io_lock);
+	if ((cm = mfi_dequeue_free(sc)) == NULL) {
+		mtx_unlock(&sc->mfi_io_lock);
+		return (EBUSY);
+	}
+	mtx_unlock(&sc->mfi_io_lock);
+
+	abort = &cm->cm_frame->abort;
+	abort->header.cmd = MFI_CMD_ABORT;
+	abort->header.flags = 0;
+	abort->abort_context = cm_abort->cm_frame->header.context;
+	abort->abort_mfi_addr_lo = cm_abort->cm_frame_busaddr;
+	abort->abort_mfi_addr_hi = 0;
+	cm->cm_data = NULL;
+
+	sc->mfi_aen_cm->cm_aen_abort = 1;
+	mfi_mapcmd(sc, cm);
+	mfi_polled_command(sc, cm);
+	mtx_lock(&sc->mfi_io_lock);
+	mfi_release_command(cm);
+	mtx_unlock(&sc->mfi_io_lock);
+
+	while (sc->mfi_aen_cm != NULL) {
+		tsleep(&sc->mfi_aen_cm, 0, "mfiabort", 5 * hz);
+	}
+
+	return (0);
+}
+
 int
 mfi_dump_blocks(struct mfi_softc *sc, int id, uint64_t lba, void *virt, int len)
 {
@@ -1232,10 +1795,19 @@ static int
 mfi_close(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 {
 	struct mfi_softc *sc;
+	struct mfi_aen *mfi_aen_entry;
 
 	sc = dev->si_drv1;
 	sc->mfi_flags &= ~MFI_FLAGS_OPEN;
 
+	TAILQ_FOREACH(mfi_aen_entry, &sc->mfi_aen_pids, aen_link) {
+		if (mfi_aen_entry->p == curproc) {
+			TAILQ_REMOVE(&sc->mfi_aen_pids, mfi_aen_entry,
+			    aen_link);
+printf("REMOVED pid %d\n",mfi_aen_entry->p->p_pid);
+			free(mfi_aen_entry, M_MFIBUF);
+		}
+	}
 	return (0);
 }
 
@@ -1261,14 +1833,251 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 			    sizeof(struct mfi_qstat));
 			break;
 		default:
-			error = ENOENT;
+			error = ENOIOCTL;
 			break;
 		}
 		break;
+	case 0xc1144d01: /* Firmware Linux ioctl shim */
+		{
+			devclass_t devclass;
+			struct mfi_linux_ioc_packet l_ioc;
+			int adapter;
+
+			devclass = devclass_find("mfi");
+			if (devclass == NULL)
+				return (ENOENT);
+
+			error = copyin(arg, &l_ioc, sizeof(l_ioc));
+			if (error)
+				return (error);
+			adapter = l_ioc.lioc_adapter_no;
+			sc = devclass_get_softc(devclass, adapter);
+			if (sc == NULL)
+				return (ENOENT);
+			return (mfi_linux_ioctl_int(sc->mfi_cdev,
+			    cmd, arg, flag, td));
+			break;
+		}
+	case 0x400c4d03: /* AEN Linux ioctl shim */
+		{
+			devclass_t devclass;
+			struct mfi_linux_ioc_aen l_aen;
+			int adapter;
+
+			devclass = devclass_find("mfi");
+			if (devclass == NULL)
+				return (ENOENT);
+
+			error = copyin(arg, &l_aen, sizeof(l_aen));
+			if (error)
+				return (error);
+			adapter = l_aen.laen_adapter_no;
+			sc = devclass_get_softc(devclass, adapter);
+			if (sc == NULL)
+				return (ENOENT);
+			return (mfi_linux_ioctl_int(sc->mfi_cdev,
+			    cmd, arg, flag, td));
+			break;
+		}
 	default:
 		error = ENOENT;
 		break;
 	}
 
 	return (error);
+}
+
+static int
+mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
+{
+	struct mfi_softc *sc;
+	struct mfi_linux_ioc_packet l_ioc;
+	struct mfi_linux_ioc_aen l_aen;
+	struct mfi_command *cm = NULL;
+	struct mfi_aen *mfi_aen_entry;
+	uint32_t *sense_ptr;
+	uint32_t context;
+	uint8_t *data = NULL, *temp;
+	int i;
+	int error;
+
+	sc = dev->si_drv1;
+	error = 0;
+	switch (cmd) {
+	case 0xc1144d01: /* Firmware Linux ioctl shim */
+		error = copyin(arg, &l_ioc, sizeof(l_ioc));
+		if (error != 0)
+			return (error);
+
+		if (l_ioc.lioc_sge_count > MAX_LINUX_IOCTL_SGE) {
+			return (EINVAL);
+		}
+
+		mtx_lock(&sc->mfi_io_lock);
+		if ((cm = mfi_dequeue_free(sc)) == NULL) {
+			mtx_unlock(&sc->mfi_io_lock);
+			return (EBUSY);
+		}
+		mtx_unlock(&sc->mfi_io_lock);
+
+		/*
+		 * save off original context since copying from user
+		 * will clobber some data
+		 */
+		context = cm->cm_frame->header.context;
+
+		bcopy(l_ioc.lioc_frame.raw, cm->cm_frame,
+		      l_ioc.lioc_sgl_off); /* Linux can do 2 frames ? */
+		cm->cm_total_frame_size = l_ioc.lioc_sgl_off;
+		cm->cm_sg =
+		    (union mfi_sgl *)&cm->cm_frame->bytes[l_ioc.lioc_sgl_off];
+		cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_DATAOUT
+			| MFI_CMD_POLLED;
+		cm->cm_len = cm->cm_frame->header.data_len;
+		cm->cm_data = data = malloc(cm->cm_len, M_MFIBUF,
+					    M_WAITOK | M_ZERO);
+
+		/* restore header context */
+		cm->cm_frame->header.context = context;
+
+		temp = data;
+		for (i = 0; i < l_ioc.lioc_sge_count; i++) {
+			error = copyin(l_ioc.lioc_sgl[i].iov_base,
+			       temp,
+			       l_ioc.lioc_sgl[i].iov_len);
+			if (error != 0) {
+				device_printf(sc->mfi_dev,
+				    "Copy in failed");
+				goto out;
+			}
+			temp = &temp[l_ioc.lioc_sgl[i].iov_len];
+		}
+
+		if (l_ioc.lioc_sense_len) {
+			sense_ptr =
+			    (void *)&cm->cm_frame->bytes[l_ioc.lioc_sense_off];
+			*sense_ptr = cm->cm_sense_busaddr;
+		}
+
+		if ((error = mfi_mapcmd(sc, cm)) != 0) {
+			device_printf(sc->mfi_dev,
+			    "Controller info buffer map failed");
+			goto out;
+		}
+
+		if ((error = mfi_polled_command(sc, cm)) != 0) {
+			device_printf(sc->mfi_dev,
+			    "Controller polled failed");
+			goto out;
+		}
+
+		bus_dmamap_sync(sc->mfi_buffer_dmat, cm->cm_dmamap,
+				BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
+
+		temp = data;
+		for (i = 0; i < l_ioc.lioc_sge_count; i++) {
+			error = copyout(temp,
+				l_ioc.lioc_sgl[i].iov_base,
+				l_ioc.lioc_sgl[i].iov_len);
+			if (error != 0) {
+				device_printf(sc->mfi_dev,
+				    "Copy out failed");
+				goto out;
+			}
+			temp = &temp[l_ioc.lioc_sgl[i].iov_len];
+		}
+
+		if (l_ioc.lioc_sense_len) {
+			/* copy out sense */
+			sense_ptr = (void *)
+			    &l_ioc.lioc_frame.raw[l_ioc.lioc_sense_off];
+			temp = 0;
+			temp += cm->cm_sense_busaddr;
+			error = copyout(temp, sense_ptr,
+			    l_ioc.lioc_sense_len);
+			if (error != 0) {
+				device_printf(sc->mfi_dev,
+				    "Copy out failed");
+				goto out;
+			}
+		}
+
+		error = copyout(&cm->cm_frame->header.cmd_status,
+			&((struct mfi_linux_ioc_packet*)arg)
+			->lioc_frame.hdr.cmd_status,
+			1);
+		if (error != 0) {
+			device_printf(sc->mfi_dev,
+				      "Copy out failed");
+			goto out;
+		}
+
+out:
+		if (data)
+			free(data, M_MFIBUF);
+		if (cm) {
+			mtx_lock(&sc->mfi_io_lock);
+			mfi_release_command(cm);
+			mtx_unlock(&sc->mfi_io_lock);
+		}
+
+		return (error);
+	case 0x400c4d03: /* AEN Linux ioctl shim */
+		error = copyin(arg, &l_aen, sizeof(l_aen));
+		if (error != 0)
+			return (error);
+		printf("AEN IMPLEMENTED for pid %d\n", curproc->p_pid);
+		mfi_aen_entry = malloc(sizeof(struct mfi_aen), M_MFIBUF,
+		    M_WAITOK);
+		if (mfi_aen_entry != NULL) {
+			mfi_aen_entry->p = curproc;
+			TAILQ_INSERT_TAIL(&sc->mfi_aen_pids, mfi_aen_entry,
+			    aen_link);
+		}
+		error = mfi_aen_register(sc, l_aen.laen_seq_num,
+		    l_aen.laen_class_locale);
+
+		if (error != 0) {
+			TAILQ_REMOVE(&sc->mfi_aen_pids, mfi_aen_entry,
+			    aen_link);
+			free(mfi_aen_entry, M_MFIBUF);
+		}
+
+		return (error);
+	default:
+		device_printf(sc->mfi_dev, "IOCTL 0x%lx not handled\n", cmd);
+		error = ENOENT;
+		break;
+	}
+
+	return (error);
+}
+
+static int
+mfi_poll(struct cdev *dev, int poll_events, struct thread *td)
+{
+	struct mfi_softc *sc;
+	int revents = 0;
+
+	sc = dev->si_drv1;
+
+	printf("MFI POLL\n");
+	if (poll_events & (POLLIN | POLLRDNORM)) {
+		if (sc->mfi_aen_triggered != 0)
+			revents |= poll_events & (POLLIN | POLLRDNORM);
+		if (sc->mfi_aen_triggered == 0 && sc->mfi_aen_cm == NULL) {
+			revents |= POLLERR;
+		}
+	}
+
+	if (revents == 0) {
+		if (poll_events & (POLLIN | POLLRDNORM)) {
+			sc->mfi_poll_waiting = 1;
+			selrecord(td, &sc->mfi_select);
+			sc->mfi_poll_waiting = 0;
+		}
+	}
+
+	return revents;
 }
