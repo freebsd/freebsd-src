@@ -111,6 +111,7 @@ coda/coda_venus.c		optional vcoda
 coda/coda_vfsops.c		optional vcoda
 coda/coda_vnops.c		optional vcoda
 compat/linprocfs/linprocfs.c	optional linprocfs
+compat/linsysfs/linsysfs.c	optional linsysfs
 contrib/altq/altq/altq_cbq.c	optional altq
 contrib/altq/altq/altq_cdnr.c	optional altq
 contrib/altq/altq/altq_hfsc.c	optional altq
@@ -659,6 +660,7 @@ dev/mem/memdev.c		optional mem
 dev/mfi/mfi.c			optional mfi
 dev/mfi/mfi_pci.c		optional mfi pci
 dev/mfi/mfi_disk.c		optional mfi
+dev/mfi/mfi_linux.c		optional mfi compat_linux
 dev/mii/acphy.c			optional miibus
 dev/mii/amphy.c			optional miibus
 dev/mii/bmtphy.c		optional miibus
