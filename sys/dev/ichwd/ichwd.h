@@ -67,6 +67,9 @@ struct ichwd_softc {
 #define DEVICEID_82801DBM	0x24cc
 #define DEVICEID_82801E		0x2450
 #define DEVICEID_82801EBR	0x24d0
+#define DEVICEID_6300ESB	0x25a1
+#define DEVICEID_82801FBR	0x2640
+#define DEVICEID_ICH5		0x27b8
 
 /* ICH LPC Interface Bridge Registers */
 #define ICH_GEN_STA		0xd4
@@ -110,7 +113,7 @@ struct ichwd_softc {
 #define TCO_CNT_PRESERVE	0x0200 /* preserve these bits */
 
 /* approximate length in nanoseconds of one WDT tick */
-#define ICHWD_TICK		600000000
+#define ICHWD_TICK		1800000000
 
 /* minimum / maximum timeout in WDT ticks */
 #define ICHWD_MIN_TIMEOUT	2
