@@ -79,6 +79,7 @@ void	sched_add(struct thread *td, int flags);
 void	sched_clock(struct thread *td);
 void	sched_rem(struct thread *td);
 void	sched_tick(void);
+void	sched_relinquish(struct thread *td);
 
 /*
  * Binding makes cpu affinity permanent while pinning is used to temporarily
