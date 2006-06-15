@@ -48,6 +48,7 @@
 #include <sys/syslog.h>
 #include <sys/cdefs.h>
 #include <sys/uio.h>
+#include <sys/bus.h>
 
 static __inline caddr_t stackgap_init(void);
 static __inline void *stackgap_alloc(caddr_t *, size_t);
@@ -109,5 +110,22 @@ struct __hack
 
 void linux_msg(const struct thread *td, const char *fmt, ...)
 	__printflike(2, 3);
+
+struct linux_device_handler {
+	char	*bsd_driver_name;
+	char	*linux_driver_name;
+	char	*bsd_device_name;
+	char	*linux_device_name;
+	int	linux_major;
+	int	linux_minor;
+	int	linux_char_device;
+};
+
+int	linux_device_register_handler(struct linux_device_handler *h);
+int	linux_device_unregister_handler(struct linux_device_handler *h);
+char	*linux_driver_get_name_dev(device_t dev);
+int	linux_driver_get_major_minor(char *node, int *major, int *minor);
+char	*linux_get_char_devices(void);
+void	linux_free_get_char_devices(char *string);
 
 #endif /* !_LINUX_UTIL_H_ */
