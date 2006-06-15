@@ -81,43 +81,51 @@ static struct ichwd_device ichwd_devices[] = {
 	{ VENDORID_INTEL, DEVICEID_82801DBM, "Intel 82801DBM watchdog timer" },
 	{ VENDORID_INTEL, DEVICEID_82801E, "Intel 82801E watchdog timer" },
 	{ VENDORID_INTEL, DEVICEID_82801EBR, "Intel 82801EB/ER watchdog timer" },
+	{ VENDORID_INTEL, DEVICEID_82801FBR, "Intel 82801FB/FR watchdog timer" },
+	{ VENDORID_INTEL, DEVICEID_ICH5, "Intel ICH5 watchdog timer"},
+	{ VENDORID_INTEL, DEVICEID_6300ESB, "Intel 6300ESB watchdog timer"},
 	{ 0, 0, NULL },
 };
 
 static devclass_t ichwd_devclass;
 
-#define ichwd_read_1(sc, off) \
-	bus_space_read_1((sc)->smi_bst, (sc)->smi_bsh, (off))
-#define ichwd_read_2(sc, off) \
-	bus_space_read_2((sc)->smi_bst, (sc)->smi_bsh, (off))
-#define ichwd_read_4(sc, off) \
-	bus_space_read_4((sc)->smi_bst, (sc)->smi_bsh, (off))
+#define ichwd_read_tco_1(sc, off) \
+	bus_space_read_1((sc)->tco_bst, (sc)->tco_bsh, (off))
+#define ichwd_read_tco_2(sc, off) \
+	bus_space_read_2((sc)->tco_bst, (sc)->tco_bsh, (off))
+#define ichwd_read_tco_4(sc, off) \
+	bus_space_read_4((sc)->tco_bst, (sc)->tco_bsh, (off))
 
-#define ichwd_write_1(sc, off, val) \
-	bus_space_write_1((sc)->smi_bst, (sc)->smi_bsh, (off), (val))
-#define ichwd_write_2(sc, off, val) \
-	bus_space_write_2((sc)->smi_bst, (sc)->smi_bsh, (off), (val))
-#define ichwd_write_4(sc, off, val) \
+#define ichwd_write_tco_1(sc, off, val) \
+	bus_space_write_1((sc)->tco_bst, (sc)->tco_bsh, (off), (val))
+#define ichwd_write_tco_2(sc, off, val) \
+	bus_space_write_2((sc)->tco_bst, (sc)->tco_bsh, (off), (val))
+#define ichwd_write_tco_4(sc, off, val) \
+	bus_space_write_4((sc)->tco_bst, (sc)->tco_bsh, (off), (val))
+
+#define ichwd_read_smi_4(sc, off) \
+	bus_space_read_4((sc)->smi_bst, (sc)->smi_bsh, (off))
+#define ichwd_write_smi_4(sc, off, val) \
 	bus_space_write_4((sc)->smi_bst, (sc)->smi_bsh, (off), (val))
 
 static __inline void
 ichwd_intr_enable(struct ichwd_softc *sc)
 {
-	ichwd_write_4(sc, SMI_EN, ichwd_read_4(sc, SMI_EN) | SMI_TCO_EN);
+	ichwd_write_smi_4(sc, SMI_EN, ichwd_read_smi_4(sc, SMI_EN) & ~SMI_TCO_EN);
 }
 
 static __inline void
 ichwd_intr_disable(struct ichwd_softc *sc)
 {
-	ichwd_write_4(sc, SMI_EN, ichwd_read_4(sc, SMI_EN) & ~SMI_TCO_EN);
+	ichwd_write_smi_4(sc, SMI_EN, ichwd_read_smi_4(sc, SMI_EN) | SMI_TCO_EN);
 }
 
 static __inline void
 ichwd_sts_reset(struct ichwd_softc *sc)
 {
-	ichwd_write_2(sc, TCO1_STS, TCO_TIMEOUT);
-	ichwd_write_2(sc, TCO2_STS, TCO_BOOT_STS);
-	ichwd_write_2(sc, TCO2_STS, TCO_SECOND_TO_STS);
+	ichwd_write_tco_2(sc, TCO1_STS, TCO_TIMEOUT);
+	ichwd_write_tco_2(sc, TCO2_STS, TCO_BOOT_STS);
+	ichwd_write_tco_2(sc, TCO2_STS, TCO_SECOND_TO_STS);
 }
 
 static __inline void
@@ -125,8 +133,8 @@ ichwd_tmr_enable(struct ichwd_softc *sc)
 {
 	uint16_t cnt;
 
-	cnt = ichwd_read_2(sc, TCO1_CNT) & TCO_CNT_PRESERVE;
-	ichwd_write_2(sc, TCO1_CNT, cnt & ~TCO_TMR_HALT);
+	cnt = ichwd_read_tco_2(sc, TCO1_CNT) & TCO_CNT_PRESERVE;
+	ichwd_write_tco_2(sc, TCO1_CNT, cnt & ~TCO_TMR_HALT);
 	sc->active = 1;
 	if (bootverbose)
 		device_printf(sc->device, "timer enabled\n");
@@ -137,8 +145,8 @@ ichwd_tmr_disable(struct ichwd_softc *sc)
 {
 	uint16_t cnt;
 
-	cnt = ichwd_read_2(sc, TCO1_CNT) & TCO_CNT_PRESERVE;
-	ichwd_write_2(sc, TCO1_CNT, cnt | TCO_TMR_HALT);
+	cnt = ichwd_read_tco_2(sc, TCO1_CNT) & TCO_CNT_PRESERVE;
+	ichwd_write_tco_2(sc, TCO1_CNT, cnt | TCO_TMR_HALT);
 	sc->active = 0;
 	if (bootverbose)
 		device_printf(sc->device, "timer disabled\n");
@@ -147,7 +155,7 @@ ichwd_tmr_disable(struct ichwd_softc *sc)
 static __inline void
 ichwd_tmr_reload(struct ichwd_softc *sc)
 {
-	ichwd_write_1(sc, TCO_RLD, 1);
+	ichwd_write_tco_1(sc, TCO_RLD, 1);
 	if (bootverbose)
 		device_printf(sc->device, "timer reloaded\n");
 }
@@ -155,7 +163,7 @@ ichwd_tmr_reload(struct ichwd_softc *sc)
 static __inline void
 ichwd_tmr_set(struct ichwd_softc *sc, uint8_t timeout)
 {
-	ichwd_write_1(sc, TCO_TMR, timeout);
+	ichwd_write_tco_1(sc, TCO_TMR, timeout);
 	sc->timeout = timeout;
 	if (bootverbose)
 		device_printf(sc->device, "timeout set to %u ticks\n", timeout);
@@ -170,10 +178,9 @@ ichwd_event(void *arg, unsigned int cmd, int *error)
 	struct ichwd_softc *sc = arg;
 	unsigned int timeout;
 
-	cmd &= WD_INTERVAL;
 
 	/* disable / enable */
-	if (cmd == 0) {
+	if (!(cmd & WD_ACTIVE)) {
 		if (sc->active)
 			ichwd_tmr_disable(sc);
 		*error = 0;
@@ -182,6 +189,7 @@ ichwd_event(void *arg, unsigned int cmd, int *error)
 	if (!sc->active)
 		ichwd_tmr_enable(sc);
 
+	cmd &= WD_INTERVAL;
 	/* convert from power-of-to-ns to WDT ticks */
 	if (cmd >= 64) {
 		*error = EINVAL;
@@ -204,7 +212,7 @@ ichwd_event(void *arg, unsigned int cmd, int *error)
 	return;
 }
 
-static unsigned long pmbase;
+static unsigned int pmbase = 0;
 
 /*
  * Look for an ICH LPC interface bridge.  If one is found, register an
@@ -268,27 +276,34 @@ ichwd_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->device = dev;
 
+	if (pmbase == 0) {
+		printf("Not found\n");
+	}
+
 	/* allocate I/O register space */
+	sc->smi_rid = 0;
 	sc->smi_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->smi_rid,
-	    pmbase + SMI_BASE, pmbase + SMI_BASE + SMI_LEN - 1, SMI_LEN,
-	    RF_ACTIVE|RF_SHAREABLE);
+	    pmbase + SMI_BASE, ~0ul, SMI_LEN,
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->smi_res == NULL) {
 		device_printf(dev, "unable to reserve SMI registers\n");
 		goto fail;
 	}
 	sc->smi_bst = rman_get_bustag(sc->smi_res);
 	sc->smi_bsh = rman_get_bushandle(sc->smi_res);
+
+	sc->tco_rid = 1;
 	sc->tco_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->tco_rid,
-	    pmbase + TCO_BASE, pmbase + TCO_BASE + TCO_LEN - 1, TCO_LEN,
-	    RF_ACTIVE|RF_SHAREABLE);
+	    pmbase + TCO_BASE, ~0ul, TCO_LEN,
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->tco_res == NULL) {
 		device_printf(dev, "unable to reserve TCO registers\n");
 		goto fail;
 	}
 	sc->tco_bst = rman_get_bustag(sc->tco_res);
 	sc->tco_bsh = rman_get_bushandle(sc->tco_res);
-
 	/* reset the watchdog status registers */
+
 	ichwd_sts_reset(sc);
 
 	/* make sure the WDT starts out inactive */
@@ -348,6 +363,7 @@ static device_method_t ichwd_methods[] = {
 	DEVMETHOD(device_probe,	ichwd_probe),
 	DEVMETHOD(device_attach, ichwd_attach),
 	DEVMETHOD(device_detach, ichwd_detach),
+	DEVMETHOD(device_shutdown, ichwd_detach),
 	{0,0}
 };
 
@@ -376,9 +392,4 @@ ichwd_modevent(module_t mode, int type, void *data)
 	return (error);
 }
 
-DRIVER_MODULE(ichwd, nexus, ichwd_driver, ichwd_devclass, ichwd_modevent, NULL);
-/*
- * this doesn't seem to work, though I can't figure out why.
- * currently not a big issue since watchdog is standard.
-MODULE_DEPEND(ichwd, watchdog, 1, 1, 1);
- */
+DRIVER_MODULE(ichwd, isa, ichwd_driver, ichwd_devclass, ichwd_modevent, NULL);
