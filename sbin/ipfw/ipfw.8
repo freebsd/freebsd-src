@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2006
+.Dd June 15, 2006
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1587,12 +1587,16 @@ Lookup tables currently support IPv4 addresses only.
 The
 .Cm tablearg
 feature provides the ability to use a value, looked up in the table, as
-the argument for a rule action.
+the argument for a rule action, action parameter or rule option.
 This can significantly reduce number of rules in some configurations.
 The
 .Cm tablearg
 argument can be used with the following actions:
-.Cm pipe , queue, divert, tee, netgraph, ngtee .
+.Cm pipe , queue, divert, tee, netgraph, ngtee,
+action parameters:
+.Cm tag, untag,
+rule options:
+.Cm limit, tagged.
 See the
 .Sx EXAMPLES
 Section for example usage of tables and the tablearg keyword.
