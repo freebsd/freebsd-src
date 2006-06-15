@@ -74,6 +74,7 @@ extern struct var vpath;
 extern struct var vppid;
 extern struct var vps1;
 extern struct var vps2;
+extern struct var vps4;
 #ifndef NO_HISTORY
 extern struct var vhistsize;
 #endif
@@ -91,6 +92,7 @@ extern struct var vhistsize;
 #define pathval()	(vpath.text + 5)
 #define ps1val()	(vps1.text + 4)
 #define ps2val()	(vps2.text + 4)
+#define ps4val()	(vps4.text + 4)
 #define optindval()	(voptind.text + 7)
 #ifndef NO_HISTORY
 #define histsizeval()	(vhistsize.text + 9)
