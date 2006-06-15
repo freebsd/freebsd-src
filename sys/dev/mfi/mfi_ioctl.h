@@ -43,5 +43,28 @@ union mfi_statrequest {
 	struct mfi_qstat	ms_qstat;
 };
 
+#define MAX_LINUX_IOCTL_SGE	16
+
+struct mfi_linux_ioc_packet {
+	uint16_t	lioc_adapter_no;
+	uint16_t	lioc_pad1;
+	uint32_t	lioc_sgl_off;
+	uint32_t	lioc_sge_count;
+	uint32_t	lioc_sense_off;
+	uint32_t	lioc_sense_len;
+	union {
+		uint8_t raw[128];
+		struct mfi_frame_header hdr;
+	} lioc_frame;
+
+	struct iovec lioc_sgl[MAX_LINUX_IOCTL_SGE];
+} __packed;
+
 #define MFIIO_STATS	_IOWR('Q', 101, union mfi_statrequest)
 
+struct mfi_linux_ioc_aen {
+	uint16_t	laen_adapter_no;
+	uint16_t	laen_pad1;
+	uint32_t	laen_seq_num;
+	uint32_t	laen_class_locale;
+} __packed;
