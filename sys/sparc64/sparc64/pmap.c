@@ -1443,16 +1443,14 @@ pmap_enter_object(pmap_t pm, vm_offset_t start, vm_offset_t end,
 	PMAP_UNLOCK(pm);
 }
 
-vm_page_t
-pmap_enter_quick(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
-    vm_page_t mpte)
+void
+pmap_enter_quick(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
 
 	PMAP_LOCK(pm);
 	pmap_enter_locked(pm, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
 	    FALSE);
 	PMAP_UNLOCK(pm);
-	return (NULL);
 }
 
 void
