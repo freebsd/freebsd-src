@@ -122,11 +122,10 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	MMU_ENTER_OBJECT(mmu_obj, pmap, start, end, m_start, prot);
 }
 
-vm_page_t
-pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
-    vm_page_t mpte)
+void
+pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
-	return (MMU_ENTER_QUICK(mmu_obj, pmap, va, m, prot, mpte));
+	MMU_ENTER_QUICK(mmu_obj, pmap, va, m, prot);
 }
 
 vm_paddr_t
