@@ -34,7 +34,6 @@ options 	NFSCLIENT		# Network Filesystem Client
 options 	CD9660			# ISO 9660 Filesystem
 #options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 #options 	PSEUDOFS		# Pseudo-filesystem framework
-#options 	COMPAT_43		# Compatible with BSD 4.3 [KEEP THIS!]
 #options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
 #options 	KTRACE			# ktrace(1) support
 #options 	SYSVSHM			# SYSV-style shared memory
