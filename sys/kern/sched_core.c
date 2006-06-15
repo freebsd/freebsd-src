@@ -2310,6 +2310,21 @@ sched_load(void)
 #endif
 }
 
+void
+sched_relinquish(struct thread *td)
+{
+	struct ksegrp *kg;
+
+	kg = td->td_ksegrp;
+	mtx_lock_spin(&sched_lock);
+	if (sched_is_timeshare(kg)) {
+		sched_prio(td, PRI_MAX_TIMESHARE);
+		td->td_kse->ke_flags |= KEF_NEXTRQ;
+	}
+	mi_switch(SW_VOL, NULL);
+	mtx_unlock_spin(&sched_lock);
+}
+
 int
 sched_sizeof_ksegrp(void)
 {
