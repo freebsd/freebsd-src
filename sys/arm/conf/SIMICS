@@ -48,7 +48,6 @@ options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
 options 	CD9660			#ISO 9660 Filesystem
 #options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
-options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 #options 	KTRACE			#ktrace(1) support
 options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
