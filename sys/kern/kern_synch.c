@@ -542,14 +542,8 @@ synch_setup(dummy)
 int
 yield(struct thread *td, struct yield_args *uap)
 {
-	struct ksegrp *kg;
-
-	kg = td->td_ksegrp;
 	mtx_assert(&Giant, MA_NOTOWNED);
-	mtx_lock_spin(&sched_lock);
-	sched_prio(td, PRI_MAX_TIMESHARE);
-	mi_switch(SW_VOL, NULL);
-	mtx_unlock_spin(&sched_lock);
-	td->td_retval[0] = 0;
+	(void)uap;
+	sched_relinquish(td);
 	return (0);
 }
