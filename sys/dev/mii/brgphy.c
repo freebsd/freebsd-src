@@ -657,7 +657,7 @@ brgphy_reset(struct mii_softc *sc)
 	/* Enable Ethernet@WireSpeed. */
 	PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7007);
 	val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
-	PHY_WRITE(sc, BRGPHY_MII_AUXCTL, val | (1 << 15) || (1 << 4));
+	PHY_WRITE(sc, BRGPHY_MII_AUXCTL, val | (1 << 15) | (1 << 4));
 
 	/* Enable Link LED on Dell boxes */
 	if (bge_sc->bge_no_3_led) {
