@@ -122,6 +122,7 @@ SUBDIR=	${_3dfx} \
 	${_ipfilter} \
 	ipfw \
 	ip_mroute_mod \
+	${_ipmi} \
 	${_ips} \
 	ipw \
 	isp \
@@ -137,6 +138,7 @@ SUBDIR=	${_3dfx} \
 	libmbpool \
 	libmchain \
 	${_linprocfs} \
+	${_linsysfs} \
 	${_linux} \
 	${_lnc} \
 	lpt \
@@ -354,6 +356,7 @@ _ie=		ie
 _if_ndis=	if_ndis
 _io=		io
 _linprocfs=	linprocfs
+_linsysfs=	linsysfs
 _linux=		linux
 _lnc=		lnc
 _mse=		mse
@@ -404,6 +407,7 @@ _ichwd=		ichwd
 _ida=		ida
 _idt=		idt
 _iir=		iir
+_ipmi=		ipmi
 _ips=		ips
 _mly=		mly
 _nve=		nve
@@ -429,6 +433,7 @@ _agp=		agp
 _ahb=		ahb
 _ext2fs=	ext2fs
 _linprocfs=	linprocfs
+_linsysfs=	linsysfs
 _linux=		linux
 _osf1=		osf1
 _sound=		sound
@@ -454,6 +459,7 @@ _ida=		ida
 _if_ndis=	if_ndis
 _iir=		iir
 _io=		io
+_ipmi=		ipmi
 _ips=		ips
 #_lnc=		lnc
 _mly=		mly

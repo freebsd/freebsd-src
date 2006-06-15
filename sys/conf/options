@@ -174,6 +174,7 @@ EXT2FS		opt_dontuse.h
 FDESCFS		opt_dontuse.h
 HPFS		opt_dontuse.h
 LINPROCFS	opt_dontuse.h
+LINSYSFS	opt_dontuse.h
 MSDOSFS		opt_dontuse.h
 NTFS		opt_dontuse.h
 NULLFS		opt_dontuse.h

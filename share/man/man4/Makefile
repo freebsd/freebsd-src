@@ -115,6 +115,7 @@ MAN=	aac.4 \
 	ip.4 \
 	ip6.4 \
 	ipfirewall.4 \
+	${_ipmi.4} \
 	ips.4 \
 	ipsec.4 \
 	ipw.4 \
@@ -494,6 +495,7 @@ MLINKS+=xl.4 if_xl.4
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 _if_nve.4=	if_nve.4
+_ipmi.4=	ipmi.4
 _nve.4=		nve.4
 _rr232x.4=	rr232x.4
 _spkr.4=	spkr.4
