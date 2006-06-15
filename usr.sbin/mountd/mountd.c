@@ -965,6 +965,7 @@ get_exportlist()
 	struct iovec *iov;
 	struct statfs fsb, *fsp;
 	struct xucred anon;
+	struct xvfsconf vfc;
 	char *cp, *endcp, *dirp, *hst, *usr, *dom, savedc;
 	int len, has_host, exflags, got_nondir, dirplen, num, i, netgrp;
 	int iovlen;
@@ -1012,6 +1013,20 @@ get_exportlist()
 	}
 
 	for (i = 0; i < num; i++) {
+		if (getvfsbyname(fsp->f_fstypename, &vfc) != 0) {
+			syslog(LOG_ERR, "getvfsbyname() failed for %s",
+			    fsp->f_fstypename);
+			continue;
+		}
+
+		/*
+		 * Do not delete export for network filesystem by
+		 * passing "export" arg to nmount().
+		 * It only makes sense to do this for local filesystems.
+		 */
+		if (vfc.vfc_flags & VFCF_NETWORK)
+			continue;
+
 		iov[1].iov_base = fsp->f_fstypename;
 		iov[1].iov_len = strlen(fsp->f_fstypename) + 1;
 		iov[3].iov_base = fsp->f_mntonname;
