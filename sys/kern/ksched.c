@@ -253,9 +253,7 @@ ksched_getscheduler(register_t *ret, struct ksched *ksched, struct thread *td)
 int
 ksched_yield(register_t *ret, struct ksched *ksched)
 {
-	mtx_lock_spin(&sched_lock);
-	curthread->td_flags |= TDF_NEEDRESCHED;
-	mtx_unlock_spin(&sched_lock);
+	sched_relinquish(curthread);
 	return 0;
 }
 
