@@ -227,17 +227,13 @@ METHOD void enter_object {
  * @param _va		mapping virtual address
  * @param _pg		mapping physical page
  * @param _prot		new page protection - used to see if page is exec.
- * @param _mpte		???
- *
- * @retval NULL		(possibly a hint for future calls ?)
  */
-METHOD vm_page_t enter_quick {
+METHOD void enter_quick {
 	mmu_t		_mmu;
 	pmap_t		_pmap;
 	vm_offset_t	_va;
 	vm_page_t	_pg;
 	vm_prot_t	_prot;
-	vm_page_t	_mpte;
 };
 
 

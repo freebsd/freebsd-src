@@ -313,8 +313,7 @@ void moea_copy_page(mmu_t, vm_page_t, vm_page_t);
 void moea_enter(mmu_t, pmap_t, vm_offset_t, vm_page_t, vm_prot_t, boolean_t);
 void moea_enter_object(mmu_t, pmap_t, vm_offset_t, vm_offset_t, vm_page_t,
     vm_prot_t);
-vm_page_t moea_enter_quick(mmu_t, pmap_t, vm_offset_t, vm_page_t, vm_prot_t,
-    vm_page_t);
+void moea_enter_quick(mmu_t, pmap_t, vm_offset_t, vm_page_t, vm_prot_t);
 vm_paddr_t moea_extract(mmu_t, pmap_t, vm_offset_t);
 vm_page_t moea_extract_and_hold(mmu_t, pmap_t, vm_offset_t, vm_prot_t);
 void moea_init(mmu_t);
@@ -1174,16 +1173,16 @@ moea_enter_object(mmu_t mmu, pmap_t pm, vm_offset_t start, vm_offset_t end,
 	PMAP_UNLOCK(pm);
 }
 
-vm_page_t
+void
 moea_enter_quick(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_page_t m,
-    vm_prot_t prot, vm_page_t mpte)
+    vm_prot_t prot)
 {
 
 	PMAP_LOCK(pm);
 	moea_enter_locked(pm, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
 	    FALSE);
 	PMAP_UNLOCK(pm);
-	return (NULL);
+
 }
 
 vm_paddr_t
