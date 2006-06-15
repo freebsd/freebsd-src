@@ -25,7 +25,6 @@ ident		SKI
 makeoptions	DEBUG=-g	# Build kernel with debug information.
 makeoptions	NO_MODULES=yes	# Don't build any modules.
 
-options 	COMPAT_43	# Compatible with BSD 4.3 [KEEP THIS!]
 options 	DDB		# Support DDB
 options 	FFS		# Berkeley Fast Filesystem
 options 	GDB		# Support remote GDB
