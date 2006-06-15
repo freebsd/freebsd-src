@@ -1974,6 +1974,19 @@ sched_is_bound(struct thread *td)
 	return (td->td_kse->ke_flags & KEF_BOUND);
 }
 
+void
+sched_relinquish(struct thread *td)
+{
+	struct ksegrp *kg;
+
+	kg = td->td_ksegrp;
+	mtx_lock_spin(&sched_lock);
+	if (kg->kg_pri_class == PRI_TIMESHARE)
+		sched_prio(td, PRI_MAX_TIMESHARE);
+	mi_switch(SW_VOL, NULL);
+	mtx_unlock_spin(&sched_lock);
+}
+
 int
 sched_load(void)
 {
