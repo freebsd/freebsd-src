@@ -249,7 +249,6 @@ struct pr_usrreqs {
 /*
  * All nonvoid pru_*() functions below return EOPNOTSUPP.
  */
-
 void	pru_abort_notsupp(struct socket *so);
 int	pru_accept_notsupp(struct socket *so, struct sockaddr **nam);
 int	pru_attach_notsupp(struct socket *so, int proto, struct thread *td);
