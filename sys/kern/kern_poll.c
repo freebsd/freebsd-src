@@ -577,13 +577,11 @@ poll_idle(void)
 {
 	struct thread *td = curthread;
 	struct rtprio rtp;
-	int pri;
 
 	rtp.prio = RTP_PRIO_MAX;	/* lowest priority */
 	rtp.type = RTP_PRIO_IDLE;
 	mtx_lock_spin(&sched_lock);
 	rtp_to_pri(&rtp, td->td_ksegrp);
-	pri = td->td_priority;
 	mtx_unlock_spin(&sched_lock);
 
 	for (;;) {
@@ -595,7 +593,7 @@ poll_idle(void)
 			mtx_unlock_spin(&sched_lock);
 		} else {
 			idlepoll_sleeping = 1;
-			tsleep(&idlepoll_sleeping, pri, "pollid", hz * 3);
+			tsleep(&idlepoll_sleeping, 0, "pollid", hz * 3);
 		}
 	}
 }
