@@ -1135,10 +1135,6 @@ sysctl_new_user(struct sysctl_req *req, void *p, size_t l)
 /*
  * Wire the user space destination buffer.  If set to a value greater than
  * zero, the len parameter limits the maximum amount of wired memory.
- *
- * XXX - The len parameter is currently ignored due to the lack of
- * a place to save it in the sysctl_req structure so that the matching
- * amount of memory can be unwired in the sysctl exit code.
  */
 int
 sysctl_wire_old_buffer(struct sysctl_req *req, size_t len)
