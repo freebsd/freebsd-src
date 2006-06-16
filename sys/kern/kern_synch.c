@@ -195,9 +195,11 @@ msleep(ident, mtx, priority, wmesg, timo)
 	/*
 	 * Adjust this thread's priority.
 	 */
-	mtx_lock_spin(&sched_lock);
-	sched_prio(td, priority & PRIMASK);
-	mtx_unlock_spin(&sched_lock);
+	if ((priority & PRIMASK) != 0) {
+		mtx_lock_spin(&sched_lock);
+		sched_prio(td, priority & PRIMASK);
+		mtx_unlock_spin(&sched_lock);
+	}
 
 	if (timo && catch)
 		rval = sleepq_timedwait_sig(ident);

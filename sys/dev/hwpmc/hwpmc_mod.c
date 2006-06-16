@@ -644,15 +644,8 @@ pmc_select_cpu(int cpu)
 static void
 pmc_force_context_switch(void)
 {
-	u_char	curpri;
 
-	mtx_lock_spin(&sched_lock);
-	curpri = curthread->td_priority;
-	mtx_unlock_spin(&sched_lock);
-
-	(void) tsleep((void *) pmc_force_context_switch, curpri,
-	    "pmcctx", 1);
-
+	(void) tsleep((void *) pmc_force_context_switch, 0, "pmcctx", 1);
 }
 
 /*

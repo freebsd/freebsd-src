@@ -543,7 +543,7 @@ schedcpu_thread(void)
 
 	for (;;) {
 		schedcpu();
-		tsleep(&nowake, curthread->td_priority, "-", hz);
+		tsleep(&nowake, 0, "-", hz);
 	}
 }
 

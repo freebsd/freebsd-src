@@ -373,8 +373,7 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 	/* Create a thread if we need one. */
 	while (ie->ie_thread == NULL && !(flags & INTR_FAST)) {
 		if (ie->ie_flags & IE_ADDING_THREAD)
-			msleep(ie, &ie->ie_lock, curthread->td_priority,
-			    "ithread", 0);
+			msleep(ie, &ie->ie_lock, 0, "ithread", 0);
 		else {
 			ie->ie_flags |= IE_ADDING_THREAD;
 			mtx_unlock(&ie->ie_lock);
@@ -460,8 +459,7 @@ ok:
 		TAILQ_REMOVE(&ie->ie_handlers, handler, ih_next);
 	mtx_unlock_spin(&sched_lock);
 	while (handler->ih_flags & IH_DEAD)
-		msleep(handler, &ie->ie_lock, curthread->td_priority, "iev_rmh",
-		    0);
+		msleep(handler, &ie->ie_lock, 0, "iev_rmh", 0);
 	intr_event_update(ie);
 #ifdef notyet
 	/*
@@ -705,7 +703,7 @@ ithread_execute_handlers(struct proc *p, struct intr_event *ie)
 			    ie->ie_name);
 			ie->ie_warned = 1;
 		}
-		tsleep(&ie->ie_count, curthread->td_priority, "istorm", 1);
+		tsleep(&ie->ie_count, 0, "istorm", 1);
 	} else
 		ie->ie_count++;
 
