@@ -200,11 +200,12 @@
       HEAD and RELENG_6 branches; more testing is planned before a
       merge to the RELENG_6_1 errata fix branch.</para>
 
-    <para>(2006/06/01) A bug in the Neighbor Discovery Protocol (NDP)
+    <para>(2006/06/01, updated 2006/06/16) A bug in the Neighbor Discovery Protocol (NDP)
       implementation causes spurious error messages for point-to-point
       IPv6 links on &os; &release.bugfix;.  This behavior is a
       regression from &os; 6.0-RELEASE.  A solution for this
-      problem is being analyzed and tested.</para>
+      problem has been committed to HEAD and is planned for merging
+      to RELENG_6.</para>
 
     <para>(2006/06/01) Problems have been observed when trying to load
       packages from multiple CDROMs inside the &man.sysinstall.8;
@@ -224,7 +225,7 @@
       <literal>requests for mbufs denied</literal> (as reported by
       <command>netstat -m</command>) to increase erroneously.  A fix
       for this problem has been committed to HEAD and RELENG_6 and will be merged
-      to the RELENG_6_1 branche after additional
+      to the RELENG_6_1 branch after additional
       testing.</para>
 
     <para>(2006/06/01) A longstanding bug in the i386 bootloader can
