@@ -771,11 +771,9 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 
 	buf = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	fdp = td->td_proc->p_fd;
-	mtx_lock(&Giant);
 	FILEDESC_LOCK(fdp);
 	error = vn_fullpath1(td, vn, fdp->fd_rdir, buf, retbuf, MAXPATHLEN);
 	FILEDESC_UNLOCK(fdp);
-	mtx_unlock(&Giant);
 
 	if (!error)
 		*freebuf = buf;
@@ -794,8 +792,6 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	char *bp;
 	int error, i, slash_prefixed;
 	struct namecache *ncp;
-
-	mtx_assert(&Giant, MA_OWNED);
 
 	bp = buf + buflen - 1;
 	*bp = '\0';
