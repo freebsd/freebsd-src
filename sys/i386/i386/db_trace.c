@@ -201,25 +201,29 @@ static int
 db_numargs(fp)
 	struct i386_frame *fp;
 {
-	int	*argp;
+	char   *argp;
 	int	inst;
 	int	args;
 
-	argp = (int *)db_get_value((int)&fp->f_retaddr, 4, FALSE);
+	argp = (char *)db_get_value((int)&fp->f_retaddr, 4, FALSE);
 	/*
 	 * XXX etext is wrong for LKMs.  We should attempt to interpret
 	 * the instruction at the return address in all cases.  This
 	 * may require better fault handling.
 	 */
-	if (argp < (int *)btext || argp >= (int *)etext) {
+	if (argp < btext || argp >= etext) {
 		args = 5;
 	} else {
+retry:
 		inst = db_get_value((int)argp, 4, FALSE);
 		if ((inst & 0xff) == 0x59)	/* popl %ecx */
 			args = 1;
 		else if ((inst & 0xffff) == 0xc483)	/* addl $Ibs, %esp */
 			args = ((inst >> 16) & 0xff) / 4;
-		else
+		else if ((inst & 0xf8ff) == 0xc089) {	/* movl %eax, %Reg */
+			argp += 2;
+			goto retry;
+		} else
 			args = 5;
 	}
 	return (args);
