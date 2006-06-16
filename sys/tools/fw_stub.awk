@@ -125,7 +125,8 @@ for (file_i = 0; file_i < num_files; file_i++) {
 printc("\nstatic int\n"\
 opt_m "_fw_modevent(module_t mod, int type, void *unused)\
 {\
-	struct firmware *fp;\
+	struct firmware *fp, *parent;\
+	int error;\
 	switch (type) {\
 	case MOD_LOAD:");
 
@@ -136,11 +137,7 @@ for (file_i = 0; file_i < num_files; file_i++) {
 	# '-', '.' and '/' are converted to '_' by ld/objcopy
 	gsub(/-|\.|\//, "_", symb);
 
-	if (file_i == 0)
-		reg = "\t\tfp = ";
-	else
-		reg = "\t\t(void)";
-
+	reg = "\t\tfp = ";
 	reg = reg "firmware_register(\"" short "\", _binary_" symb "_start , ";
 	reg = reg "(size_t)(_binary_" symb "_end - _binary_" symb "_start), ";
 	reg = reg version ", ";
@@ -148,21 +145,37 @@ for (file_i = 0; file_i < num_files; file_i++) {
 	if (file_i == 0)
 		reg = reg "NULL);";
 	else
-		reg = reg "fp);";
+		reg = reg "parent);";
 
 	printc(reg);
+
+	printc("\t\tif (fp == NULL)");
+	printc("\t\t\tgoto fail_" file_i ";");
+	if (file_i == 0)
+		printc("\t\tparent = fp;");
 }
 
-printc("\t\treturn (0);\
-	case MOD_UNLOAD:");
+printc("\t\treturn (0);");
+
+for (file_i = num_files - 1; file_i > 0; file_i--) {
+	printc("\tfail_" file_i ":")
+	printc("\t\t(void)firmware_unregister(\"" shortnames[file_i - 1] "\");");
+}
+
+printc("\tfail_0:");
+printc("\t\treturn (ENXIO);");
+
+printc("\tcase MOD_UNLOAD:");
 
 for (file_i = 1; file_i < num_files; file_i++) {
-	printc("\t\tfirmware_unregister(\"" shortnames[file_i] "\");");
+	printc("\t\terror = firmware_unregister(\"" shortnames[file_i] "\");");
+	printc("\t\tif (error)");
+	printc("\t\t\treturn (error);");
 }
 
-printc("\t\tfirmware_unregister(\"" shortnames[0] "\");");
+printc("\t\terror = firmware_unregister(\"" shortnames[0] "\");");
 
-printc("\t\treturn (0);\
+printc("\t\treturn (error);\
 	}\
 	return (EINVAL);\
 }\
