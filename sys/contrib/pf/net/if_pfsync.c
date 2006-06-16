@@ -102,6 +102,8 @@
 #include "opt_carp.h"
 #ifdef DEV_CARP
 #define	NCARP	1
+#else
+#define	NCARP	0
 #endif
 #else
 #include "carp.h"
