@@ -212,7 +212,7 @@ db_numargs(fp)
 	 * may require better fault handling.
 	 */
 	if (argp < btext || argp >= etext) {
-		args = 5;
+		args = -1;
 	} else {
 retry:
 		inst = db_get_value((int)argp, 4, FALSE);
@@ -224,7 +224,7 @@ retry:
 			argp += 2;
 			goto retry;
 		} else
-			args = 5;
+			args = -1;
 	}
 	return (args);
 }
@@ -237,15 +237,19 @@ db_print_stack_entry(name, narg, argnp, argp, callpc)
 	int *argp;
 	db_addr_t callpc;
 {
+	int n = narg >= 0 ? narg : 5;
+
 	db_printf("%s(", name);
-	while (narg) {
+	while (n) {
 		if (argnp)
 			db_printf("%s=", *argnp++);
 		db_printf("%r", db_get_value((int)argp, 4, FALSE));
 		argp++;
-		if (--narg != 0)
+		if (--n != 0)
 			db_printf(",");
 	}
+	if (narg < 0)
+		db_printf(",...");
 	db_printf(") at ");
 	db_printsym(callpc, DB_STGY_PROC);
 	db_printf("\n");
