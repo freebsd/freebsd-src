@@ -97,6 +97,7 @@ SYSCTL_PROC(_kern, KERN_BOOTTIME, boottime, CTLTYPE_STRUCT|CTLFLAG_RD,
     NULL, 0, sysctl_kern_boottime, "S,timeval", "System boottime");
 
 SYSCTL_NODE(_kern, OID_AUTO, timecounter, CTLFLAG_RW, 0, "");
+SYSCTL_NODE(_kern_timecounter, OID_AUTO, tc, CTLFLAG_RW, 0, "");
 
 static int timestepwarnings;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, stepwarnings, CTLFLAG_RW,
@@ -131,6 +132,26 @@ sysctl_kern_boottime(SYSCTL_HANDLER_ARGS)
 	} else
 #endif
 		return SYSCTL_OUT(req, &boottime, sizeof(boottime));
+}
+
+static int
+sysctl_kern_timecounter_get(SYSCTL_HANDLER_ARGS)
+{
+	u_int ncount;
+	struct timecounter *tc = arg1;
+
+	ncount = tc->tc_get_timecount(tc);
+	return sysctl_handle_int(oidp, &ncount, sizeof(ncount), req);
+}
+
+static int
+sysctl_kern_timecounter_freq(SYSCTL_HANDLER_ARGS)
+{
+	u_int64_t freq;
+	struct timecounter *tc = arg1;
+
+	freq = tc->tc_frequency;
+	return sysctl_handle_int(oidp, &freq, sizeof(freq), req);
 }
 
 /*
@@ -309,6 +330,7 @@ void
 tc_init(struct timecounter *tc)
 {
 	u_int u;
+	struct sysctl_oid *tc_root;
 
 	u = tc->tc_frequency / tc->tc_counter_mask;
 	/* XXX: We need some margin here, 10% is a guess */
@@ -329,6 +351,24 @@ tc_init(struct timecounter *tc)
 
 	tc->tc_next = timecounters;
 	timecounters = tc;
+	/*
+	 * Set up sysctl tree for this counter.
+	 */
+	tc_root = SYSCTL_ADD_NODE(NULL,
+	    SYSCTL_STATIC_CHILDREN(_kern_timecounter_tc), OID_AUTO, tc->tc_name,
+	    CTLFLAG_RW, 0, "timecounter description");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(tc_root), OID_AUTO,
+	    "mask", CTLFLAG_RD, &(tc->tc_counter_mask), 0,
+	    "mask for implemented bits");
+	SYSCTL_ADD_PROC(NULL, SYSCTL_CHILDREN(tc_root), OID_AUTO,
+	    "counter", CTLTYPE_UINT | CTLFLAG_RD, tc, sizeof(*tc),
+	    sysctl_kern_timecounter_get, "IU", "current timecounter value");
+	SYSCTL_ADD_PROC(NULL, SYSCTL_CHILDREN(tc_root), OID_AUTO,
+	    "frequency", CTLTYPE_QUAD | CTLFLAG_RD, tc, sizeof(*tc),
+	     sysctl_kern_timecounter_freq, "IU", "timecounter frequency");
+	SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(tc_root), OID_AUTO,
+	    "quality", CTLFLAG_RD, &(tc->tc_quality), 0,
+	    "goodness of time counter");
 	/*
 	 * Never automatically use a timecounter with negative quality.
 	 * Even though we run on the dummy counter, switching here may be
