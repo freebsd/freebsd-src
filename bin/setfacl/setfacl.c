@@ -109,6 +109,7 @@ main(int argc, char *argv[])
 	int local_error, carried_error, ch, i;
 	struct sf_file *file;
 	struct sf_entry *entry;
+	const char *fn_dup;
 
 	acl_type = ACL_TYPE_ACCESS;
 	carried_error = local_error = 0;
@@ -187,7 +188,10 @@ main(int argc, char *argv[])
 		while (fgets(filename, (int)sizeof(filename), stdin)) {
 			/* remove the \n */
 			filename[strlen(filename) - 1] = '\0';
-			add_filename(filename);
+			fn_dup = strdup(filename);
+			if (fn_dup == NULL)
+				err(1, "strdup() failed");
+			add_filename(fn_dup);
 		}
 	} else
 		for (i = 0; i < argc; i++)
