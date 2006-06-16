@@ -413,7 +413,10 @@ static void
 acpi_panasonic_hkey_action(struct acpi_panasonic_softc *sc, ACPI_HANDLE h,
     UINT32 key)
 {
+	struct acpi_softc *acpi_sc;
 	int arg, max, min;
+
+	acpi_sc = acpi_device_get_parent_softc(sc->dev);
 
 	ACPI_SERIAL_ASSERT(panasonic);
 	switch (key) {
@@ -449,6 +452,10 @@ acpi_panasonic_hkey_action(struct acpi_panasonic_softc *sc, ACPI_HANDLE h,
 		else
 			arg = 1;
 		hkey_sound_mute(h, HKEY_SET, &arg);
+		break;
+	case 7:
+		/* Suspend. */
+		acpi_event_sleep_button_sleep(acpi_sc);
 		break;
 	}
 }
