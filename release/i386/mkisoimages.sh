@@ -28,12 +28,15 @@ publisher="The FreeBSD Project.  http://www.freebsd.org/"
 if [ "x$1" = "x-b" ]; then
 	bootable="-b boot/cdboot -no-emul-boot"
 	shift
+elif [ "x$1" = "x-G" ]; then
+	bootable="-G /R/cdrom/bootonly/boot/cdboot"
+	shift
 else
 	bootable=""
 fi
 
 if [ $# -lt 3 ]; then
-	echo Usage: $0 '[-b] image-label image-name base-bits-dir [extra-bits-dir]'
+	echo Usage: $0 '[-bG] image-label image-name base-bits-dir [extra-bits-dir]'
 	exit 1
 fi
 

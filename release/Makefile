@@ -266,9 +266,7 @@ RD=			${_R}/stage
 RND=			${RD}/release.doc
 FD=			${_R}/ftp
 CD=			${_R}/cdrom
-.if ${TARGET} != "pc98"
 CD_BOOT=		${CD}/bootonly
-.endif
 CD_DISC1=		${CD}/disc1
 CD_DISC2=		${CD}/disc2
 .if defined(SEPARATE_LIVEFS)
@@ -309,7 +307,7 @@ EXTRAS+= cdrom.1 cdrom.2 cdrom.3
 EXTRAS+= iso.1
 .endif
 .if ${TARGET} == "pc98"
-BOOTABLE=
+BOOTABLE="-G"
 .else
 BOOTABLE="-b"
 .endif
@@ -945,7 +943,6 @@ cdrom.1:
 	@rm -f ${CD_LIVEFS}/.profile
 	@cp ${.CURDIR}/fixit.profile ${CD_LIVEFS}/.profile
 	@ln -sf /rescue ${CD_LIVEFS}/stand
-.if ${TARGET} != "pc98"
 	@echo "Setting up CDROM boot area"
 	@rm -f ${CD_LIVEFS}/boot/loader.conf
 	@cp ${RD}/mfsroot/mfsroot.gz ${CD_LIVEFS}/boot/mfsroot.gz
@@ -958,7 +955,6 @@ cdrom.1:
 	@cp ${RD}/trees/base/boot/device.hints ${CD_LIVEFS}/boot/device.hints
 .if ${TARGET} == "i386" || ${TARGET_ARCH} == "amd64"
 	@echo 'hint.atkbd.0.flags="0x1"' >> ${CD_LIVEFS}/boot/device.hints
-.endif
 .endif
 .endif
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_LIVEFS}/cdrom.inf
