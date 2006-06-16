@@ -333,8 +333,8 @@ acpi_realmodeinst(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	/* Copy the wake code into our low page and save its physical addr. */
 	bcopy(wakecode, (void *)sc->acpi_wakeaddr, sizeof(wakecode));
 	if (bootverbose) {
-		device_printf(sc->acpi_dev, "wakeup code va %#x pa %#x\n",
-		    acpi_wakeaddr, sc->acpi_wakephys);
+		device_printf(sc->acpi_dev, "wakeup code va %#x pa %#jx\n",
+		    acpi_wakeaddr, (uintmax_t)sc->acpi_wakephys);
 	}
 }
 
