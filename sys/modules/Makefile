@@ -374,6 +374,7 @@ _oltr=		oltr
 _pccard=	pccard
 _pcfclock=	pcfclock
 _pecoff=	pecoff
+_ppc=		ppc
 _pst=		pst
 _puc=		puc
 _ray=		ray
@@ -422,7 +423,6 @@ _nve=		nve
 _padlock=	padlock
 .endif
 .endif
-_ppc=		ppc
 _rr232x=	rr232x
 _s3=		s3
 _twa=		twa
