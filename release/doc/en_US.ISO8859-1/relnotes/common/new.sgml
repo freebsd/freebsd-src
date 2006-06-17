@@ -135,15 +135,20 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para></para>
+    <para>A bug has been fixed in the statistics-keeping code in the
+      kernel's UMA memory allocator.  This caused a count of memory
+      allocation failures (as shown by <command>netstat -m</command>)
+      to increase erroneously.</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
-      <para></para>
       <!-- Above this line, order boot loader changes by keyword-->
+
+      <para arch="pc98">A bootable CDROM loader has been implemented
+	for the pc98 platform.</para>
 
     </sect3>
 
@@ -183,7 +188,19 @@
     <sect3 id="fs">
       <title>File Systems</title>
 
-      <para></para>
+      <para>The &man.linsysfs.5; pseudo-filesystem driver has been
+	added.  It provides a subset of the
+	Linux <filename>sys</filename> filesystem, and is required for
+	the correct operation of some Linux binaries (such as the LSI
+	MegaRAID SAS utility).</para>
+
+      <para>A deadlock observed when both quotas and snapshots were in
+	use on a file system on &os; &release.prev; has been
+	corrected.</para>
+
+      <para>A performance regression with NFS servers running &os;
+	&release.prev;, caused by a leak of the Giant kernel lock, has
+	been fixed.</para>
     </sect3>
 
   </sect2>
@@ -229,7 +246,10 @@
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
-      <para></para>
+      <para>A bug in the <filename>rc.d/jail</filename> startup
+        script, which caused a number of problems for users attempting
+        to use jails on &os; &release.prev;, has been
+        corrected.</para>
     </sect3>
   </sect2>
 
