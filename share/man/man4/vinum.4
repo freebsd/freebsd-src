@@ -197,7 +197,7 @@ kernel configuration file:
 The current version of
 .Nm ,
 both the kernel module and the user program
-.Xr vinum 8 ,
+.Xr gvinum 8 ,
 include significant debugging support.
 It is not recommended to remove
 this support at the moment, but if you do you must remove it from both the
@@ -227,7 +227,7 @@ as described above.
 If the
 .Va VINUMDEBUG
 variables do not match,
-.Xr vinum 8
+.Xr gvinum 8
 will fail with a message
 explaining the problem and what to do to correct it.
 .Ss Other Options
@@ -255,13 +255,13 @@ is part of the base
 system.
 It does not require installation.
 To start it, start the
-.Xr vinum 8
+.Xr gvinum 8
 program, which will load the KLD if it is not already present.
 Before using
 .Nm ,
 it must be configured.
 See
-.Xr vinum 8
+.Xr gvinum 8
 for information on how to create a
 .Nm
 configuration.
@@ -288,19 +288,19 @@ is loaded as a KLD (the recommended way), the
 .Nm vinum Cm stop
 command will unload it
 (see
-.Xr vinum 8 ) .
+.Xr gvinum 8 ) .
 You can also do this with the
 .Xr kldunload 8
 command.
 .Pp
 The KLD can only be unloaded when idle, in other words when no volumes are
 mounted and no other instances of the
-.Xr vinum 8
+.Xr gvinum 8
 program are active.
 Unloading the KLD does not harm the data in the volumes.
 .Ss Configuring and Starting Objects
 Use the
-.Xr vinum 8
+.Xr gvinum 8
 utility to configure and start
 .Nm
 objects.
@@ -351,7 +351,7 @@ in
 .Sh IOCTL CALLS
 .Xr ioctl 2
 calls are intended for the use of the
-.Xr vinum 8
+.Xr gvinum 8
 configuration program only.
 They are described in the header file
 .Pa /sys/dev/vinum/vinumio.h .
@@ -486,13 +486,13 @@ and
 .Pa /dev/vinum/controld .
 .Pa /dev/vinum/control
 is used by
-.Xr vinum 8
+.Xr gvinum 8
 when it has been compiled without the
 .Dv VINUMDEBUG
 option,
 .Pa /dev/vinum/Control
 is used by
-.Xr vinum 8
+.Xr gvinum 8
 when it has been compiled with the
 .Dv VINUMDEBUG
 option, and
@@ -501,7 +501,7 @@ is used by the
 .Nm
 daemon.
 The two control devices for
-.Xr vinum 8
+.Xr gvinum 8
 are used to synchronize the debug status of kernel and user modules.
 .It
 Unlike
@@ -566,7 +566,7 @@ Assume the
 objects described in the section
 .Sx "CONFIGURATION FILE"
 in
-.Xr vinum 8 .
+.Xr gvinum 8 .
 The directory
 .Pa /dev/vinum
 looks like:
@@ -845,9 +845,9 @@ The drive is up and running.
 .Xr disklabel 5 ,
 .Xr loader.conf 5 ,
 .Xr disklabel 8 ,
+.Xr gvinum 8 ,
 .Xr loader 8 ,
-.Xr newfs 8 ,
-.Xr vinum 8
+.Xr newfs 8
 .Sh HISTORY
 .Nm
 first appeared in
@@ -1099,7 +1099,7 @@ specification).
 The following example shows a remote debugging session using the
 .Ic debug
 command of
-.Xr vinum 8 :
+.Xr gvinum 8 :
 .Bd -literal
 .if t .ps -3
 .if t .vs -3
@@ -1163,7 +1163,7 @@ The output of the
 .Nm vinum Cm list
 command
 (see
-.Xr vinum 8 ) .
+.Xr gvinum 8 ) .
 .It
 Any messages printed in
 .Pa /var/log/messages .
