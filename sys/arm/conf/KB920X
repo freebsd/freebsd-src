@@ -79,5 +79,5 @@ device		lxtphy
 
 device		mem			# Memory and kernel memory devices
 device		md
-device		at91_twi		# TWI: Two Wire Interface
+# device	at91_twi		# TWI: Two Wire Interface
 device		at91_spi		# SPI:
