@@ -521,7 +521,9 @@ nve_attach(device_t dev)
 	ifp->if_init = nve_init;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_baudrate = IF_Mbps(100);
-	ifp->if_snd.ifq_maxlen = TX_RING_SIZE - 1;
+	IFQ_SET_MAXLEN(&ifp->if_snd, TX_RING_SIZE - 1);
+	ifp->if_snd.ifq_drv_maxlen = TX_RING_SIZE - 1;
+	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 
 	/* Attach to OS's managers. */
@@ -861,7 +863,7 @@ nve_ifstart_locked(struct ifnet *ifp)
 		buf = &desc->buf;
 
 		/* Get next packet to send. */
-		IF_DEQUEUE(&ifp->if_snd, m0);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m0);
 
 		/* If nothing to send, return. */
 		if (m0 == NULL)
@@ -940,7 +942,7 @@ nve_ifstart_locked(struct ifnet *ifp)
 			    "nve_ifstart: transmit queue is full\n");
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			bus_dmamap_unload(sc->mtag, buf->map);
-			IF_PREPEND(&ifp->if_snd, buf->mbuf);
+			IFQ_DRV_PREPEND(&ifp->if_snd, buf->mbuf);
 			buf->mbuf = NULL;
 			return;
 
