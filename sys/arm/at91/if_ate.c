@@ -96,6 +96,7 @@ struct ate_softc
 	int txcur;			/* current tx map pointer */
 	bus_addr_t rx_desc_phys;
 	eth_rx_desc_t *rx_descs;
+	int use_rmii;
 	struct	ifmib_iso_8802_3 mibdata; /* stuff for network mgmt */
 };
 
@@ -174,6 +175,8 @@ ate_attach(device_t dev)
 	if (err)
 		goto out;
 
+	sc->use_rmii = (RD4(sc, ETH_CFG) & ETH_CFG_RMII) == ETH_CFG_RMII;
+
 	/* calling atestop before ifp is set is OK */
 	atestop(sc);
 	ATE_LOCK_INIT(sc);
@@ -181,6 +184,7 @@ ate_attach(device_t dev)
 
 	ate_get_mac(sc, eaddr);
 	ate_set_mac(sc, eaddr);
+
 
 	sc->ifp = ifp = if_alloc(IFT_ETHER);
 	if (mii_phy_probe(dev, &sc->miibus, ate_ifmedia_upd, ate_ifmedia_sts)) {
@@ -693,11 +697,11 @@ ateinit_locked(void *xsc)
 	 * to this chip.  Select the right one based on a compile-time
 	 * option.
 	 */
-#ifdef ATE_USE_RMII
-	WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) | ETH_CFG_RMII);
-#else
-	WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) & ~ETH_CFG_RMII);
-#endif
+	if (sc->use_rmii)
+		WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) | ETH_CFG_RMII);
+	else
+		WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) & ~ETH_CFG_RMII);
+
 	/*
 	 * Turn on the multicast hash, and write 0's to it.
 	 */
