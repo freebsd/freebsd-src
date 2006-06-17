@@ -1489,7 +1489,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 		 */
 		if ((flags & MAP_PREFAULT_MADVISE) &&
 		    cnt.v_free_count < cnt.v_free_reserved) {
-			size = ptoa(tmpidx);
+			psize = tmpidx;
 			break;
 		}
 		if ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL &&
@@ -1512,8 +1512,8 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 		}
 	}
 	if (p_start != NULL)
-		pmap_enter_object(map->pmap, start, addr + size, p_start,
-		    prot);
+		pmap_enter_object(map->pmap, start, addr + ptoa(psize),
+		    p_start, prot);
 	if (are_queues_locked)
 		vm_page_unlock_queues();
 unlock_return:
