@@ -245,14 +245,16 @@ struct tcpopt {
 
 #ifdef _NETINET_IN_PCB_H_
 struct syncache {
-	struct		mbuf *sc_ipopts;	/* source route */
+	TAILQ_ENTRY(syncache)	sc_hash;
 	struct		in_conninfo sc_inc;	/* addresses */
+	u_long		sc_rxttime;		/* retransmit time */
+	u_int16_t	sc_rxmits;		/* retransmit counter */
+
 	u_int32_t	sc_tsrecent;
 	u_int32_t	sc_flowlabel;		/* IPv6 flowlabel */
 	tcp_seq		sc_irs;			/* seq from peer */
 	tcp_seq		sc_iss;			/* our ISS */
-	u_long		sc_rxttime;		/* retransmit time */
-	u_int16_t	sc_rxmits;		/* retransmit counter */
+	struct		mbuf *sc_ipopts;	/* source route */
 
 	u_int16_t	sc_peer_mss;		/* peer's MSS */
 	u_int16_t	sc_wnd;			/* advertised window */
@@ -267,12 +269,11 @@ struct syncache {
 #define SCF_UNREACH	0x10			/* icmp unreachable received */
 #define SCF_SIGNATURE	0x20			/* send MD5 digests */
 #define SCF_SACK	0x80			/* send SACK option */
-	TAILQ_ENTRY(syncache)	sc_hash;
 };
 
 struct syncache_head {
-	TAILQ_HEAD(sch_head, syncache)	sch_bucket;
 	struct mtx	sch_mtx;
+	TAILQ_HEAD(sch_head, syncache)	sch_bucket;
 	struct callout	sch_timer;
 	int		sch_nextc;
 	u_int		sch_length;
