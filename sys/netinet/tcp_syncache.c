@@ -797,8 +797,10 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	struct syncache_head *sch;
 	struct mbuf *ipopts = NULL;
 	u_int32_t flowtmp;
-	int win, autoflowlabel = 0;
-	int sb_hiwat, ip_ttl, ip_tos;
+	int win, sb_hiwat, ip_ttl, ip_tos;
+#ifdef INET6
+	int autoflowlabel = 0;
+#endif
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_LOCK_ASSERT(inp);			/* listen socket */
