@@ -832,9 +832,11 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 			struct	vm_page m;
 
 			m.phys_addr = translations[i].om_pa + off;
+			PMAP_LOCK(&ofw_pmap);
 			moea_enter_locked(&ofw_pmap,
 				   translations[i].om_va + off, &m,
 				   VM_PROT_ALL, 1);
+			PMAP_UNLOCK(&ofw_pmap);
 			ofw_mappings++;
 		}
 	}
