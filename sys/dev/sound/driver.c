@@ -53,6 +53,7 @@ DECLARE_MODULE(snd_driver, snd_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 MODULE_VERSION(snd_driver, 1);
 
 MODULE_DEPEND(snd_driver, snd_ad1816, 1, 1, 1);
+MODULE_DEPEND(snd_driver, snd_ak452x, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_als4000, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_atiixp, 1, 1, 1);
 /* MODULE_DEPEND(snd_driver, snd_aureal, 1, 1, 1); */
@@ -62,6 +63,7 @@ MODULE_DEPEND(snd_driver, snd_csa, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_csapcm, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_ds1, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_emu10k1, 1, 1, 1);
+MODULE_DEPEND(snd_driver, snd_envy24, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_es137x, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_ess, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_fm801, 1, 1, 1);
