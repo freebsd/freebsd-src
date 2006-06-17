@@ -332,12 +332,11 @@ at91_pmc_init_clock(struct at91_pmc_softc *sc, int main_clock)
 	mckr = RD4(sc, PMC_MCKR);
 	mck.parent = clock_list[mckr & 0x3];
 	mck.parent->refcnt++;
-	freq = mck.parent->hz;
-	freq /= 1 << ((mckr >> 2) & 3);
+	freq = mck.parent->hz / (1 << ((mckr >> 2) & 3));
 	mck.hz = freq / (1 + ((mckr >> 8) & 3));
 
 	device_printf(sc->dev,
-	    "main clock: %d Hz PLLA: %d MHz CPU: %d MHz main %d MHz\n",
+	    "Primary: %d Hz PLLA: %d MHz CPU: %d MHz MCK: %d MHz\n",
 	    sc->main_clock_hz,
 	    at91_pmc_pll_rate(main_clock, RD4(sc, CKGR_PLLAR), 0) / 1000000,
 	    freq / 1000000, mck.hz / 1000000);
