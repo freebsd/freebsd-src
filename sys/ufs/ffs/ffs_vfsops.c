@@ -594,7 +594,13 @@ ffs_mountfs(devvp, mp, td)
 	 * Try reading the superblock in each of its possible locations.
 	 */
 	for (i = 0; sblock_try[i] != -1; i++) {
-		if ((error = bread(devvp, sblock_try[i] / DEV_BSIZE, SBLOCKSIZE,
+		if ((SBLOCKSIZE % cp->provider->sectorsize) != 0) {
+			error = EINVAL;
+			printf("Invalid sectorsize %d for superblock size %d\n",
+			    cp->provider->sectorsize, SBLOCKSIZE);
+			goto out;
+		}
+		if ((error = bread(devvp, btodb(sblock_try[i]), SBLOCKSIZE,
 		    cred, &bp)) != 0)
 			goto out;
 		fs = (struct fs *)bp->b_data;
