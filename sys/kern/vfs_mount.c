@@ -722,6 +722,7 @@ vfs_domount(
 	struct vnode *vp;
 	struct mount *mp;
 	struct vfsconf *vfsp;
+	struct export_args export;
 	int error, flag = 0, kern_flag = 0;
 	struct vattr va;
 	struct nameidata nd;
@@ -882,6 +883,17 @@ vfs_domount(
 	 * get.  No freeing of cn_pnbuf.
 	 */
         error = VFS_MOUNT(mp, td);
+
+	/*
+	 * Process the export option only if we are
+	 * updating mount options.
+	 */
+	if (!error && (fsflags & MNT_UPDATE)) {
+		if (vfs_copyopt(mp->mnt_optnew, "export", &export,
+		    sizeof(export)) == 0)
+			error = vfs_export(mp, &export);
+	}
+
 	if (!error) {
 		if (mp->mnt_opt != NULL)
 			vfs_freeopts(mp->mnt_opt);

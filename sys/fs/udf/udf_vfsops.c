@@ -191,7 +191,6 @@ udf_mount(struct mount *mp, struct thread *td)
 {
 	struct vnode *devvp;	/* vnode of the mount device */
 	struct udf_mnt *imp = 0;
-	struct export_args *export;
 	struct vfsoptlist *opts;
 	char *fspec, *cs_disk, *cs_local;
 	int error, len, *udf_flags;
@@ -215,14 +214,7 @@ udf_mount(struct mount *mp, struct thread *td)
 		return (EINVAL);
 
 	if (mp->mnt_flag & MNT_UPDATE) {
-		imp = VFSTOUDFFS(mp);
-		if (fspec == NULL) {
-			error = vfs_getopt(opts, "export", (void **)&export,
-			    &len);
-			if (error || len != sizeof(struct export_args))
-				return (EINVAL);
-			return (vfs_export(mp, export));
-		}
+		return (0);
 	}
 
 	/* Check that the mount device exists */

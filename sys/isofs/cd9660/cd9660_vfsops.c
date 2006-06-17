@@ -128,9 +128,8 @@ static int
 cd9660_mount(struct mount *mp, struct thread *td)
 {
 	struct vnode *devvp;
-	struct export_args *export;
 	char *fspec;
-	int error, len;
+	int error;
 	mode_t accessmode;
 	struct nameidata ndp;
 	struct iso_mnt *imp = 0;
@@ -143,15 +142,10 @@ cd9660_mount(struct mount *mp, struct thread *td)
 		return (error);
 
 	imp = VFSTOISOFS(mp);
-	/*
-	 * If updating, check whether changing from read-only to
-	 * read/write; if there is no device name, that's all we do.
-	 */
+
 	if (mp->mnt_flag & MNT_UPDATE) {
-		error = vfs_getopt(mp->mnt_optnew,
-		    "export", (void **)&export, &len);
-		if (error == 0 && len == sizeof *export && export->ex_flags)
-			return (vfs_export(mp, export));
+		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0))
+			return (0);
 	}
 	/*
 	 * Not an update, or updating the name: look up the name

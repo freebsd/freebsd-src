@@ -240,7 +240,6 @@ static int
 msdosfs_mount(struct mount *mp, struct thread *td)
 {
 	struct vnode *devvp;	  /* vnode for blk device to mount */
-	struct export_args export;
 	/* msdosfs specific mount control block */
 	struct msdosfsmount *pmp = NULL;
 	struct nameidata ndp;
@@ -258,16 +257,12 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 	if (mp->mnt_flag & MNT_UPDATE) {
 		pmp = VFSTOMSDOSFS(mp);
 
-		error = vfs_copyopt(mp->mnt_optnew, "export",
-		    &export, sizeof export);
-		if (error == 0 && export.ex_flags != 0) {
-			/*
-			 * Process export requests.
-			 */
-			if ((export.ex_flags & MNT_EXPORTED) != 0 &&
-			    (pmp->pm_flags & MSDOSFS_LARGEFS) != 0)
+		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0)) {
+			/* Process export requests. */
+			if ((pmp->pm_flags & MSDOSFS_LARGEFS) != 0)
 				return (EOPNOTSUPP);
-			return (vfs_export(mp, &export));
+			else
+				return (0);
 		}
 		if (!(pmp->pm_flags & MSDOSFSMNT_RONLY) &&
 		    vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0)) {
