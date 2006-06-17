@@ -63,7 +63,6 @@ MODULE_DEPEND(snd_driver, snd_csapcm, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_ds1, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_emu10k1, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_es137x, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_es1888, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_ess, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_fm801, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_gusc, 1, 1, 1);
