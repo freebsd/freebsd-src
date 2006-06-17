@@ -56,7 +56,6 @@
 static MALLOC_DEFINE(M_NULLFSMNT, "NULLFS mount", "NULLFS mount structure");
 
 static vfs_fhtovp_t	nullfs_fhtovp;
-static vfs_checkexp_t	nullfs_checkexp;
 static vfs_mount_t	nullfs_mount;
 static vfs_quotactl_t	nullfs_quotactl;
 static vfs_root_t	nullfs_root;
@@ -89,8 +88,13 @@ nullfs_mount(struct mount *mp, struct thread *td)
 	 * Update is a no-op
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
-		return (EOPNOTSUPP);
-		/* return VFS_MOUNT(MOUNTTONULLMOUNT(mp)->nullm_vfs, path, data, ndp, td);*/
+		/*
+		 * Only support update mounts for NFS export.
+		 */
+		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0))
+			return (0);
+		else
+			return (EOPNOTSUPP);
 	}
 
 	/*
@@ -336,18 +340,6 @@ nullfs_fhtovp(mp, fidp, vpp)
 }
 
 static int
-nullfs_checkexp(mp, nam, extflagsp, credanonp)
-	struct mount *mp;
-	struct sockaddr *nam;
-	int *extflagsp; 
-	struct ucred **credanonp;
-{
-
-	return VFS_CHECKEXP(MOUNTTONULLMOUNT(mp)->nullm_vfs, nam, 
-		extflagsp, credanonp);
-}
-
-static int
 nullfs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
@@ -373,7 +365,6 @@ nullfs_extattrctl(mp, cmd, filename_vp, namespace, attrname, td)
 
 
 static struct vfsops null_vfsops = {
-	.vfs_checkexp =		nullfs_checkexp,
 	.vfs_extattrctl =	nullfs_extattrctl,
 	.vfs_fhtovp =		nullfs_fhtovp,
 	.vfs_init =		nullfs_init,
