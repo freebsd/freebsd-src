@@ -235,6 +235,11 @@
       the boot disk.  A bugfix has been committed to HEAD and planned
       for merging after additional testing.</para>
 
+    <para>(2006/06/16) A locking-related bug has been observed to
+      cause noticeable slowdowns in NFS server performance.  A
+      fix has been committed to HEAD and RELENG_6, and is a candidate
+      for a merge to RELENG_6_1 after additional testing.</para>
+
   </sect1>
 
 </article>
