@@ -119,7 +119,7 @@ ak452x_create(device_t dev, void *devinfo, int num, ak452x_ctrl ctrl)
 		return NULL;
 
 	snprintf(codec->name, AK452X_NAMELEN, "%s:ak452x%d", device_get_nameunit(dev), num);
-	codec->lock = snd_mtxcreate(codec->name);
+	codec->lock = snd_mtxcreate(codec->name, codec->name);
 	codec->dev = dev;
 	codec->ctrl = ctrl;
 	codec->devinfo = devinfo;
@@ -167,7 +167,7 @@ void
 ak452x_setdvc(struct ak452x_info *codec, unsigned int dvc)
 {
 	snd_mtxlock(codec->lock);
-	codec->type = dvc;
+	codec->dvc = dvc;
 	snd_mtxunlock(codec->lock);
 }
 
@@ -243,5 +243,5 @@ ak452x_set(struct ak452x_info *codec, int dir, unsigned int left, unsigned int r
 	snd_mtxunlock(codec->lock);
 }
 
-MODULE_DEPEND(snd_ak452x, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_DEPEND(snd_ak452x, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_ak452x, 1);
