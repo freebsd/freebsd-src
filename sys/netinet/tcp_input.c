@@ -973,18 +973,18 @@ findpcb:
 				    (void *)tcp_saveipgen, &tcp_savetcp, 0);
 #endif
 			tcp_dooptions(&to, optp, optlen, 1);
-			if (!syncache_add(&inc, &to, th, &so, m))
-				goto drop;
+			if (!syncache_add(&inc, &to, th, inp, &so, m))
+				goto drop;	/* XXX: does not happen */
 			if (so == NULL) {
 				/*
 				 * Entry added to syncache, mbuf used to
-				 * send SYN,ACK packet.
+				 * send SYN,ACK packet.  Everything unlocked
+				 * already.
 				 */
-				KASSERT(headlocked, ("headlocked"));
-				INP_UNLOCK(inp);
-				INP_INFO_WUNLOCK(&tcbinfo);
 				return;
 			}
+			panic("T/TCP not supported at the moment");
+#if 0 /* T/TCP */
 			/*
 			 * Segment passed TAO tests.
 			 * XXX: Can't happen at the moment.
@@ -1011,6 +1011,7 @@ findpcb:
 			tcpstat.tcps_connects++;
 			soisconnected(so);
 			goto trimthenstep6;
+#endif	/* T/TCP */
 		}
 		goto drop;
 	}
@@ -1437,7 +1438,9 @@ after_listen:
 			tp->t_state = TCPS_SYN_RECEIVED;
 		}
 
+#if 0 /* T/TCP */
 trimthenstep6:
+#endif
 		KASSERT(headlocked, ("tcp_input: trimthenstep6: head not "
 		    "locked"));
 		INP_LOCK_ASSERT(inp);
