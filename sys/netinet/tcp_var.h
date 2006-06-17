@@ -245,8 +245,6 @@ struct tcpopt {
 
 #ifdef _NETINET_IN_PCB_H_
 struct syncache {
-	inp_gen_t	sc_inp_gencnt;		/* pointer check */
-	struct		tcpcb *sc_tp;		/* tcb for listening socket */
 	struct		mbuf *sc_ipopts;	/* source route */
 	struct		in_conninfo sc_inc;	/* addresses */
 	u_int32_t	sc_tsrecent;
@@ -254,9 +252,12 @@ struct syncache {
 	tcp_seq		sc_irs;			/* seq from peer */
 	tcp_seq		sc_iss;			/* our ISS */
 	u_long		sc_rxttime;		/* retransmit time */
-	u_int16_t	sc_rxtslot;		/* retransmit counter */
+	u_int16_t	sc_rxmits;		/* retransmit counter */
+
 	u_int16_t	sc_peer_mss;		/* peer's MSS */
 	u_int16_t	sc_wnd;			/* advertised window */
+	u_int8_t	sc_ip_ttl;		/* IPv4 TTL */
+	u_int8_t	sc_ip_tos;		/* IPv4 TOS */
 	u_int8_t	sc_requested_s_scale:4,
 			sc_request_r_scale:4;
 	u_int8_t	sc_flags;
@@ -267,11 +268,13 @@ struct syncache {
 #define SCF_SIGNATURE	0x20			/* send MD5 digests */
 #define SCF_SACK	0x80			/* send SACK option */
 	TAILQ_ENTRY(syncache)	sc_hash;
-	TAILQ_ENTRY(syncache)	sc_timerq;
 };
 
 struct syncache_head {
-	TAILQ_HEAD(, syncache)	sch_bucket;
+	TAILQ_HEAD(sch_head, syncache)	sch_bucket;
+	struct mtx	sch_mtx;
+	struct callout	sch_timer;
+	int		sch_nextc;
 	u_int		sch_length;
 };
 #else
@@ -563,7 +566,7 @@ void	 syncache_unreach(struct in_conninfo *, struct tcphdr *);
 int	 syncache_expand(struct in_conninfo *, struct tcphdr *,
 	     struct socket **, struct mbuf *);
 int	 syncache_add(struct in_conninfo *, struct tcpopt *,
-	     struct tcphdr *, struct socket **, struct mbuf *);
+	     struct tcphdr *, struct inpcb *, struct socket **, struct mbuf *);
 void	 syncache_chkrst(struct in_conninfo *, struct tcphdr *);
 void	 syncache_badack(struct in_conninfo *);
 /*
