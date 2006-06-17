@@ -30,7 +30,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/audit3/sys/security/audit/audit_bsm_token.c#15 $
+ * $P4: //depot/projects/trustedbsd/audit3/sys/security/audit/audit_bsm_token.c#17 $
  * $FreeBSD$
  */
 
@@ -609,7 +609,7 @@ au_to_process(__unused au_id_t auid, __unused uid_t euid,
  * terminal ID
  *   port ID               4 bytes/8 bytes (32-bit/64-bit value)
  *   address type-len      4 bytes
- *   machine address      16 bytes
+ *   machine address    4/16 bytes
  */
 token_t *
 au_to_process32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
@@ -618,7 +618,12 @@ au_to_process32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	token_t *t;
 	u_char *dptr = NULL;
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 13 * sizeof(u_int32_t));
+	if (tid->at_type == AU_IPv6)
+		GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 13 *
+		    sizeof(u_int32_t));
+	else
+		GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 10 *
+		    sizeof(u_int32_t));
 
 	ADD_U_CHAR(dptr, AUT_PROCESS32_EX);
 	ADD_U_INT32(dptr, auid);
@@ -631,10 +636,11 @@ au_to_process32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	ADD_U_INT32(dptr, tid->at_port);
 	ADD_U_INT32(dptr, tid->at_type);
 	ADD_U_INT32(dptr, tid->at_addr[0]);
-	ADD_U_INT32(dptr, tid->at_addr[1]);
-	ADD_U_INT32(dptr, tid->at_addr[2]);
-	ADD_U_INT32(dptr, tid->at_addr[3]);
-
+	if (tid->at_type == AU_IPv6) {
+		ADD_U_INT32(dptr, tid->at_addr[1]);
+		ADD_U_INT32(dptr, tid->at_addr[2]);
+		ADD_U_INT32(dptr, tid->at_addr[3]);
+	}
 	return (t);
 }
 
@@ -938,7 +944,7 @@ au_to_subject(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
  * terminal ID
  *   port ID               4 bytes/8 bytes (32-bit/64-bit value)
  *   address type/length   4 bytes
- *   machine address      16 bytes
+ *   machine address    4/16 bytes
  */
 token_t *
 au_to_subject32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
@@ -947,7 +953,12 @@ au_to_subject32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	token_t *t;
 	u_char *dptr = NULL;
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 13 * sizeof(u_int32_t));
+	if (tid->at_type == AU_IPv6)
+		GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 13 *
+		    sizeof(u_int32_t));
+	else
+		GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 10 *
+		    sizeof(u_int32_t));
 
 	ADD_U_CHAR(dptr, AUT_SUBJECT32_EX);
 	ADD_U_INT32(dptr, auid);
@@ -960,10 +971,11 @@ au_to_subject32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	ADD_U_INT32(dptr, tid->at_port);
 	ADD_U_INT32(dptr, tid->at_type);
 	ADD_U_INT32(dptr, tid->at_addr[0]);
-	ADD_U_INT32(dptr, tid->at_addr[1]);
-	ADD_U_INT32(dptr, tid->at_addr[2]);
-	ADD_U_INT32(dptr, tid->at_addr[3]);
-
+	if (tid->at_type == AU_IPv6) {
+		ADD_U_INT32(dptr, tid->at_addr[1]);
+		ADD_U_INT32(dptr, tid->at_addr[2]);
+		ADD_U_INT32(dptr, tid->at_addr[3]);
+	}
 	return (t);
 }
 
