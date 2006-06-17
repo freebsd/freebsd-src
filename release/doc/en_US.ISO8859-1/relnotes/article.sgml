@@ -364,7 +364,7 @@
       <!-- Above this line, order boot loader changes by keyword-->
 
       <para arch="pc98">A bootable CDROM loader has been implemented
-	for the pc98 platform.</para>
+	for the pc98 platform. &merged;</para>
 
       <para arch="i386">A bug in the i386 boot loader, which could
 	cause filesystem corruption if
@@ -917,7 +917,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 	added.  It provides a subset of the
 	Linux <filename>sys</filename> filesystem, and is required for
 	the correct operation of some Linux binaries (such as the LSI
-	MegaRAID SAS utility).</para>
+	MegaRAID SAS utility). &merged;</para>
 
       <para>A part of the FreeBSD NFS subsystem (the interface with
 	the protocol stack and callouts) is now MPSAFE.</para>
