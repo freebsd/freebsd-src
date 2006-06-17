@@ -120,8 +120,9 @@ static struct	 socket *syncache_socket(struct syncache *, struct socket *,
 static void	 syncache_timer(void *);
 static void	 syncookie_init(void);
 static u_int32_t syncookie_generate(struct syncache *, u_int32_t *);
-static struct syncache *syncookie_lookup(struct in_conninfo *,
-		    struct tcphdr *, struct socket *);
+static struct syncache
+		 *syncookie_lookup(struct in_conninfo *, struct tcphdr *,
+		    struct socket *);
 
 /*
  * Transmit the SYN,ACK fewer times than TCP_MAXRXTSHIFT specifies.
@@ -270,9 +271,7 @@ syncache_init(void)
  * Locks and unlocks the syncache_head autonomously.
  */
 static void
-syncache_insert(sc, sch)
-	struct syncache *sc;
-	struct syncache_head *sch;
+syncache_insert(struct syncache *sc, struct syncache_head *sch)
 {
 	struct syncache *sc2;
 
@@ -308,9 +307,7 @@ syncache_insert(sc, sch)
  * Expects locked syncache head.
  */
 static void
-syncache_drop(sc, sch)
-	struct syncache *sc;
-	struct syncache_head *sch;
+syncache_drop(struct syncache *sc, struct syncache_head *sch)
 {
 
 	SCH_LOCK_ASSERT(sch);
@@ -328,8 +325,7 @@ syncache_drop(sc, sch)
  * One separate timer for each bucket row.
  */
 static void
-syncache_timer(xsch)
-	void *xsch;
+syncache_timer(void *xsch)
 {
 	struct syncache_head *sch = (struct syncache_head *)xsch;
 	struct syncache *sc, *nsc;
@@ -373,9 +369,7 @@ syncache_timer(xsch)
  * Returns always with locked syncache_head plus a matching entry or NULL.
  */
 struct syncache *
-syncache_lookup(inc, schp)
-	struct in_conninfo *inc;
-	struct syncache_head **schp;
+syncache_lookup(struct in_conninfo *inc, struct syncache_head **schp)
 {
 	struct syncache *sc;
 	struct syncache_head *sch;
@@ -422,9 +416,7 @@ syncache_lookup(inc, schp)
  * connection is in the syn cache.  If it is, zap it.
  */
 void
-syncache_chkrst(inc, th)
-	struct in_conninfo *inc;
-	struct tcphdr *th;
+syncache_chkrst(struct in_conninfo *inc, struct tcphdr *th)
 {
 	struct syncache *sc;
 	struct syncache_head *sch;
@@ -457,8 +449,7 @@ done:
 }
 
 void
-syncache_badack(inc)
-	struct in_conninfo *inc;
+syncache_badack(struct in_conninfo *inc)
 {
 	struct syncache *sc;
 	struct syncache_head *sch;
@@ -473,9 +464,7 @@ syncache_badack(inc)
 }
 
 void
-syncache_unreach(inc, th)
-	struct in_conninfo *inc;
-	struct tcphdr *th;
+syncache_unreach(struct in_conninfo *inc, struct tcphdr *th)
 {
 	struct syncache *sc;
 	struct syncache_head *sch;
@@ -511,10 +500,7 @@ done:
  * Build a new TCP socket structure from a syncache entry.
  */
 static struct socket *
-syncache_socket(sc, lso, m)
-	struct syncache *sc;
-	struct socket *lso;
-	struct mbuf *m;
+syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 {
 	struct inpcb *inp = NULL;
 	struct socket *so;
@@ -576,12 +562,12 @@ syncache_socket(sc, lso, m)
 		goto abort;
 	}
 #ifdef IPSEC
-	/* copy old policy into new socket's */
+	/* Copy old policy into new socket's. */
 	if (ipsec_copy_pcbpolicy(sotoinpcb(lso)->inp_sp, inp->inp_sp))
 		printf("syncache_expand: could not copy policy\n");
 #endif
 #ifdef FAST_IPSEC
-	/* copy old policy into new socket's */
+	/* Copy old policy into new socket's. */
 	if (ipsec_copy_policy(sotoinpcb(lso)->inp_sp, inp->inp_sp))
 		printf("syncache_expand: could not copy policy\n");
 #endif
@@ -713,11 +699,8 @@ abort2:
  * the SYN-RECEIVED state.
  */
 int
-syncache_expand(inc, th, lsop, m)
-	struct in_conninfo *inc;
-	struct tcphdr *th;
-	struct socket **lsop;
-	struct mbuf *m;
+syncache_expand(struct in_conninfo *inc, struct tcphdr *th,
+    struct socket **lsop, struct mbuf *m)
 {
 	struct syncache *sc;
 	struct syncache_head *sch;
@@ -805,13 +788,8 @@ failed:
  * the data, we avoid this DoS scenario.
  */
 int
-syncache_add(inc, to, th, inp, lsop, m)
-	struct in_conninfo *inc;
-	struct tcpopt *to;
-	struct tcphdr *th;
-	struct inpcb *inp;
-	struct socket **lsop;
-	struct mbuf *m;
+syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
+    struct inpcb *inp, struct socket **lsop, struct mbuf *m)
 {
 	struct tcpcb *tp;
 	struct socket *so;
@@ -862,8 +840,7 @@ syncache_add(inc, to, th, inp, lsop, m)
 	 * See if we already have an entry for this connection.
 	 * If we do, resend the SYN,ACK, and reset the retransmit timer.
 	 *
-	 * XXX
-	 * should the syncache be re-initialized with the contents
+	 * XXX: should the syncache be re-initialized with the contents
 	 * of the new SYN here (which may have different options?)
 	 */
 	sc = syncache_lookup(inc, &sch);	/* returns locked entry */
@@ -985,7 +962,7 @@ syncache_add(inc, to, th, inp, lsop, m)
 	 * If listening socket requested TCP digests, and received SYN
 	 * contains the option, flag this in the syncache so that
 	 * syncache_respond() will do the right thing with the SYN+ACK.
-	 * XXX Currently we always record the option by default and will
+	 * XXX: Currently we always record the option by default and will
 	 * attempt to use it in syncache_respond().
 	 */
 	if (to->to_flags & TOF_SIGNATURE)
@@ -1013,9 +990,7 @@ done:
 }
 
 static int
-syncache_respond(sc, m)
-	struct syncache *sc;
-	struct mbuf *m;
+syncache_respond(struct syncache *sc, struct mbuf *m)
 {
 	u_int8_t *optp;
 	int optlen, error;
@@ -1037,7 +1012,7 @@ syncache_respond(sc, m)
 
 	KASSERT((&sc->sc_inc) != NULL, ("syncache_respond with NULL in_conninfo pointer"));
 
-	/* Determine MSS we advertize to other end of connection */
+	/* Determine MSS we advertize to other end of connection. */
 	mssopt = tcp_mssopt(&sc->sc_inc);
 
 	/* Compute the size of the TCP options. */
@@ -1058,8 +1033,7 @@ syncache_respond(sc, m)
 	tlen = hlen + sizeof(struct tcphdr) + optlen;
 
 	/*
-	 * XXX
-	 * assume that the entire packet will fit in a header mbuf
+	 * XXX: Assume that the entire packet will fit in a header mbuf.
 	 */
 	KASSERT(max_linkhdr + tlen <= MHLEN, ("syncache: mbuf too small"));
 
@@ -1361,10 +1335,7 @@ syncookie_generate(struct syncache *sc, u_int32_t *flowid)
 }
 
 static struct syncache *
-syncookie_lookup(inc, th, so)
-	struct in_conninfo *inc;
-	struct tcphdr *th;
-	struct socket *so;
+syncookie_lookup(struct in_conninfo *inc, struct tcphdr *th, struct socket *so)
 {
 	u_int32_t md5_buffer[4];
 	struct syncache *sc;
