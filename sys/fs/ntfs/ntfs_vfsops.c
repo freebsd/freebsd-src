@@ -157,7 +157,6 @@ ntfs_mount (
 	struct vnode	*devvp;
 	struct nameidata ndp;
 	char *from;
-	struct export_args export;
 
 	if (vfs_filteropt(mp->mnt_optnew, ntfs_opts))
 		return (EINVAL);
@@ -171,20 +170,14 @@ ntfs_mount (
 	 * read/write.
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
-		error = vfs_copyopt(mp->mnt_optnew, "export",	
-		    &export, sizeof export);
-		if ((error == 0) && export.ex_flags != 0) {
-			/*
-			 * Process export requests.  Jumping to "success"
-			 * will return the vfs_export() error code.
-			 */
-			err = vfs_export(mp, &export);
+		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0)) {
+			/* Process export requests in vfs_mount.c */
 			goto success;
+		} else {
+			printf("ntfs_mount(): MNT_UPDATE not supported\n");
+			err = EINVAL;
+			goto error_1;
 		}
-
-		printf("ntfs_mount(): MNT_UPDATE not supported\n");
-		err = EINVAL;
-		goto error_1;
 	}
 
 	/*
