@@ -200,7 +200,7 @@ Static	void uplcom_rts(struct uplcom_softc *, int);
 Static	void uplcom_break(struct uplcom_softc *, int);
 Static	void uplcom_set_line_state(struct uplcom_softc *);
 Static	void uplcom_get_status(void *, int, u_char *, u_char *);
-#if TODO
+#if 0 /* TODO */
 Static	int  uplcom_ioctl(void *, int, u_long, caddr_t, int, usb_proc_ptr);
 #endif
 Static	int  uplcom_param(void *, int, struct termios *);
@@ -224,6 +224,9 @@ static const struct uplcom_product {
 	uint16_t	product;
 	int32_t		release;	 /* release is a 16bit entity,
 					  * if -1 is specified we "don't care"
+					  * This is a floor value.  The table
+					  * must have newer revs before older
+					  * revs (and -1 last).
 					  */
 	char		chiptype;
 } uplcom_products [] = {
@@ -322,7 +325,7 @@ USB_MATCH(uplcom)
 	for (i = 0; uplcom_products[i].vendor != 0; i++) {
 		if (uplcom_products[i].vendor == uaa->vendor &&
 		    uplcom_products[i].product == uaa->product &&
-		    (uplcom_products[i].release == uaa->release ||
+		    (uplcom_products[i].release <= uaa->release ||
 		     uplcom_products[i].release == -1)) {
 			return (UMATCH_VENDOR_PRODUCT);
 		}
@@ -990,7 +993,7 @@ uplcom_get_status(void *addr, int portno, u_char *lsr, u_char *msr)
 		*msr = sc->sc_msr;
 }
 
-#if TODO
+#if 0 /* TODO */
 Static int
 uplcom_ioctl(void *addr, int portno, u_long cmd, caddr_t data, int flag,
 	     usb_proc_ptr p)

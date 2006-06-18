@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * uvscom: SUNTAC Slipper U VS-10U driver.
- * Slipper U is a PC card to USB converter for data communication card
+ * Slipper U is a PC Card to USB converter for data communication card
  * adapter.  It supports DDI Pocket's Air H" C@rd, C@rd H" 64, NTT's P-in,
  * P-in m@ater and various data communication card adapters.
  */
@@ -203,7 +203,7 @@ Static	void uvscom_break(struct uvscom_softc *, int);
 
 Static	void uvscom_set(void *, int, int, int);
 Static	void uvscom_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
-#if TODO
+#if 0 /* TODO */
 Static	int  uvscom_ioctl(void *, int, u_long, caddr_t, int, usb_proc_ptr);
 #endif
 Static	int  uvscom_param(void *, int, struct termios *);
@@ -828,7 +828,7 @@ uvscom_open(void *addr, int portno)
 			return (ENXIO);
 		}
 
-		/* check PC card was inserted */
+		/* check PC Card was inserted */
 		if (ISSET(sc->sc_usr, UVSCOM_NOCARD)) {
 			DPRINTF(("%s: no card\n",
 				 USBDEVNAME(sc->sc_ucom.sc_dev)));
@@ -935,7 +935,7 @@ uvscom_get_status(void *addr, int portno, u_char *lsr, u_char *msr)
 		*msr = sc->sc_msr;
 }
 
-#if TODO
+#if 0 /* TODO */
 Static int
 uvscom_ioctl(void *addr, int portno, u_long cmd, caddr_t data, int flag,
 	     usb_proc_ptr p)
