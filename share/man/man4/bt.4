@@ -33,13 +33,19 @@
 .Nm bt
 .Nd Buslogic/Mylex MultiMaster SCSI host adapter driver
 .Sh SYNOPSIS
-.Cd device bt
-.Cd device scbus
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device isa"
+.Cd "device scbus"
+.Cd "device bt"
 .Pp
 In
 .Pa /boot/device.hints :
 .Cd hint.bt.0.at="isa"
 .Cd hint.bt.0.port="0x330"
+.Ed
 .Sh DESCRIPTION
 This driver provides access to the
 .Tn SCSI

@@ -31,8 +31,20 @@
 .Nm ncv
 .Nd "NCR 53C500 based SCSI host adapter driver"
 .Sh SYNOPSIS
-.Cd "device ncv"
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device scbus"
+.Cd "device ncv"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ncv_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
