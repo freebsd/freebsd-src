@@ -213,6 +213,12 @@
       extreme precaution, as disabling automatic fan control might
       overheat the hardware and lead to permanent damage.</para>
 
+    <para>The <literal>options COMPAT_43</literal> kernel
+      configuration option has been deemed unnecessary and has been
+      removed from <filename>GENERIC</filename> and related kernel
+      configurations.  This change may result in a small performance
+      increase for some workloads.</para>
+
     <para>The &man.ddb.4; debugger now provides the <literal>show lock</literal>
       command.  If the argument has a valid lock class,
       this displays various information about the lock and calls a
@@ -932,7 +938,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 	MegaRAID SAS utility). &merged;</para>
 
       <para>A part of the FreeBSD NFS subsystem (the interface with
-	the protocol stack and callouts) is now MPSAFE.</para>
+	the protocol stack and callouts, the NFS client side) is now MPSAFE.</para>
 
       <para>Initial (read-only) support for SGI's XFS filesystem has been
 	added.</para>
