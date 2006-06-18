@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002, 2003 Greg Lehey
  * All rights reserved.
  *
@@ -24,26 +24,77 @@
  * software, even if advised of the possibility of such damage.
  */
 /* $Id: asf.c,v 1.4 2003/05/04 02:55:20 grog Exp grog $ */
-/* $FreeBSD$ */
 
-#define MAXLINE 1024
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/types.h>
+#include <sys/queue.h>
+#include <sys/stat.h>
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
+#include <fts.h>
+#include <inttypes.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/file.h>
-#include <sys/param.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <sys/types.h>
-#include <fts.h>
 #include <unistd.h>
 
-#define MAXTOKEN 10
-const char *modules_path;		/* path relative to kernel
-					 * build directory */
-const char *outfile;			/* and where to write the output */
+#include "asf.h"
+
+struct kfile {
+    char	       *name;
+    caddr_t		addr;
+    int			seen;
+    STAILQ_ENTRY(kfile)	link;
+};
+
+static STAILQ_HEAD(,kfile) kfile_head = STAILQ_HEAD_INITIALIZER(kfile_head);
+
+void
+kfile_add(const char *name, caddr_t addr)
+{
+    struct kfile *kfp;
+
+    if ((kfp = malloc(sizeof(*kfp))) == NULL ||
+	(kfp->name = strdup(name)) == NULL)
+	    errx(2, "out of memory");
+    kfp->addr = addr;
+    kfp->seen = 0;
+    STAILQ_INSERT_TAIL(&kfile_head, kfp, link);
+}
+
+static struct kfile *
+kfile_find(const char *name)
+{
+    struct kfile *kfp;
+
+    STAILQ_FOREACH(kfp, &kfile_head, link)
+	if (strcmp(kfp->name, name) == 0)
+	    return (kfp);	/* found */
+
+    return (NULL);		/* not found */
+}
+
+static int
+kfile_allseen(void)
+{
+    struct kfile *kfp;
+
+    STAILQ_FOREACH(kfp, &kfile_head, link)
+	if (!kfp->seen)
+	    return (0);	/* at least one unseen */
+
+    return (1);		/* all seen */
+}
+
+static int
+kfile_empty(void)
+{
+    return (STAILQ_EMPTY(&kfile_head));
+}
 
 /*
  * Take a blank separated list of tokens and turn it into a list of
@@ -52,7 +103,7 @@ const char *outfile;			/* and where to write the output */
  * number of tokens, or -1 on error (typically a missing string
  * delimiter).
  */
-static int
+int
 tokenize(char *cptr, char *token[], int maxtoken)
 {
     char delim;				/* delimiter to search for */
@@ -92,70 +143,109 @@ tokenize(char *cptr, char *token[], int maxtoken)
     return maxtoken;			/* can't get here */
 }
 
-static char *
-findmodule(char *modules_path, const char *module_name)
+static void
+doobj(const char *path, caddr_t addr, FILE *out)
 {
-    char *const path_argv[2] = { modules_path, NULL };
-    char *module_path = NULL;
-    int module_name_len = strlen(module_name);
-    FTS *fts;
-    FTSENT *ftsent;
+    uintmax_t	base = (uintptr_t)addr;
+    uintmax_t	textaddr = 0;
+    uintmax_t	dataaddr = 0;
+    uintmax_t	bssaddr = 0;
+    uintmax_t  *up;
+    int		octokens;
+    char       *octoken[MAXTOKEN];
+    char	ocbuf[LINE_MAX + PATH_MAX];
+    FILE       *objcopy;
 
-    if (modules_path == NULL) {
-	fprintf(stderr,
-	    "Can't allocate memory to traverse a path: %s (%d)\n",
-	    strerror(errno),
-	    errno);
-	exit(1);
+    snprintf(ocbuf, sizeof(ocbuf),
+	     "/usr/bin/objdump --section-headers %s", path);
+    if ((objcopy = popen(ocbuf, "r")) == NULL)
+	err(2, "can't start %s", ocbuf);
+    while (fgets(ocbuf, sizeof(ocbuf), objcopy)) {
+	octokens = tokenize(ocbuf, octoken, MAXTOKEN);
+	if (octokens <= 1)
+	    continue;
+	up = NULL;
+	if (strcmp(octoken[1], ".text") == 0)
+	    up = &textaddr;
+	else if (strcmp(octoken[1], ".data") == 0)
+	    up = &dataaddr;
+	else if (strcmp(octoken[1], ".bss") == 0)
+	    up = &bssaddr;
+	if (up == NULL)
+	    continue;
+	*up = strtoumax(octoken[3], NULL, 16) + base;
     }
-    fts = fts_open(path_argv, FTS_PHYSICAL | FTS_NOCHDIR, NULL);
-    if (fts == NULL) {
-	fprintf(stderr,
-	    "Can't begin traversing path %s: %s (%d)\n",
-	    modules_path,
-	    strerror(errno),
-	    errno);
-	exit(1);
+    if (textaddr) {	/* we must have a text address */
+	fprintf(out, "add-symbol-file %s 0x%jx", path, textaddr);
+	if (dataaddr)
+	    fprintf(out, " -s .data 0x%jx", dataaddr);
+	if (bssaddr)
+	    fprintf(out, " -s .bss 0x%jx", bssaddr);
+	fprintf(out, "\n");
     }
-    while ((ftsent = fts_read(fts)) != NULL) {
-	if (ftsent->fts_info == FTS_DNR ||
-	    ftsent->fts_info == FTS_ERR ||
-	    ftsent->fts_info == FTS_NS) {
-	    fprintf(stderr,
-		"Error while traversing path %s: %s (%d)\n",
-		modules_path,
-		strerror(errno),
-		errno);
-	    exit(1);
+}
+
+static void
+findmodules(const char *modules_path, const char *sfx[], FILE *out)
+{
+    char	       *path_argv[2];
+    char	       *p;
+    FTS		       *fts;
+    FTSENT	       *ftsent;
+    struct kfile       *kfp;
+    int			i;
+    int			sl;
+
+    /* Have to copy modules_path here because it's const */
+    if ((path_argv[0] = strdup(modules_path)) == NULL)
+	errx(2, "out of memory");
+    path_argv[1] = NULL;
+
+    /* Have to fts once per suffix to find preferred suffixes first */
+    do {
+	sl = *sfx ? strlen(*sfx) : 0;	/* current suffix length */
+	fts = fts_open(path_argv, FTS_PHYSICAL | FTS_NOCHDIR, NULL);
+	if (fts == NULL)
+	    err(2, "can't begin traversing path %s", modules_path);
+	while ((ftsent = fts_read(fts)) != NULL) {
+	    if (ftsent->fts_info == FTS_DNR ||
+		ftsent->fts_info == FTS_ERR ||
+		ftsent->fts_info == FTS_NS) {
+		    errno = ftsent->fts_errno;
+		    err(2, "error while traversing path %s", ftsent->fts_path);
+	    }
+	    if (ftsent->fts_info != FTS_F)
+		continue;			/* not a plain file */
+
+	    if (sl > 0) {
+		/* non-blank suffix; see if file name has it */
+		i = ftsent->fts_namelen - sl;
+		if (i <= 0 || strcmp(ftsent->fts_name + i, *sfx) != 0)
+		    continue;		/* no such suffix */
+		if ((p = strdup(ftsent->fts_name)) == NULL)
+		    errx(2, "out of memory");
+		p[i] = '\0';		/* remove suffix in the copy */
+		kfp = kfile_find(p);
+		free(p);
+	    } else
+		kfp = kfile_find(ftsent->fts_name);
+
+	    if (kfp && !kfp->seen) {
+		doobj(ftsent->fts_path, kfp->addr, out);
+		kfp->seen = 1;
+		/* Optimization: stop fts as soon as seen all loaded modules */
+		if (kfile_allseen()) {
+		    fts_close(fts);
+		    goto done;
+		}
+	    }
 	}
-	if (ftsent->fts_info != FTS_F ||
-	    ftsent->fts_namelen != module_name_len ||
-	    memcmp(module_name, ftsent->fts_name, module_name_len) != 0)
-		continue;
-	if (asprintf(&module_path,
-	    "%.*s",
-	    ftsent->fts_pathlen,
-	    ftsent->fts_path) == -1) {
-	    fprintf(stderr,
-		"Can't allocate memory traversing path %s: %s (%d)\n",
-		modules_path,
-		strerror(errno),
-		errno);
-	    exit(1);
-	}
-	break;
-    }
-    if (ftsent == NULL && errno != 0) {
-	fprintf(stderr,
-	    "Couldn't complete traversing path %s: %s (%d)\n",
-	    modules_path,
-	    strerror(errno),
-	    errno);
-	exit(1);
-    }
-    fts_close(fts);
-    free(modules_path);
-    return (module_path);
+	if (ftsent == NULL && errno != 0)
+	    err(2, "couldn't complete traversing path %s", modules_path);
+	fts_close(fts);
+    } while (*sfx++);
+done:
+    free(path_argv[0]);
 }
 
 static void
@@ -163,169 +253,161 @@ usage(const char *myname)
 {
     fprintf(stderr,
 	"Usage:\n"
-	"%s [-a] [-f] [-k] [-s] [-x] [modules-path [outfile]]\n\n"
-	"\t-a\tappend to outfile)\n"
-	"\t-f\tfind the module in any subdirectory of module-path\n"
+	"%s [-afKksVx] [-M core] [-N system ] [-o outfile] [-X suffix]\n"
+	"%*s [modules-path [outfile]]\n\n"
+	"\t-a\tappend to outfile\n"
+	"\t-f\tfind the module in any subdirectory of modules-path\n"
+	"\t-K\tuse kld(2) to get the list of modules\n"
 	"\t-k\ttake input from kldstat(8)\n"
+	"\t-M\tspecify core name for kvm(3)\n"
+	"\t-N\tspecify system name for kvm(3)\n"
+	"\t-o\tuse outfile instead of \".asf\"\n"
 	"\t-s\tdon't prepend subdir for module path\n"
-	"\t-x\tdon't append \".debug\" to module name\n",
-	myname);
+	"\t-V\tuse kvm(3) to get the list of modules\n"
+	"\t-X\tappend suffix to list of possible module file name suffixes\n"
+	"\t-x\tclear list of possible module file name suffixes\n",
+	myname, strlen(myname), "");
+    exit(2);
 }
+
+#define	MAXSUFFIXES	15
+
+/* KLD file names end in this */
+static int	   nsuffixes = 2;
+static const char *suffixes[MAXSUFFIXES + 1] = {
+    ".debug",
+    ".symbols",
+    NULL
+};
 
 int
 main(int argc, char *argv[])
 {
-    char buf[MAXLINE];
-    FILE *kldstat;
-    FILE *objcopy;
-    FILE *out;				/* output file */
-    char ocbuf[MAXLINE];
-    int tokens;				/* number of tokens on line */
-    char basetoken[MAXLINE];
-    int i;
+    char basename[PATH_MAX];
+    char path[PATH_MAX];
     const char *filemode = "w";		/* mode for outfile */
-    char cwd[MAXPATHLEN];		/* current directory */
-    const char *debugname = ".debug";	/* some file names end in this */
-    char *token[MAXTOKEN];
-    int nosubdir = 0;
+    const char *modules_path = "modules"; /* path to kernel build directory */
+    const char *outfile = ".asf";	/* and where to write the output */
+    const char *corefile = NULL;	/* for kvm(3) */
+    const char *sysfile = NULL;		/* for kvm(3) */
+    const char **sfx;
+    struct kfile *kfp;
+    struct stat st;
+    FILE *out;				/* output file */
     int dofind = 0;
+    int dokld = 0;
+    int dokvm = 0;
+    int nosubdir = 0;
+    int runprog = 0;
+    int i;
+    const int sl = strlen(KLDSUFFIX);
 
-    getcwd(cwd, MAXPATHLEN);		/* find where we are */
-    kldstat = stdin;
-    for (i = 1; i < argc; i++) {
-	if (argv[i][0] == '-') {
-	    if (strcmp(argv[i], "-k") == 0) { /* get input from kldstat(8) */
-		if (!(kldstat = popen("kldstat", "r"))) {
-		    perror("Can't start kldstat");
-		    return 1;
-		}
-	    } else if (strcmp(argv[i], "-a") == 0) /* append to outfile */
-		filemode = "a";
-	    else if (strcmp(argv[i], "-x") == 0) /* no .debug extension */
-		debugname = "";		/* nothing */
-	    else if (strcmp(argv[i], "-s") == 0) /* no subdir */
-		nosubdir = 1;		/* nothing */
-	    else if (strcmp(argv[i], "-f") == 0) /* find .ko (recursively) */
-		dofind = 1;
-	    else {
-		fprintf(stderr,
-		    "Invalid option: %s, aborting\n",
-		    argv[i]);
-		usage(argv[0]);
-		return 1;
-	    }
-	} else if (modules_path == NULL)
-	    modules_path = argv[i];
-	else if (outfile == NULL)
-	    outfile = argv[i];
-	else {
-	    fprintf(stderr,
-		"Extraneous startup information: \"%s\", aborting\n",
-		argv[i]);
+    while ((i = getopt(argc, argv, "afKkM:N:o:sVX:x")) != -1)
+	switch (i) {
+	case 'a':
+	    filemode = "a";	/* append to outfile */
+	    break;
+	case 'f':
+	    dofind = 1;		/* find .ko (recursively) */
+	    break;
+	case 'K':
+	    dokld = 1;		/* use kld(2) interface */
+	    break;
+	case 'k':
+	    runprog = 1;	/* get input from kldstat(8) */
+	    break;
+	case 'M':
+	    corefile = optarg;	/* core file for kvm(3) */
+	    break;
+	case 'N':
+	    sysfile = optarg;	/* system file (kernel) for kvm(3) */
+	    break;
+	case 'o':
+	    outfile = optarg;	/* output file name */
+	    break;
+	case 's':
+	    nosubdir = 1;	/* don't descend into subdirs */
+	    break;
+	case 'V':
+	    dokvm = 1;		/* use kvm(3) interface */
+	    break;
+	case 'X':
+	    if (nsuffixes >= MAXSUFFIXES)
+		errx(2, "only %d suffixes can be specified", MAXSUFFIXES);
+	    suffixes[nsuffixes++] = optarg;
+	    suffixes[nsuffixes] = NULL;
+	    break;
+	case 'x':
+	    nsuffixes = 0;
+	    suffixes[0] = NULL;
+	    break;
+	default:
 	    usage(argv[0]);
-	    return 1;
 	}
+
+    argc -= optind;
+    argv += optind;
+
+    if (argc > 0) {
+	modules_path = argv[0];
+	argc--, argv++;
     }
-    if (modules_path == NULL)
-	modules_path = "modules";
-    if (outfile == NULL)
-	outfile = ".asf";
-    if ((out = fopen(outfile, filemode)) == NULL) {
-	fprintf(stderr,
-	    "Can't open output file %s: %s (%d)\n",
-	    outfile,
-	    strerror(errno),
-	    errno);
-	return 1;
+    if (argc > 0) {
+	outfile = argv[0];
+	argc--, argv++;
     }
-    while (fgets(buf, MAXLINE, kldstat)) {
-	if ((!(strstr(buf, "kernel")))
-	    && buf[0] != 'I') {
-	    quad_t base;
-	    quad_t textaddr = 0;
-	    quad_t dataaddr = 0;
-	    quad_t bssaddr = 0;
+    if (argc > 0)
+	usage(argv[0]);
 
-	    tokens = tokenize(buf, token, MAXTOKEN);
-           if (tokens < 4)
-		continue;
-	    base = strtoll(token[2], NULL, 16);
-	    if (!dofind) {
-		strcpy(basetoken, token[4]);
-		basetoken[strlen(basetoken) - 3] = '/';
-		basetoken[strlen(basetoken) - 2] = '\0'; /* cut off the .ko */
-		snprintf(ocbuf,
-		    MAXLINE,
-		    "/usr/bin/objdump --section-headers %s/%s%s%s",
-		    modules_path,
-		    nosubdir ? "" : basetoken,
-		    token[4],
-		    debugname);
-	    } else {
-		char *modpath;
+    if (strcmp(outfile, "-") == 0)
+	out = stdout;
+    else
+	if ((out = fopen(outfile, filemode)) == NULL)
+	    err(2, "can't open output file %s", outfile);
 
-		modpath = findmodule(strdup(modules_path), token[4]);
-		if (modpath == NULL)
-		    continue;
-		snprintf(ocbuf,
-		    MAXLINE,
-		    "/usr/bin/objdump --section-headers %s%s",
-		    modpath,
-		    debugname);
-		free(modpath);
+    if (dokvm || corefile || sysfile) {
+	if (dokld || runprog)
+	    warnx("using kvm(3) instead");
+	asf_kvm(sysfile, corefile);
+    } else if (dokld) {
+	if (runprog)
+	    warnx("using kld(2) instead");
+	asf_kld();
+    } else
+	asf_prog(runprog);
+
+    /* Avoid long operations like module tree traversal when nothing to do */
+    if (kfile_empty()) {
+	warnx("no kernel modules loaded");
+	return (0);
+    }
+
+    if (!dofind)
+	STAILQ_FOREACH(kfp, &kfile_head, link) {
+	    if (!nosubdir) {
+		/* prepare basename of KLD, w/o suffix */
+		strlcpy(basename, kfp->name, sizeof(basename) - 1);
+		i = strlen(basename);
+		if (i > sl && strcmp(basename + i - sl, KLDSUFFIX) == 0)
+		    i -= sl;
+		basename[i] = '/';
+		basename[i + 1] = '\0';
 	    }
-	    if (!(objcopy = popen(ocbuf, "r"))) {
-		fprintf(stderr,
-		    "Can't start %s: %s (%d)\n",
-		    ocbuf,
-		    strerror(errno),
-		    errno);
-		return 1;
-	    }
-	    while (fgets(ocbuf, MAXLINE, objcopy)) {
-		int octokens;
-		char *octoken[MAXTOKEN];
-
-		octokens = tokenize(ocbuf, octoken, MAXTOKEN);
-		if (octokens > 1) {
-		    if (!strcmp(octoken[1], ".text"))
-			textaddr = strtoll(octoken[3], NULL, 16) + base;
-		    else if (!strcmp(octoken[1], ".data"))
-			dataaddr = strtoll(octoken[3], NULL, 16) + base;
-		    else if (!strcmp(octoken[1], ".bss"))
-			bssaddr = strtoll(octoken[3], NULL, 16) + base;
+	    for (sfx = suffixes;; sfx++) {
+		snprintf(path, sizeof(path),
+			 "%s/%s%s%s",
+			 modules_path,
+			 nosubdir ? "" : basename,
+			 kfp->name,
+			 *sfx ? *sfx : "");
+		if (*sfx == NULL || stat(path, &st) == 0) {
+		    doobj(path, kfp->addr, out);
+		    break;
 		}
 	    }
-	    if (textaddr) {		/* we must have a text address */
-		if (!dofind) {
-		    fprintf(out,
-			"add-symbol-file %s/%s/%s%s%s 0x%llx",
-			cwd,
-			modules_path,
-			nosubdir ? "" : basetoken,
-			token[4],
-			debugname,
-			textaddr);
-		} else {
-		    char *modpath;
-
-		    modpath = findmodule(strdup(modules_path), token[4]);
-		    if (modpath == NULL)
-			continue;
-		    fprintf(out,
-			"add-symbol-file %s%s 0x%llx",
-			modpath,
-			debugname,
-			textaddr);
-		    free(modpath);
-		}
-		if (dataaddr)
-		    fprintf(out, " -s .data 0x%llx", dataaddr);
-		if (bssaddr)
-		    fprintf(out, " -s .bss 0x%llx", bssaddr);
-		fprintf(out, "\n");
-	    }
 	}
-    }
-    return 0;
+    else
+    	findmodules(modules_path, suffixes, out);
+
+    return (0);
 }
