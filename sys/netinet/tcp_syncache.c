@@ -1347,7 +1347,6 @@ syncookie_lookup(struct in_conninfo *inc, struct tcphdr *th, struct socket *so)
 
 	data = (th->th_ack - 1) ^ (th->th_seq - 1);	/* remove ISS */
 	idx = data & SYNCOOKIE_WNDMASK;
-	rw_rlock(&(tcp_secret[idx].ts_rwmtx));
 	SYNCOOKIE_RLOCK(tcp_secret[idx]);
 	if (tcp_secret[idx].ts_expire < ticks ||
 	    sototcpcb(so)->ts_recent + SYNCOOKIE_TIMEOUT < ticks) {
