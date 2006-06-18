@@ -125,6 +125,8 @@ static const struct umodem_product {
 } umodem_products[] = {
 	/* Kyocera AH-K3001V*/
 	{ USB_VENDOR_KYOCERA, USB_PRODUCT_KYOCERA_AHK3001V, 0 },
+	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5720, 0 },
+	{ USB_VENDOR_CURITEL, USB_PRODUCT_CURITEL_PC5740, 0 },
 	{ 0, 0, 0 },
 };
 
