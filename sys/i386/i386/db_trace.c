@@ -401,8 +401,32 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 	int *argp;
 	db_expr_t offset;
 	c_db_sym_t sym;
-	int narg, quit;
+	int instr, narg, quit;
 	boolean_t first;
+
+	/*
+	 * If an indirect call via an invalid pointer caused a trap,
+	 * %pc contains the invalid address while the return address
+	 * of the unlucky caller has been saved by CPU on the stack
+	 * just before the trap frame.  In this case, try to recover
+	 * the caller's address so that the first frame is assigned
+	 * to the right spot in the right function, for that is where
+	 * the failure actually happened.
+	 *
+	 * This trick depends on the fault address stashed in tf_err
+	 * by trap_fatal() before entering KDB.
+	 */
+	if (kdb_frame && pc == kdb_frame->tf_err) {
+		/*
+		 * Find where the trap frame actually ends.
+		 * It won't contain tf_esp or tf_ss unless crossing rings.
+		 */
+		if (ISPL(kdb_frame->tf_cs))
+			instr = (int)(kdb_frame + 1);
+		else
+			instr = (int)&kdb_frame->tf_esp;
+		pc = db_get_value(instr, 4, FALSE);
+	}
 
 	if (count == -1)
 		count = 1024;
@@ -428,8 +452,6 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 		actframe = frame;
 		if (first) {
 			if (tf != NULL) {
-				int instr;
-
 				instr = db_get_value(pc, 4, FALSE);
 				if ((instr & 0xffffff) == 0x00e58955) {
 					/* pushl %ebp; movl %esp, %ebp */
