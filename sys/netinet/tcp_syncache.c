@@ -832,7 +832,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	struct syncache_head *sch;
 	struct mbuf *ipopts = NULL;
 	u_int32_t flowtmp;
-	int win, sb_hiwat, ip_ttl, ip_tos;
+	int win, sb_hiwat, ip_ttl, ip_tos, noopt;
 #ifdef INET6
 	int autoflowlabel = 0;
 #endif
@@ -856,8 +856,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	ip_tos = inp->inp_ip_tos;
 	win = sbspace(&so->so_rcv);
 	sb_hiwat = so->so_rcv.sb_hiwat;
-	if (tp->t_flags & TF_NOOPT)
-		sc->sc_flags = SCF_NOOPT;
+	noopt = (tp->t_flags & TF_NOOPT);
 
 	so = NULL;
 	tp = NULL;
@@ -1008,6 +1007,8 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 
 	if (to->to_flags & TOF_SACK)
 		sc->sc_flags |= SCF_SACK;
+	if (noopt)
+		sc->sc_flags |= SCF_NOOPT;
 
 	/*
 	 * Do a standard 3-way handshake.
