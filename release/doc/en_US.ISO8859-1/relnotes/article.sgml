@@ -253,6 +253,13 @@
     <para>The &man.random.4; entropy device driver is now MPSAFE.
       &merged;</para>
 
+    <para>The experimental CORE process scheduler has been added,
+      enabled with the <literal>options SCHED_CORE</literal> kernel
+      configuration option.  It is forked from the ULE scheduler, but
+      with a different algorithm for detecting an interactive process.
+      More information can be found in the &man.sched.core.4; manual
+      page.</para>
+
     <para>The <literal>SIGCHLD</literal> signal queuing has been
       added.  For each child process whose status has been changed,
       a SIGCHLD instance is queued.  If the signal is still pending,
@@ -414,7 +421,7 @@
 	has been added.
 	OpenIPMI (Intelligent Platform Management Interface) is an open
 	standard designed to enable remote monitoring and control of server,
-	networking and telecommunication platforms.</para>
+	networking and telecommunication platforms. &merged;</para>
 
       <para>The &man.kbdmux.4; driver has been integrated into &man.syscons.4; and
 	the <devicename>kbd</devicename> device driver.
@@ -489,6 +496,9 @@
 
 	<para>The &man.snd.cmi.4; driver is now MPSAFE.</para>
 
+	<para>The &man.snd.envy24.4; driver has been added to support
+	  the Envy24 series of audio chips.</para>
+
 	<para>The &man.snd.es137x.4; driver is now MPSAFE.  &merged;</para>
 
 	<para>The &man.snd.ich.4; driver is now MPSAFE.  &merged;</para>
@@ -525,6 +535,8 @@
 
 	<para>The &man.bge.4; driver now supports &man.polling.4; mode.
 	  &merged;</para>
+
+	<para>The &man.cm.4; driver is now MPSAFE.</para>
 
 	<para>The &man.dc.4; driver is now MPSAFE. &merged;</para>
 
@@ -577,7 +589,7 @@
 	  &man.mxge.4;.</para>
 
 	<para>The &man.nve.4; driver has been updated to version 1.0-0310
-	  (23-Nov-2005).  It also now has &man.altq.4; support.</para>
+	  (23-Nov-2005).  It also now has &man.altq.4; support. &merged;</para>
 
 	<para>The &man.pcn.4; driver is now MPSAFE. &merged;</para>
 
@@ -586,7 +598,7 @@
 
 	<para>The &man.sf.4; driver is now MPSAFE. &merged;</para>
 
-	<para>The &man.sk.4; driver is now MPSAFE.</para>
+	<para>The &man.sk.4; driver is now MPSAFE. &merged;</para>
 
 	<para>The &man.ste.4; driver is now MPSAFE.</para>
 
@@ -1264,6 +1276,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       port for probe packets.  This can be useful for tracing behind
       packet-filtering firewalls.</para>
 
+    <para>&man.traceroute.8; now decodes the complete set of ICMP
+      unreachable messages in its output.</para>
+
     <para>The &man.truss.1; utility now supports an <option>-s</option>
       flag for the same functionality as the strace utility
       (<filename role="package">devel/strace</filename>).</para>
@@ -1575,6 +1590,11 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       the <application>KDE</application> desktop environment
       (<filename role="package">x11/kde3</filename>) has been
       updated from 3.4.2 to 3.5.3. &merged;</para>
+
+    <para arch="i386,amd64">The supported Linux emulation now uses the
+      libraries in the
+      <filename role="package">emulators/linux_base-fc4</filename>
+      package. &merged;</para>
 
     <para>The supported version of
       the <application>Perl</application> interpreter
