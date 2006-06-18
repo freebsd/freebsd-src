@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip.h>
 
-#include <machine/clock.h>      /* for DELAY */
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
@@ -202,7 +201,7 @@ bfe_dma_alloc(device_t dev)
 	 * greater than 1GB.
 	 */
 	error = bus_dma_tag_create(NULL,  /* parent */
-			PAGE_SIZE, 0,             /* alignment, boundary */
+			4096, 0,                  /* alignment, boundary */
 			0x3FFFFFFF,               /* lowaddr */
 			BUS_SPACE_MAXADDR,        /* highaddr */
 			NULL, NULL,               /* filter, filterarg */
@@ -215,7 +214,7 @@ bfe_dma_alloc(device_t dev)
 
 	/* tag for TX ring */
 	error = bus_dma_tag_create(sc->bfe_parent_tag,
-			1, 0,
+			4096, 0,
 			BUS_SPACE_MAXADDR,
 			BUS_SPACE_MAXADDR,
 			NULL, NULL,
@@ -233,7 +232,7 @@ bfe_dma_alloc(device_t dev)
 
 	/* tag for RX ring */
 	error = bus_dma_tag_create(sc->bfe_parent_tag,
-			1, 0,
+			4096, 0,
 			BUS_SPACE_MAXADDR,
 			BUS_SPACE_MAXADDR,
 			NULL, NULL,
@@ -297,7 +296,7 @@ bfe_dma_alloc(device_t dev)
 	bzero(sc->bfe_rx_list, BFE_RX_LIST_SIZE);
 	error = bus_dmamap_load(sc->bfe_rx_tag, sc->bfe_rx_map,
 			sc->bfe_rx_list, sizeof(struct bfe_desc),
-			bfe_dma_map, &sc->bfe_rx_dma, 0);
+			bfe_dma_map, &sc->bfe_rx_dma, BUS_DMA_NOWAIT);
 
 	if(error)
 		return (ENOMEM);
@@ -312,7 +311,7 @@ bfe_dma_alloc(device_t dev)
 
 	error = bus_dmamap_load(sc->bfe_tx_tag, sc->bfe_tx_map,
 			sc->bfe_tx_list, sizeof(struct bfe_desc),
-			bfe_dma_map, &sc->bfe_tx_dma, 0);
+			bfe_dma_map, &sc->bfe_tx_dma, BUS_DMA_NOWAIT);
 	if(error)
 		return (ENOMEM);
 
@@ -574,6 +573,7 @@ bfe_list_newbuf(struct bfe_softc *sc, int c, struct mbuf *m)
 	struct bfe_desc *d;
 	struct bfe_data *r;
 	u_int32_t ctrl;
+	int error;
 
 	if ((c < 0) || (c >= BFE_RX_LIST_CNT))
 		return (EINVAL);
@@ -595,8 +595,10 @@ bfe_list_newbuf(struct bfe_softc *sc, int c, struct mbuf *m)
 	sc->bfe_rx_cnt = c;
 	d = &sc->bfe_rx_list[c];
 	r = &sc->bfe_rx_ring[c];
-	bus_dmamap_load(sc->bfe_tag, r->bfe_map, mtod(m, void *),
-			MCLBYTES, bfe_dma_map_desc, d, 0);
+	error = bus_dmamap_load(sc->bfe_tag, r->bfe_map, mtod(m, void *),
+			MCLBYTES, bfe_dma_map_desc, d, BUS_DMA_NOWAIT);
+	if (error)
+		printf("Serious error: bfe failed to map RX buffer\n");
 	bus_dmamap_sync(sc->bfe_tag, r->bfe_map, BUS_DMASYNC_PREWRITE);
 
 	ctrl = ETHER_MAX_LEN + 32;
@@ -1102,8 +1104,8 @@ bfe_txeof(struct bfe_softc *sc)
 			ifp->if_opackets++;
 			m_freem(r->bfe_mbuf);
 			r->bfe_mbuf = NULL;
-			bus_dmamap_unload(sc->bfe_tag, r->bfe_map);
 		}
+		bus_dmamap_unload(sc->bfe_tag, r->bfe_map);
 		sc->bfe_tx_cnt--;
 		BFE_INC(i, BFE_TX_LIST_CNT);
 	}
@@ -1212,6 +1214,21 @@ bfe_intr(void *xsc)
 	}
 
 	if(istat & BFE_ISTAT_ERRORS) {
+
+		if (istat & BFE_ISTAT_DSCE) {
+			printf("if_bfe Descriptor Error\n");
+			bfe_stop(sc);
+			BFE_UNLOCK(sc);
+			return;
+		}
+
+		if (istat & BFE_ISTAT_DPE) {
+			printf("if_bfe Descriptor Protocol Error\n");
+			bfe_stop(sc);
+			BFE_UNLOCK(sc);
+			return;
+		}
+		
 		flag = CSR_READ_4(sc, BFE_DMATX_STAT);
 		if(flag & BFE_STAT_EMASK)
 			ifp->if_oerrors++;
@@ -1241,13 +1258,14 @@ bfe_intr(void *xsc)
 }
 
 static int
-bfe_encap(struct bfe_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
+bfe_encap(struct bfe_softc *sc, struct mbuf **m_head, u_int32_t *txidx)
 {
 	struct bfe_desc *d = NULL;
 	struct bfe_data *r = NULL;
 	struct mbuf	*m;
 	u_int32_t	   frag, cur, cnt = 0;
 	int chainlen = 0;
+	int error;
 
 	if(BFE_TX_LIST_CNT - sc->bfe_tx_cnt < 2)
 		return (ENOBUFS);
@@ -1258,16 +1276,16 @@ bfe_encap(struct bfe_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 	 * by all packets, we'll m_defrag long chains so that they
 	 * do not use up the entire list, even if they would fit.
 	 */
-	for(m = m_head; m != NULL; m = m->m_next)
+	for(m = *m_head; m != NULL; m = m->m_next)
 		chainlen++;
 
 
 	if ((chainlen > BFE_TX_LIST_CNT / 4) ||
 			((BFE_TX_LIST_CNT - (chainlen + sc->bfe_tx_cnt)) < 2)) {
-		m = m_defrag(m_head, M_DONTWAIT);
+		m = m_defrag(*m_head, M_DONTWAIT);
 		if (m == NULL)
 			return (ENOBUFS);
-		m_head = m;
+		*m_head = m;
 	}
 
 	/*
@@ -1275,11 +1293,10 @@ bfe_encap(struct bfe_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 	 * the fragment pointers. Stop when we run out
 	 * of fragments or hit the end of the mbuf chain.
 	 */
-	m = m_head;
 	cur = frag = *txidx;
 	cnt = 0;
 
-	for(m = m_head; m != NULL; m = m->m_next) {
+	for(m = *m_head; m != NULL; m = m->m_next) {
 		if(m->m_len != 0) {
 			if((BFE_TX_LIST_CNT - (sc->bfe_tx_cnt + cnt)) < 2)
 				return (ENOBUFS);
@@ -1299,9 +1316,11 @@ bfe_encap(struct bfe_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 				 */
 				d->bfe_ctrl |= BFE_DESC_EOT;
 
-			bus_dmamap_load(sc->bfe_tag,
+			error = bus_dmamap_load(sc->bfe_tag,
 			    r->bfe_map, mtod(m, void*), m->m_len,
-			    bfe_dma_map_desc, d, 0);
+			    bfe_dma_map_desc, d, BUS_DMA_NOWAIT);
+			if (error)
+				return (ENOBUFS);
 			bus_dmamap_sync(sc->bfe_tag, r->bfe_map,
 			    BUS_DMASYNC_PREWRITE);
 
@@ -1315,7 +1334,7 @@ bfe_encap(struct bfe_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 		return (ENOBUFS);
 
 	sc->bfe_tx_list[frag].bfe_ctrl |= BFE_DESC_EOF;
-	sc->bfe_tx_ring[frag].bfe_mbuf = m_head;
+	sc->bfe_tx_ring[frag].bfe_mbuf = *m_head;
 	bus_dmamap_sync(sc->bfe_tx_tag, sc->bfe_tx_map, BUS_DMASYNC_PREWRITE);
 
 	*txidx = cur;
@@ -1368,7 +1387,7 @@ bfe_start_locked(struct ifnet *ifp)
 		 * Pack the data into the tx ring.  If we dont have
 		 * enough room, let the chip drain the ring.
 		 */
-		if(bfe_encap(sc, m_head, &idx)) {
+		if(bfe_encap(sc, &m_head, &idx)) {
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
