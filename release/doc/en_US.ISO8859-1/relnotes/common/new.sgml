@@ -217,6 +217,11 @@
       (<filename role="package">x11/kde3</filename>) has been
       updated from 3.5.1 to 3.5.3.</para>
 
+    <para arch="i386,amd64">The supported Linux emulation now uses the
+      libraries in the
+      <filename role="package">emulators/linux_base-fc4</filename>
+      package.</para>
+
   </sect2>
 
   <sect2 id="doc">
