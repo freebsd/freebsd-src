@@ -222,7 +222,9 @@ sysctl_hw_snd_feeder_rate_buffersize(SYSCTL_HANDLER_ARGS)
 		feeder_rate_buffersize = val & ~1;
 	return err;
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, feeder_rate_buffersize, CTLTYPE_INT | CTLFLAG_RW,
+/* XXX: this should be settable by an user via a control tool, the sysadmin
+   needs a max and min sysctl to limit what an user can do */
+SYSCTL_PROC(_hw_snd, OID_AUTO, _feeder_rate_buffersize, CTLTYPE_INT | CTLFLAG_RW,
 	0, sizeof(int), sysctl_hw_snd_feeder_rate_buffersize, "I", "");
 
 static void

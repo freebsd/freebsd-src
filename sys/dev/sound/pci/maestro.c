@@ -189,6 +189,9 @@ static unsigned int powerstate_idle   = PCI_POWERSTATE_D1;
 #endif
 static unsigned int powerstate_init   = PCI_POWERSTATE_D2;
 
+/* XXX: this should move to a device specific sysctl dev.pcm.X.debug.Y via
+   device_get_sysctl_*() as discussed on multimedia@ in msg-id
+   <861wujij2q.fsf@xps.des.no> */
 SYSCTL_NODE(_debug, OID_AUTO, maestro, CTLFLAG_RD, 0, "");
 SYSCTL_UINT(_debug_maestro, OID_AUTO, powerstate_active, CTLFLAG_RW,
 	    &powerstate_active, 0, "The Dx power state when active (0-1)");
