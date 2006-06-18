@@ -190,13 +190,13 @@ SUBDIR=	${_3dfx} \
 	${_pmc} \
 	portalfs \
 	ppbus \
-	${_ppc} \
+	ppc \
 	ppi \
 	pps \
 	procfs \
 	pseudofs \
 	${_pst} \
-	${_puc} \
+	puc \
 	ral \
 	${_random} \
 	${_ray} \
@@ -374,9 +374,7 @@ _oltr=		oltr
 _pccard=	pccard
 _pcfclock=	pcfclock
 _pecoff=	pecoff
-_ppc=		ppc
 _pst=		pst
-_puc=		puc
 _ray=		ray
 _safe=		safe
 _sbni=		sbni
@@ -477,7 +475,6 @@ _mxge=		mxge
 _ndis=		ndis
 _nve=		nve
 _pccard=	pccard
-_ppc=		ppc
 _rr232x=	rr232x
 _safe=		safe
 _scsi_low=	scsi_low
