@@ -17,7 +17,9 @@ SUBDIR+=		efi
 SUBDIR+=		ofw
 .endif
 
+.if ${MACHINE_ARCH} != "arm"
 # Pick the machine-dependent subdir based on the target architecture.
 SUBDIR+=		${MACHINE:S/amd64/i386/}
+.endif
 
 .include <bsd.subdir.mk>
