@@ -64,7 +64,7 @@ void __start(void);
 #define cpu_idcache_wbinv_all	xscale_cache_purgeID
 #endif
 
-#ifdef KZIP
+
 int     arm_picache_size;
 int     arm_picache_line_size;
 int     arm_picache_ways;
@@ -91,7 +91,6 @@ extern int arm9_dcache_sets_inc;
 extern int arm9_dcache_sets_max;
 extern int arm9_dcache_index_max;
 extern int arm9_dcache_index_inc;
-#endif
 
 static __inline void *
 memcpy(void *dst, const void *src, int len)
@@ -100,7 +99,7 @@ memcpy(void *dst, const void *src, int len)
     	char *d = dst;
 
 	while (len) {
-		if (0 && len >= 4 && !((vm_offset_t)d & 3) &&
+		if (len >= 4 && !((vm_offset_t)d & 3) &&
 		    !((vm_offset_t)s & 3)) {
 			*(uint32_t *)d = *(uint32_t *)s;
 			s += 4;
@@ -137,7 +136,7 @@ _start(void)
 {
 	int physaddr = KERNPHYSADDR;
 	int tmp1;
-	unsigned int sp = (unsigned int)&_end;
+	unsigned int sp = ((unsigned int)&_end & ~3) + 4;
 #ifdef KZIP
 	sp += KERNSIZE + 0x100;
 	sp &= ~(L1_TABLE_SIZE - 1);
@@ -164,6 +163,14 @@ _start(void)
 			 "2: nop\n"
 			 "mov sp, %2\n"
 			 : "=r" (tmp1), "+r" (physaddr), "+r" (sp));
+#ifndef KZIP
+#ifdef CPU_ARM9
+	/* So that idcache_wbinv works; */
+	if ((cpufunc_id() & 0x0000f000) == 0x00009000)
+		arm9_setup();
+#endif
+	cpu_idcache_wbinv_all();
+#endif
 	__start();
 }
 
@@ -304,6 +311,7 @@ input(void *dummy)
 static int
 output(void *dummy, unsigned char *ptr, unsigned long len)
 {
+
 
 	memcpy(i_output, ptr, len);
 	i_output += len;
@@ -461,6 +469,10 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 	__asm __volatile("mcr p15, 0, %0, c7, c5, 0\n"
 	    		 "mcr p15, 0, %0, c7, c10, 4\n"
 			 : : "r" (curaddr));
+	__asm __volatile("mrc p15, 0, %0, c1, c0, 0\n"
+	    "bic %0, %0, #1\n" /* MMU_ENABLE */
+	    "mcr p15, 0, %0, c1, c0, 0\n"
+	    : "=r" (ssym));
 	/* Jump to the entry point. */
 	((void(*)(void))(entry_point - KERNVIRTADDR + curaddr))();
 	__asm __volatile(".globl func_end\n"
@@ -477,7 +489,8 @@ extern char func_end[];
 				    */
 int __hack;
 static __inline void
-setup_pagetables(unsigned int pt_addr, vm_paddr_t physstart, vm_paddr_t physend)
+setup_pagetables(unsigned int pt_addr, vm_paddr_t physstart, vm_paddr_t physend,
+    int write_back)
 {
 	unsigned int *pd = (unsigned int *)pt_addr;
 	vm_paddr_t addr;
@@ -485,9 +498,12 @@ setup_pagetables(unsigned int pt_addr, vm_paddr_t physstart, vm_paddr_t physend)
 	int tmp;
 
 	bzero(pd, L1_TABLE_SIZE);
-	for (addr = physstart; addr < physend; addr += L1_S_SIZE)
+	for (addr = physstart; addr < physend; addr += L1_S_SIZE) {
 		pd[addr >> L1_S_SHIFT] = L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW)|
 		    L1_S_DOM(PMAP_DOMAIN_KERNEL) | addr;
+		if (write_back)
+			pd[addr >> L1_S_SHIFT] |= L1_S_B;
+	}
 	/* XXX: See below */
 	if (0xfff00000 < physstart || 0xfff00000 > physend)
 		pd[0xfff00000 >> L1_S_SHIFT] = L1_TYPE_S|L1_S_AP(AP_KRW)|
@@ -520,13 +536,14 @@ __start(void)
 	void *dst, *altdst;
 	char *kernel = (char *)&kernel_start;
 	int sp;
+	int pt_addr;
 
 	__asm __volatile("mov %0, pc"  :
 	    "=r" (curaddr));
 	curaddr = (void*)((unsigned int)curaddr & 0xfff00000);
 #ifdef KZIP
 	if (*kernel == 0x1f && kernel[1] == 0x8b) {
-		int pt_addr = (((int)&_end + KERNSIZE + 0x100) & 
+		pt_addr = (((int)&_end + KERNSIZE + 0x100) & 
 		    ~(L1_TABLE_SIZE - 1)) + L1_TABLE_SIZE;
 		
 #ifdef CPU_ARM9
@@ -535,7 +552,7 @@ __start(void)
 			arm9_setup();
 #endif
 		setup_pagetables(pt_addr, (vm_paddr_t)curaddr,
-		    (vm_paddr_t)curaddr + 0x10000000);
+		    (vm_paddr_t)curaddr + 0x10000000, 1);
 		/* Gzipped kernel */
 		dst = inflate_kernel(kernel, &_end);
 		kernel = (char *)&_end;
@@ -554,8 +571,13 @@ __start(void)
 		dst = 4 + load_kernel((unsigned int)&kernel_start, 
 	    (unsigned int)curaddr, 
 	    (unsigned int)&func_end, 0);
-	sp = (vm_offset_t)dst + 4096;
-	dst = (void *)sp;
+	dst = (void *)(((vm_offset_t)dst & ~3));
+	pt_addr = ((unsigned int)dst &~(L1_TABLE_SIZE - 1)) + L1_TABLE_SIZE;
+	setup_pagetables(pt_addr, (vm_paddr_t)curaddr,
+	    (vm_paddr_t)curaddr + 0x10000000, 0);	
+	sp = pt_addr + L1_TABLE_SIZE + 8192;
+	sp = sp &~3;
+	dst = (void *)(sp + 4);
 	memcpy((void *)dst, (void *)&load_kernel, (unsigned int)&func_end - 
 	    (unsigned int)&load_kernel);
 	do_call(dst, kernel, dst + (unsigned int)(&func_end) - 
