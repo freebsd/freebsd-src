@@ -187,8 +187,7 @@ It has seven targets:
 	all:
 		build the program and its manual page
 	clean:
-		remove the program, any object files and the files a.out,
-		Errs, errs, mklog, and ${PROG}.core.
+		remove the program and any object files.
 	cleandir:
 		remove all of the files removed by the target clean, as
 		well as .depend, tags, and any manual pages.
