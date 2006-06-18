@@ -495,7 +495,16 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		}
 	}
 
+	/* 
+	 * XXX:
+	 * (dmat->alignment < dmat->maxsize) is just a quick hack; the exact
+	 * alignment guarantees of malloc need to be nailed down, and the
+	 * code below should be rewritten to take that into account.
+	 *
+	 * In the meantime, we'll warn the user if malloc gets it wrong.
+	 */
 	if ((dmat->maxsize <= PAGE_SIZE) &&
+	   (dmat->alignment < dmat->maxsize) &&
 	    dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem)) {
 		*vaddr = malloc(dmat->maxsize, M_DEVBUF, mflags);
 	} else {
@@ -513,6 +522,8 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 		    __func__, dmat, dmat->flags, ENOMEM);
 		return (ENOMEM);
+	} else if ((uintptr_t)*vaddr & (dmat->alignment - 1)) {
+		printf("bus_dmamem_alloc failed to align memory properly.");
 	}
 	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 	    __func__, dmat, dmat->flags, ENOMEM);
@@ -532,8 +543,9 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	 */
 	if (map != NULL)
 		panic("bus_dmamem_free: Invalid map freed\n");
-	if ((dmat->maxsize <= PAGE_SIZE)
-	 && dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem))
+	if ((dmat->maxsize <= PAGE_SIZE) &&
+	   (dmat->alignment < dmat->maxsize) &&
+	    dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem))
 		free(vaddr, M_DEVBUF);
 	else {
 		contigfree(vaddr, dmat->maxsize, M_DEVBUF);
@@ -706,9 +718,10 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	error = _bus_dmamap_load_buffer(dmat, map, buf, buflen, NULL, flags,
 	     &lastaddr, dmat->segments, &nsegs, 1);
 
+	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
+	    __func__, dmat, dmat->flags, error, nsegs + 1);
+
 	if (error == EINPROGRESS) {
-		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
-		    __func__, dmat, dmat->flags, error);
 		return (error);
 	}
 
@@ -717,8 +730,13 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	else
 		(*callback)(callback_arg, dmat->segments, nsegs + 1, 0);
 
-	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error 0 nsegs %d",
-	    __func__, dmat, dmat->flags, nsegs + 1);
+	/*
+	 * Return ENOMEM to the caller so that it can pass it up the stack.
+	 * This error only happens when NOWAIT is set, so deferal is disabled.
+	 */
+	if (error == ENOMEM)
+		return (error);
+
 	return (0);
 }
 
