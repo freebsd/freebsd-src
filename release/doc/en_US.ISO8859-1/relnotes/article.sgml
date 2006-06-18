@@ -285,19 +285,6 @@
       has been added.  This allows to export kernel malloc
       statistics via a binary structure stream.</para>
 
-    <para>A new sysctl variable <varname>kern.elf[32|64].can_exec_dyn</varname>
-      has been added.  This allows to execute a <literal>ET_DYN</literal> binary
-      (shared object) when the variable is set to <literal>1</literal>.
-      This is set to <literal>0</literal> by default and useful for some
-      Linux scripts which expect to be able to execute
-      <filename>/lib/ld-linux.so.2</filename>.</para>
-
-    <para>A new sysctl variable <varname>kern.elf[32|64].can_exec_dyn</varname>
-      has been removed.  Instead the <varname>brandinfo</varname>
-      structure has been extended to be able to provide the 
-      <literal>BI_CAN_EXEC_DYN</literal> flag for all brands that usually
-      allow executing ELF dynamic binaries.</para>
-
     <para>A new sysctl variable <varname>kern.forcesigexit</varname>
       has been added.  This forces a process
       to sigexit if a trap signal is being held by the current thread or
@@ -643,9 +630,10 @@
 	permanent ARP entries.  &merged;</para>
 
       <para arch="amd64,i386,pc98">An experimental BPF Just-In-Time compiler
-	has been implemented.  To enable this,
-	<literal>options BPF_JITTER</literal> kernel option is needed,
-	and a sysctl variable <varname>net.bpf.jitter.enable</varname>
+	has been implemented for both &man.bpf.4; and &man.ng.bpf.4;.
+	To enable this, the
+	<literal>options BPF_JITTER</literal> kernel option is needed.
+	The <varname>net.bpf_jitter.enable</varname>
 	can be used to disable this feature.</para>
 
       <para>The bridge(4) driver has been removed from the tree.  Its
@@ -702,11 +690,6 @@ pipe tablearg ip from table(1) to any</programlisting>
         to be adjusted.</para>
 
       <para>The &man.natm.4;, Native Mode ATM protocol layer is now MPSAFE.</para>
-
-      <para>The &man.ng.bpf.4; Netgraph node now supports BPF Just-In-Time compiler.
-	Also, the sysctl has been changed from <varname>net.bpf.jitter.enable</varname>
-	to <varname>net.bpf_jitter.enable</varname> and this controls
-	both &man.bpf.4; and &man.ng.bpf.4; now.</para>
 
       <para>The &man.ng.iface.4; Netgraph node now supports &man.altq.4;.
 	&merged;</para>
@@ -1570,9 +1553,6 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 	  changed.</para>
       </listitem>
     </itemizedlist>
-
-    <para>A bug that <filename>CHECKSUM.MD5</filename> includes
-      an incorrect checksum of the file itself has been fixed.</para>
 
     <para>A new &man.make.1; target <command>make showconfig</command>
       has been added in <filename>src/Makefile</filename>
