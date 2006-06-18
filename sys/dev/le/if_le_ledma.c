@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/le/lancevar.h>
 #include <dev/le/am7990var.h>
 
+#define	LEDMA_ALIGNMENT	8		/* ring desc. alignmet for NCR92C990 */
 #define	LEDMA_BOUNDARY	(16*1024*1024)	/* must not cross 16MB boundary */
 #define	LEDMA_MEMSIZE	(16*1024)	/* LANCE memory size */
 #define	LEREG1_RDP	0		/* Register Data Port */
@@ -395,7 +396,8 @@ le_dma_attach(device_t dev)
 	sc->sc_memsize = LEDMA_MEMSIZE;
 	error = bus_dma_tag_create(
 	    dma->sc_parent_dmat,	/* parent */
-	    1, LEDMA_BOUNDARY,		/* alignment, boundary */
+	    LEDMA_ALIGNMENT,		/* alignment */
+	    LEDMA_BOUNDARY,		/* boundary */
 	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
@@ -445,14 +447,14 @@ le_dma_attach(device_t dev)
 
 	sc->sc_rdcsr = le_dma_rdcsr;
 	sc->sc_wrcsr = le_dma_wrcsr;
-	sc->sc_nocarrier = le_dma_nocarrier;
 	sc->sc_hwreset = le_dma_hwreset;
 	sc->sc_hwintr = le_dma_hwintr;
+	sc->sc_nocarrier = le_dma_nocarrier;
 
 	error = am7990_config(&lesc->sc_am7990, device_get_name(dev),
 	    device_get_unit(dev));
 	if (error != 0) {
-		device_printf(dev, "cannot attach AM7990\n");
+		device_printf(dev, "cannot attach Am7990\n");
 		goto fail_dmap;
 	}
 
