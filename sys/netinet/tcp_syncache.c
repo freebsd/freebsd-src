@@ -110,6 +110,41 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, syncookies, CTLFLAG_RW,
     &tcp_syncookies, 0,
     "Use TCP SYN cookies if the syncache overflows");
 
+struct syncache {
+	TAILQ_ENTRY(syncache)	sc_hash;
+	struct		in_conninfo sc_inc;	/* addresses */
+	u_long		sc_rxttime;		/* retransmit time */
+	u_int16_t	sc_rxmits;		/* retransmit counter */
+
+	u_int32_t	sc_tsrecent;
+	u_int32_t	sc_flowlabel;		/* IPv6 flowlabel */
+	tcp_seq		sc_irs;			/* seq from peer */
+	tcp_seq		sc_iss;			/* our ISS */
+	struct		mbuf *sc_ipopts;	/* source route */
+
+	u_int16_t	sc_peer_mss;		/* peer's MSS */
+	u_int16_t	sc_wnd;			/* advertised window */
+	u_int8_t	sc_ip_ttl;		/* IPv4 TTL */
+	u_int8_t	sc_ip_tos;		/* IPv4 TOS */
+	u_int8_t	sc_requested_s_scale:4,
+			sc_request_r_scale:4;
+	u_int8_t	sc_flags;
+#define SCF_NOOPT	0x01			/* no TCP options */
+#define SCF_WINSCALE	0x02			/* negotiated window scaling */
+#define SCF_TIMESTAMP	0x04			/* negotiated timestamps */
+#define SCF_UNREACH	0x10			/* icmp unreachable received */
+#define SCF_SIGNATURE	0x20			/* send MD5 digests */
+#define SCF_SACK	0x80			/* send SACK option */
+};
+
+struct syncache_head {
+	struct mtx	sch_mtx;
+	TAILQ_HEAD(sch_head, syncache)	sch_bucket;
+	struct callout	sch_timer;
+	int		sch_nextc;
+	u_int		sch_length;
+};
+
 static void	 syncache_drop(struct syncache *, struct syncache_head *);
 static void	 syncache_free(struct syncache *);
 static void	 syncache_insert(struct syncache *, struct syncache_head *);

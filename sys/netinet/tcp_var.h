@@ -243,45 +243,6 @@ struct tcpopt {
 	u_char		*to_sacks;	/* pointer to the first SACK blocks */
 };
 
-#ifdef _NETINET_IN_PCB_H_
-struct syncache {
-	TAILQ_ENTRY(syncache)	sc_hash;
-	struct		in_conninfo sc_inc;	/* addresses */
-	u_long		sc_rxttime;		/* retransmit time */
-	u_int16_t	sc_rxmits;		/* retransmit counter */
-
-	u_int32_t	sc_tsrecent;
-	u_int32_t	sc_flowlabel;		/* IPv6 flowlabel */
-	tcp_seq		sc_irs;			/* seq from peer */
-	tcp_seq		sc_iss;			/* our ISS */
-	struct		mbuf *sc_ipopts;	/* source route */
-
-	u_int16_t	sc_peer_mss;		/* peer's MSS */
-	u_int16_t	sc_wnd;			/* advertised window */
-	u_int8_t	sc_ip_ttl;		/* IPv4 TTL */
-	u_int8_t	sc_ip_tos;		/* IPv4 TOS */
-	u_int8_t	sc_requested_s_scale:4,
-			sc_request_r_scale:4;
-	u_int8_t	sc_flags;
-#define SCF_NOOPT	0x01			/* no TCP options */
-#define SCF_WINSCALE	0x02			/* negotiated window scaling */
-#define SCF_TIMESTAMP	0x04			/* negotiated timestamps */
-#define SCF_UNREACH	0x10			/* icmp unreachable received */
-#define SCF_SIGNATURE	0x20			/* send MD5 digests */
-#define SCF_SACK	0x80			/* send SACK option */
-};
-
-struct syncache_head {
-	struct mtx	sch_mtx;
-	TAILQ_HEAD(sch_head, syncache)	sch_bucket;
-	struct callout	sch_timer;
-	int		sch_nextc;
-	u_int		sch_length;
-};
-#else
-struct in_conninfo;
-#endif /* _NETINET_IN_PCB_H_ */
-
 struct hc_metrics_lite {	/* must stay in sync with hc_metrics */
 	u_long	rmx_mtu;	/* MTU for this path */
 	u_long	rmx_ssthresh;	/* outbound gateway buffer limit */
@@ -292,6 +253,10 @@ struct hc_metrics_lite {	/* must stay in sync with hc_metrics */
 	u_long	rmx_sendpipe;   /* outbound delay-bandwidth product */
 	u_long	rmx_recvpipe;   /* inbound delay-bandwidth product */
 };
+
+#ifndef _NETINET_IN_PCB_H_
+struct in_conninfo;
+#endif /* _NETINET_IN_PCB_H_ */
 
 struct tcptw {
 	struct inpcb	*tw_inpcb;	/* XXX back pointer to internet pcb */
