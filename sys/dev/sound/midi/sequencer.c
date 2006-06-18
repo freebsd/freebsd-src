@@ -153,6 +153,7 @@ struct seq_softc {
 SYSCTL_NODE(_hw_midi, OID_AUTO, seq, CTLFLAG_RD, 0, "Midi sequencer");
 
 int					seq_debug;
+/* XXX: should this be moved into debug.midi? */
 SYSCTL_INT(_hw_midi_seq, OID_AUTO, debug, CTLFLAG_RW, &seq_debug, 0, "");
 
 midi_cmdtab	cmdtab_seqevent[] = {

@@ -40,10 +40,13 @@ int pcm_veto_load = 1;
 
 #ifdef USING_DEVFS
 int snd_unit = 0;
-TUNABLE_INT("hw.snd.unit", &snd_unit);
+TUNABLE_INT("hw.snd.default_unit", &snd_unit);
 #endif
 
-int snd_maxautovchans = 0;
+int snd_maxautovchans = 4;
+/* XXX: a tunable implies that we may need more than one sound channel before
+   the system can change a sysctl (/etc/sysctl.conf), do we really need
+   this? */
 TUNABLE_INT("hw.snd.maxautovchans", &snd_maxautovchans);
 
 SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
@@ -364,7 +367,7 @@ pcm_setmaxautovchans(struct snddev_info *d, int num)
 
 #ifdef USING_DEVFS
 static int
-sysctl_hw_snd_unit(SYSCTL_HANDLER_ARGS)
+sysctl_hw_snd_default_unit(SYSCTL_HANDLER_ARGS)
 {
 	struct snddev_info *d;
 	int error, unit;
@@ -381,8 +384,9 @@ sysctl_hw_snd_unit(SYSCTL_HANDLER_ARGS)
 	}
 	return (error);
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, unit, CTLTYPE_INT | CTLFLAG_RW,
-            0, sizeof(int), sysctl_hw_snd_unit, "I", "");
+/* XXX: do we need a way to let the user change the default unit? */
+SYSCTL_PROC(_hw_snd, OID_AUTO, default_unit, CTLTYPE_INT | CTLFLAG_RW,
+            0, sizeof(int), sysctl_hw_snd_default_unit, "I", "");
 #endif
 
 static int
@@ -867,8 +871,10 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 		sysctl_ctx_free(&d->sysctl_tree);
 		goto no;
 	}
+	/* XXX: an user should be able to set this with a control tool, the
+	   sysadmin then needs min+max sysctls for this */
 	SYSCTL_ADD_INT(snd_sysctl_tree(dev), SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
-            OID_AUTO, "buffersize", CTLFLAG_RD, &d->bufsz, 0, "");
+            OID_AUTO, "_buffersize", CTLFLAG_RD, &d->bufsz, 0, "");
 #endif
 	if (numplay > 0) {
 		d->flags |= SD_F_AUTOVCHAN;

@@ -607,11 +607,14 @@ vchan_initsys(device_t dev)
 	struct snddev_info *d;
 
     	d = device_get_softc(dev);
+	/* XXX: the user should be able to set this with a control tool, the
+	   sysadmin needs a sysctl so set a max value for "vchan" and min+max
+	   values for "vchanrate" to limit what an user can do */
 	SYSCTL_ADD_PROC(snd_sysctl_tree(dev), SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
-            OID_AUTO, "vchans", CTLTYPE_INT | CTLFLAG_RW, d, sizeof(d),
+            OID_AUTO, "_vchans", CTLTYPE_INT | CTLFLAG_RW, d, sizeof(d),
 	    sysctl_hw_snd_vchans, "I", "");
 	SYSCTL_ADD_PROC(snd_sysctl_tree(dev), SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
-	    OID_AUTO, "vchanrate", CTLTYPE_INT | CTLFLAG_RW, d, sizeof(d),
+	    OID_AUTO, "_vchanrate", CTLTYPE_INT | CTLFLAG_RW, d, sizeof(d),
 	    sysctl_hw_snd_vchanrate, "I", "");
 #endif
 

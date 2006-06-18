@@ -561,6 +561,9 @@ static int
 ich_initsys(struct sc_info* sc)
 {
 #ifdef SND_DYNSYSCTL
+	/* XXX: this should move to a device specific sysctl "dev.pcm.X.yyy"
+	   via device_get_sysctl_*() as discussed on multimedia@ in msg-id
+	   <861wujij2q.fsf@xps.des.no> */
 	SYSCTL_ADD_INT(snd_sysctl_tree(sc->dev),
 		       SYSCTL_CHILDREN(snd_sysctl_tree_top(sc->dev)),
 		       OID_AUTO, "ac97rate", CTLFLAG_RW,
