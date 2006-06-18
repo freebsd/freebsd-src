@@ -280,6 +280,12 @@ USB_ATTACH(uhid)
 	} else if (id->bInterfaceClass == UICLASS_VENDOR &&
 	    id->bInterfaceSubClass == UISUBCLASS_XBOX360_CONTROLLER &&
 	    id->bInterfaceProtocol == UIPROTO_XBOX360_GAMEPAD) {
+		static uByte reportbuf[] = {1, 3, 0};
+
+		/* The LEDs on the gamepad are blinking by default, turn off. */
+		usbd_set_report(uaa->iface, UHID_OUTPUT_REPORT, 0,
+		    &reportbuf, sizeof reportbuf);
+
 		/* The Xbox 360 gamepad has no report descriptor. */
 		size = sizeof uhid_xb360gp_report_descr;
 		descptr = uhid_xb360gp_report_descr;
