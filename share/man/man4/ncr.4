@@ -30,7 +30,14 @@
 .Nm ncr
 .Nd NCR 53C8xx SCSI driver
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device scbus"
 .Cd "device ncr"
+.Ed
 .Sh HARDWARE
 The
 .Nm
