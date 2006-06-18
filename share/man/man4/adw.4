@@ -30,11 +30,13 @@
 .Nm adw
 .Nd Advansys PCI 16bit SCSI Host adapter driver
 .Sh SYNOPSIS
-.Cd device pci
-.Cd device adw
-.Pp
-For one or more SCSI busses:
-.Cd device scbus
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device scbus"
+.Cd "device adw"
 .Sh DESCRIPTION
 This driver provides access to the 16bit
 .Tn SCSI
