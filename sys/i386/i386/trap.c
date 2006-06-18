@@ -858,10 +858,13 @@ trap_fatal(frame, eva)
 	if (debugger_on_panic || kdb_active) {
 		register_t eflags;
 		eflags = intr_disable();
+		frame->tf_err = eva;	/* smuggle fault address to ddb */
 		if (kdb_trap(type, 0, frame)) {
+			frame->tf_err = code;	/* restore error code */
 			intr_restore(eflags);
 			return;
 		}
+		frame->tf_err = code;		/* restore error code */
 		intr_restore(eflags);
 	}
 #endif
