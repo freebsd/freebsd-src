@@ -63,17 +63,30 @@
 .Nm sym
 .Nd NCR/Symbios/LSI Logic 53C8XX PCI SCSI host adapter driver
 .Sh SYNOPSIS
-For any number of cards:
-.Cd device sym
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device scbus"
+.Cd "device sym"
 .Pp
-To disable PCI parity checking (needed for broken bridges)
-.Cd options SYM_SETUP_PCI_PARITY=<boolean>
+To disable PCI parity checking (needed for broken bridges):
+.Cd "options SYM_SETUP_PCI_PARITY=<boolean>"
 .Pp
-To control driver probing against HVD buses
-.Cd options SYM_SETUP_SCSI_DIFF=<bit combination>
+To control driver probing against HVD buses:
+.Cd "options SYM_SETUP_SCSI_DIFF=<bit combination>"
 .Pp
-To control chip attachment balancing between the ncr driver and this driver
-.Cd options SYM_SETUP_LP_PROBE_MAP=<bit combination>
+To control chip attachment balancing between the ncr driver and this driver:
+.Cd "options SYM_SETUP_LP_PROBE_MAP=<bit combination>"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+sym_load="YES"
+.Ed
 .Sh DESCRIPTION
 This driver provides support for the Symbios/LSI Logic 53C8XX
 PCI SCSI controllers.
