@@ -160,6 +160,12 @@
 	i386 systems without AT-style keyboard controllers such as the
 	Macbook Pro.</para>
 
+      <para arch="i386,amd64">&man.ipmi.4;, an OpenIPMI compatible driver,
+	has been added.
+	OpenIPMI (Intelligent Platform Management Interface) is an open
+	standard designed to enable remote monitoring and control of server,
+	networking and telecommunication platforms.</para>
+
       <sect4 id="mm">
 	<title>Multimedia Support</title>
 
@@ -169,14 +175,19 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
-	<para></para>
+	<para>The &man.nve.4; driver now has &man.altq.4; support.</para>
+
+	<para>The &man.sk.4; driver is now MPSAFE.</para>
       </sect4>
     </sect3>
 
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para></para>
+      <para>&os; &release.prev; contained a bug in the IPv6
+	implementation, which caused spurious error messages to be
+	printed for point-to-point interfaces.  This problem has been
+	corrected.</para>
     </sect3>
 
     <sect3 id="disks">
@@ -281,6 +292,11 @@
       the <application>KDE</application> desktop environment
       (<filename role="package">x11/kde3</filename>) has been
       updated from 3.5.1 to 3.5.3.</para>
+
+    <para arch="i386,amd64">The supported Linux emulation now uses the
+      libraries in the
+      <filename role="package">emulators/linux_base-fc4</filename>
+      package.</para>
 
   </sect2>
 
