@@ -2180,8 +2180,10 @@ integer:
 			goto integer;
 
 		case SO_ERROR:
+			SOCK_LOCK(so);
 			optval = so->so_error;
 			so->so_error = 0;
+			SOCK_UNLOCK(so);
 			goto integer;
 
 		case SO_SNDBUF:
