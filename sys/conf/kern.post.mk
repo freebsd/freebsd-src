@@ -199,22 +199,6 @@ kernel-tags:
 	@[ -f .depend ] || { echo "you must make depend first"; exit 1; }
 	sh $S/conf/systags.sh
 
-.if ${MACHINE_ARCH} != "ia64"
-.if exists(${DESTDIR}/boot)
-kernel-install-check:
-	@if [ ! -f ${DESTDIR}/boot/device.hints ] ; then \
-		echo "You must set up a ${DESTDIR}/boot/device.hints file first." ; \
-		exit 1 ; \
-	fi
-	@if [ x"`grep device.hints ${DESTDIR}/boot/defaults/loader.conf ${DESTDIR}/boot/loader.conf`" = "x" ]; then \
-		echo "You must activate /boot/device.hints in loader.conf." ; \
-		exit 1 ; \
-	fi
-
-kernel-install: kernel-install-check
-.endif
-.endif
-
 kernel-install:
 	@if [ ! -f ${KERNEL_KO} ] ; then \
 		echo "You must build a kernel first." ; \
