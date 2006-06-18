@@ -91,70 +91,20 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 
+#include <machine/bus.h>
+
 #include <dev/le/lancereg.h>
 #include <dev/le/lancevar.h>
 
 devclass_t le_devclass;
 
-static inline uint16_t ether_cmp(void *, void *);
-
 static void lance_start(struct ifnet *);
 static void lance_stop(struct lance_softc *);
 static void lance_init(void *);
-static struct mbuf *lance_get(struct lance_softc *, int, int);
 static void lance_watchdog(struct ifnet *);
 static int lance_mediachange(struct ifnet *);
 static void lance_mediastatus(struct ifnet *, struct ifmediareq *);
 static int lance_ioctl(struct ifnet *, u_long, caddr_t);
-
-/*
- * Compare two Ether/802 addresses for equality, inlined and
- * unrolled for speed.  Use this like memcmp().
- *
- * XXX: Add <machine/inlines.h> for stuff like this?
- * XXX: or maybe add it to libkern.h instead?
- *
- * "I'd love to have an inline assembler version of this."
- * XXX: Who wanted that? mycroft?  I wrote one, but this
- * version in C is as good as hand-coded assembly. -gwr
- *
- * Please do NOT tweak this without looking at the actual
- * assembly code generated before and after your tweaks!
- */
-static inline uint16_t
-ether_cmp(void *one, void *two)
-{
-	uint16_t *a = (u_short *)one;
-	uint16_t *b = (u_short *)two;
-	uint16_t diff;
-
-#ifdef	m68k
-	/*
-	 * The post-increment-pointer form produces the best
-	 * machine code for m68k.  This was carefully tuned
-	 * so it compiles to just 8 short (2-byte) op-codes!
-	 */
-	diff  = *a++ - *b++;
-	diff |= *a++ - *b++;
-	diff |= *a++ - *b++;
-#else
-	/*
-	 * Most modern CPUs do better with a single expresion.
-	 * Note that short-cut evaluation is NOT helpful here,
-	 * because it just makes the code longer, not faster!
-	 */
-	diff = (a[0] - b[0]) | (a[1] - b[1]) | (a[2] - b[2]);
-#endif
-
-	return (diff);
-}
-
-#define ETHER_CMP	ether_cmp
-
-#ifdef LANCE_REVC_BUG
-/* Make sure this is short-aligned, for ether_cmp(). */
-static uint16_t bcast_enaddr[3] = { ~0, ~0, ~0 };
-#endif
 
 int
 lance_config(struct lance_softc *sc, const char* name, int unit)
@@ -424,7 +374,7 @@ lance_put(struct lance_softc *sc, int boff, struct mbuf *m)
  * We copy the data into mbufs.  When full cluster sized units are present
  * we copy into clusters.
  */
-static struct mbuf *
+struct mbuf *
 lance_get(struct lance_softc *sc, int boff, int totlen)
 {
 	struct ifnet *ifp = sc->sc_ifp;
@@ -432,9 +382,16 @@ lance_get(struct lance_softc *sc, int boff, int totlen)
 	caddr_t newdata;
 	int len;
 
+	if (totlen <= ETHER_HDR_LEN || totlen > LEBLEN - ETHER_CRC_LEN) {
+#ifdef LEDEBUG
+		if_printf(ifp, "invalid packet size %d; dropping\n", totlen);
+#endif
+		return (NULL);
+	}
+
 	MGETHDR(m0, M_DONTWAIT, MT_DATA);
-	if (m0 == 0)
-		return (0);
+	if (m0 == NULL)
+		return (NULL);
 	m0->m_pkthdr.rcvif = ifp;
 	m0->m_pkthdr.len = totlen;
 	len = MHLEN;
@@ -473,68 +430,7 @@ lance_get(struct lance_softc *sc, int boff, int totlen)
 
  bad:
 	m_freem(m0);
-	return (0);
-}
-
-/*
- * Pass a packet to the higher levels.
- */
-void
-lance_read(struct lance_softc *sc, int boff, int len)
-{
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ether_header *eh;
-	struct mbuf *m;
-
-	LE_LOCK_ASSERT(sc, MA_OWNED);
-
-	if (len <= ETHER_HDR_LEN || len > LEBLEN - ETHER_CRC_LEN) {
-#ifdef LEDEBUG
-		if_printf(ifp, "invalid packet size %d; dropping\n", len);
-#endif
-		ifp->if_ierrors++;
-		return;
-	}
-
-	/* Pull packet off interface. */
-	m = lance_get(sc, boff, len);
-	if (m == 0) {
-		ifp->if_ierrors++;
-		return;
-	}
-
-	ifp->if_ipackets++;
-
-	eh = mtod(m, struct ether_header *);
-
-#ifdef LANCE_REVC_BUG
-	/*
-	 * The old LANCE (Rev. C) chips have a bug which causes
-	 * garbage to be inserted in front of the received packet.
-	 * The work-around is to ignore packets with an invalid
-	 * destination address (garbage will usually not match).
-	 * Of course, this precludes multicast support...
-	 */
-	if (ETHER_CMP(eh->ether_dhost, sc->sc_enaddr) &&
-	    ETHER_CMP(eh->ether_dhost, bcast_enaddr)) {
-		m_freem(m);
-		return;
-	}
-#endif
-
-	/*
-	 * Some lance device does not present IFF_SIMPLEX behavior on multicast
-	 * packets.  Make sure to drop it if it is from ourselves.
-	 */
-	if (!ETHER_CMP(eh->ether_shost, sc->sc_enaddr)) {
-		m_freem(m);
-		return;
-	}
-
-	/* Pass the packet up. */
-	LE_UNLOCK(sc);
-	(*ifp->if_input)(ifp, m);
-	LE_LOCK(sc);
+	return (NULL);
 }
 
 static void
@@ -702,7 +598,7 @@ lance_setladrf(struct lance_softc *sc, uint16_t *af)
 		crc >>= 26;
 
 		/* Set the corresponding bit in the filter. */
-		af[crc >> 4] |= LE_HTOLE16(1U << (crc & 0xf));
+		af[crc >> 4] |= LE_HTOLE16(1 << (crc & 0xf));
 	}
 	IF_ADDR_UNLOCK(ifp);
 }
