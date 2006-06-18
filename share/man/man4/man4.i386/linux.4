@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd August 17, 2000
+.Dd June 18, 2006
 .Dt LINUX 4 i386
 .Os
 .Sh NAME
@@ -66,6 +66,10 @@ tunable variables are available:
 Linux kernel operating system name.
 .It compat.linux.osrelease
 Linux kernel operating system release.
+Changing this to something else is discouraged on non-development systems,
+because it may change the way linux programs work.
+Recent versions of GNU libc are known to use different syscalls depending
+on the value of this sysctl.
 .It compat.linux.oss_version
 Linux Open Sound System version.
 .El
@@ -94,7 +98,7 @@ For this reason, it is common to execute the following commands
 to prepare the system to correctly run Linux executables:
 .Bd -literal -offset indent
 if [ -x /compat/linux/sbin/ldconfig ]; then
-	/compat/linux/sbin/ldconfig
+	/compat/linux/sbin/ldconfig -R /compat/linux
 fi
 .Ed
 .Pp
@@ -114,11 +118,14 @@ or loaded as a module.
 minimal Linux run-time environment
 .It Pa /compat/linux/proc
 limited Linux process file system
+.It Pa /compar/linux/sys
+limited Linux system file system
 .El
 .Sh SEE ALSO
 .Xr brandelf 1 ,
 .Xr elf 5 ,
-.Xr linprocfs 5
+.Xr linprocfs 5 ,
+.Xr linsysfs 5
 .Sh HISTORY
 Linux ABI support first appeared in
 .Fx 2.1 .
