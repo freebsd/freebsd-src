@@ -443,6 +443,7 @@ MLINKS+=ipfirewall.4 ipaccounting.4 \
 	ipfirewall.4 ipfw.4
 MLINKS+=ipw.4 if_ipw.4
 MLINKS+=iwi.4 if_iwi.4
+MLINKS+=ixgb.4 if_ixgb.4
 MLINKS+=kue.4 if_kue.4
 MLINKS+=le.4 if_le.4
 MLINKS+=lge.4 if_lge.4
@@ -451,6 +452,7 @@ MLINKS+=lp.4 plip.4
 MLINKS+=md.4 vn.4
 MLINKS+=mem.4 kmem.4
 MLINKS+=mn.4 if_mn.4
+MLINKS+=mxge.4 if_mxge.4
 MLINKS+=my.4 if_my.4
 MLINKS+=netintro.4 net.4 \
 	netintro.4 networking.4
