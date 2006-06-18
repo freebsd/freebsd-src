@@ -317,7 +317,8 @@ main(int argc, char *argv[])
 	/* (abu)use mboot.bootinst to probe for the sector size */
 	if ((mboot.bootinst = malloc(MAX_SEC_SIZE)) == NULL)
 		err(1, "cannot allocate buffer to determine disk sector size");
-	read_disk(0, mboot.bootinst);
+	if (read_disk(0, mboot.bootinst) == -1)
+		errx(1, "could not detect sector size");
 	free(mboot.bootinst);
 	mboot.bootinst = NULL;
 
@@ -811,6 +812,8 @@ get_params()
 	error = ioctl(fd, DIOCGSECTORSIZE, &u);
 	if (error != 0 || u == 0)
 		u = 512;
+	else
+		secsize = u;
 
 	error = ioctl(fd, DIOCGMEDIASIZE, &o);
 	if (error == 0) {
@@ -1395,7 +1398,7 @@ get_rootdisk(void)
 	if (statfs("/", &rootfs) == -1)
 		err(1, "statfs(\"/\")");
 
-	if ((rv = regcomp(&re, "^(/dev/[a-z]+[0-9]+)([sp][0-9]+)?[a-h]?$",
+	if ((rv = regcomp(&re, "^(/dev/[a-z/]+[0-9]+)([sp][0-9]+)?[a-h]?$",
 		    REG_EXTENDED)) != 0)
 		errx(1, "regcomp() failed (%d)", rv);
 	if ((rv = regexec(&re, rootfs.f_mntfromname, NMATCHES, rm, 0)) != 0)
