@@ -1360,9 +1360,14 @@ es_init_sysctls(device_t dev)
 		    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_C) ||
 		    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_D) ||
 		    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_E)) {
+		/* XXX: an user should be able to set this with a control tool,
+		   if not done before 7.0-RELEASE, this needs to be converted
+		   to a device specific sysctl "dev.pcm.X.yyy" via
+		   device_get_sysctl_*() as discussed on multimedia@ in msg-id
+		   <861wujij2q.fsf@xps.des.no> */
 		SYSCTL_ADD_PROC(snd_sysctl_tree(dev),
 				SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
-				OID_AUTO, "spdif_enabled",
+				OID_AUTO, "_spdif_enabled",
 				CTLTYPE_INT | CTLFLAG_RW, dev, sizeof(dev),
 				sysctl_es137x_spdif_enable, "I",
 				"Enable S/PDIF output on primary playback channel");
@@ -1371,9 +1376,14 @@ es_init_sysctls(device_t dev)
 		 * Enable fixed rate sysctl if both DAC2 / ADC enabled.
 		 */
 		if (es->ch[ES_DAC2].channel != NULL && es->ch[ES_ADC].channel != NULL) {
+		/* XXX: an user should be able to set this with a control tool,
+		   if not done before 7.0-RELEASE, this needs to be converted
+		   to a device specific sysctl "dev.pcm.X.yyy" via
+		   device_get_sysctl_*() as discussed on multimedia@ in msg-id
+		   <861wujij2q.fsf@xps.des.no> */
 			SYSCTL_ADD_PROC(snd_sysctl_tree(dev),
 					SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
-					OID_AUTO, "fixed_rate",
+					OID_AUTO, "_fixed_rate",
 					CTLTYPE_INT | CTLFLAG_RW, dev, sizeof(dev),
 					sysctl_es137x_fixed_rate, "I",
 					"Enable fixed rate playback/recording");
@@ -1382,9 +1392,14 @@ es_init_sysctls(device_t dev)
 		 * Enable single pcm mixer sysctl if both DAC1/2 enabled.
 		 */
 		if (es->ch[ES_DAC1].channel != NULL && es->ch[ES_DAC2].channel != NULL) {
+		/* XXX: an user should be able to set this with a control tool,
+		   if not done before 7.0-RELEASE, this needs to be converted
+		   to a device specific sysctl "dev.pcm.X.yyy" via
+		   device_get_sysctl_*() as discussed on multimedia@ in msg-id
+		   <861wujij2q.fsf@xps.des.no> */
 			SYSCTL_ADD_PROC(snd_sysctl_tree(dev),
 					SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
-					OID_AUTO, "single_pcm_mixer",
+					OID_AUTO, "_single_pcm_mixer",
 					CTLTYPE_INT | CTLFLAG_RW, dev, sizeof(dev),
 					sysctl_es137x_single_pcm_mixer, "I",
 					"Single PCM mixer controller for both DAC1/DAC2");
@@ -1394,6 +1409,9 @@ es_init_sysctls(device_t dev)
 			device_get_unit(dev), "latency_timer", &r) == 0 &&
 			!(r < 0 || r > 255))
 		pci_write_config(dev, PCIR_LATTIMER, r, 1);
+	/* XXX: this needs to be converted to a device specific sysctl
+	   "dev.pcm.X.yyy" via device_get_sysctl_*() as discussed on
+	   multimedia@ in msg-id <861wujij2q.fsf@xps.des.no> */
 	SYSCTL_ADD_PROC(snd_sysctl_tree(dev),
 			SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
 			OID_AUTO, "latency_timer",
