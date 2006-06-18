@@ -491,12 +491,14 @@ vendor GIGABYTE		0x1044	GIGABYTE
 vendor WESTERN		0x1058	Western Digital
 vendor MOTOROLA		0x1063	Motorola
 vendor CCYU		0x1065	CCYU
+vendor CURITEL		0x106c	Curitel Communications Inc
 vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
 vendor JRC		0x1145	JRC
 vendor DELORME		0x1163	DeLorme
 vendor SERVERWORKS	0x1166	ServerWorks
 vendor ACERCM		0x1189	Acer Communications & Multimedia
+vendor SIERRA		0x1199	Sierra Wireless
 vendor TWINMOS		0x126f	TwinMOS
 vendor TSUNAMI		0x1241	Tsunami
 vendor CREATIVE2	0x1292	Creative Labs
@@ -782,6 +784,9 @@ product CONCEPTRONIC C54U	0x3c02	C54U wireless adapter
 
 /* CTX products */
 product CTX EX1300		0x9999	Ex1300 hub
+
+/* Curitel products */
+product CURITEL PC5740		0x3701	Broadband wireless modem
 
 /* Cypress Semiconductor products */
 product CYPRESS MOUSE		0x0001	mouse
@@ -1472,6 +1477,9 @@ product SHUTTLE EUSBORCA	0x0325	eUSB ORCA Quad Reader
 
 /* Siemens products */
 product SIEMENS SPEEDSTREAM	0x1001	SpeedStream USB
+
+/* Sierra Wireless products */
+product SIERRA MC5720		0x0218	MC5720 Wireless Modem
 
 /* Sigmatel products */
 product SIGMATEL I_BEAD100	0x8008	i-Bead 100 MP3 Player
