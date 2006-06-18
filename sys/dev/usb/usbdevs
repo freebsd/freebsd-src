@@ -535,6 +535,7 @@ vendor MICRONET		0x3980	Micronet
 vendor IODATA2		0x40bb	I-O Data
 vendor IRIVER		0x4102	iRiver
 vendor DELL		0x413c	Dell
+vendor ACEECA		0x4766	Aceeca
 vendor AVERATEC		0x50c2	Averatec
 vendor ONSPEC2		0x55aa	OnSpec
 vendor ZINWELL		0x5a57	Zinwell
@@ -577,6 +578,9 @@ product ABOCOM XX10		0xabc1	XX10
 /* Accton products */
 product ACCTON USB320_EC	0x1046	USB320-EC Ethernet
 product ACCTON SS1001		0x5046	SpeedStream Ethernet
+
+/* Aceeca products */
+product ACEECA MEZ1000		0x0001	Aceeca Mez1000 RDA
 
 /* Acer Peripherals, Inc. products */
 product ACERP ACERSCAN_C310U	0x12a6	Acerscan C310U
