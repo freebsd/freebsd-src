@@ -1638,7 +1638,11 @@ sparc64_elf_adjust_dynamic_symbol (info, h)
 	      || h->root.type == bfd_link_hash_defweak)
 	  && (h->root.u.def.section->flags & SEC_CODE) != 0))
     {
-      if (! elf_hash_table (info)->dynamic_sections_created)
+      if (! info->shared
+	  && (h->elf_link_hash_flags & ELF_LINK_HASH_DEF_DYNAMIC) == 0
+	  && (h->elf_link_hash_flags & ELF_LINK_HASH_REF_DYNAMIC) == 0
+	  && h->root.type != bfd_link_hash_undefweak
+	  && h->root.type != bfd_link_hash_undefined)
 	{
 	  /* This case can occur if we saw a WPLT30 reloc in an input
              file, but none of the input files were dynamic objects.
