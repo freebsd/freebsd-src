@@ -255,7 +255,7 @@ USB_ATTACH(umct)
 	}
 
 	if (sc->sc_intr_number == -1) {
-		printf("%s: Could not fint interrupt in\n", devname);
+		printf("%s: Could not find interrupt in\n", devname);
 		ucom->sc_dying = 1;
 		goto error;
 	}
