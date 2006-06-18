@@ -186,15 +186,19 @@ static void
 via_init_sysctls(device_t dev)
 {
 #ifdef SND_DYNSYSCTL
+	/* XXX: an user should be able to set this with a control tool,
+	   if not done before 7.0-RELEASE, this needs to be converted to
+	   a device specific sysctl "dev.pcm.X.yyy" via device_get_sysctl_*()
+	   as discussed on multimedia@ in msg-id <861wujij2q.fsf@xps.des.no> */
 	SYSCTL_ADD_PROC(snd_sysctl_tree(dev),
 			SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
-			OID_AUTO, "spdif_enabled", 
+			OID_AUTO, "_spdif_enabled", 
 			CTLTYPE_INT | CTLFLAG_RW, dev, sizeof(dev),
 			sysctl_via8233_spdif_enable, "I",
 			"Enable S/PDIF output on primary playback channel");
 	SYSCTL_ADD_PROC(snd_sysctl_tree(dev),
 			SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
-			OID_AUTO, "via_dxs_src", 
+			OID_AUTO, "_via_dxs_src", 
 			CTLTYPE_INT | CTLFLAG_RW, dev, sizeof(dev),
 			sysctl_via8233_dxs_src, "I",
 			"Enable VIA DXS Sample Rate Converter");
