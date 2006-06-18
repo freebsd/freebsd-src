@@ -62,6 +62,7 @@ static int kdb_sysctl_current(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_enter(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_panic(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_trap(SYSCTL_HANDLER_ARGS);
+static int kdb_sysctl_trap_code(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_NODE(_debug, OID_AUTO, kdb, CTLFLAG_RW, NULL, "KDB nodes");
 
@@ -78,7 +79,10 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, panic, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
     kdb_sysctl_panic, "I", "set to panic the kernel");
 
 SYSCTL_PROC(_debug_kdb, OID_AUTO, trap, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
-    kdb_sysctl_trap, "I", "set cause a page fault");
+    kdb_sysctl_trap, "I", "set to cause a page fault via data access");
+
+SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
+    kdb_sysctl_trap_code, "I", "set to cause a page fault via code access");
 
 /*
  * Flag indicating whether or not to IPI the other CPUs to stop them on
@@ -193,6 +197,23 @@ kdb_sysctl_trap(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 	return (*addr);
+}
+
+static int
+kdb_sysctl_trap_code(SYSCTL_HANDLER_ARGS)
+{
+	int error, i;
+	void (*fp)(u_int, u_int, u_int) = (void *)0xdeadc0de;
+
+	error = sysctl_wire_old_buffer(req, sizeof(int));
+	if (error == 0) {
+		i = 0;
+		error = sysctl_handle_int(oidp, &i, 0, req);
+	}
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	(*fp)(0x11111111, 0x22222222, 0x33333333);
+	return (0);
 }
 
 /*
