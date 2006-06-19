@@ -6,3 +6,5 @@
 0	string		***\ 		'diff' output text
 0	string		Only\ in\ 	'diff' output text
 0	string		Common\ subdirectories:\ 	'diff' output text
+
+0	string		Index:		RCS/CVS diff output text

@@ -148,3 +148,44 @@
 # information seems to be more useful.
 #0	long	0x45520200
 #>0x410	string	disk\ image	UDIF read/write image (UDRW)
+
+# From: Toby Peterson <toby@apple.com>
+0	string	bplist00	Apple binary property list
+
+# Apple binary property list (bplist)
+#  Assumes version bytes are hex.
+#  Provides content hints for version 0 files. Assumes that the root
+#  object is the first object (true for CoreFoundation implementation).
+# From: David Remahl <dremahl@apple.com>
+0		string	bplist
+>6		byte	x	\bCoreFoundation binary property list data, version 0x%c
+>>7		byte	x	\b%c
+>6		string		00		\b
+>>8		byte&0xF0	0x00	\b
+>>>8	byte&0x0F	0x00	\b, root type: null
+>>>8	byte&0x0F	0x08	\b, root type: false boolean
+>>>8	byte&0x0F	0x09	\b, root type: true boolean
+>>8		byte&0xF0	0x10	\b, root type: integer
+>>8		byte&0xF0	0x20	\b, root type: real
+>>8		byte&0xF0	0x30	\b, root type: date
+>>8		byte&0xF0	0x40    \b, root type: data
+>>8		byte&0xF0	0x50	\b, root type: ascii string
+>>8		byte&0xF0	0x60	\b, root type: unicode string
+>>8		byte&0xF0	0x80	\b, root type: uid (CORRUPT)
+>>8		byte&0xF0	0xa0	\b, root type: array
+>>8		byte&0xF0	0xd0	\b, root type: dictionary
+
+# Apple/NeXT typedstream data
+#  Serialization format used by NeXT and Apple for various
+#  purposes in YellowStep/Cocoa, including some nib files.
+# From: David Remahl <dremahl@apple.com>
+2		string		typedstream	NeXT/Apple typedstream data, big endian
+>0		byte		x		\b, version %hhd
+>0		byte		<5		\b
+>>13	byte		0x81	\b
+>>>14	ubeshort	x		\b, system %hd
+2		string		streamtyped NeXT/Apple typedstream data, little endian
+>0		byte		x		\b, version %hhd
+>0		byte		<5		\b
+>>13	byte		0x81	\b
+>>>14	uleshort	x		\b, system %hd

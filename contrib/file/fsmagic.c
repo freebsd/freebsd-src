@@ -57,7 +57,7 @@
 #undef HAVE_MAJOR
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: fsmagic.c,v 1.45 2004/11/13 10:19:48 christos Exp $")
+FILE_RCSID("@(#)$Id: fsmagic.c,v 1.46 2005/06/25 15:52:14 christos Exp $")
 #endif	/* lint */
 
 protected int
@@ -181,6 +181,8 @@ file_fsmagic(struct magic_set *ms, const char *fn, struct stat *sb)
 	/* TODO add code to handle V7 MUX and Blit MUX files */
 #ifdef	S_IFIFO
 	case S_IFIFO:
+		if((ms->flags & MAGIC_DEVICES) != 0)
+			break;
 		if (file_printf(ms, "fifo (named pipe)") == -1)
 			return -1;
 		return 1;
