@@ -1707,6 +1707,9 @@ device		miibus
 #       PCI and ISA varieties.
 # awi:  Support for IEEE 802.11 PC Card devices using the AMD Am79C930 and
 #       Harris (Intersil) Chipset with PCnetMobile firmware by AMD.
+# bce:	Broadcom NetXtreme II (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet
+#       adapters.
+# bfe:	Broadcom BCM4401 Ethernet adapter.
 # bge:	Support for gigabit ethernet adapters based on the Broadcom
 #	BCM570x family of controllers, including the 3Com 3c996-T,
 #	the Netgear GA302T, the SysKonnect SK-9D21 and SK-9D41, and
@@ -1836,17 +1839,24 @@ device		wi
 device		xe
 
 # PCI Ethernet NICs that use the common MII bus controller code.
+device		bce		# Broadcom BCM5706/BCM5708 Gigabit Ethernet
+device		bfe		# Broadcom BCM440x 10/100 Ethernet
+device		bge		# Broadcom BCM570xx Gigabit Ethernet
 device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 hint.fxp.0.prefer_iomap="0"
 device		hme		# Sun HME (Happy Meal Ethernet)
+device		lge		# Level 1 LXT1001 gigabit Ethernet
 device		my		# Myson Fast Ethernet (MTD80X, MTD89X)
+device		nge		# NatSemi DP83820 gigabit Ethernet
 device		rl		# RealTek 8129/8139
 device		pcn		# AMD Am79C97x PCI 10/100 NICs
 device		sf		# Adaptec AIC-6915 (``Starfire'')
 device		sbsh		# Granch SBNI16 SHDSL modem
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
+device		sk		# SysKonnect SK-984x & SK-982x gigabit Ethernet
 device		ste		# Sundance ST201 (D-Link DFE-550TX)
+device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
 device		tl		# Texas Instruments ThunderLAN
 device		tx		# SMC EtherPower II (83c170 ``EPIC'')
 device		vr		# VIA Rhine, Rhine II
@@ -1859,12 +1869,7 @@ device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		txp		# 3Com 3cR990 (``Typhoon'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
-# PCI Gigabit & FDDI NICs.
-device		bge
-device		lge
-device		nge
-device		sk
-device		ti
+# PCI FDDI NICs.
 device		fpa
 
 # PCI WAN adapters.
