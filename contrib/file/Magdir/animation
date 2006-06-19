@@ -6,13 +6,58 @@
 # MPEG, FLI, DL originally from vax@ccwf.cc.utexas.edu (VaX#n8)
 # FLC, SGI, Apple originally from Daniel Quinlan (quinlan@yggdrasil.com)
 
+# SGI and Apple formats
+0	string		MOVI		Silicon Graphics movie file
+4       string          moov            Apple QuickTime
+>12     string          mvhd            \b movie (fast start)
+>12     string          mdra            \b URL
+>12     string          cmov            \b movie (fast start, compressed header)
+>12     string          rmra            \b multiple URLs
+4       string          mdat            Apple QuickTime movie (unoptimized)
+4       string          wide            Apple QuickTime movie (unoptimized)
+4       string          skip            Apple QuickTime movie (modified)
+4       string          free            Apple QuickTime movie (modified)
+4       string          idsc            Apple QuickTime image (fast start)
+4       string          idat            Apple QuickTime image (unoptimized)
+4       string          pckg            Apple QuickTime compressed archive
+4	string/B	jP		JPEG 2000 image
+4	string		ftyp		ISO Media
+>8	string		isom		\b, MPEG v4 system, version 1
+>8	string		iso2		\b, MPEG v4 system, part 12 revision
+>8	string		mp41		\b, MPEG v4 system, version 1
+>8	string		mp42		\b, MPEG v4 system, version 2
+>8	string		mp7t		\b, MPEG v4 system, MPEG v7 XML
+>8	string		mp7b		\b, MPEG v4 system, MPEG v7 binary XML
+>8	string/B	jp2		\b, JPEG 2000
+>8	string		3gp		\b, MPEG v4 system, 3GPP
+>>11	byte		4		\b v4 (H.263/AMR GSM 6.10)
+>>11	byte		5		\b v5 (H.263/AMR GSM 6.10)
+>>11	byte		6		\b v6 (ITU H.264/AMR GSM 6.10)
+>8	string		mmp4		\b, MPEG v4 system, 3GPP Mobile
+>8	string		avc1		\b, MPEG v4 system, 3GPP JVT AVC
+>8	string/B	M4A		\b, MPEG v4 system, iTunes AAC-LC
+>8	string/B	M4P		\b, MPEG v4 system, iTunes AES encrypted
+>8	string/B	M4B		\b, MPEG v4 system, iTunes bookmarked
+>8	string/B	qt		\b, Apple QuickTime movie
+
 # MPEG sequences
 # Scans for all common MPEG header start codes
+0        belong             0x00000001     JVT NAL sequence
+>4       byte&0x1F          0x07           \b, H.264 video
+>>5      byte               66             \b, baseline
+>>5      byte               77             \b, main
+>>5      byte               88             \b, extended
+>>7      byte               x              \b @ L %u
 0        belong&0xFFFFFF00  0x00000100     MPEG sequence
 >3       byte               0xBA
 >>4      byte               &0x40          \b, v2, program multiplex
 >>4      byte               ^0x40          \b, v1, system multiplex
 >3       byte               0xBB           \b, v1/2, multiplex (missing pack header)
+>3       byte&0x1F          0x07           \b, H.264 video
+>>4      byte               66             \b, baseline
+>>4      byte               77             \b, main
+>>4      byte               88             \b, extended
+>>6      byte               x              \b @ L %u
 >3       byte               0xB0           \b, v4
 >>5      belong             0x000001B5
 >>>9     byte               &0x80
@@ -20,11 +65,10 @@
 >>>>10   byte&0xF0          32             \b, still texture
 >>>>10   byte&0xF0          48             \b, mesh
 >>>>10   byte&0xF0          64             \b, face
->>>9     byte               ^0x80
->>>>9    byte&0xF8          8              \b, video
->>>>9    byte&0xF8          16             \b, still texture
->>>>9    byte&0xF8          24             \b, mesh
->>>>9    byte&0xF8          32             \b, face
+>>>9     byte&0xF8          8              \b, video
+>>>9     byte&0xF8          16             \b, still texture
+>>>9     byte&0xF8          24             \b, mesh
+>>>9     byte&0xF8          32             \b, face
 >>4      byte               1              \b, simple @ L1
 >>4      byte               2              \b, simple @ L2
 >>4      byte               3              \b, simple @ L3
@@ -89,11 +133,10 @@
 >>>5     byte&0xF0          32             \b, still texture (missing profile header)
 >>>5     byte&0xF0          48             \b, mesh (missing profile header)
 >>>5     byte&0xF0          64             \b, face (missing profile header)
->>4      byte               ^0x80
->>>4     byte&0xF8          8              \b, video (missing profile header)
->>>4     byte&0xF8          16             \b, still texture (missing profile header)
->>>4     byte&0xF8          24             \b, mesh (missing profile header)
->>>4     byte&0xF8          32             \b, face (missing profile header)
+>>4      byte&0xF8          8              \b, video (missing profile header)
+>>4      byte&0xF8          16             \b, still texture (missing profile header)
+>>4      byte&0xF8          24             \b, mesh (missing profile header)
+>>4      byte&0xF8          32             \b, face (missing profile header)
 >3       byte               0xB3
 >>12     belong             0x000001B8     \b, v1, progressive Y'CbCr 4:2:0 video
 >>12     belong             0x000001B2     \b, v1, progressive Y'CbCr 4:2:0 video
@@ -131,23 +174,23 @@
 >>>>>145 byte&0x06          2              \b Y'CbCr 4:2:0 video
 >>>>>145 byte&0x06          4              \b Y'CbCr 4:2:2 video
 >>>>>145 byte&0x06          6              \b Y'CbCr 4:4:4 video
->>>76    belong             0x000001B8     \b, v1, progressive Y'CbCr 4:2:0 video
->>>76    belong             0x000001B2     \b, v1, progressive Y'CbCr 4:2:0 video
->>>76    belong             0x000001B5     \b, v2,
->>>80    byte&0x0F          1              \b HP
->>>80    byte&0x0F          2              \b Spt
->>>80    byte&0x0F          3              \b SNR
->>>80    byte&0x0F          4              \b MP
->>>80    byte&0x0F          5              \b SP
->>>81    byte&0xF0          64             \b@HL
->>>81    byte&0xF0          96             \b@H-14
->>>81    byte&0xF0          128            \b@ML
->>>81    byte&0xF0          160            \b@LL
->>>81    byte               &0x08          \b progressive
->>>81    byte               ^0x08          \b interlaced
->>>81    byte&0x06          2              \b Y'CbCr 4:2:0 video
->>>81    byte&0x06          4              \b Y'CbCr 4:2:2 video
->>>81    byte&0x06          6              \b Y'CbCr 4:4:4 video
+>>76    belong             0x000001B8     \b, v1, progressive Y'CbCr 4:2:0 video
+>>76    belong             0x000001B2     \b, v1, progressive Y'CbCr 4:2:0 video
+>>76    belong             0x000001B5     \b, v2,
+>>>80   byte&0x0F          1              \b HP
+>>>80   byte&0x0F          2              \b Spt
+>>>80   byte&0x0F          3              \b SNR
+>>>80   byte&0x0F          4              \b MP
+>>>80   byte&0x0F          5              \b SP
+>>>81   byte&0xF0          64             \b@HL
+>>>81   byte&0xF0          96             \b@H-14
+>>>81   byte&0xF0          128            \b@ML
+>>>81   byte&0xF0          160            \b@LL
+>>>81   byte               &0x08          \b progressive
+>>>81   byte               ^0x08          \b interlaced
+>>>81   byte&0x06          2              \b Y'CbCr 4:2:0 video
+>>>81   byte&0x06          4              \b Y'CbCr 4:2:2 video
+>>>81   byte&0x06          6              \b Y'CbCr 4:4:4 video
 >>4      belong&0xFFFFFF00  0x78043800     \b, HD-TV 1920P
 >>>7     byte&0xF0          0x10           \b, 16:9
 >>4      belong&0xFFFFFF00  0x50002D00     \b, SD-TV 1280I
@@ -234,13 +277,13 @@
 >3      byte&0xC0       0x40           \b, JntStereo
 >3      byte&0xC0       0x80           \b, 2x Monaural
 >3      byte&0xC0       0xC0           \b, Monaural
-#>1     byte            ^0x01           \b, Data Verify
-#>2     byte            &0x02           \b, Packet Pad
-#>2     byte            &0x01           \b, Custom Flag
-#>3     byte            &0x08           \b, Copyrighted
-#>3     byte            &0x04           \b, Original Source
-#>3     byte&0x03       1               \b, NR: 50/15 ms
-#>3     byte&0x03       3               \b, NR: CCIT J.17
+#>1     byte            ^0x01          \b, Data Verify
+#>2     byte            &0x02          \b, Packet Pad
+#>2     byte            &0x01          \b, Custom Flag
+#>3     byte            &0x08          \b, Copyrighted
+#>3     byte            &0x04          \b, Original Source
+#>3     byte&0x03       1              \b, NR: 50/15 ms
+#>3     byte&0x03       3              \b, NR: CCIT J.17
 
 # MP2, M1A
 0       beshort&0xFFFE  0xFFFC         MPEG ADTS, layer II, v1
@@ -268,47 +311,51 @@
 >3      byte&0xC0       0x40           \b, JntStereo
 >3      byte&0xC0       0x80           \b, 2x Monaural
 >3      byte&0xC0       0xC0           \b, Monaural
-#>1     byte            ^0x01           \b, Data Verify
-#>2     byte            &0x02           \b, Packet Pad
-#>2     byte            &0x01           \b, Custom Flag
-#>3     byte            &0x08           \b, Copyrighted
-#>3     byte            &0x04           \b, Original Source
-#>3     byte&0x03       1               \b, NR: 50/15 ms
-#>3     byte&0x03       3               \b, NR: CCIT J.17
+#>1     byte            ^0x01          \b, Data Verify
+#>2     byte            &0x02          \b, Packet Pad
+#>2     byte            &0x01          \b, Custom Flag
+#>3     byte            &0x08          \b, Copyrighted
+#>3     byte            &0x04          \b, Original Source
+#>3     byte&0x03       1              \b, NR: 50/15 ms
+#>3     byte&0x03       3              \b, NR: CCIT J.17
 
 # MPA, M1A
-0       beshort&0xFFFE  0xFFFE         MPEG ADTS, layer I, v1
+# modified by Joerg Jenderek
+# GRR the original test are too common for many DOS files, so test 32 <= kbits <= 448
+0	beshort&0xFFFE		0xFFFE	
+>2	byte&0xF0	>0x0F		
+>>2	byte&0xF0	<0xE1		MPEG ADTS, layer I, v1
 # rate
->2      byte&0xF0       0x10           \b,  32 kBits
->2      byte&0xF0       0x20           \b,  64 kBits
->2      byte&0xF0       0x30           \b,  96 kBits
->2      byte&0xF0       0x40           \b, 128 kBits
->2      byte&0xF0       0x50           \b, 160 kBits
->2      byte&0xF0       0x60           \b, 192 kBits
->2      byte&0xF0       0x70           \b, 224 kBits
->2      byte&0xF0       0x80           \b, 256 kBits
->2      byte&0xF0       0x90           \b, 288 kBits
->2      byte&0xF0       0xA0           \b, 320 kBits
->2      byte&0xF0       0xB0           \b, 352 kBits
->2      byte&0xF0       0xC0           \b, 384 kBits
->2      byte&0xF0       0xD0           \b, 416 kBits
->2      byte&0xF0       0xE0           \b, 448 kBits
+>>>2      byte&0xF0       0x10           \b,  32 kBits
+>>>2      byte&0xF0       0x20           \b,  64 kBits
+>>>2      byte&0xF0       0x30           \b,  96 kBits
+>>>2      byte&0xF0       0x40           \b, 128 kBits
+>>>2      byte&0xF0       0x50           \b, 160 kBits
+>>>2      byte&0xF0       0x60           \b, 192 kBits
+>>>2      byte&0xF0       0x70           \b, 224 kBits
+>>>2      byte&0xF0       0x80           \b, 256 kBits
+>>>2      byte&0xF0       0x90           \b, 288 kBits
+>>>2      byte&0xF0       0xA0           \b, 320 kBits
+>>>2      byte&0xF0       0xB0           \b, 352 kBits
+>>>2      byte&0xF0       0xC0           \b, 384 kBits
+>>>2      byte&0xF0       0xD0           \b, 416 kBits
+>>>2      byte&0xF0       0xE0           \b, 448 kBits
 # timing
->2      byte&0x0C       0x00           \b, 44.1 kHz
->2      byte&0x0C       0x04           \b, 48 kHz
->2      byte&0x0C       0x08           \b, 32 kHz
+>>>2      byte&0x0C       0x00           \b, 44.1 kHz
+>>>2      byte&0x0C       0x04           \b, 48 kHz
+>>>2      byte&0x0C       0x08           \b, 32 kHz
 # channels/options
->3      byte&0xC0       0x00           \b, Stereo
->3      byte&0xC0       0x40           \b, JntStereo
->3      byte&0xC0       0x80           \b, 2x Monaural
->3      byte&0xC0       0xC0           \b, Monaural
-#>1     byte            ^0x01           \b, Data Verify
-#>2     byte            &0x02           \b, Packet Pad
-#>2     byte            &0x01           \b, Custom Flag
-#>3     byte            &0x08           \b, Copyrighted
-#>3     byte            &0x04           \b, Original Source
-#>3     byte&0x03       1               \b, NR: 50/15 ms
-#>3     byte&0x03       3               \b, NR: CCIT J.17
+>>>3      byte&0xC0       0x00           \b, Stereo
+>>>3      byte&0xC0       0x40           \b, JntStereo
+>>>3      byte&0xC0       0x80           \b, 2x Monaural
+>>>3      byte&0xC0       0xC0           \b, Monaural
+#>1     byte            ^0x01          \b, Data Verify
+#>2     byte            &0x02          \b, Packet Pad
+#>2     byte            &0x01          \b, Custom Flag
+#>3     byte            &0x08          \b, Copyrighted
+#>3     byte            &0x04          \b, Original Source
+#>3     byte&0x03       1              \b, NR: 50/15 ms
+#>3     byte&0x03       3              \b, NR: CCIT J.17
 
 # MP3, M2A
 0       beshort&0xFFFE  0xFFF2         MPEG ADTS, layer III, v2
@@ -336,13 +383,13 @@
 >3      byte&0xC0       0x40           \b, JntStereo
 >3      byte&0xC0       0x80           \b, 2x Monaural
 >3      byte&0xC0       0xC0           \b, Monaural
-#>1     byte            ^0x01           \b, Data Verify
-#>2     byte            &0x02           \b, Packet Pad
-#>2     byte            &0x01           \b, Custom Flag
-#>3     byte            &0x08           \b, Copyrighted
-#>3     byte            &0x04           \b, Original Source
-#>3     byte&0x03       1               \b, NR: 50/15 ms
-#>3     byte&0x03       3               \b, NR: CCIT J.17
+#>1     byte            ^0x01          \b, Data Verify
+#>2     byte            &0x02          \b, Packet Pad
+#>2     byte            &0x01          \b, Custom Flag
+#>3     byte            &0x08          \b, Copyrighted
+#>3     byte            &0x04          \b, Original Source
+#>3     byte&0x03       1              \b, NR: 50/15 ms
+#>3     byte&0x03       3              \b, NR: CCIT J.17
 
 # MP2, M2A
 0       beshort&0xFFFE  0xFFF4         MPEG ADTS, layer II, v2
@@ -370,13 +417,13 @@
 >3      byte&0xC0       0x40           \b, JntStereo
 >3      byte&0xC0       0x80           \b, 2x Monaural
 >3      byte&0xC0       0xC0           \b, Monaural
-#>1     byte            ^0x01           \b, Data Verify
-#>2     byte            &0x02           \b, Packet Pad
-#>2     byte            &0x01           \b, Custom Flag
-#>3     byte            &0x08           \b, Copyrighted
-#>3     byte            &0x04           \b, Original Source
-#>3     byte&0x03       1               \b, NR: 50/15 ms
-#>3     byte&0x03       3               \b, NR: CCIT J.17
+#>1     byte            ^0x01          \b, Data Verify
+#>2     byte            &0x02          \b, Packet Pad
+#>2     byte            &0x01          \b, Custom Flag
+#>3     byte            &0x08          \b, Copyrighted
+#>3     byte            &0x04          \b, Original Source
+#>3     byte&0x03       1              \b, NR: 50/15 ms
+#>3     byte&0x03       3              \b, NR: CCIT J.17
 
 # MPA, M2A
 0       beshort&0xFFFE  0xFFF6         MPEG ADTS, layer I, v2
@@ -404,13 +451,13 @@
 >3      byte&0xC0       0x40           \b, JntStereo
 >3      byte&0xC0       0x80           \b, 2x Monaural
 >3      byte&0xC0       0xC0           \b, Monaural
-#>1     byte            ^0x01           \b, Data Verify
-#>2     byte            &0x02           \b, Packet Pad
-#>2     byte            &0x01           \b, Custom Flag
-#>3     byte            &0x08           \b, Copyrighted
-#>3     byte            &0x04           \b, Original Source
-#>3     byte&0x03       1               \b, NR: 50/15 ms
-#>3     byte&0x03       3               \b, NR: CCIT J.17
+#>1     byte            ^0x01          \b, Data Verify
+#>2     byte            &0x02          \b, Packet Pad
+#>2     byte            &0x01          \b, Custom Flag
+#>3     byte            &0x08          \b, Copyrighted
+#>3     byte            &0x04          \b, Original Source
+#>3     byte&0x03       1              \b, NR: 50/15 ms
+#>3     byte&0x03       3              \b, NR: CCIT J.17
 
 # MP3, M25A
 0       beshort&0xFFFE  0xFFE2         MPEG ADTS, layer III,  v2.5
@@ -438,13 +485,13 @@
 >3      byte&0xC0       0x40           \b, JntStereo
 >3      byte&0xC0       0x80           \b, 2x Monaural
 >3      byte&0xC0       0xC0           \b, Monaural
-#>1     byte            ^0x01           \b, Data Verify
-#>2     byte            &0x02           \b, Packet Pad
-#>2     byte            &0x01           \b, Custom Flag
-#>3     byte            &0x08           \b, Copyrighted
-#>3     byte            &0x04           \b, Original Source
-#>3     byte&0x03       1               \b, NR: 50/15 ms
-#>3     byte&0x03       3               \b, NR: CCIT J.17
+#>1     byte            ^0x01          \b, Data Verify
+#>2     byte            &0x02          \b, Packet Pad
+#>2     byte            &0x01          \b, Custom Flag
+#>3     byte            &0x08          \b, Copyrighted
+#>3     byte            &0x04          \b, Original Source
+#>3     byte&0x03       1              \b, NR: 50/15 ms
+#>3     byte&0x03       3              \b, NR: CCIT J.17
 
 # AAC (aka MPEG-2 NBC audio) and MPEG-4 audio
 
@@ -474,13 +521,13 @@
 
 # Live or stored single AAC stream (used with MPEG-2 systems)
 0       beshort&0xFFF6  0xFFF0         MPEG ADTS, AAC
->1      byte            ^0x08          \b, v2
->1      byte            &0x08          \b, v4
+>1      byte            &0x08          \b, v2
+>1      byte            ^0x08          \b, v4
 # profile
 >>2     byte            &0xC0          \b LTP
->2      byte&0xc0       0x00           \b, Main
->2      byte&0xc0       0x40           \b, LC
->2      byte&0xc0       0x80           \b, SSR
+>2      byte&0xc0       0x00           \b Main
+>2      byte&0xc0       0x40           \b LC
+>2      byte&0xc0       0x80           \b SSR
 # timing
 >2      byte&0x3c       0x00           \b, 96 kHz
 >2      byte&0x3c       0x04           \b, 88.2 kHz
@@ -494,7 +541,7 @@
 >2      byte&0x3c       0x24           \b, 12 kHz
 >2      byte&0x3c       0x28           \b, 11.025 kHz
 >2      byte&0x3c       0x2c           \b, 8 kHz
-# channels/options
+# channels
 >2      beshort&0x01c0  0x0040         \b, monaural
 >2      beshort&0x01c0  0x0080         \b, stereo
 >2      beshort&0x01c0  0x00c0         \b, stereo + center
@@ -564,35 +611,6 @@
 # \003.  Most of them start with non-null values at hex offset 0x34 or so.
 #0	string	\3\0\0\0\0\0\0\0\0\0\0\0	DL version 3
 
-# SGI formats
-0	string		MOVI		Silicon Graphics movie file
-
-# Apple Quicktime and ISO types
-4       string          moov            Apple QuickTime
->12     string          mvhd            \b movie (fast start)
->12     string          mdra            \b URL
->12     string          cmov            \b movie (fast start, compressed header)
->12     string          rmra            \b multiple URLs
-4       string          mdat            Apple QuickTime movie (unoptimized)
-4       string          wide            Apple QuickTime movie (unoptimized)
-4       string          skip            Apple QuickTime movie (modified)
-4       string          free            Apple QuickTime movie (modified)
-4       string          idsc            Apple QuickTime image (fast start)
-4       string          idat            Apple QuickTime image (unoptimized)
-4       string          pckg            Apple QuickTime compressed archive
-4       string/B        jP              JPEG 2000 image
-4       string          ftyp            ISO Media
->8      string          isom            \b, MPEG v4 system
->8      string          mp41            \b, MPEG v4 system, version 1
->8      string          mp42            \b, MPEG v4 system, version 2
->8      string/B        jp2             \b, JPEG 2000 image
->8      string          3gp             \b, MPEG v4 system, 3GPP (H.263/AMR)
->8      string          mmp4            \b, MPEG v4 system, Mobile
->8      string/B        M4A             \b, MPEG v4 system, iTunes AAC-LC
->8      string/B        M4P             \b, MPEG v4 system, ISMA encrypted AAC-LC
->8      string/B        M4B             \b, MPEG v4 system, iTunes AAC-LC/AMR
->8      string/B        qt              \b, Apple QuickTime movie
-
 # iso 13818 transport stream
 #
 # from Oskar Schirmer <schirmer@scara.com> Feb 3, 2001 (ISO 13818.1)
@@ -654,3 +672,9 @@
 >0x26	ubeshort	x		%dµs,
 >0x42	ubeshort	0		no audio
 >0x42	ubeshort	>0		%dHz audio
+
+# From: "Stefan A. Haubenthal" <polluks@web.de>
+0	string		DVDVIDEO-VTS	Video title set,
+>0x21	byte		x		v%x
+0	string		DVDVIDEO-VMG	Video manager,
+>0x21	byte		x		v%x

@@ -30,10 +30,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#if defined(HAVE_WCHAR_H)
+#include <wchar.h>
+#endif
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: funcs.c,v 1.13 2004/09/11 19:15:57 christos Exp $")
+FILE_RCSID("@(#)$Id: funcs.c,v 1.19 2006/03/02 22:10:26 christos Exp $")
 #endif	/* lint */
+
+#ifndef HAVE_VSNPRINTF
+int vsnprintf(char *, size_t, const char *, va_list);
+#endif
+
 /*
  * Like printf, only we print to a buffer and advance it.
  */
@@ -110,11 +118,11 @@ file_badread(struct magic_set *ms)
 
 #ifndef COMPILE_ONLY
 protected int
-file_buffer(struct magic_set *ms, const void *buf, size_t nb)
+file_buffer(struct magic_set *ms, int fd, const void *buf, size_t nb)
 {
     int m;
     /* try compression stuff */
-    if ((m = file_zmagic(ms, buf, nb)) == 0) {
+    if ((m = file_zmagic(ms, fd, buf, nb)) == 0) {
 	/* Check if we have a tar file */
 	if ((m = file_is_tar(ms, buf, nb)) == 0) {
 	    /* try tests in /etc/magic (or surrogate magic file) */
@@ -123,7 +131,10 @@ file_buffer(struct magic_set *ms, const void *buf, size_t nb)
 		if ((m = file_ascmagic(ms, buf, nb)) == 0) {
 		    /* abandon hope, all ye who remain here */
 		    if (file_printf(ms, ms->flags & MAGIC_MIME ?
-			"application/octet-stream" : "data") == -1)
+			(nb ? "application/octet-stream" :
+			    "application/empty") :
+			(nb ? "data" :
+			    "empty")) == -1)
 			    return -1;
 		    m = 1;
 		}
@@ -147,6 +158,13 @@ file_reset(struct magic_set *ms)
 	return 0;
 }
 
+#define OCTALIFY(n, o)	\
+	*(n)++ = '\\', \
+	*(n)++ = (((uint32_t)*(o) >> 6) & 3) + '0', \
+	*(n)++ = (((uint32_t)*(o) >> 3) & 7) + '0', \
+	*(n)++ = (((uint32_t)*(o) >> 0) & 7) + '0', \
+	(o)++
+
 protected const char *
 file_getbuffer(struct magic_set *ms)
 {
@@ -169,16 +187,78 @@ file_getbuffer(struct magic_set *ms)
 		ms->o.pbuf = nbuf;
 	}
 
+#if defined(HAVE_WCHAR_H) && defined(HAVE_MBRTOWC) && defined(HAVE_WCWIDTH)
+	{
+		mbstate_t state;
+		wchar_t nextchar;
+		int mb_conv = 1;
+		size_t bytesconsumed;
+		char *eop;
+		(void)memset(&state, 0, sizeof(mbstate_t));
+
+		np = ms->o.pbuf;
+		op = ms->o.buf;
+		eop = op + strlen(ms->o.buf);
+
+		while (op < eop) {
+			bytesconsumed = mbrtowc(&nextchar, op, eop - op,
+			    &state);
+			if (bytesconsumed == (size_t)(-1) ||
+			    bytesconsumed == (size_t)(-2)) {
+				mb_conv = 0;
+				break;
+			}
+
+			if (iswprint(nextchar) ) {
+				(void)memcpy(np, op, bytesconsumed);
+				op += bytesconsumed;
+				np += bytesconsumed;
+			} else {
+				while (bytesconsumed-- > 0)
+					OCTALIFY(np, op);
+			}
+		}
+		*np = '\0';
+
+		/* Parsing succeeded as a multi-byte sequence */
+		if (mb_conv != 0)
+			return ms->o.pbuf;
+	}
+#endif
+
 	for (np = ms->o.pbuf, op = ms->o.buf; *op; op++) {
 		if (isprint((unsigned char)*op)) {
 			*np++ = *op;	
 		} else {
-			*np++ = '\\';
-			*np++ = ((*op >> 6) & 3) + '0';
-			*np++ = ((*op >> 3) & 7) + '0';
-			*np++ = ((*op >> 0) & 7) + '0';
+			OCTALIFY(np, op);
 		}
 	}
 	*np = '\0';
 	return ms->o.pbuf;
 }
+
+/*
+ * Yes these suffer from buffer overflows, but if your OS does not have
+ * these functions, then maybe you should consider replacing your OS?
+ */
+#ifndef HAVE_VSNPRINTF
+int
+vsnprintf(char *buf, size_t len, const char *fmt, va_list ap)
+{
+	return vsprintf(buf, fmt, ap);
+}
+#endif
+
+#ifndef HAVE_SNPRINTF
+/*ARGSUSED*/
+int
+snprintf(char *buf, size_t len, const char *fmt, ...)
+{
+	int rv;
+	va_list ap;
+	va_start(ap, fmt);
+	rv = vsprintf(buf, fmt, ap);
+	va_end(ap);
+	return rv;
+}
+#endif

@@ -50,6 +50,7 @@ typedef	uint32_t 	Elf64_Addr[2];
 typedef	uint32_t 	Elf64_Off[2];
 typedef uint32_t 	Elf64_Xword[2];
 #else
+#undef USE_ARRAY_FOR_64BIT_TYPES
 typedef	uint64_t 	Elf64_Addr;
 typedef	uint64_t 	Elf64_Off;
 typedef uint64_t 	Elf64_Xword;
@@ -223,6 +224,7 @@ typedef struct {
 #define NT_NETBSD_EMULATION	2
 #define NT_FREEBSD_VERSION	1
 #define NT_OPENBSD_VERSION	1
+#define NT_DRAGONFLY_VERSION	1
 /* GNU executables (name = "GNU") */
 #define NT_GNU_VERSION		1
 
