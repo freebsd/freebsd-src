@@ -131,7 +131,7 @@
 0	string	Extended\ Module: Fasttracker II module sound data
 >17	string	>\0		Title: "%s"
 
-21	string/c	!SCREAM!	Screamtracker 2 module sound data
+21	string/c	=!SCREAM!	Screamtracker 2 module sound data
 21	string	BMOD2STM	Screamtracker 2 module sound data
 1080	string	M.K.		4-channel Protracker module sound data
 >0	string	>\0		Title: "%s"
@@ -236,7 +236,7 @@
 >122	byte&0x1	=1		PAL
 >122	byte&0x1	=0		NTSC
 
-# Impuse tracker module (audio/x-it)
+# Impulse tracker module (audio/x-it)
 0	string		IMPM		Impulse Tracker module sound data -
 >4	string		>\0		"%s"
 >40	leshort		!0		compatible w/ITv%x
@@ -399,13 +399,83 @@
 # From "Simon Hosie
 0       string  TFMX-SONG       TFMX module sound data
 
+# Monkey's Audio compressed audio format (.ape)
 # From danny.milo@gmx.net (Danny Milosavljevic)
-# monkeysaudio for magic.mime
-0	string	MAC\	X/Monkey audio,
->4	leshort >0	version %d,
->6	leshort >0	compression level %d,
->8	leshort >0	flags %x,
->10	leshort >0	channels %d,
->12	lelong	>0	samplerate %d,
->24	lelong	>0	frames %d
+# New version from Abel Cheung <abel (@) oaka.org>
+0		string		MAC\040		Monkey's Audio compressed format
+>4		uleshort	>0x0F8B		version %d
+>>(0x08.l)	uleshort	=1000		with fast compression
+>>(0x08.l)	uleshort	=2000		with normal compression
+>>(0x08.l)	uleshort	=3000		with high compression
+>>(0x08.l)	uleshort	=4000		with extra high compression
+>>(0x08.l)	uleshort	=5000		with insane compression
+>>(0x08.l+18)	uleshort	=1		\b, mono
+>>(0x08.l+18)	uleshort	=2		\b, stereo
+>>(0x08.l+20)	ulelong		x		\b, sample rate %d
+>4		uleshort	<0x0F8C		version %d
+>>6		uleshort	=1000		with fast compression
+>>6		uleshort	=2000		with normal compression
+>>6		uleshort	=3000		with high compression
+>>6		uleshort	=4000		with extra high compression
+>>6		uleshort	=5000		with insane compression
+>>10		uleshort	=1		\b, mono
+>>10		uleshort	=2		\b, stereo
+>>12		ulelong		x		\b, sample rate %d
 
+# adlib sound files
+# From Gürkan Sengün <gurkan@linuks.mine.nu>, http://www.linuks.mine.nu
+0    	string		RAWADATA	RdosPlay RAW
+
+1068	string		RoR		AMUSIC Adlib Tracker
+
+0	string		JCH		EdLib
+
+0	string		mpu401tr	MPU-401 Trakker
+
+0	string		SAdT		Surprise! Adlib Tracker
+>4	byte		x		Version %d
+
+0	string		XAD!		eXotic ADlib
+
+0	string		ofTAZ!		eXtra Simple Music
+
+# Spectrum 128 tunes (.ay files).
+# From: Emanuel Haupt <ehaupt@critical.ch>
+0	string		ZXAYEMUL	Spectrum 128 tune
+
+# From: Alex Beregszaszi <alex@fsn.hu>
+0	string		MP+		Musepack
+>3	byte&0x0f	x		SV%d
+
+0	string		\0BONK		BONK,
+#>5	byte		x		version %d
+>14	byte		x		%d channel(s),
+>15	byte		=1		lossless,
+>15	byte		=0		lossy,
+>16	byte		x		mid-side
+
+384	string		LockStream	LockStream Embedded file (mostly MP3 on old Nokia phones)
+
+# format VQF (proprietary codec for sound)
+# some infos on the header file available at :
+# http://www.twinvq.org/english/technology_format.html
+0	string		TWIN97012000	VQF data
+>27	short		0		\b, Mono
+>27	short		1		\b, Stereo
+>31	short 		>0		\b, %d kbit/s
+>35	short 		>0		\b, %d kHz
+
+# Nelson A. de Oliveira (naoliv@gmail.com)
+# .eqf
+0	string	Winamp\ EQ\ library\ file	%s
+# it will match only versions like v<digit>.<digit>
+# Since I saw only eqf files with version v1.1 I think that it's OK
+>23	string	x	\b%.4s
+# .preset
+0	string	\[Equalizer\ preset\]	XMMS equalizer preset
+# .m3u
+0	string	\#EXTM3U	M3U playlist
+# .pls
+0	string	\[playlist\]	PLS playlist
+# licq.conf
+1	string	\[licq\]	LICQ configuration file

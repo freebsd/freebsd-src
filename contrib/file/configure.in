@@ -1,9 +1,9 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT
 AC_CONFIG_SRCDIR([src/file.c])
-AM_INIT_AUTOMAKE(file, 4.12)
+AM_INIT_AUTOMAKE(file, 4.17)
 AM_CONFIG_HEADER([config.h])
-dnl AM_MAINTAINER_MODE
+AM_MAINTAINER_MODE
 
 AC_MSG_CHECKING(for builtin ELF support)
 AC_ARG_ENABLE(elf,
@@ -104,7 +104,7 @@ AC_CHECK_MEMBERS([struct stat.st_rdev],[AC_DEFINE(HAVE_ST_RDEV, 1,
 
 AC_STRUCT_TIMEZONE_DAYLIGHT
 AC_SYS_LARGEFILE
-AC_MBSTATE_T
+AC_TYPE_MBSTATE_T
 
 AC_CHECK_TYPE_STDC(uint8_t, unsigned char)
 AC_CHECK_TYPE_STDC(uint16_t, unsigned short)
@@ -125,10 +125,13 @@ AC_CHECK_SIZEOF_STDC_HEADERS(uint32_t, 0)
 AC_CHECK_SIZEOF_STDC_HEADERS(uint64_t, 0)
 
 dnl Checks for functions
-AC_CHECK_FUNCS(mmap strerror strtoul mbrtowc mkstemp getopt_long utimes utime wcwidth)
+AC_CHECK_FUNCS(mmap strerror strtoul mbrtowc mkstemp getopt_long utimes utime wcwidth snprintf vsnprintf)
 
 dnl Checks for libraries
 AC_CHECK_LIB(z,gzopen)
+
+dnl See if we are cross-compiling
+AM_CONDITIONAL(IS_CROSS_COMPILE, test "$cross_compiling" = yes)
 
 AC_CONFIG_FILES([Makefile src/Makefile magic/Makefile doc/Makefile python/Makefile])
 AC_OUTPUT

@@ -161,37 +161,7 @@
 >2	beshort		x		RAM start $%04x
 >6	string		BS93
 
-#------------------------------------------------------------------------------
-# Z-machine:  file(1) magic for Z-machine binaries.
-#
-# This will match ${TEX_BASE}/texmf/omega/ocp/char2uni/inbig5.ocp which
-# appears to be a version-0 Z-machine binary.
-#
-# The (false match) message is to correct that behavior.  Perhaps it is
-# not needed.
-#
->16	belong&0xfe00f0f0	0x3030	Infocom game data
->0	ubyte			0	(false match)
->0	ubyte			>0	(Z-machine %d,
->>2	ubeshort		x	Release %d /
->>18	string			>\0	Serial %.6s)
-
-#------------------------------------------------------------------------------
-# Glulx:  file(1) magic for Glulx binaries.
-#
-# I haven't checked for false matches yet.
-#
-0	string			Glul	Glulx game data
-
-
-
-# These go at the end of the iff rules
-#
-# I don't see why these might collide with anything else.
-#
-# Interactive Fiction related formats
-#
->8	string		IFRS		\b, Blorb Interactive Fiction
->>24	string		Exec		with executable chunk
->8	string          IFZS		\b, Z-machine or Glulx saved game file (Quetzal)
+# Opera file system that is used on the 3DO console
+# From: Serge van den Boom <svdb@stack.nl>
+0	string		\x01ZZZZZ\x01	3DO "Opera" file system
 

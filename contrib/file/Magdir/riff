@@ -127,6 +127,7 @@
 >>>>>>>(104.l+132)      string/c        divx    DivX 4
 >>>>>>>(104.l+132)      string/c        dx50    DivX 5
 >>>>>>>(104.l+132)      string/c        xvid    XviD
+>>>>>>>(104.l+132)      string/c        h264    X.264
 >>>>>>>(104.l+132)      lelong  0
 ##>>>>>>>(104.l+132)      string  x       (%.4s)
 # skip past first (video) LIST
