@@ -356,6 +356,37 @@ struct ifconf32 {
 #endif
 
 /*
+ * interface groups
+ */
+
+#define	IFG_ALL		"all"		/* group contains all interfaces */
+/* XXX: will we implement this? */
+#define	IFG_EGRESS	"egress"	/* if(s) default route(s) point to */
+
+struct ifg_req {
+	union {
+		char			 ifgrqu_group[IFNAMSIZ];
+		char			 ifgrqu_member[IFNAMSIZ];
+	} ifgrq_ifgrqu;
+#define	ifgrq_group	ifgrq_ifgrqu.ifgrqu_group
+#define	ifgrq_member	ifgrq_ifgrqu.ifgrqu_member
+};
+
+/*
+ * Used to lookup groups for an interface
+ */
+struct ifgroupreq {
+	char	ifgr_name[IFNAMSIZ];
+	u_int	ifgr_len;
+	union {
+		char	ifgru_group[IFNAMSIZ];
+		struct	ifg_req *ifgru_groups;
+	} ifgr_ifgru;
+#define ifgr_group	ifgr_ifgru.ifgru_group
+#define ifgr_groups	ifgr_ifgru.ifgru_groups
+};
+
+/*
  * Structure for SIOC[AGD]LIFADDR
  */
 struct if_laddrreq {
