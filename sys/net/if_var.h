@@ -91,6 +91,7 @@ TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
 TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
 TAILQ_HEAD(ifprefixhead, ifprefix);
 TAILQ_HEAD(ifmultihead, ifmultiaddr);
+TAILQ_HEAD(ifgrouphead, ifg_group);
 
 /*
  * Structure defining a queue for a network interface.
@@ -182,6 +183,9 @@ struct ifnet {
 	struct	task if_linktask;	/* task for link change events */
 	struct	mtx if_addr_mtx;	/* mutex to protect address lists */
 	LIST_ENTRY(ifnet) if_clones;	/* interfaces of a cloner */
+	TAILQ_HEAD(, ifg_list) if_groups; /* linked list of groups per if */
+					/* protected by if_addr_mtx */
+	void	*if_pf_kif;
 };
 
 typedef void if_init_f_t(void *);
@@ -317,6 +321,37 @@ EVENTHANDLER_DECLARE(ifnet_arrival_event, ifnet_arrival_event_handler_t);
 /* interface departure event */
 typedef void (*ifnet_departure_event_handler_t)(void *, struct ifnet *);
 EVENTHANDLER_DECLARE(ifnet_departure_event, ifnet_departure_event_handler_t);
+
+/*
+ * interface groups
+ */
+struct ifg_group {
+	char				 ifg_group[IFNAMSIZ];
+	u_int				 ifg_refcnt;
+	void				*ifg_pf_kif;
+	TAILQ_HEAD(, ifg_member)	 ifg_members;
+	TAILQ_ENTRY(ifg_group)		 ifg_next;
+};
+
+struct ifg_member {
+	TAILQ_ENTRY(ifg_member)	 ifgm_next;
+	struct ifnet		*ifgm_ifp;
+};
+
+struct ifg_list {
+	struct ifg_group	*ifgl_group;
+	TAILQ_ENTRY(ifg_list)	 ifgl_next;
+};
+
+/* group attach event */
+typedef void (*group_attach_event_handler_t)(void *, struct ifg_group *);
+EVENTHANDLER_DECLARE(group_attach_event, group_attach_event_handler_t);
+/* group detach event */
+typedef void (*group_detach_event_handler_t)(void *, struct ifg_group *);
+EVENTHANDLER_DECLARE(group_detach_event, group_detach_event_handler_t);
+/* group change event */
+typedef void (*group_change_event_handler_t)(void *, const char *);
+EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
 
 #define	IF_AFDATA_LOCK_INIT(ifp)	\
     mtx_init(&(ifp)->if_afdata_mtx, "if_afdata", NULL, MTX_DEF)
@@ -624,6 +659,8 @@ extern	int ifqmaxlen;
 extern	struct ifnet *loif;	/* first loopback interface */
 extern	int if_index;
 
+int	if_addgroup(struct ifnet *, const char *);
+int	if_delgroup(struct ifnet *, const char *);
 int	if_addmulti(struct ifnet *, struct sockaddr *, struct ifmultiaddr **);
 int	if_allmulti(struct ifnet *, int);
 struct	ifnet* if_alloc(u_char);
