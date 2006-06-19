@@ -1,0 +1,60 @@
+
+#------------------------------------------------------------------------------
+# scientific:  file(1) magic for scientific formats 
+#
+# From: Joe Krahn <krahn@niehs.nih.gov>
+
+########################################################
+# CCP4 data and plot files:
+0	string		MTZ\040		MTZ reflection file
+
+92	string		PLOT%%84	Plot84 plotting file
+>52	byte		1		, Little-endian
+>55	byte		1		, Big-endian
+
+########################################################
+# Electron density MAP/MASK formats
+
+0	string		EZD_MAP	NEWEZD Electron Density Map
+109	string		MAP\040(  Old EZD Electron Density Map
+
+0	string/c	:-)\040Origin	BRIX Electron Density Map
+>170	string		>0	, Sigma:%.12s
+#>4	string		>0	%.178s
+#>4	addr		x	%.178s
+
+7	string		18\040!NTITLE	XPLOR ASCII Electron Density Map
+9	string		\040!NTITLE\012\040REMARK	CNS ASCII electron density map
+
+208	string		MAP\040	CCP4 Electron Density Map
+# Assumes same stamp for float and double (normal case)
+>212	byte		17	\b, Big-endian
+>212	byte		34	\b, VAX format
+>212	byte		68	\b, Little-endian
+>212	byte		85	\b, Convex native
+
+############################################################
+# X-Ray Area Detector images
+0	string	R-AXIS4\ \ \ 	R-Axis Area Detector Image:
+>796	lelong	<20		Little-endian, IP #%d,
+>>768	lelong	>0		Size=%dx
+>>772	lelong	>0		\b%d
+>796	belong	<20		Big-endian, IP #%d,
+>>768	belong	>0		Size=%dx
+>>772	belong	>0		\b%d
+
+0	string	RAXIS\ \ \ \ \ 	R-Axis Area Detector Image, Win32:
+>796	lelong	<20		Little-endian, IP #%d,
+>>768	lelong	>0		Size=%dx
+>>772	lelong	>0		\b%d
+>796	belong	<20		Big-endian, IP #%d,
+>>768	belong	>0		Size=%dx
+>>772	belong	>0		\b%d
+
+
+1028	string	MMX\000\000\000\000\000\000\000\000\000\000\000\000\000	MAR Area Detector Image,
+>1072	ulong	>1		Compressed(%d),
+>1100	ulong	>1		%d headers,
+>1104	ulong	>0		%d x
+>1108	ulong	>0		%d,
+>1120	ulong	>0		%d bits/pixel

@@ -36,5 +36,6 @@
 
 # Squish Fidonet message area databases
 # SQD file (requires at least one message in the area)
-256	leshort	0xAFAE4453		Squish message area data file
->4	leshort	>0			(%d messages)
+# XXX: Weak magic
+#256	leshort	0xAFAE4453		Squish message area data file
+#>4	leshort	>0			(%d messages)

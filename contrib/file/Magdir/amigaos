@@ -42,6 +42,9 @@
 0	beshort		0x0f03		AmigaOS outline font
 0	belong		0x80001001	AmigaOS outline tag
 0	string		##\ version	catalog translation
+0	string		EMOD\0		Amiga E module
+8	string		ECXM\0		ECX module
+0	string/c	@database	AmigaGuide file
 
 # Amiga disk types
 # 
@@ -54,3 +57,7 @@
 0	string		DOS\4		Amiga Fastdir DOS disk
 0	string		DOS\5		Amiga Fastdir FFS disk
 0	string		KICK		Kickstart disk
+
+# From: Alex Beregszaszi <alex@fsn.hu>
+0	string		LZX		LZX compressed archive (Amiga)
+
