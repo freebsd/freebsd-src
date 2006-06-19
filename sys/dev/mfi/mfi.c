@@ -1803,7 +1803,6 @@ mfi_close(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 		if (mfi_aen_entry->p == curproc) {
 			TAILQ_REMOVE(&sc->mfi_aen_pids, mfi_aen_entry,
 			    aen_link);
-printf("REMOVED pid %d\n",mfi_aen_entry->p->p_pid);
 			free(mfi_aen_entry, M_MFIBUF);
 		}
 	}
@@ -2061,7 +2060,6 @@ mfi_poll(struct cdev *dev, int poll_events, struct thread *td)
 
 	sc = dev->si_drv1;
 
-	printf("MFI POLL\n");
 	if (poll_events & (POLLIN | POLLRDNORM)) {
 		if (sc->mfi_aen_triggered != 0)
 			revents |= poll_events & (POLLIN | POLLRDNORM);
