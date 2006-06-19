@@ -2303,8 +2303,11 @@ ata_marvell_allocate(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    bus_addr_t wordp = ch->dma->work_bus;
+    bus_addr_t work = ch->dma->work_bus;
     int i;
+
+    /* clear work area */
+    bzero(ch->dma->work, 1024+256);
 
     /* set legacy ATA resources */
     for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
@@ -2353,23 +2356,23 @@ ata_marvell_allocate(device_t dev)
     ATA_OUTL(ctlr->r_res1, 0x02000 + ATA_MV_EDMA_BASE(ch), (1<<11) | (1<<13));
 
     /* request queue base high */
-    ATA_OUTL(ctlr->r_res1, 0x02010 + ATA_MV_EDMA_BASE(ch), (wordp >> 16) >> 16);
+    ATA_OUTL(ctlr->r_res1, 0x02010 + ATA_MV_EDMA_BASE(ch), (work >> 16) >> 16);
 
     /* request queue in ptr */
-    ATA_OUTL(ctlr->r_res1, 0x02014 + ATA_MV_EDMA_BASE(ch), wordp & 0xffffffff);
+    ATA_OUTL(ctlr->r_res1, 0x02014 + ATA_MV_EDMA_BASE(ch), work & 0xffffffff);
 
     /* request queue out ptr */
     ATA_OUTL(ctlr->r_res1, 0x02018 + ATA_MV_EDMA_BASE(ch), 0x0);
 
     /* response queue base high */
-    wordp += 1024;
-    ATA_OUTL(ctlr->r_res1, 0x0201c + ATA_MV_EDMA_BASE(ch), (wordp >> 16) >> 16);
+    work += 1024;
+    ATA_OUTL(ctlr->r_res1, 0x0201c + ATA_MV_EDMA_BASE(ch), (work >> 16) >> 16);
 
     /* response queue in ptr */
     ATA_OUTL(ctlr->r_res1, 0x02020 + ATA_MV_EDMA_BASE(ch), 0x0);
 
     /* response queue out ptr */
-    ATA_OUTL(ctlr->r_res1, 0x02024 + ATA_MV_EDMA_BASE(ch), wordp & 0xffffffff);
+    ATA_OUTL(ctlr->r_res1, 0x02024 + ATA_MV_EDMA_BASE(ch), work & 0xffffffff);
 
     /* clear SATA error register */
     ATA_IDX_OUTL(ch, ATA_SERROR, ATA_IDX_INL(ch, ATA_SERROR));
@@ -2559,7 +2562,7 @@ ata_marvell_end_transaction(struct ata_request *request)
 	rsp_out &= 0xffffff00;
 	rsp_out += (slot << 3);
 	response = (struct ata_marvell_response *)
-		   (int8_t *)(ch->dma->work) + 1024 + (slot << 3);
+		   (ch->dma->work + 1024 + (slot << 3));
 
 	/* record status for this request */
 	request->status = response->dev_status;
