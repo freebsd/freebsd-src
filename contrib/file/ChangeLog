@@ -1,3 +1,102 @@
+2006-03-02 16:06 Christos Zoulas <christos@zoulas.com>
+
+	* Print empty if the file is (Mike Frysinger)
+
+	* Don't try to read past the end of the buffer (Mike Frysinger)
+
+	* Sort magic entries by strength [experimental]
+
+2005-11-29 13:26 Christos Zoulas <christos@zoulas.com>
+
+	* Use iswprint() to convert the output string.
+	    (Bastien Nocera)
+
+2005-10-31 8:54 Christos Zoulas <christos@zoulas.com>
+
+	* Fix regression where the core info was not completely processed
+	    (Radek Vokál)
+
+2005-10-20 11:15 Christos Zoulas <christos@zoulas.com>
+
+	* Middle Endian magic (Diomidis Spinellis)
+
+2005-10-17 11:15 Christos Zoulas <christos@zoulas.com>
+
+	* Open with O_BINARY for CYGWIN (Corinna Vinschen)
+
+	* Don't close stdin (Arkadiusz Miskiewicz)
+
+	* Look for note sections in non executables.
+
+2005-09-20 13:33 Christos Zoulas <christos@zoulas.com>
+	
+	* Don't print SVR4 Style in core files multiple times
+	    (Radek Vokál)
+
+2005-08-27 04:09 Christos Zoulas <christos@zoulas.com>
+
+	* Cygwin changes Corinna Vinschen
+
+2005-08-18 09:53 Christos Zoulas <christos@zoulas.com>
+
+	* Remove erroreous mention of /etc/magic in the file man page
+	  This is gentoo bug 101639. (Mike Frysinger) 
+
+	* Cross-compile support and detection (Mike Frysinger) 
+
+2005-08-12 10:17 Christos Zoulas <christos@zoulas.com>
+
+	* Add -h flag and dereference symlinks if POSIXLY_CORRECT
+	  is set.
+
+2005-07-29 13:57 Christos Zoulas <christos@zoulas.com>
+
+	* Avoid search and regex buffer overflows (Kelledin)
+
+2005-07-12 11:48 Christos Zoulas <christos@zoulas.com>
+
+	* Provide stub implementations for {v,}nsprintf() for older
+	  OS's that don't have them.
+	* Change mbstate_t autoconf detection macro from AC_MBSTATE_T
+	  to AC_TYPE_MBSTATE_T.
+
+2005-06-25 11:48 Christos Zoulas <christos@zoulas.com>
+
+	* Dynamically allocate the string buffers and make the
+	  default read size 256K.
+
+2005-06-01 00:00 Joerg Sonnenberger <joerg@britannica.bec.de>
+
+	* Dragonfly ELF note support
+
+2005-03-14 00:00 Giuliano Bertoletti <gb@symbolic.it>
+
+	* Avoid NULL pointer dereference in time conversion.
+
+2005-03-06 00:00  Joerg Walter <jwalt@mail.garni.ch>
+	
+	* Add indirect magic offset support, and search mode.
+
+2005-01-12 00:00  Stepan Kasal  <kasal@ucw.cz>
+
+        * src/ascmagic.c (file_ascmagic): Fix three bugs about text files:
+          If a CRLF text file happens to have CR at offset HOWMANY - 1
+          (currently 0xffff), it should not be counted as CR line
+          terminator.
+          If a line has length exactly MAXLINELEN, it should not yet be
+          treated as a ``very long line'', as MAXLINELEN is ``longest sane
+          line length''.
+          With CRLF, the line length was not computed correctly, and even
+          lines of length MAXLINELEN - 1 were treated as ``very long''.
+
+2004-12-07 14:15  Christos Zoulas  <christos@zoulas.com>
+
+	* bzip2 needs a lot of input buffer space on some files
+	  before it can begin uncompressing. This makes file -z
+	  fail on some bz2 files. Fix it by giving it a copy of
+	  the file descriptor to read as much as it wants if we
+	  have access to it. <christos@zoulas.com>
+
 2004-11-24 12:39  Christos Zoulas  <christos@zoulas.com>
 
 	* Stack smash fix, and ELF more conservative reading.

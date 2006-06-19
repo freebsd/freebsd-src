@@ -1,6 +1,6 @@
 #  Digital UNIX - Info
 #
-0	string	!<arch>\n________64E	Alpha archive
+0	string	=!<arch>\n________64E	Alpha archive
 >22	string	X			-- out of date
 #
 # Alpha COFF Based Executables
@@ -32,7 +32,7 @@
 0	string	\033c\033		LN03 output
 0	long	04553207		X image
 #
-0	string	!<PDF>!\n		profiling data file
+0	string	=!<PDF>!\n		profiling data file
 #
 # Locale data tables (MIPS and Alpha).
 #

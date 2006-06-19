@@ -49,7 +49,7 @@
 #include "names.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: ascmagic.c,v 1.41 2004/09/11 19:15:57 christos Exp $")
+FILE_RCSID("@(#)$Id: ascmagic.c,v 1.45 2006/03/12 22:09:33 christos Exp $")
 #endif	/* lint */
 
 typedef unsigned long unichar;
@@ -71,10 +71,11 @@ protected int
 file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
 {
 	size_t i;
-	unsigned char nbuf[HOWMANY+1];	/* one extra for terminating '\0' */
-	unichar ubuf[HOWMANY+1];	/* one extra for terminating '\0' */
+	unsigned char *nbuf = NULL;
+	unichar *ubuf = NULL;	
 	size_t ulen;
 	struct names *p;
+	int rv = -1;
 
 	const char *code = NULL;
 	const char *code_mime = NULL;
@@ -84,6 +85,7 @@ file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
 
 	int has_escapes = 0;
 	int has_backspace = 0;
+	int seen_cr = 0;
 
 	int n_crlf = 0;
 	int n_lf = 0;
@@ -97,13 +99,13 @@ file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
 	 * Undo the NUL-termination kindly provided by process()
 	 * but leave at least one byte to look at
 	 */
-
 	while (nbytes > 1 && buf[nbytes - 1] == '\0')
 		nbytes--;
 
-	/* nbuf and ubuf relies on this */
-	if (nbytes > HOWMANY)
-		nbytes = HOWMANY;
+	if ((nbuf = malloc((nbytes + 1) * sizeof(nbuf[0]))) == NULL)
+		goto done;
+	if ((ubuf = malloc((nbytes + 1) * sizeof(ubuf[0]))) == NULL)
+		goto done;
 
 	/*
 	 * Then try to determine whether it's any character code we can
@@ -147,8 +149,14 @@ file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
 			type = "character data";
 			code_mime = "ebcdic";
 		} else {
-			return 0;  /* doesn't look like text at all */
+			rv = 0;
+			goto done;  /* doesn't look like text at all */
 		}
+	}
+
+	if (nbytes <= 1) {
+		rv = 0;
+		goto done;
 	}
 
 	/*
@@ -224,6 +232,25 @@ subtype_identified:
 	 * Now try to discover other details about the file.
 	 */
 	for (i = 0; i < ulen; i++) {
+		if (ubuf[i] == '\n') {
+			if (seen_cr)
+				n_crlf++;
+			else
+				n_lf++;
+			last_line_end = i;
+		} else if (seen_cr)
+			n_cr++;
+
+		seen_cr = (ubuf[i] == '\r');
+		if (seen_cr)
+			last_line_end = i;
+
+		if (ubuf[i] == 0x85) { /* X3.64/ECMA-43 "next line" character */
+			n_nel++;
+			last_line_end = i;
+		}
+
+		/* If this line is _longer_ than MAXLINELEN, remember it. */
 		if (i > last_line_end + MAXLINELEN)
 			has_long_lines = 1;
 
@@ -231,59 +258,49 @@ subtype_identified:
 			has_escapes = 1;
 		if (ubuf[i] == '\b')
 			has_backspace = 1;
-
-		if (ubuf[i] == '\r' && (i + 1 <  ulen && ubuf[i + 1] == '\n')) {
-			n_crlf++;
-			last_line_end = i;
-		}
-		if (ubuf[i] == '\r' && (i + 1 >= ulen || ubuf[i + 1] != '\n')) {
-			n_cr++;
-			last_line_end = i;
-		}
-		if (ubuf[i] == '\n' && ((int)i - 1 < 0 || ubuf[i - 1] != '\r')){
-			n_lf++;
-			last_line_end = i;
-		}
-		if (ubuf[i] == 0x85) { /* X3.64/ECMA-43 "next line" character */
-			n_nel++;
-			last_line_end = i;
-		}
 	}
+
+	/* Beware, if the data has been truncated, the final CR could have
+	   been followed by a LF.  If we have HOWMANY bytes, it indicates
+	   that the data might have been truncated, probably even before
+	   this function was called. */
+	if (seen_cr && nbytes < HOWMANY)
+		n_cr++;
 
 	if ((ms->flags & MAGIC_MIME)) {
 		if (subtype_mime) {
 			if (file_printf(ms, subtype_mime) == -1)
-				return -1;
+				goto done;
 		} else {
 			if (file_printf(ms, "text/plain") == -1)
-				return -1;
+				goto done;
 		}
 
 		if (code_mime) {
 			if (file_printf(ms, "; charset=") == -1)
-				return -1;
+				goto done;
 			if (file_printf(ms, code_mime) == -1)
-				return -1;
+				goto done;
 		}
 	} else {
 		if (file_printf(ms, code) == -1)
-			return -1;
+			goto done;
 
 		if (subtype) {
 			if (file_printf(ms, " ") == -1)
-				return -1;
+				goto done;
 			if (file_printf(ms, subtype) == -1)
-				return -1;
+				goto done;
 		}
 
 		if (file_printf(ms, " ") == -1)
-			return -1;
+			goto done;
 		if (file_printf(ms, type) == -1)
-			return -1;
+			goto done;
 
 		if (has_long_lines)
 			if (file_printf(ms, ", with very long lines") == -1)
-				return -1;
+				goto done;
 
 		/*
 		 * Only report line terminators if we find one other than LF,
@@ -292,51 +309,57 @@ subtype_identified:
 		if ((n_crlf == 0 && n_cr == 0 && n_nel == 0 && n_lf == 0) ||
 		    (n_crlf != 0 || n_cr != 0 || n_nel != 0)) {
 			if (file_printf(ms, ", with") == -1)
-				return -1;
+				goto done;
 
 			if (n_crlf == 0 && n_cr == 0 && n_nel == 0 && n_lf == 0)			{
 				if (file_printf(ms, " no") == -1)
-					return -1;
+					goto done;
 			} else {
 				if (n_crlf) {
 					if (file_printf(ms, " CRLF") == -1)
-						return -1;
+						goto done;
 					if (n_cr || n_lf || n_nel)
 						if (file_printf(ms, ",") == -1)
-							return -1;
+							goto done;
 				}
 				if (n_cr) {
 					if (file_printf(ms, " CR") == -1)
-						return -1;
+						goto done;
 					if (n_lf || n_nel)
 						if (file_printf(ms, ",") == -1)
-							return -1;
+							goto done;
 				}
 				if (n_lf) {
 					if (file_printf(ms, " LF") == -1)
-						return -1;
+						goto done;
 					if (n_nel)
 						if (file_printf(ms, ",") == -1)
-							return -1;
+							goto done;
 				}
 				if (n_nel)
 					if (file_printf(ms, " NEL") == -1)
-						return -1;
+						goto done;
 			}
 
 			if (file_printf(ms, " line terminators") == -1)
-				return -1;
+				goto done;
 		}
 
 		if (has_escapes)
 			if (file_printf(ms, ", with escape sequences") == -1)
-				return -1;
+				goto done;
 		if (has_backspace)
 			if (file_printf(ms, ", with overstriking") == -1)
-				return -1;
+				goto done;
 	}
+	rv = 1;
+done:
+	if (nbuf)
+		free(nbuf);
+	if (ubuf)
+		free(ubuf);
 
-	return 1;
+	return rv;
 }
 
 private int

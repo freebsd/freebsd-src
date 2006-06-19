@@ -18,7 +18,7 @@
 
 # Newer StuffIt archives (grant@netbsd.org)
 0	string		StuffIt			StuffIt Archive
->162	string		>0			: %s
+#>162	string		>0			: %s
 
 # Macintosh Applications and Installation binaries (franklsm@tuns.ca)
 0	string		APPL			Macintosh Application (data)
