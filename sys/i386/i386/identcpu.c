@@ -203,6 +203,7 @@ printcpuinfo(void)
 	if (strcmp(cpu_vendor, "GenuineIntel") == 0) {
 		if ((cpu_id & 0xf00) > 0x300) {
 			u_int brand_index;
+			u_int model;
 
 			cpu_model[0] = '\0';
 
@@ -315,6 +316,16 @@ printcpuinfo(void)
 			case 0xf00:
 				strcat(cpu_model, "Pentium 4");
 				cpu = CPU_P4;
+				model = (cpu_id & 0x0f0) >> 4;
+				if (model == 3 || model == 4 || model == 6) {
+					uint64_t tmp;
+
+					tmp = rdmsr(MSR_IA32_MISC_ENABLE);
+					wrmsr(MSR_IA32_MISC_ENABLE,
+					      tmp & ~(1LL << 22));
+					do_cpuid(0, regs);
+					cpu_high = regs[0];
+				}
 				break;
 			default:
 				strcat(cpu_model, "unknown");
