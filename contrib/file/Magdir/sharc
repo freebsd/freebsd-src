@@ -12,7 +12,7 @@
 #------------------------------------------------------------------------
 # SHARC DSP stuff (based on the FGM SHARC DSP SDK)
 
-0	string			!		Assembler source
+0	string			=!		Assembler source
 0	string			Analog		ADi asm listing file
 0	string			.SYSTEM		SHARC architecture file
 0	string			.system		SHARC architecture file

@@ -1,9 +1,10 @@
 #------------------------------------------------------------
 # Java ByteCode
 # From Larry Schwimmer (schwim@cs.stanford.edu)
-0	belong		0xcafebabe	compiled Java class data,
->6	beshort x	version %d.
->4	beshort x	\b%d
+# Handled in Mach now
+#0	belong		0xcafebabe	compiled Java class data,
+#>6	beshort x	version %d.
+#>4	beshort x	\b%d
 #------------------------------------------------------------
 # Java serialization
 # From Martin Pool (m.pool@pharos.com.au)
