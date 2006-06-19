@@ -266,7 +266,7 @@ usage(const char *myname)
 	"\t-V\tuse kvm(3) to get the list of modules\n"
 	"\t-X\tappend suffix to list of possible module file name suffixes\n"
 	"\t-x\tclear list of possible module file name suffixes\n",
-	myname, strlen(myname), "");
+	myname, (int)strlen(myname), "");
     exit(2);
 }
 
