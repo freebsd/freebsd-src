@@ -44,7 +44,7 @@
 #audio/x-tracker-module
 ##>17	string	>\0		Title: "%s"
 
-21	string/c	!SCREAM!	audio/x-mod
+21	string/c	\!SCREAM!	audio/x-mod
 #audio/x-screamtracker-module
 21	string	BMOD2STM	audio/x-mod
 #audio/x-screamtracker-module
@@ -188,6 +188,11 @@
 #
 >8 	string		CDRA		image/x-coreldraw
 
+# AAC (aka MPEG-2 NBC)
+0       beshort&0xfff6    0xfff0          audio/X-HX-AAC-ADTS
+0       string          ADIF            audio/X-HX-AAC-ADIF
+0       beshort&0xffe0  0x56e0          audio/MP4A-LATM
+0       beshort         0x4De1          audio/MP4A-LATM
 
 # MPEG Layer 3 sound files
 0       beshort		&0xffe0		audio/mpeg
@@ -202,7 +207,7 @@
 
 # XPM icons (Greg Roelofs, newt@uchicago.edu)
 # ideally should go into "images", but entries below would tag XPM as C source
-0	string		/*\ XPM		image/x-xpm	7bit
+0	string		/*\ XPM		image/x-xpmi 7bit
 
 # 3DS (3d Studio files)
 16	beshort		0x3d3d		image/x-3ds
@@ -264,7 +269,8 @@
 0       string          #!\ /bin/awk            application/x-awk
 0       string          #!/usr/bin/awk          application/x-awk
 0       string          #!\ /usr/bin/awk        application/x-awk
-0       string          BEGIN                   application/x-awk
+# update to distinguish from *.vcf files by Joerg Jenderek: joerg dot jenderek at web dot de
+0	regex		BEGIN[[:space:]]*[{]	application/x-awk
 
 # For Larry Wall's perl language.  The ``eval'' line recognizes an
 # outrageously clever hack for USG systems.
@@ -337,7 +343,7 @@
 0	short		0143561		application/x-cpio	swapped
 
 0	string		=<ar>		application/x-archive
-0	string		!<arch>		application/x-archive
+0	string		\!<arch>	application/x-archive
 >8	string		debian		application/x-debian-package
 
 #------------------------------------------------------------------------------
@@ -588,19 +594,23 @@
 # animation formats, originally from vax@ccwf.cc.utexas.edu (VaX#n8)
 #						MPEG file
 # MPEG sequences
-0	belong		   0x000001BA	  video/mpeg
-0	belong		   0x000001BB	  video/mpeg
-0	belong		   0x000001B0	  video/mp4v-es
-0	belong		   0x000001B5	  video/mp4v-es
-0	belong		   0x000001B3	  video/mpv
-0	belong&0xFF5FFF1F  0x47400010	  video/mp2t
+0       belong             0x000001BA
+>4      byte               &0x40          video/mp2p
+>4      byte               ^0x40          video/mpeg
+0       belong             0x000001BB     video/mpeg
+0       belong             0x000001B0     video/mp4v-es
+0       belong             0x000001B5     video/mp4v-es
+0       belong             0x000001B3     video/mpv
+0       belong&0xFF5FFF1F  0x47400010     video/mp2t
+0       belong             0x00000001
+>4      byte&1F            0x07           video/h264
+
 # FLI animation format
 0	leshort		0xAF11				video/fli
 # FLC animation format
 0	leshort		0xAF12				video/flc
 #
 # SGI and Apple formats
-# Added ISO mimes
 # Added ISO mimes
 0	string		MOVI	      video/sgi
 4	string		moov	      video/quicktime
@@ -612,12 +622,13 @@
 4	string		idat	      image/x-quicktime
 4	string		pckg	      application/x-quicktime
 4	string/B	jP	      image/jp2
-4	string		ftyp	      application/octet-stream
+4	string		ftyp
 >8	string		isom	      video/mp4
 >8	string		mp41	      video/mp4
 >8	string		mp42	      video/mp4
 >8	string/B	jp2	      image/jp2
 >8	string		3gp	      video/3gpp
+>8      string          avc1          video/3gpp
 >8	string		mmp4	      video/mp4
 >8	string/B	M4A	      audio/mp4
 >8	string/B	qt	      video/quicktime
@@ -906,3 +917,10 @@
 # (made the mimetype up) 
 0	string	\0\0MMXPR3\0	application/x-quark-xpress-3
 
+# EET archive
+# From: Tilman Sauerbeck <tilman@code-monkey.de>
+0	belong	0x1ee7ff00	application/x-eet
+
+# From: Denis Knauf, via gentoo.
+0	string	fLaC		audio/x-flac
+0	string	CWS		application/x-shockwave-flash

@@ -18,6 +18,15 @@
 #0	regex		package		Perl5 module source text (via regex)
 0	string		package		Perl5 module source text
 
+# Perl POD documents
+# From: Tom Hukins <tom@eborcom.com>
+0	string/B	\=pod\n		Perl POD document
+0	string/B	\n\=pod\n	Perl POD document
+0	string/B	\=head1\ 	Perl POD document
+0	string/B	\n\=head1\ 	Perl POD document
+0	string/B	\=head2\ 	Perl POD document
+0	string/B	\n\=head2\ 	Perl POD document
+
 # Perl Storable data files.
 0	string	perl-store	perl Storable(v0.6) data
 >4	byte	>0	(net-order %d)
