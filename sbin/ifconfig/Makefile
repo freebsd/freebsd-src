@@ -26,6 +26,7 @@ SRCS+=	ifvlan.c		# SIOC[GS]ETVLAN support
 SRCS+=	ifieee80211.c		# SIOC[GS]IEEE80211 support
 
 SRCS+=	ifcarp.c		# SIOC[GS]VH support
+SRCS+=	ifgroup.c		# ...
 SRCS+=	ifpfsync.c		# pfsync(4) support
 
 SRCS+=	ifbridge.c		# bridge support

@@ -113,6 +113,8 @@ static int	if_rtdel(struct radix_node *, void *);
 static int	ifhwioctl(u_long, struct ifnet *, caddr_t, struct thread *);
 static void	if_start_deferred(void *context, int pending);
 static void	do_link_state_change(void *, int);
+static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
+static int	if_getgroupmembers(struct ifgroupreq *);
 #ifdef INET6
 /*
  * XXX: declare here to avoid to include many inet6 related files..
@@ -125,6 +127,7 @@ int	if_index = 0;
 struct	ifindex_entry *ifindex_table = NULL;
 int	ifqmaxlen = IFQ_MAXLEN;
 struct	ifnethead ifnet;	/* depend on static init XXX */
+struct	ifgrouphead ifg_head;
 struct	mtx ifnet_lock;
 static	if_com_alloc_t *if_com_alloc[256];
 static	if_com_free_t *if_com_free[256];
@@ -282,6 +285,7 @@ if_init(void *dummy __unused)
 
 	IFNET_LOCK_INIT();
 	TAILQ_INIT(&ifnet);
+	TAILQ_INIT(&ifg_head);
 	knlist_init(&ifklist, NULL, NULL, NULL, NULL);
 	if_grow();				/* create initial table */
 	ifdev_byindex(0) = make_dev(&net_cdevsw, 0,
@@ -441,6 +445,10 @@ if_attach(struct ifnet *ifp)
 	TAILQ_INIT(&ifp->if_addrhead);
 	TAILQ_INIT(&ifp->if_prefixhead);
 	TAILQ_INIT(&ifp->if_multiaddrs);
+	TAILQ_INIT(&ifp->if_groups);
+
+	if_addgroup(ifp, IFG_ALL);
+
 	knlist_init(&ifp->if_klist, NULL, NULL, NULL, NULL);
 	getmicrotime(&ifp->if_lastchange);
 	ifp->if_data.ifi_epoch = time_uptime;
@@ -712,6 +720,214 @@ if_detach(struct ifnet *ifp)
 	mtx_destroy(&ifp->if_snd.ifq_mtx);
 	IF_AFDATA_DESTROY(ifp);
 	splx(s);
+}
+
+/*
+ * Add a group to an interface
+ */
+int
+if_addgroup(struct ifnet *ifp, const char *groupname)
+{
+	struct ifg_list		*ifgl;
+	struct ifg_group	*ifg = NULL;
+	struct ifg_member	*ifgm;
+
+	if (groupname[0] && groupname[strlen(groupname) - 1] >= '0' &&
+	    groupname[strlen(groupname) - 1] <= '9')
+		return (EINVAL);
+
+	IFNET_WLOCK();
+	TAILQ_FOREACH(ifgl, &ifp->if_groups, ifgl_next)
+		if (!strcmp(ifgl->ifgl_group->ifg_group, groupname)) {
+			IFNET_WUNLOCK();
+			return (EEXIST);
+		}
+
+	if ((ifgl = (struct ifg_list *)malloc(sizeof(struct ifg_list), M_TEMP,
+	    M_NOWAIT)) == NULL) {
+	    	IFNET_WUNLOCK();
+		return (ENOMEM);
+	}
+
+	if ((ifgm = (struct ifg_member *)malloc(sizeof(struct ifg_member),
+	    M_TEMP, M_NOWAIT)) == NULL) {
+		free(ifgl, M_TEMP);
+		IFNET_WUNLOCK();
+		return (ENOMEM);
+	}
+
+	TAILQ_FOREACH(ifg, &ifg_head, ifg_next)
+		if (!strcmp(ifg->ifg_group, groupname))
+			break;
+
+	if (ifg == NULL) {
+		if ((ifg = (struct ifg_group *)malloc(sizeof(struct ifg_group),
+		    M_TEMP, M_NOWAIT)) == NULL) {
+			free(ifgl, M_TEMP);
+			free(ifgm, M_TEMP);
+			IFNET_WUNLOCK();
+			return (ENOMEM);
+		}
+		strlcpy(ifg->ifg_group, groupname, sizeof(ifg->ifg_group));
+		ifg->ifg_refcnt = 0;
+		TAILQ_INIT(&ifg->ifg_members);
+		EVENTHANDLER_INVOKE(group_attach_event, ifg);
+		TAILQ_INSERT_TAIL(&ifg_head, ifg, ifg_next);
+	}
+
+	ifg->ifg_refcnt++;
+	ifgl->ifgl_group = ifg;
+	ifgm->ifgm_ifp = ifp;
+
+	IF_ADDR_LOCK(ifp);
+	TAILQ_INSERT_TAIL(&ifg->ifg_members, ifgm, ifgm_next);
+	TAILQ_INSERT_TAIL(&ifp->if_groups, ifgl, ifgl_next);
+	IF_ADDR_UNLOCK(ifp);
+
+	IFNET_WUNLOCK();
+
+	EVENTHANDLER_INVOKE(group_change_event, groupname);
+
+	return (0);
+}
+
+/*
+ * Remove a group from an interface
+ */
+int
+if_delgroup(struct ifnet *ifp, const char *groupname)
+{
+	struct ifg_list		*ifgl;
+	struct ifg_member	*ifgm;
+
+	IFNET_WLOCK();
+	TAILQ_FOREACH(ifgl, &ifp->if_groups, ifgl_next)
+		if (!strcmp(ifgl->ifgl_group->ifg_group, groupname))
+			break;
+	if (ifgl == NULL) {
+		IFNET_WUNLOCK();
+		return (ENOENT);
+	}
+
+	IF_ADDR_LOCK(ifp);
+	TAILQ_REMOVE(&ifp->if_groups, ifgl, ifgl_next);
+	IF_ADDR_UNLOCK(ifp);
+
+	TAILQ_FOREACH(ifgm, &ifgl->ifgl_group->ifg_members, ifgm_next)
+		if (ifgm->ifgm_ifp == ifp)
+			break;
+
+	if (ifgm != NULL) {
+		TAILQ_REMOVE(&ifgl->ifgl_group->ifg_members, ifgm, ifgm_next);
+		free(ifgm, M_TEMP);
+	}
+
+	if (--ifgl->ifgl_group->ifg_refcnt == 0) {
+		TAILQ_REMOVE(&ifg_head, ifgl->ifgl_group, ifg_next);
+		EVENTHANDLER_INVOKE(group_detach_event, ifgl->ifgl_group);
+		free(ifgl->ifgl_group, M_TEMP);
+	}
+	IFNET_WUNLOCK();
+
+	free(ifgl, M_TEMP);
+
+	EVENTHANDLER_INVOKE(group_change_event, groupname);
+
+	return (0);
+}
+
+/*
+ * Stores all groups from an interface in memory pointed
+ * to by data
+ */
+static int
+if_getgroup(struct ifgroupreq *data, struct ifnet *ifp)
+{
+	int			 len, error;
+	struct ifg_list		*ifgl;
+	struct ifg_req		 ifgrq, *ifgp;
+	struct ifgroupreq	*ifgr = data;
+
+	if (ifgr->ifgr_len == 0) {
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifgl, &ifp->if_groups, ifgl_next)
+			ifgr->ifgr_len += sizeof(struct ifg_req);
+		IF_ADDR_UNLOCK(ifp);
+		return (0);
+	}
+
+	len = ifgr->ifgr_len;
+	ifgp = ifgr->ifgr_groups;
+	/* XXX: wire */
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifgl, &ifp->if_groups, ifgl_next) {
+		if (len < sizeof(ifgrq)) {
+			IF_ADDR_UNLOCK(ifp);
+			return (EINVAL);
+		}
+		bzero(&ifgrq, sizeof ifgrq);
+		strlcpy(ifgrq.ifgrq_group, ifgl->ifgl_group->ifg_group,
+		    sizeof(ifgrq.ifgrq_group));
+		if ((error = copyout(&ifgrq, ifgp, sizeof(struct ifg_req)))) {
+		    	IF_ADDR_UNLOCK(ifp);
+			return (error);
+		}
+		len -= sizeof(ifgrq);
+		ifgp++;
+	}
+	IF_ADDR_UNLOCK(ifp);
+
+	return (0);
+}
+
+/*
+ * Stores all members of a group in memory pointed to by data
+ */
+static int
+if_getgroupmembers(struct ifgroupreq *data)
+{
+	struct ifgroupreq	*ifgr = data;
+	struct ifg_group	*ifg;
+	struct ifg_member	*ifgm;
+	struct ifg_req		 ifgrq, *ifgp;
+	int			 len, error;
+
+	IFNET_RLOCK();
+	TAILQ_FOREACH(ifg, &ifg_head, ifg_next)
+		if (!strcmp(ifg->ifg_group, ifgr->ifgr_name))
+			break;
+	if (ifg == NULL) {
+		IFNET_RUNLOCK();
+		return (ENOENT);
+	}
+
+	if (ifgr->ifgr_len == 0) {
+		TAILQ_FOREACH(ifgm, &ifg->ifg_members, ifgm_next)
+			ifgr->ifgr_len += sizeof(ifgrq);
+		IFNET_RUNLOCK();
+		return (0);
+	}
+
+	len = ifgr->ifgr_len;
+	ifgp = ifgr->ifgr_groups;
+	TAILQ_FOREACH(ifgm, &ifg->ifg_members, ifgm_next) {
+		if (len < sizeof(ifgrq)) {
+			IFNET_RUNLOCK();
+			return (EINVAL);
+		}
+		bzero(&ifgrq, sizeof ifgrq);
+		strlcpy(ifgrq.ifgrq_member, ifgm->ifgm_ifp->if_xname,
+		    sizeof(ifgrq.ifgrq_member));
+		if ((error = copyout(&ifgrq, ifgp, sizeof(struct ifg_req)))) {
+			IFNET_RUNLOCK();
+			return (error);
+		}
+		len -= sizeof(ifgrq);
+		ifgp++;
+	}
+	IFNET_RUNLOCK();
+
+	return (0);
 }
 
 /*
@@ -1472,6 +1688,35 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		    ifr->ifr_addr.sa_data, ifr->ifr_addr.sa_len);
 		break;
 
+	case SIOCAIFGROUP:
+	{
+		struct ifgroupreq *ifgr = (struct ifgroupreq *)ifr;
+
+		error = suser(td);
+		if (error)
+			return (error);
+		if ((error = if_addgroup(ifp, ifgr->ifgr_group)))
+			return (error);
+		break;
+	}
+
+	case SIOCGIFGROUP:
+		if ((error = if_getgroup((struct ifgroupreq *)ifr, ifp)))
+			return (error);
+		break;
+
+	case SIOCDIFGROUP:
+	{
+		struct ifgroupreq *ifgr = (struct ifgroupreq *)ifr;
+
+		error = suser(td);
+		if (error)
+			return (error);
+		if ((error = if_delgroup(ifp, ifgr->ifgr_group)))
+			return (error);
+		break;
+	}
+
 	default:
 		error = ENOIOCTL;
 		break;
@@ -1511,6 +1756,8 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 
 	case SIOCIFGCLONERS:
 		return (if_clone_list((struct if_clonereq *)data));
+	case SIOCGIFGMEMB:
+		return (if_getgroupmembers((struct ifgroupreq *)data));
 	}
 
 	ifp = ifunit(ifr->ifr_name);

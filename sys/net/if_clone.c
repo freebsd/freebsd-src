@@ -158,6 +158,8 @@ if_clone_createif(struct if_clone *ifc, char *name, size_t len)
 		if (ifp == NULL)
 			panic("%s: lookup failed for %s", __func__, name);
 
+		if_addgroup(ifp, ifc->ifc_name);
+
 		IF_CLONE_LOCK(ifc);
 		IFC_IFLIST_INSERT(ifc, ifp);
 		IF_CLONE_UNLOCK(ifc);
@@ -210,9 +212,13 @@ if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
 	IFC_IFLIST_REMOVE(ifc, ifp);
 	IF_CLONE_UNLOCK(ifc);
 
+	if_delgroup(ifp, ifc->ifc_name);
+
 	err =  (*ifc->ifc_destroy)(ifc, ifp);
 
 	if (err != 0) {
+		if_addgroup(ifp, ifc->ifc_name);
+
 		IF_CLONE_LOCK(ifc);
 		IFC_IFLIST_INSERT(ifc, ifp);
 		IF_CLONE_UNLOCK(ifc);
