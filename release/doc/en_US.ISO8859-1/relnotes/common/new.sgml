@@ -231,13 +231,17 @@
       for a sleep queue associated with that wait channel.</para>
 
     <para><filename>DEFAULTS</filename> kernel configuration files
-      for each platform have been added.  &merged;</para>
+      for each platform have been added.  These files contain
+      directives that are implicitly included in all kernel
+      configurations, and generally include basic, mandatory
+      functionality for each platform.  &merged;</para>
 
-    <para>A bug in file descriptor handling such that simple
+    <para>A bug in file descriptor handling such that a simple
       <literal>close(0); dup(fd)</literal> sequence does not return
       descriptor <literal>0</literal> in some cases, has been fixed.</para>
 
-    <para>The &man.firmware.9; subsystem has been added.  This allows
+    <para>The &man.firmware.9; subsystem has been added.  This
+      subsystem provides a mechanism
       to load binary data into the kernel via a specially crafted module.
       &merged;</para>
 
@@ -252,7 +256,7 @@
 
     <para>&man.hwpmc.4; and &man.pmcstat.8; now support profiling
       of dynamically loaded kernel modules and
-      <function>dlopen()</function>'ed shared objects.
+      shared objects loaded with &man.dlopen.3;.
       &man.pmcstat.8; can now log over a network socket
       to a remote host.</para>
 
@@ -268,27 +272,27 @@
 
     <para>The <literal>SIGCHLD</literal> signal queuing has been
       added.  For each child process whose status has been changed,
-      a SIGCHLD instance is queued.  If the signal is still pending,
+      a <literal>SIGCHLD</literal> instance is queued.  If the signal is still pending,
       and the process changed status several times, the signal information
       is updated to reflect the latest process status.
       There is a loader tunable <varname>kern.sigqueue.queue_sigchild</varname>
       which can control the behavior, setting it to zero disables the
       <literal>SIGCHLD</literal> queuing feature.</para>
 
-    <para arch="amd64,i386">Instead of dumping the whole physical
-      memory, the kernel now defaults to dump only pages that are
-      actively mapped into kvm.  A new sysctl variable
-      <varname>debug.minidump</varname>
+    <para arch="amd64,i386">Instead of including all of physical
+      memory in a kernel crash dump, the kernel now defaults to dumping only pages that are
+      actively mapped into kernel virtual memory.  A new
+      <varname>debug.minidump</varname> sysctl variable
       can be used to turn off this behavior when set to zero.</para>
 
     <para>A new sysctl variable <varname>kern.malloc_stats</varname>
-      has been added.  This allows to export kernel malloc
+      has been added.  This allows exporting of kernel malloc
       statistics via a binary structure stream.</para>
 
     <para>A new sysctl variable <varname>kern.forcesigexit</varname>
       has been added.  This forces a process
       to sigexit if a trap signal is being held by the current thread or
-      ignored by the current process and is enabled by default.</para>
+      ignored by the current process.  It is enabled by default.</para>
 
     <para arch="alpha">Support for Linux emulation on the Alpha
       platform has been removed, due to the lack of a
@@ -299,9 +303,9 @@
       has been removed, as it had fallen out of sync with the rest
       of the kernel.</para>
 
-    <para>RedZone, a buffer corruption protection for kernel &man.malloc.9;
-      facility has been implemented.  This detects both of buffer underflows and
-      buffer overflows bugs at runtime on &man.free.9; and &man.realloc.9;,
+    <para>RedZone, a buffer corruption protection for the kernel &man.malloc.9;
+      facility has been implemented.  This detects both buffer underflows and
+      overflows at runtime on &man.free.9; and &man.realloc.9;,
       and prints backtraces from where memory was allocated and from where
       it was freed.  For more details, see the &man.redzone.9; manual page.</para>
 
@@ -310,7 +314,7 @@
       <literal>biba/equal(equal-equal)</literal>, has been added.
       This is useful where programs such as &man.dhclient.8; and &man.ppp.8;.
       which initialize network interfaces do not have any labeling support.
-      This variable is set as <literal>0</literal>(disabled) by default.
+      This variable is set as <literal>0</literal> (disabled) by default.
       &merged;</para>
 
     <para>A new sysctl variable <varname>vm.zone_stats</varname>
@@ -339,9 +343,10 @@
     <para>An experimental support for POSIX message queue has been
       implemented.</para>
 
-    <para>The support for Xbox, whose architecture is nearly identical
-      has been added.  For details of the latest development,
-      see <ulink url="http://xbox-bsd.nl"></ulink>.</para>
+    <para>&os; now runs on the Xbox, whose architecture is nearly identical
+      to the i386.  For details of the latest development,
+      see <ulink url="http://www.FreeBSD.org/platforms/xbox.html"></ulink>
+      and <ulink url="http://xbox-bsd.nl"></ulink>.</para>
 
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
