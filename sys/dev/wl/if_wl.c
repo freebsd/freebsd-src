@@ -461,7 +461,6 @@ errexit:
     return (error);
 }
 
-
 /*
  * wlattach:
  *
