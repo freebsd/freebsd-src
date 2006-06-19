@@ -6,8 +6,19 @@ Christos Zoulas `file'
 
 Imported by:
 
-	cvs import -m "Virgin import of Christos Zoulas's FILE 3.39." \
-		src/contrib/file ZOULAS file_3_39
+	mv magic/* .
+	rmdir magic
+	mv -i src/* .
+	rm -rf src
+	mv -i doc/* .
+	rm -rf doc
+	rm -rf python
+	rm lt*
+	rm missing depcomp
+	rm config.{guess,sub}
+
+	cvs import -m "Virgin import of Christos Zoulas's FILE 4.17." \
+		src/contrib/file ZOULAS file_4_17
 
 
 Never make local changes to ZOULAS `file'.  Christos is very willing to
