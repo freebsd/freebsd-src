@@ -153,7 +153,7 @@ isa_init(device_t dev)
 	}
 }
 
-static struct {
+static const struct {
 	const char	*name;
 	uint32_t	id;
 } ofw_isa_pnp_map[] = {
@@ -164,6 +164,8 @@ static struct {
 	{ "flashprom",	0x0100ae4e }, /* SUN0001 */
 	{ "parallel",	0x0104d041 }, /* PNP0401 */
 	{ "serial",	0x0105d041 }, /* PNP0501 */
+	{ "i2c",	0x0200ae4e }, /* SUN0002 */
+	{ "rmc-comm",	0x0300ae4e }, /* SUN0003 */
 	{ "kb_ps2",	0x0303d041 }, /* PNP0303 */
 	{ "kdmouse",	0x030fd041 }, /* PNP0F03 */
 	{ "power",	0x0c0cd041 }, /* PNP0C0C */
@@ -213,6 +215,7 @@ isa_setup_children(device_t dev, phandle_t parent)
 		if (ofw_isa_pnp_map[i].name == NULL) {
 			printf("isa_setup_children: no PnP map entry for node "
 			    "0x%lx: %s\n", (unsigned long)node, name);
+			free(name, M_OFWPROP);
 			continue;
 		}
 
