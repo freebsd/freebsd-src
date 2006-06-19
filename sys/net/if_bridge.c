@@ -1507,7 +1507,7 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 	len = m->m_pkthdr.len;
 	mflags = m->m_flags;
 
-	/* We may be sending a framgment so traverse the mbuf */
+	/* We may be sending a fragment so traverse the mbuf */
 	for (; m; m = m0) {
 		m0 = m->m_nextpkt;
 		m->m_nextpkt = NULL;
