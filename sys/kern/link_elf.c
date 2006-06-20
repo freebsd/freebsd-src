@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/namei.h>
 #include <sys/fcntl.h>
@@ -556,17 +557,19 @@ link_elf_load_file(linker_class_t cls, const char* filename,
     int symstrindex;
     int symcnt;
     int strcnt;
+    int vfslocked;
 
     GIANT_REQUIRED;
 
     shdr = NULL;
     lf = NULL;
 
-    NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, filename, td);
+    NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, filename, td);
     flags = FREAD;
     error = vn_open(&nd, &flags, 0, -1);
     if (error)
 	return error;
+    vfslocked = NDHASGIANT(&nd);
     NDFREE(&nd, NDF_ONLY_PNBUF);
 #ifdef MAC
     error = mac_check_kld_load(curthread->td_ucred, nd.ni_vp);
@@ -859,6 +862,7 @@ out:
 	free(firstpage, M_LINKER);
     VOP_UNLOCK(nd.ni_vp, 0, td);
     vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
+    VFS_UNLOCK_GIANT(vfslocked);
 
     return error;
 }
