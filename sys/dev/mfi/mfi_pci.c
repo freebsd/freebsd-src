@@ -207,6 +207,7 @@ mfi_pci_detach(device_t dev)
 		if (error)
 			return (error);
 		TAILQ_REMOVE(&sc->mfi_ld_tqh, ld, ld_link);
+		free(ld->ld_info, M_MFIBUF);
 		free(ld, M_MFIBUF);
 	}
 
