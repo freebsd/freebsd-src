@@ -182,6 +182,24 @@ static const struct pmap_devmap kb920x_devmap[] = {
 extern vm_offset_t ksym_start, ksym_end;
 #endif
 
+static int
+board_init(void)
+{
+	uint32_t memsize;
+	uint32_t *SDRAMC = (uint32_t *)(AT91RM92_BASE + AT91RM92_SDRAMC_BASE);
+	uint32_t cr, mr;
+	int banks, rows, cols, bw; /* log2 size */
+	
+	cr = SDRAMC[AT91RM92_SDRAMC_CR / 4];
+	mr = SDRAMC[AT91RM92_SDRAMC_MR / 4];
+	bw = (mr & AT91RM92_SDRAMC_MR_DBW_16) ? 1 : 2;
+	banks = (cr & AT91RM92_SDRAMC_CR_NB_4) ? 2 : 1;
+	rows = ((cr & AT91RM92_SDRAMC_CR_NR_MASK) >> 2) + 11;
+	cols = (cr & AT91RM92_SDRAMC_CR_NC_MASK) + 8;
+	memsize = 1 << (cols + rows + banks + bw);
+	return (memsize);
+}
+
 void *
 initarm(void *arg, void *arg2)
 {
@@ -192,7 +210,7 @@ initarm(void *arg, void *arg2)
 	vm_offset_t afterkern;
 	int i = 0;
 	uint32_t fake_preload[35];
-	uint32_t memsize = 32 * 1024 * 1024;
+	uint32_t memsize;
 	vm_offset_t lastaddr;
 #ifdef DDB
 	vm_offset_t zstart = 0, zend = 0;
@@ -341,7 +359,7 @@ initarm(void *arg, void *arg2)
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2));
 	cninit();
-
+	memsize = board_init();
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
 	 * stacks for different CPU modes.
