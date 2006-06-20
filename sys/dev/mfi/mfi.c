@@ -56,6 +56,7 @@ static int	mfi_alloc_commands(struct mfi_softc *);
 static void	mfi_release_command(struct mfi_command *cm);
 static int	mfi_comms_init(struct mfi_softc *);
 static int	mfi_polled_command(struct mfi_softc *, struct mfi_command *);
+static int	mfi_wait_command(struct mfi_softc *, struct mfi_command *);
 static int	mfi_get_controller_info(struct mfi_softc *);
 static int	mfi_get_log_state(struct mfi_softc *,
 		    struct mfi_evt_log_state **);
@@ -68,16 +69,12 @@ static void	mfi_data_cb(void *, bus_dma_segment_t *, int, int);
 static void	mfi_startup(void *arg);
 static void	mfi_intr(void *arg);
 static void	mfi_enable_intr(struct mfi_softc *sc);
-static void	mfi_ldprobe_inq(struct mfi_softc *sc);
-static void	mfi_ldprobe_inq_complete(struct mfi_command *);
-static int	mfi_ldprobe_capacity(struct mfi_softc *sc, int id);
-static void	mfi_ldprobe_capacity_complete(struct mfi_command *);
-static int	mfi_ldprobe_tur(struct mfi_softc *sc, int id);
-static void	mfi_ldprobe_tur_complete(struct mfi_command *);
+static void	mfi_ldprobe(struct mfi_softc *sc);
 static int	mfi_aen_register(struct mfi_softc *sc, int seq, int locale);
 static void	mfi_aen_complete(struct mfi_command *);
 static int	mfi_aen_setup(struct mfi_softc *, uint32_t);
-static int	mfi_add_ld(struct mfi_softc *sc, int id, uint64_t, uint32_t);
+static int	mfi_add_ld(struct mfi_softc *sc, int);
+static void	mfi_add_ld_complete(struct mfi_command *);
 static struct mfi_command * mfi_bio_command(struct mfi_softc *);
 static void	mfi_bio_complete(struct mfi_command *);
 static int	mfi_mapcmd(struct mfi_softc *, struct mfi_command *);
@@ -679,6 +676,18 @@ mfi_polled_command(struct mfi_softc *sc, struct mfi_command *cm)
 	return (0);
 }
 
+static int
+mfi_wait_command(struct mfi_softc *sc, struct mfi_command *cm)
+{
+
+	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
+	cm->cm_complete = NULL;
+
+	mfi_enqueue_ready(cm);
+	mfi_startio(sc);
+	return (msleep(cm, &sc->mfi_io_lock, PRIBIO, "mfiwait", 0));
+}
+
 void
 mfi_free(struct mfi_softc *sc)
 {
@@ -747,7 +756,7 @@ mfi_startup(void *arg)
 	config_intrhook_disestablish(&sc->mfi_ich);
 
 	mfi_enable_intr(sc);
-	mfi_ldprobe_inq(sc);
+	mfi_ldprobe(sc);
 }
 
 static void
@@ -824,136 +833,41 @@ mfi_enable_intr(struct mfi_softc *sc)
 }
 
 static void
-mfi_ldprobe_inq(struct mfi_softc *sc)
+mfi_ldprobe(struct mfi_softc *sc)
 {
-	struct mfi_command *cm;
-	struct mfi_pass_frame *pass;
-	char *inq;
-	int i;
+	struct mfi_frame_header *hdr;
+	struct mfi_command *cm = NULL;
+	struct mfi_ld_list *list = NULL;
+	int error, i;
 
-	/* Probe all possible targets with a SCSI INQ command */
 	mtx_lock(&sc->mfi_io_lock);
-	sc->mfi_probe_count = 0;
-	for (i = 0; i < MFI_MAX_CHANNEL_DEVS; i++) {
-		inq = malloc(MFI_INQ_LENGTH, M_MFIBUF, M_NOWAIT|M_ZERO);
-		if (inq == NULL)
-			break;
-		cm = mfi_dequeue_free(sc);
-		if (cm == NULL) {
-			free(inq, M_MFIBUF);
-			msleep(mfi_startup, &sc->mfi_io_lock, 0, "mfistart",
-			    5 * hz);
-			i--;
-			continue;
-		}
-		pass = &cm->cm_frame->pass;
-		pass->header.cmd = MFI_CMD_LD_SCSI_IO;
-		pass->header.target_id = i;
-		pass->header.lun_id = 0;
-		pass->header.cdb_len = 6;
-		pass->header.timeout = 0;
-		pass->header.data_len = MFI_INQ_LENGTH;
-		bzero(pass->cdb, 16);
-		pass->cdb[0] = INQUIRY;
-		pass->cdb[4] = MFI_INQ_LENGTH;
-		pass->header.sense_len = MFI_SENSE_LEN;
-		pass->sense_addr_lo = cm->cm_sense_busaddr;
-		pass->sense_addr_hi = 0;
-		cm->cm_complete = mfi_ldprobe_inq_complete;
-		cm->cm_private = inq;
-		cm->cm_sg = &pass->sgl;
-		cm->cm_total_frame_size = MFI_PASS_FRAME_SIZE;
-		cm->cm_flags |= MFI_CMD_DATAIN;
-		cm->cm_data = inq;
-		cm->cm_len = MFI_INQ_LENGTH;
-		sc->mfi_probe_count++;
-		mfi_enqueue_ready(cm);
-		mfi_startio(sc);
+	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_LD_GET_LIST,
+	    (void **)&list, sizeof(*list));
+	if (error)
+		goto out;
+
+	cm->cm_flags = MFI_CMD_DATAIN;
+	if (mfi_wait_command(sc, cm) != 0) {
+		device_printf(sc->mfi_dev, "Failed to get device listing\n");
+		goto out;
 	}
 
-	/* Sleep while the arrays are attaching */
-	msleep(mfi_startup, &sc->mfi_io_lock, 0, "mfistart", 60 * hz);
+	hdr = &cm->cm_frame->header;
+	if (hdr->cmd_status != MFI_STAT_OK) {
+		device_printf(sc->mfi_dev, "MFI_DCMD_LD_GET_LIST failed %x\n",
+		    hdr->cmd_status);
+		goto out;
+	}
+
+	for (i = 0; i < list->ld_count; i++)
+		mfi_add_ld(sc, list->ld_list[i].ld.target_id);
+out:
+	if (list)
+		free(list, M_MFIBUF);
+	if (cm)
+		mfi_release_command(cm);
 	mtx_unlock(&sc->mfi_io_lock);
-
 	return;
-}
-
-static void
-mfi_ldprobe_inq_complete(struct mfi_command *cm)
-{
-	struct mfi_frame_header *hdr;
-	struct mfi_softc *sc;
-	struct scsi_inquiry_data *inq;
-
-	sc = cm->cm_sc;
-	inq = cm->cm_private;
-	hdr = &cm->cm_frame->header;
-
-	if ((hdr->cmd_status != MFI_STAT_OK) || (hdr->scsi_status != 0x00) ||
-	    (SID_TYPE(inq) != T_DIRECT)) {
-		free(inq, M_MFIBUF);
-		mfi_release_command(cm);
-		if (--sc->mfi_probe_count <= 0)
-			wakeup(mfi_startup);
-		return;
-	}
-
-	free(inq, M_MFIBUF);
-	mfi_release_command(cm);
-	mfi_ldprobe_tur(sc, hdr->target_id);
-}
-
-static int
-mfi_ldprobe_tur(struct mfi_softc *sc, int id)
-{
-	struct mfi_command *cm;
-	struct mfi_pass_frame *pass;
-
-	cm = mfi_dequeue_free(sc);
-	if (cm == NULL)
-		return (EBUSY);
-	pass = &cm->cm_frame->pass;
-	pass->header.cmd = MFI_CMD_LD_SCSI_IO;
-	pass->header.target_id = id;
-	pass->header.lun_id = 0;
-	pass->header.cdb_len = 6;
-	pass->header.timeout = 0;
-	pass->header.data_len = 0;
-	bzero(pass->cdb, 16);
-	pass->cdb[0] = TEST_UNIT_READY;
-	pass->header.sense_len = MFI_SENSE_LEN;
-	pass->sense_addr_lo = cm->cm_sense_busaddr;
-	pass->sense_addr_hi = 0;
-	cm->cm_complete = mfi_ldprobe_tur_complete;
-	cm->cm_total_frame_size = MFI_PASS_FRAME_SIZE;
-	cm->cm_flags = 0;
-	mfi_enqueue_ready(cm);
-	mfi_startio(sc);
-
-	return (0);
-}
-
-static void
-mfi_ldprobe_tur_complete(struct mfi_command *cm)
-{
-	struct mfi_frame_header *hdr;
-	struct mfi_softc *sc;
-
-	sc = cm->cm_sc;
-	hdr = &cm->cm_frame->header;
-
-	if ((hdr->cmd_status != MFI_STAT_OK) || (hdr->scsi_status != 0x00)) {
-		device_printf(sc->mfi_dev, "Logical disk %d is not ready, "
-		    "cmd_status= %d scsi_status= %d\n", hdr->target_id,
-		    hdr->cmd_status, hdr->scsi_status);
-		mfi_print_sense(sc, cm->cm_sense);
-		mfi_release_command(cm);
-		if (--sc->mfi_probe_count <= 0)
-			wakeup(mfi_startup);
-		return;
-	}
-	mfi_release_command(cm);
-	mfi_ldprobe_capacity(sc, hdr->target_id);
 }
 
 #ifdef NOTYET
@@ -1361,40 +1275,29 @@ mfi_get_entry(struct mfi_softc *sc, int seq)
 #endif
 
 static int
-mfi_ldprobe_capacity(struct mfi_softc *sc, int id)
+mfi_add_ld(struct mfi_softc *sc, int id)
 {
 	struct mfi_command *cm;
-	struct mfi_pass_frame *pass;
-	struct scsi_read_capacity_data_long *cap;
+	struct mfi_dcmd_frame *dcmd = NULL;
+	struct mfi_ld_info *ld_info = NULL;
+	int error;
 
-	cap = malloc(sizeof(*cap), M_MFIBUF, M_NOWAIT|M_ZERO);
-	if (cap == NULL)
-		return (ENOMEM);
-	cm = mfi_dequeue_free(sc);
-	if (cm == NULL) {
-		free(cap, M_MFIBUF);
-		return (EBUSY);
+	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
+
+	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_LD_GET_INFO,
+	    (void **)&ld_info, sizeof(*ld_info));
+	if (error) {
+		device_printf(sc->mfi_dev,
+		    "Failed to allocate for MFI_DCMD_LD_GET_INFO %d\n", error);
+		if (ld_info)
+			free(ld_info, M_MFIBUF);
+		return (error);
 	}
-	pass = &cm->cm_frame->pass;
-	pass->header.cmd = MFI_CMD_LD_SCSI_IO;
-	pass->header.target_id = id;
-	pass->header.lun_id = 0;
-	pass->header.cdb_len = 6;
-	pass->header.timeout = 0;
-	pass->header.data_len = sizeof(*cap);
-	bzero(pass->cdb, 16);
-	pass->cdb[0] = 0x9e;	/* READ CAPACITY 16 */
-	pass->cdb[13] = sizeof(*cap);
-	pass->header.sense_len = MFI_SENSE_LEN;
-	pass->sense_addr_lo = cm->cm_sense_busaddr;
-	pass->sense_addr_hi = 0;
-	cm->cm_complete = mfi_ldprobe_capacity_complete;
-	cm->cm_private = cap;
-	cm->cm_sg = &pass->sgl;
-	cm->cm_total_frame_size = MFI_PASS_FRAME_SIZE;
-	cm->cm_flags |= MFI_CMD_DATAIN;
-	cm->cm_data = cap;
-	cm->cm_len = sizeof(*cap);
+	cm->cm_flags = MFI_CMD_DATAIN;
+	cm->cm_complete = mfi_add_ld_complete;
+	dcmd = &cm->cm_frame->dcmd;
+	dcmd->mbox[0] = id;
+
 	mfi_enqueue_ready(cm);
 	mfi_startio(sc);
 
@@ -1402,70 +1305,42 @@ mfi_ldprobe_capacity(struct mfi_softc *sc, int id)
 }
 
 static void
-mfi_ldprobe_capacity_complete(struct mfi_command *cm)
+mfi_add_ld_complete(struct mfi_command *cm)
 {
 	struct mfi_frame_header *hdr;
+	struct mfi_ld_info *ld_info;
 	struct mfi_softc *sc;
-	struct scsi_read_capacity_data_long *cap;
-	uint64_t sectors;
-	uint32_t secsize;
-	int target;
-
-	sc = cm->cm_sc;
-	cap = cm->cm_private;
-	hdr = &cm->cm_frame->header;
-
-	if ((hdr->cmd_status != MFI_STAT_OK) || (hdr->scsi_status != 0x00)) {
-		device_printf(sc->mfi_dev, "Failed to read capacity for "
-		    "logical disk\n");
-		device_printf(sc->mfi_dev, "cmd_status= %d scsi_status= %d\n",
-		    hdr->cmd_status, hdr->scsi_status);
-		free(cap, M_MFIBUF);
-		mfi_release_command(cm);
-		if (--sc->mfi_probe_count <= 0)
-			wakeup(mfi_startup);
-		return;
-	}
-	target = hdr->target_id;
-	sectors = scsi_8btou64(cap->addr);
-	secsize = scsi_4btoul(cap->length);
-	free(cap, M_MFIBUF);
-	mfi_release_command(cm);
-	mfi_add_ld(sc, target, sectors, secsize);
-	if (--sc->mfi_probe_count <= 0)
-		wakeup(mfi_startup);
-
-	return;
-}
-
-static int
-mfi_add_ld(struct mfi_softc *sc, int id, uint64_t sectors, uint32_t secsize)
-{
 	struct mfi_ld *ld;
 	device_t child;
 
-	if ((secsize == 0) || (sectors == 0)) {
-		device_printf(sc->mfi_dev, "Invalid capacity parameters for "
-		      "logical disk %d\n", id);
-		return (EINVAL);
+	sc = cm->cm_sc;
+	hdr = &cm->cm_frame->header;
+	ld_info = cm->cm_private;
+
+	if (hdr->cmd_status != MFI_STAT_OK) {
+		free(ld_info, M_MFIBUF);
+		mfi_release_command(cm);
+		return;
 	}
+	mfi_release_command(cm);
 
 	ld = malloc(sizeof(struct mfi_ld), M_MFIBUF, M_NOWAIT|M_ZERO);
 	if (ld == NULL) {
 		device_printf(sc->mfi_dev, "Cannot allocate ld\n");
-		return (ENOMEM);
+		free(ld_info, M_MFIBUF);
+		return;
 	}
 
 	if ((child = device_add_child(sc->mfi_dev, "mfid", -1)) == NULL) {
 		device_printf(sc->mfi_dev, "Failed to add logical disk\n");
 		free(ld, M_MFIBUF);
-		return (EINVAL);
+		free(ld_info, M_MFIBUF);
+		return;
 	}
 
-	ld->ld_id = id;
+	ld->ld_id = ld_info->ld_config.properties.ld.target_id;
 	ld->ld_disk = child;
-	ld->ld_secsize = secsize;
-	ld->ld_sectors = sectors;
+	ld->ld_info = ld_info;
 
 	device_set_ivars(child, ld);
 	device_set_desc(child, "MFI Logical Disk");
@@ -1474,8 +1349,6 @@ mfi_add_ld(struct mfi_softc *sc, int id, uint64_t sectors, uint32_t secsize)
 	bus_generic_attach(sc->mfi_dev);
 	mtx_unlock(&Giant);
 	mtx_lock(&sc->mfi_io_lock);
-
-	return (0);
 }
 
 static struct mfi_command *
@@ -1705,6 +1578,8 @@ mfi_complete(struct mfi_softc *sc, struct mfi_command *cm)
 
 	if (cm->cm_complete != NULL)
 		cm->cm_complete(cm);
+	else
+		wakeup(cm);
 
 	sc->mfi_flags &= ~MFI_FLAGS_QFRZN;
 	mfi_startio(sc);
