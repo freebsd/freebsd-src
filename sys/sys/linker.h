@@ -123,16 +123,6 @@ int linker_reference_module(const char* _modname, struct mod_depend *_verinfo,
 int linker_file_foreach(linker_predicate_t *_predicate, void *_context);
 
 /*
- * Find a currently loaded file given its filename.
- */
-linker_file_t linker_find_file_by_name(const char* _filename);
-
-/*
- * Find a currently loaded file given its file id.
- */
-linker_file_t linker_find_file_by_id(int _fileid);
-
-/*
  * Called from a class handler when a file is laoded.
  */
 linker_file_t linker_make_file(const char* _filename, linker_class_t _cls);
