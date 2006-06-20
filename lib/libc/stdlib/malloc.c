@@ -1318,6 +1318,7 @@ static void
 chunk_dealloc(void *chunk, size_t size)
 {
 	size_t offset;
+	chunk_node_t key;
 	chunk_node_t *node;
 
 	assert(chunk != NULL);
@@ -1364,13 +1365,21 @@ chunk_dealloc(void *chunk, size_t size)
 	 * if memory usage increases later on.
 	 */
 	for (offset = 0; offset < size; offset += chunk_size) {
-		node = base_chunk_node_alloc();
-		if (node == NULL)
-			break;
+		/*
+		 * It is possible for chunk to overlap existing entries in
+		 * old_chunks if it is a huge allocation, so take care to not
+		 * leak tree nodes.
+		 */
+		key.chunk = (void *)((uintptr_t)chunk + (uintptr_t)offset);
+		if (RB_FIND(chunk_tree_s, &old_chunks, &key) == NULL) {
+			node = base_chunk_node_alloc();
+			if (node == NULL)
+				break;
 
-		node->chunk = (void *)((uintptr_t)chunk + (uintptr_t)offset);
-		node->size = chunk_size;
-		RB_INSERT(chunk_tree_s, &old_chunks, node);
+			node->chunk = key.chunk;
+			node->size = chunk_size;
+			RB_INSERT(chunk_tree_s, &old_chunks, node);
+		}
 	}
 
 #ifdef USE_BRK
@@ -1621,6 +1630,9 @@ arena_run_reg_dalloc(arena_run_t *run, arena_bin_t *bin, void *ptr, size_t size)
 		QUANTUM_CASE(31)
 		QUANTUM_CASE(32)
 
+#if (QUANTUM_2POW_MIN <= 3)
+		POW2_CASE(9)
+#endif
 		POW2_CASE(10)
 		POW2_CASE(11)
 		POW2_CASE(12) /* Handle up to 8 kB pages. */
@@ -2548,7 +2560,7 @@ huge_malloc(size_t size)
 		return (NULL);
 	}
 
-	/* Insert node into chunks. */
+	/* Insert node into huge. */
 	node->chunk = ret;
 	node->size = csize;
 
@@ -2736,7 +2748,7 @@ ipalloc(size_t alignment, size_t size)
 				}
 			}
 
-			/* Insert node into chunks. */
+			/* Insert node into huge. */
 			node->chunk = ret;
 			node->size = chunksize;
 
