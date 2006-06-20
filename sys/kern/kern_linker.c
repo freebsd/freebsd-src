@@ -67,6 +67,16 @@ int kld_debug = 0;
  */
 static const char 	*linker_basename(const char *path);
 
+/*
+ * Find a currently loaded file given its filename.
+ */
+static linker_file_t linker_find_file_by_name(const char* _filename);
+
+/*
+ * Find a currently loaded file given its file id.
+ */
+static linker_file_t linker_find_file_by_id(int _fileid);
+
 /* Metadata from the static kernel */
 SET_DECLARE(modmetadata_set, struct mod_metadata);
 
@@ -415,7 +425,7 @@ linker_reference_module(const char *modname, struct mod_depend *verinfo,
 	return (linker_load_module(NULL, modname, NULL, verinfo, result));
 }
 
-linker_file_t
+static linker_file_t
 linker_find_file_by_name(const char *filename)
 {
 	linker_file_t lf;
@@ -436,7 +446,7 @@ linker_find_file_by_name(const char *filename)
 	return (lf);
 }
 
-linker_file_t
+static linker_file_t
 linker_find_file_by_id(int fileid)
 {
 	linker_file_t lf;
