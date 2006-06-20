@@ -418,61 +418,61 @@
 251	AUE_NULL	UNIMPL
 252	AUE_EXIT	MNOPROTO { void sys_exit(int rval); } exit_group \
 				    sys_exit_args void
-253	AUE_NULL	UNIMPL	linux_lookup_dcookie
-254	AUE_NULL	UNIMPL	linux_epoll_create
-255	AUE_NULL	UNIMPL	linux_epoll_ctl
-256	AUE_NULL	UNIMPL	linux_epoll_wait
-257	AUE_NULL	UNIMPL	linux_remap_file_pages
-258	AUE_NULL	UNIMPL	linux_set_tid_address
-259	AUE_NULL	UNIMPL	linux_timer_create
-260	AUE_NULL	UNIMPL	linux_timer_settime
-261	AUE_NULL	UNIMPL	linux_timer_gettime
-262	AUE_NULL	UNIMPL	linux_timer_getoverrun
-263	AUE_NULL	UNIMPL	linux_timer_delete
-264	AUE_CLOCK_SETTIME	UNIMPL	linux_clock_settime
-265	AUE_NULL	UNIMPL	linux_clock_gettime
-266	AUE_NULL	UNIMPL	linux_clock_getres
-267	AUE_NULL	UNIMPL	linux_clock_nanosleep
-268	AUE_NULL	UNIMPL	linux_statfs64
-269	AUE_NULL	UNIMPL	linux_fstatfs64
-270	AUE_NULL	UNIMPL	linux_tgkill	/* 270 */
-271	AUE_NULL	UNIMPL	linux_utimes
-272	AUE_NULL	UNIMPL	linux_fadvise64_64
-273	AUE_NULL	UNIMPL	linux_ni_syscall	/* linux_vserver */
-274	AUE_NULL	UNIMPL	linux_mbind
-275	AUE_NULL	UNIMPL	linux_get_mempolicy
-276	AUE_NULL	UNIMPL	linux_set_mempolicy
-277	AUE_NULL	UNIMPL	linux_mq_open
-278	AUE_NULL	UNIMPL	linux_mq_unlink
-279	AUE_NULL	UNIMPL	linux_mq_timedsend
-280	AUE_NULL	UNIMPL	linux_mq_timedreceive	/* 280 */
-281	AUE_NULL	UNIMPL	linux_mq_notify
-282	AUE_NULL	UNIMPL	linux_mq_getsetattr
-283	AUE_NULL	UNIMPL	linux_kexec_load
-284	AUE_NULL	UNIMPL	linux_waitid
-285	AUE_NULL	UNIMPL	linux_ni_syscall		/* 285 */ /* available */
-286	AUE_NULL	UNIMPL	linux_add_key
-287	AUE_NULL	UNIMPL	linux_request_key
-288	AUE_NULL	UNIMPL	linux_keyctl
-289	AUE_NULL	UNIMPL	linux_ioprio_set
-290	AUE_NULL	UNIMPL	linux_ioprio_get		/* 290 */
-291	AUE_NULL	UNIMPL	linux_inotify_init
-292	AUE_NULL	UNIMPL	linux_inotify_add_watch
-293	AUE_NULL	UNIMPL	linux_inotify_rm_watch
-294	AUE_NULL	UNIMPL	linux_migrate_pages
-295	AUE_NULL	UNIMPL	linux_openat		/* 295 */
-296	AUE_NULL	UNIMPL	linux_mkdirat
-297	AUE_NULL	UNIMPL	linux_mknodat
-298	AUE_NULL	UNIMPL	linux_fchownat
-299	AUE_NULL	UNIMPL	linux_futimesat
-300	AUE_NULL	UNIMPL	linux_fstatat64		/* 300 */
-301	AUE_NULL	UNIMPL	linux_unlinkat
-302	AUE_NULL	UNIMPL	linux_renameat
-303	AUE_NULL	UNIMPL	linux_linkat
-304	AUE_NULL	UNIMPL	linux_symlinkat
-305	AUE_NULL	UNIMPL	linux_readlinkat		/* 305 */
-306	AUE_NULL	UNIMPL	linux_fchmodat
-307	AUE_NULL	UNIMPL	linux_faccessat
-308	AUE_NULL	UNIMPL	linux_pselect6
-309	AUE_NULL	UNIMPL	linux_ppoll
-310	AUE_NULL	UNIMPL	linux_unshare		/* 310 */
+253	AUE_NULL	MSTD	{ int linux_lookup_dcookie(void); }
+254	AUE_NULL	MSTD	{ int linux_epoll_create(void); }
+255	AUE_NULL	MSTD	{ int linux_epoll_ctl(void); }
+256	AUE_NULL	MSTD	{ int linux_epoll_wait(void); }
+257	AUE_NULL	MSTD	{ int linux_remap_file_pages(void); }
+258	AUE_NULL	MSTD	{ int linux_set_tid_address(void); }
+259	AUE_NULL	MSTD	{ int linux_timer_create(void); }
+260	AUE_NULL	MSTD	{ int linux_timer_settime(void); }
+261	AUE_NULL	MSTD	{ int linux_timer_gettime(void); }
+262	AUE_NULL	MSTD	{ int linux_timer_getoverrun(void); }
+263	AUE_NULL	MSTD	{ int linux_timer_delete(void); }
+264	AUE_CLOCK_SETTIME	MSTD	{ int linux_clock_settime(void); }
+265	AUE_NULL	MSTD	{ int linux_clock_gettime(void); }
+266	AUE_NULL	MSTD	{ int linux_clock_getres(void); }
+267	AUE_NULL	MSTD	{ int linux_clock_nanosleep(void); }
+268	AUE_NULL	MSTD	{ int linux_statfs64(void); }
+269	AUE_NULL	MSTD	{ int linux_fstatfs64(void); }
+270	AUE_NULL	MSTD	{ int linux_tgkill(void); }
+271	AUE_NULL	MSTD	{ int linux_utimes(void); }
+272	AUE_NULL	MSTD	{ int linux_fadvise64_64(void); }
+273	AUE_NULL	UNIMPL
+274	AUE_NULL	MSTD	{ int linux_mbind(void); }
+275	AUE_NULL	MSTD	{ int linux_get_mempolicy(void); }
+276	AUE_NULL	MSTD	{ int linux_set_mempolicy(void); }
+277	AUE_NULL	MSTD	{ int linux_mq_open(void); }
+278	AUE_NULL	MSTD	{ int linux_mq_unlink(void); }
+279	AUE_NULL	MSTD	{ int linux_mq_timedsend(void); }
+280	AUE_NULL	MSTD	{ int linux_mq_timedreceive(void); }
+281	AUE_NULL	MSTD	{ int linux_mq_notify(void); }
+282	AUE_NULL	MSTD	{ int linux_mq_getsetattr(void); }
+283	AUE_NULL	MSTD	{ int linux_kexec_load(void); }
+284	AUE_NULL	MSTD	{ int linux_waitid(void); }
+285	AUE_NULL	UNIMPL
+286	AUE_NULL	MSTD	{ int linux_add_key(void); }
+287	AUE_NULL	MSTD	{ int linux_request_key(void); }
+288	AUE_NULL	MSTD	{ int linux_keyctl(void); }
+289	AUE_NULL	MSTD	{ int linux_ioprio_set(void); }
+290	AUE_NULL	MSTD	{ int linux_ioprio_get(void); }
+291	AUE_NULL	MSTD	{ int linux_inotify_init(void); }
+292	AUE_NULL	MSTD	{ int linux_inotify_add_watch(void); }
+293	AUE_NULL	MSTD	{ int linux_inotify_rm_watch(void); }
+294	AUE_NULL	MSTD	{ int linux_migrate_pages(void); }
+295	AUE_NULL	MSTD	{ int linux_openat(void); }
+296	AUE_NULL	MSTD	{ int linux_mkdirat(void); }
+297	AUE_NULL	MSTD	{ int linux_mknodat(void); }
+298	AUE_NULL	MSTD	{ int linux_fchownat(void); }
+299	AUE_NULL	MSTD	{ int linux_futimesat(void); }
+300	AUE_NULL	MSTD	{ int linux_fstatat64(void); }
+301	AUE_NULL	MSTD	{ int linux_unlinkat(void); }
+302	AUE_NULL	MSTD	{ int linux_renameat(void); }
+303	AUE_NULL	MSTD	{ int linux_linkat(void); }
+304	AUE_NULL	MSTD	{ int linux_symlinkat(void); }
+305	AUE_NULL	MSTD	{ int linux_readlinkat(void); }
+306	AUE_NULL	MSTD	{ int linux_fchmodat(void); }
+307	AUE_NULL	MSTD	{ int linux_faccessat(void); }
+308	AUE_NULL	MSTD	{ int linux_pselect6(void); }
+309	AUE_NULL	MSTD	{ int linux_ppoll(void); }
+310	AUE_NULL	MSTD	{ int linux_unshare(void); }
