@@ -105,11 +105,6 @@ typedef int linker_predicate_t(linker_file_t, void *);
 extern linker_file_t	linker_kernel_file;
 
 /*
- * Add a new file class to the linker.
- */
-int linker_add_class(linker_class_t _cls);
-
-/*
  * Obtain a reference to a module, loading it if required.
  */
 int linker_reference_module(const char* _modname, struct mod_depend *_verinfo,
@@ -131,16 +126,6 @@ int linker_release_module(const char *_modname, struct mod_depend *_verinfo,
 int linker_file_foreach(linker_predicate_t *_predicate, void *_context);
 
 /*
- * Called from a class handler when a file is laoded.
- */
-linker_file_t linker_make_file(const char* _filename, linker_class_t _cls);
-
-/*
- * Unload a file, freeing up memory.
- */
-int linker_file_unload(linker_file_t _file, int flags);
-
-/*
  * Lookup a symbol in a file.  If deps is TRUE, look in dependencies
  * if not found in file.
  */
@@ -156,10 +141,12 @@ int linker_file_lookup_set(linker_file_t _file, const char *_name,
 			   void *_start, void *_stop, int *_count);
 
 /*
- * This routine is responsible for finding dependencies of userland
- * initiated kldload(2)'s of files.
+ * Functions soley for use by the linker class handlers.
  */
+int linker_add_class(linker_class_t _cls);
+int linker_file_unload(linker_file_t _file, int flags);
 int linker_load_dependencies(linker_file_t _lf);
+linker_file_t linker_make_file(const char* _filename, linker_class_t _cls);
 
 /*
  * DDB Helpers, tuned specifically for ddb/db_kld.c
