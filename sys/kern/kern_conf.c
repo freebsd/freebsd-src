@@ -449,7 +449,8 @@ prep_cdevsw(struct cdevsw *devsw)
 	if (devsw->d_version != D_VERSION_01) {
 		printf(
 		    "WARNING: Device driver \"%s\" has wrong version %s\n",
-		    devsw->d_name, "and is disabled.  Recompile KLD module.");
+		    devsw->d_name == NULL ? "???" : devsw->d_name,
+		    "and is disabled.  Recompile KLD module.");
 		devsw->d_open = dead_open;
 		devsw->d_close = dead_close;
 		devsw->d_read = dead_read;
