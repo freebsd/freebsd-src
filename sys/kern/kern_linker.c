@@ -654,10 +654,6 @@ linker_file_lookup_symbol(linker_file_t file, const char *name, int deps)
 		cp = malloc(sizeof(struct common_symbol)
 		    + common_size + strlen(name) + 1, M_LINKER,
 		    M_WAITOK | M_ZERO);
-		if (cp == NULL) {
-			KLD_DPF(SYM, ("linker_file_lookup_symbol: nomem\n"));
-			return (0);
-		}
 		cp->address = (caddr_t)(cp + 1);
 		cp->name = cp->address + common_size;
 		strcpy(cp->name, name);
