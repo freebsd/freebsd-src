@@ -23,22 +23,36 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd January 4, 2005
+.Dd June 17, 2006
 .Dt AAC 4
 .Os
 .Sh NAME
 .Nm aac
 .Nd Adaptec AdvancedRAID Controller driver
 .Sh SYNOPSIS
-.Cd options AAC_DEBUG=N
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd device pci
 .Cd device aac
 .Cd device aacp
+.Pp
+To compile in debugging code:
+.Cd options AAC_DEBUG=N
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+aac_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for the Adaptec AAC family of SCSI Ultra2, Ultra160,
-and Ultra320, and SATA RAID controllers.
+and Ultra320, SATA and SAS RAID controllers.
 .Pp
 Access to RAID containers is available via the
 .Pa /dev/aacd?
@@ -99,21 +113,53 @@ driver include:
 .It
 Adaptec AAC-364
 .It
+Adaptec SAS RAID 4000SAS
+.It
+Adaptec SAS RAID 4005SAS
+.It
+Adaptec SAS RAID 4800SAS
+.It
+Adaptec SAS RAID 4805SAS
+.It
+Adaptec SATA RAID 2020SA ZCR
+.It
+Adaptec SATA RAID 2025SA ZCR
+.It
+Adaptec SATA RAID 2026ZCR
+.It
 Adaptec SATA RAID 2410SA
+.It
+Adaptec SATA RAID 2420SA
+.It
+Adaptec SATA RAID 2610SA
+.It
+Adaptec SATA RAID 2620SA
 .It
 Adaptec SATA RAID 2810SA
 .It
+Adaptec SATA RAID 2820SA
+.It
 Adaptec SATA RAID 21610SA
+.It
+Adaptec SCSI RAID 2020ZCR
+.It
+Adaptec SCSI RAID 2025ZCR
 .It
 Adaptec SCSI RAID 2120S
 .It
 Adaptec SCSI RAID 2130S
 .It
-Adaptec SCSI RAID 2200S
-.It
 Adaptec SCSI RAID 2130SLP
 .It
 Adaptec SCSI RAID 2230SLP
+.It
+Adaptec SCSI RAID 2200S
+.It
+Adaptec SCSI RAID 2240S
+.It
+Adaptec SCSI RAID 3230S
+.It
+Adaptec SCSI RAID 3240S
 .It
 Adaptec SCSI RAID 5400S
 .It
@@ -129,7 +175,27 @@ Dell PERC 3/Di
 .It
 Dell PERC 320/DC
 .It
+HP ML110 G2 (Adaptec SATA RAID 2610SA)
+.It
 HP NetRAID 4M
+.It
+IBM ServeRAID 8i
+.It
+ICP ICP5085BR SAS RAID
+.It
+ICP ICP9085LI SAS RAID
+.It
+ICP ICP9047MA SATA RAID
+.It
+ICP ICP9087MA SATA RAID
+.It
+ICP ICP9014RO SCSI RAID
+.It
+ICP ICP9024RO SCSI RAID
+.It
+Legend S220
+.It
+Legend S230
 .El
 .Sh FILES
 .Bl -tag -width /boot/kernel/aac.ko -compact
@@ -137,8 +203,6 @@ HP NetRAID 4M
 aac management interface
 .It Pa /dev/aacd?
 disk/container interface
-.It Pa /boot/kernel/aac.ko
-aac loadable module
 .El
 .Sh DIAGNOSTICS
 Compiling with
@@ -174,4 +238,3 @@ The firmware version is the same as the kernel version printed in the BIOS
 POST and driver attach messages.
 .Pp
 The controller is not actually paused on suspend/resume.
-.Pp
