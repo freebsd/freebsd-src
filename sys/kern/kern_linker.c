@@ -345,7 +345,6 @@ linker_load_file(const char *filename, linker_file_t *result)
 		lf->refs++;
 		return (0);
 	}
-	lf = NULL;
 	foundfile = 0;
 	error = 0;
 
@@ -894,7 +893,7 @@ kldfind(struct thread *td, struct kldfind_args *uap)
 	char *pathname;
 	const char *filename;
 	linker_file_t lf;
-	int error = 0;
+	int error;
 
 #ifdef MAC
 	error = mac_check_kld_stat(td->td_ucred);
@@ -916,8 +915,7 @@ kldfind(struct thread *td, struct kldfind_args *uap)
 	else
 		error = ENOENT;
 out:
-	if (pathname)
-		free(pathname, M_TEMP);
+	free(pathname, M_TEMP);
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -1789,8 +1787,7 @@ linker_load_module(const char *kldname, const char *modname,
 			*lfpp = lfdep;
 	} while (0);
 out:
-	if (pathname)
-		free(pathname, M_LINKER);
+	free(pathname, M_LINKER);
 	return (error);
 }
 
