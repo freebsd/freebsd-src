@@ -182,10 +182,9 @@ static const struct pmap_devmap kb920x_devmap[] = {
 extern vm_offset_t ksym_start, ksym_end;
 #endif
 
-static int
+static long
 board_init(void)
 {
-	uint32_t memsize;
 	uint32_t *SDRAMC = (uint32_t *)(AT91RM92_BASE + AT91RM92_SDRAMC_BASE);
 	uint32_t cr, mr;
 	int banks, rows, cols, bw; /* log2 size */
@@ -196,8 +195,7 @@ board_init(void)
 	banks = (cr & AT91RM92_SDRAMC_CR_NB_4) ? 2 : 1;
 	rows = ((cr & AT91RM92_SDRAMC_CR_NR_MASK) >> 2) + 11;
 	cols = (cr & AT91RM92_SDRAMC_CR_NC_MASK) + 8;
-	memsize = 1 << (cols + rows + banks + bw);
-	return (memsize);
+	return (1 << (cols + rows + banks + bw));
 }
 
 void *
@@ -360,6 +358,8 @@ initarm(void *arg, void *arg2)
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2));
 	cninit();
 	memsize = board_init();
+	physmem = memsize / PAGE_SIZE;
+
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
 	 * stacks for different CPU modes.
@@ -428,7 +428,7 @@ initarm(void *arg, void *arg2)
 	phys_avail[3] = 0;
 	/* Do basic tuning, hz etc */
 	init_param1();
-	init_param2(memsize / PAGE_SIZE);
+	init_param2(physmem);
 	avail_end = KERNPHYSADDR + memsize - 1;
 	kdb_init();
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
