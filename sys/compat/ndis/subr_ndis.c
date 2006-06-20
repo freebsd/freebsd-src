@@ -2925,7 +2925,7 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 	char			*afilename = NULL;
 	struct thread		*td = curthread;
 	struct nameidata	nd;
-	int			flags, error;
+	int			flags, error, vfslocked;
 	struct vattr		vat;
 	struct vattr		*vap = &vat;
 	ndis_fh			*fh;
@@ -2998,8 +2998,6 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 
 	snprintf(path, MAXPATHLEN, "%s/%s", ndis_filepath, afilename);
 
-	mtx_lock(&Giant);
-
 	/* Some threads don't have a current working directory. */
 
 	if (td->td_proc->p_fd->fd_rdir == NULL)
@@ -3007,12 +3005,11 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 	if (td->td_proc->p_fd->fd_cdir == NULL)
 		td->td_proc->p_fd->fd_cdir = rootvnode;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, path, td);
 
 	flags = FREAD;
 	error = vn_open(&nd, &flags, 0, -1);
 	if (error) {
-		mtx_unlock(&Giant);
 		*status = NDIS_STATUS_FILE_NOT_FOUND;
 		ExFreePool(fh);
 		printf("NDIS: open file %s failed: %d\n", path, error);
@@ -3020,6 +3017,7 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 		free(afilename, M_DEVBUF);
 		return;
 	}
+	vfslocked = NDHASGIANT(&nd);
 
 	ExFreePool(path);
 
@@ -3028,7 +3026,7 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 	/* Get the file size. */
 	VOP_GETATTR(nd.ni_vp, vap, td->td_ucred, td);
 	VOP_UNLOCK(nd.ni_vp, 0, td);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 
 	fh->nf_vp = nd.ni_vp;
 	fh->nf_map = NULL;
@@ -3050,7 +3048,8 @@ NdisMapFile(status, mappedbuffer, filehandle)
 	struct thread		*td = curthread;
 	linker_file_t		lf;
 	caddr_t			kldstart;
-	int			error, resid;
+	int			error, resid, vfslocked;
+	struct vnode		*vp;
 
 	if (filehandle == NULL) {
 		*status = NDIS_STATUS_FAILURE;
@@ -3088,10 +3087,11 @@ NdisMapFile(status, mappedbuffer, filehandle)
 		return;
 	}
 
-	mtx_lock(&Giant);
-	error = vn_rdwr(UIO_READ, fh->nf_vp, fh->nf_map, fh->nf_maplen, 0,
+	vp = fh->nf_vp;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	error = vn_rdwr(UIO_READ, vp, fh->nf_map, fh->nf_maplen, 0,
 	    UIO_SYSSPACE, 0, td->td_ucred, NOCRED, &resid, td);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 
 	if (error)
 		*status = NDIS_STATUS_FAILURE;
@@ -3126,6 +3126,8 @@ NdisCloseFile(filehandle)
 {
 	struct thread		*td = curthread;
 	ndis_fh			*fh;
+	int			vfslocked;
+	struct vnode		*vp;
 
 	if (filehandle == NULL)
 		return;
@@ -3141,9 +3143,10 @@ NdisCloseFile(filehandle)
 		return;
 
 	if (fh->nf_type == NDIS_FH_TYPE_VFS) {
-		mtx_lock(&Giant);
-		vn_close(fh->nf_vp, FREAD, td->td_ucred, td);
-		mtx_unlock(&Giant);
+		vp = fh->nf_vp;
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+		vn_close(vp, FREAD, td->td_ucred, td);
+		VFS_UNLOCK_GIANT(vfslocked);
 	}
 
 	fh->nf_vp = NULL;
