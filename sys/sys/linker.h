@@ -95,6 +95,11 @@ struct linker_class {
 };
 
 /*
+ * Function type used when iterating over the list of linker files.
+ */
+typedef int linker_predicate_t(linker_file_t, void *);
+
+/*
  * The "file" for the kernel.
  */
 extern linker_file_t	linker_kernel_file;
@@ -109,6 +114,13 @@ int linker_add_class(linker_class_t _cls);
  */
 int linker_reference_module(const char* _modname, struct mod_depend *_verinfo,
 			    linker_file_t* _result);
+
+/*
+ * Iterate over all of the currently loaded linker files calling the
+ * predicate function while the function returns 0.  Returns the value
+ * returned by the last predicate function.
+ */
+int linker_file_foreach(linker_predicate_t *_predicate, void *_context);
 
 /*
  * Find a currently loaded file given its filename.

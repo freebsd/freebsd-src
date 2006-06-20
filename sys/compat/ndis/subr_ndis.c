@@ -2886,6 +2886,32 @@ ndis_find_sym(lf, filename, suffix, sym)
 	return(0);
 }
 
+struct ndis_checkmodule {
+	char	*afilename;
+	ndis_fh	*fh;
+};
+
+/*
+ * See if a single module contains the symbols for a specified file.
+ */
+static int
+NdisCheckModule(linker_file_t lf, void *context)
+{
+	struct ndis_checkmodule *nc;
+	caddr_t			kldstart, kldend;
+
+	nc = (struct ndis_checkmodule *)context;
+	if (ndis_find_sym(lf, nc->afilename, "_start", &kldstart))
+		return (0);
+	if (ndis_find_sym(lf, nc->afilename, "_end", &kldend))
+		return (0);
+	nc->fh->nf_vp = lf;
+	nc->fh->nf_map = NULL;
+	nc->fh->nf_type = NDIS_FH_TYPE_MODULE;
+	nc->fh->nf_maplen = (kldend - kldstart) & 0xFFFFFFFF;
+	return (1);
+}
+
 /* can also return NDIS_STATUS_RESOURCES/NDIS_STATUS_ERROR_READING_FILE */
 static void
 NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
@@ -2904,8 +2930,7 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 	struct vattr		*vap = &vat;
 	ndis_fh			*fh;
 	char			*path;
-	linker_file_t		head, lf;
-	caddr_t			kldstart, kldend;
+	struct ndis_checkmodule	nc;
 
 	if (RtlUnicodeStringToAnsiString(&as, filename, TRUE)) {
 		*status = NDIS_STATUS_RESOURCES;
@@ -2943,23 +2968,10 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 	 * us since the kernel appears to us as just another module.
 	 */
 
-	/*
-	 * This is an evil trick for getting the head of the linked
-	 * file list, which is not exported from kern_linker.o. It
-	 * happens that linker file #1 is always the kernel, and is
-	 * always the first element in the list.
-	 */
-
-	head = linker_find_file_by_id(1);
-	for (lf = head; lf != NULL; lf = TAILQ_NEXT(lf, link)) {
-		if (ndis_find_sym(lf, afilename, "_start", &kldstart))
-			continue;
-		if (ndis_find_sym(lf, afilename, "_end", &kldend))
-			continue;
-		fh->nf_vp = lf;
-		fh->nf_map = NULL;
-		fh->nf_type = NDIS_FH_TYPE_MODULE;
-		*filelength = fh->nf_maplen = (kldend - kldstart) & 0xFFFFFFFF;
+	nc.afilename = afilename;
+	nc.fh = fh;
+	if (linker_file_foreach(NdisCheckModule, &nc)) {
+		*filelength = fh->nf_maplen;
 		*filehandle = fh;
 		*status = NDIS_STATUS_SUCCESS;
 		return;
