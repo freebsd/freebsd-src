@@ -415,14 +415,44 @@ linker_reference_module(const char *modname, struct mod_depend *verinfo,
     linker_file_t *result)
 {
 	modlist_t mod;
+	int error;
 
+	mtx_lock(&Giant);
 	if ((mod = modlist_lookup2(modname, verinfo)) != NULL) {
 		*result = mod->container;
 		(*result)->refs++;
+		mtx_unlock(&Giant);
 		return (0);
 	}
 
-	return (linker_load_module(NULL, modname, NULL, verinfo, result));
+	error = linker_load_module(NULL, modname, NULL, verinfo, result);
+	mtx_unlock(&Giant);
+	return (error);
+}
+
+int
+linker_release_module(const char *modname, struct mod_depend *verinfo,
+    linker_file_t lf)
+{
+	modlist_t mod;
+	int error;
+
+	mtx_lock(&Giant);
+	if (lf == NULL) {
+		KASSERT(modname != NULL,
+		    ("linker_release_module: no file or name"));
+		mod = modlist_lookup2(modname, verinfo);
+		if (mod == NULL) {
+			mtx_unlock(&Giant);
+			return (ESRCH);
+		}
+		lf = mod->container;
+	} else
+		KASSERT(modname == NULL && verinfo == NULL,
+		    ("linker_release_module: both file and name"));
+	error =	linker_file_unload(lf, LINKER_UNLOAD_NORMAL);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 static linker_file_t

@@ -195,9 +195,7 @@ again:
 		    "load firmware image %s\n", __func__, imagename);
 		return NULL;
 	}
-	mtx_lock(&Giant);		/* XXX */
 	(void) linker_reference_module(imagename, NULL, &result);
-	mtx_unlock(&Giant);		/* XXX */
 	requested_load = 1;
 	goto again;		/* sort of an Algol-style for loop */
 }
@@ -227,7 +225,7 @@ unloadentry(void *unused1, int unused2)
 		fp->file = NULL;
 		mtx_unlock(&firmware_mtx);
 
-		linker_file_unload(file, LINKER_UNLOAD_NORMAL);
+		linker_release_module(NULL, NULL, file);
 
 		mtx_lock(&firmware_mtx);
 	}
