@@ -1764,11 +1764,9 @@ linker_load_module(const char *kldname, const char *modname,
 	 * provide different versions of the same modules.
 	 */
 	filename = linker_basename(pathname);
-	if (linker_find_file_by_name(filename)) {
+	if (linker_find_file_by_name(filename))
 		error = EEXIST;
-		goto out;
-	}
-	do {
+	else do {
 		error = linker_load_file(pathname, &lfdep);
 		if (error)
 			break;
@@ -1786,7 +1784,6 @@ linker_load_module(const char *kldname, const char *modname,
 		if (lfpp)
 			*lfpp = lfdep;
 	} while (0);
-out:
 	free(pathname, M_LINKER);
 	return (error);
 }
