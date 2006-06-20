@@ -511,7 +511,7 @@ mfi_get_controller_info(struct mfi_softc *sc)
 	cm->cm_len = sizeof(struct mfi_ctrl_info);
 
 	if ((error = mfi_mapcmd(sc, cm)) != 0) {
-		device_printf(sc->mfi_dev, "Controller info buffer map failed");
+		device_printf(sc->mfi_dev, "Controller info buffer map failed\n");
 		free(ci, M_MFIBUF);
 		mfi_release_command(cm);
 		return (error);
@@ -565,16 +565,13 @@ mfi_get_log_state(struct mfi_softc *sc, struct mfi_evt_log_state *log_state)
 	cm->cm_len = sizeof(struct mfi_evt_log_state);
 
 	if ((error = mfi_mapcmd(sc, cm)) != 0) {
-		device_printf(sc->mfi_dev, "Controller info buffer map failed");
+		device_printf(sc->mfi_dev, "Log state buffer map failed\n");
 		mfi_release_command(cm);
 		return (error);
 	}
 
-	/* It's ok if this fails, just use default info instead */
 	if ((error = mfi_polled_command(sc, cm)) != 0) {
-		device_printf(sc->mfi_dev, "Failed to get controller state\n");
-		sc->mfi_max_io = (sc->mfi_total_sgl - 1) * PAGE_SIZE /
-		    MFI_SECTOR_LEN;
+		device_printf(sc->mfi_dev, "Failed to get log state\n");
 		mfi_release_command(cm);
 		return (0);
 	}
