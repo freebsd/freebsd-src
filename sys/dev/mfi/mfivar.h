@@ -75,8 +75,7 @@ struct mfi_command {
 struct mfi_ld {
 	TAILQ_ENTRY(mfi_ld)	ld_link;
 	device_t		ld_disk;
-	uint64_t		ld_sectors;
-	uint32_t		ld_secsize;
+	struct mfi_ld_info	*ld_info;
 	int			ld_id;
 };
 
@@ -133,7 +132,6 @@ struct mfi_softc {
 
 	struct intr_config_hook		mfi_ich;
 	eventhandler_tag		eh;
-	int				mfi_probe_count;
 
 	/*
 	 * Allocation for the command array.  Used as an indexable array to

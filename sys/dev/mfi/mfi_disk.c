@@ -113,14 +113,8 @@ mfi_disk_attach(device_t dev)
 	sc->ld_ld = device_get_ivars(dev);
 	sc->ld_controller = device_get_softc(device_get_parent(dev));
 
-	sectors = sc->ld_ld->ld_sectors;
-	secsize = sc->ld_ld->ld_secsize;
-	if (secsize != MFI_SECTOR_LEN) {
-		device_printf(sc->ld_dev, "Reported sector length %d is not "
-		    "512, aborting\n", secsize);
-		free(sc->ld_ld, M_MFIBUF);
-		return (EINVAL);
-	}
+	sectors = ld->ld_info->size;
+	secsize = MFI_SECTOR_LEN;
 	TAILQ_INSERT_TAIL(&sc->ld_controller->mfi_ld_tqh, ld, ld_link);
 
 	device_printf(dev, "%juMB (%ju sectors) RAID\n",
@@ -235,7 +229,7 @@ mfi_disk_dump(void *arg, void *virt, vm_offset_t phys, off_t offset, size_t len)
 
 	if (len > 0) {
 		if ((error = mfi_dump_blocks(parent_sc, sc->ld_id, offset /
-		    sc->ld_ld->ld_secsize, virt, len)) != 0)
+		    MFI_SECTOR_LEN, virt, len)) != 0)
 			return (error);
 	} else {
 		/* mfi_sync_cache(parent_sc, sc->ld_id); */
