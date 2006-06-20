@@ -58,10 +58,12 @@ static int	mfi_comms_init(struct mfi_softc *);
 static int	mfi_polled_command(struct mfi_softc *, struct mfi_command *);
 static int	mfi_get_controller_info(struct mfi_softc *);
 static int	mfi_get_log_state(struct mfi_softc *,
-		    struct mfi_evt_log_state *);
+		    struct mfi_evt_log_state **);
 #ifdef NOTYET
 static int	mfi_get_entry(struct mfi_softc *, int);
 #endif
+static int	mfi_dcmd_command(struct mfi_softc *, struct mfi_command **,
+		    uint32_t, void **, size_t);
 static void	mfi_data_cb(void *, bus_dma_segment_t *, int, int);
 static void	mfi_startup(void *arg);
 static void	mfi_intr(void *arg);
@@ -441,6 +443,53 @@ mfi_release_command(struct mfi_command *cm)
 }
 
 static int
+mfi_dcmd_command(struct mfi_softc *sc, struct mfi_command **cmp, uint32_t opcode,
+    void **bufp, size_t bufsize)
+{
+	struct mfi_command *cm;
+	struct mfi_dcmd_frame *dcmd;
+	void *buf = NULL;
+	
+	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
+	
+	cm = mfi_dequeue_free(sc);
+	if (cm == NULL)
+		return (EBUSY);
+
+	if ((bufsize > 0) && (bufp != NULL)) {
+		if (*bufp == NULL) {
+			buf = malloc(bufsize, M_MFIBUF, M_NOWAIT|M_ZERO);
+			if (buf == NULL) {
+				mfi_release_command(cm);
+				return (ENOMEM);
+			}
+			*bufp = buf;
+		} else {
+			buf = *bufp;
+		}
+	}
+
+	dcmd =  &cm->cm_frame->dcmd;
+	bzero(dcmd->mbox, MFI_MBOX_SIZE);
+	dcmd->header.cmd = MFI_CMD_DCMD;
+	dcmd->header.timeout = 0;
+	dcmd->header.flags = 0;
+	dcmd->header.data_len = bufsize;
+	dcmd->opcode = opcode;
+	cm->cm_sg = &dcmd->sgl;
+	cm->cm_total_frame_size = MFI_DCMD_FRAME_SIZE;
+	cm->cm_flags = 0;
+	cm->cm_data = buf;
+	cm->cm_private = buf;
+	cm->cm_len = bufsize;
+
+	*cmp = cm;
+	if ((bufp != NULL) && (*bufp == NULL) && (buf != NULL))
+		*bufp = buf;
+	return (0);
+}
+
+static int
 mfi_comms_init(struct mfi_softc *sc)
 {
 	struct mfi_command *cm;
@@ -483,32 +532,17 @@ mfi_comms_init(struct mfi_softc *sc)
 static int
 mfi_get_controller_info(struct mfi_softc *sc)
 {
-	struct mfi_command *cm;
-	struct mfi_dcmd_frame *dcmd;
-	struct mfi_ctrl_info *ci;
+	struct mfi_command *cm = NULL;
+	struct mfi_ctrl_info *ci = NULL;
 	uint32_t max_sectors_1, max_sectors_2;
 	int error;
 
-	if ((cm = mfi_dequeue_free(sc)) == NULL)
-		return (EBUSY);
-
-	ci = malloc(sizeof(struct mfi_ctrl_info), M_MFIBUF, M_NOWAIT | M_ZERO);
-	if (ci == NULL) {
-		mfi_release_command(cm);
-		return (ENOMEM);
-	}
-
-	dcmd = &cm->cm_frame->dcmd;
-	bzero(dcmd->mbox, MFI_MBOX_SIZE);
-	dcmd->header.cmd = MFI_CMD_DCMD;
-	dcmd->header.timeout = 0;
-	dcmd->header.data_len = sizeof(struct mfi_ctrl_info);
-	dcmd->opcode = MFI_DCMD_CTRL_GETINFO;
-	cm->cm_sg = &dcmd->sgl;
-	cm->cm_total_frame_size = MFI_DCMD_FRAME_SIZE;
+	mtx_lock(&sc->mfi_io_lock);
+	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_CTRL_GETINFO,
+	    (void **)&ci, sizeof(*ci));
+	if (error)
+		goto out;
 	cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_POLLED;
-	cm->cm_data = ci;
-	cm->cm_len = sizeof(struct mfi_ctrl_info);
 
 	if ((error = mfi_mapcmd(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev, "Controller info buffer map failed\n");
@@ -522,9 +556,8 @@ mfi_get_controller_info(struct mfi_softc *sc)
 		device_printf(sc->mfi_dev, "Failed to get controller info\n");
 		sc->mfi_max_io = (sc->mfi_total_sgl - 1) * PAGE_SIZE /
 		    MFI_SECTOR_LEN;
-		free(ci, M_MFIBUF);
-		mfi_release_command(cm);
-		return (0);
+		error = 0;
+		goto out;
 	}
 
 	bus_dmamap_sync(sc->mfi_buffer_dmat, cm->cm_dmamap,
@@ -535,52 +568,45 @@ mfi_get_controller_info(struct mfi_softc *sc)
 	max_sectors_2 = ci->max_request_size;
 	sc->mfi_max_io = min(max_sectors_1, max_sectors_2);
 
-	free(ci, M_MFIBUF);
-	mfi_release_command(cm);
-
+out:
+	if (ci)
+		free(ci, M_MFIBUF);
+	if (cm)
+		mfi_release_command(cm);
+	mtx_unlock(&sc->mfi_io_lock);
 	return (error);
 }
 
 static int
-mfi_get_log_state(struct mfi_softc *sc, struct mfi_evt_log_state *log_state)
+mfi_get_log_state(struct mfi_softc *sc, struct mfi_evt_log_state **log_state)
 {
 	struct mfi_command *cm;
-	struct mfi_dcmd_frame *dcmd;
 	int error;
 
-	if ((cm = mfi_dequeue_free(sc)) == NULL)
-		return (EBUSY);
-
-
-	dcmd = &cm->cm_frame->dcmd;
-	bzero(dcmd->mbox, MFI_MBOX_SIZE);
-	dcmd->header.cmd = MFI_CMD_DCMD;
-	dcmd->header.timeout = 0;
-	dcmd->header.data_len = sizeof(struct mfi_evt_log_state);
-	dcmd->opcode = MFI_DCMD_CTRL_EVENT_GETINFO;
-	cm->cm_sg = &dcmd->sgl;
-	cm->cm_total_frame_size = MFI_DCMD_FRAME_SIZE;
-	cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_POLLED;
-	cm->cm_data = log_state;
+	mtx_lock(&sc->mfi_io_lock);
+	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_CTRL_EVENT_GETINFO,
+	    (void **)log_state, sizeof(**log_state));
+	if (error)
+		goto out;
 	cm->cm_len = sizeof(struct mfi_evt_log_state);
 
 	if ((error = mfi_mapcmd(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev, "Log state buffer map failed\n");
-		mfi_release_command(cm);
-		return (error);
+		goto out;
 	}
 
 	if ((error = mfi_polled_command(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev, "Failed to get log state\n");
-		mfi_release_command(cm);
-		return (0);
+		goto out;
 	}
 
 	bus_dmamap_sync(sc->mfi_buffer_dmat, cm->cm_dmamap,
 	    BUS_DMASYNC_POSTREAD);
 	bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
 
+out:
 	mfi_release_command(cm);
+	mtx_unlock(&sc->mfi_io_lock);
 
 	return (error);
 }
@@ -588,7 +614,7 @@ mfi_get_log_state(struct mfi_softc *sc, struct mfi_evt_log_state *log_state)
 static int
 mfi_aen_setup(struct mfi_softc *sc, uint32_t seq_start)
 {
-	struct mfi_evt_log_state log_state;
+	struct mfi_evt_log_state *log_state = NULL;
 	union mfi_evt class_locale;
 	int error = 0;
 	uint32_t seq;
@@ -599,8 +625,11 @@ mfi_aen_setup(struct mfi_softc *sc, uint32_t seq_start)
 
 	if (seq_start == 0) {
 		error = mfi_get_log_state(sc, &log_state);
-		if (error)
+		if (error) {
+			if (log_state)
+				free(log_state, M_MFIBUF);
 			return (error);
+		}
 		/*
 		 * Don't run them yet since we can't parse them.
 		 * We can indirectly get the contents from
@@ -608,16 +637,17 @@ mfi_aen_setup(struct mfi_softc *sc, uint32_t seq_start)
 		 * current.  The firmware will iterate through them.
 		 */
 #ifdef NOTYET
-		for (seq = log_state.shutdown_seq_num;
-		     seq <= log_state.newest_seq_num; seq++) {
+		for (seq = log_state->shutdown_seq_num;
+		     seq <= log_state->newest_seq_num; seq++) {
 			mfi_get_entry(sc, seq);
 		}
 #endif
 
-		seq = log_state.shutdown_seq_num + 1;
+		seq = log_state->shutdown_seq_num + 1;
 	} else
 		seq = seq_start;
 	mfi_aen_register(sc, seq, class_locale.word);
+	free(log_state, M_MFIBUF);
 
 	return 0;
 }
@@ -767,20 +797,17 @@ mfi_shutdown(struct mfi_softc *sc)
 	struct mfi_command *cm;
 	int error;
 
-	if ((cm = mfi_dequeue_free(sc)) == NULL)
-		return (EBUSY);
+	mtx_lock(&sc->mfi_io_lock);
+	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_CTRL_SHUTDOWN, NULL, 0);
+	mtx_unlock(&sc->mfi_io_lock);
+	if (error)
+		return (error);
 
 	if (sc->mfi_aen_cm != NULL)
 		mfi_abort(sc, sc->mfi_aen_cm);
 
 	dcmd = &cm->cm_frame->dcmd;
-	bzero(dcmd->mbox, MFI_MBOX_SIZE);
-	dcmd->header.cmd = MFI_CMD_DCMD;
-	dcmd->header.sg_count = 0;
 	dcmd->header.flags = MFI_FRAME_DIR_NONE;
-	dcmd->header.timeout = 0;
-	dcmd->header.data_len = 0;
-	dcmd->opcode = MFI_DCMD_CTRL_SHUTDOWN;
 
 	if ((error = mfi_polled_command(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev, "Failed to shutdown controller\n");
@@ -1175,7 +1202,8 @@ mfi_aen_register(struct mfi_softc *sc, int seq, int locale)
 	struct mfi_command *cm;
 	struct mfi_dcmd_frame *dcmd;
 	union mfi_evt current_aen, prior_aen;
-	struct mfi_evt_detail *ed;
+	struct mfi_evt_detail *ed = NULL;
+	int error;
 
 	current_aen.word = locale;
 	if (sc->mfi_aen_cm != NULL) {
@@ -1196,34 +1224,16 @@ mfi_aen_register(struct mfi_softc *sc, int seq, int locale)
 	}
 
 	mtx_lock(&sc->mfi_io_lock);
-	if ((cm = mfi_dequeue_free(sc)) == NULL) {
-		mtx_unlock(&sc->mfi_io_lock);
-		return (EBUSY);
-	}
+	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_CTRL_EVENT_WAIT,
+	    (void **)&ed, sizeof(*ed));
 	mtx_unlock(&sc->mfi_io_lock);
-
-	ed = malloc(sizeof(struct mfi_evt_detail), M_MFIBUF,
-	    M_NOWAIT | M_ZERO);
-	if (ed == NULL) {
-		mtx_lock(&sc->mfi_io_lock);
-		mfi_release_command(cm);
-		mtx_unlock(&sc->mfi_io_lock);
-		return (ENOMEM);
-	}
+	if (error)
+		return (error);
 
 	dcmd = &cm->cm_frame->dcmd;
-	bzero(dcmd->mbox, MFI_MBOX_SIZE);
-	dcmd->header.cmd = MFI_CMD_DCMD;
-	dcmd->header.timeout = 0;
-	dcmd->header.data_len = sizeof(struct mfi_evt_detail);
-	dcmd->opcode = MFI_DCMD_CTRL_EVENT_WAIT;
 	((uint32_t *)&dcmd->mbox)[0] = seq;
 	((uint32_t *)&dcmd->mbox)[1] = locale;
-	cm->cm_sg = &dcmd->sgl;
-	cm->cm_total_frame_size = MFI_DCMD_FRAME_SIZE;
 	cm->cm_flags = MFI_CMD_DATAIN;
-	cm->cm_data = ed;
-	cm->cm_len = sizeof(struct mfi_evt_detail);
 	cm->cm_complete = mfi_aen_complete;
 
 	sc->mfi_aen_cm = cm;
