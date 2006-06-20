@@ -116,6 +116,14 @@ int linker_reference_module(const char* _modname, struct mod_depend *_verinfo,
 			    linker_file_t* _result);
 
 /*
+ * Release a reference to a module, unloading it if there are no more
+ * references.  Note that one should either provide a module name and
+ * optional version info or a linker file, but not both.
+ */
+int linker_release_module(const char *_modname, struct mod_depend *_verinfo,
+			  linker_file_t _file);
+
+/*
  * Iterate over all of the currently loaded linker files calling the
  * predicate function while the function returns 0.  Returns the value
  * returned by the last predicate function.
