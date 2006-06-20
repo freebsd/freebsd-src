@@ -577,7 +577,7 @@ out:
 static int
 mfi_get_log_state(struct mfi_softc *sc, struct mfi_evt_log_state **log_state)
 {
-	struct mfi_command *cm;
+	struct mfi_command *cm = NULL;
 	int error;
 
 	mtx_lock(&sc->mfi_io_lock);
@@ -602,7 +602,8 @@ mfi_get_log_state(struct mfi_softc *sc, struct mfi_evt_log_state **log_state)
 	bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
 
 out:
-	mfi_release_command(cm);
+	if (cm)
+		mfi_release_command(cm);
 	mtx_unlock(&sc->mfi_io_lock);
 
 	return (error);
@@ -822,6 +823,7 @@ mfi_shutdown(struct mfi_softc *sc)
 		device_printf(sc->mfi_dev, "Failed to shutdown controller\n");
 	}
 
+	mfi_release_command(cm);
 	return (error);
 }
 
