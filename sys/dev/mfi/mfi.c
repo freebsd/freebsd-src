@@ -588,7 +588,7 @@ mfi_get_log_state(struct mfi_softc *sc, struct mfi_evt_log_state **log_state)
 	    (void **)log_state, sizeof(**log_state));
 	if (error)
 		goto out;
-	cm->cm_len = sizeof(struct mfi_evt_log_state);
+	cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_POLLED;
 
 	if ((error = mfi_mapcmd(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev, "Log state buffer map failed\n");
