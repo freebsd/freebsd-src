@@ -105,13 +105,6 @@ extern linker_file_t	linker_kernel_file;
 int linker_add_class(linker_class_t _cls);
 
 /*
- * Load a kernel module.
- */
-int linker_load_module(const char *_kldname, const char *_modname,
-    struct linker_file *_parent, struct mod_depend *_verinfo,
-    struct linker_file **_lfpp);
-
-/*
  * Obtain a reference to a module, loading it if required.
  */
 int linker_reference_module(const char* _modname, struct mod_depend *_verinfo,
@@ -136,11 +129,6 @@ linker_file_t linker_make_file(const char* _filename, linker_class_t _cls);
  * Unload a file, freeing up memory.
  */
 int linker_file_unload(linker_file_t _file, int flags);
-
-/*
- * Add a dependency to a file.
- */
-int linker_file_add_dependency(linker_file_t _file, linker_file_t _dep);
 
 /*
  * Lookup a symbol in a file.  If deps is TRUE, look in dependencies

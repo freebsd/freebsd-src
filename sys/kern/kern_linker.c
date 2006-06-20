@@ -109,8 +109,12 @@ struct modlist {
 typedef struct modlist *modlist_t;
 static modlisthead_t found_modules;
 
-static modlist_t	modlist_lookup2(const char *name,
-			    struct mod_depend *verinfo);
+static int	linker_file_add_dependency(linker_file_t file,
+		    linker_file_t dep);
+static int	linker_load_module(const char *kldname,
+		    const char *modname, struct linker_file *parent,
+		    struct mod_depend *verinfo, struct linker_file **lfpp);
+static modlist_t modlist_lookup2(const char *name, struct mod_depend *verinfo);
 
 static char *
 linker_strdup(const char *str)
@@ -561,7 +565,7 @@ linker_file_unload(linker_file_t file, int flags)
 	return (0);
 }
 
-int
+static int
 linker_file_add_dependency(linker_file_t file, linker_file_t dep)
 {
 	linker_file_t *newdeps;
@@ -1719,7 +1723,7 @@ linker_hwpmc_list_objects(void)
  * Find a file which contains given module and load it, if "parent" is not
  * NULL, register a reference to it.
  */
-int
+static int
 linker_load_module(const char *kldname, const char *modname,
     struct linker_file *parent, struct mod_depend *verinfo,
     struct linker_file **lfpp)
