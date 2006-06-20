@@ -1363,6 +1363,7 @@ bridge_ioctl_addspan(struct bridge_softc *sc, void *arg)
 
 	switch (ifs->if_type) {
 		case IFT_ETHER:
+		case IFT_GIF:
 		case IFT_L2VLAN:
 			break;
 		default:
