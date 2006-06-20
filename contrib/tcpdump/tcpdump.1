@@ -2257,6 +2257,13 @@ patches@tcpdump.org
 NIT doesn't let you watch your own outbound traffic, BPF will.
 We recommend that you use the latter.
 .LP
+When running
+.BR tcpdump
+with the
+.B \-v
+option on a network interface supporting checksum off-loading,
+IP packets sourced from this machine will have many false 'bad cksum 0' errors.
+.LP
 On Linux systems with 2.0[.x] kernels:
 .IP
 packets on the loopback device will be seen twice;
