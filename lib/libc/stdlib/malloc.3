@@ -36,7 +36,7 @@
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 19, 2004
+.Dd June 21, 2006
 .Dt MALLOC 3
 .Os
 .Sh NAME
@@ -192,9 +192,6 @@ as well as all memory returned by
 or
 .Fn reallocf
 will be initialized to 0xd0.
-This options also sets the
-.Dq R
-option.
 This is intended for debugging and will impact performance negatively.
 .It H
 Pass a hint to the kernel about pages unused by the allocation functions.
@@ -241,9 +238,7 @@ _malloc_options = "X";
 .It Z
 This option implicitly sets the
 .Dq J
-and
-.Dq R
-options, and then zeros out the bytes that were requested.
+option, and then zeros out the bytes that were requested.
 This is intended for debugging and will impact performance negatively.
 .It <
 Reduce the size of the cache by a factor of two.
