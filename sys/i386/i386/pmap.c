@@ -1742,7 +1742,7 @@ get_pv_entry(pmap_t pmap, int try)
 	static const struct timeval printinterval = { 60, 0 };
 	static struct timeval lastprint;
 	static vm_pindex_t colour;
-	int bit, field;
+	int bit, field, page_req;
 	pv_entry_t pv;
 	struct pv_chunk *pc;
 	vm_page_t m;
@@ -1777,7 +1777,8 @@ get_pv_entry(pmap_t pmap, int try)
 		}
 	}
 	pc = (struct pv_chunk *)pmap_ptelist_alloc(&pv_vafree);
-	m = vm_page_alloc(NULL, colour, VM_ALLOC_SYSTEM |
+	page_req = try ? VM_ALLOC_NORMAL : VM_ALLOC_SYSTEM; 
+	m = vm_page_alloc(NULL, colour, page_req |
 	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
 	if (m == NULL || pc == NULL) {
 		if (try) {
@@ -2411,6 +2412,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	vm_page_t m, mpte;
 	vm_pindex_t diff, psize;
 
+	VM_OBJECT_LOCK_ASSERT(m_start->object, MA_OWNED);
 	psize = atop(end - start);
 	mpte = NULL;
 	m = m_start;
@@ -2452,7 +2454,6 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0,
 	    ("pmap_enter_quick_locked: managed mapping within the clean submap"));
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
 	/*
@@ -2470,7 +2471,6 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		if (mpte && (mpte->pindex == ptepindex)) {
 			mpte->wire_count++;
 		} else {
-retry:
 			/*
 			 * Get the page directory entry
 			 */
@@ -2488,18 +2488,8 @@ retry:
 			} else {
 				mpte = _pmap_allocpte(pmap, ptepindex,
 				    M_NOWAIT);
-				if (mpte == NULL) {
-					PMAP_UNLOCK(pmap);
-					vm_page_busy(m);
-					vm_page_unlock_queues();
-					VM_OBJECT_UNLOCK(m->object);
-					VM_WAIT;
-					VM_OBJECT_LOCK(m->object);
-					vm_page_lock_queues();
-					vm_page_wakeup(m);
-					PMAP_LOCK(pmap);
-					goto retry;
-				}
+				if (mpte == NULL)
+					return (mpte);
 			}
 		}
 	} else {
@@ -2522,12 +2512,16 @@ retry:
 	}
 
 	/*
-	 * Enter on the PV list if part of our managed memory. Note that we
-	 * raise IPL while manipulating pv_table since pmap_enter can be
-	 * called at interrupt time.
+	 * Enter on the PV list if part of our managed memory.
 	 */
-	if ((m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0)
-		pmap_insert_entry(pmap, va, m);
+	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0 &&
+	    !pmap_try_insert_pv_entry(pmap, va, m)) {
+		if (mpte != NULL) {
+			pmap_unwire_pte_hold(pmap, mpte);
+			mpte = NULL;
+		}
+		return (mpte);
+	}
 
 	/*
 	 * Increment counters
