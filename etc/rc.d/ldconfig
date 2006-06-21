@@ -17,6 +17,8 @@ stop_cmd=":"
 
 ldconfig_start()
 {
+	local _files
+
 	_ins=
 	ldconfig=${ldconfig_command}
 	checkyesno ldconfig_insecure && _ins="-i"
@@ -24,7 +26,10 @@ ldconfig_start()
 		_LDC="/lib /usr/lib"
 		for i in ${ldconfig_local_dirs}; do
 			if [ -d "${i}" ]; then
-				ldconfig_paths="${ldconfig_paths} `find ${i} -type f`"
+				_files=`find ${i} -type f`
+				if [ -n "${_files}" ]; then
+					ldconfig_paths="${ldconfig_paths} `cat ${_files} | sort -u`"
+				fi
 			fi
 		done
 		for i in ${ldconfig_paths} /etc/ld-elf.so.conf; do
@@ -39,7 +44,10 @@ ldconfig_start()
 		amd64)
 			for i in ${ldconfig_local32_dirs}; do
 				if [ -d "${i}" ]; then
-					ldconfig32_paths="${ldconfig32_paths} `find ${i} -type f`"
+					_files=`find ${i} -type f`
+					if [ -n "${_files}" ]; then
+						ldconfig32_paths="${ldconfig32_paths} `cat ${_files} | sort -u`"
+					fi
 				fi
 			done
 			echo '32-bit compatibility ldconfig path:' ${ldconfig32_paths}
