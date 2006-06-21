@@ -76,6 +76,7 @@ struct sx_args {
 	SYSUNINIT(name##_sx_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    sx_destroy, (sxa))
 
+#define	sx_xlocked(sx)		((sx)->sx_cnt < 0 && (sx)->sx_xholder == curthread)
 #define	sx_slock(sx)		_sx_slock((sx), LOCK_FILE, LOCK_LINE)
 #define	sx_xlock(sx)		_sx_xlock((sx), LOCK_FILE, LOCK_LINE)
 #define	sx_try_slock(sx)	_sx_try_slock((sx), LOCK_FILE, LOCK_LINE)
@@ -85,7 +86,7 @@ struct sx_args {
 #define	sx_try_upgrade(sx)	_sx_try_upgrade((sx), LOCK_FILE, LOCK_LINE)
 #define	sx_downgrade(sx)	_sx_downgrade((sx), LOCK_FILE, LOCK_LINE)
 #define	sx_unlock(sx) do {						\
-	if ((sx)->sx_cnt < 0)						\
+	if (sx_xlocked(sx))						\
 		sx_xunlock(sx);						\
 	else								\
 		sx_sunlock(sx);						\
