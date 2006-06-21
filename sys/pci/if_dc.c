@@ -150,77 +150,75 @@ MODULE_DEPEND(dc, miibus, 1, 1, 1);
  * Various supported device vendors/types and their names.
  */
 static struct dc_type dc_devs[] = {
-	{ DC_VENDORID_DEC, DC_DEVICEID_21143,
+	{ DC_DEVID(DC_VENDORID_DEC, DC_DEVICEID_21143), 0,
 		"Intel 21143 10/100BaseTX" },
-	{ DC_VENDORID_DAVICOM, DC_DEVICEID_DM9009,
+	{ DC_DEVID(DC_VENDORID_DAVICOM, DC_DEVICEID_DM9009), 0,
 		"Davicom DM9009 10/100BaseTX" },
-	{ DC_VENDORID_DAVICOM, DC_DEVICEID_DM9100,
+	{ DC_DEVID(DC_VENDORID_DAVICOM, DC_DEVICEID_DM9100), 0,
 		"Davicom DM9100 10/100BaseTX" },
-	{ DC_VENDORID_DAVICOM, DC_DEVICEID_DM9102,
-		"Davicom DM9102 10/100BaseTX" },
-	{ DC_VENDORID_DAVICOM, DC_DEVICEID_DM9102,
+	{ DC_DEVID(DC_VENDORID_DAVICOM, DC_DEVICEID_DM9102), DC_REVISION_DM9102A,
 		"Davicom DM9102A 10/100BaseTX" },
-	{ DC_VENDORID_ADMTEK, DC_DEVICEID_AL981,
+	{ DC_DEVID(DC_VENDORID_DAVICOM, DC_DEVICEID_DM9102), 0,
+		"Davicom DM9102 10/100BaseTX" },
+	{ DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_AL981), 0,
 		"ADMtek AL981 10/100BaseTX" },
-	{ DC_VENDORID_ADMTEK, DC_DEVICEID_AN985,
+	{ DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_AN985), 0,
 		"ADMtek AN985 10/100BaseTX" },
-	{ DC_VENDORID_ADMTEK, DC_DEVICEID_ADM9511,
+	{ DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_ADM9511), 0,
 		"ADMtek ADM9511 10/100BaseTX" },
-	{ DC_VENDORID_ADMTEK, DC_DEVICEID_ADM9513,
+	{ DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_ADM9513), 0,
 		"ADMtek ADM9513 10/100BaseTX" },
-	{ DC_VENDORID_ADMTEK, DC_DEVICEID_FA511,
+	{ DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_FA511), 0,
 		"Netgear FA511 10/100BaseTX" },
-	{ DC_VENDORID_ASIX, DC_DEVICEID_AX88140A,
-		"ASIX AX88140A 10/100BaseTX" },
-	{ DC_VENDORID_ASIX, DC_DEVICEID_AX88140A,
+	{ DC_DEVID(DC_VENDORID_ASIX, DC_DEVICEID_AX88140A), DC_REVISION_88141,
 		"ASIX AX88141 10/100BaseTX" },
-	{ DC_VENDORID_MX, DC_DEVICEID_98713,
-		"Macronix 98713 10/100BaseTX" },
-	{ DC_VENDORID_MX, DC_DEVICEID_98713,
+	{ DC_DEVID(DC_VENDORID_ASIX, DC_DEVICEID_AX88140A), 0,
+		"ASIX AX88140A 10/100BaseTX" },
+	{ DC_DEVID(DC_VENDORID_MX, DC_DEVICEID_98713), DC_REVISION_98713A,
 		"Macronix 98713A 10/100BaseTX" },
-	{ DC_VENDORID_CP, DC_DEVICEID_98713_CP,
+	{ DC_DEVID(DC_VENDORID_MX, DC_DEVICEID_98713), 0,
+		"Macronix 98713 10/100BaseTX" },
+	{ DC_DEVID(DC_VENDORID_CP, DC_DEVICEID_98713_CP), DC_REVISION_98713A,
 		"Compex RL100-TX 10/100BaseTX" },
-	{ DC_VENDORID_CP, DC_DEVICEID_98713_CP,
+	{ DC_DEVID(DC_VENDORID_CP, DC_DEVICEID_98713_CP), 0,
 		"Compex RL100-TX 10/100BaseTX" },
-	{ DC_VENDORID_MX, DC_DEVICEID_987x5,
-		"Macronix 98715/98715A 10/100BaseTX" },
-	{ DC_VENDORID_MX, DC_DEVICEID_987x5,
-		"Macronix 98715AEC-C 10/100BaseTX" },
-	{ DC_VENDORID_MX, DC_DEVICEID_987x5,
+	{ DC_DEVID(DC_VENDORID_MX, DC_DEVICEID_987x5), DC_REVISION_98725,
 		"Macronix 98725 10/100BaseTX" },
-	{ DC_VENDORID_MX, DC_DEVICEID_98727,
+	{ DC_DEVID(DC_VENDORID_MX, DC_DEVICEID_987x5), DC_REVISION_98715AEC_C,
+		"Macronix 98715AEC-C 10/100BaseTX" },
+	{ DC_DEVID(DC_VENDORID_MX, DC_DEVICEID_987x5), 0,
+		"Macronix 98715/98715A 10/100BaseTX" },
+	{ DC_DEVID(DC_VENDORID_MX, DC_DEVICEID_98727), 0,
 		"Macronix 98727/98732 10/100BaseTX" },
-	{ DC_VENDORID_LO, DC_DEVICEID_82C115,
+	{ DC_DEVID(DC_VENDORID_LO, DC_DEVICEID_82C115), 0,
 		"LC82C115 PNIC II 10/100BaseTX" },
-	{ DC_VENDORID_LO, DC_DEVICEID_82C168,
-		"82c168 PNIC 10/100BaseTX" },
-	{ DC_VENDORID_LO, DC_DEVICEID_82C168,
+	{ DC_DEVID(DC_VENDORID_LO, DC_DEVICEID_82C168), DC_REVISION_82C169,
 		"82c169 PNIC 10/100BaseTX" },
-	{ DC_VENDORID_ACCTON, DC_DEVICEID_EN1217,
+	{ DC_DEVID(DC_VENDORID_LO, DC_DEVICEID_82C168), 0,
+		"82c168 PNIC 10/100BaseTX" },
+	{ DC_DEVID(DC_VENDORID_ACCTON, DC_DEVICEID_EN1217), 0,
 		"Accton EN1217 10/100BaseTX" },
-	{ DC_VENDORID_ACCTON, DC_DEVICEID_EN2242,
+	{ DC_DEVID(DC_VENDORID_ACCTON, DC_DEVICEID_EN2242), 0,
 		"Accton EN2242 MiniPCI 10/100BaseTX" },
-	{ DC_VENDORID_XIRCOM, DC_DEVICEID_X3201,
+	{ DC_DEVID(DC_VENDORID_XIRCOM, DC_DEVICEID_X3201), 0,
 	  	"Xircom X3201 10/100BaseTX" },
-	{ DC_VENDORID_DLINK, DC_DEVICEID_DRP32TXD,
+	{ DC_DEVID(DC_VENDORID_DLINK, DC_DEVICEID_DRP32TXD), 0,
 		"Neteasy DRP-32TXD Cardbus 10/100" },
-	{ DC_VENDORID_ABOCOM, DC_DEVICEID_FE2500,
+	{ DC_DEVID(DC_VENDORID_ABOCOM, DC_DEVICEID_FE2500), 0,
 		"Abocom FE2500 10/100BaseTX" },
-	{ DC_VENDORID_ABOCOM, DC_DEVICEID_FE2500MX,
+	{ DC_DEVID(DC_VENDORID_ABOCOM, DC_DEVICEID_FE2500MX), 0,
 		"Abocom FE2500MX 10/100BaseTX" },
-	{ DC_VENDORID_CONEXANT, DC_DEVICEID_RS7112,
+	{ DC_DEVID(DC_VENDORID_CONEXANT, DC_DEVICEID_RS7112), 0,
 		"Conexant LANfinity MiniPCI 10/100BaseTX" },
-	{ DC_VENDORID_HAWKING, DC_DEVICEID_HAWKING_PN672TX,
+	{ DC_DEVID(DC_VENDORID_HAWKING, DC_DEVICEID_HAWKING_PN672TX), 0,
 		"Hawking CB102 CardBus 10/100" },
-	{ DC_VENDORID_PLANEX, DC_DEVICEID_FNW3602T,
+	{ DC_DEVID(DC_VENDORID_PLANEX, DC_DEVICEID_FNW3602T), 0,
 		"PlaneX FNW-3602-T CardBus 10/100" },
-	{ DC_VENDORID_3COM, DC_DEVICEID_3CSOHOB,
+	{ DC_DEVID(DC_VENDORID_3COM, DC_DEVICEID_3CSOHOB), 0,
 		"3Com OfficeConnect 10/100B" },
-	{ DC_VENDORID_MICROSOFT, DC_DEVICEID_MSMN120,
+	{ DC_DEVID(DC_VENDORID_MICROSOFT, DC_DEVICEID_MSMN120), 0,
 		"Microsoft MN-120 CardBus 10/100" },
-	{ DC_VENDORID_MICROSOFT, DC_DEVICEID_MSMN130,
-		"Microsoft MN-130 10/100" },
-	{ DC_VENDORID_MICROSOFT, DC_DEVICEID_MSMN130_FAKE,
+	{ DC_DEVID(DC_VENDORID_MICROSOFT, DC_DEVICEID_MSMN130), 0,
 		"Microsoft MN-130 10/100" },
 	{ 0, 0, NULL }
 };
@@ -1003,7 +1001,7 @@ dc_miibus_mediainit(device_t dev)
 	struct ifmedia *ifm;
 	int rev;
 
-	rev = pci_read_config(dev, DC_PCI_CFRV, 4) & 0xFF;
+	rev = pci_get_revid(dev);
 
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->dc_miibus);
@@ -1554,50 +1552,16 @@ static struct dc_type *
 dc_devtype(device_t dev)
 {
 	struct dc_type *t;
-	u_int32_t rev;
+	u_int32_t devid;
+	u_int8_t rev;
 
 	t = dc_devs;
+	devid = pci_get_devid(dev);
+	rev = pci_get_revid(dev);
 
 	while (t->dc_name != NULL) {
-		if ((pci_get_vendor(dev) == t->dc_vid) &&
-		    (pci_get_device(dev) == t->dc_did)) {
-			/* Check the PCI revision */
-			rev = pci_read_config(dev, DC_PCI_CFRV, 4) & 0xFF;
-			if (t->dc_did == DC_DEVICEID_98713 &&
-			    rev >= DC_REVISION_98713A)
-				t++;
-			if (t->dc_did == DC_DEVICEID_98713_CP &&
-			    rev >= DC_REVISION_98713A)
-				t++;
-			if (t->dc_did == DC_DEVICEID_987x5 &&
-			    rev >= DC_REVISION_98715AEC_C)
-				t++;
-			if (t->dc_did == DC_DEVICEID_987x5 &&
-			    rev >= DC_REVISION_98725)
-				t++;
-			if (t->dc_did == DC_DEVICEID_AX88140A &&
-			    rev >= DC_REVISION_88141)
-				t++;
-			if (t->dc_did == DC_DEVICEID_82C168 &&
-			    rev >= DC_REVISION_82C169)
-				t++;
-			if (t->dc_did == DC_DEVICEID_DM9102 &&
-			    rev >= DC_REVISION_DM9102A)
-				t++;
-			/*
-			 * The Microsoft MN-130 has a device ID of 0x0002,
-			 * which happens to be the same as the PNIC 82c168.
-			 * To keep dc_attach() from getting confused, we
-			 * pretend its ID is something different.
-			 * XXX: ideally, dc_attach() should be checking
-			 * vendorid+deviceid together to avoid such
-			 * collisions.
-			 */
-			if (t->dc_vid == DC_VENDORID_MICROSOFT &&
-			    t->dc_did == DC_DEVICEID_MSMN130)
-				t++;
+		if (devid == t->dc_devid && rev >= t->dc_minrev)
 			return (t);
-		}
 		t++;
 	}
 
@@ -1875,53 +1839,55 @@ dc_attach(device_t dev)
 
 	/* Need this info to decide on a chip type. */
 	sc->dc_info = dc_devtype(dev);
-	revision = pci_read_config(dev, DC_PCI_CFRV, 4) & 0x000000FF;
+	revision = pci_get_revid(dev);
 
 	/* Get the eeprom width, but PNIC and XIRCOM have diff eeprom */
-	if (sc->dc_info->dc_did != DC_DEVICEID_82C168 &&
-	   sc->dc_info->dc_did != DC_DEVICEID_X3201)
+	if (sc->dc_info->dc_devid !=
+	    DC_DEVID(DC_VENDORID_LO, DC_DEVICEID_82C168) &&
+	    sc->dc_info->dc_devid !=
+	    DC_DEVID(DC_VENDORID_XIRCOM, DC_DEVICEID_X3201))
 		dc_eeprom_width(sc);
 
-	switch (sc->dc_info->dc_did) {
-	case DC_DEVICEID_21143:
+	switch (sc->dc_info->dc_devid) {
+	case DC_DEVID(DC_VENDORID_DEC, DC_DEVICEID_21143):
 		sc->dc_type = DC_TYPE_21143;
 		sc->dc_flags |= DC_TX_POLL | DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_REDUCED_MII_POLL;
 		/* Save EEPROM contents so we can parse them later. */
 		dc_read_srom(sc, sc->dc_romwidth);
 		break;
-	case DC_DEVICEID_DM9009:
-	case DC_DEVICEID_DM9100:
-	case DC_DEVICEID_DM9102:
+	case DC_DEVID(DC_VENDORID_DAVICOM, DC_DEVICEID_DM9009):
+	case DC_DEVID(DC_VENDORID_DAVICOM, DC_DEVICEID_DM9100):
+	case DC_DEVID(DC_VENDORID_DAVICOM, DC_DEVICEID_DM9102):
 		sc->dc_type = DC_TYPE_DM9102;
 		sc->dc_flags |= DC_TX_COALESCE | DC_TX_INTR_ALWAYS;
 		sc->dc_flags |= DC_REDUCED_MII_POLL | DC_TX_STORENFWD;
 		sc->dc_flags |= DC_TX_ALIGN;
 		sc->dc_pmode = DC_PMODE_MII;
+
 		/* Increase the latency timer value. */
-		command = pci_read_config(dev, DC_PCI_CFLT, 4);
-		command &= 0xFFFF00FF;
-		command |= 0x00008000;
-		pci_write_config(dev, DC_PCI_CFLT, command, 4);
+		pci_write_config(dev, PCIR_LATTIMER, 0x80, 1);
 		break;
-	case DC_DEVICEID_AL981:
+	case DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_AL981):
 		sc->dc_type = DC_TYPE_AL981;
 		sc->dc_flags |= DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_TX_ADMTEK_WAR;
 		sc->dc_pmode = DC_PMODE_MII;
 		dc_read_srom(sc, sc->dc_romwidth);
 		break;
-	case DC_DEVICEID_AN985:
-	case DC_DEVICEID_ADM9511:
-	case DC_DEVICEID_ADM9513:
-	case DC_DEVICEID_DRP32TXD:
-	case DC_DEVICEID_FA511:
-	case DC_DEVICEID_FE2500:
-	case DC_DEVICEID_EN2242:
-	case DC_DEVICEID_HAWKING_PN672TX:
-	case DC_DEVICEID_3CSOHOB:
-	case DC_DEVICEID_MSMN120:
-	case DC_DEVICEID_MSMN130_FAKE: /* XXX avoid collision with PNIC*/
+	case DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_AN985):
+	case DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_ADM9511):
+	case DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_ADM9513):
+	case DC_DEVID(DC_VENDORID_DLINK, DC_DEVICEID_DRP32TXD):
+	case DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_FA511):
+	case DC_DEVID(DC_VENDORID_ABOCOM, DC_DEVICEID_FE2500):
+	case DC_DEVID(DC_VENDORID_ABOCOM, DC_DEVICEID_FE2500MX):
+	case DC_DEVID(DC_VENDORID_ACCTON, DC_DEVICEID_EN2242):
+	case DC_DEVID(DC_VENDORID_HAWKING, DC_DEVICEID_HAWKING_PN672TX):
+	case DC_DEVID(DC_VENDORID_PLANEX, DC_DEVICEID_FNW3602T):
+	case DC_DEVID(DC_VENDORID_3COM, DC_DEVICEID_3CSOHOB):
+	case DC_DEVID(DC_VENDORID_MICROSOFT, DC_DEVICEID_MSMN120):
+	case DC_DEVID(DC_VENDORID_MICROSOFT, DC_DEVICEID_MSMN130):
 		sc->dc_type = DC_TYPE_AN985;
 		sc->dc_flags |= DC_64BIT_HASH;
 		sc->dc_flags |= DC_TX_USE_TX_INTR;
@@ -1929,8 +1895,8 @@ dc_attach(device_t dev)
 		sc->dc_pmode = DC_PMODE_MII;
 		/* Don't read SROM for - auto-loaded on reset */
 		break;
-	case DC_DEVICEID_98713:
-	case DC_DEVICEID_98713_CP:
+	case DC_DEVID(DC_VENDORID_MX, DC_DEVICEID_98713):
+	case DC_DEVID(DC_VENDORID_CP, DC_DEVICEID_98713_CP):
 		if (revision < DC_REVISION_98713A) {
 			sc->dc_type = DC_TYPE_98713;
 		}
@@ -1941,8 +1907,8 @@ dc_attach(device_t dev)
 		sc->dc_flags |= DC_REDUCED_MII_POLL;
 		sc->dc_flags |= DC_TX_POLL | DC_TX_USE_TX_INTR;
 		break;
-	case DC_DEVICEID_987x5:
-	case DC_DEVICEID_EN1217:
+	case DC_DEVID(DC_VENDORID_MX, DC_DEVICEID_987x5):
+	case DC_DEVID(DC_VENDORID_ACCTON, DC_DEVICEID_EN1217):
 		/*
 		 * Macronix MX98715AEC-C/D/E parts have only a
 		 * 128-bit hash table. We need to deal with these
@@ -1957,17 +1923,17 @@ dc_attach(device_t dev)
 		sc->dc_flags |= DC_TX_POLL | DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_REDUCED_MII_POLL | DC_21143_NWAY;
 		break;
-	case DC_DEVICEID_98727:
+	case DC_DEVID(DC_VENDORID_MX, DC_DEVICEID_98727):
 		sc->dc_type = DC_TYPE_987x5;
 		sc->dc_flags |= DC_TX_POLL | DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_REDUCED_MII_POLL | DC_21143_NWAY;
 		break;
-	case DC_DEVICEID_82C115:
+	case DC_DEVID(DC_VENDORID_LO, DC_DEVICEID_82C115):
 		sc->dc_type = DC_TYPE_PNICII;
 		sc->dc_flags |= DC_TX_POLL | DC_TX_USE_TX_INTR | DC_128BIT_HASH;
 		sc->dc_flags |= DC_REDUCED_MII_POLL | DC_21143_NWAY;
 		break;
-	case DC_DEVICEID_82C168:
+	case DC_DEVID(DC_VENDORID_LO, DC_DEVICEID_82C168):
 		sc->dc_type = DC_TYPE_PNIC;
 		sc->dc_flags |= DC_TX_STORENFWD | DC_TX_INTR_ALWAYS;
 		sc->dc_flags |= DC_PNIC_RX_BUG_WAR;
@@ -1975,13 +1941,13 @@ dc_attach(device_t dev)
 		if (revision < DC_REVISION_82C169)
 			sc->dc_pmode = DC_PMODE_SYM;
 		break;
-	case DC_DEVICEID_AX88140A:
+	case DC_DEVID(DC_VENDORID_ASIX, DC_DEVICEID_AX88140A):
 		sc->dc_type = DC_TYPE_ASIX;
 		sc->dc_flags |= DC_TX_USE_TX_INTR | DC_TX_INTR_FIRSTFRAG;
 		sc->dc_flags |= DC_REDUCED_MII_POLL;
 		sc->dc_pmode = DC_PMODE_MII;
 		break;
-	case DC_DEVICEID_X3201:
+	case DC_DEVID(DC_VENDORID_XIRCOM, DC_DEVICEID_X3201):
 		sc->dc_type = DC_TYPE_XIRCOM;
 		sc->dc_flags |= DC_TX_INTR_ALWAYS | DC_TX_COALESCE |
 				DC_TX_ALIGN;
@@ -1992,7 +1958,7 @@ dc_attach(device_t dev)
 		 */
 		sc->dc_pmode = DC_PMODE_MII;
 		break;
-	case DC_DEVICEID_RS7112:
+	case DC_DEVID(DC_VENDORID_CONEXANT, DC_DEVICEID_RS7112):
 		sc->dc_type = DC_TYPE_CONEXANT;
 		sc->dc_flags |= DC_TX_INTR_ALWAYS;
 		sc->dc_flags |= DC_REDUCED_MII_POLL;
@@ -2000,7 +1966,8 @@ dc_attach(device_t dev)
 		dc_read_srom(sc, sc->dc_romwidth);
 		break;
 	default:
-		device_printf(dev, "unknown device: %x\n", sc->dc_info->dc_did);
+		device_printf(dev, "unknown device: %x\n",
+		    sc->dc_info->dc_devid);
 		break;
 	}
 
@@ -2008,8 +1975,7 @@ dc_attach(device_t dev)
 	if (DC_IS_DAVICOM(sc))
 		sc->dc_cachesize = 0;
 	else
-		sc->dc_cachesize = pci_read_config(dev,
-		    DC_PCI_CFLT, 4) & 0xFF;
+		sc->dc_cachesize = pci_get_cachelnsz(dev);
 
 	/* Reset the adapter. */
 	dc_reset(sc);
@@ -2246,7 +2212,8 @@ dc_attach(device_t dev)
 		 * LEDs, and twiddling these bits has adverse effects
 		 * on them. (I.e. you suddenly can't get a link.)
 		 */
-		if (pci_read_config(dev, DC_PCI_CSID, 4) != 0x80281033)
+		if (!(pci_get_subvendor(dev) == 0x1033 &&
+		    pci_get_subdevice(dev) == 0x8028))
 			sc->dc_flags |= DC_TULIP_LEDS;
 		error = 0;
 	}
