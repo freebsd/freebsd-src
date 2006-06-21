@@ -30,24 +30,26 @@
 .Nm adv
 .Nd Advansys ISA/VL/EISA/PCI 8bit SCSI Host adapter driver
 .Sh SYNOPSIS
-For one or more ISA or VL cards:
-.Cd device isa
-.Cd device adv
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device adv"
+.Pp
+For one or more EISA cards:
+.Cd "device eisa"
+.Pp
+For one or more VL/ISA cards:
+.Cd "device isa"
 .Pp
 In
 .Pa /boot/device.hints :
 .Cd hint.adv.0.at="isa"
 .Pp
-For one or more EISA cards:
-.Cd device eisa
-.Cd device adv
-.Pp
 For one or more PCI cards:
-.Cd device pci
-.Cd device adv
-.Pp
-For one or more SCSI busses:
-.Cd device scbus
+.Cd "device pci"
+.Ed
 .Sh DESCRIPTION
 This driver provides access to the 8bit
 .Tn SCSI
