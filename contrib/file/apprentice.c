@@ -380,8 +380,8 @@ apprentice_file(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp,
 		return -1;
 	}
 
-        maxmagic = MAXMAGIS;
-	if ((marray = malloc(maxmagic * sizeof(*marray))) == NULL) {
+	maxmagic = MAXMAGIS;
+	if ((marray = calloc(maxmagic, sizeof(*marray))) == NULL) {
 		(void)fclose(f);
 		file_oomem(ms);
 		return -1;
@@ -509,7 +509,7 @@ parse(struct magic_set *ms, struct magic_entry **mentryp, uint32_t *nmentryp,
 	char *t;
 	private const char *fops = FILE_OPS;
 	uint32_t val;
-	uint32_t cont_level, cont_count;
+	uint32_t cont_level;
 
 	cont_level = 0;
 
