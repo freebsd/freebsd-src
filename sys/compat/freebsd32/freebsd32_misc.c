@@ -831,26 +831,6 @@ freebsd32_copyiniov(struct iovec32 *iovp32, u_int iovcnt, struct iovec **iovp,
 	return (0);
 }
 
-static int
-freebsd32_copyoutiov(struct iovec *iov, u_int iovcnt, struct iovec32 *iovp,
-    int error)
-{
-	struct iovec32 iov32;
-	int i;
-
-	if (iovcnt > UIO_MAXIOV)
-		return (error);
-	for (i = 0; i < iovcnt; i++) {
-		iov32.iov_base = PTROUT(iov[i].iov_base);
-		iov32.iov_len = iov[i].iov_len;
-		error = copyout(&iov32, &iovp[i], sizeof(iov32));
-		if (error)
-			return (error);
-	}
-	return (0);
-}
-
-
 struct msghdr32 {
 	u_int32_t	 msg_name;
 	socklen_t	 msg_namelen;
@@ -1035,10 +1015,6 @@ freebsd32_recvmsg(td, uap)
 		
 		if (error == 0)
 			error = freebsd32_copyoutmsghdr(&msg, uap->msg);
-
-		if (error == 0)
-			error = freebsd32_copyoutiov(iov, m32.msg_iovlen,
-			    (struct iovec32 *)(uintptr_t)m32.msg_iov, EMSGSIZE);
 	}
 	free(iov, M_IOV);
 
