@@ -959,7 +959,6 @@ kldfind(struct thread *td, struct kldfind_args *uap)
 		return (error);
 #endif
 
-	mtx_lock(&Giant);
 	td->td_retval[0] = -1;
 
 	pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
@@ -967,14 +966,15 @@ kldfind(struct thread *td, struct kldfind_args *uap)
 		goto out;
 
 	filename = linker_basename(pathname);
+	mtx_lock(&Giant);
 	lf = linker_find_file_by_name(filename);
 	if (lf)
 		td->td_retval[0] = lf->id;
 	else
 		error = ENOENT;
+	mtx_unlock(&Giant);
 out:
 	free(pathname, M_TEMP);
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -1116,25 +1116,20 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 		return (error);
 #endif
 
-	mtx_lock(&Giant);
-
 	if ((error = copyin(uap->data, &lookup, sizeof(lookup))) != 0)
-		goto out;
+		return (error);
 	if (lookup.version != sizeof(lookup) ||
-	    uap->cmd != KLDSYM_LOOKUP) {
-		error = EINVAL;
-		goto out;
-	}
+	    uap->cmd != KLDSYM_LOOKUP)
+		return (EINVAL);
 	symstr = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	if ((error = copyinstr(lookup.symname, symstr, MAXPATHLEN, NULL)) != 0)
 		goto out;
+	mtx_lock(&Giant);
 	if (uap->fileid != 0) {
 		lf = linker_find_file_by_id(uap->fileid);
-		if (lf == NULL) {
+		if (lf == NULL)
 			error = ENOENT;
-			goto out;
-		}
-		if (LINKER_LOOKUP_SYMBOL(lf, symstr, &sym) == 0 &&
+		else if (LINKER_LOOKUP_SYMBOL(lf, symstr, &sym) == 0 &&
 		    LINKER_SYMBOL_VALUES(lf, sym, &symval) == 0) {
 			lookup.symvalue = (uintptr_t) symval.value;
 			lookup.symsize = symval.size;
@@ -1157,10 +1152,9 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 		if (lf == NULL)
 			error = ENOENT;
 	}
-out:
-	if (symstr)
-		free(symstr, M_TEMP);
 	mtx_unlock(&Giant);
+out:
+	free(symstr, M_TEMP);
 	return (error);
 }
 
