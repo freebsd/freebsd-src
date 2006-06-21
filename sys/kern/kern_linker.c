@@ -187,7 +187,7 @@ linker_file_sysinit(linker_file_t lf)
 	/*
 	 * Perform a bubble sort of the system initialization objects by
 	 * their subsystem (primary key) and order (secondary key).
-	 * 
+	 *
 	 * Since some things care about execution order, this is the operation
 	 * which ensures continued function.
 	 */
@@ -231,7 +231,7 @@ linker_file_sysuninit(linker_file_t lf)
 	/*
 	 * Perform a reverse bubble sort of the system initialization objects
 	 * by their subsystem (primary key) and order (secondary key).
-	 * 
+	 *
 	 * Since some things care about execution order, this is the operation
 	 * which ensures continued function.
 	 */
@@ -589,8 +589,8 @@ linker_file_unload(linker_file_t file, int flags)
 		}
 	}
 
-	/* 
-	 * Don't try to run SYSUNINITs if we are unloaded due to a 
+	/*
+	 * Don't try to run SYSUNINITs if we are unloaded due to a
 	 * link error.
 	 */
 	if (file->flags & LINKER_FILE_LINKED) {
@@ -733,7 +733,7 @@ linker_file_lookup_symbol(linker_file_t file, const char *name, int deps)
 /*
  * DDB Helpers.  DDB has to look across multiple files with their own symbol
  * tables and string tables.
- * 
+ *
  * Note that we do not obey list locking protocols here.  We really don't need
  * DDB to hang because somebody's got the lock held.  We'll take the chance
  * that the files list is inconsistant instead.
@@ -834,7 +834,6 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 	error = linker_load_module(kldname, modname, NULL, NULL, &lf);
 	if (error)
 		goto unlock;
-
 #ifdef HWPMC_HOOKS
 	pkm.pm_file = lf->filename;
 	pkm.pm_address = (uintptr_t) lf->address;
@@ -895,7 +894,7 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 			 */
 			printf("kldunload: attempt to unload file that was"
 			    " loaded by the kernel\n");
-			error = EBUSY;			
+			error = EBUSY;
 		} else {
 #ifdef HWPMC_HOOKS
 			/* Save data needed by hwpmc(4) before unloading. */
@@ -1330,7 +1329,7 @@ restart:
 				}
 				if (nmdp < stop)   /* it's a self reference */
 					continue;
-	
+
 				/*
 				 * ok, the module isn't here yet, we
 				 * are not finished
@@ -1445,15 +1444,15 @@ SYSINIT(preload, SI_SUB_KLD, SI_ORDER_MIDDLE, linker_preload, 0)
 
 /*
  * Search for a not-loaded module by name.
- * 
+ *
  * Modules may be found in the following locations:
- * 
+ *
  * - preloaded (result is just the module name) - on disk (result is full path
  * to module)
- * 
+ *
  * If the module name is qualified in any way (contains path, etc.) the we
  * simply return a copy of it.
- * 
+ *
  * The search path can be manipulated via sysctl.  Note that we use the ';'
  * character as a separator to be consistent with the bootloader.
  */
