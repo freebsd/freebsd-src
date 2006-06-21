@@ -81,7 +81,8 @@ struct ifvlantrunk {
 	struct	ifnet   *parent;	/* parent interface of this trunk */
 	struct	rwlock	rw;
 #ifdef VLAN_ARRAY
-	struct	ifvlan	*vlans[EVL_VLID_MASK+1]; /* static table */
+#define	VLAN_ARRAY_SIZE	(EVL_VLID_MASK + 1)
+	struct	ifvlan	*vlans[VLAN_ARRAY_SIZE]; /* static table */
 #else
 	struct	ifvlanhead *hash;	/* dynamic hash-list table */
 	uint16_t	hmask;
@@ -135,6 +136,8 @@ SYSCTL_NODE(_net_link_vlan, PF_LINK, link, CTLFLAG_RW, 0, "for consistency");
 
 static MALLOC_DEFINE(M_VLAN, VLANNAME, "802.1Q Virtual LAN Interface");
 
+static eventhandler_tag ifdetach_tag;
+
 /*
  * We have a global mutex, that is used to serialize configuration
  * changes and isn't used in normal packet delivery.
@@ -182,6 +185,7 @@ static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
 static	int vlan_setflags(struct ifnet *ifp, int status);
 static	int vlan_setmulti(struct ifnet *ifp);
 static	int vlan_unconfig(struct ifnet *ifp);
+static	int vlan_unconfig_locked(struct ifnet *ifp);
 static	int vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t tag);
 static	void vlan_link_state(struct ifnet *ifp, int link);
 static	void vlan_capabilities(struct ifvlan *ifv);
@@ -192,6 +196,8 @@ static	struct ifnet *vlan_clone_match_ethertag(struct if_clone *,
 static	int vlan_clone_match(struct if_clone *, const char *);
 static	int vlan_clone_create(struct if_clone *, char *, size_t);
 static	int vlan_clone_destroy(struct if_clone *, struct ifnet *);
+
+static	void vlan_ifdetach(void *arg, struct ifnet *ifp);
 
 static	struct if_clone vlan_cloner = IFC_CLONE_INITIALIZER(VLANNAME, NULL,
     IF_MAXUNIT, NULL, vlan_clone_match, vlan_clone_create, vlan_clone_destroy);
@@ -452,6 +458,54 @@ vlan_setmulti(struct ifnet *ifp)
 }
 
 /*
+ * A handler for network interface departure events.
+ * Track departure of trunks here so that we don't access invalid
+ * pointers or whatever if a trunk is ripped from under us, e.g.,
+ * by ejecting its hot-plug card.
+ */
+static void
+vlan_ifdetach(void *arg __unused, struct ifnet *ifp)
+{
+	struct ifvlan *ifv;
+	int i;
+
+	/*
+	 * Check if it's a trunk interface first of all
+	 * to avoid needless locking.
+	 */
+	if (ifp->if_vlantrunk == NULL)
+		return;
+
+	VLAN_LOCK();
+	/*
+	 * OK, it's a trunk.  Loop over and detach all vlan's on it.
+	 * Check trunk pointer after each vlan_unconfig() as it will
+	 * free it and set to NULL after the last vlan was detached.
+	 */
+#ifdef VLAN_ARRAY
+	for (i = 0; i < VLAN_ARRAY_SIZE; i++)
+		if ((ifv = ifp->if_vlantrunk->vlans[i])) {
+			vlan_unconfig_locked(ifv->ifv_ifp);
+			if (ifp->if_vlantrunk == NULL)
+				break;
+		}
+#else /* VLAN_ARRAY */
+restart:
+	for (i = 0; i < (1 << ifp->if_vlantrunk->hwidth); i++)
+		if ((ifv = LIST_FIRST(&ifp->if_vlantrunk->hash[i]))) {
+			vlan_unconfig_locked(ifv->ifv_ifp);
+			if (ifp->if_vlantrunk)
+				goto restart;	/* trunk->hwidth can change */
+			else
+				break;
+		}
+#endif /* VLAN_ARRAY */
+	/* Trunk should have been destroyed in vlan_unconfig(). */
+	KASSERT(ifp->if_vlantrunk == NULL, ("%s: purge failed", __func__));
+	VLAN_UNLOCK();
+}
+
+/*
  * VLAN support can be loaded as a module.  The only place in the
  * system that's intimately aware of this is ether_input.  We hook
  * into this code through vlan_input_p which is defined there and
@@ -469,6 +523,10 @@ vlan_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
+		ifdetach_tag = EVENTHANDLER_REGISTER(ifnet_departure_event,
+		    vlan_ifdetach, NULL, EVENTHANDLER_PRI_ANY);
+		if (ifdetach_tag == NULL)
+			return (ENOMEM);
 		LIST_INIT(&trunk_list);
 		VLAN_LOCK_INIT();
 		vlan_input_p = vlan_input;
@@ -481,6 +539,7 @@ vlan_modevent(module_t mod, int type, void *data)
 		struct ifvlantrunk *trunk, *trunk1;
 
 		if_clone_detach(&vlan_cloner);
+		EVENTHANDLER_DEREGISTER(ifnet_departure_event, ifdetach_tag);
 		vlan_input_p = NULL;
 		vlan_link_state_p = NULL;
 		vlan_trunk_cap_p = NULL;
@@ -1017,12 +1076,23 @@ done:
 static int
 vlan_unconfig(struct ifnet *ifp)
 {
+	int ret;
+
+	VLAN_LOCK();
+	ret = vlan_unconfig_locked(ifp);
+	VLAN_UNLOCK();
+	return (ret);
+}
+
+static int
+vlan_unconfig_locked(struct ifnet *ifp)
+{
 	struct ifvlantrunk *trunk;
 	struct vlan_mc_entry *mc;
 	struct ifvlan *ifv;
 	int error;
 
-	VLAN_LOCK();
+	VLAN_LOCK_ASSERT();
 
 	ifv = ifp->if_softc;
 	trunk = ifv->ifv_trunk;
@@ -1091,13 +1161,12 @@ vlan_unconfig(struct ifnet *ifp)
 	/* Disconnect from parent. */
 	if (ifv->ifv_pflags)
 		if_printf(ifp, "%s: ifv_pflags unclean\n", __func__);
-	ifv->ifv_ifp->if_mtu = ETHERMTU;		/* XXX why not 0? */
-	ifv->ifv_ifp->if_link_state = LINK_STATE_UNKNOWN;
+	ifp->if_mtu = ETHERMTU;
+	ifp->if_link_state = LINK_STATE_UNKNOWN;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 
 	/* Clear our MAC address. */
-	bzero(IF_LLADDR(ifv->ifv_ifp), ETHER_ADDR_LEN);
-
-	VLAN_UNLOCK();
+	bzero(IF_LLADDR(ifp), ETHER_ADDR_LEN);
 
 	return (0);
 }
@@ -1316,7 +1385,6 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		if (vlr.vlr_parent[0] == '\0') {
 			vlan_unconfig(ifp);
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			break;
 		}
 		p = ifunit(vlr.vlr_parent);
