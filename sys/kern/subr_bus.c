@@ -826,6 +826,19 @@ devclass_find(const char *classname)
 	return (devclass_find_internal(classname, 0, FALSE));
 }
 
+/*
+ * Call BUS_DRIVER_ADDED for any existing busses in this class.
+ */
+static void
+devclass_driver_added(devclass_t dc, driver_t *driver)
+{
+	int i;
+
+	for (i = 0; i < dc->maxunit; i++)
+		if (dc->devices[i])
+			BUS_DRIVER_ADDED(dc->devices[i], driver);
+}
+
 /**
  * @brief Add a device driver to a device class
  *
@@ -841,7 +854,6 @@ int
 devclass_add_driver(devclass_t dc, driver_t *driver)
 {
 	driverlink_t dl;
-	int i;
 
 	PDEBUG(("%s", DRIVERNAME(driver)));
 
@@ -866,12 +878,7 @@ devclass_add_driver(devclass_t dc, driver_t *driver)
 	TAILQ_INSERT_TAIL(&dc->drivers, dl, link);
 	driver->refs++;		/* XXX: kobj_mtx */
 
-	/*
-	 * Call BUS_DRIVER_ADDED for any existing busses in this class.
-	 */
-	for (i = 0; i < dc->maxunit; i++)
-		if (dc->devices[i])
-			BUS_DRIVER_ADDED(dc->devices[i], driver);
+	devclass_driver_added(dc, driver);
 
 	bus_data_generation_update();
 	return (0);
@@ -3752,6 +3759,11 @@ driver_module_handler(module_t mod, int what, void *arg)
 		error = devclass_add_driver(bus_devclass, driver);
 		if (error)
 			break;
+
+		/*
+		 * XXX: Need to find all the device classes whose parent
+		 * is bus_devclass.  Not only that, it has to be recursive.
+		 */
 
 		/*
 		 * If the driver has any base classes, make the
