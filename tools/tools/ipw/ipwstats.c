@@ -260,17 +260,17 @@ get_statistics(const char *iface)
 		printf("%-60s[", stat->desc);
 		switch (stat->unit) {
 		case INT:
-			printf("%lu", stats[stat->index]);
+			printf("%u", stats[stat->index]);
 			break;
 		case BOOL:
 			printf(stats[stat->index] ? "true" : "false");
 			break;
 		case PERCENTAGE:
-			printf("%lu%%", stats[stat->index]);
+			printf("%u%%", stats[stat->index]);
 			break;
 		case HEX:
 		default:
-			printf("0x%08lX", stats[stat->index]);
+			printf("0x%08X", stats[stat->index]);
 		}
 		printf("]\n");
 	}
