@@ -512,8 +512,8 @@ struct dc_mediainfo {
 
 
 struct dc_type {
-	u_int16_t		dc_vid;
-	u_int16_t		dc_did;
+	u_int32_t		dc_devid;
+	u_int8_t		dc_minrev;
 	char			*dc_name;
 };
 
@@ -1004,58 +1004,22 @@ struct dc_softc {
 
 #define DC_DEVICEID_MSMN120	0x0001
 #define DC_DEVICEID_MSMN130	0x0002
-#define DC_DEVICEID_MSMN130_FAKE	0xFFF2
+
+#define	DC_DEVID(vendor, device)	((device) << 16 | (vendor))
 
 /*
  * PCI low memory base and low I/O base register, and
  * other PCI registers.
  */
 
-#define DC_PCI_CFID		0x00	/* Id */
-#define DC_PCI_CFCS		0x04	/* Command and status */
-#define DC_PCI_CFRV		0x08	/* Revision */
-#define DC_PCI_CFLT		0x0C	/* Latency timer */
-#define DC_PCI_CFBIO		0x10	/* Base I/O address */
-#define DC_PCI_CFBMA		0x14	/* Base memory address */
-#define DC_PCI_CCIS		0x28	/* Card info struct */
-#define DC_PCI_CSID		0x2C	/* Subsystem ID */
-#define DC_PCI_CBER		0x30	/* Expansion ROM base address */
-#define DC_PCI_CCAP		0x34	/* Caps pointer - PD/TD chip only */
-#define DC_PCI_CFIT		0x3C	/* Interrupt */
+#define DC_PCI_CFBIO		PCIR_BAR(0)	/* Base I/O address */
+#define DC_PCI_CFBMA		PCIR_BAR(1)	/* Base memory address */
 #define DC_PCI_CFDD		0x40	/* Device and driver area */
 #define DC_PCI_CWUA0		0x44	/* Wake-Up LAN addr 0 */
 #define DC_PCI_CWUA1		0x48	/* Wake-Up LAN addr 1 */
 #define DC_PCI_SOP0		0x4C	/* SecureON passwd 0 */
 #define DC_PCI_SOP1		0x50	/* SecureON passwd 1 */
 #define DC_PCI_CWUC		0x54	/* Configuration Wake-Up cmd */
-#define DC_PCI_CCID		0xDC	/* Capability ID - PD/TD only */
-#define DC_PCI_CPMC		0xE0	/* Pwrmgmt ctl & sts - PD/TD only */
-
-/* PCI ID register */
-#define DC_CFID_VENDOR		0x0000FFFF
-#define DC_CFID_DEVICE		0xFFFF0000
-
-/* PCI command/status register */
-#define DC_CFCS_IOSPACE		0x00000001 /* I/O space enable */
-#define DC_CFCS_MEMSPACE	0x00000002 /* memory space enable */
-#define DC_CFCS_BUSMASTER	0x00000004 /* bus master enable */
-#define DC_CFCS_MWI_ENB		0x00000010 /* mem write and inval enable */
-#define DC_CFCS_PARITYERR_ENB	0x00000040 /* parity error enable */
-#define DC_CFCS_SYSERR_ENB	0x00000100 /* system error enable */
-#define DC_CFCS_NEWCAPS		0x00100000 /* new capabilities */
-#define DC_CFCS_FAST_B2B	0x00800000 /* fast back-to-back capable */
-#define DC_CFCS_DATAPARITY	0x01000000 /* Parity error report */
-#define DC_CFCS_DEVSELTIM	0x06000000 /* devsel timing */
-#define DC_CFCS_TGTABRT		0x10000000 /* received target abort */
-#define DC_CFCS_MASTERABRT	0x20000000 /* received master abort */
-#define DC_CFCS_SYSERR		0x40000000 /* asserted system error */
-#define DC_CFCS_PARITYERR	0x80000000 /* asserted parity error */
-
-/* PCI revision register */
-#define DC_CFRV_STEPPING	0x0000000F
-#define DC_CFRV_REVISION	0x000000F0
-#define DC_CFRV_SUBCLASS	0x00FF0000
-#define DC_CFRV_BASECLASS	0xFF000000
 
 #define DC_21143_PB_REV		0x00000030
 #define DC_21143_TB_REV		0x00000030
@@ -1064,48 +1028,6 @@ struct dc_softc {
 #define DC_21143_PD_REV		0x00000041
 #define DC_21143_TD_REV		0x00000041
 
-/* PCI latency timer register */
-#define DC_CFLT_CACHELINESIZE	0x000000FF
-#define DC_CFLT_LATENCYTIMER	0x0000FF00
-
-/* PCI subsystem ID register */
-#define DC_CSID_VENDOR		0x0000FFFF
-#define DC_CSID_DEVICE		0xFFFF0000
-
-/* PCI cababilities pointer */
-#define DC_CCAP_OFFSET		0x000000FF
-
-/* PCI interrupt config register */
-#define DC_CFIT_INTLINE		0x000000FF
-#define DC_CFIT_INTPIN		0x0000FF00
-#define DC_CFIT_MIN_GNT		0x00FF0000
-#define DC_CFIT_MAX_LAT		0xFF000000
-
-/* PCI capability register */
-#define DC_CCID_CAPID		0x000000FF
-#define DC_CCID_NEXTPTR		0x0000FF00
-#define DC_CCID_PM_VERS		0x00070000
-#define DC_CCID_PME_CLK		0x00080000
-#define DC_CCID_DVSPEC_INT	0x00200000
-#define DC_CCID_STATE_D1	0x02000000
-#define DC_CCID_STATE_D2	0x04000000
-#define DC_CCID_PME_D0		0x08000000
-#define DC_CCID_PME_D1		0x10000000
-#define DC_CCID_PME_D2		0x20000000
-#define DC_CCID_PME_D3HOT	0x40000000
-#define DC_CCID_PME_D3COLD	0x80000000
-
-/* PCI power management control/status register */
-#define DC_CPMC_STATE		0x00000003
-#define DC_CPMC_PME_ENB		0x00000100
-#define DC_CPMC_PME_STS		0x00008000
-
-#define DC_PSTATE_D0		0x0
-#define DC_PSTATE_D1		0x1
-#define DC_PSTATE_D2		0x2
-#define DC_PSTATE_D3		0x3
-
-/* Device specific region */
 /* Configuration and driver area */
 #define DC_CFDD_DRVUSE		0x0000FFFF
 #define DC_CFDD_SNOOZE_MODE	0x40000000
