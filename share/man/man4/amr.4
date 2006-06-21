@@ -30,8 +30,21 @@
 .Nm amr
 .Nd MegaRAID SCSI/ATA/SATA RAID driver
 .Sh SYNOPSIS
-.Cd device pci
-.Cd device amr
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pci"
+.Cd "device scbus"
+.Cd "device amr"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+amr_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

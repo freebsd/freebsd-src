@@ -30,16 +30,32 @@
 .Nm dpt
 .Nd DPT RAID Controller SCSI driver
 .Sh SYNOPSIS
-For one or more EISA Controllers
-.Cd "device eisa"
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
 .Cd "device dpt"
 .Pp
-For one or more PCI Controllers
+For one or more EISA cards:
+.Cd "device eisa"
+.Pp
+For one or more ISA cards:
+.Cd "device isa"
+.Pp
+For one or more PCI cards:
 .Cd "device pci"
-.Cd "device dpt"
 .Pp
 To allow PCI adapters to use memory mapped I/O if enabled:
 .Cd options DPT_ALLOW_MEMIO
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dpt_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
