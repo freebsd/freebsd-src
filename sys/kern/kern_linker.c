@@ -62,6 +62,11 @@ __FBSDID("$FreeBSD$");
 int kld_debug = 0;
 #endif
 
+#define	KLD_LOCK()		do { sx_xlock(&kld_sx); mtx_lock(&Giant); } while (0)
+#define	KLD_UNLOCK()		do { mtx_unlock(&Giant); sx_xunlock(&kld_sx); } while (0)
+#define	KLD_LOCKED()		sx_xlocked(&kld_sx)
+#define	KLD_LOCK_ASSERT()	do { if (!cold) sx_assert(&kld_sx, SX_XLOCKED); } while (0)
+
 /*
  * static char *linker_search_path(const char *name, struct mod_depend
  * *verinfo);
@@ -85,7 +90,7 @@ MALLOC_DEFINE(M_LINKER, "linker", "kernel linker");
 
 linker_file_t linker_kernel_file;
 
-static struct mtx kld_mtx;	/* kernel linker mutex */
+static struct sx kld_sx;	/* kernel linker lock */
 
 static linker_class_list_t classes;
 static linker_file_list_t linker_files;
@@ -95,17 +100,15 @@ static int linker_no_more_classes = 0;
 #define	LINKER_GET_NEXT_FILE_ID(a) do {					\
 	linker_file_t lftmp;						\
 									\
+	KLD_LOCK_ASSERT();						\
 retry:									\
-	mtx_lock(&kld_mtx);						\
 	TAILQ_FOREACH(lftmp, &linker_files, link) {			\
 		if (next_file_id == lftmp->id) {			\
 			next_file_id++;					\
-			mtx_unlock(&kld_mtx);				\
 			goto retry;					\
 		}							\
 	}								\
 	(a) = next_file_id;						\
-	mtx_unlock(&kld_mtx);	/* Hold for safe read of id variable */	\
 } while(0)
 
 
@@ -122,6 +125,8 @@ static modlisthead_t found_modules;
 
 static int	linker_file_add_dependency(linker_file_t file,
 		    linker_file_t dep);
+static caddr_t	linker_file_lookup_symbol_internal(linker_file_t file,
+		    const char* name, int deps);
 static int	linker_load_module(const char *kldname,
 		    const char *modname, struct linker_file *parent,
 		    struct mod_depend *verinfo, struct linker_file **lfpp);
@@ -141,7 +146,7 @@ static void
 linker_init(void *arg)
 {
 
-	mtx_init(&kld_mtx, "kernel linker", NULL, MTX_DEF);
+	sx_init(&kld_sx, "kernel linker");
 	TAILQ_INIT(&classes);
 	TAILQ_INIT(&linker_files);
 }
@@ -272,8 +277,10 @@ linker_file_register_sysctls(linker_file_t lf)
 	if (linker_file_lookup_set(lf, "sysctl_set", &start, &stop, NULL) != 0)
 		return;
 
+	mtx_lock(&Giant);
 	for (oidp = start; oidp < stop; oidp++)
 		sysctl_register_oid(*oidp);
+	mtx_unlock(&Giant);
 }
 
 static void
@@ -287,8 +294,10 @@ linker_file_unregister_sysctls(linker_file_t lf)
 	if (linker_file_lookup_set(lf, "sysctl_set", &start, &stop, NULL) != 0)
 		return;
 
+	mtx_lock(&Giant);
 	for (oidp = start; oidp < stop; oidp++)
 		sysctl_unregister_oid(*oidp);
+	mtx_unlock(&Giant);
 }
 
 static int
@@ -352,6 +361,7 @@ linker_load_file(const char *filename, linker_file_t *result)
 	if (securelevel > 0)
 		return (EPERM);
 
+	KLD_LOCK_ASSERT();
 	lf = linker_find_file_by_name(filename);
 	if (lf) {
 		KLD_DPF(FILE, ("linker_load_file: file %s is already loaded,"
@@ -418,16 +428,16 @@ linker_reference_module(const char *modname, struct mod_depend *verinfo,
 	modlist_t mod;
 	int error;
 
-	mtx_lock(&Giant);
+	KLD_LOCK();
 	if ((mod = modlist_lookup2(modname, verinfo)) != NULL) {
 		*result = mod->container;
 		(*result)->refs++;
-		mtx_unlock(&Giant);
+		KLD_UNLOCK();
 		return (0);
 	}
 
 	error = linker_load_module(NULL, modname, NULL, verinfo, result);
-	mtx_unlock(&Giant);
+	KLD_UNLOCK();
 	return (error);
 }
 
@@ -438,13 +448,13 @@ linker_release_module(const char *modname, struct mod_depend *verinfo,
 	modlist_t mod;
 	int error;
 
-	mtx_lock(&Giant);
+	KLD_LOCK();
 	if (lf == NULL) {
 		KASSERT(modname != NULL,
 		    ("linker_release_module: no file or name"));
 		mod = modlist_lookup2(modname, verinfo);
 		if (mod == NULL) {
-			mtx_unlock(&Giant);
+			KLD_UNLOCK();
 			return (ESRCH);
 		}
 		lf = mod->container;
@@ -452,7 +462,7 @@ linker_release_module(const char *modname, struct mod_depend *verinfo,
 		KASSERT(modname == NULL && verinfo == NULL,
 		    ("linker_release_module: both file and name"));
 	error =	linker_file_unload(lf, LINKER_UNLOAD_NORMAL);
-	mtx_unlock(&Giant);
+	KLD_UNLOCK();
 	return (error);
 }
 
@@ -465,14 +475,13 @@ linker_find_file_by_name(const char *filename)
 	koname = malloc(strlen(filename) + 4, M_LINKER, M_WAITOK);
 	sprintf(koname, "%s.ko", filename);
 
-	mtx_lock(&kld_mtx);
+	KLD_LOCK_ASSERT();
 	TAILQ_FOREACH(lf, &linker_files, link) {
 		if (strcmp(lf->filename, koname) == 0)
 			break;
 		if (strcmp(lf->filename, filename) == 0)
 			break;
 	}
-	mtx_unlock(&kld_mtx);
 	free(koname, M_LINKER);
 	return (lf);
 }
@@ -481,12 +490,11 @@ static linker_file_t
 linker_find_file_by_id(int fileid)
 {
 	linker_file_t lf;
-	
-	mtx_lock(&kld_mtx);
+
+	KLD_LOCK_ASSERT();
 	TAILQ_FOREACH(lf, &linker_files, link)
 		if (lf->id == fileid)
 			break;
-	mtx_unlock(&kld_mtx);
 	return (lf);
 }
 
@@ -496,13 +504,13 @@ linker_file_foreach(linker_predicate_t *predicate, void *context)
 	linker_file_t lf;
 	int retval = 0;
 
-	mtx_lock(&Giant);
+	KLD_LOCK();
 	TAILQ_FOREACH(lf, &linker_files, link) {
 		retval = predicate(lf, context);
 		if (retval != 0)
 			break;
 	}
-	mtx_unlock(&Giant);
+	KLD_UNLOCK();
 	return (retval);
 }
 
@@ -512,6 +520,7 @@ linker_make_file(const char *pathname, linker_class_t lc)
 	linker_file_t lf;
 	const char *filename;
 
+	KLD_LOCK_ASSERT();
 	filename = linker_basename(pathname);
 
 	KLD_DPF(FILE, ("linker_make_file: new file, filename=%s\n", filename));
@@ -527,9 +536,7 @@ linker_make_file(const char *pathname, linker_class_t lc)
 	lf->deps = NULL;
 	STAILQ_INIT(&lf->common);
 	TAILQ_INIT(&lf->modules);
-	mtx_lock(&kld_mtx);
 	TAILQ_INSERT_TAIL(&linker_files, lf, link);
-	mtx_unlock(&kld_mtx);
 	return (lf);
 }
 
@@ -550,6 +557,7 @@ linker_file_unload(linker_file_t file, int flags)
 		return (error);
 #endif
 
+	KLD_LOCK_ASSERT();
 	KLD_DPF(FILE, ("linker_file_unload: lf->refs=%d\n", file->refs));
 
 	/* Easy case of just dropping a reference. */
@@ -597,9 +605,7 @@ linker_file_unload(linker_file_t file, int flags)
 		linker_file_sysuninit(file);
 		linker_file_unregister_sysctls(file);
 	}
-	mtx_lock(&kld_mtx);
 	TAILQ_REMOVE(&linker_files, file, link);
-	mtx_unlock(&kld_mtx);
 
 	if (file->deps) {
 		for (i = 0; i < file->ndeps; i++)
@@ -627,6 +633,7 @@ linker_file_add_dependency(linker_file_t file, linker_file_t dep)
 {
 	linker_file_t *newdeps;
 
+	KLD_LOCK_ASSERT();
 	newdeps = malloc((file->ndeps + 1) * sizeof(linker_file_t *),
 	    M_LINKER, M_WAITOK | M_ZERO);
 	if (newdeps == NULL)
@@ -653,12 +660,35 @@ int
 linker_file_lookup_set(linker_file_t file, const char *name,
     void *firstp, void *lastp, int *countp)
 {
+	int error, locked;
 
-	return (LINKER_LOOKUP_SET(file, name, firstp, lastp, countp));
+	locked = KLD_LOCKED();
+	if (!locked)
+		KLD_LOCK();
+	error = LINKER_LOOKUP_SET(file, name, firstp, lastp, countp);
+	if (!locked)
+		KLD_UNLOCK();
+	return (error);
 }
 
 caddr_t
 linker_file_lookup_symbol(linker_file_t file, const char *name, int deps)
+{
+	caddr_t sym;
+	int locked;
+
+	locked = KLD_LOCKED();
+	if (!locked)
+		KLD_LOCK();
+	sym = linker_file_lookup_symbol_internal(file, name, deps);
+	if (!locked)
+		KLD_UNLOCK();
+	return (sym);
+}
+
+static caddr_t
+linker_file_lookup_symbol_internal(linker_file_t file, const char *name,
+    int deps)
 {
 	c_linker_sym_t sym;
 	linker_symval_t symval;
@@ -666,6 +696,7 @@ linker_file_lookup_symbol(linker_file_t file, const char *name, int deps)
 	size_t common_size = 0;
 	int i;
 
+	KLD_LOCK_ASSERT();
 	KLD_DPF(SYM, ("linker_file_lookup_symbol: file=%p, name=%s, deps=%d\n",
 	    file, name, deps));
 
@@ -686,8 +717,8 @@ linker_file_lookup_symbol(linker_file_t file, const char *name, int deps)
 	}
 	if (deps) {
 		for (i = 0; i < file->ndeps; i++) {
-			address = linker_file_lookup_symbol(file->deps[i],
-			    name, 0);
+			address = linker_file_lookup_symbol_internal(
+			    file->deps[i], name, 0);
 			if (address) {
 				KLD_DPF(SYM, ("linker_file_lookup_symbol:"
 				    " deps value=%p\n", address));
@@ -832,7 +863,7 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 		modname = file;
 	}
 
-	mtx_lock(&Giant);
+	KLD_LOCK();
 	error = linker_load_module(kldname, modname, NULL, NULL, &lf);
 	if (error)
 		goto unlock;
@@ -845,7 +876,7 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 	if (fileid != NULL)
 		*fileid = lf->id;
 unlock:
-	mtx_unlock(&Giant);
+	KLD_UNLOCK();
 	return (error);
 }
 
@@ -886,7 +917,7 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 	if ((error = suser(td)) != 0)
 		return (error);
 
-	mtx_lock(&Giant);
+	KLD_LOCK();
 	lf = linker_find_file_by_id(fileid);
 	if (lf) {
 		KLD_DPF(FILE, ("kldunload: lf->userrefs=%d\n", lf->userrefs));
@@ -915,7 +946,7 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 	if (error == 0)
 		PMC_CALL_HOOK(td, PMC_FN_KLD_UNLOAD, (void *) &pkm);
 #endif
-	mtx_unlock(&Giant);
+	KLD_UNLOCK();
 	return (error);
 }
 
@@ -966,13 +997,13 @@ kldfind(struct thread *td, struct kldfind_args *uap)
 		goto out;
 
 	filename = linker_basename(pathname);
-	mtx_lock(&Giant);
+	KLD_LOCK();
 	lf = linker_find_file_by_name(filename);
 	if (lf)
 		td->td_retval[0] = lf->id;
 	else
 		error = ENOENT;
-	mtx_unlock(&Giant);
+	KLD_UNLOCK();
 out:
 	free(pathname, M_TEMP);
 	return (error);
@@ -993,15 +1024,12 @@ kldnext(struct thread *td, struct kldnext_args *uap)
 		return (error);
 #endif
 
-	mtx_lock(&Giant);
-
+	KLD_LOCK();
 	if (uap->fileid == 0) {
-		mtx_lock(&kld_mtx);
 		if (TAILQ_FIRST(&linker_files))
 			td->td_retval[0] = TAILQ_FIRST(&linker_files)->id;
 		else
 			td->td_retval[0] = 0;
-		mtx_unlock(&kld_mtx);
 		goto out;
 	}
 	lf = linker_find_file_by_id(uap->fileid);
@@ -1013,7 +1041,7 @@ kldnext(struct thread *td, struct kldnext_args *uap)
 	} else
 		error = ENOENT;
 out:
-	mtx_unlock(&Giant);
+	KLD_UNLOCK();
 	return (error);
 }
 
@@ -1042,11 +1070,10 @@ kldstat(struct thread *td, struct kldstat_args *uap)
 		return (error);
 #endif
 
-	mtx_lock(&Giant);
-
+	KLD_LOCK();
 	lf = linker_find_file_by_id(uap->fileid);
 	if (lf == NULL) {
-		mtx_unlock(&Giant);
+		KLD_UNLOCK();
 		return (ENOENT);
 	}
 
@@ -1058,7 +1085,7 @@ kldstat(struct thread *td, struct kldstat_args *uap)
 	stat.id = lf->id;
 	stat.address = lf->address;
 	stat.size = lf->size;
-	mtx_unlock(&Giant);
+	KLD_UNLOCK();
 
 	td->td_retval[0] = 0;
 
@@ -1081,7 +1108,7 @@ kldfirstmod(struct thread *td, struct kldfirstmod_args *uap)
 		return (error);
 #endif
 
-	mtx_lock(&Giant);
+	KLD_LOCK();
 	lf = linker_find_file_by_id(uap->fileid);
 	if (lf) {
 		MOD_SLOCK;
@@ -1093,7 +1120,7 @@ kldfirstmod(struct thread *td, struct kldfirstmod_args *uap)
 		MOD_SUNLOCK;
 	} else
 		error = ENOENT;
-	mtx_unlock(&Giant);
+	KLD_UNLOCK();
 	return (error);
 }
 
@@ -1124,7 +1151,7 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 	symstr = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	if ((error = copyinstr(lookup.symname, symstr, MAXPATHLEN, NULL)) != 0)
 		goto out;
-	mtx_lock(&Giant);
+	KLD_LOCK();
 	if (uap->fileid != 0) {
 		lf = linker_find_file_by_id(uap->fileid);
 		if (lf == NULL)
@@ -1137,7 +1164,6 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 		} else
 			error = ENOENT;
 	} else {
-		mtx_lock(&kld_mtx);
 		TAILQ_FOREACH(lf, &linker_files, link) {
 			if (LINKER_LOOKUP_SYMBOL(lf, symstr, &sym) == 0 &&
 			    LINKER_SYMBOL_VALUES(lf, sym, &symval) == 0) {
@@ -1148,11 +1174,10 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 				break;
 			}
 		}
-		mtx_unlock(&kld_mtx);
 		if (lf == NULL)
 			error = ENOENT;
 	}
-	mtx_unlock(&Giant);
+	KLD_UNLOCK();
 out:
 	free(symstr, M_TEMP);
 	return (error);
@@ -1799,6 +1824,7 @@ linker_load_module(const char *kldname, const char *modname,
 	char *pathname;
 	int error;
 
+	KLD_LOCK_ASSERT();
 	if (modname == NULL) {
 		/*
  		 * We have to load KLD
@@ -1872,6 +1898,7 @@ linker_load_dependencies(linker_file_t lf)
 	/*
 	 * All files are dependant on /kernel.
 	 */
+	KLD_LOCK_ASSERT();
 	if (linker_kernel_file) {
 		linker_kernel_file->refs++;
 		error = linker_file_add_dependency(lf, linker_kernel_file);
@@ -1963,16 +1990,16 @@ sysctl_kern_function_list(SYSCTL_HANDLER_ARGS)
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error != 0)
 		return (error);
-	mtx_lock(&kld_mtx);
+	KLD_LOCK();
 	TAILQ_FOREACH(lf, &linker_files, link) {
 		error = LINKER_EACH_FUNCTION_NAME(lf,
 		    sysctl_kern_function_list_iterate, req);
 		if (error) {
-			mtx_unlock(&kld_mtx);
+			KLD_UNLOCK();
 			return (error);
 		}
 	}
-	mtx_unlock(&kld_mtx);
+	KLD_UNLOCK();
 	return (SYSCTL_OUT(req, "", 1));
 }
 
