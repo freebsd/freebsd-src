@@ -396,8 +396,6 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	int alignmask;
 	int vfslocked;
 
-	GIANT_REQUIRED;
-
 	shdr = NULL;
 	lf = NULL;
 	mapsize = 0;

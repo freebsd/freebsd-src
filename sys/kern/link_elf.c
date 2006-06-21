@@ -559,8 +559,6 @@ link_elf_load_file(linker_class_t cls, const char* filename,
     int strcnt;
     int vfslocked;
 
-    GIANT_REQUIRED;
-
     shdr = NULL;
     lf = NULL;
 
@@ -761,8 +759,10 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 
 #ifdef GPROF
     /* Update profiling information with the new text segment. */
+    mtx_lock(&Giant);
     kmupetext((uintfptr_t)(mapbase + segs[0]->p_vaddr - base_vaddr +
 	segs[0]->p_memsz));
+    mtx_unlock(&Giant);
 #endif
 
     ef->dynamic = (Elf_Dyn *) (mapbase + phdyn->p_vaddr - base_vaddr);
