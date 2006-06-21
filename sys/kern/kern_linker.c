@@ -302,7 +302,7 @@ linker_file_register_modules(linker_file_t lf)
 	    " in %s\n", lf->filename));
 
 	if (linker_file_lookup_set(lf, "modmetadata_set", &start,
-	    &stop, 0) != 0) {
+	    &stop, NULL) != 0) {
 		/*
 		 * This fallback should be unnecessary, but if we get booted
 		 * from boot2 instead of loader and we are missing our
@@ -645,7 +645,9 @@ linker_file_add_dependency(linker_file_t file, linker_file_t dep)
 
 /*
  * Locate a linker set and its contents.  This is a helper function to avoid
- * linker_if.h exposure elsewhere.  Note: firstp and lastp are really void ***
+ * linker_if.h exposure elsewhere.  Note: firstp and lastp are really void **.
+ * This function is used in this file so we can avoid having lots of (void **)
+ * casts.
  */
 int
 linker_file_lookup_set(linker_file_t file, const char *name,
@@ -818,8 +820,8 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 		return (error);
 
 	/*
-	 * If file does not contain qualified name or any dot in it
-	 * (kldname.ko, or kldname.ver.ko) treat it as interface
+	 * If file does not contain a qualified name or any dot in it
+	 * (kldname.ko, or kldname.ver.ko) treat it as an interface
 	 * name.
 	 */
 	if (index(file, '/') || index(file, '.')) {
