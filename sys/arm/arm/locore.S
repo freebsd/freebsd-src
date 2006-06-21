@@ -39,7 +39,7 @@
 #include <machine/pte.h>
 __FBSDID("$FreeBSD$");
 
-/* What size should this really be ? It is only used by init_arm() */
+/* What size should this really be ? It is only used by initarm() */
 #define INIT_ARM_STACK_SIZE	2048
 
 /*
