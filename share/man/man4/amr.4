@@ -48,7 +48,7 @@ amr_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for LSI Logic MegaRAID SCSI
+driver provides support for LSI Logic MegaRAID SCSI, ATA and SATA
 RAID controllers and legacy American Megatrends MegaRAID
 SCSI RAID controllers, including models relabeled
 and sold by Dell and Hewlett-Packard.
@@ -58,6 +58,14 @@ Controllers supported by the
 driver include:
 .Pp
 .Bl -bullet -compact
+.It
+MegaRAID SATA 150-4
+.It
+MegaRAID SATA 150-6
+.It
+MegaRAID SATA 300-4X
+.It
+MegaRAID SATA 300-8X
 .It
 MegaRAID SCSI 320-1E
 .It
@@ -71,16 +79,6 @@ MegaRAID SCSI 320-2X
 .It
 MegaRAID SCSI 320-4X
 .It
-MegaRAID SATA 300-4X
-.It
-MegaRAID SATA 300-8X
-.It
-MegaRAID SATA 150-4
-.It
-MegaRAID SATA 150-6
-.It
-MegaRAID i4 133 RAID
-.It
 MegaRAID SCSI 320-0
 .It
 MegaRAID SCSI 320-1
@@ -91,6 +89,14 @@ MegaRAID SCSI 320-4
 .It
 MegaRAID Series 418
 .It
+MegaRAID i4 133 RAID
+.It
+MegaRAID Elite 1500 (Series 467)
+.It
+MegaRAID Elite 1600 (Series 493)
+.It
+MegaRAID Elite 1650 (Series 4xx)
+.It
 MegaRAID Enterprise 1200 (Series 428)
 .It
 MegaRAID Enterprise 1300 (Series 434)
@@ -100,12 +106,6 @@ MegaRAID Enterprise 1400 (Series 438)
 MegaRAID Enterprise 1500 (Series 467)
 .It
 MegaRAID Enterprise 1600 (Series 471)
-.It
-MegaRAID Elite 1500 (Series 467)
-.It
-MegaRAID Elite 1600 (Series 493)
-.It
-MegaRAID Elite 1650 (Series 4xx)
 .It
 MegaRAID Express 100 (Series 466WS)
 .It
@@ -228,12 +228,9 @@ An I/O error has occurred.
 The
 .Nm
 driver was written by
-.An Mike Smith
-.Aq msmith@FreeBSD.org .
+.An Mike Smith Aq msmith@FreeBSD.org .
 .Pp
 This manual page was written by
-.An Mike Smith
-.Aq msmith@FreeBSD.org
+.An Mike Smith Aq msmith@FreeBSD.org
 and
-.An Jeroen Ruigrok van der Werven
-.Aq asmodai@FreeBSD.org .
+.An Jeroen Ruigrok van der Werven Aq asmodai@FreeBSD.org .
