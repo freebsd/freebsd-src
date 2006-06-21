@@ -32,8 +32,13 @@
 .Nm esp
 .Nd Qlogic FEPS and FAS366 SCSI driver
 .Sh SYNOPSIS
-.Cd device scbus
-.Cd device esp
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device esp"
+.Ed
 .Sh HARDWARE
 The
 .Nm
