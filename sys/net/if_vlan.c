@@ -912,19 +912,12 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		}
 	}
 
-	/*
-	 * In VLAN_ARRAY case we proceed completely lockless.
-	 */
+	TRUNK_RLOCK(trunk);
 #ifdef VLAN_ARRAY
 	ifv = trunk->vlans[tag];
-	if (ifv == NULL || (ifv->ifv_ifp->if_flags & IFF_UP) == 0) {
-		m_freem(m);
-		ifp->if_noproto++;
-		return;
-	}
 #else
-	TRUNK_RLOCK(trunk);
 	ifv = vlan_gethash(trunk, tag);
+#endif
 	if (ifv == NULL || (ifv->ifv_ifp->if_flags & IFF_UP) == 0) {
 		TRUNK_RUNLOCK(trunk);
 		m_freem(m);
@@ -932,7 +925,6 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		return;
 	}
 	TRUNK_RUNLOCK(trunk);
-#endif
 
 	if (mtag == NULL) {
 		/*
@@ -997,16 +989,19 @@ exists:
 		TRUNK_LOCK(trunk);
 	}
 
-	ifv->ifv_tag = tag;
+	ifv->ifv_tag = tag;	/* must set this before vlan_inshash() */
 #ifdef VLAN_ARRAY
-	if (trunk->vlans[tag] != NULL)
+	if (trunk->vlans[tag] != NULL) {
 		error = EEXIST;
+		goto done;
+	}
+	trunk->vlans[tag] = ifv;
+	trunk->refcnt++;
 #else
 	error = vlan_inshash(trunk, ifv);
-#endif
 	if (error)
 		goto done;
-
+#endif
 	ifv->ifv_encaplen = ETHER_VLAN_ENCAP_LEN;
 	ifv->ifv_mintu = ETHERMIN;
 	ifv->ifv_pflags = 0;
@@ -1061,11 +1056,6 @@ exists:
 	 * joined on the vlan device.
 	 */
 	(void)vlan_setmulti(ifp); /* XXX: VLAN lock held */
-
-#ifdef VLAN_ARRAY
-	atomic_store_rel_ptr((uintptr_t *)&trunk->vlans[tag], (uintptr_t)ifv);
-	trunk->refcnt++;
-#endif
 done:
 	TRUNK_UNLOCK(trunk);
 	VLAN_UNLOCK();
@@ -1102,11 +1092,6 @@ vlan_unconfig_locked(struct ifnet *ifp)
 		struct ifnet *p = trunk->parent;
 
 		TRUNK_LOCK(trunk);
-#ifdef VLAN_ARRAY
-		atomic_store_rel_ptr((uintptr_t *)&trunk->vlans[ifv->ifv_tag],
-		    (uintptr_t)NULL);
-		trunk->refcnt--;
-#endif
 
 		/*
 		 * Since the interface is being unconfigured, we need to
@@ -1132,7 +1117,10 @@ vlan_unconfig_locked(struct ifnet *ifp)
 		}
 
 		vlan_setflags(ifp, 0); /* clear special flags on parent */
-#ifndef VLAN_ARRAY
+#ifdef VLAN_ARRAY
+		trunk->vlans[ifv->ifv_tag] = NULL;
+		trunk->refcnt--;
+#else
 		vlan_remhash(trunk, ifv);
 #endif
 		ifv->ifv_trunk = NULL;
@@ -1141,9 +1129,7 @@ vlan_unconfig_locked(struct ifnet *ifp)
 		 * Check if we were the last.
 		 */
 		if (trunk->refcnt == 0) {
-			atomic_store_rel_ptr((uintptr_t *)
-			    &trunk->parent->if_vlantrunk,
-			    (uintptr_t)NULL);
+			trunk->parent->if_vlantrunk = NULL;
 			/*
 			 * XXXGL: If some ithread has already entered
 			 * vlan_input() and is now blocked on the trunk
@@ -1233,7 +1219,7 @@ vlan_link_state(struct ifnet *ifp, int link)
 
 	TRUNK_LOCK(trunk);
 #ifdef VLAN_ARRAY
-	for (i = 0; i < EVL_VLID_MASK+1; i++)
+	for (i = 0; i < VLAN_ARRAY_SIZE; i++)
 		if (trunk->vlans[i] != NULL) {
 			ifv = trunk->vlans[i];
 #else
@@ -1282,7 +1268,7 @@ vlan_trunk_capabilities(struct ifnet *ifp)
 
 	TRUNK_LOCK(trunk);
 #ifdef VLAN_ARRAY
-	for (i = 0; i < EVL_VLID_MASK+1; i++)
+	for (i = 0; i < VLAN_ARRAY_SIZE; i++)
 		if (trunk->vlans[i] != NULL) {
 			ifv = trunk->vlans[i];
 #else
