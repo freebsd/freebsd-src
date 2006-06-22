@@ -143,6 +143,7 @@ dcphy_attach(dev)
 	struct mii_attach_args *ma;
 	struct mii_data *mii;
 	struct dc_softc		*dc_sc;
+	device_t brdev;
 
 	sc = device_get_softc(dev);
 	ma = device_get_ivars(dev);
@@ -168,8 +169,8 @@ dcphy_attach(dev)
 	CSR_WRITE_4(dc_sc, DC_10BTSTAT, 0);
 	CSR_WRITE_4(dc_sc, DC_10BTCTRL, 0);
 
-	switch(pci_read_config(device_get_parent(sc->mii_dev),
-	    DC_PCI_CSID, 4)) {
+	brdev = device_get_parent(sc->mii_dev);
+	switch(pci_get_subdevice(brdev) << 16 | pci_get_subvendor(brdev)) {
 	case COMPAQ_PRESARIO_ID:
 		/* Example of how to only allow 10Mbps modes. */
 		sc->mii_capabilities = BMSR_ANEG|BMSR_10TFDX|BMSR_10THDX;
