@@ -1289,8 +1289,6 @@ static struct {
 
 static int tcp_msstab[] = { 0, 536, 1460, 8960 };
 
-static MD5_CTX syn_ctx;
-
 #define MD5Add(v)	MD5Update(&syn_ctx, (u_char *)&v, sizeof(v))
 
 struct md5_add {
@@ -1329,6 +1327,7 @@ syncookie_generate(struct syncache *sc, u_int32_t *flowid)
 	u_int32_t data;
 	int idx, i;
 	struct md5_add add;
+	MD5_CTX syn_ctx;
 
 	idx = ((ticks << SYNCOOKIE_TIMESHIFT) / hz) & SYNCOOKIE_WNDMASK;
 	SYNCOOKIE_RLOCK(tcp_secret[idx]);
@@ -1380,6 +1379,7 @@ syncookie_lookup(struct in_conninfo *inc, struct tcphdr *th, struct socket *so)
 	u_int32_t data;
 	int wnd, idx;
 	struct md5_add add;
+	MD5_CTX syn_ctx;
 
 	data = (th->th_ack - 1) ^ (th->th_seq - 1);	/* remove ISS */
 	idx = data & SYNCOOKIE_WNDMASK;
