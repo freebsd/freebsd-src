@@ -405,13 +405,16 @@ ndis_add_sysctl(arg, key, desc, val, flag)
 	cfg->ndis_oid =
 #if __FreeBSD_version < 502113
 	SYSCTL_ADD_STRING(&sc->ndis_ctx, SYSCTL_CHILDREN(sc->ndis_tree),
-#else
-	SYSCTL_ADD_STRING(device_get_sysctl_ctx(sc->ndis_dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->ndis_dev)),
-#endif
 	    OID_AUTO, cfg->ndis_cfg.nc_cfgkey, flag,
 	    cfg->ndis_cfg.nc_val, sizeof(cfg->ndis_cfg.nc_val),
 	    cfg->ndis_cfg.nc_cfgdesc);
+#else
+	SYSCTL_ADD_STRING(device_get_sysctl_ctx(sc->ndis_dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->ndis_dev)),
+	    OID_AUTO, cfg->ndis_cfg.nc_cfgkey, flag,
+	    cfg->ndis_cfg.nc_val, sizeof(cfg->ndis_cfg.nc_val),
+	    cfg->ndis_cfg.nc_cfgdesc);
+#endif
 
 	return(0);
 }
