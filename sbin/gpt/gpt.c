@@ -258,6 +258,55 @@ le_uuid_enc(void *buf, uuid_t const *uuid)
 		p[10 + i] = uuid->node[i];
 }
 
+int
+parse_uuid(const char *s, uuid_t *uuid)
+{
+	uint32_t status;
+
+	uuid_from_string(s, uuid, &status);
+	if (status == uuid_s_ok)
+		return (0);
+
+	switch (*s) {
+	case 'e':
+		if (strcmp(optarg, "efi") == 0) {
+			uuid_t efi = GPT_ENT_TYPE_EFI;
+			*uuid = efi;
+			return (0);
+		}
+		break;
+	case 'l':
+		if (strcmp(optarg, "linux") == 0) {
+			uuid_t lnx = GPT_ENT_TYPE_MS_BASIC_DATA;
+			*uuid = lnx;
+			return (0);
+		}
+		break;
+	case 's':
+		if (strcmp(optarg, "swap") == 0) {
+			uuid_t sw = GPT_ENT_TYPE_FREEBSD_SWAP;
+			*uuid = sw;
+			return (0);
+		}
+		break;
+	case 'u':
+		if (strcmp(optarg, "ufs") == 0) {
+			uuid_t ufs = GPT_ENT_TYPE_FREEBSD_UFS;
+			*uuid = ufs;
+			return (0);
+		}
+		break;
+	case 'w':
+		if (strcmp(optarg, "windows") == 0) {
+			uuid_t win = GPT_ENT_TYPE_MS_BASIC_DATA;
+			*uuid = win;
+			return (0);
+		}
+		break;
+	}
+	return (EINVAL);
+}
+
 void*
 gpt_read(int fd, off_t lba, size_t count)
 {
