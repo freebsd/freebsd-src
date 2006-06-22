@@ -275,6 +275,13 @@ parse_uuid(const char *s, uuid_t *uuid)
 			return (0);
 		}
 		break;
+	case 'h':
+		if (strcmp(optarg, "hfs") == 0) {
+			uuid_t hfs = GPT_ENT_TYPE_APPLE_HFS;
+			*uuid = hfs;
+			return (0);
+		}
+		break;
 	case 'l':
 		if (strcmp(optarg, "linux") == 0) {
 			uuid_t lnx = GPT_ENT_TYPE_MS_BASIC_DATA;
