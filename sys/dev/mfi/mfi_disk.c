@@ -32,20 +32,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/selinfo.h>
+#include <sys/select.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/uio.h>
 
-#include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/devicestat.h>
 #include <sys/disk.h>
-#include <geom/geom_disk.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <dev/mfi/mfi_compat.h>
 #include <machine/md_var.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -58,21 +58,45 @@ static int	mfi_disk_probe(device_t dev);
 static int	mfi_disk_attach(device_t dev);
 static int	mfi_disk_detach(device_t dev);
 
-static disk_open_t	mfi_disk_open;
-static disk_close_t	mfi_disk_close;
-static disk_strategy_t	mfi_disk_strategy;
-static dumper_t		mfi_disk_dump;
+static d_open_t		mfi_disk_open;
+static d_close_t	mfi_disk_close;
+static d_strategy_t	mfi_disk_strategy;
+static d_dump_t		mfi_disk_dump;
 
 static devclass_t	mfi_disk_devclass;
 
 struct mfi_disk {
 	device_t	ld_dev;
+	dev_t		ld_dev_t;
 	int		ld_id;
 	int		ld_unit;
 	struct mfi_softc *ld_controller;
 	struct mfi_ld	*ld_ld;
-	struct disk	*ld_disk;
+	struct disk	ld_disk;
+	struct devstat	ld_stats;
+	int		ld_flags;
+#define	MFID_OPEN	(1<<0)		/* drive is open */
 };
+
+static struct cdevsw mfid_cdevsw = {
+	mfi_disk_open,
+	mfi_disk_close,
+	physread,
+	physwrite,
+	noioctl,
+	nopoll,
+	nommap,
+	mfi_disk_strategy,
+	"mfid",
+	201,
+	mfi_disk_dump,
+	nopsize,
+	D_DISK,
+	-1
+};
+static struct cdevsw    mfiddisk_cdevsw;
+static int mfi_disks_registered;
+
 
 static device_method_t mfi_disk_methods[] = {
 	DEVMETHOD(device_probe,		mfi_disk_probe),
@@ -89,6 +113,26 @@ static driver_t mfi_disk_driver = {
 
 DRIVER_MODULE(mfid, mfi, mfi_disk_driver, mfi_disk_devclass, 0, 0);
 
+static char *
+mfi_disk_describe_state(uint8_t state)
+{
+
+	switch (state) {
+	case MFI_LD_STATE_OFFLINE:
+		return ("offline");
+
+	case MFI_LD_STATE_PARTIALLY_DEGRADED:
+		return ("partially degraded");
+
+	case MFI_LD_STATE_DEGRADED:
+		return ("degraded");
+
+	case MFI_LD_STATE_OPTIMAL:
+		return ("optimal");
+	}
+	return ("unknown");
+}
+
 static int
 mfi_disk_probe(device_t dev)
 {
@@ -101,6 +145,7 @@ mfi_disk_attach(device_t dev)
 {
 	struct mfi_disk *sc;
 	struct mfi_ld *ld;
+	struct disklabel *label;
 	uint64_t sectors;
 	uint32_t secsize;
 
@@ -117,28 +162,37 @@ mfi_disk_attach(device_t dev)
 	secsize = MFI_SECTOR_LEN;
 	TAILQ_INSERT_TAIL(&sc->ld_controller->mfi_ld_tqh, ld, ld_link);
 
-	device_printf(dev, "%juMB (%ju sectors) RAID\n",
-	    sectors / (1024 * 1024 / secsize), sectors);
+	device_printf(dev, "%lluMB (%llu sectors) RAID %d (%s)\n",
+	    sectors / (1024 * 1024 / secsize), sectors,
+	    ld->ld_info->ld_config.params.primary_raid_level,
+	    mfi_disk_describe_state(ld->ld_info->ld_config.params.state));
 
-	sc->ld_disk = disk_alloc();
-	sc->ld_disk->d_drv1 = sc;
-	sc->ld_disk->d_maxsize = sc->ld_controller->mfi_max_io * secsize;
-	sc->ld_disk->d_name = "mfid";
-	sc->ld_disk->d_open = mfi_disk_open;
-	sc->ld_disk->d_close = mfi_disk_close;
-	sc->ld_disk->d_strategy = mfi_disk_strategy;
-	sc->ld_disk->d_dump = mfi_disk_dump;
-	sc->ld_disk->d_unit = sc->ld_unit;
-	sc->ld_disk->d_sectorsize = secsize;
-	sc->ld_disk->d_mediasize = sectors * secsize;
-	if (sc->ld_disk->d_mediasize >= (1 * 1024 * 1024)) {
-		sc->ld_disk->d_fwheads = 255;
-		sc->ld_disk->d_fwsectors = 63;
+	devstat_add_entry(&sc->ld_stats, "mfid", sc->ld_unit, secsize,
+			  DEVSTAT_NO_ORDERED_TAGS,
+			  DEVSTAT_TYPE_STORARRAY | DEVSTAT_TYPE_IF_OTHER,
+			  DEVSTAT_PRIORITY_ARRAY);
+
+	sc->ld_dev_t =
+	    disk_create(sc->ld_unit, &sc->ld_disk, 0, &mfid_cdevsw,
+			    &mfiddisk_cdevsw);
+	sc->ld_dev_t->si_drv1 = sc;
+	mfi_disks_registered++;
+	sc->ld_dev_t->si_iosize_max = sc->ld_controller->mfi_max_io * secsize;
+
+	label = &sc->ld_disk.d_label;
+	bzero(label, sizeof(*label));
+	label->d_type		= DTYPE_SCSI;
+	label->d_secsize	= secsize;
+	if ((sectors * secsize) > (1 * 1024 * 1024)) {
+		label->d_ntracks	= 255;
+		label->d_nsectors	= 63;
 	} else {
-		sc->ld_disk->d_fwheads = 64;
-		sc->ld_disk->d_fwsectors = 32;
+		label->d_ntracks	= 64;
+		label->d_nsectors	= 32;
 	}
-	disk_create(sc->ld_disk, DISK_VERSION);
+	label->d_ncylinders = sectors / (label->d_ntracks * label->d_nsectors);
+	label->d_secpercyl = label->d_ntracks * label->d_nsectors;
+	label->d_secperunit = sectors;
 
 	return (0);
 }
@@ -150,23 +204,36 @@ mfi_disk_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if (sc->ld_disk->d_flags & DISKFLAG_OPEN)
+	if (sc->ld_flags & MFID_OPEN)
 		return (EBUSY);
 
-	disk_destroy(sc->ld_disk);
+	devstat_remove_entry(&sc->ld_stats);
+	if (--mfi_disks_registered == 0)
+		cdevsw_remove(&mfiddisk_cdevsw);
+	disk_destroy(sc->ld_dev_t);
 	return (0);
 }
 
 static int
-mfi_disk_open(struct disk *dp)
+mfi_disk_open(dev_t dev , int flags, int cmd, d_thread_t *td)
 {
+	struct mfi_disk	*sc;
 
+	sc = (struct mfi_disk *)dev->si_drv1;
+	sc->ld_flags |= MFID_OPEN;
+	
 	return (0);
 }
 
 static int
-mfi_disk_close(struct disk *dp)
+mfi_disk_close(dev_t dev , int flags, int cmd, d_thread_t *td)
 {
+	struct mfi_disk *sc;
+
+	sc = (struct mfi_disk *)dev->si_drv1;
+	if (sc == NULL)
+		return (ENXIO);
+	sc->ld_flags &= ~MFID_OPEN;
 
 	return (0);
 }
@@ -189,10 +256,9 @@ mfi_disk_strategy(struct bio *bio)
 
 	controller = sc->ld_controller;
 	bio->bio_driver1 = (void *)(uintptr_t)sc->ld_id;
-	mtx_lock(&controller->mfi_io_lock);
+	devstat_start_transaction(&sc->ld_stats);
 	mfi_enqueue_bio(controller, bio);
 	mfi_startio(controller);
-	mtx_unlock(&controller->mfi_io_lock);
 	return;
 }
 
@@ -208,32 +274,62 @@ mfi_disk_complete(struct bio *bio)
 	if (bio->bio_flags & BIO_ERROR) {
 		if (bio->bio_error == 0)
 			bio->bio_error = EIO;
-		disk_err(bio, "hard error", -1, 1);
+		diskerr(bio, "hard error", -1, 1, NULL);
 	} else {
 		bio->bio_resid = 0;
 	}
+	devstat_end_transaction_bio(&sc->ld_stats, bio);
 	biodone(bio);
 }
 
 static int
-mfi_disk_dump(void *arg, void *virt, vm_offset_t phys, off_t offset, size_t len)
+mfi_disk_dump(dev_t dev)
 {
 	struct mfi_disk *sc;
 	struct mfi_softc *parent_sc;
-	struct disk *dp;
+	u_int count, blkno;
+	u_int32_t secsize;
+	vm_paddr_t addr = 0;
+	long blkcnt;
+	int dumppages = MAXDUMPPGS;
 	int error;
+	int i;
 
-	dp = arg;
-	sc = dp->d_drv1;
+	if ((error = disk_dumpcheck(dev, &count, &blkno, &secsize)))
+		return (error);
+
+	sc = dev->d_drv1;
 	parent_sc = sc->ld_controller;
 
-	if (len > 0) {
-		if ((error = mfi_dump_blocks(parent_sc, sc->ld_id, offset /
-		    MFI_SECTOR_LEN, virt, len)) != 0)
-			return (error);
-	} else {
-		/* mfi_sync_cache(parent_sc, sc->ld_id); */
-	}
+	if (!sc || !parent_sc)
+		return (ENXIO);
 
+	blkcnt = howmany(PAGE_SIZE, secsize);
+	
+	while (count > 0) {
+		caddr_t va = NULL;
+
+		if ((count / blkcnt) < dumppages)
+			dumppages = count / blkcnt;
+
+		for (i = 0; i < dumppages; ++i) {
+			vm_paddr_t a = addr + (i * PAGE_SIZE);
+			if (is_physical_memory(a))
+				va = pmap_kenter_temporary(trunc_page(a), i);
+			else
+				va = pmap_kenter_temporary(trunc_page(0), i);
+		}
+		if ((error = mfi_dump_blocks(parent_sc, sc->ld_id, blkno, va,
+		    PAGE_SIZE * dumppages)) != 0) {
+			return (error);
+		}
+
+		if (dumpstatus(addr, (off_t)count * DEV_BSIZE) < 0)
+			return (EINTR);
+
+		blkno += blkcnt * dumppages;
+		count -= blkcnt * dumppages;
+		addr += PAGE_SIZE * dumppages;
+	}
 	return (0);
 }

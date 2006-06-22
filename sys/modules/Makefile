@@ -55,6 +55,7 @@ SUBDIR=	accf_data \
 	libmchain \
 	linux \
 	md \
+	mfi \
 	mfs \
 	mii \
 	mlx \

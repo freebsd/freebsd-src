@@ -131,6 +131,7 @@ device		aac		# Adaptec FSA RAID, Dell PERC2/PERC3
 device		ida		# Compaq Smart RAID
 device		ips		# IBM/Adaptec ServeRAID
 device		amr		# AMI MegaRAID
+device		mfi		# LSI MegaRAID SAS
 device		mlx		# Mylex DAC960 family
 device		pst		# Promise Supertrak SX6000
 device		twe		# 3ware Escalade

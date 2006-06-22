@@ -70,6 +70,7 @@ struct mfi_command {
 	int			cm_aen_abort;
 	void			(* cm_complete)(struct mfi_command *cm);
 	void			*cm_private;
+	void			*cm_private2;
 };
 
 struct mfi_ld {
@@ -172,9 +173,8 @@ struct mfi_softc {
 
 	TAILQ_HEAD(,mfi_ld)		mfi_ld_tqh;
 	eventhandler_tag		mfi_eh;
-	struct cdev			*mfi_cdev;
+	dev_t				mfi_cdev;
 
-	struct mtx			mfi_io_lock;
 };
 
 extern int mfi_attach(struct mfi_softc *);
@@ -212,6 +212,7 @@ extern int mfi_dump_blocks(struct mfi_softc *, int id, uint64_t, void *, int);
 	static __inline void						\
 	mfi_enqueue_ ## name (struct mfi_command *cm)			\
 	{								\
+		int s = splbio();					\
 		if ((cm->cm_flags & MFI_ON_MFIQ_MASK) != 0) {		\
 			printf("command %p is on another queue, "	\
 			    "flags = %#x\n", cm, cm->cm_flags);		\
@@ -220,10 +221,13 @@ extern int mfi_dump_blocks(struct mfi_softc *, int id, uint64_t, void *, int);
 		TAILQ_INSERT_TAIL(&cm->cm_sc->mfi_ ## name, cm, cm_link); \
 		cm->cm_flags |= MFI_ON_ ## index;			\
 		MFIQ_ADD(cm->cm_sc, index);				\
+		splx(s);						\
 	}								\
 	static __inline void						\
 	mfi_requeue_ ## name (struct mfi_command *cm)			\
 	{								\
+		int s = splbio();					\
+									\
 		if ((cm->cm_flags & MFI_ON_MFIQ_MASK) != 0) {		\
 			printf("command %p is on another queue, "	\
 			    "flags = %#x\n", cm, cm->cm_flags);		\
@@ -232,11 +236,13 @@ extern int mfi_dump_blocks(struct mfi_softc *, int id, uint64_t, void *, int);
 		TAILQ_INSERT_HEAD(&cm->cm_sc->mfi_ ## name, cm, cm_link); \
 		cm->cm_flags |= MFI_ON_ ## index;			\
 		MFIQ_ADD(cm->cm_sc, index);				\
+		splx(s);						\
 	}								\
 	static __inline struct mfi_command *				\
 	mfi_dequeue_ ## name (struct mfi_softc *sc)			\
 	{								\
 		struct mfi_command *cm;					\
+		int s = splbio();					\
 									\
 		if ((cm = TAILQ_FIRST(&sc->mfi_ ## name)) != NULL) {	\
 			if ((cm->cm_flags & MFI_ON_ ## index) == 0) {	\
@@ -249,11 +255,14 @@ extern int mfi_dump_blocks(struct mfi_softc *, int id, uint64_t, void *, int);
 			cm->cm_flags &= ~MFI_ON_ ## index;		\
 			MFIQ_REMOVE(sc, index);				\
 		}							\
+		splx(s);						\
 		return (cm);						\
 	}								\
 	static __inline void						\
 	mfi_remove_ ## name (struct mfi_command *cm)			\
 	{								\
+		int s = splbio();					\
+									\
 		if ((cm->cm_flags & MFI_ON_ ## index) == 0) {		\
 			printf("command %p not in queue, flags = %#x, " \
 			    "bit = %#x\n", cm, cm->cm_flags,		\
@@ -263,6 +272,7 @@ extern int mfi_dump_blocks(struct mfi_softc *, int id, uint64_t, void *, int);
 		TAILQ_REMOVE(&cm->cm_sc->mfi_ ## name, cm, cm_link);	\
 		cm->cm_flags &= ~MFI_ON_ ## index;			\
 		MFIQ_REMOVE(cm->cm_sc, index);				\
+		splx(s);						\
 	}								\
 struct hack
 
@@ -280,19 +290,23 @@ mfi_initq_bio(struct mfi_softc *sc)
 static __inline void
 mfi_enqueue_bio(struct mfi_softc *sc, struct bio *bp)
 {
+	int s = splbio();
 	bioq_insert_tail(&sc->mfi_bioq, bp);
 	MFIQ_ADD(sc, MFIQ_BIO);
+	splx(s);
 }
 
 static __inline struct bio *
 mfi_dequeue_bio(struct mfi_softc *sc)
 {
 	struct bio *bp;
+	int s = splbio();
 
 	if ((bp = bioq_first(&sc->mfi_bioq)) != NULL) {
 		bioq_remove(&sc->mfi_bioq, bp);
 		MFIQ_REMOVE(sc, MFIQ_BIO);
 	}
+	splx(s);
 	return (bp);
 }
 

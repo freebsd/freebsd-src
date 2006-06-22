@@ -95,6 +95,7 @@ LIBICONV
 MD_NSECT	opt_md.h
 MD_ROOT		opt_md.h
 MD_ROOT_SIZE	opt_md.h
+MFI_DEBUG	opt_mfi.h
 MFS_ROOT	opt_mfs.h
 MFS_ROOT_SIZE	opt_mfs.h
 NTIMECOUNTER	opt_ntp.h

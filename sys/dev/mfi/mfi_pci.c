@@ -34,20 +34,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/selinfo.h>
+#include <sys/select.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/bio.h>
 #include <sys/malloc.h>
 #include <sys/uio.h>
 
+#include <dev/mfi/mfi_compat.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
 
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
+#include <pci/pcireg.h>
+#include <pci/pcivar.h>
 
 #include <dev/mfi/mfireg.h>
 #include <dev/mfi/mfi_ioctl.h>
@@ -171,7 +171,6 @@ mfi_pci_attach(device_t dev)
 				BUS_SPACE_UNRESTRICTED,	/* nsegments */
 				BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 				0,			/* flags */
-				NULL, NULL,		/* lockfunc, lockarg */
 				&sc->mfi_parent_dmat)) {
 		device_printf(dev, "Cannot allocate parent DMA tag\n");
 		goto out;

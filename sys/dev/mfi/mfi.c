@@ -34,17 +34,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/poll.h>
-#include <sys/selinfo.h>
+#include <sys/select.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/eventhandler.h>
-#include <sys/rman.h>
-#include <sys/bus_dma.h>
-#include <sys/bio.h>
 #include <sys/ioccom.h>
 #include <sys/uio.h>
 #include <sys/proc.h>
+#include <sys/signalvar.h>
 
+#include <machine/bus_memio.h>
+#include <machine/bus_pio.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
+
+#include <dev/mfi/mfi_compat.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 
@@ -81,7 +86,9 @@ static int	mfi_mapcmd(struct mfi_softc *, struct mfi_command *);
 static int	mfi_send_frame(struct mfi_softc *, struct mfi_command *);
 static void	mfi_complete(struct mfi_softc *, struct mfi_command *);
 static int	mfi_abort(struct mfi_softc *, struct mfi_command *);
-static int	mfi_linux_ioctl_int(struct cdev *, u_long, caddr_t, int, d_thread_t *);
+#ifdef notyet
+static int	mfi_linux_ioctl_int(dev_t, u_long, caddr_t, int, d_thread_t *);
+#endif
 
 /* Management interface */
 static d_open_t		mfi_open;
@@ -90,13 +97,15 @@ static d_ioctl_t	mfi_ioctl;
 static d_poll_t		mfi_poll;
 
 static struct cdevsw mfi_cdevsw = {
-	.d_version = 	D_VERSION,
-	.d_flags =	0,
-	.d_open = 	mfi_open,
-	.d_close =	mfi_close,
-	.d_ioctl =	mfi_ioctl,
-	.d_poll =	mfi_poll,
-	.d_name =	"mfi",
+mfi_open,
+mfi_close,
+noread, nowrite,
+mfi_ioctl,
+mfi_poll,
+nommap, nostrategy,
+"mfi",
+200,
+nodump, nopsize, 0
 };
 
 MALLOC_DEFINE(M_MFIBUF, "mfibuf", "Buffers for the MFI driver");
@@ -173,7 +182,6 @@ mfi_attach(struct mfi_softc *sc)
 	int error, commsz, framessz, sensesz;
 	int frames, unit;
 
-	mtx_init(&sc->mfi_io_lock, "MFI I/O lock", NULL, MTX_DEF);
 	TAILQ_INIT(&sc->mfi_ld_tqh);
 	TAILQ_INIT(&sc->mfi_aen_pids);
 
@@ -214,8 +222,6 @@ mfi_attach(struct mfi_softc *sc)
 				sc->mfi_total_sgl,	/* nsegments */
 				BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 				BUS_DMA_ALLOCNOW,	/* flags */
-				busdma_lock_mutex,	/* lockfunc */
-				&sc->mfi_io_lock,	/* lockfuncarg */
 				&sc->mfi_buffer_dmat)) {
 		device_printf(sc->mfi_dev, "Cannot allocate buffer DMA tag\n");
 		return (ENOMEM);
@@ -238,7 +244,6 @@ mfi_attach(struct mfi_softc *sc)
 				1,			/* msegments */
 				commsz,			/* maxsegsize */
 				0,			/* flags */
-				NULL, NULL,		/* lockfunc, lockarg */
 				&sc->mfi_comms_dmat)) {
 		device_printf(sc->mfi_dev, "Cannot allocate comms DMA tag\n");
 		return (ENOMEM);
@@ -281,7 +286,6 @@ mfi_attach(struct mfi_softc *sc)
 				1,			/* nsegments */
 				framessz,		/* maxsegsize */
 				0,			/* flags */
-				NULL, NULL,		/* lockfunc, lockarg */
 				&sc->mfi_frames_dmat)) {
 		device_printf(sc->mfi_dev, "Cannot allocate frame DMA tag\n");
 		return (ENOMEM);
@@ -309,7 +313,6 @@ mfi_attach(struct mfi_softc *sc)
 				1,			/* nsegments */
 				sensesz,		/* maxsegsize */
 				0,			/* flags */
-				NULL, NULL,		/* lockfunc, lockarg */
 				&sc->mfi_sense_dmat)) {
 		device_printf(sc->mfi_dev, "Cannot allocate sense DMA tag\n");
 		return (ENOMEM);
@@ -374,8 +377,6 @@ mfi_attach(struct mfi_softc *sc)
 	unit = device_get_unit(sc->mfi_dev);
 	sc->mfi_cdev = make_dev(&mfi_cdevsw, unit, UID_ROOT, GID_OPERATOR,
 	    0640, "mfi%d", unit);
-	if (unit == 0)
-		make_dev_alias(sc->mfi_cdev, "megaraid_sas_ioctl_node");
 	if (sc->mfi_cdev != NULL)
 		sc->mfi_cdev->si_drv1 = sc;
 
@@ -446,8 +447,6 @@ mfi_dcmd_command(struct mfi_softc *sc, struct mfi_command **cmp, uint32_t opcode
 	struct mfi_command *cm;
 	struct mfi_dcmd_frame *dcmd;
 	void *buf = NULL;
-	
-	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
 	
 	cm = mfi_dequeue_free(sc);
 	if (cm == NULL)
@@ -534,7 +533,6 @@ mfi_get_controller_info(struct mfi_softc *sc)
 	uint32_t max_sectors_1, max_sectors_2;
 	int error;
 
-	mtx_lock(&sc->mfi_io_lock);
 	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_CTRL_GETINFO,
 	    (void **)&ci, sizeof(*ci));
 	if (error)
@@ -570,7 +568,6 @@ out:
 		free(ci, M_MFIBUF);
 	if (cm)
 		mfi_release_command(cm);
-	mtx_unlock(&sc->mfi_io_lock);
 	return (error);
 }
 
@@ -580,7 +577,6 @@ mfi_get_log_state(struct mfi_softc *sc, struct mfi_evt_log_state **log_state)
 	struct mfi_command *cm = NULL;
 	int error;
 
-	mtx_lock(&sc->mfi_io_lock);
 	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_CTRL_EVENT_GETINFO,
 	    (void **)log_state, sizeof(**log_state));
 	if (error)
@@ -604,7 +600,6 @@ mfi_get_log_state(struct mfi_softc *sc, struct mfi_evt_log_state **log_state)
 out:
 	if (cm)
 		mfi_release_command(cm);
-	mtx_unlock(&sc->mfi_io_lock);
 
 	return (error);
 }
@@ -680,13 +675,16 @@ mfi_polled_command(struct mfi_softc *sc, struct mfi_command *cm)
 static int
 mfi_wait_command(struct mfi_softc *sc, struct mfi_command *cm)
 {
+	int error, s;
 
-	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
 	cm->cm_complete = NULL;
 
+	s = splbio();
 	mfi_enqueue_ready(cm);
 	mfi_startio(sc);
-	return (msleep(cm, &sc->mfi_io_lock, PRIBIO, "mfiwait", 0));
+	error = tsleep(cm, PRIBIO, "mfiwait", 0);
+	splx(s);
+	return (error);
 }
 
 void
@@ -741,9 +739,6 @@ mfi_free(struct mfi_softc *sc)
 	if (sc->mfi_parent_dmat != NULL)
 		bus_dma_tag_destroy(sc->mfi_parent_dmat);
 
-	if (mtx_initialized(&sc->mfi_io_lock))
-		mtx_destroy(&sc->mfi_io_lock);
-
 	return;
 }
 
@@ -766,6 +761,7 @@ mfi_intr(void *arg)
 	struct mfi_softc *sc;
 	struct mfi_command *cm;
 	uint32_t status, pi, ci, context;
+	int s;
 
 	sc = (struct mfi_softc *)arg;
 
@@ -776,7 +772,7 @@ mfi_intr(void *arg)
 
 	pi = sc->mfi_comms->hw_pi;
 	ci = sc->mfi_comms->hw_ci;
-	mtx_lock(&sc->mfi_io_lock);
+	s = splbio();
 	while (ci != pi) {
 		context = sc->mfi_comms->hw_reply_q[ci];
 		sc->mfi_comms->hw_reply_q[ci] = 0xffffffff;
@@ -793,7 +789,7 @@ mfi_intr(void *arg)
 			ci = 0;
 		}
 	}
-	mtx_unlock(&sc->mfi_io_lock);
+	splx(s);
 
 	sc->mfi_comms->hw_ci = ci;
 
@@ -807,9 +803,7 @@ mfi_shutdown(struct mfi_softc *sc)
 	struct mfi_command *cm;
 	int error;
 
-	mtx_lock(&sc->mfi_io_lock);
 	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_CTRL_SHUTDOWN, NULL, 0);
-	mtx_unlock(&sc->mfi_io_lock);
 	if (error)
 		return (error);
 
@@ -842,7 +836,6 @@ mfi_ldprobe(struct mfi_softc *sc)
 	struct mfi_ld_list *list = NULL;
 	int error, i;
 
-	mtx_lock(&sc->mfi_io_lock);
 	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_LD_GET_LIST,
 	    (void **)&list, sizeof(*list));
 	if (error)
@@ -868,7 +861,6 @@ out:
 		free(list, M_MFIBUF);
 	if (cm)
 		mfi_release_command(cm);
-	mtx_unlock(&sc->mfi_io_lock);
 	return;
 }
 
@@ -1139,10 +1131,8 @@ mfi_aen_register(struct mfi_softc *sc, int seq, int locale)
 		}
 	}
 
-	mtx_lock(&sc->mfi_io_lock);
 	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_CTRL_EVENT_WAIT,
 	    (void **)&ed, sizeof(*ed));
-	mtx_unlock(&sc->mfi_io_lock);
 	if (error)
 		return (error);
 
@@ -1168,6 +1158,7 @@ mfi_aen_complete(struct mfi_command *cm)
 	struct mfi_evt_detail *detail;
 	struct mfi_aen *mfi_aen_entry;
 	int seq = 0, aborted = 0;
+	int s;
 
 	sc = cm->cm_sc;
 	hdr = &cm->cm_frame->header;
@@ -1183,16 +1174,16 @@ mfi_aen_complete(struct mfi_command *cm)
 		if (sc->mfi_poll_waiting)
 			selwakeup(&sc->mfi_select);
 		detail = cm->cm_data;
-		mtx_unlock(&sc->mfi_io_lock);
 		mfi_decode_evt(sc, detail);
-		mtx_lock(&sc->mfi_io_lock);
 		seq = detail->seq + 1;
+		s = splbio();
 		TAILQ_FOREACH(mfi_aen_entry, &sc->mfi_aen_pids, aen_link) {
 			TAILQ_REMOVE(&sc->mfi_aen_pids, mfi_aen_entry,
 			    aen_link);
 			psignal(mfi_aen_entry->p, SIGIO);
 			free(mfi_aen_entry, M_MFIBUF);
 		}
+		splx(s);
 	}
 
 	free(cm->cm_data, M_MFIBUF);
@@ -1202,9 +1193,7 @@ mfi_aen_complete(struct mfi_command *cm)
 
 	/* set it up again so the driver can catch more events */
 	if (!aborted) {
-		mtx_unlock(&sc->mfi_io_lock);
 		mfi_aen_setup(sc, seq);
-		mtx_lock(&sc->mfi_io_lock);
 	}
 }
 
@@ -1217,18 +1206,13 @@ mfi_get_entry(struct mfi_softc *sc, int seq)
 	struct mfi_log_detail *ed;
 	int error;
 
-	mtx_lock(&sc->mfi_io_lock);
 	if ((cm = mfi_dequeue_free(sc)) == NULL) {
-		mtx_unlock(&sc->mfi_io_lock);
 		return (EBUSY);
 	}
-	mtx_unlock(&sc->mfi_io_lock);
 
 	ed = malloc(sizeof(struct mfi_log_detail), M_MFIBUF, M_NOWAIT | M_ZERO);
 	if (ed == NULL) {
-		mtx_lock(&sc->mfi_io_lock);
 		mfi_release_command(cm);
-		mtx_unlock(&sc->mfi_io_lock);
 		return (ENOMEM);
 	}
 
@@ -1268,10 +1252,8 @@ mfi_get_entry(struct mfi_softc *sc, int seq)
 
 	mfi_decode_log(sc, ed);
 
-	mtx_lock(&sc->mfi_io_lock);
 	free(cm->cm_data, M_MFIBUF);
 	mfi_release_command(cm);
-	mtx_unlock(&sc->mfi_io_lock);
 	return (0);
 }
 #endif
@@ -1283,8 +1265,6 @@ mfi_add_ld(struct mfi_softc *sc, int id)
 	struct mfi_dcmd_frame *dcmd = NULL;
 	struct mfi_ld_info *ld_info = NULL;
 	int error;
-
-	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
 
 	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_LD_GET_INFO,
 	    (void **)&ld_info, sizeof(*ld_info));
@@ -1346,11 +1326,7 @@ mfi_add_ld_complete(struct mfi_command *cm)
 
 	device_set_ivars(child, ld);
 	device_set_desc(child, "MFI Logical Disk");
-	mtx_unlock(&sc->mfi_io_lock);
-	mtx_lock(&Giant);
 	bus_generic_attach(sc->mfi_dev);
-	mtx_unlock(&Giant);
-	mtx_lock(&sc->mfi_io_lock);
 }
 
 static struct mfi_command *
@@ -1370,17 +1346,12 @@ mfi_bio_command(struct mfi_softc *sc)
 	}
 
 	io = &cm->cm_frame->io;
-	switch (bio->bio_cmd & 0x03) {
-	case BIO_READ:
+	if (BIO_IS_READ(bio)) {
 		io->header.cmd = MFI_CMD_LD_READ;
 		flags = MFI_CMD_DATAIN;
-		break;
-	case BIO_WRITE:
+	} else {
 		io->header.cmd = MFI_CMD_LD_WRITE;
 		flags = MFI_CMD_DATAOUT;
-		break;
-	default:
-		panic("Invalid bio command");
 	}
 
 	/* Cheat with the sector length to avoid a non-constant division */
@@ -1542,6 +1513,7 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 static int
 mfi_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 {
+	int s;
 
 	/*
 	 * The bus address of the command is aligned on a 64 byte boundary,
@@ -1556,8 +1528,10 @@ mfi_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 	 * I/O transfers of 256k and higher simply are not possible, which
 	 * is quite odd for such a modern adapter.
 	 */
+	s = splbio();
 	MFI_WRITE4(sc, MFI_IQP, (cm->cm_frame_busaddr >> 3) |
 	    cm->cm_extra_frames);
+	splx(s);
 	return (0);
 }
 
@@ -1593,12 +1567,9 @@ mfi_abort(struct mfi_softc *sc, struct mfi_command *cm_abort)
 	struct mfi_command *cm;
 	struct mfi_abort_frame *abort;
 
-	mtx_lock(&sc->mfi_io_lock);
 	if ((cm = mfi_dequeue_free(sc)) == NULL) {
-		mtx_unlock(&sc->mfi_io_lock);
 		return (EBUSY);
 	}
-	mtx_unlock(&sc->mfi_io_lock);
 
 	abort = &cm->cm_frame->abort;
 	abort->header.cmd = MFI_CMD_ABORT;
@@ -1611,9 +1582,7 @@ mfi_abort(struct mfi_softc *sc, struct mfi_command *cm_abort)
 	sc->mfi_aen_cm->cm_aen_abort = 1;
 	mfi_mapcmd(sc, cm);
 	mfi_polled_command(sc, cm);
-	mtx_lock(&sc->mfi_io_lock);
 	mfi_release_command(cm);
-	mtx_unlock(&sc->mfi_io_lock);
 
 	while (sc->mfi_aen_cm != NULL) {
 		tsleep(&sc->mfi_aen_cm, 0, "mfiabort", 5 * hz);
@@ -1664,7 +1633,7 @@ mfi_dump_blocks(struct mfi_softc *sc, int id, uint64_t lba, void *virt, int len)
 }
 
 static int
-mfi_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
+mfi_open(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
 	struct mfi_softc *sc;
 
@@ -1675,14 +1644,16 @@ mfi_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 }
 
 static int
-mfi_close(struct cdev *dev, int flags, int fmt, d_thread_t *td)
+mfi_close(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
 	struct mfi_softc *sc;
 	struct mfi_aen *mfi_aen_entry;
+	int s;
 
 	sc = dev->si_drv1;
 	sc->mfi_flags &= ~MFI_FLAGS_OPEN;
 
+	s = splbio();
 	TAILQ_FOREACH(mfi_aen_entry, &sc->mfi_aen_pids, aen_link) {
 		if (mfi_aen_entry->p == curproc) {
 			TAILQ_REMOVE(&sc->mfi_aen_pids, mfi_aen_entry,
@@ -1690,11 +1661,12 @@ mfi_close(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 			free(mfi_aen_entry, M_MFIBUF);
 		}
 	}
+	splx(s);
 	return (0);
 }
 
 static int
-mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
+mfi_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 {
 	struct mfi_softc *sc;
 	union mfi_statrequest *ms;
@@ -1719,6 +1691,8 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 			break;
 		}
 		break;
+
+#ifdef notyet
 	case 0xc1144d01: /* Firmware Linux ioctl shim */
 		{
 			devclass_t devclass;
@@ -1761,6 +1735,7 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 			    cmd, arg, flag, td));
 			break;
 		}
+#endif
 	default:
 		error = ENOENT;
 		break;
@@ -1769,8 +1744,9 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 	return (error);
 }
 
+#ifdef notyet
 static int
-mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
+mfi_linux_ioctl_int(dev_t dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 {
 	struct mfi_softc *sc;
 	struct mfi_linux_ioc_packet l_ioc;
@@ -1781,6 +1757,7 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 	uint32_t context;
 	uint8_t *data = NULL, *temp;
 	int i;
+	int s;
 	int error;
 
 	sc = dev->si_drv1;
@@ -1795,12 +1772,9 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 			return (EINVAL);
 		}
 
-		mtx_lock(&sc->mfi_io_lock);
 		if ((cm = mfi_dequeue_free(sc)) == NULL) {
-			mtx_unlock(&sc->mfi_io_lock);
 			return (EBUSY);
 		}
-		mtx_unlock(&sc->mfi_io_lock);
 
 		/*
 		 * save off original context since copying from user
@@ -1899,9 +1873,7 @@ out:
 		if (data)
 			free(data, M_MFIBUF);
 		if (cm) {
-			mtx_lock(&sc->mfi_io_lock);
 			mfi_release_command(cm);
-			mtx_unlock(&sc->mfi_io_lock);
 		}
 
 		return (error);
@@ -1914,15 +1886,19 @@ out:
 		    M_WAITOK);
 		if (mfi_aen_entry != NULL) {
 			mfi_aen_entry->p = curproc;
+			s = splbio();
 			TAILQ_INSERT_TAIL(&sc->mfi_aen_pids, mfi_aen_entry,
 			    aen_link);
+			splx(s);
 		}
 		error = mfi_aen_register(sc, l_aen.laen_seq_num,
 		    l_aen.laen_class_locale);
 
 		if (error != 0) {
+			s = splbio();
 			TAILQ_REMOVE(&sc->mfi_aen_pids, mfi_aen_entry,
 			    aen_link);
+			splx(s);
 			free(mfi_aen_entry, M_MFIBUF);
 		}
 
@@ -1935,9 +1911,10 @@ out:
 
 	return (error);
 }
+#endif
 
 static int
-mfi_poll(struct cdev *dev, int poll_events, struct thread *td)
+mfi_poll(dev_t dev, int poll_events, d_thread_t *td)
 {
 	struct mfi_softc *sc;
 	int revents = 0;

@@ -413,6 +413,9 @@ dev/iir/iir_pci.c	optional iir pci
 dev/lge/if_lge.c	optional lge
 dev/mca/mca_bus.c	optional mca
 dev/md/md.c		optional md
+dev/mfi/mfi.c		optional mfi
+dev/mfi/mfi_pci.c	optional mfi pci
+dev/mfi/mfi_disk.c	optional mfi
 dev/mii/mii.c		optional miibus
 dev/mii/mii_physubr.c	optional miibus
 dev/mii/ukphy.c		optional miibus
