@@ -174,7 +174,6 @@ _start(void)
 	__start();
 }
 
-#ifdef KZIP
 static void
 get_cachetype_cp15()
 {
@@ -255,6 +254,7 @@ arm9_setup(void)
 }
 
 
+#ifdef KZIP
 static  unsigned char *orig_input, *i_input, *i_output;
 
 
