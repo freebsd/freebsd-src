@@ -32,7 +32,19 @@
 .Nm geom_fox
 .Nd "GEOM based basic disk multipathing"
 .Sh SYNOPSIS
-.Cd "kldload geom_fox"
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options GEOM_FOX"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+geom_fox_load="YES"
+.Ed
 .Sh DESCRIPTION
 The intent of the
 .Nm 
@@ -41,25 +53,26 @@ access devices.
 Basic in the above sentence should be read as:
 .Nm
 only provides path failover functionality, not load balancing over
-the available paths etc.  
-Using suitable hardware like SCSI or FibreChannel disks it is 
-possible to have multiple (typically 2) host bus adapters access 
+the available paths etc.
+Using suitable hardware like SCSI or FibreChannel disks it is
+possible to have multiple (typically 2) host bus adapters access
 the same physical disk drive.
 .Pp
 Without a multipathing driver the
 .Fx
 kernel would probe the disks multiple times, resulting in the creation of
-multiple 
+multiple
 .Pa /dev
 entries for the same underlying physical device.
 A unique label written in the GEOM label area allows
-.Nm 
-to detect multiple paths.  Using this information it creates a unique
+.Nm
+to detect multiple paths.
+Using this information it creates a unique
 .Pa da#.fox
 device.
 .Pp
-The 
-.Nm 
+The
+.Nm
 device is subsequently used by the
 .Fx
 kernel to access the disks.
@@ -68,8 +81,8 @@ Multiple physical access paths ensure that even in case of a path failure the
 kernel can continue to access the data.
 .Pp
 The
-.Nm 
-driver will disallow write operations to the underlying devices once the 
+.Nm
+driver will disallow write operations to the underlying devices once the
 fox device has been opened for writing.
 .Sh EXAMPLES
 .Pp
@@ -97,7 +110,7 @@ echo "GEOM::FOX       someid" | dd of=/dev/da2 conv=sync
 For FibreChannel devices it is suggested to use the Node World Wide
 Name (Node WWN) as this is guaranteed by the FibreChannel standard to
 be worldwide unique.
-The use of the Port WWN not recommended as each port of a given 
+The use of the Port WWN not recommended as each port of a given
 device has a different WWN, thereby confusing things.
 .Pp
 The Node WWN can be obtained from a verbose boot as in for example
@@ -108,7 +121,7 @@ isp1: Target 1 (Loop 0x1) Port ID 0xe8 (role Target) Arrived
 .Ed
 .Pp
 This Node WWN would then be used like so:
-.Bd -literal 
+.Bd -literal
 echo "GEOM::FOX       20000004cfc8aca2" | dd of=/dev/da2 conv=sync
 .Ed
 .Pp
@@ -121,7 +134,7 @@ Once the labelling has been performed and assuming the
 module is loaded the kernel will inform you that it has found a new
 .Nm
 device with a message similar to
-.Bd -literal 
+.Bd -literal
 Creating new fox (da2)
 fox da2.fox lock 0xfffffc0000fdba20
 .Ed
@@ -164,12 +177,12 @@ da2.fox     N/A  da2
 .Xr GEOM 4 ,
 .Xr geom 8
 .Sh CAVEATS
-The 
-.Nm 
+The
+.Nm
 driver depends on the underlying hardware drivers to do the right thing in case
 of a path failure.
 If for example a hardware driver continues to retry forever,
-.Nm 
+.Nm
 is not able to re-initiate the I/O to an alternative physical path.
 .Pp
 You have to be very sure to provide a unique label for each of the
@@ -194,8 +207,8 @@ The examples provided are too FibreChannel-centric.
 .Sh AUTHORS
 .An -nosplit
 The
-.Nm 
+.Nm
 driver was written by 
 .An "Poul-Henning Kamp" Aq phk@FreeBSD.org .
-This manual page was written by 
+This manual page was written by
 .An "Wilko Bulte" Aq wilko@FreeBSD.org .
