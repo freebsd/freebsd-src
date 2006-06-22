@@ -669,14 +669,15 @@ sbus_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 	u_int64_t intrmap;
 	u_int32_t inr, slot;
 	int error, i;
-	long vec = rman_get_start(ires);
+	long vec;
 
 	sc = device_get_softc(dev);
 	scl = (struct sbus_clr *)malloc(sizeof(*scl), M_DEVBUF, M_NOWAIT);
 	if (scl == NULL)
-		return (0);
+		return (ENOMEM);
 	intrptr = intrmapptr = intrclrptr = 0;
 	intrmap = 0;
+	vec = rman_get_start(ires);
 	inr = INTVEC(vec);
 	if ((inr & INTMAP_OBIO_MASK) == 0) {
 		/*
@@ -694,10 +695,10 @@ sbus_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 		/* Insert IGN */
 		inr |= sc->sc_ign << INTMAP_IGN_SHIFT;
 		for (i = 0; intrptr <= SBR_RESERVED_INT_MAP &&
-			 INTVEC(intrmap = SYSIO_READ8(sc, intrptr)) !=
-			 INTVEC(inr); intrptr += 8, i++)
+		    INTVEC(intrmap = SYSIO_READ8(sc, intrptr)) != inr;
+		    intrptr += 8, i++)
 			;
-		if (INTVEC(intrmap) == INTVEC(inr)) {
+		if (INTVEC(intrmap) == inr) {
 			/* Register the map and clear intr registers */
 			intrmapptr = intrptr;
 			intrclrptr = SBR_SCSI_INT_CLR + i * 8;
@@ -711,7 +712,7 @@ sbus_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 	scl->scl_handler = intr;
 	scl->scl_clr = intrclrptr;
 	/* Disable the interrupt while we fiddle with it */
-	SYSIO_WRITE8(sc, intrmapptr, intrmap);
+	SYSIO_WRITE8(sc, intrmapptr, intrmap & ~INTMAP_V);
 	error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
 	    sbus_intr_stub, scl, cookiep);
 	if (error != 0) {
@@ -811,8 +812,9 @@ sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			tend = end - sc->sc_rd[i].rd_coffset;
 			rm = &sc->sc_rd[i].rd_rman;
 			bh = sc->sc_rd[i].rd_bushandle;
+			break;
 		}
-		if (toffs == 0L)
+		if (rm == NULL)
 			return (NULL);
 		flags &= ~RF_ACTIVE;
 		rv = rman_reserve_resource(rm, toffs, tend, count, flags,
@@ -839,10 +841,23 @@ static int
 sbus_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
+	void *p;
+	int error;
 
 	if (type == SYS_RES_IRQ) {
 		return (BUS_ACTIVATE_RESOURCE(device_get_parent(bus),
 		    child, type, rid, r));
+	}
+	if (type == SYS_RES_MEMORY) {
+		/*
+		 * Need to memory-map the device space, as some drivers depend
+		 * on the virtual address being set and useable.
+		 */
+		error = sparc64_bus_mem_map(rman_get_bustag(r),
+		    rman_get_bushandle(r), rman_get_size(r), 0, 0, &p);
+		if (error != 0)
+			return (error);
+		rman_set_virtual(r, p);
 	}
 	return (rman_activate_resource(r));
 }
@@ -855,6 +870,10 @@ sbus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 	if (type == SYS_RES_IRQ) {
 		return (BUS_DEACTIVATE_RESOURCE(device_get_parent(bus),
 		    child, type, rid, r));
+	}
+	if (type == SYS_RES_MEMORY) {
+		sparc64_bus_mem_unmap(rman_get_virtual(r), rman_get_size(r));
+		rman_set_virtual(r, NULL);
 	}
 	return (rman_deactivate_resource(r));
 }
