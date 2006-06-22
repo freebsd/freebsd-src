@@ -219,6 +219,14 @@ identifycpu(void)
 			break;
 		}
 		break;
+	case 0x20:
+		family_name = "Itanium 2";
+		switch (model) {
+		case 0x00:
+			model_name = "Montecito";
+			break;
+		}
+		break;
 	}
 	snprintf(cpu_family, sizeof(cpu_family), "%s", family_name);
 	snprintf(cpu_model, sizeof(cpu_model), "%s", model_name);
