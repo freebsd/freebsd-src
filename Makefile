@@ -206,9 +206,6 @@ world:
 	@echo "'Rebuilding world', for how to upgrade your system."
 	@echo "Define DESTDIR to where you want to install FreeBSD,"
 	@echo "including /, to override this warning and proceed as usual."
-	@echo "You may get the historical 'make world' behavior by defining"
-	@echo "HISTORICAL_MAKE_WORLD.  You should understand the implications"
-	@echo "before doing this."
 	@echo ""
 	@echo "Bailing out now..."
 	@false
