@@ -2189,7 +2189,10 @@ do {									\
 
 			case IPPROTO_ROUTING:	/* RFC 2460 */
 				PULLUP_TO(hlen, ulp, struct ip6_rthdr);
-				if (((struct ip6_rthdr *)ulp)->ip6r_type != 0) {
+				switch (((struct ip6_rthdr *)ulp)->ip6r_type) {
+				case 0:
+					break;
+				default:
 					printf("IPFW2: IPV6 - Unknown Routing "
 					    "Header type(%d)\n",
 					    ((struct ip6_rthdr *)ulp)->ip6r_type);
@@ -2260,11 +2263,20 @@ do {									\
 				PULLUP_TO(hlen, ulp, struct ip6_ext);
 				break;
 
+			case IPPROTO_IPV6:	/* RFC 2893 */
+				PULLUP_TO(hlen, ulp, struct ip6_hdr);
+				break;
+
+			case IPPROTO_IPV4:	/* RFC 2893 */
+				PULLUP_TO(hlen, ulp, struct ip);
+				break;
+
 			default:
 				printf("IPFW2: IPV6 - Unknown Extension "
 				    "Header(%d), ext_hd=%x\n", proto, ext_hd);
 				if (fw_deny_unknown_exthdrs)
 				    return (IP_FW_DENY);
+				PULLUP_TO(hlen, ulp, struct ip6_ext);
 				break;
 			} /*switch */
 		}
