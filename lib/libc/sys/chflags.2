@@ -32,7 +32,7 @@
 .\"	@(#)chflags.2	8.3 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2002
+.Dd Jun 23, 2006
 .Dt CHFLAGS 2
 .Os
 .Sh NAME
@@ -93,7 +93,20 @@ The file may not be changed.
 The file may only be appended to.
 .It SF_NOUNLINK
 The file may not be renamed or deleted.
+.It SF_SNAPSHOT
+The file is a snapshot file.
 .El
+.Pp
+If one of 
+.Dq SF_IMMUTABLE ,
+.Dq SF_APPEND ,
+or
+.Dq SF_NOUNLINK
+is set a non-super-user cannot change any flags and even the super-user
+can change flags only if securelevel is greater than 0.
+(See
+.Xr init 8
+for details.)
 .Pp
 The
 .Dq UF_IMMUTABLE ,
@@ -111,13 +124,17 @@ The
 and
 .Dq SF_ARCHIVED
 flags may only be set or unset by the super-user.
-Attempts by the non-super-user to set the super-user only flags
-are silently ignored.
+Attempts to set these flags by non-super-users are rejected, attempts by
+non-superusers to clear flags that are already unset are silently ignored.
 These flags may be set at any time, but normally may only be unset when
 the system is in single-user mode.
 (See
 .Xr init 8
 for details.)
+.Pp
+The
+.Dq SF_SNAPSHOT
+flag is maintained by the system and cannot be changed by any user.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
@@ -139,6 +156,20 @@ Too many symbolic links were encountered in translating the pathname.
 .It Bq Er EPERM
 The effective user ID does not match the owner of the file and
 the effective user ID is not the super-user.
+.It Bq Er EPERM
+One of
+.Dq SF_IMMUTABLE ,
+.Dq SF_APPEND ,
+or
+.Dq SF_NOUNLINK
+is set and the user is either not the super-user or
+securelevel is greater than 0.
+.It Bq Er EPERM
+A non-super-user tries to set one of
+.Dq SF_IMMUTABLE ,
+.Dq SF_APPEND ,
+or
+.Dq SF_NOUNLINK .
 .It Bq Er EROFS
 The named file resides on a read-only file system.
 .It Bq Er EFAULT
@@ -168,6 +199,20 @@ refers to a socket, not to a file.
 .It Bq Er EPERM
 The effective user ID does not match the owner of the file and
 the effective user ID is not the super-user.
+.It Bq Er EPERM
+One of
+.Dq SF_IMMUTABLE ,
+.Dq SF_APPEND ,
+or
+.Dq SF_NOUNLINK
+is set and the user is either not the super-user or
+securelevel is greater than 0.
+.It Bq Er EPERM
+A non-super-user tries to set one of
+.Dq SF_IMMUTABLE ,
+.Dq SF_APPEND ,
+or
+.Dq SF_NOUNLINK .
 .It Bq Er EROFS
 The file resides on a read-only file system.
 .It Bq Er EIO
