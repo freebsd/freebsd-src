@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 
 #include "uart_if.h"
 
+#define uart_lock(x)	mtx_lock_spin(&(x))
+#define uart_unlock(x)	mtx_unlock_spin(&(x))
 /*
  * High-level UART interface.
  */
@@ -80,7 +82,7 @@ static void at91_usart_init(struct uart_bas *bas, int, int, int, int);
 static void at91_usart_term(struct uart_bas *bas);
 static void at91_usart_putc(struct uart_bas *bas, int);
 static int at91_usart_poll(struct uart_bas *bas);
-static int at91_usart_getc(struct uart_bas *bas, struct mtx *mtx);
+static int at91_usart_getc(struct uart_bas *bas);
 
 extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
 
@@ -248,7 +250,7 @@ at91_usart_poll(struct uart_bas *bas)
  * Block waiting for a character.
  */
 static int
-at91_usart_getc(struct uart_bas *bas, struct mtx *mtx)
+at91_usart_getc(struct uart_bas *bas)
 {
 	int c;
 
@@ -407,7 +409,7 @@ at91_usart_bus_receive(struct uart_softc *sc)
 {
 	
 	uart_lock(sc->sc_hwmtx);
-	uart_rx_put(sc, at91_usart_getc(&sc->sc_bas, NULL));
+	uart_rx_put(sc, at91_usart_getc(&sc->sc_bas));
 	uart_unlock(sc->sc_hwmtx);
 	return (0);
 }
@@ -433,15 +435,15 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 	}
 	uart_lock(sc->sc_hwmtx);
 	if (csr & USART_CSR_TXRDY && sc->sc_txbusy)
-		ipend |= SER_INT_TXIDLE;
+		ipend |= UART_IPEND_TXIDLE;
 	if (csr & USART_CSR_ENDTX && sc->sc_txbusy)
-		ipend |= SER_INT_TXIDLE;
+		ipend |= UART_IPEND_TXIDLE;
 	if (csr & (USART_CSR_RXRDY /* | USART_CSR_ENDRX | USART_CSR_TIMEOUT */))
-		ipend |= SER_INT_RXREADY;
+		ipend |= UART_IPEND_RXREADY;
 	if (csr & USART_CSR_RXBRK) {
 		unsigned int cr = USART_CR_RSTSTA;
 
-		ipend |= SER_INT_BREAK;
+		ipend |= UART_IPEND_BREAK;
 		WR4(&sc->sc_bas, USART_CR, cr);
 	}
 	uart_unlock(sc->sc_hwmtx);
@@ -470,7 +472,7 @@ at91_usart_bus_getsig(struct uart_softc *sc)
 		sig |= SER_DSR;
 	if (csr & USART_CSR_RI)
 		sig |= SER_RI;
-	new = sig & ~SER_MASK_DELTA;
+	new = sig & ~UART_SIGMASK_DELTA;
 	sc->sc_hwsig = new;
 	uart_unlock(sc->sc_hwmtx);
 	return (sig);

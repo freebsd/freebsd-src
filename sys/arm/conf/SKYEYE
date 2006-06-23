@@ -24,6 +24,7 @@ ident		KB920X
 options		KERNPHYSADDR=0xc0000000	
 options		KERNVIRTADDR=0xc0000000	
 options		PHYSADDR=0xc0000000
+options		ARM32_NEW_VM_LAYOUT
 include		"../at91/std.kb920x"
 #To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"		#Default places to look for devices.
@@ -86,3 +87,4 @@ options		SKYEYE_WORKAROUNDS
 # Floppy drives
 
 
+options		COMPAT_43

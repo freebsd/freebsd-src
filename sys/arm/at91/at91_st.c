@@ -143,14 +143,14 @@ at91st_get_timecount(struct timecounter *tc)
 static void
 clock_intr(void *arg)
 {
-	struct trapframe *fp = arg;
+	struct clockframe *fp = arg;
 
 	/* The interrupt is shared, so we have to make sure it's for us. */
 	if (RD4(ST_SR) & ST_SR_PITS) {
 #ifdef SKYEYE_WORKAROUNDS
 		tot_count += 32768 / hz;
 #endif
-		hardclock(TRAPF_USERMODE(fp), TRAPF_PC(fp));
+		hardclock(fp);
 	}
 }
 

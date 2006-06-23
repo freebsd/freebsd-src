@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/bus.h>
 #include <sys/resource.h>
+#define __RMAN_RESOURCE_VISIBLE
 #include <sys/rman.h>
 #include <sys/timetc.h>
 
@@ -145,13 +146,15 @@ static struct at91_pmc_clock *const clock_list[] = {
 static inline uint32_t
 RD4(struct at91_pmc_softc *sc, bus_size_t off)
 {
-	return bus_read_4(sc->mem_res, off);
+	return bus_space_read_4(sc->mem_res->r_bustag, sc->mem_res->r_bushandle,
+	    off);
 }
 
 static inline void
 WR4(struct at91_pmc_softc *sc, bus_size_t off, uint32_t val)
 {
-	bus_write_4(sc->mem_res, off, val);
+	bus_space_write_4(sc->mem_res->r_bustag, sc->mem_res->r_bushandle, 
+	    off, val);
 }
 
 static void
