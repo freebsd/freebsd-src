@@ -131,6 +131,8 @@ bzero(void *addr, int count)
 	}
 }
 
+static void arm9_setup(void);
+
 void
 _start(void)
 {
