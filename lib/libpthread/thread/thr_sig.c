@@ -98,12 +98,6 @@ static int sigproptbl[NSIG] = {
 #define DBG_MSG(x...)
 #endif
 
-static __inline int
-_thr_dump_enabled(void)
-{
-	return ((_thr_debug_flags & DBG_INFO_DUMP) != 0);
-}
-
 /*
  * Signal setup and delivery.
  *

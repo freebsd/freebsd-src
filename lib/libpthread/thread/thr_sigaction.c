@@ -72,7 +72,7 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 		 * Check if the kernel needs to be advised of a change
 		 * in signal action:
 		 */
-		if (act != NULL && sig != SIGINFO) {
+		if (act != NULL) {
 
 			newact.sa_flags |= SA_SIGINFO;
 
@@ -87,6 +87,16 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 				 * handler:
 				 */
 				newact.sa_handler = (void (*) ())_thr_sig_handler;
+			}
+			/*
+			 * Install libpthread signal handler wrapper
+			 * for SIGINFO signal if threads dump enabled
+			 * even if a user set the signal handler to
+			 * SIG_DFL or SIG_IGN.
+			 */
+			if (sig == SIGINFO && _thr_dump_enabled()) {
+				newact.sa_handler =
+				    (void (*) ())_thr_sig_handler;
 			}
 			/* Change the signal action in the kernel: */
 			if (__sys_sigaction(sig, &newact, NULL) != 0) {
