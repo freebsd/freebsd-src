@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>	/* for sodupsockaddr */
+#include <sys/eventhandler.h>
 
 #include <netinet/in.h>
 #include <nfs/rpcv2.h>
@@ -57,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <nfsserver/nfsrvcache.h>
 
 static long numnfsrvcache;
-static long desirednfsrvcache = NFSRVCACHESIZ;
+static long desirednfsrvcache;
 
 #define	NFSRCHASH(xid) \
 	(&nfsrvhashtbl[((xid) + ((xid) >> 24)) & nfsrvhash])
@@ -122,15 +123,32 @@ static const int nfsv2_repstat[NFS_NPROCS] = {
 	FALSE,
 };
 
+/* 
+ * Size the NFS server's duplicate request cache at 1/2 the nmbclsters, floating 
+ * within a (64, 2048) range. This is to prevent all mbuf clusters being tied up 
+ * in the NFS dupreq cache for small values of nmbclusters. 
+ */
+static void
+nfsrvcache_size_change(void *tag)
+{
+	desirednfsrvcache = nmbclusters /2;
+	if (desirednfsrvcache > NFSRVCACHE_MAX_SIZE)
+		desirednfsrvcache = NFSRVCACHE_MAX_SIZE;
+	if (desirednfsrvcache < NFSRVCACHE_MIN_SIZE)
+		desirednfsrvcache = NFSRVCACHE_MIN_SIZE;	
+}
+
 /*
  * Initialize the server request cache list
  */
 void
 nfsrv_initcache(void)
 {
-
+	nfsrvcache_size_change(NULL);
 	nfsrvhashtbl = hashinit(desirednfsrvcache, M_NFSD, &nfsrvhash);
 	TAILQ_INIT(&nfsrvlruhead);
+	EVENTHANDLER_REGISTER(nmbclusters_change, nfsrvcache_size_change, NULL,
+			      EVENTHANDLER_PRI_FIRST);
 }
 
 /*
