@@ -158,6 +158,36 @@ vm_set_page_size(void)
 }
 
 /*
+ *	vm_page_blacklist_lookup:
+ *
+ *	See if a physical address in this page has been listed
+ *	in the blacklist tunable.  Entries in the tunable are
+ *	separated by spaces or commas.  If an invalid integer is
+ *	encountered then the rest of the string is skipped.
+ */
+static int
+vm_page_blacklist_lookup(char *list, vm_paddr_t pa)
+{
+	vm_paddr_t bad;
+	char *cp, *pos;
+
+	for (pos = list; *pos != '\0'; pos = cp) {
+		bad = strtoq(pos, &cp, 0);
+		if (*cp != '\0') {
+			if (*cp == ' ' || *cp == ',') {
+				cp++;
+				if (cp == pos)
+					continue;
+			} else
+				break;
+		}
+		if (pa == trunc_page(bad))
+			return (1);
+	}
+	return (0);
+}
+
+/*
  *	vm_page_startup:
  *
  *	Initializes the resident memory module.
@@ -177,6 +207,7 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_paddr_t pa;
 	int nblocks;
 	vm_paddr_t last_pa;
+	char *list;
 
 	/* the biggest memory array is the second group of pages */
 	vm_paddr_t end;
@@ -302,14 +333,21 @@ vm_page_startup(vm_offset_t vaddr)
 	 */
 	cnt.v_page_count = 0;
 	cnt.v_free_count = 0;
+	list = getenv("vm.blacklist");
 	for (i = 0; phys_avail[i + 1] && npages > 0; i += 2) {
 		pa = phys_avail[i];
 		last_pa = phys_avail[i + 1];
 		while (pa < last_pa && npages-- > 0) {
-			vm_pageq_add_new_page(pa);
+			if (list != NULL &&
+			    vm_page_blacklist_lookup(list, pa))
+				printf("Skipping page with pa 0x%jx\n",
+				    (uintmax_t)pa);
+			else
+				vm_pageq_add_new_page(pa);
 			pa += PAGE_SIZE;
 		}
 	}
+	freeenv(list);
 	return (vaddr);
 }
 
