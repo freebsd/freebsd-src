@@ -322,6 +322,7 @@ dev/aic7xxx/ahd_pci.c	optional ahd pci
 dev/aic7xxx/aic79xx.c	optional ahd pci
 dev/aic7xxx/aic79xx_osm.c	optional ahd pci
 dev/aic7xxx/aic79xx_pci.c	optional ahd pci
+dev/bce/if_bce.c	optional bce
 dev/bfe/if_bfe.c	optional bfe
 dev/bge/if_bge.c	optional bge
 dev/buslogic/bt.c	optional bt

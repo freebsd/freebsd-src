@@ -19,6 +19,7 @@ MAN=	aac.4 \
 	aue.4 \
 	awi.4 \
 	axe.4 \
+	bce.4 \
 	bfe.4 \
 	bge.4 \
 	bktr.4 \

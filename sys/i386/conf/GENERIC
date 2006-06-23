@@ -205,6 +205,7 @@ device		tx		# SMC EtherPower II (83c170 ``EPIC'')
 device		vr		# VIA Rhine, Rhine II
 device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
+device		bce		# Broadcom BCM5706/BCM5708 Gigabit Ethernet
 device		bge		# Broadcom BCM570x (``Tigon III'')
 
 # ISA Ethernet NICs.

@@ -50,10 +50,25 @@ __FBSDID("$FreeBSD$");
 #include <dev/bce/if_bcereg.h>
 #include <dev/bce/if_bcefw.h>
 
+/* 4.x compat */
+#define BPF_MTAP(_ifp,_m) do {					\
+			if ((_ifp)->if_bpf)			\
+				bpf_mtap((_ifp), (_m));		\
+			} while (0)
+
+#define ETHER_ALIGN                     2
+#define	ETHER_VLAN_ENCAP_LEN	4	/* len of 802.1Q VLAN encapsulation */
+
+#define	IFQ_DRV_IS_EMPTY(q)	((q)->ifq_head == NULL)
+
+#define	IF_Kbps(x)	((x) * 1000)		/* kilobits/sec. */
+#define	IF_Mbps(x)	(IF_Kbps((x) * 1000))	/* megabits/sec. */
+#define	IF_Gbps(x)	(IF_Mbps((x) * 1000))	/* gigabits/sec. */
+
 /****************************************************************************/
 /* BCE Driver Version                                                       */
 /****************************************************************************/
-char bce_driver_version[] = "v0.9.6";
+char bce_driver_version[] = "v0.9.5";
 
 
 /****************************************************************************/
@@ -276,6 +291,7 @@ static int  bce_nvram_write			(struct bce_softc *, u32, u8 *, int);
 /*                                                                          */
 /****************************************************************************/
 static void bce_dma_map_addr		(void *, bus_dma_segment_t *, int, int);
+static void bce_dma_map_rx_desc		(void *, bus_dma_segment_t *, int, bus_size_t, int);
 static void bce_dma_map_tx_desc		(void *, bus_dma_segment_t *, int, bus_size_t, int);
 static int  bce_dma_alloc			(device_t);
 static void bce_dma_free			(struct bce_softc *);
@@ -301,13 +317,11 @@ static void bce_free_rx_chain		(struct bce_softc *);
 static void bce_free_tx_chain		(struct bce_softc *);
 
 static int  bce_tx_encap			(struct bce_softc *, struct mbuf *, u16 *, u16 *, u32 *);
-static void bce_start_locked		(struct ifnet *);
 static void bce_start				(struct ifnet *);
 static int  bce_ioctl				(struct ifnet *, u_long, caddr_t);
 static void bce_watchdog			(struct ifnet *);
 static int  bce_ifmedia_upd			(struct ifnet *);
 static void bce_ifmedia_sts			(struct ifnet *, struct ifmediareq *);
-static void bce_init_locked			(struct bce_softc *);
 static void bce_init				(void *);
 
 static void bce_init_context		(struct bce_softc *);
@@ -320,15 +334,14 @@ static void bce_disable_intr		(struct bce_softc *);
 static void bce_enable_intr			(struct bce_softc *);
 
 #ifdef DEVICE_POLLING
-static void bce_poll_locked			(struct ifnet *, enum poll_cmd, int);
 static void bce_poll				(struct ifnet *, enum poll_cmd, int);
 #endif
 static void bce_intr				(void *);
 static void bce_set_rx_mode			(struct bce_softc *);
 static void bce_stats_update		(struct bce_softc *);
-static void bce_tick_locked			(struct bce_softc *);
 static void bce_tick				(void *);
 static void bce_add_sysctls			(struct bce_softc *);
+static void bce_remove_sysctls			(struct bce_softc *);
 
 
 /****************************************************************************/
@@ -368,6 +381,28 @@ MODULE_DEPEND(bce, miibus, 1, 1, 1);
 DRIVER_MODULE(bce, pci, bce_driver, bce_devclass, 0, 0);
 DRIVER_MODULE(miibus, bce, miibus_driver, miibus_devclass, 0, 0);
 
+static uint32_t
+ether_crc32_le(const uint8_t *buf, size_t len)
+{
+	static const uint32_t crctab[] = {
+		0x00000000, 0x1db71064, 0x3b6e20c8, 0x26d930ac,
+		0x76dc4190, 0x6b6b51f4, 0x4db26158, 0x5005713c,
+		0xedb88320, 0xf00f9344, 0xd6d6a3e8, 0xcb61b38c,
+		0x9b64c2b0, 0x86d3d2d4, 0xa00ae278, 0xbdbdf21c
+	};
+	size_t i;
+	uint32_t crc;
+
+	crc = 0xffffffff;	/* initial value */
+
+	for (i = 0; i < len; i++) {
+		crc ^= buf[i];
+		crc = (crc >> 4) ^ crctab[crc & 0xf];
+		crc = (crc >> 4) ^ crctab[crc & 0xf];
+	}
+
+	return (crc);
+}
 
 /****************************************************************************/
 /* Device probe function.                                                   */
@@ -424,7 +459,7 @@ bce_probe(device_t dev)
 
 			device_set_desc_copy(dev, descbuf);
 			free(descbuf, M_TEMP);
-			return(BUS_PROBE_DEFAULT);
+			return(0);
 		}
 		t++;
 	}
@@ -452,7 +487,9 @@ bce_attach(device_t dev)
 	struct bce_softc *sc;
 	struct ifnet *ifp;
 	u32 val;
-	int mbuf, rid, rc = 0;
+	int mbuf, rid, rc = 0, s;
+
+	s = splimp();
 
 	sc = device_get_softc(dev);
 	sc->bce_dev = dev;
@@ -495,9 +532,6 @@ bce_attach(device_t dev)
 		rc = ENXIO;
 		goto bce_attach_fail;
 	}
-
-	/* Initialize mutex for the current device instance. */
-	BCE_LOCK_INIT(sc, device_get_nameunit(dev));
 
 	/*
 	 * Configure byte swap and enable indirect register access.
@@ -637,6 +671,8 @@ bce_attach(device_t dev)
 
 	/* Fetch the permanent Ethernet MAC address. */
 	bce_get_mac_addr(sc);
+	device_printf(dev, "Ethernet address: %6D\n", sc->arpcom.ac_enaddr,
+	    ":");
 
 	/*
 	 * Trip points control how many BDs
@@ -701,20 +737,14 @@ bce_attach(device_t dev)
 		goto bce_attach_fail;
 	}
 
-	/* Allocate an ifnet structure. */
-	ifp = sc->bce_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		BCE_PRINTF(sc, "%s(%d): Interface allocation failed!\n", 
-			__FILE__, __LINE__);
-		rc = ENXIO;
-		goto bce_attach_fail;
-	}
-
 	/* Initialize the ifnet interface. */
+	ifp = &sc->arpcom.ac_if;
 	ifp->if_softc        = sc;
-	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
+	ifp->if_unit	     = device_get_unit(dev);
+	ifp->if_name	     = "bce";
 	ifp->if_flags        = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl        = bce_ioctl;
+	ifp->if_output	     = ether_output;
 	ifp->if_start        = bce_start;
 	ifp->if_timer        = 0;
 	ifp->if_watchdog     = bce_watchdog;
@@ -730,14 +760,11 @@ bce_attach(device_t dev)
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
 
-	ifp->if_snd.ifq_drv_maxlen = USABLE_TX_BD;
+	ifp->if_snd.ifq_maxlen = USABLE_TX_BD;
 	if (sc->bce_phy_flags & BCE_PHY_2_5G_CAPABLE_FLAG)
 		ifp->if_baudrate = IF_Gbps(2.5);
 	else
 		ifp->if_baudrate = IF_Gbps(1);
-
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
-	IFQ_SET_READY(&ifp->if_snd);
 
 	if (sc->bce_phy_flags & BCE_PHY_SERDES_FLAG) {
 		BCE_PRINTF(sc, "%s(%d): SerDes is not supported by this driver!\n", 
@@ -756,16 +783,15 @@ bce_attach(device_t dev)
 	}
 
 	/* Attach to the Ethernet interface list. */
-	ether_ifattach(ifp, sc->eaddr);
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
-#if __FreeBSD_version < 500000
+	/* Tell the upper layers we support long frames. */
+	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+
 	callout_init(&sc->bce_stat_ch);
-#else
-	callout_init(&sc->bce_stat_ch, CALLOUT_MPSAFE);
-#endif
 
 	/* Hookup IRQ last. */
-	rc = bus_setup_intr(dev, sc->bce_irq, INTR_TYPE_NET | INTR_MPSAFE,
+	rc = bus_setup_intr(dev, sc->bce_irq, INTR_TYPE_NET,
 	   bce_intr, sc, &sc->bce_intrhand);
 
 	if (rc) {
@@ -790,6 +816,8 @@ bce_attach_exit:
 
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
 
+	splx(s);
+
 	return(rc);
 }
 
@@ -807,25 +835,23 @@ bce_detach(device_t dev)
 {
 	struct bce_softc *sc;
 	struct ifnet *ifp;
+	int s;
 
 	sc = device_get_softc(dev);
 
+	s = splimp();
+
+	bce_remove_sysctls(sc);
+
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Entering %s()\n", __FUNCTION__);
 
-	ifp = sc->bce_ifp;
-
-#ifdef DEVICE_POLLING
-	if (ifp->if_capenable & IFCAP_POLLING)
-		ether_poll_deregister(ifp);
-#endif
+	ifp = &sc->arpcom.ac_if;
 
 	/* Stop and reset the controller. */
-	BCE_LOCK(sc);
 	bce_stop(sc);
 	bce_reset(sc, BCE_DRV_MSG_CODE_RESET);
-	BCE_UNLOCK(sc);
 
-	ether_ifdetach(ifp);
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 
 	/* If we have a child device on the MII bus remove it too. */
 	if (sc->bce_phy_flags & BCE_PHY_SERDES_FLAG) {
@@ -839,6 +865,8 @@ bce_detach(device_t dev)
 	bce_release_resources(sc);
 
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
+
+	splx(s);
 
 	return(0);
 }
@@ -857,10 +885,8 @@ bce_shutdown(device_t dev)
 {
 	struct bce_softc *sc = device_get_softc(dev);
 
-	BCE_LOCK(sc);
 	bce_stop(sc);
 	bce_reset(sc, BCE_DRV_MSG_CODE_RESET);
-	BCE_UNLOCK(sc);
 }
 
 
@@ -954,7 +980,7 @@ bce_miibus_read_reg(device_t dev, int phy, int reg)
 {
 	struct bce_softc *sc;
 	u32 val;
-	int i;
+	int i, s;
 
 	sc = device_get_softc(dev);
 
@@ -963,6 +989,8 @@ bce_miibus_read_reg(device_t dev, int phy, int reg)
 		DBPRINT(sc, BCE_VERBOSE, "Invalid PHY address %d for PHY read!\n", phy);
 		return(0);
 	}
+
+	s = splimp();
 
 	if (sc->bce_phy_flags & BCE_PHY_INT_MODE_AUTO_POLLING_FLAG) {
 		val = REG_RD(sc, BCE_EMAC_MDIO_MODE);
@@ -1014,6 +1042,8 @@ bce_miibus_read_reg(device_t dev, int phy, int reg)
 		DELAY(40);
 	}
 
+	splx(s);
+
 	return (val & 0xffff);
 
 }
@@ -1032,7 +1062,7 @@ bce_miibus_write_reg(device_t dev, int phy, int reg, int val)
 {
 	struct bce_softc *sc;
 	u32 val1;
-	int i;
+	int i, s;
 
 	sc = device_get_softc(dev);
 
@@ -1041,6 +1071,8 @@ bce_miibus_write_reg(device_t dev, int phy, int reg, int val)
 		DBPRINT(sc, BCE_WARN, "Invalid PHY address %d for PHY write!\n", phy);
 		return(0);
 	}
+
+	s = splimp();
 
 	DBPRINT(sc, BCE_EXCESSIVE, "%s(): phy = %d, reg = 0x%04X, val = 0x%04X\n",
 		__FUNCTION__, phy, (u16) reg & 0xffff, (u16) val & 0xffff);
@@ -1084,6 +1116,8 @@ bce_miibus_write_reg(device_t dev, int phy, int reg, int val)
 		DELAY(40);
 	}
 
+	splx(s);
+
 	return 0;
 }
 
@@ -1110,7 +1144,7 @@ bce_miibus_statchg(device_t dev)
 	BCE_CLRBIT(sc, BCE_EMAC_MODE, BCE_EMAC_MODE_PORT);
 
 	/* Set MII or GMII inerface based on the speed negotiated by the PHY. */
-	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T) {
+	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_TX) {
 		DBPRINT(sc, BCE_INFO, "Setting GMII interface.\n");
 		BCE_SETBIT(sc, BCE_EMAC_MODE, BCE_EMAC_MODE_PORT_GMII);
 	} else {
@@ -2150,6 +2184,85 @@ bce_dma_map_addr_exit:
 	return;
 }
 
+static void
+bce_dma_map_rx_desc(void *arg, bus_dma_segment_t *segs,
+	int nseg, bus_size_t mapsize, int error)
+{
+	struct bce_dmamap_arg *map_arg;
+	struct bce_softc *sc;
+	struct rx_bd *rxbd = NULL;
+	u16 prod, chain_prod;
+	u32	prod_bseq;
+#ifdef BCE_DEBUG
+	u16 debug_prod;
+#endif
+	int i;
+
+	map_arg = arg;
+	sc = map_arg->sc;
+
+	if (error) {
+		DBPRINT(sc, BCE_WARN, "%s(): Called with error = %d\n",
+			__FUNCTION__, error);
+		return;
+	}
+
+	/* Signal error to caller if there's too many segments */
+	if (nseg > map_arg->maxsegs) {
+		DBPRINT(sc, BCE_WARN,
+			"%s(): Mapped RX descriptors: max segs = %d, "
+			"actual segs = %d\n",
+			__FUNCTION__, map_arg->maxsegs, nseg);
+
+		map_arg->maxsegs = 0;
+		return;
+	}
+
+	/* prod points to an empty rx_bd at this point. */
+	prod       = map_arg->prod;
+	chain_prod = map_arg->chain_prod;
+	prod_bseq  = map_arg->prod_bseq;
+
+#ifdef BCE_DEBUG
+	debug_prod = chain_prod;
+#endif
+
+	/* Setup the rx_bd for the first segment. */
+	rxbd = &sc->rx_bd_chain[RX_PAGE(chain_prod)][RX_IDX(chain_prod)];
+
+	rxbd->rx_bd_haddr_lo  = htole32(BCE_ADDR_LO(segs[0].ds_addr));
+	rxbd->rx_bd_haddr_hi  = htole32(BCE_ADDR_HI(segs[0].ds_addr));
+	rxbd->rx_bd_len       = htole32(segs[0].ds_len);
+	rxbd->rx_bd_flags     = htole32(RX_BD_FLAGS_START);
+	prod_bseq += segs[0].ds_len;
+
+	for (i = 1; i < nseg; i++) {
+
+		prod = NEXT_RX_BD(prod);
+		chain_prod = RX_CHAIN_IDX(prod); 
+
+		rxbd = &sc->rx_bd_chain[RX_PAGE(chain_prod)][RX_IDX(chain_prod)];
+
+		rxbd->rx_bd_haddr_lo  = htole32(BCE_ADDR_LO(segs[i].ds_addr));
+		rxbd->rx_bd_haddr_hi  = htole32(BCE_ADDR_HI(segs[i].ds_addr));
+		rxbd->rx_bd_len       = htole32(segs[i].ds_len);
+		rxbd->rx_bd_flags     = 0;
+		prod_bseq += segs[i].ds_len;
+	}
+
+	rxbd->rx_bd_flags |= htole32(RX_BD_FLAGS_END);
+
+	DBRUN(BCE_VERBOSE_RECV, bce_dump_rx_mbuf_chain(sc, debug_prod, nseg));
+
+	DBPRINT(sc, BCE_VERBOSE_RECV, "%s(exit): prod = 0x%04X, chain_prod = 0x%04X, "
+		"prod_bseq = 0x%08X\n", __FUNCTION__, prod, chain_prod, prod_bseq);
+
+	/* prod points to the last rx_bd at this point. */
+	map_arg->maxsegs    = nseg;
+	map_arg->prod       = prod;
+	map_arg->chain_prod = chain_prod;
+	map_arg->prod_bseq  = prod_bseq;
+}
 
 /****************************************************************************/
 /* Map TX buffers into TX buffer descriptors.                               */
@@ -2292,8 +2405,6 @@ bce_dma_alloc(device_t dev)
 			BUS_SPACE_UNRESTRICTED,		/* nsegments  */
 			BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			0,							/* flags      */
-			NULL, 						/* locfunc    */
-			NULL,						/* lockarg    */
 			&sc->parent_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate parent DMA tag!\n",
 			__FILE__, __LINE__);
@@ -2318,8 +2429,6 @@ bce_dma_alloc(device_t dev)
 	    	1,						/* nsegments   */
 	    	BCE_STATUS_BLK_SZ, 		/* maxsegsize  */
 	    	0,						/* flags       */
-	    	NULL, 					/* lockfunc    */
-	    	NULL,					/* lockarg     */
 	    	&sc->status_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate status block DMA tag!\n",
 			__FILE__, __LINE__);
@@ -2381,8 +2490,6 @@ bce_dma_alloc(device_t dev)
 	    	1,				  		/* nsegments   */
 	    	BCE_STATS_BLK_SZ, 		/* maxsegsize  */
 	    	0, 				  		/* flags       */
-	    	NULL, 			  		/* lockfunc    */
-	    	NULL, 			  		/* lockarg     */
 	    	&sc->stats_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate statistics block DMA tag!\n",
 			__FILE__, __LINE__);
@@ -2444,8 +2551,6 @@ bce_dma_alloc(device_t dev)
 			1,			  		  /* nsegments   */
 			BCE_TX_CHAIN_PAGE_SZ, /* maxsegsize  */
 			0,				 	  /* flags       */
-			NULL, 				  /* lockfunc    */
-			NULL,				  /* lockarg     */
 			&sc->tx_bd_chain_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate TX descriptor chain DMA tag!\n",
 			__FILE__, __LINE__);
@@ -2504,8 +2609,6 @@ bce_dma_alloc(device_t dev)
 			BCE_MAX_SEGMENTS,  		/* nsegments   */
 			MCLBYTES,				/* maxsegsize  */
 			0,				 		/* flags       */
-			NULL, 			  		/* lockfunc    */
-			NULL,			  		/* lockarg     */
 	    	&sc->tx_mbuf_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate TX mbuf DMA tag!\n",
 			__FILE__, __LINE__);
@@ -2541,8 +2644,6 @@ bce_dma_alloc(device_t dev)
 			1, 						/* nsegments   */
 			BCE_RX_CHAIN_PAGE_SZ,	/* maxsegsize  */
 			0,				 		/* flags       */
-			NULL,					/* lockfunc    */
-			NULL,					/* lockarg     */
 			&sc->rx_bd_chain_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate RX descriptor chain DMA tag!\n",
 			__FILE__, __LINE__);
@@ -2601,12 +2702,10 @@ bce_dma_alloc(device_t dev)
 			BUS_SPACE_MAXADDR, 	  	/* highaddr    */
 			NULL, 				  	/* filterfunc  */
 			NULL, 				  	/* filterarg   */
-			MJUM9BYTES,				/* maxsize     */
+			MCLBYTES,				/* maxsize     */
 			BCE_MAX_SEGMENTS,  		/* nsegments   */
-			MJUM9BYTES,				/* maxsegsize  */
+			MCLBYTES,				/* maxsegsize  */
 			0,				 	  	/* flags       */
-			NULL, 				  	/* lockfunc    */
-			NULL,				  	/* lockarg     */
 	    	&sc->rx_mbuf_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate RX mbuf DMA tag!\n",
 			__FILE__, __LINE__);
@@ -2667,13 +2766,6 @@ bce_release_resources(struct bce_softc *sc)
 		    PCIR_BAR(0),
 		    sc->bce_res);
 
-	if (sc->bce_ifp != NULL)
-		if_free(sc->bce_ifp);
-
-
-	if (mtx_initialized(&sc->bce_mtx))
-		BCE_LOCK_DESTROY(sc);
-
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
 
 }
@@ -2693,6 +2785,9 @@ bce_fw_sync(struct bce_softc *sc, u32 msg_data)
 {
 	int i, rc = 0;
 	u32 val;
+
+	/* GCC 2.95.x is dumb */
+	val = 0;
 
 	/* Don't waste any time if we've timed out before. */
 	if (sc->bce_fw_timed_out) {
@@ -3137,15 +3232,15 @@ bce_get_mac_addr(struct bce_softc *sc)
 		BCE_PRINTF(sc, "%s(%d): Invalid Ethernet address!\n", 
 			__FILE__, __LINE__);
 	} else {
-		sc->eaddr[0] = (u_char)(mac_hi >> 8);
-		sc->eaddr[1] = (u_char)(mac_hi >> 0);
-		sc->eaddr[2] = (u_char)(mac_lo >> 24);
-		sc->eaddr[3] = (u_char)(mac_lo >> 16);
-		sc->eaddr[4] = (u_char)(mac_lo >> 8);
-		sc->eaddr[5] = (u_char)(mac_lo >> 0);
+		sc->arpcom.ac_enaddr[0] = (u_char)(mac_hi >> 8);
+		sc->arpcom.ac_enaddr[1] = (u_char)(mac_hi >> 0);
+		sc->arpcom.ac_enaddr[2] = (u_char)(mac_lo >> 24);
+		sc->arpcom.ac_enaddr[3] = (u_char)(mac_lo >> 16);
+		sc->arpcom.ac_enaddr[4] = (u_char)(mac_lo >> 8);
+		sc->arpcom.ac_enaddr[5] = (u_char)(mac_lo >> 0);
 	}
 
-	DBPRINT(sc, BCE_INFO, "Permanent Ethernet address = %6D\n", sc->eaddr, ":");
+	DBPRINT(sc, BCE_INFO, "Permanent Ethernet address = %6D\n", sc->arpcom.ac_enaddr, ":");
 }
 
 
@@ -3159,9 +3254,9 @@ static void
 bce_set_mac_addr(struct bce_softc *sc)
 {
 	u32 val;
-	u8 *mac_addr = sc->eaddr;
+	u8 *mac_addr = sc->arpcom.ac_enaddr;
 
-	DBPRINT(sc, BCE_INFO, "Setting Ethernet address = %6D\n", sc->eaddr, ":");
+	DBPRINT(sc, BCE_INFO, "Setting Ethernet address = %6D\n", sc->arpcom.ac_enaddr, ":");
 
 	val = (mac_addr[0] << 8) | mac_addr[1];
 
@@ -3190,9 +3285,7 @@ bce_stop(struct bce_softc *sc)
 
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Entering %s()\n", __FUNCTION__);
 
-	BCE_LOCK_ASSERT(sc);
-
-	ifp = sc->bce_ifp;
+	ifp = &sc->arpcom.ac_if;
 
 	mii = device_get_softc(sc->bce_miibus);
 
@@ -3238,7 +3331,7 @@ bce_stop(struct bce_softc *sc)
 
 	sc->bce_link = 0;
 
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
 
@@ -3436,9 +3529,9 @@ bce_blockinit(struct bce_softc *sc)
 	bce_set_mac_addr(sc);
 
 	/* Set the Ethernet backoff seed value */
-	val = sc->eaddr[0]         + (sc->eaddr[1] << 8) +
-	      (sc->eaddr[2] << 16) + (sc->eaddr[3]     ) +
-	      (sc->eaddr[4] << 8)  + (sc->eaddr[5] << 16);
+	val = sc->arpcom.ac_enaddr[0]         + (sc->arpcom.ac_enaddr[1] << 8) +
+	      (sc->arpcom.ac_enaddr[2] << 16) + (sc->arpcom.ac_enaddr[3]     ) +
+	      (sc->arpcom.ac_enaddr[4] << 8)  + (sc->arpcom.ac_enaddr[5] << 16);
 	REG_WR(sc, BCE_EMAC_BACKOFF_SEED, val);
 
 	sc->last_status_idx = 0;
@@ -3546,13 +3639,9 @@ bce_get_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod, u16 *chain_prod,
 	u32 *prod_bseq)
 {
 	bus_dmamap_t		map;
-	bus_dma_segment_t	segs[4];
+	struct bce_dmamap_arg map_arg;
 	struct mbuf *m_new = NULL;
-	struct rx_bd		*rxbd;
-	int i, nsegs, error, rc = 0;
-#ifdef BCE_DEBUG
-	u16 debug_chain_prod = *chain_prod;
-#endif
+	int error, rc = 0;
 
 	DBPRINT(sc, (BCE_VERBOSE_RESET | BCE_VERBOSE_RECV), "Entering %s()\n", 
 		__FUNCTION__);
@@ -3588,7 +3677,7 @@ bce_get_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod, u16 *chain_prod,
 		}
 
 		DBRUNIF(1, sc->rx_mbuf_alloc++);
-		m_cljget(m_new, M_DONTWAIT, sc->mbuf_alloc_size);
+		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
 
 			DBPRINT(sc, BCE_WARN, "%s(%d): RX mbuf chain allocation failed!\n", 
@@ -3612,8 +3701,13 @@ bce_get_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod, u16 *chain_prod,
 
 	/* Map the mbuf cluster into device memory. */
 	map = sc->rx_mbuf_map[*chain_prod];
-	error = bus_dmamap_load_mbuf_sg(sc->rx_mbuf_tag, map, m_new,
-	    segs, &nsegs, BUS_DMA_NOWAIT);
+	map_arg.sc         = sc;
+	map_arg.prod       = *prod;
+	map_arg.chain_prod = *chain_prod;
+	map_arg.prod_bseq  = *prod_bseq;
+	map_arg.maxsegs    = sc->free_rx_bd; /* XXX: 4? */
+	error = bus_dmamap_load_mbuf(sc->rx_mbuf_tag, map, m_new,
+	    bce_dma_map_rx_desc, &map_arg, BUS_DMA_NOWAIT);
 
 	if (error) {
 		BCE_PRINTF(sc, "%s(%d): Error mapping mbuf into RX chain!\n",
@@ -3635,40 +3729,14 @@ bce_get_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod, u16 *chain_prod,
 	DBRUNIF((sc->free_rx_bd < sc->rx_low_watermark), 
 		sc->rx_low_watermark = sc->free_rx_bd);
 
-	/* Setup the rx_bd for the first segment. */
-	rxbd = &sc->rx_bd_chain[RX_PAGE(*chain_prod)][RX_IDX(*chain_prod)];
-
-	rxbd->rx_bd_haddr_lo  = htole32(BCE_ADDR_LO(segs[0].ds_addr));
-	rxbd->rx_bd_haddr_hi  = htole32(BCE_ADDR_HI(segs[0].ds_addr));
-	rxbd->rx_bd_len       = htole32(segs[0].ds_len);
-	rxbd->rx_bd_flags     = htole32(RX_BD_FLAGS_START);
-	*prod_bseq += segs[0].ds_len;
-
-	for (i = 1; i < nsegs; i++) {
-
-		*prod = NEXT_RX_BD(*prod);
-		*chain_prod = RX_CHAIN_IDX(*prod); 
-
-		rxbd = &sc->rx_bd_chain[RX_PAGE(*chain_prod)][RX_IDX(*chain_prod)];
-
-		rxbd->rx_bd_haddr_lo  = htole32(BCE_ADDR_LO(segs[i].ds_addr));
-		rxbd->rx_bd_haddr_hi  = htole32(BCE_ADDR_HI(segs[i].ds_addr));
-		rxbd->rx_bd_len       = htole32(segs[i].ds_len);
-		rxbd->rx_bd_flags     = 0;
-		*prod_bseq += segs[i].ds_len;
-	}
-
-	rxbd->rx_bd_flags |= htole32(RX_BD_FLAGS_END);
+	/* Update indices from the callback */
+	*prod       = map_arg.prod;
+	*chain_prod = map_arg.chain_prod;
+	*prod_bseq  = map_arg.prod_bseq;
 
 	/* Save the mbuf and update our counter. */
 	sc->rx_mbuf_ptr[*chain_prod] = m_new;
-	sc->free_rx_bd -= nsegs;
-
-	DBRUN(BCE_VERBOSE_RECV, bce_dump_rx_mbuf_chain(sc, debug_chain_prod, 
-		nsegs));
-
-	DBPRINT(sc, BCE_VERBOSE_RECV, "%s(exit): prod = 0x%04X, chain_prod = 0x%04X, "
-		"prod_bseq = 0x%08X\n", __FUNCTION__, *prod, *chain_prod, *prod_bseq);
+	sc->free_rx_bd -= map_arg.maxsegs;
 
 bce_get_buf_exit:
 	DBPRINT(sc, (BCE_VERBOSE_RESET | BCE_VERBOSE_RECV), "Exiting %s()\n", 
@@ -3962,8 +4030,6 @@ bce_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	sc = ifp->if_softc;
 
-	BCE_LOCK(sc);
-
 	mii = device_get_softc(sc->bce_miibus);
 
 	/* DRC - ToDo: Add SerDes support. */
@@ -3971,8 +4037,6 @@ bce_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
-
-	BCE_UNLOCK(sc);
 }
 
 
@@ -3999,7 +4063,7 @@ bce_phy_intr(struct bce_softc *sc)
 
 		sc->bce_link = 0;
 		callout_stop(&sc->bce_stat_ch);
-		bce_tick_locked(sc);
+		bce_tick(sc);
 
 		/* Update the status_attn_bits_ack field in the status block. */
 		if (new_link_state) {
@@ -4030,15 +4094,16 @@ static void
 bce_rx_intr(struct bce_softc *sc)
 {
 	struct status_block *sblk = sc->status_block;
-	struct ifnet *ifp = sc->bce_ifp;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	u16 hw_cons, sw_cons, sw_chain_cons, sw_prod, sw_chain_prod;
 	u32 sw_prod_bseq;
 	struct l2_fhdr *l2fhdr;
+	int i;
 
 	DBRUNIF(1, sc->rx_interrupts++);
 
 	/* Prepare the RX chain pages to be accessed by the host CPU. */
-	for (int i = 0; i < RX_PAGES; i++)
+	for (i = 0; i < RX_PAGES; i++)
 		bus_dmamap_sync(sc->rx_bd_chain_tag,
 		    sc->rx_bd_chain_map[i], BUS_DMASYNC_POSTWRITE);
 
@@ -4087,7 +4152,7 @@ bce_rx_intr(struct bce_softc *sc)
 			bce_dump_rxbd(sc, sw_chain_cons, rxbd));
 
 #ifdef DEVICE_POLLING
-		if (ifp->if_capenable & IFCAP_POLLING) {
+		if (ifp->if_ipending & IFF_POLLING) {
 			if (sc->bce_rxcycles <= 0)
 				break;
 			sc->bce_rxcycles--;
@@ -4241,31 +4306,12 @@ bce_rx_intr(struct bce_softc *sc)
 				}
 			}		
 
-
-			/*
-			 * If we received a packet with a vlan tag,
-			 * attach that information to the packet.
-			 */
-			if (status & L2_FHDR_STATUS_L2_VLAN_TAG) {
-				DBPRINT(sc, BCE_VERBOSE_SEND, "%s(): VLAN tag = 0x%04X\n",
-					__FUNCTION__, l2fhdr->l2_fhdr_vlan_tag);
-#if __FreeBSD_version < 700000
-				VLAN_INPUT_TAG(ifp, m, l2fhdr->l2_fhdr_vlan_tag, continue);
-#else
-				VLAN_INPUT_TAG(ifp, m, l2fhdr->l2_fhdr_vlan_tag);
-				if (m == NULL)
-					continue;
-#endif	
-			}
-
 			/* Pass the mbuf off to the upper layers. */
 			ifp->if_ipackets++;
 			DBPRINT(sc, BCE_VERBOSE_RECV, "%s(): Passing received frame up.\n",
 				__FUNCTION__);
-			BCE_UNLOCK(sc);
-			(*ifp->if_input)(ifp, m);
+			ether_input(ifp, NULL, m);
 			DBRUNIF(1, sc->rx_mbuf_alloc--);
-			BCE_LOCK(sc);
 
 bce_rx_int_next_rx:
 			sw_prod = NEXT_RX_BD(sw_prod);
@@ -4285,7 +4331,7 @@ bce_rx_int_next_rx:
 			BUS_SPACE_BARRIER_READ);
 	}
 
-	for (int i = 0; i < RX_PAGES; i++)
+	for (i = 0; i < RX_PAGES; i++)
 		bus_dmamap_sync(sc->rx_bd_chain_tag,
 		    sc->rx_bd_chain_map[i], BUS_DMASYNC_PREWRITE);
 
@@ -4312,10 +4358,8 @@ static void
 bce_tx_intr(struct bce_softc *sc)
 {
 	struct status_block *sblk = sc->status_block;
-	struct ifnet *ifp = sc->bce_ifp;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	u16 hw_tx_cons, sw_tx_cons, sw_tx_chain_cons;
-
-	BCE_LOCK_ASSERT(sc);
 
 	DBRUNIF(1, sc->tx_interrupts++);
 
@@ -4411,10 +4455,10 @@ bce_tx_intr(struct bce_softc *sc)
 
 	/* Clear the tx hardware queue full flag. */
 	if ((sc->used_tx_bd + BCE_TX_SLACK_SPACE) < USABLE_TX_BD) {
-		DBRUNIF((ifp->if_drv_flags & IFF_DRV_OACTIVE),
+		DBRUNIF((ifp->if_flags & IFF_OACTIVE),
 			BCE_PRINTF(sc, "%s(): TX chain is open for business! Used tx_bd = %d\n", 
 				__FUNCTION__, sc->used_tx_bd));
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		ifp->if_flags &= ~IFF_OACTIVE;
 	}
 
 	sc->tx_cons = sw_tx_cons;
@@ -4468,19 +4512,21 @@ bce_enable_intr(struct bce_softc *sc)
 /*   Nothing.                                                               */
 /****************************************************************************/
 static void
-bce_init_locked(struct bce_softc *sc)
+bce_init(void *xsc)
 {
+	struct bce_softc *sc = xsc;
 	struct ifnet *ifp;
 	u32 ether_mtu;
+	int s;
+
+	s = splimp();
 
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Entering %s()\n", __FUNCTION__);
 
-	BCE_LOCK_ASSERT(sc);
-
-	ifp = sc->bce_ifp;
+	ifp = &sc->arpcom.ac_if;
 
 	/* Check if the driver is still running and bail out if it is. */
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (ifp->if_flags & IFF_RUNNING)
 		goto bce_init_locked_exit;
 
 	bce_stop(sc);
@@ -4504,7 +4550,6 @@ bce_init_locked(struct bce_softc *sc)
 	}
 
 	/* Load our MAC address. */
-	bcopy(IF_LLADDR(sc->bce_ifp), sc->eaddr, ETHER_ADDR_LEN);
 	bce_set_mac_addr(sc);
 
 	/* Calculate and program the Ethernet MTU size. */
@@ -4518,14 +4563,8 @@ bce_init_locked(struct bce_softc *sc)
 	 * support if necessary.  Also set the mbuf
 	 * allocation count for RX frames.
 	 */
-	if (ether_mtu > ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN) {
-		REG_WR(sc, BCE_EMAC_RX_MTU_SIZE, ether_mtu | 
-			BCE_EMAC_RX_MTU_SIZE_JUMBO_ENA);
-		sc->mbuf_alloc_size = MJUM9BYTES;
-	} else {
-		REG_WR(sc, BCE_EMAC_RX_MTU_SIZE, ether_mtu);
-		sc->mbuf_alloc_size = MCLBYTES;
-	}
+	REG_WR(sc, BCE_EMAC_RX_MTU_SIZE, ether_mtu);
+	sc->mbuf_alloc_size = MCLBYTES;
 
 	/* Calculate the RX Ethernet frame size for rx_bd's. */
 	sc->max_frame_size = sizeof(struct l2_fhdr) + 2 + ether_mtu + 8;
@@ -4546,7 +4585,7 @@ bce_init_locked(struct bce_softc *sc)
 
 #ifdef DEVICE_POLLING
 	/* Disable interrupts if we are polling. */
-	if (ifp->if_capenable & IFCAP_POLLING) {
+	if (ifp->if_ipending & IFF_POLLING) {
 		bce_disable_intr(sc);
 
 		REG_WR(sc, BCE_HC_RX_QUICK_CONS_TRIP,
@@ -4560,32 +4599,17 @@ bce_init_locked(struct bce_softc *sc)
 
 	bce_ifmedia_upd(ifp);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	ifp->if_flags |= IFF_RUNNING;
+	ifp->if_flags &= ~IFF_OACTIVE;
 
 	callout_reset(&sc->bce_stat_ch, hz, bce_tick, sc);
 
 bce_init_locked_exit:
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
 
+	splx(s);
+
 	return;
-}
-
-
-/****************************************************************************/
-/* Handles controller initialization when called from an unlocked routine.  */
-/*                                                                          */
-/* Returns:                                                                 */
-/*   Nothing.                                                               */
-/****************************************************************************/
-static void
-bce_init(void *xsc)
-{
-	struct bce_softc *sc = xsc;
-
-	BCE_LOCK(sc);
-	bce_init_locked(sc);
-	BCE_UNLOCK(sc);
 }
 
 
@@ -4601,7 +4625,6 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf *m_head, u16 *prod,
 	u16 *chain_prod, u32 *prod_bseq)
 {
 	u32 vlan_tag_flags = 0;
-	struct m_tag *mtag;
 	struct bce_dmamap_arg map_arg;
 	bus_dmamap_t map;
 	int i, error, rc = 0;
@@ -4613,12 +4636,6 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf *m_head, u16 *prod,
 		if (m_head->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))
 			vlan_tag_flags |= TX_BD_FLAGS_TCP_UDP_CKSUM;
 	}
-
-	/* Transfer any VLAN tags to the bd. */
-	mtag = VLAN_OUTPUT_TAG(sc->bce_ifp, m_head);
-	if (mtag != NULL)
-		vlan_tag_flags |= (TX_BD_FLAGS_VLAN_TAG |
-			(VLAN_TAG_VALUE(mtag) << 16));
 
 	/* Map the mbuf into DMAable memory. */
 	map = sc->tx_mbuf_map[*chain_prod];
@@ -4640,32 +4657,24 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf *m_head, u16 *prod,
 	    bce_dma_map_tx_desc, &map_arg, BUS_DMA_NOWAIT);
 
 	if (error || map_arg.maxsegs == 0) {
-            
-            /* Try to defrag the mbuf if there are too many segments. */
-            if (error == EFBIG && map_arg.maxsegs != 0) {
-                struct mbuf *m0;
+		if (error == EFBIG && map_arg.maxsegs != 0) {
+			struct mbuf *m0;
 
-	        DBPRINT(sc, BCE_WARN, "%s(): fragmented mbuf (%d pieces)\n",
-                    __FUNCTION__, map_arg.maxsegs);
-
-                m0 = m_defrag(m_head, M_DONTWAIT);
-                if (m0 != NULL) {
-                    m_head = m0;
-                    error = bus_dmamap_load_mbuf(sc->tx_mbuf_tag,
-                        map, m_head, bce_dma_map_tx_desc, &map_arg,
-                        BUS_DMA_NOWAIT);
-                }
-            }
-
-            /* Still getting an error after a defrag. */
-            if (error) {
-                BCE_PRINTF(sc,
-                    "%s(%d): Error mapping mbuf into TX chain!\n",
-                    __FILE__, __LINE__);
-                rc = ENOBUFS;
-                goto bce_tx_encap_exit;
-            }
-
+			m0 = m_defrag(m_head, M_DONTWAIT);
+			if (m0 != NULL) {
+				m_head = m0;
+				error = bus_dmamap_load_mbuf(sc->tx_mbuf_tag,
+				    map, m_head, bce_dma_map_tx_desc, &map_arg,
+				    BUS_DMA_NOWAIT);
+			}
+		}
+		if (error) {
+			BCE_PRINTF(sc,
+			    "%s(%d): Error mapping mbuf into TX chain!\n",
+			    __FILE__, __LINE__);
+			rc = ENOBUFS;
+			goto bce_tx_encap_exit;
+		}
 	}
 
 	/*
@@ -4709,7 +4718,7 @@ bce_tx_encap_exit:
 /*   Nothing.                                                               */
 /****************************************************************************/
 static void
-bce_start_locked(struct ifnet *ifp)
+bce_start(struct ifnet *ifp)
 {
 	struct bce_softc *sc = ifp->if_softc;
 	struct mbuf *m_head = NULL;
@@ -4738,7 +4747,7 @@ bce_start_locked(struct ifnet *ifp)
 	while(sc->tx_mbuf_ptr[tx_chain_prod] == NULL) {
 
 		/* Check for any frames to send. */
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+		IF_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
 
@@ -4749,8 +4758,8 @@ bce_start_locked(struct ifnet *ifp)
 		 * to wait for the NIC to drain the chain.
 		 */
 		if (bce_tx_encap(sc, m_head, &tx_prod, &tx_chain_prod, &tx_prod_bseq)) {
-			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			IF_PREPEND(&ifp->if_snd, m_head);
+			ifp->if_flags |= IFF_OACTIVE;
 			DBPRINT(sc, BCE_INFO_SEND,
 				"TX chain is closed for business! Total tx_bd used = %d\n", 
 				sc->used_tx_bd);
@@ -4795,23 +4804,6 @@ bce_start_locked_exit:
 
 
 /****************************************************************************/
-/* Main transmit routine when called from another routine without a lock.   */
-/*                                                                          */
-/* Returns:                                                                 */
-/*   Nothing.                                                               */
-/****************************************************************************/
-static void
-bce_start(struct ifnet *ifp)
-{
-	struct bce_softc *sc = ifp->if_softc;
-
-	BCE_LOCK(sc);
-	bce_start_locked(ifp);
-	BCE_UNLOCK(sc);
-}
-
-
-/****************************************************************************/
 /* Handles any IOCTL calls from the operating system.                       */
 /*                                                                          */
 /* Returns:                                                                 */
@@ -4823,7 +4815,9 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct bce_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
 	struct mii_data *mii;
-	int mask, error = 0;
+	int error = 0, s;
+
+	s = splimp();
 
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Entering %s()\n", __FUNCTION__);
 
@@ -4832,8 +4826,8 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		/* Set the MTU. */
 		case SIOCSIFMTU:
 			/* Check that the MTU setting is supported. */
-			if ((ifr->ifr_mtu < BCE_MIN_MTU) || 
-				(ifr->ifr_mtu > BCE_MAX_JUMBO_MTU)) {
+			if ((ifr->ifr_mtu < BCE_MIN_MTU) ||
+				(ifr->ifr_mtu > BCE_MAX_STD_MTU)) {
 				error = EINVAL;
 				break;
 			}
@@ -4841,7 +4835,7 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			DBPRINT(sc, BCE_INFO, "Setting new MTU of %d\n", ifr->ifr_mtu);
 
 			ifp->if_mtu = ifr->ifr_mtu;
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			ifp->if_flags &= ~IFF_RUNNING;
 			bce_init(sc);
 			break;
 
@@ -4849,20 +4843,17 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		case SIOCSIFFLAGS:
 			DBPRINT(sc, BCE_VERBOSE, "Received SIOCSIFFLAGS\n");
 
-			BCE_LOCK(sc);
-
 			/* Check if the interface is up. */
 			if (ifp->if_flags & IFF_UP) {
 				/* Change the promiscuous/multicast flags as necessary. */
 				bce_set_rx_mode(sc);
 			} else {
 				/* The interface is down.  Check if the driver is running. */
-				if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				if (ifp->if_flags & IFF_RUNNING) {
 					bce_stop(sc);
 				}
 			}
 
-			BCE_UNLOCK(sc);
 			error = 0;
 
 			break;
@@ -4872,10 +4863,8 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		case SIOCDELMULTI:
 			DBPRINT(sc, BCE_VERBOSE, "Received SIOCADDMULTI/SIOCDELMULTI\n");
 
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				BCE_LOCK(sc);
+			if (ifp->if_flags & IFF_RUNNING) {
 				bce_set_rx_mode(sc);
-				BCE_UNLOCK(sc);
 				error = 0;
 			}
 
@@ -4904,103 +4893,28 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 		/* Set interface capability */
 		case SIOCSIFCAP:
-			mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-			DBPRINT(sc, BCE_INFO, "Received SIOCSIFCAP = 0x%08X\n", (u32) mask);
-
-#ifdef DEVICE_POLLING
-			if (mask & IFCAP_POLLING) {
-				if (ifr->ifr_reqcap & IFCAP_POLLING) {
-
-					/* Setup the poll routine to call. */
-					error = ether_poll_register(bce_poll, ifp);
-					if (error) {
-						BCE_PRINTF(sc, "%s(%d): Error registering poll function!\n",
-							__FILE__, __LINE__);
-						goto bce_ioctl_exit;
-					}
-
-					/* Clear the interrupt. */
-					BCE_LOCK(sc);
-					bce_disable_intr(sc);
-
-					REG_WR(sc, BCE_HC_RX_QUICK_CONS_TRIP,
-						(1 << 16) | sc->bce_rx_quick_cons_trip);
-					REG_WR(sc, BCE_HC_TX_QUICK_CONS_TRIP,
-						(1 << 16) | sc->bce_tx_quick_cons_trip);
-
-					ifp->if_capenable |= IFCAP_POLLING;
-					BCE_UNLOCK(sc);
-				} else {
-					/* Clear the poll routine. */
-					error = ether_poll_deregister(ifp);
-
-					/* Enable interrupt even in error case */
-					BCE_LOCK(sc);
-					bce_enable_intr(sc);
-
-					REG_WR(sc, BCE_HC_TX_QUICK_CONS_TRIP,
-						(sc->bce_tx_quick_cons_trip_int << 16) |
-						sc->bce_tx_quick_cons_trip);
-					REG_WR(sc, BCE_HC_RX_QUICK_CONS_TRIP,
-						(sc->bce_rx_quick_cons_trip_int << 16) |
-						sc->bce_rx_quick_cons_trip);
-
-					ifp->if_capenable &= ~IFCAP_POLLING;
-					BCE_UNLOCK(sc);
-				}
-			}
-#endif /*DEVICE_POLLING */
-
-			/* Toggle the TX checksum capabilites enable flag. */						
-			if (mask & IFCAP_TXCSUM) {
-				ifp->if_capenable ^= IFCAP_TXCSUM;
-				if (IFCAP_TXCSUM & ifp->if_capenable)
-					ifp->if_hwassist = BCE_IF_HWASSIST;
-				else
-					ifp->if_hwassist = 0;
-			}
-
-			/* Toggle the RX checksum capabilities enable flag. */
-			if (mask & IFCAP_RXCSUM) {
-				ifp->if_capenable ^= IFCAP_RXCSUM;
-				if (IFCAP_RXCSUM & ifp->if_capenable)
-					ifp->if_hwassist = BCE_IF_HWASSIST;
-				else
-					ifp->if_hwassist = 0;
-			}
-
-			/* Toggle VLAN_MTU capabilities enable flag. */
-			if (mask & IFCAP_VLAN_MTU) {
-				BCE_PRINTF(sc, "%s(%d): Changing VLAN_MTU not supported.\n",
-					__FILE__, __LINE__);
-			}
-
-			/* Toggle VLANHWTAG capabilities enabled flag. */
-			if (mask & IFCAP_VLAN_HWTAGGING) {
-				if (sc->bce_flags & BCE_MFW_ENABLE_FLAG)
-					BCE_PRINTF(sc, "%s(%d): Cannot change VLAN_HWTAGGING while "
-						"management firmware (ASF/IPMI/UMP) is running!\n",
-						__FILE__, __LINE__);
-				else
-					BCE_PRINTF(sc, "%s(%d): Changing VLAN_HWTAGGING not supported!\n",
-						__FILE__, __LINE__);
-			}
-
+			ifp->if_capenable = ifr->ifr_reqcap;
+			if (ifp->if_capenable & IFCAP_HWCSUM)
+				ifp->if_hwassist = BCE_IF_HWASSIST;
+			else
+				ifp->if_hwassist = 0;
 			break;
-		default:
-			DBPRINT(sc, BCE_INFO, "Received unsupported IOCTL: 0x%08X\n",
-				(u32) command);
-
+		case SIOCSIFADDR:
+		case SIOCGIFADDR:
 			/* We don't know how to handle the IOCTL, pass it on. */
 			error = ether_ioctl(ifp, command, data);
 			break;
+			
+		default:
+			DBPRINT(sc, BCE_INFO, "Received unsupported IOCTL: 0x%08X\n",
+				(u32) command);
+			error = EINVAL;
+			break;
 	}
 
-#ifdef DEVICE_POLLING
-bce_ioctl_exit:
-#endif
-
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
+
+	splx(s);
 
 	return(error);
 }
@@ -5026,7 +4940,7 @@ bce_watchdog(struct ifnet *ifp)
 
 	/* DBRUN(BCE_FATAL, bce_breakpoint(sc)); */
 
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	ifp->if_flags &= ~IFF_RUNNING;
 
 	bce_init(sc);
 	ifp->if_oerrors++;
@@ -5036,11 +4950,27 @@ bce_watchdog(struct ifnet *ifp)
 
 #ifdef DEVICE_POLLING
 static void
-bce_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
+bce_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct bce_softc *sc = ifp->if_softc;
 
-	BCE_LOCK_ASSERT(sc);
+	if (!(ifp->if_capenable & IFCAP_POLLING)) {
+		ether_poll_deregister(ifp);
+		cmd = POLL_DEREGISTER;
+	}
+
+	if (cmd == POLL_DEREGISTER) {
+		/* Re-enable interrupts. */
+		bce_enable_intr(sc);
+
+		REG_WR(sc, BCE_HC_TX_QUICK_CONS_TRIP,
+		    (sc->bce_tx_quick_cons_trip_int << 16) |
+		    sc->bce_tx_quick_cons_trip);
+		REG_WR(sc, BCE_HC_RX_QUICK_CONS_TRIP,
+		    (sc->bce_rx_quick_cons_trip_int << 16) |
+		    sc->bce_rx_quick_cons_trip);
+		return;
+	}
 
 	sc->bce_rxcycles = count;
 
@@ -5059,21 +4989,10 @@ bce_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 	/* Check for new frames to transmit. */
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		bce_start_locked(ifp);
+		bce_start(ifp);
 
 }
 
-
-static void
-bce_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
-{
-	struct bce_softc *sc = ifp->if_softc;
-
-	BCE_LOCK(sc);
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		bce_poll_locked(ifp, cmd, count);
-	BCE_UNLOCK(sc);
-}
 #endif /* DEVICE_POLLING */
 
 
@@ -5115,16 +5034,25 @@ bce_intr(void *xsc)
 	u32 status_attn_bits;
 
 	sc = xsc;
-	ifp = sc->bce_ifp;
-
-	BCE_LOCK(sc);
+	ifp = &sc->arpcom.ac_if;
 
 	DBRUNIF(1, sc->interrupts_generated++);
 
 #ifdef DEVICE_POLLING
-	if (ifp->if_capenable & IFCAP_POLLING) {
-		DBPRINT(sc, BCE_INFO, "Polling enabled!\n");
-		goto bce_intr_exit;
+	if (ifp->if_ipending & IFF_POLLING)
+		return;
+	if (ifp->if_capenable & IFCAP_POLLING &&
+	    ether_poll_register(bce_poll, ifp)) {
+		/* Disable interrupts. */
+		bce_disable_intr(sc);
+
+		REG_WR(sc, BCE_HC_RX_QUICK_CONS_TRIP,
+		    (1 << 16) | sc->bce_rx_quick_cons_trip);
+		REG_WR(sc, BCE_HC_TX_QUICK_CONS_TRIP,
+		    (1 << 16) | sc->bce_tx_quick_cons_trip);
+
+		bce_poll(ifp, 0, 1);
+		return;
 	}
 #endif
 
@@ -5174,7 +5102,7 @@ bce_intr(void *xsc)
 				if (bce_debug_unexpected_attention == 0)
 					bce_breakpoint(sc));
 
-			bce_init_locked(sc);
+			bce_init(sc);
 			goto bce_intr_exit;
 		}
 
@@ -5211,11 +5139,10 @@ bce_intr(void *xsc)
 	       BCE_PCICFG_INT_ACK_CMD_INDEX_VALID | sc->last_status_idx);
 
 	/* Handle any frames that arrived while handling the interrupt. */
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING && !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		bce_start_locked(ifp);
+	if (ifp->if_flags & IFF_RUNNING && !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		bce_start(ifp);
 
 bce_intr_exit:
-	BCE_UNLOCK(sc);
 }
 
 
@@ -5234,9 +5161,7 @@ bce_set_rx_mode(struct bce_softc *sc)
 	u32 rx_mode, sort_mode;
 	int h, i;
 
-	BCE_LOCK_ASSERT(sc);
-
-	ifp = sc->bce_ifp;
+	ifp = &sc->arpcom.ac_if;
 
 	/* Initialize receive mode default settings. */
 	rx_mode   = sc->rx_mode & ~(BCE_EMAC_RX_MODE_PROMISCUOUS |
@@ -5245,10 +5170,9 @@ bce_set_rx_mode(struct bce_softc *sc)
 
 	/*
 	 * ASF/IPMI/UMP firmware requires that VLAN tag stripping
-	 * be enbled.
+	 * be enabled.
 	 */
-	if (!(BCE_IF_CAPABILITIES & IFCAP_VLAN_HWTAGGING) &&
-		(!(sc->bce_flags & BCE_MFW_ENABLE_FLAG)))
+	if (!(sc->bce_flags & BCE_MFW_ENABLE_FLAG))
 		rx_mode |= BCE_EMAC_RX_MODE_KEEP_VLAN_TAG;
 
 	/*
@@ -5273,15 +5197,13 @@ bce_set_rx_mode(struct bce_softc *sc)
 		/* Accept one or more multicast(s). */
 		DBPRINT(sc, BCE_INFO, "Enabling selective multicast mode.\n");
 
-		IF_ADDR_LOCK(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			h = ether_crc32_le(LLADDR((struct sockaddr_dl *)
 		    	ifma->ifma_addr), ETHER_ADDR_LEN) & 0x7F;
 			hashes[(h & 0x60) >> 5] |= 1 << (h & 0x1F);
 		}
-		IF_ADDR_UNLOCK(ifp);
 
 		for (i = 0; i < 4; i++)
 			REG_WR(sc, BCE_EMAC_MULTICAST_HASH0 + (i * 4), hashes[i]);
@@ -5320,7 +5242,7 @@ bce_stats_update(struct bce_softc *sc)
 
 	DBPRINT(sc, BCE_EXCESSIVE, "Entering %s()\n", __FUNCTION__);
 
-	ifp = sc->bce_ifp;
+	ifp = &sc->arpcom.ac_if;
 
 	stats = (struct statistics_block *) sc->stats_block;
 
@@ -5329,6 +5251,14 @@ bce_stats_update(struct bce_softc *sc)
 	 * hardware statistics.
 	 */
 	ifp->if_collisions = (u_long) stats->stat_EtherStatsCollisions;
+
+	ifp->if_ibytes  = BCE_STATS(IfHCInOctets);
+
+	ifp->if_obytes  = BCE_STATS(IfHCOutOctets);
+
+	ifp->if_imcasts = BCE_STATS(IfHCInMulticastPkts);
+
+	ifp->if_omcasts = BCE_STATS(IfHCOutMulticastPkts);
 
 	ifp->if_ierrors = (u_long) stats->stat_EtherStatsUndersizePkts +
 				      (u_long) stats->stat_EtherStatsOverrsizePkts +
@@ -5530,15 +5460,17 @@ bce_stats_update(struct bce_softc *sc)
 
 
 static void
-bce_tick_locked(struct bce_softc *sc)
+bce_tick(void *xsc)
 {
+	struct bce_softc *sc = xsc;
 	struct mii_data *mii = NULL;
 	struct ifnet *ifp;
 	u32 msg;
+	int s;
 
-	ifp = sc->bce_ifp;
+	ifp = &sc->arpcom.ac_if;
 
-	BCE_LOCK_ASSERT(sc);
+	s = splimp();
 
 	/* Tell the firmware that the driver is still running. */
 #ifdef BCE_DEBUG
@@ -5571,30 +5503,18 @@ bce_tick_locked(struct bce_softc *sc)
 	if (!sc->bce_link && mii->mii_media_status & IFM_ACTIVE &&
 	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 		sc->bce_link++;
-		if ((IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T ||
+		if ((IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_TX ||
 		    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX) &&
 		    bootverbose)
 			BCE_PRINTF(sc, "Gigabit link up\n");
 		/* Now that link is up, handle any outstanding TX traffic. */
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			bce_start_locked(ifp);
+			bce_start(ifp);
 	}
 
 bce_tick_locked_exit:
+	splx(s);
 	return;
-}
-
-
-static void
-bce_tick(void *xsc)
-{
-	struct bce_softc *sc;
-
-	sc = xsc;
-
-	BCE_LOCK(sc);
-	bce_tick_locked(sc);
-	BCE_UNLOCK(sc);
 }
 
 
@@ -5724,8 +5644,11 @@ bce_add_sysctls(struct bce_softc *sc)
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid_list *children;
 
-	ctx = device_get_sysctl_ctx(sc->bce_dev);
-	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->bce_dev));
+	ctx = &sc->sysctl_ctx;
+	sysctl_ctx_init(ctx);
+	sc->sysctl_tree = SYSCTL_ADD_NODE(ctx, SYSCTL_STATIC_CHILDREN(_hw),
+	    OID_AUTO, device_get_nameunit(sc->bce_dev), CTLFLAG_RD, 0, "");
+	children = SYSCTL_CHILDREN(sc->sysctl_tree);
 
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO,
 		"driver_version",
@@ -6058,6 +5981,13 @@ bce_add_sysctls(struct bce_softc *sc)
 
 }
 
+static void
+bce_remove_sysctls(struct bce_softc *sc)
+{
+
+	sysctl_ctx_free(&sc->sysctl_ctx);
+	sc->sysctl_tree = NULL;
+}
 
 /****************************************************************************/
 /* BCE Debug Routines                                                       */

@@ -64,8 +64,6 @@ The following features are supported in the
 driver under FreeBSD:
 .Bd -literal -offset indent
 IP/TCP/UDP checksum offload
-Jumbo frames (up to 9022 bytes)
-VLAN tag stripping
 Interrupt coalescing
 10/100/1000Mbps operation in full-duplex mode
 10/100Mbps operation in half-duplex mode
@@ -263,13 +261,6 @@ A fatal initialization error has occurred.
 The driver could not map a TX mbuf into DMA addressable memory.
 .It "bce%d: Error registering poll function!"
 The driver received an error while attempting to register the poll function.
-.It "bce%d: Changing VLAN_MTU not supported."
-Changing the VLAN MTU is not currently supported by the driver.
-.It "bce%d: Cannot change VLAN_HWTAGGING while management firmware (ASF/IPMI/UMP) is running!"
-Management firmware to support ASF/IPMI/UMP requires that VLAN
-tag stripping be enabled in the controller.
-.It "bce%d: Changing VLAN_HWTAGGING not supported!"
-Disabling VLAN tag stripping is not currently supported by the driver.
 .It "bce%d: Watchdog timeout occurred, resetting!"
 The device has stopped responding to the network, there is a problem
 with the cable connection, or a driver logic problem has occurred..
@@ -283,7 +274,6 @@ If the problem continues replace the controller.
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr polling 4 ,
-.Xr vlan 4 ,
 .Xr ifconfig 8
 .Sh HISTORY
 The

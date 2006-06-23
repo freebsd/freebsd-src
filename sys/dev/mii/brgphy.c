@@ -46,6 +46,7 @@
 #include <machine/clock.h>
 
 #include <net/if.h>
+#include <net/ethernet.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -56,6 +57,7 @@
 #include <net/if_arp.h>
 #include <machine/bus.h>
 #include <dev/bge/if_bgereg.h>
+#include <dev/bce/if_bcereg.h>
 
 #include "miibus_if.h"
 
@@ -158,6 +160,18 @@ static int brgphy_probe(dev)
 		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5714);
 		return(0);
 	}
+
+	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
+	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5706C) {
+		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5706C);
+		return(0);
+	}
+
+	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
+	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5708C) {
+		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5708C);
+  		return(0);
+  	}
 
 	return(ENXIO);
 }
@@ -616,7 +630,8 @@ brgphy_reset(struct mii_softc *sc)
 {
 	u_int32_t	val;
 	struct ifnet	*ifp;
-	struct bge_softc	*bge_sc;
+	struct bge_softc	*bge_sc = NULL;
+	struct bce_softc	*bce_sc = NULL;
 
 	mii_phy_reset(sc);
 
@@ -635,34 +650,71 @@ brgphy_reset(struct mii_softc *sc)
 		break;
 	case MII_MODEL_xxBROADCOM_BCM5750:
 	case MII_MODEL_xxBROADCOM_BCM5714:
+	case MII_MODEL_xxBROADCOM_BCM5706C:
+	case MII_MODEL_xxBROADCOM_BCM5708C:
 		bcm5750_load_dspcode(sc);
 		break;
 	}
 
 	ifp = sc->mii_pdata->mii_ifp;
-	bge_sc = ifp->if_softc;
 
-	/*
-	 * Don't enable Ethernet@WireSpeed for the 5700 or the
-	 * 5705 A1 and A2 chips. Make sure we only do this test
-	 * on "bge" NICs, since other drivers may use this same
-	 * PHY subdriver.
-	 */
-	if (strcmp(ifp->if_name, "bge") == 0 &&
-	    (bge_sc->bge_asicrev == BGE_ASICREV_BCM5700 ||
-	    bge_sc->bge_chipid == BGE_CHIPID_BCM5705_A1 ||
-	    bge_sc->bge_chipid == BGE_CHIPID_BCM5705_A2))
-		return;
+	/* Find the driver associated with this PHY. */
+	if (strcmp(ifp->if_name, "bge") == 0)	{
+ 		bge_sc = ifp->if_softc;
+	} else if (strcmp(ifp->if_name, "bce") == 0) {
+		bce_sc = ifp->if_softc;
+	}
 
-	/* Enable Ethernet@WireSpeed. */
-	PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7007);
-	val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
-	PHY_WRITE(sc, BRGPHY_MII_AUXCTL, val | (1 << 15) | (1 << 4));
+	/* Handle any NetXtreme/bge workarounds. */
+	if (bge_sc) {
+	 	/*
+		 * Don't enable Ethernet@WireSpeed for the 5700 or the
+		 * 5705 A1 and A2 chips. Make sure we only do this test
+		 * on "bge" NICs, since other drivers may use this same
+		 * PHY subdriver.
+		 */
+		if (bge_sc->bge_asicrev == BGE_ASICREV_BCM5700 ||
+		    bge_sc->bge_chipid == BGE_CHIPID_BCM5705_A1 ||
+		    bge_sc->bge_chipid == BGE_CHIPID_BCM5705_A2)
+			return;
 
-	/* Enable Link LED on Dell boxes */
-	if (bge_sc->bge_no_3_led) {
-		PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL, 
-		    PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL)
-		    & ~BRGPHY_PHY_EXTCTL_3_LED);
+		/* Enable Ethernet@WireSpeed. */
+		PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7007);
+		val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
+		PHY_WRITE(sc, BRGPHY_MII_AUXCTL, val | (1 << 15) | (1 << 4));
+
+		/* Enable Link LED on Dell boxes */
+		if (bge_sc->bge_no_3_led) {
+			PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL, 
+		    	PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL)
+			    & ~BRGPHY_PHY_EXTCTL_3_LED);
+		}
+	} else if (bce_sc) {
+
+		/* Set or clear jumbo frame settings in the PHY. */
+		if (ifp->if_mtu > ETHER_MAX_LEN) {
+			PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7);
+			val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
+			PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 
+				val | BRGPHY_AUXCTL_LONG_PKT);
+
+			val = PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL);
+			PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL, 
+				val | BRGPHY_PHY_EXTCTL_HIGH_LA);
+		} else {
+			PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7);
+			val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
+			PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 
+				val & ~(BRGPHY_AUXCTL_LONG_PKT | 0x7));
+
+			val = PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL);
+			PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL, 
+				val & ~BRGPHY_PHY_EXTCTL_HIGH_LA);
+		}
+
+		/* Enable Ethernet@Wirespeed */
+		PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7007);
+		val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
+		PHY_WRITE(sc, BRGPHY_MII_AUXCTL, (val | (1 << 15) | (1 << 4)));
 	}
 }

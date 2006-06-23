@@ -1893,8 +1893,11 @@ options 	AHD_REG_PRETTY_PRINT
 # The `amd' device provides support for the AMD 53C974 SCSI host
 # adapter chip as found on devices such as the Tekram DC-390(T).
 #
+# The `bce` device provides support for	Broadcom NetXtreme II
+# (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet adapters.
+#
 # The `bfe' device provides support for Broadcom 440x fast ethernet
-# adapters these are commonly included on several popular motherboards
+# adapters.  These are commonly included on several popular motherboards
 # from Asus and on some DELL laptops.
 #
 # The `bge' device provides support for gigabit ethernet adapters
@@ -2140,6 +2143,7 @@ device		txp		# 3Com 3cR990 (``Typhoon'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # Gigabit Ethernet NICs.
+device		bce		# Broadcom BCM5706/BCM5708 Gigabit Ethernet
 device		bge		# Broadcom BCM570x (``Tigon III'')
 device		em		# Intel Pro/1000 (82542,82543,82544,82540)
 device		gx		# Intel Pro/1000 (82542, 82543)

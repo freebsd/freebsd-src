@@ -63,6 +63,8 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 
+#include <machine/clock.h>      /* for DELAY */
+#include <machine/bus_memio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
@@ -70,11 +72,10 @@
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
-#include "miidevs.h"
 #include <dev/mii/brgphyreg.h>
 
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
+#include <pci/pcireg.h>
+#include <pci/pcivar.h>
 
 #include "miibus_if.h"
 
@@ -280,7 +281,6 @@ struct bce_type {
 /****************************************************************************/
 /* Byte order conversions.                                                  */
 /****************************************************************************/
-#if __FreeBSD_version >= 500000
 #define bce_htobe16(x) htobe16(x)
 #define bce_htobe32(x) htobe32(x)
 #define bce_htobe64(x) htobe64(x)
@@ -294,22 +294,6 @@ struct bce_type {
 #define bce_le16toh(x) le16toh(x)
 #define bce_le32toh(x) le32toh(x)
 #define bce_le64toh(x) le64toh(x)
-#else
-#define bce_htobe16(x) (x)
-#define bce_htobe32(x) (x)
-#define bce_htobe64(x) (x)
-#define bce_htole16(x) (x)
-#define bce_htole32(x) (x)
-#define bce_htole64(x) (x)
-
-#define bce_be16toh(x) (x)
-#define bce_be32toh(x) (x)
-#define bce_be64toh(x) (x)
-#define bce_le16toh(x) (x)
-#define bce_le32toh(x) (x)
-#define bce_le64toh(x) (x)
-#endif
-
 
 /****************************************************************************/
 /* NVRAM Access                                                             */
@@ -690,12 +674,6 @@ struct flash_spec {
 /* Convenience definitions.                                                 */
 /****************************************************************************/
 #define BCE_PRINTF(sc, fmt, args...)	device_printf(sc->bce_dev, fmt, ##args)
-
-#define	BCE_LOCK_INIT(_sc, _name)	mtx_init(&(_sc)->bce_mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
-#define	BCE_LOCK(_sc)				mtx_lock(&(_sc)->bce_mtx)
-#define	BCE_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->bce_mtx, MA_OWNED)
-#define	BCE_UNLOCK(_sc)				mtx_unlock(&(_sc)->bce_mtx)
-#define	BCE_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->bce_mtx)
 
 #define REG_WR(sc, reg, val)		bus_space_write_4(sc->bce_btag, sc->bce_bhandle, reg, val)
 #define REG_WR16(sc, reg, val)		bus_space_write_2(sc->bce_btag, sc->bce_bhandle, reg, val)
@@ -4615,13 +4593,7 @@ struct fw_info {
 
 #define BCE_IF_HWASSIST	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 
-#if __FreeBSD_version < 700000
-#define BCE_IF_CAPABILITIES (IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | \
-							IFCAP_HWCSUM | IFCAP_JUMBO_MTU)
-#else
-#define BCE_IF_CAPABILITIES (IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | \
-							IFCAP_HWCSUM | IFCAP_JUMBO_MTU | IFCAP_VLAN_HWCSUM)
-#endif
+#define	BCE_IF_CAPABILITIES (IFCAP_HWCSUM)
 
 #define BCE_MIN_MTU						60
 #define BCE_MIN_ETHER_MTU				64
@@ -4634,7 +4606,9 @@ struct fw_info {
 #define BCE_MAX_JUMBO_ETHER_MTU			9018
 #define BCE_MAX_JUMBO_ETHER_MTU_VLAN 	9022
 
-// #define BCE_MAX_MTU		ETHER_MAX_LEN_JUMBO + ETHER_VLAN_ENCAP_LEN	/* 9022 */
+#if 0
+#define BCE_MAX_MTU		ETHER_MAX_LEN_JUMBO + ETHER_VLAN_ENCAP_LEN	/* 9022 */
+#endif
 
 /****************************************************************************/
 /* BCE Device State Data Structure                                          */
@@ -4664,8 +4638,7 @@ struct bce_dmamap_arg {
 
 struct bce_softc
 {
-	/* MUST start with ifnet pointer (see definition of miibus_statchg()) */
-	struct ifnet		*bce_ifp;			/* Interface info */
+	struct arpcom		arpcom;
 	device_t			bce_dev;			/* Parent device handle */
 	u_int8_t			bce_unit;			/* Interface number */
 	struct resource		*bce_res;			/* Device resource handle */
@@ -4674,7 +4647,6 @@ struct bce_softc
 	bus_space_handle_t	bce_bhandle;		/* Device bus handle */
 	vm_offset_t			bce_vhandle;		/* Device virtual memory handle */
 	struct resource		*bce_irq;			/* IRQ Resource Handle */
-	struct mtx			bce_mtx;			/* Mutex */
 	void				*bce_intrhand;		/* Interrupt handler */
 
 	/* ASIC Chip ID. */
@@ -4722,9 +4694,6 @@ struct bce_softc
 	/* the driver is still operating.  Without the pulse, management */
 	/* firmware such as IPMI or UMP will operate in OS absent state. */
 	u16					bce_fw_drv_pulse_wr_seq;
-
-	/* Ethernet MAC address. */
-	u_char				eaddr[6];
 
 	/* These setting are used by the host coalescing (HC) block to   */
 	/* to control how often the status block, statistics block and   */
@@ -4878,6 +4847,8 @@ struct bce_softc
 	u32 stat_CatchupInMBUFDiscards;
 	u32 stat_CatchupInRuleCheckerP4Hit;
 
+	struct sysctl_ctx_list sysctl_ctx;
+	struct sysctl_oid *sysctl_tree;
 #ifdef BCE_DEBUG
 	/* Track the number of enqueued mbufs. */
 	int	tx_mbuf_alloc;
