@@ -250,10 +250,5 @@ The
 driver currently supports only Ethernet and Ethernet-like (e.g., 802.11)
 network devices, with exactly the same interface MTU size as the bridge device.
 .Pp
-The bridge may not forward fragments that have been reassembled by a packet filter.
-In
-.Xr pf 4
-fragment reassembly can be disabled in the scrub option.
-.Pp
 Only wireless interfaces in hostap mode can be bridged due to the 802.11
 framing format, bridging a wireless client is not supported yet.
