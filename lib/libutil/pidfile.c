@@ -46,7 +46,6 @@ static int
 pidfile_verify(struct pidfh *pfh)
 {
 	struct stat sb;
-	int fd;
 
 	if (pfh == NULL || pfh->pf_fd == -1)
 		return (EDOOFUS);
@@ -147,7 +146,6 @@ pidfile_open(const char *path, mode_t mode, pid_t *pidptr)
 int
 pidfile_write(struct pidfh *pfh)
 {
-	struct stat sb;
 	char pidstr[16];
 	int error, fd;
 
