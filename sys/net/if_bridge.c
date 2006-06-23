@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_carp.h"
 
 #include <sys/param.h>
 #include <sys/mbuf.h>
@@ -119,6 +120,9 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#endif
+#ifdef DEV_CARP
+#include <netinet/ip_carp.h>
 #endif
 #include <machine/in_cksum.h>
 #include <netinet/if_ether.h> /* for struct arpcom */
@@ -2041,7 +2045,12 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 			continue;
 		/* It is destined for us. */
 		if (memcmp(IF_LLADDR(bif->bif_ifp), eh->ether_dhost,
-		    ETHER_ADDR_LEN) == 0) {
+		    ETHER_ADDR_LEN) == 0
+#ifdef DEV_CARP
+		    || (bif->bif_ifp->if_carp 
+			&& carp_forus(bif->bif_ifp->if_carp, eh->ether_dhost))
+#endif
+		    ) {
 			if (bif->bif_flags & IFBIF_LEARNING)
 				(void) bridge_rtupdate(sc,
 				    eh->ether_shost, ifp, 0, IFBAF_DYNAMIC);
@@ -2052,7 +2061,12 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 
 		/* We just received a packet that we sent out. */
 		if (memcmp(IF_LLADDR(bif->bif_ifp), eh->ether_shost,
-		    ETHER_ADDR_LEN) == 0) {
+		    ETHER_ADDR_LEN) == 0
+#ifdef DEV_CARP
+		    || (bif->bif_ifp->if_carp 
+			&& carp_forus(bif->bif_ifp->if_carp, eh->ether_shost))
+#endif
+		    ) {
 			BRIDGE_UNLOCK(sc);
 			m_freem(m);
 			return (NULL);
