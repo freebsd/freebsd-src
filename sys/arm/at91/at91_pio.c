@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#define __RMAN_RESOURCE_VISIBLE
 #include <sys/rman.h>
 #include <machine/bus.h>
 
@@ -55,13 +56,15 @@ struct at91_pio_softc
 static inline uint32_t
 RD4(struct at91_pio_softc *sc, bus_size_t off)
 {
-	return bus_read_4(sc->mem_res, off);
+	return bus_space_read_4(sc->mem_res->r_bustag, sc->mem_res->r_bushandle,
+	    off);
 }
 
 static inline void
 WR4(struct at91_pio_softc *sc, bus_size_t off, uint32_t val)
 {
-	bus_write_4(sc->mem_res, off, val);
+	bus_space_write_4(sc->mem_res->r_bustag, sc->mem_res->r_bushandle, off,
+	    val);
 }
 
 #define AT91_PIO_LOCK(_sc)		mtx_lock_spin(&(_sc)->sc_mtx)
