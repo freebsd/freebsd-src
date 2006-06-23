@@ -14,13 +14,13 @@ top \- display and update information about the top cpu processes
 ] [
 .BI \-d count
 ] [
-.BI \-s time
+.BI \-m io | cpu
 ] [
 .BI \-o field
 ] [
-.BI \-U username
+.BI \-s time
 ] [
-.BI \-m io | cpu
+.BI \-U username
 ] [
 .I number
 ]
@@ -261,7 +261,7 @@ to all users will be displayed.
 .TP
 .B o
 Change the order in which the display is sorted.  This command is not
-available on all systems.  The sort key names vary fron system to system
+available on all systems.  The sort key names vary from system to system
 but usually include:  \*(lqcpu\*(rq, \*(lqres\*(rq, \*(lqsize\*(rq,
 \*(lqtime\*(rq.  The default is cpu.
 .TP
@@ -311,8 +311,12 @@ NICE is the nice amount (in the range \-20 to 20),
 SIZE is the total size of the process (text, data, and stack),
 RES is the current amount of resident memory (both SIZE and RES are
 given in kilobytes),
-STATE is the current state (one of \*(lqsleep\*(rq, \*(lqWAIT\*(rq,
-\*(lqrun\*(rq, \*(lqidl\*(rq, \*(lqzomb\*(rq, or \*(lqstop\*(rq),
+STATE is the current state (one of \*(lqSTART\*(rq, \*(lqRUN\*(rq
+(shown as \*(lqCPUn\*(rq on SMP systems), \*(lqSLEEP\*(rq, \*(lqSTOP\*(rq,
+\*(lqZOMB\*(rq, \*(lqWAIT\*(rq, \*(lqLOCK\*(rq or the event on which the
+process waits),
+C is the processor number on which the process is executing
+(visible only on SMP systems),
 TIME is the number of system and user cpu seconds that the process has used,
 WCPU, when displayed, is the weighted cpu percentage (this is the same
 value that
