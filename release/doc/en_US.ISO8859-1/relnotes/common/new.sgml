@@ -180,6 +180,13 @@
       security advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:16.smbfs.asc">FreeBSD-SA-06:16.smbfs</ulink>.</para>
 
+    <para>A potential denial of service problem in &man.sendmail.8;
+      caused by excessive recursion which leads to stack
+      exhaustion when attempting delivery of a malformed
+      MIME message, has been fixed.  For more details,
+      see security advisory <ulink
+      url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:17.sendmail.asc">FreeBSD-SA-06:17.sendmail</ulink>.</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -212,7 +219,11 @@
     <sect3 id="net-if">
       <title>Network Interface Support</title>
 
-      <para></para>
+      <para arch="i386">The &man.bce.4; driver, which supports Broadcom
+	NetXtreme II (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet controllers,
+	has been added.  Unlike the versions of this driver in newer
+	&os; releases, this version does not support jumbo frames or
+	hardware VLAN tagging.  For more details, see &man.bce.4;.</para>
 
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
@@ -228,7 +239,15 @@
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
-      <para></para>
+      <para>The mfi driver, which supports
+	the LSI MegaRAID SAS controller family, has been added.
+	Unlike versions of this driver included with newer &os;
+	releases, this version does not include the Linux
+	&man.ioctl.2; layer.</para>
+
+      <para>The &man.mpt.4; driver has been updated to a version from
+	&os; &os.current;.  This brings support for FC target mode,
+	SAS HBAs, and U320 negotiations.</para>
 
     </sect3>
 
