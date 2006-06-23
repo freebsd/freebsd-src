@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2006
+.Dd June 23, 2005
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -93,6 +93,17 @@ All additional members are required to have exactly the same value.
 .Pp
 The TXCSUM capability is disabled for any interface added to the bridge, and it
 is restored when the interface is removed again.
+.Pp
+The bridge supports
+.Dq monitor mode ,
+where the packets are discarded after
+.Xr bpf 4
+processing, and are not processed or forwarded further.
+This can be used to multiplex the input of two or more interfaces into a single
+.Xr bpf 4
+stream.
+This is useful for reconstructing the traffic for network taps
+that transmit the RX/TX signals out through two separate interfaces.
 .Sh PACKET FILTERING
 .Pp
 Packet filtering can be used with any firewall package that hooks in via the
