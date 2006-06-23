@@ -727,6 +727,33 @@ getcaps(int capinfo)
 	return capstring;
 }
 
+static const char *
+getflags(int flags)
+{
+/* XXX need these publicly defined or similar */
+#define	IEEE80211_NODE_AUTH	0x0001		/* authorized for data */
+#define	IEEE80211_NODE_QOS	0x0002		/* QoS enabled */
+#define	IEEE80211_NODE_ERP	0x0004		/* ERP enabled */
+#define	IEEE80211_NODE_PWR_MGT	0x0010		/* power save mode enabled */
+	static char flagstring[32];
+	char *cp = flagstring;
+
+	if (flags & IEEE80211_NODE_AUTH)
+		*cp++ = 'A';
+	if (flags & IEEE80211_NODE_QOS)
+		*cp++ = 'Q';
+	if (flags & IEEE80211_NODE_ERP)
+		*cp++ = 'E';
+	if (flags & IEEE80211_NODE_PWR_MGT)
+		*cp++ = 'P';
+	*cp = '\0';
+	return flagstring;
+#undef IEEE80211_NODE_AUTH
+#undef IEEE80211_NODE_QOS
+#undef IEEE80211_NODE_ERP
+#undef IEEE80211_NODE_PWR_MGT
+}
+
 static void
 printie(const char* tag, const uint8_t *ie, size_t ielen, int maxlen)
 {
@@ -959,7 +986,7 @@ list_stations(int s)
 	if (len < sizeof(struct ieee80211req_sta_info))
 		return;
 
-	printf("%-17.17s %4s %4s %4s %4s %4s %6s %6s %4s %3s\n"
+	printf("%-17.17s %4s %4s %4s %4s %4s %6s %6s %4s %4s\n"
 		, "ADDR"
 		, "AID"
 		, "CHAN"
@@ -969,7 +996,7 @@ list_stations(int s)
 		, "TXSEQ"
 		, "RXSEQ"
 		, "CAPS"
-		, "ERP"
+		, "FLAG"
 	);
 	cp = buf;
 	do {
@@ -978,7 +1005,7 @@ list_stations(int s)
 
 		si = (struct ieee80211req_sta_info *) cp;
 		vp = (u_int8_t *)(si+1);
-		printf("%s %4u %4d %3dM %4d %4d %6d %6d %-4.4s %3x"
+		printf("%s %4u %4d %3dM %4d %4d %6d %6d %-4.4s %-4.4s"
 			, ether_ntoa((const struct ether_addr*) si->isi_macaddr)
 			, IEEE80211_AID(si->isi_associd)
 			, ieee80211_mhz2ieee(si->isi_freq)
@@ -988,7 +1015,7 @@ list_stations(int s)
 			, si->isi_txseqs[0]
 			, si->isi_rxseqs[0]
 			, getcaps(si->isi_capinfo)
-			, si->isi_erp
+			, getflags(si->isi_state)
 		);
 		printies(vp, si->isi_ie_len, 24);
 		printf("\n");
