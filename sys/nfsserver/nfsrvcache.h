@@ -41,8 +41,8 @@
 /*
  * Definitions for the server recent request cache
  */
-
-#define	NFSRVCACHESIZ	2048
+#define NFSRVCACHE_MAX_SIZE	2048
+#define NFSRVCACHE_MIN_SIZE	  64
 
 struct nfsrvcache {
 	TAILQ_ENTRY(nfsrvcache) rc_lru;		/* LRU chain */
