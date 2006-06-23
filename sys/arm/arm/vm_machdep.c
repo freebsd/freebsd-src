@@ -115,6 +115,9 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	pcb2 = (struct pcb *)(td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE) - 1;
 #ifdef __XSCALE__
 	pmap_use_minicache(td2->td_kstack, td2->td_kstack_pages * PAGE_SIZE);
+	if (td2->td_altkstack)
+		pmap_use_minicache(td2->td_altkstack, td2->td_altkstack_pages *
+		    PAGE_SIZE);
 #endif
 	td2->td_pcb = pcb2;
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
@@ -242,7 +245,7 @@ sf_buf_alloc(struct vm_page *m, int flags)
 	sf->m = m;
 	nsfbufsused++;
 	nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
-	pmap_qenter(sf->kva, &sf->m, 1);
+	pmap_kenter(sf->kva, VM_PAGE_TO_PHYS(sf->m));
 done:
 	mtx_unlock(&sf_buf_lock);
 	return (sf);
@@ -365,6 +368,69 @@ cpu_exit(struct thread *td)
 {
 }
 
+#define BITS_PER_INT	(8 * sizeof(int))
+vm_offset_t arm_nocache_startaddr;
+static int arm_nocache_allocated[ARM_NOCACHE_KVA_SIZE / (PAGE_SIZE * 
+    BITS_PER_INT)];
+
+/*
+ * Functions to map and unmap memory non-cached into KVA the kernel won't try 
+ * to allocate. The goal is to provide uncached memory to busdma, to honor
+ * BUS_DMA_COHERENT. 
+ * We can allocate at most ARM_NOCACHE_KVA_SIZE bytes. 
+ * The allocator is rather dummy, each page is represented by a bit in
+ * a bitfield, 0 meaning the page is not allocated, 1 meaning it is.
+ * As soon as it finds enough contiguous pages to satisfy the request,
+ * it returns the address.
+ */
+void *
+arm_remap_nocache(void *addr, vm_size_t size)
+{
+	int i, j;
+			
+	size = round_page(size);
+	for (i = 0; i < MIN(ARM_NOCACHE_KVA_SIZE / (PAGE_SIZE * BITS_PER_INT),
+	    ARM_TP_ADDRESS); i++) {
+		if (!(arm_nocache_allocated[i / BITS_PER_INT] & (1 << (i % 
+		    BITS_PER_INT)))) {
+			for (j = i; j < i + (size / (PAGE_SIZE)); j++)
+				if (arm_nocache_allocated[j / BITS_PER_INT] &
+				    (1 << (j % BITS_PER_INT)))
+					break;
+			if (j == i + (size / (PAGE_SIZE)))
+				break;
+		}
+	}
+	if (i < MIN(ARM_NOCACHE_KVA_SIZE / (PAGE_SIZE * BITS_PER_INT), 
+	    ARM_TP_ADDRESS)) {
+		vm_offset_t tomap = arm_nocache_startaddr + i * PAGE_SIZE;
+		void *ret = (void *)tomap;
+		vm_paddr_t physaddr = vtophys((vm_offset_t)addr);
+		
+		for (; tomap < (vm_offset_t)ret + size; tomap += PAGE_SIZE,
+		    physaddr += PAGE_SIZE, i++) {
+			pmap_kenter_nocache(tomap, physaddr);
+			arm_nocache_allocated[i / BITS_PER_INT] |= 1 << (i % 
+			    BITS_PER_INT);
+		}
+		return (ret);
+	}
+	return (NULL);
+}
+
+void
+arm_unmap_nocache(void *addr, vm_size_t size)
+{
+	vm_offset_t raddr = (vm_offset_t)addr;
+	int i;
+
+	size = round_page(size);
+	i = (raddr - arm_nocache_startaddr) / (PAGE_SIZE);
+	for (; size > 0; size -= PAGE_SIZE, i++)
+		arm_nocache_allocated[i / BITS_PER_INT] &= ~(1 << (i % 
+		    BITS_PER_INT));
+}
+
 #ifdef ARM_USE_SMALL_ALLOC
 
 static TAILQ_HEAD(,arm_small_page) pages_normal = 
@@ -390,7 +456,7 @@ arm_add_smallalloc_pages(void *list, void *mem, int bytes, int pagetable)
 {
 	struct arm_small_page *pg;
 	
-	bytes &= ~PAGE_SIZE;
+	bytes &= ~PAGE_MASK;
 	while (bytes > 0) {
 		pg = (struct arm_small_page *)list;
 		pg->addr = mem;
@@ -447,6 +513,9 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	void *ret;
 	struct arm_small_page *sp, *tmp;
 	TAILQ_HEAD(,arm_small_page) *head;
+	static int in_alloc;
+	static int in_sleep;
+	int should_wakeup = 0;
 	
 	*flags = UMA_SLAB_PRIV;
 	/*
@@ -459,19 +528,34 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		head = (void *)&pages_normal;
 
 	mtx_lock(&smallalloc_mtx);
+retry:
 	sp = TAILQ_FIRST(head);
 
 	if (!sp) {
 		/* No more free pages, need to alloc more. */
-		mtx_unlock(&smallalloc_mtx);
 		if (!(wait & M_WAITOK)) {
+			mtx_unlock(&smallalloc_mtx);
+			*flags = UMA_SLAB_KMEM;
 			ret = (void *)kmem_malloc(kmem_map, bytes, wait);
 			return (ret);
 		}
+		if (in_alloc) {
+			/* Somebody else is already doing the allocation. */
+			in_sleep++;
+			msleep(&in_alloc, &smallalloc_mtx, PWAIT, 
+			    "smallalloc", 0);
+			in_sleep--;
+			goto retry;
+		}		
+		in_alloc = 1;
+		mtx_unlock(&smallalloc_mtx);
 		/* Try to alloc 1MB of contiguous memory. */
 		ret = arm_uma_do_alloc(&sp, bytes, zone == l2zone ?
 		    SECTION_PT : SECTION_CACHE);
 		mtx_lock(&smallalloc_mtx);
+		in_alloc = 0;
+		if (in_sleep)
+			should_wakeup = 1;
 		if (sp) {
 			for (int i = 0; i < (0x100000 / PAGE_SIZE) - 1;
 			    i++) {
@@ -482,7 +566,8 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 			ret = (char *)ret + 0x100000 - PAGE_SIZE;
 			TAILQ_INSERT_HEAD(&free_pgdesc, &sp[(0x100000 / (
 			    PAGE_SIZE)) - 1], pg_list);
-		}
+		} else
+			*flags = UMA_SLAB_KMEM;
 			
 	} else {
 		sp = TAILQ_FIRST(head);
@@ -490,6 +575,8 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		TAILQ_INSERT_HEAD(&free_pgdesc, sp, pg_list);
 		ret = sp->addr;
 	}
+	if (should_wakeup)
+		wakeup(&in_alloc);
 	mtx_unlock(&smallalloc_mtx);
 	if ((wait & M_ZERO))
 		bzero(ret, bytes);
@@ -502,7 +589,7 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 	pd_entry_t *pd;
 	pt_entry_t *pt;
 
-	if (mem < (void *)alloc_firstaddr)
+	if (flags & UMA_SLAB_KMEM)
 		kmem_free(kmem_map, (vm_offset_t)mem, size);
 	else {
 		struct arm_small_page *sp;

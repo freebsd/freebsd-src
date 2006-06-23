@@ -210,6 +210,7 @@ extern vm_offset_t virtual_end;
 
 void	pmap_bootstrap(vm_offset_t, vm_offset_t, struct pv_addr *);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
+void	pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa);
 void 	pmap_kenter_user(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kremove(vm_offset_t);
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
@@ -331,11 +332,16 @@ extern int pmap_needs_pte_sync;
 
 #endif /* ARM_NMMUS > 1 */
 
+#ifdef SKYEYE_WORKAROUNDS
+#define PMAP_NEED_PTE_SYNC	1
+#define PMAP_INCLUDE_PTE_SYNC
+#else
 #if (ARM_MMU_SA1 == 1) && (ARM_NMMUS == 1)
 #define	PMAP_NEEDS_PTE_SYNC	1
 #define	PMAP_INCLUDE_PTE_SYNC
 #elif (ARM_MMU_SA1 == 0)
 #define	PMAP_NEEDS_PTE_SYNC	0
+#endif
 #endif
 
 /*
@@ -517,6 +523,11 @@ struct arm_small_page {
 	TAILQ_ENTRY(arm_small_page) pg_list;
 };
 #endif
+#define ARM_NOCACHE_KVA_SIZE	0x600000
+extern vm_offset_t arm_nocache_startaddr;
+void *arm_remap_nocache(void *, vm_size_t);
+void arm_unmap_nocache(void *, vm_size_t);
+
 #endif	/* _KERNEL */
 
 #endif	/* !LOCORE */
