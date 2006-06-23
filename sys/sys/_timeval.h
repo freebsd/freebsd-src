@@ -45,7 +45,11 @@ typedef	__time_t	time_t;
  * Structure returned by gettimeofday(2) system call, and used in other calls.
  */
 struct timeval {
+#ifdef __arm__
+	time_t		tv_sec;
+#else
 	long		tv_sec;		/* seconds (XXX should be time_t) */
+#endif
 	suseconds_t	tv_usec;	/* and microseconds */
 };
 

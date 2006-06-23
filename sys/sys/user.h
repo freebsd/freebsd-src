@@ -89,7 +89,7 @@
 #define	KINFO_PROC_SIZE	1088
 #endif
 #ifdef __arm__
-#define	KINFO_PROC_SIZE	768		/* value has not been tested... */
+#define	KINFO_PROC_SIZE	792
 #endif
 #ifdef __ia64__
 #define	KINFO_PROC_SIZE 1088
