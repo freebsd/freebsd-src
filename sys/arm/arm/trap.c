@@ -265,8 +265,12 @@ data_abort_handler(trapframe_t *tf)
 	/* Grab the current pcb */
 	pcb = td->td_pcb;
 	/* Re-enable interrupts if they were enabled previously */
-	if (td->td_critnest == 0 && __predict_true(tf->tf_spsr & I32_bit) == 0)
-		enable_interrupts(I32_bit);
+	if (td->td_critnest == 0) {
+		if (__predict_true(tf->tf_spsr & I32_bit) == 0)
+			enable_interrupts(I32_bit);
+		if (__predict_true(tf->tf_spsr & F32_bit) == 0)
+			enable_interrupts(F32_bit);
+	}
 
 	/* Invoke the appropriate handler, if necessary */
 	if (__predict_false(data_aborts[fsr & FAULT_TYPE_MASK].func != NULL)) {
@@ -421,15 +425,14 @@ data_abort_handler(trapframe_t *tf)
 	error = vm_fault(map, va, ftype, (ftype & VM_PROT_WRITE) ? 
 	    VM_FAULT_DIRTY : VM_FAULT_NORMAL);
 	pcb->pcb_onfault = onfault;
-	if (__predict_true(error == 0)) {
-		goto out;
-	}
 
 	if (map != kernel_map) {
 		PROC_LOCK(p);
 		p->p_lock--;
 		PROC_UNLOCK(p);
 	}
+	if (__predict_true(error == 0))
+		goto out;
 	if (user == 0) {
 		if (pcb->pcb_onfault) {
 			tf->tf_r0 = error;
@@ -725,9 +728,12 @@ prefetch_abort_handler(trapframe_t *tf)
 			thread_user_enter(td);
 	}
 	fault_pc = tf->tf_pc;
-	if (td->td_critnest == 0 &&
-	    __predict_true((tf->tf_spsr & I32_bit) == 0))
-		enable_interrupts(I32_bit);
+	if (td->td_critnest == 0) {
+	   	if (__predict_true(tf->tf_spsr & I32_bit) == 0)
+			enable_interrupts(I32_bit);
+		if (__predict_true(tf->tf_spsr & F32_bit) == 0)
+			enable_interrupts(F32_bit);
+	}		
 
 		       
 	/* See if the cpu state needs to be fixed up */
@@ -1003,8 +1009,12 @@ swi_handler(trapframe_t *frame)
 	 * Since all syscalls *should* come from user mode it will always
 	 * be safe to enable them, but check anyway. 
 	 */       
-	if (td->td_critnest == 0 && !(frame->tf_spsr & I32_bit))
-		enable_interrupts(I32_bit);
+	if (td->td_critnest == 0) {
+		if (__predict_true(frame->tf_spsr & I32_bit) == 0)
+			enable_interrupts(I32_bit);
+		if (__predict_true(frame->tf_spsr & F32_bit) == 0)
+			enable_interrupts(F32_bit);
+	}			
 
 	syscall(td, frame, insn);
 }
