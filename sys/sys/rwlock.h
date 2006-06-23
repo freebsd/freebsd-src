@@ -169,7 +169,7 @@ struct rw_args {
 	};								\
 	SYSINIT(name##_rw_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    rw_sysinit, &name##_args);					\
-	SYSUNINIT(name##_mtx_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
+	SYSUNINIT(name##_rw_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    rw_destroy, (rw))
 
 /*
