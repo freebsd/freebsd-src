@@ -131,6 +131,8 @@ bzero(void *addr, int count)
 	}
 }
 
+static void arm9_setup(void);
+
 void
 _start(void)
 {
@@ -348,8 +350,8 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
     int d)
 {
 	Elf32_Ehdr *eh;
-	Elf32_Phdr phdr[512] /* XXX */, *php;
-	Elf32_Shdr shdr[512] /* XXX */;
+	Elf32_Phdr phdr[64] /* XXX */, *php;
+	Elf32_Shdr shdr[64] /* XXX */;
 	int i,j;
 	void *entry_point;
 	int symtabindex = -1;
