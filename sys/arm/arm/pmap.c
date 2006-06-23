@@ -229,6 +229,8 @@ pmap_t kernel_pmap;
 
 static pt_entry_t *csrc_pte, *cdst_pte;
 static vm_offset_t csrcp, cdstp;
+static struct mtx cmtx;
+
 static void		pmap_init_l1(struct l1_ttable *, pd_entry_t *);
 /*
  * These routines are called when the CPU type is identified to set up
@@ -917,35 +919,65 @@ pmap_alloc_l2_bucket(pmap_t pm, vm_offset_t va)
 
 	l1idx = L1_IDX(va);
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((l2 = pm->pm_l2[L2_IDX(l1idx)]) == NULL) {
 		/*
 		 * No mapping at this address, as there is
 		 * no entry in the L1 table.
 		 * Need to allocate a new l2_dtable.
 		 */
+again_l2table:
+		vm_page_unlock_queues();
 		if ((l2 = pmap_alloc_l2_dtable()) == NULL) {
+			vm_page_lock_queues();
 			return (NULL);
 		}
-		bzero(l2, sizeof(*l2));
-		/*
-		 * Link it into the parent pmap
-		 */
-		pm->pm_l2[L2_IDX(l1idx)] = l2;
+		vm_page_lock_queues();
+		if (pm->pm_l2[L2_IDX(l1idx)] != NULL) {
+			vm_page_unlock_queues();
+			uma_zfree(l2table_zone, l2);
+			vm_page_lock_queues();
+			l2 = pm->pm_l2[L2_IDX(l1idx)];
+			if (l2 == NULL)
+				goto again_l2table;
+			/*
+			 * Someone already allocated the l2_dtable while
+			 * we were doing the same.
+			 */
+		} else {
+			bzero(l2, sizeof(*l2));
+			/*
+			 * Link it into the parent pmap
+			 */
+			pm->pm_l2[L2_IDX(l1idx)] = l2;
+		}
 	} 
-
+	
 	l2b = &l2->l2_bucket[L2_BUCKET(l1idx)];
-
+	
 	/*
 	 * Fetch pointer to the L2 page table associated with the address.
 	 */
 	if (l2b->l2b_kva == NULL) {
 		pt_entry_t *ptep;
-
+		
 		/*
 		 * No L2 page table has been allocated. Chances are, this
 		 * is because we just allocated the l2_dtable, above.
 		 */
+again_ptep:
+		vm_page_unlock_queues();
 		ptep = (void*)uma_zalloc(l2zone, M_NOWAIT);
+		vm_page_lock_queues();
+		if (l2b->l2b_kva != 0) {
+			/* We lost the race. */
+			vm_page_unlock_queues();
+			uma_zfree(l2zone, ptep);
+			vm_page_lock_queues();
+			if (l2b->l2b_kva == 0)
+				goto again_ptep;
+			return (l2b);
+		}
 		l2b->l2b_phys = vtophys(ptep);
 		if (ptep == NULL) {
 			/*
@@ -959,13 +991,13 @@ pmap_alloc_l2_bucket(pmap_t pm, vm_offset_t va)
 			}
 			return (NULL);
 		}
-
+		
 		l2->l2_occupancy++;
 		l2b->l2b_kva = ptep;
 		l2b->l2b_l1idx = l1idx;
 	}
-
-	return (l2b);
+	
+	return (l2b);	
 }
 
 static PMAP_INLINE void
@@ -2012,6 +2044,8 @@ pmap_fault_fixup(pmap_t pm, vm_offset_t va, vm_prot_t ftype, int user)
 	 */
 	if (user && (pte & L2_S_PROT_U) == 0)
 		goto out;
+	if (va == vector_page)
+		goto out;
 
 	pa = l2pte_pa(pte);
 
@@ -2564,9 +2598,12 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	virtual_avail = round_page(virtual_avail);
 	virtual_end = lastaddr;
 	kernel_vm_end = pmap_curmaxkvaddr;
+	arm_nocache_startaddr = lastaddr;
+	mtx_init(&cmtx, "TMP mappins mtx", NULL, MTX_DEF);
 #ifdef ARM_USE_SMALL_ALLOC
 	mtx_init(&smallalloc_mtx, "Small alloc page list", NULL, MTX_DEF);
-	alloc_firstaddr = alloc_curaddr = lastaddr;
+	alloc_firstaddr = alloc_curaddr = arm_nocache_startaddr +
+	    ARM_NOCACHE_KVA_SIZE;
 #endif
 }
 
@@ -2633,8 +2670,7 @@ pmap_grow_map(vm_offset_t va, pt_entry_t cache_mode, vm_paddr_t *pap)
 	vm_paddr_t pa;
 	struct vm_page *pg;
 	
-	pg = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ | VM_ALLOC_ZERO |
-	    VM_ALLOC_WIRED);
+	pg = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
 	if (pg == NULL)
 		return (1);
 	pa = VM_PAGE_TO_PHYS(pg);
@@ -2701,6 +2737,7 @@ pmap_grow_l2_bucket(pmap_t pm, vm_offset_t va)
 		 * Link it into the parent pmap
 		 */
 		pm->pm_l2[L2_IDX(l1idx)] = l2;
+		memset(l2, 0, sizeof(*l2));
 	}
 
 	l2b = &l2->l2_bucket[L2_BUCKET(l1idx)];
@@ -2727,6 +2764,7 @@ pmap_grow_l2_bucket(pmap_t pm, vm_offset_t va)
 			PTE_SYNC_RANGE(ptep, PAGE_SIZE / sizeof(pt_entry_t));
 		}
 
+		memset(ptep, 0, L2_TABLE_SIZE_REAL);
 		l2->l2_occupancy++;
 		l2b->l2b_kva = ptep;
 		l2b->l2b_l1idx = l1idx;
@@ -2925,6 +2963,12 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 }
 
 void
+pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa)
+{
+	pmap_kenter_internal(va, pa, 0);
+}
+
+void
 pmap_kenter_user(vm_offset_t va, vm_paddr_t pa)
 {
 
@@ -3054,7 +3098,10 @@ void
 pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
     vm_pindex_t pindex, vm_size_t size)
 {
-	printf("pmap_object_init_pt()\n");
+
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	KASSERT(object->type == OBJT_DEVICE,
+	    ("pmap_object_init_pt: non-device object"));
 }
 
 
@@ -3072,6 +3119,7 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 
 	if (!pmap_get_pde_pte(pmap, addr, &pde, &pte))
 		return (FALSE);
+	KASSERT(pte != NULL, ("Valid mapping but no pte ?"));
 	if (*pte == 0)
 		return (TRUE);
 	return (FALSE);
@@ -3434,9 +3482,11 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			simple_lock(&opg->mdpage.pvh_slock);
 #endif
 			pve = pmap_remove_pv(opg, pmap, va);
-			if (m && (m->flags & (PG_UNMANAGED | PG_FICTITIOUS)) && pve)
+			if (m && (m->flags & (PG_UNMANAGED | PG_FICTITIOUS)) && 
+			    pve)
 				pmap_free_pv_entry(pve);
-			else if (!pve)
+			else if (!pve &&
+			    !(m->flags & (PG_UNMANAGED | PG_FICTITIOUS)))
 				pve = pmap_get_pv_entry();
 			KASSERT(pve != NULL, ("No pv"));
 #if 0
@@ -3462,7 +3512,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 						    (oflags & PVF_WRITE) == 0);
 					}
 			}
-		} else if (m)
+		} else if (m && !(m->flags & (PG_UNMANAGED | PG_FICTITIOUS)))
 			if ((pve = pmap_get_pv_entry()) == NULL) {
 				panic("pmap_enter: no pv entries");	
 			}
@@ -3525,7 +3575,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			pmap_tlb_flushD_SE(pmap, va);
 
 
-		pmap_vac_me_harder(m, pmap, va);
+		if (m)
+			pmap_vac_me_harder(m, pmap, va);
 	}
 	vm_page_unlock_queues();
 }
@@ -4000,6 +4051,7 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 #endif
 
 
+	mtx_lock(&cmtx);
 	/*
 	 * Hook in the page, zero it, and purge the cache for that
 	 * zeroed page. Invalidate the TLB as needed.
@@ -4013,6 +4065,7 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 		bzero((void *)(cdstp + off), size);
 	else
 		bzero_page(cdstp);
+	mtx_unlock(&cmtx);
 	cpu_dcache_wbinv_range(cdstp, PAGE_SIZE);
 }
 #endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
@@ -4021,6 +4074,8 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 void
 pmap_zero_page_xscale(vm_paddr_t phys, int off, int size)
 {
+
+	mtx_lock(&cmtx);
 	/*
 	 * Hook in the page, zero it, and purge the cache for that
 	 * zeroed page. Invalidate the TLB as needed.
@@ -4035,6 +4090,7 @@ pmap_zero_page_xscale(vm_paddr_t phys, int off, int size)
 		bzero((void *)(cdstp + off), size);
 	else
 		bzero_page(cdstp);
+	mtx_unlock(&cmtx);
 	xscale_cache_clean_minidata();
 }
 
@@ -4248,6 +4304,7 @@ pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 	 * the cache for the appropriate page. Invalidate the TLB
 	 * as required.
 	 */
+	mtx_lock(&cmtx);
 	*csrc_pte = L2_S_PROTO | src |
 	    L2_S_PROT(PTE_KERNEL, VM_PROT_READ) | pte_l2_s_cache_mode;
 	PTE_SYNC(csrc_pte);
@@ -4258,6 +4315,7 @@ pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 	cpu_tlb_flushD_SE(cdstp);
 	cpu_cpwait();
 	bcopy_page(csrcp, cdstp);
+	mtx_unlock(&cmtx);
 	cpu_dcache_inv_range(csrcp, PAGE_SIZE);
 #if 0
 	mtx_lock(&src_pg->md.pvh_mtx);
@@ -4291,6 +4349,7 @@ pmap_copy_page_xscale(vm_paddr_t src, vm_paddr_t dst)
 	 * the cache for the appropriate page. Invalidate the TLB
 	 * as required.
 	 */
+	mtx_lock(&cmtx);
 	*csrc_pte = L2_S_PROTO | src |
 	    L2_S_PROT(PTE_KERNEL, VM_PROT_READ) |
 	    L2_C | L2_XSCALE_T_TEX(TEX_XSCALE_X);	/* mini-data */
@@ -4303,6 +4362,7 @@ pmap_copy_page_xscale(vm_paddr_t src, vm_paddr_t dst)
 	cpu_tlb_flushD_SE(cdstp);
 	cpu_cpwait();
 	bcopy_page(csrcp, cdstp);
+	mtx_unlock(&cmtx);
 	xscale_cache_clean_minidata();
 }
 #endif /* ARM_MMU_XSCALE == 1 */
@@ -4447,7 +4507,7 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 		pa += PAGE_SIZE;
 	}
 	
-	return ((void *)(va));
+	return ((void *)(va + offset));
 }
 
 #define BOOTSTRAP_DEBUG
