@@ -249,8 +249,7 @@ ieee80211_notify_scan_done(struct ieee80211com *ic)
 {
 	struct ifnet *ifp = ic->ic_ifp;
 
-	IEEE80211_DPRINTF(ic, IEEE80211_MSG_SCAN,
-		"%s: notify scan done\n", ic->ic_ifp->if_xname);
+	IEEE80211_DPRINTF(ic, IEEE80211_MSG_SCAN, "%s\n", "notify scan done");
 
 	/* dispatch wireless event indicating scan completed */
 	rt_ieee80211msg(ifp, RTM_IEEE80211_SCAN, NULL, 0);
