@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2003 Marcel Moolenaar
+ * Copyright (c) 2000-2006 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -567,6 +567,12 @@ asm_decodeB(uint64_t ip, struct asm_bundle *b, int slot)
 		case 0x10:
 			op = ASM_OP_EPC, fmt = ASM_FMT_B8;
 			break;
+		case 0x18:
+			op = ASM_OP_VMSW_0, fmt = ASM_FMT_B8;
+			break;
+		case 0x19:
+			op = ASM_OP_VMSW_1, fmt = ASM_FMT_B8;
+			break;
 		case 0x20:
 			switch (FIELD(bits, 6, 3)) { /* btype */
 			case 0x0:
@@ -1000,11 +1006,20 @@ asm_decodeI(uint64_t ip, struct asm_bundle *b, int slot)
 					    fmt = ASM_FMT_I16;
 					break;
 				case 0x2:
-					op = ASM_OP_TNAT_Z, fmt = ASM_FMT_I17;
+					if (FIELD(bits, 19, 1) == 0) /* x */
+						op = ASM_OP_TNAT_Z,
+						    fmt = ASM_FMT_I17;
+					else
+						op = ASM_OP_TF_Z,
+						    fmt = ASM_FMT_I30;
 					break;
 				case 0x3:
-					op = ASM_OP_TNAT_Z_UNC,
-					    fmt = ASM_FMT_I17;
+					if (FIELD(bits, 19, 1) == 0) /* x */
+						op = ASM_OP_TNAT_Z_UNC,
+						    fmt = ASM_FMT_I17;
+					else
+						op = ASM_OP_TF_Z_UNC,
+						    fmt = ASM_FMT_I30;
 					break;
 				}
 			} else {
@@ -1018,12 +1033,20 @@ asm_decodeI(uint64_t ip, struct asm_bundle *b, int slot)
 					    fmt = ASM_FMT_I16;
 					break;
 				case 0x2:
-					op = ASM_OP_TNAT_Z_AND,
-					    fmt = ASM_FMT_I17;
+					if (FIELD(bits, 19, 1) == 0) /* x */
+						op = ASM_OP_TNAT_Z_AND,
+						    fmt = ASM_FMT_I17;
+					else
+						op = ASM_OP_TF_Z_AND,
+						    fmt = ASM_FMT_I30;
 					break;
 				case 0x3:
-					op = ASM_OP_TNAT_NZ_AND,
-					    fmt = ASM_FMT_I17;
+					if (FIELD(bits, 19, 1) == 0) /* x */
+						op = ASM_OP_TNAT_NZ_AND,
+						    fmt = ASM_FMT_I17;
+					else
+						op = ASM_OP_TF_NZ_AND,
+						    fmt = ASM_FMT_I30;
 					break;
 				}
 			}
@@ -1040,12 +1063,20 @@ asm_decodeI(uint64_t ip, struct asm_bundle *b, int slot)
 					    fmt = ASM_FMT_I16;
 					break;
 				case 0x2:
-					op = ASM_OP_TNAT_Z_OR,
-					    fmt = ASM_FMT_I17;
+					if (FIELD(bits, 19, 1) == 0) /* x */
+						op = ASM_OP_TNAT_Z_OR,
+						    fmt = ASM_FMT_I17;
+					else
+						op = ASM_OP_TF_Z_OR,
+						    fmt = ASM_FMT_I30;
 					break;
 				case 0x3:
-					op = ASM_OP_TNAT_NZ_OR,
-					    fmt = ASM_FMT_I17;
+					if (FIELD(bits, 19, 1) == 0) /* x */
+						op = ASM_OP_TNAT_NZ_OR,
+						    fmt = ASM_FMT_I17;
+					else
+						op = ASM_OP_TF_NZ_OR,
+						    fmt = ASM_FMT_I30;
 					break;
 				}
 			} else {
@@ -1059,12 +1090,20 @@ asm_decodeI(uint64_t ip, struct asm_bundle *b, int slot)
 					    fmt = ASM_FMT_I16;
 					break;
 				case 0x2:
-					op = ASM_OP_TNAT_Z_OR_ANDCM,
-					    fmt = ASM_FMT_I17;
+					if (FIELD(bits, 19, 1) == 0) /* x */
+						op = ASM_OP_TNAT_Z_OR_ANDCM,
+						    fmt = ASM_FMT_I17;
+					else
+						op = ASM_OP_TF_Z_OR_ANDCM,
+						    fmt = ASM_FMT_I30;
 					break;
 				case 0x3:
-					op = ASM_OP_TNAT_NZ_OR_ANDCM,
-					    fmt = ASM_FMT_I17;
+					if (FIELD(bits, 19, 1) == 0) /* x */
+						op = ASM_OP_TNAT_NZ_OR_ANDCM,
+						    fmt = ASM_FMT_I17;
+					else
+						op = ASM_OP_TF_NZ_OR_ANDCM,
+						    fmt = ASM_FMT_I30;
 					break;
 				}
 			}
