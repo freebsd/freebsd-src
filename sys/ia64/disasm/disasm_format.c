@@ -51,6 +51,7 @@ static const char *asm_mnemonics[] = {
 	"fpms", "fpnma", "fprcpa", "fprsqrta", "frcpa", "frsqrta", "fselect",
 	"fsetc", "fswap", "fsxt", "fwb", "fxor",
 	"getf",
+	"hint",
 	"invala", "itc", "itr",
 	"ld1", "ld16", "ld2", "ld4", "ld8", "ldf", "ldf8", "ldfd", "ldfe",
 	"ldfp8", "ldfpd", "ldfps", "ldfs", "lfetch", "loadrs",
