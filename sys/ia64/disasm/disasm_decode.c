@@ -591,6 +591,9 @@ asm_decodeB(uint64_t ip, struct asm_bundle *b, int slot)
 		case 0x0:
 			op = ASM_OP_NOP_B, fmt = ASM_FMT_B9;
 			break;
+		case 0x1:
+			op = ASM_OP_HINT_B, fmt = ASM_FMT_B9;
+			break;
 		case 0x10:
 			op = ASM_OP_BRP_, fmt = ASM_FMT_B7;
 			break;
@@ -655,7 +658,10 @@ asm_decodeF(uint64_t ip, struct asm_bundle *b, int slot)
 				op = ASM_OP_BREAK_F, fmt = ASM_FMT_F15;
 				break;
 			case 0x1:
-				op = ASM_OP_NOP_F, fmt = ASM_FMT_F15;
+				if (FIELD(bits, 26, 1) == 0) /* y */
+					op = ASM_OP_NOP_F, fmt = ASM_FMT_F16;
+				else  
+					op = ASM_OP_HINT_F, fmt = ASM_FMT_F16;
 				break;
 			case 0x4:
 				op = ASM_OP_FSETC, fmt = ASM_FMT_F12;
@@ -906,7 +912,10 @@ asm_decodeI(uint64_t ip, struct asm_bundle *b, int slot)
 				op = ASM_OP_BREAK_I, fmt = ASM_FMT_I19;
 				break;
 			case 0x1:
-				op = ASM_OP_NOP_I, fmt = ASM_FMT_I19;
+				if (FIELD(bits, 26, 1) == 0) /* y */
+					op = ASM_OP_NOP_I, fmt = ASM_FMT_I18;
+				else
+					op = ASM_OP_HINT_I, fmt = ASM_FMT_I18;
 				break;
 			case 0xA:
 				op = ASM_OP_MOV_I, fmt = ASM_FMT_I27;
@@ -1282,7 +1291,10 @@ asm_decodeM(uint64_t ip, struct asm_bundle *b, int slot)
 				op = ASM_OP_BREAK_M, fmt = ASM_FMT_M37;
 				break;
 			case 0x1:
-				op = ASM_OP_NOP_M, fmt = ASM_FMT_M37;
+				if (FIELD(bits, 26, 1) == 0) /* y */
+					op = ASM_OP_NOP_M, fmt = ASM_FMT_M48;
+				else
+					op = ASM_OP_HINT_M, fmt = ASM_FMT_M48;
 				break;
 			case 0x4: case 0x14: case 0x24: case 0x34:
 				op = ASM_OP_SUM, fmt = ASM_FMT_M44;
@@ -1482,7 +1494,7 @@ asm_decodeM(uint64_t ip, struct asm_bundle *b, int slot)
 				op = ASM_OP_PROBE_W_FAULT, fmt = ASM_FMT_M40;
 				break;
 			case 0x34:
-				op = ASM_OP_PTC_E, fmt = ASM_FMT_M28;
+				op = ASM_OP_PTC_E, fmt = ASM_FMT_M47;
 				break;
 			case 0x38:
 				op = ASM_OP_PROBE_R, fmt = ASM_FMT_M38;
@@ -2439,7 +2451,10 @@ asm_decodeX(uint64_t ip, struct asm_bundle *b, int slot)
 				op = ASM_OP_BREAK_X, fmt = ASM_FMT_X1;
 				break;
 			case 0x1:
-				op = ASM_OP_NOP_X, fmt = ASM_FMT_X1;
+				if (FIELD(bits, 26, 1) == 0) /* y */
+					op = ASM_OP_NOP_X, fmt = ASM_FMT_X5;
+				else
+					op = ASM_OP_HINT_X, fmt = ASM_FMT_X5;
 				break;
 			}
 		}
