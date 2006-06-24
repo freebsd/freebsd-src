@@ -1501,6 +1501,7 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 		id.dst_ip = id.src_ip = 0;
 		id.dst_port = id.src_port = 0;
 		id.proto = args->f_id.proto;
+		id.addr_type = args->f_id.addr_type;
 
 		if (IS_IP6_FLOW_ID (&(args->f_id))) {
 			if (limit_mask & DYN_SRC_ADDR)
