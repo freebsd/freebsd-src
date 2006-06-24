@@ -1931,6 +1931,7 @@ show_dyn_ipfw(ipfw_dyn_rule *d, int pcwidth, int bcwidth)
 	struct protoent *pe;
 	struct in_addr a;
 	uint16_t rulenum;
+	char buf[INET6_ADDRSTRLEN];
 
 	if (!do_expired) {
 		if (!d->expire && !(d->dyn_type == O_LIMIT_PARENT))
@@ -1959,11 +1960,20 @@ show_dyn_ipfw(ipfw_dyn_rule *d, int pcwidth, int bcwidth)
 	else
 		printf(" proto %u", d->id.proto);
 
-	a.s_addr = htonl(d->id.src_ip);
-	printf(" %s %d", inet_ntoa(a), d->id.src_port);
+	if (d->id.addr_type == 4) {
+		a.s_addr = htonl(d->id.src_ip);
+		printf(" %s %d", inet_ntoa(a), d->id.src_port);
 
-	a.s_addr = htonl(d->id.dst_ip);
-	printf(" <-> %s %d", inet_ntoa(a), d->id.dst_port);
+		a.s_addr = htonl(d->id.dst_ip);
+		printf(" <-> %s %d", inet_ntoa(a), d->id.dst_port);
+	} else if (d->id.addr_type == 6) {
+		printf(" %s %d", inet_ntop(AF_INET6, &d->id.src_ip6, buf,
+		    sizeof(buf)), d->id.src_port);
+		printf(" <-> %s %d", inet_ntop(AF_INET6, &d->id.dst_ip6, buf,
+		    sizeof(buf)), d->id.dst_port);
+	} else
+		printf(" UNKNOWN <-> UNKNOWN\n");
+	
 	printf("\n");
 }
 
