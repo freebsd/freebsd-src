@@ -2697,11 +2697,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			 * we only virtual copy managed pages
 			 */
 			if ((ptetemp & PG_MANAGED) != 0) {
-				/*
-				 * We have to check after allocpte for the
-				 * pte still being around...  allocpte can
-				 * block.
-				 */
 				dstmpte = pmap_allocpte(dst_pmap, addr,
 				    M_NOWAIT);
 				if (dstmpte == NULL)
@@ -2720,7 +2715,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 					*dst_pte = ptetemp & ~(PG_M | PG_A);
 					dst_pmap->pm_stats.resident_count++;
 	 			} else
-					pmap_unwire_pte_hold(dst_pmap, addr, dstmpte);
+					pmap_unwire_pte_hold(dst_pmap, addr,
+					    dstmpte);
 				if (dstmpte->wire_count >= srcmpte->wire_count)
 					break;
 			}
