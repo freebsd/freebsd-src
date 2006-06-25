@@ -524,7 +524,9 @@ mpt_pci_attach(device_t dev)
 	/*
 	 * Disable PIO until we need it
 	 */
-	pci_disable_io(dev, SYS_RES_IOPORT);
+	if (mpt->is_sas) {
+		pci_disable_io(dev, SYS_RES_IOPORT);
+	}
 
 	/* Initialize the hardware */
 	if (mpt->disabled == 0) {
