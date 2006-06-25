@@ -1484,13 +1484,7 @@ mpt_send_ioc_init(struct mpt_softc *mpt, uint32_t who)
 	memset(&init, 0, sizeof init);
 	init.WhoInit = who;
 	init.Function = MPI_FUNCTION_IOC_INIT;
-	if (mpt->is_fc) {
-		init.MaxDevices = 255;
-	} else if (mpt->is_sas) {
-		init.MaxDevices = mpt->mpt_max_devices;
-	} else {
-		init.MaxDevices = 16;
-	}
+	init.MaxDevices = mpt->mpt_max_devices;
 	init.MaxBuses = 1;
 
 	init.MsgVersion = htole16(MPI_VERSION);
@@ -2189,13 +2183,17 @@ mpt_diag_outsl(struct mpt_softc *mpt, uint32_t addr,
 	uint32_t *data_end;
 
 	data_end = data + (roundup2(len, sizeof(uint32_t)) / 4);
-	pci_enable_io(mpt->dev, SYS_RES_IOPORT);
+	if (mpt->is_sas) {
+		pci_enable_io(mpt->dev, SYS_RES_IOPORT);
+	}
 	mpt_pio_write(mpt, MPT_OFFSET_DIAG_ADDR, addr);
 	while (data != data_end) {
 		mpt_pio_write(mpt, MPT_OFFSET_DIAG_DATA, *data);
 		data++;
 	}
-	pci_disable_io(mpt->dev, SYS_RES_IOPORT);
+	if (mpt->is_sas) {
+		pci_disable_io(mpt->dev, SYS_RES_IOPORT);
+	}
 }
 
 static int
@@ -2233,7 +2231,9 @@ mpt_download_fw(struct mpt_softc *mpt)
 			       ext->ImageSize);
 	}
 
-	pci_enable_io(mpt->dev, SYS_RES_IOPORT);
+	if (mpt->is_sas) {
+		pci_enable_io(mpt->dev, SYS_RES_IOPORT);
+	}
 	/* Setup the address to jump to on reset. */
 	mpt_pio_write(mpt, MPT_OFFSET_DIAG_ADDR, fw_hdr->IopResetRegAddr);
 	mpt_pio_write(mpt, MPT_OFFSET_DIAG_DATA, fw_hdr->IopResetVectorValue);
@@ -2248,7 +2248,9 @@ mpt_download_fw(struct mpt_softc *mpt)
 	mpt_pio_write(mpt, MPT_OFFSET_DIAG_ADDR, MPT_DIAG_MEM_CFG_BASE);
 	mpt_pio_write(mpt, MPT_OFFSET_DIAG_DATA, data);
 
-	pci_disable_io(mpt->dev, SYS_RES_IOPORT);
+	if (mpt->is_sas) {
+		pci_disable_io(mpt->dev, SYS_RES_IOPORT);
+	}
 
 	/*
 	 * Re-enable the processor and clear the boot halt flag.
