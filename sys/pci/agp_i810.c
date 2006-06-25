@@ -92,61 +92,65 @@ struct agp_i810_softc {
 	void *argb_cursor;		/* contigmalloc area for ARGB cursor */
 };
 
-static const char*
+/* For adding new devices, devid is the id of the graphics controller
+ * (pci:0:2:0, for example).  The placeholder (usually at pci:0:2:1) for the
+ * second head should never be added.  The bridge_offset is the offset to
+ * subtract from devid to get the id of the hostb that the device is on.
+ */
+static const struct agp_i810_match {
+	int devid;
+	int chiptype;
+	int bridge_offset;
+	char *name;
+} agp_i810_matches[] = {
+	{0x71218086, CHIP_I810, 0x00010000,
+	    "Intel 82810 (i810 GMCH) SVGA controller"},
+	{0x71238086, CHIP_I810, 0x00010000,
+	    "Intel 82810-DC100 (i810-DC100 GMCH) SVGA controller"},
+	{0x71258086, CHIP_I810, 0x00010000,
+	    "Intel 82810E (i810E GMCH) SVGA controller"},
+	{0x11328086, CHIP_I810, 0x00020000,
+	    "Intel 82815 (i815 GMCH) SVGA controller"},
+	{0x35778086, CHIP_I830, 0x00020000,
+	    "Intel 82830M (830M GMCH) SVGA controller"},
+	{0x35828086, CHIP_I830, 0x00020000,
+	    "Intel 82852/5"},
+	{0x25728086, CHIP_I830, 0x00020000,
+	    "Intel 82865G (865G GMCH) SVGA controller"},
+	{0x25828086, CHIP_I915, 0x00020000,
+	    "Intel 82915G (915G GMCH) SVGA controller"},
+	{0x25928086, CHIP_I915, 0x00020000,
+	    "Intel 82915GM (915GM GMCH) SVGA controller"},
+	/* XXX: I believe these chipsets should work, but they haven't been
+	 * tested yet.
+	 */
+	/*
+	{0x27728086, CHIP_I915, 0x00020000,
+	    "Intel 82945G (945G GMCH) SVGA controller"},
+	{0x27A28086, CHIP_I915, 0x00020000,
+	    "Intel 82945GM (945GM GMCH) SVGA controller"},
+	*/
+	{0, 0, 0, NULL}
+};
+
+static const struct agp_i810_match*
 agp_i810_match(device_t dev)
 {
+	int i, devid;
+
 	if (pci_get_class(dev) != PCIC_DISPLAY
 	    || pci_get_subclass(dev) != PCIS_DISPLAY_VGA)
 		return NULL;
 
-	switch (pci_get_devid(dev)) {
-	case 0x71218086:
-		return ("Intel 82810 (i810 GMCH) SVGA controller");
-
-	case 0x71238086:
-		return ("Intel 82810-DC100 (i810-DC100 GMCH) SVGA controller");
-
-	case 0x71258086:
-		return ("Intel 82810E (i810E GMCH) SVGA controller");
-
-	case 0x11328086:
-		return ("Intel 82815 (i815 GMCH) SVGA controller");
-
-	case 0x35778086:
-		return ("Intel 82830M (830M GMCH) SVGA controller");
-
-	case 0x25628086:
-		return ("Intel 82845G (845G GMCH) SVGA controller");
-
-	case 0x35828086:
-		switch (pci_read_config(dev, AGP_I85X_CAPID, 1)) {
-		case AGP_I855_GME:
-			return ("Intel 82855GME (855GME GMCH) SVGA controller");
-
-		case AGP_I855_GM:
-			return ("Intel 82855GM (855GM GMCH) SVGA controller");
-
-		case AGP_I852_GME:
-			return ("Intel 82852GME (852GME GMCH) SVGA controller");
-
-		case AGP_I852_GM:
-			return ("Intel 82852GM (852GM GMCH) SVGA controller");
-
-		default:
-			return ("Intel 8285xM (85xGM GMCH) SVGA controller");
-		}
-
-	case 0x25728086:
-		return ("Intel 82865G (865G GMCH) SVGA controller");
-
-	case 0x25828086:
-		return ("Intel 82915G (915G GMCH) SVGA controller");
-
-	case 0x25928086:
-		return ("Intel 82915GM (915GM GMCH) SVGA controller");
-	};
-
-	return NULL;
+	devid = pci_get_devid(dev);
+	for (i = 0; agp_i810_matches[i].devid != 0; i++) {
+		if (agp_i810_matches[i].devid == devid)
+		    break;
+	}
+	if (agp_i810_matches[i].devid == 0)
+		return NULL;
+	else
+		return &agp_i810_matches[i];
 }
 
 /*
@@ -158,28 +162,11 @@ agp_i810_find_bridge(device_t dev)
 	device_t *children, child;
 	int nchildren, i;
 	u_int32_t devid;
+	const struct agp_i810_match *match;
+  
+	match = agp_i810_match(dev);
+	devid = match->devid - match->bridge_offset;
 
-	/*
-	 * Calculate bridge device's ID.
-	 */
-	devid = pci_get_devid(dev);
-	switch (devid) {
-	case 0x71218086:
-	case 0x71238086:
-	case 0x71258086:
-		devid -= 0x10000;
-		break;
-
-	case 0x11328086:
-	case 0x35778086:
-	case 0x25628086:
-	case 0x35828086:
-	case 0x25728086:
-	case 0x25828086:
-	case 0x25928086:
-		devid -= 0x20000;
-		break;
-	};
 	if (device_get_children(device_get_parent(device_get_parent(dev)),
 	    &children, &nchildren))
 		return 0;
@@ -208,76 +195,85 @@ agp_i810_identify(driver_t *driver, device_t parent)
 static int
 agp_i810_probe(device_t dev)
 {
-	const char *desc;
+	device_t bdev;
+	const struct agp_i810_match *match;
 
 	if (resource_disabled("agp", device_get_unit(dev)))
 		return (ENXIO);
-	desc = agp_i810_match(dev);
-	if (desc) {
-		device_t bdev;
-		u_int8_t smram;
-		unsigned int gcc1;
-		int devid = pci_get_devid(dev);
+	match = agp_i810_match(dev);
+	if (match == NULL)
+		return ENXIO;
 
-		bdev = agp_i810_find_bridge(dev);
-		if (!bdev) {
-			if (bootverbose)
-				printf("I810: can't find bridge device\n");
-			return ENXIO;
-		}
-
-		/*
-		 * checking whether internal graphics device has been activated.
-		 */
-		switch (devid) {
-			/* i810 */
-		case 0x71218086:
-		case 0x71238086:
-		case 0x71258086:
-		case 0x11328086:
-			smram = pci_read_config(bdev, AGP_I810_SMRAM, 1);
-			if ((smram & AGP_I810_SMRAM_GMS)
-			    == AGP_I810_SMRAM_GMS_DISABLED) {
-				if (bootverbose)
-					printf("I810: disabled, not probing\n");
-				return ENXIO;
-			}
-			break;
-
-			/* i830 */
-		case 0x35778086:
-		case 0x35828086:
-		case 0x25628086:
-		case 0x25728086:
-			gcc1 = pci_read_config(bdev, AGP_I830_GCC1, 1);
-			if ((gcc1 & AGP_I830_GCC1_DEV2) == AGP_I830_GCC1_DEV2_DISABLED) {
-				if (bootverbose)
-					printf("I830: disabled, not probing\n");
-				return ENXIO;
-			}
-			break;
-
-			/* i915 */
-		case 0x25828086:
-		case 0x25928086:
-			gcc1 = pci_read_config(bdev, AGP_I915_DEVEN, 4);
-			if ((gcc1 & AGP_I915_DEVEN_D2F0) ==
-			    AGP_I915_DEVEN_D2F0_DISABLED) {
-				if (bootverbose)
-					printf("I915: disabled, not probing\n");
-				return ENXIO;
-			}
-			break;
-
-		default:
-			return ENXIO;
-		}
-
-		device_set_desc(dev, desc);
-		return BUS_PROBE_DEFAULT;
+	bdev = agp_i810_find_bridge(dev);
+	if (!bdev) {
+		if (bootverbose)
+			printf("I810: can't find bridge device\n");
+		return ENXIO;
 	}
 
-	return ENXIO;
+	/*
+	 * checking whether internal graphics device has been activated.
+	 */
+	if (match->chiptype == CHIP_I810) {
+		u_int8_t smram;
+
+		smram = pci_read_config(bdev, AGP_I810_SMRAM, 1);
+		if ((smram & AGP_I810_SMRAM_GMS)
+		    == AGP_I810_SMRAM_GMS_DISABLED) {
+			if (bootverbose)
+				printf("I810: disabled, not probing\n");
+			return ENXIO;
+		}
+	} else if (match->chiptype == CHIP_I830) {
+		unsigned int gcc1;
+
+		gcc1 = pci_read_config(bdev, AGP_I830_GCC1, 1);
+		if ((gcc1 & AGP_I830_GCC1_DEV2) ==
+		    AGP_I830_GCC1_DEV2_DISABLED) {
+			if (bootverbose)
+				printf("I830: disabled, not probing\n");
+			return ENXIO;
+		}
+	} else if (match->chiptype == CHIP_I915) {
+		unsigned int gcc1;
+
+		gcc1 = pci_read_config(bdev, AGP_I915_DEVEN, 4);
+		if ((gcc1 & AGP_I915_DEVEN_D2F0) ==
+		    AGP_I915_DEVEN_D2F0_DISABLED) {
+			if (bootverbose)
+				printf("I915: disabled, not probing\n");
+			return ENXIO;
+		}
+	}
+
+	if (match->devid == 0x35828086) {
+		switch (pci_read_config(dev, AGP_I85X_CAPID, 1)) {
+		case AGP_I855_GME:
+			device_set_desc(dev,
+			    "Intel 82855GME (855GME GMCH) SVGA controller");
+			break;
+		case AGP_I855_GM:
+			device_set_desc(dev,
+			    "Intel 82855GM (855GM GMCH) SVGA controller");
+			break;
+		case AGP_I852_GME:
+			device_set_desc(dev,
+			    "Intel 82852GME (852GME GMCH) SVGA controller");
+			break;
+		case AGP_I852_GM:
+			device_set_desc(dev,
+			    "Intel 82852GM (852GM GMCH) SVGA controller");
+			break;
+		default:
+			device_set_desc(dev,
+			    "Intel 8285xM (85xGM GMCH) SVGA controller");
+			break;
+		}
+	} else {
+		device_set_desc(dev, match->name);
+	}
+
+	return BUS_PROBE_DEFAULT;
 }
 
 static int
@@ -285,6 +281,7 @@ agp_i810_attach(device_t dev)
 {
 	struct agp_i810_softc *sc = device_get_softc(dev);
 	struct agp_gatt *gatt;
+	const struct agp_i810_match *match;
 	int error, rid;
 
 	sc->bdev = agp_i810_find_bridge(dev);
@@ -295,26 +292,8 @@ agp_i810_attach(device_t dev)
 	if (error)
 		return error;
 
-	switch (pci_get_devid(dev)) {
-	case 0x71218086:
-	case 0x71238086:
-	case 0x71258086:
-	case 0x11328086:
-		sc->chiptype = CHIP_I810;
-		break;
-	case 0x35778086:
-	case 0x25628086:
-		sc->chiptype = CHIP_I830;
-		break;
-	case 0x35828086:
-	case 0x25728086:
-		sc->chiptype = CHIP_I855;
-		break;
-	case 0x25828086:
-	case 0x25928086:
-		sc->chiptype = CHIP_I915;
-		break;
-	};
+	match = agp_i810_match(dev);
+	sc->chiptype = match->chiptype;
 
 	/* Same for i810 and i830 */
 	if (sc->chiptype == CHIP_I915)
