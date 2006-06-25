@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
+#include <printf.h>
 
 #include <stdarg.h>
 #include "un-namespace.h"
@@ -470,6 +471,12 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	char sign;		/* sign prefix (' ', '+', '-', or \0) */
 	char thousands_sep;	/* locale specific thousands separator */
 	const char *grouping;	/* locale specific numeric grouping rules */
+
+	if (__use_xprintf == 0 && getenv("USE_XPRINTF"))
+		__use_xprintf = 1;
+	if (__use_xprintf > 0)
+		return (__xvprintf(fp, fmt0, ap));
+
 #ifndef NO_FLOATING_POINT
 	/*
 	 * We can decompose the printed representation of floating
@@ -532,8 +539,8 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	static char zeroes[PADSIZE] =
 	 {'0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0'};
 
-	static const char xdigs_lower[16] = "0123456789abcdef";
-	static const char xdigs_upper[16] = "0123456789ABCDEF";
+	static const char xdigs_lower[17] = "0123456789abcdef?";
+	static const char xdigs_upper[17] = "0123456789ABCDEF?";
 
 	/*
 	 * BEWARE, these `goto error' on error, and PAD uses `n'.
@@ -1554,14 +1561,16 @@ done:
 		    case TP_INTMAXT:
 			(*argtable) [n].pintmaxarg = va_arg (ap, intmax_t *);
 			break;
-#ifndef NO_FLOATING_POINT
 		    case T_DOUBLE:
+#ifndef NO_FLOATING_POINT
 			(*argtable) [n].doublearg = va_arg (ap, double);
+#endif
 			break;
 		    case T_LONG_DOUBLE:
+#ifndef NO_FLOATING_POINT
 			(*argtable) [n].longdoublearg = va_arg (ap, long double);
-			break;
 #endif
+			break;
 		    case TP_CHAR:
 			(*argtable) [n].pchararg = va_arg (ap, char *);
 			break;

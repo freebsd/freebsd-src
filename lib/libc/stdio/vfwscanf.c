@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <ctype.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -98,7 +99,9 @@ __FBSDID("$FreeBSD$");
 #define	CT_INT		3	/* %[dioupxX] conversion */
 #define	CT_FLOAT	4	/* %[efgEFG] conversion */
 
+#ifndef NO_FLOATING_POINT
 static int parsefloat(FILE *, wchar_t *, wchar_t *);
+#endif
 
 extern int __scanfdebug;
 

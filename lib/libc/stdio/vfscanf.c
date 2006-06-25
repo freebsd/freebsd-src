@@ -98,7 +98,9 @@ __FBSDID("$FreeBSD$");
 #define	CT_FLOAT	4	/* %[efgEFG] conversion */
 
 static const u_char *__sccl(char *, const u_char *);
+#ifndef NO_FLOATING_POINT
 static int parsefloat(FILE *, char *, char *);
+#endif
 
 int __scanfdebug = 0;
 
