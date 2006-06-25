@@ -205,7 +205,7 @@ unloadentry(void *unused1, int unused2)
 {
 	struct firmware *fp;
 	linker_file_t file;
-	int i;
+	int i, err;
 
 	mtx_lock(&firmware_mtx);
 	for (;;) {
@@ -225,9 +225,19 @@ unloadentry(void *unused1, int unused2)
 		fp->file = NULL;
 		mtx_unlock(&firmware_mtx);
 
-		linker_release_module(NULL, NULL, file);
+		err = linker_release_module(NULL, NULL, file);
 
 		mtx_lock(&firmware_mtx);
+		if (err) {
+			/*
+			 * If linker_release_module() failed then we still
+			 * hold a reference on the module so it should not be
+			 * possible for it to go away or be re-registered.
+			 */
+			KASSERT(fp->file == NULL,
+			    ("firmware entry reused while referenced!"));
+			fp->file = file;
+		}
 	}
 	mtx_unlock(&firmware_mtx);
 }
