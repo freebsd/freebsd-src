@@ -2733,11 +2733,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			 * we only virtual copy managed pages
 			 */
 			if ((ptetemp & PG_MANAGED) != 0) {
-				/*
-				 * We have to check after allocpte for the
-				 * pte still being around...  allocpte can
-				 * block.
-				 */
 				dstmpte = pmap_allocpte(dst_pmap, addr,
 				    M_NOWAIT);
 				if (dstmpte == NULL)
