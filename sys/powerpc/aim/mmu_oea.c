@@ -434,6 +434,7 @@ static __inline void
 moea_attr_clear(vm_page_t m, int ptebit)
 {
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	m->md.mdpg_attrs &= ~ptebit;
 }
 
@@ -448,6 +449,7 @@ static __inline void
 moea_attr_save(vm_page_t m, int ptebit)
 {
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	m->md.mdpg_attrs |= ptebit;
 }
 
@@ -471,6 +473,9 @@ moea_pte_match(struct pte *pt, u_int sr, vm_offset_t va, int which)
 static __inline void
 moea_pte_create(struct pte *pt, u_int sr, vm_offset_t va, u_int pte_lo)
 {
+
+	mtx_assert(&moea_table_mutex, MA_OWNED);
+
 	/*
 	 * Construct a PTE.  Default to IMB initially.  Valid bit only gets
 	 * set when the real pte is set in memory.
@@ -486,12 +491,15 @@ static __inline void
 moea_pte_synch(struct pte *pt, struct pte *pvo_pt)
 {
 
+	mtx_assert(&moea_table_mutex, MA_OWNED);
 	pvo_pt->pte_lo |= pt->pte_lo & (PTE_REF | PTE_CHG);
 }
 
 static __inline void
 moea_pte_clear(struct pte *pt, vm_offset_t va, int ptebit)
 {
+
+	mtx_assert(&moea_table_mutex, MA_OWNED);
 
 	/*
 	 * As shown in Section 7.6.3.2.3
@@ -507,6 +515,7 @@ static __inline void
 moea_pte_set(struct pte *pt, struct pte *pvo_pt)
 {
 
+	mtx_assert(&moea_table_mutex, MA_OWNED);
 	pvo_pt->pte_hi |= PTE_VALID;
 
 	/*
@@ -525,6 +534,7 @@ static __inline void
 moea_pte_unset(struct pte *pt, struct pte *pvo_pt, vm_offset_t va)
 {
 
+	mtx_assert(&moea_table_mutex, MA_OWNED);
 	pvo_pt->pte_hi &= ~PTE_VALID;
 
 	/*
@@ -766,7 +776,8 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	 * Initialize the lock that synchronizes access to the pteg and pvo
 	 * tables.
 	 */
-	mtx_init(&moea_table_mutex, "pmap table", NULL, MTX_DEF);
+	mtx_init(&moea_table_mutex, "pmap table", NULL, MTX_DEF |
+	    MTX_RECURSE);
 
 	/*
 	 * Allocate the message buffer.
@@ -1461,8 +1472,10 @@ moea_page_protect(mmu_t mmu, vm_page_t m, vm_prot_t prot)
 		pt = moea_pvo_to_pte(pvo, -1);
 		pvo->pvo_pte.pte_lo &= ~PTE_PP;
 		pvo->pvo_pte.pte_lo |= PTE_BR;
-		if (pt != NULL)
+		if (pt != NULL) {
 			moea_pte_change(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
+			mtx_unlock(&moea_table_mutex);
+		}
 		PMAP_UNLOCK(pmap);
 		MOEA_PVO_CHECK(pvo);	/* sanity check */
 	}
@@ -1616,8 +1629,10 @@ moea_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 		/*
 		 * If the PVO is in the page table, update that pte as well.
 		 */
-		if (pt != NULL)
+		if (pt != NULL) {
 			moea_pte_change(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
+			mtx_unlock(&moea_table_mutex);
+		}
 	}
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(pm);
@@ -1795,6 +1810,7 @@ moea_rkva_alloc(mmu_t mmu)
 		panic("moea_kva_alloc: moea_pvo_to_pte failed");
 
 	moea_pte_unset(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
+	mtx_unlock(&moea_table_mutex);
 	PVO_PTEGIDX_CLR(pvo);
 
 	moea_pte_overflow++;
@@ -1818,6 +1834,7 @@ moea_pa_map(struct pvo_entry *pvo, vm_offset_t pa, struct pte *saved_pt,
 
 		if (pt != NULL) {
 			moea_pte_unset(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
+			mtx_unlock(&moea_table_mutex);
 			PVO_PTEGIDX_CLR(pvo);
 			moea_pte_overflow++;
 		}
@@ -1845,6 +1862,7 @@ moea_pa_unmap(struct pvo_entry *pvo, struct pte *saved_pt, int *depth_p)
 
 	if (pt != NULL) {
 		moea_pte_unset(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
+		mtx_unlock(&moea_table_mutex);
 		PVO_PTEGIDX_CLR(pvo);
 		moea_pte_overflow++;
 	}
@@ -2003,6 +2021,7 @@ moea_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	pt = moea_pvo_to_pte(pvo, pteidx);
 	if (pt != NULL) {
 		moea_pte_unset(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
+		mtx_unlock(&moea_table_mutex);
 		PVO_PTEGIDX_CLR(pvo);
 	} else {
 		moea_pte_overflow--;
@@ -2104,6 +2123,7 @@ moea_pvo_to_pte(const struct pvo_entry *pvo, int pteidx)
 	}
 
 	pt = &moea_pteg_table[pteidx >> 3].pt[pteidx & 7];
+	mtx_lock(&moea_table_mutex);
 
 	if ((pvo->pvo_pte.pte_hi & PTE_VALID) && !PVO_PTEGIDX_ISSET(pvo)) {
 		panic("moea_pvo_to_pte: pvo %p has valid pte in pvo but no "
@@ -2127,6 +2147,7 @@ moea_pvo_to_pte(const struct pvo_entry *pvo, int pteidx)
 			    "pte %p in moea_pteg_table", pvo, pt);
 		}
 
+		mtx_assert(&moea_table_mutex, MA_OWNED);
 		return (pt);
 	}
 
@@ -2135,6 +2156,7 @@ moea_pvo_to_pte(const struct pvo_entry *pvo, int pteidx)
 		    "moea_pteg_table but valid in pvo", pvo, pt);
 	}
 
+	mtx_unlock(&moea_table_mutex);
 	return (NULL);
 }
 
@@ -2267,6 +2289,8 @@ moea_pte_insert(u_int ptegidx, struct pte *pvo_pt)
 	struct	pte *pt;
 	int	i;
 
+	mtx_assert(&moea_table_mutex, MA_OWNED);
+
 	/*
 	 * First try primary hash.
 	 */
@@ -2337,6 +2361,7 @@ moea_query_bit(vm_page_t m, int ptebit)
 		pt = moea_pvo_to_pte(pvo, -1);
 		if (pt != NULL) {
 			moea_pte_synch(pt, &pvo->pvo_pte);
+			mtx_unlock(&moea_table_mutex);
 			if (pvo->pvo_pte.pte_lo & ptebit) {
 				moea_attr_save(m, ptebit);
 				MOEA_PVO_CHECK(pvo);	/* sanity check */
@@ -2385,6 +2410,7 @@ moea_clear_bit(vm_page_t m, int ptebit, int *origbit)
 				count++;
 				moea_pte_clear(pt, PVO_VADDR(pvo), ptebit);
 			}
+			mtx_unlock(&moea_table_mutex);
 		}
 		rv |= pvo->pvo_pte.pte_lo;
 		pvo->pvo_pte.pte_lo &= ~ptebit;
