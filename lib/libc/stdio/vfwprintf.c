@@ -1549,14 +1549,16 @@ done:
 		    case TP_INTMAXT:
 			(*argtable) [n].pintmaxarg = va_arg (ap, intmax_t *);
 			break;
-#ifndef NO_FLOATING_POINT
 		    case T_DOUBLE:
+#ifndef NO_FLOATING_POINT
 			(*argtable) [n].doublearg = va_arg (ap, double);
+#endif
 			break;
 		    case T_LONG_DOUBLE:
+#ifndef NO_FLOATING_POINT
 			(*argtable) [n].longdoublearg = va_arg (ap, long double);
-			break;
 #endif
+			break;
 		    case TP_CHAR:
 			(*argtable) [n].pchararg = va_arg (ap, char *);
 			break;
