@@ -213,6 +213,8 @@
       extreme precaution, as disabling automatic fan control might
       overheat the hardware and lead to permanent damage.</para>
 
+    <para>The &man.apm.4; suspend/resume support has been improved.</para>
+
     <para>The <literal>options COMPAT_43</literal> kernel
       configuration option has been deemed unnecessary and has been
       removed from <filename>GENERIC</filename> and related kernel
@@ -263,9 +265,13 @@
     <para>The &man.random.4; entropy device driver is now MPSAFE.
       &merged;</para>
 
+    <para>&os; now supports concurrent &man.read.2;/&man.readv.2;
+      access to a file.</para>
+
     <para>The experimental CORE process scheduler has been added,
       enabled with the <literal>options SCHED_CORE</literal> kernel
-      configuration option.  It is forked from the ULE scheduler, but
+      configuration option.  It is forked from the &man.sched.ule.4;
+      scheduler, but
       with a different algorithm for detecting an interactive process.
       More information can be found in the &man.sched.core.4; manual
       page.</para>
@@ -381,6 +387,10 @@
     <sect3 id="proc">
       <title>Hardware Support</title>
 
+      <para>The &man.cardbus.4;, &man.pccard.4;,
+	&man.pccbb.4;, and &man.exca.4; drivers are now buildable
+	as kernel modules.</para>
+
       <para>A &man.acpi.dock.4; driver has been added to provide
         support for controlling laptop docking station functions via
         ACPI.</para>
@@ -480,6 +490,10 @@
 	<para>The &man.agp.4; driver now supports ATI IGP chipsets.
 	  &merged;</para>
 
+	<para>The new midi(4) driver which is based on NetBSD's one
+	  has been added.  This supports &man.snd.cmi.4; and
+	  &man.snd.emu10k1.4; drivers.</para>
+
 	<para>The &man.sound.4; driver now supports
 	  wider range sampling rate, multiple precisions choice,
 	  and 24/32 bit PCM format conversion.  &merged;</para>
@@ -519,7 +533,11 @@
 	<para>The &man.ath.4; driver has been updated to
 	  version 0.9.16.16.  &merged;</para>
 
-	<para arch="i386,amd64">The &man.bce.4; driver, which supports Broadcom
+	<para arch="amd64,i386,pc98">The &man.ath.4;, &man.ath.hal.4;, and
+	  <literal>ath_rate_sample</literal> drivers have been
+	  included in the <filename>GENERIC</filename> kernel by default.</para>
+
+	<para arch="amd64,i386">The &man.bce.4; driver, which supports Broadcom
 	  NetXtreme II (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet controllers,
 	  has been added.  For more details, see &man.bce.4;. &merged;</para>
 
@@ -616,6 +634,13 @@
 	  &man.acpi.video.4;, and &man.agp.4; can attach to
 	  it thus allowing multiple drivers for the same device.</para>
 
+	<para>The &man.wi.4; driver is now buildable as
+	  a kernel module.</para>
+
+	<para arch="amd64,i386,pc98">The &man.wlan.wep.4;,
+	  &man.wlan.ccmp.4;, and &man.wlan.tkip.4; drivers
+	  have been included in the <filename>GENERIC</filename>
+	  kernel by default.</para>
       </sect4>
     </sect3>
 
@@ -690,6 +715,16 @@ table 1 add x.x.x.x 1000
 table 1 add x.x.x.y 4000
 pipe tablearg ip from table(1) to any</programlisting>
 
+      <para>The &man.ipfw.4; packet filter now supports
+	<literal>tag</literal> and <literal>untag</literal> rule keywords.
+	When a packet matches a rule with the <literal>tag</literal>
+	keyword, the numeric tag for the given number in the range
+	from 0 to 65535 will be attached to the packet.
+	The tag acts as an internal marker (it is not sent out over
+	the wire) that can be used to identify these packets later on,
+	for example, by using <literal>tagged</literal>
+	rule option.  For more details, see &man.ipfw.8;.</para>
+
       <para>The ip6fw(8) packet filter has been removed.  Since &man.ipfw.4; has gained
         IPv6 support, it should be used instead.  Please note that some rules might need
         to be adjusted.</para>
@@ -702,6 +737,15 @@ pipe tablearg ip from table(1) to any</programlisting>
       <para>A bug has been fixed in which NFS over TCP would not reconnect
 	when the server sent a FIN.  This problem had occurred
 	with Solaris NFS servers.  &merged;</para>
+
+      <para>The default retransmit timer for NFS over TCP is now 60 seconds.
+	This change prevents the unnecessary retransmission of
+	non-idempotent NFS requests.  The <varname>nfs_access_cache</varname>
+	variable in &man.rc.conf.5; has also been changed to 60.</para>
+
+      <para>The default minimum number of nfsiod kernel threads
+	(&man.sysctl.8; variable <varname>vfs.nfs.iodmin</varname>)
+	has been changed from 4 to 0.</para>
 
       <para>The sysctl variables <varname>net.inet.ip.portrange.reservedhigh</varname>
 	and <varname>net.inet.ip.portrange.reservedlow</varname>
@@ -915,8 +959,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <sect3 id="fs">
       <title>File Systems</title>
 
-      <para>The &man.linsysfs.5; pseudo-filesystem driver has been
-	added.  It provides a subset of the
+      <para arch="amd64,i386,pc98">The &man.linsysfs.5;
+	pseudo-filesystem driver has been added.
+	It provides a subset of the
 	Linux <filename>sys</filename> filesystem, and is required for
 	the correct operation of some Linux binaries (such as the LSI
 	MegaRAID SAS utility). &merged;</para>
@@ -996,6 +1041,11 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       and other related primaries, which can be used to create expressions
       based on a file's creation time. &merged;</para>
 
+    <para>A bug in the &man.find.1; program which prevents
+      numeric arguments for <option>-user</option> and
+      <option>-group</option> from working as expected
+      has been fixed.</para>
+
     <para>The &man.ftpd.8; utility now creates a PID file
       <filename>/var/run/ftpd.pid</filename> even when
       no <option>-p</option> option is specified.  &merged;</para>
@@ -1029,6 +1079,12 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       can support GSS-API plugins, similar the the Solaris
       implementation, and the Kerberos 5 GSS mechanism has
       been rewritten as a plugin library for the new implementation.</para>
+
+    <para>The &man.hccontrol.8; utility now supports HCI node
+      autodetection.</para>
+
+    <para>The &man.id.1; utility now prints the effective user
+      ID after the group ID.</para>
 
     <para>The &man.ifconfig.8; utility now supports
       a <option>-k</option> flag to allow printing
@@ -1064,12 +1120,15 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.jail.8; program now supports a <option>-s</option>
       option to specify a jail's securelevel. &merged;</para>
 
-    <para>The &man.kdump.1; utility now supports a <option>-H</option>
+    <para>The &man.kdump.1; program now supports a <option>-H</option>
       flag, which causes kdump to print an additional field holding
       the threadid.  &merged;</para>
 
     <para>The &man.kdump.1; program now supports a <option>-s</option>
       flag to suppress the display of I/O data.  &merged;</para>
+
+    <para>The &man.kdump.1; program now supports printing
+      flags in a system call argument by using symbol names.</para>
 
     <para>The &man.kenv.1; utility now supports a <option>-q</option>
       flag to suppress warnings.</para>
@@ -1158,7 +1217,11 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.mount.8; <literal>nodev</literal> option has
       been removed.</para>
 
-    <para>&man.mount.8; now supports &man.mqueuefs.5;.</para>
+    <para>The &man.mount.8; utility now supports &man.mqueuefs.5;.</para>
+
+    <para>A bug which prevents the &man.mount.8; utility from converting
+      a read-only mount to read-write via <command>mount -u -o rw</command>,
+      has been fixed.</para>
 
     <para>The &man.moused.8; daemon now supports an <option>-H</option> flag
       to enable horizontal virtual scrolling similar to a
@@ -1231,6 +1294,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       function has been added to
       allow lookups for a specific version of a given symbol.</para>
 
+    <para>A bug in the &man.sed.1; utility which can causes
+      incorrect calculation of pattern space length in some cases
+      has been fixed.</para>
+
     <para>The &man.sh.1; utility now supports <literal>times</literal>
       built-in command. &merged;</para>
 
@@ -1243,6 +1310,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The &man.sysctl.8; utility now supports a <option>-q</option>
       flag to suppress a limited set of warnings and errors.</para>
+
+    <para>The &man.time.1; utility now prints the time that a given
+      command has been running if sent a <literal>SIGINFO</literal> signal.</para>
 
     <para>The &man.traceroute.8; utility now supports
       a <option>-e</option> option, which sets a fixed destination
@@ -1329,6 +1399,20 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       <para>The <filename>hostapd</filename> script for
 	&man.hostapd.8; has been added.  &merged;</para>
 
+      <para>The <filename>mdconfig</filename> script to
+	handle vnode backed &man.md.4; devices has been added.
+	This is a replacement of the <filename>ramdisk</filename>
+	script, and all of variables in <varname>ramdisk_*</varname>
+	have been changed to <varname>mdconfig_*</varname>.
+	Also, two new &man.rc.conf.5; variables
+	<varname>mdconfig_<replaceable>*</replaceable>_files</varname>
+	and
+	<varname>mdconfig_<replaceable>*</replaceable>_cmd</varname>
+	have been added.  For example:</para>
+
+      <programlisting>mdconfig_md0="-t malloc -s 10m"
+mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
+
       <para>The <filename>netif</filename> script now supports
 	<varname>ipv4_addrs_<replaceable>ifn</replaceable></varname>,
 	which adds one or more IPv4 address from a ranged list in
@@ -1377,7 +1461,8 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       1.11 to 1.12.</para>
 
     <para><application>DRM</application> has
-      been updated to a snapshot from DRI CVS as of 20051202.  &merged;</para>
+      been updated to a snapshot from DRI CVS as of 20060517.
+      &merged;</para>
 
     <para><application>netcat</application> has been updated from the
       version in a 4 February 2005 OpenBSD snapshot to the version
@@ -1563,6 +1648,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       has been added in <filename>src/Makefile</filename>
       to show build configuration of the &os; source tree.</para>
 
+    <para>A <filename>/media</filename> directory has been
+      added to contain mount points for removable media
+      such as CDROMs, floppy disks, USB drives, and so on.</para>
+
     <para>The <filename>src.conf</filename> file, which
       contains settings that will apply to every build involving
       the &os; source tree, has been added.
@@ -1593,8 +1682,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       (<filename role="package">x11/xorg</filename>) has been updated
       from 6.8.2 to 6.9.0. &merged;</para>
 
-    <para arch="pc98">CDROMs produced for the pc98 platform are now
-      bootable (on systems with support for this feature).</para>
+    <para arch="pc98">&os;/pc98 release CDROMs are now
+      bootable on systems with some supported SCSI adapters.
+      &merged;</para>
   </sect2>
 
   <sect2 id="doc">
@@ -1612,6 +1702,11 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       have been updated to 4.2.0, to match the version of
       code actually included in &os;. &merged;</para>
 
+    <para>Initial support for kernel subsystem API documentation generating
+      framework using <filename role="package">devel/doxygen</filename>
+      has been added into <filename>src/sys/doc/subsys</filename>.
+      To generate the API document, type <command>make doxygen</command>
+      in <filename>src/</filename> directory.</para>
   </sect2>
 </sect1>
 
