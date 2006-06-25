@@ -772,6 +772,7 @@ syncache_expand(struct in_conninfo *inc, struct tcphdr *th,
 		/* Pull out the entry to unlock the bucket row. */
 		TAILQ_REMOVE(&sch->sch_bucket, sc, sc_hash);
 		sch->sch_length--;
+		tcp_syncache.cache_count--;
 		SCH_UNLOCK(sch);
 	}
 
