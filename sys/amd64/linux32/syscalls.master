@@ -103,7 +103,7 @@
 42	AUE_PIPE	MSTD	{ int linux_pipe(l_ulong *pipefds); }
 43	AUE_NULL	MSTD	{ int linux_times(struct l_times_argv *buf); }
 44	AUE_NULL	UNIMPL	prof
-45	AUE_NULL	STD	{ int linux_brk(l_ulong dsend); }
+45	AUE_NULL	MSTD	{ int linux_brk(l_ulong dsend); }
 46	AUE_SETGID	MSTD	{ int linux_setgid16(l_gid16_t gid); }
 47	AUE_GETGID	MSTD	{ int linux_getgid16(void); }
 48	AUE_NULL	MSTD	{ int linux_signal(l_int sig, \
