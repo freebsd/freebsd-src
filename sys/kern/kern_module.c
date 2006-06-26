@@ -99,10 +99,12 @@ module_shutdown(void *arg1, int arg2)
 
 	if (arg2 & RB_NOSYNC)
 		return;
+	mtx_lock(&Giant);
 	MOD_SLOCK;
 	TAILQ_FOREACH(mod, &modules, link)
 		MOD_EVENT(mod, MOD_SHUTDOWN);
 	MOD_SUNLOCK;
+	mtx_unlock(&Giant);
 }
 
 void
@@ -112,6 +114,7 @@ module_register_init(const void *arg)
 	int error;
 	module_t mod;
 
+	mtx_lock(&Giant);
 	MOD_SLOCK;
 	mod = module_lookupbyname(data->name);
 	if (mod == NULL)
@@ -128,6 +131,7 @@ module_register_init(const void *arg)
 		    " %d\n", data->name, (void *)data->evhand, data->priv,
 		    error); 
 	}
+	mtx_unlock(&Giant);
 }
 
 int
@@ -232,12 +236,14 @@ module_unload(module_t mod, int flags)
 {
 	int error;
 
+	mtx_lock(&Giant);
 	error = MOD_EVENT(mod, MOD_QUIESCE);
 	if (error == EOPNOTSUPP || error == EINVAL)
 		error = 0;
-	if (flags == LINKER_UNLOAD_NORMAL && error != 0)
-		return (error);
-        return (MOD_EVENT(mod, MOD_UNLOAD));
+	if (error == 0 || flags == LINKER_UNLOAD_FORCE)
+		error = MOD_EVENT(mod, MOD_UNLOAD);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 int
