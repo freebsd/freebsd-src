@@ -1100,14 +1100,14 @@ syncache_respond(struct syncache *sc, struct mbuf *m)
 #ifdef INET6 /* && MAC */
 		if (sc->sc_inc.inc_isipv6)
 			inp = in6_pcblookup_hash(&tcbinfo,
-				&sc->sc_inc.inc6_laddr, sc->sc_inc.inc_lport,
 				&sc->sc_inc.inc6_faddr, sc->sc_inc.inc_fport,
+				&sc->sc_inc.inc6_laddr, sc->sc_inc.inc_lport,
 				1, NULL);
 		else
 #endif /* INET6 */
 			inp = in_pcblookup_hash(&tcbinfo,
-				sc->sc_inc.inc_laddr, sc->sc_inc.inc_lport,
 				sc->sc_inc.inc_faddr, sc->sc_inc.inc_fport,
+				sc->sc_inc.inc_laddr, sc->sc_inc.inc_lport,
 				1, NULL);
 		if (inp == NULL) {
 			m_freem(m);
