@@ -792,58 +792,10 @@ svr4_sys_break(td, uap)
 	struct thread *td;
 	struct svr4_sys_break_args *uap;
 {
-	struct proc *p = td->td_proc;
-	struct vmspace *vm = p->p_vmspace;
-	vm_offset_t new, old, base, ns;
-	int rv;
+	struct obreak_args ap;
 
-	base = round_page((vm_offset_t) vm->vm_daddr);
-	ns = (vm_offset_t)uap->nsize;
-	new = round_page(ns);
-	if (new > base) {
-		PROC_LOCK(p);
-		if ((new - base) > (unsigned)lim_cur(p, RLIMIT_DATA)) {
-			PROC_UNLOCK(p);
-			return ENOMEM;
-		}
-		PROC_UNLOCK(p);
-		if (new >= VM_MAXUSER_ADDRESS)
-			return (ENOMEM);
-	} else if (new < base) {
-		/*
-		 * This is simply an invalid value.  If someone wants to
-		 * do fancy address space manipulations, mmap and munmap
-		 * can do most of what the user would want.
-		 */
-		return EINVAL;
-	}
-
-	old = base + ctob(vm->vm_dsize);
-
-	if (new > old) {
-		vm_size_t diff;
-		diff = new - old;
-		PROC_LOCK(p);
-		if (vm->vm_map.size + diff > lim_cur(p, RLIMIT_VMEM)) {
-			PROC_UNLOCK(p);
-			return(ENOMEM);
-		}
-		PROC_UNLOCK(p);
-		rv = vm_map_find(&vm->vm_map, NULL, 0, &old, diff, FALSE,
-			VM_PROT_ALL, VM_PROT_ALL, 0);
-		if (rv != KERN_SUCCESS) {
-			return (ENOMEM);
-		}
-		vm->vm_dsize += btoc(diff);
-	} else if (new < old) {
-		rv = vm_map_remove(&vm->vm_map, new, old);
-		if (rv != KERN_SUCCESS) {
-			return (ENOMEM);
-		}
-		vm->vm_dsize -= btoc(old - new);
-	}
-
-	return (0);
+	ap.nsize = uap->nsize;
+	return (obreak(td, &ap));
 }
 
 static __inline clock_t
