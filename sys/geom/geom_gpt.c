@@ -360,31 +360,50 @@ g_gpt_has_pmbr(struct g_consumer *cp, int *error)
 {
 	char *buf;
 	uint8_t *typ;
-	int i, pmbr;
+	int i, pmbr, vmbr;
 	uint16_t magic;
+	uint32_t dp_start, dp_size;
 
 	buf = g_read_data(cp, 0L, cp->provider->sectorsize, error);
 	if (buf == NULL)
 		return (0);
 
 	pmbr = 0;
+	vmbr = 0;
 
 	magic = le16toh(*(uint16_t *)(uintptr_t)(buf + DOSMAGICOFFSET));
 	if (magic != DOSMAGIC)
 		goto out;
 
+	/*
+	 * Check that there are at least one partition of type
+	 * DOSPTYP_PMBR that covers the whole unit.
+	 */
 	for (i = 0; i < 4; i++) {
 		typ = buf + DOSPARTOFF + i * sizeof(struct dos_partition) +
 		    offsetof(struct dos_partition, dp_typ);
+		bcopy(buf + DOSPARTOFF + i * sizeof(struct dos_partition) +
+		    offsetof(struct dos_partition, dp_start), &dp_start, sizeof(dp_start));
+		bcopy(buf + DOSPARTOFF + i * sizeof(struct dos_partition) +
+		    offsetof(struct dos_partition, dp_size), &dp_size, sizeof(dp_size));
+		if ((*typ == DOSPTYP_PMBR) &&
+		    (le32toh(dp_start) == 1) &&
+		    (cp->provider->mediasize ==
+		    (le32toh(dp_size) * 512ULL))) {
+			pmbr = 1;
+			break;
+		}
 		if (*typ != 0 && *typ != DOSPTYP_PMBR)
-			goto out;
+			vmbr = 1;
 	}
-
-	pmbr = 1;
 
 out:
 	g_free(buf);
-	return (pmbr);
+	/*
+	 * Return true if protective MBR is detected or if MBR has
+	 * no valid entries at all.
+	 */
+	return (pmbr || !vmbr);
 }
 
 static void
