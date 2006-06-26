@@ -500,6 +500,7 @@ hint.mse.0.irq="5"
 #       Intel EtherExpress
 # ipw:	Intel PRO/Wireless 2100 IEEE 802.11 adapter
 # iwi:	Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 adapters
+# nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
 # nve:	nVidia nForce MCP on-board Ethernet Networking
 # oltr: Olicom ISA token-ring adapters OC-3115, OC-3117, OC-3118 and OC-3133.
 #       Olicom PCI token-ring adapters OC-3136, OC-3137, OC-3139, OC-3140,
@@ -557,6 +558,7 @@ hint.le.0.at="isa"
 hint.le.0.port="0x280"
 hint.le.0.irq="10"
 hint.le.0.drq="0"
+device		nfe		# nVidia nForce MCP on-board Ethernet Networking
 device		nve		# nVidia nForce MCP on-board Ethernet Networking
 device		oltr
 hint.oltr.0.at="isa"
