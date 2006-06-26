@@ -251,9 +251,9 @@
 134	AUE_SHUTDOWN	MNOPROTO { int shutdown(int s, int how); }
 135	AUE_SOCKETPAIR	MNOPROTO { int socketpair(int domain, int type, \
 				    int protocol, int *rsv); }
-136	AUE_MKDIR	NOPROTO	{ int mkdir(char *path, int mode); }
-137	AUE_RMDIR	NOPROTO	{ int rmdir(char *path); }
-138	AUE_UTIMES	STD	{ int freebsd32_utimes(char *path, \
+136	AUE_MKDIR	MNOPROTO	{ int mkdir(char *path, int mode); }
+137	AUE_RMDIR	MNOPROTO	{ int rmdir(char *path); }
+138	AUE_UTIMES	MSTD	{ int freebsd32_utimes(char *path, \
 				    struct timeval32 *tptr); }
 139	AUE_NULL	OBSOL	4.2 sigreturn
 140	AUE_ADJTIME	MSTD	{ int freebsd32_adjtime( \
@@ -601,16 +601,16 @@
 				    acl_type_t type, struct acl *aclp); }
 354	AUE_NULL	MNOPROTO { int __acl_aclcheck_fd(int filedes, \
 				    acl_type_t type, struct acl *aclp); }
-355	AUE_NULL	NOPROTO	{ int extattrctl(const char *path, int cmd, \
+355	AUE_NULL	MNOPROTO	{ int extattrctl(const char *path, int cmd, \
 				    const char *filename, int attrnamespace, \
 				    const char *attrname); }
-356	AUE_NULL	NOPROTO	{ int extattr_set_file(const char *path, \
+356	AUE_NULL	MNOPROTO	{ int extattr_set_file(const char *path, \
 				    int attrnamespace, const char *attrname, \
 				    void *data, size_t nbytes); }
-357	AUE_NULL	NOPROTO	{ ssize_t extattr_get_file(const char *path, \
+357	AUE_NULL	MNOPROTO	{ ssize_t extattr_get_file(const char *path, \
 				    int attrnamespace, const char *attrname, \
 				    void *data, size_t nbytes); }
-358	AUE_NULL	NOPROTO	{ int extattr_delete_file(const char *path, \
+358	AUE_NULL	MNOPROTO	{ int extattr_delete_file(const char *path, \
 				    int attrnamespace, \
 				    const char *attrname); }
 359	AUE_NULL	UNIMPL	aio_waitcomplete
@@ -631,13 +631,13 @@
 368	AUE_NULL	UNIMPL	__cap_set_fd
 369	AUE_NULL	UNIMPL	__cap_set_file
 370	AUE_NULL	UNIMPL	lkmressys
-371	AUE_NULL	NOPROTO	{ int extattr_set_fd(int fd, \
+371	AUE_NULL	MNOPROTO	{ int extattr_set_fd(int fd, \
 				    int attrnamespace, const char *attrname, \
 				    void *data, size_t nbytes); }
-372	AUE_NULL	NOPROTO	{ ssize_t extattr_get_fd(int fd, \
+372	AUE_NULL	MNOPROTO	{ ssize_t extattr_get_fd(int fd, \
 				    int attrnamespace, const char *attrname, \
 				    void *data, size_t nbytes); }
-373	AUE_NULL	NOPROTO	{ int extattr_delete_fd(int fd, \
+373	AUE_NULL	MNOPROTO	{ int extattr_delete_fd(int fd, \
 				    int attrnamespace, \
 				    const char *attrname); }
 374	AUE_NULL	MNOPROTO { int __setugid(int flag); }
