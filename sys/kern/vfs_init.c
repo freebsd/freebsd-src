@@ -115,13 +115,7 @@ vfs_byname_kld(const char *fstype, struct thread *td, int *error)
 	if (vfsp != NULL)
 		return (vfsp);
 
-	/* Only load modules for root (very important!). */
-	*error = suser(td);
-	if (*error)
-		return (NULL);
-	*error = securelevel_gt(td->td_ucred, 0);
-	if (*error) 
-		return (NULL);
+	/* Try to load the respective module. */
 	*error = kern_kldload(td, fstype, &fileid);
 	if (*error)
 		return (NULL);
