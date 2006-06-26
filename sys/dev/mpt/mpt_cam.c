@@ -3024,6 +3024,12 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		 */
 		if (cpi->max_target > 255)
 			cpi->max_target = 255;
+		/*
+		 * XXX: VMware ESX reports > 16 devices and then dies
+		 * XXX: when we probe.
+		 */
+		if (mpt->is_spi && cpi->max_target > 15)
+			cpi->max_target = 15;
 		cpi->max_lun = 7;
 		cpi->initiator_id = mpt->mpt_ini_id;
 
