@@ -78,10 +78,16 @@ When the
 protocols are configured for use, all protocols are included in the system.
 To selectively enable/disable protocols, use
 .Xr sysctl 8 .
+.Pp
+The packets can be passed to a virtual interface,
+.Dq enc0 ,
+to perform packet filtering before outbound encryption and after decapsulation
+inbound.
 .Sh DIAGNOSTICS
 To be added.
 .Sh SEE ALSO
 .Xr crypto 4 ,
+.Xr enc 4 ,
 .Xr ipsec 4 ,
 .Xr setkey 8 ,
 .Xr sysctl 8
