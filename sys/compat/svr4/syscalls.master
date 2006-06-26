@@ -57,7 +57,7 @@
 14	AUE_NULL	MSTD	{ int svr4_sys_mknod(char* path, int mode, int dev); }
 15	AUE_NULL	MNOPROTO	{ int chmod(char *path, int mode); }
 16	AUE_NULL	MNOPROTO	{ int chown(char *path, uid_t uid, gid_t gid); }
-17	AUE_NULL	STD	{ int svr4_sys_break(caddr_t nsize); }
+17	AUE_NULL	MSTD	{ int svr4_sys_break(caddr_t nsize); }
 18	AUE_NULL	MSTD	{ int svr4_sys_stat(char* path, \
 				    struct svr4_stat* ub); }
 19	AUE_NULL	MNOPROTO	{ int lseek(int filedes, off_t *offset, \
