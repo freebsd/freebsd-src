@@ -1040,9 +1040,6 @@ bd_write(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	*/
 	if (bbuf != NULL)
 	    bcopy(p, breg, x * BIOSDISK_SECSIZE);
-	p += (x * BIOSDISK_SECSIZE);
-	dblk += x;
-	resid -= x;
 
 	/* Loop retrying the operation a couple of times.  The BIOS may also retry. */
 	for (retry = 0; retry < 3; retry++) {
@@ -1108,6 +1105,9 @@ bd_write(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 		free(bbuf);
 	    return(-1);
 	}
+	p += (x * BIOSDISK_SECSIZE);
+	dblk += x;
+	resid -= x;
     }
 	
 /*    hexdump(dest, (blks * BIOSDISK_SECSIZE)); */
