@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2005 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2006 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -150,6 +150,7 @@ static void	ath_recv_mgmt(struct ieee80211com *ic, struct mbuf *m,
 			int subtype, int rssi, u_int32_t rstamp);
 static void	ath_setdefantenna(struct ath_softc *, u_int);
 static void	ath_rx_proc(void *, int);
+static void	ath_txq_init(struct ath_softc *sc, struct ath_txq *, int);
 static struct ath_txq *ath_txq_setup(struct ath_softc*, int qtype, int subtype);
 static int	ath_tx_setup(struct ath_softc *, int, int);
 static int	ath_wme_update(struct ieee80211com *);
@@ -422,6 +423,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		error = EIO;
 		goto bad2;
 	}
+	ath_txq_init(sc, &sc->sc_mcastq, -1);	/* NB: s/w q, qnum not used */
 	/* NB: insure BK queue is the lowest priority h/w queue */
 	if (!ath_tx_setup(sc, WME_AC_BK, HAL_WME_AC_BK)) {
 		if_printf(ifp, "unable to setup xmit queue for %s traffic!\n",
@@ -1988,6 +1990,20 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 }
 
 /*
+ * Append the contents of src to dst; both queues
+ * are assumed to be locked.
+ */
+static void
+ath_txqmove(struct ath_txq *dst, struct ath_txq *src)
+{
+	STAILQ_CONCAT(&dst->axq_q, &src->axq_q);
+	dst->axq_link = src->axq_link;
+	src->axq_link = NULL;
+	dst->axq_depth += src->axq_depth;
+	src->axq_depth = 0;
+}
+
+/*
  * Transmit a beacon frame at SWBA.  Dynamic updates to the
  * frame contents are done as needed and the slot time is
  * also adjusted based on current state.
@@ -2000,8 +2016,9 @@ ath_beacon_proc(void *arg, int pending)
 	struct ieee80211_node *ni = bf->bf_node;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ath_hal *ah = sc->sc_ah;
+	struct ath_txq *cabq = sc->sc_cabq;
 	struct mbuf *m;
-	int ncabq, error, otherant;
+	int ncabq, nmcastq, error, otherant;
 
 	DPRINTF(sc, ATH_DEBUG_BEACON_PROC, "%s: pending %u\n",
 		__func__, pending);
@@ -2043,8 +2060,9 @@ ath_beacon_proc(void *arg, int pending)
 	 * of the TIM bitmap).
 	 */
 	m = bf->bf_m;
-	ncabq = sc->sc_cabq->axq_depth;
-	if (ieee80211_beacon_update(ic, bf->bf_node, &sc->sc_boff, m, ncabq)) {
+	nmcastq = sc->sc_mcastq.axq_depth;
+	ncabq = ath_hal_numtxpending(ah, cabq->axq_qnum);
+	if (ieee80211_beacon_update(ic, bf->bf_node, &sc->sc_boff, m, ncabq+nmcastq)) {
 		/* XXX too conservative? */
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m,
@@ -2056,6 +2074,18 @@ ath_beacon_proc(void *arg, int pending)
 			    __func__, error);
 			return;
 		}
+	}
+	if (ncabq && (sc->sc_boff.bo_tim[4] & 1)) {
+		/*
+		 * CABQ traffic from the previous DTIM is still pending.
+		 * This is ok for now but when there are multiple vap's
+		 * and we are using staggered beacons we'll want to drain
+		 * the cabq before loading frames for the different vap.
+		 */
+		DPRINTF(sc, ATH_DEBUG_BEACON,
+		    "%s: cabq did not drain, mcastq %u cabq %u/%u\n",
+		    __func__, nmcastq, ncabq, cabq->axq_depth);
+		sc->sc_stats.ast_cabq_busy++;
 	}
 
 	/*
@@ -2103,8 +2133,30 @@ ath_beacon_proc(void *arg, int pending)
 	 * Enable the CAB queue before the beacon queue to
 	 * insure cab frames are triggered by this beacon.
 	 */
-	if (sc->sc_boff.bo_tim[4] & 1)		/* NB: only at DTIM */
-		ath_hal_txstart(ah, sc->sc_cabq->axq_qnum);
+	if (sc->sc_boff.bo_tim[4] & 1) {		/* NB: only at DTIM */
+		ATH_TXQ_LOCK(cabq);
+		ATH_TXQ_LOCK(&sc->sc_mcastq);
+		if (nmcastq) {
+			struct ath_buf *bfm;
+
+			/*
+			 * Move frames from the s/w mcast q to the h/w cab q.
+			 */
+			bfm = STAILQ_FIRST(&sc->sc_mcastq.axq_q);
+			if (cabq->axq_link != NULL) {
+				*cabq->axq_link = bfm->bf_daddr;
+			} else
+				ath_hal_puttxbuf(ah, cabq->axq_qnum,
+					bfm->bf_daddr);
+			ath_txqmove(cabq, &sc->sc_mcastq);
+
+			sc->sc_stats.ast_cabq_xmit += nmcastq;
+		}
+		/* NB: gated by beacon so safe to start here */
+		ath_hal_txstart(ah, cabq->axq_qnum);
+		ATH_TXQ_UNLOCK(cabq);
+		ATH_TXQ_UNLOCK(&sc->sc_mcastq);
+	}
 	ath_hal_puttxbuf(ah, sc->sc_bhalq, bf->bf_daddr);
 	ath_hal_txstart(ah, sc->sc_bhalq);
 	DPRINTF(sc, ATH_DEBUG_BEACON_PROC,
@@ -3031,6 +3083,17 @@ rx_next:
 #undef PA2DESC
 }
 
+static void
+ath_txq_init(struct ath_softc *sc, struct ath_txq *txq, int qnum)
+{
+	txq->axq_qnum = qnum;
+	txq->axq_depth = 0;
+	txq->axq_intrcnt = 0;
+	txq->axq_link = NULL;
+	STAILQ_INIT(&txq->axq_q);
+	ATH_TXQ_LOCK_INIT(sc, txq);
+}
+
 /*
  * Setup a h/w transmit queue.
  */
@@ -3076,14 +3139,7 @@ ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 		return NULL;
 	}
 	if (!ATH_TXQ_SETUP(sc, qnum)) {
-		struct ath_txq *txq = &sc->sc_txq[qnum];
-
-		txq->axq_qnum = qnum;
-		txq->axq_depth = 0;
-		txq->axq_intrcnt = 0;
-		txq->axq_link = NULL;
-		STAILQ_INIT(&txq->axq_q);
-		ATH_TXQ_LOCK_INIT(sc, txq);
+		ath_txq_init(sc, &sc->sc_txq[qnum], qnum);
 		sc->sc_txqsetup |= 1<<qnum;
 	}
 	return &sc->sc_txq[qnum];
@@ -3190,6 +3246,7 @@ ath_tx_cleanup(struct ath_softc *sc)
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_cleanupq(sc, &sc->sc_txq[i]);
+	ATH_TXQ_LOCK_DESTROY(&sc->sc_mcastq);
 }
 
 /*
@@ -3529,11 +3586,12 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 
 	/*
 	 * When servicing one or more stations in power-save mode
-	 * multicast frames must be buffered until after the beacon.
-	 * We use the CAB queue for that.
+	 * (or) if there is some mcast data waiting on the mcast
+	 * queue (to prevent out of order delivery) multicast
+	 * frames must be buffered until after the beacon.
 	 */
-	if (ismcast && ic->ic_ps_sta) {
-		txq = sc->sc_cabq;
+	if (ismcast && (ic->ic_ps_sta || sc->sc_mcastq.axq_depth)) {
+		txq = &sc->sc_mcastq;
 		/* XXX? more bit in 802.11 frame header */
 	}
 
@@ -3722,31 +3780,36 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 			ds->ds_ctl0, ds->ds_ctl1, ds->ds_hw[0], ds->ds_hw[1]);
 	}
 	/*
-	 * Insert the frame on the outbound list and
-	 * pass it on to the hardware.
+	 * Insert the frame on the outbound list and pass it on
+	 * to the hardware.  Multicast frames buffered for power
+	 * save stations and transmit from the CAB queue are stored
+	 * on a s/w only queue and loaded on to the CAB queue in
+	 * the SWBA handler since frames only go out on DTIM and
+	 * to avoid possible races.
 	 */
 	ATH_TXQ_LOCK(txq);
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
-	if (txq->axq_link == NULL) {
-		ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
-		DPRINTF(sc, ATH_DEBUG_XMIT,
-			"%s: TXDP[%u] = %p (%p) depth %d\n", __func__,
-			txq->axq_qnum, (caddr_t)bf->bf_daddr, bf->bf_desc,
-			txq->axq_depth);
-	} else {
-		*txq->axq_link = bf->bf_daddr;
-		DPRINTF(sc, ATH_DEBUG_XMIT,
-			"%s: link[%u](%p)=%p (%p) depth %d\n", __func__,
-			txq->axq_qnum, txq->axq_link,
-			(caddr_t)bf->bf_daddr, bf->bf_desc, txq->axq_depth);
-	}
-	txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
-	/*
-	 * The CAB queue is started from the SWBA handler since
-	 * frames only go out on DTIM and to avoid possible races.
-	 */
-	if (txq != sc->sc_cabq)
+	if (txq != &sc->sc_mcastq) {
+		if (txq->axq_link == NULL) {
+			ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
+			DPRINTF(sc, ATH_DEBUG_XMIT,
+			    "%s: TXDP[%u] = %p (%p) depth %d\n", __func__,
+			    txq->axq_qnum, (caddr_t)bf->bf_daddr, bf->bf_desc,
+			    txq->axq_depth);
+		} else {
+			*txq->axq_link = bf->bf_daddr;
+			DPRINTF(sc, ATH_DEBUG_XMIT,
+			    "%s: link[%u](%p)=%p (%p) depth %d\n", __func__,
+			    txq->axq_qnum, txq->axq_link,
+			    (caddr_t)bf->bf_daddr, bf->bf_desc, txq->axq_depth);
+		}
+		txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
 		ath_hal_txstart(ah, txq->axq_qnum);
+	} else {
+		if (txq->axq_link != NULL)
+			*txq->axq_link = bf->bf_daddr;
+		txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
+	}
 	ATH_TXQ_UNLOCK(txq);
 
 	return 0;
@@ -4044,6 +4107,7 @@ ath_draintxq(struct ath_softc *sc)
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_draintxq(sc, &sc->sc_txq[i]);
+	ath_tx_draintxq(sc, &sc->sc_mcastq);
 #ifdef ATH_DEBUG
 	if (sc->sc_debug & ATH_DEBUG_RESET) {
 		struct ath_buf *bf = STAILQ_FIRST(&sc->sc_bbuf);
