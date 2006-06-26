@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd December 8, 2005
+.Dd June 21, 2006
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1618,6 +1618,8 @@ If the
 option is specified, the exported variables are printed as
 .Dq Ic export Ar name Ns = Ns Ar value
 lines, suitable for re-input to the shell.
+.It Ic false
+A null command that returns a non-zero (false) exit value.
 .It Ic fc Oo Fl e Ar editor Oc Op Ar first Op Ar last
 .It Ic fc Fl l Oo Fl nr Oc Op Ar first Op Ar last
 .It Ic fc Fl s Oo Ar old Ns = Ns Ar new Oc Op Ar first
@@ -1995,6 +1997,8 @@ Option
 causes the
 .Ic trap
 command to display a list of valid signal names.
+.It Ic true
+A null command that returns a 0 (true) exit value.
 .It Ic type Op Ar name ...
 Interpret each
 .Ar name
