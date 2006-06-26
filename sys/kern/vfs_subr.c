@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_mac.h"
-#include "opt_commonid.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -279,36 +278,6 @@ SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW,
 #define VSHOULDFREE(vp) (!((vp)->v_iflag & VI_FREE) && !(vp)->v_holdcnt)
 #define VSHOULDBUSY(vp) (((vp)->v_iflag & VI_FREE) && (vp)->v_holdcnt)
 
-#ifdef COMMONID
-/*
- * Sysctl variables to control the unified user and group ID space.
- */
-
-/* ID below that are the traditional system IDs that 
- * can't be in the common space 
- */
-#define MINCOMMONID	100
-
-typedef struct {
-	int	enabled; /* flag: commonid is enabled */
-	int	low; /* the lowest common ID */
-	int	high; /* the highest common ID */
-} commonid_ctl_t;
-
-static commonid_ctl_t commonid = { 0, 1000, 60000 };  /* safe values */
-
-SYSCTL_NODE(_vfs, OID_AUTO, commonid, CTLFLAG_RW, 0, "Common UID/GID space");
-SYSCTL_NODE(_vfs_commonid, OID_AUTO, local, CTLFLAG_RW, 0, 
-	"Common UID/GID space for local filesystems");
-SYSCTL_INT(_vfs_commonid_local, OID_AUTO, enabled, CTLFLAG_RW, 
-	&commonid.enabled, 0, 
-	"Enable common UID/GID space for local filesystems");
-SYSCTL_INT(_vfs_commonid_local, OID_AUTO, low, CTLFLAG_RW, &commonid.low,
-	0, "Lowest common UID/GID value for local filesystems");
-SYSCTL_INT(_vfs_commonid_local, OID_AUTO, high, CTLFLAG_RW, &commonid.high,
-	0, "Highest common UID/GID value for local filesystems");
-
-#endif /* COMMONID */
 
 /*
  * Initialize the vnode management data structures.
@@ -3201,47 +3170,6 @@ vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
 
 		goto privcheck;
 	}
-
-#ifdef COMMONID
-	/* If the common UID/GID is enabled, check the user agains the
-	 * file GID and groups against file UID 
-	 */
-	if (commonid.enabled) {
-		if (commonid.low < MINCOMMONID) 
-			commonid.low = MINCOMMONID;
-
-		if (cred->cr_uid == file_gid 
-		    && file_gid >= commonid.low && file_gid <= commonid.high) {
-			/* no VADMIN in this case */
-			if (file_mode & S_IXGRP)
-				dac_granted |= VEXEC;
-			if (file_mode & S_IRGRP)
-				dac_granted |= VREAD;
-			if (file_mode & S_IWGRP)
-				dac_granted |= (VWRITE | VAPPEND);
-
-			if ((acc_mode & dac_granted) == acc_mode)
-				return (0);
-
-			goto privcheck;
-		}
-		if (file_uid >= commonid.low && file_uid <= commonid.high
-		    && groupmember(file_uid, cred)) {
-			/* no VADMIN in this case */
-			if (file_mode & S_IXUSR)
-				dac_granted |= VEXEC;
-			if (file_mode & S_IRUSR)
-				dac_granted |= VREAD;
-			if (file_mode & S_IWUSR)
-				dac_granted |= (VWRITE | VAPPEND);
-
-			if ((acc_mode & dac_granted) == acc_mode)
-				return (0);
-
-			goto privcheck;
-		}
-	}
-#endif /* COMMONID */
 
 	/* Otherwise, check the groups (first match) */
 	if (groupmember(file_gid, cred)) {
