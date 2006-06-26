@@ -36,6 +36,7 @@ bsd.port.post.mk	- building ports
 bsd.port.pre.mk		- building ports
 bsd.port.subdir.mk	- targets for building subdirectories for ports
 bsd.prog.mk		- building programs from source files
+bsd.snmpmod.mk		- building modules for the SNMP daemon bsnmpd
 bsd.subdir.mk		- targets for building subdirectories
 bsd.sys.mk		- common settings used for building FreeBSD sources
 sys.mk			- default rules for all makes
@@ -186,8 +187,7 @@ It has seven targets:
 	all:
 		build the program and its manual page
 	clean:
-		remove the program, any object files and the files a.out,
-		Errs, errs, mklog, and ${PROG}.core.
+		remove the program and any object files.
 	cleandir:
 		remove all of the files removed by the target clean, as
 		well as .depend, tags, and any manual pages.
@@ -304,11 +304,11 @@ To build foo from foo.c with a manual page foo.1, use:
 
 To build foo from foo.c with a manual page foo.2, add the line:
 
-	MAN2=	foo.2
+	MAN=	foo.2
 
 If foo does not have a manual page at all, add the line:
 
-	NO_MAN=	noman
+	NO_MAN=
 
 If foo has multiple source files, add the line:
 
