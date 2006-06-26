@@ -32,6 +32,7 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_enc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -358,6 +359,13 @@ ipsec4_process_packet(
 		goto bad;
 
 	sav = isr->sav;
+
+#ifdef DEV_ENC
+	/* pass the mbuf to enc0 for packet filtering */
+	if ((error = ipsec_filter(&m, 2)) != 0)
+		goto bad;
+#endif
+
 	if (!tunalready) {
 		union sockaddr_union *dst = &sav->sah->saidx.dst;
 		int setdf;
@@ -454,6 +462,11 @@ ipsec4_process_packet(
 			}
 		}
 	}
+
+#ifdef DEV_ENC
+	/* pass the mbuf to enc0 for bpf processing */
+	ipsec_bpf(m, sav, AF_INET);
+#endif
 
 	/*
 	 * Dispatch to the appropriate IPsec transform logic.  The

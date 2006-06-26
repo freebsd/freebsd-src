@@ -41,6 +41,7 @@
  */
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_enc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -344,6 +345,12 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 
 	/* Statistics */
 	ipipstat.ipips_ibytes += m->m_pkthdr.len - iphlen;
+
+#ifdef DEV_ENC
+	/* pass the mbuf to enc0 for packet filtering */
+	if (ipsec_filter(&m, 1) != 0)
+		return;
+#endif
 
 	/*
 	 * Interface pointer stays the same; if no IPsec processing has
