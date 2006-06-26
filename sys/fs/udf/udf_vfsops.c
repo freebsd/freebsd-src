@@ -728,7 +728,7 @@ udf_find_partmaps(struct udf_mnt *udfmp, struct logvol_desc *lvd)
 	struct regid *pmap_id;
 	struct buf *bp;
 	unsigned char regid_id[UDF_REGID_ID_SIZE + 1];
-	int i, ptype, psize, error;
+	int i, k, ptype, psize, error;
 
 	for (i = 0; i < le32toh(lvd->n_pm); i++) {
 		pmap = (union udf_pmap *)&lvd->maps[i * UDF_PMAP_SIZE];
@@ -776,6 +776,7 @@ udf_find_partmaps(struct udf_mnt *udfmp, struct logvol_desc *lvd)
 				brelse(bp);
 			printf("Failed to read Sparing Table at sector %d\n",
 			    le32toh(pms->st_loc[0]));
+			FREE(udfmp->s_table, M_UDFMOUNT);
 			return (error);
 		}
 		bcopy(bp->b_data, udfmp->s_table, le32toh(pms->st_size));
@@ -783,15 +784,16 @@ udf_find_partmaps(struct udf_mnt *udfmp, struct logvol_desc *lvd)
 
 		if (udf_checktag(&udfmp->s_table->tag, 0)) {
 			printf("Invalid sparing table found\n");
+			FREE(udfmp->s_table, M_UDFMOUNT);
 			return (EINVAL);
 		}
 
 		/* See how many valid entries there are here.  The list is
 		 * supposed to be sorted. 0xfffffff0 and higher are not valid
 		 */
-		for (i = 0; i < le16toh(udfmp->s_table->rt_l); i++) {
-			udfmp->s_table_entries = i;
-			if (le32toh(udfmp->s_table->entries[i].org) >=
+		for (k = 0; k < le16toh(udfmp->s_table->rt_l); k++) {
+			udfmp->s_table_entries = k;
+			if (le32toh(udfmp->s_table->entries[k].org) >=
 			    0xfffffff0)
 				break;
 		}
