@@ -769,7 +769,7 @@ findpcb:
 		 * present in a SYN segment.  See tcp_timewait().
 		 */
 		if (thflags & TH_SYN)
-			tcp_dooptions(&to, optp, optlen, 1);
+			tcp_dooptions(&to, optp, optlen, TO_SYN);
 		if (tcp_timewait(inp, &to, th, m, tlen))
 			goto findpcb;
 		/*
@@ -972,7 +972,7 @@ findpcb:
 				tcp_trace(TA_INPUT, ostate, tp,
 				    (void *)tcp_saveipgen, &tcp_savetcp, 0);
 #endif
-			tcp_dooptions(&to, optp, optlen, 1);
+			tcp_dooptions(&to, optp, optlen, TO_SYN);
 			if (!syncache_add(&inc, &to, th, inp, &so, m))
 				goto drop;	/* XXX: does not happen */
 			if (so == NULL) {
@@ -1096,11 +1096,23 @@ after_listen:
 	tiwin = th->th_win << tp->snd_scale;
 
 	/*
+	 * Parse options on any incoming segment.
+	 */
+	tcp_dooptions(&to, optp, optlen, (thflags & TH_SYN) ? TO_SYN : 0);
+
+	/*
+	 * If echoed timestamp is later than the current time,
+	 * fall back to non RFC1323 RTT calculation.
+	 */
+	if ((to.to_flags & TOF_TS) && (to.to_tsecr != 0) &&
+	    TSTMP_GT(to.to_tsecr, ticks))
+		to.to_tsecr = 0;
+
+	/*
 	 * Process options only when we get SYN/ACK back. The SYN case
 	 * for incoming connections is handled in tcp_syncache.
 	 * XXX this is traditional behavior, may need to be cleaned up.
 	 */
-	tcp_dooptions(&to, optp, optlen, thflags & TH_SYN);
 	if (tp->t_state == TCPS_SYN_SENT && (thflags & TH_SYN)) {
 		if ((to.to_flags & TOF_SCALE) &&
 		    (tp->t_flags & TF_REQ_SCALE)) {
@@ -2594,11 +2606,11 @@ drop:
  * Parse TCP options and place in tcpopt.
  */
 static void
-tcp_dooptions(to, cp, cnt, is_syn)
+tcp_dooptions(to, cp, cnt, flags)
 	struct tcpopt *to;
 	u_char *cp;
 	int cnt;
-	int is_syn;
+	int flags;
 {
 	int opt, optlen;
 
@@ -2620,7 +2632,7 @@ tcp_dooptions(to, cp, cnt, is_syn)
 		case TCPOPT_MAXSEG:
 			if (optlen != TCPOLEN_MAXSEG)
 				continue;
-			if (!is_syn)
+			if (!(flags & TO_SYN))
 				continue;
 			to->to_flags |= TOF_MSS;
 			bcopy((char *)cp + 2,
@@ -2630,7 +2642,7 @@ tcp_dooptions(to, cp, cnt, is_syn)
 		case TCPOPT_WINDOW:
 			if (optlen != TCPOLEN_WINDOW)
 				continue;
-			if (! is_syn)
+			if (!(flags & TO_SYN))
 				continue;
 			to->to_flags |= TOF_SCALE;
 			to->to_requested_s_scale = min(cp[2], TCP_MAX_WINSHIFT);
@@ -2645,12 +2657,6 @@ tcp_dooptions(to, cp, cnt, is_syn)
 			bcopy((char *)cp + 6,
 			    (char *)&to->to_tsecr, sizeof(to->to_tsecr));
 			to->to_tsecr = ntohl(to->to_tsecr);
-			/*
-			 * If echoed timestamp is later than the current time,
-			 * fall back to non RFC1323 RTT calculation.
-			 */
-			if ((to->to_tsecr != 0) && TSTMP_GT(to->to_tsecr, ticks))
-				to->to_tsecr = 0;
 			break;
 #ifdef TCP_SIGNATURE
 		/*
@@ -2666,13 +2672,13 @@ tcp_dooptions(to, cp, cnt, is_syn)
 			break;
 #endif
 		case TCPOPT_SACK_PERMITTED:
-			if (!tcp_do_sack ||
-			    optlen != TCPOLEN_SACK_PERMITTED)
+			if (optlen != TCPOLEN_SACK_PERMITTED)
 				continue;
-			if (is_syn) {
-				/* MUST only be set on SYN */
-				to->to_flags |= TOF_SACK;
-			}
+			if (!(flags & TO_SYN))
+				continue;
+			if (!tcp_do_sack)
+				continue;
+			to->to_flags |= TOF_SACK;
 			break;
 		case TCPOPT_SACK:
 			if (optlen <= 2 || (optlen - 2) % TCPOLEN_SACK != 0)

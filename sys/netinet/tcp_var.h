@@ -229,9 +229,9 @@ struct tcpcb {
  */
 struct tcpopt {
 	u_long		to_flags;	/* which options are present */
-#define TOF_TS		0x0001		/* timestamp */
-#define	TOF_MSS		0x0010
-#define	TOF_SCALE	0x0020
+#define	TOF_TS		0x0001		/* timestamp */
+#define	TOF_MSS		0x0010		/* maximum segment size */
+#define	TOF_SCALE	0x0020		/* window scaling */
 #define	TOF_SIGNATURE	0x0040		/* signature option present */
 #define	TOF_SIGLEN	0x0080		/* signature length valid (RFC2385) */
 #define	TOF_SACK	0x0100		/* Peer sent SACK option */
@@ -242,6 +242,11 @@ struct tcpopt {
 	u_int8_t	to_nsacks;	/* number of SACK blocks */
 	u_char		*to_sacks;	/* pointer to the first SACK blocks */
 };
+
+/*
+ * Flags for tcp_dooptions.
+ */
+#define	TO_SYN		0x01		/* parse SYN-only options */
 
 struct hc_metrics_lite {	/* must stay in sync with hc_metrics */
 	u_long	rmx_mtu;	/* MTU for this path */
