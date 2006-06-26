@@ -201,12 +201,9 @@ uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 static int
 uipc_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	struct unpcb *unp;
 	int error;
 
 	KASSERT(td == curthread, ("uipc_connect: td != curthread"));
-	unp = sotounpcb(so);
-	KASSERT(unp != NULL, ("uipc_connect: unp == NULL"));
 	UNP_LOCK();
 	error = unp_connect(so, nam, td);
 	UNP_UNLOCK();
