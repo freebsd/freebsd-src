@@ -647,10 +647,8 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 	int v4 = 0;
 	TCPDEBUG0;
 
-	if (so->so_state & SS_ISDISCONNECTED) {
-		error = ECONNABORTED;
-		goto out;
-	}
+	if (so->so_state & SS_ISDISCONNECTED)
+		return (ECONNABORTED);
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_accept: inp == NULL"));
