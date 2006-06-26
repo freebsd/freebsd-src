@@ -116,7 +116,7 @@ struct syncache {
 	u_long		sc_rxttime;		/* retransmit time */
 	u_int16_t	sc_rxmits;		/* retransmit counter */
 
-	u_int32_t	sc_tsrecent;
+	u_int32_t	sc_tsreflect;		/* timestamp to reflect */
 	u_int32_t	sc_flowlabel;		/* IPv6 flowlabel */
 	tcp_seq		sc_irs;			/* seq from peer */
 	tcp_seq		sc_iss;			/* our ISS */
@@ -127,11 +127,12 @@ struct syncache {
 	u_int8_t	sc_ip_ttl;		/* IPv4 TTL */
 	u_int8_t	sc_ip_tos;		/* IPv4 TOS */
 	u_int8_t	sc_requested_s_scale:4,
-			sc_request_r_scale:4;
+			sc_requested_r_scale:4;
 	u_int8_t	sc_flags;
 #define SCF_NOOPT	0x01			/* no TCP options */
 #define SCF_WINSCALE	0x02			/* negotiated window scaling */
 #define SCF_TIMESTAMP	0x04			/* negotiated timestamps */
+						/* MSS is implicit */
 #define SCF_UNREACH	0x10			/* icmp unreachable received */
 #define SCF_SIGNATURE	0x20			/* send MD5 digests */
 #define SCF_SACK	0x80			/* send SACK option */
@@ -599,12 +600,12 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 #ifdef IPSEC
 	/* Copy old policy into new socket's. */
 	if (ipsec_copy_pcbpolicy(sotoinpcb(lso)->inp_sp, inp->inp_sp))
-		printf("syncache_expand: could not copy policy\n");
+		printf("syncache_socket: could not copy policy\n");
 #endif
 #ifdef FAST_IPSEC
 	/* Copy old policy into new socket's. */
 	if (ipsec_copy_policy(sotoinpcb(lso)->inp_sp, inp->inp_sp))
-		printf("syncache_expand: could not copy policy\n");
+		printf("syncache_socket: could not copy policy\n");
 #endif
 #ifdef INET6
 	if (sc->sc_inc.inc_isipv6) {
@@ -681,23 +682,25 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	tp->t_flags = sototcpcb(lso)->t_flags & (TF_NOPUSH|TF_NODELAY);
 	if (sc->sc_flags & SCF_NOOPT)
 		tp->t_flags |= TF_NOOPT;
-	if (sc->sc_flags & SCF_WINSCALE) {
-		tp->t_flags |= TF_REQ_SCALE|TF_RCVD_SCALE;
-		tp->snd_scale = sc->sc_requested_s_scale;
-		tp->request_r_scale = sc->sc_request_r_scale;
-	}
-	if (sc->sc_flags & SCF_TIMESTAMP) {
-		tp->t_flags |= TF_REQ_TSTMP|TF_RCVD_TSTMP;
-		tp->ts_recent = sc->sc_tsrecent;
-		tp->ts_recent_age = ticks;
-	}
+	else {
+		if (sc->sc_flags & SCF_WINSCALE) {
+			tp->t_flags |= TF_REQ_SCALE|TF_RCVD_SCALE;
+			tp->snd_scale = sc->sc_requested_s_scale;
+			tp->request_r_scale = sc->sc_requested_r_scale;
+		}
+		if (sc->sc_flags & SCF_TIMESTAMP) {
+			tp->t_flags |= TF_REQ_TSTMP|TF_RCVD_TSTMP;
+			tp->ts_recent = sc->sc_tsreflect;
+			tp->ts_recent_age = ticks;
+		}
 #ifdef TCP_SIGNATURE
-	if (sc->sc_flags & SCF_SIGNATURE)
-		tp->t_flags |= TF_SIGNATURE;
+		if (sc->sc_flags & SCF_SIGNATURE)
+			tp->t_flags |= TF_SIGNATURE;
 #endif
-	if (sc->sc_flags & SCF_SACK) {
-		tp->sack_enable = 1;
-		tp->t_flags |= TF_SACK_PERMIT;
+		if (sc->sc_flags & SCF_SACK) {
+			tp->sack_enable = 1;
+			tp->t_flags |= TF_SACK_PERMIT;
+		}
 	}
 
 	/*
@@ -897,7 +900,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 * Update timestamp if present.
 		 */
 		if (sc->sc_flags & SCF_TIMESTAMP)
-			sc->sc_tsrecent = to->to_tsval;
+			sc->sc_tsreflect = to->to_tsval;
 		if (syncache_respond(sc, m) == 0) {
 			SYNCACHE_TIMEOUT(sc, sch, 1);
 			tcpstat.tcps_sndacks++;
@@ -931,18 +934,11 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 * Fill in the syncache values.
 	 */
 	sc->sc_ipopts = ipopts;
-	sc->sc_inc.inc_fport = inc->inc_fport;
-	sc->sc_inc.inc_lport = inc->inc_lport;
+	bcopy(inc, &sc->sc_inc, sizeof(struct in_conninfo));
 #ifdef INET6
-	sc->sc_inc.inc_isipv6 = inc->inc_isipv6;
-	if (inc->inc_isipv6) {
-		sc->sc_inc.inc6_faddr = inc->inc6_faddr;
-		sc->sc_inc.inc6_laddr = inc->inc6_laddr;
-	} else
+	if (!inc->inc_isipv6)
 #endif
 	{
-		sc->sc_inc.inc_faddr = inc->inc_faddr;
-		sc->sc_inc.inc_laddr = inc->inc_laddr;
 		sc->sc_ip_tos = ip_tos;
 		sc->sc_ip_ttl = ip_ttl;
 	}
@@ -979,7 +975,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 * it ok to send timestamp requests and replies.
 		 */
 		if (to->to_flags & TOF_TS) {
-			sc->sc_tsrecent = to->to_tsval;
+			sc->sc_tsreflect = to->to_tsval;
 			sc->sc_flags |= SCF_TIMESTAMP;
 		}
 		if (to->to_flags & TOF_SCALE) {
@@ -989,7 +985,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			while (wscale < TCP_MAX_WINSHIFT &&
 			    (TCP_MAXWIN << wscale) < sb_hiwat)
 				wscale++;
-			sc->sc_request_r_scale = wscale;
+			sc->sc_requested_r_scale = wscale;
 			sc->sc_requested_s_scale = to->to_requested_s_scale;
 			sc->sc_flags |= SCF_WINSCALE;
 		}
@@ -1031,11 +1027,11 @@ done:
 static int
 syncache_respond(struct syncache *sc, struct mbuf *m)
 {
-	u_int8_t *optp;
-	int optlen, error;
-	u_int16_t tlen, hlen, mssopt;
 	struct ip *ip = NULL;
 	struct tcphdr *th;
+	int optlen, error;
+	u_int16_t tlen, hlen, mssopt;
+	u_int8_t *optp;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 #endif
@@ -1048,8 +1044,6 @@ syncache_respond(struct syncache *sc, struct mbuf *m)
 	       (sc->sc_inc.inc_isipv6) ? sizeof(struct ip6_hdr) :
 #endif
 		sizeof(struct ip);
-
-	KASSERT((&sc->sc_inc) != NULL, ("syncache_respond with NULL in_conninfo pointer"));
 
 	/* Determine MSS we advertize to other end of connection. */
 	mssopt = tcp_mssopt(&sc->sc_inc);
@@ -1190,7 +1184,7 @@ syncache_respond(struct syncache *sc, struct mbuf *m)
 		if (sc->sc_flags & SCF_WINSCALE) {
 			*((u_int32_t *)optp) = htonl(TCPOPT_NOP << 24 |
 			    TCPOPT_WINDOW << 16 | TCPOLEN_WINDOW << 8 |
-			    sc->sc_request_r_scale);
+			    sc->sc_requested_r_scale);
 			optp += 4;
 		}
 
@@ -1200,7 +1194,7 @@ syncache_respond(struct syncache *sc, struct mbuf *m)
 			/* Form timestamp option per appendix A of RFC 1323. */
 			*lp++ = htonl(TCPOPT_TSTAMP_HDR);
 			*lp++ = htonl(ticks);
-			*lp   = htonl(sc->sc_tsrecent);
+			*lp   = htonl(sc->sc_tsreflect);
 			optp += TCPOLEN_TSTAMP_APPA;
 		}
 
@@ -1425,20 +1419,14 @@ syncookie_lookup(struct in_conninfo *inc, struct tcphdr *th, struct socket *so)
 	 * XXX: duplicate code from syncache_add
 	 */
 	sc->sc_ipopts = NULL;
-	sc->sc_inc.inc_fport = inc->inc_fport;
-	sc->sc_inc.inc_lport = inc->inc_lport;
+	bcopy(inc, &sc->sc_inc, sizeof(struct in_conninfo));
 #ifdef INET6
-	sc->sc_inc.inc_isipv6 = inc->inc_isipv6;
 	if (inc->inc_isipv6) {
-		sc->sc_inc.inc6_faddr = inc->inc6_faddr;
-		sc->sc_inc.inc6_laddr = inc->inc6_laddr;
 		if (sotoinpcb(so)->in6p_flags & IN6P_AUTOFLOWLABEL)
 			sc->sc_flowlabel = md5_buffer[1] & IPV6_FLOWLABEL_MASK;
 	} else
 #endif
 	{
-		sc->sc_inc.inc_faddr = inc->inc_faddr;
-		sc->sc_inc.inc_laddr = inc->inc_laddr;
 		sc->sc_ip_ttl = sotoinpcb(so)->inp_ip_ttl;
 		sc->sc_ip_tos = sotoinpcb(so)->inp_ip_tos;
 	}

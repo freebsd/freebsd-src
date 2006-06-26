@@ -807,6 +807,7 @@ findpcb:
 	if (so->so_options & SO_ACCEPTCONN) {
 		struct in_conninfo inc;
 
+		bzero(&inc, sizeof(inc));
 #ifdef INET6
 		inc.inc_isipv6 = isipv6;
 #endif
