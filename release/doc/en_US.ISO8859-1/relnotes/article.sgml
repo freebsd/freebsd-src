@@ -1294,7 +1294,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       function has been added to
       allow lookups for a specific version of a given symbol.</para>
 
-    <para>A bug in the &man.sed.1; utility which can causes
+    <para>A bug in the &man.sed.1; utility which can cause
       incorrect calculation of pattern space length in some cases
       has been fixed.</para>
 
