@@ -145,20 +145,26 @@
 #define RL_LOOPTEST_ON		0x00020000
 #define RL_LOOPTEST_ON_CPLUS	0x00060000
 
-#define RL_HWREV_8169		0x00000000
-#define RL_HWREV_8169S		0x04000000
-#define RL_HWREV_8169SB		0x10000000
-#define RL_HWREV_8110S		0x00800000
-#define RL_HWREV_8139		0x60000000
-#define RL_HWREV_8139A		0x70000000
-#define RL_HWREV_8139AG		0x70800000
-#define RL_HWREV_8139B		0x78000000
-#define RL_HWREV_8130		0x7C000000
-#define RL_HWREV_8139C		0x74000000
-#define RL_HWREV_8139D		0x74400000
-#define RL_HWREV_8139CPLUS	0x74800000
-#define RL_HWREV_8101		0x74c00000
-#define RL_HWREV_8100		0x78800000
+/* Known revision codes. */
+
+#define RL_HWREV_8169          0x00000000
+#define RL_HWREV_8110S         0x00800000
+#define RL_HWREV_8169S         0x04000000
+#define RL_HWREV_8169_8110SB   0x10000000
+#define RL_HWREV_8169_8110SC   0x18000000
+#define RL_HWREV_8100E         0x30800000
+#define RL_HWREV_8101E         0x34000000
+#define RL_HWREV_8168          0x38000000
+#define RL_HWREV_8139          0x60000000
+#define RL_HWREV_8139A         0x70000000
+#define RL_HWREV_8139AG        0x70800000
+#define RL_HWREV_8139B         0x78000000
+#define RL_HWREV_8130          0x7C000000
+#define RL_HWREV_8139C         0x74000000
+#define RL_HWREV_8139D         0x74400000
+#define RL_HWREV_8139CPLUS     0x74800000
+#define RL_HWREV_8101          0x74c00000
+#define RL_HWREV_8100          0x78800000
 
 #define RL_TXDMA_16BYTES	0x00000000
 #define RL_TXDMA_32BYTES	0x00000100
@@ -206,10 +212,17 @@
 	RL_ISR_RX_OVERRUN|RL_ISR_PKT_UNDERRUN|RL_ISR_FIFO_OFLOW|	\
 	RL_ISR_PCS_TIMEOUT|RL_ISR_SYSTEM_ERR)
 
+#ifdef RE_TX_MODERATION
 #define RL_INTRS_CPLUS	\
 	(RL_ISR_RX_OK|RL_ISR_RX_ERR|RL_ISR_TX_ERR|			\
 	RL_ISR_RX_OVERRUN|RL_ISR_PKT_UNDERRUN|RL_ISR_FIFO_OFLOW|	\
 	RL_ISR_PCS_TIMEOUT|RL_ISR_SYSTEM_ERR|RL_ISR_TIMEOUT_EXPIRED)
+#else
+#define RL_INTRS_CPLUS	\
+	(RL_ISR_RX_OK|RL_ISR_RX_ERR|RL_ISR_TX_ERR|RL_ISR_TX_OK|		\
+	RL_ISR_RX_OVERRUN|RL_ISR_PKT_UNDERRUN|RL_ISR_FIFO_OFLOW|	\
+	RL_ISR_PCS_TIMEOUT|RL_ISR_SYSTEM_ERR|RL_ISR_TIMEOUT_EXPIRED)
+#endif
 
 /*
  * Media status register. (8139 only)
@@ -298,6 +311,15 @@
 #define RL_EEMODE_WRITECFG	(0x80|0x40)
 
 /* 9346 EEPROM commands */
+
+#define RL_9346_WRITE          0x5
+#define RL_9346_READ           0x6
+#define RL_9346_ERASE          0x7
+#define RL_9346_EWEN           0x4
+#define RL_9346_EWEN_ADDR      0x30
+#define RL_9456_EWDS           0x4
+#define RL_9346_EWDS_ADDR      0x00
+
 #define RL_EECMD_WRITE		0x140
 #define RL_EECMD_READ_6BIT	0x180
 #define RL_EECMD_READ_8BIT	0x600
@@ -620,6 +642,7 @@ struct rl_stats {
 
 #define RL_TX_DESC_CNT		64
 #define RL_RX_DESC_CNT		RL_TX_DESC_CNT
+
 #define RL_RX_LIST_SZ		(RL_RX_DESC_CNT * sizeof(struct rl_desc))
 #define RL_TX_LIST_SZ		(RL_TX_DESC_CNT * sizeof(struct rl_desc))
 #define RL_RING_ALIGN		256
@@ -655,7 +678,7 @@ struct rl_dmaload_arg {
 
 struct rl_list_data {
 	struct mbuf		*rl_tx_mbuf[RL_TX_DESC_CNT];
-	struct mbuf		*rl_rx_mbuf[RL_TX_DESC_CNT];
+	struct mbuf		*rl_rx_mbuf[RL_RX_DESC_CNT];
 	int			rl_tx_prodidx;
 	int			rl_rx_prodidx;
 	int			rl_tx_considx;
@@ -681,6 +704,7 @@ struct rl_softc {
 	struct ifnet		*rl_ifp;	/* interface info */
 	bus_space_handle_t	rl_bhandle;	/* bus space handle */
 	bus_space_tag_t		rl_btag;	/* bus space tag */
+	device_t		rl_dev;
 	struct resource		*rl_res;
 	struct resource		*rl_irq;
 	void			*rl_intrhand;
@@ -689,6 +713,7 @@ struct rl_softc {
 	bus_dma_tag_t		rl_tag;
 	uint8_t			rl_type;
 	int			rl_eecmd_read;
+	int			rl_eewidth;
 	uint8_t			rl_stats_no_timeout;
 	int			rl_txthresh;
 	struct rl_chain_data	rl_cdata;
@@ -704,6 +729,13 @@ struct rl_softc {
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif
+
+	struct task		rl_txtask;
+	struct task		rl_inttask;
+
+	struct mtx		rl_intlock;
+	int			rl_txstart;
+	int			rl_link;
 };
 
 #define	RL_LOCK(_sc)		mtx_lock(&(_sc)->rl_mtx)
@@ -729,6 +761,24 @@ struct rl_softc {
 #define CSR_READ_1(sc, reg)		\
 	bus_space_read_1(sc->rl_btag, sc->rl_bhandle, reg)
 
+#define CSR_SETBIT_1(sc, offset, val)		\
+	CSR_WRITE_1(sc, offset, CSR_READ_1(sc, offset) | (val))
+
+#define CSR_CLRBIT_1(sc, offset, val)		\
+	CSR_WRITE_1(sc, offset, CSR_READ_1(sc, offset) & ~(val))
+
+#define CSR_SETBIT_2(sc, offset, val)		\
+	CSR_WRITE_2(sc, offset, CSR_READ_2(sc, offset) | (val))
+
+#define CSR_CLRBIT_2(sc, offset, val)		\
+	CSR_WRITE_2(sc, offset, CSR_READ_2(sc, offset) & ~(val))
+
+#define CSR_SETBIT_4(sc, offset, val)		\
+	CSR_WRITE_4(sc, offset, CSR_READ_4(sc, offset) | (val))
+
+#define CSR_CLRBIT_4(sc, offset, val)		\
+	CSR_WRITE_4(sc, offset, CSR_READ_4(sc, offset) & ~(val))
+
 #define RL_TIMEOUT		1000
 
 /*
@@ -742,8 +792,11 @@ struct rl_softc {
  * RealTek chip device IDs.
  */
 #define	RT_DEVICEID_8129			0x8129
+#define RT_DEVICEID_8101E			0x8136
 #define	RT_DEVICEID_8138			0x8138
 #define	RT_DEVICEID_8139			0x8139
+#define RT_DEVICEID_8169SC			0x8167
+#define RT_DEVICEID_8168			0x8168
 #define RT_DEVICEID_8169			0x8169
 #define RT_DEVICEID_8100			0x8100
 
