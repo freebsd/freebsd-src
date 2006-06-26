@@ -139,7 +139,6 @@ rgephy_attach(device_t dev)
 #endif
 
 	rgephy_mii_model = MII_MODEL(ma->mii_id2);
-	rgephy_reset(sc);
 
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	sc->mii_capabilities &= ~BMSR_ANEG;
@@ -158,6 +157,7 @@ rgephy_attach(device_t dev)
 #undef ADD
 #undef PRINT
 
+	rgephy_reset(sc);
 	MIIBUS_MEDIAINIT(sc->mii_dev);
 	return(0);
 }
@@ -347,12 +347,14 @@ rgephy_status(struct mii_softc *sc)
 	}
 
 	bmsr = PHY_READ(sc, RL_GMEDIASTAT);
-	if (bmsr & RL_GMEDIASTAT_10MBPS)
-		mii->mii_media_active |= IFM_10_T;
-	if (bmsr & RL_GMEDIASTAT_100MBPS)
-		mii->mii_media_active |= IFM_100_TX;
 	if (bmsr & RL_GMEDIASTAT_1000MBPS)
 		mii->mii_media_active |= IFM_1000_T;
+	else if (bmsr & RL_GMEDIASTAT_100MBPS)
+		mii->mii_media_active |= IFM_100_TX;
+	else if (bmsr & RL_GMEDIASTAT_10MBPS)
+		mii->mii_media_active |= IFM_10_T;
+	else
+		mii->mii_media_active |= IFM_NONE;
 	if (bmsr & RL_GMEDIASTAT_FDX)
 		mii->mii_media_active |= IFM_FDX;
 
@@ -369,7 +371,8 @@ rgephy_mii_phy_auto(struct mii_softc *mii)
 	PHY_WRITE(mii, RGEPHY_MII_ANAR,
 	    BMSR_MEDIA_TO_ANAR(mii->mii_capabilities) | ANAR_CSMA);
 	DELAY(1000);
-	PHY_WRITE(mii, RGEPHY_MII_1000CTL, RGEPHY_1000CTL_AFD);
+	PHY_WRITE(mii, RGEPHY_MII_1000CTL,
+            RGEPHY_1000CTL_AHD|RGEPHY_1000CTL_AFD);
 	DELAY(1000);
 	PHY_WRITE(mii, RGEPHY_MII_BMCR,
 	    RGEPHY_BMCR_AUTOEN | RGEPHY_BMCR_STARTNEG);
@@ -407,13 +410,20 @@ rgephy_loop(struct mii_softc *sc)
 /*
  * Initialize RealTek PHY per the datasheet. The DSP in the PHYs of
  * existing revisions of the 8169S/8110S chips need to be tuned in
- * order to reliably negotiate a 1000Mbps link. Later revs of the
- * chips may not require this software tuning.
+ * order to reliably negotiate a 1000Mbps link. This is only needed
+ * for rev 0 and rev 1 of the PHY. Later versions work without
+ * any fixups.
  */
 static void
 rgephy_load_dspcode(struct mii_softc *sc)
 {
 	int val;
+        uint16_t id2;
+
+	id2 = PHY_READ(sc, MII_PHYIDR2);
+
+	if (MII_REV(id2) > 1)
+		return;
 
 	PHY_WRITE(sc, 31, 0x0001);
 	PHY_WRITE(sc, 21, 0x1000);
