@@ -1047,6 +1047,8 @@ syncache_respond(struct syncache *sc, struct mbuf *m)
 
 	/* Determine MSS we advertize to other end of connection. */
 	mssopt = tcp_mssopt(&sc->sc_inc);
+	if (sc->sc_peer_mss)
+		mssopt = max( min(sc->sc_peer_mss, mssopt), tcp_minmss);
 
 	/* Compute the size of the TCP options. */
 	if (sc->sc_flags & SCF_NOOPT) {
