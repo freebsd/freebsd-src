@@ -70,6 +70,7 @@ MAN=	aac.4 \
 	ehci.4 \
 	em.4 \
 	en.4 \
+	enc.4 \
 	esp.4 \
 	exca.4 \
 	faith.4 \
