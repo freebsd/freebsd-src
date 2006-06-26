@@ -352,7 +352,7 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 	},
 	{
 		/* Does not support other than LUN 0 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "VMware*", "VMware Virtu*", "*" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, "VMware*", "*", "*" },
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
 	{
