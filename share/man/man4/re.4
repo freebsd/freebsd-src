@@ -35,7 +35,7 @@
 .Os
 .Sh NAME
 .Nm re
-.Nd "RealTek 8139C+/8169/8169S/8110S PCI Ethernet adapter driver"
+.Nd "RealTek 8139C+/8169/816xS/811xS/8101E PCI/PCIe Ethernet adapter driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -55,11 +55,12 @@ if_re_load="YES"
 The
 .Nm
 driver provides support for various NICs based on the RealTek RTL8139C+,
-RTL8169, RTL8169S and RTL8110S PCI Ethernet controllers.
+RTL8169, RTL8169S, RTL8110S, RTL8168S, RTL8111S and RTL8101E PCI and
+PCIe Ethernet controllers.
 .Pp
-NICs based on the 8139C+ are capable of 10 and 100Mbps speeds over CAT5
-cable.
-NICs based on the 8169, 8169S and 8110S are capable of 10, 100 and
+NICs based on the 8139C+ and 8101E are capable of 10 and 100Mbps speeds
+over CAT5 cable.
+NICs based on the 8169, 816xS and 811xS are capable of 10, 100 and
 1000Mbps operation.
 .Pp
 All NICs supported by the
@@ -143,8 +144,8 @@ For more information on configuring this device, see
 .Sh HARDWARE
 The
 .Nm
-driver supports RealTek RTL8139C+, RTL8169, RTL8169S and RTL8110S
-based Fast Ethernet and Gigabit Ethernet adapters including:
+driver supports RealTek RTL8139C+, RTL8169, RTL816xS, RTL811xS,
+and RTL8101E based Fast Ethernet and Gigabit Ethernet adapters including:
 .Pp
 .Bl -bullet -compact
 .It
