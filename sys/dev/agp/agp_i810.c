@@ -113,9 +113,9 @@ static const struct agp_i810_match {
 	    "Intel 82815 (i815 GMCH) SVGA controller"},
 	{0x35778086, CHIP_I830, 0x00020000,
 	    "Intel 82830M (830M GMCH) SVGA controller"},
-	{0x35828086, CHIP_I830, 0x00020000,
+	{0x35828086, CHIP_I855, 0x00020000,
 	    "Intel 82852/5"},
-	{0x25728086, CHIP_I830, 0x00020000,
+	{0x25728086, CHIP_I855, 0x00020000,
 	    "Intel 82865G (865G GMCH) SVGA controller"},
 	{0x25828086, CHIP_I915, 0x00020000,
 	    "Intel 82915G (915G GMCH) SVGA controller"},
@@ -224,7 +224,8 @@ agp_i810_probe(device_t dev)
 				printf("I810: disabled, not probing\n");
 			return ENXIO;
 		}
-	} else if (match->chiptype == CHIP_I830) {
+	} else if (match->chiptype == CHIP_I830 ||
+	    match->chiptype == CHIP_I855) {
 		unsigned int gcc1;
 
 		gcc1 = pci_read_config(bdev, AGP_I830_GCC1, 1);
