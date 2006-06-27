@@ -38,7 +38,12 @@
 .Nm enc
 .Nd Encapsulating Interface
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device enc"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -74,9 +79,9 @@ or all incoming packets after they have been similarly processed:
 .Pp
 .Dl # tcpdump -i enc0
 .Sh SEE ALSO
+.Xr tcpdump 1 ,
 .Xr bpf 4 ,
 .Xr fast_ipsec 4 ,
 .Xr ipf 4 ,
 .Xr ipfw 4 ,
-.Xr pf 4 ,
-.Xr tcpdump 8
+.Xr pf 4
