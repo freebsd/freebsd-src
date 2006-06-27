@@ -63,7 +63,6 @@
 #include <netipsec/ipsec.h>
 
 #define ENCMTU		(1024+512)
-#define ENC_HDRLEN	12
 
 /* XXX this define must have the same value as in OpenBSD */
 #define M_CONF		0x0400	/* payload was encrypted (ESP-transport) */
@@ -132,7 +131,7 @@ enc_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_softc = sc;
 	if_attach(ifp);
-	bpfattach(ifp, DLT_ENC, ENC_HDRLEN);
+	bpfattach(ifp, DLT_ENC, sizeof(struct enchdr));
 
 	mtx_lock(&enc_mtx);
 	encif = ifp;
@@ -284,7 +283,6 @@ ipsec_bpf(struct mbuf *m, struct secasvar *sav, int af)
 {
 	int flags;
 	struct enchdr hdr;
-	struct mbuf m1;
 
 	KASSERT(sav != NULL, ("%s: sav is null", __func__));
 
@@ -312,12 +310,7 @@ ipsec_bpf(struct mbuf *m, struct secasvar *sav, int af)
 		hdr.spi = sav->spi;
 		hdr.flags = flags;
 
-		m1.m_flags = 0;
-		m1.m_next = m;
-		m1.m_len = ENC_HDRLEN;
-		m1.m_data = (char *) &hdr;
-
-		bpf_mtap(encif->if_bpf, &m1);
+		bpf_mtap2(encif->if_bpf, &hdr, sizeof(hdr), m);
 	}
 	mtx_unlock(&enc_mtx);
 }
