@@ -82,10 +82,10 @@
 19	AUE_LSEEK	MCOMPAT	{ long lseek(int fd, long offset, \
 				    int whence); }
 20	AUE_GETPID	MSTD	{ pid_t getpid(void); }
-21	AUE_MOUNT	STD	{ int mount(char *type, char *path, \
+21	AUE_MOUNT	MSTD	{ int mount(char *type, char *path, \
 				    int flags, caddr_t data); }
 ; XXX `path' should have type `const char *' but we're not ready for that.
-22	AUE_UMOUNT	STD	{ int unmount(char *path, int flags); }
+22	AUE_UMOUNT	MSTD	{ int unmount(char *path, int flags); }
 23	AUE_SETUID	MSTD	{ int setuid(uid_t uid); }
 24	AUE_GETUID	MSTD	{ uid_t getuid(void); }
 25	AUE_GETEUID	MSTD	{ uid_t geteuid(void); }
@@ -662,7 +662,7 @@
 375	AUE_NULL	NOIMPL	{ int nfsclnt(int flag, caddr_t argp); }
 376	AUE_EACCESS	MSTD	{ int eaccess(char *path, int flags); }
 377	AUE_NULL	UNIMPL	afs_syscall
-378	AUE_NMOUNT	STD	{ int nmount(struct iovec *iovp, \
+378	AUE_NMOUNT	MSTD	{ int nmount(struct iovec *iovp, \
 				    unsigned int iovcnt, int flags); }
 379	AUE_NULL	MSTD	{ int kse_exit(void); }
 380	AUE_NULL	MSTD	{ int kse_wakeup(struct kse_mailbox *mbx); }
