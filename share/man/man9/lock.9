@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2001
+.Dd June 20, 2006
 .Dt LOCK 9
 .Os
 .Sh NAME
@@ -80,10 +80,8 @@ Do not sleep while acquiring the lock.
 Fail after a sleep.
 .It Dv LK_CANRECURSE
 Allow recursive exclusive locks.
-.It Dv LK_REENABLE
-Re-enable the lock after a drain.
-.It Dv LK_NOPAUSE
-Disable the spinlock while acquiring the lock.
+.It Dv LK_NOSHARE
+Allow exclusive locks only.
 .It Dv LK_TIMELOCK
 Use
 .Fa timo
