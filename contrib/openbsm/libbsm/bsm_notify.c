@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_notify.c#11 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_notify.c#12 $
  */
 
 /*
@@ -45,7 +45,7 @@
 #include <bsm/libbsm.h>
 
 #include <errno.h>
-#include <stdint.h>
+#include <inttypes.h>
 #include <stdarg.h>
 #include <string.h>
 #include <syslog.h>
