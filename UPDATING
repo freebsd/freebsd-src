@@ -21,6 +21,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20060627:
+	The XBOX kernel now defaults to the nfe(4) driver instead of
+	the nve(4) driver. Please update your configuration
+	accordingly.
+
 20060511:
 	The machdep.* sysctls and the adjkerntz utility have been
 	modified a bit.  The new adjkerntz utility uses the new
