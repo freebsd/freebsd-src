@@ -331,8 +331,8 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 				return (EACCES);
 			if (jailed(cred))
 				prison = 1;
-			if (so->so_cred->cr_uid != 0 &&
-			    !IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
+			if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)) &&
+			    suser_cred(so->so_cred, SUSER_ALLOWJAIL) != 0) {
 				t = in_pcblookup_local(inp->inp_pcbinfo,
 				    sin->sin_addr, lport,
 				    prison ? 0 :  INPLOOKUP_WILDCARD);

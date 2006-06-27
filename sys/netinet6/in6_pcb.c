@@ -192,8 +192,8 @@ in6_pcbbind(inp, nam, cred)
 			    ntohs(lport) >= ipport_reservedlow &&
 			    suser_cred(cred, SUSER_ALLOWJAIL))
 				return (EACCES);
-			if (so->so_cred->cr_uid != 0 &&
-			    !IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
+			if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr) &&
+			    suser_cred(so->so_cred, SUSER_ALLOWJAIL) != 0) {
 				t = in6_pcblookup_local(pcbinfo,
 				    &sin6->sin6_addr, lport,
 				    INPLOOKUP_WILDCARD);
