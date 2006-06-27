@@ -53,8 +53,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/sem.h>
 #include <sys/syscall.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
+#include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/jail.h>
 #include <sys/mac.h>
@@ -554,12 +556,35 @@ __semctl(td, uap)
 	struct thread *td;
 	struct __semctl_args *uap;
 {
-	int semid = uap->semid;
-	int semnum = uap->semnum;
-	int cmd = uap->cmd;
-	u_short *array;
-	union semun *arg = uap->arg;
 	union semun real_arg;
+	union semun *arg;
+	int error;
+
+	switch (uap->cmd) {
+	case SEM_STAT:
+	case IPC_SET:
+	case IPC_STAT:
+	case GETALL:
+	case SETVAL:
+	case SETALL:
+		error = copyin(uap->arg, &real_arg, sizeof(real_arg));
+		if (error)
+			return (error);
+		arg = &real_arg;
+		break;
+	default:
+		arg = NULL;
+		break;
+	}
+	return (kern_semctl(td, uap->semid, uap->semnum, uap->cmd, arg,
+	    UIO_USERSPACE));
+}
+
+int
+kern_semctl(struct thread *td, int semid, int semnum, int cmd, union semun *arg,
+	enum uio_seg bufseg)
+{
+	u_short *array;
 	struct ucred *cred = td->td_ucred;
 	int i, rval, error;
 	struct semid_ds sbuf;
@@ -578,8 +603,6 @@ __semctl(td, uap)
 	case SEM_STAT:
 		if (semid < 0 || semid >= seminfo.semmni)
 			return (EINVAL);
-		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
-			return (error);
 		semakptr = &sema[semid];
 		sema_mtxp = &sema_mtx[semid];
 		mtx_lock(sema_mtxp);
@@ -598,8 +621,11 @@ __semctl(td, uap)
 		}
 #endif
 		mtx_unlock(sema_mtxp);
-		error = copyout(&semakptr->u, real_arg.buf,
-		    sizeof(struct semid_ds));
+		if (bufseg == UIO_USERSPACE)
+			error = copyout(&semakptr->u, arg->buf,
+			    sizeof(struct semid_ds));
+		else
+			bcopy(&semakptr->u, arg->buf, sizeof(struct semid_ds));
 		rval = IXSEQ_TO_IPCID(semid, semakptr->u.sem_perm);
 		if (error == 0)
 			td->td_retval[0] = rval;
@@ -629,7 +655,7 @@ __semctl(td, uap)
 	switch (cmd) {
 	case IPC_RMID:
 		mtx_lock(sema_mtxp);
-		if ((error = semvalid(uap->semid, semakptr)) != 0)
+		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_M)))
 			goto done2;
@@ -654,12 +680,14 @@ __semctl(td, uap)
 		break;
 
 	case IPC_SET:
-		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
-			goto done2;
-		if ((error = copyin(real_arg.buf, &sbuf, sizeof(sbuf))) != 0)
-			goto done2;
+		if (bufseg == UIO_USERSPACE) {
+			error = copyin(arg->buf, &sbuf, sizeof(sbuf));
+			if (error)
+				goto done2;
+		} else
+			bcopy(arg->buf, &sbuf, sizeof(sbuf));
 		mtx_lock(sema_mtxp);
-		if ((error = semvalid(uap->semid, semakptr)) != 0)
+		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_M)))
 			goto done2;
@@ -671,22 +699,23 @@ __semctl(td, uap)
 		break;
 
 	case IPC_STAT:
-		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
-			goto done2;
 		mtx_lock(sema_mtxp);
-		if ((error = semvalid(uap->semid, semakptr)) != 0)
+		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_R)))
 			goto done2;
 		sbuf = semakptr->u;
 		mtx_unlock(sema_mtxp);
-		error = copyout(&semakptr->u, real_arg.buf,
-				sizeof(struct semid_ds));
+		if (bufseg == UIO_USERSPACE)
+			error = copyout(&semakptr->u, arg->buf,
+			    sizeof(struct semid_ds));
+		else
+			bcopy(&semakptr->u, arg->buf, sizeof(struct semid_ds));
 		break;
 
 	case GETNCNT:
 		mtx_lock(sema_mtxp);
-		if ((error = semvalid(uap->semid, semakptr)) != 0)
+		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_R)))
 			goto done2;
@@ -699,7 +728,7 @@ __semctl(td, uap)
 
 	case GETPID:
 		mtx_lock(sema_mtxp);
-		if ((error = semvalid(uap->semid, semakptr)) != 0)
+		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_R)))
 			goto done2;
@@ -712,7 +741,7 @@ __semctl(td, uap)
 
 	case GETVAL:
 		mtx_lock(sema_mtxp);
-		if ((error = semvalid(uap->semid, semakptr)) != 0)
+		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_R)))
 			goto done2;
@@ -724,25 +753,31 @@ __semctl(td, uap)
 		break;
 
 	case GETALL:
-		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
-			goto done2;
+		/*
+		 * Given the fact that this copies out a variable amount
+		 * of data into userland, I don't see any feasible way of
+		 * doing this with a kmem copy of the userland buffer.
+		 */
+		if (bufseg == UIO_SYSSPACE)
+			return (EINVAL);
+			    
 		array = malloc(sizeof(*array) * semakptr->u.sem_nsems, M_TEMP,
 		    M_WAITOK);
 		mtx_lock(sema_mtxp);
-		if ((error = semvalid(uap->semid, semakptr)) != 0)
+		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_R)))
 			goto done2;
 		for (i = 0; i < semakptr->u.sem_nsems; i++)
 			array[i] = semakptr->u.sem_base[i].semval;
 		mtx_unlock(sema_mtxp);
-		error = copyout(array, real_arg.array,
-		    i * sizeof(real_arg.array[0]));
+		error = copyout(array, arg->array,
+		    i * sizeof(arg->array[0]));
 		break;
 
 	case GETZCNT:
 		mtx_lock(sema_mtxp);
-		if ((error = semvalid(uap->semid, semakptr)) != 0)
+		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_R)))
 			goto done2;
@@ -754,10 +789,8 @@ __semctl(td, uap)
 		break;
 
 	case SETVAL:
-		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
-			goto done2;
 		mtx_lock(sema_mtxp);
-		if ((error = semvalid(uap->semid, semakptr)) != 0)
+		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_W)))
 			goto done2;
@@ -765,11 +798,11 @@ __semctl(td, uap)
 			error = EINVAL;
 			goto done2;
 		}
-		if (real_arg.val < 0 || real_arg.val > seminfo.semvmx) {
+		if (arg->val < 0 || arg->val > seminfo.semvmx) {
 			error = ERANGE;
 			goto done2;
 		}
-		semakptr->u.sem_base[semnum].semval = real_arg.val;
+		semakptr->u.sem_base[semnum].semval = arg->val;
 		SEMUNDO_LOCK();
 		semundo_clear(semid, semnum);
 		SEMUNDO_UNLOCK();
@@ -777,20 +810,25 @@ __semctl(td, uap)
 		break;
 
 	case SETALL:
+		/*
+		 * Given the fact that this copies in variable amounts of
+		 * userland data in a loop, I don't see any feasible way
+		 * of doing this with a kmem copy of the userland buffer.
+		 */
+		if (bufseg == UIO_SYSSPACE)
+			return (EINVAL);
 		mtx_lock(sema_mtxp);
 raced:
-		if ((error = semvalid(uap->semid, semakptr)) != 0)
+		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		count = semakptr->u.sem_nsems;
 		mtx_unlock(sema_mtxp);
-		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
-			goto done2;
 		array = malloc(sizeof(*array) * count, M_TEMP, M_WAITOK);
-		error = copyin(real_arg.array, array, count * sizeof(*array));
+		error = copyin(arg->array, array, count * sizeof(*array));
 		if (error)
 			break;
 		mtx_lock(sema_mtxp);
-		if ((error = semvalid(uap->semid, semakptr)) != 0)
+		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		/* we could have raced? */
 		if (count != semakptr->u.sem_nsems) {

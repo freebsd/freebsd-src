@@ -212,7 +212,7 @@
 				    struct l_rusage *rusage); }
 115	AUE_SWAPOFF	MSTD	{ int linux_swapoff(void); }
 116	AUE_NULL	MSTD	{ int linux_sysinfo(struct l_sysinfo *info); }
-117	AUE_NULL	STD	{ int linux_ipc(l_uint what, l_int arg1, \
+117	AUE_NULL	MSTD	{ int linux_ipc(l_uint what, l_int arg1, \
 				    l_int arg2, l_int arg3, void *ptr, \
 				    l_long arg5); }
 118	AUE_FSYNC	MNOPROTO	{ int fsync(int fd); }
