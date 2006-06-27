@@ -815,7 +815,7 @@ ktrops(td, p, ops, facs, vp)
 			p->p_tracecred = crhold(td->td_ucred);
 		}
 		p->p_traceflag |= facs;
-		if (td->td_ucred->cr_uid == 0)
+		if (suser_cred(td->td_ucred, SUSER_ALLOWJAIL) == 0)
 			p->p_traceflag |= KTRFAC_ROOT;
 	} else {
 		/* KTROP_CLEAR */
