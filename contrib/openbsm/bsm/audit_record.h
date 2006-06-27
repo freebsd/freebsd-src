@@ -30,11 +30,13 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/audit_record.h#17 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/audit_record.h#19 $
  */
 
 #ifndef _BSM_AUDIT_RECORD_H_
 #define _BSM_AUDIT_RECORD_H_
+
+#include <sys/time.h>			/* struct timeval */
 
 /*
  * Token type identifiers.
