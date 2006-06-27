@@ -744,19 +744,23 @@ mount(td, uap)
 
 	fstype = malloc(MFSNAMELEN, M_TEMP, M_WAITOK);
 	error = copyinstr(uap->type, fstype, MFSNAMELEN, NULL);
-	if (!error) {
-		AUDIT_ARG(text, fstype);
-		mtx_lock(&Giant);	/* XXX ? */
-		vfsp = vfs_byname_kld(fstype, td, &error);
-		mtx_unlock(&Giant);
-	}
-	free(fstype, M_TEMP);
-	if (error)
+	if (error) {
+		free(fstype, M_TEMP);
 		return (error);
-	if (vfsp == NULL)
+	}
+
+	AUDIT_ARG(text, fstype);
+	mtx_lock(&Giant);
+	vfsp = vfs_byname_kld(fstype, td, &error);
+	free(fstype, M_TEMP);
+	if (vfsp == NULL) {
+		mtx_unlock(&Giant);
 		return (ENOENT);
-	if (vfsp->vfc_vfsops->vfs_cmount == NULL)
+	}
+	if (vfsp->vfc_vfsops->vfs_cmount == NULL) {
+		mtx_unlock(&Giant);
 		return (EOPNOTSUPP);
+	}
 
 	ma = mount_argsu(ma, "fstype", uap->type, MNAMELEN);
 	ma = mount_argsu(ma, "fspath", uap->path, MNAMELEN);
@@ -765,6 +769,7 @@ mount(td, uap)
 	ma = mount_argb(ma, !(uap->flags & MNT_NOEXEC), "noexec");
 
 	error = vfsp->vfc_vfsops->vfs_cmount(ma, uap->data, uap->flags, td);
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -1063,9 +1068,11 @@ unmount(td, uap)
 		return (error);
 	}
 	AUDIT_ARG(upath, td, pathbuf, ARG_UPATH1);
+	mtx_lock(&Giant);
 	if (uap->flags & MNT_BYFSID) {
 		/* Decode the filesystem ID. */
 		if (sscanf(pathbuf, "FSID:%d:%d", &id0, &id1) != 2) {
+			mtx_unlock(&Giant);
 			free(pathbuf, M_TEMP);
 			return (EINVAL);
 		}
@@ -1093,6 +1100,7 @@ unmount(td, uap)
 		 * now, so in the !MNT_BYFSID case return the more likely
 		 * EINVAL for compatibility.
 		 */
+		mtx_unlock(&Giant);
 		return ((uap->flags & MNT_BYFSID) ? ENOENT : EINVAL);
 	}
 
@@ -1101,15 +1109,18 @@ unmount(td, uap)
 	 * original mount is permitted to unmount this filesystem.
 	 */
 	error = vfs_suser(mp, td);
-	if (error)
+	if (error) {
+		mtx_unlock(&Giant);
 		return (error);
+	}
 
 	/*
 	 * Don't allow unmounting the root filesystem.
 	 */
-	if (mp->mnt_flag & MNT_ROOTFS)
+	if (mp->mnt_flag & MNT_ROOTFS) {
+		mtx_unlock(&Giant);
 		return (EINVAL);
-	mtx_lock(&Giant);
+	}
 	error = dounmount(mp, uap->flags, td);
 	mtx_unlock(&Giant);
 	return (error);

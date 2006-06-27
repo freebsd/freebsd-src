@@ -79,9 +79,9 @@
 				    int flags); }
 19	AUE_LSEEK	OBSOL	olseek
 20	AUE_GETPID	MNOPROTO { pid_t getpid(void); }
-21	AUE_MOUNT	NOPROTO { int mount(char *type, char *path, \
+21	AUE_MOUNT	MNOPROTO { int mount(char *type, char *path, \
 				    int flags, caddr_t data); }
-22	AUE_UMOUNT	NOPROTO { int unmount(char *path, int flags); }
+22	AUE_UMOUNT	MNOPROTO { int unmount(char *path, int flags); }
 23	AUE_SETUID	MNOPROTO { int setuid(uid_t uid); }
 24	AUE_GETUID	MNOPROTO { uid_t getuid(void); }
 25	AUE_GETEUID	MNOPROTO { uid_t geteuid(void); }
@@ -644,7 +644,7 @@
 375	AUE_NULL	UNIMPL	nfsclnt
 376	AUE_NULL	MNOPROTO	{ int eaccess(char *path, int flags); }
 377	AUE_NULL	UNIMPL	afs_syscall
-378	AUE_NULL	NOPROTO { int nmount(struct iovec *iovp, \
+378	AUE_NULL	MNOPROTO { int nmount(struct iovec *iovp, \
 				    unsigned int iovcnt, int flags); }
 379	AUE_NULL	MNOPROTO	{ int kse_exit(void); }
 380	AUE_NULL	MNOPROTO	{ int kse_wakeup(struct kse_mailbox *mbx); }
