@@ -30,7 +30,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#47 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#48 $
  */
 
 #include <sys/types.h>
@@ -691,7 +691,16 @@ au_to_process32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	token_t *t;
 	u_char *dptr = NULL;
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 13 * sizeof(u_int32_t));
+	if (tid->at_type == AU_IPv4)
+		GET_TOKEN_AREA(t, dptr, sizeof(u_char) +
+		    10 * sizeof(u_int32_t));
+	else if (tid->at_type == AU_IPv6)
+		GET_TOKEN_AREA(t, dptr, sizeof(u_char) +
+		    13 * sizeof(u_int32_t));
+	else {
+		errno = EINVAL;
+		return (NULL);
+	}
 	if (t == NULL)
 		return (NULL);
 
@@ -706,9 +715,11 @@ au_to_process32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	ADD_U_INT32(dptr, tid->at_port);
 	ADD_U_INT32(dptr, tid->at_type);
 	ADD_U_INT32(dptr, tid->at_addr[0]);
-	ADD_U_INT32(dptr, tid->at_addr[1]);
-	ADD_U_INT32(dptr, tid->at_addr[2]);
-	ADD_U_INT32(dptr, tid->at_addr[3]);
+	if (tid->at_type == AU_IPv6) {
+		ADD_U_INT32(dptr, tid->at_addr[1]);
+		ADD_U_INT32(dptr, tid->at_addr[2]);
+		ADD_U_INT32(dptr, tid->at_addr[3]);
+	}
 
 	return (t);
 }
@@ -969,7 +980,16 @@ au_to_subject32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	token_t *t;
 	u_char *dptr = NULL;
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 13 * sizeof(u_int32_t));
+	if (tid->at_type == AU_IPv4)
+		GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 10 *
+		    sizeof(u_int32_t));
+	else if (tid->at_type == AU_IPv6)
+		GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 13 *
+		    sizeof(u_int32_t));
+	else {
+		errno = EINVAL;
+		return (NULL);
+	}
 	if (t == NULL)
 		return (NULL);
 
@@ -984,9 +1004,11 @@ au_to_subject32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	ADD_U_INT32(dptr, tid->at_port);
 	ADD_U_INT32(dptr, tid->at_type);
 	ADD_U_INT32(dptr, tid->at_addr[0]);
-	ADD_U_INT32(dptr, tid->at_addr[1]);
-	ADD_U_INT32(dptr, tid->at_addr[2]);
-	ADD_U_INT32(dptr, tid->at_addr[3]);
+	if (tid->at_type == AU_IPv6) {
+		ADD_U_INT32(dptr, tid->at_addr[1]);
+		ADD_U_INT32(dptr, tid->at_addr[2]);
+		ADD_U_INT32(dptr, tid->at_addr[3]);
+	}
 
 	return (t);
 }

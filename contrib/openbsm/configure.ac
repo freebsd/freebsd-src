@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([OpenBSM], [1.0a6], [trustedbsd-audit@TrustesdBSD.org],[openbsm])
-AC_REVISION([$P4: //depot/projects/trustedbsd/openbsm/configure.ac#22 $])
+AC_INIT([OpenBSM], [1.0a7], [trustedbsd-audit@TrustesdBSD.org],[openbsm])
+AC_REVISION([$P4: //depot/projects/trustedbsd/openbsm/configure.ac#24 $])
 AC_CONFIG_SRCDIR([bin/auditreduce/auditreduce.c])
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_HEADER([config/config.h])
@@ -59,18 +59,18 @@ AC_FUNC_STRFTIME
 AC_CHECK_FUNCS([bzero ftruncate gettimeofday inet_ntoa memset strchr strerror strrchr strstr strtol strtoul])
 
 # sys/queue.h exists on most systems, but its capabilities vary a great deal.
-# test for LIST_FIRST, which appears to not exist in all of them, and is
-# necessary for OpenBSM.
+# test for LIST_FIRST and TAILQ_FOREACH_SAFE, which appears to not exist in
+# all of them, and are necessary for OpenBSM.
 AC_TRY_LINK([
 	#include <sys/queue.h>
 ], [
-	struct foo {
-		LIST_ENTRY(foo) foo_entries;
-	};
-	LIST_HEAD(, foo) foo_list;
-	struct foo *foo;
 
-	foo = LIST_FIRST(&foo_list);
+	#ifndef LIST_FIRST
+	#error LIST_FIRST missing
+	#endif
+	#ifndef TAILQ_FOREACH_SAFE
+	#error TAILQ_FOREACH_SAFE
+	#endif
 ], [
 AC_DEFINE(HAVE_FULL_QUEUE_H,, Define if queue.h includes LIST_FIRST)
 ])
