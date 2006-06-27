@@ -197,7 +197,6 @@ fork1(td, flags, pages, procp)
 	struct proc **procp;
 {
 	struct proc *p1, *p2, *pptr;
-	uid_t uid;
 	struct proc *newproc;
 	int ok, trypid;
 	static int curfail, pidchecked = 0;
@@ -308,7 +307,6 @@ fork1(td, flags, pages, procp)
 	 * processes, maxproc is the limit.
 	 */
 	sx_xlock(&allproc_lock);
-	uid = td->td_ucred->cr_ruid;
 	if ((nprocs >= maxproc - 10 &&
 	    suser_cred(td->td_ucred, SUSER_RUID) != 0) ||
 	    nprocs >= maxproc) {
@@ -320,10 +318,15 @@ fork1(td, flags, pages, procp)
 	 * Increment the count of procs running with this uid. Don't allow
 	 * a nonprivileged user to exceed their current limit.
 	 */
-	PROC_LOCK(p1);
-	ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1,
-		(uid != 0) ? lim_cur(p1, RLIMIT_NPROC) : 0);
-	PROC_UNLOCK(p1);
+	error = suser_cred(td->td_ucred, SUSER_RUID | SUSER_ALLOWJAIL);
+	if (error == 0)
+		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1, 0);
+	else {
+		PROC_LOCK(p1);
+		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1,
+		    lim_cur(p1, RLIMIT_NPROC));
+		PROC_UNLOCK(p1);
+	}
 	if (!ok) {
 		error = EAGAIN;
 		goto fail;
@@ -752,7 +755,7 @@ fail:
 	sx_sunlock(&proctree_lock);
 	if (ppsratecheck(&lastfail, &curfail, 1))
 		printf("maxproc limit exceeded by uid %i, please see tuning(7) and login.conf(5).\n",
-			uid);
+		    td->td_ucred->cr_ruid);
 	sx_xunlock(&allproc_lock);
 #ifdef MAC
 	mac_destroy_proc(newproc);
