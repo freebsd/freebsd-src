@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/test/bsm/generate.c#3 $
+ * $P4: //depot/projects/trustedbsd/openbsm/test/bsm/generate.c#4 $
  */
 
 /*
@@ -31,6 +31,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 
 #include <netinet/in.h>
@@ -267,6 +268,7 @@ static gid_t		 subject32_rgid = 0x09876543;
 static pid_t		 subject32_pid = 0x13243546;
 static au_asid_t	 subject32_sid = 0x97867564;
 static au_tid_t		 subject32_tid = { 0x16593746 };
+static au_tid_addr_t	 subject32_tid_addr = { 0x16593746 };
 
 static void
 generate_subject32_token(const char *directory, const char *token_filename)
@@ -298,6 +300,32 @@ generate_subject32_record(const char *directory, const char *record_filename)
 	write_record(directory, record_filename, subject32_token, AUE_NULL);
 }
 
+static void
+generate_subject32ex_token(const char *directory, const char *token_filename,
+    u_int32_t type)
+{
+	token_t *subject32ex_token;
+	char *buf;
+
+	buf = (char *)malloc(strlen(token_filename) + 6);
+	if (type == AU_IPv6) {
+		inet_pton(AF_INET6, "fe80::1", subject32_tid_addr.at_addr);
+		subject32_tid_addr.at_type = AU_IPv6;
+		sprintf(buf, "%s%s", token_filename, "-IPv6");
+	} else {
+		subject32_tid_addr.at_addr[0] = inet_addr("127.0.0.1");
+		subject32_tid_addr.at_type = AU_IPv4;
+		sprintf(buf, "%s%s", token_filename, "-IPv4");
+	}
+
+	subject32ex_token = au_to_subject32_ex(subject32_auid, subject32_euid,
+	    subject32_egid, subject32_ruid, subject32_rgid, subject32_pid,
+	    subject32_sid, &subject32_tid_addr);
+	if (subject32ex_token == NULL)
+		err(EX_UNAVAILABLE, "au_to_subject32_ex");
+	write_token(directory, buf, subject32ex_token);
+}
+
 static au_id_t		 process32_auid = 0x12345678;
 static uid_t		 process32_euid = 0x01234567;
 static gid_t		 process32_egid = 0x23456789;
@@ -306,6 +334,7 @@ static gid_t		 process32_rgid = 0x09876543;
 static pid_t		 process32_pid = 0x13243546;
 static au_asid_t	 process32_sid = 0x97867564;
 static au_tid_t		 process32_tid = { 0x16593746 };
+static au_tid_addr_t	 process32_tid_addr = { 0x16593746 };
 
 static void
 generate_process32_token(const char *directory, const char *token_filename)
@@ -335,6 +364,22 @@ generate_process32_record(const char *directory, const char *record_filename)
 	if (process32_token == NULL)
 		err(EX_UNAVAILABLE, "au_ti_process32");
 	write_record(directory, record_filename, process32_token, AUE_NULL);
+}
+
+static void
+generate_process32ex_token(const char *directory, const char *token_filename)
+{
+	token_t *process32ex_token;
+
+	process32_tid_addr.at_addr[0] = inet_addr("127.0.0.1");
+	process32_tid_addr.at_type = AU_IPv4;
+
+	process32ex_token = au_to_process32_ex(process32_auid, process32_euid,
+	    process32_egid, process32_ruid, process32_rgid, process32_pid,
+	    process32_sid, &process32_tid_addr);
+	if (process32ex_token == NULL)
+		err(EX_UNAVAILABLE, "au_to_process32_ex");
+	write_token(directory, token_filename, process32ex_token);
 }
 
 static char		 return32_status = 0xd7;
@@ -713,7 +758,10 @@ main(int argc, char *argv[])
 		generate_ipc_token(directory, "ipc_token");
 		generate_path_token(directory, "path_token");
 		generate_subject32_token(directory, "subject32_token");
+		generate_subject32ex_token(directory, "subject32ex_token", AU_IPv4);
+		generate_subject32ex_token(directory, "subject32ex_token", AU_IPv6);
 		generate_process32_token(directory, "process32_token");
+		generate_process32ex_token(directory, "process32ex_token");
 		generate_return32_token(directory, "return32_token");
 		generate_text_token(directory, "text_token");
 		generate_opaque_token(directory, "opaque_token");
@@ -736,7 +784,10 @@ main(int argc, char *argv[])
 		generate_ipc_token(directory, "ipc_record");
 		generate_path_token(directory, "path_record");
 		generate_subject32_token(directory, "subject32_record");
+		generate_subject32ex_token(directory, "subject32ex_record", AU_IPv4);
+		generate_subject32ex_token(directory, "subject32ex_record", AU_IPv6);
 		generate_process32_token(directory, "process32_record");
+		generate_process32ex_token(directory, "process32ex_token");
 		generate_return32_token(directory, "return32_record");
 		generate_text_token(directory, "text_record");
 		generate_opaque_token(directory, "opaque_record");
