@@ -41,6 +41,7 @@ struct msghdr;
 struct msqid_ds;
 struct rlimit;
 struct rusage;
+union semun;
 struct sockaddr;
 struct stat;
 struct kevent;
@@ -123,6 +124,8 @@ int	kern_rename(struct thread *td, char *from, char *to,
 int	kern_rmdir(struct thread *td, char *path, enum uio_seg pathseg);
 int	kern_sched_rr_get_interval(struct thread *td, pid_t pid,
 	    struct timespec *ts);
+int	kern_semctl(struct thread *td, int semid, int semnum, int cmd,
+	    union semun *arg, enum uio_seg bufseg);
 int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	    fd_set *fd_ex, struct timeval *tvp);
 int	kern_sendfile(struct thread *td, struct sendfile_args *uap,
