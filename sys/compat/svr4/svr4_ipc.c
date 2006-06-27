@@ -650,76 +650,61 @@ svr4_shmctl(td, v)
 	void *v;
 {
 	struct svr4_sys_shmctl_args *uap = v;
-	int error;
-	caddr_t sg = stackgap_init();
-	struct shmctl_args ap;
 	struct shmid_ds bs;
 	struct svr4_shmid_ds ss;
-
-	ap.shmid = uap->shmid;
+	size_t bufsize;
+	int cmd, error;
 
 	if (uap->buf != NULL) {
-		ap.buf = stackgap_alloc(&sg, sizeof (struct shmid_ds));
 		switch (uap->cmd) {
 		case SVR4_IPC_SET:
 		case SVR4_IPC_RMID:
 		case SVR4_SHM_LOCK:
 		case SVR4_SHM_UNLOCK:
-			error = copyin(uap->buf, (caddr_t) &ss,
-			    sizeof ss);
+			error = copyin(uap->buf, &ss, sizeof(ss));
 			if (error)
-				return error;
+				return (error);
 			svr4_to_bsd_shmid_ds(&ss, &bs);
-			error = copyout(&bs, ap.buf, sizeof bs);
-			if (error)
-				return error;
 			break;
 		default:
-			break;
+			return (EINVAL);
 		}
 	}
-	else
-		ap.buf = NULL;
-
 
 	switch (uap->cmd) {
 	case SVR4_IPC_STAT:
-		ap.cmd = IPC_STAT;
-		if ((error = shmctl(td, &ap)) != 0)
-			return error;
-		if (uap->buf == NULL)
-			return 0;
-		error = copyin(&bs, ap.buf, sizeof bs);
-		if (error)
-			return error;
-		bsd_to_svr4_shmid_ds(&bs, &ss);
-		return copyout(&ss, uap->buf, sizeof ss);
-
+		cmd = IPC_STAT;
+		break;
 	case SVR4_IPC_SET:
-		ap.cmd = IPC_SET;
-		return shmctl(td, &ap);
-
+		cmd = IPC_SET;
+		break;
 	case SVR4_IPC_RMID:
+		cmd = IPC_RMID;
+		break;
 	case SVR4_SHM_LOCK:
+		cmd = SHM_LOCK;
+		break;
 	case SVR4_SHM_UNLOCK:
-		switch (uap->cmd) {
-		case SVR4_IPC_RMID:
-			ap.cmd = IPC_RMID;
-			break;
-		case SVR4_SHM_LOCK:
-			ap.cmd = SHM_LOCK;
-			break;
-		case SVR4_SHM_UNLOCK:
-			ap.cmd = SHM_UNLOCK;
-			break;
-		default:
-			return EINVAL;
-		}
-		return shmctl(td, &ap);
-
+		cmd = SHM_UNLOCK;
+		break;
 	default:
-		return EINVAL;
+		return (EINVAL);
 	}
+		
+	error = kern_shmctl(td, uap->shmid, cmd, &bs, &bufsize);
+	if (error)
+		return (error);
+
+	switch (uap->cmd) {
+	case SVR4_IPC_STAT:
+		if (uap->buf != NULL) {
+			bsd_to_svr4_shmid_ds(&bs, &ss);
+			error = copyout(&ss, uap->buf, sizeof(ss));
+		}
+		break;
+	}
+
+	return (error);
 }
 
 int
