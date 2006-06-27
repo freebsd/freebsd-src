@@ -371,7 +371,7 @@ static int
 mpt_read_config_info_fc(struct mpt_softc *mpt)
 {
 	char *topology = NULL;
-	int rv, speed = 0;
+	int rv;
 
 	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_FC_PORT, 0,
 	    0, &mpt->mpt_fcport_page0.Header, FALSE, 5000);
@@ -392,12 +392,12 @@ mpt_read_config_info_fc(struct mpt_softc *mpt)
 		return (-1);
 	}
 
-	speed = mpt->mpt_fcport_page0.CurrentSpeed;
+	mpt->mpt_fcport_speed = mpt->mpt_fcport_page0.CurrentSpeed;
 
 	switch (mpt->mpt_fcport_page0.Flags &
 	    MPI_FCPORTPAGE0_FLAGS_ATTACH_TYPE_MASK) {
 	case MPI_FCPORTPAGE0_FLAGS_ATTACH_NO_INIT:
-		speed = 0;
+		mpt->mpt_fcport_speed = 0;
 		topology = "<NO LOOP>";
 		break;
 	case MPI_FCPORTPAGE0_FLAGS_ATTACH_POINT_TO_POINT:
@@ -413,7 +413,7 @@ mpt_read_config_info_fc(struct mpt_softc *mpt)
 		topology = "FL-Port";
 		break;
 	default:
-		speed = 0;
+		mpt->mpt_fcport_speed = 0;
 		topology = "?";
 		break;
 	}
@@ -425,7 +425,7 @@ mpt_read_config_info_fc(struct mpt_softc *mpt)
 	    mpt->mpt_fcport_page0.WWNN.Low,
 	    mpt->mpt_fcport_page0.WWPN.High,
 	    mpt->mpt_fcport_page0.WWPN.Low,
-	    speed);
+	    mpt->mpt_fcport_speed);
 
 	return (0);
 }
@@ -3017,26 +3017,42 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->version_num = 1;
 		cpi->target_sprt = 0;
 		cpi->hba_eng_cnt = 0;
-		cpi->max_lun = 7;
-		cpi->bus_id = cam_sim_bus(sim);
-		/* XXX Report base speed more accurately for FC/SAS, etc.*/
-		if (mpt->is_fc) {
-			/* XXX SHOULD BE BASED UPON IOC FACTS XXX XXX */
+		cpi->max_target = mpt->mpt_max_devices - 1;
+		/*
+		 * XXX: FC cards report MAX_DEVICES of 512- but we
+		 * XXX: seem to hang when going higher than 255.
+		 */
+		if (cpi->max_target > 255)
 			cpi->max_target = 255;
+		/*
+		 * XXX: VMware ESX reports > 16 devices and then dies
+		 * XXX: when we probe.
+		 */
+		if (mpt->is_spi && cpi->max_target > 15)
+			cpi->max_target = 15;
+		cpi->max_lun = 7;
+		cpi->initiator_id = mpt->mpt_ini_id;
+
+		cpi->bus_id = cam_sim_bus(sim);
+		/*
+		 * Actual speed for each device varies.
+		 *
+		 * The base speed is the speed of the underlying connection.
+		 * This is strictly determined for SPI (async, narrow). If
+		 * link is up for Fibre Channel, then speed can be gotten
+		 * from that.
+		 */
+		if (mpt->is_fc) {
 			cpi->hba_misc = PIM_NOBUSRESET;
-			cpi->initiator_id = mpt->mpt_ini_id;
-			cpi->base_transfer_speed = 100000;
+			cpi->base_transfer_speed =
+			    mpt->mpt_fcport_speed * 100000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
 		} else if (mpt->is_sas) {
-			cpi->max_target = 63;	/* XXX */
 			cpi->hba_misc = PIM_NOBUSRESET;
-			cpi->initiator_id = mpt->mpt_ini_id;
 			cpi->base_transfer_speed = 300000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
 		} else {
-			cpi->max_target = 15;
 			cpi->hba_misc = PIM_SEQSCAN;
-			cpi->initiator_id = mpt->mpt_ini_id;
 			cpi->base_transfer_speed = 3300;
 			cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 		}
@@ -3126,13 +3142,14 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		}
 		mpt_set_ccb_status(ccb, CAM_REQ_INPROG);
 		MPTLOCK_2_CAMLOCK(mpt);
-		break;
+		return;
 	}
 	case XPT_CONT_TARGET_IO:
 		CAMLOCK_2_MPTLOCK(mpt);
 		mpt_target_start_io(mpt, ccb);
 		MPTLOCK_2_CAMLOCK(mpt);
-		break;
+		return;
+
 	default:
 		ccb->ccb_h.status = CAM_REQ_INVALID;
 		break;

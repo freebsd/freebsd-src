@@ -551,7 +551,9 @@ struct mpt_softc {
 #define	mpt_disc_enable		cfg.spi._disc_enable
 		struct mpi_fc_cfg {
 			CONFIG_PAGE_FC_PORT_0 _port_page0;
+			uint32_t _port_speed;
 #define	mpt_fcport_page0	cfg.fc._port_page0
+#define	mpt_fcport_speed	cfg.fc._port_speed
 		} fc;
 	} cfg;
 
