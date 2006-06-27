@@ -42,6 +42,7 @@ SUBDIR=	async \
 	sppp \
 	${_sync_ar} \
 	${_sync_sr} \
+	tag \
 	tcpmss \
 	tee \
 	tty \
