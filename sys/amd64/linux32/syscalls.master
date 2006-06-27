@@ -75,10 +75,10 @@
 19	AUE_LSEEK	MSTD	{ int linux_lseek(l_uint fdes, l_off_t off, \
 				    l_int whence); }
 20	AUE_GETPID	MSTD	{ int linux_getpid(void); }
-21	AUE_MOUNT	STD	{ int linux_mount(char *specialfile, \
+21	AUE_MOUNT	MSTD	{ int linux_mount(char *specialfile, \
 				    char *dir, char *filesystemtype, \
 				    l_ulong rwflag, void *data); }
-22	AUE_UMOUNT	STD	{ int linux_oldumount(char *path); }
+22	AUE_UMOUNT	MSTD	{ int linux_oldumount(char *path); }
 23	AUE_SETUID	MSTD	{ int linux_setuid16(l_uid16_t uid); }
 24	AUE_GETUID	MSTD	{ int linux_getuid16(void); }
 25	AUE_SETTIMEOFDAY	MSTD	{ int linux_stime(void); }
@@ -111,7 +111,7 @@
 49	AUE_GETEUID	MSTD	{ int linux_geteuid16(void); }
 50	AUE_GETEGID	MSTD	{ int linux_getegid16(void); }
 51	AUE_ACCT	MNOPROTO { int acct(char *path); }
-52	AUE_UMOUNT	STD	{ int linux_umount(char *path, l_int flags); }
+52	AUE_UMOUNT	MSTD	{ int linux_umount(char *path, l_int flags); }
 53	AUE_NULL	UNIMPL	lock
 54	AUE_IOCTL	STD	{ int linux_ioctl(l_uint fd, l_uint cmd, \
 				    uintptr_t arg); }
