@@ -182,9 +182,10 @@ const char *conf;		/* Configuration file to use */
 struct ptime_data *dbg_timenow;	/* A "timenow" value set via -D option */
 struct ptime_data *timenow;	/* The time to use for checking at-fields */
 
-char hostname[MAXHOSTNAMELEN];	/* hostname */
-char daytime[16];		/* The current time in human readable form,
+#define	DAYTIME_LEN	16
+char daytime[DAYTIME_LEN];	/* The current time in human readable form,
 				 * used for rotation-tracking messages. */
+char hostname[MAXHOSTNAMELEN];	/* hostname */
 
 static struct conf_entry *get_worklist(char **files);
 static void parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
@@ -455,9 +456,9 @@ do_entry(struct conf_entry * ent)
 		else if ((ent->flags & CE_CREATE) && createlogs)
 			ent->firstcreate = 1;
 		else if (ent->flags & CE_CREATE)
-			strncpy(temp_reason, " (no -C option)", REASON_MAX);
+			strlcpy(temp_reason, " (no -C option)", REASON_MAX);
 		else if (createlogs)
-			strncpy(temp_reason, " (no C flag)", REASON_MAX);
+			strlcpy(temp_reason, " (no C flag)", REASON_MAX);
 
 		if (ent->firstcreate) {
 			if (verbose)
@@ -571,8 +572,7 @@ parse_args(int argc, char **argv)
 
 	timenow = ptime_init(NULL);
 	ptimeset_time(timenow, time(NULL));
-	(void)strncpy(daytime, ptimeget_ctime(timenow) + 4, 15);
-	daytime[15] = '\0';
+	strlcpy(daytime, ptimeget_ctime(timenow) + 4, DAYTIME_LEN);
 
 	/* Let's get our hostname */
 	(void)gethostname(hostname, sizeof(hostname));
