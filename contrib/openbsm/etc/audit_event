@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#10 $
+# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#11 $
 # $FreeBSD$
 #
 0:AUE_NULL:indir system call:no
@@ -315,6 +315,49 @@
 378:AUE_KEVENT:kevent(2):no
 379:AUE_FSYNC:fsync(2):fm
 380:AUE_NMOUNT:nmount(2):ad
+381:AUE_BDFLUSH:bdflush(2):ad
+382:AUE_SETFSUID:setfsuid(2):ot
+383:AUE_SETFSGID:setfsgid(2):ot
+384:AUE_PERSONALITY:personality(2):pc
+385:AUE_SCHED_GETSCHEDULER:getscheduler(2):ad
+386:AUE_SCHED_SETSCHEDULER:setscheduler(2):ad
+387:AUE_PRCTL:prctl(2):pc
+388:AUE_GETCWD:getcwd(2):pc
+389:AUE_CAPGET:capget(2):pc
+390:AUE_CAPSET:capset(2):pc
+391:AUE_PIVOT_ROOT:pivot_root(2):pc
+392:AUE_RTPRIO::rtprio(2):pc
+393:AUE_SCHED_GETPARAM:sched_getparam(2):ad
+394:AUE_SCHED_SETPARAM:sched_setparam(2):ad
+395:AUE_SCHED_GET_PRIORITY_MAX:sched_get_priority_max(2):ad
+396:AUE_SCHED_GET_PRIORITY_MIN:sched_get_priority_min(2):ad
+397:AUE_SCHED_RR_GET_INTERVAL:sched_rr_get_interval(2):ad
+398:AUE_ACL_GET_FILE:acl_get_file(2):fa
+399:AUE_ACL_SET_FILE:acl_set_file(2):fm
+400:AUE_ACL_GET_FD:acl_get_fd(2):fa
+401:AUE_ACL_SET_FD:acl_set_fd(2):fm
+402:AUE_ACL_DELETE_FILE:acl_delete_file(2):fm
+403:AUE_ACL_DELETE_FD:acl_delete_fd(2):fm
+404:AUE_ACL_CHECK_FILE:acl_aclcheck_file(2):fa
+405:AUE_ACL_CHECK_FD:acl_aclcheck_fd(2):fa
+406:AUE_ACL_GET_LINK:acl_get_link(2):fa
+407:AUE_ACL_SET_LINK:acl_set_link(2):fm
+408:AUE_ACL_DELETE_LINK:acl_delete_link(2):fm
+409:AUE_ACL_CHECK_LINK:acl_aclcheck_link(2):fa
+410:AUE_SYSARCH:sysarch(2):na
+411:AUE_EXTATTRCTL:extattrctl(2):fm
+412:AUE_EXTATTR_GET_FILE:extattr_get_file(2):fa
+413:AUE_EXTATTR_SET_FILE:extattr_set_file(2):fm
+414:AUE_EXTATTR_LIST_FILE:extattr_list_file(2):fa
+415:AUE_EXTATTR_DELETE_FILE:extattr_delete_file(2):fm
+416:AUE_EXTATTR_GET_FD:extattr_get_fd(2):fa
+417:AUE_EXTATTR_SET_FD:extattr_set_fd(2):fm
+418:AUE_EXTATTR_LIST_FD:extattr_list_fd(2):fa
+419:AUE_EXTATTR_DELETE_FD:extattr_delete_fd(2):fm
+420:AUE_EXTATTR_GET_LINK:extattr_get_link(2):fa
+421:AUE_EXTATTR_SET_LINK:extattr_set_link(2):fm
+422:AUE_EXTATTR_LIST_LINK:extattr_list_link(2):fa
+423:AUE_EXTATTR_DELETE_LINK:extattr_delete_link(2):fm
 6152:AUE_login:login - local:lo
 6153:AUE_logout:logout - local:lo
 6159:AUE_su:su(1):lo
