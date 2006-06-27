@@ -30,11 +30,11 @@ upgrade of OpenBSM generally involves the following steps:
 Normally, the CVS vendor import goes along the following lines:
 
   cd ~/p4/projects/trustedbsd/openbsm
-  cvs -d rwatson@repoman.FreeBSD.org:/home/ncvs -q import src/contrib/openbsm \
-        TrustedBSD OPENBSM_1_0_ALPHA_1
+  cvs -n -d rwatson@repoman.FreeBSD.org:/home/ncvs -q import \
+	src/contrib/openbsm TrustedBSD OPENBSM_1_0_ALPHA_1
 
-Replacing the version string as required.  Use the "-n" argument to CVS to
-do a test run.
+Replacing the version string as required.  Remove the "-n" argument once
+the import is tested in order to perform the actual import.
 
 Propagation of changes to src/sys/{bsm,security/audit} is something that
 requires careful coordination and attention to detail.  These files are
