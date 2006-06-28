@@ -152,9 +152,10 @@
 #define RL_HWREV_8169S         0x04000000
 #define RL_HWREV_8169_8110SB   0x10000000
 #define RL_HWREV_8169_8110SC   0x18000000
+#define RL_HWREV_8168          0x30000000
 #define RL_HWREV_8100E         0x30800000
 #define RL_HWREV_8101E         0x34000000
-#define RL_HWREV_8168          0x38000000
+#define RL_HWREV_8111          0x38000000
 #define RL_HWREV_8139          0x60000000
 #define RL_HWREV_8139A         0x70000000
 #define RL_HWREV_8139AG        0x70800000
