@@ -64,16 +64,16 @@ ShutdownCmd(int ac, char **av)
 		path = av[1];
 		break;
 	default:
-		return(CMDRTN_USAGE);
+		return (CMDRTN_USAGE);
 	}
 
 	/* Shutdown node */
 	if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
 	    NGM_SHUTDOWN, NULL, 0) < 0) {
 		warn("shutdown");
-		return(CMDRTN_ERROR);
+		return (CMDRTN_ERROR);
 	}
-	return(CMDRTN_OK);
+	return (CMDRTN_OK);
 }
 
 

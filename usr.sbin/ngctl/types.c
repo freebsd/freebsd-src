@@ -68,18 +68,18 @@ TypesCmd(int ac, char **av __unused)
 	case 1:
 		break;
 	default:
-		return(CMDRTN_USAGE);
+		return (CMDRTN_USAGE);
 	}
 
 	/* Get list of types */
 	if (NgSendMsg(csock, ".", NGM_GENERIC_COOKIE,
 	    NGM_LISTTYPES, NULL, 0) < 0) {
 		warn("send msg");
-		return(CMDRTN_ERROR);
+		return (CMDRTN_ERROR);
 	}
 	if (NgAllocRecvMsg(csock, &resp, NULL) < 0) {
 		warn("recv msg");
-		return(CMDRTN_ERROR);
+		return (CMDRTN_ERROR);
 	}
 
 	/* Show each type */

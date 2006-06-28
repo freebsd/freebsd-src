@@ -83,7 +83,7 @@ ListCmd(int ac, char **av)
 			break;
 		case '?':
 		default:
-			return(CMDRTN_USAGE);
+			return (CMDRTN_USAGE);
 			break;
 		}
 	}
@@ -95,18 +95,18 @@ ListCmd(int ac, char **av)
 	case 0:
 		break;
 	default:
-		return(CMDRTN_USAGE);
+		return (CMDRTN_USAGE);
 	}
 
 	/* Get list of nodes */
 	if (NgSendMsg(csock, ".", NGM_GENERIC_COOKIE,
 	    named_only ? NGM_LISTNAMES : NGM_LISTNODES, NULL, 0) < 0) {
 		warn("send msg");
-		return(CMDRTN_ERROR);
+		return (CMDRTN_ERROR);
 	}
 	if (NgAllocRecvMsg(csock, &resp, NULL) < 0) {
 		warn("recv msg");
-		return(CMDRTN_ERROR);
+		return (CMDRTN_ERROR);
 	}
 
 	/* Show each node */

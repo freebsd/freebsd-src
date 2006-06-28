@@ -76,15 +76,15 @@ MkPeerCmd(int ac, char **av)
 		snprintf(mkp.peerhook, sizeof(mkp.peerhook), "%s", av[3]);
 		break;
 	default:
-		return(CMDRTN_USAGE);
+		return (CMDRTN_USAGE);
 	}
 
 	/* Send message */
 	if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
 	    NGM_MKPEER, &mkp, sizeof(mkp)) < 0) {
 		warn("send msg");
-		return(CMDRTN_ERROR);
+		return (CMDRTN_ERROR);
 	}
-	return(CMDRTN_OK);
+	return (CMDRTN_OK);
 }
 
