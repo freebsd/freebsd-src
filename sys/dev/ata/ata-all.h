@@ -149,6 +149,8 @@
 /* SATA AHCI v1.0 register defines */
 #define ATA_AHCI_CAP                    0x00
 #define         ATA_AHCI_NPMASK         0x1f
+#define		ATA_AHCI_CAP_CLO	0x01000000
+#define		ATA_AHCI_CAP_64BIT	0x80000000
 
 #define ATA_AHCI_GHC                    0x04
 #define         ATA_AHCI_GHC_AE         0x80000000
