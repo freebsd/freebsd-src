@@ -1335,7 +1335,8 @@ acd_report_key(device_t dev, struct dvd_authinfo *ai)
     error = ata_atapicmd(dev, ccb, (caddr_t)d, length,
 			 ai->format == DVD_INVALIDATE_AGID ? 0 : ATA_R_READ,10);
     if (error) {
-	free(d, M_ACD);
+	if (length)
+	    free(d, M_ACD);
 	return error;
     }
 
@@ -1377,7 +1378,8 @@ acd_report_key(device_t dev, struct dvd_authinfo *ai)
     default:
 	error = EINVAL;
     }
-    free(d, M_ACD);
+    if (length)
+	free(d, M_ACD);
     return error;
 }
 
