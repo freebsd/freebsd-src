@@ -153,21 +153,21 @@ soalloc(int mflags)
 	struct socket *so;
 
 	so = uma_zalloc(socket_zone, mflags | M_ZERO);
-	if (so != NULL) {
+	if (so == NULL)
+		return (NULL);
 #ifdef MAC
-		if (mac_init_socket(so, mflags) != 0) {
-			uma_zfree(socket_zone, so);
-			return (NULL);
-		}
-#endif
-		SOCKBUF_LOCK_INIT(&so->so_snd, "so_snd");
-		SOCKBUF_LOCK_INIT(&so->so_rcv, "so_rcv");
-		TAILQ_INIT(&so->so_aiojobq);
-		mtx_lock(&so_global_mtx);
-		so->so_gencnt = ++so_gencnt;
-		++numopensockets;
-		mtx_unlock(&so_global_mtx);
+	if (mac_init_socket(so, mflags) != 0) {
+		uma_zfree(socket_zone, so);
+		return (NULL);
 	}
+#endif
+	SOCKBUF_LOCK_INIT(&so->so_snd, "so_snd");
+	SOCKBUF_LOCK_INIT(&so->so_rcv, "so_rcv");
+	TAILQ_INIT(&so->so_aiojobq);
+	mtx_lock(&so_global_mtx);
+	so->so_gencnt = ++so_gencnt;
+	++numopensockets;
+	mtx_unlock(&so_global_mtx);
 	return (so);
 }
 
