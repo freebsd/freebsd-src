@@ -477,8 +477,6 @@ void	sbdroprecord(struct sockbuf *sb);
 void	sbdroprecord_locked(struct sockbuf *sb);
 void	sbflush(struct sockbuf *sb);
 void	sbflush_locked(struct sockbuf *sb);
-void	sbinsertoob(struct sockbuf *sb, struct mbuf *m0);
-void	sbinsertoob_locked(struct sockbuf *sb, struct mbuf *m0);
 void	sbrelease(struct sockbuf *sb, struct socket *so);
 void	sbrelease_locked(struct sockbuf *sb, struct socket *so);
 int	sbreserve(struct sockbuf *sb, u_long cc, struct socket *so,
