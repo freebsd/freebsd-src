@@ -188,7 +188,7 @@ main(int ac, char *av[])
 		rtn = EX_OSERR;
 		break;
 	}
-	return(rtn);
+	return (rtn);
 }
 
 /*
@@ -205,10 +205,10 @@ ReadFile(FILE *fp)
 			continue;
 		if ((rtn = DoParseCommand(line)) != 0) {
 			warnx("line %d: error in file", num);
-			return(rtn);
+			return (rtn);
 		}
 	}
-	return(CMDRTN_OK);
+	return (CMDRTN_OK);
 }
 
 /*
@@ -280,7 +280,7 @@ DoInteractive(void)
 				break;
 		}
 	}
-	return(CMDRTN_QUIT);
+	return (CMDRTN_QUIT);
 }
 
 /*
@@ -298,7 +298,7 @@ DoParseCommand(char *line)
 	    av[++ac] = strtok(NULL, WHITESPACE));
 
 	/* Do command */
-	return(DoCommand(ac, av));
+	return (DoCommand(ac, av));
 }
 
 /*
@@ -311,12 +311,12 @@ DoCommand(int ac, char **av)
 	int rtn;
 
 	if (ac == 0 || *av[0] == 0)
-		return(CMDRTN_OK);
+		return (CMDRTN_OK);
 	if ((cmd = FindCommand(av[0])) == NULL)
-		return(CMDRTN_ERROR);
+		return (CMDRTN_ERROR);
 	if ((rtn = (*cmd->func)(ac, av)) == CMDRTN_USAGE)
 		warnx("usage: %s", cmd->cmd);
-	return(rtn);
+	return (rtn);
 }
 
 /*
@@ -331,16 +331,16 @@ FindCommand(const char *string)
 		if (MatchCommand(cmds[k], string)) {
 			if (found != -1) {
 				warnx("\"%s\": ambiguous command", string);
-				return(NULL);
+				return (NULL);
 			}
 			found = k;
 		}
 	}
 	if (found == -1) {
 		warnx("\"%s\": unknown command", string);
-		return(NULL);
+		return (NULL);
 	}
-	return(cmds[found]);
+	return (cmds[found]);
 }
 
 /*
@@ -383,17 +383,17 @@ ReadCmd(int ac, char **av)
 	case 2:
 		if ((fp = fopen(av[1], "r")) == NULL) {
 			warn("%s", av[1]);
-			return(CMDRTN_ERROR);
+			return (CMDRTN_ERROR);
 		}
 		break;
 	default:
-		return(CMDRTN_USAGE);
+		return (CMDRTN_USAGE);
 	}
 
 	/* Process it */
 	rtn = ReadFile(fp);
 	fclose(fp);
-	return(rtn);
+	return (rtn);
 }
 
 /*
@@ -419,7 +419,7 @@ HelpCmd(int ac, char **av)
 			*s = '\0';
 			printf("  %-10s %s\n", buf, cmd->desc);
 		}
-		return(CMDRTN_OK);
+		return (CMDRTN_OK);
 	default:
 		/* Show help on a specific command */
 		if ((cmd = FindCommand(av[1])) != NULL) {
@@ -462,7 +462,7 @@ HelpCmd(int ac, char **av)
 			}
 		}
 	}
-	return(CMDRTN_OK);
+	return (CMDRTN_OK);
 }
 
 /*
@@ -471,7 +471,7 @@ HelpCmd(int ac, char **av)
 static int
 QuitCmd(int ac __unused, char **av __unused)
 {
-	return(CMDRTN_QUIT);
+	return (CMDRTN_QUIT);
 }
 
 /*

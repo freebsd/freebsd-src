@@ -77,7 +77,7 @@ ShowCmd(int ac, char **av)
 			break;
 		case '?':
 		default:
-			return(CMDRTN_USAGE);
+			return (CMDRTN_USAGE);
 			break;
 		}
 	}
@@ -90,18 +90,18 @@ ShowCmd(int ac, char **av)
 		path = av[0];
 		break;
 	default:
-		return(CMDRTN_USAGE);
+		return (CMDRTN_USAGE);
 	}
 
 	/* Get node info and hook list */
 	if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
 	    NGM_LISTHOOKS, NULL, 0) < 0) {
 		warn("send msg");
-		return(CMDRTN_ERROR);
+		return (CMDRTN_ERROR);
 	}
 	if (NgAllocRecvMsg(csock, &resp, NULL) < 0) {
 		warn("recv msg");
-		return(CMDRTN_ERROR);
+		return (CMDRTN_ERROR);
 	}
 
 	/* Show node information */
@@ -133,7 +133,7 @@ ShowCmd(int ac, char **av)
 		}
 	}
 	free(resp);
-	return(CMDRTN_OK);
+	return (CMDRTN_OK);
 }
 
 
