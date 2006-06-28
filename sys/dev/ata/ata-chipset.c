@@ -59,6 +59,7 @@ static void ata_sata_phy_enable(struct ata_channel *ch);
 static void ata_sata_phy_event(void *context, int dummy);
 static int ata_sata_connect(struct ata_channel *ch);
 static void ata_sata_setmode(device_t dev, int mode);
+static int ata_ahci_chipinit(device_t dev);
 static int ata_ahci_allocate(device_t dev);
 static int ata_ahci_status(device_t dev);
 static int ata_ahci_begin_transaction(struct ata_request *request);
@@ -394,6 +395,54 @@ struct ata_ahci_cmd_list {
 
 
 static int
+ata_ahci_chipinit(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+    u_int32_t version;
+
+    /* reset AHCI controller */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
+	     ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_HR);
+    DELAY(1000000);
+    if (ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) & ATA_AHCI_GHC_HR) {
+	bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2, ctlr->r_res2);
+	device_printf(dev, "AHCI controller reset failure\n");
+	return ENXIO;
+    }
+
+    /* enable AHCI mode */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
+	     ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_AE);
+
+    /* get the number of HW channels */
+    ctlr->channels = (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_NPMASK)+1;
+
+    /* clear interrupts */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, ATA_INL(ctlr->r_res2, ATA_AHCI_IS));
+
+    /* enable AHCI interrupts */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
+	     ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_IE);
+
+    ctlr->reset = ata_ahci_reset;
+    ctlr->dmainit = ata_ahci_dmainit;
+    ctlr->allocate = ata_ahci_allocate;
+    ctlr->setmode = ata_sata_setmode;
+
+    /* enable PCI interrupt */
+    pci_write_config(dev, PCIR_COMMAND,
+		     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
+
+    /* announce we support the HW */
+    version = ATA_INL(ctlr->r_res2, ATA_AHCI_VS);
+    device_printf(dev,
+		  "AHCI Version %x%x.%x%x controller with %d ports detected\n",
+		  (version >> 24) & 0xff, (version >> 16) & 0xff,
+		  (version >> 8) & 0xff, version & 0xff, ctlr->channels);
+    return 0;
+}
+
+static int
 ata_ahci_allocate(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
@@ -459,7 +508,8 @@ ata_ahci_status(device_t dev)
     int offset = (ch->unit << 7);
     int tag = 0;
 
-    if ((action = ATA_INL(ctlr->r_res2, ATA_AHCI_IS)) & (1 << ch->unit)) {
+    action = ATA_INL(ctlr->r_res2, ATA_AHCI_IS);
+    if (action & (1 << ch->unit)) {
 	istatus = ATA_INL(ctlr->r_res2, ATA_AHCI_P_IS + offset);
 	issued = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CI + offset);
 	sstatus = ATA_INL(ctlr->r_res2, ATA_AHCI_P_SSTS + offset);
@@ -472,7 +522,7 @@ ata_ahci_status(device_t dev)
 
 	/* do we have cold connect surprise */
 	if (istatus & ATA_AHCI_P_IX_CPD) {
-	    printf("ata_ahci_intr status=%08x sstatus=%08x error=%08x\n",
+	    printf("ata_ahci_status status=%08x sstatus=%08x error=%08x\n",
 		   istatus, sstatus, error);
 	}
 
@@ -521,8 +571,8 @@ ata_ahci_begin_transaction(struct ata_request *request)
     struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
     struct ata_ahci_cmd_tab *ctp;
     struct ata_ahci_cmd_list *clp;
-    int fis_size, entries;
-    int tag = 0;
+    int tag = 0, entries = 0;
+    int fis_size;
 
     /* get a piece of the workspace for this request */
     ctp = (struct ata_ahci_cmd_tab *)
@@ -608,15 +658,37 @@ ata_ahci_reset(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     u_int32_t cmd;
-    int offset = (ch->unit << 7);
+    int timeout, offset = (ch->unit << 7);
 
     /* kill off all activity on this channel */
     cmd = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD + offset);
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset,
-	     cmd & ~(ATA_AHCI_P_CMD_CR | ATA_AHCI_P_CMD_FR |
-		     ATA_AHCI_P_CMD_FRE | ATA_AHCI_P_CMD_ST));
+	     cmd & ~(ATA_AHCI_P_CMD_FRE | ATA_AHCI_P_CMD_ST));
 
-    DELAY(500000);      /* XXX SOS this is not entirely wrong */
+    /* XXX SOS this is not entirely wrong */
+    timeout = 0;
+    do {
+	DELAY(1000);
+	if (timeout++ > 500)
+	    device_printf(dev, "stopping AHCI engine failed\n");
+	    break;
+	}
+    while (ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD + offset) & ATA_AHCI_P_CMD_CR);
+
+    /* issue Command List Override if supported */ 
+    if (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_CLO) {
+	cmd = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD + offset);
+	cmd |= ATA_AHCI_P_CMD_CLO;
+	ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset, cmd);
+	timeout = 0;
+	do {
+	    DELAY(1000);
+	    if (timeout++ > 500)
+		device_printf(dev, "executing CLO failed\n");
+		break;
+	    }
+	while (ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD+offset)&ATA_AHCI_P_CMD_CLO);
+    }
 
     /* spin up device */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset, ATA_AHCI_P_CMD_SUD);
@@ -1653,43 +1725,18 @@ ata_intel_chipinit(device_t dev)
 	ctlr->allocate = ata_intel_allocate;
 	ctlr->reset = ata_intel_reset;
 
-	/* if we have AHCI capability and BAR(5) as a memory resource */
-	if (ctlr->chip->cfg1 == AHCI) {
+	/* 
+	 * if we have AHCI capability and BAR(5) as a memory resource
+	 * and AHCI or RAID mode enabled in BIOS we go for AHCI mode
+	 */ 
+	if ((ctlr->chip->cfg1 == AHCI) &&
+	    (pci_read_config(dev, 0x90, 1) & 0xc0)) {
 	    ctlr->r_type2 = SYS_RES_MEMORY;
 	    ctlr->r_rid2 = PCIR_BAR(5);
 	    if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
 						       &ctlr->r_rid2,
-						       RF_ACTIVE))) {
-		/* is AHCI or RAID mode enabled in BIOS ? */
-		if (pci_read_config(dev, 0x90, 1) & 0xc0) {
-
-		    /* reset AHCI controller */
-		    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
-		    ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_HR);
-		    DELAY(1000000);
-		    if (ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) & ATA_AHCI_GHC_HR) {
-			bus_release_resource(dev, ctlr->r_type2, 
-					     ctlr->r_rid2, ctlr->r_res2);
-			device_printf(dev, "AHCI controller reset failure\n");
-			return ENXIO;
-    		    }
-
-		    /* enable AHCI mode */
-		    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC, ATA_AHCI_GHC_AE);
-
-		    /* get the number of HW channels */
-		    ctlr->channels = (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) &
-				      ATA_AHCI_NPMASK) + 1;
-
-		    /* enable AHCI interrupts */
-		    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
-			     ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) |
-			     ATA_AHCI_GHC_IE);
-		    ctlr->allocate = ata_ahci_allocate;
-		    ctlr->reset = ata_ahci_reset;
-		    ctlr->dmainit = ata_ahci_dmainit;
-		}
-	    }
+						       RF_ACTIVE)))
+		return ata_ahci_chipinit(dev);
 	}
 	ctlr->setmode = ata_sata_setmode;
 
@@ -2091,6 +2138,7 @@ static int
 ata_jmicron_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
+    int error;
 
     if (ata_setup_interrupt(dev))
 	return ENXIO;
@@ -2108,30 +2156,8 @@ ata_jmicron_chipinit(device_t dev)
     ctlr->r_rid2 = PCIR_BAR(5);
     if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
 						&ctlr->r_rid2, RF_ACTIVE))) {
-	/* reset AHCI controller */
-	ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
-		 ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_HR);
-	DELAY(1000000);
-	if (ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) & ATA_AHCI_GHC_HR) {
-	    bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2,ctlr->r_res2);
-	    device_printf(dev, "AHCI controller reset failure\n");
-	    return ENXIO;
-	}
-
-	/* enable AHCI mode */
-	ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
-		 ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_AE);
-
-	/* clear interrupts */
-	ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, ATA_INL(ctlr->r_res2, ATA_AHCI_IS));
-
-	/* enable AHCI interrupts */
-	ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
-		 ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_IE);
-
-	/* enable PCI interrupt */
-	pci_write_config(dev, PCIR_COMMAND,
-			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
+	if ((error = ata_ahci_chipinit(dev)))
+	    return error;
     }
 
     /* set the number of HW channels */ 
@@ -4612,7 +4638,7 @@ ata_via_ident(device_t dev)
     {{ ATA_VIA6410,   0x00, 0,      0x00,    ATA_UDMA6, "6410" },
      { ATA_VIA6420,   0x00, 7,      0x00,    ATA_SA150, "6420" },
      { ATA_VIA6421,   0x00, 6,      VIABAR,  ATA_SA150, "6421" },
-     { ATA_VIA8251,   0x00, 0,      VIAAHCI, ATA_SA150, "8251" },
+     { ATA_VIA8251,   0x00, 0,      VIAAHCI, ATA_SA300, "8251" },
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
 
@@ -4642,6 +4668,15 @@ ata_via_chipinit(device_t dev)
 	return ENXIO;
     
     if (ctlr->chip->max_dma >= ATA_SA150) {
+	if (ctlr->chip->cfg2 == VIAAHCI) {
+	    ctlr->r_type2 = SYS_RES_MEMORY;
+	    ctlr->r_rid2 = PCIR_BAR(5);
+	    if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+						       &ctlr->r_rid2,
+						       RF_ACTIVE))) {
+		 return ata_ahci_chipinit(dev);
+	    } 
+	}
 	ctlr->r_type2 = SYS_RES_IOPORT;
 	ctlr->r_rid2 = PCIR_BAR(5);
 	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
