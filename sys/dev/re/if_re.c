@@ -173,7 +173,9 @@ static struct rl_type re_devs[] = {
 	{ RT_VENDORID, RT_DEVICEID_8101E, RL_HWREV_8101E,
 		"RealTek 8101E PCIe 10/100baseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8168, RL_HWREV_8168,
-		"RealTek 8168B/8111B PCIe Gigabit Ethernet" },
+		"RealTek 8168B PCIe Gigabit Ethernet" },
+	{ RT_VENDORID, RT_DEVICEID_8168, RL_HWREV_8111,
+		"RealTek 8111B PCIe Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8169,
 		"RealTek 8169 Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8169S,
@@ -210,6 +212,7 @@ static struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8101, RL_8139, "8101"},
 	{ RL_HWREV_8100E, RL_8169, "8100E"},
 	{ RL_HWREV_8101E, RL_8169, "8101E"},
+	{ RL_HWREV_8111, RL_8169, "8111"},
 	{ 0, 0, NULL }
 };
 
