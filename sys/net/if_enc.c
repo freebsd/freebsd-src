@@ -86,24 +86,27 @@ static int	enc_ioctl(struct ifnet *, u_long, caddr_t);
 static int	enc_output(struct ifnet *ifp, struct mbuf *m,
 		    struct sockaddr *dst, struct rtentry *rt);
 static int	enc_clone_create(struct if_clone *, int);
-static void	enc_clone_destroy(struct ifnet *);
+static int	enc_clone_destroy(struct ifnet *);
 
 IFC_SIMPLE_DECLARE(enc, 1);
 
-static void
+static int
 enc_clone_destroy(struct ifnet *ifp)
 {
 
-	KASSERT(encif == ifp, ("%s: unknown ifnet", __func__));
-
 	mtx_lock(&enc_mtx);
-	encif = NULL;
+	/* do not allow enc0 to be destroyed */
+	if (encif == ifp) {
+		mtx_unlock(&enc_mtx);
+		return (EBUSY);
+	}
 	mtx_unlock(&enc_mtx);
 
 	bpfdetach(ifp);
 	if_detach(ifp);
 	if_free(ifp);
 
+	return (0);
 }
 
 static int
@@ -111,11 +114,6 @@ enc_clone_create(struct if_clone *ifc, int unit)
 {
 	struct ifnet *ifp;
 	struct enc_softc *sc;
-
-	mtx_lock(&enc_mtx);
-	if (encif != NULL)
-		return (EBUSY);
-	mtx_unlock(&enc_mtx);
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK|M_ZERO);
 	ifp = sc->sc_ifp = if_alloc(IFT_ENC);
@@ -134,7 +132,9 @@ enc_clone_create(struct if_clone *ifc, int unit)
 	bpfattach(ifp, DLT_ENC, sizeof(struct enchdr));
 
 	mtx_lock(&enc_mtx);
-	encif = ifp;
+	/* grab a pointer to enc0, ignore the rest */
+	if (encif == NULL)
+		encif = ifp;
 	mtx_unlock(&enc_mtx);
 
 	return (0);
@@ -182,6 +182,8 @@ enc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	int error = 0;
 
+	mtx_lock(&enc_mtx);
+
 	switch (cmd) {
 
 	case SIOCSIFFLAGS:
@@ -195,6 +197,8 @@ enc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	default:
 		error = EINVAL;
 	}
+
+	mtx_unlock(&enc_mtx);
 	return (error);
 }
 
@@ -204,11 +208,10 @@ ipsec_filter(struct mbuf **mp, int dir)
 	int error, i;
 	struct ip *ip;
 
-	mtx_lock(&enc_mtx);
-	if (encif == NULL || (encif->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		mtx_unlock(&enc_mtx);
+	KASSERT(encif != NULL, ("%s: encif is null", __func__));
+
+	if ((encif->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return (0);
-	}
 
 	/* Skip pfil(9) if no filters are loaded */
 	if (!(PFIL_HOOKED(&inet_pfil_hook)
@@ -216,7 +219,6 @@ ipsec_filter(struct mbuf **mp, int dir)
 	    || PFIL_HOOKED(&inet6_pfil_hook)
 #endif
 	    )) {
-		mtx_unlock(&enc_mtx);
 		return (0);
 	}
 
@@ -225,7 +227,6 @@ ipsec_filter(struct mbuf **mp, int dir)
 		*mp = m_pullup(*mp, i);
 		if (*mp == NULL) {
 			printf("%s: m_pullup failed\n", __func__);
-			mtx_unlock(&enc_mtx);
 			return (-1);
 		}
 	}
@@ -263,7 +264,6 @@ ipsec_filter(struct mbuf **mp, int dir)
 			printf("%s: unknown IP version\n", __func__);
 	}
 
-	mtx_unlock(&enc_mtx);
 	if (*mp == NULL)
 		return (error);
 	if (error != 0)
@@ -272,7 +272,6 @@ ipsec_filter(struct mbuf **mp, int dir)
 	return (error);
 
 bad:
-	mtx_unlock(&enc_mtx);
 	m_freem(*mp);
 	*mp = NULL;
 	return (error);
@@ -284,13 +283,11 @@ ipsec_bpf(struct mbuf *m, struct secasvar *sav, int af)
 	int flags;
 	struct enchdr hdr;
 
+	KASSERT(encif != NULL, ("%s: encif is null", __func__));
 	KASSERT(sav != NULL, ("%s: sav is null", __func__));
 
-	mtx_lock(&enc_mtx);
-	if (encif == NULL || (encif->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		mtx_unlock(&enc_mtx);
+	if ((encif->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
-	}
 
 	if (encif->if_bpf) {
 		flags = 0;
@@ -312,5 +309,4 @@ ipsec_bpf(struct mbuf *m, struct secasvar *sav, int af)
 
 		bpf_mtap2(encif->if_bpf, &hdr, sizeof(hdr), m);
 	}
-	mtx_unlock(&enc_mtx);
 }
