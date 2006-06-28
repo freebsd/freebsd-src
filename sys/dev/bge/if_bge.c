@@ -171,10 +171,17 @@ static struct bge_type {
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5753 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5753F },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5753M },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5754 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5754M },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5755 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5755M },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5780 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5780S },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5781 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5782 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5786 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5787 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5787M },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5788 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5789 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5901 },
@@ -223,6 +230,7 @@ static const struct bge_revision {
 	{ BGE_CHIPID_BCM5703_A1,	"BCM5703 A1" },
 	{ BGE_CHIPID_BCM5703_A2,	"BCM5703 A2" },
 	{ BGE_CHIPID_BCM5703_A3,	"BCM5703 A3" },
+	{ BGE_CHIPID_BCM5703_B0,	"BCM5703 B0" },
 	{ BGE_CHIPID_BCM5704_A0,	"BCM5704 A0" },
 	{ BGE_CHIPID_BCM5704_A1,	"BCM5704 A1" },
 	{ BGE_CHIPID_BCM5704_A2,	"BCM5704 A2" },
@@ -256,35 +264,18 @@ static const struct bge_revision {
  * that we don't know about have a shot at working.
  */
 static const struct bge_revision bge_majorrevs[] = {
-	{ BGE_ASICREV_BCM5700,
-	  "unknown BCM5700" },
-
-	{ BGE_ASICREV_BCM5701,
-	  "unknown BCM5701" },
-
-	{ BGE_ASICREV_BCM5703,
-	  "unknown BCM5703" },
-
-	{ BGE_ASICREV_BCM5704,
-	  "unknown BCM5704" },
-
-	{ BGE_ASICREV_BCM5705,
-	  "unknown BCM5705" },
-
-	{ BGE_ASICREV_BCM5750,
-	  "unknown BCM5750" },
-
-	{ BGE_ASICREV_BCM5714_A0,
-	  "unknown BCM5714" },
-
-	{ BGE_ASICREV_BCM5752,
-	  "unknown BCM5752" },
-
-	{ BGE_ASICREV_BCM5780,
-	  "unknown BCM5780" },
-
-	{ BGE_ASICREV_BCM5714,
-	  "unknown BCM5714" },
+	{ BGE_ASICREV_BCM5700,		"unknown BCM5700" },
+	{ BGE_ASICREV_BCM5701,		"unknown BCM5701" },
+	{ BGE_ASICREV_BCM5703,		"unknown BCM5703" },
+	{ BGE_ASICREV_BCM5704,		"unknown BCM5704" },
+	{ BGE_ASICREV_BCM5705,		"unknown BCM5705" },
+	{ BGE_ASICREV_BCM5750,		"unknown BCM5750" },
+	{ BGE_ASICREV_BCM5714_A0,	"unknown BCM5714" },
+	{ BGE_ASICREV_BCM5752,		"unknown BCM5752" },
+	{ BGE_ASICREV_BCM5780,		"unknown BCM5780" },
+	{ BGE_ASICREV_BCM5714,		"unknown BCM5714" },
+	{ BGE_ASICREV_BCM5755,		"unknown BCM5755" },
+	{ BGE_ASICREV_BCM5787,		"unknown BCM5787" },
 
 	{ 0, NULL }
 };
@@ -295,23 +286,32 @@ static const struct bge_revision bge_majorrevs[] = {
 	 (sc)->bge_asicrev == BGE_ASICREV_BCM5714_A0	|| \
 	 (sc)->bge_asicrev == BGE_ASICREV_BCM5780	|| \
 	 (sc)->bge_asicrev == BGE_ASICREV_BCM5714	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5752)
+	 (sc)->bge_asicrev == BGE_ASICREV_BCM5752	|| \
+	 (sc)->bge_asicrev == BGE_ASICREV_BCM5755	|| \
+	 (sc)->bge_asicrev == BGE_ASICREV_BCM5787)
 
 #define BGE_IS_575X_PLUS(sc)				   \
 	((sc)->bge_asicrev == BGE_ASICREV_BCM5750	|| \
 	 (sc)->bge_asicrev == BGE_ASICREV_BCM5714_A0	|| \
 	 (sc)->bge_asicrev == BGE_ASICREV_BCM5780	|| \
 	 (sc)->bge_asicrev == BGE_ASICREV_BCM5714	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5752)
+	 (sc)->bge_asicrev == BGE_ASICREV_BCM5752	|| \
+	 (sc)->bge_asicrev == BGE_ASICREV_BCM5755	|| \
+	 (sc)->bge_asicrev == BGE_ASICREV_BCM5787)
 
 #define BGE_IS_5714_FAMILY(sc)				   \
 	((sc)->bge_asicrev == BGE_ASICREV_BCM5714_A0	|| \
 	 (sc)->bge_asicrev == BGE_ASICREV_BCM5780	|| \
 	 (sc)->bge_asicrev == BGE_ASICREV_BCM5714)
 
-#define BGE_IS_JUMBO_CAPABLE(sc)			   \
-	((sc)->bge_asicrev != BGE_ASICREV_BCM5705	&& \
-	 (sc)->bge_asicrev != BGE_ASICREV_BCM5750)
+#define BGE_IS_JUMBO_CAPABLE(sc) \
+	((sc)->bge_asicrev == BGE_ASICREV_BCM5700	|| \
+	 (sc)->bge_asicrev == BGE_ASICREV_BCM5701	|| \
+	 (sc)->bge_asicrev == BGE_ASICREV_BCM5703	|| \
+	 (sc)->bge_asicrev == BGE_ASICREV_BCM5714	|| \
+	 (sc)->bge_asicrev == BGE_ASICREV_BCM5714_A0	|| \
+	 (sc)->bge_asicrev == BGE_ASICREV_BCM5780	|| \
+	 (sc)->bge_asicrev == BGE_ASICREV_BCM5704)
 
 const struct bge_revision * bge_lookup_rev(uint32_t);
 const struct bge_vendor * bge_lookup_vendor(uint16_t);
