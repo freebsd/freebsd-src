@@ -70,15 +70,15 @@ DebugCmd(int ac, char **av)
 		else if (!strcmp(av[1], "-"))
 			level = NgSetDebug(-1) - 1;
 		else if ((level = atoi(av[1])) < 0)
-			return(CMDRTN_USAGE);
+			return (CMDRTN_USAGE);
 		NgSetDebug(level);
 		break;
 	case 1:
 		printf("Current debug level is %d\n", NgSetDebug(-1));
 		break;
 	default:
-		return(CMDRTN_USAGE);
+		return (CMDRTN_USAGE);
 	}
-	return(CMDRTN_OK);
+	return (CMDRTN_OK);
 }
 
