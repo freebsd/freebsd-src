@@ -703,8 +703,8 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len)
 			 * out all the way, otherwise userland could get
 			 * confused.  Thus, we destroy the interface.
 			 */
-			vlan_unconfig(ifp);
 			ether_ifdetach(ifp);
+			vlan_unconfig(ifp);
 			if_free_type(ifp, IFT_ETHER);
 			free(ifv, M_VLAN);
 
@@ -725,13 +725,10 @@ vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	struct ifvlan *ifv = ifp->if_softc;
 	int unit = ifp->if_dunit;
 
-	vlan_unconfig(ifp);
-
-	ether_ifdetach(ifp);
+	ether_ifdetach(ifp);	/* first, remove it from system-wide lists */
+	vlan_unconfig(ifp);	/* now it can be unconfigured and freed */
 	if_free_type(ifp, IFT_ETHER);
-
 	free(ifv, M_VLAN);
-
 	ifc_free_unit(ifc, unit);
 
 	return (0);
@@ -1146,9 +1143,6 @@ vlan_unconfig_locked(struct ifnet *ifp)
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_link_state = LINK_STATE_UNKNOWN;
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-
-	/* Clear our MAC address. */
-	bzero(IF_LLADDR(ifp), ETHER_ADDR_LEN);
 
 	return (0);
 }
