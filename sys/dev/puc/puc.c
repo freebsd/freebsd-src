@@ -42,9 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <dev/puc/puc_bfe.h>
 #include <dev/puc/puc_bus.h>
 #include <dev/puc/puc_cfg.h>
+#include <dev/puc/puc_bfe.h>
 
 #define	PUC_ISRCCNT	5
 

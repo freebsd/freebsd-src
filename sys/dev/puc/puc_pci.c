@@ -75,8 +75,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <dev/puc/puc_bfe.h>
 #include <dev/puc/puc_cfg.h>
+#include <dev/puc/puc_bfe.h>
 
 static const struct puc_cfg *
 puc_pci_match(device_t dev, const struct puc_cfg *desc)

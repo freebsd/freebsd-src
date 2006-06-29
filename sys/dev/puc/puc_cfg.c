@@ -32,9 +32,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 
-#include <dev/puc/puc_bfe.h>
 #include <dev/puc/puc_bus.h>
 #include <dev/puc/puc_cfg.h>
+#include <dev/puc/puc_bfe.h>
 
 int
 puc_config(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port, intptr_t *r)
