@@ -136,20 +136,20 @@ module_register(const moduledata_t *data, linker_file_t container)
 	size_t namelen;
 	module_t newmod;
 
-	MOD_SLOCK;
+	MOD_XLOCK;
 	newmod = module_lookupbyname(data->name);
 	if (newmod != NULL) {
-		MOD_SUNLOCK;
+		MOD_XUNLOCK;
 		printf("module_register: module %s already exists!\n",
 		    data->name);
 		return (EEXIST);
 	}
-	MOD_SUNLOCK;
 	namelen = strlen(data->name) + 1;
 	newmod = malloc(sizeof(struct module) + namelen, M_MODULE, M_WAITOK);
-	if (newmod == NULL)
+	if (newmod == NULL) {
+		MOD_XUNLOCK;
 		return (ENOMEM);
-	MOD_XLOCK;
+	}
 	newmod->refs = 1;
 	newmod->id = nextid++;
 	newmod->name = (char *)(newmod + 1);
