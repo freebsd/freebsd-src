@@ -138,7 +138,7 @@ in6_pcbbind(inp, nam, cred)
 	if (inp->inp_lport || !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 		return (EINVAL);
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
-		wild = 1;
+		wild = INPLOOKUP_WILDCARD;
 	if (nam) {
 		int error;
 

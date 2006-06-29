@@ -651,7 +651,8 @@ findpcb:
 						next_hop->sin_port ?
 						    ntohs(next_hop->sin_port) :
 						    th->th_dport,
-						1, m->m_pkthdr.rcvif);
+						INPLOOKUP_WILDCARD,
+						m->m_pkthdr.rcvif);
 		}
 		/* Remove the tag from the packet.  We don't need it anymore. */
 		m_tag_delete(m, fwd_tag);
@@ -662,13 +663,15 @@ findpcb:
 			inp = in6_pcblookup_hash(&tcbinfo,
 						 &ip6->ip6_src, th->th_sport,
 						 &ip6->ip6_dst, th->th_dport,
-						 1, m->m_pkthdr.rcvif);
+						 INPLOOKUP_WILDCARD,
+						 m->m_pkthdr.rcvif);
 #endif
 		} else
 			inp = in_pcblookup_hash(&tcbinfo,
 						ip->ip_src, th->th_sport,
 						ip->ip_dst, th->th_dport,
-						1, m->m_pkthdr.rcvif);
+						INPLOOKUP_WILDCARD,
+						m->m_pkthdr.rcvif);
 #ifdef IPFIREWALL_FORWARD
 	}
 #endif /* IPFIREWALL_FORWARD */
