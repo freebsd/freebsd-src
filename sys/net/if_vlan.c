@@ -105,17 +105,15 @@ struct	ifvlan {
 #define	PARENT(ifv)	((ifv)->ifv_trunk->parent)
 	int	ifv_pflags;	/* special flags we have set on parent */
 	struct	ifv_linkmib {
-		int	ifvm_parent;
 		int	ifvm_encaplen;	/* encapsulation length */
 		int	ifvm_mtufudge;	/* MTU fudged by this much */
 		int	ifvm_mintu;	/* min transmission unit */
-		uint16_t ifvm_proto;	/* encapsulation ethertype */
 		uint16_t ifvm_tag;	/* tag to apply on packets leaving if */
 	}	ifv_mib;
-	SLIST_HEAD(__vlan_mchead, vlan_mc_entry) vlan_mc_listhead;
+	SLIST_HEAD(, vlan_mc_entry) vlan_mc_listhead;
 	LIST_ENTRY(ifvlan) ifv_list;
 };
-#define	ifv_tag	ifv_mib.ifvm_tag
+#define	ifv_tag		ifv_mib.ifvm_tag
 #define	ifv_encaplen	ifv_mib.ifvm_encaplen
 #define	ifv_mtufudge	ifv_mib.ifvm_mtufudge
 #define	ifv_mintu	ifv_mib.ifvm_mintu
@@ -177,7 +175,7 @@ static __inline struct ifvlan * vlan_gethash(struct ifvlantrunk *trunk,
 static	void trunk_destroy(struct ifvlantrunk *trunk);
 
 static	void vlan_start(struct ifnet *ifp);
-static	void vlan_ifinit(void *foo);
+static	void vlan_init(void *foo);
 static	void vlan_input(struct ifnet *ifp, struct mbuf *m);
 static	int vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr);
 static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
@@ -204,6 +202,7 @@ static	struct if_clone vlan_cloner = IFC_CLONE_INITIALIZER(VLANNAME, NULL,
 
 #ifndef VLAN_ARRAY
 #define HASH(n, m)	((((n) >> 8) ^ ((n) >> 4) ^ (n)) & (m))
+
 static void
 vlan_inithash(struct ifvlantrunk *trunk)
 {
@@ -627,7 +626,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len)
 	struct ifvlan *ifv;
 	struct ifnet *ifp;
 	struct ifnet *p;
-	u_char eaddr[6] = {0,0,0,0,0,0};
+	static const u_char eaddr[6];	/* 00:00:00:00:00:00 */
 
 	if ((p = vlan_clone_match_ethertag(ifc, name, &tag)) != NULL) {
 		ethertag = 1;
@@ -685,7 +684,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len)
 	ifp->if_linkmiblen = sizeof(ifv->ifv_mib);
 	/* NB: mtu is not set here */
 
-	ifp->if_init = vlan_ifinit;
+	ifp->if_init = vlan_init;
 	ifp->if_start = vlan_start;
 	ifp->if_ioctl = vlan_ioctl;
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
@@ -723,10 +722,8 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len)
 static int
 vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 {
-	int unit;
 	struct ifvlan *ifv = ifp->if_softc;
-
-	unit = ifp->if_dunit;
+	int unit = ifp->if_dunit;
 
 	vlan_unconfig(ifp);
 
@@ -744,9 +741,8 @@ vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
  * The ifp->if_init entry point for vlan(4) is a no-op.
  */
 static void
-vlan_ifinit(void *foo)
+vlan_init(void *foo __unused)
 {
-
 }
 
 /*
