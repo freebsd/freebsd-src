@@ -206,8 +206,6 @@ divert_packet(struct mbuf *m, int incoming)
 
 		/* Find IP address for receive interface */
 		TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
-			if (ifa->ifa_addr == NULL)
-				continue;
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			divsrc.sin_addr =

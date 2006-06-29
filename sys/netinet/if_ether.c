@@ -654,7 +654,7 @@ in_arpinput(m)
 	 * as a dummy address for the rest of the function.
 	 */
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
+		if (ifa->ifa_addr->sa_family == AF_INET) {
 			ia = ifatoia(ifa);
 			goto match;
 		}

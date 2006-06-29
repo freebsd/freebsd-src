@@ -494,8 +494,6 @@ MALLOC_DECLARE(M_IP6MADDR);
 do {									\
 	struct ifaddr *ifa;						\
 	TAILQ_FOREACH(ifa, &(ifp)->if_addrlist, ifa_list) {		\
-		if (!ifa->ifa_addr)					\
-			continue;					\
 		if (ifa->ifa_addr->sa_family == AF_INET6)		\
 			break;						\
 	}								\

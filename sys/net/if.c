@@ -581,12 +581,11 @@ if_purgeaddrs(struct ifnet *ifp)
 	struct ifaddr *ifa, *next;
 
 	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
-
-		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_LINK)
+		if (ifa->ifa_addr->sa_family == AF_LINK)
 			continue;
 #ifdef INET
 		/* XXX: Ugly!! ad hoc just for INET */
-		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
+		if (ifa->ifa_addr->sa_family == AF_INET) {
 			struct ifaliasreq ifr;
 
 			bzero(&ifr, sizeof(ifr));
@@ -599,7 +598,7 @@ if_purgeaddrs(struct ifnet *ifp)
 		}
 #endif /* INET */
 #ifdef INET6
-		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET6) {
+		if (ifa->ifa_addr->sa_family == AF_INET6) {
 			in6_purgeaddr(ifa);
 			/* ifp_addrhead is already updated */
 			continue;
@@ -2404,8 +2403,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 		 * the address change.
 		 */
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			if (ifa->ifa_addr != NULL &&
-			    ifa->ifa_addr->sa_family == AF_INET)
+			if (ifa->ifa_addr->sa_family == AF_INET)
 				arp_ifinit(ifp, ifa);
 		}
 #endif

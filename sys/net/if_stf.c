@@ -368,8 +368,6 @@ stf_getsrcifa6(ifp)
 	struct in_addr in;
 
 	TAILQ_FOREACH(ia, &ifp->if_addrlist, ifa_list) {
-		if (ia->ifa_addr == NULL)
-			continue;
 		if (ia->ifa_addr->sa_family != AF_INET6)
 			continue;
 		sin6 = (struct sockaddr_in6 *)ia->ifa_addr;
