@@ -591,6 +591,7 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd, union semun *arg,
 	struct semid_kernel *semakptr;
 	struct mtx *sema_mtxp;
 	u_short usval, count;
+	int semidx;
 
 	DPRINTF(("call to semctl(%d, %d, %d, 0x%x)\n",
 	    semid, semnum, cmd, arg));
@@ -601,6 +602,10 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd, union semun *arg,
 
 	switch(cmd) {
 	case SEM_STAT:
+		/*
+		 * For this command we assume semid is an array index
+		 * rather than an IPC id.
+		 */
 		if (semid < 0 || semid >= seminfo.semmni)
 			return (EINVAL);
 		semakptr = &sema[semid];
@@ -632,12 +637,12 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd, union semun *arg,
 		return (error);
 	}
 
-	semid = IPCID_TO_IX(semid);
-	if (semid < 0 || semid >= seminfo.semmni)
+	semidx = IPCID_TO_IX(semid);
+	if (semidx < 0 || semidx >= seminfo.semmni)
 		return (EINVAL);
 
-	semakptr = &sema[semid];
-	sema_mtxp = &sema_mtx[semid];
+	semakptr = &sema[semidx];
+	sema_mtxp = &sema_mtx[semidx];
 #ifdef MAC
 	mtx_lock(sema_mtxp);
 	error = mac_check_sysv_semctl(cred, semakptr, cmd);
@@ -674,7 +679,7 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd, union semun *arg,
 		mac_cleanup_sysv_sem(semakptr);
 #endif
 		SEMUNDO_LOCK();
-		semundo_clear(semid, -1);
+		semundo_clear(semidx, -1);
 		SEMUNDO_UNLOCK();
 		wakeup(semakptr);
 		break;
@@ -804,7 +809,7 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd, union semun *arg,
 		}
 		semakptr->u.sem_base[semnum].semval = arg->val;
 		SEMUNDO_LOCK();
-		semundo_clear(semid, semnum);
+		semundo_clear(semidx, semnum);
 		SEMUNDO_UNLOCK();
 		wakeup(semakptr);
 		break;
@@ -847,7 +852,7 @@ raced:
 			semakptr->u.sem_base[i].semval = usval;
 		}
 		SEMUNDO_LOCK();
-		semundo_clear(semid, -1);
+		semundo_clear(semidx, -1);
 		SEMUNDO_UNLOCK();
 		wakeup(semakptr);
 		break;
