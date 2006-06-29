@@ -957,6 +957,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 
+	now = sched_timestamp();
 	ke = td->td_kse;
 	kg = td->td_ksegrp;
 	ksq = KSEQ_SELF();
@@ -969,6 +970,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	if (td == PCPU_GET(idlethread)) {
 		TD_SET_CAN_RUN(td);
 	} else {
+		sched_update_runtime(ke, now);
 		/* We are ending our run so make our slot available again */
 		SLOT_RELEASE(td->td_ksegrp);
 		kseq_load_rem(ksq, ke);
@@ -999,16 +1001,14 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		 */
 		SLOT_USE(newtd->td_ksegrp);
 		newtd->td_kse->ke_flags |= KEF_DIDRUN;
+		newtd->td_kse->ke_timestamp = now;
 		TD_SET_RUNNING(newtd);
 		kseq_load_add(ksq, newtd->td_kse);
-		now = newtd->td_kse->ke_timestamp = sched_timestamp();
 	} else {
 		newtd = choosethread();
 		/* sched_choose sets ke_timestamp, just reuse it */
-		now = newtd->td_kse->ke_timestamp;
 	}
 	if (td != newtd) {
-		sched_update_runtime(ke, now);
 		ke->ke_lastran = tick;
 
 #ifdef	HWPMC_HOOKS
@@ -1074,9 +1074,9 @@ sched_wakeup(struct thread *td)
 	if (ke->ke_flags & KEF_SLEEP) {
 		ke->ke_flags &= ~KEF_SLEEP;
 		if (sched_is_timeshare(kg)) {
-			kseq = KSEQ_CPU(td->td_lastcpu);
-			now = sched_timestamp();
 			sched_commit_runtime(ke);
+			now = sched_timestamp();
+			kseq = KSEQ_CPU(td->td_lastcpu);
 #ifdef SMP
 			if (kseq != mykseq)
 				now = now - mykseq->ksq_last_timestamp +
