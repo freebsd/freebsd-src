@@ -1696,8 +1696,6 @@ in6_ifinit(ifp, ia, sin6, newhost)
 	 * and to validate the address if necessary.
 	 */
 	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
-		if (ifa->ifa_addr == NULL)
-			continue;	/* just for safety */
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		ifacount++;
@@ -1830,8 +1828,6 @@ in6ifa_ifpforlinklocal(ifp, ignoreflags)
 	struct ifaddr *ifa;
 
 	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
-		if (ifa->ifa_addr == NULL)
-			continue;	/* just for safety */
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (IN6_IS_ADDR_LINKLOCAL(IFA_IN6(ifa))) {
@@ -1857,8 +1853,6 @@ in6ifa_ifpwithaddr(ifp, addr)
 	struct ifaddr *ifa;
 
 	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
-		if (ifa->ifa_addr == NULL)
-			continue;	/* just for safety */
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (IN6_ARE_ADDR_EQUAL(addr, IFA_IN6(ifa)))

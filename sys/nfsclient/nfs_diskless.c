@@ -132,8 +132,8 @@ nfs_setup_diskless(void)
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			if ((ifa->ifa_addr->sa_family == AF_LINK) &&
-			    (sdl = ((struct sockaddr_dl *)ifa->ifa_addr))) {
+			if (ifa->ifa_addr->sa_family == AF_LINK) {
+				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 				if ((sdl->sdl_type == ourdl.sdl_type) &&
 				    (sdl->sdl_alen == ourdl.sdl_alen) &&
 				    !bcmp(LLADDR(sdl),

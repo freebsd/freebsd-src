@@ -393,28 +393,23 @@ tuninit(struct ifnet *ifp)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	getmicrotime(&ifp->if_lastchange);
 
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		if (ifa->ifa_addr == NULL)
-			error = EFAULT;
-			/* XXX: Should maybe return straight off? */
-		else {
 #ifdef INET
-			if (ifa->ifa_addr->sa_family == AF_INET) {
-			    struct sockaddr_in *si;
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family == AF_INET) {
+			struct sockaddr_in *si;
 
-			    si = (struct sockaddr_in *)ifa->ifa_addr;
-			    mtx_lock(&tp->tun_mtx);
-			    if (si->sin_addr.s_addr)
-				    tp->tun_flags |= TUN_IASET;
+			si = (struct sockaddr_in *)ifa->ifa_addr;
+			mtx_lock(&tp->tun_mtx);
+			if (si->sin_addr.s_addr)
+				tp->tun_flags |= TUN_IASET;
 
-			    si = (struct sockaddr_in *)ifa->ifa_dstaddr;
-			    if (si && si->sin_addr.s_addr)
-				    tp->tun_flags |= TUN_DSTADDR;
-			    mtx_unlock(&tp->tun_mtx);
-			}
-#endif
+			si = (struct sockaddr_in *)ifa->ifa_dstaddr;
+			if (si && si->sin_addr.s_addr)
+				tp->tun_flags |= TUN_DSTADDR;
+			mtx_unlock(&tp->tun_mtx);
 		}
 	}
+#endif
 	return (error);
 }
 
