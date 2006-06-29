@@ -1048,10 +1048,11 @@ bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
 
 	sdl = NULL;
 	TAILQ_FOREACH(ifa, &ifctx->ifp->if_addrhead, ifa_link)
-		if (ifa->ifa_addr->sa_family == AF_LINK &&
-		    (sdl = ((struct sockaddr_dl *) ifa->ifa_addr)) != NULL &&
-		    sdl->sdl_type == IFT_ETHER)
-			break;
+		if (ifa->ifa_addr->sa_family == AF_LINK) {
+			sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+			if (sdl->sdl_type == IFT_ETHER)
+				break;
+		}
 
 	if (sdl == NULL)
 		panic("bootpc: Unable to find HW address for %s",
