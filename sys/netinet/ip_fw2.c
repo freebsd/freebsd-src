@@ -574,8 +574,7 @@ search_ip6_addr_net (struct in6_addr * ip6_addr)
 	struct in6_addr copia;
 
 	TAILQ_FOREACH(mdc, &ifnet, if_link)
-		for (mdc2 = mdc->if_addrlist.tqh_first; mdc2;
-		    mdc2 = mdc2->ifa_list.tqe_next) {
+		TAILQ_FOREACH(mdc2, &mdc->if_addrlist, ifa_list) {
 			if (!mdc2->ifa_addr)
 				continue;
 			if (mdc2->ifa_addr->sa_family == AF_INET6) {
