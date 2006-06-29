@@ -43,6 +43,7 @@ COPTFLAGS+= ${_CPUCFLAGS}
 .if ${CC} == "icc"
 NOSTDINC= -X
 .else
+C_DIALECT= -std=c99
 NOSTDINC= -nostdinc
 .endif
 
@@ -80,7 +81,7 @@ INCLUDES+= -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/x
 
 .endif
 
-CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG}
+CFLAGS=	${COPTFLAGS} ${C_DIALECT} ${DEBUG} ${CWARNFLAGS}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
 .if ${CC} != "icc"
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
