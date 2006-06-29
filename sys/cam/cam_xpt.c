@@ -3500,8 +3500,7 @@ xpt_action(union ccb *start_ccb)
 
 		if ((crs->release_flags & RELSIM_ADJUST_OPENINGS) != 0) {
 
- 			if ((dev->inq_data.flags & SID_CmdQue) != 0) {
-
+ 			if (INQ_DATA_TQ_ENABLED(&dev->inq_data)) {
 				/* Don't ever go below one opening */
 				if (crs->openings > 0) {
 					xpt_dev_ccbq_resize(crs->ccb_h.path,
@@ -6031,7 +6030,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 #ifdef CAM_NEW_TRAN_CODE
 				xpt_devise_transport(path);
 #endif /* CAM_NEW_TRAN_CODE */
-				if ((inq_buf->flags & SID_CmdQue) != 0)
+				if (INQ_DATA_TQ_ENABLED(inq_buf))
 					softc->action = PROBE_MODE_SENSE;
 				else
 					softc->action = PROBE_SERIAL_NUM;
@@ -6456,7 +6455,7 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 
 	/* SCSI specific sanity checking */
 	if ((cpi.hba_inquiry & PI_TAG_ABLE) == 0
-	 || (inq_data->flags & SID_CmdQue) == 0
+	 || (INQ_DATA_TQ_ENABLED(inq_data)) == 0
 	 || (device->queue_flags & SCP_QUEUE_DQUE) != 0
 	 || (device->quirk->mintags == 0)) {
 		/*
@@ -6752,7 +6751,7 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 		}
 
 		if ((cpi.hba_inquiry & PI_TAG_ABLE) == 0
-		 || (inq_data->flags & SID_CmdQue) == 0
+	 	 || (INQ_DATA_TQ_ENABLED(inq_data)) == 0
 		 || (device->queue_flags & SCP_QUEUE_DQUE) != 0
 		 || (device->quirk->mintags == 0)) {
 			/*
