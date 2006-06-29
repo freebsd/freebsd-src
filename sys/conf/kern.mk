@@ -12,7 +12,7 @@ CWARNFLAGS=
 .else
 CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
-		${_wundef} -fformat-extensions -std=c99
+		${_wundef} -fformat-extensions
 .if !defined(NO_UNDEF)
 _wundef=	-Wundef
 .endif
