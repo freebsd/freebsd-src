@@ -608,7 +608,27 @@ trap(int vector, struct trapframe *tf)
 		break;
 	}
 
-	case IA64_VEC_GENERAL_EXCEPTION:
+	case IA64_VEC_GENERAL_EXCEPTION: {
+		int code;
+
+		if (!user)
+			trap_panic(vector, tf);
+
+		code = tf->tf_special.isr & (IA64_ISR_CODE & 0xf0ull);
+		switch (code) {
+		case 0x0:	/* Illegal Operation Fault. */
+			sig = ia64_emulate(tf, td);
+			break;
+		default:
+			sig = SIGILL;
+			break;
+		}
+		if (sig == 0)
+			goto out;
+		ucode = vector;
+		break;
+	}
+
 	case IA64_VEC_NAT_CONSUMPTION:
 	case IA64_VEC_SPECULATION:
 	case IA64_VEC_UNSUPP_DATA_REFERENCE:
