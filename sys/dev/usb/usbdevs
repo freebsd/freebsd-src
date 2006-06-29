@@ -499,6 +499,7 @@ vendor DELORME		0x1163	DeLorme
 vendor SERVERWORKS	0x1166	ServerWorks
 vendor ACERCM		0x1189	Acer Communications & Multimedia
 vendor SIERRA		0x1199	Sierra Wireless
+vendor PROLIFIC2	0x11f6	Prolific
 vendor TWINMOS		0x126f	TwinMOS
 vendor TSUNAMI		0x1241	Tsunami
 vendor CREATIVE2	0x1292	Creative Labs
@@ -1403,7 +1404,7 @@ product PROLIFIC PL2305		0x2305	Parallel printer
 product PROLIFIC ATAPI4		0x2307	ATAPI-4 Controller
 product PROLIFIC PL2501		0x2501	PL2501 Host-Host interface
 product PROLIFIC RSAQ3		0xaaa2	PL2303 Serial adapter (IODATA USB-RSAQ3)
-
+product PROLIFIC2 WSIM		0x2001  Willcom WSIM
 /* Putercom products */
 product PUTERCOM UPA100		0x047e	USB-1284 BRIDGE
 
