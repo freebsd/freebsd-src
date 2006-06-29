@@ -664,10 +664,9 @@ is_icmp6_query(int icmp6_type)
 }
 
 static void
-send_reject6(struct ip_fw_args *args, int code, u_short offset, u_int hlen)
+send_reject6(struct ip_fw_args *args, int code, u_int hlen)
 {
-	if (code == ICMP6_UNREACH_RST && offset == 0 &&
-	    args->f_id.proto == IPPROTO_TCP) {
+	if (code == ICMP6_UNREACH_RST && args->f_id.proto == IPPROTO_TCP) {
 		struct ip6_hdr *ip6;
 		struct tcphdr *tcp;
 		tcp_seq ack, seq;
@@ -1620,7 +1619,7 @@ send_pkt(struct ipfw_flow_id *id, u_int32_t seq, u_int32_t ack, int flags)
  * sends a reject message, consuming the mbuf passed as an argument.
  */
 static void
-send_reject(struct ip_fw_args *args, int code, u_short offset, int ip_len)
+send_reject(struct ip_fw_args *args, int code, int ip_len)
 {
 
 	if (code != ICMP_REJECT_RST) { /* Send an ICMP unreach */
@@ -1631,7 +1630,7 @@ send_reject(struct ip_fw_args *args, int code, u_short offset, int ip_len)
 			ip->ip_off = ntohs(ip->ip_off);
 		}
 		icmp_error(args->m, ICMP_UNREACH, code, 0L, 0);
-	} else if (offset == 0 && args->f_id.proto == IPPROTO_TCP) {
+	} else if (args->f_id.proto == IPPROTO_TCP) {
 		struct tcphdr *const tcp =
 		    L3HDR(struct tcphdr, mtod(args->m, struct ip *));
 		if ( (tcp->th_flags & TH_RST) == 0) {
@@ -3126,20 +3125,19 @@ check_body:
 				     is_icmp_query(ICMP(ulp))) &&
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
 				    !IN_MULTICAST(ntohl(dst_ip.s_addr))) {
-					send_reject(args, cmd->arg1,
-					    offset,ip_len);
+					send_reject(args, cmd->arg1, ip_len);
 					m = args->m;
 				}
 				/* FALLTHROUGH */
 #ifdef INET6
 			case O_UNREACH6:
 				if (hlen > 0 && is_ipv6 &&
+				    ((offset & IP6F_OFF_MASK) == 0) &&
 				    (proto != IPPROTO_ICMPV6 ||
 				     (is_icmp6_query(args->f_id.flags) == 1)) &&
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
 				    !IN6_IS_ADDR_MULTICAST(&args->f_id.dst_ip6)) {
-					send_reject6(args, cmd->arg1,
-					    offset, hlen);
+					send_reject6(args, cmd->arg1, hlen);
 					m = args->m;
 				}
 				/* FALLTHROUGH */
