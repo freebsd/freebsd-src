@@ -566,7 +566,7 @@ kseq_load_rem(struct kseq *kseq, struct kse *ke)
 {
 	kseq->ksq_load--;
 	if ((ke->ke_proc->p_flag & P_NOLOAD) == 0)
-		sched_tdcnt++;
+		sched_tdcnt--;
 }
 
 /*
@@ -875,11 +875,6 @@ sched_thread_priority(struct thread *td, u_char prio)
 			ke->ke_runq = ke->ke_kseq->ksq_curr;
 			krunq_add(ke->ke_runq, ke);
 		}
-		/*
-		 * Hold this kse on this cpu so that sched_prio() doesn't
-		 * cause excessive migration.  We only want migration to
-		 * happen as the result of a wakeup.
-		 */
 		adjustrunqueue(td, prio);
 	} else
 		td->td_priority = prio;
