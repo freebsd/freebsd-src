@@ -148,7 +148,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
 	 * will wrap around in less than 10 seconds at 100 Mbit/s on a
 	 * medium with MTU 1500.  See Steven M. Bellovin, "A Technique
 	 * for Counting NATted Hosts", Proc. IMW'02, available at
-	 * <http://www.research.att.com/~smb/papers/fnat.pdf>.
+	 * <http://www.cs.columbia.edu/~smb/papers/fnat.pdf>.
 	 */
 	if ((flags & (IP_FORWARDING|IP_RAWOUTPUT)) == 0) {
 		ip->ip_v = IPVERSION;
