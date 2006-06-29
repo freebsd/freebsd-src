@@ -393,8 +393,7 @@ tuninit(struct ifnet *ifp)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	getmicrotime(&ifp->if_lastchange);
 
-	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
-	     ifa = TAILQ_NEXT(ifa, ifa_link)) {
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr == NULL)
 			error = EFAULT;
 			/* XXX: Should maybe return straight off? */
