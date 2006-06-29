@@ -41,8 +41,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pccard/pccardvar.h>
 
-#include <dev/puc/puc_bfe.h>
 #include <dev/puc/puc_cfg.h>
+#include <dev/puc/puc_bfe.h>
 
 /* http://www.argosy.com.tw/product/sp320.htm */
 const struct puc_cfg puc_pccard_rscom = {
