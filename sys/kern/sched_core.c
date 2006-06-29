@@ -595,8 +595,6 @@ kseq_choose(struct kseq *kseq)
 	return krunq_choose(&kseq->ksq_idle);
 }
 
-extern unsigned long long cycles_2_ns(unsigned long long cyc);
-
 static inline uint64_t
 sched_timestamp(void)
 {
@@ -631,7 +629,7 @@ sched_calc_pri(struct ksegrp *kg)
 		pri = PROC_PRI(kg->kg_proc) - score;
 		if (pri < PUSER)
 			pri = PUSER;
-		if (pri > PUSER_MAX)
+		else if (pri > PUSER_MAX)
 			pri = PUSER_MAX;
 		return (pri);
 	}
@@ -1599,7 +1597,7 @@ sched_add(struct thread *td, int flags)
 			struct thread *running = pcpu_find(cpu)->pc_curthread;
 			if (ksq->ksq_curr == ke->ke_runq &&
 			    running->td_priority < td->td_priority) {
-				if (td->td_priority < PRI_MAX_ITHD)
+				if (td->td_priority <= PRI_MAX_ITHD)
 					ipi_selected(1 << cpu, IPI_PREEMPT);
 				else {
 					running->td_flags |= TDF_NEEDRESCHED;
