@@ -43,9 +43,9 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 
-#include <dev/puc/puc_bfe.h>
 #include <dev/puc/puc_bus.h>
 #include <dev/puc/puc_cfg.h>
+#include <dev/puc/puc_bfe.h>
 
 static puc_config_f puc_config_amc;
 static puc_config_f puc_config_cronyx;
