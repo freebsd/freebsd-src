@@ -383,8 +383,7 @@ atm_ifattach(struct ifnet *ifp)
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 #elif defined(__FreeBSD__) && (__FreeBSD__ > 2)
-	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa; 
-	    ifa = TAILQ_NEXT(ifa, ifa_link))
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 #elif defined(__FreeBSD__) || defined(__bsdi__)
 	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) 
 #endif
