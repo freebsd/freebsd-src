@@ -178,7 +178,7 @@ usage()
 }
 
 /*
- * Check that profiling is enabled and open any ncessary files.
+ * Check that profiling is enabled and open any necessary files.
  */
 int
 openfiles(system, kmemf, kvp)
