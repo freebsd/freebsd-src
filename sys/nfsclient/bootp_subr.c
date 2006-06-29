@@ -1047,9 +1047,7 @@ bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
 	/* Get HW address */
 
 	sdl = NULL;
-	for (ifa = TAILQ_FIRST(&ifctx->ifp->if_addrhead);
-	     ifa != NULL;
-	     ifa = TAILQ_NEXT(ifa, ifa_link))
+	TAILQ_FOREACH(ifa, &ifctx->ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_LINK &&
 		    (sdl = ((struct sockaddr_dl *) ifa->ifa_addr)) != NULL &&
 		    sdl->sdl_type == IFT_ETHER)
