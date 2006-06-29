@@ -599,7 +599,19 @@ struct scsi_inquiry_data
 #define SID_AENC	0x80
 #define SID_TrmIOP	0x40
 	u_int8_t additional_length;
-	u_int8_t reserved[2];
+	u_int8_t reserved;
+	u_int8_t spc2_flags;
+#define SPC2_SID_MChngr 	0x08
+#define SPC2_SID_MultiP 	0x10
+#define SPC2_SID_EncServ	0x40
+#define SPC2_SID_BQueue		0x80
+
+#define INQ_DATA_TQ_ENABLED(iqd)				\
+    ((SID_ANSI_REV(iqd) < SCSI_REV_SPC2)? ((iqd)->flags & SID_CmdQue) :	\
+    (((iqd)->flags & SID_CmdQue) && !((iqd)->spc2_flags & SPC2_SID_BQueue)) || \
+    (!((iqd)->flags & SID_CmdQue) && ((iqd)->spc2_flags & SPC2_SID_BQueue)))
+
+
 	u_int8_t flags;
 #define	SID_SftRe	0x01
 #define	SID_CmdQue	0x02
