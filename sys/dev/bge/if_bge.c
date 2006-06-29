@@ -308,9 +308,6 @@ static const struct bge_revision bge_majorrevs[] = {
 	((sc)->bge_asicrev == BGE_ASICREV_BCM5700	|| \
 	 (sc)->bge_asicrev == BGE_ASICREV_BCM5701	|| \
 	 (sc)->bge_asicrev == BGE_ASICREV_BCM5703	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5714	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5714_A0	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5780	|| \
 	 (sc)->bge_asicrev == BGE_ASICREV_BCM5704)
 
 const struct bge_revision * bge_lookup_rev(uint32_t);
