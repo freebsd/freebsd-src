@@ -465,8 +465,6 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 
 		/* XXX lock? */
 		TAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
-			if (ia->ifa_addr == NULL)
-				continue;
 			if (ia->ifa_addr->sa_family != AF_INET)
 				continue;
 			if (cmd->p.ip.s_addr == ((struct sockaddr_in *)
@@ -575,8 +573,6 @@ search_ip6_addr_net (struct in6_addr * ip6_addr)
 
 	TAILQ_FOREACH(mdc, &ifnet, if_link)
 		TAILQ_FOREACH(mdc2, &mdc->if_addrlist, ifa_list) {
-			if (!mdc2->ifa_addr)
-				continue;
 			if (mdc2->ifa_addr->sa_family == AF_INET6) {
 				fdm = (struct in6_ifaddr *)mdc2;
 				copia = fdm->ia_addr.sin6_addr;

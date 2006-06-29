@@ -387,8 +387,8 @@ atm_ifattach(struct ifnet *ifp)
 #elif defined(__FreeBSD__) || defined(__bsdi__)
 	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) 
 #endif
-		if ((sdl = (struct sockaddr_dl *)ifa->ifa_addr) &&
-		    sdl->sdl_family == AF_LINK) {
+		if (ifa->ifa_addr->sa_family == AF_LINK) {
+			sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 			sdl->sdl_type = IFT_ATM;
 			sdl->sdl_alen = ifp->if_addrlen;
 #ifdef notyet /* if using ATMARP, store hardware address using the next line */
