@@ -1149,12 +1149,19 @@ fprintlog(struct filed *f, int flags, const char *msg)
 	f->f_time = now;
 
 	switch (f->f_type) {
+		int port;
 	case F_UNUSED:
 		dprintf("\n");
 		break;
 
 	case F_FORW:
-		dprintf(" %s\n", f->f_un.f_forw.f_hname);
+		port = (int)ntohs(((struct sockaddr_in *)
+			    (f->f_un.f_forw.f_addr->ai_addr))->sin_port);
+		if (port != 514) {
+			dprintf(" %s:%d\n", f->f_un.f_forw.f_hname, port);
+		} else {
+			dprintf(" %s\n", f->f_un.f_forw.f_hname);
+		}
 		/* check for local vs remote messages */
 		if (strcasecmp(f->f_prevhost, LocalHostName))
 			l = snprintf(line, sizeof line - 1,
@@ -1646,6 +1653,7 @@ init(int signo)
 	Initialized = 1;
 
 	if (Debug) {
+		int port;
 		for (f = Files; f; f = f->f_next) {
 			for (i = 0; i <= LOG_NFACILITIES; i++)
 				if (f->f_pmask[i] == INTERNAL_NOPRI)
@@ -1664,7 +1672,14 @@ init(int signo)
 				break;
 
 			case F_FORW:
-				printf("%s", f->f_un.f_forw.f_hname);
+				port = (int)ntohs(((struct sockaddr_in *)
+				    (f->f_un.f_forw.f_addr->ai_addr))->sin_port);
+				if (port != 514) {
+					printf("%s:%d",
+						f->f_un.f_forw.f_hname, port);
+				} else {
+					printf("%s", f->f_un.f_forw.f_hname);
+				}
 				break;
 
 			case F_PIPE:
@@ -1869,13 +1884,32 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 
 	switch (*p) {
 	case '@':
-		(void)strlcpy(f->f_un.f_forw.f_hname, ++p,
-			sizeof(f->f_un.f_forw.f_hname));
+		{
+			char *tp;
+			/*
+			 * scan forward to see if there is a port defined.
+			 * so we can't use strlcpy..
+			 */
+			i = sizeof(f->f_un.f_forw.f_hname);
+			tp = f->f_un.f_forw.f_hname;
+			p++;
+
+			while (*p && (*p != ':') && (i-- > 0)) {
+				*tp++ = *p++;
+			}
+			*tp = '\0';
+		}
+		/* See if we copied a domain and have a port */
+		if (*p == ':')
+			p++;
+		else
+			p = NULL;
+		
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = family;
 		hints.ai_socktype = SOCK_DGRAM;
-		error = getaddrinfo(f->f_un.f_forw.f_hname, "syslog", &hints,
-				    &res);
+		error = getaddrinfo(f->f_un.f_forw.f_hname,
+				p ? p: "syslog", &hints, &res); 
 		if (error) {
 			logerror(gai_strerror(error));
 			break;
