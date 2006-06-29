@@ -93,6 +93,7 @@ ia64/ia64/db_machdep.c		optional	ddb
 ia64/ia64/dump_machdep.c	standard
 ia64/ia64/efi.c			standard
 ia64/ia64/elf_machdep.c		standard
+ia64/ia64/emulate.c		standard
 ia64/ia64/exception.S		standard
 ia64/ia64/gdb_machdep.c		optional	gdb
 ia64/ia64/in_cksum.c		optional	inet
