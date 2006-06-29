@@ -4826,9 +4826,20 @@ table_handler(int ac, char *av[])
 		else
 			ent.value = 0;
 		if (do_cmd(do_add ? IP_FW_TABLE_ADD : IP_FW_TABLE_DEL,
-		    &ent, sizeof(ent)) < 0)
-			err(EX_OSERR, "setsockopt(IP_FW_TABLE_%s)",
-			    do_add ? "ADD" : "DEL");
+		    &ent, sizeof(ent)) < 0) {
+			/* If running silent, don't bomb out on these errors. */
+			if (!(do_quiet && (errno == (do_add ? EEXIST : ESRCH))))
+				err(EX_OSERR, "setsockopt(IP_FW_TABLE_%s)",
+				    do_add ? "ADD" : "DEL");
+			/* In silent mode, react to a failed add by deleting */
+			if (do_add) {
+				do_cmd(IP_FW_TABLE_DEL, &ent, sizeof(ent));
+				if (do_cmd(IP_FW_TABLE_ADD,
+				    &ent, sizeof(ent)) < 0)
+					err(EX_OSERR,
+				            "setsockopt(IP_FW_TABLE_ADD)");
+			}
+		}
 	} else if (_substrcmp(*av, "flush") == 0) {
 		if (do_cmd(IP_FW_TABLE_FLUSH, &ent.tbl, sizeof(ent.tbl)) < 0)
 			err(EX_OSERR, "setsockopt(IP_FW_TABLE_FLUSH)");

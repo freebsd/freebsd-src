@@ -232,7 +232,8 @@ commands in a script
 .Ql sh\ /etc/rc.firewall ) ,
 or by processing a file of many
 .Nm
-rules across a remote login session.
+rules across a remote login session. It also stops a table add or delete
+from failing if the entry already exists or is not present.
 If a
 .Cm flush
 is performed in normal (verbose) mode (with the default kernel
