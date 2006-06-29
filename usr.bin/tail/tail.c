@@ -60,7 +60,7 @@ static const char sccsid[] = "@(#)tail.c	8.1 (Berkeley) 6/6/93";
 
 #include "extern.h"
 
-int Fflag, fflag, rflag, rval, no_files;
+int Fflag, fflag, qflag, rflag, rval, no_files;
 const char *fname;
 
 file_info_t *files;
@@ -114,7 +114,7 @@ main(int argc, char *argv[])
 
 	obsolete(argv);
 	style = NOTSET;
-	while ((ch = getopt(argc, argv, "Fb:c:fn:r")) != -1)
+	while ((ch = getopt(argc, argv, "Fb:c:fn:qr")) != -1)
 		switch(ch) {
 		case 'F':	/* -F is superset of (and implies) -f */
 			Fflag = fflag = 1;
@@ -130,6 +130,9 @@ main(int argc, char *argv[])
 			break;
 		case 'n':
 			ARG(1, FLINES, RLINES);
+			break;
+		case 'q':
+			qflag = 1;
 			break;
 		case 'r':
 			rflag = 1;
@@ -199,7 +202,7 @@ main(int argc, char *argv[])
 				ierr();
 				continue;
 			}
-			if (argc > 1) {
+			if (argc > 1 && !qflag) {
 				(void)printf("%s==> %s <==\n",
 				    first ? "" : "\n", fname);
 				first = 0;
