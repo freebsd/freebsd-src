@@ -700,7 +700,7 @@ sioprobe(dev, xrid, rclk, noprobe)
 			device_set_softc(dev, NULL);
 			free(com, M_DEVBUF);
 		}
-		return (result);
+		return (result == 0 ? BUS_PROBE_DEFAULT : result);
 	}
 
 	/*
@@ -777,7 +777,7 @@ sioprobe(dev, xrid, rclk, noprobe)
 		device_set_softc(dev, NULL);
 		free(com, M_DEVBUF);
 	}
-	return (result);
+	return (result == 0 ? BUS_PROBE_DEFAULT : result);
 }
 
 #ifdef COM_ESP
