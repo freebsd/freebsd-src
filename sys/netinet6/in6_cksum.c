@@ -153,7 +153,7 @@ in6_cksum(struct mbuf *m, u_int8_t nxt, u_int32_t off, u_int32_t len)
 	/*
 	 * Secondly calculate a summary of the first mbuf excluding offset.
 	 */
-	while (m != NULL && off > 0) {
+	while (off > 0) {
 		if (m->m_len <= off)
 			off -= m->m_len;
 		else
