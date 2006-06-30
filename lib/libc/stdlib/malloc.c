@@ -659,9 +659,6 @@ struct arena_s {
  * Data.
  */
 
-/* Used as a special "nil" return value for malloc(0). */
-static const int	nil;
-
 /* Number of CPUs. */
 static unsigned		ncpus;
 
@@ -1642,6 +1639,7 @@ arena_run_reg_dalloc(arena_run_t *run, arena_bin_t *bin, void *ptr, size_t size)
 #undef POW2_CASE
 #undef QUANTUM_CASE
 	assert(regind < bin->nregs);
+	assert(regind * size == diff);
 
 	elm = regind >> (SIZEOF_INT_2POW + 3);
 	if (elm < run->regs_minelm)
@@ -2239,7 +2237,6 @@ arena_salloc(const void *ptr)
 	arena_chunk_map_t mapelm;
 
 	assert(ptr != NULL);
-	assert(ptr != &nil);
 	assert(CHUNK_ADDR2BASE(ptr) != ptr);
 
 	/*
@@ -2320,7 +2317,6 @@ arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 	assert(arena->magic == ARENA_MAGIC);
 	assert(chunk->arena == arena);
 	assert(ptr != NULL);
-	assert(ptr != &nil);
 	assert(CHUNK_ADDR2BASE(ptr) != ptr);
 
 	pageind = (((uintptr_t)ptr - (uintptr_t)chunk) >> pagesize_2pow);
@@ -2353,6 +2349,7 @@ arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 		/* Medium allocation. */
 
 		size = mapelm.npages << pagesize_2pow;
+		assert((((uintptr_t)ptr) & (size - 1)) == 0);
 
 		if (opt_junk)
 			memset(ptr, 0x5a, size);
@@ -2815,7 +2812,6 @@ isalloc(const void *ptr)
 	arena_chunk_t *chunk;
 
 	assert(ptr != NULL);
-	assert(ptr != &nil);
 
 	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
 	if (chunk != ptr) {
@@ -2850,7 +2846,6 @@ iralloc(void *ptr, size_t size)
 	size_t oldsize;
 
 	assert(ptr != NULL);
-	assert(ptr != &nil);
 	assert(size != 0);
 
 	oldsize = isalloc(ptr);
@@ -2869,7 +2864,6 @@ idalloc(void *ptr)
 	arena_chunk_t *chunk;
 
 	assert(ptr != NULL);
-	assert(ptr != &nil);
 
 	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
 	if (chunk != ptr) {
@@ -3404,10 +3398,11 @@ malloc(size_t size)
 
 	if (size == 0) {
 		if (opt_sysv == false)
-			ret = (void *)&nil;
-		else
+			size = 1;
+		else {
 			ret = NULL;
-		goto RETURN;
+			goto RETURN;
+		}
 	}
 
 	ret = imalloc(size);
@@ -3486,10 +3481,11 @@ calloc(size_t num, size_t size)
 	num_size = num * size;
 	if (num_size == 0) {
 		if (opt_sysv == false)
-			ret = (void *)&nil;
-		else
+			num_size = 1;
+		else {
 			ret = NULL;
-		goto RETURN;
+			goto RETURN;
+		}
 	/*
 	 * Try to avoid division here.  We know that it isn't possible to
 	 * overflow during multiplication if neither operand uses any of the
@@ -3524,44 +3520,49 @@ realloc(void *ptr, size_t size)
 {
 	void *ret;
 
-	if (size != 0) {
-		if (ptr != &nil && ptr != NULL) {
-			assert(malloc_initialized);
-
-			ret = iralloc(ptr, size);
-
-			if (ret == NULL) {
-				if (opt_xmalloc) {
-					malloc_printf("%s: (malloc) Error in"
-					    " ralloc(%p, %zu): out of memory\n",
-					    _getprogname(), ptr, size);
-					abort();
-				}
-				errno = ENOMEM;
-			}
-		} else {
-			if (malloc_init())
-				ret = NULL;
-			else
-				ret = imalloc(size);
-
-			if (ret == NULL) {
-				if (opt_xmalloc) {
-					malloc_printf("%s: (malloc) Error in"
-					    " ralloc(%p, %zu): out of memory\n",
-					    _getprogname(), ptr, size);
-					abort();
-				}
-				errno = ENOMEM;
-			}
+	if (size == 0) {
+		if (opt_sysv == false)
+			size = 1;
+		else {
+			if (ptr != NULL)
+				idalloc(ptr);
+			ret = NULL;
+			goto RETURN;
 		}
-	} else {
-		if (ptr != &nil && ptr != NULL)
-			idalloc(ptr);
-
-		ret = (void *)&nil;
 	}
 
+	if (ptr != NULL) {
+		assert(malloc_initialized);
+
+		ret = iralloc(ptr, size);
+
+		if (ret == NULL) {
+			if (opt_xmalloc) {
+				malloc_printf("%s: (malloc) Error in"
+				    " realloc(%p, %zu): out of memory\n",
+				    _getprogname(), ptr, size);
+				abort();
+			}
+			errno = ENOMEM;
+		}
+	} else {
+		if (malloc_init())
+			ret = NULL;
+		else
+			ret = imalloc(size);
+
+		if (ret == NULL) {
+			if (opt_xmalloc) {
+				malloc_printf("%s: (malloc) Error in"
+				    " realloc(%p, %zu): out of memory\n",
+				    _getprogname(), ptr, size);
+				abort();
+			}
+			errno = ENOMEM;
+		}
+	}
+
+RETURN:
 	UTRACE(ptr, size, ret);
 	return (ret);
 }
@@ -3571,7 +3572,7 @@ free(void *ptr)
 {
 
 	UTRACE(ptr, 0, 0);
-	if (ptr != &nil && ptr != NULL) {
+	if (ptr != NULL) {
 		assert(malloc_initialized);
 
 		idalloc(ptr);
@@ -3592,10 +3593,7 @@ malloc_usable_size(const void *ptr)
 
 	assert(ptr != NULL);
 
-	if (ptr == &nil)
-		return (0);
-	else
-		return (isalloc(ptr));
+	return (isalloc(ptr));
 }
 
 /*
