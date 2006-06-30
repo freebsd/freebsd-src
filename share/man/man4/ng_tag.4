@@ -25,6 +25,7 @@
 .\" $FreeBSD$
 .\"
 .Dd June 10, 2006
+.Dt NG_TAG 4
 .Os
 .Sh NAME
 .Nm ng_tag
@@ -217,13 +218,13 @@ It is possible to do a simple L7 filtering by using
 tags in conjunction with
 .Xr ng_bpf 4
 traffic analyzer.
-Let us suppose we need to filter DirectConnect P2P network data traffic,
+Example below explains how to filter DirectConnect P2P network data traffic,
 which cannot be done by usual means as it uses random ports.
 It is known that such data connection always contains a TCP packet with
 6-byte payload string "$Send|".
-So we will use ipfw's
+So ipfw's
 .Cm netgraph
-action to divert all TCP packets to an
+action will be used to divert all TCP packets to an
 .Xr ng_bpf 4
 node which will check for the specified string and return non-matching
 packets to
@@ -234,17 +235,17 @@ node, which will set a tag and pass them back to
 .Xr ng_bpf 4
 node on a hook programmed to accept all packets and pass them back to
 .Xr ipfw 8 .
-We will use a script provided in
+A script provided in
 .Xr ng_bpf 4
-manual page for programming node.
+manual page will be used for programming node.
 Note that packets diverted from
 .Xr ipfw 8
 to Netgraph have no link-level header, so offsets in
 .Xr tcpdump 1
 expressions must be altered accordingly.
-Thus, we will have expression
+Thus, there will be expression
 .Dq Li "ether[40:2]=0x244c && ether[42:4]=0x6f636b20"
-on incoming from hook and empty expression to match all packets from
+on incoming hook and empty expression to match all packets from
 .Xr ng_tag 4 .
 .Pp
 So, this is
@@ -298,15 +299,15 @@ ngctl msg dcbpf: setprogram { thisHook=\e"matched\e" ifMatch=\e"ipfw\e" \e
 .Pp
 After finishing with
 .Xr netgraph 4
-nodes, add
+nodes,
 .Xr ipfw 8
-rules to enable packet flow:
+rules must be added to enable packet flow:
 .Bd -literal -offset 4n
 ipfw add 100 netgraph 41 tcp from any to any iplen 46
 ipfw add 110 reset tcp from any to any tagged 412
 .Ed
 .Pp
-Note: you should ensure that packets are returned to ipfw after processing
+Note: one should ensure that packets are returned to ipfw after processing
 inside
 .Xr netgraph 4 ,
 by setting appropriate
