@@ -723,7 +723,7 @@ thread_unlink(struct thread *td)
  * There are no threads in user mode. Threads in the kernel must be
  * allowed to continue until they get to the user boundary. They may even
  * copy out their return values and data before suspending. They may however be
- * accellerated in reaching the user boundary as we will wake up
+ * accelerated in reaching the user boundary as we will wake up
  * any sleeping threads that are interruptable. (PCATCH).
  */
 int
