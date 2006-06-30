@@ -85,8 +85,10 @@ CFLAGS+=	-DKLD_MODULE
 .if ${CC} == "icc"
 NOSTDINC=	-X
 .else
+C_DIALECT=	-std=c99
 NOSTDINC=	-nostdinc
 .endif
+CFLAGS+=	${C_DIALECT}
 CFLAGS:=	${CFLAGS:N-I*} ${NOSTDINC} -I- ${INCLMAGIC} ${CFLAGS:M-I*}
 .if defined(KERNBUILDDIR)
 CFLAGS+=	-DHAVE_KERNEL_OPTION_HEADERS -include ${KERNBUILDDIR}/opt_global.h
