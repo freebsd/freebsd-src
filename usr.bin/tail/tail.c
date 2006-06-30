@@ -332,6 +332,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: tail [-F | -f | -r] [-b # | -c # | -n #] [file ...]\n");
+	    "usage: tail [-F | -f | -r] [-q] [-b # | -c # | -n #]"
+	    " [file ...]\n");
 	exit(1);
 }
