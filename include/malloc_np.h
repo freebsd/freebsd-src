@@ -31,7 +31,11 @@
 
 #ifndef _MALLOC_NP_H_
 #define	_MALLOC_NP_H_
+#include <sys/cdefs.h>
+#include <sys/types.h>
 
+__BEGIN_DECLS
 size_t	malloc_usable_size(const void *ptr);
+__END_DECLS
 
 #endif /* _MALLOC_NP_H_ */
