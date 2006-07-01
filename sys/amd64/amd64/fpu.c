@@ -125,6 +125,10 @@ fpuinit(void)
 	mxcsr = __INITIAL_MXCSR__;
 	ldmxcsr(mxcsr);
 	fxsave(&fpu_cleanstate);
+	if (fpu_cleanstate.sv_env.en_mxcsr_mask)
+		cpu_mxcsr_mask = fpu_cleanstate.sv_env.en_mxcsr_mask;
+	else
+		cpu_mxcsr_mask = 0xFFBF;
 	start_emulating();
 	bzero(fpu_cleanstate.sv_fp, sizeof(fpu_cleanstate.sv_fp));
 	bzero(fpu_cleanstate.sv_xmm, sizeof(fpu_cleanstate.sv_xmm));
