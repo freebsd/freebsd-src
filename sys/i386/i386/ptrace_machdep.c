@@ -45,20 +45,21 @@ int
 cpu_ptrace(struct thread *td, int req, void *addr, int data)
 {
 #ifdef CPU_ENABLE_SSE
+	struct savexmm *fpstate;
 	int error;
 
 	if (!cpu_fxsr)
 		return (EINVAL);
 
+	fpstate = &td->td_pcb->pcb_save.sv_xmm;
 	switch (req) {
 	case PT_GETXMMREGS:
-		error = copyout(&td->td_pcb->pcb_save.sv_xmm, addr,
-		    sizeof(td->td_pcb->pcb_save.sv_xmm));
+		error = copyout(fpstate, addr, sizeof(*fpstate));
 		break;
 
 	case PT_SETXMMREGS:
-		error = copyin(addr, &td->td_pcb->pcb_save.sv_xmm,
-		    sizeof(td->td_pcb->pcb_save.sv_xmm));
+		error = copyin(addr, fpstate, sizeof(*fpstate));
+		fpstate->sv_env.en_mxcsr &= cpu_mxcsr_mask;
 		break;
 
 	default:
