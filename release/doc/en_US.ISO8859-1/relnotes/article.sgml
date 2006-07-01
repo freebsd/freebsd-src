@@ -366,11 +366,11 @@
       <para arch="i386,amd64">A new loader tunable
 	<varname>comconsole_speed</varname> to change
 	the serial console speed has been added.
-	If the previous stage boot loader requested a serial console
+	If the previous stage boot loader requested a serial console,
 	then the default speed is determined from the current serial port
-	speed, and otherwise it is set to 9600 or the value of
-	the kernel option <literal>BOOT_COMCONSOLE_SPEED</literal>
-	at compile time.  &merged;</para>
+	speed.  Otherwise it is set to 9600 or the value of
+	the <literal>BOOT_COMCONSOLE_SPEED</literal> kernel option.
+	&merged;</para>
 
       <!-- Above this line, order boot loader changes by keyword-->
 
@@ -391,7 +391,7 @@
 	&man.pccbb.4;, and &man.exca.4; drivers are now buildable
 	as kernel modules.</para>
 
-      <para>A &man.acpi.dock.4; driver has been added to provide
+      <para>An &man.acpi.dock.4; driver has been added to provide
         support for controlling laptop docking station functions via
         ACPI.</para>
 
@@ -416,9 +416,11 @@
 
       <para>Support for the PadLock Security Co-processor in VIA C3
 	processors has been added to the &man.crypto.9; subsystem.
+	More information can be found in the &man.padlock.4; manual
+	page.
 	&merged;</para>
 
-      <para>A bug which prevents the &man.ichsmb.4; kernel module
+      <para>A bug which prevented the &man.ichsmb.4; kernel module
 	from unloading has been fixed.</para>
 
       <para arch="i386,amd64">Dual-core processors (such as the Intel
@@ -440,7 +442,7 @@
 	or at runtime via &man.kldload.8; and releasing the active
 	keyboard.  &merged;</para>
 
-      <para arch="amd64,i386">The &man.kbdmux.4; driver has been included in the
+      <para arch="amd64,i386">The &man.kbdmux.4; driver is now included in the
 	<filename>GENERIC</filename> kernel by default.
 	Also, the <quote>Boot FreeBSD with USB keyboard</quote>
 	menu item in the boot loader menu has been removed
@@ -461,22 +463,22 @@
       <para arch="amd64">The smbios(4) driver support for amd64 has been
 	added.</para>
 
-      <para>The tnt4882(4) driver which supports National Instruments
-	PCI-GPIB card has been added.</para>
+      <para>The tnt4882(4) driver, which supports the National Instruments
+	PCI-GPIB card, has been added.</para>
 
       <para arch="alpha,amd64,i386,ia64,sparc64">The &man.uart.4; driver has been included in the
 	<filename>GENERIC</filename> kernel by default.
-	When both &man.sio.4; and &man.uart.4; can handle a serial port,
+	When both &man.sio.4; and &man.uart.4; can handle a given serial port,
 	&man.sio.4; will claim it.</para>
 
       <para>The &man.uart.4; driver now supports LOM (Lights Out Management)
-	and RSC (Remote System Control) devices as console.</para>
+	and RSC (Remote System Control) devices as consoles.</para>
 
       <para arch="i386">A new loader tunable
 	<varname>hw.apic.enable_extint</varname> has been added.
-	This tunable can be used not to mask the ExtINT pin on the first
-	I/O APIC.  At least one chipset for Intel Pentium III seems
-	to need this even though all of the pins in the 8259A's are masked.
+	This tunable can be used to disable masking of the ExtINT pin on the first
+	I/O APIC.  At least one chipset for the Intel Pentium III seems
+	to need this, even though all of the pins in the 8259As are masked.
 	The default is still to mask the ExtINT pin.</para>
 
       <para arch="i386">Support has been improved for
@@ -487,7 +489,7 @@
       <sect4 id="mm">
 	<title>Multimedia Support</title>
 
-	<para>The &man.agp.4; driver now supports ATI IGP chipsets.
+	<para>The &man.agp.4; driver now supports ATI AGP chipsets.
 	  &merged;</para>
 
 	<para>The new midi(4) driver which is based on NetBSD's one
