@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	newton@FreeBSD.org
-
 .PATH:	${.CURDIR}/../../${MACHINE_ARCH}/svr4 ${.CURDIR}/../../compat/svr4
 KMOD=	svr4
 SRCS=	svr4_sysent.c svr4_sysvec.c opt_compat.h opt_mac.h opt_svr4.h \
