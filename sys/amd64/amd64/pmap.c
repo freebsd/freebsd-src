@@ -3047,32 +3047,23 @@ pmap_ts_referenced(vm_page_t m)
 	pv_entry_t pv, pvf, pvn;
 	pmap_t pmap;
 	pt_entry_t *pte;
-	pt_entry_t v;
 	int rtval = 0;
 
 	if (m->flags & PG_FICTITIOUS)
 		return (rtval);
-
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
-
 		pvf = pv;
-
 		do {
 			pvn = TAILQ_NEXT(pv, pv_list);
-
 			TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-
 			TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
-
 			pmap = PV_PMAP(pv);
 			PMAP_LOCK(pmap);
 			pte = pmap_pte(pmap, pv->pv_va);
-
-			if (pte && ((v = pte_load(pte)) & PG_A) != 0) {
+			if (pte != NULL && (*pte & PG_A) != 0) {
 				atomic_clear_long(pte, PG_A);
 				pmap_invalidate_page(pmap, pv->pv_va);
-
 				rtval++;
 				if (rtval > 4) {
 					PMAP_UNLOCK(pmap);
@@ -3082,7 +3073,6 @@ pmap_ts_referenced(vm_page_t m)
 			PMAP_UNLOCK(pmap);
 		} while ((pv = pvn) != NULL && pv != pvf);
 	}
-
 	return (rtval);
 }
 
