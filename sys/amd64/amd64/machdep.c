@@ -1525,7 +1525,7 @@ set_fpregs_xmm(struct fpreg *fpregs, struct savefpu *sv_xmm)
 	penv_xmm->en_rip = penv_fpreg->en_rip;
 	penv_xmm->en_rdp = penv_fpreg->en_rdp;
 	penv_xmm->en_mxcsr = penv_fpreg->en_mxcsr;
-	penv_xmm->en_mxcsr_mask = penv_fpreg->en_mxcsr_mask;
+	penv_xmm->en_mxcsr_mask = penv_fpreg->en_mxcsr_mask & cpu_mxcsr_mask;
 
 	/* FPU registers */
 	for (i = 0; i < 8; ++i)
@@ -1652,6 +1652,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 static int
 set_fpcontext(struct thread *td, const mcontext_t *mcp)
 {
+	struct savefpu *fpstate;
 
 	if (mcp->mc_fpformat == _MC_FPFMT_NODEV)
 		return (0);
@@ -1667,7 +1668,9 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 		 * be called with interrupts disabled.
 		 * XXX obsolete on trap-16 systems?
 		 */
-		fpusetregs(td, (struct savefpu *)&mcp->mc_fpstate);
+		fpstate = (struct savefpu *)&mcp->mc_fpstate;
+		fpstate->sv_env.en_mxcsr &= cpu_mxcsr_mask;
+		fpusetregs(td, fpstate);
 	} else
 		return (EINVAL);
 	return (0);
