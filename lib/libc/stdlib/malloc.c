@@ -1562,84 +1562,83 @@ arena_run_reg_alloc(arena_run_t *run, arena_bin_t *bin)
 static inline void
 arena_run_reg_dalloc(arena_run_t *run, arena_bin_t *bin, void *ptr, size_t size)
 {
+	/*
+	 * To divide by a number D that is not a power of two we multiply
+	 * by (2^21 / D) and then right shift by 21 positions.
+	 *
+	 *   X / D
+	 *
+	 * becomes
+	 *
+	 *   (size_invs[(D >> QUANTUM_2POW_MIN) - 3] * D) >> SIZE_INV_SHIFT
+	 */
+#define SIZE_INV_SHIFT 21
+#define SIZE_INV(s) (((1 << SIZE_INV_SHIFT) / (s << QUANTUM_2POW_MIN)) + 1)
+	static const unsigned size_invs[] = {
+	    SIZE_INV(3),
+	    SIZE_INV(4), SIZE_INV(5), SIZE_INV(6), SIZE_INV(7),
+	    SIZE_INV(8), SIZE_INV(9), SIZE_INV(10), SIZE_INV(11),
+	    SIZE_INV(12),SIZE_INV(13), SIZE_INV(14), SIZE_INV(15),
+	    SIZE_INV(16),SIZE_INV(17), SIZE_INV(18), SIZE_INV(19),
+	    SIZE_INV(20),SIZE_INV(21), SIZE_INV(22), SIZE_INV(23),
+	    SIZE_INV(24),SIZE_INV(25), SIZE_INV(26), SIZE_INV(27),
+	    SIZE_INV(28),SIZE_INV(29), SIZE_INV(30), SIZE_INV(31)
+	};
 	unsigned diff, regind, elm, bit;
 
 	assert(run->magic == ARENA_RUN_MAGIC);
+	assert(((sizeof(size_invs)) / sizeof(unsigned)) + 3
+	    >= (SMALL_MAX_DEFAULT >> QUANTUM_2POW_MIN));
 
 	/*
-	 * Avoid doing division with a variable divisor if possible.  This
-	 * single operation can reduce allocator throughput by around 20%!
+	 * Avoid doing division with a variable divisor if possible.  Using
+	 * actual division here can reduce allocator throughput by over 20%!
 	 */
-#define POW2_CASE(p)							\
-		case (1 << (p)):					\
-			regind = diff >> (p);				\
-			break;
-#define QUANTUM_CASE(n)							\
-		case ((n) << QUANTUM_2POW_MIN):				\
-			regind = diff / ((n) << QUANTUM_2POW_MIN);	\
-			break;
-
-	/*
-	 * These assertions make sure that the switch statement matches
-	 * compile-time configuration.
-	 */
-	assert(tiny_min_2pow >= 1);
-	assert(QUANTUM_2POW_MIN >= 3 && QUANTUM_2POW_MIN <= 4);
-	assert(SMALL_MAX_2POW_DEFAULT == 9);
-
 	diff = (unsigned)((uintptr_t)ptr - (uintptr_t)run - bin->reg0_offset);
-	switch (size) {
-		POW2_CASE(1)
-		POW2_CASE(2)
-#if (QUANTUM_2POW_MIN > 3)
-		POW2_CASE(3)
-#endif
-		QUANTUM_CASE(1)
-		QUANTUM_CASE(2)
-		QUANTUM_CASE(3)
-		QUANTUM_CASE(4)
-		QUANTUM_CASE(5)
-		QUANTUM_CASE(6)
-		QUANTUM_CASE(7)
-		QUANTUM_CASE(8)
-		QUANTUM_CASE(9)
-		QUANTUM_CASE(10)
-		QUANTUM_CASE(11)
-		QUANTUM_CASE(12)
-		QUANTUM_CASE(13)
-		QUANTUM_CASE(14)
-		QUANTUM_CASE(15)
-		QUANTUM_CASE(16)
-		QUANTUM_CASE(17)
-		QUANTUM_CASE(18)
-		QUANTUM_CASE(19)
-		QUANTUM_CASE(20)
-		QUANTUM_CASE(21)
-		QUANTUM_CASE(22)
-		QUANTUM_CASE(23)
-		QUANTUM_CASE(24)
-		QUANTUM_CASE(25)
-		QUANTUM_CASE(26)
-		QUANTUM_CASE(27)
-		QUANTUM_CASE(28)
-		QUANTUM_CASE(29)
-		QUANTUM_CASE(30)
-		QUANTUM_CASE(31)
-		QUANTUM_CASE(32)
+	if ((size & (size - 1)) == 0) {
+		/*
+		 * log2_table allows fast division of a power of two in the
+		 * [1..128] range.
+		 *
+		 * (x / divisor) becomes (x >> log2_table[divisor - 1]).
+		 */
+		static const unsigned char log2_table[] = {
+		    0, 1, 0, 2, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 4,
+		    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5,
+		    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6,
+		    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7
+		};
 
-#if (QUANTUM_2POW_MIN <= 3)
-		POW2_CASE(9)
-#endif
-		POW2_CASE(10)
-		POW2_CASE(11)
-		POW2_CASE(12) /* Handle up to 8 kB pages. */
-		default:
+		if (size <= 128)
+			regind = (diff >> log2_table[size - 1]);
+		else if (size <= 32768)
+			regind = diff >> (8 + log2_table[(size >> 8) - 1]);
+		else {
+			/*
+			 * The page size is too large for us to use the lookup
+			 * table.  Use real division.
+			 */
 			regind = diff / size;
-	}
-#undef POW2_CASE
-#undef QUANTUM_CASE
+		}
+	} else if (size <= ((sizeof(size_invs) / sizeof(unsigned))
+	    << QUANTUM_2POW_MIN) + 2) {
+		regind = size_invs[(size >> QUANTUM_2POW_MIN) - 3] * diff;
+		regind >>= SIZE_INV_SHIFT;
+	} else {
+		/*
+		 * size_invs isn't large enough to handle this size class, so
+		 * calculate regind using actual division.  This only happens
+		 * if the user increases small_max via the 'S' runtime
+		 * configuration option.
+		 */
+		regind = diff / size;
+	};
+	assert(regind == diff / size);
 	assert(regind < bin->nregs);
-	assert(regind * size == diff);
 
 	elm = regind >> (SIZEOF_INT_2POW + 3);
 	if (elm < run->regs_minelm)
@@ -1647,6 +1646,8 @@ arena_run_reg_dalloc(arena_run_t *run, arena_bin_t *bin, void *ptr, size_t size)
 	bit = regind - (elm << (SIZEOF_INT_2POW + 3));
 	assert((run->regs_mask[elm] & (1 << bit)) == 0);
 	run->regs_mask[elm] |= (1 << bit);
+#undef SIZE_INV
+#undef SIZE_INV_SHIFT
 }
 
 static void
@@ -2278,8 +2279,7 @@ arena_ralloc(void *ptr, size_t size, size_t oldsize)
 		    == (QUANTUM_CEILING(oldsize) >> opt_quantum_2pow))
 			goto IN_PLACE;
 	} else {
-		if (oldsize > small_max &&
-		    pow2_ceil(size) == pow2_ceil(oldsize))
+		if (oldsize > small_max && pow2_ceil(size) == oldsize)
 			goto IN_PLACE;
 	}
 
@@ -2663,29 +2663,36 @@ static void *
 ipalloc(size_t alignment, size_t size)
 {
 	void *ret;
-	size_t pow2_size;
+	size_t alloc_size;
 
 	/*
-	 * Round up to the nearest power of two that is >= alignment and
-	 * >= size.
+	 * Take advantage of the fact that for each size class, every object is
+	 * aligned at the smallest power of two that is non-zero in the base
+	 * two representation of the size.  For example:
+	 *
+	 *   Size |   Base 2 | Minimum alignment
+	 *   -----+----------+------------------
+	 *     96 |  1100000 |  32
+	 *    144 | 10100000 |  32
+	 *    192 | 11000000 |  64
+	 *
+	 * Depending on runtime settings, it is possible that arena_malloc()
+	 * will further round up to a power of two, but that never causes
+	 * correctness issues.
 	 */
-	if (size > alignment)
-		pow2_size = pow2_ceil(size);
-	else
-		pow2_size = alignment;
-	pow2_size = QUANTUM_CEILING(pow2_size);
-	if (pow2_size < size) {
+	alloc_size = (size + (alignment - 1)) & (-alignment);
+	if (alloc_size < size) {
 		/* size_t overflow. */
 		return (NULL);
 	}
 
-	if (pow2_size <= arena_maxclass)
-		ret = arena_malloc(choose_arena(), pow2_size);
+	if (alloc_size <= arena_maxclass)
+		ret = arena_malloc(choose_arena(), alloc_size);
 	else {
 		if (alignment <= chunk_size)
 			ret = huge_malloc(size);
 		else {
-			size_t chunksize, alloc_size, offset;
+			size_t chunksize, offset;
 			chunk_node_t *node;
 
 			/*
