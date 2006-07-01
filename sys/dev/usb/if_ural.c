@@ -1746,7 +1746,7 @@ ural_set_chan(struct ural_softc *sc, struct ieee80211_channel *c)
 
 	/* dual-band RF */
 	case RAL_RF_5222:
-		for (i = 0; i < ural_rf5222[i].chan != chan; i++);
+		for (i = 0; ural_rf5222[i].chan != chan; i++);
 
 		ural_rf_write(sc, RAL_RF1, ural_rf5222[i].r1);
 		ural_rf_write(sc, RAL_RF2, ural_rf5222[i].r2);
