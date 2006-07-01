@@ -418,6 +418,15 @@ npx_attach(dev)
 		stop_emulating();
 		fpusave(&npx_cleanstate);
 		start_emulating();
+#ifdef CPU_ENABLE_SSE
+		if (cpu_fxsr) {
+			if (npx_cleanstate.sv_xmm.sv_env.en_mxcsr_mask)
+				cpu_mxcsr_mask = 
+			    	    npx_cleanstate.sv_xmm.sv_env.en_mxcsr_mask;
+			else
+				cpu_mxcsr_mask = 0xFFBF;
+		}
+#endif
 		npx_cleanstate_ready = 1;
 		intr_restore(s);
 	}
