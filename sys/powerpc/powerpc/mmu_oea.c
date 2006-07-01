@@ -1226,7 +1226,6 @@ moea_extract_and_hold(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	vm_page_t m;
         
 	m = NULL;
-	mtx_lock(&Giant);
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 	pvo = moea_pvo_find_va(pmap, va & ~ADDR_POFF, NULL);
@@ -1238,7 +1237,6 @@ moea_extract_and_hold(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	}
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
-	mtx_unlock(&Giant);
 	return (m);
 }
 
@@ -1598,13 +1596,10 @@ moea_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 	    ("moea_protect: non current pmap"));
 
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
-		mtx_lock(&Giant);
 		moea_remove(mmu, pm, sva, eva);
-		mtx_unlock(&Giant);
 		return;
 	}
 
-	mtx_lock(&Giant);
 	vm_page_lock_queues();
 	PMAP_LOCK(pm);
 	for (; sva < eva; sva += PAGE_SIZE) {
@@ -1636,7 +1631,6 @@ moea_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 	}
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(pm);
-	mtx_unlock(&Giant);
 }
 
 /*
