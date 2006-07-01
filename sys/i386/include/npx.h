@@ -93,7 +93,7 @@ struct  envxmm {
 	u_int16_t	en_fos;		/* floating operand segment selector */
 	u_int16_t	en_pad1;	/* padding */
 	u_int32_t	en_mxcsr;	/* SSE sontorol/status register */
-	u_int32_t	en_pad2;	/* padding */
+	u_int32_t	en_mxcsr_mask;	/* valid bits in mxcsr */
 };
 
 /* Contents of each SSE extended accumulator */
