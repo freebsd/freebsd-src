@@ -2,8 +2,6 @@
 #
 # $FreeBSD$
 
-MAINTAINER=	newton@freebsd.org
-
 all:
 	@echo "make sysent only"
 
