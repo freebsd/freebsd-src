@@ -175,12 +175,17 @@ cron_popen(program, type, e)
 				/* set our directory, uid and gid.  Set gid first,
 				 * since once we set uid, we've lost root privledges.
 				 */
-				setgid(e->gid);
+				if (setgid(e->gid) != 0)
+					_exit(ERROR_EXIT);
 # if defined(BSD)
-				initgroups(usernm, e->gid);
+				if (initgroups(usernm, e->gid) != 0)
+					_exit(ERROR_EXIT);
 # endif
-				setlogin(usernm);
-				setuid(e->uid);         /* we aren't root after this..*/
+				if (setlogin(usernm) != 0)
+					_exit(ERROR_EXIT);
+				if (setuid(e->uid) != 0)
+					_exit(ERROR_EXIT);
+				/* we aren't root after this..*/
 #if defined(LOGIN_CAP)
 			}
 			if (lc != NULL)
