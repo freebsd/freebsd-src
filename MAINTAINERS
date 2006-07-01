@@ -35,10 +35,6 @@ ahd(4)		gibbs	Pre-commit review requested.
 NEWCARD		imp	Pre-commit review requested.
 OLDCARD		imp	Pre-commit review requested.
 pci bus		imp,jhb	Pre-commit review requested.
-telnet		markm	Heads-up appreciated. Try not to break it.
-secure/*	markm	Heads-up appreciated. Try not to break it.
-kerberos5	nectar  Pre-commit review requested.
-heimdal		nectar	Pre-commit review requested.
 cdboot		jhb	Pre-commit review requested.
 pxeboot		jhb	Pre-commit review requested.
 witness		jhb	Pre-commit review requested.
@@ -91,8 +87,6 @@ drm		anholt	Just keep me informed of changes, try not to break it.
 libufs		jmallett	Willing to handle problems, help with work.
 fdc(4)		joerg	Just keep me informed of changes, try not to break it.
 sppp(4)		joerg	Just keep me informed of changes, try not to break it.
-libc		nectar	Opportuntity for pre-commit review appreciated for
-			nsdispatch(3) and its consumers.
 unifdef(1)	fanf	Pre-commit review requested.
 ntp         	roberto	Pre-commit review requested.
 inetd		dwmalone	Recommends pre-commit review.
@@ -147,12 +141,7 @@ bin/dd/Makefile:MAINTAINER=	green@FreeBSD.org
 games/fortune/datfiles/Makefile:MAINTAINER=	jkh
 gnu/usr.bin/man/apropos/Makefile:MAINTAINER= wosch
 sbin/dhclient/Makefile.inc:MAINTAINER=     mbr
-sys/compat/svr4/Makefile:MAINTAINER=	newton@freebsd.org
-sys/dev/bktr/CHANGELOG.TXT: * MAINTAINER = Roger Hardiman <roger@freebsd.org>
 sys/modules/3dfx/Makefile:MAINTAINER=	cokane@FreeBSD.org
-sys/modules/bktr/bktr_mem/Makefile:MAINTAINER=	roger@freebsd.org
-sys/modules/streams/Makefile:MAINTAINER=	newton@atdot.dotat.org
-sys/modules/svr4/Makefile:MAINTAINER=	newton@FreeBSD.org
 sys/modules/urio/Makefile:MAINTAINER=	Iwasa Kazmi <kzmi@ca2.so-net.ne.jp>
 tools/tools/sysdoc/Makefile:MAINTAINER=	trhodes@FreeBSD.org
 usr.bin/locate/Makefile:MAINTAINER= wosch
