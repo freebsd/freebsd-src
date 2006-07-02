@@ -1686,9 +1686,9 @@ pmap_collect(pmap_t locked_pmap, struct vpgqueues *vpq)
 				vm_page_flag_clear(m, PG_WRITEABLE);
 			m->md.pv_list_count--;
 			pmap_unuse_pt(pmap, va);
+			free_pv_entry(pmap, pv);
 			if (pmap != locked_pmap)
 				PMAP_UNLOCK(pmap);
-			free_pv_entry(locked_pmap, pv);
 		}
 	}
 	sched_unpin();
