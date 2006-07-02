@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 /*
  * The schedulable entity that can be given a context to run.
  * A process may have several of these. Probably one per processor
- * but posibly a few more. In this universe they are grouped
+ * but possibly a few more. In this universe they are grouped
  * with a KSEG that contains the priority and niceness
  * for the group.
  */
@@ -126,9 +126,9 @@ struct kg_sched {
 do {									\
 	kg->kg_avail_opennings++; 					\
 	CTR3(KTR_RUNQ, "kg %p(%d) Slot released (->%d)",		\
-	kg,								\
-	kg->kg_concurrency,						\
-	 kg->kg_avail_opennings);					\
+	    kg,								\
+	    kg->kg_concurrency,						\
+	    kg->kg_avail_opennings);					\
 /*	KASSERT((kg->kg_avail_opennings <= kg->kg_concurrency),		\
 	    ("slots out of whack"));*/					\
 } while (0)
@@ -137,9 +137,9 @@ do {									\
 do {									\
 	kg->kg_avail_opennings--; 					\
 	CTR3(KTR_RUNQ, "kg %p(%d) Slot used (->%d)",			\
-	kg,								\
-	kg->kg_concurrency,						\
-	 kg->kg_avail_opennings);					\
+	    kg,								\
+	    kg->kg_concurrency,						\
+	    kg->kg_avail_opennings);					\
 /*	KASSERT((kg->kg_avail_opennings >= 0),				\
 	    ("slots out of whack"));*/					\
 } while (0)
