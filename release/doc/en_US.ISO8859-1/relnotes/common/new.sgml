@@ -563,7 +563,7 @@
 
 	<para>The &man.ed.4; driver is now MPSAFE.</para>
 
-	<para>The &man.el.4; driver has been removed.</para>
+	<para>The &man.el.4; driver has been removed due to lack of use.</para>
 
 	<para>The &man.em.4; driver now supports big-endian
 	  architectures such as sparc64.  &merged;</para>
@@ -585,11 +585,12 @@
 	  architectures such as sparc64.</para>
 
 	<para>The &man.le.4; driver, which supports AMD Am7900 LANCE
-	  and Am79C9xx PCnet NICs and is based on NetBSD's implementation,
+	  and Am79C9xx PCnet NICs,
 	  has been added.  While the &man.lnc.4; driver also supports these
 	  NICs, this driver has several advantages over it such as
 	  MPSAFE, ALTQ, VLAN_MTU, ifmedia, and 32-bit DMA for PCI
-	  variants.  &merged;</para>
+	  variants.  This driver is based on NetBSD's implementation.
+	  &merged;</para>
 
 	<para>The &man.lge.4; driver is now MPSAFE. &merged;</para>
 
@@ -599,7 +600,7 @@
 
 	<para>The &man.my.4; driver is now MPSAFE. &merged;</para>
 
-	<para>The &man.my.4; driver now supports &man.altq.4;</para>
+	<para>The &man.my.4; driver now supports &man.altq.4;.</para>
 
 	<para arch="i386,amd64">The &man.mxge.4; driver,
 	  which supports Myricom Myri10GE 10 Gigabit Ethernet
@@ -649,14 +650,14 @@
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para>The &man.arp.8; retransmission algorithm has been
-	rewritten as that ARP requests are retransmitted without
+      <para>The &man.arp.4; retransmission algorithm has been
+	rewritten so that ARP requests are retransmitted without
 	suppression, while there is demand for such ARP entry.
 	Due to this change, a sysctl variable
 	<varname>net.link.ether.inet.host_down_time</varname>
 	has been removed.  &merged;</para>
 
-      <para>The &man.arp.8; now supports a sysctl variable
+      <para>The &man.arp.4; protocol now supports a sysctl variable
 	<varname>net.link.ether.inet.log_arp_permanent_modify</varname>
 	to suppress logging of attempts to modify
 	permanent ARP entries.  &merged;</para>
@@ -676,7 +677,7 @@
 	found in RFC 1701 and RFC 1702, now supports IPv6 over GRE.</para>
 
       <para>The &man.if.bridge.4; driver now supports
-	creating span ports, which transmit a copy of every frame
+	creating SPAN ports, which transmit a copy of every frame
 	received by the bridge.  This feature can be enabled
 	by using &man.ifconfig.8;.  &merged;</para>
 
@@ -691,15 +692,15 @@
         memberships (formerly 20) has been removed.</para>
 
       <para>The path MTU discovery for multicast packets in the &os;
-	&man.ip6.4; stack has been disabled by default because
-	notifying path MTU by a lot of routers in multicast
+	IPv6 stack has been disabled by default.
+	Path MTU notification from a large number of multicast routers
 	can be a kind of distributed Denial-of-Service attack to a router.
 	This feature can be re-enabled by using a new sysctl variable
 	<varname>net.inet6.ip6.mcast_pmtu</varname>.  &merged;</para>
 
       <para>The &man.ipfw.4; IP packet filter now supports IPv6.  &merged;</para>
 
-      <para>The &man.ipfw.4; now supports substitution of the action
+      <para>The &man.ipfw.4; firewall system now supports substitution of the action
 	argument with the value obtained from table lookup,
 	which allows some optimization of rulesets.
 	This is now applicable only to <literal>pipe</literal>,
@@ -778,25 +779,25 @@ pipe tablearg ip from table(1) to any</programlisting>
       <para>A new socket option <literal>IP_MINTTL</literal> has been added.
 	This may be used to set the minimum acceptable
 	TTL a packet must have when received on a socket.
-	All packets with a lower TTL are silently dropped,
-	and this works on already connected/connecting and
+	All packets with a lower TTL are silently dropped.
+	This works on already connected/connecting and
 	listening sockets for RAW, UDP, and TCP.  This option
-	is only really useful when set to 255 preventing packets
+	is only really useful when set to <literal>255</literal>, preventing packets
 	from outside the directly connected networks reaching
 	local listeners on sockets.  Also, this option allows
 	userland implementation of <quote>The Generalized TTL
 	  Security Mechanism (GTSM)</quote> found in RFC 3682.</para>
 
-      <para>The stealth forwarding now supports IPv6 as well as IPv4.
+      <para>Stealth forwarding now supports IPv6 as well as IPv4.
 	This behavior can be controlled by using a new sysctl variable
 	<varname>net.inet6.ip6.stealth</varname>.</para>
 
-      <para>A bug that <literal>IPV6_V6ONLY</literal> socket option
-	does not work for UDP has been fixed.</para>
+      <para>The <literal>IPV6_V6ONLY</literal> socket option
+	now works for UDP.</para>
 
       <para>The TCP bandwidth-delay product limiting feature has
 	been disabled when the RTT is below a certain threshold.
-	This optimization does not make sense on a LAN as it has
+	This optimization does not make sense on a LAN, as it has
 	trouble figuring out the maximal bandwidth due to the coarse
 	tick granularity.  A new sysctl variable
 	<varname>net.inet.tcp.inflight.rttthresh</varname> specifies
@@ -833,16 +834,16 @@ pipe tablearg ip from table(1) to any</programlisting>
 	Fasttrak TX4300.
 	&merged;</para>
 
-      <para>The &man.ata.4; driver now supports DMA for kernel crash dumps
-	and crash dumping to an &man.ataraid.4; device.
+      <para>The &man.ata.4; driver now supports DMA for kernel crash dumps,
+	as well as crash dumping to an &man.ataraid.4; device.
 	&merged;</para>
 
       <para>The &man.ata.4; driver now supports USB mass storage class
 	devices.  To enable it, a line <literal>device atausb</literal>
 	in the kernel configuration file or loading the
 	<filename>atausb</filename> kernel module is needed.
-	Note that this conflicts with &man.umass.4; and cannot coexist with
-	each other.</para>
+	Note that this functionality cannot coexist with the
+	&man.umass.4; driver.</para>
 
       <para>The &man.ataraid.4; driver now supports
 	JMicron ATA RAID metadata.  &merged;</para>
@@ -872,12 +873,12 @@ pipe tablearg ip from table(1) to any</programlisting>
 	&merged;</para>
 
       <para>The <literal>GEOM_MIRROR</literal> and <literal>GEOM_RAID3</literal>
-	classes now use parallel I/O request for synchronization
+	classes now use parallel I/O requests for synchronization
 	to improve the performance.  New sysctl variables
 	<varname>kern.geom.mirror.sync_requests</varname> and
 	<varname>kern.geom.raid3.sync_requests</varname>
 	define how many parallel I/O requests should be used.
-	Also, sysctl variables
+	Also, the sysctl variables
 	<varname>kern.geom.mirror.reqs_per_sync</varname>,
 	<varname>kern.geom.mirror.syncs_per_sec</varname>,
 	<varname>kern.geom.raid3.reqs_per_sync</varname>, and
@@ -922,7 +923,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 	and supports different cryptographic algorithms.  See &man.geli.8; for
 	more information. &merged;</para>
 
-      <para>The &man.geli.8; now supports loading keyfiles before the root
+      <para>The &man.geli.8; disk encryption system now supports loading keyfiles before the root
 	file system is mounted.  &merged;
 	For example, the following entries
 	can be used in <filename>/boot/loader.conf</filename> to enable
@@ -983,8 +984,8 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       in <varname>struct addrinfo</varname> has been removed,
       which was originally for the ABI compatibility.
       For example, this change breaks the ABI compatibility of the
-      &man.getaddrinfo.3; function on 64-bit architecture including
-      &os;/alpha, &os;/amd64, &os;/ia64, and &os;/sparc64.</para>
+      &man.getaddrinfo.3; function on 64-bit architectures, including
+      &os;/amd64, &os;/ia64, and &os;/sparc64.</para>
 
     <para>The &man.arp.8; utility now allows the <option>-i</option>
       option together with the <option>-d</option> and <option>-a</option> options
@@ -1018,7 +1019,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       kernel configuration file if it exists in the current directory
       before the specified configuration file.  &merged;</para>
 
-    <para>The &man.csh.1; utility now supports NLS catalog.
+    <para>The &man.csh.1; utility now supports NLS catalogs.
       Note that this requires installing
       the <filename role="package">shells/tcsh_nls</filename> port.
       &merged;</para>
@@ -1072,7 +1073,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       to rename objects and to move a subdisk from
       one drive to another.  &merged;</para>
 
-    <para>The &man.gvinum.8; utility now supports
+    <para>The &man.gvinum.8; utility now supports the
       <command>resetconfig</command> sub-command.</para>
 
     <para>An implementation of Generic Security Service API (GSS-API)
@@ -1099,8 +1100,8 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The <option>-vlandev</option> parameter to &man.ifconfig.8;
       no longer requires a network interface as its argument.  The
-      argument still is supported for backward compatibility, but now
-      it is deprecated and its use is discouraged.</para>
+      argument still is supported for backward compatibility, but
+      is now deprecated and its use is discouraged.</para>
 
     <para>The &man.iostat.8; utility now supports
       a <option>-x</option> flag (inspired by Solaris) to print
@@ -1162,8 +1163,8 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       for the allocators. &merged;</para>
 
     <para>The &man.ln.1; utility now supports
-      an <option>-F</option> flag which allows to delete existing
-      empty directories, when creating symbolic links.
+      an <option>-F</option> flag, which deletes existing
+      empty directories when creating symbolic links.
       &merged;</para>
 
     <para>The &man.locate.1; utility now supports
@@ -1189,10 +1190,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       userland code, although most of the &os; base system and common
       ports have been tested and/or fixed.</para>
 
-    <para>The &man.mdconfig.8; utility now supports XML
-      output of the device listing.  Currently
+    <para>The &man.mdconfig.8; utility now supports producing
+      device listings formatted as XML.  Currently, the
       <command>list</command> and <command>query</command>
-      sub-command support this feature.</para>
+      sub-commands support this feature.</para>
 
     <para>The &man.mdconfig.8; utility's <option>-u</option> option
       now supports specifying multiple devices separated
@@ -1226,7 +1227,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       has been fixed.</para>
 
     <para>The &man.moused.8; daemon now supports an <option>-H</option> flag
-      to enable horizontal virtual scrolling similar to a
+      to enable horizontal virtual scrolling similar to the
       <option>-V</option> flag for vertical virtual scrolling.
       &merged;</para>
 
@@ -1275,7 +1276,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       each matching process.</para>
 
     <para>The &man.powerd.8; program now supports a
-      <option>-P</option> option which allows to specify pidfile.</para>
+      <option>-P</option> option, which specifies a pidfile to use.</para>
 
     <para>The DNS resolver library in &os;'s <application>libc</application>
       has been updated to BIND9's one.</para>
@@ -1286,7 +1287,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       LAN (LAN Access Using PPP), and SP (Serial Port).  &merged;</para>
 
     <para>The &man.rpcgen.1; utility now generates headers and stub files
-      which can be used with ANSI C compilers by default.</para>
+      that can be used with ANSI C compilers by default.</para>
 
     <para>The &man.rtld.1; runtime linker now supports ELF symbol versioning
       using GNU semantics.  This implementation aims to be compatible
@@ -1300,7 +1301,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       incorrect calculation of pattern space length in some cases
       has been fixed.</para>
 
-    <para>The &man.sh.1; utility now supports <literal>times</literal>
+    <para>The &man.sh.1; utility now supports a <literal>times</literal>
       built-in command. &merged;</para>
 
     <para>The &man.snapinfo.8; utility, which shows snapshot locations
@@ -1340,7 +1341,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The shared library version number of all libraries has
       been updated due to some possible ABI changes.  The libraries
-      include: snmp_*, libdialog, libg2c, libobjc,
+      include: snmp_<replaceable>*</replaceable>, libdialog, libg2c, libobjc,
       libreadline, libregex, libstdc++, libkrb5, libalias, libarchive,
       libbegemot, libbluetooth, libbsnmp, libbz2, libc_r, libcrypt,
       libdevstat, libedit, libexpat, libfetch, libftpio, libgpib,
@@ -1416,8 +1417,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
 
       <para>The <filename>netif</filename> script now supports
-	<varname>ipv4_addrs_<replaceable>ifn</replaceable></varname>,
-	which adds one or more IPv4 address from a ranged list in
+	<varname>ipv4_addrs_<replaceable>ifn</replaceable></varname>
+	variables,
+	which add one or more IPv4 address from a ranged list in
 	CIDR notation.  &merged;  For example:</para>
 
       <programlisting>ipv4_addrs_ed0="192.168.0.1/24 192.168.1.1-5/28"</programlisting>
@@ -1429,7 +1431,8 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
 
       <para>The <filename>rc.initdiskless</filename> script now uses &man.tar.1;
 	instead of &man.pax.1; because &man.pax.1; needs a writable
-	temporary directory.</para>
+	temporary directory that may not be available when this script
+	runs.</para>
 
       <para>The <filename>pccard</filename> script has been removed
 	since OLDCARD is deprecated.</para>
@@ -1541,7 +1544,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para>The &man.pkg.version.1; utility now supports an <option>-o</option>
       flag to show the origin recorded on package generation
       instead of the package name, and an <option>-O</option> flag
-      to list packages whose registered origin is origin only.
+      to list packages with a specific registered origin.
       &merged;</para>
 
     <para>The &man.portsnap.8; utility (<filename>sysutils/portsnap</filename>)
@@ -1646,9 +1649,9 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       </listitem>
     </itemizedlist>
 
-    <para>A new &man.make.1; target <command>make showconfig</command>
-      has been added in <filename>src/Makefile</filename>
-      to show build configuration of the &os; source tree.</para>
+    <para>A new <literal>showconfig</literal>
+      target has been added in <filename>src/Makefile</filename>
+      to show the build configuration of the &os; source tree.</para>
 
     <para>A <filename>/media</filename> directory has been
       added to contain mount points for removable media
