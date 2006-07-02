@@ -1399,8 +1399,6 @@ sched_pctcpu(struct thread *td)
 
 	ke = td->td_kse;
 	return (ke->ke_pctcpu);
-
-	return (0);
 }
 
 void
