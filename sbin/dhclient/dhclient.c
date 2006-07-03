@@ -1480,7 +1480,6 @@ make_discover(struct interface_info *ip, struct client_lease *lease)
 		}
 	}
 
-#ifdef SEND_CLIENT_IDENTIFIER	
 	/* set unique client identifier */
 	char client_ident[sizeof(struct hardware)];
 	if (!options[DHO_DHCP_CLIENT_IDENTIFIER]) {
@@ -1494,7 +1493,6 @@ make_discover(struct interface_info *ip, struct client_lease *lease)
 		options[DHO_DHCP_CLIENT_IDENTIFIER]->buf_size = hwlen+1;
 		options[DHO_DHCP_CLIENT_IDENTIFIER]->timeout = 0xFFFFFFFF;
 	}
-#endif	
 
 	/* Set up the option buffer... */
 	ip->client->packet_length = cons_options(NULL, &ip->client->packet, 0,
@@ -1606,7 +1604,6 @@ make_request(struct interface_info *ip, struct client_lease * lease)
 		}
 	}
 
-#ifdef SEND_CLIENT_IDENTIFIER	
 	/* set unique client identifier */
 	char client_ident[sizeof(struct hardware)];
 	if (!options[DHO_DHCP_CLIENT_IDENTIFIER]) {
@@ -1620,7 +1617,6 @@ make_request(struct interface_info *ip, struct client_lease * lease)
 		options[DHO_DHCP_CLIENT_IDENTIFIER]->buf_size = hwlen+1;
 		options[DHO_DHCP_CLIENT_IDENTIFIER]->timeout = 0xFFFFFFFF;
 	}
-#endif	
 
 	/* Set up the option buffer... */
 	ip->client->packet_length = cons_options(NULL, &ip->client->packet, 0,
