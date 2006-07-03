@@ -1152,7 +1152,7 @@ bpfkqfilter(struct cdev *dev, struct knote *kn)
 	d->bd_pid = curthread->td_proc->p_pid;
 	kn->kn_fop = &bpfread_filtops;
 	kn->kn_hook = d;
-	knlist_add(&d->bd_sel.si_note, kn, 0);
+	knlist_add(&d->bd_sel.si_note, kn, 1);
 	BPFD_UNLOCK(d);
 
 	return (0);
@@ -1163,9 +1163,7 @@ filt_bpfdetach(struct knote *kn)
 {
 	struct bpf_d *d = (struct bpf_d *)kn->kn_hook;
 
-	BPFD_LOCK(d);
 	knlist_remove(&d->bd_sel.si_note, kn, 0);
-	BPFD_UNLOCK(d);
 }
 
 static int
