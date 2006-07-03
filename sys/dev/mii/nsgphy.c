@@ -115,7 +115,7 @@ nsgphy_probe(device_t dev)
 	mpd = mii_phy_match(ma, gphyters);
 	if (mpd != NULL) {
 		device_set_desc(dev, mpd->mpd_name);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	return(ENXIO);
