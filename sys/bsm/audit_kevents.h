@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_kevents.h#20 $
+ * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_kevents.h#23 $
  * $FreeBSD$
  */
 
@@ -384,7 +384,24 @@
 #define	AUE_ACL_DELETE_FD		403	/* FreeBSD. */
 #define	AUE_ACL_CHECK_FILE		404	/* FreeBSD. */
 #define	AUE_ACL_CHECK_FD		405	/* FreeBSD. */
-#define	AUE_SYSARCH			406	/* FreeBSD. */
+#define	AUE_ACL_GET_LINK		406	/* FreeBSD. */
+#define	AUE_ACL_SET_LINK		407	/* FreeBSD. */
+#define	AUE_ACL_DELETE_LINK		408	/* FreeBSD. */
+#define	AUE_ACL_CHECK_LINK		409	/* FreeBSD. */
+#define	AUE_SYSARCH			410	/* FreeBSD. */
+#define	AUE_EXTATTRCTL			411	/* FreeBSD. */
+#define	AUE_EXTATTR_GET_FILE		412	/* FreeBSD. */
+#define	AUE_EXTATTR_SET_FILE		413	/* FreeBSD. */
+#define	AUE_EXTATTR_LIST_FILE		414	/* FreeBSD. */
+#define	AUE_EXTATTR_DELETE_FILE		415	/* FreeBSD. */
+#define	AUE_EXTATTR_GET_FD		416	/* FreeBSD. */
+#define	AUE_EXTATTR_SET_FD		417	/* FreeBSD. */
+#define	AUE_EXTATTR_LIST_FD		418	/* FreeBSD. */
+#define	AUE_EXTATTR_DELETE_FD		419	/* FreeBSD. */
+#define	AUE_EXTATTR_GET_LINK		420	/* FreeBSD. */
+#define	AUE_EXTATTR_SET_LINK		421	/* FreeBSD. */
+#define	AUE_EXTATTR_LIST_LINK		422	/* FreeBSD. */
+#define	AUE_EXTATTR_DELETE_LINK		423	/* FreeBSD. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the
