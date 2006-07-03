@@ -2949,12 +2949,14 @@ g_raid3_access(struct g_provider *pp, int acr, int acw, int ace)
 	G_RAID3_DEBUG(2, "Access request for %s: r%dw%de%d.", pp->name, acr,
 	    acw, ace);
 
+	sc = pp->geom->softc;
+	if (sc == NULL && acr <= 0 && acw <= 0 && ace <= 0)
+		return (0);
+	KASSERT(sc != NULL, ("NULL softc (provider=%s).", pp->name));
+
 	dcr = pp->acr + acr;
 	dcw = pp->acw + acw;
 	dce = pp->ace + ace;
-
-	sc = pp->geom->softc;
-	KASSERT(sc != NULL, ("NULL softc (provider=%s).", pp->name));
 
 	g_topology_unlock();
 	sx_xlock(&sc->sc_lock);
