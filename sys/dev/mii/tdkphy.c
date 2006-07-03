@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 #if 0
 #if !defined(lint)
 static const char rcsid[] =
-  "$Id: tdkphy.c,v 1.3 2000/10/14 06:20:56 jon Exp $";
+  "$Id: tdkphy.c,v 1.18 2006/05/16 14:36:28 phk Exp $";
 #endif
 #endif
 
@@ -105,7 +105,7 @@ tdkphy_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, MII_STR_TDK_78Q2120);
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

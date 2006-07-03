@@ -108,73 +108,73 @@ brgphy_probe(device_t dev)
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5400) {
 		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5400);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5401) {
 		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5401);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5411) {
 		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5411);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5701) {
 		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5701);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5703) {
 		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5703);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5704) {
 		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5704);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5705) {
 		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5705);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5750) {
 		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5750);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5714) {
 		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5714);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5780) {
 		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5780);
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5706C) {
 		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5706C);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5708C) {
 		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5708C);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	return(ENXIO);

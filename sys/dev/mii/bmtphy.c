@@ -127,7 +127,7 @@ bmtphy_probe(device_t dev)
 	int	rval;
 
 	ma = device_get_ivars(dev);
-	rval = 0;
+	rval = BUS_PROBE_DEFAULT;
 
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) != MII_OUI_BROADCOM)
 		return (ENXIO);
@@ -135,11 +135,11 @@ bmtphy_probe(device_t dev)
 	switch (MII_MODEL(ma->mii_id2)) {
 	case MII_MODEL_BROADCOM_3C905B:
 		device_set_desc(dev, MII_STR_BROADCOM_3C905B);
-		rval = -10;	/* Let exphy take precedence. */
+		rval = BUS_PROBE_LOW_PRIORITY;	/* Let exphy take precedence. */
 		break;
 	case MII_MODEL_BROADCOM_3C905C:
 		device_set_desc(dev, MII_STR_BROADCOM_3C905C);
-		rval = -10;	/* Let exphy take precedence. */
+		rval = BUS_PROBE_LOW_PRIORITY;	/* Let exphy take precedence. */
 		break;
 	case MII_MODEL_BROADCOM_BCM5201:
 		device_set_desc(dev, MII_STR_BROADCOM_BCM5201);

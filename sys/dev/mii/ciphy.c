@@ -100,19 +100,19 @@ ciphy_probe(device_t dev)
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_CICADA &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_CICADA_CS8201) {
 		device_set_desc(dev, MII_STR_CICADA_CS8201);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_CICADA &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_CICADA_CS8201A) {
 		device_set_desc(dev, MII_STR_CICADA_CS8201A);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_CICADA &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_CICADA_CS8201B) {
 		device_set_desc(dev, MII_STR_CICADA_CS8201B);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	return(ENXIO);
