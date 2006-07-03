@@ -165,6 +165,9 @@ static struct ispmdvec mdvec_2300 = {
 #ifndef	PCIM_CMD_SEREN
 #define	PCIM_CMD_SEREN			0x0100
 #endif
+#ifndef	PCIM_CMD_INTX_DISABLE
+#define	PCIM_CMD_INTX_DISABLE		0x0400
+#endif
 
 #ifndef	PCIR_COMMAND
 #define	PCIR_COMMAND			0x04
@@ -874,10 +877,7 @@ isp_pci_attach(device_t dev)
 	 * Try and find firmware for this device.
 	 */
 
-	/*
-	 * Don't even attempt to get firmware for the 2322/2422 (yet)
-	 */
-	if (IS_2322(isp) == 0 && IS_24XX(isp) == 0 && isp_get_firmware_p) {
+	if (isp_get_firmware_p) {
 		int device = (int) pci_get_device(dev);
 #ifdef	ISP_TARGET_MODE
 		(*isp_get_firmware_p)(0, 1, device, &mdvp->dv_ispfw);
@@ -902,6 +902,11 @@ isp_pci_attach(device_t dev)
 		isp->isp_touched = 1;
 		
 	}
+
+	if (IS_2322(isp) || pci_get_devid(dev) == PCI_QLOGIC_ISP6312) {
+		cmd &= ~PCIM_CMD_INTX_DISABLE;
+	}
+
 	pci_write_config(dev, PCIR_COMMAND, cmd, 2);
 
 	/*
@@ -1114,6 +1119,7 @@ isp_pci_rd_isr_2300(ispsoftc_t *isp, uint16_t *isrp,
     uint16_t *semap, uint16_t *mbox0p)
 {
 	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
+	uint16_t hccr;
 	uint32_t r2hisr;
 
 	if (!(BXR2(pcs, IspVirt2Off(isp, BIU_ISR) & BIU2100_ISR_RISC_INT))) {
@@ -1158,6 +1164,16 @@ isp_pci_rd_isr_2300(ispsoftc_t *isp, uint16_t *isrp,
 		*semap = 0;
 		return (1);
 	default:
+		hccr = ISP_READ(isp, HCCR);
+		if (hccr & HCCR_PAUSE) {
+			ISP_WRITE(isp, HCCR, HCCR_RESET);
+			isp_prt(isp, ISP_LOGERR,
+			    "RISC paused at interrupt (%x->%x\n", hccr,
+			    ISP_READ(isp, HCCR));
+		} else {
+			isp_prt(isp, ISP_LOGERR, "unknown interrerupt 0x%x\n",
+			    r2hisr);
+		}
 		return (0);
 	}
 }
