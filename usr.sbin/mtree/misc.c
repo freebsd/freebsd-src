@@ -66,6 +66,7 @@ static KEY keylist[] = {
 	{"mode",	F_MODE,		NEEDVALUE},
 	{"nlink",	F_NLINK,	NEEDVALUE},
 	{"nochange",	F_NOCHANGE,	0},
+	{"optional",	F_OPT,		0},
 #ifdef RMD160
 	{"ripemd160digest", F_RMD160,	NEEDVALUE},
 #endif
