@@ -151,7 +151,7 @@ void	 audit_arg_pid(pid_t pid);
 void	 audit_arg_process(struct proc *p);
 void	 audit_arg_signum(u_int signum);
 void	 audit_arg_socket(int sodomain, int sotype, int soprotocol);
-void	 audit_arg_sockaddr(struct thread *td, struct sockaddr *so);
+void	 audit_arg_sockaddr(struct thread *td, struct sockaddr *sa);
 void	 audit_arg_auid(uid_t auid);
 void	 audit_arg_auditinfo(struct auditinfo *au_info);
 void	 audit_arg_upath(struct thread *td, char *upath, u_int64_t flags);
