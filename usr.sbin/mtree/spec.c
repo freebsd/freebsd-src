@@ -236,6 +236,9 @@ set(char *t, NODE *ip)
 				errx(1, "line %d: invalid link count %s",
 				lineno,  val);
 			break;
+		case F_OPT:
+			/* just set flag bit */
+			break;
 		case F_SIZE:
 			ip->st_size = strtoq(val, &ep, 10);
 			if (*ep)

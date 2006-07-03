@@ -78,6 +78,7 @@ typedef struct _node {
 #define	F_RMD160 0x40000			/* RIPEMD160 digest */
 #define	F_FLAGS	0x80000				/* file flags */
 #define	F_SHA256	0x100000				/* SHA-256 digest */
+#define F_OPT	0x200000			/* existence optional */
 	u_int	flags;				/* items set */
 
 #define	F_BLOCK	0x001				/* block special */
