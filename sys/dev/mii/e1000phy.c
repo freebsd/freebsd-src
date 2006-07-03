@@ -102,7 +102,7 @@ e1000phy_probe(device_t	dev)
 	}
 
 	device_set_desc(dev, MII_STR_MARVELL_E1000);
-	return 0;
+	return BUS_PROBE_DEFAULT;
 }
 
 static int

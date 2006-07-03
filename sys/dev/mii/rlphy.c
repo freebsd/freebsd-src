@@ -95,7 +95,7 @@ rlphy_probe(device_t dev)
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_REALTEK &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_REALTEK_RTL8201L) {
 		device_set_desc(dev, MII_STR_REALTEK_RTL8201L);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	/*
@@ -115,7 +115,7 @@ rlphy_probe(device_t dev)
 
 	device_set_desc(dev, "RealTek internal media interface");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

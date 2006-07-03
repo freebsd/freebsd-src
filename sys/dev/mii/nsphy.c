@@ -131,7 +131,7 @@ nsphy_probe(device_t dev)
 	} else 
 		return (ENXIO);
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
