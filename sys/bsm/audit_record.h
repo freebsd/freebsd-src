@@ -37,6 +37,8 @@
 #ifndef _BSM_AUDIT_RECORD_H_
 #define _BSM_AUDIT_RECORD_H_
 
+#include <sys/time.h>			/* struct timeval */
+
 /*
  * Token type identifiers.
  */
