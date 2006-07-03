@@ -112,15 +112,21 @@ atkbdc_isa_probe(device_t dev)
 	 * The AT keyboard controller uses two ports (a command/data port
 	 * 0x60 and a status port 0x64), which may be given to us in 
 	 * one resource (0x60 through 0x64) or as two separate resources
-	 * (0x60 and 0x64). Furthermore, /boot/device.hints may contain
-	 * just one port, 0x60. We shall adjust resource settings 
-	 * so that these two ports are available as two separate resources.
+	 * (0x60 and 0x64). Some brain-damaged ACPI BIOS has reversed
+	 * command/data port and status port. Furthermore, /boot/device.hints
+	 * may contain just one port, 0x60. We shall adjust resource settings
+	 * so that these two ports are available as two separate resources
+	 * in correct order.
 	 */
 	device_quiet(dev);
 	rid = 0;
 	if (bus_get_resource(dev, SYS_RES_IOPORT, rid, &start, &count) != 0)
 		return ENXIO;
-	if (count > 1)	/* adjust the count */
+	if (start == IO_KBD + KBD_STATUS_PORT) {
+		start = IO_KBD;
+		count++;
+	}
+	if (count > 1)	/* adjust the count and/or start port */
 		bus_set_resource(dev, SYS_RES_IOPORT, rid, start, 1);
 	port0 = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 	if (port0 == NULL)
