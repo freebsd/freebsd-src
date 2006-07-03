@@ -357,13 +357,14 @@ audit_arg_process(struct proc *p)
 {
 	struct kaudit_record *ar;
 
+	KASSERT(p != NULL, ("audit_arg_process: p == NULL"));
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
 	ar = currecord();
-	if ((ar == NULL) || (p == NULL))
+	if (ar == NULL)
 		return;
 
-	/*
-	 * XXXAUDIT: PROC_LOCK_ASSERT(p);
-	 */
 	ar->k_ar.ar_arg_auid = p->p_au->ai_auid;
 	ar->k_ar.ar_arg_euid = p->p_ucred->cr_uid;
 	ar->k_ar.ar_arg_egid = p->p_ucred->cr_groups[0];
@@ -404,21 +405,21 @@ audit_arg_socket(int sodomain, int sotype, int soprotocol)
 	ARG_SET_VALID(ar, ARG_SOCKINFO);
 }
 
-/*
- * XXXAUDIT: Argument here should be 'sa' not 'so'.  Caller is responsible
- * for synchronizing access to the source of the address.
- */
 void
-audit_arg_sockaddr(struct thread *td, struct sockaddr *so)
+audit_arg_sockaddr(struct thread *td, struct sockaddr *sa)
 {
 	struct kaudit_record *ar;
 
+	KASSERT(td != NULL, ("audit_arg_sockaddr: td == NULL"));
+	KASSERT(sa != NULL, ("audit_arg_sockaddr: sa == NULL"));
+
 	ar = currecord();
-	if (ar == NULL || td == NULL || so == NULL)
+	if (ar == NULL)
 		return;
 
-	bcopy(so, &ar->k_ar.ar_arg_sockaddr, sizeof(ar->k_ar.ar_arg_sockaddr));
-	switch (so->sa_family) {
+	bcopy(sa, &ar->k_ar.ar_arg_sockaddr,
+	    sizeof(ar->k_ar.ar_arg_sockaddr));
+	switch (sa->sa_family) {
 	case AF_INET:
 		ARG_SET_VALID(ar, ARG_SADDRINET);
 		break;
@@ -428,7 +429,7 @@ audit_arg_sockaddr(struct thread *td, struct sockaddr *so)
 		break;
 
 	case AF_UNIX:
-		audit_arg_upath(td, ((struct sockaddr_un *)so)->sun_path,
+		audit_arg_upath(td, ((struct sockaddr_un *)sa)->sun_path,
 				ARG_UPATH1);
 		ARG_SET_VALID(ar, ARG_SADDRUNIX);
 		break;
@@ -472,17 +473,14 @@ audit_arg_text(char *text)
 {
 	struct kaudit_record *ar;
 
+	KASSERT(text != NULL, ("audit_arg_text: text == NULL"));
+
 	ar = currecord();
 	if (ar == NULL)
 		return;
 
-	/*
-	 * XXXAUDIT: Why do we accept a possibly NULL string here?
-	 */
 	/* Invalidate the text string */
 	ar->k_ar.ar_valid_arg &= (ARG_ALL ^ ARG_TEXT);
-	if (text == NULL)
-		return;
 
 	if (ar->k_ar.ar_arg_text == NULL)
 		ar->k_ar.ar_arg_text = malloc(MAXPATHLEN, M_AUDITTEXT,
@@ -600,9 +598,10 @@ audit_arg_file(struct proc *p, struct file *fp)
 	struct vnode *vp;
 	int vfslocked;
 
-	/*
-	 * XXXAUDIT: Why is the (ar == NULL) test only in the socket case?
-	 */
+	ar = currecord();
+	if (ar == NULL)
+		return;
+
 	switch (fp->f_type) {
 	case DTYPE_VNODE:
 	case DTYPE_FIFO:
@@ -618,14 +617,8 @@ audit_arg_file(struct proc *p, struct file *fp)
 		break;
 
 	case DTYPE_SOCKET:
-		ar = currecord();
-		if (ar == NULL)
-			return;
-
-		/*
-		 * XXXAUDIT: Socket locking?  Inpcb locking?
-		 */
 		so = (struct socket *)fp->f_data;
+		SOCK_LOCK(so);
 		if (INP_CHECK_SOCKAF(so, PF_INET)) {
 			if (so->so_pcb == NULL)
 				return;
@@ -646,6 +639,7 @@ audit_arg_file(struct proc *p, struct file *fp)
 			    pcb->inp_lport;
 			ARG_SET_VALID(ar, ARG_SOCKINFO);
 		}
+		SOCK_UNLOCK(so);
 		break;
 
 	default:
@@ -669,8 +663,12 @@ audit_arg_upath(struct thread *td, char *upath, u_int64_t flag)
 	struct kaudit_record *ar;
 	char **pathp;
 
-	if (td == NULL || upath == NULL)
-		return;		/* nothing to do! */
+	KASSERT(td != NULL, ("audit_arg_upath: td == NULL"));
+	KASSERT(upath != NULL, ("audit_arg_upath: upath == NULL"));
+
+	ar = currecord();
+	if (ar == NULL)
+		return;
 
 	/*
 	 * XXXAUDIT: Witness warning for possible sleep here?
@@ -679,10 +677,6 @@ audit_arg_upath(struct thread *td, char *upath, u_int64_t flag)
 	    ("audit_arg_upath: flag %llu", (unsigned long long)flag));
 	KASSERT((flag != ARG_UPATH1) || (flag != ARG_UPATH2),
 	    ("audit_arg_upath: flag %llu", (unsigned long long)flag));
-
-	ar = currecord();
-	if (ar == NULL)
-		return;
 
 	if (flag == ARG_UPATH1)
 		pathp = &ar->k_ar.ar_arg_upath1;
@@ -720,13 +714,10 @@ audit_arg_vnode(struct vnode *vp, u_int64_t flags)
 	struct vattr vattr;
 	int error;
 	struct vnode_au_info *vnp;
-	struct thread *td;
 
-	/*
-	 * XXXAUDIT: Why is vp possibly NULL here?
-	 */
-	if (vp == NULL)
-		return;
+	KASSERT(vp != NULL, ("audit_arg_vnode: vp == NULL"));
+	KASSERT((flags == ARG_VNODE1) || (flags == ARG_VNODE2),
+	    ("audit_arg_vnode: flags %jd", (intmax_t)flags));
 
 	/*
 	 * Assume that if the caller is calling audit_arg_vnode() on a
@@ -740,17 +731,10 @@ audit_arg_vnode(struct vnode *vp, u_int64_t flags)
 		return;
 
 	/*
-	 * XXXAUDIT: KASSERT argument validity instead?
-	 *
 	 * XXXAUDIT: The below clears, and then resets the flags for valid
 	 * arguments.  Ideally, either the new vnode is used, or the old one
 	 * would be.
 	 */
-	if ((flags & (ARG_VNODE1 | ARG_VNODE2)) == 0)
-		return;
-
-	td = curthread;
-
 	if (flags & ARG_VNODE1) {
 		ar->k_ar.ar_valid_arg &= (ARG_ALL ^ ARG_VNODE1);
 		vnp = &ar->k_ar.ar_arg_vnode1;
@@ -759,7 +743,7 @@ audit_arg_vnode(struct vnode *vp, u_int64_t flags)
 		vnp = &ar->k_ar.ar_arg_vnode2;
 	}
 
-	error = VOP_GETATTR(vp, &vattr, td->td_ucred, td);
+	error = VOP_GETATTR(vp, &vattr, curthread->td_ucred, curthread);
 	if (error) {
 		/* XXX: How to handle this case? */
 		return;
@@ -786,9 +770,16 @@ audit_arg_vnode(struct vnode *vp, u_int64_t flags)
 void
 audit_sysclose(struct thread *td, int fd)
 {
+	struct kaudit_record *ar;
 	struct vnode *vp;
 	struct file *fp;
 	int vfslocked;
+
+	KASSERT(td != NULL, ("audit_sysclose: td == NULL"));
+
+	ar = currecord();
+	if (ar == NULL)
+		return;
 
 	audit_arg_fd(fd);
 
