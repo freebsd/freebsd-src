@@ -1329,7 +1329,11 @@ isp_fibre_init(ispsoftc_t *isp)
 		icbp->icb_hardaddr = 0;
 	}
 
-	if (IS_2322(isp) || IS_24XX(isp)) {
+	/*
+	 * Our life seems so much better with 2200s and later with
+	 * the latest f/w if we set Hard Address.
+	 */
+	if (ISP_FW_NEWER_THAN(isp, 2, 2, 5)) {
 		icbp->icb_fwoptions |= ICBOPT_HARD_ADDRESS;
 	}
 
@@ -2238,7 +2242,7 @@ isp_scan_loop(ispsoftc_t *isp)
 		hival = FC_PORT_ID;
 		break;
 	default:
-		isp_prt(isp, ISP_LOGDEBUG0, "no loop scasn\n");
+		isp_prt(isp, ISP_LOGDEBUG0, "no loop topology to scan");
 		fcp->isp_loopstate = LOOP_LSCAN_DONE;
 		return (0);
 	}
