@@ -127,7 +127,7 @@ mlphy_probe(dev)
 
 	device_set_desc(dev, "Micro Linear 6692 media interface");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

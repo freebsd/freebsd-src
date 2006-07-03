@@ -143,7 +143,7 @@ exphy_probe(device_t dev)
 	else
 		device_set_desc(dev, MII_STR_BROADCOM_3C905C);
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

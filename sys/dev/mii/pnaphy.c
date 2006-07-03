@@ -96,7 +96,7 @@ pnaphy_probe(device_t dev)
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_AMD &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_AMD_79c978) {
 		device_set_desc(dev, MII_STR_AMD_79c978);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	return(ENXIO);
