@@ -28,7 +28,7 @@
 .\"     From: @(#)mtree.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd March 29, 2005
+.Dd July 03, 2006
 .Dt MTREE 8
 .Os
 .Sh NAME
@@ -221,6 +221,9 @@ value.
 The number of hard links the file is expected to have.
 .It Cm nochange
 Make sure this file or directory exists but otherwise ignore all attributes.
+.It Cm optional
+The file is optional; do not complain about the file if it is
+not in the file hierarchy.
 .It Cm uid
 The file owner as a numeric value.
 .It Cm uname
