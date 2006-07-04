@@ -249,6 +249,9 @@ struct ata_connect_task {
 #define ATA_CSB5                0x02121166
 #define ATA_CSB6                0x02131166
 #define ATA_CSB6_1              0x02171166
+#define ATA_HT1000 		0x02141166
+#define ATA_HT1000_S1 		0x024b1166
+#define ATA_HT1000_S2 		0x024a1166
 
 #define ATA_SILICON_IMAGE_ID    0x1095
 #define ATA_SII3114             0x31141095
@@ -362,6 +365,7 @@ struct ata_connect_task {
 #define SWKS33          0
 #define SWKS66          1
 #define SWKS100         2
+#define SWKSMIO         3
 
 #define SIIMEMIO        1
 #define SIIINTR         0x01
