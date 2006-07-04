@@ -59,8 +59,6 @@ etc/mail	gshapiro	Pre-commit review requested.
 				Keep in sync with -STABLE.
 etc/sendmail	gshapiro	Pre-commit review requested.
 				Keep in sync with -STABLE.
-dhcp		mbr	Needs to pre-approve commits to contrib/isc-dhcp, so
-			changes can be made to the isc.org CVS repository.
 libfetch	des	Advance notification requested.
 fetch		des	Advance notification requested.
 libpam		des	Pre-commit review requested.
@@ -140,7 +138,6 @@ $ cd /usr/src; find */* -type f|xargs egrep 'MAINTAINER[ <tab>]*='
 bin/dd/Makefile:MAINTAINER=	green@FreeBSD.org
 games/fortune/datfiles/Makefile:MAINTAINER=	jkh
 gnu/usr.bin/man/apropos/Makefile:MAINTAINER= wosch
-sbin/dhclient/Makefile.inc:MAINTAINER=     mbr
 sys/modules/3dfx/Makefile:MAINTAINER=	cokane@FreeBSD.org
 sys/modules/urio/Makefile:MAINTAINER=	Iwasa Kazmi <kzmi@ca2.so-net.ne.jp>
 tools/tools/sysdoc/Makefile:MAINTAINER=	trhodes@FreeBSD.org
