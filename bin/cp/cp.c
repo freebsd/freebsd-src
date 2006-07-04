@@ -476,6 +476,7 @@ copy(char *argv[], enum op type, int fts_options)
 	}
 	if (errno)
 		err(1, "fts_read");
+	fts_close(ftsp);
 	return (rval);
 }
 
