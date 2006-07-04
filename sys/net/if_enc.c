@@ -86,27 +86,18 @@ static int	enc_ioctl(struct ifnet *, u_long, caddr_t);
 static int	enc_output(struct ifnet *ifp, struct mbuf *m,
 		    struct sockaddr *dst, struct rtentry *rt);
 static int	enc_clone_create(struct if_clone *, int);
-static int	enc_clone_destroy(struct ifnet *);
+static void	enc_clone_destroy(struct ifnet *);
 
 IFC_SIMPLE_DECLARE(enc, 1);
 
-static int
+static void
 enc_clone_destroy(struct ifnet *ifp)
 {
-
-	mtx_lock(&enc_mtx);
-	/* do not allow enc0 to be destroyed */
-	if (encif == ifp) {
-		mtx_unlock(&enc_mtx);
-		return (EBUSY);
-	}
-	mtx_unlock(&enc_mtx);
+	KASSERT(ifp != encif, ("%s: destroying encif", __func__));
 
 	bpfdetach(ifp);
 	if_detach(ifp);
 	if_free(ifp);
-
-	return (0);
 }
 
 static int
