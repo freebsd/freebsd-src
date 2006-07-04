@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 17, 2004
+.Dd July 04, 2006
 .Dt LIBALIAS 3
 .Os
 .Sh NAME
@@ -1011,8 +1011,3 @@ If this results in a conflict, then port numbers are randomly chosen until
 a unique aliasing link can be established.
 In an alternate operating mode, the first choice of an aliasing port is also
 random and unrelated to the local port number.
-.Sh BUGS
-PPTP aliasing does not work when more than one internal client
-connects to the same external server at the same time, because
-PPTP requires a single TCP control connection to be established
-between any two IP addresses.
