@@ -142,6 +142,7 @@ static int ata_promise_apkt(u_int8_t *bytep, struct ata_request *request);
 static void ata_promise_queue_hpkt(struct ata_pci_controller *ctlr, u_int32_t hpkt);
 static void ata_promise_next_hpkt(struct ata_pci_controller *ctlr);
 static int ata_serverworks_chipinit(device_t dev);
+static int ata_serverworks_allocate(device_t dev);
 static void ata_serverworks_setmode(device_t dev, int mode);
 static int ata_sii_chipinit(device_t dev);
 static int ata_cmd_allocate(device_t dev);
@@ -1894,6 +1895,8 @@ ata_intel_31244_allocate(device_t dev)
 
     for (i = ATA_DATA; i < ATA_MAX_RES; i++)
 	ch->r_io[i].res = ctlr->r_res2;
+
+    /* setup ATA registers */
     ch->r_io[ATA_DATA].offset = ch_offset + 0x00;
     ch->r_io[ATA_FEATURE].offset = ch_offset + 0x06;
     ch->r_io[ATA_COUNT].offset = ch_offset + 0x08;
@@ -1906,9 +1909,13 @@ ata_intel_31244_allocate(device_t dev)
     ch->r_io[ATA_STATUS].offset = ch_offset + 0x1c;
     ch->r_io[ATA_ALTSTAT].offset = ch_offset + 0x28;
     ch->r_io[ATA_CONTROL].offset = ch_offset + 0x29;
+
+    /* setup DMA registers */
     ch->r_io[ATA_SSTATUS].offset = ch_offset + 0x100;
     ch->r_io[ATA_SERROR].offset = ch_offset + 0x104;
     ch->r_io[ATA_SCONTROL].offset = ch_offset + 0x108;
+
+    /* setup SATA registers */
     ch->r_io[ATA_BMCMD_PORT].offset = ch_offset + 0x70;
     ch->r_io[ATA_BMSTAT_PORT].offset = ch_offset + 0x72;
     ch->r_io[ATA_BMDTP_PORT].offset = ch_offset + 0x74;
@@ -3890,11 +3897,14 @@ ata_serverworks_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_ROSB4,  0x00, SWKS33,  0x00, ATA_UDMA2, "ROSB4" },
-     { ATA_CSB5,   0x92, SWKS100, 0x00, ATA_UDMA5, "CSB5" },
-     { ATA_CSB5,   0x00, SWKS66,  0x00, ATA_UDMA4, "CSB5" },
-     { ATA_CSB6,   0x00, SWKS100, 0x00, ATA_UDMA5, "CSB6" },
-     { ATA_CSB6_1, 0x00, SWKS66,  0x00, ATA_UDMA4, "CSB6" },
+    {{ ATA_ROSB4,     0x00, SWKS33,  0x00, ATA_UDMA2, "ROSB4" },
+     { ATA_CSB5,      0x92, SWKS100, 0x00, ATA_UDMA5, "CSB5" },
+     { ATA_CSB5,      0x00, SWKS66,  0x00, ATA_UDMA4, "CSB5" },
+     { ATA_CSB6,      0x00, SWKS100, 0x00, ATA_UDMA5, "CSB6" },
+     { ATA_CSB6_1,    0x00, SWKS66,  0x00, ATA_UDMA4, "CSB6" },
+     { ATA_HT1000,    0x00, SWKS100, 0x00, ATA_UDMA5, "HT1000" },
+     { ATA_HT1000_S1, 0x00, SWKS100, 0x00, ATA_SA150, "HT1000 SATA" },
+     { ATA_HT1000_S2, 0x00, SWKSMIO, 0x00, ATA_SA150, "HT1000 SATA mmio" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
@@ -3917,7 +3927,19 @@ ata_serverworks_chipinit(device_t dev)
     if (ata_setup_interrupt(dev))
 	return ENXIO;
 
-    if (ctlr->chip->cfg1 == SWKS33) {
+    if (ctlr->chip->cfg1 == SWKSMIO) {
+	ctlr->r_type2 = SYS_RES_MEMORY;
+	ctlr->r_rid2 = PCIR_BAR(5);
+	if (!(ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+						    &ctlr->r_rid2, RF_ACTIVE)))
+	    return ENXIO;
+
+	ctlr->channels = 4;
+	ctlr->allocate = ata_serverworks_allocate;
+	ctlr->setmode = ata_sata_setmode;
+	return 0;
+    }
+    else if (ctlr->chip->cfg1 == SWKS33) {
 	device_t *children;
 	int nchildren, i;
 
@@ -3940,6 +3962,46 @@ ata_serverworks_chipinit(device_t dev)
 			 (ctlr->chip->cfg1 == SWKS100) ? 0x03 : 0x02, 1);
     }
     ctlr->setmode = ata_serverworks_setmode;
+    return 0;
+}
+
+static int
+ata_serverworks_allocate(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+    int ch_offset;
+    int i;
+
+    ch_offset = ch->unit * 0x100;
+
+    for (i = ATA_DATA; i < ATA_MAX_RES; i++)
+	ch->r_io[i].res = ctlr->r_res2;
+
+    /* setup ATA registers */
+    ch->r_io[ATA_DATA].offset = ch_offset + 0x00;
+    ch->r_io[ATA_FEATURE].offset = ch_offset + 0x04;
+    ch->r_io[ATA_COUNT].offset = ch_offset + 0x08;
+    ch->r_io[ATA_SECTOR].offset = ch_offset + 0x0c;
+    ch->r_io[ATA_CYL_LSB].offset = ch_offset + 0x10;
+    ch->r_io[ATA_CYL_MSB].offset = ch_offset + 0x14;
+    ch->r_io[ATA_DRIVE].offset = ch_offset + 0x18;
+    ch->r_io[ATA_COMMAND].offset = ch_offset + 0x1c;
+    ch->r_io[ATA_CONTROL].offset = ch_offset + 0x20;
+    ata_default_registers(dev);
+
+    /* setup DMA registers */
+    ch->r_io[ATA_BMCMD_PORT].offset = ch_offset + 0x30;
+    ch->r_io[ATA_BMSTAT_PORT].offset = ch_offset + 0x32;
+    ch->r_io[ATA_BMDTP_PORT].offset = ch_offset + 0x34;
+
+    /* setup SATA registers */
+    ch->r_io[ATA_SSTATUS].offset = ch_offset + 0x40;
+    ch->r_io[ATA_SERROR].offset = ch_offset + 0x44;
+    ch->r_io[ATA_SCONTROL].offset = ch_offset + 0x48;
+
+    ch->flags |= ATA_NO_SLAVE;
+    ata_pci_hw(dev);
     return 0;
 }
 
@@ -4200,6 +4262,7 @@ ata_sii_allocate(device_t dev)
     ch->r_io[ATA_CONTROL].offset = 0x8a + (unit01 << 6) + (unit10 << 8);
     ch->r_io[ATA_IDX_ADDR].res = ctlr->r_res2;
     ata_default_registers(dev);
+
     ch->r_io[ATA_BMCMD_PORT].res = ctlr->r_res2;
     ch->r_io[ATA_BMCMD_PORT].offset = 0x00 + (unit01 << 3) + (unit10 << 8);
     ch->r_io[ATA_BMSTAT_PORT].res = ctlr->r_res2;

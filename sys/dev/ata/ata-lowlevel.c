@@ -719,7 +719,7 @@ ata_generic_command(struct ata_request *request)
 	    DELAY(20);
 	}
 	if (timeout <= 0) {
-	    device_printf(request->dev,"timeout waiting for ATAPI ready\n");
+	    device_printf(request->dev, "timeout waiting for ATAPI ready\n");
 	    request->result = EIO;
 	    return -1;
 	}
