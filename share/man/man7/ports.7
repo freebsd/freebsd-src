@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2005
+.Dd July 5, 2006
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -401,6 +401,12 @@ site for all files.
 Try going to these sites for all files and patches, first.
 .It Va MASTER_SITE_BACKUP
 Try going to these sites for all files and patches, last.
+.It Va RANDOMIZE_MASTER_SITES
+Try the download locations in a random order.
+.It Va MASTER_SORT
+Sort the download locations according to user supplied pattern.
+Example:
+.Dl .dk .sunet.se .se dk.php.net .no .de heanet.dl.sourceforge.net
 .It Va MASTER_SITE_INDEX
 Where to get
 .Pa INDEX
@@ -436,18 +442,6 @@ Location of
 If defined, only operate on a port if it requires interaction.
 .It Va BATCH
 If defined, only operate on a port if it can be installed 100% automatically.
-.It Va OPTIONS
-If defined, list of what
-.Va WITH_*
-options this port accepts.
-.Em Note :
-to make
-.Va OPTIONS
-actually work, it is necessary to include
-.Pa bsd.port.pre.mk
-before starting to test the
-.Va WITH_*
-variables.
 .It Va DISABLE_VULNERABILITIES
 If defined, disable check for security vulnerabilities using
 .Xr portaudit 1 Pq Pa ports/security/portaudit
