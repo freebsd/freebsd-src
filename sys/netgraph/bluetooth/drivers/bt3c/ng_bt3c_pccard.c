@@ -96,30 +96,30 @@ static void	bt3c_download_firmware	(bt3c_softc_p, char const *, int);
 
 #define	bt3c_set_address(sc, address) \
 do { \
-	outb(rman_get_start((sc)->iobase) + BT3C_ADDR_L, ((address) & 0xff)); \
-	outb(rman_get_start((sc)->iobase) + BT3C_ADDR_H, (((address) >> 8) & 0xff)); \
+	bus_space_write_1((sc)->iot, (sc)->ioh, BT3C_ADDR_L, ((address) & 0xff)); \
+	bus_space_write_1((sc)->iot, (sc)->ioh, BT3C_ADDR_H, (((address) >> 8) & 0xff)); \
 } while (0)
 
 #define	bt3c_read_data(sc, data) \
 do { \
-	(data)  = inb(rman_get_start((sc)->iobase) + BT3C_DATA_L); \
-	(data) |= ((inb(rman_get_start((sc)->iobase) + BT3C_DATA_H) & 0xff) << 8); \
+	(data)  = bus_space_read_1((sc)->iot, (sc)->ioh, BT3C_DATA_L); \
+	(data) |= ((bus_space_read_1((sc)->iot, (sc)->ioh, BT3C_DATA_H) & 0xff) << 8); \
 } while (0)
 
 #define	bt3c_write_data(sc, data) \
 do { \
-	outb(rman_get_start((sc)->iobase) + BT3C_DATA_L, ((data) & 0xff)); \
-	outb(rman_get_start((sc)->iobase) + BT3C_DATA_H, (((data) >> 8) & 0xff)); \
+	bus_space_write_1((sc)->iot, (sc)->ioh, BT3C_DATA_L, ((data) & 0xff)); \
+	bus_space_write_1((sc)->iot, (sc)->ioh, BT3C_DATA_H, (((data) >> 8) & 0xff)); \
 } while (0)
 
 #define	bt3c_read_control(sc, data) \
 do { \
-	(data) = inb(rman_get_start((sc)->iobase) + BT3C_CONTROL); \
+	(data) = bus_space_read_1((sc)->iot, (sc)->ioh, BT3C_CONTROL); \
 } while (0)
 
 #define	bt3c_write_control(sc, data) \
 do { \
-	outb(rman_get_start((sc)->iobase) + BT3C_CONTROL, (data)); \
+	bus_space_write_1((sc)->iot, (sc)->ioh, BT3C_CONTROL, (data)); \
 } while (0)
 
 #define bt3c_read(sc, address, data) \
@@ -622,6 +622,8 @@ bt3c_pccard_attach(device_t dev)
 		device_printf(dev, "Could not allocate I/O ports\n");
 		goto bad;
 	}
+	sc->iot = rman_get_bustag(sc->iobase);
+	sc->ioh = rman_get_bushandle(sc->iobase);
 
 	/* Allocate IRQ */
 	sc->irq_rid = 0;
