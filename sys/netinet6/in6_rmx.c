@@ -332,7 +332,7 @@ in6_rtqtimo(void *rock)
 
 	arg.found = arg.killed = 0;
 	arg.rnh = rnh;
-	arg.nextstop = time_second + rtq_timeout;
+	arg.nextstop = time_uptime + rtq_timeout;
 	arg.draining = arg.updating = 0;
 	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, in6_rtqkill, &arg);
@@ -347,14 +347,14 @@ in6_rtqtimo(void *rock)
 	 * hard.
 	 */
 	if ((arg.found - arg.killed > rtq_toomany)
-	   && (time_second - last_adjusted_timeout >= rtq_timeout)
+	   && (time_uptime - last_adjusted_timeout >= rtq_timeout)
 	   && rtq_reallyold > rtq_minreallyold) {
 		rtq_reallyold = 2*rtq_reallyold / 3;
 		if (rtq_reallyold < rtq_minreallyold) {
 			rtq_reallyold = rtq_minreallyold;
 		}
 
-		last_adjusted_timeout = time_second;
+		last_adjusted_timeout = time_uptime;
 #ifdef DIAGNOSTIC
 		log(LOG_DEBUG, "in6_rtqtimo: adjusted rtq_reallyold to %d",
 		    rtq_reallyold);
@@ -367,7 +367,7 @@ in6_rtqtimo(void *rock)
 	}
 
 	atv.tv_usec = 0;
-	atv.tv_sec = arg.nextstop - time_second;
+	atv.tv_sec = arg.nextstop - time_uptime;
 	callout_reset(&rtq_timer, tvtohz(&atv), in6_rtqtimo, rock);
 }
 
@@ -412,16 +412,17 @@ in6_mtutimo(void *rock)
 	struct timeval atv;
 
 	arg.rnh = rnh;
-	arg.nextstop = time_second + MTUTIMO_DEFAULT;
+	arg.nextstop = time_uptime + MTUTIMO_DEFAULT;
 	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, in6_mtuexpire, &arg);
 	RADIX_NODE_HEAD_UNLOCK(rnh);
 
 	atv.tv_usec = 0;
-	atv.tv_sec = arg.nextstop - time_second;
+	atv.tv_sec = arg.nextstop - time_uptime;
 	if (atv.tv_sec < 0) {
 		printf("invalid mtu expiration time on routing table\n");
-		arg.nextstop = 30;	/* last resort */
+		arg.nextstop = time_uptime + 30;	/* last resort */
+		atv.tv_sec = 30;
 	}
 	callout_reset(&rtq_mtutimer, tvtohz(&atv), in6_mtutimo, rock);
 }
