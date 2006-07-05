@@ -42,5 +42,3 @@ __ieee754_scalbf(float x, float fn)
 	return scalbnf(x,(int)fn);
 #endif
 }
-
-__weak_reference(scalbf, ldexpf);
