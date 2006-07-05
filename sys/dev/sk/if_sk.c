@@ -2871,8 +2871,8 @@ sk_watchdog(ifp)
 
 	SK_IF_LOCK(sc_if);
 	/*
-	 * Reclaim first as there is a possibility of loosing Tx completion
-	 * interrupt.
+	 * Reclaim first as there is a possibility of losing Tx completion
+	 * interrupts.
 	 */
 	sk_txeof(sc_if);
 	if (sc_if->sk_cdata.sk_tx_cnt != 0) {
