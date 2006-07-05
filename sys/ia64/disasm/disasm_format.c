@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2003 Marcel Moolenaar
+ * Copyright (c) 2000-2006 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,6 +51,7 @@ static const char *asm_mnemonics[] = {
 	"fpms", "fpnma", "fprcpa", "fprsqrta", "frcpa", "frsqrta", "fselect",
 	"fsetc", "fswap", "fsxt", "fwb", "fxor",
 	"getf",
+	"hint",
 	"invala", "itc", "itr",
 	"ld1", "ld16", "ld2", "ld4", "ld8", "ldf", "ldf8", "ldfd", "ldfe",
 	"ldfp8", "ldfpd", "ldfps", "ldfs", "lfetch", "loadrs",
@@ -66,8 +67,9 @@ static const char *asm_mnemonics[] = {
 	"setf", "shl", "shladd", "shladdp4", "shr", "shrp", "srlz", "ssm",
 	"st1", "st16", "st2", "st4", "st8", "stf", "stf8", "stfd", "stfe",
 	"stfs", "sub", "sum", "sxt1", "sxt2", "sxt4", "sync",
-	"tak", "tbit", "thash", "tnat", "tpa", "ttag",
+	"tak", "tbit", "tf", "thash", "tnat", "tpa", "ttag",
 	"unpack1", "unpack2", "unpack4",
+	"vmsw",
 	"xchg1", "xchg2", "xchg4", "xchg8", "xma", "xor",
 	"zxt1", "zxt2", "zxt4"
 };

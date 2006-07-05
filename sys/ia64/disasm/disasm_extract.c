@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2003 Marcel Moolenaar
+ * Copyright (c) 2000-2006 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -816,6 +816,26 @@ asm_normalize(struct asm_inst *i, enum asm_op op)
 	case ASM_OP_GETF_SIG:
 		asm_cmpltr_add(i, ASM_CC_GETF, ASM_CT_SIG);
 		op = ASM_OP_GETF;
+		break;
+	case ASM_OP_HINT_B:
+		asm_cmpltr_add(i, ASM_CC_UNIT, ASM_CT_B);
+		op = ASM_OP_HINT;
+		break;
+	case ASM_OP_HINT_F:
+		asm_cmpltr_add(i, ASM_CC_UNIT, ASM_CT_F);
+		op = ASM_OP_HINT;
+		break;
+	case ASM_OP_HINT_I:
+		asm_cmpltr_add(i, ASM_CC_UNIT, ASM_CT_I);
+		op = ASM_OP_HINT;
+		break;
+	case ASM_OP_HINT_M:
+		asm_cmpltr_add(i, ASM_CC_UNIT, ASM_CT_M);
+		op = ASM_OP_HINT;
+		break;
+	case ASM_OP_HINT_X:
+		asm_cmpltr_add(i, ASM_CC_UNIT, ASM_CT_X);
+		op = ASM_OP_HINT;
 		break;
 	case ASM_OP_INVALA_:
 		asm_cmpltr_add(i, ASM_CC_INVALA, ASM_CT_NONE);
@@ -1640,6 +1660,46 @@ asm_normalize(struct asm_inst *i, enum asm_op op)
 		asm_cmpltr_add(i, ASM_CC_CTYPE, ASM_CT_UNC);
 		op = ASM_OP_TBIT;
 		break;
+	case ASM_OP_TF_NZ_AND:
+		asm_cmpltr_add(i, ASM_CC_TREL, ASM_CT_NZ);
+		asm_cmpltr_add(i, ASM_CC_CTYPE, ASM_CT_AND);
+		op = ASM_OP_TF;
+		break;
+	case ASM_OP_TF_NZ_OR:
+		asm_cmpltr_add(i, ASM_CC_TREL, ASM_CT_NZ);
+		asm_cmpltr_add(i, ASM_CC_CTYPE, ASM_CT_OR);
+		op = ASM_OP_TF;
+		break;
+	case ASM_OP_TF_NZ_OR_ANDCM:
+		asm_cmpltr_add(i, ASM_CC_TREL, ASM_CT_NZ);
+		asm_cmpltr_add(i, ASM_CC_CTYPE, ASM_CT_OR_ANDCM);
+		op = ASM_OP_TF;
+		break;
+	case ASM_OP_TF_Z:
+		asm_cmpltr_add(i, ASM_CC_TREL, ASM_CT_Z);
+		asm_cmpltr_add(i, ASM_CC_CTYPE, ASM_CT_NONE);
+		op = ASM_OP_TF;
+		break;
+	case ASM_OP_TF_Z_AND:
+		asm_cmpltr_add(i, ASM_CC_TREL, ASM_CT_Z);
+		asm_cmpltr_add(i, ASM_CC_CTYPE, ASM_CT_AND);
+		op = ASM_OP_TF;
+		break;
+	case ASM_OP_TF_Z_OR:
+		asm_cmpltr_add(i, ASM_CC_TREL, ASM_CT_Z);
+		asm_cmpltr_add(i, ASM_CC_CTYPE, ASM_CT_OR);
+		op = ASM_OP_TF;
+		break;
+	case ASM_OP_TF_Z_OR_ANDCM:
+		asm_cmpltr_add(i, ASM_CC_TREL, ASM_CT_Z);
+		asm_cmpltr_add(i, ASM_CC_CTYPE, ASM_CT_OR_ANDCM);
+		op = ASM_OP_TF;
+		break;
+	case ASM_OP_TF_Z_UNC:
+		asm_cmpltr_add(i, ASM_CC_TREL, ASM_CT_Z);
+		asm_cmpltr_add(i, ASM_CC_CTYPE, ASM_CT_UNC);
+		op = ASM_OP_TF;
+		break;
 	case ASM_OP_TNAT_NZ_AND:
 		asm_cmpltr_add(i, ASM_CC_TREL, ASM_CT_NZ);
 		asm_cmpltr_add(i, ASM_CC_CTYPE, ASM_CT_AND);
@@ -1703,6 +1763,14 @@ asm_normalize(struct asm_inst *i, enum asm_op op)
 	case ASM_OP_UNPACK4_L:
 		asm_cmpltr_add(i, ASM_CC_UNPACK, ASM_CT_L);
 		op = ASM_OP_UNPACK4;
+		break;
+	case ASM_OP_VMSW_0:
+		asm_cmpltr_add(i, ASM_CC_VMSW, ASM_CT_0);
+		op = ASM_OP_VMSW;
+		break;
+	case ASM_OP_VMSW_1:
+		asm_cmpltr_add(i, ASM_CC_VMSW, ASM_CT_1);
+		op = ASM_OP_VMSW;
 		break;
 	case ASM_OP_XMA_H:
 		asm_cmpltr_add(i, ASM_CC_XMA, ASM_CT_H);
@@ -2058,6 +2126,9 @@ asm_extract(enum asm_op op, enum asm_fmt fmt, uint64_t bits,
 	case ASM_FMT_F15: /* 0 dst */
 		u_imm(i, 1, bits, 6, 20);
 		break;
+	case ASM_FMT_F16: /* 0 dst */
+		u_imm(i, 1, bits, 6, 20);
+		break;
 	case ASM_FMT_I1:
 		operand(i, 1, ASM_OPER_GREG, bits, 6, 7);
 		operand(i, 2, ASM_OPER_GREG, bits, 13, 7);
@@ -2161,6 +2232,9 @@ asm_extract(enum asm_op op, enum asm_fmt fmt, uint64_t bits,
 		operand(i, 3, ASM_OPER_GREG, bits, 20, 7);
 		i->i_srcidx++;
 		break;
+	case ASM_FMT_I18:
+		u_immf(i, 1, bits, FRAG(6,20), FRAG(36,1), 0);
+		break;
 	case ASM_FMT_I19:
 		u_immf(i, 1, bits, FRAG(6,20), FRAG(36,1), 0);
 		break;
@@ -2217,6 +2291,12 @@ asm_extract(enum asm_op op, enum asm_fmt fmt, uint64_t bits,
 	case ASM_FMT_I29:
 		operand(i, 1, ASM_OPER_GREG, bits, 6, 7);
 		operand(i, 2, ASM_OPER_GREG, bits, 20, 7);
+		break;
+	case ASM_FMT_I30: /* 2 dst */
+		operand(i, 1, ASM_OPER_PREG, bits, 6, 6);
+		operand(i, 2, ASM_OPER_PREG, bits, 27, 6);
+		op_imm(i, 3, 32LL + FIELD(bits, 14, 5));
+		i->i_srcidx++;
 		break;
 	case ASM_FMT_M1:
 		asm_hint(i, ASM_CC_LDHINT);
@@ -2314,8 +2394,7 @@ asm_extract(enum asm_op op, enum asm_fmt fmt, uint64_t bits,
 		s_immf(i, 2, bits, FRAG(13,7), FRAG(27,1), FRAG(36,1), 0);
 		i->i_srcidx--;
 		break;
-	case ASM_FMT_M16: {
-		int oper;
+	case ASM_FMT_M16:
 		asm_hint(i, ASM_CC_LDHINT);
 		operand(i, 1, ASM_OPER_GREG, bits, 6, 7);
 		operand(i, 2, ASM_OPER_MEM, bits, 20, 7);
@@ -2323,15 +2402,15 @@ asm_extract(enum asm_op op, enum asm_fmt fmt, uint64_t bits,
 		if (i->i_op == ASM_OP_CMP8XCHG16) {
 			op_type(i, 4, ASM_OPER_AREG);
 			op_value(i, 4, AR_CSD);
-			oper = 5;
-		} else
-			oper = 4;
-		if (FIELD(bits, 30, 6) < 8) {
-			op_type(i, oper, ASM_OPER_AREG);
-			op_value(i, oper, AR_CCV);
+			op_type(i, 5, ASM_OPER_AREG);
+			op_value(i, 5, AR_CCV);
+		} else {
+			if (FIELD(bits, 30, 6) < 8) {
+				op_type(i, 4, ASM_OPER_AREG);
+				op_value(i, 4, AR_CCV);
+			}
 		}
 		break;
-	}
 	case ASM_FMT_M17:
 		asm_hint(i, ASM_CC_LDHINT);
 		operand(i, 1, ASM_OPER_GREG, bits, 6, 7);
@@ -2478,6 +2557,12 @@ asm_extract(enum asm_op op, enum asm_fmt fmt, uint64_t bits,
 		operand(i, 1, ASM_OPER_GREG, bits, 6, 7);
 		operand(i, 2, ASM_OPER_GREG, bits, 20, 7);
 		break;
+	case ASM_FMT_M47:
+		operand(i, 1, ASM_OPER_GREG, bits, 20, 7);
+		break;
+	case ASM_FMT_M48:
+		u_immf(i, 1, bits, FRAG(6,20), FRAG(36,1), 0);
+		break;
 	case ASM_FMT_X1:
 		KASSERT(slot == 2, ("foo"));
 		u_immf(i, 1, bits, FRAG(6,20), FRAG(36,1), 0);
@@ -2509,6 +2594,11 @@ asm_extract(enum asm_op op, enum asm_fmt fmt, uint64_t bits,
 		combine(&i->i_oper[2].o_value, 59, bits, 1, 36);
 		i->i_oper[2].o_value <<= 4;
 		i->i_oper[2].o_type = ASM_OPER_DISP;
+		break;
+	case ASM_FMT_X5:
+		KASSERT(slot == 2, ("foo"));
+		u_immf(i, 1, bits, FRAG(6,20), FRAG(36,1), 0);
+		combine(&i->i_oper[1].o_value, 21, b->b_inst[1].i_bits, 41, 0);
 		break;
 	default:
 		KASSERT(fmt == ASM_FMT_NONE, ("foo"));
