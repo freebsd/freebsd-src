@@ -146,11 +146,6 @@ serviced */\n");
 	f_print(fout, "\nint\n");
 	f_print(fout, "main()\n");
 	f_print(fout, "{\n");
-		if (tirpcflag) {
-			if (!inetdflag)
-				f_print(fout, "\t");
-			f_print(fout, "\tint maxrec = RPC_MAXDATASIZE;\n");
-		}
 	if (inetdflag) {
 		write_inetmost(infile);
 		/* Includes call to write_rpc_svc_fg() */
@@ -271,10 +266,6 @@ write_nettype_register(transp)
 		def = (definition *) l->val;
 		if (def->def_kind != DEF_PROGRAM) {
 			continue;
-		}
-		if (tirpcflag) {
-			f_print(fout,
-			"\trpc_control(RPC_SVC_CONNMAXREC_SET, &maxrec);\n");
 		}
 		for (vp = def->def.pr.versions; vp != NULL; vp = vp->next) {
 			f_print(fout, "\tif (!svc_create(");
@@ -1102,8 +1093,6 @@ write_inetd_register(transp)
 			"\tif ((_rpcfdtype == 0) || (_rpcfdtype == %s)) {\n",
 			isudp ? "SOCK_DGRAM" : "SOCK_STREAM");
 	}
-	if (tirpcflag)
-		f_print(fout, "\t\trpc_control(RPC_SVC_CONNMAXREC_SET, &maxrec);\n");
 	f_print(fout, "%s\t%s = svc%s_create(%s",
 		sp, TRANSP, transp, inetdflag? "sock": "RPC_ANYSOCK");
 	if (!isudp)
