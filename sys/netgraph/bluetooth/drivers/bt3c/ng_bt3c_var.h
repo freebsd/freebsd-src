@@ -63,6 +63,8 @@ struct bt3c_softc {
 	device_t		 dev;		/* pointer back to device */
 	int			 iobase_rid;	/* iobase RID */
 	struct resource		*iobase;	/* iobase */
+	bus_space_tag_t		 iot;		/* I/O tag */
+	bus_space_handle_t	 ioh;		/* I/O handle */
 	int			 irq_rid;       /* irq RID */
 	struct resource		*irq;		/* irq */
 	void			*irq_cookie;	/* irq cookie */
