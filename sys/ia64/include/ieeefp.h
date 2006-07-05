@@ -39,10 +39,10 @@ typedef int fp_except_t;
 #define	FP_X_IMP	IA64_FPSR_TRAP_ID /* imprecise(inexact) exception */
 
 typedef enum {
-	FP_RZ=0,		/* round to zero (truncate) */
-	FP_RM=1,		/* round toward negative infinity */
-	FP_RN=2,		/* round to nearest representable number */
-	FP_RP=3			/* round toward positive infinity */
+	FP_RN = 0,		/* round to nearest */
+	FP_RM,			/* round toward minus infinity */
+	FP_RP,			/* round toward plus infinity */
+	FP_RZ			/* round toward zero */
 } fp_rnd_t;
 
-#endif /* _MACHINE_IEEEFP_H_ */
+#endif /* !_MACHINE_IEEEFP_H_ */
