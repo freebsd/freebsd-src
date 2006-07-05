@@ -207,7 +207,7 @@ static caddr_t crashdumpmap;
 
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t locked_pmap, int try);
-static void	pmap_clear_ptes(vm_page_t m, long bit);
+static void	pmap_clear_write(vm_page_t m);
 
 static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte);
@@ -2969,47 +2969,36 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 }
 
 /*
- *	Clear the given bit in each of the given page's ptes.
+ * Clear the write and modified bits in each of the given page's mappings.
  */
 static __inline void
-pmap_clear_ptes(vm_page_t m, long bit)
+pmap_clear_write(vm_page_t m)
 {
 	pv_entry_t pv;
 	pmap_t pmap;
-	pt_entry_t pbits, *pte;
+	pt_entry_t oldpte, *pte;
 
-	if ((m->flags & PG_FICTITIOUS) ||
-	    (bit == PG_RW && (m->flags & PG_WRITEABLE) == 0))
+	if ((m->flags & PG_FICTITIOUS) != 0 ||
+	    (m->flags & PG_WRITEABLE) == 0)
 		return;
-
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	/*
-	 * Loop over all current mappings setting/clearing as appropos If
-	 * setting RO do we need to clear the VAC?
-	 */
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pte = pmap_pte(pmap, pv->pv_va);
 retry:
-		pbits = *pte;
-		if (pbits & bit) {
-			if (bit == PG_RW) {
-				if (!atomic_cmpset_long(pte, pbits,
-				    pbits & ~(PG_RW | PG_M)))
-					goto retry;
-				if (pbits & PG_M) {
-					vm_page_dirty(m);
-				}
-			} else {
-				atomic_clear_long(pte, bit);
-			}
+		oldpte = *pte;
+		if (oldpte & PG_RW) {
+			if (!atomic_cmpset_long(pte, oldpte, oldpte &
+			    ~(PG_RW | PG_M)))
+				goto retry;
+			if ((oldpte & PG_M) != 0)
+				vm_page_dirty(m);
 			pmap_invalidate_page(pmap, pv->pv_va);
 		}
 		PMAP_UNLOCK(pmap);
 	}
-	if (bit == PG_RW)
-		vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_flag_clear(m, PG_WRITEABLE);
 }
 
 /*
@@ -3022,7 +3011,7 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 {
 	if ((prot & VM_PROT_WRITE) == 0) {
 		if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
-			pmap_clear_ptes(m, PG_RW);
+			pmap_clear_write(m);
 		} else {
 			pmap_remove_all(m);
 		}
@@ -3082,7 +3071,23 @@ pmap_ts_referenced(vm_page_t m)
 void
 pmap_clear_modify(vm_page_t m)
 {
-	pmap_clear_ptes(m, PG_M);
+	pv_entry_t pv;
+	pmap_t pmap;
+	pt_entry_t *pte;
+
+	if ((m->flags & PG_FICTITIOUS) != 0)
+		return;
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		pmap = PV_PMAP(pv);
+		PMAP_LOCK(pmap);
+		pte = pmap_pte(pmap, pv->pv_va);
+		if (*pte & PG_M) {
+			atomic_clear_long(pte, PG_M);
+			pmap_invalidate_page(pmap, pv->pv_va);
+		}
+		PMAP_UNLOCK(pmap);
+	}
 }
 
 /*
@@ -3093,7 +3098,23 @@ pmap_clear_modify(vm_page_t m)
 void
 pmap_clear_reference(vm_page_t m)
 {
-	pmap_clear_ptes(m, PG_A);
+	pv_entry_t pv;
+	pmap_t pmap;
+	pt_entry_t *pte;
+
+	if ((m->flags & PG_FICTITIOUS) != 0)
+		return;
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		pmap = PV_PMAP(pv);
+		PMAP_LOCK(pmap);
+		pte = pmap_pte(pmap, pv->pv_va);
+		if (*pte & PG_A) {
+			atomic_clear_long(pte, PG_A);
+			pmap_invalidate_page(pmap, pv->pv_va);
+		}
+		PMAP_UNLOCK(pmap);
+	}
 }
 
 /*
