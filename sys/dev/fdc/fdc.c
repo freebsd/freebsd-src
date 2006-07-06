@@ -191,6 +191,7 @@ static struct fd_type *fd_native_types[] = {
 #define	FDO_MOEN3	0x80	/*  motor enable drive 3 */
 
 #define	FDSTS	4	/* NEC 765 Main Status Register (R) */
+#define FDDSR	4	/* Data Rate Select Register (W) */
 #define	FDDATA	5	/* NEC 765 Data Register (R/W) */
 #define	FDCTL	7	/* Control Register (W) */
 
@@ -344,6 +345,13 @@ fdsts_rd(struct fdc_data *fdc)
 }
 
 static void
+fddsr_wr(struct fdc_data *fdc, u_int8_t v)
+{
+
+	fdregwr(fdc, FDDSR, v);
+}
+
+static void
 fddata_wr(struct fdc_data *fdc, u_int8_t v)
 {
 
@@ -494,13 +502,18 @@ fdc_reset(struct fdc_data *fdc)
 {
 	int i, r[10];
 
-	/* Try a reset, keep motor on */
-	fdout_wr(fdc, fdc->fdout & ~(FDO_FRST|FDO_FDMAEN));
-	DELAY(100);
-	/* enable FDC, but defer interrupts a moment */
-	fdout_wr(fdc, fdc->fdout & ~FDO_FDMAEN);
-	DELAY(100);
-	fdout_wr(fdc, fdc->fdout);
+	if (fdc->fdct == FDC_ENHANCED) {
+		/* Try a software reset, default precomp, and 500 kb/s */
+		fddsr_wr(fdc, I8207X_DSR_SR);
+	} else {
+		/* Try a hardware reset, keep motor on */
+		fdout_wr(fdc, fdc->fdout & ~(FDO_FRST|FDO_FDMAEN));
+		DELAY(100);
+		/* enable FDC, but defer interrupts a moment */
+		fdout_wr(fdc, fdc->fdout & ~FDO_FDMAEN);
+		DELAY(100);
+		fdout_wr(fdc, fdc->fdout);
+	}
 
 	/* XXX after a reset, silently believe the FDC will accept commands */
 	if (fdc_cmd(fdc, 3, NE7CMD_SPECIFY, spec1, spec2, 0))
@@ -804,7 +817,10 @@ fdc_worker(struct fdc_data *fdc)
 
 	/* Select drive, setup params */
 	fd_select(fd);
-	fdctl_wr(fdc, fd->ft->trans);
+	if (fdc->fdct == FDC_ENHANCED)
+		fddsr_wr(fdc, fd->ft->trans);
+	else
+		fdctl_wr(fdc, fd->ft->trans);
 
 	if (bp->bio_cmd & BIO_PROBE) {
 
