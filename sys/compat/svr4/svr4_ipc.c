@@ -500,11 +500,7 @@ svr4_msgctl(td, v)
 		return (kern_msgctl(td, uap->msqid, IPC_SET, &bs));
 
 	case SVR4_IPC_RMID:
-		error = copyin(uap->buf, &ss, sizeof ss);
-		if (error)
-			return error;
-		svr4_to_bsd_msqid_ds(&ss, &bs);
-		return (kern_msgctl(td, uap->msqid, IPC_RMID, &bs));
+		return (kern_msgctl(td, uap->msqid, IPC_RMID, NULL));
 
 	default:
 		return EINVAL;
@@ -658,7 +654,6 @@ svr4_shmctl(td, v)
 	if (uap->buf != NULL) {
 		switch (uap->cmd) {
 		case SVR4_IPC_SET:
-		case SVR4_IPC_RMID:
 		case SVR4_SHM_LOCK:
 		case SVR4_SHM_UNLOCK:
 			error = copyin(uap->buf, &ss, sizeof(ss));
