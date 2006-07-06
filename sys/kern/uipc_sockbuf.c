@@ -32,7 +32,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
 #include "opt_param.h"
 
 #include <sys/param.h>
@@ -43,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>	/* for maxfiles */
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
