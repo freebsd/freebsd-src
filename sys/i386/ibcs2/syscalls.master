@@ -158,8 +158,8 @@
 86	AUE_PUTMSG	MSTD	{ int ibcs2_putmsg(int fd, \
 				    struct ibcs2_stropts *ctl, \
 				    struct ibcs2_stropts *dat, int flags); }
-87	AUE_POLL	STD	{ int ibcs2_poll(struct ibcs2_poll *fds, \
-				    long nfds, int timeout); }
+87	AUE_POLL	MNOPROTO { int poll(struct pollfd *fds, u_int nfds, \
+				    int timeout); }
 88	AUE_NULL	UNIMPL	nosys
 89	AUE_NULL	MSTD	{ int ibcs2_secure(int cmd, int a1, int a2, \
 				    int a3, int a4, int a5); }
