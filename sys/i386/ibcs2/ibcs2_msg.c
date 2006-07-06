@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <i386/ibcs2/ibcs2_types.h>
 #include <i386/ibcs2/ibcs2_signal.h>
 #include <i386/ibcs2/ibcs2_util.h>
-#include <i386/ibcs2/ibcs2_poll.h>
 #include <i386/ibcs2/ibcs2_proto.h>
 
 
@@ -56,80 +55,4 @@ ibcs2_putmsg(td, uap)
 	struct ibcs2_putmsg_args *uap;
 {
 	return 0; /* fake */
-}
-
-
-int
-ibcs2_poll(td, uap)
-	struct thread *td;
-	struct ibcs2_poll_args *uap;
-{
-	int error, i, nfds;
-	fd_set *readfds, *writefds, *exceptfds;
-	struct timeval timeout, *tp;
-	struct ibcs2_poll conv;
-	caddr_t sg = stackgap_init();
-
-	if (uap->nfds > FD_SETSIZE)
-		return EINVAL;
-	readfds   = stackgap_alloc(&sg, sizeof(fd_set *));
-	writefds  = stackgap_alloc(&sg, sizeof(fd_set *));
-	exceptfds = stackgap_alloc(&sg, sizeof(fd_set *));
-
-	FD_ZERO(readfds);
-	FD_ZERO(writefds);
-	FD_ZERO(exceptfds);
-	if (uap->timeout == -1)
-		tp = NULL;
-	else {
-		timeout.tv_usec = (uap->timeout % 1000)*1000;
-		timeout.tv_sec  = uap->timeout / 1000;
-		tp = &timeout;
-	}
-
-	nfds = 0;
-	for (i = 0; i < uap->nfds; i++) {
-		if ((error = copyin(uap->fds + i*sizeof(struct ibcs2_poll),
-				   &conv, sizeof(conv))) != 0)
-			return error;
-		conv.revents = 0;
-		if (conv.fd < 0 || conv.fd >= FD_SETSIZE)
-			continue;
-		if (conv.fd >= nfds)
-			nfds = conv.fd + 1;
-		if (conv.events & IBCS2_READPOLL)
-			FD_SET(conv.fd, readfds);
-		if (conv.events & IBCS2_WRITEPOLL)
-			FD_SET(conv.fd, writefds);
-		FD_SET(conv.fd, exceptfds);
-	}
-	error = kern_select(td, nfds, readfds, writefds, exceptfds, tp);
-	if (error != 0)
-		return error;
-	if (td->td_retval[0] == 0)
-		return 0;
-	td->td_retval[0] = 0;
-	for (td->td_retval[0] = 0, i = 0; i < uap->nfds; i++) {
-		copyin(uap->fds + i*sizeof(struct ibcs2_poll),
-		       &conv, sizeof(conv));
-		conv.revents = 0;
-		if (conv.fd < 0 || conv.fd > FD_SETSIZE)
-			/* should check for open as well */
-			conv.revents |= IBCS2_POLLNVAL;
-		else {
-			if (FD_ISSET(conv.fd, readfds))
-				conv.revents |= IBCS2_POLLIN;
-			if (FD_ISSET(conv.fd, writefds))
-				conv.revents |= IBCS2_POLLOUT;
-			if (FD_ISSET(conv.fd, exceptfds))
-				conv.revents |= IBCS2_POLLERR;
-			if (conv.revents)
-				++td->td_retval[0];
-		}
-		if ((error = copyout(&conv,
-				    uap->fds + i*sizeof(struct ibcs2_poll),
-				    sizeof(conv))) != 0)
-			return error;
-	}
-	return 0;
 }
