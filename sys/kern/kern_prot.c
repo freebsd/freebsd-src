@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 
 #include <security/audit/audit.h>
@@ -297,22 +298,36 @@ struct getgroups_args {
 int
 getgroups(struct thread *td, register struct getgroups_args *uap)
 {
-	struct ucred *cred;
+	gid_t groups[NGROUPS];
 	u_int ngrp;
 	int error;
 
-	cred = td->td_ucred;
-	if ((ngrp = uap->gidsetsize) == 0) {
-		td->td_retval[0] = cred->cr_ngroups;
-		return (0);
-	}
-	if (ngrp < cred->cr_ngroups)
-		return (EINVAL);
-	ngrp = cred->cr_ngroups;
-	error = copyout(cred->cr_groups, uap->gidset, ngrp * sizeof(gid_t));
+	ngrp = MIN(uap->gidsetsize, NGROUPS);
+	error = kern_getgroups(td, &ngrp, groups);
+	if (error)
+		return (error);
+	if (uap->gidsetsize > 0)
+		error = copyout(groups, uap->gidset, ngrp * sizeof(gid_t));
 	if (error == 0)
 		td->td_retval[0] = ngrp;
 	return (error);
+}
+
+int
+kern_getgroups(struct thread *td, u_int *ngrp, gid_t *groups)
+{
+	struct ucred *cred;
+
+	cred = td->td_ucred;
+	if (*ngrp == 0) {
+		*ngrp = cred->cr_ngroups;
+		return (0);
+	}
+	if (*ngrp < cred->cr_ngroups)
+		return (EINVAL);
+	*ngrp = cred->cr_ngroups;
+	bcopy(cred->cr_groups, groups, *ngrp * sizeof(gid_t));
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -815,28 +830,33 @@ struct setgroups_args {
 int
 setgroups(struct thread *td, struct setgroups_args *uap)
 {
-	struct proc *p = td->td_proc;
-	struct ucred *newcred, *tempcred, *oldcred;
-	u_int ngrp;
+	gid_t groups[NGROUPS];
 	int error;
 
-	ngrp = uap->gidsetsize;
+	if (uap->gidsetsize > NGROUPS)
+		return (EINVAL);
+	error = copyin(uap->gidset, groups, uap->gidsetsize * sizeof(gid_t));
+	if (error)
+		return (error);
+	return (kern_setgroups(td, uap->gidsetsize, groups));
+}
+
+int
+kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups)
+{
+	struct proc *p = td->td_proc;
+	struct ucred *newcred, *oldcred;
+	int error;
+
 	if (ngrp > NGROUPS)
 		return (EINVAL);
-	tempcred = crget();
-	error = copyin(uap->gidset, tempcred->cr_groups, ngrp * sizeof(gid_t));
-	if (error != 0) {
-		crfree(tempcred);
-		return (error);
-	}
-	AUDIT_ARG(groupset, tempcred->cr_groups, ngrp);
+	AUDIT_ARG(groupset, groups, ngrp);
 	newcred = crget();
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 
 #ifdef MAC
-	error = mac_check_proc_setgroups(p, oldcred, ngrp,
-	    tempcred->cr_groups);
+	error = mac_check_proc_setgroups(p, oldcred, ngrp, groups);
 	if (error)
 		goto fail;
 #endif
@@ -859,21 +879,18 @@ setgroups(struct thread *td, struct setgroups_args *uap)
 		 */
 		newcred->cr_ngroups = 1;
 	} else {
-		bcopy(tempcred->cr_groups, newcred->cr_groups,
-		    ngrp * sizeof(gid_t));
+		bcopy(groups, newcred->cr_groups, ngrp * sizeof(gid_t));
 		newcred->cr_ngroups = ngrp;
 	}
 	setsugid(p);
 	p->p_ucred = newcred;
 	PROC_UNLOCK(p);
-	crfree(tempcred);
 	crfree(oldcred);
 	return (0);
 
 fail:
 	PROC_UNLOCK(p);
 	crfree(newcred);
-	crfree(tempcred);
 	return (error);
 }
 

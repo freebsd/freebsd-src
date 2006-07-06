@@ -651,35 +651,25 @@ ibcs2_getgroups(td, uap)
 	struct thread *td;
 	struct ibcs2_getgroups_args *uap;
 {
-	int error, i;
-	ibcs2_gid_t *iset = NULL;
-	struct getgroups_args sa;
-	gid_t *gp;
-	caddr_t sg = stackgap_init();
+	ibcs2_gid_t iset[NGROUPS_MAX];
+	gid_t gp[NGROUPS_MAX];
+	u_int i, ngrp;
+	int error;
 
 	if (uap->gidsetsize < 0)
 		return (EINVAL);
-	if (uap->gidsetsize > NGROUPS_MAX)
-		uap->gidsetsize = NGROUPS_MAX;
-	sa.gidsetsize = uap->gidsetsize;
-	if (uap->gidsetsize) {
-		sa.gidset = stackgap_alloc(&sg, NGROUPS_MAX *
-						    sizeof(gid_t *));
-		iset = stackgap_alloc(&sg, uap->gidsetsize *
-				      sizeof(ibcs2_gid_t));
+	ngrp = MIN(uap->gidsetsize, NGROUPS_MAX);
+	error = kern_getgroups(td, &ngrp, gp);
+	if (error)
+		return (error);
+	if (uap->gidsetsize > 0) {
+		for (i = 0; i < ngrp; i++)
+			iset[i] = (ibcs2_gid_t)gp[i];
+		error = copyout(iset, uap->gidset, ngrp * sizeof(ibcs2_gid_t));
 	}
-	if ((error = getgroups(td, &sa)) != 0)
-		return error;
-	if (uap->gidsetsize == 0)
-		return 0;
-
-	for (i = 0, gp = sa.gidset; i < td->td_retval[0]; i++)
-		iset[i] = (ibcs2_gid_t)*gp++;
-	if (td->td_retval[0] && (error = copyout((caddr_t)iset,
-					  (caddr_t)uap->gidset,
-					  sizeof(ibcs2_gid_t) * td->td_retval[0])))
-		return error;
-        return 0;
+	if (error == 0)
+		td->td_retval[0] = ngrp;
+	return (error);
 }
 
 int
@@ -687,28 +677,21 @@ ibcs2_setgroups(td, uap)
 	struct thread *td;
 	struct ibcs2_setgroups_args *uap;
 {
+	ibcs2_gid_t iset[NGROUPS_MAX];
+	gid_t gp[NGROUPS_MAX];
 	int error, i;
-	ibcs2_gid_t *iset;
-	struct setgroups_args sa;
-	gid_t *gp;
-	caddr_t sg = stackgap_init();
 
 	if (uap->gidsetsize < 0 || uap->gidsetsize > NGROUPS_MAX)
 		return (EINVAL);
-	sa.gidsetsize = uap->gidsetsize;
-	sa.gidset = stackgap_alloc(&sg, sa.gidsetsize *
-					    sizeof(gid_t *));
-	iset = stackgap_alloc(&sg, sa.gidsetsize *
-			      sizeof(ibcs2_gid_t *));
-	if (sa.gidsetsize) {
-		if ((error = copyin((caddr_t)uap->gidset, (caddr_t)iset, 
-				   sizeof(ibcs2_gid_t *) *
-				   uap->gidsetsize)) != 0)
-			return error;
+	if (uap->gidsetsize && uap->gidset) {
+		error = copyin(uap->gidset, iset, sizeof(ibcs2_gid_t) *
+		    uap->gidsetsize);
+		if (error)
+			return (error);
+		for (i = 0; i < uap->gidsetsize; i++)
+			gp[i] = (gid_t)iset[i];
 	}
-	for (i = 0, gp = sa.gidset; i < sa.gidsetsize; i++)
-		*gp++ = (gid_t)iset[i];
-	return setgroups(td, &sa);
+	return (kern_setgroups(td, uap->gidsetsize, gp));
 }
 
 int
