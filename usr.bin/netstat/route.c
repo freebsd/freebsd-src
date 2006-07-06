@@ -66,9 +66,9 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 #include <err.h>
-#include <time.h>
 #include "netstat.h"
 
 #define kget(p, d) (kread((u_long)(p), (char *)&(d), sizeof (d)))
@@ -117,6 +117,8 @@ struct	radix_node_head *rt_tables[AF_MAX+1];
 
 int	NewTree = 0;
 
+struct	timespec uptime;
+
 static struct sockaddr *kgetsa (struct sockaddr *);
 static void size_cols (int ef, struct radix_node *rn);
 static void size_cols_tree (struct radix_node *rn);
@@ -142,6 +144,14 @@ routepr(u_long rtree)
 {
 	struct radix_node_head *rnh, head;
 	int i;
+
+	/*
+	 * Since kernel & userland use different timebase
+	 * (time_uptime vs time_second) and we are reading kernel memory
+	 * directly we should do rt_rmx.rmx_expire --> expire_time conversion.
+	 */
+	if (clock_gettime(CLOCK_UPTIME, &uptime) < 0)
+		err(EX_OSERR, "clock_gettime() failed");
 
 	printf("Routing tables\n");
 
@@ -333,7 +343,7 @@ size_cols_rtentry(struct rtentry *rt)
 			time_t expire_time;
 
 			if ((expire_time =
-			    rt->rt_rmx.rmx_expire - time(NULL)) > 0) {
+			    rt->rt_rmx.rmx_expire - uptime.tv_sec) > 0) {
 				len = snprintf(buffer, sizeof(buffer), "%d",
 					       (int)expire_time);
 				wid_expire = MAX(len, wid_expire);
@@ -751,7 +761,7 @@ p_rtentry(struct rtentry *rt)
 			time_t expire_time;
 
 			if ((expire_time =
-			    rt->rt_rmx.rmx_expire - time((time_t *)0)) > 0)
+			    rt->rt_rmx.rmx_expire - uptime.tv_sec) > 0)
 				printf(" %*d", wid_expire, (int)expire_time);
 		}
 		if (rt->rt_nodes[0].rn_dupedkey)
