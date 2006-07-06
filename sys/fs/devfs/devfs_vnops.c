@@ -40,8 +40,8 @@
  *	mkdir: want it ?
  */
 
-#include <opt_devfs.h>
-#include <opt_mac.h>
+#include "opt_devfs.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
