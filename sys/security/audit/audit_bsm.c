@@ -36,6 +36,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/socket.h>
+#include <sys/extattr.h>
 #include <sys/fcntl.h>
 #include <sys/user.h>
 #include <sys/systm.h>
@@ -236,6 +237,29 @@ kau_free(struct au_record *rec)
 		kau_write(rec, tok);					\
 	}								\
 } while (0)								\
+
+#define EXTATTR_TOKENS	do {						\
+	if (ARG_IS_VALID(kar, ARG_VALUE)) {				\
+		switch (ar->ar_arg_value) {				\
+		case EXTATTR_NAMESPACE_USER:				\
+			tok = au_to_text(EXTATTR_NAMESPACE_USER_STRING);\
+			break;						\
+		case EXTATTR_NAMESPACE_SYSTEM:				\
+			tok = au_to_text(EXTATTR_NAMESPACE_SYSTEM_STRING);\
+			break;						\
+		default:						\
+			tok = au_to_arg32(3, "attrnamespace",		\
+			    ar->ar_arg_value);				\
+			break;						\
+		}							\
+		kau_write(rec, tok);					\
+	}								\
+	/* attrname is in the text field */				\
+	if (ARG_IS_VALID(kar, ARG_TEXT)) {				\
+		tok = au_to_text(ar->ar_arg_text);			\
+		kau_write(rec, tok);					\
+	}								\
+} while (0)
 
 /*
  * Implement auditing for the auditon() system call. The audit tokens that
@@ -610,6 +634,41 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			kau_write(rec, tok);
 		}
 		UPATH1_VNODE1_TOKENS;
+		break;
+
+	case AUE_EXTATTRCTL:
+		UPATH1_VNODE1_TOKENS;
+		if (ARG_IS_VALID(kar, ARG_CMD)) {
+			tok = au_to_arg32(2, "cmd", ar->ar_arg_cmd);
+			kau_write(rec, tok);
+		}
+		/* extattrctl(2) filename parameter is in upath2/vnode2 */
+		UPATH2_TOKENS;
+		VNODE2_TOKENS;
+		EXTATTR_TOKENS;
+		break;
+
+	case AUE_EXTATTR_GET_FILE:
+	case AUE_EXTATTR_SET_FILE:
+	case AUE_EXTATTR_LIST_FILE:
+	case AUE_EXTATTR_DELETE_FILE:
+	case AUE_EXTATTR_GET_LINK:
+	case AUE_EXTATTR_SET_LINK:
+	case AUE_EXTATTR_LIST_LINK:
+	case AUE_EXTATTR_DELETE_LINK:
+		UPATH1_VNODE1_TOKENS;
+		EXTATTR_TOKENS;
+		break;
+
+	case AUE_EXTATTR_GET_FD:
+	case AUE_EXTATTR_SET_FD:
+	case AUE_EXTATTR_LIST_FD:
+	case AUE_EXTATTR_DELETE_FD:
+		if (ARG_IS_VALID(kar, ARG_FD)) {
+			tok = au_to_arg32(2, "fd", ar->ar_arg_fd);
+			kau_write(rec, tok);
+		}
+		EXTATTR_TOKENS;
 		break;
 
 	case AUE_FCHMOD:
