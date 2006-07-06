@@ -62,10 +62,13 @@ __FBSDID("$FreeBSD$");
 int kld_debug = 0;
 #endif
 
-#define	KLD_LOCK()		do { sx_xlock(&kld_sx); mtx_lock(&Giant); } while (0)
-#define	KLD_UNLOCK()		do { mtx_unlock(&Giant); sx_xunlock(&kld_sx); } while (0)
+#define	KLD_LOCK()		sx_xlock(&kld_sx)
+#define	KLD_UNLOCK()		sx_xunlock(&kld_sx)
 #define	KLD_LOCKED()		sx_xlocked(&kld_sx)
-#define	KLD_LOCK_ASSERT()	do { if (!cold) sx_assert(&kld_sx, SX_XLOCKED); } while (0)
+#define	KLD_LOCK_ASSERT() do {						\
+	if (!cold)							\
+		sx_assert(&kld_sx, SX_XLOCKED);				\
+} while (0)
 
 /*
  * static char *linker_search_path(const char *name, struct mod_depend
@@ -212,6 +215,7 @@ linker_file_sysinit(linker_file_t lf)
 	 * Traverse the (now) ordered list of system initialization tasks.
 	 * Perform each task, and continue on to the next task.
 	 */
+	mtx_lock(&Giant);
 	for (sipp = start; sipp < stop; sipp++) {
 		if ((*sipp)->subsystem == SI_SUB_DUMMY)
 			continue;	/* skip dummy task(s) */
@@ -219,6 +223,7 @@ linker_file_sysinit(linker_file_t lf)
 		/* Call function */
 		(*((*sipp)->func)) ((*sipp)->udata);
 	}
+	mtx_unlock(&Giant);
 }
 
 static void
@@ -256,6 +261,7 @@ linker_file_sysuninit(linker_file_t lf)
 	 * Traverse the (now) ordered list of system initialization tasks.
 	 * Perform each task, and continue on to the next task.
 	 */
+	mtx_lock(&Giant);
 	for (sipp = start; sipp < stop; sipp++) {
 		if ((*sipp)->subsystem == SI_SUB_DUMMY)
 			continue;	/* skip dummy task(s) */
@@ -263,6 +269,7 @@ linker_file_sysuninit(linker_file_t lf)
 		/* Call function */
 		(*((*sipp)->func)) ((*sipp)->udata);
 	}
+	mtx_unlock(&Giant);
 }
 
 static void
