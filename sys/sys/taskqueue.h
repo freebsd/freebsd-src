@@ -51,6 +51,8 @@ struct proc;
 struct taskqueue *taskqueue_create(const char *name, int mflags,
 				    taskqueue_enqueue_fn enqueue,
 				    void *context, struct proc **);
+int	taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
+				const char *name, ...) __printflike(4, 5);
 int	taskqueue_enqueue(struct taskqueue *queue, struct task *task);
 void	taskqueue_drain(struct taskqueue *queue, struct task *task);
 struct taskqueue *taskqueue_find(const char *name);
@@ -80,7 +82,7 @@ void	taskqueue_thread_enqueue(void *context);
 extern struct taskqueue *taskqueue_##name
 
 /*
- * Define and initialise a taskqueue.
+ * Define and initialise a global taskqueue that uses sleep mutexes.
  */
 #define TASKQUEUE_DEFINE(name, enqueue, context, init)			\
 									\
@@ -89,10 +91,8 @@ struct taskqueue *taskqueue_##name;					\
 static void								\
 taskqueue_define_##name(void *arg)					\
 {									\
-	static struct proc *taskqueue_##name##_proc;			\
 	taskqueue_##name =						\
-	    taskqueue_create(#name, M_NOWAIT, (enqueue), (context),	\
-	    &taskqueue_##name##_proc);					\
+	    taskqueue_create(#name, M_NOWAIT, (enqueue), (context), NULL);\
 	init;								\
 }									\
 									\
@@ -102,8 +102,33 @@ SYSINIT(taskqueue_##name, SI_SUB_CONFIGURE, SI_ORDER_SECOND,		\
 struct __hack
 #define TASKQUEUE_DEFINE_THREAD(name)					\
 TASKQUEUE_DEFINE(name, taskqueue_thread_enqueue, &taskqueue_##name,	\
-	kthread_create(taskqueue_thread_loop, &taskqueue_##name,	\
-	&taskqueue_##name##_proc, 0, 0, #name " taskq"))
+	taskqueue_start_threads(&taskqueue_##name, 1, PWAIT,		\
+	"%s taskq", #name))
+
+/*
+ * Define and initialise a global taskqueue that uses spin mutexes.
+ */
+#define TASKQUEUE_FAST_DEFINE(name, enqueue, context, init)		\
+									\
+struct taskqueue *taskqueue_##name;					\
+									\
+static void								\
+taskqueue_define_##name(void *arg)					\
+{									\
+	taskqueue_##name =						\
+	    taskqueue_create_fast(#name, M_NOWAIT, (enqueue),		\
+	    (context));							\
+	init;								\
+}									\
+									\
+SYSINIT(taskqueue_##name, SI_SUB_CONFIGURE, SI_ORDER_SECOND,		\
+	taskqueue_define_##name, NULL)					\
+									\
+struct __hack
+#define TASKQUEUE_FAST_DEFINE_THREAD(name)				\
+TASKQUEUE_FAST_DEFINE(name, taskqueue_thread_enqueue,			\
+	&taskqueue_##name, taskqueue_start_threads(&taskqueue_##name	\
+	1, PWAIT, "%s taskq", #name))
 
 /*
  * These queues are serviced by software interrupt handlers.  To enqueue
@@ -127,5 +152,8 @@ TASKQUEUE_DECLARE(thread);
  */
 TASKQUEUE_DECLARE(fast);
 int	taskqueue_enqueue_fast(struct taskqueue *queue, struct task *task);
+struct taskqueue *taskqueue_create_fast(const char *name, int mflags,
+				    taskqueue_enqueue_fn enqueue,
+				    void *context);
 
 #endif /* !_SYS_TASKQUEUE_H_ */
