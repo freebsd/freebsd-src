@@ -249,7 +249,8 @@ show(file_info_t *file)
 
     while ((ch = getc(file->fp)) != EOF) {
 	if (last != file && no_files > 1) {
-		(void)printf("\n==> %s <==\n", file->file_name);
+		if (!qflag)
+			(void)printf("\n==> %s <==\n", file->file_name);
 		last = file;
 	}
 	if (putchar(ch) == EOF)
@@ -322,7 +323,7 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 		if (file->fp) {
 			active = 1;
 			n++;
-			if (no_files > 1)
+			if (no_files > 1 && !qflag)
 				(void)printf("\n==> %s <==\n", file->file_name);
 			forward(file->fp, style, off, &file->st);
 			if (Fflag && fileno(file->fp) != STDIN_FILENO)
