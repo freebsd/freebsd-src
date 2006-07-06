@@ -35,7 +35,7 @@
 .\"	@(#)tail.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd July 6, 2006
 .Dt TAIL 1
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@
 .Fl f |
 .Fl r
 .Oc
+.Op Fl q
 .Oo
 .Fl b Ar number |
 .Fl c Ar number |
@@ -114,6 +115,8 @@ option is ignored if reading from standard input rather than a file.
 The location is
 .Ar number
 lines.
+.It Fl q
+Suppresses printing of headers when multiple files are being examined.
 .It Fl r
 The
 .Fl r
@@ -139,7 +142,9 @@ header consisting of the string
 .Dq ==> XXX <==
 where
 .Dq XXX
-is the name of the file.
+is the name of the file unless
+.Fl q
+flag is specified.
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO
