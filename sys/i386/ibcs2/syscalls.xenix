@@ -56,9 +56,9 @@
 				    ibcs2_sigset_t *oset); }
 41	AUE_NULL	MSTD	{ int ibcs2_sigpending(ibcs2_sigset_t *mask); }
 42	AUE_NULL	MSTD	{ int ibcs2_sigsuspend(ibcs2_sigset_t *mask); }
-43	AUE_GETGROUPS	STD	{ int ibcs2_getgroups(int gidsetsize, \
+43	AUE_GETGROUPS	MSTD	{ int ibcs2_getgroups(int gidsetsize, \
 				    ibcs2_gid_t *gidset); }
-44	AUE_SETGROUPS	STD	{ int ibcs2_setgroups(int gidsetsize, \
+44	AUE_SETGROUPS	MSTD	{ int ibcs2_setgroups(int gidsetsize, \
 				    ibcs2_gid_t *gidset); }
 45	AUE_NULL	MSTD	{ int ibcs2_sysconf(int name); }
 46	AUE_PATHCONF	MSTD	{ int ibcs2_pathconf(char *path, int name); }
