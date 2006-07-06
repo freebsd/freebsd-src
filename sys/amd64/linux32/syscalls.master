@@ -113,7 +113,7 @@
 51	AUE_ACCT	MNOPROTO { int acct(char *path); }
 52	AUE_UMOUNT	MSTD	{ int linux_umount(char *path, l_int flags); }
 53	AUE_NULL	UNIMPL	lock
-54	AUE_IOCTL	STD	{ int linux_ioctl(l_uint fd, l_uint cmd, \
+54	AUE_IOCTL	MSTD	{ int linux_ioctl(l_uint fd, l_uint cmd, \
 				    uintptr_t arg); }
 55	AUE_FCNTL	MSTD	{ int linux_fcntl(l_uint fd, l_uint cmd, \
 				    uintptr_t arg); }
