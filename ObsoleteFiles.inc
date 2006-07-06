@@ -14,6 +14,11 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20060521: gethostbyaddr(3) ABI change
+OLD_FILES+=usr/lib/libroken.so.8
+OLD_FILES+=lib/libatm.so.3
+OLD_FILES+=lib/libc.so.6
+OLD_FILES+=lib/libutil.so.5
 # 20060517: pcvt removed
 OLD_FILES+=usr/share/pcvt/README.FIRST
 OLD_FILES+=usr/share/pcvt/Etc/xmodmap-german
