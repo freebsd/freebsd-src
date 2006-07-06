@@ -90,6 +90,12 @@
 #define NE7_ST3_HD	0x04	/* upper head select */
 #define NE7_ST3_US	0x03	/* unit select */
 
+/* Data Rate Select Register DSR (enhanced controller) */
+#define I8207X_DSR_SR	0x80	/* software reset */
+#define I8207X_DSR_LP	0x40	/* low power */
+#define I8207X_DSR_PS	0x1c	/* precompensation select */
+#define I8207X_DSR_RS	0x03	/* data rate select */
+
 /* Commands */
 /*
  * the top three bits -- where appropriate -- are set as follows:
