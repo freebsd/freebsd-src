@@ -51,7 +51,6 @@
 #include <sys/acl.h>
 #include <sys/event.h>
 #include <sys/extattr.h>
-#include <sys/mac.h>
 #include <fs/unionfs/union.h>
 
 #include <vm/vm.h>
