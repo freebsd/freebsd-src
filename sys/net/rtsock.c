@@ -605,7 +605,10 @@ rt_setmetrics(u_long which, const struct rt_metrics *in,
 	 * of tcp hostcache. The rest is ignored.
 	 */
 	metric(RTV_MTU, rmx_mtu);
-	metric(RTV_EXPIRE, rmx_expire);
+	/* Userland -> kernel timebase conversion. */
+	if (which & RTV_EXPIRE)
+		out->rmx_expire = in->rmx_expire ?
+		    in->rmx_expire - time_second + time_uptime : 0;
 #undef metric
 }
 
@@ -615,7 +618,9 @@ rt_getmetrics(const struct rt_metrics_lite *in, struct rt_metrics *out)
 #define metric(e) out->e = in->e;
 	bzero(out, sizeof(*out));
 	metric(rmx_mtu);
-	metric(rmx_expire);
+	/* Kernel -> userland timebase conversion. */
+	out->rmx_expire = in->rmx_expire ?
+	    in->rmx_expire - time_uptime + time_second : 0;
 #undef metric
 }
 
