@@ -43,7 +43,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/filio.h>
 #include <sys/kbio.h>
+#include <sys/kernel.h>
 #include <sys/linker_set.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
@@ -51,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/soundcard.h>
 #include <sys/stdint.h>
+#include <sys/sx.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
 #include <net/if.h>
@@ -126,6 +129,8 @@ struct handler_element
 
 static TAILQ_HEAD(, handler_element) handlers =
 	TAILQ_HEAD_INITIALIZER(handlers);
+static struct sx linux_ioctl_sx;
+SX_SYSINIT(linux_ioctl, &linux_ioctl_sx, "linux ioctl handlers");
 
 /*
  * hdio related ioctls for VMWare support
@@ -2571,15 +2576,21 @@ linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 
 	/* Iterate over the ioctl handlers */
 	cmd = args->cmd & 0xffff;
+	sx_slock(&linux_ioctl_sx);
+	mtx_lock(&Giant);
 	TAILQ_FOREACH(he, &handlers, list) {
 		if (cmd >= he->low && cmd <= he->high) {
 			error = (*he->func)(td, args);
 			if (error != ENOIOCTL) {
+				mtx_unlock(&Giant);
+				sx_sunlock(&linux_ioctl_sx);
 				fdrop(fp, td);
 				return (error);
 			}
 		}
 	}
+	mtx_unlock(&Giant);
+	sx_sunlock(&linux_ioctl_sx);
 	fdrop(fp, td);
 
 	linux_msg(td, "ioctl fd=%d, cmd=0x%x ('%c',%d) is not implemented",
@@ -2601,6 +2612,7 @@ linux_ioctl_register_handler(struct linux_ioctl_handler *h)
 	 * Reuse the element if the handler is already on the list, otherwise
 	 * create a new element.
 	 */
+	sx_xlock(&linux_ioctl_sx);
 	TAILQ_FOREACH(he, &handlers, list) {
 		if (he->func == h->func)
 			break;
@@ -2621,10 +2633,12 @@ linux_ioctl_register_handler(struct linux_ioctl_handler *h)
 	TAILQ_FOREACH(cur, &handlers, list) {
 		if (cur->span > he->span) {
 			TAILQ_INSERT_BEFORE(cur, he, list);
+			sx_xunlock(&linux_ioctl_sx);
 			return (0);
 		}
 	}
 	TAILQ_INSERT_TAIL(&handlers, he, list);
+	sx_xunlock(&linux_ioctl_sx);
 
 	return (0);
 }
@@ -2637,13 +2651,16 @@ linux_ioctl_unregister_handler(struct linux_ioctl_handler *h)
 	if (h == NULL || h->func == NULL)
 		return (EINVAL);
 
+	sx_xlock(&linux_ioctl_sx);
 	TAILQ_FOREACH(he, &handlers, list) {
 		if (he->func == h->func) {
 			TAILQ_REMOVE(&handlers, he, list);
+			sx_xunlock(&linux_ioctl_sx);
 			FREE(he, M_LINUX);
 			return (0);
 		}
 	}
+	sx_xunlock(&linux_ioctl_sx);
 
 	return (EINVAL);
 }
