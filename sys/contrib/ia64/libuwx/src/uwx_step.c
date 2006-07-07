@@ -23,7 +23,6 @@ OTHER DEALINGS IN THE SOFTWARE.
 */
 
 #include "uwx_env.h"
-#include "uwx_context.h"
 #include "uwx_utable.h"
 #include "uwx_uinfo.h"
 #include "uwx_scoreboard.h"
@@ -66,7 +65,7 @@ int uwx_lookupip_hook(int request, uint64_t ip, intptr_t tok, uint64_t **vecp,
 
 
 /* uwx_get_frame_info: Gets unwind info for current frame */
-
+static
 int uwx_get_frame_info(struct uwx_env *env)
 {
     int i;
@@ -77,7 +76,6 @@ int uwx_get_frame_info(struct uwx_env *env)
     uint64_t *uvec;
     uint64_t *rstate;
     struct uwx_utable_entry uentry;
-    uint64_t uinfop;
     uint64_t uvecout[UVECSIZE];
 
     if (env->copyin == 0 || env->lookupip == 0)
@@ -383,8 +381,6 @@ int uwx_get_funcstart(
     uint64_t *funcstart)
 {
     int status;
-    uint64_t *uvec;
-    uint64_t uvecout[UVECSIZE];
 
     if (env == 0)
 	return UWX_ERR_NOENV;

@@ -28,6 +28,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include "uwx_scoreboard.h"
 #include "uwx_bstream.h"
 #include "uwx_trace.h"
+#include "uwx_swap.h"
 
 int uwx_count_ones(unsigned int mask);
 
