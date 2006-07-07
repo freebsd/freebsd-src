@@ -22,12 +22,20 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#ifndef _KERNEL
 #include <stdlib.h>
+#endif
 
 #include "uwx_env.h"
 #include "uwx_scoreboard.h"
 #include "uwx_str.h"
 #include "uwx_trace.h"
+
+#ifdef _KERNEL
+static struct uwx_env uwx_env;
+#define	free(p)		/* nullified */
+#define	malloc(sz)	((sz == sizeof(uwx_env)) ? &uwx_env : NULL)
+#endif
 
 alloc_cb uwx_allocate_cb = 0;
 free_cb uwx_free_cb = 0;
@@ -97,11 +105,11 @@ int uwx_init_env(struct uwx_env *env, size_t total_size)
     if (uwx_allocate_cb != NULL)
 	env->allocate_cb = uwx_allocate_cb;
     else
-	env->allocate_cb = malloc;
+	env->allocate_cb = NULL;
     if (uwx_free_cb != NULL)
 	env->free_cb = uwx_free_cb;
     else
-	env->free_cb = free;
+	env->free_cb = NULL;
     env->free_scoreboards = 0;
     env->used_scoreboards = 0;
     env->labeled_scoreboards = 0;

@@ -23,7 +23,6 @@ OTHER DEALINGS IN THE SOFTWARE.
 */
 
 #include "uwx_env.h"
-#include "uwx_context.h"
 #include "uwx_scoreboard.h"
 #include "uwx_step.h"
 #include "uwx_trace.h"
@@ -200,7 +199,6 @@ int uwx_get_spill_loc(struct uwx_env *env, int regid, uint64_t *dispp)
     int sor;
     int rrb_gr;
     uint64_t bsp;
-    int n;
 
     if (env == 0)
 	return UWX_ERR_NOENV;
@@ -283,7 +281,6 @@ int uwx_set_reg(struct uwx_env *env, int regid, uint64_t val)
 
 int uwx_set_fr(struct uwx_env *env, int regid, uint64_t *val)
 {
-    int status;
 
     if (regid >= UWX_REG_FR(2) && regid <= UWX_REG_FR(5))
 	regid -= UWX_REG_FR(2);
@@ -349,6 +346,7 @@ uint64_t uwx_add_to_bsp(uint64_t bsp, int nslots)
     return bsp + nslots * DWORDSZ;
 }
 
+#if 0
 int uwx_selftest_bsp_arithmetic()
 {
     int i;
@@ -407,3 +405,4 @@ int uwx_selftest_bsp_arithmetic()
 
     return failed;
 }
+#endif

@@ -22,10 +22,18 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#ifndef _KERNEL
 #include <string.h>
+#endif
 
 #include "uwx_env.h"
 #include "uwx_str.h"
+
+#ifdef _KERNEL
+static struct uwx_str_pool	uwx_str_pool;
+#define	free(p)		/* nullified */
+#define	malloc(sz)	((sz == sizeof(uwx_str_pool)) ? &uwx_str_pool : NULL)
+#endif
 
 /*
  *  uwx_str.c

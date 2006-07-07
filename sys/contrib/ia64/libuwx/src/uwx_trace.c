@@ -28,6 +28,8 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include "uwx_scoreboard.h"
 #include "uwx_trace.h"
 
+#ifdef UWX_TRACE_ENABLE
+
 void uwx_trace_init(struct uwx_env *env)
 {
     char *tstr;
@@ -35,7 +37,7 @@ void uwx_trace_init(struct uwx_env *env)
     tstr = getenv("UWX_TRACE");
     if (tstr != NULL) {
 	while (*tstr != '\0') {
-	    switch (*tstr++) {
+	    switch (*tstr) {
 		case 'i': env->trace |= UWX_TRACE_UINFO; break;
 		case 't': env->trace |= UWX_TRACE_UTABLE; break;
 		case 'b': env->trace |= UWX_TRACE_SB; break;
@@ -45,6 +47,9 @@ void uwx_trace_init(struct uwx_env *env)
 		case 'C': env->trace |= UWX_TRACE_COPYIN; break;
 		case 'L': env->trace |= UWX_TRACE_LOOKUPIP; break;
 		case '?':
+#ifdef _KERNEL
+		    fprintf(stderr, "UWX_TRACE flag `%c' unknown.\n", *tstr);
+#else
 		    fprintf(stderr, "UWX_TRACE flags:\n");
 		    fprintf(stderr, "  i: unwind info\n");
 		    fprintf(stderr, "  t: unwind table searching\n");
@@ -55,7 +60,9 @@ void uwx_trace_init(struct uwx_env *env)
 		    fprintf(stderr, "  C: copyin callback\n");
 		    fprintf(stderr, "  L: lookup ip callback\n");
 		    exit(1);
+#endif
 	    }
+	    tstr++;
 	}
     }
 }
@@ -108,7 +115,7 @@ void uwx_dump_rstate(int regid, uint64_t rstate)
 		fprintf(stderr, "    <reg %d>\n", reg);
 	    break;
 	default:
-	    fprintf(stderr, "    <%08x>\n", rstate);
+	    fprintf(stderr, "    <%08lx>\n", (long)rstate);
 	    break;
     }
 }
@@ -149,9 +156,11 @@ void uwx_dump_uinfo_block(
     while (ulen >= WORDSZ) {
 	fprintf(stderr, "  %08lx: ", (unsigned long)uinfo);
 	for (i = 0; i < 4 * WORDSZ && ulen >= WORDSZ; i += WORDSZ) {
-	    fprintf(stderr, " %08lx", *uinfo++);
+	    fprintf(stderr, " %04x", *uinfo++);
 	    ulen -= WORDSZ;
 	}
 	fprintf(stderr, "\n");
     }
 }
+
+#endif /* UWX_TRACE_ENABLE */

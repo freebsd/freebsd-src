@@ -22,11 +22,40 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#ifndef _KERNEL
 #include <stdlib.h>
+#endif
 
 #include "uwx_env.h"
 #include "uwx_scoreboard.h"
 #include "uwx_trace.h"
+
+#ifdef _KERNEL
+static unsigned short uwx_allocated;
+static struct uwx_scoreboard uwx_scoreboard[sizeof(uwx_allocated) << 3];
+
+static void
+free(struct uwx_scoreboard *p)
+{
+	int idx = p - uwx_scoreboard;
+	uwx_allocated &= ~(1 << idx);
+}
+
+static struct uwx_scoreboard *
+malloc(size_t sz)
+{
+	int idx;
+	if (sz != sizeof(struct uwx_scoreboard))
+		return (NULL);
+	for (idx = 0; idx < (sizeof(uwx_allocated) << 3); idx++) {
+		if ((uwx_allocated & (1 << idx)) == 0) {
+			uwx_allocated |= 1 << idx;
+			return (uwx_scoreboard + idx);
+		}
+	}
+	return (NULL);
+}
+#endif
 
 
 void uwx_prealloc_scoreboard(struct uwx_env *env, struct uwx_scoreboard *sb)
@@ -76,6 +105,7 @@ struct uwx_scoreboard *uwx_alloc_scoreboard(struct uwx_env *env)
     return sb;
 }
 
+static
 void uwx_reclaim_scoreboards(struct uwx_env *env)
 {
     struct uwx_scoreboard *sb;
@@ -150,6 +180,7 @@ int uwx_label_scoreboard(
     /* in the "nextstack" field. */
 
     back = 0;
+    new = 0;
     while (sb != 0) {
 	TRACE_B_LABEL_COPY(sb->id)
 	new = uwx_alloc_scoreboard(env);
@@ -233,6 +264,7 @@ int uwx_copy_scoreboard(
     /* Now copy its stack, storing reverse links in the nextstack field. */
 
     back = sb;
+    new = 0;
     for (next = lsb->nextstack; next != 0; next = next->nextstack) {
 	TRACE_B_COPY_COPY(next->id)
 	new = uwx_alloc_scoreboard(env);

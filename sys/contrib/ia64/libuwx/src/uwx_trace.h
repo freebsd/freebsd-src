@@ -33,7 +33,15 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef UWX_TRACE_ENABLE
 
+#ifdef _KERNEL
+#define	fprintf(f, ...)		printf(__VA_ARGS__)
+#endif
+
 extern void uwx_trace_init(struct uwx_env *env);
+
+struct uwx_utable_entry;
+
+extern void uwx_dump_uinfo_block(struct uwx_utable_entry *, unsigned int);
 
 extern void uwx_dump_rstate(int regid, uint64_t rstate);
 
