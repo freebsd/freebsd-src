@@ -165,7 +165,7 @@ printjob(struct printer *pp)
 	register int i, nitems;
 	off_t pidoff;
 	pid_t printpid;
-	int errcnt, jobcount, tempfd;
+	int errcnt, jobcount, statok, tempfd;
 
 	jobcount = 0;
 	init(pp); /* set up capabilities */
@@ -200,7 +200,8 @@ printjob(struct printer *pp)
 		    pp->spool_dir);
 		exit(1);
 	}
-	if (stat(pp->lock_file, &stb) == 0 && (stb.st_mode & LFM_PRINT_DIS))
+	statok = stat(pp->lock_file, &stb);
+	if (statok == 0 && (stb.st_mode & LFM_PRINT_DIS))
 		exit(0);		/* printing disabled */
 	umask(S_IWOTH);
 	lfd = open(pp->lock_file, O_WRONLY|O_CREAT|O_EXLOCK|O_NONBLOCK, 
@@ -212,6 +213,12 @@ printjob(struct printer *pp)
 		    pp->lock_file);
 		exit(1);
 	}
+	/*
+	 * If the initial call to stat() failed, then lock_file will have
+	 * been created by open().  Update &stb to match that new file.
+	 */
+	if (statok != 0)
+		statok = stat(pp->lock_file, &stb);
 	/* turn off non-blocking mode (was turned on for lock effects only) */
 	if (fcntl(lfd, F_SETFL, 0) < 0) {
 		syslog(LOG_ERR, "%s: fcntl(%s): %m", pp->printer,
