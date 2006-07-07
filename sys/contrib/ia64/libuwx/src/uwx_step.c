@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2003 Hewlett-Packard Development Company, L.P.
+Copyright (c) 2003-2006 Hewlett-Packard Development Company, L.P.
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
 files (the "Software"), to deal in the Software without
@@ -66,7 +66,7 @@ int uwx_lookupip_hook(int request, uint64_t ip, intptr_t tok, uint64_t **vecp,
 
 
 /* uwx_get_frame_info: Gets unwind info for current frame */
-static
+
 int uwx_get_frame_info(struct uwx_env *env)
 {
     int i;
@@ -77,14 +77,18 @@ int uwx_get_frame_info(struct uwx_env *env)
     uint64_t *uvec;
     uint64_t *rstate;
     struct uwx_utable_entry uentry;
+    uint64_t uinfop;
     uint64_t uvecout[UVECSIZE];
 
     if (env->copyin == 0 || env->lookupip == 0)
 	return UWX_ERR_NOCALLBACKS;
 
+    env->ptr_size = DWORDSZ;
+    env->code_start = 0;
     env->function_offset = -1LL;
     env->function_name = 0;
     env->module_name = 0;
+    env->abi_context = 0;
     uwx_reset_str_pool(env);
 
     /* Use the lookup IP callback routine to find out about the */
@@ -170,9 +174,12 @@ int uwx_get_frame_info(struct uwx_env *env)
 	status = uwx_search_utable(env, ip, uvec, &uentry);
 	if (cbcalled)
 	    (void) (*env->lookupip)(UWX_LKUP_FREE, 0, env->cb_token, &uvec);
-	if (status == UWX_OK)
+	if (status == UWX_OK) {
+	    env->ptr_size = uentry.ptr_size;
+	    env->code_start = uentry.code_start;
 	    status = uwx_decode_uinfo(env, &uentry, &rstate);
-	else if (status == UWX_ERR_NOUENTRY)
+	}
+	if (status == UWX_ERR_NOUENTRY || status == UWX_ERR_NOUDESC)
 	    status = uwx_default_rstate(env, &rstate);
 	if (status == UWX_OK)
 	    env->rstate = rstate;
@@ -182,6 +189,7 @@ int uwx_get_frame_info(struct uwx_env *env)
     /* proceed directly to decoding the unwind information. */
 
     else if (cbstatus == UWX_LKUP_UINFO) {
+	uentry.ptr_size = DWORDSZ;
 	uentry.code_start = 0;
 	uentry.code_end = 0;
 	uentry.unwind_info = 0;
@@ -190,26 +198,35 @@ int uwx_get_frame_info(struct uwx_env *env)
 	    switch ((int)uvec[i]) {
 		case UWX_KEY_UFLAGS:
 		    uentry.unwind_flags = uvec[i+1];
+		    if (uentry.unwind_flags & UNWIND_TBL_32BIT)
+			uentry.ptr_size = WORDSZ;
 		    break;
 		case UWX_KEY_UINFO:
 		    uentry.unwind_info = uvec[i+1];
 		    break;
+		case UWX_KEY_GP:
+		    uwx_set_reg(env, UWX_REG_GP, uvec[i+1]);
+		    break;
 		case UWX_KEY_MODULE:
 		    env->module_name =
-				uwx_alloc_str(env, (char *)(uvec[i+1]));
+			    uwx_alloc_str(env, (char *)(intptr_t)(uvec[i+1]));
 		    break;
 		case UWX_KEY_FUNC:
 		    env->function_name =
-				uwx_alloc_str(env, (char *)(uvec[i+1]));
+			    uwx_alloc_str(env, (char *)(intptr_t)(uvec[i+1]));
 		    break;
 		case UWX_KEY_FUNCSTART:
 		    uentry.code_start = uvec[i+1];
+		    env->code_start = uentry.code_start;
 		    break;
 	    }
 	}
+	env->ptr_size = uentry.ptr_size;
 	if (cbcalled)
 	    (void) (*env->lookupip)(UWX_LKUP_FREE, 0, env->cb_token, &uvec);
 	status = uwx_decode_uinfo(env, &uentry, &rstate);
+	if (status == UWX_ERR_NOUDESC)
+	    status = uwx_default_rstate(env, &rstate);
 	if (status == UWX_OK)
 	    env->rstate = rstate;
     }
@@ -291,7 +308,104 @@ int uwx_restore_markers(struct uwx_env *env)
     return UWX_OK;
 }
 
+/* uwx_get_module_info: Gets module name and text base for current frame */
+
+int uwx_get_module_info(
+    struct uwx_env *env,
+    char **modp,
+    uint64_t *text_base)
+{
+    int i;
+    int status;
+    int cbstatus;
+    uint64_t ip;
+    uint64_t *uvec;
+    uint64_t uvecout[UVECSIZE];
+
+    if (env == 0)
+	return UWX_ERR_NOENV;
+
+    /* If we haven't already obtained the frame info for the */
+    /* current frame, get it now. */
+
+    if (env->rstate == 0) {
+	status = uwx_get_frame_info(env);
+	if (status != UWX_OK)
+	    return status;
+    }
+
+    /* Get the module name from the lookup IP callback. */
+    if (env->module_name == 0) {
+	ip = env->remapped_ip;
+	i = 0;
+	if (env->function_offset >= 0) {
+	    uvecout[i++] = UWX_KEY_FUNCSTART;
+	    uvecout[i++] = ip - env->function_offset;
+	}
+	uvecout[i++] = UWX_KEY_END;
+	uvecout[i++] = 0;
+	uvec = uvecout;
+	cbstatus = (*env->lookupip)(UWX_LKUP_MODULE, ip, env->cb_token, &uvec);
+
+	if (cbstatus == UWX_LKUP_SYMINFO) {
+	    for (i = 0; uvec[i] != UWX_KEY_END; i += 2) {
+		switch ((int)uvec[i]) {
+		    case UWX_KEY_TBASE:
+			env->text_base = uvec[i+1];
+			break;
+		    case UWX_KEY_MODULE:
+			env->module_name =
+			    uwx_alloc_str(env, (char *)(intptr_t)(uvec[i+1]));
+			break;
+		    case UWX_KEY_FUNC:
+			env->function_name =
+			    uwx_alloc_str(env, (char *)(intptr_t)(uvec[i+1]));
+			break;
+		    case UWX_KEY_FUNCSTART:
+			env->function_offset = ip - uvec[i+1];
+			break;
+		}
+	    }
+	    (void) (*env->lookupip)(UWX_LKUP_FREE, 0, env->cb_token, &uvec);
+	}
+    }
+
+    *modp = env->module_name;
+    *text_base = env->text_base;
+
+    return UWX_OK;
+}
+
+/* uwx_get_funcstart: Gets start address of function from current frame */
+
+int uwx_get_funcstart(
+    struct uwx_env *env,
+    uint64_t *funcstart)
+{
+    int status;
+    uint64_t *uvec;
+    uint64_t uvecout[UVECSIZE];
+
+    if (env == 0)
+	return UWX_ERR_NOENV;
+
+    /* If we haven't already obtained the frame info for the */
+    /* current frame, get it now. */
+
+    if (env->rstate == 0) {
+	status = uwx_get_frame_info(env);
+	if (status != UWX_OK)
+	    return status;
+    }
+
+    *funcstart = env->remapped_ip - env->function_offset;
+
+    return UWX_OK;
+}
+
 /* uwx_get_sym_info: Gets symbolic info from current frame */
+/* (Will make a UWX_LKUP_SYMBOLS callback if info */
+/* was not provided by UWX_LKUP_LOOKUP callback) */
 
 int uwx_get_sym_info(
     struct uwx_env *env,
@@ -303,7 +417,7 @@ int uwx_get_sym_info(
     int cbstatus;
     uint64_t ip;
     uint64_t *uvec;
-    uint64_t uvecout[2];
+    uint64_t uvecout[UVECSIZE];
     int i;
 
     if (env == 0)
@@ -336,11 +450,11 @@ int uwx_get_sym_info(
 		switch ((int)uvec[i]) {
 		    case UWX_KEY_MODULE:
 			env->module_name =
-				uwx_alloc_str(env, (char *)(uvec[i+1]));
+			    uwx_alloc_str(env, (char *)(intptr_t)(uvec[i+1]));
 			break;
 		    case UWX_KEY_FUNC:
 			env->function_name =
-				uwx_alloc_str(env, (char *)(uvec[i+1]));
+			    uwx_alloc_str(env, (char *)(intptr_t)(uvec[i+1]));
 			break;
 		    case UWX_KEY_FUNCSTART:
 			env->function_offset = ip - uvec[i+1];
@@ -572,13 +686,16 @@ int uwx_decode_uvec(struct uwx_env *env, uint64_t *uvec, uint64_t **rstate)
 		env->abi_context = (int)(uvec[i+1]);
 		status = UWX_ABI_FRAME;
 		break;
+	    case UWX_KEY_GP:
+		uwx_set_reg(env, UWX_REG_GP, uvec[i+1]);
+		break;
 	    case UWX_KEY_MODULE:
 		env->module_name =
-				uwx_alloc_str(env, (char *)(uvec[i+1]));
+			    uwx_alloc_str(env, (char *)(intptr_t)(uvec[i+1]));
 		break;
 	    case UWX_KEY_FUNC:
 		env->function_name =
-				uwx_alloc_str(env, (char *)(uvec[i+1]));
+			    uwx_alloc_str(env, (char *)(intptr_t)(uvec[i+1]));
 		break;
 	    case UWX_KEY_FUNCSTART:
 		env->function_offset = env->remapped_ip - uvec[i+1];
@@ -597,7 +714,8 @@ int uwx_decode_uvec(struct uwx_env *env, uint64_t *uvec, uint64_t **rstate)
     (env->remote? \
 	(*env->copyin)(UWX_COPYIN_MSTACK, (dest), (src), \
 						DWORDSZ, env->cb_token) : \
-	(*(uint64_t *)(dest) = *(uint64_t *)(src), DWORDSZ) )
+	(*(uint64_t *)(intptr_t)(dest) = \
+				*(uint64_t *)(intptr_t)(src), DWORDSZ) )
 
 int uwx_restore_reg(struct uwx_env *env, uint64_t rstate,
 				uint64_t *valp, uint64_t *histp)
@@ -644,9 +762,10 @@ int uwx_restore_reg(struct uwx_env *env, uint64_t rstate,
     (env->remote? \
 	(*env->copyin)(UWX_COPYIN_MSTACK, (dest), (src), \
 						2*DWORDSZ, env->cb_token) : \
-	(*(uint64_t *)(dest) = *(uint64_t *)(src), \
-		*(uint64_t *)((dest)+8) = *(uint64_t *)((src)+8), \
-		2*DWORDSZ) )
+	(*(uint64_t *)(intptr_t)(dest) = *(uint64_t *)(intptr_t)(src), \
+	    *(uint64_t *)(intptr_t)((dest)+8) = \
+					*(uint64_t *)(intptr_t)((src)+8), \
+	    2*DWORDSZ) )
 
 int uwx_restore_freg(struct uwx_env *env, uint64_t rstate,
 				uint64_t *valp, uint64_t *histp)

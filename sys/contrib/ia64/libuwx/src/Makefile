@@ -15,11 +15,12 @@ OTHERCFLAGS =
 CFLAGS = -O $(OTHERCFLAGS)
 
 OBJS =		uwx_bstream.o uwx_context.o uwx_env.o uwx_scoreboard.o \
-		uwx_step.o uwx_str.o uwx_swap.o uwx_trace.o uwx_uinfo.o \
-		uwx_utable.o
+		uwx_step.o uwx_str.o uwx_swap.o uwx_symbols.o \
+		uwx_trace.o uwx_uinfo.o uwx_utable.o
 
 # SELFOBJS =				# For cross-unwind library
-SELFOBJS = 	uwx_self.o uwx_self_context.o uwx_ttrace.o
+# SELFOBJS = 	uwx_self.o uwx_self_context.o uwx_ttrace.o
+SELFOBJS = 	uwx_self.o uwx_self_context.o
 
 # SELFLIBS =				# For cross-unwind library
 SELFLIBS =	-luca
@@ -33,6 +34,9 @@ libuwx.so:	$(OBJS) $(SELFOBJS)
 
 libuwx.sl:	$(OBJS) $(SELFOBJS)
 	ld -b -o libuwx.sl $(OBJS) $(SELFOBJS) $(SELFLIBS)
+
+clean:
+	rm -f $(OBJS) $(SELFOBJS) libuwx.a libuwx.so libuwx.sl
 
 uwx_bstream.o:	uwx.h uwx_env.h uwx_bstream.h
 
@@ -49,6 +53,8 @@ uwx_str.o:	uwx.h uwx_env.h uwx_str.h
 
 uwx_swap.o:	uwx.h uwx_env.h uwx_swap.h
 
+uwx_symbols.o:	uwx.h uwx_env.h uwx_symbols.h
+
 uwx_trace.o:	uwx.h uwx_env.h uwx_uinfo.h uwx_scoreboard.h uwx_trace.h
 
 uwx_uinfo.o:	uwx.h uwx_env.h uwx_uinfo.h uwx_utable.h \
@@ -56,7 +62,8 @@ uwx_uinfo.o:	uwx.h uwx_env.h uwx_uinfo.h uwx_utable.h \
 
 uwx_utable.o:	uwx.h uwx_env.h uwx_utable.h uwx_swap.h uwx_trace.h
 
-uwx_self.o:	uwx.h uwx_env.h uwx_context.h uwx_trace.h uwx_self.h
+uwx_self.o:	uwx.h uwx_env.h uwx_context.h uwx_trace.h uwx_self.h \
+		uwx_symbols.h
 
 uwx_self_context.o:	uwx_self_context.s
 	$(CC) -c $(CFLAGS) -o uwx_self_context.o uwx_self_context.s
