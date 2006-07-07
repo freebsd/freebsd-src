@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2003 Hewlett-Packard Development Company, L.P.
+Copyright (c) 2003-2006 Hewlett-Packard Development Company, L.P.
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
 files (the "Software"), to deal in the Software without
@@ -25,13 +25,8 @@ OTHER DEALINGS IN THE SOFTWARE.
 #ifndef __UWX_INCLUDED
 #define __UWX_INCLUDED 1
 
-#ifndef _KERNEL
 #include <stdlib.h>
 #include <inttypes.h>
-#else
-#include <sys/param.h>
-#include <sys/systm.h>
-#endif
 
 #if defined(__cplusplus)
 #define __EXTERN_C extern "C"
@@ -39,10 +34,13 @@ OTHER DEALINGS IN THE SOFTWARE.
 #define __EXTERN_C extern
 #endif
 
-#define UWX_VERSION 1		/* Version id for callback interfaces */
+#define UWX_VERSION 3		/* Version id for callback interfaces */
 
 /* Unwind environment structure (opaque) */
 struct uwx_env;
+
+/* Symbol Cache for uwx_find_symbol (opaque) */
+struct uwx_symbol_cache;
 
 /* Allocate and free callbacks */
 typedef void *(*alloc_cb)(size_t size);
@@ -57,6 +55,9 @@ __EXTERN_C int uwx_free(struct uwx_env *env);
 
 /* Put unwind express into cross-process mode */
 __EXTERN_C int uwx_set_remote(struct uwx_env *env, int is_big_endian_target);
+
+/* Put unwind express into reduced-context mode (no floating-point regs) */
+__EXTERN_C int uwx_set_nofr(struct uwx_env *env);
 
 /* Copy-in callback */
 typedef int (*copyin_cb)(
@@ -107,12 +108,39 @@ __EXTERN_C int uwx_init_history(struct uwx_env *env);
 /* Step one frame */
 __EXTERN_C int uwx_step(struct uwx_env *env);
 
+/* Get module name and text base, if available, for current frame */
+__EXTERN_C int uwx_get_module_info(
+    struct uwx_env *env,	/* unwind environment */
+    char **modp,		/* load module name (out)  */
+    uint64_t *text_base);	/* base address of text segment (out)  */
+
+/* Get function start address for current frame */
+__EXTERN_C int uwx_get_funcstart(
+    struct uwx_env *env,	/* unwind environment */
+    uint64_t *funcstart);	/* function start address (out)  */
+
 /* Get symbol information, if available, for current frame */
 __EXTERN_C int uwx_get_sym_info(
     struct uwx_env *env,	/* unwind environment */
     char **modp,		/* load module name (out)  */
     char **symp,		/* function name (out)  */
     uint64_t *offsetp);		/* offset from start of function (out)  */
+
+/* Get symbol information, given module name and IP */
+__EXTERN_C int uwx_find_symbol(
+    struct uwx_env *env,	/* unwind environment */
+    struct uwx_symbol_cache **cachep,
+				/* ptr to symbol cache ptr (in/out) */
+    char *mod,			/* load module name */
+    uint64_t relip,		/* IP, relative to text segment  */
+    char **symp,		/* function name (out) */
+    uint64_t *offsetp);		/* offset from start of function (out) */
+
+/* Release memory used by symbol cache */
+__EXTERN_C void uwx_release_symbol_cache(
+    struct uwx_env *env,	/* unwind environment */
+    struct uwx_symbol_cache *symbol_cache);
+				/* symbol cache ptr */
 
 /* Get the value of a register from the current context */
 __EXTERN_C int uwx_get_reg(
@@ -134,6 +162,10 @@ __EXTERN_C int uwx_get_spill_loc(
 
 /* Get the ABI context code (if uwx_step returned UWX_ABI_FRAME) */
 __EXTERN_C int uwx_get_abi_context_code(struct uwx_env *env);
+
+/* Increment/Decrement the bsp by a number of slots */
+/* (accounts for NaT collections) */
+__EXTERN_C uint64_t uwx_add_to_bsp(uint64_t bsp, int nslots);
 
 /* Return status codes for uwx_ APIs */
 #define UWX_OK			0
@@ -158,6 +190,8 @@ __EXTERN_C int uwx_get_abi_context_code(struct uwx_env *env);
 #define UWX_ERR_CANTUNWIND	(-17)	/* Can't unwind */
 #define UWX_ERR_NOCALLBACKS	(-18)	/* No callbacks registered */
 #define UWX_ERR_NOCONTEXT	(-19)	/* Context not initialized */
+#define UWX_ERR_UCACCESS	(-20)	/* Failure in libuca */
+#define UWX_ERR_NOSYM		(-21)	/* Symbol not found */
 
 /* Request codes for copyin callback */
 #define UWX_COPYIN_UINFO	1	/* Reading unwind info */
@@ -169,6 +203,7 @@ __EXTERN_C int uwx_get_abi_context_code(struct uwx_env *env);
 #define UWX_LKUP_LOOKUP		1	/* Lookup IP */
 #define UWX_LKUP_FREE		2	/* Free result vector */
 #define UWX_LKUP_SYMBOLS	3	/* Lookup symbolic information */
+#define UWX_LKUP_MODULE		4	/* Get module name */
 
 /* Return status codes for lookup IP callback */
 #define UWX_LKUP_NOTFOUND	0	/* IP not found */
@@ -199,11 +234,13 @@ __EXTERN_C int uwx_get_abi_context_code(struct uwx_env *env);
 #define UWX_KEY_UFLAGS		2	/* Unwind flags (optional) */
 #define UWX_KEY_USTART		3	/* Base of unwind tbl */
 #define UWX_KEY_UEND		4	/* End of unwind tbl */
+#define UWX_KEY_GP		7	/* GP value for module */
 
 /* Keys returned with UWX_LKUP_FDESC */
 /* These key/value pairs describe the state of the frame at the */
 /* given IP. They are typically used for dynamically-generated code. */
 /* If UWX_KEY_CONTEXT is returned, it must be the only key returned. */
+/* Use UWX_KEY_GP for the module's gp value. */
 #define UWX_KEY_FSIZE		1			/* Frame size */
 #define UWX_KEY_SPILL(reg_id)	(2 | ((reg_id) << 4))	/* Reg spilled */
 #define UWX_KEY_CONTEXT		3 			/* ABI-dep. context */
@@ -212,6 +249,7 @@ __EXTERN_C int uwx_get_abi_context_code(struct uwx_env *env);
 #define UWX_KEY_NEWIP		5	/* Remapped IP */
 
 /* Keys returned with UWX_LKUP_UINFO */
+/* Use UWX_KEY_GP for the module's gp value. */
 /* Use UWX_KEY_FUNCSTART for the start address of the function */
 /* Use UWX_KEY_UFLAGS for the unwind flags (optional) */
 #define UWX_KEY_UINFO 		6	/* Address of unwind info block */
@@ -219,6 +257,7 @@ __EXTERN_C int uwx_get_abi_context_code(struct uwx_env *env);
 /* Keys returned with UWX_LKUP_SYMINFO */
 /* These keys may be returned with UWX_LKUP_FDESC or UWX_LKUP_UINFO, */
 /* if the information is cheap to obtain. */
+/* Use UWX_KEY_TBASE for the base of the text segment */
 #define UWX_KEY_MODULE		17	/* Name of load module */
 #define UWX_KEY_FUNC		18	/* Name of function */
 #define UWX_KEY_FUNCSTART	19	/* Address of start of function */
@@ -246,6 +285,7 @@ __EXTERN_C int uwx_get_abi_context_code(struct uwx_env *env);
 #define UWX_REG_AR_FPSR		12	/* ar.fpsr */
 #define UWX_REG_AR_LC		13	/* ar.lc */
 #define UWX_REG_AR_PFS		14	/* ar.pfs */
+#define UWX_REG_GP		15	/* gp (pseudo-register) */
 #define UWX_REG_GR(gr)		(0x100 | (gr))
 #define UWX_REG_FR(fr)		(0x200 | (fr))
 #define UWX_REG_BR(br)		(0x300 | (br))
@@ -321,8 +361,25 @@ public:
 	return uwx_step(env);
     }
 
+    int get_module_info(char **modp, uint64_t *text_base_p) {
+	return uwx_get_module_info(env, modp, text_base_p);
+    }
+
+    int get_funcstart(uint64_t *funcstart) {
+	return uwx_get_funcstart(env, funcstart);
+    }
+
     int get_sym_info(char **modp, char **symp, uint64_t *offsetp) {
 	return uwx_get_sym_info(env, modp, symp, offsetp);
+    }
+
+    int find_symbol(struct uwx_symbol_cache **cachep,
+		char *mod, uint64_t relip, char **symp, uint64_t *offsetp) {
+	return uwx_find_symbol(env, cachep, mod, relip, symp, offsetp);
+    }
+
+    void release_symbol_cache(struct uwx_symbol_cache *symbol_cache) {
+	uwx_release_symbol_cache(env, symbol_cache);
     }
 
     int get_reg(int regid, uint64_t *valp) {
