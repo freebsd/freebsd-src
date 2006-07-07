@@ -25,8 +25,13 @@ OTHER DEALINGS IN THE SOFTWARE.
 #ifndef __UWX_INCLUDED
 #define __UWX_INCLUDED 1
 
+#ifndef _KERNEL
 #include <stdlib.h>
 #include <inttypes.h>
+#else
+#include <sys/param.h>
+#include <sys/systm.h>
+#endif
 
 #if defined(__cplusplus)
 #define __EXTERN_C extern "C"

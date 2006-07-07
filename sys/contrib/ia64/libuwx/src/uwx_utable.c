@@ -76,7 +76,10 @@ int uwx_search_utable(
     /* Make sure all three required values are given. */
 
     keys = 0;
+    text_base = 0;
     unwind_flags = 0;
+    unwind_start = 0;
+    unwind_end = 0;
     while (*uvec != 0) {
 	switch ((int)*uvec++) {
 	    case UWX_KEY_TBASE:
@@ -144,7 +147,6 @@ int uwx_search_utable32(
     uint32_t unwind_end,
     struct uwx_utable_entry *uentry)
 {
-    int status;
     int lb;
     int ub;
     int mid;
@@ -165,11 +167,13 @@ int uwx_search_utable32(
 
     lb = 0;
     ub = (unwind_end - unwind_start) / (3 * WORDSZ);
+    mid = 0;
     while (ub > lb) {
 	mid = (lb + ub) / 2;
-	len = COPYIN_UINFO_4((char *)&code_start, unwind_start+mid*3*WORDSZ);
+	len = COPYIN_UINFO_4((char *)&code_start,
+	    (uintptr_t)(unwind_start+mid*3*WORDSZ));
 	len += COPYIN_UINFO_4((char *)&code_end,
-			    unwind_start+mid*3*WORDSZ+WORDSZ);
+	    (uintptr_t)(unwind_start+mid*3*WORDSZ+WORDSZ));
 	if (len != 2 * WORDSZ)
 	    return UWX_ERR_COPYIN_UTBL;
 	if (env->byte_swap) {
@@ -187,7 +191,7 @@ int uwx_search_utable32(
     if (ub <= lb)
 	return UWX_ERR_NOUENTRY;
     len = COPYIN_UINFO_4((char *)&unwind_info,
-			    unwind_start+mid*3*WORDSZ+2*WORDSZ);
+	(uintptr_t)(unwind_start+mid*3*WORDSZ+2*WORDSZ));
     if (len != WORDSZ)
 	return UWX_ERR_COPYIN_UTBL;
     if (env->byte_swap)
@@ -216,7 +220,6 @@ int uwx_search_utable64(
     uint64_t unwind_end,
     struct uwx_utable_entry *uentry)
 {
-    int status;
     int lb;
     int ub;
     int mid;
@@ -235,6 +238,7 @@ int uwx_search_utable64(
 
     lb = 0;
     ub = (unwind_end - unwind_start) / (3 * DWORDSZ);
+    mid = 0;
     while (ub > lb) {
 	mid = (lb + ub) / 2;
 	len = COPYIN_UINFO_8((char *)&code_start, unwind_start+mid*3*DWORDSZ);

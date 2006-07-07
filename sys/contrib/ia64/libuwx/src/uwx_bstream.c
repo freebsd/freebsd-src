@@ -64,8 +64,6 @@ int uwx_get_byte(struct uwx_bstream *bstream)
     int len;
     int n;
     int b;
-    uint32_t *wp;
-    uint64_t *dp;
 
     if (bstream->peekc >= 0) {
 	b = bstream->peekc;
@@ -131,6 +129,7 @@ int uwx_get_uleb128(struct uwx_bstream *bstream, uint64_t *valp)
     return 0;
 }
 
+#if 0
 int uwx_get_uleb128_alt(struct uwx_bstream *bstream, uint64_t *valp)
 {
     uint64_t val;
@@ -179,3 +178,4 @@ int uwx_get_uleb128_alt(struct uwx_bstream *bstream, uint64_t *valp)
     *valp = val;
     return 0;
 }
+#endif
