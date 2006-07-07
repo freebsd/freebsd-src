@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2003 Hewlett-Packard Development Company, L.P.
+Copyright (c) 2003-2006 Hewlett-Packard Development Company, L.P.
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
 files (the "Software"), to deal in the Software without
@@ -51,7 +51,12 @@ struct uwx_scoreboard {
     uint64_t rstate[NSBREG];
     int label;
     int id;
+    int prealloc;
 };
+
+extern void uwx_prealloc_scoreboard(
+    struct uwx_env *env,
+    struct uwx_scoreboard *sb);
 
 extern struct uwx_scoreboard *uwx_alloc_scoreboard(struct uwx_env *env);
 
