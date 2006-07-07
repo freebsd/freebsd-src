@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2003 Hewlett-Packard Development Company, L.P.
+Copyright (c) 2003-2006 Hewlett-Packard Development Company, L.P.
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
 files (the "Software"), to deal in the Software without
@@ -80,6 +80,11 @@ struct uwx_env {
     uint64_t *rstate;
     uint64_t remapped_ip;
     int64_t function_offset;
+    uint64_t ptr_size;
+    uint64_t uinfo_hdr;
+    uint64_t uinfo_end;
+    uint64_t code_start;
+    uint64_t text_base;
     struct uwx_history history;
     alloc_cb allocate_cb;
     free_cb free_cb;
@@ -97,8 +102,10 @@ struct uwx_env {
     int abi_context;
     int nsbreg;
     int nscoreboards;
+    int on_heap;
     int trace;
 };
 
 extern alloc_cb uwx_allocate_cb;
 extern free_cb uwx_free_cb;
+extern int uwx_init_env(struct uwx_env *env, size_t total_size);

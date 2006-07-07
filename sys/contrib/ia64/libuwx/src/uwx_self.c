@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2003 Hewlett-Packard Development Company, L.P.
+Copyright (c) 2003-2006 Hewlett-Packard Development Company, L.P.
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
 files (the "Software"), to deal in the Software without
@@ -23,6 +23,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 */
 
 #include <stdlib.h>
+#include <string.h>
 #include <crt0.h>
 #include <dlfcn.h>
 #include <sys/uc_access.h>
@@ -31,52 +32,49 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include "uwx_context.h"
 #include "uwx_trace.h"
 #include "uwx_self.h"
+#include "uwx_self_info.h"
 
 #define UWX_ABI_HPUX_SIGCONTEXT 0x0101	/* abi = HP-UX, context = 1 */
 
-struct uwx_self_info {
-    struct uwx_env *env;
-    ucontext_t *ucontext;
-    uint64_t bspstore;
-    uint64_t rvec[10];
-    uint64_t sendsig_start;
-    uint64_t sendsig_end;
-    alloc_cb allocate_cb;
-    free_cb free_cb;
-    int trace;
-};
+void uwx_free_load_module_cache(struct uwx_self_info *info);
 
-struct uwx_self_info *uwx_self_init_info(struct uwx_env *env)
+int uwx_self_init_info_block(struct uwx_env *env, struct uwx_self_info *info)
 {
-    struct uwx_self_info *info;
-
-    if (env->allocate_cb == 0)
-	info = (struct uwx_self_info *)
-			malloc(sizeof(struct uwx_self_info));
-    else
-	info = (struct uwx_self_info *)
-			(*env->allocate_cb)(sizeof(struct uwx_self_info));
-    if (info == 0)
-	return 0;
-
     info->env = env;
     info->ucontext = 0;
     info->bspstore = 0;
     info->sendsig_start = __load_info->li_sendsig_txt;
     info->sendsig_end = __load_info->li_sendsig_txt +
 				__load_info->li_sendsig_tsz;
-    info->allocate_cb = env->allocate_cb;
-    info->free_cb = env->free_cb;
+    info->on_heap = 0;
     info->trace = env->trace;
+    info->load_module_cache = NULL;
+
+    return UWX_OK;
+}
+
+struct uwx_self_info *uwx_self_init_info(struct uwx_env *env)
+{
+    struct uwx_self_info *info;
+
+    info = (struct uwx_self_info *)
+			(*env->allocate_cb)(sizeof(struct uwx_self_info));
+    if (info == 0)
+	return 0;
+
+    uwx_self_init_info_block(env, info);
+    info->on_heap = 1;
     return info;
 }
 
 int uwx_self_free_info(struct uwx_self_info *info)
 {
-    if (info->free_cb == 0)
-	free((void *)info);
-    else
-	(*info->free_cb)((void *)info);
+    int i;
+
+    if (info->load_module_cache != NULL)
+	uwx_free_load_module_cache(info);
+    if (info->on_heap)
+	(*info->env->free_cb)((void *)info);
     return UWX_OK;
 }
 
@@ -97,17 +95,37 @@ int uwx_self_init_from_sigcontext(
 
     info->ucontext = ucontext;
     status = __uc_get_reason(ucontext, &reason);
+    if (status != 0)
+	return UWX_ERR_UCACCESS;
     status = __uc_get_ip(ucontext, &ip);
+    if (status != 0)
+	return UWX_ERR_UCACCESS;
     status = __uc_get_grs(ucontext, 12, 1, &sp, &nat);
+    if (status != 0)
+	return UWX_ERR_UCACCESS;
     status = __uc_get_cfm(ucontext, &cfm);
+    if (status != 0)
+	return UWX_ERR_UCACCESS;
 #ifdef NEW_UC_GET_AR
     status = __uc_get_ar_bsp(ucontext, &bsp);
+    if (status != 0)
+	return UWX_ERR_UCACCESS;
     status = __uc_get_ar_bspstore(ucontext, &info->bspstore);
+    if (status != 0)
+	return UWX_ERR_UCACCESS;
     status = __uc_get_ar_ec(ucontext, &ec);
+    if (status != 0)
+	return UWX_ERR_UCACCESS;
 #else
     status = __uc_get_ar(ucontext, 17, &bsp);
+    if (status != 0)
+	return UWX_ERR_UCACCESS;
     status = __uc_get_ar(ucontext, 18, &info->bspstore);
+    if (status != 0)
+	return UWX_ERR_UCACCESS;
     status = __uc_get_ar(ucontext, 66, &ec);
+    if (status != 0)
+	return UWX_ERR_UCACCESS;
 #endif
     /* The returned bsp needs to be adjusted. */
     /* For interrupt frames, where bsp was advanced by a cover */
@@ -136,9 +154,10 @@ int uwx_self_do_context_frame(
     if (abi_context != UWX_ABI_HPUX_SIGCONTEXT)
 	return UWX_SELF_ERR_BADABICONTEXT;
     status = uwx_get_reg(env, UWX_REG_GR(32), (uint64_t *)&ucontext);
-    if (status != 0)
+    if (status != UWX_OK)
 	return status;
-    return uwx_self_init_from_sigcontext(env, info, (ucontext_t *)ucontext);
+    return uwx_self_init_from_sigcontext(env, info,
+					(ucontext_t *)(intptr_t)ucontext);
 }
 
 int uwx_self_copyin(
@@ -164,12 +183,12 @@ int uwx_self_copyin(
 	case UWX_COPYIN_MSTACK:
 	    if (len == 4) {
 		wp = (unsigned long *) loc;
-		*wp = *(unsigned long *)rem;
+		*wp = *(unsigned long *)(intptr_t)rem;
 		TRACE_SELF_COPYIN4(rem, len, wp)
 		status = 0;
 	    }
 	    else if (len == 8) {
-		*dp = *(uint64_t *)rem;
+		*dp = *(uint64_t *)(intptr_t)rem;
 		TRACE_SELF_COPYIN8(rem, len, dp)
 		status = 0;
 	    }
@@ -181,13 +200,13 @@ int uwx_self_copyin(
 		    status = 0;
 		}
 		else if (info->ucontext == 0 || rem < info->bspstore) {
-		    *dp = *(uint64_t *)rem;
+		    *dp = *(uint64_t *)(intptr_t)rem;
 		    TRACE_SELF_COPYIN8(rem, len, dp)
 		    status = 0;
 		}
 		else {
 		    status = __uc_get_rsebs(info->ucontext,
-						(uint64_t *)rem, 1, dp);
+					    (uint64_t *)(intptr_t)rem, 1, dp);
 		}
 	    }
 	    break;
@@ -230,6 +249,88 @@ int uwx_self_copyin(
     return len;
 }
 
+#define MODULE_CACHE_SIZE 4
+
+struct load_module_cache {
+    int clock;
+    char *names[MODULE_CACHE_SIZE];
+    struct load_module_desc descs[MODULE_CACHE_SIZE];
+    struct uwx_symbol_cache *symbol_cache;
+};
+
+void uwx_free_load_module_cache(struct uwx_self_info *info)
+{
+    int i;
+
+    for (i = 0; i < MODULE_CACHE_SIZE; i++) {
+	if (info->load_module_cache->names[i] != NULL)
+	    (*info->env->free_cb)((void *)info->load_module_cache->names[i]);
+    }
+
+    if (info->load_module_cache->symbol_cache != NULL)
+	uwx_release_symbol_cache(info->env,
+				    info->load_module_cache->symbol_cache);
+
+    (*info->env->free_cb)((void *)info->load_module_cache);
+}
+
+struct load_module_desc *uwx_get_modinfo(
+    struct uwx_self_info *info,
+    uint64_t ip,
+    char **module_name_p)
+{
+    int i;
+    UINT64 handle;
+    struct load_module_cache *cache;
+    struct load_module_desc *desc;
+    char *module_name;
+
+    cache = info->load_module_cache;
+    if (cache == NULL) {
+	cache = (struct load_module_cache *)
+		(*info->env->allocate_cb)(sizeof(struct load_module_cache));
+	if (cache == NULL)
+	    return NULL;
+	for (i = 0; i < MODULE_CACHE_SIZE; i++) {
+	    desc = &cache->descs[i];
+	    desc->text_base = 0;
+	    desc->text_size = 0;
+	    cache->names[i] = NULL;
+	}
+	cache->clock = 0;
+	cache->symbol_cache = NULL;
+	info->load_module_cache = cache;
+    }
+    for (i = 0; i < MODULE_CACHE_SIZE; i++) {
+	desc = &cache->descs[i];
+	if (ip >= desc->text_base && ip < desc->text_base + desc->text_size)
+	    break;
+    }
+    if (i >= MODULE_CACHE_SIZE) {
+	i = cache->clock;
+	cache->clock = (cache->clock + 1) % MODULE_CACHE_SIZE;
+	desc = &cache->descs[i];
+	handle = dlmodinfo(ip, desc, sizeof(*desc), 0, 0, 0);
+	if (handle == 0)
+	    return NULL;
+	if (cache->names[i] != NULL)
+	    (*info->env->free_cb)(cache->names[i]);
+	cache->names[i] = NULL;
+    }
+    if (module_name_p != NULL) {
+	if (cache->names[i] == NULL) {
+	    module_name = dlgetname(desc, sizeof(*desc), 0, 0, 0);
+	    if (module_name != NULL) {
+		cache->names[i] = (char *)
+			    (*info->env->allocate_cb)(strlen(module_name)+1);
+		if (cache->names[i] != NULL)
+		    strcpy(cache->names[i], module_name);
+	    }
+	}
+	*module_name_p = cache->names[i];
+    }
+    return desc;
+}
 
 int uwx_self_lookupip(
     int request,
@@ -239,10 +340,14 @@ int uwx_self_lookupip(
 {
     struct uwx_self_info *info = (struct uwx_self_info *) tok;
     UINT64 handle;
-    struct load_module_desc desc;
+    struct load_module_desc *desc;
     uint64_t *unwind_base;
     uint64_t *rvec;
+    char *module_name;
+    char *func_name;
+    uint64_t offset;
     int i;
+    int status;
 
     if (request == UWX_LKUP_LOOKUP) {
 	TRACE_SELF_LOOKUP(ip)
@@ -251,28 +356,31 @@ int uwx_self_lookupip(
 	    rvec = info->rvec;
 	    rvec[i++] = UWX_KEY_CONTEXT;
 	    rvec[i++] = UWX_ABI_HPUX_SIGCONTEXT;
-	    rvec[i++] = 0;
+	    rvec[i++] = UWX_KEY_END;
 	    rvec[i++] = 0;
 	    *resultp = rvec;
 	    return UWX_LKUP_FDESC;
 	}
 	else {
-	    handle = dlmodinfo(ip, &desc, sizeof(desc), 0, 0, 0);
-	    if (handle == 0)
+	    desc = uwx_get_modinfo(info, ip, NULL);
+	    if (desc == NULL)
 		return UWX_LKUP_ERR;
-	    unwind_base = (uint64_t *) desc.unwind_base;
-	    TRACE_SELF_LOOKUP_DESC(desc.text_base, unwind_base)
+	    unwind_base = (uint64_t *) (intptr_t) desc->unwind_base;
+	    TRACE_SELF_LOOKUP_DESC(desc->text_base,
+					desc->linkage_ptr, unwind_base)
 	    i = 0;
 	    rvec = info->rvec;
 	    rvec[i++] = UWX_KEY_TBASE;
-	    rvec[i++] = desc.text_base;
+	    rvec[i++] = desc->text_base;
 	    rvec[i++] = UWX_KEY_UFLAGS;
 	    rvec[i++] = unwind_base[0];
 	    rvec[i++] = UWX_KEY_USTART;
-	    rvec[i++] = desc.text_base + unwind_base[1];
+	    rvec[i++] = desc->text_base + unwind_base[1];
 	    rvec[i++] = UWX_KEY_UEND;
-	    rvec[i++] = desc.text_base + unwind_base[2];
-	    rvec[i++] = 0;
+	    rvec[i++] = desc->text_base + unwind_base[2];
+	    rvec[i++] = UWX_KEY_GP;
+	    rvec[i++] = desc->linkage_ptr;
+	    rvec[i++] = UWX_KEY_END;
 	    rvec[i++] = 0;
 	    *resultp = rvec;
 	    return UWX_LKUP_UTABLE;
@@ -281,4 +389,54 @@ int uwx_self_lookupip(
     else if (request == UWX_LKUP_FREE) {
 	return 0;
     }
+    else if (request == UWX_LKUP_MODULE) {
+	desc = uwx_get_modinfo(info, ip, &module_name);
+	if (desc == NULL)
+	    return UWX_LKUP_ERR;
+	if (module_name == NULL)
+	    return UWX_LKUP_ERR;
+	i = 0;
+	rvec = info->rvec;
+	rvec[i++] = UWX_KEY_MODULE;
+	rvec[i++] = (uint64_t)(intptr_t)module_name;
+	rvec[i++] = UWX_KEY_TBASE;
+	rvec[i++] = desc->text_base;
+	rvec[i++] = UWX_KEY_END;
+	rvec[i++] = 0;
+	*resultp = rvec;
+	return UWX_LKUP_SYMINFO;
+    }
+    else if (request == UWX_LKUP_SYMBOLS) {
+	rvec = *resultp;
+	for (i = 0; rvec[i] != UWX_KEY_END; i += 2) {
+	    if (rvec[i] == UWX_KEY_FUNCSTART)
+		ip = rvec[i+1];
+	}
+	desc = uwx_get_modinfo(info, ip, &module_name);
+	if (desc == NULL)
+	    return UWX_LKUP_ERR;
+	if (module_name == NULL)
+	    return UWX_LKUP_ERR;
+	status = uwx_find_symbol(info->env,
+			&info->load_module_cache->symbol_cache,
+			module_name, ip - desc->text_base,
+			&func_name, &offset);
+	i = 0;
+	rvec = info->rvec;
+	rvec[i++] = UWX_KEY_MODULE;
+	rvec[i++] = (uint64_t)(intptr_t)module_name;
+	rvec[i++] = UWX_KEY_TBASE;
+	rvec[i++] = desc->text_base;
+	if (status == UWX_OK) {
+	    rvec[i++] = UWX_KEY_FUNC;
+	    rvec[i++] = (uint64_t)(intptr_t)func_name;
+	    rvec[i++] = UWX_KEY_FUNCSTART;
+	    rvec[i++] = ip - offset;
+	}
+	rvec[i++] = UWX_KEY_END;
+	rvec[i++] = 0;
+	*resultp = rvec;
+	return UWX_LKUP_SYMINFO;
+    }
+    return UWX_LKUP_ERR;
 }

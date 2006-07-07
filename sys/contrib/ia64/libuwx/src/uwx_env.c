@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2003 Hewlett-Packard Development Company, L.P.
+Copyright (c) 2003-2006 Hewlett-Packard Development Company, L.P.
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
 files (the "Software"), to deal in the Software without
@@ -22,20 +22,12 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef _KERNEL
 #include <stdlib.h>
-#endif
 
 #include "uwx_env.h"
 #include "uwx_scoreboard.h"
 #include "uwx_str.h"
 #include "uwx_trace.h"
-
-#ifdef _KERNEL
-static struct uwx_env uwx_env;
-#define	free(p)		/* nullified */
-#define	malloc(sz)	((sz == sizeof(uwx_env)) ? &uwx_env : NULL)
-#endif
 
 alloc_cb uwx_allocate_cb = 0;
 free_cb uwx_free_cb = 0;
@@ -68,52 +60,97 @@ int uwx_init_history(struct uwx_env *env)
     return UWX_OK;
 }
 
-struct uwx_env *uwx_init()
+int uwx_init_env(struct uwx_env *env, size_t total_size)
 {
     int i;
+    struct uwx_str_pool *str_pool;
+    struct uwx_scoreboard *scoreboards;
+
+    str_pool = (struct uwx_str_pool *)(env + 1);
+    scoreboards = (struct uwx_scoreboard *)(str_pool + 1);
+
+    if (sizeof(struct uwx_env) + sizeof(struct uwx_str_pool) > total_size)
+	return UWX_ERR_NOMEM;
+    total_size -= sizeof(struct uwx_env) + sizeof(struct uwx_str_pool);
+
+    env->context.valid_regs = 0;
+    env->context.valid_frs = 0;
+    for (i = 0; i < NSPECIALREG; i++)
+	env->context.special[i] = 0;
+    for (i = 0; i < NPRESERVEDGR; i++)
+	env->context.gr[i] = 0;
+    for (i = 0; i < NPRESERVEDBR; i++)
+	env->context.br[i] = 0;
+    for (i = 0; i < NPRESERVEDFR; i++) {
+	env->context.fr[i].part0 = 0;
+	env->context.fr[i].part1 = 0;
+    }
+    env->rstate = 0;
+    env->remapped_ip = 0;
+    env->function_offset = 0;
+    env->ptr_size = DWORDSZ;
+    env->uinfo_hdr = 0;
+    env->uinfo_end = 0;
+    env->code_start = 0;
+    env->text_base = 0;
+    (void)uwx_init_history(env);
+    if (uwx_allocate_cb != NULL)
+	env->allocate_cb = uwx_allocate_cb;
+    else
+	env->allocate_cb = malloc;
+    if (uwx_free_cb != NULL)
+	env->free_cb = uwx_free_cb;
+    else
+	env->free_cb = free;
+    env->free_scoreboards = 0;
+    env->used_scoreboards = 0;
+    env->labeled_scoreboards = 0;
+    (void)uwx_init_str_pool(env, str_pool);
+    env->module_name = 0;
+    env->function_name = 0;
+    env->cb_token = 0;
+    env->copyin = 0;
+    env->lookupip = 0;
+    env->remote = 0;
+    env->byte_swap = 0;
+    env->abi_context = 0;
+    env->nsbreg = NSBREG;
+    env->nscoreboards = 0;
+    env->on_heap = 0;
+    env->trace = 0;
+    TRACE_INIT
+    for (i = 0; total_size >= sizeof(struct uwx_scoreboard); i++) {
+	(void) uwx_prealloc_scoreboard(env, &scoreboards[i]);
+	total_size -= sizeof(struct uwx_scoreboard);
+    }
+    return UWX_OK;
+}
+
+int uwx_set_nofr(struct uwx_env *env)
+{
+    if (env == 0)
+	return UWX_ERR_NOENV;
+
+    env->nsbreg = NSBREG_NOFR;
+    return UWX_OK;
+}
+
+struct uwx_env *uwx_init()
+{
     struct uwx_env *env;
+    size_t total_size;
+
+    total_size = sizeof(struct uwx_env) +
+		    sizeof(struct uwx_str_pool) +
+			NSCOREBOARDS * sizeof(struct uwx_scoreboard);
 
     if (uwx_allocate_cb == 0)
-	env = (struct uwx_env *) malloc(sizeof(struct uwx_env));
+	env = (struct uwx_env *) malloc(total_size);
     else
-	env = (struct uwx_env *) (*uwx_allocate_cb)(sizeof(struct uwx_env));
+	env = (struct uwx_env *) (*uwx_allocate_cb)(total_size);
     if (env != 0) {
-	env->context.valid_regs = 0;
-	env->context.valid_frs = 0;
-	for (i = 0; i < NSPECIALREG; i++)
-	    env->context.special[i] = 0;
-	for (i = 0; i < NPRESERVEDGR; i++)
-	    env->context.gr[i] = 0;
-	for (i = 0; i < NPRESERVEDBR; i++)
-	    env->context.br[i] = 0;
-	for (i = 0; i < NPRESERVEDFR; i++) {
-	    env->context.fr[i].part0 = 0;
-	    env->context.fr[i].part1 = 0;
-	}
-	env->rstate = 0;
-	env->remapped_ip = 0;
-	env->function_offset = 0;
-	(void)uwx_init_history(env);
-	env->allocate_cb = uwx_allocate_cb;
-	env->free_cb = uwx_free_cb;
-	env->free_scoreboards = 0;
-	env->used_scoreboards = 0;
-	env->labeled_scoreboards = 0;
-	(void)uwx_init_str_pool(env);
-	env->module_name = 0;
-	env->function_name = 0;
-	env->cb_token = 0;
-	env->copyin = 0;
-	env->lookupip = 0;
-	env->remote = 0;
-	env->byte_swap = 0;
-	env->abi_context = 0;
-	env->nsbreg = NSBREG_NOFR;
-	env->nscoreboards = 0;
-	env->trace = 0;
-	TRACE_INIT
-	for (i = 0; i < NSCOREBOARDS; i++)
-	    (void) uwx_alloc_scoreboard(env);
+	uwx_init_env(env, total_size);
+	env->on_heap = 1;
     }
     return env;
 }
@@ -165,10 +202,12 @@ int uwx_free(struct uwx_env *env)
     if (env != 0) {
 	uwx_free_scoreboards(env);
 	uwx_free_str_pool(env);
-	if (env->free_cb == 0)
-	    free((void *)env);
-	else
-	    (*env->free_cb)((void *)env);
+	if (env->on_heap) {
+	    if (env->free_cb == 0)
+		free((void *)env);
+	    else
+		(*env->free_cb)((void *)env);
+	}
     }
     return UWX_OK;
 }
