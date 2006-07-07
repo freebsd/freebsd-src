@@ -188,11 +188,12 @@
       for &os; 6.0-RELEASE.  This change should have been documented
       in the release notes.</para>
 
-    <para>(2006/06/01, updated 2006/06/07) A bug in the <filename>rc.d/jail</filename>
+    <para>(2006/06/01, updated 2006/07/07) A bug in the <filename>rc.d/jail</filename>
       startup script could cause various problems for users attempting
       to configure &man.jail.2; environments at system startup time.
-      A fix has been committed to HEAD and RELENG_6; it will be merged
-      to the RELENG_6_1 errata fix branch after more testing.</para>
+      A fix has been committed to HEAD, RELENG_6, and RELENG_6_1.
+      More details can be found in errata notice
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:01.jail.asc">FreeBSD-EN-06:01.jail</ulink>.</para>
 
     <para>(2006/06/01) Deadlocks have been observed (and can be
       reproduced) in some cases where snapshots and quotas are both
@@ -200,12 +201,11 @@
       HEAD and RELENG_6 branches; more testing is planned before a
       merge to the RELENG_6_1 errata fix branch.</para>
 
-    <para>(2006/06/01, updated 2006/06/16) A bug in the Neighbor Discovery Protocol (NDP)
+    <para>(2006/06/01, updated 2006/07/07) A bug in the Neighbor Discovery Protocol (NDP)
       implementation causes spurious error messages for point-to-point
       IPv6 links on &os; &release.bugfix;.  This behavior is a
       regression from &os; 6.0-RELEASE.  A solution for this
-      problem has been committed to HEAD and is planned for merging
-      to RELENG_6.</para>
+      problem has been committed to HEAD and RELENG_6.</para>
 
     <para>(2006/06/01) Problems have been observed when trying to load
       packages from multiple CDROMs inside the &man.sysinstall.8;
