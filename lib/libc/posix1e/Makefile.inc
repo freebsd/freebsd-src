@@ -53,7 +53,7 @@ MAN+=	acl.3				\
 	mac.3				\
 	mac.conf.5			\
 	mac_free.3			\
-	mac_is_present_np.3		\
+	mac_is_present.3		\
 	mac_get.3			\
 	mac_prepare.3			\
 	mac_set.3			\
