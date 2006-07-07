@@ -22,7 +22,23 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#define UVECSIZE 20	/* Size of uvec supplied by unwind engine */
-			/* for callback's use. */
+#define MAX_RVEC_SIZE 12
 
-extern int uwx_restore_markers(struct uwx_env *env);
+struct load_module_cache;
+
+struct uwx_self_info {
+    struct uwx_env *env;
+    ucontext_t *ucontext;
+    uint64_t bspstore;
+    uint64_t rvec[MAX_RVEC_SIZE];
+    uint64_t sendsig_start;
+    uint64_t sendsig_end;
+    int on_heap;
+    int trace;
+    struct load_module_cache *load_module_cache;
+};
+
+extern int uwx_self_init_info_block(
+    struct uwx_env *env,
+    struct uwx_self_info *info
+    );

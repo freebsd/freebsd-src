@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2003 Hewlett-Packard Development Company, L.P.
+Copyright (c) 2003-2006 Hewlett-Packard Development Company, L.P.
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
 files (the "Software"), to deal in the Software without
@@ -28,7 +28,6 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include "uwx_scoreboard.h"
 #include "uwx_bstream.h"
 #include "uwx_trace.h"
-#include "uwx_swap.h"
 
 int uwx_count_ones(unsigned int mask);
 
@@ -49,15 +48,15 @@ int uwx_count_ones(unsigned int mask);
 
 #define COPYIN_UINFO_4(dest, src) \
     (env->remote? \
-	(*env->copyin)(UWX_COPYIN_UINFO, (dest), (src), \
+      (*env->copyin)(UWX_COPYIN_UINFO, (dest), (src), \
 						WORDSZ, env->cb_token) : \
-	(*(uint32_t *)(dest) = *(uint32_t *)(src), WORDSZ) )
+      (*(uint32_t *)(intptr_t)(dest) = *(uint32_t *)(intptr_t)(src), WORDSZ) )
 
 #define COPYIN_UINFO_8(dest, src) \
     (env->remote? \
-	(*env->copyin)(UWX_COPYIN_UINFO, (dest), (src), \
+      (*env->copyin)(UWX_COPYIN_UINFO, (dest), (src), \
 						DWORDSZ, env->cb_token) : \
-	(*(uint64_t *)(dest) = *(uint64_t *)(src), DWORDSZ) )
+      (*(uint64_t *)(intptr_t)(dest) = *(uint64_t *)(intptr_t)(src), DWORDSZ) )
 
 
 /* uwx_default_rstate: Returns the default register state for a leaf routine */
@@ -120,6 +119,12 @@ int uwx_decode_uinfo(
 	ulen = UNW_LENGTH(uinfohdr) * DWORDSZ;
     uwx_init_bstream(&bstream, env,
 		uentry->unwind_info + DWORDSZ, ulen, UWX_COPYIN_UINFO);
+
+    /* Save the header and a pointer to the personality routine ptr */
+    /* for later use in exception handling. */
+
+    env->uinfo_hdr = uinfohdr;
+    env->uinfo_end = uentry->unwind_info + DWORDSZ + ulen;
 
     TRACE_R_UIB(uentry, ulen)
 
@@ -344,9 +349,9 @@ int uwx_decode_prologue(
     br_mem_mask = 0;
     gr_gr_mask = 0;
     br_gr_mask = 0;
-    nfr = 0;
-    ngr = 0;
-    nbr = 0;
+    nfr = 127;
+    ngr = 127;
+    nbr = 127;
     spill_base = 0;
 
     /* If prologue_gr header record supplied mask and grsave, */
@@ -453,6 +458,10 @@ int uwx_decode_prologue(
 			    TRACE_I_DECODE_PROLOGUE_2("(P3) rp_br", b0, b1)
 			    scoreboard->rstate[SBREG_RP] =
 					UWX_DISP_REG(UWX_REG_BR(reg));
+			    if (newrstate[SBREG_RP] ==
+						UWX_DISP_REG(UWX_REG_BR(0)))
+				newrstate[SBREG_RP] =
+					UWX_DISP_REG(UWX_REG_BR(reg));
 			    break;
 			case 7:		/* rnat_gr */
 			    TRACE_I_DECODE_PROLOGUE_2("(P3) rnat_gr", b0, b1)
@@ -463,12 +472,12 @@ int uwx_decode_prologue(
 			    TRACE_I_DECODE_PROLOGUE_2("(P3) bsp_gr", b0, b1)
 			    /* Don't track BSP yet */
 			    return UWX_ERR_CANTUNWIND;
-			    break;
+			    /* break; */
 			case 9:		/* bspstore_gr */
 			    TRACE_I_DECODE_PROLOGUE_2("(P3) bspstore_gr", b0, b1)
 			    /* Don't track BSPSTORE yet */
 			    return UWX_ERR_CANTUNWIND;
-			    break;
+			    /* break; */
 			case 10:	/* fpsr_gr */
 			    TRACE_I_DECODE_PROLOGUE_2("(P3) fpsr_gr", b0, b1)
 			    newrstate[SBREG_FPSR] =
@@ -500,6 +509,9 @@ int uwx_decode_prologue(
 		    /* two pieces of information together at the */
 		    /* end of the main loop. */
 		    t = 0;
+		    nfr = 0;
+		    ngr = 0;
+		    nbr = 0;
 		    while (t < rhdr->rlen) {
 			b1 = uwx_get_byte(bstream);
 			if (b1 < 0)
@@ -669,32 +681,32 @@ int uwx_decode_prologue(
 			    TRACE_I_DECODE_PROLOGUE_2L("(P8) bsp_when", b0, b1, parm1)
 			    /* Don't track BSP yet */
 			    return UWX_ERR_CANTUNWIND;
-			    break;
+			    /* break; */
 			case 8:		/* bsp_psprel */
 			    TRACE_I_DECODE_PROLOGUE_2L("(P8) bsp_psprel", b0, b1, parm1)
 			    /* Don't track BSP yet */
 			    return UWX_ERR_CANTUNWIND;
-			    break;
+			    /* break; */
 			case 9:		/* bsp_sprel */
 			    TRACE_I_DECODE_PROLOGUE_2L("(P8) bsp_sprel", b0, b1, parm1)
 			    /* Don't track BSP yet */
 			    return UWX_ERR_CANTUNWIND;
-			    break;
+			    /* break; */
 			case 10:	/* bspstore_when */
 			    TRACE_I_DECODE_PROLOGUE_2L("(P8) bspstore_when", b0, b1, parm1)
 			    /* Don't track BSP yet */
 			    return UWX_ERR_CANTUNWIND;
-			    break;
+			    /* break; */
 			case 11:	/* bspstore_psprel */
 			    TRACE_I_DECODE_PROLOGUE_2L("(P8) bspstore_psprel", b0, b1, parm1)
 			    /* Don't track BSP yet */
 			    return UWX_ERR_CANTUNWIND;
-			    break;
+			    /* break; */
 			case 12:	/* bspstore_sprel */
 			    TRACE_I_DECODE_PROLOGUE_2L("(P8) bspstore_sprel", b0, b1, parm1)
 			    /* Don't track BSP yet */
 			    return UWX_ERR_CANTUNWIND;
-			    break;
+			    /* break; */
 			case 13:	/* rnat_when */
 			    TRACE_I_DECODE_PROLOGUE_2L("(P8) rnat_when", b0, b1, parm1)
 			    tspill[SBREG_RNAT] = (int) parm1;
@@ -1092,7 +1104,7 @@ int uwx_decode_body(
     /* is restored, update the scoreboard entry for PSP */
     /* and reset any entries for registers saved in memory. */
 
-    if (ip_slot > t_sp_restore) {
+    if (rhdr->ecount > 0 && ip_slot > t_sp_restore) {
 	scoreboard->rstate[SBREG_PSP] = UWX_DISP_SPPLUS(0);
 	for (i = 0; i < env->nsbreg; i++) {
 	    if (UWX_GET_DISP_CODE(scoreboard->rstate[i]) == UWX_DISP_SPREL(0) ||

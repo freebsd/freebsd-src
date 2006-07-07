@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2003 Hewlett-Packard Development Company, L.P.
+Copyright (c) 2003-2006 Hewlett-Packard Development Company, L.P.
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
 files (the "Software"), to deal in the Software without
@@ -22,14 +22,10 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#include <string.h>
+
 #include "uwx_env.h"
 #include "uwx_str.h"
-
-#ifdef _KERNEL
-static struct uwx_str_pool	uwx_str_pool;
-#define	free(p)		/* nullified */
-#define	malloc(sz)	((sz == sizeof(uwx_str_pool)) ? &uwx_str_pool : NULL)
-#endif
 
 /*
  *  uwx_str.c
@@ -46,21 +42,16 @@ static struct uwx_str_pool	uwx_str_pool;
  */
 
 
-int uwx_init_str_pool(struct uwx_env *env)
+int uwx_init_str_pool(struct uwx_env *env, struct uwx_str_pool *pool)
 {
-    if (env->allocate_cb == 0)
-	env->string_pool = (struct uwx_str_pool *)
-		malloc(sizeof(struct uwx_str_pool));
-    else
-	env->string_pool = (struct uwx_str_pool *)
-		(*env->allocate_cb)(sizeof(struct uwx_str_pool));
-
-    if (env->string_pool == 0)
+    if (pool == 0)
 	return UWX_ERR_NOMEM;
 
-    env->string_pool->next = 0;
-    env->string_pool->size = STRPOOLSIZE;
-    env->string_pool->used = 0;
+    pool->next = 0;
+    pool->size = STRPOOLSIZE;
+    pool->used = 0;
+
+    env->string_pool = pool;
 
     return UWX_OK;
 }
@@ -70,7 +61,11 @@ void uwx_free_str_pool(struct uwx_env *env)
     struct uwx_str_pool *pool;
     struct uwx_str_pool *next;
 
-    for (pool = env->string_pool; pool != 0; pool = next) {
+    /* The first pool is preallocated as part of the uwx_env. Don't free it! */
+    pool = env->string_pool;
+    if (pool != 0)
+	pool = pool->next;
+    for (; pool != 0; pool = next) {
 	next = pool->next;
 	if (env->free_cb == 0)
 	    free(pool);

@@ -22,7 +22,17 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#define UVECSIZE 20	/* Size of uvec supplied by unwind engine */
-			/* for callback's use. */
+struct uwx_env;
+struct uwx_symbol_cache;
 
-extern int uwx_restore_markers(struct uwx_env *env);
+extern int uwx_find_symbol(
+    struct uwx_env *env,
+    struct uwx_symbol_cache **symbol_cache_p,
+    char *module_name,
+    uint64_t relip,
+    char **func_name_p,
+    uint64_t *offset_p);
+
+extern void uwx_release_symbol_cache(
+    struct uwx_env *env,
+    struct uwx_symbol_cache *symbol_cache);
