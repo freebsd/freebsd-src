@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060707:	p3	FreeBSD-EN-06:01.jail
+	Correct bug in the startup scripts for jails.
+
 20060614:	p2	FreeBSD-SA-06:17.sendmail
 	Correct a bug in the handling of multipart messages by sendmail(8)
 	which can allow a malformed message to crash a sendmail queue
