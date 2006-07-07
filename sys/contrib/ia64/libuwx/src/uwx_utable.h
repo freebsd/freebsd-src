@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2003 Hewlett-Packard Development Company, L.P.
+Copyright (c) 2003-2006 Hewlett-Packard Development Company, L.P.
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
 files (the "Software"), to deal in the Software without
@@ -23,6 +23,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 */
 
 struct uwx_utable_entry {
+    uint64_t ptr_size;
     uint64_t code_start;
     uint64_t code_end;
     uint64_t unwind_info;

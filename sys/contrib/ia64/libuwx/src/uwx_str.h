@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2003 Hewlett-Packard Development Company, L.P.
+Copyright (c) 2003-2006 Hewlett-Packard Development Company, L.P.
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
 files (the "Software"), to deal in the Software without
@@ -22,7 +22,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#define STRPOOLSIZE 400
+#define STRPOOLSIZE (400-sizeof(void *)-2*sizeof(int))
 
 struct uwx_str_pool {
     struct uwx_str_pool *next;
@@ -31,7 +31,7 @@ struct uwx_str_pool {
     char pool[STRPOOLSIZE];
 };
 
-extern int uwx_init_str_pool(struct uwx_env *env);
+extern int uwx_init_str_pool(struct uwx_env *env, struct uwx_str_pool *pool);
 extern void uwx_free_str_pool(struct uwx_env *env);
 extern char *uwx_alloc_str(struct uwx_env *env, char *str);
 extern void uwx_reset_str_pool(struct uwx_env *env);
