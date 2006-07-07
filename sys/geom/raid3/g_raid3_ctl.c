@@ -102,7 +102,6 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	int *verify, *noverify;
 	u_int n;
 
-	g_topology_assert();
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
 		gctl_error(req, "No '%s' argument.", "nargs");
