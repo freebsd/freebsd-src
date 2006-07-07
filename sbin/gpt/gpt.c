@@ -269,42 +269,42 @@ parse_uuid(const char *s, uuid_t *uuid)
 
 	switch (*s) {
 	case 'e':
-		if (strcmp(optarg, "efi") == 0) {
+		if (strcmp(s, "efi") == 0) {
 			uuid_t efi = GPT_ENT_TYPE_EFI;
 			*uuid = efi;
 			return (0);
 		}
 		break;
 	case 'h':
-		if (strcmp(optarg, "hfs") == 0) {
+		if (strcmp(s, "hfs") == 0) {
 			uuid_t hfs = GPT_ENT_TYPE_APPLE_HFS;
 			*uuid = hfs;
 			return (0);
 		}
 		break;
 	case 'l':
-		if (strcmp(optarg, "linux") == 0) {
+		if (strcmp(s, "linux") == 0) {
 			uuid_t lnx = GPT_ENT_TYPE_MS_BASIC_DATA;
 			*uuid = lnx;
 			return (0);
 		}
 		break;
 	case 's':
-		if (strcmp(optarg, "swap") == 0) {
+		if (strcmp(s, "swap") == 0) {
 			uuid_t sw = GPT_ENT_TYPE_FREEBSD_SWAP;
 			*uuid = sw;
 			return (0);
 		}
 		break;
 	case 'u':
-		if (strcmp(optarg, "ufs") == 0) {
+		if (strcmp(s, "ufs") == 0) {
 			uuid_t ufs = GPT_ENT_TYPE_FREEBSD_UFS;
 			*uuid = ufs;
 			return (0);
 		}
 		break;
 	case 'w':
-		if (strcmp(optarg, "windows") == 0) {
+		if (strcmp(s, "windows") == 0) {
 			uuid_t win = GPT_ENT_TYPE_MS_BASIC_DATA;
 			*uuid = win;
 			return (0);
