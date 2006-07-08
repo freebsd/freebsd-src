@@ -596,7 +596,6 @@ OLD_FILES+=bin/mountd
 OLD_FILES+=bin/nfsd
 # 20020707 sbin/nfsd -> usr.sbin/nfsd
 OLD_FILES+=sbin/nfsd
-OLD_FILES+=usr/share/man/man8/nfsd.8.gz
 # 200206XX
 OLD_FILES+=usr/lib/libpam_ssh.a
 OLD_FILES+=usr/lib/libpam_ssh_p.a
