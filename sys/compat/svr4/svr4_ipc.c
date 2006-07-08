@@ -209,6 +209,7 @@ svr4_semctl(td, v)
 	struct svr4_semid_ds ss;
 	struct semid_ds bs;
 	union semun semun;
+	register_t rval;
 	int cmd, error;
 
 	switch (uap->cmd) {
@@ -244,21 +245,24 @@ svr4_semctl(td, v)
 		cmd = IPC_STAT;
 		semun.buf = &bs;
 		error = kern_semctl(td, uap->semid, uap->semnum, cmd, &semun,
-		    UIO_SYSSPACE);
+		    &rval);
 		if (error)
-                        return error;
+                        return (error);
                 bsd_to_svr4_semid_ds(&bs, &ss);
-		return copyout(&ss, uap->arg.buf, sizeof(ss));
+		error = copyout(&ss, uap->arg.buf, sizeof(ss));
+		if (error == 0)
+			td->td_retval[0] = rval;
+		return (error);
 
 	case SVR4_IPC_SET:
 		cmd = IPC_SET;
 		error = copyin(uap->arg.buf, (caddr_t) &ss, sizeof ss);
                 if (error)
-                        return error;
+                        return (error);
                 svr4_to_bsd_semid_ds(&ss, &bs);
 		semun.buf = &bs;
-		return kern_semctl(td, uap->semid, uap->semnum, cmd, &semun,
-		    UIO_SYSSPACE);
+		return (kern_semctl(td, uap->semid, uap->semnum, cmd, &semun,
+		    td->td_retval));
 
 	case SVR4_IPC_RMID:
 		cmd = IPC_RMID;
@@ -268,8 +272,8 @@ svr4_semctl(td, v)
 		return EINVAL;
 	}
 
-	return kern_semctl(td, uap->semid, uap->semnum, cmd, &uap->arg,
-	    UIO_USERSPACE);
+	return (kern_semctl(td, uap->semid, uap->semnum, cmd, &uap->arg,
+	    td->td_retval));
 }
 
 struct svr4_sys_semget_args {
