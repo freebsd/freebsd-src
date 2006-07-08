@@ -375,6 +375,10 @@ carp_clone_create(struct if_clone *ifc, int unit)
 #ifdef INET6
 	sc->sc_im6o.im6o_multicast_hlim = CARP_DFLTTL;
 #endif
+	sc->sc_imo.imo_membership = (struct in_multi **)malloc(
+	    (sizeof(struct in_multi *) * IP_MIN_MEMBERSHIPS), M_CARP,
+	    M_WAITOK);
+	sc->sc_imo.imo_max_memberships = IP_MIN_MEMBERSHIPS;
 
 	callout_init(&sc->sc_ad_tmo, NET_CALLOUT_MPSAFE);
 	callout_init(&sc->sc_md_tmo, NET_CALLOUT_MPSAFE);
@@ -415,6 +419,7 @@ carp_clone_destroy(struct ifnet *ifp)
 	bpfdetach(ifp);
 	if_detach(ifp);
 	if_free_type(ifp, IFT_ETHER);
+	free(sc->sc_imo.imo_membership, M_CARP);
 	free(sc, M_CARP);
 }
 
