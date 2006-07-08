@@ -2,7 +2,7 @@
 #
 
 PROG=	ssh
-CFLAGS+=-I${SSHDIR}
+CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 LINKS=	${BINDIR}/ssh ${BINDIR}/slogin
 MAN=	ssh.1 ssh_config.5
 MLINKS=	ssh.1 slogin.1
@@ -30,3 +30,5 @@ LDADD+=	-lcrypt -lcrypto
 .include <bsd.prog.mk>
 
 .PATH:	${SSHDIR}
+
+${OBJS} ${POBJS} ${SOBJS}: ssh_namespace.h
