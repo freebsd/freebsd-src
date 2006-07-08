@@ -494,6 +494,7 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 	struct l_seminfo linux_seminfo;
 	struct semid_ds semid;
 	union semun semun;
+	register_t rval;
 	int cmd, error;
 
 	switch (args->cmd & ~LINUX_IPC_64) {
@@ -524,25 +525,25 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 			return (error);
 		linux_to_bsd_semid_ds(&linux_semid, &semid);
 		semun.buf = &semid;
-		return kern_semctl(td, args->semid, args->semnum, cmd, &semun,
-		    UIO_SYSSPACE);
+		return (kern_semctl(td, args->semid, args->semnum, cmd, &semun,
+		    td->td_retval));
 	case LINUX_IPC_STAT:
 	case LINUX_SEM_STAT:
-		if((args->cmd & ~LINUX_IPC_64) == LINUX_IPC_STAT)
+		if ((args->cmd & ~LINUX_IPC_64) == LINUX_IPC_STAT)
 			cmd = IPC_STAT;
 		else
 			cmd = SEM_STAT;
 		semun.buf = &semid;
 		error = kern_semctl(td, args->semid, args->semnum, cmd, &semun,
-		    UIO_SYSSPACE);
+		    &rval);
 		if (error)
 			return (error);
-		td->td_retval[0] = (cmd == SEM_STAT) ?
-		    IXSEQ_TO_IPCID(args->semid, semid.sem_perm) :
-		    0;
 		bsd_to_linux_semid_ds(&semid, &linux_semid);
-		return (linux_semid_pushdown(args->cmd & LINUX_IPC_64,
-		    &linux_semid, (caddr_t)PTRIN(args->arg.buf)));
+		error = linux_semid_pushdown(args->cmd & LINUX_IPC_64,
+		    &linux_semid, (caddr_t)PTRIN(args->arg.buf));
+		if (error == 0)
+			td->td_retval[0] = (cmd == SEM_STAT) ? rval : 0;
+		return (error);
 	case LINUX_IPC_INFO:
 	case LINUX_SEM_INFO:
 		bcopy(&seminfo, &linux_seminfo, sizeof(linux_seminfo) );
@@ -567,8 +568,8 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 		  args->cmd & ~LINUX_IPC_64);
 		return EINVAL;
 	}
-	return kern_semctl(td, args->semid, args->semnum, cmd, &semun,
-	    UIO_USERSPACE);
+	return (kern_semctl(td, args->semid, args->semnum, cmd, &semun,
+	    td->td_retval));
 }
 
 int

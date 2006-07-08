@@ -556,8 +556,9 @@ __semctl(td, uap)
 	struct thread *td;
 	struct __semctl_args *uap;
 {
-	union semun real_arg;
-	union semun *arg;
+	struct semid_ds dsbuf;
+	union semun arg, semun;
+	register_t rval;
 	int error;
 
 	switch (uap->cmd) {
@@ -567,27 +568,57 @@ __semctl(td, uap)
 	case GETALL:
 	case SETVAL:
 	case SETALL:
-		error = copyin(uap->arg, &real_arg, sizeof(real_arg));
+		error = copyin(uap->arg, &arg, sizeof(arg));
 		if (error)
 			return (error);
-		arg = &real_arg;
-		break;
-	default:
-		arg = NULL;
 		break;
 	}
-	return (kern_semctl(td, uap->semid, uap->semnum, uap->cmd, arg,
-	    UIO_USERSPACE));
+
+	switch (uap->cmd) {
+	case SEM_STAT:
+	case IPC_STAT:
+		semun.buf = &dsbuf;
+		break;
+	case IPC_SET:
+		error = copyin(arg.buf, &dsbuf, sizeof(dsbuf));
+		if (error)
+			return (error);
+		semun.buf = &dsbuf;
+		break;
+	case GETALL:
+	case SETALL:
+		semun.array = arg.array;
+		break;
+	case SETVAL:
+		semun.val = arg.val;
+		break;		
+	}
+
+	error = kern_semctl(td, uap->semid, uap->semnum, uap->cmd, &semun,
+	    &rval);
+	if (error)
+		return (error);
+
+	switch (uap->cmd) {
+	case SEM_STAT:
+	case IPC_STAT:
+		error = copyout(&dsbuf, arg.buf, sizeof(dsbuf));
+		break;
+	}
+
+	if (error == 0)
+		td->td_retval[0] = rval;
+	return (error);
 }
 
 int
-kern_semctl(struct thread *td, int semid, int semnum, int cmd, union semun *arg,
-	enum uio_seg bufseg)
+kern_semctl(struct thread *td, int semid, int semnum, int cmd,
+    union semun *arg, register_t *rval)
 {
 	u_short *array;
 	struct ucred *cred = td->td_ucred;
-	int i, rval, error;
-	struct semid_ds sbuf;
+	int i, error;
+	struct semid_ds *sbuf;
 	struct semid_kernel *semakptr;
 	struct mtx *sema_mtxp;
 	u_short usval, count;
@@ -625,16 +656,10 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd, union semun *arg,
 			goto done2;
 		}
 #endif
+		bcopy(&semakptr->u, arg->buf, sizeof(struct semid_ds));
+		*rval = IXSEQ_TO_IPCID(semid, semakptr->u.sem_perm);
 		mtx_unlock(sema_mtxp);
-		if (bufseg == UIO_USERSPACE)
-			error = copyout(&semakptr->u, arg->buf,
-			    sizeof(struct semid_ds));
-		else
-			bcopy(&semakptr->u, arg->buf, sizeof(struct semid_ds));
-		rval = IXSEQ_TO_IPCID(semid, semakptr->u.sem_perm);
-		if (error == 0)
-			td->td_retval[0] = rval;
-		return (error);
+		return (0);
 	}
 
 	semidx = IPCID_TO_IX(semid);
@@ -643,23 +668,20 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd, union semun *arg,
 
 	semakptr = &sema[semidx];
 	sema_mtxp = &sema_mtx[semidx];
-#ifdef MAC
 	mtx_lock(sema_mtxp);
+#ifdef MAC
 	error = mac_check_sysv_semctl(cred, semakptr, cmd);
 	if (error != 0) {
 		MPRINTF(("mac_check_sysv_semctl returned %d\n", error));
-		mtx_unlock(sema_mtxp);
-		return (error);
+		goto done2;
 	}
-	mtx_unlock(sema_mtxp);
 #endif
 
 	error = 0;
-	rval = 0;
+	*rval = 0;
 
 	switch (cmd) {
 	case IPC_RMID:
-		mtx_lock(sema_mtxp);
 		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_M)))
@@ -685,41 +707,27 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd, union semun *arg,
 		break;
 
 	case IPC_SET:
-		if (bufseg == UIO_USERSPACE) {
-			error = copyin(arg->buf, &sbuf, sizeof(sbuf));
-			if (error)
-				goto done2;
-		} else
-			bcopy(arg->buf, &sbuf, sizeof(sbuf));
-		mtx_lock(sema_mtxp);
 		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_M)))
 			goto done2;
-		semakptr->u.sem_perm.uid = sbuf.sem_perm.uid;
-		semakptr->u.sem_perm.gid = sbuf.sem_perm.gid;
+		sbuf = arg->buf;
+		semakptr->u.sem_perm.uid = sbuf->sem_perm.uid;
+		semakptr->u.sem_perm.gid = sbuf->sem_perm.gid;
 		semakptr->u.sem_perm.mode = (semakptr->u.sem_perm.mode &
-		    ~0777) | (sbuf.sem_perm.mode & 0777);
+		    ~0777) | (sbuf->sem_perm.mode & 0777);
 		semakptr->u.sem_ctime = time_second;
 		break;
 
 	case IPC_STAT:
-		mtx_lock(sema_mtxp);
 		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_R)))
 			goto done2;
-		sbuf = semakptr->u;
-		mtx_unlock(sema_mtxp);
-		if (bufseg == UIO_USERSPACE)
-			error = copyout(&semakptr->u, arg->buf,
-			    sizeof(struct semid_ds));
-		else
-			bcopy(&semakptr->u, arg->buf, sizeof(struct semid_ds));
+		bcopy(&semakptr->u, arg->buf, sizeof(struct semid_ds));
 		break;
 
 	case GETNCNT:
-		mtx_lock(sema_mtxp);
 		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_R)))
@@ -728,11 +736,10 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd, union semun *arg,
 			error = EINVAL;
 			goto done2;
 		}
-		rval = semakptr->u.sem_base[semnum].semncnt;
+		*rval = semakptr->u.sem_base[semnum].semncnt;
 		break;
 
 	case GETPID:
-		mtx_lock(sema_mtxp);
 		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_R)))
@@ -741,11 +748,10 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd, union semun *arg,
 			error = EINVAL;
 			goto done2;
 		}
-		rval = semakptr->u.sem_base[semnum].sempid;
+		*rval = semakptr->u.sem_base[semnum].sempid;
 		break;
 
 	case GETVAL:
-		mtx_lock(sema_mtxp);
 		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_R)))
@@ -754,34 +760,47 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd, union semun *arg,
 			error = EINVAL;
 			goto done2;
 		}
-		rval = semakptr->u.sem_base[semnum].semval;
+		*rval = semakptr->u.sem_base[semnum].semval;
 		break;
 
 	case GETALL:
 		/*
-		 * Given the fact that this copies out a variable amount
-		 * of data into userland, I don't see any feasible way of
-		 * doing this with a kmem copy of the userland buffer.
+		 * Unfortunately, callers of this function don't know
+		 * in advance how many semaphores are in this set.
+		 * While we could just allocate the maximum size array
+		 * and pass the actual size back to the caller, that
+		 * won't work for SETALL since we can't copyin() more
+		 * data than the user specified as we may return a
+		 * spurious EFAULT.
+		 * 
+		 * Note that the number of semaphores in a set is
+		 * fixed for the life of that set.  The only way that
+		 * the 'count' could change while are blocked in
+		 * malloc() is if this semaphore set were destroyed
+		 * and a new one created with the same index.
+		 * However, semvalid() will catch that due to the
+		 * sequence number unless exactly 0x8000 (or a
+		 * multiple thereof) semaphore sets for the same index
+		 * are created and destroyed while we are in malloc!
+		 *
 		 */
-		if (bufseg == UIO_SYSSPACE)
-			return (EINVAL);
-			    
-		array = malloc(sizeof(*array) * semakptr->u.sem_nsems, M_TEMP,
-		    M_WAITOK);
+		count = semakptr->u.sem_nsems;
+		mtx_unlock(sema_mtxp);		    
+		array = malloc(sizeof(*array) * count, M_TEMP, M_WAITOK);
 		mtx_lock(sema_mtxp);
 		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
+		KASSERT(count == semakptr->u.sem_nsems, ("nsems changed"));
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_R)))
 			goto done2;
 		for (i = 0; i < semakptr->u.sem_nsems; i++)
 			array[i] = semakptr->u.sem_base[i].semval;
 		mtx_unlock(sema_mtxp);
-		error = copyout(array, arg->array,
-		    i * sizeof(arg->array[0]));
+		error = copyout(array, arg->array, count * sizeof(*array));
+		mtx_lock(sema_mtxp);
 		break;
 
 	case GETZCNT:
-		mtx_lock(sema_mtxp);
 		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_R)))
@@ -790,11 +809,10 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd, union semun *arg,
 			error = EINVAL;
 			goto done2;
 		}
-		rval = semakptr->u.sem_base[semnum].semzcnt;
+		*rval = semakptr->u.sem_base[semnum].semzcnt;
 		break;
 
 	case SETVAL:
-		mtx_lock(sema_mtxp);
 		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_W)))
@@ -816,18 +834,11 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd, union semun *arg,
 
 	case SETALL:
 		/*
-		 * Given the fact that this copies in variable amounts of
-		 * userland data in a loop, I don't see any feasible way
-		 * of doing this with a kmem copy of the userland buffer.
+		 * See comment on GETALL for why 'count' shouldn't change
+		 * and why we require a userland buffer.
 		 */
-		if (bufseg == UIO_SYSSPACE)
-			return (EINVAL);
-		mtx_lock(sema_mtxp);
-raced:
-		if ((error = semvalid(semid, semakptr)) != 0)
-			goto done2;
 		count = semakptr->u.sem_nsems;
-		mtx_unlock(sema_mtxp);
+		mtx_unlock(sema_mtxp);		    
 		array = malloc(sizeof(*array) * count, M_TEMP, M_WAITOK);
 		error = copyin(arg->array, array, count * sizeof(*array));
 		if (error)
@@ -835,12 +846,7 @@ raced:
 		mtx_lock(sema_mtxp);
 		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
-		/* we could have raced? */
-		if (count != semakptr->u.sem_nsems) {
-			free(array, M_TEMP);
-			array = NULL;
-			goto raced;
-		}
+		KASSERT(count == semakptr->u.sem_nsems, ("nsems changed"));
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_W)))
 			goto done2;
 		for (i = 0; i < semakptr->u.sem_nsems; i++) {
@@ -862,11 +868,8 @@ raced:
 		break;
 	}
 
-	if (error == 0)
-		td->td_retval[0] = rval;
 done2:
-	if (mtx_owned(sema_mtxp))
-		mtx_unlock(sema_mtxp);
+	mtx_unlock(sema_mtxp);
 	if (array != NULL)
 		free(array, M_TEMP);
 	return(error);
