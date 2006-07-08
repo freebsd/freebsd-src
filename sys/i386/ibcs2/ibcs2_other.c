@@ -35,7 +35,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
+#include <sys/un.h>
 
 #include <i386/ibcs2/ibcs2_types.h>
 #include <i386/ibcs2/ibcs2_signal.h>
@@ -85,10 +87,8 @@ int
 spx_open(struct thread *td)
 {
 	struct socket_args sock;
-	struct connect_args conn;
-	struct sockaddr_un *Xaddr;
+	struct sockaddr_un sun;
 	int fd, error;
-	caddr_t sg = stackgap_init();
 
 	/* obtain a socket. */
 	DPRINTF(("SPX: open socket\n"));
@@ -98,23 +98,18 @@ spx_open(struct thread *td)
 	error = socket(td, &sock);
 	if (error)
 		return error;
+	fd = td->td_retval[0];
 
 	/* connect the socket to standard X socket */
 	DPRINTF(("SPX: connect to /tmp/X11-unix/X0\n"));
-	Xaddr = stackgap_alloc(&sg, sizeof(struct sockaddr_un));
-	Xaddr->sun_family = AF_UNIX;
-	Xaddr->sun_len = sizeof(struct sockaddr_un) - sizeof(Xaddr->sun_path) +
-	  strlen(Xaddr->sun_path) + 1;
-	copyout("/tmp/.X11-unix/X0", Xaddr->sun_path, 18);
+	sun.sun_family = AF_UNIX;
+	strcpy(sun.sun_path, "/tmp/.X11-unix/X0");
+	sun.sun_len = sizeof(struct sockaddr_un) - sizeof(sun.sun_path) +
+	    strlen(sun.sun_path) + 1;
 
-	conn.s = fd = td->td_retval[0];
-	conn.name = (caddr_t)Xaddr;
-	conn.namelen = sizeof(struct sockaddr_un);
-	error = connect(td, &conn);
+	error = kern_connect(td, fd, (struct sockaddr *)&sun);
 	if (error) {
-		struct close_args cl;
-		cl.fd = fd;
-		close(td, &cl);
+		kern_close(td, fd);
 		return error;
 	}
 	td->td_retval[0] = fd;
