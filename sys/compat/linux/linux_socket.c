@@ -705,9 +705,6 @@ linux_accept(struct thread *td, struct linux_accept_args *args)
 		struct sockaddr * __restrict name;
 		socklen_t * __restrict anamelen;
 	} */ bsd_args;
-	struct close_args /* {
-		int     fd;
-	} */ c_args;
 	int error, fd;
 
 	if ((error = copyin(args, &linux_args, sizeof(linux_args))))
@@ -724,8 +721,7 @@ linux_accept(struct thread *td, struct linux_accept_args *args)
 	if (linux_args.addr) {
 		error = linux_sa_put(PTRIN(linux_args.addr));
 		if (error) {
-			c_args.fd = td->td_retval[0];
-			(void)close(td, &c_args);
+			(void)kern_close(td, td->td_retval[0]);
 			return (error);
 		}
 	}

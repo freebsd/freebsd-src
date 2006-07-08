@@ -68,6 +68,7 @@ int	kern_clock_gettime(struct thread *td, clockid_t clock_id,
 	    struct timespec *ats);
 int	kern_clock_settime(struct thread *td, clockid_t clock_id,
 	    struct timespec *ats);
+int	kern_close(struct thread *td, int fd);
 int	kern_connect(struct thread *td, int fd, struct sockaddr *sa);
 int	kern_eaccess(struct thread *td, char *path, enum uio_seg pathseg,
 	    int flags);
