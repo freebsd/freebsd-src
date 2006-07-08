@@ -148,7 +148,9 @@ nsswitch_start()
 
 	# Generate host.conf for compatibility
 	#
-	if [ ! -f "/etc/host.conf" ]; then
+	if [ ! -f "/etc/host.conf" -o \
+		"/etc/host.conf" -ot "/etc/nsswitch.conf" ]
+	then
 		echo 'Generating host.conf.'
 		generate_host_conf /etc/nsswitch.conf /etc/host.conf
 	fi
