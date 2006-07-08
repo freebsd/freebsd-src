@@ -36,3 +36,7 @@ next vendor release.
 
 ru@FreeBSD.org
 23-May-2005
+
+NOTE: The upstream fix to util/texindex.c which fixes CVE-2005-3011 
+(FreeBSD-SA-06:01.texindex) causes temporary files to not be removed
+when handling very large inputs.  FreeBSD's fix works.
