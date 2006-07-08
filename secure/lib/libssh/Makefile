@@ -26,7 +26,7 @@ SRCS+=	version.c
 SRCS+=	getaddrinfo.c getnameinfo.c name6.c rcmd.c bindresvport.c
 .endif
 
-CFLAGS+= -I${SSHDIR}
+CFLAGS+= -I${SSHDIR} -include ssh_namespace.h
 DPADD=	${LIBZ}
 LDADD=	-lz
 
@@ -44,3 +44,5 @@ LDADD+=	-lcrypto -lcrypt
 .include <bsd.lib.mk>
 
 .PATH: ${SSHDIR} ${SSHDIR}/openbsd-compat
+
+${OBJS} ${POBJS} ${SOBJS}: ssh_namespace.h
