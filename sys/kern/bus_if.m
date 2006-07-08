@@ -507,3 +507,25 @@ METHOD int config_intr {
 	enum intr_trigger _trig;
 	enum intr_polarity _pol;
 } DEFAULT bus_generic_config_intr;
+
+/**
+ * @brief Notify a (bus) driver about a child that the hints mechanism
+ * believes it has discovered.
+ *
+ * The bus is responsible for then adding the child in the right order
+ * and discovering other things about the child.  The bus driver is
+ * free to ignore this hint, to do special things, etc.  It is all up
+ * to the bus driver to interpret.
+ *
+ * This method is only called in response to the parent bus asking for
+ * hinted devices to be enumerated.
+ *
+ * @param _dev		the bus device
+ * @param _dname	the name of the device w/o unit numbers
+ * @param _dunit	the unit number of the device
+ */
+METHOD void hinted_child {
+	device_t	_dev;
+	const char *	_dname;
+	int		_dunit;
+};
