@@ -14,7 +14,7 @@
 4	AUE_NULL	UNIMPL	xenix_sigsem
 5	AUE_NULL	UNIMPL	xenix_waitsem
 6	AUE_NULL	UNIMPL	xenix_nbwaitsem
-7	AUE_NULL	STD	{ int xenix_rdchk(int fd); }
+7	AUE_NULL	MSTD	{ int xenix_rdchk(int fd); }
 8	AUE_NULL	UNIMPL	nosys
 9	AUE_NULL	UNIMPL	nosys
 10	AUE_FTRUNCATE	MSTD	{ int xenix_chsize(int fd, long size); }
