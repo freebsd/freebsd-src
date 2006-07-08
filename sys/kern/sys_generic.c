@@ -523,13 +523,10 @@ struct ioctl_args {
 int
 ioctl(struct thread *td, struct ioctl_args *uap)
 {
-	struct file *fp;
-	struct filedesc *fdp;
 	u_long com;
-	int error = 0;
+	int error;
 	u_int size;
 	caddr_t data, memp;
-	int tmp;
 
 	if (uap->com > 0xffffffff) {
 		printf(
@@ -537,27 +534,7 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 		    td->td_proc->p_pid, td->td_proc->p_comm, uap->com);
 		uap->com &= 0xffffffff;
 	}
-	if ((error = fget(td, uap->fd, &fp)) != 0)
-		return (error);
-	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
-		fdrop(fp, td);
-		return (EBADF);
-	}
-	fdp = td->td_proc->p_fd;
-	switch (com = uap->com) {
-	case FIONCLEX:
-		FILEDESC_LOCK_FAST(fdp);
-		fdp->fd_ofileflags[uap->fd] &= ~UF_EXCLOSE;
-		FILEDESC_UNLOCK_FAST(fdp);
-		fdrop(fp, td);
-		return (0);
-	case FIOCLEX:
-		FILEDESC_LOCK_FAST(fdp);
-		fdp->fd_ofileflags[uap->fd] |= UF_EXCLOSE;
-		FILEDESC_UNLOCK_FAST(fdp);
-		fdrop(fp, td);
-		return (0);
-	}
+	com = uap->com;
 
 	/*
 	 * Interpret high order word to find amount of data to be
@@ -571,10 +548,8 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 #else
 	    ((com & (IOC_IN | IOC_OUT)) && size == 0) ||
 #endif
-	    ((com & IOC_VOID) && size > 0)) {
-		fdrop(fp, td);
+	    ((com & IOC_VOID) && size > 0))
 		return (ENOTTY);
-	}
 
 	if (size > 0) {
 		memp = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
@@ -587,7 +562,6 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 		error = copyin(uap->data, data, (u_int)size);
 		if (error) {
 			free(memp, M_IOCTLOPS);
-			fdrop(fp, td);
 			return (error);
 		}
 	} else if (com & IOC_OUT) {
@@ -598,7 +572,43 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 		bzero(data, size);
 	}
 
-	if (com == FIONBIO) {
+	error = kern_ioctl(td, uap->fd, com, data);
+
+	if (error == 0 && (com & IOC_OUT))
+		error = copyout(data, uap->data, (u_int)size);
+
+	if (memp != NULL)
+		free(memp, M_IOCTLOPS);
+	return (error);
+}
+
+int
+kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
+{
+	struct file *fp;
+	struct filedesc *fdp;
+	int error;
+	int tmp;
+
+	if ((error = fget(td, fd, &fp)) != 0)
+		return (error);
+	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
+		fdrop(fp, td);
+		return (EBADF);
+	}
+	fdp = td->td_proc->p_fd;
+	switch (com) {
+	case FIONCLEX:
+		FILEDESC_LOCK_FAST(fdp);
+		fdp->fd_ofileflags[fd] &= ~UF_EXCLOSE;
+		FILEDESC_UNLOCK_FAST(fdp);
+		goto out;
+	case FIOCLEX:
+		FILEDESC_LOCK_FAST(fdp);
+		fdp->fd_ofileflags[fd] |= UF_EXCLOSE;
+		FILEDESC_UNLOCK_FAST(fdp);
+		goto out;
+	case FIONBIO:
 		FILE_LOCK(fp);
 		if ((tmp = *(int *)data))
 			fp->f_flag |= FNONBLOCK;
@@ -606,7 +616,8 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 			fp->f_flag &= ~FNONBLOCK;
 		FILE_UNLOCK(fp);
 		data = (void *)&tmp;
-	} else if (com == FIOASYNC) {
+		break;
+	case FIOASYNC:
 		FILE_LOCK(fp);
 		if ((tmp = *(int *)data))
 			fp->f_flag |= FASYNC;
@@ -614,15 +625,11 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 			fp->f_flag &= ~FASYNC;
 		FILE_UNLOCK(fp);
 		data = (void *)&tmp;
+		break;
 	}
 
 	error = fo_ioctl(fp, com, data, td->td_ucred, td);
-
-	if (error == 0 && (com & IOC_OUT))
-		error = copyout(data, uap->data, (u_int)size);
-
-	if (memp != NULL)
-		free(memp, M_IOCTLOPS);
+out:
 	fdrop(fp, td);
 	return (error);
 }
