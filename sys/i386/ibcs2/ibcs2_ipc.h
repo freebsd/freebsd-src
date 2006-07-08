@@ -38,7 +38,7 @@ struct ibcs2_ipc_perm {
 	u_short	cgid;	/* creator group id */
 	u_short	mode;	/* r/w permission */
 	u_short	seq;	/* sequence # (to generate unique msg/sem/shm id) */
-	key_t	key;	/* user specified msg/sem/shm key */
+	ibcs2_key_t key; /* user specified msg/sem/shm key */
 };
 
 struct ibcs2_msqid_ds {
