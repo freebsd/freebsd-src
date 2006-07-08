@@ -200,6 +200,7 @@ pfsync_clone_destroy(struct ifnet *ifp)
         if_detach(ifp);
 	if_free(ifp);
         LIST_REMOVE(sc, sc_next);
+        free(sc->sc_imo.imo_membership, M_PFSYNC);
         free(sc, M_PFSYNC);
 }
 
@@ -227,6 +228,10 @@ pfsync_clone_create(struct if_clone *ifc, int unit)
 	sc->sc_sendaddr.s_addr = htonl(INADDR_PFSYNC_GROUP);
 	sc->sc_ureq_received = 0;
 	sc->sc_ureq_sent = 0;
+	sc->sc_imo.imo_membership = (struct in_multi **)malloc(
+	    (sizeof(struct in_multi *) * IP_MIN_MEMBERSHIPS), M_PFSYNC,
+	    M_WAITOK);
+	sc->sc_imo.imo_max_memberships = IP_MIN_MEMBERSHIPS;
 
 	ifp = SCP2IFP(sc);
 	if_initname(ifp, ifc->ifc_name, unit);
