@@ -594,6 +594,9 @@ OLD_FILES+=usr/share/man/man1aout/strings.1aout.gz
 OLD_FILES+=usr/share/man/man1aout/strip.1aout.gz
 OLD_FILES+=bin/mountd
 OLD_FILES+=bin/nfsd
+# 20020707 sbin/nfsd -> usr.sbin/nfsd
+OLD_FILES+=sbin/nfsd
+OLD_FILES+=usr/share/man/man8/nfsd.8.gz
 # 200206XX
 OLD_FILES+=usr/lib/libpam_ssh.a
 OLD_FILES+=usr/lib/libpam_ssh_p.a
@@ -622,6 +625,9 @@ OLD_FILES+=usr/bin/s2p
 OLD_FILES+=usr/bin/find2perl
 OLD_FILES+=usr/sbin/pkg_update
 OLD_FILES+=usr/sbin/scriptdump
+# 20020409 GC kget(1), userconfig is long dead.
+OLD_FILES+=sbin/kget
+OLD_FILES+=usr/share/man/man8/kget.8.gz
 # 200203XX
 OLD_FILES+=usr/lib/libss.a
 OLD_FILES+=usr/lib/libss_p.a
@@ -649,6 +655,9 @@ OLD_FILES+=usr/sbin/mcon
 OLD_FILES+=usr/sbin/stlstty
 OLD_FILES+=usr/sbin/ispppcontrol
 OLD_FILES+=usr/sbin/rndcontrol
+# 20010523 mount_portal -> mount_portalfs
+OLD_FILES+=sbin/mount_portal
+OLD_FILES+=usr/share/man/man8/mount_portal.8.gz
 # 200104XX
 OLD_FILES+=usr/lib/libdescrypt.a
 OLD_FILES+=usr/lib/libscrypt.a
