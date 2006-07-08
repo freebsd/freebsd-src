@@ -963,7 +963,7 @@ get_exportlist()
 	struct export_args export;
 	struct dirlist *dirhead;
 	struct iovec *iov;
-	struct statfs fsb, *fsp;
+	struct statfs fsb, *fsp, *mntbufp;
 	struct xucred anon;
 	struct xvfsconf vfc;
 	char *cp, *endcp, *dirp, *hst, *usr, *dom, savedc;
@@ -999,10 +999,9 @@ get_exportlist()
 	/*
 	 * And delete exports that are in the kernel for all local
 	 * filesystems.
-	 * XXX: Should know how to handle all local exportable filesystems
-	 *      instead of just "ufs".
+	 * XXX: Should know how to handle all local exportable filesystems.
 	 */
-	num = getmntinfo(&fsp, MNT_NOWAIT);
+	num = getmntinfo(&mntbufp, MNT_NOWAIT);
 
 	if (num > 0) {
 		build_iovec(&iov, &iovlen, "fstype", NULL, 0);
@@ -1013,6 +1012,7 @@ get_exportlist()
 	}
 
 	for (i = 0; i < num; i++) {
+		fsp = &mntbufp[i];
 		if (getvfsbyname(fsp->f_fstypename, &vfc) != 0) {
 			syslog(LOG_ERR, "getvfsbyname() failed for %s",
 			    fsp->f_fstypename);
@@ -1049,7 +1049,6 @@ get_exportlist()
 			    "can't delete exports for %s: %m",
 			    fsp->f_mntonname);
 		}
-		fsp++;
 	}
 
 	if (iov != NULL) {
