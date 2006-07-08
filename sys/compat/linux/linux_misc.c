@@ -677,20 +677,22 @@ linux_times(struct thread *td, struct linux_times_args *args)
 		printf(ARGS(times, "*"));
 #endif
 
-	p = td->td_proc;
-	PROC_LOCK(p);
-	calcru(p, &utime, &stime);
-	calccru(p, &cutime, &cstime);
-	PROC_UNLOCK(p);
+	if (args->buf != NULL) {
+		p = td->td_proc;
+		PROC_LOCK(p);
+		calcru(p, &utime, &stime);
+		calccru(p, &cutime, &cstime);
+		PROC_UNLOCK(p);
 
-	tms.tms_utime = CONVTCK(utime);
-	tms.tms_stime = CONVTCK(stime);
+		tms.tms_utime = CONVTCK(utime);
+		tms.tms_stime = CONVTCK(stime);
 
-	tms.tms_cutime = CONVTCK(cutime);
-	tms.tms_cstime = CONVTCK(cstime);
+		tms.tms_cutime = CONVTCK(cutime);
+		tms.tms_cstime = CONVTCK(cstime);
 
-	if ((error = copyout(&tms, args->buf, sizeof(tms))))
-		return error;
+		if ((error = copyout(&tms, args->buf, sizeof(tms))))
+			return error;
+	}
 
 	microuptime(&tv);
 	td->td_retval[0] = (int)CONVTCK(tv);

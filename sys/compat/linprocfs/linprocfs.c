@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/time.h>
 #include <sys/tty.h>
 #include <sys/user.h>
 #include <sys/vmmeter.h>
@@ -112,6 +113,22 @@ extern int ncpus;
 #define B2P(x) ((x) >> PAGE_SHIFT)			/* bytes to pages */
 #define P2B(x) ((x) << PAGE_SHIFT)			/* pages to bytes */
 #define P2K(x) ((x) << (PAGE_SHIFT - 10))		/* pages to kbytes */
+
+/**
+ * @brief Mapping of ki_stat in struct kinfo_proc to the linux state
+ *
+ * The linux procfs state field displays one of the characters RSDZTW to
+ * denote running, sleeping in an interruptible wait, waiting in an
+ * uninteruptible disk sleep, a zombie process, process is being traced
+ * or stopped, or process is paging respectively.
+ *
+ * Our struct kinfo_proc contains the variable ki_stat which contains a
+ * value out of SIDL, SRUN, SSLEEP, SSTOP, SZOMB, SWAIT and SLOCK.
+ *
+ * This character array is used with ki_stati-1 as an index and tries to
+ * map our states to suitable linux states.
+ */
+static char *linux_state = "RRSTZDD";
 
 /*
  * Filler function for proc/meminfo
@@ -529,44 +546,51 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 	sbuf_printf(sb, "%d", p->p_pid);
 #define PS_ADD(name, fmt, arg) sbuf_printf(sb, " " fmt, arg)
 	PS_ADD("comm",		"(%s)",	p->p_comm);
-	PS_ADD("statr",		"%c",	'0'); /* XXX */
+	KASSERT(kp.ki_stat <= sizeof(linux_state),
+		("linprocfs: don't know how to handle unknown FreeBSD state"));
+	PS_ADD("state",		"%c",	linux_state[kp.ki_stat - 1]);
 	PS_ADD("ppid",		"%d",	p->p_pptr ? p->p_pptr->p_pid : 0);
 	PS_ADD("pgrp",		"%d",	p->p_pgid);
 	PS_ADD("session",	"%d",	p->p_session->s_sid);
 	PROC_UNLOCK(p);
 	PS_ADD("tty",		"%d",	0); /* XXX */
-	PS_ADD("tpgid",		"%d",	0); /* XXX */
+	PS_ADD("tpgid",		"%d",	kp.ki_tpgid);
 	PS_ADD("flags",		"%u",	0); /* XXX */
-	PS_ADD("minflt",	"%u",	0); /* XXX */
-	PS_ADD("cminflt",	"%u",	0); /* XXX */
-	PS_ADD("majflt",	"%u",	0); /* XXX */
-	PS_ADD("cminflt",	"%u",	0); /* XXX */
-	PS_ADD("utime",		"%d",	0); /* XXX */
-	PS_ADD("stime",		"%d",	0); /* XXX */
-	PS_ADD("cutime",	"%d",	0); /* XXX */
-	PS_ADD("cstime",	"%d",	0); /* XXX */
-	PS_ADD("counter",	"%d",	0); /* XXX */
-	PS_ADD("priority",	"%d",	0); /* XXX */
-	PS_ADD("timeout",	"%u",	0); /* XXX */
-	PS_ADD("itrealvalue",	"%u",	0); /* XXX */
-	PS_ADD("starttime",	"%d",	0); /* XXX */
-	PS_ADD("vsize",		"%ju",	(uintmax_t)kp.ki_size);
-	PS_ADD("rss",		"%ju",	P2K((uintmax_t)kp.ki_rssize));
-	PS_ADD("rlim",		"%u",	0); /* XXX */
+	PS_ADD("minflt",	"%lu",	kp.ki_rusage.ru_minflt);
+	PS_ADD("cminflt",	"%lu",	kp.ki_rusage_ch.ru_minflt);
+	PS_ADD("majflt",	"%lu",	kp.ki_rusage.ru_majflt);
+	PS_ADD("cmajflt",	"%lu",	kp.ki_rusage_ch.ru_majflt);
+	PS_ADD("utime",		"%ld",	T2J(tvtohz(&kp.ki_rusage.ru_utime)));
+	PS_ADD("stime",		"%ld",	T2J(tvtohz(&kp.ki_rusage.ru_stime)));
+	PS_ADD("cutime",	"%ld",	T2J(tvtohz(&kp.ki_rusage_ch.ru_utime)));
+	PS_ADD("cstime",	"%ld",	T2J(tvtohz(&kp.ki_rusage_ch.ru_stime)));
+	PS_ADD("priority",	"%d",	kp.ki_pri.pri_user);
+	PS_ADD("nice",		"%d",	kp.ki_nice); /* 19 (nicest) to -19 */
+	PS_ADD("0",		"%d",	0); /* removed field */
+	PS_ADD("itrealvalue",	"%d",	0); /* XXX */
+	/* XXX: starttime is not right, it is the _same_ for _every_ process.
+	   It should be the number of jiffies between system boot and process
+	   start. */
+	PS_ADD("starttime",	"%lu",	T2J(tvtohz(&kp.ki_start)));
+	PS_ADD("vsize",		"%ju",	P2K((uintmax_t)kp.ki_size));
+	PS_ADD("rss",		"%ju",	(uintmax_t)kp.ki_rssize);
+	PS_ADD("rlim",		"%lu",	kp.ki_rusage.ru_maxrss);
 	PS_ADD("startcode",	"%u",	(unsigned)0);
 	PS_ADD("endcode",	"%u",	0); /* XXX */
 	PS_ADD("startstack",	"%u",	0); /* XXX */
-	PS_ADD("esp",		"%u",	0); /* XXX */
-	PS_ADD("eip",		"%u",	0); /* XXX */
-	PS_ADD("signal",	"%d",	0); /* XXX */
-	PS_ADD("blocked",	"%d",	0); /* XXX */
-	PS_ADD("sigignore",	"%d",	0); /* XXX */
-	PS_ADD("sigcatch",	"%d",	0); /* XXX */
+	PS_ADD("kstkesp",	"%u",	0); /* XXX */
+	PS_ADD("kstkeip",	"%u",	0); /* XXX */
+	PS_ADD("signal",	"%u",	0); /* XXX */
+	PS_ADD("blocked",	"%u",	0); /* XXX */
+	PS_ADD("sigignore",	"%u",	0); /* XXX */
+	PS_ADD("sigcatch",	"%u",	0); /* XXX */
 	PS_ADD("wchan",		"%u",	0); /* XXX */
-	PS_ADD("nswap",		"%lu",	(long unsigned)0); /* XXX */
-	PS_ADD("cnswap",	"%lu",	(long unsigned)0); /* XXX */
+	PS_ADD("nswap",		"%lu",	kp.ki_rusage.ru_nswap);
+	PS_ADD("cnswap",	"%lu",	kp.ki_rusage_ch.ru_nswap);
 	PS_ADD("exitsignal",	"%d",	0); /* XXX */
-	PS_ADD("processor",	"%d",	0); /* XXX */
+	PS_ADD("processor",	"%u",	kp.ki_lastcpu);
+	PS_ADD("rt_priority",	"%u",	0); /* XXX */ /* >= 2.5.19 */
+	PS_ADD("policy",	"%u",	kp.ki_pri.pri_class); /* >= 2.5.19 */
 #undef PS_ADD
 	sbuf_putc(sb, '\n');
 
