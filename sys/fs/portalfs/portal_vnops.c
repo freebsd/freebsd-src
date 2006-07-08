@@ -52,7 +52,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/stat.h>
-#include <sys/sysproto.h>
+#include <sys/syscallsubr.h>
 #include <sys/systm.h>
 #include <sys/un.h>
 #include <sys/unpcb.h>
@@ -77,10 +77,8 @@ portal_closefd(td, fd)
 	int fd;
 {
 	int error;
-	struct close_args ua;
 
-	ua.fd = fd;
-	error = close(td, &ua);
+	error = kern_close(td, fd);
 	/*
 	 * We should never get an error, and there isn't anything
 	 * we could do if we got one, so just print a message.
