@@ -84,18 +84,15 @@ xenix_rdchk(td, uap)
 	struct thread *td;
 	struct xenix_rdchk_args *uap;
 {
-	int error;
-	struct ioctl_args sa;
-	caddr_t sg = stackgap_init();
+	int data, error;
 
 	DPRINTF(("IBCS2: 'xenix rdchk'\n"));
-	sa.fd = uap->fd;
-	sa.com = FIONREAD;
-	sa.data = stackgap_alloc(&sg, sizeof(int));
-	if ((error = ioctl(td, &sa)) != 0)
-		return error;
-	td->td_retval[0] = (*((int*)sa.data)) ? 1 : 0;
-	return 0;
+	
+	error = kern_ioctl(td, uap->fd, FIONREAD, (caddr_t)&data);
+	if (error)
+		return (error);
+	td->td_retval[0] = data ? 1 : 0;
+	return (0);
 }
 
 int
