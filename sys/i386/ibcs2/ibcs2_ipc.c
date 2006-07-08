@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msg.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 
 #include <i386/ibcs2/ibcs2_types.h>
@@ -102,50 +103,118 @@ struct msqid_ds *bp;
 	return;
 }
 
+struct ibcs2_msgget_args {
+	int what;
+	ibcs2_key_t key;
+	int msgflg;
+};
+
+static int
+ibcs2_msgget(struct thread *td, void *v)
+{
+	struct ibcs2_msgget_args *uap = v;
+	struct msgget_args ap;
+
+	ap.key = uap->key;
+	ap.msgflg = uap->msgflg;
+	return msgget(td, &ap);
+}
+
+struct ibcs2_msgctl_args {
+	int what;
+	int msqid;
+	int cmd;
+	struct ibcs2_msqid_ds *buf;
+};
+
+static int
+ibcs2_msgctl(struct thread *td, void *v)
+{
+	struct ibcs2_msgctl_args *uap = v;
+	struct ibcs2_msqid_ds is;
+	struct msqid_ds bs;
+	int error;
+
+	switch (uap->cmd) {
+	case IBCS2_IPC_STAT:
+		error = kern_msgctl(td, uap->msqid, IPC_STAT, &bs);
+		if (!error) {
+			cvt_msqid2imsqid(&bs, &is);
+			error = copyout(&is, uap->buf, sizeof(is));
+		}
+		return (error);
+	case IBCS2_IPC_SET:
+		error = copyin(uap->buf, &is, sizeof(is));
+		if (error)
+			return (error);
+		cvt_imsqid2msqid(&is, &bs);
+		return (kern_msgctl(td, uap->msqid, IPC_SET, &bs));
+	case IBCS2_IPC_RMID:
+		return (kern_msgctl(td, uap->msqid, IPC_RMID, NULL));
+	}
+	return (EINVAL);
+}
+
+struct ibcs2_msgrcv_args {
+	int what;
+	int msqid;
+	void *msgp;
+	size_t msgsz;
+	long msgtyp;
+	int msgflg;
+};
+
+static int
+ibcs2_msgrcv(struct thread *td, void *v)
+{
+	struct ibcs2_msgrcv_args *uap = v;
+	struct msgrcv_args ap;
+
+	ap.msqid = uap->msqid;
+	ap.msgp = uap->msgp;
+	ap.msgsz = uap->msgsz;
+	ap.msgtyp = uap->msgtyp;
+	ap.msgflg = uap->msgflg;
+	return (msgrcv(td, &ap));
+}
+
+struct ibcs2_msgsnd_args {
+	int what;
+	int msqid;
+	void *msgp;
+	size_t msgsz;
+	int msgflg;
+};
+
+static int
+ibcs2_msgsnd(struct thread *td, void *v)
+{
+	struct ibcs2_msgsnd_args *uap = v;
+	struct msgsnd_args ap;
+
+	ap.msqid = uap->msqid;
+	ap.msgp = uap->msgp;
+	ap.msgsz = uap->msgsz;
+	ap.msgflg = uap->msgflg;
+	return (msgsnd(td, &ap));
+}
+
 int
 ibcs2_msgsys(td, uap)
 	struct thread *td;
 	struct ibcs2_msgsys_args *uap;
 {
 	switch (uap->which) {
-	case 0:				/* msgget */
-		uap->which = 1;
-		return msgsys(td, (struct msgsys_args *)uap);
-	case 1: {			/* msgctl */
-		int error;
-		struct msgsys_args margs;
-		caddr_t sg = stackgap_init();
-
-		margs.which = 0;
-		margs.a2 = uap->a2;
-		margs.a4 =
-		    (int)stackgap_alloc(&sg, sizeof(struct msqid_ds));
-		margs.a3 = uap->a3;
-		switch (margs.a3) {
-		case IBCS2_IPC_STAT:
-			error = msgsys(td, &margs);
-			if (!error)
-				cvt_msqid2imsqid(
-				    (struct msqid_ds *)margs.a4,
-				    (struct ibcs2_msqid_ds *)uap->a4);
-			return error;
-		case IBCS2_IPC_SET:
-			cvt_imsqid2msqid((struct ibcs2_msqid_ds *)uap->a4,
-					 (struct msqid_ds *)margs.a4);
-			return msgsys(td, &margs);
-		case IBCS2_IPC_RMID:
-			return msgsys(td, &margs);
-		}
-		return EINVAL;
-	}
-	case 2:				/* msgrcv */
-		uap->which = 3;
-		return msgsys(td, (struct msgsys_args *)uap);
-	case 3:				/* msgsnd */
-		uap->which = 2;
-		return msgsys(td, (struct msgsys_args *)uap);
+	case 0:
+		return (ibcs2_msgget(td, uap));
+	case 1:
+		return (ibcs2_msgctl(td, uap));
+	case 2:
+		return (ibcs2_msgrcv(td, uap));
+	case 3:
+		return (ibcs2_msgsnd(td, uap));
 	default:
-		return EINVAL;
+		return (EINVAL);
 	}
 }
 
@@ -232,77 +301,104 @@ struct semid_ds *bp;
 	return;
 }
 
+struct ibcs2_semctl_args {
+	int what;
+	int semid;
+	int semnum;
+	int cmd;
+	union semun arg;
+};
+
+static int
+ibcs2_semctl(struct thread *td, void *v)
+{
+	struct ibcs2_semctl_args *uap = v;
+	struct ibcs2_semid_ds is;
+	struct semid_ds bs;
+	union semun semun;
+	register_t rval;
+	int error;
+
+	switch(uap->cmd) {
+	case IBCS2_IPC_STAT:
+		semun.buf = &bs;
+		error = kern_semctl(td, uap->semid, uap->semnum, IPC_STAT,
+		    &semun, &rval);
+		if (error)
+			return (error);
+		cvt_semid2isemid(&bs, &is);
+		error = copyout(&is, uap->arg.buf, sizeof(is));
+		if (error == 0)
+			td->td_retval[0] = rval;
+		return (error);
+
+	case IBCS2_IPC_SET:
+		error = copyin(uap->arg.buf, &is, sizeof(is));
+		if (error)
+			return (error);
+		cvt_isemid2semid(&is, &bs);
+		semun.buf = &bs;
+		return (kern_semctl(td, uap->semid, uap->semnum, IPC_SET,
+		    &semun, td->td_retval));
+	}
+
+	return (kern_semctl(td, uap->semid, uap->semnum, uap->cmd, &uap->arg,
+	    td->td_retval));
+}
+
+struct ibcs2_semget_args {
+	int what;
+	ibcs2_key_t key;
+	int nsems;
+	int semflg;
+};
+
+static int
+ibcs2_semget(struct thread *td, void *v)
+{
+	struct ibcs2_semget_args *uap = v;
+	struct semget_args ap;
+
+	ap.key = uap->key;
+	ap.nsems = uap->nsems;
+	ap.semflg = uap->semflg;
+	return (semget(td, &ap));
+}
+
+struct ibcs2_semop_args {
+	int what;
+	int semid;
+	struct sembuf *sops;
+	size_t nsops;
+};
+
+static int
+ibcs2_semop(struct thread *td, void *v)
+{
+	struct ibcs2_semop_args *uap = v;
+	struct semop_args ap;
+
+	ap.semid = uap->semid;
+	ap.sops = uap->sops;
+	ap.nsops = uap->nsops;
+	return (semop(td, &ap));
+}
+
 int
 ibcs2_semsys(td, uap)
 	struct thread *td;
 	struct ibcs2_semsys_args *uap;
 {
-	int error;
 
 	switch (uap->which) {
-	case 0:					/* semctl */
-		switch(uap->a4) {
-		case IBCS2_IPC_STAT:
-		    {
-			struct ibcs2_semid_ds *isp;
-			struct semid_ds *sp;
-			union semun *sup, ssu;
-			caddr_t sg = stackgap_init();
-
-
-			ssu = (union semun) uap->a5;
-			sp = stackgap_alloc(&sg, sizeof(struct semid_ds));
-			sup = stackgap_alloc(&sg, sizeof(union semun));
-			sup->buf = sp;
-			uap->a5 = (int)sup;
-			error = semsys(td, (struct semsys_args *)uap);
-			if (!error) {
-				uap->a5 = (int)ssu.buf;
-				isp = stackgap_alloc(&sg, sizeof(*isp));
-				cvt_semid2isemid(sp, isp);
-				error = copyout((caddr_t)isp,
-						(caddr_t)ssu.buf,
-						sizeof(*isp));
-			}
-			return error;
-		    }
-		case IBCS2_IPC_SET:
-		    {
-			struct ibcs2_semid_ds *isp;
-			struct semid_ds *sp;
-			caddr_t sg = stackgap_init();
-
-			isp = stackgap_alloc(&sg, sizeof(*isp));
-			sp = stackgap_alloc(&sg, sizeof(*sp));
-			error = copyin((caddr_t)uap->a5, (caddr_t)isp,
-				       sizeof(*isp));
-			if (error)
-				return error;
-			cvt_isemid2semid(isp, sp);
-			uap->a5 = (int)sp;
-			return semsys(td, (struct semsys_args *)uap);
-		    }
-		case IBCS2_SETVAL:
-		    {
-			union semun *sp;
-			caddr_t sg = stackgap_init();
-
-			sp = stackgap_alloc(&sg, sizeof(*sp));
-			sp->val = (int) uap->a5;
-			uap->a5 = (int)sp;
-			return semsys(td, (struct semsys_args *)uap);
-		    }
-		}
-
-		return semsys(td, (struct semsys_args *)uap);
-
-	case 1:				/* semget */
-		return semsys(td, (struct semsys_args *)uap);
-
-	case 2:				/* semop */
-		return semsys(td, (struct semsys_args *)uap);
+	case 0:
+		return (ibcs2_semctl(td, uap));
+	case 1:
+		return (ibcs2_semget(td, uap));
+	case 2:
+		return (ibcs2_semop(td, uap));
 	}
-	return EINVAL;
+	return (EINVAL);
 }
 
 
@@ -344,66 +440,116 @@ struct shmid_ds *bp;
 	return;
 }
 
+struct ibcs2_shmat_args {
+	int what;
+	int shmid;
+	const void *shmaddr;
+	int shmflg;
+};
+
+static int
+ibcs2_shmat(struct thread *td, void *v)
+{
+	struct ibcs2_shmat_args *uap = v;
+	struct shmat_args ap;
+
+	ap.shmid = uap->shmid;
+	ap.shmaddr = uap->shmaddr;
+	ap.shmflg = uap->shmflg;
+	return (shmat(td, &ap));
+}
+
+struct ibcs2_shmctl_args {
+	int what;
+	int shmid;
+	int cmd;
+	struct ibcs2_shmid_ds *buf;
+};
+
+static int
+ibcs2_shmctl(struct thread *td, void *v)
+{
+	struct ibcs2_shmctl_args *uap = v;
+	struct ibcs2_shmid_ds is;
+	struct shmid_ds bs;
+	int error;
+
+	switch(uap->cmd) {
+	case IBCS2_IPC_STAT:
+		error = kern_shmctl(td, uap->shmid, IPC_STAT, &bs, NULL);
+		if (error)
+			return (error);
+		cvt_shmid2ishmid(&bs, &is);
+		return (copyout(&is, uap->buf, sizeof(is)));
+
+	case IBCS2_IPC_SET:
+		error = copyin(uap->buf, &is, sizeof(is));
+		if (error)
+			return (error);
+		cvt_ishmid2shmid(&is, &bs);
+		return (kern_shmctl(td, uap->shmid, IPC_SET, &bs, NULL));
+
+	case IPC_INFO:
+	case SHM_INFO:
+	case SHM_STAT:
+		/* XXX: */
+		return (EINVAL);
+	}
+
+	return (kern_shmctl(td, uap->shmid, uap->cmd, NULL, NULL));
+}
+
+struct ibcs2_shmdt_args {
+	int what;
+	const void *shmaddr;
+};
+
+static int
+ibcs2_shmdt(struct thread *td, void *v)
+{
+	struct ibcs2_shmdt_args *uap = v;
+	struct shmdt_args ap;
+
+	ap.shmaddr = uap->shmaddr;
+	return (shmdt(td, &ap));
+}
+
+struct ibcs2_shmget_args {
+	int what;
+	ibcs2_key_t key;
+	size_t size;
+	int shmflg;
+};
+
+static int
+ibcs2_shmget(struct thread *td, void *v)
+{
+	struct ibcs2_shmget_args *uap = v;
+	struct shmget_args ap;
+
+	ap.key = uap->key;
+	ap.size = uap->size;
+	ap.shmflg = uap->shmflg;
+	return (shmget(td, &ap));
+}
+
 int
 ibcs2_shmsys(td, uap)
 	struct thread *td;
 	struct ibcs2_shmsys_args *uap;
 {
-	int error;
 
 	switch (uap->which) {
-	case 0:						/* shmat */
-		return shmsys(td, (struct shmsys_args *)uap);
-
-	case 1:						/* shmctl */
-		switch(uap->a3) {
-		case IBCS2_IPC_STAT:
-		    {
-			struct ibcs2_shmid_ds *isp;
-			struct shmid_ds *sp;
-			caddr_t sg = stackgap_init();
-
-			isp = (struct ibcs2_shmid_ds *)uap->a4;
-			sp = stackgap_alloc(&sg, sizeof(*sp));
-			uap->a4 = (int)sp;
-			error = shmsys(td, (struct shmsys_args *)uap);
-			if (!error) {
-				uap->a4 = (int)isp;
-				isp = stackgap_alloc(&sg, sizeof(*isp));
-				cvt_shmid2ishmid(sp, isp);
-				error = copyout((caddr_t)isp,
-						(caddr_t)uap->a4,
-						sizeof(*isp));
-			}
-			return error;
-		    }
-		case IBCS2_IPC_SET:
-		    {
-			struct ibcs2_shmid_ds *isp;
-			struct shmid_ds *sp;
-			caddr_t sg = stackgap_init();
-
-			isp = stackgap_alloc(&sg, sizeof(*isp));
-			sp = stackgap_alloc(&sg, sizeof(*sp));
-			error = copyin((caddr_t)uap->a4, (caddr_t)isp,
-				       sizeof(*isp));
-			if (error)
-				return error;
-			cvt_ishmid2shmid(isp, sp);
-			uap->a4 = (int)sp;
-			return shmsys(td, (struct shmsys_args *)uap);
-		    }
-		}
-
-		return shmsys(td, (struct shmsys_args *)uap);
-
-	case 2:						/* shmdt */
-		return shmsys(td, (struct shmsys_args *)uap);
-
-	case 3:						/* shmget */
-		return shmsys(td, (struct shmsys_args *)uap);
+	case 0:
+		return (ibcs2_shmat(td, uap));
+	case 1:
+		return (ibcs2_shmctl(td, uap));
+	case 2:
+		return (ibcs2_shmdt(td, uap));
+	case 3:
+		return (ibcs2_shmget(td, uap));
 	}
-	return EINVAL;
+	return (EINVAL);
 }
 
 MODULE_DEPEND(ibcs2, sysvmsg, 1, 1, 1);
