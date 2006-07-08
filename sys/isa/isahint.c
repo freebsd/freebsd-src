@@ -95,14 +95,14 @@ isahint_identify(driver_t *driver, device_t parent)
 	 */
 	sprintf(buf, "isa%d", device_get_unit(parent));
 	i = 0;
-	while ((resource_find_match(&i, &dname, &dunit, "at", buf)) == 0)
+	while (resource_find_match(&i, &dname, &dunit, "at", buf) == 0)
 		isahint_add_device(parent, dname, dunit);
 
 	/*
 	 * and isa?
 	 */
 	i = 0;
-	while ((resource_find_match(&i, &dname, &dunit, "at", "isa")) == 0)
+	while (resource_find_match(&i, &dname, &dunit, "at", "isa") == 0)
 		isahint_add_device(parent, dname, dunit);
 }
 
