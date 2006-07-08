@@ -11,6 +11,7 @@ S?=/usr/src/sys
 
 MFILES+=contrib/dev/ath/freebsd/ah_if.m
 MFILES+=dev/acpica/acpi_if.m
+MFILES+=dev/ata/ata_if.m
 MFILES+=dev/eisa/eisa_if.m
 MFILES+=dev/iicbus/iicbb_if.m
 MFILES+=dev/iicbus/iicbus_if.m
@@ -21,7 +22,11 @@ MFILES+=dev/pccard/power_if.m
 MFILES+=dev/pci/pci_if.m
 MFILES+=dev/pci/pcib_if.m
 MFILES+=dev/ppbus/ppbus_if.m
+MFILES+=dev/scc/scc_if.m
 MFILES+=dev/smbus/smbus_if.m
+MFILES+=dev/sound/midi/mpu_if.m
+MFILES+=dev/sound/midi/mpufoi_if.m
+MFILES+=dev/sound/midi/synth_if.m
 MFILES+=dev/sound/pcm/ac97_if.m
 MFILES+=dev/sound/pcm/channel_if.m
 MFILES+=dev/sound/pcm/feeder_if.m
@@ -34,16 +39,14 @@ MFILES+=kern/clock_if.m
 MFILES+=kern/cpufreq_if.m
 MFILES+=kern/device_if.m
 MFILES+=kern/linker_if.m
+MFILES+=kern/serdev_if.m
 MFILES+=libkern/iconv_converter_if.m
 MFILES+=opencrypto/crypto_if.m
 MFILES+=pc98/pc98/canbus_if.m
 MFILES+=pci/agp_if.m
+MFILES+=powerpc/powerpc/mmu_if.m
 MFILES+=powerpc/powerpc/pic_if.m
 MFILES+=sparc64/pci/ofw_pci_if.m
-
-.if exists{${S}/${TARGET_ARCH}/${TARGET_ARCH}/clock_if.m}
-MFILES+=${TARGET_ARCH}/${TARGET_ARCH}/clock_if.m
-.endif
 
 HFILES=	${MFILES:T:S/.m$/.h/}
 AWK?=	awk
