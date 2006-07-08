@@ -18,7 +18,7 @@ SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 # gss-genr.c really belongs in libssh; see src/secure/lib/libssh/Makefile
 
 MAN=	sshd.8 sshd_config.5
-CFLAGS+=-I${SSHDIR}
+CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 
 DPADD=	${LIBSSH} ${LIBUTIL} ${LIBZ} ${LIBWRAP} ${LIBPAM}
 LDADD=	-lssh -lutil -lz -lwrap ${MINUSLPAM}
@@ -39,3 +39,5 @@ LDADD+=	-lcrypto -lcrypt
 .include <bsd.prog.mk>
 
 .PATH:	${SSHDIR}
+
+${OBJS} ${POBJS} ${SOBJS}: ssh_namespace.h
