@@ -111,6 +111,7 @@ fileGetURL(const char *base, const char *spec, int keep_package)
 	}
    } 
 
+    fetchDebug = (Verbose > 0);
     if ((ftp = fetchGetURL(fname, Verbose ? "v" : NULL)) == NULL) {
 	printf("Error: FTP Unable to get %s: %s\n",
 	       fname, fetchLastErrString);
