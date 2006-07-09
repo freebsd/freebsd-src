@@ -71,6 +71,10 @@ static u_int g_raid3_syncreqs = 2;
 TUNABLE_INT("kern.geom.raid3.sync_requests", &g_raid3_syncreqs);
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, sync_requests, CTLFLAG_RDTUN,
     &g_raid3_syncreqs, 0, "Parallel synchronization I/O requests.");
+static u_int g_raid3_use_malloc = 0;
+TUNABLE_INT("kern.geom.raid3.use_malloc", &g_raid3_use_malloc);
+SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, use_malloc, CTLFLAG_RDTUN,
+    &g_raid3_use_malloc, 0, "Use malloc(9) instead of uma(9).");
 
 static u_int g_raid3_n64k = 50;
 TUNABLE_INT("kern.geom.raid3.n64k", &g_raid3_n64k);
@@ -173,6 +177,35 @@ g_raid3_get_diskname(struct g_raid3_disk *disk)
 	if (disk->d_consumer == NULL || disk->d_consumer->provider == NULL)
 		return ("[unknown]");
 	return (disk->d_name);
+}
+
+static void *
+g_raid3_alloc(struct g_raid3_softc *sc, size_t size, int flags)
+{
+	void *ptr;
+
+	if (g_raid3_use_malloc)
+		ptr = malloc(size, M_RAID3, flags);
+	else {
+		ptr = uma_zalloc_arg(sc->sc_zones[g_raid3_zone(size)].sz_zone,
+		   &sc->sc_zones[g_raid3_zone(size)], flags);
+		sc->sc_zones[g_raid3_zone(size)].sz_requested++;
+		if (ptr == NULL)
+			sc->sc_zones[g_raid3_zone(size)].sz_failed++;
+	}
+	return (ptr);
+}
+
+static void
+g_raid3_free(struct g_raid3_softc *sc, void *ptr, size_t size)
+{
+
+	if (g_raid3_use_malloc)
+		free(ptr, M_RAID3);
+	else {
+		uma_zfree_arg(sc->sc_zones[g_raid3_zone(size)].sz_zone,
+		    ptr, &sc->sc_zones[g_raid3_zone(size)]);
+	}
 }
 
 static int
@@ -610,9 +643,11 @@ g_raid3_destroy_device(struct g_raid3_softc *sc)
 	G_RAID3_DEBUG(0, "Device %s destroyed.", gp->name);
 	g_wither_geom(gp, ENXIO);
 	g_topology_unlock();
-	uma_zdestroy(sc->sc_zones[G_RAID3_ZONE_64K].sz_zone);
-	uma_zdestroy(sc->sc_zones[G_RAID3_ZONE_16K].sz_zone);
-	uma_zdestroy(sc->sc_zones[G_RAID3_ZONE_4K].sz_zone);
+	if (!g_raid3_use_malloc) {
+		uma_zdestroy(sc->sc_zones[G_RAID3_ZONE_64K].sz_zone);
+		uma_zdestroy(sc->sc_zones[G_RAID3_ZONE_16K].sz_zone);
+		uma_zdestroy(sc->sc_zones[G_RAID3_ZONE_4K].sz_zone);
+	}
 	mtx_destroy(&sc->sc_queue_mtx);
 	mtx_destroy(&sc->sc_events_mtx);
 	sx_xunlock(&sc->sc_lock);
@@ -944,9 +979,7 @@ g_raid3_destroy_bio(struct g_raid3_softc *sc, struct bio *cbp)
 	pbp->bio_children--;
 	KASSERT(cbp->bio_data != NULL, ("NULL bio_data"));
 	size = pbp->bio_length / (sc->sc_ndisks - 1);
-	uma_zfree_arg(sc->sc_zones[g_raid3_zone(size)].sz_zone,
-	    cbp->bio_data,
-	    &sc->sc_zones[g_raid3_zone(size)]);
+	g_raid3_free(sc, cbp->bio_data, size);
 	if (G_RAID3_HEAD_BIO(pbp) == cbp) {
 		G_RAID3_HEAD_BIO(pbp) = G_RAID3_NEXT_BIO(cbp);
 		G_RAID3_NEXT_BIO(cbp) = NULL;
@@ -981,11 +1014,8 @@ g_raid3_clone_bio(struct g_raid3_softc *sc, struct bio *pbp)
 		memflag = M_WAITOK;
 	else
 		memflag = M_NOWAIT;
-	cbp->bio_data = uma_zalloc_arg(sc->sc_zones[g_raid3_zone(size)].sz_zone,
-	   &sc->sc_zones[g_raid3_zone(size)], memflag);
-	sc->sc_zones[g_raid3_zone(size)].sz_requested++;
+	cbp->bio_data = g_raid3_alloc(sc, size, memflag);
 	if (cbp->bio_data == NULL) {
-		sc->sc_zones[g_raid3_zone(size)].sz_failed++;
 		pbp->bio_children--;
 		g_destroy_bio(cbp);
 		return (NULL);
@@ -3046,33 +3076,40 @@ g_raid3_create(struct g_class *mp, const struct g_raid3_metadata *md)
 	gp->orphan = g_raid3_orphan;
 	sc->sc_sync.ds_geom = gp;
 
-	sc->sc_zones[G_RAID3_ZONE_64K].sz_zone = uma_zcreate("gr3:64k", 65536,
-	    g_raid3_uma_ctor, g_raid3_uma_dtor, NULL, NULL, UMA_ALIGN_PTR, 0);
-	sc->sc_zones[G_RAID3_ZONE_64K].sz_inuse = 0;
-	sc->sc_zones[G_RAID3_ZONE_64K].sz_max = g_raid3_n64k;
-	sc->sc_zones[G_RAID3_ZONE_64K].sz_requested =
-	    sc->sc_zones[G_RAID3_ZONE_64K].sz_failed = 0;
-	sc->sc_zones[G_RAID3_ZONE_16K].sz_zone = uma_zcreate("gr3:16k", 16384,
-	    g_raid3_uma_ctor, g_raid3_uma_dtor, NULL, NULL, UMA_ALIGN_PTR, 0);
-	sc->sc_zones[G_RAID3_ZONE_16K].sz_inuse = 0;
-	sc->sc_zones[G_RAID3_ZONE_16K].sz_max = g_raid3_n16k;
-	sc->sc_zones[G_RAID3_ZONE_16K].sz_requested =
-	    sc->sc_zones[G_RAID3_ZONE_16K].sz_failed = 0;
-	sc->sc_zones[G_RAID3_ZONE_4K].sz_zone = uma_zcreate("gr3:4k", 4096,
-	    g_raid3_uma_ctor, g_raid3_uma_dtor, NULL, NULL, UMA_ALIGN_PTR, 0);
-	sc->sc_zones[G_RAID3_ZONE_4K].sz_inuse = 0;
-	sc->sc_zones[G_RAID3_ZONE_4K].sz_max = g_raid3_n4k;
-	sc->sc_zones[G_RAID3_ZONE_4K].sz_requested =
-	    sc->sc_zones[G_RAID3_ZONE_4K].sz_failed = 0;
+	if (!g_raid3_use_malloc) {
+		sc->sc_zones[G_RAID3_ZONE_64K].sz_zone = uma_zcreate("gr3:64k",
+		    65536, g_raid3_uma_ctor, g_raid3_uma_dtor, NULL, NULL,
+		    UMA_ALIGN_PTR, 0);
+		sc->sc_zones[G_RAID3_ZONE_64K].sz_inuse = 0;
+		sc->sc_zones[G_RAID3_ZONE_64K].sz_max = g_raid3_n64k;
+		sc->sc_zones[G_RAID3_ZONE_64K].sz_requested =
+		    sc->sc_zones[G_RAID3_ZONE_64K].sz_failed = 0;
+		sc->sc_zones[G_RAID3_ZONE_16K].sz_zone = uma_zcreate("gr3:16k",
+		    16384, g_raid3_uma_ctor, g_raid3_uma_dtor, NULL, NULL,
+		    UMA_ALIGN_PTR, 0);
+		sc->sc_zones[G_RAID3_ZONE_16K].sz_inuse = 0;
+		sc->sc_zones[G_RAID3_ZONE_16K].sz_max = g_raid3_n16k;
+		sc->sc_zones[G_RAID3_ZONE_16K].sz_requested =
+		    sc->sc_zones[G_RAID3_ZONE_16K].sz_failed = 0;
+		sc->sc_zones[G_RAID3_ZONE_4K].sz_zone = uma_zcreate("gr3:4k",
+		    4096, g_raid3_uma_ctor, g_raid3_uma_dtor, NULL, NULL,
+		    UMA_ALIGN_PTR, 0);
+		sc->sc_zones[G_RAID3_ZONE_4K].sz_inuse = 0;
+		sc->sc_zones[G_RAID3_ZONE_4K].sz_max = g_raid3_n4k;
+		sc->sc_zones[G_RAID3_ZONE_4K].sz_requested =
+		    sc->sc_zones[G_RAID3_ZONE_4K].sz_failed = 0;
+	}
 
 	error = kthread_create(g_raid3_worker, sc, &sc->sc_worker, 0, 0,
 	    "g_raid3 %s", md->md_name);
 	if (error != 0) {
 		G_RAID3_DEBUG(1, "Cannot create kernel thread for %s.",
 		    sc->sc_name);
-		uma_zdestroy(sc->sc_zones[G_RAID3_ZONE_64K].sz_zone);
-		uma_zdestroy(sc->sc_zones[G_RAID3_ZONE_16K].sz_zone);
-		uma_zdestroy(sc->sc_zones[G_RAID3_ZONE_4K].sz_zone);
+		if (!g_raid3_use_malloc) {
+			uma_zdestroy(sc->sc_zones[G_RAID3_ZONE_64K].sz_zone);
+			uma_zdestroy(sc->sc_zones[G_RAID3_ZONE_16K].sz_zone);
+			uma_zdestroy(sc->sc_zones[G_RAID3_ZONE_4K].sz_zone);
+		}
 		g_destroy_geom(sc->sc_sync.ds_geom);
 		mtx_destroy(&sc->sc_events_mtx);
 		mtx_destroy(&sc->sc_queue_mtx);
@@ -3342,18 +3379,26 @@ g_raid3_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	} else {
 		g_topology_unlock();
 		sx_xlock(&sc->sc_lock);
-		sbuf_printf(sb, "%s<Zone4kRequested>%u</Zone4kRequested>\n",
-		    indent, sc->sc_zones[G_RAID3_ZONE_4K].sz_requested);
-		sbuf_printf(sb, "%s<Zone4kFailed>%u</Zone4kFailed>\n",
-		    indent, sc->sc_zones[G_RAID3_ZONE_4K].sz_failed);
-		sbuf_printf(sb, "%s<Zone16kRequested>%u</Zone16kRequested>\n",
-		    indent, sc->sc_zones[G_RAID3_ZONE_16K].sz_requested);
-		sbuf_printf(sb, "%s<Zone16kFailed>%u</Zone16kFailed>\n",
-		    indent, sc->sc_zones[G_RAID3_ZONE_16K].sz_failed);
-		sbuf_printf(sb, "%s<Zone64kRequested>%u</Zone64kRequested>\n",
-		    indent, sc->sc_zones[G_RAID3_ZONE_64K].sz_requested);
-		sbuf_printf(sb, "%s<Zone64kFailed>%u</Zone64kFailed>\n",
-		    indent, sc->sc_zones[G_RAID3_ZONE_64K].sz_failed);
+		if (!g_raid3_use_malloc) {
+			sbuf_printf(sb,
+			    "%s<Zone4kRequested>%u</Zone4kRequested>\n", indent,
+			    sc->sc_zones[G_RAID3_ZONE_4K].sz_requested);
+			sbuf_printf(sb,
+			    "%s<Zone4kFailed>%u</Zone4kFailed>\n", indent,
+			    sc->sc_zones[G_RAID3_ZONE_4K].sz_failed);
+			sbuf_printf(sb,
+			    "%s<Zone16kRequested>%u</Zone16kRequested>\n", indent,
+			    sc->sc_zones[G_RAID3_ZONE_16K].sz_requested);
+			sbuf_printf(sb,
+			    "%s<Zone16kFailed>%u</Zone16kFailed>\n", indent,
+			    sc->sc_zones[G_RAID3_ZONE_16K].sz_failed);
+			sbuf_printf(sb,
+			    "%s<Zone64kRequested>%u</Zone64kRequested>\n", indent,
+			    sc->sc_zones[G_RAID3_ZONE_64K].sz_requested);
+			sbuf_printf(sb,
+			    "%s<Zone64kFailed>%u</Zone64kFailed>\n", indent,
+			    sc->sc_zones[G_RAID3_ZONE_64K].sz_failed);
+		}
 		sbuf_printf(sb, "%s<ID>%u</ID>\n", indent, (u_int)sc->sc_id);
 		sbuf_printf(sb, "%s<SyncID>%u</SyncID>\n", indent, sc->sc_syncid);
 		sbuf_printf(sb, "%s<GenID>%u</GenID>\n", indent, sc->sc_genid);
