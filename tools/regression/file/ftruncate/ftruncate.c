@@ -31,11 +31,6 @@
  *
  * Future tests that might be of interest:
  *
- * - Make sure that files grown via ftruncate() return 0 bytes for data
- *   reads.
- *
- * - Make sure that we can't ftruncate on a read-only descriptor.
- *
  * - Make sure we get EISDIR on a directory.
  */
 
@@ -46,35 +41,51 @@
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <stdio.h>
 #include <unistd.h>
 
 /*
- * Select various potentially interesting sizes at and around power of 2
+ * Select various potentially interesting lengths at and around power of 2
  * edges.
  */
-static off_t sizes[] = {0, 1, 2, 3, 4, 127, 128, 129, 511, 512, 513, 1023,
+static off_t lengths[] = {0, 1, 2, 3, 4, 127, 128, 129, 511, 512, 513, 1023,
     1024, 1025, 2047, 2048, 2049, 4095, 4096, 4097, 8191, 8192, 8193, 16383,
     16384, 16385};
-static int size_count = sizeof(sizes) / sizeof(off_t);
+static int lengths_count = sizeof(lengths) / sizeof(off_t);
 
 int
 main(int argc, char *argv[])
 {
+	int error, fd, fds[2], i, read_only_fd;
 	char path[PATH_MAX];
-	int fd, fds[2], i;
 	struct stat sb;
+	size_t size;
+	off_t len;
+	char ch;
 
 	/*
 	 * Tests using a writable temporary file: grow and then shrink a file
-	 * using ftruncate and various sizes.  Make sure that a negative file
-	 * size is rejected.
+	 * using ftruncate and various lengths.  Make sure that a negative
+	 * file length is rejected.  Make sure that when we grow the file,
+	 * bytes now in the range of the file size return 0.
+	 *
+	 * Save a read-only reference to the file to use later for read-only
+	 * descriptor tests.
 	 */
 	snprintf(path, PATH_MAX, "/tmp/ftruncate.XXXXXXXXXXXXX");
 	fd = mkstemp(path);
 	if (fd < 0)
 		err(-1, "makestemp");
+	read_only_fd = open(path, O_RDONLY);
+	if (read_only_fd < 0) {
+		error = errno;
+		(void)unlink(path);
+		errno = error;
+		err(-1, "open(%s, O_RDONLY)", path);
+	}
 	(void)unlink(path);
 
 	if (ftruncate(fd, -1) == 0)
@@ -82,26 +93,49 @@ main(int argc, char *argv[])
 	if (errno != EINVAL)
 		err(-1, "ftruncate(fd, -1) returned wrong error");
 
-	for (i = 0; i < size_count; i++) {
-		if (ftruncate(fd, sizes[i]) < 0)
-			err(-1, "ftruncate(%llu) up", sizes[i]);
+	for (i = 0; i < lengths_count; i++) {
+		len = lengths[i];
+		if (ftruncate(fd, len) < 0)
+			err(-1, "ftruncate(%llu) up", len);
 		if (fstat(fd, &sb) < 0)
 			err(-1, "stat");
-		if (sb.st_size != sizes[i])
-			errx(-1, "fstat(%llu) returned %llu up", sizes[i],
+		if (sb.st_size != len)
+			errx(-1, "fstat(%llu) returned len %llu up", len,
 			    sb.st_size);
+		if (len != 0) {
+			size = pread(fd, &ch, sizeof(ch), len - 1);
+			if (size < 0)
+				err(-1, "pread on len %llu up", len);
+			if (size != sizeof(ch))
+				errx(-1, "pread len %llu size %jd up",
+				    len, (intmax_t)size);
+			if (ch != 0)
+				errx(-1,
+				    "pread length %llu size %jd ch %d up",
+				    len, (intmax_t)size, ch);
+		}
 	}
 
-	for (i = size_count - 1; i >= 0; i--) {
-		if (ftruncate(fd, sizes[i]) < 0)
-			err(-1, "ftruncate(%llu) down", sizes[i]);
+	for (i = lengths_count - 1; i >= 0; i--) {
+		len = lengths[i];
+		if (ftruncate(fd, len) < 0)
+			err(-1, "ftruncate(%llu) down", len);
 		if (fstat(fd, &sb) < 0)
 			err(-1, "stat");
-		if (sb.st_size != sizes[i])
-			errx(-1, "fstat(%llu) returned %llu down", sizes[i],
+		if (sb.st_size != len)
+			errx(-1, "fstat(%llu) returned %llu down", len,
 			    sb.st_size);
 	}
 	close(fd);
+
+	/*
+	 * Make sure that a read-only descriptor can't be truncated.
+	 */
+	if (ftruncate(read_only_fd, 0) == 0)
+		errx(-1, "ftruncate(read_only_fd) succeeded");
+	if (errno != EINVAL)
+		err(-1, "ftruncate(read_only_fd) returned wrong error");
+	close(read_only_fd);
 
 	/*
 	 * Make sure that ftruncate on sockets doesn't work.
