@@ -135,7 +135,6 @@ stating your preferences here instead.
 List below generated with:
 $ cd /usr/src; find */* -type f|xargs egrep 'MAINTAINER[ <tab>]*='
 
-bin/dd/Makefile:MAINTAINER=	green@FreeBSD.org
 sys/modules/3dfx/Makefile:MAINTAINER=	cokane@FreeBSD.org
 sys/modules/urio/Makefile:MAINTAINER=	Iwasa Kazmi <kzmi@ca2.so-net.ne.jp>
 usr.sbin/zic/Makefile:MAINTAINER=	wollman@FreeBSD.org
