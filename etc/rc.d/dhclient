@@ -18,7 +18,7 @@ stop_cmd="dhclient_stop"
 
 dhclient_start()
 {
-	# prevent unnecessicary restarts
+	# prevent unnecessary restarts
 	# XXX: should use a pidfile
 	if [ -x /usr/bin/pgrep ]; then
 		pids=`/usr/bin/pgrep -f "dhclient: $ifn(\$| .*)"`
