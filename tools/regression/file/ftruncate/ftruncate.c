@@ -27,10 +27,7 @@
  */
 
 /*
- * Very simple regression test.  Open a temporary file, then proceed to
- * ftruncate it to various values and check that fstat returns those values.
- * First we run forwards through a set of sizes starting with zero, then back
- * again.
+ * Very simple regression test.
  *
  * Future tests that might be of interest:
  *
@@ -42,6 +39,9 @@
  * - Make sure we get EISDIR on a directory.
  */
 
+#include <sys/types.h>
+#include <sys/event.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 
 #include <err.h>
@@ -63,9 +63,14 @@ int
 main(int argc, char *argv[])
 {
 	char path[PATH_MAX];
+	int fd, fds[2], i;
 	struct stat sb;
-	int fd, i;
 
+	/*
+	 * Tests using a writable temporary file: grow and then shrink a file
+	 * using ftruncate and various sizes.  Make sure that a negative file
+	 * size is rejected.
+	 */
 	snprintf(path, PATH_MAX, "/tmp/ftruncate.XXXXXXXXXXXXX");
 	fd = mkstemp(path);
 	if (fd < 0)
@@ -96,7 +101,43 @@ main(int argc, char *argv[])
 			errx(-1, "fstat(%llu) returned %llu down", sizes[i],
 			    sb.st_size);
 	}
-
 	close(fd);
+
+	/*
+	 * Make sure that ftruncate on sockets doesn't work.
+	 */
+	fd = socket(PF_UNIX, SOCK_STREAM, 0);
+	if (fd < 0)
+		err(-1, "socket(PF_UNIX, SOCK_STREAM, 0)");
+	if (ftruncate(fd, 0) == 0)
+		errx(-1, "ftruncate(socket) succeeded");
+	if (errno != EINVAL)
+		err(-1, "ftruncate(socket) returned wrong error");
+	close(fd);
+
+	/*
+	 * Make sure that ftruncate on pipes doesn't work.
+	 */
+	if (pipe(fds) < 0)
+		err(-1, "pipe");
+	if (ftruncate(fds[0], 0) == 0)
+		errx(-1, "ftruncate(pipe) succeeded");
+	if (errno != EINVAL)
+		err(-1, "ftruncate(pipe) returned wrong error");
+	close(fds[0]);
+	close(fds[1]);
+
+	/*
+	 * Make sure that ftruncate on kqueues doesn't work.
+	 */
+	fd = kqueue();
+	if (fd < 0)
+		err(-1, "kqueue");
+	if (ftruncate(fds[0], 0) == 0)
+		errx(-1, "ftruncate(kqueue) succeeded");
+	if (errno != EINVAL)
+		err(-1, "ftruncate(kqueue) returned wrong error");
+	close(fd);
+
 	return (0);
 }
