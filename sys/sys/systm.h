@@ -102,7 +102,7 @@ extern int maxusers;		/* system tune hint */
 extern int envmode;
 extern int hintmode;		/* 0 = off. 1 = config, 2 = fallback */
 extern int dynamic_kenv;
-extern struct sx kenv_lock;
+extern struct mtx kenv_lock;
 extern char *kern_envp;
 extern char static_env[];
 extern char static_hints[];	/* by config for now */
