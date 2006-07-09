@@ -177,7 +177,7 @@ static void stf_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int stf_ioctl(struct ifnet *, u_long, caddr_t);
 
 static int stf_clone_match(struct if_clone *, const char *);
-static int stf_clone_create(struct if_clone *, char *, size_t);
+static int stf_clone_create(struct if_clone *, char *, size_t, caddr_t);
 static int stf_clone_destroy(struct if_clone *, struct ifnet *);
 struct if_clone stf_cloner = IFC_CLONE_INITIALIZER(STFNAME, NULL, 0,
     NULL, stf_clone_match, stf_clone_create, stf_clone_destroy);
@@ -196,7 +196,7 @@ stf_clone_match(struct if_clone *ifc, const char *name)
 }
 
 static int
-stf_clone_create(struct if_clone *ifc, char *name, size_t len)
+stf_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 {
 	int err, unit;
 	struct stf_softc *sc;
