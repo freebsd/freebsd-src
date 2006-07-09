@@ -127,7 +127,6 @@ extern	char name[IFNAMSIZ];	/* name of interface */
 extern	int allmedia;
 extern	int supmedia;
 extern	int printkeys;
-extern	int printname;
 extern	int flags;
 extern	int newaddr;
 extern	int verbose;
@@ -140,4 +139,5 @@ void	printb(const char *s, unsigned value, const char *bits);
 
 void	ifmaybeload(char *name);
 
-void	clone_create(void);
+typedef void clone_callback_func(int, struct ifreq *);
+void	clone_setcallback(clone_callback_func *);

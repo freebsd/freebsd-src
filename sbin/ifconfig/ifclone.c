@@ -88,48 +88,62 @@ list_cloners(void)
 	free(buf);
 }
 
-void
-clone_create(void)
-{
-	int s;
+static clone_callback_func *clone_cb = NULL;
 
-	s = socket(AF_INET, SOCK_DGRAM, 0);
-	if (s == -1)
-		err(1, "socket(AF_INET,SOCK_DGRAM)");
+void
+clone_setcallback(clone_callback_func *p)
+{
+	if (clone_cb != NULL && clone_cb != p)
+		errx(1, "conflicting device create parameters");
+	clone_cb = p;
+}
+
+/*
+ * Do the actual clone operation.  Any parameters must have been
+ * setup by now.  If a callback has been setup to do the work
+ * then defer to it; otherwise do a simple create operation with
+ * no parameters.
+ */
+static void
+ifclonecreate(int s, void *arg)
+{
+	struct ifreq ifr;
 
 	memset(&ifr, 0, sizeof(ifr));
 	(void) strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
-	if (ioctl(s, SIOCIFCREATE, &ifr) < 0)
-		err(1, "SIOCIFCREATE");
-
-	/*
-	 * If we get a different name back then we put in, we probably
-	 * want to print it out, but we might change our mind later so
-	 * we just signal our intrest and leave the printout for later.
-	 */
-	if (strcmp(name, ifr.ifr_name) != 0) {
-		printname = 1;
-		strlcpy(name, ifr.ifr_name, sizeof(name));
+	if (clone_cb == NULL) {
+		/* NB: no parameters */
+		if (ioctl(s, SIOCIFCREATE2, &ifr) < 0)
+			err(1, "SIOCIFCREATE2");
+	} else {
+		clone_cb(s, &ifr);
 	}
 
-	close(s);
+	/*
+	 * If we get a different name back than we put in, print it.
+	 */
+	if (strncmp(name, ifr.ifr_name, sizeof(name)) != 0) {
+		strlcpy(name, ifr.ifr_name, sizeof(name));
+		printf("%s\n", name);
+	}
 }
 
-static void
-clone_destroy(const char *val, int d, int s, const struct afswtch *rafp)
+static
+DECL_CMD_FUNC(clone_create, arg, d)
 {
+	callback_register(ifclonecreate, NULL);
+}
 
+static
+DECL_CMD_FUNC(clone_destroy, arg, d)
+{
 	(void) strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	if (ioctl(s, SIOCIFDESTROY, &ifr) < 0)
 		err(1, "SIOCIFDESTROY");
-	/*
-	 * If we create and destroy an interface in the same command,
-	 * there isn't any reason to print it's name.
-	 */
-	printname = 0;
 }
 
 static struct cmd clone_cmds[] = {
+	DEF_CMD("create",	0,	clone_create),
 	DEF_CMD("destroy",	0,	clone_destroy),
 	DEF_CMD("unplumb",	0,	clone_destroy),
 };
