@@ -21,6 +21,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20060709:
+ 	The interface version of the i4b kernel part has changed. So
+ 	after updating the kernel sources and compiling a new kernel,
+ 	the i4b user space tools in "/usr/src/usr.sbin/i4b" must also
+ 	be rebuilt, and vice versa.
+ 
 20060627:
 	The XBOX kernel now defaults to the nfe(4) driver instead of
 	the nve(4) driver. Please update your configuration

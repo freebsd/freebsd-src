@@ -95,6 +95,10 @@ name_of_controller(int ctrl_type, int card_type)
 		"AVM B1 ISA",
 	};
 
+	static char *capimgr_card[] = {
+		"CAPI manager driven board"
+	};
+
 	if(ctrl_type == CTRL_PASSIVE)
 	{
 		int index = card_type - CARD_TYPEP_8;
@@ -116,6 +120,10 @@ name_of_controller(int ctrl_type, int card_type)
 		int index = card_type - CARD_TYPEC_AVM_T1_PCI;
 		if (index >= 0 && index < (sizeof capi_card / sizeof capi_card[0] ))
 			return capi_card[index];
+	}
+	else if(ctrl_type == CTRL_CAPIMGR)
+	{
+		return capimgr_card[0];
 	}
 
 	return "unknown card type";
@@ -210,6 +218,12 @@ init_controller_state(int controller, int ctrl_type, int card_type, int tei,
 		break;
 
 	case CTRL_CAPI:
+		isdn_ctrl_tab[controller].ctrl_type = ctrl_type;
+		isdn_ctrl_tab[controller].card_type = card_type;
+		isdn_ctrl_tab[controller].state = CTRL_UP;
+		break;
+
+	case CTRL_CAPIMGR:
 		isdn_ctrl_tab[controller].ctrl_type = ctrl_type;
 		isdn_ctrl_tab[controller].card_type = card_type;
 		isdn_ctrl_tab[controller].state = CTRL_UP;
