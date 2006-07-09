@@ -1748,12 +1748,15 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 
 	switch (cmd) {
 	case SIOCIFCREATE:
+	case SIOCIFCREATE2:
+		if ((error = suser(td)) != 0)
+			return (error);
+		return (if_clone_create(ifr->ifr_name, sizeof(ifr->ifr_name),
+			cmd == SIOCIFCREATE2 ? ifr->ifr_data : NULL));
 	case SIOCIFDESTROY:
 		if ((error = suser(td)) != 0)
 			return (error);
-		return ((cmd == SIOCIFCREATE) ?
-			if_clone_create(ifr->ifr_name, sizeof(ifr->ifr_name)) :
-			if_clone_destroy(ifr->ifr_name));
+		return if_clone_destroy(ifr->ifr_name);
 
 	case SIOCIFGCLONERS:
 		return (if_clone_list((struct if_clonereq *)data));

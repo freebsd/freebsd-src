@@ -148,7 +148,7 @@ SYSCTL_STRUCT(_net_inet_pfsync, 0, stats, CTLFLAG_RW,
  */
 
 static void	pfsync_clone_destroy(struct ifnet *);
-static int	pfsync_clone_create(struct if_clone *, int);
+static int	pfsync_clone_create(struct if_clone *, int, caddr_t params);
 static void	pfsync_senddef(void *);
 #else
 void	pfsyncattach(int);
@@ -205,7 +205,11 @@ pfsync_clone_destroy(struct ifnet *ifp)
 }
 
 static int
+#ifdef __FreeBSD__
+pfsync_clone_create(struct if_clone *ifc, int unit, caddr_t params)
+#else
 pfsync_clone_create(struct if_clone *ifc, int unit)
+#endif
 {
 	struct pfsync_softc *sc;
 	struct ifnet *ifp;

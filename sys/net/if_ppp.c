@@ -157,7 +157,7 @@ static void	ppp_ccp(struct ppp_softc *, struct mbuf *m, int rcvd);
 static void	ppp_ccp_closed(struct ppp_softc *);
 static void	ppp_inproc(struct ppp_softc *, struct mbuf *);
 static void	pppdumpm(struct mbuf *m0);
-static int	ppp_clone_create(struct if_clone *, int);
+static int	ppp_clone_create(struct if_clone *, int, caddr_t);
 static void	ppp_clone_destroy(struct ifnet *);
 
 IFC_SIMPLE_DECLARE(ppp, 0);
@@ -205,7 +205,7 @@ static struct compressor *ppp_compressors[8] = {
 #endif /* PPP_COMPRESS */
 
 static int
-ppp_clone_create(struct if_clone *ifc, int unit)
+ppp_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
 	struct ifnet		*ifp;
 	struct ppp_softc	*sc;
@@ -328,7 +328,7 @@ pppalloc(pid)
     /* Try to clone an interface if we don't have a free one */
     if (sc == NULL) {
 	strcpy(tmpname, PPPNAME);
-	if (if_clone_create(tmpname, sizeof(tmpname)) != 0)
+	if (if_clone_create(tmpname, sizeof(tmpname), (caddr_t) 0) != 0)
 	    return NULL;
 	ifp = ifunit(tmpname);
 	if (ifp == NULL)

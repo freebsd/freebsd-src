@@ -51,7 +51,8 @@
 #include <net/route.h>
 
 static void	if_clone_free(struct if_clone *ifc);
-static int	if_clone_createif(struct if_clone *ifc, char *name, size_t len);
+static int	if_clone_createif(struct if_clone *ifc, char *name, size_t len,
+		    caddr_t params);
 static int	if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp);
 
 static struct mtx	if_cloners_mtx;
@@ -120,7 +121,7 @@ if_clone_init(void)
  * Lookup and create a clone network interface.
  */
 int
-if_clone_create(char *name, size_t len)
+if_clone_create(char *name, size_t len, caddr_t params)
 {
 	struct if_clone *ifc;
 
@@ -136,14 +137,14 @@ if_clone_create(char *name, size_t len)
 	if (ifc == NULL)
 		return (EINVAL);
 
-	return (if_clone_createif(ifc, name, len));
+	return (if_clone_createif(ifc, name, len, params));
 }
 
 /*
  * Create a clone network interface.
  */
 static int
-if_clone_createif(struct if_clone *ifc, char *name, size_t len)
+if_clone_createif(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 {
 	int err;
 	struct ifnet *ifp;
@@ -151,7 +152,7 @@ if_clone_createif(struct if_clone *ifc, char *name, size_t len)
 	if (ifunit(name) != NULL)
 		return (EEXIST);
 
-	err = (*ifc->ifc_create)(ifc, name, len);
+	err = (*ifc->ifc_create)(ifc, name, len, params);
 	
 	if (!err) {
 		ifp = ifunit(name);
@@ -474,7 +475,7 @@ ifc_simple_attach(struct if_clone *ifc)
 
 	for (unit = 0; unit < ifcs->ifcs_minifs; unit++) {
 		snprintf(name, IFNAMSIZ, "%s%d", ifc->ifc_name, unit);
-		err = if_clone_createif(ifc, name, IFNAMSIZ);
+		err = if_clone_createif(ifc, name, IFNAMSIZ, NULL);
 		KASSERT(err == 0,
 		    ("%s: failed to create required interface %s",
 		    __func__, name));
@@ -503,7 +504,7 @@ ifc_simple_match(struct if_clone *ifc, const char *name)
 }
 
 int
-ifc_simple_create(struct if_clone *ifc, char *name, size_t len)
+ifc_simple_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 {
 	char *dp;
 	int wildcard;
@@ -521,7 +522,7 @@ ifc_simple_create(struct if_clone *ifc, char *name, size_t len)
 	if (err != 0)
 		return (err);
 
-	err = ifcs->ifcs_create(ifc, unit);
+	err = ifcs->ifcs_create(ifc, unit, params);
 	if (err != 0) {
 		ifc_free_unit(ifc, unit);
 		return (err);
