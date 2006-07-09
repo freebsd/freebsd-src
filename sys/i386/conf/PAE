@@ -18,6 +18,9 @@ device		acpi
 # the correct options headers.
 makeoptions	NO_MODULES=yes
 
+# force isp firmware to fully loaded
+device		ispfw
+
 # What follows is a list of drivers that are normally in GENERIC, but either
 # don't work or are untested with PAE.  Be very careful before enabling any
 # of these drivers.  Drivers which use DMA and don't handle 64 bit physical
