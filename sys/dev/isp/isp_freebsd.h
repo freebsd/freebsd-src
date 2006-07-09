@@ -97,8 +97,6 @@
 #endif
 #endif
 
-typedef void ispfwfunc(int, int, int, uint16_t **);
-
 #ifdef	ISP_TARGET_MODE
 #define	ISP_TARGET_FUNCTIONS	1
 #define	ATPDPSIZE	256
@@ -155,6 +153,7 @@ struct isposinfo {
 		intsok		: 1,
 		simqfrozen	: 3;
 #if __FreeBSD_version >= 500000  
+	struct firmware *	fw;
 	struct mtx		lock;
 	struct cv		kthread_cv;
 #endif

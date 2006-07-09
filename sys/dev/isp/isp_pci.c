@@ -35,9 +35,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#if __FreeBSD_version >= 700000  
+#include <sys/linker.h>
+#include <sys/firmware.h>
+#endif
 #include <sys/bus.h>
 #if __FreeBSD_version < 500000  
-#include <sys/bus.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 #include <machine/bus_memio.h>
@@ -71,6 +74,7 @@ static int
 isp_pci_dmasetup(ispsoftc_t *, XS_T *, ispreq_t *, uint16_t *, uint16_t);
 static void
 isp_pci_dmateardown(ispsoftc_t *, XS_T *, uint16_t);
+
 
 static void isp_pci_reset1(ispsoftc_t *);
 static void isp_pci_dumpregs(ispsoftc_t *, const char *);
@@ -241,6 +245,11 @@ static struct ispmdvec mdvec_2300 = {
 #define	PCI_PRODUCT_QLOGIC_ISP6312	0x6312
 #endif
 
+#ifndef	PCI_PRODUCT_QLOGIC_ISP6322
+#define	PCI_PRODUCT_QLOGIC_ISP6322	0x6322
+#endif
+
+
 #define	PCI_QLOGIC_ISP1020	\
 	((PCI_PRODUCT_QLOGIC_ISP1020 << 16) | PCI_VENDOR_QLOGIC)
 
@@ -280,6 +289,9 @@ static struct ispmdvec mdvec_2300 = {
 #define	PCI_QLOGIC_ISP6312	\
 	((PCI_PRODUCT_QLOGIC_ISP6312 << 16) | PCI_VENDOR_QLOGIC)
 
+#define	PCI_QLOGIC_ISP6322	\
+	((PCI_PRODUCT_QLOGIC_ISP6322 << 16) | PCI_VENDOR_QLOGIC)
+
 /*
  * Odd case for some AMI raid cards... We need to *not* attach to this.
  */
@@ -306,7 +318,6 @@ struct isp_pcisoftc {
 	bus_dma_tag_t			dmat;
 	bus_dmamap_t			*dmaps;
 };
-extern ispfwfunc *isp_get_firmware_p;
 
 static device_method_t isp_pci_methods[] = {
 	/* Device interface */
@@ -321,6 +332,13 @@ static driver_t isp_pci_driver = {
 };
 static devclass_t isp_devclass;
 DRIVER_MODULE(isp, pci, isp_pci_driver, isp_devclass, 0, 0);
+#if __FreeBSD_version >= 700000  
+MODULE_DEPEND(isp, ispfw, 1, 1, 1);
+MODULE_DEPEND(isp, firmware, 1, 1, 1);
+#else
+typedef void ispfwfunc(int, int, int, uint16_t **);
+extern ispfwfunc *isp_get_firmware_p;
+#endif
 
 static int
 isp_pci_probe(device_t dev)
@@ -367,6 +385,9 @@ isp_pci_probe(device_t dev)
 		break;
 	case PCI_QLOGIC_ISP6312:
 		device_set_desc(dev, "Qlogic ISP 6312 PCI FC-AL Adapter");
+		break;
+	case PCI_QLOGIC_ISP6322:
+		device_set_desc(dev, "Qlogic ISP 6322 PCI FC-AL Adapter");
 		break;
 	default:
 		return (ENXIO);
@@ -848,7 +869,8 @@ isp_pci_attach(device_t dev)
 		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] =
 		    PCI_MBOX_REGS2300_OFF;
 	}
-	if (pci_get_devid(dev) == PCI_QLOGIC_ISP2322) {
+	if (pci_get_devid(dev) == PCI_QLOGIC_ISP2322 ||
+	    pci_get_devid(dev) == PCI_QLOGIC_ISP6322) {
 		mdvp = &mdvec_2300;
 		basetype = ISP_HA_FC_2322;
 		psize = sizeof (fcparam);
@@ -873,10 +895,58 @@ isp_pci_attach(device_t dev)
 	isp->isp_revision = pci_get_revid(dev);
 	isp->isp_dev = dev;
 
+#if __FreeBSD_version >= 700000  
 	/*
 	 * Try and find firmware for this device.
 	 */
+	{
+		char fwname[32];
+		unsigned int did = pci_get_device(dev);
 
+		/*
+		 * Map a few pci ids to fw names
+		 */
+		switch (did) {
+		case PCI_PRODUCT_QLOGIC_ISP1020:
+			did = 0x1040;
+			break;
+		case PCI_PRODUCT_QLOGIC_ISP1240:
+			did = 0x1080;
+			break;
+		case PCI_PRODUCT_QLOGIC_ISP10160:
+		case PCI_PRODUCT_QLOGIC_ISP12160:
+			did = 0x12160;
+			break;
+		case PCI_PRODUCT_QLOGIC_ISP6312:
+		case PCI_PRODUCT_QLOGIC_ISP2312:
+			did = 0x2300;
+			break;
+		case PCI_PRODUCT_QLOGIC_ISP6322:
+			did = 0x2322;
+			break;
+		default:
+			break;
+		}
+
+		isp->isp_osinfo.fw = NULL;
+		if (isp->isp_role & ISP_ROLE_TARGET) {
+			snprintf(fwname, sizeof (fwname), "isp_%04x_it", did);
+			isp->isp_osinfo.fw = firmware_get(fwname);
+		}
+		if (isp->isp_osinfo.fw == NULL) {
+			snprintf(fwname, sizeof (fwname), "isp_%04x", did);
+			isp->isp_osinfo.fw = firmware_get(fwname);
+		}
+		if (isp->isp_osinfo.fw != NULL) {
+			union {
+				const void *fred;
+				uint16_t *bob;
+			} u;
+			u.fred = isp->isp_osinfo.fw->data;
+			isp->isp_mdvec->dv_ispfw = u.bob;
+		}
+	}
+#else
 	if (isp_get_firmware_p) {
 		int device = (int) pci_get_device(dev);
 #ifdef	ISP_TARGET_MODE
@@ -885,6 +955,7 @@ isp_pci_attach(device_t dev)
 		(*isp_get_firmware_p)(0, 0, device, &mdvp->dv_ispfw);
 #endif
 	}
+#endif
 
 	/*
 	 * Make sure that SERR, PERR, WRITE INVALIDATE and BUSMASTER
@@ -892,9 +963,11 @@ isp_pci_attach(device_t dev)
 	 */
 	cmd |= PCIM_CMD_SEREN | PCIM_CMD_PERRESPEN |
 		PCIM_CMD_BUSMASTEREN | PCIM_CMD_INVEN;
+
 	if (IS_2300(isp)) {	/* per QLogic errata */
 		cmd &= ~PCIM_CMD_INVEN;
 	}
+
 	if (IS_23XX(isp)) {
 		/*
 		 * Can't tell if ROM will hang on 'ABOUT FIRMWARE' command.
