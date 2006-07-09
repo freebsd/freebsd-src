@@ -34,6 +34,7 @@
 /*
  *	Firmware Version 8.15.00 (14:35 Aug 22, 2000)
  */
+#ifdef	ISP_1080
 static const u_int16_t isp_1080_risc_code[] = {
 	0x0078, 0x1041, 0x0000, 0x3d3b, 0x0000, 0x2043, 0x4f50, 0x5952,
 	0x4947, 0x4854, 0x2031, 0x3939, 0x312c, 0x3139, 0x3932, 0x2c31,
@@ -1996,6 +1997,7 @@ static const u_int16_t isp_1080_risc_code[] = {
 	0x4cee, 0x7804, 0xd08c, 0x0040, 0x4d37, 0x681f, 0x000c, 0x70a0,
 	0x70a2, 0x007c, 0x205b
 };
+#endif
 /************************************************************************
  *									*
  *	 --- ISP1240/ISP1080/ISP1280 Initiator/Target Firmware ---      *
@@ -2005,8 +2007,8 @@ static const u_int16_t isp_1080_risc_code[] = {
 /*
  *	Firmware Version 9.11.01 (15:46 May 23, 2000)
  */
-
-static const u_int16_t isp_1080_risc_code_it[] = {
+#ifdef	ISP_1080_IT
+static const u_int16_t isp_1080_it_risc_code[] = {
 	0x0078, 0x103a, 0x0000, 0x4f62, 0x0000, 0x2043, 0x4f50, 0x5952,
 	0x4947, 0x4854, 0x2031, 0x3939, 0x3520, 0x514c, 0x4f47, 0x4943,
 	0x2043, 0x4f52, 0x504f, 0x5241, 0x5449, 0x4f4e, 0x2049, 0x5350,
@@ -4549,3 +4551,4 @@ static const u_int16_t isp_1080_risc_code_it[] = {
 	0xa8bb, 0xa210, 0x3807, 0x300c, 0x817e, 0x872b, 0x8772, 0x0014,
 	0x0000, 0xd27a
 };
+#endif

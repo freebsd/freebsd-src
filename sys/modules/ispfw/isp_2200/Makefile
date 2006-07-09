@@ -24,22 +24,13 @@
 # SUCH DAMAGE.
 #
 
-# $FreeBSD$ 
+# $FreeBSD$
 
+.PATH: ${.CURDIR}/../../../dev/ispfw
 
-SUBDIR = ispfw
-SUBDIR += isp_1040
-SUBDIR += isp_1040_it
-SUBDIR += isp_1080
-SUBDIR += isp_1080_it
-SUBDIR += isp_12160
-SUBDIR += isp_12160_it
-SUBDIR += isp_2100
-SUBDIR += isp_2200
-SUBDIR += isp_2300
-SUBDIR += isp_2322
-.if ${MACHINE_ARCH} == "sparc64"
-SUBDIR += isp_1000
-.endif
+KMOD=	isp_2200
+SRCS=	ispfw.c
 
-.include <bsd.subdir.mk>
+CFLAGS += -DISP_2200 -DMODULE_NAME=\"${KMOD}\"
+
+.include <bsd.kmod.mk>
