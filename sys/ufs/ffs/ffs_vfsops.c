@@ -105,6 +105,7 @@ static struct vfsops ufs_vfsops = {
 };
 
 VFS_SET(ufs_vfsops, ufs, 0);
+MODULE_VERSION(ufs, 1);
 
 static b_strategy_t ffs_geom_strategy;
 static b_write_t ffs_bufwrite;
