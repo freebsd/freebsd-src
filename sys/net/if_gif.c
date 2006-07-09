@@ -101,7 +101,7 @@ void	(*ng_gif_attach_p)(struct ifnet *ifp);
 void	(*ng_gif_detach_p)(struct ifnet *ifp);
 
 static void	gif_start(struct ifnet *);
-static int	gif_clone_create(struct if_clone *, int);
+static int	gif_clone_create(struct if_clone *, int, caddr_t);
 static void	gif_clone_destroy(struct ifnet *);
 
 IFC_SIMPLE_DECLARE(gif, 0);
@@ -140,9 +140,10 @@ SYSCTL_INT(_net_link_gif, OID_AUTO, parallel_tunnels, CTLFLAG_RW,
     &parallel_tunnels, 0, "Allow parallel tunnels?");
 
 static int
-gif_clone_create(ifc, unit)
+gif_clone_create(ifc, unit, params)
 	struct if_clone *ifc;
 	int unit;
+	caddr_t params;
 {
 	struct gif_softc *sc;
 

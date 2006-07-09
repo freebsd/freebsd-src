@@ -69,7 +69,7 @@ static int	discoutput(struct ifnet *, struct mbuf *,
 		    struct sockaddr *, struct rtentry *);
 static void	discrtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int	discioctl(struct ifnet *, u_long, caddr_t);
-static int	disc_clone_create(struct if_clone *, int);
+static int	disc_clone_create(struct if_clone *, int, caddr_t);
 static void	disc_clone_destroy(struct ifnet *);
 
 static MALLOC_DEFINE(M_DISC, DISCNAME, "Discard interface");
@@ -77,7 +77,7 @@ static MALLOC_DEFINE(M_DISC, DISCNAME, "Discard interface");
 IFC_SIMPLE_DECLARE(disc, 0);
 
 static int
-disc_clone_create(struct if_clone *ifc, int unit)
+disc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
 	struct ifnet		*ifp;
 	struct disc_softc	*sc;

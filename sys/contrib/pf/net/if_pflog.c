@@ -121,7 +121,7 @@ struct pflog_softc pflogif[NPFLOG];
 
 #ifdef __FreeBSD__
 static void	pflog_clone_destroy(struct ifnet *);
-static int	pflog_clone_create(struct if_clone *, int);
+static int	pflog_clone_create(struct if_clone *, int, caddr_t);
 #else
 void	pflogattach(int);
 #endif
@@ -161,7 +161,11 @@ pflog_clone_destroy(struct ifnet *ifp)
 }
 
 static int
+#ifdef __FreeBSD__
+pflog_clone_create(struct if_clone *ifc, int unit, caddr_t params)
+#else
 pflog_clone_create(struct if_clone *ifc, int unit)
+#endif
 {
 	struct pflog_softc *sc;
 	struct ifnet *ifp;
