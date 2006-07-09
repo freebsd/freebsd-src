@@ -98,7 +98,7 @@ options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~128k to driver.
 device		isp		# Qlogic family
 device		ispfw		# Firmware module for Qlogic host adapters
-#device		mpt		# LSI-Logic MPT-Fusion (not yet)
+#device		mpt		# LSI-Logic MPT-Fusion
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 device		esp		# NCR53c9x (FEPS/FAS366)
@@ -203,6 +203,7 @@ device		pty		# Pseudo-ttys (telnet etc)
 device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
 device		faith		# IPv6-to-IPv4 relaying (translation)
+device		firmware	# firmware assist module
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
