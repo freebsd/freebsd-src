@@ -1,9 +1,4 @@
 /* $FreeBSD$ */
-/*
- * MAINTAINER = Roger Hardiman <roger@freebsd.org>
- * Newsflash: Roger is temorararily out of touch and unable 
- * to maintain this..
- */
 
 /*
  * This is part of the Driver for Video Capture Cards (Frame grabbers)
