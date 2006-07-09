@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 MODULE_VERSION(isp, 1);
 MODULE_DEPEND(isp, cam, 1, 1, 1);
 int isp_announced = 0;
-ispfwfunc *isp_get_firmware_p = NULL;
 
 static d_ioctl_t ispioctl;
 static void isp_intr_enable(void *);
