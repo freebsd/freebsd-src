@@ -114,6 +114,7 @@
 								  parameters */
 
 #define	SIOCIFCREATE	_IOWR('i', 122, struct ifreq)	/* create clone if */
+#define	SIOCIFCREATE2	_IOWR('i', 124, struct ifreq)	/* create clone if */
 #define	SIOCIFDESTROY	 _IOW('i', 121, struct ifreq)	/* destroy clone if */
 #define	SIOCIFGCLONERS	_IOWR('i', 120, struct if_clonereq) /* get cloners */
 

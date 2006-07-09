@@ -192,7 +192,7 @@ static	void vlan_trunk_capabilities(struct ifnet *ifp);
 static	struct ifnet *vlan_clone_match_ethertag(struct if_clone *,
     const char *, int *);
 static	int vlan_clone_match(struct if_clone *, const char *);
-static	int vlan_clone_create(struct if_clone *, char *, size_t);
+static	int vlan_clone_create(struct if_clone *, char *, size_t, caddr_t);
 static	int vlan_clone_destroy(struct if_clone *, struct ifnet *);
 
 static	void vlan_ifdetach(void *arg, struct ifnet *ifp);
@@ -615,7 +615,7 @@ vlan_clone_match(struct if_clone *ifc, const char *name)
 }
 
 static int
-vlan_clone_create(struct if_clone *ifc, char *name, size_t len)
+vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 {
 	char *dp;
 	int wildcard;
@@ -626,9 +626,39 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len)
 	struct ifvlan *ifv;
 	struct ifnet *ifp;
 	struct ifnet *p;
+	struct vlanreq vlr;
 	static const u_char eaddr[6];	/* 00:00:00:00:00:00 */
 
-	if ((p = vlan_clone_match_ethertag(ifc, name, &tag)) != NULL) {
+	/*
+	 * There are 3 (ugh) ways to specify the cloned device:
+	 * o pass a parameter block with the clone request.
+	 * o specify parameters in the text of the clone device name
+	 * o specify no parameters and get an unattached device that
+	 *   must be configured separately.
+	 * The first technique is preferred; the latter two are
+	 * supported for backwards compatibilty.
+	 */
+	if (params) {
+		error = copyin(params, &vlr, sizeof(vlr));
+		if (error)
+			return error;
+		p = ifunit(vlr.vlr_parent);
+		if (p == NULL)
+			return ENXIO;
+		/*
+		 * Don't let the caller set up a VLAN tag with
+		 * anything except VLID bits.
+		 */
+		if (vlr.vlr_tag & ~EVL_VLID_MASK)
+			return (EINVAL);
+		error = ifc_name2unit(name, &unit);
+		if (error != 0)
+			return (error);
+
+		ethertag = 1;
+		tag = vlr.vlr_tag;
+		wildcard = (unit < 0);
+	} else if ((p = vlan_clone_match_ethertag(ifc, name, &tag)) != NULL) {
 		ethertag = 1;
 		unit = -1;
 		wildcard = 0;
