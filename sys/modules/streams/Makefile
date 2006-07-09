@@ -1,5 +1,4 @@
 # $FreeBSD$ 
-MAINTAINER=	newton@atdot.dotat.org
 
 .PATH: ${.CURDIR}/../../dev/streams
 
