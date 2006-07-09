@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	emulation@FreeBSD.org
-
 .PATH: ${.CURDIR}/../../compat/linux ${.CURDIR}/../../${MACHINE_ARCH}/linux
 
 KMOD=	linux

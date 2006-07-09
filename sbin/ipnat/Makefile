@@ -15,6 +15,4 @@ WARNS?=	0
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
 
-MAINTAINER=	darrenr@freebsd.org
-
 .include <bsd.prog.mk>

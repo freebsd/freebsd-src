@@ -1,35 +1,45 @@
 $FreeBSD$
 
+Please note that the content of this file is strictly advisory.
+No locks listed here are valid.  The only strict review requirements
+are granted by core.  These are documented in src/LOCKS and enforced
+by CVSROOT/approvers.
+
+The source tree is a community effort.  However, some folks go to the
+trouble of looking after particular areas of the tree.  In return for
+their active caretaking of the code it is polite to coordinate changes
+with them.  This is a list of people who have expressed an interest in
+part of the code or listed their active caretaking role so that other
+committers can easily find somebody who is familiar with it.  The notes
+should specify if there is a 3rd party source tree involved or other
+things that should be kept in mind.
+
+However, this is not a 'big stick', it is an offer to help and a source
+of guidance.  It does not override the communal nature of the tree.
+It is not a registry of 'turf' or private property.
+
 subsystem	login	notes
 -----------------------------
+kqueue		jmg	Pre-commit review requested.
 mergemaster	dougb	Prefers to pre-approve commits
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
 UFS EAs		rwatson	Pre-commit review requested.
 MAC Framework	rwatson	Pre-commit review requested.
 MAC Modules	rwatson	Pre-commit review requested.
+contrib/openbsm	rwatson	Pre-commit review requested.
+sys/security/audit	rwatson	Pre-commit review requested.
 ATA/IDE		sos	Pre-commit review requested.
 ahc(4)		gibbs	Pre-commit review requested.
 ahd(4)		gibbs	Pre-commit review requested.
 NEWCARD		imp	Pre-commit review requested.
 OLDCARD		imp	Pre-commit review requested.
-wi		imp	Pre-commit review requested.
-telnet		markm	Heads-up appreciated. Try not to break it.
-secure/*	markm	Heads-up appreciated. Try not to break it.
-kerberos5	nectar  Pre-commit review requested.
-heimdal		nectar	Pre-commit review requested.
+pci bus		imp,jhb	Pre-commit review requested.
 cdboot		jhb	Pre-commit review requested.
 pxeboot		jhb	Pre-commit review requested.
 witness		jhb	Pre-commit review requested.
-twe		vkashyap	Pre-commit review requested
-twa		vkashyap	Pre-commit review requested
-aac		scottl	Pre-commit review requested
-udf		scottl	Pre-commit review requested.
-ips		scottl	Pre-commit review requested.
-iir		scottl	Pre-commit review requested.
-mlx		scottl	Pre-commit review requested.
-mly		scottl	Pre-commit review requested.
-maestro3	scottl	Pre-commit review requested.
+twe		aradford@amcc.com	Pre-commit review requested
+twa		aradford@amcc.com	Pre-commit review requested
 CAM		gibbs,
 		ken	Pre-commit review requested. send to scsi@freebsd.org
 devstat(9)	ken	Pre-commit review requested.
@@ -49,10 +59,6 @@ etc/mail	gshapiro	Pre-commit review requested.
 				Keep in sync with -STABLE.
 etc/sendmail	gshapiro	Pre-commit review requested.
 				Keep in sync with -STABLE.
-dhcp		mbr	Needs to pre-approve commits to contrib/isc-dhcp, so
-			changes can be made to the isc.org CVS repository.
-RELENG_4_*	security-officer	Requires Security Officer approval.
-RELENG_5_*	security-officer	Requires Security Officer approval.
 libfetch	des	Advance notification requested.
 fetch		des	Advance notification requested.
 libpam		des	Pre-commit review requested.
@@ -63,23 +69,22 @@ linprocfs	des	Advance notification requested.
 lpr		gad	Pre-commit review requested, particularly for
 			lpd/recvjob.c and lpd/printjob.c.
 newsyslog(8)	gad	Heads-up appreciated.  I'm going thru the PR's for it.
-patch		gad	I have a WIP which will change the src a lot.
-vinum		grog	Recommends pre-commit review.
+pkill		gad	Heads-up appreciated.
+ps		gad	I am working on a number of changes to this.  Would
+			like advance notice of major changes planned to it.
 cvs		peter	Heads-up appreciated, try not to break it.
 ncurses		peter	Heads-up appreciated, try not to break it.
 nvi		peter	Try not to break it.
 libz		peter	Try not to break it.
 pppd/chat	peter	Try not to break it.
 groff		ru	Recommends pre-commit review.
-share/mk	ru	Recommends pre-commit review.
+share/mk	ru	This is a vital component of the build system, so I
+			offer a pre-commit review for anything non-trivial.
 ipfw		ipfw	Pre-commit review preferred. send to ipfw@freebsd.org
 drm		anholt	Just keep me informed of changes, try not to break it.
-regression	jmallett	Will help write new tests, etc.
 libufs		jmallett	Willing to handle problems, help with work.
 fdc(4)		joerg	Just keep me informed of changes, try not to break it.
 sppp(4)		joerg	Just keep me informed of changes, try not to break it.
-libc		nectar	Opportuntity for pre-commit review appreciated for
-			nsdispatch(3) and its consumers.
 unifdef(1)	fanf	Pre-commit review requested.
 ntp         	roberto	Pre-commit review requested.
 inetd		dwmalone	Recommends pre-commit review.
@@ -89,18 +94,37 @@ contrib/smbfs	bp	Open for in-tree committs. In case of functional
 			changes pre-commit review requested.
 contrib/pf	mlaier	Pre-commit review requested.
 binutils	obrien	Insists on BU blocked from unapproved commits
+file		obrien	Insists to keep file blocked from other's unapproved
+			commits
+contrib/bzip2	obrien	Pre-commit review required.
+lukemftpd	obrien	Pre-commit review required.
 geom_concat	pjd	Pre-commit review preferred.
+geom_eli	pjd	Pre-commit review preferred.
 geom_gate	pjd	Pre-commit review preferred.
 geom_label	pjd	Pre-commit review preferred.
 geom_mirror	pjd	Pre-commit review preferred.
 geom_nop	pjd	Pre-commit review preferred.
 geom_raid3	pjd	Pre-commit review preferred.
+geom_shsec	pjd	Pre-commit review preferred.
 geom_stripe	pjd	Pre-commit review preferred.
+geom_zero	pjd	Pre-commit review preferred.
 sbin/geom	pjd	Pre-commit review preferred.
 nfs		alfred	Will be happy to review code, but not mandatory.
 rpc.lockd	alfred	Will be happy to review code, but not mandatory.
 truss		alfred	Will be happy to review code, but not mandatory.
 rpc		alfred	Pre-commit review requested.
+xfs		kan@FreeBSD.org,rodrigc@FreeBSD.org,cattelan@xfs.org
+			Pre-commit review preferred.
+pkg_install	krion	Pre-commit review or approval from portmgr@ requested.
+linux emul	emulation	Please discuss changes here.
+bs{diff,patch}	cperciva	Pre-commit review requested.
+portsnap	cperciva	Pre-commit review requested.
+sys/netgraph/bluetooth	emax	Pre-commit review preferred.
+lib/libbluetooth	emax	Pre-commit review preferred.
+lib/libsdp		emax	Pre-commit review preferred.
+usr.bin/bluetooth	emax	Pre-commit review preferred.
+usr.sbin/bluetooth	emax	Pre-commit review preferred.
+gnu/usr.bin/send-pr	bugmaster	Pre-commit review requested.
 
 Following are the entries from the Makefiles, and a few other sources.
 Please remove stale entries from both their origin, and this file.
@@ -108,61 +132,10 @@ Please remove stale entries from both their origin, and this file.
 Please also consider removing the lines from the files listed below and
 stating your preferences here instead.
 
+List below generated with:
+$ cd /usr/src; find */* -type f|xargs egrep 'MAINTAINER[ <tab>]*='
+
 bin/dd/Makefile:MAINTAINER=	green@FreeBSD.org
-contrib/cvs/FREEBSD-upgrade:MAINTAINER=	peter@FreeBSD.org
-games/fortune/datfiles/Makefile:MAINTAINER=	jkh@FreeBSD.org
-gnu/usr.bin/cvs/Makefile:MAINTAINER=	peter@FreeBSD.org
-gnu/usr.bin/cvs/contrib/Makefile:MAINTAINER=	peter@FreeBSD.org
-gnu/usr.bin/cvs/cvs/Makefile:MAINTAINER=	peter@FreeBSD.org
-gnu/usr.bin/cvs/cvsbug/Makefile:MAINTAINER=	peter@FreeBSD.org
-gnu/usr.bin/cvs/doc/Makefile:MAINTAINER=	peter@FreeBSD.org
-gnu/usr.bin/cvs/lib/Makefile:MAINTAINER=	peter@FreeBSD.org
-gnu/usr.bin/cvs/libdiff/Makefile:MAINTAINER=	peter@FreeBSD.org
-gnu/usr.bin/man/apropos/Makefile:MAINTAINER=	wosch@FreeBSD.org
-lib/libc/posix1e/Makefile.inc:MAINTAINER=	rwatson@FreeBSD.org
-lib/libusbhid/Makefile:MAINTAINER=	n_hibma@FreeBSD.ORG
-lib/libz/Makefile:MAINTAINER=	peter@FreeBSD.org
-sbin/dhclient/Makefile.inc:MAINTAINER=	murray@FreeBSD.org
-sbin/ipf/Makefile:MAINTAINER=	darrenr@freebsd.org
-sbin/ipfs/Makefile:MAINTAINER=	darrenr@freebsd.org
-sbin/ipfstat/Makefile:MAINTAINER=	darrenr@freebsd.org
-sbin/ipmon/Makefile:MAINTAINER=	darrenr@freebsd.org
-sbin/ipnat/Makefile:MAINTAINER=	darrenr@freebsd.org
-sys/boot/i386/cdboot/Makefile:MAINTAINER=	jhb@FreeBSD.org
-sys/boot/i386/pxeldr/Makefile:MAINTAINER=	jhb@FreeBSD.org
-sys/compat/svr4/Makefile:MAINTAINER=	newton@freebsd.org
-sys/dev/asr/MAINTAINER:MAINTAINER=	obrien@freebsd.org, scott_long@btc.adaptec.com, mark_salyzyn@adaptec.com
-sys/dev/bktr/CHANGELOG.TXT:MAINTAINER=	Roger Hardiman <roger@freebsd.org>
-sys/dev/ep/if_ep.c:MAINTAINER=	Matthew N. Dodd <winter@jurai.net>
-sys/dev/ex/if_ex.c:MAINTAINER=	Matthew N. Dodd <winter@jurai.net>
-sys/dev/ie/if_ie.c:MAINTAINER=	Matthew N. Dodd <winter@jurai.net>
-sys/dev/sound/pcm/feeder_rate.c:MAINTAINER=	Orion Hodson <orion@freebsd.org>
 sys/modules/3dfx/Makefile:MAINTAINER=	cokane@FreeBSD.org
-sys/modules/bktr/bktr_mem/Makefile:MAINTAINER=	roger@freebsd.org
-sys/modules/cam/Makefile:MAINTAINER=	n_hibma@freebsd.org
-sys/modules/linux/Makefile:MAINTAINER=	emulation@FreeBSD.org
-sys/modules/osf1/Makefile:MAINTAINER=	gallatin@FreeBSD.org
-sys/modules/pecoff/Makefile:MAINTAINER=	takawata@FreeBSD.org
-sys/modules/streams/Makefile:MAINTAINER=	newton@atdot.dotat.org
-sys/modules/svr4/Makefile:MAINTAINER=	newton@FreeBSD.org
-sys/modules/udbp/Makefile:MAINTAINER=	n_hibma@freebsd.org
-sys/modules/ugen/Makefile:MAINTAINER=	n_hibma@freebsd.org
-sys/modules/uhid/Makefile:MAINTAINER=	n_hibma@freebsd.org
-sys/modules/ukbd/Makefile:MAINTAINER=	n_hibma@freebsd.org
-sys/modules/ulpt/Makefile:MAINTAINER=	n_hibma@freebsd.org
-sys/modules/umass/Makefile:MAINTAINER=	n_hibma@freebsd.org
-sys/modules/umodem/Makefile:MAINTAINER=	n_hibma@freebsd.org
-sys/modules/ums/Makefile:MAINTAINER=	n_hibma@freebsd.org
 sys/modules/urio/Makefile:MAINTAINER=	Iwasa Kazmi <kzmi@ca2.so-net.ne.jp>
-sys/modules/usb/Makefile:MAINTAINER=	n_hibma@freebsd.org
-sys/modules/uscanner/Makefile:MAINTAINER=	n_hibma@freebsd.org
-usr.bin/chat/Makefile:MAINTAINER=	peter@freebsd.org
-usr.bin/locate/Makefile:MAINTAINER=	wosch@FreeBSD.org
-usr.sbin/ipftest/Makefile:MAINTAINER=	darrenr@freebsd.org
-usr.sbin/ipresend/Makefile:MAINTAINER=	darrenr@freebsd.org
-usr.sbin/ipsend/Makefile:MAINTAINER=	darrenr@freebsd.org
-usr.sbin/iptest/Makefile:MAINTAINER=	darrenr@freebsd.org
-usr.sbin/ntp/doc/Makefile:MAINTAINER=	sheldonh@FreeBSD.org
-usr.sbin/pppd/Makefile:MAINTAINER=	peter@freebsd.org
-usr.sbin/pppstats/Makefile:MAINTAINER=	peter@freebsd.org
 usr.sbin/zic/Makefile:MAINTAINER=	wollman@FreeBSD.org

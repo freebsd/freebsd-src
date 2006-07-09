@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	roger@freebsd.org
-
 .PATH: ${.CURDIR}/../../../dev/bktr
 
 KMOD=	bktr_mem 

@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=     mbr
-
 WARNS?=		0
 CFLAGS+= -I${DIST_DIR}/includes -DENABLE_POLLING_MODE -DNOMINUM
 

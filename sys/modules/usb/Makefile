@@ -1,7 +1,5 @@
 # $FreeBSD$ 
 
-MAINTAINER=	n_hibma@freebsd.org
-
 S=	${.CURDIR}/../..
 
 .PATH: $S/dev/usb $S/pci

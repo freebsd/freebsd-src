@@ -1,6 +1,5 @@
 # $FreeBSD$ 
 
-MAINTAINER=	n_hibma@freebsd.org
 S=	${.CURDIR}/../..
 
 .PATH: $S/cam $S/cam/scsi

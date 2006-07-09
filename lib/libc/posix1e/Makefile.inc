@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	rwatson@FreeBSD.org
-
 .PATH: ${.CURDIR}/posix1e
 
 SRCS+=	acl_calc_mask.c			\

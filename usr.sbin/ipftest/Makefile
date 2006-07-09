@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	darrenr@freebsd.org
-
 .PATH: ${.CURDIR}/../../sys/contrib/ipfilter/netinet \
        ${.CURDIR}/../../contrib/ipfilter ${.CURDIR}/../../contrib/ipfilter/man
 
