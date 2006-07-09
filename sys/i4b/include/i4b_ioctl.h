@@ -42,7 +42,7 @@
  *---------------------------------------------------------------------------*/
 #define	VERSION		1		/* version number	*/
 #define	REL		4		/* release number	*/
-#define STEP		0		/* release step		*/
+#define STEP		1		/* release step		*/
 
 /*---------------------------------------------------------------------------*
  * date/time format in i4b log messages
@@ -78,7 +78,8 @@
 #define CTRL_TINADD	3		/* Stollmann Tina-dd active card*/
 #define CTRL_AVMB1	4		/* AVM B1 active card		*/
 #define CTRL_CAPI       5               /* cards seen via the CAPI layer*/
-#define	CTRL_NUMTYPES	6		/* number of controller types	*/
+#define CTRL_CAPIMGR	6		/* boards accessed through the CAPI manager */
+#define	CTRL_NUMTYPES	7		/* number of controller types	*/
 
 /*---------------------------------------------------------------------------*
  *	CTRL_PASSIVE: driver types
