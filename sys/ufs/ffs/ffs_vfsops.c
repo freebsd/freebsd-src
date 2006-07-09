@@ -751,7 +751,7 @@ ffs_mountfs(devvp, mp, td)
 #else
 		printf(
 "WARNING: %s: multilabel flag on fs but no MAC support\n",
-		    fs->fs_fsmnt);
+		    mp->mnt_stat.f_mntonname);
 #endif
 	if ((fs->fs_flags & FS_ACLS) != 0)
 #ifdef UFS_ACL
@@ -759,7 +759,7 @@ ffs_mountfs(devvp, mp, td)
 #else
 		printf(
 "WARNING: %s: ACLs flag on fs but no ACLs support\n",
-		    fs->fs_fsmnt);
+		    mp->mnt_stat.f_mntonname);
 #endif
 	ump->um_mountp = mp;
 	ump->um_dev = dev;
