@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/kernel.h>
-#include <sys/sx.h>
 #include <sys/systm.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -65,7 +64,7 @@ static char	*kernenv_next(char *);
 
 /* dynamic environment variables */
 char		**kenvp;
-struct sx	kenv_lock;
+struct mtx	kenv_lock;
 
 /*
  * No need to protect this with a mutex
@@ -86,7 +85,7 @@ kenv(td, uap)
 		int len;
 	} */ *uap;
 {
-	char *name, *value;
+	char *name, *value, *buffer = NULL;
 	size_t len, done, needed;
 	int error, i;
 
@@ -100,7 +99,9 @@ kenv(td, uap)
 			return (error);
 #endif
 		done = needed = 0;
-		sx_slock(&kenv_lock);
+		if (uap->len > 0 && uap->value != NULL)
+			buffer = malloc(uap->len, M_TEMP, M_WAITOK|M_ZERO);
+		mtx_lock(&kenv_lock);
 		for (i = 0; kenvp[i] != NULL; i++) {
 			len = strlen(kenvp[i]) + 1;
 			needed += len;
@@ -109,15 +110,16 @@ kenv(td, uap)
 			 * If called with a NULL or insufficiently large
 			 * buffer, just keep computing the required size.
 			 */
-			if (uap->value != NULL && len > 0) {
-				error = copyout(kenvp[i], uap->value + done,
-				    len);
-				if (error)
-					break;
+			if (uap->value != NULL && buffer != NULL && len > 0) {
+				bcopy(kenvp[i], buffer + done, len);
 				done += len;
 			}
 		}
-		sx_sunlock(&kenv_lock);
+		mtx_unlock(&kenv_lock);
+		if (buffer != NULL) {
+			error = copyout(buffer, uap->value, done);
+			free(buffer, M_TEMP);
+		}
 		td->td_retval[0] = ((done == needed) ? 0 : needed);
 		return (error);
 	}
@@ -220,7 +222,7 @@ init_dynamic_kenv(void *data __unused)
 	}
 	kenvp[i] = NULL;
 
-	sx_init(&kenv_lock, "kernel environment");
+	mtx_init(&kenv_lock, "kernel environment", NULL, MTX_DEF);
 	dynamic_kenv = 1;
 }
 SYSINIT(kenv, SI_SUB_KMEM, SI_ORDER_ANY, init_dynamic_kenv, NULL);
@@ -242,7 +244,7 @@ _getenv_dynamic(const char *name, int *idx)
 	char *cp;
 	int len, i;
 
-	sx_assert(&kenv_lock, SX_LOCKED);
+	mtx_assert(&kenv_lock, MA_OWNED);
 	len = strlen(name);
 	for (cp = kenvp[0], i = 0; cp != NULL; cp = kenvp[++i]) {
 		if ((strncmp(cp, name, len) == 0) &&
@@ -288,16 +290,16 @@ getenv(const char *name)
 	int len;
 
 	if (dynamic_kenv) {
-		sx_slock(&kenv_lock);
+		mtx_lock(&kenv_lock);
 		cp = _getenv_dynamic(name, NULL);
 		if (cp != NULL) {
 			strcpy(buf, cp);
-			sx_sunlock(&kenv_lock);
+			mtx_unlock(&kenv_lock);
 			len = strlen(buf) + 1;
 			ret = malloc(len, M_KENV, M_WAITOK);
 			strcpy(ret, buf);
 		} else {
-			sx_sunlock(&kenv_lock);
+			mtx_unlock(&kenv_lock);
 			ret = NULL;
 		}
 	} else
@@ -314,9 +316,9 @@ testenv(const char *name)
 	char *cp;
 
 	if (dynamic_kenv) {
-		sx_slock(&kenv_lock);
+		mtx_lock(&kenv_lock);
 		cp = _getenv_dynamic(name, NULL);
-		sx_sunlock(&kenv_lock);
+		mtx_unlock(&kenv_lock);
 	} else
 		cp = _getenv_static(name);
 	if (cp != NULL)
@@ -344,12 +346,12 @@ setenv(const char *name, const char *value)
 	buf = malloc(namelen + vallen, M_KENV, M_WAITOK);
 	sprintf(buf, "%s=%s", name, value);
 
-	sx_xlock(&kenv_lock);
+	mtx_lock(&kenv_lock);
 	cp = _getenv_dynamic(name, &i);
 	if (cp != NULL) {
 		oldenv = kenvp[i];
 		kenvp[i] = buf;
-		sx_xunlock(&kenv_lock);
+		mtx_unlock(&kenv_lock);
 		free(oldenv, M_KENV);
 	} else {
 		/* We add the option if it wasn't found */
@@ -359,13 +361,13 @@ setenv(const char *name, const char *value)
 		/* Bounds checking */
 		if (i < 0 || i >= KENV_SIZE) {
 			free(buf, M_KENV);
-			sx_xunlock(&kenv_lock);
+			mtx_unlock(&kenv_lock);
 			return (-1);
 		}
 
 		kenvp[i] = buf;
 		kenvp[i + 1] = NULL;
-		sx_xunlock(&kenv_lock);
+		mtx_unlock(&kenv_lock);
 	}
 	return (0);
 }
@@ -381,18 +383,18 @@ unsetenv(const char *name)
 
 	KENV_CHECK;
 
-	sx_xlock(&kenv_lock);
+	mtx_lock(&kenv_lock);
 	cp = _getenv_dynamic(name, &i);
 	if (cp != NULL) {
 		oldenv = kenvp[i];
 		for (j = i + 1; kenvp[j] != NULL; j++)
 			kenvp[i++] = kenvp[j];
 		kenvp[i] = NULL;
-		sx_xunlock(&kenv_lock);
+		mtx_unlock(&kenv_lock);
 		free(oldenv, M_KENV);
 		return (0);
 	}
-	sx_xunlock(&kenv_lock);
+	mtx_unlock(&kenv_lock);
 	return (-1);
 }
 
