@@ -145,6 +145,7 @@ device		puc		# Multi I/O cards and multi-channel UARTs
 device		random		# Entropy device
 device		tun		# Packet tunnel.
 device		uart		# Serial port (UART)
+device		firmware	# firmware assist module
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
