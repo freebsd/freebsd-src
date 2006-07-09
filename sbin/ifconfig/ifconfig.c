@@ -92,7 +92,6 @@ int	verbose;
 
 int	supmedia = 0;
 int	printkeys = 0;		/* Print keying material for interfaces. */
-int	printname = 0;		/* Print the name of the created interface. */
 
 static	int ifconfig(int argc, char *const *argv, const struct afswtch *afp);
 static	void status(const struct afswtch *afp, int addrcount,
@@ -234,21 +233,20 @@ main(int argc, char *argv[])
 		/* check and maybe load support for this interface */
 		ifmaybeload(name);
 
-		/*
-		 * NOTE:  We must special-case the `create' command right
-		 * here as we would otherwise fail when trying to find
-		 * the interface.
-		 */
-		if (argc > 0 && (strcmp(argv[0], "create") == 0 ||
-		    strcmp(argv[0], "plumb") == 0)) {
-			clone_create();
-			argc--, argv++;
-			if (argc == 0)
-				goto end;
-		}
 		ifindex = if_nametoindex(name);
-		if (ifindex == 0)
+		if (ifindex == 0) {
+			/*
+			 * NOTE:  We must special-case the `create' command
+			 * right here as we would otherwise fail when trying
+			 * to find the interface.
+			 */
+			if (argc > 0 && (strcmp(argv[0], "create") == 0 ||
+			    strcmp(argv[0], "plumb") == 0)) {
+				ifconfig(argc, argv, NULL);
+				exit(0);
+			}
 			errx(1, "interface %s does not exist", name);
+		}
 	}
 
 	/* Check for address family */
@@ -356,9 +354,6 @@ retry:
 
 	if (namesonly && need_nl > 0)
 		putchar('\n');
-end:
-	if (printname)
-		printf("%s\n", name);
 
 	exit (0);
 }
@@ -782,12 +777,6 @@ setifname(const char *val, int dummy __unused, int s,
 	}
 	strlcpy(name, newname, sizeof(name));
 	free(newname);
-
-	/*
-	 * Even if we just created the interface, we don't need to print
-	 * its name because we just nailed it down separately.
-	 */
-	printname = 0;
 }
 
 /*
