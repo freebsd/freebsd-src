@@ -4,6 +4,6 @@
 
 PROG=	tcpdrop
 NO_MAN=
-WARNS=	3
+WARNS?=	3
 
 .include <bsd.prog.mk>
