@@ -48,16 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 
 extern int max_threads_per_proc;
-extern int max_groups_per_proc;
-
-SYSCTL_DECL(_kern_threads);
-static int thr_scope = 0;
-SYSCTL_INT(_kern_threads, OID_AUTO, thr_scope, CTLFLAG_RW,
-	&thr_scope, 0, "sys or proc scope scheduling");
-
-static int thr_concurrency = 0;
-SYSCTL_INT(_kern_threads, OID_AUTO, thr_concurrency, CTLFLAG_RW,
-	&thr_concurrency, 0, "a concurrency value if not default");
 
 static int create_thread(struct thread *td, mcontext_t *ctx,
 			 void (*start_func)(void *), void *arg,
@@ -114,26 +104,15 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	struct ksegrp *kg, *newkg;
 	struct proc *p;
 	long id;
-	int error, scope_sys, linkkg;
+	int error;
 
 	error = 0;
 	p = td->td_proc;
 	kg = td->td_ksegrp;
 
 	/* Have race condition but it is cheap. */
-	if ((p->p_numksegrps >= max_groups_per_proc) ||
-	    (p->p_numthreads >= max_threads_per_proc)) {
+	if (p->p_numthreads >= max_threads_per_proc)
 		return (EPROCLIM);
-	}
-
-	/* Check PTHREAD_SCOPE_SYSTEM */
-	scope_sys = (flags & THR_SYSTEM_SCOPE) != 0;
-
-	/* sysctl overrides user's flag */
-	if (thr_scope == 1)
-		scope_sys = 0;
-	else if (thr_scope == 2)
-		scope_sys = 1;
 
 	/* Initialize our td and new ksegrp.. */
 	newtd = thread_alloc();
@@ -186,65 +165,22 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		}
 	}
 
-	if ((td->td_proc->p_flag & P_HADTHREADS) == 0) {
-		/* Treat initial thread as it has PTHREAD_SCOPE_PROCESS. */
-		p->p_procscopegrp = kg;
-		mtx_lock_spin(&sched_lock);
-		sched_set_concurrency(kg,
-		    thr_concurrency ? thr_concurrency : (2*mp_ncpus));
-		mtx_unlock_spin(&sched_lock);
-	}
-
-	linkkg = 0;
-	if (scope_sys) {
-		linkkg = 1;
-		newkg = ksegrp_alloc();
-		bzero(&newkg->kg_startzero,
-		    __rangeof(struct ksegrp, kg_startzero, kg_endzero));
-		bcopy(&kg->kg_startcopy, &newkg->kg_startcopy,
-		    __rangeof(struct ksegrp, kg_startcopy, kg_endcopy));
-		sched_init_concurrency(newkg);
-		PROC_LOCK(td->td_proc);
-	} else {
-		/*
-		 * Try to create a KSE group which will be shared
-		 * by all PTHREAD_SCOPE_PROCESS threads.
-		 */
-retry:
-		PROC_LOCK(td->td_proc);
-		if ((newkg = p->p_procscopegrp) == NULL) {
-			PROC_UNLOCK(p);
-			newkg = ksegrp_alloc();
-			bzero(&newkg->kg_startzero,
-			    __rangeof(struct ksegrp, kg_startzero, kg_endzero));
-			bcopy(&kg->kg_startcopy, &newkg->kg_startcopy,
-			    __rangeof(struct ksegrp, kg_startcopy, kg_endcopy));
-			PROC_LOCK(p);
-			if (p->p_procscopegrp == NULL) {
-				p->p_procscopegrp = newkg;
-				sched_init_concurrency(newkg);
-				sched_set_concurrency(newkg,
-				    thr_concurrency ? thr_concurrency : (2*mp_ncpus));
-				linkkg = 1;
-			} else {
-				PROC_UNLOCK(p);
-				ksegrp_free(newkg);
-				goto retry;
-			}
-		}
-	}
-
+	newkg = ksegrp_alloc();
+	bzero(&newkg->kg_startzero,
+	    __rangeof(struct ksegrp, kg_startzero, kg_endzero));
+	bcopy(&kg->kg_startcopy, &newkg->kg_startcopy,
+	    __rangeof(struct ksegrp, kg_startcopy, kg_endcopy));
+	sched_init_concurrency(newkg);
+	PROC_LOCK(td->td_proc);
 	td->td_proc->p_flag |= P_HADTHREADS;
 	newtd->td_sigmask = td->td_sigmask;
 	mtx_lock_spin(&sched_lock);
-	if (linkkg)
-		ksegrp_link(newkg, p);
+	ksegrp_link(newkg, p);
 	thread_link(newtd, newkg);
 	PROC_UNLOCK(p);
 
 	/* let the scheduler know about these things. */
-	if (linkkg)
-		sched_fork_ksegrp(td, newkg);
+	sched_fork_ksegrp(td, newkg);
 	sched_fork_thread(td, newtd);
 	TD_SET_CAN_RUN(newtd);
 	/* if ((flags & THR_SUSPENDED) == 0) */
