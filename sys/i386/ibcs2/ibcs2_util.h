@@ -40,40 +40,8 @@
 #ifndef	_IBCS2_UTIL_H_
 #define	_IBCS2_UTIL_H_
 
-/*
- * XXX the inlines have obnoxious prerequisites, only some of which are
- * included here.
- */
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <machine/vmparam.h>
-#include <sys/exec.h>
-#include <sys/sysent.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
-
-static __inline caddr_t stackgap_init(void);
-static __inline void *stackgap_alloc(caddr_t *, size_t);
-
-static __inline caddr_t
-stackgap_init()
-{
-#define szsigcode (*(curthread->td_proc->p_sysent->sv_szsigcode))
-        return (caddr_t)(PS_STRINGS - szsigcode - SPARE_USRSPACE);
-}
-
-static __inline void *
-stackgap_alloc(sgp, sz)
-	caddr_t	*sgp;
-	size_t   sz;
-{
-	void	*p = (void *) *sgp;
-	sz = ALIGN(sz);
-	if (*sgp + sz > (caddr_t)(PS_STRINGS - szsigcode))
-		return NULL;
-	*sgp += sz;
-	return p;
-}
 
 #ifdef DEBUG_IBCS2
 #define DPRINTF(a)      printf a;
