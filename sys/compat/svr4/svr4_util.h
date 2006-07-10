@@ -47,30 +47,6 @@
 #define DPRINTF(a)
 #endif
 
-
-static __inline caddr_t stackgap_init(void);
-static __inline void *stackgap_alloc(caddr_t *, size_t);
-
-static __inline caddr_t
-stackgap_init()
-{
-#define szsigcode (*(curthread->td_proc->p_sysent->sv_szsigcode))
-        return (caddr_t)(((caddr_t)PS_STRINGS) - szsigcode - SPARE_USRSPACE);
-}
-
-static __inline void *
-stackgap_alloc(sgp, sz)
-	caddr_t	*sgp;
-	size_t   sz;
-{
-	void	*p = (void *) *sgp;
-	sz = ALIGN(sz);
-	if (*sgp + sz > (caddr_t)(PS_STRINGS - szsigcode))
-		return NULL;
-	*sgp += sz;
-	return p;
-}
-
 int	svr4_emul_find(struct thread *, char *, enum uio_seg, char **, int);
 
 #define CHECKALT(td, upath, pathp, i)					\
