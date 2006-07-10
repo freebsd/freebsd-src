@@ -1409,10 +1409,10 @@ restart:
 	/*
 	 * At this point, we check to see what could not be resolved..
 	 */
-	TAILQ_FOREACH(lf, &loaded_files, loaded) {
+	while ((lf = TAILQ_FIRST(&loaded_files)) != NULL) {
+		TAILQ_REMOVE(&loaded_files, lf, loaded);
 		printf("KLD file %s is missing dependencies\n", lf->filename);
 		linker_file_unload(lf, LINKER_UNLOAD_FORCE);
-		TAILQ_REMOVE(&loaded_files, lf, loaded);
 	}
 
 	/*
