@@ -55,11 +55,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Virtual memory MPSAFE temporary workarounds.
  */
-#if !defined(__powerpc__)
 int debug_mpsafevm = 1;
-#else
-int debug_mpsafevm;
-#endif
 TUNABLE_INT("debug.mpsafevm", &debug_mpsafevm);
 SYSCTL_INT(_debug, OID_AUTO, mpsafevm, CTLFLAG_RD, &debug_mpsafevm, 0,
     "Enable/disable MPSAFE virtual memory support");
