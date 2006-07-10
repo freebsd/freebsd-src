@@ -620,9 +620,8 @@ linker_file_unload(linker_file_t file, int flags)
 		free(file->deps, M_LINKER);
 		file->deps = NULL;
 	}
-	for (cp = STAILQ_FIRST(&file->common); cp;
-	    cp = STAILQ_FIRST(&file->common)) {
-		STAILQ_REMOVE(&file->common, cp, common_symbol, link);
+	while ((cp = STAILQ_FIRST(&file->common)) != NULL) {
+		STAILQ_REMOVE_HEAD(&file->common, link);
 		free(cp, M_LINKER);
 	}
 
