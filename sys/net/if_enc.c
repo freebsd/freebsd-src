@@ -85,7 +85,7 @@ struct enc_softc {
 static int	enc_ioctl(struct ifnet *, u_long, caddr_t);
 static int	enc_output(struct ifnet *ifp, struct mbuf *m,
 		    struct sockaddr *dst, struct rtentry *rt);
-static int	enc_clone_create(struct if_clone *, int);
+static int	enc_clone_create(struct if_clone *, int, caddr_t);
 static void	enc_clone_destroy(struct ifnet *);
 
 IFC_SIMPLE_DECLARE(enc, 1);
@@ -101,7 +101,7 @@ enc_clone_destroy(struct ifnet *ifp)
 }
 
 static int
-enc_clone_create(struct if_clone *ifc, int unit)
+enc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
 	struct ifnet *ifp;
 	struct enc_softc *sc;
