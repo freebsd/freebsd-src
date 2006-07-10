@@ -1009,7 +1009,7 @@ freebsd32_recvmsg(td, uap)
 	msg.msg_iov = iov;
 
 	controlp = (msg.msg_control != NULL) ?  &control : NULL;
-	error = kern_recvit(td, uap->s, &msg, NULL, UIO_USERSPACE, controlp);
+	error = kern_recvit(td, uap->s, &msg, UIO_USERSPACE, controlp);
 	if (error == 0) {
 		msg.msg_iov = uiov;
 		
@@ -1149,8 +1149,10 @@ freebsd32_recvfrom(struct thread *td,
 	aiov.iov_len = uap->len;
 	msg.msg_control = NULL;
 	msg.msg_flags = uap->flags;
-	error = kern_recvit(td, uap->s, &msg, PTRIN(uap->fromlenaddr),
-	    UIO_USERSPACE, NULL);
+	error = kern_recvit(td, uap->s, &msg, UIO_USERSPACE, NULL);
+	if (error == 0 && uap->fromlenaddr)
+		error = copyout(&msg.msg_namelen, PTRIN(uap->fromlenaddr),
+		    sizeof (msg.msg_namelen));
 	return (error);
 }
 
