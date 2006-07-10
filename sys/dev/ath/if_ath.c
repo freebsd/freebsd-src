@@ -394,9 +394,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 
 	sc->sc_tq = taskqueue_create("ath_taskq", M_NOWAIT,
 		taskqueue_thread_enqueue, &sc->sc_tq, &sc->sc_tqproc);
-	/* XXX return error */
-	kthread_create(taskqueue_thread_loop, &sc->sc_tq, &sc->sc_tqproc,
-		0, 0, "%s taskq", ifp->if_xname);
+	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET,
+		"%s taskq", ifp->if_xname);
 
 	TASK_INIT(&sc->sc_rxtask, 0, ath_rx_proc, sc);
 	TASK_INIT(&sc->sc_rxorntask, 0, ath_rxorn_proc, sc);
