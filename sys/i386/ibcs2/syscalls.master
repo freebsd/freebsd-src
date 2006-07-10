@@ -106,13 +106,13 @@
 46	AUE_SETGID	MSTD	{ int ibcs2_setgid(int gid); }
 47	AUE_GETGID	MNOPROTO { gid_t getgid(void); }
 48	AUE_NULL	MSTD	{ int ibcs2_sigsys(int sig, ibcs2_sig_t fp); }
-49	AUE_MSGSYS	STD	{ int ibcs2_msgsys(int which, int a2, \
+49	AUE_MSGSYS	MSTD	{ int ibcs2_msgsys(int which, int a2, \
 				    int a3, int a4, int a5, int a6); }
 50	AUE_NULL	MSTD	{ int ibcs2_sysi86(int cmd, int *arg); }
 51	AUE_NULL	UNIMPL	ibcs2_acct
-52	AUE_SHMSYS	STD	{ int ibcs2_shmsys(int which, int a2, \
+52	AUE_SHMSYS	MSTD	{ int ibcs2_shmsys(int which, int a2, \
 				    int a3, int a4); }
-53	AUE_SEMSYS	STD	{ int ibcs2_semsys(int which, int a2, \
+53	AUE_SEMSYS	MSTD	{ int ibcs2_semsys(int which, int a2, \
 				    int a3, int a4, int a5); }
 54	AUE_IOCTL	STD	{ int ibcs2_ioctl(int fd, int cmd, \
 				    caddr_t data); }
