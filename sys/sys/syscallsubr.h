@@ -50,6 +50,8 @@ struct sendfile_args;
 
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
+int	kern_accept(struct thread *td, int s, struct sockaddr **name,
+	    socklen_t *namelen);
 int	kern_access(struct thread *td, char *path, enum uio_seg pathseg,
 	    int flags);
 int	kern_adjtime(struct thread *td, struct timeval *delta,
@@ -84,7 +86,11 @@ int	kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 	    enum uio_seg bufseg, int flags);
 int	kern_getgroups(struct thread *td, u_int *ngrp, gid_t *groups);
 int	kern_getitimer(struct thread *, u_int, struct itimerval *);
+int	kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
+	    socklen_t *alen);
 int	kern_getrusage(struct thread *td, int who, struct rusage *rup);
+int	kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
+	    socklen_t *alen);
 int	kern_getsockopt(struct thread *td, int s, int level, int name,
 	    void *optval, enum uio_seg valseg, socklen_t *valsize);
 int	kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data);
@@ -120,8 +126,8 @@ int	kern_pwritev(struct thread *td, int fd, struct uio *auio, off_t offset);
 int	kern_readlink(struct thread *td, char *path, enum uio_seg pathseg,
 	    char *buf, enum uio_seg bufseg, int count);
 int	kern_readv(struct thread *td, int fd, struct uio *auio);
-int	kern_recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp,
-	    enum uio_seg segflg, struct mbuf **controlp);
+int	kern_recvit(struct thread *td, int s, struct msghdr *mp,
+	    enum uio_seg fromseg, struct mbuf **controlp);
 int	kern_rename(struct thread *td, char *from, char *to,
 	    enum uio_seg pathseg);
 int	kern_rmdir(struct thread *td, char *path, enum uio_seg pathseg);
