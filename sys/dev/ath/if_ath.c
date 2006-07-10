@@ -1694,6 +1694,8 @@ ath_key_update_end(struct ieee80211com *ic)
  *   - when operating in station mode for collecting rssi data when
  *     the station is otherwise quiet, or
  *   - when scanning
+ * o accept control frames:
+ *   - when in monitor mode
  */
 static u_int32_t
 ath_calcrxfilter(struct ath_softc *sc, enum ieee80211_state state)
@@ -1715,6 +1717,8 @@ ath_calcrxfilter(struct ath_softc *sc, enum ieee80211_state state)
 	    ic->ic_opmode == IEEE80211_M_IBSS ||
 	    state == IEEE80211_S_SCAN)
 		rfilt |= HAL_RX_FILTER_BEACON;
+	if (ic->ic_opmode == IEEE80211_M_MONITOR)
+		rfilt |= HAL_RX_FILTER_CONTROL;
 	return rfilt;
 #undef RX_FILTER_PRESERVE
 }
