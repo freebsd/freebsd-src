@@ -1000,8 +1000,8 @@ freebsd32_recvmsg(td, uap)
 	error = freebsd32_copyinmsghdr(uap->msg, &msg);
 	if (error)
 		return (error);
-	error = freebsd32_copyiniov((struct iovec32 *)(uintptr_t)m32.msg_iov,
-	    m32.msg_iovlen, &iov, EMSGSIZE);
+	error = freebsd32_copyiniov(PTRIN(m32.msg_iov), m32.msg_iovlen, &iov,
+	    EMSGSIZE);
 	if (error)
 		return (error);
 	msg.msg_flags = uap->flags;
@@ -1085,8 +1085,8 @@ freebsd32_sendmsg(struct thread *td,
 	error = freebsd32_copyinmsghdr(uap->msg, &msg);
 	if (error)
 		return (error);
-	error = freebsd32_copyiniov((struct iovec32 *)(uintptr_t)m32.msg_iov,
-	    m32.msg_iovlen, &iov, EMSGSIZE);
+	error = freebsd32_copyiniov(PTRIN(m32.msg_iov), m32.msg_iovlen, &iov,
+	    EMSGSIZE);
 	if (error)
 		return (error);
 	msg.msg_iov = iov;
@@ -1134,23 +1134,23 @@ freebsd32_recvfrom(struct thread *td,
 	int error;
 
 	if (uap->fromlenaddr) {
-		error = copyin((void *)(uintptr_t)uap->fromlenaddr,
-		    &msg.msg_namelen, sizeof(msg.msg_namelen));
+		error = copyin(PTRIN(uap->fromlenaddr), &msg.msg_namelen,
+		    sizeof(msg.msg_namelen));
 		if (error)
 			return (error);
 	} else {
 		msg.msg_namelen = 0;
 	}
 
-	msg.msg_name = (void *)(uintptr_t)uap->from;
+	msg.msg_name = PTRIN(uap->from);
 	msg.msg_iov = &aiov;
 	msg.msg_iovlen = 1;
-	aiov.iov_base = (void *)(uintptr_t)uap->buf;
+	aiov.iov_base = PTRIN(uap->buf);
 	aiov.iov_len = uap->len;
-	msg.msg_control = 0;
+	msg.msg_control = NULL;
 	msg.msg_flags = uap->flags;
-	error = kern_recvit(td, uap->s, &msg,
-	    (void *)(uintptr_t)uap->fromlenaddr, UIO_USERSPACE, NULL);
+	error = kern_recvit(td, uap->s, &msg, PTRIN(uap->fromlenaddr),
+	    UIO_USERSPACE, NULL);
 	return (error);
 }
 
@@ -1609,14 +1609,14 @@ freebsd32_do_sendfile(struct thread *td,
 		CP(hdtr32, hdtr, trl_cnt);
 
 		if (hdtr.headers != NULL) {
-			iov32 = (struct iovec32 *)(uintptr_t)hdtr32.headers;
+			iov32 = PTRIN(hdtr32.headers);
 			error = freebsd32_copyinuio(iov32,
 			    hdtr32.hdr_cnt, &hdr_uio);
 			if (error)
 				goto out;
 		}
 		if (hdtr.trailers != NULL) {
-			iov32 = (struct iovec32 *)(uintptr_t)hdtr32.trailers;
+			iov32 = PTRIN(hdtr32.trailers);
 			error = freebsd32_copyinuio(iov32,
 			    hdtr32.trl_cnt, &trl_uio);
 			if (error)
