@@ -106,7 +106,9 @@ struct ath_stats {
 	u_int32_t	ast_ant_txswitch;/* tx antenna switches */
 	u_int32_t	ast_ant_rx[8];	/* rx frames with antenna */
 	u_int32_t	ast_ant_tx[8];	/* tx frames with antenna */
-	u_int32_t	ast_pad[32];
+	u_int32_t	ast_cabq_xmit;	/* cabq frames transmitted */
+	u_int32_t	ast_cabq_busy;	/* cabq found busy */
+	u_int32_t	ast_pad[30];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)

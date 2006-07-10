@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2005 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2006 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -289,6 +289,7 @@ struct ath_softc {
 		UPDATE,				/* update pending */
 		COMMIT				/* beacon sent, commit change */
 	} sc_updateslot;			/* slot time update fsm */
+	struct ath_txq		sc_mcastq;	/* mcast xmits w/ ps sta's */
 
 	struct callout		sc_cal_ch;	/* callout handle for cals */
 	int			sc_calinterval;	/* current polling interval */
