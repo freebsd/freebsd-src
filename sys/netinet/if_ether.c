@@ -865,10 +865,13 @@ reply:
 		} else {
 			/*
 			 * Return proxied ARP replies only on the interface
-			 * where this network resides. Otherwise we may
-			 * conflict with the host we are proxying for.
+			 * or bridge cluster where this network resides.
+			 * Otherwise we may conflict with the host we are
+			 * proxying for.
 			 */
-			if (rt->rt_ifp != ifp) {
+			if (rt->rt_ifp != ifp &&
+				(rt->rt_ifp->if_bridge != ifp->if_bridge ||
+				ifp->if_bridge == NULL)) {
 				RT_UNLOCK(rt);
 				goto drop;
 			}
