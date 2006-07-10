@@ -156,6 +156,8 @@ printstats(FILE *fd, const struct ath_stats *stats)
 	}
 	STAT(be_nombuf,	"beacon setup failed 'cuz no mbuf");
 	STAT(be_xmit,	"beacons transmitted");
+	STAT(cabq_xmit,	"cabq frames transmitted");
+	STAT(cabq_busy,	"cabq xmit overflowed beacon interval");
 	STAT(per_cal, "periodic calibrations");
 	STAT(per_calfail, "periodic calibration failures");
 	STAT(per_rfgain, "rfgain value change");
