@@ -1274,7 +1274,7 @@ linker_preload(void *arg)
 	caddr_t modptr;
 	const char *modname, *nmodname;
 	char *modtype;
-	linker_file_t lf;
+	linker_file_t lf, nlf;
 	linker_class_t lc;
 	int error;
 	linker_file_list_t loaded_files;
@@ -1384,10 +1384,10 @@ restart:
 					    nver) != NULL) {
 						printf("module %s already"
 						    " present!\n", modname);
-						linker_file_unload(lf,
-						    LINKER_UNLOAD_FORCE);
 						TAILQ_REMOVE(&loaded_files,
 						    lf, loaded);
+						linker_file_unload(lf,
+						    LINKER_UNLOAD_FORCE);
 						/* we changed tailq next ptr */
 						goto restart;
 					}
@@ -1418,7 +1418,7 @@ restart:
 	/*
 	 * We made it. Finish off the linking in the order we determined.
 	 */
-	TAILQ_FOREACH(lf, &depended_files, loaded) {
+	TAILQ_FOREACH_SAFE(lf, &depended_files, loaded, nlf) {
 		if (linker_kernel_file) {
 			linker_kernel_file->refs++;
 			error = linker_file_add_dependency(lf,
@@ -1453,6 +1453,7 @@ restart:
 		 */
 		error = LINKER_LINK_PRELOAD_FINISH(lf);
 		if (error) {
+			TAILQ_REMOVE(&depended_files, lf, loaded);
 			printf("KLD file %s - could not finalize loading\n",
 			    lf->filename);
 			linker_file_unload(lf, LINKER_UNLOAD_FORCE);
