@@ -59,6 +59,12 @@ __FBSDID("$FreeBSD$");
 #define	IEEE80211_AID_ISSET(b, w) \
 	((w)[IEEE80211_AID(b) / 32] & (1 << (IEEE80211_AID(b) % 32)))
 
+#ifdef IEEE80211_DEBUG_REFCNT
+#define REFCNT_LOC "%s (%s:%u) %p<%s> refcnt %d\n", __func__, func, line
+#else
+#define REFCNT_LOC "%s %p<%s> refcnt %d\n", __func__
+#endif
+
 static struct ieee80211_node *node_alloc(struct ieee80211_node_table *);
 static void node_cleanup(struct ieee80211_node *);
 static void node_free(struct ieee80211_node *);
@@ -1513,13 +1519,7 @@ ieee80211_find_node_with_channel(struct ieee80211_node_table *nt,
 		    ni->ni_chan == chan) {
 			ieee80211_ref_node(ni);		/* mark referenced */
 			IEEE80211_DPRINTF(nt->nt_ic, IEEE80211_MSG_NODE,
-#ifdef IEEE80211_DEBUG_REFCNT
-			    "%s (%s:%u) %p<%s> refcnt %d\n", __func__,
-			    func, line,
-#else
-			    "%s %p<%s> refcnt %d\n", __func__,
-#endif
-			    ni, ether_sprintf(ni->ni_macaddr),
+			    REFCNT_LOC, ni, ether_sprintf(ni->ni_macaddr),
 			    ieee80211_node_refcnt(ni));
 			break;
 		}
@@ -1569,13 +1569,7 @@ ieee80211_find_node_with_ssid(struct ieee80211_node_table *nt,
 	if (ni != NULL) {
 		ieee80211_ref_node(ni);	/* mark referenced */
 		IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
-#ifdef IEEE80211_DEBUG_REFCNT
-		    "%s (%s:%u) %p<%s> refcnt %d\n", __func__,
-		    func, line,
-#else
-		    "%s %p<%s> refcnt %d\n", __func__,
-#endif
-		     ni, ether_sprintf(ni->ni_macaddr),
+		     REFCNT_LOC, ni, ether_sprintf(ni->ni_macaddr),
 		     ieee80211_node_refcnt(ni));
 	}
 	IEEE80211_NODE_UNLOCK(nt);
