@@ -3273,7 +3273,7 @@ g_raid3_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		if (g_raid3_ndisks(sc, G_RAID3_DISK_STATE_NODISK) ==
 		    sc->sc_ndisks) {
 			g_cancel_event(sc);
-			g_raid3_destroy(sc, 1);
+			g_raid3_destroy(sc, G_RAID3_DESTROY_HARD);
 			g_topology_lock();
 			return (NULL);
 		}
@@ -3295,7 +3295,7 @@ g_raid3_destroy_geom(struct gctl_req *req __unused, struct g_class *mp __unused,
 	sc = gp->softc;
 	sx_xlock(&sc->sc_lock);
 	g_cancel_event(sc);
-	error = g_raid3_destroy(gp->softc, 0);
+	error = g_raid3_destroy(gp->softc, G_RAID3_DESTROY_SOFT);
 	if (error != 0)
 		sx_xunlock(&sc->sc_lock);
 	g_topology_lock();

@@ -3003,7 +3003,7 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		    pp->name, gp->name, error);
 		if (LIST_EMPTY(&sc->sc_disks)) {
 			g_cancel_event(sc);
-			g_mirror_destroy(sc, 1);
+			g_mirror_destroy(sc, G_MIRROR_DESTROY_HARD);
 			g_topology_lock();
 			return (NULL);
 		}
@@ -3025,7 +3025,7 @@ g_mirror_destroy_geom(struct gctl_req *req __unused,
 	sc = gp->softc;
 	sx_xlock(&sc->sc_lock);
 	g_cancel_event(sc);
-	error = g_mirror_destroy(gp->softc, 0);
+	error = g_mirror_destroy(gp->softc, G_MIRROR_DESTROY_SOFT);
 	if (error != 0)
 		sx_xunlock(&sc->sc_lock);
 	g_topology_lock();
