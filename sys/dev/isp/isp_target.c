@@ -165,18 +165,20 @@ isp_target_notify(ispsoftc_t *isp, void *vptr, uint16_t *optrp)
 		isp_handle_ctio(isp, (ct_entry_t *) local);
 		break;
 	case RQSTYPE_ATIO2:
-		if (IS_2KLOGIN(isp))
+		if (IS_2KLOGIN(isp)) {
 			isp_get_atio2e(isp, at2eiop, (at2e_entry_t *) local);
-		else
+		} else {
 			isp_get_atio2(isp, at2iop, (at2_entry_t *) local);
+        }
 		isp_handle_atio2(isp, (at2_entry_t *) local);
 		break;
 	case RQSTYPE_CTIO3:
 	case RQSTYPE_CTIO2:
-		if (IS_2KLOGIN(isp))
+		if (IS_2KLOGIN(isp)) {
 			isp_get_ctio2e(isp, ct2eiop, (ct2e_entry_t *) local);
-		else
+		} else {
 			isp_get_ctio2(isp, ct2iop, (ct2_entry_t *) local);
+        }
 		isp_handle_ctio2(isp, (ct2_entry_t *) local);
 		break;
 	case RQSTYPE_ENABLE_LUN:
@@ -195,9 +197,11 @@ isp_target_notify(ispsoftc_t *isp, void *vptr, uint16_t *optrp)
 		 */
 		bus = 0;
 		if (IS_FC(isp)) {
-			if (IS_2KLOGIN(isp))
+			if (IS_2KLOGIN(isp)) {
 				isp_get_notify_fc_e(isp, inote_fcp, (in_fcentry_e_t *)local);
-				isp_get_notify_fc(isp, inot_fcp, (in_fcentry_t *)local);
+            } else {
+                isp_get_notify_fc(isp, inot_fcp, (in_fcentry_t *)local);
+            }
 			inot_fcp = (in_fcentry_t *) local;
 			status = inot_fcp->in_status;
 			seqid = inot_fcp->in_seqid;
@@ -251,12 +255,13 @@ isp_target_notify(ispsoftc_t *isp, void *vptr, uint16_t *optrp)
 		 * Immediate Notify entry for some asynchronous event.
 		 */
 		if (IS_FC(isp)) {
-			if (IS_2KLOGIN(isp))
+			if (IS_2KLOGIN(isp)) {
 				isp_get_notify_ack_fc_e(isp, nacke_fcp,
 				    (na_fcentry_e_t *)local);
-			else
+			} else {
 				isp_get_notify_ack_fc(isp, nack_fcp,
 				    (na_fcentry_t *)local);
+            }
 			nack_fcp = (na_fcentry_t *)local;
 			isp_prt(isp, ISP_LOGTDEBUG1,
 			    "Notify Ack status=0x%x seqid 0x%x",
@@ -372,13 +377,21 @@ isp_target_put_entry(ispsoftc_t *isp, void *ap)
 		isp_put_atio(isp, (at_entry_t *) ap, (at_entry_t *) outp);
 		break;
 	case RQSTYPE_ATIO2:
-		isp_put_atio2(isp, (at2_entry_t *) ap, (at2_entry_t *) outp);
+        if (IS_2KLOGIN(isp)) {
+            isp_put_atio2e(isp, (at2e_entry_t *) ap, (at2e_entry_t *) outp);
+        } else {
+            isp_put_atio2(isp, (at2_entry_t *) ap, (at2_entry_t *) outp);
+        }
 		break;
 	case RQSTYPE_CTIO:
 		isp_put_ctio(isp, (ct_entry_t *) ap, (ct_entry_t *) outp);
 		break;
 	case RQSTYPE_CTIO2:
-		isp_put_ctio2(isp, (ct2_entry_t *) ap, (ct2_entry_t *) outp);
+        if (IS_2KLOGIN(isp)) {
+            isp_put_ctio2e(isp, (ct2e_entry_t *) ap, (ct2e_entry_t *) outp);
+        } else {
+            isp_put_ctio2(isp, (ct2_entry_t *) ap, (ct2_entry_t *) outp);
+        }
 		break;
 	default:
 		isp_prt(isp, ISP_LOGERR,
@@ -572,6 +585,7 @@ isp_target_async(ispsoftc_t *isp, int bus, int event)
 		uint8_t storage[QENTRY_LEN];
 		memset(storage, 0, QENTRY_LEN);
 		if (IS_FC(isp)) {
+            		/* This should also suffice for 2K login code */
 			ct2_entry_t *ct = (ct2_entry_t *) storage;
 			ct->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 			ct->ct_status = CT_OK;
