@@ -264,6 +264,7 @@ SYSCTL_INT(_machdep, OID_AUTO, moea_pte_spills, CTLFLAG_RD,
     &moea_pte_spills, 0, "");
 
 struct	pvo_entry *moea_pvo_zeropage;
+struct	mtx	moea_pvo_zeropage_mtx;
 
 vm_offset_t	moea_rkva_start = VM_MIN_KERNEL_ADDRESS;
 u_int		moea_rkva_count = 4;
@@ -991,8 +992,12 @@ moea_zero_page(mmu_t mmu, vm_page_t m)
 	if (pa < SEGMENT_LENGTH) {
 		va = (caddr_t) pa;
 	} else if (moea_initialized) {
-		if (moea_pvo_zeropage == NULL)
+		if (moea_pvo_zeropage == NULL) {
 			moea_pvo_zeropage = moea_rkva_alloc(mmu);
+			mtx_init(&moea_pvo_zeropage_mtx, "pvo zero page",
+			    NULL, MTX_DEF);
+		}
+		mtx_lock(&moea_pvo_zeropage_mtx);
 		moea_pa_map(moea_pvo_zeropage, pa, NULL, NULL);
 		va = (caddr_t)PVO_VADDR(moea_pvo_zeropage);
 	} else {
@@ -1001,8 +1006,10 @@ moea_zero_page(mmu_t mmu, vm_page_t m)
 
 	bzero(va, PAGE_SIZE);
 
-	if (pa >= SEGMENT_LENGTH)
+	if (pa >= SEGMENT_LENGTH) {
 		moea_pa_unmap(moea_pvo_zeropage, NULL, NULL);
+		mtx_unlock(&moea_pvo_zeropage_mtx);
+	}
 }
 
 void
@@ -1014,8 +1021,12 @@ moea_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 	if (pa < SEGMENT_LENGTH) {
 		va = (caddr_t) pa;
 	} else if (moea_initialized) {
-		if (moea_pvo_zeropage == NULL)
+		if (moea_pvo_zeropage == NULL) {
 			moea_pvo_zeropage = moea_rkva_alloc(mmu);
+			mtx_init(&moea_pvo_zeropage_mtx, "pvo zero page",
+			    NULL, MTX_DEF);
+		}
+		mtx_lock(&moea_pvo_zeropage_mtx);
 		moea_pa_map(moea_pvo_zeropage, pa, NULL, NULL);
 		va = (caddr_t)PVO_VADDR(moea_pvo_zeropage);
 	} else {
@@ -1024,19 +1035,17 @@ moea_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 
 	bzero(va + off, size);
 
-	if (pa >= SEGMENT_LENGTH)
+	if (pa >= SEGMENT_LENGTH) {
 		moea_pa_unmap(moea_pvo_zeropage, NULL, NULL);
+		mtx_unlock(&moea_pvo_zeropage_mtx);
+	}
 }
 
 void
 moea_zero_page_idle(mmu_t mmu, vm_page_t m)
 {
 
-	/* XXX this is called outside of Giant, is moea_zero_page safe? */
-	/* XXX maybe have a dedicated mapping for this to avoid the problem? */
-	mtx_lock(&Giant);
 	moea_zero_page(mmu, m);
-	mtx_unlock(&Giant);
 }
 
 /*
