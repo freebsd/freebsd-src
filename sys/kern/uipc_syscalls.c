@@ -296,10 +296,53 @@ accept1(td, uap, compat)
 	} */ *uap;
 	int compat;
 {
+	struct sockaddr *name;
+	socklen_t namelen;
+	int error;
+
+	if (uap->name == NULL)
+		return (kern_accept(td, uap->s, NULL, NULL));
+
+	error = copyin(uap->anamelen, &namelen, sizeof (namelen));
+	if (error)
+		return (error);
+
+	error = kern_accept(td, uap->s, &name, &namelen);
+
+	/*
+	 * return a namelen of zero for older code which might
+	 * ignore the return value from accept.
+	 */
+	if (error) {
+		(void) copyout(&namelen,
+		    uap->anamelen, sizeof(*uap->anamelen));
+		return (error);
+	}
+
+	if (error == 0 && name != NULL) {
+#ifdef COMPAT_OLDSOCK
+		if (compat)
+			((struct osockaddr *)name)->sa_family =
+			    name->sa_family;
+#endif
+		error = copyout(name, uap->name, namelen);
+	}
+	if (error == 0)
+		error = copyout(&namelen, uap->anamelen,
+		    sizeof(namelen));
+	if (error)
+		kern_close(td, td->td_retval[0]);
+	free(name, M_SONAME);
+	return (error);
+}
+
+int
+kern_accept(struct thread *td, int s, struct sockaddr **name,
+    socklen_t *namelen)
+{
 	struct filedesc *fdp;
 	struct file *headfp, *nfp = NULL;
 	struct sockaddr *sa = NULL;
-	socklen_t namelen;
 	int error;
 	struct socket *head, *so;
 	int fd;
@@ -307,16 +350,15 @@ accept1(td, uap, compat)
 	pid_t pgid;
 	int tmp;
 
-	fdp = td->td_proc->p_fd;
-	if (uap->name) {
-		error = copyin(uap->anamelen, &namelen, sizeof (namelen));
-		if(error)
-			return (error);
-		if (namelen < 0)
+	if (name) {
+		*name = NULL;
+		if (*namelen < 0)
 			return (EINVAL);
 	}
+
+	fdp = td->td_proc->p_fd;
 	NET_LOCK_GIANT();
-	error = getsock(fdp, uap->s, &headfp, &fflag);
+	error = getsock(fdp, s, &headfp, &fflag);
 	if (error)
 		goto done2;
 	head = headfp->f_data;
@@ -407,34 +449,21 @@ accept1(td, uap, compat)
 		 * return a namelen of zero for older code which might
 		 * ignore the return value from accept.
 		 */
-		if (uap->name != NULL) {
-			namelen = 0;
-			(void) copyout(&namelen,
-			    uap->anamelen, sizeof(*uap->anamelen));
-		}
+		if (name)
+			*namelen = 0;
 		goto noconnection;
 	}
 	if (sa == NULL) {
-		namelen = 0;
-		if (uap->name)
-			goto gotnoname;
-		error = 0;
+		if (name)
+			*namelen = 0;
 		goto done;
 	}
-	if (uap->name) {
+	if (name) {
 		/* check sa_len before it is destroyed */
-		if (namelen > sa->sa_len)
-			namelen = sa->sa_len;
-#ifdef COMPAT_OLDSOCK
-		if (compat)
-			((struct osockaddr *)sa)->sa_family =
-			    sa->sa_family;
-#endif
-		error = copyout(sa, uap->name, (u_int)namelen);
-		if (!error)
-gotnoname:
-			error = copyout(&namelen,
-			    uap->anamelen, sizeof (*uap->anamelen));
+		if (*namelen > sa->sa_len)
+			*namelen = sa->sa_len;
+		*name = sa;
+		sa = NULL;
 	}
 noconnection:
 	if (sa)
@@ -926,12 +955,11 @@ sendmsg(td, uap)
 }
 
 int
-kern_recvit(td, s, mp, namelenp, segflg, controlp)
+kern_recvit(td, s, mp, fromseg, controlp)
 	struct thread *td;
 	int s;
 	struct msghdr *mp;
-	void *namelenp;
-	enum uio_seg segflg;
+	enum uio_seg fromseg;
 	struct mbuf **controlp;
 {
 	struct uio auio;
@@ -972,7 +1000,7 @@ kern_recvit(td, s, mp, namelenp, segflg, controlp)
 
 	auio.uio_iov = mp->msg_iov;
 	auio.uio_iovcnt = mp->msg_iovlen;
-	auio.uio_segflg = segflg;
+	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_rw = UIO_READ;
 	auio.uio_td = td;
 	auio.uio_offset = 0;			/* XXX */
@@ -1020,20 +1048,15 @@ kern_recvit(td, s, mp, namelenp, segflg, controlp)
 				((struct osockaddr *)fromsa)->sa_family =
 				    fromsa->sa_family;
 #endif
-			error = copyout(fromsa, mp->msg_name, (unsigned)len);
-			if (error)
-				goto out;
+			if (fromseg == UIO_USERSPACE) {
+				error = copyout(fromsa, mp->msg_name,
+				    (unsigned)len);
+				if (error)
+					goto out;
+			} else
+				bcopy(fromsa, mp->msg_name, len);
 		}
 		mp->msg_namelen = len;
-		if (namelenp &&
-		    (error = copyout(&len, namelenp, sizeof (socklen_t)))) {
-#ifdef COMPAT_OLDSOCK
-			if (mp->msg_flags & MSG_COMPAT)
-				error = 0;	/* old recvfrom didn't check */
-			else
-#endif
-			goto out;
-		}
 	}
 	if (mp->msg_control && controlp == NULL) {
 #ifdef COMPAT_OLDSOCK
@@ -1102,8 +1125,19 @@ recvit(td, s, mp, namelenp)
 	struct msghdr *mp;
 	void *namelenp;
 {
+	int error;
 
-	return (kern_recvit(td, s, mp, namelenp, UIO_USERSPACE, NULL));
+	error = kern_recvit(td, s, mp, UIO_USERSPACE, NULL);
+	if (error)
+		return (error);
+	if (namelenp) {
+		error = copyout(&mp->msg_namelen, namelenp, sizeof (socklen_t));
+#ifdef COMPAT_OLDSOCK
+		if (mp->msg_flags & MSG_COMPAT)
+			error = 0;	/* old recvfrom didn't check */
+#endif
+	}
+	return (error);
 }
 
 /*
@@ -1459,48 +1493,64 @@ getsockname1(td, uap, compat)
 	} */ *uap;
 	int compat;
 {
-	struct socket *so;
 	struct sockaddr *sa;
+	socklen_t len;
+	int error;
+
+	error = copyin(uap->alen, &len, sizeof(len));
+	if (error)
+		return (error);
+
+	error = kern_getsockname(td, uap->fdes, &sa, &len);
+	if (error)
+		return (error);
+
+	if (len != 0) {
+#ifdef COMPAT_OLDSOCK
+		if (compat)
+			((struct osockaddr *)sa)->sa_family = sa->sa_family;
+#endif
+		error = copyout(sa, uap->asa, (u_int)len);
+	}
+	free(sa, M_SONAME);
+	if (error == 0)
+		error = copyout(&len, uap->alen, sizeof(len));
+	return (error);
+}
+
+int
+kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
+    socklen_t *alen)
+{
+	struct socket *so;
 	struct file *fp;
 	socklen_t len;
 	int error;
 
+	if (*alen < 0)
+		return (EINVAL);
+
 	NET_LOCK_GIANT();
-	error = getsock(td->td_proc->p_fd, uap->fdes, &fp, NULL);
+	error = getsock(td->td_proc->p_fd, fd, &fp, NULL);
 	if (error)
-		goto done2;
+		goto done;
 	so = fp->f_data;
-	error = copyin(uap->alen, &len, sizeof (len));
-	if (error)
-		goto done1;
-	if (len < 0) {
-		error = EINVAL;
-		goto done1;
-	}
-	sa = 0;
-	error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, &sa);
+	*sa = NULL;
+	error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, sa);
 	if (error)
 		goto bad;
-	if (sa == 0) {
+	if (*sa == NULL)
 		len = 0;
-		goto gotnothing;
-	}
-
-	len = MIN(len, sa->sa_len);
-#ifdef COMPAT_OLDSOCK
-	if (compat)
-		((struct osockaddr *)sa)->sa_family = sa->sa_family;
-#endif
-	error = copyout(sa, uap->asa, (u_int)len);
-	if (error == 0)
-gotnothing:
-		error = copyout(&len, uap->alen, sizeof (len));
+	else
+		len = MIN(*alen, (*sa)->sa_len);
+	*alen = len;
 bad:
-	if (sa)
-		FREE(sa, M_SONAME);
-done1:
 	fdrop(fp, td);
-done2:
+	if (error && *sa) {
+		free(*sa, M_SONAME);
+		*sa = NULL;
+	}
+done:
 	NET_UNLOCK_GIANT();
 	return (error);
 }
@@ -1547,14 +1597,45 @@ getpeername1(td, uap, compat)
 	} */ *uap;
 	int compat;
 {
-	struct socket *so;
 	struct sockaddr *sa;
+	socklen_t len;
+	int error;
+
+	error = copyin(uap->alen, &len, sizeof (len));
+	if (error)
+		return (error);
+
+	error = kern_getpeername(td, uap->fdes, &sa, &len);
+	if (error)
+		return (error);
+
+	if (len != 0) {
+#ifdef COMPAT_OLDSOCK
+		if (compat)
+			((struct osockaddr *)sa)->sa_family = sa->sa_family;
+#endif
+		error = copyout(sa, uap->asa, (u_int)len);
+	}
+	free(sa, M_SONAME);
+	if (error == 0)
+		error = copyout(&len, uap->alen, sizeof(len));
+	return (error);
+}
+
+int
+kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
+    socklen_t *alen)
+{
+	struct socket *so;
 	struct file *fp;
 	socklen_t len;
 	int error;
 
+	if (*alen < 0)
+		return (EINVAL);
+
 	NET_LOCK_GIANT();
-	error = getsock(td->td_proc->p_fd, uap->fdes, &fp, NULL);
+	error = getsock(td->td_proc->p_fd, fd, &fp, NULL);
 	if (error)
 		goto done2;
 	so = fp->f_data;
@@ -1562,35 +1643,20 @@ getpeername1(td, uap, compat)
 		error = ENOTCONN;
 		goto done1;
 	}
-	error = copyin(uap->alen, &len, sizeof (len));
-	if (error)
-		goto done1;
-	if (len < 0) {
-		error = EINVAL;
-		goto done1;
-	}
-	sa = 0;
-	error = (*so->so_proto->pr_usrreqs->pru_peeraddr)(so, &sa);
+	*sa = NULL;
+	error = (*so->so_proto->pr_usrreqs->pru_peeraddr)(so, sa);
 	if (error)
 		goto bad;
-	if (sa == 0) {
+	if (*sa == NULL)
 		len = 0;
-		goto gotnothing;
-	}
-	len = MIN(len, sa->sa_len);
-#ifdef COMPAT_OLDSOCK
-	if (compat)
-		((struct osockaddr *)sa)->sa_family =
-		    sa->sa_family;
-#endif
-	error = copyout(sa, uap->asa, (u_int)len);
-	if (error)
-		goto bad;
-gotnothing:
-	error = copyout(&len, uap->alen, sizeof (len));
+	else
+		len = MIN(*alen, (*sa)->sa_len);
+	*alen = len;
 bad:
-	if (sa)
-		FREE(sa, M_SONAME);
+	if (error && *sa) {
+		free(*sa, M_SONAME);
+		*sa = NULL;
+	}
 done1:
 	fdrop(fp, td);
 done2:
