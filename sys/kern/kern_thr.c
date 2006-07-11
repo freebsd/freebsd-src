@@ -128,18 +128,20 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		return (EPROCLIM);
 
 	if (sched != NULL) {
-		/* Only root can set scheduler policy */
-		if (sched->policy != SCHED_OTHER) {
+		switch(sched->policy) {
+		case SCHED_FIFO:
+		case SCHED_RR:
+			/* Only root can set scheduler policy */
 			if (suser(td) != 0)
 				return (EPERM);
-
-			if (sched->policy != SCHED_FIFO &&
-			    sched->policy != SCHED_RR)
-				return (EINVAL);
-
 			if (sched->param.sched_priority < RTP_PRIO_MIN ||
 			    sched->param.sched_priority > RTP_PRIO_MAX)
 				return (EINVAL);
+			break;
+		case SCHED_OTHER:
+			break;
+		default:
+			return (EINVAL);
 		}
 	}
 
