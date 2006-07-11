@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/freebsd/ah_osdep.c#39 $
+ * $Id: //depot/sw/branches/sam_hal/freebsd/ah_osdep.c#3 $
  */
 #include "opt_ah.h"
 
@@ -51,6 +51,20 @@
 #include <net/ethernet.h>		/* XXX for ether_sprintf */
 
 #include <contrib/dev/ath/ah.h>
+
+/*
+ * WiSoC boards overload the bus tag with information about the
+ * board layout.  We must extract the bus space tag from that
+ * indirect structure.  For everyone else the tag is passed in
+ * directly.
+ * XXX cache indirect ref privately
+ */
+#ifdef AH_SUPPORT_AR5312
+#define	BUSTAG(ah) \
+	((bus_space_tag_t) ((struct ar531x_config *)((ah)->ah_st))->tag)
+#else
+#define	BUSTAG(ah)	((bus_space_tag_t) (ah)->ah_st)
+#endif
 
 extern	void ath_hal_printf(struct ath_hal *, const char*, ...)
 		__printflike(2,3);
@@ -82,6 +96,7 @@ TUNABLE_INT("hw.ath.hal.debug", &ath_hal_debug);
 SYSCTL_STRING(_hw_ath_hal, OID_AUTO, version, CTLFLAG_RD, ath_hal_version, 0,
 	"Atheros HAL version");
 
+/* NB: these are deprecated; they exist for now for compatibility */
 int	ath_hal_dma_beacon_response_time = 2;	/* in TU's */
 SYSCTL_INT(_hw_ath_hal, OID_AUTO, dma_brt, CTLFLAG_RW,
 	   &ath_hal_dma_beacon_response_time, 0,
@@ -250,6 +265,9 @@ ath_hal_alq_get(struct ath_hal *ah)
 void
 ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 {
+	bus_space_tag_t tag = BUSTAG(ah);
+	bus_space_handle_t h = (bus_space_handle_t) ah->ah_sh;
+
 	if (ath_hal_alq) {
 		struct ale *ale = ath_hal_alq_get(ah);
 		if (ale) {
@@ -262,22 +280,25 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 	}
 #if _BYTE_ORDER == _BIG_ENDIAN
 	if (reg >= 0x4000 && reg < 0x5000)
-		bus_space_write_4(ah->ah_st, ah->ah_sh, reg, htole32(val));
+		bus_space_write_4(tag, h, reg, val);
 	else
 #endif
-		bus_space_write_4(ah->ah_st, ah->ah_sh, reg, val);
+		bus_space_write_stream_4(tag, h, reg, val);
 }
 
 u_int32_t
 ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 {
+	bus_space_tag_t tag = BUSTAG(ah);
+	bus_space_handle_t h = (bus_space_handle_t) ah->ah_sh;
 	u_int32_t val;
 
-	val = bus_space_read_4(ah->ah_st, ah->ah_sh, reg);
 #if _BYTE_ORDER == _BIG_ENDIAN
 	if (reg >= 0x4000 && reg < 0x5000)
-		val = le32toh(val);
+		val = bus_space_read_4(tag, h, reg);
+	else
 #endif
+		val = bus_space_read_stream_4(tag, h, reg);
 	if (ath_hal_alq) {
 		struct ale *ale = ath_hal_alq_get(ah);
 		if (ale) {
@@ -320,24 +341,30 @@ OS_MARK(struct ath_hal *ah, u_int id, u_int32_t v)
 void
 ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 {
+	bus_space_tag_t tag = BUSTAG(ah);
+	bus_space_handle_t h = (bus_space_handle_t) ah->ah_sh;
+
 #if _BYTE_ORDER == _BIG_ENDIAN
 	if (reg >= 0x4000 && reg < 0x5000)
-		bus_space_write_4(ah->ah_st, ah->ah_sh, reg, htole32(val));
+		bus_space_write_4(tag, h, reg, val);
 	else
 #endif
-		bus_space_write_4(ah->ah_st, ah->ah_sh, reg, val);
+		bus_space_write_stream_4(tag, h, reg, val);
 }
 
 u_int32_t
 ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 {
+	bus_space_tag_t tag = BUSTAG(ah);
+	bus_space_handle_t h = (bus_space_handle_t) ah->ah_sh;
 	u_int32_t val;
 
-	val = bus_space_read_4(ah->ah_st, ah->ah_sh, reg);
 #if _BYTE_ORDER == _BIG_ENDIAN
 	if (reg >= 0x4000 && reg < 0x5000)
-		val = le32toh(val);
+		val = bus_space_read_4(tag, h, reg);
+	else
 #endif
+		val = bus_space_read_stream_4(tag, h, reg);
 	return val;
 }
 #endif /* AH_DEBUG || AH_REGOPS_FUNC */

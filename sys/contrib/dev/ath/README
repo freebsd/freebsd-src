@@ -1,4 +1,4 @@
-$Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/README#5 $
+$Id: //depot/sw/branches/sam_hal/README#2 $
 
 
 Atheros Hardware Access Layer (HAL)
@@ -52,3 +52,22 @@ The Atheors PCI vendor id is 0x168c.  The file ah_devid.h lists most
 known PCI device id's but is not exhaustive.  Some vendors program
 their own vendor and/or device id's to aid in BIOS-locking mini-pci
 cards in laptops.
+
+Atheros SoC Hardware
+====================
+In addition to the cardbus/pci devices Atheros makes System on Chip
+(SoC) parts that integrate a MIPS cpu core and one or more MAC and
+radio parts.  Binary support for these parts is necessarily built
+for the embedded MIPS processor where the code is to be run.
+
+Caveats
+=======
+The binary hal builds provided here include no floating point and
+are operating system-independent.  However due to toolchain
+peculiarities the .o files may be wrongly rejected by development
+tools.  If that happens it may be possible to patch the file header
+so that the native toolchain will accept the files.  In particular
+this has been observed for various Linux MIPS installations for the
+SoC parts.  If you have issues consult the associated .inc file in
+the public directory; it explains exactly how the binary file was
+created (e.g. toolchain and compilation options).

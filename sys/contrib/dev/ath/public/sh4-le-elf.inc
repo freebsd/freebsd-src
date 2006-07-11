@@ -33,7 +33,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGES.
 #
-# $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/public/sh4-le-elf.inc#21 $
+# $Id: //depot/sw/branches/sam_hal/public/sh4-le-elf.inc#1 $
 #
 
 #
