@@ -30,6 +30,13 @@
 #ifndef _SYS_THR_H_
 #define	_SYS_THR_H_
 
+#include <posix4/sched.h>
+
+struct thr_sched_param {
+	int	policy;
+	struct	sched_param	param;
+};
+
 /* Create the thread in the suspended state. */
 #define	THR_SUSPENDED		0x0001
 /* Create the system scope thread. */
@@ -45,7 +52,8 @@ struct thr_param {
     long	*child_tid;		/* address to store new TID. */
     long	*parent_tid;		/* parent accesses the new TID here. */
     int		flags;			/* thread flags. */
-    void	*spare[4];		/* TODO: cpu affinity mask etc. */
+    struct thr_sched_param *sched;	/* POSIX scheduler parameters .*/
+    void	*spare[3];		/* TODO: cpu affinity mask etc. */
 };
 
 /* 
