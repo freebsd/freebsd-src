@@ -13,6 +13,17 @@ font.h                          optional        sc            \
         compile-with    "uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x16.fnt && file2c 'u_char dflt_font_16[16*256] = {' '};' < ${SC_DFLT_FONT}-8x16 > font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x14.fnt && file2c 'u_char dflt_font_14[14*256] = {' '};' < ${SC_DFLT_FONT}-8x14 >> font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x8.fnt && file2c 'u_char dflt_font_8[8*256] = {' '};' < ${SC_DFLT_FONT}-8x8 >> font.h" \
 	no-obj no-implicit-rule before-depend				\
 	clean	"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
+#
+hal.o				optional	ath_hal			\
+	dependency	"$S/contrib/dev/ath/public/powerpc-be-elf.hal.o.uu"	\
+	compile-with	"uudecode < $S/contrib/dev/ath/public/powerpc-be-elf.hal.o.uu" \
+	no-implicit-rule
+opt_ah.h			optional	ath_hal			\
+	dependency	"$S/contrib/dev/ath/public/powerpc-be-elf.opt_ah.h"	\
+	compile-with	"cp $S/contrib/dev/ath/public/powerpc-be-elf.opt_ah.h opt_ah.h" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"opt_ah.h"
+#
 
 dev/fb/fb.c			optional	sc
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
