@@ -100,7 +100,7 @@ ksched_detach(struct ksched *ks)
 #define P1B_PRIO_MAX rtpprio_to_p4prio(RTP_PRIO_MIN)
 
 static __inline int
-getscheduler(register_t *ret, struct ksched *ksched, struct thread *td)
+getscheduler(struct ksched *ksched, struct thread *td, int *policy)
 {
 	struct rtprio rtp;
 	int e = 0;
@@ -111,15 +111,15 @@ getscheduler(register_t *ret, struct ksched *ksched, struct thread *td)
 	switch (rtp.type)
 	{
 		case RTP_PRIO_FIFO:
-		*ret = SCHED_FIFO;
+		*policy = SCHED_FIFO;
 		break;
 
 		case RTP_PRIO_REALTIME:
-		*ret = SCHED_RR;
+		*policy = SCHED_RR;
 		break;
 
 		default:
-		*ret = SCHED_OTHER;
+		*policy = SCHED_OTHER;
 		break;
 	}
 
@@ -127,27 +127,27 @@ getscheduler(register_t *ret, struct ksched *ksched, struct thread *td)
 }
 
 int
-ksched_setparam(register_t *ret, struct ksched *ksched,
+ksched_setparam(struct ksched *ksched,
     struct thread *td, const struct sched_param *param)
 {
-	register_t policy;
+	int policy;
 	int e;
 
-	e = getscheduler(&policy, ksched, td);
+	e = getscheduler(ksched, td, &policy);
 
 	if (e == 0)
 	{
 		if (policy == SCHED_OTHER)
 			e = EINVAL;
 		else
-			e = ksched_setscheduler(ret, ksched, td, policy, param);
+			e = ksched_setscheduler(ksched, td, policy, param);
 	}
 
 	return e;
 }
 
 int
-ksched_getparam(register_t *ret, struct ksched *ksched,
+ksched_getparam(struct ksched *ksched,
     struct thread *td, struct sched_param *param)
 {
 	struct rtprio rtp;
@@ -169,7 +169,7 @@ ksched_getparam(register_t *ret, struct ksched *ksched,
  *
  */
 int
-ksched_setscheduler(register_t *ret, struct ksched *ksched,
+ksched_setscheduler(struct ksched *ksched,
     struct thread *td, int policy, const struct sched_param *param)
 {
 	int e = 0;
@@ -243,22 +243,22 @@ ksched_setscheduler(register_t *ret, struct ksched *ksched,
 }
 
 int
-ksched_getscheduler(register_t *ret, struct ksched *ksched, struct thread *td)
+ksched_getscheduler(struct ksched *ksched, struct thread *td, int *policy)
 {
-	return getscheduler(ret, ksched, td);
+	return getscheduler(ksched, td, policy);
 }
 
 /* ksched_yield: Yield the CPU.
  */
 int
-ksched_yield(register_t *ret, struct ksched *ksched)
+ksched_yield(struct ksched *ksched)
 {
 	sched_relinquish(curthread);
 	return 0;
 }
 
 int
-ksched_get_priority_max(register_t*ret, struct ksched *ksched, int policy)
+ksched_get_priority_max(struct ksched *ksched, int policy, int *prio)
 {
 	int e = 0;
 
@@ -266,11 +266,11 @@ ksched_get_priority_max(register_t*ret, struct ksched *ksched, int policy)
 	{
 		case SCHED_FIFO:
 		case SCHED_RR:
-		*ret = RTP_PRIO_MAX;
+		*prio = RTP_PRIO_MAX;
 		break;
 
 		case SCHED_OTHER:
-		*ret =  PRIO_MAX;
+		*prio =  PRIO_MAX;
 		break;
 
 		default:
@@ -281,7 +281,7 @@ ksched_get_priority_max(register_t*ret, struct ksched *ksched, int policy)
 }
 
 int
-ksched_get_priority_min(register_t *ret, struct ksched *ksched, int policy)
+ksched_get_priority_min(struct ksched *ksched, int policy, int *prio)
 {
 	int e = 0;
 
@@ -289,11 +289,11 @@ ksched_get_priority_min(register_t *ret, struct ksched *ksched, int policy)
 	{
 		case SCHED_FIFO:
 		case SCHED_RR:
-		*ret = P1B_PRIO_MIN;
+		*prio = P1B_PRIO_MIN;
 		break;
 
 		case SCHED_OTHER:
-		*ret =  PRIO_MIN;
+		*prio =  PRIO_MIN;
 		break;
 
 		default:
@@ -304,8 +304,8 @@ ksched_get_priority_min(register_t *ret, struct ksched *ksched, int policy)
 }
 
 int
-ksched_rr_get_interval(register_t *ret, struct ksched *ksched,
-    struct thread *td, struct timespec *timespec)
+ksched_rr_get_interval(struct ksched *ksched,
+   struct thread *td, struct timespec *timespec)
 {
 	*timespec = ksched->rr_interval;
 
