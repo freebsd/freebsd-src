@@ -7,7 +7,8 @@
 #define FREEBSD_NATIVE 1
 
 /* Fake out gcc/config/freebsd<version>.h.  */
-#define	FBSD_MAJOR 6
+#define	FBSD_MAJOR	6
+#define FBSD_CC_VER	602001          /* form like __FreeBSD_version */
 
 #undef SYSTEM_INCLUDE_DIR		/* We don't need one for now. */
 #undef TOOL_INCLUDE_DIR			/* We don't need one for now. */
