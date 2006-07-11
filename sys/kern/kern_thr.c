@@ -217,23 +217,27 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		case SCHED_FIFO:
 			rtp.type = PRI_FIFO;
 			rtp.prio = sched->param.sched_priority;
+			rtp_to_pri(&rtp, newkg);
+			sched_prio(newtd, newkg->kg_user_pri);
 			break;
 		case SCHED_RR:
 			rtp.type = PRI_REALTIME;
 			rtp.prio = sched->param.sched_priority;
+			rtp_to_pri(&rtp, newkg);
+			sched_prio(newtd, newkg->kg_user_pri);
 			break;
 		case SCHED_OTHER:
-			rtp.type = PRI_TIMESHARE;
-			if (curthread->td_ksegrp->kg_pri_class == PRI_TIMESHARE)
-				rtp.prio = curthread->td_ksegrp->kg_user_pri;
-			else
+			if (curthread->td_ksegrp->kg_pri_class !=
+			    PRI_TIMESHARE) {
+				rtp.type = PRI_TIMESHARE;
 				rtp.prio = 0;
+				rtp_to_pri(&rtp, newkg);
+				sched_prio(newtd, newkg->kg_user_pri);
+			}
 			break;
 		default:
 			panic("sched policy");
 		}
-		rtp_to_pri(&rtp, newkg);
-		sched_prio(newtd, newkg->kg_user_pri);
 	}
 	TD_SET_CAN_RUN(newtd);
 	/* if ((flags & THR_SUSPENDED) == 0) */
