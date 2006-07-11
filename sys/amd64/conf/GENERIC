@@ -219,7 +219,13 @@ device		xe		# Xircom pccard Ethernet
 
 # Wireless NIC cards
 device		wlan		# 802.11 support
+device		wlan_wep	# 802.11 WEP support
+device		wlan_ccmp	# 802.11 CCMP support
+device		wlan_tkip	# 802.11 TKIP support
 device		an		# Aironet 4500/4800 802.11 wireless NICs.
+device		ath		# Atheros pci/cardbus NIC's
+device		ath_hal		# Atheros HAL (Hardware Access Layer)
+device		ath_rate_sample	# SampleRate tx rate control for ath
 device		awi		# BayStack 660 and others
 device		ral		# Ralink Technology RT2500 wireless NICs.
 device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
