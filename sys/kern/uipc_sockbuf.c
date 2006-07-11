@@ -1128,12 +1128,6 @@ sbcreatecontrol(p, size, type, level)
  * Some routines that return EOPNOTSUPP for entry points that are not
  * supported by a protocol.  Fill in as needed.
  */
-void
-pru_abort_notsupp(struct socket *so)
-{
-
-}
-
 int
 pru_accept_notsupp(struct socket *so, struct sockaddr **nam)
 {
@@ -1169,12 +1163,6 @@ pru_control_notsupp(struct socket *so, u_long cmd, caddr_t data,
 	struct ifnet *ifp, struct thread *td)
 {
 	return EOPNOTSUPP;
-}
-
-void
-pru_detach_notsupp(struct socket *so)
-{
-
 }
 
 int
@@ -1257,16 +1245,6 @@ pru_sopoll_notsupp(struct socket *so, int events, struct ucred *cred,
 	struct thread *td)
 {
 	return EOPNOTSUPP;
-}
-
-/*
- * For protocol types that don't keep cached copies of labels in their
- * pcbs, provide a null sosetlabel that does a NOOP.
- */
-void
-pru_sosetlabel_null(struct socket *so)
-{
-
 }
 
 /*
