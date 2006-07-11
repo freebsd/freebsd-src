@@ -33,7 +33,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGES.
 #
-# $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/public/xscale-le-elf.inc#17 $
+# $Id: //depot/sw/branches/sam_hal/public/xscale-le-elf.inc#2 $
 #
 
 #
@@ -71,7 +71,12 @@ STRIP=	${TOOLPREFIX}strip
 OBJCOPY=${TOOLPREFIX}objcopy
 NM=	${TOOLPREFIX}nm
 
+#
+# Force register read/write operations to go through a function.
+#
+AH_REGOPS_FUNC=1
+
 LDOPTS=	-EL
-COPTS+=	-DAH_BYTE_ORDER=AH_LITTLE_ENDIAN -DAH_REGOPS_FUNC
+COPTS+=	-DAH_BYTE_ORDER=AH_LITTLE_ENDIAN
 COPTS+= -march=armv4 -mlittle-endian -fno-strict-aliasing -fno-common \
 	-mapcs-32 -mtune=xscale  -mshort-load-bytes -msoft-float -mfp=2
