@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/ucontext.h>
 #include <sys/thr.h>
+#include <sys/rtprio.h>
+#include <posix4/sched.h>
 #include <sys/umtx.h>
 #include <sys/limits.h>
 
@@ -54,7 +56,7 @@ static int create_thread(struct thread *td, mcontext_t *ctx,
 			 char *stack_base, size_t stack_size,
 			 char *tls_base,
 			 long *child_tid, long *parent_tid,
-			 int flags);
+			 int flags, struct thr_sched_param *sched);
 
 /*
  * System call interface.
@@ -70,7 +72,7 @@ thr_create(struct thread *td, struct thr_create_args *uap)
 		return (error);
 
 	error = create_thread(td, &ctx.uc_mcontext, NULL, NULL,
-		NULL, 0, NULL, uap->id, NULL, uap->flags);
+		NULL, 0, NULL, uap->id, NULL, uap->flags, NULL);
 	return (error);
 }
 
@@ -79,15 +81,26 @@ thr_new(struct thread *td, struct thr_new_args *uap)
     /* struct thr_param * */
 {
 	struct thr_param param;
+	struct thr_sched_param sched_param, *sched;
 	int error;
 
 	if (uap->param_size < sizeof(param))
 		return (EINVAL);
 	if ((error = copyin(uap->param, &param, sizeof(param))))
 		return (error);
+	sched = NULL;
+	if (param.sched != NULL) {
+		error = copyin(param.sched, &sched_param,
+			sizeof(sched_param));
+		if (error)
+			return (error);
+		sched = &sched_param;
+	}
+
 	error = create_thread(td, NULL, param.start_func, param.arg,
 		param.stack_base, param.stack_size, param.tls_base,
-		param.child_tid, param.parent_tid, param.flags);
+		param.child_tid, param.parent_tid, param.flags,
+		sched);
 	return (error);
 }
 
@@ -97,7 +110,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	    char *stack_base, size_t stack_size,
 	    char *tls_base,
 	    long *child_tid, long *parent_tid,
-	    int flags)
+	    int flags, struct thr_sched_param *sched)
 {
 	stack_t stack;
 	struct thread *newtd;
@@ -113,6 +126,22 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	/* Have race condition but it is cheap. */
 	if (p->p_numthreads >= max_threads_per_proc)
 		return (EPROCLIM);
+
+	if (sched != NULL) {
+		/* Only root can set scheduler policy */
+		if (sched->policy != SCHED_OTHER) {
+			if (suser(td) != 0)
+				return (EPERM);
+
+			if (sched->policy != SCHED_FIFO &&
+			    sched->policy != SCHED_RR)
+				return (EINVAL);
+
+			if (sched->param.sched_priority < RTP_PRIO_MIN ||
+			    sched->param.sched_priority > RTP_PRIO_MAX)
+				return (EINVAL);
+		}
+	}
 
 	/* Initialize our td and new ksegrp.. */
 	newtd = thread_alloc();
@@ -182,6 +211,30 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	/* let the scheduler know about these things. */
 	sched_fork_ksegrp(td, newkg);
 	sched_fork_thread(td, newtd);
+	if (sched != NULL) {
+		struct rtprio rtp;
+		switch (sched->policy) {
+		case SCHED_FIFO:
+			rtp.type = PRI_FIFO;
+			rtp.prio = sched->param.sched_priority;
+			break;
+		case SCHED_RR:
+			rtp.type = PRI_REALTIME;
+			rtp.prio = sched->param.sched_priority;
+			break;
+		case SCHED_OTHER:
+			rtp.type = PRI_TIMESHARE;
+			if (curthread->td_ksegrp->kg_pri_class == PRI_TIMESHARE)
+				rtp.prio = curthread->td_ksegrp->kg_user_pri;
+			else
+				rtp.prio = 0;
+			break;
+		default:
+			panic("sched policy");
+		}
+		rtp_to_pri(&rtp, newkg);
+		sched_prio(newtd, newkg->kg_user_pri);
+	}
 	TD_SET_CAN_RUN(newtd);
 	/* if ((flags & THR_SUSPENDED) == 0) */
 		setrunqueue(newtd, SRQ_BORING);
