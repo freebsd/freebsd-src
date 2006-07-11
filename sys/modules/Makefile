@@ -431,6 +431,7 @@ _snc=		snc
 .if ${MACHINE_ARCH} == "alpha"
 _agp=		agp
 _ahb=		ahb
+_ath_hal=	ath_hal
 _ext2fs=	ext2fs
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
