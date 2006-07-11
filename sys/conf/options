@@ -700,18 +700,6 @@ ATH_RXBUF		opt_ath.h
 ATH_DIAGAPI		opt_ath.h
 ATH_TX99_DIAG		opt_ath.h
 
-# options for the Atheros HAL (only useful with source code)
-AH_SUPPORT_AR5210	opt_ah.h
-AH_SUPPORT_AR5211	opt_ah.h
-AH_SUPPORT_AR5212	opt_ah.h
-AH_SUPPORT_5111		opt_ah.h
-AH_SUPPORT_5112		opt_ah.h
-AH_SUPPORT_2413		opt_ah.h
-AH_SUPPORT_5413		opt_ah.h
-AH_DEBUG		opt_ah.h
-AH_DEBUG_ALQ		opt_ah.h
-AH_ASSERT		opt_ah.h
-
 # dcons options 
 DCONS_BUF_SIZE		opt_dcons.h
 DCONS_POLL_HZ		opt_dcons.h
