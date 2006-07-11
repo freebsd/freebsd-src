@@ -148,8 +148,9 @@ ath_pci_attach(device_t dev)
 		device_printf(dev, "cannot map register space\n");
 		goto bad;
 	}
-	sc->sc_st = rman_get_bustag(psc->sc_sr);
-	sc->sc_sh = rman_get_bushandle(psc->sc_sr);
+	/* XXX uintptr_t is a bandaid for ia64; to be fixed */
+	sc->sc_st = (HAL_BUS_TAG)(uintptr_t) rman_get_bustag(psc->sc_sr);
+	sc->sc_sh = (HAL_BUS_HANDLE)(uintptr_t) rman_get_bushandle(psc->sc_sr);
 	/*
 	 * Mark device invalid so any interrupts (shared or otherwise)
 	 * that arrive before the HAL is setup are discarded.
@@ -183,7 +184,7 @@ ath_pci_attach(device_t dev)
 			       NULL, NULL,		/* filter, filterarg */
 			       0x3ffff,			/* maxsize XXX */
 			       ATH_MAX_SCATTER,		/* nsegments */
-			       BUS_SPACE_MAXADDR,	/* maxsegsize */
+			       0x3ffff,			/* maxsegsize XXX */
 			       BUS_DMA_ALLOCNOW,	/* flags */
 			       NULL,			/* lockfunc */
 			       NULL,			/* lockarg */
