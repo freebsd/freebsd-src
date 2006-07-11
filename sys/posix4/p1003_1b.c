@@ -316,8 +316,6 @@ sched_get_priority_min(struct thread *td,
 
 	error = ksched_get_priority_min(ksched, uap->policy, &prio);
 	td->td_retval[0] = prio;
-	printf("uap->policy=%d error=%d prio=%d\n", uap->policy, error,
-		prio);
 	return (error);
 }
 
