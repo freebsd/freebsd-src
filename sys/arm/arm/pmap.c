@@ -199,7 +199,7 @@ static void pmap_free_pv_entry (pv_entry_t);
 static pv_entry_t pmap_get_pv_entry(void);
 
 static void		pmap_enter_locked(pmap_t, vm_offset_t, vm_page_t,
-    vm_prot_t, boolean_t);
+    vm_prot_t, boolean_t, int);
 static void		pmap_vac_me_harder(struct vm_page *, pmap_t,
     vm_offset_t);
 static void		pmap_vac_me_kpmap(struct vm_page *, pmap_t, 
@@ -373,7 +373,7 @@ struct l2_dtable {
  * L2 allocation.
  */
 #define	pmap_alloc_l2_dtable()		\
-		(void*)uma_zalloc(l2table_zone, M_NOWAIT)
+		(void*)uma_zalloc(l2table_zone, M_NOWAIT|M_USE_RESERVE)
 #define	pmap_free_l2_dtable(l2)		\
 		uma_zfree(l2table_zone, l2)
 
@@ -952,7 +952,7 @@ again_l2table:
 again_ptep:
 		PMAP_UNLOCK(pm);
 		vm_page_unlock_queues();
-		ptep = (void*)uma_zalloc(l2zone, M_NOWAIT);
+		ptep = (void*)uma_zalloc(l2zone, M_NOWAIT|M_USE_RESERVE);
 		vm_page_lock_queues();
 		PMAP_LOCK(pm);
 		if (l2b->l2b_kva != 0) {
@@ -3306,7 +3306,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
-	pmap_enter_locked(pmap, va, m, prot, wired);
+	pmap_enter_locked(pmap, va, m, prot, wired, M_WAITOK);
 	vm_page_unlock_queues();
  	PMAP_UNLOCK(pmap);
 }
@@ -3316,7 +3316,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
  */
 static void
 pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
-    boolean_t wired)
+    boolean_t wired, int flags)
 {
 	struct l2_bucket *l2b = NULL;
 	struct vm_page *opg;
@@ -3347,10 +3347,22 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		l2b = pmap_get_l2_bucket(pmap, va);
 		if (l2b == NULL)
 			l2b = pmap_grow_l2_bucket(pmap, va);
-	} else
+	} else {
+do_l2b_alloc:
 		l2b = pmap_alloc_l2_bucket(pmap, va);
-		KASSERT(l2b != NULL,
-		    ("pmap_enter: failed to allocate l2 bucket"));
+		if (l2b == NULL) {
+			if (flags & M_WAITOK) {
+				PMAP_UNLOCK(pmap);
+				vm_page_unlock_queues();
+				VM_WAIT;
+				vm_page_lock_queues();
+				PMAP_LOCK(pmap);
+				goto do_l2b_alloc;
+			}
+			return;
+		}
+	}
+
 	ptep = &l2b->l2b_kva[l2pte_index(va)];
 		    
 	opte = *ptep;
@@ -3557,7 +3569,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	PMAP_LOCK(pmap);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		pmap_enter_locked(pmap, start + ptoa(diff), m, prot &
-		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
+		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE, M_NOWAIT);
 		m = TAILQ_NEXT(m, listq);
 	}
  	PMAP_UNLOCK(pmap);
@@ -3578,7 +3590,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 
  	PMAP_LOCK(pmap);
 	pmap_enter_locked(pmap, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
-	    FALSE);
+	    FALSE, M_NOWAIT);
  	PMAP_UNLOCK(pmap);
 }
 
