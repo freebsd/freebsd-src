@@ -266,7 +266,7 @@ void
 ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 {
 	bus_space_tag_t tag = BUSTAG(ah);
-	bus_space_handle_t h = (bus_space_handle_t) ah->ah_sh;
+	bus_space_handle_t h = (bus_space_handle_t)(uintptr_t) ah->ah_sh;
 
 	if (ath_hal_alq) {
 		struct ale *ale = ath_hal_alq_get(ah);
@@ -290,7 +290,7 @@ u_int32_t
 ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 {
 	bus_space_tag_t tag = BUSTAG(ah);
-	bus_space_handle_t h = (bus_space_handle_t) ah->ah_sh;
+	bus_space_handle_t h = (bus_space_handle_t)(uintptr_t) ah->ah_sh;
 	u_int32_t val;
 
 #if _BYTE_ORDER == _BIG_ENDIAN
@@ -342,7 +342,7 @@ void
 ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 {
 	bus_space_tag_t tag = BUSTAG(ah);
-	bus_space_handle_t h = (bus_space_handle_t) ah->ah_sh;
+	bus_space_handle_t h = (bus_space_handle_t)(uintptr_t) ah->ah_sh;
 
 #if _BYTE_ORDER == _BIG_ENDIAN
 	if (reg >= 0x4000 && reg < 0x5000)
@@ -356,7 +356,7 @@ u_int32_t
 ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 {
 	bus_space_tag_t tag = BUSTAG(ah);
-	bus_space_handle_t h = (bus_space_handle_t) ah->ah_sh;
+	bus_space_handle_t h = (bus_space_handle_t)(uintptr_t) ah->ah_sh;
 	u_int32_t val;
 
 #if _BYTE_ORDER == _BIG_ENDIAN
