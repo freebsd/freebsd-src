@@ -119,7 +119,7 @@ struct ath_descdma {
 	const char*		dd_name;
 	struct ath_desc		*dd_desc;	/* descriptors */
 	bus_addr_t		dd_desc_paddr;	/* physical addr of dd_desc */
-	bus_addr_t		dd_desc_len;	/* size of dd_desc */
+	bus_size_t		dd_desc_len;	/* size of dd_desc */
 	bus_dma_segment_t	dd_dseg;
 	bus_dma_tag_t		dd_dmat;	/* bus DMA tag */
 	bus_dmamap_t		dd_dmamap;	/* DMA map for descriptors */
@@ -181,8 +181,8 @@ struct ath_softc {
 					enum ieee80211_state, int);
 	void 			(*sc_node_free)(struct ieee80211_node *);
 	device_t		sc_dev;
-	bus_space_tag_t		sc_st;		/* bus space tag */
-	bus_space_handle_t	sc_sh;		/* bus space handle */
+	HAL_BUS_TAG		sc_st;		/* bus space tag */
+	HAL_BUS_HANDLE		sc_sh;		/* bus space handle */
 	bus_dma_tag_t		sc_dmat;	/* bus DMA tag */
 	struct mtx		sc_mtx;		/* master lock (recursive) */
 	struct taskqueue	*sc_tq;		/* private task queue */
@@ -416,11 +416,11 @@ void	ath_intr(void *);
 	((*(_ah)->ah_startPcuReceive)((_ah)))
 #define	ath_hal_stopdmarecv(_ah) \
 	((*(_ah)->ah_stopDmaReceive)((_ah)))
-#define	ath_hal_getfatalstate(_ah, _outdata, _outsize) \
-	ath_hal_getdiagstate(_ah, 27, NULL, 0, (void **)(_outdata), _outsize)
 #define	ath_hal_getdiagstate(_ah, _id, _indata, _insize, _outdata, _outsize) \
 	((*(_ah)->ah_getDiagState)((_ah), (_id), \
 		(_indata), (_insize), (_outdata), (_outsize)))
+#define	ath_hal_getfatalstate(_ah, _outdata, _outsize) \
+	ath_hal_getdiagstate(_ah, 27, NULL, 0, (void **)(_outdata), _outsize)
 #define	ath_hal_setuptxqueue(_ah, _type, _irq) \
 	((*(_ah)->ah_setupTxQueue)((_ah), (_type), (_irq)))
 #define	ath_hal_resettxqueue(_ah, _q) \
