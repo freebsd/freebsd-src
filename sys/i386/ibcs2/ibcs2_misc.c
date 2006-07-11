@@ -329,7 +329,7 @@ ibcs2_getdents(td, uap)
 	struct iovec aiov;
 	struct ibcs2_dirent idb;
 	off_t off;			/* true file offset */
-	int buflen, error, eofflag;
+	int buflen, error, eofflag, vfslocked;
 	u_long *cookies = NULL, *cookiep;
 	int ncookies;
 #define	BSD_DIRENT(cp)		((struct dirent *)(cp))
@@ -342,7 +342,9 @@ ibcs2_getdents(td, uap)
 		return (EBADF);
 	}
 	vp = fp->f_vnode;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (vp->v_type != VDIR) {	/* XXX  vnode readdir op should do this */
+		VFS_UNLOCK_GIANT(vfslocked);
 		fdrop(fp, td);
 		return (EINVAL);
 	}
@@ -459,6 +461,7 @@ eof:
 	td->td_retval[0] = uap->nbytes - resid;
 out:
 	VOP_UNLOCK(vp, 0, td);
+	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 	if (cookies)
 		free(cookies, M_TEMP);
@@ -484,7 +487,7 @@ ibcs2_read(td, uap)
 		char name[14];
 	} idb;
 	off_t off;			/* true file offset */
-	int buflen, error, eofflag, size;
+	int buflen, error, eofflag, size, vfslocked;
 	u_long *cookies = NULL, *cookiep;
 	int ncookies;
 
@@ -499,7 +502,9 @@ ibcs2_read(td, uap)
 		return (EBADF);
 	}
 	vp = fp->f_vnode;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (vp->v_type != VDIR) {
+		VFS_UNLOCK_GIANT(vfslocked);
 		fdrop(fp, td);
 		return read(td, (struct read_args *)uap);
 	}
@@ -622,6 +627,7 @@ eof:
 	td->td_retval[0] = uap->nbytes - resid;
 out:
 	VOP_UNLOCK(vp, 0, td);
+	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 	if (cookies)
 		free(cookies, M_TEMP);
