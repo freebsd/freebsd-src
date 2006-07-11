@@ -27,15 +27,6 @@
  * SUCH DAMAGE.
  */
 
-struct iwi_firmware {
-	void	*boot;
-	int	boot_size;
-	void	*ucode;
-	int	ucode_size;
-	void	*main;
-	int	main_size;
-};
-
 struct iwi_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
 	uint8_t		wr_flags;
@@ -116,6 +107,13 @@ struct iwi_node {
 #define IWI_MAX_IBSSNODE	32
 };
 
+struct iwi_fw {
+	struct firmware		*fp;		/* image handle */
+	const char		*data;		/* firmware image data */
+	size_t			size;		/* firmware image size */
+	const char		*name;		/* associated image name */
+};
+
 struct iwi_softc {
 	struct ifnet		*sc_ifp;
 	struct ieee80211com	sc_ic;
@@ -125,14 +123,19 @@ struct iwi_softc {
 	device_t		sc_dev;
 
 	struct mtx		sc_mtx;
+	uint8_t			sc_mcast[IEEE80211_ADDR_LEN];
 	struct unrhdr		*sc_unr;
+	struct taskqueue	*sc_tq;		/* private task queue */
+#if __FreeBSD_version < 700000
+	struct proc		*sc_tqproc;
+#endif
 
-	struct iwi_firmware	fw;
 	uint32_t		flags;
-#define IWI_FLAG_FW_CACHED	(1 << 0)
-#define IWI_FLAG_FW_INITED	(1 << 1)
-#define IWI_FLAG_FW_WARNED	(1 << 2)
-#define IWI_FLAG_SCANNING	(1 << 3)
+#define IWI_FLAG_FW_INITED	(1 << 0)
+#define IWI_FLAG_SCANNING	(1 << 1)
+#define	IWI_FLAG_FW_LOADING	(1 << 2)
+#define	IWI_FLAG_BUSY		(1 << 3)	/* busy sending a command */
+#define	IWI_FLAG_ASSOCIATED	(1 << 4)	/* currently associated  */
 
 	struct iwi_cmd_ring	cmdq;
 	struct iwi_tx_ring	txq[WME_NUM_AC];
@@ -146,11 +149,50 @@ struct iwi_softc {
 	int			mem_rid;
 	int			irq_rid;
 
+	int			fw_dma_size;
+	bus_dma_tag_t		fw_dmat;
+	bus_dmamap_t		fw_map;
+	bus_addr_t		fw_physaddr;
+	void			*fw_virtaddr;
+	enum ieee80211_opmode	fw_mode;	/* mode of current firmware */
+	struct iwi_fw		fw_boot;	/* boot firmware */
+	struct iwi_fw		fw_uc;		/* microcode */
+	struct iwi_fw		fw_fw;		/* operating mode support */
+
+	int			curchan;	/* current h/w channel # */
 	int			antenna;
 	int			dwelltime;
 	int			bluetooth;
+	struct iwi_associate	assoc;
+	struct iwi_wme_params	wme[3];
+
+	struct task		sc_radiontask;	/* radio on processing */
+	struct task		sc_radiofftask;	/* radio off processing */
+	struct task		sc_scanstarttask;/* scan start processing */
+	struct task		sc_scanaborttask;/* scan abort processing */
+	struct task		sc_scandonetask;/* scan completed processing */
+	struct task		sc_scantask;	/* scan channel processing */
+	struct task		sc_setwmetask;	/* set wme params processing */
+	struct task		sc_downtask;	/* disassociate processing */
+	struct task		sc_restarttask;	/* restart adapter processing */
+
+	unsigned int		sc_softled : 1,	/* enable LED gpio status */
+				sc_ledstate: 1,	/* LED on/off state */
+				sc_blinking: 1;	/* LED blink operation active */
+	u_int			sc_nictype;	/* NIC type from EEPROM */
+	u_int			sc_ledpin;	/* mask for activity LED */
+	u_int			sc_ledidle;	/* idle polling interval */
+	int			sc_ledevent;	/* time of last LED event */
+	u_int8_t		sc_rxrate;	/* current rx rate for LED */
+	u_int8_t		sc_rxrix;
+	u_int8_t		sc_txrate;	/* current tx rate for LED */
+	u_int8_t		sc_txrix;
+	u_int16_t		sc_ledoff;	/* off time for current blink */
+	struct callout		sc_ledtimer;	/* led off timer */
 
 	int			sc_tx_timer;
+	int			sc_rfkill_timer;/* poll for rfkill change */
+	int			sc_scan_timer;	/* scan request timeout */
 
 	struct bpf_if		*sc_drvbpf;
 
@@ -169,8 +211,16 @@ struct iwi_softc {
 	int			sc_txtap_len;
 };
 
-#define SIOCSLOADFW	 _IOW('i', 137, struct ifreq)
-#define SIOCSKILLFW	 _IOW('i', 138, struct ifreq)
-
-#define IWI_LOCK(sc)	mtx_lock(&(sc)->sc_mtx)
-#define IWI_UNLOCK(sc)	mtx_unlock(&(sc)->sc_mtx)
+/*
+ * NB.: This models the only instance of async locking in iwi_init_locked
+ *	and must be kept in sync.
+ */
+#define	IWI_LOCK_DECL	int	__waslocked = 0
+#define IWI_LOCK(sc)	do {				\
+	if (!(__waslocked = mtx_owned(&(sc)->sc_mtx)))	\
+		mtx_lock(&(sc)->sc_mtx);		\
+} while (0)
+#define IWI_UNLOCK(sc)	do {			\
+	if (!__waslocked)			\
+		mtx_unlock(&(sc)->sc_mtx);	\
+} while (0)
