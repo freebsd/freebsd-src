@@ -94,21 +94,21 @@ struct ksched;
 int ksched_attach(struct ksched **);
 int ksched_detach(struct ksched *);
 
-int ksched_setparam(register_t *, struct ksched *,
+int ksched_setparam(struct ksched *,
 	struct thread *, const struct sched_param *);
-int ksched_getparam(register_t *, struct ksched *,
+int ksched_getparam(struct ksched *,
 	struct thread *, struct sched_param *);
 
-int ksched_setscheduler(register_t *, struct ksched *,
+int ksched_setscheduler(struct ksched *,
 	struct thread *, int, const struct sched_param *);
-int ksched_getscheduler(register_t *, struct ksched *, struct thread *);
+int ksched_getscheduler(struct ksched *, struct thread *, int *);
 
-int ksched_yield(register_t *, struct ksched *);
+int ksched_yield(struct ksched *);
 
-int ksched_get_priority_max(register_t *, struct ksched *, int);
-int ksched_get_priority_min(register_t *, struct ksched *, int);
+int ksched_get_priority_max(struct ksched *, int, int *);
+int ksched_get_priority_min(struct ksched *, int, int *);
 
-int ksched_rr_get_interval(register_t *, struct ksched *,
+int ksched_rr_get_interval(struct ksched *,
 	struct thread *, struct timespec *);
 
 #endif /* _KPOSIX_PRIORITY_SCHEDULING */
