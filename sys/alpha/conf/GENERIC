@@ -173,6 +173,16 @@ device		vr		# VIA Rhine, Rhine II
 device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
+# Wireless NIC cards
+device		wlan		# 802.11 support
+device		wlan_wep	# 802.11 WEP support
+device		wlan_ccmp	# 802.11 CCMP support
+device		wlan_tkip	# 802.11 TKIP support
+device		an		# Aironet 4500/4800 802.11 wireless NICs.
+device		ath		# Atheros pci/cardbus NIC's
+device		ath_hal		# Atheros HAL (Hardware Access Layer)
+device		ath_rate_sample	# SampleRate tx rate control for ath
+
 # Pseudo devices.
 device		loop		# Network loopback
 device		mem		# Memory and kernel memory devices
