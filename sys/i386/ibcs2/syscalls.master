@@ -39,7 +39,7 @@
 1	AUE_EXIT	MNOPROTO { void sys_exit(int rval); } exit \
 				    sys_exit_args void
 2	AUE_FORK	MNOPROTO { int fork(void); }
-3	AUE_NULL	STD	{ int ibcs2_read(int fd, char *buf, \
+3	AUE_NULL	MSTD	{ int ibcs2_read(int fd, char *buf, \
 				    u_int nbytes); }
 4	AUE_NULL	MNOPROTO { int write(int fd, char *buf, \
 				    u_int nbytes); }
@@ -146,7 +146,7 @@
 78	AUE_NULL	UNIMPL	rfs_rfsys
 79	AUE_RMDIR	MSTD	{ int ibcs2_rmdir(char *path); }
 80	AUE_MKDIR	MSTD	{ int ibcs2_mkdir(char *path, int mode); }
-81	AUE_GETDIRENTRIES	STD	{ int ibcs2_getdents(int fd, char *buf, \
+81	AUE_GETDIRENTRIES	MSTD	{ int ibcs2_getdents(int fd, char *buf, \
 				    int nbytes); }
 82	AUE_NULL	UNIMPL	nosys
 83	AUE_NULL	UNIMPL	nosys

@@ -240,7 +240,7 @@ svr4_sys_getdents64(td, uap)
 	struct iovec aiov;
 	off_t off;
 	struct svr4_dirent64 svr4_dirent;
-	int buflen, error, eofflag, nbytes, justone;
+	int buflen, error, eofflag, nbytes, justone, vfslocked;
 	u_long *cookies = NULL, *cookiep;
 	int ncookies;
 
@@ -256,8 +256,9 @@ svr4_sys_getdents64(td, uap)
 	}
 
 	vp = fp->f_vnode;
-
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (vp->v_type != VDIR) {
+		VFS_UNLOCK_GIANT(vfslocked);
 		fdrop(fp, td);
 		return (EINVAL);
 	}
@@ -394,6 +395,7 @@ eof:
 	td->td_retval[0] = nbytes - resid;
 out:
 	VOP_UNLOCK(vp, 0, td);
+	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 	if (cookies)
 		free(cookies, M_TEMP);
@@ -418,7 +420,7 @@ svr4_sys_getdents(td, uap)
 	struct iovec aiov;
 	struct svr4_dirent idb;
 	off_t off;		/* true file offset */
-	int buflen, error, eofflag;
+	int buflen, error, eofflag, vfslocked;
 	u_long *cookiebuf = NULL, *cookie;
 	int ncookies = 0, *retval = td->td_retval;
 
@@ -434,7 +436,9 @@ svr4_sys_getdents(td, uap)
 	}
 
 	vp = fp->f_vnode;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (vp->v_type != VDIR) {
+		VFS_UNLOCK_GIANT(vfslocked);
 		fdrop(fp, td);
 		return (EINVAL);
 	}
@@ -524,6 +528,7 @@ eof:
 	*retval = uap->nbytes - resid;
 out:
 	VOP_UNLOCK(vp, 0, td);
+	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 	if (cookiebuf)
 		free(cookiebuf, M_TEMP);
