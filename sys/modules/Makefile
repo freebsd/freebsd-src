@@ -512,10 +512,12 @@ _xe=		xe
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc"
+_ath_hal=	ath_hal
 _gem=		gem
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
+_ath_hal=	ath_hal
 _auxio=		auxio
 _em=		em
 _gem=		gem
