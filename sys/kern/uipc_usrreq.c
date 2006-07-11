@@ -299,41 +299,45 @@ uipc_rcvd(struct socket *so, int flags)
 {
 	struct unpcb *unp;
 	struct socket *so2;
+	u_int mbcnt, sbcc;
 	u_long newhiwat;
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_rcvd: unp == NULL"));
-	UNP_LOCK();
 	switch (so->so_type) {
 	case SOCK_DGRAM:
 		panic("uipc_rcvd DGRAM?");
 		/*NOTREACHED*/
 
 	case SOCK_STREAM:
-		if (unp->unp_conn == NULL)
-			break;
-		so2 = unp->unp_conn->unp_socket;
-		SOCKBUF_LOCK(&so2->so_snd);
-		SOCKBUF_LOCK(&so->so_rcv);
 		/*
 		 * Adjust backpressure on sender
 		 * and wakeup any waiting to write.
 		 */
-		so2->so_snd.sb_mbmax += unp->unp_mbcnt - so->so_rcv.sb_mbcnt;
-		unp->unp_mbcnt = so->so_rcv.sb_mbcnt;
-		newhiwat = so2->so_snd.sb_hiwat + unp->unp_cc -
-		    so->so_rcv.sb_cc;
+		SOCKBUF_LOCK(&so->so_rcv);
+		mbcnt = so->so_rcv.sb_mbcnt;
+		sbcc = so->so_rcv.sb_cc;
+		SOCKBUF_UNLOCK(&so->so_rcv);
+		UNP_LOCK();
+		if (unp->unp_conn == NULL) {
+			UNP_UNLOCK();
+			break;
+		}
+		so2 = unp->unp_conn->unp_socket;
+		SOCKBUF_LOCK(&so2->so_snd);
+		so2->so_snd.sb_mbmax += unp->unp_mbcnt - mbcnt;
+		newhiwat = so2->so_snd.sb_hiwat + unp->unp_cc - sbcc;
 		(void)chgsbsize(so2->so_cred->cr_uidinfo, &so2->so_snd.sb_hiwat,
 		    newhiwat, RLIM_INFINITY);
-		unp->unp_cc = so->so_rcv.sb_cc;
-		SOCKBUF_UNLOCK(&so->so_rcv);
 		sowwakeup_locked(so2);
+		unp->unp_mbcnt = mbcnt;
+		unp->unp_cc = sbcc;
+		UNP_UNLOCK();
 		break;
 
 	default:
 		panic("uipc_rcvd unknown socktype");
 	}
-	UNP_UNLOCK();
 	return (0);
 }
 
@@ -346,6 +350,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	int error = 0;
 	struct unpcb *unp;
 	struct socket *so2;
+	u_int mbcnt, sbcc;
 	u_long newhiwat;
 
 	unp = sotounpcb(so);
@@ -416,9 +421,8 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			}
 		}
 
-		SOCKBUF_LOCK(&so->so_snd);
+		/* Lockless read. */
 		if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
-			SOCKBUF_UNLOCK(&so->so_snd);
 			error = EPIPE;
 			break;
 		}
@@ -445,16 +449,20 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		} else {
 			sbappend_locked(&so2->so_rcv, m);
 		}
-		so->so_snd.sb_mbmax -=
-			so2->so_rcv.sb_mbcnt - unp->unp_conn->unp_mbcnt;
+		mbcnt = so2->so_rcv.sb_mbcnt - unp->unp_conn->unp_mbcnt;
 		unp->unp_conn->unp_mbcnt = so2->so_rcv.sb_mbcnt;
+		sbcc = so2->so_rcv.sb_cc;
+		sorwakeup_locked(so2);
+
+		SOCKBUF_LOCK(&so->so_snd);
 		newhiwat = so->so_snd.sb_hiwat -
-		    (so2->so_rcv.sb_cc - unp->unp_conn->unp_cc);
+		    (sbcc - unp->unp_conn->unp_cc);
 		(void)chgsbsize(so->so_cred->cr_uidinfo, &so->so_snd.sb_hiwat,
 		    newhiwat, RLIM_INFINITY);
+		so->so_snd.sb_mbmax -= mbcnt;
 		SOCKBUF_UNLOCK(&so->so_snd);
-		unp->unp_conn->unp_cc = so2->so_rcv.sb_cc;
-		sorwakeup_locked(so2);
+
+		unp->unp_conn->unp_cc = sbcc;
 		m = NULL;
 		break;
 
