@@ -304,7 +304,7 @@
 154	AUE_NULL	UNIMPL	nosys
 ; 155 is initialized by the NFS code, if present.
 155	AUE_NFSSVC	MNOIMPL	{ int nfssvc(int flag, caddr_t argp); }
-156	AUE_GETDIRENTRIES	COMPAT	{ int getdirentries(int fd, char *buf, \
+156	AUE_GETDIRENTRIES	MCOMPAT	{ int getdirentries(int fd, char *buf, \
 				    u_int count, long *basep); }
 157	AUE_STATFS	MCOMPAT4	{ int statfs(char *path, \
 				    struct ostatfs *buf); }

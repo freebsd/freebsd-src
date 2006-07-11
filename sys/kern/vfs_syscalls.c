@@ -3569,7 +3569,7 @@ ogetdirentries(td, uap)
 	struct iovec aiov, kiov;
 	struct dirent *dp, *edp;
 	caddr_t dirbuf;
-	int error, eofflag, readcnt;
+	int error, eofflag, readcnt, vfslocked;
 	long loff;
 
 	/* XXX arbitrary sanity limit on `count'. */
@@ -3583,7 +3583,9 @@ ogetdirentries(td, uap)
 	}
 	vp = fp->f_vnode;
 unionread:
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (vp->v_type != VDIR) {
+		VFS_UNLOCK_GIANT(vfslocked);
 		fdrop(fp, td);
 		return (EINVAL);
 	}
@@ -3601,6 +3603,7 @@ unionread:
 	error = mac_check_vnode_readdir(td->td_ucred, vp);
 	if (error) {
 		VOP_UNLOCK(vp, 0, td);
+		VFS_UNLOCK_GIANT(vfslocked);
 		fdrop(fp, td);
 		return (error);
 	}
@@ -3658,15 +3661,19 @@ unionread:
 	}
 	VOP_UNLOCK(vp, 0, td);
 	if (error) {
+		VFS_UNLOCK_GIANT(vfslocked);
 		fdrop(fp, td);
 		return (error);
 	}
 	if (uap->count == auio.uio_resid) {
 		if (union_dircheckp) {
 			error = union_dircheckp(td, &vp, fp);
-			if (error == -1)
+			if (error == -1) {
+				VFS_UNLOCK_GIANT(vfslocked);
 				goto unionread;
+			}
 			if (error) {
+				VFS_UNLOCK_GIANT(vfslocked);
 				fdrop(fp, td);
 				return (error);
 			}
@@ -3685,10 +3692,12 @@ unionread:
 			fp->f_data = vp;
 			fp->f_offset = 0;
 			vput(tvp);
+			VFS_UNLOCK_GIANT(vfslocked);
 			goto unionread;
 		}
 		VOP_UNLOCK(vp, 0, td);
 	}
+	VFS_UNLOCK_GIANT(vfslocked);
 	error = copyout(&loff, uap->basep, sizeof(long));
 	fdrop(fp, td);
 	td->td_retval[0] = uap->count - auio.uio_resid;
