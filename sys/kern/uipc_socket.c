@@ -653,7 +653,8 @@ soclose(so)
 	}
 
 drop:
-	(*so->so_proto->pr_usrreqs->pru_detach)(so);
+	if (*so->so_proto->pr_usrreqs->pru_detach != NULL)
+		(*so->so_proto->pr_usrreqs->pru_detach)(so);
 	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	KASSERT((so->so_state & SS_NOFDREF) == 0, ("soclose: NOFDREF"));
@@ -696,7 +697,8 @@ soabort(so)
 	KASSERT((so->so_state & SQ_COMP) == 0, ("soabort: SQ_COMP"));
 	KASSERT((so->so_state & SQ_INCOMP) == 0, ("soabort: SQ_INCOMP"));
 
-	(*so->so_proto->pr_usrreqs->pru_abort)(so);
+	if (*so->so_proto->pr_usrreqs->pru_abort != NULL)
+		(*so->so_proto->pr_usrreqs->pru_abort)(so);
 	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	sofree(so);
