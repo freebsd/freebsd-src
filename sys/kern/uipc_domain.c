@@ -80,14 +80,12 @@ MTX_SYSINIT(domain, &dom_mtx, "domain list", MTX_DEF);
  * All functions return EOPNOTSUPP.
  */
 struct pr_usrreqs nousrreqs = {
-	.pru_abort =		pru_abort_notsupp,
 	.pru_accept =		pru_accept_notsupp,
 	.pru_attach =		pru_attach_notsupp,
 	.pru_bind =		pru_bind_notsupp,
 	.pru_connect =		pru_connect_notsupp,
 	.pru_connect2 =		pru_connect2_notsupp,
 	.pru_control =		pru_control_notsupp,
-	.pru_detach =		pru_detach_notsupp,
 	.pru_disconnect	=	pru_disconnect_notsupp,
 	.pru_listen =		pru_listen_notsupp,
 	.pru_peeraddr =		pru_peeraddr_notsupp,
@@ -100,7 +98,6 @@ struct pr_usrreqs nousrreqs = {
 	.pru_sosend =		pru_sosend_notsupp,
 	.pru_soreceive =	pru_soreceive_notsupp,
 	.pru_sopoll =		pru_sopoll_notsupp,
-	.pru_sosetlabel =	pru_sosetlabel_null
 };
 
 static void
@@ -125,7 +122,6 @@ protosw_init(struct protosw *pr)
 	DEFAULT(pu->pru_sosend, sosend);
 	DEFAULT(pu->pru_soreceive, soreceive);
 	DEFAULT(pu->pru_sopoll, sopoll);
-	DEFAULT(pu->pru_sosetlabel, pru_sosetlabel_null);
 #undef DEFAULT
 	if (pr->pr_init)
 		(*pr->pr_init)();

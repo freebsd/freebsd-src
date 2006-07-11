@@ -249,7 +249,6 @@ struct pr_usrreqs {
 /*
  * All nonvoid pru_*() functions below return EOPNOTSUPP.
  */
-void	pru_abort_notsupp(struct socket *so);
 int	pru_accept_notsupp(struct socket *so, struct sockaddr **nam);
 int	pru_attach_notsupp(struct socket *so, int proto, struct thread *td);
 int	pru_bind_notsupp(struct socket *so, struct sockaddr *nam,
@@ -259,7 +258,6 @@ int	pru_connect_notsupp(struct socket *so, struct sockaddr *nam,
 int	pru_connect2_notsupp(struct socket *so1, struct socket *so2);
 int	pru_control_notsupp(struct socket *so, u_long cmd, caddr_t data,
 	    struct ifnet *ifp, struct thread *td);
-void	pru_detach_notsupp(struct socket *so);
 int	pru_disconnect_notsupp(struct socket *so);
 int	pru_listen_notsupp(struct socket *so, int backlog, struct thread *td);
 int	pru_peeraddr_notsupp(struct socket *so, struct sockaddr **nam);
@@ -278,7 +276,6 @@ int	pru_soreceive_notsupp(struct socket *so, struct sockaddr **paddr,
 	    int *flagsp);
 int	pru_sopoll_notsupp(struct socket *so, int events, struct ucred *cred,
 	    struct thread *td);
-void	pru_sosetlabel_null(struct socket *so);
 
 #endif /* _KERNEL */
 
