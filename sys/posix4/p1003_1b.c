@@ -90,7 +90,6 @@ SYSCALL_NOT_PRESENT_GEN(sched_yield)
 SYSCALL_NOT_PRESENT_GEN(sched_get_priority_max)
 SYSCALL_NOT_PRESENT_GEN(sched_get_priority_min)
 SYSCALL_NOT_PRESENT_GEN(sched_rr_get_interval)
-
 #else
 
 /* Configured in kernel version:
@@ -127,22 +126,27 @@ sched_setparam(struct thread *td, struct sched_setparam_args *uap)
 		targetp = td->td_proc;
 		targettd = td;
 		PROC_LOCK(targetp);
-	} else {
+	} else if (uap->pid <= PID_MAX) {
 		targetp = pfind(uap->pid);
+		if (targetp == NULL)
+			return (ESRCH);
+		targettd = FIRST_THREAD_IN_PROC(targetp);
+	} else {
+		targetp = td->td_proc;
+		PROC_LOCK(targetp);
+		targettd = thread_find(targetp, uap->pid);
 		if (targetp == NULL) {
-			e = ESRCH;
-			goto done2;
+			PROC_UNLOCK(targetp);
+			return (ESRCH);
 		}
-		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
 	}
 
 	e = p_cansched(td, targetp);
 	if (e == 0) {
-		e = ksched_setparam(&td->td_retval[0], ksched, targettd,
+		e = ksched_setparam(ksched, targettd,
 			(const struct sched_param *)&sched_param);
 	}
 	PROC_UNLOCK(targetp);
-done2:
 	return (e);
 }
 
@@ -161,24 +165,29 @@ sched_getparam(struct thread *td, struct sched_getparam_args *uap)
 		targetp = td->td_proc;
 		targettd = td;
 		PROC_LOCK(targetp);
-	} else {
+	} else if (uap->pid <= PID_MAX) {
 		targetp = pfind(uap->pid);
 		if (targetp == NULL) {
-			e = ESRCH;
-			goto done2;
+			return (ESRCH);
 		}
 		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
+	} else {
+		targetp = td->td_proc;
+		PROC_LOCK(targetp);
+		targettd = thread_find(targetp, uap->pid);
+		if (targettd == NULL) {
+			PROC_UNLOCK(targetp);
+			return (ESRCH);
+		}
 	}
 
 	e = p_cansee(td, targetp);
 	if (e == 0) {
-		e = ksched_getparam(&td->td_retval[0], ksched, targettd,
-			 &sched_param);
+		e = ksched_getparam(ksched, targettd, &sched_param);
 	}
 	PROC_UNLOCK(targetp);
 	if (e == 0)
 		e = copyout(&sched_param, uap->param, sizeof(sched_param));
-done2:
 	return (e);
 }
 
@@ -205,22 +214,27 @@ sched_setscheduler(struct thread *td, struct sched_setscheduler_args *uap)
 		targetp = td->td_proc;
 		targettd = td;
 		PROC_LOCK(targetp);
-	} else {
+	} else if (uap->pid <= PID_MAX) {
 		targetp = pfind(uap->pid);
-		if (targetp == NULL) {
-			e = ESRCH;
-			goto done2;
+		if (targetp == NULL)
+			return (ESRCH);
+		targettd = FIRST_THREAD_IN_PROC(targetp);
+	} else {
+		targetp = td->td_proc;
+		PROC_LOCK(targetp);
+		targettd = thread_find(targetp, uap->pid);
+		if (targettd == NULL) {
+			PROC_UNLOCK(targetp);
+			return (ESRCH);
 		}
-		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
 	}
 
 	e = p_cansched(td, targetp);
 	if (e == 0) {
-		e = ksched_setscheduler(&td->td_retval[0], ksched, targettd,
+		e = ksched_setscheduler(ksched, targettd,
 			uap->policy, (const struct sched_param *)&sched_param);
 	}
 	PROC_UNLOCK(targetp);
-done2:
 	return (e);
 }
 
@@ -230,7 +244,7 @@ done2:
 int
 sched_getscheduler(struct thread *td, struct sched_getscheduler_args *uap)
 {
-	int e;
+	int e, policy;
 	struct thread *targettd;
 	struct proc *targetp;
 
@@ -238,18 +252,29 @@ sched_getscheduler(struct thread *td, struct sched_getscheduler_args *uap)
 		targetp = td->td_proc;
 		targettd = td;
 		PROC_LOCK(targetp);
-	} else {
+	} else if (uap->pid <= PID_MAX) {
 		targetp = pfind(uap->pid);
 		if (targetp == NULL) {
 			e = ESRCH;
 			goto done2;
 		}
 		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
+	} else {
+		targetp = td->td_proc;
+		PROC_LOCK(targetp);
+		targettd = thread_find(targetp, uap->pid);
+		if (targettd == NULL) {
+			PROC_UNLOCK(targetp);
+			e = ESRCH;
+			goto done2;
+		}
 	}
 
 	e = p_cansee(td, targetp);
-	if (e == 0)
-		e = ksched_getscheduler(&td->td_retval[0], ksched, targettd);
+	if (e == 0) {
+		e = ksched_getscheduler(ksched, targettd, &policy);
+		td->td_retval[0] = policy;
+	}
 	PROC_UNLOCK(targetp);
 
 done2:
@@ -262,10 +287,8 @@ done2:
 int
 sched_yield(struct thread *td, struct sched_yield_args *uap)
 {
-	int error;
 
-	error = ksched_yield(&td->td_retval[0], ksched);
-	return (error);
+	return (ksched_yield(ksched));
 }
 
 /* 
@@ -275,9 +298,10 @@ int
 sched_get_priority_max(struct thread *td,
     struct sched_get_priority_max_args *uap)
 {
-	int error;
+	int error, prio;
 
-	error = ksched_get_priority_max(&td->td_retval[0], ksched, uap->policy);
+	error = ksched_get_priority_max(ksched, uap->policy, &prio);
+	td->td_retval[0] = prio;
 	return (error);
 }
 
@@ -288,9 +312,12 @@ int
 sched_get_priority_min(struct thread *td,
     struct sched_get_priority_min_args *uap)
 {
-	int error;
+	int error, prio;
 
-	error = ksched_get_priority_min(&td->td_retval[0], ksched, uap->policy);
+	error = ksched_get_priority_min(ksched, uap->policy, &prio);
+	td->td_retval[0] = prio;
+	printf("uap->policy=%d error=%d prio=%d\n", uap->policy, error,
+		prio);
 	return (error);
 }
 
@@ -322,18 +349,24 @@ kern_sched_rr_get_interval(struct thread *td, pid_t pid,
 		targettd = td;
 		targetp = td->td_proc;
 		PROC_LOCK(targetp);
-	} else {
+	} else if (pid <= PID_MAX) {
 		targetp = pfind(pid);
 		if (targetp == NULL)
 			return (ESRCH);
-
-		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
+		targettd = FIRST_THREAD_IN_PROC(targetp);
+	} else {
+		targetp = td->td_proc;
+		PROC_LOCK(targetp);
+		targettd = thread_find(targetp, pid);
+		if (targettd == NULL) {
+			PROC_UNLOCK(targetp);
+			return (ESRCH);
+		}
 	}
 
 	e = p_cansee(td, targetp);
 	if (e == 0)
-		e = ksched_rr_get_interval(&td->td_retval[0], ksched, targettd,
-			ts);
+		e = ksched_rr_get_interval(ksched, targettd, ts);
 	PROC_UNLOCK(targetp);
 	return (e);
 }
