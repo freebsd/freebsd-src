@@ -58,7 +58,15 @@ MFILES=	kern/bus_if.m kern/device_if.m dev/pci/pci_if.m \
 CFLAGS+= -I. -I${HAL}/freebsd -I${HAL}
 
 # patch for hal naming difference
-ATH_MODULE_ARCH=${MACHINE_ARCH:S/amd64/x86_64/}
+.if ${MACHINE_ARCH} == "amd64"
+ATH_MODULE_ARCH=x86_64
+.elif ${MACHINE_ARCH} == "sparc64"
+ATH_MODULE_ARCH=sparc64-be
+.elif ${MACHINE_ARCH} == "powerpc"
+ATH_MODULE_ARCH=powerpc-be
+.else
+ATH_MODULE_ARCH=${MACHINE_ARCH}
+.endif
 
 .if defined(HAL_SRC)
 .include "${HAL}/freebsd/Makefile.inc"
