@@ -2036,10 +2036,10 @@ ath_beacon_proc(void *arg, int pending)
 	}
 	/*
 	 * Check if the previous beacon has gone out.  If
-	 * not don't don't try to post another, skip this
-	 * period and wait for the next.  Missed beacons
-	 * indicate a problem and should not occur.  If we
-	 * miss too many consecutive beacons reset the device.
+	 * not don't try to post another, skip this period
+	 * and wait for the next.  Missed beacons indicate
+	 * a problem and should not occur.  If we miss too
+	 * many consecutive beacons reset the device.
 	 */
 	if (ath_hal_numtxpending(ah, sc->sc_bhalq) != 0) {
 		sc->sc_bmisscount++;
@@ -2427,7 +2427,7 @@ ath_descdma_setup(struct ath_softc *sc,
 		       NULL, NULL,		/* filter, filterarg */
 		       dd->dd_desc_len,		/* maxsize */
 		       1,			/* nsegments */
-		       BUS_SPACE_MAXADDR,	/* maxsegsize */
+		       dd->dd_desc_len,		/* maxsegsize */
 		       BUS_DMA_ALLOCNOW,	/* flags */
 		       NULL,			/* lockfunc */
 		       NULL,			/* lockarg */
@@ -2629,7 +2629,6 @@ ath_node_getrssi(const struct ieee80211_node *ni)
 		rssi = HAL_EP_RND(avgrssi, HAL_RSSI_EP_MULTIPLIER);
 	else
 		rssi = ni->ni_rssi;
-	/* NB: theoretically we shouldn't need this, but be paranoid */
 	return rssi < 0 ? 0 : rssi > 127 ? 127 : rssi;
 #undef HAL_EP_RND
 }
@@ -2977,7 +2976,7 @@ rx_accept:
 		/*
 		 * Sync and unmap the frame.  At this point we're
 		 * committed to passing the mbuf somewhere so clear
-		 * bf_m; this means a new sk_buff must be allocated
+		 * bf_m; this means a new mbuf must be allocated
 		 * when the rx descriptor is setup again to receive
 		 * another frame.
 		 */
