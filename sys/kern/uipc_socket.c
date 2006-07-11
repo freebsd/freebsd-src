@@ -353,10 +353,7 @@ socreate(dom, aso, type, proto, cred, td)
 	so->so_count = 1;
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto, td);
 	if (error) {
-		ACCEPT_LOCK();
-		SOCK_LOCK(so);
-		so->so_state |= SS_NOFDREF;
-		sorele(so);
+		sodealloc(so);
 		return (error);
 	}
 	*aso = so;
