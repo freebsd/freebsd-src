@@ -136,7 +136,7 @@
 78	AUE_NULL	UNIMPL	rfsys
 79	AUE_NULL	MNOPROTO	{ int rmdir(char *path); }
 80	AUE_NULL	MNOPROTO	{ int mkdir(char *path, int mode); }
-81	AUE_NULL	STD	{ int svr4_sys_getdents(int fd, char *buf, \
+81	AUE_NULL	MSTD	{ int svr4_sys_getdents(int fd, char *buf, \
 				    int nbytes); }
 82	AUE_NULL	UNIMPL	libattach
 83	AUE_NULL	UNIMPL	libdetach
@@ -325,7 +325,7 @@
 210	AUE_NULL	UNIMPL	signotifywait
 211	AUE_NULL	UNIMPL	lwp_sigredirect
 212	AUE_NULL	UNIMPL	lwp_alarm
-213	AUE_NULL	STD	{ int svr4_sys_getdents64(int fd, \
+213	AUE_NULL	MSTD	{ int svr4_sys_getdents64(int fd, \
 				    struct svr4_dirent64 *dp, int nbytes); }
 ;213	AUE_NULL	UNIMPL	getdents64
 214	AUE_NULL	MSTD	{ caddr_t svr4_sys_mmap64(void *addr, \

@@ -169,7 +169,7 @@
 87	AUE_SWAPON	MNOPROTO	{ int swapon(char *name); }
 88	AUE_REBOOT	MSTD	{ int linux_reboot(l_int magic1, \
 				    l_int magic2, l_uint cmd, void *arg); }
-89	AUE_O_GETDENTS	STD	{ int linux_readdir(l_uint fd, \
+89	AUE_O_GETDENTS	MSTD	{ int linux_readdir(l_uint fd, \
 				    struct l_dirent *dent, l_uint count); }
 90	AUE_MMAP	MSTD	{ int linux_mmap(struct l_mmap_argv *ptr); }
 91	AUE_MUNMAP	MNOPROTO	{ int munmap(caddr_t addr, int len); }
@@ -248,7 +248,7 @@
 140	AUE_LSEEK	MSTD	{ int linux_llseek(l_int fd, l_ulong ohigh, \
 				    l_ulong olow, l_loff_t *res, \
 				    l_uint whence); }
-141	AUE_O_GETDENTS	STD	{ int linux_getdents(l_uint fd, void *dent, \
+141	AUE_O_GETDENTS	MSTD	{ int linux_getdents(l_uint fd, void *dent, \
 				    l_uint count); }
 142	AUE_SELECT	MSTD	{ int linux_select(l_int nfds, \
 				    l_fd_set *readfds, l_fd_set *writefds, \
@@ -383,7 +383,7 @@
 				    l_size_t len, u_char *vec); }
 219	AUE_MADVISE	MNOPROTO { int madvise(void *addr, size_t len, \
 				    int behav); }
-220	AUE_O_GETDENTS	STD	{ int linux_getdents64(l_uint fd, \
+220	AUE_O_GETDENTS	MSTD	{ int linux_getdents64(l_uint fd, \
 				    void *dirent, l_uint count); }
 221	AUE_FCNTL	MSTD	{ int linux_fcntl64(l_uint fd, l_uint cmd, \
 				    l_ulong arg); }
