@@ -33,7 +33,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGES.
 #
-# $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/public/armv4-be-elf.inc#22 $
+# $Id: //depot/sw/branches/sam_hal/public/armv4-be-elf.inc#3 $
 #
 
 #
@@ -63,6 +63,12 @@ STRIP=	${TOOLPREFIX}strip
 OBJCOPY=${TOOLPREFIX}objcopy
 NM=	${TOOLPREFIX}nm
 
+#
+# Force register read/write operations to go through a function.
+#
+AH_REGOPS_FUNC=1
+
 LDOPTS=	-EB
 COPTS+=	-DAH_BYTE_ORDER=AH_BIG_ENDIAN
-COPTS+= -march=armv4 -mbig-endian -fno-strict-aliasing -fno-common
+COPTS+= -march=armv4 -mbig-endian -msoft-float \
+	-fno-strict-aliasing -fno-common

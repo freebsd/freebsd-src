@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/ah_desc.h#23 $
+ * $Id: //depot/sw/branches/sam_hal/ah_desc.h#2 $
  */
 
 #ifndef _DEV_ATH_DESC_H
@@ -175,6 +175,8 @@ struct ath_desc {
 #define	HAL_TXDESC_CTSENA	0x0008	/* enable CTS */
 #define	HAL_TXDESC_INTREQ	0x0010	/* enable per-descriptor interrupt */
 #define	HAL_TXDESC_VEOL		0x0020	/* mark virtual EOL */
+/* NB: this only affects frame, not any RTS/CTS */
+#define	HAL_TXDESC_DURENA	0x0040	/* enable h/w write of duration field */
 
 /* flags passed to rx descriptor setup methods */
 #define	HAL_RXDESC_INTREQ	0x0020	/* enable per-descriptor interrupt */

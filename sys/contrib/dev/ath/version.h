@@ -33,6 +33,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/sw/linuxsrc/src/802_11/madwifi/hal/main/version.h#135 $
+ * $Id: //depot/sw/branches/sam_hal/version.h#14 $
  */
-#define	ATH_HAL_VERSION	"0.9.16.16"
+#define	ATH_HAL_VERSION	"0.9.17.2"
