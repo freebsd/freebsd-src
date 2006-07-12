@@ -46,32 +46,47 @@ _pthread_getschedparam(pthread_t pthread, int *policy,
 	struct sched_param *param)
 {
 	struct pthread *curthread = _get_curthread();
-	int ret, tmp;
+	int ret;
 
-	if ((param == NULL) || (policy == NULL))
-		/* Return an invalid argument error: */
-		ret = EINVAL;
-	else if (pthread == curthread) {
+	if (policy == NULL || param == NULL)
+		return (EINVAL);
+
+	if (pthread == curthread) {
 		/*
 		 * Avoid searching the thread list when it is the current
 		 * thread.
 		 */
-		THR_THREAD_LOCK(curthread, curthread);
-		param->sched_priority = pthread->base_priority;
-		tmp = pthread->attr.sched_policy;
-		THR_THREAD_UNLOCK(curthread, curthread);
-		*policy = tmp;
-		ret = 0;
+		THR_LOCK(curthread);
+
+		/*
+		 * XXX Here we need two separated syscalls, atomic is only
+		 * guaranteed in thread library, a new syscall is needed.
+		 */
+
+		*policy = sched_getscheduler((pid_t)curthread->tid);
+		if (*policy == -1)
+			ret = errno;
+		else {
+			ret = sched_getparam((pid_t)curthread->tid, param);
+			if (ret == -1)
+				ret = errno;
+		}
+		THR_UNLOCK(curthread);
 	}
 	/* Find the thread in the list of active threads. */
 	else if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0))
 	    == 0) {
 		THR_THREAD_LOCK(curthread, pthread);
-		param->sched_priority = pthread->base_priority;
-		tmp = pthread->attr.sched_policy;
+		*policy = sched_getscheduler((pid_t)pthread->tid);
+		if (*policy == -1)
+			ret = errno;
+		else {
+			ret = sched_getparam((pid_t)pthread->tid, param);
+			if (ret == -1)
+				ret = errno;
+		}
 		THR_THREAD_UNLOCK(curthread, pthread);
 		_thr_ref_delete(curthread, pthread);
-		*policy = tmp;
 	}
 	return (ret);
 }

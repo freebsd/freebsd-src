@@ -43,14 +43,29 @@ __weak_reference(_pthread_setprio, pthread_setprio);
 int
 _pthread_setprio(pthread_t pthread, int prio)
 {
-	int ret, policy;
-	struct sched_param param;
+	struct pthread	*curthread = _get_curthread();
+	struct sched_param	param;
+	int	ret;
 
-	if ((ret = _pthread_getschedparam(pthread, &policy, &param)) == 0) {
-		param.sched_priority = prio;
-		ret = _pthread_setschedparam(pthread, policy, &param);
+	param.sched_priority = prio;
+	if (pthread == curthread) {
+		THR_LOCK(curthread);
+		ret = sched_setparam((pid_t)curthread->tid, &param);
+		if (ret == -1)
+			ret = errno;
+		else
+			curthread->attr.prio = prio;
+		THR_UNLOCK(curthread);
+	} else if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0))
+		== 0) {
+		THR_THREAD_LOCK(curthread, pthread);
+		ret = sched_setparam((pid_t)pthread->tid, &param);
+		if (ret == -1)
+			ret = errno;
+		else
+			pthread->attr.prio = prio;
+		THR_THREAD_UNLOCK(curthread, pthread);
+		_thr_ref_delete(curthread, pthread);
 	}
-
-	/* Return the error status: */
 	return (ret);
 }
