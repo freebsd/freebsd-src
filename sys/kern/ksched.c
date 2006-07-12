@@ -270,7 +270,7 @@ ksched_get_priority_max(struct ksched *ksched, int policy, int *prio)
 		break;
 
 		case SCHED_OTHER:
-		*prio =  PRIO_MAX;
+		*prio = PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE;
 		break;
 
 		default:
@@ -293,7 +293,7 @@ ksched_get_priority_min(struct ksched *ksched, int policy, int *prio)
 		break;
 
 		case SCHED_OTHER:
-		*prio =  PRIO_MIN;
+		*prio = 0;
 		break;
 
 		default:
