@@ -52,8 +52,6 @@ int	DB_CALL(db_expr_t, db_expr_t *, int, db_expr_t[]);
 typedef void db_cmdfcn_t(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 	    char *modif);
 
-typedef void db_page_calloutfcn_t(void *arg);
-
 #define DB_COMMAND(cmd_name, func_name) \
 	DB_FUNC(cmd_name, func_name, db_cmd_set, 0, NULL)
 #define DB_SHOW_COMMAND(cmd_name, func_name) \
@@ -85,6 +83,7 @@ extern int db_indent;
 extern int db_inst_count;
 extern int db_load_count;
 extern int db_store_count;
+extern volatile int db_pager_quit;
 extern db_expr_t db_radix;
 extern db_expr_t db_max_width;
 extern db_expr_t db_tab_stop_width;
@@ -118,8 +117,6 @@ int		db_readline(char *lstart, int lsize);
 void		db_restart_at_pc(boolean_t watchpt);
 int		db_set_variable(db_expr_t value);
 void		db_set_watchpoints(void);
-void		db_setup_paging(db_page_calloutfcn_t *callout, void *arg,
-				int maxlines);
 void		db_skip_to_eol(void);
 boolean_t	db_stop_at_pc(boolean_t *is_breakpoint);
 #define		db_strcpy	strcpy
@@ -148,8 +145,6 @@ db_cmdfcn_t	db_trace_until_call_cmd;
 db_cmdfcn_t	db_trace_until_matching_cmd;
 db_cmdfcn_t	db_watchpoint_cmd;
 db_cmdfcn_t	db_write_cmd;
-
-db_page_calloutfcn_t db_simple_pager;
 
 /*
  * Command table.

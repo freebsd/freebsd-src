@@ -392,8 +392,9 @@ db_command(last_cmdp, cmd_table)
 	    /*
 	     * Execute the command.
 	     */
+	    db_enable_pager();
 	    (*cmd->fcn)(addr, have_addr, count, modif);
-	    db_setup_paging(NULL, NULL, -1);
+	    db_disable_pager();
 
 	    if (cmd->flag & CS_SET_DOT) {
 		/*
@@ -675,16 +676,13 @@ db_stack_trace_all(db_expr_t dummy, boolean_t dummy2, db_expr_t dummy3,
 {
 	struct proc *p;
 	struct thread *td;
-	int quit;
 
-	quit = 0;
-	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
 	LIST_FOREACH(p, &allproc, p_list) {
 		FOREACH_THREAD_IN_PROC(p, td) {
 			db_printf("\nTracing command %s pid %d tid %ld td %p\n",
 			    p->p_comm, p->p_pid, (long)td->td_tid, td);
 			db_trace_thread(td, -1);
-			if (quit)
+			if (db_pager_quit)
 				return;
 		}
 	}

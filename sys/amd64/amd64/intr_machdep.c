@@ -338,16 +338,14 @@ SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL)
 DB_SHOW_COMMAND(irqs, db_show_irqs)
 {
 	struct intsrc **isrc;
-	int i, quit, verbose;
+	int i, verbose;
 
-	quit = 0;
 	if (strcmp(modif, "v") == 0)
 		verbose = 1;
 	else
 		verbose = 0;
 	isrc = interrupt_sources;
-	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
-	for (i = 0; i < NUM_IO_INTS && !quit; i++, isrc++)
+	for (i = 0; i < NUM_IO_INTS && !db_pager_quit; i++, isrc++)
 		if (*isrc != NULL)
 			db_dump_intr_event((*isrc)->is_event, verbose);
 }

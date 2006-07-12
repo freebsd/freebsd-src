@@ -55,8 +55,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/ktr.h>
 #endif
 
-
+#ifdef DDB
 #include <ddb/ddb.h>
+#include <ddb/db_output.h>
+#endif
 
 #ifndef KTR_ENTRIES
 #define	KTR_ENTRIES	1024
@@ -288,22 +290,17 @@ static	int db_mach_vtrace(void);
 
 DB_SHOW_COMMAND(ktr, db_ktr_all)
 {
-	int quit;
 	
-	quit = 0;
 	tstate.cur = (ktr_idx - 1) & (KTR_ENTRIES - 1);
 	tstate.first = -1;
-	if (strcmp(modif, "v") == 0)
-		db_ktr_verbose = 1;
-	else
-		db_ktr_verbose = 0;
-	if (strcmp(modif, "a") == 0) {
+	db_ktr_verbose = index(modif, 'v') != NULL;
+	if (index(modif, 'a') != NULL) {
+		db_disable_pager();
 		while (cncheckc() != -1)
 			if (db_mach_vtrace() == 0)
 				break;
 	} else {
-		db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
-		while (!quit)
+		while (!db_pager_quit)
 			if (db_mach_vtrace() == 0)
 				break;
 	}
