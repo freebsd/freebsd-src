@@ -93,15 +93,13 @@ db_stack_trace_cmd(db_expr_t addr, db_expr_t count)
 	db_expr_t value;
 	db_expr_t offset;
 	boolean_t	kernel_only = TRUE;
-	int	scp_offset, quit;
+	int	scp_offset;
 
 	frame = (u_int32_t *)addr;
 	lastframe = NULL;
 	scp_offset = -(get_pc_str_offset() >> 2);
 
-	quit = 0;
-	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
-	while (count-- && frame != NULL && !quit) {
+	while (count-- && frame != NULL && !db_pager_quit) {
 		db_addr_t	scp;
 		u_int32_t	savecode;
 		int		r;

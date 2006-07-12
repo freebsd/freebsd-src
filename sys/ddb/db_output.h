@@ -38,6 +38,8 @@
  * Printing routines for kernel debugger.
  */
 
+void	db_disable_pager(void);
+void	db_enable_pager(void);
 void	db_end_line(void);
 void	db_force_whitespace(void);
 int	db_print_position(void);
