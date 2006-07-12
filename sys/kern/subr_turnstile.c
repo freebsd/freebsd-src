@@ -1046,7 +1046,7 @@ print_threadchain(struct thread *td, const char *prefix)
 	 * Follow the chain.  We keep walking as long as the thread is
 	 * blocked on a turnstile that has an owner.
 	 */
-	for (;;) {
+	while (!db_pager_quit) {
 		db_printf("%sthread %d (pid %d, %s) ", prefix, td->td_tid,
 		    td->td_proc->p_pid, td->td_name[0] != '\0' ? td->td_name :
 		    td->td_proc->p_comm);
@@ -1110,6 +1110,8 @@ DB_SHOW_COMMAND(allchains, db_show_allchains)
 				db_printf("chain %d:\n", i++);
 				print_threadchain(td, " ");
 			}
+			if (db_pager_quit)
+				return;
 		}
 	}
 }
@@ -1122,6 +1124,8 @@ print_waiter(struct thread *td, int indent)
 	struct turnstile *ts;
 	int i;
 
+	if (db_pager_quit)
+		return;
 	for (i = 0; i < indent; i++)
 		db_printf(" ");
 	print_thread(td, "thread ");
@@ -1137,6 +1141,8 @@ print_waiters(struct turnstile *ts, int indent)
 	struct thread *td;
 	int i;
 
+	if (db_pager_quit)
+		return;
 	lock = ts->ts_lockobj;
 	class = LOCK_CLASS(lock);
 	for (i = 0; i < indent; i++)
