@@ -213,8 +213,9 @@ mpt_pci_probe(device_t dev)
 {
 	char *desc;
 
-	if (pci_get_vendor(dev) != PCI_VENDOR_LSI)
+	if (pci_get_vendor(dev) != PCI_VENDOR_LSI) {
 		return (ENXIO);
+	}
 
 	switch ((pci_get_device(dev) & ~1)) {
 	case PCI_PRODUCT_LSI_FC909:
@@ -295,6 +296,29 @@ mpt_set_options(struct mpt_softc *mpt)
 			mpt->verbose = MPT_PRT_DEBUG3;
 		}
 	}
+
+	mpt->cfg_role = MPT_ROLE_DEFAULT;
+	bitmap = 0;
+	if (getenv_int("mpt_nil_role", &bitmap)) {
+		if (bitmap & (1 << mpt->unit)) {
+			mpt->cfg_role = 0;
+		}
+		mpt->do_cfg_role = 1;
+	}
+	bitmap = 0;
+	if (getenv_int("mpt_tgt_role", &bitmap)) {
+		if (bitmap & (1 << mpt->unit)) {
+			mpt->cfg_role |= MPT_ROLE_TARGET;
+		}
+		mpt->do_cfg_role = 1;
+	}
+	bitmap = 0;
+	if (getenv_int("mpt_ini_role", &bitmap)) {
+		if (bitmap & (1 << mpt->unit)) {
+			mpt->cfg_role |= MPT_ROLE_INITIATOR;
+		}
+		mpt->do_cfg_role = 1;
+	}
 }
 #else
 static void
@@ -312,11 +336,12 @@ mpt_set_options(struct mpt_softc *mpt)
 	    device_get_unit(mpt->dev), "debug", &tval) == 0 && tval != 0) {
 		mpt->verbose = tval;
 	}
-	tval = 0;
+	tval = -1;
 	if (resource_int_value(device_get_name(mpt->dev),
-	    device_get_unit(mpt->dev), "role", &tval) == 0 && tval != 0 &&
+	    device_get_unit(mpt->dev), "role", &tval) == 0 && tval >= 0 &&
 	    tval <= 3) {
-		mpt->role = tval;
+		mpt->cfg_role = tval;
+		mpt->do_cfg_role = 1;
 	}
 }
 #endif
