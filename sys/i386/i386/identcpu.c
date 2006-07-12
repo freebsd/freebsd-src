@@ -813,8 +813,8 @@ printcpuinfo(void)
 				"\020"
 				"\001LAHF"	/* LAHF/SAHF in long mode */
 				"\002CMP"	/* CMP legacy */
-				"\003<b2>"
-				"\004<b3>"
+				"\003SVM"	/* Secure Virtual Mode */
+				"\004ExtAPIC"	/* Extended APIC register */
 				"\005CR8"	/* CR8 in legacy mode */
 				"\006<b5>"
 				"\007<b6>"
