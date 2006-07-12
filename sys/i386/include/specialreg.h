@@ -409,7 +409,10 @@
 #define	AMD_WT_ALLOC_PRE	0x20000	/* programmable range enable */
 #define	AMD_WT_ALLOC_FRE	0x10000	/* fixed (A0000-FFFFF) range enable */
 
-/* VIA ACE crypto featureset: for via_has_xcrypt */
+/* VIA ACE crypto featureset: for via_feature_rng */
+#define VIA_HAS_RNG		1	/* cpu has RNG */
+
+/* VIA ACE crypto featureset: for via_feature_xcrypt */
 #define VIA_HAS_AES		1	/* cpu has AES */
 #define VIA_HAS_SHA		2	/* cpu has SHA1 & SHA256 */
 #define VIA_HAS_MM		4	/* cpu has RSA instructions */
