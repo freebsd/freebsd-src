@@ -490,13 +490,12 @@ struct mpt_softc {
 	int			mpt_locksetup;
 #endif
 	uint32_t		mpt_pers_mask;
-	uint32_t		: 8,
+	uint32_t
 		unit		: 8,
-				: 1,
+				: 3,
 		twildcard	: 1,
 		tenabled	: 1,
-		role		: 2,	/* none, ini, target, both */
-				: 1,
+		do_cfg_role	: 1,
 		raid_enabled	: 1,
 		raid_mwce_set	: 1,
 		getreqwaiter	: 1,
@@ -507,6 +506,9 @@ struct mpt_softc {
 		is_spi		: 1,
 		is_sas		: 1,
 		is_fc		: 1;
+
+	u_int			cfg_role;
+	u_int			role;	/* role: none, ini, target, both */
 
 	u_int			verbose;
 
@@ -942,6 +944,7 @@ int mpt_decode_value(mpt_decode_entry_t *table, u_int num_entries,
 		     const char *name, u_int value, u_int *cur_column,
 		     u_int wrap_point);
 
+void mpt_dump_data(struct mpt_softc *, const char *, void *, int);
 void mpt_dump_request(struct mpt_softc *, request_t *);
 
 enum {
