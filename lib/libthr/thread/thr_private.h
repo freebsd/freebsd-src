@@ -262,7 +262,7 @@ struct pthread_attr {
  * Define priorities returned by kernel.
  */
 #define THR_MIN_PRIORITY		(_thr_priorities[SCHED_OTHER-1].pri_min)
-#define THR_MAX_PRIORITY		(_thr_priorities[SCHED_OTHER-1].pri_min)
+#define THR_MAX_PRIORITY		(_thr_priorities[SCHED_OTHER-1].pri_max)
 #define THR_DEF_PRIORITY		(_thr_priorities[SCHED_OTHER-1].pri_default)
 
 #define THR_MIN_RR_PRIORITY		(_thr_priorities[SCHED_RR-1].pri_min)
@@ -271,7 +271,7 @@ struct pthread_attr {
 
 /* XXX The SCHED_FIFO should have same priority range as SCHED_RR */
 #define THR_MIN_FIFO_PRIORITY		(_thr_priorities[SCHED_FIFO_1].pri_min)
-#define THR_MAX_FIFO_PRIORITY		(_thr_priorities[SCHED_FIFO-1].pri_min)
+#define THR_MAX_FIFO_PRIORITY		(_thr_priorities[SCHED_FIFO-1].pri_max)
 #define THR_DEF_FIFO_PRIORITY		(_thr_priorities[SCHED_FIFO-1].pri_default)
 
 struct pthread_prio {
@@ -412,32 +412,6 @@ struct pthread {
 #define	TLFLAGS_IN_TDLIST	0x0002	/* thread in all thread list */
 #define	TLFLAGS_IN_GCLIST	0x0004	/* thread in gc list */
 #define	TLFLAGS_DETACHED	0x0008	/* thread is detached */
-
-	/*
-	 * Base priority is the user setable and retrievable priority
-	 * of the thread.  It is only affected by explicit calls to
-	 * set thread priority and upon thread creation via a thread
-	 * attribute or default priority.
-	 */
-	char			base_priority;
-
-	/*
-	 * Inherited priority is the priority a thread inherits by
-	 * taking a priority inheritence or protection mutex.  It
-	 * is not affected by base priority changes.  Inherited
-	 * priority defaults to and remains 0 until a mutex is taken
-	 * that is being waited on by any other thread whose priority
-	 * is non-zero.
-	 */
-	char			inherited_priority;
-
-	/*
-	 * Active priority is always the maximum of the threads base
-	 * priority and inherited priority.  When there is a change
-	 * in either the base or inherited priority, the active
-	 * priority must be recalculated.
-	 */
-	char			active_priority;
 
 	/* Queue of currently owned simple type mutexes. */
 	TAILQ_HEAD(, pthread_mutex)	mutexq;

@@ -50,6 +50,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 {
 	struct pthread *curthread, *new_thread;
 	struct thr_param param;
+	struct thr_sched_param sched_param;
 	int ret = 0, locked, create_suspended;
 	sigset_t set, oset;
 
@@ -105,30 +106,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	new_thread->arg = arg;
 	new_thread->cancelflags = PTHREAD_CANCEL_ENABLE |
 	    PTHREAD_CANCEL_DEFERRED;
-	/*
-	 * Check if this thread is to inherit the scheduling
-	 * attributes from its parent:
-	 */
-	if (new_thread->attr.sched_inherit == PTHREAD_INHERIT_SCHED) {
-		/*
-		 * Copy the scheduling attributes. Lock the scheduling
-		 * lock to get consistent scheduling parameters.
-		 */
-		THR_LOCK(curthread);
-		new_thread->base_priority = curthread->base_priority;
-		new_thread->attr.prio = curthread->base_priority;
-		new_thread->attr.sched_policy = curthread->attr.sched_policy;
-		THR_UNLOCK(curthread);
-	} else {
-		/*
-		 * Use just the thread priority, leaving the
-		 * other scheduling attributes as their
-		 * default values:
-		 */
-		new_thread->base_priority = new_thread->attr.prio;
-	}
-	new_thread->active_priority = new_thread->base_priority;
-
 	/* Initialize the mutex queue: */
 	TAILQ_INIT(&new_thread->mutexq);
 
@@ -166,6 +143,13 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	param.flags = 0;
 	if (new_thread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		param.flags |= THR_SYSTEM_SCOPE;
+	if (new_thread->attr.sched_inherit == PTHREAD_INHERIT_SCHED)
+		param.sched = NULL;
+	else {
+		param.sched = &sched_param;
+		sched_param.policy = new_thread->attr.sched_policy;
+		sched_param.param.sched_priority = new_thread->attr.prio;
+	}
 
 	/* Schedule the new thread. */
 	if (create_suspended) {
@@ -176,6 +160,15 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	}
 
 	ret = thr_new(&param, sizeof(param));
+
+	if (ret != 0) {
+		ret = errno;
+		/*
+		 * Translate EPROCLIM into well-known POSIX code EAGAIN.
+		 */
+		if (ret == EPROCLIM)
+			ret = EAGAIN;
+	}
 
 	if (create_suspended)
 		__sys_sigprocmask(SIG_SETMASK, &oset, NULL);
@@ -196,7 +189,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		_thr_ref_delete_unlocked(curthread, new_thread);
 		THREAD_LIST_UNLOCK(curthread);
 		(*thread) = 0;
-		ret = EAGAIN;
 	} else if (locked) {
 		_thr_report_creation(curthread, new_thread);
 		THR_THREAD_UNLOCK(curthread, new_thread);
