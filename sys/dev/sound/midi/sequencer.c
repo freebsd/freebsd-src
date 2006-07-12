@@ -421,7 +421,7 @@ seq_eventthread(void *arg)
 	char event[EV_SZ];
 
 	mtx_lock(&scp->seq_lock);
-	printf("seq_eventthread started\n");
+	SEQ_DEBUG(2,printf("seq_eventthread started\n"));
 	while(scp->done == 0) {
 restart:
 	    while (scp->playing == 0) {
@@ -453,7 +453,7 @@ done:
 	cv_broadcast(&scp->th_cv);
 	mtx_unlock(&scp->seq_lock);
 	mtx_lock(&Giant);
-	printf("seq_eventthread finished\n");
+	SEQ_DEBUG(2,printf("seq_eventthread finished\n"));
 	kthread_exit(0);
 }
 
@@ -573,7 +573,7 @@ seq_addunit(void)
 
 	scp->seqdev->si_drv1 = scp->musicdev->si_drv1 = scp;
 
-	printf("sequencer %d created scp %p\n", scp->unit, scp);
+	SEQ_DEBUG(2,printf("sequencer %d created scp %p\n", scp->unit, scp));
 
 	ret = 0;
 
