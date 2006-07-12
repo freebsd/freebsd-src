@@ -1716,7 +1716,7 @@ DB_SHOW_COMMAND(pciregs, db_pci_dump)
 	struct devlist *devlist_head;
 	struct pci_conf *p;
 	const char *name;
-	int i, error, none_count, quit;
+	int i, error, none_count;
 
 	none_count = 0;
 	/* get the head of the device queue */
@@ -1725,10 +1725,9 @@ DB_SHOW_COMMAND(pciregs, db_pci_dump)
 	/*
 	 * Go through the list of devices and print out devices
 	 */
-	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
-	for (error = 0, i = 0, quit = 0,
+	for (error = 0, i = 0,
 	     dinfo = STAILQ_FIRST(devlist_head);
-	     (dinfo != NULL) && (error == 0) && (i < pci_numdevs) && !quit;
+	     (dinfo != NULL) && (error == 0) && (i < pci_numdevs) && !db_pager_quit;
 	     dinfo = STAILQ_NEXT(dinfo, pci_links), i++) {
 
 		/* Populate pd_name and pd_unit */

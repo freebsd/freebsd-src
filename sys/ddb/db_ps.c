@@ -73,23 +73,21 @@ db_ps(db_expr_t addr, boolean_t hasaddr, db_expr_t count, char *modif)
 	struct ucred *cred;
 	struct pgrp *pgrp;
 	char state[9];
-	int np, quit, rflag, sflag, dflag, lflag, wflag;
+	int np, rflag, sflag, dflag, lflag, wflag;
 
 	np = nprocs;
-	quit = 0;
 
 	if (!LIST_EMPTY(&allproc))
 		p = LIST_FIRST(&allproc);
 	else
 		p = &proc0;
 
-	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
 #ifdef __LP64__
 	db_printf(" pid   uid  ppid  pgrp  state   wmesg          wchan        cmd\n");
 #else
 	db_printf(" pid   uid  ppid  pgrp  state   wmesg      wchan    cmd\n");
 #endif
-	while (--np >= 0 && !quit) {
+	while (--np >= 0 && !db_pager_quit) {
 		if (p == NULL) {
 			db_printf("oops, ran out of processes early!\n");
 			break;
@@ -191,7 +189,7 @@ db_ps(db_expr_t addr, boolean_t hasaddr, db_expr_t count, char *modif)
 #endif
 		FOREACH_THREAD_IN_PROC(p, td) {
 			dumpthread(p, td, p->p_flag & P_HADTHREADS);
-			if (quit)
+			if (db_pager_quit)
 				break;
 		}
 
@@ -363,7 +361,7 @@ DB_SHOW_COMMAND(proc, db_show_proc)
 {
 	struct thread *td;
 	struct proc *p;
-	int i, quit;
+	int i;
 
 	/* Determine which process to examine. */
 	if (have_addr)
@@ -371,8 +369,6 @@ DB_SHOW_COMMAND(proc, db_show_proc)
 	else
 		p = kdb_thread->td_proc;
 
-	quit = 0;
-	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
 	db_printf("Process %d (%s) at %p:\n", p->p_pid, p->p_comm, p);
 	db_printf(" state: ");
 	switch (p->p_state) {
@@ -411,7 +407,7 @@ DB_SHOW_COMMAND(proc, db_show_proc)
 	db_printf(" threads: %d\n", p->p_numthreads);
 	FOREACH_THREAD_IN_PROC(p, td) {
 		dumpthread(p, td, 1);
-		if (quit)
+		if (db_pager_quit)
 			break;
 	}
 }

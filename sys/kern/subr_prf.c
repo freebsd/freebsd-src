@@ -912,20 +912,17 @@ SYSCTL_PROC(_kern, OID_AUTO, msgbuf_clear,
 
 DB_SHOW_COMMAND(msgbuf, db_show_msgbuf)
 {
-	int i, j, quit;
-
-	quit = 0;
+	int i, j;
 
 	if (!msgbufmapped) {
 		db_printf("msgbuf not mapped yet\n");
 		return;
 	}
-	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
 	db_printf("msgbufp = %p\n", msgbufp);
 	db_printf("magic = %x, size = %d, r= %u, w = %u, ptr = %p, cksum= %u\n",
 	    msgbufp->msg_magic, msgbufp->msg_size, msgbufp->msg_rseq,
 	    msgbufp->msg_wseq, msgbufp->msg_ptr, msgbufp->msg_cksum);
-	for (i = 0; i < msgbufp->msg_size && !quit; i++) {
+	for (i = 0; i < msgbufp->msg_size && !db_pager_quit; i++) {
 		j = MSGBUF_SEQ_TO_POS(msgbufp, i + msgbufp->msg_rseq);
 		db_printf("%c", msgbufp->msg_ptr[j]);
 	}

@@ -1581,12 +1581,11 @@ extern inthand_t
 DB_SHOW_COMMAND(idt, db_show_idt)
 {
 	struct gate_descriptor *ip;
-	int idx, quit;
+	int idx;
 	uintptr_t func;
 
 	ip = idt;
-	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
-	for (idx = 0, quit = 0; idx < NIDT; idx++) {
+	for (idx = 0; idx < NIDT && !db_pager_quit; idx++) {
 		func = (ip->gd_hioffset << 16 | ip->gd_looffset);
 		if (func != (uintptr_t)&IDTVEC(rsvd)) {
 			db_printf("%3d\t", idx);
