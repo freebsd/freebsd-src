@@ -151,7 +151,10 @@ extern char *signames[]; /* from kdump.c */
 void
 signame (int sig)
 {
-	(void)printf("SIG%s",signames[sig]);
+	if (sig > 0 && sig < NSIG)                                             
+		(void)printf("SIG%s",signames[sig]);                            
+	else                                                                    
+		(void)printf("SIG %d", sig);
 }
 
 /* MANUAL */
