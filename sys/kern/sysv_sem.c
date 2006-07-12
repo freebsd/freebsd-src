@@ -624,7 +624,7 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 	u_short usval, count;
 	int semidx;
 
-	DPRINTF(("call to semctl(%d, %d, %d, 0x%x)\n",
+	DPRINTF(("call to semctl(%d, %d, %d, 0x%p)\n",
 	    semid, semnum, cmd, arg));
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
@@ -979,7 +979,7 @@ semget(td, uap)
 #ifdef MAC
 		mac_create_sysv_sem(cred, &sema[semid]);
 #endif
-		DPRINTF(("sembase = 0x%x, next = 0x%x\n",
+		DPRINTF(("sembase = %p, next = %p\n",
 		    sema[semid].u.sem_base, &sem[semtot]));
 	} else {
 		DPRINTF(("didn't find it and wasn't asked to create it\n"));
@@ -1024,7 +1024,10 @@ semop(td, uap)
 	int error;
 	int do_wakeup, do_undos;
 
-	DPRINTF(("call to semop(%d, 0x%x, %u)\n", semid, sops, nsops));
+#ifdef SEM_DEBUG
+	sops = NULL;
+#endif
+	DPRINTF(("call to semop(%d, %p, %u)\n", semid, sops, nsops));
 
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
@@ -1045,7 +1048,7 @@ semop(td, uap)
 		return (E2BIG);
 	}
 	if ((error = copyin(uap->sops, sops, nsops * sizeof(sops[0]))) != 0) {
-		DPRINTF(("error = %d from copyin(%08x, %08x, %d)\n", error,
+		DPRINTF(("error = %d from copyin(%p, %p, %d)\n", error,
 		    uap->sops, sops, nsops * sizeof(sops[0])));
 		if (sops != small_sops)
 			free(sops, M_SEM);
@@ -1111,8 +1114,8 @@ semop(td, uap)
 			semptr = &semakptr->u.sem_base[sopptr->sem_num];
 
 			DPRINTF((
-			    "semop:  semakptr=%x, sem_base=%x, "
-			    "semptr=%x, sem[%d]=%d : op=%d, flag=%s\n",
+			    "semop:  semakptr=%p, sem_base=%p, "
+			    "semptr=%p, sem[%d]=%d : op=%d, flag=%s\n",
 			    semakptr, semakptr->u.sem_base, semptr,
 			    sopptr->sem_num, semptr->semval, sopptr->sem_op,
 			    (sopptr->sem_flg & IPC_NOWAIT) ?
@@ -1320,7 +1323,7 @@ semexit_myhook(arg, p)
 	if (suptr == NULL)
 		return;
 
-	DPRINTF(("proc @%08x has undo structure with %d entries\n", p,
+	DPRINTF(("proc @%p has undo structure with %d entries\n", p,
 	    suptr->un_cnt));
 
 	/*
@@ -1346,7 +1349,7 @@ semexit_myhook(arg, p)
 				panic("semexit - semnum out of range");
 
 			DPRINTF((
-			    "semexit:  %08x id=%d num=%d(adj=%d) ; sem=%d\n",
+			    "semexit:  %p id=%d num=%d(adj=%d) ; sem=%d\n",
 			    suptr->un_proc, suptr->un_ent[ix].un_id,
 			    suptr->un_ent[ix].un_num,
 			    suptr->un_ent[ix].un_adjval,
