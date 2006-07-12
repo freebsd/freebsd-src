@@ -103,7 +103,7 @@ db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
  * User stack trace (debugging aid).
  */
 static void
-db_utrace(struct thread *td, struct trapframe *tf, int count, int *quitp)
+db_utrace(struct thread *td, struct trapframe *tf, int count)
 {
 	struct pcb *pcb;
 	db_addr_t sp, rsp, o7, pc;
@@ -115,7 +115,7 @@ db_utrace(struct thread *td, struct trapframe *tf, int count, int *quitp)
 	    FALSE);
 	pc = db_get_value((db_addr_t)&tf->tf_tpc, sizeof(tf->tf_tpc), FALSE);
 	db_printf("user trace: trap %%o7=%#lx\n", o7);
-	while (count-- && sp != 0 && !*quitp) {
+	while (count-- && sp != 0 && !db_pager_quit) {
 		db_printf("pc %#lx, sp %#lx\n", pc, sp);
 		/* First, check whether the frame is in the pcb. */
 		found = 0;
@@ -141,7 +141,7 @@ db_utrace(struct thread *td, struct trapframe *tf, int count, int *quitp)
 }
 
 static int
-db_print_trap(struct thread *td, struct trapframe *tf, int count, int *quitp)
+db_print_trap(struct thread *td, struct trapframe *tf, int count)
 {
 	struct proc *p;
 	const char *symname;
@@ -219,7 +219,7 @@ db_print_trap(struct thread *td, struct trapframe *tf, int count, int *quitp)
 		db_printf("userland() at ");
 		db_printsym(tpc, DB_STGY_PROC);
 		db_printf("\n");
-		db_utrace(td, tf, count, quitp);
+		db_utrace(td, tf, count);
 	}
 	return (user);
 }
@@ -236,7 +236,6 @@ db_backtrace(struct thread *td, struct frame *fp, int count)
 	db_addr_t pc;
 	int trap;
 	int user;
-	int quit;
 
 	if (count == -1)
 		count = 1024;
@@ -244,9 +243,7 @@ db_backtrace(struct thread *td, struct frame *fp, int count)
 	trap = 0;
 	user = 0;
 	npc = 0;
-	quit = 0;
-	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
-	while (count-- && !user && !quit) {
+	while (count-- && !user && !db_pager_quit) {
 		pc = (db_addr_t)db_get_value((db_addr_t)&fp->fr_pc,
 		    sizeof(fp->fr_pc), FALSE);
 		if (trap) {
@@ -272,7 +269,7 @@ db_backtrace(struct thread *td, struct frame *fp, int count)
 			tf = (struct trapframe *)(fp + 1);
 			npc = db_get_value((db_addr_t)&tf->tf_tpc,
 			    sizeof(tf->tf_tpc), FALSE);
-			user = db_print_trap(td, tf, count, &quit);
+			user = db_print_trap(td, tf, count);
 			trap = 1;
 		} else {
 			db_printf("%s() at ", name);

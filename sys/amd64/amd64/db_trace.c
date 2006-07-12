@@ -390,16 +390,14 @@ db_backtrace(struct thread *td, struct trapframe *tf,
 	long *argp;
 	db_expr_t offset;
 	c_db_sym_t sym;
-	int narg, quit;
+	int narg;
 	boolean_t first;
 
 	if (count == -1)
 		count = 1024;
 
 	first = TRUE;
-	quit = 0;
-	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
-	while (count-- && !quit) {
+	while (count-- && !db_pager_quit) {
 		sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
 		db_symbol_values(sym, &name, NULL);
 

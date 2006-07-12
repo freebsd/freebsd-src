@@ -755,18 +755,16 @@ apic_idt_to_irq(u_int vector)
 DB_SHOW_COMMAND(apic, db_show_apic)
 {
 	struct intsrc *isrc;
-	int quit, i, verbose;
+	int i, verbose;
 	u_int irq;
 
-	quit = 0;
 	if (strcmp(modif, "vv") == 0)
 		verbose = 2;
 	else if (strcmp(modif, "v") == 0)
 		verbose = 1;
 	else
 		verbose = 0;
-	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
-	for (i = 0; i < APIC_NUM_IOINTS + 1 && !quit; i++) {
+	for (i = 0; i < APIC_NUM_IOINTS + 1 && !db_pager_quit; i++) {
 		irq = ioint_irqs[i];
 		if (irq != 0 && irq != IRQ_SYSCALL) {
 			db_printf("vec 0x%2x -> ", i + APIC_IO_INTS);

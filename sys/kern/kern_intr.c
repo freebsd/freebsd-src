@@ -905,16 +905,16 @@ db_dump_intr_event(struct intr_event *ie, int handlers)
 DB_SHOW_COMMAND(intr, db_show_intr)
 {
 	struct intr_event *ie;
-	int quit, all, verbose;
+	int all, verbose;
 
-	quit = 0;
 	verbose = index(modif, 'v') != NULL;
 	all = index(modif, 'a') != NULL;
-	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
 	TAILQ_FOREACH(ie, &event_list, ie_list) {
 		if (!all && TAILQ_EMPTY(&ie->ie_handlers))
 			continue;
 		db_dump_intr_event(ie, verbose);
+		if (db_pager_quit)
+			break;
 	}
 }
 #endif /* DDB */
@@ -976,11 +976,9 @@ DB_SHOW_COMMAND(intrcnt, db_show_intrcnt)
 {
 	u_long *i;
 	char *cp;
-	int quit;
 
 	cp = intrnames;
-	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
-	for (i = intrcnt, quit = 0; i != eintrcnt && !quit; i++) {
+	for (i = intrcnt; i != eintrcnt && !db_pager_quit; i++) {
 		if (*cp == '\0')
 			break;
 		if (*i != 0)
