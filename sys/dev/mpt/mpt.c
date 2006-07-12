@@ -1640,13 +1640,26 @@ mpt_write_cfg_page(struct mpt_softc *mpt, int Action, uint32_t PageAddress,
 			hdr->PageType & MPI_CONFIG_PAGETYPE_MASK);
 		return (-1);
 	}
-	hdr->PageType &= MPI_CONFIG_PAGETYPE_MASK,
+
+#if	0
+	/*
+	 * We shouldn't mask off other bits here.
+	 */
+	hdr->PageType &= MPI_CONFIG_PAGETYPE_MASK;
+#endif
 
 	req = mpt_get_request(mpt, sleep_ok);
 	if (req == NULL)
 		return (-1);
 
-	memcpy(((caddr_t)req->req_vbuf)+MPT_RQSL(mpt), hdr, len);
+	memcpy(((caddr_t)req->req_vbuf) + MPT_RQSL(mpt), hdr, len);
+
+	/*
+	 * There isn't any point in restoring stripped out attributes
+	 * if you then mask them going down to issue the request.
+	 */
+
+#if	0
 	/* Restore stripped out attributes */
 	hdr->PageType |= hdr_attr;
 
@@ -1655,6 +1668,13 @@ mpt_write_cfg_page(struct mpt_softc *mpt, int Action, uint32_t PageAddress,
 				  hdr->PageType & MPI_CONFIG_PAGETYPE_MASK,
 				  PageAddress, req->req_pbuf + MPT_RQSL(mpt),
 				  len, sleep_ok, timeout_ms);
+#else
+	error = mpt_issue_cfg_req(mpt, req, Action, hdr->PageVersion,
+				  hdr->PageLength, hdr->PageNumber,
+				  hdr->PageType, PageAddress,
+				  req->req_pbuf + MPT_RQSL(mpt),
+				  len, sleep_ok, timeout_ms);
+#endif
 	if (error != 0) {
 		mpt_prt(mpt, "mpt_write_cfg_page timed out\n");
 		return (-1);
@@ -1936,6 +1956,9 @@ mpt_sysctl_attach(struct mpt_softc *mpt)
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		       "debug", CTLFLAG_RW, &mpt->verbose, 0,
 		       "Debugging/Verbose level");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		       "role", CTLFLAG_RD, &mpt->role, 0,
+		       "HBA role");
 #endif
 }
 
@@ -2454,9 +2477,11 @@ mpt_configure_ioc(struct mpt_softc *mpt)
 		mpt->mpt_max_devices = pfp.MaxDevices;
 
 		/*
-		 * Set our expected role with what this port supports.
+		 * Set our role with what this port supports.
+		 *
+		 * Note this might be changed later in different modules
+		 * if this is different from what is wanted.
 		 */
-
 		mpt->role = MPT_ROLE_NONE;
 		if (pfp.ProtocolFlags & MPI_PORTFACTS_PROTOCOL_INITIATOR) {
 			mpt->role |= MPT_ROLE_INITIATOR;
@@ -2464,12 +2489,6 @@ mpt_configure_ioc(struct mpt_softc *mpt)
 		if (pfp.ProtocolFlags & MPI_PORTFACTS_PROTOCOL_TARGET) {
 			mpt->role |= MPT_ROLE_TARGET;
 		}
-		if (mpt->role == MPT_ROLE_NONE) {
-			mpt_prt(mpt, "port does not support either target or "
-			    "initiator role\n");
-			return (ENXIO);
-		}
-
 		if (mpt_enable_ioc(mpt, 0) != MPT_OK) {
 			mpt_prt(mpt, "unable to initialize IOC\n");
 			return (ENXIO);

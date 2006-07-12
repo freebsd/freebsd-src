@@ -436,49 +436,96 @@ mpt_read_config_info_fc(struct mpt_softc *mpt)
 static int
 mpt_set_initial_config_fc(struct mpt_softc *mpt)
 {
-#if	0
+	
 	CONFIG_PAGE_FC_PORT_1 fc;
 	U32 fl;
 	int r, doit = 0;
-
-	if ((mpt->role & MPT_ROLE_TARGET) == 0) {
-		return (0);
-	}
+	int role;
 
 	r = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_FC_PORT, 1, 0,
 	    &fc.Header, FALSE, 5000);
 	if (r) {
+		mpt_prt(mpt, "failed to read FC page 1 header\n");
 		return (mpt_fc_reset_link(mpt, 1));
 	}
 
-	r = mpt_read_cfg_page(mpt, MPI_CONFIG_ACTION_PAGE_READ_CURRENT, 0,
+	r = mpt_read_cfg_page(mpt, MPI_CONFIG_ACTION_PAGE_READ_NVRAM, 0,
 	    &fc.Header, sizeof (fc), FALSE, 5000);
 	if (r) {
+		mpt_prt(mpt, "failed to read FC page 1\n");
 		return (mpt_fc_reset_link(mpt, 1));
 	}
 
-	fl = le32toh(fc.Flags);
-	if ((fl & MPI_FCPORTPAGE1_FLAGS_TARGET_MODE_OXID) == 0) {
-		fl |= MPI_FCPORTPAGE1_FLAGS_TARGET_MODE_OXID;
-		doit = 1;
-	}
-	if (doit) {
-		const char *cc;
+	/*
+	 * Check our flags to make sure we support the role we want.
+	 */
+	doit = 0;
+	role = 0;
+	fl = le32toh(fc.Flags);;
 
-		mpt_lprt(mpt, MPT_PRT_INFO,
-		    "FC Port Page 1: New Flags %x \n", fl);
+	if (fl & MPI_FCPORTPAGE1_FLAGS_PROT_FCP_INIT) {
+		role |= MPT_ROLE_INITIATOR;
+	}
+	if (fl & MPI_FCPORTPAGE1_FLAGS_PROT_FCP_TARG) {
+		role |= MPT_ROLE_TARGET;
+	}
+
+	fl &= ~MPI_FCPORTPAGE1_FLAGS_PROT_MASK;
+
+	if (mpt->do_cfg_role == 0) {
+		role = mpt->cfg_role;
+	} else {
+		mpt->do_cfg_role = 0;
+	}
+
+	if (role != mpt->cfg_role) {
+		if (mpt->cfg_role & MPT_ROLE_INITIATOR) {
+			if ((role & MPT_ROLE_INITIATOR) == 0) {
+				mpt_prt(mpt, "adding initiator role\n");
+				fl |= MPI_FCPORTPAGE1_FLAGS_PROT_FCP_INIT;
+				doit++;
+			} else {
+				mpt_prt(mpt, "keeping initiator role\n");
+			}
+		} else if (role & MPT_ROLE_INITIATOR) {
+			mpt_prt(mpt, "removing initiator role\n");
+			doit++;
+		}
+		if (mpt->cfg_role & MPT_ROLE_TARGET) {
+			if ((role & MPT_ROLE_TARGET) == 0) {
+				mpt_prt(mpt, "adding target role\n");
+				fl |= MPI_FCPORTPAGE1_FLAGS_PROT_FCP_TARG;
+				doit++;
+			} else {
+				mpt_prt(mpt, "keeping target role\n");
+			}
+		} else if (role & MPT_ROLE_TARGET) {
+			mpt_prt(mpt, "removing target role\n");
+			doit++;
+		}
+		mpt->role = mpt->cfg_role;
+	}
+
+	if (fl & MPI_FCPORTPAGE1_FLAGS_PROT_FCP_TARG) {
+		if ((fl & MPI_FCPORTPAGE1_FLAGS_TARGET_MODE_OXID) == 0) {
+			mpt_prt(mpt, "adding OXID option\n");
+			fl |= MPI_FCPORTPAGE1_FLAGS_TARGET_MODE_OXID;
+			doit++;
+		}
+	}
+
+	if (doit) {
 		fc.Flags = htole32(fl);
 		r = mpt_write_cfg_page(mpt,
-		    MPI_CONFIG_ACTION_PAGE_WRITE_CURRENT, 0, &fc.Header,
+		    MPI_CONFIG_ACTION_PAGE_WRITE_NVRAM, 0, &fc.Header,
 		    sizeof(fc), FALSE, 5000);
 		if (r != 0) {
-			cc = "FC PORT PAGE1 UPDATE: FAILED\n";
-		} else {
-			cc = "FC PORT PAGE1 UPDATED: SYSTEM NEEDS RESET\n";
+			mpt_prt(mpt, "failed to update NVRAM with changes\n");
+			return (0);
 		}
-		mpt_prt(mpt, cc);
+		mpt_prt(mpt, "NOTE: NVRAM changes will not take "
+		    "effect until next reboot or IOC reset\n");
 	}
-#endif
 	return (0);
 }
 
