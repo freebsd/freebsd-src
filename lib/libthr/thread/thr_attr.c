@@ -434,9 +434,17 @@ _pthread_attr_setschedparam(pthread_attr_t *attr, const struct sched_param *para
 
 	policy = (*attr)->sched_policy;
 
-	if (param->sched_priority < _thr_priorities[policy-1].pri_min ||
-	    param->sched_priority > _thr_priorities[policy-1].pri_max)
+	if (policy == SCHED_FIFO || policy == SCHED_RR) {
+		if (param->sched_priority < _thr_priorities[policy-1].pri_min ||
+		    param->sched_priority > _thr_priorities[policy-1].pri_max)
 		return (ENOTSUP);
+	} else {
+		/*
+		 * Ignore it for SCHED_OTHER now, patches for glib ports
+		 * are wrongly using M:N thread library's internal macro
+		 * THR_MIN_PRIORITY and THR_MAX_PRIORITY.
+		 */
+	}
 
 	(*attr)->prio = param->sched_priority;
 

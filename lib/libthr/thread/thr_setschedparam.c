@@ -50,45 +50,30 @@ int
 _pthread_setschedparam(pthread_t pthread, int policy, 
 	const struct sched_param *param)
 {
-	struct pthread *curthread = _get_curthread();
-	int	ret = 0;
+	struct pthread	*curthread = _get_curthread();
+	int	ret;
 
-	if ((param == NULL) || (policy < SCHED_FIFO) || (policy > SCHED_RR)) {
-		ret = EINVAL;
-	} else if (param->sched_priority < _thr_priorities[policy-1].pri_min ||
-		   param->sched_priority > _thr_priorities[policy-1].pri_max) {
-		ret = ENOTSUP;
-	} else if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0))
-	    == 0) {
-		/*
-		 * Lock the threads scheduling queue while we change
-		 * its priority:
-		 */
-		THR_THREAD_LOCK(curthread, pthread);
-		if (pthread->state == PS_DEAD) {
-			THR_THREAD_UNLOCK(curthread, pthread);
-			_thr_ref_delete(curthread, pthread);
-			return (ESRCH);
-		}
-
-		/* Set the scheduling policy: */
-		pthread->attr.sched_policy = policy;
-
-		if (param->sched_priority == pthread->base_priority)
-			/*
-			 * There is nothing to do; unlock the threads
-			 * scheduling queue.
-			 */
-			THR_THREAD_UNLOCK(curthread, pthread);
+	if (pthread == curthread) {
+		THR_LOCK(curthread);
+		ret = sched_setscheduler((pid_t)curthread->tid, policy, param);
+		if (ret == -1)
+			ret = errno;
 		else {
-			pthread->base_priority = param->sched_priority;
-
-			/* Recalculate the active priority: */
-			pthread->active_priority = MAX(pthread->base_priority,
-			    pthread->inherited_priority);
-
-			THR_THREAD_UNLOCK(curthread, pthread);
+			curthread->attr.sched_policy = policy;
+			curthread->attr.prio = param->sched_priority;
 		}
+		THR_UNLOCK(curthread);
+	} else if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0))
+		== 0) {
+		THR_THREAD_LOCK(curthread, pthread);
+		ret = sched_setscheduler((pid_t)pthread->tid, policy, param);
+		if (ret == -1)
+			ret = errno;
+		else {
+			pthread->attr.sched_policy = policy;
+			pthread->attr.prio = param->sched_priority;
+		}
+		THR_THREAD_UNLOCK(curthread, pthread);
 		_thr_ref_delete(curthread, pthread);
 	}
 	return (ret);

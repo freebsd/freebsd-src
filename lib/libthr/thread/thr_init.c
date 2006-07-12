@@ -40,6 +40,7 @@
 #include <sys/sysctl.h>
 #include <sys/ttycom.h>
 #include <sys/mman.h>
+#include <sys/rtprio.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
@@ -67,14 +68,10 @@ int		_thread_active_threads = 1;
 atfork_head	_thr_atfork_list = TAILQ_HEAD_INITIALIZER(_thr_atfork_list);
 umtx_t		_thr_atfork_lock;
 
-/*
- * XXX these values should be updated from kernel at startup,
- * but current they are same.
- */
 struct pthread_prio	_thr_priorities[3] = {
-	{0,   31, 0}, /* FIF0 */
-	{-20, 20, 0}, /* OTHER */
-	{0,   31, 0}  /* RR */
+	{RTP_PRIO_MIN,  RTP_PRIO_MAX, 0}, /* FIFO */
+	{0, 0, 63}, /* OTHER */
+	{RTP_PRIO_MIN, RTP_PRIO_MAX, 0}  /* RR */
 };
 
 struct pthread_attr _pthread_attr_default = {
@@ -156,8 +153,6 @@ STATIC_LIB_REQUIRE(_sendto);
 STATIC_LIB_REQUIRE(_sigaction);
 STATIC_LIB_REQUIRE(_sigprocmask);
 STATIC_LIB_REQUIRE(_sigsuspend);
-STATIC_LIB_REQUIRE(_socket);
-STATIC_LIB_REQUIRE(_socketpair);
 STATIC_LIB_REQUIRE(_thread_init_hack);
 STATIC_LIB_REQUIRE(_wait4);
 STATIC_LIB_REQUIRE(_write);
@@ -406,11 +401,6 @@ init_main_thread(struct pthread *thread)
 
 	thread->cancelflags = PTHREAD_CANCEL_ENABLE | PTHREAD_CANCEL_DEFERRED;
 	thr_set_name(thread->tid, "initial thread");
-
-	/* Default the priority of the initial thread: */
-	thread->base_priority = THR_DEF_PRIORITY;
-	thread->active_priority = THR_DEF_PRIORITY;
-	thread->inherited_priority = 0;
 
 	/* Initialize the mutex queue: */
 	TAILQ_INIT(&thread->mutexq);
