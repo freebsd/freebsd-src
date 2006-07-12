@@ -191,17 +191,17 @@ main(int argc, char *argv[])
 	struct statfs *mntbuf;
 	FILE *mountdfp;
 	pid_t pid;
-	int all, ch, i, init_flags, mntsize, rval, have_fstab;
+	int all, ch, i, init_flags, late, mntsize, rval, have_fstab;
 	char *cp, *ep, *options;
 
 	options = strdup("noro");
 	if (options == NULL)
 		errx(1, "malloc failed");
 
-	all = init_flags = 0;
+	all = init_flags = late = 0;
 	vfslist = NULL;
 	vfstype = "ufs";
-	while ((ch = getopt(argc, argv, "adF:fo:prwt:uv")) != -1)
+	while ((ch = getopt(argc, argv, "adlF:fo:prwt:uv")) != -1)
 		switch (ch) {
 		case 'a':
 			all = 1;
@@ -214,6 +214,9 @@ main(int argc, char *argv[])
 			break;
 		case 'f':
 			init_flags |= MNT_FORCE;
+			break;
+		case 'l':
+			late = 1;
 			break;
 		case 'o':
 			options = catopt(options, optarg);
@@ -264,6 +267,8 @@ main(int argc, char *argv[])
 				if (checkvfsname(fs->fs_vfstype, vfslist))
 					continue;
 				if (hasopt(fs->fs_mntops, "noauto"))
+					continue;
+				if (hasopt(fs->fs_mntops, "late") && !late)
 					continue;
 				if (!(init_flags & MNT_UPDATE) &&
 				    ismounted(fs, mntbuf, mntsize))
@@ -628,6 +633,15 @@ mangle(char *options, int *argcp, char *argv[])
 				 * not a real mount option.
 				 */
 				continue;
+			} else if (strcmp(p, "late") == 0) {
+				/*
+				 * "late" is used to prevent certain file
+				 * systems from being mounted before late
+				 * in the boot cycle; for instance,
+				 * loopback NFS mounts can't be mounted
+				 * before mountd starts.
+				 */
+				continue;
 			} else if (strcmp(p, "userquota") == 0) {
 				continue;
 			} else if (strncmp(p, userquotaeq,
@@ -737,7 +751,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-"usage: mount [-adfpruvw] [-F fstab] [-o options] [-t ufs | external_type]",
+"usage: mount [-adflpruvw] [-F fstab] [-o options] [-t ufs | external_type]",
 "       mount [-dfpruvw] special | node",
 "       mount [-dfpruvw] [-o options] [-t ufs | external_type] special node");
 	exit(1);
