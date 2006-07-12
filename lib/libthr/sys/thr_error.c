@@ -45,10 +45,12 @@ extern	int	errno;
 int *
 __error(void)
 {
-	struct pthread *curthread = _get_curthread();
+	struct pthread *curthread;
 
-	if (curthread != NULL && curthread != _thr_initial)
-		return (&curthread->error);
-	else
-		return (&errno);
+	if (_thr_initial != NULL) {
+		curthread = _get_curthread();
+		if (curthread != NULL && curthread != _thr_initial)
+			return (&curthread->error);
+	}
+	return (&errno);
 }
