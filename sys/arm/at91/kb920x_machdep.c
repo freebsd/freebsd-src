@@ -156,6 +156,7 @@ static const struct pmap_devmap kb920x_devmap[] = {
 		VM_PROT_READ|VM_PROT_WRITE,                             
 		PTE_NOCACHE,
 	},
+#if 0
 	{
 		/*
 		 * Add the ohci controller, and anything else that might be
@@ -167,6 +168,7 @@ static const struct pmap_devmap kb920x_devmap[] = {
 		VM_PROT_READ|VM_PROT_WRITE,                             
 		PTE_NOCACHE,
 	},
+#endif
 	{
 		0,
 		0,
