@@ -947,9 +947,9 @@ void
 ktrpsig(struct ktr_psig *psig)
 {
 	if (psig->signo > 0 && psig->signo < NSIG)
-		(void)printf("SIG%s", signames[psig->signo]);
+		(void)printf("SIG%s ", signames[psig->signo]);
 	else
-		(void)printf("SIG%s ", psig->signo);
+		(void)printf("SIG %d ", psig->signo);
 	if (psig->action == SIG_DFL)
 		(void)printf("SIG_DFL\n");
 	else {
