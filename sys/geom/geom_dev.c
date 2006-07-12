@@ -353,6 +353,7 @@ g_dev_strategy(struct bio *bp)
 
 	if ((bp->bio_offset % cp->provider->sectorsize) != 0 ||
 	    (bp->bio_bcount % cp->provider->sectorsize) != 0) {
+		bp->bio_resid = bp->bio_bcount;
 		biofinish(bp, NULL, EINVAL);
 		return;
 	}
