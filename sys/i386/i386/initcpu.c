@@ -79,11 +79,18 @@ u_int	cpu_feature = 0;	/* Feature flags */
 u_int	cpu_feature2 = 0;	/* Feature flags */
 u_int	amd_feature = 0;	/* AMD feature flags */
 u_int	amd_feature2 = 0;	/* AMD feature flags */
+u_int	via_feature_rng = 0;	/* VIA RNG features */
+u_int	via_feature_xcrypt = 0;	/* VIA ACE features */
 u_int	cpu_high = 0;		/* Highest arg to CPUID */
 u_int	cpu_id = 0;		/* Stepping ID */
 u_int	cpu_procinfo = 0;	/* HyperThreading Info / Brand Index / CLFUSH */
 u_int	cpu_procinfo2 = 0;	/* Multicore info */
 char	cpu_vendor[20] = "";	/* CPU Origin code */
+
+SYSCTL_UINT(_hw, OID_AUTO, via_feature_rng, CTLFLAG_RD,
+	&via_feature_rng, 0, "VIA C3/C7 RNG feature available in CPU");
+SYSCTL_UINT(_hw, OID_AUTO, via_feature_xcrypt, CTLFLAG_RD,
+	&via_feature_xcrypt, 0, "VIA C3/C7 xcrypt feature available in CPU");
 
 #ifdef CPU_ENABLE_SSE
 u_int	cpu_fxsr;		/* SSE enabled */
@@ -526,6 +533,70 @@ init_mendocino(void)
 #endif /* CPU_PPRO2CELERON */
 }
 
+/*
+ * Initialize special VIA C3/C7 features
+ */
+static void
+init_via(void)
+{
+	u_int regs[4], val;
+	u_int64_t msreg;
+
+	do_cpuid(0xc0000000, regs);
+	val = regs[0];
+	if (val >= 0xc0000001) {
+		do_cpuid(0xc0000001, regs);
+		val = regs[3];
+	} else
+		val = 0;
+
+	/* Enable RNG if present and disabled */
+	if (val & VIA_CPUID_HAS_RNG) {
+		if (!(val & VIA_CPUID_DO_RNG)) {
+			msreg = rdmsr(0x110B);
+			msreg |= 0x40;
+			wrmsr(0x110B, msreg);
+		}
+		via_feature_rng = VIA_HAS_RNG;
+	}
+	/* Enable AES engine if present and disabled */
+	if (val & VIA_CPUID_HAS_ACE) {
+		if (!(val & VIA_CPUID_DO_ACE)) {
+			msreg = rdmsr(0x1107);
+			msreg |= (0x01 << 28);
+			wrmsr(0x1107, msreg);
+		}
+		via_feature_xcrypt |= VIA_HAS_AES;
+	}
+	/* Enable ACE2 engine if present and disabled */
+	if (val & VIA_CPUID_HAS_ACE2) {
+		if (!(val & VIA_CPUID_DO_ACE2)) {
+			msreg = rdmsr(0x1107);
+			msreg |= (0x01 << 28);
+			wrmsr(0x1107, msreg);
+		}
+		via_feature_xcrypt |= VIA_HAS_AESCTR;
+	}
+	/* Enable SHA engine if present and disabled */
+	if (val & VIA_CPUID_HAS_PHE) {
+		if (!(val & VIA_CPUID_DO_PHE)) {
+			msreg = rdmsr(0x1107);
+			msreg |= (0x01 << 28/**/);
+			wrmsr(0x1107, msreg);
+		}
+		via_feature_xcrypt |= VIA_HAS_SHA;
+	}
+	/* Enable MM engine if present and disabled */
+	if (val & VIA_CPUID_HAS_PMM) {
+		if (!(val & VIA_CPUID_DO_PMM)) {
+			msreg = rdmsr(0x1107);
+			msreg |= (0x01 << 28/**/);
+			wrmsr(0x1107, msreg);
+		}
+		via_feature_xcrypt |= VIA_HAS_MM;
+	}
+}
+
 #endif /* I686_CPU */
 
 /*
@@ -602,6 +673,18 @@ initializecpu(void)
 				cpu_feature = regs[3];
 			}
 #endif
+		} else if (strcmp(cpu_vendor, "CentaurHauls") == 0) {
+			switch (cpu_id & 0xff0) {
+			case 0x690:
+				if ((cpu_id & 0xf) < 3)
+					break;
+				/* fall through. */
+			case 0x6a0:
+				init_via();
+				break;
+			default:
+				break;
+			}
 		}
 		break;
 #endif
