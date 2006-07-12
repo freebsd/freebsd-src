@@ -28,7 +28,7 @@
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2004
+.Dd July 12, 2006
 .Dt MOUNT 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd mount file systems
 .Sh SYNOPSIS
 .Nm
-.Op Fl adfpruvw
+.Op Fl adflpruvw
 .Op Fl F Ar fstab
 .Op Fl o Ar options
 .Op Fl t Ar ufs | external_type
@@ -78,7 +78,12 @@ All the file systems described in
 are mounted.
 Exceptions are those marked as
 .Dq noauto ,
-excluded by the
+those marked as
+.Dq late
+(unless the
+.Fl l
+option was specified),
+those excluded by the
 .Fl t
 flag (see below), or if they are already mounted (except the
 root file system which is always remounted to preserve
@@ -101,6 +106,11 @@ a file system mount status from read-write to read-only.
 Also
 forces the R/W mount of an unclean file system (dangerous; use with
 caution).
+.It Fl l
+When used in conjunction with the
+.Fl a
+option, also mount those file systems which are marked as
+.Dq late .
 .It Fl o
 Options are specified with a
 .Fl o
@@ -142,6 +152,13 @@ When used with the
 flag, this is the same as specifying all the options listed in the
 .Xr fstab 5
 file for the file system.
+.It Cm late
+This file system should be skipped when
+.Nm is run with the
+.Fl a
+flag but without the
+.Fl l
+flag.
 .It Cm multilabel
 Enable multi-label Mandatory Access Control, or MAC, on the specified file
 system.
