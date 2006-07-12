@@ -229,8 +229,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 			sched_prio(newtd, newkg->kg_user_pri);
 			break;
 		case SCHED_OTHER:
-			if (curthread->td_ksegrp->kg_pri_class !=
-			    PRI_TIMESHARE) {
+			if (newkg->kg_pri_class != PRI_TIMESHARE) {
 				rtp.type = PRI_TIMESHARE;
 				rtp.prio = 0;
 				rtp_to_pri(&rtp, newkg);
