@@ -3745,6 +3745,40 @@ driver_module_handler(module_t mod, int what, void *arg)
 	return (error);
 }
 
+/**
+ * @brief Enumerate all hinted devices for this bus.
+ *
+ * Walks throught he hints for this bus and calls the bus_hinted_child
+ * routine for each one it fines.  It searches first for the specific
+ * bus that's being probed for hinted children (eg isa0), and then for
+ * generic children (eg isa).
+ *
+ * @param	dev	bus device to enumerate
+ */
+void
+bus_enumerate_hinted_children(device_t bus)
+{
+	int i;
+	const char *dname, *busname;
+	int dunit;
+
+	/*
+	 * enumerate all devices on the specific bus
+	 */
+	busname = device_get_nameunit(bus);
+	i = 0;
+	while (resource_find_match(&i, &dname, &dunit, "at", busname) == 0)
+		BUS_HINTED_CHILD(bus, dname, dunit);
+
+	/*
+	 * and all the generic ones.
+	 */
+	busname = device_get_name(bus);
+	i = 0;
+	while (resource_find_match(&i, &dname, &dunit, "at", busname) == 0)
+		BUS_HINTED_CHILD(bus, dname, dunit);
+}
+
 #ifdef BUS_DEBUG
 
 /* the _short versions avoid iteration by not calling anything that prints
