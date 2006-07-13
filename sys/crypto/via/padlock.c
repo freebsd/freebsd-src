@@ -58,6 +58,8 @@ __FBSDID("$FreeBSD$");
 #if defined(__i386__) && !defined(PC98)
 #include <machine/cpufunc.h>
 #include <machine/cputypes.h>
+#include <machine/md_var.h>
+#include <machine/specialreg.h>
 #endif
 
 #include <opencrypto/cryptodev.h>
@@ -160,24 +162,11 @@ padlock_init(void)
 {
 	struct padlock_softc *sc;
 #if defined(__i386__) && !defined(PC98)
-	u_int regs[4];
-	int has_ace = 0;
-
-	if (cpu_class < CPUCLASS_586)
-		return (EINVAL);
-	do_cpuid(1, regs);
-	if ((regs[0] & 0xf) >= 3) {
-		do_cpuid(0xc0000000, regs);
-		if (regs[0] == 0xc0000001) {
-			do_cpuid(0xc0000001, regs);
-			if ((regs[3] & 0xc0) == 0xc0)
-				has_ace = 1;
-		}
-	}
-	if (!has_ace) {
+	if (!(via_feature_xcrypt & VIA_HAS_AES)) {
 		printf("PADLOCK: No ACE support.\n");
 		return (EINVAL);
-	}
+	} else
+		printf("PADLOCK: HW support loaded.\n");
 #else
 	return (EINVAL);
 #endif
