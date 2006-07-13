@@ -144,9 +144,10 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	if (new_thread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		param.flags |= THR_SYSTEM_SCOPE;
 	if (new_thread->attr.sched_inherit == PTHREAD_INHERIT_SCHED)
-		param.sched = NULL;
+		param.sched_param = NULL;
 	else {
-		param.sched = &sched_param;
+		param.sched_param = &sched_param;
+		param.sched_param_size = sizeof(sched_param);
 		sched_param.policy = new_thread->attr.sched_policy;
 		sched_param.param.sched_priority = new_thread->attr.prio;
 	}
