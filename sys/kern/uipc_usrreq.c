@@ -1561,8 +1561,9 @@ out:
 struct mbuf *
 unp_addsockcred(struct thread *td, struct mbuf *control)
 {
-	struct mbuf *m, *n;
+	struct mbuf *m, *n, *n_prev;
 	struct sockcred *sc;
+	const struct cmsghdr *cm;
 	int ngroups;
 	int i;
 
@@ -1571,7 +1572,6 @@ unp_addsockcred(struct thread *td, struct mbuf *control)
 	m = sbcreatecontrol(NULL, SOCKCREDSIZE(ngroups), SCM_CREDS, SOL_SOCKET);
 	if (m == NULL)
 		return (control);
-	m->m_next = NULL;
 
 	sc = (struct sockcred *) CMSG_DATA(mtod(m, struct cmsghdr *));
 	sc->sc_uid = td->td_ucred->cr_ruid;
@@ -1583,16 +1583,30 @@ unp_addsockcred(struct thread *td, struct mbuf *control)
 		sc->sc_groups[i] = td->td_ucred->cr_groups[i];
 
 	/*
-	 * If a control message already exists, append us to the end.
+	 * Unlink SCM_CREDS control messages (struct cmsgcred), since
+	 * just created SCM_CREDS control message (struct sockcred) has
+	 * another format.
 	 */
-	if (control != NULL) {
-		for (n = control; n->m_next != NULL; n = n->m_next)
-			;
-		n->m_next = m;
-	} else
-		control = m;
+	if (control != NULL)
+		for (n = control, n_prev = NULL; n != NULL;) {
+			cm = mtod(n, struct cmsghdr *);
+    			if (cm->cmsg_level == SOL_SOCKET &&
+			    cm->cmsg_type == SCM_CREDS) {
+    				if (n_prev == NULL)
+					control = n->m_next;
+				else
+					n_prev->m_next = n->m_next;
+				n = m_free(n);
+			} else {
+				n_prev = n;
+				n = n->m_next;
+			}
+		}
 
-	return (control);
+	/* Prepend it to the head. */
+	m->m_next = control;
+
+	return (m);
 }
 
 /*
