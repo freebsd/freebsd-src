@@ -56,7 +56,7 @@ random_ident_hardware(struct random_systat *systat)
 
 	/* Then go looking for hardware */
 #if defined(__i386__) && !defined(PC98)
-	if(via_feature_rng & VIA_HAS_RNG) {
+	if (via_feature_rng & VIA_HAS_RNG) {
 		*systat = random_nehemiah;
 	}
 #endif
