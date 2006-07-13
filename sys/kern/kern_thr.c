@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_posix.h"
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -44,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/thr.h>
 #include <sys/rtprio.h>
 #include <posix4/sched.h>
+#include <posix4/posix4.h>
 #include <sys/umtx.h>
 #include <sys/limits.h>
 
@@ -89,8 +91,11 @@ thr_new(struct thread *td, struct thr_new_args *uap)
 	if ((error = copyin(uap->param, &param, sizeof(param))))
 		return (error);
 	sched = NULL;
-	if (param.sched != NULL) {
-		error = copyin(param.sched, &sched_param,
+	if (param.sched_param != NULL) {
+		if (param.sched_param_size != sizeof(struct thr_sched_param))
+			return (EINVAL);
+
+		error = copyin(param.sched_param, &sched_param,
 			sizeof(sched_param));
 		if (error)
 			return (error);
@@ -430,4 +435,155 @@ thr_set_name(struct thread *td, struct thr_set_name_args *uap)
 		error = ESRCH;
 	PROC_UNLOCK(p);
 	return (error);
+}
+
+int
+thr_setscheduler(struct thread *td, struct thr_setscheduler_args *uap)
+{
+	struct proc *p;
+	struct thread *ttd;
+	struct rtprio rtp;
+	struct sched_param param;
+	int ret;
+
+	if (uap->param_size != sizeof(struct sched_param))
+		return (EINVAL);
+
+	ret = copyin(uap->param, &param, sizeof(struct sched_param));
+	if (ret)
+		return (ret);
+	
+	switch(uap->policy) {
+	case SCHED_FIFO:
+		if (suser(td) != 0)
+			return (EPERM);
+		rtp.type = PRI_FIFO;
+		break;
+	case SCHED_RR:
+		if (suser(td) != 0)
+			return (EPERM);
+		rtp.type = PRI_REALTIME;
+		break;
+	case SCHED_OTHER:
+		rtp.type = PRI_TIMESHARE;
+		break;
+	default:
+		return (EINVAL);
+	}	
+	rtp.prio = param.sched_priority;
+
+	p = td->td_proc;
+	PROC_LOCK(p);
+	ret = p_cansched(td, p);
+	if (ret != 0) {
+		PROC_UNLOCK(p);
+		return (ret);
+	}
+
+	ttd = thread_find(p, uap->id);
+	if (ttd == NULL) {
+		PROC_UNLOCK(p);
+		return (ESRCH);
+	}
+	mtx_lock_spin(&sched_lock);
+	ret = rtp_to_pri(&rtp, ttd->td_ksegrp);
+	if (ret == 0) {
+		if (TD_IS_RUNNING(ttd))
+			ttd->td_flags |= TDF_NEEDRESCHED;
+		else if (ttd->td_priority > ttd->td_ksegrp->kg_user_pri)
+			sched_prio(ttd, ttd->td_ksegrp->kg_user_pri);
+	}
+	mtx_unlock_spin(&sched_lock);
+	PROC_UNLOCK(p);
+	return (ret);
+}
+
+int
+thr_getscheduler(struct thread *td, struct thr_getscheduler_args *uap)
+{
+	struct proc *p;
+	struct thread *ttd;
+	struct rtprio rtp;
+	struct sched_param param;
+	int policy;
+	int ret;
+
+	if (uap->param_size != sizeof(struct sched_param))
+		return (EINVAL);
+
+	p = td->td_proc;
+	PROC_LOCK(p);
+	ttd = thread_find(p, uap->id);
+	if (ttd == NULL) {
+		PROC_UNLOCK(p);
+		return (ESRCH);
+	}
+	mtx_lock_spin(&sched_lock);
+	switch(ttd->td_ksegrp->kg_pri_class) {
+	case PRI_TIMESHARE:
+		policy = SCHED_OTHER;
+		break;
+	case PRI_FIFO:
+		policy = SCHED_FIFO;
+		break;
+	case PRI_REALTIME:
+		policy = SCHED_RR;
+		break;
+	default:
+		policy = SCHED_OTHER; /* XXX SCHED_IDLE */
+	}
+	pri_to_rtp(ttd->td_ksegrp, &rtp);
+	mtx_unlock_spin(&sched_lock);
+	PROC_UNLOCK(p);
+
+	param.sched_priority = rtp.prio;
+	ret = copyout(&policy, uap->policy, sizeof(policy));
+	if (ret == 0)
+		ret = copyout(&param, uap->param, sizeof(param));
+	return (ret);
+}
+
+int
+thr_setschedparam(struct thread *td, struct thr_setschedparam_args *uap)
+{
+	struct proc *p;
+	struct thread *ttd;
+	struct rtprio rtp;
+	struct sched_param param;
+	int ret;
+
+	if (uap->param_size != sizeof(struct sched_param))
+		return (EINVAL);
+
+	ret = copyin(uap->param, &param, sizeof(struct sched_param));
+	if (ret)
+		return (ret);
+	
+	p = td->td_proc;
+	PROC_LOCK(p);
+	ret = p_cansched(td, p);
+	if (ret != 0) {
+		PROC_UNLOCK(p);
+		return (ret);
+	}
+
+	ttd = thread_find(p, uap->id);
+	if (ttd == NULL) {
+		PROC_UNLOCK(p);
+		return (ESRCH);
+	}
+	
+	mtx_lock_spin(&sched_lock);
+	pri_to_rtp(ttd->td_ksegrp, &rtp);
+	rtp.prio = param.sched_priority;
+	ret = rtp_to_pri(&rtp, ttd->td_ksegrp);
+	if (ret == 0) {
+		if (TD_IS_RUNNING(ttd))
+			ttd->td_flags |= TDF_NEEDRESCHED;
+		else if (ttd->td_priority > ttd->td_ksegrp->kg_user_pri)
+			sched_prio(ttd, ttd->td_ksegrp->kg_user_pri);
+	}
+	mtx_unlock_spin(&sched_lock);
+	PROC_UNLOCK(p);
+	return (ret);
 }
