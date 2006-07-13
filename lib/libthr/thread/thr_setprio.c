@@ -50,7 +50,7 @@ _pthread_setprio(pthread_t pthread, int prio)
 	param.sched_priority = prio;
 	if (pthread == curthread) {
 		THR_LOCK(curthread);
-		ret = sched_setparam((pid_t)curthread->tid, &param);
+		ret = thr_setschedparam(curthread->tid, &param, sizeof(param));
 		if (ret == -1)
 			ret = errno;
 		else
@@ -59,7 +59,7 @@ _pthread_setprio(pthread_t pthread, int prio)
 	} else if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0))
 		== 0) {
 		THR_THREAD_LOCK(curthread, pthread);
-		ret = sched_setparam((pid_t)pthread->tid, &param);
+		ret = thr_setschedparam(pthread->tid, &param, sizeof(param));
 		if (ret == -1)
 			ret = errno;
 		else

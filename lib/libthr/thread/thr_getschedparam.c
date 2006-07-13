@@ -57,34 +57,20 @@ _pthread_getschedparam(pthread_t pthread, int *policy,
 		 * thread.
 		 */
 		THR_LOCK(curthread);
-
-		/*
-		 * XXX Here we need two separated syscalls, atomic is only
-		 * guaranteed in thread library, a new syscall is needed.
-		 */
-
-		*policy = sched_getscheduler((pid_t)curthread->tid);
-		if (*policy == -1)
+		ret = thr_getscheduler((pid_t)curthread->tid, policy, param,
+			sizeof(param));
+		if (ret == -1)
 			ret = errno;
-		else {
-			ret = sched_getparam((pid_t)curthread->tid, param);
-			if (ret == -1)
-				ret = errno;
-		}
 		THR_UNLOCK(curthread);
 	}
 	/* Find the thread in the list of active threads. */
 	else if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0))
 	    == 0) {
 		THR_THREAD_LOCK(curthread, pthread);
-		*policy = sched_getscheduler((pid_t)pthread->tid);
-		if (*policy == -1)
+		ret = thr_getscheduler(pthread->tid, policy, param,
+			sizeof(param));
+		if (ret == -1)
 			ret = errno;
-		else {
-			ret = sched_getparam((pid_t)pthread->tid, param);
-			if (ret == -1)
-				ret = errno;
-		}
 		THR_THREAD_UNLOCK(curthread, pthread);
 		_thr_ref_delete(curthread, pthread);
 	}
