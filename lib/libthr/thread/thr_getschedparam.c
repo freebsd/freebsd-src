@@ -57,20 +57,17 @@ _pthread_getschedparam(pthread_t pthread, int *policy,
 		 * thread.
 		 */
 		THR_LOCK(curthread);
-		ret = thr_getscheduler((pid_t)curthread->tid, policy, param,
-			sizeof(param));
-		if (ret == -1)
-			ret = errno;
+		*policy = curthread->attr.sched_policy;
+		param->sched_priority = curthread->attr.prio;
 		THR_UNLOCK(curthread);
+		ret = 0;
 	}
 	/* Find the thread in the list of active threads. */
 	else if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0))
 	    == 0) {
 		THR_THREAD_LOCK(curthread, pthread);
-		ret = thr_getscheduler(pthread->tid, policy, param,
-			sizeof(param));
-		if (ret == -1)
-			ret = errno;
+		*policy = pthread->attr.sched_policy;
+		param->sched_priority = pthread->attr.prio;
 		THR_THREAD_UNLOCK(curthread, pthread);
 		_thr_ref_delete(curthread, pthread);
 	}

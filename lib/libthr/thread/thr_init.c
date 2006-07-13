@@ -362,6 +362,8 @@ _libpthread_init(struct pthread *curthread)
 static void
 init_main_thread(struct pthread *thread)
 {
+	struct sched_param sched_param;
+
 	/* Setup the thread attributes. */
 	thr_self(&thread->tid);
 	thread->attr = _pthread_attr_default;
@@ -406,6 +408,10 @@ init_main_thread(struct pthread *thread)
 	TAILQ_INIT(&thread->mutexq);
 
 	thread->state = PS_RUNNING;
+
+	thr_getscheduler(thread->tid, &thread->attr.sched_policy,
+		 &sched_param, sizeof(sched_param));
+	thread->attr.prio = sched_param.sched_priority;
 
 	/* Others cleared to zero by thr_alloc() */
 }
