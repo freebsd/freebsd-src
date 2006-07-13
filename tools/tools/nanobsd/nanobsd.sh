@@ -196,6 +196,19 @@ install_etc ( ) (
 	${NANO_PMAKE} __MAKE_CONF=${NANO_MAKE_CONF} distribution \
 		DESTDIR=${NANO_WORLDDIR} \
 		> ${MAKEOBJDIRPREFIX}/_.etc 2>&1
+	(
+	cd ${NANO_WORLDDIR}
+
+	# create diskless marker file
+	touch etc/diskless
+
+	# save config file for scripts
+	echo "NANO_DRIVE=${NANO_DRIVE}" > etc/nanobsd.conf
+
+	echo "/dev/${NANO_DRIVE}s1a / ufs ro 1 1" > etc/fstab
+	echo "/dev/${NANO_DRIVE}s3 /cfg ufs rw,noauto 2 2" >> etc/fstab
+	mkdir -p cfg
+	)
 )
 
 install_kernel ( ) (
@@ -227,16 +240,6 @@ setup_nanobsd ( ) (
 
 	(
 	cd ${NANO_WORLDDIR}
-
-	# create diskless marker file
-	touch etc/diskless
-
-	# save config file for scripts
-	echo "NANO_DRIVE=${NANO_DRIVE}" > etc/nanobsd.conf
-
-	echo "/dev/${NANO_DRIVE}s1a / ufs ro 1 1" > etc/fstab
-	echo "/dev/${NANO_DRIVE}s3 /cfg ufs rw,noauto 2 2" >> etc/fstab
-	mkdir -p cfg
 
 	for d in var etc
 	do
