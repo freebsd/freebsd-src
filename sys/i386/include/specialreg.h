@@ -37,12 +37,9 @@
  * Bits in 386 special registers:
  */
 #define	CR0_PE	0x00000001	/* Protected mode Enable */
-#define	CR0_MP	0x00000002	/* "Math" Present (NPX or NPX emulator) */
-#define	CR0_EM	0x00000004	/* EMulate non-NPX coproc. (trap ESC only) */
+#define	CR0_MP	0x00000002	/* "Math" (fpu) Present */
+#define	CR0_EM	0x00000004	/* EMulate FPU instructions. (trap ESC only) */
 #define	CR0_TS	0x00000008	/* Task Switched (if MP, trap ESC and WAIT) */
-#ifdef notused
-#define	CR0_ET	0x00000010	/* Extension Type (387 (if set) vs 287) */
-#endif
 #define	CR0_PG	0x80000000	/* PaGing enable */
 
 /*
@@ -106,6 +103,16 @@
 #define	CPUID_TM	0x20000000
 #define	CPUID_IA64	0x40000000
 #define	CPUID_PBE	0x80000000
+
+#define CPUID2_SSE3	0x00000001
+#define CPUID2_MON	0x00000008
+#define CPUID2_DS_CPL	0x00000010
+#define CPUID2_VMX	0x00000020
+#define CPUID2_EST	0x00000080
+#define CPUID2_TM2	0x00000100
+#define CPUID2_CNTXID	0x00000400
+#define CPUID2_CX16	0x00002000
+#define CPUID2_XTPR	0x00004000
 
 /*
  * Important bits in the AMD extended cpuid flags
@@ -188,7 +195,7 @@
 #define MSR_MTRR64kBase		0x250
 #define MSR_MTRR16kBase		0x258
 #define MSR_MTRR4kBase		0x268
-#define	MSR_PAT			0x277
+#define MSR_PAT			0x277
 #define MSR_MTRRdefType		0x2ff
 #define MSR_MC0_CTL		0x400
 #define MSR_MC0_STATUS		0x401
@@ -202,14 +209,14 @@
 #define MSR_MC2_STATUS		0x409
 #define MSR_MC2_ADDR		0x40a
 #define MSR_MC2_MISC		0x40b
-#define MSR_MC4_CTL		0x40c
-#define MSR_MC4_STATUS		0x40d
-#define MSR_MC4_ADDR		0x40e
-#define MSR_MC4_MISC		0x40f
-#define MSR_MC3_CTL		0x410
-#define MSR_MC3_STATUS		0x411
-#define MSR_MC3_ADDR		0x412
-#define MSR_MC3_MISC		0x413
+#define MSR_MC3_CTL		0x40c
+#define MSR_MC3_STATUS		0x40d
+#define MSR_MC3_ADDR		0x40e
+#define MSR_MC3_MISC		0x40f
+#define MSR_MC4_CTL		0x410
+#define MSR_MC4_STATUS		0x411
+#define MSR_MC4_ADDR		0x412
+#define MSR_MC4_MISC		0x413
 
 /*
  * Constants related to MSR's.
