@@ -55,7 +55,8 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 
 	if (pthread == curthread) {
 		THR_LOCK(curthread);
-		ret = sched_setscheduler((pid_t)curthread->tid, policy, param);
+		ret = thr_setscheduler(curthread->tid, policy, param,
+			sizeof(param));
 		if (ret == -1)
 			ret = errno;
 		else {
@@ -66,7 +67,8 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 	} else if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0))
 		== 0) {
 		THR_THREAD_LOCK(curthread, pthread);
-		ret = sched_setscheduler((pid_t)pthread->tid, policy, param);
+		ret = thr_setscheduler(pthread->tid, policy, param,
+			sizeof(param));
 		if (ret == -1)
 			ret = errno;
 		else {
