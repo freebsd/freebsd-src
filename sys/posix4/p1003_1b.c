@@ -126,19 +126,11 @@ sched_setparam(struct thread *td, struct sched_setparam_args *uap)
 		targetp = td->td_proc;
 		targettd = td;
 		PROC_LOCK(targetp);
-	} else if (uap->pid <= PID_MAX) {
+	} else {
 		targetp = pfind(uap->pid);
 		if (targetp == NULL)
 			return (ESRCH);
 		targettd = FIRST_THREAD_IN_PROC(targetp);
-	} else {
-		targetp = td->td_proc;
-		PROC_LOCK(targetp);
-		targettd = thread_find(targetp, uap->pid);
-		if (targetp == NULL) {
-			PROC_UNLOCK(targetp);
-			return (ESRCH);
-		}
 	}
 
 	e = p_cansched(td, targetp);
@@ -165,20 +157,12 @@ sched_getparam(struct thread *td, struct sched_getparam_args *uap)
 		targetp = td->td_proc;
 		targettd = td;
 		PROC_LOCK(targetp);
-	} else if (uap->pid <= PID_MAX) {
+	} else {
 		targetp = pfind(uap->pid);
 		if (targetp == NULL) {
 			return (ESRCH);
 		}
 		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
-	} else {
-		targetp = td->td_proc;
-		PROC_LOCK(targetp);
-		targettd = thread_find(targetp, uap->pid);
-		if (targettd == NULL) {
-			PROC_UNLOCK(targetp);
-			return (ESRCH);
-		}
 	}
 
 	e = p_cansee(td, targetp);
@@ -214,19 +198,11 @@ sched_setscheduler(struct thread *td, struct sched_setscheduler_args *uap)
 		targetp = td->td_proc;
 		targettd = td;
 		PROC_LOCK(targetp);
-	} else if (uap->pid <= PID_MAX) {
+	} else {
 		targetp = pfind(uap->pid);
 		if (targetp == NULL)
 			return (ESRCH);
 		targettd = FIRST_THREAD_IN_PROC(targetp);
-	} else {
-		targetp = td->td_proc;
-		PROC_LOCK(targetp);
-		targettd = thread_find(targetp, uap->pid);
-		if (targettd == NULL) {
-			PROC_UNLOCK(targetp);
-			return (ESRCH);
-		}
 	}
 
 	e = p_cansched(td, targetp);
@@ -252,22 +228,13 @@ sched_getscheduler(struct thread *td, struct sched_getscheduler_args *uap)
 		targetp = td->td_proc;
 		targettd = td;
 		PROC_LOCK(targetp);
-	} else if (uap->pid <= PID_MAX) {
+	} else {
 		targetp = pfind(uap->pid);
 		if (targetp == NULL) {
 			e = ESRCH;
 			goto done2;
 		}
 		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
-	} else {
-		targetp = td->td_proc;
-		PROC_LOCK(targetp);
-		targettd = thread_find(targetp, uap->pid);
-		if (targettd == NULL) {
-			PROC_UNLOCK(targetp);
-			e = ESRCH;
-			goto done2;
-		}
 	}
 
 	e = p_cansee(td, targetp);
@@ -347,11 +314,6 @@ kern_sched_rr_get_interval(struct thread *td, pid_t pid,
 		targettd = td;
 		targetp = td->td_proc;
 		PROC_LOCK(targetp);
-	} else if (pid <= PID_MAX) {
-		targetp = pfind(pid);
-		if (targetp == NULL)
-			return (ESRCH);
-		targettd = FIRST_THREAD_IN_PROC(targetp);
 	} else {
 		targetp = td->td_proc;
 		PROC_LOCK(targetp);
