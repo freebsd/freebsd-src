@@ -58,8 +58,6 @@ options 	SYSVSHM			# SYSV-style shared memory
 options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
-options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
-					# output.  Adds ~128k to driver.
 options 	ADAPTIVE_GIANT		# Giant mutex is adaptive.
 
 # To make an SMP kernel, the next line is needed
@@ -88,6 +86,8 @@ device		atapicd		# ATAPI CDROM drives
 
 # SCSI Controllers
 device		ahc		# AHA2940 and onboard AIC7xxx devices
+options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
+					# output.  Adds ~128k to driver.
 device		isp		# Qlogic family
 device		ispfw		# Firmware module for Qlogic host adapters
 #device		mpt		# LSI-Logic MPT-Fusion (not yet)
