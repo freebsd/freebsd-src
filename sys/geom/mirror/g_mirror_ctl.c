@@ -75,6 +75,8 @@ g_mirror_find_disk(struct g_mirror_softc *sc, const char *name)
 	struct g_mirror_disk *disk;
 
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
+	if (strncmp(name, "/dev/", 5) == 0)
+		name += 5;
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_consumer == NULL)
 			continue;
@@ -366,12 +368,12 @@ g_mirror_ctl_insert(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "No 'arg%u' argument.", i);
 			continue;
 		}
-		if (strncmp(name, "/dev/", strlen("/dev/")) == 0)
-			name += strlen("/dev/");
 		if (g_mirror_find_disk(sc, name) != NULL) {
 			gctl_error(req, "Provider %s already inserted.", name);
 			continue;
 		}
+		if (strncmp(name, "/dev/", 5) == 0)
+			name += 5;
 		pp = g_provider_by_name(name);
 		if (pp == NULL) {
 			gctl_error(req, "Unknown provider %s.", name);
