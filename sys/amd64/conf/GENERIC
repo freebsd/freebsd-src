@@ -58,10 +58,6 @@ options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
-options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
-					# output.  Adds ~128k to driver.
-options 	AHD_REG_PRETTY_PRINT	# Print register bitfields in debug
-					# output.  Adds ~215k to driver.
 options 	ADAPTIVE_GIANT		# Giant mutex is adaptive.
 
 # Workarounds for some known-to-be-broken chipsets (nVidia nForce3-Pro150)
@@ -88,7 +84,11 @@ options 	ATA_STATIC_ID	# Static device numbering
 
 # SCSI Controllers
 device		ahc		# AHA2940 and onboard AIC7xxx devices
+options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
+					# output.  Adds ~128k to driver.
 device		ahd		# AHA39320/29320 and onboard AIC79xx devices
+options 	AHD_REG_PRETTY_PRINT	# Print register bitfields in debug
+					# output.  Adds ~215k to driver.
 device		amd		# AMD 53C974 (Tekram DC-390(T))
 device		isp		# Qlogic family
 #device 	ispfw		# Firmware for QLogic HBAs- normally a module
