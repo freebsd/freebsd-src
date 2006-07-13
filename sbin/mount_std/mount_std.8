@@ -40,6 +40,7 @@
 .Nm mount_devfs ,
 .Nm mount_fdescfs ,
 .Nm mount_linprocfs ,
+.Nm mount_linsysfs ,
 .Nm mount_procfs
 .Nd mount
 .Dq standard
@@ -59,7 +60,8 @@ The
 utility currently supports the following file systems:
 .Nm devfs ,
 .Nm fdescfs ,
-.Nm linprocfs
+.Nm linprocfs ,
+.Nm linsysfs
 and
 .Nm procfs .
 A ``standard'' file system is one which:
@@ -118,7 +120,8 @@ Refer to the following manual pages for detailed information
 on these file system:
 .Xr devfs 5 ,
 .Xr fdescfs 5 ,
-.Xr linprocfs 5
+.Xr linprocfs 5 ,
+.Xr linsysfs 5
 and
 .Xr procfs 5 .
 .Sh DIAGNOSTICS
@@ -140,6 +143,7 @@ loadable module for it was found.
 .Xr fdescfs 5 ,
 .Xr fstab 5 ,
 .Xr linprocfs 5 ,
+.Xr linsysfs 5 ,
 .Xr procfs 5 ,
 .Xr mount 8
 .Sh CAVEATS
