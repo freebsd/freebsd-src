@@ -822,5 +822,14 @@
 463	AUE_NULL	MSTD	{ int abort2(const char *why, int nargs, void **args); }
 464	AUE_NULL	MSTD	{ int thr_set_name(long id, const char *name); }
 465	AUE_NULL	MNOSTD	{ int aio_fsync(int op, struct aiocb *aiocbp); }
+466	AUE_NULL	MSTD	{ int thr_setscheduler(long id, int policy,\
+				    const struct sched_param *param, \
+				    int param_size); }
+467	AUE_NULL	MSTD	{ int thr_getscheduler(long id, int *policy,\
+				    struct sched_param *param, \
+				    int param_size); }
+468	AUE_NULL	MSTD	{ int thr_setschedparam(long id, \
+				    const struct sched_param *param, \
+				    int param_size); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
