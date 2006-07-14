@@ -67,7 +67,7 @@ struct network_entry {
 	int32_t		index;
 	int32_t		ifIndex;
 	TAILQ_ENTRY(network_entry) link;
-#define HR_NETWORK_FOUND		0x001
+#define	HR_NETWORK_FOUND		0x001
 	uint32_t	flags;
 
 };
@@ -172,7 +172,7 @@ network_get_interfaces(void)
 		}
 		HRDBG("%s found in hrDeviceTable", dname);
 
-		dev->type = OIDX_hrDeviceNetwork_c;
+		dev->type = &OIDX_hrDeviceNetwork_c;
 		dev->flags |= HR_DEVICE_IMMUTABLE;
 
 		free(dname);

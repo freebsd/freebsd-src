@@ -32,7 +32,7 @@
  */
 
 #ifndef HOSTRES_SNMP_H_1132245017
-#define HOSTRES_SNMP_H_1132245017
+#define	HOSTRES_SNMP_H_1132245017
 
 #include <sys/types.h>
 #include <sys/queue.h>
@@ -51,18 +51,18 @@
  * Default package directory for hrSWInstalledTable. Can be overridden
  * via SNMP or configuration file.
  */
-#define PATH_PKGDIR     "/var/db/pkg"
+#define	PATH_PKGDIR     "/var/db/pkg"
 
 /*
  * These are the default maximum caching intervals for the various tables
  * in seconds. They can be overridden from the configuration file.
  */
-#define HR_STORAGE_TBL_REFRESH	7
-#define HR_FS_TBL_REFRESH	7
-#define HR_DISK_TBL_REFRESH	7
-#define HR_NETWORK_TBL_REFRESH	7
-#define HR_SWINS_TBL_REFRESH	120
-#define HR_SWRUN_TBL_REFRESH	3
+#define	HR_STORAGE_TBL_REFRESH	7
+#define	HR_FS_TBL_REFRESH	7
+#define	HR_DISK_TBL_REFRESH	7
+#define	HR_NETWORK_TBL_REFRESH	7
+#define	HR_SWINS_TBL_REFRESH	120
+#define	HR_SWRUN_TBL_REFRESH	3
 
 struct tm;
 struct statfs;
@@ -93,7 +93,26 @@ enum snmpTCTruthValue {
 };
 
 /* The number of CPU load samples per one minute, per each CPU */
-#define MAX_CPU_SAMPLES 4
+#define	MAX_CPU_SAMPLES 4
+
+
+/*
+ * max len (including '\0'), for device_entry::descr field below,
+ * according to MIB
+ */
+#define	DEV_DESCR_MLEN	(64 + 1)
+
+/*
+ * max len (including '\0'), for device_entry::name and
+ * device_map_entry::name_key fields below, according to MIB
+ */
+#define	DEV_NAME_MLEN	(32 + 1)
+
+/*
+ * max len (including '\0'), for device_entry::location and
+ * device_map_entry::location_key fields below, according to MIB
+ */
+#define	DEV_LOC_MLEN	(128 + 1)
 
 /*
  * This structure is used to hold a SNMP table entry
@@ -101,20 +120,21 @@ enum snmpTCTruthValue {
  */
 struct device_entry {
 	int32_t		index;
-	struct asn_oid	type;
-	u_char		descr[64 + 1];
-	struct asn_oid	id;
-	int32_t		status;	/* enum DeviceStatus */
+	const struct asn_oid *type;
+	u_char		*descr;
+	const struct asn_oid *id;	/* only oid_zeroDotZero as (*id) value*/
+	int32_t		status;		/* enum DeviceStatus */
 	uint32_t	errors;
 
-#define HR_DEVICE_FOUND		0x001
+#define	HR_DEVICE_FOUND		0x001
 	/* not dectected by libdevice, so don't try to refresh it*/
-#define HR_DEVICE_IMMUTABLE	0x002
+#define	HR_DEVICE_IMMUTABLE	0x002
 
 	/* next 3 are not from the SNMP mib table, only to be used internally */
 	uint32_t	flags;
-	u_char		name[32 + 1];
-	u_char		location[128 + 1];
+
+	u_char		*name;
+	u_char		*location;
 	TAILQ_ENTRY(device_entry) link;
 };
 
@@ -128,8 +148,8 @@ struct device_map_entry {
 	int32_t		hrIndex;	/* used for hrDeviceTblEntry::index */
 
 	/* map key is the pair (name_key, location_key) */
-	u_char		name_key[32 + 1];	/* copy of device name */
-	u_char		location_key[128 + 1];
+	u_char		*name_key;	/* copy of device name */
+	u_char		*location_key;
 
 	/*
 	 * Next may be NULL if the respective hrDeviceTblEntry
@@ -231,6 +251,9 @@ struct device_entry *device_find_by_name(const char *);
 /* Create a new entry out of thin air. */
 struct device_entry *device_entry_create(const char *, const char *,
     const char *);
+
+/* Delete an entry from hrDeviceTbl */
+void device_entry_delete(struct device_entry *entry);
 
 /* Init the things for hrProcessorTable. */
 void init_processor_tbl(void);

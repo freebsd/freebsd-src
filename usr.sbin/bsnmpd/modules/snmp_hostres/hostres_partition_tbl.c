@@ -44,28 +44,32 @@
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
+#include <sysexits.h>
 
 #include "hostres_snmp.h"
 #include "hostres_oid.h"
 #include "hostres_tree.h"
 
 #ifdef PC98
-#define HR_FREEBSD_PART_TYPE	0xc494
+#define	HR_FREEBSD_PART_TYPE	0xc494
 #else
 #define	HR_FREEBSD_PART_TYPE	165
 #endif
+
+/* Maximum length for label and id including \0 */
+#define	PART_STR_MLEN	(128 + 1)
 
 /*
  * One row in the hrPartitionTable
  */
 struct partition_entry {
-	struct asn_oid	index;
-	u_char		label[128 + 1];
-	u_char		id[128 + 1];
+	asn_subid_t	index[2];
+	u_char		*label;	/* max allocated len will be PART_STR_MLEN */
+	u_char		*id;	/* max allocated len will be PART_STR_MLEN */
 	int32_t		size;
 	int32_t		fs_Index;
 	TAILQ_ENTRY(partition_entry) link;
-#define HR_PARTITION_FOUND		0x001
+#define	HR_PARTITION_FOUND		0x001
 	uint32_t	flags;
 };
 TAILQ_HEAD(partition_tbl, partition_entry);
@@ -75,8 +79,8 @@ TAILQ_HEAD(partition_tbl, partition_entry);
  * mapping while we rebuild the partition table.
  */
 struct partition_map_entry {
-	int32_t		index;		/* hrPartitionTblEntry::index */
-	u_char		id[128 + 1];
+	int32_t		index;	/* partition_entry::index */
+	u_char		*id;	/* max allocated len will be PART_STR_MLEN */
 
 	/*
 	 * next may be NULL if the respective partition_entry
@@ -98,6 +102,56 @@ static struct partition_tbl partition_tbl =
 /* next int available for indexing the hrPartitionTable */
 static uint32_t next_partition_index = 1;
 
+/*
+ * Partition_entry_cmp is used for INSERT_OBJECT_FUNC_LINK
+ * macro.
+ */
+static int
+partition_entry_cmp(const struct partition_entry *a,
+    const struct partition_entry *b)
+{
+	assert(a != NULL);
+	assert(b != NULL);
+
+	if (a->index[0] < b->index[0])
+		return (-1);
+
+	if (a->index[0] > b->index[0])
+		return (+1);
+
+	if (a->index[1] < b->index[1])
+		return (-1);
+
+	if (a->index[1] > b->index[1])
+		return (+1);
+
+	return (0);
+}
+
+/*
+ * Partition_idx_cmp is used for NEXT_OBJECT_FUNC and FIND_OBJECT_FUNC
+ * macros
+ */
+static int
+partition_idx_cmp(const struct asn_oid *oid, u_int sub,
+    const struct partition_entry *entry)
+{
+	u_int i;
+
+	for (i = 0; i < 2 && i < oid->len - sub; i++) {
+		if (oid->subs[sub + i] < entry->index[i])
+			return (-1);
+		if (oid->subs[sub + i] > entry->index[i])
+			return (+1);
+	}
+	if (oid->len - sub < 2)
+		return (-1);
+	if (oid->len - sub > 2)
+		return (+1);
+
+	return (0);
+}
+
 /**
  * Create a new partition table entry
  */
@@ -105,45 +159,49 @@ static struct partition_entry *
 partition_entry_create(int32_t ds_index, const char *chunk_name)
 {
 	struct partition_entry *entry;
-	struct partition_map_entry *map = NULL;
+	struct partition_map_entry *map;
+	size_t id_len;
 
 	/* sanity checks */
 	assert(chunk_name != NULL);
 	if (chunk_name == NULL || chunk_name[0] == '\0')
 		return (NULL);
 
-	if ((entry = malloc(sizeof(*entry))) == NULL) {
-		syslog(LOG_WARNING, "hrPartitionTable: %s: %m", __func__);
-		return (NULL);
-	}
-	memset(entry, 0, sizeof(*entry));
-
 	/* check whether we already have seen this partition */
 	STAILQ_FOREACH(map, &partition_map, link)
-		if (strcmp(map->id, chunk_name) == 0 ) {
-			map->entry = entry;
+		if (strcmp(map->id, chunk_name) == 0)
 			break;
-		}
 
 	if (map == NULL) {
 		/* new object - get a new index and create a map */
+
 		if (next_partition_index > INT_MAX) {
+			/* Unrecoverable error - die clean and quicly*/
 		        syslog(LOG_ERR, "%s: hrPartitionTable index wrap",
 			    __func__);
-			errx(1, "hrPartitionTable index wrap");
+			errx(EX_SOFTWARE, "hrPartitionTable index wrap");
 		}
 
 		if ((map = malloc(sizeof(*map))) == NULL) {
 			syslog(LOG_ERR, "hrPartitionTable: %s: %m", __func__);
-			free(entry);
+			return (NULL);
+		}
+
+		id_len = strlen(chunk_name) + 1;
+		if (id_len > PART_STR_MLEN)
+			id_len = PART_STR_MLEN;
+
+		if ((map->id = malloc(id_len)) == NULL) {
+			free(map);
 			return (NULL);
 		}
 
 		map->index = next_partition_index++;
 
-		strlcpy(map->id, chunk_name, sizeof(map->id));
+		strlcpy(map->id, chunk_name, id_len);
 
-		map->entry = entry;
+		map->entry = NULL;
+
 		STAILQ_INSERT_TAIL(&partition_map, map, link);
 
 		HRDBG("%s added into hrPartitionMap at index=%d",
@@ -154,17 +212,42 @@ partition_entry_create(int32_t ds_index, const char *chunk_name)
 		    chunk_name, map->index);
 	}
 
+	if ((entry = malloc(sizeof(*entry))) == NULL) {
+		syslog(LOG_WARNING, "hrPartitionTable: %s: %m", __func__);
+		return (NULL);
+	}
+	memset(entry, 0, sizeof(*entry));
+
 	/* create the index */
-	entry->index.len = 2;
-	entry->index.subs[0] = ds_index;
-	entry->index.subs[1] = map->index;
+	entry->index[0] = ds_index;
+	entry->index[1] = map->index;
 
-	strlcpy(entry->id, chunk_name, sizeof(entry->id));
+	map->entry = entry;
 
-	snprintf(entry->label, sizeof(entry->label) - 1,
-	    "%s%s", _PATH_DEV, chunk_name);
+	if ((entry->id = strdup(map->id)) == NULL) {
+		free(entry);
+		return (NULL);
+	}
 
-	INSERT_OBJECT_OID(entry, &partition_tbl);
+	/*
+	 * reuse id_len from here till the end of this function
+	 * for partition_entry::label
+	 */
+	id_len = strlen(_PATH_DEV) + strlen(chunk_name) + 1;
+
+	if (id_len > PART_STR_MLEN)
+		id_len = PART_STR_MLEN;
+
+	if ((entry->label = malloc(id_len )) == NULL) {
+		free(entry->id);
+		free(entry);
+		return (NULL);
+	}
+
+	snprintf(entry->label, id_len, "%s%s", _PATH_DEV, chunk_name);
+
+	INSERT_OBJECT_FUNC_LINK(entry, &partition_tbl, link,
+	    partition_entry_cmp);
 
 	return (entry);
 }
@@ -185,7 +268,8 @@ partition_entry_delete(struct partition_entry *entry)
 			map->entry = NULL;
 			break;
 		}
-
+	free(entry->id);
+	free(entry->label);
 	free(entry);
 }
 
@@ -227,7 +311,7 @@ partition_entry_find_by_label(const char *name)
 static void
 handle_chunk(int32_t ds_index, const char *chunk_name, off_t chunk_size)
 {
-	struct partition_entry *entry = NULL;
+	struct partition_entry *entry;
 	daddr_t k_size;
 
 	assert(chunk_name != NULL);
@@ -257,7 +341,7 @@ handle_chunk(int32_t ds_index, const char *chunk_name, off_t chunk_size)
 void
 partition_tbl_pre_refresh(void)
 {
-	struct partition_entry *entry = NULL;
+	struct partition_entry *entry;
 
 	/* mark each entry as missing */
 	TAILQ_FOREACH(entry, &partition_tbl, link)
@@ -372,7 +456,7 @@ partition_tbl_handle_disk(int32_t ds_index, const char *disk_dev_name)
 	assert(disk_dev_name != NULL);
 	assert(ds_index > 0);
 
-     	HRDBG("===> getting partitions for %s <===", disk_dev_name);
+	HRDBG("===> getting partitions for %s <===", disk_dev_name);
 
 	/* try to construct the GEOM tree */
 	if ((error = geom_gettree(&mesh)) != 0) {
@@ -441,14 +525,17 @@ fini_partition_tbl(void)
 {
 	struct partition_map_entry *m;
 
-     	while ((m = STAILQ_FIRST(&partition_map)) != NULL) {
+	while ((m = STAILQ_FIRST(&partition_map)) != NULL) {
 		STAILQ_REMOVE_HEAD(&partition_map, link);
 		if(m->entry != NULL) {
 			TAILQ_REMOVE(&partition_tbl, m->entry, link);
+			free(m->entry->id);
+			free(m->entry->label);
 			free(m->entry);
 		}
+		free(m->id);
 		free(m);
-     	}
+	}
 	assert(TAILQ_EMPTY(&partition_tbl));
 }
 
@@ -490,22 +577,25 @@ op_hrPartitionTable(struct snmp_context *ctx __unused, struct snmp_value *value,
 	switch (op) {
 
 	case SNMP_OP_GETNEXT:
-		if ((entry = NEXT_OBJECT_OID(&partition_tbl,
-		    &value->var, sub)) == NULL)
+		if ((entry = NEXT_OBJECT_FUNC(&partition_tbl,
+		    &value->var, sub, partition_idx_cmp)) == NULL)
 			return (SNMP_ERR_NOSUCHNAME);
 
-		index_append(&value->var, sub, &entry->index);
+		value->var.len = sub + 2;
+		value->var.subs[sub] = entry->index[0];
+		value->var.subs[sub + 1] = entry->index[1];
+
 		goto get;
 
 	case SNMP_OP_GET:
-		if ((entry = FIND_OBJECT_OID(&partition_tbl,
-		    &value->var, sub)) == NULL)
+		if ((entry = FIND_OBJECT_FUNC(&partition_tbl,
+		    &value->var, sub, partition_idx_cmp)) == NULL)
 			return (SNMP_ERR_NOSUCHNAME);
 		goto get;
 
 	case SNMP_OP_SET:
-		if ((entry = FIND_OBJECT_OID(&partition_tbl,
-		    &value->var, sub)) == NULL)
+		if ((entry = FIND_OBJECT_FUNC(&partition_tbl,
+		    &value->var, sub, partition_idx_cmp)) == NULL)
 			return (SNMP_ERR_NOT_WRITEABLE);
 		return (SNMP_ERR_NO_CREATION);
 
@@ -519,7 +609,7 @@ op_hrPartitionTable(struct snmp_context *ctx __unused, struct snmp_value *value,
 	switch (value->var.subs[sub - 1]) {
 
 	case LEAF_hrPartitionIndex:
-		value->v.integer = entry->index.subs[1];
+		value->v.integer = entry->index[1];
 		return (SNMP_ERR_NOERROR);
 
 	case LEAF_hrPartitionLabel:

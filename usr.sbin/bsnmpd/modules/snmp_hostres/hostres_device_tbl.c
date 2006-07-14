@@ -43,10 +43,18 @@
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <sysexits.h>
 
 #include "hostres_snmp.h"
 #include "hostres_oid.h"
 #include "hostres_tree.h"
+
+#define FREE_DEV_STRUCT(entry_p) do {		\
+	free(entry_p->name);			\
+	free(entry_p->location);		\
+	free(entry_p->descr);			\
+	free(entry_p);				\
+} while (0)
 
 /*
  * Status of a device
@@ -92,49 +100,73 @@ static const struct asn_oid OIDX_hrDeviceOther_c = OIDX_hrDeviceOther;
 struct device_entry *
 device_entry_create(const char *name, const char *location, const char *descr)
 {
-	struct device_entry *entry;
-	struct device_map_entry *map;
+	struct device_entry *entry = NULL;
+	struct device_map_entry *map = NULL;
+	size_t name_len;
+	size_t location_len;
 
 	assert((name[0] != 0) || (location[0] != 0));
 
 	if (name[0] == 0 && location[0] == 0)
 		return (NULL);
 
-	if ((entry = malloc(sizeof(*entry))) == NULL) {
-		syslog(LOG_WARNING, "hrDeviceTable: %s: %m", __func__);
-		return (NULL);
-	}
-	memset(entry, 0, sizeof(*entry));
+	STAILQ_FOREACH(map, &device_map, link) {
+		assert(map->name_key != NULL);
+		assert(map->location_key != NULL);
 
-	STAILQ_FOREACH(map, &device_map, link)
 		if (strcmp(map->name_key, name) == 0 &&
 		    strcmp(map->location_key, location) == 0) {
-			entry->index = map->hrIndex;
-			map->entry_p = entry;
 			break;
 		}
+	}
 
 	if (map == NULL) {
 		/* new object - get a new index */
 		if (next_device_index > INT_MAX) {
 		        syslog(LOG_ERR,
 			    "%s: hrDeviceTable index wrap", __func__);
-			free(entry);
-			return (NULL);
+			/* There isn't much we can do here.
+			 * If the next_swins_index is consumed
+			 * then we can't add entries to this table
+			 * So it is better to exit - if the table is sparsed
+			 * at the next agent run we can fill it fully.
+			 */
+			errx(EX_SOFTWARE, "hrDeviceTable index wrap");
+			/* not reachable */
 		}
 
 		if ((map = malloc(sizeof(*map))) == NULL) {
 			syslog(LOG_ERR, "hrDeviceTable: %s: %m", __func__ );
-			free(entry);
+			return (NULL);
+		}
+
+		map->entry_p = NULL;
+
+		name_len = strlen(name) + 1;
+		if (name_len > DEV_NAME_MLEN)
+			name_len = DEV_NAME_MLEN;
+
+		if ((map->name_key = malloc(name_len)) == NULL) {
+			syslog(LOG_ERR, "hrDeviceTable: %s: %m", __func__ );
+			free(map);
+			return (NULL);
+		}
+
+		location_len = strlen(location) + 1;
+		if (location_len > DEV_LOC_MLEN)
+			location_len = DEV_LOC_MLEN;
+
+		if ((map->location_key = malloc(location_len )) == NULL) {
+			syslog(LOG_ERR, "hrDeviceTable: %s: %m", __func__ );
+			free(map->name_key);
+			free(map);
 			return (NULL);
 		}
 
 		map->hrIndex = next_device_index++;
 
-		strlcpy(map->name_key, name, sizeof(map->name_key));
-		strlcpy(map->location_key, location, sizeof(map->location_key));
-
-		map->entry_p = entry;
+		strlcpy(map->name_key, name, name_len);
+		strlcpy(map->location_key, location, location_len);
 
 		STAILQ_INSERT_TAIL(&device_map, map, link);
 		HRDBG("%s at %s added into hrDeviceMap at index=%d",
@@ -144,22 +176,63 @@ device_entry_create(const char *name, const char *location, const char *descr)
 		    name, location, map->hrIndex);
 	}
 
-	entry->index = map->hrIndex;
+	if ((entry = malloc(sizeof(*entry))) == NULL) {
+		syslog(LOG_WARNING, "hrDeviceTable: %s: %m", __func__);
+		return (NULL);
+	}
+	memset(entry, 0, sizeof(*entry));
 
-	strlcpy(entry->name, name, sizeof(entry->name));
-	strlcpy(entry->location, location, sizeof(entry->location));
+	entry->index = map->hrIndex;
+	map->entry_p = entry;
+
+	if ((entry->name = strdup(map->name_key)) == NULL) {
+		syslog(LOG_ERR, "hrDeviceTable: %s: %m", __func__ );
+		free(entry);
+		return (NULL);
+	}
+
+	if ((entry->location = strdup(map->location_key)) == NULL) {
+		syslog(LOG_ERR, "hrDeviceTable: %s: %m", __func__ );
+		free(entry->name);
+		free(entry);
+		return (NULL);
+	}
+
+	/*
+	 * From here till the end of this function we reuse name_len
+	 * for a diferrent purpose - for device_entry::descr
+	 */
+	if (name[0] != '\0')
+		name_len = strlen(name) + strlen(descr) +
+		    strlen(": ") + 1;
+	else
+		name_len = strlen(location) + strlen(descr) +
+		    strlen("unknown at : ") + 1;
+
+	if (name_len > DEV_DESCR_MLEN)
+		name_len = DEV_DESCR_MLEN;
+
+	if ((entry->descr = malloc(name_len )) == NULL) {
+		syslog(LOG_ERR, "hrDeviceTable: %s: %m", __func__ );
+		free(entry->name);
+		free(entry->location);
+		free(entry);
+		return (NULL);
+	}
+
+	memset(&entry->descr[0], '\0', name_len);
 
 	if (name[0] != '\0')
-		snprintf(entry->descr, sizeof(entry->descr), "%s: %s",
-		    name, descr);
+		snprintf(entry->descr, name_len,
+		    "%s: %s", name, descr);
 	else
-		snprintf(entry->descr, sizeof(entry->descr),
+		snprintf(entry->descr, name_len,
 		    "unknown at %s: %s", location, descr);
 
-	entry->id = oid_zeroDotZero;		/* unknown id - FIXME */
-	entry->status = (u_int)DIS_ATTACHED;
+	entry->id = &oid_zeroDotZero;	/* unknown id - FIXME */
+	entry->status = (u_int)DS_UNKNOWN;
 	entry->errors = 0;
-	entry->type = OIDX_hrDeviceOther_c;
+	entry->type = &OIDX_hrDeviceOther_c;
 
 	INSERT_OBJECT_INT(entry, &device_tbl);
 
@@ -183,7 +256,7 @@ device_entry_create_devinfo(const struct devinfo_dev *dev_p)
 /**
  * Delete an entry from the device table.
  */
-static void
+void
 device_entry_delete(struct device_entry *entry)
 {
 	struct device_map_entry *map;
@@ -197,7 +270,8 @@ device_entry_delete(struct device_entry *entry)
 			map->entry_p = NULL;
 			break;
 		}
-	free(entry);
+
+	FREE_DEV_STRUCT(entry);
 }
 
 /**
@@ -252,7 +326,7 @@ device_find_by_name(const char *dev_name)
  * Find out the type of device. CPU only currently.
  */
 static void
-device_get_type(struct devinfo_dev *dev_p, struct asn_oid *out_type_p)
+device_get_type(struct devinfo_dev *dev_p, const struct asn_oid **out_type_p)
 {
 
 	assert(dev_p != NULL);
@@ -263,7 +337,7 @@ device_get_type(struct devinfo_dev *dev_p, struct asn_oid *out_type_p)
 
 	if (strncmp(dev_p->dd_name, "cpu", strlen("cpu")) == 0 &&
 	    strstr(dev_p->dd_location, ".CPU") != NULL) {
-		*out_type_p = OIDX_hrDeviceProcessor_c;
+		*out_type_p = &OIDX_hrDeviceProcessor_c;
 		return;
 	}
 }
@@ -361,7 +435,7 @@ create_devd_socket(void)
 
 /*
  * Event on the devd socket.
- **
+ *
  * We should probably directly process entries here. For simplicity just
  * call the refresh routine with the force flag for now.
  */
@@ -463,8 +537,10 @@ fini_device_tbl(void)
 		STAILQ_REMOVE_HEAD(&device_map, link);
 		if (n1->entry_p != NULL) {
 			TAILQ_REMOVE(&device_tbl, n1->entry_p, link);
-			free(n1->entry_p);
+			FREE_DEV_STRUCT(n1->entry_p);
 		}
+		free(n1->name_key);
+		free(n1->location_key);
 		free(n1);
      	}
 	assert(TAILQ_EMPTY(&device_tbl));
@@ -590,14 +666,15 @@ op_hrDeviceTable(struct snmp_context *ctx __unused, struct snmp_value *value,
 		return (SNMP_ERR_NOERROR);
 
 	case LEAF_hrDeviceType:
-	  	value->v.oid = entry->type;
+		assert(entry->type != NULL);
+	  	value->v.oid = *(entry->type);
 	  	return (SNMP_ERR_NOERROR);
 
 	case LEAF_hrDeviceDescr:
 	  	return (string_get(value, entry->descr, -1));
 
 	case LEAF_hrDeviceID:
-	  	value->v.oid = entry->id;
+		value->v.oid = *(entry->id);
 	  	return (SNMP_ERR_NOERROR);
 
 	case LEAF_hrDeviceStatus:

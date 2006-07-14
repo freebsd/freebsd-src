@@ -43,6 +43,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
+#include <sysexits.h>
 
 #include "hostres_snmp.h"
 #include "hostres_oid.h"
@@ -56,21 +57,27 @@ enum hrFSAccess {
 	FS_READ_ONLY  = 2
 };
 
+/* maximum length (according to MIB) for fs_entry::mountPoint */
+#define	FS_MP_MLEN	(128 + 1)
+
+/* maximum length (according to MIB) for fs_entry::remoteMountPoint */
+#define	FS_RMP_MLEN	(128 + 1)
+
 /*
  * This structure is used to hold a SNMP table entry
  * for HOST-RESOURCES-MIB's hrFSTable
  */
 struct fs_entry {
 	int32_t		index;
-	u_char		mountPoint[128 + 1];
-	u_char		remoteMountPoint[128 + 1];
+	u_char		*mountPoint;
+	u_char		*remoteMountPoint;
 	const struct asn_oid *type;
 	int32_t		access;		/* enum hrFSAccess, see above */
 	int32_t		bootable;	/* TruthValue */
 	int32_t		storageIndex;	/* hrStorageTblEntry::index */
 	u_char		lastFullBackupDate[11];
 	u_char		lastPartialBackupDate[11];
-#define HR_FS_FOUND 0x001
+#define	HR_FS_FOUND 0x001
 	uint32_t	flags;		/* not in mib table, for internal use */
 	TAILQ_ENTRY(fs_entry) link;
 };
@@ -82,8 +89,8 @@ TAILQ_HEAD(fs_tbl, fs_entry);
  * index for a specific name at least for the duration of one SNMP agent run.
  */
 struct fs_map_entry {
-	int32_t		hrIndex;	/* used for hrFSTblEntry::index */
-	u_char		a_name[128 + 1];/* map key */
+	int32_t		hrIndex;   /* used for fs_entry::index */
+	u_char		*a_name;   /* map key same as fs_entry::mountPoint */
 
 	/* may be NULL if the respective hrFSTblEntry is (temporally) gone */
 	struct fs_entry *entry;
@@ -146,39 +153,42 @@ fs_entry_create(const char *name)
 	struct fs_entry	*entry;
 	struct fs_map_entry *map;
 
-	if ((entry = malloc(sizeof(*entry))) == NULL) {
-		syslog(LOG_WARNING, "%s: %m", __func__);
-		return (NULL);
-	}
-
-	strlcpy(entry->mountPoint, name, sizeof(entry->mountPoint));
+	assert(name != NULL);
+	assert(strlen(name) > 0);
 
 	STAILQ_FOREACH(map, &fs_map, link)
-		if (strncmp(map->a_name, entry->mountPoint,
-		    sizeof(map->a_name) - 1) == 0) {
-			entry->index = map->hrIndex;
-			map->entry = entry;
+		if (strcmp(map->a_name, name) == 0)
 			break;
-		}
 
 	if (map == NULL) {
+		size_t mount_point_len;
+
 		/* new object - get a new index */
 		if (next_fs_index > INT_MAX) {
-			/* XXX no other sensible reaction? */
+			/* Unrecoverable error - die clean and quicly*/
 		        syslog(LOG_ERR, "%s: hrFSTable index wrap", __func__);
-			return (NULL);
+			errx(EX_SOFTWARE, "hrFSTable index wrap");
 		}
 
 		if ((map = malloc(sizeof(*map))) == NULL) {
 			syslog(LOG_ERR, "%s: %m", __func__);
-			free(entry);
 			return (NULL);
 		}
 
-		map->hrIndex = next_fs_index++;
-		strlcpy(map->a_name, entry->mountPoint, sizeof(map->a_name));
-		map->entry = entry;
+		mount_point_len = strlen(name) + 1;
+		if (mount_point_len > FS_MP_MLEN)
+			mount_point_len = FS_MP_MLEN;
 
+		if ((map->a_name = malloc(mount_point_len)) == NULL) {
+			syslog(LOG_ERR, "%s: %m", __func__);
+			free(map);
+			return (NULL);
+		}
+
+		strlcpy(map->a_name, name, mount_point_len);
+
+		map->hrIndex = next_fs_index++;
+		map->entry = NULL;
 		STAILQ_INSERT_TAIL(&fs_map, map, link);
 
 		HRDBG("%s added into hrFSMap at index=%d", name, map->hrIndex);
@@ -186,10 +196,21 @@ fs_entry_create(const char *name)
 		HRDBG("%s exists in hrFSMap index=%d", name, map->hrIndex);
 	}
 
+	if ((entry = malloc(sizeof(*entry))) == NULL) {
+		syslog(LOG_WARNING, "%s: %m", __func__);
+		return (NULL);
+	}
+
+	if ((entry->mountPoint = strdup(name)) == NULL) {
+		syslog(LOG_ERR, "%s: %m", __func__);
+		free(entry);
+		return (NULL);
+	}
+
 	entry->index = map->hrIndex;
+	map->entry = entry;
 
 	INSERT_OBJECT_INT(entry, &fs_tbl);
-
 	return (entry);
 }
 
@@ -201,13 +222,16 @@ fs_entry_delete(struct fs_entry* entry)
 {
 	struct fs_map_entry *map;
 
+	assert(entry != NULL);
+
 	TAILQ_REMOVE(&fs_tbl, entry, link);
 	STAILQ_FOREACH(map, &fs_map, link)
 		if (map->entry == entry) {
 			map->entry = NULL;
 			break;
 		}
-
+	free(entry->mountPoint);
+	free(entry->remoteMountPoint);
 	free(entry);
 }
 
@@ -220,8 +244,7 @@ fs_find_by_name(const char *name)
 	struct fs_entry *entry;
 
 	TAILQ_FOREACH(entry, &fs_tbl, link)
-		if (strncmp(entry->mountPoint, name,
-		    sizeof(entry->mountPoint) - 1) == 0)
+		if (strcmp(entry->mountPoint, name) == 0)
 			return (entry);
 
 	return (NULL);
@@ -239,8 +262,11 @@ fini_fs_tbl(void)
 		STAILQ_REMOVE_HEAD(&fs_map, link);
 		if (n1->entry != NULL) {
 			TAILQ_REMOVE(&fs_tbl, n1->entry, link);
+			free(n1->entry->mountPoint);
+			free(n1->entry->remoteMountPoint);
 			free(n1->entry);
 		}
+		free(n1->a_name);
 		free(n1);
      	}
 	assert(TAILQ_EMPTY(&fs_tbl));
@@ -327,13 +353,15 @@ fs_tbl_process_statfs_entry(const struct statfs *fs_p, int32_t storage_idx)
 	    (entry = fs_entry_create(fs_p->f_mntonname)) != NULL) {
 		entry->flags |= HR_FS_FOUND;
 
-		strcpy(entry->mountPoint, fs_p->f_mntonname);
-
-		if (!(fs_p->f_flags & MNT_LOCAL))
+		if (!(fs_p->f_flags & MNT_LOCAL)) {
 			/* this is a remote mount */
-			strcpy(entry->remoteMountPoint, fs_p->f_mntfromname);
-		else
-			entry->remoteMountPoint[0] = '\0';
+			entry->remoteMountPoint = strdup(fs_p->f_mntfromname);
+			/* if strdup failed, let it be NULL */
+
+		} else {
+			entry->remoteMountPoint = strdup("");
+			/* if strdup failed, let it be NULL */
+		}
 
 		entry->type = fs_get_type(fs_p);
 
@@ -411,11 +439,15 @@ op_hrFSTable(struct snmp_context *ctx __unused, struct snmp_value *value,
 		return (string_get(value, entry->mountPoint, -1));
 
 	case LEAF_hrFSRemoteMountPoint:
-		return (string_get(value, entry->remoteMountPoint, -1));
+		if (entry->remoteMountPoint == NULL)
+			return (string_get(value, "", -1));
+		else
+			return (string_get(value, entry->remoteMountPoint, -1));
 		break;
 
 	case LEAF_hrFSType:
-		value->v.oid = *entry->type;
+		assert(entry->type != NULL);
+		value->v.oid = *(entry->type);
 		return (SNMP_ERR_NOERROR);
 
 	case LEAF_hrFSAccess:
