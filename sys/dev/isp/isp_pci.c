@@ -359,9 +359,11 @@ isp_pci_probe(device_t dev)
 	case PCI_QLOGIC_ISP2322:
 		device_set_desc(dev, "Qlogic ISP 2322 PCI FC-AL Adapter");
 		break;
+#if	0
 	case PCI_QLOGIC_ISP2422:
 		device_set_desc(dev, "Qlogic ISP 2422 PCI FC-AL Adapter");
 		break;
+#endif
 	case PCI_QLOGIC_ISP6312:
 		device_set_desc(dev, "Qlogic ISP 6312 PCI FC-AL Adapter");
 		break;
