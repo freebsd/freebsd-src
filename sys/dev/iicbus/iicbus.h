@@ -38,4 +38,7 @@ struct iicbus_softc {
 
 extern int iicbus_generic_intr(device_t dev, int event, char *buf);
 
+extern driver_t iicbus_driver;
+extern devclass_t iicbus_devclass;
+
 #endif
