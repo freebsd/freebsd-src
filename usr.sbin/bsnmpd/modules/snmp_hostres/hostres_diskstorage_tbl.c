@@ -172,11 +172,23 @@ disk_entry_create(const struct device_entry *devEntry)
 static void
 disk_entry_delete(struct disk_entry *entry)
 {
+	struct device_entry *devEntry;
 
 	assert(entry != NULL);
-
 	TAILQ_REMOVE(&disk_tbl, entry, link);
+
+	devEntry = device_find_by_index(entry->index);
+
 	free(entry);
+
+	/*
+	 * Also delete the respective device entry -
+	 * this is needed for disk devices that are not
+	 * detected by libdevinfo
+	 */
+	if (devEntry != NULL &&
+	    (devEntry->flags & HR_DEVICE_IMMUTABLE) == HR_DEVICE_IMMUTABLE)
+		device_entry_delete(devEntry);
 }
 
 /**
@@ -290,7 +302,7 @@ disk_OS_get_ATA_disks(void)
 
 			/* First get the entry from the hrDeviceTbl */
 			entry = map->entry_p;
-			entry->type = OIDX_hrDeviceDiskStorage_c;
+			entry->type = &OIDX_hrDeviceDiskStorage_c;
 
 			/* Then check hrDiskStorage table for this device */
 			disk_entry = disk_find_by_index(entry->index);
@@ -335,7 +347,7 @@ disk_OS_get_MD_disks(void)
 
 		/* First get the entry from the hrDeviceTbl */
 		entry = device_find_by_index(map->hrIndex);
-		entry->type = OIDX_hrDeviceDiskStorage_c;
+		entry->type = &OIDX_hrDeviceDiskStorage_c;
 
 		/* Then check hrDiskStorage table for this device */
 		disk_entry = disk_find_by_index(entry->index);
@@ -426,7 +438,6 @@ disk_OS_get_disks(void)
 		if ((entry = device_find_by_name(disk)) == NULL) {
 			/*
 			 * not found there - insert it as immutable
-			 * XXX somehow we should remove it if it disappears
 			 */
 			syslog(LOG_WARNING, "%s: device '%s' not in "
 			    "device list", __func__, disk);
@@ -437,7 +448,7 @@ disk_OS_get_disks(void)
 			entry->flags |= HR_DEVICE_IMMUTABLE;
 		}
 
- 		entry->type = OIDX_hrDeviceDiskStorage_c;
+		entry->type = &OIDX_hrDeviceDiskStorage_c;
 
 		/* Then check hrDiskStorage table for this device */
 		disk_entry = disk_find_by_index(entry->index);
