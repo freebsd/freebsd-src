@@ -79,7 +79,7 @@ static struct timecounter at91st_timecounter = {
 #endif
 	32768, /* frequency */
 	"AT91RM9200 timer", /* name */
-	0 /* quality */
+	1000 /* quality */
 };
 
 static int
