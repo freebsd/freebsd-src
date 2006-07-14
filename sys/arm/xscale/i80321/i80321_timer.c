@@ -133,7 +133,6 @@ static devclass_t i80321_timer_devclass;
 
 DRIVER_MODULE(itimer, iq, i80321_timer_driver, i80321_timer_devclass, 0, 0);
 
-void	counterhandler(void *);
 void	clockhandler(void *);
 
 
