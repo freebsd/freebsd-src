@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #define DEVTOIICBUS(dev) ((struct iicbus_device*)device_get_ivars(dev))
 
-static devclass_t iicbus_devclass;
+devclass_t iicbus_devclass;
 
 /* See comments below for why auto-scanning is a bad idea. */
 #define SCAN_IICBUS 0
@@ -72,7 +72,7 @@ static device_method_t iicbus_methods[] = {
         { 0, 0 }
 };
 
-static driver_t iicbus_driver = {
+driver_t iicbus_driver = {
         "iicbus",
         iicbus_methods,
         sizeof(struct iicbus_softc),
@@ -81,8 +81,8 @@ static driver_t iicbus_driver = {
 static int
 iicbus_probe(device_t dev)
 {
-	device_set_desc(dev, "Philips I2C bus");
 
+	device_set_desc(dev, "Philips I2C bus");
 	return (0);
 }
 
@@ -139,51 +139,52 @@ iicbus_attach(device_t dev)
 	printf("\n");
 #endif
   
-	/* attach any known device */
 	device_add_child(dev, "ic", -1);
-	device_add_child(dev, "iic", -1);
 	device_add_child(dev, "iicsmb", -1);
-
+#if 0
+	/* attach any known device */
+	device_add_child(dev, "iic", -1);
+#endif         
 	bus_generic_attach(dev);
-         
         return (0);
 }
   
 static int
 iicbus_detach(device_t dev)
 {
+
 	iicbus_reset(dev, IIC_FASTEST, 0, NULL);
-  
 	bus_generic_detach(dev);
-  
 	return (0);
 }
   
 static int
 iicbus_add_child(device_t dev, int order, const char *name, int unit)
 {
+
 	device_add_child_ordered(dev, order, name, unit);
-
 	bus_generic_attach(dev);
-
 	return (0);
 }
 
 int
 iicbus_generic_intr(device_t dev, int event, char *buf)
 {
+
 	return (0);
 }
 
 int
 iicbus_null_callback(device_t dev, int index, caddr_t data)
 {
+
 	return (0);
 }
 
 int
 iicbus_null_repeated_start(device_t dev, u_char addr)
 {
+
 	return (IIC_ENOTSUPP);
 }
 
