@@ -39,7 +39,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <arm/at91/at91_spireg.h>
-#include <arm/at91/at91_spiio.h>
+#include <arm/at91/at91_pdcreg.h>
+
+#include <dev/spibus/spi.h>
+#include "spibus_if.h"
 
 struct at91_spi_softc
 {
@@ -48,13 +51,8 @@ struct at91_spi_softc
 	struct resource *irq_res;	/* IRQ resource */
 	struct resource	*mem_res;	/* Memory resource */
 	struct mtx sc_mtx;		/* basically a perimeter lock */
-	int flags;
-#define XFER_PENDING	1		/* true when transfer taking place */
-#define OPENED		2		/* Device opened */
-#define RXRDY		4
-#define TXCOMP		8
-#define TXRDY		0x10
-	struct cdev *cdev;
+	bus_dma_tag_t dmatag;		/* bus dma tag for mbufs */
+	bus_dmamap_t map[4];		/* Maps for the transaction */
 };
 
 static inline uint32_t
@@ -77,7 +75,6 @@ WR4(struct at91_spi_softc *sc, bus_size_t off, uint32_t val)
 #define AT91_SPI_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
 #define AT91_SPI_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
 #define AT91_SPI_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
-#define CDEV2SOFTC(dev)		((dev)->si_drv1)
 
 static devclass_t at91_spi_devclass;
 
@@ -86,24 +83,10 @@ static devclass_t at91_spi_devclass;
 static int at91_spi_probe(device_t dev);
 static int at91_spi_attach(device_t dev);
 static int at91_spi_detach(device_t dev);
-static void at91_spi_intr(void *);
 
 /* helper routines */
 static int at91_spi_activate(device_t dev);
 static void at91_spi_deactivate(device_t dev);
-
-/* cdev routines */
-static d_open_t at91_spi_open;
-static d_close_t at91_spi_close;
-static d_ioctl_t at91_spi_ioctl;
-
-static struct cdevsw at91_spi_cdevsw =
-{
-	.d_version = D_VERSION,
-	.d_open = at91_spi_open,
-	.d_close = at91_spi_close,
-	.d_ioctl = at91_spi_ioctl
-};
 
 static int
 at91_spi_probe(device_t dev)
@@ -116,7 +99,7 @@ static int
 at91_spi_attach(device_t dev)
 {
 	struct at91_spi_softc *sc = device_get_softc(dev);
-	int err;
+	int err, i;
 
 	sc->dev = dev;
 	err = at91_spi_activate(dev);
@@ -126,31 +109,45 @@ at91_spi_attach(device_t dev)
 	AT91_SPI_LOCK_INIT(sc);
 
 	/*
-	 * Activate the interrupt
+	 * Allocate DMA tags and maps
 	 */
-	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    at91_spi_intr, sc, &sc->intrhand);
-	if (err) {
-		AT91_SPI_LOCK_DESTROY(sc);
+	err = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
+	    BUS_SPACE_MAXADDR, NULL, NULL, 2058, 1, 2048, BUS_DMA_ALLOCNOW,
+	    NULL, NULL, &sc->dmatag);
+	if (err != 0)
 		goto out;
+	for (i = 0; i < 4; i++) {
+		err = bus_dmamap_create(sc->dmatag, 0,  &sc->map[i]);
+		if (err != 0)
+			goto out;
 	}
-	sc->cdev = make_dev(&at91_spi_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    "spi%d", device_get_unit(dev));
-	if (sc->cdev == NULL) {
-		err = ENOMEM;
-		goto out;
-	}
-	sc->cdev->si_drv1 = sc;
-#if 0
-	/* init */
-	sc->cwgr = SPI_CWGR_CKDIV(1) |
-	    SPI_CWGR_CHDIV(SPI_CWGR_DIV(SPI_DEF_CLK)) |
-	    SPI_CWGR_CLDIV(SPI_CWGR_DIV(SPI_DEF_CLK));
 
+	// reset the SPI
 	WR4(sc, SPI_CR, SPI_CR_SWRST);
-	WR4(sc, SPI_CR, SPI_CR_MSEN | SPI_CR_SVDIS);
-	WR4(sc, SPI_CWGR, sc->cwgr);
-#endif
+
+	WR4(sc, SPI_MR, (0xf << 24) | SPI_MR_MSTR | SPI_MR_MODFDIS |
+	    (0xE << 16));
+
+	WR4(sc, SPI_CSR0, SPI_CSR_CPOL | (4 << 16) | (2 << 8));
+	WR4(sc, SPI_CR, SPI_CR_SPIEN);
+
+	WR4(sc, PDC_PTCR, PDC_PTCR_TXTDIS);
+	WR4(sc, PDC_PTCR, PDC_PTCR_RXTDIS);
+	WR4(sc, PDC_RNPR, 0);
+	WR4(sc, PDC_RNCR, 0);
+	WR4(sc, PDC_TNPR, 0);
+	WR4(sc, PDC_TNCR, 0);
+	WR4(sc, PDC_RPR, 0);
+	WR4(sc, PDC_RCR, 0);
+	WR4(sc, PDC_TPR, 0);
+	WR4(sc, PDC_TCR, 0);
+	WR4(sc, PDC_PTCR, PDC_PTCR_RXTEN);
+	WR4(sc, PDC_PTCR, PDC_PTCR_TXTEN);
+	RD4(sc, SPI_RDR);
+	RD4(sc, SPI_SR);
+
+	device_add_child(dev, "spibus", -1);
+	bus_generic_attach(dev);
 out:;
 	if (err)
 		at91_spi_deactivate(dev);
@@ -208,229 +205,70 @@ at91_spi_deactivate(device_t dev)
 }
 
 static void
-at91_spi_intr(void *xsc)
+at91_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
-	struct at91_spi_softc *sc = xsc;
-#if 0
-	uint32_t status;
-
-	/* Reading the status also clears the interrupt */
-	status = RD4(sc, SPI_SR);
-	if (status == 0)
+	if (error != 0)
 		return;
-	AT91_SPI_LOCK(sc);
-	if (status & SPI_SR_RXRDY)
-		sc->flags |= RXRDY;
-	if (status & SPI_SR_TXCOMP)
-		sc->flags |= TXCOMP;
-	if (status & SPI_SR_TXRDY)
-		sc->flags |= TXRDY;
-	AT91_SPI_UNLOCK(sc);
-#endif
-	wakeup(sc);
-	return;
-}
-
-static int 
-at91_spi_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
-{
-	struct at91_spi_softc *sc;
-
-	sc = CDEV2SOFTC(dev);
-	AT91_SPI_LOCK(sc);
-	if (!(sc->flags & OPENED)) {
-		sc->flags |= OPENED;
-#if 0
-		WR4(sc, SPI_IER, SPI_SR_TXCOMP | SPI_SR_RXRDY | SPI_SR_TXRDY |
-		    SPI_SR_OVRE | SPI_SR_UNRE | SPI_SR_NACK);
-#endif
-	}
-	AT91_SPI_UNLOCK(sc);
-    	return (0);
+	*(bus_addr_t *)arg = segs[0].ds_addr;
 }
 
 static int
-at91_spi_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
+at91_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 {
 	struct at91_spi_softc *sc;
+	int i;
+	bus_addr_t addr;
 
-	sc = CDEV2SOFTC(dev);
-	AT91_SPI_LOCK(sc);
-	sc->flags &= ~OPENED;
-#if 0
-	WR4(sc, SPI_IDR, SPI_SR_TXCOMP | SPI_SR_RXRDY | SPI_SR_TXRDY |
-	    SPI_SR_OVRE | SPI_SR_UNRE | SPI_SR_NACK);
-#endif
-	AT91_SPI_UNLOCK(sc);
+	sc = device_get_softc(dev);
+	WR4(sc, PDC_PTCR, PDC_PTCR_TXTDIS | PDC_PTCR_RXTDIS);
+	i = 0;
+	if (bus_dmamap_load(sc->dmatag, sc->map[i], cmd->tx_cmd,
+	    cmd->tx_cmd_sz, at91_getaddr, &addr, 0) != 0)
+		goto out;
+	WR4(sc, PDC_TPR, addr);
+	WR4(sc, PDC_TCR, cmd->tx_cmd_sz);
+	bus_dmamap_sync(sc->dmatag, sc->map[i], BUS_DMASYNC_PREWRITE);
+	i++;
+	if (bus_dmamap_load(sc->dmatag, sc->map[i], cmd->tx_data,
+	    cmd->tx_data_sz, at91_getaddr, &addr, 0) != 0)
+		goto out;
+	WR4(sc, PDC_TNPR, addr);
+	WR4(sc, PDC_TNCR, cmd->tx_cmd_sz);
+	bus_dmamap_sync(sc->dmatag, sc->map[i], BUS_DMASYNC_PREWRITE);
+	i++;
+	if (bus_dmamap_load(sc->dmatag, sc->map[i], cmd->rx_cmd,
+	    cmd->tx_cmd_sz, at91_getaddr, &addr, 0) != 0)
+		goto out;
+	WR4(sc, PDC_RPR, addr);
+	WR4(sc, PDC_RCR, cmd->tx_cmd_sz);
+	bus_dmamap_sync(sc->dmatag, sc->map[i], BUS_DMASYNC_PREREAD);
+	i++;
+	if (bus_dmamap_load(sc->dmatag, sc->map[i], cmd->rx_data,
+	    cmd->tx_data_sz, at91_getaddr, &addr, 0) != 0)
+		goto out;
+	WR4(sc, PDC_RNPR, addr);
+	WR4(sc, PDC_RNCR, cmd->tx_data_sz);
+	bus_dmamap_sync(sc->dmatag, sc->map[i], BUS_DMASYNC_PREREAD);
+
+	WR4(sc, PDC_PTCR, PDC_PTCR_TXTEN | PDC_PTCR_RXTEN);
+
+	// wait for completion
+	// XXX should be done as an ISR of some sort.
+	while (RD4(sc, SPI_SR) & SPI_SR_ENDRX)
+		DELAY(700);
+
+	// Sync the buffers after the DMA is done, and unload them.
+	bus_dmamap_sync(sc->dmatag, sc->map[0], BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_sync(sc->dmatag, sc->map[1], BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_sync(sc->dmatag, sc->map[2], BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(sc->dmatag, sc->map[3], BUS_DMASYNC_POSTREAD);
+	for (i = 0; i < 4; i++)
+		bus_dmamap_unload(sc->dmatag, sc->map[i]);
 	return (0);
-}
-
-static int
-at91_spi_read_master(struct at91_spi_softc *sc, struct at91_spi_io *xfr)
-{
-#if 1
-    return ENOTTY;
-#else
-	uint8_t *walker;
-	uint8_t buffer[256];
-	size_t len;
-	int err = 0;
-
-	if (xfr->xfer_len > sizeof(buffer))
-		return (EINVAL);
-	walker = buffer;
-	len = xfr->xfer_len;
-	RD4(sc, SPI_RHR);
-	// Master mode, with the right address and interal addr size
-	WR4(sc, SPI_MMR, SPI_MMR_IADRSZ(xfr->iadrsz) | SPI_MMR_MREAD |
-	    SPI_MMR_DADR(xfr->dadr));
-	WR4(sc, SPI_IADR, xfr->iadr);
-	WR4(sc, SPI_CR, SPI_CR_START);
-	while (len-- > 1) {
-		while (!(sc->flags & RXRDY)) {
-			err = msleep(sc, &sc->sc_mtx, PZERO | PCATCH, "spird",
-			    0);
-			if (err)
-				return (err);
-		}
-		sc->flags &= ~RXRDY;
-		*walker++ = RD4(sc, SPI_RHR) & 0xff;
-	}
-	WR4(sc, SPI_CR, SPI_CR_STOP);
-	while (!(sc->flags & TXCOMP)) {
-		err = msleep(sc, &sc->sc_mtx, PZERO | PCATCH, "spird2", 0);
-		if (err)
-			return (err);
-	}
-	sc->flags &= ~TXCOMP;
-	*walker = RD4(sc, SPI_RHR) & 0xff;
-	if (xfr->xfer_buf) {
-		AT91_SPI_UNLOCK(sc);
-		err = copyout(buffer, xfr->xfer_buf, xfr->xfer_len);
-		AT91_SPI_LOCK(sc);
-	}
-	return (err);
-#endif
-}
-
-static int
-at91_spi_write_master(struct at91_spi_softc *sc, struct at91_spi_io *xfr)
-{
-#if 1
-    return ENOTTY;
-#else
-	uint8_t *walker;
-	uint8_t buffer[256];
-	size_t len;
-	int err;
-
-	if (xfr->xfer_len > sizeof(buffer))
-		return (EINVAL);
-	walker = buffer;
-	len = xfr->xfer_len;
-	AT91_SPI_UNLOCK(sc);
-	err = copyin(xfr->xfer_buf, buffer, xfr->xfer_len);
-	AT91_SPI_LOCK(sc);
-	if (err)
-		return (err);
-	/* Setup the xfr for later readback */
-	xfr->xfer_buf = 0;
-	xfr->xfer_len = 1;
-	while (len--) {
-		WR4(sc, SPI_MMR, SPI_MMR_IADRSZ(xfr->iadrsz) | SPI_MMR_MWRITE |
-		    SPI_MMR_DADR(xfr->dadr));
-		WR4(sc, SPI_IADR, xfr->iadr++);
-		WR4(sc, SPI_THR, *walker++);
-		WR4(sc, SPI_CR, SPI_CR_START);
-		/*
-		 * If we get signal while waiting for TXRDY, make sure we
-		 * try to stop this device
-		 */
-		while (!(sc->flags & TXRDY)) {
-			err = msleep(sc, &sc->sc_mtx, PZERO | PCATCH, "spiwr",
-			    0);
-			if (err)
-				break;
-		}
-		WR4(sc, SPI_CR, SPI_CR_STOP);
-		if (err)
-			return (err);
-		while (!(sc->flags & TXCOMP)) {
-			err = msleep(sc, &sc->sc_mtx, PZERO | PCATCH, "spiwr2",
-			    0);
-			if (err)
-				return (err);
-		}
-		/* Readback */
-		at91_spi_read_master(sc, xfr);
-	}
-	return (err);
-#endif
-}
-
-static int
-at91_spi_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
-    struct thread *td)
-{
-	int err = 0;
-	struct at91_spi_softc *sc;
-
-	sc = CDEV2SOFTC(dev);
-	AT91_SPI_LOCK(sc);
-	while (sc->flags & XFER_PENDING) {
-		err = msleep(sc, &sc->sc_mtx, PZERO | PCATCH,
-		    "spiwait", 0);
-		if (err) {
-			AT91_SPI_UNLOCK(sc);
-			return (err);
-		}
-	}
-	sc->flags |= XFER_PENDING;
-
-	switch (cmd)
-	{
-	case SPIIOCXFER:
-	{
-		struct at91_spi_io *xfr = (struct at91_spi_io *)data;
-		switch (xfr->type)
-		{
-		case SPI_IO_READ_MASTER:
-			err = at91_spi_read_master(sc, xfr);
-			break;
-		case SPI_IO_WRITE_MASTER:
-			err = at91_spi_write_master(sc, xfr);
-			break;
-		default:
-			err = EINVAL;
-			break;
-		}
-		break;
-	}
-
-	case SPIIOCSETCLOCK:
-	{
-#if 0
-		struct at91_spi_clock *spick = (struct at91_spi_clock *)data;
-
-		sc->cwgr = SPI_CWGR_CKDIV(spick->ckdiv) |
-		    SPI_CWGR_CHDIV(SPI_CWGR_DIV(spick->high_rate)) |
-		    SPI_CWGR_CLDIV(SPI_CWGR_DIV(spick->low_rate));
-		WR4(sc, SPI_CR, SPI_CR_SWRST);
-		WR4(sc, SPI_CR, SPI_CR_MSEN | SPI_CR_SVDIS);
-		WR4(sc, SPI_CWGR, sc->cwgr);
-#else
-		err = ENOTTY;
-#endif
-		break;
-	}
-	default:
-		err = ENOTTY;
-		break;
-	}
-	sc->flags &= ~XFER_PENDING;
-	AT91_SPI_UNLOCK(sc);
-	wakeup(sc);
-	return err;
+out:;
+	while (i-- > 0)
+		bus_dmamap_unload(sc->dmatag, sc->map[i]);
+	return (EIO);
 }
 
 static device_method_t at91_spi_methods[] = {
@@ -439,6 +277,8 @@ static device_method_t at91_spi_methods[] = {
 	DEVMETHOD(device_attach,	at91_spi_attach),
 	DEVMETHOD(device_detach,	at91_spi_detach),
 
+	/* spibus interface */
+	DEVMETHOD(spibus_transfer,	at91_spi_transfer),
 	{ 0, 0 }
 };
 
