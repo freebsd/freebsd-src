@@ -1474,6 +1474,7 @@ isp_fibre_init(ispsoftc_t *isp)
 	mbs.param[5] = 0;
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
 	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, sizeof (*icbp));
 	isp_mboxcmd(isp, &mbs, MBLOGALL);
 	FC_SCRATCH_RELEASE(isp);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
@@ -1514,9 +1515,10 @@ isp_getmap(ispsoftc_t *isp, fcpos_map_t *map)
 	 *	mbs.param[5] = 0;
 	 *
 	 */
-	mbs.param[6] = 0;
-	mbs.param[7] = 0;
+	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
+	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
 	FC_SCRATCH_ACQUIRE(isp);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, sizeof (fcpos_map_t));
 	isp_mboxcmd(isp, &mbs, MBLOGALL & ~MBOX_COMMAND_PARAM_ERROR);
 	if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
 		MEMCPY(map, fcp->isp_scratch, sizeof (fcpos_map_t));
@@ -1564,6 +1566,7 @@ isp_getpdb(ispsoftc_t *isp, int id, isp_pdb_t *pdbp)
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
 	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
 	FC_SCRATCH_ACQUIRE(isp);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, sizeof (isp_pdb_t));
 	isp_mboxcmd(isp, &mbs, MBLOGALL & ~MBOX_COMMAND_PARAM_ERROR);
 	if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
 		isp_get_pdb(isp, (isp_pdb_t *)fcp->isp_scratch, pdbp);
@@ -3056,6 +3059,7 @@ isp_register_fc4_type(ispsoftc_t *isp)
 	 */
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
 	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, SNS_RFT_ID_REQ_SIZE);
 	isp_mboxcmd(isp, &mbs, MBLOGALL);
 	FC_SCRATCH_RELEASE(isp);
 	if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
@@ -4341,8 +4345,9 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		isp_mark_getpdb_all(isp);
 		isp_async(isp, ISPASYNC_LOOP_UP, NULL);
 #ifdef	ISP_TARGET_MODE
-		if (isp_target_async(isp, bus, mbox))
+		if (isp_target_async(isp, bus, mbox)) {
 			rval = -1;
+		}
 #endif
 		break;
 
@@ -4353,8 +4358,9 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		isp_mark_getpdb_all(isp);
 		isp_async(isp, ISPASYNC_LOOP_DOWN, NULL);
 #ifdef	ISP_TARGET_MODE
-		if (isp_target_async(isp, bus, mbox))
+		if (isp_target_async(isp, bus, mbox)) {
 			rval = -1;
+		}
 #endif
 		break;
 
@@ -4365,8 +4371,9 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		isp_mark_getpdb_all(isp);
 		isp_async(isp, ISPASYNC_LOOP_RESET, NULL);
 #ifdef	ISP_TARGET_MODE
-		if (isp_target_async(isp, bus, mbox))
+		if (isp_target_async(isp, bus, mbox)) {
 			rval = -1;
+		}
 #endif
 		break;
 
@@ -5629,36 +5636,44 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp, int logmask)
 	case MBOX_COMMAND_COMPLETE:
 		break;
 	case MBOX_INVALID_COMMAND:
-		if (logmask & MBLOGMASK(MBOX_COMMAND_COMPLETE))
+		if (logmask & MBLOGMASK(MBOX_COMMAND_COMPLETE)) {
 			xname = "INVALID COMMAND";
+		}
 		break;
 	case MBOX_HOST_INTERFACE_ERROR:
-		if (logmask & MBLOGMASK(MBOX_HOST_INTERFACE_ERROR))
+		if (logmask & MBLOGMASK(MBOX_HOST_INTERFACE_ERROR)) {
 			xname = "HOST INTERFACE ERROR";
+		}
 		break;
 	case MBOX_TEST_FAILED:
-		if (logmask & MBLOGMASK(MBOX_TEST_FAILED))
+		if (logmask & MBLOGMASK(MBOX_TEST_FAILED)) {
 			xname = "TEST FAILED";
+		}
 		break;
 	case MBOX_COMMAND_ERROR:
-		if (logmask & MBLOGMASK(MBOX_COMMAND_ERROR))
+		if (logmask & MBLOGMASK(MBOX_COMMAND_ERROR)) {
 			xname = "COMMAND ERROR";
+		}
 		break;
 	case MBOX_COMMAND_PARAM_ERROR:
-		if (logmask & MBLOGMASK(MBOX_COMMAND_PARAM_ERROR))
+		if (logmask & MBLOGMASK(MBOX_COMMAND_PARAM_ERROR)) {
 			xname = "COMMAND PARAMETER ERROR";
+		}
 		break;
 	case MBOX_LOOP_ID_USED:
-		if (logmask & MBLOGMASK(MBOX_LOOP_ID_USED))
+		if (logmask & MBLOGMASK(MBOX_LOOP_ID_USED)) {
 			xname = "LOOP ID ALREADY IN USE";
+		}
 		break;
 	case MBOX_PORT_ID_USED:
-		if (logmask & MBLOGMASK(MBOX_PORT_ID_USED))
+		if (logmask & MBLOGMASK(MBOX_PORT_ID_USED)) {
 			xname = "PORT ID ALREADY IN USE";
+		}
 		break;
 	case MBOX_ALL_IDS_USED:
-		if (logmask & MBLOGMASK(MBOX_ALL_IDS_USED))
+		if (logmask & MBLOGMASK(MBOX_ALL_IDS_USED)) {
 			xname = "ALL LOOP IDS IN USE";
+		}
 		break;
 	case 0:		/* special case */
 		xname = "TIMEOUT";
@@ -5668,9 +5683,10 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp, int logmask)
 		xname = mname;
 		break;
 	}
-	if (xname)
+	if (xname) {
 		isp_prt(isp, ISP_LOGALL, "Mailbox Command '%s' failed (%s)",
 		    cname, xname);
+	}
 }
 
 static void
