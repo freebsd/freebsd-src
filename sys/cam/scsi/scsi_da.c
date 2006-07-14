@@ -1001,6 +1001,7 @@ dasysctlinit(void *context, int pending)
 		CTLFLAG_RD, 0, tmpstr);
 	if (softc->sysctl_tree == NULL) {
 		printf("dasysctlinit: unable to allocate sysctl tree\n");
+		mtx_unlock(&Giant);
 		return;
 	}
 
