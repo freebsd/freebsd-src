@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #ifdef DEBUG_LOCKS
 #include <sys/stack.h>
 #endif
-#include <sys/kdb.h>
 
 /*
  * Locking primitives implementation.
