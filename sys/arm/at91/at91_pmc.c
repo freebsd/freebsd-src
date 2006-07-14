@@ -22,6 +22,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_at91.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -397,7 +399,11 @@ at91_pmc_attach(device_t dev)
 	pmc_softc->dev = dev;
 	if ((err = at91_pmc_activate(dev)) != 0)
 		return err;
+#ifdef AT91_TSC
+	at91_pmc_init_clock(pmc_softc, 16000000);
+#else
 	at91_pmc_init_clock(pmc_softc, 10000000);
+#endif
 
 	return (0);
 }
