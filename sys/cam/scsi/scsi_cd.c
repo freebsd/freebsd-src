@@ -591,6 +591,7 @@ cdsysctlinit(void *context, int pending)
 
 	if (softc->sysctl_tree == NULL) {
 		printf("cdsysctlinit: unable to allocate sysctl tree\n");
+		mtx_unlock(&Giant);
 		return;
 	}
 
