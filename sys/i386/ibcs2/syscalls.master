@@ -64,10 +64,10 @@
 19	AUE_LSEEK	MSTD	{ long ibcs2_lseek(int fd, long offset, \
 				    int whence); }
 20	AUE_NULL	MNOPROTO { pid_t getpid(void); }
-21	AUE_MOUNT	STD	{ int ibcs2_mount(char *special, char *dir, \
+21	AUE_MOUNT	MSTD	{ int ibcs2_mount(char *special, char *dir, \
 				    int flags, int fstype, char *data, \
 				    int len); }
-22	AUE_UMOUNT	STD	{ int ibcs2_umount(char *name); }
+22	AUE_UMOUNT	MSTD	{ int ibcs2_umount(char *name); }
 23	AUE_SETUID	MSTD	{ int ibcs2_setuid(int uid); }
 24	AUE_GETUID	MNOPROTO { uid_t getuid(void); }
 25	AUE_SETTIMEOFDAY	MSTD	{ int ibcs2_stime(long *timep); }
