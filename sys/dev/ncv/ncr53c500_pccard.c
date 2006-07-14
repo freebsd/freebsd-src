@@ -293,7 +293,6 @@ ncv_card_unload(DEVPORT_PDEVICE devi)
 	struct ncv_softc *sc = DEVPORT_PDEVGET_SOFTC(devi);
 	intrmask_t s;
 
-	printf("%s: unload\n", sc->sc_sclow.sl_xname);
 	s = splcam();
 	scsi_low_deactivate((struct scsi_low_softc *)sc);
         scsi_low_dettach(&sc->sc_sclow);
