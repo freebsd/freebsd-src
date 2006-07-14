@@ -55,10 +55,10 @@
  */
 struct processor_entry {
 	int32_t		index;
-	struct asn_oid	frwId;
+	const struct asn_oid *frwId;
 	int32_t		load;
 	TAILQ_ENTRY(processor_entry) link;
-	u_char 		cpu_no;		/* which cpu, counted from 0 */
+	u_char		cpu_no;		/* which cpu, counted from 0 */
 	pid_t		idle_pid;	/* PID of idle process for this CPU */
 
 	/* the samples from the last minute, as required by MIB */
@@ -168,7 +168,7 @@ proc_create_entry(u_int cpu_no, struct device_map_entry *map)
 		if (map == NULL)
 			abort();
 	}
-		
+
 	if ((entry = malloc(sizeof(*entry))) == NULL) {
 		syslog(LOG_ERR, "hrProcessorTable: %s malloc "
 		    "failed: %m", __func__);
@@ -180,7 +180,7 @@ proc_create_entry(u_int cpu_no, struct device_map_entry *map)
 	entry->load = 0;
 	entry->cpu_no = (u_char)cpu_no;
 	entry->idle_pid = 0;
-	entry->frwId = oid_zeroDotZero; /* unknown id FIXME */
+	entry->frwId = &oid_zeroDotZero; /* unknown id FIXME */
 
 	INSERT_OBJECT_INT(entry, &processor_tbl);
 
@@ -232,7 +232,7 @@ processor_get_pids(void)
 
 		if (entry == NULL) {
 			/* create entry on non-ACPI systems */
-		   	if ((entry = proc_create_entry(cpu, NULL)) == NULL)
+			if ((entry = proc_create_entry(cpu, NULL)) == NULL)
 				continue;
 
 			detected_processor_count++;
@@ -495,7 +495,8 @@ op_hrProcessorTable(struct snmp_context *ctx __unused,
 	switch (value->var.subs[sub - 1]) {
 
 	case LEAF_hrProcessorFrwID:
-		value->v.oid = entry->frwId;
+		assert(entry->frwId != NULL);
+		value->v.oid = *entry->frwId;
 		return (SNMP_ERR_NOERROR);
 
 	case LEAF_hrProcessorLoad:
