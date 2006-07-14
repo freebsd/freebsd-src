@@ -29,6 +29,8 @@
 #define __IICONF_H
 
 #include <sys/queue.h>
+#include <dev/iicbus/iic.h>
+
 
 #define IICPRI (PZERO+8)		/* XXX sleep/wakeup queue priority */
 
@@ -126,6 +128,10 @@ extern int iicbus_block_write(device_t, u_char, char *, int, int *);
 extern int iicbus_block_read(device_t, u_char, char *, int, int *);
 
 extern u_char iicbus_get_addr(device_t);
+
+/* vectors of iic operations to pass to bridge */
+int iicbus_transfer(device_t bus, struct iic_msg *msgs, uint32_t nmsgs);
+int iicbus_transfer_gen(device_t bus, struct iic_msg *msgs, uint32_t nmsgs);
 
 #define IICBUS_MODVER	1
 #define IICBUS_MINVER	1

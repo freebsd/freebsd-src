@@ -240,8 +240,11 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 	struct iic_softc *sc = IIC_SOFTC(minor(dev));
 	device_t parent = device_get_parent(iicdev);
 	struct iiccmd *s = (struct iiccmd *)data;
-	int error, count;
+	struct iic_rdwr_data *d = (struct iic_rdwr_data *)data;
+	struct iic_msg *m;
+	int error, count, i;
 	char *buf = NULL;
+	void **usrbufs = NULL;
 
 	if (!sc)
 		return (EINVAL);
@@ -297,6 +300,30 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		error = copyout(buf, s->buf, s->count);
 		break;
 
+	case I2CRDWR:
+		buf = malloc(sizeof(*d->msgs) * d->nmsgs, M_TEMP, M_WAITOK);
+		usrbufs = malloc(sizeof(void *) * d->nmsgs, M_TEMP, M_ZERO | M_WAITOK);
+		error = copyin(d->msgs, buf, sizeof(*d->msgs) * d->nmsgs);
+		if (error)
+			break;
+		/* Allocate kernel buffers for userland data, copyin write data */
+		for (i = 0; i < d->nmsgs; i++) {
+			m = &((struct iic_msg *)buf)[i];
+			usrbufs[i] = m->buf;
+			m->buf = malloc(m->len, M_TEMP, M_WAITOK);
+			if (!(m->flags & IIC_M_RD))
+				copyin(usrbufs[i], m->buf, m->len);
+		}
+		error = iicbus_transfer(parent, (struct iic_msg *)buf, d->nmsgs);
+		/* Copyout all read segments, free up kernel buffers */
+		for (i = 0; i < d->nmsgs; i++) {
+			m = &((struct iic_msg *)buf)[i];
+			if (!(m->flags & IIC_M_RD))
+				copyout(m->buf, usrbufs[i], m->len);
+			free(m->buf, M_TEMP);
+		}
+		free(usrbufs, M_TEMP);
+		break;
 	default:
 		error = ENOTTY;
 	}
