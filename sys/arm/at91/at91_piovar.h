@@ -27,11 +27,12 @@
 #ifndef ARM_AT91_AT91_PIOVAR_H
 #define ARM_AT91_AT91_PIOVAR_H
 
-void at91_pio_use_periph_a(uint32_t pio, uint32_t periph_a_mask);
-void at91_pio_use_periph_b(uint32_t pio, uint32_t periph_b_mask);
+void at91_pio_use_periph_a(uint32_t pio, uint32_t periph_a_mask, int use_pullup);
+void at91_pio_use_periph_b(uint32_t pio, uint32_t periph_b_mask, int use_pullup);
 void at91_pio_use_gpio(uint32_t pio, uint32_t gpio_mask);
 void at91_pio_gpio_input(uint32_t pio, uint32_t input_enable_mask);
-void at91_pio_gpio_output(uint32_t pio, uint32_t output_enable_mask);
+void at91_pio_gpio_output(uint32_t pio, uint32_t output_enable_mask,
+	int use_pullup);
 void at91_pio_gpio_set(uint32_t pio, uint32_t data_mask);
 void at91_pio_gpio_clear(uint32_t pio, uint32_t data_mask);
 
