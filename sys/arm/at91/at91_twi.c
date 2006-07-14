@@ -52,7 +52,7 @@ struct at91_twi_softc
 	struct resource *irq_res;	/* IRQ resource */
 	struct resource	*mem_res;	/* Memory resource */
 	struct mtx sc_mtx;		/* basically a perimeter lock */
-	int flags;
+	volatile int flags;
 #define RXRDY		4
 #define TXRDY		0x10
 	uint32_t cwgr;
@@ -268,8 +268,6 @@ at91_twi_repeated_start(device_t dev, u_char slave, int timeout)
 
 	sc = device_get_softc(dev);
 	WR4(sc, TWI_MMR, TWI_MMR_DADR(slave));
-	WR4(sc, TWI_CR, TWI_CR_START);
-	sc->sc_started = 1;
 	return (0);
 }
 
@@ -283,7 +281,6 @@ at91_twi_start(device_t dev, u_char slave, int timeout)
 
 	sc = device_get_softc(dev);
 	WR4(sc, TWI_MMR, TWI_MMR_DADR(slave));
-	WR4(sc, TWI_CR, TWI_CR_START);
 	sc->sc_started = 1;
 	return (0);
 }
@@ -297,8 +294,10 @@ at91_twi_write(device_t dev, char *buf, int len, int *sent, int timeout /* us */
 
 	walker = buf;
 	sc = device_get_softc(dev);
-	WR4(sc, TWI_MMR, TWI_MMR_MWRITE | RD4(sc, TWI_MMR));
 	AT91_TWI_LOCK(sc);
+	WR4(sc, TWI_MMR, ~TWI_MMR_MREAD & RD4(sc, TWI_MMR));
+	WR4(sc, TWI_CR, TWI_CR_START);
+	sc->sc_started = 1;
 	WR4(sc, TWI_IER, TWI_SR_TXRDY);
 	while (len--) {
 		WR4(sc, TWI_THR, *walker++);
@@ -326,7 +325,9 @@ at91_twi_read(device_t dev, char *buf, int len, int *read, int last,
 	walker = buf;
 	sc = device_get_softc(dev);
 	AT91_TWI_LOCK(sc);
-	WR4(sc, TWI_MMR, ~TWI_MMR_MWRITE & RD4(sc, TWI_MMR));
+	WR4(sc, TWI_MMR, TWI_MMR_MREAD | RD4(sc, TWI_MMR));
+	WR4(sc, TWI_CR, TWI_CR_START);
+	sc->sc_started = 1;
 	WR4(sc, TWI_IER, TWI_SR_RXRDY);
 	while (len-- > 0) {
 		err = 0;
@@ -348,7 +349,6 @@ at91_twi_read(device_t dev, char *buf, int len, int *read, int last,
 	*walker = RD4(sc, TWI_RHR) & 0xff;
 	if (read)
 		*read = walker - buf;
-	sc->sc_started = 0;
 errout:;
 	WR4(sc, TWI_IDR, TWI_SR_RXRDY);
 	AT91_TWI_UNLOCK(sc);
@@ -443,3 +443,4 @@ static driver_t at91_twi_driver = {
 };
 
 DRIVER_MODULE(at91_twi, atmelarm, at91_twi_driver, at91_twi_devclass, 0, 0);
+DRIVER_MODULE(iicbus, at91_twi, iicbus_driver, iicbus_devclass, 0, 0);
