@@ -223,9 +223,14 @@ at91_rtc_gettime(device_t dev, struct timespec *ts)
 static int
 at91_rtc_settime(device_t dev, struct timespec *ts)
 {
-	// XXX UGLY XXX
-	printf("SET TIME\n");
-	return (EINVAL);
+	struct at91_rtc_softc *sc;
+	struct clocktime ct;
+
+	sc = device_get_softc(dev);
+	clock_ts_to_ct(ts, &ct);
+	WR4(sc, RTC_TIMR, RTC_TIMR_MK(ct.hour, ct.min, ct.sec));
+	WR4(sc, RTC_CALR, RTC_CALR_MK(ct.year, ct.mon, ct.day, ct.dow));
+	return (0);
 }
 
 static device_method_t at91_rtc_methods[] = {
