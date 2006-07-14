@@ -168,7 +168,6 @@ stg_detach (device_t dev)
 	struct stg_softc *sc = device_get_softc(dev);
 	intrmask_t s;
 
-	printf("%s: unload\n",sc->sc_sclow.sl_xname);
 	s = splcam();
 	scsi_low_deactivate((struct scsi_low_softc *)sc);
 	scsi_low_dettach(&sc->sc_sclow);
