@@ -114,7 +114,7 @@
 				    int a3, int a4); }
 53	AUE_SEMSYS	MSTD	{ int ibcs2_semsys(int which, int a2, \
 				    int a3, int a4, int a5); }
-54	AUE_IOCTL	STD	{ int ibcs2_ioctl(int fd, int cmd, \
+54	AUE_IOCTL	MSTD	{ int ibcs2_ioctl(int fd, int cmd, \
 				    caddr_t data); }
 55	AUE_NULL	MSTD	{ int ibcs2_uadmin(int cmd, int func, \
 				    caddr_t data); }
