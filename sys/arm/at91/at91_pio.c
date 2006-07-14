@@ -280,21 +280,29 @@ at91_pio_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
  * them.
  */
 void
-at91_pio_use_periph_a(uint32_t pio, uint32_t periph_a_mask)
+at91_pio_use_periph_a(uint32_t pio, uint32_t periph_a_mask, int use_pullup)
 {
 	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
 
 	PIO[PIO_ASR / 4] = periph_a_mask;
 	PIO[PIO_PDR / 4] = periph_a_mask;
+	if (use_pullup)
+		PIO[PIO_PUER / 4] = periph_a_mask;
+	else
+		PIO[PIO_PUDR / 4] = periph_a_mask;
 }
 
 void
-at91_pio_use_periph_b(uint32_t pio, uint32_t periph_b_mask)
+at91_pio_use_periph_b(uint32_t pio, uint32_t periph_b_mask, int use_pullup)
 {
 	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
 
 	PIO[PIO_BSR / 4] = periph_b_mask;
 	PIO[PIO_PDR / 4] = periph_b_mask;
+	if (use_pullup)
+		PIO[PIO_PUER / 4] = periph_b_mask;
+	else
+		PIO[PIO_PUDR / 4] = periph_b_mask;
 }
 
 void
@@ -314,11 +322,15 @@ at91_pio_gpio_input(uint32_t pio, uint32_t input_enable_mask)
 }
 
 void
-at91_pio_gpio_output(uint32_t pio, uint32_t output_enable_mask)
+at91_pio_gpio_output(uint32_t pio, uint32_t output_enable_mask, int use_pullup)
 {
 	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
 
 	PIO[PIO_OER / 4] = output_enable_mask;
+	if (use_pullup)
+		PIO[PIO_PUER / 4] = output_enable_mask;
+	else
+		PIO[PIO_PUDR / 4] = output_enable_mask;
 }
 
 void
