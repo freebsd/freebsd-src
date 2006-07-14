@@ -73,7 +73,7 @@ struct printer_entry {
 	int32_t		status;  /* values from PrinterStatus enum above */
 	u_char		detectedErrorState[2];
 	TAILQ_ENTRY(printer_entry) link;
-#define HR_PRINTER_FOUND		0x001
+#define	HR_PRINTER_FOUND		0x001
 	uint32_t	flags;
 
 };
@@ -240,8 +240,8 @@ handle_printer(struct printer *pp)
 		return;
 	}
 	HRDBG("%s found in hrDeviceTable", pp->lp);
+	dev_entry->type = &OIDX_hrDevicePrinter_c;
 
-	dev_entry->type = OIDX_hrDevicePrinter_c;
 	dev_entry->flags |= HR_DEVICE_IMMUTABLE;
 
 	/* Then check hrPrinterTable for this device */

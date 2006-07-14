@@ -47,7 +47,6 @@
 #include "hostres_oid.h"
 #include "hostres_tree.h"
 
-
 /*
  * Ugly thing: PID_MAX, NO_PID defined only in kernel
  */
@@ -68,6 +67,11 @@ enum SWRunStatus {
 	SRS_INVALID		= 4
 };
 
+/* Maximum lengths for the strings according to the MIB */
+#define	SWR_NAME_MLEN	(64 + 1)
+#define	SWR_PATH_MLEN	(128 + 1)
+#define	SWR_PARAM_MLEN	(128 + 1)
+
 /*
  * This structure is used to hold a SNMP table entry
  * for both hrSWRunTable and hrSWRunPerfTable because
@@ -75,15 +79,15 @@ enum SWRunStatus {
  */
 struct swrun_entry {
 	int32_t		index;
-	u_char		name[64 + 1];
-	struct asn_oid	id;
-	u_char		path[128 + 1];
-	u_char		parameters[128 + 1];
+	u_char		*name;		/* it may be NULL */
+	const struct asn_oid *id;
+	u_char		*path;		/* it may be NULL */
+	u_char		*parameters;	/* it may be NULL */
 	int32_t		type;		/* enum SWRunType */
 	int32_t		status;		/* enum SWRunStatus */
 	int32_t		perfCPU;
 	int32_t		perfMemory;
-#define HR_SWRUN_FOUND 0x001
+#define	HR_SWRUN_FOUND 0x001
 	uint32_t	flags;
 	uint64_t	r_tick;		/* tick when entry refreshed */
 	TAILQ_ENTRY(swrun_entry) link;
@@ -134,6 +138,9 @@ swrun_entry_delete(struct swrun_entry *entry)
 
 	TAILQ_REMOVE(&swrun_tbl, entry, link);
 
+	free(entry->name);
+	free(entry->path);
+	free(entry->parameters);
 	free(entry);
 }
 
@@ -152,7 +159,7 @@ swrun_entry_find_by_index(int32_t idx)
 }
 
 /**
- * Translate the kernel's process status to the SNMP one.
+ * Translate the kernel's process status to SNMP.
  */
 static enum SWRunStatus
 swrun_OS_get_proc_status(const struct kinfo_proc *kp)
@@ -199,19 +206,22 @@ kinfo_proc_to_swrun_entry(const struct kinfo_proc *kp,
 {
 	char **argv = NULL;
 	uint64_t cpu_time = 0;
+	size_t pname_len;
 
-	strlcpy((char*)entry->name, kp->ki_comm, sizeof(entry->name));
+	pname_len = strlen(kp->ki_comm) + 1;
+	entry->name = reallocf(entry->name, pname_len);
+	if (entry->name != NULL)
+		strlcpy(entry->name, kp->ki_comm, pname_len);
 
-	entry->id = oid_zeroDotZero; /* unknown id - FIXME */
-
-	entry->path[0] = '\0';
-	entry->parameters[0] = '\0';
+	entry->id = &oid_zeroDotZero; /* unknown id - FIXME */
 
 	assert(hr_kd != NULL);
 
-	argv = kvm_getargv(hr_kd, kp, sizeof(entry->parameters) - 1);
+	argv = kvm_getargv(hr_kd, kp, SWR_PARAM_MLEN - 1);
 	if(argv != NULL){
-		memset(entry->parameters, '\0', sizeof(entry->parameters));
+		u_char param[SWR_PARAM_MLEN];
+
+		memset(param, '\0', sizeof(param));
 
 		/*
 		 * FIXME
@@ -221,25 +231,39 @@ kinfo_proc_to_swrun_entry(const struct kinfo_proc *kp,
 		 * is not realiable
 		 */
 		if(*argv != NULL && (*argv)[0] == '/') {
-			memset(entry->path, '\0', sizeof(entry->path));
-			strlcpy((char*)entry->path, *argv, sizeof(entry->path));
+			size_t path_len;
+
+			path_len = strlen(*argv) + 1;
+			if (path_len > SWR_PATH_MLEN)
+				path_len = SWR_PATH_MLEN;
+
+			entry->path = reallocf(entry->path, path_len);
+			if (entry->path != NULL) {
+				memset(entry->path, '\0', path_len);
+				strlcpy((char*)entry->path, *argv, path_len);
+			}
 		}
 
 		argv++; /* skip the first one which was used for path */
 
 		while (argv != NULL && *argv != NULL ) {
-			if (entry->parameters[0] != 0)  {
+			if (param[0] != 0)  {
 				/*
 				 * add a space between parameters,
 				 * except before the first one
 				 */
-				strlcat((char *)entry->parameters,
-				    " ", sizeof(entry->parameters));
+				strlcat((char *)param, " ", sizeof(param));
 			}
-			strlcat((char *)entry->parameters, *argv,
-			    sizeof(entry->parameters));
+			strlcat((char *)param, *argv, sizeof(param));
 			argv++;
 		}
+		/* reuse pname_len */
+		pname_len = strlen(param) + 1;
+		if (pname_len > SWR_PARAM_MLEN)
+			pname_len = SWR_PARAM_MLEN;
+
+		entry->parameters = reallocf(entry->parameters, pname_len);
+		strlcpy(entry->parameters, param, pname_len);
 	}
 
 	entry->type = (int32_t)(IS_KERNPROC(kp) ? SRT_OPERATING_SYSTEM :
@@ -261,19 +285,26 @@ static void
 kld_file_stat_to_swrun(const struct kld_file_stat *kfs,
     struct swrun_entry *entry)
 {
+	size_t name_len;
 
 	assert(kfs != NULL);
 	assert(entry != NULL);
 
-	strlcpy((char *)entry->name, kfs->name, sizeof(entry->name));
+	name_len = strlen(kfs->name) + 1;
+	if (name_len > SWR_NAME_MLEN)
+		name_len = SWR_NAME_MLEN;
+
+	entry->name = reallocf(entry->name, name_len);
+	if (entry->name != NULL)
+		strlcpy((char *)entry->name, kfs->name, name_len);
 
 	/* FIXME: can we find the location where the module was loaded from? */
-	entry->path[0] = '\0';
+	entry->path = NULL;
 
 	/* no parameters for kernel files (.ko) of for the kernel */
-	entry->parameters[0] = '\0';
+	entry->parameters = NULL;
 
-	entry->id = oid_zeroDotZero; /* unknown id - FIXME */
+	entry->id = &oid_zeroDotZero; /* unknown id - FIXME */
 
 	if (strcmp(kfs->name, "kernel") == 0) {
 		entry->type = (int32_t)SRT_OPERATING_SYSTEM;
@@ -629,31 +660,41 @@ op_hrSWRunTable(struct snmp_context *ctx __unused, struct snmp_value *value,
 		break;
 
 	  case LEAF_hrSWRunName:
-	  	ret = string_get(value, entry->name, -1);
-	  	break;
+		if (entry->name != NULL)
+			ret = string_get(value, entry->name, -1);
+		else
+			ret = string_get(value, "", -1);
+		break;
 
 	  case LEAF_hrSWRunID:
-	  	value->v.oid = entry->id;
-	  	break;
+		assert(entry->id != NULL);
+		value->v.oid = *entry->id;
+		break;
 
-	  case 	LEAF_hrSWRunPath:
-	  	ret = string_get(value, entry->path, -1);
-	  	break;
+	  case LEAF_hrSWRunPath:
+		if (entry->path != NULL)
+			ret = string_get(value, entry->path, -1);
+		else
+			ret = string_get(value, "", -1);
+		break;
 
 	  case LEAF_hrSWRunParameters:
-	  	ret = string_get(value, entry->parameters, -1);
-	  	break;
+		if (entry->parameters != NULL)
+			ret = string_get(value, entry->parameters, -1);
+		else
+			ret = string_get(value, "", -1);
+		break;
 
 	  case LEAF_hrSWRunType:
-	  	value->v.integer = entry->type;
+		value->v.integer = entry->type;
 		break;
 
 	  case LEAF_hrSWRunStatus:
-	  	value->v.integer = entry->status;
+		value->v.integer = entry->status;
 		break;
 
 	  default:
-	  	abort();
+		abort();
 	}
 	return (ret);
 }
@@ -732,7 +773,7 @@ op_hrSWRunPerfTable(struct snmp_context *ctx __unused,
 
 	  case SNMP_OP_ROLLBACK:
 	  case SNMP_OP_COMMIT:
-	  	abort();
+		abort();
 	}
 	abort();
 
@@ -745,7 +786,7 @@ op_hrSWRunPerfTable(struct snmp_context *ctx __unused,
 
 	  case LEAF_hrSWRunPerfMem:
 		value->v.integer = entry->perfMemory;
-	  	return (SNMP_ERR_NOERROR);
+		return (SNMP_ERR_NOERROR);
 	}
 	abort();
 }

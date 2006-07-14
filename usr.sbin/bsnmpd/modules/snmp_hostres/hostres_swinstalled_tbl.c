@@ -44,12 +44,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
+#include <sysexits.h>
 
 #include "hostres_snmp.h"
 #include "hostres_oid.h"
 #include "hostres_tree.h"
 
-#define CONTENTS_FNAME          "+CONTENTS"
+#define	CONTENTS_FNAME          "+CONTENTS"
 
 enum SWInstalledType {
 	SWI_UNKNOWN		= 1,
@@ -58,7 +59,7 @@ enum SWInstalledType {
 	SWI_APPLICATION		= 4
 };
 
-#define	NAMELEN		64	/* w/o \0 */
+#define	SW_NAME_MLEN	(64 + 1)
 
 /*
  * This structure is used to hold a SNMP table entry
@@ -66,14 +67,14 @@ enum SWInstalledType {
  */
 struct swins_entry {
 	int32_t		index;
-	u_char		name[NAMELEN + 1];
-	struct asn_oid	id;
-	int32_t		type;		/* from enum SWInstalledType */
+	u_char		*name;	/* max len for this is SW_NAME_MLEN */
+	const struct asn_oid *id;
+	int32_t		type;	/* from enum SWInstalledType */
 	u_char		date[11];
 	u_int		date_len;
 
-#define HR_SWINSTALLED_FOUND		0x001
-#define HR_SWINSTALLED_IMMUTABLE	0x002
+#define	HR_SWINSTALLED_FOUND		0x001
+#define	HR_SWINSTALLED_IMMUTABLE	0x002
 	uint32_t	flags;
 
 	TAILQ_ENTRY(swins_entry) link;
@@ -84,8 +85,8 @@ TAILQ_HEAD(swins_tbl, swins_entry);
  * Table to keep a conistent mapping between software and indexes.
  */
 struct swins_map_entry {
-	int32_t	index;		/* hrSWInstalledTblEntry::index */
-	u_char	name[NAMELEN + 1];	/* map key */
+	int32_t	index;	/* swins_entry::index */
+	u_char	*name;	/* map key,a copy of swins_entry::name*/
 
 	/*
 	 * next may be NULL if the respective hrSWInstalledTblEntry
@@ -93,7 +94,7 @@ struct swins_map_entry {
 	 */
 	struct swins_entry *entry;
 
-	STAILQ_ENTRY(swins_map_entry) 	link;
+	STAILQ_ENTRY(swins_map_entry) link;
 };
 STAILQ_HEAD(swins_map, swins_map_entry);
 
@@ -127,39 +128,60 @@ swins_entry_create(const char *name)
 	struct swins_entry *entry;
 	struct swins_map_entry *map;
 
-	if ((entry = malloc(sizeof(*entry))) == NULL) {
-		syslog(LOG_WARNING, "%s: %m", __func__);
-		return (NULL);
-	}
-	memset(entry, 0, sizeof(*entry));
-	strlcpy((char*)entry->name, name, sizeof(entry->name));
-
 	STAILQ_FOREACH(map, &swins_map, link)
-		if (strcmp((const char *)map->name,
-		    (const char *)entry->name) == 0)
+		if (strcmp((const char *)map->name, name) == 0)
 			break;
 
 	if (map == NULL) {
+		size_t name_len;
 		/* new object - get a new index */
 		if (next_swins_index > INT_MAX) {
 		        syslog(LOG_ERR, "%s: hrSWInstalledTable index wrap",
 			    __func__ );
-			free(entry);
-			return (NULL);
+			/* There isn't much we can do here.
+			 * If the next_swins_index is consumed
+			 * then we can't add entries to this table
+			 * So it is better to exit - if the table is sparsed
+			 * at the next agent run we can fill it fully.
+			 */
+			errx(EX_SOFTWARE, "hrSWInstalledTable index wrap");
 		}
 
 		if ((map = malloc(sizeof(*map))) == NULL) {
 			syslog(LOG_ERR, "%s: %m", __func__ );
-			free(entry);
 			return (NULL);
 		}
+
+		name_len = strlen(name) + 1;
+		if (name_len > SW_NAME_MLEN)
+			 name_len = SW_NAME_MLEN;
+
+		if ((map->name = malloc(name_len)) == NULL) {
+			syslog(LOG_WARNING, "%s: %m", __func__);
+			free(map);
+			return (NULL);
+		}
+
 		map->index = next_swins_index++;
-		strcpy((char *)map->name, (const char *)entry->name);
+		strlcpy((char *)map->name, name, name_len);
 
 		STAILQ_INSERT_TAIL(&swins_map, map, link);
 
 		HRDBG("%s added into hrSWInstalled at %d", name, map->index);
 	}
+
+	if ((entry = malloc(sizeof(*entry))) == NULL) {
+		syslog(LOG_WARNING, "%s: %m", __func__);
+		return (NULL);
+	}
+	memset(entry, 0, sizeof(*entry));
+
+	if ((entry->name = strdup(map->name)) == NULL) {
+		syslog(LOG_WARNING, "%s: %m", __func__);
+		free(entry);
+		return (NULL);
+	}
+
 	entry->index = map->index;
 	map->entry = entry;
 
@@ -186,6 +208,7 @@ swins_entry_delete(struct swins_entry *entry)
 			break;
 		}
 
+	free(entry->name);
 	free(entry);
 }
 
@@ -198,8 +221,7 @@ swins_find_by_name(const char *name)
 	struct swins_entry *entry;
 
 	TAILQ_FOREACH(entry, &swins_tbl, link)
-		if (strncmp((const char*)entry->name, name,
-		    sizeof(entry->name) - 1) == 0)
+		if (strcmp((const char*)entry->name, name) == 0)
 			return (entry);
 	return (NULL);
 }
@@ -216,10 +238,12 @@ fini_swins_tbl(void)
 		STAILQ_REMOVE_HEAD(&swins_map, link);
 		if (n1->entry != NULL) {
 			TAILQ_REMOVE(&swins_tbl, n1->entry, link);
+			free(n1->entry->name);
 			free(n1->entry);
 		}
+		free(n1->name);
 		free(n1);
-     	}
+	}
 	assert(TAILQ_EMPTY(&swins_tbl));
 }
 
@@ -230,14 +254,16 @@ static void
 swins_get_OS_ident(void)
 {
 	struct utsname os_id;
-	char os_string[NAMELEN + 1];
+	char os_string[SW_NAME_MLEN] = "";
 	struct swins_entry *entry;
 	u_char *boot;
 	struct stat sb;
 	struct tm k_ts;
 
-	if (uname(&os_id) == -1)
+	if (uname(&os_id) == -1) {
+		syslog(LOG_WARNING, "%s: %m", __func__);
 		return;
+	}
 
 	snprintf(os_string, sizeof(os_string), "%s: %s",
 	    os_id.sysname, os_id.version);
@@ -247,7 +273,7 @@ swins_get_OS_ident(void)
 		return;
 
 	entry->flags |= (HR_SWINSTALLED_FOUND | HR_SWINSTALLED_IMMUTABLE);
-	entry->id = oid_zeroDotZero;
+	entry->id = &oid_zeroDotZero;
 	entry->type = (int32_t)SWI_OPERATING_SYSTEM;
 	memset(entry->date, 0, sizeof(entry->date));
 
@@ -267,7 +293,7 @@ swins_get_packages(void)
 	DIR *p_dir;
 	struct dirent *ent;
         struct tm k_ts;
-      	char *pkg_file;
+	char *pkg_file;
 	struct swins_entry *entry;
 	int ret = 0;
 
@@ -295,23 +321,23 @@ swins_get_packages(void)
 		return (0);
 	}
 
-     	if ((p_dir = opendir(pkg_dir)) == NULL) {
-     		syslog(LOG_ERR, "hrSWInstalledTable: opendir(\"%s\") failed: "
+	if ((p_dir = opendir(pkg_dir)) == NULL) {
+		syslog(LOG_ERR, "hrSWInstalledTable: opendir(\"%s\") failed: "
 		    "%m", pkg_dir);
 		return (-1);
-     	}
+	}
 
         while (errno = 0, (ent = readdir(p_dir)) != NULL) {
-      		HRDBG("  pkg file: %s", ent->d_name);
+		HRDBG("  pkg file: %s", ent->d_name);
 
 		/* check that the contents file is a regular file */
-      		if (asprintf(&pkg_file, "%s/%s/%s", pkg_dir, ent->d_name,
+		if (asprintf(&pkg_file, "%s/%s/%s", pkg_dir, ent->d_name,
 		    CONTENTS_FNAME) == -1)
 			continue;
 
-      		if (stat(pkg_file, &sb) != 0 ) {
+		if (stat(pkg_file, &sb) != 0 ) {
 			free(pkg_file);
-      			continue;
+			continue;
 		}
 
 		if (!S_ISREG(sb.st_mode)) {
@@ -334,14 +360,14 @@ swins_get_packages(void)
 		free(pkg_file);
 
 		/* update or create entry */
-      		if ((entry = swins_find_by_name(ent->d_name)) == NULL &&
-      		    (entry = swins_entry_create(ent->d_name)) == NULL) {
+		if ((entry = swins_find_by_name(ent->d_name)) == NULL &&
+		    (entry = swins_entry_create(ent->d_name)) == NULL) {
 			ret = -1;
-      			goto PKG_LOOP_END;
+			goto PKG_LOOP_END;
 		}
 
 		entry->flags |= HR_SWINSTALLED_FOUND;
-		entry->id = oid_zeroDotZero;
+		entry->id = &oid_zeroDotZero;
 		entry->type = (int32_t)SWI_APPLICATION;
 
 		entry->date_len = make_date_time(entry->date, &k_ts, 0);
@@ -354,7 +380,7 @@ swins_get_packages(void)
 	} else {
 		/*
 		 * save the timestamp of directory
-	 	 * to avoid any further scanning
+		 * to avoid any further scanning
 		 */
 		os_pkg_last_change = sb.st_ctime;
 	}
@@ -399,9 +425,9 @@ void
 init_swins_tbl(void)
 {
 
-	if ((pkg_dir = malloc(sizeof(PATH_PKGDIR))) == NULL) {
+	if ((pkg_dir = malloc(sizeof(PATH_PKGDIR))) == NULL)
 		syslog(LOG_ERR, "%s: %m", __func__);
-	} else
+	else
 		strcpy(pkg_dir, PATH_PKGDIR);
 
 	swins_get_OS_ident();
@@ -446,7 +472,7 @@ op_hrSWInstalledTable(struct snmp_context *ctx __unused,
 
 	  case SNMP_OP_ROLLBACK:
 	  case SNMP_OP_COMMIT:
-	  	abort();
+		abort();
 	}
 	abort();
 
@@ -458,16 +484,17 @@ op_hrSWInstalledTable(struct snmp_context *ctx __unused,
 		return (SNMP_ERR_NOERROR);
 
 	  case LEAF_hrSWInstalledName:
-	  	return (string_get(value, entry->name, -1));
-	  	break;
+		return (string_get(value, entry->name, -1));
+		break;
 
-	  case 	LEAF_hrSWInstalledID:
-	  	value->v.oid = entry->id;
-	  	return (SNMP_ERR_NOERROR);
+	  case LEAF_hrSWInstalledID:
+		assert(entry->id != NULL);
+		value->v.oid = *entry->id;
+		return (SNMP_ERR_NOERROR);
 
 	  case LEAF_hrSWInstalledType:
-	  	value->v.integer = entry->type;
-	  	return (SNMP_ERR_NOERROR);
+		value->v.integer = entry->type;
+		return (SNMP_ERR_NOERROR);
 
 	  case LEAF_hrSWInstalledDate:
 		return (string_get(value, entry->date, entry->date_len));
