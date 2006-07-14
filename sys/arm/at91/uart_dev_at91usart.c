@@ -328,8 +328,10 @@ at91_usart_bus_attach(struct uart_softc *sc)
 	atsc = (struct at91_usart_softc *)sc;
 
 	/*
-	 * See if we have a TIMEOUT bit.  We disable all interrupts to
-	 * minimize interference.
+	 * See if we have a TIMEOUT bit.  We disable all interrupts as
+	 * a side effect.  Boot loaders may have enabled them.  Since
+	 * a TIMEOUT interrupt can't happen without other setup, the
+	 * apparent race here can't actually happen.
 	 */
 	WR4(&sc->sc_bas, USART_IDR, 0xffffffff);
 	WR4(&sc->sc_bas, USART_IER, USART_CSR_TIMEOUT);
@@ -351,7 +353,7 @@ at91_usart_bus_attach(struct uart_softc *sc)
 		goto errout;
 	err = bus_dmamap_create(atsc->dmatag, 0, &atsc->tx_map);
 	if (err != 0)
-	    goto errout;
+		goto errout;
 	if (atsc->flags & HAS_TIMEOUT) {
 		for (i = 0; i < 2; i++) {
 			err = bus_dmamap_create(atsc->dmatag, 0,
@@ -568,6 +570,8 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 		// Not sure if there's a race here at fast baud rates
 		// we need to worry about.
 		WR4(&sc->sc_bas, PDC_PTCR, PDC_PTCR_RXTDIS);
+		bus_dmamap_sync(atsc->dmatag, atsc->ping->map,
+		    BUS_DMASYNC_POSTREAD);
 		len = sc->sc_rxfifosz - RD4(&sc->sc_bas, PDC_RCR);
 		for (i = 0; i < len; i++)
 			uart_rx_put(sc, atsc->ping->buffer[i]);
