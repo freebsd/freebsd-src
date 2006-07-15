@@ -784,6 +784,7 @@ extern int	layoutDialogLoop(WINDOW *win, Layout *layout, ComposeObj **obj,
 extern WINDOW	*savescr(void);
 extern void	restorescr(WINDOW *w);
 extern char	*sstrncpy(char *dst, const char *src, int size);
+extern char	*getsysctlbyname(const char *sysctlname);
 
 /* modules.c */
 extern void	driverFloppyCheck(void);

@@ -51,6 +51,7 @@ int
 main(int argc, char **argv)
 {
     int choice, scroll, curr, max, status;
+    char titlestr[80], *arch, *osrel, *ostype;
     
     /* Record name to be able to restart */
     StartName = argv[0];
@@ -161,6 +162,17 @@ main(int argc, char **argv)
     /* Get user's country and keymap */
     if (RunningAsInit)
 	configCountry(NULL);
+
+    /* Add FreeBSD version info to the menu title */
+    arch = getsysctlbyname("hw.machine_arch");
+    osrel = getsysctlbyname("kern.osrelease");
+    ostype = getsysctlbyname("kern.ostype");
+    snprintf(titlestr, sizeof(titlestr), "%s/%s %s - %s", ostype, arch,
+	     osrel, MenuInitial.title);
+    free(arch);
+    free(osrel);
+    free(ostype);
+    MenuInitial.title = titlestr;
 
     /* Begin user dialog at outer menu */
     dialog_clear();
