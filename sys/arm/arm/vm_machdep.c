@@ -512,7 +512,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	void *ret;
 	struct arm_small_page *sp, *tmp;
 	TAILQ_HEAD(,arm_small_page) *head;
-	static int in_alloc;
+	static struct thread *in_alloc;
 	static int in_sleep;
 	int should_wakeup = 0;
 	
@@ -532,12 +532,13 @@ retry:
 
 	if (!sp) {
 		/* No more free pages, need to alloc more. */
-		if (!(wait & M_WAITOK)) {
+		if (!(wait & M_WAITOK) ||
+		    in_alloc == curthread) {
 			mtx_unlock(&smallalloc_mtx);
 			*flags = UMA_SLAB_KMEM;
 			return ((void *)kmem_malloc(kmem_map, bytes, M_NOWAIT));
 		}
-		if (in_alloc) {
+		if (in_alloc != NULL) {
 			/* Somebody else is already doing the allocation. */
 			in_sleep++;
 			msleep(&in_alloc, &smallalloc_mtx, PWAIT, 
@@ -545,15 +546,13 @@ retry:
 			in_sleep--;
 			goto retry;
 		}
-		in_alloc = 1;
+		in_alloc = curthread;
 		mtx_unlock(&smallalloc_mtx);
 		/* Try to alloc 1MB of contiguous memory. */
 		ret = arm_uma_do_alloc(&sp, bytes, zone == l2zone ?
 		    SECTION_PT : SECTION_CACHE);
 		mtx_lock(&smallalloc_mtx);
-		in_alloc = 0;
-		if (in_sleep)
-			should_wakeup = 1;
+		in_alloc = NULL;
 		if (sp) {
 			for (int i = 0; i < (0x100000 / PAGE_SIZE) - 1;
 			    i++) {
