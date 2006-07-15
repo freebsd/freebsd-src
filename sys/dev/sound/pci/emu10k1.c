@@ -28,7 +28,6 @@
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
-#include <gnu/dev/sound/pci/emu10k1.h>
 #include "emu10k1-alsa%diked.h"
 
 #include <dev/pci/pcireg.h>
@@ -278,7 +277,7 @@ emu_wrptr(struct sc_info *sc, int chn, int reg, u_int32_t data)
 static void
 emu_wrefx(struct sc_info *sc, unsigned int pc, unsigned int data)
 {
-	pc += sc->audigy ? AUDIGY_CODEBASE : MICROCODEBASE;
+	pc += sc->audigy ? A_MICROCODEBASE : MICROCODEBASE;
 	emu_wrptr(sc, 0, pc, data);
 }
 
@@ -1628,10 +1627,10 @@ emu_initefx(struct sc_info *sc)
 	emu_addefxop(sc, iACC3, EXTOUT(EXTOUT_ALFE), C_00000000,
 			GPR(1), GPR(2), &pc);
 	/* Digital Center = GPR[0] + GPR[2] */
-	emu_addefxop(sc, iACC3, EXTOUT(EXTOUT_CENTER), C_00000000,
+	emu_addefxop(sc, iACC3, EXTOUT(EXTOUT_AC97_CENTER), C_00000000,
 			GPR(0), GPR(2), &pc);
 	/* Digital Sub = GPR[1] + GPR[2] */
-	emu_addefxop(sc, iACC3, EXTOUT(EXTOUT_LFE), C_00000000,
+	emu_addefxop(sc, iACC3, EXTOUT(EXTOUT_AC97_LFE), C_00000000,
 			GPR(1), GPR(2), &pc);
 
 	/* Headphones[l/r] = GPR[0/1] */
