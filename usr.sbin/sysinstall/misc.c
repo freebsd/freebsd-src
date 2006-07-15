@@ -46,6 +46,7 @@
 #include <sys/reboot.h>
 #include <sys/disklabel.h>
 #include <fs/msdosfs/msdosfsmount.h>
+#include <sys/sysctl.h>
 
 /* Quick check to see if a file is readable */
 Boolean
@@ -527,3 +528,26 @@ restorescr(WINDOW *w)
     delwin(w);
 }
 
+/*
+ * Get a sysctl variable as a string or "<unknown>" if sysctl fails.
+ * Caller must free returned string.
+ */
+char *
+getsysctlbyname(const char *sysctlname)
+{
+    char *buf;
+    size_t sz, buf_sz = 0;
+    const char unk_str[] = "<unknown>";
+
+    sysctlbyname(sysctlname, NULL, &buf_sz, NULL, 0);
+    buf_sz = MAX(sizeof(unk_str), buf_sz) + 1;
+    sz = buf_sz - 1;
+    buf = (char *)safe_malloc(buf_sz);
+
+    if (sysctlbyname(sysctlname, buf, &sz, NULL, 0) != -1)
+	buf[sz] = '\0';
+    else
+	strlcpy(buf, unk_str, buf_sz);
+
+    return buf;
+}
