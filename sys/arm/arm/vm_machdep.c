@@ -553,6 +553,8 @@ retry:
 		    SECTION_PT : SECTION_CACHE);
 		mtx_lock(&smallalloc_mtx);
 		in_alloc = NULL;
+		if (in_sleep > 0)
+			should_wakeup = 1;
 		if (sp) {
 			for (int i = 0; i < (0x100000 / PAGE_SIZE) - 1;
 			    i++) {
