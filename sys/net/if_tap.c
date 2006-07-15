@@ -496,7 +496,7 @@ tapifinit(void *xtp)
 static int
 tapifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct tap_softc	*tp = (struct tap_softc *)(ifp->if_softc);
+	struct tap_softc	*tp = ifp->if_softc;
 	struct ifstat		*ifs = NULL;
 	int			 s, dummy;
 
