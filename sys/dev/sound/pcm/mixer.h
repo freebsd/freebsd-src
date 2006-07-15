@@ -47,4 +47,4 @@ void *mix_getdevinfo(struct snd_mixer *m);
  */
 #define	MIXER_SIZE	(512 + sizeof(struct kobj))
 
-#define MIXER_DECLARE(name) DEFINE_CLASS(name, name ## _methods, MIXER_SIZE)
+#define MIXER_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, MIXER_SIZE)
