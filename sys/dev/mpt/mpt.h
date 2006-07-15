@@ -317,7 +317,9 @@ typedef struct {
 	uint32_t bytes_xfered;	/* current relative offset */
 	union ccb *ccb;		/* pointer to currently active ccb */
 	request_t *req;		/* pointer to currently active assist request */
-	int	nxfers;
+	uint32_t
+		is_local : 1,
+		nxfers	 : 31;
 	uint32_t tag_id;
 	enum {
 		TGT_STATE_NIL,
@@ -652,7 +654,7 @@ struct mpt_softc {
 	 * forgets to point to it exactly and we index off of trt with
 	 * CAM_LUN_WILDCARD.
 	 */
-	tgt_resource_t		trt_wildcard;	/* wildcard luns */
+	tgt_resource_t		trt_wildcard;		/* wildcard luns */
 	tgt_resource_t		trt[MPT_MAX_LUNS];
 	uint16_t		tgt_cmds_allocated;
 	uint16_t		els_cmds_allocated;	/* FC only */
@@ -1103,6 +1105,9 @@ mpt_req_not_spcl(struct mpt_softc *mpt, request_t *req, const char *s, int line)
 }
 #endif
 
+/*
+ * Task Management Types, purely for internal consumption
+ */
 typedef enum {
 	MPT_ABORT_TASK_SET=1234,
 	MPT_CLEAR_TASK_SET,

@@ -138,8 +138,6 @@ static void mpt_fc_post_els(struct mpt_softc *mpt, request_t *, int);
 static void mpt_post_target_command(struct mpt_softc *, request_t *, int);
 static int mpt_add_els_buffers(struct mpt_softc *mpt);
 static int mpt_add_target_commands(struct mpt_softc *mpt);
-static void mpt_free_els_buffers(struct mpt_softc *mpt);
-static void mpt_free_target_commands(struct mpt_softc *mpt);
 static int mpt_enable_lun(struct mpt_softc *, target_id_t, lun_id_t);
 static int mpt_disable_lun(struct mpt_softc *, target_id_t, lun_id_t);
 static void mpt_target_start_io(struct mpt_softc *, union ccb *);
@@ -778,6 +776,18 @@ mpt_cam_enable(struct mpt_softc *mpt)
 		}
 		if (mpt_set_initial_config_spi(mpt)) {
 			return (EIO);
+		}
+	}
+	/*
+	 * If we're in target mode, hang out resources now
+	 * so we don't cause the world to hang talking to us.
+	 */
+	if (mpt->role & MPT_ROLE_TARGET) {
+		/*
+		 * Try to add some target command resources
+		 */
+		if (mpt_add_target_commands(mpt) == FALSE) {
+			return (ENOMEM);
 		}
 	}
 	return (0);
@@ -3823,19 +3833,6 @@ mpt_add_target_commands(struct mpt_softc *mpt)
 	return (i);
 }
 
-static void
-mpt_free_els_buffers(struct mpt_softc *mpt)
-{
-	mpt_prt(mpt, "fix me! need to implement mpt_free_els_buffers");
-}
-
-static void
-mpt_free_target_commands(struct mpt_softc *mpt)
-{
-	mpt_prt(mpt, "fix me! need to implement mpt_free_target_commands");
-}
-
-
 static int
 mpt_enable_lun(struct mpt_softc *mpt, target_id_t tgt, lun_id_t lun)
 {
@@ -3847,13 +3844,6 @@ mpt_enable_lun(struct mpt_softc *mpt, target_id_t tgt, lun_id_t lun)
 		return (EINVAL);
 	}
 	if (mpt->tenabled == 0) {
-		/*
-		 * Try to add some target command resources
-		 */
-		if (mpt_add_target_commands(mpt) == FALSE) {
-			mpt_free_els_buffers(mpt);
-			return (ENOMEM);
-		}
 		if (mpt->is_fc) {
 			(void) mpt_fc_reset_link(mpt, 0);
 		}
@@ -3889,8 +3879,6 @@ mpt_disable_lun(struct mpt_softc *mpt, target_id_t tgt, lun_id_t lun)
 		}
 	}
 	if (i == MPT_MAX_LUNS && mpt->twildcard == 0) {
-		mpt_free_els_buffers(mpt);
-		mpt_free_target_commands(mpt);
 		if (mpt->is_fc) {
 			(void) mpt_fc_reset_link(mpt, 0);
 		}
@@ -3973,7 +3961,7 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 		memset(req->req_vbuf, 0, MPT_RQSL(mpt));
 		ta = req->req_vbuf;
 
-		if (mpt->is_sas == 0) {
+		if (mpt->is_sas) {
 			PTR_MPI_TARGET_SSP_CMD_BUFFER ssp =
 			     cmd_req->req_vbuf;
 			ta->QueueTag = ssp->InitiatorTag;
@@ -4095,6 +4083,85 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 	}
 }
 
+static void
+mpt_scsi_tgt_local(struct mpt_softc *mpt, request_t *cmd_req,
+    uint32_t lun, int send, uint8_t *data, size_t length)
+{
+	mpt_tgt_state_t *tgt;
+	PTR_MSG_TARGET_ASSIST_REQUEST ta;
+	SGE_SIMPLE32 *se;
+	uint32_t flags;
+	uint8_t *dptr;
+	bus_addr_t pptr;
+	request_t *req;
+
+	if (length == 0) {
+		mpt_scsi_tgt_status(mpt, NULL, cmd_req, 0, NULL);
+		return;
+	}
+
+	tgt = MPT_TGT_STATE(mpt, cmd_req);
+	if ((req = mpt_get_request(mpt, FALSE)) == NULL) {
+		mpt_prt(mpt, "out of resources- dropping local response\n");
+		return;
+	}
+	tgt->is_local = 1;
+
+
+	memset(req->req_vbuf, 0, MPT_RQSL(mpt));
+	ta = req->req_vbuf;
+
+	if (mpt->is_sas) {
+		PTR_MPI_TARGET_SSP_CMD_BUFFER ssp = cmd_req->req_vbuf;
+		ta->QueueTag = ssp->InitiatorTag;
+	} else if (mpt->is_spi) {
+		PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER sp = cmd_req->req_vbuf;
+		ta->QueueTag = sp->Tag;
+	}
+	ta->Function = MPI_FUNCTION_TARGET_ASSIST;
+	ta->MsgContext = htole32(req->index | mpt->scsi_tgt_handler_id);
+	ta->ReplyWord = htole32(tgt->reply_desc);
+	if (lun > 256) {
+		ta->LUN[0] = 0x40 | ((lun >> 8) & 0x3f);
+		ta->LUN[1] = lun & 0xff;
+	} else {
+		ta->LUN[1] = lun;
+	}
+	ta->RelativeOffset = 0;
+	ta->DataLength = length;
+
+	dptr = req->req_vbuf;
+	dptr += MPT_RQSL(mpt);
+	pptr = req->req_pbuf;
+	pptr += MPT_RQSL(mpt);
+	memcpy(dptr, data, min(length, MPT_RQSL(mpt)));
+
+	se = (SGE_SIMPLE32 *) &ta->SGL[0];
+	memset(se, 0,sizeof (*se));
+
+	flags = MPI_SGE_FLAGS_SIMPLE_ELEMENT;
+	if (send) {
+		ta->TargetAssistFlags |= TARGET_ASSIST_FLAGS_DATA_DIRECTION;
+		flags |= MPI_SGE_FLAGS_HOST_TO_IOC;
+	}
+	se->Address = pptr;
+	MPI_pSGE_SET_LENGTH(se, length);
+	flags |= MPI_SGE_FLAGS_LAST_ELEMENT;
+	flags |= MPI_SGE_FLAGS_END_OF_LIST | MPI_SGE_FLAGS_END_OF_BUFFER;
+	MPI_pSGE_SET_FLAGS(se, flags);
+
+	tgt->ccb = NULL;
+	tgt->req = req;
+	tgt->resid = 0;
+	tgt->bytes_xfered = length;
+#ifdef	WE_TRUST_AUTO_GOOD_STATUS
+	tgt->state = TGT_STATE_MOVING_DATA_AND_STATUS;
+#else
+	tgt->state = TGT_STATE_MOVING_DATA;
+#endif
+	mpt_send_cmd(mpt, req);
+}
+
 /*
  * Abort queued up CCBs
  */
@@ -4210,7 +4277,7 @@ mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
 			CAMLOCK_2_MPTLOCK(mpt);
 		} else {
 			mpt_prt(mpt,
-			    "XXXX could not allocate status req- dropping\n");
+			    "could not allocate status request- dropping\n");
 		}
 		return;
 	}
@@ -4402,8 +4469,9 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	uint8_t *cdbp;
 
 	/*
-	 * First, DMA sync the received command- which is in the *request*
-	 * phys area.
+	 * First, DMA sync the received command-
+	 * which is in the *request* * phys area.
+	 *
 	 * XXX: We could optimize this for a range
 	 */
 	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
@@ -4518,14 +4586,66 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	    mpt->trt[lun].enabled == 0) {
 		if (mpt->twildcard) {
 			trtp = &mpt->trt_wildcard;
-		} else if (fct != MPT_NIL_TMT_VALUE) {
-			const uint8_t sp[MPT_SENSE_SIZE] = {
-				0xf0, 0, 0x5, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0x25
-			};
-			mpt_scsi_tgt_status(mpt, NULL, req,
-			    SCSI_STATUS_CHECK_COND, sp);
+		} else if (fct == MPT_NIL_TMT_VALUE) {
+			/*
+			 * In this case, we haven't got an upstream listener
+			 * for either a specific lun or wildcard luns. We
+			 * have to make some sensible response. For regular
+			 * inquiry, just return some NOT HERE inquiry data.
+			 * For VPD inquiry, report illegal field in cdb.
+			 * For REQUEST SENSE, just return NO SENSE data.
+			 * REPORT LUNS gets illegal command.
+			 * All other commands get 'no such device'.
+			 */
+
+			uint8_t *sp, cond, buf[MPT_SENSE_SIZE];
+
+			mpt_prt(mpt, "CMD 0x%x to unmanaged lun %u\n",
+			    cdbp[0], lun);
+
+			memset(buf, 0, MPT_SENSE_SIZE);
+			cond = SCSI_STATUS_CHECK_COND;
+			buf[0] = 0xf0;
+			buf[2] = 0x5;
+			buf[7] = 0x8;
+			sp = buf;
+			tgt->tag_id = MPT_MAKE_TAGID(mpt, req, ioindex);
+
+			switch (cdbp[0]) {
+			case INQUIRY:
+			{
+				static uint8_t iqd[8] = {
+				    0x7f, 0x0, 0x4, 0x12, 0x0
+				};
+				if (cdbp[1] != 0) {
+					buf[12] = 0x26;
+					buf[13] = 0x01;
+					break;
+				}
+				mpt_prt(mpt, "local inquiry\n");
+				mpt_scsi_tgt_local(mpt, req, lun, 1,
+				    iqd, sizeof (iqd));
+				return;
+			}
+			case REQUEST_SENSE:
+			{
+				buf[2] = 0x0;
+				mpt_prt(mpt, "local request sense\n");
+				mpt_scsi_tgt_local(mpt, req, lun, 1,
+				    buf, sizeof (buf));
+				return;
+			}
+			case REPORT_LUNS:
+				buf[12] = 0x26;
+				break;
+			default:
+				buf[12] = 0x25;
+				break;
+			}
+			mpt_scsi_tgt_status(mpt, NULL, req, cond, sp);
 			return;
 		}
+		/* otherwise, leave trtp NULL */
 	} else {
 		trtp = &mpt->trt[lun];
 	}
@@ -4656,9 +4776,20 @@ mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
 				/* NOTREACHED */
 			}
 			if (ccb == NULL) {
-				panic("mpt: turbo target reply with null "
-				    "associated ccb moving data");
-				/* NOTREACHED */
+				if (tgt->is_local == 0) {
+					panic("mpt: turbo target reply with "
+					    "null associated ccb moving data");
+					/* NOTREACHED */
+				}
+				mpt_lprt(mpt, MPT_PRT_DEBUG,
+				    "TARGET_ASSIST local done\n");
+				TAILQ_REMOVE(&mpt->request_pending_list,
+				    tgt->req, links);
+				mpt_free_request(mpt, tgt->req);
+				tgt->req = NULL;
+				mpt_scsi_tgt_status(mpt, NULL, req,
+				    0, NULL);
+				return (TRUE);
 			}
 			tgt->ccb = NULL;
 			tgt->nxfers++;
@@ -4762,10 +4893,11 @@ mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
 
 			/*
 			 * And re-post the Command Buffer.
-			 * This wil reset the state.
+			 * This will reset the state.
 			 */
 			ioindex = GET_IO_INDEX(reply_desc);
 			TAILQ_REMOVE(&mpt->request_pending_list, req, links);
+			tgt->is_local = 0;
 			mpt_post_target_command(mpt, req, ioindex);
 
 			/*
