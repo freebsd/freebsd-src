@@ -55,6 +55,21 @@ emu10k1-alsa%diked.h		optional snd_emu10k1 pci			   \
 	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"emu10k1-alsa%diked.h"
+emu10k1-alsa%diked.h		optional snd_emu10kx pci			   \
+	dependency	"$S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h" \
+	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"emu10k1-alsa%diked.h"
+p16v-alsa%diked.h		optional snd_emu10kx pci			   \
+	dependency	"$S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p16v-alsa.h" \
+	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p16v-alsa.h p16v-alsa%diked.h" \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"p16v-alsa%diked.h"
+p17v-alsa%diked.h		optional snd_emu10kx pci			   \
+	dependency	"$S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p17v-alsa.h" \
+	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p17v-alsa.h p17v-alsa%diked.h" \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"p17v-alsa%diked.h"
 miidevs.h			optional miibus | mii			   \
 	dependency	"$S/tools/miidevs2h.awk $S/dev/mii/miidevs"	   \
 	compile-with	"${AWK} -f $S/tools/miidevs2h.awk $S/dev/mii/miidevs" \
@@ -873,6 +888,19 @@ dev/sound/pci/ds1.c		optional snd_ds1 pci
 dev/sound/pci/emu10k1.c		optional snd_emu10k1 pci \
 	dependency "emu10k1-alsa%diked.h" \
 	warning "kernel contains GPL contaminated emu10k1 headers"
+dev/sound/pci/emu10kx.c		optional snd_emu10kx pci \
+	dependency "emu10k1-alsa%diked.h" \
+	dependency "p16v-alsa%diked.h" \
+	dependency "p17v-alsa%diked.h" \
+	warning "kernel contains GPL contaminated emu10kx headers"
+dev/sound/pci/emu10kx-pcm.c	optional snd_emu10kx pci \
+	dependency "emu10k1-alsa%diked.h" \
+	dependency "p16v-alsa%diked.h" \
+	dependency "p17v-alsa%diked.h" \
+	warning "kernel contains GPL contaminated emu10kx headers"
+dev/sound/pci/emu10kx-midi.c	optional snd_emu10kx pci \
+	dependency "emu10k1-alsa%diked.h" \
+	warning "kernel contains GPL contaminated emu10kx headers"
 dev/sound/pci/es137x.c		optional snd_es137x pci
 dev/sound/pci/fm801.c		optional snd_fm801 pci
 dev/sound/pci/ich.c		optional snd_ich pci

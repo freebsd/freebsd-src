@@ -1962,6 +1962,7 @@ device		sound
 #			4281)
 # snd_ds1:		Yamaha DS-1 PCI.
 # snd_emu10k1:		Creative EMU10K1 PCI and EMU10K2 (Audigy) PCI.
+# snd_emu10kx:		Creative SoundBlaster Live! and Audigy
 # snd_es137x:		Ensoniq AudioPCI ES137x PCI.
 # snd_ess:		Ensoniq ESS ISA PnP/non-PnP, to be used in
 #			conjunction with snd_sbc.
@@ -1998,6 +1999,8 @@ device		snd_cs4281
 device		snd_csa
 device		snd_ds1
 device		snd_emu10k1
+device		snd_emu10kx
+options		SND_EMU10KX_MULTICHANNEL
 device		snd_es137x
 device		snd_ess
 device		snd_fm801
