@@ -360,7 +360,7 @@ create_i386_diskimage ( ) (
 	# XXX: params
 	# XXX: pick up cached boot* files, they may not be in image anymore.
 	boot0cfg -B -b ${NANO_WORLDDIR}/boot/boot0sio -o packet -s 1 -m 3 ${MD}
-	bsdlabel -w -B ${MD}s1
+	bsdlabel -w -B -b ${NANO_WORLDDIR}/boot/boot ${MD}s1
 	bsdlabel ${MD}s1
 
 	# Create first image
