@@ -805,7 +805,7 @@ static kobj_method_t cmi_mpu_methods[] = {
 	{ 0, 0 }
 };
 
-DEFINE_CLASS(cmi_mpu, cmi_mpu_methods, 0);
+static DEFINE_CLASS(cmi_mpu, cmi_mpu_methods, 0);
 
 static void
 cmi_midiattach(struct sc_info *sc) {
