@@ -1098,7 +1098,7 @@ static kobj_method_t emu_mpu_methods[] = {
 	{ 0, 0 }
 };
 
-DEFINE_CLASS(emu_mpu, emu_mpu_methods, 0);
+static DEFINE_CLASS(emu_mpu, emu_mpu_methods, 0);
 
 static void
 emu_intr2(void *p)

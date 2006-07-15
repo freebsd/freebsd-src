@@ -106,7 +106,7 @@ static kobj_method_t emu_mpu_methods[] = {
 	KOBJMETHOD(mpufoi_uninit, emu_muninit),
 	{0, 0}
 };
-DEFINE_CLASS(emu_mpu, emu_mpu_methods, 0);
+static DEFINE_CLASS(emu_mpu, emu_mpu_methods, 0);
 
 static uint32_t
 emu_midi_card_intr(void *p, uint32_t intr_status)
