@@ -299,6 +299,12 @@ acpi_perf_evaluate(device_t dev)
 		    sc->px_states[count].core_freq >= 0xffff)
 			continue;
 
+		/* Check for duplicate entries */
+		if (count > 0 &&
+		    sc->px_states[count - 1].core_freq ==
+			sc->px_states[count].core_freq)
+			continue;
+
 		count++;
 	}
 	sc->px_count = count;
