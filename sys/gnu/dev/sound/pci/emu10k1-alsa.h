@@ -32,15 +32,11 @@
 #include <sound/hwdep.h>
 #include <sound/ac97_codec.h>
 #include <sound/util_mem.h>
+#include <sound/pcm-indirect.h>
+#include <sound/timer.h>
 #include <linux/interrupt.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
-
-#ifndef PCI_VENDOR_ID_CREATIVE
-#define PCI_VENDOR_ID_CREATIVE		0x1102
-#endif
-#ifndef PCI_DEVICE_ID_CREATIVE_EMU10K1
-#define PCI_DEVICE_ID_CREATIVE_EMU10K1	0x0002
-#endif
 
 /* ------------------- DEFINES -------------------- */
 
@@ -51,9 +47,12 @@
 #define NUM_MIDI        16
 #define NUM_G           64              /* use all channels */
 #define NUM_FXSENDS     4
+#define NUM_EFX_PLAYBACK    16
 
+/* FIXME? - according to the OSS driver the EMU10K1 needs a 29 bit DMA mask */
 #define EMU10K1_DMA_MASK	0x7fffffffUL	/* 31bit */
-#define AUDIGY_DMA_MASK		0xffffffffUL	/* 32bit */
+#define AUDIGY_DMA_MASK		0x7fffffffUL	/* 31bit FIXME - 32 should work? */
+						/* See ALSA bug #1276 - rlrevell */
 
 #define TMEMSIZE        256*1024
 #define TMEMSIZEREG     4
@@ -81,10 +80,17 @@
 #define IPR			0x08		/* Global interrupt pending register		*/
 						/* Clear pending interrupts by writing a 1 to	*/
 						/* the relevant bits and zero to the other bits	*/
+#define IPR_P16V		0x80000000	/* Bit set when the CA0151 P16V chip wishes
+						   to interrupt */
+#define IPR_GPIOMSG		0x20000000	/* GPIO message interrupt (RE'd, still not sure 
+						   which INTE bits enable it)			*/
 
 /* The next two interrupts are for the midi port on the Audigy Drive (A_MPU1)			*/
 #define IPR_A_MIDITRANSBUFEMPTY2 0x10000000	/* MIDI UART transmit buffer empty		*/
 #define IPR_A_MIDIRECVBUFEMPTY2	0x08000000	/* MIDI UART receive buffer empty		*/
+
+#define IPR_SPDIFBUFFULL	0x04000000	/* SPDIF capture related, 10k2 only? (RE)	*/
+#define IPR_SPDIFBUFHALFFULL	0x02000000	/* SPDIF capture related? (RE)			*/
 
 #define IPR_SAMPLERATETRACKER	0x01000000	/* Sample rate tracker lock status change	*/
 #define IPR_FXDSP		0x00800000	/* Enable FX DSP interrupts			*/
@@ -104,12 +110,12 @@
 #define IPR_INTERVALTIMER	0x00000200	/* Interval timer terminal count		*/
 #define IPR_MIDITRANSBUFEMPTY	0x00000100	/* MIDI UART transmit buffer empty		*/
 #define IPR_MIDIRECVBUFEMPTY	0x00000080	/* MIDI UART receive buffer empty		*/
-#define IPR_CHANNELLOOP		0x00000040	/* One or more channel loop interrupts pending	*/
+#define IPR_CHANNELLOOP		0x00000040	/* Channel (half) loop interrupt(s) pending	*/
 #define IPR_CHANNELNUMBERMASK	0x0000003f	/* When IPR_CHANNELLOOP is set, indicates the	*/
-						/* Highest set channel in CLIPL or CLIPH.  When	*/
-						/* IP is written with CL set, the bit in CLIPL	*/
-						/* or CLIPH corresponding to the CIN value 	*/
-						/* written will be cleared.			*/
+						/* highest set channel in CLIPL, CLIPH, HLIPL,  */
+						/* or HLIPH.  When IP is written with CL set,	*/
+						/* the bit in H/CLIPL or H/CLIPH corresponding	*/
+						/* to the CIN value written will be cleared.	*/
 
 #define INTE			0x0c		/* Interrupt enable register			*/
 #define INTE_VIRTUALSB_MASK	0xc0000000	/* Virtual Soundblaster I/O port capture	*/
@@ -236,9 +242,28 @@
 #define A_IOCFG			0x18		/* GPIO on Audigy card (16bits)			*/
 #define A_GPINPUT_MASK		0xff00
 #define A_GPOUTPUT_MASK		0x00ff
-#define A_IOCFG_GPOUT0		0x0044		/* analog/digital? */
-#define A_IOCFG_GPOUT1		0x0002		/* IR */
+
+// Audigy output/GPIO stuff taken from the kX drivers
+#define A_IOCFG_GPOUT0		0x0044		/* analog/digital				*/
+#define A_IOCFG_DISABLE_ANALOG	0x0040		/* = 'enable' for Audigy2 (chiprev=4)		*/
+#define A_IOCFG_ENABLE_DIGITAL	0x0004
+#define A_IOCFG_ENABLE_DIGITAL_AUDIGY4	0x0080
+#define A_IOCFG_UNKNOWN_20      0x0020
+#define A_IOCFG_DISABLE_AC97_FRONT      0x0080  /* turn off ac97 front -> front (10k2.1)	*/
+#define A_IOCFG_GPOUT1		0x0002		/* IR? drive's internal bypass (?)		*/
 #define A_IOCFG_GPOUT2		0x0001		/* IR */
+#define A_IOCFG_MULTIPURPOSE_JACK	0x2000  /* center+lfe+rear_center (a2/a2ex)		*/
+                                                /* + digital for generic 10k2			*/
+#define A_IOCFG_DIGITAL_JACK    0x1000          /* digital for a2 platinum			*/
+#define A_IOCFG_FRONT_JACK      0x4000
+#define A_IOCFG_REAR_JACK       0x8000
+#define A_IOCFG_PHONES_JACK     0x0100          /* LiveDrive					*/
+
+/* outputs:
+ *	for audigy2 platinum:	0xa00
+ *	for a2 platinum ex:	0x1c00
+ *	for a1 platinum:	0x0
+ */
 
 #define TIMER			0x1a		/* Timer terminal count register		*/
 						/* NOTE: After the rate is changed, a maximum	*/
@@ -254,6 +279,46 @@
 #define AC97ADDRESS_READY	0x80		/* Read-only bit, reflects CODEC READY signal	*/
 #define AC97ADDRESS_ADDRESS	0x7f		/* Address of indexed AC97 register		*/
 
+/* Available on the Audigy 2 and Audigy 4 only. This is the P16V chip. */
+#define PTR2			0x20		/* Indexed register set pointer register	*/
+#define DATA2			0x24		/* Indexed register set data register		*/
+#define IPR2			0x28		/* P16V interrupt pending register		*/
+#define IPR2_PLAYBACK_CH_0_LOOP      0x00001000 /* Playback Channel 0 loop                               */
+#define IPR2_PLAYBACK_CH_0_HALF_LOOP 0x00000100 /* Playback Channel 0 half loop                          */
+#define IPR2_CAPTURE_CH_0_LOOP       0x00100000 /* Capture Channel 0 loop                               */
+#define IPR2_CAPTURE_CH_0_HALF_LOOP  0x00010000 /* Capture Channel 0 half loop                          */
+						/* 0x00000100 Playback. Only in once per period.
+						 * 0x00110000 Capture. Int on half buffer.
+						 */
+#define INTE2			0x2c		/* P16V Interrupt enable register. 	*/
+#define INTE2_PLAYBACK_CH_0_LOOP      0x00001000 /* Playback Channel 0 loop                               */
+#define INTE2_PLAYBACK_CH_0_HALF_LOOP 0x00000100 /* Playback Channel 0 half loop                          */
+#define INTE2_PLAYBACK_CH_1_LOOP      0x00002000 /* Playback Channel 1 loop                               */
+#define INTE2_PLAYBACK_CH_1_HALF_LOOP 0x00000200 /* Playback Channel 1 half loop                          */
+#define INTE2_PLAYBACK_CH_2_LOOP      0x00004000 /* Playback Channel 2 loop                               */
+#define INTE2_PLAYBACK_CH_2_HALF_LOOP 0x00000400 /* Playback Channel 2 half loop                          */
+#define INTE2_PLAYBACK_CH_3_LOOP      0x00008000 /* Playback Channel 3 loop                               */
+#define INTE2_PLAYBACK_CH_3_HALF_LOOP 0x00000800 /* Playback Channel 3 half loop                          */
+#define INTE2_CAPTURE_CH_0_LOOP       0x00100000 /* Capture Channel 0 loop                               */
+#define INTE2_CAPTURE_CH_0_HALF_LOOP  0x00010000 /* Caputre Channel 0 half loop                          */
+#define HCFG2			0x34		/* Defaults: 0, win2000 sets it to 00004201 */
+						/* 0x00000000 2-channel output. */
+						/* 0x00000200 8-channel output. */
+						/* 0x00000004 pauses stream/irq fail. */
+						/* Rest of bits no nothing to sound output */
+						/* bit 0: Enable P16V audio.
+						 * bit 1: Lock P16V record memory cache.
+						 * bit 2: Lock P16V playback memory cache.
+						 * bit 3: Dummy record insert zero samples.
+						 * bit 8: Record 8-channel in phase.
+						 * bit 9: Playback 8-channel in phase.
+						 * bit 11-12: Playback mixer attenuation: 0=0dB, 1=-6dB, 2=-12dB, 3=Mute.
+						 * bit 13: Playback mixer enable.
+						 * bit 14: Route SRC48 mixer output to fx engine.
+						 * bit 15: Enable IEEE 1394 chip.
+						 */
+#define IPR3			0x38		/* Cdif interrupt pending register		*/
+#define INTE3			0x3c		/* Cdif interrupt enable register. 	*/
 /************************************************************************************************/
 /* PCI function 1 registers, address = <val> + PCIBASE1						*/
 /************************************************************************************************/
@@ -464,6 +529,8 @@
 						/* NOTE: All channels contain internal variables; do	*/
 						/* not write to these locations.			*/
 
+/* 1f something */
+
 #define CD0			0x20		/* Cache data 0 register				*/
 #define CD1			0x21		/* Cache data 1 register				*/
 #define CD2			0x22		/* Cache data 2 register				*/
@@ -480,6 +547,8 @@
 #define CDD			0x2d		/* Cache data D register				*/
 #define CDE			0x2e		/* Cache data E register				*/
 #define CDF			0x2f		/* Cache data F register				*/
+
+/* 0x30-3f seem to be the same as 0x20-2f */
 
 #define PTB			0x40		/* Page table base register				*/
 #define PTB_MASK		0xfffff000	/* Physical address of the page table in host memory	*/
@@ -511,7 +580,11 @@
 
 #define FXWC			0x43		/* FX output write channels register			*/
 						/* When set, each bit enables the writing of the	*/
-						/* corresponding FX output channel into host memory	*/
+						/* corresponding FX output channel (internal registers  */
+						/* 0x20-0x3f) to host memory.  This mode of recording   */
+						/* is 16bit, 48KHz only. All 32 channels can be enabled */
+						/* simultaneously.					*/
+
 #define FXWC_DEFAULTROUTE_C     (1<<0)		/* left emu out? */
 #define FXWC_DEFAULTROUTE_B     (1<<1)		/* right emu out? */
 #define FXWC_DEFAULTROUTE_A     (1<<12)
@@ -546,11 +619,15 @@
 #define FXBA			0x47		/* FX Buffer Address */
 #define FXBA_MASK		0xfffff000	/* 20 bit base address					*/
 
+/* 0x48 something - word access, defaults to 3f */
+
 #define MICBS			0x49		/* Microphone buffer size register			*/
 
 #define ADCBS			0x4a		/* ADC buffer size register				*/
 
 #define FXBS			0x4b		/* FX buffer size register				*/
+
+/* register: 0x4c..4f: ffff-ffff current amounts, per-channel */
 
 /* The following mask values define the size of the ADC, MIX and FX buffers in bytes */
 #define ADCBS_BUFSIZE_NONE	0x00000000
@@ -602,6 +679,7 @@
 #define A_DBG_SATURATION_OCCURED 0x20000000
 #define A_DBG_SATURATION_ADDR	 0x0ffc0000
 
+// NOTE: 0x54,55,56: 64-bit
 #define SPCS0			0x54		/* SPDIF output Channel Status 0 register	*/
 
 #define SPCS1			0x55		/* SPDIF output Channel Status 1 register	*/
@@ -646,12 +724,18 @@
 #define SOLEH			0x5d		/* Stop on loop enable high register		*/
 
 #define SPBYPASS		0x5e		/* SPDIF BYPASS mode register			*/
-#define SPBYPASS_ENABLE		0x00000001	/* Enable SPDIF bypass mode			*/
+#define SPBYPASS_SPDIF0_MASK	0x00000003	/* SPDIF 0 bypass mode				*/
+#define SPBYPASS_SPDIF1_MASK	0x0000000c	/* SPDIF 1 bypass mode				*/
+/* bypass mode: 0 - DSP; 1 - SPDIF A, 2 - SPDIF B, 3 - SPDIF C					*/
+#define SPBYPASS_FORMAT		0x00000f00      /* If 1, SPDIF XX uses 24 bit, if 0 - 20 bit	*/
 
 #define AC97SLOT		0x5f            /* additional AC97 slots enable bits		*/
+#define AC97SLOT_REAR_RIGHT	0x01		/* Rear left */
+#define AC97SLOT_REAR_LEFT	0x02		/* Rear right */
 #define AC97SLOT_CNTR		0x10            /* Center enable */
 #define AC97SLOT_LFE		0x20            /* LFE enable */
 
+// NOTE: 0x60,61,62: 64-bit
 #define CDSRCS			0x60		/* CD-ROM Sample Rate Converter status register	*/
 
 #define GPSRCS			0x61		/* General Purpose SPDIF sample rate cvt status */
@@ -661,6 +745,7 @@
 						/* Assumes sample lock				*/
 
 /* These three bitfields apply to CDSRCS, GPSRCS, and (except as noted) ZVSRCS.			*/
+#define SRCS_SPDIFVALID		0x04000000	/* SPDIF stream valid				*/
 #define SRCS_SPDIFLOCKED	0x02000000	/* SPDIF stream locked				*/
 #define SRCS_RATELOCKED		0x01000000	/* Sample rate locked				*/
 #define SRCS_ESTSAMPLERATE	0x0007ffff	/* Do not modify this field.			*/
@@ -688,6 +773,19 @@
 #define FXIDX_MASK		0x0000ffff	/* 16-bit value					*/
 #define FXIDX_IDX		0x10000065
 
+/* The 32-bit HLIx and HLIPx registers all have one bit per channel control/status      		*/
+#define HLIEL			0x66		/* Channel half loop interrupt enable low register	*/
+
+#define HLIEH			0x67		/* Channel half loop interrupt enable high register	*/
+
+#define HLIPL			0x68		/* Channel half loop interrupt pending low register	*/
+
+#define HLIPH			0x69		/* Channel half loop interrupt pending high register	*/
+
+// 0x6a,6b,6c used for some recording
+// 0x6d unused
+// 0x6e,6f - tanktable base / offset
+
 /* This is the MPU port on the card (via the game port)						*/
 #define A_MUDATA1		0x70
 #define A_MUCMD1		0x71
@@ -705,9 +803,29 @@
 #define A_FXWC2			0x75		/* Selects 0x9f-0x80 for FX recording           */
 
 #define A_SPDIF_SAMPLERATE	0x76		/* Set the sample rate of SPDIF output		*/
-#define A_SPDIF_48000		0x00000080
-#define A_SPDIF_44100		0x00000000
+#define A_SAMPLE_RATE		0x76		/* Various sample rate settings. */
+#define A_SAMPLE_RATE_NOT_USED  0x0ffc111e	/* Bits that are not used and cannot be set. 	*/
+#define A_SAMPLE_RATE_UNKNOWN	0xf0030001	/* Bits that can be set, but have unknown use. 	*/
+#define A_SPDIF_RATE_MASK	0x000000e0	/* Any other values for rates, just use 48000	*/
+#define A_SPDIF_48000		0x00000000
+#define A_SPDIF_192000		0x00000020
 #define A_SPDIF_96000		0x00000040
+#define A_SPDIF_44100		0x00000080
+
+#define A_I2S_CAPTURE_RATE_MASK	0x00000e00	/* This sets the capture PCM rate, but it is    */
+#define A_I2S_CAPTURE_48000	0x00000000	/* unclear if this sets the ADC rate as well.	*/
+#define A_I2S_CAPTURE_192000	0x00000200
+#define A_I2S_CAPTURE_96000	0x00000400
+#define A_I2S_CAPTURE_44100	0x00000800
+
+#define A_PCM_RATE_MASK		0x0000e000	/* This sets the playback PCM rate on the P16V	*/
+#define A_PCM_48000		0x00000000
+#define A_PCM_192000		0x00002000
+#define A_PCM_96000		0x00004000
+#define A_PCM_44100		0x00008000
+
+/* 0x77,0x78,0x79 "something i2s-related" - default to 0x01080000 on my audigy 2 ZS --rlrevell	*/
+/* 0x7a, 0x7b - lookup tables */
 
 #define A_FXRT2			0x7c
 #define A_FXRT_CHANNELE		0x0000003f	/* Effects send bus number for channel's effects send E	*/
@@ -720,7 +838,8 @@
 #define A_FXSENDAMOUNT_F_MASK	0x00FF0000
 #define A_FXSENDAMOUNT_G_MASK	0x0000FF00
 #define A_FXSENDAMOUNT_H_MASK	0x000000FF
-
+/* 0x7c, 0x7e "high bit is used for filtering" */
+ 
 /* The send amounts for this one are the same as used with the emu10k1 */
 #define A_FXRT1			0x7e
 #define A_FXRT_CHANNELA		0x0000003f
@@ -732,6 +851,9 @@
 /* Each FX general purpose register is 32 bits in length, all bits are used			*/
 #define FXGPREGBASE		0x100		/* FX general purpose registers base       	*/
 #define A_FXGPREGBASE		0x400		/* Audigy GPRs, 0x400 to 0x5ff			*/
+
+#define A_TANKMEMCTLREGBASE	0x100		/* Tank memory control registers base - only for Audigy */
+#define A_TANKMEMCTLREG_MASK	0x1f		/* only 5 bits used - only for Audigy */
 
 /* Tank audio data is logarithmically compressed down to 16 bits before writing to TRAM and is	*/
 /* decompressed back to 20 bits on a read.  There are a total of 160 locations, the last 32	*/
@@ -769,44 +891,45 @@
 
 /* ------------------- STRUCTURES -------------------- */
 
-typedef struct _snd_emu10k1 emu10k1_t;
-typedef struct _snd_emu10k1_voice emu10k1_voice_t;
-typedef struct _snd_emu10k1_pcm emu10k1_pcm_t;
-
-typedef enum {
+enum {
+	EMU10K1_EFX,
 	EMU10K1_PCM,
 	EMU10K1_SYNTH,
 	EMU10K1_MIDI
-} emu10k1_voice_type_t;
-
-struct _snd_emu10k1_voice {
-	emu10k1_t *emu;
-	int number;
-	int use: 1,
-	    pcm: 1,
-	    synth: 1,
-	    midi: 1;
-	void (*interrupt)(emu10k1_t *emu, emu10k1_voice_t *pvoice);
-
-	emu10k1_pcm_t *epcm;
 };
 
-typedef enum {
+struct snd_emu10k1;
+
+struct snd_emu10k1_voice {
+	struct snd_emu10k1 *emu;
+	int number;
+	unsigned int use: 1,
+	    pcm: 1,
+	    efx: 1,
+	    synth: 1,
+	    midi: 1;
+	void (*interrupt)(struct snd_emu10k1 *emu, struct snd_emu10k1_voice *pvoice);
+
+	struct snd_emu10k1_pcm *epcm;
+};
+
+enum {
 	PLAYBACK_EMUVOICE,
+	PLAYBACK_EFX,
 	CAPTURE_AC97ADC,
 	CAPTURE_AC97MIC,
 	CAPTURE_EFX
-} snd_emu10k1_pcm_type_t;
+};
 
-struct _snd_emu10k1_pcm {
-	emu10k1_t *emu;
-	snd_emu10k1_pcm_type_t type;
-	snd_pcm_substream_t *substream;
-	emu10k1_voice_t *voices[2];
-	emu10k1_voice_t *extra;
+struct snd_emu10k1_pcm {
+	struct snd_emu10k1 *emu;
+	int type;
+	struct snd_pcm_substream *substream;
+	struct snd_emu10k1_voice *voices[NUM_EFX_PLAYBACK];
+	struct snd_emu10k1_voice *extra;
 	unsigned short running;
 	unsigned short first_ptr;
-	snd_util_memblk_t *memblk;
+	struct snd_util_memblk *memblk;
 	unsigned int start_addr;
 	unsigned int ccca_start_addr;
 	unsigned int capture_ipr;	/* interrupt acknowledge mask */
@@ -820,106 +943,102 @@ struct _snd_emu10k1_pcm {
 	unsigned int capture_bufsize;	/* buffer size in bytes */
 };
 
-typedef struct {
+struct snd_emu10k1_pcm_mixer {
+	/* mono, left, right x 8 sends (4 on emu10k1) */
 	unsigned char send_routing[3][8];
 	unsigned char send_volume[3][8];
 	unsigned short attn[3];
-	emu10k1_pcm_t *epcm;
-} emu10k1_pcm_mixer_t;
+	struct snd_emu10k1_pcm *epcm;
+};
 
 #define snd_emu10k1_compose_send_routing(route) \
 ((route[0] | (route[1] << 4) | (route[2] << 8) | (route[3] << 12)) << 16)
 
 #define snd_emu10k1_compose_audigy_fxrt1(route) \
-(((unsigned int)route[0] | ((unsigned int)route[1] << 8) | ((unsigned int)route[2] << 16) | ((unsigned int)route[3] << 12)) << 24)
+((unsigned int)route[0] | ((unsigned int)route[1] << 8) | ((unsigned int)route[2] << 16) | ((unsigned int)route[3] << 24))
 
 #define snd_emu10k1_compose_audigy_fxrt2(route) \
-(((unsigned int)route[4] | ((unsigned int)route[5] << 8) | ((unsigned int)route[6] << 16) | ((unsigned int)route[7] << 12)) << 24)
+((unsigned int)route[4] | ((unsigned int)route[5] << 8) | ((unsigned int)route[6] << 16) | ((unsigned int)route[7] << 24))
 
-typedef struct snd_emu10k1_memblk {
-	snd_util_memblk_t mem;
+struct snd_emu10k1_memblk {
+	struct snd_util_memblk mem;
 	/* private part */
-	short first_page, last_page, pages, mapped_page;
+	int first_page, last_page, pages, mapped_page;
 	unsigned int map_locked;
 	struct list_head mapped_link;
 	struct list_head mapped_order_link;
-} emu10k1_memblk_t;
+};
 
 #define snd_emu10k1_memblk_offset(blk)	(((blk)->mapped_page << PAGE_SHIFT) | ((blk)->mem.offset & (PAGE_SIZE - 1)))
 
 #define EMU10K1_MAX_TRAM_BLOCKS_PER_CODE	16
 
-typedef struct {
+struct snd_emu10k1_fx8010_ctl {
 	struct list_head list;		/* list link container */
 	unsigned int vcount;
 	unsigned int count;		/* count of GPR (1..16) */
-	unsigned char gpr[32];		/* GPR number(s) */
+	unsigned short gpr[32];		/* GPR number(s) */
 	unsigned int value[32];
 	unsigned int min;		/* minimum range */
 	unsigned int max;		/* maximum range */
 	unsigned int translation;	/* translation type (EMU10K1_GPR_TRANSLATION*) */
-	snd_kcontrol_t *kcontrol;
-} snd_emu10k1_fx8010_ctl_t;
+	struct snd_kcontrol *kcontrol;
+};
 
-typedef void (snd_fx8010_irq_handler_t)(emu10k1_t *emu, void *private_data);
+typedef void (snd_fx8010_irq_handler_t)(struct snd_emu10k1 *emu, void *private_data);
 
-typedef struct _snd_emu10k1_fx8010_irq {
-	struct _snd_emu10k1_fx8010_irq *next;
+struct snd_emu10k1_fx8010_irq {
+	struct snd_emu10k1_fx8010_irq *next;
 	snd_fx8010_irq_handler_t *handler;
-	unsigned char gpr_running;
+	unsigned short gpr_running;
 	void *private_data;
-} snd_emu10k1_fx8010_irq_t;
+};
 
-typedef struct {
+struct snd_emu10k1_fx8010_pcm {
 	unsigned int valid: 1,
 		     opened: 1,
 		     active: 1;
 	unsigned int channels;		/* 16-bit channels count */
 	unsigned int tram_start;	/* initial ring buffer position in TRAM (in samples) */
 	unsigned int buffer_size;	/* count of buffered samples */
-	unsigned char gpr_size;		/* GPR containing size of ring buffer in samples (host) */
-	unsigned char gpr_ptr;		/* GPR containing current pointer in the ring buffer (host = reset, FX8010) */
-	unsigned char gpr_count;	/* GPR containing count of samples between two interrupts (host) */
-	unsigned char gpr_tmpcount;	/* GPR containing current count of samples to interrupt (host = set, FX8010) */
-	unsigned char gpr_trigger;	/* GPR containing trigger (activate) information (host) */
-	unsigned char gpr_running;	/* GPR containing info if PCM is running (FX8010) */
+	unsigned short gpr_size;		/* GPR containing size of ring buffer in samples (host) */
+	unsigned short gpr_ptr;		/* GPR containing current pointer in the ring buffer (host = reset, FX8010) */
+	unsigned short gpr_count;	/* GPR containing count of samples between two interrupts (host) */
+	unsigned short gpr_tmpcount;	/* GPR containing current count of samples to interrupt (host = set, FX8010) */
+	unsigned short gpr_trigger;	/* GPR containing trigger (activate) information (host) */
+	unsigned short gpr_running;	/* GPR containing info if PCM is running (FX8010) */
 	unsigned char etram[32];	/* external TRAM address & data */
-	unsigned int sw_data, hw_data;
-	unsigned int sw_io, hw_io;
-	unsigned int sw_ready, hw_ready;
-	unsigned int appl_ptr;
+	struct snd_pcm_indirect pcm_rec;
 	unsigned int tram_pos;
 	unsigned int tram_shift;
-	snd_emu10k1_fx8010_irq_t *irq;
-} snd_emu10k1_fx8010_pcm_t;
+	struct snd_emu10k1_fx8010_irq *irq;
+};
 
-typedef struct {
+struct snd_emu10k1_fx8010 {
 	unsigned short fxbus_mask;	/* used FX buses (bitmask) */
 	unsigned short extin_mask;	/* used external inputs (bitmask) */
 	unsigned short extout_mask;	/* used external outputs (bitmask) */
 	unsigned short pad1;
 	unsigned int itram_size;	/* internal TRAM size in samples */
-	unsigned int etram_size;	/* external TRAM size in samples */
-	void *etram_pages;		/* allocated pages for external TRAM */
-	dma_addr_t etram_pages_dmaaddr;
+	struct snd_dma_buffer etram_pages; /* external TRAM pages and size */
 	unsigned int dbg;		/* FX debugger register */
 	unsigned char name[128];
 	int gpr_size;			/* size of allocated GPR controls */
 	int gpr_count;			/* count of used kcontrols */
 	struct list_head gpr_ctl;	/* GPR controls */
-	struct semaphore lock;
-	snd_emu10k1_fx8010_pcm_t pcm[8];
+	struct mutex lock;
+	struct snd_emu10k1_fx8010_pcm pcm[8];
 	spinlock_t irq_lock;
-	snd_emu10k1_fx8010_irq_t *irq_handlers;
-} snd_emu10k1_fx8010_t;
+	struct snd_emu10k1_fx8010_irq *irq_handlers;
+};
 
-#define emu10k1_gpr_ctl(n) list_entry(n, snd_emu10k1_fx8010_ctl_t, list)
+#define emu10k1_gpr_ctl(n) list_entry(n, struct snd_emu10k1_fx8010_ctl, list)
 
-typedef struct {
-	struct _snd_emu10k1 *emu;
-	snd_rawmidi_t *rmidi;
-	snd_rawmidi_substream_t *substream_input;
-	snd_rawmidi_substream_t *substream_output;
+struct snd_emu10k1_midi {
+	struct snd_emu10k1 *emu;
+	struct snd_rawmidi *rmidi;
+	struct snd_rawmidi_substream *substream_input;
+	struct snd_rawmidi_substream *substream_output;
 	unsigned int midi_mode;
 	spinlock_t input_lock;
 	spinlock_t output_lock;
@@ -927,17 +1046,43 @@ typedef struct {
 	int tx_enable, rx_enable;
 	int port;
 	int ipr_tx, ipr_rx;
-	void (*interrupt)(emu10k1_t *emu, unsigned int status);
-} emu10k1_midi_t;
+	void (*interrupt)(struct snd_emu10k1 *emu, unsigned int status);
+};
 
-struct _snd_emu10k1 {
+struct snd_emu_chip_details {
+	u32 vendor;
+	u32 device;
+	u32 subsystem;
+	unsigned char revision;
+	unsigned char emu10k1_chip; /* Original SB Live. Not SB Live 24bit. */
+	unsigned char emu10k2_chip; /* Audigy 1 or Audigy 2. */
+	unsigned char ca0102_chip;  /* Audigy 1 or Audigy 2. Not SB Audigy 2 Value. */
+	unsigned char ca0108_chip;  /* Audigy 2 Value */
+	unsigned char ca_cardbus_chip; /* Audigy 2 ZS Notebook */
+	unsigned char ca0151_chip;  /* P16V */
+	unsigned char spk71;        /* Has 7.1 speakers */
+	unsigned char sblive51;	    /* SBLive! 5.1 - extout 0x11 -> center, 0x12 -> lfe */
+	unsigned char spdif_bug;    /* Has Spdif phasing bug */
+	unsigned char ac97_chip;    /* Has an AC97 chip: 1 = mandatory, 2 = optional */
+	unsigned char ecard;        /* APS EEPROM */
+	unsigned char emu1212m;     /* EMU 1212m card */
+	unsigned char spi_dac;      /* SPI interface for DAC */
+	unsigned char i2c_adc;      /* I2C interface for ADC */
+	unsigned char adc_1361t;    /* Use Philips 1361T ADC */
+	const char *driver;
+	const char *name;
+	const char *id;		/* for backward compatibility - can be NULL if not needed */
+};
+
+struct snd_emu10k1 {
 	int irq;
 
 	unsigned long port;			/* I/O port number */
-	struct resource *res_port;
-	int APS: 1,				/* APS flag */
-	    no_ac97: 1,				/* no AC'97 */
-	    tos_link: 1;			/* tos link detected */
+	unsigned int tos_link: 1,		/* tos link detected */
+		rear_ac97: 1,			/* rear channels are on AC'97 */
+		enable_ir: 1;
+	/* Contains profile of card capabilities */
+	const struct snd_emu_chip_details *card_capabilities;
 	unsigned int audigy;			/* is Audigy? */
 	unsigned int revision;			/* chip revision */
 	unsigned int serial;			/* serial number */
@@ -946,12 +1091,13 @@ struct _snd_emu10k1 {
 	unsigned int ecard_ctrl;		/* ecard control bits */
 	unsigned long dma_mask;			/* PCI DMA mask */
 	int max_cache_pages;			/* max memory size / PAGE_SIZE */
-	void *silent_page;			/* silent page */
-	dma_addr_t silent_page_dmaaddr;
-	volatile u32 *ptb_pages;		/* page table pages */
-	dma_addr_t ptb_pages_dmaaddr;
-	snd_util_memhdr_t *memhdr;		/* page allocation list */
-	emu10k1_memblk_t *reserved_page;	/* reserved page */
+	struct snd_dma_buffer silent_page;	/* silent page */
+	struct snd_dma_buffer ptb_pages;	/* page table pages */
+	struct snd_dma_device p16v_dma_dev;
+	struct snd_dma_buffer p16v_buffer;
+
+	struct snd_util_memhdr *memhdr;		/* page allocation list */
+	struct snd_emu10k1_memblk *reserved_page;	/* reserved page */
 
 	struct list_head mapped_link_head;
 	struct list_head mapped_order_link_head;
@@ -961,112 +1107,168 @@ struct _snd_emu10k1 {
 
 	unsigned int spdif_bits[3];		/* s/pdif out setup */
 
-	snd_emu10k1_fx8010_t fx8010;		/* FX8010 info */
+	struct snd_emu10k1_fx8010 fx8010;		/* FX8010 info */
 	int gpr_base;
 	
-	ac97_t *ac97;
+	struct snd_ac97 *ac97;
 
 	struct pci_dev *pci;
-	snd_card_t *card;
-	snd_pcm_t *pcm;
-	snd_pcm_t *pcm_mic;
-	snd_pcm_t *pcm_efx;
-	snd_pcm_t *pcm_fx8010;
+	struct snd_card *card;
+	struct snd_pcm *pcm;
+	struct snd_pcm *pcm_mic;
+	struct snd_pcm *pcm_efx;
+	struct snd_pcm *pcm_multi;
+	struct snd_pcm *pcm_p16v;
 
 	spinlock_t synth_lock;
 	void *synth;
-	int (*get_synth_voice)(emu10k1_t *emu);
+	int (*get_synth_voice)(struct snd_emu10k1 *emu);
 
 	spinlock_t reg_lock;
 	spinlock_t emu_lock;
 	spinlock_t voice_lock;
-	struct semaphore ptb_lock;
 
-	emu10k1_voice_t voices[64];
-	emu10k1_pcm_mixer_t pcm_mixer[32];
-	snd_kcontrol_t *ctl_send_routing;
-	snd_kcontrol_t *ctl_send_volume;
-	snd_kcontrol_t *ctl_attn;
+	struct snd_emu10k1_voice voices[NUM_G];
+	struct snd_emu10k1_voice p16v_voices[4];
+	struct snd_emu10k1_voice p16v_capture_voice;
+	int p16v_device_offset;
+	u32 p16v_capture_source;
+	u32 p16v_capture_channel;
+	struct snd_emu10k1_pcm_mixer pcm_mixer[32];
+	struct snd_emu10k1_pcm_mixer efx_pcm_mixer[NUM_EFX_PLAYBACK];
+	struct snd_kcontrol *ctl_send_routing;
+	struct snd_kcontrol *ctl_send_volume;
+	struct snd_kcontrol *ctl_attn;
+	struct snd_kcontrol *ctl_efx_send_routing;
+	struct snd_kcontrol *ctl_efx_send_volume;
+	struct snd_kcontrol *ctl_efx_attn;
 
-	void (*hwvol_interrupt)(emu10k1_t *emu, unsigned int status);
-	void (*capture_interrupt)(emu10k1_t *emu, unsigned int status);
-	void (*capture_mic_interrupt)(emu10k1_t *emu, unsigned int status);
-	void (*capture_efx_interrupt)(emu10k1_t *emu, unsigned int status);
-	void (*timer_interrupt)(emu10k1_t *emu);
-	void (*spdif_interrupt)(emu10k1_t *emu, unsigned int status);
-	void (*dsp_interrupt)(emu10k1_t *emu);
+	void (*hwvol_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
+	void (*capture_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
+	void (*capture_mic_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
+	void (*capture_efx_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
+	void (*spdif_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
+	void (*dsp_interrupt)(struct snd_emu10k1 *emu);
 
-	snd_pcm_substream_t *pcm_capture_substream;
-	snd_pcm_substream_t *pcm_capture_mic_substream;
-	snd_pcm_substream_t *pcm_capture_efx_substream;
+	struct snd_pcm_substream *pcm_capture_substream;
+	struct snd_pcm_substream *pcm_capture_mic_substream;
+	struct snd_pcm_substream *pcm_capture_efx_substream;
+	struct snd_pcm_substream *pcm_playback_efx_substream;
 
-	emu10k1_midi_t midi;
-	emu10k1_midi_t midi2; /* for audigy */
+	struct snd_timer *timer;
+
+	struct snd_emu10k1_midi midi;
+	struct snd_emu10k1_midi midi2; /* for audigy */
 
 	unsigned int efx_voices_mask[2];
+	unsigned int next_free_voice;
+
+#ifdef CONFIG_PM
+	unsigned int *saved_ptr;
+	unsigned int *saved_gpr;
+	unsigned int *tram_val_saved;
+	unsigned int *tram_addr_saved;
+	unsigned int *saved_icode;
+	unsigned int *p16v_saved;
+	unsigned int saved_a_iocfg, saved_hcfg;
+#endif
+
 };
 
-int snd_emu10k1_create(snd_card_t * card,
+int snd_emu10k1_create(struct snd_card *card,
 		       struct pci_dev *pci,
 		       unsigned short extin_mask,
 		       unsigned short extout_mask,
 		       long max_cache_bytes,
 		       int enable_ir,
-		       emu10k1_t ** remu);
+		       uint subsystem,
+		       struct snd_emu10k1 ** remu);
 
-int snd_emu10k1_pcm(emu10k1_t * emu, int device, snd_pcm_t ** rpcm);
-int snd_emu10k1_pcm_mic(emu10k1_t * emu, int device, snd_pcm_t ** rpcm);
-int snd_emu10k1_pcm_efx(emu10k1_t * emu, int device, snd_pcm_t ** rpcm);
-int snd_emu10k1_fx8010_pcm(emu10k1_t * emu, int device, snd_pcm_t ** rpcm);
-int snd_emu10k1_mixer(emu10k1_t * emu);
-int snd_emu10k1_fx8010_new(emu10k1_t *emu, int device, snd_hwdep_t ** rhwdep);
+int snd_emu10k1_pcm(struct snd_emu10k1 * emu, int device, struct snd_pcm ** rpcm);
+int snd_emu10k1_pcm_mic(struct snd_emu10k1 * emu, int device, struct snd_pcm ** rpcm);
+int snd_emu10k1_pcm_efx(struct snd_emu10k1 * emu, int device, struct snd_pcm ** rpcm);
+int snd_p16v_pcm(struct snd_emu10k1 * emu, int device, struct snd_pcm ** rpcm);
+int snd_p16v_free(struct snd_emu10k1 * emu);
+int snd_p16v_mixer(struct snd_emu10k1 * emu);
+int snd_emu10k1_pcm_multi(struct snd_emu10k1 * emu, int device, struct snd_pcm ** rpcm);
+int snd_emu10k1_fx8010_pcm(struct snd_emu10k1 * emu, int device, struct snd_pcm ** rpcm);
+int snd_emu10k1_mixer(struct snd_emu10k1 * emu, int pcm_device, int multi_device);
+int snd_emu10k1_timer(struct snd_emu10k1 * emu, int device);
+int snd_emu10k1_fx8010_new(struct snd_emu10k1 *emu, int device, struct snd_hwdep ** rhwdep);
 
 irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
-/* initialization */
-void snd_emu10k1_voice_init(emu10k1_t * emu, int voice);
-int snd_emu10k1_init_efx(emu10k1_t *emu);
-void snd_emu10k1_free_efx(emu10k1_t *emu);
-int snd_emu10k1_fx8010_tram_setup(emu10k1_t *emu, u32 size);
+void snd_emu10k1_voice_init(struct snd_emu10k1 * emu, int voice);
+int snd_emu10k1_init_efx(struct snd_emu10k1 *emu);
+void snd_emu10k1_free_efx(struct snd_emu10k1 *emu);
+int snd_emu10k1_fx8010_tram_setup(struct snd_emu10k1 *emu, u32 size);
+int snd_emu10k1_done(struct snd_emu10k1 * emu);
 
 /* I/O functions */
-unsigned int snd_emu10k1_ptr_read(emu10k1_t * emu, unsigned int reg, unsigned int chn);
-void snd_emu10k1_ptr_write(emu10k1_t *emu, unsigned int reg, unsigned int chn, unsigned int data);
-void snd_emu10k1_efx_write(emu10k1_t *emu, unsigned int pc, unsigned int data);
-unsigned int snd_emu10k1_efx_read(emu10k1_t *emu, unsigned int pc);
-void snd_emu10k1_intr_enable(emu10k1_t *emu, unsigned int intrenb);
-void snd_emu10k1_intr_disable(emu10k1_t *emu, unsigned int intrenb);
-void snd_emu10k1_voice_intr_enable(emu10k1_t *emu, unsigned int voicenum);
-void snd_emu10k1_voice_intr_disable(emu10k1_t *emu, unsigned int voicenum);
-void snd_emu10k1_voice_intr_ack(emu10k1_t *emu, unsigned int voicenum);
-void snd_emu10k1_voice_set_loop_stop(emu10k1_t *emu, unsigned int voicenum);
-void snd_emu10k1_voice_clear_loop_stop(emu10k1_t *emu, unsigned int voicenum);
-void snd_emu10k1_wait(emu10k1_t *emu, unsigned int wait);
-static inline unsigned int snd_emu10k1_wc(emu10k1_t *emu) { return (inl(emu->port + WC) >> 6) & 0xfffff; }
-unsigned short snd_emu10k1_ac97_read(ac97_t *ac97, unsigned short reg);
-void snd_emu10k1_ac97_write(ac97_t *ac97, unsigned short reg, unsigned short data);
+unsigned int snd_emu10k1_ptr_read(struct snd_emu10k1 * emu, unsigned int reg, unsigned int chn);
+void snd_emu10k1_ptr_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned int chn, unsigned int data);
+unsigned int snd_emu10k1_ptr20_read(struct snd_emu10k1 * emu, unsigned int reg, unsigned int chn);
+void snd_emu10k1_ptr20_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned int chn, unsigned int data);
+int snd_emu10k1_spi_write(struct snd_emu10k1 * emu, unsigned int data);
+unsigned int snd_emu10k1_efx_read(struct snd_emu10k1 *emu, unsigned int pc);
+void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb);
+void snd_emu10k1_intr_disable(struct snd_emu10k1 *emu, unsigned int intrenb);
+void snd_emu10k1_voice_intr_enable(struct snd_emu10k1 *emu, unsigned int voicenum);
+void snd_emu10k1_voice_intr_disable(struct snd_emu10k1 *emu, unsigned int voicenum);
+void snd_emu10k1_voice_intr_ack(struct snd_emu10k1 *emu, unsigned int voicenum);
+void snd_emu10k1_voice_half_loop_intr_enable(struct snd_emu10k1 *emu, unsigned int voicenum);
+void snd_emu10k1_voice_half_loop_intr_disable(struct snd_emu10k1 *emu, unsigned int voicenum);
+void snd_emu10k1_voice_half_loop_intr_ack(struct snd_emu10k1 *emu, unsigned int voicenum);
+void snd_emu10k1_voice_set_loop_stop(struct snd_emu10k1 *emu, unsigned int voicenum);
+void snd_emu10k1_voice_clear_loop_stop(struct snd_emu10k1 *emu, unsigned int voicenum);
+void snd_emu10k1_wait(struct snd_emu10k1 *emu, unsigned int wait);
+static inline unsigned int snd_emu10k1_wc(struct snd_emu10k1 *emu) { return (inl(emu->port + WC) >> 6) & 0xfffff; }
+unsigned short snd_emu10k1_ac97_read(struct snd_ac97 *ac97, unsigned short reg);
+void snd_emu10k1_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short data);
 unsigned int snd_emu10k1_rate_to_pitch(unsigned int rate);
-unsigned char snd_emu10k1_sum_vol_attn(unsigned int value);
+
+#ifdef CONFIG_PM
+void snd_emu10k1_suspend_regs(struct snd_emu10k1 *emu);
+void snd_emu10k1_resume_init(struct snd_emu10k1 *emu);
+void snd_emu10k1_resume_regs(struct snd_emu10k1 *emu);
+int snd_emu10k1_efx_alloc_pm_buffer(struct snd_emu10k1 *emu);
+void snd_emu10k1_efx_free_pm_buffer(struct snd_emu10k1 *emu);
+void snd_emu10k1_efx_suspend(struct snd_emu10k1 *emu);
+void snd_emu10k1_efx_resume(struct snd_emu10k1 *emu);
+int snd_p16v_alloc_pm_buffer(struct snd_emu10k1 *emu);
+void snd_p16v_free_pm_buffer(struct snd_emu10k1 *emu);
+void snd_p16v_suspend(struct snd_emu10k1 *emu);
+void snd_p16v_resume(struct snd_emu10k1 *emu);
+#endif
 
 /* memory allocation */
-snd_util_memblk_t *snd_emu10k1_alloc_pages(emu10k1_t *emu, snd_pcm_substream_t *substream);
-int snd_emu10k1_free_pages(emu10k1_t *emu, snd_util_memblk_t *blk);
-snd_util_memblk_t *snd_emu10k1_synth_alloc(emu10k1_t *emu, unsigned int size);
-int snd_emu10k1_synth_free(emu10k1_t *emu, snd_util_memblk_t *blk);
-int snd_emu10k1_synth_bzero(emu10k1_t *emu, snd_util_memblk_t *blk, int offset, int size);
-int snd_emu10k1_synth_copy_from_user(emu10k1_t *emu, snd_util_memblk_t *blk, int offset, const char *data, int size);
-int snd_emu10k1_memblk_map(emu10k1_t *emu, emu10k1_memblk_t *blk);
+struct snd_util_memblk *snd_emu10k1_alloc_pages(struct snd_emu10k1 *emu, struct snd_pcm_substream *substream);
+int snd_emu10k1_free_pages(struct snd_emu10k1 *emu, struct snd_util_memblk *blk);
+struct snd_util_memblk *snd_emu10k1_synth_alloc(struct snd_emu10k1 *emu, unsigned int size);
+int snd_emu10k1_synth_free(struct snd_emu10k1 *emu, struct snd_util_memblk *blk);
+int snd_emu10k1_synth_bzero(struct snd_emu10k1 *emu, struct snd_util_memblk *blk, int offset, int size);
+int snd_emu10k1_synth_copy_from_user(struct snd_emu10k1 *emu, struct snd_util_memblk *blk, int offset, const char __user *data, int size);
+int snd_emu10k1_memblk_map(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *blk);
 
 /* voice allocation */
-int snd_emu10k1_voice_alloc(emu10k1_t *emu, emu10k1_voice_type_t type, int pair, emu10k1_voice_t **rvoice);
-int snd_emu10k1_voice_free(emu10k1_t *emu, emu10k1_voice_t *pvoice);
+int snd_emu10k1_voice_alloc(struct snd_emu10k1 *emu, int type, int pair, struct snd_emu10k1_voice **rvoice);
+int snd_emu10k1_voice_free(struct snd_emu10k1 *emu, struct snd_emu10k1_voice *pvoice);
 
 /* MIDI uart */
-int snd_emu10k1_midi(emu10k1_t * emu);
-int snd_emu10k1_audigy_midi(emu10k1_t * emu);
+int snd_emu10k1_midi(struct snd_emu10k1 * emu);
+int snd_emu10k1_audigy_midi(struct snd_emu10k1 * emu);
 
 /* proc interface */
-int snd_emu10k1_proc_init(emu10k1_t * emu);
+int snd_emu10k1_proc_init(struct snd_emu10k1 * emu);
+
+/* fx8010 irq handler */
+int snd_emu10k1_fx8010_register_irq_handler(struct snd_emu10k1 *emu,
+					    snd_fx8010_irq_handler_t *handler,
+					    unsigned char gpr_running,
+					    void *private_data,
+					    struct snd_emu10k1_fx8010_irq **r_irq);
+int snd_emu10k1_fx8010_unregister_irq_handler(struct snd_emu10k1 *emu,
+					      struct snd_emu10k1_fx8010_irq *irq);
 
 #endif /* __KERNEL__ */
 
@@ -1100,7 +1302,10 @@ int snd_emu10k1_proc_init(emu10k1_t * emu);
 /* GPRs */
 #define FXBUS(x)	(0x00 + (x))	/* x = 0x00 - 0x0f */
 #define EXTIN(x)	(0x10 + (x))	/* x = 0x00 - 0x0f */
-#define EXTOUT(x)	(0x20 + (x))	/* x = 0x00 - 0x0f */
+#define EXTOUT(x)	(0x20 + (x))	/* x = 0x00 - 0x0f physical outs -> FXWC low 16 bits */
+#define FXBUS2(x)	(0x30 + (x))	/* x = 0x00 - 0x0f copies of fx buses for capture -> FXWC high 16 bits */
+					/* NB: 0x31 and 0x32 are shared with Center/LFE on SB live 5.1 */
+
 #define C_00000000	0x40
 #define C_00000001	0x41
 #define C_00000002	0x42
@@ -1135,9 +1340,20 @@ int snd_emu10k1_proc_init(emu10k1_t * emu);
 #define ITRAM_ADDR(x)	(TANKMEMADDRREGBASE + 0x00 + (x)) /* x = 0x00 - 0x7f */
 #define ETRAM_ADDR(x)	(TANKMEMADDRREGBASE + 0x80 + (x)) /* x = 0x00 - 0x1f */
 
-#define A_FXBUS(x)	(0x00 + (x))	/* x = 0x00 - 0x3f? */
-#define A_EXTIN(x)	(0x40 + (x))	/* x = 0x00 - 0x1f? */
-#define A_EXTOUT(x)	(0x60 + (x))	/* x = 0x00 - 0x1f? */
+#define A_ITRAM_DATA(x)	(TANKMEMDATAREGBASE + 0x00 + (x)) /* x = 0x00 - 0xbf */
+#define A_ETRAM_DATA(x)	(TANKMEMDATAREGBASE + 0xc0 + (x)) /* x = 0x00 - 0x3f */
+#define A_ITRAM_ADDR(x)	(TANKMEMADDRREGBASE + 0x00 + (x)) /* x = 0x00 - 0xbf */
+#define A_ETRAM_ADDR(x)	(TANKMEMADDRREGBASE + 0xc0 + (x)) /* x = 0x00 - 0x3f */
+#define A_ITRAM_CTL(x)	(A_TANKMEMCTLREGBASE + 0x00 + (x)) /* x = 0x00 - 0xbf */
+#define A_ETRAM_CTL(x)	(A_TANKMEMCTLREGBASE + 0xc0 + (x)) /* x = 0x00 - 0x3f */
+
+#define A_FXBUS(x)	(0x00 + (x))	/* x = 0x00 - 0x3f FX buses */
+#define A_EXTIN(x)	(0x40 + (x))	/* x = 0x00 - 0x0f physical ins */
+#define A_P16VIN(x)	(0x50 + (x))	/* x = 0x00 - 0x0f p16v ins (A2 only) "EMU32 inputs" */
+#define A_EXTOUT(x)	(0x60 + (x))	/* x = 0x00 - 0x1f physical outs -> A_FXWC1 0x79-7f unknown   */
+#define A_FXBUS2(x)	(0x80 + (x))	/* x = 0x00 - 0x1f extra outs used for EFX capture -> A_FXWC2 */
+#define A_EMU32OUTH(x)	(0xa0 + (x))	/* x = 0x00 - 0x0f "EMU32_OUT_10 - _1F" - ??? */
+#define A_EMU32OUTL(x)	(0xb0 + (x))	/* x = 0x00 - 0x0f "EMU32_OUT_1 - _F" - ??? */
 #define A_GPR(x)	(A_FXGPREGBASE + (x))
 
 /* cc_reg constants */
@@ -1161,6 +1377,8 @@ int snd_emu10k1_proc_init(emu10k1_t * emu);
 #define FXBUS_PCM_RIGHT_FRONT	0x09
 #define FXBUS_MIDI_REVERB	0x0c
 #define FXBUS_MIDI_CHORUS	0x0d
+#define FXBUS_PCM_LEFT_SIDE	0x0e
+#define FXBUS_PCM_RIGHT_SIDE	0x0f
 #define FXBUS_PT_LEFT		0x14
 #define FXBUS_PT_RIGHT		0x15
 
@@ -1185,8 +1403,8 @@ int snd_emu10k1_proc_init(emu10k1_t * emu);
 #define EXTOUT_AC97_R	   0x01	/* AC'97 playback channel - right */
 #define EXTOUT_TOSLINK_L   0x02	/* LiveDrive - TOSLink Optical - left */
 #define EXTOUT_TOSLINK_R   0x03	/* LiveDrive - TOSLink Optical - right */
-#define EXTOUT_CENTER      0x04	/* SB Live 5.1 - center */
-#define EXTOUT_LFE         0x05 /* SB Live 5.1 - LFE */
+#define EXTOUT_AC97_CENTER 0x04	/* SB Live 5.1 - center */
+#define EXTOUT_AC97_LFE	   0x05 /* SB Live 5.1 - LFE */
 #define EXTOUT_HEADPHONE_L 0x06	/* LiveDrive - Headphone - left */
 #define EXTOUT_HEADPHONE_R 0x07	/* LiveDrive - Headphone - right */
 #define EXTOUT_REAR_L	   0x08	/* Rear channel - left */
@@ -1194,6 +1412,8 @@ int snd_emu10k1_proc_init(emu10k1_t * emu);
 #define EXTOUT_ADC_CAP_L   0x0a	/* ADC Capture buffer - left */
 #define EXTOUT_ADC_CAP_R   0x0b	/* ADC Capture buffer - right */
 #define EXTOUT_MIC_CAP	   0x0c	/* MIC Capture buffer */
+#define EXTOUT_AC97_REAR_L 0x0d	/* SB Live 5.1 (c) 2003 - Rear Left */
+#define EXTOUT_AC97_REAR_R 0x0e	/* SB Live 5.1 (c) 2003 - Rear Right */
 #define EXTOUT_ACENTER	   0x11 /* Analog Center */
 #define EXTOUT_ALFE	   0x12 /* Analog LFE */
 
@@ -1224,8 +1444,8 @@ int snd_emu10k1_proc_init(emu10k1_t * emu);
 #define A_EXTOUT_AFRONT_R	0x09	/*              right */
 #define A_EXTOUT_ACENTER	0x0a	/* analog center */
 #define A_EXTOUT_ALFE		0x0b	/* analog LFE */
-/* 0x0c ?? */
-/* 0x0d ?? */
+#define A_EXTOUT_ASIDE_L	0x0c	/* analog side left  - Audigy 2 ZS */
+#define A_EXTOUT_ASIDE_R	0x0d	/*             right - Audigy 2 ZS */
 #define A_EXTOUT_AREAR_L	0x0e	/* analog rear left */
 #define A_EXTOUT_AREAR_R	0x0f	/*             right */
 #define A_EXTOUT_AC97_L		0x10	/* AC97 left (front) */
@@ -1259,8 +1479,11 @@ int snd_emu10k1_proc_init(emu10k1_t * emu);
 #define A_C_00100000	0xd5
 #define A_GPR_ACCU	0xd6		/* ACCUM, accumulator */
 #define A_GPR_COND	0xd7		/* CCR, condition register */
-/* 0xd8 = noise1 */
-/* 0xd9 = noise2 */
+#define A_GPR_NOISE0	0xd8		/* noise source */
+#define A_GPR_NOISE1	0xd9		/* noise source */
+#define A_GPR_IRQ	0xda		/* IRQ register */
+#define A_GPR_DBAC	0xdb		/* TRAM Delay Base Address Counter - internal */
+#define A_GPR_DBACE	0xde		/* TRAM Delay Base Address Counter - external */
 
 /* definitions for debug register */
 #define EMU10K1_DBG_ZC			0x80000000	/* zero tram counter */
@@ -1280,15 +1503,14 @@ int snd_emu10k1_proc_init(emu10k1_t * emu);
 #define TANKMEMADDRREG_READ	 0x00100000	/* Read from tank memory			*/
 #endif
 
-typedef struct {
-	unsigned int card;			/* card type */
+struct snd_emu10k1_fx8010_info {
 	unsigned int internal_tram_size;	/* in samples */
 	unsigned int external_tram_size;	/* in samples */
 	char fxbus_names[16][32];		/* names of FXBUSes */
 	char extin_names[16][32];		/* names of external inputs */
 	char extout_names[32][32];		/* names of external outputs */
 	unsigned int gpr_controls;		/* count of GPR controls */
-} emu10k1_fx8010_info_t;
+};
 
 #define EMU10K1_GPR_TRANSLATION_NONE		0
 #define EMU10K1_GPR_TRANSLATION_TABLE100	1
@@ -1296,77 +1518,84 @@ typedef struct {
 #define EMU10K1_GPR_TRANSLATION_TREBLE		3
 #define EMU10K1_GPR_TRANSLATION_ONOFF		4
 
-typedef struct {
-	snd_ctl_elem_id_t id;		/* full control ID definition */
+struct snd_emu10k1_fx8010_control_gpr {
+	struct snd_ctl_elem_id id;		/* full control ID definition */
 	unsigned int vcount;		/* visible count */
 	unsigned int count;		/* count of GPR (1..16) */
-	unsigned char gpr[32];		/* GPR number(s) */
+	unsigned short gpr[32];		/* GPR number(s) */
 	unsigned int value[32];		/* initial values */
 	unsigned int min;		/* minimum range */
 	unsigned int max;		/* maximum range */
 	unsigned int translation;	/* translation type (EMU10K1_GPR_TRANSLATION*) */
-} emu10k1_fx8010_control_gpr_t;
+};
 
-typedef struct {
+struct snd_emu10k1_fx8010_code {
 	char name[128];
 
-	unsigned long gpr_valid[0x100/(sizeof(unsigned long)*8)]; /* bitmask of valid initializers */
-	unsigned int gpr_map[0x100];	  /* initializers */
+	DECLARE_BITMAP(gpr_valid, 0x200); /* bitmask of valid initializers */
+	u_int32_t __user *gpr_map;	  /* initializers */
 
 	unsigned int gpr_add_control_count; /* count of GPR controls to add/replace */
-	emu10k1_fx8010_control_gpr_t *gpr_add_controls; /* GPR controls to add/replace */
+	struct snd_emu10k1_fx8010_control_gpr __user *gpr_add_controls; /* GPR controls to add/replace */
 
 	unsigned int gpr_del_control_count; /* count of GPR controls to remove */
-	snd_ctl_elem_id_t *gpr_del_controls; /* IDs of GPR controls to remove */
+	struct snd_ctl_elem_id __user *gpr_del_controls; /* IDs of GPR controls to remove */
 
 	unsigned int gpr_list_control_count; /* count of GPR controls to list */
 	unsigned int gpr_list_control_total; /* total count of GPR controls */
-	emu10k1_fx8010_control_gpr_t *gpr_list_controls; /* listed GPR controls */
+	struct snd_emu10k1_fx8010_control_gpr __user *gpr_list_controls; /* listed GPR controls */
 
-	unsigned long tram_valid[0xa0/(sizeof(unsigned long)*8)]; /* bitmask of valid initializers */
-	unsigned int tram_data_map[0xa0]; /* data initializers */
-	unsigned int tram_addr_map[0xa0]; /* map initializers */
+	DECLARE_BITMAP(tram_valid, 0x100); /* bitmask of valid initializers */
+	u_int32_t __user *tram_data_map;  /* data initializers */
+	u_int32_t __user *tram_addr_map;  /* map initializers */
 
-	unsigned long code_valid[512/(sizeof(unsigned long)*8)];  /* bitmask of valid instructions */
-	unsigned int code[512][2];	  /* one instruction - 64 bits */
-} emu10k1_fx8010_code_t;
+	DECLARE_BITMAP(code_valid, 1024); /* bitmask of valid instructions */
+	u_int32_t __user *code;		  /* one instruction - 64 bits */
+};
 
-typedef struct {
+struct snd_emu10k1_fx8010_tram {
 	unsigned int address;		/* 31.bit == 1 -> external TRAM */
 	unsigned int size;		/* size in samples (4 bytes) */
 	unsigned int *samples;		/* pointer to samples (20-bit) */
 					/* NULL->clear memory */
-} emu10k1_fx8010_tram_t;
+};
 
-typedef struct {
+struct snd_emu10k1_fx8010_pcm_rec {
 	unsigned int substream;		/* substream number */
 	unsigned int res1;		/* reserved */
 	unsigned int channels;		/* 16-bit channels count, zero = remove this substream */
 	unsigned int tram_start;	/* ring buffer position in TRAM (in samples) */
 	unsigned int buffer_size;	/* count of buffered samples */
-	unsigned char gpr_size;		/* GPR containing size of ringbuffer in samples (host) */
-	unsigned char gpr_ptr;		/* GPR containing current pointer in the ring buffer (host = reset, FX8010) */
-	unsigned char gpr_count;	/* GPR containing count of samples between two interrupts (host) */
-	unsigned char gpr_tmpcount;	/* GPR containing current count of samples to interrupt (host = set, FX8010) */
-	unsigned char gpr_trigger;	/* GPR containing trigger (activate) information (host) */
-	unsigned char gpr_running;	/* GPR containing info if PCM is running (FX8010) */
+	unsigned short gpr_size;		/* GPR containing size of ringbuffer in samples (host) */
+	unsigned short gpr_ptr;		/* GPR containing current pointer in the ring buffer (host = reset, FX8010) */
+	unsigned short gpr_count;	/* GPR containing count of samples between two interrupts (host) */
+	unsigned short gpr_tmpcount;	/* GPR containing current count of samples to interrupt (host = set, FX8010) */
+	unsigned short gpr_trigger;	/* GPR containing trigger (activate) information (host) */
+	unsigned short gpr_running;	/* GPR containing info if PCM is running (FX8010) */
 	unsigned char pad;		/* reserved */
 	unsigned char etram[32];	/* external TRAM address & data (one per channel) */
 	unsigned int res2;		/* reserved */
-} emu10k1_fx8010_pcm_t;
+};
 
-#define SNDRV_EMU10K1_IOCTL_INFO	_IOR ('H', 0x10, emu10k1_fx8010_info_t)
-#define SNDRV_EMU10K1_IOCTL_CODE_POKE	_IOW ('H', 0x11, emu10k1_fx8010_code_t)
-#define SNDRV_EMU10K1_IOCTL_CODE_PEEK	_IOWR('H', 0x12, emu10k1_fx8010_code_t)
+#define SNDRV_EMU10K1_IOCTL_INFO	_IOR ('H', 0x10, struct snd_emu10k1_fx8010_info)
+#define SNDRV_EMU10K1_IOCTL_CODE_POKE	_IOW ('H', 0x11, struct snd_emu10k1_fx8010_code)
+#define SNDRV_EMU10K1_IOCTL_CODE_PEEK	_IOWR('H', 0x12, struct snd_emu10k1_fx8010_code)
 #define SNDRV_EMU10K1_IOCTL_TRAM_SETUP	_IOW ('H', 0x20, int)
-#define SNDRV_EMU10K1_IOCTL_TRAM_POKE	_IOW ('H', 0x21, emu10k1_fx8010_tram_t)
-#define SNDRV_EMU10K1_IOCTL_TRAM_PEEK	_IOWR('H', 0x22, emu10k1_fx8010_tram_t)
-#define SNDRV_EMU10K1_IOCTL_PCM_POKE	_IOW ('H', 0x30, emu10k1_fx8010_pcm_t)
-#define SNDRV_EMU10K1_IOCTL_PCM_PEEK	_IOWR('H', 0x31, emu10k1_fx8010_pcm_t)
+#define SNDRV_EMU10K1_IOCTL_TRAM_POKE	_IOW ('H', 0x21, struct snd_emu10k1_fx8010_tram)
+#define SNDRV_EMU10K1_IOCTL_TRAM_PEEK	_IOWR('H', 0x22, struct snd_emu10k1_fx8010_tram)
+#define SNDRV_EMU10K1_IOCTL_PCM_POKE	_IOW ('H', 0x30, struct snd_emu10k1_fx8010_pcm_rec)
+#define SNDRV_EMU10K1_IOCTL_PCM_PEEK	_IOWR('H', 0x31, struct snd_emu10k1_fx8010_pcm_rec)
 #define SNDRV_EMU10K1_IOCTL_STOP	_IO  ('H', 0x80)
 #define SNDRV_EMU10K1_IOCTL_CONTINUE	_IO  ('H', 0x81)
 #define SNDRV_EMU10K1_IOCTL_ZERO_TRAM_COUNTER _IO ('H', 0x82)
 #define SNDRV_EMU10K1_IOCTL_SINGLE_STEP	_IOW ('H', 0x83, int)
 #define SNDRV_EMU10K1_IOCTL_DBG_READ	_IOR ('H', 0x84, int)
+
+/* typedefs for compatibility to user-space */
+typedef struct snd_emu10k1_fx8010_info emu10k1_fx8010_info_t;
+typedef struct snd_emu10k1_fx8010_control_gpr emu10k1_fx8010_control_gpr_t;
+typedef struct snd_emu10k1_fx8010_code emu10k1_fx8010_code_t;
+typedef struct snd_emu10k1_fx8010_tram emu10k1_fx8010_tram_t;
+typedef struct snd_emu10k1_fx8010_pcm_rec emu10k1_fx8010_pcm_t;
 
 #endif	/* __SOUND_EMU10K1_H */
