@@ -1,0 +1,178 @@
+.\"
+.\" Copyright (c) 2003,2006 Yuriy Tsibizov,
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: snd_emu10kx.4,v 1.19 2006/06/07 11:18:57 chibis Exp $
+.\" $FreeBSD$
+.\"
+.Dd May 31, 2003
+.Dt SND_EMU10KX 4
+.Os
+.Sh NAME
+.Nm snd_emu10kx
+.Nd Creative SoundBlaster Live! and Audigy sound cards device driver
+.Sh SYNOPSIS
+.Cd "device sound"
+.Cd "device snd_emu10kx"
+.Cd "options EMU10KX_MULTICHANNEL"
+.Cd "options EMU10KX_DEBUG"
+.Sh DESCRIPTION
+The
+.Nm
+bridge driver allows the generic audio driver
+.Xr sound 4
+to attach to the Creative sound cards based on EMU10K1, CA0100, CA0101, CA0102 
+and CA0108 DSPs.
+.Pp
+.Nm
+sound cards have a PCM part, that's accessible through one to five
+.Xr pcm 4
+devices (see 
+.Sx MULTICHANNEL PLAYBACK
+for details), and MPU401-compatible MIDI I/O controller, that's accessible 
+through  the midi device.
+Wave table synthesizer is not supported.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following sound cards:
+.Pp
+.Bl -bullet -compact
+.It
+Creative Sound Blaster Live!\& (EMU10K1 Chipset). Both PCM and MIDI interfaces
+are available.
+.It
+Creative Sound Blaster Audigy (CA0100 and CA0101 Chipset). PCM and two MIDI 
+interfaces available.
+.It
+Creative Sound Blaster Audigy 2 and Creative Sound Blaster Audigy 4 (CA0102
+Chipset). PCM support is limited to 48kHz/16 bit stereo (192kHz/24 bit part
+of this chipset is not supported).
+.It
+Creative Sound Blaster Audigy 2 Value (CA0108 Chipset). PCM support is limited
+to 48kHz/16 bit stereo (192kHz/24 bit part of this chipset is not supported).\&
+There is no MIDI support for this card.
+.El
+.Pp
+The
+.Nm
+driver does not supports the following sound cards (although they are named
+similar to some supported ones):
+.Pp
+.Bl -bullet -compact
+.It
+Creative Sound Blaster Live!\& 24-Bit, identified by FreeBSD as
+"emu10k1x Soundblaster Live! 5.1".
+.It
+Creative Sound Blaster Audigy LS / ES, identified by FreeBSD as
+"CA0106-DAT Audigy LS".
+.It
+All other cards on -DAT chipsets.
+.El
+.Sh MULTICHANNEL PLAYBACK
+.Pp
+It is possible to build this driver with multichannel playback capabilites. If 
+you enable EMU10KX_MULTICHANNEL option in your kernel configuration (or
+build it as a module) you will get up to five DSP devices, one for each sound
+card output. Only "FRONT" output can play and record sound from external
+sources (like line or S/PDIF inputs).
+.Sh OSS MIXER CONTROLS
+.Pp 
+These are controls available through standard OSS programming interface. 
+You can use 
+.Xr mixer 8
+to change them.
+.Pp
+On EMU10K1-based cards OSS mixer directly control AC97 codec on card. On 
+newer cards OSS mixer control some parameters of AC97 codec and
+some DSP-based mixer controls.
+.Pp
+"vol" mixer control is overall sound volume.
+.Pp
+"pcm" mixer control is PCM playback volume. It controls only front output
+volume in multichannel mode and all outputs volume in single chennel mode.
+.Pp
+"rec" mixer control acts very different on EMU10K1 and other cards.
+On EMU10K1 cards it controls AC97 codec recording level. On non-EMU10K1 cards
+it controls amount of AC97 "stereo mix" entering DSP. AC97 recording
+level and AC97 recording source are fixed 
+on CA0100, CA0101, CA0102 and CA0108 cards. AC97 recording level always set to 
+maximum and recording source is always "stereo mix". 
+.Pp
+Other OSS mixer controls does not work.
+.Sh PRIVATE DEVICE CONTROLS
+.Pp
+You can control most of EMU10Kx operation and configuration parameters through
+dev.emu10kx.X sysctls. This sysctls are temporary and should not be relied
+upon.
+.Sh DRIVER CONFIGURATION
+.Ss Kernel Configuration Options
+The following kernel configuration options control the
+.Nm
+driver.
+.Bl -tag -width EMU10KX_MULTICHANNEL
+.It Em EMU10KX_MULTICHANNEL
+This option enables
+.Sx MULTICHANNEL PLAYBACK
+for all instances of
+.Nm
+driver.
+.It Em EMU10KX_DEBUG
+This option enables additional debug messages.
+.El
+.Pp
+.Sh FILES
+.Bl -tag -width /boot/kernel/snd_emu10kx.ko -compact
+.It Pa /dev/emu10kx?
+emu10kx management interface
+.It Pa /boot/kernel/snd_emu10kx.ko
+emu10kx loadable module
+.El
+.Sh SEE ALSO
+.Xr pcm 4 ,
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in 
+.Sh AUTHORS
+PCM part of driver is based on 
+.Xr emu10k1 9
+SB Live! driver by Cameron Grant, MIDI interface is based on 
+.Xr emu10k1 9
+MIDI interface code by Mathew Kanner.
+.Nm
+device driver and this manual page were written by
+.An Yuriy Tsibizov .
+.Sh BUGS
+8kHz/8bit/mono recording does not work.
+8kHz recording removed from driver capabilites.
+.Pp
+Driver does not detect lost S/PDIF signal and produce noise when S/PDIF
+is not connected and S/PDIF volume is not zero.
+.Pp
+PCM driver can't detect presence of Live!Drive or AudigyDrive breakout boxes
+and tries to use them (and list their connectors in mixer).
+.Pp
+MIDI driver can't detect presence of Live!Drive or AudigyDrive breakout boxes
+and tries to enable IR receiver on them anyway.
