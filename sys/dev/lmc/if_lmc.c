@@ -4826,9 +4826,7 @@ setup_ifnet(struct ifnet *ifp)
   (const char *)ifp->if_name = device_get_name(sc->dev);
   ifp->if_unit  = device_get_unit(sc->dev);
 # elif (__FreeBSD_version >= 502000)
-  ifp->if_dname = device_get_name(sc->dev);
-  ifp->if_dunit = device_get_unit(sc->dev);
-  strlcpy(ifp->if_xname, device_get_nameunit(sc->dev), IFNAMSIZ);
+  if_initname(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));
 # elif defined(__NetBSD__)
   strcpy(ifp->if_xname, sc->dev.dv_xname);
 # elif __OpenBSD__
