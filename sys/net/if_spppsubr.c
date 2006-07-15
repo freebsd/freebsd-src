@@ -5011,16 +5011,15 @@ sppp_get_ip6_addrs(struct sppp *sp, struct in6_addr *src, struct in6_addr *dst,
 	 * Pick the first link-local AF_INET6 address from the list,
 	 * aliases don't make any sense on a p2p link anyway.
 	 */
+	si = 0;
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
-	for (ifa = ifp->if_addrhead.tqh_first, si = 0;
-	     ifa;
-	     ifa = ifa->ifa_link.tqe_next)
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 #elif defined(__NetBSD__) || defined (__OpenBSD__)
-	for (ifa = ifp->if_addrlist.tqh_first, si = 0;
+	for (ifa = ifp->if_addrlist.tqh_first;
 	     ifa;
 	     ifa = ifa->ifa_list.tqe_next)
 #else
-	for (ifa = ifp->if_addrlist, si = 0;
+	for (ifa = ifp->if_addrlist;
 	     ifa;
 	     ifa = ifa->ifa_next)
 #endif
@@ -5077,9 +5076,7 @@ sppp_set_ip6_addr(struct sppp *sp, const struct in6_addr *src)
 
 	sin6 = NULL;
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
-	for (ifa = ifp->if_addrhead.tqh_first;
-	     ifa;
-	     ifa = ifa->ifa_link.tqe_next)
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 #elif defined(__NetBSD__) || defined (__OpenBSD__)
 	for (ifa = ifp->if_addrlist.tqh_first;
 	     ifa;
