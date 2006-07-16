@@ -1,6 +1,4 @@
 /*-
- * Qlogic Host Adapter Internal Library Functions
- *
  * Copyright (c) 1999-2006 by Matthew Jacob
  * All rights reserved.
  *
@@ -26,15 +24,15 @@
  * SUCH DAMAGE.
  *
  */
-#ifdef	__FreeBSD__
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-#endif
-
+/*
+ * Qlogic Host Adapter Internal Library Functions
+ */
 #ifdef	__NetBSD__
 #include <dev/ic/isp_netbsd.h>
 #endif
 #ifdef	__FreeBSD__
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 #include <dev/isp/isp_freebsd.h>
 #endif
 #ifdef	__OpenBSD__
