@@ -560,6 +560,20 @@ struct mpt_softc {
 #define	mpt_fcport_speed	cfg.fc._port_speed
 		} fc;
 	} cfg;
+#if __FreeBSD_version >= 500000  
+	/*
+	 * Device config information stored up for sysctl to access
+	 */
+	union {
+		struct {
+			unsigned int initiator_id;
+		} spi;
+		struct {
+			char wwnn[19];
+			char wwpn[19];
+		} fc;
+	} scinfo;
+#endif
 
 	/* Controller Info for RAID information */
 	CONFIG_PAGE_IOC_2 *	ioc_page2;
