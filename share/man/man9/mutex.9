@@ -91,7 +91,7 @@
 .Ft void
 .Fn mtx_assert "struct mtx *mutex" "int what"
 .In sys/kernel.h
-.Fn MTX_SYSINIT "name" "struct mutex *mtx" "const char *description" "int opts"
+.Fn MTX_SYSINIT "name" "struct mtx *mtx" "const char *description" "int opts"
 .Sh DESCRIPTION
 Mutexes are the most basic and primary method of thread synchronization.
 The major design considerations for mutexes are:
