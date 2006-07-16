@@ -76,6 +76,8 @@ g_raid3_find_disk(struct g_raid3_softc *sc, const char *name)
 	u_int n;
 
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
+	if (strncmp(name, "/dev/", 5) == 0)
+		name += 5;
 	for (n = 0; n < sc->sc_ndisks; n++) {
 		disk = &sc->sc_disks[n];
 		if (disk->d_state == G_RAID3_DISK_STATE_NODISK)
@@ -102,7 +104,6 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	int *verify, *noverify;
 	u_int n;
 
-	g_topology_assert();
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
 		gctl_error(req, "No '%s' argument.", "nargs");
@@ -402,6 +403,8 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No '%s' argument.", "no");
 		return;
 	}
+	if (strncmp(name, "/dev/", 5) == 0)
+		name += 5;
 	g_topology_lock();
 	pp = g_provider_by_name(name);
 	if (pp == NULL) {
