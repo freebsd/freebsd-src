@@ -2393,14 +2393,17 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 		req->state &= ~REQ_STATE_QUEUED;
 		req->state |= REQ_STATE_DONE;
-		if ((req->state & REQ_STATE_NEED_WAKEUP) == 0) {
+		if (req->state & REQ_STATE_TIMEDOUT) {
+			mpt_lprt(mpt, MPT_PRT_DEBUG,
+			    "Sync Primitive Send Completed After Timeout\n");
+			mpt_free_request(mpt, req);
+		} else if ((req->state & REQ_STATE_NEED_WAKEUP) == 0) {
 			mpt_lprt(mpt, MPT_PRT_DEBUG,
 			    "Async Primitive Send Complete\n");
-			TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 			mpt_free_request(mpt, req);
 		} else {
 			mpt_lprt(mpt, MPT_PRT_DEBUG,
-			    "Sync Primitive Send Complete\n");
+			    "Sync Primitive Send Complete- Waking Waiter\n");
 			wakeup(req);
 		}
 		return (TRUE);
