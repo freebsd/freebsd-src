@@ -1070,23 +1070,19 @@ vfs_write_suspend(mp)
 	struct thread *td = curthread;
 	int error;
 
-	error = 0;
 	MNT_ILOCK(mp);
-	if (mp->mnt_kern_flag & MNTK_SUSPEND)
-		goto unlock;
+	if (mp->mnt_kern_flag & MNTK_SUSPEND) {
+		MNT_IUNLOCK(mp);
+		return (0);
+	}
 	mp->mnt_kern_flag |= MNTK_SUSPEND;
 	if (mp->mnt_writeopcount > 0)
 		(void) msleep(&mp->mnt_writeopcount, 
 		    MNT_MTX(mp), (PUSER - 1)|PDROP, "suspwt", 0);
 	else
 		MNT_IUNLOCK(mp);
-	if ((error = VFS_SYNC(mp, MNT_SUSPEND, td)) != 0) {
+	if ((error = VFS_SYNC(mp, MNT_SUSPEND, td)) != 0)
 		vfs_write_resume(mp);
-		return (error);
-	}
-	MNT_ILOCK(mp);
-unlock:
-	MNT_IUNLOCK(mp);
 	return (error);
 }
 
