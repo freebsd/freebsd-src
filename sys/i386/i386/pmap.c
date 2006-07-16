@@ -322,9 +322,7 @@ pmap_kmem_choose(vm_offset_t addr)
  *	(physical) address starting relative to 0]
  */
 void
-pmap_bootstrap(firstaddr, loadaddr)
-	vm_paddr_t firstaddr;
-	vm_paddr_t loadaddr;
+pmap_bootstrap(vm_paddr_t firstaddr, vm_paddr_t loadaddr)
 {
 	vm_offset_t va;
 	pt_entry_t *pte, *unused;
@@ -1153,8 +1151,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va)
 }
 
 void
-pmap_pinit0(pmap)
-	struct pmap *pmap;
+pmap_pinit0(pmap_t pmap)
 {
 
 	PMAP_LOCK_INIT(pmap);
@@ -1176,8 +1173,7 @@ pmap_pinit0(pmap)
  * such as one in a vmspace structure.
  */
 void
-pmap_pinit(pmap)
-	register struct pmap *pmap;
+pmap_pinit(pmap_t pmap)
 {
 	vm_page_t m, ptdpg[NPGPTD];
 	vm_paddr_t pa;
@@ -1394,7 +1390,7 @@ pmap_lazyfix(pmap_t pmap)
 {
 	u_int mymask;
 	u_int mask;
-	register u_int spins;
+	u_int spins;
 
 	while ((mask = pmap->pm_active) != 0) {
 		spins = 50000000;
@@ -2062,7 +2058,7 @@ out:
 void
 pmap_remove_all(vm_page_t m)
 {
-	register pv_entry_t pv;
+	pv_entry_t pv;
 	pmap_t pmap;
 	pt_entry_t *pte, tpte;
 
@@ -2223,7 +2219,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 {
 	vm_paddr_t pa;
 	pd_entry_t *pde;
-	register pt_entry_t *pte;
+	pt_entry_t *pte;
 	vm_paddr_t opa;
 	pt_entry_t origpte, newpte;
 	vm_page_t mpte, om;
@@ -2636,12 +2632,9 @@ out:
  *			The mapping must already exist in the pmap.
  */
 void
-pmap_change_wiring(pmap, va, wired)
-	register pmap_t pmap;
-	vm_offset_t va;
-	boolean_t wired;
+pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 {
-	register pt_entry_t *pte;
+	pt_entry_t *pte;
 
 	PMAP_LOCK(pmap);
 	pte = pmap_pte(pmap, va);
@@ -2887,9 +2880,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
  * subset of pmaps for proper page aging.
  */
 boolean_t
-pmap_page_exists_quick(pmap, m)
-	pmap_t pmap;
-	vm_page_t m;
+pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 {
 	pv_entry_t pv;
 	int loops = 0;
@@ -3079,7 +3070,7 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 static __inline void
 pmap_clear_ptes(vm_page_t m, int bit)
 {
-	register pv_entry_t pv;
+	pv_entry_t pv;
 	pmap_t pmap;
 	pt_entry_t pbits, *pte;
 
@@ -3156,7 +3147,7 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 int
 pmap_ts_referenced(vm_page_t m)
 {
-	register pv_entry_t pv, pvf, pvn;
+	pv_entry_t pv, pvf, pvn;
 	pmap_t pmap;
 	pt_entry_t *pte;
 	pt_entry_t v;
@@ -3164,28 +3155,20 @@ pmap_ts_referenced(vm_page_t m)
 
 	if (m->flags & PG_FICTITIOUS)
 		return (rtval);
-
 	sched_pin();
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
-
 		pvf = pv;
-
 		do {
 			pvn = TAILQ_NEXT(pv, pv_list);
-
 			TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-
 			TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
-
 			pmap = PV_PMAP(pv);
 			PMAP_LOCK(pmap);
 			pte = pmap_pte_quick(pmap, pv->pv_va);
-
 			if (pte && ((v = pte_load(pte)) & PG_A) != 0) {
 				atomic_clear_int((u_int *)pte, PG_A);
 				pmap_invalidate_page(pmap, pv->pv_va);
-
 				rtval++;
 				if (rtval > 4) {
 					PMAP_UNLOCK(pmap);
@@ -3196,7 +3179,6 @@ pmap_ts_referenced(vm_page_t m)
 		} while ((pv = pvn) != NULL && pv != pvf);
 	}
 	sched_unpin();
-
 	return (rtval);
 }
 
@@ -3231,9 +3213,7 @@ pmap_clear_reference(vm_page_t m)
  * NOT real memory.
  */
 void *
-pmap_mapdev(pa, size)
-	vm_paddr_t pa;
-	vm_size_t size;
+pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 {
 	vm_offset_t va, tmpva, offset;
 
@@ -3259,9 +3239,7 @@ pmap_mapdev(pa, size)
 }
 
 void
-pmap_unmapdev(va, size)
-	vm_offset_t va;
-	vm_size_t size;
+pmap_unmapdev(vm_offset_t va, vm_size_t size)
 {
 	vm_offset_t base, offset, tmpva;
 
@@ -3280,9 +3258,7 @@ pmap_unmapdev(va, size)
  * perform the pmap work for mincore
  */
 int
-pmap_mincore(pmap, addr)
-	pmap_t pmap;
-	vm_offset_t addr;
+pmap_mincore(pmap_t pmap, vm_offset_t addr)
 {
 	pt_entry_t *ptep, pte;
 	vm_page_t m;
@@ -3451,8 +3427,7 @@ void		pmap_pvdump(vm_offset_t pa);
 
 /* print address space of pmap*/
 static void
-pads(pm)
-	pmap_t pm;
+pads(pmap_t pm)
 {
 	int i, j;
 	vm_paddr_t va;
@@ -3476,8 +3451,7 @@ pads(pm)
 }
 
 void
-pmap_pvdump(pa)
-	vm_paddr_t pa;
+pmap_pvdump(vm_paddr_t pa)
 {
 	pv_entry_t pv;
 	pmap_t pmap;
