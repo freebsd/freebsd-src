@@ -803,7 +803,7 @@ emu_pcm_attach(device_t dev)
 	unsigned int i;
 	char status[SND_STATUSLEN];
 	uint32_t inte, ipr;
-	uintptr_t route, r;
+	uintptr_t route, r, is_emu10k1;
 
 	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
@@ -820,7 +820,8 @@ emu_pcm_attach(device_t dev)
 	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
 	sc->dev = dev;
 
-	r = BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ISEMU10K1, &(sc->is_emu10k1));
+	r = BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ISEMU10K1, &is_emu10k1);
+	sc->is_emu10k1 = is_emu10k1 ? 1 : 0;
 
 	sc->codec = NULL;
 
