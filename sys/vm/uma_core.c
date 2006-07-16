@@ -244,7 +244,6 @@ static uma_zone_t uma_kcreate(uma_zone_t zone, size_t size, uma_init uminit,
 
 void uma_print_zone(uma_zone_t);
 void uma_print_stats(void);
-static int sysctl_vm_zone(SYSCTL_HANDLER_ARGS);
 static int sysctl_vm_zone_count(SYSCTL_HANDLER_ARGS);
 static int sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS);
 
@@ -255,8 +254,6 @@ static int nosleepwithlocks = 0;
 #endif
 SYSCTL_INT(_debug, OID_AUTO, nosleepwithlocks, CTLFLAG_RW, &nosleepwithlocks,
     0, "Convert M_WAITOK to M_NOWAIT to avoid lock-held-across-sleep paths");
-SYSCTL_OID(_vm, OID_AUTO, zone, CTLTYPE_STRING|CTLFLAG_RD,
-    NULL, 0, sysctl_vm_zone, "A", "Zone Info");
 SYSINIT(uma_startup3, SI_SUB_VM_CONF, SI_ORDER_SECOND, uma_startup3, NULL);
 
 SYSCTL_PROC(_vm, OID_AUTO, zone_count, CTLFLAG_RD|CTLTYPE_INT,
@@ -2811,83 +2808,6 @@ uma_zone_sumstat(uma_zone_t z, int *cachefreep, u_int64_t *allocsp,
 		*allocsp = allocs;
 	if (freesp != NULL)
 		*freesp = frees;
-}
-
-/*
- * Sysctl handler for vm.zone
- *
- * stolen from vm_zone.c
- */
-static int
-sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
-{
-	int error, len, cnt;
-	const int linesize = 128;	/* conservative */
-	int totalfree;
-	char *tmpbuf, *offset;
-	uma_zone_t z;
-	uma_keg_t zk;
-	char *p;
-	int cachefree;
-	uma_bucket_t bucket;
-	u_int64_t allocs, frees;
-
-	cnt = 0;
-	mtx_lock(&uma_mtx);
-	LIST_FOREACH(zk, &uma_kegs, uk_link) {
-		LIST_FOREACH(z, &zk->uk_zones, uz_link)
-			cnt++;
-	}
-	mtx_unlock(&uma_mtx);
-	MALLOC(tmpbuf, char *, (cnt == 0 ? 1 : cnt) * linesize,
-			M_TEMP, M_WAITOK);
-	len = snprintf(tmpbuf, linesize,
-	    "\nITEM            SIZE     LIMIT     USED    FREE  REQUESTS\n\n");
-	if (cnt == 0)
-		tmpbuf[len - 1] = '\0';
-	error = SYSCTL_OUT(req, tmpbuf, cnt == 0 ? len-1 : len);
-	if (error || cnt == 0)
-		goto out;
-	offset = tmpbuf;
-	mtx_lock(&uma_mtx);
-	LIST_FOREACH(zk, &uma_kegs, uk_link) {
-	  LIST_FOREACH(z, &zk->uk_zones, uz_link) {
-		if (cnt == 0)	/* list may have changed size */
-			break;
-		ZONE_LOCK(z);
-		cachefree = 0;
-		if (!(zk->uk_flags & UMA_ZFLAG_INTERNAL)) {
-			uma_zone_sumstat(z, &cachefree, &allocs, &frees);
-		} else {
-			allocs = z->uz_allocs;
-			frees = z->uz_frees;
-		}
-
-		LIST_FOREACH(bucket, &z->uz_full_bucket, ub_link) {
-			cachefree += bucket->ub_cnt;
-		}
-		totalfree = zk->uk_free + cachefree;
-		len = snprintf(offset, linesize,
-		    "%-12.12s  %6.6u, %8.8u, %6.6u, %6.6u, %8.8llu\n",
-		    z->uz_name, zk->uk_size,
-		    zk->uk_maxpages * zk->uk_ipers,
-		    (zk->uk_ipers * (zk->uk_pages / zk->uk_ppera)) - totalfree,
-		    totalfree,
-		    (unsigned long long)allocs);
-		ZONE_UNLOCK(z);
-		for (p = offset + 12; p > offset && *p == ' '; --p)
-			/* nothing */ ;
-		p[1] = ':';
-		cnt--;
-		offset += len;
-	  }
-	}
-	mtx_unlock(&uma_mtx);
-	*offset++ = '\0';
-	error = SYSCTL_OUT(req, tmpbuf, offset - tmpbuf);
-out:
-	FREE(tmpbuf, M_TEMP);
-	return (error);
 }
 
 static int
