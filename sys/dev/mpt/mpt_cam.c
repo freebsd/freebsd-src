@@ -105,6 +105,8 @@ __FBSDID("$FreeBSD$");
 #include "dev/mpt/mpilib/mpi_targ.h"
 #include "dev/mpt/mpilib/mpi_fc.h"
 
+#include <sys/sysctl.h>
+
 #include <sys/callout.h>
 #include <sys/kthread.h>
 
@@ -424,7 +426,31 @@ mpt_read_config_info_fc(struct mpt_softc *mpt)
 	    mpt->mpt_fcport_page0.WWPN.High,
 	    mpt->mpt_fcport_page0.WWPN.Low,
 	    mpt->mpt_fcport_speed);
+#if __FreeBSD_version >= 500000
+	{
+		struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(mpt->dev);
+		struct sysctl_oid *tree = device_get_sysctl_tree(mpt->dev);
 
+		snprintf(mpt->scinfo.fc.wwnn,
+		    sizeof (mpt->scinfo.fc.wwnn), "0x%08x%08x",
+		    mpt->mpt_fcport_page0.WWNN.High,
+		    mpt->mpt_fcport_page0.WWNN.Low);
+
+		snprintf(mpt->scinfo.fc.wwpn,
+		    sizeof (mpt->scinfo.fc.wwpn), "0x%08x%08x",
+		    mpt->mpt_fcport_page0.WWPN.High,
+		    mpt->mpt_fcport_page0.WWPN.Low);
+
+		SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		       "wwnn", CTLFLAG_RD, mpt->scinfo.fc.wwnn, 0,
+		       "World Wide Node Name");
+
+		SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		       "wwpn", CTLFLAG_RD, mpt->scinfo.fc.wwpn, 0,
+		       "World Wide Port Name");
+
+	}
+#endif
 	return (0);
 }
 
