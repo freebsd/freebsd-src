@@ -197,7 +197,7 @@ sysctl_maxsockets(SYSCTL_HANDLER_ARGS)
 	int error, newmaxsockets;
 
 	newmaxsockets = maxsockets;
-	error = sysctl_handle_int(oidp, &newmaxsockets, sizeof(int), req); 
+	error = sysctl_handle_int(oidp, &newmaxsockets, sizeof(int), req);
 	if (error == 0 && req->newptr) {
 		if (newmaxsockets > maxsockets) {
 			maxsockets = newmaxsockets;
@@ -217,7 +217,7 @@ SYSCTL_PROC(_kern_ipc, OID_AUTO, maxsockets, CTLTYPE_INT|CTLFLAG_RW,
     "Maximum number of sockets avaliable");
 
 /*
- * Initialise maxsockets 
+ * Initialise maxsockets.
  */
 static void init_maxsockets(void *ignored)
 {
@@ -664,9 +664,9 @@ drop:
 }
 
 /*
- * soabort() allows the socket code or protocol code to detach a socket that
- * has been in an incomplete or completed listen queue, but has not yet been
- * accepted.
+ * soabort() is used to abruptly tear down a connection, such as when a
+ * resource limit is reached (listen queue depth exceeded), or if a listen
+ * socket is closed while there are sockets waiting to be accepted.
  *
  * This interface is tricky, because it is called on an unreferenced socket,
  * and must be called only by a thread that has actually removed the socket
@@ -830,7 +830,7 @@ sosend_copyin(struct uio *uio, struct mbuf **retmp, int atomic, long *space,
 					goto out;
 				}
 				m->m_pkthdr.len = 0;
-				m->m_pkthdr.rcvif = NULL; 
+				m->m_pkthdr.rcvif = NULL;
 			} else {
 				MGET(m, M_TRYWAIT, MT_DATA);
 				if (m == NULL) {
@@ -1680,9 +1680,9 @@ dontblock:
 						SOCKBUF_LOCK(&so->so_rcv);
  					if (*mp == NULL) {
  						/*
- 						 * m_copym() couldn't allocate an mbuf. 
-						 * Adjust uio_resid back (it was adjusted 
-						 * down by len bytes, which we didn't end 
+ 						 * m_copym() couldn't allocate an mbuf.
+						 * Adjust uio_resid back (it was adjusted
+						 * down by len bytes, which we didn't end
 						 * up "copying" over).
  						 */
  						uio->uio_resid += len;
@@ -1765,11 +1765,11 @@ dontblock:
 		SBLASTRECORDCHK(&so->so_rcv);
 		SBLASTMBUFCHK(&so->so_rcv);
 		/*
-		 * If soreceive() is being done from the socket callback, then 
-		 * don't need to generate ACK to peer to update window, since 
+		 * If soreceive() is being done from the socket callback, then
+		 * don't need to generate ACK to peer to update window, since
 		 * ACK will be generated on return to TCP.
 		 */
-		if (!(flags & MSG_SOCALLBCK) && 
+		if (!(flags & MSG_SOCALLBCK) &&
 		    (pr->pr_flags & PR_WANTRCVD)) {
 			SOCKBUF_UNLOCK(&so->so_rcv);
 			(*pr->pr_usrreqs->pru_rcvd)(so, flags);
