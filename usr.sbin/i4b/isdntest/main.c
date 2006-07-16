@@ -95,7 +95,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "\n");
-	fprintf(stderr, "isdntest - i4b selftest, version %d.%d.%d, compiled %s %s\n",VERSION, REL, STEP, __DATE__, __TIME__);
+	fprintf(stderr, "isdntest - i4b selftest, version %d.%d.%d\n",VERSION, REL, STEP);
 	fprintf(stderr, "usage: isdntest [-c ctrl] [-d level] [-h] [-i telno] [-o telno] [-t num] [-w]\n");
 	fprintf(stderr, "       -c <ctrl>     specify controller to use\n");
 	fprintf(stderr, "       -d <level>    set debug level\n");	

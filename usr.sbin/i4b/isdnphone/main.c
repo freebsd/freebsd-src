@@ -45,7 +45,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "\n");
-	fprintf(stderr, "isdnphone - i4b phone program, version %d.%d.%d, compiled %s %s\n",VERSION, REL, STEP, __DATE__, __TIME__);
+	fprintf(stderr, "isdnphone - i4b phone program, version %d.%d.%d\n",VERSION, REL, STEP);
 	fprintf(stderr, "usage: isdnphone -d -h -k <string> -n <number> -u <unit> -v -w\n");
 	fprintf(stderr, "       -d            debug\n");
 	fprintf(stderr, "       -h            hangup\n");

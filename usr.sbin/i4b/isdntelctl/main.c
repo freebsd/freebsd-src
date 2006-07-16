@@ -213,7 +213,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "\n");
-	fprintf(stderr, "isdntelctl - %si4btel control, version %d.%d.%d (%s %s)\n", _PATH_DEV, VERSION, REL, STEP, __DATE__, __TIME__);
+	fprintf(stderr, "isdntelctl - %si4btel control, version %d.%d.%d\n", _PATH_DEV, VERSION, REL, STEP);
 	fprintf(stderr, "usage: isdntelctl -c -g -u <unit> -A -N -U\n");
 	fprintf(stderr, "       -c            clear input queue\n");
 	fprintf(stderr, "       -g            get current settings\n");

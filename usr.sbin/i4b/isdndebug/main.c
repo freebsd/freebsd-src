@@ -82,7 +82,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "\n");
-	fprintf(stderr, "isdndebug - i4b set debug level, version %d.%d.%d, compiled %s %s\n", VERSION, REL, STEP, __DATE__, __TIME__);
+	fprintf(stderr, "isdndebug - i4b set debug level, version %d.%d.%d\n", VERSION, REL, STEP);
 	fprintf(stderr, "usage: isdndebug -c -e -g -l <layer> -m -q -r -s <value> -u <unit> -z -C -Q\n");
 	fprintf(stderr, "       -c            get chipset statistics\n");
 	fprintf(stderr, "       -e            set error only debugging output\n");
