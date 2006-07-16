@@ -2736,12 +2736,14 @@ g_mirror_access(struct g_provider *pp, int acr, int acw, int ace)
 	G_MIRROR_DEBUG(2, "Access request for %s: r%dw%de%d.", pp->name, acr,
 	    acw, ace);
 
+	sc = pp->geom->softc;
+	if (sc == NULL && acr <= 0 && acw <= 0 && ace <= 0)
+		return (0);
+	KASSERT(sc != NULL, ("NULL softc (provider=%s).", pp->name));
+
 	dcr = pp->acr + acr;
 	dcw = pp->acw + acw;
 	dce = pp->ace + ace;
-
-	sc = pp->geom->softc;
-	KASSERT(sc != NULL, ("NULL softc (provider=%s).", pp->name));
 
 	g_topology_unlock();
 	sx_xlock(&sc->sc_lock);
@@ -3001,7 +3003,7 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		    pp->name, gp->name, error);
 		if (LIST_EMPTY(&sc->sc_disks)) {
 			g_cancel_event(sc);
-			g_mirror_destroy(sc, 1);
+			g_mirror_destroy(sc, G_MIRROR_DESTROY_HARD);
 			g_topology_lock();
 			return (NULL);
 		}
@@ -3023,7 +3025,7 @@ g_mirror_destroy_geom(struct gctl_req *req __unused,
 	sc = gp->softc;
 	sx_xlock(&sc->sc_lock);
 	g_cancel_event(sc);
-	error = g_mirror_destroy(gp->softc, 0);
+	error = g_mirror_destroy(gp->softc, G_MIRROR_DESTROY_SOFT);
 	if (error != 0)
 		sx_xunlock(&sc->sc_lock);
 	g_topology_lock();
