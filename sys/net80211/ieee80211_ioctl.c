@@ -2321,6 +2321,13 @@ ieee80211_ioctl_set80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 			error = EINVAL;
 			break;
 		}
+		if (error == ENETRESET) {
+			/*
+			 * Switching in+out of power save mode
+			 * should not require a state change.
+			 */
+			error = IS_UP(ic) ? ic->ic_reset(ic->ic_ifp) : 0;
+		}
 		break;
 	case IEEE80211_IOC_POWERSAVESLEEP:
 		if (ireq->i_val < 0)
