@@ -25,11 +25,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-#ifdef	__FreeBSD__
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-#endif
-
 /*
  * Bug fixes gratefully acknowledged from:
  *	Oded Kedem <oded@kashya.com>
@@ -42,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ic/isp_netbsd.h>
 #endif
 #ifdef	__FreeBSD__
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 #include <dev/isp/isp_freebsd.h>
 #endif
 #ifdef	__OpenBSD__
