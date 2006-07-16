@@ -137,7 +137,7 @@ static void
 usage()
 {
         fprintf(stderr, "\n");
-        fprintf(stderr, "isdnmonitor - version %02d.%02d.%d, %s %s (protocol %02d.%02d)\n", VERSION, REL, STEP, __DATE__, __TIME__, MPROT_VERSION, MPROT_REL);
+        fprintf(stderr, "isdnmonitor - version %02d.%02d.%d, (protocol %02d.%02d)\n", VERSION, REL, STEP, MPROT_VERSION, MPROT_REL);
 #ifdef FOREIGN
         fprintf(stderr, "  usage: isdnmonitor [-c] [-d val] [-f name] [-h host] [-p port]\n");
 #else
