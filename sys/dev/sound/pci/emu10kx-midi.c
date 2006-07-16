@@ -135,7 +135,7 @@ static int
 emu_midi_probe(device_t dev)
 {
 	struct emu_midi_softc *scp;
-	uintptr_t func, r;
+	uintptr_t func, r, is_emu10k1;
 
 	r = BUS_READ_IVAR(device_get_parent(dev), dev, 0, &func);
 	if (func != SCF_MIDI)
@@ -143,7 +143,8 @@ emu_midi_probe(device_t dev)
 
 	scp = device_get_softc(dev);
 	bzero(scp, sizeof(*scp));
-	r = BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ISEMU10K1, &(scp->is_emu10k1));
+	r = BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ISEMU10K1, &is_emu10k1);
+	scp->is_emu10k1 = is_emu10k1 ? 1 : 0;
 
 	device_set_desc(dev, "EMU10Kx MIDI Interface");
 	return (0);
