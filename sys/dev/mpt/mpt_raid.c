@@ -112,7 +112,6 @@ static int mpt_spawn_raid_thread(struct mpt_softc *mpt);
 static void mpt_terminate_raid_thread(struct mpt_softc *mpt);
 static void mpt_raid_thread(void *arg);
 static timeout_t mpt_raid_timer;
-static timeout_t mpt_raid_quiesce_timeout;
 #if 0
 static void mpt_enable_vol(struct mpt_softc *mpt,
 			   struct mpt_raid_volume *mpt_vol, int enable);
@@ -724,6 +723,15 @@ mpt_raid_thread(void *arg)
 	kthread_exit(0);
 }
 
+#if 0
+static void
+mpt_raid_quiesce_timeout(void *arg)
+{
+	/* Complete the CCB with error */
+	/* COWWWW */
+}
+
+static timeout_t mpt_raid_quiesce_timeout;
 cam_status
 mpt_raid_quiesce_disk(struct mpt_softc *mpt, struct mpt_raid_disk *mpt_disk,
 		      request_t *req)
@@ -773,6 +781,7 @@ mpt_raid_quiesce_disk(struct mpt_softc *mpt, struct mpt_raid_disk *mpt_disk,
 	}
 	return (CAM_REQUEUE_REQ);
 }
+#endif
 
 /* XXX Ignores that there may be multiple busses/IOCs involved. */
 cam_status
@@ -1503,13 +1512,6 @@ mpt_raid_timer(void *arg)
 	MPT_LOCK(mpt);
 	mpt_raid_wakeup(mpt);
 	MPT_UNLOCK(mpt);
-}
-
-static void
-mpt_raid_quiesce_timeout(void *arg)
-{
-	/* Complete the CCB with error */
-	/* COWWWW */
 }
 
 void
