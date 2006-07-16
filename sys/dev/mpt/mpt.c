@@ -483,6 +483,11 @@ mpt_config_reply_handler(struct mpt_softc *mpt, request_t *req,
 		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 		if ((req->state & REQ_STATE_NEED_WAKEUP) != 0) {
 			wakeup(req);
+		} else if ((req->state & REQ_STATE_TIMEDOUT) != 0) {
+			/*
+			 * Whew- we can free this request (late completion)
+			 */
+			mpt_free_request(mpt, req);
 		}
 	}
 
@@ -1282,6 +1287,7 @@ mpt_wait_req(struct mpt_softc *mpt, request_t *req,
 	}
 	if (time_ms && timeout <= 0) {
 		MSG_REQUEST_HEADER *msg_hdr = req->req_vbuf;
+		req->state |= REQ_STATE_TIMEDOUT;
 		mpt_prt(mpt, "mpt_wait_req(%x) timed out\n", msg_hdr->Function);
 		return (ETIMEDOUT);
 	}
@@ -1560,7 +1566,12 @@ mpt_read_cfg_header(struct mpt_softc *mpt, int PageType, int PageNumber,
 				  PageType, PageAddress, /*addr*/0, /*len*/0,
 				  sleep_ok, timeout_ms);
 	if (error != 0) {
-		mpt_free_request(mpt, req);
+		/*
+		 * Leave the request. Without resetting the chip, it's
+		 * still owned by it and we'll just get into trouble
+		 * freeing it now. Mark it as abandoned so that if it
+		 * shows up later it can be freed.
+		 */
 		mpt_prt(mpt, "read_cfg_header timed out\n");
 		return (ETIMEDOUT);
 	}
