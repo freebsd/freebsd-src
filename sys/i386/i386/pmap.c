@@ -3150,7 +3150,6 @@ pmap_ts_referenced(vm_page_t m)
 	pv_entry_t pv, pvf, pvn;
 	pmap_t pmap;
 	pt_entry_t *pte;
-	pt_entry_t v;
 	int rtval = 0;
 
 	if (m->flags & PG_FICTITIOUS)
@@ -3166,14 +3165,12 @@ pmap_ts_referenced(vm_page_t m)
 			pmap = PV_PMAP(pv);
 			PMAP_LOCK(pmap);
 			pte = pmap_pte_quick(pmap, pv->pv_va);
-			if (pte && ((v = pte_load(pte)) & PG_A) != 0) {
+			if ((*pte & PG_A) != 0) {
 				atomic_clear_int((u_int *)pte, PG_A);
 				pmap_invalidate_page(pmap, pv->pv_va);
 				rtval++;
-				if (rtval > 4) {
-					PMAP_UNLOCK(pmap);
-					break;
-				}
+				if (rtval > 4)
+					pvn = NULL;
 			}
 			PMAP_UNLOCK(pmap);
 		} while ((pv = pvn) != NULL && pv != pvf);
