@@ -282,6 +282,7 @@ le_uuid_dec(void const *buf, struct uuid *uuid)
 	for (i = 0; i < _UUID_NODE_LEN; i++)
 		uuid->node[i] = p[10 + i];
 }
+
 void
 be_uuid_enc(void *buf, struct uuid const *uuid)
 {
