@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 16, 2006
+.Dd July 17, 2006
 .Os
 .Dt IWI 4
 .Sh NAME
@@ -39,6 +39,7 @@ kernel configuration file:
 .Cd "device iwi"
 .Cd "device pci"
 .Cd "device wlan"
+.Cd "device firmware"
 .Ed
 .Pp
 Alternatively, to load the driver as a
@@ -47,6 +48,7 @@ module at boot time, place the following lines in
 .Bd -literal -offset indent
 if_iwi_load="YES"
 wlan_load="YES"
+firmware_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
