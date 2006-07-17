@@ -101,8 +101,7 @@ _thr_gc(struct pthread *curthread)
 	THREAD_LIST_LOCK(curthread);
 
 	/* Check the threads waiting for GC. */
-	for (td = TAILQ_FIRST(&_thread_gc_list); td != NULL; td = td_next) {
-		td_next = TAILQ_NEXT(td, gcle);
+	TAILQ_FOREACH_SAFE(td, &_thread_gc_list, gcle, td_next) {
 		if (td->tid != TID_TERMINATED) {
 			/* make sure we are not still in userland */
 			continue;
