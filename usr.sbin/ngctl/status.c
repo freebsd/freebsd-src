@@ -53,7 +53,7 @@ const struct ngcmd status_cmd = {
 	"status <path>",
 	"Get human readable status information from the node at <path>",
 	NULL,
-	{}
+	{ NULL }
 };
 
 static int

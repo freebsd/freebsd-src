@@ -54,7 +54,7 @@ const struct ngcmd mkpeer_cmd = {
 	" connection are \"hook\" on the original node and \"peerhook\""
 	" on the new node."
 	" If \"path\" is omitted then \".\" is assumed.",
-	{}
+	{ NULL }
 };
 
 static int
