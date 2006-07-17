@@ -1627,6 +1627,7 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	int idx, field, bit;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	PV_STAT(pv_entry_frees++);
 	PV_STAT(pv_entry_spare++);
 	pv_entry_count--;
@@ -2015,8 +2016,8 @@ pmap_remove_all(vm_page_t m)
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 		m->md.pv_list_count--;
 		pmap_unuse_pt(pmap, pv->pv_va, ptepde);
-		PMAP_UNLOCK(pmap);
 		free_pv_entry(pmap, pv);
+		PMAP_UNLOCK(pmap);
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
 }
