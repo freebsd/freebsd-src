@@ -796,7 +796,7 @@ pcm_getdevinfo(device_t dev)
 }
 
 unsigned int
-pcm_getbuffersize(device_t dev, unsigned int min, unsigned int deflt, unsigned int max)
+pcm_getbuffersize(device_t dev, unsigned int minbufsz, unsigned int deflt, unsigned int maxbufsz)
 {
 	struct snddev_info *d = device_get_softc(dev);
 	int sz, x;
@@ -804,10 +804,10 @@ pcm_getbuffersize(device_t dev, unsigned int min, unsigned int deflt, unsigned i
 	sz = 0;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "buffersize", &sz) == 0) {
 		x = sz;
-		RANGE(sz, min, max);
+		RANGE(sz, minbufsz, maxbufsz);
 		if (x != sz)
-			device_printf(dev, "'buffersize=%d' hint is out of range (%d-%d), using %d\n", x, min, max, sz);
-		x = min;
+			device_printf(dev, "'buffersize=%d' hint is out of range (%d-%d), using %d\n", x, minbufsz, maxbufsz, sz);
+		x = minbufsz;
 		while (x < sz)
 			x <<= 1;
 		if (x > sz)

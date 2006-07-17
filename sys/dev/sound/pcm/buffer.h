@@ -93,7 +93,7 @@ void sndbuf_setrun(struct snd_dbuf *b, int go);
 struct selinfo *sndbuf_getsel(struct snd_dbuf *b);
 
 unsigned int sndbuf_getxrun(struct snd_dbuf *b);
-void sndbuf_setxrun(struct snd_dbuf *b, unsigned int cnt);
+void sndbuf_setxrun(struct snd_dbuf *b, unsigned int xrun);
 unsigned int sndbuf_gethwptr(struct snd_dbuf *b);
 void sndbuf_sethwptr(struct snd_dbuf *b, unsigned int ptr);
 unsigned int sndbuf_getfree(struct snd_dbuf *b);
