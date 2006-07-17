@@ -631,7 +631,6 @@ cond_bl_upd(ufs2_daddr_t *block, struct gfs_bpp *field, int fsi, int fso,
 
 	DBG_ENTER;
 
-	f = field;
 	for (f = field; f->old != 0; f++) {
 		src = *block;
 		if (fragstoblks(&sblock, src) != f->old)
