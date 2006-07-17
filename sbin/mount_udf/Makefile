@@ -7,7 +7,7 @@ DPADD=	${LIBKICONV}
 LDADD=	-lkiconv
 
 MOUNT=	${.CURDIR}/../mount
-CFLAGS+= -I${MOUNT} -I${.CURDIR}/../../sys -Wall
+CFLAGS+= -I${MOUNT} -I${.CURDIR}/../../sys
 .PATH:	${MOUNT}
 WARNS?= 1
 
