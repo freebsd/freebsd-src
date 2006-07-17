@@ -93,7 +93,7 @@ __FBSDID("$FreeBSD$");
 
 extern char **environ;	/* XXX what header declares this variable? */
 
-#define WANT_ENV_MKLVL	1
+#define	WANT_ENV_MKLVL	1
 #define	MKLVL_MAXVAL	500
 #define	MKLVL_ENVVAR	"__MKLVL__"
 
@@ -105,7 +105,7 @@ static Lst variables = Lst_Initializer(variables);
 
 static Boolean	expandVars;	/* fully expand printed variables */
 static Boolean	noBuiltins;	/* -r flag */
-static Boolean	forceJobs;      /* -j argument given */
+static Boolean	forceJobs;	/* -j argument given */
 static char	*curdir;	/* startup directory */
 static char	*objdir;	/* where we chdir'ed to */
 
@@ -517,7 +517,7 @@ rearg:
 	 * Parse the rest of the arguments.
 	 *	o Check for variable assignments and perform them if so.
 	 *	o Check for more flags and restart getopt if so.
-	 *      o Anything else is taken to be a target and added
+	 *	o Anything else is taken to be a target and added
 	 *	  to the end of the "create" list.
 	 */
 	for (; *argv != NULL; ++argv, --argc) {
@@ -563,10 +563,10 @@ rearg:
 
 /**
  * Main_ParseArgLine
- *  	Used by the parse module when a .MFLAGS or .MAKEFLAGS target
+ *	Used by the parse module when a .MFLAGS or .MAKEFLAGS target
  *	is encountered and by main() when reading the .MAKEFLAGS envariable.
  *	Takes a line of arguments and breaks it into its
- * 	component words and passes those words and the number of them to the
+ *	component words and passes those words and the number of them to the
  *	MainParseArgs function.
  *	The line should have all its leading whitespace removed.
  *
@@ -659,10 +659,10 @@ check_make_level(void)
 int
 main(int argc, char **argv)
 {
-    	const char *machine;
+	const char *machine;
 	const char *machine_arch;
 	const char *machine_cpu;
-	Boolean outOfDate = TRUE; 	/* FALSE if all targets up to date */
+	Boolean outOfDate = TRUE;	/* FALSE if all targets up to date */
 	const char *p;
 	const char *pathp;
 	const char *path;
@@ -676,7 +676,7 @@ main(int argc, char **argv)
 	 */
 	expandVars = TRUE;
 	noBuiltins = FALSE;		/* Read the built-in rules */
-	forceJobs = FALSE;              /* No -j flag */
+	forceJobs = FALSE;		/* No -j flag */
 	curdir = cdpath;
 
 	/*
