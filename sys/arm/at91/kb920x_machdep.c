@@ -234,7 +234,7 @@ board_init(void)
 	/* PIOA's B periph: Turn USART 3's TX/RX pins */
 	at91_pio_use_periph_b(AT91RM92_PIOA_BASE, AT91C_PA6_RXD3, 0);
 	at91_pio_use_periph_b(AT91RM92_PIOA_BASE, AT91C_PA5_TXD3, 1);
-#if AT91_TSC
+#ifdef AT91_TSC
 	/* We're using TC0's A1 and A2 input */
 	at91_pio_use_periph_b(AT91RM92_PIOA_BASE,
 	    AT91C_PA19_TIOA1 | AT91C_PA21_TIOA2, 0);
@@ -244,7 +244,7 @@ board_init(void)
 	at91_pio_use_periph_a(AT91RM92_PIOB_BASE, AT91C_PB20_TXD1, 1);
 
 	/* Pin assignment */
-#if AT91_TSC
+#ifdef AT91_TSC
 	/* Assert PA24 low -- talk to rubidium */
 	at91_pio_use_gpio(AT91RM92_PIOA_BASE, AT91C_PIO_PA24);
 	at91_pio_gpio_output(AT91RM92_PIOA_BASE, AT91C_PIO_PA24, 0);
