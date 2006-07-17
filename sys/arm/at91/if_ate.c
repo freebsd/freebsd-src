@@ -764,7 +764,7 @@ atestart_locked(struct ifnet *ifp)
 		}
 		mdefrag = m_defrag(m, M_DONTWAIT);
 		if (mdefrag == NULL) {
-			m_freem(m);
+			IFQ_DRV_PREPEND(&ifp->if_snd, m);
 			return;
 		}
 		m = mdefrag;
