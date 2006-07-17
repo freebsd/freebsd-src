@@ -621,10 +621,6 @@ ACPICA_PEDANTIC		opt_acpi.h
 DEV_ISA			opt_isa.h
 ISAPNP			opt_isa.h
 
-# options for DEVFS, see sys/fs/devfs/devfs.h
-NDEVFSINO		opt_devfs.h
-NDEVFSOVERFLOW		opt_devfs.h
-
 # various 'device presence' options.
 DEV_BPF			opt_bpf.h
 DEV_MCA			opt_mca.h

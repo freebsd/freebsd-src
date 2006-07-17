@@ -40,7 +40,6 @@
  *	mkdir: want it ?
  */
 
-#include "opt_devfs.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -647,18 +646,6 @@ devfs_open(struct vop_open_args *ap)
 	/* Make this field valid before any I/O in d_open. */
 	if (dev->si_iosize_max == 0)
 		dev->si_iosize_max = DFLTPHYS;
-
-	if (vn_isdisk(vp, NULL) &&
-	    ap->a_cred != FSCRED && (ap->a_mode & FWRITE)) {
-		/*
-		* When running in very secure mode, do not allow
-		* opens for writing of any disks.
-		* XXX: should be in geom_dev.c, but we lack the cred there.
-		*/
-		error = securelevel_ge(td->td_ucred, 2);
-		if (error)
-			return (error);
-	}
 
 	dsw = dev_refthread(dev);
 	if (dsw == NULL)
