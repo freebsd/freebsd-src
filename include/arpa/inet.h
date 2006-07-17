@@ -1,7 +1,9 @@
 /*
+ * ++Copyright++ 1983, 1993
+ * -
  * Copyright (c) 1983, 1993
- *	The Regents of the University of California.  All rights reserved.
- *
+ *    The Regents of the University of California.  All rights reserved.
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -12,12 +14,12 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
+ * 	This product includes software developed by the University of
+ * 	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,7 +33,7 @@
  * SUCH DAMAGE.
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- *
+ * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
@@ -47,9 +49,13 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
- *
+ * -
+ * --Copyright--
+ */
+
+/*
  *	@(#)inet.h	8.1 (Berkeley) 6/2/93
- *	From: Id: inet.h,v 8.5 1997/01/29 08:48:09 vixie Exp $
+ *	$Id: inet.h,v 1.1.206.1 2004/03/09 08:33:30 marka Exp $
  * $FreeBSD$
  */
 
@@ -112,20 +118,22 @@ struct in_addr {
 
 /* XXX all new diversions!! argh!! */
 #if __BSD_VISIBLE
-#define	inet_addr	__inet_addr
-#define	inet_aton	__inet_aton
-#define	inet_lnaof	__inet_lnaof
-#define	inet_makeaddr	__inet_makeaddr
-#define	inet_neta	__inet_neta
-#define	inet_netof	__inet_netof
-#define	inet_network	__inet_network
-#define	inet_net_ntop	__inet_net_ntop
-#define	inet_net_pton	__inet_net_pton
-#define	inet_ntoa	__inet_ntoa
-#define	inet_pton	__inet_pton
-#define	inet_ntop	__inet_ntop
-#define	inet_nsap_addr	__inet_nsap_addr
-#define	inet_nsap_ntoa	__inet_nsap_ntoa
+#define	inet_addr		__inet_addr
+#define	inet_aton		__inet_aton
+#define	inet_lnaof		__inet_lnaof
+#define	inet_makeaddr		__inet_makeaddr
+#define	inet_neta		__inet_neta
+#define	inet_netof		__inet_netof
+#define	inet_network		__inet_network
+#define	inet_net_ntop		__inet_net_ntop
+#define	inet_net_pton		__inet_net_pton
+#define	inet_cidr_ntop		__inet_cidr_ntop
+#define	inet_cidr_pton		__inet_cidr_pton
+#define	inet_ntoa		__inet_ntoa
+#define	inet_pton		__inet_pton
+#define	inet_ntop		__inet_ntop
+#define	inet_nsap_addr		__inet_nsap_addr
+#define	inet_nsap_ntoa		__inet_nsap_ntoa
 #endif /* __BSD_VISIBLE */
 
 __BEGIN_DECLS
@@ -138,7 +146,7 @@ uint16_t	 ntohs(uint16_t);
 #endif
 
 in_addr_t	 inet_addr(const char *);
-char		*inet_ntoa(struct in_addr);
+/*const*/ char	*inet_ntoa(struct in_addr);
 const char	*inet_ntop(int, const void * __restrict, char * __restrict,
 		    socklen_t);
 int		 inet_pton(int, const char * __restrict, void * __restrict);
@@ -154,6 +162,8 @@ in_addr_t	 inet_netof(struct in_addr);
 in_addr_t	 inet_network(const char *);
 char		*inet_net_ntop(int, const void *, int, char *, size_t);
 int		 inet_net_pton(int, const char *, void *, size_t);
+char		*inet_cidr_ntop(int, const void *, int, char *, size_t);
+int		 inet_cidr_pton(int, const char *, void *, int *);
 unsigned	 inet_nsap_addr(const char *, unsigned char *, int);
 char		*inet_nsap_ntoa(int, const unsigned char *, char *);
 #endif /* __BSD_VISIBLE */

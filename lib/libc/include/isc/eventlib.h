@@ -19,6 +19,7 @@
  * vix 09sep95 [initial]
  *
  * $Id: eventlib.h,v 1.1.2.1.4.2 2005/07/28 07:43:18 marka Exp $
+ * $FreeBSD$
  */
 
 #ifndef _EVENTLIB_H

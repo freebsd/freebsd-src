@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include "port_after.h"
 
+#ifndef _LIBC
 /*
  * int
  * ns_samedomain(a, b)
@@ -142,7 +143,6 @@ ns_samedomain(const char *a, const char *b) {
 	return (strncasecmp(cp, b, lb) == 0);
 }
 
-#ifndef _LIBC
 /*
  * int
  * ns_subdomain(a, b)

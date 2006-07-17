@@ -86,14 +86,9 @@ static int ip6_sa2str(const struct sockaddr_in6 *, char *, size_t, int);
 #endif
 
 int
-getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
-	const struct sockaddr *sa;
-	socklen_t salen;
-	char *host;
-	size_t hostlen;
-	char *serv;
-	size_t servlen;
-	int flags;
+getnameinfo(const struct sockaddr *sa, socklen_t salen,
+    char *host, size_t hostlen, char *serv, size_t servlen,
+    int flags)
 {
 	const struct afd *afd;
 	struct servent *sp;
@@ -159,7 +154,7 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 			flags |= NI_NUMERICHOST;
 		v4a >>= IN_CLASSA_NSHIFT;
 		if (v4a == 0)
-			flags |= NI_NUMERICHOST;			
+			flags |= NI_NUMERICHOST;
 		break;
 #ifdef INET6
 	case AF_INET6:
@@ -274,12 +269,8 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 
 #ifdef INET6
 static int
-ip6_parsenumeric(sa, addr, host, hostlen, flags)
-	const struct sockaddr *sa;
-	const char *addr;
-	char *host;
-	size_t hostlen;
-	int flags;
+ip6_parsenumeric(const struct sockaddr *sa, const char *addr,
+    char *host, size_t hostlen, int flags)
 {
 	size_t numaddrlen;
 	char numaddr[512];
@@ -316,11 +307,7 @@ ip6_parsenumeric(sa, addr, host, hostlen, flags)
 
 /* ARGSUSED */
 static int
-ip6_sa2str(sa6, buf, bufsiz, flags)
-	const struct sockaddr_in6 *sa6;
-	char *buf;
-	size_t bufsiz;
-	int flags;
+ip6_sa2str(const struct sockaddr_in6 *sa6, char *buf, size_t bufsiz, int flags)
 {
 	unsigned int ifindex;
 	const struct in6_addr *a6;

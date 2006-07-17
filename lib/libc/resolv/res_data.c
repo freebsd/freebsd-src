@@ -277,6 +277,12 @@ hostalias(const char *name) {
 	return (res_hostalias(&_res, name, abuf, sizeof abuf));
 }
 
+/* binary backward compatibility for FreeBSD 5.x */
+const char *
+_res_hostalias(const char *name, char *dst, size_t siz) {
+	return (res_hostalias(&_res, name, dst, siz));
+}
+
 #ifdef ultrix
 int
 local_hostname_length(const char *hostname) {
