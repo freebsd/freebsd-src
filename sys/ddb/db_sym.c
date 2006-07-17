@@ -230,7 +230,6 @@ db_search_symbol( val, strategy, offp)
 	c_db_sym_t	ret = C_DB_SYM_NULL, sym;
 
 	newdiff = diff = ~0;
-	db_last_symtab = 0;
 	for (i = 0; i < db_nsymtab; i++) {
 	    sym = X_db_search_symbol(&db_symtabs[i], val, strategy, &newdiff);
 	    if (newdiff < diff) {
