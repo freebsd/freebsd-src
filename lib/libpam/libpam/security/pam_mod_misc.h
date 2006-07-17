@@ -51,6 +51,6 @@ __END_DECLS
 	return (arg)
 
 #define PAM_VERBOSE_ERROR(...) \
-	_pam_verbose_error(pamh, flags, __FILE__, __FUNCTION__, __VA_ARGS__)
+	_pam_verbose_error(pamh, flags, __FILE__, __func__, __VA_ARGS__)
 
 #endif
