@@ -358,7 +358,7 @@ m_get(int how, short type)
 
 	args.flags = 0;
 	args.type = type;
-	return (uma_zalloc_arg(zone_mbuf, &args, how));
+	return (struct mbuf *)(uma_zalloc_arg(zone_mbuf, &args, how));
 }
 
 /* XXX This should be depracated, very little use */
@@ -385,7 +385,7 @@ m_gethdr(int how, short type)
 
 	args.flags = M_PKTHDR;
 	args.type = type;
-	return (uma_zalloc_arg(zone_mbuf, &args, how));
+	return (struct mbuf *)(uma_zalloc_arg(zone_mbuf, &args, how));
 }
 
 static __inline
@@ -396,7 +396,7 @@ m_getcl(int how, short type, int flags)
 
 	args.flags = flags;
 	args.type = type;
-	return (uma_zalloc_arg(zone_pack, &args, how));
+	return (struct mbuf *)(uma_zalloc_arg(zone_pack, &args, how));
 }
 
 /*
@@ -463,7 +463,7 @@ m_clget(struct mbuf *m, int how)
 {
 	if (m->m_flags & M_EXT)
 		printf("%s: %p mbuf already has cluster\n", __func__, m);
-	m->m_ext.ext_buf = NULL;
+	m->m_ext.ext_buf = (char *)NULL;
 	uma_zalloc_arg(zone_clust, m, how);
 }
 
@@ -857,8 +857,8 @@ m_tag_get(int type, int length, int wait)
 static __inline struct m_tag *
 m_tag_find(struct mbuf *m, int type, struct m_tag *start)
 {
-	return (SLIST_EMPTY(&m->m_pkthdr.tags) ?
-	    NULL : m_tag_locate(m, MTAG_ABI_COMPAT, type, start));
+	return (SLIST_EMPTY(&m->m_pkthdr.tags) ? (struct m_tag *)NULL :
+	    m_tag_locate(m, MTAG_ABI_COMPAT, type, start));
 }
 
 #endif /* _KERNEL */
