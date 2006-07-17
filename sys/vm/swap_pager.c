@@ -1512,6 +1512,15 @@ swp_pager_async_iodone(struct buf *bp)
 		vm_object_pip_wakeupn(object, bp->b_npages);
 		VM_OBJECT_UNLOCK(object);
 	}
+	/* 
+	 * swapdev_strategy() manually sets b_vp and b_bufobj before calling 
+	 * bstrategy(). Set them back to NULL now we're done with it, or we'll
+	 * trigger a KASSERT in relpbuf().
+	 */
+	if (bp->b_vp) {
+		    bp->b_vp = NULL;
+		    bp->b_bufobj = NULL;
+	}
 
 	/*
 	 * release the physical I/O buffer
@@ -2522,6 +2531,8 @@ swapdev_strategy(struct buf *bp, struct swdevt *sp)
 			bufobj_wdrop(bp->b_bufobj);
 		bufobj_wref(&vp2->v_bufobj);
 	}
+	if (bp->b_bufobj != &vp2->v_bufobj)
+		bp->b_bufobj = &vp2->v_bufobj;
 	bp->b_vp = vp2;
 	bp->b_iooffset = dbtob(bp->b_blkno);
 	bstrategy(bp);
