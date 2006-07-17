@@ -56,7 +56,7 @@ int		 ypclnt_passwd(ypclnt_t *, const struct passwd *, const char *);
 #if defined(DEBUG) && defined(__GNUC__)
 #define YPCLNT_DEBUG(fmt...) warnx(__FUNCTION__ ": " fmt, ##fmt)
 #else
-#define YPCLNT_DEBUG(fmt...)
+#define YPCLNT_DEBUG(...)
 #endif
 
 #endif
