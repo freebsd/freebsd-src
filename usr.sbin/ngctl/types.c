@@ -52,7 +52,7 @@ const struct ngcmd types_cmd = {
 	"types",
 	"Show information about all installed node types",
 	NULL,
-	{}
+	{ NULL }
 };
 
 static int
