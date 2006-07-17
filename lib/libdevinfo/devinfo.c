@@ -83,10 +83,13 @@ static int	devinfo_initted = 0;
 static int	devinfo_generation = 0;
 
 #if 0
-# define debug(fmt, args...)	\
-	fprintf(stderr, "%s:" fmt "\n", __func__ , ##args)
+# define debug(...)	do { \
+	fprintf(stderr, "%s:", __func__); \
+	fprintf(stderr, __VA_ARGS__); \
+	fprintf(stderr, "\n"); \
+} while (0)
 #else
-# define debug(fmt, args...)
+# define debug(...)
 #endif
 
 /*
