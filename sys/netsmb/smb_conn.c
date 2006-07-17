@@ -233,7 +233,8 @@ smb_co_init(struct smb_connobj *cp, int level, char *objname, struct thread *td)
 	lockinit(&cp->co_lock, PZERO, objname, 0, 0);
 	cp->co_level = level;
 	cp->co_usecount = 1;
-	KASSERT(smb_co_lock(cp, LK_EXCLUSIVE, td) == 0, ("smb_co_init: lock failed"));
+	if (smb_co_lock(cp, LK_EXCLUSIVE, td) != 0)
+	    panic("smb_co_init: lock failed");
 }
 
 static void
