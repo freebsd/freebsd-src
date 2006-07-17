@@ -115,7 +115,7 @@ extern uint32_t crc32_tab[];
 static __inline uint32_t
 crc32_raw(const void *buf, size_t size, uint32_t crc)
 {
-	const uint8_t *p = buf;
+	const uint8_t *p = (const uint8_t *)buf;
 
 	while (size--)
 		crc = crc32_tab[(crc ^ *p++) & 0xFF] ^ (crc >> 8);
