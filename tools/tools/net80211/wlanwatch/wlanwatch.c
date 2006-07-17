@@ -53,7 +53,13 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <netatalk/at.h>
+#ifdef __NetBSD__
+#include <net80211/ieee80211_netbsd.h>
+#elif __FreeBSD__
 #include <net80211/ieee80211_freebsd.h>
+#else
+#error	"No support for your operating system!"
+#endif
 #include <arpa/inet.h>
 #include <netdb.h>
 
@@ -235,6 +241,19 @@ routename(sa)
 	return (line);
 }
 
+#ifndef SA_SIZE
+/*
+ * This macro returns the size of a struct sockaddr when passed
+ * through a routing socket. Basically we round up sa_len to
+ * a multiple of sizeof(long), with a minimum of sizeof(long).
+ * The check for a NULL pointer is just a convenience, probably never used.
+ * The case sa_len == 0 should only apply to empty structures.
+ */
+#define SA_SIZE(sa)						\
+    (  (!(sa) || ((struct sockaddr *)(sa))->sa_len == 0) ?	\
+	sizeof(long)		:				\
+	1 + ( (((struct sockaddr *)(sa))->sa_len - 1) | (sizeof(long) - 1) ) )
+#endif
 
 static void
 pmsg_addrs(char *cp, int addrs)
@@ -339,8 +358,9 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen)
 		case RTM_IEEE80211_JOIN:
 		case RTM_IEEE80211_REJOIN:
 			printf("%s station %sjoin",
-			    ifan->ifan_what == RTM_IEEE80211_REJOIN ? "re" : "",
-			    ether_sprintf(V(ieee80211_join_event)->iev_addr));
+			    ether_sprintf(V(ieee80211_join_event)->iev_addr),
+			    ifan->ifan_what == RTM_IEEE80211_REJOIN ? "re" : ""
+			);
 			break;
 		case RTM_IEEE80211_LEAVE:
 			printf("%s station leave",
