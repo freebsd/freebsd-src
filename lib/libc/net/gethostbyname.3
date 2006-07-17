@@ -55,7 +55,7 @@
 .Ft struct hostent *
 .Fn gethostbyname2 "const char *name" "int af"
 .Ft struct hostent *
-.Fn gethostbyaddr "const char *addr" "int len" "int type"
+.Fn gethostbyaddr "const void *addr" "int len" "int type"
 .Ft struct hostent *
 .Fn gethostent void
 .Ft void
@@ -246,7 +246,7 @@ struct hostent *hp;
 if (!inet_aton(ipstr, &ip))
 	errx(1, "can't parse IP address %s", ipstr);
 
-if ((hp = gethostbyaddr((const char *)&ip,
+if ((hp = gethostbyaddr((const void *)&ip,
     sizeof ip, AF_INET)) == NULL)
 	errx(1, "no name associated with %s", ipstr);
 

@@ -44,3 +44,6 @@ __h_errno_set(res_state res, int err)
 {
 	h_errno = res->res_h_errno = err;
 }
+
+/* binary backward compatibility for FreeBSD 5.x and 6.x */
+__weak_reference(__h_errno, __h_error);

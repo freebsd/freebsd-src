@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <netdb.h>
 #include <resolv.h>
+#include <res_update.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -69,7 +70,7 @@ struct zonegrp {
 
 
 int
-res_update(ns_updrec *rrecp_in) {
+res_nupdate(res_state statp, ns_updrec *rrecp_in, ns_tsig_key *key) {
 	ns_updrec *rrecp, *tmprrecp;
 	u_char buf[PACKETSZ], answer[PACKETSZ], packet[2*PACKETSZ];
 	char name[MAXDNAME], zname[MAXDNAME], primary[MAXDNAME],
@@ -84,8 +85,9 @@ res_update(ns_updrec *rrecp_in) {
 	u_int16_t dlen, class, qclass, type, qtype;
 	u_int32_t ttl;
 
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
-		h_errno = NETDB_INTERNAL;
+	if (key != NULL) {
+		/* TSIG is not supported. */
+		RES_SET_H_ERRNO(statp, NO_RECOVERY);
 		return (-1);
 	}
 
@@ -148,19 +150,19 @@ res_update(ns_updrec *rrecp_in) {
 		}
 		if (done)
 		    break;
-		n = res_mkquery(QUERY, dname, qclass, qtype, NULL,
+		n = res_nmkquery(statp, QUERY, dname, qclass, qtype, NULL,
 				0, NULL, buf, sizeof buf);
 		if (n <= 0) {
-		    fprintf(stderr, "res_update: mkquery failed\n");
+		    fprintf(stderr, "res_nupdate: mkquery failed\n");
 		    return (n);
 		}
-		n = res_send(buf, n, answer, sizeof answer);
+		n = res_nsend(statp, buf, n, answer, sizeof answer);
 		if (n < 0) {
-		    fprintf(stderr, "res_update: send error for %s\n",
+		    fprintf(stderr, "res_nupdate: send error for %s\n",
 			    rrecp->r_dname);
 		    return (n);
 		} else if (n > sizeof(answer)) {
-		    fprintf(stderr, "res_update: buffer too small\n");
+		    fprintf(stderr, "res_nupdate: buffer too small\n");
 		    return (-1);
 		}
 		if (n < HFIXEDSZ)
@@ -445,7 +447,7 @@ ans=%d, auth=%d, add=%d, rcode=%d\n",
  	    } /* while */
 	}
 
-	_res.options |= RES_DEBUG;
+	statp->options |= RES_DEBUG;
 	for (zptr = zgrp_start; zptr; zptr = zptr->z_next) {
 
 		/* append zone section */
@@ -459,16 +461,16 @@ ans=%d, auth=%d, add=%d, rcode=%d\n",
 		rrecp->r_grpnext = zptr->z_rr;
 		zptr->z_rr = rrecp;
 
-		n = res_mkupdate(zptr->z_rr, packet, sizeof packet);
+		n = res_nmkupdate(statp, zptr->z_rr, packet, sizeof packet);
 		if (n < 0) {
-			fprintf(stderr, "res_mkupdate error\n");
+			fprintf(stderr, "res_nmkupdate error\n");
 			fflush(stderr);
 			return (-1);
 		} else
-			fprintf(stdout, "res_mkupdate: packet size = %d\n", n);
+			fprintf(stdout, "res_nmkupdate: packet size = %d\n", n);
 
 		/*
-		 * Override the list of NS records from res_init() with
+		 * Override the list of NS records from res_ninit() with
 		 * the authoritative nameservers for the zone being updated.
 		 * Sort primary to be the first in the list of nameservers.
 		 */
@@ -491,18 +493,18 @@ ans=%d, auth=%d, add=%d, rcode=%d\n",
 			}
 		}
 		for (i = 0; i < MAXNS; i++) {
-			_res.nsaddr_list[i].sin_addr = zptr->z_ns[i].nsaddr1;
-			_res.nsaddr_list[i].sin_family = AF_INET;
-			_res.nsaddr_list[i].sin_port = htons(NAMESERVER_PORT);
+			statp->nsaddr_list[i].sin_addr = zptr->z_ns[i].nsaddr1;
+			statp->nsaddr_list[i].sin_family = AF_INET;
+			statp->nsaddr_list[i].sin_port = htons(NAMESERVER_PORT);
 		}
-		_res.nscount = (zptr->z_nscount < MAXNS) ? 
+		statp->nscount = (zptr->z_nscount < MAXNS) ?
 					zptr->z_nscount : MAXNS;
-		n = res_send(packet, n, answer, sizeof(answer));
+		n = res_nsend(statp, packet, n, answer, sizeof(answer));
 		if (n < 0) {
-			fprintf(stderr, "res_send: send error, n=%d\n", n);
+			fprintf(stderr, "res_nsend: send error, n=%d\n", n);
 			break;
 		} else if (n > sizeof(answer)) {
-			fprintf(stderr, "res_send: buffer too small\n");
+			fprintf(stderr, "res_nsend: buffer too small\n");
 			break;
 		}
 			numzones++;

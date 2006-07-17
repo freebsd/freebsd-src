@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 #include <netdb.h>
+#include <resolv.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -82,8 +83,8 @@ _endnethtent(struct netent_data *ned)
 	ned->stayopen = 0;
 }
 
-int
-getnetent_r(struct netent *ne, struct netent_data *ned)
+static int
+getnetent_p(struct netent *ne, struct netent_data *ned)
 {
 	char *p, *bp, *ep;
 	char *cp, **q;
@@ -92,11 +93,11 @@ getnetent_r(struct netent *ne, struct netent_data *ned)
 
 	if (ned->netf == NULL &&
 	    (ned->netf = fopen(_PATH_NETWORKS, "r")) == NULL)
-		return -1;
+		return (-1);
 again:
 	p = fgets(line, sizeof line, ned->netf);
 	if (p == NULL)
-		return -1;
+		return (-1);
 	if (*p == '#')
 		goto again;
 	cp = strpbrk(p, "#\n");
@@ -111,8 +112,8 @@ again:
 	*cp++ = '\0';
 	len = strlen(p) + 1;
 	if (ep - bp < len) {
-		h_errno = NO_RECOVERY;
-		return -1;
+		RES_SET_H_ERRNO(__res_state(), NO_RECOVERY);
+		return (-1);
 	}
 	strlcpy(bp, p, ep - bp);
 	bp += len;
@@ -146,46 +147,94 @@ again:
 		}
 	}
 	*q = NULL;
-	return 0;
+	return (0);
+}
+
+int
+getnetent_r(struct netent *nptr, char *buffer, size_t buflen,
+    struct netent **result, int *h_errnop)
+{
+	struct netent_data *ned;
+	struct netent ne;
+	res_state statp;
+
+	statp = __res_state();
+	if ((ned = __netent_data_init()) == NULL) {
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
+		*h_errnop = statp->res_h_errno;
+		return (-1);
+	}
+	if (getnetent_p(&ne, ned) != 0)
+		return (-1);
+	if (__copy_netent(&ne, nptr, buffer, buflen) != 0)
+		return (-1);
+	*result = nptr;
+	return (0);
 }
 
 struct netent *
 getnetent(void)
 {
 	struct netdata *nd;
+	struct netent *rval;
+	int ret_h_errno;
 
 	if ((nd = __netdata_init()) == NULL)
-		return NULL;
-	if (getnetent_r(&nd->net, &nd->data) != 0)
-		return NULL;
-	return &nd->net;
+		return (NULL);
+	if (getnetent_r(&nd->net, nd->data, sizeof(nd->data), &rval,
+	    &ret_h_errno) != 0)
+		return (NULL);
+	return (rval);
 }
 
 int
 _ht_getnetbyname(void *rval, void *cb_data, va_list ap)
 {
 	const char *name;
-	struct netent *ne;
+	char *buffer;
+	size_t buflen;
+	int *errnop, *h_errnop;
+	struct netent *nptr, ne;
 	struct netent_data *ned;
 	char **cp;
+	res_state statp;
 	int error;
 
 	name = va_arg(ap, const char *);
-	ne = va_arg(ap, struct netent *);
-	ned = va_arg(ap, struct netent_data *);
+	nptr = va_arg(ap, struct netent *);
+	buffer = va_arg(ap, char *);
+	buflen = va_arg(ap, size_t);
+	errnop = va_arg(ap, int *);
+	h_errnop = va_arg(ap, int *);
 
-	setnetent_r(ned->stayopen, ned);
-	while ((error = getnetent_r(ne, ned)) == 0) {
-		if (strcasecmp(ne->n_name, name) == 0)
+	statp = __res_state();
+	if ((ned = __netent_data_init()) == NULL) {
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
+		*h_errnop = statp->res_h_errno;
+		return (NS_UNAVAIL);
+	}
+
+	_setnethtent(ned->stayopen, ned);
+	while ((error = getnetent_p(&ne, ned)) == 0) {
+		if (strcasecmp(ne.n_name, name) == 0)
 			break;
-		for (cp = ne->n_aliases; *cp != 0; cp++)
+		for (cp = ne.n_aliases; *cp != 0; cp++)
 			if (strcasecmp(*cp, name) == 0)
 				goto found;
 	}
 found:
 	if (!ned->stayopen)
-		endnetent_r(ned);
-	return (error == 0) ? NS_SUCCESS : NS_NOTFOUND;
+		_endnethtent(ned);
+	if (error != 0) {
+		*h_errnop = statp->res_h_errno;
+		return (NS_NOTFOUND);
+	}
+	if (__copy_netent(&ne, nptr, buffer, buflen) != 0) {
+		*h_errnop = statp->res_h_errno;
+		return (NS_NOTFOUND);
+	}
+	*((struct netent **)rval) = nptr;
+	return (NS_SUCCESS);
 }
 
 int
@@ -193,20 +242,43 @@ _ht_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 {
 	uint32_t net;
 	int type;
-	struct netent *ne;
+	char *buffer;
+	size_t buflen;
+	int *errnop, *h_errnop;
+	struct netent *nptr, ne;
 	struct netent_data *ned;
+	res_state statp;
 	int error;
 
 	net = va_arg(ap, uint32_t);
 	type = va_arg(ap, int);
-	ne = va_arg(ap, struct netent *);
-	ned = va_arg(ap, struct netent_data *);
+	nptr = va_arg(ap, struct netent *);
+	buffer = va_arg(ap, char *);
+	buflen = va_arg(ap, size_t);
+	errnop = va_arg(ap, int *);
+	h_errnop = va_arg(ap, int *);
 
-	setnetent_r(ned->stayopen, ned);
-	while ((error = getnetent_r(ne, ned)) == 0)
-		if (ne->n_addrtype == type && ne->n_net == net)
+	statp = __res_state();
+	if ((ned = __netent_data_init()) == NULL) {
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
+		*h_errnop = statp->res_h_errno;
+		return (NS_UNAVAIL);
+	}
+
+	_setnethtent(ned->stayopen, ned);
+	while ((error = getnetent_p(&ne, ned)) == 0)
+		if (ne.n_addrtype == type && ne.n_net == net)
 			break;
 	if (!ned->stayopen)
-		endnetent_r(ned);
-	return (error == 0) ? NS_SUCCESS : NS_NOTFOUND;
+		_endnethtent(ned);
+	if (error != 0) {
+		*h_errnop = statp->res_h_errno;
+		return (NS_NOTFOUND);
+	}
+	if (__copy_netent(&ne, nptr, buffer, buflen) != 0) {
+		*h_errnop = statp->res_h_errno;
+		return (NS_NOTFOUND);
+	}
+	*((struct netent **)rval) = nptr;
+	return (NS_SUCCESS);
 }

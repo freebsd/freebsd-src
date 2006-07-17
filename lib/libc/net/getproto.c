@@ -41,27 +41,39 @@ __FBSDID("$FreeBSD$");
 #include "netdb_private.h"
 
 int
-getprotobynumber_r(int proto, struct protoent *pe, struct protoent_data *ped)
+getprotobynumber_r(int proto, struct protoent *pptr, char *buffer,
+    size_t buflen, struct protoent **result)
 {
+	struct protoent pe;
+	struct protoent_data *ped;
 	int error;
 
-	setprotoent_r(ped->stayopen, ped);
-	while ((error = getprotoent_r(pe, ped)) == 0)
-		if (pe->p_proto == proto)
+	if ((ped = __protoent_data_init()) == NULL)
+		return (-1);
+	__setprotoent_p(ped->stayopen, ped);
+	while ((error = __getprotoent_p(&pe, ped)) == 0)
+		if (pe.p_proto == proto)
 			break;
 	if (!ped->stayopen)
-		endprotoent_r(ped);
-	return (error);
+		__endprotoent_p(ped);
+	if (error != 0)
+		return (-1);
+	if (__copy_protoent(&pe, pptr, buffer, buflen) != 0)
+		return (-1);
+	*result = pptr;
+	return (0);
 }
 
 struct protoent *
 getprotobynumber(int proto)
 {
 	struct protodata *pd;
+	struct protoent *rval;
 
 	if ((pd = __protodata_init()) == NULL)
 		return (NULL);
-	if (getprotobynumber_r(proto, &pd->proto, &pd->data) != 0)
+	if (getprotobynumber_r(proto, &pd->proto, pd->data, sizeof(pd->data),
+	    &rval) != 0)
 		return (NULL);
-	return (&pd->proto);
+	return (rval);
 }

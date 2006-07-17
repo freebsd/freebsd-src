@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 #ifndef _RESOLV_MT_H
 #define _RESOLV_MT_H
 

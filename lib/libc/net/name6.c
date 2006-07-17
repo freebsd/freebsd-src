@@ -122,6 +122,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "netdb_private.h"
 #include "res_config.h"
+#include "res_private.h"
 
 #ifndef _PATH_HOSTS
 #define	_PATH_HOSTS	"/etc/hosts"
@@ -199,18 +200,18 @@ struct hp_order {
 	char *aio_h_addr;
 };
 
-static struct	 hostent *_hpcopy(struct hostent *hp, int *errp);
-static struct	 hostent *_hpaddr(int af, const char *name, void *addr, int *errp);
-static struct	 hostent *_hpmerge(struct hostent *hp1, struct hostent *hp2, int *errp);
+static struct	 hostent *_hpcopy(struct hostent *, int *);
+static struct	 hostent *_hpaddr(int, const char *, void *, int *);
+static struct	 hostent *_hpmerge(struct hostent *, struct hostent *, int *);
 #ifdef INET6
-static struct	 hostent *_hpmapv6(struct hostent *hp, int *errp);
+static struct	 hostent *_hpmapv6(struct hostent *, int *);
 #endif
-static struct	 hostent *_hpsort(struct hostent *hp);
-static struct	 hostent *_ghbyname(const char *name, int af, int flags, int *errp);
-static char	*_hgetword(char **pp);
+static struct	 hostent *_hpsort(struct hostent *, res_state);
+static struct	 hostent *_ghbyname(const char *, int, int, int *);
+static char	*_hgetword(char **);
 static int	 _mapped_addr_enabled(void);
 
-static struct	 hostent *_hpreorder(struct hostent *hp);
+static struct	 hostent *_hpreorder(struct hostent *);
 static int	 get_addrselectpolicy(struct policyhead *);
 static void	 free_addrselectpolicy(struct policyhead *);
 static struct	 policyqueue *match_addrselectpolicy(struct sockaddr *,
@@ -220,7 +221,7 @@ static int	 matchlen(struct sockaddr *, struct sockaddr *);
 static int	 comp_dst(const void *, const void *);
 static int	 gai_addr2scopetype(struct sockaddr *);
 
-static FILE	*_files_open(int *errp);
+static FILE	*_files_open(int *);
 static int	 _files_ghbyname(void *, void *, va_list);
 static int	 _files_ghbyaddr(void *, void *, va_list);
 #ifdef YP
@@ -229,7 +230,7 @@ static int	 _nis_ghbyaddr(void *, void *, va_list);
 #endif
 static int	 _dns_ghbyname(void *, void *, va_list);
 static int	 _dns_ghbyaddr(void *, void *, va_list);
-static void	 _dns_shent(int stayopen) __unused;
+static void	 _dns_shent(int) __unused;
 static void	 _dns_ehent(void) __unused;
 #ifdef ICMPNL
 static int	 _icmp_ghbyaddr(void *, void *, va_list);
@@ -242,7 +243,7 @@ static mutex_t _getipnodeby_thread_lock = MUTEX_INITIALIZER;
 #endif
 
 /* Host lookup order if nsswitch.conf is broken or nonexistant */
-static const ns_src default_src[] = { 
+static const ns_src default_src[] = {
 	{ NSSRC_FILES, NS_SUCCESS },
 	{ NSSRC_DNS, NS_SUCCESS },
 #ifdef ICMPNL
@@ -290,7 +291,7 @@ _ghbyname(const char *name, int af, int flags, int *errp)
 {
 	struct hostent *hp;
 	int rval;
-	
+
 	static const ns_dtab dtab[] = {
 		NS_FILES_CB(_files_ghbyname, NULL)
 		{ NSSRC_DNS, _dns_ghbyname, NULL },
@@ -323,6 +324,7 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 {
 	struct hostent *hp;
 	union inx_addr addrbuf;
+	res_state statp;
 
 	switch (af) {
 	case AF_INET:
@@ -357,6 +359,14 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 		return _hpaddr(af, name, &addrbuf, errp);
 	}
 
+	statp = __res_state();
+	if ((statp->options & RES_INIT) == 0) {
+		if (res_ninit(statp) < 0) {
+			*errp = NETDB_INTERNAL;
+			return NULL;
+		}
+	}
+
 	*errp = HOST_NOT_FOUND;
 	hp = _ghbyname(name, af, flags, errp);
 
@@ -375,7 +385,7 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 		}
 	}
 #endif
-	return _hpreorder(_hpsort(hp));
+	return _hpreorder(_hpsort(hp, statp));
 }
 
 struct hostent *
@@ -657,26 +667,27 @@ _hpmapv6(struct hostent *hp, int *errp)
  * _hpsort: sort address by sortlist
  */
 static struct hostent *
-_hpsort(struct hostent *hp)
+_hpsort(struct hostent *hp, res_state statp)
 {
 	int i, j, n;
 	u_char *ap, *sp, *mp, **pp;
 	char t;
 	char order[MAXADDRS];
-	int nsort = _res.nsort;
+	int nsort = statp->nsort;
 
 	if (hp == NULL || hp->h_addr_list[1] == NULL || nsort == 0)
 		return hp;
 	for (i = 0; (ap = (u_char *)hp->h_addr_list[i]); i++) {
 		for (j = 0; j < nsort; j++) {
 #ifdef INET6
-			if (_res_ext.sort_list[j].af != hp->h_addrtype)
+			if (statp->_u._ext.ext->sort_list[j].af !=
+			    hp->h_addrtype)
 				continue;
-			sp = (u_char *)&_res_ext.sort_list[j].addr;
-			mp = (u_char *)&_res_ext.sort_list[j].mask;
+			sp = (u_char *)&statp->_u._ext.ext->sort_list[j].addr;
+			mp = (u_char *)&statp->_u._ext.ext->sort_list[j].mask;
 #else
-			sp = (u_char *)&_res.sort_list[j].addr;
-			mp = (u_char *)&_res.sort_list[j].mask;
+			sp = (u_char *)&statp->sort_list[j].addr;
+			mp = (u_char *)&statp->sort_list[j].mask;
 #endif
 			for (n = 0; n < hp->h_length; n++) {
 				if ((ap[n] & mp[n]) != sp[n])
@@ -830,8 +841,7 @@ _hpreorder(struct hostent *hp)
 }
 
 static int
-get_addrselectpolicy(head)
-	struct policyhead *head;
+get_addrselectpolicy(struct policyhead *head)
 {
 #ifdef INET6
 	int mib[] = { CTL_NET, PF_INET6, IPPROTO_IPV6, IPV6CTL_ADDRCTLPOLICY };
@@ -868,8 +878,7 @@ get_addrselectpolicy(head)
 }
 
 static void
-free_addrselectpolicy(head)
-	struct policyhead *head;
+free_addrselectpolicy(struct policyhead *head)
 {
 	struct policyqueue *ent, *nent;
 
@@ -881,9 +890,7 @@ free_addrselectpolicy(head)
 }
 
 static struct policyqueue *
-match_addrselectpolicy(addr, head)
-	struct sockaddr *addr;
-	struct policyhead *head;
+match_addrselectpolicy(struct sockaddr *addr, struct policyhead *head)
 {
 #ifdef INET6
 	struct policyqueue *ent, *bestent = NULL;
@@ -950,9 +957,7 @@ match_addrselectpolicy(addr, head)
 }
 
 static void
-set_source(aio, ph)
-	struct hp_order *aio;
-	struct policyhead *ph;
+set_source(struct hp_order *aio, struct policyhead *ph)
 {
 	struct sockaddr_storage ss = aio->aio_un.aiou_ss;
 	socklen_t srclen;
@@ -1011,8 +1016,7 @@ set_source(aio, ph)
 }
 
 static int
-matchlen(src, dst)
-	struct sockaddr *src, *dst;
+matchlen(struct sockaddr *src, struct sockaddr *dst)
 {
 	int match = 0;
 	u_char *s, *d;
@@ -1051,8 +1055,7 @@ matchlen(src, dst)
 }
 
 static int
-comp_dst(arg1, arg2)
-	const void *arg1, *arg2;
+comp_dst(const void *arg1, const void *arg2)
 {
 	const struct hp_order *dst1 = arg1, *dst2 = arg2;
 
@@ -1167,8 +1170,7 @@ comp_dst(arg1, arg2)
  * library.
  */
 static int
-gai_addr2scopetype(sa)
-	struct sockaddr *sa;
+gai_addr2scopetype(struct sockaddr *sa)
 {
 #ifdef INET6
 	struct sockaddr_in6 *sa6;
@@ -1242,7 +1244,7 @@ static int
 _files_ghbyname(void *rval, void *cb_data, va_list ap)
 {
 	const char *name;
-	int af; 
+	int af;
 	int *errp;
 	int match, nalias;
 	char *p, *line, *addrstr, *cname;
@@ -1314,9 +1316,9 @@ _files_ghbyname(void *rval, void *cb_data, va_list ap)
 static int
 _files_ghbyaddr(void *rval, void *cb_data, va_list ap)
 {
-	const void *addr; 
-	int addrlen; 
-	int af; 
+	const void *addr;
+	int addrlen;
+	int af;
 	int *errp;
 	int nalias;
 	char *p, *line;
@@ -1428,13 +1430,8 @@ static struct hostent *getanswer(const querybuf *, int, const char *, int,
  * we don't need to take care about sorting, nor IPv4 mapped address here.
  */
 static struct hostent *
-getanswer(answer, anslen, qname, qtype, template, errp)
-	const querybuf *answer;
-	int anslen;
-	const char *qname;
-	int qtype;
-	struct hostent *template;
-	int *errp;
+getanswer(const querybuf *answer, int anslen, const char *qname, int qtype,
+    struct hostent *template, int *errp)
 {
 	const HEADER *hp;
 	const u_char *cp;
@@ -1708,17 +1705,14 @@ _dns_ghbyname(void *rval, void *cb_data, va_list ap)
 	int qtype;
 	struct hostent hbuf;
 	querybuf *buf;
+	res_state statp;
 
 	name = va_arg(ap, const char *);
 	af = va_arg(ap, int);
 	errp = va_arg(ap, int *);
 
-	if ((_res.options & RES_INIT) == 0) {
-		if (res_init() < 0) {
-			*errp = h_errno;
-			return NS_UNAVAIL;
-		}
-	}
+	statp = __res_state();
+
 	memset(&hbuf, 0, sizeof(hbuf));
 	hbuf.h_addrtype = af;
 	hbuf.h_length = ADDRLEN(af);
@@ -1741,10 +1735,10 @@ _dns_ghbyname(void *rval, void *cb_data, va_list ap)
 		*errp = NETDB_INTERNAL;
 		return NS_UNAVAIL;
 	}
-	n = res_search(name, C_IN, qtype, buf->buf, sizeof(buf->buf));
+	n = res_nsearch(statp, name, C_IN, qtype, buf->buf, sizeof(buf->buf));
 	if (n < 0) {
 		free(buf);
-		*errp = h_errno;
+		*errp = statp->res_h_errno;
 		return NS_UNAVAIL;
 	}
 	hp = getanswer(buf, n, name, qtype, &hbuf, errp);
@@ -1784,6 +1778,7 @@ _dns_ghbyaddr(void *rval, void *cb_data, va_list ap)
 	char *tld6[] = { "ip6.arpa", NULL };
 	char *tld4[] = { "in-addr.arpa", NULL };
 	char **tld;
+	res_state statp;
 
 	addr = va_arg(ap, const void *);
 	addrlen = va_arg(ap, int);
@@ -1811,9 +1806,10 @@ _dns_ghbyaddr(void *rval, void *cb_data, va_list ap)
 		return NS_NOTFOUND;
 	}
 
-	if ((_res.options & RES_INIT) == 0) {
-		if (res_init() < 0) {
-			*errp = h_errno;
+	statp = __res_state();
+	if ((statp->options & RES_INIT) == 0) {
+		if (res_ninit(statp) < 0) {
+			*errp = NETDB_INTERNAL;
 			return NS_UNAVAIL;
 		}
 	}
@@ -1863,9 +1859,10 @@ _dns_ghbyaddr(void *rval, void *cb_data, va_list ap)
 			break;
 		}
 
-		n = res_query(qbuf, C_IN, T_PTR, buf->buf, sizeof buf->buf);
+		n = res_nquery(statp, qbuf, C_IN, T_PTR, buf->buf,
+		    sizeof buf->buf);
 		if (n < 0) {
-			*errp = h_errno;
+			*errp = statp->res_h_errno;
 			err = NS_UNAVAIL;
 			continue;
 		} else if (n > sizeof(buf->buf)) {
@@ -1897,19 +1894,25 @@ _dns_ghbyaddr(void *rval, void *cb_data, va_list ap)
 static void
 _dns_shent(int stayopen)
 {
-	if ((_res.options & RES_INIT) == 0) {
-		if (res_init() < 0)
+	res_state statp;
+
+	statp = __res_state();
+	if ((statp->options & RES_INIT) == 0) {
+		if (res_ninit(statp) < 0)
 			return;
 	}
 	if (stayopen)
-		_res.options |= RES_STAYOPEN | RES_USEVC;
+		statp->options |= RES_STAYOPEN | RES_USEVC;
 }
 
 static void
 _dns_ehent(void)
 {
-	_res.options &= ~(RES_STAYOPEN | RES_USEVC);
-	res_close();
+	res_state statp;
+
+	statp = __res_state();
+	statp->options &= ~(RES_STAYOPEN | RES_USEVC);
+	res_nclose(statp);
 }
 
 #ifdef ICMPNL
