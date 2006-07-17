@@ -449,6 +449,35 @@ union qualhack
         char *rw_char;
 };
 
+static int
+mxge_validate_firmware(mxge_softc_t *sc, const mcp_gen_header_t *hdr)
+{
+	int major, minor;
+
+	if (be32toh(hdr->mcp_type) != MCP_TYPE_ETH) {
+		device_printf(sc->dev, "Bad firmware type: 0x%x\n", 
+			      be32toh(hdr->mcp_type));
+		return EIO;
+	}
+
+	/* save firmware version for sysctl */
+	strncpy(sc->fw_version, hdr->version, sizeof (sc->fw_version));
+	if (mxge_verbose)
+		device_printf(sc->dev, "firmware id: %s\n", hdr->version);
+
+	sscanf(sc->fw_version, "%d.%d", &major, &minor);
+
+	if (!(major == MXGEFW_VERSION_MAJOR
+	      && minor == MXGEFW_VERSION_MINOR)) {
+		device_printf(sc->dev, "Found firmware version %s\n",
+			      sc->fw_version);
+		device_printf(sc->dev, "Driver needs %d.%d\n",
+			      MXGEFW_VERSION_MAJOR, MXGEFW_VERSION_MINOR);
+		return EINVAL;
+	}
+	return 0;
+
+}
 
 static int
 mxge_load_firmware_helper(mxge_softc_t *sc, uint32_t *limit)
@@ -459,6 +488,8 @@ mxge_load_firmware_helper(mxge_softc_t *sc, uint32_t *limit)
 	const char *fw_data;
 	union qualhack hack;
 	int status;
+	unsigned int i;
+	char dummy;
 	
 
 	fw = firmware_get(sc->fw_name);
@@ -487,21 +518,21 @@ mxge_load_firmware_helper(mxge_softc_t *sc, uint32_t *limit)
 		goto abort_with_fw;
 	}
 	hdr = (const void*)(fw_data + hdr_offset); 
-	if (be32toh(hdr->mcp_type) != MCP_TYPE_ETH) {
-		device_printf(sc->dev, "Bad firmware type: 0x%x\n", 
-			      be32toh(hdr->mcp_type));
-		status = EIO;
-		goto abort_with_fw;
-	}
 
-	/* save firmware version for sysctl */
-	strncpy(sc->fw_version, hdr->version, sizeof (sc->fw_version));
-	if (mxge_verbose)
-		device_printf(sc->dev, "firmware id: %s\n", hdr->version);
+	status = mxge_validate_firmware(sc, hdr);
+	if (status != 0)
+		goto abort_with_fw;
 
 	hack.ro_char = fw_data;
 	/* Copy the inflated firmware to NIC SRAM. */
-	mxge_pio_copy(&sc->sram[MXGE_FW_OFFSET], hack.rw_char,  *limit);
+	for (i = 0; i < *limit; i += 256) {
+		mxge_pio_copy(sc->sram + MXGE_FW_OFFSET + i,
+			      hack.rw_char + i,
+			      min(256U, (unsigned)(*limit - i)));
+		mb();
+		dummy = *sc->sram;
+		mb();
+	}
 
 	status = 0;
 abort_with_fw:
@@ -621,6 +652,40 @@ mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data)
 	return EAGAIN;
 }
 
+static int
+mxge_adopt_running_firmware(mxge_softc_t *sc)
+{
+	struct mcp_gen_header *hdr;
+	const size_t bytes = sizeof (struct mcp_gen_header);
+	size_t hdr_offset;
+	int status;
+
+	/* find running firmware header */
+	hdr_offset = htobe32(*(volatile uint32_t *)
+			     (sc->sram + MCP_HEADER_PTR_OFFSET));
+
+	if ((hdr_offset & 3) || hdr_offset + sizeof(*hdr) > sc->sram_size) {
+		device_printf(sc->dev, 
+			      "Running firmware has bad header offset (%d)\n",
+			      (int)hdr_offset);
+		return EIO;
+	}
+
+	/* copy header of running firmware from SRAM to host memory to
+	 * validate firmware */
+	hdr = malloc(bytes, M_DEVBUF, M_NOWAIT);
+	if (hdr == NULL) {
+		device_printf(sc->dev, "could not malloc firmware hdr\n");
+		return ENOMEM;
+	}
+	bus_space_read_region_1(rman_get_bustag(sc->mem_res),
+				rman_get_bushandle(sc->mem_res),
+				hdr_offset, (char *)hdr, bytes);
+	status = mxge_validate_firmware(sc, hdr);
+	free(hdr, M_DEVBUF);
+	return status;
+}
+
 
 static int
 mxge_load_firmware(mxge_softc_t *sc)
@@ -636,8 +701,25 @@ mxge_load_firmware(mxge_softc_t *sc)
 	size = sc->sram_size;
 	status = mxge_load_firmware_helper(sc, &size);
 	if (status) {
-		device_printf(sc->dev, "firmware loading failed\n");
-		return status;
+		/* Try to use the currently running firmware, if
+		   it is new enough */
+		status = mxge_adopt_running_firmware(sc);
+		if (status) {
+			device_printf(sc->dev,
+				      "failed to adopt running firmware\n");
+			return status;
+		}
+		device_printf(sc->dev,
+			      "Successfully adopted running firmware\n");
+		if (sc->tx.boundary == 4096) {
+			device_printf(sc->dev,
+				"Using firmware currently running on NIC"
+				 ".  For optimal\n");
+			device_printf(sc->dev,
+				 "performance consider loading optimized "
+				 "firmware\n");
+		}
+		
 	}
 	/* clear confirmation addr */
 	confirm = (volatile uint32_t *)sc->cmd;
