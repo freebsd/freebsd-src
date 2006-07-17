@@ -69,11 +69,6 @@ dev/syscons/scvtb.c		optional	sc
 dev/syscons/syscons.c		optional	sc
 dev/syscons/sysmouse.c		optional	sc
 dev/uart/uart_cpu_ia64.c	optional	uart
-geom/geom_bsd.c			standard
-geom/geom_bsd_enc.c		standard
-geom/geom_gpt.c			standard
-geom/geom_mbr.c			standard
-geom/geom_mbr_enc.c		standard
 dev/acpica/acpi_if.m		standard
 ia64/acpica/OsdEnvironment.c	optional	acpi
 ia64/acpica/acpi_machdep.c	optional	acpi
