@@ -399,11 +399,11 @@ sndbuf_getxrun(struct snd_dbuf *b)
 }
 
 void
-sndbuf_setxrun(struct snd_dbuf *b, unsigned int cnt)
+sndbuf_setxrun(struct snd_dbuf *b, unsigned int xrun)
 {
 	SNDBUF_LOCKASSERT(b);
 
-	b->xrun = cnt;
+	b->xrun = xrun;
 }
 
 unsigned int
