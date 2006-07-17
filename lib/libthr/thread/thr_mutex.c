@@ -617,8 +617,7 @@ _mutex_unlock_private(pthread_t pthread)
 {
 	struct pthread_mutex	*m, *m_next;
 
-	for (m = TAILQ_FIRST(&pthread->mutexq); m != NULL; m = m_next) {
-		m_next = TAILQ_NEXT(m, m_qe);
+	TAILQ_FOREACH_SAFE(m, &pthread->mutexq, m_qe, m_next) {
 		if ((m->m_flags & MUTEX_FLAGS_PRIVATE) != 0)
 			_pthread_mutex_unlock(&m);
 	}
