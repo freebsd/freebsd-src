@@ -1430,15 +1430,20 @@ static int
 emu_addefxmixer(struct emu_sc_info *sc, const char *mix_name, const int mix_id, uint32_t defvolume)
 {
 	int volgpr;
+	char	sysctl_name[32];
 
 	volgpr = emu_rm_gpr_alloc(sc->rm, 1);
 	emumix_set_fxvol(sc, volgpr, defvolume);
 	/* Mixer controls with NULL mix_name are handled by AC97 emulation 
 	code or PCM mixer. */
 	if (mix_name != NULL) {
+		/* Temporary sysctls should start with underscore,
+		 * see freebsd-current mailing list, emu10kx driver
+		 * discussion around May, 24th. */
+		snprintf(sysctl_name, 32, "_%s", mix_name);
 		SYSCTL_ADD_PROC(sc->ctx,
 			SYSCTL_CHILDREN(sc->root),
-			OID_AUTO, mix_name,
+			OID_AUTO, sysctl_name,
 			CTLTYPE_INT | CTLFLAG_RW, sc, mix_id,
 			sysctl_emu_mixer_control, "I","");
 	}
