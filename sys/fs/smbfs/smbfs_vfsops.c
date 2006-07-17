@@ -304,6 +304,9 @@ smbfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	if (error)
 		return error;
 	smb_makescred(&scred, td, td->td_ucred);
+	error = smb_share_lock(smp->sm_share, LK_EXCLUSIVE, td);
+	if (error)
+		return error;
 	smb_share_put(smp->sm_share, &scred);
 	mp->mnt_data = (qaddr_t)0;
 
