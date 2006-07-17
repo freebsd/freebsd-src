@@ -1025,10 +1025,9 @@ Var_Set(const char *name, const char *val, GNode *ctxt)
 			 */
 			setenv(n, val, 1);
 		}
-
+		DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, n, val));
 	}
 
-	DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, n, val));
 	free(n);
 }
 
