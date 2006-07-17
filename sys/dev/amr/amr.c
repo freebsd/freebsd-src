@@ -1785,13 +1785,44 @@ amr_setup_ccb64map(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
     }
 }
 
+static void
+amr_setup_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nsegments,
+    int error)
+{
+    struct amr_command          *ac = (struct amr_command *)arg;
+    struct amr_softc            *sc = ac->ac_sc;
+
+    amr_setup_dmamap(arg, segs, nsegments, error);
+
+    if (bus_dmamap_load(sc->amr_buffer_dmat, ac->ac_ccb_dmamap,
+	ac->ac_ccb_data, ac->ac_ccb_length, amr_setup_ccbmap, ac,
+	0) == EINPROGRESS) {
+	sc->amr_state |= AMR_STATE_QUEUE_FRZN;
+    }
+}
+
+static void
+amr_setup_dma64map_cb(void *arg, bus_dma_segment_t *segs, int nsegments,
+    int error)
+{
+    struct amr_command          *ac = (struct amr_command *)arg;
+    struct amr_softc            *sc = ac->ac_sc;
+
+    amr_setup_dma64map(arg, segs, nsegments, error);
+
+    if (bus_dmamap_load(sc->amr_buffer64_dmat, ac->ac_ccb_dma64map,
+	ac->ac_ccb_data, ac->ac_ccb_length, amr_setup_ccb64map, ac,
+	0) == EINPROGRESS) {
+	sc->amr_state |= AMR_STATE_QUEUE_FRZN;
+    }
+}
+
 static int
 amr_mapcmd(struct amr_command *ac)
 {
     bus_dma_tag_t	tag;
-    bus_dmamap_t	datamap, ccbmap;
+    bus_dmamap_t	datamap;
     bus_dmamap_callback_t *cb;
-    bus_dmamap_callback_t *ccb_cb;
     struct amr_softc	*sc = ac->ac_sc;
 
     debug_called(3);
@@ -1799,35 +1830,22 @@ amr_mapcmd(struct amr_command *ac)
     if (AC_IS_SG64(ac)) {
 	tag = sc->amr_buffer64_dmat;
 	datamap = ac->ac_dma64map;
-	ccbmap = ac->ac_ccb_dma64map;
-	cb = amr_setup_dma64map;
-	ccb_cb = amr_setup_ccb64map;
+	cb = amr_setup_dma64map_cb;
     } else {
 	tag = sc->amr_buffer_dmat;
 	datamap = ac->ac_dmamap;
-	ccbmap = ac->ac_ccb_dmamap;
-	cb = amr_setup_dmamap;
-	ccb_cb = amr_setup_ccbmap;
+	cb = amr_setup_dmamap_cb;
     }
 
     /* if the command involves data at all, and hasn't been mapped */
     if ((ac->ac_flags & AMR_CMD_MAPPED) == 0 && (ac->ac_data != NULL)) {
-	if (ac->ac_ccb_data == NULL) {
-	    /* map the data buffers into bus space and build the s/g list */
-	    if (bus_dmamap_load(tag, datamap, ac->ac_data, ac->ac_length,
-		amr_setup_data_dmamap, ac, 0) == EINPROGRESS) {
-		sc->amr_state |= AMR_STATE_QUEUE_FRZN;
-	    }
-	} else {
-	    if (bus_dmamap_load(tag, datamap, ac->ac_data, ac->ac_length,
-		cb, ac, BUS_DMA_NOWAIT) != 0) {
-		return (ENOMEM);
-	    }
-	    if (bus_dmamap_load(tag, ccbmap, ac->ac_ccb_data,
-		ac->ac_ccb_length, ccb_cb, ac, 0) == EINPROGRESS) {
-		sc->amr_state |= AMR_STATE_QUEUE_FRZN;
-	    }
-     }
+	if (ac->ac_ccb_data == NULL)
+	    cb = amr_setup_data_dmamap;
+	/* map the data buffers into bus space and build the s/g list */
+	if (bus_dmamap_load(tag, datamap, ac->ac_data, ac->ac_length,
+	    cb, ac, 0) == EINPROGRESS) {
+	    sc->amr_state |= AMR_STATE_QUEUE_FRZN;
+	}
    } else {
     	if (sc->amr_submit_command(ac) == EBUSY) {
 	    amr_freeslot(ac);
