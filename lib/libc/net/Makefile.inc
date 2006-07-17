@@ -10,18 +10,19 @@ SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c eui64.c \
 	getifaddrs.c getifmaddrs.c getnameinfo.c \
 	getnetbydns.c getnetbyht.c getnetbynis.c getnetnamadr.c \
 	getproto.c getprotoent.c getprotoname.c getservbyname.c \
-	getservbyport.c getservent.c herror.c hesiod.c inet_addr.c \
-	if_indextoname.c if_nameindex.c if_nametoindex.c inet_lnaof.c \
-	inet_makeaddr.c inet_net_ntop.c inet_net_pton.c inet_neta.c \
-	inet_netof.c inet_network.c inet_ntoa.c inet_ntop.c \
-	inet_pton.c ip6opt.c linkaddr.c map_v4v6.c name6.c \
-	ns_name.c ns_netint.c ns_parse.c ns_print.c ns_ttl.c \
+	getservbyport.c getservent.c hesiod.c \
+	if_indextoname.c if_nameindex.c if_nametoindex.c \
+	ip6opt.c linkaddr.c map_v4v6.c name6.c \
 	nsdispatch.c nslexer.c nsparser.c nss_compat.c \
-	nsap_addr.c rcmd.c rcmdsh.c recv.c res_comp.c res_data.c res_debug.c \
-	res_init.c res_mkquery.c res_mkupdate.c res_query.c res_send.c \
-	res_update.c rthdr.c send.c sockatmark.c vars.c
+	rcmd.c rcmdsh.c recv.c rthdr.c send.c sockatmark.c vars.c
+
+# for binary backward compatibility against FreeBSD 6.X and earlier
+SRCS+=	res_mkupdate.c res_update.c
 
 CFLAGS+=-DINET6 -I${.OBJDIR}
+
+# name6.c refers res_private.h
+CFLAGS+=-I${.CURDIR}/resolv
 
 YFLAGS+=-p_nsyy
 LFLAGS+=-P_nsyy

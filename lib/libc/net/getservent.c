@@ -37,9 +37,11 @@ static char sccsid[] = "@(#)getservent.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <string.h>
@@ -54,10 +56,8 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "netdb_private.h"
 
-static struct servdata servdata;
-static thread_key_t servdata_key;
-static once_t servdata_init_once = ONCE_INITIALIZER;
-static int servdata_thr_keycreated = 0;
+NETDB_THREAD_ALLOC(servent_data)
+NETDB_THREAD_ALLOC(servdata)
 
 static void
 servent_data_clear(struct servent_data *sed)
@@ -73,41 +73,71 @@ servent_data_clear(struct servent_data *sed)
 }
 
 static void
-servdata_free(void *ptr)
+servent_data_free(void *ptr)
 {
-	struct servdata *sd = ptr;
+	struct servent_data *sed = ptr;
 
-	if (sd == NULL)
-		return;
-	servent_data_clear(&sd->data);
-	free(sd);
+	servent_data_clear(sed);
+	free(sed);
 }
 
 static void
-servdata_keycreate(void)
+servdata_free(void *ptr)
 {
-	servdata_thr_keycreated =
-	    (thr_keycreate(&servdata_key, servdata_free) == 0);
+	free(ptr);
 }
 
-struct servdata *
-__servdata_init(void)
+int
+__copy_servent(struct servent *se, struct servent *sptr, char *buf,
+    size_t buflen)
 {
-	struct servdata *sd;
+	char *cp;
+	int i, n;
+	int numptr, len;
 
-	if (thr_main() != 0)
-		return (&servdata);
-	if (thr_once(&servdata_init_once, servdata_keycreate) != 0 ||
-	    !servdata_thr_keycreated)
-		return (NULL);
-	if ((sd = thr_getspecific(servdata_key)) != NULL)
-		return (sd);
-	if ((sd = calloc(1, sizeof(*sd))) == NULL)
-		return (NULL);
-	if (thr_setspecific(servdata_key, sd) == 0)
-		return (sd);
-	free(sd);
-	return (NULL);
+	/* Find out the amount of space required to store the answer. */
+	numptr = 1; /* NULL ptr */
+	len = (char *)ALIGN(buf) - buf;
+	for (i = 0; se->s_aliases[i]; i++, numptr++) {
+		len += strlen(se->s_aliases[i]) + 1;
+	}
+	len += strlen(se->s_name) + 1;
+	len += strlen(se->s_proto) + 1;
+	len += numptr * sizeof(char*);
+
+	if (len > (int)buflen) {
+		errno = ERANGE;
+		return (-1);
+	}
+
+	/* copy port value */
+	sptr->s_port = se->s_port;
+
+	cp = (char *)ALIGN(buf) + numptr * sizeof(char *);
+
+	/* copy official name */
+	n = strlen(se->s_name) + 1;
+	strcpy(cp, se->s_name);
+	sptr->s_name = cp;
+	cp += n;
+
+	/* copy aliases */
+	sptr->s_aliases = (char **)ALIGN(buf);
+	for (i = 0 ; se->s_aliases[i]; i++) {
+		n = strlen(se->s_aliases[i]) + 1;
+		strcpy(cp, se->s_aliases[i]);
+		sptr->s_aliases[i] = cp;
+		cp += n;
+	}
+	sptr->s_aliases[i] = NULL;
+
+	/* copy proto */
+	n = strlen(se->s_proto) + 1;
+	strcpy(cp, se->s_proto);
+	sptr->s_proto = cp;
+	cp += n;
+
+	return (0);
 }
 
 #ifdef YP
@@ -148,7 +178,7 @@ _getservbyport_yp(struct servent_data *sed)
 		} else
 			return(0);
 	}
-		
+
 	/* getservent() expects lines terminated with \n -- make it happy */
 	snprintf(sed->line, sizeof sed->line, "%.*s\n", resultlen, result);
 
@@ -177,7 +207,7 @@ _getservbyname_yp(struct servent_data *sed)
 	    &result, &resultlen)) {
 		return(0);
 	}
-		
+
 	/* getservent() expects lines terminated with \n -- make it happy */
 	snprintf(sed->line, sizeof sed->line, "%.*s\n", resultlen, result);
 
@@ -228,7 +258,7 @@ _getservent_yp(struct servent_data *sed)
 #endif
 
 void
-setservent_r(int f, struct servent_data *sed)
+__setservent_p(int f, struct servent_data *sed)
 {
 	if (sed->fp == NULL)
 		sed->fp = fopen(_PATH_SERVICES, "r");
@@ -238,7 +268,7 @@ setservent_r(int f, struct servent_data *sed)
 }
 
 void
-endservent_r(struct servent_data *sed)
+__endservent_p(struct servent_data *sed)
 {
 	servent_data_clear(sed);
 	sed->stayopen = 0;
@@ -249,7 +279,7 @@ endservent_r(struct servent_data *sed)
 }
 
 int
-getservent_r(struct servent *se, struct servent_data *sed)
+__getservent_p(struct servent *se, struct servent_data *sed)
 {
 	char *p;
 	char *cp, **q, *endp;
@@ -272,7 +302,7 @@ again:
 		if (sed->yp_name != NULL) {
 			if (!_getservbyname_yp(sed))
 				goto tryagain;
-		} 
+		}
 		else if (sed->yp_port != 0) {
 			if (!_getservbyport_yp(sed))
 				goto tryagain;
@@ -322,34 +352,53 @@ unpack:
 	return (0);
 }
 
+int
+getservent_r(struct servent *sptr, char *buffer, size_t buflen,
+    struct servent **result)
+{
+	struct servent se;
+	struct servent_data *sed;
+
+	if ((sed = __servent_data_init()) == NULL)
+		return (-1);
+
+	if (__getservent_p(&se, sed) != 0)
+		return (-1);
+	if (__copy_servent(&se, sptr, buffer, buflen) != 0)
+		return (-1);
+	*result = sptr;
+	return (0);
+}
+
 void
 setservent(int f)
 {
-	struct servdata *sd;
+	struct servent_data *sed;
 
-	if ((sd = __servdata_init()) == NULL)
+	if ((sed = __servent_data_init()) == NULL)
 		return;
-	setservent_r(f, &sd->data);
+	__setservent_p(f, sed);
 }
 
 void
 endservent(void)
 {
-	struct servdata *sd;
+	struct servent_data *sed;
 
-	if ((sd = __servdata_init()) == NULL)
+	if ((sed = __servent_data_init()) == NULL)
 		return;
-	endservent_r(&sd->data);
+	__endservent_p(sed);
 }
 
 struct servent *
 getservent(void)
 {
 	struct servdata *sd;
+	struct servent *rval;
 
 	if ((sd = __servdata_init()) == NULL)
 		return (NULL);
-	if (getservent_r(&sd->serv, &sd->data) != 0)
+	if (getservent_r(&sd->serv, sd->data, sizeof(sd->data), &rval) != 0)
 		return (NULL);
-	return (&sd->serv);
+	return (rval);
 }

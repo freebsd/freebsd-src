@@ -18,6 +18,8 @@
 #ifndef lint
 static const char rcsid[] = "$Id: ns_name.c,v 1.3.2.4.4.2 2004/05/04 03:27:47 marka Exp $";
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "port_before.h"
 

@@ -42,34 +42,46 @@ __FBSDID("$FreeBSD$");
 #include "netdb_private.h"
 
 int
-getprotobyname_r(const char *name, struct protoent *pe,
-    struct protoent_data *ped)
+getprotobyname_r(const char *name, struct protoent *pptr, char *buffer,
+    size_t buflen, struct protoent **result)
 {
+	struct protoent pe;
+	struct protoent_data *ped;
 	char **cp;
 	int error;
 
-	setprotoent_r(ped->stayopen, ped);
-	while ((error = getprotoent_r(pe, ped)) == 0) {
-		if (strcmp(pe->p_name, name) == 0)
+	if ((ped = __protoent_data_init()) == NULL)
+		return (-1);
+
+	__setprotoent_p(ped->stayopen, ped);
+	while ((error = __getprotoent_p(&pe, ped)) == 0) {
+		if (strcmp(pe.p_name, name) == 0)
 			break;
-		for (cp = pe->p_aliases; *cp != 0; cp++)
+		for (cp = pe.p_aliases; *cp != 0; cp++)
 			if (strcmp(*cp, name) == 0)
 				goto found;
 	}
 found:
 	if (!ped->stayopen)
-		endprotoent_r(ped);
-	return (error);
+		__endprotoent_p(ped);
+	if (error != 0)
+		return (-1);
+	if (__copy_protoent(&pe, pptr, buffer, buflen) != 0)
+		return (-1);
+	*result = pptr;
+	return (0);
 }
 
 struct protoent *
 getprotobyname(const char *name)
 {
 	struct protodata *pd;
+	struct protoent *rval;
 
 	if ((pd = __protodata_init()) == NULL)
 		return (NULL);
-	if (getprotobyname_r(name, &pd->proto, &pd->data) != 0)
+	if (getprotobyname_r(name, &pd->proto, pd->data, sizeof(pd->data),
+	    &rval) != 0)
 		return (NULL);
-	return (&pd->proto);
+	return (rval);
 }

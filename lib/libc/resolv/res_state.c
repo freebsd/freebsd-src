@@ -85,3 +85,12 @@ __res_state(void)
 	free(statp);
 	return (&_res);
 }
+
+/* binary backward compatibility for FreeBSD 5.x and 6.x */
+struct __res_state_ext *
+___res_ext(void)
+{
+	return (__res_state()->_u._ext.ext);
+}
+
+__weak_reference(__res_state, ___res);

@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <netdb.h>
 #include <resolv.h>
+#include <res_update.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -59,7 +60,7 @@ static int getword_str(char *, int, u_char **, u_char *);
  *		-5 unknown operation or no records
  */
 int
-res_mkupdate(ns_updrec *rrecp_in, u_char *buf, int buflen) {
+res_nmkupdate(res_state statp, ns_updrec *rrecp_in, u_char *buf, int buflen) {
 	ns_updrec *rrecp_start = rrecp_in;
 	HEADER *hp;
 	u_char *cp, *sp2, *startp, *endp;
@@ -72,11 +73,6 @@ res_mkupdate(ns_updrec *rrecp_in, u_char *buf, int buflen) {
 	u_int32_t n1, rttl;
 	u_char *dnptrs[20], **dpp, **lastdnptr;
 
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
-		h_errno = NETDB_INTERNAL;
-		return (-1);
-	}
-
 	/*
 	 * Initialize header fields.
 	 */
@@ -84,7 +80,7 @@ res_mkupdate(ns_updrec *rrecp_in, u_char *buf, int buflen) {
 		return (-1);
 	memset(buf, 0, HFIXEDSZ);
 	hp = (HEADER *) buf;
-	hp->id = htons(++_res.id);
+	hp->id = htons(++statp->id);
 	hp->opcode = ns_o_update;
 	hp->rcode = NOERROR;
 	cp = buf + HFIXEDSZ;
@@ -136,7 +132,7 @@ res_mkupdate(ns_updrec *rrecp_in, u_char *buf, int buflen) {
 				break;
 			default:
 				fprintf(stderr,
-					"res_mkupdate: incorrect opcode: %d\n",
+					"res_nmkupdate: incorrect opcode: %d\n",
 					rrecp->r_opcode);
 				fflush(stderr);
 				return (-1);
@@ -150,7 +146,7 @@ res_mkupdate(ns_updrec *rrecp_in, u_char *buf, int buflen) {
 				break;
 			default:
 				fprintf(stderr,
-					"res_mkupdate: incorrect opcode: %d\n",
+					"res_nmkupdate: incorrect opcode: %d\n",
 					rrecp->r_opcode);
 				fflush(stderr);
 				return (-1);

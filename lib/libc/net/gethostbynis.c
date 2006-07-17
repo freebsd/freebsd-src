@@ -57,7 +57,9 @@ _gethostbynis(const char *name, char *map, int af, struct hostent *he,
 	char *result;
 	int resultlen, size, addrok = 0;
 	char ypbuf[YPMAXRECORD + 2];
+	res_state statp;
 
+	statp = __res_state();
 	switch(af) {
 	case AF_INET:
 		size = NS_INADDRSZ;
@@ -67,20 +69,20 @@ _gethostbynis(const char *name, char *map, int af, struct hostent *he,
 		break;
 	default:
 		errno = EAFNOSUPPORT;
-		h_errno = NETDB_INTERNAL;
-		return -1;
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
+		return (-1);
 	}
 
 	if (hed->yp_domain == (char *)NULL)
 		if (yp_get_default_domain (&hed->yp_domain)) {
-			h_errno = NETDB_INTERNAL;
-			return -1;
+			RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
+			return (-1);
 		}
 
 	if (yp_match(hed->yp_domain, map, name, strlen(name), &result,
 	    &resultlen)) {
-		h_errno = HOST_NOT_FOUND;
-		return -1;
+		RES_SET_H_ERRNO(statp, HOST_NOT_FOUND);
+		return (-1);
 	}
 
 	/* avoid potential memory leak */
@@ -101,7 +103,7 @@ _gethostbynis(const char *name, char *map, int af, struct hostent *he,
 		addrok = inet_aton(result, (struct in_addr *)hed->host_addr);
 		if (addrok != 1)
 			break;
-		if (_res.options & RES_USE_INET6) {
+		if (statp->options & RES_USE_INET6) {
 			_map_v4v6_address((char *)hed->host_addr,
 			    (char *)hed->host_addr);
 			af = AF_INET6;
@@ -113,8 +115,8 @@ _gethostbynis(const char *name, char *map, int af, struct hostent *he,
 		break;
 	}
 	if (addrok != 1) {
-		h_errno = HOST_NOT_FOUND;
-		return -1;
+		RES_SET_H_ERRNO(statp, HOST_NOT_FOUND);
+		return (-1);
 	}
 	he->h_addr_list[1] = NULL;
 	he->h_length = size;
@@ -130,8 +132,8 @@ _gethostbynis(const char *name, char *map, int af, struct hostent *he,
 		*p++ = '\0';
 	size = strlen(cp) + 1;
 	if (ep - bp < size) {
-		h_errno = NO_RECOVERY;
-		return -1;
+		RES_SET_H_ERRNO(statp, NO_RECOVERY);
+		return (-1);
 	}
 	strlcpy(bp, cp, ep - bp);
 	bp += size;
@@ -155,7 +157,7 @@ _gethostbynis(const char *name, char *map, int af, struct hostent *he,
 		cp = p;
 	}
 	*q = NULL;
-	return 0;
+	return (0);
 }
 
 static int
@@ -172,12 +174,12 @@ _gethostbynisname_r(const char *name, int af, struct hostent *he,
 		map = "ipnodes.byname";
 		break;
 	}
-	return _gethostbynis(name, map, af, he, hed);
+	return (_gethostbynis(name, map, af, he, hed));
 }
 
 static int
-_gethostbynisaddr_r(const char *addr, int len, int af, struct hostent *he,
-    struct hostent_data *hed)
+_gethostbynisaddr_r(const void *addr, socklen_t len, int af,
+    struct hostent *he, struct hostent_data *hed)
 {
 	char *map;
 	char numaddr[46];
@@ -191,8 +193,8 @@ _gethostbynisaddr_r(const char *addr, int len, int af, struct hostent *he,
 		break;
 	}
 	if (inet_ntop(af, addr, numaddr, sizeof(numaddr)) == NULL)
-		return -1;
-	return _gethostbynis(numaddr, map, af, he, hed);
+		return (-1);
+	return (_gethostbynis(numaddr, map, af, he, hed));
 }
 #endif /* YP */
 
@@ -201,43 +203,53 @@ struct hostent *
 _gethostbynisname(const char *name, int af)
 {
 #ifdef YP
-	struct hostdata *hd;
+	struct hostent *he;
+	struct hostent_data *hed;
 	u_long oresopt;
 	int error;
+	res_state statp;
 
-	if ((hd = __hostdata_init()) == NULL) {
-		h_errno = NETDB_INTERNAL;
-		return NULL;
+	statp = __res_state();
+	if ((he = __hostent_init()) == NULL ||
+	    (hed = __hostent_data_init()) == NULL) {
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
+		return (NULL);
 	}
-	oresopt = _res.options;
-	_res.options &= ~RES_USE_INET6;
-	error = _gethostbynisname_r(name, af, &hd->host, &hd->data);
-	_res.options = oresopt;
-	return (error == 0) ? &hd->host : NULL;
+
+	oresopt = statp->options;
+	statp->options &= ~RES_USE_INET6;
+	error = _gethostbynisname_r(name, af, he, hed);
+	statp->options = oresopt;
+	return (error == 0) ? he : NULL;
 #else
-	return NULL;
+	return (NULL);
 #endif
 }
 
 struct hostent *
-_gethostbynisaddr(const char *addr, int len, int af)
+_gethostbynisaddr(const void *addr, socklen_t len, int af)
 {
 #ifdef YP
-	struct hostdata *hd;
+	struct hostent *he;
+	struct hostent_data *hed;
 	u_long oresopt;
 	int error;
+	res_state statp;
 
-	if ((hd = __hostdata_init()) == NULL) {
-		h_errno = NETDB_INTERNAL;
-		return NULL;
+	statp = __res_state();
+	if ((he = __hostent_init()) == NULL ||
+	    (hed = __hostent_data_init()) == NULL) {
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
+		return (NULL);
 	}
-	oresopt = _res.options;
-	_res.options &= ~RES_USE_INET6;
-	error = _gethostbynisaddr_r(addr, len, af, &hd->host, &hd->data);
-	_res.options = oresopt;
-	return (error == 0) ? &hd->host : NULL;
+
+	oresopt = statp->options;
+	statp->options &= ~RES_USE_INET6;
+	error = _gethostbynisaddr_r(addr, len, af, he, hed);
+	statp->options = oresopt;
+	return (error == 0) ? he : NULL;
 #else
-	return NULL;
+	return (NULL);
 #endif
 }
 
@@ -247,19 +259,43 @@ _nis_gethostbyname(void *rval, void *cb_data, va_list ap)
 #ifdef YP
 	const char *name;
 	int af;
-	struct hostent *he;
+	char *buffer;
+	size_t buflen;
+	int *errnop, *h_errnop;
+	struct hostent *hptr, he;
 	struct hostent_data *hed;
-	int error;
+	res_state statp;
 
 	name = va_arg(ap, const char *);
 	af = va_arg(ap, int);
-	he = va_arg(ap, struct hostent *);
-	hed = va_arg(ap, struct hostent_data *);
+	hptr = va_arg(ap, struct hostent *);
+	buffer = va_arg(ap, char *);
+	buflen = va_arg(ap, size_t);
+	errnop = va_arg(ap, int *);
+	h_errnop = va_arg(ap, int *);
 
-	error = _gethostbynisname_r(name, af, he, hed);
-	return (error == 0) ? NS_SUCCESS : NS_NOTFOUND;
+	*((struct hostent **)rval) = NULL;
+
+	statp = __res_state();
+	if ((hed = __hostent_data_init()) == NULL) {
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
+		*h_errnop = statp->res_h_errno;
+		return (NS_NOTFOUND);
+	}
+
+	if (_gethostbynisname_r(name, af, &he, hed) != 0) {
+		*h_errnop = statp->res_h_errno;
+		return (NS_NOTFOUND);
+	}
+	if (__copy_hostent(&he, hptr, buffer, buflen) != 0) {
+		*h_errnop = statp->res_h_errno;
+		return (NS_NOTFOUND);
+	}
+	*((struct hostent **)rval) = hptr;
+	return (NS_SUCCESS);
 #else
-	return NS_UNAVAIL;
+	*((struct hostent **)rval) = NULL;
+	return (NS_UNAVAIL);
 #endif
 }
 
@@ -267,22 +303,46 @@ int
 _nis_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 {
 #ifdef YP
-	const char *addr;
-	int len;
+	const void *addr;
+	socklen_t len;
 	int af;
-	struct hostent *he;
+	char *buffer;
+	size_t buflen;
+	int *errnop, *h_errnop;
+	struct hostent *hptr, he;
 	struct hostent_data *hed;
-	int error;
+	res_state statp;
 
-	addr = va_arg(ap, const char *);
-	len = va_arg(ap, int);
+	addr = va_arg(ap, const void *);
+	len = va_arg(ap, socklen_t);
 	af = va_arg(ap, int);
-	he = va_arg(ap, struct hostent *);
-	hed = va_arg(ap, struct hostent_data *);
+	hptr = va_arg(ap, struct hostent *);
+	buffer = va_arg(ap, char *);
+	buflen = va_arg(ap, size_t);
+	errnop = va_arg(ap, int *);
+	h_errnop = va_arg(ap, int *);
 
-	error = _gethostbynisaddr_r(addr, len, af, he, hed);
-	return (error == 0) ? NS_SUCCESS : NS_NOTFOUND;
+	*((struct hostent **)rval) = NULL;
+
+	statp = __res_state();
+	if ((hed = __hostent_data_init()) == NULL) {
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
+		*h_errnop = statp->res_h_errno;
+		return (NS_NOTFOUND);
+	}
+
+	if (_gethostbynisaddr_r(addr, len, af, &he, hed) != 0) {
+		*h_errnop = statp->res_h_errno;
+		return (NS_NOTFOUND);
+	}
+	if (__copy_hostent(&he, hptr, buffer, buflen) != 0) {
+		*h_errnop = statp->res_h_errno;
+		return (NS_NOTFOUND);
+	}
+	*((struct hostent **)rval) = hptr;
+	return (NS_SUCCESS);
 #else
-	return NS_UNAVAIL;
+	*((struct hostent **)rval) = NULL;
+	return (NS_UNAVAIL);
 #endif
 }

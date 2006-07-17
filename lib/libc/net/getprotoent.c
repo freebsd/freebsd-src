@@ -37,8 +37,10 @@ static char sccsid[] = "@(#)getprotoent.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,10 +50,8 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "netdb_private.h"
 
-static struct protodata protodata;
-static thread_key_t protodata_key;
-static once_t protodata_init_once = ONCE_INITIALIZER;
-static int protodata_thr_keycreated = 0;
+NETDB_THREAD_ALLOC(protoent_data)
+NETDB_THREAD_ALLOC(protodata)
 
 static void
 protoent_data_clear(struct protoent_data *ped)
@@ -63,45 +63,68 @@ protoent_data_clear(struct protoent_data *ped)
 }
 
 static void
-protodata_free(void *ptr)
+protoent_data_free(void *ptr)
 {
-	struct protodata *pd = ptr;
+	struct protoent_data *ped = ptr;
 
-	if (pd == NULL)
-		return;
-	protoent_data_clear(&pd->data);
-	free(pd);
+	protoent_data_clear(ped);
+	free(ped);
 }
 
 static void
-protodata_keycreate(void)
+protodata_free(void *ptr)
 {
-	protodata_thr_keycreated =
-	    (thr_keycreate(&protodata_key, protodata_free) == 0);
+	free(ptr);
 }
 
-struct protodata *
-__protodata_init(void)
+int
+__copy_protoent(struct protoent *pe, struct protoent *pptr, char *buf,
+    size_t buflen)
 {
-	struct protodata *pd;
+	char *cp;
+	int i, n;
+	int numptr, len;
 
-	if (thr_main() != 0)
-		return (&protodata);
-	if (thr_once(&protodata_init_once, protodata_keycreate) != 0 ||
-	    !protodata_thr_keycreated)
-		return (NULL);
-	if ((pd = thr_getspecific(protodata_key)) != NULL)
-		return (pd);
-	if ((pd = calloc(1, sizeof(*pd))) == NULL)
-		return (NULL);
-	if (thr_setspecific(protodata_key, pd) == 0)
-		return (pd);
-	free(pd);
-	return (NULL);
+	/* Find out the amount of space required to store the answer. */
+	numptr = 1; /* NULL ptr */
+	len = (char *)ALIGN(buf) - buf;
+	for (i = 0; pe->p_aliases[i]; i++, numptr++) {
+		len += strlen(pe->p_aliases[i]) + 1;
+	}
+	len += strlen(pe->p_name) + 1;
+	len += numptr * sizeof(char*);
+
+	if (len > (int)buflen) {
+		errno = ERANGE;
+		return (-1);
+	}
+
+	/* copy protocol value*/
+	pptr->p_proto = pe->p_proto;
+
+	cp = (char *)ALIGN(buf) + numptr * sizeof(char *);
+
+	/* copy official name */
+	n = strlen(pe->p_name) + 1;
+	strcpy(cp, pe->p_name);
+	pptr->p_name = cp;
+	cp += n;
+
+	/* copy aliases */
+	pptr->p_aliases = (char **)ALIGN(buf);
+	for (i = 0 ; pe->p_aliases[i]; i++) {
+		n = strlen(pe->p_aliases[i]) + 1;
+		strcpy(cp, pe->p_aliases[i]);
+		pptr->p_aliases[i] = cp;
+		cp += n;
+	}
+	pptr->p_aliases[i] = NULL;
+
+	return (0);
 }
 
 void
-setprotoent_r(int f, struct protoent_data *ped)
+__setprotoent_p(int f, struct protoent_data *ped)
 {
 	if (ped->fp == NULL)
 		ped->fp = fopen(_PATH_PROTOCOLS, "r");
@@ -111,7 +134,7 @@ setprotoent_r(int f, struct protoent_data *ped)
 }
 
 void
-endprotoent_r(struct protoent_data *ped)
+__endprotoent_p(struct protoent_data *ped)
 {
 	if (ped->fp) {
 		fclose(ped->fp);
@@ -121,7 +144,7 @@ endprotoent_r(struct protoent_data *ped)
 }
 
 int
-getprotoent_r(struct protoent *pe, struct protoent_data *ped)
+__getprotoent_p(struct protoent *pe, struct protoent_data *ped)
 {
 	char *p;
 	char *cp, **q, *endp;
@@ -170,34 +193,53 @@ again:
 	return (0);
 }
 
+int
+getprotoent_r(struct protoent *pptr, char *buffer, size_t buflen,
+    struct protoent **result)
+{
+	struct protoent pe;
+	struct protoent_data *ped;
+
+	if ((ped = __protoent_data_init()) == NULL)
+		return (-1);
+
+	if (__getprotoent_p(&pe, ped) != 0)
+		return (-1);
+	if (__copy_protoent(&pe, pptr, buffer, buflen) != 0)
+		return (-1);
+	*result = pptr;
+	return (0);
+}
+
 void
 setprotoent(int f)
 {
-	struct protodata *pd;
+	struct protoent_data *ped;
 
-	if ((pd = __protodata_init()) == NULL)
+	if ((ped = __protoent_data_init()) == NULL)
 		return;
-	setprotoent_r(f, &pd->data);
+	__setprotoent_p(f, ped);
 }
 
 void
 endprotoent(void)
 {
-	struct protodata *pd;
+	struct protoent_data *ped;
 
-	if ((pd = __protodata_init()) == NULL)
+	if ((ped = __protoent_data_init()) == NULL)
 		return;
-	endprotoent_r(&pd->data);
+	__endprotoent_p(ped);
 }
 
 struct protoent *
 getprotoent(void)
 {
 	struct protodata *pd;
+	struct protoent *rval;
 
 	if ((pd = __protodata_init()) == NULL)
 		return (NULL);
-	if (getprotoent_r(&pd->proto, &pd->data) != 0)
+	if (getprotoent_r(&pd->proto, pd->data, sizeof(pd->data), &rval) != 0)
 		return (NULL);
-	return (&pd->proto);
+	return (rval);
 }
