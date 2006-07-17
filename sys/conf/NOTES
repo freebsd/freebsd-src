@@ -2625,8 +2625,6 @@ options 	AAC_DEBUG	# Debugging levels:
 ##options 	BKTR_ALLOC_PAGES=(217*4+1)
 options 	BROOKTREE_ALLOC_PAGES=(217*4+1)
 options 	MAXFILES=999
-options 	NDEVFSINO=1025
-options 	NDEVFSOVERFLOW=32769
 
 # Yet more undocumented options for linting.
 options 	VGA_DEBUG

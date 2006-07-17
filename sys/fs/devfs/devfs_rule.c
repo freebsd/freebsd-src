@@ -62,8 +62,6 @@
  * know the convention).
  */
 
-#include "opt_devfs.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
