@@ -2131,13 +2131,13 @@ ffs_mapsearch(fs, cgp, bpref, allocsiz)
 	blksfree = cg_blksfree(cgp);
 	len = howmany(fs->fs_fpg, NBBY) - start;
 	loc = scanc((u_int)len, (u_char *)&blksfree[start],
-		(u_char *)fragtbl[fs->fs_frag],
+		fragtbl[fs->fs_frag],
 		(u_char)(1 << (allocsiz - 1 + (fs->fs_frag % NBBY))));
 	if (loc == 0) {
 		len = start + 1;
 		start = 0;
 		loc = scanc((u_int)len, (u_char *)&blksfree[0],
-			(u_char *)fragtbl[fs->fs_frag],
+			fragtbl[fs->fs_frag],
 			(u_char)(1 << (allocsiz - 1 + (fs->fs_frag % NBBY))));
 		if (loc == 0) {
 			printf("start = %d, len = %d, fs = %s\n",
