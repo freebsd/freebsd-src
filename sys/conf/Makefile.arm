@@ -39,6 +39,7 @@ SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/ldscript.$M=ldscript.$M}
 .if defined(ARM_BIG_ENDIAN)
 CC += -mbig-endian
 SYSTEM_LD += -EB
+LD += -EB
 .endif
 
 
