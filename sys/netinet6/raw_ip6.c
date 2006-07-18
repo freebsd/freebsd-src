@@ -561,14 +561,13 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 	if (filter == NULL)
 		return ENOMEM;
 	INP_INFO_WLOCK(&ripcbinfo);
-	error = in_pcballoc(so, &ripcbinfo, "raw6inp");
+	error = in_pcballoc(so, &ripcbinfo);
 	if (error) {
 		INP_INFO_WUNLOCK(&ripcbinfo);
 		FREE(filter, M_PCB);
 		return error;
 	}
 	inp = (struct inpcb *)so->so_pcb;
-	INP_LOCK(inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
 	inp->inp_vflag |= INP_IPV6;
 	inp->in6p_ip6_nxt = (long)proto;

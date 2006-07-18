@@ -123,6 +123,14 @@ rip_zone_change(void *tag)
 	uma_zone_set_max(ripcbinfo.ipi_zone, maxsockets);
 }
 
+static int
+rip_inpcb_init(void *mem, int size, int flags)
+{
+	struct inpcb *inp = (struct inpcb *) mem;
+	INP_LOCK_INIT(inp, "inp", "rawinp");
+	return (0);
+}
+
 void
 rip_init()
 {
@@ -137,7 +145,7 @@ rip_init()
 	ripcbinfo.hashbase = hashinit(1, M_PCB, &ripcbinfo.hashmask);
 	ripcbinfo.porthashbase = hashinit(1, M_PCB, &ripcbinfo.porthashmask);
 	ripcbinfo.ipi_zone = uma_zcreate("ripcb", sizeof(struct inpcb),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, rip_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(ripcbinfo.ipi_zone, maxsockets);
 	EVENTHANDLER_REGISTER(maxsockets_change, rip_zone_change,
 		NULL, EVENTHANDLER_PRI_ANY);
@@ -599,13 +607,12 @@ rip_attach(struct socket *so, int proto, struct thread *td)
 	if (error)
 		return error;
 	INP_INFO_WLOCK(&ripcbinfo);
-	error = in_pcballoc(so, &ripcbinfo, "rawinp");
+	error = in_pcballoc(so, &ripcbinfo);
 	if (error) {
 		INP_INFO_WUNLOCK(&ripcbinfo);
 		return error;
 	}
 	inp = (struct inpcb *)so->so_pcb;
-	INP_LOCK(inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
 	inp->inp_vflag |= INP_IPV4;
 	inp->inp_ip_p = proto;
@@ -836,6 +843,7 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	error = 0;
 	for (i = 0; i < n; i++) {
 		inp = inp_list[i];
+		INP_LOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			struct xinpcb xi;
 			bzero(&xi, sizeof(xi));
@@ -844,8 +852,10 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 			bcopy(inp, &xi.xi_inp, sizeof *inp);
 			if (inp->inp_socket)
 				sotoxsocket(inp->inp_socket, &xi.xi_socket);
+			INP_UNLOCK(inp);
 			error = SYSCTL_OUT(req, &xi, sizeof xi);
-		}
+		} else
+			INP_UNLOCK(inp);
 	}
 	if (!error) {
 		/*
