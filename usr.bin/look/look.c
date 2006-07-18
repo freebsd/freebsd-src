@@ -276,10 +276,8 @@ linear_search(wchar_t *string, unsigned char *front, unsigned char *back)
 		switch (compare(string, front, back)) {
 		case EQUAL:		/* Found it. */
 			return (front);
-			break;
 		case LESS:		/* No such string. */
 			return (NULL);
-			break;
 		case GREATER:		/* Keep going. */
 			break;
 		}
