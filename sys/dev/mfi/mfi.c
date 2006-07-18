@@ -1276,13 +1276,16 @@ mfi_add_ld(struct mfi_softc *sc, int id)
 		return (error);
 	}
 	cm->cm_flags = MFI_CMD_DATAIN;
-	cm->cm_complete = mfi_add_ld_complete;
 	dcmd = &cm->cm_frame->dcmd;
 	dcmd->mbox[0] = id;
+	if (mfi_wait_command(sc, cm) != 0) {
+		device_printf(sc->mfi_dev,
+		    "Failed to get logical drive: %d\n", id);
+		free(ld_info, M_MFIBUF);
+		return (0);
+	}
 
-	mfi_enqueue_ready(cm);
-	mfi_startio(sc);
-
+	mfi_add_ld_complete(cm);
 	return (0);
 }
 
