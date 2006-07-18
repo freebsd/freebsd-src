@@ -56,6 +56,8 @@ KDB_TRACE	opt_kdb.h
 KDB_UNATTENDED	opt_kdb.h
 SYSCTL_DEBUG	opt_sysctl.h
 
+NO_SYSCTL_DESCR	opt_global.h
+
 # Miscellaneous options.
 ADAPTIVE_GIANT	opt_adaptive_mutexes.h
 NO_ADAPTIVE_MUTEXES	opt_adaptive_mutexes.h
@@ -206,6 +208,7 @@ FFS		opt_ffs_broken_fixme.h
 # filesystems will be enabled - but look below.
 NFSCLIENT	opt_nfs.h
 NFSSERVER	opt_nfs.h
+NFS4CLIENT	opt_nfs.h
 
 # filesystems and libiconv bridge
 CD9660_ICONV	opt_dontuse.h
