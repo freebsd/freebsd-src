@@ -167,19 +167,20 @@ SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomtime, CTLFLAG_RW,
 
 /*
  * Allocate a PCB and associate it with the socket.
+ * On success return with the PCB locked.
  */
 int
-in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo, const char *type)
+in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 {
 	struct inpcb *inp;
 	int error;
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	error = 0;
-	inp = uma_zalloc(pcbinfo->ipi_zone, M_NOWAIT | M_ZERO);
+	inp = uma_zalloc(pcbinfo->ipi_zone, M_NOWAIT);
 	if (inp == NULL)
 		return (ENOBUFS);
-	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
+	bzero(inp,inp_zero_size);
 	inp->inp_pcbinfo = pcbinfo;
 	inp->inp_socket = so;
 #ifdef MAC
@@ -209,11 +210,13 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo, const char *type)
 	LIST_INSERT_HEAD(pcbinfo->listhead, inp, inp_list);
 	pcbinfo->ipi_count++;
 	so->so_pcb = (caddr_t)inp;
-	INP_LOCK_INIT(inp, "inp", type);
 #ifdef INET6
 	if (ip6_auto_flowlabel)
 		inp->inp_flags |= IN6P_AUTOFLOWLABEL;
 #endif
+	INP_LOCK(inp);
+	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
+	
 #if defined(IPSEC) || defined(FAST_IPSEC) || defined(MAC)
 out:
 	if (error != 0)
@@ -721,10 +724,11 @@ in_pcbfree(struct inpcb *inp)
 		(void)m_free(inp->inp_options);
 	ip_freemoptions(inp->inp_moptions);
 	inp->inp_vflag = 0;
-	INP_LOCK_DESTROY(inp);
+	
 #ifdef MAC
 	mac_destroy_inpcb(inp);
 #endif
+	INP_UNLOCK(inp);
 	uma_zfree(ipi->ipi_zone, inp);
 }
 
