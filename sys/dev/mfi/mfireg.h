@@ -106,7 +106,10 @@ typedef enum {
 	MFI_DCMD_CTRL_EVENT_GETINFO =	0x01040100,
 	MFI_DCMD_CTRL_EVENT_GET =	0x01040300,
 	MFI_DCMD_CTRL_EVENT_WAIT =	0x01040500,
+	MFI_DCMD_LD_GET_LIST =		0x03010000,
+	MFI_DCMD_LD_GET_INFO =		0x03020000,
 	MFI_DCMD_LD_GET_PROP =		0x03030000,
+	MFI_DCMD_LD_SET_PROP =		0x03040000,
 	MFI_DCMD_CLUSTER =		0x08000000,
 	MFI_DCMD_CLUSTER_RESET_ALL =	0x08010100,
 	MFI_DCMD_CLUSTER_RESET_LD =	0x08010200
@@ -725,6 +728,99 @@ struct mfi_log_detail {
 		uint8_t		b[96];
 	} args;
 	char description[128];
+} __packed;
+
+struct mfi_ldref {
+	uint8_t		target_id;
+	uint8_t		reserved;
+	uint16_t	seq;
+} __packed;
+
+struct mfi_ld_list {
+	uint32_t		ld_count;
+	uint32_t		reserved1;
+	struct {
+		struct mfi_ldref	ld;
+		uint8_t		state;
+		uint8_t		reserved2[3];
+		uint64_t	size;
+	} ld_list[MFI_MAX_LD];
+} __packed;
+
+enum mfi_ld_access {
+	MFI_LD_ACCESS_RW =	0,
+	MFI_LD_ACCSSS_RO = 	2,
+	MFI_LD_ACCESS_BLOCKED =	3,
+};
+#define MFI_LD_ACCESS_MASK	3
+
+enum mfi_ld_state {
+	MFI_LD_STATE_OFFLINE =			0,
+	MFI_LD_STATE_PARTIALLY_DEGRADED =	1,
+	MFI_LD_STATE_DEGRADED =			2,
+	MFI_LD_STATE_OPTIMAL =			3
+};
+
+struct mfi_ld_props {
+	struct mfi_ldref	ld;
+	char			name[16];
+	uint8_t			default_cache_policy;
+	uint8_t			access_policy;
+	uint8_t			disk_cache_policy;
+	uint8_t			current_cache_policy;
+	uint8_t			no_bgi;
+	uint8_t			reserved[7];
+} __packed;
+
+struct mfi_ld_params {
+	uint8_t			primary_raid_level;
+	uint8_t			raid_level_qualifier;
+	uint8_t			secondary_raid_level;
+	uint8_t			stripe_size;
+	uint8_t			num_drives;
+	uint8_t			span_depth;
+	uint8_t			state;
+	uint8_t			init_state;
+	uint8_t			is_consistent;
+	uint8_t			reserved[23];
+} __packed;
+
+struct mfi_ld_progress {
+	uint32_t		active;
+#define	MFI_LD_PROGRESS_CC	(1<<0)
+#define	MFI_LD_PROGRESS_BGI	(1<<1)
+#define	MFI_LD_PROGRESS_FGI	(1<<2)
+#define	MFI_LD_PORGRESS_RECON	(1<<3)
+	struct mfi_progress	cc;
+	struct mfi_progress	bgi;
+	struct mfi_progress	fgi;
+	struct mfi_progress	recon;
+	struct mfi_progress	reserved[4];
+} __packed;
+
+struct mfi_span {
+	uint64_t		start_block;
+	uint64_t		num_blocks;
+	uint16_t		array_ref;
+	uint8_t			reserved[6];
+} __packed;
+
+#define	MFI_MAX_SPAN_DEPTH	8
+struct mfi_ld_config {
+	struct mfi_ld_props	properties;
+	struct mfi_ld_params	params;
+	struct mfi_span		span[MFI_MAX_SPAN_DEPTH];
+} __packed;
+
+struct mfi_ld_info {
+	struct mfi_ld_config	ld_config;
+	uint64_t		size;
+	struct mfi_ld_progress	progress;
+	uint16_t		cluster_owner;
+	uint8_t			reconstruct_active;
+	uint8_t			reserved1[1];
+	uint8_t			vpd_page83[64];
+	uint8_t			reserved2[16];
 } __packed;
 
 #endif /* _MFIREG_H */
