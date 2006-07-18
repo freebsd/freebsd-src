@@ -31,8 +31,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mbuf.h>
-#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
@@ -67,11 +65,11 @@ WR4(struct at91_ssc_softc *sc, bus_size_t off, uint32_t val)
 #define AT91_SSC_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	AT91_SSC_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define AT91_SSC_LOCK_INIT(_sc) \
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev), \
+	mtx_init(&(_sc)->sc_mtx, device_get_nameunit((_sc)->dev), \
 	    "ssc", MTX_DEF)
-#define AT91_SSC_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
-#define AT91_SSC_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define AT91_SSC_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
+#define AT91_SSC_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx);
+#define AT91_SSC_ASSERT_LOCKED(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED);
+#define AT91_SSC_ASSERT_UNLOCKED(_sc) mtx_assert(&(_sc)->sc_mtx, MA_NOTOWNED);
 #define CDEV2SOFTC(dev)		((dev)->si_drv1)
 
 static devclass_t at91_ssc_devclass;
