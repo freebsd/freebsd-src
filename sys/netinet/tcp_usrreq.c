@@ -1401,13 +1401,12 @@ tcp_attach(so)
 			return (error);
 	}
 	INP_INFO_WLOCK(&tcbinfo);
-	error = in_pcballoc(so, &tcbinfo, "tcpinp");
+	error = in_pcballoc(so, &tcbinfo);
 	if (error) {
 		INP_INFO_WUNLOCK(&tcbinfo);
 		return (error);
 	}
 	inp = sotoinpcb(so);
-	INP_LOCK(inp);
 #ifdef INET6
 	if (isipv6) {
 		inp->inp_vflag |= INP_IPV6;

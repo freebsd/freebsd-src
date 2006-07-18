@@ -455,7 +455,7 @@ in6_pcbfree(struct inpcb *inp)
 		(void)m_free(inp->inp_options);
 	ip_freemoptions(inp->inp_moptions);
 	inp->inp_vflag = 0;
-	INP_LOCK_DESTROY(inp);
+	INP_UNLOCK(inp);
 	uma_zfree(ipi->ipi_zone, inp);
 }
 
