@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#define __RMAN_RESOURCE_VISIBLE
 #include <sys/rman.h>
 #include <machine/bus.h>
 
@@ -56,15 +55,13 @@ struct at91_rtc_softc
 static inline uint32_t
 RD4(struct at91_rtc_softc *sc, bus_size_t off)
 {
-	return bus_space_read_4(sc->mem_res->r_bustag, sc->mem_res->r_bushandle,
-	    off);
+	return bus_read_4(sc->mem_res, off);
 }
 
 static inline void
 WR4(struct at91_rtc_softc *sc, bus_size_t off, uint32_t val)
 {
-	bus_space_write_4(sc->mem_res->r_bustag, sc->mem_res->r_bushandle, off,
-	    val);
+	bus_write_4(sc->mem_res, off, val);
 }
 
 #define AT91_RTC_LOCK(_sc)		mtx_lock_spin(&(_sc)->sc_mtx)
@@ -226,9 +223,14 @@ at91_rtc_gettime(device_t dev, struct timespec *ts)
 static int
 at91_rtc_settime(device_t dev, struct timespec *ts)
 {
-	// XXX UGLY XXX
-	printf("SET TIME\n");
-	return (EINVAL);
+	struct at91_rtc_softc *sc;
+	struct clocktime ct;
+
+	sc = device_get_softc(dev);
+	clock_ts_to_ct(ts, &ct);
+	WR4(sc, RTC_TIMR, RTC_TIMR_MK(ct.hour, ct.min, ct.sec));
+	WR4(sc, RTC_CALR, RTC_CALR_MK(ct.year, ct.mon, ct.day, ct.dow));
+	return (0);
 }
 
 static device_method_t at91_rtc_methods[] = {
