@@ -74,7 +74,7 @@
 #define RTC_CALR_DAY_S	24
 #define RTC_CALR_DAY(x)	FROMBCD(((x) & RTC_CALR_DAY_M) >> RTC_CALR_DAY_S)
 #define RTC_CALR_MK(yr, mon, day, dow) \
-		((TOBCD((yr) / 100 + 19) << RTC_CALR_CENTURY_S) | \
+		((TOBCD((yr) / 100 + 19) << RTC_CALR_CEN_S) | \
 		 (TOBCD((yr) % 100) << RTC_CALR_YEAR_S) | \
 		 (TOBCD(mon) << RTC_CALR_MON_S) | \
 		 (TOBCD(dow) << RTC_CALR_DOW_S) | \

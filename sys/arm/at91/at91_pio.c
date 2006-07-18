@@ -35,11 +35,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#define __RMAN_RESOURCE_VISIBLE
 #include <sys/rman.h>
 #include <machine/bus.h>
 
+#include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91_pioreg.h>
+#include <arm/at91/at91_piovar.h>
 
 struct at91_pio_softc
 {
@@ -56,15 +57,13 @@ struct at91_pio_softc
 static inline uint32_t
 RD4(struct at91_pio_softc *sc, bus_size_t off)
 {
-	return bus_space_read_4(sc->mem_res->r_bustag, sc->mem_res->r_bushandle,
-	    off);
+	return bus_read_4(sc->mem_res, off);
 }
 
 static inline void
 WR4(struct at91_pio_softc *sc, bus_size_t off, uint32_t val)
 {
-	bus_space_write_4(sc->mem_res->r_bustag, sc->mem_res->r_bushandle, off,
-	    val);
+	bus_write_4(sc->mem_res, off, val);
 }
 
 #define AT91_PIO_LOCK(_sc)		mtx_lock_spin(&(_sc)->sc_mtx)
@@ -106,7 +105,26 @@ static struct cdevsw at91_pio_cdevsw =
 static int
 at91_pio_probe(device_t dev)
 {
-	device_set_desc(dev, "PIO");
+	const char *name;
+
+	switch (device_get_unit(dev)) {
+	case 0:
+		name = "PIOA";
+		break;
+	case 1:
+		name = "PIOB";
+		break;
+	case 2:
+		name = "PIOC";
+		break;
+	case 3:
+		name = "PIOD";
+		break;
+	default:
+		name = "PIO";
+		break;
+	}
+	device_set_desc(dev, name);
 	return (0);
 }
 
@@ -121,6 +139,9 @@ at91_pio_attach(device_t dev)
 	if (err)
 		goto out;
 
+	device_printf(dev, "ABSR: %#x OSR: %#x PSR:%#x ODSR: %#x\n",
+	    RD4(sc, PIO_ABSR), RD4(sc, PIO_OSR), RD4(sc, PIO_PSR),
+	    RD4(sc, PIO_ODSR));
 	AT91_PIO_LOCK_INIT(sc);
 
 	/*
@@ -251,6 +272,81 @@ at91_pio_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
 {
 	return (ENXIO);
+}
+
+/*
+ * The following functions are called early in the boot process, so
+ * don't use bus_space, as that isn't yet available when we need to use
+ * them.
+ */
+void
+at91_pio_use_periph_a(uint32_t pio, uint32_t periph_a_mask, int use_pullup)
+{
+	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
+
+	PIO[PIO_ASR / 4] = periph_a_mask;
+	PIO[PIO_PDR / 4] = periph_a_mask;
+	if (use_pullup)
+		PIO[PIO_PUER / 4] = periph_a_mask;
+	else
+		PIO[PIO_PUDR / 4] = periph_a_mask;
+}
+
+void
+at91_pio_use_periph_b(uint32_t pio, uint32_t periph_b_mask, int use_pullup)
+{
+	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
+
+	PIO[PIO_BSR / 4] = periph_b_mask;
+	PIO[PIO_PDR / 4] = periph_b_mask;
+	if (use_pullup)
+		PIO[PIO_PUER / 4] = periph_b_mask;
+	else
+		PIO[PIO_PUDR / 4] = periph_b_mask;
+}
+
+void
+at91_pio_use_gpio(uint32_t pio, uint32_t gpio_mask)
+{
+	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
+
+	PIO[PIO_PER / 4] = gpio_mask;
+}
+
+void
+at91_pio_gpio_input(uint32_t pio, uint32_t input_enable_mask)
+{
+	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
+
+	PIO[PIO_ODR / 4] = input_enable_mask;
+}
+
+void
+at91_pio_gpio_output(uint32_t pio, uint32_t output_enable_mask, int use_pullup)
+{
+	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
+
+	PIO[PIO_OER / 4] = output_enable_mask;
+	if (use_pullup)
+		PIO[PIO_PUER / 4] = output_enable_mask;
+	else
+		PIO[PIO_PUDR / 4] = output_enable_mask;
+}
+
+void
+at91_pio_gpio_set(uint32_t pio, uint32_t data_mask)
+{
+	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
+
+	PIO[PIO_SODR / 4] = data_mask;
+}
+
+void
+at91_pio_gpio_clear(uint32_t pio, uint32_t data_mask)
+{
+	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
+
+	PIO[PIO_CODR / 4] = data_mask;
 }
 
 static device_method_t at91_pio_methods[] = {
