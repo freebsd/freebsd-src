@@ -89,15 +89,14 @@ in_addword(u_short a, u_short b)
 	return (sum);
 }
 
-u_short
-in_pseudo(u_int32_t a, u_int32_t b, u_int32_t c)
+static
+uint64_t _do_cksum(void *addr, int len)
 {
-	u_int64_t sum;
+	uint64_t sum;
 	union q_util q_util;
-	union l_util l_util;
-		    
-	sum = (u_int64_t) a + b + c;
-	REDUCE16;
+
+	sum = do_cksum(addr, len);
+	REDUCE32;
 	return (sum);
 }
 
@@ -132,9 +131,9 @@ skip_start:
 			mlen = len;
 
 		if ((clen ^ (int) addr) & 1)
-		    sum += do_cksum(addr, mlen) << 8;
+		    sum += _do_cksum(addr, mlen) << 8;
 		else
-		    sum += do_cksum(addr, mlen);
+		    sum += _do_cksum(addr, mlen);
 
 		clen += mlen;
 		len -= mlen;
@@ -142,3 +141,12 @@ skip_start:
 	REDUCE16;
 	return (~sum & 0xffff);
 }
+
+u_int in_cksum_hdr(const struct ip *ip)
+{
+	u_int64_t sum = do_cksum(ip, sizeof(struct ip));
+	union q_util q_util;
+    	union l_util l_util;
+	REDUCE16;
+	return (~sum & 0xffff);
+}			    
