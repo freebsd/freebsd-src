@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#define __RMAN_RESOURCE_VISIBLE
 #include <sys/rman.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -104,15 +103,13 @@ struct ate_softc
 static inline uint32_t
 RD4(struct ate_softc *sc, bus_size_t off)
 {
-	return bus_space_read_4(sc->mem_res->r_bustag, sc->mem_res->r_bushandle,
-	    off);
+	return bus_read_4(sc->mem_res, off);
 }
 
 static inline void
 WR4(struct ate_softc *sc, bus_size_t off, uint32_t val)
 {
-	bus_space_write_4(sc->mem_res->r_bustag, sc->mem_res->r_bushandle, off,
-	    val);
+	bus_write_4(sc->mem_res, off, val);
 }
 
 #define ATE_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
@@ -767,7 +764,7 @@ atestart_locked(struct ifnet *ifp)
 		}
 		mdefrag = m_defrag(m, M_DONTWAIT);
 		if (mdefrag == NULL) {
-			m_freem(m);
+			IFQ_DRV_PREPEND(&ifp->if_snd, m);
 			return;
 		}
 		m = mdefrag;
