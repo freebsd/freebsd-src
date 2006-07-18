@@ -231,7 +231,7 @@ portal_open(ap)
 	/*
 	 * Can't be opened unless the caller is set up
 	 * to deal with the side effects.  Check for this
-	 * by testing whether the p_dupfd has been set.
+	 * by testing whether td_dupfd has been set.
 	 */
 	if (td->td_dupfd >= 0)
 		return (ENODEV);
