@@ -89,6 +89,17 @@ in_addword(u_short a, u_short b)
 	return (sum);
 }
 
+static
+uint64_t _do_cksum(void *addr, int len)
+{
+	uint64_t sum;
+	union q_util q_util;
+
+	sum = do_cksum(addr, len);
+	REDUCE32;
+	return (sum);
+}
+
 u_short
 in_cksum_skip(struct mbuf *m, int len, int skip)
 {
@@ -120,9 +131,9 @@ skip_start:
 			mlen = len;
 
 		if ((clen ^ (int) addr) & 1)
-		    sum += do_cksum(addr, mlen) << 8;
+		    sum += _do_cksum(addr, mlen) << 8;
 		else
-		    sum += do_cksum(addr, mlen);
+		    sum += _do_cksum(addr, mlen);
 
 		clen += mlen;
 		len -= mlen;
