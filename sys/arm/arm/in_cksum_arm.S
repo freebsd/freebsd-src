@@ -93,10 +93,10 @@ ENTRY(in_cksum)
 
 
 ENTRY(do_cksum)
-	stmfd	sp!, {r4-r11, lr}
+	stmfd	sp!, {r4-r7, lr}
 	bl	L_cksumdata
 	mov	r0, r2
-	ldmfd	sp!, {r4-r11, pc}
+	ldmfd	sp!, {r4-r7, pc}
 /*
  * The main in*_cksum() workhorse...
  *
