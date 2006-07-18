@@ -198,12 +198,8 @@ streamsopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	int family;
 	struct proc *p = td->td_proc;
 	
-	PROC_LOCK(p);
-	if (td->td_dupfd >= 0) {
-	  PROC_UNLOCK(p);
+	if (td->td_dupfd >= 0)
 	  return ENODEV;
-	}
-	PROC_UNLOCK(p);
 
 	switch (minor(dev)) {
 	case dev_udp:
@@ -280,9 +276,7 @@ streamsopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	(void)svr4_stream_get(fp);
 	fdrop(fp, td);
-	PROC_LOCK(p);
 	td->td_dupfd = fd;
-	PROC_UNLOCK(p);
 	return ENXIO;
 }
 
@@ -324,9 +318,7 @@ svr4_ptm_alloc(td)
 		case ENXIO:
 			return error;
 		case 0:
-			PROC_LOCK(p);
 			td->td_dupfd = td->td_retval[0];
-			PROC_UNLOCK(p);
 			return ENXIO;
 		default:
 			if (ttynumbers[++n] == '\0') {
