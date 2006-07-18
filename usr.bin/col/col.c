@@ -397,14 +397,14 @@ void
 flush_line(LINE *l)
 {
 	CHAR *c, *endc;
-	int j, nchars, last_col, this_col;
+	int i, j, nchars, last_col, save, this_col, tot;
 
 	last_col = 0;
 	nchars = l->l_line_len;
 
 	if (l->l_needs_sort) {
 		static CHAR *sorted;
-		static int count_size, *count, i, save, sorted_size, tot;
+		static int count_size, *count, sorted_size;
 
 		/*
 		 * Do an O(n) sort on l->l_line by column being careful to
