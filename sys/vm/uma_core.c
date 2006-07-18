@@ -2768,6 +2768,7 @@ uma_print_zone(uma_zone_t zone)
 	}
 }
 
+#ifdef DDB
 /*
  * Generate statistics across both the zone and its per-cpu cache's.  Return
  * desired statistics if the pointer is non-NULL for that statistic.
@@ -2809,6 +2810,7 @@ uma_zone_sumstat(uma_zone_t z, int *cachefreep, u_int64_t *allocsp,
 	if (freesp != NULL)
 		*freesp = frees;
 }
+#endif /* DDB */
 
 static int
 sysctl_vm_zone_count(SYSCTL_HANDLER_ARGS)
