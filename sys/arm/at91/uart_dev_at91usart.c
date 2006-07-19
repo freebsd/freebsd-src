@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 
 #include "uart_if.h"
 
+#define uart_lock(x)	mtx_lock_spin(&(x))
+#define uart_unlock(x)	mtx_unlock_spin(&(x))
 #define DEFAULT_RCLK		AT91C_MASTER_CLOCK
 #define	USART_BUFFER_SIZE	128
 
