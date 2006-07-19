@@ -609,7 +609,9 @@ linux_bind(struct thread *td, struct linux_bind_args *args)
 	if (error)
 		return (error);
 
-	return (kern_bind(td, linux_args.s, sa));
+	error = kern_bind(td, linux_args.s, sa);
+	free(sa, M_SONAME);
+	return (error);
 }
 
 struct linux_connect_args {
@@ -638,6 +640,7 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 		return (error);
 
 	error = kern_connect(td, linux_args.s, sa);
+	free(sa, M_SONAME);
 	if (error != EISCONN)
 		return (error);
 
