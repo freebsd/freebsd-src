@@ -70,9 +70,6 @@ static  d_open_t	streamsopen;
 
 struct svr4_sockcache_head svr4_head;
 
-/* Initialization flag (set/queried by svr4_mod LKM) */
-int svr4_str_initialized = 0;
-
 /*
  * Device minor numbers
  */
@@ -122,7 +119,7 @@ streams_modevent(module_t mod, int type, void *unused)
 {
 	switch (type) {
 	case MOD_LOAD:
-		/* XXX should make sure it isn't already loaded first */
+		TAILQ_INIT(&svr4_head);
 		dt_ptm = make_dev(&streams_cdevsw, dev_ptm, 0, 0, 0666,
 			"ptm");
 		dt_arp = make_dev(&streams_cdevsw, dev_arp, 0, 0, 0666,
@@ -381,14 +378,6 @@ svr4_delete_socket(p, fp)
 {
 	struct svr4_sockcache_entry *e;
 	void *cookie = ((struct socket *)fp->f_data)->so_emuldata;
-
-	while (svr4_str_initialized != 2) {
-		if (atomic_cmpset_acq_int(&svr4_str_initialized, 0, 1)) {
-			TAILQ_INIT(&svr4_head);
-			atomic_store_rel_int(&svr4_str_initialized, 2);
-		}
-		return;
-	}
 
 	TAILQ_FOREACH(e, &svr4_head, entries)
 		if (e->p == p && e->cookie == cookie) {
