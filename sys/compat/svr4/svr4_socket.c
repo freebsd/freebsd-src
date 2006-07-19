@@ -75,17 +75,6 @@ svr4_find_socket(td, fp, dev, ino)
 	struct svr4_sockcache_entry *e;
 	void *cookie = ((struct socket *)fp->f_data)->so_emuldata;
 
-	if (svr4_str_initialized != 2) {
-		if (atomic_cmpset_acq_int(&svr4_str_initialized, 0, 1)) {
-			DPRINTF(("svr4_find_socket: uninitialized [%p,%d,%d]\n",
-			    td, dev, ino));
-			TAILQ_INIT(&svr4_head);
-			atomic_store_rel_int(&svr4_str_initialized, 2);
-		}
-		return NULL;
-	}
-
-
 	DPRINTF(("svr4_find_socket: [%p,%d,%d]: ", td, dev, ino));
 	TAILQ_FOREACH(e, &svr4_head, entries)
 		if (e->p == td->td_proc && e->dev == dev && e->ino == ino) {
@@ -117,19 +106,6 @@ svr4_add_socket(td, path, st)
 	int len, error;
 
 	mtx_lock(&Giant);
-
-	/*
-	 * Wait for the TAILQ to be initialized.  Only the very first CPU
-	 * will succeed on the atomic_cmpset().  The other CPU's will spin
-	 * until the first one finishes the initialization.  Once the
-	 * initialization is complete, the condition will always fail
-	 * avoiding expensive atomic operations in the common case.
-	 */
-	while (svr4_str_initialized != 2)
-		if (atomic_cmpset_acq_int(&svr4_str_initialized, 0, 1)) {
-			TAILQ_INIT(&svr4_head);
-			atomic_store_rel_int(&svr4_str_initialized, 2);
-		}
 
 	e = malloc(sizeof(*e), M_TEMP, M_WAITOK);
 	e->cookie = NULL;
