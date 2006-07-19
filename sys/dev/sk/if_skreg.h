@@ -1327,18 +1327,18 @@ struct vpd_key {
 #define VPD_RES_END	0x78	/* end tag */
 
 #define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4((sc)->sk_btag, (sc)->sk_bhandle, (reg), (val))
+	bus_write_4((sc)->sk_res[0], (reg), (val))
 #define CSR_WRITE_2(sc, reg, val)	\
-	bus_space_write_2((sc)->sk_btag, (sc)->sk_bhandle, (reg), (val))
+	bus_write_2((sc)->sk_res[0], (reg), (val))
 #define CSR_WRITE_1(sc, reg, val)	\
-	bus_space_write_1((sc)->sk_btag, (sc)->sk_bhandle, (reg), (val))
+	bus_write_1((sc)->sk_res[0], (reg), (val))
 
 #define CSR_READ_4(sc, reg)		\
-	bus_space_read_4((sc)->sk_btag, (sc)->sk_bhandle, (reg))
+	bus_read_4((sc)->sk_res[0], (reg))
 #define CSR_READ_2(sc, reg)		\
-	bus_space_read_2((sc)->sk_btag, (sc)->sk_bhandle, (reg))
+	bus_read_2((sc)->sk_res[0], (reg))
 #define CSR_READ_1(sc, reg)		\
-	bus_space_read_1((sc)->sk_btag, (sc)->sk_bhandle, (reg))
+	bus_read_1((sc)->sk_res[0], (reg))
 
 struct sk_type {
 	u_int16_t		sk_vid;
@@ -1520,11 +1520,9 @@ struct sk_if_softc;
 
 /* Softc for the GEnesis controller. */
 struct sk_softc {
-	bus_space_handle_t	sk_bhandle;	/* bus space handle */
-	bus_space_tag_t		sk_btag;	/* bus space tag */
+	struct resource		*sk_res[2];	/* I/O and IRQ resources */
+	struct resource_spec	*sk_res_spec;
 	void			*sk_intrhand;	/* irq handler handle */
-	struct resource		*sk_irq;	/* IRQ resource handle */
-	struct resource		*sk_res;	/* I/O or shared mem handle */
 	device_t		sk_dev;
 	u_int8_t		sk_type;
 	u_int8_t		sk_rev;

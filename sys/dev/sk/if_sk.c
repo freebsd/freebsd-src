@@ -278,14 +278,6 @@ static void sk_setpromisc(struct sk_if_softc *);
 static int sysctl_int_range(SYSCTL_HANDLER_ARGS, int low, int high);
 static int sysctl_hw_sk_int_mod(SYSCTL_HANDLER_ARGS);
 
-#ifdef SK_USEIOSPACE
-#define SK_RES		SYS_RES_IOPORT
-#define SK_RID		SK_PCI_LOIO
-#else
-#define SK_RES		SYS_RES_MEMORY
-#define SK_RID		SK_PCI_LOMEM
-#endif
-
 /*
  * It seems that SK-NET GENESIS supports very simple checksum offload
  * capability for Tx and I believe it can generate 0 checksum value for
@@ -360,6 +352,18 @@ static devclass_t sk_devclass;
 DRIVER_MODULE(skc, pci, skc_driver, skc_devclass, 0, 0);
 DRIVER_MODULE(sk, skc, sk_driver, sk_devclass, 0, 0);
 DRIVER_MODULE(miibus, sk, miibus_driver, miibus_devclass, 0, 0);
+
+static struct resource_spec sk_res_spec_io[] = {
+	{ SYS_RES_IOPORT,	PCIR_BAR(1),	RF_ACTIVE },
+	{ SYS_RES_IRQ,		0,		RF_ACTIVE | RF_SHAREABLE },
+	{ -1,			0,		0 }
+};
+
+static struct resource_spec sk_res_spec_mem[] = {
+	{ SYS_RES_MEMORY,	PCIR_BAR(0),	RF_ACTIVE },
+	{ SYS_RES_IRQ,		0,		RF_ACTIVE | RF_SHAREABLE },
+	{ -1,			0,		0 }
+};
 
 #define SK_SETBIT(sc, reg, x)		\
 	CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) | x)
@@ -1681,7 +1685,7 @@ skc_attach(dev)
 	device_t		dev;
 {
 	struct sk_softc		*sc;
-	int			error = 0, rid, *port, sk_macs;
+	int			error = 0, *port, sk_macs;
 	uint8_t			skrs;
 	char			*pname, *revstr;
 
@@ -1696,17 +1700,26 @@ skc_attach(dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	rid = SK_RID;
-	sc->sk_res = bus_alloc_resource_any(dev, SK_RES, &rid, RF_ACTIVE);
-
-	if (sc->sk_res == NULL) {
-		device_printf(dev, "couldn't map ports/memory\n");
-		error = ENXIO;
-		goto fail;
+	/* Allocate resources */
+#ifdef SK_USEIOSPACE
+	sc->sk_res_spec = sk_res_spec_io;
+#else
+	sc->sk_res_spec = sk_res_spec_mem;
+#endif
+	error = bus_alloc_resources(dev, sc->sk_res_spec, sc->sk_res);
+	if (error) {
+		if (sc->sk_res_spec == sk_res_spec_mem)
+			sc->sk_res_spec = sk_res_spec_io;
+		else
+			sc->sk_res_spec = sk_res_spec_mem;
+		error = bus_alloc_resources(dev, sc->sk_res_spec, sc->sk_res);
+		if (error) {
+			device_printf(dev, "couldn't allocate %s resources\n",
+			    sc->sk_res_spec == sk_res_spec_mem ? "memory" :
+			    "I/O");
+			goto fail;
+		}
 	}
-
-	sc->sk_btag = rman_get_bustag(sc->sk_res);
-	sc->sk_bhandle = rman_get_bushandle(sc->sk_res);
 
 	sc->sk_type = sk_win_read_1(sc, SK_CHIPVER);
 	sc->sk_rev = (sk_win_read_1(sc, SK_CONFIG) >> 4) & 0xf;
@@ -1715,17 +1728,6 @@ skc_attach(dev)
 	if (sc->sk_type != SK_GENESIS && !SK_YUKON_FAMILY(sc->sk_type)) {
 		device_printf(dev, "unknown device: chipver=%02x, rev=%x\n",
 		    sc->sk_type, sc->sk_rev);
-		error = ENXIO;
-		goto fail;
-	}
-
-	/* Allocate interrupt */
-	rid = 0;
-	sc->sk_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_SHAREABLE | RF_ACTIVE);
-
-	if (sc->sk_irq == NULL) {
-		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -1995,7 +1997,7 @@ skc_attach(dev)
 	}
 
 	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->sk_irq, INTR_TYPE_NET|INTR_MPSAFE,
+	error = bus_setup_intr(dev, sc->sk_res[1], INTR_TYPE_NET|INTR_MPSAFE,
 	    sk_intr, sc, &sc->sk_intrhand);
 
 	if (error) {
@@ -2084,11 +2086,8 @@ skc_detach(dev)
 		free(sc->sk_vpd_readonly, M_DEVBUF);
 
 	if (sc->sk_intrhand)
-		bus_teardown_intr(dev, sc->sk_irq, sc->sk_intrhand);
-	if (sc->sk_irq)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sk_irq);
-	if (sc->sk_res)
-		bus_release_resource(dev, SK_RES, SK_RID, sc->sk_res);
+		bus_teardown_intr(dev, sc->sk_res[1], sc->sk_intrhand);
+	bus_release_resources(dev, sc->sk_res_spec, sc->sk_res);
 
 	mtx_destroy(&sc->sk_mii_mtx);
 	mtx_destroy(&sc->sk_mtx);
