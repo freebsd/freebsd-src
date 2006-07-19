@@ -424,6 +424,7 @@ db_command(last_cmdp, cmd_table)
  */
 DB_COMMAND(panic, db_panic)
 {
+	db_disable_pager();
 	panic("from debugger");
 }
 
@@ -527,6 +528,7 @@ db_fncall(dummy1, dummy2, dummy3, dummy4)
 	    }
 	}
 	db_skip_to_eol();
+	db_disable_pager();
 
 	if (DB_CALL(fn_addr, &retval, nargs, args))
 		db_printf("= %#lr\n", (long)retval);
