@@ -1600,12 +1600,14 @@ svr4_sys_resolvepath(td, uap)
 	struct nameidata nd;
 	int error, *retval = td->td_retval;
 	unsigned int ncopy;
+	int vfslocked;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | SAVENAME, UIO_USERSPACE,
+	NDINIT(&nd, LOOKUP, NOFOLLOW | SAVENAME | MPSAFE, UIO_USERSPACE,
 	    uap->path, td);
 
 	if ((error = namei(&nd)) != 0)
 		return error;
+	vfslocked = NDHASGIANT(&nd);
 
 	ncopy = min(uap->bufsiz, strlen(nd.ni_cnd.cn_pnbuf) + 1);
 	if ((error = copyout(nd.ni_cnd.cn_pnbuf, uap->buf, ncopy)) != 0)
@@ -1615,5 +1617,6 @@ svr4_sys_resolvepath(td, uap)
 bad:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_vp);
+	VFS_UNLOCK_GIANT(vfslocked);
 	return error;
 }
