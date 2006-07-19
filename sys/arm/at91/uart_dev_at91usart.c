@@ -93,7 +93,7 @@ static void at91_usart_init(struct uart_bas *bas, int, int, int, int);
 static void at91_usart_term(struct uart_bas *bas);
 static void at91_usart_putc(struct uart_bas *bas, int);
 static int at91_usart_poll(struct uart_bas *bas);
-static int at91_usart_getc(struct uart_bas *bas, struct mtx *mtx);
+static int at91_usart_getc(struct uart_bas *bas);
 
 extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
 
@@ -265,7 +265,7 @@ at91_usart_poll(struct uart_bas *bas)
  * Block waiting for a character.
  */
 static int
-at91_usart_getc(struct uart_bas *bas, struct mtx *mtx)
+at91_usart_getc(struct uart_bas *bas)
 {
 	int c;
 
@@ -509,12 +509,12 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 	uart_lock(sc->sc_hwmtx);
 	if (csr & USART_CSR_TXRDY) {
 		if (sc->sc_txbusy)
-			ipend |= SER_INT_TXIDLE;
+			ipend |= UART_IPEND_TXIDLE;
 		WR4(&sc->sc_bas, USART_IDR, USART_CSR_TXRDY);
 	}
 	if (csr & USART_CSR_ENDTX) {
 		if (sc->sc_txbusy)
-			ipend |= SER_INT_TXIDLE;
+			ipend |= UART_IPEND_TXIDLE;
 		WR4(&sc->sc_bas, USART_IDR, USART_CSR_ENDTX);
 	}
 
@@ -544,7 +544,7 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 		WR4(&sc->sc_bas, PDC_RNPR, atsc->pong->pa);
 		WR4(&sc->sc_bas, PDC_RNCR, sc->sc_rxfifosz);
 		WR4(&sc->sc_bas, PDC_PTCR, PDC_PTCR_RXTEN);
-		ipend |= SER_INT_RXREADY;
+		ipend |= UART_IPEND_RXREADY;
 	}
 	if ((atsc->flags & HAS_TIMEOUT) && (csr & USART_CSR_ENDRX)) {
 		// Shuffle data from 'ping' of ping pong buffer, but
@@ -560,7 +560,7 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 		atsc->pong = p;
 		WR4(&sc->sc_bas, PDC_RNPR, atsc->pong->pa);
 		WR4(&sc->sc_bas, PDC_RNCR, sc->sc_rxfifosz);
-		ipend |= SER_INT_RXREADY;
+		ipend |= UART_IPEND_RXREADY;
 	}
 	if ((atsc->flags & HAS_TIMEOUT) && (csr & USART_CSR_TIMEOUT)) {
 		// We have one partial buffer.  We need to stop the
@@ -579,19 +579,19 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 		WR4(&sc->sc_bas, PDC_RCR, sc->sc_rxfifosz);
 		WR4(&sc->sc_bas, USART_CR, USART_CR_STTTO);
 		WR4(&sc->sc_bas, PDC_PTCR, PDC_PTCR_RXTEN);
-		ipend |= SER_INT_RXREADY;
+		ipend |= UART_IPEND_RXREADY;
 	}
 	if (!(atsc->flags & HAS_TIMEOUT) && (csr & USART_CSR_RXRDY)) {
 		// We have another charater in a device that doesn't support
 		// timeouts, so we do it one character at a time.
 		uart_rx_put(sc, RD4(&sc->sc_bas, USART_RHR) & 0xff);
-		ipend |= SER_INT_RXREADY;
+		ipend |= UART_IPEND_RXREADY;
 	}
 
 	if (csr & USART_CSR_RXBRK) {
 		unsigned int cr = USART_CR_RSTSTA;
 
-		ipend |= SER_INT_BREAK;
+		ipend |= UART_IPEND_BREAK;
 		WR4(&sc->sc_bas, USART_CR, cr);
 	}
 	uart_unlock(sc->sc_hwmtx);
@@ -620,7 +620,7 @@ at91_usart_bus_getsig(struct uart_softc *sc)
 		sig |= SER_DSR;
 	if (csr & USART_CSR_RI)
 		sig |= SER_RI;
-	new = sig & ~SER_MASK_DELTA;
+	new = sig & ~UART_SIGMASK_DELTA;
 	sc->sc_hwsig = new;
 	uart_unlock(sc->sc_hwmtx);
 	return (sig);
