@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2004
+.Dd July 19, 2006
 .Dt RANDOM 4
 .Os
 .Sh NAME
@@ -76,14 +76,14 @@ which results in something like:
 .Pp
 .Bd -literal -offset indent
 kern.random.sys.seeded: 1
-kern.random.sys.burst: 20
-kern.random.sys.harvest.ethernet: 0
-kern.random.sys.harvest.point_to_point: 0
-kern.random.sys.harvest.interrupt: 0
+kern.random.sys.harvest.ethernet: 1
+kern.random.sys.harvest.point_to_point: 1
+kern.random.sys.harvest.interrupt: 1
+kern.random.sys.harvest.swi: 0
 kern.random.yarrow.gengateinterval: 10
 kern.random.yarrow.bins: 10
-kern.random.yarrow.fastthresh: 100
-kern.random.yarrow.slowthresh: 160
+kern.random.yarrow.fastthresh: 192
+kern.random.yarrow.slowthresh: 256
 kern.random.yarrow.slowoverthresh: 2
 .Ed
 .Pp
@@ -102,25 +102,6 @@ If set to 0, the device will block (on read) until the next reseed
 (which can be from an explicit write,
 or as a result of entropy harvesting).
 A reseed will set the value to 1 (non-blocking).
-.Pp
-The
-.Va kern.random.sys.burst
-variable instructs the kernel thread
-that processes the harvest queue
-to
-.Xr tsleep 9
-briefly after that many events
-have been processed.
-This helps prevent the random device
-from being so compute-bound
-that it takes over all processing ability.
-A value of 0 (zero) is treated as
-.Em infinity ,
-and will only allow the kernel to pause
-if the queue is empty.
-Only values in the range
-.Bq 0..20
-are accepted.
 .Pp
 The
 .Va kern.random.sys.harvest.ethernet
@@ -143,12 +124,21 @@ The
 .Va kern.random.sys.harvest.interrupt
 variable is used to select hardware interrupts
 as an entropy source.
-A 0 (zero) value means interrupts
+A 0 (zero) value means hardware interrupts
 are not considered as an entropy source.
 Set the variable to 1 (one)
 if you wish to use them for entropy harvesting.
-All interrupt harvesting is setup by the
+All hardware interrupt harvesting is setup by the
 individual device drivers.
+.Pp
+The
+.Va kern.random.sys.harvest.swi
+variable is used to select software interrupts
+as an entropy source.
+A 0 (zero) value means software interrupts
+are not considered as an entropy source.
+Set the variable to 1 (one)
+if you wish to use them for entropy harvesting.
 .Pp
 The other variables are explained in the paper describing the
 .Em Yarrow
