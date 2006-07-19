@@ -28,7 +28,10 @@
 
 #include <sys/socket.h>
 
+#include <netinet/in.h>
+
 #include <err.h>
+#include <string.h>
 #include <unistd.h>
 
 /*
@@ -38,18 +41,44 @@
 int
 main(int argc, char *argv[])
 {
+	struct sockaddr_in6 sin6;
 	int s;
 
+	/*
+	 * UDPv6 simple test.
+	 */
 	s = socket(PF_INET6, SOCK_DGRAM, 0);
 	if (s < 0)
 		err(-1, "socket(PF_INET6, SOCK_DGRAM, 0)");
 	close(s);
 
+	/*
+	 * UDPv6 connected case -- connect UDPv6 to an arbitrary port so that
+	 * when we close the socket, it goes through the disconnect logic.
+	 */
+	s = socket(PF_INET6, SOCK_DGRAM, 0);
+	if (s < 0)
+		err(-1, "socket(PF_INET6, SOCK_DGRAM, 0)");
+	bzero(&sin6, sizeof(sin6));
+	sin6.sin6_len = sizeof(sin6);
+	sin6.sin6_family = AF_INET6;
+	sin6.sin6_addr = in6addr_loopback;
+	sin6.sin6_port = htons(1024);
+	if (connect(s, (struct sockaddr *)&sin6, sizeof(sin6)) < 0)
+		err(-1, "connect(SOCK_DGRAM, ::1)");
+	close(s);
+
+	/*
+	 * TCPv6.
+	 */
 	s = socket(PF_INET6, SOCK_STREAM, 0);
 	if (s < 0)
 		err(-1, "socket(PF_INET6, SOCK_STREAM, 0)");
 	close(s);
 
+	/*
+	 * Raw IPv6.
+	 */
 	s = socket(PF_INET6, SOCK_RAW, 0);
 	if (s < 0)
 		err(-1, "socket(PF_INET6, SOCK_RAW, 0)");
