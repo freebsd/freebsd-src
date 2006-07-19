@@ -209,7 +209,9 @@ bind(td, uap)
 	if ((error = getsockaddr(&sa, uap->name, uap->namelen)) != 0)
 		return (error);
 
-	return (kern_bind(td, uap->s, sa));
+	error = kern_bind(td, uap->s, sa);
+	free(sa, M_SONAME);
+	return (error);
 }
 
 int
@@ -241,7 +243,6 @@ done1:
 	fdrop(fp, td);
 done2:
 	NET_UNLOCK_GIANT();
-	FREE(sa, M_SONAME);
 	return (error);
 }
 
@@ -534,7 +535,9 @@ connect(td, uap)
 	if (error)
 		return (error);
 
-	return (kern_connect(td, uap->s, sa));
+	error = kern_connect(td, uap->s, sa);
+	free(sa, M_SONAME);
+	return (error);
 }
 
 
@@ -596,7 +599,6 @@ done1:
 	fdrop(fp, td);
 done2:
 	NET_UNLOCK_GIANT();
-	FREE(sa, M_SONAME);
 	return (error);
 }
 
