@@ -697,14 +697,7 @@ fchdir(td, uap)
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	AUDIT_ARG(vnode, vp, ARG_VNODE1);
-	if (vp->v_type != VDIR)
-		error = ENOTDIR;
-#ifdef MAC
-	else if ((error = mac_check_vnode_chdir(td->td_ucred, vp)) != 0) {
-	}
-#endif
-	else
-		error = VOP_ACCESS(vp, VEXEC, td->td_ucred, td);
+	error = change_dir(vp, td);
 	while (!error && (mp = vp->v_mountedhere) != NULL) {
 		int tvfslocked;
 		if (vfs_busy(mp, 0, 0, td))
