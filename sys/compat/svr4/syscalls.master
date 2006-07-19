@@ -183,7 +183,7 @@
 				    struct svr4_statvfs *fs); }
 105	AUE_NULL	UNIMPL	whoknows
 106	AUE_NULL	UNIMPL	nfssvc
-107	AUE_NULL	STD	{ int svr4_sys_waitsys(int grp, int id, \
+107	AUE_NULL	MSTD	{ int svr4_sys_waitsys(int grp, int id, \
 				    union svr4_siginfo *info, int options); }
 108	AUE_NULL	UNIMPL	sigsendsys
 109	AUE_NULL	MSTD	{ int svr4_sys_hrtsys(int cmd, int fun, \
