@@ -320,7 +320,7 @@
 206	AUE_NULL	UNIMPL	schedctl
 207	AUE_NULL	UNIMPL	pset
 208	AUE_NULL	UNIMPL	whoknows
-209	AUE_NULL	STD	{ int svr4_sys_resolvepath(const char *path, \
+209	AUE_NULL	MSTD	{ int svr4_sys_resolvepath(const char *path, \
 				    char *buf, size_t bufsiz); }
 210	AUE_NULL	UNIMPL	signotifywait
 211	AUE_NULL	UNIMPL	lwp_sigredirect
