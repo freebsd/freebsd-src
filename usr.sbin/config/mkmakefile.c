@@ -667,7 +667,7 @@ tail(char *fn)
 static void
 do_rules(FILE *f)
 {
-	char *cp, *np, och, *tp;
+	char *cp, *np, och;
 	struct file_list *ftp;
 	char *compilewith;
 
@@ -704,7 +704,6 @@ do_rules(FILE *f)
 					np, och);
 			}
 		}
-		tp = tail(np);
 		compilewith = ftp->f_compilewith;
 		if (compilewith == 0) {
 			const char *ftype = NULL;
