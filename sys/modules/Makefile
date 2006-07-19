@@ -193,6 +193,7 @@ SUBDIR=	${_3dfx} \
 	${_pmc} \
 	portalfs \
 	ppbus \
+	${_ppc} \
 	ppi \
 	pps \
 	procfs \
@@ -416,6 +417,7 @@ _nve=		nve
 _padlock=	padlock
 .endif
 .endif
+_ppc=		ppc
 _rr232x=	rr232x
 _s3=		s3
 _twa=		twa
@@ -466,6 +468,7 @@ _ips=		ips
 _mly=		mly
 _ndis=		ndis
 _nve=		nve
+_ppc=		ppc
 _rr232x=	rr232x
 _safe=		safe
 _scsi_low=	scsi_low
