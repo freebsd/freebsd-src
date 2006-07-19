@@ -571,7 +571,10 @@ const char *signames[] = {
 void
 ktrpsig(struct ktr_psig *psig)
 {
-	(void)printf("SIG%s ", signames[psig->signo]);
+	if (psig->signo > 0 && psig->signo < NSIG)
+		(void)printf("SIG%s ", signames[psig->signo]);
+	else
+		(void)printf("SIG %d ", psig->signo);
 	if (psig->action == SIG_DFL)
 		(void)printf("SIG_DFL\n");
 	else {
