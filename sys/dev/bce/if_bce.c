@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 /****************************************************************************/
 /* BCE Driver Version                                                       */
 /****************************************************************************/
-char bce_driver_version[] = "v0.9.5";
+char bce_driver_version[] = "v0.9.6";
 
 
 /****************************************************************************/
@@ -4640,10 +4640,32 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf *m_head, u16 *prod,
 	    bce_dma_map_tx_desc, &map_arg, BUS_DMA_NOWAIT);
 
 	if (error || map_arg.maxsegs == 0) {
-		BCE_PRINTF(sc, "%s(%d): Error mapping mbuf into TX chain!\n",
-			__FILE__, __LINE__);
-		rc = ENOBUFS;
-		goto bce_tx_encap_exit;
+            
+            /* Try to defrag the mbuf if there are too many segments. */
+            if (error == EFBIG && map_arg.maxsegs != 0) {
+                struct mbuf *m0;
+
+	        DBPRINT(sc, BCE_WARN, "%s(): fragmented mbuf (%d pieces)\n",
+                    __FUNCTION__, map_arg.maxsegs);
+
+                m0 = m_defrag(m_head, M_DONTWAIT);
+                if (m0 != NULL) {
+                    m_head = m0;
+                    error = bus_dmamap_load_mbuf(sc->tx_mbuf_tag,
+                        map, m_head, bce_dma_map_tx_desc, &map_arg,
+                        BUS_DMA_NOWAIT);
+                }
+            }
+
+            /* Still getting an error after a defrag. */
+            if (error) {
+                BCE_PRINTF(sc,
+                    "%s(%d): Error mapping mbuf into TX chain!\n",
+                    __FILE__, __LINE__);
+                rc = ENOBUFS;
+                goto bce_tx_encap_exit;
+            }
+
 	}
 
 	/*
@@ -5307,14 +5329,6 @@ bce_stats_update(struct bce_softc *sc)
 	 * hardware statistics.
 	 */
 	ifp->if_collisions = (u_long) stats->stat_EtherStatsCollisions;
-
-	ifp->if_ibytes  = BCE_STATS(IfHCInOctets);
-
-	ifp->if_obytes  = BCE_STATS(IfHCOutOctets);
-
-	ifp->if_imcasts = BCE_STATS(IfHCInMulticastPkts);
-
-	ifp->if_omcasts = BCE_STATS(IfHCOutMulticastPkts);
 
 	ifp->if_ierrors = (u_long) stats->stat_EtherStatsUndersizePkts +
 				      (u_long) stats->stat_EtherStatsOverrsizePkts +
