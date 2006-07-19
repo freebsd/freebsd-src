@@ -104,7 +104,7 @@ static int svr4_mknod(struct thread *, register_t *, char *,
     svr4_mode_t, svr4_dev_t);
 
 static __inline clock_t timeval_to_clock_t(struct timeval *);
-static int svr4_setinfo	(struct proc *, int, svr4_siginfo_t *);
+static int svr4_setinfo	(pid_t , struct rusage *, int, svr4_siginfo_t *);
 
 struct svr4_hrtcntl_args;
 static int svr4_hrtcntl	(struct thread *, struct svr4_hrtcntl_args *,
@@ -1083,12 +1083,12 @@ svr4_sys_hrtsys(td, uap)
 
 
 static int
-svr4_setinfo(p, st, s)
-	struct proc *p;
+svr4_setinfo(pid, ru, st, s)
+	pid_t pid;
+	struct rusage *ru;
 	int st;
 	svr4_siginfo_t *s;
 {
-	struct timeval utime, stime;
 	svr4_siginfo_t i;
 	int sig;
 
@@ -1097,13 +1097,10 @@ svr4_setinfo(p, st, s)
 	i.svr4_si_signo = SVR4_SIGCHLD;
 	i.svr4_si_errno = 0;	/* XXX? */
 
-	if (p) {
-		i.svr4_si_pid = p->p_pid;
-		PROC_LOCK(p);
-		calcru(p, &utime, &stime);
-		PROC_UNLOCK(p);
-		i.svr4_si_stime = stime.tv_sec;
-		i.svr4_si_utime = utime.tv_sec;
+	i.svr4_si_pid = pid;
+	if (ru) {
+		i.svr4_si_stime = ru->ru_stime.tv_sec;
+		i.svr4_si_utime = ru->ru_utime.tv_sec;
 	}
 
 	if (WIFEXITED(st)) {
@@ -1142,188 +1139,185 @@ svr4_sys_waitsys(td, uap)
 	struct thread *td;
 	struct svr4_sys_waitsys_args *uap;
 {
-	int nfound;
+	struct rusage ru;
+	pid_t pid;
+	int nfound, status;
 	int error, *retval = td->td_retval;
-	struct proc *p, *q, *t;
+	struct proc *p, *q;
 
-	p = td->td_proc;
+	DPRINTF(("waitsys(%d, %d, %p, %x)\n", 
+	         uap->grp, uap->id,
+		 uap->info, uap->options));
+
+	q = td->td_proc;
 	switch (uap->grp) {
-	case SVR4_P_PID:	
+	case SVR4_P_PID:
+		pid = uap->id;
 		break;
 
 	case SVR4_P_PGID:
-		PROC_LOCK(p);
-		uap->id = -p->p_pgid;
-		PROC_UNLOCK(p);
+		PROC_LOCK(q);
+		pid = -q->p_pgid;
+		PROC_UNLOCK(q);
 		break;
 
 	case SVR4_P_ALL:
-		uap->id = WAIT_ANY;
+		pid = WAIT_ANY;
 		break;
 
 	default:
 		return EINVAL;
 	}
 
-	DPRINTF(("waitsys(%d, %d, %p, %x)\n", 
-	         uap->grp, uap->id,
-		 uap->info, uap->options));
+	/* Hand off the easy cases to kern_wait(). */
+	if (!(uap->options & (SVR4_WNOWAIT)) &&
+	    (uap->options & (SVR4_WEXITED | SVR4_WTRAPPED))) {
+		int options;
 
+		options = 0;
+		if (uap->options & SVR4_WSTOPPED)
+			options |= WUNTRACED;
+		if (uap->options & SVR4_WCONTINUED)
+			options |= WCONTINUED;
+		if (uap->options & SVR4_WNOHANG)
+			options |= WNOHANG;
+
+		error = kern_wait(td, pid, &status, options, &ru);
+		if (error)
+			return (error);
+		if (uap->options & SVR4_WNOHANG && *retval == 0)
+			error = svr4_setinfo(*retval, NULL, 0, uap->info);
+		else
+			error = svr4_setinfo(*retval, &ru, status, uap->info);
+		*retval = 0;
+		return (error);
+	}
+
+	/*
+	 * Ok, handle the weird cases.  Either WNOWAIT is set (meaning we
+	 * just want to see if there is a process to harvest, we dont'
+	 * want to actually harvest it), or WEXIT and WTRAPPED are clear
+	 * meaning we want to ignore zombies.  Either way, we don't have
+	 * to handle harvesting zombies here.  We do have to duplicate the
+	 * other portions of kern_wait() though, especially for the
+	 * WCONTINUED and WSTOPPED.
+	 */
 loop:
 	nfound = 0;
 	sx_slock(&proctree_lock);
-	LIST_FOREACH(q, &p->p_children, p_sibling) {
-		PROC_LOCK(q);
-		if (uap->id != WAIT_ANY &&
-		    q->p_pid != uap->id &&
-		    q->p_pgid != -uap->id) {
-			PROC_UNLOCK(q);
-			DPRINTF(("pid %d pgid %d != %d\n", q->p_pid,
-				 q->p_pgid, uap->id));
+	LIST_FOREACH(p, &q->p_children, p_sibling) {
+		PROC_LOCK(p);
+		if (pid != WAIT_ANY &&
+		    p->p_pid != pid && p->p_pgid != -pid) {
+			PROC_UNLOCK(p);
+			DPRINTF(("pid %d pgid %d != %d\n", p->p_pid,
+				 p->p_pgid, pid));
 			continue;
 		}
+		if (p_canwait(td, p)) {
+			PROC_UNLOCK(p);
+			continue;
+		}
+
 		nfound++;
-		if ((q->p_state == PRS_ZOMBIE) && 
+
+		/*
+		 * See if we have a zombie.  If so, WNOWAIT should be set,
+		 * as otherwise we should have called kern_wait() up above.
+		 */
+		if ((p->p_state == PRS_ZOMBIE) && 
 		    ((uap->options & (SVR4_WEXITED|SVR4_WTRAPPED)))) {
-			PROC_UNLOCK(q);
+			KASSERT(uap->options & SVR4_WNOWAIT,
+			    ("WNOWAIT is clear"));
+
+			/* Found a zombie, so cache info in local variables. */
+			pid = p->p_pid;
+			status = p->p_xstat;
+			ru = *p->p_ru;
+			calcru(p, &ru.ru_utime, &ru.ru_stime);
+			PROC_UNLOCK(p);
 			sx_sunlock(&proctree_lock);
+
+			/* Copy the info out to userland. */
 			*retval = 0;
-			DPRINTF(("found %d\n", q->p_pid));
-			error = svr4_setinfo(q, q->p_xstat, uap->info);
-			if (error != 0)
-				return error;
-
-
-		        if ((uap->options & SVR4_WNOWAIT)) {
-				DPRINTF(("Don't wait\n"));
-				return 0;
-			}
-
-			/*
-			 * If we got the child via ptrace(2) or procfs, and
-			 * the parent is different (meaning the process was
-			 * attached, rather than run as a child), then we need
-			 * to give it back to the old parent, and send the
-			 * parent a SIGCHLD.  The rest of the cleanup will be
-			 * done when the old parent waits on the child.
-			 */
-			sx_xlock(&proctree_lock);
-			PROC_LOCK(q);
-			if (q->p_flag & P_TRACED) {
-				if (q->p_oppid != q->p_pptr->p_pid) {
-					PROC_UNLOCK(q);
-					t = pfind(q->p_oppid);
-					if (t == NULL) {
-						t = initproc;
-						PROC_LOCK(initproc);
-					}
-					PROC_LOCK(q);
-					proc_reparent(q, t);
- 					q->p_oppid = 0;
-					q->p_flag &= ~(P_TRACED | P_WAITED);
-					PROC_UNLOCK(q);
-					psignal(t, SIGCHLD);
-					wakeup(t);
-					PROC_UNLOCK(t);
-					sx_xunlock(&proctree_lock);
-					return 0;
-				}
-			}
-			PROC_UNLOCK(q);
-			sx_xunlock(&proctree_lock);
-			q->p_xstat = 0;
-			ruadd(&p->p_stats->p_cru, &p->p_crux, q->p_ru,
-			    &q->p_rux);
-			FREE(q->p_ru, M_ZOMBIE);
-			q->p_ru = NULL;
-
-			/*
-			 * Decrement the count of procs running with this uid.
-			 */
-			(void)chgproccnt(q->p_ucred->cr_ruidinfo, -1, 0);
-
-			/*
-			 * Release reference to text vnode.
-			 */
-			if (q->p_textvp)
-				vrele(q->p_textvp);
-
-			/*
-			 * Free up credentials.
-			 */
-			crfree(q->p_ucred);
-			q->p_ucred = NULL;
-
-			/*
-			 * Remove unused arguments
-			 */
-			pargs_drop(q->p_args);
-			PROC_UNLOCK(q);
-
-			/*
-			 * Finally finished with old proc entry.
-			 * Unlink it from its process group and free it.
-			 */
-			sx_xlock(&proctree_lock);
-			leavepgrp(q);
-
-			sx_xlock(&allproc_lock);
-			LIST_REMOVE(q, p_list); /* off zombproc */
-			sx_xunlock(&allproc_lock);
-
-			LIST_REMOVE(q, p_sibling);
-			sx_xunlock(&proctree_lock);
-
-			PROC_LOCK(q);
-			sigacts_free(q->p_sigacts);
-			q->p_sigacts = NULL;
-			PROC_UNLOCK(q);
-
-			/*
-			 * Give machine-dependent layer a chance
-			 * to free anything that cpu_exit couldn't
-			 * release while still running in process context.
-			 */
-			vm_waitproc(q);
-#if defined(__NetBSD__)
-			pool_put(&proc_pool, q);
-#endif
-#ifdef __FreeBSD__
-			mtx_destroy(&q->p_mtx);
-#ifdef MAC
-                        mac_destroy_proc(q);
-#endif
-			uma_zfree(proc_zone, q);
-#endif
-			nprocs--;
-			return 0;
+			DPRINTF(("found %d\n", pid));
+			return (svr4_setinfo(pid, &ru, status, uap->info));
 		}
-		/* XXXKSE this needs clarification */
-		if (P_SHOULDSTOP(q) && ((q->p_flag & P_WAITED) == 0) &&
-		    (q->p_flag & P_TRACED ||
-		     (uap->options & (SVR4_WSTOPPED|SVR4_WCONTINUED)))) {
-			DPRINTF(("jobcontrol %d\n", q->p_pid));
+
+		/*
+		 * See if we have a stopped or continued process.
+		 * XXX: This duplicates the same code in kern_wait().
+		 */
+		mtx_lock_spin(&sched_lock);
+		if ((p->p_flag & P_STOPPED_SIG) &&
+		    (p->p_suspcount == p->p_numthreads) &&
+		    (p->p_flag & P_WAITED) == 0 &&
+		    (p->p_flag & P_TRACED || uap->options & SVR4_WSTOPPED)) {
+			mtx_unlock_spin(&sched_lock);
 		        if (((uap->options & SVR4_WNOWAIT)) == 0)
-				q->p_flag |= P_WAITED;
-			PROC_UNLOCK(q);
+				p->p_flag |= P_WAITED;
+			sx_sunlock(&proctree_lock);
+			pid = p->p_pid;
+			status = W_STOPCODE(p->p_xstat);
+			ru = *p->p_ru;
+			calcru(p, &ru.ru_utime, &ru.ru_stime);
+			PROC_UNLOCK(p);
+
+		        if (((uap->options & SVR4_WNOWAIT)) == 0) {
+				PROC_LOCK(q);
+				sigqueue_take(p->p_ksi);
+				PROC_UNLOCK(q);
+			}
+
 			*retval = 0;
-			return svr4_setinfo(q, W_STOPCODE(q->p_xstat),
-					    uap->info);
+			DPRINTF(("jobcontrol %d\n", pid));
+			return (svr4_setinfo(pid, &ru, status, uap->info));
 		}
-		PROC_UNLOCK(q);
+		mtx_unlock_spin(&sched_lock);
+		if (uap->options & SVR4_WCONTINUED &&
+		    (p->p_flag & P_CONTINUED)) {
+			sx_sunlock(&proctree_lock);
+		        if (((uap->options & SVR4_WNOWAIT)) == 0)
+				p->p_flag &= ~P_CONTINUED;
+			pid = p->p_pid;
+			ru = *p->p_ru;
+			status = SIGCONT;
+			calcru(p, &ru.ru_utime, &ru.ru_stime);
+			PROC_UNLOCK(p);
+
+		        if (((uap->options & SVR4_WNOWAIT)) == 0) {
+				PROC_LOCK(q);
+				sigqueue_take(p->p_ksi);
+				PROC_UNLOCK(q);
+			}
+
+			*retval = 0;
+			DPRINTF(("jobcontrol %d\n", pid));
+			return (svr4_setinfo(pid, &ru, status, uap->info));
+		}
+		PROC_UNLOCK(p);
 	}
 
-	if (nfound == 0)
-		return ECHILD;
+	if (nfound == 0) {
+		sx_sunlock(&proctree_lock);
+		return (ECHILD);
+	}
 
 	if (uap->options & SVR4_WNOHANG) {
+		sx_sunlock(&proctree_lock);
 		*retval = 0;
-		if ((error = svr4_setinfo(NULL, 0, uap->info)) != 0)
-			return error;
-		return 0;
+		return (svr4_setinfo(0, NULL, 0, uap->info));
 	}
 
-	if ((error = tsleep(p, PWAIT | PCATCH, "svr4_wait", 0)) != 0)
+	PROC_LOCK(q);
+	sx_sunlock(&proctree_lock);
+	if (q->p_flag & P_STATCHILD) {
+		q->p_flag &= ~P_STATCHILD;
+		error = 0;
+	} else
+		error = msleep(q, &q->p_mtx, PWAIT | PCATCH, "svr4_wait", 0);
+	PROC_UNLOCK(q);
+	if (error)
 		return error;
 	goto loop;
 }
