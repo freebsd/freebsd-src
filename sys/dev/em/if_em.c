@@ -766,6 +766,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFMTU (Set Interface MTU)");
 
+		EM_LOCK(sc);
 		switch (sc->hw.mac_type) {
 		case em_82573:
 			/*
@@ -789,11 +790,11 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 		if (ifr->ifr_mtu > max_frame_size - ETHER_HDR_LEN -
 		    ETHER_CRC_LEN) {
+			EM_UNLOCK(sc);
 			error = EINVAL;
 			break;
 		}
 
-		EM_LOCK(sc);
 		ifp->if_mtu = ifr->ifr_mtu;
 		sc->hw.max_frame_size =
 		ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
