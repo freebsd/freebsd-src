@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_comconsole.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -492,6 +494,19 @@ at91_usart_bus_param(struct uart_softc *sc, int baudrate, int databits,
 	return (at91_usart_param(&sc->sc_bas, baudrate, databits, stopbits,
 	    parity));
 }
+
+static __inline void
+at91_rx_put(struct uart_softc *sc, int key)
+{
+#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
+	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE) {
+		if (kdb_alt_break(key, &sc->sc_altbrk))
+			kdb_enter("Break sequence to console");
+	}
+#endif
+	uart_rx_put(sc, key);	
+}
+
 static int
 at91_usart_bus_ipend(struct uart_softc *sc)
 {
@@ -534,9 +549,9 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 		bus_dmamap_sync(atsc->dmatag, atsc->pong->map,
 		    BUS_DMASYNC_POSTREAD);
 		for (i = 0; i < sc->sc_rxfifosz; i++)
-			uart_rx_put(sc, atsc->ping->buffer[i]);
+			at91_rx_put(sc, atsc->ping->buffer[i]);
 		for (i = 0; i < sc->sc_rxfifosz; i++)
-			uart_rx_put(sc, atsc->pong->buffer[i]);
+			at91_rx_put(sc, atsc->pong->buffer[i]);
 		uart_rx_put(sc, UART_STAT_OVERRUN);
 		csr &= ~(USART_CSR_ENDRX | USART_CSR_TIMEOUT);
 		WR4(&sc->sc_bas, PDC_RPR, atsc->ping->pa);
@@ -554,7 +569,7 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 		bus_dmamap_sync(atsc->dmatag, atsc->ping->map,
 		    BUS_DMASYNC_POSTREAD);
 		for (i = 0; i < sc->sc_rxfifosz; i++)
-			uart_rx_put(sc, atsc->ping->buffer[i]);
+			at91_rx_put(sc, atsc->ping->buffer[i]);
 		p = atsc->ping;
 		atsc->ping = atsc->pong;
 		atsc->pong = p;
@@ -574,7 +589,7 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 		    BUS_DMASYNC_POSTREAD);
 		len = sc->sc_rxfifosz - RD4(&sc->sc_bas, PDC_RCR);
 		for (i = 0; i < len; i++)
-			uart_rx_put(sc, atsc->ping->buffer[i]);
+			at91_rx_put(sc, atsc->ping->buffer[i]);
 		WR4(&sc->sc_bas, PDC_RPR, atsc->ping->pa);
 		WR4(&sc->sc_bas, PDC_RCR, sc->sc_rxfifosz);
 		WR4(&sc->sc_bas, USART_CR, USART_CR_STTTO);
@@ -584,7 +599,7 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 	if (!(atsc->flags & HAS_TIMEOUT) && (csr & USART_CSR_RXRDY)) {
 		// We have another charater in a device that doesn't support
 		// timeouts, so we do it one character at a time.
-		uart_rx_put(sc, RD4(&sc->sc_bas, USART_RHR) & 0xff);
+		at91_rx_put(sc, RD4(&sc->sc_bas, USART_RHR) & 0xff);
 		ipend |= SER_INT_RXREADY;
 	}
 
