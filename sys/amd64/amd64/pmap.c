@@ -207,7 +207,6 @@ static caddr_t crashdumpmap;
 
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t locked_pmap, int try);
-static void	pmap_clear_write(vm_page_t m);
 
 static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte);
@@ -2972,7 +2971,7 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 /*
  * Clear the write and modified bits in each of the given page's mappings.
  */
-static __inline void
+void
 pmap_clear_write(vm_page_t m)
 {
 	pv_entry_t pv;
