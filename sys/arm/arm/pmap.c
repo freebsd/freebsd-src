@@ -4461,6 +4461,21 @@ pmap_clear_reference(vm_page_t m)
 
 
 /*
+ * Clear the write and modified bits in each of the given page's mappings.
+ */
+void
+pmap_clear_write(vm_page_t m)
+{
+
+	if (m->md.pvh_attrs & PVF_WRITE)
+		pmap_clearbit(m, PVF_WRITE);
+	else
+		KASSERT((m->flags & PG_WRITEABLE) == 0,
+		    ("pmap_clear_write: page %p has PG_WRITEABLE set", m));
+}
+
+
+/*
  * perform the pmap work for mincore
  */
 int
