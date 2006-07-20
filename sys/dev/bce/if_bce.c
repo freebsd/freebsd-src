@@ -4853,12 +4853,12 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 			/* Check if the interface is up. */
 			if (ifp->if_flags & IFF_UP) {
-				if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				if (ifp->if_flags & IFF_RUNNING) {
 					/* Change the promiscuous/multicast flags as necessary. */
 					bce_set_rx_mode(sc);
 				} else {
 					/* Start the HW */
-					bce_init_locked(sc);
+					bce_init(sc);
 				}
 			} else {
 				/* The interface is down.  Check if the driver is running. */
