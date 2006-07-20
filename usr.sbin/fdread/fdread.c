@@ -300,7 +300,7 @@ doread(int fd, FILE *of, const char *_devname)
 int
 doreadid(int fd, unsigned int numids, unsigned int trackno)
 {
-	int rv = 0, status, fdopts;
+	int rv = 0, fdopts;
 	unsigned int i;
 	struct fdc_readid info;
 	struct fdc_status fdcs;
@@ -316,7 +316,7 @@ doreadid(int fd, unsigned int numids, unsigned int trackno)
 	for (i = 0; i < numids; i++) {
 		info.cyl = trackno / fdt.heads;
 		info.head = fdt.heads > 1? trackno % fdt.heads: 0;
-		if ((status = ioctl(fd, FD_READID, &info)) == 0) {
+		if (ioctl(fd, FD_READID, &info) == 0) {
 			printf("C = %d, H = %d, R = %d, N = %d\n",
 			       info.cyl, info.head, info.sec, info.secshift);
 		} else {
