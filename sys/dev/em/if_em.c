@@ -692,6 +692,9 @@ em_start_locked(struct ifnet *ifp)
 
 	EM_LOCK_ASSERT(sc);
 
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
+		return;
 	if (!sc->link_active)
 		return;
 
