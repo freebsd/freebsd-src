@@ -189,7 +189,7 @@ _CPUCFLAGS += -mieee
 
 .if ${MACHINE_ARCH} == "arm" && defined(ARM_BIG_ENDIAN)
 CFLAGS += -mbig-endian
-LDFLAGS += -EB
+LD += -EB
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk
