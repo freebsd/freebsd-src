@@ -221,10 +221,8 @@ Opt_list:
 Option:
 	Save_id
 	      = {
-		char *s;
-
 		newopt(&opt, $1, NULL);
-		if ((s = strchr($1, '=')))
+		if (strchr($1, '=') != NULL)
 			errx(1, "%s:%d: The `=' in options should not be "
 			    "quoted", yyfile, yyline);
 	      } |
