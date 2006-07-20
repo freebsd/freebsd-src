@@ -107,26 +107,26 @@ __FBSDID("$FreeBSD$");
 #define ID_MODEL	8
 #define ID_ALL		(ID_PORT | ID_IF | ID_TYPE | ID_MODEL)
 
-#define debug(fmt, args...) do {				\
+#define debug(...) do {						\
 	if (debug && nodaemon)					\
-		warnx(fmt, ##args);				\
+		warnx(__VA_ARGS__);				\
 } while (0)
 
-#define logerr(e, fmt, args...) do {				\
-	log_or_warn(LOG_DAEMON | LOG_ERR, errno, fmt, ##args);	\
+#define logerr(e, ...) do {					\
+	log_or_warn(LOG_DAEMON | LOG_ERR, errno, __VA_ARGS__);	\
 	exit(e);						\
 } while (0)
 
-#define logerrx(e, fmt, args...) do {				\
-	log_or_warn(LOG_DAEMON | LOG_ERR, 0, fmt, ##args);	\
+#define logerrx(e, ...) do {					\
+	log_or_warn(LOG_DAEMON | LOG_ERR, 0, __VA_ARGS__);	\
 	exit(e);						\
 } while (0)
 
-#define logwarn(fmt, args...)					\
-	log_or_warn(LOG_DAEMON | LOG_WARNING, errno, fmt, ##args)
+#define logwarn(...)						\
+	log_or_warn(LOG_DAEMON | LOG_WARNING, errno, __VA_ARGS__)
 
-#define logwarnx(fmt, args...)					\
-	log_or_warn(LOG_DAEMON | LOG_WARNING, 0, fmt, ##args)
+#define logwarnx(...)						\
+	log_or_warn(LOG_DAEMON | LOG_WARNING, 0, __VA_ARGS__)
 
 /* structures */
 
