@@ -67,6 +67,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
+#include <netinet/if_ether.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
@@ -748,6 +749,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct em_softc	*sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
+	struct ifaddr *ifa = (struct ifaddr *)data;
 	int error = 0;
 
 	if (sc->in_detach)
@@ -756,8 +758,23 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	switch (command) {
 	case SIOCSIFADDR:
 	case SIOCGIFADDR:
-		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCxIFADDR (Get/Set Interface Addr)");
-		ether_ioctl(ifp, command, data);
+		if (ifa->ifa_addr->sa_family == AF_INET) {
+			/*
+			 * XXX
+			 * Since resetting hardware takes a very long time
+			 * and results in link renegotiation we only
+			 * initialize the hardware only when it is absolutely
+			 * required.
+			 */
+			ifp->if_flags |= IFF_UP;
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+				EM_LOCK(sc);
+				em_init_locked(sc);
+				EM_UNLOCK(sc);
+			}
+			arp_ifinit(ifp, ifa);
+		} else
+			error = ether_ioctl(ifp, command, data);
 		break;
 	case SIOCSIFMTU:
 	    {
@@ -806,17 +823,20 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFFLAGS (Set Interface Flags)");
 		EM_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+				if ((ifp->if_flags ^ sc->if_flags) &
+				    IFF_PROMISC) {
+					em_disable_promisc(sc);
+					em_set_promisc(sc);
+				}
+			} else
 				em_init_locked(sc);
-			}
-
-			em_disable_promisc(sc);
-			em_set_promisc(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				em_stop(sc);
 			}
 		}
+		sc->if_flags = ifp->if_flags;
 		EM_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
@@ -882,8 +902,8 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	    }
 	default:
-		IOCTL_DEBUGOUT1("ioctl received: UNKNOWN (0x%x)", (int)command);
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
+		break;
 	}
 
 	return (error);

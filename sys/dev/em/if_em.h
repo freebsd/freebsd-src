@@ -259,6 +259,7 @@ struct em_softc {
 	struct callout	timer;
 	struct callout	tx_fifo_timer;
 	int		io_rid;
+	int		if_flags;
 	struct mtx	mtx;
 	int		em_insert_vlan_header;
 	struct task	link_task;
