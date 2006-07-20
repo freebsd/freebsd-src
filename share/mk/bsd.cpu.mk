@@ -187,6 +187,11 @@ MACHINE_CPU = itanium
 _CPUCFLAGS += -mieee
 .endif
 
+.if ${MACHINE_ARCH} == "arm" && defined(ARM_BIG_ENDIAN)
+CFLAGS += -mbig-endian
+LDFLAGS += -EB
+.endif
+
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk
 
 .if !defined(NO_CPU_CFLAGS)
