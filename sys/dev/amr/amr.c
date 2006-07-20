@@ -1233,6 +1233,23 @@ amr_setup_ccbmap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
     amr_start1(sc, ac);
 }
 
+static void
+amr_setup_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
+{
+    struct amr_command	*ac = (struct amr_command *)arg;
+    struct amr_softc	*sc = ac->ac_sc;
+
+    amr_setup_dmamap(arg, segs, nsegments, error);
+
+    if (bus_dmamap_load(sc->amr_buffer_dmat, ac->ac_ccb_dmamap,
+	ac->ac_ccb_data, ac->ac_ccb_length, amr_setup_ccbmap, ac,
+	0) == EINPROGRESS) {
+	sc->amr_state |= AMR_STATE_QUEUE_FRZN;
+    }
+
+    return;
+}
+
 static int
 amr_mapcmd(struct amr_command *ac)
 {
@@ -1250,12 +1267,7 @@ amr_mapcmd(struct amr_command *ac)
 	    }
 	} else {
 	    if (bus_dmamap_load(sc->amr_buffer_dmat, ac->ac_dmamap, ac->ac_data,
-		ac->ac_length, amr_setup_dmamap, ac, BUS_DMA_NOWAIT) != 0){
-		return (ENOMEM);
-	    }
-	    if (bus_dmamap_load(sc->amr_buffer_dmat, ac->ac_ccb_dmamap,
-		ac->ac_ccb_data, ac->ac_ccb_length, amr_setup_ccbmap, ac,
-		0) == EINPROGRESS) {
+ 		ac->ac_length, amr_setup_dmamap_cb, ac, 0) == EINPROGRESS){
 		sc->amr_state |= AMR_STATE_QUEUE_FRZN;
 	    }
      }
