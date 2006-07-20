@@ -57,7 +57,6 @@ options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 #options 	SYSCTL_OMIT_DESCR
 options 	MUTEX_NOINLINE
-options		RWLOCK_NOINLINE
 options 	NO_FFS_SNAPSHOT
 options 	NO_SWAPPING
 device		genclock
@@ -68,8 +67,7 @@ device		ether
 device		nexus
 device		uart
 device		ate
-device		mii
-device		lxtphy
+device		miibus
 
 # Debugging for use in -current
 #options 	INVARIANTS		#Enable calls of extra sanity checking
@@ -82,3 +80,4 @@ device		md
 # device	at91_twi		# TWI: Two Wire Interface
 #device		at91_spi		# SPI:
 #device		spibus
+options		ARM32_NEW_VM_LAYOUT
