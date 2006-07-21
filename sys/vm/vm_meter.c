@@ -52,14 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <sys/sysctl.h>
 
-/*
- * Virtual memory MPSAFE temporary workarounds.
- */
-int debug_mpsafevm = 1;
-TUNABLE_INT("debug.mpsafevm", &debug_mpsafevm);
-SYSCTL_INT(_debug, OID_AUTO, mpsafevm, CTLFLAG_RD, &debug_mpsafevm, 0,
-    "Enable/disable MPSAFE virtual memory support");
-
 struct vmmeter cnt;
 
 int maxslp = MAXSLP;

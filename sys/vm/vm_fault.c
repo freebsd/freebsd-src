@@ -152,7 +152,6 @@ unlock_map(struct faultstate *fs)
 static void
 unlock_and_deallocate(struct faultstate *fs)
 {
-	boolean_t firstobjneedgiant;
 
 	vm_object_pip_wakeup(fs->object);
 	VM_OBJECT_UNLOCK(fs->object);
@@ -165,7 +164,6 @@ unlock_and_deallocate(struct faultstate *fs)
 		VM_OBJECT_UNLOCK(fs->first_object);
 		fs->first_m = NULL;
 	}
-	firstobjneedgiant = (fs->first_object->flags & OBJ_NEEDGIANT) != 0;
 	vm_object_deallocate(fs->first_object);
 	unlock_map(fs);	
 	if (fs->vp != NULL) { 
@@ -176,8 +174,6 @@ unlock_and_deallocate(struct faultstate *fs)
 		fs->vp = NULL;
 		VFS_UNLOCK_GIANT(vfslocked);
 	}
-	if (firstobjneedgiant)
-		VM_UNLOCK_GIANT();
 }
 
 /*
@@ -302,7 +298,7 @@ RetryFault:;
 	KASSERT((fs.first_object->flags & OBJ_NEEDGIANT) == 0 ||
 	    !fs.map->system_map,
 	    ("vm_fault: Object requiring giant mapped by system map"));
-	if (fs.first_object->flags & OBJ_NEEDGIANT && debug_mpsafevm)
+	if (fs.first_object->flags & OBJ_NEEDGIANT)
 		mtx_unlock(&Giant);
 	vm_object_pip_add(fs.first_object, 1);
 
@@ -401,8 +397,6 @@ RetryFault:;
 				vm_object_pip_wakeup(fs.object);
 				VM_OBJECT_UNLOCK(fs.object);
 				atomic_add_int(&cnt.v_intrans, 1);
-				if (fs.first_object->flags & OBJ_NEEDGIANT)
-					VM_UNLOCK_GIANT();
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
 			}
