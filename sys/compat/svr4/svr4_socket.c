@@ -46,7 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/queue.h>
+#include <sys/eventhandler.h>
 #include <sys/file.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/socket.h>
@@ -65,17 +67,34 @@ __FBSDID("$FreeBSD$");
 #include <compat/svr4/svr4_sockmod.h>
 #include <compat/svr4/svr4_proto.h>
 
-struct sockaddr_un *
-svr4_find_socket(td, fp, dev, ino)
+struct svr4_sockcache_entry {
+	struct proc *p;		/* Process for the socket		*/
+	void *cookie;		/* Internal cookie used for matching	*/
+	struct sockaddr_un sock;/* Pathname for the socket		*/
+	dev_t dev;		/* Device where the socket lives on	*/
+	ino_t ino;		/* Inode where the socket lives on	*/
+	TAILQ_ENTRY(svr4_sockcache_entry) entries;
+};
+
+static TAILQ_HEAD(, svr4_sockcache_entry) svr4_head;
+static struct mtx svr4_sockcache_lock;
+static eventhandler_tag svr4_sockcache_exit_tag, svr4_sockcache_exec_tag;
+
+static void	svr4_purge_sockcache(void *arg, struct proc *p);
+
+int
+svr4_find_socket(td, fp, dev, ino, saun)
 	struct thread *td;
 	struct file *fp;
 	dev_t dev;
 	ino_t ino;
+	struct sockaddr_un *saun;
 {
 	struct svr4_sockcache_entry *e;
 	void *cookie = ((struct socket *)fp->f_data)->so_emuldata;
 
 	DPRINTF(("svr4_find_socket: [%p,%d,%d]: ", td, dev, ino));
+	mtx_lock(&svr4_sockcache_lock);
 	TAILQ_FOREACH(e, &svr4_head, entries)
 		if (e->p == td->td_proc && e->dev == dev && e->ino == ino) {
 #ifdef DIAGNOSTIC
@@ -84,18 +103,16 @@ svr4_find_socket(td, fp, dev, ino)
 #endif
 			e->cookie = cookie;
 			DPRINTF(("%s\n", e->sock.sun_path));
-			return &e->sock;
+			*saun = e->sock;
+			mtx_unlock(&svr4_sockcache_lock);
+			return (0);
 		}
 
+	mtx_unlock(&svr4_sockcache_lock);
 	DPRINTF(("not found\n"));
-	return NULL;
+	return (ENOENT);
 }
 
-
-/*
- * svr4_delete_socket() is in sys/dev/streams.c (because it's called by
- * the streams "soo_close()" routine).
- */
 int
 svr4_add_socket(td, path, st)
 	struct thread *td;
@@ -105,8 +122,6 @@ svr4_add_socket(td, path, st)
 	struct svr4_sockcache_entry *e;
 	int len, error;
 
-	mtx_lock(&Giant);
-
 	e = malloc(sizeof(*e), M_TEMP, M_WAITOK);
 	e->cookie = NULL;
 	e->dev = st->st_dev;
@@ -115,7 +130,6 @@ svr4_add_socket(td, path, st)
 
 	if ((error = copyinstr(path, e->sock.sun_path,
 	    sizeof(e->sock.sun_path), &len)) != 0) {
-		mtx_unlock(&Giant);
 		DPRINTF(("svr4_add_socket: copyinstr failed %d\n", error));
 		free(e, M_TEMP);
 		return error;
@@ -124,13 +138,76 @@ svr4_add_socket(td, path, st)
 	e->sock.sun_family = AF_LOCAL;
 	e->sock.sun_len = len;
 
+	mtx_lock(&svr4_sockcache_lock);
 	TAILQ_INSERT_HEAD(&svr4_head, e, entries);
-	mtx_unlock(&Giant);
+	mtx_unlock(&svr4_sockcache_lock);
 	DPRINTF(("svr4_add_socket: %s [%p,%d,%d]\n", e->sock.sun_path,
 		 td->td_proc, e->dev, e->ino));
 	return 0;
 }
 
+void
+svr4_delete_socket(p, fp)
+	struct proc *p;
+	struct file *fp;
+{
+	struct svr4_sockcache_entry *e;
+	void *cookie = ((struct socket *)fp->f_data)->so_emuldata;
+
+	mtx_lock(&svr4_sockcache_lock);
+	TAILQ_FOREACH(e, &svr4_head, entries)
+		if (e->p == p && e->cookie == cookie) {
+			TAILQ_REMOVE(&svr4_head, e, entries);
+			mtx_unlock(&svr4_sockcache_lock);
+			DPRINTF(("svr4_delete_socket: %s [%p,%d,%d]\n",
+				 e->sock.sun_path, p, (int)e->dev, e->ino));
+			free(e, M_TEMP);
+			return;
+		}
+	mtx_unlock(&svr4_sockcache_lock);
+}
+
+void
+svr4_purge_sockcache(arg, p)
+	void *arg;
+	struct proc *p;
+{
+	struct svr4_sockcache_entry *e, *ne;
+
+	mtx_lock(&svr4_sockcache_lock);
+	TAILQ_FOREACH_SAFE(e, &svr4_head, entries, ne) {
+		if (e->p == p) {
+			TAILQ_REMOVE(&svr4_head, e, entries);
+			DPRINTF(("svr4_purge_sockcache: %s [%p,%d,%d]\n",
+				 e->sock.sun_path, p, (int)e->dev, e->ino));
+			free(e, M_TEMP);
+		}
+	}
+	mtx_unlock(&svr4_sockcache_lock);
+}
+
+void
+svr4_sockcache_init(void)
+{
+
+	TAILQ_INIT(&svr4_head);
+	mtx_init(&svr4_sockcache_lock, "svr4 socket cache", NULL, MTX_DEF);
+	svr4_sockcache_exit_tag = EVENTHANDLER_REGISTER(process_exit,
+	    svr4_purge_sockcache, NULL, EVENTHANDLER_PRI_ANY);
+	svr4_sockcache_exec_tag = EVENTHANDLER_REGISTER(process_exec,
+	    svr4_purge_sockcache, NULL, EVENTHANDLER_PRI_ANY);
+}
+
+void
+svr4_sockcache_destroy(void)
+{
+
+	KASSERT(TAILQ_EMPTY(&svr4_head),
+	    ("%s: sockcache entries still around", __func__));
+	EVENTHANDLER_DEREGISTER(process_exec, svr4_sockcache_exec_tag);
+	EVENTHANDLER_DEREGISTER(process_exit, svr4_sockcache_exit_tag);
+	mtx_destroy(&svr4_sockcache_lock);
+}
 
 int
 svr4_sys_socket(td, uap)
