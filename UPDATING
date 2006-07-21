@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060711:
+	The iwi(4) was updated to use the firmware(9) framework.  In order
+	for it to work you need a port change from net/iwi-firmware to
+	net/iwi-firmware-kmod.
+
 20060506:
 	FreeBSD 6.1-RELEASE
 
