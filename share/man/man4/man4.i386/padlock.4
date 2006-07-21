@@ -24,24 +24,44 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 10, 2005
+.Dd July 19, 2006
 .Dt PADLOCK 4 i386
 .Os
 .Sh NAME
 .Nm padlock
-.Nd "driver for the cryptographic functions and RNG in VIA C3 and Eden processors"
+.Nd "driver for the cryptographic functions and RNG in VIA C3, C7 and Eden processors"
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device crypto"
-.Cd "device cryptodev"
 .Cd "device padlock"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+padlock_load="YES"
+.Ed
 .Sh DESCRIPTION
 The C3 and Eden processor series from VIA include hardware acceleration for
-AES, as well as a hardware random number generator.
+AES.
+The C7 series includes hardware acceleration for AES, SHA and RSA.
+All of the above processor series include a hardware random number generator.
 .Pp
 The
 .Nm
 driver registers itself to accelerate AES operations for
 .Xr crypto 4 .
+It also registers itself to accelerate various HMAC algorithms, although
+there is no
+hardware acceleration for those algorithms.
+This is only needed, so
+.Nm
+can work with
+.Xr fast_ipsec 4 .
 .Pp
 The hardware random number generator supplies data for the kernel
 .Xr random 4
@@ -58,6 +78,7 @@ release to include it was
 .Sh SEE ALSO
 .Xr crypt 3 ,
 .Xr crypto 4 ,
+.Xr fast_ipsec 4 ,
 .Xr intro 4 ,
 .Xr random 4 ,
 .Xr crypto 9
