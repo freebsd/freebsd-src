@@ -346,10 +346,17 @@ ng_btsocket_rfcomm_init(void)
 void
 ng_btsocket_rfcomm_abort(struct socket *so)
 {
-	so->so_error = ECONNABORTED;
 
-	ng_btsocket_rfcomm_detach(so);
+	so->so_error = ECONNABORTED;
+	(void)ng_btsocket_rfcomm_disconnect(so);
 } /* ng_btsocket_rfcomm_abort */
+
+void
+ng_btsocket_rfcomm_close(struct socket *so)
+{
+
+	(void)ng_btsocket_rfcomm_disconnect(so);
+} /* ng_btsocket_rfcomm_close */
 
 /*
  * Accept connection on socket. Nothing to do here, socket must be connected

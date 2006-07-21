@@ -480,11 +480,24 @@ udp6_abort(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_abort: inp == NULL"));
 
+#ifdef INET
+	if (inp->inp_vflag & INP_IPV4) {
+		struct pr_usrreqs *pru;
+
+		pru = inetsw[ip_protox[IPPROTO_UDP]].pr_usrreqs;
+		(*pru->pru_abort)(so);
+		return;
+	}
+#endif
+
 	INP_INFO_WLOCK(&udbinfo);
 	INP_LOCK(inp);
-	soisdisconnected(so);
-	in6_pcbdetach(inp);
-	in6_pcbfree(inp);
+	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
+		in6_pcbdisconnect(inp);
+		inp->in6p_laddr = in6addr_any;
+		soisdisconnected(so);
+	}
+	INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
 }
 
@@ -563,6 +576,34 @@ out:
 	INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
 	return error;
+}
+
+static void
+udp6_close(struct socket *so)
+{
+	struct inpcb *inp;
+
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("udp6_close: inp == NULL"));
+
+#ifdef INET
+	if (inp->inp_vflag & INP_IPV4) {
+		struct pr_usrreqs *pru;
+
+		pru = inetsw[ip_protox[IPPROTO_UDP]].pr_usrreqs;
+		(*pru->pru_disconnect)(so);
+		return;
+	}
+#endif
+	INP_INFO_WLOCK(&udbinfo);
+	INP_LOCK(inp);
+	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
+		in6_pcbdisconnect(inp);
+		inp->in6p_laddr = in6addr_any;
+		soisdisconnected(so);
+	}
+	INP_UNLOCK(inp);
+	INP_INFO_WUNLOCK(&udbinfo);
 }
 
 static int
@@ -755,5 +796,6 @@ struct pr_usrreqs udp6_usrreqs = {
 	.pru_send =		udp6_send,
 	.pru_shutdown =		udp_shutdown,
 	.pru_sockaddr =		in6_mapped_sockaddr,
-	.pru_sosetlabel =	in_pcbsosetlabel
+	.pru_sosetlabel =	in_pcbsosetlabel,
+	.pru_close =		udp6_close
 };

@@ -137,12 +137,13 @@ out:
 }
 
 /*
- * tcp_detach() releases any protocol state that can be reasonably released
- * when a socket shutdown is requested, and is a shared code path for
- * tcp_usr_detach() and tcp_usr_abort(), the two socket close entry points.
+ * tcp_detach is called when the socket layer loses its final reference
+ * to the socket, be it a file descriptor reference, a reference from TCP,
+ * etc.  At this point, there is only one case in which we will keep around
+ * inpcb state: time wait.
  *
- * Accepts pcbinfo, inpcb locked, will unlock the inpcb (if needed) on
- * return.
+ * This function can probably be re-absorbed back into tcp_usr_detach() now
+ * that there is a single detach path.
  */
 static void
 tcp_detach(struct socket *so, struct inpcb *inp)
@@ -158,19 +159,24 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 	KASSERT(so->so_pcb == inp, ("tcp_detach: so_pcb != inp"));
 	KASSERT(inp->inp_socket == so, ("tcp_detach: inp_socket != so"));
 
+	tp = intotcpcb(inp);
+
 	if (inp->inp_vflag & INP_TIMEWAIT) {
+		/*
+		 * There are two cases to handle: one in which the time wait
+		 * state is being discarded (INP_DROPPED), and one in which
+		 * this connection will remain in timewait.  In the former,
+		 * it is time to discard all state (except tcptw, which has
+		 * already been discarded by the timewait close code, which
+		 * should be further up the call stack somewhere).  In the
+		 * latter case, we detach from the socket, but leave the pcb
+		 * present until timewait ends.
+		 *
+		 * XXXRW: Would it be cleaner to free the tcptw here?
+		 */
 		if (inp->inp_vflag & INP_DROPPED) {
-			/*
-			 * Connection was in time wait and has been dropped;
-			 * the calling path is either via tcp_twclose(), or
-			 * as a result of an eventual soclose() after
-			 * tcp_twclose() has been called.  In either case,
-			 * tcp_twclose() has detached the tcptw from the
-			 * inpcb, so we just detach and free the inpcb.
-			 *
-			 * XXXRW: Would it be cleaner to free the tcptw
-			 * here?
-			 */
+			KASSERT(tp == NULL, ("tcp_detach: INP_TIMEWAIT && "
+			    "INP_DROPPED && tp != NULL"));
 #ifdef INET6
 			if (isipv6) {
 				in6_pcbdetach(inp);
@@ -183,11 +189,6 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 			}
 #endif
 		} else {
-			/*
-			 * Connection is in time wait and has not yet been
-			 * dropped; allow the socket to be discarded, but
-			 * need to keep inpcb until end of time wait.
-			 */
 #ifdef INET6
 			if (isipv6)
 				in6_pcbdetach(inp);
@@ -198,20 +199,21 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 		}
 	} else {
 		/*
-		 * If not in timewait, there are two possible paths.  First,
-		 * the TCP connection is either embryonic or done, in which
-		 * case we tear down all state.  Second, it may still be
-		 * active, in which case we acquire a reference to the socket
-		 * and will free it later when TCP is done.
+		 * If the connection is not in timewait, we consider two
+		 * two conditions: one in which no further processing is
+		 * necessary (dropped || embryonic), and one in which TCP is
+		 * not yet done, but no longer requires the socket, so the
+		 * pcb will persist for the time being.
+		 *
+		 * XXXRW: Does the second case still occur?
 		 */
-		tp = intotcpcb(inp);
 		if (inp->inp_vflag & INP_DROPPED ||
 		    tp->t_state < TCPS_SYN_SENT) {
 			tcp_discardcb(tp);
 #ifdef INET6
 			if (isipv6) {
-				in_pcbdetach(inp);
-				in_pcbfree(inp);
+				in6_pcbdetach(inp);
+				in6_pcbfree(inp);
 			} else {
 #endif
 				in_pcbdetach(inp);
@@ -220,11 +222,12 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 			}
 #endif
 		} else {
-			SOCK_LOCK(so);
-			so->so_state |= SS_PROTOREF;
-			SOCK_UNLOCK(so);
-			inp->inp_vflag |= INP_SOCKREF;
-			INP_UNLOCK(inp);
+#ifdef INET6
+			if (isipv6)
+				in6_pcbdetach(inp);
+			else
+#endif
+				in_pcbdetach(inp);
 		}
 	}
 }
@@ -251,15 +254,6 @@ tcp_usr_detach(struct socket *so)
 	    ("tcp_usr_detach: inp_socket == NULL"));
 	TCPDEBUG1();
 
-	/*
-	 * First, if we still have full TCP state, and we're not dropped,
-	 * initiate a disconnect.
-	 */
-	if (!(inp->inp_vflag & INP_TIMEWAIT) &&
-	    !(inp->inp_vflag & INP_DROPPED)) {
-		tp = intotcpcb(inp);
-		tcp_disconnect(tp);
-	}
 	tcp_detach(so, inp);
 	tp = NULL;
 	TCPDEBUG2(PRU_DETACH);
@@ -926,15 +920,13 @@ out:
 }
 
 /*
- * Abort the TCP.
- *
- * First, drop the connection.  Then collect state if possible.
+ * Abort the TCP.  Drop the connection abruptly.
  */
 static void
 tcp_usr_abort(struct socket *so)
 {
 	struct inpcb *inp;
-	struct tcpcb *tp;
+	struct tcpcb *tp = NULL;
 	TCPDEBUG0;
 
 	inp = sotoinpcb(so);
@@ -944,20 +936,63 @@ tcp_usr_abort(struct socket *so)
 	INP_LOCK(inp);
 	KASSERT(inp->inp_socket != NULL,
 	    ("tcp_usr_abort: inp_socket == NULL"));
-	TCPDEBUG1();
 
 	/*
-	 * First, if we still have full TCP state, and we're not dropped,
-	 * drop.
+	 * If we still have full TCP state, and we're not dropped, drop.
 	 */
 	if (!(inp->inp_vflag & INP_TIMEWAIT) &&
 	    !(inp->inp_vflag & INP_DROPPED)) {
 		tp = intotcpcb(inp);
+		TCPDEBUG1();
 		tcp_drop(tp, ECONNABORTED);
+		TCPDEBUG2(PRU_ABORT);
 	}
-	tcp_detach(so, inp);
-	tp = NULL;
-	TCPDEBUG2(PRU_DETACH);
+	if (!(inp->inp_vflag & INP_DROPPED)) {
+		SOCK_LOCK(so);
+		so->so_state |= SS_PROTOREF;
+		SOCK_UNLOCK(so);
+		inp->inp_vflag |= INP_SOCKREF;
+	}
+	INP_UNLOCK(inp);
+	INP_INFO_WUNLOCK(&tcbinfo);
+}
+
+/*
+ * TCP socket is closed.  Start friendly disconnect.
+ */
+static void
+tcp_usr_close(struct socket *so)
+{
+	struct inpcb *inp;
+	struct tcpcb *tp = NULL;
+	TCPDEBUG0;
+
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("tcp_usr_close: inp == NULL"));
+
+	INP_INFO_WLOCK(&tcbinfo);
+	INP_LOCK(inp);
+	KASSERT(inp->inp_socket != NULL,
+	    ("tcp_usr_close: inp_socket == NULL"));
+
+	/*
+	 * If we still have full TCP state, and we're not dropped, initiate
+	 * a disconnect.
+	 */
+	if (!(inp->inp_vflag & INP_TIMEWAIT) &&
+	    !(inp->inp_vflag & INP_DROPPED)) {
+		tp = intotcpcb(inp);
+		TCPDEBUG1();
+		tcp_disconnect(tp);
+		TCPDEBUG2(PRU_CLOSE);
+	}
+	if (!(inp->inp_vflag & INP_DROPPED)) {
+		SOCK_LOCK(so);
+		so->so_state |= SS_PROTOREF;
+		SOCK_UNLOCK(so);
+		inp->inp_vflag |= INP_SOCKREF;
+	}
+	INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&tcbinfo);
 }
 
@@ -1019,7 +1054,8 @@ struct pr_usrreqs tcp_usrreqs = {
 	.pru_send =		tcp_usr_send,
 	.pru_shutdown =		tcp_usr_shutdown,
 	.pru_sockaddr =		tcp_sockaddr,
-	.pru_sosetlabel =	in_pcbsosetlabel
+	.pru_sosetlabel =	in_pcbsosetlabel,
+	.pru_close =		tcp_usr_close,
 };
 
 #ifdef INET6
@@ -1039,7 +1075,8 @@ struct pr_usrreqs tcp6_usrreqs = {
 	.pru_send =		tcp_usr_send,
 	.pru_shutdown =		tcp_usr_shutdown,
 	.pru_sockaddr =		in6_mapped_sockaddr,
- 	.pru_sosetlabel =	in_pcbsosetlabel
+ 	.pru_sosetlabel =	in_pcbsosetlabel,
+	.pru_close =		tcp_usr_close,
 };
 #endif /* INET6 */
 

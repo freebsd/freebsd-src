@@ -79,6 +79,7 @@ struct pr_usrreqs	atm_dgram_usrreqs = {
 	.pru_sosend =		NULL,
 	.pru_soreceive =	NULL,
 	.pru_sopoll =		NULL,
+	.pru_close =		atm_proto_notsupp5,
 };
 
 

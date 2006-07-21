@@ -88,6 +88,7 @@ static	int ipx_send(struct socket *so, int flags, struct mbuf *m,
 static	int ipx_shutdown(struct socket *so);
 static	int ripx_attach(struct socket *so, int proto, struct thread *td);
 static	int ipx_output(struct ipxpcb *ipxp, struct mbuf *m0);
+static	void ipx_usr_close(struct socket *so);
 
 struct	pr_usrreqs ipx_usrreqs = {
 	.pru_abort =		ipx_usr_abort,
@@ -101,6 +102,7 @@ struct	pr_usrreqs ipx_usrreqs = {
 	.pru_send =		ipx_send,
 	.pru_shutdown =		ipx_shutdown,
 	.pru_sockaddr =		ipx_sockaddr,
+	.pru_close =		ipx_usr_close,
 };
 
 struct	pr_usrreqs ripx_usrreqs = {
@@ -115,6 +117,7 @@ struct	pr_usrreqs ripx_usrreqs = {
 	.pru_send =		ipx_send,
 	.pru_shutdown =		ipx_shutdown,
 	.pru_sockaddr =		ipx_sockaddr,
+	.pru_close =		ipx_usr_close,
 };
 
 /*
@@ -432,14 +435,8 @@ static void
 ipx_usr_abort(so)
 	struct socket *so;
 {
-	struct ipxpcb *ipxp = sotoipxpcb(so);
 
-	KASSERT(ipxp != NULL, ("ipx_usr_abort: ipxp == NULL"));
-	IPX_LIST_LOCK();
-	IPX_LOCK(ipxp);
-	ipx_pcbdetach(ipxp);
-	ipx_pcbfree(ipxp);
-	IPX_LIST_UNLOCK();
+	/* XXXRW: Possibly ipx_disconnect() here? */
 	soisdisconnected(so);
 }
 
@@ -482,6 +479,15 @@ ipx_bind(so, nam, td)
 	return (error);
 }
 
+static void
+ipx_usr_close(so)
+	struct socket *so;
+{
+
+	/* XXXRW: Possibly ipx_disconnect() here? */
+	soisdisconnected(so);
+}
+
 static int
 ipx_connect(so, nam, td)
 	struct socket *so;
@@ -513,6 +519,7 @@ ipx_detach(so)
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
+	/* XXXRW: Should assert detached. */
 	KASSERT(ipxp != NULL, ("ipx_detach: ipxp == NULL"));
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
