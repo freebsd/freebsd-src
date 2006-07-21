@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/svr4/svr4_types.h>
 #include <compat/svr4/svr4_syscall.h>
 #include <compat/svr4/svr4_signal.h>
+#include <compat/svr4/svr4_socket.h>
 #include <compat/svr4/svr4_sockio.h>
 #include <compat/svr4/svr4_errno.h>
 #include <compat/svr4/svr4_proto.h>
@@ -269,12 +270,14 @@ svr4_elf_modevent(module_t mod, int type, void *data)
 
 	switch(type) {
 	case MOD_LOAD:
-		if (elf32_insert_brand_entry(&svr4_brand) < 0)
-			error = EINVAL;
-		if (error)
+		if (elf32_insert_brand_entry(&svr4_brand) < 0) {
 			printf("cannot insert svr4 elf brand handler\n");
-		else if (bootverbose)
+			error = EINVAL;
+			break;
+		}
+		if (bootverbose)
 			printf("svr4 ELF exec handler installed\n");
+		svr4_sockcache_init();
 		break;
 	case MOD_UNLOAD:
 		/* Only allow the emulator to be removed if it isn't in use. */
@@ -284,11 +287,14 @@ svr4_elf_modevent(module_t mod, int type, void *data)
 			error = EINVAL;
 		}
 
-		if (error)
+		if (error) {
 			printf("Could not deinstall ELF interpreter entry (error %d)\n",
 			       error);
-		else if (bootverbose)
+			break;
+		}
+		if (bootverbose)
 			printf("svr4 ELF exec handler removed\n");
+		svr4_sockcache_destroy();
 		break;
 	default:
 		return (EOPNOTSUPP);

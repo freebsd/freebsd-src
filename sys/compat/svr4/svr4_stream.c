@@ -1554,13 +1554,11 @@ svr4_do_putmsg(td, uap, fp)
 			/* Maybe we've been given a device/inode pair */
 			dev_t *dev = SVR4_ADDROF(&sc);
 			ino_t *ino = (ino_t *) &dev[1];
-			sa = (struct sockaddr *)
-			    svr4_find_socket(td, fp, *dev, *ino);
-			if (sa == NULL) {
-				sa = (struct sockaddr *)&saun;
+			if (svr4_find_socket(td, fp, *dev, *ino, &saun) != 0) {
 				/* I guess we have it by name */
 				netaddr_to_sockaddr_un(&saun, &sc);
 			}
+			sa = (struct sockaddr *)&saun;
 			sasize = sizeof(saun);
 		}
 		break;
