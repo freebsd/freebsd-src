@@ -876,8 +876,12 @@ ng_btsocket_hci_raw_init(void)
 void
 ng_btsocket_hci_raw_abort(struct socket *so)
 {
-	ng_btsocket_hci_raw_detach(so);
 } /* ng_btsocket_hci_raw_abort */
+
+void
+ng_btsocket_hci_raw_close(struct socket *so)
+{
+} /* ng_btsocket_hci_raw_close */
 
 /*
  * Create new raw HCI socket

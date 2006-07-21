@@ -144,6 +144,13 @@ rts_abort(struct socket *so)
 	raw_usrreqs.pru_abort(so);
 }
 
+static void
+rts_close(struct socket *so)
+{
+
+	raw_usrreqs.pru_close(so);
+}
+
 /* pru_accept is EOPNOTSUPP */
 
 static int
@@ -292,6 +299,7 @@ static struct pr_usrreqs route_usrreqs = {
 	.pru_send =		rts_send,
 	.pru_shutdown =		rts_shutdown,
 	.pru_sockaddr =		rts_sockaddr,
+	.pru_close =		rts_close,
 };
 
 /*ARGSUSED*/

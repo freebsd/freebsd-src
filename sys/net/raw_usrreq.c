@@ -146,7 +146,16 @@ raw_uabort(struct socket *so)
 	KASSERT(rp != NULL, ("raw_uabort: rp == NULL"));
 	raw_disconnect(rp);
 	soisdisconnected(so);
-	raw_detach(rp);
+}
+
+static void
+raw_uclose(struct socket *so)
+{
+	struct rawcb *rp = sotorawcb(so);
+
+	KASSERT(rp != NULL, ("raw_uabort: rp == NULL"));
+	raw_disconnect(rp);
+	soisdisconnected(so);
 }
 
 /* pru_accept is EOPNOTSUPP */
@@ -295,4 +304,5 @@ struct pr_usrreqs raw_usrreqs = {
 	.pru_send =		raw_usend,
 	.pru_shutdown =		raw_ushutdown,
 	.pru_sockaddr =		raw_usockaddr,
+	.pru_close =		raw_uclose,
 };

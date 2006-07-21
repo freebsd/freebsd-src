@@ -439,6 +439,17 @@ key_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 }
 
 /*
+ * key_close()
+ * derived from net/rtsock.c:rts_close().
+ */
+static void
+key_abort(struct socket *so)
+{
+
+	raw_usrreqs.pru_close(so);
+}
+
+/*
  * key_connect()
  * derived from net/rtsock.c:rts_connect()
  */
@@ -553,6 +564,7 @@ struct pr_usrreqs key_usrreqs = {
 	.pru_send =		key_send,
 	.pru_shutdown =		key_shutdown,
 	.pru_sockaddr =		key_sockaddr,
+	.pru_close =		key_close,
 };
 
 /* sysctl */

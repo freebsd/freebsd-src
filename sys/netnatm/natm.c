@@ -336,7 +336,12 @@ static void
 natm_usr_abort(struct socket *so)
 {
 
-	natm_usr_detach(so);
+}
+
+static void
+natm_usr_close(struct socket *so)
+{
+
 }
 
 static int
@@ -366,6 +371,7 @@ struct pr_usrreqs natm_usrreqs = {
 	.pru_send =		natm_usr_send,
 	.pru_shutdown =		natm_usr_shutdown,
 	.pru_sockaddr =		natm_usr_sockaddr,
+	.pru_close =		natm_usr_close,
 };
 
 /*

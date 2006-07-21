@@ -589,6 +589,8 @@ sofree(so)
 	sorflush(so);
 	knlist_destroy(&so->so_rcv.sb_sel.si_note);
 	knlist_destroy(&so->so_snd.sb_sel.si_note);
+	if (so->so_proto->pr_usrreqs->pru_detach != NULL)
+		(*so->so_proto->pr_usrreqs->pru_detach)(so);
 	sodealloc(so);
 }
 
@@ -653,8 +655,8 @@ soclose(so)
 	}
 
 drop:
-	if (*so->so_proto->pr_usrreqs->pru_detach != NULL)
-		(*so->so_proto->pr_usrreqs->pru_detach)(so);
+	if (so->so_proto->pr_usrreqs->pru_close != NULL)
+		(*so->so_proto->pr_usrreqs->pru_close)(so);
 	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	KASSERT((so->so_state & SS_NOFDREF) == 0, ("soclose: NOFDREF"));
@@ -676,9 +678,6 @@ drop:
  * with any socket locks held.  Protocols do call it while holding their own
  * recursible protocol mutexes, but this is something that should be subject
  * to review in the future.
- *
- * XXXRW: Why do we maintain a distinction between pru_abort() and
- * pru_detach()?
  */
 void
 soabort(so)
@@ -697,7 +696,7 @@ soabort(so)
 	KASSERT((so->so_state & SQ_COMP) == 0, ("soabort: SQ_COMP"));
 	KASSERT((so->so_state & SQ_INCOMP) == 0, ("soabort: SQ_INCOMP"));
 
-	if (*so->so_proto->pr_usrreqs->pru_abort != NULL)
+	if (so->so_proto->pr_usrreqs->pru_abort != NULL)
 		(*so->so_proto->pr_usrreqs->pru_abort)(so);
 	ACCEPT_LOCK();
 	SOCK_LOCK(so);
