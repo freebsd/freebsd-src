@@ -1756,6 +1756,14 @@ setugidsafety(struct thread *td)
 	FILEDESC_UNLOCK(fdp);
 }
 
+/*
+ * If a specific file object occupies a specific file descriptor,
+ * close the file descriptor entry and drop a reference on the file
+ * object.  This is a convenience function to handle a subsequent
+ * error in a function that calls falloc() that handles the race that
+ * another thread might have closed the file descriptor out from under
+ * the thread creating the file object.
+ */
 void
 fdclose(struct filedesc *fdp, struct file *fp, int idx, struct thread *td)
 {
