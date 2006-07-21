@@ -606,34 +606,36 @@ svr4_sys_fchroot(td, uap)
 	struct svr4_sys_fchroot_args *uap;
 {
 	struct filedesc	*fdp = td->td_proc->p_fd;
-	struct vnode	*vp, *vpold;
+	struct vnode	*vp;
 	struct file	*fp;
-	int		 error;
+	int		 error, vfslocked;
 
 	if ((error = suser(td)) != 0)
 		return error;
 	if ((error = getvnode(fdp, uap->fd, &fp)) != 0)
 		return error;
 	vp = fp->f_vnode;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	if (vp->v_type != VDIR)
-		error = ENOTDIR;
-	else
-		error = VOP_ACCESS(vp, VEXEC, td->td_ucred, td);
-	VOP_UNLOCK(vp, 0, td);
-	if (error) {
-		fdrop(fp, td);
-		return error;
-	}
 	VREF(vp);
-	FILEDESC_LOCK_FAST(fdp);
-	vpold = fdp->fd_rdir;
-	fdp->fd_rdir = vp;
-	FILEDESC_UNLOCK_FAST(fdp);
-	if (vpold != NULL)
-		vrele(vpold);
 	fdrop(fp, td);
-	return 0;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = change_dir(vp, td);
+	if (error)
+		goto fail;
+#ifdef MAC
+	error = mac_check_vnode_chroot(td->td_ucred, vp);
+	if (error)
+		goto fail;
+#endif
+	VOP_UNLOCK(vp, 0, td);
+	error = change_root(vp, td);
+	vrele(vp);
+	VFS_UNLOCK_GIANT(vfslocked);
+	return (error);
+fail:
+	vput(vp);
+	VFS_UNLOCK_GIANT(vfslocked);
+	return (error);
 }
 
 
