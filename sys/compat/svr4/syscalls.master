@@ -250,7 +250,7 @@
 150	AUE_NULL	UNIMPL	notused
 151	AUE_NULL	UNIMPL	notused
 152	AUE_NULL	UNIMPL	modctl
-153	AUE_NULL	STD	{ int svr4_sys_fchroot(int fd); }
+153	AUE_NULL	MSTD	{ int svr4_sys_fchroot(int fd); }
 154	AUE_NULL	MSTD	{ int svr4_sys_utimes(char *path, \
 				    struct timeval *tptr); }
 155	AUE_NULL	MSTD	{ int svr4_sys_vhangup(void); }
