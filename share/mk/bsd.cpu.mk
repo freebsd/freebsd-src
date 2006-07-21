@@ -189,6 +189,7 @@ _CPUCFLAGS += -mieee
 
 .if ${MACHINE_ARCH} == "arm" && defined(ARM_BIG_ENDIAN)
 CFLAGS += -mbig-endian
+LDFLAGS += -mbig-endian
 LD += -EB
 .endif
 
