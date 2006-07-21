@@ -1087,6 +1087,8 @@ dummy_disconnect(struct socket *so)
 }
 /*
  * Control and data socket type descriptors
+ *
+ * XXXRW: Perhaps _close should do something?
  */
 
 static struct pr_usrreqs ngc_usrreqs = {
@@ -1100,6 +1102,7 @@ static struct pr_usrreqs ngc_usrreqs = {
 	.pru_send =		ngc_send,
 	.pru_shutdown =		NULL,
 	.pru_sockaddr =		ng_setsockaddr,
+	.pru_close =		NULL,
 };
 
 static struct pr_usrreqs ngd_usrreqs = {
@@ -1113,6 +1116,7 @@ static struct pr_usrreqs ngd_usrreqs = {
 	.pru_send =		ngd_send,
 	.pru_shutdown =		NULL,
 	.pru_sockaddr =		ng_setsockaddr,
+	.pru_close =		NULL,
 };
 
 /*

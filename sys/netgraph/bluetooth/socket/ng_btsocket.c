@@ -74,6 +74,7 @@ static struct pr_usrreqs	ng_btsocket_hci_raw_usrreqs = {
 	.pru_send =		ng_btsocket_hci_raw_send,
 	.pru_shutdown =		NULL,
 	.pru_sockaddr =		ng_btsocket_hci_raw_sockaddr,
+	.pru_close =		ng_btsocket_hci_raw_close,
 };
 
 /*
@@ -92,6 +93,7 @@ static struct pr_usrreqs	ng_btsocket_l2cap_raw_usrreqs = {
 	.pru_send =		ng_btsocket_l2cap_raw_send,
 	.pru_shutdown =		NULL,
 	.pru_sockaddr =		ng_btsocket_l2cap_raw_sockaddr,
+	.pru_close =		ng_btsocket_l2cap_raw_close,
 };
 
 /*
@@ -112,6 +114,7 @@ static struct pr_usrreqs	ng_btsocket_l2cap_usrreqs = {
 	.pru_send =		ng_btsocket_l2cap_send,
 	.pru_shutdown =		NULL,
 	.pru_sockaddr =		ng_btsocket_l2cap_sockaddr,
+	.pru_close =		ng_btsocket_l2cap_close,
 };
 
 /*
@@ -132,6 +135,7 @@ static struct pr_usrreqs	ng_btsocket_rfcomm_usrreqs = {
 	.pru_send =		ng_btsocket_rfcomm_send,
 	.pru_shutdown =		NULL,
 	.pru_sockaddr =		ng_btsocket_rfcomm_sockaddr,
+	.pru_close =		ng_btsocket_rfcomm_close,
 };
 
 /* 

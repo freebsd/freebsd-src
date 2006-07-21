@@ -622,12 +622,17 @@ rip_attach(struct socket *so, int proto, struct thread *td)
 }
 
 static void
-rip_pcbdetach(struct socket *so, struct inpcb *inp)
+rip_detach(struct socket *so)
 {
+	struct inpcb *inp;
 
-	INP_INFO_WLOCK_ASSERT(&ripcbinfo);
-	INP_LOCK_ASSERT(inp);
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("rip_detach: inp == NULL"));
+	KASSERT(inp->inp_faddr.s_addr == INADDR_ANY, 
+	    ("rip_detach: not closed"));
 
+	INP_INFO_WLOCK(&ripcbinfo);
+	INP_LOCK(inp);
 	if (so == ip_mrouter && ip_mrouter_done)
 		ip_mrouter_done();
 	if (ip_rsvp_force_done)
@@ -636,19 +641,19 @@ rip_pcbdetach(struct socket *so, struct inpcb *inp)
 		ip_rsvp_done();
 	in_pcbdetach(inp);
 	in_pcbfree(inp);
+	INP_INFO_WUNLOCK(&ripcbinfo);
 }
 
 static void
-rip_detach(struct socket *so)
+rip_dodisconnect(struct socket *so, struct inpcb *inp)
 {
-	struct inpcb *inp;
 
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("rip_detach: inp == NULL"));
-	INP_INFO_WLOCK(&ripcbinfo);
-	INP_LOCK(inp);
-	rip_pcbdetach(so, inp);
-	INP_INFO_WUNLOCK(&ripcbinfo);
+	INP_LOCK_ASSERT(inp);
+
+	inp->inp_faddr.s_addr = INADDR_ANY;
+	SOCK_LOCK(so);
+	so->so_state &= ~SS_ISCONNECTED;
+	SOCK_UNLOCK(so);
 }
 
 static void
@@ -658,10 +663,26 @@ rip_abort(struct socket *so)
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip_abort: inp == NULL"));
+
 	INP_INFO_WLOCK(&ripcbinfo);
 	INP_LOCK(inp);
-	soisdisconnected(so);
-	rip_pcbdetach(so, inp);
+	rip_dodisconnect(so, inp);
+	INP_UNLOCK(inp);
+	INP_INFO_WUNLOCK(&ripcbinfo);
+}
+
+static void
+rip_close(struct socket *so)
+{
+	struct inpcb *inp;
+
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("rip_close: inp == NULL"));
+
+	INP_INFO_WLOCK(&ripcbinfo);
+	INP_LOCK(inp);
+	rip_dodisconnect(so, inp);
+	INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
 }
 
@@ -677,10 +698,7 @@ rip_disconnect(struct socket *so)
 	KASSERT(inp != NULL, ("rip_disconnect: inp == NULL"));
 	INP_INFO_WLOCK(&ripcbinfo);
 	INP_LOCK(inp);
-	inp->inp_faddr.s_addr = INADDR_ANY;
-	SOCK_LOCK(so);
-	so->so_state &= ~SS_ISCONNECTED;
-	SOCK_UNLOCK(so);
+	rip_dodisconnect(so, inp);
 	INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
 	return (0);
@@ -912,5 +930,6 @@ struct pr_usrreqs rip_usrreqs = {
 	.pru_send =		rip_send,
 	.pru_shutdown =		rip_shutdown,
 	.pru_sockaddr =		rip_sockaddr,
-	.pru_sosetlabel =	in_pcbsosetlabel
+	.pru_sosetlabel =	in_pcbsosetlabel,
+	.pru_close =		rip_close,
 };

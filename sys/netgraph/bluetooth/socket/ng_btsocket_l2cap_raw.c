@@ -575,8 +575,16 @@ ng_btsocket_l2cap_raw_init(void)
 void
 ng_btsocket_l2cap_raw_abort(struct socket *so)
 {
-	ng_btsocket_l2cap_raw_detach(so);
+
+	(void)ng_btsocket_l2cap_raw_disconnect(so);
 } /* ng_btsocket_l2cap_raw_abort */
+
+void
+ng_btsocket_l2cap_raw_close(struct socket *so)
+{
+
+	(void)ng_btsocket_l2cap_raw_disconnect(so);
+} /* ng_btsocket_l2cap_raw_close */
 
 /*
  * Create and attach new socket
