@@ -101,6 +101,7 @@ static	void spx_usr_abort(struct socket *so);
 static	int spx_accept(struct socket *so, struct sockaddr **nam);
 static	int spx_attach(struct socket *so, int proto, struct thread *td);
 static	int spx_bind(struct socket *so, struct sockaddr *nam, struct thread *td);
+static	void spx_usr_close(struct socket *so);
 static	int spx_connect(struct socket *so, struct sockaddr *nam,
 			struct thread *td);
 static	void spx_detach(struct socket *so);
@@ -131,6 +132,7 @@ struct	pr_usrreqs spx_usrreqs = {
 	.pru_send =		spx_send,
 	.pru_shutdown =		spx_shutdown,
 	.pru_sockaddr =		ipx_sockaddr,
+	.pru_close =		spx_usr_close,
 };
 
 struct	pr_usrreqs spx_usrreq_sps = {
@@ -149,6 +151,7 @@ struct	pr_usrreqs spx_usrreq_sps = {
 	.pru_send =		spx_send,
 	.pru_shutdown =		spx_shutdown,
 	.pru_sockaddr =		ipx_sockaddr,
+	.pru_close =		spx_usr_close,
 };
 
 void
@@ -1320,9 +1323,7 @@ spx_usr_abort(struct socket *so)
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
 	spx_drop(cb, ECONNABORTED);
-	spx_pcbdetach(ipxp);
-	ipx_pcbdetach(ipxp);
-	ipx_pcbfree(ipxp);
+	IPX_UNLOCK(ipxp);
 	IPX_LIST_UNLOCK();
 }
 
@@ -1459,6 +1460,28 @@ out:
 	return (error);
 }
 
+static void
+spx_usr_close(struct socket *so)
+{
+	struct ipxpcb *ipxp;
+	struct spxpcb *cb;
+
+	ipxp = sotoipxpcb(so);
+	KASSERT(ipxp != NULL, ("spx_usr_close: ipxp == NULL"));
+
+	cb = ipxtospxpcb(ipxp);
+	KASSERT(cb != NULL, ("spx_usr_close: cb == NULL"));
+
+	IPX_LIST_LOCK();
+	IPX_LOCK(ipxp);
+	if (cb->s_state > TCPS_LISTEN)
+		spx_disconnect(cb);
+	else
+		spx_close(cb);
+	IPX_UNLOCK(ipxp);
+	IPX_LIST_UNLOCK();
+}
+
 /*
  * Initiate connection to peer.  Enter SYN_SENT state, and mark socket as
  * connecting.  Start keep-alive timer, setup prototype header, send initial
@@ -1518,6 +1541,9 @@ spx_detach(struct socket *so)
 	struct ipxpcb *ipxp;
 	struct spxpcb *cb;
 
+	/*
+	 * XXXRW: Should assert appropriately detached.
+	 */
 	ipxp = sotoipxpcb(so);
 	KASSERT(ipxp != NULL, ("spx_detach: ipxp == NULL"));
 
@@ -1526,12 +1552,7 @@ spx_detach(struct socket *so)
 
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
-	if (cb->s_state > TCPS_LISTEN)
-		spx_disconnect(cb);
-	else
-		spx_close(cb);
 	spx_pcbdetach(ipxp);
-	ipx_pcbdetach(ipxp);
 	ipx_pcbfree(ipxp);
 	IPX_LIST_UNLOCK();
 }

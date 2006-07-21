@@ -202,6 +202,10 @@ out:
 	return (error);
 }
 
+/*
+ * XXXRW: This is never called because we only invoke abort on stream
+ * protocols.
+ */
 static void
 ddp_abort(struct socket *so)
 {
@@ -210,10 +214,22 @@ ddp_abort(struct socket *so)
 	ddp = sotoddpcb(so);
 	KASSERT(ddp != NULL, ("ddp_abort: ddp == NULL"));
 
-	DDP_LIST_XLOCK();
 	DDP_LOCK(ddp);
-	at_pcbdetach(so, ddp);
-	DDP_LIST_XUNLOCK();
+	at_pcbdisconnect(ddp);
+	DDP_UNLOCK(ddp);
+}
+
+static void
+ddp_close(struct socket *so)
+{
+	struct ddpcb	*ddp;
+	
+	ddp = sotoddpcb(so);
+	KASSERT(ddp != NULL, ("ddp_close: ddp == NULL"));
+
+	DDP_LOCK(ddp);
+	at_pcbdisconnect(ddp);
+	DDP_UNLOCK(ddp);
 }
 
 void 
@@ -276,4 +292,5 @@ struct pr_usrreqs ddp_usrreqs = {
 	.pru_send =		ddp_send,
 	.pru_shutdown =		ddp_shutdown,
 	.pru_sockaddr =		at_setsockaddr,
+	.pru_close =		ddp_close,
 };

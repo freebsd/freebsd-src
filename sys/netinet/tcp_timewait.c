@@ -808,18 +808,7 @@ tcp_close(struct tcpcb *tp)
 		KASSERT(so->so_state & SS_PROTOREF,
 		    ("tcp_close: !SS_PROTOREF"));
 		inp->inp_vflag &= ~INP_SOCKREF;
-		tcp_discardcb(tp);
-#ifdef INET6
-		if (inp->inp_vflag & INP_IPV6PROTO) {
-			in6_pcbdetach(inp);
-			in6_pcbfree(inp);
-		} else {
-#endif
-			in_pcbdetach(inp);
-			in_pcbfree(inp);
-#ifdef INET6
-		}
-#endif
+		INP_UNLOCK(inp);
 		ACCEPT_LOCK();
 		SOCK_LOCK(so);
 		so->so_state &= ~SS_PROTOREF;
@@ -1789,12 +1778,6 @@ tcp_twstart(struct tcpcb *tp)
 		KASSERT(so->so_state & SS_PROTOREF,
 		    ("tcp_twstart: !SS_PROTOREF"));
 		inp->inp_vflag &= ~INP_SOCKREF;
-#ifdef INET6
-		if (inp->inp_vflag & INP_IPV6PROTO)
-			in6_pcbdetach(inp);
-		else
-#endif
-			in_pcbdetach(inp);
 		INP_UNLOCK(inp);
 		ACCEPT_LOCK();
 		SOCK_LOCK(so);
@@ -1847,12 +1830,11 @@ tcp_twclose(struct tcptw *tw, int reuse)
 	/*
 	 * At this point, we are in one of two situations:
 	 *
-	 * (1) We have no socket, just an inpcb<->twtcp pair.  Release it all
-	 * after validating.
+	 * (1) We have no socket, just an inpcb<->twtcp pair.  We can free
+	 *     all state.
 	 *
-	 * (2) We have a socket, which we may or may now own the reference
-	 * for.  If we own the reference, release all the state after
-	 * validating.  If not, leave it for the socket close to clean up.
+	 * (2) We have a socket -- if we own a reference, release it and
+	 *     notify the socket layer.
 	 */
 	inp = tw->tw_inpcb;
 	KASSERT((inp->inp_vflag & INP_TIMEWAIT), ("tcp_twclose: !timewait"));
@@ -1867,22 +1849,15 @@ tcp_twclose(struct tcptw *tw, int reuse)
 
 	so = inp->inp_socket;
 	if (so != NULL) {
+		/*
+		 * If there's a socket, handle two cases: first, we own a
+		 * strong reference, which we will now release, or we don't
+		 * in which case another reference exists (XXXRW: think
+		 * about this more), and we don't need to take action.
+		 */
 		if (inp->inp_vflag & INP_SOCKREF) {
-			/*
-			 * If a socket is present, and we own the only
-			 * reference, we need to tear down the socket and the
-			 * inpcb.
-			 */
 			inp->inp_vflag &= ~INP_SOCKREF;
-#ifdef INET6
-			if (inp->inp_vflag & INP_IPV6PROTO) {
-				in6_pcbdetach(inp);
-				in6_pcbfree(inp);
-			} else {
-				in_pcbdetach(inp);
-				in_pcbfree(inp);
-			}
-#endif
+			INP_UNLOCK(inp);
 			ACCEPT_LOCK();
 			SOCK_LOCK(so);
 			KASSERT(so->so_state & SS_PROTOREF,

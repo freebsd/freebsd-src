@@ -1917,8 +1917,15 @@ ng_btsocket_l2cap_abort(struct socket *so)
 {
 	so->so_error = ECONNABORTED;
 
-	ng_btsocket_l2cap_detach(so);
+	(void)ng_btsocket_l2cap_disconnect(so);
 } /* ng_btsocket_l2cap_abort */
+
+void
+ng_btsocket_l2cap_close(struct socket *so)
+{
+
+	(void)ng_btsocket_l2cap_disconnect(so);
+} /* ng_btsocket_l2cap_close */
 
 /*
  * Accept connection on socket. Nothing to do here, socket must be connected

@@ -149,8 +149,7 @@ uipc_abort(struct socket *so)
 	KASSERT(unp != NULL, ("uipc_abort: unp == NULL"));
 	UNP_LOCK();
 	unp_drop(unp, ECONNABORTED);
-	unp_detach(unp);
-	UNP_UNLOCK_ASSERT();
+	UNP_UNLOCK();
 }
 
 static int
@@ -208,6 +207,21 @@ uipc_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	error = unp_connect(so, nam, td);
 	UNP_UNLOCK();
 	return (error);
+}
+
+/*
+ * XXXRW: Should also unbind?
+ */
+static void
+uipc_close(struct socket *so)
+{
+	struct unpcb *unp;
+
+	unp = sotounpcb(so);
+	KASSERT(unp != NULL, ("uipc_close: unp == NULL"));
+	UNP_LOCK();
+	unp_disconnect(unp);
+	UNP_UNLOCK();
 }
 
 int
@@ -565,6 +579,7 @@ struct pr_usrreqs uipc_usrreqs = {
 	.pru_sosend =		sosend,
 	.pru_soreceive =	soreceive,
 	.pru_sopoll =		sopoll,
+	.pru_close =		uipc_close,
 };
 
 int

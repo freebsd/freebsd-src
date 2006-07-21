@@ -586,25 +586,42 @@ rip6_detach(struct socket *so)
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip6_detach: inp == NULL"));
+
 	/* xxx: RSVP */
 	if (so == ip6_mrouter)
 		ip6_mrouter_done();
+	INP_INFO_WLOCK(&ripcbinfo);
+	INP_LOCK(inp);
 	if (inp->in6p_icmp6filt) {
 		FREE(inp->in6p_icmp6filt, M_PCB);
 		inp->in6p_icmp6filt = NULL;
 	}
-	INP_INFO_WLOCK(&ripcbinfo);
-	INP_LOCK(inp);
 	in6_pcbdetach(inp);
 	in6_pcbfree(inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
 }
 
+/* XXXRW: This can't ever be called. */
 static void
 rip6_abort(struct socket *so)
 {
+	struct inpcb *inp;
+
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("rip6_abort: inp == NULL"));
+
 	soisdisconnected(so);
-	rip6_detach(so);
+}
+
+static void
+rip6_close(struct socket *so)
+{
+	struct inpcb *inp;
+
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("rip6_close: inp == NULL"));
+
+	soisdisconnected(so);
 }
 
 static int
@@ -794,4 +811,5 @@ struct pr_usrreqs rip6_usrreqs = {
 	.pru_send =		rip6_send,
 	.pru_shutdown =		rip6_shutdown,
 	.pru_sockaddr =		in6_setsockaddr,
+	.pru_close =		rip6_close,
 };

@@ -88,6 +88,7 @@ static int	atm_aal5_incoming(void *, Atm_connection *,
 			Atm_attributes *, void **);
 static void	atm_aal5_cpcs_data(void *, KBuffer *);
 static caddr_t	atm_aal5_getname(void *);
+static void	atm_aal5_close(struct socket *);
 
 
 /*
@@ -108,6 +109,7 @@ struct pr_usrreqs	atm_aal5_usrreqs = {
 	.pru_sense =		atm_aal5_sense,
 	.pru_shutdown =		atm_aal5_shutdown,
 	.pru_sockaddr =		atm_aal5_sockaddr,
+	.pru_close =		atm_aal5_close,
 };
 
 /*
@@ -565,8 +567,19 @@ atm_aal5_abort(so)
 {
 	ATM_INTRO_NOERR("abort");
 
+	(void)atm_sock_disconnect(so);
 	so->so_error = ECONNABORTED;
-	atm_sock_detach(so);
+
+	ATM_OUTRO_NOERR();
+}
+
+static void
+atm_aal5_close(so)
+	struct socket	*so;
+{
+	ATM_INTRO_NOERR("close");
+
+	(void)atm_sock_disconnect(so);
 
 	ATM_OUTRO_NOERR();
 }
