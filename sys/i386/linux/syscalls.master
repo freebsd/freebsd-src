@@ -165,7 +165,7 @@
 84	AUE_LSTAT	MSTD	{ int linux_lstat(char *path, struct ostat *up); }
 85	AUE_READLINK	MSTD	{ int linux_readlink(char *name, char *buf, \
 				    l_int count); }
-86	AUE_USELIB	STD	{ int linux_uselib(char *library); }
+86	AUE_USELIB	MSTD	{ int linux_uselib(char *library); }
 87	AUE_SWAPON	MNOPROTO	{ int swapon(char *name); }
 88	AUE_REBOOT	MSTD	{ int linux_reboot(l_int magic1, \
 				    l_int magic2, l_uint cmd, void *arg); }

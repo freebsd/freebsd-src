@@ -229,7 +229,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	unsigned long bss_size;
 	char *library;
 	int error;
-	int locked;
+	int locked, vfslocked;
 
 	LCONVPATHEXIST(td, args->library, &library);
 
@@ -239,34 +239,26 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 #endif
 
 	a_out = NULL;
+	vfslocked = 0;
 	locked = 0;
 	vp = NULL;
 
-	/*
-	 * XXX: This code should make use of vn_open(), rather than doing
-	 * all this stuff itself.
-	 */
-	NDINIT(&ni, LOOKUP, ISOPEN|FOLLOW|LOCKLEAF, UIO_SYSSPACE, library, td);
+	NDINIT(&ni, LOOKUP, ISOPEN | FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
+	    UIO_SYSSPACE, library, td);
 	error = namei(&ni);
 	LFREEPATH(library);
 	if (error)
 		goto cleanup;
 
 	vp = ni.ni_vp;
-	/*
-	 * XXX - This looks like a bogus check. A LOCKLEAF namei should not
-	 * succeed without returning a vnode.
-	 */
-	if (vp == NULL) {
-		error = ENOEXEC;	/* ?? */
-		goto cleanup;
-	}
+	vfslocked = NDHASGIANT(&ni);
 	NDFREE(&ni, NDF_ONLY_PNBUF);
 
 	/*
 	 * From here on down, we have a locked vnode that must be unlocked.
+	 * XXX: The code below largely duplicates exec_check_permissions().
 	 */
-	locked++;
+	locked = 1;
 
 	/* Writable? */
 	if (vp->v_writecount) {
@@ -281,6 +273,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 
 	if ((vp->v_mount->mnt_flag & MNT_NOEXEC) ||
 	    ((attr.va_mode & 0111) == 0) || (attr.va_type != VREG)) {
+		/* EACCESS is what exec(2) returns. */
 		error = ENOEXEC;
 		goto cleanup;
 	}
@@ -299,6 +292,8 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	/*
 	 * XXX: This should use vn_open() so that it is properly authorized,
 	 * and to reduce code redundancy all over the place here.
+	 * XXX: Not really, it duplicates far more of exec_check_permissions()
+	 * than vn_open().
 	 */
 #ifdef MAC
 	error = mac_check_vnode_open(td->td_ucred, vp, FREAD);
@@ -312,12 +307,6 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	/* Pull in executable header into kernel_map */
 	error = vm_mmap(kernel_map, (vm_offset_t *)&a_out, PAGE_SIZE,
 	    VM_PROT_READ, VM_PROT_READ, 0, OBJT_VNODE, vp, 0);
-	/*
-	 * Lock no longer needed
-	 */
-	locked = 0;
-	VOP_UNLOCK(vp, 0, td);
-
 	if (error)
 		goto cleanup;
 
@@ -372,9 +361,19 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	}
 	PROC_UNLOCK(td->td_proc);
 
-	mp_fixme("Unlocked vflags access.");
-	/* prevent more writers */
+	/*
+	 * Prevent more writers.
+	 * XXX: Note that if any of the VM operations fail below we don't
+	 * clear this flag.
+	 */
 	vp->v_vflag |= VV_TEXT;
+
+	/*
+	 * Lock no longer needed
+	 */
+	locked = 0;
+	VOP_UNLOCK(vp, 0, td);
+	VFS_UNLOCK_GIANT(vfslocked);
 
 	/*
 	 * Check if file_offset page aligned. Currently we cannot handle
@@ -453,8 +452,10 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 
 cleanup:
 	/* Unlock vnode if needed */
-	if (locked)
+	if (locked) {
 		VOP_UNLOCK(vp, 0, td);
+		VFS_UNLOCK_GIANT(vfslocked);
+	}
 
 	/* Release the kernel mapping. */
 	if (a_out)
