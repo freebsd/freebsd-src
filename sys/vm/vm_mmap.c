@@ -716,7 +716,7 @@ mincore(td, uap)
 	end = addr + (vm_size_t)round_page(uap->len);
 	map = &td->td_proc->p_vmspace->vm_map;
 	if (end > vm_map_max(map) || end < addr)
-		return (EINVAL);
+		return (ENOMEM);
 
 	/*
 	 * Address of byte vector
@@ -729,8 +729,10 @@ mincore(td, uap)
 RestartScan:
 	timestamp = map->timestamp;
 
-	if (!vm_map_lookup_entry(map, addr, &entry))
-		entry = entry->next;
+	if (!vm_map_lookup_entry(map, addr, &entry)) {
+		vm_map_unlock_read(map);
+		return (ENOMEM);
+	}
 
 	/*
 	 * Do this on a map entry basis so that if the pages are not
@@ -741,6 +743,16 @@ RestartScan:
 	for (current = entry;
 	    (current != &map->header) && (current->start < end);
 	    current = current->next) {
+
+		/*
+		 * check for contiguity
+		 */
+		if (current->end < end &&
+		    (entry->next == &map->header ||
+		     current->next->start > current->end)) {
+			vm_map_unlock_read(map);
+			return (ENOMEM);
+		}
 
 		/*
 		 * ignore submaps (for now) or null objects
