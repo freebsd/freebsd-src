@@ -806,7 +806,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 	if (clearobjflags && (tstart == 0) && (tend == object->size)) {
 		struct vnode *vp;
 
-		vm_object_clear_flag(object, OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
+		vm_object_clear_flag(object, OBJ_MIGHTBEDIRTY);
 		if (object->type == OBJT_VNODE &&
 		    (vp = (struct vnode *)object->handle) != NULL) {
 			VI_LOCK(vp);
@@ -1920,10 +1920,9 @@ vm_object_set_writeable_dirty(vm_object_t object)
 	struct vnode *vp;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	if ((object->flags & (OBJ_MIGHTBEDIRTY|OBJ_WRITEABLE)) ==
-	    (OBJ_MIGHTBEDIRTY|OBJ_WRITEABLE))
+	if ((object->flags & OBJ_MIGHTBEDIRTY) != 0)
 		return;
-	vm_object_set_flag(object, OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
+	vm_object_set_flag(object, OBJ_MIGHTBEDIRTY);
 	if (object->type == OBJT_VNODE &&
 	    (vp = (struct vnode *)object->handle) != NULL) {
 		VI_LOCK(vp);
