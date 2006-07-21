@@ -2285,8 +2285,7 @@ vfs_setdirty(struct buf *bp)
 
 	/*
 	 * We qualify the scan for modified pages on whether the
-	 * object has been flushed yet.  The OBJ_WRITEABLE flag
-	 * is not cleared simply by protecting pages off.
+	 * object has been flushed yet.
 	 */
 
 	if ((bp->b_flags & B_VMIO) == 0)
@@ -2294,11 +2293,6 @@ vfs_setdirty(struct buf *bp)
 
 	object = bp->b_pages[0]->object;
 	VM_OBJECT_LOCK(object);
-	if ((object->flags & OBJ_WRITEABLE) && !(object->flags & OBJ_MIGHTBEDIRTY))
-		printf("Warning: object %p writeable but not mightbedirty\n", object);
-	if (!(object->flags & OBJ_WRITEABLE) && (object->flags & OBJ_MIGHTBEDIRTY))
-		printf("Warning: object %p mightbedirty but not writeable\n", object);
-
 	if (object->flags & (OBJ_MIGHTBEDIRTY|OBJ_CLEANING)) {
 		vm_offset_t boffset;
 		vm_offset_t eoffset;
