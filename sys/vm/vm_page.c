@@ -656,7 +656,7 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 
 	/*
 	 * Since we are inserting a new and possibly dirty page,
-	 * update the object's OBJ_WRITEABLE and OBJ_MIGHTBEDIRTY flags.
+	 * update the object's OBJ_MIGHTBEDIRTY flag.
 	 */
 	if (m->flags & PG_WRITEABLE)
 		vm_object_set_writeable_dirty(object);
