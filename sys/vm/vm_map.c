@@ -2195,11 +2195,9 @@ vm_map_sync(
 		}
 	}
 
-	if (invalidate) {
-		VM_LOCK_GIANT();
+	if (invalidate)
 		pmap_remove(map->pmap, start, end);
-		VM_UNLOCK_GIANT();
-	}
+
 	/*
 	 * Make a second pass, cleaning/uncaching pages from the indicated
 	 * objects as we go.
@@ -2363,11 +2361,7 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 			vm_map_entry_unwire(map, entry);
 		}
 
-		if (!map->system_map)
-			VM_LOCK_GIANT();
 		pmap_remove(map->pmap, entry->start, entry->end);
-		if (!map->system_map)
-			VM_UNLOCK_GIANT();
 
 		/*
 		 * Delete the entry (which may delete the object) only after
