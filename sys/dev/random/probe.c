@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #if defined(__i386__) && !defined(PC98)
 #include <machine/cpufunc.h>
 #include <machine/cputypes.h>
+#include <machine/md_var.h>
+#include <machine/specialreg.h>
 #endif
 
 #include <dev/random/randomdev.h>
@@ -48,25 +50,14 @@ __FBSDID("$FreeBSD$");
 void
 random_ident_hardware(struct random_systat *systat)
 {
-#if defined(__i386__) && !defined(PC98)
-	u_int regs[4];
-#endif
 
 	/* Set default to software */
 	*systat = random_yarrow;
 
 	/* Then go looking for hardware */
 #if defined(__i386__) && !defined(PC98)
-	if (cpu_class < CPUCLASS_586)
-		return;
-	do_cpuid(1, regs);
-	if ((regs[0] & 0xf) >= 3) {
-		do_cpuid(0xc0000000, regs);
-		if (regs[0] == 0xc0000001) {
-			do_cpuid(0xc0000001, regs);
-			if ((regs[3] & 0x0c) == 0x0c)
-				*systat = random_nehemiah;
-		}
+	if( via_feature_rng & VIA_HAS_RNG ) {
+		*systat = random_nehemiah;
 	}
 #endif
 }
