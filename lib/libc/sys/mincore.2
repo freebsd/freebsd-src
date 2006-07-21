@@ -92,12 +92,12 @@ The
 .Fn mincore
 system call will fail if:
 .Bl -tag -width Er
-.It Bq Er EINVAL
+.It Bq Er ENOMEM
 The virtual address range specified by the
 .Fa addr
 and
 .Fa len
-arguments is not valid.
+arguments is not fully mapped.
 .It Bq Er EFAULT
 The
 .Fa vec
