@@ -1139,41 +1139,31 @@ explore_numeric(const struct addrinfo *pai, const char *hostname,
 		 * does not accept.  So we need to separate the case for
 		 * AF_INET.
 		 */
-		if (inet_aton(hostname, (struct in_addr *)pton) == 1) {
-			if (pai->ai_family == afd->a_af ||
-			    pai->ai_family == PF_UNSPEC /*?*/) {
-				GET_AI(ai, afd, pton);
-				GET_PORT(ai, servname);
-				if ((pai->ai_flags & AI_CANONNAME)) {
-					/*
-					 * Set the numeric address itself as
-					 * the canonical name, based on a
-					 * clarification in rfc3493.
-					 */
-					GET_CANONNAME(ai, canonname);
-				}
-			} else
-				ERR(EAI_FAMILY);	/*xxx*/
-		}
+		if (inet_aton(hostname, (struct in_addr *)pton) != 1)
+			return 0;
 		break;
 	default:
-		if (inet_pton(afd->a_af, hostname, pton) == 1) {
-			if (pai->ai_family == afd->a_af ||
-			    pai->ai_family == PF_UNSPEC /*?*/) {
-				GET_AI(ai, afd, pton);
-				GET_PORT(ai, servname);
-				if ((pai->ai_flags & AI_CANONNAME)) {
-					/*
-					 * Set the numeric address itself as
-					 * the canonical name, based on a
-					 * clarification in rfc3493.
-					 */
-					GET_CANONNAME(ai, canonname);
-				}
-			} else
-				ERR(EAI_FAMILY);	/* XXX */
-		}
+		if (inet_pton(afd->a_af, hostname, pton) != 1)
+			return 0;
 		break;
+	}
+
+	if (pai->ai_family == afd->a_af) {
+		GET_AI(ai, afd, pton);
+		GET_PORT(ai, servname);
+		if ((pai->ai_flags & AI_CANONNAME)) {
+			/*
+			 * Set the numeric address itself as the canonical
+			 * name, based on a clarification in RFC3493.
+			 */
+			GET_CANONNAME(ai, canonname);
+		}
+	} else {
+		/*
+		 * XXX: This should not happen since we already matched the AF
+		 * by find_afd.
+		 */
+		ERR(EAI_FAMILY);
 	}
 
 	*res = ai;
