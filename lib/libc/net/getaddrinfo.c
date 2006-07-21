@@ -59,7 +59,6 @@
  *
  * OS specific notes for freebsd4:
  * - FreeBSD supported $GAI.  The code does not.
- * - FreeBSD allowed classful IPv4 numeric (127.1), the code does not.
  */
 
 #include <sys/cdefs.h>
@@ -1132,8 +1131,14 @@ explore_numeric(const struct addrinfo *pai, const char *hostname,
 		return 0;
 
 	switch (afd->a_af) {
-#if 1 /*X/Open spec*/
 	case AF_INET:
+		/*
+		 * RFC3493 requires getaddrinfo() to accept AF_INET formats
+		 * that are accepted by inet_addr() and its family.  The
+		 * accepted forms includes the "classful" one, which inet_pton
+		 * does not accept.  So we need to separate the case for
+		 * AF_INET.
+		 */
 		if (inet_aton(hostname, (struct in_addr *)pton) == 1) {
 			if (pai->ai_family == afd->a_af ||
 			    pai->ai_family == PF_UNSPEC /*?*/) {
@@ -1151,7 +1156,6 @@ explore_numeric(const struct addrinfo *pai, const char *hostname,
 				ERR(EAI_FAMILY);	/*xxx*/
 		}
 		break;
-#endif
 	default:
 		if (inet_pton(afd->a_af, hostname, pton) == 1) {
 			if (pai->ai_family == afd->a_af ||
