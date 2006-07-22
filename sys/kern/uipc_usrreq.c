@@ -360,11 +360,11 @@ static int
 uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
     struct mbuf *control, struct thread *td)
 {
-	int error = 0;
-	struct unpcb *unp;
+	struct unpcb *unp, *unp2;
 	struct socket *so2;
 	u_int mbcnt, sbcc;
 	u_long newhiwat;
+	int error = 0;
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_send: unp == NULL"));
@@ -396,12 +396,13 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 				break;
 			}
 		}
-		so2 = unp->unp_conn->unp_socket;
+		unp2 = unp->unp_conn;
+		so2 = unp2->unp_socket;
 		if (unp->unp_addr != NULL)
 			from = (struct sockaddr *)unp->unp_addr;
 		else
 			from = &sun_noname;
-		if (unp->unp_conn->unp_flags & UNP_WANTCRED)
+		if (unp2->unp_flags & UNP_WANTCRED)
 			control = unp_addsockcred(td, control);
 		SOCKBUF_LOCK(&so2->so_rcv);
 		if (sbappendaddr_locked(&so2->so_rcv, from, m, control)) {
@@ -440,16 +441,17 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			error = EPIPE;
 			break;
 		}
-		if (unp->unp_conn == NULL)
+		unp2 = unp->unp_conn;
+		if (unp2 == NULL)
 			panic("uipc_send connected but no connection?");
-		so2 = unp->unp_conn->unp_socket;
+		so2 = unp2->unp_socket;
 		SOCKBUF_LOCK(&so2->so_rcv);
-		if (unp->unp_conn->unp_flags & UNP_WANTCRED) {
+		if (unp2->unp_flags & UNP_WANTCRED) {
 			/*
 			 * Credentials are passed only once on
 			 * SOCK_STREAM.
 			 */
-			unp->unp_conn->unp_flags &= ~UNP_WANTCRED;
+			unp2->unp_flags &= ~UNP_WANTCRED;
 			control = unp_addsockcred(td, control);
 		}
 		/*
@@ -462,20 +464,19 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		} else {
 			sbappend_locked(&so2->so_rcv, m);
 		}
-		mbcnt = so2->so_rcv.sb_mbcnt - unp->unp_conn->unp_mbcnt;
-		unp->unp_conn->unp_mbcnt = so2->so_rcv.sb_mbcnt;
+		mbcnt = so2->so_rcv.sb_mbcnt - unp2->unp_mbcnt;
+		unp2->unp_mbcnt = so2->so_rcv.sb_mbcnt;
 		sbcc = so2->so_rcv.sb_cc;
 		sorwakeup_locked(so2);
 
 		SOCKBUF_LOCK(&so->so_snd);
-		newhiwat = so->so_snd.sb_hiwat -
-		    (sbcc - unp->unp_conn->unp_cc);
+		newhiwat = so->so_snd.sb_hiwat - (sbcc - unp2->unp_cc);
 		(void)chgsbsize(so->so_cred->cr_uidinfo, &so->so_snd.sb_hiwat,
 		    newhiwat, RLIM_INFINITY);
 		so->so_snd.sb_mbmax -= mbcnt;
 		SOCKBUF_UNLOCK(&so->so_snd);
 
-		unp->unp_conn->unp_cc = sbcc;
+		unp2->unp_cc = sbcc;
 		m = NULL;
 		break;
 
