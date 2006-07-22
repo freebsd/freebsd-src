@@ -144,8 +144,16 @@ struct mtx vm_object_list_mtx;	/* lock for object list and count */
 struct vm_object kernel_object_store;
 struct vm_object kmem_object_store;
 
+SYSCTL_DECL(_vm_stats);
+SYSCTL_NODE(_vm_stats, OID_AUTO, object, CTLFLAG_RD, 0, "VM object stats");
+
 static long object_collapses;
+SYSCTL_LONG(_vm_stats_object, OID_AUTO, collapses, CTLFLAG_RD,
+    &object_collapses, 0, "VM object collapses");
+
 static long object_bypasses;
+SYSCTL_LONG(_vm_stats_object, OID_AUTO, bypasses, CTLFLAG_RD,
+    &object_bypasses, 0, "VM object bypasses");
 
 /*
  * next_index determines the page color that is assigned to the next
