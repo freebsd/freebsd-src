@@ -443,7 +443,7 @@ key_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
  * derived from net/rtsock.c:rts_close().
  */
 static void
-key_abort(struct socket *so)
+key_close(struct socket *so)
 {
 
 	raw_usrreqs.pru_close(so);
