@@ -489,10 +489,12 @@ padlock_freesession(void *arg __unused, uint64_t tid)
 	if (ses->ses_ictx != NULL) {
 		bzero(ses->ses_ictx, sizeof(ses->ses_ictx));
 		free(ses->ses_ictx, M_CRYPTO_DATA);
+		ses->ses_ictx = NULL;
 	}
 	if (ses->ses_octx != NULL) {
 		bzero(ses->ses_octx, sizeof(ses->ses_octx));
 		free(ses->ses_octx, M_CRYPTO_DATA);
+		ses->ses_octx = NULL;
 	}
 	bzero(ses, sizeof(ses));
 	ses->ses_used = 0;
