@@ -135,6 +135,8 @@ bf_enc.o			optional crypto | ipsec ipsec_esp	\
 	no-implicit-rule
 crypto/des/arch/i386/des_enc.S	optional crypto | ipsec ipsec_esp | netsmb
 crypto/via/padlock.c		optional padlock
+crypto/via/padlock_cipher.c	optional padlock
+crypto/via/padlock_hash.c	optional padlock
 dev/advansys/adv_isa.c		optional adv isa
 dev/aic/aic_isa.c		optional aic isa
 dev/arcmsr/arcmsr.c		optional arcmsr pci
