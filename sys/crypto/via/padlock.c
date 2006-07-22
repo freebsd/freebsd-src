@@ -487,16 +487,16 @@ padlock_freesession(void *arg __unused, uint64_t tid)
 	}
 	TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
 	if (ses->ses_ictx != NULL) {
-		bzero(ses->ses_ictx, sizeof(ses->ses_ictx));
+		bzero(ses->ses_ictx, ses->ses_axf->ctxsize);
 		free(ses->ses_ictx, M_CRYPTO_DATA);
 		ses->ses_ictx = NULL;
 	}
 	if (ses->ses_octx != NULL) {
-		bzero(ses->ses_octx, sizeof(ses->ses_octx));
+		bzero(ses->ses_ictx, ses->ses_axf->ctxsize);
 		free(ses->ses_octx, M_CRYPTO_DATA);
 		ses->ses_octx = NULL;
 	}
-	bzero(ses, sizeof(ses));
+	bzero(ses, sizeof(*ses));
 	ses->ses_used = 0;
 	TAILQ_INSERT_TAIL(&sc->sc_sessions, ses, ses_next);
 	mtx_unlock(&sc->sc_sessions_mtx);
