@@ -483,6 +483,7 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 
 		crp->crp_sid = wr->w_sid;
 		crp->crp_ilen = uio->uio_resid;
+		crp->crp_olen = data_secsize;
 		crp->crp_opaque = (void *)bp;
 		crp->crp_buf = (void *)uio;
 		crp->crp_flags = CRYPTO_F_IOV | CRYPTO_F_CBIFSYNC | CRYPTO_F_REL;
