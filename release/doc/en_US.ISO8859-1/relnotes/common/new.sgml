@@ -219,6 +219,10 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>The &man.asf.8; utility has been revised and extended.  Now
+      it can operate via several interfaces including &man.kvm.3;,
+      which supports not only live systems, but also kernel crash dumps.</para>
+
     <para>The &man.csup.1; utility has been imported.
       This is an implementation of a CVSup-compatible client written
       in the C language.  Note that it currently supports checkout mode
