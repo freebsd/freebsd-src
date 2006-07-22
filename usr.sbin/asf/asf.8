@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 8, 2003
+.Dd June 18, 2006
 .Os
 .Dt ASF 8
 .Sh NAME
@@ -31,14 +31,20 @@
 .Nd add symbol files
 .Sh SYNOPSIS
 .Nm
-.Op Fl afksx
+.Op Fl afKksVx
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl o Ar outfile
+.Op Fl X Ar suffix
 .Op Ar modules-path Op Ar outfile
 .Sh DESCRIPTION
 By default,
 .Nm
 reads
 .Xr kldstat 8
-output from standard input and writes to standard output a list of
+output from standard input and writes to the
+.Pa \&.asf
+file a list of
 .Xr gdb 1
 commands to add symbol files from KLDs in subdirectories of the subdirectory
 .Pa modules
@@ -62,7 +68,13 @@ If
 .Ar outfile
 is specified,
 .Nm
-writes to it instead of standard output.
+writes to it instead of
+.Pa .asf .
+If
+.Ar outfile
+is a single dash
+.Pq Sq \&- ,
+the standard output is used.
 .Sh OPTIONS
 The following options modify the function of
 .Nm :
@@ -78,26 +90,72 @@ a traversal in the same way that
 does to locate an exact path for each module, no matter where in
 .Ar modules-path
 it is located.
+.It Fl K
+Instead of reading from standard input, use the conventional
+system interface to get the list of modules currently loaded.
 .It Fl k
 Instead of reading from standard input, start a
 .Xr kldstat 8
 and read the information from it.
+.It Fl M
+Specify the core file for
+.Xr kvm 3 .
+Impiles
+.Fl V .
+.It Fl N
+Specify the system file for
+.Xr kvm 3 .
+Implies
+.Fl V .
+.It Fl o
+Specify the file for
+.Nm
+to write or append its output to.
+If
+.Ar outfile
+is a single dash
+.Pq Sq \&- ,
+the standard output is used.
 .It Fl s
 Do not prepend a (guessed) subdirectory of the module path.
-.It Fl x
-Normally
-.Nm
-looks for KLDs with names of the form
-.Ao Ar module Ac Ns Pa .ko.debug .
+.It Fl V
+Instead of reading from standard input, use the
+.Xr kvm 3
+interface to get the list of modules.
+This interface allows for inspecting system crash dumps,
+as well as the live system.
 The
-.Fl x
-option tells
+.Fl M
+and
+.Fl N
+options will be of use if inspecting a crash dump.
+Elevated privileges, e.g., those of a superuser,
+may be needed to use this option.
+.It Fl X
+Add
+.Ar suffix
+to the list of suffixes
 .Nm
-to look for KLDs with names of the form
-.Ao Ar module Ac Ns Pa .ko .
+tries to append to KLD file names.
+The default list consists of
+.Pa .debug ,
+.Pa .symbols ,
+and the null suffix.
+The null suffix always stays at the list tail, after the suffix added.
+Should it be needed in the middle of the list,
+a blank suffix can be specified to
+.Fl X
+instead.
+.It Fl x
+Clear the list of suffixes
+.Nm
+tries to append to KLD file names.
+Only the null suffix is left in the list.
 .El
 .Sh SEE ALSO
 .Xr gdb 1 ,
+.Xr kvm 3 ,
+.Xr kld 4 ,
 .Xr kldstat 8
 .Sh HISTORY
 The
@@ -107,6 +165,8 @@ utility first appeared in
 .Sh AUTHORS
 .An Greg Lehey Aq grog@FreeBSD.org
 .Sh BUGS
-It should be possible to write to an
-.Ar outfile
-without specifying a module path.
+Module paths are guessed in a rather naive way by default.
+It is likely to lag behind the changes to the build tree layout.
+Using
+.Fl f
+is recommended.
