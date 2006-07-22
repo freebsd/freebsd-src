@@ -1,0 +1,24 @@
+# $FreeBSD$
+
+DEFAULT_VECTOR=	bfd_elf32_littlearm_vec
+
+SRCS+=	\
+	cpu-arm.c	\
+	elf32.c		\
+	elf32-gen.c	\
+	elflink.c	\
+	elfarm-nabi.c	\
+	elfarm-oabi.c	\
+	elf32-arm-fbsd.c \
+	elf32-target.h
+VECS+=	${DEFAULT_VECTOR}  \
+	bfd_elf32_bigarm_vec
+
+.if ${TARGET_ARCH} == "arm"
+CFLAGS+= -DDEFAULT_VECTOR=${DEFAULT_VECTOR}
+.endif
+
+CLEANFILES+=	elf32-arm-fbsd.c
+
+elf32-arm-fbsd.c: elfarm-nabi.c
+	cat ${.ALLSRC} | sed s/ELFOSABI_ARM/ELFOSABI_FREEBSD/g >${.TARGET}
