@@ -987,6 +987,11 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       &man.getaddrinfo.3; function on 64-bit architectures, including
       &os;/amd64, &os;/ia64, and &os;/sparc64.</para>
 
+    <para>The &man.asf.8; utility has been revised and extended.  Now
+      it can operate via several interfaces including &man.kvm.3;,
+      which supports not only live systems, but also kernel crash dumps.
+      &merged;</para>
+
     <para>The &man.arp.8; utility now allows the <option>-i</option>
       option together with the <option>-d</option> and <option>-a</option> options
       to allow all entries for a given interface to be removed.</para>
