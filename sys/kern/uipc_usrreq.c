@@ -159,9 +159,8 @@ uipc_accept(struct socket *so, struct sockaddr **nam)
 	const struct sockaddr *sa;
 
 	/*
-	 * Pass back name of connected socket,
-	 * if it was bound and we are still connected
-	 * (our peer may have closed already!).
+	 * Pass back name of connected socket, if it was bound and we are
+	 * still connected (our peer may have closed already!).
 	 */
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_accept: unp == NULL"));
@@ -325,8 +324,8 @@ uipc_rcvd(struct socket *so, int flags)
 
 	case SOCK_STREAM:
 		/*
-		 * Adjust backpressure on sender
-		 * and wakeup any waiting to write.
+		 * Adjust backpressure on sender and wakeup any waiting to
+		 * write.
 		 */
 		SOCKBUF_LOCK(&so->so_rcv);
 		mbcnt = so->so_rcv.sb_mbcnt;
@@ -419,10 +418,11 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	}
 
 	case SOCK_STREAM:
-		/* Connect if not connected yet. */
 		/*
-		 * Note: A better implementation would complain
-		 * if not equal to the peer's address.
+		 * Connect if not connected yet.
+		 *
+		 * Note: A better implementation would complain if not equal
+		 * to the peer's address.
 		 */
 		if ((so->so_state & SS_ISCONNECTED) == 0) {
 			if (nam != NULL) {
@@ -453,9 +453,8 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			control = unp_addsockcred(td, control);
 		}
 		/*
-		 * Send to paired receive port, and then reduce
-		 * send buffer hiwater marks to maintain backpressure.
-		 * Wake up readers.
+		 * Send to paired receive port, and then reduce send buffer
+		 * hiwater marks to maintain backpressure.  Wake up readers.
 		 */
 		if (control != NULL) {
 			if (sbappendcontrol_locked(&so2->so_rcv, m, control))
@@ -668,6 +667,7 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
  * Both send and receive buffers are allocated PIPSIZ bytes of buffering
  * for stream sockets, although the total for sender and receiver is
  * actually only PIPSIZ.
+ *
  * Datagram sockets really use the sendspace as the maximum datagram size,
  * and don't really want to reserve the sendspace.  Their recvspace should
  * be large enough for at least one max-size datagram plus address.
@@ -793,10 +793,10 @@ unp_bind(struct unpcb *unp, struct sockaddr *nam, struct thread *td)
 	UNP_LOCK_ASSERT();
 
 	/*
-	 * XXXRW: This test-and-set of unp_vnode is non-atomic; the
-	 * unlocked read here is fine, but the value of unp_vnode needs
-	 * to be tested again after we do all the lookups to see if the
-	 * pcb is still unbound?
+	 * XXXRW: This test-and-set of unp_vnode is non-atomic; the unlocked
+	 * read here is fine, but the value of unp_vnode needs to be tested
+	 * again after we do all the lookups to see if the pcb is still
+	 * unbound?
 	 */
 	if (unp->unp_vnode != NULL)
 		return (EINVAL);
@@ -927,10 +927,10 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (so->so_proto->pr_flags & PR_CONNREQUIRED) {
 		if (so2->so_options & SO_ACCEPTCONN) {
 			/*
-			 * NB: drop locks here so unp_attach is entered
-			 *     w/o locks; this avoids a recursive lock
-			 *     of the head and holding sleep locks across
-			 *     a (potentially) blocking malloc.
+			 * NB: drop locks here so unp_attach is entered w/o
+			 * locks; this avoids a recursive lock of the head
+			 * and holding sleep locks across a (potentially)
+			 * blocking malloc.
 			 */
 			UNP_UNLOCK();
 			so3 = sonewconn(so2, 0);
@@ -952,18 +952,16 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		/*
 		 * unp_peercred management:
 		 *
-		 * The connecter's (client's) credentials are copied
-		 * from its process structure at the time of connect()
-		 * (which is now).
+		 * The connecter's (client's) credentials are copied from its
+		 * process structure at the time of connect() (which is now).
 		 */
 		cru2x(td->td_ucred, &unp3->unp_peercred);
 		unp3->unp_flags |= UNP_HAVEPC;
 		/*
-		 * The receiver's (server's) credentials are copied
-		 * from the unp_peercred member of socket on which the
-		 * former called listen(); unp_listen() cached that
-		 * process's credentials at that time so we can use
-		 * them now.
+		 * The receiver's (server's) credentials are copied from the
+		 * unp_peercred member of socket on which the former called
+		 * listen(); unp_listen() cached that process's credentials
+		 * at that time so we can use them now.
 		 */
 		KASSERT(unp2->unp_flags & UNP_HAVEPCCACHED,
 		    ("unp_connect: listener without cached peercred"));
@@ -1060,10 +1058,10 @@ unp_disconnect(struct unpcb *unp)
 }
 
 /*
- * unp_pcblist() assumes that UNIX domain socket memory is never reclaimed
- * by the zone (UMA_ZONE_NOFREE), and as such potentially stale pointers
- * are safe to reference.  It first scans the list of struct unpcb's to
- * generate a pointer list, then it rescans its list one entry at a time to
+ * unp_pcblist() assumes that UNIX domain socket memory is never reclaimed by
+ * the zone (UMA_ZONE_NOFREE), and as such potentially stale pointers are
+ * safe to reference.  It first scans the list of struct unpcb's to generate
+ * a pointer list, then it rescans its list one entry at a time to
  * externalize and copyout.  It checks the generation number to see if a
  * struct unpcb has been reused, and will skip it if so.
  */
@@ -1125,7 +1123,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 		}
 	}
 	UNP_UNLOCK();
-	n = i;			/* in case we lost some during malloc */
+	n = i;			/* In case we lost some during malloc. */
 
 	error = 0;
 	xu = malloc(sizeof(*xu), M_TEMP, M_WAITOK | M_ZERO);
@@ -1154,11 +1152,10 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	free(xu, M_TEMP);
 	if (!error) {
 		/*
-		 * Give the user an updated idea of our state.
-		 * If the generation differs from what we told
-		 * her before, she knows that something happened
-		 * while we were processing this request, and it
-		 * might be necessary to retry.
+		 * Give the user an updated idea of our state.  If the
+		 * generation differs from what we told her before, she knows
+		 * that something happened while we were processing this
+		 * request, and it might be necessary to retry.
 		 */
 		xug->xug_gen = unp_gencnt;
 		xug->xug_sogen = so_gencnt;
@@ -1209,9 +1206,8 @@ unp_freerights(struct file **rp, int fdcount)
 	for (i = 0; i < fdcount; i++) {
 		fp = *rp;
 		/*
-		 * zero the pointer before calling
-		 * unp_discard since it may end up
-		 * in unp_gc()..
+		 * Zero the pointer before calling unp_discard since it may
+		 * end up in unp_gc()..
 		 *
 		 * XXXRW: This is less true than it used to be.
 		 */
@@ -1269,10 +1265,10 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 				goto next;
 			}
 			/*
-			 * now change each pointer to an fd in the global
-			 * table to an integer that is the index to the
-			 * local fd table entry that we set up to point
-			 * to the global one we are transferring.
+			 * Now change each pointer to an fd in the global
+			 * table to an integer that is the index to the local
+			 * fd table entry that we set up to point to the
+			 * global one we are transferring.
 			 */
 			newlen = newfds * sizeof(int);
 			*controlp = sbcreatecontrol(NULL, newlen,
@@ -1298,7 +1294,8 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 				*fdp++ = f;
 			}
 			FILEDESC_UNLOCK(td->td_proc->p_fd);
-		} else { /* We can just copy anything else across */
+		} else {
+			/* We can just copy anything else across. */
 			if (error || controlp == NULL)
 				goto next;
 			*controlp = sbcreatecontrol(NULL, datalen,
@@ -1340,6 +1337,7 @@ unp_zone_change(void *tag)
 void
 unp_init(void)
 {
+
 	unp_zone = uma_zcreate("unpcb", sizeof(struct unpcb), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	if (unp_zone == NULL)
@@ -1413,8 +1411,8 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 		case SCM_RIGHTS:
 			oldfds = datalen / sizeof (int);
 			/*
-			 * check that all the FDs passed in refer to legal files
-			 * If not, reject the entire operation.
+			 * Check that all the FDs passed in refer to legal
+			 * files.  If not, reject the entire operation.
 			 */
 			fdp = data;
 			FILEDESC_LOCK(fdescp);
@@ -1435,8 +1433,8 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 
 			}
 			/*
-			 * Now replace the integer FDs with pointers to
-			 * the associated global file table entry..
+			 * Now replace the integer FDs with pointers to the
+			 * associated global file table entry..
 			 */
 			newlen = oldfds * sizeof(struct file *);
 			*controlp = sbcreatecontrol(NULL, newlen,
@@ -1522,9 +1520,9 @@ unp_addsockcred(struct thread *td, struct mbuf *control)
 		sc->sc_groups[i] = td->td_ucred->cr_groups[i];
 
 	/*
-	 * Unlink SCM_CREDS control messages (struct cmsgcred), since
-	 * just created SCM_CREDS control message (struct sockcred) has
-	 * another format.
+	 * Unlink SCM_CREDS control messages (struct cmsgcred), since just
+	 * created SCM_CREDS control message (struct sockcred) has another
+	 * format.
 	 */
 	if (control != NULL)
 		for (n = control, n_prev = NULL; n != NULL;) {
@@ -1574,8 +1572,8 @@ unp_gc(__unused void *arg, int pending)
 	unp_taskcount++;
 	unp_defer = 0;
 	/*
-	 * before going through all this, set all FDs to
-	 * be NOT defered and NOT externally accessible
+	 * Before going through all this, set all FDs to be NOT defered and
+	 * NOT externally accessible.
 	 */
 	sx_slock(&filelist_lock);
 	LIST_FOREACH(fp, &filehead, f_list)
@@ -1599,9 +1597,9 @@ unp_gc(__unused void *arg, int pending)
 				continue;
 			}
 			/*
-			 * If we already marked it as 'defer'  in a
-			 * previous pass, then try process it this time
-			 * and un-mark it
+			 * If we already marked it as 'defer' in a previous
+			 * pass, then try process it this time and un-mark
+			 * it.
 			 */
 			if (fp->f_gcflag & FDEFER) {
 				fp->f_gcflag &= ~FDEFER;
@@ -1616,9 +1614,9 @@ unp_gc(__unused void *arg, int pending)
 					continue;
 				}
 				/*
-				 * If all references are from messages
-				 * in transit, then skip it. it's not
-				 * externally accessible.
+				 * If all references are from messages in
+				 * transit, then skip it. it's not externally
+				 * accessible.
 				 */
 				if (fp->f_count == fp->f_msgcount) {
 					FILE_UNLOCK(fp);
@@ -1631,9 +1629,9 @@ unp_gc(__unused void *arg, int pending)
 				fp->f_gcflag |= FMARK;
 			}
 			/*
-			 * either it was defered, or it is externally
-			 * accessible and not already marked so.
-			 * Now check if it is possibly one of OUR sockets.
+			 * Either it was defered, or it is externally
+			 * accessible and not already marked so.  Now check
+			 * if it is possibly one of OUR sockets.
 			 */
 			if (fp->f_type != DTYPE_SOCKET ||
 			    (so = fp->f_data) == NULL) {
@@ -1645,9 +1643,9 @@ unp_gc(__unused void *arg, int pending)
 			    (so->so_proto->pr_flags&PR_RIGHTS) == 0)
 				continue;
 			/*
-			 * So, Ok, it's one of our sockets and it IS externally
-			 * accessible (or was defered). Now we look
-			 * to see if we hold any file descriptors in its
+			 * So, Ok, it's one of our sockets and it IS
+			 * externally accessible (or was defered).  Now we
+			 * look to see if we hold any file descriptors in its
 			 * message buffers. Follow those links and mark them
 			 * as accessible too.
 			 */
@@ -1661,9 +1659,9 @@ unp_gc(__unused void *arg, int pending)
 	 * XXXRW: The following comments need updating for a post-SMPng and
 	 * deferred unp_gc() world, but are still generally accurate.
 	 *
-	 * We grab an extra reference to each of the file table entries
-	 * that are not otherwise accessible and then free the rights
-	 * that are stored in messages on them.
+	 * We grab an extra reference to each of the file table entries that
+	 * are not otherwise accessible and then free the rights that are
+	 * stored in messages on them.
 	 *
 	 * The bug in the orginal code is a little tricky, so I'll describe
 	 * what's wrong with it here.
@@ -1677,12 +1675,12 @@ unp_gc(__unused void *arg, int pending)
 	 * results in the following chain.  Closef calls soo_close, which
 	 * calls soclose.   Soclose calls first (through the switch
 	 * uipc_usrreq) unp_detach, which re-invokes unp_gc.  Unp_gc simply
-	 * returns because the previous instance had set unp_gcing, and
-	 * we return all the way back to soclose, which marks the socket
-	 * with SS_NOFDREF, and then calls sofree.  Sofree calls sorflush
-	 * to free up the rights that are queued in messages on the socket A,
-	 * i.e., the reference on B.  The sorflush calls via the dom_dispose
-	 * switch unp_dispose, which unp_scans with unp_discard.  This second
+	 * returns because the previous instance had set unp_gcing, and we
+	 * return all the way back to soclose, which marks the socket with
+	 * SS_NOFDREF, and then calls sofree.  Sofree calls sorflush to free
+	 * up the rights that are queued in messages on the socket A, i.e.,
+	 * the reference on B.  The sorflush calls via the dom_dispose switch
+	 * unp_dispose, which unp_scans with unp_discard.  This second
 	 * instance of unp_discard just calls closef on B.
 	 *
 	 * Well, a similar chain occurs on B, resulting in a sorflush on B,
@@ -1691,11 +1689,11 @@ unp_gc(__unused void *arg, int pending)
 	 * SS_NOFDREF, and soclose panics at this point.
 	 *
 	 * Here, we first take an extra reference to each inaccessible
-	 * descriptor.  Then, we call sorflush ourself, since we know
-	 * it is a Unix domain socket anyhow.  After we destroy all the
-	 * rights carried in messages, we do a last closef to get rid
-	 * of our extra reference.  This is the last close, and the
-	 * unp_detach etc will shut down the socket.
+	 * descriptor.  Then, we call sorflush ourself, since we know it is a
+	 * Unix domain socket anyhow.  After we destroy all the rights
+	 * carried in messages, we do a last closef to get rid of our extra
+	 * reference.  This is the last close, and the unp_detach etc will
+	 * shut down the socket.
 	 *
 	 * 91/09/19, bsy@cs.cmu.edu
 	 */
@@ -1723,9 +1721,9 @@ again:
 		}
 		/*
 		 * If all refs are from msgs, and it's not marked accessible
-		 * then it must be referenced from some unreachable cycle
-		 * of (shut-down) FDs, so include it in our
-		 * list of FDs to remove
+		 * then it must be referenced from some unreachable cycle of
+		 * (shut-down) FDs, so include it in our list of FDs to
+		 * remove.
 		 */
 		if (fp->f_count == fp->f_msgcount && !(fp->f_gcflag & FMARK)) {
 			*fpp++ = fp;
@@ -1736,7 +1734,7 @@ again:
 	}
 	sx_sunlock(&filelist_lock);
 	/*
-	 * for each FD on our hit list, do the following two things
+	 * For each FD on our hit list, do the following two things:
 	 */
 	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp) {
 		struct file *tfp = *fpp;
