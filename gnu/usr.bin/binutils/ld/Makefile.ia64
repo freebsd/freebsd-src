@@ -9,7 +9,7 @@ e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em \
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSERACHPATH} \
 	    ${TOOLS_PREFIX}/usr \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
-	    "${NATIVE_EMULATION}" "" no ${NATIVE_EMULATION} "${TARGET_TUPLE}"
+	    ${NATIVE_EMULATION} "" no ${NATIVE_EMULATION} ${TARGET_TUPLE}
 
 #XXX	EMS+=	eelf64_ia64
 
@@ -20,4 +20,4 @@ eelf64_ia64.c: emulparams/elf64_ia64.sh emultempl/elf32.em \
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSERACHPATH} \
 	    ${TOOLS_PREFIX}/usr \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
-	    "elf64_ia64" "" no elf64_ia64 ${TARGET_TUPLE}
+	    elf64_ia64 "" no elf64_ia64 ${TARGET_TUPLE}

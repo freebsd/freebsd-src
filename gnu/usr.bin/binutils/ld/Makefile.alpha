@@ -16,18 +16,18 @@ e${NATIVE_EMULATION}.c:	emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em \
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSERACHPATH} \
 	    ${TOOLS_PREFIX}/usr \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
-	    ${NATIVE_EMULATION} ""  no ${NATIVE_EMULATION} ${TARGET_TUPLE}
+	    ${NATIVE_EMULATION} "" no ${NATIVE_EMULATION} ${TARGET_TUPLE}
 
 eelf64alpha.c: emulparams/elf64alpha.sh emultempl/elf32.em \
     scripttempl/elf.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSERACHPATH} \
 	    ${TOOLS_PREFIX}/usr \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
-	    ${NATIVE_EMULATION} ""  no elf64alpha ${TARGET_TUPLE}
+	    ${NATIVE_EMULATION} "" no elf64alpha ${TARGET_TUPLE}
 
 ealpha.c: emulparams/alpha.sh emultempl/generic.em scripttempl/alpha.sc \
     genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSERACHPATH} \
 	    ${TOOLS_PREFIX}/usr \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
-	    ${NATIVE_EMULATION} ""  no alpha ${TARGET_TUPLE}
+	    ${NATIVE_EMULATION} "" no alpha ${TARGET_TUPLE}

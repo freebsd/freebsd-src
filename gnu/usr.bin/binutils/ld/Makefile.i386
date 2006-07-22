@@ -9,4 +9,4 @@ e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em \
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSERACHPATH} \
 	    ${TOOLS_PREFIX}/usr \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
-	    "${NATIVE_EMULATION}" "" no ${NATIVE_EMULATION} "${TARGET_TUPLE}"
+	    ${NATIVE_EMULATION} "" no ${NATIVE_EMULATION} ${TARGET_TUPLE}
