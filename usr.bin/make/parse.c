@@ -2195,6 +2195,7 @@ xparse_include(char *file, int sinclude)
 	 * place.
 	 */
 	ParsePushInput(fullname, NULL, NULL, 0);
+	DEBUGF(DIR, (".include %s\n", fullname));
 }
 
 static void
