@@ -197,7 +197,6 @@ uint64_t krequests[KMEM_ZSIZE + 1];
 static int sysctl_kern_mprof(SYSCTL_HANDLER_ARGS);
 #endif
 
-static int sysctl_kern_malloc(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_malloc_stats(SYSCTL_HANDLER_ARGS);
 
 /*
@@ -711,109 +710,6 @@ malloc_desc2type(const char *desc)
 	}
 	return (NULL);
 }
-
-static int
-sysctl_kern_malloc(SYSCTL_HANDLER_ARGS)
-{
-	struct malloc_type_stats mts_local, *mtsp;
-	struct malloc_type_internal *mtip;
-	struct malloc_type *mtp;
-	struct sbuf sbuf;
-	long temp_allocs, temp_bytes;
-	int linesize = 128;
-	int bufsize;
-	int first;
-	int error;
-	char *buf;
-	int cnt;
-	int i;
-
-	cnt = 0;
-
-	/* Guess at how much room is needed. */
-	mtx_lock(&malloc_mtx);
-	cnt = kmemcount;
-	mtx_unlock(&malloc_mtx);
-
-	bufsize = linesize * (cnt + 1);
-	buf = malloc(bufsize, M_TEMP, M_WAITOK|M_ZERO);
-	sbuf_new(&sbuf, buf, bufsize, SBUF_FIXEDLEN);
-
-	mtx_lock(&malloc_mtx);
-	sbuf_printf(&sbuf,
-	    "\n        Type  InUse MemUse HighUse Requests  Size(s)\n");
-	for (mtp = kmemstatistics; cnt != 0 && mtp != NULL;
-	    mtp = mtp->ks_next, cnt--) {
-		mtip = mtp->ks_handle;
-		bzero(&mts_local, sizeof(mts_local));
-		for (i = 0; i < MAXCPU; i++) {
-			mtsp = &mtip->mti_stats[i];
-			mts_local.mts_memalloced += mtsp->mts_memalloced;
-			mts_local.mts_memfreed += mtsp->mts_memfreed;
-			mts_local.mts_numallocs += mtsp->mts_numallocs;
-			mts_local.mts_numfrees += mtsp->mts_numfrees;
-			mts_local.mts_size |= mtsp->mts_size;
-		}
-		if (mts_local.mts_numallocs == 0)
-			continue;
-
-		/*
-		 * Due to races in per-CPU statistics gather, it's possible to
-		 * get a slightly negative number here.  If we do, approximate
-		 * with 0.
-		 */
-		if (mts_local.mts_numallocs > mts_local.mts_numfrees)
-			temp_allocs = mts_local.mts_numallocs -
-			    mts_local.mts_numfrees;
-		else
-			temp_allocs = 0;
-
-		/*
-		 * Ditto for bytes allocated.
-		 */
-		if (mts_local.mts_memalloced > mts_local.mts_memfreed)
-			temp_bytes = mts_local.mts_memalloced -
-			    mts_local.mts_memfreed;
-		else
-			temp_bytes = 0;
-
-		/*
-		 * High-waterwark is no longer easily available, so we just
-		 * print '-' for that column.
-		 */
-		sbuf_printf(&sbuf, "%13s%6lu%6luK       -%9llu",
-		    mtp->ks_shortdesc,
-		    temp_allocs,
-		    (temp_bytes + 1023) / 1024,
-		    (unsigned long long)mts_local.mts_numallocs);
-
-		first = 1;
-		for (i = 0; i < sizeof(kmemzones) / sizeof(kmemzones[0]) - 1;
-		    i++) {
-			if (mts_local.mts_size & (1 << i)) {
-				if (first)
-					sbuf_printf(&sbuf, "  ");
-				else
-					sbuf_printf(&sbuf, ",");
-				sbuf_printf(&sbuf, "%s",
-				    kmemzones[i].kz_name);
-				first = 0;
-			}
-		}
-		sbuf_printf(&sbuf, "\n");
-	}
-	sbuf_finish(&sbuf);
-	mtx_unlock(&malloc_mtx);
-
-	error = SYSCTL_OUT(req, sbuf_data(&sbuf), sbuf_len(&sbuf));
-
-	sbuf_delete(&sbuf);
-	free(buf, M_TEMP);
-	return (error);
-}
-
-SYSCTL_OID(_kern, OID_AUTO, malloc, CTLTYPE_STRING|CTLFLAG_RD,
-    NULL, 0, sysctl_kern_malloc, "A", "Malloc Stats");
 
 static int
 sysctl_kern_malloc_stats(SYSCTL_HANDLER_ARGS)
