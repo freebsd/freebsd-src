@@ -1954,7 +1954,9 @@ icmp6_rip6_input(mp, off)
 					ip6_savecontrol(last, n, &opts);
 				/* strip intermediate headers */
 				m_adj(n, off);
-				if (sbappendaddr(&last->in6p_socket->so_rcv,
+				SOCKBUF_LOCK(&last->in6p_socket->so_rcv);
+				if (sbappendaddr_locked(
+				    &last->in6p_socket->so_rcv,
 				    (struct sockaddr *)&fromsa, n, opts)
 				    == 0) {
 					/* should notify about lost packet */
@@ -1962,8 +1964,10 @@ icmp6_rip6_input(mp, off)
 					if (opts) {
 						m_freem(opts);
 					}
+					SOCKBUF_UNLOCK(
+					    &last->in6p_socket->so_rcv);
 				} else
-					sorwakeup(last->in6p_socket);
+					sorwakeup_locked(last->in6p_socket);
 				opts = NULL;
 			}
 			INP_UNLOCK(last);
@@ -1995,13 +1999,15 @@ icmp6_rip6_input(mp, off)
 				}
 			}
 		}
-		if (sbappendaddr(&last->in6p_socket->so_rcv,
+		SOCKBUF_LOCK(&last->in6p_socket->so_rcv);
+		if (sbappendaddr_locked(&last->in6p_socket->so_rcv,
 		    (struct sockaddr *)&fromsa, m, opts) == 0) {
 			m_freem(m);
 			if (opts)
 				m_freem(opts);
+			SOCKBUF_UNLOCK(&last->in6p_socket->so_rcv);
 		} else
-			sorwakeup(last->in6p_socket);
+			sorwakeup_locked(last->in6p_socket);
 		INP_UNLOCK(last);
 	} else {
 		m_freem(m);
