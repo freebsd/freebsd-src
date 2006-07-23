@@ -31,6 +31,17 @@
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
  */
 
+/*
+ * Kernel malloc(9) implementation -- general purpose kernel memory allocator
+ * based on memory types.  Back end is implemented using the UMA(9) zone
+ * allocator.  A set of fixed-size buckets are used for smaller allocations,
+ * and a special UMA allocation interface is used for larger allocations.
+ * Callers declare memory types, and statistics are maintained independently
+ * for each memory type.  Statistics are maintained per-CPU for performance
+ * reasons.  See malloc(9) and comments in malloc.h for a detailed
+ * description.
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -85,6 +96,9 @@ __FBSDID("$FreeBSD$");
 #define	REALLOC_FRACTION	1	/* new block if <= half the size */
 #endif
 
+/*
+ * Centrally define some common malloc types.
+ */
 MALLOC_DEFINE(M_CACHE, "cache", "Various Dynamically allocated caches");
 MALLOC_DEFINE(M_DEVBUF, "devbuf", "device driver memory");
 MALLOC_DEFINE(M_TEMP, "temp", "misc temporary data buffers");
@@ -110,7 +124,14 @@ static int kmemcount;
 #define KMEM_ZSIZE	(KMEM_ZMAX >> KMEM_ZSHIFT)
 static u_int8_t kmemsize[KMEM_ZSIZE + 1];
 
-/* These won't be powers of two for long */
+/*
+ * Small malloc(9) memory allocations are allocated from a set of UMA buckets
+ * of various sizes.
+ *
+ * XXX: The comment here used to read "These won't be powers of two for
+ * long."  It's possible that a significant amount of wasted memory could be
+ * recovered by tuning the sizes of these buckets.
+ */
 struct {
 	int kz_size;
 	char *kz_name;
@@ -143,6 +164,14 @@ struct {
 	{0, NULL},
 };
 
+/*
+ * Zone to allocate malloc type descriptions from.  For ABI reasons, memory
+ * types are described by a data structure passed by the declaring code, but
+ * the malloc(9) implementation has its own data structure describing the
+ * type and statistics.  This permits the malloc(9)-internal data structures
+ * to be modified without breaking binary-compiled kernel modules that
+ * declare malloc types.
+ */
 static uma_zone_t mt_zone;
 
 u_int vm_kmem_size;
@@ -160,7 +189,6 @@ SYSCTL_UINT(_vm, OID_AUTO, kmem_size_scale, CTLFLAG_RD, &vm_kmem_size_scale, 0,
 /*
  * The malloc_mtx protects the kmemstatistics linked list.
  */
-
 struct mtx malloc_mtx;
 
 #ifdef MALLOC_PROFILE
@@ -172,14 +200,16 @@ static int sysctl_kern_mprof(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_malloc(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_malloc_stats(SYSCTL_HANDLER_ARGS);
 
-/* time_uptime of last malloc(9) failure */
+/*
+ * time_uptime of the last malloc(9) failure (induced or real).
+ */
 static time_t t_malloc_fail;
 
-#ifdef MALLOC_MAKE_FAILURES
 /*
- * Causes malloc failures every (n) mallocs with M_NOWAIT.  If set to 0,
- * doesn't cause failures.
+ * malloc(9) fault injection -- cause malloc failures every (n) mallocs when
+ * the caller specifies M_NOWAIT.  If set to 0, no failures are caused.
  */
+#ifdef MALLOC_MAKE_FAILURES
 SYSCTL_NODE(_debug, OID_AUTO, malloc, CTLFLAG_RD, 0,
     "Kernel malloc debugging options");
 
@@ -201,7 +231,10 @@ malloc_last_fail(void)
 }
 
 /*
- * Add this to the informational malloc_type bucket.
+ * An allocation has succeeded -- update malloc type statistics for the
+ * amount of bucket size.  Occurs within a critical section so that the
+ * thread isn't preempted and doesn't migrate while updating per-PCU
+ * statistics.
  */
 static void
 malloc_type_zone_allocated(struct malloc_type *mtp, unsigned long size,
@@ -231,7 +264,10 @@ malloc_type_allocated(struct malloc_type *mtp, unsigned long size)
 }
 
 /*
- * Remove this allocation from the informational malloc_type bucket.
+ * A free operation has occurred -- update malloc type statistis for the
+ * amount of the bucket size.  Occurs within a critical section so that the
+ * thread isn't preempted and doesn't migrate while updating per-CPU
+ * statistics.
  */
 void
 malloc_type_freed(struct malloc_type *mtp, unsigned long size)
