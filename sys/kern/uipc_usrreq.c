@@ -88,6 +88,38 @@ static ino_t	unp_ino;		/* prototype for fake inode numbers */
 struct mbuf *unp_addsockcred(struct thread *, struct mbuf *);
 
 /*
+ * Both send and receive buffers are allocated PIPSIZ bytes of buffering for
+ * stream sockets, although the total for sender and receiver is actually
+ * only PIPSIZ.
+ *
+ * Datagram sockets really use the sendspace as the maximum datagram size,
+ * and don't really want to reserve the sendspace.  Their recvspace should be
+ * large enough for at least one max-size datagram plus address.
+ */
+#ifndef PIPSIZ
+#define	PIPSIZ	8192
+#endif
+static u_long	unpst_sendspace = PIPSIZ;
+static u_long	unpst_recvspace = PIPSIZ;
+static u_long	unpdg_sendspace = 2*1024;	/* really max datagram size */
+static u_long	unpdg_recvspace = 4*1024;
+
+static int	unp_rights;			/* file descriptors in flight */
+
+SYSCTL_DECL(_net_local_stream);
+SYSCTL_ULONG(_net_local_stream, OID_AUTO, sendspace, CTLFLAG_RW,
+	   &unpst_sendspace, 0, "");
+SYSCTL_ULONG(_net_local_stream, OID_AUTO, recvspace, CTLFLAG_RW,
+	   &unpst_recvspace, 0, "");
+SYSCTL_DECL(_net_local_dgram);
+SYSCTL_ULONG(_net_local_dgram, OID_AUTO, maxdgram, CTLFLAG_RW,
+	   &unpdg_sendspace, 0, "");
+SYSCTL_ULONG(_net_local_dgram, OID_AUTO, recvspace, CTLFLAG_RW,
+	   &unpdg_recvspace, 0, "");
+SYSCTL_DECL(_net_local);
+SYSCTL_INT(_net_local, OID_AUTO, inflight, CTLFLAG_RD, &unp_rights, 0, "");
+
+/*
  * Currently, UNIX domain sockets are protected by a single subsystem lock,
  * which covers global data structures and variables, the contents of each
  * per-socket unpcb structure, and the so_pcb field in sockets attached to
@@ -663,38 +695,6 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 	UNP_UNLOCK();
 	return (error);
 }
-
-/*
- * Both send and receive buffers are allocated PIPSIZ bytes of buffering
- * for stream sockets, although the total for sender and receiver is
- * actually only PIPSIZ.
- *
- * Datagram sockets really use the sendspace as the maximum datagram size,
- * and don't really want to reserve the sendspace.  Their recvspace should
- * be large enough for at least one max-size datagram plus address.
- */
-#ifndef PIPSIZ
-#define	PIPSIZ	8192
-#endif
-static u_long	unpst_sendspace = PIPSIZ;
-static u_long	unpst_recvspace = PIPSIZ;
-static u_long	unpdg_sendspace = 2*1024;	/* really max datagram size */
-static u_long	unpdg_recvspace = 4*1024;
-
-static int	unp_rights;			/* file descriptors in flight */
-
-SYSCTL_DECL(_net_local_stream);
-SYSCTL_ULONG(_net_local_stream, OID_AUTO, sendspace, CTLFLAG_RW,
-	   &unpst_sendspace, 0, "");
-SYSCTL_ULONG(_net_local_stream, OID_AUTO, recvspace, CTLFLAG_RW,
-	   &unpst_recvspace, 0, "");
-SYSCTL_DECL(_net_local_dgram);
-SYSCTL_ULONG(_net_local_dgram, OID_AUTO, maxdgram, CTLFLAG_RW,
-	   &unpdg_sendspace, 0, "");
-SYSCTL_ULONG(_net_local_dgram, OID_AUTO, recvspace, CTLFLAG_RW,
-	   &unpdg_recvspace, 0, "");
-SYSCTL_DECL(_net_local);
-SYSCTL_INT(_net_local, OID_AUTO, inflight, CTLFLAG_RD, &unp_rights, 0, "");
 
 static int
 unp_attach(struct socket *so)
