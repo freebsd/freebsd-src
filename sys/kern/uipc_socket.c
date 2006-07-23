@@ -37,7 +37,7 @@
  * soalloc() sets of socket layer state for a socket, called only by
  * socreate() and sonewconn().  Socket layer private.
  *
- * sdealloc() tears down socket layer state for a socket, called only by
+ * sodealloc() tears down socket layer state for a socket, called only by
  * sofree() and sonewconn().  Socket layer private.
  *
  * pru_attach() associates protocol layer state with an allocated socket;
@@ -48,6 +48,12 @@
  * and will be called exactly once for sockets in which pru_attach() has
  * been successfully called.  If pru_attach() returned an error,
  * pru_detach() will not be called.  Socket layer private.
+ *
+ * pru_abort() and pru_close() notify the protocol layer that the last
+ * consumer of a socket is starting to tear down the socket, and that the
+ * protocol should terminate the connection.  Historically, pru_abort() also
+ * detached protocol state from the socket state, but this is no longer the
+ * case.
  *
  * socreate() creates a socket and attaches protocol state.  This is a public
  * interface that may be used by socket layer consumers to create new
@@ -68,7 +74,10 @@
  * listen socket queues (due to overflow or close on the listen socket), but
  * is also a public interface protocols may use to abort connections in
  * their incomplete listen queues should they no longer be required.  Sockets
- * placed in completed connection listen queues should not be aborted.
+ * placed in completed connection listen queues should not be aborted for
+ * reasons described in the comment above the soclose() implementation.  This
+ * is not a general purpose close routine, and except in the specific
+ * circumstances described here, should not be used.
  *
  * sofree() will free a socket and its protocol state if all references on
  * the socket have been released, and is the public interface to attempt to
@@ -82,10 +91,6 @@
  * from a listen queue to a file descriptor, in order to prevent garbage
  * collection of the socket at an untimely moment.  For a number of reasons,
  * these interfaces are not preferred, and should be avoided.
- *
- * XXXRW: The behavior of sockets after soclose() but before the last
- * sorele() is poorly defined.  We can probably entirely eliminate them with
- * a little work, since consumers are managing references anyway.
  */
 
 #include <sys/cdefs.h>
@@ -189,8 +194,16 @@ MTX_SYSINIT(accept_mtx, &accept_mtx, "accept", MTX_DEF);
 static struct mtx so_global_mtx;
 MTX_SYSINIT(so_global_mtx, &so_global_mtx, "so_glabel", MTX_DEF);
 
+/*
+ * General IPC sysctl name space, used by sockets and a variety of other IPC
+ * types.
+ */
 SYSCTL_NODE(_kern, KERN_IPC, ipc, CTLFLAG_RW, 0, "IPC");
 
+/*
+ * Sysctl to get and set the maximum global sockets limit.  Notify protocols
+ * of the change so that they can update their dependent limits as required.
+ */
 static int
 sysctl_maxsockets(SYSCTL_HANDLER_ARGS)
 {
@@ -227,18 +240,16 @@ static void init_maxsockets(void *ignored)
 SYSINIT(param, SI_SUB_TUNABLES, SI_ORDER_ANY, init_maxsockets, NULL);
 
 /*
- * Socket operation routines.
- * These routines are called by the routines in
- * sys_socket.c or from a system process, and
- * implement the semantics of socket operations by
- * switching out to the protocol specific routines.
+ * Socket operation routines.  These routines are called by the routines in
+ * sys_socket.c or from a system process, and implement the semantics of
+ * socket operations by switching out to the protocol specific routines.
  */
 
 /*
- * Get a socket structure from our zone, and initialize it.
- * Note that it would probably be better to allocate socket
- * and PCB at the same time, but I'm not convinced that all
- * the protocols can be easily modified to do this.
+ * Get a socket structure from our zone, and initialize it.  Note that it
+ * would probably be better to allocate socket and PCB at the same time, but
+ * I'm not convinced that all the protocols can be easily modified to do
+ * this.
  *
  * soalloc() returns a socket with a ref count of 0.
  */
@@ -266,6 +277,11 @@ soalloc(int mflags)
 	return (so);
 }
 
+/*
+ * Free the storage associated with a socket at the socket layer, tear down
+ * locks, labels, etc.  All protocol state is assumed already to have been
+ * torn down (and possibly never set up) by the caller.
+ */
 static void
 sodealloc(struct socket *so)
 {
@@ -367,14 +383,13 @@ SYSCTL_INT(_regression, OID_AUTO, sonewconn_earlytest, CTLFLAG_RW,
 #endif
 
 /*
- * When an attempt at a new connection is noted on a socket
- * which accepts connections, sonewconn is called.  If the
- * connection is possible (subject to space constraints, etc.)
- * then we allocate a new structure, propoerly linked into the
- * data structure of the original socket, and return this.
+ * When an attempt at a new connection is noted on a socket which accepts
+ * connections, sonewconn is called.  If the connection is possible (subject
+ * to space constraints, etc.) then we allocate a new structure, propoerly
+ * linked into the data structure of the original socket, and return this.
  * Connstatus may be 0, or SO_ISCONFIRMING, or SO_ISCONNECTED.
  *
- * note: the ref count on the socket is 0 on return
+ * Note: the ref count on the socket is 0 on return.
  */
 struct socket *
 sonewconn(head, connstatus)
@@ -595,13 +610,12 @@ sofree(so)
 }
 
 /*
- * Close a socket on last file table reference removal.
- * Initiate disconnect if connected.
- * Free socket when disconnect complete.
+ * Close a socket on last file table reference removal.  Initiate disconnect
+ * if connected.  Free socket when disconnect complete.
  *
- * This function will sorele() the socket.  Note that soclose() may be
- * called prior to the ref count reaching zero.  The actual socket
- * structure will not be freed until the ref count reaches zero.
+ * This function will sorele() the socket.  Note that soclose() may be called
+ * prior to the ref count reaching zero.  The actual socket structure will
+ * not be freed until the ref count reaches zero.
  */
 int
 soclose(so)
@@ -730,9 +744,8 @@ soconnect(so, nam, td)
 		return (EOPNOTSUPP);
 	/*
 	 * If protocol is connection-based, can only connect once.
-	 * Otherwise, if connected, try to disconnect first.
-	 * This allows user to disconnect by connecting to, e.g.,
-	 * a null address.
+	 * Otherwise, if connected, try to disconnect first.  This allows
+	 * user to disconnect by connecting to, e.g., a null address.
 	 */
 	if (so->so_state & (SS_ISCONNECTED|SS_ISCONNECTING) &&
 	    ((so->so_proto->pr_flags & PR_CONNREQUIRED) ||
@@ -740,8 +753,8 @@ soconnect(so, nam, td)
 		error = EISCONN;
 	} else {
 		/*
-		 * Prevent accumulated error from previous connection
-		 * from biting us.
+		 * Prevent accumulated error from previous connection from
+		 * biting us.
 		 */
 		so->so_error = 0;
 		error = (*so->so_proto->pr_usrreqs->pru_connect)(so, nam, td);
@@ -938,11 +951,11 @@ sosend_dgram(so, addr, uio, top, control, flags, td)
 	else
 		resid = top->m_pkthdr.len;
 	/*
-	 * In theory resid should be unsigned.
-	 * However, space must be signed, as it might be less than 0
-	 * if we over-committed, and we must use a signed comparison
-	 * of space and resid.  On the other hand, a negative resid
-	 * causes us to loop sending 0-length segments to the protocol.
+	 * In theory resid should be unsigned.  However, space must be
+	 * signed, as it might be less than 0 if we over-committed, and we
+	 * must use a signed comparison of space and resid.  On the other
+	 * hand, a negative resid causes us to loop sending 0-length
+	 * segments to the protocol.
 	 *
 	 * Also check to make sure that MSG_EOR isn't used on SOCK_STREAM
 	 * type sockets since that's an error.
@@ -973,10 +986,9 @@ sosend_dgram(so, addr, uio, top, control, flags, td)
 	}
 	if ((so->so_state & SS_ISCONNECTED) == 0) {
 		/*
-		 * `sendto' and `sendmsg' is allowed on a connection-
-		 * based socket if it supports implied connect.
-		 * Return ENOTCONN if not connected and no address is
-		 * supplied.
+		 * `sendto' and `sendmsg' is allowed on a connection-based
+		 * socket if it supports implied connect.  Return ENOTCONN if
+		 * not connected and no address is supplied.
 		 */
 		if ((so->so_proto->pr_flags & PR_CONNREQUIRED) &&
 		    (so->so_proto->pr_flags & PR_IMPLOPCL) == 0) {
@@ -1030,20 +1042,18 @@ sosend_dgram(so, addr, uio, top, control, flags, td)
 		SOCK_UNLOCK(so);
 	}
 	/*
-	 * XXX all the SBS_CANTSENDMORE checks previously
-	 * done could be out of date.  We could have recieved
-	 * a reset packet in an interrupt or maybe we slept
-	 * while doing page faults in uiomove() etc. We could
-	 * probably recheck again inside the locking protection
-	 * here, but there are probably other places that this
-	 * also happens.  We must rethink this.
+	 * XXX all the SBS_CANTSENDMORE checks previously done could be out
+	 * of date.  We could have recieved a reset packet in an interrupt or
+	 * maybe we slept while doing page faults in uiomove() etc.  We could
+	 * probably recheck again inside the locking protection here, but
+	 * there are probably other places that this also happens.  We must
+	 * rethink this.
 	 */
 	error = (*so->so_proto->pr_usrreqs->pru_send)(so,
 	    (flags & MSG_OOB) ? PRUS_OOB :
 	/*
-	 * If the user set MSG_EOF, the protocol
-	 * understands this flag and nothing left to
-	 * send then use PRU_SEND_EOF instead of PRU_SEND.
+	 * If the user set MSG_EOF, the protocol understands this flag and
+	 * nothing left to send then use PRU_SEND_EOF instead of PRU_SEND.
 	 */
 	    ((flags & MSG_EOF) &&
 	     (so->so_proto->pr_flags & PR_IMPLOPCL) &&
@@ -1069,21 +1079,17 @@ out:
 }
 
 /*
- * Send on a socket.
- * If send must go all at once and message is larger than
- * send buffering, then hard error.
- * Lock against other senders.
- * If must go all at once and not enough room now, then
- * inform user that this would block and do nothing.
- * Otherwise, if nonblocking, send as much as possible.
- * The data to be sent is described by "uio" if nonzero,
- * otherwise by the mbuf chain "top" (which must be null
- * if uio is not).  Data provided in mbuf chain must be small
- * enough to send all at once.
+ * Send on a socket.  If send must go all at once and message is larger than
+ * send buffering, then hard error.  Lock against other senders.  If must go
+ * all at once and not enough room now, then inform user that this would
+ * block and do nothing.  Otherwise, if nonblocking, send as much as
+ * possible.  The data to be sent is described by "uio" if nonzero, otherwise
+ * by the mbuf chain "top" (which must be null if uio is not).  Data provided
+ * in mbuf chain must be small enough to send all at once.
  *
- * Returns nonzero on error, timeout or signal; callers
- * must check for short counts if EINTR/ERESTART are returned.
- * Data and control buffers are freed on return.
+ * Returns nonzero on error, timeout or signal; callers must check for short
+ * counts if EINTR/ERESTART are returned.  Data and control buffers are freed
+ * on return.
  */
 #define	snderr(errno)	{ error = (errno); goto release; }
 int
@@ -1105,11 +1111,11 @@ sosend(so, addr, uio, top, control, flags, td)
 	else
 		resid = top->m_pkthdr.len;
 	/*
-	 * In theory resid should be unsigned.
-	 * However, space must be signed, as it might be less than 0
-	 * if we over-committed, and we must use a signed comparison
-	 * of space and resid.  On the other hand, a negative resid
-	 * causes us to loop sending 0-length segments to the protocol.
+	 * In theory resid should be unsigned.  However, space must be
+	 * signed, as it might be less than 0 if we over-committed, and we
+	 * must use a signed comparison of space and resid.  On the other
+	 * hand, a negative resid causes us to loop sending 0-length
+	 * segments to the protocol.
 	 *
 	 * Also check to make sure that MSG_EOR isn't used on SOCK_STREAM
 	 * type sockets since that's an error.
@@ -1199,23 +1205,24 @@ restart:
 			 * XXX all the SBS_CANTSENDMORE checks previously
 			 * done could be out of date.  We could have recieved
 			 * a reset packet in an interrupt or maybe we slept
-			 * while doing page faults in uiomove() etc. We could
-			 * probably recheck again inside the locking protection
-			 * here, but there are probably other places that this
-			 * also happens.  We must rethink this.
+			 * while doing page faults in uiomove() etc.  We
+			 * could probably recheck again inside the locking
+			 * protection here, but there are probably other
+			 * places that this also happens.  We must rethink
+			 * this.
 			 */
 			error = (*so->so_proto->pr_usrreqs->pru_send)(so,
 			    (flags & MSG_OOB) ? PRUS_OOB :
 			/*
-			 * If the user set MSG_EOF, the protocol
-			 * understands this flag and nothing left to
-			 * send then use PRU_SEND_EOF instead of PRU_SEND.
+			 * If the user set MSG_EOF, the protocol understands
+			 * this flag and nothing left to send then use
+			 * PRU_SEND_EOF instead of PRU_SEND.
 			 */
 			    ((flags & MSG_EOF) &&
 			     (so->so_proto->pr_flags & PR_IMPLOPCL) &&
 			     (resid <= 0)) ?
 				PRUS_EOF :
-			/* If there is more to send set PRUS_MORETOCOME */
+			/* If there is more to send set PRUS_MORETOCOME. */
 			    (resid > 0 && space > 0) ? PRUS_MORETOCOME : 0,
 			    top, addr, control, td);
 			if (dontroute) {
@@ -1338,20 +1345,20 @@ sockbuf_pushsync(struct sockbuf *sb, struct mbuf *nextrecord)
 
 
 /*
- * Implement receive operations on a socket.
- * We depend on the way that records are added to the sockbuf
- * by sbappend*.  In particular, each record (mbufs linked through m_next)
- * must begin with an address if the protocol so specifies,
- * followed by an optional mbuf or mbufs containing ancillary data,
- * and then zero or more mbufs of data.
- * In order to avoid blocking network interrupts for the entire time here,
- * we splx() while doing the actual copy to user space.
- * Although the sockbuf is locked, new data may still be appended,
- * and thus we must maintain consistency of the sockbuf during that time.
+ * Implement receive operations on a socket.  We depend on the way that
+ * records are added to the sockbuf by sbappend.  In particular, each record
+ * (mbufs linked through m_next) must begin with an address if the protocol
+ * so specifies, followed by an optional mbuf or mbufs containing ancillary
+ * data, and then zero or more mbufs of data.  In order to allow parallelism
+ * between network receive and copying to user space, as well as avoid
+ * sleeping with a mutex held, we release the socket buffer mutex during the
+ * user space copy.  Although the sockbuf is locked, new data may still be
+ * appended, and thus we must maintain consistency of the sockbuf during that
+ * time.
  *
- * The caller may receive the data as a single mbuf chain by supplying
- * an mbuf **mp0 for use in returning the chain.  The uio is then used
- * only for the count in uio_resid.
+ * The caller may receive the data as a single mbuf chain by supplying an
+ * mbuf **mp0 for use in returning the chain.  The uio is then used only for
+ * the count in uio_resid.
  */
 int
 soreceive(so, psa, uio, mp0, controlp, flagsp)
@@ -1395,15 +1402,15 @@ restart:
 
 	m = so->so_rcv.sb_mb;
 	/*
-	 * If we have less data than requested, block awaiting more
-	 * (subject to any timeout) if:
+	 * If we have less data than requested, block awaiting more (subject
+	 * to any timeout) if:
 	 *   1. the current count is less than the low water mark, or
 	 *   2. MSG_WAITALL is set, and it is possible to do the entire
 	 *	receive operation at once if we block (resid <= hiwat).
 	 *   3. MSG_DONTWAIT is not set
 	 * If MSG_WAITALL is set but resid is larger than the receive buffer,
-	 * we have to do the receive in sections, and thus risk returning
-	 * a short count if a timeout or signal occurs after we start.
+	 * we have to do the receive in sections, and thus risk returning a
+	 * short count if a timeout or signal occurs after we start.
 	 */
 	if (m == NULL || (((flags & MSG_DONTWAIT) == 0 &&
 	    so->so_rcv.sb_cc < uio->uio_resid) &&
@@ -1605,12 +1612,11 @@ dontblock:
 		if (len > m->m_len - moff)
 			len = m->m_len - moff;
 		/*
-		 * If mp is set, just pass back the mbufs.
-		 * Otherwise copy them out via the uio, then free.
-		 * Sockbuf must be consistent here (points to current mbuf,
-		 * it points to next record) when we drop priority;
-		 * we must note any additions to the sockbuf when we
-		 * block interrupts again.
+		 * If mp is set, just pass back the mbufs.  Otherwise copy
+		 * them out via the uio, then free.  Sockbuf must be
+		 * consistent here (points to current mbuf, it points to next
+		 * record) when we drop priority; we must note any additions
+		 * to the sockbuf when we block interrupts again.
 		 */
 		if (mp == NULL) {
 			SOCKBUF_LOCK_ASSERT(&so->so_rcv);
@@ -1679,9 +1685,11 @@ dontblock:
 						SOCKBUF_LOCK(&so->so_rcv);
  					if (*mp == NULL) {
  						/*
- 						 * m_copym() couldn't allocate an mbuf.
-						 * Adjust uio_resid back (it was adjusted
-						 * down by len bytes, which we didn't end
+ 						 * m_copym() couldn't
+						 * allocate an mbuf.  Adjust
+						 * uio_resid back (it was
+						 * adjusted down by len
+						 * bytes, which we didn't end
 						 * up "copying" over).
  						 */
  						uio->uio_resid += len;
@@ -1710,11 +1718,11 @@ dontblock:
 		if (flags & MSG_EOR)
 			break;
 		/*
-		 * If the MSG_WAITALL flag is set (for non-atomic socket),
-		 * we must not quit until "uio->uio_resid == 0" or an error
-		 * termination.  If a signal/timeout occurs, return
-		 * with a short count but without error.
-		 * Keep sockbuf locked against other readers.
+		 * If the MSG_WAITALL flag is set (for non-atomic socket), we
+		 * must not quit until "uio->uio_resid == 0" or an error
+		 * termination.  If a signal/timeout occurs, return with a
+		 * short count but without error.  Keep sockbuf locked
+		 * against other readers.
 		 */
 		while (flags & MSG_WAITALL && m == NULL && uio->uio_resid > 0 &&
 		    !sosendallatonce(so) && nextrecord == NULL) {
@@ -1764,9 +1772,9 @@ dontblock:
 		SBLASTRECORDCHK(&so->so_rcv);
 		SBLASTMBUFCHK(&so->so_rcv);
 		/*
-		 * If soreceive() is being done from the socket callback, then
-		 * don't need to generate ACK to peer to update window, since
-		 * ACK will be generated on return to TCP.
+		 * If soreceive() is being done from the socket callback,
+		 * then don't need to generate ACK to peer to update window,
+		 * since ACK will be generated on return to TCP.
 		 */
 		if (!(flags & MSG_SOCALLBCK) &&
 		    (pr->pr_flags & PR_WANTRCVD)) {
@@ -1838,8 +1846,8 @@ sorflush(so)
 	SOCKBUF_LOCK(sb);
 	sbunlock(sb);
 	/*
-	 * Invalidate/clear most of the sockbuf structure, but leave
-	 * selinfo and mutex data unchanged.
+	 * Invalidate/clear most of the sockbuf structure, but leave selinfo
+	 * and mutex data unchanged.
 	 */
 	bzero(&asb, offsetof(struct sockbuf, sb_startzero));
 	bcopy(&sb->sb_startzero, &asb.sb_startzero,
@@ -1856,11 +1864,11 @@ sorflush(so)
 }
 
 /*
- * Perhaps this routine, and sooptcopyout(), below, ought to come in
- * an additional variant to handle the case where the option value needs
- * to be some kind of integer, but not a specific size.
- * In addition to their use here, these functions are also called by the
- * protocol-level pr_ctloutput() routines.
+ * Perhaps this routine, and sooptcopyout(), below, ought to come in an
+ * additional variant to handle the case where the option value needs to be
+ * some kind of integer, but not a specific size.  In addition to their use
+ * here, these functions are also called by the protocol-level pr_ctloutput()
+ * routines.
  */
 int
 sooptcopyin(sopt, buf, len, minlen)
@@ -1872,10 +1880,10 @@ sooptcopyin(sopt, buf, len, minlen)
 	size_t	valsize;
 
 	/*
-	 * If the user gives us more than we wanted, we ignore it,
-	 * but if we don't get the minimum length the caller
-	 * wants, we return EINVAL.  On success, sopt->sopt_valsize
-	 * is set to however much we actually retrieved.
+	 * If the user gives us more than we wanted, we ignore it, but if we
+	 * don't get the minimum length the caller wants, we return EINVAL.
+	 * On success, sopt->sopt_valsize is set to however much we actually
+	 * retrieved.
 	 */
 	if ((valsize = sopt->sopt_valsize) < minlen)
 		return EINVAL;
@@ -1890,7 +1898,8 @@ sooptcopyin(sopt, buf, len, minlen)
 }
 
 /*
- * Kernel version of setsockopt(2)/
+ * Kernel version of setsockopt(2).
+ *
  * XXX: optlen is size_t, not socklen_t
  */
 int
@@ -1983,8 +1992,8 @@ sosetopt(so, sopt)
 				goto bad;
 
 			/*
-			 * Values < 1 make no sense for any of these
-			 * options, so disallow them.
+			 * Values < 1 make no sense for any of these options,
+			 * so disallow them.
 			 */
 			if (optval < 1) {
 				error = EINVAL;
@@ -2003,8 +2012,8 @@ sosetopt(so, sopt)
 				break;
 
 			/*
-			 * Make sure the low-water is never greater than
-			 * the high-water.
+			 * Make sure the low-water is never greater than the
+			 * high-water.
 			 */
 			case SO_SNDLOWAT:
 				SOCKBUF_LOCK(&so->so_snd);
@@ -2093,7 +2102,9 @@ bad:
 	return (error);
 }
 
-/* Helper routine for getsockopt */
+/*
+ * Helper routine for getsockopt.
+ */
 int
 sooptcopyout(struct sockopt *sopt, const void *buf, size_t len)
 {
@@ -2103,13 +2114,12 @@ sooptcopyout(struct sockopt *sopt, const void *buf, size_t len)
 	error = 0;
 
 	/*
-	 * Documented get behavior is that we always return a value,
-	 * possibly truncated to fit in the user's buffer.
-	 * Traditional behavior is that we always tell the user
-	 * precisely how much we copied, rather than something useful
-	 * like the total amount we had available for her.
-	 * Note that this interface is not idempotent; the entire answer must
-	 * generated ahead of time.
+	 * Documented get behavior is that we always return a value, possibly
+	 * truncated to fit in the user's buffer.  Traditional behavior is
+	 * that we always tell the user precisely how much we copied, rather
+	 * than something useful like the total amount we had available for
+	 * her.  Note that this interface is not idempotent; the entire
+	 * answer must generated ahead of time.
 	 */
 	valsize = min(len, sopt->sopt_valsize);
 	sopt->sopt_valsize = valsize;
@@ -2384,6 +2394,10 @@ soopt_mcopyout(struct sockopt *sopt, struct mbuf *m)
 	return (0);
 }
 
+/*
+ * sohasoutofband(): protocol notifies socket layer of the arrival of new
+ * out-of-band data, which will then notify socket consumers.
+ */
 void
 sohasoutofband(so)
 	struct socket *so;
