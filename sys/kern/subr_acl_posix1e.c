@@ -45,9 +45,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/acl.h>
 
 /*
- * Implement a version of vaccess() that understands POSIX.1e ACL semantics.
- * Return 0 on success, else an errno value.  Should be merged into
- * vaccess() eventually.
+ * Implement a version of vaccess() that understands POSIX.1e ACL semantics;
+ * the access ACL has already been prepared for evaluation by the file
+ * system and is passed via 'uid', 'gid', and 'acl'.  Return 0 on success,
+ * else an errno value.
  */
 int
 vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
@@ -61,17 +62,19 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 
 	/*
 	 * Look for a normal, non-privileged way to access the file/directory
-	 * as requested.  If it exists, go with that.  Otherwise, attempt
-	 * to use privileges granted via cap_granted.  In some cases,
-	 * which privileges to use may be ambiguous due to "best match",
-	 * in which case fall back on first match for the time being.
+	 * as requested.  If it exists, go with that.  Otherwise, attempt to
+	 * use privileges granted via cap_granted.  In some cases, which
+	 * privileges to use may be ambiguous due to "best match", in which
+	 * case fall back on first match for the time being.
 	 */
 	if (privused != NULL)
 		*privused = 0;
 
 	/*
-	 * Determine privileges now, but don't apply until we've found
-	 * a DAC entry that matches but has failed to allow access.
+	 * Determine privileges now, but don't apply until we've found a DAC
+	 * entry that matches but has failed to allow access.  POSIX.1e
+	 * capabilities are not implemented, but we document how they would
+	 * behave here if implemented.
 	 */
 #ifndef CAPABILITIES
 	if (suser_cred(cred, SUSER_ALLOWJAIL) == 0)
@@ -107,8 +110,8 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 	/*
 	 * The owner matches if the effective uid associated with the
 	 * credential matches that of the ACL_USER_OBJ entry.  While we're
-	 * doing the first scan, also cache the location of the ACL_MASK
-	 * and ACL_OTHER entries, preventing some future iterations.
+	 * doing the first scan, also cache the location of the ACL_MASK and
+	 * ACL_OTHER entries, preventing some future iterations.
 	 */
 	acl_mask = acl_other = NULL;
 	for (i = 0; i < acl->acl_cnt; i++) {
@@ -148,10 +151,10 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 	}
 
 	/*
-	 * An ACL_OTHER entry should always exist in a valid access
-	 * ACL.  If it doesn't, then generate a serious failure.  For now,
-	 * this means a debugging message and EPERM, but in the future
-	 * should probably be a panic.
+	 * An ACL_OTHER entry should always exist in a valid access ACL.  If
+	 * it doesn't, then generate a serious failure.  For now, this means
+	 * a debugging message and EPERM, but in the future should probably
+	 * be a panic.
 	 */
 	if (acl_other == NULL) {
 		/*
@@ -162,11 +165,11 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 	}
 
 	/*
-	 * Checks against ACL_USER, ACL_GROUP_OBJ, and ACL_GROUP fields
-	 * are masked by an ACL_MASK entry, if any.  As such, first identify
-	 * the ACL_MASK field, then iterate through identifying potential
-	 * user matches, then group matches.  If there is no ACL_MASK,
-	 * assume that the mask allows all requests to succeed.
+	 * Checks against ACL_USER, ACL_GROUP_OBJ, and ACL_GROUP fields are
+	 * masked by an ACL_MASK entry, if any.  As such, first identify the
+	 * ACL_MASK field, then iterate through identifying potential user
+	 * matches, then group matches.  If there is no ACL_MASK, assume that
+	 * the mask allows all requests to succeed.
 	 */
 	if (acl_mask != NULL) {
 		acl_mask_granted = 0;
@@ -180,9 +183,9 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 		acl_mask_granted = VEXEC | VREAD | VWRITE | VAPPEND;
 
 	/*
-	 * Iterate through user ACL entries.  Do checks twice, first
-	 * without privilege, and then if a match is found but failed,
-	 * a second time with privilege.
+	 * Iterate through user ACL entries.  Do checks twice, first without
+	 * privilege, and then if a match is found but failed, a second time
+	 * with privilege.
 	 */
 
 	/*
@@ -214,11 +217,11 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 	}
 
 	/*
-	 * Group match is best-match, not first-match, so find a 
-	 * "best" match.  Iterate across, testing each potential group
-	 * match.  Make sure we keep track of whether we found a match
-	 * or not, so that we know if we should try again with any
-	 * available privilege, or if we should move on to ACL_OTHER.
+	 * Group match is best-match, not first-match, so find a "best"
+	 * match.  Iterate across, testing each potential group match.  Make
+	 * sure we keep track of whether we found a match or not, so that we
+	 * know if we should try again with any available privilege, or if we
+	 * should move on to ACL_OTHER.
 	 */
 	group_matched = 0;
 	for (i = 0; i < acl->acl_cnt; i++) {
@@ -266,8 +269,8 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 
 	if (group_matched == 1) {
 		/*
-		 * There was a match, but it did not grant rights via
-		 * pure DAC.  Try again, this time with privilege.
+		 * There was a match, but it did not grant rights via pure
+		 * DAC.  Try again, this time with privilege.
 		 */
 		for (i = 0; i < acl->acl_cnt; i++) {
 			switch (acl->acl_entry[i].ae_tag) {
@@ -347,9 +350,9 @@ error:
 }
 
 /*
- * For the purposes of filesystems maintaining the _OBJ entries in an
- * inode with a mode_t field, this routine converts a mode_t entry
- * to an acl_perm_t.
+ * For the purposes of filesystems maintaining the _OBJ entries in an inode
+ * with a mode_t field, this routine converts a mode_t entry to an
+ * acl_perm_t.
  */
 acl_perm_t
 acl_posix1e_mode_to_perm(acl_tag_t tag, mode_t mode)
@@ -455,9 +458,9 @@ acl_posix1e_perms_to_mode(struct acl_entry *acl_user_obj_entry,
 }
 
 /*
- * Utility function to generate a file mode given a complete POSIX.1e
- * access ACL.  Note that if the ACL is improperly formed, this may
- * result in a panic.
+ * Utility function to generate a file mode given a complete POSIX.1e access
+ * ACL.  Note that if the ACL is improperly formed, this may result in a
+ * panic.
  */
 mode_t
 acl_posix1e_acl_to_mode(struct acl *acl)
@@ -513,9 +516,9 @@ acl_posix1e_acl_to_mode(struct acl *acl)
 }
 
 /*
- * Perform a syntactic check of the ACL, sufficient to allow an
- * implementing filesystem to determine if it should accept this and
- * rely on the POSIX.1e ACL properties.
+ * Perform a syntactic check of the ACL, sufficient to allow an implementing
+ * filesystem to determine if it should accept this and rely on the POSIX.1e
+ * ACL properties.
  */
 int
 acl_posix1e_check(struct acl *acl)
@@ -526,6 +529,7 @@ acl_posix1e_check(struct acl *acl)
 	/*
 	 * Verify that the number of entries does not exceed the maximum
 	 * defined for acl_t.
+	 *
 	 * Verify that the correct number of various sorts of ae_tags are
 	 * present:
 	 *   Exactly one ACL_USER_OBJ
@@ -533,8 +537,11 @@ acl_posix1e_check(struct acl *acl)
 	 *   Exactly one ACL_OTHER
 	 *   If any ACL_USER or ACL_GROUP entries appear, then exactly one
 	 *   ACL_MASK entry must also appear.
+	 *
 	 * Verify that all ae_perm entries are in ACL_PERM_BITS.
+	 *
 	 * Verify all ae_tag entries are understood by this implementation.
+	 *
 	 * Note: Does not check for uniqueness of qualifier (ae_id) field.
 	 */
 	num_acl_user_obj = num_acl_user = num_acl_group_obj = num_acl_group =
@@ -600,11 +607,11 @@ acl_posix1e_check(struct acl *acl)
 }
 
 /*
- * Given a requested mode for a new object, and a default ACL, combine
- * the two to produce a new mode.  Be careful not to clear any bits that
- * aren't intended to be affected by the POSIX.1e ACL.  Eventually,
- * this might also take the cmask as an argument, if we push that down
- * into per-filesystem-code.
+ * Given a requested mode for a new object, and a default ACL, combine the
+ * two to produce a new mode.  Be careful not to clear any bits that aren't
+ * intended to be affected by the POSIX.1e ACL.  Eventually, this might also
+ * take the cmask as an argument, if we push that down into
+ * per-filesystem-code.
  */
 mode_t
 acl_posix1e_newfilemode(mode_t cmode, struct acl *dacl)
@@ -613,10 +620,10 @@ acl_posix1e_newfilemode(mode_t cmode, struct acl *dacl)
 
 	mode = cmode;
 	/*
-	 * The current composition policy is that a permission bit must
-	 * be set in *both* the ACL and the requested creation mode for
-	 * it to appear in the resulting mode/ACL.  First clear any
-	 * possibly effected bits, then reconstruct.
+	 * The current composition policy is that a permission bit must be
+	 * set in *both* the ACL and the requested creation mode for it to
+	 * appear in the resulting mode/ACL.  First clear any possibly
+	 * effected bits, then reconstruct.
 	 */
 	mode &= ACL_PRESERVE_MASK;
 	mode |= (ACL_OVERRIDE_MASK & cmode & acl_posix1e_acl_to_mode(dacl));
