@@ -226,7 +226,7 @@ typedef union {
 	u_char buf[MAXPACKET];
 } querybuf;
 
-static int str2number(const char *);
+static int str2number(const char *, int *);
 static int explore_null(const struct addrinfo *,
 	const char *, struct addrinfo **);
 static int explore_numeric(const struct addrinfo *, const char *,
@@ -341,7 +341,7 @@ freeaddrinfo(struct addrinfo *ai)
 }
 
 static int
-str2number(const char *p)
+str2number(const char *p, int *portp)
 {
 	char *ep;
 	unsigned long v;
@@ -351,9 +351,10 @@ str2number(const char *p)
 	ep = NULL;
 	errno = 0;
 	v = strtoul(p, &ep, 10);
-	if (errno == 0 && ep && *ep == '\0' && v <= UINT_MAX)
-		return v;
-	else
+	if (errno == 0 && ep && *ep == '\0' && v <= UINT_MAX) {
+		*portp = v;
+		return 0;
+	} else
 		return -1;
 }
 
@@ -1327,7 +1328,7 @@ get_port(struct addrinfo *ai, const char *servname, int matchonly)
 {
 	const char *proto;
 	struct servent *sp;
-	int port;
+	int port, error;
 	int allownumeric;
 
 	if (servname == NULL)
@@ -1356,8 +1357,8 @@ get_port(struct addrinfo *ai, const char *servname, int matchonly)
 		return EAI_SOCKTYPE;
 	}
 
-	port = str2number(servname);
-	if (port >= 0) {
+	error = str2number(servname, &port);
+	if (error == 0) {
 		if (!allownumeric)
 			return EAI_SERVICE;
 		if (port < 0 || port > 65535)
