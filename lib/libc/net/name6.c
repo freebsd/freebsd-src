@@ -91,9 +91,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
-#ifdef ICMPNL
-#include "reentrant.h"
-#endif
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -242,12 +239,6 @@ static int	 _icmp_ghbyaddr(void *, void *, va_list);
 static int ipnode_id_func(char *, size_t *, va_list, void *);
 static int ipnode_marshal_func(char *, size_t *, void *, va_list, void *);
 static int ipnode_unmarshal_func(char *, size_t, void *, va_list, void *);
-#endif
-
-#ifdef ICMPNL
-static mutex_t _getipnodeby_thread_lock = MUTEX_INITIALIZER;
-#define THREAD_LOCK()	mutex_lock(&_getipnodeby_thread_lock);
-#define THREAD_UNLOCK()	mutex_unlock(&_getipnodeby_thread_lock);
 #endif
 
 /* Host lookup order if nsswitch.conf is broken or nonexistant */
@@ -2254,7 +2245,7 @@ dnsdecode(sp, ep, base, buf, bufsiz)
 }
 
 static char *
-_icmp_nodeinfo_query(const struct in6_addr *addr, int ifindex)
+_icmp_nodeinfo_query(const struct in6_addr *addr, int ifindex, char *dnsname)
 {
 	int s;
 	struct icmp6_filter filter;
@@ -2270,7 +2261,6 @@ _icmp_nodeinfo_query(const struct in6_addr *addr, int ifindex)
 	struct timeval tout;
 	int len;
 	static int pid;
-	static char dnsname[MAXDNAME + 1]; /* XXX: thread unsafe */
 	u_int32_t r1, r2;
 
 	if (pid == 0)
@@ -2364,7 +2354,7 @@ _icmp_nodeinfo_query(const struct in6_addr *addr, int ifindex)
 	}
 	_close(s);
 
-	memset(dnsname, 0, sizeof(dnsname));
+	memset(dnsname, 0, MAXDNAME + 1);
 	cp = (char *)(nir + 1);
 	end = ((char *)nir) + cc;
 	if (end - cp < sizeof(int32_t))	/* for TTL.  we don't use it. */
@@ -2381,7 +2371,7 @@ _icmp_nodeinfo_query(const struct in6_addr *addr, int ifindex)
 	} else {
 		/* XXX: should we use a generic function? */
 		if (dnsdecode((const u_char **)(void *)&cp, end,
-		    (const u_char *)(nir + 1), dnsname, sizeof(dnsname))
+		    (const u_char *)(nir + 1), dnsname, MAXDNAME + 1)
 		    == NULL) {
 			return (NULL); /* bogus name */
 		}
@@ -2405,6 +2395,7 @@ _icmp_ghbyaddr(void *rval, void *cb_data, va_list ap)
 	char *hname;
 	int ifindex = 0;
 	struct in6_addr addr6;
+	char dnsname[MAXDNAME + 1];
 
 	addr = va_arg(ap, const void *);
 	addrlen = va_arg(ap, int);
@@ -2427,13 +2418,9 @@ _icmp_ghbyaddr(void *rval, void *cb_data, va_list ap)
 		addr6.s6_addr[2] = addr6.s6_addr[3] = 0;
 	}
 
-	THREAD_LOCK();
-	if ((hname = _icmp_nodeinfo_query(&addr6, ifindex)) == NULL) {
-		THREAD_UNLOCK();
+	if ((hname = _icmp_nodeinfo_query(&addr6, ifindex, dnsname)) == NULL)
 		return (NS_NOTFOUND);
-	}
 	*(struct hostent **)rval =_hpaddr(af, hname, &addr6, errp);
-	THREAD_UNLOCK();
 	return (NS_SUCCESS);
 }
 #endif /* ICMPNL */
