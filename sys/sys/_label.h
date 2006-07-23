@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2006 Robert N. M. Watson
  * Copyright (c) 2001-2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -37,6 +37,15 @@
 #define	_SYS__LABEL_H_
 
 /*
+ * Definition for the 'struct label' in-kernel MAC label data structure.
+ * In general, struct label pointers are embedded in kernel data structures
+ * representing objects that may be labeled (and protected).  It is not
+ * directly embedded in order to avoid encoding this definition into modules
+ * unnecessarily.  Currently, only the MAC Framework and MAC policy modules
+ * dereference this data structure.  In the future, we would like struct
+ * label to also be opaque to policies.  Each policy requesting a label slot
+ * can store one long or void pointer in their slot.
+ *
  * XXXMAC: This shouldn't be exported to userland, but is because of ucred.h
  * and various other messes.
  */
