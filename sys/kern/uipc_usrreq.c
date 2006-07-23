@@ -43,10 +43,10 @@
  * used, as sending on one socket delivers directly to the receive socket
  * buffer of a second socket.  The implementation is substantially
  * complicated by the fact that "ancillary data", such as file descriptors or
- * or credentials, may be passed across UNIX domain sockets.  The potential
- * for passing UNIX domain sockets over other UNIX domain sockets requires
- * the implementation of a simple garbage collector to find and tear down
- * cycles of disconnected sockets.
+ * credentials, may be passed across UNIX domain sockets.  The potential for
+ * passing UNIX domain sockets over other UNIX domain sockets requires the
+ * implementation of a simple garbage collector to find and tear down cycles
+ * of disconnected sockets.
  */
 
 #include <sys/cdefs.h>
