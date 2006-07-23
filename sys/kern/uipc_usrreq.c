@@ -155,8 +155,6 @@ static struct mtx unp_mtx;
  */
 static struct task	unp_gc_task;
 
-static int     unp_attach(struct socket *);
-static void    unp_detach(struct unpcb *);
 static int     unp_bind(struct unpcb *,struct sockaddr *, struct thread *);
 static int     unp_connect(struct socket *,struct sockaddr *, struct thread *);
 static int     unp_connect2(struct socket *so, struct socket *so2, int);
@@ -210,8 +208,42 @@ uipc_accept(struct socket *so, struct sockaddr **nam)
 static int
 uipc_attach(struct socket *so, int proto, struct thread *td)
 {
+	struct unpcb *unp;
+	int error;
 
-	return (unp_attach(so));
+	KASSERT(so->so_pcb == NULL, ("uipc_attach: so_pcb != NULL"));
+	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
+		switch (so->so_type) {
+
+		case SOCK_STREAM:
+			error = soreserve(so, unpst_sendspace, unpst_recvspace);
+			break;
+
+		case SOCK_DGRAM:
+			error = soreserve(so, unpdg_sendspace, unpdg_recvspace);
+			break;
+
+		default:
+			panic("unp_attach");
+		}
+		if (error)
+			return (error);
+	}
+	unp = uma_zalloc(unp_zone, M_WAITOK | M_ZERO);
+	if (unp == NULL)
+		return (ENOBUFS);
+	LIST_INIT(&unp->unp_refs);
+	unp->unp_socket = so;
+	so->so_pcb = unp;
+
+	UNP_LOCK();
+	unp->unp_gencnt = ++unp_gencnt;
+	unp_count++;
+	LIST_INSERT_HEAD(so->so_type == SOCK_DGRAM ? &unp_dhead
+			 : &unp_shead, unp, unp_link);
+	UNP_UNLOCK();
+
+	return (0);
 }
 
 static int
@@ -274,13 +306,46 @@ uipc_connect2(struct socket *so1, struct socket *so2)
 static void
 uipc_detach(struct socket *so)
 {
+	int local_unp_rights;
 	struct unpcb *unp;
+	struct vnode *vp;
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_detach: unp == NULL"));
 	UNP_LOCK();
-	unp_detach(unp);
-	UNP_UNLOCK_ASSERT();
+	LIST_REMOVE(unp, unp_link);
+	unp->unp_gencnt = ++unp_gencnt;
+	--unp_count;
+	if ((vp = unp->unp_vnode) != NULL) {
+		/*
+		 * XXXRW: should v_socket be frobbed only while holding
+		 * Giant?
+		 */
+		unp->unp_vnode->v_socket = NULL;
+		unp->unp_vnode = NULL;
+	}
+	if (unp->unp_conn != NULL)
+		unp_disconnect(unp);
+	while (!LIST_EMPTY(&unp->unp_refs)) {
+		struct unpcb *ref = LIST_FIRST(&unp->unp_refs);
+		unp_drop(ref, ECONNRESET);
+	}
+	soisdisconnected(unp->unp_socket);
+	unp->unp_socket->so_pcb = NULL;
+	local_unp_rights = unp_rights;
+	UNP_UNLOCK();
+	if (unp->unp_addr != NULL)
+		FREE(unp->unp_addr, M_SONAME);
+	uma_zfree(unp_zone, unp);
+	if (vp) {
+		int vfslocked;
+
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+		vrele(vp);
+		VFS_UNLOCK_GIANT(vfslocked);
+	}
+	if (local_unp_rights)
+		taskqueue_enqueue(taskqueue_thread, &unp_gc_task);
 }
 
 static int
@@ -694,90 +759,6 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 	}
 	UNP_UNLOCK();
 	return (error);
-}
-
-static int
-unp_attach(struct socket *so)
-{
-	struct unpcb *unp;
-	int error;
-
-	KASSERT(so->so_pcb == NULL, ("unp_attach: so_pcb != NULL"));
-	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
-		switch (so->so_type) {
-
-		case SOCK_STREAM:
-			error = soreserve(so, unpst_sendspace, unpst_recvspace);
-			break;
-
-		case SOCK_DGRAM:
-			error = soreserve(so, unpdg_sendspace, unpdg_recvspace);
-			break;
-
-		default:
-			panic("unp_attach");
-		}
-		if (error)
-			return (error);
-	}
-	unp = uma_zalloc(unp_zone, M_WAITOK | M_ZERO);
-	if (unp == NULL)
-		return (ENOBUFS);
-	LIST_INIT(&unp->unp_refs);
-	unp->unp_socket = so;
-	so->so_pcb = unp;
-
-	UNP_LOCK();
-	unp->unp_gencnt = ++unp_gencnt;
-	unp_count++;
-	LIST_INSERT_HEAD(so->so_type == SOCK_DGRAM ? &unp_dhead
-			 : &unp_shead, unp, unp_link);
-	UNP_UNLOCK();
-
-	return (0);
-}
-
-static void
-unp_detach(struct unpcb *unp)
-{
-	struct vnode *vp;
-	int local_unp_rights;
-
-	UNP_LOCK_ASSERT();
-
-	LIST_REMOVE(unp, unp_link);
-	unp->unp_gencnt = ++unp_gencnt;
-	--unp_count;
-	if ((vp = unp->unp_vnode) != NULL) {
-		/*
-		 * XXXRW: should v_socket be frobbed only while holding
-		 * Giant?
-		 */
-		unp->unp_vnode->v_socket = NULL;
-		unp->unp_vnode = NULL;
-	}
-	if (unp->unp_conn != NULL)
-		unp_disconnect(unp);
-	while (!LIST_EMPTY(&unp->unp_refs)) {
-		struct unpcb *ref = LIST_FIRST(&unp->unp_refs);
-		unp_drop(ref, ECONNRESET);
-	}
-	soisdisconnected(unp->unp_socket);
-	unp->unp_socket->so_pcb = NULL;
-	local_unp_rights = unp_rights;
-	UNP_UNLOCK();
-	if (unp->unp_addr != NULL)
-		FREE(unp->unp_addr, M_SONAME);
-	uma_zfree(unp_zone, unp);
-	if (vp) {
-		int vfslocked;
-
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-		vrele(vp);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
-	if (local_unp_rights)
-		taskqueue_enqueue(taskqueue_thread, &unp_gc_task);
 }
 
 static int
