@@ -35,6 +35,10 @@
 #ifndef _SYS_EXTATTR_H_
 #define	_SYS_EXTATTR_H_
 
+/*
+ * Defined name spaces for extended attributes.  Numeric constants are passed
+ * via system calls, but a user-friendly string is also defined.
+ */
 #define	EXTATTR_NAMESPACE_USER		0x00000001
 #define	EXTATTR_NAMESPACE_USER_STRING	"user"
 #define	EXTATTR_NAMESPACE_SYSTEM	0x00000002
