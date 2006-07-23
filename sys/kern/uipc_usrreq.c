@@ -155,7 +155,6 @@ static struct mtx unp_mtx;
  */
 static struct task	unp_gc_task;
 
-static int     unp_bind(struct unpcb *,struct sockaddr *, struct thread *);
 static int     unp_connect(struct socket *,struct sockaddr *, struct thread *);
 static int     unp_connect2(struct socket *so, struct socket *so2, int);
 static void    unp_disconnect(struct unpcb *);
@@ -249,14 +248,97 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 static int
 uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	struct sockaddr_un *soun = (struct sockaddr_un *)nam;
+	struct vattr vattr;
+	int error, namelen;
+	struct nameidata nd;
 	struct unpcb *unp;
-	int error;
+	struct vnode *vp;
+	struct mount *mp;
+	char *buf;
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_bind: unp == NULL"));
 	UNP_LOCK();
-	error = unp_bind(unp, nam, td);
+
+	/*
+	 * XXXRW: This test-and-set of unp_vnode is non-atomic; the unlocked
+	 * read here is fine, but the value of unp_vnode needs to be tested
+	 * again after we do all the lookups to see if the pcb is still
+	 * unbound?
+	 */
+	if (unp->unp_vnode != NULL) {
+		UNP_UNLOCK();
+		return (EINVAL);
+	}
+
+	namelen = soun->sun_len - offsetof(struct sockaddr_un, sun_path);
+	if (namelen <= 0) {
+		UNP_UNLOCK();
+		return (EINVAL);
+	}
+
 	UNP_UNLOCK();
+
+	buf = malloc(namelen + 1, M_TEMP, M_WAITOK);
+	strlcpy(buf, soun->sun_path, namelen + 1);
+
+	mtx_lock(&Giant);
+restart:
+	mtx_assert(&Giant, MA_OWNED);
+	NDINIT(&nd, CREATE, NOFOLLOW | LOCKPARENT | SAVENAME, UIO_SYSSPACE,
+	    buf, td);
+/* SHOULD BE ABLE TO ADOPT EXISTING AND wakeup() ALA FIFO's */
+	error = namei(&nd);
+	if (error)
+		goto done;
+	vp = nd.ni_vp;
+	if (vp != NULL || vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
+		NDFREE(&nd, NDF_ONLY_PNBUF);
+		if (nd.ni_dvp == vp)
+			vrele(nd.ni_dvp);
+		else
+			vput(nd.ni_dvp);
+		if (vp != NULL) {
+			vrele(vp);
+			error = EADDRINUSE;
+			goto done;
+		}
+		error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH);
+		if (error)
+			goto done;
+		goto restart;
+	}
+	VATTR_NULL(&vattr);
+	vattr.va_type = VSOCK;
+	vattr.va_mode = (ACCESSPERMS & ~td->td_proc->p_fd->fd_cmask);
+#ifdef MAC
+	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
+	    &vattr);
+#endif
+	if (error == 0) {
+		VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
+		error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
+	}
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+	vput(nd.ni_dvp);
+	if (error) {
+		vn_finished_write(mp);
+		goto done;
+	}
+	vp = nd.ni_vp;
+	ASSERT_VOP_LOCKED(vp, "unp_bind");
+	soun = (struct sockaddr_un *)sodupsockaddr(nam, M_WAITOK);
+	UNP_LOCK();
+	vp->v_socket = unp->unp_socket;
+	unp->unp_vnode = vp;
+	unp->unp_addr = soun;
+	UNP_UNLOCK();
+	VOP_UNLOCK(vp, 0, td);
+	vn_finished_write(mp);
+done:
+	mtx_unlock(&Giant);
+	free(buf, M_TEMP);
 	return (error);
 }
 
@@ -758,97 +840,6 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 		break;
 	}
 	UNP_UNLOCK();
-	return (error);
-}
-
-static int
-unp_bind(struct unpcb *unp, struct sockaddr *nam, struct thread *td)
-{
-	struct sockaddr_un *soun = (struct sockaddr_un *)nam;
-	struct vnode *vp;
-	struct mount *mp;
-	struct vattr vattr;
-	int error, namelen;
-	struct nameidata nd;
-	char *buf;
-
-	UNP_LOCK_ASSERT();
-
-	/*
-	 * XXXRW: This test-and-set of unp_vnode is non-atomic; the unlocked
-	 * read here is fine, but the value of unp_vnode needs to be tested
-	 * again after we do all the lookups to see if the pcb is still
-	 * unbound?
-	 */
-	if (unp->unp_vnode != NULL)
-		return (EINVAL);
-
-	namelen = soun->sun_len - offsetof(struct sockaddr_un, sun_path);
-	if (namelen <= 0)
-		return (EINVAL);
-
-	UNP_UNLOCK();
-
-	buf = malloc(namelen + 1, M_TEMP, M_WAITOK);
-	strlcpy(buf, soun->sun_path, namelen + 1);
-
-	mtx_lock(&Giant);
-restart:
-	mtx_assert(&Giant, MA_OWNED);
-	NDINIT(&nd, CREATE, NOFOLLOW | LOCKPARENT | SAVENAME, UIO_SYSSPACE,
-	    buf, td);
-/* SHOULD BE ABLE TO ADOPT EXISTING AND wakeup() ALA FIFO's */
-	error = namei(&nd);
-	if (error)
-		goto done;
-	vp = nd.ni_vp;
-	if (vp != NULL || vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
-		NDFREE(&nd, NDF_ONLY_PNBUF);
-		if (nd.ni_dvp == vp)
-			vrele(nd.ni_dvp);
-		else
-			vput(nd.ni_dvp);
-		if (vp != NULL) {
-			vrele(vp);
-			error = EADDRINUSE;
-			goto done;
-		}
-		error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH);
-		if (error)
-			goto done;
-		goto restart;
-	}
-	VATTR_NULL(&vattr);
-	vattr.va_type = VSOCK;
-	vattr.va_mode = (ACCESSPERMS & ~td->td_proc->p_fd->fd_cmask);
-#ifdef MAC
-	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
-	    &vattr);
-#endif
-	if (error == 0) {
-		VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
-		error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
-	}
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vput(nd.ni_dvp);
-	if (error) {
-		vn_finished_write(mp);
-		goto done;
-	}
-	vp = nd.ni_vp;
-	ASSERT_VOP_LOCKED(vp, "unp_bind");
-	soun = (struct sockaddr_un *)sodupsockaddr(nam, M_WAITOK);
-	UNP_LOCK();
-	vp->v_socket = unp->unp_socket;
-	unp->unp_vnode = vp;
-	unp->unp_addr = soun;
-	UNP_UNLOCK();
-	VOP_UNLOCK(vp, 0, td);
-	vn_finished_write(mp);
-done:
-	mtx_unlock(&Giant);
-	free(buf, M_TEMP);
-	UNP_LOCK();
 	return (error);
 }
 
