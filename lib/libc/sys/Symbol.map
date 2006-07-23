@@ -300,7 +300,7 @@ FBSD_1.0 {
 	thr_self;
 	thr_set_name;
 	thr_setschedparam;
-	thr_setscheduler
+	thr_setscheduler;
 	thr_suspend;
 	thr_wake;
 	ktimer_create;		# Do we want these to be publc interfaces?
