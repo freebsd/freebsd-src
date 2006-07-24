@@ -77,7 +77,7 @@ struct socket {
  * We allow connections to queue up based on current queue lengths
  * and limit on number of queued connections for this socket.
  */
-	struct	socket *so_head;	/* (e) back pointer to accept socket */
+	struct	socket *so_head;	/* (e) back pointer to listen socket */
 	TAILQ_HEAD(, socket) so_incomp;	/* (e) queue of partial unaccepted connections */
 	TAILQ_HEAD(, socket) so_comp;	/* (e) queue of complete unaccepted connections */
 	TAILQ_ENTRY(socket) so_list;	/* (e) list of unaccepted connections */
