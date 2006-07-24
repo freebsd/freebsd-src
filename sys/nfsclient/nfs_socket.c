@@ -606,8 +606,7 @@ nfs_send(struct socket *so, struct sockaddr *nam, struct mbuf *top,
 	else
 		flags = 0;
 
-	error = so->so_proto->pr_usrreqs->pru_sosend(so, sendnam, 0, top, 0,
-						     flags, curthread /*XXX*/);
+	error = sosend(so, sendnam, 0, top, 0, flags, curthread /*XXX*/);
 	if (error == ENOBUFS && so->so_type == SOCK_DGRAM) {
 		error = 0;
 		mtx_lock(&rep->r_mtx);
@@ -946,9 +945,8 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 			auio.uio_iovcnt = 0;
 			mp = NULL;
 			rcvflg = (MSG_DONTWAIT | MSG_SOCALLBCK);
-			error =  so->so_proto->pr_usrreqs->pru_soreceive
-				(so, (struct sockaddr **)0,
-				 &auio, &mp, (struct mbuf **)0, &rcvflg);
+			error =  soreceive(so, (struct sockaddr **)0, &auio,
+			    &mp, (struct mbuf **)0, &rcvflg);
 			/*
 			 * We've already tested that the socket is readable. 2 cases 
 			 * here, we either read 0 bytes (client closed connection), 
@@ -1016,9 +1014,8 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 			auio.uio_iovcnt = 0;
 			mp = NULL;
 			rcvflg = (MSG_DONTWAIT | MSG_SOCALLBCK);
-			error =  so->so_proto->pr_usrreqs->pru_soreceive
-				(so, (struct sockaddr **)0,
-				 &auio, &mp, (struct mbuf **)0, &rcvflg);
+			error =  soreceive(so, (struct sockaddr **)0, &auio,
+			    &mp, (struct mbuf **)0, &rcvflg);
 			if (error || auio.uio_resid > 0) {
 				if (error && error != ECONNRESET) {
 					log(LOG_ERR, 
@@ -1058,9 +1055,7 @@ nfs_clnt_udp_soupcall(struct socket *so, void *arg, int waitflag)
 	auio.uio_resid = 1000000000;
 	do {
 		mp = control = NULL;
-		error = so->so_proto->pr_usrreqs->pru_soreceive(so,
-					NULL, &auio, &mp,
-					&control, &rcvflag);
+		error = soreceive(so, NULL, &auio, &mp, &control, &rcvflag);
 		if (control)
 			m_freem(control);
 		if (mp)
