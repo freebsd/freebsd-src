@@ -102,7 +102,7 @@ scc_bfe_attach(device_t dev)
 	const char *sep;
 	bus_space_handle_t bh;
 	u_long base, size, start;
-	int c, error, mode, sysdev;
+	int c, error, mode, nintr, sysdev;
 
 	/*
 	 * The sc_class field defines the type of SCC we're going to work
@@ -140,11 +140,14 @@ scc_bfe_attach(device_t dev)
 	 */
 	sc->sc_chan = malloc(sizeof(struct scc_chan) * cl->cl_channels,
 	    M_SCC, M_WAITOK | M_ZERO);
+	nintr = 0;
 	for (c = 0; c < cl->cl_channels; c++) {
 		ch = &sc->sc_chan[c];
 		ch->ch_irid = c;
 		ch->ch_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 		    &ch->ch_irid, RF_ACTIVE | RF_SHAREABLE);
+		if (ch->ch_ires != NULL)
+			nintr++;
 	}
 
 	/*
@@ -210,16 +213,18 @@ scc_bfe_attach(device_t dev)
 	 * that our children's are fast as well. We make it MPSAFE as soon
 	 * as a child sets up a MPSAFE interrupt handler.
 	 * Of course, if we can't setup a fast handler, we make it MPSAFE
-	 * right away.
+	 * right away. If we have multiple interrupt resources, we don't
+	 * use fast handlers, because we need to serialize the interrupts.
 	 */
 	for (c = 0; c < cl->cl_channels; c++) {
 		ch = &sc->sc_chan[c];
 		if (ch->ch_ires == NULL)
 			continue;
-		error = bus_setup_intr(dev, ch->ch_ires,
-		    INTR_TYPE_TTY | INTR_FAST, scc_bfe_intr, sc,
-		    &ch->ch_icookie);
-		if (error) {
+		if (nintr == 1)
+			error = bus_setup_intr(dev, ch->ch_ires,
+			    INTR_TYPE_TTY | INTR_FAST, scc_bfe_intr, sc,
+			    &ch->ch_icookie);
+		if (nintr > 1 || error) {
 			error = bus_setup_intr(dev, ch->ch_ires,
 			    INTR_TYPE_TTY | INTR_MPSAFE, scc_bfe_intr, sc,
 			    &ch->ch_icookie);
@@ -231,13 +236,10 @@ scc_bfe_attach(device_t dev)
 			bus_release_resource(dev, SYS_RES_IRQ, ch->ch_irid,
 			    ch->ch_ires);
 			ch->ch_ires = NULL;
+			nintr--;
 		}
 	}
-	sc->sc_polled = 1;
-	for (c = 0; c < cl->cl_channels; c++) {
-		if (sc->sc_chan[0].ch_ires != NULL)
-			sc->sc_polled = 0;
-	}
+	sc->sc_polled = (nintr == 0) ? 1 : 0;
 
 	/*
 	 * Attach all child devices that were probed successfully.
