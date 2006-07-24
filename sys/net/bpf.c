@@ -103,7 +103,8 @@ static void	bpf_timed_out(void *);
 static __inline void
 		bpf_wakeup(struct bpf_d *);
 static void	catchpacket(struct bpf_d *, u_char *, u_int,
-		    u_int, void (*)(const void *, void *, size_t));
+		    u_int, void (*)(const void *, void *, size_t),
+		    struct timeval *);
 static void	reset_d(struct bpf_d *);
 static int	 bpf_setf(struct bpf_d *, struct bpf_program *, u_long cmd);
 static int	bpf_getdltlist(struct bpf_d *, struct bpf_dltlist *);
@@ -1199,7 +1200,10 @@ bpf_tap(struct bpf_if *bp, u_char *pkt, u_int pktlen)
 {
 	struct bpf_d *d;
 	u_int slen;
+	int gottime;
+	struct timeval tv;
 
+	gottime = 0;
 	BPFIF_LOCK(bp);
 	LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
 		BPFD_LOCK(d);
@@ -1212,10 +1216,14 @@ bpf_tap(struct bpf_if *bp, u_char *pkt, u_int pktlen)
 		slen = bpf_filter(d->bd_rfilter, pkt, pktlen, pktlen);
 		if (slen != 0) {
 			d->bd_fcount++;
+			if (!gottime) {
+				microtime(&tv);
+				gottime = 1;
+			}
 #ifdef MAC
 			if (mac_check_bpfdesc_receive(d, bp->bif_ifp) == 0)
 #endif
-				catchpacket(d, pkt, pktlen, slen, bcopy);
+				catchpacket(d, pkt, pktlen, slen, bcopy, &tv);
 		}
 		BPFD_UNLOCK(d);
 	}
@@ -1254,6 +1262,10 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 {
 	struct bpf_d *d;
 	u_int pktlen, slen;
+	int gottime;
+	struct timeval tv;
+
+	gottime = 0;
 
 	pktlen = m_length(m, NULL);
 
@@ -1274,11 +1286,15 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 		slen = bpf_filter(d->bd_rfilter, (u_char *)m, pktlen, 0);
 		if (slen != 0) {
 			d->bd_fcount++;
+			if (!gottime) {
+				microtime(&tv);
+				gottime = 1;
+			}
 #ifdef MAC
 			if (mac_check_bpfdesc_receive(d, bp->bif_ifp) == 0)
 #endif
 				catchpacket(d, (u_char *)m, pktlen, slen,
-				    bpf_mcopy);
+				    bpf_mcopy, &tv);
 		}
 		BPFD_UNLOCK(d);
 	}
@@ -1295,6 +1311,10 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 	struct mbuf mb;
 	struct bpf_d *d;
 	u_int pktlen, slen;
+	int gottime;
+	struct timeval tv;
+
+	gottime = 0;
 
 	pktlen = m_length(m, NULL);
 	/*
@@ -1316,11 +1336,15 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 		slen = bpf_filter(d->bd_rfilter, (u_char *)&mb, pktlen, 0);
 		if (slen != 0) {
 			d->bd_fcount++;
+			if (!gottime) {
+				microtime(&tv);
+				gottime = 1;
+			}
 #ifdef MAC
 			if (mac_check_bpfdesc_receive(d, bp->bif_ifp) == 0)
 #endif
 				catchpacket(d, (u_char *)&mb, pktlen, slen,
-				    bpf_mcopy);
+				    bpf_mcopy, &tv);
 		}
 		BPFD_UNLOCK(d);
 	}
@@ -1336,7 +1360,7 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
  */
 static void
 catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
-    void (*cpfn)(const void *, void *, size_t))
+    void (*cpfn)(const void *, void *, size_t), struct timeval *tv)
 {
 	struct bpf_hdr *hp;
 	int totlen, curlen;
@@ -1388,7 +1412,7 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 	 * Append the bpf header.
 	 */
 	hp = (struct bpf_hdr *)(d->bd_sbuf + curlen);
-	microtime(&hp->bh_tstamp);
+	hp->bh_tstamp = *tv;
 	hp->bh_datalen = pktlen;
 	hp->bh_hdrlen = hdrlen;
 	/*
