@@ -231,7 +231,6 @@ struct mbuf {
 #define	MT_DATA		1	/* dynamic (data) allocation */
 #define	MT_HEADER	MT_DATA	/* packet header, use M_PKTHDR instead */
 #define	MT_SONAME	8	/* socket name */
-#define	MT_FTABLE	11	/* fragment reassembly header */
 #define	MT_CONTROL	14	/* extra-data protocol message */
 #define	MT_OOBDATA	15	/* expedited data  */
 #define	MT_NTYPES	16	/* number of mbuf types for mbtypes[] */
@@ -241,6 +240,9 @@ struct mbuf {
 
 /*
  * General mbuf allocator statistics structure.
+ *
+ * Many of these statistics are no longer used; we instead track many
+ * allocator statistics through UMA's built in statistics mechanism.
  */
 struct mbstat {
 	u_long	m_mbufs;	/* XXX */
