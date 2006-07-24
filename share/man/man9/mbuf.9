@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 15, 2006
+.Dd July 24, 2006
 .Dt MBUF 9
 .Os
 .\"
@@ -229,9 +229,8 @@ types are defined as follows:
 .Bd -literal
 /* mbuf types */
 #define	MT_DATA		1	/* dynamic (data) allocation */
-#define	MT_HEADER	2	/* packet header */
+#define	MT_HEADER	MT_DATA	/* packet header */
 #define	MT_SONAME	8	/* socket name */
-#define	MT_FTABLE	11	/* fragment reassembly header */
 #define	MT_CONTROL	14	/* extra-data protocol message */
 #define	MT_OOBDATA	15	/* expedited data */
 .Ed
