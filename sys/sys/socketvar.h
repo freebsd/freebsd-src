@@ -134,7 +134,7 @@ struct socket {
 	struct	ucred *so_cred;		/* (a) user credentials */
 	struct	label *so_label;	/* (b) MAC label for socket */
 	struct	label *so_peerlabel;	/* (b) cached MAC label for peer */
-	/* NB: generation count must not be first; easiest to make it last. */
+	/* NB: generation count must not be first. */
 	so_gen_t so_gencnt;		/* (h) generation count */
 	void	*so_emuldata;		/* (b) private data for emulators */
  	struct so_accf {
