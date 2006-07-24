@@ -803,8 +803,7 @@ kern_sendit(td, s, mp, flags, control, segflg)
 		ktruio = cloneuio(&auio);
 #endif
 	len = auio.uio_resid;
-	error = so->so_proto->pr_usrreqs->pru_sosend(so, mp->msg_name, &auio,
-	    0, control, flags, td);
+	error = sosend(so, mp->msg_name, &auio, 0, control, flags, td);
 	if (error) {
 		if (auio.uio_resid != len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
@@ -1020,8 +1019,7 @@ kern_recvit(td, s, mp, fromseg, controlp)
 		ktruio = cloneuio(&auio);
 #endif
 	len = auio.uio_resid;
-	error = so->so_proto->pr_usrreqs->pru_soreceive(so, &fromsa, &auio,
-	    (struct mbuf **)0,
+	error = soreceive(so, &fromsa, &auio, (struct mbuf **)0,
 	    (mp->msg_control || controlp) ? &control : (struct mbuf **)0,
 	    &mp->msg_flags);
 	if (error) {
