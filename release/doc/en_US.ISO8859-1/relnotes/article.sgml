@@ -533,11 +533,12 @@
 	<title>Network Interface Support</title>
 
 	<para>The &man.ath.4; driver has been updated to
-	  version 0.9.16.16.  &merged;</para>
+	  HAL version 0.9.17.2.  &merged;</para>
 
-	<para arch="amd64,i386,pc98">The &man.ath.4;, &man.ath.hal.4;, and
+	<para arch="amd64,i386,pc98,sparc64">The &man.ath.4;, &man.ath.hal.4;, and
 	  <literal>ath_rate_sample</literal> drivers have been
-	  included in the <filename>GENERIC</filename> kernel by default.</para>
+	  included in the <filename>GENERIC</filename> kernel by
+	  default. &merged;</para>
 
 	<para arch="amd64,i386">The &man.bce.4; driver, which supports Broadcom
 	  NetXtreme II (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet controllers,
@@ -583,6 +584,14 @@
 
 	<para>The &man.iwi.4; driver now supports big-endian
 	  architectures such as sparc64.</para>
+
+	<para>A number of improvements and bugfixes have been made to the
+	  functionality of the &man.iwi.4; driver.  This driver now
+	  requires the firmware image in the 
+	  <filename role="package">net/iwi-firmware-kmod</filename>
+	  port/package; prior versions of this driver used the
+	  <filename role="package">net/iwi-firmware</filename>
+	  port/package. &merged;</para>
 
 	<para>The &man.le.4; driver, which supports AMD Am7900 LANCE
 	  and Am79C9xx PCnet NICs,
@@ -1128,6 +1137,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.jail.8; program now supports a <option>-s</option>
       option to specify a jail's securelevel. &merged;</para>
 
+    <para>The &man.jexec.8; utility now supports <option>-u</option>
+      and <option>-U</option> flags to specify username credentials
+      under which a command should be executed. &merged;</para>
+
     <para>The &man.kdump.1; program now supports a <option>-H</option>
       flag, which causes kdump to print an additional field holding
       the threadid.  &merged;</para>
@@ -1283,8 +1296,23 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.powerd.8; program now supports a
       <option>-P</option> option, which specifies a pidfile to use.</para>
 
+    <para>An extensible implementation of &man.printf.3;, compatible
+      with GLIBC, has been added to <filename>libc</filename>.  It is
+      only used if the environment variable
+      <varname>USE_XPRINTF</varname> is defined, one of the extension
+      functions is called, or the global variable
+      <varname>__use_xprintf</varname> is set to a value greater than
+      <literal>0</literal>.  Five extensions are currently supported:
+      <literal>%H</literal> (hex dump),
+      <literal>%T</literal> (<varname>time_t</varname> and
+      time-related structures),
+      <literal>%M</literal> (errno message),
+      <literal>%Q</literal> (double-quoted, escaped string),
+      <literal>%V</literal> (&man.strvis.3;-format string),
+      &merged;</para>
+
     <para>The DNS resolver library in &os;'s <application>libc</application>
-      has been updated to BIND9's one.</para>
+      has been updated to BIND9's one. &merged;</para>
 
     <para>The &man.rfcomm.sppd.1; program now supports service names
       in addition to <option>-c</option> option with channel number.
@@ -1318,6 +1346,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The &man.sysctl.8; utility now supports a <option>-q</option>
       flag to suppress a limited set of warnings and errors.</para>
+
+    <para>The &man.tail.1; utility now supports a <option>-q</option>
+      flag to suppress header lines when multiple files are
+      specified. &merged;</para>
 
     <para>The &man.time.1; utility now prints the time that a given
       command has been running if sent a <literal>SIGINFO</literal> signal.</para>
@@ -1660,7 +1692,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
 
     <para>A <filename>/media</filename> directory has been
       added to contain mount points for removable media
-      such as CDROMs, floppy disks, USB drives, and so on.</para>
+      such as CDROMs, floppy disks, USB drives, and so on. &merged;</para>
 
     <para>The <filename>src.conf</filename> file, which
       contains settings that will apply to every build involving
