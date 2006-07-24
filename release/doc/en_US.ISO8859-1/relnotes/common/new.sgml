@@ -175,6 +175,22 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
+	<para>The &man.ath.4; driver has been updated to
+	  HAL version 0.9.17.2.</para>
+
+	<para arch="alpha,amd64,i386,sparc64">The &man.ath.4;, &man.ath.hal.4;, and
+	  <literal>ath_rate_sample</literal> drivers have been
+	  included in the <filename>GENERIC</filename> kernel by
+	  default.</para>
+
+	<para>A number of improvements and bugfixes have been made to the
+	  functionality of the &man.iwi.4; driver.  This driver now
+	  requires the firmware image in the 
+	  <filename role="package">net/iwi-firmware-kmod</filename>
+	  port/package; prior versions of this driver used the
+	  <filename role="package">net/iwi-firmware</filename>
+	  port/package. &merged;</para>
+
 	<para>The &man.nve.4; driver now has &man.altq.4; support.</para>
 
 	<para>The &man.sk.4; driver is now MPSAFE.</para>
@@ -254,9 +270,35 @@
     <para>The &man.jail.8; program now supports a <option>-s</option>
       option to specify a jail's securelevel.</para>
 
+    <para>The &man.jexec.8; utility now supports <option>-u</option>
+      and <option>-U</option> flags to specify username credentials
+      under which a command should be executed. &merged;</para>
+
     <para>The &man.ls.1; utility now supports
       an <option>-U</option> flag to use the file creation
       time for sorting.</para>
+
+    <para>An extensible implementation of &man.printf.3;, compatible
+      with GLIBC, has been added to <filename>libc</filename>.  It is
+      only used if the environment variable
+      <varname>USE_XPRINTF</varname> is defined, one of the extension
+      functions is called, or the global variable
+      <varname>__use_xprintf</varname> is set to a value greater than
+      <literal>0</literal>.  Five extensions are currently supported:
+      <literal>%H</literal> (hex dump),
+      <literal>%T</literal> (<varname>time_t</varname> and
+      time-related structures),
+      <literal>%M</literal> (errno message),
+      <literal>%Q</literal> (double-quoted, escaped string),
+      <literal>%V</literal> (&man.strvis.3;-format string),
+      </para>
+
+    <para>The DNS resolver library in &os;'s <application>libc</application>
+      has been updated to BIND9's one.</para>
+
+    <para>The &man.tail.1; utility now supports a <option>-q</option>
+      flag to suppress header lines when multiple files are
+      specified.</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
@@ -286,6 +328,10 @@
 
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
+
+    <para>A <filename>/media</filename> directory has been
+      added to contain mount points for removable media
+      such as CDROMs, floppy disks, USB drives, and so on.</para>
 
     <para>The supported version of
       the <application>GNOME</application> desktop environment
