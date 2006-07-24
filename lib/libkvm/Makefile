@@ -6,6 +6,9 @@ SHLIBDIR?= /lib
 CFLAGS+=-DLIBC_SCCS -I${.CURDIR}
 SRCS=	kvm.c kvm_${MACHINE_ARCH}.c kvm_file.c kvm_getloadavg.c \
 	kvm_getswapinfo.c kvm_proc.c
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+SRCS+=	kvm_minidump_${MACHINE_ARCH}.c
+.endif
 INCS=	kvm.h
 
 MAN=	kvm.3 kvm_geterr.3 kvm_getfiles.3 kvm_getloadavg.3 kvm_getprocs.3 \

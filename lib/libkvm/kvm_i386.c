@@ -78,7 +78,9 @@ static char sccsid[] = "@(#)kvm_hp300.c	8.1 (Berkeley) 6/4/93";
 #define	NPTEPG_PAE	(PAGE_SIZE/sizeof(uint64_t))
 #define	NBPDR_PAE	(1<<PDRSHIFT_PAE)
 
+/* minidump must be the first item! */
 struct vmstate {
+	int		minidump;	/* 1 = minidump mode */
 	void		*mmapbase;
 	size_t		mmapsize;
 	void		*PTD;
@@ -134,6 +136,8 @@ _kvm_freevtop(kvm_t *kd)
 {
 	struct vmstate *vm = kd->vmst;
 
+	if (kd->vmst->minidump)
+		return (_kvm_minidump_freevtop(kd));
 	if (vm->mmapbase != NULL)
 		munmap(vm->mmapbase, vm->mmapsize);
 	if (vm->PTD)
@@ -152,6 +156,11 @@ _kvm_initvtop(kvm_t *kd)
 	Elf_Ehdr	*ehdr;
 	size_t		hdrsz;
 	int		i;
+	char		minihdr[8];
+
+	if (pread(kd->pmfd, &minihdr, 8, 0) == 8)
+		if (memcmp(&minihdr, "minidump", 8) == 0)
+			return (_kvm_minidump_initvtop(kd));
 
 	kd->vmst = (struct vmstate *)_kvm_malloc(kd, sizeof(*kd->vmst));
 	if (kd->vmst == 0) {
@@ -426,6 +435,8 @@ int
 _kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 {
 
+	if (kd->vmst->minidump)
+		return (_kvm_minidump_kvatop(kd, va, pa));
 	if (ISALIVE(kd)) {
 		_kvm_err(kd, 0, "vatop called in live kernel!");
 		return (0);
