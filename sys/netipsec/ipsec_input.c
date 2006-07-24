@@ -43,6 +43,7 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_enc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -441,6 +442,18 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	}
 
 	key_sa_recordxfer(sav, m);		/* record data transfer */
+
+#ifdef DEV_ENC
+	/*
+	 * Pass the mbuf to enc0 for bpf and pfil. We will filter the IPIP
+	 * packet later after it has been decapsulated.
+	 */
+	ipsec_bpf(m, sav, AF_INET);
+
+	if (prot != IPPROTO_IPIP)
+		if ((error = ipsec_filter(&m, 1)) != 0)
+			return (error);
+#endif
 
 	/*
 	 * Re-dispatch via software interrupt.

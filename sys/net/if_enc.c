@@ -85,7 +85,7 @@ struct enc_softc {
 static int	enc_ioctl(struct ifnet *, u_long, caddr_t);
 static int	enc_output(struct ifnet *ifp, struct mbuf *m,
 		    struct sockaddr *dst, struct rtentry *rt);
-static int	enc_clone_create(struct if_clone *, int, caddr_t);
+static int	enc_clone_create(struct if_clone *, int);
 static void	enc_clone_destroy(struct ifnet *);
 
 IFC_SIMPLE_DECLARE(enc, 1);
@@ -101,7 +101,7 @@ enc_clone_destroy(struct ifnet *ifp)
 }
 
 static int
-enc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
+enc_clone_create(struct if_clone *ifc, int unit)
 {
 	struct ifnet *ifp;
 	struct enc_softc *sc;
@@ -205,11 +205,11 @@ ipsec_filter(struct mbuf **mp, int dir)
 		return (0);
 
 	/* Skip pfil(9) if no filters are loaded */
-	if (!(PFIL_HOOKED(&inet_pfil_hook)
+	if (inet_pfil_hook.ph_busy_count < 0
 #ifdef INET6
-	    || PFIL_HOOKED(&inet6_pfil_hook)
+	    && inet6_pfil_hook.ph_busy_count < 0
 #endif
-	    )) {
+	    ) {
 		return (0);
 	}
 
