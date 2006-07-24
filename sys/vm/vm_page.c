@@ -121,6 +121,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 
+#include <machine/md_var.h>
+
 /*
  *	Associated with page of user-allocatable memory is a
  *	page structure.
@@ -263,6 +265,25 @@ vm_page_startup(vm_offset_t vaddr)
 	bzero((void *)mapped, end - new_end);
 	uma_startup((void *)mapped, boot_pages);
 
+#if defined(__amd64__) || defined(__i386__)
+	/*
+	 * Allocate a bitmap to indicate that a random physical page
+	 * needs to be included in a minidump.
+	 *
+	 * The amd64 port needs this to indicate which direct map pages
+	 * need to be dumped, via calls to dump_add_page()/dump_drop_page().
+	 *
+	 * However, i386 still needs this workspace internally within the
+	 * minidump code.  In theory, they are not needed on i386, but are
+	 * included should the sf_buf code decide to use them.
+	 */
+	page_range = phys_avail[(nblocks - 1) * 2 + 1] / PAGE_SIZE;
+	vm_page_dump_size = round_page(roundup2(page_range, NBBY) / NBBY);
+	new_end -= vm_page_dump_size;
+	vm_page_dump = (void *)(uintptr_t)pmap_map(&vaddr, new_end,
+	    new_end + vm_page_dump_size, VM_PROT_READ | VM_PROT_WRITE);
+	bzero((void *)vm_page_dump, vm_page_dump_size);
+#endif
 	/*
 	 * Compute the number of pages of memory that will be available for
 	 * use (taking into account the overhead of a page structure per
@@ -287,6 +308,15 @@ vm_page_startup(vm_offset_t vaddr)
 	mapped = pmap_map(&vaddr, new_end, end,
 	    VM_PROT_READ | VM_PROT_WRITE);
 	vm_page_array = (vm_page_t) mapped;
+#ifdef __amd64__
+	/*
+	 * pmap_map on amd64 comes out of the direct-map, not kvm like i386,
+	 * so the pages must be tracked for a crashdump to include this data.
+	 * This includes the vm_page_array and the early UMA bootstrap pages.
+	 */
+	for (pa = new_end; pa < phys_avail[biggestone + 1]; pa += PAGE_SIZE)
+		dump_add_page(pa);
+#endif	
 	phys_avail[biggestone + 1] = new_end;
 
 	/*
