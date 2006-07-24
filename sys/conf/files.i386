@@ -292,6 +292,7 @@ i386/i386/locore.s		standard	no-obj
 i386/i386/longrun.c		optional cpu_enable_longrun
 i386/i386/machdep.c		standard
 i386/i386/mem.c			optional mem
+i386/i386/minidump_machdep.c	standard
 i386/i386/mp_clock.c		optional smp
 i386/i386/mp_machdep.c		optional smp
 i386/i386/mp_watchdog.c		optional mp_watchdog smp
