@@ -328,7 +328,6 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	td->td_frame->tf_rsp =
 	    ((register_t)stack->ss_sp + stack->ss_size) & ~0x0f;
 	td->td_frame->tf_rsp -= 8;
-	td->td_frame->tf_rbp = 0;
 	td->td_frame->tf_rip = (register_t)entry;
 
 	/*
