@@ -3635,6 +3635,23 @@ has been mounted.
 Both the
 .Xr md 4
 device and the mount point will be changed.
+.It Va autobridge_interfaces
+.Pq Vt str
+Set to the list of bridge interfaces that will have newly arriving interfaces
+checked against to be automatically added.
+If not set to
+.Dq Li NO
+then for each whitespace separated
+.Ar element
+in the value, a
+.Va autobridge_ Ns Aq Ar element
+variable is assumed to exist which has a whitespace separated list of interface
+names to match, these names can use wildcards.
+For example:
+.Bd -literal
+autobridge_interfaces="bridge0"
+autobridge_bridge0="tap* dc0 vlan[345]"
+.Ed
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
@@ -3652,6 +3669,7 @@ device and the mount point will be changed.
 .Xr sh 1 ,
 .Xr vi 1 ,
 .Xr vidcontrol 1 ,
+.Xr if_bridge 4 ,
 .Xr ip 4 ,
 .Xr ipf 4 ,
 .Xr ipfw 4 ,
