@@ -44,11 +44,14 @@ LD += -EB
 
 
 .if !defined(DEBUG) && !defined(PROFLEVEL)
-CFLAGS += -mno-apcs-frame
 STRIP_FLAGS = -S
 .endif
 
 DDB_ENABLED!=	grep DDB opt_ddb.h || true
+
+.if empty(DDB_ENABLED)
+CFLAGS += -mno-apcs-frame
+.endif
 
 SYSTEM_LD_ = ${LD} -Bdynamic -T ldscript.$M.noheader \
 	  -warn-common -export-dynamic -dynamic-linker /red/herring -o \
