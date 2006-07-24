@@ -189,7 +189,7 @@
 	  <filename role="package">net/iwi-firmware-kmod</filename>
 	  port/package; prior versions of this driver used the
 	  <filename role="package">net/iwi-firmware</filename>
-	  port/package. &merged;</para>
+	  port/package.</para>
 
 	<para>The &man.nve.4; driver now has &man.altq.4; support.</para>
 
@@ -272,7 +272,7 @@
 
     <para>The &man.jexec.8; utility now supports <option>-u</option>
       and <option>-U</option> flags to specify username credentials
-      under which a command should be executed. &merged;</para>
+      under which a command should be executed.</para>
 
     <para>The &man.ls.1; utility now supports
       an <option>-U</option> flag to use the file creation
