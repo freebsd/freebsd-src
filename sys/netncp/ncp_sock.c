@@ -139,10 +139,9 @@ int ncp_sock_recv(struct socket *so, struct mbuf **mp, int *rlen)
 	auio.uio_td = td;
 	flags = MSG_DONTWAIT;
 
-/*	error = so->so_proto->pr_usrreqs->pru_soreceive(so, 0, &auio,
-	    (struct mbuf **)0, (struct mbuf **)0, &flags);*/
-	error = so->so_proto->pr_usrreqs->pru_soreceive(so, 0, &auio,
-	    mp, (struct mbuf **)0, &flags);
+/*	error = soreceive(so, 0, &auio, (struct mbuf **)0, (struct mbuf **)0,
+	    &flags);*/
+	error = soreceive(so, 0, &auio, mp, (struct mbuf **)0, &flags);
 	*rlen = len - auio.uio_resid;
 /*	if (!error) {
 	    *rlen=iov.iov_len;
@@ -168,7 +167,7 @@ ncp_sock_send(struct socket *so, struct mbuf *top, struct ncp_rq *rqp)
 	for (;;) {
 		m = m_copym(top, 0, M_COPYALL, M_TRYWAIT);
 /*		NCPDDEBUG(m);*/
-		error = so->so_proto->pr_usrreqs->pru_sosend(so, to, 0, m, 0, flags, td);
+		error = sosend(so, to, 0, m, 0, flags, td);
 		if (error == 0 || error == EINTR || error == ENETDOWN)
 			break;
 		if (rqp->rexmit == 0) break;
@@ -189,7 +188,7 @@ ncp_poll(struct socket *so, int events)
     struct thread *td = curthread;
     struct ucred *cred = NULL;
 
-    return so->so_proto->pr_usrreqs->pru_sopoll(so, events, cred, td);
+    return (sopoll(so, events, cred, td));
 }
 
 int
@@ -443,8 +442,8 @@ ncp_watchdog(struct ncp_conn *conn) {
 		auio.uio_resid = len = 1000000;
 		auio.uio_td = curthread;
 		flags = MSG_DONTWAIT;
-		error = so->so_proto->pr_usrreqs->pru_soreceive(so,
-		    (struct sockaddr**)&sa, &auio, &m, (struct mbuf**)0, &flags);
+		error = soreceive(so, (struct sockaddr**)&sa, &auio, &m,
+		    (struct mbuf**)0, &flags);
 		if (error) break;
 		len -= auio.uio_resid;
 		NCPSDEBUG("got watch dog %d\n",len);
@@ -452,7 +451,7 @@ ncp_watchdog(struct ncp_conn *conn) {
 		buf = mtod(m, char*);
 		if (buf[1] != '?') break;
 		buf[1] = 'Y';
-		error = so->so_proto->pr_usrreqs->pru_sosend(so, (struct sockaddr*)sa, 0, m, 0, 0, curthread);
+		error = sosend(so, (struct sockaddr*)sa, 0, m, 0, 0, curthread);
 		NCPSDEBUG("send watch dog %d\n",error);
 		break;
 	}

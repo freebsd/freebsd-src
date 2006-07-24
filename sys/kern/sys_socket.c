@@ -88,7 +88,7 @@ soo_read(fp, uio, active_cred, flags, td)
 		return (error);
 	}
 #endif
-	error = so->so_proto->pr_usrreqs->pru_soreceive(so, 0, uio, 0, 0, 0);
+	error = soreceive(so, 0, uio, 0, 0, 0);
 	NET_UNLOCK_GIANT();
 	return (error);
 }
@@ -115,8 +115,7 @@ soo_write(fp, uio, active_cred, flags, td)
 		return (error);
 	}
 #endif
-	error = so->so_proto->pr_usrreqs->pru_sosend(so, 0, uio, 0, 0, 0,
-						    uio->uio_td);
+	error = sosend(so, 0, uio, 0, 0, 0, uio->uio_td);
 	if (error == EPIPE && (so->so_options & SO_NOSIGPIPE) == 0) {
 		PROC_LOCK(uio->uio_td->td_proc);
 		psignal(uio->uio_td->td_proc, SIGPIPE);
@@ -243,8 +242,7 @@ soo_poll(fp, events, active_cred, td)
 		return (error);
 	}
 #endif
-	error = (so->so_proto->pr_usrreqs->pru_sopoll)
-	    (so, events, fp->f_cred, td);
+	error = sopoll(so, events, fp->f_cred, td);
 	NET_UNLOCK_GIANT();
 
 	return (error);

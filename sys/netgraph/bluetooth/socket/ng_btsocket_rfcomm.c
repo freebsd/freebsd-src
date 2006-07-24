@@ -1558,8 +1558,8 @@ ng_btsocket_rfcomm_session_receive(ng_btsocket_rfcomm_session_p s)
 		flags = MSG_DONTWAIT;
 
 		m = NULL;
-		error = (*s->l2so->so_proto->pr_usrreqs->pru_soreceive)(s->l2so,
-				NULL, &uio, &m, (struct mbuf **) NULL, &flags);
+		error = soreceive(s->l2so, NULL, &uio, &m,
+		    (struct mbuf **) NULL, &flags);
 		if (error != 0) {
 			if (error == EWOULDBLOCK)
 				return (0); /* XXX can happen? */
@@ -1610,9 +1610,8 @@ ng_btsocket_rfcomm_session_send(ng_btsocket_rfcomm_session_p s)
 			return (0); /* we are done */
 
 		/* Call send function on the L2CAP socket */
-		error = (*s->l2so->so_proto->pr_usrreqs->pru_sosend)
-				(s->l2so, NULL, NULL, m, NULL, 0,
-				 curthread /* XXX */);
+		error = sosend(s->l2so, NULL, NULL, m, NULL, 0,
+		    curthread /* XXX */);
 		if (error != 0) {
 			NG_BTSOCKET_RFCOMM_ERR(
 "%s: Could not send data to L2CAP socket, error=%d\n", __func__, error);

@@ -1093,7 +1093,7 @@ out:
  */
 #define	snderr(errno)	{ error = (errno); goto release; }
 int
-sosend(so, addr, uio, top, control, flags, td)
+sosend_generic(so, addr, uio, top, control, flags, td)
 	struct socket *so;
 	struct sockaddr *addr;
 	struct uio *uio;
@@ -1256,6 +1256,25 @@ out:
 }
 #undef snderr
 
+int
+sosend(so, addr, uio, top, control, flags, td)
+	struct socket *so;
+	struct sockaddr *addr;
+	struct uio *uio;
+	struct mbuf *top;
+	struct mbuf *control;
+	int flags;
+	struct thread *td;
+{
+
+	/* XXXRW: Temporary debugging. */
+	KASSERT(so->so_proto->pr_usrreqs->pru_sosend != sosend,
+	    ("sosend: protocol calls sosend"));
+
+	return (so->so_proto->pr_usrreqs->pru_sosend(so, addr, uio, top,
+	    control, flags, td));
+}
+
 /*
  * The part of soreceive() that implements reading non-inline out-of-band
  * data from a socket.  For more complete comments, see soreceive(), from
@@ -1361,7 +1380,7 @@ sockbuf_pushsync(struct sockbuf *sb, struct mbuf *nextrecord)
  * the count in uio_resid.
  */
 int
-soreceive(so, psa, uio, mp0, controlp, flagsp)
+soreceive_generic(so, psa, uio, mp0, controlp, flagsp)
 	struct socket *so;
 	struct sockaddr **psa;
 	struct uio *uio;
@@ -1799,6 +1818,24 @@ out:
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 	return (error);
+}
+
+int
+soreceive(so, psa, uio, mp0, controlp, flagsp)
+	struct socket *so;
+	struct sockaddr **psa;
+	struct uio *uio;
+	struct mbuf **mp0;
+	struct mbuf **controlp;
+	int *flagsp;
+{
+
+	/* XXXRW: Temporary debugging. */
+	KASSERT(so->so_proto->pr_usrreqs->pru_soreceive != soreceive,
+	    ("soreceive: protocol calls soreceive"));
+
+	return (so->so_proto->pr_usrreqs->pru_soreceive(so, psa, uio, mp0,
+	    controlp, flagsp));
 }
 
 int
@@ -2409,6 +2446,19 @@ sohasoutofband(so)
 
 int
 sopoll(struct socket *so, int events, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	/* XXXRW: Temporary debugging. */
+	KASSERT(so->so_proto->pr_usrreqs->pru_sopoll != sopoll,
+	    ("sopoll: protocol calls sopoll"));
+
+	return (so->so_proto->pr_usrreqs->pru_sopoll(so, events, active_cred,
+	    td));
+}
+
+int
+sopoll_generic(struct socket *so, int events, struct ucred *active_cred,
     struct thread *td)
 {
 	int revents = 0;

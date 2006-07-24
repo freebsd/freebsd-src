@@ -466,8 +466,7 @@ nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 		auio.uio_resid = 1000000000;
 		flags = MSG_DONTWAIT;
 		NFSD_UNLOCK();
-		error = so->so_proto->pr_usrreqs->pru_soreceive
-			(so, &nam, &auio, &mp, NULL, &flags);
+		error = soreceive(so, &nam, &auio, &mp, NULL, &flags);
 		NFSD_LOCK();
 		if (error || mp == NULL) {
 			if (error == EWOULDBLOCK)
@@ -503,8 +502,7 @@ nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 			auio.uio_resid = 1000000000;
 			flags = MSG_DONTWAIT;
 			NFSD_UNLOCK();
-			error = so->so_proto->pr_usrreqs->pru_soreceive
-				(so, &nam, &auio, &mp, NULL, &flags);
+			error = soreceive(so, &nam, &auio, &mp, NULL, &flags);
 			if (mp) {
 				struct nfsrv_rec *rec;
 				rec = malloc(sizeof(struct nfsrv_rec),
@@ -785,8 +783,7 @@ nfsrv_send(struct socket *so, struct sockaddr *nam, struct mbuf *top)
 	else
 		flags = 0;
 
-	error = so->so_proto->pr_usrreqs->pru_sosend(so, sendnam, 0, top, 0,
-						     flags, curthread/*XXX*/);
+	error = sosend(so, sendnam, 0, top, 0, flags, curthread/*XXX*/);
 	if (error == ENOBUFS && so->so_type == SOCK_DGRAM)
 		error = 0;
 
