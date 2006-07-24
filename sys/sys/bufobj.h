@@ -42,7 +42,7 @@
  * their lifetime.
  *
  * The exact relationship to the vmobject is not determined at this point,
- * it may in fact bee that we find them to be two sides of the same object 
+ * it may in fact be that we find them to be two sides of the same object 
  * once things starts to crystalize.
  */
 
