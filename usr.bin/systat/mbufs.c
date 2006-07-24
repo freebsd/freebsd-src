@@ -63,7 +63,6 @@ static struct mtnames {
 	{ MT_DATA, 	"data"},
 	{ MT_HEADER,	"headers"},
 	{ MT_SONAME,	"socknames"},
-	{ MT_FTABLE,	"frags"},
 	{ MT_CONTROL,	"control"},
 	{ MT_OOBDATA,	"oobdata"}
 };
