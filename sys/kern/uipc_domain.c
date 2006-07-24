@@ -119,9 +119,9 @@ protosw_init(struct protosw *pr)
 	DEFAULT(pu->pru_rcvd, pru_rcvd_notsupp);
 	DEFAULT(pu->pru_rcvoob, pru_rcvoob_notsupp);
 	DEFAULT(pu->pru_sense, pru_sense_null);
-	DEFAULT(pu->pru_sosend, sosend);
-	DEFAULT(pu->pru_soreceive, soreceive);
-	DEFAULT(pu->pru_sopoll, sopoll);
+	DEFAULT(pu->pru_sosend, sosend_generic);
+	DEFAULT(pu->pru_soreceive, soreceive_generic);
+	DEFAULT(pu->pru_sopoll, sopoll_generic);
 #undef DEFAULT
 	if (pr->pr_init)
 		(*pr->pr_init)();

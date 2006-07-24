@@ -228,15 +228,6 @@ struct pr_usrreqs {
 	int	(*pru_sense)(struct socket *so, struct stat *sb);
 	int	(*pru_shutdown)(struct socket *so);
 	int	(*pru_sockaddr)(struct socket *so, struct sockaddr **nam);
-	 
-	/*
-	 * These four added later, so they are out of order.  They are used
-	 * for shortcutting (fast path input/output) in some protocols.
-	 * XXX - that's a lie, they are not implemented yet
-	 * Rather than calling sosend() etc. directly, calls are made
-	 * through these entry points.  For protocols which still use
-	 * the generic code, these just point to those routines.
-	 */
 	int	(*pru_sosend)(struct socket *so, struct sockaddr *addr,
 		    struct uio *uio, struct mbuf *top, struct mbuf *control,
 		    int flags, struct thread *td);

@@ -530,14 +530,22 @@ int	soopt_mcopyout(struct sockopt *sopt, struct mbuf *m);
 
 int	sopoll(struct socket *so, int events, struct ucred *active_cred,
 	    struct thread *td);
+int	sopoll_generic(struct socket *so, int events,
+	    struct ucred *active_cred, struct thread *td);
 int	soreceive(struct socket *so, struct sockaddr **paddr, struct uio *uio,
 	    struct mbuf **mp0, struct mbuf **controlp, int *flagsp);
+int	soreceive_generic(struct socket *so, struct sockaddr **paddr,
+	    struct uio *uio, struct mbuf **mp0, struct mbuf **controlp,
+	    int *flagsp);
 int	soreserve(struct socket *so, u_long sndcc, u_long rcvcc);
 void	sorflush(struct socket *so);
 int	sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	    struct mbuf *top, struct mbuf *control, int flags,
 	    struct thread *td);
 int	sosend_dgram(struct socket *so, struct sockaddr *addr,
+	    struct uio *uio, struct mbuf *top, struct mbuf *control,
+	    int flags, struct thread *td);
+int	sosend_generic(struct socket *so, struct sockaddr *addr,
 	    struct uio *uio, struct mbuf *top, struct mbuf *control,
 	    int flags, struct thread *td);
 int	sosetopt(struct socket *so, struct sockopt *sopt);

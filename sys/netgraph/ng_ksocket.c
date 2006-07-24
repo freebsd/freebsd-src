@@ -920,7 +920,7 @@ ng_ksocket_rcvdata(hook_p hook, item_p item)
 		sa = &stag->sa;
 
 	/* Send packet */
-	error = (*so->so_proto->pr_usrreqs->pru_sosend)(so, sa, 0, m, 0, 0, td);
+	error = sosend(so, sa, 0, m, 0, 0, td);
 
 	return (error);
 }
@@ -1101,9 +1101,8 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int waitflag)
 		struct mbuf *n;
 
 		/* Try to get next packet from socket */
-		if ((error = (*so->so_proto->pr_usrreqs->pru_soreceive)
-		    (so, (so->so_state & SS_ISCONNECTED) ? NULL : &sa,
-		    &auio, &m, (struct mbuf **)0, &flags)) != 0)
+		if ((error = soreceive(so, (so->so_state & SS_ISCONNECTED) ?
+		    NULL : &sa, &auio, &m, (struct mbuf **)0, &flags)) != 0)
 			break;
 
 		/* See if we got anything */
