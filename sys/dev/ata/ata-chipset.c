@@ -853,7 +853,7 @@ ata_acard_status(device_t dev)
 	ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, bmstat & ~ATA_BMSTAT_ERROR);
 	DELAY(1);
 	ATA_IDX_OUTB(ch, ATA_BMCMD_PORT,
-		     ATA_IDX_INB(ch, ATA_BMCMD_PORT)&~ATA_BMCMD_START_STOP);
+		     ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
 	DELAY(1);
     }
     if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY) {
@@ -2763,26 +2763,26 @@ ata_nvidia_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_NFORCE1,         0, AMDNVIDIA, NVIDIA, ATA_UDMA5, "nForce" },
-     { ATA_NFORCE2,         0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce2" },
-     { ATA_NFORCE2_PRO,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce2 Pro" },
-     { ATA_NFORCE2_PRO_S1,  0, 0,         0,      ATA_SA150, "nForce2 Pro" },
-     { ATA_NFORCE3,         0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce3" },
-     { ATA_NFORCE3_PRO,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce3 Pro" },
-     { ATA_NFORCE3_PRO_S1,  0, 0,         0,      ATA_SA150, "nForce3 Pro" },
-     { ATA_NFORCE3_PRO_S2,  0, 0,         0,      ATA_SA150, "nForce3 Pro" },
-     { ATA_NFORCE_MCP04,    0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce MCP" },
-     { ATA_NFORCE_MCP04_S1, 0, 0,         NV4OFF, ATA_SA150, "nForce MCP" },
-     { ATA_NFORCE_MCP04_S2, 0, 0,         NV4OFF, ATA_SA150, "nForce MCP" },
-     { ATA_NFORCE_CK804,    0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce CK804" },
-     { ATA_NFORCE_CK804_S1, 0, 0,         NV4OFF, ATA_SA300, "nForce CK804" },
-     { ATA_NFORCE_CK804_S2, 0, 0,         NV4OFF, ATA_SA300, "nForce CK804" },
-     { ATA_NFORCE_MCP51,    0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce MCP51" },
-     { ATA_NFORCE_MCP51_S1, 0, 0,         NV4OFF, ATA_SA300, "nForce MCP51" },
-     { ATA_NFORCE_MCP51_S2, 0, 0,         NV4OFF, ATA_SA300, "nForce MCP51" },
-     { ATA_NFORCE_MCP55,    0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce MCP55" },
-     { ATA_NFORCE_MCP55_S1, 0, 0,         NV4OFF, ATA_SA300, "nForce MCP55" },
-     { ATA_NFORCE_MCP55_S2, 0, 0,         NV4OFF, ATA_SA300, "nForce MCP55" },
+    {{ ATA_NFORCE1,         0, AMDNVIDIA, NVIDIA,  ATA_UDMA5, "nForce" },
+     { ATA_NFORCE2,         0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce2" },
+     { ATA_NFORCE2_PRO,     0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce2 Pro" },
+     { ATA_NFORCE2_PRO_S1,  0, 0,         0,       ATA_SA150, "nForce2 Pro" },
+     { ATA_NFORCE3,         0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce3" },
+     { ATA_NFORCE3_PRO,     0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce3 Pro" },
+     { ATA_NFORCE3_PRO_S1,  0, 0,         0,       ATA_SA150, "nForce3 Pro" },
+     { ATA_NFORCE3_PRO_S2,  0, 0,         0,       ATA_SA150, "nForce3 Pro" },
+     { ATA_NFORCE_MCP04,    0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce MCP" },
+     { ATA_NFORCE_MCP04_S1, 0, 0,         NV4BYTE, ATA_SA150, "nForce MCP" },
+     { ATA_NFORCE_MCP04_S2, 0, 0,         NV4BYTE, ATA_SA150, "nForce MCP" },
+     { ATA_NFORCE_CK804,    0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce CK804" },
+     { ATA_NFORCE_CK804_S1, 0, 0,         NV4BYTE, ATA_SA300, "nForce CK804" },
+     { ATA_NFORCE_CK804_S2, 0, 0,         NV4BYTE, ATA_SA300, "nForce CK804" },
+     { ATA_NFORCE_MCP51,    0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce MCP51" },
+     { ATA_NFORCE_MCP51_S1, 0, 0,         NV4WORD, ATA_SA300, "nForce MCP51" },
+     { ATA_NFORCE_MCP51_S2, 0, 0,         NV4WORD, ATA_SA300, "nForce MCP51" },
+     { ATA_NFORCE_MCP55,    0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce MCP55" },
+     { ATA_NFORCE_MCP55_S1, 0, 0,         NV4WORD, ATA_SA300, "nForce MCP55" },
+     { ATA_NFORCE_MCP55_S2, 0, 0,         NV4WORD, ATA_SA300, "nForce MCP55" },
      { 0, 0, 0, 0, 0, 0}} ;
     char buffer[64] ;
 
@@ -2813,7 +2813,7 @@ ata_nvidia_chipinit(device_t dev)
 	ctlr->r_rid2 = PCIR_BAR(5);
 	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
 						   &ctlr->r_rid2, RF_ACTIVE))) {
-	    int offset = ctlr->chip->cfg2 & NV4OFF ? 0x0440 : 0x0010;
+	    int offset = ctlr->chip->cfg2 & NV4 ? 0x0440 : 0x0010;
 
 	    ctlr->allocate = ata_nvidia_allocate;
 	    ctlr->reset = ata_nvidia_reset;
@@ -2821,11 +2821,20 @@ ata_nvidia_chipinit(device_t dev)
 	    /* enable control access */
 	    pci_write_config(dev, 0x50, pci_read_config(dev, 0x50, 1) | 0x04,1);
 
-	    /* clear interrupt status */
-	    ATA_OUTB(ctlr->r_res2, offset, 0xff);
+	    if (ctlr->chip->cfg2 == NV4BYTE) {
+		/* clear interrupt status */
+		ATA_OUTB(ctlr->r_res2, offset, 0xff);
 
-	    /* enable device and PHY state change interrupts */
-	    ATA_OUTB(ctlr->r_res2, offset + 1, 0xdd);
+		/* enable device and PHY state change interrupts */
+		ATA_OUTB(ctlr->r_res2, offset + 1, 0xdd);
+	    } 
+	    else {
+		/* clear interrupt status */
+		ATA_OUTL(ctlr->r_res2, offset, 0x00ff00ff);
+
+		/* enable device and PHY state change interrupts */
+		ATA_OUTL(ctlr->r_res2, offset + 4, 0x00dd00dd);
+	    }
 
 	    /* enable PCI interrupt */
 	    pci_write_config(dev, PCIR_COMMAND,
@@ -2870,13 +2879,20 @@ ata_nvidia_status(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    int offset = ctlr->chip->cfg2 & NV4OFF ? 0x0440 : 0x0010;
+    int offset = ctlr->chip->cfg2 & NV4 ? 0x0440 : 0x0010;
     struct ata_connect_task *tp;
-    int shift = ch->unit << 2;
-    u_int8_t status;
+    int shift = ch->unit << (ctlr->chip->cfg2 == NV4BYTE ? 2 : 4);
+    u_int32_t status;
 
-    /* get interrupt status */
-    status = ATA_INB(ctlr->r_res2, offset);
+    /* get and clear interrupt status */
+    if (ctlr->chip->cfg2 == NV4BYTE) {
+	status = ATA_INB(ctlr->r_res2, offset);
+	ATA_OUTB(ctlr->r_res2, offset, (0x0f << shift));
+    }
+    else {
+	status = ATA_INL(ctlr->r_res2, offset);
+	ATA_OUTL(ctlr->r_res2, offset, (0x0f << shift));
+    }
 
     /* check for and handle connect events */
     if (((status & (0x0c << shift)) == (0x04 << shift)) &&
@@ -2905,9 +2921,6 @@ ata_nvidia_status(device_t dev)
 	TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
 	taskqueue_enqueue(taskqueue_thread, &tp->task);
     }
-
-    /* clear interrupt status */
-    ATA_OUTB(ctlr->r_res2, offset, (0x0f << shift));
 
     /* do we have any device action ? */
     return (status & (0x01 << shift));

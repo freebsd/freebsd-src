@@ -388,14 +388,16 @@ struct ata_connect_task {
 #define VIA133          3
 #define AMDNVIDIA       4
 
-#define AMDCABLE        0x01
-#define AMDBUG          0x02
-#define NVIDIA          0x04
-#define NV4OFF          0x08
-#define VIACLK          0x10
-#define VIABUG          0x20
-#define VIABAR          0x40
-#define VIAAHCI         0x80
+#define AMDCABLE        0x0001
+#define AMDBUG          0x0002
+#define NVIDIA          0x0004
+#define NV4             0x0010
+#define NV4BYTE         0x0030 
+#define NV4WORD         0x0050
+#define VIACLK          0x0100
+#define VIABUG          0x0200
+#define VIABAR          0x0400
+#define VIAAHCI         0x0800
 
 
 /* global prototypes ata-pci.c */
