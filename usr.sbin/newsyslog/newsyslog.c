@@ -88,12 +88,6 @@ __FBSDID("$FreeBSD$");
 #include "pathnames.h"
 #include "extern.h"
 
-/* Define this symbol to try out the "new order" for work items. */
-#define	TRY_NEWORDER
-#ifndef USE_NEWORDER
-#define	USE_NEWORDER	1	/* Initial value for dbg_new_order */
-#endif
-
 /*
  * Bit-values for the 'flags' parsed from a config-file entry.
  */
@@ -165,12 +159,6 @@ SLIST_HEAD(swlisthead, sigwork_entry) swhead = SLIST_HEAD_INITIALIZER(swhead);
 SLIST_HEAD(zwlisthead, zipwork_entry) zwhead = SLIST_HEAD_INITIALIZER(zwhead);
 
 int dbg_at_times;		/* -D Show details of 'trim_at' code */
-/*
- * The debug options "neworder" and "oldorder" can be used to change
- * which order work is done in.  Note that both options will disappear
- * in the near future, and the "new" order will be the only order.
- */
-int dbg_new_order = USE_NEWORDER;
 
 int archtodir = 0;		/* Archive old logfiles to other directory */
 int createlogs;			/* Create (non-GLOB) logfiles which do not */
@@ -194,9 +182,10 @@ const char *conf;		/* Configuration file to use */
 struct ptime_data *dbg_timenow;	/* A "timenow" value set via -D option */
 struct ptime_data *timenow;	/* The time to use for checking at-fields */
 
-char hostname[MAXHOSTNAMELEN];	/* hostname */
-char daytime[16];		/* The current time in human readable form,
+#define	DAYTIME_LEN	16
+char daytime[DAYTIME_LEN];	/* The current time in human readable form,
 				 * used for rotation-tracking messages. */
+char hostname[MAXHOSTNAMELEN];	/* hostname */
 
 static struct conf_entry *get_worklist(char **files);
 static void parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
@@ -208,7 +197,6 @@ static char *missing_field(char *p, char *errline);
 static void	 change_attrs(const char *, const struct conf_entry *);
 static fk_entry	 do_entry(struct conf_entry *);
 static fk_entry	 do_rotate(const struct conf_entry *);
-#ifdef TRY_NEWORDER
 static void	 do_sigwork(struct sigwork_entry *);
 static void	 do_zipwork(struct zipwork_entry *);
 static struct sigwork_entry *
@@ -217,7 +205,6 @@ static struct zipwork_entry *
 		 save_zipwork(const struct conf_entry *, const struct
 		    sigwork_entry *, int, const char *);
 static void	 set_swpid(struct sigwork_entry *, const struct conf_entry *);
-#endif
 static int	 sizefile(const char *);
 static void expand_globs(struct conf_entry **work_p,
 		struct conf_entry **glob_p);
@@ -229,10 +216,7 @@ static void parse_args(int argc, char **argv);
 static int parse_doption(const char *doption);
 static void usage(void);
 static int log_trim(const char *logname, const struct conf_entry *log_ent);
-static void compress_log(char *logname, int dowait);
-static void bzcompress_log(char *logname, int dowait);
 static int age_old_log(char *file);
-static int send_signal(const struct conf_entry *ent);
 static void savelog(char *from, char *to);
 static void createdir(const struct conf_entry *ent, char *dirpart);
 static void createlog(const struct conf_entry *ent);
@@ -252,10 +236,8 @@ main(int argc, char **argv)
 {
 	fk_entry free_or_keep;
 	struct conf_entry *p, *q;
-#ifdef TRY_NEWORDER
 	struct sigwork_entry *stmp;
 	struct zipwork_entry *ztmp;
-#endif
 
 	SLIST_INIT(&swhead);
 	SLIST_INIT(&zwhead);
@@ -280,7 +262,6 @@ main(int argc, char **argv)
 		q = p;
 	}
 
-#ifdef TRY_NEWORDER
 	/*
 	 * Send signals to any processes which need a signal to tell
 	 * them to close and re-open the log file(s) we have rotated.
@@ -322,7 +303,6 @@ main(int argc, char **argv)
 		SLIST_REMOVE_HEAD(&swhead, sw_nextp);
 		free(stmp);
 	}
-#endif /* TRY_NEWORDER */
 
 	while (wait(NULL) > 0 || errno == EINTR)
 		;
@@ -476,9 +456,9 @@ do_entry(struct conf_entry * ent)
 		else if ((ent->flags & CE_CREATE) && createlogs)
 			ent->firstcreate = 1;
 		else if (ent->flags & CE_CREATE)
-			strncpy(temp_reason, " (no -C option)", REASON_MAX);
+			strlcpy(temp_reason, " (no -C option)", REASON_MAX);
 		else if (createlogs)
-			strncpy(temp_reason, " (no C flag)", REASON_MAX);
+			strlcpy(temp_reason, " (no C flag)", REASON_MAX);
 
 		if (ent->firstcreate) {
 			if (verbose)
@@ -584,102 +564,6 @@ do_entry(struct conf_entry * ent)
 #undef REASON_MAX
 }
 
-/* Send a signal to the pid specified by pidfile */
-static int
-send_signal(const struct conf_entry *ent)
-{
-	pid_t target_pid;
-	int did_notify;
-	FILE *f;
-	long minok, maxok, rval;
-	const char *target_name;
-	char *endp, *linep, line[BUFSIZ];
-
-	did_notify = 0;
-	f = fopen(ent->pid_file, "r");
-	if (f == NULL) {
-		warn("can't open pid file: %s", ent->pid_file);
-		return (did_notify);
-		/* NOTREACHED */
-	}
-
-	if (fgets(line, BUFSIZ, f) == NULL) {
-		/*
-		 * XXX - If the pid file is empty, is that really a
-		 *	problem?  Wouldn't that mean that the process
-		 *	has shut down?  In that case there would be no
-		 *	problem with compressing the rotated log file.
-		 */
-		if (feof(f))
-			warnx("pid file is empty: %s",  ent->pid_file);
-		else
-			warn("can't read from pid file: %s", ent->pid_file);
-		(void) fclose(f);
-		return (did_notify);
-		/* NOTREACHED */
-	}
-	(void) fclose(f);
-
-	target_name = "daemon";
-	minok = MIN_PID;
-	maxok = MAX_PID;
-	if (ent->flags & CE_SIGNALGROUP) {
-		/*
-		 * If we are expected to signal a process-group when
-		 * rotating this logfile, then the value read in should
-		 * be the negative of a valid process ID.
-		 */
-		target_name = "process-group";
-		minok = -MAX_PID;
-		maxok = -MIN_PID;
-	}
-
-	errno = 0;
-	linep = line;
-	while (*linep == ' ')
-		linep++;
-	rval = strtol(linep, &endp, 10);
-	if (*endp != '\0' && !isspacech(*endp)) {
-		warnx("pid file does not start with a valid number: %s",
-		    ent->pid_file);
-		rval = 0;
-	} else if (rval < minok || rval > maxok) {
-		warnx("bad value '%ld' for process number in %s",
-		    rval, ent->pid_file);
-		if (verbose)
-			warnx("\t(expecting value between %ld and %ld)",
-			    minok, maxok);
-		rval = 0;
-	}
-	if (rval == 0) {
-		return (did_notify);
-		/* NOTREACHED */
-	}
-
-	target_pid = rval;
-
-	if (noaction) {
-		did_notify = 1;
-		printf("\tkill -%d %d\n", ent->sig, (int) target_pid);
-	} else if (kill(target_pid, ent->sig)) {
-		/*
-		 * XXX - Iff the error was "no such process", should that
-		 *	really be an error for us?  Perhaps the process
-		 *	is already gone, in which case there would be no
-		 *	problem with compressing the rotated log file.
-		 */
-		warn("can't notify %s, pid %d", target_name,
-		    (int) target_pid);
-	} else {
-		did_notify = 1;
-		if (verbose)
-			printf("%s pid %d notified\n", target_name,
-			    (int) target_pid);
-	}
-
-	return (did_notify);
-}
-
 static void
 parse_args(int argc, char **argv)
 {
@@ -688,8 +572,7 @@ parse_args(int argc, char **argv)
 
 	timenow = ptime_init(NULL);
 	ptimeset_time(timenow, time(NULL));
-	(void)strncpy(daytime, ptimeget_ctime(timenow) + 4, 15);
-	daytime[15] = '\0';
+	strlcpy(daytime, ptimeget_ctime(timenow) + 4, DAYTIME_LEN);
 
 	/* Let's get our hostname */
 	(void)gethostname(hostname, sizeof(hostname));
@@ -822,20 +705,10 @@ parse_doption(const char *doption)
 		return (1);			/* successfully parsed */
 	}
 
-	if (strcmp(doption, "neworder") == 0) {
-#ifdef TRY_NEWORDER
-		dbg_new_order++;
-#else
-		warnx("NOTE: The code for 'neworder' was not compiled in.");
-#endif
-		return (1);			/* successfully parsed */
-	}
-	if (strcmp(doption, "oldorder") == 0) {
-#ifdef TRY_NEWORDER
-		dbg_new_order = 0;
-#else
-		warnx("NOTE: The code for 'neworder' was not compiled in.");
-#endif
+	/* XXX - This check could probably be dropped. */
+	if ((strcmp(doption, "neworder") == 0) || (strcmp(doption, "oldorder")
+	    == 0)) {
+		warnx("NOTE: newsyslog always uses 'neworder'.");
 		return (1);			/* successfully parsed */
 	}
 
@@ -1485,8 +1358,9 @@ do_rotate(const struct conf_entry *ent)
 	char file1[MAXPATHLEN], file2[MAXPATHLEN];
 	char zfile1[MAXPATHLEN], zfile2[MAXPATHLEN];
 	char jfile1[MAXPATHLEN];
-	int flags, notified, need_notification, numlogs_c;
+	int flags, numlogs_c;
 	fk_entry free_or_keep;
+	struct sigwork_entry *swork;
 	struct stat st;
 
 	flags = ent->flags;
@@ -1612,90 +1486,27 @@ do_rotate(const struct conf_entry *ent)
 		printf("Start new log...\n");
 	createlog(ent);
 
-#ifdef TRY_NEWORDER
 	/*
 	 * Save all signalling and file-compression to be done after log
 	 * files from all entries have been rotated.  This way any one
 	 * process will not be sent the same signal multiple times when
 	 * multiple log files had to be rotated.
 	 */
-	if (dbg_new_order) {
-		struct sigwork_entry *swork;
-
-		swork = NULL;
-		if (ent->pid_file != NULL)
-			swork = save_sigwork(ent);
-		if (ent->numlogs > 0 && (flags & (CE_COMPACT | CE_BZCOMPACT))) {
-			/*
-			 * The zipwork_entry will include a pointer to this
-			 * conf_entry, so the conf_entry should not be freed.
-			 */
-			free_or_keep = KEEP_ENT;
-			save_zipwork(ent, swork, ent->fsize, file1);
-		}
-		return (free_or_keep);
-	}
-#endif /* TRY_NEWORDER */
-
-	/*
-	 * Find out if there is a process to signal.  If nosignal (-s) was
-	 * specified, then do not signal any process.  Note that nosignal
-	 * will trigger a warning message if the rotated logfile needs to
-	 * be compressed, *unless* -R was specified.  This is because there
-	 * presumably still are process(es) writing to the old logfile, but
-	 * we assume that a -sR request comes from a process which writes 
-	 * to the logfile, and as such, that process has already made sure
-	 * that the logfile is not presently in use.
-	 */
-	need_notification = notified = 0;
-	if (ent->pid_file != NULL) {
-		need_notification = 1;
-		if (!nosignal)
-			notified = send_signal(ent);	/* the normal case! */
-		else if (rotatereq)
-			need_notification = 0;
+	swork = NULL;
+	if (ent->pid_file != NULL)
+		swork = save_sigwork(ent);
+	if (ent->numlogs > 0 && (flags & (CE_COMPACT | CE_BZCOMPACT))) {
+		/*
+		 * The zipwork_entry will include a pointer to this
+		 * conf_entry, so the conf_entry should not be freed.
+		 */
+		free_or_keep = KEEP_ENT;
+		save_zipwork(ent, swork, ent->fsize, file1);
 	}
 
-	if ((flags & CE_COMPACT) || (flags & CE_BZCOMPACT)) {
-		if (need_notification && !notified)
-			warnx(
-			    "log %s.0 not compressed because daemon(s) not notified",
-			    ent->log);
-		else if (noaction) {
-			printf("\tsleep 10\n");
-			if (flags & CE_COMPACT)
-				printf("\tgzip %s.0\n", ent->log);
-			else
-				printf("\tbzip2 %s.0\n", ent->log);
-		} else {
-			if (notified) {
-				if (verbose)
-					printf("small pause to allow daemon(s) to close log\n");
-				sleep(10);
-			}
-			if (archtodir) {
-				(void) snprintf(file1, sizeof(file1), "%s/%s",
-				    dirpart, namepart);
-				if (flags & CE_COMPACT)
-					compress_log(file1,
-					    flags & CE_COMPACTWAIT);
-				else if (flags & CE_BZCOMPACT)
-					bzcompress_log(file1,
-					    flags & CE_COMPACTWAIT);
-			} else {
-				if (flags & CE_COMPACT)
-					compress_log(ent->log,
-					    flags & CE_COMPACTWAIT);
-				else if (flags & CE_BZCOMPACT)
-					bzcompress_log(ent->log,
-					    flags & CE_COMPACTWAIT);
-			}
-		}
-	}
 	return (free_or_keep);
 }
 
-#ifdef TRY_NEWORDER
 static void
 do_sigwork(struct sigwork_entry *swork)
 {
@@ -2011,7 +1822,6 @@ set_swpid(struct sigwork_entry *swork, const struct conf_entry *ent)
 
 	return;
 }
-#endif /* TRY_NEWORDER */
 
 /* Log the fact that the logs were turned over */
 static int
@@ -2037,50 +1847,6 @@ log_trim(const char *logname, const struct conf_entry *log_ent)
 	if (fclose(f) == EOF)
 		err(1, "log_trim: fclose");
 	return (0);
-}
-
-/*
- * XXX - Note that both compress_log and bzcompress_log will lose the
- *	NODUMP flag if it was set on somelog.0.  Fixing that in newsyslog
- *	(as opposed to fixing gzip/bzip2) will require some restructuring
- *	of the code.  That restructuring is planned for a later update...
- */
-/* Fork of gzip to compress the old log file */
-static void
-compress_log(char *logname, int dowait)
-{
-	pid_t pid;
-	char tmp[MAXPATHLEN];
-
-	while (dowait && (wait(NULL) > 0 || errno == EINTR))
-		;
-	(void) snprintf(tmp, sizeof(tmp), "%s.0", logname);
-	pid = fork();
-	if (pid < 0)
-		err(1, "gzip fork");
-	else if (!pid) {
-		(void) execl(_PATH_GZIP, _PATH_GZIP, "-f", tmp, (char *)0);
-		err(1, _PATH_GZIP);
-	}
-}
-
-/* Fork of bzip2 to compress the old log file */
-static void
-bzcompress_log(char *logname, int dowait)
-{
-	pid_t pid;
-	char tmp[MAXPATHLEN];
-
-	while (dowait && (wait(NULL) > 0 || errno == EINTR))
-		;
-	snprintf(tmp, sizeof(tmp), "%s.0", logname);
-	pid = fork();
-	if (pid < 0)
-		err(1, "bzip2 fork");
-	else if (!pid) {
-		execl(_PATH_BZIP2, _PATH_BZIP2, "-f", tmp, (char *)0);
-		err(1, _PATH_BZIP2);
-	}
 }
 
 /* Return size in kilobytes of a file */
