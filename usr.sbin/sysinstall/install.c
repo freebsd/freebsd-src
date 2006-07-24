@@ -1182,20 +1182,6 @@ installFilesystems(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
-static char *
-getRelname(void)
-{
-    static char buf[64];
-    size_t sz = (sizeof buf) - 1;
-
-    if (sysctlbyname("kern.osrelease", buf, &sz, NULL, 0) != -1) {
-	buf[sz] = '\0';
-	return buf;
-    }
-    else
-	return "<unknown>";
-}
-
 /* Initialize various user-settable values to their defaults */
 int
 installVarDefaults(dialogMenuItem *self)
@@ -1203,7 +1189,9 @@ installVarDefaults(dialogMenuItem *self)
     char *cp, ncpus[10];
 
     /* Set default startup options */
-    variable_set2(VAR_RELNAME,			getRelname(), 0);
+    cp = getsysctlbyname("kern.osrelease");
+    variable_set2(VAR_RELNAME,			cp, 0);
+    free(cp);
     variable_set2(VAR_CPIO_VERBOSITY,		"high", 0);
     variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE, 0);
     variable_set2(VAR_INSTALL_ROOT,		"/", 0);
