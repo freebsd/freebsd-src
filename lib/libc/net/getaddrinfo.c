@@ -33,7 +33,6 @@
  * "#ifdef FAITH" part is local hack for supporting IPv4-v6 translator.
  *
  * Issues to be discussed:
- * - Thread safe-ness must be checked.
  * - Return values.  There are nonstandard return values defined and used
  *   in the source code.  This is because RFC2553 is silent about which error
  *   code must be returned for which situation.
@@ -49,13 +48,6 @@
  *   (1) what should we do against numeric hostname (2) what should we do
  *   against NULL hostname (3) what is AI_ADDRCONFIG itself.  AF not ready?
  *   non-loopback address configured?  global address configured?
- *
- * OS specific notes for netbsd/openbsd/freebsd4/bsdi4:
- * - To avoid search order issue, we have a big amount of code duplicate
- *   from gethnamaddr.c and some other places.  The issues that there's no
- *   lower layer function to lookup "IPv4 or IPv6" record.  Calling
- *   gethostbyname2 from getaddrinfo will end up in wrong search order, as
- *   presented above.
  *
  * OS specific notes for freebsd4:
  * - FreeBSD supported $GAI.  The code does not.
