@@ -613,7 +613,7 @@ run_rc_command()
 			fi
 
 			if [ ! -x ${_chroot}${command} ]; then
-				info "run_rc_command: cannot run ($command)."
+				warn "run_rc_command: cannot run $command"
 				return 1
 			fi
 
@@ -1141,7 +1141,7 @@ make_symlink()
 		return 1
 	fi
 	if [ ! -d "$linkdir" ]; then
-		warn "$_me: the directory $linkdir does not exist"
+		warn "$_me: the directory $linkdir does not exist."
 		return 1
 	fi
 	if ! ln -sf $src $link; then
