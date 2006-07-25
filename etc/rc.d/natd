@@ -12,8 +12,8 @@
 name="natd"
 rcvar=`set_rcvar`
 command="/sbin/${name}"
+pidfile="/var/run/${name}.pid"
 start_precmd="natd_precmd"
-start_cmd="natd_start"
 
 natd_precmd()
 {
@@ -24,31 +24,25 @@ natd_precmd()
 		fi
 	fi
 
-	return 0
-}
-
-natd_start()
-{
-	dhcp_list="`list_net_interfaces dhcp`"
-	for ifn in ${dhcp_list}; do
-		case ${natd_interface} in
-		${ifn})
-			natd_flags="$natd_flags -dynamic"
-			;;
-		*)
-			;;
-		esac
-	done
 	if [ -n "${natd_interface}" ]; then
-		if echo ${natd_interface} | \
-		grep -q -E '^[0-9]+(\.[0-9]+){0,3}$'; then
-			natd_flags="$natd_flags -a ${natd_interface}"
+		dhcp_list="`list_net_interfaces dhcp`"
+		for ifn in ${dhcp_list}; do
+			case "${natd_interface}" in
+			${ifn})
+				rc_flags="$rc_flags -dynamic"
+				;;
+			esac
+		done
+
+		if echo "${natd_interface}" | \
+		    grep -q -E '^[0-9]+(\.[0-9]+){0,3}$'; then
+			rc_flags="$rc_flags -a ${natd_interface}"
 		else
-			natd_flags="$natd_flags -n ${natd_interface}"
+			rc_flags="$rc_flags -n ${natd_interface}"
 		fi
 	fi
-	echo -n ' natd'
-	${natd_program:-/sbin/natd} ${natd_flags} ${natd_ifarg}
+
+	return 0
 }
 
 load_rc_config $name
