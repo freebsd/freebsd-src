@@ -231,6 +231,7 @@ SUBDIR=	${_3dfx} \
 	${_sr} \
 	ste \
 	${_stg} \
+	stge \
 	${_streams} \
 	sym \
 	${_syscons} \
