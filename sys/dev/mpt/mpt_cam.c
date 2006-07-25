@@ -181,13 +181,20 @@ DECLARE_MPT_PERSONALITY(mpt_cam, SI_ORDER_SECOND);
 int
 mpt_cam_probe(struct mpt_softc *mpt)
 {
+	int role;
+
 	/*
-	 * Only attach to nodes that support the initiator or target
-	 * role or have RAID physical devices that need CAM pass-thru support.
+	 * Only attach to nodes that support the initiator or target role
+	 * (or want to) or have RAID physical devices that need CAM pass-thru
+	 * support.
 	 */
-	if ((mpt->mpt_proto_flags & MPI_PORTFACTS_PROTOCOL_INITIATOR) != 0
-	 || (mpt->mpt_proto_flags & MPI_PORTFACTS_PROTOCOL_TARGET) != 0
-	 || (mpt->ioc_page2 != NULL && mpt->ioc_page2->MaxPhysDisks != 0)) {
+	if (mpt->do_cfg_role) {
+		role = mpt->cfg_role;
+	} else {
+		role = mpt->role;
+	}
+	if ((role & (MPT_ROLE_TARGET|MPT_ROLE_INITIATOR)) != 0 ||
+	    (mpt->ioc_page2 != NULL && mpt->ioc_page2->MaxPhysDisks != 0)) {
 		return (0);
 	}
 	return (ENODEV);
@@ -355,6 +362,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 		goto cleanup;
 	}
 	CAMLOCK_2_MPTLOCK(mpt);
+	mpt_lprt(mpt, MPT_PRT_DEBUG, "attached cam\n");
 	return (0);
 
 cleanup:
