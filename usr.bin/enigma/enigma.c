@@ -1,4 +1,4 @@
-/*
+/*-
  *	"enigma.c" is in file cbw.tar from
  *	anonymous FTP host watmsg.waterloo.edu: pub/crypt/cbw.tar.Z
  *
@@ -40,7 +40,7 @@ setup(char *pw)
 	int ic, i, k, temp;
 	char salt[3];
 	unsigned rnd;
-	long seed;
+	int32_t seed;
 
 	strlcpy(salt, pw, sizeof(salt));
 	memcpy(buf, crypt(pw, salt), sizeof(buf));
@@ -53,13 +53,6 @@ setup(char *pw)
 	}
 	for(i=0;i<ROTORSZ;i++) {
 		seed = 5*seed + buf[i%13];
-		if( sizeof(long) > 4 )  {
-			/* Force seed to stay in 32-bit signed math */
-			if( seed & 0x80000000 )
-				seed = seed | (-1L & ~0xFFFFFFFFL);
-			else
-				seed &= 0x7FFFFFFF;
-		}
 		rnd = seed % 65521;
 		k = ROTORSZ-1 - i;
 		ic = (rnd&MASK)%(k+1);
@@ -140,7 +133,7 @@ shuffle(char deckary[])
 {
 	int i, ic, k, temp;
 	unsigned rnd;
-	static long seed = 123;
+	static int32_t seed = 123;
 
 	for(i=0;i<ROTORSZ;i++) {
 		seed = 5*seed + buf[i%13];
