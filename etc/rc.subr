@@ -656,7 +656,7 @@ run_rc_command()
 				    return 1
 			fi
 
-					# setup the command to run, and run it
+					# setup the full command to run
 					#
 			echo "Starting ${name}."
 			if [ -n "$_chroot" ]; then
@@ -674,6 +674,7 @@ $command $rc_flags $command_args"
 				fi
 			fi
 
+					# run the full command;
 					# if the cmd failed and force
 					# isn't set, exit
 					#
