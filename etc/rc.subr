@@ -575,16 +575,14 @@ run_rc_command()
 				debug "run_rc_command: evaluating ${_precmd}()."
 				eval $_precmd $rc_extra_args
 				_return=$?
-				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
-				    return 1
+				[ $_return -ne 0 -a -z "$rc_force" ] && return 1
 			fi
 
 			if [ -n "$_cmd" ]; then
 				debug "run_rc_command: evaluating ${_cmd}()."
 				eval $_cmd $rc_extra_args
 				_return=$?
-				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
-				    return 1
+				[ $_return -ne 0 -a -z "$rc_force" ] && return 1
 			fi
 
 			if [ -n "$_postcmd" ]; then
@@ -652,8 +650,7 @@ run_rc_command()
 				debug "run_rc_command: evaluating ${_precmd}()."
 				eval $_precmd
 				_return=$?
-				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
-				    return 1
+				[ $_return -ne 0 -a -z "$rc_force" ] && return 1
 			fi
 
 					# setup the full command to run
@@ -681,7 +678,7 @@ $command $rc_flags $command_args"
 			debug "run_rc_command: _doit: $_doit"
 			eval $_doit
 			_return=$?
-			[ $_return -ne 0 ] && [ -z "$rc_force" ] && return 1
+			[ $_return -ne 0 -a -z "$rc_force" ] && return 1
 
 					# finally, run postcmd
 					#
@@ -709,8 +706,7 @@ $command $rc_flags $command_args"
 			if [ -n "$_precmd" ]; then
 				eval $_precmd
 				_return=$?
-				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
-				    return 1
+				[ $_return -ne 0 -a -z "$rc_force" ] && return 1
 			fi
 
 					# send the signal to stop
@@ -726,7 +722,7 @@ $command $rc_flags $command_args"
 					#
 			eval $_doit
 			_return=$?
-			[ $_return -ne 0 ] && [ -z "$rc_force" ] && return 1
+			[ $_return -ne 0 -a -z "$rc_force" ] && return 1
 
 					# wait for the command to exit,
 					# and run postcmd.
@@ -751,8 +747,7 @@ $command $rc_flags $command_args"
 			if [ -n "$_precmd" ]; then
 				eval $_precmd
 				_return=$?
-				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
-				    return 1
+				[ $_return -ne 0 -a -z "$rc_force" ] && return 1
 			fi
 			_doit="kill -${sig_reload:-HUP} $rc_pid"
 			if [ -n "$_user" ]; then
@@ -760,7 +755,7 @@ $command $rc_flags $command_args"
 			fi
 			eval $_doit
 			_return=$?
-			[ $_return -ne 0 ] && [ -z "$rc_force" ] && return 1
+			[ $_return -ne 0 -a -z "$rc_force" ] && return 1
 			if [ -n "$_postcmd" ]; then
 				eval $_postcmd
 				_return=$?
@@ -771,8 +766,7 @@ $command $rc_flags $command_args"
 			if [ -n "$_precmd" ]; then
 				eval $_precmd $rc_extra_args
 				_return=$?
-				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
-				    return 1
+				[ $_return -ne 0 -a -z "$rc_force" ] && return 1
 			fi
 					# prevent restart being called more
 					# than once by any given script
