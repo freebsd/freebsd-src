@@ -1785,6 +1785,9 @@ device		miibus
 #       SMC91C90/92/94/95 chips.
 # ste:  Sundance Technologies ST201 PCI fast ethernet controller, includes
 #       the D-Link DFE-550TX.
+# stge: Support for gigabit ethernet adapters based on the Sundance/Tamarack
+#       TC9021 family of controllers, including the Sundance ST2021/ST2023,
+#       the Sundance/Tamarack TC9021, the D-Link DL-4000 and ASUS NX1101.
 # ti:   Support for PCI gigabit ethernet NICs based on the Alteon Networks
 #       Tigon 1 and Tigon 2 chipsets.  This includes the Alteon AceNIC, the
 #       3Com 3c985, the Netgear GA620 and various others.
