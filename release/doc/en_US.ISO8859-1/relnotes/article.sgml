@@ -398,6 +398,10 @@
       <para>The &man.acpi.thermal.4; driver now supports
 	passive cooling. &merged;</para>
 
+      <para>The &man.acpi.thermal.4; driver now supports overriding
+	the <literal>_PSV</literal>, <literal>_HOT</literal>, and
+	<literal>_CRT</literal> temperature values.</para>
+
 <!-- The following note should remain MI (i.e. don't set arch="alpha") --
   -- because the alpha docs will be disappearing at some point before --
   -- 7.0-RELEASE. -->
@@ -414,7 +418,8 @@
       <para>The <literal>est</literal> &man.cpufreq.4; driver now supports
         frequency control for the VIA C7-M family of processors.</para> 
 
-      <para>Support for the PadLock Security Co-processor in VIA C3
+      <para>Support for the PadLock Security Co-processor in VIA C3,
+	Eden, and C7
 	processors has been added to the &man.crypto.9; subsystem.
 	More information can be found in the &man.padlock.4; manual
 	page.
@@ -665,6 +670,13 @@
 	  &man.wlan.ccmp.4;, and &man.wlan.tkip.4; drivers
 	  have been included in the <filename>GENERIC</filename>
 	  kernel by default.</para>
+
+	<para>The network interface groups feature has been imported
+	  from OpenBSD.  This feature allows an administrator to, for
+	  example, apply firewall rules to an entire group of
+	  interfaces.  More information can be found in
+	  &man.ifconfig.8;.</para>
+
       </sect4>
     </sect3>
 
@@ -1261,6 +1273,12 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       a read-only mount to read-write via <command>mount -u -o rw</command>,
       has been fixed.</para>
 
+    <para>The &man.mount.8; utility now supports a
+      <literal>late</literal> keyword in &man.fstab.5;, along with a
+      corresponding <option>-l</option> command-line option to specify
+      that these <quote>late</quote> file systems should be
+      mounted.</para>
+
     <para>The &man.moused.8; daemon now supports an <option>-H</option> flag
       to enable horizontal virtual scrolling similar to the
       <option>-V</option> flag for vertical virtual scrolling.
@@ -1523,6 +1541,9 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       been updated to a snapshot from DRI CVS as of 20060517.
       &merged;</para>
 
+    <para><application>FILE</application> has been updated from 4.12
+      to 4.17.</para>
+
     <para><application>netcat</application> has been updated from the
       version in a 4 February 2005 OpenBSD snapshot to the version
       included in OpenBSD 3.9.</para>
@@ -1555,7 +1576,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       <application>tzdata2006g</application> release. &merged;</para>
 
     <para>TrustedBSD <application>OpenBSM</application>,
-      version 1.0 alpha 6, an implementation of the documented Sun Basic
+      version 1.0 alpha 7, an implementation of the documented Sun Basic
       Security Module (BSM) Audit API and file format, as well as local
       extensions to support the Mac OS X and FreeBSD operating systems
       has been added.  This also includes command line tools for audit
