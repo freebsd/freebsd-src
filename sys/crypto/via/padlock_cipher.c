@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/libkern.h>
+#include <sys/uio.h>
 
 #include <opencrypto/cryptodev.h>
 #include <crypto/rijndael/rijndael.h>
@@ -158,6 +159,43 @@ padlock_cipher_setup(struct padlock_session *ses, struct cryptoini *encini)
 	return (0);
 }
 
+/*
+ * Function checks if the given buffer is already 16 bytes aligned.
+ * If it is there is no need to allocate new buffer.
+ * If it isn't, new buffer is allocated.
+ */
+static u_char *
+padlock_cipher_alloc(struct cryptodesc *enccrd, struct cryptop *crp,
+    int *allocated)
+{
+	u_char *addr;
+
+	if (crp->crp_flags & CRYPTO_F_IMBUF)
+		goto alloc;
+	else {
+		if (crp->crp_flags & CRYPTO_F_IOV) {
+			struct uio *uio;
+			struct iovec *iov;
+
+			uio = (struct uio *)crp->crp_buf;
+			if (uio->uio_iovcnt != 1)
+				goto alloc;
+			iov = uio->uio_iov;
+			addr = (u_char *)iov->iov_base + enccrd->crd_skip;
+		} else {
+			addr = (u_char *)crp->crp_buf;
+		}
+		if (((uintptr_t)addr & 0xf) != 0) /* 16 bytes aligned? */
+			goto alloc;
+		*allocated = 0;
+		return (addr);
+	}
+alloc:
+	*allocated = 1;
+	addr = malloc(enccrd->crd_len + 16, M_PADLOCK, M_NOWAIT);
+	return (addr);
+}
+
 int
 padlock_cipher_process(struct padlock_session *ses, struct cryptodesc *enccrd,
     struct cryptop *crp)
@@ -165,12 +203,15 @@ padlock_cipher_process(struct padlock_session *ses, struct cryptodesc *enccrd,
 	union padlock_cw *cw;
 	u_char *buf, *abuf;
 	uint32_t *key;
+	int allocated;
 
-	buf = malloc(enccrd->crd_len + 16, M_PADLOCK, M_NOWAIT);
+	buf = padlock_cipher_alloc(enccrd, crp, &allocated);
 	if (buf == NULL)
 		return (ENOMEM);
 	/* Buffer has to be 16 bytes aligned. */
 	abuf = PADLOCK_ALIGN(buf);
+	if (!allocated && abuf != buf)
+		panic("allocated=%d abuf=%p buf=%p", allocated, abuf, buf);
 
 	if ((enccrd->crd_flags & CRD_F_KEY_EXPLICIT) != 0) {
 		padlock_cipher_key_setup(ses, enccrd->crd_key,
@@ -203,13 +244,17 @@ padlock_cipher_process(struct padlock_session *ses, struct cryptodesc *enccrd,
 		}
 	}
 
-	crypto_copydata(crp->crp_flags, crp->crp_buf, enccrd->crd_skip,
-	    enccrd->crd_len, abuf);
+	if (allocated) {
+		crypto_copydata(crp->crp_flags, crp->crp_buf, enccrd->crd_skip,
+		    enccrd->crd_len, abuf);
+	}
 
 	padlock_cbc(abuf, abuf, enccrd->crd_len / 16, key, cw, ses->ses_iv);
 
-	crypto_copyback(crp->crp_flags, crp->crp_buf, enccrd->crd_skip,
-	    enccrd->crd_len, abuf);
+	if (allocated) {
+		crypto_copyback(crp->crp_flags, crp->crp_buf, enccrd->crd_skip,
+		    enccrd->crd_len, abuf);
+	}
 
 	/* copy out last block for use as next session IV */
 	if ((enccrd->crd_flags & CRD_F_ENCRYPT) != 0) {
@@ -218,7 +263,7 @@ padlock_cipher_process(struct padlock_session *ses, struct cryptodesc *enccrd,
 		    AES_BLOCK_LEN, ses->ses_iv);
 	}
 
-	if (buf != NULL) {
+	if (allocated) {
 		bzero(buf, enccrd->crd_len + 16);
 		free(buf, M_PADLOCK);
 	}
