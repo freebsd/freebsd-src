@@ -132,6 +132,7 @@ static struct _devname {
 #endif
     NETWORK("sn",	"SMC/Megahertz ethernet card"),
     NETWORK("ste",	"Sundance ST201 PCI ethernet card"),
+    NETWORK("stge",	"Sundance/Tamarack TC9021 gigabit Ethernet"),
     NETWORK("sk",	"SysKonnect PCI gigabit ethernet card"),
     NETWORK("tx",	"SMC 9432TX ethernet card"),
     NETWORK("txp",	"3Com 3cR990 ethernet card"),
