@@ -103,6 +103,11 @@ mdconfig_start()
 {
 	local _md _mp _config _type _dev _file _fs _newfs _fsck_cmd
 
+	# If there are no devices return before loading geom_md.ko.
+	if [ -z "${_mdconfig_list}" ]; then
+		return
+	fi
+
 	kldstat -q -m g_md || kldload geom_md || err 1 "geom_md failed to load."
 
 	for _md in ${_mdconfig_list}; do
