@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_comconsole.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -42,6 +44,10 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91_usartreg.h>
 #include <arm/at91/at91_pdcreg.h>
+
+#ifdef KDB
+#include <sys/kdb.h>
+#endif
 
 #include "uart_if.h"
 
