@@ -374,6 +374,13 @@ nopgrp:
 				    kp->ki_lockname, LOCKNAMELEN);
 			kp->ki_lockname[LOCKNAMELEN] = 0;
 		}
+		/*
+		 * XXX: This is plain wrong, rux_runtime has nothing
+		 * to do with struct bintime, rux_runtime is just a 64-bit
+		 * integer counter of cputicks.  What we need here is a way
+		 * to convert cputicks to usecs.  The kernel does it in
+		 * kern/kern_tc.c, but the function can't be just copied.
+		 */
 		bintime2timeval(&proc.p_rux.rux_runtime, &tv);
 		kp->ki_runtime = (u_int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 		kp->ki_pid = proc.p_pid;
