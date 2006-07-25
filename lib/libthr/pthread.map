@@ -2,7 +2,16 @@
 LIBTHREAD_1_0 {
 global:
 	___creat;
+	___pause;
+	___pselect;
+	___sleep;
+	___system;
+	___tcdrain;
+	___usleep;
+	___wait;
+	___waitpid;
 	__accept;
+	__aio_suspend;
 	__close;
 	__connect;
 	__error;
@@ -29,15 +38,11 @@ global:
 	__sigtimedwait;
 	__sigwait;
 	__sigwaitinfo;
+	__wait3;
 	__wait4;
 	__write;
 	__writev;
-	_aio_suspend;
-	_execve;
 	_fork;
-	_nanosleep;
-	_pause;
-	_pselect;
 	_pthread_atfork;
 	_pthread_barrier_destroy;
 	_pthread_barrier_init;
@@ -169,16 +174,10 @@ global:
 	_sigtimedwait;
 	_sigwait;
 	_sigwaitinfo;
-	_sleep;
 	_spinlock;
 	_spinlock_debug;
 	_spinunlock;
-	_system;
-	_tcdrain;
-	_usleep;
 	_vfork;
-	_wait;
-	_waitpid;
 	accept;
 	aio_suspend;
 	close;
@@ -338,6 +337,7 @@ global:
 	usleep;
 	vfork;
 	wait;
+	wait3;
 	wait4;
 	waitpid;
 	write;
@@ -538,6 +538,7 @@ global:
 	usleep;
 	vfork;
 	wait;
+	wait3;
 	wait4;
 	waitpid;
 	write;
@@ -553,7 +554,16 @@ local:
 FBSDprivate {
 global:
 	___creat;
+	___pause;
+	___pselect;
+	___sleep;
+	___system;
+	___tcdrain;
+	___usleep;
+	___wait;
+	___waitpid;
 	__accept;
+	__aio_suspend;
 	__close;
 	__connect;
 	__fcntl;
@@ -579,15 +589,11 @@ global:
 	__sigtimedwait;
 	__sigwait;
 	__sigwaitinfo;
+	__wait3;
 	__wait4;
 	__write;
 	__writev;
-	_aio_suspend;
-	_execve;
 	_fork;
-	_nanosleep;
-	_pause;
-	_pselect;
 	_pthread_atfork;
 	_pthread_barrier_destroy;
 	_pthread_barrier_init;
@@ -719,16 +725,10 @@ global:
 	_sigtimedwait;
 	_sigwait;
 	_sigwaitinfo;
-	_sleep;
 	_spinlock;
 	_spinlock_debug;
 	_spinunlock;
-	_system;
-	_tcdrain;
-	_usleep;
 	_vfork;
-	_wait;
-	_waitpid;
 
 	# Debugger needs these.
 	_libthr_debug;
