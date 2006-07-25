@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 15, 2006
+.Dd July 25, 2006
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -561,7 +561,7 @@ When a packet matches a rule with the
 .Cm tag
 keyword, the numeric tag for the given
 .Ar number
-in the range 0..65535 will be attached to the packet.
+in the range 1..65534 will be attached to the packet.
 The tag acts as an internal marker (it is not sent out over
 the wire) that can be used to identify these packets later on.
 This can be used, for example, to provide trust between interfaces
