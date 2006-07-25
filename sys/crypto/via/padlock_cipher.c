@@ -210,8 +210,6 @@ padlock_cipher_process(struct padlock_session *ses, struct cryptodesc *enccrd,
 		return (ENOMEM);
 	/* Buffer has to be 16 bytes aligned. */
 	abuf = PADLOCK_ALIGN(buf);
-	if (!allocated && abuf != buf)
-		panic("allocated=%d abuf=%p buf=%p", allocated, abuf, buf);
 
 	if ((enccrd->crd_flags & CRD_F_KEY_EXPLICIT) != 0) {
 		padlock_cipher_key_setup(ses, enccrd->crd_key,
