@@ -723,30 +723,31 @@ udf_vptofh (struct vnode *vp, struct fid *fhp)
 static int
 udf_find_partmaps(struct udf_mnt *udfmp, struct logvol_desc *lvd)
 {
-	union udf_pmap *pmap;
 	struct part_map_spare *pms;
 	struct regid *pmap_id;
 	struct buf *bp;
 	unsigned char regid_id[UDF_REGID_ID_SIZE + 1];
 	int i, k, ptype, psize, error;
+	uint8_t *pmap = (uint8_t *) &lvd->maps[0];
 
 	for (i = 0; i < le32toh(lvd->n_pm); i++) {
-		pmap = (union udf_pmap *)&lvd->maps[i * UDF_PMAP_SIZE];
-		ptype = pmap->data[0];
-		psize = pmap->data[1];
+		ptype = pmap[0];
+		psize = pmap[1];
 		if (((ptype != 1) && (ptype != 2)) ||
-		    ((psize != UDF_PMAP_SIZE) && (psize != 6))) {
+		    ((psize != UDF_PMAP_TYPE1_SIZE) &&
+		     (psize != UDF_PMAP_TYPE2_SIZE))) {
 			printf("Invalid partition map found\n");
 			return (1);
 		}
 
 		if (ptype == 1) {
 			/* Type 1 map.  We don't care */
+			pmap += UDF_PMAP_TYPE1_SIZE;
 			continue;
 		}
 
 		/* Type 2 map.  Gotta find out the details */
-		pmap_id = (struct regid *)&pmap->data[4];
+		pmap_id = (struct regid *)&pmap[4];
 		bzero(&regid_id[0], UDF_REGID_ID_SIZE);
 		bcopy(&pmap_id->id[0], &regid_id[0], UDF_REGID_ID_SIZE);
 
@@ -756,7 +757,8 @@ udf_find_partmaps(struct udf_mnt *udfmp, struct logvol_desc *lvd)
 			return (1);
 		}
 
-		pms = &pmap->pms;
+		pms = (struct part_map_spare *)pmap;
+		pmap += UDF_PMAP_TYPE2_SIZE;
 		MALLOC(udfmp->s_table, struct udf_sparing_table *,
 		    le32toh(pms->st_size), M_UDFMOUNT, M_NOWAIT | M_ZERO);
 		if (udfmp->s_table == NULL)
