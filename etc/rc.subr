@@ -1358,12 +1358,12 @@ mount_md()
 
 # Code common to scripts that need to load a kernel module
 # if it isn't in the kernel yet. Syntax:
-#   load_kld [-e regexp] [-m modname] filename
+#   load_kld [-e regex] [-m module] file
 # where -e or -m chooses the way to check if the module
 # is already loaded:
-#   regexp is egrep'd in the output from `kldstat -v',
-#   modname is passed to `kldstat -m'.
-# The default way is as though `-m filename' were specified.
+#   regex is egrep'd in the output from `kldstat -v',
+#   module is passed to `kldstat -m'.
+# The default way is as though `-m file' were specified.
 load_kld()
 {
 	local _loaded _mod _opt _re
@@ -1372,9 +1372,13 @@ load_kld()
 		case "$_opt" in
 		e) _re="$OPTARG" ;;
 		m) _mod="$OPTARG" ;;
+		*) err 3 'USAGE: load_kld [-e regex] [-m module] file' ;;
 		esac
 	done
 	shift $(($OPTIND - 1))
+	if [ $# -ne 1 ]; then
+		err 3 'USAGE: load_kld [-e regex] [-m module] file'
+	fi
 	_mod=${_mod:-$1}
 	_loaded=false
 	if [ -n "$_re" ]; then
@@ -1390,7 +1394,11 @@ load_kld()
 		if ! kldload "$1"; then
 			warn "Unable to load kernel module $1"
 			return 1
+		else
+			info "$1 kernel module loaded."
 		fi
+	else
+		debug "load_kld: $1 kernel module already loaded."
 	fi
 	return 0
 }
