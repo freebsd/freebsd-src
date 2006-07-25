@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 ACPI_MODULE_NAME("THERMAL")
 
 #define TZ_ZEROC	2732
-#define TZ_KELVTOC(x)	(((x) - TZ_ZEROC) / 10), (((x) - TZ_ZEROC) % 10)
+#define TZ_KELVTOC(x)	(((x) - TZ_ZEROC) / 10), abs(((x) - TZ_ZEROC) % 10)
 
 #define TZ_NOTIFY_TEMPERATURE	0x80 /* Temperature changed. */
 #define TZ_NOTIFY_LEVELS	0x81 /* Cooling levels changed. */
@@ -132,6 +132,7 @@ static void	acpi_tz_getparam(struct acpi_tz_softc *sc, char *node,
 static void	acpi_tz_sanity(struct acpi_tz_softc *sc, int *val, char *what);
 static int	acpi_tz_active_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_tz_cooling_sysctl(SYSCTL_HANDLER_ARGS);
+static int	acpi_tz_temp_sysctl(SYSCTL_HANDLER_ARGS);
 static void	acpi_tz_notify_handler(ACPI_HANDLE h, UINT32 notify,
 				       void *context);
 static void	acpi_tz_signal(struct acpi_tz_softc *sc, int flags);
@@ -163,8 +164,9 @@ static struct sysctl_ctx_list	acpi_tz_sysctl_ctx;
 static struct sysctl_oid	*acpi_tz_sysctl_tree;
 
 /* Minimum cooling run time */
-static int			acpi_tz_min_runtime = 0;
+static int			acpi_tz_min_runtime;
 static int			acpi_tz_polling_rate = TZ_POLLRATE;
+static int			acpi_tz_override;
 
 /* Timezone polling thread */
 static struct proc		*acpi_tz_proc;
@@ -249,6 +251,10 @@ acpi_tz_attach(device_t dev)
 		       SYSCTL_CHILDREN(acpi_tz_sysctl_tree),
 		       OID_AUTO, "polling_rate", CTLFLAG_RW,
 		       &acpi_tz_polling_rate, 0, "monitor polling rate");
+	SYSCTL_ADD_INT(&acpi_tz_sysctl_ctx,
+		       SYSCTL_CHILDREN(acpi_tz_sysctl_tree), OID_AUTO,
+		       "user_override", CTLFLAG_RW, &acpi_tz_override, 0,
+		       "allow override of thermal settings");
     }
     sysctl_ctx_init(&sc->tz_sysctl_ctx);
     sprintf(oidname, "tz%d", device_get_unit(dev));
@@ -261,23 +267,29 @@ acpi_tz_attach(device_t dev)
 		      "current thermal zone temperature");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
 		    OID_AUTO, "active", CTLTYPE_INT | CTLFLAG_RW,
-		    sc, 0, acpi_tz_active_sysctl, "I", "");
+		    sc, 0, acpi_tz_active_sysctl, "I", "cooling is active");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
 		    OID_AUTO, "passive_cooling", CTLTYPE_INT | CTLFLAG_RW,
-		    sc, 0, acpi_tz_cooling_sysctl, "I", "");
+		    sc, 0, acpi_tz_cooling_sysctl, "I",
+		    "enable passive (speed reduction) cooling");
 
     SYSCTL_ADD_INT(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
 		   OID_AUTO, "thermal_flags", CTLFLAG_RD,
 		   &sc->tz_thflags, 0, "thermal zone flags");
-    SYSCTL_ADD_OPAQUE(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-		      OID_AUTO, "_PSV", CTLFLAG_RD, &sc->tz_zone.psv,
-		      sizeof(sc->tz_zone.psv), "IK", "");
-    SYSCTL_ADD_OPAQUE(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-		      OID_AUTO, "_HOT", CTLFLAG_RD, &sc->tz_zone.hot,
-		      sizeof(sc->tz_zone.hot), "IK", "");
-    SYSCTL_ADD_OPAQUE(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-		      OID_AUTO, "_CRT", CTLFLAG_RD, &sc->tz_zone.crt,
-		      sizeof(sc->tz_zone.crt), "IK", "");
+    SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
+		    OID_AUTO, "_PSV", CTLTYPE_INT | CTLFLAG_RW,
+		    sc, offsetof(struct acpi_tz_softc, tz_zone.psv),
+		    acpi_tz_temp_sysctl, "IK", "passive cooling temp setpoint");
+    SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
+		    OID_AUTO, "_HOT", CTLTYPE_INT | CTLFLAG_RW,
+		    sc, offsetof(struct acpi_tz_softc, tz_zone.hot),
+		    acpi_tz_temp_sysctl, "IK",
+		    "too hot temp setpoint (suspend now)");
+    SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
+		    OID_AUTO, "_CRT", CTLTYPE_INT | CTLFLAG_RW,
+		    sc, offsetof(struct acpi_tz_softc, tz_zone.crt),
+		    acpi_tz_temp_sysctl, "IK",
+		    "critical temp setpoint (shutdown now)");
     SYSCTL_ADD_OPAQUE(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
 		      OID_AUTO, "_ACx", CTLFLAG_RD, &sc->tz_zone.ac,
 		      sizeof(sc->tz_zone.ac), "IK", "");
@@ -698,6 +710,36 @@ acpi_tz_cooling_sysctl(SYSCTL_HANDLER_ARGS)
     }
     sc->tz_cooling_enabled = enabled;
     return (error);
+}
+
+static int
+acpi_tz_temp_sysctl(SYSCTL_HANDLER_ARGS)
+{
+    struct acpi_tz_softc	*sc;
+    int				temp, *temp_ptr;
+    int		 		error;
+
+    sc = oidp->oid_arg1;
+    temp_ptr = (int *)((uintptr_t)sc + oidp->oid_arg2);
+    temp = *temp_ptr;
+    error = sysctl_handle_int(oidp, &temp, 0, req);
+
+    /* Error or no new value */
+    if (error != 0 || req->newptr == NULL)
+	return (error);
+
+    /* Only allow changing settings if override is set. */
+    if (!acpi_tz_override)
+	return (EPERM);
+
+    /* Check user-supplied value for sanity. */
+    temp = (temp * 10) + TZ_ZEROC;
+    acpi_tz_sanity(sc, &temp, "user-supplied temp");
+    if (temp == -1)
+	return (EINVAL);
+
+    *temp_ptr = temp;
+    return (0);
 }
 
 static void
