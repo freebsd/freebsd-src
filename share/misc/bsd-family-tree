@@ -198,12 +198,13 @@ FreeBSD 5.2           |      |                 |                       |
  |     |     |        |      | NetBSD 2.1      |                       |
  |     |     |        |      |                 |                       |
  |     |     |        |   NetBSD 3.0           |                       |
- |     |     |        |      |                 |                 DragonFly 1.4.0
- |     |     |        |      |             OpenBSD 3.9                 |
- |  FreeBSD  |        |      |                 |                       |
- |    6.1    |        |      |                 |                       |
- |     |  FreeBSD 5.5 |      |                 |                       |
- |     V              |      |                 |                       |
+ |     |     |        |      | |               |                 DragonFly 1.4.0
+ |     |     |        |      | |           OpenBSD 3.9                 |
+ |  FreeBSD  |        |      | |               |                       |
+ |    6.1    |        |      | |               |                       |
+ |     |  FreeBSD 5.5 |      |  \              |                       |
+ |     V              |      | NetBSD 3.0.1    |                 DragonFly 1.6.0
+ |                    |      |                 |                       |
 FreeBSD 7 -current    |  NetBSD -current  OpenBSD -current             |
  |                    |      |                 |                       |
  v                    v      v                 v                       v
@@ -448,6 +449,8 @@ DragonFly 1.4.0		2006-01-08 [DFB]
 OpenBSD 3.9		2006-05-01 [OBD]
 FreeBSD 6.1		2006-05-08 [FBD]
 FreeBSD 5.5		2006-05-25 [FBD]
+NetBSD 3.0.1		2006-07-24 [NBD]
+DragonFly 1.6.0		2006-07-24 [DFB]
 
 Bibliography
 ------------------------
