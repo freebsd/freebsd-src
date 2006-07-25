@@ -524,6 +524,7 @@ aue_setmulti(struct aue_softc *sc)
 	struct ifnet		*ifp;
 	struct ifmultiaddr	*ifma;
 	u_int32_t		h = 0, i;
+	u_int8_t		hashtbl[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 	ifp = sc->aue_ifp;
 
@@ -533,10 +534,6 @@ aue_setmulti(struct aue_softc *sc)
 	}
 
 	AUE_CLRBIT(sc, AUE_CTL0, AUE_CTL0_ALLMULTI);
-
-	/* first, zot all the existing hash bits */
-	for (i = 0; i < 8; i++)
-		aue_csr_write_1(sc, AUE_MAR0 + i, 0);
 
 	/* now program new ones */
 	IF_ADDR_LOCK(ifp);
@@ -550,9 +547,13 @@ aue_setmulti(struct aue_softc *sc)
 			continue;
 		h = ether_crc32_le(LLADDR((struct sockaddr_dl *)
 		    ifma->ifma_addr), ETHER_ADDR_LEN) & ((1 << AUE_BITS) - 1);
-		AUE_SETBIT(sc, AUE_MAR + (h >> 3), 1 << (h & 0x7));
+		hashtbl[(h >> 3)] |=  1 << (h & 0x7);
 	}
 	IF_ADDR_UNLOCK(ifp);
+
+	/* write the hashtable */
+	for (i = 0; i < 8; i++)
+		aue_csr_write_1(sc, AUE_MAR0 + i, hashtbl[i]);
 
 	return;
 }
