@@ -123,13 +123,8 @@ static void init_main_thread(struct pthread *thread);
  * All weak references used within libc should be in this table.
  * This is so that static libraries will work.
  */
-STATIC_LIB_REQUIRE(_accept);
-STATIC_LIB_REQUIRE(_close);
-STATIC_LIB_REQUIRE(_connect);
-STATIC_LIB_REQUIRE(_fcntl);
-STATIC_LIB_REQUIRE(_fsync);
-STATIC_LIB_REQUIRE(_nanosleep);
-STATIC_LIB_REQUIRE(_open);
+
+STATIC_LIB_REQUIRE(_fork);
 STATIC_LIB_REQUIRE(_pthread_getspecific);
 STATIC_LIB_REQUIRE(_pthread_key_create);
 STATIC_LIB_REQUIRE(_pthread_key_delete);
@@ -143,20 +138,25 @@ STATIC_LIB_REQUIRE(_pthread_mutexattr_destroy);
 STATIC_LIB_REQUIRE(_pthread_mutexattr_settype);
 STATIC_LIB_REQUIRE(_pthread_once);
 STATIC_LIB_REQUIRE(_pthread_setspecific);
-STATIC_LIB_REQUIRE(_read);
-STATIC_LIB_REQUIRE(_readv);
-STATIC_LIB_REQUIRE(_recvfrom);
-STATIC_LIB_REQUIRE(_recvmsg);
-STATIC_LIB_REQUIRE(_select);
-STATIC_LIB_REQUIRE(_sendmsg);
-STATIC_LIB_REQUIRE(_sendto);
+STATIC_LIB_REQUIRE(_raise);
+STATIC_LIB_REQUIRE(_sem_destroy);
+STATIC_LIB_REQUIRE(_sem_getvalue);
+STATIC_LIB_REQUIRE(_sem_init);
+STATIC_LIB_REQUIRE(_sem_post);
+STATIC_LIB_REQUIRE(_sem_timedwait);
+STATIC_LIB_REQUIRE(_sem_trywait);
+STATIC_LIB_REQUIRE(_sem_wait);
 STATIC_LIB_REQUIRE(_sigaction);
 STATIC_LIB_REQUIRE(_sigprocmask);
 STATIC_LIB_REQUIRE(_sigsuspend);
+STATIC_LIB_REQUIRE(_sigtimedwait);
+STATIC_LIB_REQUIRE(_sigwait);
+STATIC_LIB_REQUIRE(_sigwaitinfo);
+STATIC_LIB_REQUIRE(_spinlock);
+STATIC_LIB_REQUIRE(_spinlock_debug);
+STATIC_LIB_REQUIRE(_spinunlock);
 STATIC_LIB_REQUIRE(_thread_init_hack);
-STATIC_LIB_REQUIRE(_wait4);
-STATIC_LIB_REQUIRE(_write);
-STATIC_LIB_REQUIRE(_writev);
+STATIC_LIB_REQUIRE(_vfork);
 
 /*
  * These are needed when linking statically.  All references within
