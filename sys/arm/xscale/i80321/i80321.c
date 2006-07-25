@@ -73,23 +73,6 @@ struct bus_space i80321_bs_tag;
  */
 struct i80321_softc *i80321_softc;
 
-/* Built-in devices. */
-static const struct iopxs_device {
-	const char *id_name;
-	bus_addr_t id_offset;
-	bus_size_t id_size;
-} iopxs_devices[] = {
-	{ "iopaau",	VERDE_AAU_BASE,		VERDE_AAU_SIZE },
-/*	{ "iopdma",	VERDE_DMA_BASE0,	VERDE_DMA_CHSIZE },	*/
-/*	{ "iopdma",	VERDE_DMA_BASE1,	VERDE_DMA_CHSIZE },	*/
-	{ "iopiic",	VERDE_I2C_BASE0,	VERDE_I2C_CHSIZE },
-	{ "iopiic",	VERDE_I2C_BASE1,	VERDE_I2C_CHSIZE },
-/*	{ "iopssp",	VERDE_SSP_BASE,		VERDE_SSP_SIZE },	*/
-	{ "iopmu",	VERDE_MU_BASE,		VERDE_MU_SIZE },
-	{ "iopwdog",	0,			0 },
-	{ NULL,		0,			0 }
-};
-
 #define PCI_MAPREG_MEM_ADDR(x) ((x) & 0xfffffff0)
 /*
  * i80321_attach:

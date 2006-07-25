@@ -291,7 +291,7 @@ cpu_reset()
 	(void) disable_interrupts(I32_bit|F32_bit);
 	*(__volatile uint32_t *)(IQ80321_80321_VBASE + VERDE_ATU_BASE +
 	    ATU_PCSR) = PCSR_RIB | PCSR_RPB;
-	printf("Reset failed :'(\n");
+	printf("Reset failed!\n");
 	for(;;);
 }
 
