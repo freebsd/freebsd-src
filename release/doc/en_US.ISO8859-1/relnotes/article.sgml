@@ -289,7 +289,7 @@
       memory in a kernel crash dump, the kernel now defaults to dumping only pages that are
       actively mapped into kernel virtual memory.  A new
       <varname>debug.minidump</varname> sysctl variable
-      can be used to turn off this behavior when set to zero.</para>
+      can be used to turn off this behavior when set to zero. &merged;</para>
 
     <para>A new sysctl variable <varname>kern.malloc_stats</varname>
       has been added.  This allows exporting of kernel malloc
