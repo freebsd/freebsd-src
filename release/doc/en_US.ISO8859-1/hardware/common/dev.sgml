@@ -276,6 +276,8 @@
 
     &hwlist.ste;
 
+    &hwlist.stge;
+
     &hwlist.ti;
 
     &hwlist.tl;
