@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -72,11 +72,11 @@ struct padlock_sha_ctx {
 };
 CTASSERT(sizeof(struct padlock_sha_ctx) <= sizeof(union authctx));
 
-static void	padlock_sha_init(struct padlock_sha_ctx *ctx);
-static int	padlock_sha_update(struct padlock_sha_ctx *ctx, uint8_t *buf,
-		    uint16_t bufsize);
-static void	padlock_sha1_final(uint8_t *hash, struct padlock_sha_ctx *ctx);
-static void	padlock_sha256_final(uint8_t *hash, struct padlock_sha_ctx *ctx);
+static void padlock_sha_init(struct padlock_sha_ctx *ctx);
+static int padlock_sha_update(struct padlock_sha_ctx *ctx, uint8_t *buf,
+    uint16_t bufsize);
+static void padlock_sha1_final(uint8_t *hash, struct padlock_sha_ctx *ctx);
+static void padlock_sha256_final(uint8_t *hash, struct padlock_sha_ctx *ctx);
 
 static struct auth_hash padlock_hmac_sha1 = {
 	CRYPTO_SHA1_HMAC, "HMAC-SHA1",
@@ -263,7 +263,7 @@ padlock_hash_key_setup(struct padlock_session *ses, caddr_t key, int klen)
 	for (i = 0; i < klen; i++)
 		key[i] ^= (HMAC_IPAD_VAL ^ HMAC_OPAD_VAL);
 
-	axf->Init(ses->ses_octx); 
+	axf->Init(ses->ses_octx);
 	axf->Update(ses->ses_octx, key, klen);
 	axf->Update(ses->ses_octx, hmac_opad_buffer, axf->blocksize - klen);
 
