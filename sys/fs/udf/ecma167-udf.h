@@ -201,8 +201,6 @@ struct logvol_desc {
 	uint8_t			maps[1];
 } __packed;
 
-#define	UDF_PMAP_SIZE	64
-
 /* Type 1 Partition Map [3/10.7.2] */
 struct part_map_1 {
 	uint8_t			type;
@@ -211,12 +209,16 @@ struct part_map_1 {
 	uint16_t		part_num;
 } __packed;
 
+#define	UDF_PMAP_TYPE1_SIZE	6
+
 /* Type 2 Partition Map [3/10.7.3] */
 struct part_map_2 {
 	uint8_t			type;
 	uint8_t			len;
 	uint8_t			part_id[62];
 } __packed;
+
+#define	UDF_PMAP_TYPE2_SIZE	64
 
 /* Virtual Partition Map [UDF 2.01/2.2.8] */
 struct part_map_virt {
@@ -245,7 +247,6 @@ struct part_map_spare {
 } __packed;
 
 union udf_pmap {
-	uint8_t			data[UDF_PMAP_SIZE];
 	struct part_map_1	pm1;
 	struct part_map_2	pm2;
 	struct part_map_virt	pmv;
