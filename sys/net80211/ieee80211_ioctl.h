@@ -446,6 +446,7 @@ struct ieee80211req {
 #define	IEEE80211_IOC_FRAGTHRESHOLD	73	/* tx fragmentation threshold */
 #define	IEEE80211_IOC_BURST		75	/* packet bursting */
 #define	IEEE80211_IOC_SCAN_RESULTS	76	/* get scan results */
+#define	IEEE80211_IOC_BMISSTHRESHOLD	77	/* beacon miss threshold */
 
 /*
  * Scan result data returned for IEEE80211_IOC_SCAN_RESULTS.
