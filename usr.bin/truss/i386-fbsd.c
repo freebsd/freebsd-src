@@ -118,7 +118,7 @@ i386_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   int syscall_num;
   int i;
   unsigned int parm_offset;
-  struct syscall *sc;
+  struct syscall *sc = NULL;
 
   if (fd == -1 || trussinfo->pid != cpid) {
     sprintf(buf, "/proc/%d/regs", trussinfo->pid);
