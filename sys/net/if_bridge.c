@@ -488,17 +488,14 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 
 	ifp->if_softc = sc;
 	if_initname(ifp, ifc->ifc_name, unit);
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_MULTICAST;
 	ifp->if_ioctl = bridge_ioctl;
-	ifp->if_output = bridge_output;
 	ifp->if_start = bridge_start;
 	ifp->if_init = bridge_init;
 	ifp->if_type = IFT_BRIDGE;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_hdrlen = ETHER_HDR_LEN;
 
 	/*
 	 * Generate a random ethernet address with a locally administered
