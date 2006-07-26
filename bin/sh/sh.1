@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd June 21, 2006
+.Dd July 26, 2006
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1361,9 +1361,8 @@ This section lists the commands which
 are built-in because they need to perform some operation
 that cannot be performed by a separate process.
 In addition to
-these, a built-in version of the
-.Xr test 1
-command is provided for efficiency.
+these, built-in versions of essential utilities
+are provided for efficiency.
 .Bl -tag -width indent
 .It Ic \&:
 A null command that returns a 0 (true) exit value.
@@ -1385,6 +1384,9 @@ for the file.
 If it is not found in the
 .Ev PATH ,
 it is sought in the current working directory.
+.It Ic \&[
+A built-in equivalent of
+.Xr test 1 .
 .It Ic alias Oo Ar name Ns Oo = Ns Ar string Oc ... Oc
 If
 .Ar name Ns = Ns Ar string
@@ -1961,6 +1963,9 @@ A shift sets the value of $1 to the value of $2,
 the value of $2 to the value of $3, and so on,
 decreasing the value of $# by one.
 If there are zero positional parameters, shifting does not do anything.
+.It Ic test
+A built-in equivalent of
+.Xr test 1 .
 .It Ic times
 Print the amount of time spent executing the shell and its children.
 The first output line shows the user and system times for the shell
