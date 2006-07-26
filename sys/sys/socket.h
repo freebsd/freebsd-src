@@ -208,7 +208,8 @@ struct accept_filter_arg {
 #define	AF_SCLUSTER	34		/* Sitara cluster protocol */
 #define	AF_ARP		35
 #define	AF_BLUETOOTH	36		/* Bluetooth sockets */
-#define	AF_MAX		37
+#define	AF_IEEE80211	37		/* IEEE 802.11 protocol */
+#define	AF_MAX		38
 #endif
 
 /*

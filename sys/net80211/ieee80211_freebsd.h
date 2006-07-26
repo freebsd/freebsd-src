@@ -225,4 +225,37 @@ struct ieee80211_michael_event {
 #define	RTM_IEEE80211_MICHAEL	107	/* Michael MIC failure detected */
 #define	RTM_IEEE80211_REJOIN	108	/* station re-associate (ap mode) */
 
+/*
+ * Structure prepended to raw packets sent through the bpf
+ * interface when set to DLT_IEEE802_11_RADIO.  This allows
+ * user applications to specify pretty much everything in
+ * an Atheros tx descriptor.  XXX need to generalize.
+ *
+ * XXX cannot be more than 14 bytes as it is copied to a sockaddr's
+ * XXX sa_data area.
+ */
+struct ieee80211_bpf_params {
+	uint8_t		ibp_vers;	/* version */
+#define	IEEE80211_BPF_VERSION	0
+	uint8_t		ibp_len;	/* header length in bytes */
+	uint8_t		ibp_flags;
+#define	IEEE80211_BPF_SHORTPRE	0x01	/* tx with short preamble */
+#define	IEEE80211_BPF_NOACK	0x02	/* tx with no ack */
+#define	IEEE80211_BPF_CRYPTO	0x04	/* tx with h/w encryption */
+#define	IEEE80211_BPF_FCS	0x10	/* frame incldues FCS */
+#define	IEEE80211_BPF_DATAPAD	0x20	/* frame includes data padding */
+#define	IEEE80211_BPF_RTS	0x40	/* tx with RTS/CTS */
+#define	IEEE80211_BPF_CTS	0x80	/* tx with CTS only */
+	uint8_t		ibp_pri;	/* WME/WMM AC+tx antenna */
+	uint8_t		ibp_try0;	/* series 1 try count */
+	uint8_t		ibp_rate0;	/* series 1 IEEE tx rate */
+	uint8_t		ibp_power;	/* tx power (device units) */
+	uint8_t		ibp_ctsrate;	/* IEEE tx rate for CTS */
+	uint8_t		ibp_try1;	/* series 2 try count */
+	uint8_t		ibp_rate1;	/* series 2 IEEE tx rate */
+	uint8_t		ibp_try2;	/* series 3 try count */
+	uint8_t		ibp_rate2;	/* series 3 IEEE tx rate */
+	uint8_t		ibp_try3;	/* series 4 try count */
+	uint8_t		ibp_rate3;	/* series 4 IEEE tx rate */
+};
 #endif /* _NET80211_IEEE80211_FREEBSD_H_ */
