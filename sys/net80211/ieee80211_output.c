@@ -204,6 +204,130 @@ ieee80211_mgmt_output(struct ieee80211com *ic, struct ieee80211_node *ni,
 }
 
 /*
+ * Raw packet transmit stub for legacy drivers.
+ * Send the packet through the mgt q so we bypass
+ * the normal encapsulation work.
+ */
+int
+ieee80211_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
+	const struct ieee80211_bpf_params *params)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ifnet *ifp = ic->ic_ifp;
+
+	m->m_pkthdr.rcvif = (void *) ni;
+	IF_ENQUEUE(&ic->ic_mgtq, m);
+	if_start(ifp);
+	ifp->if_opackets++;
+
+	return 0;
+}
+
+/*
+ * 802.11 output routine. This is (currently) used only to
+ * connect bpf write calls to the 802.11 layer for injecting
+ * raw 802.11 frames.  Note we locate the ieee80211com from
+ * the ifnet using a spare field setup at attach time.  This
+ * will go away when the virtual ap support comes in.
+ */
+int
+ieee80211_output(struct ifnet *ifp, struct mbuf *m,
+	struct sockaddr *dst, struct rtentry *rt0)
+{
+#define senderr(e) do { error = (e); goto bad;} while (0)
+	struct ieee80211com *ic = ifp->if_spare2;	/* XXX */
+	struct ieee80211_node *ni = NULL;
+	struct ieee80211_frame *wh;
+	int error;
+
+	/*
+	 * Hand to the 802.3 code if not tagged as
+	 * a raw 802.11 frame.
+	 */
+	if (dst->sa_family != AF_IEEE80211)
+		return ether_output(ifp, m, dst, rt0);
+#ifdef MAC
+	error = mac_check_ifnet_transmit(ifp, m);
+	if (error)
+		senderr(error);
+#endif
+	if (ifp->if_flags & IFF_MONITOR)
+		senderr(ENETDOWN);
+	if ((ifp->if_flags & IFF_UP) == 0)
+		senderr(ENETDOWN);
+
+	/* XXX bypass bridge, pfil, carp, etc. */
+
+	if (m->m_pkthdr.len < sizeof(struct ieee80211_frame_ack))
+		senderr(EIO);	/* XXX */
+	wh = mtod(m, struct ieee80211_frame *);
+	if ((wh->i_fc[0] & IEEE80211_FC0_VERSION_MASK) !=
+	    IEEE80211_FC0_VERSION_0)
+		senderr(EIO);	/* XXX */
+
+	/* locate destination node */
+	switch (wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) {
+	case IEEE80211_FC1_DIR_NODS:
+	case IEEE80211_FC1_DIR_FROMDS:
+		ni = ieee80211_find_txnode(ic, wh->i_addr1);
+		break;
+	case IEEE80211_FC1_DIR_TODS:
+	case IEEE80211_FC1_DIR_DSTODS:
+		if (m->m_pkthdr.len < sizeof(struct ieee80211_frame))
+			senderr(EIO);	/* XXX */
+		ni = ieee80211_find_txnode(ic, wh->i_addr3);
+		break;
+	default:
+		senderr(EIO);	/* XXX */
+	}
+	if (ni == NULL) {
+		/*
+		 * Permit packets w/ bpf params through regardless
+		 * (see below about sa_len).
+		 */
+		if (dst->sa_len == 0)
+			senderr(EHOSTUNREACH);
+		ni = ieee80211_ref_node(ic->ic_bss);
+	}
+
+	/* XXX ctrl frames should go through */
+	if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
+	    (m->m_flags & M_PWR_SAV) == 0) {
+		/*
+		 * Station in power save mode; pass the frame
+		 * to the 802.11 layer and continue.  We'll get
+		 * the frame back when the time is right.
+		 */
+		ieee80211_pwrsave(ic, ni, m);
+		error = 0;
+		goto reclaim;
+	}
+
+	/* calculate priority so drivers can find the tx queue */
+	/* XXX assumes an 802.3 frame */
+	if (ieee80211_classify(ic, m, ni))
+		senderr(EIO);		/* XXX */
+
+	BPF_MTAP(ifp, m);
+	/*
+	 * NB: DLT_IEEE802_11_RADIO identifies the parameters are
+	 * present by setting the sa_len field of the sockaddr (yes,
+	 * this is a hack).
+	 * NB: we assume sa_data is suitably aligned to cast.
+	 */
+	return ic->ic_raw_xmit(ni, m, (const struct ieee80211_bpf_params *)
+		(dst->sa_len ? dst->sa_data : NULL));
+bad:
+	if (m != NULL)
+		m_freem(m);
+reclaim:
+	if (ni != NULL)
+		ieee80211_free_node(ni);
+	return error;
+#undef senderr
+}
+
+/*
  * Send a null data frame to the specified node.
  *
  * NB: the caller is assumed to have setup a node reference

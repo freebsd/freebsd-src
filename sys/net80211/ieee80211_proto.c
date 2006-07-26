@@ -114,6 +114,7 @@ ieee80211_proto_attach(struct ieee80211com *ic)
 	/* initialize management frame handlers */
 	ic->ic_recv_mgmt = ieee80211_recv_mgmt;
 	ic->ic_send_mgmt = ieee80211_send_mgmt;
+	ic->ic_raw_xmit = ieee80211_raw_xmit;
 }
 
 void

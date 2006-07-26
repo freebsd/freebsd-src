@@ -64,6 +64,11 @@ int	ieee80211_setup_rates(struct ieee80211_node *ni,
 void	ieee80211_saveie(u_int8_t **, const u_int8_t *);
 void	ieee80211_recv_mgmt(struct ieee80211com *, struct mbuf *,
 		struct ieee80211_node *, int, int, u_int32_t);
+struct ieee80211_bpf_params;
+int	ieee80211_raw_xmit(struct ieee80211_node *, struct mbuf *,
+		const struct ieee80211_bpf_params *);
+int	ieee80211_output(struct ifnet *, struct mbuf *,
+		struct sockaddr *, struct rtentry *);
 int	ieee80211_send_nulldata(struct ieee80211_node *);
 int	ieee80211_send_probereq(struct ieee80211_node *ni,
 		const u_int8_t sa[IEEE80211_ADDR_LEN],
