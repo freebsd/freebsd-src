@@ -21,6 +21,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20060725:
+	enigma(1)/crypt(1) utility has been changed on 64 bit architectures.
+	Now it can decrypt files created from different architectures.
+	Unfortunately, it is no longer able to decrypt a cipher text
+	generated with an older version on 64 bit architectures.
+	If you have such a file, you need old utility to decrypt it.
+
 20060709:
  	The interface version of the i4b kernel part has changed. So
  	after updating the kernel sources and compiling a new kernel,
