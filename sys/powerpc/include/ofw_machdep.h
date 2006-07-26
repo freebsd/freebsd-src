@@ -30,7 +30,7 @@
 
 #include <sys/bus.h>
 
+int  OF_decode_addr(phandle_t, int, bus_space_tag_t *, bus_space_handle_t *);
 void OF_getetheraddr(device_t dev, u_char *addr);
-int mem_valid(vm_offset_t addr, int len);
 
 #endif /* _MACHINE_OFW_MACHDEP_H_ */
