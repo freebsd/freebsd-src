@@ -59,6 +59,8 @@ struct pcb {
 
 #ifdef	_KERNEL
 
+struct trapframe;
+
 #ifndef curpcb
 extern struct pcb *curpcb;
 #endif
