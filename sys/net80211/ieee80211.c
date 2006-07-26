@@ -126,6 +126,8 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	int i;
 
 	ether_ifattach(ifp, ic->ic_myaddr);
+	ifp->if_output = ieee80211_output;
+
 	bpfattach2(ifp, DLT_IEEE802_11,
 	    sizeof(struct ieee80211_frame_addr4), &ic->ic_rawbpf);
 
@@ -209,6 +211,9 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	 */
 	if (ic->ic_reset == NULL)
 		ic->ic_reset = ieee80211_default_reset;
+
+	KASSERT(ifp->if_spare2 == NULL, ("oops, hosed"));
+	ifp->if_spare2 = ic;			/* XXX temp backpointer */
 }
 
 void

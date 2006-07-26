@@ -75,6 +75,8 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
+#include <net80211/ieee80211_freebsd.h>
+
 static MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
 
 #if defined(DEV_BPF) || defined(NETGRAPH_BPF)
@@ -159,6 +161,7 @@ static int
 bpf_movein(struct uio *uio, int linktype, int mtu, struct mbuf **mp,
     struct sockaddr *sockp, struct bpf_insn *wfilter)
 {
+	const struct ieee80211_bpf_params *p;
 	struct mbuf *m;
 	int error;
 	int len;
@@ -221,6 +224,17 @@ bpf_movein(struct uio *uio, int linktype, int mtu, struct mbuf **mp,
 		hlen = 4;	/* This should match PPP_HDRLEN */
 		break;
 
+	case DLT_IEEE802_11:		/* IEEE 802.11 wireless */
+		sockp->sa_family = AF_IEEE80211;
+		hlen = 0;
+		break;
+
+	case DLT_IEEE802_11_RADIO:	/* IEEE 802.11 wireless w/ phy params */
+		sockp->sa_family = AF_IEEE80211;
+		sockp->sa_len = 12;	/* XXX != 0 */
+		hlen = sizeof(struct ieee80211_bpf_params);
+		break;
+
 	default:
 		return (EIO);
 	}
@@ -263,6 +277,23 @@ bpf_movein(struct uio *uio, int linktype, int mtu, struct mbuf **mp,
 	 * Make room for link header, and copy it to sockaddr
 	 */
 	if (hlen != 0) {
+		if (sockp->sa_family == AF_IEEE80211) {
+			/*
+			 * Collect true length from the parameter header
+			 * NB: sockp is known to be zero'd so if we do a
+			 *     short copy unspecified parameters will be
+			 *     zero.
+			 * NB: packet may not be aligned after stripping
+			 *     bpf params
+			 * XXX check ibp_vers
+			 */
+			p = mtod(m, const struct ieee80211_bpf_params *);
+			hlen = p->ibp_len;
+			if (hlen > sizeof(sockp->sa_data)) {
+				error = EINVAL;
+				goto bad;
+			}
+		}
 		bcopy(m->m_data, sockp->sa_data, hlen);
 		m->m_pkthdr.len -= hlen;
 		m->m_len -= hlen;
