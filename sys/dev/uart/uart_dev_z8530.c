@@ -383,7 +383,7 @@ z8530_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 {
 	struct z8530_softc *z8530 = (struct z8530_softc*)sc;
 	struct uart_bas *bas;
-	int error;
+	int baudrate, divisor, error;
 
 	bas = &sc->sc_bas;
 	error = 0;
@@ -396,6 +396,12 @@ z8530_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 			z8530->tpc &= ~TPC_BRK;
 		uart_setmreg(bas, WR_TPC, z8530->tpc);
 		uart_barrier(bas);
+		break;
+	case UART_IOCTL_BAUD:
+		divisor = uart_getmreg(bas, RR_TCH);
+		divisor = (divisor << 8) | uart_getmreg(bas, RR_TCL);
+		baudrate = bas->rclk / 2 / (divisor + 2);
+		*(int*)data = baudrate;
 		break;
 	default:
 		error = EINVAL;
