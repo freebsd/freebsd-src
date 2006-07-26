@@ -133,13 +133,6 @@ struct ifbreq {
 #define	IFBF_FLUSHDYN		0x00	/* flush learned addresses only */
 #define	IFBF_FLUSHALL		0x01	/* flush all addresses */
 
-/* STP port states */
-#define	BSTP_IFSTATE_DISABLED	0
-#define	BSTP_IFSTATE_LISTENING	1
-#define	BSTP_IFSTATE_LEARNING	2
-#define	BSTP_IFSTATE_FORWARDING	3
-#define	BSTP_IFSTATE_BLOCKING	4
-
 /*
  * Interface list structure.
  */
@@ -200,53 +193,14 @@ struct ifbrparam {
 #define	ifbrp_maxage	ifbrp_ifbrpu.ifbrpu_int8	/* max age (sec) */
 
 #ifdef _KERNEL
-/*
- * Timekeeping structure used in spanning tree code.
- */
-struct bridge_timer {
-	uint16_t	active;
-	uint16_t	value;
-};
-
-struct bstp_config_unit {
-	uint64_t	cu_rootid;
-	uint64_t	cu_bridge_id;
-	uint32_t	cu_root_path_cost;
-	uint16_t	cu_message_age;
-	uint16_t	cu_max_age;
-	uint16_t	cu_hello_time;
-	uint16_t	cu_forward_delay;
-	uint16_t	cu_port_id;
-	uint8_t		cu_message_type;
-	uint8_t		cu_topology_change_acknowledgment;
-	uint8_t		cu_topology_change;
-};
-
-struct bstp_tcn_unit {
-	uint8_t		tu_message_type;
-};
 
 /*
  * Bridge interface list entry.
  */
 struct bridge_iflist {
 	LIST_ENTRY(bridge_iflist) bif_next;
-	uint64_t		bif_designated_root;
-	uint64_t		bif_designated_bridge;
-	uint32_t		bif_path_cost;
-	uint32_t		bif_designated_cost;
-	struct bridge_timer	bif_hold_timer;
-	struct bridge_timer	bif_message_age_timer;
-	struct bridge_timer	bif_forward_delay_timer;
-	struct bstp_config_unit	bif_config_bpdu;
-	uint16_t		bif_port_id;
-	uint16_t		bif_designated_port;
-	uint8_t			bif_state;
-	uint8_t			bif_topology_change_acknowledge;
-	uint8_t			bif_config_pending;
-	uint8_t			bif_change_detection_enabled;
-	uint8_t			bif_priority;
 	struct ifnet		*bif_ifp;	/* member if */
+	struct bstp_port	bif_stp;	/* STP state */
 	uint32_t		bif_flags;	/* member if flags */
 	int			bif_mutecap;	/* member muted caps */
 };
@@ -271,29 +225,10 @@ struct bridge_softc {
 	LIST_ENTRY(bridge_softc) sc_list;
 	struct mtx		sc_mtx;
 	struct cv		sc_cv;
-	uint64_t		sc_designated_root;
-	uint64_t		sc_bridge_id;
-	struct bridge_iflist	*sc_root_port;
-	uint32_t		sc_root_path_cost;
-	uint16_t		sc_max_age;
-	uint16_t		sc_hello_time;
-	uint16_t		sc_forward_delay;
-	uint16_t		sc_bridge_max_age;
-	uint16_t		sc_bridge_hello_time;
-	uint16_t		sc_bridge_forward_delay;
-	uint16_t		sc_topology_change_time;
-	uint16_t		sc_hold_time;
-	uint16_t		sc_bridge_priority;
-	uint8_t			sc_topology_change_detected;
-	uint8_t			sc_topology_change;
-	struct bridge_timer	sc_hello_timer;
-	struct bridge_timer	sc_topology_change_timer;
-	struct bridge_timer	sc_tcn_timer;
 	uint32_t		sc_brtmax;	/* max # of addresses */
 	uint32_t		sc_brtcnt;	/* cur. # of addresses */
 	uint32_t		sc_brttimeout;	/* rt timeout in seconds */
 	struct callout		sc_brcallout;	/* bridge callout */
-	struct callout		sc_bstpcallout;	/* STP callout */
 	uint32_t		sc_iflist_ref;	/* refcount for sc_iflist */
 	uint32_t		sc_iflist_xcnt;	/* refcount for sc_iflist */
 	LIST_HEAD(, bridge_iflist) sc_iflist;	/* member interface list */
@@ -301,7 +236,7 @@ struct bridge_softc {
 	LIST_HEAD(, bridge_rtnode) sc_rtlist;	/* list version of above */
 	uint32_t		sc_rthash_key;	/* key for hash */
 	LIST_HEAD(, bridge_iflist) sc_spanlist;	/* span ports list */
-	struct bridge_timer	sc_link_timer;
+	struct bstp_state	sc_stp;		/* STP state */
 };
 
 #define BRIDGE_LOCK_INIT(_sc)		do {			\
@@ -356,8 +291,6 @@ struct bridge_softc {
 	_err = (*bridge_output_p)(_ifp, _m, NULL, NULL);	\
 } while (0)
 
-extern const uint8_t bstp_etheraddr[];
-
 void	bridge_enqueue(struct bridge_softc *, struct ifnet *, struct mbuf *);
 void	bridge_rtdelete(struct bridge_softc *, struct ifnet *ifp, int);
 
@@ -365,12 +298,5 @@ extern	struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *);
 extern	int (*bridge_output_p)(struct ifnet *, struct mbuf *,
 		struct sockaddr *, struct rtentry *);
 extern	void (*bridge_dn_p)(struct mbuf *, struct ifnet *);
-extern	void (*bstp_linkstate_p)(struct ifnet *ifp, int state);
-
-void	bstp_initialization(struct bridge_softc *);
-void	bstp_linkstate(struct ifnet *, int);
-void	bstp_stop(struct bridge_softc *);
-struct mbuf *bstp_input(struct ifnet *, struct mbuf *);
-
 
 #endif /* _KERNEL */
