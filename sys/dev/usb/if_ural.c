@@ -163,6 +163,8 @@ Static void		ural_set_txantenna(struct ural_softc *, int);
 Static void		ural_set_rxantenna(struct ural_softc *, int);
 Static void		ural_init(void *);
 Static void		ural_stop(void *);
+static int		ural_raw_xmit(struct ieee80211_node *, struct mbuf *,
+			    const struct ieee80211_bpf_params *);
 Static void		ural_amrr_start(struct ural_softc *,
 			    struct ieee80211_node *);
 Static void		ural_amrr_timeout(void *);
@@ -507,6 +509,7 @@ USB_ATTACH(ural)
 	/* override state transition machine */
 	sc->sc_newstate = ic->ic_newstate;
 	ic->ic_newstate = ural_newstate;
+	ic->ic_raw_xmit = ural_raw_xmit;
 	ieee80211_media_init(ic, ural_media_change, ieee80211_media_status);
 
 	bpfattach2(ifp, DLT_IEEE802_11_RADIO,
@@ -1230,6 +1233,74 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		xferlen += 2;
 
 	DPRINTFN(10, ("sending mgt frame len=%u rate=%u xfer len=%u\n",
+	    m0->m_pkthdr.len, rate, xferlen));
+
+	usbd_setup_xfer(data->xfer, sc->sc_tx_pipeh, data, data->buf,
+	    xferlen, USBD_FORCE_SHORT_XFER | USBD_NO_COPY, RAL_TX_TIMEOUT,
+	    ural_txeof);
+
+	error = usbd_transfer(data->xfer);
+	if (error != USBD_NORMAL_COMPLETION && error != USBD_IN_PROGRESS)
+		return error;
+
+	sc->tx_queued++;
+
+	return 0;
+}
+
+Static int
+ural_tx_raw(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
+    const struct ieee80211_bpf_params *params)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ural_tx_desc *desc;
+	struct ural_tx_data *data;
+	uint32_t flags;
+	usbd_status error;
+	int xferlen, rate;
+
+	data = &sc->tx_data[0];
+	desc = (struct ural_tx_desc *)data->buf;
+
+	rate = params->ibp_rate0 & IEEE80211_RATE_VAL;
+	/* XXX validate */
+	if (rate == 0)
+		return EINVAL;
+
+	if (bpf_peers_present(sc->sc_drvbpf)) {
+		struct ural_tx_radiotap_header *tap = &sc->sc_txtap;
+
+		tap->wt_flags = 0;
+		tap->wt_rate = rate;
+		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
+		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
+		tap->wt_antenna = sc->tx_ant;
+
+		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_txtap_len, m0);
+	}
+
+	data->m = m0;
+	data->ni = ni;
+
+	flags = 0;
+	if ((params->ibp_flags & IEEE80211_BPF_NOACK) == 0)
+		flags |= RAL_TX_ACK;
+
+	m_copydata(m0, 0, m0->m_pkthdr.len, data->buf + RAL_TX_DESC_SIZE);
+	/* XXX need to setup descriptor ourself */
+	ural_setup_tx_desc(sc, desc, flags, m0->m_pkthdr.len, rate);
+
+	/* align end on a 2-bytes boundary */
+	xferlen = (RAL_TX_DESC_SIZE + m0->m_pkthdr.len + 1) & ~1;
+
+	/*
+	 * No space left in the last URB to store the extra 2 bytes, force
+	 * sending of another URB.
+	 */
+	if ((xferlen % 64) == 0)
+		xferlen += 2;
+
+	DPRINTFN(10, ("sending raw frame len=%u rate=%u xfer len=%u\n",
 	    m0->m_pkthdr.len, rate, xferlen));
 
 	usbd_setup_xfer(data->xfer, sc->sc_tx_pipeh, data, data->buf,
@@ -2246,6 +2317,53 @@ ural_stop(void *priv)
 
 	ural_free_rx_list(sc);
 	ural_free_tx_list(sc);
+}
+
+static int
+ural_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
+	const struct ieee80211_bpf_params *params)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ifnet *ifp = ic->ic_ifp;
+	struct ural_softc *sc = ifp->if_softc;
+
+	/* prevent management frames from being sent if we're not ready */
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+		return ENETDOWN;
+	if (sc->tx_queued >= RAL_TX_LIST_COUNT) {
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		return EIO;
+	}
+
+	if (bpf_peers_present(ic->ic_rawbpf))
+		bpf_mtap(ic->ic_rawbpf, m);
+
+	ifp->if_opackets++;
+
+	if (params == NULL) {
+		/*
+		 * Legacy path; interpret frame contents to decide
+		 * precisely how to send the frame.
+		 */
+		if (ural_tx_mgt(sc, m, ni) != 0)
+			goto bad;
+	} else {
+		/*
+		 * Caller supplied explicit parameters to use in
+		 * sending the frame.
+		 */
+		if (ural_tx_raw(sc, m, ni, params) != 0)
+			goto bad;
+	}
+	sc->sc_tx_timer = 5;
+	ifp->if_timer = 1;
+
+	return 0;
+bad:
+	ifp->if_oerrors++;
+	if (ni != NULL)
+		ieee80211_free_node(ni);
+	return EIO;		/* XXX */
 }
 
 #define URAL_AMRR_MIN_SUCCESS_THRESHOLD	 1
