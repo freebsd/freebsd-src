@@ -119,7 +119,7 @@ scc_bfe_attach(device_t dev)
 	} else
 		sc = sc0;
 
-	size = abs(cl->cl_range);
+	size = abs(cl->cl_range) << sc->sc_bas.regshft;
 
 	mtx_init(&sc->sc_hwmtx, "scc_hwmtx", NULL, MTX_SPIN);
 
@@ -351,7 +351,7 @@ scc_bfe_probe(device_t dev, u_int regshft, u_int rclk)
 	if (device_get_desc(dev) == NULL)
 		device_set_desc(dev, cl->name);
 
-	size = abs(cl->cl_range);
+	size = abs(cl->cl_range) << regshft;
 
 	/*
 	 * Allocate the register resource. We assume that all SCCs have a
