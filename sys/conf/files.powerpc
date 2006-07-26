@@ -125,7 +125,7 @@ powerpc/powermac/uninorth.c	optional	powermac pci
 powerpc/psim/iobus.c 		optional psim
 powerpc/psim/ata_iobus.c	optional ata psim
 powerpc/psim/openpic_iobus.c	optional psim
-powerpc/psim/sio_iobus.c	optional sio psim
+powerpc/psim/uart_iobus.c	optional uart psim
 
 dev/scc/scc_bfe_macio.c		optional	scc powermac
 dev/zs/zs.c			optional	powermac zs
