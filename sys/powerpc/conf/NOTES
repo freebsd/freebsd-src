@@ -20,7 +20,6 @@ options		SC_OFWFB		# OFW frame buffer
 # Standard busses
 device		pci
 
-device		zs		# Zilog 8350 based serial ports
 device		gem		# Sun GEM/Sun ERI/Apple GMAC
 device		ofwd		# Open Firmware disks
 
@@ -31,6 +30,7 @@ device		ofwd		# Open Firmware disks
 nodevice	atkbdc
 nodevice	atkbd
 nodevice	psm
+nodevice	sio
 nodevice	vga
 nodevice	fdc
 nodevice	ppc
@@ -52,16 +52,12 @@ nodevice	star_saver
 nodevice	snake_saver
 # needs outsw use fixed
 nodevice	cs
-# XXX can't remember why
-nodevice	uart
 # isa
 nodevice	pcii
 nodevice	tnt4882
 # wants gdb_cur
 nodevice	dcons
 nodevice	dcons_crom
-# not yet
-nodevice	sio
 
 
 #####################################################################
