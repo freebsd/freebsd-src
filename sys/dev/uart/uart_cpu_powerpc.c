@@ -29,9 +29,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bus.h>
 
 #include <machine/bus.h>
+
+#include <dev/ofw/openfirm.h>
+#include <machine/ofw_machdep.h>
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
@@ -43,12 +45,63 @@ int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {
 
-	return (0);
+	return ((b1->bsh == b2->bsh) ? 1 : 0);
 }
 
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
+	char buf[64];
+	phandle_t input, opts;
+	int error;
 
-	return (ENXIO);
+	if ((opts = OF_finddevice("/options")) == -1)
+		return (ENXIO);
+	switch (devtype) {
+	case UART_DEV_CONSOLE:
+		if (OF_getprop(opts, "input-device", buf, sizeof(buf)) == -1)
+			return (ENXIO);
+		input = OF_finddevice(buf);
+		if (input == -1)
+			return (ENXIO);
+		if (OF_getprop(opts, "output-device", buf, sizeof(buf)) == -1)
+			return (ENXIO);
+		if (OF_finddevice(buf) != input)
+			return (ENXIO);
+		break;
+	case UART_DEV_DBGPORT:
+		if (!getenv_string("hw.uart.dbgport", buf, sizeof(buf)))
+			return (ENXIO);
+		input = OF_finddevice(buf);
+		if (input == -1)
+			return (ENXIO);
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	if (OF_getprop(input, "device_type", buf, sizeof(buf)) == -1)
+		return (ENXIO);
+	if (strcmp(buf, "serial") != 0)
+		return (ENXIO);
+	if (OF_getprop(input, "name", buf, sizeof(buf)) == -1)
+		return (ENXIO);
+	if (strcmp(buf, "ch-a"))
+		return (ENXIO);
+
+	error = OF_decode_addr(input, 0, &di->bas.bst, &di->bas.bsh);
+	if (error)
+		return (error);
+
+	di->ops = uart_z8530_ops;
+
+	di->bas.rclk = 230400;
+	di->bas.chan = 1;
+	di->bas.regshft = 4;
+
+	di->baudrate = 0;
+	di->databits = 8;
+	di->stopbits = 1;
+	di->parity = UART_PARITY_NONE;
+	return (0);
 }
