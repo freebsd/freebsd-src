@@ -4,7 +4,7 @@
 
 .PATH:	${.CURDIR}/../../net
 KMOD=	if_bridge
-SRCS=	if_bridge.c bridgestp.c opt_inet.h opt_inet6.h opt_carp.h
+SRCS=	if_bridge.c opt_inet.h opt_inet6.h opt_carp.h
 
 .if !defined(KERNBUILDDIR)
 opt_inet.h:
