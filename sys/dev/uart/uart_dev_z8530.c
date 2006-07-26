@@ -43,6 +43,13 @@ __FBSDID("$FreeBSD$");
 
 #define	DEFAULT_RCLK	307200
 
+/* Hack! */
+#ifdef __powerpc__
+#define	UART_PCLK	0
+#else
+#define	UART_PCLK	MCB2_PCLK
+#endif
+
 /* Multiplexed I/O. */
 static __inline void
 uart_setmreg(struct uart_bas *bas, int reg, int val)
@@ -124,7 +131,7 @@ z8530_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	} else
 		divisor = -1;
 
-	uart_setmreg(bas, WR_MCB2, MCB2_PCLK);
+	uart_setmreg(bas, WR_MCB2, UART_PCLK);
 	uart_barrier(bas);
 
 	if (divisor >= 0) {
@@ -140,7 +147,7 @@ z8530_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	uart_barrier(bas);
 	uart_setmreg(bas, WR_TPC, tpc);
 	uart_barrier(bas);
-	uart_setmreg(bas, WR_MCB2, MCB2_PCLK | MCB2_BRGE);
+	uart_setmreg(bas, WR_MCB2, UART_PCLK | MCB2_BRGE);
 	uart_barrier(bas);
 	*tpcp = tpc;
 	return (0);
@@ -167,7 +174,7 @@ z8530_setup(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	uart_barrier(bas);
 	/* Set clock sources. */
 	uart_setmreg(bas, WR_CMC, CMC_RC_BRG | CMC_TC_BRG);
-	uart_setmreg(bas, WR_MCB2, MCB2_PCLK);
+	uart_setmreg(bas, WR_MCB2, UART_PCLK);
 	uart_barrier(bas);
 	/* Set data encoding. */
 	uart_setmreg(bas, WR_MCB1, MCB1_NRZ);
