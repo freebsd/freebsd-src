@@ -461,11 +461,6 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 
 	sc->sc_brtmax = BRIDGE_RTABLE_MAX;
 	sc->sc_brttimeout = BRIDGE_RTABLE_TIMEOUT;
-	sc->sc_stp.bs_bridge_max_age = BSTP_DEFAULT_MAX_AGE;
-	sc->sc_stp.bs_bridge_hello_time = BSTP_DEFAULT_HELLO_TIME;
-	sc->sc_stp.bs_bridge_forward_delay = BSTP_DEFAULT_FORWARD_DELAY;
-	sc->sc_stp.bs_bridge_priority = BSTP_DEFAULT_BRIDGE_PRIORITY;
-	sc->sc_stp.bs_hold_time = BSTP_DEFAULT_HOLD_TIME;
 
 	/* Initialize our routing table. */
 	bridge_rtable_init(sc);
