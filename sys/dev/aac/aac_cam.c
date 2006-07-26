@@ -383,6 +383,7 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			ccb->ccb_h.status = CAM_REQ_CMP;
 			xpt_done(ccb);
+			mtx_unlock(&sc->aac_io_lock);
 			return;
 		}
 	default:
