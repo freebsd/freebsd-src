@@ -443,7 +443,6 @@ uipc_detach(struct socket *so)
 		struct unpcb *ref = LIST_FIRST(&unp->unp_refs);
 		unp_drop(ref, ECONNRESET);
 	}
-	soisdisconnected(unp->unp_socket);
 	unp->unp_socket->so_pcb = NULL;
 	local_unp_rights = unp_rights;
 	UNP_UNLOCK();
