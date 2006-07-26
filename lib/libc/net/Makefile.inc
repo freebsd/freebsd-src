@@ -21,7 +21,11 @@ SRCS+=	nscache.c nscachedcli.c
 
 SYM_MAPS+=${.CURDIR}/net/Symbol.map
 
-CFLAGS+=-DINET6 -I${.OBJDIR}
+.if ${MK_INET6_SUPPORT} != "no"
+CFLAGS+=-DINET6
+.endif
+
+CFLAGS+=-I${.OBJDIR}
 
 # name6.c refers res_private.h
 CFLAGS+=-I${.CURDIR}/resolv
