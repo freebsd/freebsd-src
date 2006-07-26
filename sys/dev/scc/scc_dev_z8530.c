@@ -62,7 +62,7 @@ struct scc_class scc_z8530_class = {
 	.cl_channels = 2,
 	.cl_class = SCC_CLASS_Z8530,
 	.cl_modes = SCC_MODE_ASYNC | SCC_MODE_BISYNC | SCC_MODE_HDLC,
-	.cl_range = (CHAN_B - CHAN_A) << 1,
+	.cl_range = CHAN_B - CHAN_A,
 };
 
 /* Multiplexed I/O. */
