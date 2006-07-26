@@ -40,8 +40,6 @@
 
 #include "libc_private.h"
 
-/* XXX not sure what variants to use for arm. */
-
 __weak_reference(__libc_allocate_tls, _rtld_allocate_tls);
 __weak_reference(__libc_free_tls, _rtld_free_tls);
 
