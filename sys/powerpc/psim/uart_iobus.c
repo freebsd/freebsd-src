@@ -47,62 +47,41 @@
 #include <dev/ofw/openfirm.h>
 #include <powerpc/psim/iobusvar.h>
 
-#include <dev/sio/sioreg.h>
-#include <dev/sio/siovar.h>
+#include <dev/uart/uart.h>
+#include <dev/uart/uart_bus.h>
 
-#include <isa/isavar.h>  /* for isa_irq_pending() prototype */
+static int uart_iobus_probe(device_t dev);
 
-static  int     sio_iobus_attach(device_t dev);
-static  int     sio_iobus_probe(device_t dev);
-
-static device_method_t sio_iobus_methods[] = {
+static device_method_t uart_iobus_methods[] = {
         /* Device interface */
-	DEVMETHOD(device_probe,         sio_iobus_probe),
-	DEVMETHOD(device_attach,        sio_iobus_attach),
+	DEVMETHOD(device_probe,		uart_iobus_probe),
+	DEVMETHOD(device_attach,	uart_bus_attach),
+	DEVMETHOD(device_detach,	uart_bus_detach),
 
 	{ 0, 0 }
 };
 
-static driver_t sio_iobus_driver = {
-	sio_driver_name,
-	sio_iobus_methods,
-	0,
+static driver_t uart_iobus_driver = {
+	uart_driver_name,
+	uart_iobus_methods,
+	sizeof(struct uart_softc),
 };
 
 static int
-sio_iobus_attach(device_t dev)
+uart_iobus_probe(device_t dev)
 {
-	return (sioattach(dev, 0, DEFAULT_RCLK));
-}
+	struct uart_softc *sc;
+	char *type;
 
-static int
-sio_iobus_probe(device_t dev)
-{
-	char *type = iobus_get_name(dev);
-
+	type = iobus_get_name(dev);
 	if (strncmp(type, "com", 3) != 0)
 		return (ENXIO);
 
+	sc = device_get_softc(dev);
+	sc->sc_class = &uart_ns8250_class;
 
 	device_set_desc(dev, "PSIM serial port");
-
-	/*
-	 * Call sioprobe with noprobe=1, to avoid hitting a psim bug
-	 */
-	return (sioprobe(dev, 0, 0, 1));
+	return (uart_bus_probe(dev, 0, 0, 0, 0));
 }
 
-DRIVER_MODULE(sio, iobus, sio_iobus_driver, sio_devclass, 0, 0);
-
-/*
- * Stub function. Perhaps a way to get this to work correctly would
- * be for child devices to set a field in the dev structure to
- * inform the parent that they are isa devices, and then use a
- * intr_pending() call which would propagate up to nexus to see
- * if the interrupt controller had any intrs in the isa group set
- */
-intrmask_t
-isa_irq_pending(void)
-{
-	return (0);
-}
+DRIVER_MODULE(uart, iobus, uart_iobus_driver, uart_devclass, 0, 0);
