@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
 
+#include <machine/bus.h>
+#include <machine/md_var.h>
 #include <machine/powerpc.h>
 #include <machine/ofw_machdep.h>
 #include <powerpc/ofw/ofw_pci.h>
@@ -282,6 +284,22 @@ OF_getetheraddr(device_t dev, u_char *addr)
 
 	node = ofw_pci_find_node(dev);
 	OF_getprop(node, "local-mac-address", addr, ETHER_ADDR_LEN);
+}
+
+/*
+ * Return the physical address and the bus space to use for a node
+ * referenced by its package handle and the index of the register bank
+ * to decode. Intended to be used by console drivers in early boot only.
+ * Works by mapping the address of the node's bank given in the address
+ * space of its parent upward in the device tree at each bridge along the
+ * path.
+ */
+int
+OF_decode_addr(phandle_t node, int bank, bus_space_tag_t *tag,
+    bus_space_handle_t *handle)
+{
+
+	return (ENXIO);
 }
 
 int

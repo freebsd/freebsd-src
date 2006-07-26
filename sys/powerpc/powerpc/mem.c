@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <machine/md_var.h>
-#include <machine/ofw_machdep.h>
 #include <machine/vmparam.h>
 
 #include <vm/vm.h>
