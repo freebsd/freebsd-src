@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <netdb.h>
 
 #include <stdio.h>
+#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 #include "netstat.h"
@@ -1030,7 +1031,9 @@ rip6_stats(u_long off __unused, const char *name, int af1 __unused)
 	mib[3] = IPV6CTL_RIP6STATS;
 	l = sizeof(rip6stat);
 	if (sysctl(mib, 4, &rip6stat, &l, NULL, 0) < 0) {
-		perror("Warning: sysctl(net.inet6.ip6.rip6stats)");
+		/* Just shut up if the kernel doesn't have ipv6. */
+		if (errno != ENOENT)
+			perror("Warning: sysctl(net.inet6.ip6.rip6stats)");
 		return;
 	}
 
