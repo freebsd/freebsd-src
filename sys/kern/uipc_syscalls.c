@@ -299,16 +299,17 @@ accept1(td, uap, compat)
 {
 	struct sockaddr *name;
 	socklen_t namelen;
+	struct file *fp;
 	int error;
 
 	if (uap->name == NULL)
-		return (kern_accept(td, uap->s, NULL, NULL));
+		return (kern_accept(td, uap->s, NULL, NULL, NULL));
 
 	error = copyin(uap->anamelen, &namelen, sizeof (namelen));
 	if (error)
 		return (error);
 
-	error = kern_accept(td, uap->s, &name, &namelen);
+	error = kern_accept(td, uap->s, &name, &namelen, &fp);
 
 	/*
 	 * return a namelen of zero for older code which might
@@ -332,14 +333,15 @@ accept1(td, uap, compat)
 		error = copyout(&namelen, uap->anamelen,
 		    sizeof(namelen));
 	if (error)
-		kern_close(td, td->td_retval[0]);
+		fdclose(td->td_proc->p_fd, fp, td->td_retval[0], td);
+	fdrop(fp, td);
 	free(name, M_SONAME);
 	return (error);
 }
 
 int
 kern_accept(struct thread *td, int s, struct sockaddr **name,
-    socklen_t *namelen)
+    socklen_t *namelen, struct file **fp)
 {
 	struct filedesc *fdp;
 	struct file *headfp, *nfp = NULL;
@@ -478,9 +480,17 @@ noconnection:
 		fdclose(fdp, nfp, fd, td);
 
 	/*
-	 * Release explicitly held references before returning.
+	 * Release explicitly held references before returning.  We return
+	 * a reference on nfp to the caller on success if they request it.
 	 */
 done:
+	if (fp != NULL) {
+		if (error == 0) {
+			*fp = nfp;
+			nfp = NULL;
+		} else
+			*fp = NULL;
+	}
 	if (nfp != NULL)
 		fdrop(nfp, td);
 	fdrop(headfp, td);
