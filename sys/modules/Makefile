@@ -179,7 +179,6 @@ SUBDIR=	${_3dfx} \
 	${_nve} \
 	${_nwfs} \
 	${_oltr} \
-	${_osf1} \
 	${_padlock} \
 	patm \
 	${_pccard} \
@@ -435,15 +434,6 @@ _canbus=	canbus
 _pmc=		pmc
 _snc=		snc
 .endif
-.endif
-
-.if ${MACHINE_ARCH} == "alpha"
-_agp=		agp
-_ahb=		ahb
-_ext2fs=	ext2fs
-_osf1=		osf1
-_sound=		sound
-_sppp=		sppp
 .endif
 
 .if ${MACHINE_ARCH} == "amd64"

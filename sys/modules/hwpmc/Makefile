@@ -10,10 +10,6 @@ SRCS=	hwpmc_mod.c hwpmc_logging.c vnode_if.h
 
 WARNS?=	2
 
-.if ${MACHINE_ARCH} == "alpha"
-SRCS+=	hwpmc_alpha.c
-.endif
-
 .if ${MACHINE_ARCH} == "amd64"
 SRCS+=	hwpmc_amd.c hwpmc_piv.c hwpmc_x86.c
 SRCS+=	device_if.h bus_if.h
