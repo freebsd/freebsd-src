@@ -19,7 +19,6 @@ PROG=	ndp
 MAN=	ndp.8
 SRCS=	ndp.c gmt2local.c
 
-CFLAGS+= -DINET6
 CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/../../contrib/tcpdump
 CFLAGS+= -D_U_=""
 
