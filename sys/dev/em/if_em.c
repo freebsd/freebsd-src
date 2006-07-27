@@ -2811,7 +2811,7 @@ em_allocate_receive_structures(struct em_softc *sc)
 				MCLBYTES,		/* maxsize */
 				1,			/* nsegments */
 				MCLBYTES,		/* maxsegsize */
-				BUS_DMA_ALLOCNOW,	/* flags */
+				0,			/* flags */
 				NULL,			/* lockfunc */
 				NULL,			/* lockarg */
 				&sc->rxtag);
