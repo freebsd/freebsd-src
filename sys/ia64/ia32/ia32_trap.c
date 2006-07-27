@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pioctl.h>
 #include <sys/proc.h>
+#include <sys/ptrace.h>
 #include <sys/signalvar.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
@@ -125,6 +126,8 @@ ia32_syscall(struct trapframe *tf)
 
 		STOPEVENT(p, S_SCE, narg);
 
+		PTRACESTOP_SC(p, td, S_PT_SCE);
+
 		error = (*callp->sy_call)(td, args64);
 	}
 
@@ -187,6 +190,8 @@ ia32_syscall(struct trapframe *tf)
 	 * is not the case, this code will need to be revisited.
 	 */
 	STOPEVENT(p, S_SCX, code);
+ 
+	PTRACESTOP_SC(p, td, S_PT_SCX);
 
 	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
 	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
