@@ -22,13 +22,6 @@ SRCS=	rtsold.c rtsol.c if.c probe.c rtsock.c
 NO_MAN=
 WARNS?=	0
 
-# after NO_MAN
-.include <bsd.own.mk>
-
 CFLAGS+= -DHAVE_ARC4RANDOM -DHAVE_POLL_H -DSMALL
-
-.if ${MK_INET6_SUPPORT} != "no"
-CFLAGS+= -DINET6 
-.endif
 
 .include <bsd.prog.mk>
