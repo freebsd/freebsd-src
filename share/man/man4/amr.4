@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 30, 2005
+.Dd March 29, 2006
 .Dt AMR 4
 .Os
 .Sh NAME
@@ -52,6 +52,10 @@ driver provides support for LSI Logic MegaRAID SCSI, ATA and SATA
 RAID controllers and legacy American Megatrends MegaRAID
 SCSI RAID controllers, including models relabeled
 and sold by Dell and Hewlett-Packard.
+.Pp
+LSI MegaRAID SAS controllers are supported by
+.Xr mfi 4
+and will not work with this driver.
 .Sh HARDWARE
 Controllers supported by the
 .Nm
@@ -221,6 +225,7 @@ An I/O error has occurred.
 .Sh SEE ALSO
 .Xr cd 4 ,
 .Xr da 4 ,
+.Xr mfi 4 ,
 .Xr sa 4 ,
 .Xr scsi 4
 .Sh AUTHORS
