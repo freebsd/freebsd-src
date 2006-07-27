@@ -85,9 +85,7 @@ static void break_syscall(struct trapframe *tf);
  */
 extern struct fpswa_iface *fpswa_iface;
 
-#ifdef WITNESS
 extern char *syscallnames[];
-#endif
 
 static const char *ia64_vector_names[] = {
 	"VHPT Translation",			/* 0 */
@@ -1049,6 +1047,19 @@ syscall(struct trapframe *tf)
 	}
 
 	/*
+	 * Check for misbehavior.
+	 */
+	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
+	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
+	KASSERT(td->td_critnest == 0,
+	    ("System call %s returning in a critical section",
+	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???"));
+	KASSERT(td->td_locks == 0,
+	    ("System call %s returning with %d locks held",
+	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???",
+	    td->td_locks));
+
+	/*
 	 * Handle reschedule and other end-of-syscall issues
 	 */
 	userret(td, tf);
@@ -1068,11 +1079,6 @@ syscall(struct trapframe *tf)
 	STOPEVENT(p, S_SCX, code);
 
 	PTRACESTOP_SC(p, td, S_PT_SCX);
-
-	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
-	mtx_assert(&sched_lock, MA_NOTOWNED);
-	mtx_assert(&Giant, MA_NOTOWNED);
 
 	return (error);
 }
