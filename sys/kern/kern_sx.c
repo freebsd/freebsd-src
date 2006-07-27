@@ -128,6 +128,7 @@ _sx_slock(struct sx *sx, const char *file, int line)
 
 	LOCK_LOG_LOCK("SLOCK", &sx->sx_object, 0, 0, file, line);
 	WITNESS_LOCK(&sx->sx_object, 0, file, line);
+	curthread->td_locks++;
 
 	mtx_unlock(sx->sx_lock);
 }
@@ -141,6 +142,7 @@ _sx_try_slock(struct sx *sx, const char *file, int line)
 		sx->sx_cnt++;
 		LOCK_LOG_TRY("SLOCK", &sx->sx_object, 0, 1, file, line);
 		WITNESS_LOCK(&sx->sx_object, LOP_TRYLOCK, file, line);
+		curthread->td_locks++;
 		mtx_unlock(sx->sx_lock);
 		return (1);
 	} else {
@@ -184,6 +186,7 @@ _sx_xlock(struct sx *sx, const char *file, int line)
 
 	LOCK_LOG_LOCK("XLOCK", &sx->sx_object, 0, 0, file, line);
 	WITNESS_LOCK(&sx->sx_object, LOP_EXCLUSIVE, file, line);
+	curthread->td_locks++;
 
 	mtx_unlock(sx->sx_lock);
 }
@@ -199,6 +202,7 @@ _sx_try_xlock(struct sx *sx, const char *file, int line)
 		LOCK_LOG_TRY("XLOCK", &sx->sx_object, 0, 1, file, line);
 		WITNESS_LOCK(&sx->sx_object, LOP_EXCLUSIVE | LOP_TRYLOCK, file,
 		    line);
+		curthread->td_locks++;
 		mtx_unlock(sx->sx_lock);
 		return (1);
 	} else {
@@ -215,6 +219,7 @@ _sx_sunlock(struct sx *sx, const char *file, int line)
 	_sx_assert(sx, SX_SLOCKED, file, line);
 	mtx_lock(sx->sx_lock);
 
+	curthread->td_locks--;
 	WITNESS_UNLOCK(&sx->sx_object, 0, file, line);
 
 	/* Release. */
@@ -245,6 +250,7 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
 	mtx_lock(sx->sx_lock);
 	MPASS(sx->sx_cnt == -1);
 
+	curthread->td_locks--;
 	WITNESS_UNLOCK(&sx->sx_object, LOP_EXCLUSIVE, file, line);
 
 	/* Release. */
