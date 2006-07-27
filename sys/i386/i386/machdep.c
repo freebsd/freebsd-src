@@ -1643,6 +1643,7 @@ getmemsize(int first)
 	struct bios_smap *smap;
 	quad_t dcons_addr, dcons_size;
 
+	has_smap = 0;
 #ifdef XBOX
 	if (arch_i386_is_xbox) {
 		/*
@@ -1661,7 +1662,6 @@ getmemsize(int first)
 	bzero(&vmf, sizeof(vmf));
 	bzero(physmap, sizeof(physmap));
 	basemem = 0;
-	has_smap = 0;
 
 	/*
 	 * Some newer BIOSes has broken INT 12H implementation which cause
