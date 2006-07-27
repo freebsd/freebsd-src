@@ -1633,7 +1633,7 @@ static void
 getmemsize(int first)
 {
 	int i, physmap_idx, pa_indx, da_indx;
-	int hasbrokenint12;
+	int hasbrokenint12, has_smap;
 	u_long physmem_tunable;
 	u_int extmem;
 	struct vm86frame vmf;
@@ -1661,6 +1661,7 @@ getmemsize(int first)
 	bzero(&vmf, sizeof(vmf));
 	bzero(physmap, sizeof(physmap));
 	basemem = 0;
+	has_smap = 0;
 
 	/*
 	 * Some newer BIOSes has broken INT 12H implementation which cause
@@ -1742,6 +1743,7 @@ int15e820:
 		if (boothowto & RB_VERBOSE)
 			printf("SMAP type=%02x base=%016llx len=%016llx\n",
 			    smap->type, smap->base, smap->length);
+		has_smap = 1;
 
 		if (smap->type != 0x01)
 			continue;
@@ -1882,6 +1884,13 @@ physmap_done:
 
 	if (TUNABLE_ULONG_FETCH("hw.physmem", &physmem_tunable))
 		Maxmem = atop(physmem_tunable);
+
+	/*
+	 * If we have an SMAP, don't allow MAXMEM or hw.physmem to extend
+	 * the amount of memory in the system.
+	 */
+	if (has_smap && Maxmem > atop(physmap[physmap_idx + 1]))
+		Maxmem = atop(physmap[physmap_idx + 1]);
 
 	if (atop(physmap[physmap_idx + 1]) != Maxmem &&
 	    (boothowto & RB_VERBOSE))
