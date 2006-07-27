@@ -835,15 +835,13 @@ static void	arena_run_split(arena_t *arena, arena_run_t *run, bool large,
 static arena_chunk_t *arena_chunk_alloc(arena_t *arena);
 static void	arena_chunk_dealloc(arena_chunk_t *chunk);
 static void	arena_bin_run_promote(arena_t *arena, arena_bin_t *bin,
-    arena_run_t *run, size_t size);
+    arena_run_t *run);
 static void	arena_bin_run_demote(arena_t *arena, arena_bin_t *bin,
-    arena_run_t *run, size_t size);
+    arena_run_t *run);
 static arena_run_t *arena_run_alloc(arena_t *arena, bool large, size_t size);
 static void	arena_run_dalloc(arena_t *arena, arena_run_t *run, size_t size);
-static arena_run_t *arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin,
-    size_t size);
-static void *arena_bin_malloc_hard(arena_t *arena, arena_bin_t *bin,
-    size_t size);
+static arena_run_t *arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin);
+static void *arena_bin_malloc_hard(arena_t *arena, arena_bin_t *bin);
 static void	*arena_malloc(arena_t *arena, size_t size);
 static size_t	arena_salloc(const void *ptr);
 static void	*arena_ralloc(void *ptr, size_t size, size_t oldsize);
@@ -1778,8 +1776,7 @@ arena_chunk_dealloc(arena_chunk_t *chunk)
 }
 
 static void
-arena_bin_run_promote(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
-    size_t size)
+arena_bin_run_promote(arena_t *arena, arena_bin_t *bin, arena_run_t *run)
 {
 
 	assert(bin == run->bin);
@@ -1850,8 +1847,7 @@ arena_bin_run_promote(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
 }
 
 static void
-arena_bin_run_demote(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
-    size_t size)
+arena_bin_run_demote(arena_t *arena, arena_bin_t *bin, arena_run_t *run)
 {
 
 	assert(bin == run->bin);
@@ -2057,7 +2053,7 @@ arena_run_dalloc(arena_t *arena, arena_run_t *run, size_t size)
 }
 
 static arena_run_t *
-arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin, size_t size)
+arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin)
 {
 	arena_run_t *run;
 	unsigned i, remainder;
@@ -2118,8 +2114,7 @@ arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin, size_t size)
 
 /* bin->runcur must have space available before this function is called. */
 static inline void *
-arena_bin_malloc_easy(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
-    size_t size)
+arena_bin_malloc_easy(arena_t *arena, arena_bin_t *bin, arena_run_t *run)
 {
 	void *ret;
 
@@ -2131,7 +2126,7 @@ arena_bin_malloc_easy(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
 	run->nfree--;
 	if (run->nfree < run->free_min) {
 		/* Promote run to higher fullness quartile. */
-		arena_bin_run_promote(arena, bin, run, size);
+		arena_bin_run_promote(arena, bin, run);
 	}
 
 	return (ret);
@@ -2139,18 +2134,18 @@ arena_bin_malloc_easy(arena_t *arena, arena_bin_t *bin, arena_run_t *run,
 
 /* Re-fill bin->runcur, then call arena_bin_malloc_easy(). */
 static void *
-arena_bin_malloc_hard(arena_t *arena, arena_bin_t *bin, size_t size)
+arena_bin_malloc_hard(arena_t *arena, arena_bin_t *bin)
 {
 
 	assert(bin->runcur == NULL || bin->runcur->quartile == RUN_Q100);
 
-	bin->runcur = arena_bin_nonfull_run_get(arena, bin, size);
+	bin->runcur = arena_bin_nonfull_run_get(arena, bin);
 	if (bin->runcur == NULL)
 		return (NULL);
 	assert(bin->runcur->magic == ARENA_RUN_MAGIC);
 	assert(bin->runcur->nfree > 0);
 
-	return (arena_bin_malloc_easy(arena, bin, bin->runcur, size));
+	return (arena_bin_malloc_easy(arena, bin, bin->runcur));
 }
 
 static void *
@@ -2173,10 +2168,11 @@ arena_malloc(arena_t *arena, size_t size)
 			/* Tiny. */
 			size = pow2_ceil(size);
 			bin = &arena->bins[ffs(size >> (tiny_min_2pow + 1))];
-#ifdef MALLOC_STATS
+#if (!defined(NDEBUG) || defined(MALLOC_STATS))
 			/*
-			 * Bin calculation is always correct, but we may need to
-			 * fix size for the purposes of stats accuracy.
+			 * Bin calculation is always correct, but we may need
+			 * to fix size for the purposes of assertions and/or
+			 * stats accuracy.
 			 */
 			if (size < (1 << tiny_min_2pow))
 				size = (1 << tiny_min_2pow);
@@ -2196,9 +2192,9 @@ arena_malloc(arena_t *arena, size_t size)
 
 		malloc_mutex_lock(&arena->mtx);
 		if ((run = bin->runcur) != NULL)
-			ret = arena_bin_malloc_easy(arena, bin, run, size);
+			ret = arena_bin_malloc_easy(arena, bin, run);
 		else
-			ret = arena_bin_malloc_hard(arena, bin, size);
+			ret = arena_bin_malloc_hard(arena, bin);
 
 #ifdef MALLOC_STATS
 		bin->stats.nrequests++;
@@ -2343,7 +2339,7 @@ arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 		run->nfree++;
 		if (run->nfree > run->free_max) {
 			/* Demote run to lower fullness quartile. */
-			arena_bin_run_demote(arena, bin, run, size);
+			arena_bin_run_demote(arena, bin, run);
 		}
 	} else {
 		/* Medium allocation. */
