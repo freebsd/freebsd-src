@@ -103,7 +103,7 @@ SUBDIR=	ac \
 	${_named-checkzone} \
 	${_named.reload} \
 	${_ndiscvt} \
-	ndp \
+	${_ndp} \
 	newsyslog \
 	nfsd \
 	ngctl \
@@ -147,10 +147,10 @@ SUBDIR=	ac \
 	${_rpc.yppasswdd} \
 	${_rpc.ypupdated} \
 	${_rpc.ypxfrd} \
-	rrenumd \
-	rtadvd \
+	${_rrenumd} \
+	${_rtadvd} \
 	rtprio \
-	rtsold \
+	${_rtsold} \
 	rwhod \
 	sa \
 	${_sendmail} \
@@ -235,8 +235,12 @@ _keyserv=	keyserv
 
 .if ${MK_INET6} != "no"
 _mld6query=	mld6query
+_ndp=		ndp
 _rip6query=	rip6query
 _route6d=	route6d
+_rrenumd=	rrenumd
+_rtadvd=	rtadvd
+_rtsold=	rtsold
 _traceroute6=	traceroute6
 .endif
 
