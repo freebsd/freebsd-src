@@ -1637,10 +1637,12 @@ svr4_do_getmsg(td, uap, fp)
 	struct sockaddr *sa;
 	socklen_t sasize;
 	struct svr4_strm *st;
+	struct file *afp;
 	int fl;
 
 	retval = td->td_retval;
 	error = 0;
+	afp = NULL;
 
 	FILE_LOCK_ASSERT(fp, MA_NOTOWNED);
 
@@ -1778,7 +1780,7 @@ svr4_do_getmsg(td, uap, fp)
 		 * We are after a listen, so we try to accept...
 		 */
 
-		error = kern_accept(td, uap->fd, &sa, &sasize);
+		error = kern_accept(td, uap->fd, &sa, &sasize, &afp);
 		if (error) {
 			DPRINTF(("getmsg: accept failed %d\n", error));
 			return error;
@@ -1809,6 +1811,9 @@ svr4_do_getmsg(td, uap, fp)
 			break;
 
 		default:
+			fdclose(td->td_proc->p_fd, afp, st->s_afd, td);
+			fdrop(afp, td);
+			st->s_afd = -1;
 			free(sa, M_SONAME);
 			return ENOSYS;
 		}
@@ -1914,27 +1919,36 @@ svr4_do_getmsg(td, uap, fp)
 		return EINVAL;
 	}
 
-	/* XXX: We leak the accept fd if we get an error here. */
 	if (uap->ctl) {
 		if (ctl.len > sizeof(sc))
 			ctl.len = sizeof(sc);
 		if (ctl.len != -1)
-			if ((error = copyout(&sc, ctl.buf, ctl.len)) != 0)
-				return error;
+			error = copyout(&sc, ctl.buf, ctl.len);
 
-		if ((error = copyout(&ctl, uap->ctl, sizeof(ctl))) != 0)
-			return error;
+		if (error == 0)
+			error = copyout(&ctl, uap->ctl, sizeof(ctl));
 	}
 
 	if (uap->dat) {
-		if ((error = copyout(&dat, uap->dat, sizeof(dat))) != 0)
-			return error;
+		if (error == 0)
+			error = copyout(&dat, uap->dat, sizeof(dat));
 	}
 
 	if (uap->flags) { /* XXX: Need translation */
-		if ((error = copyout(&fl, uap->flags, sizeof(fl))) != 0)
-			return error;
+		if (error == 0)
+			error = copyout(&fl, uap->flags, sizeof(fl));
 	}
+
+	if (error) {
+		if (afp) {
+			fdclose(td->td_proc->p_fd, afp, st->s_afd, td);
+			fdrop(afp, td);
+			st->s_afd = -1;
+		}
+		return (error);
+	}
+	if (afp)
+		fdrop(afp, td);
 
 	*retval = 0;
 
