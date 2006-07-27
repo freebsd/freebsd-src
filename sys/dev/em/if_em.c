@@ -1388,13 +1388,13 @@ em_encap(struct em_softc *sc, struct mbuf **m_headp)
 	struct ifnet		*ifp = sc->ifp;
 	bus_dma_segment_t	segs[EM_MAX_SCATTER];
 	bus_dmamap_t		map;
-	struct em_buffer	*tx_buffer;
+	struct em_buffer	*tx_buffer, *tx_buffer_last;
 	struct em_tx_desc	*current_tx_desc;
 	struct mbuf		*m_head;
 	struct m_tag		*mtag;
 	uint32_t		txd_upper, txd_lower, txd_used, txd_saved;
 	int			nsegs, i, j;
-	int			error = 0;
+	int			error;
 
 	m_head = *m_headp;
 	current_tx_desc = NULL;
@@ -1416,9 +1416,10 @@ em_encap(struct em_softc *sc, struct mbuf **m_headp)
 	 * Map the packet for DMA.
 	 */
 	tx_buffer = &sc->tx_buffer_area[sc->next_avail_tx_desc];
-	error = bus_dmamap_load_mbuf_sg(sc->txtag, tx_buffer->map, m_head,
-	    segs, &nsegs, BUS_DMA_NOWAIT);
+	tx_buffer_last = tx_buffer;
 	map = tx_buffer->map;
+	error = bus_dmamap_load_mbuf_sg(sc->txtag, map, m_head, segs, &nsegs,
+	    BUS_DMA_NOWAIT);
 	if (error != 0) {
 		sc->no_tx_dma_setup++;
 		return (error);
@@ -1548,6 +1549,8 @@ em_encap(struct em_softc *sc, struct mbuf **m_headp)
 	}
 
 	tx_buffer->m_head = m_head;
+	tx_buffer_last->map = tx_buffer->map;
+	tx_buffer->map = map;
 	bus_dmamap_sync(sc->txtag, map, BUS_DMASYNC_PREWRITE);
 
 	/*
@@ -1572,7 +1575,7 @@ em_encap(struct em_softc *sc, struct mbuf **m_headp)
 	return (0);
 
 encap_fail:
-	bus_dmamap_unload(sc->txtag, tx_buffer->map);
+	bus_dmamap_unload(sc->txtag, map);
 	return (error);
 }
 
