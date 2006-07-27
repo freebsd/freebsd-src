@@ -89,4 +89,7 @@ int db_validate_address(vm_offset_t);
 
 u_int branch_taken (u_int insn, u_int pc);
 
+#ifdef __ARMEB__
+#define BYTE_MSF	(1)
+#endif
 #endif /* !_MACHINE_DB_MACHDEP_H_ */
