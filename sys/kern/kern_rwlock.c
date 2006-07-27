@@ -119,6 +119,7 @@ _rw_wlock(struct rwlock *rw, const char *file, int line)
 	__rw_wlock(rw, curthread, file, line);
 	LOCK_LOG_LOCK("WLOCK", &rw->rw_object, 0, 0, file, line);
 	WITNESS_LOCK(&rw->rw_object, LOP_EXCLUSIVE, file, line);
+	curthread->td_locks++;
 }
 
 void
@@ -127,6 +128,7 @@ _rw_wunlock(struct rwlock *rw, const char *file, int line)
 
 	MPASS(curthread != NULL);
 	_rw_assert(rw, RA_WLOCKED, file, line);
+	curthread->td_locks--;
 	WITNESS_UNLOCK(&rw->rw_object, LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("WUNLOCK", &rw->rw_object, 0, 0, file, line);
 	__rw_wunlock(rw, curthread, file, line);
@@ -266,6 +268,7 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 
 	LOCK_LOG_LOCK("RLOCK", &rw->rw_object, 0, 0, file, line);
 	WITNESS_LOCK(&rw->rw_object, 0, file, line);
+	curthread->td_locks++;
 }
 
 void
@@ -275,6 +278,7 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 	uintptr_t x;
 
 	_rw_assert(rw, RA_RLOCKED, file, line);
+	curthread->td_locks--;
 	WITNESS_UNLOCK(&rw->rw_object, 0, file, line);
 	LOCK_LOG_LOCK("RUNLOCK", &rw->rw_object, 0, 0, file, line);
 
