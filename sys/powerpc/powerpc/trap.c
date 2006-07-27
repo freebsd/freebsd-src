@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/pioctl.h>
+#include <sys/ptrace.h>
 #include <sys/reboot.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
@@ -420,6 +421,8 @@ syscall(struct trapframe *frame)
 
 		STOPEVENT(p, S_SCE, narg);
 
+		PTRACESTOP_SC(p, td, S_PT_SCE);
+
 		error = (*callp->sy_call)(td, params);
 
 		CTR3(KTR_SYSC, "syscall: p=%s %s ret=%x", p->p_comm,
@@ -476,6 +479,8 @@ syscall(struct trapframe *frame)
 	 * Does the comment in the i386 code about errno apply here?
 	 */
 	STOPEVENT(p, S_SCX, code);
+ 
+	PTRACESTOP_SC(p, td, S_PT_SCX);
 
 	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
 	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
