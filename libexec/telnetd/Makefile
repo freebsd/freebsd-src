@@ -14,12 +14,16 @@ MAN=		telnetd.8
 SRCS=		global.c slc.c state.c sys_term.c telnetd.c \
 		termstat.c utility.c
 
-CFLAGS+=	-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON \
-		-DENV_HACK \
-		-I${TELNETDIR} -DINET6
-
 WARNS?=		2
 WFORMAT?=	0
+
+CFLAGS+=	-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON -DENV_HACK
+
+.if ${MK_INET6_SUPPORT} != "no"
+CFLAGS+=	-DINET6
+.endif
+
+CFLAGS+=	-I${TELNETDIR}
 
 LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
 
