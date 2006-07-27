@@ -64,7 +64,7 @@ SUBDIR=	ac \
 	ifmcstat \
 	inetd \
 	iostat \
-	ip6addrctl \
+	${_ip6addrctl} \
 	ipfwpcap \
 	${_IPXrouted} \
 	jail \
@@ -234,6 +234,7 @@ _keyserv=	keyserv
 .endif
 
 .if ${MK_INET6} != "no"
+_ip6addrctl=	ip6addrctl
 _mld6query=	mld6query
 _ndp=		ndp
 _rip6query=	rip6query
