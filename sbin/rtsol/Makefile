@@ -15,14 +15,20 @@
 
 SRCDIR=	${.CURDIR}/../../usr.sbin/rtsold
 
+.PATH:	${SRCDIR}
+
 PROG=	rtsol
 SRCS=	rtsold.c rtsol.c if.c probe.c rtsock.c
-
-CFLAGS+=-DINET6 -DHAVE_ARC4RANDOM -DHAVE_POLL_H -DSMALL
+NO_MAN=
 WARNS?=	0
 
-NO_MAN=
+# after NO_MAN
+.include <bsd.own.mk>
 
-.PATH:	${SRCDIR}
+CFLAGS+= -DHAVE_ARC4RANDOM -DHAVE_POLL_H -DSMALL
+
+.if ${MK_INET6_SUPPORT} != "no"
+CFLAGS+= -DINET6 
+.endif
 
 .include <bsd.prog.mk>
