@@ -304,7 +304,11 @@ void
 tcp_trace(act, ostate, tp, family, ip, th, req)
 	short act, ostate;
 	struct tcpcb *tp;
+#ifdef INET6
 	int family;
+#else
+	int family __unused;
+#endif
 	void *ip;
 	struct tcphdr *th;
 	int req;
