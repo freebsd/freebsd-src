@@ -26,7 +26,9 @@ CFLAGS+=	-DRESCUE
 # libc/db/Makefile.inc
 CFLAGS+=	-D__DBINTERFACE_PRIVATE
 # libc/net/Makefile.inc & libutil/Makefile
+.if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=	-DINET6
+.endif
 # libc/regex/Makefile.inc & libc/regex/grot/Makefile
 CFLAGS+=	-DPOSIX_MISTAKE
 # libc/rpc/Makefile.inc
