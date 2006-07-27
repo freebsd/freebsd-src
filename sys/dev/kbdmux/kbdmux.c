@@ -657,6 +657,27 @@ next_code:
 	/* see if there is something in the keyboard queue */
 	scancode = getc(&state->ks_inq);
 	if (scancode == -1) {
+		if (state->ks_flags & POLLING) {
+			kbdmux_kbd_t	*k;
+
+			SLIST_FOREACH(k, &state->ks_kbds, next) {
+				while (KBDMUX_CHECK_CHAR(k->kbd)) {
+					scancode = KBDMUX_READ_CHAR(k->kbd, 0);
+					if (scancode == NOKEY)
+						break;
+					if (scancode == ERRKEY)
+						continue;
+					if (!KBD_IS_BUSY(k->kbd))
+						continue; 
+
+					putc(scancode, &state->ks_inq);
+				}
+			}
+
+			if (state->ks_inq.c_cc > 0)
+				goto next_code;
+		}
+
 		KBDMUX_UNLOCK(state);
 		return (NOKEY);
 	}
