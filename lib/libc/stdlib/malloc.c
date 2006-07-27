@@ -270,7 +270,7 @@ __FBSDID("$FreeBSD$");
 #  define SIZEOF_PTR		8
 #endif
 #ifdef __arm__
-#  define QUANTUM_2POW_MIN	3
+#  define QUANTUM_2POW_MIN	4
 #  define SIZEOF_PTR		4
 #  define USE_BRK
 #  define NO_TLS
