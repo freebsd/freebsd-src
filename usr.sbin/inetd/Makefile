@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG=	inetd
 MAN=	inetd.8
 MLINKS=	inetd.8 inetd.conf.5
@@ -10,11 +12,15 @@ WARNS?=	2
 CFLAGS+= -DLOGIN_CAP
 #CFLAGS+= -DSANITY_CHECK
 
+.if ${MK_INET6_SUPPORT} != "no"
+CFLAGS+= -DINET6
+.endif
+
 DPADD=	${LIBUTIL} ${LIBWRAP}
 LDADD=	-lutil -lwrap
 
 .if !defined(RELEASE_CRUNCH)
-CFLAGS+= -DINET6 -DIPSEC
+CFLAGS+= -DIPSEC
 DPADD+=	${LIBIPSEC}
 LDADD+=	-lipsec
 .endif
