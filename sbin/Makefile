@@ -78,7 +78,7 @@ SUBDIR=	adjkerntz \
 	restore \
 	route \
 	routed \
-	rtsol \
+	${_rtsol} \
 	savecore \
 	${_sconfig} \
 	setkey \
@@ -111,6 +111,7 @@ _pflogd=	pflogd
 
 .if ${MK_INET6} != "no"
 _ping6=		ping6
+_rtsol=		rtsol
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
