@@ -169,6 +169,51 @@ __FBSDID("$FreeBSD$");
  */
 #define	BRIDGE_IFCAPS_MASK		IFCAP_TXCSUM
 
+/*
+ * Bridge interface list entry.
+ */
+struct bridge_iflist {
+	LIST_ENTRY(bridge_iflist) bif_next;
+	struct ifnet		*bif_ifp;	/* member if */
+	struct bstp_port	bif_stp;	/* STP state */
+	uint32_t		bif_flags;	/* member if flags */
+	int			bif_mutecap;	/* member muted caps */
+};
+
+/*
+ * Bridge route node.
+ */
+struct bridge_rtnode {
+	LIST_ENTRY(bridge_rtnode) brt_hash;	/* hash table linkage */
+	LIST_ENTRY(bridge_rtnode) brt_list;	/* list linkage */
+	struct ifnet		*brt_ifp;	/* destination if */
+	unsigned long		brt_expire;	/* expiration time */
+	uint8_t			brt_flags;	/* address flags */
+	uint8_t			brt_addr[ETHER_ADDR_LEN];
+};
+
+/*
+ * Software state for each bridge.
+ */
+struct bridge_softc {
+	struct ifnet		*sc_ifp;	/* make this an interface */
+	LIST_ENTRY(bridge_softc) sc_list;
+	struct mtx		sc_mtx;
+	struct cv		sc_cv;
+	uint32_t		sc_brtmax;	/* max # of addresses */
+	uint32_t		sc_brtcnt;	/* cur. # of addresses */
+	uint32_t		sc_brttimeout;	/* rt timeout in seconds */
+	struct callout		sc_brcallout;	/* bridge callout */
+	uint32_t		sc_iflist_ref;	/* refcount for sc_iflist */
+	uint32_t		sc_iflist_xcnt;	/* refcount for sc_iflist */
+	LIST_HEAD(, bridge_iflist) sc_iflist;	/* member interface list */
+	LIST_HEAD(, bridge_rtnode) *sc_rthash;	/* our forwarding table */
+	LIST_HEAD(, bridge_rtnode) sc_rtlist;	/* list version of above */
+	uint32_t		sc_rthash_key;	/* key for hash */
+	LIST_HEAD(, bridge_iflist) sc_spanlist;	/* span ports list */
+	struct bstp_state	sc_stp;		/* STP state */
+};
+
 static struct mtx 	bridge_list_mtx;
 eventhandler_tag	bridge_detach_cookie = NULL;
 
@@ -189,6 +234,9 @@ static void	bridge_start(struct ifnet *);
 static struct mbuf *bridge_input(struct ifnet *, struct mbuf *);
 static int	bridge_output(struct ifnet *, struct mbuf *, struct sockaddr *,
 		    struct rtentry *);
+static void	bridge_enqueue(struct bridge_softc *, struct ifnet *,
+		    struct mbuf *);
+static void	bridge_rtdelete(struct bridge_softc *, struct ifnet *ifp, int);
 
 static void	bridge_forward(struct bridge_softc *, struct mbuf *m);
 
@@ -1469,7 +1517,7 @@ bridge_stop(struct ifnet *ifp, int disable)
  *	Enqueue a packet on a bridge member interface.
  *
  */
-__inline void
+static void
 bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 {
 	int len, err = 0;
@@ -2366,7 +2414,7 @@ bridge_rtdaddr(struct bridge_softc *sc, const uint8_t *addr)
  *
  *	Delete routes to a speicifc member interface.
  */
-void
+static void
 bridge_rtdelete(struct bridge_softc *sc, struct ifnet *ifp, int full)
 {
 	struct bridge_rtnode *brt, *nbrt;
