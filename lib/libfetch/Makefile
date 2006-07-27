@@ -4,12 +4,15 @@
 
 LIB=		fetch
 CFLAGS+=	-I.
-CFLAGS+=	-DINET6
 SRCS=		fetch.c common.c ftp.c http.c file.c \
 		ftperr.h httperr.h
 INCS=		fetch.h
 MAN=		fetch.3
 CLEANFILES=	ftperr.h httperr.h
+
+.if ${MK_INET6_SUPPORT} != "no"
+CFLAGS+=	-DINET6
+.endif
 
 .if ${MK_OPENSSL} != "no"
 CFLAGS+=	-DWITH_SSL

@@ -1,14 +1,19 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=		ftpio
 SHLIB_MAJOR=	6
 
 SRCS=		ftpio.c ftperr.c
 INCS=		ftpio.h
 CFLAGS+=	-I${.CURDIR} -Wall
-CFLAGS+=	-DINET6
 MAN=		ftpio.3
 CLEANFILES=	ftperr.c
+
+.if ${MK_INET6_SUPPORT} != "no"
+CFLAGS+=	-DINET6
+.endif
 
 ftperr.c:	ftp.errors
 	@echo '#include <stdio.h>' > ${.TARGET}
