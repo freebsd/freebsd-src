@@ -313,6 +313,8 @@ uart_tty_intr(void *arg)
 			c = xc & 0xff;
 			if (xc & UART_STAT_FRAMERR)
 				c |= TTY_FE;
+			if (xc & UART_STAT_OVERRUN)
+				c |= TTY_OE;
 			if (xc & UART_STAT_PARERR)
 				c |= TTY_PE;
 			ttyld_rint(tp, c);
