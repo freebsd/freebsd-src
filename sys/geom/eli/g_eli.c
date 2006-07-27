@@ -1030,4 +1030,4 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 }
 
 DECLARE_GEOM_CLASS(g_eli_class, g_eli);
-MODULE_DEPEND(geom_eli, crypto, 1, 1, 1);
+MODULE_DEPEND(g_eli, crypto, 1, 1, 1);
