@@ -266,7 +266,6 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
-	vfs_rel(mp);
 	if (error)
 		goto out;
 	if (suser(td)) {
@@ -277,6 +276,7 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	}
 	*buf = *sp;
 out:
+	vfs_rel(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	if (mtx_owned(&Giant))
 		printf("statfs(%d): %s: %d\n", vfslocked, path, error);
@@ -355,7 +355,6 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
-	vfs_rel(mp);
 	if (error)
 		goto out;
 	if (suser(td)) {
@@ -366,6 +365,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	}
 	*buf = *sp;
 out:
+	vfs_rel(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
