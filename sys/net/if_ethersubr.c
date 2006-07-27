@@ -59,6 +59,7 @@
 #include <net/if_types.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
+#include <net/bridgestp.h>
 #include <net/if_bridgevar.h>
 #include <net/if_vlan_var.h>
 
