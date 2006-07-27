@@ -18,7 +18,7 @@ PROG=	rrenumd
 MAN=	rrenumd.conf.5 rrenumd.8
 SRCS=	rrenumd.c  parser.y lexer.l
 
-CFLAGS+= -DINET6 -DIPSEC -I. -I${.CURDIR}
+CFLAGS+= -DIPSEC -I. -I${.CURDIR}
 YFLAGS=	-d
 
 LDADD=	-lipsec -ll -ly
