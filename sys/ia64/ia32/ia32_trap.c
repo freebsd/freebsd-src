@@ -46,9 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <i386/include/psl.h>
 
-#ifdef WITNESS
 extern char *syscallnames[];
-#endif
 
 static void
 ia32_syscall(struct trapframe *tf)
@@ -183,6 +181,19 @@ ia32_syscall(struct trapframe *tf)
 	}
 
 	/*
+	 * Check for misbehavior.
+	 */
+	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
+	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
+	KASSERT(td->td_critnest == 0,
+	    ("System call %s returning in a critical section",
+	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???"));
+	KASSERT(td->td_locks == 0,
+	    ("System call %s returning with %d locks held",
+	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???",
+	    td->td_locks));
+
+	/*
 	 * End of syscall tracing.
 	 */
 	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
@@ -200,11 +211,6 @@ ia32_syscall(struct trapframe *tf)
 	STOPEVENT(p, S_SCX, code);
  
 	PTRACESTOP_SC(p, td, S_PT_SCX);
-
-	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
-	mtx_assert(&sched_lock, MA_NOTOWNED);
-	mtx_assert(&Giant, MA_NOTOWNED);
 }
 
 /*

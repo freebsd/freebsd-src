@@ -159,9 +159,7 @@ static int panic_on_nmi = 1;
 SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RW,
 	&panic_on_nmi, 0, "Panic on NMI");
 
-#ifdef WITNESS
 extern char *syscallnames[];
-#endif
 
 /*
  * Exception, fault, and trap interface to the FreeBSD kernel.
@@ -1065,6 +1063,19 @@ syscall(frame)
 	}
 
 	/*
+	 * Check for misbehavior.
+	 */
+	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
+	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
+	KASSERT(td->td_critnest == 0,
+	    ("System call %s returning in a critical section",
+	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???"));
+	KASSERT(td->td_locks == 0,
+	    ("System call %s returning with %d locks held",
+	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???",
+	    td->td_locks));
+
+	/*
 	 * Handle reschedule and other end-of-syscall issues
 	 */
 	userret(td, &frame);
@@ -1085,10 +1096,5 @@ syscall(frame)
 	STOPEVENT(p, S_SCX, code);
 
 	PTRACESTOP_SC(p, td, S_PT_SCX);
-
-	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
-	mtx_assert(&sched_lock, MA_NOTOWNED);
-	mtx_assert(&Giant, MA_NOTOWNED);
 }
 
