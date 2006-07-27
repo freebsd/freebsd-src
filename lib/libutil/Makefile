@@ -8,16 +8,20 @@ SHLIBDIR?= /lib
 LIB=	util
 SHLIB_MAJOR= 6
 
-CFLAGS+=-DLIBC_SCCS -I${.CURDIR} -I${.CURDIR}/../libc/gen/
-.if ${MK_INET6_SUPPORT} != "no"
-CFLAGS+=-DINET6
-.endif
 SRCS=	_secure_path.c auth.c fparseln.c humanize_number.c kld.c login.c \
 	login_auth.c login_cap.c login_class.c login_crypt.c login_ok.c \
 	login_times.c login_tty.c logout.c logwtmp.c \
 	pidfile.c property.c pty.c pw_util.c realhostname.c stub.c \
 	trimdomain.c uucplock.c
 INCS=	libutil.h login_cap.h
+
+CFLAGS+= -DLIBC_SCCS
+
+.if ${MK_INET6_SUPPORT} != "no"
+CFLAGS+= -DINET6
+.endif
+
+CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../libc/gen/
 
 MAN+=	kld.3 login.3 login_auth.3 login_tty.3 logout.3 logwtmp.3 pty.3 \
 	login_cap.3 login_class.3 login_times.3 login_ok.3 \
