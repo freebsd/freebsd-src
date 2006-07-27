@@ -27,9 +27,12 @@
 #
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG=	setkey
 MAN=	setkey.8
 SRCS=	setkey.c parse.y token.l
+WARNS?=	1
 
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../../lib/libipsec
 YFLAGS=	-d
@@ -47,7 +50,11 @@ CFLAGS+= -I${.CURDIR}/../../lib/libipsec -I${.CURDIR}/../../sys/netkey
 
 SRCS+=	y.tab.h
 y.tab.h: parse.y
-CFLAGS+= -DIPSEC_DEBUG -DINET6 -DYY_NO_UNPUT -I.
+CFLAGS+= -DIPSEC_DEBUG -DYY_NO_UNPUT
+.if ${MK_INET6_SUPPORT} != "no"
+CFLAGS+= -DINET6
+.endif
+CFLAGS+= -I.
 DPADD+=	${LIBIPSEC}
 LDADD+=	-lipsec
 CLEANFILES+=	scriptdump y.tab.h
@@ -55,8 +62,6 @@ CLEANFILES+=	scriptdump y.tab.h
 #SCRIPTS= scriptdump
 
 LOCALPREFIX=	/usr
-
-WARNS=	1
 
 scriptdump: scriptdump.pl
 	sed -e 's#@LOCALPREFIX@#${LOCALPREFIX}#' < $> > scriptdump
