@@ -11,9 +11,6 @@ SRCS+=	agp_i810.c agp_intel.c agp_via.c agp_sis.c agp_ali.c agp_amd.c \
 .if ${MACHINE} == "i386"
 SRCS+=	agp_amd64.c
 .endif
-.if  ${MACHINE_ARCH} == "alpha"
-SRCS+=	agp_amd.c
-.endif
 .if  ${MACHINE_ARCH} == "amd64"
 SRCS+=	agp_amd64.c
 .endif
