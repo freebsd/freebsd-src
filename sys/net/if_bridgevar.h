@@ -194,51 +194,6 @@ struct ifbrparam {
 
 #ifdef _KERNEL
 
-/*
- * Bridge interface list entry.
- */
-struct bridge_iflist {
-	LIST_ENTRY(bridge_iflist) bif_next;
-	struct ifnet		*bif_ifp;	/* member if */
-	struct bstp_port	bif_stp;	/* STP state */
-	uint32_t		bif_flags;	/* member if flags */
-	int			bif_mutecap;	/* member muted caps */
-};
-
-/*
- * Bridge route node.
- */
-struct bridge_rtnode {
-	LIST_ENTRY(bridge_rtnode) brt_hash;	/* hash table linkage */
-	LIST_ENTRY(bridge_rtnode) brt_list;	/* list linkage */
-	struct ifnet		*brt_ifp;	/* destination if */
-	unsigned long		brt_expire;	/* expiration time */
-	uint8_t			brt_flags;	/* address flags */
-	uint8_t			brt_addr[ETHER_ADDR_LEN];
-};
-
-/*
- * Software state for each bridge.
- */
-struct bridge_softc {
-	struct ifnet		*sc_ifp;	/* make this an interface */
-	LIST_ENTRY(bridge_softc) sc_list;
-	struct mtx		sc_mtx;
-	struct cv		sc_cv;
-	uint32_t		sc_brtmax;	/* max # of addresses */
-	uint32_t		sc_brtcnt;	/* cur. # of addresses */
-	uint32_t		sc_brttimeout;	/* rt timeout in seconds */
-	struct callout		sc_brcallout;	/* bridge callout */
-	uint32_t		sc_iflist_ref;	/* refcount for sc_iflist */
-	uint32_t		sc_iflist_xcnt;	/* refcount for sc_iflist */
-	LIST_HEAD(, bridge_iflist) sc_iflist;	/* member interface list */
-	LIST_HEAD(, bridge_rtnode) *sc_rthash;	/* our forwarding table */
-	LIST_HEAD(, bridge_rtnode) sc_rtlist;	/* list version of above */
-	uint32_t		sc_rthash_key;	/* key for hash */
-	LIST_HEAD(, bridge_iflist) sc_spanlist;	/* span ports list */
-	struct bstp_state	sc_stp;		/* STP state */
-};
-
 #define BRIDGE_LOCK_INIT(_sc)		do {			\
 	mtx_init(&(_sc)->sc_mtx, "if_bridge", NULL, MTX_DEF);	\
 	cv_init(&(_sc)->sc_cv, "if_bridge_cv");			\
@@ -290,9 +245,6 @@ struct bridge_softc {
 	    ("%s: if_bridge not loaded!", __func__));		\
 	_err = (*bridge_output_p)(_ifp, _m, NULL, NULL);	\
 } while (0)
-
-void	bridge_enqueue(struct bridge_softc *, struct ifnet *, struct mbuf *);
-void	bridge_rtdelete(struct bridge_softc *, struct ifnet *ifp, int);
 
 extern	struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *);
 extern	int (*bridge_output_p)(struct ifnet *, struct mbuf *,

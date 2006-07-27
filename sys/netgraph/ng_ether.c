@@ -61,7 +61,6 @@
 #include <net/if_arp.h>
 #include <net/if_var.h>
 #include <net/ethernet.h>
-#include <net/bridgestp.h>
 #include <net/if_bridgevar.h>
 
 #include <netgraph/ng_message.h>

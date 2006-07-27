@@ -81,7 +81,6 @@
 
 #include <netinet/ip_encap.h>
 #include <net/ethernet.h>
-#include <net/bridgestp.h>
 #include <net/if_bridgevar.h>
 #include <net/if_gif.h>
 
