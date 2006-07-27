@@ -1007,6 +1007,8 @@ syscall(struct trapframe *tf)
 	if (KTRPOINT(td, KTR_SYSCALL))
 		ktrsyscall(code, (callp->sy_narg & SYF_ARGMASK), args);
 #endif
+	CTR4(KTR_SYSC, "syscall enter thread %p pid %d proc %s code %d", td,
+	    td->td_proc->p_pid, td->td_proc->p_comm, code);
 
 	td->td_retval[0] = 0;
 	td->td_retval[1] = 0;
@@ -1046,8 +1048,13 @@ syscall(struct trapframe *tf)
 		}
 	}
 
+	/*
+	 * Handle reschedule and other end-of-syscall issues
+	 */
 	userret(td, tf);
 
+	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
+	    td->td_proc->p_pid, td->td_proc->p_comm, code);
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))
 		ktrsysret(code, error, td->td_retval[0]);
