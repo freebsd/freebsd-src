@@ -13,13 +13,17 @@ SRCS=		commands.c main.c network.c ring.c sys_bsd.c \
 CFLAGS+=	-DKLUDGELINEMODE -DUSE_TERMIO -DENV_HACK -DOPIE \
 		-I${TELNETDIR} -I${TELNETDIR}/libtelnet/
 
+.if ${MK_INET6_SUPPORT} != "no"
+CFLAGS+=	-DINET6
+.endif
+
 LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
 
 DPADD=		${LIBTERMCAP} ${LIBTELNET}
 LDADD=		-ltermcap ${LIBTELNET}
 
 .if !defined(RELEASE_CRUNCH)
-CFLAGS+=	-DINET6 -DIPSEC
+CFLAGS+=	-DIPSEC
 DPADD+=		${LIBIPSEC}
 LDADD+=		-lipsec
 .else
