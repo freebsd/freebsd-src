@@ -34,6 +34,7 @@
 #include <sys/mac.h>
 #include <sys/mount.h>
 
+struct file;
 struct itimerval;
 struct image_args;
 struct mbuf;
@@ -51,7 +52,7 @@ struct sendfile_args;
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
 int	kern_accept(struct thread *td, int s, struct sockaddr **name,
-	    socklen_t *namelen);
+	    socklen_t *namelen, struct file **fp);
 int	kern_access(struct thread *td, char *path, enum uio_seg pathseg,
 	    int flags);
 int	kern_adjtime(struct thread *td, struct timeval *delta,
