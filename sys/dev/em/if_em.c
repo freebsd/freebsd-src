@@ -1412,6 +1412,45 @@ em_encap(struct em_softc *sc, struct mbuf **m_headp)
 		}
 	}
 
+	/* Find out if we are in vlan mode. */
+	mtag = VLAN_OUTPUT_TAG(ifp, m_head);
+
+	/*
+	 * When operating in promiscuous mode, hardware encapsulation for
+	 * packets is disabled.  This means we have to add the vlan
+	 * encapsulation in the driver, since it will have come down from the
+	 * VLAN layer with a tag instead of a VLAN header.
+	 */
+	if (mtag != NULL && sc->em_insert_vlan_header) {
+		struct ether_vlan_header *evl;
+		struct ether_header eh;
+
+		m_head = m_pullup(m_head, sizeof(eh));
+		if (m_head == NULL) {
+			*m_headp = NULL;
+			return (ENOBUFS);
+		}
+		eh = *mtod(m_head, struct ether_header *);
+		M_PREPEND(m_head, sizeof(*evl), M_DONTWAIT);
+		if (m_head == NULL) {
+			*m_headp = NULL;
+			return (ENOBUFS);
+		}
+		m_head = m_pullup(m_head, sizeof(*evl));
+		if (m_head == NULL) {
+			*m_headp = NULL;
+			return (ENOBUFS);
+		}
+		evl = mtod(m_head, struct ether_vlan_header *);
+		bcopy(&eh, evl, sizeof(*evl));
+		evl->evl_proto = evl->evl_encap_proto;
+		evl->evl_encap_proto = htons(ETHERTYPE_VLAN);
+		evl->evl_tag = htons(VLAN_TAG_VALUE(mtag));
+		m_tag_delete(m_head, mtag);
+		mtag = NULL;
+		*m_headp = m_head;
+	}
+
 	/*
 	 * Map the packet for DMA.
 	 */
@@ -1436,48 +1475,6 @@ em_encap(struct em_softc *sc, struct mbuf **m_headp)
 		em_transmit_checksum_setup(sc,  m_head, &txd_upper, &txd_lower);
 	else
 		txd_upper = txd_lower = 0;
-
-	/* Find out if we are in vlan mode. */
-	mtag = VLAN_OUTPUT_TAG(ifp, m_head);
-
-	/*
-	 * When operating in promiscuous mode, hardware encapsulation for
-	 * packets is disabled.  This means we have to add the vlan
-	 * encapsulation in the driver, since it will have come down from the
-	 * VLAN layer with a tag instead of a VLAN header.
-	 */
-	if (mtag != NULL && sc->em_insert_vlan_header) {
-		struct ether_vlan_header *evl;
-		struct ether_header eh;
-
-		m_head = m_pullup(m_head, sizeof(eh));
-		if (m_head == NULL) {
-			*m_headp = NULL;
-			error = ENOBUFS;
-			goto encap_fail;
-		}
-		eh = *mtod(m_head, struct ether_header *);
-		M_PREPEND(m_head, sizeof(*evl), M_DONTWAIT);
-		if (m_head == NULL) {
-			*m_headp = NULL;
-			error = ENOBUFS;
-			goto encap_fail;
-		}
-		m_head = m_pullup(m_head, sizeof(*evl));
-		if (m_head == NULL) {
-			*m_headp = NULL;
-			error = ENOBUFS;
-			goto encap_fail;
-		}
-		evl = mtod(m_head, struct ether_vlan_header *);
-		bcopy(&eh, evl, sizeof(*evl));
-		evl->evl_proto = evl->evl_encap_proto;
-		evl->evl_encap_proto = htons(ETHERTYPE_VLAN);
-		evl->evl_tag = htons(VLAN_TAG_VALUE(mtag));
-		m_tag_delete(m_head, mtag);
-		mtag = NULL;
-		*m_headp = m_head;
-	}
 
 	i = sc->next_avail_tx_desc;
 	if (sc->pcix_82544) {
