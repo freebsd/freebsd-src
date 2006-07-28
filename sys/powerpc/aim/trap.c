@@ -389,7 +389,7 @@ syscall(struct trapframe *frame)
   	else
  		callp = &p->p_sysent->sv_table[code];
 
-	narg = callp->sy_narg & SYF_ARGMASK;
+	narg = callp->sy_narg;
 
 	if (narg > n) {
 		bcopy(params, args, n * sizeof(register_t));

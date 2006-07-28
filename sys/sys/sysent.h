@@ -46,9 +46,6 @@ struct sysent {		/* system call table */
 	au_event_t sy_auevent;	/* audit event associated with syscall */
 };
 
-#define SYF_ARGMASK	0x0000FFFF
-#define SYF_MPSAFE	0x00010000
-
 struct image_params;
 struct __sigset;
 struct trapframe;
