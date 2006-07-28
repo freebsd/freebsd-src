@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <nlist.h>
 #include <netdb.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include "netstat.h"
