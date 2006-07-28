@@ -158,6 +158,8 @@ miss(NODE *p, char *tail)
 	int serr;
 
 	for (; p; p = p->next) {
+		if (p->flags & F_OPT && !(p->flags & F_VISIT))
+			continue;
 		if (p->type != F_DIR && (dflag || p->flags & F_VISIT))
 			continue;
 		(void)strcpy(tail, p->name);
