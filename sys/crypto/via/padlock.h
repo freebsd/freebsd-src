@@ -72,7 +72,7 @@ struct padlock_session {
 	TAILQ_ENTRY(padlock_session) ses_next;
 };
 
-#define PADLOCK_ALIGN(p)	(void *)((uintptr_t)(p) - (((uintptr_t)(p) - 1) % 16) + 15)
+#define	PADLOCK_ALIGN(p)	(void *)(roundup2((uintptr_t)(p), 16))
 
 int	padlock_cipher_setup(struct padlock_session *ses,
 	    struct cryptoini *encini);
