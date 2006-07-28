@@ -781,9 +781,9 @@ envy24_delta_ak4524_create(device_t dev, void *info, int dir, int num)
 	if (buff == NULL)
 		return NULL;
 
-	if (dir == PCMDIR_PLAY && sc->adc[num] != NULL)
+	if (dir == PCMDIR_REC && sc->adc[num] != NULL)
 		buff->info = ((struct envy24_delta_ak4524_codec *)sc->adc[num])->info;
-	else if (dir == PCMDIR_REC && sc->dac[num] != NULL)
+	else if (dir == PCMDIR_PLAY && sc->dac[num] != NULL)
 		buff->info = ((struct envy24_delta_ak4524_codec *)sc->dac[num])->info;
 	else
 		buff->info = ak452x_create(dev, buff, num, envy24_delta_ak4524_ctl);
@@ -810,11 +810,11 @@ envy24_delta_ak4524_destroy(void *codec)
 #endif
 
 	if (ptr->dir == PCMDIR_PLAY) {
-		if (ptr->parent->adc[ptr->num] == NULL)
+		if (ptr->parent->adc[ptr->num] != NULL)
 			ak452x_destroy(ptr->info);
 	}
 	else {
-		if (ptr->parent->dac[ptr->num] == NULL)
+		if (ptr->parent->dac[ptr->num] != NULL)
 			ak452x_destroy(ptr->info);
 	}
 
@@ -1591,9 +1591,9 @@ envy24chan_trigger(kobj_t obj, void *data, int go)
 	struct sc_info *sc = ch->parent;
 	u_int32_t ptr;
 	int slot;
+#if 0
 	int i;
 
-#if(0)
 	device_printf(sc->dev, "envy24chan_trigger(obj, data, %d)\n", go);
 #endif
 	snd_mtxlock(sc->lock);
@@ -1667,6 +1667,7 @@ envy24chan_trigger(kobj_t obj, void *data, int go)
 			envy24_stop(sc, ch->dir);
 			sc->intr[slot] = 0;
 		}
+#if 0
 		else if (ch->blk == sc->blk[slot]) {
 			sc->blk[slot] = ENVY24_SAMPLE_NUM / 2;
 			for (i = 0; i < ENVY24_CHAN_NUM; i++) {
@@ -1678,6 +1679,7 @@ envy24chan_trigger(kobj_t obj, void *data, int go)
 			if (ch->blk != sc->blk[slot])
 				envy24_updintr(sc, ch->dir);
 		}
+#endif
 		break;
 	}
 	snd_mtxunlock(sc->lock);
@@ -2432,6 +2434,12 @@ bad:
 	envy24_dmafree(sc);
 	if (sc->dmat)
 		bus_dma_tag_destroy(sc->dmat);
+	if (sc->cfg->codec->destroy != NULL) {
+                for (i = 0; i < sc->adcn; i++)
+                        sc->cfg->codec->destroy(sc->adc[i]);
+                for (i = 0; i < sc->dacn; i++)
+                        sc->cfg->codec->destroy(sc->dac[i]);
+        }
 	envy24_cfgfree(sc->cfg);
 	if (sc->cs)
 		bus_release_resource(dev, SYS_RES_IOPORT, sc->csid, sc->cs);
