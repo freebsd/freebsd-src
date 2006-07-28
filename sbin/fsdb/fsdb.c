@@ -52,6 +52,13 @@ static const char rcsid[] =
 
 static void usage(void) __dead2;
 int cmdloop(void);
+static int compare_blk32(uint32_t *wantedblk, uint32_t curblk);
+static int compare_blk64(uint64_t *wantedblk, uint64_t curblk);
+static int founddatablk(uint64_t blk);
+static int find_blks32(uint32_t *buf, int size, uint32_t *blknum);
+static int find_blks64(uint64_t *buf, int size, uint64_t *blknum);
+static int find_indirblks32(uint32_t blk, int ind_level, uint32_t *blknum);
+static int find_indirblks64(uint64_t blk, int ind_level, uint64_t *blknum);
 
 static void 
 usage(void)
@@ -129,6 +136,7 @@ CMDFUNC(uplink);			/* incr link */
 CMDFUNC(downlink);			/* decr link */
 CMDFUNC(linkcount);			/* set link count */
 CMDFUNC(quit);				/* quit */
+CMDFUNC(findblk);			/* find block */
 CMDFUNC(ls);				/* list directory */
 CMDFUNC(rm);				/* remove name */
 CMDFUNC(ln);				/* add name */
@@ -160,6 +168,7 @@ struct cmdtable cmds[] = {
 	{ "uplink", "Increment link count", 1, 1, FL_WR, uplink },
 	{ "downlink", "Decrement link count", 1, 1, FL_WR, downlink },
 	{ "linkcount", "Set link count to COUNT", 2, 2, FL_WR, linkcount },
+	{ "findblk", "Find inode owning disk block(s)", 2, 33, FL_RO, findblk},
 	{ "ls", "List current inode as directory", 1, 1, FL_RO, ls },
 	{ "rm", "Remove NAME from current inode directory", 2, 2, FL_WR | FL_ST, rm },
 	{ "del", "Remove NAME from current inode directory", 2, 2, FL_WR | FL_ST, rm },
@@ -223,7 +232,7 @@ cmdloop(void)
     printactive(0);
 
     hist = history_init();
-    history(hist, &he, H_EVENT, 100);	/* 100 elt history buffer */
+    history(hist, &he, H_SETSIZE, 100);	/* 100 elt history buffer */
 
     elptr = el_init("fsdb", stdin, stdout, stderr);
     el_set(elptr, EL_EDITOR, "emacs");
@@ -412,6 +421,262 @@ CMDFUNCSTART(ls)
     ckinode(curinode, &idesc);
     curinode = ginode(curinum);
 
+    return 0;
+}
+
+static int findblk_numtofind;
+static int wantedblksize;
+
+CMDFUNCSTART(findblk)
+{
+    ino_t inum, inosused;
+    uint32_t *wantedblk32;
+    uint64_t *wantedblk64;
+    struct cg *cgp = &cgrp;
+    int c, i, is_ufs2;
+
+    wantedblksize = (argc - 1);
+    is_ufs2 = sblock.fs_magic == FS_UFS2_MAGIC;
+    ocurrent = curinum;
+
+    if (is_ufs2) {
+	wantedblk64 = calloc(wantedblksize, sizeof(uint64_t));
+	if (wantedblk64 == NULL)
+	    err(1, "malloc");
+	for (i = 1; i < argc; i++)
+	    wantedblk64[i - 1] = dbtofsb(&sblock, strtoull(argv[i], NULL, 0));
+    } else {
+	wantedblk32 = calloc(wantedblksize, sizeof(uint32_t));
+	if (wantedblk32 == NULL)
+	    err(1, "malloc");
+	for (i = 1; i < argc; i++)
+	    wantedblk32[i - 1] = dbtofsb(&sblock, strtoull(argv[i], NULL, 0));
+    }
+    findblk_numtofind = wantedblksize;
+    /*
+     * sblock.fs_ncg holds a number of cylinder groups.
+     * Iterate over all cylinder groups.
+     */
+    for (c = 0; c < sblock.fs_ncg; c++) {
+	/*
+	 * sblock.fs_ipg holds a number of inodes per cylinder group.
+	 * Calculate a highest inode number for a given cylinder group.
+	 */
+	inum = c * sblock.fs_ipg;
+	/* Read cylinder group. */
+	getblk(&cgblk, cgtod(&sblock, c), sblock.fs_cgsize);
+	memcpy(cgp, cgblk.b_un.b_cg, sblock.fs_cgsize);
+	/*
+	 * Get a highest used inode number for a given cylinder group.
+	 * For UFS1 all inodes initialized at the newfs stage.
+	 */
+	if (is_ufs2)
+	    inosused = cgp->cg_initediblk;
+	else
+	    inosused = sblock.fs_ipg;
+
+	for (; inosused > 0; inum++, inosused--) {
+	    /* Skip magic inodes: 0, WINO, ROOTINO. */
+	    if (inum < ROOTINO)
+		continue;
+	    /*
+	     * Check if the block we are looking for is just an inode block.
+	     *
+	     * ino_to_fsba() - get block containing inode from its number.
+	     * INOPB() - get a number of inodes in one disk block.
+	     */
+	    if (is_ufs2 ?
+		compare_blk64(wantedblk64, ino_to_fsba(&sblock, inum)) :
+		compare_blk32(wantedblk32, ino_to_fsba(&sblock, inum))) {
+		printf("block %llu: inode block (%d-%d)\n",
+		    (unsigned long long)fsbtodb(&sblock,
+			ino_to_fsba(&sblock, inum)),
+		    (inum / INOPB(&sblock)) * INOPB(&sblock),
+		    (inum / INOPB(&sblock) + 1) * INOPB(&sblock));
+		findblk_numtofind--;
+		if (findblk_numtofind == 0)
+		    goto end;
+	    }
+	    /* Get on-disk inode aka dinode. */
+	    curinum = inum;
+	    curinode = ginode(inum);
+	    /* Find IFLNK dinode with allocated data blocks. */
+	    switch (DIP(curinode, di_mode) & IFMT) {
+	    case IFDIR:
+	    case IFREG:
+		if (DIP(curinode, di_blocks) == 0)
+		    continue;
+		break;
+	    case IFLNK:
+		{
+		    uint64_t size = DIP(curinode, di_size);
+		    if (size > 0 && size < sblock.fs_maxsymlinklen &&
+			DIP(curinode, di_blocks) == 0)
+			continue;
+		    else
+			break;
+		}
+	    default:
+		continue;
+	    }
+	    /* Look through direct data blocks. */
+	    if (is_ufs2 ?
+		find_blks64(curinode->dp2.di_db, NDADDR, wantedblk64) :
+		find_blks32(curinode->dp1.di_db, NDADDR, wantedblk32))
+		goto end;
+	    for (i = 0; i < NIADDR; i++) {
+		/*
+		 * Does the block we are looking for belongs to the
+		 * indirect blocks?
+		 */
+		if (is_ufs2 ?
+		    compare_blk64(wantedblk64, curinode->dp2.di_ib[i]) :
+		    compare_blk32(wantedblk32, curinode->dp1.di_ib[i]))
+		    if (founddatablk(is_ufs2 ? curinode->dp2.di_ib[i] :
+			curinode->dp1.di_ib[i]))
+			goto end;
+		/*
+		 * Search through indirect, double and triple indirect
+		 * data blocks.
+		 */
+		if (is_ufs2 ? (curinode->dp2.di_ib[i] != 0) :
+		    (curinode->dp1.di_ib[i] != 0))
+		    if (is_ufs2 ?
+			find_indirblks64(curinode->dp2.di_ib[i], i,
+			    wantedblk64) :
+			find_indirblks32(curinode->dp1.di_ib[i], i,
+			    wantedblk32))
+			goto end;
+	    }
+	}
+    }
+end:
+    curinum = ocurrent;
+    curinode = ginode(curinum);
+    return 0;
+}
+
+static int
+compare_blk32(uint32_t *wantedblk, uint32_t curblk)
+{
+    int i;
+
+    for (i = 0; i < wantedblksize; i++) {
+	if (wantedblk[i] != 0 && wantedblk[i] == curblk) {
+	    wantedblk[i] = 0;
+	    return 1;
+	}
+    }
+    return 0;
+}
+
+static int
+compare_blk64(uint64_t *wantedblk, uint64_t curblk)
+{
+    int i;
+
+    for (i = 0; i < wantedblksize; i++) {
+	if (wantedblk[i] != 0 && wantedblk[i] == curblk) {
+	    wantedblk[i] = 0;
+	    return 1;
+	}
+    }
+    return 0;
+}
+
+static int
+founddatablk(uint64_t blk)
+{
+
+    printf("%llu: data block of inode %d\n",
+	(unsigned long long)fsbtodb(&sblock, blk), curinum);
+    findblk_numtofind--;
+    if (findblk_numtofind == 0)
+	return 1;
+    return 0;
+}
+
+static int
+find_blks32(uint32_t *buf, int size, uint32_t *wantedblk)
+{
+    int blk;
+    for (blk = 0; blk < size; blk++) {
+	if (buf[blk] == 0)
+	    continue;
+	if (compare_blk32(wantedblk, buf[blk])) {
+	    if (founddatablk(buf[blk]))
+		return 1;
+	}
+    }
+    return 0;
+}
+
+static int
+find_indirblks32(uint32_t blk, int ind_level, uint32_t *wantedblk)
+{
+#define MAXNINDIR      (MAXBSIZE / sizeof(uint32_t))
+    uint32_t idblk[MAXNINDIR];
+    int i;
+
+    bread(fsreadfd, (char *)idblk, fsbtodb(&sblock, blk), (int)sblock.fs_bsize);
+    if (ind_level <= 0) {
+	if (find_blks32(idblk, sblock.fs_bsize / sizeof(uint32_t), wantedblk))
+	    return 1;
+    } else {
+	ind_level--;
+	for (i = 0; i < sblock.fs_bsize / sizeof(uint32_t); i++) {
+	    if (compare_blk32(wantedblk, idblk[i])) {
+		if (founddatablk(idblk[i]))
+		    return 1;
+	    }
+	    if (idblk[i] != 0)
+		if (find_indirblks32(idblk[i], ind_level, wantedblk))
+		    return 1;
+	}
+    }
+#undef MAXNINDIR
+    return 0;
+}
+
+static int
+find_blks64(uint64_t *buf, int size, uint64_t *wantedblk)
+{
+    int blk;
+    for (blk = 0; blk < size; blk++) {
+	if (buf[blk] == 0)
+	    continue;
+	if (compare_blk64(wantedblk, buf[blk])) {
+	    if (founddatablk(buf[blk]))
+		return 1;
+	}
+    }
+    return 0;
+}
+
+static int
+find_indirblks64(uint64_t blk, int ind_level, uint64_t *wantedblk)
+{
+#define MAXNINDIR      (MAXBSIZE / sizeof(uint64_t))
+    uint64_t idblk[MAXNINDIR];
+    int i;
+
+    bread(fsreadfd, (char *)idblk, fsbtodb(&sblock, blk), (int)sblock.fs_bsize);
+    if (ind_level <= 0) {
+	if (find_blks64(idblk, sblock.fs_bsize / sizeof(uint64_t), wantedblk))
+	    return 1;
+    } else {
+	ind_level--;
+	for (i = 0; i < sblock.fs_bsize / sizeof(uint64_t); i++) {
+	    if (compare_blk64(wantedblk, idblk[i])) {
+		if (founddatablk(idblk[i]))
+		    return 1;
+	    }
+	    if (idblk[i] != 0)
+		if (find_indirblks64(idblk[i], ind_level, wantedblk))
+		    return 1;
+	}
+    }
+#undef MAXNINDIR
     return 0;
 }
 
