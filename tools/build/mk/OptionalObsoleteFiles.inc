@@ -447,9 +447,19 @@ OLD_FILES+=usr/share/man/man8/isdntelctl.8.gz
 OLD_FILES+=usr/share/man/man8/isdntrace.8.gz
 .endif
 
-#.if ${MK_INET6} == no
-# to be filled in
-#.endif
+.if ${MK_INET6} == no
+OLD_FILES+=sbin/ping6
+OLD_FILES+=sbin/rtsol
+OLD_FILES+=usr/sbin/ip6addrctl
+OLD_FILES+=usr/sbin/mld6query
+OLD_FILES+=usr/sbin/ndp
+OLD_FILES+=usr/sbin/rip6query
+OLD_FILES+=usr/sbin/route6d
+OLD_FILES+=usr/sbin/rrenumd
+OLD_FILES+=usr/sbin/rtadvd
+OLD_FILES+=usr/sbin/rtsold
+OLD_FILES+=usr/sbin/traceroute6
+.endif
 
 #.if ${MK_INFO} == no
 # to be filled in
