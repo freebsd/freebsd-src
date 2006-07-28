@@ -192,7 +192,7 @@ install_etc ( ) (
 	echo "## install /etc"
 	echo "### log: ${MAKEOBJDIRPREFIX}/_.etc"
 
-	cd ${NANO_SRC}/etc
+	cd ${NANO_SRC}
 	${NANO_PMAKE} __MAKE_CONF=${NANO_MAKE_CONF} distribution \
 		DESTDIR=${NANO_WORLDDIR} \
 		> ${MAKEOBJDIRPREFIX}/_.etc 2>&1
