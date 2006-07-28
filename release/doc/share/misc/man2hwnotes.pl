@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 # Emacs should use -*- cperl -*- mode
 #
-# Copyright (c) 2003-2005 Simon L. Nielsen <simon@FreeBSD.org>
+# Copyright (c) 2003-2006 Simon L. Nielsen <simon@FreeBSD.org>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -204,6 +204,16 @@ sub parse {
 		    add_sgmltag(\%mdocvars, "'>");
 		    $mdocvars{isin_hwlist} = 0;
 		}
+		if ($mdocvars{isin_list}) {
+		    dlog(1, "Warning: Still in list, but just entered new " .
+			 "section.  This is probably due to missing .El; " .
+			 "check manual page for errors.");
+		    # If we try to recover from this we will probably
+		    # just end with bad SGML output and it really
+		    # should be fixed in the manual page so we don't
+		    # even try to "fix" this.
+		}
+
 
 	    } elsif (/^Dt ([^ ]+) ([^ ]+)/) {
 		dlog(4, "Setting mansection to $2");
@@ -388,23 +398,30 @@ sub parabuf_addline {
     my $mdocvars = shift;
     my ($txt) = (@_);
 
-    dlog(5, "Now in parabuf_addline");
+    dlog(5, "Now in parabuf_addline for '$txt'");
 
     # We only care about the HW list for now.
     if (!${$mdocvars}{isin_hwlist}) {
+	dlog(6, "Exiting parabuf_addline due to: !\${\$mdocvars}{isin_hwlist}");
 	return;
     }
     if ($txt eq "") {
+	dlog(6, "Exiting parabuf_addline due to: \$txt eq \"\"");
 	return;
     }
 
     if ($only_list_out && !${$mdocvars}{isin_list}) {
+	dlog(6, "Exiting parabuf_addline due to: ".
+	     "\$only_list_out && !\${\$mdocvars}{isin_list}");
 	return;
     }
 
     # We only add the first line for "tag" lists
     if (${$mdocvars}{parabuf} ne "" && ${$mdocvars}{isin_list} &&
 	${$mdocvars}{listtype} eq "tag") {
+	dlog(6, "Exiting parabuf_addline due to: ".
+	     "\${\$mdocvars}{parabuf} ne \"\" && \${\$mdocvars}{isin_list} && ".
+	     "\${\$mdocvars}{listtype} eq \"tag\"");
 	return;
     }
 
