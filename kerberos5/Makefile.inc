@@ -5,7 +5,6 @@ NO_LINT=
 KRB5DIR=	${.CURDIR}/../../../crypto/heimdal
 
 CFLAGS+=	-DHAVE_CONFIG_H -I${.CURDIR}/../../include
-CFLAGS+=	-DINET6
 
 .if defined(WITH_OPENLDAP)
 OPENLDAPBASE?=	/usr/local
