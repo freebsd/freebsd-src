@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_mroute.h>
 
 #include <err.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "netstat.h"
@@ -207,11 +208,11 @@ print_bw_meter(struct bw_meter *bw_meter, int *banner_printed)
 
 	/* The measured values */
 	if (bw_meter->bm_flags & BW_METER_UNIT_PACKETS)
-		sprintf(s1, "%llu", bw_meter->bm_measured.b_packets);
+		sprintf(s1, "%ju", (uintmax_t)bw_meter->bm_measured.b_packets);
 	else
 		sprintf(s1, "?");
 	if (bw_meter->bm_flags & BW_METER_UNIT_BYTES)
-		sprintf(s2, "%llu", bw_meter->bm_measured.b_bytes);
+		sprintf(s2, "%ju", (uintmax_t)bw_meter->bm_measured.b_bytes);
 	else
 		sprintf(s2, "?");
 	sprintf(s0, "%lu.%lu|%s|%s",
@@ -230,11 +231,11 @@ print_bw_meter(struct bw_meter *bw_meter, int *banner_printed)
 
 	/* The threshold values */
 	if (bw_meter->bm_flags & BW_METER_UNIT_PACKETS)
-		sprintf(s1, "%llu", bw_meter->bm_threshold.b_packets);
+		sprintf(s1, "%ju", (uintmax_t)bw_meter->bm_threshold.b_packets);
 	else
 		sprintf(s1, "?");
 	if (bw_meter->bm_flags & BW_METER_UNIT_BYTES)
-		sprintf(s2, "%llu", bw_meter->bm_threshold.b_bytes);
+		sprintf(s2, "%ju", (uintmax_t)bw_meter->bm_threshold.b_bytes);
 	else
 		sprintf(s2, "?");
 	sprintf(s0, "%lu.%lu|%s|%s",

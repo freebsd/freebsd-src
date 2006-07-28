@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <netdb.h>
 #include <nlist.h>
 #include <paths.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -273,7 +274,6 @@ struct protox *protoprotox[] = {
 #endif
 					 atalkprotox, NULL };
 
-const char *pluralies(int);
 static void printproto(struct protox *, const char *);
 static void usage(void);
 static struct protox *name2protox(char *);
@@ -657,19 +657,19 @@ kread(u_long addr, char *buf, int size)
 }
 
 const char *
-plural(int n)
+plural(uintmax_t n)
 {
 	return (n != 1 ? "s" : "");
 }
 
 const char *
-plurales(int n)
+plurales(uintmax_t n)
 {
 	return (n != 1 ? "es" : "");
 }
 
 const char *
-pluralies(int n)
+pluralies(uintmax_t n)
 {
 	return (n != 1 ? "ies" : "y");
 }
