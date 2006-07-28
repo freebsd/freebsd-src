@@ -910,7 +910,7 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 		callp = &p->p_sysent->sv_table[0];
 	else
 		callp = &p->p_sysent->sv_table[code];
-	nargs = callp->sy_narg & SYF_ARGMASK;
+	nargs = callp->sy_narg;
 	memcpy(copyargs, ap, nap * sizeof(register_t));
 	if (nargs > nap) {
 		error = copyin((void *)frame->tf_usr_sp, copyargs + nap,
@@ -930,7 +930,7 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 	if (error == 0) {
 		td->td_retval[0] = 0;
 		td->td_retval[1] = 0;
-		STOPEVENT(p, S_SCE, (callp->sy_narg & SYF_ARGMASK));
+		STOPEVENT(p, S_SCE, callp->sy_narg);
 		PTRACESTOP_SC(p, td, S_PT_SCE);
 		AUDIT_SYSCALL_ENTER(code, td);
 		error = (*callp->sy_call)(td, args);
