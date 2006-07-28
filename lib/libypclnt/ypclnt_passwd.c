@@ -119,13 +119,10 @@ ypclnt_passwd(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
 {
 	switch (ypclnt_havepasswdd(ypclnt)) {
 	case 0:
-		YPCLNT_DEBUG("using remote update method");
 		return (yppasswd_remote(ypclnt, pwd, passwd));
 	case 1:
-		YPCLNT_DEBUG("using local update method");
 		return (yppasswd_local(ypclnt, pwd));
 	default:
-		YPCLNT_DEBUG("no rpc.yppasswdd");
 		return (-1);
 	}
 }
