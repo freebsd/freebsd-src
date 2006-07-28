@@ -1003,7 +1003,7 @@ syscall(struct trapframe *tf)
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSCALL))
-		ktrsyscall(code, (callp->sy_narg & SYF_ARGMASK), args);
+		ktrsyscall(code, callp->sy_narg, args);
 #endif
 	CTR4(KTR_SYSC, "syscall enter thread %p pid %d proc %s code %d", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm, code);
@@ -1012,7 +1012,7 @@ syscall(struct trapframe *tf)
 	td->td_retval[1] = 0;
 	tf->tf_scratch.gr10 = EJUSTRETURN;
 
-	STOPEVENT(p, S_SCE, (callp->sy_narg & SYF_ARGMASK));
+	STOPEVENT(p, S_SCE, callp->sy_narg);
 
 	PTRACESTOP_SC(p, td, S_PT_SCE);
 

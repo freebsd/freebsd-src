@@ -96,7 +96,7 @@ ia32_syscall(struct trapframe *tf)
 	else
 		callp = &p->p_sysent->sv_table[code];
 
-	narg = callp->sy_narg & SYF_ARGMASK;
+	narg = callp->sy_narg;
 
 	/* copyin and the ktrsyscall()/ktrsysret() code is MP-aware */
 	if (params != NULL && narg != 0)
