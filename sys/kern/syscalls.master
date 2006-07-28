@@ -32,8 +32,8 @@
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 ;	NOSTD	implemented but as a lkm that can be statically
-;			compiled in sysent entry will be filled with lkmsys
-;			so the SYSCALL_MODULE macro works
+;		compiled in; sysent entry will be filled with lkmsys
+;		so the SYSCALL_MODULE macro works
 ;
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

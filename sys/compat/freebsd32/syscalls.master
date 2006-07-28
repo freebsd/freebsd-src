@@ -14,7 +14,7 @@
 ;		event should be #defined to AUE_NULL in audit_kevents.h.
 ;	type	one of [M]STD, [M]OBSOL, [M]UNIMPL, [M]COMPAT, [M]CPT_NOA,
 ;		[M]LIBCOMPAT, [M]NODEF,  [M]NOARGS,  [M]NOPROTO,  [M]NOIMPL,
-;		[M]NOSTD
+;		[M]NOSTD, [M]COMPAT4
 ;	name	psuedo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
 ;	altname	name of system call if different
@@ -28,12 +28,13 @@
 ;		lock for the syscall.
 ;	STD	always included
 ;	COMPAT	included on COMPAT #ifdef
+;	COMPAT4	included on COMPAT4 #ifdef (FreeBSD 4 compat)
 ;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 ;	NOSTD	implemented but as a lkm that can be statically
-;			compiled in sysent entry will be filled with lkmsys
-;			so the SYSCALL_MODULE macro works
+;		compiled in; sysent entry will be filled with lkmsys
+;		so the SYSCALL_MODULE macro works
 
 ; #ifdef's, etc. may be included, and are copied to the output files.
 
