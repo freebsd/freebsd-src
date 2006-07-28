@@ -113,7 +113,7 @@ padlock_init(void)
 		free(padlock_sc, M_PADLOCK);
 		padlock_sc = NULL;
 		return (ENOMEM);
-	}       
+	}
 
 	mtx_init(&sc->sc_sessions_mtx, "padlock_mtx", NULL, MTX_DEF);
 	crypto_register(sc->sc_cid, CRYPTO_AES_CBC, 0, 0, padlock_newsession,
