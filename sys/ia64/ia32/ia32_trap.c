@@ -114,13 +114,6 @@ ia32_syscall(struct trapframe *tf)
 	CTR4(KTR_SYSC, "syscall enter thread %p pid %d proc %s code %d", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm, code);
 
-	/*
-	 * Try to run the syscall without Giant if the syscall
-	 * is MP safe.
-	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0)
-		mtx_lock(&Giant);
-
 	if (error == 0) {
 		td->td_retval[0] = 0;
 		td->td_retval[1] = tf->tf_scratch.gr10;	/* edx */
@@ -161,12 +154,6 @@ ia32_syscall(struct trapframe *tf)
 		ia64_set_eflag(ia64_get_eflag() | PSL_C);
 		break;
 	}
-
-	/*
-	 * Release Giant if we previously set it.
-	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0)
-		mtx_unlock(&Giant);
 
 	/*
 	 * Traced syscall.

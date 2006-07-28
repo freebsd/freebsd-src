@@ -288,38 +288,6 @@ s/\$//g
 		auditev = $2;
 	}
 
-	# The 'M' type prefix
-	#
-	{
-		mpsafe = "SYF_MPSAFE | ";
-		if ($3 == "MSTD") {
-			$3 = "STD";
-		} else if ($3 == "MNODEF") {
-			$3 = "NODEF";
-		} else if ($3 == "MNOARGS") {
-			$3 = "NOARGS";
-		} else if ($3 == "MNOPROTO") {
-			$3 = "NOPROTO";
-		} else if ($3 == "MNOIMPL") {
-			$3 = "NOIMPL";
-		} else if ($3 == "MNOSTD") {
-			$3 = "NOSTD";
-		} else if ($3 == "MCOMPAT") {
-			$3 = "COMPAT";
-		} else if ($3 == "MCOMPAT4") {
-			$3 = "COMPAT4";
-		} else if ($3 == "MCPT_NOA") {
-			$3 = "CPT_NOA";
-		} else if ($3 == "MLIBCOMPAT") {
-			$3 = "LIBCOMPAT";
-		} else if ($3 == "MOBSOL") {
-			$3 = "OBSOL";
-		} else if ($3 == "MUNIMPL") {
-			$3 = "UNIMPL";
-		} else {
-			mpsafe = "";
-		}
-	}
 	$3 == "STD" || $3 == "NODEF" || $3 == "NOARGS"  || $3 == "NOPROTO" \
 	    || $3 == "NOIMPL" || $3 == "NOSTD" {
 		parseline()
@@ -352,8 +320,8 @@ s/\$//g
 			nosys = 1
 		if (funcname == "lkmnosys")
 			lkmnosys = 1
-		printf("\t{ %s%s, (sy_call_t *)", mpsafe, argssize) > sysent
-		column = 8 + 2 + length(mpsafe) + length(argssize) + 15
+		printf("\t{ %s, (sy_call_t *)", argssize) > sysent
+		column = 8 + 2 + length(argssize) + 15
 		if ($3 == "NOIMPL") {
 			printf("%s },", "nosys, AUE_NULL") > sysent
 			column = column + length("nosys") + 3
@@ -406,9 +374,9 @@ s/\$//g
 			    argalias) > sysarg
 		printf("%s\t%s%s(struct thread *, struct %s *);\n",
 		    rettype, prefix, funcname, argalias) > outdcl
-		printf("\t{ %s(%s%s,%s), %s },",
-		    wrap, mpsafe, argssize, funcname, auditev) > sysent
-		align_sysent_comment(8 + 9 + length(mpsafe) + \
+		printf("\t{ %s(%s,%s), %s },",
+		    wrap, argssize, funcname, auditev) > sysent
+		align_sysent_comment(8 + 9 + \
 		    length(argssize) + 1 + length(funcname) + length(auditev) + 4)
 		printf("/* %d = old %s */\n", syscall, funcalias) > sysent
 		printf("\t\"old.%s\",\t\t/* %d = old %s */\n",
@@ -422,9 +390,9 @@ s/\$//g
 		ncompat++
 		parseline()
 		printf("%s\to%s();\n", rettype, funcname) > syscompatdcl
-		printf("\t{ compat(%s%s,%s), %s },",
-		    mpsafe, argssize, funcname, auditev) > sysent
-		align_sysent_comment(8 + 9 + length(mpsafe) + \
+		printf("\t{ compat(%s,%s), %s },",
+		    argssize, funcname, auditev) > sysent
+		align_sysent_comment(8 + 9 + \
 		    length(argssize) + 1 + length(funcname) + length(auditev) + 4)
 		printf("/* %d = old %s */\n", syscall, funcalias) > sysent
 		printf("\t\"old.%s\",\t\t/* %d = old %s */\n",
