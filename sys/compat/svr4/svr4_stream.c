@@ -1041,13 +1041,16 @@ i_fdinsert(fp, td, retval, fd, cmd, dat)
 		return EINVAL;
 	}
 
+	mtx_lock(&Giant);
 	if (st->s_afd == -1) {
 		DPRINTF(("fdinsert: accept fd not found\n"));
+		mtx_unlock(&Giant);
 		return ENOENT;
 	}
 
 	if ((error = copyin(dat, &fdi, sizeof(fdi))) != 0) {
 		DPRINTF(("fdinsert: copyin failed %d\n", error));
+		mtx_unlock(&Giant);
 		return error;
 	}
 
@@ -1057,16 +1060,19 @@ i_fdinsert(fp, td, retval, fd, cmd, dat)
 	if ((error = dup2(td, &d2p)) != 0) {
 		DPRINTF(("fdinsert: dup2(%d, %d) failed %d\n", 
 		    st->s_afd, fdi.fd, error));
+		mtx_unlock(&Giant);
 		return error;
 	}
 
 	if ((error = kern_close(td, st->s_afd)) != 0) {
 		DPRINTF(("fdinsert: close(%d) failed %d\n", 
 		    st->s_afd, error));
+		mtx_unlock(&Giant);
 		return error;
 	}
 
 	st->s_afd = -1;
+	mtx_unlock(&Giant);
 
 	*retval = 0;
 	return 0;
@@ -1194,6 +1200,7 @@ i_setsig(fp, td, retval, fd, cmd, dat)
 	oflags = td->td_retval[0];
 
 	/* update the flags */
+	mtx_lock(&Giant);
 	if (dat != NULL) {
 		int mask;
 
@@ -1212,6 +1219,7 @@ i_setsig(fp, td, retval, fd, cmd, dat)
 		flags = oflags & ~O_ASYNC;
 		st->s_eventmask = 0;
 	}
+	mtx_unlock(&Giant);
 
 	/* set the new flags, if changed */
 	if (flags != oflags) {
@@ -1236,7 +1244,7 @@ i_getsig(fp, td, retval, fd, cmd, dat)
 	u_long cmd;
 	caddr_t dat;
 {
-	int error;
+	int error, eventmask;
 
 	if (dat != NULL) {
 		struct svr4_strm *st = svr4_stream_get(fp);
@@ -1245,8 +1253,11 @@ i_getsig(fp, td, retval, fd, cmd, dat)
 			DPRINTF(("i_getsig: bad file descriptor\n"));
 			return EINVAL;
 		}
-		if ((error = copyout(&st->s_eventmask, dat, 
-				     sizeof(st->s_eventmask))) != 0) {
+		mtx_lock(&Giant);
+		eventmask = st->s_eventmask;
+		mtx_unlock(&Giant);		
+		if ((error = copyout(&eventmask, dat,
+				     sizeof(eventmask))) != 0) {
 			DPRINTF(("i_getsig: bad eventmask pointer\n"));
 			return error;
 		}
@@ -1569,7 +1580,10 @@ svr4_do_putmsg(td, uap, fp)
 		return ENOSYS;
 	}
 
-	switch (st->s_cmd = sc.cmd) {
+	mtx_lock(&Giant);
+	st->s_cmd = sc.cmd;
+	mtx_unlock(&Giant);
+	switch (sc.cmd) {
 	case SVR4_TI_CONNECT_REQUEST:	/* connect 	*/
 		{
 
@@ -1701,6 +1715,7 @@ svr4_do_getmsg(td, uap, fp)
 		return ENOSYS;
 	}
 
+	mtx_lock(&Giant);
 	switch (st->s_cmd) {
 	case SVR4_TI_CONNECT_REQUEST:
 		DPRINTF(("getmsg: TI_CONNECT_REQUEST\n"));
@@ -1726,6 +1741,7 @@ svr4_do_getmsg(td, uap, fp)
 
 		error = kern_getpeername(td, uap->fd, &sa, &sasize);
 		if (error) {
+			mtx_unlock(&Giant);
 			DPRINTF(("getmsg: getpeername failed %d\n", error));
 			return error;
 		}
@@ -1748,6 +1764,7 @@ svr4_do_getmsg(td, uap, fp)
 			break;
 
 		default:
+			mtx_unlock(&Giant);
 			free(sa, M_SONAME);
 			return ENOSYS;
 		}
@@ -1782,6 +1799,7 @@ svr4_do_getmsg(td, uap, fp)
 
 		error = kern_accept(td, uap->fd, &sa, &sasize, &afp);
 		if (error) {
+			mtx_unlock(&Giant);
 			DPRINTF(("getmsg: accept failed %d\n", error));
 			return error;
 		}
@@ -1814,6 +1832,7 @@ svr4_do_getmsg(td, uap, fp)
 			fdclose(td->td_proc->p_fd, afp, st->s_afd, td);
 			fdrop(afp, td);
 			st->s_afd = -1;
+			mtx_unlock(&Giant);
 			free(sa, M_SONAME);
 			return ENOSYS;
 		}
@@ -1832,8 +1851,10 @@ svr4_do_getmsg(td, uap, fp)
 		if (ctl.len > sizeof(sc))
 			ctl.len = sizeof(sc);
 
-		if ((error = copyin(ctl.buf, &sc, ctl.len)) != 0)
+		if ((error = copyin(ctl.buf, &sc, ctl.len)) != 0) {
+			mtx_unlock(&Giant);
 			return error;
+		}
 
 		switch (st->s_family) {
 		case AF_INET:
@@ -1847,6 +1868,7 @@ svr4_do_getmsg(td, uap, fp)
 			break;
 
 		default:
+			mtx_unlock(&Giant);
 			return ENOSYS;
 		}
 
@@ -1862,6 +1884,7 @@ svr4_do_getmsg(td, uap, fp)
 		error = kern_recvit(td, uap->fd, &msg, UIO_SYSSPACE, NULL);
 
 		if (error) {
+			mtx_unlock(&Giant);
 			DPRINTF(("getmsg: recvit failed %d\n", error));
 			return error;
 		}
@@ -1880,6 +1903,7 @@ svr4_do_getmsg(td, uap, fp)
 			break;
 
 		default:
+			mtx_unlock(&Giant);
 			return ENOSYS;
 		}
 
@@ -1908,6 +1932,7 @@ svr4_do_getmsg(td, uap, fp)
 			ra.buf = dat.buf;
 			ra.nbyte = dat.maxlen;
 			if ((error = read(td, &ra)) != 0) {
+				mtx_unlock(&Giant);
 			        return error;
 			}
 			dat.len = *retval;
@@ -1915,6 +1940,7 @@ svr4_do_getmsg(td, uap, fp)
 			st->s_cmd = SVR4_TI_SENDTO_REQUEST;
 			break;
 		}
+		mtx_unlock(&Giant);
 		DPRINTF(("getmsg: Unknown state %x\n", st->s_cmd));
 		return EINVAL;
 	}
@@ -1945,8 +1971,10 @@ svr4_do_getmsg(td, uap, fp)
 			fdrop(afp, td);
 			st->s_afd = -1;
 		}
+		mtx_unlock(&Giant);
 		return (error);
 	}
+	mtx_unlock(&Giant);
 	if (afp)
 		fdrop(afp, td);
 
