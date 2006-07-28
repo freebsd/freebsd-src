@@ -72,84 +72,84 @@ __FBSDID("$FreeBSD$");
 
 static struct nlist nl[] = {
 #define	N_IFNET		0
-	{ "_ifnet" },
+	{ .n_name = "_ifnet" },
 #define	N_RTSTAT	1
-	{ "_rtstat" },
+	{ .n_name = "_rtstat" },
 #define N_RTREE		2
-	{ "_rt_tables"},
+	{ .n_name = "_rt_tables"},
 #define N_MRTSTAT	3
-	{ "_mrtstat" },
+	{ .n_name = "_mrtstat" },
 #define N_MFCTABLE	4
-	{ "_mfctable" },
+	{ .n_name = "_mfctable" },
 #define N_VIFTABLE	5
-	{ "_viftable" },
+	{ .n_name = "_viftable" },
 #define N_IPX		6
-	{ "_ipxpcb_list"},
+	{ .n_name = "_ipxpcb_list"},
 #define N_IPXSTAT	7
-	{ "_ipxstat"},
+	{ .n_name = "_ipxstat"},
 #define N_SPXSTAT	8
-	{ "_spx_istat"},
+	{ .n_name = "_spx_istat"},
 #define N_DDPSTAT	9
-	{ "_ddpstat"},
+	{ .n_name = "_ddpstat"},
 #define N_DDPCB		10
-	{ "_ddpcb"},
+	{ .n_name = "_ddpcb"},
 #define N_NGSOCKS	11
-	{ "_ngsocklist"},
+	{ .n_name = "_ngsocklist"},
 #define N_IP6STAT	12
-	{ "_ip6stat" },
+	{ .n_name = "_ip6stat" },
 #define N_ICMP6STAT	13
-	{ "_icmp6stat" },
+	{ .n_name = "_icmp6stat" },
 #define N_IPSECSTAT	14
-	{ "_ipsecstat" },
+	{ .n_name = "_ipsecstat" },
 #define N_IPSEC6STAT	15
-	{ "_ipsec6stat" },
+	{ .n_name = "_ipsec6stat" },
 #define N_PIM6STAT	16
-	{ "_pim6stat" },
+	{ .n_name = "_pim6stat" },
 #define N_MRT6STAT	17
-	{ "_mrt6stat" },
+	{ .n_name = "_mrt6stat" },
 #define N_MF6CTABLE	18
-	{ "_mf6ctable" },
+	{ .n_name = "_mf6ctable" },
 #define N_MIF6TABLE	19
-	{ "_mif6table" },
+	{ .n_name = "_mif6table" },
 #define N_PFKEYSTAT	20
-	{ "_pfkeystat" },
+	{ .n_name = "_pfkeystat" },
 #define N_MBSTAT	21
-	{ "_mbstat" },
+	{ .n_name = "_mbstat" },
 #define N_MBTYPES	22
-	{ "_mbtypes" },
+	{ .n_name = "_mbtypes" },
 #define N_NMBCLUSTERS	23
-	{ "_nmbclusters" },
+	{ .n_name = "_nmbclusters" },
 #define N_NMBUFS	24
-	{ "_nmbufs" },
+	{ .n_name = "_nmbufs" },
 #define	N_MBHI		25
-	{ "_mbuf_hiwm" },
+	{ .n_name = "_mbuf_hiwm" },
 #define	N_CLHI		26
-	{ "_clust_hiwm" },
+	{ .n_name = "_clust_hiwm" },
 #define	N_NCPUS		27
-	{ "_smp_cpus" },
+	{ .n_name = "_smp_cpus" },
 #define	N_PAGESZ	28
-	{ "_pagesize" },
+	{ .n_name = "_pagesize" },
 #define	N_MBPSTAT	29
-	{ "_mb_statpcpu" },
+	{ .n_name = "_mb_statpcpu" },
 #define	N_RTTRASH	30
-	{ "_rttrash" },
+	{ .n_name = "_rttrash" },
 #define	N_MBLO		31
-	{ "_mbuf_lowm" },
+	{ .n_name = "_mbuf_lowm" },
 #define	N_CLLO		32
-	{ "_clust_lowm" },
+	{ .n_name = "_clust_lowm" },
 #define N_CARPSTAT	33
-	{ "_carpstats" },
+	{ .n_name = "_carpstats" },
 #define N_PFSYNCSTAT	34
-	{ "_pfsyncstats" },
+	{ .n_name = "_pfsyncstats" },
 #define	N_FAST_IPSECSTAT 35
-	{ "_newipsecstat" },
+	{ .n_name = "_newipsecstat" },
 #define	N_AHSTAT	36
-	{ "_ahstat" },
+	{ .n_name = "_ahstat" },
 #define	N_ESPSTAT	37
-	{ "_espstat" },
+	{ .n_name = "_espstat" },
 #define	N_IPCOMPSTAT	38
-	{ "_ipcompstat" },
-	{ "" },
+	{ .n_name = "_ipcompstat" },
+	{ .n_name = NULL },
 };
 
 struct protox {
@@ -276,8 +276,8 @@ struct protox *protoprotox[] = {
 
 static void printproto(struct protox *, const char *);
 static void usage(void);
-static struct protox *name2protox(char *);
-static struct protox *knownname(char *);
+static struct protox *name2protox(const char *);
+static struct protox *knownname(const char *);
 
 static kvm_t *kvmd;
 static char *nlistf = NULL, *memf = NULL;
@@ -678,7 +678,7 @@ pluralies(uintmax_t n)
  * Find the protox for the given "well-known" name.
  */
 static struct protox *
-knownname(char *name)
+knownname(const char *name)
 {
 	struct protox **tpp, *tp;
 
@@ -693,7 +693,7 @@ knownname(char *name)
  * Find the protox corresponding to name.
  */
 static struct protox *
-name2protox(char *name)
+name2protox(const char *name)
 {
 	struct protox *tp;
 	char **alias;			/* alias from p->aliases */
