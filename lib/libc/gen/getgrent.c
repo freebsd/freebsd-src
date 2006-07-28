@@ -494,18 +494,17 @@ files_group(void *retval, void *mdata, va_list ap)
 		 * pointer for the member list terminator.
 		 */
 		if (bufsize <= linesize + _ALIGNBYTES + sizeof(char *)) {
-			fseeko(st->fp, pos, SEEK_SET);
 			*errnop = ERANGE;
 			rv = NS_RETURN;
 			break;
 		}
-		pos = ftello(st->fp);
 		memcpy(buffer, line, linesize);
 		buffer[linesize] = '\0';
 		rv = __gr_parse_entry(buffer, linesize, grp, 
 		    &buffer[linesize + 1], bufsize - linesize - 1, errnop);
 		if (rv & NS_TERMINATE)
 			break;
+		pos = ftello(st->fp);
 	}
 	if (!stayopen && st->fp != NULL) {
 		fclose(st->fp);
@@ -513,6 +512,8 @@ files_group(void *retval, void *mdata, va_list ap)
 	}
 	if (rv == NS_SUCCESS && retval != NULL)
 		*(struct group **)retval = grp;
+	else if (*errnop == ERANGE)
+		fseeko(st->fp, pos, SEEK_SET);
 	return (rv);
 }
 
@@ -1046,18 +1047,17 @@ docompat:
 		 * pointer for the member list terminator.
 		 */
 		if (bufsize <= linesize + _ALIGNBYTES + sizeof(char *)) {
-			fseeko(st->fp, pos, SEEK_SET);
 			*errnop = ERANGE;
 			rv = NS_RETURN;
 			break;
 		}
-		pos = ftello(st->fp);
 		memcpy(buffer, line, linesize);
 		buffer[linesize] = '\0';
 		rv = __gr_parse_entry(buffer, linesize, grp, 
 		    &buffer[linesize + 1], bufsize - linesize - 1, errnop);
 		if (rv & NS_TERMINATE)
 			break;
+		pos = ftello(st->fp);
 	}
 fin:
 	if (!stayopen && st->fp != NULL) {
@@ -1066,6 +1066,8 @@ fin:
 	}
 	if (rv == NS_SUCCESS && retval != NULL)
 		*(struct group **)retval = grp;
+	else if (*errnop == ERANGE)
+		fseeko(st->fp, pos, SEEK_SET);
 	return (rv);
 #undef set_lookup_type
 }
