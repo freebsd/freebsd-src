@@ -14,20 +14,15 @@
 ;	type	one of STD, OBSOL, UNIMPL
 ;	name	psuedo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
-;	audit   the audit event associated with the system call
-;		A value of AUE_NULL means no auditing, but it also means that
-;		there is no audit event for the call at this time. For the
-;		case where the event exists, but we don't want auditing, the
-;		event should be #defined to AUE_NULL in audit_kevents.h.
 ;	altname	name of system call if different
 ;	alttag	name of args struct tag if different from [o]`name'"_args"
 ;	altrtyp	return type if not int (bogus - syscalls always return int)
 ;		for UNIMPL/OBSOL, name continues with comments
 
 ; types:
-;	AUE_NULL	STD	always included
+;	STD	always included
 ;	OBSOL	obsolete, not included in system, only specifies name
-;	AUE_NULL	UNIMPL	not implemented, placeholder only
+;	UNIMPL	not implemented, placeholder only
 
 #include <sys/param.h>
 #include <sys/sysent.h>
