@@ -532,7 +532,7 @@ udp_stats(u_long off __unused, const char *name, int af1 __unused)
  * Dump CARP statistics structure.
  */
 void
-carp_stats(u_long off, const char *name, int af1 __unused)
+carp_stats(u_long off __unused, const char *name, int af1 __unused)
 {
 	struct carpstats carpstat, zerostat;
 	size_t len = sizeof(struct carpstats);
