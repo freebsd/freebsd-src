@@ -64,7 +64,6 @@ ypclnt_connect(ypclnt_t *ypclnt)
 			return (-1);
 		}
 	}
-	YPCLNT_DEBUG("domain '%s'", ypclnt->domain);
 
 	/* map must be specified */
 	if (ypclnt->map == NULL) {
@@ -72,7 +71,6 @@ ypclnt_connect(ypclnt_t *ypclnt)
 		    "caller must specify map name");
 		return (-1);
 	}
-	YPCLNT_DEBUG("map '%s'", ypclnt->map);
 
 	/* get master server for requested map unless specified */
 	if (ypclnt->server == NULL) {
@@ -83,7 +81,6 @@ ypclnt_connect(ypclnt_t *ypclnt)
 			return (-1);
 		}
 	}
-	YPCLNT_DEBUG("server '%s'", ypclnt->server);
 
 	ypclnt_error(ypclnt, NULL, NULL);
 	return (0);
