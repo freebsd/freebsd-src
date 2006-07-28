@@ -812,17 +812,9 @@ syscall(frame)
 
 		PTRACESTOP_SC(p, td, S_PT_SCE);
 
-		if ((callp->sy_narg & SYF_MPSAFE) == 0) {
-			mtx_lock(&Giant);
-			AUDIT_SYSCALL_ENTER(code, td);
-			error = (*callp->sy_call)(td, argp);
-			AUDIT_SYSCALL_EXIT(error, td);
-			mtx_unlock(&Giant);
-		} else {
-			AUDIT_SYSCALL_ENTER(code, td);
-			error = (*callp->sy_call)(td, argp);
-			AUDIT_SYSCALL_EXIT(error, td);
-		}
+		AUDIT_SYSCALL_ENTER(code, td);
+		error = (*callp->sy_call)(td, argp);
+		AUDIT_SYSCALL_EXIT(error, td);
 	}
 
 	switch (error) {

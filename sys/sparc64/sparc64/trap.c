@@ -578,13 +578,6 @@ syscall(struct trapframe *tf)
 	CTR5(KTR_SYSC, "syscall: td=%p %s(%#lx, %#lx, %#lx)", td,
 	    syscallnames[code], argp[0], argp[1], argp[2]);
 
-	/*
-	 * Try to run the syscall without the MP lock if the syscall
-	 * is MP safe.
-	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0)
-		mtx_lock(&Giant);
-
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSCALL))
 		ktrsyscall(code, narg, argp);
@@ -639,13 +632,6 @@ syscall(struct trapframe *tf)
 		tf->tf_tstate |= TSTATE_XCC_C;
 		break;
 	}
-
-	/*
-	 * Release Giant if we had to get it.  Don't use mtx_owned(),
-	 * we want to catch broken syscalls.
-	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0)
-		mtx_unlock(&Giant);
 
 	/*
 	 * Check for misbehavior.

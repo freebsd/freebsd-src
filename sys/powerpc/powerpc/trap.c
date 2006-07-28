@@ -409,11 +409,6 @@ syscall(struct trapframe *frame)
 	if (KTRPOINT(td, KTR_SYSCALL))
 		ktrsyscall(code, narg, (register_t *)params);
 #endif
-	/*
-	 * Try to run the syscall without Giant if the syscall is MP safe.
-	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0)
-		mtx_lock(&Giant);
 
 	if (error == 0) {
 		td->td_retval[0] = 0;
@@ -465,10 +460,6 @@ syscall(struct trapframe *frame)
 		frame->cr |= 0x10000000;
 		break;
 	}
-
-
-	if ((callp->sy_narg & SYF_MPSAFE) == 0)
-		mtx_unlock(&Giant);
 
 	/*
 	 * Check for misbehavior.
