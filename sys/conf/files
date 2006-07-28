@@ -878,6 +878,7 @@ dev/sound/isa/sb16.c		optional snd_sb16 isa
 dev/sound/isa/sb8.c		optional snd_sb8 isa
 dev/sound/isa/sbc.c		optional snd_sbc isa
 dev/sound/isa/sndbuf_dma.c	optional sound isa
+dev/sound/pci/ak452x.c		optional snd_ak452x pci
 dev/sound/pci/als4000.c		optional snd_als4000 pci
 dev/sound/pci/atiixp.c		optional snd_atiixp pci
 #dev/sound/pci/au88x0.c		optional snd_au88x0 pci
@@ -903,6 +904,7 @@ dev/sound/pci/emu10kx-pcm.c	optional snd_emu10kx pci \
 dev/sound/pci/emu10kx-midi.c	optional snd_emu10kx pci \
 	dependency "emu10k1-alsa%diked.h" \
 	warning "kernel contains GPL contaminated emu10kx headers"
+dev/sound/pci/envy24.c		optional snd_envy24 pci
 dev/sound/pci/es137x.c		optional snd_es137x pci
 dev/sound/pci/fm801.c		optional snd_fm801 pci
 dev/sound/pci/ich.c		optional snd_ich pci
