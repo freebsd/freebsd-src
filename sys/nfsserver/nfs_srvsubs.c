@@ -554,8 +554,9 @@ nfsrv_modevent(module_t mod, int type, void *data)
 		NFSD_UNLOCK();
 		nfsrv_timer(0);
 
+		/* XXX: Should use SYSCALL_MODULE() */
 		nfs_prev_nfssvc_sy_narg = sysent[SYS_nfssvc].sy_narg;
-		sysent[SYS_nfssvc].sy_narg = 2 | SYF_MPSAFE;
+		sysent[SYS_nfssvc].sy_narg = 2;
 		nfs_prev_nfssvc_sy_call = sysent[SYS_nfssvc].sy_call;
 		sysent[SYS_nfssvc].sy_call = (sy_call_t *)nfssvc;
 		break;
