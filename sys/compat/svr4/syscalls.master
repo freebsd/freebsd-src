@@ -104,7 +104,7 @@
 				    int a3, int a4, int a5); }
 53	AUE_NULL	MSTD	{ int svr4_sys_semsys(int what, int a2, \
 				    int a3, int a4, int a5); }
-54	AUE_NULL	STD	{ int svr4_sys_ioctl(int fd, u_long com, \
+54	AUE_NULL	MSTD	{ int svr4_sys_ioctl(int fd, u_long com, \
 				    caddr_t data); }
 55	AUE_NULL	UNIMPL	uadmin
 56	AUE_NULL	UNIMPL	exch
@@ -141,10 +141,10 @@
 82	AUE_NULL	UNIMPL	libattach
 83	AUE_NULL	UNIMPL	libdetach
 84	AUE_NULL	UNIMPL	sysfs
-85	AUE_NULL	STD	{ int svr4_sys_getmsg(int fd, \
+85	AUE_NULL	MSTD	{ int svr4_sys_getmsg(int fd, \
 				    struct svr4_strbuf *ctl, \
 				    struct svr4_strbuf *dat, int *flags); }
-86	AUE_NULL	STD	{ int svr4_sys_putmsg(int fd, \
+86	AUE_NULL	MSTD	{ int svr4_sys_putmsg(int fd, \
 				    struct svr4_strbuf *ctl, \
 				    struct svr4_strbuf *dat, int flags); }
 87	AUE_NULL	MSTD	{ int svr4_sys_poll(struct pollfd *fds, \
