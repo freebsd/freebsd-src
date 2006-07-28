@@ -215,8 +215,8 @@ print_bw_meter(struct bw_meter *bw_meter, int *banner_printed)
 	else
 		sprintf(s2, "?");
 	sprintf(s0, "%lu.%lu|%s|%s",
-		bw_meter->bm_start_time.tv_sec,
-		bw_meter->bm_start_time.tv_usec,
+		(u_long)bw_meter->bm_start_time.tv_sec,
+		(u_long)bw_meter->bm_start_time.tv_usec,
 		s1, s2);
 	printf("  %-30s", s0);
 
@@ -238,8 +238,8 @@ print_bw_meter(struct bw_meter *bw_meter, int *banner_printed)
 	else
 		sprintf(s2, "?");
 	sprintf(s0, "%lu.%lu|%s|%s",
-		bw_meter->bm_threshold.b_time.tv_sec,
-		bw_meter->bm_threshold.b_time.tv_usec,
+		(u_long)bw_meter->bm_threshold.b_time.tv_sec,
+		(u_long)bw_meter->bm_threshold.b_time.tv_usec,
 		s1, s2);
 	printf("  %-30s", s0);
 
@@ -248,11 +248,15 @@ print_bw_meter(struct bw_meter *bw_meter, int *banner_printed)
 		 &bw_meter->bm_threshold.b_time, &end);
 	if (timercmp(&now, &end, <=)) {
 		timersub(&end, &now, &delta);
-		sprintf(s3, "%lu.%lu", delta.tv_sec, delta.tv_usec);
+		sprintf(s3, "%lu.%lu",
+			(u_long)delta.tv_sec,
+			(u_long)delta.tv_usec);
 	} else {
 		/* Negative time */
 		timersub(&now, &end, &delta);
-		sprintf(s3, "-%lu.%lu", delta.tv_sec, delta.tv_usec);
+		sprintf(s3, "-%lu.%lu",
+			(u_long)delta.tv_sec,
+			(u_long)delta.tv_usec);
 	}
 	printf(" %s", s3);
 
