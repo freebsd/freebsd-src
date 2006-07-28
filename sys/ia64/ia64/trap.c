@@ -1016,15 +1016,7 @@ syscall(struct trapframe *tf)
 
 	PTRACESTOP_SC(p, td, S_PT_SCE);
 
-	/*
-	 * Grab Giant if the syscall is not flagged as MP safe.
-	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
-		mtx_lock(&Giant);
-		error = (*callp->sy_call)(td, args);
-		mtx_unlock(&Giant);
-	} else
-		error = (*callp->sy_call)(td, args);
+	error = (*callp->sy_call)(td, args);
 
 	if (error != EJUSTRETURN) {
 		/*

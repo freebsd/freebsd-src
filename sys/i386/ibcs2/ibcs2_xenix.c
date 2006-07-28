@@ -69,13 +69,9 @@ ibcs2_xenix(struct thread *td, struct ibcs2_xenix_args *uap)
 	code = (tf->tf_eax & 0xff00) >> 8;
 	callp = &xenix_sysent[code];
 
-	if (code < IBCS2_XENIX_MAXSYSCALL) {
-		if ((callp->sy_narg & SYF_MPSAFE) == 0)
-			mtx_lock(&Giant);
+	if (code < IBCS2_XENIX_MAXSYSCALL)
 		error = ((*callp->sy_call)(td, (void *)uap));
-		if ((callp->sy_narg & SYF_MPSAFE) == 0)
-			mtx_unlock(&Giant);
-	} else
+	else
 		error = ENOSYS;
 	return (error);
 }

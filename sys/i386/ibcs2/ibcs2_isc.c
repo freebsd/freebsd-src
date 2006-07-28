@@ -58,13 +58,9 @@ ibcs2_isc(struct thread *td, struct ibcs2_isc_args *uap)
 	code = (tf->tf_eax & 0xffffff00) >> 8;
 	callp = &isc_sysent[code];
 
-	if (code < IBCS2_ISC_MAXSYSCALL) {
-		if ((callp->sy_narg & SYF_MPSAFE) == 0)
-			mtx_lock(&Giant);
+	if (code < IBCS2_ISC_MAXSYSCALL)
 		error = (*callp->sy_call)(td, (void *)uap);
-		if ((callp->sy_narg & SYF_MPSAFE) == 0)
-			mtx_unlock(&Giant);
-	} else
+	else
 		error = ENOSYS;
 	return (error);
 }

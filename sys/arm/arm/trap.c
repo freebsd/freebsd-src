@@ -878,7 +878,6 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 	u_int nap, nargs;
 	register_t *ap, *args, copyargs[MAXARGS];
 	struct sysent *callp;
-	int locked = 0;
 
 	PCPU_LAZY_INC(cnt.v_syscall);
 	td->td_pticks = 0;
@@ -928,9 +927,6 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 		
 	CTR4(KTR_SYSC, "syscall enter thread %p pid %d proc %s code %d", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm, code);
-	if ((callp->sy_narg & SYF_MPSAFE) == 0)
-		mtx_lock(&Giant);
-	locked = 1;
 	if (error == 0) {
 		td->td_retval[0] = 0;
 		td->td_retval[1] = 0;
@@ -978,8 +974,6 @@ bad:
 		frame->tf_spsr |= PSR_C_bit;    /* carry bit */
 		break;
 	}
-	if (locked && (callp->sy_narg & SYF_MPSAFE) == 0)
-		mtx_unlock(&Giant);
 
 	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
 	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
