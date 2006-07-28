@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 19, 2006
+.Dd July 28, 2006
 .Dt PADLOCK 4 i386
 .Os
 .Sh NAME
@@ -48,16 +48,16 @@ padlock_load="YES"
 .Sh DESCRIPTION
 The C3 and Eden processor series from VIA include hardware acceleration for
 AES.
-The C7 series includes hardware acceleration for AES, SHA and RSA.
+The C7 series includes hardware acceleration for AES, SHA1, SHA256 and RSA.
 All of the above processor series include a hardware random number generator.
 .Pp
 The
 .Nm
-driver registers itself to accelerate AES operations for
+driver registers itself to accelerate AES operations and if available HMAC/SHA1
+and HMAC/SHA256 for
 .Xr crypto 4 .
-It also registers itself to accelerate various HMAC algorithms, although
-there is no
-hardware acceleration for those algorithms.
+It also registers itself to accelerate other HMAC algorithms, although
+there is no hardware acceleration for those algorithms.
 This is only needed, so
 .Nm
 can work with
@@ -86,10 +86,11 @@ release to include it was
 .An -nosplit
 The
 .Nm
-driver was written by
+driver with AES encrytion support was written by
 .An Jason Wright Aq jason@OpenBSD.org .
 It was ported to
 .Fx
+and then extended to support SHA1 and SHA256
 by
 .An Pawel Jakub Dawidek Aq pjd@FreeBSD.org .
 This manual page was written by
