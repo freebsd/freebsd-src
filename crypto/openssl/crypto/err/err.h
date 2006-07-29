@@ -59,11 +59,14 @@
 #ifndef HEADER_ERR_H
 #define HEADER_ERR_H
 
+#include <openssl/e_os2.h>
+
 #ifndef OPENSSL_NO_FP_API
 #include <stdio.h>
 #include <stdlib.h>
 #endif
 
+#include <openssl/ossl_typ.h>
 #ifndef OPENSSL_NO_BIO
 #include <openssl/bio.h>
 #endif
@@ -86,10 +89,13 @@ extern "C" {
 #define ERR_TXT_MALLOCED	0x01
 #define ERR_TXT_STRING		0x02
 
+#define ERR_FLAG_MARK		0x01
+
 #define ERR_NUM_ERRORS	16
 typedef struct err_state_st
 	{
 	unsigned long pid;
+	int err_flags[ERR_NUM_ERRORS];
 	unsigned long err_buffer[ERR_NUM_ERRORS];
 	char *err_data[ERR_NUM_ERRORS];
 	int err_data_flags[ERR_NUM_ERRORS];
@@ -131,7 +137,9 @@ typedef struct err_state_st
 #define ERR_LIB_OCSP            39
 #define ERR_LIB_UI              40
 #define ERR_LIB_COMP            41
-#define ERR_LIB_FIPS		42
+#define ERR_LIB_ECDSA		42
+#define ERR_LIB_ECDH		43
+#define ERR_LIB_STORE           44
 
 #define ERR_LIB_USER		128
 
@@ -160,7 +168,9 @@ typedef struct err_state_st
 #define OCSPerr(f,r) ERR_PUT_error(ERR_LIB_OCSP,(f),(r),__FILE__,__LINE__)
 #define UIerr(f,r) ERR_PUT_error(ERR_LIB_UI,(f),(r),__FILE__,__LINE__)
 #define COMPerr(f,r) ERR_PUT_error(ERR_LIB_COMP,(f),(r),__FILE__,__LINE__)
-#define FIPSerr(f,r) ERR_PUT_error(ERR_LIB_FIPS,(f),(r),__FILE__,__LINE__)
+#define ECDSAerr(f,r)  ERR_PUT_error(ERR_LIB_ECDSA,(f),(r),__FILE__,__LINE__)
+#define ECDHerr(f,r)  ERR_PUT_error(ERR_LIB_ECDH,(f),(r),__FILE__,__LINE__)
+#define STOREerr(f,r) ERR_PUT_error(ERR_LIB_STORE,(f),(r),__FILE__,__LINE__)
 
 /* Borland C seems too stupid to be able to shift and do longs in
  * the pre-processor :-( */
@@ -213,6 +223,9 @@ typedef struct err_state_st
 #define ERR_R_OCSP_LIB  ERR_LIB_OCSP     /* 39 */
 #define ERR_R_UI_LIB    ERR_LIB_UI       /* 40 */
 #define ERR_R_COMP_LIB	ERR_LIB_COMP     /* 41 */
+#define ERR_R_ECDSA_LIB ERR_LIB_ECDSA	 /* 42 */
+#define ERR_R_ECDH_LIB  ERR_LIB_ECDH	 /* 43 */
+#define ERR_R_STORE_LIB ERR_LIB_STORE    /* 44 */
 
 #define ERR_R_NESTED_ASN1_ERROR			58
 #define ERR_R_BAD_ASN1_OBJECT_HEADER		59
@@ -227,6 +240,7 @@ typedef struct err_state_st
 #define	ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED	(2|ERR_R_FATAL)
 #define	ERR_R_PASSED_NULL_PARAMETER		(3|ERR_R_FATAL)
 #define	ERR_R_INTERNAL_ERROR			(4|ERR_R_FATAL)
+#define	ERR_R_DISABLED				(5|ERR_R_FATAL)
 
 /* 99 is the maximum possible ERR_R_... code, higher values
  * are reserved for the individual libraries */
@@ -285,8 +299,11 @@ void ERR_release_err_state_table(LHASH **hash);
 
 int ERR_get_next_error_library(void);
 
-/* This opaque type encapsulates the low-level error-state functions */
-typedef struct st_ERR_FNS ERR_FNS;
+int ERR_set_mark(void);
+int ERR_pop_to_mark(void);
+
+/* Already defined in ossl_typ.h */
+/* typedef struct st_ERR_FNS ERR_FNS; */
 /* An application can use this function and provide the return value to loaded
  * modules that should use the application's ERR state/functionality */
 const ERR_FNS *ERR_get_implementation(void);

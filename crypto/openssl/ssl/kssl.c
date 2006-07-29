@@ -68,10 +68,14 @@
 
 #include <openssl/opensslconf.h>
 
-#define _XOPEN_SOURCE /* glibc2 needs this to declare strptime() */
+#define _XOPEN_SOURCE 500 /* glibc2 needs this to declare strptime() */
 #include <time.h>
+#if 0 /* experimental */
 #undef _XOPEN_SOURCE /* To avoid clashes with anything else... */
+#endif
 #include <string.h>
+
+#define KRB5_PRIVATE	1
 
 #include <openssl/ssl.h>
 #include <openssl/evp.h>
@@ -79,6 +83,10 @@
 #include <openssl/krb5_asn.h>
 
 #ifndef OPENSSL_NO_KRB5
+
+#ifndef ENOMEM
+#define ENOMEM KRB5KRB_ERR_GENERIC
+#endif
 
 /* 
  * When OpenSSL is built on Windows, we do not want to require that
@@ -289,7 +297,7 @@ load_krb5_dll(void)
 	HANDLE hKRB5_32;
     
 	krb5_loaded++;
-	hKRB5_32 = LoadLibrary("KRB5_32");
+	hKRB5_32 = LoadLibrary(TEXT("KRB5_32"));
 	if (!hKRB5_32)
 		return;
 
@@ -932,7 +940,7 @@ print_krb5_data(char *label, krb5_data *kdata)
 	int i;
 
 	printf("%s[%d] ", label, kdata->length);
-	for (i=0; i < kdata->length; i++)
+	for (i=0; i < (int)kdata->length; i++)
                 {
 		if (0 &&  isprint((int) kdata->data[i]))
                         printf(	"%c ",  kdata->data[i]);
@@ -984,14 +992,14 @@ print_krb5_keyblock(char *label, krb5_keyblock *keyblk)
 #ifdef KRB5_HEIMDAL
 	printf("%s\n\t[et%d:%d]: ", label, keyblk->keytype,
 					   keyblk->keyvalue->length);
-	for (i=0; i < keyblk->keyvalue->length; i++)
+	for (i=0; i < (int)keyblk->keyvalue->length; i++)
                 {
 		printf("%02x",(unsigned char *)(keyblk->keyvalue->contents)[i]);
 		}
 	printf("\n");
 #else
 	printf("%s\n\t[et%d:%d]: ", label, keyblk->enctype, keyblk->length);
-	for (i=0; i < keyblk->length; i++)
+	for (i=0; i < (int)keyblk->length; i++)
                 {
 		printf("%02x",keyblk->contents[i]);
 		}
@@ -1010,12 +1018,12 @@ print_krb5_princ(char *label, krb5_principal_data *princ)
 
 	printf("%s principal Realm: ", label);
 	if (princ == NULL)  return;
-	for (ui=0; ui < princ->realm.length; ui++)  putchar(princ->realm.data[ui]);
+	for (ui=0; ui < (int)princ->realm.length; ui++)  putchar(princ->realm.data[ui]);
 	printf(" (nametype %d) has %d strings:\n", princ->type,princ->length);
-	for (i=0; i < princ->length; i++)
+	for (i=0; i < (int)princ->length; i++)
                 {
 		printf("\t%d [%d]: ", i, princ->data[i].length);
-		for (uj=0; uj < princ->data[i].length; uj++)  {
+		for (uj=0; uj < (int)princ->data[i].length; uj++)  {
 			putchar(princ->data[i].data[uj]);
 			}
 		printf("\n");
@@ -1124,7 +1132,7 @@ kssl_cget_tkt(	/* UPDATE */	KSSL_CTX *kssl_ctx,
 	if (authenp)
                 {
 		krb5_data	krb5in_data;
-		unsigned char	*p;
+		const unsigned char	*p;
 		long		arlen;
 		KRB5_APREQBODY	*ap_req;
 
@@ -1293,7 +1301,7 @@ kssl_sget_tkt(	/* UPDATE */	KSSL_CTX		*kssl_ctx,
 	static krb5_auth_context	krb5auth_context = NULL;
 	krb5_ticket 			*krb5ticket = NULL;
 	KRB5_TKTBODY 			*asn1ticket = NULL;
-	unsigned char			*p;
+	const unsigned char		*p;
 	krb5_keytab 			krb5keytab = NULL;
 	krb5_keytab_entry		kt_entry;
 	krb5_principal			krb5server;
@@ -1978,7 +1986,8 @@ krb5_error_code  kssl_check_authent(
 	EVP_CIPHER_CTX		ciph_ctx;
 	const EVP_CIPHER	*enc = NULL;
 	unsigned char		iv[EVP_MAX_IV_LENGTH];
-	unsigned char		*p, *unenc_authent;
+	const unsigned char	*p;
+	unsigned char		*unenc_authent;
 	int 			outl, unencbufsize;
 	struct tm		tm_time, *tm_l, *tm_g;
 	time_t			now, tl, tg, tr, tz_offset;

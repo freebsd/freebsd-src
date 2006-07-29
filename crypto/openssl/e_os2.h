@@ -76,16 +76,19 @@ extern "C" {
 # define OPENSSL_SYS_MACINTOSH_CLASSIC
 #endif
 
+/* ----------------------- NetWare ----------------------------------------- */
+#if defined(NETWARE) || defined(OPENSSL_SYSNAME_NETWARE)
+# undef OPENSSL_SYS_UNIX
+# define OPENSSL_SYS_NETWARE
+#endif
+
 /* ---------------------- Microsoft operating systems ---------------------- */
 
-/* The 16 bit environments are pretty straightforward */
-#if defined(OPENSSL_SYSNAME_WIN16) || defined(OPENSSL_SYSNAME_MSDOS)
+/* Note that MSDOS actually denotes 32-bit environments running on top of
+   MS-DOS, such as DJGPP one. */
+#if defined(OPENSSL_SYSNAME_MSDOS)
 # undef OPENSSL_SYS_UNIX
 # define OPENSSL_SYS_MSDOS
-#endif
-#if defined(OPENSSL_SYSNAME_WIN16)
-# undef OPENSSL_SYS_UNIX
-# define OPENSSL_SYS_WIN16
 #endif
 
 /* For 32 bit environment, there seems to be the CygWin environment and then
@@ -114,7 +117,7 @@ extern "C" {
 #endif
 
 /* Anything that tries to look like Microsoft is "Windows" */
-#if defined(OPENSSL_SYS_WIN16) || defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_WINNT) || defined(OPENSSL_SYS_WINCE)
+#if defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_WINNT) || defined(OPENSSL_SYS_WINCE)
 # undef OPENSSL_SYS_UNIX
 # define OPENSSL_SYS_WINDOWS
 # ifndef OPENSSL_SYS_MSDOS
@@ -237,8 +240,8 @@ extern "C" {
 # define OPENSSL_IMPORT globalref
 # define OPENSSL_GLOBAL globaldef
 #elif defined(OPENSSL_SYS_WINDOWS) && defined(OPENSSL_OPT_WINDLL)
-# define OPENSSL_EXPORT extern _declspec(dllexport)
-# define OPENSSL_IMPORT extern _declspec(dllimport)
+# define OPENSSL_EXPORT extern __declspec(dllexport)
+# define OPENSSL_IMPORT extern __declspec(dllimport)
 # define OPENSSL_GLOBAL
 #else
 # define OPENSSL_EXPORT extern
@@ -248,7 +251,7 @@ extern "C" {
 #define OPENSSL_EXTERN OPENSSL_IMPORT
 
 /* Macros to allow global variables to be reached through function calls when
-   required (if a shared library version requires it, for example.
+   required (if a shared library version requvres it, for example.
    The way it's done allows definitions like this:
 
 	// in foobar.c

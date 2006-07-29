@@ -134,13 +134,13 @@ static int bnrand(int pseudorand, BIGNUM *rnd, int bits, int top, int bottom)
 	buf=(unsigned char *)OPENSSL_malloc(bytes);
 	if (buf == NULL)
 		{
-		BNerr(BN_F_BN_RAND,ERR_R_MALLOC_FAILURE);
+		BNerr(BN_F_BNRAND,ERR_R_MALLOC_FAILURE);
 		goto err;
 		}
 
 	/* make a random number and set the top and bottom bits */
 	time(&tim);
-	RAND_add(&tim,sizeof(tim),0);
+	RAND_add(&tim,sizeof(tim),0.0);
 
 	if (pseudorand)
 		{
@@ -204,6 +204,7 @@ err:
 		OPENSSL_cleanse(buf,bytes);
 		OPENSSL_free(buf);
 		}
+	bn_check_top(rnd);
 	return(ret);
 	}
 
@@ -230,6 +231,7 @@ static int bn_rand_range(int pseudo, BIGNUM *r, BIGNUM *range)
 	{
 	int (*bn_rand)(BIGNUM *, int, int, int) = pseudo ? BN_pseudo_rand : BN_rand;
 	int n;
+	int count = 100;
 
 	if (range->neg || BN_is_zero(range))
 		{
@@ -242,9 +244,7 @@ static int bn_rand_range(int pseudo, BIGNUM *r, BIGNUM *range)
 	/* BN_is_bit_set(range, n - 1) always holds */
 
 	if (n == 1)
-		{
-		if (!BN_zero(r)) return 0;
-		}
+		BN_zero(r);
 	else if (!BN_is_bit_set(range, n - 2) && !BN_is_bit_set(range, n - 3))
 		{
 		/* range = 100..._2,
@@ -263,6 +263,13 @@ static int bn_rand_range(int pseudo, BIGNUM *r, BIGNUM *range)
 				if (BN_cmp(r, range) >= 0)
 					if (!BN_sub(r, r, range)) return 0;
 				}
+
+			if (!--count)
+				{
+				BNerr(BN_F_BN_RAND_RANGE, BN_R_TOO_MANY_ITERATIONS);
+				return 0;
+				}
+			
 			}
 		while (BN_cmp(r, range) >= 0);
 		}
@@ -272,10 +279,17 @@ static int bn_rand_range(int pseudo, BIGNUM *r, BIGNUM *range)
 			{
 			/* range = 11..._2  or  range = 101..._2 */
 			if (!bn_rand(r, n, -1, 0)) return 0;
+
+			if (!--count)
+				{
+				BNerr(BN_F_BN_RAND_RANGE, BN_R_TOO_MANY_ITERATIONS);
+				return 0;
+				}
 			}
 		while (BN_cmp(r, range) >= 0);
 		}
 
+	bn_check_top(r);
 	return 1;
 	}
 

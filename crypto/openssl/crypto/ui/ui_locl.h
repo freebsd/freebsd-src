@@ -60,6 +60,11 @@
 #define HEADER_UI_LOCL_H
 
 #include <openssl/ui.h>
+#include <openssl/crypto.h>
+
+#ifdef _
+#undef _
+#endif
 
 struct ui_method_st
 	{

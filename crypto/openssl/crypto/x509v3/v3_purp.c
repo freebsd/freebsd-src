@@ -63,7 +63,6 @@
 
 static void x509v3_cache_extensions(X509 *x);
 
-static int ca_check(const X509 *x);
 static int check_ssl_ca(const X509 *x);
 static int check_purpose_ssl_client(const X509_PURPOSE *xp, const X509 *x, int ca);
 static int check_purpose_ssl_server(const X509_PURPOSE *xp, const X509 *x, int ca);
@@ -140,7 +139,7 @@ int X509_PURPOSE_get_count(void)
 X509_PURPOSE * X509_PURPOSE_get0(int idx)
 {
 	if(idx < 0) return NULL;
-	if(idx < X509_PURPOSE_COUNT) return xstandard + idx;
+	if(idx < (int)X509_PURPOSE_COUNT) return xstandard + idx;
 	return sk_X509_PURPOSE_value(xptable, idx - X509_PURPOSE_COUNT);
 }
 
@@ -240,7 +239,7 @@ static void xptable_free(X509_PURPOSE *p)
 
 void X509_PURPOSE_cleanup(void)
 {
-	int i;
+	unsigned int i;
 	sk_X509_PURPOSE_pop_free(xptable, xptable_free);
 	for(i = 0; i < X509_PURPOSE_COUNT; i++) xptable_free(xstandard + i);
 	xptable = NULL;
@@ -286,7 +285,8 @@ int X509_supported_extension(X509_EXTENSION *ex)
         	NID_key_usage,		/* 83 */
 		NID_subject_alt_name,	/* 85 */
 		NID_basic_constraints,	/* 87 */
-        	NID_ext_key_usage	/* 126 */
+        	NID_ext_key_usage,	/* 126 */
+		NID_proxyCertInfo	/* 661 */
 	};
 
 	int ex_nid;
@@ -307,6 +307,7 @@ int X509_supported_extension(X509_EXTENSION *ex)
 static void x509v3_cache_extensions(X509 *x)
 {
 	BASIC_CONSTRAINTS *bs;
+	PROXY_CERT_INFO_EXTENSION *pci;
 	ASN1_BIT_STRING *usage;
 	ASN1_BIT_STRING *ns;
 	EXTENDED_KEY_USAGE *extusage;
@@ -334,6 +335,20 @@ static void x509v3_cache_extensions(X509 *x)
 		} else x->ex_pathlen = -1;
 		BASIC_CONSTRAINTS_free(bs);
 		x->ex_flags |= EXFLAG_BCONS;
+	}
+	/* Handle proxy certificates */
+	if((pci=X509_get_ext_d2i(x, NID_proxyCertInfo, NULL, NULL))) {
+		if (x->ex_flags & EXFLAG_CA
+		    || X509_get_ext_by_NID(x, NID_subject_alt_name, 0) >= 0
+		    || X509_get_ext_by_NID(x, NID_issuer_alt_name, 0) >= 0) {
+			x->ex_flags |= EXFLAG_INVALID;
+		}
+		if (pci->pcPathLengthConstraint) {
+			x->ex_pcpathlen =
+				ASN1_INTEGER_get(pci->pcPathLengthConstraint);
+		} else x->ex_pcpathlen = -1;
+		PROXY_CERT_INFO_EXTENSION_free(pci);
+		x->ex_flags |= EXFLAG_PROXY;
 	}
 	/* Handle key usage */
 	if((usage=X509_get_ext_d2i(x, NID_key_usage, NULL, NULL))) {
@@ -426,7 +441,7 @@ static void x509v3_cache_extensions(X509 *x)
 #define ns_reject(x, usage) \
 	(((x)->ex_flags & EXFLAG_NSCERT) && !((x)->ex_nscert & (usage)))
 
-static int ca_check(const X509 *x)
+static int check_ca(const X509 *x)
 {
 	/* keyUsage if present should allow cert signing */
 	if(ku_reject(x, KU_KEY_CERT_SIGN)) return 0;
@@ -435,25 +450,37 @@ static int ca_check(const X509 *x)
 		/* If basicConstraints says not a CA then say so */
 		else return 0;
 	} else {
+		/* we support V1 roots for...  uh, I don't really know why. */
 		if((x->ex_flags & V1_ROOT) == V1_ROOT) return 3;
 		/* If key usage present it must have certSign so tolerate it */
 		else if (x->ex_flags & EXFLAG_KUSAGE) return 4;
-		else return 2;
+		/* Older certificates could have Netscape-specific CA types */
+		else if (x->ex_flags & EXFLAG_NSCERT
+			 && x->ex_nscert & NS_ANY_CA) return 5;
+		/* can this still be regarded a CA certificate?  I doubt it */
+		return 0;
 	}
+}
+
+int X509_check_ca(X509 *x)
+{
+	if(!(x->ex_flags & EXFLAG_SET)) {
+		CRYPTO_w_lock(CRYPTO_LOCK_X509);
+		x509v3_cache_extensions(x);
+		CRYPTO_w_unlock(CRYPTO_LOCK_X509);
+	}
+
+	return check_ca(x);
 }
 
 /* Check SSL CA: common checks for SSL client and server */
 static int check_ssl_ca(const X509 *x)
 {
 	int ca_ret;
-	ca_ret = ca_check(x);
+	ca_ret = check_ca(x);
 	if(!ca_ret) return 0;
 	/* check nsCertType if present */
-	if(x->ex_flags & EXFLAG_NSCERT) {
-		if(x->ex_nscert & NS_SSL_CA) return ca_ret;
-		return 0;
-	}
-	if(ca_ret != 2) return ca_ret;
+	if(ca_ret != 5 || x->ex_nscert & NS_SSL_CA) return ca_ret;
 	else return 0;
 }
 
@@ -498,14 +525,10 @@ static int purpose_smime(const X509 *x, int ca)
 	if(xku_reject(x,XKU_SMIME)) return 0;
 	if(ca) {
 		int ca_ret;
-		ca_ret = ca_check(x);
+		ca_ret = check_ca(x);
 		if(!ca_ret) return 0;
 		/* check nsCertType if present */
-		if(x->ex_flags & EXFLAG_NSCERT) {
-			if(x->ex_nscert & NS_SMIME_CA) return ca_ret;
-			return 0;
-		}
-		if(ca_ret != 2) return ca_ret;
+		if(ca_ret != 5 || x->ex_nscert & NS_SMIME_CA) return ca_ret;
 		else return 0;
 	}
 	if(x->ex_flags & EXFLAG_NSCERT) {
@@ -539,7 +562,7 @@ static int check_purpose_crl_sign(const X509_PURPOSE *xp, const X509 *x, int ca)
 {
 	if(ca) {
 		int ca_ret;
-		if((ca_ret = ca_check(x)) != 2) return ca_ret;
+		if((ca_ret = check_ca(x)) != 2) return ca_ret;
 		else return 0;
 	}
 	if(ku_reject(x, KU_CRL_SIGN)) return 0;
@@ -552,17 +575,9 @@ static int check_purpose_crl_sign(const X509_PURPOSE *xp, const X509 *x, int ca)
 
 static int ocsp_helper(const X509_PURPOSE *xp, const X509 *x, int ca)
 {
-	/* Must be a valid CA */
-	if(ca) {
-		int ca_ret;
-		ca_ret = ca_check(x);
-		if(ca_ret != 2) return ca_ret;
-		if(x->ex_flags & EXFLAG_NSCERT) {
-			if(x->ex_nscert & NS_ANY_CA) return ca_ret;
-			return 0;
-		}
-		return 0;
-	}
+	/* Must be a valid CA.  Should we really support the "I don't know"
+	   value (2)? */
+	if(ca) return check_ca(x);
 	/* leaf certificate is checked in OCSP_verify() */
 	return 1;
 }
@@ -624,7 +639,13 @@ int X509_check_issued(X509 *issuer, X509 *subject)
 				return X509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH;
 		}
 	}
-	if(ku_reject(issuer, KU_KEY_CERT_SIGN)) return X509_V_ERR_KEYUSAGE_NO_CERTSIGN;
+	if(subject->ex_flags & EXFLAG_PROXY)
+		{
+		if(ku_reject(issuer, KU_DIGITAL_SIGNATURE))
+			return X509_V_ERR_KEYUSAGE_NO_DIGITAL_SIGNATURE;
+		}
+	else if(ku_reject(issuer, KU_KEY_CERT_SIGN))
+		return X509_V_ERR_KEYUSAGE_NO_CERTSIGN;
 	return X509_V_OK;
 }
 

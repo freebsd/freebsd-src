@@ -226,7 +226,7 @@ int i2d_SSL_SESSION(SSL_SESSION *in, unsigned char **pp)
 	M_ASN1_I2D_finish();
 	}
 
-SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, unsigned char **pp,
+SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, const unsigned char **pp,
 	     long length)
 	{
 	int version,ssl_version=0,i;
@@ -242,18 +242,18 @@ SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, unsigned char **pp,
 	M_ASN1_D2I_start_sequence();
 
 	ai.data=NULL; ai.length=0;
-	M_ASN1_D2I_get(aip,d2i_ASN1_INTEGER);
+	M_ASN1_D2I_get_x(ASN1_INTEGER,aip,d2i_ASN1_INTEGER);
 	version=(int)ASN1_INTEGER_get(aip);
 	if (ai.data != NULL) { OPENSSL_free(ai.data); ai.data=NULL; ai.length=0; }
 
 	/* we don't care about the version right now :-) */
-	M_ASN1_D2I_get(aip,d2i_ASN1_INTEGER);
+	M_ASN1_D2I_get_x(ASN1_INTEGER,aip,d2i_ASN1_INTEGER);
 	ssl_version=(int)ASN1_INTEGER_get(aip);
 	ret->ssl_version=ssl_version;
 	if (ai.data != NULL) { OPENSSL_free(ai.data); ai.data=NULL; ai.length=0; }
 
 	os.data=NULL; os.length=0;
-	M_ASN1_D2I_get(osp,d2i_ASN1_OCTET_STRING);
+	M_ASN1_D2I_get_x(ASN1_OCTET_STRING,osp,d2i_ASN1_OCTET_STRING);
 	if (ssl_version == SSL2_VERSION)
 		{
 		if (os.length != 3)
@@ -266,7 +266,7 @@ SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, unsigned char **pp,
 			((unsigned long)os.data[1]<< 8L)|
 			 (unsigned long)os.data[2];
 		}
-	else if ((ssl_version>>8) == 3)
+	else if ((ssl_version>>8) == SSL3_VERSION_MAJOR)
 		{
 		if (os.length != 2)
 			{
@@ -286,22 +286,22 @@ SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, unsigned char **pp,
 	ret->cipher=NULL;
 	ret->cipher_id=id;
 
-	M_ASN1_D2I_get(osp,d2i_ASN1_OCTET_STRING);
-	if ((ssl_version>>8) == SSL3_VERSION)
+	M_ASN1_D2I_get_x(ASN1_OCTET_STRING,osp,d2i_ASN1_OCTET_STRING);
+	if ((ssl_version>>8) == SSL3_VERSION_MAJOR)
 		i=SSL3_MAX_SSL_SESSION_ID_LENGTH;
-	else /* if (ssl_version == SSL2_VERSION) */
+	else /* if (ssl_version>>8 == SSL2_VERSION_MAJOR) */
 		i=SSL2_MAX_SSL_SESSION_ID_LENGTH;
 
 	if (os.length > i)
 		os.length = i;
-	if (os.length > sizeof ret->session_id) /* can't happen */
-		os.length = sizeof ret->session_id;
+	if (os.length > (int)sizeof(ret->session_id)) /* can't happen */
+		os.length = sizeof(ret->session_id);
 
 	ret->session_id_length=os.length;
-	OPENSSL_assert(os.length <= sizeof ret->session_id);
+	OPENSSL_assert(os.length <= (int)sizeof(ret->session_id));
 	memcpy(ret->session_id,os.data,os.length);
 
-	M_ASN1_D2I_get(osp,d2i_ASN1_OCTET_STRING);
+	M_ASN1_D2I_get_x(ASN1_OCTET_STRING,osp,d2i_ASN1_OCTET_STRING);
 	if (ret->master_key_length > SSL_MAX_MASTER_KEY_LENGTH)
 		ret->master_key_length=SSL_MAX_MASTER_KEY_LENGTH;
 	else
@@ -344,7 +344,7 @@ SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, unsigned char **pp,
 		OPENSSL_free(ai.data); ai.data=NULL; ai.length=0;
 		}
 	else
-		ret->time=time(NULL);
+		ret->time=(unsigned long)time(NULL);
 
 	ai.length=0;
 	M_ASN1_D2I_get_EXP_opt(aip,d2i_ASN1_INTEGER,2);

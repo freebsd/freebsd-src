@@ -17,6 +17,8 @@ B<openssl> B<x509>
 [B<-out filename>]
 [B<-serial>]
 [B<-hash>]
+[B<-subject_hash>]
+[B<-issuer_hash>]
 [B<-subject>]
 [B<-issuer>]
 [B<-nameopt option>]
@@ -96,8 +98,8 @@ default.
 
 the digest to use. This affects any signing or display option that uses a message
 digest, such as the B<-fingerprint>, B<-signkey> and B<-CA> options. If not
-specified then MD5 is used. If the key being used to sign with is a DSA key then
-this option has no effect: SHA1 is always used with DSA keys.
+specified then SHA1 is used. If the key being used to sign with is a DSA key
+then this option has no effect: SHA1 is always used with DSA keys.
 
 =item B<-engine id>
 
@@ -141,11 +143,19 @@ contained in the certificate.
 
 outputs the certificate serial number.
 
-=item B<-hash>
+=item B<-subject_hash>
 
 outputs the "hash" of the certificate subject name. This is used in OpenSSL to
 form an index to allow certificates in a directory to be looked up by subject
 name.
+
+=item B<-issuer_hash>
+
+outputs the "hash" of the certificate issuer name.
+
+=item B<-hash>
+
+synonym for "-hash" for backward compatibility reasons.
 
 =item B<-subject>
 
@@ -814,5 +824,9 @@ OpenSSL 0.9.5 and later.
 
 L<req(1)|req(1)>, L<ca(1)|ca(1)>, L<genrsa(1)|genrsa(1)>,
 L<gendsa(1)|gendsa(1)>, L<verify(1)|verify(1)>
+
+=head1 HISTORY
+
+Before OpenSSL 0.9.8, the default digest for RSA keys was MD5.
 
 =cut

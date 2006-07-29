@@ -55,6 +55,19 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  */
+/* ====================================================================
+ * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
+ *
+ * Portions of the attached software ("Contribution") are developed by 
+ * SUN MICROSYSTEMS, INC., and are contributed to the OpenSSL project.
+ *
+ * The Contribution is licensed pursuant to the OpenSSL open source
+ * license provided above.
+ *
+ * ECC cipher suite support in OpenSSL originally written by
+ * Vipul Gupta and Sumit Gupta of Sun Microsystems Laboratories.
+ *
+ */
 
 #ifndef HEADER_TLS1_H 
 #define HEADER_TLS1_H 
@@ -112,6 +125,37 @@ extern "C" {
 #define TLS1_CK_DHE_RSA_WITH_AES_256_SHA		0x03000039
 #define TLS1_CK_ADH_WITH_AES_256_SHA			0x0300003A
 
+/* ECC ciphersuites from draft-ietf-tls-ecc-12.txt with changes soon to be in draft 13 */
+#define TLS1_CK_ECDH_ECDSA_WITH_NULL_SHA                0x0300C001
+#define TLS1_CK_ECDH_ECDSA_WITH_RC4_128_SHA             0x0300C002
+#define TLS1_CK_ECDH_ECDSA_WITH_DES_192_CBC3_SHA        0x0300C003
+#define TLS1_CK_ECDH_ECDSA_WITH_AES_128_CBC_SHA         0x0300C004
+#define TLS1_CK_ECDH_ECDSA_WITH_AES_256_CBC_SHA         0x0300C005
+
+#define TLS1_CK_ECDHE_ECDSA_WITH_NULL_SHA               0x0300C006
+#define TLS1_CK_ECDHE_ECDSA_WITH_RC4_128_SHA            0x0300C007
+#define TLS1_CK_ECDHE_ECDSA_WITH_DES_192_CBC3_SHA       0x0300C008
+#define TLS1_CK_ECDHE_ECDSA_WITH_AES_128_CBC_SHA        0x0300C009
+#define TLS1_CK_ECDHE_ECDSA_WITH_AES_256_CBC_SHA        0x0300C00A
+
+#define TLS1_CK_ECDH_RSA_WITH_NULL_SHA                  0x0300C00B
+#define TLS1_CK_ECDH_RSA_WITH_RC4_128_SHA               0x0300C00C
+#define TLS1_CK_ECDH_RSA_WITH_DES_192_CBC3_SHA          0x0300C00D
+#define TLS1_CK_ECDH_RSA_WITH_AES_128_CBC_SHA           0x0300C00E
+#define TLS1_CK_ECDH_RSA_WITH_AES_256_CBC_SHA           0x0300C00F
+
+#define TLS1_CK_ECDHE_RSA_WITH_NULL_SHA                 0x0300C010
+#define TLS1_CK_ECDHE_RSA_WITH_RC4_128_SHA              0x0300C011
+#define TLS1_CK_ECDHE_RSA_WITH_DES_192_CBC3_SHA         0x0300C012
+#define TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA          0x0300C013
+#define TLS1_CK_ECDHE_RSA_WITH_AES_256_CBC_SHA          0x0300C014
+
+#define TLS1_CK_ECDH_anon_WITH_NULL_SHA                 0x0300C015
+#define TLS1_CK_ECDH_anon_WITH_RC4_128_SHA              0x0300C016
+#define TLS1_CK_ECDH_anon_WITH_DES_192_CBC3_SHA         0x0300C017
+#define TLS1_CK_ECDH_anon_WITH_AES_128_CBC_SHA          0x0300C018
+#define TLS1_CK_ECDH_anon_WITH_AES_256_CBC_SHA          0x0300C019
+
 /* XXX
  * Inconsistency alert:
  * The OpenSSL names of ciphers with ephemeral DH here include the string
@@ -142,12 +186,45 @@ extern "C" {
 #define TLS1_TXT_DHE_RSA_WITH_AES_256_SHA		"DHE-RSA-AES256-SHA"
 #define TLS1_TXT_ADH_WITH_AES_256_SHA			"ADH-AES256-SHA"
 
+/* ECC ciphersuites from draft-ietf-tls-ecc-01.txt (Mar 15, 2001) */
+#define TLS1_TXT_ECDH_ECDSA_WITH_NULL_SHA               "ECDH-ECDSA-NULL-SHA"
+#define TLS1_TXT_ECDH_ECDSA_WITH_RC4_128_SHA            "ECDH-ECDSA-RC4-SHA"
+#define TLS1_TXT_ECDH_ECDSA_WITH_DES_192_CBC3_SHA       "ECDH-ECDSA-DES-CBC3-SHA"
+#define TLS1_TXT_ECDH_ECDSA_WITH_AES_128_CBC_SHA        "ECDH-ECDSA-AES128-SHA"
+#define TLS1_TXT_ECDH_ECDSA_WITH_AES_256_CBC_SHA        "ECDH-ECDSA-AES256-SHA"
+
+#define TLS1_TXT_ECDHE_ECDSA_WITH_NULL_SHA              "ECDHE-ECDSA-NULL-SHA"
+#define TLS1_TXT_ECDHE_ECDSA_WITH_RC4_128_SHA           "ECDHE-ECDSA-RC4-SHA"
+#define TLS1_TXT_ECDHE_ECDSA_WITH_DES_192_CBC3_SHA      "ECDHE-ECDSA-DES-CBC3-SHA"
+#define TLS1_TXT_ECDHE_ECDSA_WITH_AES_128_CBC_SHA       "ECDHE-ECDSA-AES128-SHA"
+#define TLS1_TXT_ECDHE_ECDSA_WITH_AES_256_CBC_SHA       "ECDHE-ECDSA-AES256-SHA"
+
+#define TLS1_TXT_ECDH_RSA_WITH_NULL_SHA                 "ECDH-RSA-NULL-SHA"
+#define TLS1_TXT_ECDH_RSA_WITH_RC4_128_SHA              "ECDH-RSA-RC4-SHA"
+#define TLS1_TXT_ECDH_RSA_WITH_DES_192_CBC3_SHA         "ECDH-RSA-DES-CBC3-SHA"
+#define TLS1_TXT_ECDH_RSA_WITH_AES_128_CBC_SHA          "ECDH-RSA-AES128-SHA"
+#define TLS1_TXT_ECDH_RSA_WITH_AES_256_CBC_SHA          "ECDH-RSA-AES256-SHA"
+
+#define TLS1_TXT_ECDHE_RSA_WITH_NULL_SHA                "ECDHE-RSA-NULL-SHA"
+#define TLS1_TXT_ECDHE_RSA_WITH_RC4_128_SHA             "ECDHE-RSA-RC4-SHA"
+#define TLS1_TXT_ECDHE_RSA_WITH_DES_192_CBC3_SHA        "ECDHE-RSA-DES-CBC3-SHA"
+#define TLS1_TXT_ECDHE_RSA_WITH_AES_128_CBC_SHA         "ECDHE-RSA-AES128-SHA"
+#define TLS1_TXT_ECDHE_RSA_WITH_AES_256_CBC_SHA         "ECDHE-RSA-AES256-SHA"
+
+#define TLS1_TXT_ECDH_anon_WITH_NULL_SHA                "AECDH-NULL-SHA"
+#define TLS1_TXT_ECDH_anon_WITH_RC4_128_SHA             "AECDH-RC4-SHA"
+#define TLS1_TXT_ECDH_anon_WITH_DES_192_CBC3_SHA        "AECDH-DES-CBC3-SHA"
+#define TLS1_TXT_ECDH_anon_WITH_AES_128_CBC_SHA         "AECDH-AES128-SHA"
+#define TLS1_TXT_ECDH_anon_WITH_AES_256_CBC_SHA         "AECDH-AES256-SHA"
 
 #define TLS_CT_RSA_SIGN			1
 #define TLS_CT_DSS_SIGN			2
 #define TLS_CT_RSA_FIXED_DH		3
 #define TLS_CT_DSS_FIXED_DH		4
-#define TLS_CT_NUMBER			4
+#define TLS_CT_ECDSA_SIGN		64
+#define TLS_CT_RSA_FIXED_ECDH		65
+#define TLS_CT_ECDSA_FIXED_ECDH 	66
+#define TLS_CT_NUMBER			7
 
 #define TLS1_FINISH_MAC_LENGTH		12
 
@@ -192,4 +269,6 @@ extern "C" {
 }
 #endif
 #endif
+
+
 

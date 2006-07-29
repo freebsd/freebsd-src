@@ -85,8 +85,8 @@ static int SetBlobCmp(const void *elem1, const void *elem2 )
     }
 
 /* int is_set:  if TRUE, then sort the contents (i.e. it isn't a SEQUENCE)    */
-int i2d_ASN1_SET(STACK *a, unsigned char **pp, int (*func)(), int ex_tag,
-	     int ex_class, int is_set)
+int i2d_ASN1_SET(STACK *a, unsigned char **pp, i2d_of_void *i2d, int ex_tag,
+		 int ex_class, int is_set)
 	{
 	int ret=0,r;
 	int i;
@@ -97,7 +97,7 @@ int i2d_ASN1_SET(STACK *a, unsigned char **pp, int (*func)(), int ex_tag,
 
 	if (a == NULL) return(0);
 	for (i=sk_num(a)-1; i>=0; i--)
-		ret+=func(sk_value(a,i),NULL);
+		ret+=i2d(sk_value(a,i),NULL);
 	r=ASN1_object_size(1,ret,ex_tag);
 	if (pp == NULL) return(r);
 
@@ -111,20 +111,25 @@ int i2d_ASN1_SET(STACK *a, unsigned char **pp, int (*func)(), int ex_tag,
 	if(!is_set || (sk_num(a) < 2))
 		{
 		for (i=0; i<sk_num(a); i++)
-                	func(sk_value(a,i),&p);
+                	i2d(sk_value(a,i),&p);
 
 		*pp=p;
 		return(r);
 		}
 
         pStart  = p; /* Catch the beg of Setblobs*/
-        if (!(rgSetBlob = (MYBLOB *)OPENSSL_malloc( sk_num(a) * sizeof(MYBLOB)))) return 0; /* In this array
-we will store the SET blobs */
+		/* In this array we will store the SET blobs */
+		rgSetBlob = (MYBLOB *)OPENSSL_malloc(sk_num(a) * sizeof(MYBLOB));
+		if (rgSetBlob == NULL)
+			{
+			ASN1err(ASN1_F_I2D_ASN1_SET,ERR_R_MALLOC_FAILURE);
+			return(0);
+			}
 
         for (i=0; i<sk_num(a); i++)
 	        {
                 rgSetBlob[i].pbData = p;  /* catch each set encode blob */
-                func(sk_value(a,i),&p);
+                i2d(sk_value(a,i),&p);
                 rgSetBlob[i].cbData = p - rgSetBlob[i].pbData; /* Length of this
 SetBlob
 */
@@ -135,7 +140,11 @@ SetBlob
  /* Now we have to sort the blobs. I am using a simple algo.
     *Sort ptrs *Copy to temp-mem *Copy from temp-mem to user-mem*/
         qsort( rgSetBlob, sk_num(a), sizeof(MYBLOB), SetBlobCmp);
-        if (!(pTempMem = OPENSSL_malloc(totSize))) return 0;
+		if (!(pTempMem = OPENSSL_malloc(totSize)))
+			{
+			ASN1err(ASN1_F_I2D_ASN1_SET,ERR_R_MALLOC_FAILURE);
+			return(0);
+			}
 
 /* Copy to temp mem */
         p = pTempMem;
@@ -153,14 +162,21 @@ SetBlob
         return(r);
         }
 
-STACK *d2i_ASN1_SET(STACK **a, unsigned char **pp, long length,
-	     char *(*func)(), void (*free_func)(void *), int ex_tag, int ex_class)
+STACK *d2i_ASN1_SET(STACK **a, const unsigned char **pp, long length,
+		    d2i_of_void *d2i, void (*free_func)(void *), int ex_tag,
+		    int ex_class)
 	{
-	ASN1_CTX c;
+	ASN1_const_CTX c;
 	STACK *ret=NULL;
 
 	if ((a == NULL) || ((*a) == NULL))
-		{ if ((ret=sk_new_null()) == NULL) goto err; }
+		{
+		if ((ret=sk_new_null()) == NULL)
+			{
+			ASN1err(ASN1_F_D2I_ASN1_SET,ERR_R_MALLOC_FAILURE);
+			goto err;
+			}
+		}
 	else
 		ret=(*a);
 
@@ -195,7 +211,9 @@ STACK *d2i_ASN1_SET(STACK **a, unsigned char **pp, long length,
 		char *s;
 
 		if (M_ASN1_D2I_end_sequence()) break;
-		if ((s=func(NULL,&c.p,c.slen,c.max-c.p)) == NULL)
+		/* XXX: This was called with 4 arguments, incorrectly, it seems
+		   if ((s=func(NULL,&c.p,c.slen,c.max-c.p)) == NULL) */
+		if ((s=d2i(NULL,&c.p,c.slen)) == NULL)
 			{
 			ASN1err(ASN1_F_D2I_ASN1_SET,ASN1_R_ERROR_PARSING_SET_ELEMENT);
 			asn1_add_error(*pp,(int)(c.q- *pp));

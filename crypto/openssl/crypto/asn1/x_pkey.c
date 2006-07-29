@@ -69,15 +69,15 @@ int i2d_X509_PKEY(X509_PKEY *a, unsigned char **pp)
 	return(0);
 	}
 
-X509_PKEY *d2i_X509_PKEY(X509_PKEY **a, unsigned char **pp, long length)
+X509_PKEY *d2i_X509_PKEY(X509_PKEY **a, const unsigned char **pp, long length)
 	{
 	int i;
 	M_ASN1_D2I_vars(a,X509_PKEY *,X509_PKEY_new);
 
 	M_ASN1_D2I_Init();
 	M_ASN1_D2I_start_sequence();
-	M_ASN1_D2I_get(ret->enc_algor,d2i_X509_ALGOR);
-	M_ASN1_D2I_get(ret->enc_pkey,d2i_ASN1_OCTET_STRING);
+	M_ASN1_D2I_get_x(X509_ALGOR,ret->enc_algor,d2i_X509_ALGOR);
+	M_ASN1_D2I_get_x(ASN1_OCTET_STRING,ret->enc_pkey,d2i_ASN1_OCTET_STRING);
 
 	ret->cipher.cipher=EVP_get_cipherbyname(
 		OBJ_nid2ln(OBJ_obj2nid(ret->enc_algor->algorithm)));

@@ -59,6 +59,7 @@
 #ifndef HEADER_PEM_H
 #define HEADER_PEM_H
 
+#include <openssl/e_os2.h>
 #ifndef OPENSSL_NO_BIO
 #include <openssl/bio.h>
 #endif
@@ -68,7 +69,6 @@
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 #include <openssl/pem2.h>
-#include <openssl/e_os2.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -91,6 +91,9 @@ extern "C" {
 #define PEM_OBJ_DHPARAMS	17
 #define PEM_OBJ_DSAPARAMS	18
 #define PEM_OBJ_PRIV_RSA_PUBLIC	19
+#define PEM_OBJ_PRIV_ECDSA	20
+#define PEM_OBJ_PUB_ECDSA	21
+#define PEM_OBJ_ECPARAMETERS	22
 
 #define PEM_ERROR		30
 #define PEM_DEK_DES_CBC         40
@@ -110,6 +113,7 @@ extern "C" {
 
 #define PEM_STRING_X509_OLD	"X509 CERTIFICATE"
 #define PEM_STRING_X509		"CERTIFICATE"
+#define PEM_STRING_X509_PAIR	"CERTIFICATE PAIR"
 #define PEM_STRING_X509_TRUSTED	"TRUSTED CERTIFICATE"
 #define PEM_STRING_X509_REQ_OLD	"NEW CERTIFICATE REQUEST"
 #define PEM_STRING_X509_REQ	"CERTIFICATE REQUEST"
@@ -126,6 +130,9 @@ extern "C" {
 #define PEM_STRING_DHPARAMS	"DH PARAMETERS"
 #define PEM_STRING_SSL_SESSION	"SSL SESSION PARAMETERS"
 #define PEM_STRING_DSAPARAMS	"DSA PARAMETERS"
+#define PEM_STRING_ECDSA_PUBLIC "ECDSA PUBLIC KEY"
+#define PEM_STRING_ECPARAMETERS "EC PARAMETERS"
+#define PEM_STRING_ECPRIVATEKEY	"EC PRIVATE KEY"
 
   /* Note that this structure is initialised by PEM_SealInit and cleaned up
      by PEM_SealFinal (at least for now) */
@@ -213,24 +220,35 @@ typedef struct pem_ctx_st
 #define IMPLEMENT_PEM_read_fp(name, type, str, asn1) \
 type *PEM_read_##name(FILE *fp, type **x, pem_password_cb *cb, void *u)\
 { \
-return((type *)PEM_ASN1_read((char *(*)())d2i_##asn1, str,fp,(char **)x,\
-	cb,u)); \
+return(((type *(*)(D2I_OF(type),char *,FILE *,type **,pem_password_cb *,void *))openssl_fcast(PEM_ASN1_read))(d2i_##asn1, str,fp,x,cb,u)); \
 } \
 
 #define IMPLEMENT_PEM_write_fp(name, type, str, asn1) \
 int PEM_write_##name(FILE *fp, type *x) \
 { \
-return(PEM_ASN1_write((int (*)())i2d_##asn1,str,fp, (char *)x, \
-							 NULL,NULL,0,NULL,NULL)); \
-} 
+return(((int (*)(I2D_OF(type),const char *,FILE *,type *, const EVP_CIPHER *,unsigned char *,int, pem_password_cb *,void *))openssl_fcast(PEM_ASN1_write))(i2d_##asn1,str,fp,x,NULL,NULL,0,NULL,NULL)); \
+}
+
+#define IMPLEMENT_PEM_write_fp_const(name, type, str, asn1) \
+int PEM_write_##name(FILE *fp, const type *x) \
+{ \
+return(((int (*)(I2D_OF_const(type),const char *,FILE *, const type *, const EVP_CIPHER *,unsigned char *,int, pem_password_cb *,void *))openssl_fcast(PEM_ASN1_write))(i2d_##asn1,str,fp,x,NULL,NULL,0,NULL,NULL)); \
+}
 
 #define IMPLEMENT_PEM_write_cb_fp(name, type, str, asn1) \
 int PEM_write_##name(FILE *fp, type *x, const EVP_CIPHER *enc, \
 	     unsigned char *kstr, int klen, pem_password_cb *cb, \
 		  void *u) \
 	{ \
-	return(PEM_ASN1_write((int (*)())i2d_##asn1,str,fp, \
-		(char *)x,enc,kstr,klen,cb,u)); \
+	return(((int (*)(I2D_OF(type),const char *,FILE *,type *, const EVP_CIPHER *,unsigned char *,int, pem_password_cb *,void *))openssl_fcast(PEM_ASN1_write))(i2d_##asn1,str,fp,x,enc,kstr,klen,cb,u)); \
+	}
+
+#define IMPLEMENT_PEM_write_cb_fp_const(name, type, str, asn1) \
+int PEM_write_##name(FILE *fp, type *x, const EVP_CIPHER *enc, \
+	     unsigned char *kstr, int klen, pem_password_cb *cb, \
+		  void *u) \
+	{ \
+	return(((int (*)(I2D_OF_const(type),const char *,FILE *,type *, const EVP_CIPHER *,unsigned char *,int, pem_password_cb *,void *))openssl_fcast(PEM_ASN1_write))(i2d_##asn1,str,fp,x,enc,kstr,klen,cb,u)); \
 	}
 
 #endif
@@ -238,32 +256,50 @@ int PEM_write_##name(FILE *fp, type *x, const EVP_CIPHER *enc, \
 #define IMPLEMENT_PEM_read_bio(name, type, str, asn1) \
 type *PEM_read_bio_##name(BIO *bp, type **x, pem_password_cb *cb, void *u)\
 { \
-return((type *)PEM_ASN1_read_bio((char *(*)())d2i_##asn1, str,bp,\
-							(char **)x,cb,u)); \
+return(((type *(*)(D2I_OF(type),const char *,BIO *,type **,pem_password_cb *,void *))openssl_fcast(PEM_ASN1_read_bio))(d2i_##asn1, str,bp,x,cb,u)); \
 }
 
 #define IMPLEMENT_PEM_write_bio(name, type, str, asn1) \
 int PEM_write_bio_##name(BIO *bp, type *x) \
 { \
-return(PEM_ASN1_write_bio((int (*)())i2d_##asn1,str,bp, (char *)x, \
-							 NULL,NULL,0,NULL,NULL)); \
+return(((int (*)(I2D_OF(type),const char *,BIO *,type *, const EVP_CIPHER *,unsigned char *,int, pem_password_cb *,void *))openssl_fcast(PEM_ASN1_write_bio))(i2d_##asn1,str,bp,x,NULL,NULL,0,NULL,NULL)); \
+}
+
+#define IMPLEMENT_PEM_write_bio_const(name, type, str, asn1) \
+int PEM_write_bio_##name(BIO *bp, const type *x) \
+{ \
+return(((int (*)(I2D_OF_const(type),const char *,BIO *,const type *, const EVP_CIPHER *,unsigned char *,int, pem_password_cb *,void *))openssl_fcast(PEM_ASN1_write_bio))(i2d_##asn1,str,bp,x,NULL,NULL,0,NULL,NULL)); \
 }
 
 #define IMPLEMENT_PEM_write_cb_bio(name, type, str, asn1) \
 int PEM_write_bio_##name(BIO *bp, type *x, const EVP_CIPHER *enc, \
 	     unsigned char *kstr, int klen, pem_password_cb *cb, void *u) \
 	{ \
-	return(PEM_ASN1_write_bio((int (*)())i2d_##asn1,str,bp, \
-		(char *)x,enc,kstr,klen,cb,u)); \
+	return(((int (*)(I2D_OF(type),const char *,BIO *,type *,const EVP_CIPHER *,unsigned char *,int,pem_password_cb *,void *))openssl_fcast(PEM_ASN1_write_bio))(i2d_##asn1,str,bp,x,enc,kstr,klen,cb,u)); \
+	}
+
+#define IMPLEMENT_PEM_write_cb_bio_const(name, type, str, asn1) \
+int PEM_write_bio_##name(BIO *bp, type *x, const EVP_CIPHER *enc, \
+	     unsigned char *kstr, int klen, pem_password_cb *cb, void *u) \
+	{ \
+	return(((int (*)(I2D_OF_const(type),const char *,BIO *,type *,const EVP_CIPHER *,unsigned char *,int,pem_password_cb *,void *))openssl_fcast(PEM_ASN1_write_bio))(i2d_##asn1,str,bp,x,enc,kstr,klen,cb,u)); \
 	}
 
 #define IMPLEMENT_PEM_write(name, type, str, asn1) \
 	IMPLEMENT_PEM_write_bio(name, type, str, asn1) \
 	IMPLEMENT_PEM_write_fp(name, type, str, asn1) 
 
+#define IMPLEMENT_PEM_write_const(name, type, str, asn1) \
+	IMPLEMENT_PEM_write_bio_const(name, type, str, asn1) \
+	IMPLEMENT_PEM_write_fp_const(name, type, str, asn1) 
+
 #define IMPLEMENT_PEM_write_cb(name, type, str, asn1) \
 	IMPLEMENT_PEM_write_cb_bio(name, type, str, asn1) \
 	IMPLEMENT_PEM_write_cb_fp(name, type, str, asn1) 
+
+#define IMPLEMENT_PEM_write_cb_const(name, type, str, asn1) \
+	IMPLEMENT_PEM_write_cb_bio_const(name, type, str, asn1) \
+	IMPLEMENT_PEM_write_cb_fp_const(name, type, str, asn1) 
 
 #define IMPLEMENT_PEM_read(name, type, str, asn1) \
 	IMPLEMENT_PEM_read_bio(name, type, str, asn1) \
@@ -272,6 +308,10 @@ int PEM_write_bio_##name(BIO *bp, type *x, const EVP_CIPHER *enc, \
 #define IMPLEMENT_PEM_rw(name, type, str, asn1) \
 	IMPLEMENT_PEM_read(name, type, str, asn1) \
 	IMPLEMENT_PEM_write(name, type, str, asn1)
+
+#define IMPLEMENT_PEM_rw_const(name, type, str, asn1) \
+	IMPLEMENT_PEM_read(name, type, str, asn1) \
+	IMPLEMENT_PEM_write_const(name, type, str, asn1)
 
 #define IMPLEMENT_PEM_rw_cb(name, type, str, asn1) \
 	IMPLEMENT_PEM_read(name, type, str, asn1) \
@@ -293,6 +333,9 @@ int PEM_write_bio_##name(BIO *bp, type *x, const EVP_CIPHER *enc, \
 #define DECLARE_PEM_write_fp(name, type) \
 	int PEM_write_##name(FILE *fp, type *x);
 
+#define DECLARE_PEM_write_fp_const(name, type) \
+	int PEM_write_##name(FILE *fp, const type *x);
+
 #define DECLARE_PEM_write_cb_fp(name, type) \
 	int PEM_write_##name(FILE *fp, type *x, const EVP_CIPHER *enc, \
 	     unsigned char *kstr, int klen, pem_password_cb *cb, void *u);
@@ -305,6 +348,9 @@ int PEM_write_bio_##name(BIO *bp, type *x, const EVP_CIPHER *enc, \
 
 #define DECLARE_PEM_write_bio(name, type) \
 	int PEM_write_bio_##name(BIO *bp, type *x);
+
+#define DECLARE_PEM_write_bio_const(name, type) \
+	int PEM_write_bio_##name(BIO *bp, const type *x);
 
 #define DECLARE_PEM_write_cb_bio(name, type) \
 	int PEM_write_bio_##name(BIO *bp, type *x, const EVP_CIPHER *enc, \
@@ -322,6 +368,10 @@ int PEM_write_bio_##name(BIO *bp, type *x, const EVP_CIPHER *enc, \
 	DECLARE_PEM_write_bio(name, type) \
 	DECLARE_PEM_write_fp(name, type) 
 
+#define DECLARE_PEM_write_const(name, type) \
+	DECLARE_PEM_write_bio_const(name, type) \
+	DECLARE_PEM_write_fp_const(name, type)
+
 #define DECLARE_PEM_write_cb(name, type) \
 	DECLARE_PEM_write_cb_bio(name, type) \
 	DECLARE_PEM_write_cb_fp(name, type) 
@@ -333,6 +383,10 @@ int PEM_write_bio_##name(BIO *bp, type *x, const EVP_CIPHER *enc, \
 #define DECLARE_PEM_rw(name, type) \
 	DECLARE_PEM_read(name, type) \
 	DECLARE_PEM_write(name, type)
+
+#define DECLARE_PEM_rw_const(name, type) \
+	DECLARE_PEM_read(name, type) \
+	DECLARE_PEM_write_const(name, type)
 
 #define DECLARE_PEM_rw_cb(name, type) \
 	DECLARE_PEM_read(name, type) \
@@ -403,9 +457,6 @@ int PEM_write_bio_##name(BIO *bp, type *x, const EVP_CIPHER *enc, \
         (char *(*)())d2i_NETSCAPE_CERT_SEQUENCE,PEM_STRING_X509,fp,\
 							(char **)x,cb,u)
 
-#define PEM_write_bio_SSL_SESSION(bp,x) \
-		PEM_ASN1_write_bio((int (*)())i2d_SSL_SESSION, \
-			PEM_STRING_SSL_SESSION,bp, (char *)x, NULL,NULL,0,NULL,NULL)
 #define PEM_write_bio_X509(bp,x) \
 		PEM_ASN1_write_bio((int (*)())i2d_X509,PEM_STRING_X509,bp, \
 			(char *)x, NULL,NULL,0,NULL,NULL)
@@ -444,8 +495,6 @@ int PEM_write_bio_##name(BIO *bp, type *x, const EVP_CIPHER *enc, \
 			PEM_STRING_X509,bp, \
                         (char *)x, NULL,NULL,0,NULL,NULL)
 
-#define	PEM_read_bio_SSL_SESSION(bp,x,cb,u) (SSL_SESSION *)PEM_ASN1_read_bio( \
-	(char *(*)())d2i_SSL_SESSION,PEM_STRING_SSL_SESSION,bp,(char **)x,cb,u)
 #define	PEM_read_bio_X509(bp,x,cb,u) (X509 *)PEM_ASN1_read_bio( \
 	(char *(*)())d2i_X509,PEM_STRING_X509,bp,(char **)x,cb,u)
 #define	PEM_read_bio_X509_REQ(bp,x,cb,u) (X509_REQ *)PEM_ASN1_read_bio( \
@@ -494,11 +543,16 @@ int	PEM_write_bio(BIO *bp,const char *name,char *hdr,unsigned char *data,
 		long len);
 int PEM_bytes_read_bio(unsigned char **pdata, long *plen, char **pnm, const char *name, BIO *bp,
 	     pem_password_cb *cb, void *u);
-char *	PEM_ASN1_read_bio(char *(*d2i)(),const char *name,BIO *bp,char **x,
-		pem_password_cb *cb, void *u);
-int	PEM_ASN1_write_bio(int (*i2d)(),const char *name,BIO *bp,char *x,
+void *	PEM_ASN1_read_bio(d2i_of_void *d2i, const char *name, BIO *bp,
+			  void **x, pem_password_cb *cb, void *u);
+#define PEM_ASN1_read_bio_of(type,d2i,name,bp,x,cb,u) \
+((type *(*)(D2I_OF(type),const char *,BIO *,type **,pem_password_cb *,void *))openssl_fcast(PEM_ASN1_read_bio))(d2i,name,bp,x,cb,u)
+int	PEM_ASN1_write_bio(i2d_of_void *i2d,const char *name,BIO *bp,char *x,
 			   const EVP_CIPHER *enc,unsigned char *kstr,int klen,
 			   pem_password_cb *cb, void *u);
+#define PEM_ASN1_write_bio_of(type,i2d,name,bp,x,enc,kstr,klen,cb,u) \
+	((int (*)(I2D_OF(type),const char *,BIO *,type *, const EVP_CIPHER *,unsigned char *,int, pem_password_cb *,void *))openssl_fcast(PEM_ASN1_write_bio))(i2d,name,bp,x,enc,kstr,klen,cb,u)
+
 STACK_OF(X509_INFO) *	PEM_X509_INFO_read_bio(BIO *bp, STACK_OF(X509_INFO) *sk, pem_password_cb *cb, void *u);
 int	PEM_X509_INFO_write_bio(BIO *bp,X509_INFO *xi, EVP_CIPHER *enc,
 		unsigned char *kstr, int klen, pem_password_cb *cd, void *u);
@@ -508,11 +562,11 @@ int	PEM_X509_INFO_write_bio(BIO *bp,X509_INFO *xi, EVP_CIPHER *enc,
 int	PEM_read(FILE *fp, char **name, char **header,
 		unsigned char **data,long *len);
 int	PEM_write(FILE *fp,char *name,char *hdr,unsigned char *data,long len);
-char *	PEM_ASN1_read(char *(*d2i)(),const char *name,FILE *fp,char **x,
-	pem_password_cb *cb, void *u);
-int	PEM_ASN1_write(int (*i2d)(),const char *name,FILE *fp,char *x,
-		       const EVP_CIPHER *enc,unsigned char *kstr,int klen,
-		       pem_password_cb *callback, void *u);
+void *  PEM_ASN1_read(d2i_of_void *d2i, const char *name, FILE *fp, void **x,
+		      pem_password_cb *cb, void *u);
+int	PEM_ASN1_write(i2d_of_void *i2d,const char *name,FILE *fp,
+		       char *x,const EVP_CIPHER *enc,unsigned char *kstr,
+		       int klen,pem_password_cb *callback, void *u);
 STACK_OF(X509_INFO) *	PEM_X509_INFO_read(FILE *fp, STACK_OF(X509_INFO) *sk,
 	pem_password_cb *cb, void *u);
 #endif
@@ -542,6 +596,8 @@ DECLARE_PEM_rw(X509, X509)
 
 DECLARE_PEM_rw(X509_AUX, X509)
 
+DECLARE_PEM_rw(X509_CERT_PAIR, X509_CERT_PAIR)
+
 DECLARE_PEM_rw(X509_REQ, X509_REQ)
 DECLARE_PEM_write(X509_REQ_NEW, X509_REQ)
 
@@ -559,7 +615,7 @@ DECLARE_PEM_rw(PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO)
 
 DECLARE_PEM_rw_cb(RSAPrivateKey, RSA)
 
-DECLARE_PEM_rw(RSAPublicKey, RSA)
+DECLARE_PEM_rw_const(RSAPublicKey, RSA)
 DECLARE_PEM_rw(RSA_PUBKEY, RSA)
 
 #endif
@@ -570,13 +626,19 @@ DECLARE_PEM_rw_cb(DSAPrivateKey, DSA)
 
 DECLARE_PEM_rw(DSA_PUBKEY, DSA)
 
-DECLARE_PEM_rw(DSAparams, DSA)
+DECLARE_PEM_rw_const(DSAparams, DSA)
 
+#endif
+
+#ifndef OPENSSL_NO_EC
+DECLARE_PEM_rw_const(ECPKParameters, EC_GROUP)
+DECLARE_PEM_rw_cb(ECPrivateKey, EC_KEY)
+DECLARE_PEM_rw(EC_PUBKEY, EC_KEY)
 #endif
 
 #ifndef OPENSSL_NO_DH
 
-DECLARE_PEM_rw(DHparams, DH)
+DECLARE_PEM_rw_const(DHparams, DH)
 
 #endif
 
@@ -626,24 +688,27 @@ void ERR_load_PEM_strings(void);
 /* Function codes. */
 #define PEM_F_D2I_PKCS8PRIVATEKEY_BIO			 120
 #define PEM_F_D2I_PKCS8PRIVATEKEY_FP			 121
-#define PEM_F_DEF_CALLBACK				 100
+#define PEM_F_DO_PK8PKEY				 126
+#define PEM_F_DO_PK8PKEY_FP				 125
 #define PEM_F_LOAD_IV					 101
 #define PEM_F_PEM_ASN1_READ				 102
 #define PEM_F_PEM_ASN1_READ_BIO				 103
 #define PEM_F_PEM_ASN1_WRITE				 104
 #define PEM_F_PEM_ASN1_WRITE_BIO			 105
+#define PEM_F_PEM_DEF_CALLBACK				 100
 #define PEM_F_PEM_DO_HEADER				 106
-#define PEM_F_PEM_F_DO_PK8KEY_FP			 122
 #define PEM_F_PEM_F_PEM_WRITE_PKCS8PRIVATEKEY		 118
 #define PEM_F_PEM_GET_EVP_CIPHER_INFO			 107
+#define PEM_F_PEM_PK8PKEY				 119
 #define PEM_F_PEM_READ					 108
 #define PEM_F_PEM_READ_BIO				 109
+#define PEM_F_PEM_READ_BIO_PRIVATEKEY			 123
+#define PEM_F_PEM_READ_PRIVATEKEY			 124
 #define PEM_F_PEM_SEALFINAL				 110
 #define PEM_F_PEM_SEALINIT				 111
 #define PEM_F_PEM_SIGNFINAL				 112
 #define PEM_F_PEM_WRITE					 113
 #define PEM_F_PEM_WRITE_BIO				 114
-#define PEM_F_PEM_WRITE_BIO_PKCS8PRIVATEKEY		 119
 #define PEM_F_PEM_X509_INFO_READ			 115
 #define PEM_F_PEM_X509_INFO_READ_BIO			 116
 #define PEM_F_PEM_X509_INFO_WRITE_BIO			 117
