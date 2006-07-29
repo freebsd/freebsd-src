@@ -65,13 +65,14 @@
 #include <openssl/ebcdic.h>
 #endif
 
-unsigned char *MD4(const unsigned char *d, unsigned long n, unsigned char *md)
+unsigned char *MD4(const unsigned char *d, size_t n, unsigned char *md)
 	{
 	MD4_CTX c;
 	static unsigned char m[MD4_DIGEST_LENGTH];
 
 	if (md == NULL) md=m;
-	MD4_Init(&c);
+	if (!MD4_Init(&c))
+		return NULL;
 #ifndef CHARSET_EBCDIC
 	MD4_Update(&c,d,n);
 #else

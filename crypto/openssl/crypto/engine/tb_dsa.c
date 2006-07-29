@@ -52,8 +52,6 @@
  *
  */
 
-#include <openssl/evp.h>
-#include <openssl/engine.h>
 #include "eng_int.h"
 
 /* If this symbol is defined then ENGINE_get_default_DSA(), the function that is
@@ -94,7 +92,7 @@ int ENGINE_set_default_DSA(ENGINE *e)
 	{
 	if(e->dsa_meth)
 		return engine_table_register(&dsa_table,
-				engine_unregister_all_DSA, e, &dummy_nid, 1, 0);
+				engine_unregister_all_DSA, e, &dummy_nid, 1, 1);
 	return 1;
 	}
 

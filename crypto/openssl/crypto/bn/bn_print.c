@@ -79,7 +79,7 @@ char *BN_bn2hex(const BIGNUM *a)
 		}
 	p=buf;
 	if (a->neg) *(p++)='-';
-	if (a->top == 0) *(p++)='0';
+	if (BN_is_zero(a)) *(p++)='0';
 	for (i=a->top-1; i >=0; i--)
 		{
 		for (j=BN_BITS2-8; j >= 0; j-=8)
@@ -102,14 +102,19 @@ err:
 /* Must 'OPENSSL_free' the returned data */
 char *BN_bn2dec(const BIGNUM *a)
 	{
-	int i=0,num;
+	int i=0,num, ok = 0;
 	char *buf=NULL;
 	char *p;
 	BIGNUM *t=NULL;
 	BN_ULONG *bn_data=NULL,*lp;
 
+	/* get an upper bound for the length of the decimal integer
+	 * num <= (BN_num_bits(a) + 1) * log(2)
+	 *     <= 3 * BN_num_bits(a) * 0.1001 + log(2) + 1     (rounding error)
+	 *     <= BN_num_bits(a)/10 + BN_num_bits/1000 + 1 + 1 
+	 */
 	i=BN_num_bits(a)*3;
-	num=(i/10+i/1000+3)+1;
+	num=(i/10+i/1000+1)+1;
 	bn_data=(BN_ULONG *)OPENSSL_malloc((num/BN_DEC_NUM+1)*sizeof(BN_ULONG));
 	buf=(char *)OPENSSL_malloc(num+3);
 	if ((buf == NULL) || (bn_data == NULL))
@@ -122,14 +127,16 @@ char *BN_bn2dec(const BIGNUM *a)
 #define BUF_REMAIN (num+3 - (size_t)(p - buf))
 	p=buf;
 	lp=bn_data;
-	if (t->neg) *(p++)='-';
-	if (t->top == 0)
+	if (BN_is_zero(t))
 		{
 		*(p++)='0';
 		*(p++)='\0';
 		}
 	else
 		{
+		if (BN_is_negative(t))
+			*p++ = '-';
+
 		i=0;
 		while (!BN_is_zero(t))
 			{
@@ -149,9 +156,16 @@ char *BN_bn2dec(const BIGNUM *a)
 			while (*p) p++;
 			}
 		}
+	ok = 1;
 err:
 	if (bn_data != NULL) OPENSSL_free(bn_data);
 	if (t != NULL) BN_free(t);
+	if (!ok && buf)
+		{
+		OPENSSL_free(buf);
+		buf = NULL;
+		}
+
 	return(buf);
 	}
 
@@ -211,10 +225,11 @@ int BN_hex2bn(BIGNUM **bn, const char *a)
 		j-=(BN_BYTES*2);
 		}
 	ret->top=h;
-	bn_fix_top(ret);
+	bn_correct_top(ret);
 	ret->neg=neg;
 
 	*bn=ret;
+	bn_check_top(ret);
 	return(num);
 err:
 	if (*bn == NULL) BN_free(ret);
@@ -270,8 +285,9 @@ int BN_dec2bn(BIGNUM **bn, const char *a)
 		}
 	ret->neg=neg;
 
-	bn_fix_top(ret);
+	bn_correct_top(ret);
 	*bn=ret;
+	bn_check_top(ret);
 	return(num);
 err:
 	if (*bn == NULL) BN_free(ret);
@@ -300,7 +316,7 @@ int BN_print(BIO *bp, const BIGNUM *a)
 	int ret=0;
 
 	if ((a->neg) && (BIO_write(bp,"-",1) != 1)) goto end;
-	if ((a->top == 0) && (BIO_write(bp,"0",1) != 1)) goto end;
+	if (BN_is_zero(a) && (BIO_write(bp,"0",1) != 1)) goto end;
 	for (i=a->top-1; i >=0; i--)
 		{
 		for (j=BN_BITS2-4; j >= 0; j-=4)
@@ -318,16 +334,5 @@ int BN_print(BIO *bp, const BIGNUM *a)
 	ret=1;
 end:
 	return(ret);
-	}
-#endif
-
-#ifdef BN_DEBUG
-void bn_dump1(FILE *o, const char *a, const BN_ULONG *b,int n)
-	{
-	int i;
-	fprintf(o, "%s=", a);
-	for (i=n-1;i>=0;i--)
-		fprintf(o, "%08lX", b[i]); /* assumes 32-bit BN_ULONG */
-	fprintf(o, "\n");
 	}
 #endif

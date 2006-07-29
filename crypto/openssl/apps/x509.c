@@ -73,6 +73,12 @@
 #include <openssl/x509v3.h>
 #include <openssl/objects.h>
 #include <openssl/pem.h>
+#ifndef OPENSSL_NO_RSA
+#include <openssl/rsa.h>
+#endif
+#ifndef OPENSSL_NO_DSA
+#include <openssl/dsa.h>
+#endif
 
 #undef PROG
 #define PROG x509_main
@@ -81,7 +87,7 @@
 #define	POSTFIX	".srl"
 #define DEF_DAYS	30
 
-static char *x509_usage[]={
+static const char *x509_usage[]={
 "usage: x509 args\n",
 " -inform arg     - input format - default PEM (one of DER, NET or PEM)\n",
 " -outform arg    - output format - default PEM (one of DER, NET or PEM)\n",
@@ -92,7 +98,9 @@ static char *x509_usage[]={
 " -out arg        - output file - default stdout\n",
 " -passin arg     - private key password source\n",
 " -serial         - print serial number value\n",
-" -hash           - print hash value\n",
+" -subject_hash   - print subject hash value\n",
+" -issuer_hash    - print issuer hash value\n",
+" -hash           - synonym for -subject_hash\n",
 " -subject        - print subject DN\n",
 " -issuer         - print issuer DN\n",
 " -email          - print email address(es)\n",
@@ -167,19 +175,20 @@ int MAIN(int argc, char **argv)
 	char *infile=NULL,*outfile=NULL,*keyfile=NULL,*CAfile=NULL;
 	char *CAkeyfile=NULL,*CAserial=NULL;
 	char *alias=NULL;
-	int text=0,serial=0,hash=0,subject=0,issuer=0,startdate=0,enddate=0;
-	int next_serial=0,ocspid=0;
+	int text=0,serial=0,subject=0,issuer=0,startdate=0,enddate=0;
+	int next_serial=0;
+	int subject_hash=0,issuer_hash=0,ocspid=0;
 	int noout=0,sign_flag=0,CA_flag=0,CA_createserial=0,email=0;
 	int trustout=0,clrtrust=0,clrreject=0,aliasout=0,clrext=0;
 	int C=0;
 	int x509req=0,days=DEF_DAYS,modulus=0,pubkey=0;
 	int pprint = 0;
-	char **pp;
+	const char **pp;
 	X509_STORE *ctx=NULL;
 	X509_REQ *rq=NULL;
 	int fingerprint=0;
 	char buf[256];
-	const EVP_MD *md_alg,*digest=EVP_md5();
+	const EVP_MD *md_alg,*digest=EVP_sha1();
 	CONF *extconf = NULL;
 	char *extsect = NULL, *extfile = NULL, *passin = NULL, *passargin = NULL;
 	int need_rand = 0;
@@ -381,8 +390,11 @@ int MAIN(int argc, char **argv)
 			x509req= ++num;
 		else if (strcmp(*argv,"-text") == 0)
 			text= ++num;
-		else if (strcmp(*argv,"-hash") == 0)
-			hash= ++num;
+		else if (strcmp(*argv,"-hash") == 0
+			|| strcmp(*argv,"-subject_hash") == 0)
+			subject_hash= ++num;
+		else if (strcmp(*argv,"-issuer_hash") == 0)
+			issuer_hash= ++num;
 		else if (strcmp(*argv,"-subject") == 0)
 			subject= ++num;
 		else if (strcmp(*argv,"-issuer") == 0)
@@ -598,9 +610,12 @@ bad:
 			sno = ASN1_INTEGER_new();
 			if (!sno || !rand_serial(NULL, sno))
 				goto end;
+			if (!X509_set_serialNumber(x, sno)) 
+				goto end;
+			ASN1_INTEGER_free(sno);
+			sno = NULL;
 			}
-
-		if (!X509_set_serialNumber(x, sno)) 
+		else if (!X509_set_serialNumber(x, sno)) 
 			goto end;
 
 		if (!X509_set_issuer_name(x,req->req_info->subject)) goto end;
@@ -694,7 +709,8 @@ bad:
 			else if (serial == i)
 				{
 				BIO_printf(STDout,"serial=");
-				i2a_ASN1_INTEGER(STDout,x->cert_info->serialNumber);
+				i2a_ASN1_INTEGER(STDout,
+					X509_get_serialNumber(x));
 				BIO_printf(STDout,"\n");
 				}
 			else if (next_serial == i)
@@ -731,9 +747,13 @@ bad:
 				if (alstr) BIO_printf(STDout,"%s\n", alstr);
 				else BIO_puts(STDout,"<No Alias>\n");
 				}
-			else if (hash == i)
+			else if (subject_hash == i)
 				{
 				BIO_printf(STDout,"%08lx\n",X509_subject_name_hash(x));
+				}
+			else if (issuer_hash == i)
+				{
+				BIO_printf(STDout,"%08lx\n",X509_issuer_name_hash(x));
 				}
 			else if (pprint == i)
 				{
@@ -896,6 +916,10 @@ bad:
 		                if (Upkey->type == EVP_PKEY_DSA)
 		                        digest=EVP_dss1();
 #endif
+#ifndef OPENSSL_NO_ECDSA
+				if (Upkey->type == EVP_PKEY_EC)
+					digest=EVP_ecdsa();
+#endif
 
 				assert(need_rand);
 				if (!sign(x,Upkey,days,clrext,digest,
@@ -915,6 +939,10 @@ bad:
 #ifndef OPENSSL_NO_DSA
 		                if (CApkey->type == EVP_PKEY_DSA)
 		                        digest=EVP_dss1();
+#endif
+#ifndef OPENSSL_NO_ECDSA
+				if (CApkey->type == EVP_PKEY_EC)
+					digest = EVP_ecdsa();
 #endif
 				
 				assert(need_rand);
@@ -947,6 +975,10 @@ bad:
 		                if (pk->type == EVP_PKEY_DSA)
 		                        digest=EVP_dss1();
 #endif
+#ifndef OPENSSL_NO_ECDSA
+				if (pk->type == EVP_PKEY_EC)
+					digest=EVP_ecdsa();
+#endif
 
 				rq=X509_to_X509_REQ(x,pk,digest);
 				EVP_PKEY_free(pk);
@@ -971,9 +1003,9 @@ bad:
 
 	if (checkend)
 		{
-		time_t tnow=time(NULL);
+		time_t tcheck=time(NULL) + checkoffset;
 
-		if (ASN1_UTCTIME_cmp_time_t(X509_get_notAfter(x), tnow+checkoffset) == -1)
+		if (X509_cmp_time(X509_get_notAfter(x), &tcheck) < 0)
 			{
 			BIO_printf(out,"Certificate will expire\n");
 			ret=1;
@@ -1010,8 +1042,7 @@ bad:
 		ah.data=(char *)x;
 		ah.meth=X509_asn1_meth();
 
-		/* no macro for this one yet */
-		i=ASN1_i2d_bio(i2d_ASN1_HEADER,out,(unsigned char *)&ah);
+		i=ASN1_i2d_bio_of(ASN1_HEADER,i2d_ASN1_HEADER,out,&ah);
 		}
 	else	{
 		BIO_printf(bio_err,"bad output format specified for outfile\n");

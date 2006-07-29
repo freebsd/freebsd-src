@@ -456,7 +456,7 @@ static long ssl_ctrl(BIO *b, int cmd, long num, void *ptr)
 	case BIO_CTRL_SET_CALLBACK:
 		{
 #if 0 /* FIXME: Should this be used?  -- Richard Levitte */
-		BIOerr(SSL_F_SSL_CTRL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+		SSLerr(SSL_F_SSL_CTRL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
 		ret = -1;
 #else
 		ret=0;
@@ -465,9 +465,9 @@ static long ssl_ctrl(BIO *b, int cmd, long num, void *ptr)
 		break;
 	case BIO_CTRL_GET_CALLBACK:
 		{
-		void (**fptr)();
+		void (**fptr)(const SSL *xssl,int type,int val);
 
-		fptr=(void (**)())ptr;
+		fptr=(void (**)(const SSL *xssl,int type,int val))ptr;
 		*fptr=SSL_get_info_callback(ssl);
 		}
 		break;

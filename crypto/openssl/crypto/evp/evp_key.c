@@ -66,7 +66,7 @@
 /* should be init to zeros. */
 static char prompt_string[80];
 
-void EVP_set_pw_prompt(char *prompt)
+void EVP_set_pw_prompt(const char *prompt)
 	{
 	if (prompt == NULL)
 		prompt_string[0]='\0';
@@ -126,7 +126,8 @@ int EVP_BytesToKey(const EVP_CIPHER *type, const EVP_MD *md,
 	EVP_MD_CTX_init(&c);
 	for (;;)
 		{
-		EVP_DigestInit_ex(&c,md, NULL);
+		if (!EVP_DigestInit_ex(&c,md, NULL))
+			return 0;
 		if (addmd++)
 			EVP_DigestUpdate(&c,&(md_buf[0]),mds);
 		EVP_DigestUpdate(&c,data,datal);

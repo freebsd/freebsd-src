@@ -1,13 +1,6 @@
 #!/bin/sh
 
-if test "$OSTYPE" = msdosdjgpp; then
-    PATH=../apps\;$PATH
-else
-    PATH=../apps:$PATH
-fi
-export PATH
-
-cmd='../apps/openssl req -config ../apps/openssl.cnf'
+cmd='../util/shlib_wrap.sh ../apps/openssl req -config ../apps/openssl.cnf'
 
 if [ "$1"x != "x" ]; then
 	t=$1
@@ -15,7 +8,7 @@ else
 	t=testreq.pem
 fi
 
-if $cmd -in $t -inform p -noout -text | fgrep 'Unknown Public Key'; then
+if $cmd -in $t -inform p -noout -text 2>&1 | fgrep -i 'Unknown Public Key'; then
   echo "skipping req conversion test for $t"
   exit 0
 fi
