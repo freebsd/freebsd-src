@@ -978,7 +978,7 @@ _prebuild_libs+=	kerberos5/lib/libroken
 _generic_libs+=	kerberos5/lib
 .endif
 
-_prebuild_libs+= lib/libcom_err lib/libcrypt lib/libexpat \
+_prebuild_libs+= lib/libbz2 lib/libcom_err lib/libcrypt lib/libexpat \
 		lib/libkvm lib/libmd \
 		lib/libncurses lib/libnetgraph lib/libopie lib/libpam \
 		lib/libradius \
