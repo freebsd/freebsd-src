@@ -153,7 +153,7 @@ the size and mtime fields must end in a space;
 the checksum is terminated by a null and a space.
 Early implementations filled the numeric fields with leading spaces.
 This seems to have been common practice until the
-.St -p1003.1
+.St -p1003.1-88
 standard was released.
 For best portability, modern implementations should fill the numeric
 fields with leading zeros.
@@ -183,9 +183,7 @@ the 100 characters of old-style archives.
 .St -p1003.1-88
 defined a standard tar file format to be read and written
 by compliant implementations of
-.Xr tar 1
-and
-.Xr pax 1 .
+.Xr tar 1 .
 This format is often called the
 .Dq ustar
 format, after the magic value used
@@ -722,7 +720,8 @@ program from First Edition Unix.
 John Gilmore's
 .Nm pdtar
 public-domain implementation (circa 1987) was highly influential
-and formed the basis of GNU tar.
+and formed the basis of
+.Nm GNU tar .
 Joerg Shilling's
 .Nm star
 archiver is another open-source (GPL) archiver (originally developed
