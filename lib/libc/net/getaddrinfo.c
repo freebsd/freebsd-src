@@ -51,7 +51,6 @@
  *
  * OS specific notes for freebsd4:
  * - FreeBSD supported $GAI.  The code does not.
- * - FreeBSD allowed classful IPv4 numeric (127.1), the code does not.
  */
 
 #include <sys/cdefs.h>
@@ -1046,13 +1045,11 @@ explore_null(const struct addrinfo *pai, const char *servname,
 {
 	int s;
 	const struct afd *afd;
-	struct addrinfo *cur;
-	struct addrinfo sentinel;
+	struct addrinfo *ai;
 	int error;
 
 	*res = NULL;
-	sentinel.ai_next = NULL;
-	cur = &sentinel;
+	ai = NULL;
 
 	/*
 	 * filter out AFs that are not supported by the kernel
@@ -1076,26 +1073,19 @@ explore_null(const struct addrinfo *pai, const char *servname,
 		return 0;
 
 	if (pai->ai_flags & AI_PASSIVE) {
-		GET_AI(cur->ai_next, afd, afd->a_addrany);
-		/* xxx meaningless?
-		 * GET_CANONNAME(cur->ai_next, "anyaddr");
-		 */
-		GET_PORT(cur->ai_next, servname);
+		GET_AI(ai, afd, afd->a_addrany);
+		GET_PORT(ai, servname);
 	} else {
-		GET_AI(cur->ai_next, afd, afd->a_loopback);
-		/* xxx meaningless?
-		 * GET_CANONNAME(cur->ai_next, "localhost");
-		 */
-		GET_PORT(cur->ai_next, servname);
+		GET_AI(ai, afd, afd->a_loopback);
+		GET_PORT(ai, servname);
 	}
-	cur = cur->ai_next;
 
-	*res = sentinel.ai_next;
+	*res = ai;
 	return 0;
 
 free:
-	if (sentinel.ai_next)
-		freeaddrinfo(sentinel.ai_next);
+	if (ai != NULL)
+		freeaddrinfo(ai);
 	return error;
 }
 
@@ -1107,14 +1097,12 @@ explore_numeric(const struct addrinfo *pai, const char *hostname,
     const char *servname, struct addrinfo **res, const char *canonname)
 {
 	const struct afd *afd;
-	struct addrinfo *cur;
-	struct addrinfo sentinel;
+	struct addrinfo *ai;
 	int error;
 	char pton[PTON_MAX];
 
 	*res = NULL;
-	sentinel.ai_next = NULL;
-	cur = &sentinel;
+	ai = NULL;
 
 	/*
 	 * if the servname does not match socktype/protocol, ignore it.
@@ -1127,57 +1115,48 @@ explore_numeric(const struct addrinfo *pai, const char *hostname,
 		return 0;
 
 	switch (afd->a_af) {
-#if 1 /*X/Open spec*/
 	case AF_INET:
-		if (inet_aton(hostname, (struct in_addr *)pton) == 1) {
-			if (pai->ai_family == afd->a_af ||
-			    pai->ai_family == PF_UNSPEC /*?*/) {
-				GET_AI(cur->ai_next, afd, pton);
-				GET_PORT(cur->ai_next, servname);
-				if ((pai->ai_flags & AI_CANONNAME)) {
-					/*
-					 * Set the numeric address itself as
-					 * the canonical name, based on a
-					 * clarification in rfc3493.
-					 */
-					GET_CANONNAME(cur->ai_next, canonname);
-				}
-				while (cur && cur->ai_next)
-					cur = cur->ai_next;
-			} else
-				ERR(EAI_FAMILY);	/*xxx*/
-		}
+		/*
+		 * RFC3493 requires getaddrinfo() to accept AF_INET formats
+		 * that are accepted by inet_addr() and its family.  The
+		 * accepted forms includes the "classful" one, which inet_pton
+		 * does not accept.  So we need to separate the case for
+		 * AF_INET.
+		 */
+		if (inet_aton(hostname, (struct in_addr *)pton) != 1)
+			return 0;
 		break;
-#endif
 	default:
-		if (inet_pton(afd->a_af, hostname, pton) == 1) {
-			if (pai->ai_family == afd->a_af ||
-			    pai->ai_family == PF_UNSPEC /*?*/) {
-				GET_AI(cur->ai_next, afd, pton);
-				GET_PORT(cur->ai_next, servname);
-				if ((pai->ai_flags & AI_CANONNAME)) {
-					/*
-					 * Set the numeric address itself as
-					 * the canonical name, based on a
-					 * clarification in rfc3493.
-					 */
-					GET_CANONNAME(cur->ai_next, canonname);
-				}
-				while (cur && cur->ai_next)
-					cur = cur->ai_next;
-			} else
-				ERR(EAI_FAMILY);	/* XXX */
-		}
+		if (inet_pton(afd->a_af, hostname, pton) != 1)
+			return 0;
 		break;
 	}
 
-	*res = sentinel.ai_next;
+	if (pai->ai_family == afd->a_af) {
+		GET_AI(ai, afd, pton);
+		GET_PORT(ai, servname);
+		if ((pai->ai_flags & AI_CANONNAME)) {
+			/*
+			 * Set the numeric address itself as the canonical
+			 * name, based on a clarification in RFC3493.
+			 */
+			GET_CANONNAME(ai, canonname);
+		}
+	} else {
+		/*
+		 * XXX: This should not happen since we already matched the AF
+		 * by find_afd.
+		 */
+		ERR(EAI_FAMILY);
+	}
+
+	*res = ai;
 	return 0;
 
 free:
 bad:
-	if (sentinel.ai_next)
-		freeaddrinfo(sentinel.ai_next);
+	if (ai != NULL)
+		freeaddrinfo(ai);
 	return error;
 }
 
