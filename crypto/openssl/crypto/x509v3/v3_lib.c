@@ -162,7 +162,8 @@ int X509V3_add_standard_extensions(void)
 void *X509V3_EXT_d2i(X509_EXTENSION *ext)
 {
 	X509V3_EXT_METHOD *method;
-	unsigned char *p;
+	const unsigned char *p;
+
 	if(!(method = X509V3_EXT_get(ext))) return NULL;
 	p = ext->value->data;
 	if(method->it) return ASN1_item_d2i(NULL, &p, ext->value->length, ASN1_ITEM_ptr(method->it));
@@ -276,7 +277,7 @@ int X509V3_add1_i2d(STACK_OF(X509_EXTENSION) **x, int nid, void *value,
 	ext = X509V3_EXT_i2d(nid, crit, value);
 
 	if(!ext) {
-		X509V3err(X509V3_F_X509V3_ADD_I2D, X509V3_R_ERROR_CREATING_EXTENSION);
+		X509V3err(X509V3_F_X509V3_ADD1_I2D, X509V3_R_ERROR_CREATING_EXTENSION);
 		return 0;
 	}
 
@@ -295,7 +296,7 @@ int X509V3_add1_i2d(STACK_OF(X509_EXTENSION) **x, int nid, void *value,
 
 	err:
 	if(!(flags & X509V3_ADD_SILENT))
-		X509V3err(X509V3_F_X509V3_ADD_I2D, errcode);
+		X509V3err(X509V3_F_X509V3_ADD1_I2D, errcode);
 	return 0;
 }
 

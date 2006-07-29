@@ -18,7 +18,7 @@ $out_def="out32";
 $tmp_def="tmp32";
 $inc_def="inc32";
 #enable max error messages, disable most common warnings
-$cflags="-DWIN32_LEAN_AND_MEAN -q -w-aus -w-par -w-inl  -c -tWC -tWM -DOPENSSL_SYSNAME_WIN32 -DL_ENDIAN -DDSO_WIN32 -D_stricmp=stricmp ";
+$cflags="-DWIN32_LEAN_AND_MEAN -q -w-ccc -w-rch -w-pia -w-aus -w-par -w-inl  -c -tWC -tWM -DOPENSSL_SYSNAME_WIN32 -DL_ENDIAN -DDSO_WIN32 -D_stricmp=stricmp -D_strnicmp=strnicmp ";
 if ($debug)
 {
     $cflags.="-Od -y -v -vi- -D_DEBUG";
@@ -51,7 +51,7 @@ $lfile='';
 $shlib_ex_obj="";
 $app_ex_obj="c0x32.obj"; 
 
-$asm='nasmw -f obj';
+$asm='nasmw -f obj -d__omf__';
 $asm.=" /Zi" if $debug;
 $afile='-o';
 
@@ -62,7 +62,7 @@ $des_enc_src='';
 $bf_enc_obj='';
 $bf_enc_src='';
 
-if (!$no_asm && !$fips)
+if (!$no_asm)
 	{
 	$bn_mulw_obj='crypto\bn\asm\bn_win32.obj';
 	$bn_mulw_src='crypto\bn\asm\bn_win32.asm';
@@ -106,9 +106,13 @@ sub do_lib_rule
 	$ret.="$target: $objs\n";
 	if (!$shlib)
 		{
-		#		$ret.="\t\$(RM) \$(O_$Name)\n";
-		$ret.="\techo LIB $<\n";    
-                $ret.="\t&\$(MKLIB) $lfile$target -+\$**\n";
+		$ret.=<<___;
+	-\$(RM) $lfile$target
+	\$(MKLIB) $lfile$target \@&&!
++\$(**: = &^
++)
+!
+___
 		}
 	else
 		{
@@ -122,18 +126,13 @@ sub do_lib_rule
 
 sub do_link_rule
 	{
-	local($target,$files,$dep_libs,$libs,$sha1file,$openssl)=@_;
+	local($target,$files,$dep_libs,$libs)=@_;
 	local($ret,$_);
-
+	
 	$file =~ s/\//$o/g if $o ne '/';
 	$n=&bname($targer);
 	$ret.="$target: $files $dep_libs\n";
-	$ret.="\t\$(LINK) \$(LFLAGS) $files \$(APP_EX_OBJ), $target,, $libs\n";
-	if (defined $sha1file)
-		{
-		$ret.="\t$openssl sha1 -hmac etaonrishdlcupfm -binary $target > $sha1file";
-		}
-	$ret.="\n";
+	$ret.="\t\$(LINK) \$(LFLAGS) $files \$(APP_EX_OBJ), $target,, $libs\n\n";
 	return($ret);
 	}
 

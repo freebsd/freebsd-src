@@ -118,15 +118,9 @@
 
 static int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
 			 unsigned int len, int create_empty_fragment);
-static int ssl3_write_pending(SSL *s, int type, const unsigned char *buf,
-			      unsigned int len);
 static int ssl3_get_record(SSL *s);
-static int do_compress(SSL *ssl);
-static int do_uncompress(SSL *ssl);
-static int do_change_cipher_spec(SSL *ssl);
 
-/* used only by ssl3_get_record */
-static int ssl3_read_n(SSL *s, int n, int max, int extend)
+int ssl3_read_n(SSL *s, int n, int max, int extend)
 	{
 	/* If extend == 0, obtain new n-byte packet; if extend == 1, increase
 	 * packet by another n bytes.
@@ -145,6 +139,14 @@ static int ssl3_read_n(SSL *s, int n, int max, int extend)
 		s->packet = s->s3->rbuf.buf + s->s3->rbuf.offset;
 		s->packet_length = 0;
 		/* ... now we can act as if 'extend' was set */
+		}
+
+	/* extend reads should not span multiple packets for DTLS */
+	if ( SSL_version(s) == DTLS1_VERSION &&
+		extend)
+		{
+		if ( s->s3->rbuf.left > 0 && n > s->s3->rbuf.left)
+			n = s->s3->rbuf.left;
 		}
 
 	/* if there is enough in the buffer from a previous read, take some */
@@ -434,7 +436,7 @@ printf("\n");
 			SSLerr(SSL_F_SSL3_GET_RECORD,SSL_R_COMPRESSED_LENGTH_TOO_LONG);
 			goto f_err;
 			}
-		if (!do_uncompress(s))
+		if (!ssl3_do_uncompress(s))
 			{
 			al=SSL_AD_DECOMPRESSION_FAILURE;
 			SSLerr(SSL_F_SSL3_GET_RECORD,SSL_R_BAD_DECOMPRESSION);
@@ -472,8 +474,9 @@ err:
 	return(ret);
 	}
 
-static int do_uncompress(SSL *ssl)
+int ssl3_do_uncompress(SSL *ssl)
 	{
+#ifndef OPENSSL_NO_COMP
 	int i;
 	SSL3_RECORD *rr;
 
@@ -485,12 +488,13 @@ static int do_uncompress(SSL *ssl)
 	else
 		rr->length=i;
 	rr->data=rr->comp;
-
+#endif
 	return(1);
 	}
 
-static int do_compress(SSL *ssl)
+int ssl3_do_compress(SSL *ssl)
 	{
+#ifndef OPENSSL_NO_COMP
 	int i;
 	SSL3_RECORD *wr;
 
@@ -504,6 +508,7 @@ static int do_compress(SSL *ssl)
 		wr->length=i;
 
 	wr->input=wr->data;
+#endif
 	return(1);
 	}
 
@@ -580,7 +585,7 @@ static int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
 	/* If we have an alert to send, lets send it */
 	if (s->s3->alert_dispatch)
 		{
-		i=ssl3_dispatch_alert(s);
+		i=s->method->ssl_dispatch_alert(s);
 		if (i <= 0)
 			return(i);
 		/* if it went, fall through and send more stuff */
@@ -655,7 +660,7 @@ static int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
 	/* first we compress */
 	if (s->compress != NULL)
 		{
-		if (!do_compress(s))
+		if (!ssl3_do_compress(s))
 			{
 			SSLerr(SSL_F_DO_SSL3_WRITE,SSL_R_COMPRESSION_FAILURE);
 			goto err;
@@ -716,8 +721,8 @@ err:
 	}
 
 /* if s->s3->wbuf.left != 0, we need to call this */
-static int ssl3_write_pending(SSL *s, int type, const unsigned char *buf,
-			      unsigned int len)
+int ssl3_write_pending(SSL *s, int type, const unsigned char *buf,
+	unsigned int len)
 	{
 	int i;
 
@@ -1089,7 +1094,7 @@ start:
 		if (s->s3->tmp.new_cipher == NULL)
 			{
 			al=SSL_AD_UNEXPECTED_MESSAGE;
-			SSLerr(SSL_F_SSL3_GET_CERT_VERIFY,SSL_R_CCS_RECEIVED_EARLY);
+			SSLerr(SSL_F_SSL3_READ_BYTES,SSL_R_CCS_RECEIVED_EARLY);
 			goto f_err;
 			}
 
@@ -1099,7 +1104,7 @@ start:
 			s->msg_callback(0, s->version, SSL3_RT_CHANGE_CIPHER_SPEC, rr->data, 1, s, s->msg_callback_arg);
 
 		s->s3->change_cipher_spec=1;
-		if (!do_change_cipher_spec(s))
+		if (!ssl3_do_change_cipher_spec(s))
 			goto err;
 		else
 			goto start;
@@ -1211,7 +1216,7 @@ err:
 	return(-1);
 	}
 
-static int do_change_cipher_spec(SSL *s)
+int ssl3_do_change_cipher_spec(SSL *s)
 	{
 	int i;
 	const char *sender;
@@ -1268,7 +1273,7 @@ void ssl3_send_alert(SSL *s, int level, int desc)
 	s->s3->send_alert[0]=level;
 	s->s3->send_alert[1]=desc;
 	if (s->s3->wbuf.left == 0) /* data still being written out? */
-		ssl3_dispatch_alert(s);
+		s->method->ssl_dispatch_alert(s);
 	/* else data is still being written out, we will get written
 	 * some time in the future */
 	}

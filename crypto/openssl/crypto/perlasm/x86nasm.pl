@@ -3,6 +3,7 @@
 package x86nasm;
 
 $label="L000";
+$under=($main'netware)?'':'_';
 
 %lb=(	'eax',	'al',
 	'ebx',	'bl',
@@ -32,7 +33,8 @@ sub main'external_label
 {
 	push(@labels,@_);
 	foreach (@_) {
-		push(@out, "extern\t_$_\n");
+		push(@out,".") if ($main'mwerks);
+		push(@out, "extern\t${under}$_\n");
 	}
 }
 
@@ -58,14 +60,19 @@ sub main'DWP
 	&get_mem("DWORD",@_);
 	}
 
+sub main'QWP
+	{
+	&get_mem("",@_);
+	}
+
 sub main'BC
 	{
-	return "BYTE @_";
+	return (($main'mwerks)?"":"BYTE ")."@_";
 	}
 
 sub main'DWC
 	{
-	return "DWORD @_";
+	return (($main'mwerks)?"":"DWORD ")."@_";
 	}
 
 sub main'stack_push
@@ -86,16 +93,22 @@ sub get_mem
 	{
 	my($size,$addr,$reg1,$reg2,$idx)=@_;
 	my($t,$post);
-	my($ret)="[";
+	my($ret)=$size;
+	if ($ret ne "")
+		{
+		$ret .= " PTR" if ($main'mwerks);
+		$ret .= " ";
+		}
+	$ret .= "[";
 	$addr =~ s/^\s+//;
 	if ($addr =~ /^(.+)\+(.+)$/)
 		{
 		$reg2=&conv($1);
-		$addr="_$2";
+		$addr="$under$2";
 		}
-	elsif ($addr =~ /^[_a-zA-Z]/)
+	elsif ($addr =~ /^[_a-z][_a-z0-9]*$/i)
 		{
-		$addr="_$addr";
+		$addr="$under$addr";
 		}
 
 	if ($addr =~ /^.+\-.+$/) { $addr="($addr)"; }
@@ -134,6 +147,7 @@ sub main'xorb	{ &out2("xor",@_); }
 sub main'add	{ &out2("add",@_); }
 sub main'adc	{ &out2("adc",@_); }
 sub main'sub	{ &out2("sub",@_); }
+sub main'sbb	{ &out2("sbb",@_); }
 sub main'rotl	{ &out2("rol",@_); }
 sub main'rotr	{ &out2("ror",@_); }
 sub main'exch	{ &out2("xchg",@_); }
@@ -147,28 +161,57 @@ sub main'jmp	{ &out1("jmp",@_); }
 sub main'jmp_ptr { &out1p("jmp",@_); }
 
 # This is a bit of a kludge: declare all branches as NEAR.
-sub main'je	{ &out1("je NEAR",@_); }
-sub main'jle	{ &out1("jle NEAR",@_); }
-sub main'jz	{ &out1("jz NEAR",@_); }
-sub main'jge	{ &out1("jge NEAR",@_); }
-sub main'jl	{ &out1("jl NEAR",@_); }
-sub main'ja	{ &out1("ja NEAR",@_); }
-sub main'jae	{ &out1("jae NEAR",@_); }
-sub main'jb	{ &out1("jb NEAR",@_); }
-sub main'jbe	{ &out1("jbe NEAR",@_); }
-sub main'jc	{ &out1("jc NEAR",@_); }
-sub main'jnc	{ &out1("jnc NEAR",@_); }
-sub main'jnz	{ &out1("jnz NEAR",@_); }
-sub main'jne	{ &out1("jne NEAR",@_); }
-sub main'jno	{ &out1("jno NEAR",@_); }
+$near=($main'mwerks)?'':'NEAR';
+sub main'je	{ &out1("je $near",@_); }
+sub main'jle	{ &out1("jle $near",@_); }
+sub main'jz	{ &out1("jz $near",@_); }
+sub main'jge	{ &out1("jge $near",@_); }
+sub main'jl	{ &out1("jl $near",@_); }
+sub main'ja	{ &out1("ja $near",@_); }
+sub main'jae	{ &out1("jae $near",@_); }
+sub main'jb	{ &out1("jb $near",@_); }
+sub main'jbe	{ &out1("jbe $near",@_); }
+sub main'jc	{ &out1("jc $near",@_); }
+sub main'jnc	{ &out1("jnc $near",@_); }
+sub main'jnz	{ &out1("jnz $near",@_); }
+sub main'jne	{ &out1("jne $near",@_); }
+sub main'jno	{ &out1("jno $near",@_); }
 
 sub main'push	{ &out1("push",@_); $stack+=4; }
 sub main'pop	{ &out1("pop",@_); $stack-=4; }
+sub main'pushf	{ &out0("pushfd"); $stack+=4; }
+sub main'popf	{ &out0("popfd"); $stack-=4; }
 sub main'bswap	{ &out1("bswap",@_); &using486(); }
 sub main'not	{ &out1("not",@_); }
-sub main'call	{ &out1("call",($_[0]=~/^\$L/?'':'_').$_[0]); }
+sub main'call	{ &out1("call",($_[0]=~/^\@L/?'':$under).$_[0]); }
+sub main'call_ptr { &out1p("call",@_); }
 sub main'ret	{ &out0("ret"); }
 sub main'nop	{ &out0("nop"); }
+sub main'test	{ &out2("test",@_); }
+sub main'bt	{ &out2("bt",@_); }
+sub main'leave	{ &out0("leave"); }
+sub main'cpuid	{ &out0("cpuid"); }
+sub main'rdtsc	{ &out0("rdtsc"); }
+sub main'halt	{ &out0("hlt"); }
+sub main'movz	{ &out2("movzx",@_); }
+sub main'neg	{ &out1("neg",@_); }
+sub main'cld	{ &out0("cld"); }
+
+# SSE2
+sub main'emms	{ &out0("emms"); }
+sub main'movd	{ &out2("movd",@_); }
+sub main'movq	{ &out2("movq",@_); }
+sub main'movdqu	{ &out2("movdqu",@_); }
+sub main'movdqa	{ &out2("movdqa",@_); }
+sub main'movdq2q{ &out2("movdq2q",@_); }
+sub main'movq2dq{ &out2("movq2dq",@_); }
+sub main'paddq	{ &out2("paddq",@_); }
+sub main'pmuludq{ &out2("pmuludq",@_); }
+sub main'psrlq	{ &out2("psrlq",@_); }
+sub main'psllq	{ &out2("psllq",@_); }
+sub main'pxor	{ &out2("pxor",@_); }
+sub main'por	{ &out2("por",@_); }
+sub main'pand	{ &out2("pand",@_); }
 
 sub out2
 	{
@@ -176,6 +219,11 @@ sub out2
 	my($l,$t);
 
 	push(@out,"\t$name\t");
+	if (!$main'mwerks and $name eq "lea")
+		{
+		$p1 =~ s/^[^\[]*\[/\[/;
+		$p2 =~ s/^[^\[]*\[/\[/;
+		}
 	$t=&conv($p1).",";
 	$l=length($t);
 	push(@out,$t);
@@ -215,7 +263,17 @@ sub using486
 
 sub main'file
 	{
-	push(@out, "segment .text use32\n");
+	if ($main'mwerks)	{ push(@out,".section\t.text\n"); }
+	else	{
+		local $tmp=<<___;
+%ifdef __omf__
+section	code	use32 class=code
+%else
+section	.text
+%endif
+___
+		push(@out,$tmp);
+		}
 	}
 
 sub main'function_begin
@@ -224,8 +282,8 @@ sub main'function_begin
 
 	push(@labels,$func);
 	my($tmp)=<<"EOF";
-global	_$func
-_$func:
+global	$under$func
+$under$func:
 	push	ebp
 	push	ebx
 	push	esi
@@ -239,8 +297,8 @@ sub main'function_begin_B
 	{
 	my($func,$extra)=@_;
 	my($tmp)=<<"EOF";
-global	_$func
-_$func:
+global	$under$func
+$under$func:
 EOF
 	push(@out,$tmp);
 	$stack=4;
@@ -314,11 +372,17 @@ sub main'comment
 		}
 	}
 
+sub main'public_label
+	{
+	$label{$_[0]}="${under}${_[0]}"	if (!defined($label{$_[0]}));
+	push(@out,"global\t$label{$_[0]}\n");
+	}
+
 sub main'label
 	{
 	if (!defined($label{$_[0]}))
 		{
-		$label{$_[0]}="\$${label}${_[0]}";
+		$label{$_[0]}="\@${label}${_[0]}";
 		$label++;
 		}
 	return($label{$_[0]});
@@ -328,15 +392,30 @@ sub main'set_label
 	{
 	if (!defined($label{$_[0]}))
 		{
-		$label{$_[0]}="\$${label}${_[0]}";
+		$label{$_[0]}="\@${label}${_[0]}";
 		$label++;
+		}
+	if ($_[1]!=0 && $_[1]>1)
+		{
+		main'align($_[1]);
 		}
 	push(@out,"$label{$_[0]}:\n");
 	}
 
+sub main'data_byte
+	{
+	push(@out,(($main'mwerks)?".byte\t":"DB\t").join(',',@_)."\n");
+	}
+
 sub main'data_word
 	{
-	push(@out,"\tDD\t$_[0]\n");
+	push(@out,(($main'mwerks)?".long\t":"DD\t").join(',',@_)."\n");
+	}
+
+sub main'align
+	{
+	push(@out,".") if ($main'mwerks);
+	push(@out,"align\t$_[0]\n");
 	}
 
 sub out1p
@@ -344,7 +423,7 @@ sub out1p
 	my($name,$p1)=@_;
 	my($l,$t);
 
-	push(@out,"\t$name\t ".&conv($p1)."\n");
+	push(@out,"\t$name\t".&conv($p1)."\n");
 	}
 
 sub main'picmeup
@@ -354,3 +433,19 @@ sub main'picmeup
 	}
 
 sub main'blindpop { &out1("pop",@_); }
+
+sub main'initseg
+	{
+	local($f)=@_;
+	if ($main'win32)
+		{
+		local($tmp)=<<___;
+segment	.CRT\$XCU data
+extern	$under$f
+DD	$under$f
+___
+		push(@out,$tmp);
+		}
+	}
+
+1;

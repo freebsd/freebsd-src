@@ -112,9 +112,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include "cryptlib.h"
 #include <openssl/lhash.h>
 #include <openssl/crypto.h>
-#include "cryptlib.h"
 #include <openssl/buffer.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -149,7 +149,6 @@ static ERR_STRING_DATA ERR_str_libraries[]=
 {ERR_PACK(ERR_LIB_DSO,0,0)		,"DSO support routines"},
 {ERR_PACK(ERR_LIB_ENGINE,0,0)		,"engine routines"},
 {ERR_PACK(ERR_LIB_OCSP,0,0)		,"OCSP routines"},
-{ERR_PACK(ERR_LIB_FIPS,0,0)		,"FIPS routines"},
 {0,NULL},
 	};
 
@@ -209,6 +208,7 @@ static ERR_STRING_DATA ERR_str_reasons[]=
 {ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED	,"called a function you should not call"},
 {ERR_R_PASSED_NULL_PARAMETER		,"passed a null parameter"},
 {ERR_R_INTERNAL_ERROR			,"internal error"},
+{ERR_R_DISABLED				,"called a function that was disabled at compile-time"},
 
 {0,NULL},
 	};
@@ -541,7 +541,7 @@ static ERR_STRING_DATA SYS_str_reasons[NUM_SYS_STR_REASONS + 1];
  * will be returned for SYSerr(), which always gets an errno
  * value and never one of those 'standard' reason codes. */
 
-static void build_SYS_str_reasons()
+static void build_SYS_str_reasons(void)
 	{
 	/* OPENSSL_malloc cannot be used here, use static storage instead */
 	static char strerror_tab[NUM_SYS_STR_REASONS][LEN_SYS_STR_REASON];
@@ -582,13 +582,24 @@ static void build_SYS_str_reasons()
 #endif
 
 #define err_clear_data(p,i) \
+	do { \
 	if (((p)->err_data[i] != NULL) && \
 		(p)->err_data_flags[i] & ERR_TXT_MALLOCED) \
 		{  \
 		OPENSSL_free((p)->err_data[i]); \
 		(p)->err_data[i]=NULL; \
 		} \
-	(p)->err_data_flags[i]=0;
+	(p)->err_data_flags[i]=0; \
+	} while(0)
+
+#define err_clear(p,i) \
+	do { \
+	(p)->err_flags[i]=0; \
+	(p)->err_buffer[i]=0; \
+	err_clear_data(p,i); \
+	(p)->err_file[i]=NULL; \
+	(p)->err_line[i]= -1; \
+	} while(0)
 
 static void ERR_STATE_free(ERR_STATE *s)
 	{
@@ -620,7 +631,8 @@ static void err_load_strings(int lib, ERR_STRING_DATA *str)
 	{
 	while (str->error)
 		{
-		str->error|=ERR_PACK(lib,0,0);
+		if (lib)
+			str->error|=ERR_PACK(lib,0,0);
 		ERRFN(err_set_item)(str);
 		str++;
 		}
@@ -636,7 +648,8 @@ void ERR_unload_strings(int lib, ERR_STRING_DATA *str)
 	{
 	while (str->error)
 		{
-		str->error|=ERR_PACK(lib,0,0);
+		if (lib)
+			str->error|=ERR_PACK(lib,0,0);
 		ERRFN(err_del_item)(str);
 		str++;
 		}
@@ -679,6 +692,7 @@ void ERR_put_error(int lib, int func, int reason, const char *file,
 	es->top=(es->top+1)%ERR_NUM_ERRORS;
 	if (es->top == es->bottom)
 		es->bottom=(es->bottom+1)%ERR_NUM_ERRORS;
+	es->err_flags[es->top]=0;
 	es->err_buffer[es->top]=ERR_PACK(lib,func,reason);
 	es->err_file[es->top]=file;
 	es->err_line[es->top]=line;
@@ -694,10 +708,7 @@ void ERR_clear_error(void)
 
 	for (i=0; i<ERR_NUM_ERRORS; i++)
 		{
-		es->err_buffer[i]=0;
-		err_clear_data(es,i);
-		es->err_file[i]=NULL;
-		es->err_line[i]= -1;
+		err_clear(es,i);
 		}
 	es->top=es->bottom=0;
 	}
@@ -934,7 +945,7 @@ static unsigned long err_hash(const void *a_void)
 	{
 	unsigned long ret,l;
 
-	l=((ERR_STRING_DATA *)a_void)->error;
+	l=((const ERR_STRING_DATA *)a_void)->error;
 	ret=l^ERR_GET_LIB(l)^ERR_GET_FUNC(l);
 	return(ret^ret%19*13);
 	}
@@ -942,21 +953,21 @@ static unsigned long err_hash(const void *a_void)
 /* static int err_cmp(ERR_STRING_DATA *a, ERR_STRING_DATA *b) */
 static int err_cmp(const void *a_void, const void *b_void)
 	{
-	return((int)(((ERR_STRING_DATA *)a_void)->error -
-			((ERR_STRING_DATA *)b_void)->error));
+	return((int)(((const ERR_STRING_DATA *)a_void)->error -
+			((const ERR_STRING_DATA *)b_void)->error));
 	}
 
 /* static unsigned long pid_hash(ERR_STATE *a) */
 static unsigned long pid_hash(const void *a_void)
 	{
-	return(((ERR_STATE *)a_void)->pid*13);
+	return(((const ERR_STATE *)a_void)->pid*13);
 	}
 
 /* static int pid_cmp(ERR_STATE *a, ERR_STATE *b) */
 static int pid_cmp(const void *a_void, const void *b_void)
 	{
-	return((int)((long)((ERR_STATE *)a_void)->pid -
-			(long)((ERR_STATE *)b_void)->pid));
+	return((int)((long)((const ERR_STATE *)a_void)->pid -
+			(long)((const ERR_STATE *)b_void)->pid));
 	}
 
 void ERR_remove_state(unsigned long pid)
@@ -1066,11 +1077,41 @@ void ERR_add_error_data(int num, ...)
 				else
 					str=p;
 				}
-			BUF_strlcat(str,a,s+1);
+			BUF_strlcat(str,a,(size_t)s+1);
 			}
 		}
 	ERR_set_error_data(str,ERR_TXT_MALLOCED|ERR_TXT_STRING);
 
 err:
 	va_end(args);
+	}
+
+int ERR_set_mark(void)
+	{
+	ERR_STATE *es;
+
+	es=ERR_get_state();
+
+	if (es->bottom == es->top) return 0;
+	es->err_flags[es->top]|=ERR_FLAG_MARK;
+	return 1;
+	}
+
+int ERR_pop_to_mark(void)
+	{
+	ERR_STATE *es;
+
+	es=ERR_get_state();
+
+	while(es->bottom != es->top
+		&& (es->err_flags[es->top] & ERR_FLAG_MARK) == 0)
+		{
+		err_clear(es,es->top);
+		es->top-=1;
+		if (es->top == -1) es->top=ERR_NUM_ERRORS-1;
+		}
+		
+	if (es->bottom == es->top) return 0;
+	es->err_flags[es->top]&=~ERR_FLAG_MARK;
+	return 1;
 	}

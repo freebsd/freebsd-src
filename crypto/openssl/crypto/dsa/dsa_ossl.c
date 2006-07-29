@@ -65,32 +65,62 @@
 #include <openssl/rand.h>
 #include <openssl/asn1.h>
 
-#ifndef OPENSSL_FIPS
 static DSA_SIG *dsa_do_sign(const unsigned char *dgst, int dlen, DSA *dsa);
 static int dsa_sign_setup(DSA *dsa, BN_CTX *ctx_in, BIGNUM **kinvp, BIGNUM **rp);
 static int dsa_do_verify(const unsigned char *dgst, int dgst_len, DSA_SIG *sig,
 		  DSA *dsa);
 static int dsa_init(DSA *dsa);
 static int dsa_finish(DSA *dsa);
-static int dsa_mod_exp(DSA *dsa, BIGNUM *rr, BIGNUM *a1, BIGNUM *p1,
-		BIGNUM *a2, BIGNUM *p2, BIGNUM *m, BN_CTX *ctx,
-		BN_MONT_CTX *in_mont);
-static int dsa_bn_mod_exp(DSA *dsa, BIGNUM *r, BIGNUM *a, const BIGNUM *p,
-				const BIGNUM *m, BN_CTX *ctx,
-				BN_MONT_CTX *m_ctx);
 
 static DSA_METHOD openssl_dsa_meth = {
 "OpenSSL DSA method",
 dsa_do_sign,
 dsa_sign_setup,
 dsa_do_verify,
-dsa_mod_exp,
-dsa_bn_mod_exp,
+NULL, /* dsa_mod_exp, */
+NULL, /* dsa_bn_mod_exp, */
 dsa_init,
 dsa_finish,
 0,
+NULL,
+NULL,
 NULL
 };
+
+/* These macro wrappers replace attempts to use the dsa_mod_exp() and
+ * bn_mod_exp() handlers in the DSA_METHOD structure. We avoid the problem of
+ * having a the macro work as an expression by bundling an "err_instr". So;
+ * 
+ *     if (!dsa->meth->bn_mod_exp(dsa, r,dsa->g,&k,dsa->p,ctx,
+ *                 dsa->method_mont_p)) goto err;
+ *
+ * can be replaced by;
+ *
+ *     DSA_BN_MOD_EXP(goto err, dsa, r, dsa->g, &k, dsa->p, ctx,
+ *                 dsa->method_mont_p);
+ */
+
+#define DSA_MOD_EXP(err_instr,dsa,rr,a1,p1,a2,p2,m,ctx,in_mont) \
+	do { \
+	int _tmp_res53; \
+	if((dsa)->meth->dsa_mod_exp) \
+		_tmp_res53 = (dsa)->meth->dsa_mod_exp((dsa), (rr), (a1), (p1), \
+				(a2), (p2), (m), (ctx), (in_mont)); \
+	else \
+		_tmp_res53 = BN_mod_exp2_mont((rr), (a1), (p1), (a2), (p2), \
+				(m), (ctx), (in_mont)); \
+	if(!_tmp_res53) err_instr; \
+	} while(0)
+#define DSA_BN_MOD_EXP(err_instr,dsa,r,a,p,m,ctx,m_ctx) \
+	do { \
+	int _tmp_res53; \
+	if((dsa)->meth->bn_mod_exp) \
+		_tmp_res53 = (dsa)->meth->bn_mod_exp((dsa), (r), (a), (p), \
+				(m), (ctx), (m_ctx)); \
+	else \
+		_tmp_res53 = BN_mod_exp_mont((r), (a), (p), (m), (ctx), (m_ctx)); \
+	if(!_tmp_res53) err_instr; \
+	} while(0)
 
 const DSA_METHOD *DSA_OpenSSL(void)
 {
@@ -172,7 +202,7 @@ err:
 static int dsa_sign_setup(DSA *dsa, BN_CTX *ctx_in, BIGNUM **kinvp, BIGNUM **rp)
 	{
 	BN_CTX *ctx;
-	BIGNUM k,*kinv=NULL,*r=NULL;
+	BIGNUM k,kq,*K,*kinv=NULL,*r=NULL;
 	int ret=0;
 
 	if (!dsa->p || !dsa->q || !dsa->g)
@@ -182,6 +212,7 @@ static int dsa_sign_setup(DSA *dsa, BN_CTX *ctx_in, BIGNUM **kinvp, BIGNUM **rp)
 		}
 
 	BN_init(&k);
+	BN_init(&kq);
 
 	if (ctx_in == NULL)
 		{
@@ -191,23 +222,50 @@ static int dsa_sign_setup(DSA *dsa, BN_CTX *ctx_in, BIGNUM **kinvp, BIGNUM **rp)
 		ctx=ctx_in;
 
 	if ((r=BN_new()) == NULL) goto err;
-	kinv=NULL;
 
 	/* Get random k */
 	do
 		if (!BN_rand_range(&k, dsa->q)) goto err;
 	while (BN_is_zero(&k));
-
-	if ((dsa->method_mont_p == NULL) && (dsa->flags & DSA_FLAG_CACHE_MONT_P))
+	if ((dsa->flags & DSA_FLAG_NO_EXP_CONSTTIME) == 0)
 		{
-		if ((dsa->method_mont_p=(char *)BN_MONT_CTX_new()) != NULL)
-			if (!BN_MONT_CTX_set((BN_MONT_CTX *)dsa->method_mont_p,
-				dsa->p,ctx)) goto err;
+		BN_set_flags(&k, BN_FLG_EXP_CONSTTIME);
+		}
+
+	if (dsa->flags & DSA_FLAG_CACHE_MONT_P)
+		{
+		if (!BN_MONT_CTX_set_locked(&dsa->method_mont_p,
+						CRYPTO_LOCK_DSA,
+						dsa->p, ctx))
+			goto err;
 		}
 
 	/* Compute r = (g^k mod p) mod q */
-	if (!dsa->meth->bn_mod_exp(dsa, r,dsa->g,&k,dsa->p,ctx,
-		(BN_MONT_CTX *)dsa->method_mont_p)) goto err;
+
+	if ((dsa->flags & DSA_FLAG_NO_EXP_CONSTTIME) == 0)
+		{
+		if (!BN_copy(&kq, &k)) goto err;
+
+		/* We do not want timing information to leak the length of k,
+		 * so we compute g^k using an equivalent exponent of fixed length.
+		 *
+		 * (This is a kludge that we need because the BN_mod_exp_mont()
+		 * does not let us specify the desired timing behaviour.) */
+
+		if (!BN_add(&kq, &kq, dsa->q)) goto err;
+		if (BN_num_bits(&kq) <= BN_num_bits(dsa->q))
+			{
+			if (!BN_add(&kq, &kq, dsa->q)) goto err;
+			}
+
+		K = &kq;
+		}
+	else
+		{
+		K = &k;
+		}
+	DSA_BN_MOD_EXP(goto err, dsa, r, dsa->g, K, dsa->p, ctx,
+			dsa->method_mont_p);
 	if (!BN_mod(r,r,dsa->q,ctx)) goto err;
 
 	/* Compute  part of 's = inv(k) (m + xr) mod q' */
@@ -229,6 +287,7 @@ err:
 	if (ctx_in == NULL) BN_CTX_free(ctx);
 	if (kinv != NULL) BN_clear_free(kinv);
 	BN_clear_free(&k);
+	BN_clear_free(&kq);
 	return(ret);
 	}
 
@@ -251,12 +310,14 @@ static int dsa_do_verify(const unsigned char *dgst, int dgst_len, DSA_SIG *sig,
 
 	if ((ctx=BN_CTX_new()) == NULL) goto err;
 
-	if (BN_is_zero(sig->r) || sig->r->neg || BN_ucmp(sig->r, dsa->q) >= 0)
+	if (BN_is_zero(sig->r) || BN_is_negative(sig->r) ||
+	    BN_ucmp(sig->r, dsa->q) >= 0)
 		{
 		ret = 0;
 		goto err;
 		}
-	if (BN_is_zero(sig->s) || sig->s->neg || BN_ucmp(sig->s, dsa->q) >= 0)
+	if (BN_is_zero(sig->s) || BN_is_negative(sig->s) ||
+	    BN_ucmp(sig->s, dsa->q) >= 0)
 		{
 		ret = 0;
 		goto err;
@@ -275,44 +336,28 @@ static int dsa_do_verify(const unsigned char *dgst, int dgst_len, DSA_SIG *sig,
 	/* u2 = r * w mod q */
 	if (!BN_mod_mul(&u2,sig->r,&u2,dsa->q,ctx)) goto err;
 
-	if ((dsa->method_mont_p == NULL) && (dsa->flags & DSA_FLAG_CACHE_MONT_P))
+
+	if (dsa->flags & DSA_FLAG_CACHE_MONT_P)
 		{
-		if ((dsa->method_mont_p=(char *)BN_MONT_CTX_new()) != NULL)
-			if (!BN_MONT_CTX_set((BN_MONT_CTX *)dsa->method_mont_p,
-				dsa->p,ctx)) goto err;
+		mont = BN_MONT_CTX_set_locked(&dsa->method_mont_p,
+					CRYPTO_LOCK_DSA, dsa->p, ctx);
+		if (!mont)
+			goto err;
 		}
-	mont=(BN_MONT_CTX *)dsa->method_mont_p;
 
-#if 0
-	{
-	BIGNUM t2;
 
-	BN_init(&t2);
-	/* v = ( g^u1 * y^u2 mod p ) mod q */
-	/* let t1 = g ^ u1 mod p */
-	if (!BN_mod_exp_mont(&t1,dsa->g,&u1,dsa->p,ctx,mont)) goto err;
-	/* let t2 = y ^ u2 mod p */
-	if (!BN_mod_exp_mont(&t2,dsa->pub_key,&u2,dsa->p,ctx,mont)) goto err;
-	/* let u1 = t1 * t2 mod p */
-	if (!BN_mod_mul(&u1,&t1,&t2,dsa->p,ctx)) goto err_bn;
-	BN_free(&t2);
-	}
-	/* let u1 = u1 mod q */
-	if (!BN_mod(&u1,&u1,dsa->q,ctx)) goto err;
-#else
-	{
-	if (!dsa->meth->dsa_mod_exp(dsa, &t1,dsa->g,&u1,dsa->pub_key,&u2,
-						dsa->p,ctx,mont)) goto err;
+	DSA_MOD_EXP(goto err, dsa, &t1, dsa->g, &u1, dsa->pub_key, &u2, dsa->p, ctx, mont);
 	/* BN_copy(&u1,&t1); */
 	/* let u1 = u1 mod q */
 	if (!BN_mod(&u1,&t1,dsa->q,ctx)) goto err;
-	}
-#endif
+
 	/* V is now in u1.  If the signature is correct, it will be
 	 * equal to R. */
 	ret=(BN_ucmp(&u1, sig->r) == 0);
 
 	err:
+	/* XXX: surely this is wrong - if ret is 0, it just didn't verify;
+	   there is no error in BN. Test should be ret == -1 (Ben) */
 	if (ret != 1) DSAerr(DSA_F_DSA_DO_VERIFY,ERR_R_BN_LIB);
 	if (ctx != NULL) BN_CTX_free(ctx);
 	BN_free(&u1);
@@ -330,21 +375,7 @@ static int dsa_init(DSA *dsa)
 static int dsa_finish(DSA *dsa)
 {
 	if(dsa->method_mont_p)
-		BN_MONT_CTX_free((BN_MONT_CTX *)dsa->method_mont_p);
+		BN_MONT_CTX_free(dsa->method_mont_p);
 	return(1);
 }
 
-static int dsa_mod_exp(DSA *dsa, BIGNUM *rr, BIGNUM *a1, BIGNUM *p1,
-		BIGNUM *a2, BIGNUM *p2, BIGNUM *m, BN_CTX *ctx,
-		BN_MONT_CTX *in_mont)
-{
-	return BN_mod_exp2_mont(rr, a1, p1, a2, p2, m, ctx, in_mont);
-}
-	
-static int dsa_bn_mod_exp(DSA *dsa, BIGNUM *r, BIGNUM *a, const BIGNUM *p,
-				const BIGNUM *m, BN_CTX *ctx,
-				BN_MONT_CTX *m_ctx)
-{
-	return BN_mod_exp_mont(r, a, p, m, ctx, m_ctx);
-}
-#endif

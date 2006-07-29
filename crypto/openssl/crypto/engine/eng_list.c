@@ -55,11 +55,13 @@
  * Hudson (tjh@cryptsoft.com).
  *
  */
+/* ====================================================================
+ * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
+ * ECDH support in OpenSSL originally developed by 
+ * SUN MICROSYSTEMS, INC., and contributed to the OpenSSL project.
+ */
 
-#include <openssl/crypto.h>
-#include "cryptlib.h"
 #include "eng_int.h"
-#include <openssl/engine.h>
 
 /* The linked-list of pointers to engine types. engine_list_head
  * incorporates an implicit structural reference but engine_list_tail
@@ -324,7 +326,14 @@ static void engine_cpy(ENGINE *dest, const ENGINE *src)
 #ifndef OPENSSL_NO_DH
 	dest->dh_meth = src->dh_meth;
 #endif
+#ifndef OPENSSL_NO_ECDH
+	dest->ecdh_meth = src->ecdh_meth;
+#endif
+#ifndef OPENSSL_NO_ECDSA
+	dest->ecdsa_meth = src->ecdsa_meth;
+#endif
 	dest->rand_meth = src->rand_meth;
+	dest->store_meth = src->store_meth;
 	dest->ciphers = src->ciphers;
 	dest->digests = src->digests;
 	dest->destroy = src->destroy;
@@ -340,6 +349,7 @@ static void engine_cpy(ENGINE *dest, const ENGINE *src)
 ENGINE *ENGINE_by_id(const char *id)
 	{
 	ENGINE *iterator;
+	char *load_dir = NULL;
 	if(id == NULL)
 		{
 		ENGINEerr(ENGINE_F_ENGINE_BY_ID,
@@ -373,6 +383,7 @@ ENGINE *ENGINE_by_id(const char *id)
 			}
 		}
 	CRYPTO_w_unlock(CRYPTO_LOCK_ENGINE);
+#if 0
 	if(iterator == NULL)
 		{
 		ENGINEerr(ENGINE_F_ENGINE_BY_ID,
@@ -380,6 +391,32 @@ ENGINE *ENGINE_by_id(const char *id)
 		ERR_add_error_data(2, "id=", id);
 		}
 	return iterator;
+#else
+	/* EEK! Experimental code starts */
+	if(iterator) return iterator;
+	/* Prevent infinite recusrion if we're looking for the dynamic engine. */
+	if (strcmp(id, "dynamic"))
+		{
+#ifdef OPENSSL_SYS_VMS
+		if((load_dir = getenv("OPENSSL_ENGINES")) == 0) load_dir = "SSLROOT:[ENGINES]";
+#else
+		if((load_dir = getenv("OPENSSL_ENGINES")) == 0) load_dir = ENGINESDIR;
+#endif
+		iterator = ENGINE_by_id("dynamic");
+		if(!iterator || !ENGINE_ctrl_cmd_string(iterator, "ID", id, 0) ||
+				!ENGINE_ctrl_cmd_string(iterator, "DIR_LOAD", "2", 0) ||
+				!ENGINE_ctrl_cmd_string(iterator, "DIR_ADD",
+					load_dir, 0) ||
+				!ENGINE_ctrl_cmd_string(iterator, "LOAD", NULL, 0))
+				goto notfound;
+		return iterator;
+		}
+notfound:
+	ENGINEerr(ENGINE_F_ENGINE_BY_ID,ENGINE_R_NO_SUCH_ENGINE);
+	ERR_add_error_data(2, "id=", id);
+	return NULL;
+	/* EEK! Experimental code ends */
+#endif
 	}
 
 int ENGINE_up_ref(ENGINE *e)

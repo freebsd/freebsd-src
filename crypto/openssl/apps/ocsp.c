@@ -64,6 +64,7 @@
 #include <openssl/ocsp.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+#include <openssl/bn.h>
 
 /* Maximum leeway in validity period: default 5 minutes */
 #define MAX_VALIDITY_PERIOD	(5 * 60)
@@ -784,7 +785,7 @@ int MAIN(int argc, char **argv)
 
 	if (i != OCSP_RESPONSE_STATUS_SUCCESSFUL)
 		{
-		BIO_printf(out, "Responder Error: %s (%ld)\n",
+		BIO_printf(out, "Responder Error: %s (%d)\n",
 				OCSP_response_status_str(i), i);
 		if (ignore_err)
 			goto redo_accept;
@@ -850,7 +851,7 @@ int MAIN(int argc, char **argv)
 
 		if(i <= 0)
 			{
-			BIO_printf(bio_err, "Response Verify Failure\n", i);
+			BIO_printf(bio_err, "Response Verify Failure\n");
 			ERR_print_errors(bio_err);
 			}
 		else

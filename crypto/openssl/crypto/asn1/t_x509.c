@@ -66,6 +66,9 @@
 #ifndef OPENSSL_NO_DSA
 #include <openssl/dsa.h>
 #endif
+#ifndef OPENSSL_NO_EC
+#include <openssl/ec.h>
+#endif
 #include <openssl/objects.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
@@ -83,7 +86,7 @@ int X509_print_ex_fp(FILE *fp, X509 *x, unsigned long nmflag, unsigned long cfla
 
         if ((b=BIO_new(BIO_s_file())) == NULL)
 		{
-		X509err(X509_F_X509_PRINT_FP,ERR_R_BUF_LIB);
+		X509err(X509_F_X509_PRINT_EX_FP,ERR_R_BUF_LIB);
                 return(0);
 		}
         BIO_set_fp(b,fp,BIO_NOCLOSE);
@@ -226,6 +229,14 @@ int X509_print_ex(BIO *bp, X509 *x, unsigned long nmflags, unsigned long cflag)
 			{
 			BIO_printf(bp,"%12sDSA Public Key:\n","");
 			DSA_print(bp,pkey->pkey.dsa,16);
+			}
+		else
+#endif
+#ifndef OPENSSL_NO_EC
+		if (pkey->type == EVP_PKEY_EC)
+			{
+			BIO_printf(bp, "%12sEC Public Key:\n","");
+			EC_KEY_print(bp, pkey->pkey.ec, 16);
 			}
 		else
 #endif
