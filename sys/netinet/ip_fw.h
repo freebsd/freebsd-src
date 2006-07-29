@@ -157,6 +157,9 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 
 	O_UNREACH6,		/* arg1=icmpv6 code arg (deny)  */
 
+	O_TAG,   		/* arg1=tag number */
+	O_TAGGED,		/* arg1=tag number */
+
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
 
@@ -214,6 +217,8 @@ typedef struct	_ipfw_insn {	/* template for instructions */
  * a given type.
  */
 #define	F_INSN_SIZE(t)	((sizeof (t))/sizeof(u_int32_t))
+
+#define MTAG_IPFW	1148380143	/* IPFW-tagged cookie */
 
 /*
  * This is used to store an array of 16-bit entries (ports etc.)
@@ -359,6 +364,7 @@ typedef struct _ipfw_insn_icmp6 {
  *  + if a rule has a "log" option, then the first action
  *	(at ACTION_PTR(r)) MUST be O_LOG
  *  + if a rule has an "altq" option, it comes after "log"
+ *  + if a rule has an O_TAG option, it comes after "log" and "altq"
  *
  * NOTE: we use a simple linked list of rules because we never need
  * 	to delete a rule without scanning the list. We do not use
