@@ -213,8 +213,10 @@ mii_phy_tick(struct mii_softc *sc)
 	 * status so we can generate an announcement if the status
 	 * changes.
 	 */
-	if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+	if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
+		sc->mii_ticks = 0;	/* reset autonegotiation timer. */
 		return (0);
+	}
 
 	/* Read the status register twice; BMSR_LINK is latch-low. */
 	reg = PHY_READ(sc, MII_BMSR) | PHY_READ(sc, MII_BMSR);
