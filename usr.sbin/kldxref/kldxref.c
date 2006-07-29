@@ -86,7 +86,7 @@ static const char *xref_file = "linker.hints";
 static char recbuf[MAXRECSIZE];
 static int recpos, reccnt;
 
-void maketempfile(char *, const char *);
+FILE *maketempfile(char *, const char *);
 static void usage(void);
 
 static void
@@ -253,10 +253,11 @@ read_kld(char *filename, char *kldname)
 	return error;
 }
 
-void
+FILE *
 maketempfile(char *dest, const char *root)
 {
 	char *p;
+	int fd;
 
 	strncpy(dest, root, MAXPATHLEN - 1);
 	dest[MAXPATHLEN] = '\0';
@@ -266,8 +267,8 @@ maketempfile(char *dest, const char *root)
 	else
 		p = dest;
 	strcpy(p, "lhint.XXXXXX");
-	if (mkstemp(dest) == -1)
-		err(1, "%s", dest);
+	fd = mkstemp(dest);
+	return ((fd == -1) ? NULL : fdopen(fd, "w+"));
 }
 
 static char xrefname[MAXPATHLEN], tempname[MAXPATHLEN];
@@ -322,6 +323,7 @@ main(int argc, char *argv[])
 		p = fts_read(ftsp);
 		if ((p == NULL || p->fts_info == FTS_D) && !dflag && fxref) {
 			fclose(fxref);
+			fxref = NULL;
 			if (reccnt) {
 				rename(tempname, xrefname);
 			} else {
@@ -334,8 +336,7 @@ main(int argc, char *argv[])
 		if (p && p->fts_info == FTS_D && !dflag) {
 			snprintf(xrefname, sizeof(xrefname), "%s/%s",
 			    ftsp->fts_path, xref_file);
-			maketempfile(tempname, ftsp->fts_path);
-			fxref = fopen(tempname, "w+t");
+			fxref = maketempfile(tempname, ftsp->fts_path);
 			if (fxref == NULL)
 				err(1, "can't create %s", tempname);
 			ival = 1;
