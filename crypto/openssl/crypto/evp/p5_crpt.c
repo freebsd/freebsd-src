@@ -110,12 +110,18 @@ int PKCS5_PBE_keyivgen(EVP_CIPHER_CTX *cctx, const char *pass, int passlen,
 	int i;
 	PBEPARAM *pbe;
 	int saltlen, iter;
-	unsigned char *salt, *pbuf;
+	unsigned char *salt;
+	const unsigned char *pbuf;
 
 	/* Extract useful info from parameter */
+	if (param == NULL || param->type != V_ASN1_SEQUENCE ||
+	    param->value.sequence == NULL) {
+		EVPerr(EVP_F_PKCS5_PBE_KEYIVGEN,EVP_R_DECODE_ERROR);
+		return 0;
+	}
+
 	pbuf = param->value.sequence->data;
-	if (!param || (param->type != V_ASN1_SEQUENCE) ||
-	   !(pbe = d2i_PBEPARAM (NULL, &pbuf, param->value.sequence->length))) {
+	if (!(pbe = d2i_PBEPARAM(NULL, &pbuf, param->value.sequence->length))) {
 		EVPerr(EVP_F_PKCS5_PBE_KEYIVGEN,EVP_R_DECODE_ERROR);
 		return 0;
 	}
@@ -140,7 +146,7 @@ int PKCS5_PBE_keyivgen(EVP_CIPHER_CTX *cctx, const char *pass, int passlen,
 		EVP_DigestFinal_ex (&ctx, md_tmp, NULL);
 	}
 	EVP_MD_CTX_cleanup(&ctx);
-	OPENSSL_assert(EVP_CIPHER_key_length(cipher) <= sizeof md_tmp);
+	OPENSSL_assert(EVP_CIPHER_key_length(cipher) <= (int)sizeof(md_tmp));
 	memcpy(key, md_tmp, EVP_CIPHER_key_length(cipher));
 	OPENSSL_assert(EVP_CIPHER_iv_length(cipher) <= 16);
 	memcpy(iv, md_tmp + (16 - EVP_CIPHER_iv_length(cipher)),

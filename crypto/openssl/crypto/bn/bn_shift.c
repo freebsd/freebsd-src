@@ -65,6 +65,9 @@ int BN_lshift1(BIGNUM *r, const BIGNUM *a)
 	register BN_ULONG *ap,*rp,t,c;
 	int i;
 
+	bn_check_top(r);
+	bn_check_top(a);
+
 	if (r != a)
 		{
 		r->neg=a->neg;
@@ -89,6 +92,7 @@ int BN_lshift1(BIGNUM *r, const BIGNUM *a)
 		*rp=1;
 		r->top++;
 		}
+	bn_check_top(r);
 	return(1);
 	}
 
@@ -96,6 +100,9 @@ int BN_rshift1(BIGNUM *r, const BIGNUM *a)
 	{
 	BN_ULONG *ap,*rp,t,c;
 	int i;
+
+	bn_check_top(r);
+	bn_check_top(a);
 
 	if (BN_is_zero(a))
 		{
@@ -117,7 +124,8 @@ int BN_rshift1(BIGNUM *r, const BIGNUM *a)
 		rp[i]=((t>>1)&BN_MASK2)|c;
 		c=(t&1)?BN_TBIT:0;
 		}
-	bn_fix_top(r);
+	bn_correct_top(r);
+	bn_check_top(r);
 	return(1);
 	}
 
@@ -126,6 +134,9 @@ int BN_lshift(BIGNUM *r, const BIGNUM *a, int n)
 	int i,nw,lb,rb;
 	BN_ULONG *t,*f;
 	BN_ULONG l;
+
+	bn_check_top(r);
+	bn_check_top(a);
 
 	r->neg=a->neg;
 	nw=n/BN_BITS2;
@@ -149,7 +160,8 @@ int BN_lshift(BIGNUM *r, const BIGNUM *a, int n)
 /*	for (i=0; i<nw; i++)
 		t[i]=0;*/
 	r->top=a->top+nw+1;
-	bn_fix_top(r);
+	bn_correct_top(r);
+	bn_check_top(r);
 	return(1);
 	}
 
@@ -158,6 +170,9 @@ int BN_rshift(BIGNUM *r, const BIGNUM *a, int n)
 	int i,j,nw,lb,rb;
 	BN_ULONG *t,*f;
 	BN_ULONG l,tmp;
+
+	bn_check_top(r);
+	bn_check_top(a);
 
 	nw=n/BN_BITS2;
 	rb=n%BN_BITS2;
@@ -185,13 +200,13 @@ int BN_rshift(BIGNUM *r, const BIGNUM *a, int n)
 
 	if (rb == 0)
 		{
-		for (i=j+1; i > 0; i--)
+		for (i=j; i != 0; i--)
 			*(t++)= *(f++);
 		}
 	else
 		{
 		l= *(f++);
-		for (i=1; i<j; i++)
+		for (i=j-1; i != 0; i--)
 			{
 			tmp =(l>>rb)&BN_MASK2;
 			l= *(f++);
@@ -199,7 +214,7 @@ int BN_rshift(BIGNUM *r, const BIGNUM *a, int n)
 			}
 		*(t++) =(l>>rb)&BN_MASK2;
 		}
-	*t=0;
-	bn_fix_top(r);
+	bn_correct_top(r);
+	bn_check_top(r);
 	return(1);
 	}

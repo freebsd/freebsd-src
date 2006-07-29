@@ -60,6 +60,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "cryptlib.h"
 #include <openssl/stack.h>
 #include <openssl/lhash.h>
 #include <openssl/conf.h>
@@ -67,7 +68,6 @@
 #include "conf_def.h"
 #include <openssl/buffer.h>
 #include <openssl/err.h>
-#include "cryptlib.h"
 
 static char *eat_ws(CONF *conf, char *p);
 static char *eat_alpha_numeric(CONF *conf, char *p);
@@ -194,9 +194,9 @@ static int def_load(CONF *conf, const char *name, long *line)
 	if (in == NULL)
 		{
 		if (ERR_GET_REASON(ERR_peek_last_error()) == BIO_R_NO_SUCH_FILE)
-			CONFerr(CONF_F_CONF_LOAD,CONF_R_NO_SUCH_FILE);
+			CONFerr(CONF_F_DEF_LOAD,CONF_R_NO_SUCH_FILE);
 		else
-			CONFerr(CONF_F_CONF_LOAD,ERR_R_SYS_LIB);
+			CONFerr(CONF_F_DEF_LOAD,ERR_R_SYS_LIB);
 		return 0;
 		}
 
@@ -225,28 +225,28 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
 
 	if ((buff=BUF_MEM_new()) == NULL)
 		{
-		CONFerr(CONF_F_CONF_LOAD_BIO,ERR_R_BUF_LIB);
+		CONFerr(CONF_F_DEF_LOAD_BIO,ERR_R_BUF_LIB);
 		goto err;
 		}
 
 	section=(char *)OPENSSL_malloc(10);
 	if (section == NULL)
 		{
-		CONFerr(CONF_F_CONF_LOAD_BIO,ERR_R_MALLOC_FAILURE);
+		CONFerr(CONF_F_DEF_LOAD_BIO,ERR_R_MALLOC_FAILURE);
 		goto err;
 		}
 	BUF_strlcpy(section,"default",10);
 
 	if (_CONF_new_data(conf) == 0)
 		{
-		CONFerr(CONF_F_CONF_LOAD_BIO,ERR_R_MALLOC_FAILURE);
+		CONFerr(CONF_F_DEF_LOAD_BIO,ERR_R_MALLOC_FAILURE);
 		goto err;
 		}
 
 	sv=_CONF_new_section(conf,section);
 	if (sv == NULL)
 		{
-		CONFerr(CONF_F_CONF_LOAD_BIO,
+		CONFerr(CONF_F_DEF_LOAD_BIO,
 					CONF_R_UNABLE_TO_CREATE_NEW_SECTION);
 		goto err;
 		}
@@ -258,7 +258,7 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
 		{
 		if (!BUF_MEM_grow(buff,bufnum+CONFBUFSIZE))
 			{
-			CONFerr(CONF_F_CONF_LOAD_BIO,ERR_R_BUF_LIB);
+			CONFerr(CONF_F_DEF_LOAD_BIO,ERR_R_BUF_LIB);
 			goto err;
 			}
 		p= &(buff->data[bufnum]);
@@ -329,7 +329,7 @@ again:
 					ss=p;
 					goto again;
 					}
-				CONFerr(CONF_F_CONF_LOAD_BIO,
+				CONFerr(CONF_F_DEF_LOAD_BIO,
 					CONF_R_MISSING_CLOSE_SQUARE_BRACKET);
 				goto err;
 				}
@@ -339,7 +339,7 @@ again:
 				sv=_CONF_new_section(conf,section);
 			if (sv == NULL)
 				{
-				CONFerr(CONF_F_CONF_LOAD_BIO,
+				CONFerr(CONF_F_DEF_LOAD_BIO,
 					CONF_R_UNABLE_TO_CREATE_NEW_SECTION);
 				goto err;
 				}
@@ -362,7 +362,7 @@ again:
 			p=eat_ws(conf, end);
 			if (*p != '=')
 				{
-				CONFerr(CONF_F_CONF_LOAD_BIO,
+				CONFerr(CONF_F_DEF_LOAD_BIO,
 						CONF_R_MISSING_EQUAL_SIGN);
 				goto err;
 				}
@@ -379,7 +379,7 @@ again:
 
 			if (!(v=(CONF_VALUE *)OPENSSL_malloc(sizeof(CONF_VALUE))))
 				{
-				CONFerr(CONF_F_CONF_LOAD_BIO,
+				CONFerr(CONF_F_DEF_LOAD_BIO,
 							ERR_R_MALLOC_FAILURE);
 				goto err;
 				}
@@ -388,7 +388,7 @@ again:
 			v->value=NULL;
 			if (v->name == NULL)
 				{
-				CONFerr(CONF_F_CONF_LOAD_BIO,
+				CONFerr(CONF_F_DEF_LOAD_BIO,
 							ERR_R_MALLOC_FAILURE);
 				goto err;
 				}
@@ -402,7 +402,7 @@ again:
 					tv=_CONF_new_section(conf,psection);
 				if (tv == NULL)
 					{
-					CONFerr(CONF_F_CONF_LOAD_BIO,
+					CONFerr(CONF_F_DEF_LOAD_BIO,
 					   CONF_R_UNABLE_TO_CREATE_NEW_SECTION);
 					goto err;
 					}
@@ -416,7 +416,7 @@ again:
 #if 1
 			if (_CONF_add_string(conf, tv, v) == 0)
 				{
-				CONFerr(CONF_F_CONF_LOAD_BIO,
+				CONFerr(CONF_F_DEF_LOAD_BIO,
 							ERR_R_MALLOC_FAILURE);
 				goto err;
 				}
@@ -424,7 +424,7 @@ again:
 			v->section=tv->section;	
 			if (!sk_CONF_VALUE_push(ts,v))
 				{
-				CONFerr(CONF_F_CONF_LOAD_BIO,
+				CONFerr(CONF_F_DEF_LOAD_BIO,
 							ERR_R_MALLOC_FAILURE);
 				goto err;
 				}
@@ -613,13 +613,13 @@ static int str_copy(CONF *conf, char *section, char **pto, char *from)
 				e++;
 				}
 			/* So at this point we have
-			 * ns which is the start of the name string which is
+			 * np which is the start of the name string which is
 			 *   '\0' terminated. 
-			 * cs which is the start of the section string which is
+			 * cp which is the start of the section string which is
 			 *   '\0' terminated.
 			 * e is the 'next point after'.
-			 * r and s are the chars replaced by the '\0'
-			 * rp and sp is where 'r' and 's' came from.
+			 * r and rr are the chars replaced by the '\0'
+			 * rp and rrp is where 'r' and 'rr' came from.
 			 */
 			p=_CONF_get_string(conf,cp,np);
 			if (rrp != NULL) *rrp=rr;
@@ -629,7 +629,7 @@ static int str_copy(CONF *conf, char *section, char **pto, char *from)
 				CONFerr(CONF_F_STR_COPY,CONF_R_VARIABLE_HAS_NO_VALUE);
 				goto err;
 				}
-			BUF_MEM_grow_clean(buf,(strlen(p)+len-(e-from)));
+			BUF_MEM_grow_clean(buf,(strlen(p)+buf->length-(e-from)));
 			while (*p)
 				buf->data[to++]= *(p++);
 
@@ -638,6 +638,11 @@ static int str_copy(CONF *conf, char *section, char **pto, char *from)
 			   points at.  /RL */
 			len -= e-from;
 			from=e;
+
+			/* In case there were no braces or parenthesis around
+			   the variable reference, we have to put back the
+			   character that was replaced with a '\0'.  /RL */
+			*rp = r;
 			}
 		else
 			buf->data[to++]= *(from++);

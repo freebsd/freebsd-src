@@ -138,12 +138,8 @@
  *
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <openssl/buffer.h>
-#include <openssl/bio.h>
-#include <openssl/lhash.h>
 #include "cryptlib.h"
+#include <openssl/lhash.h>
 
 /* What an "implementation of ex_data functionality" looks like */
 struct st_CRYPTO_EX_DATA_IMPL
@@ -287,7 +283,7 @@ static void def_cleanup_util_cb(CRYPTO_EX_DATA_FUNCS *funcs)
 /* This callback is used in lh_doall to destroy all EX_CLASS_ITEM values from
  * "ex_data" prior to the ex_data hash table being itself destroyed. Doesn't do
  * any locking. */
-static void def_cleanup_cb(const void *a_void)
+static void def_cleanup_cb(void *a_void)
 	{
 	EX_CLASS_ITEM *item = (EX_CLASS_ITEM *)a_void;
 	sk_CRYPTO_EX_DATA_FUNCS_pop_free(item->meth, def_cleanup_util_cb);

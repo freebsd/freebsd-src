@@ -181,6 +181,19 @@ extern "C" {
 #define closesocket(s)		    close(s)
 #define readsocket(s,b,n)	    read((s),(b),(n))
 #define writesocket(s,b,n)	    write((s),(char *)(b),(n))
+#elif defined(OPENSSL_SYS_NETWARE)
+#if defined(NETWARE_BSDSOCK)
+#define get_last_socket_error() errno
+#define clear_socket_error()    errno=0
+#define closesocket(s)          close(s)
+#define readsocket(s,b,n)       recv((s),(b),(n),0)
+#define writesocket(s,b,n)      send((s),(b),(n),0)
+#else
+#define get_last_socket_error()	WSAGetLastError()
+#define clear_socket_error()	WSASetLastError(0)
+#define readsocket(s,b,n)		recv((s),(b),(n),0)
+#define writesocket(s,b,n)		send((s),(b),(n),0)
+#endif
 #else
 #define get_last_socket_error()	errno
 #define clear_socket_error()	errno=0
@@ -191,7 +204,6 @@ extern "C" {
 #endif
 
 #ifdef WIN16
-#  define OPENSSL_NO_FP_API
 #  define MS_CALLBACK	_far _loadds
 #  define MS_FAR	_far
 #else
@@ -200,6 +212,7 @@ extern "C" {
 #endif
 
 #ifdef OPENSSL_NO_STDIO
+#  undef OPENSSL_NO_FP_API
 #  define OPENSSL_NO_FP_API
 #endif
 
@@ -214,6 +227,8 @@ extern "C" {
 #    define _setmode setmode
 #    define _O_TEXT O_TEXT
 #    define _O_BINARY O_BINARY
+#    undef DEVRANDOM
+#    define DEVRANDOM "/dev/urandom\x24"
 #  endif /* __DJGPP__ */
 
 #  ifndef S_IFDIR
@@ -230,10 +245,37 @@ extern "C" {
 #  define NO_DIRENT
 
 #  ifdef WINDOWS
+#    if !defined(_WIN32_WCE) && !defined(_WIN32_WINNT)
+       /*
+	* Defining _WIN32_WINNT here in e_os.h implies certain "discipline."
+	* Most notably we ought to check for availability of each specific
+	* routine with GetProcAddress() and/or quard NT-specific calls with
+	* GetVersion() < 0x80000000. One can argue that in latter "or" case
+	* we ought to /DELAYLOAD some .DLLs in order to protect ourselves
+	* against run-time link errors. This doesn't seem to be necessary,
+	* because it turned out that already Windows 95, first non-NT Win32
+	* implementation, is equipped with at least NT 3.51 stubs, dummy
+	* routines with same name, but which do nothing. Meaning that it's
+	* apparently appropriate to guard generic NT calls with GetVersion
+	* alone, while NT 4.0 and above calls ought to be additionally
+	* checked upon with GetProcAddress.
+	*/
+#      define _WIN32_WINNT 0x0400
+#    endif
 #    include <windows.h>
 #    include <stddef.h>
 #    include <errno.h>
 #    include <string.h>
+#    ifdef _WIN64
+#      define strlen(s) _strlen31(s)
+/* cut strings to 2GB */
+static unsigned int _strlen31(const char *str)
+	{
+	unsigned int len=0;
+	while (*str && len<0x80000000U) str++, len++;
+	return len&0x7FFFFFFF;
+	}
+#    endif
 #    include <malloc.h>
 #  endif
 #  include <io.h>
@@ -321,6 +363,26 @@ extern "C" {
                                      __VMS_EXIT |= 0x10000000; \
 				     exit(__VMS_EXIT); } while(0)
 #    define NO_SYS_PARAM_H
+
+#  elif defined(OPENSSL_SYS_NETWARE)
+#    include <fcntl.h>
+#    include <unistd.h>
+#    define NO_SYS_TYPES_H
+#    undef  DEVRANDOM
+#    ifdef NETWARE_CLIB
+#      define getpid GetThreadID
+#    endif
+#    define NO_SYSLOG
+#    define _setmode setmode
+#    define _kbhit kbhit
+#    define _O_TEXT O_TEXT
+#    define _O_BINARY O_BINARY
+#    define OPENSSL_CONF   "openssl.cnf"
+#    define SSLEAY_CONF    OPENSSL_CONF
+#    define RFILE    ".rnd"
+#    define LIST_SEPARATOR_CHAR ';'
+#    define EXIT(n)  { if (n) printf("ERROR: %d\n", (int)n); exit(n); }
+
 #  else
      /* !defined VMS */
 #    ifdef OPENSSL_SYS_MPE
@@ -374,6 +436,15 @@ extern "C" {
 #    elif !defined(__DJGPP__)
 #      include <winsock.h>
 extern HINSTANCE _hInstance;
+#      ifdef _WIN64
+/*
+ * Even though sizeof(SOCKET) is 8, it's safe to cast it to int, because
+ * the value constitutes an index in per-process table of limited size
+ * and not a real pointer.
+ */
+#        define socket(d,t,p)	((int)socket(d,t,p))
+#        define accept(s,f,l)	((int)accept(s,f,l))
+#      endif
 #      define SSLeay_Write(a,b,c)	send((a),(b),(c),0)
 #      define SSLeay_Read(a,b,c)	recv((a),(b),(c),0)
 #      define SHUTDOWN(fd)		{ shutdown((fd),0); closesocket(fd); }
@@ -392,6 +463,23 @@ extern HINSTANCE _hInstance;
 #    define SSLeay_Read(a,b,c)		MacSocket_recv((a),(b),(c),true)
 #    define SHUTDOWN(fd)		MacSocket_close(fd)
 #    define SHUTDOWN2(fd)		MacSocket_close(fd)
+
+#  elif defined(OPENSSL_SYS_NETWARE)
+         /* NetWare uses the WinSock2 interfaces by default, but can be configured for BSD
+         */
+#      if defined(NETWARE_BSDSOCK)
+#        include <sys/socket.h>
+#        include <netinet/in.h>
+#        include <sys/time.h>
+#        include <sys/select.h>
+#        define INVALID_SOCKET (int)(~0)
+#      else
+#        include <novsock2.h>
+#      endif
+#      define SSLeay_Write(a,b,c)   send((a),(b),(c),0)
+#      define SSLeay_Read(a,b,c) recv((a),(b),(c),0)
+#      define SHUTDOWN(fd)    { shutdown((fd),0); closesocket(fd); }
+#      define SHUTDOWN2(fd)      { shutdown((fd),2); closesocket(fd); }
 
 #  else
 
@@ -477,6 +565,9 @@ extern HINSTANCE _hInstance;
 extern char *sys_errlist[]; extern int sys_nerr;
 # define strerror(errnum) \
 	(((errnum)<0 || (errnum)>=sys_nerr) ? NULL : sys_errlist[errnum])
+  /* Being signed SunOS 4.x memcpy breaks ASN1_OBJECT table lookup */
+#include "crypto/o_str.h"
+# define memcmp OPENSSL_memcmp
 #endif
 
 #ifndef OPENSSL_EXIT
@@ -518,7 +609,11 @@ extern char *sys_errlist[]; extern int sys_nerr;
 #  include "o_str.h"
 #  define strcasecmp OPENSSL_strcasecmp
 #  define strncasecmp OPENSSL_strncasecmp
+#  define OPENSSL_IMPLEMENTS_strncasecmp
 #elif defined(OPENSSL_SYS_OS2) && defined(__EMX__)
+#  define strcasecmp stricmp
+#  define strncasecmp strnicmp
+#elif defined(OPENSSL_SYS_NETWARE) && defined(NETWARE_CLIB)
 #  define strcasecmp stricmp
 #  define strncasecmp strnicmp
 #else

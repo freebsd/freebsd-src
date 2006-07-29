@@ -1,5 +1,5 @@
 #
-# SSLeay/crypto/buffer/Makefile
+# OpenSSL/crypto/buffer/Makefile
 #
 
 DIR=	buffer
@@ -7,11 +7,6 @@ TOP=	../..
 CC=	cc
 INCLUDES= -I.. -I$(TOP) -I../../include
 CFLAG=-g
-INSTALL_PREFIX=
-OPENSSLDIR=     /usr/local/ssl
-INSTALLTOP=/usr/local/ssl
-MAKEDEPPROG=	makedepend
-MAKEDEPEND=	$(TOP)/util/domd $(TOP) -MD $(MAKEDEPPROG)
 MAKEFILE=	Makefile
 AR=		ar r
 
@@ -51,7 +46,8 @@ links:
 	@$(PERL) $(TOP)/util/mklink.pl ../../apps $(APPS)
 
 install:
-	@for i in $(EXHEADER) ; \
+	@[ -n "$(INSTALLTOP)" ] # should be set by top Makefile...
+	@headerlist="$(EXHEADER)"; for i in $$headerlist ; \
 	do  \
 	(cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/include/openssl/$$i; \
 	chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/include/openssl/$$i ); \
@@ -66,6 +62,7 @@ lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
 
 depend:
+	@[ -n "$(MAKEDEPEND)" ] # should be set by upper Makefile...
 	$(MAKEDEPEND) -- $(CFLAG) $(INCLUDES) $(DEPFLAG) -- $(PROGS) $(LIBSRC)
 
 dclean:
@@ -81,12 +78,13 @@ buf_err.o: ../../include/openssl/bio.h ../../include/openssl/buffer.h
 buf_err.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
 buf_err.o: ../../include/openssl/err.h ../../include/openssl/lhash.h
 buf_err.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
-buf_err.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
-buf_err.o: ../../include/openssl/symhacks.h buf_err.c
+buf_err.o: ../../include/openssl/ossl_typ.h ../../include/openssl/safestack.h
+buf_err.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
+buf_err.o: buf_err.c
 buffer.o: ../../e_os.h ../../include/openssl/bio.h
 buffer.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
 buffer.o: ../../include/openssl/e_os2.h ../../include/openssl/err.h
 buffer.o: ../../include/openssl/lhash.h ../../include/openssl/opensslconf.h
-buffer.o: ../../include/openssl/opensslv.h ../../include/openssl/safestack.h
-buffer.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
-buffer.o: ../cryptlib.h buffer.c
+buffer.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+buffer.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
+buffer.o: ../../include/openssl/symhacks.h ../cryptlib.h buffer.c

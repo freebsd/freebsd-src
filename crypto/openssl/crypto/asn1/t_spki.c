@@ -60,6 +60,13 @@
 #include "cryptlib.h"
 #include <openssl/x509.h>
 #include <openssl/asn1.h>
+#ifndef OPENSSL_NO_RSA
+#include <openssl/rsa.h>
+#endif
+#ifndef OPENSSL_NO_DSA
+#include <openssl/dsa.h>
+#endif
+#include <openssl/bn.h>
 
 /* Print out an SPKI */
 
@@ -93,6 +100,15 @@ int NETSCAPE_SPKI_print(BIO *out, NETSCAPE_SPKI *spki)
 		}
 		else
 #endif
+#ifndef OPENSSL_NO_EC
+		if (pkey->type == EVP_PKEY_EC)
+		{
+			BIO_printf(out, "  EC Public Key:\n");
+			EC_KEY_print(out, pkey->pkey.ec,2);
+		}
+		else
+#endif
+
 			BIO_printf(out,"  Unknown Public Key:\n");
 		EVP_PKEY_free(pkey);
 	}

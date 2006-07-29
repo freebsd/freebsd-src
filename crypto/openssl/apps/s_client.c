@@ -135,6 +135,7 @@ typedef unsigned int u_int;
 #include <openssl/pem.h>
 #include <openssl/rand.h>
 #include "s_apps.h"
+#include "timeouts.h"
 
 #ifdef OPENSSL_SYS_WINCE
 /* Windows CE incorrectly defines fileno as returning void*, so to avoid problems below... */
@@ -187,16 +188,22 @@ static void sc_usage(void)
 	BIO_printf(bio_err," -port port     - use -connect instead\n");
 	BIO_printf(bio_err," -connect host:port - who to connect to (default is %s:%s)\n",SSL_HOST_NAME,PORT_STR);
 
-	BIO_printf(bio_err," -verify arg   - turn on peer certificate verification\n");
+	BIO_printf(bio_err," -verify depth - turn on peer certificate verification\n");
 	BIO_printf(bio_err," -cert arg     - certificate file to use, PEM format assumed\n");
-	BIO_printf(bio_err," -key arg      - Private key file to use, PEM format assumed, in cert file if\n");
+	BIO_printf(bio_err," -certform arg - certificate format (PEM or DER) PEM default\n");
+	BIO_printf(bio_err," -key arg      - Private key file to use, in cert file if\n");
 	BIO_printf(bio_err,"                 not specified but cert file is.\n");
+	BIO_printf(bio_err," -keyform arg  - key format (PEM or DER) PEM default\n");
+	BIO_printf(bio_err," -pass arg     - private key file pass phrase source\n");
 	BIO_printf(bio_err," -CApath arg   - PEM format directory of CA's\n");
 	BIO_printf(bio_err," -CAfile arg   - PEM format file of CA's\n");
 	BIO_printf(bio_err," -reconnect    - Drop and re-make the connection with the same Session-ID\n");
 	BIO_printf(bio_err," -pause        - sleep(1) after each read(2) and write(2) system call\n");
 	BIO_printf(bio_err," -showcerts    - show all certificates in the chain\n");
 	BIO_printf(bio_err," -debug        - extra output\n");
+#ifdef WATT32
+	BIO_printf(bio_err," -wdebug       - WATT-32 tcp debugging\n");
+#endif
 	BIO_printf(bio_err," -msg          - Show protocol messages\n");
 	BIO_printf(bio_err," -nbio_test    - more ssl protocol testing\n");
 	BIO_printf(bio_err," -state        - print the 'ssl' states\n");
@@ -209,6 +216,8 @@ static void sc_usage(void)
 	BIO_printf(bio_err," -ssl2         - just use SSLv2\n");
 	BIO_printf(bio_err," -ssl3         - just use SSLv3\n");
 	BIO_printf(bio_err," -tls1         - just use TLSv1\n");
+	BIO_printf(bio_err," -dtls1        - just use DTLSv1\n");    
+	BIO_printf(bio_err," -mtu          - set the MTU\n");
 	BIO_printf(bio_err," -no_tls1/-no_ssl3/-no_ssl2 - turn off that protocol\n");
 	BIO_printf(bio_err," -bugs         - Switch on all SSL implementation bug workarounds\n");
 	BIO_printf(bio_err," -serverpref   - Use server's cipher preferences (only SSLv2)\n");
@@ -241,6 +250,10 @@ int MAIN(int argc, char **argv)
 	int full_log=1;
 	char *host=SSL_HOST_NAME;
 	char *cert_file=NULL,*key_file=NULL;
+	int cert_format = FORMAT_PEM, key_format = FORMAT_PEM;
+	char *passarg = NULL, *pass = NULL;
+	X509 *cert = NULL;
+	EVP_PKEY *key = NULL;
 	char *CApath=NULL,*CAfile=NULL,*cipher=NULL;
 	int reconnect=0,badop=0,verify=SSL_VERIFY_NONE,bugs=0;
 	int crlf=0;
@@ -250,15 +263,24 @@ int MAIN(int argc, char **argv)
 	int starttls_proto = 0;
 	int prexit = 0, vflags = 0;
 	SSL_METHOD *meth=NULL;
+#ifdef sock_type
+#undef sock_type
+#endif
+	int sock_type=SOCK_STREAM;
 	BIO *sbio;
 	char *inrand=NULL;
 #ifndef OPENSSL_NO_ENGINE
 	char *engine_id=NULL;
 	ENGINE *e=NULL;
 #endif
-#if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MSDOS)
+#if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_NETWARE)
 	struct timeval tv;
 #endif
+
+	struct sockaddr peer;
+	int peerlen = sizeof(peer);
+	int enable_timeouts = 0 ;
+	long mtu = 0;
 
 #if !defined(OPENSSL_NO_SSL2) && !defined(OPENSSL_NO_SSL3)
 	meth=SSLv23_client_method();
@@ -329,6 +351,11 @@ int MAIN(int argc, char **argv)
 			if (--argc < 1) goto bad;
 			cert_file= *(++argv);
 			}
+		else if	(strcmp(*argv,"-certform") == 0)
+			{
+			if (--argc < 1) goto bad;
+			cert_format = str2fmt(*(++argv));
+			}
 		else if	(strcmp(*argv,"-crl_check") == 0)
 			vflags |= X509_V_FLAG_CRL_CHECK;
 		else if	(strcmp(*argv,"-crl_check_all") == 0)
@@ -348,6 +375,10 @@ int MAIN(int argc, char **argv)
 			c_Pause=1;
 		else if	(strcmp(*argv,"-debug") == 0)
 			c_debug=1;
+#ifdef WATT32
+		else if (strcmp(*argv,"-wdebug") == 0)
+			dbug_init();
+#endif
 		else if	(strcmp(*argv,"-msg") == 0)
 			c_msg=1;
 		else if	(strcmp(*argv,"-showcerts") == 0)
@@ -368,8 +399,32 @@ int MAIN(int argc, char **argv)
 		else if	(strcmp(*argv,"-tls1") == 0)
 			meth=TLSv1_client_method();
 #endif
+#ifndef OPENSSL_NO_DTLS1
+		else if	(strcmp(*argv,"-dtls1") == 0)
+			{
+			meth=DTLSv1_client_method();
+			sock_type=SOCK_DGRAM;
+			}
+		else if (strcmp(*argv,"-timeout") == 0)
+			enable_timeouts=1;
+		else if (strcmp(*argv,"-mtu") == 0)
+			{
+			if (--argc < 1) goto bad;
+			mtu = atol(*(++argv));
+			}
+#endif
 		else if (strcmp(*argv,"-bugs") == 0)
 			bugs=1;
+		else if	(strcmp(*argv,"-keyform") == 0)
+			{
+			if (--argc < 1) goto bad;
+			key_format = str2fmt(*(++argv));
+			}
+		else if	(strcmp(*argv,"-pass") == 0)
+			{
+			if (--argc < 1) goto bad;
+			passarg = *(++argv);
+			}
 		else if	(strcmp(*argv,"-key") == 0)
 			{
 			if (--argc < 1) goto bad;
@@ -451,6 +506,42 @@ bad:
 #ifndef OPENSSL_NO_ENGINE
         e = setup_engine(bio_err, engine_id, 1);
 #endif
+	if (!app_passwd(bio_err, passarg, NULL, &pass, NULL))
+		{
+		BIO_printf(bio_err, "Error getting password\n");
+		goto end;
+		}
+
+	if (key_file == NULL)
+		key_file = cert_file;
+
+
+	if (key_file)
+
+		{
+
+		key = load_key(bio_err, key_file, key_format, 0, pass, e,
+			       "client certificate private key file");
+		if (!key)
+			{
+			ERR_print_errors(bio_err);
+			goto end;
+			}
+
+		}
+
+	if (cert_file)
+
+		{
+		cert = load_cert(bio_err,cert_file,cert_format,
+				NULL, e, "client certificate file");
+
+		if (!cert)
+			{
+			ERR_print_errors(bio_err);
+			goto end;
+			}
+		}
 
 	if (!app_RAND_load_file(NULL, bio_err, 1) && inrand == NULL
 		&& !RAND_status())
@@ -485,6 +576,10 @@ bad:
 		SSL_CTX_set_options(ctx,SSL_OP_ALL|off);
 	else
 		SSL_CTX_set_options(ctx,off);
+	/* DTLS: partial reads end up discarding unread UDP bytes :-( 
+	 * Setting read ahead solves this problem.
+	 */
+	if (sock_type == SOCK_DGRAM) SSL_CTX_set_read_ahead(ctx, 1);
 
 	if (state) SSL_CTX_set_info_callback(ctx,apps_ssl_info_callback);
 	if (cipher != NULL)
@@ -499,7 +594,7 @@ bad:
 #endif
 
 	SSL_CTX_set_verify(ctx,verify,verify_callback);
-	if (!set_cert_stuff(ctx,cert_file,key_file))
+	if (!set_cert_key_stuff(ctx,cert,key))
 		goto end;
 
 	if ((!SSL_CTX_load_verify_locations(ctx,CAfile,CApath)) ||
@@ -524,7 +619,7 @@ bad:
 
 re_start:
 
-	if (init_client(&s,host,port) == 0)
+	if (init_client(&s,host,port,sock_type) == 0)
 		{
 		BIO_printf(bio_err,"connect:errno=%d\n",get_last_socket_error());
 		SHUTDOWN(s);
@@ -545,7 +640,46 @@ re_start:
 		}
 #endif                                              
 	if (c_Pause & 0x01) con->debug=1;
-	sbio=BIO_new_socket(s,BIO_NOCLOSE);
+
+	if ( SSL_version(con) == DTLS1_VERSION)
+		{
+		struct timeval timeout;
+
+		sbio=BIO_new_dgram(s,BIO_NOCLOSE);
+		if (getsockname(s, &peer, (void *)&peerlen) < 0)
+			{
+			BIO_printf(bio_err, "getsockname:errno=%d\n",
+				get_last_socket_error());
+			SHUTDOWN(s);
+			goto end;
+			}
+
+		BIO_ctrl_set_connected(sbio, 1, &peer);
+
+		if ( enable_timeouts)
+			{
+			timeout.tv_sec = 0;
+			timeout.tv_usec = DGRAM_RCV_TIMEOUT;
+			BIO_ctrl(sbio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
+			
+			timeout.tv_sec = 0;
+			timeout.tv_usec = DGRAM_SND_TIMEOUT;
+			BIO_ctrl(sbio, BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
+			}
+
+		if ( mtu > 0)
+			{
+			SSL_set_options(con, SSL_OP_NO_QUERY_MTU);
+			SSL_set_mtu(con, mtu);
+			}
+		else
+			/* want to do MTU discovery */
+			BIO_ctrl(sbio, BIO_CTRL_DGRAM_MTU_DISCOVER, 0, NULL);
+		}
+	else
+		sbio=BIO_new_socket(s,BIO_NOCLOSE);
+
+
 
 	if (nbio_test)
 		{
@@ -558,7 +692,7 @@ re_start:
 	if (c_debug)
 		{
 		con->debug=1;
-		BIO_set_callback(sbio,bio_dump_cb);
+		BIO_set_callback(sbio,bio_dump_callback);
 		BIO_set_callback_arg(sbio,bio_c_out);
 		}
 	if (c_msg)
@@ -640,7 +774,7 @@ re_start:
 
 		if (!ssl_pending)
 			{
-#if !defined(OPENSSL_SYS_WINDOWS) && !defined(OPENSSL_SYS_MSDOS)
+#if !defined(OPENSSL_SYS_WINDOWS) && !defined(OPENSSL_SYS_MSDOS) && !defined(OPENSSL_SYS_NETWARE)
 			if (tty_on)
 				{
 				if (read_tty)  FD_SET(fileno(stdin),&readfds);
@@ -689,6 +823,16 @@ re_start:
 #endif
 				} else 	i=select(width,(void *)&readfds,(void *)&writefds,
 					 NULL,NULL);
+			}
+#elif defined(OPENSSL_SYS_NETWARE)
+			if(!write_tty) {
+				if(read_tty) {
+					tv.tv_sec = 1;
+					tv.tv_usec = 0;
+					i=select(width,(void *)&readfds,(void *)&writefds,
+						NULL,&tv);
+				} else 	i=select(width,(void *)&readfds,(void *)&writefds,
+					NULL,NULL);
 			}
 #else
 			i=select(width,(void *)&readfds,(void *)&writefds,
@@ -770,7 +914,7 @@ re_start:
 				goto shut;
 				}
 			}
-#if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MSDOS)
+#if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_NETWARE)
 		/* Assume Windows/DOS can always write */
 		else if (!ssl_pending && write_tty)
 #else
@@ -857,6 +1001,8 @@ printf("read=%d pending=%d peek=%d\n",k,SSL_pending(con),SSL_peek(con,zbuf,10240
 #else
 		else if ((_kbhit()) || (WAIT_OBJECT_0 == WaitForSingleObject(GetStdHandle(STD_INPUT_HANDLE), 0)))
 #endif
+#elif defined (OPENSSL_SYS_NETWARE)
+        else if (_kbhit())
 #else
 		else if (FD_ISSET(fileno(stdin),&readfds))
 #endif
@@ -920,6 +1066,12 @@ end:
 	if (con != NULL) SSL_free(con);
 	if (con2 != NULL) SSL_free(con2);
 	if (ctx != NULL) SSL_CTX_free(ctx);
+	if (cert)
+		X509_free(cert);
+	if (key)
+		EVP_PKEY_free(key);
+	if (pass)
+		OPENSSL_free(pass);
 	if (cbuf != NULL) { OPENSSL_cleanse(cbuf,BUFSIZZ); OPENSSL_free(cbuf); }
 	if (sbuf != NULL) { OPENSSL_cleanse(sbuf,BUFSIZZ); OPENSSL_free(sbuf); }
 	if (mbuf != NULL) { OPENSSL_cleanse(mbuf,BUFSIZZ); OPENSSL_free(mbuf); }
@@ -937,13 +1089,16 @@ static void print_stuff(BIO *bio, SSL *s, int full)
 	{
 	X509 *peer=NULL;
 	char *p;
-	static char *space="                ";
+	static const char *space="                ";
 	char buf[BUFSIZ];
 	STACK_OF(X509) *sk;
 	STACK_OF(X509_NAME) *sk2;
 	SSL_CIPHER *c;
 	X509_NAME *xn;
 	int j,i;
+#ifndef OPENSSL_NO_COMP
+	const COMP_METHOD *comp, *expansion;
+#endif
 
 	if (full)
 		{
@@ -1046,6 +1201,14 @@ static void print_stuff(BIO *bio, SSL *s, int full)
 							 EVP_PKEY_bits(pktmp));
 		EVP_PKEY_free(pktmp);
 	}
+#ifndef OPENSSL_NO_COMP
+	comp=SSL_get_current_compression(s);
+	expansion=SSL_get_current_expansion(s);
+	BIO_printf(bio,"Compression: %s\n",
+		comp ? SSL_COMP_get_name(comp) : "NONE");
+	BIO_printf(bio,"Expansion: %s\n",
+		expansion ? SSL_COMP_get_name(expansion) : "NONE");
+#endif
 	SSL_SESSION_print(bio,SSL_get_session(s));
 	BIO_printf(bio,"---\n");
 	if (peer != NULL)

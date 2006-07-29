@@ -65,8 +65,6 @@
  */
 #include "des_locl.h"
 
-#ifndef OPENSSL_FIPS
-
 OPENSSL_IMPLEMENT_GLOBAL(int,DES_check_key);	/* defaults to false */
 
 static const unsigned char odd_parity[256]={
@@ -89,7 +87,7 @@ static const unsigned char odd_parity[256]={
 
 void DES_set_odd_parity(DES_cblock *key)
 	{
-	int i;
+	unsigned int i;
 
 	for (i=0; i<DES_KEY_SZ; i++)
 		(*key)[i]=odd_parity[(*key)[i]];
@@ -97,7 +95,7 @@ void DES_set_odd_parity(DES_cblock *key)
 
 int DES_check_key_parity(const_DES_cblock *key)
 	{
-	int i;
+	unsigned int i;
 
 	for (i=0; i<DES_KEY_SZ; i++)
 		{
@@ -407,5 +405,3 @@ void des_fixup_key_parity(des_cblock *key)
 	des_set_odd_parity(key);
 	}
 */
-
-#endif /* ndef OPENSSL_FIPS */

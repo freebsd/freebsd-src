@@ -9,6 +9,9 @@ my $reindex = 0;
 my $dowrite = 0;
 my $staticloader = "";
 
+my $pack_errcode;
+my $load_errcode;
+
 while (@ARGV) {
 	my $arg = $ARGV[0];
 	if($arg eq "-conf") {
@@ -41,8 +44,7 @@ while (@ARGV) {
 }
 
 if($recurse) {
-	@source = (<crypto/*.c>, <crypto/*/*.c>, <ssl/*.c>, <fips/*.c>,
-		   <fips/*/*.c>);
+	@source = (<crypto/*.c>, <crypto/*/*.c>, <ssl/*.c>);
 } else {
 	@source = @ARGV;
 }
@@ -63,6 +65,8 @@ while(<IN>)
 			$csrc{$1} = $3;
 			$fmax{$1} = 99;
 			$rmax{$1} = 99;
+			$fassigned{$1} = ":";
+			$rassigned{$1} = ":";
 			$fnew{$1} = 0;
 			$rnew{$1} = 0;
 		}
@@ -101,15 +105,24 @@ while (($hdr, $lib) = each %libinc)
 		    next;
 		}
 
-		$cpp = 1 if /^#.*ifdef.*cplusplus/;  # skip "C" declaration
+		if(/\/\*/) {
+		    if (not /\*\//) {		# multiline comment...
+			$line = $_;		# ... just accumulate
+			next; 
+		    } else {
+			s/\/\*.*?\*\///gs;	# wipe it
+		    }
+		}
+
 		if ($cpp) {
-		    $cpp = 0 if /^#.*endif/;
+		    $cpp++ if /^#\s*if/;
+		    $cpp-- if /^#\s*endif/;
 		    next;
 		}
+		$cpp = 1 if /^#.*ifdef.*cplusplus/;  # skip "C" declaration
 
 		next if (/^\#/);                      # skip preprocessor directives
 
-		s/\/\*.*?\*\///gs;                   # ignore comments
 		s/{[^{}]*}//gs;                      # ignore {} blocks
 
 		if (/\{|\/\*/) { # Add a } so editor works...
@@ -126,27 +139,28 @@ while (($hdr, $lib) = each %libinc)
 	    $defnr++;
 	    print STDERR "def: $defnr\r" if $debug;
 
+	    # The goal is to collect function names from function declarations.
+
 	    s/^[\n\s]*//g;
 	    s/[\n\s]*$//g;
-	    next if(/typedef\W/);
-	    if (/\(\*(\w*)\([^\)]+/) {
-		my $name = $1;
+
+	    # Skip over recognized non-function declarations
+	    next if(/typedef\W/ or /DECLARE_STACK_OF/ or /TYPEDEF_.*_OF/);
+
+	    # Reduce argument lists to empty ()
+	    # fold round brackets recursively: (t(*v)(t),t) -> (t{}{},t) -> {}
+	    while(/\(.*\)/s) {
+		s/\([^\(\)]+\)/\{\}/gs;
+		s/\(\s*\*\s*(\w+)\s*\{\}\s*\)/$1/gs;	#(*f{}) -> f
+	    }
+	    # pretend as we didn't use curly braces: {} -> ()
+	    s/\{\}/\(\)/gs;
+
+	    if (/(\w+)\s*\(\).*/s) {	# first token prior [first] () is
+		my $name = $1;		# a function name!
 		$name =~ tr/[a-z]/[A-Z]/;
 		$ftrans{$name} = $1;
-	    } elsif (/\w+\W+(\w+)\W*\(\s*\)(\s*__attribute__\(.*\)\s*)?$/s){
-		# K&R C
-		next ;
-	    } elsif (/\w+\W+\w+\W*\(.*\)(\s*__attribute__\(.*\)\s*)?$/s) {
-		while (not /\(\)(\s*__attribute__\(.*\)\s*)?$/s) {
-		    s/[^\(\)]*\)(\s*__attribute__\(.*\)\s*)?$/\)/s;
-		    s/\([^\(\)]*\)\)(\s*__attribute__\(.*\)\s*)?$/\)/s;
-		}
-		s/\(void\)//;
-		/(\w+(\{[0-9]+\})?)\W*\(\)/s;
-		my $name = $1;
-		$name =~ tr/[a-z]/[A-Z]/;
-		$ftrans{$name} = $1;
-	    } elsif (/\(/ and not (/=/ or /DECLARE_STACK/)) {
+	    } elsif (/[\(\)]/ and not (/=/)) {
 		print STDERR "Header $hdr: cannot parse: $_;\n";
 	    }
 	}
@@ -159,7 +173,7 @@ while (($hdr, $lib) = each %libinc)
 	# maximum code used.
 
 	if ($gotfile) {
-	    while(<IN>) {
+	  while(<IN>) {
 		if(/^\#define\s+(\S+)\s+(\S+)/) {
 			$name = $1;
 			$code = $2;
@@ -170,18 +184,49 @@ while (($hdr, $lib) = each %libinc)
 			}
 			if($1 eq "R") {
 				$rcodes{$name} = $code;
+				if ($rassigned{$lib} =~ /:$code:/) {
+					print STDERR "!! ERROR: $lib reason code $code assigned twice\n";
+				}
+				$rassigned{$lib} .= "$code:";
 				if(!(exists $rextra{$name}) &&
 					 ($code > $rmax{$lib}) ) {
 					$rmax{$lib} = $code;
 				}
 			} else {
+				if ($fassigned{$lib} =~ /:$code:/) {
+					print STDERR "!! ERROR: $lib function code $code assigned twice\n";
+				}
+				$fassigned{$lib} .= "$code:";
 				if($code > $fmax{$lib}) {
 					$fmax{$lib} = $code;
 				}
 				$fcodes{$name} = $code;
 			}
 		}
-	    }
+	  }
+	}
+
+	if ($debug) {
+		if (defined($fmax{$lib})) {
+			print STDERR "Max function code fmax" . "{" . "$lib" . "} = $fmax{$lib}\n";
+			$fassigned{$lib} =~ m/^:(.*):$/;
+			@fassigned = sort {$a <=> $b} split(":", $1);
+			print STDERR "  @fassigned\n";
+		}
+		if (defined($rmax{$lib})) {
+			print STDERR "Max reason code rmax" . "{" . "$lib" . "} = $rmax{$lib}\n";
+			$rassigned{$lib} =~ m/^:(.*):$/;
+			@rassigned = sort {$a <=> $b} split(":", $1);
+			print STDERR "  @rassigned\n";
+		}
+	}
+
+	if ($lib eq "SSL") {
+		if ($rmax{$lib} >= 1000) {
+			print STDERR "!! ERROR: SSL error codes 1000+ are reserved for alerts.\n";
+			print STDERR "!!        Any new alerts must be added to $config.\n";
+			print STDERR "\n";
+		}
 	}
 	close IN;
 }
@@ -198,11 +243,10 @@ while (($hdr, $lib) = each %libinc)
 # so all those unreferenced can be printed out.
 
 
-print STDERR "Files loaded: " if $debug;
 foreach $file (@source) {
 	# Don't parse the error source file.
 	next if exists $cskip{$file};
-	print STDERR $file if $debug;
+	print STDERR "File loaded: ".$file."\r" if $debug;
 	open(IN, "<$file") || die "Can't open source file $file\n";
 	while(<IN>) {
 		if(/(([A-Z0-9]+)_F_([A-Z0-9_]+))/) {
@@ -226,7 +270,7 @@ foreach $file (@source) {
 	}
 	close IN;
 }
-print STDERR "\n" if $debug;
+print STDERR "                                  \n" if $debug;
 
 # Now process each library in turn.
 
@@ -263,7 +307,7 @@ foreach $lib (keys %csrc)
 	} else {
 	    push @out,
 "/* ====================================================================\n",
-" * Copyright (c) 2001-2003 The OpenSSL Project.  All rights reserved.\n",
+" * Copyright (c) 2001-2005 The OpenSSL Project.  All rights reserved.\n",
 " *\n",
 " * Redistribution and use in source and binary forms, with or without\n",
 " * modification, are permitted provided that the following conditions\n",
@@ -353,7 +397,16 @@ EOF
 	foreach $i (@function) {
 		$z=6-int(length($i)/8);
 		if($fcodes{$i} eq "X") {
-			$fcodes{$i} = ++$fmax{$lib};
+			$fassigned{$lib} =~ m/^:([^:]*):/;
+			$findcode = $1;
+			if (!defined($findcode)) {
+				$findcode = $fmax{$lib};
+			}
+			while ($fassigned{$lib} =~ m/:$findcode:/) {
+				$findcode++;
+			}
+			$fcodes{$i} = $findcode;
+			$fassigned{$lib} .= "$findcode:";
 			print STDERR "New Function code $i\n" if $debug;
 		}
 		printf OUT "#define $i%s $fcodes{$i}\n","\t" x $z;
@@ -364,7 +417,16 @@ EOF
 	foreach $i (@reasons) {
 		$z=6-int(length($i)/8);
 		if($rcodes{$i} eq "X") {
-			$rcodes{$i} = ++$rmax{$lib};
+			$rassigned{$lib} =~ m/^:([^:]*):/;
+			$findcode = $1;
+			if (!defined($findcode)) {
+				$findcode = $rmax{$lib};
+			}
+			while ($rassigned{$lib} =~ m/:$findcode:/) {
+				$findcode++;
+			}
+			$rcodes{$i} = $findcode;
+			$rassigned{$lib} .= "$findcode:";
 			print STDERR "New Reason code   $i\n" if $debug;
 		}
 		printf OUT "#define $i%s $rcodes{$i}\n","\t" x $z;
@@ -399,13 +461,27 @@ EOF
 		$hincf = "\"$hfile\"";
 	}
 
+	# If static we know the error code at compile time so use it
+	# in error definitions.
+
+	if ($static)
+		{
+		$pack_errcode = "ERR_LIB_${lib}";
+		$load_errcode = "0";
+		}
+	else
+		{
+		$pack_errcode = "0";
+		$load_errcode = "ERR_LIB_${lib}";
+		}
+
 
 	open (OUT,">$cfile") || die "Can't open $cfile for writing";
 
 	print OUT <<"EOF";
 /* $cfile */
 /* ====================================================================
- * Copyright (c) 1999-2003 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2005 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -469,6 +545,10 @@ EOF
 
 /* BEGIN ERROR CODES */
 #ifndef OPENSSL_NO_ERR
+
+#define ERR_FUNC(func) ERR_PACK($pack_errcode,func,0)
+#define ERR_REASON(reason) ERR_PACK($pack_errcode,0,reason)
+
 static ERR_STRING_DATA ${lib}_str_functs[]=
 	{
 EOF
@@ -480,7 +560,8 @@ EOF
 		if(exists $ftrans{$fn}) {
 			$fn = $ftrans{$fn};
 		}
-		print OUT "{ERR_PACK(0,$i,0),\t\"$fn\"},\n";
+#		print OUT "{ERR_PACK($pack_errcode,$i,0),\t\"$fn\"},\n";
+		print OUT "{ERR_FUNC($i),\t\"$fn\"},\n";
 	}
 	print OUT <<"EOF";
 {0,NULL}
@@ -492,6 +573,7 @@ EOF
 	# Add each reason code.
 	foreach $i (@reasons) {
 		my $rn;
+		my $rstr = "ERR_REASON($i)";
 		my $nspc = 0;
 		if (exists $err_reason_strings{$i}) {
 			$rn = $err_reason_strings{$i};
@@ -500,9 +582,9 @@ EOF
 			$rn = $1;
 			$rn =~ tr/_[A-Z]/ [a-z]/;
 		}
-		$nspc = 40 - length($i) unless length($i) > 40;
+		$nspc = 40 - length($rstr) unless length($rstr) > 40;
 		$nspc = " " x $nspc;
-		print OUT "{${i}${nspc},\"$rn\"},\n";
+		print OUT "{${rstr}${nspc},\"$rn\"},\n";
 	}
 if($static) {
 	print OUT <<"EOF";
@@ -519,8 +601,8 @@ ${staticloader}void ERR_load_${lib}_strings(void)
 		{
 		init=0;
 #ifndef OPENSSL_NO_ERR
-		ERR_load_strings(ERR_LIB_${lib},${lib}_str_functs);
-		ERR_load_strings(ERR_LIB_${lib},${lib}_str_reasons);
+		ERR_load_strings($load_errcode,${lib}_str_functs);
+		ERR_load_strings($load_errcode,${lib}_str_reasons);
 #endif
 
 		}

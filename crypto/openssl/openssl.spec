@@ -1,7 +1,7 @@
 %define libmaj 0
 %define libmin 9
-%define librel 7
-%define librev e
+%define librel 8
+%define librev b
 Release: 1
 
 %define openssldir /var/ssl
@@ -121,7 +121,6 @@ rm -rf $RPM_BUILD_ROOT
 
 %config %attr(0644,root,root) %{openssldir}/openssl.cnf 
 %dir %attr(0755,root,root) %{openssldir}/certs
-%dir %attr(0755,root,root) %{openssldir}/lib
 %dir %attr(0755,root,root) %{openssldir}/misc
 %dir %attr(0750,root,root) %{openssldir}/private
 
@@ -146,6 +145,8 @@ ldconfig
 ldconfig
 
 %changelog
+* Sun Jun  6 2005 Richard Levitte <richard@levitte.org>
+- Remove the incorrect installation of '%{openssldir}/lib'.
 * Wed May  7 2003 Richard Levitte <richard@levitte.org>
 - Add /usr/lib/pkgconfig/openssl.pc to the development section.
 * Thu Mar 22 2001 Richard Levitte <richard@levitte.org>

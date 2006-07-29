@@ -118,6 +118,7 @@ int MAIN(int argc, char **argv)
 	int enc=1,printkey=0,i,base64=0;
 	int debug=0,olb64=0,nosalt=0;
 	const EVP_CIPHER *cipher=NULL,*c;
+	EVP_CIPHER_CTX *ctx = NULL;
 	char *inf=NULL,*outf=NULL;
 	BIO *in=NULL,*out=NULL,*b64=NULL,*benc=NULL,*rbio=NULL,*wbio=NULL;
 #define PROG_NAME_SIZE  39
@@ -313,10 +314,7 @@ bad:
 
 	if (dgst == NULL)
 		{
-		if (in_FIPS_mode)
-			dgst = EVP_sha1();
-		else
-			dgst = EVP_md5();
+		dgst = EVP_md5();
 		}
 
 	if (bufsize != NULL)
@@ -539,13 +537,31 @@ bad:
 
 		if ((benc=BIO_new(BIO_f_cipher())) == NULL)
 			goto end;
-		BIO_set_cipher(benc,cipher,key,iv,enc);
-		if (nopad)
+
+		/* Since we may be changing parameters work on the encryption
+		 * context rather than calling BIO_set_cipher().
+		 */
+
+		BIO_get_cipher_ctx(benc, &ctx);
+		if (!EVP_CipherInit_ex(ctx, cipher, NULL, NULL, NULL, enc))
 			{
-			EVP_CIPHER_CTX *ctx;
-			BIO_get_cipher_ctx(benc, &ctx);
-			EVP_CIPHER_CTX_set_padding(ctx, 0);
+			BIO_printf(bio_err, "Error setting cipher %s\n",
+				EVP_CIPHER_name(cipher));
+			ERR_print_errors(bio_err);
+			goto end;
 			}
+
+		if (nopad)
+			EVP_CIPHER_CTX_set_padding(ctx, 0);
+
+		if (!EVP_CipherInit_ex(ctx, NULL, NULL, key, iv, enc))
+			{
+			BIO_printf(bio_err, "Error setting cipher %s\n",
+				EVP_CIPHER_name(cipher));
+			ERR_print_errors(bio_err);
+			goto end;
+			}
+
 		if (debug)
 			{
 			BIO_set_callback(benc,BIO_debug_callback);
@@ -557,7 +573,7 @@ bad:
 			if (!nosalt)
 				{
 				printf("salt=");
-				for (i=0; i<sizeof salt; i++)
+				for (i=0; i<(int)sizeof(salt); i++)
 					printf("%02X",salt[i]);
 				printf("\n");
 				}

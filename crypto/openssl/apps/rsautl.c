@@ -56,12 +56,14 @@
  *
  */
 
+#include <openssl/opensslconf.h>
 #ifndef OPENSSL_NO_RSA
 
 #include "apps.h"
 #include <string.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
+#include <openssl/rsa.h>
 
 #define RSA_SIGN 	1
 #define RSA_VERIFY 	2
@@ -147,6 +149,7 @@ int MAIN(int argc, char **argv)
 		else if(!strcmp(*argv, "-oaep")) pad = RSA_PKCS1_OAEP_PADDING;
 		else if(!strcmp(*argv, "-ssl")) pad = RSA_SSLV23_PADDING;
 		else if(!strcmp(*argv, "-pkcs")) pad = RSA_PKCS1_PADDING;
+		else if(!strcmp(*argv, "-x931")) pad = RSA_X931_PADDING;
 		else if(!strcmp(*argv, "-sign")) {
 			rsa_mode = RSA_SIGN;
 			need_priv = 1;

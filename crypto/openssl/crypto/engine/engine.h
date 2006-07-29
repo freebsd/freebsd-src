@@ -3,7 +3,7 @@
  * project 2000.
  */
 /* ====================================================================
- * Copyright (c) 1999-2001 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2004 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -55,6 +55,11 @@
  * Hudson (tjh@cryptsoft.com).
  *
  */
+/* ====================================================================
+ * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
+ * ECDH support in OpenSSL originally developed by 
+ * SUN MICROSYSTEMS, INC., and contributed to the OpenSSL project.
+ */
 
 #ifndef HEADER_ENGINE_H
 #define HEADER_ENGINE_H
@@ -65,7 +70,7 @@
 #error ENGINE is disabled.
 #endif
 
-#include <openssl/ossl_typ.h>
+#ifndef OPENSSL_NO_DEPRECATED
 #include <openssl/bn.h>
 #ifndef OPENSSL_NO_RSA
 #include <openssl/rsa.h>
@@ -76,24 +81,23 @@
 #ifndef OPENSSL_NO_DH
 #include <openssl/dh.h>
 #endif
+#ifndef OPENSSL_NO_ECDH
+#include <openssl/ecdh.h>
+#endif
+#ifndef OPENSSL_NO_ECDSA
+#include <openssl/ecdsa.h>
+#endif
 #include <openssl/rand.h>
+#include <openssl/store.h>
 #include <openssl/ui.h>
-#include <openssl/symhacks.h>
 #include <openssl/err.h>
+#endif
+
+#include <openssl/ossl_typ.h>
+#include <openssl/symhacks.h>
 
 #ifdef  __cplusplus
 extern "C" {
-#endif
-
-/* Fixups for missing algorithms */
-#ifdef OPENSSL_NO_RSA
-typedef void RSA_METHOD;
-#endif
-#ifdef OPENSSL_NO_DSA
-typedef void DSA_METHOD;
-#endif
-#ifdef OPENSSL_NO_DH
-typedef void DH_METHOD;
 #endif
 
 /* These flags are used to control combinations of algorithm (methods)
@@ -102,8 +106,11 @@ typedef void DH_METHOD;
 #define ENGINE_METHOD_DSA		(unsigned int)0x0002
 #define ENGINE_METHOD_DH		(unsigned int)0x0004
 #define ENGINE_METHOD_RAND		(unsigned int)0x0008
+#define ENGINE_METHOD_ECDH		(unsigned int)0x0010
+#define ENGINE_METHOD_ECDSA		(unsigned int)0x0020
 #define ENGINE_METHOD_CIPHERS		(unsigned int)0x0040
 #define ENGINE_METHOD_DIGESTS		(unsigned int)0x0080
+#define ENGINE_METHOD_STORE		(unsigned int)0x0100
 /* Obvious all-or-nothing cases. */
 #define ENGINE_METHOD_ALL		(unsigned int)0xFFFF
 #define ENGINE_METHOD_NONE		(unsigned int)0x0000
@@ -173,9 +180,15 @@ typedef void DH_METHOD;
 						     handles/connections etc. */
 #define ENGINE_CTRL_SET_USER_INTERFACE          4 /* Alternative to callback */
 #define ENGINE_CTRL_SET_CALLBACK_DATA           5 /* User-specific data, used
-                                                     when calling the password
-                                                     callback and the user
-                                                     interface */
+						     when calling the password
+						     callback and the user
+						     interface */
+#define ENGINE_CTRL_LOAD_CONFIGURATION		6 /* Load a configuration, given
+						     a string that represents a
+						     file name or so */
+#define ENGINE_CTRL_LOAD_SECTION		7 /* Load data from a given
+						     section in the already loaded
+						     configuration */
 
 /* These control commands allow an application to deal with an arbitrary engine
  * in a dynamic way. Warn: Negative return values indicate errors FOR THESE
@@ -222,7 +235,7 @@ typedef void DH_METHOD;
 
 /* ENGINE implementations should start the numbering of their own control
  * commands from this value. (ie. ENGINE_CMD_BASE, ENGINE_CMD_BASE + 1, etc). */
-#define ENGINE_CMD_BASE		200
+#define ENGINE_CMD_BASE				200
 
 /* NB: These 2 nCipher "chil" control commands are deprecated, and their
  * functionality is now available through ENGINE-specific control commands
@@ -257,11 +270,11 @@ typedef struct ENGINE_CMD_DEFN_st
 	} ENGINE_CMD_DEFN;
 
 /* Generic function pointer */
-typedef int (*ENGINE_GEN_FUNC_PTR)();
+typedef int (*ENGINE_GEN_FUNC_PTR)(void);
 /* Generic function pointer taking no arguments */
 typedef int (*ENGINE_GEN_INT_FUNC_PTR)(ENGINE *);
 /* Specific control function pointer */
-typedef int (*ENGINE_CTRL_FUNC_PTR)(ENGINE *, int, long, void *, void (*f)());
+typedef int (*ENGINE_CTRL_FUNC_PTR)(ENGINE *, int, long, void *, void (*f)(void));
 /* Generic load_key function pointer */
 typedef EVP_PKEY * (*ENGINE_LOAD_KEY_PTR)(ENGINE *, const char *,
 	UI_METHOD *ui_method, void *callback_data);
@@ -305,15 +318,21 @@ ENGINE *ENGINE_by_id(const char *id);
 /* Add all the built-in engines. */
 void ENGINE_load_openssl(void);
 void ENGINE_load_dynamic(void);
-void ENGINE_load_cswift(void);
-void ENGINE_load_chil(void);
-void ENGINE_load_atalla(void);
-void ENGINE_load_nuron(void);
-void ENGINE_load_ubsec(void);
-void ENGINE_load_aep(void);
-void ENGINE_load_sureware(void);
+#ifndef OPENSSL_NO_STATIC_ENGINE
 void ENGINE_load_4758cca(void);
+void ENGINE_load_aep(void);
+void ENGINE_load_atalla(void);
+void ENGINE_load_chil(void);
+void ENGINE_load_cswift(void);
+#ifndef OPENSSL_NO_GMP
+void ENGINE_load_gmp(void);
+#endif
+void ENGINE_load_nuron(void);
+void ENGINE_load_sureware(void);
+void ENGINE_load_ubsec(void);
+#endif
 void ENGINE_load_cryptodev(void);
+void ENGINE_load_padlock(void);
 void ENGINE_load_builtin_engines(void);
 
 /* Get and set global flags (ENGINE_TABLE_FLAG_***) for the implementation
@@ -337,6 +356,14 @@ int ENGINE_register_DSA(ENGINE *e);
 void ENGINE_unregister_DSA(ENGINE *e);
 void ENGINE_register_all_DSA(void);
 
+int ENGINE_register_ECDH(ENGINE *e);
+void ENGINE_unregister_ECDH(ENGINE *e);
+void ENGINE_register_all_ECDH(void);
+
+int ENGINE_register_ECDSA(ENGINE *e);
+void ENGINE_unregister_ECDSA(ENGINE *e);
+void ENGINE_register_all_ECDSA(void);
+
 int ENGINE_register_DH(ENGINE *e);
 void ENGINE_unregister_DH(ENGINE *e);
 void ENGINE_register_all_DH(void);
@@ -344,6 +371,10 @@ void ENGINE_register_all_DH(void);
 int ENGINE_register_RAND(ENGINE *e);
 void ENGINE_unregister_RAND(ENGINE *e);
 void ENGINE_register_all_RAND(void);
+
+int ENGINE_register_STORE(ENGINE *e);
+void ENGINE_unregister_STORE(ENGINE *e);
+void ENGINE_register_all_STORE(void);
 
 int ENGINE_register_ciphers(ENGINE *e);
 void ENGINE_unregister_ciphers(ENGINE *e);
@@ -367,7 +398,7 @@ int ENGINE_register_all_complete(void);
  * reference to an engine, but many control commands may require the engine be
  * functional. The caller should be aware of trying commands that require an
  * operational ENGINE, and only use functional references in such situations. */
-int ENGINE_ctrl(ENGINE *e, int cmd, long i, void *p, void (*f)());
+int ENGINE_ctrl(ENGINE *e, int cmd, long i, void *p, void (*f)(void));
 
 /* This function tests if an ENGINE-specific command is usable as a "setting".
  * Eg. in an application's config file that gets processed through
@@ -380,7 +411,7 @@ int ENGINE_cmd_is_executable(ENGINE *e, int cmd);
  * See the comment on ENGINE_ctrl_cmd_string() for an explanation on how to
  * use the cmd_name and cmd_optional. */
 int ENGINE_ctrl_cmd(ENGINE *e, const char *cmd_name,
-        long i, void *p, void (*f)(), int cmd_optional);
+        long i, void *p, void (*f)(void), int cmd_optional);
 
 /* This function passes a command-name and argument to an ENGINE. The cmd_name
  * is converted to a command number and the control command is called using
@@ -417,8 +448,11 @@ int ENGINE_set_id(ENGINE *e, const char *id);
 int ENGINE_set_name(ENGINE *e, const char *name);
 int ENGINE_set_RSA(ENGINE *e, const RSA_METHOD *rsa_meth);
 int ENGINE_set_DSA(ENGINE *e, const DSA_METHOD *dsa_meth);
+int ENGINE_set_ECDH(ENGINE *e, const ECDH_METHOD *ecdh_meth);
+int ENGINE_set_ECDSA(ENGINE *e, const ECDSA_METHOD *ecdsa_meth);
 int ENGINE_set_DH(ENGINE *e, const DH_METHOD *dh_meth);
 int ENGINE_set_RAND(ENGINE *e, const RAND_METHOD *rand_meth);
+int ENGINE_set_STORE(ENGINE *e, const STORE_METHOD *store_meth);
 int ENGINE_set_destroy_function(ENGINE *e, ENGINE_GEN_INT_FUNC_PTR destroy_f);
 int ENGINE_set_init_function(ENGINE *e, ENGINE_GEN_INT_FUNC_PTR init_f);
 int ENGINE_set_finish_function(ENGINE *e, ENGINE_GEN_INT_FUNC_PTR finish_f);
@@ -429,11 +463,11 @@ int ENGINE_set_ciphers(ENGINE *e, ENGINE_CIPHERS_PTR f);
 int ENGINE_set_digests(ENGINE *e, ENGINE_DIGESTS_PTR f);
 int ENGINE_set_flags(ENGINE *e, int flags);
 int ENGINE_set_cmd_defns(ENGINE *e, const ENGINE_CMD_DEFN *defns);
-/* These functions (and the "get" function lower down) allow control over any
- * per-structure ENGINE data. */
+/* These functions allow control over any per-structure ENGINE data. */
 int ENGINE_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
 		CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
 int ENGINE_set_ex_data(ENGINE *e, int idx, void *arg);
+void *ENGINE_get_ex_data(const ENGINE *e, int idx);
 
 /* This function cleans up anything that needs it. Eg. the ENGINE_add() function
  * automatically ensures the list cleanup function is registered to be called
@@ -449,8 +483,11 @@ const char *ENGINE_get_id(const ENGINE *e);
 const char *ENGINE_get_name(const ENGINE *e);
 const RSA_METHOD *ENGINE_get_RSA(const ENGINE *e);
 const DSA_METHOD *ENGINE_get_DSA(const ENGINE *e);
+const ECDH_METHOD *ENGINE_get_ECDH(const ENGINE *e);
+const ECDSA_METHOD *ENGINE_get_ECDSA(const ENGINE *e);
 const DH_METHOD *ENGINE_get_DH(const ENGINE *e);
 const RAND_METHOD *ENGINE_get_RAND(const ENGINE *e);
+const STORE_METHOD *ENGINE_get_STORE(const ENGINE *e);
 ENGINE_GEN_INT_FUNC_PTR ENGINE_get_destroy_function(const ENGINE *e);
 ENGINE_GEN_INT_FUNC_PTR ENGINE_get_init_function(const ENGINE *e);
 ENGINE_GEN_INT_FUNC_PTR ENGINE_get_finish_function(const ENGINE *e);
@@ -463,7 +500,6 @@ const EVP_CIPHER *ENGINE_get_cipher(ENGINE *e, int nid);
 const EVP_MD *ENGINE_get_digest(ENGINE *e, int nid);
 const ENGINE_CMD_DEFN *ENGINE_get_cmd_defns(const ENGINE *e);
 int ENGINE_get_flags(const ENGINE *e);
-void *ENGINE_get_ex_data(const ENGINE *e, int idx);
 
 /* FUNCTIONAL functions. These functions deal with ENGINE structures
  * that have (or will) be initialised for use. Broadly speaking, the
@@ -501,6 +537,8 @@ EVP_PKEY *ENGINE_load_public_key(ENGINE *e, const char *key_id,
 ENGINE *ENGINE_get_default_RSA(void);
 /* Same for the other "methods" */
 ENGINE *ENGINE_get_default_DSA(void);
+ENGINE *ENGINE_get_default_ECDH(void);
+ENGINE *ENGINE_get_default_ECDSA(void);
 ENGINE *ENGINE_get_default_DH(void);
 ENGINE *ENGINE_get_default_RAND(void);
 /* These functions can be used to get a functional reference to perform
@@ -516,6 +554,8 @@ int ENGINE_set_default_RSA(ENGINE *e);
 int ENGINE_set_default_string(ENGINE *e, const char *def_list);
 /* Same for the other "methods" */
 int ENGINE_set_default_DSA(ENGINE *e);
+int ENGINE_set_default_ECDH(ENGINE *e);
+int ENGINE_set_default_ECDSA(ENGINE *e);
 int ENGINE_set_default_DH(ENGINE *e);
 int ENGINE_set_default_RAND(ENGINE *e);
 int ENGINE_set_default_ciphers(ENGINE *e);
@@ -538,17 +578,20 @@ void ENGINE_add_conf_module(void);
 /**************************/
 
 /* Binary/behaviour compatibility levels */
-#define OSSL_DYNAMIC_VERSION		(unsigned long)0x00010200
+#define OSSL_DYNAMIC_VERSION		(unsigned long)0x00020000
 /* Binary versions older than this are too old for us (whether we're a loader or
  * a loadee) */
-#define OSSL_DYNAMIC_OLDEST		(unsigned long)0x00010200
+#define OSSL_DYNAMIC_OLDEST		(unsigned long)0x00020000
 
 /* When compiling an ENGINE entirely as an external shared library, loadable by
  * the "dynamic" ENGINE, these types are needed. The 'dynamic_fns' structure
  * type provides the calling application's (or library's) error functionality
  * and memory management function pointers to the loaded library. These should
  * be used/set in the loaded library code so that the loading application's
- * 'state' will be used/changed in all operations. */
+ * 'state' will be used/changed in all operations. The 'static_state' pointer
+ * allows the loaded library to know if it shares the same static data as the
+ * calling application (or library), and thus whether these callbacks need to be
+ * set or not. */
 typedef void *(*dyn_MEM_malloc_cb)(size_t);
 typedef void *(*dyn_MEM_realloc_cb)(void *, size_t);
 typedef void (*dyn_MEM_free_cb)(void *);
@@ -576,6 +619,7 @@ typedef struct st_dynamic_LOCK_fns {
 	} dynamic_LOCK_fns;
 /* The top-level structure */
 typedef struct st_dynamic_fns {
+	void 					*static_state;
 	const ERR_FNS				*err_fns;
 	const CRYPTO_EX_DATA_IMPL		*ex_data_fns;
 	dynamic_MEM_fns				mem_fns;
@@ -593,7 +637,7 @@ typedef struct st_dynamic_fns {
  * can be fully instantiated with IMPLEMENT_DYNAMIC_CHECK_FN(). */
 typedef unsigned long (*dynamic_v_check_fn)(unsigned long ossl_version);
 #define IMPLEMENT_DYNAMIC_CHECK_FN() \
-	unsigned long v_check(unsigned long v) { \
+	OPENSSL_EXPORT unsigned long v_check(unsigned long v) { \
 		if(v >= OSSL_DYNAMIC_OLDEST) return OSSL_DYNAMIC_VERSION; \
 		return 0; }
 
@@ -615,23 +659,34 @@ typedef unsigned long (*dynamic_v_check_fn)(unsigned long ossl_version);
 typedef int (*dynamic_bind_engine)(ENGINE *e, const char *id,
 				const dynamic_fns *fns);
 #define IMPLEMENT_DYNAMIC_BIND_FN(fn) \
+	OPENSSL_EXPORT \
 	int bind_engine(ENGINE *e, const char *id, const dynamic_fns *fns) { \
-		if (ERR_get_implementation() != fns->err_fns) \
-			{ \
-			if(!CRYPTO_set_mem_functions(fns->mem_fns.malloc_cb, \
-				fns->mem_fns.realloc_cb, fns->mem_fns.free_cb)) \
-				return 0; \
-			CRYPTO_set_locking_callback(fns->lock_fns.lock_locking_cb); \
-			CRYPTO_set_add_lock_callback(fns->lock_fns.lock_add_lock_cb); \
-			CRYPTO_set_dynlock_create_callback(fns->lock_fns.dynlock_create_cb); \
-			CRYPTO_set_dynlock_lock_callback(fns->lock_fns.dynlock_lock_cb); \
-			CRYPTO_set_dynlock_destroy_callback(fns->lock_fns.dynlock_destroy_cb); \
-			if(!CRYPTO_set_ex_data_implementation(fns->ex_data_fns)) \
-				return 0; \
-			if(!ERR_set_implementation(fns->err_fns)) return 0; \
-			} \
+		if(ENGINE_get_static_state() == fns->static_state) goto skip_cbs; \
+		if(!CRYPTO_set_mem_functions(fns->mem_fns.malloc_cb, \
+			fns->mem_fns.realloc_cb, fns->mem_fns.free_cb)) \
+			return 0; \
+		CRYPTO_set_locking_callback(fns->lock_fns.lock_locking_cb); \
+		CRYPTO_set_add_lock_callback(fns->lock_fns.lock_add_lock_cb); \
+		CRYPTO_set_dynlock_create_callback(fns->lock_fns.dynlock_create_cb); \
+		CRYPTO_set_dynlock_lock_callback(fns->lock_fns.dynlock_lock_cb); \
+		CRYPTO_set_dynlock_destroy_callback(fns->lock_fns.dynlock_destroy_cb); \
+		if(!CRYPTO_set_ex_data_implementation(fns->ex_data_fns)) \
+			return 0; \
+		if(!ERR_set_implementation(fns->err_fns)) return 0; \
+	skip_cbs: \
 		if(!fn(e,id)) return 0; \
 		return 1; }
+
+/* If the loading application (or library) and the loaded ENGINE library share
+ * the same static data (eg. they're both dynamically linked to the same
+ * libcrypto.so) we need a way to avoid trying to set system callbacks - this
+ * would fail, and for the same reason that it's unnecessary to try. If the
+ * loaded ENGINE has (or gets from through the loader) its own copy of the
+ * libcrypto static data, we will need to set the callbacks. The easiest way to
+ * detect this is to have a function that returns a pointer to some static data
+ * and let the loading application and loaded ENGINE compare their respective
+ * values. */
+void *ENGINE_get_static_state(void);
 
 #if defined(__OpenBSD__) || defined(__FreeBSD__)
 void ENGINE_setup_bsd_cryptodev(void);
@@ -649,6 +704,7 @@ void ERR_load_ENGINE_strings(void);
 #define ENGINE_F_DYNAMIC_CTRL				 180
 #define ENGINE_F_DYNAMIC_GET_DATA_CTX			 181
 #define ENGINE_F_DYNAMIC_LOAD				 182
+#define ENGINE_F_DYNAMIC_SET_DATA_CTX			 183
 #define ENGINE_F_ENGINE_ADD				 105
 #define ENGINE_F_ENGINE_BY_ID				 106
 #define ENGINE_F_ENGINE_CMD_IS_EXECUTABLE		 170
@@ -656,7 +712,7 @@ void ERR_load_ENGINE_strings(void);
 #define ENGINE_F_ENGINE_CTRL_CMD			 178
 #define ENGINE_F_ENGINE_CTRL_CMD_STRING			 171
 #define ENGINE_F_ENGINE_FINISH				 107
-#define ENGINE_F_ENGINE_FREE				 108
+#define ENGINE_F_ENGINE_FREE_UTIL			 108
 #define ENGINE_F_ENGINE_GET_CIPHER			 185
 #define ENGINE_F_ENGINE_GET_DEFAULT_TYPE		 177
 #define ENGINE_F_ENGINE_GET_DIGEST			 186
@@ -667,7 +723,6 @@ void ERR_load_ENGINE_strings(void);
 #define ENGINE_F_ENGINE_LIST_REMOVE			 121
 #define ENGINE_F_ENGINE_LOAD_PRIVATE_KEY		 150
 #define ENGINE_F_ENGINE_LOAD_PUBLIC_KEY			 151
-#define ENGINE_F_ENGINE_MODULE_INIT			 187
 #define ENGINE_F_ENGINE_NEW				 122
 #define ENGINE_F_ENGINE_REMOVE				 123
 #define ENGINE_F_ENGINE_SET_DEFAULT_STRING		 189
@@ -676,11 +731,12 @@ void ERR_load_ENGINE_strings(void);
 #define ENGINE_F_ENGINE_SET_NAME			 130
 #define ENGINE_F_ENGINE_TABLE_REGISTER			 184
 #define ENGINE_F_ENGINE_UNLOAD_KEY			 152
+#define ENGINE_F_ENGINE_UNLOCKED_FINISH			 191
 #define ENGINE_F_ENGINE_UP_REF				 190
 #define ENGINE_F_INT_CTRL_HELPER			 172
 #define ENGINE_F_INT_ENGINE_CONFIGURE			 188
+#define ENGINE_F_INT_ENGINE_MODULE_INIT			 187
 #define ENGINE_F_LOG_MESSAGE				 141
-#define ENGINE_F_SET_DATA_CTX				 183
 
 /* Reason codes. */
 #define ENGINE_R_ALREADY_LOADED				 100

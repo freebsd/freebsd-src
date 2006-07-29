@@ -52,7 +52,7 @@
 #ifndef HEADER_AES_H
 #define HEADER_AES_H
 
-#include <openssl/e_os2.h>
+#include <openssl/opensslconf.h>
 
 #ifdef OPENSSL_NO_AES
 #error AES is disabled.
@@ -66,17 +66,17 @@
 #define AES_MAXNR 14
 #define AES_BLOCK_SIZE 16
 
-#if defined(OPENSSL_FIPS)
-#define FIPS_AES_SIZE_T	int
-#endif
-
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
 /* This should be a hidden type, but EVP requires that the size be known */
 struct aes_key_st {
+#ifdef AES_LONG
     unsigned long rd_key[4 *(AES_MAXNR + 1)];
+#else
+    unsigned int rd_key[4 *(AES_MAXNR + 1)];
+#endif
     int rounds;
 };
 typedef struct aes_key_st AES_KEY;

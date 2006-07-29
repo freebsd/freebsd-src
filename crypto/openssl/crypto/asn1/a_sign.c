@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 /* ====================================================================
- * Copyright (c) 1998-2002 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2003 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -126,9 +126,9 @@
 
 #ifndef NO_ASN1_OLD
 
-int ASN1_sign(int (*i2d)(), X509_ALGOR *algor1, X509_ALGOR *algor2,
-	     ASN1_BIT_STRING *signature, char *data, EVP_PKEY *pkey,
-	     const EVP_MD *type)
+int ASN1_sign(i2d_of_void *i2d, X509_ALGOR *algor1, X509_ALGOR *algor2,
+	      ASN1_BIT_STRING *signature, char *data, EVP_PKEY *pkey,
+	      const EVP_MD *type)
 	{
 	EVP_MD_CTX ctx;
 	unsigned char *p,*buf_in=NULL,*buf_out=NULL;
@@ -229,10 +229,11 @@ int ASN1_item_sign(const ASN1_ITEM *it, X509_ALGOR *algor1, X509_ALGOR *algor2,
 		else
 			a=algor2;
 		if (a == NULL) continue;
-                if (type->pkey_type == NID_dsaWithSHA1)
+                if (type->pkey_type == NID_dsaWithSHA1 ||
+			type->pkey_type == NID_ecdsa_with_SHA1)
 			{
-			/* special case: RFC 2459 tells us to omit 'parameters'
-			 * with id-dsa-with-sha1 */
+			/* special case: RFC 3279 tells us to omit 'parameters'
+			 * with id-dsa-with-sha1 and ecdsa-with-SHA1 */
 			ASN1_TYPE_free(a->parameter);
 			a->parameter = NULL;
 			}
@@ -247,12 +248,12 @@ int ASN1_item_sign(const ASN1_ITEM *it, X509_ALGOR *algor1, X509_ALGOR *algor2,
 		a->algorithm=OBJ_nid2obj(type->pkey_type);
 		if (a->algorithm == NULL)
 			{
-			ASN1err(ASN1_F_ASN1_SIGN,ASN1_R_UNKNOWN_OBJECT_TYPE);
+			ASN1err(ASN1_F_ASN1_ITEM_SIGN,ASN1_R_UNKNOWN_OBJECT_TYPE);
 			goto err;
 			}
 		if (a->algorithm->length == 0)
 			{
-			ASN1err(ASN1_F_ASN1_SIGN,ASN1_R_THE_ASN1_OBJECT_IDENTIFIER_IS_NOT_KNOWN_FOR_THIS_MD);
+			ASN1err(ASN1_F_ASN1_ITEM_SIGN,ASN1_R_THE_ASN1_OBJECT_IDENTIFIER_IS_NOT_KNOWN_FOR_THIS_MD);
 			goto err;
 			}
 		}
@@ -262,7 +263,7 @@ int ASN1_item_sign(const ASN1_ITEM *it, X509_ALGOR *algor1, X509_ALGOR *algor2,
 	if ((buf_in == NULL) || (buf_out == NULL))
 		{
 		outl=0;
-		ASN1err(ASN1_F_ASN1_SIGN,ERR_R_MALLOC_FAILURE);
+		ASN1err(ASN1_F_ASN1_ITEM_SIGN,ERR_R_MALLOC_FAILURE);
 		goto err;
 		}
 
@@ -272,7 +273,7 @@ int ASN1_item_sign(const ASN1_ITEM *it, X509_ALGOR *algor1, X509_ALGOR *algor2,
 			(unsigned int *)&outl,pkey))
 		{
 		outl=0;
-		ASN1err(ASN1_F_ASN1_SIGN,ERR_R_EVP_LIB);
+		ASN1err(ASN1_F_ASN1_ITEM_SIGN,ERR_R_EVP_LIB);
 		goto err;
 		}
 	if (signature->data != NULL) OPENSSL_free(signature->data);

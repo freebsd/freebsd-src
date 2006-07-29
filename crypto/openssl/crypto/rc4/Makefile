@@ -1,5 +1,5 @@
 #
-# SSLeay/crypto/rc4/Makefile
+# OpenSSL/crypto/rc4/Makefile
 #
 
 DIR=	rc4
@@ -8,23 +8,13 @@ CC=	cc
 CPP=    $(CC) -E
 INCLUDES=
 CFLAG=-g
-INSTALL_PREFIX=
-OPENSSLDIR=     /usr/local/ssl
-INSTALLTOP=/usr/local/ssl
-MAKEDEPPROG=	makedepend
-MAKEDEPEND=	$(TOP)/util/domd $(TOP) -MD $(MAKEDEPPROG)
-MAKEFILE=	Makefile
 AR=		ar r
 
 RC4_ENC=rc4_enc.o
-# or use
-#RC4_ENC=asm/rx86-elf.o
-#RC4_ENC=asm/rx86-out.o
-#RC4_ENC=asm/rx86-sol.o
-#RC4_ENC=asm/rx86bdsi.o
 
 CFLAGS= $(INCLUDES) $(CFLAG)
 ASFLAGS= $(INCLUDES) $(ASFLAG)
+AFLAGS= $(ASFLAGS)
 
 GENERAL=Makefile
 TEST=rc4test.c
@@ -51,20 +41,24 @@ lib:	$(LIBOBJ)
 	$(RANLIB) $(LIB) || echo Never mind.
 	@touch lib
 
-# elf
-asm/rx86-elf.s: asm/rc4-586.pl ../perlasm/x86asm.pl
-	(cd asm; $(PERL) rc4-586.pl elf $(CFLAGS) > rx86-elf.s)
-
+# ELF
+rx86-elf.s: asm/rc4-586.pl ../perlasm/x86asm.pl
+	(cd asm; $(PERL) rc4-586.pl elf $(CFLAGS) > ../$@)
+# COFF
+rx86-cof.s: asm/rc4-586.pl ../perlasm/x86asm.pl
+	(cd asm; $(PERL) rc4-586.pl coff $(CFLAGS) > ../$@)
 # a.out
-asm/rx86-out.o: asm/rx86unix.cpp
-	$(CPP) -DOUT asm/rx86unix.cpp | as -o asm/rx86-out.o
+rx86-out.s: asm/rc4-586.pl ../perlasm/x86asm.pl
+	(cd asm; $(PERL) rc4-586.pl a.out $(CFLAGS) > ../$@)
 
-# bsdi
-asm/rx86bsdi.o: asm/rx86unix.cpp
-	$(CPP) -DBSDI asm/rx86unix.cpp | sed 's/ :/:/' | as -o asm/rx86bsdi.o
+rc4-x86_64.s: asm/rc4-x86_64.pl;	$(PERL) asm/rc4-x86_64.pl $@
 
-asm/rx86unix.cpp: asm/rc4-586.pl ../perlasm/x86asm.pl
-	(cd asm; $(PERL) rc4-586.pl cpp >rx86unix.cpp)
+rc4-ia64.s: asm/rc4-ia64.S
+	@case `awk '/^#define RC4_INT/{print$$NF}' $(TOP)/include/openssl/opensslconf.h` in \
+	int)	set -x; $(CC) $(CFLAGS) -DSZ=4 -E asm/rc4-ia64.S > $@ ;; \
+	char)	set -x; $(CC) $(CFLAGS) -DSZ=1 -E asm/rc4-ia64.S > $@ ;; \
+	*)	exit 1 ;; \
+	esac
 
 files:
 	$(PERL) $(TOP)/util/files.pl Makefile >> $(TOP)/MINFO
@@ -75,7 +69,8 @@ links:
 	@$(PERL) $(TOP)/util/mklink.pl ../../apps $(APPS)
 
 install:
-	@for i in $(EXHEADER) ; \
+	@[ -n "$(INSTALLTOP)" ] # should be set by top Makefile...
+	@headerlist="$(EXHEADER)"; for i in $$headerlist ; \
 	do  \
 	(cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/include/openssl/$$i; \
 	chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/include/openssl/$$i ); \
@@ -90,6 +85,7 @@ lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
 
 depend:
+	@[ -n "$(MAKEDEPEND)" ] # should be set by upper Makefile...
 	$(MAKEDEPEND) -- $(CFLAG) $(INCLUDES) $(DEPFLAG) -- $(PROGS) $(LIBSRC)
 
 dclean:
@@ -97,12 +93,23 @@ dclean:
 	mv -f Makefile.new $(MAKEFILE)
 
 clean:
-	rm -f asm/rx86unix.cpp asm/*-elf.* *.o *.obj lib tags core .pure .nfs* *.old *.bak fluff asm/*.o
+	rm -f *.s *.o *.obj lib tags core .pure .nfs* *.old *.bak fluff
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
-rc4_enc.o: ../../include/openssl/opensslconf.h ../../include/openssl/rc4.h
-rc4_enc.o: rc4_enc.c rc4_locl.h
-rc4_skey.o: ../../include/openssl/opensslconf.h
-rc4_skey.o: ../../include/openssl/opensslv.h ../../include/openssl/rc4.h
-rc4_skey.o: rc4_locl.h rc4_skey.c
+rc4_enc.o: ../../e_os.h ../../include/openssl/bio.h
+rc4_enc.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
+rc4_enc.o: ../../include/openssl/e_os2.h ../../include/openssl/err.h
+rc4_enc.o: ../../include/openssl/lhash.h ../../include/openssl/opensslconf.h
+rc4_enc.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+rc4_enc.o: ../../include/openssl/rc4.h ../../include/openssl/safestack.h
+rc4_enc.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
+rc4_enc.o: ../cryptlib.h rc4_enc.c rc4_locl.h
+rc4_skey.o: ../../e_os.h ../../include/openssl/bio.h
+rc4_skey.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
+rc4_skey.o: ../../include/openssl/e_os2.h ../../include/openssl/err.h
+rc4_skey.o: ../../include/openssl/lhash.h ../../include/openssl/opensslconf.h
+rc4_skey.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+rc4_skey.o: ../../include/openssl/rc4.h ../../include/openssl/safestack.h
+rc4_skey.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
+rc4_skey.o: ../cryptlib.h rc4_locl.h rc4_skey.c

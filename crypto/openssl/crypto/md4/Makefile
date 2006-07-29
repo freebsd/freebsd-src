@@ -1,5 +1,5 @@
 #
-# SSLeay/crypto/md4/Makefile
+# OpenSSL/crypto/md4/Makefile
 #
 
 DIR=    md4
@@ -8,11 +8,6 @@ CC=     cc
 CPP=    $(CC) -E
 INCLUDES=
 CFLAG=-g
-INSTALL_PREFIX=
-OPENSSLDIR=     /usr/local/ssl
-INSTALLTOP=/usr/local/ssl
-MAKEDEPPROG=	makedepend
-MAKEDEPEND=	$(TOP)/util/domd $(TOP) -MD $(MAKEDEPPROG)
 MAKEFILE=       Makefile
 AR=             ar r
 
@@ -52,7 +47,8 @@ links:
 	@$(PERL) $(TOP)/util/mklink.pl ../../apps $(APPS)
 
 install:
-	@for i in $(EXHEADER) ; \
+	@[ -n "$(INSTALLTOP)" ] # should be set by top Makefile...
+	@headerlist="$(EXHEADER)"; for i in $$headerlist ; \
 	do  \
 	(cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/include/openssl/$$i; \
 	chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/include/openssl/$$i ); \
@@ -67,6 +63,7 @@ lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
 
 depend:
+	@[ -n "$(MAKEDEPEND)" ] # should be set by upper Makefile...
 	$(MAKEDEPEND) -- $(CFLAG) $(INCLUDES) $(DEPFLAG) -- $(PROGS) $(LIBSRC)
 
 dclean:
@@ -78,15 +75,12 @@ clean:
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
-md4_dgst.o: ../../include/openssl/bio.h ../../include/openssl/crypto.h
-md4_dgst.o: ../../include/openssl/e_os2.h ../../include/openssl/err.h
-md4_dgst.o: ../../include/openssl/fips.h ../../include/openssl/lhash.h
-md4_dgst.o: ../../include/openssl/md4.h ../../include/openssl/opensslconf.h
-md4_dgst.o: ../../include/openssl/opensslv.h ../../include/openssl/safestack.h
-md4_dgst.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
-md4_dgst.o: ../md32_common.h md4_dgst.c md4_locl.h
+md4_dgst.o: ../../include/openssl/e_os2.h ../../include/openssl/md4.h
+md4_dgst.o: ../../include/openssl/opensslconf.h
+md4_dgst.o: ../../include/openssl/opensslv.h ../md32_common.h md4_dgst.c
+md4_dgst.o: md4_locl.h
 md4_one.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
 md4_one.o: ../../include/openssl/md4.h ../../include/openssl/opensslconf.h
-md4_one.o: ../../include/openssl/opensslv.h ../../include/openssl/safestack.h
-md4_one.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
-md4_one.o: md4_one.c
+md4_one.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+md4_one.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
+md4_one.o: ../../include/openssl/symhacks.h md4_one.c

@@ -3,7 +3,7 @@
  * project 1999.
  */
 /* ====================================================================
- * Copyright (c) 1999 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2002 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -69,11 +69,12 @@
 static int v3_check_critical(char **value);
 static int v3_check_generic(char **value);
 static X509_EXTENSION *do_ext_nconf(CONF *conf, X509V3_CTX *ctx, int ext_nid, int crit, char *value);
-static X509_EXTENSION *v3_generic_extension(const char *ext, char *value, int crit, int type);
+static X509_EXTENSION *v3_generic_extension(const char *ext, char *value, int crit, int type, X509V3_CTX *ctx);
 static char *conf_lhash_get_string(void *db, char *section, char *value);
 static STACK_OF(CONF_VALUE) *conf_lhash_get_section(void *db, char *section);
 static X509_EXTENSION *do_ext_i2d(X509V3_EXT_METHOD *method, int ext_nid,
 						 int crit, void *ext_struc);
+static unsigned char *generic_asn1(char *value, X509V3_CTX *ctx, long *ext_len);
 /* CONF *conf:  Config file    */
 /* char *name:  Name    */
 /* char *value:  Value    */
@@ -85,11 +86,11 @@ X509_EXTENSION *X509V3_EXT_nconf(CONF *conf, X509V3_CTX *ctx, char *name,
 	X509_EXTENSION *ret;
 	crit = v3_check_critical(&value);
 	if ((ext_type = v3_check_generic(&value))) 
-		return v3_generic_extension(name, value, crit, ext_type);
+		return v3_generic_extension(name, value, crit, ext_type, ctx);
 	ret = do_ext_nconf(conf, ctx, OBJ_sn2nid(name), crit, value);
 	if (!ret)
 		{
-		X509V3err(X509V3_F_X509V3_EXT_CONF,X509V3_R_ERROR_IN_EXTENSION);
+		X509V3err(X509V3_F_X509V3_EXT_NCONF,X509V3_R_ERROR_IN_EXTENSION);
 		ERR_add_error_data(4,"name=", name, ", value=", value);
 		}
 	return ret;
@@ -105,7 +106,7 @@ X509_EXTENSION *X509V3_EXT_nconf_nid(CONF *conf, X509V3_CTX *ctx, int ext_nid,
 	crit = v3_check_critical(&value);
 	if ((ext_type = v3_check_generic(&value))) 
 		return v3_generic_extension(OBJ_nid2sn(ext_nid),
-							 value, crit, ext_type);
+						 value, crit, ext_type, ctx);
 	return do_ext_nconf(conf, ctx, ext_nid, crit, value);
 	}
 
@@ -120,12 +121,12 @@ static X509_EXTENSION *do_ext_nconf(CONF *conf, X509V3_CTX *ctx, int ext_nid,
 	void *ext_struc;
 	if (ext_nid == NID_undef)
 		{
-		X509V3err(X509V3_F_DO_EXT_CONF,X509V3_R_UNKNOWN_EXTENSION_NAME);
+		X509V3err(X509V3_F_DO_EXT_NCONF,X509V3_R_UNKNOWN_EXTENSION_NAME);
 		return NULL;
 		}
 	if (!(method = X509V3_EXT_get_nid(ext_nid)))
 		{
-		X509V3err(X509V3_F_DO_EXT_CONF,X509V3_R_UNKNOWN_EXTENSION);
+		X509V3err(X509V3_F_DO_EXT_NCONF,X509V3_R_UNKNOWN_EXTENSION);
 		return NULL;
 		}
 	/* Now get internal extension representation based on type */
@@ -133,9 +134,9 @@ static X509_EXTENSION *do_ext_nconf(CONF *conf, X509V3_CTX *ctx, int ext_nid,
 		{
 		if(*value == '@') nval = NCONF_get_section(conf, value + 1);
 		else nval = X509V3_parse_list(value);
-		if(!nval)
+		if(sk_CONF_VALUE_num(nval) <= 0)
 			{
-			X509V3err(X509V3_F_X509V3_EXT_CONF,X509V3_R_INVALID_EXTENSION_STRING);
+			X509V3err(X509V3_F_DO_EXT_NCONF,X509V3_R_INVALID_EXTENSION_STRING);
 			ERR_add_error_data(4, "name=", OBJ_nid2sn(ext_nid), ",section=", value);
 			return NULL;
 			}
@@ -150,16 +151,16 @@ static X509_EXTENSION *do_ext_nconf(CONF *conf, X509V3_CTX *ctx, int ext_nid,
 		}
 	else if(method->r2i)
 		{
-		if(!ctx->db)
+		if(!ctx->db || !ctx->db_meth)
 			{
-			X509V3err(X509V3_F_X509V3_EXT_CONF,X509V3_R_NO_CONFIG_DATABASE);
+			X509V3err(X509V3_F_DO_EXT_NCONF,X509V3_R_NO_CONFIG_DATABASE);
 			return NULL;
 			}
 		if(!(ext_struc = method->r2i(method, ctx, value))) return NULL;
 		}
 	else
 		{
-		X509V3err(X509V3_F_X509V3_EXT_CONF,X509V3_R_EXTENSION_SETTING_NOT_SUPPORTED);
+		X509V3err(X509V3_F_DO_EXT_NCONF,X509V3_R_EXTENSION_SETTING_NOT_SUPPORTED);
 		ERR_add_error_data(2, "name=", OBJ_nid2sn(ext_nid));
 		return NULL;
 		}
@@ -235,17 +236,29 @@ static int v3_check_critical(char **value)
 /* Check extension string for generic extension and return the type */
 static int v3_check_generic(char **value)
 {
+	int gen_type = 0;
 	char *p = *value;
-	if ((strlen(p) < 4) || strncmp(p, "DER:", 4)) return 0;
-	p+=4;
+	if ((strlen(p) >= 4) && !strncmp(p, "DER:", 4))
+		{
+		p+=4;
+		gen_type = 1;
+		}
+	else if ((strlen(p) >= 5) && !strncmp(p, "ASN1:", 5))
+		{
+		p+=5;
+		gen_type = 2;
+		}
+	else
+		return 0;
+
 	while (isspace((unsigned char)*p)) p++;
 	*value = p;
-	return 1;
+	return gen_type;
 }
 
 /* Create a generic extension: for now just handle DER type */
 static X509_EXTENSION *v3_generic_extension(const char *ext, char *value,
-	     int crit, int type)
+	     int crit, int gen_type, X509V3_CTX *ctx)
 	{
 	unsigned char *ext_der=NULL;
 	long ext_len;
@@ -259,7 +272,12 @@ static X509_EXTENSION *v3_generic_extension(const char *ext, char *value,
 		goto err;
 		}
 
-	if (!(ext_der = string_to_hex(value, &ext_len)))
+	if (gen_type == 1)
+		ext_der = string_to_hex(value, &ext_len);
+	else if (gen_type == 2)
+		ext_der = generic_asn1(value, ctx, &ext_len);
+
+	if (ext_der == NULL)
 		{
 		X509V3err(X509V3_F_V3_GENERIC_EXTENSION,X509V3_R_EXTENSION_VALUE_ERROR);
 		ERR_add_error_data(2, "value=", value);
@@ -286,6 +304,17 @@ static X509_EXTENSION *v3_generic_extension(const char *ext, char *value,
 
 	}
 
+static unsigned char *generic_asn1(char *value, X509V3_CTX *ctx, long *ext_len)
+	{
+	ASN1_TYPE *typ;
+	unsigned char *ext_der = NULL;
+	typ = ASN1_generate_v3(value, ctx);
+	if (typ == NULL)
+		return NULL;
+	*ext_len = i2d_ASN1_TYPE(typ, &ext_der);
+	ASN1_TYPE_free(typ);
+	return ext_der;
+	}
 
 /* This is the main function: add a bunch of extensions based on a config file
  * section to an extension STACK.
@@ -354,6 +383,11 @@ int X509V3_EXT_REQ_add_nconf(CONF *conf, X509V3_CTX *ctx, char *section,
 
 char * X509V3_get_string(X509V3_CTX *ctx, char *name, char *section)
 	{
+	if(!ctx->db || !ctx->db_meth || !ctx->db_meth->get_string)
+		{
+		X509V3err(X509V3_F_X509V3_GET_STRING,X509V3_R_OPERATION_NOT_DEFINED);
+		return NULL;
+		}
 	if (ctx->db_meth->get_string)
 			return ctx->db_meth->get_string(ctx->db, name, section);
 	return NULL;
@@ -361,6 +395,11 @@ char * X509V3_get_string(X509V3_CTX *ctx, char *name, char *section)
 
 STACK_OF(CONF_VALUE) * X509V3_get_section(X509V3_CTX *ctx, char *section)
 	{
+	if(!ctx->db || !ctx->db_meth || !ctx->db_meth->get_section)
+		{
+		X509V3err(X509V3_F_X509V3_GET_SECTION,X509V3_R_OPERATION_NOT_DEFINED);
+		return NULL;
+		}
 	if (ctx->db_meth->get_section)
 			return ctx->db_meth->get_section(ctx->db, section);
 	return NULL;

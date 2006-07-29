@@ -254,33 +254,49 @@ static int nocase_spacenorm_cmp(const ASN1_STRING *a, const ASN1_STRING *b)
 	return 0;
 }
 
+static int asn1_string_memcmp(ASN1_STRING *a, ASN1_STRING *b)
+	{
+	int j;
+	j = a->length - b->length;
+	if (j)
+		return j;
+	return memcmp(a->data, b->data, a->length);
+	}
+
+#define STR_TYPE_CMP (B_ASN1_PRINTABLESTRING|B_ASN1_T61STRING|B_ASN1_UTF8STRING)
+
 int X509_NAME_cmp(const X509_NAME *a, const X509_NAME *b)
 	{
 	int i,j;
 	X509_NAME_ENTRY *na,*nb;
 
-	if (sk_X509_NAME_ENTRY_num(a->entries)
-	    != sk_X509_NAME_ENTRY_num(b->entries))
-		return sk_X509_NAME_ENTRY_num(a->entries)
-		  -sk_X509_NAME_ENTRY_num(b->entries);
+	unsigned long nabit, nbbit;
+
+	j = sk_X509_NAME_ENTRY_num(a->entries)
+		  - sk_X509_NAME_ENTRY_num(b->entries);
+	if (j)
+		return j;
 	for (i=sk_X509_NAME_ENTRY_num(a->entries)-1; i>=0; i--)
 		{
 		na=sk_X509_NAME_ENTRY_value(a->entries,i);
 		nb=sk_X509_NAME_ENTRY_value(b->entries,i);
 		j=na->value->type-nb->value->type;
-		if (j) return(j);
-		if (na->value->type == V_ASN1_PRINTABLESTRING)
+		if (j)
+			{
+			nabit = ASN1_tag2bit(na->value->type);
+			nbbit = ASN1_tag2bit(nb->value->type);
+			if (!(nabit & STR_TYPE_CMP) ||
+				!(nbbit & STR_TYPE_CMP))
+				return j;
+			j = asn1_string_memcmp(na->value, nb->value);
+			}
+		else if (na->value->type == V_ASN1_PRINTABLESTRING)
 			j=nocase_spacenorm_cmp(na->value, nb->value);
 		else if (na->value->type == V_ASN1_IA5STRING
 			&& OBJ_obj2nid(na->object) == NID_pkcs9_emailAddress)
 			j=nocase_cmp(na->value, nb->value);
 		else
-			{
-			j=na->value->length-nb->value->length;
-			if (j) return(j);
-			j=memcmp(na->value->data,nb->value->data,
-				na->value->length);
-			}
+			j = asn1_string_memcmp(na->value, nb->value);
 		if (j) return(j);
 		j=na->set-nb->set;
 		if (j) return(j);
@@ -374,45 +390,36 @@ int X509_check_private_key(X509 *x, EVP_PKEY *k)
 	int ok=0;
 
 	xk=X509_get_pubkey(x);
-	if (xk->type != k->type)
-	    {
-	    X509err(X509_F_X509_CHECK_PRIVATE_KEY,X509_R_KEY_TYPE_MISMATCH);
-	    goto err;
-	    }
-	switch (k->type)
+	switch (EVP_PKEY_cmp(xk, k))
 		{
-#ifndef OPENSSL_NO_RSA
-	case EVP_PKEY_RSA:
-		if (BN_cmp(xk->pkey.rsa->n,k->pkey.rsa->n) != 0
-		    || BN_cmp(xk->pkey.rsa->e,k->pkey.rsa->e) != 0)
-		    {
-		    X509err(X509_F_X509_CHECK_PRIVATE_KEY,X509_R_KEY_VALUES_MISMATCH);
-		    goto err;
-		    }
+	case 1:
+		ok=1;
 		break;
-#endif
-#ifndef OPENSSL_NO_DSA
-	case EVP_PKEY_DSA:
-		if (BN_cmp(xk->pkey.dsa->pub_key,k->pkey.dsa->pub_key) != 0)
-		    {
-		    X509err(X509_F_X509_CHECK_PRIVATE_KEY,X509_R_KEY_VALUES_MISMATCH);
-		    goto err;
-		    }
+	case 0:
+		X509err(X509_F_X509_CHECK_PRIVATE_KEY,X509_R_KEY_VALUES_MISMATCH);
 		break;
+	case -1:
+		X509err(X509_F_X509_CHECK_PRIVATE_KEY,X509_R_KEY_TYPE_MISMATCH);
+		break;
+	case -2:
+#ifndef OPENSSL_NO_EC
+		if (k->type == EVP_PKEY_EC)
+			{
+			X509err(X509_F_X509_CHECK_PRIVATE_KEY, ERR_R_EC_LIB);
+			break;
+			}
 #endif
 #ifndef OPENSSL_NO_DH
-	case EVP_PKEY_DH:
-		/* No idea */
-	        X509err(X509_F_X509_CHECK_PRIVATE_KEY,X509_R_CANT_CHECK_DH_KEY);
-		goto err;
+		if (k->type == EVP_PKEY_DH)
+			{
+			/* No idea */
+			X509err(X509_F_X509_CHECK_PRIVATE_KEY,X509_R_CANT_CHECK_DH_KEY);
+			break;
+			}
 #endif
-	default:
 	        X509err(X509_F_X509_CHECK_PRIVATE_KEY,X509_R_UNKNOWN_KEY_TYPE);
-		goto err;
 		}
 
-	ok=1;
-err:
 	EVP_PKEY_free(xk);
 	return(ok);
 	}

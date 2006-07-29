@@ -966,7 +966,10 @@
 #define	OBJ_NAME_TYPE_COMP_METH		0x04
 #define	OBJ_NAME_TYPE_NUM		0x05
 
-#define	OBJ_NAME_ALIAS		0x8000
+#define	OBJ_NAME_ALIAS			0x8000
+
+#define OBJ_BSEARCH_VALUE_ON_NOMATCH		0x01
+#define OBJ_BSEARCH_FIRST_VALUE_ON_MATCH	0x02
 
 
 #ifdef  __cplusplus
@@ -1010,6 +1013,8 @@ int		OBJ_sn2nid(const char *s);
 int		OBJ_cmp(const ASN1_OBJECT *a,const ASN1_OBJECT *b);
 const char *	OBJ_bsearch(const char *key,const char *base,int num,int size,
 	int (*cmp)(const void *, const void *));
+const char *	OBJ_bsearch_ex(const char *key,const char *base,int num,
+	int size, int (*cmp)(const void *, const void *), int flags);
 
 int		OBJ_new_nid(int num);
 int		OBJ_add_object(const ASN1_OBJECT *obj);
@@ -1026,8 +1031,10 @@ void ERR_load_OBJ_strings(void);
 /* Error codes for the OBJ functions. */
 
 /* Function codes. */
+#define OBJ_F_OBJ_ADD_OBJECT				 105
 #define OBJ_F_OBJ_CREATE				 100
 #define OBJ_F_OBJ_DUP					 101
+#define OBJ_F_OBJ_NAME_NEW_INDEX			 106
 #define OBJ_F_OBJ_NID2LN				 102
 #define OBJ_F_OBJ_NID2OBJ				 103
 #define OBJ_F_OBJ_NID2SN				 104

@@ -57,6 +57,7 @@
  */
 
 #include "des_locl.h"
+#include "e_os.h"
 
 /* The input and output encrypted as though 64bit cfb mode is being
  * used.  The extra state information to record how much of the
@@ -151,8 +152,8 @@ void DES_ede3_cfb_encrypt(const unsigned char *in,unsigned char *out,
 			  DES_cblock *ivec,int enc)
 	{
 	register DES_LONG d0,d1,v0,v1;
-	register long l=length;
-	register int num=numbits,n=(numbits+7)/8,i;
+	register unsigned long l=length,n=((unsigned int)numbits+7)/8;
+	register int num=numbits,i;
 	DES_LONG ti[2];
 	unsigned char *iv;
 	unsigned char ovec[16];
