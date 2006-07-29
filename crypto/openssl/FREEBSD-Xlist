@@ -1,12 +1,15 @@
 $FreeBSD$
 INSTALL.DJGPP
 INSTALL.MacOS
+INSTALL.NW
 INSTALL.OS2
 INSTALL.VMS
 INSTALL.W32
+INSTALL.W64
 INSTALL.WCE
 MacOS/
 VMS/
+Netware/
 *.com
 *.bak
 *.def
@@ -23,6 +26,7 @@ crypto/buildinf.h
 crypto/dso/dso_vms.c
 crypto/dso/dso_win32.c
 crypto/threads/solaris.sh
+demos/engines/rsaref/
 diffs.*
 do_patch.sh
 fips/
