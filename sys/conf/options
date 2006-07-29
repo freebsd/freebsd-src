@@ -50,7 +50,6 @@ TWA_FLASH_FIRMWARE	opt_twa.h
 DDB
 DDB_NUMSYM	opt_ddb.h
 GDB
-GDBSPEED	opt_gdb.h
 KDB		opt_global.h
 KDB_TRACE	opt_kdb.h
 KDB_UNATTENDED	opt_kdb.h
@@ -69,7 +68,6 @@ COMPAT_43TTY	opt_compat.h
 COMPAT_FREEBSD4	opt_compat.h
 COMPAT_FREEBSD5	opt_compat.h
 COMPILING_LINT	opt_global.h
-CONSPEED	opt_comconsole.h
 CY_PCI_FASTINTR
 DIRECTIO
 FULL_PREEMPTION	opt_sched.h
@@ -574,9 +572,6 @@ BKTR_SIS_VIA_MODE		opt_bktr.h
 BKTR_USE_FREEBSD_SMBUS		opt_bktr.h
 BKTR_NEW_MSP34XX_DRIVER		opt_bktr.h
 
-# options for serial support
-COM_ESP			opt_sio.h
-COM_MULTIPORT		opt_sio.h
 BREAK_TO_DEBUGGER	opt_comconsole.h
 ALT_BREAK_TO_DEBUGGER	opt_comconsole.h
 
