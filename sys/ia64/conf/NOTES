@@ -49,6 +49,3 @@ device		pci
 # The following devices are not supported.
 nodevice	fdc
 nooption	FDC_DEBUG
-nodevice	sio
-nooption	COM_ESP
-nooption	CONSPEED

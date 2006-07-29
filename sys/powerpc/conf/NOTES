@@ -30,7 +30,6 @@ device		ofwd		# Open Firmware disks
 nodevice	atkbdc
 nodevice	atkbd
 nodevice	psm
-nodevice	sio
 nodevice	vga
 nodevice	fdc
 nodevice	ppc
