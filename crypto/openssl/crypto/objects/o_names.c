@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <openssl/err.h>
 #include <openssl/lhash.h>
 #include <openssl/objects.h>
 #include <openssl/safestack.h>
@@ -80,7 +81,11 @@ int OBJ_NAME_new_index(unsigned long (*hash_func)(const char *),
 		MemCheck_off();
 		name_funcs = OPENSSL_malloc(sizeof(NAME_FUNCS));
 		MemCheck_on();
-		if (!name_funcs) return(0);
+		if (!name_funcs)
+			{
+			OBJerr(OBJ_F_OBJ_NAME_NEW_INDEX,ERR_R_MALLOC_FAILURE);
+			return(0);
+			}
 		name_funcs->hash_func = lh_strhash;
 		name_funcs->cmp_func = OPENSSL_strcmp;
 		name_funcs->free_func = 0; /* NULL is often declared to
@@ -106,8 +111,8 @@ int OBJ_NAME_new_index(unsigned long (*hash_func)(const char *),
 static int obj_name_cmp(const void *a_void, const void *b_void)
 	{
 	int ret;
-	OBJ_NAME *a = (OBJ_NAME *)a_void;
-	OBJ_NAME *b = (OBJ_NAME *)b_void;
+	const OBJ_NAME *a = (const OBJ_NAME *)a_void;
+	const OBJ_NAME *b = (const OBJ_NAME *)b_void;
 
 	ret=a->type-b->type;
 	if (ret == 0)
@@ -128,7 +133,7 @@ static int obj_name_cmp(const void *a_void, const void *b_void)
 static unsigned long obj_name_hash(const void *a_void)
 	{
 	unsigned long ret;
-	OBJ_NAME *a = (OBJ_NAME *)a_void;
+	const OBJ_NAME *a = (const OBJ_NAME *)a_void;
 
 	if ((name_funcs_stack != NULL) && (sk_NAME_FUNCS_num(name_funcs_stack) > a->type))
 		{

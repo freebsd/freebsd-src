@@ -95,7 +95,7 @@
  *   RAND_egd() is a wrapper for RAND_egd_bytes() with numbytes=255.
  */
 
-#if defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_VXWORKS) || defined(OPENSSL_SYS_VOS)
+#if defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_VXWORKS) || defined(OPENSSL_SYS_NETWARE) || defined(OPENSSL_SYS_VOS)
 int RAND_query_egd_bytes(const char *path, unsigned char *buf, int bytes)
 	{
 	return(-1);
@@ -216,7 +216,9 @@ int RAND_query_egd_bytes(const char *path, unsigned char *buf, int bytes)
 	    while (numbytes != 1)
 		{
 	        num = read(fd, egdbuf, 1);
-	        if (num >= 0)
+	        if (num == 0)
+			goto err;	/* descriptor closed */
+		else if (num > 0)
 		    numbytes += num;
 	    	else
 		    {
@@ -246,7 +248,9 @@ int RAND_query_egd_bytes(const char *path, unsigned char *buf, int bytes)
 	    while (numbytes != egdbuf[0])
 		{
 	        num = read(fd, retrievebuf + numbytes, egdbuf[0] - numbytes);
-	        if (num >= 0)
+		if (num == 0)
+			goto err;	/* descriptor closed */
+	        else if (num > 0)
 		    numbytes += num;
 	    	else
 		    {

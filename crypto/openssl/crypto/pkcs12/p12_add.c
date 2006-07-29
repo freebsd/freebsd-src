@@ -68,16 +68,16 @@ PKCS12_SAFEBAG *PKCS12_item_pack_safebag(void *obj, const ASN1_ITEM *it, int nid
 	PKCS12_BAGS *bag;
 	PKCS12_SAFEBAG *safebag;
 	if (!(bag = PKCS12_BAGS_new())) {
-		PKCS12err(PKCS12_F_PKCS12_PACK_SAFEBAG, ERR_R_MALLOC_FAILURE);
+		PKCS12err(PKCS12_F_PKCS12_ITEM_PACK_SAFEBAG, ERR_R_MALLOC_FAILURE);
 		return NULL;
 	}
 	bag->type = OBJ_nid2obj(nid1);
 	if (!ASN1_item_pack(obj, it, &bag->value.octet)) {
-		PKCS12err(PKCS12_F_PKCS12_PACK_SAFEBAG, ERR_R_MALLOC_FAILURE);
+		PKCS12err(PKCS12_F_PKCS12_ITEM_PACK_SAFEBAG, ERR_R_MALLOC_FAILURE);
 		return NULL;
 	}
 	if (!(safebag = PKCS12_SAFEBAG_new())) {
-		PKCS12err(PKCS12_F_PKCS12_PACK_SAFEBAG, ERR_R_MALLOC_FAILURE);
+		PKCS12err(PKCS12_F_PKCS12_ITEM_PACK_SAFEBAG, ERR_R_MALLOC_FAILURE);
 		return NULL;
 	}
 	safebag->value.bag = bag;
@@ -148,7 +148,11 @@ PKCS7 *PKCS12_pack_p7data(STACK_OF(PKCS12_SAFEBAG) *sk)
 /* Unpack SAFEBAGS from PKCS#7 data ContentInfo */
 STACK_OF(PKCS12_SAFEBAG) *PKCS12_unpack_p7data(PKCS7 *p7)
 {
-	if(!PKCS7_type_is_data(p7)) return NULL;
+	if(!PKCS7_type_is_data(p7))
+		{
+		PKCS12err(PKCS12_F_PKCS12_UNPACK_P7DATA,PKCS12_R_CONTENT_TYPE_NOT_DATA);
+		return NULL;
+		}
 	return ASN1_item_unpack(p7->d.data, ASN1_ITEM_rptr(PKCS12_SAFEBAGS));
 }
 
@@ -211,5 +215,10 @@ int PKCS12_pack_authsafes(PKCS12 *p12, STACK_OF(PKCS7) *safes)
 
 STACK_OF(PKCS7) *PKCS12_unpack_authsafes(PKCS12 *p12)
 {
+	if (!PKCS7_type_is_data(p12->authsafes))
+		{
+		PKCS12err(PKCS12_F_PKCS12_UNPACK_AUTHSAFES,PKCS12_R_CONTENT_TYPE_NOT_DATA);
+		return NULL;
+		}
 	return ASN1_item_unpack(p12->authsafes->d.data, ASN1_ITEM_rptr(PKCS12_AUTHSAFES));
 }

@@ -139,7 +139,7 @@ static int ssl3_generate_key_block(SSL *s, unsigned char *km, int num)
 	EVP_MD_CTX s1;
 	unsigned char buf[16],smd[SHA_DIGEST_LENGTH];
 	unsigned char c='A';
-	int i,j,k;
+	unsigned int i,j,k;
 
 #ifdef CHARSET_EBCDIC
 	c = os_toascii[c]; /*'A' in ASCII */
@@ -147,7 +147,7 @@ static int ssl3_generate_key_block(SSL *s, unsigned char *km, int num)
 	k=0;
 	EVP_MD_CTX_init(&m5);
 	EVP_MD_CTX_init(&s1);
-	for (i=0; i<num; i+=MD5_DIGEST_LENGTH)
+	for (i=0; (int)i<num; i+=MD5_DIGEST_LENGTH)
 		{
 		k++;
 		if (k > sizeof buf)
@@ -172,7 +172,7 @@ static int ssl3_generate_key_block(SSL *s, unsigned char *km, int num)
 		EVP_DigestUpdate(&m5,s->session->master_key,
 			s->session->master_key_length);
 		EVP_DigestUpdate(&m5,smd,SHA_DIGEST_LENGTH);
-		if ((i+MD5_DIGEST_LENGTH) > num)
+		if ((int)(i+MD5_DIGEST_LENGTH) > num)
 			{
 			EVP_DigestFinal_ex(&m5,smd,NULL);
 			memcpy(km,smd,(num-i));
@@ -196,7 +196,9 @@ int ssl3_change_cipher_state(SSL *s, int which)
 	unsigned char *ms,*key,*iv,*er1,*er2;
 	EVP_CIPHER_CTX *dd;
 	const EVP_CIPHER *c;
+#ifndef OPENSSL_NO_COMP
 	COMP_METHOD *comp;
+#endif
 	const EVP_MD *m;
 	EVP_MD_CTX md;
 	int is_exp,n,i,j,k,cl;
@@ -205,10 +207,12 @@ int ssl3_change_cipher_state(SSL *s, int which)
 	is_exp=SSL_C_IS_EXPORT(s->s3->tmp.new_cipher);
 	c=s->s3->tmp.new_sym_enc;
 	m=s->s3->tmp.new_hash;
+#ifndef OPENSSL_NO_COMP
 	if (s->s3->tmp.new_compression == NULL)
 		comp=NULL;
 	else
 		comp=s->s3->tmp.new_compression->method;
+#endif
 	key_block=s->s3->tmp.key_block;
 
 	if (which & SSL3_CC_READ)
@@ -219,6 +223,7 @@ int ssl3_change_cipher_state(SSL *s, int which)
 			goto err;
 		dd= s->enc_read_ctx;
 		s->read_hash=m;
+#ifndef OPENSSL_NO_COMP
 		/* COMPRESS */
 		if (s->expand != NULL)
 			{
@@ -239,6 +244,7 @@ int ssl3_change_cipher_state(SSL *s, int which)
 			if (s->s3->rrec.comp == NULL)
 				goto err;
 			}
+#endif
 		memset(&(s->s3->read_sequence[0]),0,8);
 		mac_secret= &(s->s3->read_mac_secret[0]);
 		}
@@ -250,6 +256,7 @@ int ssl3_change_cipher_state(SSL *s, int which)
 			goto err;
 		dd= s->enc_write_ctx;
 		s->write_hash=m;
+#ifndef OPENSSL_NO_COMP
 		/* COMPRESS */
 		if (s->compress != NULL)
 			{
@@ -265,6 +272,7 @@ int ssl3_change_cipher_state(SSL *s, int which)
 				goto err2;
 				}
 			}
+#endif
 		memset(&(s->s3->write_sequence[0]),0,8);
 		mac_secret= &(s->s3->write_mac_secret[0]);
 		}
@@ -277,7 +285,7 @@ int ssl3_change_cipher_state(SSL *s, int which)
 	i=EVP_MD_size(m);
 	cl=EVP_CIPHER_key_length(c);
 	j=is_exp ? (cl < SSL_C_EXPORT_KEYLENGTH(s->s3->tmp.new_cipher) ?
-		    cl : SSL_C_EXPORT_KEYLENGTH(s->s3->tmp.new_cipher)) : cl;
+		 cl : SSL_C_EXPORT_KEYLENGTH(s->s3->tmp.new_cipher)) : cl;
 	/* Was j=(is_exp)?5:EVP_CIPHER_key_length(c); */
 	k=EVP_CIPHER_iv_length(c);
 	if (	(which == SSL3_CHANGE_CIPHER_CLIENT_WRITE) ||
@@ -363,7 +371,11 @@ int ssl3_setup_key_block(SSL *s)
 
 	s->s3->tmp.new_sym_enc=c;
 	s->s3->tmp.new_hash=hash;
+#ifdef OPENSSL_NO_COMP
+	s->s3->tmp.new_compression=NULL;
+#else
 	s->s3->tmp.new_compression=comp;
+#endif
 
 	num=EVP_CIPHER_key_length(c)+EVP_MD_size(hash)+EVP_CIPHER_iv_length(c);
 	num*=2;
@@ -569,7 +581,7 @@ int ssl3_mac(SSL *ssl, unsigned char *md, int send)
 	const EVP_MD *hash;
 	unsigned char *p,rec_char;
 	unsigned int md_size;
-	int npad,i;
+	int npad;
 
 	if (send)
 		{
@@ -612,13 +624,19 @@ int ssl3_mac(SSL *ssl, unsigned char *md, int send)
 
 	EVP_MD_CTX_cleanup(&md_ctx);
 
+	ssl3_record_sequence_update(seq);
+	return(md_size);
+	}
+
+void ssl3_record_sequence_update(unsigned char *seq)
+	{
+	int i;
+
 	for (i=7; i>=0; i--)
 		{
 		++seq[i];
 		if (seq[i] != 0) break; 
 		}
-
-	return(md_size);
 	}
 
 int ssl3_generate_master_secret(SSL *s, unsigned char *out, unsigned char *p,

@@ -17,6 +17,8 @@ extern int rsa_main(int argc,char *argv[]);
 extern int rsautl_main(int argc,char *argv[]);
 extern int dsa_main(int argc,char *argv[]);
 extern int dsaparam_main(int argc,char *argv[]);
+extern int ec_main(int argc,char *argv[]);
+extern int ecparam_main(int argc,char *argv[]);
 extern int x509_main(int argc,char *argv[]);
 extern int genrsa_main(int argc,char *argv[]);
 extern int gendsa_main(int argc,char *argv[]);
@@ -35,11 +37,9 @@ extern int pkcs8_main(int argc,char *argv[]);
 extern int spkac_main(int argc,char *argv[]);
 extern int smime_main(int argc,char *argv[]);
 extern int rand_main(int argc,char *argv[]);
-extern int prime_main(int argc,char *argv[]);
-#ifndef OPENSSL_NO_ENGINE
 extern int engine_main(int argc,char *argv[]);
-#endif
 extern int ocsp_main(int argc,char *argv[]);
+extern int prime_main(int argc,char *argv[]);
 
 #define FUNC_TYPE_GENERAL	1
 #define FUNC_TYPE_MD		2
@@ -47,8 +47,8 @@ extern int ocsp_main(int argc,char *argv[]);
 
 typedef struct {
 	int type;
-	char *name;
-	int (*func)();
+	const char *name;
+	int (*func)(int argc,char *argv[]);
 	} FUNCTION;
 
 FUNCTION functions[] = {
@@ -81,6 +81,12 @@ FUNCTION functions[] = {
 #endif
 #ifndef OPENSSL_NO_DSA
 	{FUNC_TYPE_GENERAL,"dsaparam",dsaparam_main},
+#endif
+#ifndef OPENSSL_NO_EC
+	{FUNC_TYPE_GENERAL,"ec",ec_main},
+#endif
+#ifndef OPENSSL_NO_EC
+	{FUNC_TYPE_GENERAL,"ecparam",ecparam_main},
 #endif
 	{FUNC_TYPE_GENERAL,"x509",x509_main},
 #ifndef OPENSSL_NO_RSA
@@ -116,11 +122,11 @@ FUNCTION functions[] = {
 	{FUNC_TYPE_GENERAL,"spkac",spkac_main},
 	{FUNC_TYPE_GENERAL,"smime",smime_main},
 	{FUNC_TYPE_GENERAL,"rand",rand_main},
-	{FUNC_TYPE_GENERAL,"prime",prime_main},
 #ifndef OPENSSL_NO_ENGINE
 	{FUNC_TYPE_GENERAL,"engine",engine_main},
 #endif
 	{FUNC_TYPE_GENERAL,"ocsp",ocsp_main},
+	{FUNC_TYPE_GENERAL,"prime",prime_main},
 #ifndef OPENSSL_NO_MD2
 	{FUNC_TYPE_MD,"md2",dgst_main},
 #endif

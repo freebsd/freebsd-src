@@ -62,10 +62,10 @@
 
 #include "../e_os.h"
 
-#ifdef OPENSSL_NO_SHA
+#if defined(OPENSSL_NO_SHA) || defined(OPENSSL_NO_SHA0)
 int main(int argc, char *argv[])
 {
-    printf("No SHA support\n");
+    printf("No SHA0 support\n");
     return(0);
 }
 #else
@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
 	i=1;
 	while (*P != NULL)
 		{
-		EVP_Digest(*P,(unsigned long)strlen((char *)*P),md,NULL,EVP_sha(), NULL);
+		EVP_Digest(*P,strlen((char *)*P),md,NULL,EVP_sha(), NULL);
 		p=pt(md);
 		if (strcmp(p,(char *)*R) != 0)
 			{
@@ -157,6 +157,10 @@ int main(int argc, char *argv[])
 		}
 	else
 		printf("test 3 ok\n");
+
+#ifdef OPENSSL_SYS_NETWARE
+    if (err) printf("ERROR: %d\n", err);
+#endif
 	EVP_MD_CTX_cleanup(&c);
 	EXIT(err);
 	return(0);

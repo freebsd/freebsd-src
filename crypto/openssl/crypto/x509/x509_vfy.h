@@ -65,6 +65,7 @@
 #ifndef HEADER_X509_VFY_H
 #define HEADER_X509_VFY_H
 
+#include <openssl/opensslconf.h>
 #ifndef OPENSSL_NO_LHASH
 #include <openssl/lhash.h>
 #endif
@@ -155,6 +156,25 @@ typedef struct x509_lookup_method_st
 			    X509_OBJECT *ret);
 	} X509_LOOKUP_METHOD;
 
+/* This structure hold all parameters associated with a verify operation
+ * by including an X509_VERIFY_PARAM structure in related structures the
+ * parameters used can be customized
+ */
+
+typedef struct X509_VERIFY_PARAM_st
+	{
+	char *name;
+	time_t check_time;	/* Time to use */
+	unsigned long inh_flags; /* Inheritance flags */
+	unsigned long flags;	/* Various verify flags */
+	int purpose;		/* purpose to check untrusted certificates */
+	int trust;		/* trust setting to check */
+	int depth;		/* Verify depth */
+	STACK_OF(ASN1_OBJECT) *policies;	/* Permissible policies */
+	} X509_VERIFY_PARAM;
+
+DECLARE_STACK_OF(X509_VERIFY_PARAM)
+
 /* This is used to hold everything.  It is used for all certificate
  * validation.  Once we have a certificate chain, the 'verify'
  * function is then called to actually check the cert chain. */
@@ -167,13 +187,8 @@ struct x509_store_st
 	/* These are external lookup methods */
 	STACK_OF(X509_LOOKUP) *get_cert_methods;
 
-	/* The following fields are not used by X509_STORE but are
-         * inherited by X509_STORE_CTX when it is initialised.
-	 */
+	X509_VERIFY_PARAM *param;
 
-	unsigned long flags;	/* Various verify flags */
-	int purpose;
-	int trust;
 	/* Callbacks for various operations */
 	int (*verify)(X509_STORE_CTX *ctx);	/* called to verify a certificate */
 	int (*verify_cb)(int ok,X509_STORE_CTX *ctx);	/* error callback */
@@ -187,10 +202,9 @@ struct x509_store_st
 
 	CRYPTO_EX_DATA ex_data;
 	int references;
-	int depth;		/* how deep to look (still unused -- X509_STORE_CTX's depth is used) */
 	} /* X509_STORE */;
 
-#define X509_STORE_set_depth(ctx,d)       ((ctx)->depth=(d))
+int X509_STORE_set_depth(X509_STORE *store, int depth);
 
 #define X509_STORE_set_verify_cb_func(ctx,func) ((ctx)->verify_cb=(func))
 #define X509_STORE_set_verify_func(ctx,func)	((ctx)->verify=(func))
@@ -217,10 +231,9 @@ struct x509_store_ctx_st      /* X509_STORE_CTX */
 	/* The following are set by the caller */
 	X509 *cert;		/* The cert to check */
 	STACK_OF(X509) *untrusted;	/* chain of X509s - untrusted - passed in */
-	int purpose;		/* purpose to check untrusted certificates */
-	int trust;		/* trust setting to check */
-	time_t	check_time;	/* time to make verify at */
-	unsigned long flags;	/* Various verify flags */
+	STACK_OF(X509_CRL) *crls;	/* set of CRLs passed in */
+
+	X509_VERIFY_PARAM *param;
 	void *other_ctx;	/* Other info for use with get_issuer() */
 
 	/* Callbacks for various operations */
@@ -232,13 +245,16 @@ struct x509_store_ctx_st      /* X509_STORE_CTX */
 	int (*get_crl)(X509_STORE_CTX *ctx, X509_CRL **crl, X509 *x); /* retrieve CRL */
 	int (*check_crl)(X509_STORE_CTX *ctx, X509_CRL *crl); /* Check CRL validity */
 	int (*cert_crl)(X509_STORE_CTX *ctx, X509_CRL *crl, X509 *x); /* Check certificate against CRL */
+	int (*check_policy)(X509_STORE_CTX *ctx);
 	int (*cleanup)(X509_STORE_CTX *ctx);
 
 	/* The following is built up */
-	int depth;		/* how far to go looking up certs */
 	int valid;		/* if 0, rebuild chain */
 	int last_untrusted;	/* index of last untrusted cert */
 	STACK_OF(X509) *chain; 		/* chain of X509s - built up and trusted */
+	X509_POLICY_TREE *tree;	/* Valid policy tree */
+
+	int explicit_policy;	/* Require explicit policy value */
 
 	/* When something goes wrong, this is why */
 	int error_depth;
@@ -250,7 +266,7 @@ struct x509_store_ctx_st      /* X509_STORE_CTX */
 	CRYPTO_EX_DATA ex_data;
 	} /* X509_STORE_CTX */;
 
-#define X509_STORE_CTX_set_depth(ctx,d)       ((ctx)->depth=(d))
+void X509_STORE_CTX_set_depth(X509_STORE_CTX *ctx, int depth);
 
 #define X509_STORE_CTX_set_app_data(ctx,data) \
 	X509_STORE_CTX_set_ex_data(ctx,0,data)
@@ -276,7 +292,7 @@ struct x509_store_ctx_st      /* X509_STORE_CTX */
 #define		X509_V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY	6
 #define		X509_V_ERR_CERT_SIGNATURE_FAILURE		7
 #define		X509_V_ERR_CRL_SIGNATURE_FAILURE		8
-#define		X509_V_ERR_CERT_NOT_YET_VALID			9	
+#define		X509_V_ERR_CERT_NOT_YET_VALID			9
 #define		X509_V_ERR_CERT_HAS_EXPIRED			10
 #define		X509_V_ERR_CRL_NOT_YET_VALID			11
 #define		X509_V_ERR_CRL_HAS_EXPIRED			12
@@ -306,6 +322,15 @@ struct x509_store_ctx_st      /* X509_STORE_CTX */
 #define		X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION		34
 #define		X509_V_ERR_KEYUSAGE_NO_CRL_SIGN			35
 #define		X509_V_ERR_UNHANDLED_CRITICAL_CRL_EXTENSION	36
+#define		X509_V_ERR_INVALID_NON_CA			37
+#define		X509_V_ERR_PROXY_PATH_LENGTH_EXCEEDED		38
+#define		X509_V_ERR_KEYUSAGE_NO_DIGITAL_SIGNATURE	39
+#define		X509_V_ERR_PROXY_CERTIFICATES_NOT_ALLOWED	40
+
+#define		X509_V_ERR_INVALID_EXTENSION			41
+#define		X509_V_ERR_INVALID_POLICY_EXTENSION		42
+#define		X509_V_ERR_NO_EXPLICIT_POLICY			43
+
 
 /* The application is not happy */
 #define		X509_V_ERR_APPLICATION_VERIFICATION		50
@@ -324,6 +349,30 @@ struct x509_store_ctx_st      /* X509_STORE_CTX */
 #define	X509_V_FLAG_IGNORE_CRITICAL		0x10
 /* Disable workarounds for broken certificates */
 #define	X509_V_FLAG_X509_STRICT			0x20
+/* Enable proxy certificate validation */
+#define	X509_V_FLAG_ALLOW_PROXY_CERTS		0x40
+/* Enable policy checking */
+#define X509_V_FLAG_POLICY_CHECK		0x80
+/* Policy variable require-explicit-policy */
+#define X509_V_FLAG_EXPLICIT_POLICY		0x100
+/* Policy variable inhibit-any-policy */
+#define	X509_V_FLAG_INHIBIT_ANY			0x200
+/* Policy variable inhibit-policy-mapping */
+#define X509_V_FLAG_INHIBIT_MAP			0x400
+/* Notify callback that policy is OK */
+#define X509_V_FLAG_NOTIFY_POLICY		0x800
+
+#define X509_VP_FLAG_DEFAULT			0x1
+#define X509_VP_FLAG_OVERWRITE			0x2
+#define X509_VP_FLAG_RESET_FLAGS		0x4
+#define X509_VP_FLAG_LOCKED			0x8
+#define X509_VP_FLAG_ONCE			0x10
+
+/* Internal use: mask of policy related options */
+#define X509_V_FLAG_POLICY_MASK (X509_V_FLAG_POLICY_CHECK \
+				| X509_V_FLAG_EXPLICIT_POLICY \
+				| X509_V_FLAG_INHIBIT_ANY \
+				| X509_V_FLAG_INHIBIT_MAP)
 
 int X509_OBJECT_idx_by_subject(STACK_OF(X509_OBJECT) *h, int type,
 	     X509_NAME *name);
@@ -334,9 +383,10 @@ void X509_OBJECT_free_contents(X509_OBJECT *a);
 X509_STORE *X509_STORE_new(void );
 void X509_STORE_free(X509_STORE *v);
 
-void X509_STORE_set_flags(X509_STORE *ctx, long flags);
+int X509_STORE_set_flags(X509_STORE *ctx, unsigned long flags);
 int X509_STORE_set_purpose(X509_STORE *ctx, int purpose);
 int X509_STORE_set_trust(X509_STORE *ctx, int trust);
+int X509_STORE_set1_param(X509_STORE *ctx, X509_VERIFY_PARAM *pm);
 
 X509_STORE_CTX *X509_STORE_CTX_new(void);
 
@@ -400,14 +450,78 @@ STACK_OF(X509) *X509_STORE_CTX_get_chain(X509_STORE_CTX *ctx);
 STACK_OF(X509) *X509_STORE_CTX_get1_chain(X509_STORE_CTX *ctx);
 void	X509_STORE_CTX_set_cert(X509_STORE_CTX *c,X509 *x);
 void	X509_STORE_CTX_set_chain(X509_STORE_CTX *c,STACK_OF(X509) *sk);
+void	X509_STORE_CTX_set0_crls(X509_STORE_CTX *c,STACK_OF(X509_CRL) *sk);
 int X509_STORE_CTX_set_purpose(X509_STORE_CTX *ctx, int purpose);
 int X509_STORE_CTX_set_trust(X509_STORE_CTX *ctx, int trust);
 int X509_STORE_CTX_purpose_inherit(X509_STORE_CTX *ctx, int def_purpose,
 				int purpose, int trust);
-void X509_STORE_CTX_set_flags(X509_STORE_CTX *ctx, long flags);
-void X509_STORE_CTX_set_time(X509_STORE_CTX *ctx, long flags, time_t t);
+void X509_STORE_CTX_set_flags(X509_STORE_CTX *ctx, unsigned long flags);
+void X509_STORE_CTX_set_time(X509_STORE_CTX *ctx, unsigned long flags,
+								time_t t);
 void X509_STORE_CTX_set_verify_cb(X509_STORE_CTX *ctx,
 				  int (*verify_cb)(int, X509_STORE_CTX *));
+  
+X509_POLICY_TREE *X509_STORE_CTX_get0_policy_tree(X509_STORE_CTX *ctx);
+int X509_STORE_CTX_get_explicit_policy(X509_STORE_CTX *ctx);
+
+X509_VERIFY_PARAM *X509_STORE_CTX_get0_param(X509_STORE_CTX *ctx);
+void X509_STORE_CTX_set0_param(X509_STORE_CTX *ctx, X509_VERIFY_PARAM *param);
+int X509_STORE_CTX_set_default(X509_STORE_CTX *ctx, const char *name);
+
+/* X509_VERIFY_PARAM functions */
+
+X509_VERIFY_PARAM *X509_VERIFY_PARAM_new(void);
+void X509_VERIFY_PARAM_free(X509_VERIFY_PARAM *param);
+int X509_VERIFY_PARAM_inherit(X509_VERIFY_PARAM *to,
+						const X509_VERIFY_PARAM *from);
+int X509_VERIFY_PARAM_set1(X509_VERIFY_PARAM *to, 
+						const X509_VERIFY_PARAM *from);
+int X509_VERIFY_PARAM_set1_name(X509_VERIFY_PARAM *param, const char *name);
+int X509_VERIFY_PARAM_set_flags(X509_VERIFY_PARAM *param, unsigned long flags);
+int X509_VERIFY_PARAM_clear_flags(X509_VERIFY_PARAM *param,
+							unsigned long flags);
+unsigned long X509_VERIFY_PARAM_get_flags(X509_VERIFY_PARAM *param);
+int X509_VERIFY_PARAM_set_purpose(X509_VERIFY_PARAM *param, int purpose);
+int X509_VERIFY_PARAM_set_trust(X509_VERIFY_PARAM *param, int trust);
+void X509_VERIFY_PARAM_set_depth(X509_VERIFY_PARAM *param, int depth);
+void X509_VERIFY_PARAM_set_time(X509_VERIFY_PARAM *param, time_t t);
+int X509_VERIFY_PARAM_add0_policy(X509_VERIFY_PARAM *param,
+						ASN1_OBJECT *policy);
+int X509_VERIFY_PARAM_set1_policies(X509_VERIFY_PARAM *param, 
+					STACK_OF(ASN1_OBJECT) *policies);
+int X509_VERIFY_PARAM_get_depth(const X509_VERIFY_PARAM *param);
+
+int X509_VERIFY_PARAM_add0_table(X509_VERIFY_PARAM *param);
+const X509_VERIFY_PARAM *X509_VERIFY_PARAM_lookup(const char *name);
+void X509_VERIFY_PARAM_table_cleanup(void);
+
+int X509_policy_check(X509_POLICY_TREE **ptree, int *pexplicit_policy,
+			STACK_OF(X509) *certs,
+			STACK_OF(ASN1_OBJECT) *policy_oids,
+			unsigned int flags);
+
+void X509_policy_tree_free(X509_POLICY_TREE *tree);
+
+int X509_policy_tree_level_count(const X509_POLICY_TREE *tree);
+X509_POLICY_LEVEL *
+	X509_policy_tree_get0_level(const X509_POLICY_TREE *tree, int i);
+
+STACK_OF(X509_POLICY_NODE) *
+	X509_policy_tree_get0_policies(const X509_POLICY_TREE *tree);
+
+STACK_OF(X509_POLICY_NODE) *
+	X509_policy_tree_get0_user_policies(const X509_POLICY_TREE *tree);
+
+int X509_policy_level_node_count(X509_POLICY_LEVEL *level);
+
+X509_POLICY_NODE *X509_policy_level_get0_node(X509_POLICY_LEVEL *level, int i);
+
+const ASN1_OBJECT *X509_policy_node_get0_policy(const X509_POLICY_NODE *node);
+
+STACK_OF(POLICYQUALINFO) *
+	X509_policy_node_get0_qualifiers(const X509_POLICY_NODE *node);
+const X509_POLICY_NODE *
+	X509_policy_node_get0_parent(const X509_POLICY_NODE *node);
 
 #ifdef  __cplusplus
 }

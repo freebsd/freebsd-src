@@ -55,6 +55,11 @@
  * Hudson (tjh@cryptsoft.com).
  *
  */
+/* ====================================================================
+ * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
+ * ECDH support in OpenSSL originally developed by 
+ * SUN MICROSYSTEMS, INC., and contributed to the OpenSSL project.
+ */
 
 
 #include <stdio.h>
@@ -64,6 +69,16 @@
 #include <openssl/dso.h>
 #include <openssl/pem.h>
 #include <openssl/evp.h>
+#include <openssl/rand.h>
+#ifndef OPENSSL_NO_RSA
+#include <openssl/rsa.h>
+#endif
+#ifndef OPENSSL_NO_DSA
+#include <openssl/dsa.h>
+#endif
+#ifndef OPENSSL_NO_DH
+#include <openssl/dh.h>
+#endif
 
 /* This testing gunk is implemented (and explained) lower down. It also assumes
  * the application explicitly calls "ENGINE_load_openssl()" because this is no
@@ -124,6 +139,12 @@ static int bind_helper(ENGINE *e)
 #endif
 #ifndef OPENSSL_NO_DSA
 			|| !ENGINE_set_DSA(e, DSA_get_default_method())
+#endif
+#ifndef OPENSSL_NO_ECDH
+			|| !ENGINE_set_ECDH(e, ECDH_OpenSSL())
+#endif
+#ifndef OPENSSL_NO_ECDSA
+			|| !ENGINE_set_ECDSA(e, ECDSA_OpenSSL())
 #endif
 #ifndef OPENSSL_NO_DH
 			|| !ENGINE_set_DH(e, DH_get_default_method())
@@ -236,6 +257,7 @@ static const EVP_CIPHER test_r4_cipher=
 	sizeof(TEST_RC4_KEY),
 	NULL,
 	NULL,
+	NULL,
 	NULL
 	};
 static const EVP_CIPHER test_r4_40_cipher=
@@ -248,6 +270,7 @@ static const EVP_CIPHER test_r4_40_cipher=
 	NULL,
 	sizeof(TEST_RC4_KEY),
 	NULL, 
+	NULL,
 	NULL,
 	NULL
 	};
@@ -290,7 +313,7 @@ static int test_sha1_init(EVP_MD_CTX *ctx)
 #endif
 	return SHA1_Init(ctx->md_data);
 	}
-static int test_sha1_update(EVP_MD_CTX *ctx,const void *data,unsigned long count)
+static int test_sha1_update(EVP_MD_CTX *ctx,const void *data,size_t count)
 	{
 #ifdef TEST_ENG_OPENSSL_SHA_P_UPDATE
 	fprintf(stderr, "(TEST_ENG_OPENSSL_SHA) test_sha1_update() called\n");

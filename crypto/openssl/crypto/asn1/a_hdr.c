@@ -76,17 +76,17 @@ int i2d_ASN1_HEADER(ASN1_HEADER *a, unsigned char **pp)
 	M_ASN1_I2D_finish();
 	}
 
-ASN1_HEADER *d2i_ASN1_HEADER(ASN1_HEADER **a, unsigned char **pp,
+ASN1_HEADER *d2i_ASN1_HEADER(ASN1_HEADER **a, const unsigned char **pp,
 	     long length)
 	{
 	M_ASN1_D2I_vars(a,ASN1_HEADER *,ASN1_HEADER_new);
 
 	M_ASN1_D2I_Init();
         M_ASN1_D2I_start_sequence();
-        M_ASN1_D2I_get(ret->header,d2i_ASN1_OCTET_STRING);
+        M_ASN1_D2I_get_x(ASN1_OCTET_STRING,ret->header,d2i_ASN1_OCTET_STRING);
 	if (ret->meth != NULL)
 		{
-		M_ASN1_D2I_get(ret->data,ret->meth->d2i);
+		M_ASN1_D2I_get_x(void,ret->data,ret->meth->d2i);
 		}
 	else
 		{

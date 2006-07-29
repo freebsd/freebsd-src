@@ -125,13 +125,17 @@
 #ifndef OPENSSL_NO_ENGINE
 #include <openssl/engine.h>
 #endif
+#ifndef OPENSSL_NO_RSA
+#include <openssl/rsa.h>
+#endif
+#include <openssl/bn.h>
 
 #define NON_MAIN
 #include "apps.h"
 #undef NON_MAIN
 
 typedef struct {
-	char *name;
+	const char *name;
 	unsigned long flag;
 	unsigned long mask;
 } NAME_EX_TBL;
@@ -250,7 +254,7 @@ int str2fmt(char *s)
 		return(FORMAT_UNDEF);
 	}
 
-#if defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_WIN16)
+#if defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_WIN16) || defined(OPENSSL_SYS_NETWARE)
 void program_name(char *in, char *out, int size)
 	{
 	int i,n;
@@ -269,12 +273,23 @@ void program_name(char *in, char *out, int size)
 	if (p == NULL)
 		p=in;
 	n=strlen(p);
+
+#if defined(OPENSSL_SYS_NETWARE)
+   /* strip off trailing .nlm if present. */
+   if ((n > 4) && (p[n-4] == '.') &&
+      ((p[n-3] == 'n') || (p[n-3] == 'N')) &&
+      ((p[n-2] == 'l') || (p[n-2] == 'L')) &&
+      ((p[n-1] == 'm') || (p[n-1] == 'M')))
+      n-=4;
+#else
 	/* strip off trailing .exe if present. */
 	if ((n > 4) && (p[n-4] == '.') &&
 		((p[n-3] == 'e') || (p[n-3] == 'E')) &&
 		((p[n-2] == 'x') || (p[n-2] == 'X')) &&
 		((p[n-1] == 'e') || (p[n-1] == 'E')))
 		n-=4;
+#endif
+
 	if (n > size-1)
 		n=size-1;
 
@@ -330,22 +345,6 @@ void program_name(char *in, char *out, int size)
 #endif
 #endif
 
-#ifdef OPENSSL_SYS_VMS
-int VMS_strcasecmp(const char *str1, const char *str2)
-	{
-	while (*str1 && *str2)
-		{
-		int res = toupper(*str1) - toupper(*str2);
-		if (res) return res < 0 ? -1 : 1;
-		}
-	if (*str1)
-		return 1;
-	if (*str2)
-		return -1;
-	return 0;
-	}
-#endif
-
 int chopup_args(ARGS *arg, char *buf, int *argc, char **argv[])
 	{
 	int num,len,i;
@@ -377,10 +376,17 @@ int chopup_args(ARGS *arg, char *buf, int *argc, char **argv[])
 		/* The start of something good :-) */
 		if (num >= arg->count)
 			{
-			arg->count+=20;
-			arg->data=(char **)OPENSSL_realloc(arg->data,
-				sizeof(char *)*arg->count);
-			if (argc == 0) return(0);
+			char **tmp_p;
+			int tlen = arg->count + 20;
+			tmp_p = (char **)OPENSSL_realloc(arg->data,
+				sizeof(char *)*tlen);
+			if (tmp_p == NULL)
+				return 0;
+			arg->data  = tmp_p;
+			arg->count = tlen;
+			/* initialize newly allocated data */
+			for (i = num; i < arg->count; i++)
+				arg->data[i] = NULL;
 			}
 		arg->data[num++]=p;
 
@@ -542,7 +548,7 @@ int password_callback(char *buf, int bufsiz, int verify,
 		char *prompt = NULL;
 
 		prompt = UI_construct_prompt(ui, "pass phrase",
-			cb_data->prompt_info);
+			prompt_info);
 
 		ui_flags |= UI_INPUT_FLAG_DEFAULT_PWD;
 		UI_ctrl(ui, UI_CTRL_PRINT_ERRORS, 1, 0, 0);
@@ -691,6 +697,51 @@ int add_oid_section(BIO *err, CONF *conf)
 	return 1;
 }
 
+static int load_pkcs12(BIO *err, BIO *in, const char *desc,
+		pem_password_cb *pem_cb,  void *cb_data,
+		EVP_PKEY **pkey, X509 **cert, STACK_OF(X509) **ca)
+	{
+ 	const char *pass;
+	char tpass[PEM_BUFSIZE];
+	int len, ret = 0;
+	PKCS12 *p12;
+	p12 = d2i_PKCS12_bio(in, NULL);
+	if (p12 == NULL)
+		{
+		BIO_printf(err, "Error loading PKCS12 file for %s\n", desc);	
+		goto die;
+		}
+	/* See if an empty password will do */
+	if (PKCS12_verify_mac(p12, "", 0) || PKCS12_verify_mac(p12, NULL, 0))
+		pass = "";
+	else
+		{
+		if (!pem_cb)
+			pem_cb = (pem_password_cb *)password_callback;
+		len = pem_cb(tpass, PEM_BUFSIZE, 0, cb_data);
+		if (len < 0) 
+			{
+			BIO_printf(err, "Passpharse callback error for %s\n",
+					desc);
+			goto die;
+			}
+		if (len < PEM_BUFSIZE)
+			tpass[len] = 0;
+		if (!PKCS12_verify_mac(p12, tpass, len))
+			{
+			BIO_printf(err,
+	"Mac verify error (wrong password?) in PKCS12 file for %s\n", desc);	
+			goto die;
+			}
+		pass = tpass;
+		}
+	ret = PKCS12_parse(p12, pass, pkey, cert, ca);
+	die:
+	if (p12)
+		PKCS12_free(p12);
+	return ret;
+	}
+
 X509 *load_cert(BIO *err, const char *file, int format,
 	const char *pass, ENGINE *e, const char *cert_descrip)
 	{
@@ -725,7 +776,7 @@ X509 *load_cert(BIO *err, const char *file, int format,
 		x=d2i_X509_bio(cert,NULL);
 	else if (format == FORMAT_NETSCAPE)
 		{
-		unsigned char *p,*op;
+		const unsigned char *p,*op;
 		int size=0,i;
 
 		/* We sort of have to do it this way because it is sort of nice
@@ -771,11 +822,9 @@ X509 *load_cert(BIO *err, const char *file, int format,
 			(pem_password_cb *)password_callback, NULL);
 	else if (format == FORMAT_PKCS12)
 		{
-		PKCS12 *p12 = d2i_PKCS12_bio(cert, NULL);
-
-		PKCS12_parse(p12, NULL, NULL, &x, NULL);
-		PKCS12_free(p12);
-		p12 = NULL;
+		if (!load_pkcs12(err, cert,cert_descrip, NULL, NULL,
+					NULL, &x, NULL))
+			goto end;
 		}
 	else	{
 		BIO_printf(err,"bad input format specified for %s\n",
@@ -854,11 +903,10 @@ EVP_PKEY *load_key(BIO *err, const char *file, int format, int maybe_stdin,
 #endif
 	else if (format == FORMAT_PKCS12)
 		{
-		PKCS12 *p12 = d2i_PKCS12_bio(key, NULL);
-
-		PKCS12_parse(p12, pass, &pkey, NULL, NULL);
-		PKCS12_free(p12);
-		p12 = NULL;
+		if (!load_pkcs12(err, key, key_descrip,
+				(pem_password_cb *)password_callback, &cb_data,
+				&pkey, NULL, NULL))
+			goto end;
 		}
 	else
 		{
@@ -1230,7 +1278,7 @@ static int set_table_opts(unsigned long *flags, const char *arg, const NAME_EX_T
 	return 0;
 }
 
-void print_name(BIO *out, char *title, X509_NAME *nm, unsigned long lflags)
+void print_name(BIO *out, const char *title, X509_NAME *nm, unsigned long lflags)
 {
 	char *buf;
 	char mline = 0;
@@ -1565,8 +1613,9 @@ int rotate_serial(char *serialfile, char *new_suffix, char *old_suffix)
 		{
 		if (errno != ENOENT 
 #ifdef ENOTDIR
-			&& errno != ENOTDIR)
+			&& errno != ENOTDIR
 #endif
+		   )
 			goto err;
 		}
 	else
@@ -1697,23 +1746,10 @@ CA_DB *load_index(char *dbfile, DB_ATTR *db_attr)
 		char *p = NCONF_get_string(dbattr_conf,NULL,"unique_subject");
 		if (p)
 			{
+#ifdef RL_DEBUG
 			BIO_printf(bio_err, "DEBUG[load_index]: unique_subject = \"%s\"\n", p);
-			switch(*p)
-				{
-			case 'f': /* false */
-			case 'F': /* FALSE */
-			case 'n': /* no */
-			case 'N': /* NO */
-				retdb->attributes.unique_subject = 0;
-				break;
-			case 't': /* true */
-			case 'T': /* TRUE */
-			case 'y': /* yes */
-			case 'Y': /* YES */
-			default:
-				retdb->attributes.unique_subject = 1;
-				break;
-				}
+#endif
+			retdb->attributes.unique_subject = parse_yesno(p,1);
 			}
 		}
 
@@ -1748,7 +1784,7 @@ int index_index(CA_DB *db)
 	return 1;
 	}
 
-int save_index(char *dbfile, char *suffix, CA_DB *db)
+int save_index(const char *dbfile, const char *suffix, CA_DB *db)
 	{
 	char buf[3][BSIZE];
 	BIO *out = BIO_new(BIO_s_file());
@@ -1815,7 +1851,7 @@ int save_index(char *dbfile, char *suffix, CA_DB *db)
 	return 0;
 	}
 
-int rotate_index(char *dbfile, char *new_suffix, char *old_suffix)
+int rotate_index(const char *dbfile, const char *new_suffix, const char *old_suffix)
 	{
 	char buf[5][BSIZE];
 	int i,j;
@@ -1867,8 +1903,9 @@ int rotate_index(char *dbfile, char *new_suffix, char *old_suffix)
 		{
 		if (errno != ENOENT 
 #ifdef ENOTDIR
-			&& errno != ENOTDIR)
+			&& errno != ENOTDIR
 #endif
+		   )
 			goto err;
 		}
 	else
@@ -1903,8 +1940,9 @@ int rotate_index(char *dbfile, char *new_suffix, char *old_suffix)
 		{
 		if (errno != ENOENT 
 #ifdef ENOTDIR
-			&& errno != ENOTDIR)
+			&& errno != ENOTDIR
 #endif
+		   )
 			goto err;
 		}
 	else
@@ -1953,9 +1991,174 @@ void free_index(CA_DB *db)
 		}
 	}
 
+int parse_yesno(const char *str, int def)
+	{
+	int ret = def;
+	if (str)
+		{
+		switch (*str)
+			{
+		case 'f': /* false */
+		case 'F': /* FALSE */
+		case 'n': /* no */
+		case 'N': /* NO */
+		case '0': /* 0 */
+			ret = 0;
+			break;
+		case 't': /* true */
+		case 'T': /* TRUE */
+		case 'y': /* yes */
+		case 'Y': /* YES */
+		case '1': /* 1 */
+			ret = 0;
+			break;
+		default:
+			ret = def;
+			break;
+			}
+		}
+	return ret;
+	}
+
+/*
+ * subject is expected to be in the format /type0=value0/type1=value1/type2=...
+ * where characters may be escaped by \
+ */
+X509_NAME *parse_name(char *subject, long chtype, int multirdn)
+	{
+	size_t buflen = strlen(subject)+1; /* to copy the types and values into. due to escaping, the copy can only become shorter */
+	char *buf = OPENSSL_malloc(buflen);
+	size_t max_ne = buflen / 2 + 1; /* maximum number of name elements */
+	char **ne_types = OPENSSL_malloc(max_ne * sizeof (char *));
+	char **ne_values = OPENSSL_malloc(max_ne * sizeof (char *));
+	int *mval = OPENSSL_malloc (max_ne * sizeof (int));
+
+	char *sp = subject, *bp = buf;
+	int i, ne_num = 0;
+
+	X509_NAME *n = NULL;
+	int nid;
+
+	if (!buf || !ne_types || !ne_values)
+		{
+		BIO_printf(bio_err, "malloc error\n");
+		goto error;
+		}	
+
+	if (*subject != '/')
+		{
+		BIO_printf(bio_err, "Subject does not start with '/'.\n");
+		goto error;
+		}
+	sp++; /* skip leading / */
+
+	/* no multivalued RDN by default */
+	mval[ne_num] = 0;
+
+	while (*sp)
+		{
+		/* collect type */
+		ne_types[ne_num] = bp;
+		while (*sp)
+			{
+			if (*sp == '\\') /* is there anything to escape in the type...? */
+				{
+				if (*++sp)
+					*bp++ = *sp++;
+				else	
+					{
+					BIO_printf(bio_err, "escape character at end of string\n");
+					goto error;
+					}
+				}	
+			else if (*sp == '=')
+				{
+				sp++;
+				*bp++ = '\0';
+				break;
+				}
+			else
+				*bp++ = *sp++;
+			}
+		if (!*sp)
+			{
+			BIO_printf(bio_err, "end of string encountered while processing type of subject name element #%d\n", ne_num);
+			goto error;
+			}
+		ne_values[ne_num] = bp;
+		while (*sp)
+			{
+			if (*sp == '\\')
+				{
+				if (*++sp)
+					*bp++ = *sp++;
+				else
+					{
+					BIO_printf(bio_err, "escape character at end of string\n");
+					goto error;
+					}
+				}
+			else if (*sp == '/')
+				{
+				sp++;
+				/* no multivalued RDN by default */
+				mval[ne_num+1] = 0;
+				break;
+				}
+			else if (*sp == '+' && multirdn)
+				{
+				/* a not escaped + signals a mutlivalued RDN */
+				sp++;
+				mval[ne_num+1] = -1;
+				break;
+				}
+			else
+				*bp++ = *sp++;
+			}
+		*bp++ = '\0';
+		ne_num++;
+		}	
+
+	if (!(n = X509_NAME_new()))
+		goto error;
+
+	for (i = 0; i < ne_num; i++)
+		{
+		if ((nid=OBJ_txt2nid(ne_types[i])) == NID_undef)
+			{
+			BIO_printf(bio_err, "Subject Attribute %s has no known NID, skipped\n", ne_types[i]);
+			continue;
+			}
+
+		if (!*ne_values[i])
+			{
+			BIO_printf(bio_err, "No value provided for Subject Attribute %s, skipped\n", ne_types[i]);
+			continue;
+			}
+
+		if (!X509_NAME_add_entry_by_NID(n, nid, chtype, (unsigned char*)ne_values[i], -1,-1,mval[i]))
+			goto error;
+		}
+
+	OPENSSL_free(ne_values);
+	OPENSSL_free(ne_types);
+	OPENSSL_free(buf);
+	return n;
+
+error:
+	X509_NAME_free(n);
+	if (ne_values)
+		OPENSSL_free(ne_values);
+	if (ne_types)
+		OPENSSL_free(ne_types);
+	if (buf)
+		OPENSSL_free(buf);
+	return NULL;
+}
+
 /* This code MUST COME AFTER anything that uses rename() */
 #ifdef OPENSSL_SYS_WIN32
-int WIN32_rename(char *from, char *to)
+int WIN32_rename(const char *from, const char *to)
 	{
 #ifndef OPENSSL_SYS_WINCE
 	/* Windows rename gives an error if 'to' exists, so delete it
@@ -1991,3 +2194,142 @@ int WIN32_rename(char *from, char *to)
 #endif
 	}
 #endif
+
+int args_verify(char ***pargs, int *pargc,
+			int *badarg, BIO *err, X509_VERIFY_PARAM **pm)
+	{
+	ASN1_OBJECT *otmp = NULL;
+	unsigned long flags = 0;
+	int i;
+	int purpose = 0;
+	char **oldargs = *pargs;
+	char *arg = **pargs, *argn = (*pargs)[1];
+	if (!strcmp(arg, "-policy"))
+		{
+		if (!argn)
+			*badarg = 1;
+		else
+			{
+			otmp = OBJ_txt2obj(argn, 0);
+			if (!otmp)
+				{
+				BIO_printf(err, "Invalid Policy \"%s\"\n",
+									argn);
+				*badarg = 1;
+				}
+			}
+		(*pargs)++;
+		}
+	else if (strcmp(arg,"-purpose") == 0)
+		{
+		X509_PURPOSE *xptmp;
+		if (!argn)
+			*badarg = 1;
+		else
+			{
+			i = X509_PURPOSE_get_by_sname(argn);
+			if(i < 0)
+				{
+				BIO_printf(err, "unrecognized purpose\n");
+				*badarg = 1;
+				}
+			else
+				{
+				xptmp = X509_PURPOSE_get0(i);
+				purpose = X509_PURPOSE_get_id(xptmp);
+				}
+			}
+		(*pargs)++;
+		}
+	else if (!strcmp(arg, "-ignore_critical"))
+		flags |= X509_V_FLAG_IGNORE_CRITICAL;
+	else if (!strcmp(arg, "-issuer_checks"))
+		flags |= X509_V_FLAG_CB_ISSUER_CHECK;
+	else if (!strcmp(arg, "-crl_check"))
+		flags |=  X509_V_FLAG_CRL_CHECK;
+	else if (!strcmp(arg, "-crl_check_all"))
+		flags |= X509_V_FLAG_CRL_CHECK|X509_V_FLAG_CRL_CHECK_ALL;
+	else if (!strcmp(arg, "-policy_check"))
+		flags |= X509_V_FLAG_POLICY_CHECK;
+	else if (!strcmp(arg, "-explicit_policy"))
+		flags |= X509_V_FLAG_EXPLICIT_POLICY;
+	else if (!strcmp(arg, "-x509_strict"))
+		flags |= X509_V_FLAG_X509_STRICT;
+	else if (!strcmp(arg, "-policy_print"))
+		flags |= X509_V_FLAG_NOTIFY_POLICY;
+	else
+		return 0;
+
+	if (*badarg)
+		{
+		if (*pm)
+			X509_VERIFY_PARAM_free(*pm);
+		*pm = NULL;
+		goto end;
+		}
+
+	if (!*pm && !(*pm = X509_VERIFY_PARAM_new()))
+		{
+		*badarg = 1;
+		goto end;
+		}
+
+	if (otmp)
+		X509_VERIFY_PARAM_add0_policy(*pm, otmp);
+	if (flags)
+		X509_VERIFY_PARAM_set_flags(*pm, flags);
+
+	if (purpose)
+		X509_VERIFY_PARAM_set_purpose(*pm, purpose);
+
+	end:
+
+	(*pargs)++;
+
+	if (pargc)
+		*pargc -= *pargs - oldargs;
+
+	return 1;
+
+	}
+
+static void nodes_print(BIO *out, const char *name,
+	STACK_OF(X509_POLICY_NODE) *nodes)
+	{
+	X509_POLICY_NODE *node;
+	int i;
+	BIO_printf(out, "%s Policies:", name);
+	if (nodes)
+		{
+		BIO_puts(out, "\n");
+		for (i = 0; i < sk_X509_POLICY_NODE_num(nodes); i++)
+			{
+			node = sk_X509_POLICY_NODE_value(nodes, i);
+			X509_POLICY_NODE_print(out, node, 2);
+			}
+		}
+	else
+		BIO_puts(out, " <empty>\n");
+	}
+
+void policies_print(BIO *out, X509_STORE_CTX *ctx)
+	{
+	X509_POLICY_TREE *tree;
+	int explicit_policy;
+	int free_out = 0;
+	if (out == NULL)
+		{
+		out = BIO_new_fp(stderr, BIO_NOCLOSE);
+		free_out = 1;
+		}
+	tree = X509_STORE_CTX_get0_policy_tree(ctx);
+	explicit_policy = X509_STORE_CTX_get_explicit_policy(ctx);
+
+	BIO_printf(out, "Require explicit Policy: %s\n",
+				explicit_policy ? "True" : "False");
+
+	nodes_print(out, "Authority", X509_policy_tree_get0_policies(tree));
+	nodes_print(out, "User", X509_policy_tree_get0_user_policies(tree));
+	if (free_out)
+		BIO_free(out);
+	}

@@ -312,7 +312,8 @@ static char *md5crypt(const char *passwd, const char *magic, const char *salt)
 	static char out_buf[6 + 9 + 24 + 2]; /* "$apr1$..salt..$.......md5hash..........\0" */
 	unsigned char buf[MD5_DIGEST_LENGTH];
 	char *salt_out;
-	int n, i;
+	int n;
+	unsigned int i;
 	EVP_MD_CTX md,md2;
 	size_t passwd_len, salt_len;
 
@@ -358,13 +359,13 @@ static char *md5crypt(const char *passwd, const char *magic, const char *salt)
 	for (i = 0; i < 1000; i++)
 		{
 		EVP_DigestInit_ex(&md2,EVP_md5(), NULL);
-		EVP_DigestUpdate(&md2, (i & 1) ? (unsigned char *) passwd : buf,
+		EVP_DigestUpdate(&md2, (i & 1) ? (unsigned const char *) passwd : buf,
 		                       (i & 1) ? passwd_len : sizeof buf);
 		if (i % 3)
 			EVP_DigestUpdate(&md2, salt_out, salt_len);
 		if (i % 7)
 			EVP_DigestUpdate(&md2, passwd, passwd_len);
-		EVP_DigestUpdate(&md2, (i & 1) ? buf : (unsigned char *) passwd,
+		EVP_DigestUpdate(&md2, (i & 1) ? buf : (unsigned const char *) passwd,
 		                       (i & 1) ? sizeof buf : passwd_len);
 		EVP_DigestFinal_ex(&md2, buf, NULL);
 		}
@@ -473,7 +474,8 @@ static int do_passwd(int passed_salt, char **salt_p, char **salt_malloc_p,
 	if ((strlen(passwd) > pw_maxlen))
 		{
 		if (!quiet)
-			BIO_printf(bio_err, "Warning: truncating password to %u characters\n", pw_maxlen);
+			/* XXX: really we should know how to print a size_t, not cast it */
+			BIO_printf(bio_err, "Warning: truncating password to %u characters\n", (unsigned)pw_maxlen);
 		passwd[pw_maxlen] = 0;
 		}
 	assert(strlen(passwd) <= pw_maxlen);

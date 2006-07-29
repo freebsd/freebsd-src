@@ -26,7 +26,7 @@ if [ "$MAKEDEPEND" = "gcc" ]; then
     ${PERL} $TOP/util/clean-depend.pl < Makefile.tmp > Makefile.new
     rm -f Makefile.tmp
 else
-    ${MAKEDEPEND} -D OPENSSL_DOING_MAKEDEPEND -f Makefile $@
+    ${MAKEDEPEND} -D OPENSSL_DOING_MAKEDEPEND $@
     ${PERL} $TOP/util/clean-depend.pl < Makefile > Makefile.new
 fi
 mv Makefile.new Makefile

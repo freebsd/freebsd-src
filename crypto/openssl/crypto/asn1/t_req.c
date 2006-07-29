@@ -63,6 +63,12 @@
 #include <openssl/objects.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
+#ifndef OPENSSL_NO_RSA
+#include <openssl/rsa.h>
+#endif
+#ifndef OPENSSL_NO_DSA
+#include <openssl/dsa.h>
+#endif
 
 #ifndef OPENSSL_NO_FP_API
 int X509_REQ_print_fp(FILE *fp, X509_REQ *x)
@@ -160,6 +166,14 @@ int X509_REQ_print_ex(BIO *bp, X509_REQ *x, unsigned long nmflags, unsigned long
 			}
 		else
 #endif
+#ifndef OPENSSL_NO_EC
+		if (pkey->type == EVP_PKEY_EC)
+		{
+			BIO_printf(bp, "%12sEC Public Key: \n","");
+			EC_KEY_print(bp, pkey->pkey.ec, 16);
+		}
+	else
+#endif
 			BIO_printf(bp,"%12sUnknown Public Key:\n","");
 
 		EVP_PKEY_free(pkey);
@@ -246,7 +260,7 @@ get_next:
 				obj=X509_EXTENSION_get_object(ex);
 				i2a_ASN1_OBJECT(bp,obj);
 				j=X509_EXTENSION_get_critical(ex);
-				if (BIO_printf(bp,": %s\n",j?"critical":"","") <= 0)
+				if (BIO_printf(bp,": %s\n",j?"critical":"") <= 0)
 					goto err;
 				if(!X509V3_EXT_print(bp, ex, 0, 16))
 					{
@@ -266,7 +280,7 @@ get_next:
 
 	return(1);
 err:
-	X509err(X509_F_X509_REQ_PRINT,ERR_R_BUF_LIB);
+	X509err(X509_F_X509_REQ_PRINT_EX,ERR_R_BUF_LIB);
 	return(0);
 	}
 

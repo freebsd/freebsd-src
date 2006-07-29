@@ -115,7 +115,6 @@
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/md5.h>
-#include <openssl/fips.h>
 
 static void tls1_P_hash(const EVP_MD *md, const unsigned char *sec,
 			int sec_len, unsigned char *seed, int seed_len,
@@ -178,13 +177,8 @@ static void tls1_PRF(const EVP_MD *md5, const EVP_MD *sha1,
 	S2= &(sec[len]);
 	len+=(slen&1); /* add for odd, make longer */
 
-#ifdef OPENSSL_FIPS
-	FIPS_allow_md5(1);
-#endif
+	
 	tls1_P_hash(md5 ,S1,len,label,label_len,out1,olen);
-#ifdef OPENSSL_FIPS
-	FIPS_allow_md5(0);
-#endif
 	tls1_P_hash(sha1,S2,len,label,label_len,out2,olen);
 
 	for (i=0; i<olen; i++)
@@ -237,7 +231,9 @@ int tls1_change_cipher_state(SSL *s, int which)
 	int client_write;
 	EVP_CIPHER_CTX *dd;
 	const EVP_CIPHER *c;
+#ifndef OPENSSL_NO_COMP
 	const SSL_COMP *comp;
+#endif
 	const EVP_MD *m;
 	int is_export,n,i,j,k,exp_label_len,cl;
 	int reuse_dd = 0;
@@ -245,7 +241,9 @@ int tls1_change_cipher_state(SSL *s, int which)
 	is_export=SSL_C_IS_EXPORT(s->s3->tmp.new_cipher);
 	c=s->s3->tmp.new_sym_enc;
 	m=s->s3->tmp.new_hash;
+#ifndef OPENSSL_NO_COMP
 	comp=s->s3->tmp.new_compression;
+#endif
 	key_block=s->s3->tmp.key_block;
 
 #ifdef KSSL_DEBUG
@@ -271,6 +269,7 @@ int tls1_change_cipher_state(SSL *s, int which)
 			goto err;
 		dd= s->enc_read_ctx;
 		s->read_hash=m;
+#ifndef OPENSSL_NO_COMP
 		if (s->expand != NULL)
 			{
 			COMP_CTX_free(s->expand);
@@ -290,7 +289,10 @@ int tls1_change_cipher_state(SSL *s, int which)
 			if (s->s3->rrec.comp == NULL)
 				goto err;
 			}
-		memset(&(s->s3->read_sequence[0]),0,8);
+#endif
+		/* this is done by dtls1_reset_seq_numbers for DTLS1_VERSION */
+ 		if (s->version != DTLS1_VERSION)
+			memset(&(s->s3->read_sequence[0]),0,8);
 		mac_secret= &(s->s3->read_mac_secret[0]);
 		}
 	else
@@ -305,6 +307,7 @@ int tls1_change_cipher_state(SSL *s, int which)
 			goto err;
 		dd= s->enc_write_ctx;
 		s->write_hash=m;
+#ifndef OPENSSL_NO_COMP
 		if (s->compress != NULL)
 			{
 			COMP_CTX_free(s->compress);
@@ -319,7 +322,10 @@ int tls1_change_cipher_state(SSL *s, int which)
 				goto err2;
 				}
 			}
-		memset(&(s->s3->write_sequence[0]),0,8);
+#endif
+		/* this is done by dtls1_reset_seq_numbers for DTLS1_VERSION */
+ 		if (s->version != DTLS1_VERSION)
+			memset(&(s->s3->write_sequence[0]),0,8);
 		mac_secret= &(s->s3->write_mac_secret[0]);
 		}
 
@@ -507,7 +513,7 @@ printf("\nkey block\n");
 #endif
 			}
 		}
-
+		
 	return(1);
 err:
 	SSLerr(SSL_F_TLS1_SETUP_KEY_BLOCK,ERR_R_MALLOC_FAILURE);
@@ -662,13 +668,7 @@ int tls1_cert_verify_mac(SSL *s, EVP_MD_CTX *in_ctx, unsigned char *out)
 
 	EVP_MD_CTX_init(&ctx);
 	EVP_MD_CTX_copy_ex(&ctx,in_ctx);
-#ifdef OPENSSL_FIPS
-	FIPS_allow_md5(1);
-#endif
 	EVP_DigestFinal_ex(&ctx,out,&ret);
-#ifdef OPENSSL_FIPS
-	FIPS_allow_md5(0);
-#endif
 	EVP_MD_CTX_cleanup(&ctx);
 	return((int)ret);
 	}
@@ -687,13 +687,7 @@ int tls1_final_finish_mac(SSL *s, EVP_MD_CTX *in1_ctx, EVP_MD_CTX *in2_ctx,
 
 	EVP_MD_CTX_init(&ctx);
 	EVP_MD_CTX_copy_ex(&ctx,in1_ctx);
-#ifdef OPENSSL_FIPS
-	FIPS_allow_md5(1);
-#endif
 	EVP_DigestFinal_ex(&ctx,q,&i);
-#ifdef OPENSSL_FIPS
-	FIPS_allow_md5(0);
-#endif
 	q+=i;
 	EVP_MD_CTX_copy_ex(&ctx,in2_ctx);
 	EVP_DigestFinal_ex(&ctx,q,&i);
@@ -760,10 +754,13 @@ printf("rec=");
 {unsigned int z; for (z=0; z<rec->length; z++) printf("%02X ",buf[z]); printf("\n"); }
 #endif
 
-	for (i=7; i>=0; i--)
-		{
-		++seq[i];
-		if (seq[i] != 0) break; 
+    if ( SSL_version(ssl) != DTLS1_VERSION)
+	    {
+		for (i=7; i>=0; i--)
+			{
+			++seq[i];
+			if (seq[i] != 0) break; 
+			}
 		}
 
 #ifdef TLS_DEBUG
@@ -826,6 +823,8 @@ int tls1_alert_code(int code)
 	case SSL_AD_INTERNAL_ERROR:	return(TLS1_AD_INTERNAL_ERROR);
 	case SSL_AD_USER_CANCELLED:	return(TLS1_AD_USER_CANCELLED);
 	case SSL_AD_NO_RENEGOTIATION:	return(TLS1_AD_NO_RENEGOTIATION);
+	case DTLS1_AD_MISSING_HANDSHAKE_MESSAGE: return 
+					  (DTLS1_AD_MISSING_HANDSHAKE_MESSAGE);
 	default:			return(-1);
 		}
 	}
