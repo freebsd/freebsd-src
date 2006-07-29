@@ -525,6 +525,9 @@ acpi_attach(device_t dev)
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "disable_on_reboot", CTLFLAG_RW,
 	&sc->acpi_do_disable, 0, "Disable ACPI when rebooting/halting system");
+    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "handle_reboot", CTLFLAG_RW,
+	&sc->acpi_handle_reboot, 0, "Use ACPI Reset Register to reboot");
 
     /*
      * Default to 1 second before sleeping to give some machines time to
@@ -1658,7 +1661,8 @@ acpi_shutdown_final(void *arg, int howto)
 	    DELAY(1000000);
 	    printf("ACPI power-off failed - timeout\n");
 	}
-    } else if ((howto & RB_HALT) == 0 && AcpiGbl_FADT->ResetRegSup) {
+    } else if ((howto & RB_HALT) == 0 && AcpiGbl_FADT->ResetRegSup &&
+	sc->acpi_handle_reboot) {
 	/* Reboot using the reset register. */
 	status = AcpiHwLowLevelWrite(
 	    AcpiGbl_FADT->ResetRegister.RegisterBitWidth,
