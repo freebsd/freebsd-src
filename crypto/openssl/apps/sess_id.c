@@ -69,7 +69,7 @@
 #undef PROG
 #define PROG	sess_id_main
 
-static char *sess_id_usage[]={
+static const char *sess_id_usage[]={
 "usage: sess_id args\n",
 "\n",
 " -inform arg     - input format - default PEM (DER or PEM)\n",
@@ -95,7 +95,7 @@ int MAIN(int argc, char **argv)
 	int informat,outformat;
 	char *infile=NULL,*outfile=NULL,*context=NULL;
 	int cert=0,noout=0,text=0;
-	char **pp;
+	const char **pp;
 
 	apps_startup();
 
@@ -241,7 +241,7 @@ bad:
 	if (!noout && !cert)
 		{
 		if 	(outformat == FORMAT_ASN1)
-			i=(int)i2d_SSL_SESSION_bio(out,x);
+			i=i2d_SSL_SESSION_bio(out,x);
 		else if (outformat == FORMAT_PEM)
 			i=PEM_write_bio_SSL_SESSION(out,x);
 		else	{

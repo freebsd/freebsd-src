@@ -53,10 +53,7 @@
  *
  */
 
-#include <openssl/crypto.h>
-#include "cryptlib.h"
 #include "eng_int.h"
-#include <openssl/engine.h>
 
 /* Initialise a engine type for use (or up its functional reference count
  * if it's already in use). This version is only used internally. */
@@ -114,7 +111,7 @@ int engine_unlocked_finish(ENGINE *e, int unlock_for_handlers)
 	/* Release the structural reference too */
 	if(!engine_free_util(e, 0))
 		{
-		ENGINEerr(ENGINE_F_ENGINE_FINISH,ENGINE_R_FINISH_FAILED);
+		ENGINEerr(ENGINE_F_ENGINE_UNLOCKED_FINISH,ENGINE_R_FINISH_FAILED);
 		return 0;
 		}
 	return to_return;

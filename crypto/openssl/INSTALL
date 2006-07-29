@@ -2,8 +2,10 @@
  INSTALLATION ON THE UNIX PLATFORM
  ---------------------------------
 
- [Installation on DOS (with djgpp), Windows, OpenVMS and MacOS (before MacOS X)
-  is described in INSTALL.DJGPP, INSTALL.W32, INSTALL.VMS and INSTALL.MacOS.
+ [Installation on DOS (with djgpp), Windows, OpenVMS, MacOS (before MacOS X)
+  and NetWare is described in INSTALL.DJGPP, INSTALL.W32, INSTALL.VMS,
+  INSTALL.MacOS and INSTALL.NW.
+  
   This document describes installation on operating systems in the Unix
   family.]
 
@@ -73,14 +75,30 @@
   no-asm        Do not use assembler code.
 
   386           Use the 80386 instruction set only (the default x86 code is
-                more efficient, but requires at least a 486).
+                more efficient, but requires at least a 486). Note: Use
+                compiler flags for any other CPU specific configuration,
+                e.g. "-m32" to build x86 code on an x64 system.
+
+  no-sse2	Exclude SSE2 code pathes. Normally SSE2 extention is
+		detected at run-time, but the decision whether or not the
+		machine code will be executed is taken solely on CPU
+		capability vector. This means that if you happen to run OS
+		kernel which does not support SSE2 extension on Intel P4
+		processor, then your application might be exposed to
+		"illegal instruction" exception. There might be a way
+		to enable support in kernel, e.g. FreeBSD kernel can be
+		compiled with CPU_ENABLE_SSE, and there is a way to
+		disengage SSE2 code pathes upon application start-up,
+		but if you aim for wider "audience" running such kernel,
+		consider no-sse2. Both 386 and no-asm options above imply
+		no-sse2.
 
   no-<cipher>   Build without the specified cipher (bf, cast, des, dh, dsa,
                 hmac, md2, md5, mdc2, rc2, rc4, rc5, rsa, sha).
                 The crypto/<cipher> directory can be removed after running
                 "make depend".
 
-  -Dxxx, -lxxx, -Lxxx, -fxxx, -Kxxx These system specific options will
+  -Dxxx, -lxxx, -Lxxx, -fxxx, -mxxx, -Kxxx These system specific options will
                 be passed through to the compiler to allow you to
                 define preprocessor symbols, specify additional libraries,
                 library directories or other compiler options.
@@ -123,7 +141,7 @@
      generic configurations "cc" or "gcc" should usually work on 32 bit
      systems.
 
-     Configure creates the file Makefile from Makefile.org and
+     Configure creates the file Makefile.ssl from Makefile.org and
      defines various macros in crypto/opensslconf.h (generated from
      crypto/opensslconf.h.in).
 
@@ -159,7 +177,7 @@
      the failure that isn't a problem in OpenSSL itself (like a missing
      or malfunctioning bc).  If it is a problem with OpenSSL itself,
      try removing any compiler optimization flags from the CFLAG line
-     in Makefile and run "make clean; make". Please send a bug
+     in Makefile.ssl and run "make clean; make". Please send a bug
      report to <openssl-bugs@openssl.org>, including the output of
      "make report" in order to be added to the request tracker at
      http://www.openssl.org/support/rt2.html.
@@ -312,7 +330,7 @@
  Note on support for multiple builds
  -----------------------------------
 
- OpenSSL is usually built in it's source tree.  Unfortunately, this doesn't
+ OpenSSL is usually built in its source tree.  Unfortunately, this doesn't
  support building for multiple platforms from the same source tree very well.
  It is however possible to build in a separate tree through the use of lots
  of symbolic links, which should be prepared like this:

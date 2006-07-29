@@ -56,17 +56,22 @@
  * [including the GNU Public Licence.]
  */
 
-#ifndef OPENSSL_NO_SHA
 #include <stdio.h>
 #include "cryptlib.h"
+
+#ifndef OPENSSL_NO_SHA
+
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 #include <openssl/x509.h>
+#ifndef OPENSSL_NO_DSA
+#include <openssl/dsa.h>
+#endif
 
 static int init(EVP_MD_CTX *ctx)
 	{ return SHA1_Init(ctx->md_data); }
 
-static int update(EVP_MD_CTX *ctx,const void *data,unsigned long count)
+static int update(EVP_MD_CTX *ctx,const void *data,size_t count)
 	{ return SHA1_Update(ctx->md_data,data,count); }
 
 static int final(EVP_MD_CTX *ctx,unsigned char *md)

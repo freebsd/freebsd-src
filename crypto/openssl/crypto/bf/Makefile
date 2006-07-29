@@ -1,5 +1,5 @@
 #
-# SSLeay/crypto/blowfish/Makefile
+# OpenSSL/crypto/blowfish/Makefile
 #
 
 DIR=	bf
@@ -8,11 +8,6 @@ CC=	cc
 CPP=	$(CC) -E
 INCLUDES=
 CFLAG=-g
-INSTALL_PREFIX=
-OPENSSLDIR=     /usr/local/ssl
-INSTALLTOP=/usr/local/ssl
-MAKEDEPPROG=	makedepend
-MAKEDEPEND=	$(TOP)/util/domd $(TOP) -MD $(MAKEDEPPROG)
 MAKEFILE=	Makefile
 AR=		ar r
 
@@ -22,6 +17,7 @@ BF_ENC=		bf_enc.o
 
 CFLAGS= $(INCLUDES) $(CFLAG)
 ASFLAGS= $(INCLUDES) $(ASFLAG)
+AFLAGS= $(ASFLAGS)
 
 GENERAL=Makefile
 TEST=bftest.c
@@ -48,20 +44,15 @@ lib:	$(LIBOBJ)
 	$(RANLIB) $(LIB) || echo Never mind.
 	@touch lib
 
-# elf
-asm/bx86-elf.s: asm/bf-586.pl ../perlasm/x86asm.pl ../perlasm/cbc.pl
-	(cd asm; $(PERL) bf-586.pl elf $(CFLAGS) $(PROCESSOR) > bx86-elf.s)
-
+# ELF
+bx86-elf.s: asm/bf-586.pl ../perlasm/x86asm.pl ../perlasm/cbc.pl
+	(cd asm; $(PERL) bf-586.pl elf $(CFLAGS) $(PROCESSOR) > ../$@)
+# COFF
+bx86-cof.s: asm/bf-586.pl ../perlasm/x86asm.pl ../perlasm/cbc.pl
+	(cd asm; $(PERL) bf-586.pl coff $(CFLAGS) $(PROCESSOR) > ../$@)
 # a.out
-asm/bx86-out.o: asm/bx86unix.cpp
-	$(CPP) -DOUT asm/bx86unix.cpp | as -o asm/bx86-out.o
-
-# bsdi
-asm/bx86bsdi.o: asm/bx86unix.cpp
-	$(CPP) -DBSDI asm/bx86unix.cpp | sed 's/ :/:/' | as -o asm/bx86bsdi.o
-
-asm/bx86unix.cpp: asm/bf-586.pl ../perlasm/x86asm.pl ../perlasm/cbc.pl
-	(cd asm; $(PERL) bf-586.pl cpp $(PROCESSOR) >bx86unix.cpp)
+bx86-out.s: asm/bf-586.pl ../perlasm/x86asm.pl ../perlasm/cbc.pl
+	(cd asm; $(PERL) bf-586.pl a.out $(CFLAGS) $(PROCESSOR) > ../$@)
 
 files:
 	$(PERL) $(TOP)/util/files.pl Makefile >> $(TOP)/MINFO
@@ -71,10 +62,12 @@ links:
 	@$(PERL) $(TOP)/util/mklink.pl ../../test $(TEST)
 	@$(PERL) $(TOP)/util/mklink.pl ../../apps $(APPS)
 
-install: installs
-
-installs:
-	@for i in $(EXHEADER) ; \
+# We need to use force because 'install' matches 'INSTALL' on case
+# insensitive systems
+FRC.install:
+install: FRC.install
+	@[ -n "$(INSTALLTOP)" ] # should be set by top Makefile...
+	@headerlist="$(EXHEADER)"; for i in $$headerlist ; \
 	do  \
 	(cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/include/openssl/$$i; \
 	chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/include/openssl/$$i ); \
@@ -89,6 +82,7 @@ lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
 
 depend:
+	@[ -n "$(MAKEDEPEND)" ] # should be set by upper Makefile...
 	$(MAKEDEPEND) -- $(CFLAG) $(INCLUDES) $(DEPFLAG) -- $(PROGS) $(LIBSRC)
 
 dclean:
@@ -96,7 +90,7 @@ dclean:
 	mv -f Makefile.new $(MAKEFILE)
 
 clean:
-	rm -f asm/bx86unix.cpp asm/*-elf.* *.o asm/*.o *.obj lib tags core .pure .nfs* *.old *.bak fluff
+	rm -f *.s *.o *.obj lib tags core .pure .nfs* *.old *.bak fluff
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 

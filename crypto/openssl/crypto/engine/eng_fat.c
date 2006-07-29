@@ -52,11 +52,13 @@
  * Hudson (tjh@cryptsoft.com).
  *
  */
+/* ====================================================================
+ * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
+ * ECDH support in OpenSSL originally developed by 
+ * SUN MICROSYSTEMS, INC., and contributed to the OpenSSL project.
+ */
 
-#include <openssl/crypto.h>
-#include "cryptlib.h"
 #include "eng_int.h"
-#include <openssl/engine.h>
 #include <openssl/conf.h>
 
 int ENGINE_set_default(ENGINE *e, unsigned int flags)
@@ -77,6 +79,14 @@ int ENGINE_set_default(ENGINE *e, unsigned int flags)
 	if((flags & ENGINE_METHOD_DH) && !ENGINE_set_default_DH(e))
 		return 0;
 #endif
+#ifndef OPENSSL_NO_ECDH
+	if((flags & ENGINE_METHOD_ECDH) && !ENGINE_set_default_ECDH(e))
+		return 0;
+#endif
+#ifndef OPENSSL_NO_ECDSA
+	if((flags & ENGINE_METHOD_ECDSA) && !ENGINE_set_default_ECDSA(e))
+		return 0;
+#endif
 	if((flags & ENGINE_METHOD_RAND) && !ENGINE_set_default_RAND(e))
 		return 0;
 	return 1;
@@ -93,6 +103,10 @@ static int int_def_cb(const char *alg, int len, void *arg)
 		*pflags |= ENGINE_METHOD_RSA;
 	else if (!strncmp(alg, "DSA", len))
 		*pflags |= ENGINE_METHOD_DSA;
+	else if (!strncmp(alg, "ECDH", len))
+		*pflags |= ENGINE_METHOD_ECDH;
+	else if (!strncmp(alg, "ECDSA", len))
+		*pflags |= ENGINE_METHOD_ECDSA;
 	else if (!strncmp(alg, "DH", len))
 		*pflags |= ENGINE_METHOD_DH;
 	else if (!strncmp(alg, "RAND", len))
@@ -132,6 +146,12 @@ int ENGINE_register_complete(ENGINE *e)
 #endif
 #ifndef OPENSSL_NO_DH
 	ENGINE_register_DH(e);
+#endif
+#ifndef OPENSSL_NO_ECDH
+	ENGINE_register_ECDH(e);
+#endif
+#ifndef OPENSSL_NO_ECDSA
+	ENGINE_register_ECDSA(e);
 #endif
 	ENGINE_register_RAND(e);
 	return 1;

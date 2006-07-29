@@ -2,6 +2,1058 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 0.9.8a and 0.9.8b  [04 May 2006]
+
+  *) When applying a cipher rule check to see if string match is an explicit
+     cipher suite and only match that one cipher suite if it is.
+     [Steve Henson]
+
+  *) Link in manifests for VC++ if needed.
+     [Austin Ziegler <halostatue@gmail.com>]
+
+  *) Update support for ECC-based TLS ciphersuites according to
+     draft-ietf-tls-ecc-12.txt with proposed changes (but without
+     TLS extensions, which are supported starting with the 0.9.9
+     branch, not in the OpenSSL 0.9.8 branch).
+     [Douglas Stebila]
+
+  *) New functions EVP_CIPHER_CTX_new() and EVP_CIPHER_CTX_free() to support
+     opaque EVP_CIPHER_CTX handling.
+     [Steve Henson]
+
+  *) Fixes and enhancements to zlib compression code. We now only use
+     "zlib1.dll" and use the default __cdecl calling convention on Win32
+     to conform with the standards mentioned here:
+           http://www.zlib.net/DLL_FAQ.txt
+     Static zlib linking now works on Windows and the new --with-zlib-include
+     --with-zlib-lib options to Configure can be used to supply the location
+     of the headers and library. Gracefully handle case where zlib library
+     can't be loaded.
+     [Steve Henson]
+
+  *) Several fixes and enhancements to the OID generation code. The old code
+     sometimes allowed invalid OIDs (1.X for X >= 40 for example), couldn't
+     handle numbers larger than ULONG_MAX, truncated printing and had a
+     non standard OBJ_obj2txt() behaviour.
+     [Steve Henson]
+
+  *) Add support for building of engines under engine/ as shared libraries
+     under VC++ build system.
+     [Steve Henson]
+
+  *) Corrected the numerous bugs in the Win32 path splitter in DSO.
+     Hopefully, we will not see any false combination of paths any more.
+     [Richard Levitte]
+
+ Changes between 0.9.8 and 0.9.8a  [11 Oct 2005]
+
+  *) Remove the functionality of SSL_OP_MSIE_SSLV2_RSA_PADDING
+     (part of SSL_OP_ALL).  This option used to disable the
+     countermeasure against man-in-the-middle protocol-version
+     rollback in the SSL 2.0 server implementation, which is a bad
+     idea.  (CVE-2005-2969)
+
+     [Bodo Moeller; problem pointed out by Yutaka Oiwa (Research Center
+     for Information Security, National Institute of Advanced Industrial
+     Science and Technology [AIST], Japan)]
+
+  *) Add two function to clear and return the verify parameter flags.
+     [Steve Henson]
+
+  *) Keep cipherlists sorted in the source instead of sorting them at
+     runtime, thus removing the need for a lock.
+     [Nils Larsch]
+
+  *) Avoid some small subgroup attacks in Diffie-Hellman.
+     [Nick Mathewson and Ben Laurie]
+
+  *) Add functions for well-known primes.
+     [Nick Mathewson]
+
+  *) Extended Windows CE support.
+     [Satoshi Nakamura and Andy Polyakov]
+
+  *) Initialize SSL_METHOD structures at compile time instead of during
+     runtime, thus removing the need for a lock.
+     [Steve Henson]
+
+  *) Make PKCS7_decrypt() work even if no certificate is supplied by
+     attempting to decrypt each encrypted key in turn. Add support to
+     smime utility.
+     [Steve Henson]
+
+ Changes between 0.9.7h and 0.9.8  [05 Jul 2005]
+
+  *) Add libcrypto.pc and libssl.pc for those who feel they need them.
+     [Richard Levitte]
+
+  *) Change CA.sh and CA.pl so they don't bundle the CSR and the private
+     key into the same file any more.
+     [Richard Levitte]
+
+  *) Add initial support for Win64, both IA64 and AMD64/x64 flavors.
+     [Andy Polyakov]
+
+  *) Add -utf8 command line and config file option to 'ca'.
+     [Stefan <stf@udoma.org]
+
+  *) Removed the macro des_crypt(), as it seems to conflict with some
+     libraries.  Use DES_crypt().
+     [Richard Levitte]
+
+  *) Correct naming of the 'chil' and '4758cca' ENGINEs. This
+     involves renaming the source and generated shared-libs for
+     both. The engines will accept the corrected or legacy ids
+     ('ncipher' and '4758_cca' respectively) when binding. NB,
+     this only applies when building 'shared'.
+     [Corinna Vinschen <vinschen@redhat.com> and Geoff Thorpe]
+
+  *) Add attribute functions to EVP_PKEY structure. Modify
+     PKCS12_create() to recognize a CSP name attribute and
+     use it. Make -CSP option work again in pkcs12 utility.
+     [Steve Henson]
+
+  *) Add new functionality to the bn blinding code:
+     - automatic re-creation of the BN_BLINDING parameters after
+       a fixed number of uses (currently 32)
+     - add new function for parameter creation
+     - introduce flags to control the update behaviour of the
+       BN_BLINDING parameters
+     - hide BN_BLINDING structure
+     Add a second BN_BLINDING slot to the RSA structure to improve
+     performance when a single RSA object is shared among several
+     threads.
+     [Nils Larsch]
+
+  *) Add support for DTLS.
+     [Nagendra Modadugu <nagendra@cs.stanford.edu> and Ben Laurie]
+
+  *) Add support for DER encoded private keys (SSL_FILETYPE_ASN1)
+     to SSL_CTX_use_PrivateKey_file() and SSL_use_PrivateKey_file()
+     [Walter Goulet]
+
+  *) Remove buggy and incompletet DH cert support from
+     ssl/ssl_rsa.c and ssl/s3_both.c
+     [Nils Larsch]
+
+  *) Use SHA-1 instead of MD5 as the default digest algorithm for
+     the apps/openssl applications.
+     [Nils Larsch]
+
+  *) Compile clean with "-Wall -Wmissing-prototypes
+     -Wstrict-prototypes -Wmissing-declarations -Werror". Currently
+     DEBUG_SAFESTACK must also be set.
+     [Ben Laurie]
+
+  *) Change ./Configure so that certain algorithms can be disabled by default.
+     The new counterpiece to "no-xxx" is "enable-xxx".
+
+     The patented RC5 and MDC2 algorithms will now be disabled unless
+     "enable-rc5" and "enable-mdc2", respectively, are specified.
+
+     (IDEA remains enabled despite being patented.  This is because IDEA
+     is frequently required for interoperability, and there is no license
+     fee for non-commercial use.  As before, "no-idea" can be used to
+     avoid this algorithm.)
+
+     [Bodo Moeller]
+
+  *) Add processing of proxy certificates (see RFC 3820).  This work was
+     sponsored by KTH (The Royal Institute of Technology in Stockholm) and
+     EGEE (Enabling Grids for E-science in Europe).
+     [Richard Levitte]
+
+  *) RC4 performance overhaul on modern architectures/implementations, such
+     as Intel P4, IA-64 and AMD64.
+     [Andy Polyakov]
+
+  *) New utility extract-section.pl. This can be used specify an alternative
+     section number in a pod file instead of having to treat each file as
+     a separate case in Makefile. This can be done by adding two lines to the
+     pod file:
+
+     =for comment openssl_section:XXX
+
+     The blank line is mandatory.
+
+     [Steve Henson]
+
+  *) New arguments -certform, -keyform and -pass for s_client and s_server
+     to allow alternative format key and certificate files and passphrase
+     sources.
+     [Steve Henson]
+
+  *) New structure X509_VERIFY_PARAM which combines current verify parameters,
+     update associated structures and add various utility functions.
+
+     Add new policy related verify parameters, include policy checking in 
+     standard verify code. Enhance 'smime' application with extra parameters
+     to support policy checking and print out.
+     [Steve Henson]
+
+  *) Add a new engine to support VIA PadLock ACE extensions in the VIA C3
+     Nehemiah processors. These extensions support AES encryption in hardware
+     as well as RNG (though RNG support is currently disabled).
+     [Michal Ludvig <michal@logix.cz>, with help from Andy Polyakov]
+
+  *) Deprecate BN_[get|set]_params() functions (they were ignored internally).
+     [Geoff Thorpe]
+
+  *) New FIPS 180-2 algorithms, SHA-224/-256/-384/-512 are implemented.
+     [Andy Polyakov and a number of other people]
+
+  *) Improved PowerPC platform support. Most notably BIGNUM assembler
+     implementation contributed by IBM.
+     [Suresh Chari, Peter Waltenberg, Andy Polyakov]
+
+  *) The new 'RSA_generate_key_ex' function now takes a BIGNUM for the public
+     exponent rather than 'unsigned long'. There is a corresponding change to
+     the new 'rsa_keygen' element of the RSA_METHOD structure.
+     [Jelte Jansen, Geoff Thorpe]
+
+  *) Functionality for creating the initial serial number file is now
+     moved from CA.pl to the 'ca' utility with a new option -create_serial.
+
+     (Before OpenSSL 0.9.7e, CA.pl used to initialize the serial
+     number file to 1, which is bound to cause problems.  To avoid
+     the problems while respecting compatibility between different 0.9.7
+     patchlevels, 0.9.7e  employed 'openssl x509 -next_serial' in
+     CA.pl for serial number initialization.  With the new release 0.9.8,
+     we can fix the problem directly in the 'ca' utility.)
+     [Steve Henson]
+
+  *) Reduced header interdepencies by declaring more opaque objects in
+     ossl_typ.h. As a consequence, including some headers (eg. engine.h) will
+     give fewer recursive includes, which could break lazy source code - so
+     this change is covered by the OPENSSL_NO_DEPRECATED symbol. As always,
+     developers should define this symbol when building and using openssl to
+     ensure they track the recommended behaviour, interfaces, [etc], but
+     backwards-compatible behaviour prevails when this isn't defined.
+     [Geoff Thorpe]
+
+  *) New function X509_POLICY_NODE_print() which prints out policy nodes.
+     [Steve Henson]
+
+  *) Add new EVP function EVP_CIPHER_CTX_rand_key and associated functionality.
+     This will generate a random key of the appropriate length based on the 
+     cipher context. The EVP_CIPHER can provide its own random key generation
+     routine to support keys of a specific form. This is used in the des and 
+     3des routines to generate a key of the correct parity. Update S/MIME
+     code to use new functions and hence generate correct parity DES keys.
+     Add EVP_CHECK_DES_KEY #define to return an error if the key is not 
+     valid (weak or incorrect parity).
+     [Steve Henson]
+
+  *) Add a local set of CRLs that can be used by X509_verify_cert() as well
+     as looking them up. This is useful when the verified structure may contain
+     CRLs, for example PKCS#7 signedData. Modify PKCS7_verify() to use any CRLs
+     present unless the new PKCS7_NO_CRL flag is asserted.
+     [Steve Henson]
+
+  *) Extend ASN1 oid configuration module. It now additionally accepts the
+     syntax:
+
+     shortName = some long name, 1.2.3.4
+     [Steve Henson]
+
+  *) Reimplemented the BN_CTX implementation. There is now no more static
+     limitation on the number of variables it can handle nor the depth of the
+     "stack" handling for BN_CTX_start()/BN_CTX_end() pairs. The stack
+     information can now expand as required, and rather than having a single
+     static array of bignums, BN_CTX now uses a linked-list of such arrays
+     allowing it to expand on demand whilst maintaining the usefulness of
+     BN_CTX's "bundling".
+     [Geoff Thorpe]
+
+  *) Add a missing BN_CTX parameter to the 'rsa_mod_exp' callback in RSA_METHOD
+     to allow all RSA operations to function using a single BN_CTX.
+     [Geoff Thorpe]
+
+  *) Preliminary support for certificate policy evaluation and checking. This
+     is initially intended to pass the tests outlined in "Conformance Testing
+     of Relying Party Client Certificate Path Processing Logic" v1.07.
+     [Steve Henson]
+
+  *) bn_dup_expand() has been deprecated, it was introduced in 0.9.7 and
+     remained unused and not that useful. A variety of other little bignum
+     tweaks and fixes have also been made continuing on from the audit (see
+     below).
+     [Geoff Thorpe]
+
+  *) Constify all or almost all d2i, c2i, s2i and r2i functions, along with
+     associated ASN1, EVP and SSL functions and old ASN1 macros.
+     [Richard Levitte]
+
+  *) BN_zero() only needs to set 'top' and 'neg' to zero for correct results,
+     and this should never fail. So the return value from the use of
+     BN_set_word() (which can fail due to needless expansion) is now deprecated;
+     if OPENSSL_NO_DEPRECATED is defined, BN_zero() is a void macro.
+     [Geoff Thorpe]
+
+  *) BN_CTX_get() should return zero-valued bignums, providing the same
+     initialised value as BN_new().
+     [Geoff Thorpe, suggested by Ulf Möller]
+
+  *) Support for inhibitAnyPolicy certificate extension.
+     [Steve Henson]
+
+  *) An audit of the BIGNUM code is underway, for which debugging code is
+     enabled when BN_DEBUG is defined. This makes stricter enforcements on what
+     is considered valid when processing BIGNUMs, and causes execution to
+     assert() when a problem is discovered. If BN_DEBUG_RAND is defined,
+     further steps are taken to deliberately pollute unused data in BIGNUM
+     structures to try and expose faulty code further on. For now, openssl will
+     (in its default mode of operation) continue to tolerate the inconsistent
+     forms that it has tolerated in the past, but authors and packagers should
+     consider trying openssl and their own applications when compiled with
+     these debugging symbols defined. It will help highlight potential bugs in
+     their own code, and will improve the test coverage for OpenSSL itself. At
+     some point, these tighter rules will become openssl's default to improve
+     maintainability, though the assert()s and other overheads will remain only
+     in debugging configurations. See bn.h for more details.
+     [Geoff Thorpe, Nils Larsch, Ulf Möller]
+
+  *) BN_CTX_init() has been deprecated, as BN_CTX is an opaque structure
+     that can only be obtained through BN_CTX_new() (which implicitly
+     initialises it). The presence of this function only made it possible
+     to overwrite an existing structure (and cause memory leaks).
+     [Geoff Thorpe]
+
+  *) Because of the callback-based approach for implementing LHASH as a
+     template type, lh_insert() adds opaque objects to hash-tables and
+     lh_doall() or lh_doall_arg() are typically used with a destructor callback
+     to clean up those corresponding objects before destroying the hash table
+     (and losing the object pointers). So some over-zealous constifications in
+     LHASH have been relaxed so that lh_insert() does not take (nor store) the
+     objects as "const" and the lh_doall[_arg] callback wrappers are not
+     prototyped to have "const" restrictions on the object pointers they are
+     given (and so aren't required to cast them away any more).
+     [Geoff Thorpe]
+
+  *) The tmdiff.h API was so ugly and minimal that our own timing utility
+     (speed) prefers to use its own implementation. The two implementations
+     haven't been consolidated as yet (volunteers?) but the tmdiff API has had
+     its object type properly exposed (MS_TM) instead of casting to/from "char
+     *". This may still change yet if someone realises MS_TM and "ms_time_***"
+     aren't necessarily the greatest nomenclatures - but this is what was used
+     internally to the implementation so I've used that for now.
+     [Geoff Thorpe]
+
+  *) Ensure that deprecated functions do not get compiled when
+     OPENSSL_NO_DEPRECATED is defined. Some "openssl" subcommands and a few of
+     the self-tests were still using deprecated key-generation functions so
+     these have been updated also.
+     [Geoff Thorpe]
+
+  *) Reorganise PKCS#7 code to separate the digest location functionality
+     into PKCS7_find_digest(), digest addtion into PKCS7_bio_add_digest().
+     New function PKCS7_set_digest() to set the digest type for PKCS#7
+     digestedData type. Add additional code to correctly generate the
+     digestedData type and add support for this type in PKCS7 initialization
+     functions.
+     [Steve Henson]
+
+  *) New function PKCS7_set0_type_other() this initializes a PKCS7 
+     structure of type "other".
+     [Steve Henson]
+
+  *) Fix prime generation loop in crypto/bn/bn_prime.pl by making
+     sure the loop does correctly stop and breaking ("division by zero")
+     modulus operations are not performed. The (pre-generated) prime
+     table crypto/bn/bn_prime.h was already correct, but it could not be
+     re-generated on some platforms because of the "division by zero"
+     situation in the script.
+     [Ralf S. Engelschall]
+
+  *) Update support for ECC-based TLS ciphersuites according to
+     draft-ietf-tls-ecc-03.txt: the KDF1 key derivation function with
+     SHA-1 now is only used for "small" curves (where the
+     representation of a field element takes up to 24 bytes); for
+     larger curves, the field element resulting from ECDH is directly
+     used as premaster secret.
+     [Douglas Stebila (Sun Microsystems Laboratories)]
+
+  *) Add code for kP+lQ timings to crypto/ec/ectest.c, and add SEC2
+     curve secp160r1 to the tests.
+     [Douglas Stebila (Sun Microsystems Laboratories)]
+
+  *) Add the possibility to load symbols globally with DSO.
+     [Götz Babin-Ebell <babin-ebell@trustcenter.de> via Richard Levitte]
+
+  *) Add the functions ERR_set_mark() and ERR_pop_to_mark() for better
+     control of the error stack.
+     [Richard Levitte]
+
+  *) Add support for STORE in ENGINE.
+     [Richard Levitte]
+
+  *) Add the STORE type.  The intention is to provide a common interface
+     to certificate and key stores, be they simple file-based stores, or
+     HSM-type store, or LDAP stores, or...
+     NOTE: The code is currently UNTESTED and isn't really used anywhere.
+     [Richard Levitte]
+
+  *) Add a generic structure called OPENSSL_ITEM.  This can be used to
+     pass a list of arguments to any function as well as provide a way
+     for a function to pass data back to the caller.
+     [Richard Levitte]
+
+  *) Add the functions BUF_strndup() and BUF_memdup().  BUF_strndup()
+     works like BUF_strdup() but can be used to duplicate a portion of
+     a string.  The copy gets NUL-terminated.  BUF_memdup() duplicates
+     a memory area.
+     [Richard Levitte]
+
+  *) Add the function sk_find_ex() which works like sk_find(), but will
+     return an index to an element even if an exact match couldn't be
+     found.  The index is guaranteed to point at the element where the
+     searched-for key would be inserted to preserve sorting order.
+     [Richard Levitte]
+
+  *) Add the function OBJ_bsearch_ex() which works like OBJ_bsearch() but
+     takes an extra flags argument for optional functionality.  Currently,
+     the following flags are defined:
+
+	OBJ_BSEARCH_VALUE_ON_NOMATCH
+	This one gets OBJ_bsearch_ex() to return a pointer to the first
+	element where the comparing function returns a negative or zero
+	number.
+
+	OBJ_BSEARCH_FIRST_VALUE_ON_MATCH
+	This one gets OBJ_bsearch_ex() to return a pointer to the first
+	element where the comparing function returns zero.  This is useful
+	if there are more than one element where the comparing function
+	returns zero.
+     [Richard Levitte]
+
+  *) Make it possible to create self-signed certificates with 'openssl ca'
+     in such a way that the self-signed certificate becomes part of the
+     CA database and uses the same mechanisms for serial number generation
+     as all other certificate signing.  The new flag '-selfsign' enables
+     this functionality.  Adapt CA.sh and CA.pl.in.
+     [Richard Levitte]
+
+  *) Add functionality to check the public key of a certificate request
+     against a given private.  This is useful to check that a certificate
+     request can be signed by that key (self-signing).
+     [Richard Levitte]
+
+  *) Make it possible to have multiple active certificates with the same
+     subject in the CA index file.  This is done only if the keyword
+     'unique_subject' is set to 'no' in the main CA section (default
+     if 'CA_default') of the configuration file.  The value is saved
+     with the database itself in a separate index attribute file,
+     named like the index file with '.attr' appended to the name.
+     [Richard Levitte]
+
+  *) Generate muti valued AVAs using '+' notation in config files for
+     req and dirName.
+     [Steve Henson]
+
+  *) Support for nameConstraints certificate extension.
+     [Steve Henson]
+
+  *) Support for policyConstraints certificate extension.
+     [Steve Henson]
+
+  *) Support for policyMappings certificate extension.
+     [Steve Henson]
+
+  *) Make sure the default DSA_METHOD implementation only uses its
+     dsa_mod_exp() and/or bn_mod_exp() handlers if they are non-NULL,
+     and change its own handlers to be NULL so as to remove unnecessary
+     indirection. This lets alternative implementations fallback to the
+     default implementation more easily.
+     [Geoff Thorpe]
+
+  *) Support for directoryName in GeneralName related extensions
+     in config files.
+     [Steve Henson]
+
+  *) Make it possible to link applications using Makefile.shared.
+     Make that possible even when linking against static libraries!
+     [Richard Levitte]
+
+  *) Support for single pass processing for S/MIME signing. This now
+     means that S/MIME signing can be done from a pipe, in addition
+     cleartext signing (multipart/signed type) is effectively streaming
+     and the signed data does not need to be all held in memory.
+
+     This is done with a new flag PKCS7_STREAM. When this flag is set
+     PKCS7_sign() only initializes the PKCS7 structure and the actual signing
+     is done after the data is output (and digests calculated) in
+     SMIME_write_PKCS7().
+     [Steve Henson]
+
+  *) Add full support for -rpath/-R, both in shared libraries and
+     applications, at least on the platforms where it's known how
+     to do it.
+     [Richard Levitte]
+
+  *) In crypto/ec/ec_mult.c, implement fast point multiplication with
+     precomputation, based on wNAF splitting: EC_GROUP_precompute_mult()
+     will now compute a table of multiples of the generator that
+     makes subsequent invocations of EC_POINTs_mul() or EC_POINT_mul()
+     faster (notably in the case of a single point multiplication,
+     scalar * generator).
+     [Nils Larsch, Bodo Moeller]
+
+  *) IPv6 support for certificate extensions. The various extensions
+     which use the IP:a.b.c.d can now take IPv6 addresses using the
+     formats of RFC1884 2.2 . IPv6 addresses are now also displayed
+     correctly.
+     [Steve Henson]
+
+  *) Added an ENGINE that implements RSA by performing private key
+     exponentiations with the GMP library. The conversions to and from
+     GMP's mpz_t format aren't optimised nor are any montgomery forms
+     cached, and on x86 it appears OpenSSL's own performance has caught up.
+     However there are likely to be other architectures where GMP could
+     provide a boost. This ENGINE is not built in by default, but it can be
+     specified at Configure time and should be accompanied by the necessary
+     linker additions, eg;
+         ./config -DOPENSSL_USE_GMP -lgmp
+     [Geoff Thorpe]
+
+  *) "openssl engine" will not display ENGINE/DSO load failure errors when
+     testing availability of engines with "-t" - the old behaviour is
+     produced by increasing the feature's verbosity with "-tt".
+     [Geoff Thorpe]
+
+  *) ECDSA routines: under certain error conditions uninitialized BN objects
+     could be freed. Solution: make sure initialization is performed early
+     enough. (Reported and fix supplied by Nils Larsch <nla@trustcenter.de>
+     via PR#459)
+     [Lutz Jaenicke]
+
+  *) Key-generation can now be implemented in RSA_METHOD, DSA_METHOD
+     and DH_METHOD (eg. by ENGINE implementations) to override the normal
+     software implementations. For DSA and DH, parameter generation can
+     also be overriden by providing the appropriate method callbacks.
+     [Geoff Thorpe]
+
+  *) Change the "progress" mechanism used in key-generation and
+     primality testing to functions that take a new BN_GENCB pointer in
+     place of callback/argument pairs. The new API functions have "_ex"
+     postfixes and the older functions are reimplemented as wrappers for
+     the new ones. The OPENSSL_NO_DEPRECATED symbol can be used to hide
+     declarations of the old functions to help (graceful) attempts to
+     migrate to the new functions. Also, the new key-generation API
+     functions operate on a caller-supplied key-structure and return
+     success/failure rather than returning a key or NULL - this is to
+     help make "keygen" another member function of RSA_METHOD etc.
+
+     Example for using the new callback interface:
+
+          int (*my_callback)(int a, int b, BN_GENCB *cb) = ...;
+          void *my_arg = ...;
+          BN_GENCB my_cb;
+
+          BN_GENCB_set(&my_cb, my_callback, my_arg);
+
+          return BN_is_prime_ex(some_bignum, BN_prime_checks, NULL, &cb);
+          /* For the meaning of a, b in calls to my_callback(), see the
+           * documentation of the function that calls the callback.
+           * cb will point to my_cb; my_arg can be retrieved as cb->arg.
+           * my_callback should return 1 if it wants BN_is_prime_ex()
+           * to continue, or 0 to stop.
+           */
+
+     [Geoff Thorpe]
+
+  *) Change the ZLIB compression method to be stateful, and make it
+     available to TLS with the number defined in 
+     draft-ietf-tls-compression-04.txt.
+     [Richard Levitte]
+
+  *) Add the ASN.1 structures and functions for CertificatePair, which
+     is defined as follows (according to X.509_4thEditionDraftV6.pdf):
+
+     CertificatePair ::= SEQUENCE {
+        forward		[0]	Certificate OPTIONAL,
+        reverse		[1]	Certificate OPTIONAL,
+        -- at least one of the pair shall be present -- }
+
+     Also implement the PEM functions to read and write certificate
+     pairs, and defined the PEM tag as "CERTIFICATE PAIR".
+
+     This needed to be defined, mostly for the sake of the LDAP
+     attribute crossCertificatePair, but may prove useful elsewhere as
+     well.
+     [Richard Levitte]
+
+  *) Make it possible to inhibit symlinking of shared libraries in
+     Makefile.shared, for Cygwin's sake.
+     [Richard Levitte]
+
+  *) Extend the BIGNUM API by creating a function 
+          void BN_set_negative(BIGNUM *a, int neg);
+     and a macro that behave like
+          int  BN_is_negative(const BIGNUM *a);
+
+     to avoid the need to access 'a->neg' directly in applications.
+     [Nils Larsch]
+
+  *) Implement fast modular reduction for pseudo-Mersenne primes
+     used in NIST curves (crypto/bn/bn_nist.c, crypto/ec/ecp_nist.c).
+     EC_GROUP_new_curve_GFp() will now automatically use this
+     if applicable.
+     [Nils Larsch <nla@trustcenter.de>]
+
+  *) Add new lock type (CRYPTO_LOCK_BN).
+     [Bodo Moeller]
+
+  *) Change the ENGINE framework to automatically load engines
+     dynamically from specific directories unless they could be
+     found to already be built in or loaded.  Move all the
+     current engines except for the cryptodev one to a new
+     directory engines/.
+     The engines in engines/ are built as shared libraries if
+     the "shared" options was given to ./Configure or ./config.
+     Otherwise, they are inserted in libcrypto.a.
+     /usr/local/ssl/engines is the default directory for dynamic
+     engines, but that can be overriden at configure time through
+     the usual use of --prefix and/or --openssldir, and at run
+     time with the environment variable OPENSSL_ENGINES.
+     [Geoff Thorpe and Richard Levitte]
+
+  *) Add Makefile.shared, a helper makefile to build shared
+     libraries.  Addapt Makefile.org.
+     [Richard Levitte]
+
+  *) Add version info to Win32 DLLs.
+     [Peter 'Luna' Runestig" <peter@runestig.com>]
+
+  *) Add new 'medium level' PKCS#12 API. Certificates and keys
+     can be added using this API to created arbitrary PKCS#12
+     files while avoiding the low level API.
+
+     New options to PKCS12_create(), key or cert can be NULL and
+     will then be omitted from the output file. The encryption
+     algorithm NIDs can be set to -1 for no encryption, the mac
+     iteration count can be set to 0 to omit the mac.
+
+     Enhance pkcs12 utility by making the -nokeys and -nocerts
+     options work when creating a PKCS#12 file. New option -nomac
+     to omit the mac, NONE can be set for an encryption algorithm.
+     New code is modified to use the enhanced PKCS12_create()
+     instead of the low level API.
+     [Steve Henson]
+
+  *) Extend ASN1 encoder to support indefinite length constructed
+     encoding. This can output sequences tags and octet strings in
+     this form. Modify pk7_asn1.c to support indefinite length
+     encoding. This is experimental and needs additional code to
+     be useful, such as an ASN1 bio and some enhanced streaming
+     PKCS#7 code.
+
+     Extend template encode functionality so that tagging is passed
+     down to the template encoder.
+     [Steve Henson]
+
+  *) Let 'openssl req' fail if an argument to '-newkey' is not
+     recognized instead of using RSA as a default.
+     [Bodo Moeller]
+
+  *) Add support for ECC-based ciphersuites from draft-ietf-tls-ecc-01.txt.
+     As these are not official, they are not included in "ALL";
+     the "ECCdraft" ciphersuite group alias can be used to select them.
+     [Vipul Gupta and Sumit Gupta (Sun Microsystems Laboratories)]
+
+  *) Add ECDH engine support.
+     [Nils Gura and Douglas Stebila (Sun Microsystems Laboratories)]
+
+  *) Add ECDH in new directory crypto/ecdh/.
+     [Douglas Stebila (Sun Microsystems Laboratories)]
+
+  *) Let BN_rand_range() abort with an error after 100 iterations
+     without success (which indicates a broken PRNG).
+     [Bodo Moeller]
+
+  *) Change BN_mod_sqrt() so that it verifies that the input value
+     is really the square of the return value.  (Previously,
+     BN_mod_sqrt would show GIGO behaviour.)
+     [Bodo Moeller]
+
+  *) Add named elliptic curves over binary fields from X9.62, SECG,
+     and WAP/WTLS; add OIDs that were still missing.
+
+     [Sheueling Chang Shantz and Douglas Stebila
+     (Sun Microsystems Laboratories)]
+
+  *) Extend the EC library for elliptic curves over binary fields
+     (new files ec2_smpl.c, ec2_smpt.c, ec2_mult.c in crypto/ec/).
+     New EC_METHOD:
+
+          EC_GF2m_simple_method
+
+     New API functions:
+
+          EC_GROUP_new_curve_GF2m
+          EC_GROUP_set_curve_GF2m
+          EC_GROUP_get_curve_GF2m
+          EC_POINT_set_affine_coordinates_GF2m
+          EC_POINT_get_affine_coordinates_GF2m
+          EC_POINT_set_compressed_coordinates_GF2m
+
+     Point compression for binary fields is disabled by default for
+     patent reasons (compile with OPENSSL_EC_BIN_PT_COMP defined to
+     enable it).
+
+     As binary polynomials are represented as BIGNUMs, various members
+     of the EC_GROUP and EC_POINT data structures can be shared
+     between the implementations for prime fields and binary fields;
+     the above ..._GF2m functions (except for EX_GROUP_new_curve_GF2m)
+     are essentially identical to their ..._GFp counterparts.
+     (For simplicity, the '..._GFp' prefix has been dropped from
+     various internal method names.)
+
+     An internal 'field_div' method (similar to 'field_mul' and
+     'field_sqr') has been added; this is used only for binary fields.
+
+     [Sheueling Chang Shantz and Douglas Stebila
+     (Sun Microsystems Laboratories)]
+
+  *) Optionally dispatch EC_POINT_mul(), EC_POINT_precompute_mult()
+     through methods ('mul', 'precompute_mult').
+
+     The generic implementations (now internally called 'ec_wNAF_mul'
+     and 'ec_wNAF_precomputed_mult') remain the default if these
+     methods are undefined.
+
+     [Sheueling Chang Shantz and Douglas Stebila
+     (Sun Microsystems Laboratories)]
+
+  *) New function EC_GROUP_get_degree, which is defined through
+     EC_METHOD.  For curves over prime fields, this returns the bit
+     length of the modulus.
+
+     [Sheueling Chang Shantz and Douglas Stebila
+     (Sun Microsystems Laboratories)]
+
+  *) New functions EC_GROUP_dup, EC_POINT_dup.
+     (These simply call ..._new  and ..._copy).
+
+     [Sheueling Chang Shantz and Douglas Stebila
+     (Sun Microsystems Laboratories)]
+
+  *) Add binary polynomial arithmetic software in crypto/bn/bn_gf2m.c.
+     Polynomials are represented as BIGNUMs (where the sign bit is not
+     used) in the following functions [macros]:  
+
+          BN_GF2m_add
+          BN_GF2m_sub             [= BN_GF2m_add]
+          BN_GF2m_mod             [wrapper for BN_GF2m_mod_arr]
+          BN_GF2m_mod_mul         [wrapper for BN_GF2m_mod_mul_arr]
+          BN_GF2m_mod_sqr         [wrapper for BN_GF2m_mod_sqr_arr]
+          BN_GF2m_mod_inv
+          BN_GF2m_mod_exp         [wrapper for BN_GF2m_mod_exp_arr]
+          BN_GF2m_mod_sqrt        [wrapper for BN_GF2m_mod_sqrt_arr]
+          BN_GF2m_mod_solve_quad  [wrapper for BN_GF2m_mod_solve_quad_arr]
+          BN_GF2m_cmp             [= BN_ucmp]
+
+     (Note that only the 'mod' functions are actually for fields GF(2^m).
+     BN_GF2m_add() is misnomer, but this is for the sake of consistency.)
+
+     For some functions, an the irreducible polynomial defining a
+     field can be given as an 'unsigned int[]' with strictly
+     decreasing elements giving the indices of those bits that are set;
+     i.e., p[] represents the polynomial
+          f(t) = t^p[0] + t^p[1] + ... + t^p[k]
+     where
+          p[0] > p[1] > ... > p[k] = 0.
+     This applies to the following functions:
+
+          BN_GF2m_mod_arr
+          BN_GF2m_mod_mul_arr
+          BN_GF2m_mod_sqr_arr
+          BN_GF2m_mod_inv_arr        [wrapper for BN_GF2m_mod_inv]
+          BN_GF2m_mod_div_arr        [wrapper for BN_GF2m_mod_div]
+          BN_GF2m_mod_exp_arr
+          BN_GF2m_mod_sqrt_arr
+          BN_GF2m_mod_solve_quad_arr
+          BN_GF2m_poly2arr
+          BN_GF2m_arr2poly
+
+     Conversion can be performed by the following functions:
+
+          BN_GF2m_poly2arr
+          BN_GF2m_arr2poly
+
+     bntest.c has additional tests for binary polynomial arithmetic.
+
+     Two implementations for BN_GF2m_mod_div() are available.
+     The default algorithm simply uses BN_GF2m_mod_inv() and
+     BN_GF2m_mod_mul().  The alternative algorithm is compiled in only
+     if OPENSSL_SUN_GF2M_DIV is defined (patent pending; read the
+     copyright notice in crypto/bn/bn_gf2m.c before enabling it).
+
+     [Sheueling Chang Shantz and Douglas Stebila
+     (Sun Microsystems Laboratories)]
+
+  *) Add new error code 'ERR_R_DISABLED' that can be used when some
+     functionality is disabled at compile-time.
+     [Douglas Stebila <douglas.stebila@sun.com>]
+
+  *) Change default behaviour of 'openssl asn1parse' so that more
+     information is visible when viewing, e.g., a certificate:
+
+     Modify asn1_parse2 (crypto/asn1/asn1_par.c) so that in non-'dump'
+     mode the content of non-printable OCTET STRINGs is output in a
+     style similar to INTEGERs, but with '[HEX DUMP]' prepended to
+     avoid the appearance of a printable string.
+     [Nils Larsch <nla@trustcenter.de>]
+
+  *) Add 'asn1_flag' and 'asn1_form' member to EC_GROUP with access
+     functions
+          EC_GROUP_set_asn1_flag()
+          EC_GROUP_get_asn1_flag()
+          EC_GROUP_set_point_conversion_form()
+          EC_GROUP_get_point_conversion_form()
+     These control ASN1 encoding details:
+     - Curves (i.e., groups) are encoded explicitly unless asn1_flag
+       has been set to OPENSSL_EC_NAMED_CURVE.
+     - Points are encoded in uncompressed form by default; options for
+       asn1_for are as for point2oct, namely
+          POINT_CONVERSION_COMPRESSED
+          POINT_CONVERSION_UNCOMPRESSED
+          POINT_CONVERSION_HYBRID
+
+     Also add 'seed' and 'seed_len' members to EC_GROUP with access
+     functions
+          EC_GROUP_set_seed()
+          EC_GROUP_get0_seed()
+          EC_GROUP_get_seed_len()
+     This is used only for ASN1 purposes (so far).
+     [Nils Larsch <nla@trustcenter.de>]
+
+  *) Add 'field_type' member to EC_METHOD, which holds the NID
+     of the appropriate field type OID.  The new function
+     EC_METHOD_get_field_type() returns this value.
+     [Nils Larsch <nla@trustcenter.de>]
+
+  *) Add functions 
+          EC_POINT_point2bn()
+          EC_POINT_bn2point()
+          EC_POINT_point2hex()
+          EC_POINT_hex2point()
+     providing useful interfaces to EC_POINT_point2oct() and
+     EC_POINT_oct2point().
+     [Nils Larsch <nla@trustcenter.de>]
+
+  *) Change internals of the EC library so that the functions
+          EC_GROUP_set_generator()
+          EC_GROUP_get_generator()
+          EC_GROUP_get_order()
+          EC_GROUP_get_cofactor()
+     are implemented directly in crypto/ec/ec_lib.c and not dispatched
+     to methods, which would lead to unnecessary code duplication when
+     adding different types of curves.
+     [Nils Larsch <nla@trustcenter.de> with input by Bodo Moeller]
+
+  *) Implement compute_wNAF (crypto/ec/ec_mult.c) without BIGNUM
+     arithmetic, and such that modified wNAFs are generated
+     (which avoid length expansion in many cases).
+     [Bodo Moeller]
+
+  *) Add a function EC_GROUP_check_discriminant() (defined via
+     EC_METHOD) that verifies that the curve discriminant is non-zero.
+
+     Add a function EC_GROUP_check() that makes some sanity tests
+     on a EC_GROUP, its generator and order.  This includes
+     EC_GROUP_check_discriminant().
+     [Nils Larsch <nla@trustcenter.de>]
+
+  *) Add ECDSA in new directory crypto/ecdsa/.
+
+     Add applications 'openssl ecparam' and 'openssl ecdsa'
+     (these are based on 'openssl dsaparam' and 'openssl dsa').
+
+     ECDSA support is also included in various other files across the
+     library.  Most notably,
+     - 'openssl req' now has a '-newkey ecdsa:file' option;
+     - EVP_PKCS82PKEY (crypto/evp/evp_pkey.c) now can handle ECDSA;
+     - X509_PUBKEY_get (crypto/asn1/x_pubkey.c) and
+       d2i_PublicKey (crypto/asn1/d2i_pu.c) have been modified to make
+       them suitable for ECDSA where domain parameters must be
+       extracted before the specific public key;
+     - ECDSA engine support has been added.
+     [Nils Larsch <nla@trustcenter.de>]
+
+  *) Include some named elliptic curves, and add OIDs from X9.62,
+     SECG, and WAP/WTLS.  Each curve can be obtained from the new
+     function
+          EC_GROUP_new_by_curve_name(),
+     and the list of available named curves can be obtained with
+          EC_get_builtin_curves().
+     Also add a 'curve_name' member to EC_GROUP objects, which can be
+     accessed via
+         EC_GROUP_set_curve_name()
+         EC_GROUP_get_curve_name()
+     [Nils Larsch <larsch@trustcenter.de, Bodo Moeller]
+ 
+  *) Remove a few calls to bn_wexpand() in BN_sqr() (the one in there
+     was actually never needed) and in BN_mul().  The removal in BN_mul()
+     required a small change in bn_mul_part_recursive() and the addition
+     of the functions bn_cmp_part_words(), bn_sub_part_words() and
+     bn_add_part_words(), which do the same thing as bn_cmp_words(),
+     bn_sub_words() and bn_add_words() except they take arrays with
+     differing sizes.
+     [Richard Levitte]
+
+ Changes between 0.9.7h and 0.9.7i  [14 Oct 2005]
+
+  *) Wrapped the definition of EVP_MAX_MD_SIZE in a #ifdef OPENSSL_FIPS.
+     The value now differs depending on if you build for FIPS or not.
+     BEWARE!  A program linked with a shared FIPSed libcrypto can't be
+     safely run with a non-FIPSed libcrypto, as it may crash because of
+     the difference induced by this change.
+     [Andy Polyakov]
+
+ Changes between 0.9.7g and 0.9.7h  [11 Oct 2005]
+
+  *) Remove the functionality of SSL_OP_MSIE_SSLV2_RSA_PADDING
+     (part of SSL_OP_ALL).  This option used to disable the
+     countermeasure against man-in-the-middle protocol-version
+     rollback in the SSL 2.0 server implementation, which is a bad
+     idea.  (CVE-2005-2969)
+
+     [Bodo Moeller; problem pointed out by Yutaka Oiwa (Research Center
+     for Information Security, National Institute of Advanced Industrial
+     Science and Technology [AIST], Japan)]
+
+  *) Minimal support for X9.31 signatures and PSS padding modes. This is
+     mainly for FIPS compliance and not fully integrated at this stage.
+     [Steve Henson]
+
+  *) For DSA signing, unless DSA_FLAG_NO_EXP_CONSTTIME is set, perform
+     the exponentiation using a fixed-length exponent.  (Otherwise,
+     the information leaked through timing could expose the secret key
+     after many signatures; cf. Bleichenbacher's attack on DSA with
+     biased k.)
+     [Bodo Moeller]
+
+  *) Make a new fixed-window mod_exp implementation the default for
+     RSA, DSA, and DH private-key operations so that the sequence of
+     squares and multiplies and the memory access pattern are
+     independent of the particular secret key.  This will mitigate
+     cache-timing and potential related attacks.
+
+     BN_mod_exp_mont_consttime() is the new exponentiation implementation,
+     and this is automatically used by BN_mod_exp_mont() if the new flag
+     BN_FLG_EXP_CONSTTIME is set for the exponent.  RSA, DSA, and DH
+     will use this BN flag for private exponents unless the flag
+     RSA_FLAG_NO_EXP_CONSTTIME, DSA_FLAG_NO_EXP_CONSTTIME, or
+     DH_FLAG_NO_EXP_CONSTTIME, respectively, is set.
+
+     [Matthew D Wood (Intel Corp), with some changes by Bodo Moeller]
+
+  *) Change the client implementation for SSLv23_method() and
+     SSLv23_client_method() so that is uses the SSL 3.0/TLS 1.0
+     Client Hello message format if the SSL_OP_NO_SSLv2 option is set.
+     (Previously, the SSL 2.0 backwards compatible Client Hello
+     message format would be used even with SSL_OP_NO_SSLv2.)
+     [Bodo Moeller]
+
+  *) Add support for smime-type MIME parameter in S/MIME messages which some
+     clients need.
+     [Steve Henson]
+
+  *) New function BN_MONT_CTX_set_locked() to set montgomery parameters in
+     a threadsafe manner. Modify rsa code to use new function and add calls
+     to dsa and dh code (which had race conditions before).
+     [Steve Henson]
+
+  *) Include the fixed error library code in the C error file definitions
+     instead of fixing them up at runtime. This keeps the error code
+     structures constant.
+     [Steve Henson]
+
+ Changes between 0.9.7f and 0.9.7g  [11 Apr 2005]
+
+  [NB: OpenSSL 0.9.7h and later 0.9.7 patch levels were released after
+  OpenSSL 0.9.8.]
+
+  *) Fixes for newer kerberos headers. NB: the casts are needed because
+     the 'length' field is signed on one version and unsigned on another
+     with no (?) obvious way to tell the difference, without these VC++
+     complains. Also the "definition" of FAR (blank) is no longer included
+     nor is the error ENOMEM. KRB5_PRIVATE has to be set to 1 to pick up
+     some needed definitions.
+     [Steve Henson]
+
+  *) Undo Cygwin change.
+     [Ulf Möller]
+
+  *) Added support for proxy certificates according to RFC 3820.
+     Because they may be a security thread to unaware applications,
+     they must be explicitely allowed in run-time.  See
+     docs/HOWTO/proxy_certificates.txt for further information.
+     [Richard Levitte]
+
+ Changes between 0.9.7e and 0.9.7f  [22 Mar 2005]
+
+  *) Use (SSL_RANDOM_VALUE - 4) bytes of pseudo random data when generating
+     server and client random values. Previously
+     (SSL_RANDOM_VALUE - sizeof(time_t)) would be used which would result in
+     less random data when sizeof(time_t) > 4 (some 64 bit platforms).
+
+     This change has negligible security impact because:
+
+     1. Server and client random values still have 24 bytes of pseudo random
+        data.
+
+     2. Server and client random values are sent in the clear in the initial
+        handshake.
+
+     3. The master secret is derived using the premaster secret (48 bytes in
+        size for static RSA ciphersuites) as well as client server and random
+        values.
+
+     The OpenSSL team would like to thank the UK NISCC for bringing this issue
+     to our attention. 
+
+     [Stephen Henson, reported by UK NISCC]
+
+  *) Use Windows randomness collection on Cygwin.
+     [Ulf Möller]
+
+  *) Fix hang in EGD/PRNGD query when communication socket is closed
+     prematurely by EGD/PRNGD.
+     [Darren Tucker <dtucker@zip.com.au> via Lutz Jänicke, resolves #1014]
+
+  *) Prompt for pass phrases when appropriate for PKCS12 input format.
+     [Steve Henson]
+
+  *) Back-port of selected performance improvements from development
+     branch, as well as improved support for PowerPC platforms.
+     [Andy Polyakov]
+
+  *) Add lots of checks for memory allocation failure, error codes to indicate
+     failure and freeing up memory if a failure occurs.
+     [Nauticus Networks SSL Team <openssl@nauticusnet.com>, Steve Henson]
+
+  *) Add new -passin argument to dgst.
+     [Steve Henson]
+
+  *) Perform some character comparisons of different types in X509_NAME_cmp:
+     this is needed for some certificates that reencode DNs into UTF8Strings
+     (in violation of RFC3280) and can't or wont issue name rollover
+     certificates.
+     [Steve Henson]
+
+  *) Make an explicit check during certificate validation to see that
+     the CA setting in each certificate on the chain is correct.  As a
+     side effect always do the following basic checks on extensions,
+     not just when there's an associated purpose to the check:
+
+      - if there is an unhandled critical extension (unless the user
+        has chosen to ignore this fault)
+      - if the path length has been exceeded (if one is set at all)
+      - that certain extensions fit the associated purpose (if one has
+        been given)
+     [Richard Levitte]
+
  Changes between 0.9.7d and 0.9.7e  [25 Oct 2004]
 
   *) Avoid a race condition when CRLs are checked in a multi threaded 
@@ -29,11 +1081,11 @@
  Changes between 0.9.7c and 0.9.7d  [17 Mar 2004]
 
   *) Fix null-pointer assignment in do_change_cipher_spec() revealed           
-     by using the Codenomicon TLS Test Tool (CAN-2004-0079)                    
+     by using the Codenomicon TLS Test Tool (CVE-2004-0079)                    
      [Joe Orton, Steve Henson]   
 
   *) Fix flaw in SSL/TLS handshaking when using Kerberos ciphersuites
-     (CAN-2004-0112)
+     (CVE-2004-0112)
      [Joe Orton, Steve Henson]   
 
   *) Make it possible to have multiple active certificates with the same
@@ -76,9 +1128,9 @@
   *) Fix various bugs revealed by running the NISCC test suite:
 
      Stop out of bounds reads in the ASN1 code when presented with
-     invalid tags (CAN-2003-0543 and CAN-2003-0544).
+     invalid tags (CVE-2003-0543 and CVE-2003-0544).
      
-     Free up ASN1_TYPE correctly if ANY type is invalid (CAN-2003-0545).
+     Free up ASN1_TYPE correctly if ANY type is invalid (CVE-2003-0545).
 
      If verify callback ignores invalid public key errors don't try to check
      certificate signature with the NULL public key.
@@ -163,7 +1215,7 @@
      via timing by performing a MAC computation even if incorrrect
      block cipher padding has been found.  This is a countermeasure
      against active attacks where the attacker has to distinguish
-     between bad padding and a MAC verification error. (CAN-2003-0078)
+     between bad padding and a MAC verification error. (CVE-2003-0078)
 
      [Bodo Moeller; problem pointed out by Brice Canvel (EPFL),
      Alain Hiltgen (UBS), Serge Vaudenay (EPFL), and
@@ -380,7 +1432,7 @@
 
      Remote buffer overflow in SSL3 protocol - an attacker could
      supply an oversized master key in Kerberos-enabled versions.
-     (CAN-2002-0657)
+     (CVE-2002-0657)
      [Ben Laurie (CHATS)]
 
   *) Change the SSL kerb5 codes to match RFC 2712.
@@ -2064,7 +3116,7 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
  Changes between 0.9.6l and 0.9.6m  [17 Mar 2004]
 
   *) Fix null-pointer assignment in do_change_cipher_spec() revealed
-     by using the Codenomicon TLS Test Tool (CAN-2004-0079)
+     by using the Codenomicon TLS Test Tool (CVE-2004-0079)
      [Joe Orton, Steve Henson]
 
  Changes between 0.9.6k and 0.9.6l  [04 Nov 2003]
@@ -2072,7 +3124,7 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
   *) Fix additional bug revealed by the NISCC test suite:
 
      Stop bug triggering large recursion when presented with
-     certain ASN.1 tags (CAN-2003-0851)
+     certain ASN.1 tags (CVE-2003-0851)
      [Steve Henson]
 
  Changes between 0.9.6j and 0.9.6k  [30 Sep 2003]
@@ -2080,7 +3132,7 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
   *) Fix various bugs revealed by running the NISCC test suite:
 
      Stop out of bounds reads in the ASN1 code when presented with
-     invalid tags (CAN-2003-0543 and CAN-2003-0544).
+     invalid tags (CVE-2003-0543 and CVE-2003-0544).
      
      If verify callback ignores invalid public key errors don't try to check
      certificate signature with the NULL public key.
@@ -2132,7 +3184,7 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
      via timing by performing a MAC computation even if incorrrect
      block cipher padding has been found.  This is a countermeasure
      against active attacks where the attacker has to distinguish
-     between bad padding and a MAC verification error. (CAN-2003-0078)
+     between bad padding and a MAC verification error. (CVE-2003-0078)
 
      [Bodo Moeller; problem pointed out by Brice Canvel (EPFL),
      Alain Hiltgen (UBS), Serge Vaudenay (EPFL), and
@@ -2265,7 +3317,7 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
   *) Add various sanity checks to asn1_get_length() to reject
      the ASN1 length bytes if they exceed sizeof(long), will appear
      negative or the content length exceeds the length of the
-     supplied buffer. (CAN-2002-0659)
+     supplied buffer. (CVE-2002-0659)
      [Steve Henson, Adi Stav <stav@mercury.co.il>, James Yonan <jim@ntlp.com>]
 
   *) Assertions for various potential buffer overflows, not known to
@@ -2273,15 +3325,15 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
      [Ben Laurie (CHATS)]
 
   *) Various temporary buffers to hold ASCII versions of integers were
-     too small for 64 bit platforms. (CAN-2002-0655)
+     too small for 64 bit platforms. (CVE-2002-0655)
      [Matthew Byng-Maddick <mbm@aldigital.co.uk> and Ben Laurie (CHATS)>
 
   *) Remote buffer overflow in SSL3 protocol - an attacker could
-     supply an oversized session ID to a client. (CAN-2002-0656)
+     supply an oversized session ID to a client. (CVE-2002-0656)
      [Ben Laurie (CHATS)]
 
   *) Remote buffer overflow in SSL2 protocol - an attacker could
-     supply an oversized client master key. (CAN-2002-0656)
+     supply an oversized client master key. (CVE-2002-0656)
      [Ben Laurie (CHATS)]
 
  Changes between 0.9.6c and 0.9.6d  [9 May 2002]

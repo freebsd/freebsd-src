@@ -113,11 +113,12 @@ int i2c_ASN1_BIT_STRING(ASN1_BIT_STRING *a, unsigned char **pp)
 	return(ret);
 	}
 
-ASN1_BIT_STRING *c2i_ASN1_BIT_STRING(ASN1_BIT_STRING **a, unsigned char **pp,
-	     long len)
+ASN1_BIT_STRING *c2i_ASN1_BIT_STRING(ASN1_BIT_STRING **a,
+	const unsigned char **pp, long len)
 	{
 	ASN1_BIT_STRING *ret=NULL;
-	unsigned char *p,*s;
+	const unsigned char *p;
+	unsigned char *s;
 	int i;
 
 	if (len < 1)
@@ -164,7 +165,7 @@ ASN1_BIT_STRING *c2i_ASN1_BIT_STRING(ASN1_BIT_STRING **a, unsigned char **pp,
 	*pp=p;
 	return(ret);
 err:
-	ASN1err(ASN1_F_D2I_ASN1_BIT_STRING,i);
+	ASN1err(ASN1_F_C2I_ASN1_BIT_STRING,i);
 	if ((ret != NULL) && ((a == NULL) || (*a != ret)))
 		M_ASN1_BIT_STRING_free(ret);
 	return(NULL);
@@ -182,9 +183,11 @@ int ASN1_BIT_STRING_set_bit(ASN1_BIT_STRING *a, int n, int value)
 	iv= ~v;
 	if (!value) v=0;
 
+	if (a == NULL)
+		return 0;
+
 	a->flags&= ~(ASN1_STRING_FLAG_BITS_LEFT|0x07); /* clear, set on write */
 
-	if (a == NULL) return(0);
 	if ((a->length < (w+1)) || (a->data == NULL))
 		{
 		if (!value) return(1); /* Don't need to set */
@@ -194,8 +197,12 @@ int ASN1_BIT_STRING_set_bit(ASN1_BIT_STRING *a, int n, int value)
 			c=(unsigned char *)OPENSSL_realloc_clean(a->data,
 								 a->length,
 								 w+1);
-		if (c == NULL) return(0);
-		if (w+1-a->length > 0) memset(c+a->length, 0, w+1-a->length);
+		if (c == NULL)
+			{
+			ASN1err(ASN1_F_ASN1_BIT_STRING_SET_BIT,ERR_R_MALLOC_FAILURE);
+			return 0;
+			}
+  		if (w+1-a->length > 0) memset(c+a->length, 0, w+1-a->length);
 		a->data=c;
 		a->length=w+1;
 	}

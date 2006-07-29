@@ -7,11 +7,6 @@ TOP=	../..
 CC=	cc
 INCLUDES= -I.. -I$(TOP) -I../../include
 CFLAG=-g
-INSTALL_PREFIX=
-OPENSSLDIR=     /usr/local/ssl
-INSTALLTOP=/usr/local/ssl
-MAKEDEPPROG=	makedepend
-MAKEDEPEND=	$(TOP)/util/domd $(TOP) -MD $(MAKEDEPPROG)
 MAKEFILE=	Makefile
 AR=		ar r
 
@@ -52,7 +47,8 @@ links:
 	@$(PERL) $(TOP)/util/mklink.pl ../../apps $(APPS)
 
 install:
-	@for i in $(EXHEADER) ; \
+	@[ -n "$(INSTALLTOP)" ] # should be set by top Makefile...
+	@headerlist="$(EXHEADER)"; for i in $$headerlist ; \
 	do  \
 	(cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/include/openssl/$$i; \
 	chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/include/openssl/$$i ); \
@@ -67,6 +63,7 @@ lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
 
 depend:
+	@[ -n "$(MAKEDEPEND)" ] # should be set by upper Makefile...
 	$(MAKEDEPEND) -- $(CFLAG) $(INCLUDES) $(DEPFLAG) -- $(LIBSRC)
 
 dclean:
@@ -79,9 +76,8 @@ clean:
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
 krb5_asn.o: ../../include/openssl/asn1.h ../../include/openssl/asn1t.h
-krb5_asn.o: ../../include/openssl/bio.h ../../include/openssl/bn.h
-krb5_asn.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
-krb5_asn.o: ../../include/openssl/krb5_asn.h
+krb5_asn.o: ../../include/openssl/bio.h ../../include/openssl/crypto.h
+krb5_asn.o: ../../include/openssl/e_os2.h ../../include/openssl/krb5_asn.h
 krb5_asn.o: ../../include/openssl/opensslconf.h
 krb5_asn.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
 krb5_asn.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h

@@ -108,6 +108,7 @@
  * Hudson (tjh@cryptsoft.com).
  *
  */
+#include <stdio.h>
 
 #define USE_SOCKETS
 #include "e_os.h"
@@ -115,11 +116,12 @@
 #include <openssl/rand.h>
 #include "rand_lcl.h"
 
-#if !(defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_OS2) || defined(OPENSSL_SYS_VXWORKS))
+#if !(defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_OS2) || defined(OPENSSL_SYS_VXWORKS) || defined(OPENSSL_SYS_NETWARE)) 
 
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/times.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <time.h>
@@ -151,9 +153,10 @@ int RAND_poll(void)
 	int n = 0;
 #endif
 #ifdef DEVRANDOM
-	static const char *randomfiles[] = { DEVRANDOM, NULL };
-	const char **randomfile = NULL;
+	static const char *randomfiles[] = { DEVRANDOM };
+	struct stat randomstats[sizeof(randomfiles)/sizeof(randomfiles[0])];
 	int fd;
+	size_t i;
 #endif
 #ifdef DEVRANDOM_EGD
 	static const char *egdsockets[] = { DEVRANDOM_EGD, NULL };
@@ -161,26 +164,43 @@ int RAND_poll(void)
 #endif
 
 #ifdef DEVRANDOM
+	memset(randomstats,0,sizeof(randomstats));
 	/* Use a random entropy pool device. Linux, FreeBSD and OpenBSD
 	 * have this. Use /dev/urandom if you can as /dev/random may block
 	 * if it runs out of random entries.  */
 
-	for (randomfile = randomfiles; *randomfile && n < ENTROPY_NEEDED; randomfile++)
+	for (i=0; i<sizeof(randomfiles)/sizeof(randomfiles[0]) && n < ENTROPY_NEEDED; i++)
 		{
-		if ((fd = open(*randomfile, O_RDONLY|O_NONBLOCK
+		if ((fd = open(randomfiles[i], O_RDONLY
+#ifdef O_NONBLOCK
+			|O_NONBLOCK
+#endif
+#ifdef O_BINARY
+			|O_BINARY
+#endif
 #ifdef O_NOCTTY /* If it happens to be a TTY (god forbid), do not make it
 		   our controlling tty */
 			|O_NOCTTY
-#endif
-#ifdef O_NOFOLLOW /* Fail if the file is a symbolic link */
-			|O_NOFOLLOW
 #endif
 			)) >= 0)
 			{
 			struct timeval t = { 0, 10*1000 }; /* Spend 10ms on
 							      each file. */
 			int r;
+			size_t j;
 			fd_set fset;
+			struct stat *st=&randomstats[i];
+
+			/* Avoid using same input... Used to be O_NOFOLLOW
+			 * above, but it's not universally appropriate... */
+			if (fstat(fd,st) != 0)	{ close(fd); continue; }
+			for (j=0;j<i;j++)
+				{
+				if (randomstats[j].st_ino==st->st_ino &&
+				    randomstats[j].st_dev==st->st_dev)
+					break;
+				}
+			if (j<i)		{ close(fd); continue; }
 
 			do
 				{
@@ -232,19 +252,19 @@ int RAND_poll(void)
 #if defined(DEVRANDOM) || defined(DEVRANDOM_EGD)
 	if (n > 0)
 		{
-		RAND_add(tmpbuf,sizeof tmpbuf,n);
+		RAND_add(tmpbuf,sizeof tmpbuf,(double)n);
 		OPENSSL_cleanse(tmpbuf,n);
 		}
 #endif
 
 	/* put in some default random data, we need more than just this */
 	l=curr_pid;
-	RAND_add(&l,sizeof(l),0);
+	RAND_add(&l,sizeof(l),0.0);
 	l=getuid();
-	RAND_add(&l,sizeof(l),0);
+	RAND_add(&l,sizeof(l),0.0);
 
 	l=time(NULL);
-	RAND_add(&l,sizeof(l),0);
+	RAND_add(&l,sizeof(l),0.0);
 
 #if defined(DEVRANDOM) || defined(DEVRANDOM_EGD)
 	return 1;

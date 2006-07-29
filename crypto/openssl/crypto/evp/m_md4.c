@@ -56,18 +56,23 @@
  * [including the GNU Public Licence.]
  */
 
-#ifndef OPENSSL_NO_MD4
 #include <stdio.h>
 #include "cryptlib.h"
+
+#ifndef OPENSSL_NO_MD4
+
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 #include <openssl/x509.h>
 #include <openssl/md4.h>
+#ifndef OPENSSL_NO_RSA
+#include <openssl/rsa.h>
+#endif
 
 static int init(EVP_MD_CTX *ctx)
 	{ return MD4_Init(ctx->md_data); }
 
-static int update(EVP_MD_CTX *ctx,const void *data,unsigned long count)
+static int update(EVP_MD_CTX *ctx,const void *data,size_t count)
 	{ return MD4_Update(ctx->md_data,data,count); }
 
 static int final(EVP_MD_CTX *ctx,unsigned char *md)

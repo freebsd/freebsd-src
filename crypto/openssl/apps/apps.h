@@ -114,9 +114,7 @@
 
 #include "e_os.h"
 
-#include <openssl/buffer.h>
 #include <openssl/bio.h>
-#include <openssl/crypto.h>
 #include <openssl/x509.h>
 #include <openssl/lhash.h>
 #include <openssl/conf.h>
@@ -138,7 +136,7 @@ long app_RAND_load_files(char *file); /* `file' is a list of files to read,
 
 #ifdef OPENSSL_SYS_WIN32
 #define rename(from,to) WIN32_rename((from),(to))
-int WIN32_rename(char *oldname,char *newname);
+int WIN32_rename(const char *oldname,const char *newname);
 #endif
 
 #ifndef MONOLITH
@@ -148,11 +146,9 @@ int WIN32_rename(char *oldname,char *newname);
 #ifndef NON_MAIN
 CONF *config=NULL;
 BIO *bio_err=NULL;
-int in_FIPS_mode=0;
 #else
 extern CONF *config;
 extern BIO *bio_err;
-extern int in_FIPS_mode;
 #endif
 
 #else
@@ -161,11 +157,12 @@ extern int in_FIPS_mode;
 extern CONF *config;
 extern char *default_config_file;
 extern BIO *bio_err;
-extern int in_FIPS_mode;
 
 #endif
 
+#ifndef OPENSSL_SYS_NETWARE
 #include <signal.h>
+#endif
 
 #ifdef SIGPIPE
 #define do_pipe_sig()	signal(SIGPIPE,SIG_IGN)
@@ -257,7 +254,7 @@ void program_name(char *in,char *out,int size);
 int chopup_args(ARGS *arg,char *buf, int *argc, char **argv[]);
 #ifdef HEADER_X509_H
 int dump_cert_text(BIO *out, X509 *x);
-void print_name(BIO *out, char *title, X509_NAME *nm, unsigned long lflags);
+void print_name(BIO *out, const char *title, X509_NAME *nm, unsigned long lflags);
 #endif
 int set_cert_ex(unsigned long *flags, const char *arg);
 int set_name_ex(unsigned long *flags, const char *arg);
@@ -283,7 +280,7 @@ char *make_config_name(void);
 
 /* Functions defined in ca.c and also used in ocsp.c */
 int unpack_revinfo(ASN1_TIME **prevtm, int *preason, ASN1_OBJECT **phold,
-			ASN1_GENERALIZEDTIME **pinvtm, char *str);
+			ASN1_GENERALIZEDTIME **pinvtm, const char *str);
 
 #define DB_type         0
 #define DB_exp_date     1
@@ -313,12 +310,16 @@ int rotate_serial(char *serialfile, char *new_suffix, char *old_suffix);
 int rand_serial(BIGNUM *b, ASN1_INTEGER *ai);
 CA_DB *load_index(char *dbfile, DB_ATTR *dbattr);
 int index_index(CA_DB *db);
-int save_index(char *dbfile, char *suffix, CA_DB *db);
-int rotate_index(char *dbfile, char *new_suffix, char *old_suffix);
+int save_index(const char *dbfile, const char *suffix, CA_DB *db);
+int rotate_index(const char *dbfile, const char *new_suffix, const char *old_suffix);
 void free_index(CA_DB *db);
 int index_name_cmp(const char **a, const char **b);
+int parse_yesno(const char *str, int def);
 
-X509_NAME *do_subject(char *str, long chtype);
+X509_NAME *parse_name(char *str, long chtype, int multirdn);
+int args_verify(char ***pargs, int *pargc,
+			int *badarg, BIO *err, X509_VERIFY_PARAM **pm);
+void policies_print(BIO *out, X509_STORE_CTX *ctx);
 
 #define FORMAT_UNDEF    0
 #define FORMAT_ASN1     1

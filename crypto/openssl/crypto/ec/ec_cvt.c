@@ -1,6 +1,9 @@
 /* crypto/ec/ec_cvt.c */
+/*
+ * Originally written by Bodo Moeller for the OpenSSL project.
+ */
 /* ====================================================================
- * Copyright (c) 1998-2001 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2002 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,7 +55,21 @@
  * Hudson (tjh@cryptsoft.com).
  *
  */
+/* ====================================================================
+ * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
+ *
+ * Portions of the attached software ("Contribution") are developed by 
+ * SUN MICROSYSTEMS, INC., and are contributed to the OpenSSL project.
+ *
+ * The Contribution is licensed pursuant to the OpenSSL open source
+ * license provided above.
+ *
+ * The elliptic curve binary polynomial software is originally written by
+ * Sheueling Chang Shantz and Douglas Stebila of Sun Microsystems Laboratories.
+ *
+ */
 
+#include <openssl/err.h>
 #include "ec_lcl.h"
 
 
@@ -60,17 +77,64 @@ EC_GROUP *EC_GROUP_new_curve_GFp(const BIGNUM *p, const BIGNUM *a, const BIGNUM 
 	{
 	const EC_METHOD *meth;
 	EC_GROUP *ret;
-	
-	/* Finally, this will use EC_GFp_nist_method if 'p' is a special
-	 * prime with optimized modular arithmetics (for NIST curves)
-	 */
-	meth = EC_GFp_mont_method();
+
+	meth = EC_GFp_nist_method();
 	
 	ret = EC_GROUP_new(meth);
 	if (ret == NULL)
 		return NULL;
 
 	if (!EC_GROUP_set_curve_GFp(ret, p, a, b, ctx))
+		{
+		unsigned long err;
+		  
+		err = ERR_peek_last_error();
+
+		if (!(ERR_GET_LIB(err) == ERR_LIB_EC &&
+			((ERR_GET_REASON(err) == EC_R_NOT_A_NIST_PRIME) ||
+			 (ERR_GET_REASON(err) == EC_R_NOT_A_SUPPORTED_NIST_PRIME))))
+			{
+			/* real error */
+			
+			EC_GROUP_clear_free(ret);
+			return NULL;
+			}
+			
+		
+		/* not an actual error, we just cannot use EC_GFp_nist_method */
+
+		ERR_clear_error();
+
+		EC_GROUP_clear_free(ret);
+		meth = EC_GFp_mont_method();
+
+		ret = EC_GROUP_new(meth);
+		if (ret == NULL)
+			return NULL;
+
+		if (!EC_GROUP_set_curve_GFp(ret, p, a, b, ctx))
+			{
+			EC_GROUP_clear_free(ret);
+			return NULL;
+			}
+		}
+
+	return ret;
+	}
+
+
+EC_GROUP *EC_GROUP_new_curve_GF2m(const BIGNUM *p, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx)
+	{
+	const EC_METHOD *meth;
+	EC_GROUP *ret;
+	
+	meth = EC_GF2m_simple_method();
+	
+	ret = EC_GROUP_new(meth);
+	if (ret == NULL)
+		return NULL;
+
+	if (!EC_GROUP_set_curve_GF2m(ret, p, a, b, ctx))
 		{
 		EC_GROUP_clear_free(ret);
 		return NULL;

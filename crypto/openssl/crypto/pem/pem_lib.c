@@ -73,7 +73,7 @@ const char *PEM_version="PEM" OPENSSL_VERSION_PTEXT;
 
 #define MIN_LENGTH	4
 
-static int load_iv(unsigned char **fromp,unsigned char *to, int num);
+static int load_iv(char **fromp,unsigned char *to, int num);
 static int check_pem(const char *nm, const char *name);
 
 int PEM_def_callback(char *buf, int num, int w, void *key)
@@ -81,7 +81,7 @@ int PEM_def_callback(char *buf, int num, int w, void *key)
 #ifdef OPENSSL_NO_FP_API
 	/* We should not ever call the default callback routine from
 	 * windows. */
-	PEMerr(PEM_F_DEF_CALLBACK,ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+	PEMerr(PEM_F_PEM_DEF_CALLBACK,ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
 	return(-1);
 #else
 	int i,j;
@@ -102,7 +102,7 @@ int PEM_def_callback(char *buf, int num, int w, void *key)
 		i=EVP_read_pw_string(buf,num,prompt,w);
 		if (i != 0)
 			{
-			PEMerr(PEM_F_DEF_CALLBACK,PEM_R_PROBLEMS_GETTING_PASSWORD);
+			PEMerr(PEM_F_PEM_DEF_CALLBACK,PEM_R_PROBLEMS_GETTING_PASSWORD);
 			memset(buf,0,(unsigned int)num);
 			return(-1);
 			}
@@ -158,11 +158,11 @@ void PEM_dek_info(char *buf, const char *type, int len, char *str)
 	}
 
 #ifndef OPENSSL_NO_FP_API
-char *PEM_ASN1_read(char *(*d2i)(), const char *name, FILE *fp, char **x,
-	     pem_password_cb *cb, void *u)
+void *PEM_ASN1_read(d2i_of_void *d2i, const char *name, FILE *fp, void **x,
+		    pem_password_cb *cb, void *u)
 	{
         BIO *b;
-        char *ret;
+        void *ret;
 
         if ((b=BIO_new(BIO_s_file())) == NULL)
 		{
@@ -195,6 +195,8 @@ static int check_pem(const char *nm, const char *name)
 	if(!strcmp(nm,PEM_STRING_DSA) &&
 		 !strcmp(name,PEM_STRING_EVP_PKEY)) return 1;
 
+ 	if(!strcmp(nm,PEM_STRING_ECPRIVATEKEY) &&
+ 		 !strcmp(name,PEM_STRING_EVP_PKEY)) return 1;
 	/* Permit older strings */
 
 	if(!strcmp(nm,PEM_STRING_X509_OLD) &&
@@ -258,9 +260,9 @@ err:
 	}
 
 #ifndef OPENSSL_NO_FP_API
-int PEM_ASN1_write(int (*i2d)(), const char *name, FILE *fp, char *x,
-	     const EVP_CIPHER *enc, unsigned char *kstr, int klen,
-	     pem_password_cb *callback, void *u)
+int PEM_ASN1_write(i2d_of_void *i2d, const char *name, FILE *fp,
+		   char *x, const EVP_CIPHER *enc, unsigned char *kstr,
+		   int klen, pem_password_cb *callback, void *u)
         {
         BIO *b;
         int ret;
@@ -277,9 +279,9 @@ int PEM_ASN1_write(int (*i2d)(), const char *name, FILE *fp, char *x,
         }
 #endif
 
-int PEM_ASN1_write_bio(int (*i2d)(), const char *name, BIO *bp, char *x,
-	     const EVP_CIPHER *enc, unsigned char *kstr, int klen,
-	     pem_password_cb *callback, void *u)
+int PEM_ASN1_write_bio(i2d_of_void *i2d, const char *name, BIO *bp,
+		       char *x, const EVP_CIPHER *enc, unsigned char *kstr,
+		       int klen, pem_password_cb *callback, void *u)
 	{
 	EVP_CIPHER_CTX ctx;
 	int dsize=0,i,j,ret=0;
@@ -301,7 +303,7 @@ int PEM_ASN1_write_bio(int (*i2d)(), const char *name, BIO *bp, char *x,
 
 	if ((dsize=i2d(x,NULL)) < 0)
 		{
-		PEMerr(PEM_F_PEM_ASN1_WRITE_BIO,ERR_R_MALLOC_FAILURE);
+		PEMerr(PEM_F_PEM_ASN1_WRITE_BIO,ERR_R_ASN1_LIB);
 		dsize=0;
 		goto err;
 		}
@@ -336,7 +338,7 @@ int PEM_ASN1_write_bio(int (*i2d)(), const char *name, BIO *bp, char *x,
 			kstr=(unsigned char *)buf;
 			}
 		RAND_add(data,i,0);/* put in the RSA key. */
-		OPENSSL_assert(enc->iv_len <= sizeof iv);
+		OPENSSL_assert(enc->iv_len <= (int)sizeof(iv));
 		if (RAND_pseudo_bytes(iv,enc->iv_len) < 0) /* Generate a salt */
 			goto err;
 		/* The 'iv' is used as the iv and as a salt.  It is
@@ -432,6 +434,7 @@ int PEM_get_EVP_CIPHER_INFO(char *header, EVP_CIPHER_INFO *cipher)
 	int o;
 	const EVP_CIPHER *enc=NULL;
 	char *p,c;
+	char **header_pp = &header;
 
 	cipher->cipher=NULL;
 	if ((header == NULL) || (*header == '\0') || (*header == '\n'))
@@ -478,15 +481,16 @@ int PEM_get_EVP_CIPHER_INFO(char *header, EVP_CIPHER_INFO *cipher)
 		PEMerr(PEM_F_PEM_GET_EVP_CIPHER_INFO,PEM_R_UNSUPPORTED_ENCRYPTION);
 		return(0);
 		}
-	if (!load_iv((unsigned char **)&header,&(cipher->iv[0]),enc->iv_len)) return(0);
+	if (!load_iv(header_pp,&(cipher->iv[0]),enc->iv_len))
+		return(0);
 
 	return(1);
 	}
 
-static int load_iv(unsigned char **fromp, unsigned char *to, int num)
+static int load_iv(char **fromp, unsigned char *to, int num)
 	{
 	int v,i;
-	unsigned char *from;
+	char *from;
 
 	from= *fromp;
 	for (i=0; i<num; i++) to[i]=0;
@@ -623,6 +627,9 @@ int PEM_read_bio(BIO *bp, char **name, char **header, unsigned char **data,
 	dataB=BUF_MEM_new();
 	if ((nameB == NULL) || (headerB == NULL) || (dataB == NULL))
 		{
+		BUF_MEM_free(nameB);
+		BUF_MEM_free(headerB);
+		BUF_MEM_free(dataB);
 		PEMerr(PEM_F_PEM_READ_BIO,ERR_R_MALLOC_FAILURE);
 		return(0);
 		}

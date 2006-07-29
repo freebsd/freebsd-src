@@ -1,6 +1,9 @@
 /* crypto/ec/ec_lib.c */
+/*
+ * Originally written by Bodo Moeller for the OpenSSL project.
+ */
 /* ====================================================================
- * Copyright (c) 1998-2001 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2003 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,6 +55,11 @@
  * Hudson (tjh@cryptsoft.com).
  *
  */
+/* ====================================================================
+ * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
+ * Binary polynomial ECC support in OpenSSL originally developed by 
+ * SUN MICROSYSTEMS, INC., and contributed to the OpenSSL project.
+ */
 
 #include <string.h>
 
@@ -90,10 +98,18 @@ EC_GROUP *EC_GROUP_new(const EC_METHOD *meth)
 	ret->meth = meth;
 
 	ret->extra_data = NULL;
-	ret->extra_data_dup_func = 0;
-	ret->extra_data_free_func = 0;
-	ret->extra_data_clear_free_func = 0;
-	
+
+	ret->generator = NULL;
+	BN_init(&ret->order);
+	BN_init(&ret->cofactor);
+
+	ret->curve_name = 0;	
+	ret->asn1_flag  = 0;
+	ret->asn1_form  = POINT_CONVERSION_UNCOMPRESSED;
+
+	ret->seed = NULL;
+	ret->seed_len = 0;
+
 	if (!meth->group_init(ret))
 		{
 		OPENSSL_free(ret);
@@ -111,7 +127,15 @@ void EC_GROUP_free(EC_GROUP *group)
 	if (group->meth->group_finish != 0)
 		group->meth->group_finish(group);
 
-	EC_GROUP_free_extra_data(group);
+	EC_EX_DATA_free_all_data(&group->extra_data);
+
+	if (group->generator != NULL)
+		EC_POINT_free(group->generator);
+	BN_free(&group->order);
+	BN_free(&group->cofactor);
+
+	if (group->seed)
+		OPENSSL_free(group->seed);
 
 	OPENSSL_free(group);
 	}
@@ -123,10 +147,21 @@ void EC_GROUP_clear_free(EC_GROUP *group)
 
 	if (group->meth->group_clear_finish != 0)
 		group->meth->group_clear_finish(group);
-	else if (group->meth != NULL && group->meth->group_finish != 0)
+	else if (group->meth->group_finish != 0)
 		group->meth->group_finish(group);
 
-	EC_GROUP_clear_free_extra_data(group);
+	EC_EX_DATA_clear_free_all_data(&group->extra_data);
+
+	if (group->generator != NULL)
+		EC_POINT_clear_free(group->generator);
+	BN_clear_free(&group->order);
+	BN_clear_free(&group->cofactor);
+
+	if (group->seed)
+		{
+		OPENSSL_cleanse(group->seed, group->seed_len);
+		OPENSSL_free(group->seed);
+		}
 
 	OPENSSL_cleanse(group, sizeof *group);
 	OPENSSL_free(group);
@@ -135,6 +170,8 @@ void EC_GROUP_clear_free(EC_GROUP *group)
 
 int EC_GROUP_copy(EC_GROUP *dest, const EC_GROUP *src)
 	{
+	EC_EXTRA_DATA *d;
+
 	if (dest->meth->group_copy == 0)
 		{
 		ECerr(EC_F_EC_GROUP_COPY, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -148,22 +185,87 @@ int EC_GROUP_copy(EC_GROUP *dest, const EC_GROUP *src)
 	if (dest == src)
 		return 1;
 	
-	EC_GROUP_clear_free_extra_data(dest);
-	if (src->extra_data_dup_func)
-		{
-		if (src->extra_data != NULL)
-			{
-			dest->extra_data = src->extra_data_dup_func(src->extra_data);
-			if (dest->extra_data == NULL)
-				return 0;
-			}
+	EC_EX_DATA_free_all_data(&dest->extra_data);
 
-		dest->extra_data_dup_func = src->extra_data_dup_func;
-		dest->extra_data_free_func = src->extra_data_free_func;
-		dest->extra_data_clear_free_func = src->extra_data_clear_free_func;
+	for (d = src->extra_data; d != NULL; d = d->next)
+		{
+		void *t = d->dup_func(d->data);
+		
+		if (t == NULL)
+			return 0;
+		if (!EC_EX_DATA_set_data(&dest->extra_data, t, d->dup_func, d->free_func, d->clear_free_func))
+			return 0;
 		}
 
+	if (src->generator != NULL)
+		{
+		if (dest->generator == NULL)
+			{
+			dest->generator = EC_POINT_new(dest);
+			if (dest->generator == NULL) return 0;
+			}
+		if (!EC_POINT_copy(dest->generator, src->generator)) return 0;
+		}
+	else
+		{
+		/* src->generator == NULL */
+		if (dest->generator != NULL)
+			{
+			EC_POINT_clear_free(dest->generator);
+			dest->generator = NULL;
+			}
+		}
+
+	if (!BN_copy(&dest->order, &src->order)) return 0;
+	if (!BN_copy(&dest->cofactor, &src->cofactor)) return 0;
+
+	dest->curve_name = src->curve_name;
+	dest->asn1_flag  = src->asn1_flag;
+	dest->asn1_form  = src->asn1_form;
+
+	if (src->seed)
+		{
+		if (dest->seed)
+			OPENSSL_free(dest->seed);
+		dest->seed = OPENSSL_malloc(src->seed_len);
+		if (dest->seed == NULL)
+			return 0;
+		if (!memcpy(dest->seed, src->seed, src->seed_len))
+			return 0;
+		dest->seed_len = src->seed_len;
+		}
+	else
+		{
+		if (dest->seed)
+			OPENSSL_free(dest->seed);
+		dest->seed = NULL;
+		dest->seed_len = 0;
+		}
+	
+
 	return dest->meth->group_copy(dest, src);
+	}
+
+
+EC_GROUP *EC_GROUP_dup(const EC_GROUP *a)
+	{
+	EC_GROUP *t = NULL;
+	int ok = 0;
+
+	if (a == NULL) return NULL;
+
+	if ((t = EC_GROUP_new(a->meth)) == NULL) return(NULL);
+	if (!EC_GROUP_copy(t, a)) goto err;
+
+	ok = 1;
+
+  err:	
+	if (!ok)
+		{
+		if (t) EC_GROUP_free(t);
+		return NULL;
+		}
+	else return t;
 	}
 
 
@@ -173,136 +275,417 @@ const EC_METHOD *EC_GROUP_method_of(const EC_GROUP *group)
 	}
 
 
-int EC_GROUP_set_curve_GFp(EC_GROUP *group, const BIGNUM *p, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx)
-	{
-	if (group->meth->group_set_curve_GFp == 0)
-		{
-		ECerr(EC_F_EC_GROUP_SET_CURVE_GFP, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-		return 0;
-		}
-	return group->meth->group_set_curve_GFp(group, p, a, b, ctx);
-	}
-
-
-int EC_GROUP_get_curve_GFp(const EC_GROUP *group, BIGNUM *p, BIGNUM *a, BIGNUM *b, BN_CTX *ctx)
-	{
-	if (group->meth->group_get_curve_GFp == 0)
-		{
-		ECerr(EC_F_EC_GROUP_GET_CURVE_GFP, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-		return 0;
-		}
-	return group->meth->group_get_curve_GFp(group, p, a, b, ctx);
-	}
+int EC_METHOD_get_field_type(const EC_METHOD *meth)
+        {
+        return meth->field_type;
+        }
 
 
 int EC_GROUP_set_generator(EC_GROUP *group, const EC_POINT *generator, const BIGNUM *order, const BIGNUM *cofactor)
 	{
-	if (group->meth->group_set_generator == 0)
+	if (generator == NULL)
 		{
-		ECerr(EC_F_EC_GROUP_SET_GENERATOR, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-		return 0;
+		ECerr(EC_F_EC_GROUP_SET_GENERATOR, ERR_R_PASSED_NULL_PARAMETER);
+		return 0   ;
 		}
-	return group->meth->group_set_generator(group, generator, order, cofactor);
+
+	if (group->generator == NULL)
+		{
+		group->generator = EC_POINT_new(group);
+		if (group->generator == NULL) return 0;
+		}
+	if (!EC_POINT_copy(group->generator, generator)) return 0;
+
+	if (order != NULL)
+		{ if (!BN_copy(&group->order, order)) return 0; }	
+	else
+		BN_zero(&group->order);
+
+	if (cofactor != NULL)
+		{ if (!BN_copy(&group->cofactor, cofactor)) return 0; }	
+	else
+		BN_zero(&group->cofactor);
+
+	return 1;
 	}
 
 
-EC_POINT *EC_GROUP_get0_generator(const EC_GROUP *group)
+const EC_POINT *EC_GROUP_get0_generator(const EC_GROUP *group)
 	{
-	if (group->meth->group_get0_generator == 0)
-		{
-		ECerr(EC_F_EC_GROUP_GET0_GENERATOR, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-		return 0;
-		}
-	return group->meth->group_get0_generator(group);
+	return group->generator;
 	}
 
 
 int EC_GROUP_get_order(const EC_GROUP *group, BIGNUM *order, BN_CTX *ctx)
 	{
-	if (group->meth->group_get_order == 0)
-		{
-		ECerr(EC_F_EC_GROUP_GET_ORDER, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+	if (!BN_copy(order, &group->order))
 		return 0;
-		}
-	return group->meth->group_get_order(group, order, ctx);
+
+	return !BN_is_zero(order);
 	}
 
 
 int EC_GROUP_get_cofactor(const EC_GROUP *group, BIGNUM *cofactor, BN_CTX *ctx)
 	{
-	if (group->meth->group_get_cofactor == 0)
+	if (!BN_copy(cofactor, &group->cofactor))
+		return 0;
+
+	return !BN_is_zero(&group->cofactor);
+	}
+
+
+void EC_GROUP_set_curve_name(EC_GROUP *group, int nid)
+	{
+	group->curve_name = nid;
+	}
+
+
+int EC_GROUP_get_curve_name(const EC_GROUP *group)
+	{
+	return group->curve_name;
+	}
+
+
+void EC_GROUP_set_asn1_flag(EC_GROUP *group, int flag)
+	{
+	group->asn1_flag = flag;
+	}
+
+
+int EC_GROUP_get_asn1_flag(const EC_GROUP *group)
+	{
+	return group->asn1_flag;
+	}
+
+
+void EC_GROUP_set_point_conversion_form(EC_GROUP *group, 
+                                        point_conversion_form_t form)
+	{
+	group->asn1_form = form;
+	}
+
+
+point_conversion_form_t EC_GROUP_get_point_conversion_form(const EC_GROUP *group)
+	{
+	return group->asn1_form;
+	}
+
+
+size_t EC_GROUP_set_seed(EC_GROUP *group, const unsigned char *p, size_t len)
+	{
+	if (group->seed)
 		{
-		ECerr(EC_F_EC_GROUP_GET_COFACTOR, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+		OPENSSL_free(group->seed);
+		group->seed = NULL;
+		group->seed_len = 0;
+		}
+
+	if (!len || !p)
+		return 1;
+
+	if ((group->seed = OPENSSL_malloc(len)) == NULL)
+		return 0;
+	memcpy(group->seed, p, len);
+	group->seed_len = len;
+
+	return len;
+	}
+
+
+unsigned char *EC_GROUP_get0_seed(const EC_GROUP *group)
+	{
+	return group->seed;
+	}
+
+
+size_t EC_GROUP_get_seed_len(const EC_GROUP *group)
+	{
+	return group->seed_len;
+	}
+
+
+int EC_GROUP_set_curve_GFp(EC_GROUP *group, const BIGNUM *p, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx)
+	{
+	if (group->meth->group_set_curve == 0)
+		{
+		ECerr(EC_F_EC_GROUP_SET_CURVE_GFP, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
 		return 0;
 		}
-	return group->meth->group_get_cofactor(group, cofactor, ctx);
+	return group->meth->group_set_curve(group, p, a, b, ctx);
+	}
+
+
+int EC_GROUP_get_curve_GFp(const EC_GROUP *group, BIGNUM *p, BIGNUM *a, BIGNUM *b, BN_CTX *ctx)
+	{
+	if (group->meth->group_get_curve == 0)
+		{
+		ECerr(EC_F_EC_GROUP_GET_CURVE_GFP, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+		return 0;
+		}
+	return group->meth->group_get_curve(group, p, a, b, ctx);
+	}
+
+
+int EC_GROUP_set_curve_GF2m(EC_GROUP *group, const BIGNUM *p, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx)
+	{
+	if (group->meth->group_set_curve == 0)
+		{
+		ECerr(EC_F_EC_GROUP_SET_CURVE_GF2M, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+		return 0;
+		}
+	return group->meth->group_set_curve(group, p, a, b, ctx);
+	}
+
+
+int EC_GROUP_get_curve_GF2m(const EC_GROUP *group, BIGNUM *p, BIGNUM *a, BIGNUM *b, BN_CTX *ctx)
+	{
+	if (group->meth->group_get_curve == 0)
+		{
+		ECerr(EC_F_EC_GROUP_GET_CURVE_GF2M, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+		return 0;
+		}
+	return group->meth->group_get_curve(group, p, a, b, ctx);
+	}
+
+
+int EC_GROUP_get_degree(const EC_GROUP *group)
+	{
+	if (group->meth->group_get_degree == 0)
+		{
+		ECerr(EC_F_EC_GROUP_GET_DEGREE, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+		return 0;
+		}
+	return group->meth->group_get_degree(group);
+	}
+
+
+int EC_GROUP_check_discriminant(const EC_GROUP *group, BN_CTX *ctx)
+	{
+	if (group->meth->group_check_discriminant == 0)
+		{
+		ECerr(EC_F_EC_GROUP_CHECK_DISCRIMINANT, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+		return 0;
+		}
+	return group->meth->group_check_discriminant(group, ctx);
+	}
+
+
+int EC_GROUP_cmp(const EC_GROUP *a, const EC_GROUP *b, BN_CTX *ctx)
+	{
+	int    r = 0;
+	BIGNUM *a1, *a2, *a3, *b1, *b2, *b3;
+	BN_CTX *ctx_new = NULL;
+
+	/* compare the field types*/
+	if (EC_METHOD_get_field_type(EC_GROUP_method_of(a)) !=
+	    EC_METHOD_get_field_type(EC_GROUP_method_of(b)))
+		return 1;
+	/* compare the curve name (if present) */
+	if (EC_GROUP_get_curve_name(a) && EC_GROUP_get_curve_name(b) &&
+	    EC_GROUP_get_curve_name(a) == EC_GROUP_get_curve_name(b))
+		return 0;
+
+	if (!ctx)
+		ctx_new = ctx = BN_CTX_new();
+	if (!ctx)
+		return -1;
+	
+	BN_CTX_start(ctx);
+	a1 = BN_CTX_get(ctx);
+	a2 = BN_CTX_get(ctx);
+	a3 = BN_CTX_get(ctx);
+	b1 = BN_CTX_get(ctx);
+	b2 = BN_CTX_get(ctx);
+	b3 = BN_CTX_get(ctx);
+	if (!b3)
+		{
+		BN_CTX_end(ctx);
+		if (ctx_new)
+			BN_CTX_free(ctx);
+		return -1;
+		}
+
+	/* XXX This approach assumes that the external representation
+	 * of curves over the same field type is the same.
+	 */
+	if (!a->meth->group_get_curve(a, a1, a2, a3, ctx) ||
+	    !b->meth->group_get_curve(b, b1, b2, b3, ctx))
+		r = 1;
+
+	if (r || BN_cmp(a1, b1) || BN_cmp(a2, b2) || BN_cmp(a3, b3))
+		r = 1;
+
+	/* XXX EC_POINT_cmp() assumes that the methods are equal */
+	if (r || EC_POINT_cmp(a, EC_GROUP_get0_generator(a),
+	    EC_GROUP_get0_generator(b), ctx))
+		r = 1;
+
+	if (!r)
+		{
+		/* compare the order and cofactor */
+		if (!EC_GROUP_get_order(a, a1, ctx) ||
+		    !EC_GROUP_get_order(b, b1, ctx) ||
+		    !EC_GROUP_get_cofactor(a, a2, ctx) ||
+		    !EC_GROUP_get_cofactor(b, b2, ctx))
+			{
+			BN_CTX_end(ctx);
+			if (ctx_new)
+				BN_CTX_free(ctx);
+			return -1;
+			}
+		if (BN_cmp(a1, b1) || BN_cmp(a2, b2))
+			r = 1;
+		}
+
+	BN_CTX_end(ctx);
+	if (ctx_new)
+		BN_CTX_free(ctx);
+
+	return r;
 	}
 
 
 /* this has 'package' visibility */
-int EC_GROUP_set_extra_data(EC_GROUP *group, void *extra_data, void *(*extra_data_dup_func)(void *),
-	void (*extra_data_free_func)(void *), void (*extra_data_clear_free_func)(void *))
+int EC_EX_DATA_set_data(EC_EXTRA_DATA **ex_data, void *data,
+	void *(*dup_func)(void *), void (*free_func)(void *), void (*clear_free_func)(void *))
 	{
-	if ((group->extra_data != NULL)
-		|| (group->extra_data_dup_func != 0)
-		|| (group->extra_data_free_func != 0)
-		|| (group->extra_data_clear_free_func != 0))
-		{
-		ECerr(EC_F_EC_GROUP_SET_EXTRA_DATA, EC_R_SLOT_FULL);
+	EC_EXTRA_DATA *d;
+
+	if (ex_data == NULL)
 		return 0;
+
+	for (d = *ex_data; d != NULL; d = d->next)
+		{
+		if (d->dup_func == dup_func && d->free_func == free_func && d->clear_free_func == clear_free_func)
+			{
+			ECerr(EC_F_EC_EX_DATA_SET_DATA, EC_R_SLOT_FULL);
+			return 0;
+			}
 		}
 
-	group->extra_data = extra_data;
-	group->extra_data_dup_func = extra_data_dup_func;
-	group->extra_data_free_func = extra_data_free_func;
-	group->extra_data_clear_free_func = extra_data_clear_free_func;
+	if (data == NULL)
+		/* no explicit entry needed */
+		return 1;
+
+	d = OPENSSL_malloc(sizeof *d);
+	if (d == NULL)
+		return 0;
+
+	d->data = data;
+	d->dup_func = dup_func;
+	d->free_func = free_func;
+	d->clear_free_func = clear_free_func;
+
+	d->next = *ex_data;
+	*ex_data = d;
+
 	return 1;
 	}
 
-
 /* this has 'package' visibility */
-void *EC_GROUP_get_extra_data(const EC_GROUP *group, void *(*extra_data_dup_func)(void *),
-	void (*extra_data_free_func)(void *), void (*extra_data_clear_free_func)(void *))
+void *EC_EX_DATA_get_data(const EC_EXTRA_DATA *ex_data,
+	void *(*dup_func)(void *), void (*free_func)(void *), void (*clear_free_func)(void *))
 	{
-	if ((group->extra_data_dup_func != extra_data_dup_func)
-		|| (group->extra_data_free_func != extra_data_free_func)
-		|| (group->extra_data_clear_free_func != extra_data_clear_free_func))
+	const EC_EXTRA_DATA *d;
+
+	for (d = ex_data; d != NULL; d = d->next)
 		{
-#if 0 /* this was an error in 0.9.7, but that does not make a lot of sense */
-		ECerr(..._F_EC_GROUP_GET_EXTRA_DATA, ..._R_NO_SUCH_EXTRA_DATA);
-#endif
-		return NULL;
+		if (d->dup_func == dup_func && d->free_func == free_func && d->clear_free_func == clear_free_func)
+			return d->data;
 		}
-
-	return group->extra_data;
+	
+	return NULL;
 	}
-
 
 /* this has 'package' visibility */
-void EC_GROUP_free_extra_data(EC_GROUP *group)
+void EC_EX_DATA_free_data(EC_EXTRA_DATA **ex_data,
+	void *(*dup_func)(void *), void (*free_func)(void *), void (*clear_free_func)(void *))
 	{
-	if (group->extra_data_free_func)
-		group->extra_data_free_func(group->extra_data);
-	group->extra_data = NULL;
-	group->extra_data_dup_func = 0;
-	group->extra_data_free_func = 0;
-	group->extra_data_clear_free_func = 0;
-	}
+	EC_EXTRA_DATA **p;
 
+	if (ex_data == NULL)
+		return;
+
+	for (p = ex_data; *p != NULL; p = &((*p)->next))
+		{
+		if ((*p)->dup_func == dup_func && (*p)->free_func == free_func && (*p)->clear_free_func == clear_free_func)
+			{
+			EC_EXTRA_DATA *next = (*p)->next;
+
+			(*p)->free_func((*p)->data);
+			OPENSSL_free(*p);
+			
+			*p = next;
+			return;
+			}
+		}
+	}
 
 /* this has 'package' visibility */
-void EC_GROUP_clear_free_extra_data(EC_GROUP *group)
+void EC_EX_DATA_clear_free_data(EC_EXTRA_DATA **ex_data,
+	void *(*dup_func)(void *), void (*free_func)(void *), void (*clear_free_func)(void *))
 	{
-	if (group->extra_data_clear_free_func)
-		group->extra_data_clear_free_func(group->extra_data);
-	else if (group->extra_data_free_func)
-		group->extra_data_free_func(group->extra_data);
-	group->extra_data = NULL;
-	group->extra_data_dup_func = 0;
-	group->extra_data_free_func = 0;
-	group->extra_data_clear_free_func = 0;
+	EC_EXTRA_DATA **p;
+
+	if (ex_data == NULL)
+		return;
+
+	for (p = ex_data; *p != NULL; p = &((*p)->next))
+		{
+		if ((*p)->dup_func == dup_func && (*p)->free_func == free_func && (*p)->clear_free_func == clear_free_func)
+			{
+			EC_EXTRA_DATA *next = (*p)->next;
+
+			(*p)->clear_free_func((*p)->data);
+			OPENSSL_free(*p);
+			
+			*p = next;
+			return;
+			}
+		}
 	}
 
+/* this has 'package' visibility */
+void EC_EX_DATA_free_all_data(EC_EXTRA_DATA **ex_data)
+	{
+	EC_EXTRA_DATA *d;
+
+	if (ex_data == NULL)
+		return;
+
+	d = *ex_data;
+	while (d)
+		{
+		EC_EXTRA_DATA *next = d->next;
+		
+		d->free_func(d->data);
+		OPENSSL_free(d);
+		
+		d = next;
+		}
+	*ex_data = NULL;
+	}
+
+/* this has 'package' visibility */
+void EC_EX_DATA_clear_free_all_data(EC_EXTRA_DATA **ex_data)
+	{
+	EC_EXTRA_DATA *d;
+
+	if (ex_data == NULL)
+		return;
+
+	d = *ex_data;
+	while (d)
+		{
+		EC_EXTRA_DATA *next = d->next;
+		
+		d->clear_free_func(d->data);
+		OPENSSL_free(d);
+		
+		d = next;
+		}
+	*ex_data = NULL;
+	}
 
 
 /* functions for EC_POINT objects */
@@ -382,6 +765,25 @@ int EC_POINT_copy(EC_POINT *dest, const EC_POINT *src)
 	}
 
 
+EC_POINT *EC_POINT_dup(const EC_POINT *a, const EC_GROUP *group)
+	{
+	EC_POINT *t;
+	int r;
+
+	if (a == NULL) return NULL;
+
+	t = EC_POINT_new(group);
+	if (t == NULL) return(NULL);
+	r = EC_POINT_copy(t, a);
+	if (!r)
+		{
+		EC_POINT_free(t);
+		return NULL;
+		}
+	else return t;
+	}
+
+
 const EC_METHOD *EC_POINT_method_of(const EC_POINT *point)
 	{
 	return point->meth;
@@ -441,7 +843,7 @@ int EC_POINT_get_Jprojective_coordinates_GFp(const EC_GROUP *group, const EC_POI
 int EC_POINT_set_affine_coordinates_GFp(const EC_GROUP *group, EC_POINT *point,
 	const BIGNUM *x, const BIGNUM *y, BN_CTX *ctx)
 	{
-	if (group->meth->point_set_affine_coordinates_GFp == 0)
+	if (group->meth->point_set_affine_coordinates == 0)
 		{
 		ECerr(EC_F_EC_POINT_SET_AFFINE_COORDINATES_GFP, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
 		return 0;
@@ -451,14 +853,31 @@ int EC_POINT_set_affine_coordinates_GFp(const EC_GROUP *group, EC_POINT *point,
 		ECerr(EC_F_EC_POINT_SET_AFFINE_COORDINATES_GFP, EC_R_INCOMPATIBLE_OBJECTS);
 		return 0;
 		}
-	return group->meth->point_set_affine_coordinates_GFp(group, point, x, y, ctx);
+	return group->meth->point_set_affine_coordinates(group, point, x, y, ctx);
+	}
+
+
+int EC_POINT_set_affine_coordinates_GF2m(const EC_GROUP *group, EC_POINT *point,
+	const BIGNUM *x, const BIGNUM *y, BN_CTX *ctx)
+	{
+	if (group->meth->point_set_affine_coordinates == 0)
+		{
+		ECerr(EC_F_EC_POINT_SET_AFFINE_COORDINATES_GF2M, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+		return 0;
+		}
+	if (group->meth != point->meth)
+		{
+		ECerr(EC_F_EC_POINT_SET_AFFINE_COORDINATES_GF2M, EC_R_INCOMPATIBLE_OBJECTS);
+		return 0;
+		}
+	return group->meth->point_set_affine_coordinates(group, point, x, y, ctx);
 	}
 
 
 int EC_POINT_get_affine_coordinates_GFp(const EC_GROUP *group, const EC_POINT *point,
 	BIGNUM *x, BIGNUM *y, BN_CTX *ctx)
 	{
-	if (group->meth->point_get_affine_coordinates_GFp == 0)
+	if (group->meth->point_get_affine_coordinates == 0)
 		{
 		ECerr(EC_F_EC_POINT_GET_AFFINE_COORDINATES_GFP, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
 		return 0;
@@ -468,14 +887,31 @@ int EC_POINT_get_affine_coordinates_GFp(const EC_GROUP *group, const EC_POINT *p
 		ECerr(EC_F_EC_POINT_GET_AFFINE_COORDINATES_GFP, EC_R_INCOMPATIBLE_OBJECTS);
 		return 0;
 		}
-	return group->meth->point_get_affine_coordinates_GFp(group, point, x, y, ctx);
+	return group->meth->point_get_affine_coordinates(group, point, x, y, ctx);
+	}
+
+
+int EC_POINT_get_affine_coordinates_GF2m(const EC_GROUP *group, const EC_POINT *point,
+	BIGNUM *x, BIGNUM *y, BN_CTX *ctx)
+	{
+	if (group->meth->point_get_affine_coordinates == 0)
+		{
+		ECerr(EC_F_EC_POINT_GET_AFFINE_COORDINATES_GF2M, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+		return 0;
+		}
+	if (group->meth != point->meth)
+		{
+		ECerr(EC_F_EC_POINT_GET_AFFINE_COORDINATES_GF2M, EC_R_INCOMPATIBLE_OBJECTS);
+		return 0;
+		}
+	return group->meth->point_get_affine_coordinates(group, point, x, y, ctx);
 	}
 
 
 int EC_POINT_set_compressed_coordinates_GFp(const EC_GROUP *group, EC_POINT *point,
 	const BIGNUM *x, int y_bit, BN_CTX *ctx)
 	{
-	if (group->meth->point_set_compressed_coordinates_GFp == 0)
+	if (group->meth->point_set_compressed_coordinates == 0)
 		{
 		ECerr(EC_F_EC_POINT_SET_COMPRESSED_COORDINATES_GFP, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
 		return 0;
@@ -485,7 +921,24 @@ int EC_POINT_set_compressed_coordinates_GFp(const EC_GROUP *group, EC_POINT *poi
 		ECerr(EC_F_EC_POINT_SET_COMPRESSED_COORDINATES_GFP, EC_R_INCOMPATIBLE_OBJECTS);
 		return 0;
 		}
-	return group->meth->point_set_compressed_coordinates_GFp(group, point, x, y_bit, ctx);
+	return group->meth->point_set_compressed_coordinates(group, point, x, y_bit, ctx);
+	}
+
+
+int EC_POINT_set_compressed_coordinates_GF2m(const EC_GROUP *group, EC_POINT *point,
+	const BIGNUM *x, int y_bit, BN_CTX *ctx)
+	{
+	if (group->meth->point_set_compressed_coordinates == 0)
+		{
+		ECerr(EC_F_EC_POINT_SET_COMPRESSED_COORDINATES_GF2M, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+		return 0;
+		}
+	if (group->meth != point->meth)
+		{
+		ECerr(EC_F_EC_POINT_SET_COMPRESSED_COORDINATES_GF2M, EC_R_INCOMPATIBLE_OBJECTS);
+		return 0;
+		}
+	return group->meth->point_set_compressed_coordinates(group, point, x, y_bit, ctx);
 	}
 
 
@@ -559,12 +1012,12 @@ int EC_POINT_invert(const EC_GROUP *group, EC_POINT *a, BN_CTX *ctx)
 	{
 	if (group->meth->dbl == 0)
 		{
-		ECerr(EC_F_EC_POINT_DBL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+		ECerr(EC_F_EC_POINT_INVERT, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
 		return 0;
 		}
 	if (group->meth != a->meth)
 		{
-		ECerr(EC_F_EC_POINT_DBL, EC_R_INCOMPATIBLE_OBJECTS);
+		ECerr(EC_F_EC_POINT_INVERT, EC_R_INCOMPATIBLE_OBJECTS);
 		return 0;
 		}
 	return group->meth->invert(group, a, ctx);
@@ -653,4 +1106,59 @@ int EC_POINTs_make_affine(const EC_GROUP *group, size_t num, EC_POINT *points[],
 			}
 		}
 	return group->meth->points_make_affine(group, num, points, ctx);
+	}
+
+
+/* Functions for point multiplication.
+ *
+ * If group->meth->mul is 0, we use the wNAF-based implementations in ec_mult.c;
+ * otherwise we dispatch through methods.
+ */
+
+int EC_POINTs_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
+	size_t num, const EC_POINT *points[], const BIGNUM *scalars[], BN_CTX *ctx)
+	{
+	if (group->meth->mul == 0)
+		/* use default */
+		return ec_wNAF_mul(group, r, scalar, num, points, scalars, ctx);
+
+	return group->meth->mul(group, r, scalar, num, points, scalars, ctx);
+	}
+
+int EC_POINT_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *g_scalar,
+	const EC_POINT *point, const BIGNUM *p_scalar, BN_CTX *ctx)
+	{
+	/* just a convenient interface to EC_POINTs_mul() */
+
+	const EC_POINT *points[1];
+	const BIGNUM *scalars[1];
+
+	points[0] = point;
+	scalars[0] = p_scalar;
+
+	return EC_POINTs_mul(group, r, g_scalar, (point != NULL && p_scalar != NULL), points, scalars, ctx);
+	}
+
+int EC_GROUP_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
+	{
+	if (group->meth->mul == 0)
+		/* use default */
+		return ec_wNAF_precompute_mult(group, ctx);
+
+	if (group->meth->precompute_mult != 0)
+		return group->meth->precompute_mult(group, ctx);
+	else
+		return 1; /* nothing to do, so report success */
+	}
+
+int EC_GROUP_have_precompute_mult(const EC_GROUP *group)
+	{
+	if (group->meth->mul == 0)
+		/* use default */
+		return ec_wNAF_have_precompute_mult(group);
+
+	if (group->meth->have_precompute_mult != 0)
+		return group->meth->have_precompute_mult(group);
+	else
+		return 0; /* cannot tell whether precomputation has been performed */
 	}

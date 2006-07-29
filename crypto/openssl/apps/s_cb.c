@@ -229,8 +229,36 @@ int set_cert_stuff(SSL_CTX *ctx, char *cert_file, char *key_file)
 	return(1);
 	}
 
-long MS_CALLBACK bio_dump_cb(BIO *bio, int cmd, const char *argp, int argi,
-	     long argl, long ret)
+int set_cert_key_stuff(SSL_CTX *ctx, X509 *cert, EVP_PKEY *key)
+	{
+	if (cert ==  NULL)
+		return 1;
+	if (SSL_CTX_use_certificate(ctx,cert) <= 0)
+		{
+		BIO_printf(bio_err,"error setting certificate\n");
+		ERR_print_errors(bio_err);
+		return 0;
+		}
+	if (SSL_CTX_use_PrivateKey(ctx,key) <= 0)
+		{
+		BIO_printf(bio_err,"error setting private key\n");
+		ERR_print_errors(bio_err);
+		return 0;
+		}
+
+		
+		/* Now we know that a key and cert have been set against
+		 * the SSL context */
+	if (!SSL_CTX_check_private_key(ctx))
+		{
+		BIO_printf(bio_err,"Private key does not match the certificate public key\n");
+		return 0;
+		}
+	return 1;
+	}
+
+long MS_CALLBACK bio_dump_callback(BIO *bio, int cmd, const char *argp,
+	int argi, long argl, long ret)
 	{
 	BIO *out;
 
@@ -239,15 +267,15 @@ long MS_CALLBACK bio_dump_cb(BIO *bio, int cmd, const char *argp, int argi,
 
 	if (cmd == (BIO_CB_READ|BIO_CB_RETURN))
 		{
-		BIO_printf(out,"read from %08X [%08lX] (%d bytes => %ld (0x%X))\n",
-			bio,argp,argi,ret,ret);
+		BIO_printf(out,"read from %p [%p] (%d bytes => %ld (0x%lX))\n",
+ 			(void *)bio,argp,argi,ret,ret);
 		BIO_dump(out,argp,(int)ret);
 		return(ret);
 		}
 	else if (cmd == (BIO_CB_WRITE|BIO_CB_RETURN))
 		{
-		BIO_printf(out,"write to %08X [%08lX] (%d bytes => %ld (0x%X))\n",
-			bio,argp,argi,ret,ret);
+		BIO_printf(out,"write to %p [%p] (%d bytes => %ld (0x%lX))\n",
+			(void *)bio,argp,argi,ret,ret);
 		BIO_dump(out,argp,(int)ret);
 		}
 	return(ret);
@@ -255,7 +283,7 @@ long MS_CALLBACK bio_dump_cb(BIO *bio, int cmd, const char *argp, int argi,
 
 void MS_CALLBACK apps_ssl_info_callback(const SSL *s, int where, int ret)
 	{
-	char *str;
+	const char *str;
 	int w;
 
 	w=where& ~SSL_ST_MASK;
@@ -318,14 +346,14 @@ void MS_CALLBACK msg_cb(int write_p, int version, int content_type, const void *
 
 		if (len > 0)
 			{
-			switch (((unsigned char*)buf)[0])
+			switch (((const unsigned char*)buf)[0])
 				{
 				case 0:
 					str_details1 = ", ERROR:";
 					str_details2 = " ???";
 					if (len >= 3)
 						{
-						unsigned err = (((unsigned char*)buf)[1]<<8) + ((unsigned char*)buf)[2];
+						unsigned err = (((const unsigned char*)buf)[1]<<8) + ((const unsigned char*)buf)[2];
 						
 						switch (err)
 							{
@@ -394,7 +422,7 @@ void MS_CALLBACK msg_cb(int write_p, int version, int content_type, const void *
 			
 			if (len == 2)
 				{
-				switch (((unsigned char*)buf)[0])
+				switch (((const unsigned char*)buf)[0])
 					{
 				case 1:
 					str_details1 = ", warning";
@@ -405,7 +433,7 @@ void MS_CALLBACK msg_cb(int write_p, int version, int content_type, const void *
 					}
 
 				str_details2 = " ???";
-				switch (((unsigned char*)buf)[1])
+				switch (((const unsigned char*)buf)[1])
 					{
 				case 0:
 					str_details2 = " close_notify";
@@ -486,7 +514,7 @@ void MS_CALLBACK msg_cb(int write_p, int version, int content_type, const void *
 
 			if (len > 0)
 				{
-				switch (((unsigned char*)buf)[0])
+				switch (((const unsigned char*)buf)[0])
 					{
 				case 0:
 					str_details1 = ", HelloRequest";
@@ -539,7 +567,7 @@ void MS_CALLBACK msg_cb(int write_p, int version, int content_type, const void *
 			{
 			if (i % 16 == 0 && i > 0)
 				BIO_printf(bio, "\n   ");
-			BIO_printf(bio, " %02x", ((unsigned char*)buf)[i]);
+			BIO_printf(bio, " %02x", ((const unsigned char*)buf)[i]);
 			}
 		if (i < len)
 			BIO_printf(bio, " ...");
