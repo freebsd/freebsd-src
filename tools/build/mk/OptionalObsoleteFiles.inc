@@ -448,6 +448,7 @@ OLD_FILES+=usr/share/man/man8/isdntrace.8.gz
 .endif
 
 .if ${MK_INET6} == no
+OLD_FILES+=rescue/ping6
 OLD_FILES+=sbin/ping6
 OLD_FILES+=sbin/rtsol
 OLD_FILES+=usr/sbin/ip6addrctl
@@ -459,6 +460,19 @@ OLD_FILES+=usr/sbin/rrenumd
 OLD_FILES+=usr/sbin/rtadvd
 OLD_FILES+=usr/sbin/rtsold
 OLD_FILES+=usr/sbin/traceroute6
+OLD_FILES+=usr/share/man/man5/rrenumd.conf.5.gz
+OLD_FILES+=usr/share/man/man5/rtadvd.conf.5.gz
+OLD_FILES+=usr/share/man/man8/ip6addrctl.8.gz
+OLD_FILES+=usr/share/man/man8/mld6query.8.gz
+OLD_FILES+=usr/share/man/man8/ndp.8.gz
+OLD_FILES+=usr/share/man/man8/ping6.8.gz
+OLD_FILES+=usr/share/man/man8/rip6query.8.gz
+OLD_FILES+=usr/share/man/man8/route6d.8.gz
+OLD_FILES+=usr/share/man/man8/rrenumd.8.gz
+OLD_FILES+=usr/share/man/man8/rtadvd.8.gz
+OLD_FILES+=usr/share/man/man8/rtsol.8.gz
+OLD_FILES+=usr/share/man/man8/rtsold.8.gz
+OLD_FILES+=usr/share/man/man8/traceroute6.8.gz
 .endif
 
 #.if ${MK_INFO} == no
