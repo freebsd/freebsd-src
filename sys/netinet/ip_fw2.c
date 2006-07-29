@@ -812,6 +812,9 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 		if (cmd->opcode == O_PROB)
 			cmd += F_LEN(cmd);
 
+		if (cmd->opcode == O_TAG)
+			cmd += F_LEN(cmd);
+
 		action = action2;
 		switch (cmd->opcode) {
 		case O_DENY:
@@ -1445,61 +1448,70 @@ lookup_dyn_parent(struct ipfw_flow_id *pkt, struct ip_fw *rule)
  */
 static int
 install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
-	struct ip_fw_args *args)
+    struct ip_fw_args *args, uint32_t tablearg)
 {
 	static int last_log;
 
 	ipfw_dyn_rule *q;
 
-	DEB(printf("ipfw: install state type %d 0x%08x %u -> 0x%08x %u\n",
-	    cmd->o.opcode,
+	DEB(
+	printf("ipfw: %s: type %d 0x%08x %u -> 0x%08x %u\n",
+	    __func__, cmd->o.opcode,
 	    (args->f_id.src_ip), (args->f_id.src_port),
-	    (args->f_id.dst_ip), (args->f_id.dst_port) );)
+	    (args->f_id.dst_ip), (args->f_id.dst_port));
+	)
 
 	IPFW_DYN_LOCK();
 
 	q = lookup_dyn_rule_locked(&args->f_id, NULL, NULL);
 
-	if (q != NULL) { /* should never occur */
+	if (q != NULL) {	/* should never occur */
 		if (last_log != time_second) {
 			last_log = time_second;
-			printf("ipfw: install_state: entry already present, done\n");
+			printf("ipfw: %s: entry already present, done\n",
+			    __func__);
 		}
 		IPFW_DYN_UNLOCK();
-		return 0;
+		return (0);
 	}
 
 	if (dyn_count >= dyn_max)
-		/*
-		 * Run out of slots, try to remove any expired rule.
-		 */
+		/* Run out of slots, try to remove any expired rule. */
 		remove_dyn_rule(NULL, (ipfw_dyn_rule *)1);
 
 	if (dyn_count >= dyn_max) {
 		if (last_log != time_second) {
 			last_log = time_second;
-			printf("ipfw: install_state: Too many dynamic rules\n");
+			printf("ipfw: %s: Too many dynamic rules\n", __func__);
 		}
 		IPFW_DYN_UNLOCK();
-		return 1; /* cannot install, notify caller */
+		return (1);	/* cannot install, notify caller */
 	}
 
 	switch (cmd->o.opcode) {
-	case O_KEEP_STATE: /* bidir rule */
+	case O_KEEP_STATE:	/* bidir rule */
 		add_dyn_rule(&args->f_id, O_KEEP_STATE, rule);
 		break;
 
-	case O_LIMIT: /* limit number of sessions */
-	    {
-		u_int16_t limit_mask = cmd->limit_mask;
+	case O_LIMIT: {		/* limit number of sessions */
 		struct ipfw_flow_id id;
 		ipfw_dyn_rule *parent;
+		uint32_t conn_limit;
+		uint16_t limit_mask = cmd->limit_mask;
 
-		DEB(printf("ipfw: installing dyn-limit rule %d\n",
-		    cmd->conn_limit);)
+		conn_limit = (cmd->conn_limit == IP_FW_TABLEARG) ?
+		    tablearg : cmd->conn_limit;
+		  
+		DEB(
+		if (cmd->conn_limit == IP_FW_TABLEARG)
+			printf("ipfw: %s: O_LIMIT rule, conn_limit: %u "
+			    "(tablearg)\n", __func__, conn_limit);
+		else
+			printf("ipfw: %s: O_LIMIT rule, conn_limit: %u\n",
+			    __func__, conn_limit);
+		)
 
-		id.dst_ip = id.src_ip = 0;
-		id.dst_port = id.src_port = 0;
+		id.dst_ip = id.src_ip = id.dst_port = id.src_port = 0;
 		id.proto = args->f_id.proto;
 		id.addr_type = args->f_id.addr_type;
 
@@ -1518,38 +1530,40 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 			id.src_port = args->f_id.src_port;
 		if (limit_mask & DYN_DST_PORT)
 			id.dst_port = args->f_id.dst_port;
-		parent = lookup_dyn_parent(&id, rule);
-		if (parent == NULL) {
-			printf("ipfw: add parent failed\n");
+		if ((parent = lookup_dyn_parent(&id, rule)) == NULL) {
+			printf("ipfw: %s: add parent failed\n", __func__);
 			IPFW_DYN_UNLOCK();
-			return 1;
+			return (1);
 		}
-		if (parent->count >= cmd->conn_limit) {
-			/*
-			 * See if we can remove some expired rule.
-			 */
+
+		if (parent->count >= conn_limit) {
+			/* See if we can remove some expired rule. */
 			remove_dyn_rule(rule, parent);
-			if (parent->count >= cmd->conn_limit) {
+			if (parent->count >= conn_limit) {
 				if (fw_verbose && last_log != time_second) {
 					last_log = time_second;
 					log(LOG_SECURITY | LOG_DEBUG,
 					    "drop session, too many entries\n");
 				}
 				IPFW_DYN_UNLOCK();
-				return 1;
+				return (1);
 			}
 		}
 		add_dyn_rule(&args->f_id, O_LIMIT, (struct ip_fw *)parent);
-	    }
 		break;
-	default:
-		printf("ipfw: unknown dynamic rule type %u\n", cmd->o.opcode);
-		IPFW_DYN_UNLOCK();
-		return 1;
 	}
-	lookup_dyn_rule_locked(&args->f_id, NULL, NULL); /* XXX just set lifetime */
+	default:
+		printf("ipfw: %s: unknown dynamic rule type %u\n",
+		    __func__, cmd->o.opcode);
+		IPFW_DYN_UNLOCK();
+		return (1);
+	}
+
+	/* XXX just set lifetime */
+	lookup_dyn_rule_locked(&args->f_id, NULL, NULL);
+
 	IPFW_DYN_UNLOCK();
-	return 0;
+	return (0);
 }
 
 /*
@@ -1691,6 +1705,8 @@ lookup_next_rule(struct ip_fw *me)
 	if (cmd->opcode == O_LOG)
 		cmd += F_LEN(cmd);
 	if (cmd->opcode == O_ALTQ)
+		cmd += F_LEN(cmd);
+	if (cmd->opcode == O_TAG)
 		cmd += F_LEN(cmd);
 	if ( cmd->opcode == O_SKIPTO )
 		for (rule = me->next; rule ; rule = rule->next)
@@ -2930,6 +2946,62 @@ check_body:
 				match = is_ipv4;
 				break;
 
+			case O_TAG: {
+				uint32_t tag = (cmd->arg1 == IP_FW_TABLEARG) ?
+				    tablearg : cmd->arg1;
+
+				/* Packet is already tagged with this tag? */
+				mtag = m_tag_locate(m, MTAG_IPFW, tag, NULL);
+
+				/* We have `untag' action when F_NOT flag is
+				 * present. And we must remove this mtag from
+				 * mbuf and reset `match' to zero (`match' will
+				 * be inversed later).
+				 * Otherwise we should allocate new mtag and
+				 * push it into mbuf.
+				 */
+				if (cmd->len & F_NOT) { /* `untag' action */
+					if (mtag != NULL)
+						m_tag_delete(m, mtag);
+				} else if (mtag == NULL) {
+					if ((mtag = m_tag_alloc(MTAG_IPFW,
+					    tag, 0, M_NOWAIT)) != NULL)
+						m_tag_prepend(m, mtag);
+				}
+				match = (cmd->len & F_NOT) ? 0: 1;
+				break;
+			}
+
+			case O_TAGGED: {
+				uint32_t tag = (cmd->arg1 == IP_FW_TABLEARG) ?
+				    tablearg : cmd->arg1;
+
+				if (cmdlen == 1) {
+					match = m_tag_locate(m, MTAG_IPFW,
+					    tag, NULL) != NULL;
+					break;
+				}
+
+				/* we have ranges */
+				for (mtag = m_tag_first(m);
+				    mtag != NULL && !match;
+				    mtag = m_tag_next(m, mtag)) {
+					uint16_t *p;
+					int i;
+
+					if (mtag->m_tag_cookie != MTAG_IPFW)
+						continue;
+
+					p = ((ipfw_insn_u16 *)cmd)->ports;
+					i = cmdlen - 1;
+					for(; !match && i > 0; i--, p += 2)
+						match =
+						    mtag->m_tag_id >= p[0] &&
+						    mtag->m_tag_id <= p[1];
+				}
+				break;
+			}
+				
 			/*
 			 * The second set of opcodes represents 'actions',
 			 * i.e. the terminal part of a rule once the packet
@@ -2949,7 +3021,7 @@ check_body:
 			 *   or to the SKIPTO target ('goto again' after
 			 *   having set f, cmd and l), respectively.
 			 *
-			 * O_LOG and O_ALTQ action parameters:
+			 * O_TAG, O_LOG and O_ALTQ action parameters:
 			 *   perform some action and set match = 1;
 			 *
 			 * O_LIMIT and O_KEEP_STATE: these opcodes are
@@ -2974,7 +3046,7 @@ check_body:
 			case O_LIMIT:
 			case O_KEEP_STATE:
 				if (install_state(f,
-				    (ipfw_insn_limit *)cmd, args)) {
+				    (ipfw_insn_limit *)cmd, args, tablearg)) {
 					retval = IP_FW_DENY;
 					goto done; /* error/limit violation */
 				}
@@ -3600,6 +3672,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IP6:
 #endif
 		case O_IP4:
+		case O_TAG:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
 			break;
@@ -3672,6 +3745,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IPTTL:
 		case O_IPLEN:
 		case O_TCPDATALEN:
+		case O_TAGGED:
 			if (cmdlen < 1 || cmdlen > 31)
 				goto bad_size;
 			break;

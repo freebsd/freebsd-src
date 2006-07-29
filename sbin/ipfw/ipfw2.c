@@ -82,6 +82,44 @@ int
  */
 #define NEED1(msg)      {if (!ac) errx(EX_USAGE, msg);}
 
+#define GET_UINT_ARG(arg, min, max, tok, s_x) do {			\
+	if (!ac)							\
+		errx(EX_USAGE, "%s: missing argument", match_value(s_x, tok)); \
+	if (_substrcmp(*av, "tablearg") == 0) {				\
+		arg = IP_FW_TABLEARG;					\
+		break;							\
+	}								\
+									\
+	{								\
+	long val;							\
+	char *end;							\
+									\
+	val = strtol(*av, &end, 10);					\
+									\
+	if (!isdigit(**av) || *end != '\0' || (val == 0 && errno == EINVAL)) \
+		errx(EX_DATAERR, "%s: invalid argument: %s",		\
+		    match_value(s_x, tok), *av);			\
+									\
+	if (errno == ERANGE || val < min || val > max)			\
+		errx(EX_DATAERR, "%s: argument is out of range (%u..%u): %s", \
+		    match_value(s_x, tok), min, max, *av);		\
+									\
+	if (val == IP_FW_TABLEARG)					\
+		errx(EX_DATAERR, "%s: illegal argument value: %s",	\
+		    match_value(s_x, tok), *av);			\
+	arg = val;							\
+	}								\
+} while (0)
+
+#define PRINT_UINT_ARG(str, arg) do {					\
+	if (str != NULL)						\
+		printf("%s",str);					\
+	if (arg == IP_FW_TABLEARG)					\
+		printf("tablearg");					\
+	else								\
+		printf("%u", (uint32_t)arg);				\
+} while (0)
+
 /*
  * _s_x is a structure that stores a string <-> token pairs, used in
  * various places in the parser. Entries are stored in arrays,
@@ -212,7 +250,10 @@ enum tokens {
 
 	TOK_ALTQ,
 	TOK_LOG,
+	TOK_TAG,
+	TOK_UNTAG,
 
+	TOK_TAGGED,
 	TOK_UID,
 	TOK_GID,
 	TOK_JAIL,
@@ -340,10 +381,13 @@ struct _s_x rule_actions[] = {
 struct _s_x rule_action_params[] = {
 	{ "altq",		TOK_ALTQ },
 	{ "log",		TOK_LOG },
+	{ "tag",		TOK_TAG },
+	{ "untag",		TOK_UNTAG },
 	{ NULL, 0 }	/* terminator */
 };
 
 struct _s_x rule_options[] = {
+	{ "tagged",		TOK_TAGGED },
 	{ "uid",		TOK_UID },
 	{ "gid",		TOK_GID },
 	{ "jail",		TOK_JAIL },
@@ -572,6 +616,7 @@ struct _s_x _port_name[] = {
 	{"ipttl",	O_IPTTL},
 	{"mac-type",	O_MAC_TYPE},
 	{"tcpdatalen",	O_TCPDATALEN},
+	{"tagged",	O_TAGGED},
 	{NULL,		0}
 };
 
@@ -785,30 +830,39 @@ fill_newports(ipfw_insn_u16 *cmd, char *av, int proto)
 
 	while (*s) {
 		a = strtoport(av, &s, 0, proto);
-		if (s == av) /* no parameter */
-			break;
-		if (*s == '-') { /* a range */
-			av = s+1;
+		if (s == av) 			/* empty or invalid argument */
+			return (0);
+
+		switch (*s) {
+		case '-':			/* a range */
+			av = s + 1;
 			b = strtoport(av, &s, 0, proto);
-			if (s == av) /* no parameter */
-				break;
+			/* Reject expressions like '1-abc' or '1-2-3'. */
+			if (s == av || (*s != ',' && *s != '\0'))
+				return (0);
 			p[0] = a;
 			p[1] = b;
-		} else if (*s == ',' || *s == '\0' )
+			break;
+		case ',':			/* comma separated list */
+		case '\0':
 			p[0] = p[1] = a;
-		else 	/* invalid separator */
-			errx(EX_DATAERR, "invalid separator <%c> in <%s>\n",
+			break;
+		default:
+			warnx("port list: invalid separator <%c> in <%s>",
 				*s, av);
+			return (0);
+		}
+
 		i++;
 		p += 2;
-		av = s+1;
+		av = s + 1;
 	}
 	if (i > 0) {
-		if (i+1 > F_LEN_MASK)
+		if (i + 1 > F_LEN_MASK)
 			errx(EX_DATAERR, "too many ports/ranges\n");
-		cmd->o.len |= i+1; /* leave F_NOT and F_OR untouched */
+		cmd->o.len |= i + 1;	/* leave F_NOT and F_OR untouched */
 	}
-	return i;
+	return (i);
 }
 
 static struct _s_x icmpcodes[] = {
@@ -1358,7 +1412,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 {
 	static int twidth = 0;
 	int l;
-	ipfw_insn *cmd;
+	ipfw_insn *cmd, *tagptr = NULL;
 	char *comment = NULL;	/* ptr to comment if we have one */
 	int proto = 0;		/* default */
 	int flags = 0;	/* prerequisites */
@@ -1459,28 +1513,33 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				print_unreach6_code(cmd->arg1);
 			break;
 
-#define	PRINT_WITH_ARG(o)						\
-			if (cmd->arg1 == IP_FW_TABLEARG)		\
-				printf("%s tablearg", (o));		\
-			else						\
-				printf("%s %u", (o), cmd->arg1);	\
+		case O_SKIPTO:
+			PRINT_UINT_ARG("skipto ", cmd->arg1);
 			break;
 
-		case O_SKIPTO:
-			PRINT_WITH_ARG("skipto");
 		case O_PIPE:
-			PRINT_WITH_ARG("pipe");
+			PRINT_UINT_ARG("pipe ", cmd->arg1);
+			break;
+
 		case O_QUEUE:
-			PRINT_WITH_ARG("queue");
+			PRINT_UINT_ARG("queue ", cmd->arg1);
+			break;
+
 		case O_DIVERT:
-			PRINT_WITH_ARG("divert");
+			PRINT_UINT_ARG("divert ", cmd->arg1);
+			break;
+
 		case O_TEE:
-			PRINT_WITH_ARG("tee");
+			PRINT_UINT_ARG("tee ", cmd->arg1);
+			break;
+
 		case O_NETGRAPH:
-			PRINT_WITH_ARG("netgraph");
+			PRINT_UINT_ARG("netgraph ", cmd->arg1);
+			break;
+
 		case O_NGTEE:
-			PRINT_WITH_ARG("ngtee");
-#undef PRINT_WITH_ARG
+			PRINT_UINT_ARG("ngtee ", cmd->arg1);
+			break;
 
 		case O_FORWARD_IP:
 		    {
@@ -1498,6 +1557,10 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 
 		case O_ALTQ: /* O_ALTQ is printed after O_LOG */
 			altqptr = (ipfw_insn_altq *)cmd;
+			break;
+
+		case O_TAG:
+			tagptr = cmd;
 			break;
 
 		default:
@@ -1519,6 +1582,12 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			printf(" altq ?<%u>", altqptr->qid);
 		else
 			printf(" altq %s", qname);
+	}
+	if (tagptr) {
+		if (tagptr->len & F_NOT)
+			PRINT_UINT_ARG(" untag ", tagptr->arg1);
+		else
+			PRINT_UINT_ARG(" tag ", tagptr->arg1);
 	}
 
 	/*
@@ -1872,8 +1941,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				printf(" keep-state");
 				break;
 
-			case O_LIMIT:
-			    {
+			case O_LIMIT: {
 				struct _s_x *p = limit_masks;
 				ipfw_insn_limit *c = (ipfw_insn_limit *)cmd;
 				uint8_t x = c->limit_mask;
@@ -1886,9 +1954,9 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 						printf("%s%s", comma, p->s);
 						comma = ",";
 					}
-				printf(" %d", c->conn_limit);
-			    }
+				PRINT_UINT_ARG(" ", c->conn_limit);
 				break;
+			}
 
 			case O_IP6:
 				printf(" ip6");
@@ -1904,6 +1972,14 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 
 			case O_EXT_HDR:
 				print_ext6hdr( (ipfw_insn *) cmd );
+				break;
+
+			case O_TAGGED:
+				if (F_LEN(cmd) == 1)
+					PRINT_UINT_ARG(" tagged ", cmd->arg1);
+				else
+					print_newports((ipfw_insn_u16 *)cmd, 0,
+					    O_TAGGED);
 				break;
 
 			default:
@@ -3769,7 +3845,7 @@ add(int ac, char *av[])
 	 * various flags used to record that we entered some fields.
 	 */
 	ipfw_insn *have_state = NULL;	/* check-state or keep-state */
-	ipfw_insn *have_log = NULL, *have_altq = NULL;
+	ipfw_insn *have_log = NULL, *have_altq = NULL, *have_tag = NULL;
 	size_t len;
 
 	int i;
@@ -4011,6 +4087,20 @@ chkarg:
 			ac--; av++;
 		    }
 			break;
+
+		case TOK_TAG:
+		case TOK_UNTAG: {
+			uint16_t tag;
+
+			if (have_tag)
+				errx(EX_USAGE, "tag and untag cannot be "
+				    "specified more than once");
+			GET_UINT_ARG(tag, 1, 65534, i, rule_action_params);
+			have_tag = cmd;
+			fill_cmd(cmd, O_TAG, (i == TOK_TAG) ? 0: F_NOT, tag);
+			ac--; av++;
+			break;
+		}
 
 		default:
 			abort();
@@ -4455,39 +4545,38 @@ read_options:
 			fill_cmd(cmd, O_KEEP_STATE, 0, 0);
 			break;
 
-		case TOK_LIMIT:
-			if (open_par)
-				errx(EX_USAGE, "limit cannot be part "
-				    "of an or block");
-			if (have_state)
-				errx(EX_USAGE, "only one of keep-state "
-					"and limit is allowed");
-			NEED1("limit needs mask and # of connections");
-			have_state = cmd;
-		    {
+		case TOK_LIMIT: {
 			ipfw_insn_limit *c = (ipfw_insn_limit *)cmd;
+			int val;
+
+			if (open_par)
+				errx(EX_USAGE,
+				    "limit cannot be part of an or block");
+			if (have_state)
+				errx(EX_USAGE, "only one of keep-state and"
+				    "limit is allowed");
+			have_state = cmd;
 
 			cmd->len = F_INSN_SIZE(ipfw_insn_limit);
 			cmd->opcode = O_LIMIT;
-			c->limit_mask = 0;
-			c->conn_limit = 0;
-			for (; ac >1 ;) {
-				int val;
+			c->limit_mask = c->conn_limit = 0;
 
-				val = match_token(limit_masks, *av);
-				if (val <= 0)
+			while (ac > 0) {
+				if ((val = match_token(limit_masks, *av)) <= 0)
 					break;
 				c->limit_mask |= val;
 				ac--; av++;
 			}
-			c->conn_limit = atoi(*av);
-			if (c->conn_limit == 0)
-				errx(EX_USAGE, "limit: limit must be >0");
+
 			if (c->limit_mask == 0)
-				errx(EX_USAGE, "missing limit mask");
+				errx(EX_USAGE, "limit: missing limit mask");
+
+			GET_UINT_ARG(c->conn_limit, 1, 65534, TOK_LIMIT,
+			    rule_options);
+
 			ac--; av++;
-		    }
 			break;
+		}
 
 		case TOK_PROTO:
 			NEED1("missing protocol");
@@ -4601,6 +4690,22 @@ read_options:
 			ac = 0;
 			break;
 
+		case TOK_TAGGED:
+			if (ac > 0 && strpbrk(*av, "-,")) {
+				if (!add_ports(cmd, *av, 0, O_TAGGED))
+					errx(EX_DATAERR, "tagged: invalid tag"
+					    " list: %s", *av);
+			}
+			else {
+				uint16_t tag;
+
+				GET_UINT_ARG(tag, 1, 65534, TOK_TAGGED,
+				    rule_options);
+				fill_cmd(cmd, O_TAGGED, 0, tag);
+			}
+			ac--; av++;
+			break;
+
 		default:
 			errx(EX_USAGE, "unrecognised option [%d] %s\n", i, s);
 		}
@@ -4637,9 +4742,8 @@ done:
 		fill_cmd(dst, O_PROBE_STATE, 0, 0);
 		dst = next_cmd(dst);
 	}
-	/*
-	 * copy all commands but O_LOG, O_KEEP_STATE, O_LIMIT, O_ALTQ
-	 */
+
+	/* copy all commands but O_LOG, O_KEEP_STATE, O_LIMIT, O_ALTQ, O_TAG */
 	for (src = (ipfw_insn *)cmdbuf; src != cmd; src += i) {
 		i = F_LEN(src);
 
@@ -4648,6 +4752,7 @@ done:
 		case O_KEEP_STATE:
 		case O_LIMIT:
 		case O_ALTQ:
+		case O_TAG:
 			break;
 		default:
 			bcopy(src, dst, i * sizeof(uint32_t));
@@ -4668,9 +4773,7 @@ done:
 	 */
 	rule->act_ofs = dst - rule->cmd;
 
-	/*
-	 * put back O_LOG, O_ALTQ if necessary
-	 */
+	/* put back O_LOG, O_ALTQ, O_TAG if necessary */
 	if (have_log) {
 		i = F_LEN(have_log);
 		bcopy(have_log, dst, i * sizeof(uint32_t));
@@ -4679,6 +4782,11 @@ done:
 	if (have_altq) {
 		i = F_LEN(have_altq);
 		bcopy(have_altq, dst, i * sizeof(uint32_t));
+		dst += i;
+	}
+	if (have_tag) {
+		i = F_LEN(have_tag);
+		bcopy(have_tag, dst, i * sizeof(uint32_t));
 		dst += i;
 	}
 	/*

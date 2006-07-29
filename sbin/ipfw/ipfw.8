@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2006
+.Dd July 25, 2006
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -420,6 +420,10 @@ rules is the following:
 .Ar "   " action
 .Op Cm log Op Cm logamount Ar number
 .Op Cm altq Ar queue
+.Oo
+.Bro Cm tag | untag
+.Brc Ar number
+.Oc
 .Ar body
 .Ed
 .Pp
@@ -551,6 +555,53 @@ command.
 Note: logging is done after all other packet matching conditions
 have been successfully verified, and before performing the final
 action (accept, deny, etc.) on the packet.
+.It Cm tag Ar number
+When a packet matches a rule with the
+.Cm tag
+keyword, the numeric tag for the given
+.Ar number
+in the range 1..65534 will be attached to the packet.
+The tag acts as an internal marker (it is not sent out over
+the wire) that can be used to identify these packets later on.
+This can be used, for example, to provide trust between interfaces
+and to start doing policy-based filtering.
+A packet can have mutiple tags at the same time.
+Tags are "sticky", meaning once a tag is applied to a packet by a
+matching rule it exists until explicit removal.
+Tags are kept with the packet everywhere within the kernel, but are
+lost when packet leaves the kernel, for example, on transmitting
+packet out to the network or sending packet to a
+.Xr divert 4
+socket.
+.Pp
+To check for previously applied tags, use the
+.Cm tagged
+rule option. To delete previously applied tag, use the
+.Cm untag
+keyword.
+.Pp
+Note: since tags are kept with the packet everywhere in kernelspace,
+they can be set and unset anywhere in kernel network subsystem
+(using
+.Xr mbuf_tags 9
+facility), not only by means of
+.Xr ipfw 4
+.Cm tag
+and
+.Cm untag
+keywords.
+For example, there can be a specialized
+.Xr netgraph 4
+node doing traffic analyzing and tagging for later inspecting
+in firewall.
+.It Cm untag Ar number
+When a packet matches a rule with the
+.Cm untag
+keyword, the tag with the number
+.Ar number
+is searched among the tags attached to this packet and,
+if found, removed from it.
+Other tags bound to packet, if present, are left untouched.
 .It Cm altq Ar queue
 When a packet matches a rule with the
 .Cm altq
@@ -1361,6 +1412,15 @@ specified as an argument.
 .It Cm src-port Ar ports
 Matches IP packets whose source port is one of the port(s)
 specified as argument.
+.It Cm tagged Ar tag-list
+Matches packets whose tags are included in
+.Ar tag-list ,
+which is either a single value or a list of values or ranges
+specified in the same way as
+.Ar ports .
+Tags can be applied to the packet using
+.Cm tag
+rule action parameter (see it's description for details on tags).
 .It Cm tcpack Ar ack
 TCP packets only.
 Match if the TCP header acknowledgment number field is set to
@@ -1526,12 +1586,16 @@ Lookup tables currently support IPv4 addresses only.
 The
 .Cm tablearg
 feature provides the ability to use a value, looked up in the table, as
-the argument for a rule action.
+the argument for a rule action, action parameter or rule option.
 This can significantly reduce number of rules in some configurations.
 The
 .Cm tablearg
 argument can be used with the following actions:
-.Cm pipe , queue, divert, tee, netgraph, ngtee .
+.Cm pipe , queue, divert, tee, netgraph, ngtee,
+action parameters:
+.Cm tag, untag,
+rule options:
+.Cm limit, tagged.
 See the
 .Sx EXAMPLES
 Section for example usage of tables and the tablearg keyword.

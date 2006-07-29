@@ -1175,6 +1175,10 @@ dummynet_io(struct mbuf *m, int dir, struct ip_fw_args *fwa)
 
     if (cmd->opcode == O_LOG)
 	cmd += F_LEN(cmd);
+    if (cmd->opcode == O_ALTQ)
+	cmd += F_LEN(cmd);
+    if (cmd->opcode == O_TAG)
+	cmd += F_LEN(cmd);
     is_pipe = (cmd->opcode == O_PIPE);
 
     DUMMYNET_LOCK();
