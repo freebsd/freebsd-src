@@ -1,17 +1,39 @@
 /* $FreeBSD$ */
 /* opensslconf.h */
-
 /* WARNING: Generated automatically from opensslconf.h.in by Configure. */
 
 /* OpenSSL was configured with the following options: */
+#ifndef OPENSSL_DOING_MAKEDEPEND
+
+/* libgmp is not in the FreeBSD base system. */
+#ifndef OPENSSL_NO_GMP
+# define OPENSSL_NO_GMP
+#endif
+/* The Kerberos 5 support is MIT-specific. */
+#ifndef OPENSSL_NO_KRB5
+# define OPENSSL_NO_KRB5
+#endif
+
+#endif /* OPENSSL_DOING_MAKEDEPEND */
+#ifndef OPENSSL_THREADS
+# define OPENSSL_THREADS
+#endif
+#ifndef OPENSSL_NO_STATIC_ENGINE
+# define OPENSSL_NO_STATIC_ENGINE
+#endif
+
+/* The OPENSSL_NO_* macros are also defined as NO_* if the application
+   asks for it.  This is a transient feature that is provided for those
+   who haven't had the time to do the appropriate changes in their
+   applications.  */
 #ifdef OPENSSL_ALGORITHM_DEFINES
-   /* no ciphers excluded */
-#endif
-#ifdef OPENSSL_THREAD_DEFINES
-# ifndef THREADS
-#  define THREADS
+# if defined(OPENSSL_NO_GMP) && !defined(NO_GMP)
+#  define NO_GMP
 # endif
-#endif
+# if defined(OPENSSL_NO_KRB5) && !defined(NO_KRB5)
+#  define NO_KRB5
+# endif
+# endif
 #ifdef OPENSSL_OTHER_DEFINES
 # ifndef NO_ASM
 #  define NO_ASM
@@ -25,11 +47,15 @@
 
 #if !(defined(VMS) || defined(__VMS)) /* VMS uses logical names instead */
 #if defined(HEADER_CRYPTLIB_H) && !defined(OPENSSLDIR)
+#define ENGINESDIR "/usr/lib/engines"
 #define OPENSSLDIR "/etc/ssl"
 #endif
 #endif
 
+#undef OPENSSL_UNISTD
 #define OPENSSL_UNISTD <unistd.h>
+
+#undef OPENSSL_EXPORT_VAR_AS_FUNCTION
 
 #if defined(HEADER_IDEA_H) && !defined(IDEA_INT)
 #define IDEA_INT unsigned int
@@ -60,11 +86,11 @@
  * This enables code handling data aligned at natural CPU word
  * boundary. See crypto/rc4/rc4_enc.c for further details.
  */
-#undef RC4_CHUNK
+#define RC4_CHUNK unsigned long
 #endif
 #endif
 
-#if (defined(HEADER_DES_H) || defined(HEADER_NEW_DES_H)) && !defined(DES_LONG)
+#if (defined(HEADER_NEW_DES_H) || defined(HEADER_DES_H)) && !defined(DES_LONG)
 /* If this is set to 'unsigned int' on a DEC Alpha, this gives about a
  * %20 speed up (longs are 8 bytes, int's are 4). */
 #ifndef DES_LONG
@@ -107,7 +133,7 @@
 /* the following is tweaked from a config script, that is why it is a
  * protected undef/define */
 #ifndef DES_PTR
-#define DES_PTR
+#undef DES_PTR
 #endif
 
 /* This helps C compiler generate the correct code for multiple functional
@@ -118,7 +144,7 @@
 #endif
 
 #ifndef DES_RISC2
-#define DES_RISC2
+#undef DES_RISC2
 #endif
 
 #if defined(DES_RISC1) && defined(DES_RISC2)
@@ -128,7 +154,7 @@ YOU SHOULD NOT HAVE BOTH DES_RISC1 AND DES_RISC2 DEFINED!!!!!
 /* Unroll the inner loop, this sometimes helps, sometimes hinders.
  * Very mucy CPU dependant */
 #ifndef DES_UNROLL
-#undef DES_UNROLL
+#define DES_UNROLL
 #endif
 
 /* These default values were supplied by
@@ -173,5 +199,3 @@ YOU SHOULD NOT HAVE BOTH DES_RISC1 AND DES_RISC2 DEFINED!!!!!
 
 #endif /* DES_DEFAULT_OPTIONS */
 #endif /* HEADER_DES_LOCL_H */
-/* The Kerberos 5 support is MIT-specific. */
-#define OPENSSL_NO_KRB5
