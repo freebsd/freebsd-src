@@ -92,15 +92,12 @@ nodevice	bt
 nodevice	wds
 nodevice	ep
 nodevice	ex
-nodevice	sio
 
 
 #####################################################################
 # Options we don't want to deal with
 
 nooption	FDC_DEBUG
-nooption	COM_ESP
-nooption	CONSPEED
 nooption	VGA_DEBUG
 nooption	SC_RENDER_DEBUG
 nooption	SC_DEBUG_LEVEL

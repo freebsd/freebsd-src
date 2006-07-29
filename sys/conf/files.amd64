@@ -184,6 +184,9 @@ dev/rr232x/osm_bsd.c		optional	rr232x
 dev/rr232x/rr232x_config.c	optional	rr232x
 dev/sio/sio.c			optional	sio
 dev/sio/sio_isa.c		optional	sio isa
+dev/sio/sio_pccard.c		optional	sio pccard
+dev/sio/sio_pci.c		optional	sio pci
+dev/sio/sio_puc.c		optional	sio puc
 dev/speaker/spkr.c		optional	speaker
 dev/syscons/apm/apm_saver.c	optional	apm_saver apm
 dev/syscons/schistory.c		optional	sc

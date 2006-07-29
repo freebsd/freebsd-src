@@ -35,6 +35,12 @@ CLK_CALIBRATION_LOOP		opt_clock.h
 CLK_USE_I8254_CALIBRATION	opt_clock.h
 TIMER_FREQ			opt_clock.h
 
+# options for serial support
+COM_ESP			opt_sio.h
+COM_MULTIPORT		opt_sio.h
+CONSPEED		opt_sio.h
+GDBSPEED		opt_sio.h
+
 CPU_BLUELIGHTNING_3X		opt_cpu.h
 CPU_BLUELIGHTNING_FPU_OP_CACHE	opt_cpu.h
 CPU_BTB_EN			opt_cpu.h
