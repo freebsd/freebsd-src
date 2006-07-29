@@ -129,7 +129,6 @@
 #include "progs.h"
 #include "s_apps.h"
 #include <openssl/err.h>
-#include <openssl/fips.h>
 
 /* The LHASH callbacks ("hash" & "cmp") have been replaced by functions with the
  * base prototypes (we cast each variable inside the function to the required
@@ -148,7 +147,6 @@ char *default_config_file=NULL;
 #ifdef MONOLITH
 CONF *config=NULL;
 BIO *bio_err=NULL;
-int in_FIPS_mode=0;
 #endif
 
 
@@ -222,38 +220,18 @@ int main(int Argc, char *Argv[])
 #define PROG_NAME_SIZE	39
 	char pname[PROG_NAME_SIZE+1];
 	FUNCTION f,*fp;
-	MS_STATIC char *prompt,buf[1024];
+	MS_STATIC const char *prompt;
+	MS_STATIC char buf[1024];
 	char *to_free=NULL;
 	int n,i,ret=0;
 	int argc;
 	char **argv,*p;
 	LHASH *prog=NULL;
 	long errline;
-
+ 
 	arg.data=NULL;
 	arg.count=0;
 
-	in_FIPS_mode = 0;
-
-#ifdef OPENSSL_FIPS
-	if(getenv("OPENSSL_FIPS")) {
-#if defined(_WIN32)
-		char filename[MAX_PATH] = "";
-		GetModuleFileName( NULL, filename, MAX_PATH) ;
-		p = filename;
-#else
-		p = Argv[0];
-#endif
-		if (!FIPS_mode_set(1,p)) {
-			ERR_load_crypto_strings();
-			ERR_print_errors(BIO_new_fp(stderr,BIO_NOCLOSE));
-			exit(1);
-		}
-		in_FIPS_mode = 1;
-		if (getenv("OPENSSL_FIPS_MD5"))
-			FIPS_allow_md5(1);
-		}
-#endif
 	if (bio_err == NULL)
 		if ((bio_err=BIO_new(BIO_s_file())) != NULL)
 			BIO_set_fp(bio_err,stderr,BIO_NOCLOSE|BIO_FP_TEXT);
@@ -511,7 +489,7 @@ static LHASH *prog_init(void)
 	{
 	LHASH *ret;
 	FUNCTION *f;
-	int i;
+	size_t i;
 
 	/* Purely so it looks nice when the user hits ? */
 	for(i=0,f=functions ; f->name != NULL ; ++f,++i)
@@ -529,12 +507,12 @@ static LHASH *prog_init(void)
 /* static int MS_CALLBACK cmp(FUNCTION *a, FUNCTION *b) */
 static int MS_CALLBACK cmp(const void *a_void, const void *b_void)
 	{
-	return(strncmp(((FUNCTION *)a_void)->name,
-			((FUNCTION *)b_void)->name,8));
+	return(strncmp(((const FUNCTION *)a_void)->name,
+			((const FUNCTION *)b_void)->name,8));
 	}
 
 /* static unsigned long MS_CALLBACK hash(FUNCTION *a) */
 static unsigned long MS_CALLBACK hash(const void *a_void)
 	{
-	return(lh_strhash(((FUNCTION *)a_void)->name));
+	return(lh_strhash(((const FUNCTION *)a_void)->name));
 	}

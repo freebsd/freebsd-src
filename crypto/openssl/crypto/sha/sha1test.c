@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
 	i=1;
 	while (*P != NULL)
 		{
-		EVP_Digest(*P,(unsigned long)strlen((char *)*P),md,NULL,EVP_sha1(), NULL);
+		EVP_Digest(*P,strlen((char *)*P),md,NULL,EVP_sha1(), NULL);
 		p=pt(md);
 		if (strcmp(p,(char *)*R) != 0)
 			{
@@ -157,6 +157,10 @@ int main(int argc, char *argv[])
 		}
 	else
 		printf("test 3 ok\n");
+
+#ifdef OPENSSL_SYS_NETWARE
+    if (err) printf("ERROR: %d\n", err);
+#endif
 	EXIT(err);
 	EVP_MD_CTX_cleanup(&c);
 	return(0);

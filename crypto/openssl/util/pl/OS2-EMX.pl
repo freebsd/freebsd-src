@@ -48,7 +48,7 @@ $des_enc_src="";
 $bf_enc_obj="";
 $bf_enc_src="";
 
-if (!$no_asm && !$fips)
+if (!$no_asm)
 	{
 	$bn_asm_obj="crypto/bn/asm/bn-os2$obj crypto/bn/asm/co-os2$obj";
 	$bn_asm_src="crypto/bn/asm/bn-os2.asm crypto/bn/asm/co-os2.asm";
@@ -68,6 +68,7 @@ if (!$no_asm && !$fips)
 	$sha1_asm_src="crypto/sha/asm/s1-os2.asm";
 	$rmd160_asm_obj="crypto/ripemd/asm/rm-os2$obj";
 	$rmd160_asm_src="crypto/ripemd/asm/rm-os2.asm";
+	$cflags.=" -DBN_ASM -DMD5_ASM -DSHA1_ASM -DOPENSSL_BN_ASM_PART_WORDS";
 	}
 
 if ($shlib)
@@ -106,18 +107,13 @@ sub do_lib_rule
 
 sub do_link_rule
 	{
-	local($target,$files,$dep_libs,$libs,$sha1file,$openssl)=@_;
+	local($target,$files,$dep_libs,$libs)=@_;
 	local($ret,$_);
 	
 	$file =~ s/\//$o/g if $o ne '/';
 	$n=&bname($target);
 	$ret.="$target: $files $dep_libs\n";
-	$ret.="\t\$(LINK) ${efile}$target \$(CFLAG) \$(LFLAGS) $files $libs\n";
-	if (defined $sha1file)
-		{
-		$ret.="\t$openssl sha1 -hmac etaonrishdlcupfm -binary $target > $sha1file";
-		}
-	$ret.="\n";
+	$ret.="\t\$(LINK) ${efile}$target \$(CFLAG) \$(LFLAGS) $files $libs\n\n";
 	return($ret);
 	}
 

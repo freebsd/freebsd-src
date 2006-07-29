@@ -1,12 +1,24 @@
-0			: CCITT			: ccitt
+# CCITT was renamed to ITU-T quite some time ago
+0			: ITU-T			: itu-t
+!Alias ccitt itu-t
 
 1			: ISO			: iso
 
-2			: JOINT-ISO-CCITT	: joint-iso-ccitt
+2			: JOINT-ISO-ITU-T	: joint-iso-itu-t
+!Alias joint-iso-ccitt joint-iso-itu-t
 
 iso 2			: member-body		: ISO Member Body
 
-joint-iso-ccitt 5 1 5	: selected-attribute-types	: Selected Attribute Types
+iso 3			: identified-organization
+
+identified-organization 132	: certicom-arc
+
+joint-iso-itu-t 23	: international-organizations	: International Organizations
+
+international-organizations 43	: wap
+wap 13			: wap-wsg
+
+joint-iso-itu-t 5 1 5	: selected-attribute-types	: Selected Attribute Types
 
 selected-attribute-types 55	: clearance
 
@@ -24,12 +36,34 @@ ISO-US 10045		: ansi-X9-62		: ANSI X9.62
 !Alias id-fieldType ansi-X9-62 1
 X9-62_id-fieldType 1		: prime-field
 X9-62_id-fieldType 2		: characteristic-two-field
-# ... characteristic-two-field OID subtree
+X9-62_characteristic-two-field 3 : id-characteristic-two-basis
+X9-62_id-characteristic-two-basis 1 : onBasis
+X9-62_id-characteristic-two-basis 2 : tpBasis
+X9-62_id-characteristic-two-basis 3 : ppBasis
 !Alias id-publicKeyType ansi-X9-62 2
 X9-62_id-publicKeyType 1	: id-ecPublicKey
 !Alias ellipticCurve ansi-X9-62 3
 !Alias c-TwoCurve X9-62_ellipticCurve 0
-# ... characteristic 2 curve OIDs
+X9-62_c-TwoCurve 1		: c2pnb163v1
+X9-62_c-TwoCurve 2		: c2pnb163v2
+X9-62_c-TwoCurve 3		: c2pnb163v3
+X9-62_c-TwoCurve 4		: c2pnb176v1
+X9-62_c-TwoCurve 5		: c2tnb191v1
+X9-62_c-TwoCurve 6		: c2tnb191v2
+X9-62_c-TwoCurve 7		: c2tnb191v3
+X9-62_c-TwoCurve 8		: c2onb191v4
+X9-62_c-TwoCurve 9		: c2onb191v5
+X9-62_c-TwoCurve 10		: c2pnb208w1
+X9-62_c-TwoCurve 11		: c2tnb239v1
+X9-62_c-TwoCurve 12		: c2tnb239v2
+X9-62_c-TwoCurve 13		: c2tnb239v3
+X9-62_c-TwoCurve 14		: c2onb239v4
+X9-62_c-TwoCurve 15		: c2onb239v5
+X9-62_c-TwoCurve 16		: c2pnb272w1
+X9-62_c-TwoCurve 17		: c2pnb304w1
+X9-62_c-TwoCurve 18		: c2tnb359v1
+X9-62_c-TwoCurve 19		: c2pnb368w1
+X9-62_c-TwoCurve 20		: c2tnb431r1
 !Alias primeCurve X9-62_ellipticCurve 1
 X9-62_primeCurve 1	 	: prime192v1
 X9-62_primeCurve 2	 	: prime192v2
@@ -42,6 +76,60 @@ X9-62_primeCurve 7	 	: prime256v1
 !global
 X9-62_id-ecSigType 1		: ecdsa-with-SHA1
 
+# SECG curve OIDs from "SEC 2: Recommended Elliptic Curve Domain Parameters"
+# (http://www.secg.org/)
+!Alias secg_ellipticCurve certicom-arc 0
+# SECG prime curves OIDs
+secg-ellipticCurve 6		: secp112r1
+secg-ellipticCurve 7		: secp112r2
+secg-ellipticCurve 28		: secp128r1
+secg-ellipticCurve 29		: secp128r2
+secg-ellipticCurve 9		: secp160k1
+secg-ellipticCurve 8		: secp160r1
+secg-ellipticCurve 30		: secp160r2
+secg-ellipticCurve 31		: secp192k1
+# NOTE: the curve secp192r1 is the same as prime192v1 defined above
+#       and is therefore omitted
+secg-ellipticCurve 32		: secp224k1
+secg-ellipticCurve 33		: secp224r1
+secg-ellipticCurve 10		: secp256k1
+# NOTE: the curve secp256r1 is the same as prime256v1 defined above
+#       and is therefore omitted
+secg-ellipticCurve 34		: secp384r1
+secg-ellipticCurve 35		: secp521r1
+# SECG characteristic two curves OIDs
+secg-ellipticCurve 4		: sect113r1
+secg-ellipticCurve 5		: sect113r2
+secg-ellipticCurve 22		: sect131r1
+secg-ellipticCurve 23		: sect131r2
+secg-ellipticCurve 1		: sect163k1
+secg-ellipticCurve 2		: sect163r1
+secg-ellipticCurve 15		: sect163r2
+secg-ellipticCurve 24		: sect193r1
+secg-ellipticCurve 25		: sect193r2
+secg-ellipticCurve 26		: sect233k1
+secg-ellipticCurve 27		: sect233r1
+secg-ellipticCurve 3		: sect239k1
+secg-ellipticCurve 16		: sect283k1
+secg-ellipticCurve 17		: sect283r1
+secg-ellipticCurve 36		: sect409k1
+secg-ellipticCurve 37		: sect409r1
+secg-ellipticCurve 38		: sect571k1
+secg-ellipticCurve 39		: sect571r1
+
+# WAP/TLS curve OIDs (http://www.wapforum.org/)
+!Alias wap-wsg-idm-ecid wap-wsg 4
+wap-wsg-idm-ecid 1	: wap-wsg-idm-ecid-wtls1
+wap-wsg-idm-ecid 3	: wap-wsg-idm-ecid-wtls3
+wap-wsg-idm-ecid 4	: wap-wsg-idm-ecid-wtls4
+wap-wsg-idm-ecid 5	: wap-wsg-idm-ecid-wtls5
+wap-wsg-idm-ecid 6	: wap-wsg-idm-ecid-wtls6
+wap-wsg-idm-ecid 7	: wap-wsg-idm-ecid-wtls7
+wap-wsg-idm-ecid 8	: wap-wsg-idm-ecid-wtls8
+wap-wsg-idm-ecid 9	: wap-wsg-idm-ecid-wtls9
+wap-wsg-idm-ecid 10	: wap-wsg-idm-ecid-wtls10
+wap-wsg-idm-ecid 11	: wap-wsg-idm-ecid-wtls11
+wap-wsg-idm-ecid 12	: wap-wsg-idm-ecid-wtls12
 
 
 ISO-US 113533 7 66 10	: CAST5-CBC		: cast5-cbc
@@ -63,6 +151,11 @@ pkcs1 2			: RSA-MD2		: md2WithRSAEncryption
 pkcs1 3			: RSA-MD4		: md4WithRSAEncryption
 pkcs1 4			: RSA-MD5		: md5WithRSAEncryption
 pkcs1 5			: RSA-SHA1		: sha1WithRSAEncryption
+# According to PKCS #1 version 2.1
+pkcs1 11		: RSA-SHA256		: sha256WithRSAEncryption
+pkcs1 12		: RSA-SHA384		: sha384WithRSAEncryption
+pkcs1 13		: RSA-SHA512		: sha512WithRSAEncryption
+pkcs1 14		: RSA-SHA224		: sha224WithRSAEncryption
 
 pkcs 3			: pkcs3
 pkcs3 1			:			: dhKeyAgreement
@@ -312,6 +405,7 @@ id-pkix 9		: id-pda
 id-pkix 10		: id-aca
 id-pkix 11		: id-qcs
 id-pkix 12		: id-cct
+id-pkix 21		: id-ppl
 id-pkix 48		: id-ad
 
 # PKIX Modules
@@ -340,12 +434,13 @@ id-pe 3			: qcStatements
 id-pe 4			: ac-auditEntity
 id-pe 5			: ac-targeting
 id-pe 6			: aaControls
-id-pe 7			: sbqp-ipAddrBlock
-id-pe 8			: sbqp-autonomousSysNum
-id-pe 9			: sbqp-routerIdentifier
+id-pe 7			: sbgp-ipAddrBlock
+id-pe 8			: sbgp-autonomousSysNum
+id-pe 9			: sbgp-routerIdentifier
 id-pe 10		: ac-proxying
 !Cname sinfo-access
 id-pe 11		: subjectInfoAccess	: Subject Information Access
+id-pe 14		: proxyCertInfo		: Proxy Certificate Information
 
 # PKIX policyQualifiers for Internet policy qualifiers
 id-qt 1			: id-qt-cps		: Policy Qualifier CPS
@@ -461,6 +556,11 @@ id-cct 1		: id-cct-crs
 id-cct 2		: id-cct-PKIData
 id-cct 3		: id-cct-PKIResponse
 
+# Predefined Proxy Certificate policy languages
+id-ppl 0		: id-ppl-anyLanguage	: Any language
+id-ppl 1		: id-ppl-inheritAll	: Inherit all
+id-ppl 2		: id-ppl-independent	: Independent
+
 # access descriptors for authority info access extension
 !Cname ad-OCSP
 id-ad 1			: OCSP			: OCSP
@@ -536,10 +636,12 @@ X509 5			: 			: serialNumber
 X509 6			: C			: countryName
 X509 7			: L			: localityName
 X509 8			: ST			: stateOrProvinceName
+X509 9			:			: streetAddress
 X509 10			: O			: organizationName
 X509 11			: OU			: organizationalUnitName
 X509 12			: 			: title
 X509 13			: 			: description
+X509 17			:			: postalCode
 X509 41			: name			: name
 X509 42			: GN			: givenName
 X509 43			: 			: initials
@@ -575,16 +677,24 @@ id-ce 21		: CRLReason		: X509v3 CRL Reason Code
 id-ce 24		: invalidityDate	: Invalidity Date
 !Cname delta-crl
 id-ce 27		: deltaCRL		: X509v3 Delta CRL Indicator
+!Cname name-constraints
+id-ce 30		: nameConstraints	: X509v3 Name Constraints
 !Cname crl-distribution-points
 id-ce 31		: crlDistributionPoints	: X509v3 CRL Distribution Points
 !Cname certificate-policies
 id-ce 32		: certificatePolicies	: X509v3 Certificate Policies
+!Cname any-policy
+certificate-policies 0	: anyPolicy		: X509v3 Any Policy
+!Cname policy-mappings
+id-ce 33		: policyMappings	: X509v3 Policy Mappings
 !Cname authority-key-identifier
 id-ce 35		: authorityKeyIdentifier : X509v3 Authority Key Identifier
 !Cname policy-constraints
 id-ce 36		: policyConstraints	: X509v3 Policy Constraints
 !Cname ext-key-usage
 id-ce 37		: extendedKeyUsage	: X509v3 Extended Key Usage
+!Cname inhibit-any-policy
+id-ce 54		: inhibitAnyPolicy	: X509v3 Inhibit Any Policy
 !Cname target-information
 id-ce 55		: targetInformation	: X509v3 AC Targeting
 !Cname no-rev-avail
@@ -694,6 +804,13 @@ aes 44			: AES-256-CFB		: aes-256-cfb
 			: DES-EDE3-CFB1		: des-ede3-cfb1
 			: DES-EDE3-CFB8		: des-ede3-cfb8
 
+# OIDs for SHA224, SHA256, SHA385 and SHA512, according to x9.84.
+!Alias nist_hashalgs nistAlgorithms 2
+nist_hashalgs 1		: SHA256		: sha256
+nist_hashalgs 2		: SHA384		: sha384
+nist_hashalgs 3		: SHA512		: sha512
+nist_hashalgs 4		: SHA224		: sha224
+
 # Hold instruction CRL entry extension
 !Cname hold-instruction-code
 id-ce 23		: holdInstructionCode	: Hold Instruction Code
@@ -705,9 +822,9 @@ holdInstruction 2	: holdInstructionCallIssuer : Hold Instruction Call Issuer
 !Cname hold-instruction-reject
 holdInstruction 3	: holdInstructionReject	: Hold Instruction Reject
 
-# OID's from CCITT.  Most of this is defined in RFC 1274.  A couple of
+# OID's from ITU-T.  Most of this is defined in RFC 1274.  A couple of
 # them are also mentioned in RFC 2247
-ccitt 9			: data
+itu-t 9			: data
 data 2342		: pss
 pss 19200300		: ucl
 ucl 100			: pilot
@@ -781,7 +898,7 @@ pilotAttributeType 54	:			: dITRedirect
 pilotAttributeType 55	: audio
 pilotAttributeType 56	:			: documentPublisher
 
-2 23 42			: id-set		: Secure Electronic Transactions
+international-organizations 42	: id-set	: Secure Electronic Transactions
 
 id-set 0		: set-ctype		: content types
 id-set 1		: set-msgExt		: message extensions
@@ -927,3 +1044,6 @@ set-brand 6011		: set-brand-Novus
 
 rsadsi 3 10		: DES-CDMF		: des-cdmf
 rsadsi 1 1 6		: rsaOAEPEncryptionSET
+
+			: Oakley-EC2N-3		: ipsec3
+			: Oakley-EC2N-4		: ipsec4

@@ -1,6 +1,8 @@
 
 =pod
 
+=for comment openssl_manual_section:5
+
 =head1 NAME
 
 config - OpenSSL CONF library configuration files
@@ -104,6 +106,11 @@ as any compliant applications. For example:
  
  some_new_oid = 1.2.3.4
  some_other_oid = 1.2.3.5
+
+In OpenSSL 0.9.8 it is also possible to set the value to the long name followed
+by a comma and the numerical OID form. For example:
+
+ shortName = some object long name, 1.2.3.4
 
 =head2 ENGINE CONFIGURATION MODULE
 

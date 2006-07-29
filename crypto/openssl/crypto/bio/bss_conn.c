@@ -56,13 +56,13 @@
  * [including the GNU Public Licence.]
  */
 
-#ifndef OPENSSL_NO_SOCK
-
 #include <stdio.h>
 #include <errno.h>
 #define USE_SOCKETS
 #include "cryptlib.h"
 #include <openssl/bio.h>
+
+#ifndef OPENSSL_NO_SOCK
 
 #ifdef OPENSSL_SYS_WIN16
 #define SOCKET_PROTOCOL 0 /* more microsoft stupidity */
@@ -130,7 +130,7 @@ static int conn_state(BIO *b, BIO_CONNECT *c)
 	int ret= -1,i;
 	unsigned long l;
 	char *p,*q;
-	int (*cb)()=NULL;
+	int (*cb)(const BIO *,int,int)=NULL;
 
 	if (c->info_callback != NULL)
 		cb=c->info_callback;
@@ -469,7 +469,7 @@ static long conn_ctrl(BIO *b, int cmd, long num, void *ptr)
 		break;
 	case BIO_C_DO_STATE_MACHINE:
 		/* use this one to start the connection */
-		if (!data->state != BIO_CONN_S_OK)
+		if (data->state != BIO_CONN_S_OK)
 			ret=(long)conn_state(b,data);
 		else
 			ret=1;
@@ -590,9 +590,9 @@ static long conn_ctrl(BIO *b, int cmd, long num, void *ptr)
 		break;
 	case BIO_CTRL_GET_CALLBACK:
 		{
-		int (**fptr)();
+		int (**fptr)(const BIO *bio,int state,int xret);
 
-		fptr=(int (**)())ptr;
+		fptr=(int (**)(const BIO *bio,int state,int xret))ptr;
 		*fptr=data->info_callback;
 		}
 		break;
