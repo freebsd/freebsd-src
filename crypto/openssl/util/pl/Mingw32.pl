@@ -22,7 +22,7 @@ if ($debug)
 else
 	{ $cflags="-DL_ENDIAN -DDSO_WIN32 -fomit-frame-pointer -O3 -mcpu=i486 -Wall"; }
 
-if ($gaswin and !$no_asm and !$fips)
+if ($gaswin and !$no_asm)
 	{
         $bn_asm_obj='$(OBJ_D)\bn-win32.o';
         $bn_asm_src='crypto/bn/asm/bn-win32.s';
@@ -44,7 +44,7 @@ if ($gaswin and !$no_asm and !$fips)
         $rmd160_asm_src='crypto/ripemd/asm/rm-win32.s';
         $sha1_asm_obj='$(OBJ_D)\s1-win32.o';
         $sha1_asm_src='crypto/sha/asm/s1-win32.s';
-	$cflags.=" -DBN_ASM -DMD5_ASM -DSHA1_ASM";
+	$cflags.=" -DBN_ASM -DMD5_ASM -DSHA1_ASM -DOPENSSL_BN_ASM_PART_WORDS";
 	}
 
 
@@ -93,18 +93,13 @@ sub do_lib_rule
 
 sub do_link_rule
 	{
-	local($target,$files,$dep_libs,$libs,$sha1file,$openssl)=@_;
+	local($target,$files,$dep_libs,$libs)=@_;
 	local($ret,$_);
 	
 	$file =~ s/\//$o/g if $o ne '/';
 	$n=&bname($target);
 	$ret.="$target: $files $dep_libs\n";
-	$ret.="\t\$(LINK) ${efile}$target \$(LFLAGS) $files $libs\n";
-	if (defined $sha1file)
-		{
-		$ret.="\t$openssl sha1 -hmac etaonrishdlcupfm -binary $target > $sha1file";
-		}
-	$ret.="\n";
+	$ret.="\t\$(LINK) ${efile}$target \$(LFLAGS) $files $libs\n\n";
 	return($ret);
 	}
 1;

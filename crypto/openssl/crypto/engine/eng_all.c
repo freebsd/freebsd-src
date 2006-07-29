@@ -56,8 +56,7 @@
  *
  */
 
-#include <openssl/err.h>
-#include <openssl/engine.h>
+#include "cryptlib.h"
 #include "eng_int.h"
 
 void ENGINE_load_builtin_engines(void)
@@ -70,18 +69,28 @@ void ENGINE_load_builtin_engines(void)
 	ENGINE_load_openssl();
 #endif
 	ENGINE_load_dynamic();
+#ifndef OPENSSL_NO_STATIC_ENGINE
 #ifndef OPENSSL_NO_HW
+#ifndef OPENSSL_NO_HW_4758_CCA
+	ENGINE_load_4758cca();
+#endif
+#ifndef OPENSSL_NO_HW_AEP
+	ENGINE_load_aep();
+#endif
+#ifndef OPENSSL_NO_HW_ATALLA
+	ENGINE_load_atalla();
+#endif
 #ifndef OPENSSL_NO_HW_CSWIFT
 	ENGINE_load_cswift();
 #endif
 #ifndef OPENSSL_NO_HW_NCIPHER
 	ENGINE_load_chil();
 #endif
-#ifndef OPENSSL_NO_HW_ATALLA
-	ENGINE_load_atalla();
-#endif
 #ifndef OPENSSL_NO_HW_NURON
 	ENGINE_load_nuron();
+#endif
+#ifndef OPENSSL_NO_HW_SUREWARE
+	ENGINE_load_sureware();
 #endif
 #ifndef OPENSSL_NO_HW_UBSEC
 	ENGINE_load_ubsec();
@@ -89,17 +98,12 @@ void ENGINE_load_builtin_engines(void)
 #ifndef OPENSSL_NO_HW_PADLOCK
 	ENGINE_load_padlock();
 #endif
-#ifndef OPENSSL_NO_HW_AEP
-	ENGINE_load_aep();
-#endif
-#ifndef OPENSSL_NO_HW_SUREWARE
-	ENGINE_load_sureware();
-#endif
-#ifndef OPENSSL_NO_HW_4758_CCA
-	ENGINE_load_4758cca();
 #endif
 #if defined(__OpenBSD__) || defined(__FreeBSD__)
 	ENGINE_load_cryptodev();
+#endif
+#if !defined(OPENSSL_NO_GMP) && !defined(OPENSSL_NO_HW_GMP)
+	ENGINE_load_gmp();
 #endif
 #endif
 	}

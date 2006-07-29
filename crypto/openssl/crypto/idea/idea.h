@@ -59,6 +59,8 @@
 #ifndef HEADER_IDEA_H
 #define HEADER_IDEA_H
 
+#include <openssl/opensslconf.h> /* IDEA_INT, OPENSSL_NO_IDEA */
+
 #ifdef OPENSSL_NO_IDEA
 #error IDEA is disabled.
 #endif
@@ -66,7 +68,6 @@
 #define IDEA_ENCRYPT	1
 #define IDEA_DECRYPT	0
 
-#include <openssl/opensslconf.h> /* IDEA_INT */
 #define IDEA_BLOCK	8
 #define IDEA_KEY_LENGTH	16
 
@@ -83,7 +84,7 @@ const char *idea_options(void);
 void idea_ecb_encrypt(const unsigned char *in, unsigned char *out,
 	IDEA_KEY_SCHEDULE *ks);
 void idea_set_encrypt_key(const unsigned char *key, IDEA_KEY_SCHEDULE *ks);
-void idea_set_decrypt_key(IDEA_KEY_SCHEDULE *ek, IDEA_KEY_SCHEDULE *dk);
+void idea_set_decrypt_key(const IDEA_KEY_SCHEDULE *ek, IDEA_KEY_SCHEDULE *dk);
 void idea_cbc_encrypt(const unsigned char *in, unsigned char *out,
 	long length, IDEA_KEY_SCHEDULE *ks, unsigned char *iv,int enc);
 void idea_cfb64_encrypt(const unsigned char *in, unsigned char *out,
