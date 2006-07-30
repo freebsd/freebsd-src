@@ -172,17 +172,17 @@ static struct rl_type re_devs[] = {
 		"RealTek 8139C+ 10/100BaseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8101E, RL_HWREV_8101E,
 		"RealTek 8101E PCIe 10/100baseTX" },
-	{ RT_VENDORID, RT_DEVICEID_8168, RL_HWREV_8168,
-		"RealTek 8168B PCIe Gigabit Ethernet" },
-	{ RT_VENDORID, RT_DEVICEID_8168, RL_HWREV_8111,
-		"RealTek 8111B PCIe Gigabit Ethernet" },
+	{ RT_VENDORID, RT_DEVICEID_8168, RL_HWREV_8168_SPIN1,
+		"RealTek 8168B/8111B PCIe Gigabit Ethernet" },
+	{ RT_VENDORID, RT_DEVICEID_8168, RL_HWREV_8168_SPIN2,
+		"RealTek 8168B/8111B PCIe Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8169,
 		"RealTek 8169 Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8169S,
 		"RealTek 8169S Single-chip Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8169_8110SB,
 		"RealTek 8169SB/8110SB Single-chip Gigabit Ethernet" },
-	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8169_8110SC,
+	{ RT_VENDORID, RT_DEVICEID_8169SC, RL_HWREV_8169_8110SC,
 		"RealTek 8169SC/8110SC Single-chip Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8110S,
 		"RealTek 8110S Single-chip Gigabit Ethernet" },
@@ -202,7 +202,7 @@ static struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8139C, RL_8139, "C" },
 	{ RL_HWREV_8139D, RL_8139, "8139D/8100B/8100C" },
 	{ RL_HWREV_8139CPLUS, RL_8139CPLUS, "C+"},
-	{ RL_HWREV_8168, RL_8169, "8168"},
+	{ RL_HWREV_8168_SPIN1, RL_8169, "8168"},
 	{ RL_HWREV_8169, RL_8169, "8169"},
 	{ RL_HWREV_8169S, RL_8169, "8169S"},
 	{ RL_HWREV_8110S, RL_8169, "8110S"},
@@ -212,7 +212,7 @@ static struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8101, RL_8139, "8101"},
 	{ RL_HWREV_8100E, RL_8169, "8100E"},
 	{ RL_HWREV_8101E, RL_8169, "8101E"},
-	{ RL_HWREV_8111, RL_8169, "8111"},
+	{ RL_HWREV_8168_SPIN2, RL_8169, "8168"},
 	{ 0, 0, NULL }
 };
 
@@ -935,6 +935,8 @@ re_dma_map_desc(arg, segs, nseg, mapsize, error)
 	struct rl_dmaload_arg	*ctx;
 	struct rl_desc		*d = NULL;
 	int			i = 0, idx;
+	u_int32_t		cmdstat;
+	int			totlen = 0;
 
 	if (error)
 		return;
@@ -960,13 +962,13 @@ re_dma_map_desc(arg, segs, nseg, mapsize, error)
 	 */
 	idx = ctx->rl_idx;
 	for (;;) {
-		u_int32_t		cmdstat;
 		d = &ctx->rl_ring[idx];
 		if (le32toh(d->rl_cmdstat) & RL_RDESC_STAT_OWN) {
 			ctx->rl_maxsegs = 0;
 			return;
 		}
 		cmdstat = segs[i].ds_len;
+		totlen += segs[i].ds_len;
 		d->rl_bufaddr_lo = htole32(RL_ADDR_LO(segs[i].ds_addr));
 		d->rl_bufaddr_hi = htole32(RL_ADDR_HI(segs[i].ds_addr));
 		if (i == 0)
@@ -981,6 +983,26 @@ re_dma_map_desc(arg, segs, nseg, mapsize, error)
 			break;
 		RL_DESC_INC(idx);
 	}
+
+	/*
+	 * With some of the RealTek chips, using the checksum offload
+	 * support in conjunction with the autopadding feature results
+	 * in the transmission of corrupt frames. For example, if we
+	 * need to send a really small IP fragment that's less than 60
+	 * bytes in size, and IP header checksumming is enabled, the
+	 * resulting ethernet frame that appears on the wire will
+	 * have garbled payload. To work around this, if TX checksum
+	 * offload is enabled, we always manually pad short frames out
+	 * to the minimum ethernet frame size. We do this by lying
+	 * about the size of the final fragment in the DMA map.
+	 */
+
+	if (ctx->rl_flags && totlen < (ETHER_MIN_LEN - ETHER_CRC_LEN)) {
+		i = cmdstat & 0xFFFF;
+		i += ETHER_MIN_LEN - ETHER_CRC_LEN - totlen;
+		cmdstat = (cmdstat & 0xFFFF) | i;
+		d->rl_cmdstat = htole32(cmdstat | ctx->rl_flags);
+        }
 
 	d->rl_cmdstat |= htole32(RL_TDESC_CMD_EOF);
 	ctx->rl_maxsegs = nseg;
@@ -1131,8 +1153,6 @@ re_attach(dev)
 
 	mtx_init(&sc->rl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
-	mtx_init(&sc->rl_intlock, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_SPIN);
 	callout_init_mtx(&sc->rl_stat_callout, &sc->rl_mtx, 0);
 
 	/*
@@ -1249,7 +1269,7 @@ re_attach(dev)
 	ifp->if_start = re_start;
 	ifp->if_hwassist = RE_CSUM_FEATURES;
 	ifp->if_capabilities |= IFCAP_HWCSUM|IFCAP_VLAN_HWTAGGING;
-	ifp->if_capenable = ifp->if_capabilities & ~IFCAP_HWCSUM;
+	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
@@ -1416,7 +1436,6 @@ re_detach(dev)
 		bus_dma_tag_destroy(sc->rl_parent_tag);
 
 	mtx_destroy(&sc->rl_mtx);
-	mtx_destroy(&sc->rl_intlock);
 
 	return (0);
 }
@@ -1895,14 +1914,10 @@ re_intr(arg)
 	sc = arg;
 	ifp = sc->rl_ifp;
 
-	mtx_lock_spin(&sc->rl_intlock);
 	status = CSR_READ_2(sc, RL_ISR);
-	if (status == 0xFFFF || (status & RL_INTRS_CPLUS) == 0) {
-		mtx_unlock_spin(&sc->rl_intlock);
+	if (status == 0xFFFF || (status & RL_INTRS_CPLUS) == 0)
                 return;
-	}
 	CSR_WRITE_2(sc, RL_IMR, 0);
-	mtx_unlock_spin(&sc->rl_intlock);
 
 	taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_inttask);
 
@@ -1970,9 +1985,7 @@ re_int_task(arg, npending)
 		return;
 	}
 
-	mtx_lock_spin(&sc->rl_intlock);
 	CSR_WRITE_2(sc, RL_IMR, RL_INTRS_CPLUS);
-	mtx_unlock_spin(&sc->rl_intlock);
 
 	return;
 }
@@ -2305,13 +2318,11 @@ re_init_locked(sc)
 	/*
 	 * Enable interrupts.
 	 */
-	mtx_lock_spin(&sc->rl_intlock);
 	if (sc->rl_testmode)
 		CSR_WRITE_2(sc, RL_IMR, 0);
 	else
 		CSR_WRITE_2(sc, RL_IMR, RL_INTRS_CPLUS);
 	CSR_WRITE_2(sc, RL_ISR, RL_INTRS_CPLUS);
-	mtx_unlock_spin(&sc->rl_intlock);
 
 	/* Set initial TX threshold */
 	sc->rl_txthresh = RL_TX_THRESH_INIT;
