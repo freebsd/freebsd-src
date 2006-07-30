@@ -55,6 +55,21 @@ sub_FlashDevice () {
 			;;
 		esac
 		;;
+	memorycorp)
+		# Source: simon@FreeBSD.org
+		case $a2 in
+		512|512mb)
+			# MC512CFLS2
+			NANO_MEDIASIZE=`expr 519192576 / 512`
+			NANO_HEADS=16
+			NANO_SECTS=63
+			;;
+		*)
+			echo "Unknown Memory Corp Flash capacity"
+			exit 2
+			;;
+		esac
+		;;
 	sandisk)
 		# Source:
 		#	SanDisk CompactFlash Memory Card
