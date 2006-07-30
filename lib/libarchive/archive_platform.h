@@ -38,7 +38,7 @@
 #define	ARCHIVE_PLATFORM_H_INCLUDED
 
 #if HAVE_CONFIG_H
-#include "config.h"
+#include "../config.h"
 #else
 
 /* A default configuration for FreeBSD, used if there is no config.h. */
@@ -49,6 +49,7 @@
 #define	HAVE_ACL_SET_FD 1
 #define	HAVE_ACL_SET_FD_NP 1
 #define	HAVE_ACL_SET_FILE 1
+#define	HAVE_ACL_USER 1
 #endif
 #define	HAVE_BZLIB_H 1
 #define	HAVE_CHFLAGS 1
@@ -92,6 +93,7 @@
 #define	HAVE_SYS_TIME_H 1
 #define	HAVE_SYS_TYPES_H 1
 #define	HAVE_SYS_WAIT_H 1
+#define	HAVE_TIMEGM 1
 #define	HAVE_UNISTD_H 1
 #define	HAVE_WCHAR_H 1
 #define	HAVE_ZLIB_H 1
@@ -122,11 +124,11 @@
 #endif
 
 /*
- * If this platform has <sys/acl.h>, acl_create(), acl_init(), and
- * acl_set_file(), we assume it has the rest of the POSIX.1e draft
- * functions used in archive_read_extract.c.
+ * If this platform has <sys/acl.h>, acl_create(), acl_init(),
+ * acl_set_file(), and ACL_USER, we assume it has the rest of the
+ * POSIX.1e draft functions used in archive_read_extract.c.
  */
-#if HAVE_SYS_ACL_H && HAVE_ACL_CREATE_ENTRY && HAVE_ACL_INIT && HAVE_ACL_SET_FILE
+#if HAVE_SYS_ACL_H && HAVE_ACL_CREATE_ENTRY && HAVE_ACL_INIT && HAVE_ACL_SET_FILE && HAVE_ACL_USER
 #define	HAVE_POSIX_ACL	1
 #endif
 

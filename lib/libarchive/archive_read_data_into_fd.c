@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <errno.h>
 #include <unistd.h>
 
 #include "archive.h"
@@ -44,8 +45,8 @@ archive_read_data_into_fd(struct archive *a, int fd)
 {
 	int r;
 	const void *buff;
-	ssize_t size, bytes_to_write;
-	ssize_t bytes_written, total_written;
+	size_t size;
+	ssize_t bytes_to_write, bytes_written, total_written;
 	off_t offset;
 	off_t output_offset;
 
@@ -65,8 +66,10 @@ archive_read_data_into_fd(struct archive *a, int fd)
 			if (bytes_to_write > MAX_WRITE)
 				bytes_to_write = MAX_WRITE;
 			bytes_written = write(fd, buff, bytes_to_write);
-			if (bytes_written < 0)
+			if (bytes_written < 0) {
+				archive_set_error(a, errno, "Write error");
 				return (-1);
+			}
 			output_offset += bytes_written;
 			total_written += bytes_written;
 			size -= bytes_written;

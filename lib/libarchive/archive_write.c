@@ -56,7 +56,7 @@ struct archive *
 archive_write_new(void)
 {
 	struct archive *a;
-	char *nulls;
+	unsigned char *nulls;
 
 	a = malloc(sizeof(*a));
 	if (a == NULL)

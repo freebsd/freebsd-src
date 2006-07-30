@@ -128,7 +128,7 @@ archive_write_cpio_header(struct archive *a, struct archive_entry *entry)
 	format_octal(st->st_uid, &h.c_uid, sizeof(h.c_uid));
 	format_octal(st->st_gid, &h.c_gid, sizeof(h.c_gid));
 	format_octal(st->st_nlink, &h.c_nlink, sizeof(h.c_nlink));
-	if(S_ISBLK(st->st_mode) || S_ISCHR(st->st_mode))
+	if (S_ISBLK(st->st_mode) || S_ISCHR(st->st_mode))
 	    format_octal(st->st_rdev, &h.c_rdev, sizeof(h.c_rdev));
 	else
 	    format_octal(0, &h.c_rdev, sizeof(h.c_rdev));

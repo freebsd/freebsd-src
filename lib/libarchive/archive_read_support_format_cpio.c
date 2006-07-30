@@ -134,6 +134,10 @@ archive_read_support_format_cpio(struct archive *a)
 	int r;
 
 	cpio = malloc(sizeof(*cpio));
+	if (cpio == NULL) {
+		archive_set_error(a, ENOMEM, "Can't allocate cpio data");
+		return (ARCHIVE_FATAL);
+	}
 	memset(cpio, 0, sizeof(*cpio));
 	cpio->magic = CPIO_MAGIC;
 
@@ -256,7 +260,7 @@ archive_read_format_cpio_read_header(struct archive *a,
 	}
 
 	/* Compare name to "TRAILER!!!" to test for end-of-archive. */
-	if (namelength == 11 && strcmp(h,"TRAILER!!!")==0) {
+	if (namelength == 11 && strcmp(h, "TRAILER!!!") == 0) {
 	    /* TODO: Store file location of start of block. */
 	    archive_set_error(a, 0, NULL);
 	    return (ARCHIVE_EOF);
@@ -313,9 +317,6 @@ header_newc(struct archive *a, struct cpio *cpio, struct stat *st,
 	const struct cpio_newc_header *header;
 	size_t bytes;
 
-	a->archive_format = ARCHIVE_FORMAT_CPIO;
-	a->archive_format_name = "ASCII cpio (SVR4 with no CRC)";
-
 	/* Read fixed-size portion of header. */
 	bytes = (a->compression_read_ahead)(a, &h, sizeof(struct cpio_newc_header));
 	if (bytes < sizeof(struct cpio_newc_header))
@@ -324,11 +325,28 @@ header_newc(struct archive *a, struct cpio *cpio, struct stat *st,
 
 	/* Parse out hex fields into struct stat. */
 	header = h;
+
+	if (memcmp(header->c_magic, "070701", 6) == 0) {
+		a->archive_format = ARCHIVE_FORMAT_CPIO_SVR4_NOCRC;
+		a->archive_format_name = "ASCII cpio (SVR4 with no CRC)";
+	} else if (memcmp(header->c_magic, "070702", 6) == 0) {
+		a->archive_format = ARCHIVE_FORMAT_CPIO_SVR4_CRC;
+		a->archive_format_name = "ASCII cpio (SVR4 with CRC)";
+	} else {
+		/* TODO: Abort here? */
+	}
+
+	st->st_dev = makedev(
+		atol16(header->c_devmajor, sizeof(header->c_devmajor)),
+		atol16(header->c_devminor, sizeof(header->c_devminor)));
 	st->st_ino = atol16(header->c_ino, sizeof(header->c_ino));
 	st->st_mode = atol16(header->c_mode, sizeof(header->c_mode));
 	st->st_uid = atol16(header->c_uid, sizeof(header->c_uid));
 	st->st_gid = atol16(header->c_gid, sizeof(header->c_gid));
 	st->st_nlink = atol16(header->c_nlink, sizeof(header->c_nlink));
+	st->st_rdev = makedev(
+		atol16(header->c_rdevmajor, sizeof(header->c_rdevmajor)),
+		atol16(header->c_rdevminor, sizeof(header->c_rdevminor)));
 	st->st_mtime = atol16(header->c_mtime, sizeof(header->c_mtime));
 	*namelength = atol16(header->c_namesize, sizeof(header->c_namesize));
 	/* Pad name to 2 more than a multiple of 4. */
@@ -356,7 +374,7 @@ header_odc(struct archive *a, struct cpio *cpio, struct stat *st,
 	const struct cpio_odc_header *header;
 	size_t bytes;
 
-	a->archive_format = ARCHIVE_FORMAT_CPIO;
+	a->archive_format = ARCHIVE_FORMAT_CPIO_POSIX;
 	a->archive_format_name = "POSIX octet-oriented cpio";
 
 	/* Read fixed-size portion of header. */
@@ -400,7 +418,7 @@ header_bin_le(struct archive *a, struct cpio *cpio, struct stat *st,
 	const struct cpio_bin_header *header;
 	size_t bytes;
 
-	a->archive_format = ARCHIVE_FORMAT_CPIO;
+	a->archive_format = ARCHIVE_FORMAT_CPIO_BIN_LE;
 	a->archive_format_name = "cpio (little-endian binary)";
 
 	/* Read fixed-size portion of header. */
@@ -437,7 +455,7 @@ header_bin_be(struct archive *a, struct cpio *cpio, struct stat *st,
 	const struct cpio_bin_header *header;
 	size_t bytes;
 
-	a->archive_format = ARCHIVE_FORMAT_CPIO;
+	a->archive_format = ARCHIVE_FORMAT_CPIO_BIN_BE;
 	a->archive_format_name = "cpio (big-endian binary)";
 
 	/* Read fixed-size portion of header. */
@@ -576,6 +594,8 @@ record_hardlink(struct cpio *cpio, struct archive_entry *entry,
         }
 
         le = malloc(sizeof(struct links_entry));
+	if (le == NULL)
+		__archive_errx(1, "Out of memory adding file to list");
         if (cpio->links_head != NULL)
                 cpio->links_head->previous = le;
         le->next = cpio->links_head;
@@ -585,4 +605,6 @@ record_hardlink(struct cpio *cpio, struct archive_entry *entry,
         le->ino = st->st_ino;
         le->links = st->st_nlink - 1;
         le->name = strdup(archive_entry_pathname(entry));
+	if (le->name == NULL)
+		__archive_errx(1, "Out of memory adding file to list");
 }
