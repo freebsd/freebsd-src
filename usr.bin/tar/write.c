@@ -32,8 +32,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_POSIX_ACL
 #include <sys/acl.h>
 #endif
-#include <archive.h>
-#include <archive_entry.h>
+#ifdef HAVE_ATTR_XATTR_H
+#include <attr/xattr.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <fnmatch.h>
@@ -118,6 +119,8 @@ static int		 lookup_uname_helper(struct bsdtar *bsdtar,
 static int		 new_enough(struct bsdtar *, const char *path,
 			     const struct stat *);
 static void		 setup_acls(struct bsdtar *, struct archive_entry *,
+			     const char *path);
+static void		 setup_xattrs(struct bsdtar *, struct archive_entry *,
 			     const char *path);
 static void		 test_for_append(struct bsdtar *);
 static void		 write_archive(struct archive *, struct bsdtar *);
@@ -296,9 +299,13 @@ tar_mode_u(struct bsdtar *bsdtar)
 	archive_read_support_compression_all(a);
 	archive_read_support_format_tar(a);
 	archive_read_support_format_gnutar(a);
-	archive_read_open_fd(a, bsdtar->fd,
+	if (archive_read_open_fd(a, bsdtar->fd,
 	    bsdtar->bytes_per_block != 0 ? bsdtar->bytes_per_block :
-	    DEFAULT_BYTES_PER_BLOCK);
+		DEFAULT_BYTES_PER_BLOCK) != ARCHIVE_OK) {
+		bsdtar_errc(bsdtar, 1, 0,
+		    "Can't open %s: %s", bsdtar->filename,
+		    archive_error_string(a));
+	}
 
 	/* Build a list of all entries and their recorded mod times. */
 	while (0 == archive_read_next_header(a, &entry)) {
@@ -440,10 +447,11 @@ archive_names_from_file_helper(struct bsdtar *bsdtar, const char *line)
 }
 
 /*
- * Copy from specified archive to current archive.
- * Returns non-zero on fatal error (i.e., output errors).  Errors
- * reading the input archive set bsdtar->return_value, but this
- * function will still return zero.
+ * Copy from specified archive to current archive.  Returns non-zero
+ * for write errors (which force us to terminate the entire archiving
+ * operation).  If there are errors reading the input archive, we set
+ * bsdtar->return_value but return zero, so the overall archiving
+ * operation will complete and return non-zero.
  */
 static int
 append_archive(struct bsdtar *bsdtar, struct archive *a, const char *filename)
@@ -505,7 +513,8 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, const char *filename)
 		bsdtar->return_value = 1;
 	}
 
-	return (0); /* TODO: Return non-zero on error */
+	/* Note: If we got here, we saw no write errors, so return success. */
+	return (0);
 }
 
 /*
@@ -620,15 +629,18 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		 */
 		switch(symlink_mode) {
 		case 'H':
-			/* 'H': First item (from command line) like 'L'. */
-			lst = tree_current_stat(tree);
 			/* 'H': After the first item, rest like 'P'. */
 			symlink_mode = 'P';
-			break;
+			/* 'H': First item (from command line) like 'L'. */
+			/* FALLTHROUGH */
 		case 'L':
 			/* 'L': Do descend through a symlink to dir. */
 			/* 'L': Archive symlink to file as file. */
 			lst = tree_current_stat(tree);
+			/* If stat fails, we have a broken symlink;
+			 * in that case, archive the link as such. */
+			if (lst == NULL)
+				lst = tree_current_lstat(tree);
 			break;
 		default:
 			/* 'P': Don't descend through a symlink to dir. */
@@ -643,15 +655,12 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			tree_descend(tree);
 
 		/*
-		 * In -u mode, we need to check whether this
-		 * is newer than what's already in the archive.
-		 * In all modes, we need to obey --newerXXX flags.
+		 * Write the entry.  Note that write_entry() handles
+		 * pathname editing and newness testing.
 		 */
-		if (new_enough(bsdtar, name, lst)) {
-			write_entry(bsdtar, a, lst, name,
-			    tree_current_pathlen(tree),
-			    tree_current_access_path(tree));
-		}
+		write_entry(bsdtar, a, lst, name,
+		    tree_current_pathlen(tree),
+		    tree_current_access_path(tree));
 	}
 	tree_close(tree);
 }
@@ -684,6 +693,13 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
 	 * fails, skip the entry.
 	 */
 	if (edit_pathname(bsdtar, entry))
+		goto abort;
+
+	/*
+	 * In -u mode, check that the file is newer than what's
+	 * already in the archive; in all modes, obey --newerXXX flags.
+	 */
+	if (!new_enough(bsdtar, archive_entry_pathname(entry), st))
 		goto abort;
 
 	if (!S_ISDIR(st->st_mode) && (st->st_nlink > 1))
@@ -733,6 +749,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
 
 	archive_entry_copy_stat(entry, st);
 	setup_acls(bsdtar, entry, accpath);
+	setup_xattrs(bsdtar, entry, accpath);
 
 	/*
 	 * If it's a regular file (and non-zero in size) make sure we
@@ -983,11 +1000,11 @@ lookup_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
 }
 
 #ifdef HAVE_POSIX_ACL
-void			setup_acl(struct bsdtar *bsdtar,
+static void		setup_acl(struct bsdtar *bsdtar,
 			     struct archive_entry *entry, const char *accpath,
 			     int acl_type, int archive_entry_acl_type);
 
-void
+static void
 setup_acls(struct bsdtar *bsdtar, struct archive_entry *entry,
     const char *accpath)
 {
@@ -1001,7 +1018,7 @@ setup_acls(struct bsdtar *bsdtar, struct archive_entry *entry,
 		    ACL_TYPE_DEFAULT, ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
 }
 
-void
+static void
 setup_acl(struct bsdtar *bsdtar, struct archive_entry *entry,
     const char *accpath, int acl_type, int archive_entry_acl_type)
 {
@@ -1065,7 +1082,7 @@ setup_acl(struct bsdtar *bsdtar, struct archive_entry *entry,
 	}
 }
 #else
-void
+static void
 setup_acls(struct bsdtar *bsdtar, struct archive_entry *entry,
     const char *accpath)
 {
@@ -1075,13 +1092,120 @@ setup_acls(struct bsdtar *bsdtar, struct archive_entry *entry,
 }
 #endif
 
+#if HAVE_LISTXATTR && HAVE_LLISTXATTR && HAVE_GETXATTR && HAVE_LGETXATTR
+
+static void
+setup_xattr(struct bsdtar *bsdtar, struct archive_entry *entry,
+    const char *accpath, const char *name)
+{
+	size_t size;
+	void *value = NULL;
+	char symlink_mode = bsdtar->symlink_mode;
+
+	if (symlink_mode == 'H')
+		size = getxattr(accpath, name, NULL, 0);
+	else
+		size = lgetxattr(accpath, name, NULL, 0);
+
+	if (size == -1) {
+		bsdtar_warnc(bsdtar, errno, "Couldn't get extended attribute");
+		return;
+	}
+
+	if (size > 0 && (value = malloc(size)) == NULL) {
+		bsdtar_errc(bsdtar, 1, errno, "Out of memory");
+		return;
+	}
+
+	if (symlink_mode == 'H')
+		size = getxattr(accpath, name, value, size);
+	else
+		size = lgetxattr(accpath, name, value, size);
+
+	if (size == -1) {
+		bsdtar_warnc(bsdtar, errno, "Couldn't get extended attribute");
+		return;
+	}
+
+	archive_entry_xattr_add_entry(entry, name, value, size);
+
+	free(value);
+}
+
+/*
+ * Linux extended attribute support
+ */
+static void
+setup_xattrs(struct bsdtar *bsdtar, struct archive_entry *entry,
+    const char *accpath)
+{
+	char *list, *p;
+	size_t list_size;
+	char symlink_mode = bsdtar->symlink_mode;
+
+	if (symlink_mode == 'H')
+		list_size = listxattr(accpath, NULL, 0);
+	else
+		list_size = llistxattr(accpath, NULL, 0);
+
+	if (list_size == -1) {
+		bsdtar_warnc(bsdtar, errno,
+			"Couldn't list extended attributes");
+		return;
+	} else if (list_size == 0)
+		return;
+
+	if ((list = malloc(list_size)) == NULL) {
+		bsdtar_errc(bsdtar, 1, errno, "Out of memory");
+		return;
+	}
+
+	if (symlink_mode == 'H')
+		list_size = listxattr(accpath, list, list_size);
+	else
+		list_size = llistxattr(accpath, list, list_size);
+
+	if (list_size == -1) {
+		bsdtar_warnc(bsdtar, errno,
+			"Couldn't list extended attributes");
+		free(list);
+		return;
+	}
+
+	for (p = list; (p - list) < list_size; p += strlen(p) + 1) {
+		if (strncmp(p, "system.", 7) == 0 ||
+				strncmp(p, "xfsroot.", 8) == 0)
+			continue;
+
+		setup_xattr(bsdtar, entry, accpath, p);
+	}
+
+	free(list);
+}
+
+#else
+
+/*
+ * Generic (stub) extended attribute support.
+ */
+static void
+setup_xattrs(struct bsdtar *bsdtar, struct archive_entry *entry,
+    const char *accpath)
+{
+	(void)bsdtar; /* UNUSED */
+	(void)entry; /* UNUSED */
+	(void)accpath; /* UNUSED */
+}
+
+#endif
+
 static void
 free_cache(struct name_cache *cache)
 {
 	size_t i;
 
 	if (cache != NULL) {
-		for(i = 0; i < cache->size; i++) {
+		for (i = 0; i < cache->size; i++) {
 			if (cache->cache[i].name != NULL &&
 			    cache->cache[i].name != NO_NAME)
 				free((void *)(uintptr_t)cache->cache[i].name);
@@ -1235,10 +1359,6 @@ new_enough(struct bsdtar *bsdtar, const char *path, const struct stat *st)
 	 */
 	if (bsdtar->archive_dir != NULL &&
 	    bsdtar->archive_dir->head != NULL) {
-		/* Ignore leading './' when comparing names. */
-		if (path[0] == '.' && path[1] == '/' && path[2] != '\0')
-			path += 2;
-
 		for (p = bsdtar->archive_dir->head; p != NULL; p = p->next) {
 			if (strcmp(path, p->name)==0)
 				return (p->mtime_sec < st->st_mtime ||
