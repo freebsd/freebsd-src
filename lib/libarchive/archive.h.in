@@ -29,6 +29,11 @@
 #ifndef ARCHIVE_H_INCLUDED
 #define	ARCHIVE_H_INCLUDED
 
+/*
+ * This header file corresponds to:
+ *   Library version @VERSION@
+ *   Shared library version @SHLIB_MAJOR@
+ */
 
 #include <sys/types.h>  /* Linux requires this for off_t */
 #include <inttypes.h>  /* For int64_t */
@@ -54,11 +59,12 @@ extern "C" {
  *    1 - Version tests are available.
  *    2 - archive_{read,write}_close available separately from _finish.
  */
-#define	ARCHIVE_API_VERSION	@ARCHIVE_API_VERSION@
+#define	ARCHIVE_API_VERSION	@ARCHIVE_API_MAJOR@
 int		archive_api_version(void);
-#define	ARCHIVE_API_FEATURE	@ARCHIVE_API_FEATURE@
+#define	ARCHIVE_API_FEATURE	@ARCHIVE_API_MINOR@
 int		archive_api_feature(void);
 /* Textual name/version of the library. */
+#define	ARCHIVE_LIBRARY_VERSION	"libarchive @VERSION@"
 const char *	archive_version(void);
 
 #define	ARCHIVE_BYTES_PER_RECORD	  512
@@ -126,6 +132,10 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_FORMAT_BASE_MASK		0xff0000U
 #define	ARCHIVE_FORMAT_CPIO			0x10000
 #define	ARCHIVE_FORMAT_CPIO_POSIX		(ARCHIVE_FORMAT_CPIO | 1)
+#define	ARCHIVE_FORMAT_CPIO_BIN_LE		(ARCHIVE_FORMAT_CPIO | 2)
+#define	ARCHIVE_FORMAT_CPIO_BIN_BE		(ARCHIVE_FORMAT_CPIO | 3)
+#define	ARCHIVE_FORMAT_CPIO_SVR4_NOCRC		(ARCHIVE_FORMAT_CPIO | 4)
+#define	ARCHIVE_FORMAT_CPIO_SVR4_CRC		(ARCHIVE_FORMAT_CPIO | 5)
 #define	ARCHIVE_FORMAT_SHAR			0x20000
 #define	ARCHIVE_FORMAT_SHAR_BASE		(ARCHIVE_FORMAT_SHAR | 1)
 #define	ARCHIVE_FORMAT_SHAR_DUMP		(ARCHIVE_FORMAT_SHAR | 2)
@@ -243,6 +253,7 @@ int		 archive_read_data_into_fd(struct archive *, int fd);
 #define	ARCHIVE_EXTRACT_UNLINK	(16) /* Default: don't unlink existing files */
 #define	ARCHIVE_EXTRACT_ACL	(32) /* Default: don't restore ACLs */
 #define	ARCHIVE_EXTRACT_FFLAGS	(64) /* Default: don't restore fflags */
+#define	ARCHIVE_EXTRACT_XATTR   (128) /* Default: don't restore xattrs */
 
 int		 archive_read_extract(struct archive *, struct archive_entry *,
 		     int flags);
@@ -258,9 +269,11 @@ void		 archive_read_finish(struct archive *);
 /*-
  * To create an archive:
  *   1) Ask archive_write_new for a archive writer object.
- *   2) Set any global properties.  In particular, you should register
- *      open/write/close callbacks.
- *   3) Call archive_write_open to open the file
+ *   2) Set any global properties.  In particular, you should set
+ *      the compression and format to use.
+ *   3) Call archive_write_open to open the file (most people
+ *       will use archive_write_open_file or archive_write_open_fd,
+ *       which provide convenient canned I/O callbacks for you).
  *   4) For each entry:
  *      - construct an appropriate struct archive_entry structure
  *      - archive_write_header to write the header

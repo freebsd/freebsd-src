@@ -55,9 +55,13 @@ struct archive *
 archive_read_new(void)
 {
 	struct archive	*a;
-	char		*nulls;
+	unsigned char	*nulls;
 
 	a = malloc(sizeof(*a));
+	if (a == NULL) {
+		archive_set_error(a, ENOMEM, "Can't allocate archive object");
+		return (NULL);
+	}
 	memset(a, 0, sizeof(*a));
 
 	a->user_uid = geteuid();
@@ -66,6 +70,11 @@ archive_read_new(void)
 
 	a->null_length = 1024;
 	nulls = malloc(a->null_length);
+	if (nulls == NULL) {
+		archive_set_error(a, ENOMEM, "Can't allocate archive object 'nulls' element");
+		free(a);
+		return (NULL);
+	}
 	memset(nulls, 0, a->null_length);
 	a->nulls = nulls;
 
@@ -98,8 +107,8 @@ archive_read_set_bytes_per_block(struct archive *a, int bytes_per_block)
  */
 int
 archive_read_open(struct archive *a, void *client_data,
-    archive_open_callback *opener, archive_read_callback *reader,
-    archive_close_callback *closer)
+    archive_open_callback *client_opener, archive_read_callback *client_reader,
+    archive_close_callback *client_closer)
 {
 	const void *buffer;
 	ssize_t bytes_read;
@@ -108,37 +117,58 @@ archive_read_open(struct archive *a, void *client_data,
 
 	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW, "archive_read_open");
 
-	if (reader == NULL)
+	if (client_reader == NULL)
 		__archive_errx(1,
 		    "No reader function provided to archive_read_open");
 
-	a->client_reader = reader;
-	a->client_opener = opener;
-	a->client_closer = closer;
-	a->client_data = client_data;
-
-	a->state = ARCHIVE_STATE_HEADER;
+	/*
+	 * Set these NULL initially.  If the open or initial read fails,
+	 * we'll leave them NULL to indicate that the file is invalid.
+	 * (In particular, this helps ensure that the closer doesn't
+	 * get called more than once.)
+	 */
+	a->client_opener = NULL;
+	a->client_reader = NULL;
+	a->client_closer = NULL;
+	a->client_data = NULL;
 
 	/* Open data source. */
-	if (a->client_opener != NULL) {
-		e =(a->client_opener)(a, a->client_data);
-		if (e != 0)
+	if (client_opener != NULL) {
+		e =(client_opener)(a, client_data);
+		if (e != 0) {
+			/* If the open failed, call the closer to clean up. */
+			if (client_closer)
+				(client_closer)(a, client_data);
 			return (e);
+		}
 	}
 
 	/* Read first block now for format detection. */
-	bytes_read = (a->client_reader)(a, a->client_data, &buffer);
+	bytes_read = (client_reader)(a, client_data, &buffer);
 
-	/* client_reader should have already set error information. */
-	if (bytes_read < 0)
+	if (bytes_read < 0) {
+		/* If the first read fails, close before returning error. */
+		if (client_closer)
+			(client_closer)(a, client_data);
+		/* client_reader should have already set error information. */
 		return (ARCHIVE_FATAL);
+	}
 
 	/* An empty archive is a serious error. */
 	if (bytes_read == 0) {
 		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Empty input file");
+		/* Close the empty file. */
+		if (client_closer)
+			(client_closer)(a, client_data);
 		return (ARCHIVE_FATAL);
 	}
+
+	/* Now that the client callbacks have worked, remember them. */
+	a->client_opener = client_opener; /* Do we need to remember this? */
+	a->client_reader = client_reader;
+	a->client_closer = client_closer;
+	a->client_data = client_data;
 
 	/* Select a decompression routine. */
 	high_bidder = choose_decompressor(a, buffer, bytes_read);
@@ -147,6 +177,10 @@ archive_read_open(struct archive *a, void *client_data,
 
 	/* Initialize decompression routine with the first block of data. */
 	e = (a->decompressors[high_bidder].init)(a, buffer, bytes_read);
+
+	if (e == ARCHIVE_OK)
+		a->state = ARCHIVE_STATE_HEADER;
+
 	return (e);
 }
 
@@ -347,7 +381,6 @@ archive_read_header_position(struct archive *a)
 ssize_t
 archive_read_data(struct archive *a, void *buff, size_t s)
 {
-	off_t	 remaining;
 	char	*dest;
 	size_t	 bytes_read;
 	size_t	 len;
@@ -364,26 +397,26 @@ archive_read_data(struct archive *a, void *buff, size_t s)
 			    &a->read_data_offset);
 			if (r == ARCHIVE_EOF)
 				return (bytes_read);
-			if (r != ARCHIVE_OK)
+			/*
+			 * Error codes are all negative, so the status
+			 * return here cannot be confused with a valid
+			 * byte count.  (ARCHIVE_OK is zero.)
+			 */
+			if (r < ARCHIVE_OK)
 				return (r);
 		}
 
 		if (a->read_data_offset < a->read_data_output_offset) {
-			remaining =
-			    a->read_data_output_offset - a->read_data_offset;
-			if (remaining > (off_t)s)
-				remaining = (off_t)s;
-			len = (size_t)remaining;
-			memset(dest, 0, len);
-			a->read_data_output_offset += len;
-			s -= len;
-			bytes_read += len;
+			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Encountered out-of-order sparse blocks");
+			return (ARCHIVE_RETRY);
 		} else {
 			len = a->read_data_remaining;
 			if (len > s)
 				len = s;
 			memcpy(dest, a->read_data_block, len);
 			s -= len;
+			a->read_data_block += len;
 			a->read_data_remaining -= len;
 			a->read_data_output_offset += len;
 			a->read_data_offset += len;
@@ -391,7 +424,7 @@ archive_read_data(struct archive *a, void *buff, size_t s)
 			bytes_read += len;
 		}
 	}
-	return (ARCHIVE_OK);
+	return (bytes_read);
 }
 
 /*
@@ -402,7 +435,7 @@ archive_read_data_skip(struct archive *a)
 {
 	int r;
 	const void *buff;
-	ssize_t size;
+	size_t size;
 	off_t offset;
 
 	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA, "archive_read_data_skip");

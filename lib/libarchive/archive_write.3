@@ -53,9 +53,9 @@
 .Ft struct archive *
 .Fn archive_write_new "void"
 .Ft int
-.Fn archive_write_set_bytes_per_block "archive *" "int bytes_per_block"
+.Fn archive_write_set_bytes_per_block "struct archive *" "int bytes_per_block"
 .Ft int
-.Fn archive_write_set_bytes_in_last_block "archive *" "int"
+.Fn archive_write_set_bytes_in_last_block "struct archive *" "int"
 .Ft int
 .Fn archive_write_set_compressor_gzip "struct archive *"
 .Ft int
@@ -73,13 +73,13 @@
 .Ft int
 .Fn archive_write_set_format_ustar "struct archive *"
 .Ft int
-.Fn archive_write_open "struct archive *" "void *client_data" "archive_open_archive_callback *" "archive_write_archive_callback *" "archive_close_archive_callback *"
+.Fn archive_write_open "struct archive *" "void *client_data" "archive_open_callback *" "archive_write_callback *" "archive_close_callback *"
 .Ft int
 .Fn archive_write_open_fd "struct archive *" "int fd"
 .Ft int
 .Fn archive_write_open_file "struct archive *" "const char *filename"
 .Ft int
-.Fn archive_write_header "struct archive *"
+.Fn archive_write_header "struct archive *" "struct archive_entry *"
 .Ft int
 .Fn archive_write_data "struct archive *" "const void *" "size_t"
 .Ft int
@@ -215,7 +215,7 @@ These functions are registered by calling
 .Bl -item -offset indent
 .It
 .Ft typedef int
-.Fn archive_open_archive_callback "struct archive *" "void *client_data"
+.Fn archive_open_callback "struct archive *" "void *client_data"
 .El
 .Pp
 The open callback is invoked by
@@ -231,7 +231,7 @@ to register an error code and message and return
 .Bl -item -offset indent
 .It
 .Ft typedef ssize_t
-.Fn archive_write_archive_callback "struct archive *" "void *client_data" "void *buffer" "size_t length"
+.Fn archive_write_callback "struct archive *" "void *client_data" "void *buffer" "size_t length"
 .El
 .Pp
 The write callback is invoked whenever the library
@@ -249,7 +249,7 @@ to register an error code and message and return -1.
 .Bl -item -offset indent
 .It
 .Ft typedef int
-.Fn archive_close_archive_callback "struct archive *" "void *client_data"
+.Fn archive_close_callback "struct archive *" "void *client_data"
 .El
 .Pp
 The close callback is invoked by archive_close when
