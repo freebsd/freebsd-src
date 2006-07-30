@@ -45,6 +45,7 @@ struct read_fd_data {
 static int	file_close(struct archive *, void *);
 static int	file_open(struct archive *, void *);
 static ssize_t	file_read(struct archive *, void *, const void **buff);
+static ssize_t	file_skip(struct archive *, void *, size_t request);
 
 int
 archive_read_open_fd(struct archive *a, int fd, size_t block_size)
@@ -64,7 +65,7 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 		return (ARCHIVE_FATAL);
 	}
 	mine->fd = fd;
-	return (archive_read_open(a, mine, file_open, file_read, file_close));
+	return (archive_read_open2(a, mine, file_open, file_read, file_skip, file_close));
 }
 
 static int
@@ -87,10 +88,51 @@ static ssize_t
 file_read(struct archive *a, void *client_data, const void **buff)
 {
 	struct read_fd_data *mine = client_data;
+	ssize_t bytes_read;
 
-	(void)a; /* UNUSED */
 	*buff = mine->buffer;
-	return (read(mine->fd, mine->buffer, mine->block_size));
+	bytes_read = read(mine->fd, mine->buffer, mine->block_size);
+	if (bytes_read < 0) {
+		archive_set_error(a, errno, "Error reading fd %d", mine->fd);
+	}
+	return (bytes_read);
+}
+
+static ssize_t
+file_skip(struct archive *a, void *client_data, size_t request)
+{
+	struct read_fd_data *mine = client_data;
+	off_t old_offset, new_offset;
+	
+	/* Reduce request to the next smallest multiple of block_size */
+	request = (request / mine->block_size) * mine->block_size;
+	/*
+	 * Hurray for lazy evaluation: if the first lseek fails, the second
+	 * one will not be executed.
+	 */
+	if (((old_offset = lseek(mine->fd, 0, SEEK_CUR)) < 0) ||
+	    ((new_offset = lseek(mine->fd, request, SEEK_CUR)) < 0))
+	{
+		if (errno == ESPIPE)
+		{
+			/*
+			 * Failure to lseek() can be caused by the file
+			 * descriptor pointing to a pipe, socket or FIFO.
+			 * Return 0 here, so the compression layer will use
+			 * read()s instead to advance the file descriptor.
+			 * It's slower of course, but works as well.
+			 */
+			return (0);
+		}
+		/*
+		 * There's been an error other than ESPIPE. This is most
+		 * likely caused by a programmer error (too large request)
+		 * or a corrupted archive file.
+		 */
+		archive_set_error(a, errno, "Error seeking");
+		return (-1);
+	}
+	return (new_offset - old_offset);
 }
 
 static int
