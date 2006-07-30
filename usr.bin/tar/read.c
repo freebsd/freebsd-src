@@ -27,9 +27,12 @@
 #include "bsdtar_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef MAJOR_IN_MKDEV
+#include <sys/mkdev.h>
+#endif
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #include <errno.h>
 #include <grp.h>
