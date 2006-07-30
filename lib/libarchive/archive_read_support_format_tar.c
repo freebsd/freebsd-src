@@ -193,6 +193,7 @@ static int	archive_read_format_tar_bid(struct archive *);
 static int	archive_read_format_tar_cleanup(struct archive *);
 static int	archive_read_format_tar_read_data(struct archive *a,
 		    const void **buff, size_t *size, off_t *offset);
+static int	archive_read_format_tar_skip(struct archive *a);
 static int	archive_read_format_tar_read_header(struct archive *,
 		    struct archive_entry *);
 static int	checksum(struct archive *, const void *);
@@ -260,7 +261,7 @@ archive_read_support_format_tar(struct archive *a)
 	    archive_read_format_tar_bid,
 	    archive_read_format_tar_read_header,
 	    archive_read_format_tar_read_data,
-	    NULL,
+	    archive_read_format_tar_skip,
 	    archive_read_format_tar_cleanup);
 
 	if (r != ARCHIVE_OK)
@@ -520,6 +521,50 @@ archive_read_format_tar_read_data(struct archive *a,
 		*offset = tar->entry_offset;
 		return (ARCHIVE_EOF);
 	}
+}
+
+static int
+archive_read_format_tar_skip(struct archive *a)
+{
+	ssize_t bytes_skipped;
+	struct tar* tar;
+	struct sparse_block *p;
+	int r = ARCHIVE_OK;
+	const void *b;	/* dummy variables */
+	size_t s;
+	off_t o;
+	
+	
+	tar = *(a->pformat_data);
+	if (a->compression_skip == NULL) {
+		while (r == ARCHIVE_OK)
+			r = archive_read_format_tar_read_data(a, &b, &s, &o);
+		return (r);
+	}
+	bytes_skipped = (a->compression_skip)(a, tar->entry_bytes_remaining);
+	if (bytes_skipped < 0)
+		return (ARCHIVE_FATAL);
+	/* same code as above in _tar_read_data() */
+	tar->entry_bytes_remaining -= bytes_skipped;
+	while (tar->sparse_list != NULL &&
+	    tar->sparse_list->remaining == 0) {
+		p = tar->sparse_list;
+		tar->sparse_list = p->next;
+		free(p);
+		if (tar->sparse_list != NULL)
+			tar->entry_offset = tar->sparse_list->offset;
+	}
+	if (tar->sparse_list != NULL) {
+		if (tar->sparse_list->remaining < bytes_skipped)
+			bytes_skipped = tar->sparse_list->remaining;
+		tar->sparse_list->remaining -= bytes_skipped;
+	}
+	tar->entry_offset += bytes_skipped;
+	tar->entry_bytes_remaining -= bytes_skipped;
+	/* Reuse padding code above. */
+	while (r == ARCHIVE_OK)
+		r = archive_read_format_tar_read_data(a, &b, &s, &o);
+	return (r);
 }
 
 /*
