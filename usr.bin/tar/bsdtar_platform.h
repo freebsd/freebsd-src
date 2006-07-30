@@ -36,7 +36,7 @@
 #define	BSDTAR_PLATFORM_H_INCLUDED
 
 #if HAVE_CONFIG_H
-#include "config.h"
+#include "../config.h"
 #else
 
 #ifdef __FreeBSD__
@@ -112,8 +112,14 @@
 #define	__FBSDID(a)     /* null */
 #endif
 
-#ifndef HAVE_LIBARCHIVE
-#error Configuration error: did not find libarchive.
+#ifdef HAVE_LIBARCHIVE
+/* If we're using the platform libarchive, include system headers. */
+#include <archive.h>
+#include <archive_entry.h>
+#else
+/* Otherwise, include user headers. */
+#include "archive.h"
+#include "archive_entry.h"
 #endif
 
 /*
@@ -121,10 +127,14 @@
  * including some variant of the acl_get_perm() function (which was
  * omitted from the POSIX.1e draft)?
  */
-#if HAVE_SYS_ACL_H && HAVE_ACL_PERMSET_T
+#if HAVE_SYS_ACL_H && HAVE_ACL_PERMSET_T && HAVE_ACL_USER
 #if HAVE_ACL_GET_PERM || HAVE_ACL_GET_PERM_NP
 #define	HAVE_POSIX_ACL	1
 #endif
+#endif
+
+#ifdef HAVE_LIBACL
+#include <acl/libacl.h>
 #endif
 
 #if HAVE_ACL_GET_PERM
