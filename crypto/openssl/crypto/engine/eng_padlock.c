@@ -389,10 +389,10 @@ padlock_verify_context(struct padlock_cipher_data *cdata)
 "	jnc	1f\n"
 "	cmp	%2,%1\n"
 "	je	1f\n"
-"	mov	%2,%0\n"
 "	popfl\n"
 "	sub	$4,%%esp\n"
-"1:	add	$4,%%esp"
+"1:	add	$4,%%esp\n"
+"	mov	%2,%0"
 	:"+m"(padlock_saved_context)
 	: "r"(padlock_saved_context), "r"(cdata) : "cc");
 }
@@ -492,10 +492,10 @@ padlock_verify_context(void *cdata)
 		jnc	skip
 		cmp	ecx,padlock_saved_context
 		je	skip
-		mov	padlock_saved_context,ecx
 		popfd
 		sub	esp,4
 	skip:	add	esp,4
+		mov	padlock_saved_context,ecx
 		}
 }
 
