@@ -96,7 +96,6 @@ main(int argc, char *argv[])
 		while ((p = fgetwln(fp, &len)) != NULL) {
 			if (p[len - 1] == '\n')
 				--len;
-			t = p + len - 1;
 			for (t = p + len - 1; t >= p; --t)
 				putwchar(*t);
 			putwchar('\n');
