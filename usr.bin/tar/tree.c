@@ -130,7 +130,7 @@ tree_dump(struct tree *t, FILE *out)
 	fprintf(out, "\tpwd: "); fflush(stdout); system("pwd");
 	fprintf(out, "\taccess: %s\n", t->basename);
 	fprintf(out, "\tstack:\n");
-	for(te = t->stack; te != NULL; te = te->next) {
+	for (te = t->stack; te != NULL; te = te->next) {
 		fprintf(out, "\t\tte->name: %s%s%s\n", te->name,
 		    te->flags & needsPreVisit ? "" : " *",
 		    t->current == te ? " (current)" : "");
@@ -311,13 +311,14 @@ tree_next(struct tree *t)
 				t->tree_errno = errno;
 				return (t->visit_type = TREE_ERROR_DIR);
 			}
+			t->depth++;
 			t->d = opendir(".");
 			if (t->d == NULL) {
+				tree_ascend(t); /* Undo "chdir" */
 				tree_pop(t);
 				t->tree_errno = errno;
 				return (t->visit_type = TREE_ERROR_DIR);
 			}
-			t->depth++;
 			t->flags &= ~hasLstat;
 			t->flags &= ~hasStat;
 			t->basename = ".";
