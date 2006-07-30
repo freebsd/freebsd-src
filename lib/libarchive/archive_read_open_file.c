@@ -83,6 +83,10 @@ file_open(struct archive *a, void *client_data)
 	struct stat st;
 
 	mine->buffer = malloc(mine->block_size);
+	if (mine->buffer == NULL) {
+		archive_set_error(a, ENOMEM, "No memory");
+		return (ARCHIVE_FATAL);
+	}
 	if (mine->filename[0] != '\0')
 		mine->fd = open(mine->filename, O_RDONLY);
 	else

@@ -121,7 +121,6 @@ struct iso9660_directory_record {
 	char name[1];
 };
 
-
 /*
  * Our private data.
  */
@@ -180,6 +179,7 @@ static int	archive_read_format_iso9660_read_header(struct archive *,
 		    struct archive_entry *);
 static const char *build_pathname(struct archive_string *, struct file_info *);
 static void	dump_isodirrec(FILE *, const struct iso9660_directory_record *);
+static time_t	time_from_tm(struct tm *);
 static time_t	isodate17(const void *);
 static time_t	isodate7(const void *);
 static int	isPVD(struct iso9660 *, const char *);
@@ -203,6 +203,10 @@ archive_read_support_format_iso9660(struct archive *a)
 	int r;
 
 	iso9660 = malloc(sizeof(*iso9660));
+	if (iso9660 == NULL) {
+		archive_set_error(a, ENOMEM, "Can't allocate iso9660 data");
+		return (ARCHIVE_FATAL);
+	}
 	memset(iso9660, 0, sizeof(*iso9660));
 	iso9660->magic = ISO9660_MAGIC;
 	iso9660->bid = -1; /* We haven't yet bid. */
@@ -298,10 +302,7 @@ archive_read_format_iso9660_read_header(struct archive *a,
 
 	iso9660 = *(a->pformat_data);
 
-	if (iso9660->seenRockridge) {
-		a->archive_format = ARCHIVE_FORMAT_ISO9660_ROCKRIDGE;
-		a->archive_format_name = "ISO9660 with Rockridge extensions";
-	} else {
+	if (!a->archive_format) {
 		a->archive_format = ARCHIVE_FORMAT_ISO9660;
 		a->archive_format_name = "ISO9660";
 	}
@@ -363,7 +364,7 @@ archive_read_format_iso9660_read_header(struct archive *a,
 
 	/* If this is a directory, read in all of the entries right now. */
 	if (S_ISDIR(st.st_mode)) {
-		while(iso9660->entry_bytes_remaining > 0) {
+		while (iso9660->entry_bytes_remaining > 0) {
 			const void *block;
 			const unsigned char *p;
 			ssize_t step = iso9660->logical_block_size;
@@ -398,6 +399,12 @@ archive_read_format_iso9660_read_header(struct archive *a,
 					continue;
 				child = parse_file_info(iso9660, file, dr);
 				add_entry(iso9660, child);
+				if (iso9660->seenRockridge) {
+					a->archive_format =
+					    ARCHIVE_FORMAT_ISO9660_ROCKRIDGE;
+					a->archive_format_name =
+					    "ISO9660 with Rockridge extensions";
+				}
 			}
 		}
 	}
@@ -422,6 +429,9 @@ archive_read_format_iso9660_read_data(struct archive *a,
 	}
 
 	bytes_read = (a->compression_read_ahead)(a, buff, 1);
+	if (bytes_read == 0)
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		    "Truncated input file");
 	if (bytes_read <= 0)
 		return (ARCHIVE_FATAL);
 	if (bytes_read > iso9660->entry_bytes_remaining)
@@ -465,6 +475,8 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 
 	/* Create a new file entry and copy data from the ISO dir record. */
 	file = malloc(sizeof(*file));
+	if (file == NULL)
+		return (NULL);
 	memset(file, 0, sizeof(*file));
 	file->parent = parent;
 	if (parent != NULL)
@@ -475,6 +487,10 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 	file->mtime = isodate7(isodirrec->date);
 	file->ctime = file->atime = file->mtime;
 	file->name = malloc(isodirrec->name_len[0] + 1);
+	if (file->name == NULL) {
+		free(file);
+		return (NULL);
+	}
 	memcpy(file->name, isodirrec->name, isodirrec->name_len[0]);
 	file->name[(int)isodirrec->name_len[0]] = '\0';
 	if (isodirrec->flags[0] & 0x02)
@@ -487,7 +503,8 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 		const unsigned char *rr_start, *rr_end;
 		rr_end = (const unsigned char *)isodirrec
 		    + isodirrec->length[0];
-		rr_start = isodirrec->name + isodirrec->name_len[0];
+		rr_start = (const unsigned char *)isodirrec->name
+		    + isodirrec->name_len[0];
 		if ((isodirrec->name_len[0] & 1) == 0)
 			rr_start++;
 		rr_start += iso9660->suspOffset;
@@ -531,6 +548,8 @@ add_entry(struct iso9660 *iso9660, struct file_info *file)
 		if (new_size < 1024)
 			new_size = 1024;
 		new_pending_files = malloc(new_size * sizeof(new_pending_files[0]));
+		if (new_pending_files == NULL)
+			__archive_errx(1, "Out of memory");
 		memcpy(new_pending_files, iso9660->pending_files,
 		    iso9660->pending_files_allocated * sizeof(new_pending_files[0]));
 		if (iso9660->pending_files != NULL)
@@ -658,7 +677,8 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 
 					switch(flag) {
 					case 0x01: /* Continue */
-						archive_strncat(&file->symlink, data, nlen);
+						archive_strncat(&file->symlink,
+						    (const char *)data, nlen);
 						cont = 1;
 						break;
 					case 0x02: /* Current */
@@ -675,7 +695,8 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 						archive_strcat(&file->symlink, "hostname");
 						break;
 					case 0:
-						archive_strncat(&file->symlink, data, nlen);
+						archive_strncat(&file->symlink,
+						    (const char *)data, nlen);
 						break;
 					default:
 						/* TODO: issue a warning ? */
@@ -897,7 +918,7 @@ next_entry(struct iso9660 *iso9660)
 	    + iso9660->pending_files[0]->size;
 
 	/* Now, try to find an earlier one. */
-	for(i = 0; i < iso9660->pending_files_used; i++) {
+	for (i = 0; i < iso9660->pending_files_used; i++) {
 		/* Use the position of the file *end* as our comparison. */
 		uint64_t end_offset = iso9660->pending_files[i]->offset
 		    + iso9660->pending_files[i]->size;
@@ -933,6 +954,7 @@ isodate7(const void *p)
 	struct tm tm;
 	const unsigned char *v = (const unsigned char *)p;
 	int offset;
+	memset(&tm, 0, sizeof(tm));
 	tm.tm_year = v[0];
 	tm.tm_mon = v[1] - 1;
 	tm.tm_mday = v[2];
@@ -945,7 +967,7 @@ isodate7(const void *p)
 		tm.tm_hour -= offset / 4;
 		tm.tm_min -= (offset % 4) * 15;
 	}
-	return (timegm(&tm));
+	return (time_from_tm(&tm));
 }
 
 static time_t
@@ -954,6 +976,7 @@ isodate17(const void *p)
 	struct tm tm;
 	const unsigned char *v = (const unsigned char *)p;
 	int offset;
+	memset(&tm, 0, sizeof(tm));
 	tm.tm_year = (v[0] - '0') * 1000 + (v[1] - '0') * 100
 	    + (v[2] - '0') * 10 + (v[3] - '0')
 	    - 1900;
@@ -968,7 +991,44 @@ isodate17(const void *p)
 		tm.tm_hour -= offset / 4;
 		tm.tm_min -= (offset % 4) * 15;
 	}
-	return (timegm(&tm));
+	return (time_from_tm(&tm));
+}
+
+/*
+ * timegm() converts a struct tm to a time_t, except it isn't standard,
+ * so I provide my own function here that (ideally) is just a wrapper
+ * for timegm().
+ */
+static time_t
+time_from_tm(struct tm *t)
+{
+#if HAVE_TIMEGM
+	return (timegm(t));
+#else
+	/*
+	 * Unfortunately, timegm() isn't standard.  The standard
+	 * mktime() function is a close match, except that it uses
+	 * local timezone instead of GMT.  Close enough for now.
+	 * Note that it is not possible to emulate timegm() using
+	 * standard interfaces:
+	 *   * ANSI C90 does not even guarantee that time_t is
+	 *     an arithmetic type, so time adjustments can only be
+	 *     done by manipulating struct tm elements.  You cannot
+	 *     portably calculate time_t values.
+	 *   * POSIX does promise that time_t is an arithmetic type
+	 *     measured in seconds, so you can do time_t calculations
+	 *     while remaining POSIX-compliant.
+	 *   * Neither ANSI nor POSIX provides an easy way to measure
+	 *     the timezone offset, so you can't adjust mktime() to
+	 *     work like timegm().
+	 *   * POSIX does not promise that the epoch begins in 1970,
+	 *     so you can't write a portable timegm() function from
+	 *     scratch.
+	 */
+	time_t result = mktime(t);
+	/* TODO: Find a way to improve this approximation to timegm(). */
+	return result;
+#endif
 }
 
 static const char *

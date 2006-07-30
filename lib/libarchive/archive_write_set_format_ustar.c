@@ -28,6 +28,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
+#ifdef MAJOR_IN_MKDEV
+#include <sys/mkdev.h>
+#else
+#ifdef MAJOR_IN_SYSMACROS
+#include <sys/sysmacros.h>
+#endif
+#endif
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -230,7 +237,7 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 	}
 
 	p = archive_entry_hardlink(entry);
-	if(p != NULL)
+	if (p != NULL)
 		mytartype = '1';
 	else
 		p = archive_entry_symlink(entry);

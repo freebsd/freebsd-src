@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2004 Tim Kientzle
+ * Copyright (c) 2003-2006 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,12 +28,48 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
+#ifdef MAJOR_IN_MKDEV
+#include <sys/mkdev.h>
+#else
+#ifdef MAJOR_IN_SYSMACROS
+#include <sys/sysmacros.h>
+#endif
+#endif
 #include <errno.h>
+#include <stddef.h>
 /* #include <stdint.h> */ /* See archive_platform.h */
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+/* Obtain suitable wide-character manipulation functions. */
+#ifdef HAVE_WCHAR_H
 #include <wchar.h>
+#else
+/* Good enough for equality testing, which is all we need. */
+static int wcscmp(const wchar_t *s1, const wchar_t *s2)
+{
+	int diff = *s1 - *s2;
+	while (*s1 && diff == 0)
+		diff = (int)*++s1 - (int)*++s2;
+	return diff;
+}
+/* Good enough for equality testing, which is all we need. */
+static int wcsncmp(const wchar_t *s1, const wchar_t *s2, size_t n)
+{
+	int diff = *s1 - *s2;
+	while (*s1 && diff == 0 && n-- > 0)
+		diff = (int)*++s1 - (int)*++s2;
+	return diff;
+}
+static size_t wcslen(const wchar_t *s)
+{
+	const wchar_t *p = s;
+	while (*p)
+		p++;
+	return p - s;
+}
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -128,9 +164,10 @@ struct tar {
 
 static size_t	UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n);
 static int	archive_block_is_null(const unsigned char *p);
-int		gnu_read_sparse_data(struct archive *, struct tar *,
+static char	*base64_decode(const wchar_t *, size_t, size_t *);
+static int	gnu_read_sparse_data(struct archive *, struct tar *,
 		    const struct archive_entry_header_gnutar *header);
-void		gnu_parse_sparse_data(struct archive *, struct tar *,
+static void	gnu_parse_sparse_data(struct archive *, struct tar *,
 		    const struct gnu_sparse *sparse, int length);
 static int	header_Solaris_ACL(struct archive *,  struct tar *,
 		    struct archive_entry *, struct stat *, const void *);
@@ -172,7 +209,10 @@ static int64_t	tar_atol256(const char *, unsigned);
 static int64_t	tar_atol8(const char *, unsigned);
 static int	tar_read_header(struct archive *, struct tar *,
 		    struct archive_entry *, struct stat *);
+static int	tohex(int c);
+static char	*url_decode(const char *);
 static int	utf8_decode(wchar_t *, const char *, size_t length);
+static char	*wide_to_narrow(const wchar_t *wval);
 
 /*
  * ANSI C99 defines constants for these, but not everyone supports
@@ -210,6 +250,10 @@ archive_read_support_format_tar(struct archive *a)
 	int r;
 
 	tar = malloc(sizeof(*tar));
+	if (tar == NULL) {
+		archive_set_error(a, ENOMEM, "Can't allocate tar data");
+		return (ARCHIVE_FATAL);
+	}
 	memset(tar, 0, sizeof(*tar));
 
 	r = __archive_read_register_format(a, tar,
@@ -361,6 +405,22 @@ static int
 archive_read_format_tar_read_header(struct archive *a,
     struct archive_entry *entry)
 {
+	/*
+	 * When converting tar archives to cpio archives, it is
+	 * essential that each distinct file have a distinct inode
+	 * number.  To simplify this, we keep a static count here to
+	 * assign fake dev/inode numbers to each tar entry.  Note that
+	 * pax format archives may overwrite this with something more
+	 * useful.
+	 *
+	 * Ideally, we would track every file read from the archive so
+	 * that we could assign the same dev/ino pair to hardlinks,
+	 * but the memory required to store a complete lookup table is
+	 * probably not worthwhile just to support the relatively
+	 * obscure tar->cpio conversion case.
+	 */
+	static int default_inode;
+	static int default_dev;
 	struct stat st;
 	struct tar *tar;
 	const char *p;
@@ -368,6 +428,15 @@ archive_read_format_tar_read_header(struct archive *a,
 	size_t l;
 
 	memset(&st, 0, sizeof(st));
+	/* Assign default device/inode values. */
+	st.st_dev = 1 + default_dev; /* Don't use zero. */
+	st.st_ino = ++default_inode; /* Don't use zero. */
+	/* Limit generated st_ino number to 16 bits. */
+	if (default_inode >= 0xffff) {
+		++default_dev;
+		default_inode = 0;
+	}
+
 	tar = *(a->pformat_data);
 	tar->entry_offset = 0;
 
@@ -401,24 +470,34 @@ archive_read_format_tar_read_data(struct archive *a,
 	struct sparse_block *p;
 
 	tar = *(a->pformat_data);
+	if (tar->sparse_list != NULL) {
+		/* Remove exhausted entries from sparse list. */
+		while (tar->sparse_list != NULL &&
+		    tar->sparse_list->remaining == 0) {
+			p = tar->sparse_list;
+			tar->sparse_list = p->next;
+			free(p);
+		}
+		if (tar->sparse_list == NULL) {
+			/* We exhausted the entire sparse list. */
+			tar->entry_bytes_remaining = 0;
+		}
+	}
+
 	if (tar->entry_bytes_remaining > 0) {
 		bytes_read = (a->compression_read_ahead)(a, buff, 1);
 		if (bytes_read <= 0)
 			return (ARCHIVE_FATAL);
 		if (bytes_read > tar->entry_bytes_remaining)
 			bytes_read = tar->entry_bytes_remaining;
-		while (tar->sparse_list != NULL &&
-		    tar->sparse_list->remaining == 0) {
-			p = tar->sparse_list;
-			tar->sparse_list = p->next;
-			free(p);
-			if (tar->sparse_list != NULL)
-				tar->entry_offset = tar->sparse_list->offset;
-		}
 		if (tar->sparse_list != NULL) {
+			/* Don't read more than is available in the
+			 * current sparse block. */
 			if (tar->sparse_list->remaining < bytes_read)
 				bytes_read = tar->sparse_list->remaining;
+			tar->entry_offset = tar->sparse_list->offset;
 			tar->sparse_list->remaining -= bytes_read;
+			tar->sparse_list->offset += bytes_read;
 		}
 		*size = bytes_read;
 		*offset = tar->entry_offset;
@@ -1035,14 +1114,22 @@ pax_header(struct archive *a, struct tar *tar, struct archive_entry *entry,
 
 		/* Ensure pax_entry buffer is big enough. */
 		if (tar->pax_entry_length <= line_length) {
+			wchar_t *old_entry = tar->pax_entry;
+
 			if (tar->pax_entry_length <= 0)
 				tar->pax_entry_length = 1024;
 			while (tar->pax_entry_length <= line_length + 1)
 				tar->pax_entry_length *= 2;
 
-			/* XXX Error handling here */
+			old_entry = tar->pax_entry;
 			tar->pax_entry = realloc(tar->pax_entry,
 			    tar->pax_entry_length * sizeof(wchar_t));
+			if (tar->pax_entry == NULL) {
+				free(old_entry);
+				archive_set_error(a, ENOMEM,
+					"No memory");
+				return (ARCHIVE_FATAL);
+			}
 		}
 
 		/* Decode UTF-8 to wchar_t, null-terminate result. */
@@ -1054,11 +1141,12 @@ pax_header(struct archive *a, struct tar *tar, struct archive_entry *entry,
 		}
 
 		/* Null-terminate 'key' value. */
-		key = tar->pax_entry;
+		wp = key = tar->pax_entry;
 		if (key[0] == L'=')
 			return (-1);
-		wp = wcschr(key, L'=');
-		if (wp == NULL) {
+		while (*wp && *wp != L'=')
+			++wp;
+		if (*wp == L'\0' || wp == NULL) {
 			archive_set_error(a, ARCHIVE_ERRNO_MISC,
 			    "Invalid pax extended attributes");
 			return (ARCHIVE_WARN);
@@ -1079,7 +1167,42 @@ pax_header(struct archive *a, struct tar *tar, struct archive_entry *entry,
 	return (err);
 }
 
+static int
+pax_attribute_xattr(struct archive_entry *entry,
+	wchar_t *name, wchar_t *value)
+{
+	char *name_decoded, *name_narrow;
+	void *value_decoded;
+	size_t value_len;
 
+	if (wcslen(name) < 18 || (wcsncmp(name, L"LIBARCHIVE.xattr.", 17)) != 0)
+		return 3;
+
+	name += 17;
+
+	/* URL-decode name */
+	name_narrow = wide_to_narrow(name);
+	if (name_narrow == NULL)
+		return 2;
+	name_decoded = url_decode(name_narrow);
+	free(name_narrow);
+	if (name_decoded == NULL)
+		return 2;
+
+	/* Base-64 decode value */
+	value_decoded = base64_decode(value, wcslen(value), &value_len);
+	if (value_decoded == NULL) {
+		free(name_decoded);
+		return 1;
+	}
+
+	archive_entry_xattr_add_entry(entry, name_decoded,
+		value_decoded, value_len);
+
+	free(name_decoded);
+	free(value_decoded);
+	return 0;
+}
 
 /*
  * Parse a single key=value attribute.  key/value pointers are
@@ -1109,6 +1232,8 @@ pax_attribute(struct archive_entry *entry, struct stat *st,
 		if (strcmp(key, "LIBARCHIVE.xxxxxxx")==0)
 			archive_entry_set_xxxxxx(entry, value);
 */
+		if (wcsncmp(key, L"LIBARCHIVE.xattr.", 17)==0)
+			pax_attribute_xattr(entry, key, value);
 		break;
 	case 'S':
 		/* We support some keys used by the "star" archiver */
@@ -1312,7 +1437,7 @@ header_gnutar(struct archive *a, struct tar *tar, struct archive_entry *entry,
 	return (0);
 }
 
-int
+static int
 gnu_read_sparse_data(struct archive *a, struct tar *tar,
     const struct archive_entry_header_gnutar *header)
 {
@@ -1348,7 +1473,7 @@ gnu_read_sparse_data(struct archive *a, struct tar *tar,
 	return (ARCHIVE_OK);
 }
 
-void
+static void
 gnu_parse_sparse_data(struct archive *a, struct tar *tar,
     const struct gnu_sparse *sparse, int length)
 {
@@ -1363,6 +1488,8 @@ gnu_parse_sparse_data(struct archive *a, struct tar *tar,
 
 	while (length > 0 && sparse->offset[0] != 0) {
 		p = malloc(sizeof(*p));
+		if (p == NULL)
+			__archive_errx(1, "Out of memory");
 		memset(p, 0, sizeof(*p));
 		if (last != NULL)
 			last->next = p;
@@ -1491,7 +1618,7 @@ static int64_t
 tar_atol256(const char *_p, unsigned char_cnt)
 {
 	int64_t	l, upper_limit, lower_limit;
-	const unsigned char *p = _p;
+	const unsigned char *p = (const unsigned char *)_p;
 
 	upper_limit = max_int64 / 256;
 	lower_limit = min_int64 / 256;
@@ -1522,16 +1649,10 @@ utf8_decode(wchar_t *dest, const char *src, size_t length)
 	int err;
 
 	err = 0;
-	while(length > 0) {
+	while (length > 0) {
 		n = UTF8_mbrtowc(dest, src, length);
 		if (n == 0)
 			break;
-		if (n > 8) {
-			/* Invalid byte encountered; try to keep going. */
-			*dest = L'?';
-			n = 1;
-			err = 1;
-		}
 		dest++;
 		src += n;
 		length -= n;
@@ -1541,68 +1662,52 @@ utf8_decode(wchar_t *dest, const char *src, size_t length)
 }
 
 /*
- * Copied from FreeBSD libc/locale.
+ * Copied and simplified from FreeBSD libc/locale.
  */
 static size_t
 UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n)
 {
         int ch, i, len, mask;
-        unsigned long lbound, wch;
+        unsigned long wch;
 
-        if (s == NULL)
-                /* Reset to initial shift state (no-op) */
+        if (s == NULL || n == 0 || pwc == NULL)
                 return (0);
-        if (n == 0)
-                /* Incomplete multibyte sequence */
-                return ((size_t)-2);
 
         /*
          * Determine the number of octets that make up this character from
          * the first octet, and a mask that extracts the interesting bits of
          * the first octet.
-         *
-         * We also specify a lower bound for the character code to detect
-         * redundant, non-"shortest form" encodings. For example, the
-         * sequence C0 80 is _not_ a legal representation of the null
-         * character. This enforces a 1-to-1 mapping between character
-         * codes and their multibyte representations.
          */
         ch = (unsigned char)*s;
         if ((ch & 0x80) == 0) {
                 mask = 0x7f;
                 len = 1;
-                lbound = 0;
         } else if ((ch & 0xe0) == 0xc0) {
                 mask = 0x1f;
                 len = 2;
-                lbound = 0x80;
         } else if ((ch & 0xf0) == 0xe0) {
                 mask = 0x0f;
                 len = 3;
-                lbound = 0x800;
         } else if ((ch & 0xf8) == 0xf0) {
                 mask = 0x07;
                 len = 4;
-                lbound = 0x10000;
         } else if ((ch & 0xfc) == 0xf8) {
                 mask = 0x03;
                 len = 5;
-                lbound = 0x200000;
-        } else if ((ch & 0xfc) == 0xfc) {
+        } else if ((ch & 0xfe) == 0xfc) {
                 mask = 0x01;
                 len = 6;
-                lbound = 0x4000000;
         } else {
-                /*
-                 * Malformed input; input is not UTF-8.
-                 */
-                errno = EILSEQ;
-                return ((size_t)-1);
+		/* Invalid first byte; convert to '?' */
+		*pwc = '?';
+		return (1);
         }
 
-        if (n < (size_t)len)
-                /* Incomplete multibyte sequence */
-                return ((size_t)-2);
+        if (n < (size_t)len) {
+		/* Invalid first byte; convert to '?' */
+		*pwc = '?';
+                return (1);
+	}
 
         /*
          * Decode the octet sequence representing the character in chunks
@@ -1612,35 +1717,182 @@ UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n)
         i = len;
         while (--i != 0) {
                 if ((*s & 0xc0) != 0x80) {
-                        /*
-                         * Malformed input; bad characters in the middle
-                         * of a character.
-                         */
-                        errno = EILSEQ;
-                        return ((size_t)-1);
+			/* Invalid intermediate byte; consume one byte and
+			 * emit '?' */
+			*pwc = '?';
+			return (1);
                 }
                 wch <<= 6;
                 wch |= *s++ & 0x3f;
         }
-        if (wch < lbound) {
-                /*
-                 * Malformed input; redundant encoding.
-                 */
-                errno = EILSEQ;
-                return ((size_t)-1);
-        }
-        if (pwc != NULL) {
-		/* Assign the value to the output; out-of-range values
-		 * just get truncated. */
-		*pwc = (wchar_t)wch;
+
+	/* Assign the value to the output; out-of-range values
+	 * just get truncated. */
+	*pwc = (wchar_t)wch;
 #ifdef WCHAR_MAX
-		/*
-		 * If platform has WCHAR_MAX, we can do something
-		 * more sensible with out-of-range values.
-		 */
-		if (wch >= WCHAR_MAX)
-			*pwc = '?';
+	/*
+	 * If platform has WCHAR_MAX, we can do something
+	 * more sensible with out-of-range values.
+	 */
+	if (wch >= WCHAR_MAX)
+		*pwc = '?';
 #endif
-	}
+	/* Return number of bytes input consumed: 0 for end-of-string. */
         return (wch == L'\0' ? 0 : len);
+}
+
+
+/*
+ * base64_decode - Base64 decode
+ *
+ * This accepts most variations of base-64 encoding, including:
+ *    * with or without line breaks
+ *    * with or without the final group padded with '=' or '_' characters
+ * (The most economical Base-64 variant does not pad the last group and
+ * omits line breaks; RFC1341 used for MIME requires both.)
+ */
+static char *
+base64_decode(const wchar_t *src, size_t len, size_t *out_len)
+{
+	static const unsigned char digits[64] =
+	    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	static unsigned char decode_table[128];
+	char *out, *d;
+
+	/* If the decode table is not yet initialized, prepare it. */
+	if (decode_table[digits[1]] != 1) {
+		size_t i;
+		memset(decode_table, 0xff, sizeof(decode_table));
+		for (i = 0; i < sizeof(digits); i++)
+			decode_table[digits[i]] = i;
+	}
+
+	/* Allocate enough space to hold the entire output. */
+	/* Note that we may not use all of this... */
+	out = malloc((len * 3 + 3) / 4);
+	if (out == NULL) {
+		*out_len = 0;
+		return (NULL);
+	}
+	d = out;
+
+	while (len > 0) {
+		/* Collect the next group of (up to) four characters. */
+		int v = 0;
+		int group_size = 0;
+		while (group_size < 4 && len > 0) {
+			/* '=' or '_' padding indicates final group. */
+			if (*src == '=' || *src == '_') {
+				len = 0;
+				break;
+			}
+			/* Skip illegal characters (including line breaks) */
+			if (*src > 127 || *src < 32
+			    || decode_table[*src] == 0xff) {
+				len--;
+				src++;
+				continue;
+			}
+			v <<= 6;
+			v |= decode_table[*src++];
+			len --;
+			group_size++;
+		}
+		/* Align a short group properly. */
+		v <<= 6 * (4 - group_size);
+		/* Unpack the group we just collected. */
+		switch (group_size) {
+		case 4: d[2] = v & 0xff;
+			/* FALLTHROUGH */
+		case 3: d[1] = (v >> 8) & 0xff;
+			/* FALLTHROUGH */
+		case 2: d[0] = (v >> 16) & 0xff;
+			break;
+		case 1: /* this is invalid! */
+			break;
+		}
+		d += group_size * 3 / 4;
+	}
+
+	*out_len = d - out;
+	return (out);
+}
+
+/*
+ * This is a little tricky because the C99 standard wcstombs()
+ * function returns the number of bytes that were converted,
+ * not the number that should be converted.  As a result,
+ * we can never accurately size the output buffer (without
+ * doing a tedious output size calculation in advance).
+ * This approach (try a conversion, then try again if it fails)
+ * will almost always succeed on the first try, and is thus
+ * much faster, at the cost of sometimes requiring multiple
+ * passes while we expand the buffer.
+ */
+static char *
+wide_to_narrow(const wchar_t *wval)
+{
+	int converted_length;
+	/* Guess an output buffer size and try the conversion. */
+	int alloc_length = wcslen(wval) * 3;
+	char *mbs_val = malloc(alloc_length + 1);
+	if (mbs_val == NULL)
+		return (NULL);
+	converted_length = wcstombs(mbs_val, wval, alloc_length);
+
+	/* If we exhausted the buffer, resize and try again. */
+	while (converted_length >= alloc_length) {
+		free(mbs_val);
+		alloc_length *= 2;
+		mbs_val = malloc(alloc_length + 1);
+		if (mbs_val == NULL)
+			return (NULL);
+		converted_length = wcstombs(mbs_val, wval, alloc_length);
+	}
+
+	/* Ensure a trailing null and return the final string. */
+	mbs_val[alloc_length] = '\0';
+	return (mbs_val);
+}
+
+static char *
+url_decode(const char *in)
+{
+	char *out, *d;
+	const char *s;
+
+	out = malloc(strlen(in) + 1);
+	if (out == NULL)
+		return (NULL);
+	for (s = in, d = out; *s != '\0'; ) {
+		if (*s == '%') {
+			/* Try to convert % escape */
+			int digit1 = tohex(s[1]);
+			int digit2 = tohex(s[2]);
+			if (digit1 >= 0 && digit2 >= 0) {
+				/* Looks good, consume three chars */
+				s += 3;
+				/* Convert output */
+				*d++ = ((digit1 << 4) | digit2);
+				continue;
+			}
+			/* Else fall through and treat '%' as normal char */
+		}
+		*d++ = *s++;
+	}
+	*d = '\0';
+	return (out);
+}
+
+static int
+tohex(int c)
+{
+	if (c >= '0' && c <= '9')
+		return (c - '0');
+	else if (c >= 'A' && c <= 'F')
+		return (c - 'A' + 10);
+	else if (c >= 'a' && c <= 'f')
+		return (c - 'a' + 10);
+	else
+		return (-1);
 }

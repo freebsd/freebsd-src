@@ -28,11 +28,17 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
+#ifdef MAJOR_IN_MKDEV
+#include <sys/mkdev.h>
+#else
+#ifdef MAJOR_IN_SYSMACROS
+#include <sys/sysmacros.h>
+#endif
+#endif
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <wchar.h>
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -60,9 +66,13 @@ static int		 archive_write_pax_finish(struct archive *);
 static int		 archive_write_pax_finish_entry(struct archive *);
 static int		 archive_write_pax_header(struct archive *,
 			     struct archive_entry *);
+static char		*base64_encode(const char *src, size_t len);
 static char		*build_pax_attribute_name(char *dest, const char *src);
-static char		*build_ustar_entry_name(char *dest, const char *src, const char *insert);
+static char		*build_ustar_entry_name(char *dest, const char *src,
+			     size_t src_length, const char *insert);
 static char		*format_int(char *dest, int64_t);
+static int		 has_non_ASCII(const wchar_t *);
+static char		*url_encode(const char *in);
 static int		 write_nulls(struct archive *, size_t);
 
 /*
@@ -134,7 +144,7 @@ add_pax_attr_time(struct archive_string *as, const char *key,
 	t = tmp + sizeof(tmp) - 1;
 
 	/* Skip trailing zeros in the fractional part. */
-	for(digit = 0, i = 10; i > 0 && digit == 0; i--) {
+	for (digit = 0, i = 10; i > 0 && digit == 0; i--) {
 		digit = nanos % 10;
 		nanos /= 10;
 	}
@@ -182,10 +192,10 @@ add_pax_attr_int(struct archive_string *as, const char *key, int64_t value)
 	add_pax_attr(as, key, format_int(tmp + sizeof(tmp) - 1, value));
 }
 
-static void
-add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
+static char *
+utf8_encode(const wchar_t *wval)
 {
-	int	utf8len;
+	int utf8len;
 	const wchar_t *wp;
 	unsigned long wc;
 	char *utf8_value, *p;
@@ -209,6 +219,11 @@ add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
 	}
 
 	utf8_value = malloc(utf8len + 1);
+	if (utf8_value == NULL) {
+		__archive_errx(1, "Not enough memory for attributes");
+		return (NULL);
+	}
+
 	for (wp = wval, p = utf8_value; *wp != L'\0'; ) {
 		wc = *wp++;
 		if (wc <= 0x7f) {
@@ -247,6 +262,16 @@ add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
 		/* Ignore larger values; UTF-8 can't encode them. */
 	}
 	*p = '\0';
+
+	return (utf8_value);
+}
+
+static void
+add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
+{
+	char *utf8_value = utf8_encode(wval);
+	if (utf8_value == NULL)
+		return;
 	add_pax_attr(as, key, utf8_value);
 	free(utf8_value);
 }
@@ -300,6 +325,53 @@ add_pax_attr(struct archive_string *as, const char *key, const char *value)
 	archive_strappend_char(as, '\n');
 }
 
+static void
+archive_write_pax_header_xattrs(struct pax *pax, struct archive_entry *entry)
+{
+	struct archive_string s;
+	int i = archive_entry_xattr_reset(entry);
+
+	while (i--) {
+		const char *name;
+		const void *value;
+		char *encoded_value;
+		char *url_encoded_name = NULL, *encoded_name = NULL;
+		wchar_t *wcs_name = NULL;
+		size_t size;
+
+		archive_entry_xattr_next(entry, &name, &value, &size);
+		/* Name is URL-encoded, then converted to wchar_t,
+		 * then UTF-8 encoded. */
+		url_encoded_name = url_encode(name);
+		if (url_encoded_name != NULL) {
+			/* Convert narrow-character to wide-character. */
+			int wcs_length = strlen(url_encoded_name);
+			wcs_name = malloc((wcs_length + 1) * sizeof(wchar_t));
+			if (wcs_name == NULL)
+				__archive_errx(1, "No memory for xattr conversion");
+			mbstowcs(wcs_name, url_encoded_name, wcs_length);
+			wcs_name[wcs_length] = 0;
+			free(url_encoded_name); /* Done with this. */
+		}
+		if (wcs_name != NULL) {
+			encoded_name = utf8_encode(wcs_name);
+			free(wcs_name); /* Done with wchar_t name. */
+		}
+
+		encoded_value = base64_encode(value, size);
+
+		if (encoded_name != NULL && encoded_value != NULL) {
+			archive_string_init(&s);
+			archive_strcpy(&s, "LIBARCHIVE.xattr.");
+			archive_strcat(&s, encoded_name);
+			add_pax_attr(&(pax->pax_header), s.s, encoded_value);
+			archive_string_free(&s);
+		}
+		free(encoded_name);
+		free(encoded_value);
+	}
+}
+
 /*
  * TODO: Consider adding 'comment' and 'charset' fields to
  * archive_entry so that clients can specify them.  Also, consider
@@ -313,7 +385,7 @@ archive_write_pax_header(struct archive *a,
 	struct archive_entry *entry_main;
 	const char *linkname, *p;
 	const char *hardlink;
-	const wchar_t *wp, *wp2;
+	const wchar_t *wp;
 	const char *suffix_start;
 	int need_extension, r, ret;
 	struct pax *pax;
@@ -373,36 +445,42 @@ archive_write_pax_header(struct archive *a,
 		/* Find the largest suffix that fits in 'name' field. */
 		suffix_start = strchr(p + strlen(p) - 100 - 1, '/');
 
-	/* Find non-ASCII character, if any. */
-	wp2 = wp;
-	while (*wp2 != L'\0' && *wp2 < 128)
-		wp2++;
-
 	/*
 	 * If name is too long, or has non-ASCII characters, add
 	 * 'path' to pax extended attrs.
 	 */
-	if (suffix_start == NULL || suffix_start - p > 155 || *wp2 != L'\0') {
+	if (suffix_start == NULL || suffix_start - p > 155 || has_non_ASCII(wp)) {
 		add_pax_attr_w(&(pax->pax_header), "path", wp);
 		archive_entry_set_pathname(entry_main,
-		    build_ustar_entry_name(ustar_entry_name, p, NULL));
+		    build_ustar_entry_name(ustar_entry_name, p, strlen(p), NULL));
 		need_extension = 1;
 	}
 
-	/* If link name is too long, add 'linkpath' to pax extended attrs. */
+	/* If link name is too long or has non-ASCII characters, add
+	 * 'linkpath' to pax extended attrs. */
 	linkname = hardlink;
 	if (linkname == NULL)
 		linkname = archive_entry_symlink(entry_main);
 
-	if (linkname != NULL && strlen(linkname) > 100) {
-		add_pax_attr(&(pax->pax_header), "linkpath", linkname);
+	if (linkname != NULL) {
+		/* There is a link name, get the wide version as well. */
 		if (hardlink != NULL)
-			archive_entry_set_hardlink(entry_main,
-			    "././@LongHardLink");
+			wp = archive_entry_hardlink_w(entry_main);
 		else
-			archive_entry_set_symlink(entry_main,
-			    "././@LongSymLink");
-		need_extension = 1;
+			wp = archive_entry_symlink_w(entry_main);
+
+		/* If the link is long or has a non-ASCII character,
+		 * store it as a pax extended attribute. */
+		if (strlen(linkname) > 100 || has_non_ASCII(wp)) {
+			add_pax_attr_w(&(pax->pax_header), "linkpath", wp);
+			if (hardlink != NULL)
+				archive_entry_set_hardlink(entry_main,
+				    "././@LongHardLink");
+			else
+				archive_entry_set_symlink(entry_main,
+				    "././@LongSymLink");
+			need_extension = 1;
+		}
 	}
 
 	/* If file size is too large, add 'size' to pax extended attrs. */
@@ -417,11 +495,12 @@ archive_write_pax_header(struct archive *a,
 		need_extension = 1;
 	}
 
-	/* If group name is too large, add 'gname' to pax extended attrs. */
-	/* TODO: If gname has non-ASCII characters, use pax attribute. */
+	/* If group name is too large or has non-ASCII characters, add
+	 * 'gname' to pax extended attrs. */
 	p = archive_entry_gname(entry_main);
-	if (p != NULL && strlen(p) > 31) {
-		add_pax_attr(&(pax->pax_header), "gname", p);
+	wp = archive_entry_gname_w(entry_main);
+	if (p != NULL && (strlen(p) > 31 || has_non_ASCII(wp))) {
+		add_pax_attr_w(&(pax->pax_header), "gname", wp);
 		archive_entry_set_gname(entry_main, NULL);
 		need_extension = 1;
 	}
@@ -435,8 +514,9 @@ archive_write_pax_header(struct archive *a,
 	/* If user name is too large, add 'uname' to pax extended attrs. */
 	/* TODO: If uname has non-ASCII characters, use pax attribute. */
 	p = archive_entry_uname(entry_main);
-	if (p != NULL && strlen(p) > 31) {
-		add_pax_attr(&(pax->pax_header), "uname", p);
+	wp = archive_entry_uname_w(entry_main);
+	if (p != NULL && (strlen(p) > 31 || has_non_ASCII(wp))) {
+		add_pax_attr_w(&(pax->pax_header), "uname", wp);
 		archive_entry_set_uname(entry_main, NULL);
 		need_extension = 1;
 	}
@@ -519,6 +599,10 @@ archive_write_pax_header(struct archive *a,
 		ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) > 0)
 		need_extension = 1;
 
+	/* If there are extended attributes, we need an extension */
+	if (!need_extension && archive_entry_xattr_count(entry_original) > 0)
+		need_extension = 1;
+
 	/*
 	 * The following items are handled differently in "pax
 	 * restricted" format.  In particular, in "pax restricted"
@@ -576,6 +660,9 @@ archive_write_pax_header(struct archive *a,
 		    st_main->st_ino);
 		add_pax_attr_int(&(pax->pax_header), "SCHILY.nlink",
 		    st_main->st_nlink);
+
+		/* Store extended attributes */
+		archive_write_pax_header_xattrs(pax, entry_original);
 	}
 
 	/* Only regular files have data. */
@@ -636,6 +723,8 @@ archive_write_pax_header(struct archive *a,
 	if (archive_strlen(&(pax->pax_header)) > 0) {
 		struct stat st;
 		struct archive_entry *pax_attr_entry;
+		time_t s;
+		long ns;
 
 		memset(&st, 0, sizeof(st));
 		pax_attr_entry = archive_entry_new();
@@ -668,16 +757,23 @@ archive_write_pax_header(struct archive *a,
 		    archive_entry_uname(entry_main));
 		archive_entry_set_gname(pax_attr_entry,
 		    archive_entry_gname(entry_main));
-		/* Copy timestamps. */
-		archive_entry_set_mtime(pax_attr_entry,
-		    archive_entry_mtime(entry_main),
-		    archive_entry_mtime_nsec(entry_main));
-		archive_entry_set_atime(pax_attr_entry,
-		    archive_entry_atime(entry_main),
-		    archive_entry_atime_nsec(entry_main));
-		archive_entry_set_ctime(pax_attr_entry,
-		    archive_entry_ctime(entry_main),
-		    archive_entry_ctime_nsec(entry_main));
+
+		/* Copy mtime, but clip to ustar limits. */
+		s = archive_entry_mtime(entry_main);
+		ns = archive_entry_mtime_nsec(entry_main);
+		if (s < 0) { s = 0; ns = 0; }
+		if (s > 0x7fffffff) { s = 0x7fffffff; ns = 0; }
+		archive_entry_set_mtime(pax_attr_entry, s, ns);
+
+		/* Ditto for atime. */
+		s = archive_entry_atime(entry_main);
+		ns = archive_entry_atime_nsec(entry_main);
+		if (s < 0) { s = 0; ns = 0; }
+		if (s > 0x7fffffff) { s = 0x7fffffff; ns = 0; }
+		archive_entry_set_atime(pax_attr_entry, s, ns);
+
+		/* Standard ustar doesn't support ctime. */
+		archive_entry_set_ctime(pax_attr_entry, 0, 0);
 
 		ret = __archive_write_format_header_ustar(a, paxbuff,
 		    pax_attr_entry, 'x', 1);
@@ -760,13 +856,13 @@ archive_write_pax_header(struct archive *a,
  * parts 1 & 2, but does store the '/' separating parts 2 & 3.
  */
 static char *
-build_ustar_entry_name(char *dest, const char *src, const char *insert)
+build_ustar_entry_name(char *dest, const char *src, size_t src_length,
+    const char *insert)
 {
 	const char *prefix, *prefix_end;
 	const char *suffix, *suffix_end;
 	const char *filename, *filename_end;
 	char *p;
-	size_t s;
 	int need_slash = 0; /* Was there a trailing slash? */
 	size_t suffix_length = 99;
 	int insert_length;
@@ -779,14 +875,14 @@ build_ustar_entry_name(char *dest, const char *src, const char *insert)
 		insert_length = strlen(insert) + 2;
 
 	/* Step 0: Quick bailout in a common case. */
-	s = strlen(src);
-	if (s < 100 && insert == NULL) {
-		strcpy(dest, src);
+	if (src_length < 100 && insert == NULL) {
+		strncpy(dest, src, src_length);
+		dest[src_length] = '\0';
 		return (dest);
 	}
 
 	/* Step 1: Locate filename and enforce the length restriction. */
-	filename_end = src + s;
+	filename_end = src + src_length;
 	/* Remove trailing '/' chars and '/.' pairs. */
 	for (;;) {
 		if (filename_end > src && filename_end[-1] == '/') {
@@ -854,8 +950,7 @@ build_ustar_entry_name(char *dest, const char *src, const char *insert)
 		p += suffix_end - suffix;
 	}
 	if (insert != NULL) {
-		if (prefix_end > prefix || suffix_end > suffix)
-			*p++ = '/';
+		/* Note: assume insert does not have leading or trailing '/' */
 		strcpy(p, insert);
 		p += strlen(insert);
 		*p++ = '/';
@@ -888,7 +983,7 @@ build_ustar_entry_name(char *dest, const char *src, const char *insert)
 static char *
 build_pax_attribute_name(char *dest, const char *src)
 {
-	char *p;
+	const char *p;
 
 	/* Handle the null filename case. */
 	if (src == NULL || *src == '\0') {
@@ -897,36 +992,37 @@ build_pax_attribute_name(char *dest, const char *src)
 	}
 
 	/* Prune final '/' and other unwanted final elements. */
-	p = dest + strlen(dest);
+	p = src + strlen(src);
 	for (;;) {
 		/* Ends in "/", remove the '/' */
-		if (p > dest && p[-1] == '/') {
-			*--p = '\0';
+		if (p > src && p[-1] == '/') {
+			--p;
 			continue;
 		}
 		/* Ends in "/.", remove the '.' */
-		if (p > dest + 1 && p[-1] == '.'
+		if (p > src + 1 && p[-1] == '.'
 		    && p[-2] == '/') {
-			*--p = '\0';
+			--p;
 			continue;
 		}
 		break;
 	}
 
-	/* Pathological case: After above, there was nothing left. */
-	if (p == dest) {
+	/* Pathological case: After above, there was nothing left.
+	 * This includes "/." "/./." "/.//./." etc. */
+	if (p == src) {
 		strcpy(dest, "/PaxHeader/rootdir");
 		return (dest);
 	}
 
-	/* Convert unadorned "." into "dot" */
-	if (*src == '.' && src[1] == '\0') {
+	/* Convert unadorned "." into a suitable filename. */
+	if (*src == '.' && p == src + 1) {
 		strcpy(dest, "PaxHeader/currentdir");
 		return (dest);
 	}
 
 	/* General case: build a ustar-compatible name adding "/PaxHeader/". */
-	build_ustar_entry_name(dest, src, "PaxHeader");
+	build_ustar_entry_name(dest, src, p - src, "PaxHeader");
 
 	return (dest);
 }
@@ -989,4 +1085,103 @@ archive_write_pax_data(struct archive *a, const void *buff, size_t s)
 	ret = (a->compression_write)(a, buff, s);
 	pax->entry_bytes_remaining -= s;
 	return (ret);
+}
+
+static int
+has_non_ASCII(const wchar_t *wp)
+{
+	while (*wp != L'\0' && *wp < 128)
+		wp++;
+	return (*wp != L'\0');
+}
+
+/*
+ * Used by extended attribute support; encodes the name
+ * so that there will be no '=' characters in the result.
+ */
+static char *
+url_encode(const char *in)
+{
+	const char *s;
+	char *d;
+	int out_len = 0;
+	char *out;
+
+	for (s = in; *s != '\0'; s++) {
+		if (*s < 33 || *s > 126 || *s == '%' || *s == '=')
+			out_len += 3;
+		else
+			out_len++;
+	}
+
+	out = (char *)malloc(out_len + 1);
+	if (out == NULL)
+		return (NULL);
+
+	for (s = in, d = out; *s != '\0'; s++) {
+		/* encode any non-printable ASCII character or '%' or '=' */
+		if (*s < 33 || *s > 126 || *s == '%' || *s == '=') {
+			/* URL encoding is '%' followed by two hex digits */
+			*d++ = '%';
+			*d++ = "0123456789ABCDEF"[0x0f & (*s >> 4)];
+			*d++ = "0123456789ABCDEF"[0x0f & *s];
+		} else {
+			*d++ = *s;
+		}
+	}
+	*d = '\0';
+	return (out);
+}
+
+/*
+ * Encode a sequence of bytes into a C string using base-64 encoding.
+ *
+ * Returns a null-terminated C string allocated with malloc(); caller
+ * is responsible for freeing the result.
+ */
+static char *
+base64_encode(const char *s, size_t len)
+{
+	static const char digits[64] =
+	    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	int v;
+	char *d, *out;
+
+	/* 3 bytes becomes 4 chars, but round up and allow for trailing NUL */
+	out = malloc((len * 4 + 2) / 3 + 1);
+	if (out == NULL)
+		return (NULL);
+	d = out;
+
+	/* Convert each group of 3 bytes into 4 characters. */
+	while (len >= 3) {
+		v = (((int)s[0] << 16) & 0xff0000)
+		    | (((int)s[1] << 8) & 0xff00)
+		    | (((int)s[2]) & 0x00ff);
+		s += 3;
+		len -= 3;
+		*d++ = digits[(v >> 18) & 0x3f];
+		*d++ = digits[(v >> 12) & 0x3f];
+		*d++ = digits[(v >> 6) & 0x3f];
+		*d++ = digits[(v) & 0x3f];
+	}
+	/* Handle final group of 1 byte (2 chars) or 2 bytes (3 chars). */
+	switch (len) {
+	case 0: break;
+	case 1:
+		v = (((int)s[0] << 16) & 0xff0000);
+		*d++ = digits[(v >> 18) & 0x3f];
+		*d++ = digits[(v >> 12) & 0x3f];
+		break;
+	case 2:
+		v = (((int)s[0] << 16) & 0xff0000)
+		    | (((int)s[1] << 8) & 0xff00);
+		*d++ = digits[(v >> 18) & 0x3f];
+		*d++ = digits[(v >> 12) & 0x3f];
+		*d++ = digits[(v >> 6) & 0x3f];
+		break;
+	}
+	/* Add trailing NUL character so output is a valid C string. */
+	*d++ = '\0';
+	return (out);
 }

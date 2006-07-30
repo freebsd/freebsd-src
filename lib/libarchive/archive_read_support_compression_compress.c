@@ -200,6 +200,7 @@ init(struct archive *a, const void *buff, size_t n)
 		return (ARCHIVE_FATAL);
 	}
 	memset(state, 0, sizeof(*state));
+	a->compression_data = state;
 
 	state->uncompressed_buffer_size = 64 * 1024;
 	state->uncompressed_buffer = malloc(state->uncompressed_buffer_size);
@@ -217,12 +218,19 @@ init(struct archive *a, const void *buff, size_t n)
 	state->avail_out = state->uncompressed_buffer_size;
 
 	code = getbits(a, state, 8);
-	if (code != 037)
+	if (code != 037) /* This should be impossible. */
 		goto fatal;
 
 	code = getbits(a, state, 8);
-	if (code != 0235)
+	if (code != 0235) {
+		/* This can happen if the library is receiving 1-byte
+		 * blocks and gzip and compress are both enabled.
+		 * You can't distinguish gzip and compress only from
+		 * the first byte. */
+		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Compress signature did not match.");
 		goto fatal;
+	}
 
 	code = getbits(a, state, 8);
 	state->maxcode_bits = code & 0x1f;
@@ -242,8 +250,6 @@ init(struct archive *a, const void *buff, size_t n)
 		state->suffix[code] = code;
 	}
 	next_code(a, state);
-	a->compression_data = state;
-
 	return (ARCHIVE_OK);
 
 fatal:
@@ -331,17 +337,19 @@ static int
 finish(struct archive *a)
 {
 	struct private_data *state;
-	int ret;
+	int ret = ARCHIVE_OK;
 
 	state = a->compression_data;
-	ret = ARCHIVE_OK;
 
-	free(state->uncompressed_buffer);
-	free(state);
+	if (state != NULL) {
+		if (state->uncompressed_buffer != NULL)
+			free(state->uncompressed_buffer);
+		free(state);
+	}
 
 	a->compression_data = NULL;
 	if (a->client_closer != NULL)
-		(a->client_closer)(a, a->client_data);
+		ret = (a->client_closer)(a, a->client_data);
 
 	return (ret);
 }

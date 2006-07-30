@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #if HAVE_BZLIB_H
 struct private_data {
 	bz_stream	 stream;
-	unsigned char	*uncompressed_buffer;
+	char		*uncompressed_buffer;
 	size_t		 uncompressed_buffer_size;
 	char		*read_next;
 	int64_t		 total_out;

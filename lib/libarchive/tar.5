@@ -153,7 +153,7 @@ the size and mtime fields must end in a space;
 the checksum is terminated by a null and a space.
 Early implementations filled the numeric fields with leading spaces.
 This seems to have been common practice until the
-.St -p1003.1
+.St -p1003.1-88
 standard was released.
 For best portability, modern implementations should fill the numeric
 fields with leading zeros.
@@ -183,9 +183,7 @@ the 100 characters of old-style archives.
 .St -p1003.1-88
 defined a standard tar file format to be read and written
 by compliant implementations of
-.Xr tar 1
-and
-.Xr pax 1 .
+.Xr tar 1 .
 This format is often called the
 .Dq ustar
 format, after the magic value used
@@ -399,6 +397,21 @@ Schilling's
 .Cm SCHILY.*
 extensions can store all of the data from
 .Va struct stat .
+.It Cm LIBARCHIVE.xattr. Ns Ar namespace Ns . Ns Ar key
+Libarchive stores POSIX.1e-style extended attributes using
+keys of this form.  The
+.Ar key
+value is URL-encoded:
+All non-ASCII characters and the two special characters
+.Dq =
+and
+.Dq %
+are encoded as
+.Dq %
+followed by two uppercase hexadecimal digits.
+The value of this key is the extended attribute value
+encoded in base 64.
+XXX Detail the base-64 format here XXX
 .It Cm VENDOR.*
 XXX document other vendor-specific extensions XXX
 .El
@@ -591,7 +604,7 @@ Note that POSIX ustar archives use two copies of the ASCII digit
 .It Va atime , Va ctime
 The time the file was last accessed and the time of
 last change of file information, stored in octal as with
-.Va mtime.
+.Va mtime .
 .It Va longnames
 This field is apparently no longer used.
 .It Sparse Va offset / Va numbytes
@@ -707,7 +720,8 @@ program from First Edition Unix.
 John Gilmore's
 .Nm pdtar
 public-domain implementation (circa 1987) was highly influential
-and formed the basis of GNU tar.
+and formed the basis of
+.Nm GNU tar .
 Joerg Shilling's
 .Nm star
 archiver is another open-source (GPL) archiver (originally developed

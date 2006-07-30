@@ -31,6 +31,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_ACL_H
 #include <sys/acl.h>
 #endif
+#ifdef HAVE_ATTR_XATTR_H
+#include <attr/xattr.h>
+#endif
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
 #endif
@@ -134,6 +137,7 @@ static int	set_acl(struct archive *, int fd, struct archive_entry *,
 		    acl_type_t, int archive_entry_acl_type, const char *tn);
 #endif
 static int	set_acls(struct archive *, int fd, struct archive_entry *);
+static int	set_xattrs(struct archive *, int fd, struct archive_entry *);
 static int	set_fflags(struct archive *, int fd, const char *name, mode_t,
 		    unsigned long fflags_set, unsigned long fflags_clear);
 static int	set_ownership(struct archive *, int fd, struct archive_entry *,
@@ -1086,6 +1090,12 @@ set_perm(struct archive *a, int fd, struct archive_entry *entry,
 			return (r);
 	}
 
+	if (flags & ARCHIVE_EXTRACT_XATTR) {
+		r = set_xattrs(a, fd, entry);
+		if (r != ARCHIVE_OK)
+			return (r);
+	}
+
 	/*
 	 * Make 'critical_flags' hold all file flags that can't be
 	 * immediately restored.  For example, on BSD systems,
@@ -1201,7 +1211,7 @@ set_fflags(struct archive *a, int fd, const char *name, mode_t mode,
 	return (ARCHIVE_WARN);
 }
 
-#elif defined(__linux)
+#elif defined(__linux) && defined(EXT2_IOC_GETFLAGS) && defined(EXT2_IOC_SETFLAGS)
 
 /*
  * Linux has flags too, but uses ioctl() to access them instead of
@@ -1214,8 +1224,8 @@ set_fflags(struct archive *a, int fd, const char *name, mode_t mode,
 	struct extract *extract;
 	int		 ret;
 	int		 myfd = fd;
-	int		 err;
 	unsigned long newflags, oldflags;
+	unsigned long sf_mask = 0;
 
 	extract = a->extract;
 	if (set == 0  && clear == 0)
@@ -1231,10 +1241,18 @@ set_fflags(struct archive *a, int fd, const char *name, mode_t mode,
 		return (ARCHIVE_OK);
 
 	/*
-	 * Linux has no define for the flags that are only settable
-	 * by the root user...
+	 * Linux has no define for the flags that are only settable by
+	 * the root user.  This code may seem a little complex, but
+	 * there seem to be some Linux systems that lack these
+	 * defines. (?)  The code below degrades reasonably gracefully
+	 * if sf_mask is incomplete.
 	 */
-#define	SF_MASK                 (EXT2_IMMUTABLE_FL|EXT2_APPEND_FL)
+#ifdef EXT2_IMMUTABLE_FL
+	sf_mask |= EXT2_IMMUTABLE_FL;
+#endif
+#ifdef EXT2_APPEND_FL
+	sf_mask |= EXT2_APPEND_FL;
+#endif
 	/*
 	 * XXX As above, this would be way simpler if we didn't have
 	 * to read the current flags from disk. XXX
@@ -1250,8 +1268,8 @@ set_fflags(struct archive *a, int fd, const char *name, mode_t mode,
 	}
 	/* If we couldn't set all the flags, try again with a subset. */
 	if (ioctl(myfd, EXT2_IOC_GETFLAGS, &oldflags) >= 0) {
-		newflags &= ~SF_MASK;
-		oldflags &= SF_MASK;
+		newflags &= ~sf_mask;
+		oldflags &= sf_mask;
 		newflags |= oldflags;
 		if (ioctl(myfd, EXT2_IOC_SETFLAGS, &newflags) >= 0)
 			goto cleanup;
@@ -1389,11 +1407,12 @@ set_acl(struct archive *a, int fd, struct archive_entry *entry,
 	if (fd >= 0 && acl_type == ACL_TYPE_ACCESS && acl_set_fd(fd, acl) == 0)
 		ret = ARCHIVE_OK;
 	else
-#endif
+#else
 #if HAVE_ACL_SET_FD_NP
 	if (fd >= 0 && acl_set_fd_np(fd, acl, acl_type) == 0)
 		ret = ARCHIVE_OK;
 	else
+#endif
 #endif
 	if (acl_set_file(name, acl_type, acl) != 0) {
 		archive_set_error(a, errno, "Failed to set %s acl", typename);
@@ -1404,9 +1423,87 @@ set_acl(struct archive *a, int fd, struct archive_entry *entry,
 }
 #endif
 
+#if HAVE_LSETXATTR
 /*
- * The following routines do some basic caching of uname/gname lookups.
- * All such lookups go through these routines, including ACL conversions.
+ * Restore extended attributes -  Linux implementation
+ */
+static int
+set_xattrs(struct archive *a, int fd, struct archive_entry *entry)
+{
+	static int warning_done = 0;
+	int ret = ARCHIVE_OK;
+	int i = archive_entry_xattr_reset(entry);
+
+	while (i--) {
+		const char *name;
+		const void *value;
+		size_t size;
+		archive_entry_xattr_next(entry, &name, &value, &size);
+		if (name != NULL &&
+				strncmp(name, "xfsroot.", 8) != 0 &&
+				strncmp(name, "system.", 7) != 0) {
+			int e;
+#if HAVE_FSETXATTR
+			if (fd >= 0)
+				e = fsetxattr(fd, name, value, size, 0);
+			else
+#endif
+			{
+				e = lsetxattr(archive_entry_pathname(entry),
+				    name, value, size, 0);
+			}
+			if (e == -1) {
+				if (errno == ENOTSUP) {
+					if (!warning_done) {
+						warning_done = 1;
+						archive_set_error(a, errno,
+						    "Cannot restore extended "
+						    "attributes on this file "
+						    "system");
+					}
+				} else
+					archive_set_error(a, errno,
+					    "Failed to set extended attribute");
+				ret = ARCHIVE_WARN;
+			}
+		} else {
+			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Invalid extended attribute encountered");
+			ret = ARCHIVE_WARN;
+		}
+	}
+	return (ret);
+}
+#else
+/*
+ * Restore extended attributes - stub implementation for unsupported systems
+ */
+static int
+set_xattrs(struct archive *a, int fd, struct archive_entry *entry)
+{
+	static int warning_done = 0;
+	(void)a; /* UNUSED */
+	(void)fd; /* UNUSED */
+
+	/* If there aren't any extended attributes, then it's okay not
+	 * to extract them, otherwise, issue a single warning. */
+	if (archive_entry_xattr_count(entry) != 0 && !warning_done) {
+		warning_done = 1;
+		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Cannot restore extended attributes on this system");
+		return (ARCHIVE_WARN);
+	}
+	/* Warning was already emitted; suppress further warnings. */
+	return (ARCHIVE_OK);
+}
+#endif
+
+/*
+ * The following routines do some basic caching of uname/gname
+ * lookups.  All such lookups go through these routines, including ACL
+ * conversions.  Even a small cache here provides an enormous speedup,
+ * especially on systems using NIS, LDAP, or a similar networked
+ * directory system.
  *
  * TODO: Provide an API for clients to override these routines.
  */
@@ -1485,17 +1582,17 @@ lookup_uid(struct archive *a, const char *uname, uid_t uid)
 static unsigned int
 hash(const char *p)
 {
-  /* A 32-bit version of Peter Weinberger's (PJW) hash algorithm,
-     as used by ELF for hashing function names. */
-  unsigned g,h = 0;
-  while(*p != '\0') {
-    h = ( h << 4 ) + *p++;
-    if (( g = h & 0xF0000000 )) {
-      h ^= g >> 24;
-      h &= 0x0FFFFFFF;
-    }
-  }
-  return h;
+	/* A 32-bit version of Peter Weinberger's (PJW) hash algorithm,
+	   as used by ELF for hashing function names. */
+	unsigned g, h = 0;
+	while (*p != '\0') {
+		h = ( h << 4 ) + *p++;
+		if (( g = h & 0xF0000000 )) {
+			h ^= g >> 24;
+			h &= 0x0FFFFFFF;
+		}
+	}
+	return h;
 }
 
 void

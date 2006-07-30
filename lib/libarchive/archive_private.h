@@ -29,8 +29,6 @@
 #ifndef ARCHIVE_PRIVATE_H_INCLUDED
 #define	ARCHIVE_PRIVATE_H_INCLUDED
 
-#include <wchar.h>
-
 #include "archive.h"
 #include "archive_string.h"
 
@@ -55,7 +53,7 @@ struct archive {
 	ino_t		  skip_file_ino;
 
 	/* Utility:  Pointer to a block of nulls. */
-	const char 		*nulls;
+	const unsigned char	*nulls;
 	size_t			 null_length;
 
 	/*
@@ -159,7 +157,7 @@ struct archive {
 		int	(*read_data_skip)(struct archive *);
 		int	(*cleanup)(struct archive *);
 		void	 *format_data;	/* Format-specific data for readers. */
-	}	formats[4];
+	}	formats[8];
 	struct archive_format_descriptor	*format; /* Active format. */
 
 	/*
