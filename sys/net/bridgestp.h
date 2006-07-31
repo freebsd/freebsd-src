@@ -201,6 +201,7 @@ struct bstp_port {
 	uint8_t			bp_config_pending;
 	uint8_t			bp_change_detection_enabled;
 	uint8_t			bp_priority;
+	uint32_t		bp_forward_transitions;
 };
 
 /*
@@ -229,6 +230,7 @@ struct bstp_state {
 	struct bstp_timer	bs_tcn_timer;
 	struct callout		bs_bstpcallout;	/* STP callout */
 	struct bstp_timer	bs_link_timer;
+	struct timeval		bs_last_tc_time;
 	LIST_HEAD(, bstp_port)	bs_bplist;
 };
 
