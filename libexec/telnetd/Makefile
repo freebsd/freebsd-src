@@ -35,11 +35,12 @@ SRCS+=		authenc.c
 CFLAGS+=	-DAUTHENTICATION -DENCRYPTION
 DPADD+=		${LIBMP} ${LIBCRYPTO} ${LIBCRYPT} ${LIBPAM}
 LDADD+=		-lmp -lcrypto -lcrypt ${MINUSLPAM}
+.endif
+
 .if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+=	-DKRB5 -DFORWARD -Dnet_write=telnet_net_write
 DPADD+=		${LIBKRB5} ${LIBASN1} ${LIBROKEN} ${LIBCOM_ERR}
 LDADD+=		-lkrb5 -lasn1 -lroken -lcom_err
-.endif
 .endif
 
 .include <bsd.prog.mk>
