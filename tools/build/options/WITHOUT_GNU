@@ -2,3 +2,4 @@
 Set to not build contributed GNU software as a part of the base system.
 This option can be useful if the system built must not contain any code
 covered by the GNU Public License due to legal reasons.
+.Sy "The option has no effect yet."
