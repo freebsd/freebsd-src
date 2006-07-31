@@ -201,6 +201,8 @@
 	  <filename role="package">net/iwi-firmware</filename>
 	  port/package.</para>
 
+	<para>The &man.my.4; driver now has &man.altq.4; support.</para>
+
 	<para>The &man.nve.4; driver now has &man.altq.4; support.</para>
 
 	<para>The &man.sk.4; driver is now MPSAFE.</para>
