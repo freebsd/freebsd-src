@@ -19,6 +19,7 @@ CFLAGS+= -DINET6
 DPADD=	${LIBUTIL} ${LIBWRAP}
 LDADD=	-lutil -lwrap
 
+# XXX for src/release/picobsd
 .if !defined(RELEASE_CRUNCH)
 CFLAGS+= -DIPSEC
 DPADD+=	${LIBIPSEC}
