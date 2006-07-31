@@ -618,7 +618,7 @@
 
 	<para>The &man.my.4; driver is now MPSAFE. &merged;</para>
 
-	<para>The &man.my.4; driver now supports &man.altq.4;.</para>
+	<para>The &man.my.4; driver now supports &man.altq.4;.  &merged;</para>
 
 	<para arch="i386,amd64">The &man.mxge.4; driver,
 	  which supports Myricom Myri10GE 10 Gigabit Ethernet
@@ -641,7 +641,7 @@
 
 	<para>The &man.sk.4; driver is now MPSAFE. &merged;</para>
 
-	<para>The &man.ste.4; driver is now MPSAFE.</para>
+	<para>The &man.ste.4; driver is now MPSAFE.  &merged;</para>
 
 	<para>The &man.stge.4; driver has been added.  It supports the
 	  Sundance/Tamarack TC9021 Gigabit Ethernet controller and was
