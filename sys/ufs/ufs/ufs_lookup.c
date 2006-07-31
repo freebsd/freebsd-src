@@ -593,10 +593,12 @@ ufs_dirbad(ip, offset, how)
 	struct mount *mp;
 
 	mp = ITOV(ip)->v_mount;
-	(void)printf("%s: bad dir ino %lu at offset %ld: %s\n",
-	    mp->mnt_stat.f_mntonname, (u_long)ip->i_number, (long)offset, how);
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
-		panic("ufs_dirbad: bad dir");
+		panic("ufs_dirbad: %s: bad dir ino %lu at offset %ld: %s",
+		    mp->mnt_stat.f_mntonname, (u_long)ip->i_number, (long)offset, how);
+	else
+		(void)printf("%s: bad dir ino %lu at offset %ld: %s\n",
+		    mp->mnt_stat.f_mntonname, (u_long)ip->i_number, (long)offset, how);
 }
 
 /*
