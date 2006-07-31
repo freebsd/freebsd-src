@@ -112,6 +112,7 @@ static void	bstp_make_forwarding(struct bstp_state *,
 static void	bstp_make_blocking(struct bstp_state *,
 		    struct bstp_port *);
 static void	bstp_set_port_state(struct bstp_port *, uint8_t);
+static void	bstp_update_forward_transitions(struct bstp_port *);
 #ifdef notused
 static void	bstp_set_bridge_priority(struct bstp_state *, uint64_t);
 static void	bstp_set_port_priority(struct bstp_state *,
@@ -531,6 +532,12 @@ bstp_set_port_state(struct bstp_port *bp, uint8_t state)
 }
 
 static void
+bstp_update_forward_transitions(struct bstp_port *bp)
+{
+	bp->bp_forward_transitions++;
+}
+
+static void
 bstp_topology_change_detection(struct bstp_state *bs)
 {
 	BSTP_LOCK_ASSERT(bs);
@@ -543,6 +550,7 @@ bstp_topology_change_detection(struct bstp_state *bs)
 		bstp_timer_start(&bs->bs_tcn_timer, 0);
 	}
 	bs->bs_topology_change_detected = 1;
+	getmicrotime(&bs->bs_last_tc_time);
 }
 
 static void
@@ -749,6 +757,7 @@ bstp_forward_delay_timer_expiry(struct bstp_state *bs,
 		bstp_timer_start(&bp->bp_forward_delay_timer, 0);
 	} else if (bp->bp_state == BSTP_IFSTATE_LEARNING) {
 		bstp_set_port_state(bp, BSTP_IFSTATE_FORWARDING);
+		bstp_update_forward_transitions(bp);
 		if (bstp_designated_for_some_port(bs) &&
 		    bp->bp_change_detection_enabled)
 			bstp_topology_change_detection(bs);
@@ -865,6 +874,7 @@ bstp_reinit(struct bstp_state *bs)
 	LIST_FOREACH(bp, &bs->bs_bplist, bp_next)
 		bstp_ifupdstatus(bs, bp);
 
+	getmicrotime(&bs->bs_last_tc_time);
 	bstp_port_state_selection(bs);
 	bstp_config_bpdu_generation(bs);
 	bstp_timer_start(&bs->bs_hello_timer, 0);
