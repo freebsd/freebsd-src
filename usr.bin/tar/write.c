@@ -276,7 +276,6 @@ tar_mode_u(struct bsdtar *bsdtar)
 	off_t			 end_offset;
 	struct archive		*a;
 	struct archive_entry	*entry;
-	const char		*filename;
 	int			 format;
 	struct archive_dir_entry	*p;
 	struct archive_dir	 archive_dir;
@@ -284,7 +283,6 @@ tar_mode_u(struct bsdtar *bsdtar)
 	bsdtar->archive_dir = &archive_dir;
 	memset(&archive_dir, 0, sizeof(archive_dir));
 
-	filename = NULL;
 	format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED;
 
 	/* Sanity-test some arguments and the file. */
@@ -906,12 +904,8 @@ lookup_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
 	/* If the links cache is getting too full, enlarge the hash table. */
 	if (links_cache->number_entries > links_cache->number_buckets * 2)
 	{
-		int count;
-
 		new_size = links_cache->number_buckets * 2;
 		new_buckets = malloc(new_size * sizeof(struct links_entry *));
-
-		count = 0;
 
 		if (new_buckets != NULL) {
 			memset(new_buckets, 0,
