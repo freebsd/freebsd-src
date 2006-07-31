@@ -240,10 +240,11 @@ tool.
 Set to not build
 .Xr gdb 1 .
 .It Va WITHOUT_GNU
-.\" from FreeBSD: src/tools/build/options/WITHOUT_GNU,v 1.1 2006/07/31 13:08:47 yar Exp
+.\" from FreeBSD: src/tools/build/options/WITHOUT_GNU,v 1.2 2006/07/31 13:53:27 yar Exp
 Set to not build contributed GNU software as a part of the base system.
 This option can be useful if the system built must not contain any code
 covered by the GNU Public License due to legal reasons.
+.Sy "The option has no effect yet."
 When set, it also enforces the following options:
 .Pp
 .Bl -item -compact
@@ -423,8 +424,9 @@ When set, it also enforces the following options:
 .Va WITHOUT_OPENSSH
 .El
 .It Va WITHOUT_PAM
-.\" from FreeBSD: src/tools/build/options/WITHOUT_PAM,v 1.1 2006/07/31 13:08:47 yar Exp
+.\" from FreeBSD: src/tools/build/options/WITHOUT_PAM,v 1.2 2006/07/31 13:53:27 yar Exp
 Set to not build PAM library and modules.
+.Sy "This option is deprecated and does nothing."
 When set, it also enforces the following options:
 .Pp
 .Bl -item -compact
