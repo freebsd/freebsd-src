@@ -605,7 +605,18 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 				break;
 			}
 		}
+		/*
+		 * Because connect() and send() are non-atomic in a sendto()
+		 * with a target address, it's possible that the socket will
+		 * have disconnected before the send() can run.  In that case
+		 * return the slightly counter-intuitive but otherwise
+		 * correct error that the socket is not connected.
+		 */
 		unp2 = unp->unp_conn;
+		if (unp2 == NULL) {
+			error = ENOTCONN;
+			break;
+		}
 		so2 = unp2->unp_socket;
 		if (unp->unp_addr != NULL)
 			from = (struct sockaddr *)unp->unp_addr;
@@ -650,9 +661,18 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			error = EPIPE;
 			break;
 		}
+		/*
+		 * Because connect() and send() are non-atomic in a sendto()
+		 * with a target address, it's possible that the socket will
+		 * have disconnected before the send() can run.  In that case
+		 * return the slightly counter-intuitive but otherwise
+		 * correct error that the socket is not connected.
+		 */
 		unp2 = unp->unp_conn;
-		if (unp2 == NULL)
-			panic("uipc_send connected but no connection?");
+		if (unp2 == NULL) {
+			error = ENOTCONN;
+			break;
+		}
 		so2 = unp2->unp_socket;
 		SOCKBUF_LOCK(&so2->so_rcv);
 		if (unp2->unp_flags & UNP_WANTCRED) {
