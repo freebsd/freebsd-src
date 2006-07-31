@@ -965,16 +965,16 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	if (TUNABLE_ULONG_FETCH("hw.physmem", &physmem_tunable))
 		Maxmem = atop(physmem_tunable);
 
+	/*
+	 * Don't allow MAXMEM or hw.physmem to extend the amount of memory
+	 * in the system.
+	 */
+	if (Maxmem > atop(physmap[physmap_idx + 1]))
+		Maxmem = atop(physmap[physmap_idx + 1]);
+
 	if (atop(physmap[physmap_idx + 1]) != Maxmem &&
 	    (boothowto & RB_VERBOSE))
 		printf("Physical memory use set to %ldK\n", Maxmem * 4);
-
-	/*
-	 * If Maxmem has been increased beyond what the system has detected,
-	 * extend the last memory segment to the new limit.
-	 */
-	if (atop(physmap[physmap_idx + 1]) < Maxmem)
-		physmap[physmap_idx + 1] = ptoa((vm_paddr_t)Maxmem);
 
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap(&first);
