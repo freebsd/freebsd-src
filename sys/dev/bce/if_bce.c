@@ -4840,9 +4840,11 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 			DBPRINT(sc, BCE_INFO, "Setting new MTU of %d\n", ifr->ifr_mtu);
 
+			BCE_LOCK(sc);
 			ifp->if_mtu = ifr->ifr_mtu;
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-			bce_init(sc);
+			bce_init_locked(sc);
+			BCE_UNLOCK(sc);
 			break;
 
 		/* Set interface. */
@@ -4877,12 +4879,12 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		case SIOCDELMULTI:
 			DBPRINT(sc, BCE_VERBOSE, "Received SIOCADDMULTI/SIOCDELMULTI\n");
 
+			BCE_LOCK(sc);
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				BCE_LOCK(sc);
 				bce_set_rx_mode(sc);
-				BCE_UNLOCK(sc);
 				error = 0;
 			}
+			BCE_UNLOCK(sc);
 
 			break;
 
@@ -5031,10 +5033,12 @@ bce_watchdog(struct ifnet *ifp)
 
 	/* DBRUN(BCE_FATAL, bce_breakpoint(sc)); */
 
+	BCE_LOCK(sc);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 
-	bce_init(sc);
+	bce_init_locked(sc);
 	ifp->if_oerrors++;
+	BCE_UNLOCK(sc);
 
 }
 
