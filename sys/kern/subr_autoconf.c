@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/systm.h>
 
 /*
@@ -50,26 +52,32 @@ __FBSDID("$FreeBSD$");
  */
 static TAILQ_HEAD(, intr_config_hook) intr_config_hook_list =
 	TAILQ_HEAD_INITIALIZER(intr_config_hook_list);
-
+static struct mtx intr_config_hook_lock;
+MTX_SYSINIT(intr_config_hook, &intr_config_hook_lock, "intr config", MTX_DEF);
 
 /* ARGSUSED */
 static void run_interrupt_driven_config_hooks(void *dummy);
+
 static void
 run_interrupt_driven_config_hooks(dummy)
 	void *dummy;
 {
 	struct intr_config_hook *hook_entry, *next_entry;
 
-	for (hook_entry = TAILQ_FIRST(&intr_config_hook_list);
-	     hook_entry != NULL;
-	     hook_entry = next_entry) {
+	mtx_lock(&intr_config_hook_lock);
+	TAILQ_FOREACH_SAFE(hook_entry, &intr_config_hook_list, ich_links,
+	    next_entry) {
 		next_entry = TAILQ_NEXT(hook_entry, ich_links);
+		mtx_unlock(&intr_config_hook_lock);
 		(*hook_entry->ich_func)(hook_entry->ich_arg);
+		mtx_lock(&intr_config_hook_lock);
 	}
 
 	while (!TAILQ_EMPTY(&intr_config_hook_list)) {
-		tsleep(&intr_config_hook_list, PCONFIG, "conifhk", 0);
+		msleep(&intr_config_hook_list, &intr_config_hook_lock, PCONFIG,
+		    "conifhk", 0);
 	}
+	mtx_unlock(&intr_config_hook_lock);
 }
 SYSINIT(intr_config_hooks, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_FIRST,
 	run_interrupt_driven_config_hooks, NULL)
@@ -85,17 +93,18 @@ config_intrhook_establish(hook)
 {
 	struct intr_config_hook *hook_entry;
 
-	for (hook_entry = TAILQ_FIRST(&intr_config_hook_list);
-	     hook_entry != NULL;
-	     hook_entry = TAILQ_NEXT(hook_entry, ich_links))
+	mtx_lock(&intr_config_hook_lock);
+	TAILQ_FOREACH(hook_entry, &intr_config_hook_list, ich_links)
 		if (hook_entry == hook)
 			break;
 	if (hook_entry != NULL) {
+		mtx_unlock(&intr_config_hook_lock);
 		printf("config_intrhook_establish: establishing an "
 		       "already established hook.\n");
 		return (1);
 	}
 	TAILQ_INSERT_TAIL(&intr_config_hook_list, hook, ich_links);
+	mtx_unlock(&intr_config_hook_lock);
 	if (cold == 0)
 		/* XXX Sufficient for modules loaded after initial config??? */
 		run_interrupt_driven_config_hooks(NULL);	
@@ -108,9 +117,8 @@ config_intrhook_disestablish(hook)
 {
 	struct intr_config_hook *hook_entry;
 
-	for (hook_entry = TAILQ_FIRST(&intr_config_hook_list);
-	     hook_entry != NULL;
-	     hook_entry = TAILQ_NEXT(hook_entry, ich_links))
+	mtx_lock(&intr_config_hook_lock);
+	TAILQ_FOREACH(hook_entry, &intr_config_hook_list, ich_links)
 		if (hook_entry == hook)
 			break;
 	if (hook_entry == NULL)
@@ -118,6 +126,8 @@ config_intrhook_disestablish(hook)
 		      "unestablished hook");
 
 	TAILQ_REMOVE(&intr_config_hook_list, hook, ich_links);
+
 	/* Wakeup anyone watching the list */
 	wakeup(&intr_config_hook_list);
+	mtx_unlock(&intr_config_hook_lock);
 }
