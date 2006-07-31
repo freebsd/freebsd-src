@@ -142,6 +142,7 @@ EOF
 			sed -e's/\$\(FreeBSD: .*\) \$/from \1/' ${opt}
 		else
 			echo "no description found for ${opt}, skipping" >/dev/stderr
+			continue
 		fi
 		show settings -D${opt} |sort >_config2
 		comm -13 _config _config2 |grep -v "^${opt}$" >_deps
