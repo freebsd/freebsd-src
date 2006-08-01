@@ -534,13 +534,13 @@ wi_detach(device_t dev)
 	sc->wi_gone |= !bus_child_present(dev);
 
 	wi_stop(ifp, 0);
+	WI_UNLOCK(sc);
 
 #if NBPFILTER > 0
 	bpfdetach(ifp);
 #endif
 	ieee80211_ifdetach(&sc->sc_ic);
 	if_free(sc->sc_ifp);
-	WI_UNLOCK(sc);
 	bus_teardown_intr(dev, sc->irq, sc->wi_intrhand);
 	wi_free(dev);
 #if __FreeBSD_version >= 500000
