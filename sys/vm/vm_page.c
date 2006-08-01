@@ -1786,7 +1786,7 @@ vm_page_cowsetup(vm_page_t m)
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	m->cow++;
-	pmap_page_protect(m, VM_PROT_READ);
+	pmap_remove_write(m);
 }
 
 #include "opt_ddb.h"

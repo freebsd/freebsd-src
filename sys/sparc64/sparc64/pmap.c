@@ -1770,23 +1770,6 @@ pmap_page_is_mapped(vm_page_t m)
 }
 
 /*
- * Lower the permission for all mappings to a given page.
- */
-void
-pmap_page_protect(vm_page_t m, vm_prot_t prot)
-{
-
-	KASSERT((m->flags & PG_FICTITIOUS) == 0,
-	    ("pmap_page_protect: fake page"));
-	if ((prot & VM_PROT_WRITE) == 0) {
-		if (prot & (VM_PROT_READ | VM_PROT_EXECUTE))
-			pmap_clear_write(m);
-		else
-			pmap_remove_all(m);
-	}
-}
-
-/*
  *	pmap_ts_referenced:
  *
  *	Return a count of reference bits for a page, clearing those bits.
@@ -1895,7 +1878,7 @@ pmap_clear_reference(vm_page_t m)
 }
 
 void
-pmap_clear_write(vm_page_t m)
+pmap_remove_write(vm_page_t m)
 {
 	struct tte *tp;
 	u_long data;
