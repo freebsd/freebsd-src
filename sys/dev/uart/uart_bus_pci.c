@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2001 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2006 Marcel Moolenaar
+ * Copyright (c) 2001 M. Warner Losh
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
 
+#define	DEFAULT_RCLK	1843200
+
 static int uart_pci_probe(device_t dev);
 
 static device_method_t uart_pci_methods[] = {
@@ -57,44 +61,77 @@ static driver_t uart_pci_driver = {
 };
 
 struct pci_id {
-	uint32_t	type;
+	uint16_t	vendor;
+	uint16_t	device;
+	uint16_t	subven;
+	uint16_t	subdev;
 	const char	*desc;
 	int		rid;
+	int		rclk;
 };
 
 static struct pci_id pci_ns8250_ids[] = {
-	{ 0x048011c1, "Actiontec 56K PCI Master", 0x14 },
-	{ 0x01101407, "Lava Computers serial port", 0x10 },
-	{ 0x01111407, "Lava Computers serial port", 0x10 },
-	{ 0x9051deaf, "Middle Digital, Inc. Weasel serial port", 0x10 },
-	{ 0x950b1415, "Oxford Semiconductor OXCB950 UART", 0x10 },
-	{ 0x01c0135c, "Quatech SSCLP-200/300", 0x18 
-		/* 
-		 * NB: You must mount the "SPAD" jumper to correctly detect
-		 * the FIFO on the UART.  Set the options on the jumpers,
-		 * we do not support the extra registers on the Quatech.
-		 */
-	},
-	{ 0x7101135e, "SeaLevel Ultra 530.PCI Single Port Serial", 0x18 },
-	{ 0x1000131f, "SIIG Cyber Serial PCI 16C550 (10x family)", 0x18 },
-	{ 0x1001131f, "SIIG Cyber Serial PCI 16C650 (10x family)", 0x18 },
-	{ 0x1002131f, "SIIG Cyber Serial PCI 16C850 (10x family)", 0x18 },
-	{ 0x2000131f, "SIIG Cyber Serial PCI 16C550 (20x family)", 0x10 },
-	{ 0x2001131f, "SIIG Cyber Serial PCI 16C650 (20x family)", 0x10 },
-	{ 0x2002131f, "SIIG Cyber Serial PCI 16C850 (20x family)", 0x10 },
-	{ 0x0000151f, "SmartLink 5634PCV SurfRider", 0x10 },
-	{ 0x100812b9, "US Robotics (3Com) 3CP5609 PCI 16550 Modem", 0x10 },
-	{ 0x0103115d, "Xircom Cardbus modem", 0x10 },
-	{ 0x00000000, NULL, 0 }
+{ 0x1028, 0x0008, 0xffff, 0, "Dell Remote Access Card III", 0x14,
+	128 * DEFAULT_RCLK },
+{ 0x1028, 0x0012, 0xffff, 0, "Dell RAC 4 Daughter Card Virtual UART", 0x14,
+	128 * DEFAULT_RCLK },
+{ 0x1033, 0x0074, 0x1033, 0x8014, "NEC RCV56ACF 56k Voice Modem", 0x10 },
+{ 0x1033, 0x007d, 0x1033, 0x8012, "NEC RS232C", 0x10 },
+{ 0x103c, 0x1048, 0x103c, 0x1227, "HP Diva Serial [GSP] UART - Powerbar SP2",
+	0x10 },
+{ 0x103c, 0x1290, 0xffff, 0, "HP Auxiliary Diva Serial Port", 0x18 },
+{ 0x11c1, 0x0480, 0xffff, 0, "Agere Systems Venus Modem (V90, 56KFlex)", 0x14 },
+{ 0x115d, 0x0103, 0xffff, 0, "Xircom Cardbus Ethernet + 56k Modem", 0x10 },
+{ 0x12b9, 0x1008, 0xffff, 0, "3Com 56K FaxModem Model 5610", 0x10 },
+{ 0x131f, 0x1000, 0xffff, 0, "Siig CyberSerial (1-port) 16550", 0x18 },
+{ 0x131f, 0x1001, 0xffff, 0, "Siig CyberSerial (1-port) 16650", 0x18 },
+{ 0x131f, 0x1002, 0xffff, 0, "Siig CyberSerial (1-port) 16850", 0x18 },
+{ 0x131f, 0x2000, 0xffff, 0, "Siig CyberSerial (1-port) 16550", 0x10 },
+{ 0x131f, 0x2001, 0xffff, 0, "Siig CyberSerial (1-port) 16650", 0x10 },
+{ 0x131f, 0x2002, 0xffff, 0, "Siig CyberSerial (1-port) 16850", 0x10 },
+{ 0x135c, 0x0190, 0xffff, 0, "Quatech SSCLP-100", 0x18 },
+{ 0x135c, 0x01c0, 0xffff, 0, "Quatech SSCLP-200/300", 0x18 },
+{ 0x135e, 0x7101, 0xffff, 0, "Sealevel Systems Single Port RS-232/422/485/530",
+	0x18 },
+{ 0x1407, 0x0110, 0xffff, 0, "Lava Computer mfg DSerial-PCI Port A", 0x10 },
+{ 0x1407, 0x0111, 0xffff, 0, "Lava Computer mfg DSerial-PCI Port B", 0x10 },
+{ 0x1409, 0x7168, 0x1409, 0x4025, "Timedia Technology Serial Port", 0x10,
+	8 * DEFAULT_RCLK },
+{ 0x1409, 0x7168, 0x1409, 0x4027, "Timedia Technology Serial Port", 0x10,
+	8 * DEFAULT_RCLK },
+{ 0x1409, 0x7168, 0x1409, 0x4028, "Timedia Technology Serial Port", 0x10,
+	8 * DEFAULT_RCLK },
+{ 0x1409, 0x7168, 0x1409, 0x5025, "Timedia Technology Serial Port", 0x10,
+	8 * DEFAULT_RCLK },
+{ 0x1409, 0x7168, 0x1409, 0x5027, "Timedia Technology Serial Port", 0x10,
+	8 * DEFAULT_RCLK },
+{ 0x1415, 0x950b, 0xffff, 0, "Oxford Semiconductor OXCB950 Cardbus 16950 UART",
+	0x10, 16384000 },
+{ 0x151f, 0x0000, 0xffff, 0, "TOPIC Semiconductor TP560 56k modem", 0x10 },
+{ 0xdeaf, 0x9051, 0xffff, 0, "Middle Digital PC Weasel Serial Port", 0x10 },
+{ 0xffff, 0, 0xffff, 0, NULL, 0, 0}
 };
 
 static struct pci_id *
-uart_pci_match(uint32_t type, struct pci_id *id)
+uart_pci_match(device_t dev, struct pci_id *id)
 {
+	uint16_t device, subdev, subven, vendor;
 
-	while (id->type && id->type != type)
+	vendor = pci_get_vendor(dev);
+	device = pci_get_device(dev);
+	while (id->vendor != 0xffff &&
+	    (id->vendor != vendor || id->device != device))
 		id++;
-	return ((id->type) ? id : NULL);
+	if (id->vendor == 0xffff)
+		return (NULL);
+	if (id->subven == 0xffff)
+		return (id);
+	subven = pci_get_subvendor(dev);
+	subdev = pci_get_subdevice(dev);
+	while (id->vendor == vendor && id->device == device &&
+	    (id->subven != subven || id->subdev != subdev))
+		id++;
+	return ((id->vendor == vendor && id->device == device) ? id : NULL);
 }
 
 static int
@@ -105,7 +142,7 @@ uart_pci_probe(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	id = uart_pci_match(pci_get_devid(dev), pci_ns8250_ids);
+	id = uart_pci_match(dev, pci_ns8250_ids);
 	if (id != NULL) {
 		sc->sc_class = &uart_ns8250_class;
 		goto match;
@@ -116,7 +153,7 @@ uart_pci_probe(device_t dev)
  match:
 	if (id->desc)
 		device_set_desc(dev, id->desc);
-	return (uart_bus_probe(dev, 0, 0, id->rid, 0));
+	return (uart_bus_probe(dev, 0, id->rclk, id->rid, 0));
 }
 
 DRIVER_MODULE(uart, pci, uart_pci_driver, uart_devclass, 0, 0);
