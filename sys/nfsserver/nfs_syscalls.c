@@ -720,9 +720,7 @@ nfsrv_init(int terminating)
 		panic("nfsd init");
 	nfssvc_sockhead_flag |= SLP_INIT;
 	if (terminating) {
-		for (slp = TAILQ_FIRST(&nfssvc_sockhead); slp != NULL;
-		    slp = nslp) {
-			nslp = TAILQ_NEXT(slp, ns_chain);
+		TAILQ_FOREACH_SAFE(slp, &nfssvc_sockhead, ns_chain, nslp) {
 			if (slp->ns_flag & SLP_VALID)
 				nfsrv_zapsock(slp);
 			TAILQ_REMOVE(&nfssvc_sockhead, slp, ns_chain);
