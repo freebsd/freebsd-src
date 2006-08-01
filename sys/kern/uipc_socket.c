@@ -555,6 +555,7 @@ void
 sofree(so)
 	struct socket *so;
 {
+	struct protosw *pr = so->so_proto;
 	struct socket *head;
 
 	ACCEPT_LOCK_ASSERT();
@@ -588,24 +589,31 @@ sofree(so)
 	SOCK_UNLOCK(so);
 	ACCEPT_UNLOCK();
 
-	SOCKBUF_LOCK(&so->so_snd);
-	so->so_snd.sb_flags |= SB_NOINTR;
-	(void)sblock(&so->so_snd, M_WAITOK);
 	/*
-	 * socantsendmore_locked() drops the socket buffer mutex so that it
-	 * can safely perform wakeups.  Re-acquire the mutex before
-	 * continuing.
+	 * From this point on, we assume that no other references to this
+	 * socket exist anywhere else in the stack.  Therefore, no locks need
+	 * to be acquired or held.
+	 *
+	 * We used to do a lot of socket buffer and socket locking here, as
+	 * well as invoke sorflush() and perform wakeups.  The direct call to
+	 * dom_dispose() and sbrelease_internal() are an inlining of what was
+	 * necessary from sorflush().
+	 *
+	 * Notice that the socket buffer and kqueue state are torn down
+	 * before calling pru_detach.  This means that protocols shold not
+	 * assume they can perform socket wakeups, etc, in their detach
+	 * code.
 	 */
-	socantsendmore_locked(so);
-	SOCKBUF_LOCK(&so->so_snd);
-	sbunlock(&so->so_snd);
-	sbrelease_locked(&so->so_snd, so);
-	SOCKBUF_UNLOCK(&so->so_snd);
-	sorflush(so);
+	KASSERT((so->so_snd.sb_flags & SB_LOCK) == 0, ("sofree: snd sblock"));
+	KASSERT((so->so_rcv.sb_flags & SB_LOCK) == 0, ("sofree: rcv sblock"));
+	sbdestroy(&so->so_snd, so);
+	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL)
+		(*pr->pr_domain->dom_dispose)(so->so_rcv.sb_mb);
+	sbdestroy(&so->so_rcv, so);
 	knlist_destroy(&so->so_rcv.sb_sel.si_note);
 	knlist_destroy(&so->so_snd.sb_sel.si_note);
-	if (so->so_proto->pr_usrreqs->pru_detach != NULL)
-		(*so->so_proto->pr_usrreqs->pru_detach)(so);
+	if (pr->pr_usrreqs->pru_detach != NULL)
+		(*pr->pr_usrreqs->pru_detach)(so);
 	sodealloc(so);
 }
 

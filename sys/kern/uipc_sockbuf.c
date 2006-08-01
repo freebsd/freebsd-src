@@ -64,6 +64,10 @@ static	u_long sb_max_adj =
 
 static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
 
+static void	sbdrop_internal(register struct sockbuf *sb, register int len);
+static void	sbflush_internal(register struct sockbuf *sb);
+static void	sbrelease_internal(struct sockbuf *sb, struct socket *so);
+
 /*
  * Socantsendmore indicates that no more data will be sent on the
  * socket; it would normally be applied to a socket when the user
@@ -331,6 +335,18 @@ sbreserve(sb, cc, so, td)
 /*
  * Free mbufs held by a socket, and reserved mbuf space.
  */
+static void
+sbrelease_internal(sb, so)
+	struct sockbuf *sb;
+	struct socket *so;
+{
+
+	sbflush_internal(sb);
+	(void)chgsbsize(so->so_cred->cr_uidinfo, &sb->sb_hiwat, 0,
+	    RLIM_INFINITY);
+	sb->sb_mbmax = 0;
+}
+
 void
 sbrelease_locked(sb, so)
 	struct sockbuf *sb;
@@ -339,10 +355,7 @@ sbrelease_locked(sb, so)
 
 	SOCKBUF_LOCK_ASSERT(sb);
 
-	sbflush_locked(sb);
-	(void)chgsbsize(so->so_cred->cr_uidinfo, &sb->sb_hiwat, 0,
-	    RLIM_INFINITY);
-	sb->sb_mbmax = 0;
+	sbrelease_internal(sb, so);
 }
 
 void
@@ -355,6 +368,17 @@ sbrelease(sb, so)
 	sbrelease_locked(sb, so);
 	SOCKBUF_UNLOCK(sb);
 }
+
+void
+sbdestroy(sb, so)
+	struct sockbuf *sb;
+	struct socket *so;
+{
+
+	sbrelease_internal(sb, so);
+}
+
+
 /*
  * Routines to add and remove
  * data from an mbuf queue.
@@ -823,12 +847,10 @@ sbcompress(sb, m, n)
  * Free all mbufs in a sockbuf.
  * Check that all resources are reclaimed.
  */
-void
-sbflush_locked(sb)
+static void
+sbflush_internal(sb)
 	register struct sockbuf *sb;
 {
-
-	SOCKBUF_LOCK_ASSERT(sb);
 
 	if (sb->sb_flags & SB_LOCK)
 		panic("sbflush_locked: locked");
@@ -839,10 +861,19 @@ sbflush_locked(sb)
 		 */
 		if (!sb->sb_cc && (sb->sb_mb == NULL || sb->sb_mb->m_len))
 			break;
-		sbdrop_locked(sb, (int)sb->sb_cc);
+		sbdrop_internal(sb, (int)sb->sb_cc);
 	}
 	if (sb->sb_cc || sb->sb_mb || sb->sb_mbcnt)
 		panic("sbflush_locked: cc %u || mb %p || mbcnt %u", sb->sb_cc, (void *)sb->sb_mb, sb->sb_mbcnt);
+}
+
+void
+sbflush_locked(sb)
+	register struct sockbuf *sb;
+{
+
+	SOCKBUF_LOCK_ASSERT(sb);
+	sbflush_internal(sb);
 }
 
 void
@@ -858,15 +889,13 @@ sbflush(sb)
 /*
  * Drop data from (the front of) a sockbuf.
  */
-void
-sbdrop_locked(sb, len)
+static void
+sbdrop_internal(sb, len)
 	register struct sockbuf *sb;
 	register int len;
 {
 	register struct mbuf *m;
 	struct mbuf *next;
-
-	SOCKBUF_LOCK_ASSERT(sb);
 
 	next = (m = sb->sb_mb) ? m->m_nextpkt : 0;
 	while (len > 0) {
@@ -915,6 +944,17 @@ sbdrop_locked(sb, len)
 /*
  * Drop data from (the front of) a sockbuf.
  */
+void
+sbdrop_locked(sb, len)
+	register struct sockbuf *sb;
+	register int len;
+{
+
+	SOCKBUF_LOCK_ASSERT(sb);
+
+	sbdrop_internal(sb, len);
+}
+
 void
 sbdrop(sb, len)
 	register struct sockbuf *sb;
