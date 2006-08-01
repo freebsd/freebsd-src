@@ -815,8 +815,8 @@ printcpuinfo(void)
 				"\034RDTSCP"	/* RDTSCP */
 				"\035<b28>"	/* Undefined */
 				"\036LM"	/* 64 bit long mode */
-				"\0373DNow+"	/* AMD 3DNow! Extensions */
-				"\0403DNow"	/* AMD 3DNow! */
+				"\0373DNow!+"	/* AMD 3DNow! Extensions */
+				"\0403DNow!"	/* AMD 3DNow! */
 				);
 			}
 
