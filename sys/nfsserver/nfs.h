@@ -337,6 +337,7 @@ int	nfs_namei(struct nameidata *, fhandle_t *, int,
 void	nfsm_adj(struct mbuf *, int, int);
 int	nfsm_mbuftouio(struct mbuf **, struct uio *, int, caddr_t *);
 void	nfsrv_initcache(void);
+void	nfsrv_destroycache(void);
 void	nfsrv_timer(void *);
 int	nfsrv_dorec(struct nfssvc_sock *, struct nfsd *,
 	    struct nfsrv_descript **);
