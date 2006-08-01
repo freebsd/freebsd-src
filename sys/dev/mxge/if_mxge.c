@@ -765,7 +765,6 @@ mxge_load_firmware(mxge_softc_t *sc)
 		
 		return ENXIO;
 	}
-	mxge_dummy_rdma(sc, 1);
 	return 0;
 }
 
@@ -842,6 +841,8 @@ mxge_reset(mxge_softc_t *sc)
 		device_printf(sc->dev, "failed reset\n");
 		return ENXIO;
 	}
+
+	mxge_dummy_rdma(sc, 1);
 
 	/* Now exchange information about interrupts  */
 	bytes = mxge_max_intr_slots * sizeof (*sc->rx_done.entry);\
@@ -1024,6 +1025,10 @@ mxge_add_sysctls(mxge_softc_t *sc)
 		       "tx_boundary",
 		       CTLFLAG_RD, &sc->tx.boundary,
 		       0, "tx_boundary");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+		       "write_combine",
+		       CTLFLAG_RD, &sc->wc,
+		       0, "write combining PIO?");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
 		       "read_dma_MBs",
 		       CTLFLAG_RD, &sc->read_dma,
@@ -2544,6 +2549,7 @@ mxge_detach(device_t dev)
 		mxge_close(sc);
 	sx_xunlock(&sc->driver_lock);
 	ether_ifdetach(sc->ifp);
+	mxge_dummy_rdma(sc, 0);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
 	sc->rx_done.entry = NULL;
 	mxge_dma_free(&sc->rx_done.dma);
