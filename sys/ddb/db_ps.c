@@ -57,10 +57,10 @@ static void	dumpthread(volatile struct proc *p, volatile struct thread *td,
  *
  *          1         2         3         4         5         6         7
  * 1234567890123456789012345678901234567890123456789012345678901234567890
- *   pid  ppid  pgrp   uid  state   wmesg      wchan    cmd
- * <pid> <ppi> <pgi> <uid> <stat> < wmesg > <  wchan  > <name>
- * <pid> <ppi> <pgi> <uid> <stat>  (threaded)           <command>
- *  <tid    >              <stat> < wmesg > <  wchan  > <name>
+ *   pid  ppid  pgrp   uid   state   wmesg     wchan    cmd
+ * <pid> <ppi> <pgi> <uid>  <stat> < wmesg > < wchan  > <name>
+ * <pid> <ppi> <pgi> <uid>  <stat>  (threaded)          <command>
+ * <tid >                   <stat> < wmesg > < wchan  > <name>
  *
  * For machines with 64-bit pointers, we expand the wchan field 8 more
  * characters.
@@ -83,9 +83,9 @@ db_ps(db_expr_t addr, boolean_t hasaddr, db_expr_t count, char *modif)
 		p = &proc0;
 
 #ifdef __LP64__
-	db_printf("  pid  ppid  pgrp   uid  state   wmesg          wchan        cmd\n");
+	db_printf("  pid  ppid  pgrp   uid   state   wmesg         wchan        cmd\n");
 #else
-	db_printf("  pid  ppid  pgrp   uid  state   wmesg      wchan    cmd\n");
+	db_printf("  pid  ppid  pgrp   uid   state   wmesg     wchan    cmd\n");
 #endif
 	while (--np >= 0 && !db_pager_quit) {
 		if (p == NULL) {
