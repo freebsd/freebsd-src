@@ -3066,7 +3066,7 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
  * Clear the write and modified bits in each of the given page's mappings.
  */
 void
-pmap_clear_write(vm_page_t m)
+pmap_remove_write(vm_page_t m)
 {
 	pv_entry_t pv;
 	pmap_t pmap;
@@ -3100,23 +3100,6 @@ retry:
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
 	sched_unpin();
-}
-
-/*
- *      pmap_page_protect:
- *
- *      Lower the permission for all mappings to a given page.
- */
-void
-pmap_page_protect(vm_page_t m, vm_prot_t prot)
-{
-	if ((prot & VM_PROT_WRITE) == 0) {
-		if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
-			pmap_clear_write(m);
-		} else {
-			pmap_remove_all(m);
-		}
-	}
 }
 
 /*
