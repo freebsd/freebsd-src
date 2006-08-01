@@ -128,3 +128,5 @@ powerpc/psim/openpic_iobus.c	optional psim
 powerpc/psim/uart_iobus.c	optional uart psim
 
 dev/scc/scc_bfe_macio.c		optional	scc powermac
+
+dev/powermac_nvram/powermac_nvram.c optional	powermac powermac_nvram

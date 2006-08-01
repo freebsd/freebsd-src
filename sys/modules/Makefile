@@ -190,6 +190,7 @@ SUBDIR=	${_3dfx} \
 	plip \
 	${_pmc} \
 	portalfs \
+	${_powermac_nvram} \
 	ppbus \
 	ppc \
 	ppi \
@@ -521,6 +522,7 @@ _xe=		xe
 _an=		an
 _ath_hal=	ath_hal
 _gem=		gem
+_powermac_nvram=	powermac_nvram
 _smbfs=		smbfs
 .endif
 

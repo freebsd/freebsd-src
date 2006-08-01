@@ -110,6 +110,7 @@ SUBDIR=	ac \
 	nghook \
 	nologin \
 	ntp \
+	${_nvram} \
 	${_ofwdump} \
 	${_pccard} \
 	pciconf \
@@ -369,6 +370,7 @@ _zzz=		zzz
 
 .if ${MACHINE_ARCH} == "powerpc"
 _mount_smbfs=	mount_smbfs
+_nvram=		nvram
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"

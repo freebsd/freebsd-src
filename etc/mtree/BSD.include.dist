@@ -56,6 +56,8 @@
         ..
         ppbus
         ..
+        powermac_nvram
+        ..
         smbus
         ..
         speaker
