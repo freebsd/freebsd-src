@@ -477,6 +477,7 @@ void	sbcheck(struct sockbuf *sb);
 void	sbcompress(struct sockbuf *sb, struct mbuf *m, struct mbuf *n);
 struct mbuf *
 	sbcreatecontrol(caddr_t p, int size, int type, int level);
+void	sbdestroy(struct sockbuf *sb, struct socket *so);
 void	sbdrop(struct sockbuf *sb, int len);
 void	sbdrop_locked(struct sockbuf *sb, int len);
 void	sbdroprecord(struct sockbuf *sb);
