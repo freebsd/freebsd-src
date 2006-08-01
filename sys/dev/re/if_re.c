@@ -190,6 +190,8 @@ static struct rl_type re_devs[] = {
 		"Corega CG-LAPCIGT (RTL8169S) Gigabit Ethernet" },
 	{ LINKSYS_VENDORID, LINKSYS_DEVICEID_EG1032, RL_HWREV_8169S,
 		"Linksys EG1032 (RTL8169S) Gigabit Ethernet" },
+	{ USR_VENDORID, USR_DEVICEID_997902, RL_HWREV_8169S,
+		"US Robotics 997902 (RTL8169S) Gigabit Ethernet" },
 	{ 0, 0, 0, NULL }
 };
 
@@ -984,26 +986,6 @@ re_dma_map_desc(arg, segs, nseg, mapsize, error)
 		RL_DESC_INC(idx);
 	}
 
-	/*
-	 * With some of the RealTek chips, using the checksum offload
-	 * support in conjunction with the autopadding feature results
-	 * in the transmission of corrupt frames. For example, if we
-	 * need to send a really small IP fragment that's less than 60
-	 * bytes in size, and IP header checksumming is enabled, the
-	 * resulting ethernet frame that appears on the wire will
-	 * have garbled payload. To work around this, if TX checksum
-	 * offload is enabled, we always manually pad short frames out
-	 * to the minimum ethernet frame size. We do this by lying
-	 * about the size of the final fragment in the DMA map.
-	 */
-
-	if (ctx->rl_flags && totlen < (ETHER_MIN_LEN - ETHER_CRC_LEN)) {
-		i = cmdstat & 0xFFFF;
-		i += ETHER_MIN_LEN - ETHER_CRC_LEN - totlen;
-		cmdstat = (cmdstat & 0xFFFF) | i;
-		d->rl_cmdstat = htole32(cmdstat | ctx->rl_flags);
-        }
-
 	d->rl_cmdstat |= htole32(RL_TDESC_CMD_EOF);
 	ctx->rl_maxsegs = nseg;
 	ctx->rl_idx = idx;
@@ -1386,6 +1368,9 @@ re_detach(dev)
 	if (sc->rl_res)
 		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
 
+	/* Yield the CPU long enough for any tasks to drain */
+
+        tsleep(sc, PPAUSE, "rewait", hz);
 
 	/* Unload and free the RX DMA ring memory and map */
 
@@ -1812,6 +1797,17 @@ re_txeof(sc)
 		ifp->if_timer = 0;
 	}
 
+	/*
+	 * Some chips will ignore a second TX request issued while an
+	 * existing transmission is in progress. If the transmitter goes
+	 * idle but there are still packets waiting to be sent, we need
+	 * to restart the channel here to flush them out. This only seems
+	 * to be required with the PCIe devices.
+	 */
+
+	if (sc->rl_ldata.rl_tx_free < RL_TX_DESC_CNT)
+	    CSR_WRITE_1(sc, sc->rl_txstart, RL_TXSTART_START);
+
 #ifdef RE_TX_MODERATION
 	/*
 	 * If not all descriptors have been released reaped yet,
@@ -1822,6 +1818,7 @@ re_txeof(sc)
 	if (sc->rl_ldata.rl_tx_free != RL_TX_DESC_CNT)
 		CSR_WRITE_4(sc, RL_TIMERCNT, 1);
 #endif
+
 }
 
 static void
@@ -2031,8 +2028,27 @@ re_encap(sc, m_head, idx)
 	arg.rl_ring = sc->rl_ldata.rl_tx_list;
 
 	map = sc->rl_ldata.rl_tx_dmamap[*idx];
-	error = bus_dmamap_load_mbuf(sc->rl_ldata.rl_mtag, map,
-	    *m_head, re_dma_map_desc, &arg, BUS_DMA_NOWAIT);
+
+	/*
+	 * With some of the RealTek chips, using the checksum offload
+	 * support in conjunction with the autopadding feature results
+	 * in the transmission of corrupt frames. For example, if we
+	 * need to send a really small IP fragment that's less than 60
+	 * bytes in size, and IP header checksumming is enabled, the
+	 * resulting ethernet frame that appears on the wire will
+	 * have garbled payload. To work around this, if TX checksum
+	 * offload is enabled, we always manually pad short frames out
+	 * to the minimum ethernet frame size. We do this by pretending
+	 * the mbuf chain has too many fragments so the coalescing code
+	 * below can assemble the packet into a single buffer that's
+	 * padded out to the mininum frame size.
+	 */
+
+	if (arg.rl_flags && (*m_head)->m_pkthdr.len < RL_MIN_FRAMELEN)
+		error = EFBIG;
+	else
+		error = bus_dmamap_load_mbuf(sc->rl_ldata.rl_mtag, map,
+		    *m_head, re_dma_map_desc, &arg, BUS_DMA_NOWAIT);
 
 	if (error && error != EFBIG) {
 		if_printf(sc->rl_ifp, "can't map mbuf (error %d)\n", error);
@@ -2047,6 +2063,19 @@ re_encap(sc, m_head, idx)
 			return (ENOBUFS);
 		else
 			*m_head = m_new;
+
+		/*
+		 * Manually pad short frames, and zero the pad space
+		 * to avoid leaking data.
+		 */
+
+		if (m_new->m_pkthdr.len < RL_MIN_FRAMELEN) {
+			bzero(mtod(m_new, char *) + m_new->m_pkthdr.len,
+			    RL_MIN_FRAMELEN - m_new->m_pkthdr.len);
+			m_new->m_pkthdr.len += RL_MIN_FRAMELEN -
+			    m_new->m_pkthdr.len;
+			m_new->m_len = m_new->m_pkthdr.len;
+		}
 
 		arg.sc = sc;
 		arg.rl_idx = *idx;
@@ -2176,7 +2205,7 @@ re_start(ifp)
 	 * location on the 8169 gigE chip. I don't know why.
 	 */
 
-	CSR_WRITE_2(sc, sc->rl_txstart, RL_TXSTART_START);
+	CSR_WRITE_1(sc, sc->rl_txstart, RL_TXSTART_START);
 
 #ifdef RE_TX_MODERATION
 	/*

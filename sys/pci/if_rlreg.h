@@ -938,6 +938,14 @@ struct rl_softc {
  */
 #define EDIMAX_DEVICEID_EP4103DL		0xAB06
 
+/* US Robotics vendor ID */
+
+#define USR_VENDORID		0x16EC
+
+/* US Robotics 997902 device ID */
+
+#define USR_DEVICEID_997902	0x0116
+
 /*
  * PCI low memory base and low I/O base register, and
  * other PCI registers.
