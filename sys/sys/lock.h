@@ -68,6 +68,8 @@ struct lock_class {
 #define	LO_UPGRADABLE	0x00200000	/* Lock may be upgraded/downgraded. */
 #define	LO_DUPOK	0x00400000	/* Don't check for duplicate acquires */
 
+#define	LOCK_CLASS(lock)	((lock)->lo_class)
+
 #define	LI_RECURSEMASK	0x0000ffff	/* Recursion depth of lock instance. */
 #define	LI_EXCLUSIVE	0x00010000	/* Exclusive lock instance. */
 
@@ -165,24 +167,26 @@ struct lock_list_entry {
 #define	LOCK_LOG_LOCK(opname, lo, flags, recurse, file, line) do {	\
 	if (LOCK_LOG_TEST((lo), (flags)))				\
 		CTR5(KTR_LOCK, opname " (%s) %s r = %d at %s:%d",	\
-		    (lo)->lo_class->lc_name, (lo)->lo_name,		\
+		    LOCK_CLASS(lo)->lc_name, (lo)->lo_name,		\
 		    (u_int)(recurse), (file), (line));			\
 } while (0)
 
 #define	LOCK_LOG_TRY(opname, lo, flags, result, file, line) do {	\
 	if (LOCK_LOG_TEST((lo), (flags)))				\
 		CTR5(KTR_LOCK, "TRY_" opname " (%s) %s result=%d at %s:%d",\
-		    (lo)->lo_class->lc_name, (lo)->lo_name,		\
+		    LOCK_CLASS(lo)->lc_name, (lo)->lo_name,		\
 		    (u_int)(result), (file), (line));			\
 } while (0)
 
 #define	LOCK_LOG_INIT(lo, flags) do {					\
 	if (LOCK_LOG_TEST((lo), (flags)))				\
 		CTR4(KTR_LOCK, "%s: %p (%s) %s", __func__, (lo),	\
- 		    (lo)->lo_class->lc_name, (lo)->lo_name);		\
+ 		    LOCK_CLASS(lo)->lc_name, (lo)->lo_name);		\
 } while (0)
 
 #define	LOCK_LOG_DESTROY(lo, flags)	LOCK_LOG_INIT(lo, flags)
+
+#define	lock_initalized(lo)	((lo)->lo_flags & LO_INITIALIZED)
 
 /*
  * Helpful macros for quickly coming up with assertions with informative
@@ -198,6 +202,9 @@ extern struct lock_class lock_class_mtx_sleep;
 extern struct lock_class lock_class_mtx_spin;
 extern struct lock_class lock_class_sx;
 
+void	lock_init(struct lock_object *lock, struct lock_class *class,
+    const char *name, const char *type, int flags);
+void	lock_destroy(struct lock_object *lock);
 void	spinlock_enter(void);
 void	spinlock_exit(void);
 void	witness_init(struct lock_object *);
@@ -269,8 +276,8 @@ const char *witness_file(struct lock_object *);
 	witness_line(lock)
 
 #else	/* WITNESS */
-#define	WITNESS_INIT(lock)	((lock)->lo_flags |= LO_INITIALIZED)
-#define	WITNESS_DESTROY(lock)	((lock)->lo_flags &= ~LO_INITIALIZED)
+#define	WITNESS_INIT(lock)
+#define	WITNESS_DESTROY(lock)
 #define	WITNESS_DEFINEORDER(lock1, lock2)	0
 #define	WITNESS_CHECKORDER(lock, flags, file, line)
 #define	WITNESS_LOCK(lock, flags, file, line)
