@@ -1939,40 +1939,6 @@ pmap_remove_pages(pmap_t pmap)
 }
 
 /*
- *      pmap_page_protect:
- *
- *      Lower the permission for all mappings to a given page.
- */
-void
-pmap_page_protect(vm_page_t m, vm_prot_t prot)
-{
-	struct ia64_lpte *pte;
-	pmap_t oldpmap, pmap;
-	pv_entry_t pv;
-
-	if ((prot & VM_PROT_WRITE) != 0)
-		return;
-	if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
-		if ((m->flags & PG_WRITEABLE) == 0)
-			return;
-		TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
-			pmap = pv->pv_pmap;
-			PMAP_LOCK(pmap);
-			oldpmap = pmap_install(pmap);
-			pte = pmap_find_vhpt(pv->pv_va);
-			KASSERT(pte != NULL, ("pte"));
-			pmap_pte_prot(pmap, pte, prot);
-			pmap_invalidate_page(pmap, pv->pv_va);
-			pmap_install(oldpmap);
-			PMAP_UNLOCK(pmap);
-		}
-		vm_page_flag_clear(m, PG_WRITEABLE);
-	} else {
-		pmap_remove_all(m);
-	}
-}
-
-/*
  *	pmap_ts_referenced:
  *
  *	Return a count of reference bits for a page, clearing those bits.
@@ -2116,6 +2082,43 @@ pmap_clear_reference(vm_page_t m)
 		pmap_install(oldpmap);
 		PMAP_UNLOCK(pv->pv_pmap);
 	}
+}
+
+/*
+ * Clear the write and modified bits in each of the given page's mappings.
+ */
+void
+pmap_remove_write(vm_page_t m)
+{
+	struct ia64_lpte *pte;
+	pmap_t oldpmap, pmap;
+	pv_entry_t pv;
+	vm_prot_t prot;
+
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	if ((m->flags & PG_FICTITIOUS) != 0 ||
+	    (m->flags & PG_WRITEABLE) == 0)
+		return;
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		pmap = pv->pv_pmap;
+		PMAP_LOCK(pmap);
+		oldpmap = pmap_install(pmap);
+		pte = pmap_find_vhpt(pv->pv_va);
+		KASSERT(pte != NULL, ("pte"));
+		prot = pmap_prot(pte);
+		if ((prot & VM_PROT_WRITE) != 0) {
+			if (pmap_dirty(pte)) {
+				vm_page_dirty(m);
+				pmap_clear_dirty(pte);
+			}
+			prot &= ~VM_PROT_WRITE;
+			pmap_pte_prot(pmap, pte, prot);
+			pmap_invalidate_page(pmap, pv->pv_va);
+		}
+		pmap_install(oldpmap);
+		PMAP_UNLOCK(pmap);
+	}
+	vm_page_flag_clear(m, PG_WRITEABLE);
 }
 
 /*

@@ -808,7 +808,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 		if ((flags & OBJPC_NOSYNC) && (p->flags & PG_NOSYNC))
 			clearobjflags = 0;
 		else
-			pmap_page_protect(p, VM_PROT_READ);
+			pmap_remove_write(p);
 	}
 
 	if (clearobjflags && (tstart == 0) && (tend == object->size)) {
@@ -977,7 +977,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 	vm_pageout_flush(ma, runlen, pagerflags);
 	for (i = 0; i < runlen; i++) {
 		if (ma[i]->valid & ma[i]->dirty) {
-			pmap_page_protect(ma[i], VM_PROT_READ);
+			pmap_remove_write(ma[i]);
 			vm_page_flag_set(ma[i], PG_CLEANCHK);
 
 			/*
@@ -1829,7 +1829,7 @@ again:
 		if (vm_page_sleep_if_busy(p, TRUE, "vmopar"))
 			goto again;
 		if (clean_only && p->valid) {
-			pmap_page_protect(p, VM_PROT_READ | VM_PROT_EXECUTE);
+			pmap_remove_write(p);
 			if (p->valid & p->dirty)
 				continue;
 		}

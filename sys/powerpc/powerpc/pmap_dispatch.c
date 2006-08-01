@@ -196,12 +196,6 @@ pmap_page_init(vm_page_t m)
 }
 
 void
-pmap_page_protect(vm_page_t m, vm_prot_t prot)
-{
-	MMU_PAGE_PROTECT(mmu_obj, m, prot);
-}
-
-void
 pmap_pinit(pmap_t pmap)
 {
 	MMU_PINIT(mmu_obj, pmap);
@@ -253,6 +247,12 @@ void
 pmap_remove_pages(pmap_t pmap)
 {
 	MMU_REMOVE_PAGES(mmu_obj, pmap);
+}
+
+void
+pmap_remove_write(vm_page_t m)
+{
+	MMU_REMOVE_WRITE(mmu_obj, m);
 }
 
 void
