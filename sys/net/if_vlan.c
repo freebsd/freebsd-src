@@ -917,21 +917,15 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 				 __func__, ntohs(evl->evl_encap_proto)));
 
 			tag = EVL_VLANOFTAG(ntohs(evl->evl_tag));
-
-			/*
-			 * Restore the original ethertype.  We'll remove
-			 * the encapsulation after we've found the vlan
-			 * interface corresponding to the tag.
-			 */
-			evl->evl_encap_proto = evl->evl_proto;
 			break;
 		default:
-			tag = (uint16_t) -1;
-#ifdef INVARIANTS
-			panic("%s: unsupported if_type (%u)",
-			      __func__, ifp->if_type);
+#ifdef DEBUG
+			/* XXX rate limit? */
+			if_printf(ifp, "unsupported if_type %u", ifp->if_type);
 #endif
-			break;
+			m_freem(m);
+			ifp->if_noproto++;	/* XXX? */
+			return;
 		}
 	}
 
@@ -952,12 +946,12 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 	if (mtag == NULL) {
 		/*
 		 * Packet had an in-line encapsulation header;
-		 * remove it.  The original header has already
-		 * been fixed up above.
+		 * remove it.  Note that we leave the type field
+		 * unchanged; we only copy up the mac addresses.
 		 */
 		bcopy(mtod(m, caddr_t),
 		      mtod(m, caddr_t) + ETHER_VLAN_ENCAP_LEN,
-		      ETHER_HDR_LEN);
+		      ETHER_HDR_LEN - ETHER_TYPE_LEN);
 		m_adj(m, ETHER_VLAN_ENCAP_LEN);
 	}
 
