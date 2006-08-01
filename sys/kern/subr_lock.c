@@ -47,34 +47,17 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #endif
 
-CTASSERT(LOCK_CLASS_MAX == 15);
-
-struct lock_class *lock_classes[LOCK_CLASS_MAX + 1] = {
-	&lock_class_mtx_spin,
-	&lock_class_mtx_sleep,
-	&lock_class_sx,
-	&lock_class_rw,
-};
-
 void
 lock_init(struct lock_object *lock, struct lock_class *class, const char *name,
     const char *type, int flags)
 {
-	int i;
 
 	/* Check for double-init and zero object. */
 	KASSERT(!lock_initalized(lock), ("lock \"%s\" %p already initialized",
 	    name, lock));
 
-	/* Look up lock class to find its index. */
-	for (i = 0; i < LOCK_CLASS_MAX; i++)
-		if (lock_classes[i] == class) {
-			lock->lo_flags = i << LO_CLASSSHIFT;
-			break;
-		}
-	KASSERT(i < LOCK_CLASS_MAX, ("unknown lock class %p", class));
-
 	/* Initialize the lock object. */
+	lock->lo_class = class;
 	lock->lo_name = name;
 	lock->lo_type = type != NULL ? type : name;
 	lock->lo_flags |= flags | LO_INITIALIZED;
@@ -101,8 +84,10 @@ DB_SHOW_COMMAND(lock, db_show_lock)
 	if (!have_addr)
 		return;
 	lock = (struct lock_object *)addr;
-	if (LO_CLASSINDEX(lock) > LOCK_CLASS_MAX) {
-		db_printf("Unknown lock class: %d\n", LO_CLASSINDEX(lock));
+	if (lock->lo_class != &lock_class_mtx_sleep &&
+	    lock->lo_class != &lock_class_mtx_spin &&
+	    lock->lo_class != &lock_class_sx) {
+		db_printf("Unknown lock class\n");
 		return;
 	}
 	class = LOCK_CLASS(lock);

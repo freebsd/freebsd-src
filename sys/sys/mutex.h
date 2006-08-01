@@ -320,7 +320,7 @@ extern struct mtx_pool *mtxpool_sleep;
 #define mtx_trylock_flags(m, opts)					\
 	_mtx_trylock((m), (opts), LOCK_FILE, LOCK_LINE)
 
-#define	mtx_initialized(m)	((m)->mtx_object.lo_flags & LO_INITIALIZED)
+#define	mtx_initialized(m)	lock_initalized(&(m)->mtx_object)
 
 #define mtx_owned(m)	(((m)->mtx_lock & MTX_FLAGMASK) == (uintptr_t)curthread)
 
