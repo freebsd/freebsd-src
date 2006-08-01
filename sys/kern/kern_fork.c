@@ -377,17 +377,14 @@ retry:
 		p2 = LIST_FIRST(&allproc);
 again:
 		for (; p2 != NULL; p2 = LIST_NEXT(p2, p_list)) {
-			PROC_LOCK(p2);
 			while (p2->p_pid == trypid ||
 			    (p2->p_pgrp != NULL &&
 			    (p2->p_pgrp->pg_id == trypid ||
 			    (p2->p_session != NULL &&
 			    p2->p_session->s_sid == trypid)))) {
 				trypid++;
-				if (trypid >= pidchecked) {
-					PROC_UNLOCK(p2);
+				if (trypid >= pidchecked)
 					goto retry;
-				}
 			}
 			if (p2->p_pid > trypid && pidchecked > p2->p_pid)
 				pidchecked = p2->p_pid;
@@ -400,7 +397,6 @@ again:
 				    pidchecked > p2->p_session->s_sid)
 					pidchecked = p2->p_session->s_sid;
 			}
-			PROC_UNLOCK(p2);
 		}
 		if (!doingzomb) {
 			doingzomb = 1;
