@@ -93,7 +93,6 @@ extern vm_offset_t kernel_vm_end;
 void		 pmap_change_wiring(pmap_t, vm_offset_t, boolean_t);
 void		 pmap_clear_modify(vm_page_t m);
 void		 pmap_clear_reference(vm_page_t m);
-void		 pmap_clear_write(vm_page_t m);
 void		 pmap_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
 void		 pmap_copy_page(vm_page_t, vm_page_t);
 void		 pmap_enter(pmap_t, vm_offset_t, vm_page_t, vm_prot_t,
@@ -115,7 +114,6 @@ void		 pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 		    vm_object_t object, vm_pindex_t pindex, vm_size_t size);
 boolean_t	 pmap_page_exists_quick(pmap_t pmap, vm_page_t m);
 void		 pmap_page_init(vm_page_t m);
-void		 pmap_page_protect(vm_page_t m, vm_prot_t prot);
 void		 pmap_pinit(pmap_t);
 void		 pmap_pinit0(pmap_t);
 void		 pmap_protect(pmap_t, vm_offset_t, vm_offset_t, vm_prot_t);
@@ -125,6 +123,7 @@ void		 pmap_release(pmap_t);
 void		 pmap_remove(pmap_t, vm_offset_t, vm_offset_t);
 void		 pmap_remove_all(vm_page_t m);
 void		 pmap_remove_pages(pmap_t);
+void		 pmap_remove_write(vm_page_t m);
 void		 pmap_zero_page(vm_page_t);
 void		 pmap_zero_page_area(vm_page_t, int off, int size);
 void		 pmap_zero_page_idle(vm_page_t);

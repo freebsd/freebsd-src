@@ -322,7 +322,6 @@ boolean_t moea_is_modified(mmu_t, vm_page_t);
 boolean_t moea_ts_referenced(mmu_t, vm_page_t);
 vm_offset_t moea_map(mmu_t, vm_offset_t *, vm_offset_t, vm_offset_t, int);
 boolean_t moea_page_exists_quick(mmu_t, pmap_t, vm_page_t);
-void moea_page_protect(mmu_t, vm_page_t, vm_prot_t);
 void moea_pinit(mmu_t, pmap_t);
 void moea_pinit0(mmu_t, pmap_t);
 void moea_protect(mmu_t, pmap_t, vm_offset_t, vm_offset_t, vm_prot_t);
@@ -331,6 +330,7 @@ void moea_qremove(mmu_t, vm_offset_t, int);
 void moea_release(mmu_t, pmap_t);
 void moea_remove(mmu_t, pmap_t, vm_offset_t, vm_offset_t);
 void moea_remove_all(mmu_t, vm_page_t);
+void moea_remove_write(mmu_t, vm_page_t);
 void moea_zero_page(mmu_t, vm_page_t);
 void moea_zero_page_area(mmu_t, vm_page_t, int, int);
 void moea_zero_page_idle(mmu_t, vm_page_t);
@@ -358,7 +358,6 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_ts_referenced,	moea_ts_referenced),
 	MMUMETHOD(mmu_map,     		moea_map),
 	MMUMETHOD(mmu_page_exists_quick,moea_page_exists_quick),
-	MMUMETHOD(mmu_page_protect,    	moea_page_protect),
 	MMUMETHOD(mmu_pinit,		moea_pinit),
 	MMUMETHOD(mmu_pinit0,		moea_pinit0),
 	MMUMETHOD(mmu_protect,		moea_protect),
@@ -367,6 +366,7 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_release,		moea_release),
 	MMUMETHOD(mmu_remove,		moea_remove),
 	MMUMETHOD(mmu_remove_all,      	moea_remove_all),
+	MMUMETHOD(mmu_remove_write,	moea_remove_write),
 	MMUMETHOD(mmu_zero_page,       	moea_zero_page),
 	MMUMETHOD(mmu_zero_page_area,	moea_zero_page_area),
 	MMUMETHOD(mmu_zero_page_idle,	moea_zero_page_idle),
@@ -1293,6 +1293,48 @@ moea_clear_modify(mmu_t mmu, vm_page_t m)
 }
 
 /*
+ * Clear the write and modified bits in each of the given page's mappings.
+ */
+void
+moea_remove_write(mmu_t mmu, vm_page_t m)
+{
+	struct	pvo_entry *pvo;
+	struct	pte *pt;
+	pmap_t	pmap;
+	u_int	lo;
+
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
+	    (m->flags & PG_WRITEABLE) == 0)
+		return;
+	lo = moea_attr_fetch(m);
+	SYNC();
+	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
+		pmap = pvo->pvo_pmap;
+		PMAP_LOCK(pmap);
+		if ((pvo->pvo_pte.pte_lo & PTE_PP) != PTE_BR) {
+			pt = moea_pvo_to_pte(pvo, -1);
+			pvo->pvo_pte.pte_lo &= ~PTE_PP;
+			pvo->pvo_pte.pte_lo |= PTE_BR;
+			if (pt != NULL) {
+				moea_pte_synch(pt, &pvo->pvo_pte);
+				lo |= pvo->pvo_pte.pte_lo;
+				pvo->pvo_pte.pte_lo &= ~PTE_CHG;
+				moea_pte_change(pt, &pvo->pvo_pte,
+				    pvo->pvo_vaddr);
+				mtx_unlock(&moea_table_mutex);
+			}
+		}
+		PMAP_UNLOCK(pmap);
+	}
+	if ((lo & PTE_CHG) != 0) {
+		moea_attr_clear(m, PTE_CHG);
+		vm_page_dirty(m);
+	}
+	vm_page_flag_clear(m, PG_WRITEABLE);
+}
+
+/*
  *	moea_ts_referenced:
  *
  *	Return a count of reference bits for a page, clearing those bits.
@@ -1417,81 +1459,6 @@ moea_map(mmu_t mmu, vm_offset_t *virt, vm_offset_t pa_start,
 		moea_kenter(mmu, va, pa_start);
 	*virt = va;
 	return (sva);
-}
-
-/*
- * Lower the permission for all mappings to a given page.
- */
-void
-moea_page_protect(mmu_t mmu, vm_page_t m, vm_prot_t prot)
-{
-	struct	pvo_head *pvo_head;
-	struct	pvo_entry *pvo, *next_pvo;
-	struct	pte *pt;
-	pmap_t	pmap;
-
-	/*
-	 * Since the routine only downgrades protection, if the
-	 * maximal protection is desired, there isn't any change
-	 * to be made.
-	 */
-	if ((prot & (VM_PROT_READ|VM_PROT_WRITE)) ==
-	    (VM_PROT_READ|VM_PROT_WRITE))
-		return;
-
-	pvo_head = vm_page_to_pvoh(m);
-	for (pvo = LIST_FIRST(pvo_head); pvo != NULL; pvo = next_pvo) {
-		next_pvo = LIST_NEXT(pvo, pvo_vlink);
-		MOEA_PVO_CHECK(pvo);	/* sanity check */
-		pmap = pvo->pvo_pmap;
-		PMAP_LOCK(pmap);
-
-		/*
-		 * Downgrading to no mapping at all, we just remove the entry.
-		 */
-		if ((prot & VM_PROT_READ) == 0) {
-			moea_pvo_remove(pvo, -1);
-			PMAP_UNLOCK(pmap);
-			continue;
-		}
-
-		/*
-		 * If EXEC permission is being revoked, just clear the flag
-		 * in the PVO.
-		 */
-		if ((prot & VM_PROT_EXECUTE) == 0)
-			pvo->pvo_vaddr &= ~PVO_EXECUTABLE;
-
-		/*
-		 * If this entry is already RO, don't diddle with the page
-		 * table.
-		 */
-		if ((pvo->pvo_pte.pte_lo & PTE_PP) == PTE_BR) {
-			PMAP_UNLOCK(pmap);
-			MOEA_PVO_CHECK(pvo);
-			continue;
-		}
-
-		/*
-		 * Grab the PTE before we diddle the bits so pvo_to_pte can
-		 * verify the pte contents are as expected.
-		 */
-		pt = moea_pvo_to_pte(pvo, -1);
-		pvo->pvo_pte.pte_lo &= ~PTE_PP;
-		pvo->pvo_pte.pte_lo |= PTE_BR;
-		if (pt != NULL) {
-			moea_pte_change(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
-			mtx_unlock(&moea_table_mutex);
-		}
-		PMAP_UNLOCK(pmap);
-		MOEA_PVO_CHECK(pvo);	/* sanity check */
-	}
-
-	/*
-	 * Downgrading from writeable: clear the VM page flag
-	 */
-	if ((prot & VM_PROT_WRITE) != VM_PROT_WRITE)
-		vm_page_flag_clear(m, PG_WRITEABLE);
 }
 
 /*

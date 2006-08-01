@@ -431,7 +431,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 		    ("vm_pageout_flush: partially invalid page %p index %d/%d",
 			mc[i], i, count));
 		vm_page_io_start(mc[i]);
-		pmap_page_protect(mc[i], VM_PROT_READ);
+		pmap_remove_write(mc[i]);
 	}
 	vm_page_unlock_queues();
 	vm_object_pip_add(object, count);

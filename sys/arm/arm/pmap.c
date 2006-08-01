@@ -2759,32 +2759,6 @@ pmap_growkernel(vm_offset_t addr)
 
 
 /*
- *      pmap_page_protect:
- *
- *      Lower the permission for all mappings to a given page.
- */
-void
-pmap_page_protect(vm_page_t m, vm_prot_t prot)
-{
-	switch(prot) {
-	case VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE:
-	case VM_PROT_READ|VM_PROT_WRITE:
-		return;
-
-	case VM_PROT_READ:
-	case VM_PROT_READ|VM_PROT_EXECUTE:
-		pmap_clearbit(m, PVF_WRITE);
-		break;
-
-	default:
-		pmap_remove_all(m);
-		break;
-	}
-
-}
-
-
-/*
  * Remove all pages from specified address space
  * this aids process exit speeds.  Also, this code
  * is special cased for current process only, but
@@ -4464,7 +4438,7 @@ pmap_clear_reference(vm_page_t m)
  * Clear the write and modified bits in each of the given page's mappings.
  */
 void
-pmap_clear_write(vm_page_t m)
+pmap_remove_write(vm_page_t m)
 {
 
 	if (m->md.pvh_attrs & PVF_WRITE)

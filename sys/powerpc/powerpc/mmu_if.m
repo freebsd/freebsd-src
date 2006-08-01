@@ -147,6 +147,18 @@ METHOD void clear_reference {
 
 
 /**
+ * @brief Clear the write and modified bits in each of the given
+ * physical page's mappings
+ *
+ * @param _pg		physical page
+ */
+METHOD void remove_write {
+	mmu_t		_mmu;
+	vm_page_t	_pg;
+};
+
+
+/**
  * @brief Copy the address range given by the source physical map, virtual
  * address and length to the destination physical map and virtual address.
  * This routine is optional (xxx default null implementation ?)
@@ -416,20 +428,6 @@ METHOD void page_init {
 	mmu_t		_mmu;
 	vm_page_t	_pg;
 } DEFAULT mmu_null_page_init;
-
-
-/**
- * @brief Lower the protection to the given value for all mappings of the
- * given physical page.
- *
- * @param _pg		physical page
- * @param _prot		updated page protection
- */
-METHOD void page_protect {
-	mmu_t		_mmu;
-	vm_page_t	_pg;
-	vm_prot_t	_prot;
-};
 
 
 /**
