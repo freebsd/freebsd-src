@@ -41,7 +41,7 @@ LDIRS=	bsm cam geom net net80211 netatalk netatm netgraph netinet netinet6 \
 LSUBDIRS=	cam/scsi \
 	dev/acpica dev/an dev/bktr dev/firewire dev/hwpmc \
 	dev/ic dev/iicbus ${_dev_ieee488} dev/lmc dev/ofw \
-	dev/pbio dev/ppbus dev/smbus dev/speaker dev/usb dev/wi dev/utopia \
+	dev/pbio ${_dev_powermac_nvram} dev/ppbus dev/smbus dev/speaker dev/usb dev/wi dev/utopia \
 	fs/devfs fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs \
 	${_fs_nwfs} fs/portalfs fs/procfs fs/smbfs fs/udf fs/umapfs \
 	fs/unionfs \
@@ -54,6 +54,10 @@ LSUBDIRS=	cam/scsi \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
 	security/mac_mls security/mac_partition \
 	ufs/ffs ufs/ufs
+
+.if ${MACHINE_ARCH} == "powerpc"
+_dev_powermac_nvram=	dev/powermac_nvram
+.endif
 
 .if ${MK_GPIB} != "no"
 _dev_ieee488=	dev/ieee488

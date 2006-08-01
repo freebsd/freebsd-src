@@ -145,6 +145,9 @@ device		firewire	# FireWire bus code
 device		sbp		# SCSI over FireWire (Requires scbus and da)
 device		fwe		# Ethernet over FireWire (non-standard!)
 
+# Misc
+device		powermac_nvram	# Open Firmware configuration NVRAM
+
 options 	KTR
 options 	KTR_COMPILE=0xffffffff
 #options 	KTR_MASK=KTR_SIG
