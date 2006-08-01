@@ -2351,7 +2351,7 @@ g_raid3_determine_state(struct g_raid3_disk *disk)
 		 * Not good, NOT GOOD!
 		 * It means that device was started on stale disks
 		 * and more fresh disk just arrive.
-		 * If there were writes, device is fucked up, sorry.
+		 * If there were writes, device is broken, sorry.
 		 * I think the best choice here is don't touch
 		 * this disk and inform the user laudly.
 		 */
