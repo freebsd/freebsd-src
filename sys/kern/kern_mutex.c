@@ -459,7 +459,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
     int line)
 {
 #if defined(SMP) && !defined(NO_ADAPTIVE_MUTEXES)
-	struct thread *owner;
+	volatile struct thread *owner;
 #endif
 	uintptr_t v;
 #ifdef KTR
