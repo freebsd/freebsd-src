@@ -65,6 +65,7 @@ static long desirednfsrvcache;
 static LIST_HEAD(nfsrvhash, nfsrvcache) *nfsrvhashtbl;
 static TAILQ_HEAD(nfsrvlru, nfsrvcache) nfsrvlruhead;
 static u_long nfsrvhash;
+static eventhandler_tag nfsrv_nmbclusters_tag;
 
 #define TRUE	1
 #define	FALSE	0
@@ -147,8 +148,19 @@ nfsrv_initcache(void)
 	nfsrvcache_size_change(NULL);
 	nfsrvhashtbl = hashinit(desirednfsrvcache, M_NFSD, &nfsrvhash);
 	TAILQ_INIT(&nfsrvlruhead);
-	EVENTHANDLER_REGISTER(nmbclusters_change, nfsrvcache_size_change, NULL,
-			      EVENTHANDLER_PRI_FIRST);
+	nfsrv_nmbclusters_tag = EVENTHANDLER_REGISTER(nmbclusters_change,
+	    nfsrvcache_size_change, NULL, EVENTHANDLER_PRI_FIRST);
+}
+
+/*
+ * Teardown the server request cache list
+ */
+void
+nfsrv_destroycache(void)
+{
+	KASSERT(TAILQ_EMPTY(&nfsrvlruhead), ("%s: pending requests", __func__));
+	EVENTHANDLER_DEREGISTER(nmbclusters_change, nfsrv_nmbclusters_tag);
+	hashdestroy(nfsrvhashtbl, M_NFSD, nfsrvhash);
 }
 
 /*
