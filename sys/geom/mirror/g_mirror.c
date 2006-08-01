@@ -2077,7 +2077,7 @@ g_mirror_determine_state(struct g_mirror_disk *disk)
 		 * Not good, NOT GOOD!
 		 * It means that mirror was started on stale disks
 		 * and more fresh disk just arrive.
-		 * If there were writes, mirror is fucked up, sorry.
+		 * If there were writes, mirror is broken, sorry.
 		 * I think the best choice here is don't touch
 		 * this disk and inform the user laudly.
 		 */
