@@ -360,8 +360,7 @@ nfsrv_cleancache(void)
 
 	NFSD_LOCK_ASSERT();
 
-	for (rp = TAILQ_FIRST(&nfsrvlruhead); rp != 0; rp = nextrp) {
-		nextrp = TAILQ_NEXT(rp, rc_lru);
+	TAILQ_FOREACH_SAFE(rp, &nfsrvlruhead, rc_lru, nextrp) {
 		LIST_REMOVE(rp, rc_hash);
 		TAILQ_REMOVE(&nfsrvlruhead, rp, rc_lru);
 		if (rp->rc_flag & RC_REPMBUF)
