@@ -73,6 +73,11 @@
 #define MTX_UNOWNED	0x00000004	/* Cookie for free mutex */
 #define	MTX_FLAGMASK	~(MTX_RECURSED | MTX_CONTESTED)
 
+/*
+ * Value stored in mutex->mtx_lock to denote a destroyed mutex.
+ */
+#define	MTX_DESTROYED	(MTX_CONTESTED | MTX_UNOWNED)
+
 #endif	/* _KERNEL */
 
 #ifndef LOCORE

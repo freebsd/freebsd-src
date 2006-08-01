@@ -278,6 +278,8 @@ _mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
+	KASSERT(m->mtx_lock != MTX_DESTROYED,
+	    ("mtx_lock() of destroyed mutex @ %s:%d", file, line));
 	KASSERT(LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_sleep,
 	    ("mtx_lock() of spin mutex %s @ %s:%d", m->mtx_object.lo_name,
 	    file, line));
@@ -303,6 +305,8 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
+	KASSERT(m->mtx_lock != MTX_DESTROYED,
+	    ("mtx_unlock() of destroyed mutex @ %s:%d", file, line));
 	KASSERT(LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_sleep,
 	    ("mtx_unlock() of spin mutex %s @ %s:%d", m->mtx_object.lo_name,
 	    file, line));
@@ -382,6 +386,8 @@ _mtx_lock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
+	KASSERT(m->mtx_lock != MTX_DESTROYED,
+	    ("mtx_lock_spin() of destroyed mutex @ %s:%d", file, line));
 	KASSERT(LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_spin,
 	    ("mtx_lock_spin() of sleep mutex %s @ %s:%d",
 	    m->mtx_object.lo_name, file, line));
@@ -398,6 +404,8 @@ _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
+	KASSERT(m->mtx_lock != MTX_DESTROYED,
+	    ("mtx_unlock_spin() of destroyed mutex @ %s:%d", file, line));
 	KASSERT(LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_spin,
 	    ("mtx_unlock_spin() of sleep mutex %s @ %s:%d",
 	    m->mtx_object.lo_name, file, line));
@@ -419,6 +427,8 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 	int rval;
 
 	MPASS(curthread != NULL);
+	KASSERT(m->mtx_lock != MTX_DESTROYED,
+	    ("mtx_trylock() of destroyed mutex @ %s:%d", file, line));
 	KASSERT(LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_sleep,
 	    ("mtx_trylock() of spin mutex %s @ %s:%d", m->mtx_object.lo_name,
 	    file, line));
@@ -894,6 +904,7 @@ mtx_destroy(struct mtx *m)
 		    __LINE__);
 	}
 
+	m->mtx_lock = MTX_DESTROYED;
 	lock_destroy(&m->mtx_object);
 }
 
