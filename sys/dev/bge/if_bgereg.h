@@ -224,9 +224,12 @@
 
 #define BGE_CHIPID_TIGON_I		0x40000000
 #define BGE_CHIPID_TIGON_II		0x60000000
+#define BGE_CHIPID_BCM5700_A0		0x70000000
+#define BGE_CHIPID_BCM5700_A1		0x70010000
 #define BGE_CHIPID_BCM5700_B0		0x71000000
-#define BGE_CHIPID_BCM5700_B1		0x71020000
-#define BGE_CHIPID_BCM5700_B2		0x71030000
+#define BGE_CHIPID_BCM5700_B1		0x71010000
+#define BGE_CHIPID_BCM5700_B2		0x71020000
+#define BGE_CHIPID_BCM5700_B3		0x71030000
 #define BGE_CHIPID_BCM5700_ALTIMA	0x71040000
 #define BGE_CHIPID_BCM5700_C0		0x72000000
 #define BGE_CHIPID_BCM5701_A0		0x00000000	/* grrrr */
@@ -236,27 +239,47 @@
 #define BGE_CHIPID_BCM5703_A0		0x10000000
 #define BGE_CHIPID_BCM5703_A1		0x10010000
 #define BGE_CHIPID_BCM5703_A2		0x10020000
+#define BGE_CHIPID_BCM5703_A3		0x10030000
+#define BGE_CHIPID_BCM5703_B0		0x11000000
 #define BGE_CHIPID_BCM5704_A0		0x20000000
 #define BGE_CHIPID_BCM5704_A1		0x20010000
 #define BGE_CHIPID_BCM5704_A2		0x20020000
+#define BGE_CHIPID_BCM5704_A3		0x20030000
+#define BGE_CHIPID_BCM5704_B0		0x21000000
 #define BGE_CHIPID_BCM5705_A0		0x30000000
 #define BGE_CHIPID_BCM5705_A1		0x30010000
 #define BGE_CHIPID_BCM5705_A2		0x30020000
 #define BGE_CHIPID_BCM5705_A3		0x30030000
 #define BGE_CHIPID_BCM5750_A0		0x40000000
 #define BGE_CHIPID_BCM5750_A1		0x40010000
+#define BGE_CHIPID_BCM5750_A3		0x40030000
+#define BGE_CHIPID_BCM5750_B0		0x40100000
+#define BGE_CHIPID_BCM5750_B1		0x41010000
+#define BGE_CHIPID_BCM5750_C0		0x42000000
+#define BGE_CHIPID_BCM5750_C1		0x42010000
 #define BGE_CHIPID_BCM5714_A0		0x50000000
+#define BGE_CHIPID_BCM5752_A0		0x60000000
+#define BGE_CHIPID_BCM5752_A1		0x60010000
+#define BGE_CHIPID_BCM5752_A2		0x60020000
+#define BGE_CHIPID_BCM5714_B0		0x80000000
+#define BGE_CHIPID_BCM5714_B3		0x80030000
+#define BGE_CHIPID_BCM5715_A0		0x90000000
+#define BGE_CHIPID_BCM5715_A1		0x90010000
 
 /* shorthand one */
 #define BGE_ASICREV(x)			((x) >> 28)
-#define BGE_ASICREV_BCM5700		0x07
 #define BGE_ASICREV_BCM5701		0x00
 #define BGE_ASICREV_BCM5703		0x01
 #define BGE_ASICREV_BCM5704		0x02
 #define BGE_ASICREV_BCM5705		0x03
 #define BGE_ASICREV_BCM5750		0x04
-#define BGE_ASICREV_BCM5714		0x05
+#define BGE_ASICREV_BCM5714_A0		0x05
 #define BGE_ASICREV_BCM5752		0x06
+#define BGE_ASICREV_BCM5700		0x07
+#define BGE_ASICREV_BCM5780		0x08
+#define BGE_ASICREV_BCM5714		0x09
+#define BGE_ASICREV_BCM5755		0x0a
+#define BGE_ASICREV_BCM5787		0x0b
 
 /* chip revisions */
 #define BGE_CHIPREV(x)			((x) >> 24)
@@ -1752,26 +1775,26 @@
 #define BGE_MAGIC_NUMBER                0x4B657654
 
 typedef struct {
-	u_int32_t		bge_addr_hi;
-	u_int32_t		bge_addr_lo;
+	uint32_t		bge_addr_hi;
+	uint32_t		bge_addr_lo;
 } bge_hostaddr;
 
 #define BGE_HOSTADDR(x, y)						\
 	do {								\
-		(x).bge_addr_lo = ((u_int64_t) (y) & 0xffffffff);	\
-		(x).bge_addr_hi = ((u_int64_t) (y) >> 32);		\
+		(x).bge_addr_lo = ((uint64_t) (y) & 0xffffffff);	\
+		(x).bge_addr_hi = ((uint64_t) (y) >> 32);		\
 	} while(0)
 
 #define BGE_ADDR_LO(y)	\
-	((u_int64_t) (y) & 0xFFFFFFFF)
+	((uint64_t) (y) & 0xFFFFFFFF)
 #define BGE_ADDR_HI(y)	\
-	((u_int64_t) (y) >> 32)
+	((uint64_t) (y) >> 32)
 
 /* Ring control block structure */
 struct bge_rcb {
 	bge_hostaddr		bge_hostaddr;
-	u_int32_t		bge_maxlen_flags;
-	u_int32_t		bge_nicaddr;
+	uint32_t		bge_maxlen_flags;
+	uint32_t		bge_nicaddr;
 };
 
 #define	RCB_WRITE_4(sc, rcb, offset, val) \
@@ -1785,15 +1808,15 @@ struct bge_rcb {
 struct bge_tx_bd {
 	bge_hostaddr		bge_addr;
 #if BYTE_ORDER == LITTLE_ENDIAN
-	u_int16_t		bge_flags;
-	u_int16_t		bge_len;
-	u_int16_t		bge_vlan_tag;
-	u_int16_t		bge_rsvd;
+	uint16_t		bge_flags;
+	uint16_t		bge_len;
+	uint16_t		bge_vlan_tag;
+	uint16_t		bge_rsvd;
 #else
-	u_int16_t		bge_len;
-	u_int16_t		bge_flags;
-	u_int16_t		bge_rsvd;
-	u_int16_t		bge_vlan_tag;
+	uint16_t		bge_len;
+	uint16_t		bge_flags;
+	uint16_t		bge_rsvd;
+	uint16_t		bge_vlan_tag;
 #endif
 };
 
@@ -1817,26 +1840,26 @@ struct bge_tx_bd {
 struct bge_rx_bd {
 	bge_hostaddr		bge_addr;
 #if BYTE_ORDER == LITTLE_ENDIAN
-	u_int16_t		bge_len;
-	u_int16_t		bge_idx;
-	u_int16_t		bge_flags;
-	u_int16_t		bge_type;
-	u_int16_t		bge_tcp_udp_csum;
-	u_int16_t		bge_ip_csum;
-	u_int16_t		bge_vlan_tag;
-	u_int16_t		bge_error_flag;
+	uint16_t		bge_len;
+	uint16_t		bge_idx;
+	uint16_t		bge_flags;
+	uint16_t		bge_type;
+	uint16_t		bge_tcp_udp_csum;
+	uint16_t		bge_ip_csum;
+	uint16_t		bge_vlan_tag;
+	uint16_t		bge_error_flag;
 #else
-	u_int16_t		bge_idx;
-	u_int16_t		bge_len;
-	u_int16_t		bge_type;
-	u_int16_t		bge_flags;
-	u_int16_t		bge_ip_csum;
-	u_int16_t		bge_tcp_udp_csum;
-	u_int16_t		bge_error_flag;
-	u_int16_t		bge_vlan_tag;
+	uint16_t		bge_idx;
+	uint16_t		bge_len;
+	uint16_t		bge_type;
+	uint16_t		bge_flags;
+	uint16_t		bge_ip_csum;
+	uint16_t		bge_tcp_udp_csum;
+	uint16_t		bge_error_flag;
+	uint16_t		bge_vlan_tag;
 #endif
-	u_int32_t		bge_rsvd;
-	u_int32_t		bge_opaque;
+	uint32_t		bge_rsvd;
+	uint32_t		bge_opaque;
 };
 
 struct bge_extrx_bd {
@@ -1844,38 +1867,38 @@ struct bge_extrx_bd {
 	bge_hostaddr		bge_addr2;
 	bge_hostaddr		bge_addr3;
 #if BYTE_ORDER == LITTLE_ENDIAN
-	u_int16_t		bge_len2;
-	u_int16_t		bge_len1;
-	u_int16_t		bge_rsvd1;
-	u_int16_t		bge_len3;
+	uint16_t		bge_len2;
+	uint16_t		bge_len1;
+	uint16_t		bge_rsvd1;
+	uint16_t		bge_len3;
 #else
-	u_int16_t		bge_len1;
-	u_int16_t		bge_len2;
-	u_int16_t		bge_len3;
-	u_int16_t		bge_rsvd1;
+	uint16_t		bge_len1;
+	uint16_t		bge_len2;
+	uint16_t		bge_len3;
+	uint16_t		bge_rsvd1;
 #endif
 	bge_hostaddr		bge_addr0;
 #if BYTE_ORDER == LITTLE_ENDIAN
-	u_int16_t		bge_len0;
-	u_int16_t		bge_idx;
-	u_int16_t		bge_flags;
-	u_int16_t		bge_type;
-	u_int16_t		bge_tcp_udp_csum;
-	u_int16_t		bge_ip_csum;
-	u_int16_t		bge_vlan_tag;
-	u_int16_t		bge_error_flag;
+	uint16_t		bge_len0;
+	uint16_t		bge_idx;
+	uint16_t		bge_flags;
+	uint16_t		bge_type;
+	uint16_t		bge_tcp_udp_csum;
+	uint16_t		bge_ip_csum;
+	uint16_t		bge_vlan_tag;
+	uint16_t		bge_error_flag;
 #else
-	u_int16_t		bge_idx;
-	u_int16_t		bge_len0;
-	u_int16_t		bge_type;
-	u_int16_t		bge_flags;
-	u_int16_t		bge_ip_csum;
-	u_int16_t		bge_tcp_udp_csum;
-	u_int16_t		bge_error_flag;
-	u_int16_t		bge_vlan_tag;
+	uint16_t		bge_idx;
+	uint16_t		bge_len0;
+	uint16_t		bge_type;
+	uint16_t		bge_flags;
+	uint16_t		bge_ip_csum;
+	uint16_t		bge_tcp_udp_csum;
+	uint16_t		bge_error_flag;
+	uint16_t		bge_vlan_tag;
 #endif
-	u_int32_t		bge_rsvd0;
-	u_int32_t		bge_opaque;
+	uint32_t		bge_rsvd0;
+	uint32_t		bge_opaque;
 };
 
 #define BGE_RXBDFLAG_END		0x0004
@@ -1898,27 +1921,27 @@ struct bge_extrx_bd {
 
 struct bge_sts_idx {
 #if BYTE_ORDER == LITTLE_ENDIAN
-	u_int16_t		bge_rx_prod_idx;
-	u_int16_t		bge_tx_cons_idx;
+	uint16_t		bge_rx_prod_idx;
+	uint16_t		bge_tx_cons_idx;
 #else
-	u_int16_t		bge_tx_cons_idx;
-	u_int16_t		bge_rx_prod_idx;
+	uint16_t		bge_tx_cons_idx;
+	uint16_t		bge_rx_prod_idx;
 #endif
 };
 
 struct bge_status_block {
-	u_int32_t		bge_status;
-	u_int32_t		bge_rsvd0;
+	uint32_t		bge_status;
+	uint32_t		bge_rsvd0;
 #if BYTE_ORDER == LITTLE_ENDIAN
-	u_int16_t		bge_rx_jumbo_cons_idx;
-	u_int16_t		bge_rx_std_cons_idx;
-	u_int16_t		bge_rx_mini_cons_idx;
-	u_int16_t		bge_rsvd1;
+	uint16_t		bge_rx_jumbo_cons_idx;
+	uint16_t		bge_rx_std_cons_idx;
+	uint16_t		bge_rx_mini_cons_idx;
+	uint16_t		bge_rsvd1;
 #else
-	u_int16_t		bge_rx_std_cons_idx;
-	u_int16_t		bge_rx_jumbo_cons_idx;
-	u_int16_t		bge_rsvd1;
-	u_int16_t		bge_rx_mini_cons_idx;
+	uint16_t		bge_rx_std_cons_idx;
+	uint16_t		bge_rx_jumbo_cons_idx;
+	uint16_t		bge_rsvd1;
+	uint16_t		bge_rx_mini_cons_idx;
 #endif
 	struct bge_sts_idx	bge_idx[16];
 };
@@ -1939,37 +1962,61 @@ struct bge_status_block {
 #define BCOM_VENDORID			0x14E4
 #define BCOM_DEVICEID_BCM5700		0x1644
 #define BCOM_DEVICEID_BCM5701		0x1645
-#define BCOM_DEVICEID_BCM5702		0x16A6
-#define BCOM_DEVICEID_BCM5702X		0x16C6
-#define BCOM_DEVICEID_BCM5703		0x16A7
-#define BCOM_DEVICEID_BCM5703X		0x16C7
+#define BCOM_DEVICEID_BCM5702		0x1646
+#define BCOM_DEVICEID_BCM5702X		0x16A6
+#define BCOM_DEVICEID_BCM5702_ALT	0x16C6
+#define BCOM_DEVICEID_BCM5703		0x1647
+#define BCOM_DEVICEID_BCM5703X		0x16A7
+#define BCOM_DEVICEID_BCM5703_ALT	0x16C7
 #define BCOM_DEVICEID_BCM5704C		0x1648
 #define BCOM_DEVICEID_BCM5704S		0x16A8
+#define BCOM_DEVICEID_BCM5704S_ALT	0x1649
 #define BCOM_DEVICEID_BCM5705		0x1653
 #define BCOM_DEVICEID_BCM5705K		0x1654
-#define BCOM_DEVICEID_BCM5721		0x1659
+#define BCOM_DEVICEID_BCM5705F		0x166E
 #define BCOM_DEVICEID_BCM5705M		0x165D
 #define BCOM_DEVICEID_BCM5705M_ALT	0x165E
 #define BCOM_DEVICEID_BCM5714C		0x1668
+#define BCOM_DEVICEID_BCM5714S		0x1669
+#define BCOM_DEVICEID_BCM5715		0x1678
+#define BCOM_DEVICEID_BCM5715S		0x1679
+#define BCOM_DEVICEID_BCM5720		0x1658
+#define BCOM_DEVICEID_BCM5721		0x1659
 #define BCOM_DEVICEID_BCM5750		0x1676
 #define BCOM_DEVICEID_BCM5750M		0x167C
 #define BCOM_DEVICEID_BCM5751		0x1677
+#define BCOM_DEVICEID_BCM5751F		0x167E
 #define BCOM_DEVICEID_BCM5751M		0x167D
 #define BCOM_DEVICEID_BCM5752		0x1600
+#define BCOM_DEVICEID_BCM5752M		0x1601
+#define BCOM_DEVICEID_BCM5753		0x16F7
+#define BCOM_DEVICEID_BCM5753F		0x16FE
+#define BCOM_DEVICEID_BCM5753M		0x16FD
+#define BCOM_DEVICEID_BCM5754		0x167A
+#define BCOM_DEVICEID_BCM5754M		0x1672
+#define BCOM_DEVICEID_BCM5755		0x167B
+#define BCOM_DEVICEID_BCM5755M		0x1673
+#define BCOM_DEVICEID_BCM5780		0x166A
+#define BCOM_DEVICEID_BCM5780S		0x166B
+#define BCOM_DEVICEID_BCM5781		0x16DD
 #define BCOM_DEVICEID_BCM5782		0x1696
+#define BCOM_DEVICEID_BCM5786		0x169A
+#define BCOM_DEVICEID_BCM5787		0x169B
+#define BCOM_DEVICEID_BCM5787M		0x1693
 #define BCOM_DEVICEID_BCM5788		0x169C
 #define BCOM_DEVICEID_BCM5789		0x169D
 #define BCOM_DEVICEID_BCM5901		0x170D
 #define BCOM_DEVICEID_BCM5901A2		0x170E
+#define BCOM_DEVICEID_BCM5903M		0x16FF
 
 /*
  * Alteon AceNIC PCI vendor/device ID.
  */
-#define ALT_VENDORID			0x12AE
-#define ALT_DEVICEID_ACENIC		0x0001
-#define ALT_DEVICEID_ACENIC_COPPER	0x0002
-#define ALT_DEVICEID_BCM5700		0x0003
-#define ALT_DEVICEID_BCM5701		0x0004
+#define ALTEON_VENDORID			0x12AE
+#define ALTEON_DEVICEID_ACENIC		0x0001
+#define ALTEON_DEVICEID_ACENIC_COPPER	0x0002
+#define ALTEON_DEVICEID_BCM5700		0x0003
+#define ALTEON_DEVICEID_BCM5701		0x0004
 
 /*
  * 3Com 3c985 PCI vendor/device ID.
@@ -1999,6 +2046,12 @@ struct bge_status_block {
  */
 
 #define DELL_VENDORID			0x1028
+
+/*
+ * Apple PCI vendor ID.
+ */
+#define APPLE_VENDORID			0x106b
+#define APPLE_DEVICE_BCM5701		0x1645
 
 /*
  * Offset of MAC address inside EEPROM.
@@ -2129,43 +2182,43 @@ struct bge_tx_mac_stats {
 
 /* Stats counters access through registers */
 struct bge_mac_stats_regs {
-	u_int32_t		ifHCOutOctets;
-	u_int32_t		Reserved0;
-	u_int32_t		etherStatsCollisions;
-	u_int32_t		outXonSent;
-	u_int32_t		outXoffSent;
-	u_int32_t		Reserved1;
-	u_int32_t		dot3StatsInternalMacTransmitErrors;
-	u_int32_t		dot3StatsSingleCollisionFrames;
-	u_int32_t		dot3StatsMultipleCollisionFrames;
-	u_int32_t		dot3StatsDeferredTransmissions;
-	u_int32_t		Reserved2;
-	u_int32_t		dot3StatsExcessiveCollisions;
-	u_int32_t		dot3StatsLateCollisions;
-	u_int32_t		Reserved3[14];
-	u_int32_t		ifHCOutUcastPkts;
-	u_int32_t		ifHCOutMulticastPkts;
-	u_int32_t		ifHCOutBroadcastPkts;
-	u_int32_t		Reserved4[2];
-	u_int32_t		ifHCInOctets;
-	u_int32_t		Reserved5;
-	u_int32_t		etherStatsFragments;
-	u_int32_t		ifHCInUcastPkts;
-	u_int32_t		ifHCInMulticastPkts;
-	u_int32_t		ifHCInBroadcastPkts;
-	u_int32_t		dot3StatsFCSErrors;
-	u_int32_t		dot3StatsAlignmentErrors;
-	u_int32_t		xonPauseFramesReceived;
-	u_int32_t		xoffPauseFramesReceived;
-	u_int32_t		macControlFramesReceived;
-	u_int32_t		xoffStateEntered;
-	u_int32_t		dot3StatsFramesTooLong;
-	u_int32_t		etherStatsJabbers;
-	u_int32_t		etherStatsUndersizePkts;
+	uint32_t		ifHCOutOctets;
+	uint32_t		Reserved0;
+	uint32_t		etherStatsCollisions;
+	uint32_t		outXonSent;
+	uint32_t		outXoffSent;
+	uint32_t		Reserved1;
+	uint32_t		dot3StatsInternalMacTransmitErrors;
+	uint32_t		dot3StatsSingleCollisionFrames;
+	uint32_t		dot3StatsMultipleCollisionFrames;
+	uint32_t		dot3StatsDeferredTransmissions;
+	uint32_t		Reserved2;
+	uint32_t		dot3StatsExcessiveCollisions;
+	uint32_t		dot3StatsLateCollisions;
+	uint32_t		Reserved3[14];
+	uint32_t		ifHCOutUcastPkts;
+	uint32_t		ifHCOutMulticastPkts;
+	uint32_t		ifHCOutBroadcastPkts;
+	uint32_t		Reserved4[2];
+	uint32_t		ifHCInOctets;
+	uint32_t		Reserved5;
+	uint32_t		etherStatsFragments;
+	uint32_t		ifHCInUcastPkts;
+	uint32_t		ifHCInMulticastPkts;
+	uint32_t		ifHCInBroadcastPkts;
+	uint32_t		dot3StatsFCSErrors;
+	uint32_t		dot3StatsAlignmentErrors;
+	uint32_t		xonPauseFramesReceived;
+	uint32_t		xoffPauseFramesReceived;
+	uint32_t		macControlFramesReceived;
+	uint32_t		xoffStateEntered;
+	uint32_t		dot3StatsFramesTooLong;
+	uint32_t		etherStatsJabbers;
+	uint32_t		etherStatsUndersizePkts;
 };
 
 struct bge_stats {
-	u_int8_t		Reserved0[256];
+	uint8_t		Reserved0[256];
 
 	/* Statistics maintained by Receive MAC. */
 	struct bge_rx_mac_stats rxstats;
@@ -2202,7 +2255,7 @@ struct bge_stats {
 	bge_hostaddr		nicAvoidedInterrupts;
 	bge_hostaddr		nicSendThresholdHit;
 
-	u_int8_t		Reserved4[320];
+	uint8_t		Reserved4[320];
 };
 
 /*
@@ -2238,14 +2291,14 @@ struct bge_gib {
 
 /* VPD structures */
 struct vpd_res {
-	u_int8_t		vr_id;
-	u_int8_t		vr_len;
-	u_int8_t		vr_pad;
+	uint8_t		vr_id;
+	uint8_t		vr_len;
+	uint8_t		vr_pad;
 };
 
 struct vpd_key {
 	char			vk_key[2];
-	u_int8_t		vk_len;
+	uint8_t		vk_len;
 };
 
 #define VPD_RES_ID	0x82	/* ID string */
@@ -2286,8 +2339,8 @@ struct vpd_key {
 #define BGE_JSLOTS	384
 
 #define BGE_JRAWLEN (BGE_JUMBO_FRAMELEN + ETHER_ALIGN)
-#define BGE_JLEN (BGE_JRAWLEN + (sizeof(u_int64_t) - \
-	(BGE_JRAWLEN % sizeof(u_int64_t))))
+#define BGE_JLEN (BGE_JRAWLEN + (sizeof(uint64_t) - \
+	(BGE_JRAWLEN % sizeof(uint64_t))))
 #define BGE_JPAGESZ PAGE_SIZE
 #define BGE_RESID (BGE_JPAGESZ - (BGE_JLEN * BGE_JSLOTS) % BGE_JPAGESZ)
 #define BGE_JMEM ((BGE_JLEN * BGE_JSLOTS) + BGE_RESID)
@@ -2363,16 +2416,10 @@ struct bge_chain_data {
 struct bge_dmamap_arg {
 	struct bge_softc	*sc;
 	bus_addr_t		bge_busaddr;
-	u_int16_t		bge_flags;
+	uint16_t		bge_flags;
 	int			bge_idx;
 	int			bge_maxsegs;
 	struct bge_tx_bd	*bge_ring;
-};
-
-struct bge_type {
-	u_int16_t		bge_vid;
-	u_int16_t		bge_did;
-	char			*bge_name;
 };
 
 #define BGE_HWREV_TIGON		0x01
@@ -2396,29 +2443,30 @@ struct bge_softc {
 	struct resource		*bge_irq;
 	struct resource		*bge_res;
 	struct ifmedia		bge_ifmedia;	/* TBI media info */
-	u_int8_t		bge_extram;	/* has external SSRAM */
-	u_int8_t		bge_tbi;
-	u_int8_t		bge_rx_alignment_bug;
-	u_int32_t		bge_chipid;
-	u_int8_t		bge_asicrev;
-	u_int8_t		bge_chiprev;
-	u_int8_t		bge_no_3_led;
-	u_int8_t		bge_pcie;
+	uint8_t		bge_extram;	/* has external SSRAM */
+	uint8_t		bge_tbi;
+	uint8_t		bge_rx_alignment_bug;
+	uint32_t		bge_chipid;
+	uint8_t		bge_asicrev;
+	uint8_t		bge_chiprev;
+	uint8_t		bge_no_3_led;
+	uint8_t		bge_pcie;
+	uint8_t		bge_pcix;
 	struct bge_ring_data	bge_ldata;	/* rings */
 	struct bge_chain_data	bge_cdata;	/* mbufs */
-	u_int16_t		bge_tx_saved_considx;
-	u_int16_t		bge_rx_saved_considx;
-	u_int16_t		bge_ev_saved_considx;
-	u_int16_t		bge_return_ring_cnt;
-	u_int16_t		bge_std;	/* current std ring head */
-	u_int16_t		bge_jumbo;	/* current jumo ring head */
-	u_int32_t		bge_stat_ticks;
-	u_int32_t		bge_rx_coal_ticks;
-	u_int32_t		bge_tx_coal_ticks;
-	u_int32_t		bge_tx_prodidx;
-	u_int32_t		bge_rx_max_coal_bds;
-	u_int32_t		bge_tx_max_coal_bds;
-	u_int32_t		bge_tx_buf_ratio;
+	uint16_t		bge_tx_saved_considx;
+	uint16_t		bge_rx_saved_considx;
+	uint16_t		bge_ev_saved_considx;
+	uint16_t		bge_return_ring_cnt;
+	uint16_t		bge_std;	/* current std ring head */
+	uint16_t		bge_jumbo;	/* current jumo ring head */
+	uint32_t		bge_stat_ticks;
+	uint32_t		bge_rx_coal_ticks;
+	uint32_t		bge_tx_coal_ticks;
+	uint32_t		bge_tx_prodidx;
+	uint32_t		bge_rx_max_coal_bds;
+	uint32_t		bge_tx_max_coal_bds;
+	uint32_t		bge_tx_buf_ratio;
 	int			bge_if_flags;
 	int			bge_txcnt;
 	int			bge_link;	/* link state */
