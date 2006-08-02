@@ -608,10 +608,10 @@ sofree(so)
 	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL)
 		(*pr->pr_domain->dom_dispose)(so->so_rcv.sb_mb);
 	sbdestroy(&so->so_rcv, so);
-	knlist_destroy(&so->so_rcv.sb_sel.si_note);
-	knlist_destroy(&so->so_snd.sb_sel.si_note);
 	if (pr->pr_usrreqs->pru_detach != NULL)
 		(*pr->pr_usrreqs->pru_detach)(so);
+	knlist_destroy(&so->so_rcv.sb_sel.si_note);
+	knlist_destroy(&so->so_snd.sb_sel.si_note);
 	sodealloc(so);
 }
 
