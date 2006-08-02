@@ -253,10 +253,8 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	vput(nd.ni_vp);
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
-	if (error) {
-		vfs_rel(mp);
+	if (error)
 		goto out;
-	}
 #endif
 	/*
 	 * Set these in case the underlying filesystem fails to do so.
@@ -335,17 +333,13 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	VOP_UNLOCK(vp, 0, td);
 	fdrop(fp, td);
 	if (vp->v_iflag & VI_DOOMED) {
-		if (mp)
-			vfs_rel(mp);
 		error = EBADF;
 		goto out;
 	}
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
-	if (error) {
-		vfs_rel(mp);
+	if (error)
 		goto out;
-	}
 #endif
 	/*
 	 * Set these in case the underlying filesystem fails to do so.
@@ -365,7 +359,8 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	}
 	*buf = *sp;
 out:
-	vfs_rel(mp);
+	if (mp)
+		vfs_rel(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
