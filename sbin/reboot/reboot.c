@@ -151,12 +151,12 @@ main(int argc, char *argv[])
 	if (!nflag)
 		sync();
 
+	/* Ignore the SIGHUP we get when our parent shell dies. */
+	(void)signal(SIGHUP, SIG_IGN);
+
 	/* Just stop init -- if we fail, we'll restart it. */
 	if (kill(1, SIGTSTP) == -1)
 		err(1, "SIGTSTP init");
-
-	/* Ignore the SIGHUP we get when our parent shell dies. */
-	(void)signal(SIGHUP, SIG_IGN);
 
 	/* Send a SIGTERM first, a chance to save the buffers. */
 	if (kill(-1, SIGTERM) == -1 && errno != ESRCH)
