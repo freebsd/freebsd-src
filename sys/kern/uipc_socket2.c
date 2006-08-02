@@ -140,7 +140,7 @@ soisdisconnecting(so)
 {
 
 	/*
-	 * XXXRW: This code assumes that SOCK_LOCK(so) and
+	 * Note: This code assumes that SOCK_LOCK(so) and
 	 * SOCKBUF_LOCK(&so->so_rcv) are the same.
 	 */
 	SOCKBUF_LOCK(&so->so_rcv);
@@ -160,7 +160,7 @@ soisdisconnected(so)
 {
 
 	/*
-	 * XXXRW: This code assumes that SOCK_LOCK(so) and
+	 * Note: This code assumes that SOCK_LOCK(so) and
 	 * SOCKBUF_LOCK(&so->so_rcv) are the same.
 	 */
 	SOCKBUF_LOCK(&so->so_rcv);
