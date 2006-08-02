@@ -1369,57 +1369,46 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 
 				ubsecstats.hst_unaligned++;
 				totlen = q->q_src_mapsize;
-				if (q->q_src_m->m_flags & M_PKTHDR) {
+				if (totlen >= MINCLSIZE) {
+					m = m_getcl(M_DONTWAIT, MT_DATA,
+					    q->q_src_m->m_flags & M_PKTHDR);
+					len = MCLBYTES;
+				} else if (q->q_src_m->m_flags & M_PKTHDR) {
+					m = m_gethdr(M_DONTWAIT, MT_DATA);
 					len = MHLEN;
-					MGETHDR(m, M_DONTWAIT, MT_DATA);
-					if (m && !m_dup_pkthdr(m, q->q_src_m, M_DONTWAIT)) {
-						m_free(m);
-						m = NULL;
-					}
 				} else {
+					m = m_get(M_DONTWAIT, MT_DATA);
 					len = MLEN;
-					MGET(m, M_DONTWAIT, MT_DATA);
+				}
+				if (m && q->q_src_m->m_flags & M_PKTHDR &&
+				    !m_dup_pkthdr(m, q->q_src_m, M_DONTWAIT)) {
+					m_free(m);
+					m = NULL;
 				}
 				if (m == NULL) {
 					ubsecstats.hst_nombuf++;
 					err = sc->sc_nqueue ? ERESTART : ENOMEM;
 					goto errout;
 				}
-				if (totlen >= MINCLSIZE) {
-					MCLGET(m, M_DONTWAIT);
-					if ((m->m_flags & M_EXT) == 0) {
-						m_free(m);
-						ubsecstats.hst_nomcl++;
-						err = sc->sc_nqueue ? ERESTART : ENOMEM;
-						goto errout;
-					}
-					len = MCLBYTES;
-				}
-				m->m_len = len;
-				top = NULL;
+				m->m_len = len = min(totlen, len);
+				totlen -= len;
+				top = m;
 				mp = &top;
 
 				while (totlen > 0) {
-					if (top) {
-						MGET(m, M_DONTWAIT, MT_DATA);
-						if (m == NULL) {
-							m_freem(top);
-							ubsecstats.hst_nombuf++;
-							err = sc->sc_nqueue ? ERESTART : ENOMEM;
-							goto errout;
-						}
+					if (totlen >= MINCLSIZE) {
+						m = m_getcl(M_DONTWAIT,
+						    MT_DATA, 0);
+						len = MCLBYTES;
+					} else {
+						m = m_get(M_DONTWAIT, MT_DATA);
 						len = MLEN;
 					}
-					if (top && totlen >= MINCLSIZE) {
-						MCLGET(m, M_DONTWAIT);
-						if ((m->m_flags & M_EXT) == 0) {
-							*mp = m;
-							m_freem(top);
-							ubsecstats.hst_nomcl++;
-							err = sc->sc_nqueue ? ERESTART : ENOMEM;
-							goto errout;
-						}
-						len = MCLBYTES;
+					if (m == NULL) {
+						m_freem(top);
+						ubsecstats.hst_nombuf++;
+						err = sc->sc_nqueue ? ERESTART : ENOMEM;
+						goto errout;
 					}
 					m->m_len = len = min(totlen, len);
 					totlen -= len;
