@@ -731,7 +731,7 @@ doxygen:
 		echo "You need doxygen (devel/doxygen) to generate the API documentation of the kernel." | /usr/bin/fmt; \
 		exit 1; \
 	fi
-	cd ${.CURDIR}/sys/doc/subsys && ${MAKE} obj all
+	cd ${.CURDIR}/tools/kerneldoc/subsys && ${MAKE} obj all
 
 #
 # update
