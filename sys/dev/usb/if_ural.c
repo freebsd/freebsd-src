@@ -2361,8 +2361,7 @@ ural_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	return 0;
 bad:
 	ifp->if_oerrors++;
-	if (ni != NULL)
-		ieee80211_free_node(ni);
+	ieee80211_free_node(ni);
 	return EIO;		/* XXX */
 }
 
