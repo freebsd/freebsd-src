@@ -529,8 +529,9 @@ bstp_make_blocking(struct bstp_state *bs, struct bstp_port *bp)
 static void
 bstp_set_port_state(struct bstp_port *bp, uint8_t state)
 {
-	bp->bp_state = state;
 	struct bstp_state *bs = bp->bp_bs;
+
+	bp->bp_state = state;
 
 	/* notify the parent bridge */
 	if (bs->bs_state_cb != NULL)
