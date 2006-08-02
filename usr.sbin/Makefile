@@ -47,7 +47,6 @@ SUBDIR=	ac \
 	${_editmap} \
 	edquota \
 	${_eeprom} \
-	${_elf2exe} \
 	extattr \
 	extattrctl \
 	faithd \
@@ -320,14 +319,6 @@ _boot0cfg=	boot0cfg
 _wlconfig=	wlconfig
 .elif ${MACHINE} == "pc98"
 _boot98cfg=	boot98cfg
-.endif
-.endif
-
-.if ${MACHINE_ARCH} == "alpha"
-_elf2exe=	elf2exe
-_pnpinfo=	pnpinfo
-.if ${MK_LIBTHR} != "no"
-_pppctl=	pppctl
 .endif
 .endif
 
