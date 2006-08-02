@@ -47,7 +47,7 @@
 
 struct acpi_softc {
     device_t		acpi_dev;
-    struct cdev *acpi_dev_t;
+    struct cdev		*acpi_dev_t;
 
     struct resource	*acpi_irq;
     int			acpi_irq_rid;
@@ -70,6 +70,7 @@ struct acpi_softc {
     int			acpi_s4bios;
     int			acpi_do_disable;
     int			acpi_verbose;
+    int			acpi_handle_reboot;
 
     bus_dma_tag_t	acpi_waketag;
     bus_dmamap_t	acpi_wakemap;
