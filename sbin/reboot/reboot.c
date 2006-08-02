@@ -151,8 +151,21 @@ main(int argc, char *argv[])
 	if (!nflag)
 		sync();
 
-	/* Ignore the SIGHUP we get when our parent shell dies. */
-	(void)signal(SIGHUP, SIG_IGN);
+	/*
+	 * Ignore signals that we can get as a result of killing
+	 * parents, group leaders, etc.
+	 */
+	(void)signal(SIGHUP,  SIG_IGN);
+	(void)signal(SIGINT,  SIG_IGN);
+	(void)signal(SIGQUIT, SIG_IGN);
+	(void)signal(SIGTERM, SIG_IGN);
+	(void)signal(SIGTSTP, SIG_IGN);
+
+	/*
+	 * If we're running in a pipeline, we don't want to die
+	 * after killing whatever we're writing to.
+	 */
+	(void)signal(SIGPIPE, SIG_IGN);
 
 	/* Just stop init -- if we fail, we'll restart it. */
 	if (kill(1, SIGTSTP) == -1)
