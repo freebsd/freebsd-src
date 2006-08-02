@@ -43,6 +43,7 @@
 .Op Fl 46Ais
 .Op Fl f Ar file
 .Op Fl h Ar host
+.Op Fl P Ar port
 .Op Fl p Ar pri
 .Op Fl t Ar tag
 .Op Ar message ...
@@ -82,6 +83,16 @@ Log the specified file.
 Send the message to the remote system
 .Ar host
 instead of logging it locally.
+.It Fl P Ar port
+Send the message to the specified
+.Ar port
+number on a remote system,
+which can be specified as a service name
+or as a decimal number.
+The default is ``syslog''.
+If an unknown service name is used,
+.Nm
+prints a warning and falls back to port 514.
 .It Fl p Ar pri
 Enter the message with the specified priority.
 The priority may be specified numerically or as a ``facility.level''
