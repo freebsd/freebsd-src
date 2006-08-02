@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 1, 2006
+.Dd July 29, 2006
 .Dt ACPI 4
 .Os
 .Sh NAME
@@ -56,13 +56,13 @@ compiled into the kernel on platforms where ACPI is mandatory.
 The
 .Nm
 driver is intended to provide power management without user intervention.
-Thus, some of these sysctls are controlled automatically by the
-.Pa power_profile
-.Xr rc 8
-script, which can be configured via
-.Xr rc.conf 5 .
-If values are specified manually, they may be overridden.
+If the default settings are not optimal, the following sysctls can be
+used to modify or monitor
+.Nm
+behavior.
 .Bl -tag -width indent
+.It Va hw.acpi.acline
+AC line state (1 means online, 0 means on battery power).
 .It Va hw.acpi.cpu.cx_usage
 Debugging information listing the percent of total usage for each sleep state.
 The values are reset when
@@ -86,6 +86,66 @@ States greater than C3 provide even more power savings with the same
 semantics as the C3 state.
 Deeper sleeps provide more power savings but increased transition
 latency when an interrupt occurs.
+.It Va hw.acpi.disable_on_reboot
+Disable ACPI during the reboot process.
+Most systems reboot fine with ACPI still enabled, but some require
+exiting to legacy mode first.
+Default is 0, leave ACPI enabled.
+.It Va hw.acpi.handle_reboot
+Use the ACPI Reset Register capability to reboot the system.
+Default is 0, use legacy reboot support.
+Some newer systems require use of this register, while some only work
+with legacy rebooting support.
+.It Va hw.acpi.lid_switch_state
+Suspend state (S1-S5) to enter when the lid switch (i.e., a notebook screen)
+is closed.
+Default is NONE (do nothing).
+.It Va hw.acpi.power_button_state
+Suspend state (S1-S5) to enter when the power button is pressed.
+Default is S5 (power-off nicely).
+.It Va hw.acpi.reset_video
+Reset the video adapter from real mode during the resume path.
+Some systems need this help, others have display problems if it is enabled.
+Default is 0 (disabled).
+.It Va hw.acpi.s4bios
+Indicate whether the system supports S4BIOS.
+This means that the BIOS can handle all the functions of suspending the
+system to disk.
+Otherwise, the OS is responsible for suspending to disk (S4OS).
+Most current systems do not support S4BIOS.
+.It Va hw.acpi.sleep_button_state
+Suspend state (S1-S5) to enter when the sleep button is pressed.
+This is usually a special function button on the keyboard.
+Default is S3 (suspend-to-RAM).
+.It Va hw.acpi.sleep_delay
+Wait this number of seconds between preparing the system to suspend and
+actually entering the suspend state.
+Default is 1 second.
+.It Va hw.acpi.supported_sleep_state
+Suspend states (S1-S5) supported by the BIOS.
+.Bl -tag -width indent
+.It Va S1
+Quick suspend to RAM.
+The CPU enters a lower power state but most peripherals are left running.
+.It Va S2
+Lower power state than S1, but with the same basic characteristics.
+Not supported by many systems.
+.It Va S3
+Suspend to RAM.
+Most devices are powered off and the system stops running except for
+memory refresh.
+.It Va S4
+Suspend to disk.
+All devices are powered off and the system stops running.
+When resuming, the system starts as if from a cold power on.
+Not yet supported by
+.Fx
+unless S4BIOS is available.
+.It Va S5
+System shuts down cleanly and powers off.
+.El
+.It Va hw.acpi.verbose
+Enable verbose printing from the various ACPI subsystems.
 .El
 .Sh LOADER TUNABLES
 Tunables can be set at the
@@ -131,9 +191,24 @@ such code.
 .It Va hw.acpi.verbose
 Turn on verbose debugging information about what ACPI is doing.
 .It Va hw.pci.link.%s.%d.irq
-Override the interrupt to use.
+Override the interrupt to use for this link and index.
+This capability should be used carefully, and only if a device is not
+working with
+.Nm
+enabled.
+.Qq %s
+is the name of the link (e.g., LNKA).
+.Qq %d
+is the resource index when the link supports multiple IRQs.
+Most PCI links only have one IRQ resource, so the below form should be used.
 .It Va hw.pci.link.%s.irq
 Override the interrupt to use.
+This capability should be used carefully, and only if a device is not
+working with
+.Nm
+enabled.
+.Qq %s
+is the name of the link (e.g., LNKA).
 .El
 .Sh DISABLING ACPI
 Since ACPI support on different platforms varies greatly, there are many
@@ -468,3 +543,10 @@ If the
 .Nm
 driver is loaded as a module when it is already linked as part of the
 kernel, odd things may happen.
+.Pp
+Many BIOS versions have serious bugs that may cause system instability,
+break suspend/resume, or prevent devices from operating properly due to
+IRQ routing problems.
+Upgrade your BIOS to the latest version available from the vendor before
+deciding it's a problem with
+.Nm .
