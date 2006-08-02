@@ -32,15 +32,27 @@
 .Nm powermac_nvram
 .Nd "non-volatile RAM"
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device powermac_nvram"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+powermac_nvram_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
 driver provides access to the Open Firmware configuration NVRAM
 available on the Apple PowerPC-based machines.
 .Sh SEE ALSO
-.Xr nvram 8 ,
-.Xr eeprom 8
+.Xr eeprom 8 ,
+.Xr nvram 8
 .Sh HISTORY
 The
 .Nm
@@ -52,7 +64,7 @@ The
 driver was written by
 .An Maxim Sobolev Aq sobomax@FreeBSD.org .
 .Sh BUGS
-Currently,
+Currently, the
 .Nm
-driver only supports systems equipped with AMD flash part and is only
+driver only supports systems equipped with an AMD flash part and is only
 tested on Apple G4-based Mac Mini machines.
