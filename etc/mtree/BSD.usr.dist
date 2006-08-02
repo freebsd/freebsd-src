@@ -655,8 +655,6 @@
             cat3
             ..
             cat4
-                alpha
-                ..
                 amd64
                 ..
                 i386
@@ -671,8 +669,6 @@
             cat7
             ..
             cat8
-                alpha
-                ..
                 amd64
                 ..
                 i386
@@ -692,8 +688,6 @@
                 cat3
                 ..
                 cat4
-                    alpha
-                    ..
                     amd64
                     ..
                     i386
@@ -708,8 +702,6 @@
                 cat7
                 ..
                 cat8
-                    alpha
-                    ..
                     amd64
                     ..
                     i386
@@ -768,8 +760,6 @@
             man3
             ..
             man4
-                alpha
-                ..
                 amd64
                 ..
                 i386
@@ -784,8 +774,6 @@
             man7
             ..
             man8
-                alpha
-                ..
                 amd64
                 ..
                 i386
