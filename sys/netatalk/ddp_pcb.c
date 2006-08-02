@@ -304,8 +304,6 @@ at_pcbdetach(struct socket *so, struct ddpcb *ddp)
     DDP_LOCK_ASSERT(ddp);
     KASSERT(so->so_pcb != NULL, ("at_pcbdetach: so_pcb == NULL"));
 
-    /* XXXRW: Why bother to disconnect it now? */
-    soisdisconnected(so);
     so->so_pcb = NULL;
 
     /* remove ddp from ddp_ports list */
