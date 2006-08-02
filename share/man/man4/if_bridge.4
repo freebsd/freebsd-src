@@ -79,6 +79,12 @@ The
 .Nm
 driver implements the IEEE 802.1D Spanning Tree protocol (STP).
 Spanning Tree is used to detect and remove loops in a network topology.
+The bridge can log STP port changes to
+.Xr syslog 3
+by enabling the
+.Va net.link.bridge.log_stp
+variable using
+.Xr sysctl 8 .
 .Pp
 All the bridged member interfaces need to be up in order to pass network traffic.
 These can be enabled using
