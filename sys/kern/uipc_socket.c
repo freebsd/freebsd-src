@@ -291,6 +291,7 @@ sodealloc(struct socket *so)
 
 	mtx_lock(&so_global_mtx);
 	so->so_gencnt = ++so_gencnt;
+	--numopensockets;	/* Could be below, but faster here. */
 	mtx_unlock(&so_global_mtx);
 	if (so->so_rcv.sb_hiwat)
 		(void)chgsbsize(so->so_cred->cr_uidinfo,
@@ -310,9 +311,6 @@ sodealloc(struct socket *so)
 	SOCKBUF_LOCK_DESTROY(&so->so_snd);
 	SOCKBUF_LOCK_DESTROY(&so->so_rcv);
 	uma_zfree(socket_zone, so);
-	mtx_lock(&so_global_mtx);
-	--numopensockets;
-	mtx_unlock(&so_global_mtx);
 }
 
 /*
