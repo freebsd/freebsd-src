@@ -8,6 +8,7 @@ PDF_ALL=${_ALL:C/Doxyfile/pdf/g}
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 S?=/usr/src/sys
+LOCALBASE?=/usr/local
 
 MFILES+=contrib/dev/ath/freebsd/ah_if.m
 MFILES+=dev/acpica/acpi_if.m
@@ -88,6 +89,7 @@ DOXYGEN_LINUX_PATH+=	${S}/${TARGET_ARCH}/linux32
 ${target}:	mfiles ${.OBJDIR}/${target}/${target}.tag
 
 ${.OBJDIR}/${target}/${target}.tag:
+	@mkdir -p ${.OBJDIR}/${target}
 	@cd ${.OBJDIR} && \
 		env DOXYGEN_INCLUDE_PATH=${.CURDIR} \
 		    DOXYGEN_SRC_PATH=${S}  \
@@ -96,6 +98,7 @@ ${.OBJDIR}/${target}/${target}.tag:
 		    DOXYGEN_TARGET_ARCH=${TARGET_ARCH} \
 		    DOXYGEN_LINUX_PATH=${DOXYGEN_LINUX_PATH} \
 		    NOTREVIEWED=${.CURDIR}/notreviewed.dox \
+		    PATH=${LOCALBASE}/bin:${PATH} \
 			doxygen ${.CURDIR}/Doxyfile-${target}
 	@echo "API docs for ${target} are now available in ${.OBJDIR}/${target}/." | /usr/bin/fmt
 
