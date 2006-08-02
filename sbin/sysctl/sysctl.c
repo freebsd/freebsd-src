@@ -583,7 +583,9 @@ show_var(int *oid, int nlen)
 				if (*(int *)p < 0)
 					printf("%d", *(int *)p);
 				else
-					printf("%d.%dC", (*(int *)p - 2732) / 10, (*(int *)p - 2732) % 10);
+					printf("%d.%dC",
+					    (*(int *)p - 2732) / 10,
+					    abs((*(int *)p - 2732) % 10));
 			} else
 				printf(hflag ? "%'d" : "%d", *(int *)p);
 			val = " ";
@@ -605,7 +607,9 @@ show_var(int *oid, int nlen)
 				if (*(long *)p < 0)
 					printf("%ld", *(long *)p);
 				else
-					printf("%ld.%ldC", (*(long *)p - 2732) / 10, (*(long *)p - 2732) % 10);
+					printf("%ld.%ldC",
+					    (*(long *)p - 2732) / 10,
+					    abs((*(long *)p - 2732) % 10));
 			} else
 				printf(hflag ? "%'ld" : "%ld", *(long *)p);
 			val = " ";
