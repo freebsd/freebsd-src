@@ -599,11 +599,6 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			error = unp_connect(so, nam, td);
 			if (error)
 				break;
-		} else {
-			if (unp->unp_conn == NULL) {
-				error = ENOTCONN;
-				break;
-			}
 		}
 		/*
 		 * Because connect() and send() are non-atomic in a sendto()
