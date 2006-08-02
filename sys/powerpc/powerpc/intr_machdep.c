@@ -234,10 +234,8 @@ inthand_add(const char *name, u_int irq, void (*handler)(void *), void *arg,
 	error = intr_event_add_handler(event, name, handler, arg,
 	    intr_priority(flags), flags, cookiep);
 
-	if ((flags & INTR_FAST) == 0 || error) {
+	if ((flags & INTR_FAST) == 0 || error)
 		intr_setup(irq, sched_ithd, ih, flags);
-		error = 0;
-	}
 
 	if (error)
 		return (error);
