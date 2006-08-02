@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/taskqueue.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -112,6 +113,7 @@ static void	bstp_make_forwarding(struct bstp_state *,
 static void	bstp_make_blocking(struct bstp_state *,
 		    struct bstp_port *);
 static void	bstp_set_port_state(struct bstp_port *, uint8_t);
+static void	bstp_state_change(void *, int);
 static void	bstp_update_forward_transitions(struct bstp_port *);
 #ifdef notused
 static void	bstp_set_bridge_priority(struct bstp_state *, uint64_t);
@@ -520,7 +522,6 @@ bstp_make_blocking(struct bstp_state *bs, struct bstp_port *bp)
 			}
 		}
 		bstp_set_port_state(bp, BSTP_IFSTATE_BLOCKING);
-		/* XXX bridge_rtdelete(bs, bp->bp_ifp, IFBF_FLUSHDYN); */
 		bstp_timer_stop(&bp->bp_forward_delay_timer);
 	}
 }
@@ -529,6 +530,25 @@ static void
 bstp_set_port_state(struct bstp_port *bp, uint8_t state)
 {
 	bp->bp_state = state;
+	struct bstp_state *bs = bp->bp_bs;
+
+	/* notify the parent bridge */
+	if (bs->bs_state_cb != NULL)
+		taskqueue_enqueue(taskqueue_swi, &bp->bp_statetask);
+}
+
+/*
+ * Notify the bridge that a port state has changed, we need to do this from a
+ * taskqueue to avoid a LOR.
+ */
+static void
+bstp_state_change(void *arg, int pending)
+{
+	struct bstp_port *bp = (struct bstp_port *)arg;
+	struct bstp_state *bs = bp->bp_bs;
+
+	if (bp->bp_active == 1)
+		(*bs->bs_state_cb)(bp->bp_ifp, bp->bp_state);
 }
 
 static void
@@ -910,7 +930,7 @@ static moduledata_t bstp_mod = {
 DECLARE_MODULE(bridgestp, bstp_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 void
-bstp_attach(struct bstp_state *bs)
+bstp_attach(struct bstp_state *bs, bstp_state_cb_t state_callback)
 {
 	BSTP_LOCK_INIT(bs);
 	callout_init_mtx(&bs->bs_bstpcallout, &bs->bs_mtx, 0);
@@ -921,6 +941,7 @@ bstp_attach(struct bstp_state *bs)
 	bs->bs_bridge_forward_delay = BSTP_DEFAULT_FORWARD_DELAY;
 	bs->bs_bridge_priority = BSTP_DEFAULT_BRIDGE_PRIORITY;
 	bs->bs_hold_time = BSTP_DEFAULT_HOLD_TIME;
+	bs->bs_state_cb = state_callback;
 
 	mtx_lock(&bstp_list_mtx);
 	LIST_INSERT_HEAD(&bstp_list, bs, bs_list);
@@ -1007,7 +1028,6 @@ bstp_disable_port(struct bstp_state *bs, struct bstp_port *bp)
 	bstp_timer_stop(&bp->bp_forward_delay_timer);
 	bstp_configuration_update(bs);
 	bstp_port_state_selection(bs);
-	/* XXX bridge_rtdelete(bs, bp->bp_ifp, IFBF_FLUSHDYN); */
 
 	if (bstp_root_bridge(bs) && (root == 0)) {
 		bs->bs_max_age = bs->bs_bridge_max_age;
@@ -1253,6 +1273,7 @@ bstp_add(struct bstp_state *bs, struct bstp_port *bp, struct ifnet *ifp)
 	bp->bp_path_cost = BSTP_DEFAULT_PATH_COST;
 
 	LIST_INSERT_HEAD(&bs->bs_bplist, bp, bp_next);
+	TASK_INIT(&bp->bp_statetask, 0, bstp_state_change, bp);
 	BSTP_UNLOCK(bs);
 	bstp_reinit(bs);
 
@@ -1275,4 +1296,14 @@ bstp_delete(struct bstp_port *bp)
 	bp->bp_active = 0;
 
 	bstp_reinit(bs);
+}
+
+/*
+ * The bstp_port structure is about to be freed by the parent bridge.
+ */
+void
+bstp_drain(struct bstp_port *bp)
+{
+	KASSERT(bp->bp_active == 0, ("port is still attached"));
+	taskqueue_drain(taskqueue_swi, &bp->bp_statetask);
 }
