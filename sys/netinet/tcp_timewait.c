@@ -693,12 +693,6 @@ tcp_discardcb(struct tcpcb *tp)
 	int isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
 #endif /* INET6 */
 
-	/*
-	 * XXXRW: This is all very well and good, but actually, we might be
-	 * discarding the tcpcb after the socket is gone, so we can't do
-	 * this:
-	KASSERT(so != NULL, ("tcp_discardcb: so == NULL"));
-	 */
 	INP_LOCK_ASSERT(inp);
 
 	/*
@@ -731,6 +725,9 @@ tcp_discardcb(struct tcpcb *tp)
 		 * are satisfied. This gives us better new start value
 		 * for the congestion avoidance for new connections.
 		 * ssthresh is only set if packet loss occured on a session.
+		 *
+		 * XXXRW: 'so' may be NULL here, and/or socket buffer may be
+		 * being torn down.  Ideally this code would not use 'so'.
 		 */
 		ssthresh = tp->snd_ssthresh;
 		if (ssthresh != 0 && ssthresh < so->so_snd.sb_hiwat / 2) {
@@ -778,12 +775,6 @@ tcp_discardcb(struct tcpcb *tp)
 	inp->inp_ppcb = NULL;
 	tp->t_inpcb = NULL;
 	uma_zfree(tcpcb_zone, tp);
-
-	/*
-	 * XXXRW: This seems a bit unclean.
-	 */
-	if (so != NULL)
-		soisdisconnected(so);
 }
 
 /*
@@ -1757,9 +1748,13 @@ tcp_twstart(struct tcpcb *tp)
 	 * First, discard tcpcb state, which includes stopping its timers and
 	 * freeing it.  tcp_discardcb() used to also release the inpcb, but
 	 * that work is now done in the caller.
+	 *
+	 * Note: soisdisconnected() call used to be made in tcp_discardcb(),
+	 * and might not be needed here any longer.
 	 */
 	tcp_discardcb(tp);
 	so = inp->inp_socket;
+	soisdisconnected(so);
 	SOCK_LOCK(so);
 	tw->tw_cred = crhold(so->so_cred);
 	tw->tw_so_options = so->so_options;
