@@ -133,7 +133,8 @@
 /*
  * D-Link gigabit ethernet device ID
  */
-#define DEVICEID_DLINK_DGE530T	0x4c00
+#define DEVICEID_DLINK_DGE530T_A1	0x4c00
+#define DEVICEID_DLINK_DGE530T_B1	0x4b01
 
 /*
  * GEnesis registers. The GEnesis chip has a 256-byte I/O window
