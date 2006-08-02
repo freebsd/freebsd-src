@@ -859,6 +859,9 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 
 	bridge_rtdelete(sc, ifs, IFBF_FLUSHALL);
 
+	BRIDGE_UNLOCK(sc);
+	bstp_drain(&bif->bif_stp);      /* prepare to free */
+	BRIDGE_LOCK(sc);
 	free(bif, M_DEVBUF);
 }
 
