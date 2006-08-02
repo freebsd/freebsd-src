@@ -193,7 +193,12 @@ static struct sk_type sk_devs[] = {
 	},
 	{
 		VENDORID_DLINK,
-		DEVICEID_DLINK_DGE530T,
+		DEVICEID_DLINK_DGE530T_A1,
+		"D-Link DGE-530T Gigabit Ethernet"
+	},
+	{
+		VENDORID_DLINK,
+		DEVICEID_DLINK_DGE530T_B1,
 		"D-Link DGE-530T Gigabit Ethernet"
 	},
 	{ 0, 0, NULL }
@@ -1803,7 +1808,8 @@ skc_attach(dev)
 	case DEVICEID_BELKIN_5005:
 	case DEVICEID_3COM_3C940:
 	case DEVICEID_LINKSYS_EG1032:
-	case DEVICEID_DLINK_DGE530T:
+	case DEVICEID_DLINK_DGE530T_A1:
+	case DEVICEID_DLINK_DGE530T_B1:
 		/* Stay with VPD PN. */
 		pname = sc->sk_vpd_prodname;
 		break;
