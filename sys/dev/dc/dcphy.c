@@ -131,7 +131,7 @@ dcphy_probe(device_t dev)
 
 	device_set_desc(dev, "Intel 21143 NWAY media interface");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
