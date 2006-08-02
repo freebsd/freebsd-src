@@ -110,6 +110,11 @@
 #define	BSTP_LINK_TIMER		(BSTP_TICK_VAL * 30)
 
 /*
+ *  * Driver callbacks for STP state changes
+ *   */
+typedef void (*bstp_state_cb_t)(struct ifnet *, int);
+
+/*
  * Because BPDU's do not make nicely aligned structures, two different
  * declarations are used: bstp_?bpdu (wire representation, packed) and
  * bstp_*_unit (internal, nicely aligned version).
@@ -202,6 +207,7 @@ struct bstp_port {
 	uint8_t			bp_change_detection_enabled;
 	uint8_t			bp_priority;
 	uint32_t		bp_forward_transitions;
+	struct task		bp_statetask;
 };
 
 /*
@@ -232,6 +238,7 @@ struct bstp_state {
 	struct bstp_timer	bs_link_timer;
 	struct timeval		bs_last_tc_time;
 	LIST_HEAD(, bstp_port)	bs_bplist;
+	bstp_state_cb_t		bs_state_cb;
 };
 
 #define BSTP_LOCK_INIT(_bs)	mtx_init(&(_bs)->bs_mtx, "bstp", \
@@ -245,13 +252,14 @@ extern const uint8_t bstp_etheraddr[];
 
 extern	void (*bstp_linkstate_p)(struct ifnet *ifp, int state);
 
-void	bstp_attach(struct bstp_state *);
+void	bstp_attach(struct bstp_state *, bstp_state_cb_t);
 void	bstp_detach(struct bstp_state *);
 void	bstp_init(struct bstp_state *);
 void	bstp_reinit(struct bstp_state *);
 void	bstp_stop(struct bstp_state *);
 int	bstp_add(struct bstp_state *, struct bstp_port *, struct ifnet *);
 void	bstp_delete(struct bstp_port *);
+void	bstp_drain(struct bstp_port *);
 void	bstp_linkstate(struct ifnet *, int);
 struct mbuf *bstp_input(struct bstp_port *, struct ifnet *, struct mbuf *);
 
