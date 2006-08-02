@@ -1267,6 +1267,8 @@ bstp_delete(struct bstp_port *bp)
 	KASSERT(bp->bp_active == 1, ("not a bstp member"));
 
 	BSTP_LOCK(bs);
+	if (bp->bp_state != BSTP_IFSTATE_DISABLED)
+		bstp_disable_port(bs, bp);
 	LIST_REMOVE(bp, bp_next);
 	BSTP_UNLOCK(bs);
 	bp->bp_bs = NULL;
