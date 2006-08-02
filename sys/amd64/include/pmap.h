@@ -81,6 +81,8 @@
 #define PGEX_P		0x01	/* Protection violation vs. not present */
 #define PGEX_W		0x02	/* during a Write cycle */
 #define PGEX_U		0x04	/* access from User mode (UPL) */
+#define PGEX_RSV	0x08	/* reserved PTE field is non-zero */
+#define PGEX_I		0x10	/* during an instruction fetch */
 
 /*
  * Pte related macros.  This is complicated by having to deal with
