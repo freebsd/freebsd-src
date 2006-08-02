@@ -11,10 +11,7 @@
 
 #include <sys/signal.h>
 #include <sys/acl.h>
-#include <sys/thr.h>
-#include <sys/umtx.h>
 #include <posix4/_semaphore.h>
-
 #include <sys/ucontext.h>
 
 struct proc;
