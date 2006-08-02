@@ -97,6 +97,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ctype.h>  /* string functions */
 #include <sys/kernel.h>
 #include <sys/random.h>
+#include <sys/syslog.h>
 #include <sys/sysctl.h>
 #include <vm/uma.h>
 #include <sys/module.h>
@@ -265,6 +266,7 @@ static int	bridge_rtnode_insert(struct bridge_softc *,
 		    struct bridge_rtnode *);
 static void	bridge_rtnode_destroy(struct bridge_softc *,
 		    struct bridge_rtnode *);
+static void	bridge_state_change(struct ifnet *, int);
 
 static struct bridge_iflist *bridge_lookup_member(struct bridge_softc *,
 		    const char *name);
@@ -319,12 +321,15 @@ static int pfil_onlyip = 1; /* only pass IP[46] packets when pfil is enabled */
 static int pfil_bridge = 1; /* run pfil hooks on the bridge interface */
 static int pfil_member = 1; /* run pfil hooks on the member interface */
 static int pfil_ipfw = 0;   /* layer2 filter with ipfw */
+static int log_stp   = 0;   /* log STP state changes */
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_onlyip, CTLFLAG_RW,
     &pfil_onlyip, 0, "Only pass IP packets when pfil is enabled");
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_bridge, CTLFLAG_RW,
     &pfil_bridge, 0, "Packet filter on the bridge interface");
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_member, CTLFLAG_RW,
     &pfil_member, 0, "Packet filter on the member interface");
+SYSCTL_INT(_net_link_bridge, OID_AUTO, log_stp, CTLFLAG_RW,
+    &log_stp, 0, "Log STP state changes");
 
 struct bridge_control {
 	int	(*bc_func)(struct bridge_softc *, void *);
@@ -566,7 +571,7 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		mtx_unlock(&bridge_list_mtx);
 	}
 
-	bstp_attach(&sc->sc_stp);
+	bstp_attach(&sc->sc_stp, bridge_state_change);
 	ether_ifattach(ifp, eaddr);
 	/* Now undo some of the damage... */
 	ifp->if_baudrate = 0;
@@ -860,7 +865,7 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 	bridge_rtdelete(sc, ifs, IFBF_FLUSHALL);
 
 	BRIDGE_UNLOCK(sc);
-	bstp_drain(&bif->bif_stp);      /* prepare to free */
+	bstp_drain(&bif->bif_stp);	/* prepare to free */
 	BRIDGE_LOCK(sc);
 	free(bif, M_DEVBUF);
 }
@@ -2712,6 +2717,37 @@ bridge_rtnode_destroy(struct bridge_softc *sc, struct bridge_rtnode *brt)
 	LIST_REMOVE(brt, brt_list);
 	sc->sc_brtcnt--;
 	uma_zfree(bridge_rtnode_zone, brt);
+}
+
+/*
+ * bridge_state_change:
+ *
+ *	Callback from the bridgestp code when a port changes states.
+ */
+static void
+bridge_state_change(struct ifnet *ifp, int state)
+{
+	struct bridge_softc *sc = ifp->if_bridge;
+	static const char *stpstates[] = {
+		"disabled",
+		"listening",
+		"learning",
+		"forwarding",
+		"blocking",
+	};
+
+	if (log_stp)
+		log(LOG_NOTICE, "%s: state changed to %s on %s\n",
+		    sc->sc_ifp->if_xname, stpstates[state], ifp->if_xname);
+
+	/* if the port is blocking then remove any routes to it */
+	switch (state) {
+		case BSTP_IFSTATE_DISABLED:
+		case BSTP_IFSTATE_BLOCKING:
+			BRIDGE_LOCK(sc);
+			bridge_rtdelete(sc, ifp, IFBF_FLUSHDYN);
+			BRIDGE_UNLOCK(sc);
+	}
 }
 
 /*
