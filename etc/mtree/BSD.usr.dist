@@ -20,6 +20,8 @@
         ..
         engines
         ..
+	dtrace
+	..
     ..
     libdata
         gcc
