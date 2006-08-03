@@ -926,12 +926,13 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 			evl->evl_encap_proto = evl->evl_proto;
 			break;
 		default:
-			tag = (uint16_t) -1;
 #ifdef INVARIANTS
-			panic("%s: unsupported if_type (%u)",
-			      __func__, ifp->if_type);
+			panic("%s: %s has unsupported if_type %u",
+			      __func__, ifp->if_xname, ifp->if_type);
 #endif
-			break;
+			m_freem(m);
+			ifp->if_noproto++;
+			return;
 		}
 	}
 
