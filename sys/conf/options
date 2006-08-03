@@ -93,6 +93,7 @@ GEOM_SUNLABEL	opt_geom.h
 GEOM_UZIP	opt_geom.h
 GEOM_VOL	opt_geom.h
 GEOM_ZERO	opt_geom.h
+KSE		opt_global.h
 KSTACK_MAX_PAGES
 KSTACK_PAGES
 KTRACE
@@ -598,6 +599,7 @@ FDC_DEBUG		opt_fdc.h
 PCFCLOCK_VERBOSE	opt_pcfclock.h
 PCFCLOCK_MAX_RETRIES	opt_pcfclock.h
 
+KDTRACE			opt_kdtrace.h
 KTR			opt_global.h
 KTR_ALQ			opt_ktr.h
 KTR_MASK		opt_ktr.h
