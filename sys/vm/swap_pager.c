@@ -1097,19 +1097,19 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	 * cleared on completion.  If an I/O error occurs, SWAPBLK_NONE
 	 * is set in the meta-data.
 	 */
-	vm_page_lock_queues();
+	VM_OBJECT_LOCK(object);
 	while ((mreq->flags & PG_SWAPINPROG) != 0) {
+		vm_page_lock_queues();
 		vm_page_flag_set(mreq, PG_WANTED | PG_REFERENCED);
+		vm_page_unlock_queues();
 		cnt.v_intrans++;
-		if (msleep(mreq, &vm_page_queue_mtx, PSWP, "swread", hz*20)) {
+		if (msleep(mreq, VM_OBJECT_MTX(object), PSWP, "swread", hz*20)) {
 			printf(
 "swap_pager: indefinite wait buffer: bufobj: %p, blkno: %jd, size: %ld\n",
 			    bp->b_bufobj, (intmax_t)bp->b_blkno, bp->b_bcount);
 		}
 	}
-	vm_page_unlock_queues();
 
-	VM_OBJECT_LOCK(object);
 	/*
 	 * mreq is left busied after completion, but all the other pages
 	 * are freed.  If we had an unrecoverable read error the page will
