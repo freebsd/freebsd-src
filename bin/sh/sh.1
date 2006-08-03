@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd July 26, 2006
+.Dd July 29, 2006
 .Dt SH 1
 .Os
 .Sh NAME
@@ -2237,8 +2237,23 @@ will return the argument.
 .Sh HISTORY
 A
 .Nm
-command appeared in
+command, the Thompson shell, appeared in
 .At v1 .
+It was superseded in
+.At v7
+by the Bourne shell, which inherited the name
+.Nm .
+.Pp
+This version of
+.Nm
+was rewritten in 1989 under the
+.Bx
+license after the Bourne shell from
+.At V.4 .
+.Sh AUTHORS
+This version of
+.Nm
+was originally written by Kenneth Almquist.
 .Sh BUGS
 The
 .Nm
