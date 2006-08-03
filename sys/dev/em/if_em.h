@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2001-2005, Intel Corporation
+Copyright (c) 2001-2006, Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -182,16 +182,25 @@ POSSIBILITY OF SUCH DAMAGE.
                                          ADVERTISE_1000_FULL)
 
 #define EM_VENDOR_ID                    0x8086
+#define EM_FLASH			0x0014	/* Flash memory on ICH8 */
 
 #define EM_JUMBO_PBA                    0x00000028
 #define EM_DEFAULT_PBA                  0x00000030
 #define EM_SMARTSPEED_DOWNSHIFT         3
 #define EM_SMARTSPEED_MAX               15
 
-
 #define MAX_NUM_MULTICAST_ADDRESSES     128
 #define PCI_ANY_ID                      (~0U)
 #define ETHER_ALIGN                     2
+
+/*
+ * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
+ * multiple of 128 bytes. So we align TDBA/RDBA on 128 byte boundary. This will
+ * also optimize cache line size effect. H/W supports up to cache line size 128.
+ */
+#define EM_DBA_ALIGN			128
+
+#define SPEED_MODE_BIT (1<<21)		/* On PCI-E MACs only */
 
 /* Defines for printing debug information */
 #define DEBUG_INIT  0
@@ -252,6 +261,7 @@ struct em_softc {
 	struct em_osdep osdep;
 	struct device	*dev;
 	struct resource *res_memory;
+	struct resource *flash_mem;
 	struct resource	*res_ioport;
 	struct resource	*res_interrupt;
 	void		*int_handler_tag;
