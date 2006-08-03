@@ -235,9 +235,10 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 
 	rv = NULL;
 
-	DPRINTF(("rman_reserve_resource: <%s> request: [%#lx, %#lx], length "
-	       "%#lx, flags %u, device %s\n", rm->rm_descr, start, end, count,
-	       flags, dev == NULL ? "<null>" : device_get_nameunit(dev)));
+	DPRINTF(("rman_reserve_resource_bound: <%s> request: [%#lx, %#lx], "
+	       "length %#lx, flags %u, device %s\n", rm->rm_descr, start, end,
+	       count, flags,
+	       dev == NULL ? "<null>" : device_get_nameunit(dev)));
 	want_activate = (flags & RF_ACTIVE);
 	flags &= ~RF_ACTIVE;
 
