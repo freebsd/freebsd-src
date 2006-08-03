@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2001-2005, Intel Corporation
+Copyright (c) 2001-2006, Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,7 @@ int	em_display_debug_stats = 0;
  *  Driver version
  *********************************************************************/
 
-char em_driver_version[] = "Version - 5.1.5";
+char em_driver_version[] = "Version - 6.0.5";
 
 
 /*********************************************************************
@@ -159,10 +159,17 @@ static em_vendor_info_t em_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_82573E,		PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82573E_IAMT,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82573L,		PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_80003ES2LAN_COPPER_SPT,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_80003ES2LAN_SERDES_SPT,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_80003ES2LAN_COPPER_DPT,
 						PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_80003ES2LAN_SERDES_DPT,
 						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_ICH8_IGP_AMT,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_ICH8_IGP_C,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_ICH8_IFE,	PCI_ANY_ID, PCI_ANY_ID, 0},
 
 	/* required last entry */
 	{ 0, 0, 0, 0, 0}
@@ -302,6 +309,7 @@ static int em_tx_abs_int_delay_dflt = E1000_TICKS_TO_USECS(EM_TADV);
 static int em_rx_abs_int_delay_dflt = E1000_TICKS_TO_USECS(EM_RADV);
 static int em_rxd = EM_DEFAULT_RXD;
 static int em_txd = EM_DEFAULT_TXD;
+static int em_smart_pwr_down = FALSE;
 
 TUNABLE_INT("hw.em.tx_int_delay", &em_tx_int_delay_dflt);
 TUNABLE_INT("hw.em.rx_int_delay", &em_rx_int_delay_dflt);
@@ -309,6 +317,7 @@ TUNABLE_INT("hw.em.tx_abs_int_delay", &em_tx_abs_int_delay_dflt);
 TUNABLE_INT("hw.em.rx_abs_int_delay", &em_rx_abs_int_delay_dflt);
 TUNABLE_INT("hw.em.rxd", &em_rxd);
 TUNABLE_INT("hw.em.txd", &em_txd);
+TUNABLE_INT("hw.em.smart_pwr_down", &em_smart_pwr_down);
 #ifndef DEVICE_POLLING
 static int em_rx_process_limit = 100;
 TUNABLE_INT("hw.em.rx_process_limit", &em_rx_process_limit);
@@ -435,9 +444,9 @@ em_attach(device_t dev)
 	/*
 	 * Validate number of transmit and receive descriptors. It
 	 * must not exceed hardware maximum, and must be multiple
-	 * of E1000_DBA_ALIGN.
+	 * of EM_DBA_ALIGN.
 	 */
-	if (((em_txd * sizeof(struct em_tx_desc)) % E1000_DBA_ALIGN) != 0 ||
+	if (((em_txd * sizeof(struct em_tx_desc)) % EM_DBA_ALIGN) != 0 ||
 	    (sc->hw.mac_type >= em_82544 && em_txd > EM_MAX_TXD) ||
 	    (sc->hw.mac_type < em_82544 && em_txd > EM_MAX_TXD_82543) ||
 	    (em_txd < EM_MIN_TXD)) {
@@ -446,7 +455,7 @@ em_attach(device_t dev)
 		sc->num_tx_desc = EM_DEFAULT_TXD;
 	} else
 		sc->num_tx_desc = em_txd;
-	if (((em_rxd * sizeof(struct em_rx_desc)) % E1000_DBA_ALIGN) != 0 ||
+	if (((em_rxd * sizeof(struct em_rx_desc)) % EM_DBA_ALIGN) != 0 ||
 	    (sc->hw.mac_type >= em_82544 && em_rxd > EM_MAX_RXD) ||
 	    (sc->hw.mac_type < em_82544 && em_rxd > EM_MAX_RXD_82543) ||
 	    (em_rxd < EM_MIN_RXD)) {
@@ -493,7 +502,7 @@ em_attach(device_t dev)
 	em_init_eeprom_params(&sc->hw);
 
 	tsize = roundup2(sc->num_tx_desc * sizeof(struct em_tx_desc),
-	    E1000_DBA_ALIGN);
+	    EM_DBA_ALIGN);
 
 	/* Allocate Transmit Descriptor ring */
 	if (em_dma_malloc(sc, tsize, &sc->txdma, BUS_DMA_NOWAIT)) {
@@ -504,7 +513,7 @@ em_attach(device_t dev)
 	sc->tx_desc_base = (struct em_tx_desc *)sc->txdma.dma_vaddr;
 
 	rsize = roundup2(sc->num_rx_desc * sizeof(struct em_rx_desc),
-	    E1000_DBA_ALIGN);
+	    EM_DBA_ALIGN);
 
 	/* Allocate Receive Descriptor ring */
 	if (em_dma_malloc(sc, rsize, &sc->rxdma, BUS_DMA_NOWAIT)) {
@@ -802,6 +811,10 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		case em_80003es2lan:	/* Limit Jumbo Frame size */
 			max_frame_size = 9234;
 			break;
+		case em_ich8lan:
+			/* ICH8 does not support jumbo frames */
+			max_frame_size = ETHER_MAX_LEN;
+			break;
 		default:
 			max_frame_size = MAX_JUMBO_FRAME_SIZE;
 		}
@@ -969,6 +982,12 @@ em_init_locked(struct em_softc *sc)
 	 * Packet Buffer Allocation (PBA)
 	 * Writing PBA sets the receive portion of the buffer
 	 * the remainder is used for the transmit buffer.
+	 *
+	 * Devices before the 82547 had a Packet Buffer of 64K.
+	 *   Default allocation: PBA=48K for Rx, leaving 16K for Tx.
+	 * After the 82547 the buffer was reduced to 40K.
+	 *   Default allocation: PBA=30K for Rx, leaving 10K for Tx.
+	 *   Note: default does not leave enough room for Jumbo Frame >10k.
 	 */
 	switch (sc->hw.mac_type) {
 	case em_82547:
@@ -989,6 +1008,9 @@ em_init_locked(struct em_softc *sc)
 	case em_82573: /* 82573: Total Packet Buffer is 32K */
 		/* Jumbo frames not supported */
 			pba = E1000_PBA_12K; /* 12K for Rx, 20K for Tx */
+		break;
+	case em_ich8lan:
+		pba = E1000_PBA_8K;
 		break;
 	default:
 		/* Devices before 82547 had a Packet Buffer of 64K.   */
@@ -1838,6 +1860,16 @@ em_update_link_status(struct em_softc *sc)
 		if (sc->link_active == 0) {
 			em_get_speed_and_duplex(&sc->hw, &sc->link_speed,
 			    &sc->link_duplex);
+			/* Check if we may set SPEED_MODE bit on PCI-E */
+			if ((sc->link_speed == SPEED_1000) &&
+			    ((sc->hw.mac_type == em_82571) ||
+			    (sc->hw.mac_type == em_82572))) {
+				int tarc0;
+
+				tarc0 = E1000_READ_REG(&sc->hw, TARC0);
+				tarc0 |= SPEED_MODE_BIT;
+				E1000_WRITE_REG(&sc->hw, TARC0, tarc0);
+			}
 			if (bootverbose)
 				device_printf(dev, "Link is up %d Mbps %s\n",
 				    sc->link_speed,
@@ -1974,6 +2006,17 @@ em_allocate_pci_resources(struct em_softc *sc)
 		    rman_get_bushandle(sc->res_ioport);
 	}
 
+	/* For ICH8 we need to find the flash memory. */
+	if (sc->hw.mac_type == em_ich8lan) {
+		rid = EM_FLASH;
+
+		sc->flash_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		    &rid, RF_ACTIVE);
+		sc->osdep.flash_bus_space_tag = rman_get_bustag(sc->flash_mem);
+		sc->osdep.flash_bus_space_handle =
+		    rman_get_bushandle(sc->flash_mem);
+	}
+
 	rid = 0x0;
 	sc->res_interrupt = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
@@ -2059,6 +2102,10 @@ em_free_pci_resources(struct em_softc *sc)
 		bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(0),
 		    sc->res_memory);
 
+	if (sc->flash_mem != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY, EM_FLASH,
+		    sc->flash_mem);
+
 	if (sc->res_ioport != NULL)
 		bus_release_resource(dev, SYS_RES_IOPORT, sc->io_rid,
 		    sc->res_ioport);
@@ -2095,6 +2142,17 @@ em_hardware_init(struct em_softc *sc)
 		device_printf(dev, "EEPROM read error while reading part "
 		    "number\n");
 		return (EIO);
+	}
+
+	/* Set up smart power down as default off on newer adapters. */
+	if (!em_smart_pwr_down &&
+	    (sc->hw.mac_type == em_82571 || sc->hw.mac_type == em_82572)) {
+		uint16_t phy_tmp = 0;
+
+		/* Speed up time to link by disabling smart power down. */
+		em_read_phy_reg(&sc->hw, IGP02E1000_PHY_POWER_MGMT, &phy_tmp);
+		phy_tmp &= ~IGP02E1000_PM_SPD;
+		em_write_phy_reg(&sc->hw, IGP02E1000_PHY_POWER_MGMT, phy_tmp);
 	}
 
 	/*
@@ -2284,7 +2342,7 @@ em_dma_malloc(struct em_softc *sc, bus_size_t size, struct em_dma_alloc *dma,
 	int error;
 
 	error = bus_dma_tag_create(NULL,		/* parent */
-				E1000_DBA_ALIGN, 0,	/* alignment, bounds */
+				EM_DBA_ALIGN, 0,	/* alignment, bounds */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
@@ -2443,21 +2501,21 @@ fail:
 static void
 em_initialize_transmit_unit(struct em_softc *sc)
 {
-	uint32_t	reg_tctl, tarc;
+	uint32_t	reg_tctl, reg_tarc;
 	uint32_t	reg_tipg = 0;
 	uint64_t	bus_addr;
 
 	 INIT_DEBUGOUT("em_initialize_transmit_unit: begin");
 	/* Setup the Base and Length of the Tx Descriptor Ring */
 	bus_addr = sc->txdma.dma_paddr;
-	E1000_WRITE_REG(&sc->hw, TDBAL, (uint32_t)bus_addr);
-	E1000_WRITE_REG(&sc->hw, TDBAH, (uint32_t)(bus_addr >> 32));
 	E1000_WRITE_REG(&sc->hw, TDLEN,
 	    sc->num_tx_desc * sizeof(struct em_tx_desc));
+	E1000_WRITE_REG(&sc->hw, TDBAH, (uint32_t)(bus_addr >> 32));
+	E1000_WRITE_REG(&sc->hw, TDBAL, (uint32_t)bus_addr);
 
 	/* Setup the HW Tx Head and Tail descriptor pointers */
-	E1000_WRITE_REG(&sc->hw, TDH, 0);
 	E1000_WRITE_REG(&sc->hw, TDT, 0);
+	E1000_WRITE_REG(&sc->hw, TDH, 0);
 
 
 	HW_DEBUGOUT2("Base = %x, Length = %x\n", E1000_READ_REG(&sc->hw, TDBAL),
@@ -2490,6 +2548,26 @@ em_initialize_transmit_unit(struct em_softc *sc)
 	if(sc->hw.mac_type >= em_82540)
 		E1000_WRITE_REG(&sc->hw, TADV, sc->tx_abs_int_delay.value);
 
+	/* Do adapter specific tweaks before we enable the transmitter. */
+	if (sc->hw.mac_type == em_82571 || sc->hw.mac_type == em_82572) {
+		reg_tarc = E1000_READ_REG(&sc->hw, TARC0);
+		reg_tarc |= (1 << 25);
+		E1000_WRITE_REG(&sc->hw, TARC0, reg_tarc);
+		reg_tarc = E1000_READ_REG(&sc->hw, TARC1);
+		reg_tarc |= (1 << 25);
+		reg_tarc &= ~(1 << 28);
+		E1000_WRITE_REG(&sc->hw, TARC1, reg_tarc);
+	} else if (sc->hw.mac_type == em_80003es2lan) {
+		reg_tarc = E1000_READ_REG(&sc->hw, TARC0);
+		reg_tarc |= 1;
+		if (sc->hw.media_type == em_media_type_internal_serdes)
+		    reg_tarc |= (1 << 20);
+		E1000_WRITE_REG(&sc->hw, TARC0, reg_tarc);
+		reg_tarc = E1000_READ_REG(&sc->hw, TARC1);
+		reg_tarc |= 1;
+		E1000_WRITE_REG(&sc->hw, TARC1, reg_tarc);
+	}
+
 	/* Program the Transmit Control Register */
 	reg_tctl = E1000_TCTL_PSP | E1000_TCTL_EN |
 		   (E1000_COLLISION_THRESHOLD << E1000_CT_SHIFT);
@@ -2500,29 +2578,8 @@ em_initialize_transmit_unit(struct em_softc *sc)
 	} else {
 		reg_tctl |= E1000_HDX_COLLISION_DISTANCE << E1000_COLD_SHIFT;
 	}
+	/* This write will effectively turn on the transmit unit. */
 	E1000_WRITE_REG(&sc->hw, TCTL, reg_tctl);
-
-	if (sc->hw.mac_type == em_82571 || sc->hw.mac_type == em_82572) {
-		tarc = E1000_READ_REG(&sc->hw, TARC0);
-		tarc |= ((1 << 25) | (1 << 21));
-		E1000_WRITE_REG(&sc->hw, TARC0, tarc);
-		tarc = E1000_READ_REG(&sc->hw, TARC1);
-		tarc |= (1 << 25);
-		if (reg_tctl & E1000_TCTL_MULR)
-			tarc &= ~(1 << 28);
-		else
-			tarc |= (1 << 28);
-		E1000_WRITE_REG(&sc->hw, TARC1, tarc);
-	} else if (sc->hw.mac_type == em_80003es2lan) {
-		tarc = E1000_READ_REG(&sc->hw, TARC0);
-		tarc |= 1;
-		if (sc->hw.media_type == em_media_type_internal_serdes)
-			tarc |= (1 << 20);
-		E1000_WRITE_REG(&sc->hw, TARC0, tarc);
-		tarc = E1000_READ_REG(&sc->hw, TARC1);
-		tarc |= 1;
-		E1000_WRITE_REG(&sc->hw, TARC1, tarc);
-	}
 
 	/* Setup Transmit Descriptor Settings for this adapter */
 	sc->txd_cmd = E1000_TXD_CMD_IFCS | E1000_TXD_CMD_RS;
@@ -2903,14 +2960,14 @@ em_initialize_receive_unit(struct em_softc *sc)
 
 	/* Setup the Base and Length of the Rx Descriptor Ring */
 	bus_addr = sc->rxdma.dma_paddr;
-	E1000_WRITE_REG(&sc->hw, RDBAL, (uint32_t)bus_addr);
-	E1000_WRITE_REG(&sc->hw, RDBAH, (uint32_t)(bus_addr >> 32));
 	E1000_WRITE_REG(&sc->hw, RDLEN, sc->num_rx_desc *
 			sizeof(struct em_rx_desc));
+	E1000_WRITE_REG(&sc->hw, RDBAH, (uint32_t)(bus_addr >> 32));
+	E1000_WRITE_REG(&sc->hw, RDBAL, (uint32_t)bus_addr);
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers */
-	E1000_WRITE_REG(&sc->hw, RDH, 0);
 	E1000_WRITE_REG(&sc->hw, RDT, sc->num_rx_desc - 1);
+	E1000_WRITE_REG(&sc->hw, RDH, 0);
 
 	/* Setup the Receive Control Register */
 	reg_rctl = E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_LBM_NO |
@@ -3486,8 +3543,8 @@ em_update_stats_counters(struct em_softc *sc)
 
 	/* Rx Errors */
 	ifp->if_ierrors = sc->dropped_pkts + sc->stats.rxerrc +
-	    sc->stats.crcerrs + sc->stats.algnerrc + sc->stats.rlec +
-	    sc->stats.mpc + sc->stats.cexterr;
+	    sc->stats.crcerrs + sc->stats.algnerrc + sc->stats.ruc +
+	    sc->stats.roc + sc->stats.mpc + sc->stats.cexterr;
 
 	/* Tx Errors */
 	ifp->if_oerrors = sc->stats.ecol + sc->stats.latecol +
@@ -3560,8 +3617,9 @@ em_print_hw_stats(struct em_softc *sc)
 	device_printf(dev, "Missed Packets = %lld\n", (long long)sc->stats.mpc);
 	device_printf(dev, "Receive No Buffers = %lld\n",
 	    (long long)sc->stats.rnbc);
-	device_printf(dev, "Receive length errors = %lld\n",
-	    (long long)sc->stats.rlec);
+	/* RLEC is inaccurate on some hardware, calculate our own. */
+	device_printf(dev, "Receive Length Errors = %lld\n",
+	    ((long long)sc->stats.roc + (long long)sc->stats.ruc));
 	device_printf(dev, "Receive errors = %lld\n",
 	    (long long)sc->stats.rxerrc);
 	device_printf(dev, "Crc errors = %lld\n", (long long)sc->stats.crcerrs);
