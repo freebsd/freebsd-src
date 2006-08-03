@@ -195,6 +195,10 @@ int sched_setscheduler(struct thread *td,
 	struct thread *targettd;
 	struct proc *targetp;
 
+	/* Don't allow non root user to set a scheduler policy */
+	if (suser(td) != 0)
+		return (EPERM);
+
 	e = copyin(uap->param, &sched_param, sizeof(sched_param));
 	if (e)
 		return (e);
