@@ -134,7 +134,7 @@ retry:
 			*pr->cchar = 'C';
 			assert(strcmp(pr->fmt, "%3C") == 0);
 			width = wcwidth(wc);
-			assert(width > 0);
+			assert(width >= 0);
 			pad = 3 - width;
 			if (pad < 0)
 				pad = 0;
