@@ -146,7 +146,7 @@ POSSIBILITY OF SUCH DAMAGE.
  * This parameter controls when the driver calls the routine to reclaim
  * transmit descriptors.
  */
-#define EM_TX_CLEANUP_THRESHOLD		(sc->num_tx_desc / 8)
+#define EM_TX_CLEANUP_THRESHOLD		(adapter->num_tx_desc / 8)
 
 /*
  * This parameter controls whether or not autonegotation is enabled.
@@ -232,9 +232,9 @@ typedef enum _XSUM_CONTEXT_T {
 	OFFLOAD_UDP_IP
 } XSUM_CONTEXT_T;
 
-struct em_softc sc;		/* XXX: ugly forward declaration */
+struct adapter adapter;		/* XXX: ugly forward declaration */
 struct em_int_delay_info {
-	struct em_softc *sc;	/* XXX: ugly pointer */
+	struct adapter *adapter;	/* XXX: ugly pointer */
 	int offset;		/* Register offset to read/write */
 	int value;		/* Current value in usecs */
 };
@@ -253,7 +253,7 @@ struct em_dma_alloc {
 };
 
 /* Driver softc. */
-struct em_softc {
+struct adapter {
 	struct ifnet	*ifp;
 	struct em_hw	hw;
 
