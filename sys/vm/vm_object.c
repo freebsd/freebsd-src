@@ -1154,10 +1154,10 @@ shadowlookup:
 		}
 		if ((m->flags & PG_BUSY) || m->busy) {
 			vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
+			vm_page_unlock_queues();
 			if (object != tobject)
 				VM_OBJECT_UNLOCK(object);
-			VM_OBJECT_UNLOCK(tobject);
-			msleep(m, &vm_page_queue_mtx, PDROP | PVM, "madvpo", 0);
+			msleep(m, VM_OBJECT_MTX(tobject), PDROP | PVM, "madvpo", 0);
 			VM_OBJECT_LOCK(object);
   			goto relookup;
 		}
@@ -1342,9 +1342,9 @@ vm_object_split(vm_map_entry_t entry)
 		 */
 		if ((m->flags & PG_BUSY) || m->busy) {
 			vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
-			VM_OBJECT_UNLOCK(orig_object);
+			vm_page_unlock_queues();
 			VM_OBJECT_UNLOCK(new_object);
-			msleep(m, &vm_page_queue_mtx, PDROP | PVM, "spltwt", 0);
+			msleep(m, VM_OBJECT_MTX(orig_object), PDROP | PVM, "spltwt", 0);
 			VM_OBJECT_LOCK(new_object);
 			VM_OBJECT_LOCK(orig_object);
 			vm_page_lock_queues();
@@ -1478,9 +1478,9 @@ vm_object_backing_scan(vm_object_t object, int op)
 					vm_page_lock_queues();
 					vm_page_flag_set(p,
 					    PG_WANTED | PG_REFERENCED);
-					VM_OBJECT_UNLOCK(backing_object);
+					vm_page_unlock_queues();
 					VM_OBJECT_UNLOCK(object);
-					msleep(p, &vm_page_queue_mtx,
+					msleep(p, VM_OBJECT_MTX(backing_object),
 					    PDROP | PVM, "vmocol", 0);
 					VM_OBJECT_LOCK(object);
 					VM_OBJECT_LOCK(backing_object);

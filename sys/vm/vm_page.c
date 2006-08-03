@@ -495,12 +495,13 @@ vm_page_free_zero(vm_page_t m)
 int
 vm_page_sleep_if_busy(vm_page_t m, int also_m_busy, const char *msg)
 {
-	vm_object_t object;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->flags & PG_BUSY) || (also_m_busy && m->busy)) {
 		vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
+		vm_page_unlock_queues();
+
 		/*
 		 * It's possible that while we sleep, the page will get
 		 * unbusied and freed.  If we are holding the object
@@ -508,10 +509,7 @@ vm_page_sleep_if_busy(vm_page_t m, int also_m_busy, const char *msg)
 		 * such that even if m->object changes, we can re-lock
 		 * it.
 		 */
-		object = m->object;
-		VM_OBJECT_UNLOCK(object);
-		msleep(m, &vm_page_queue_mtx, PDROP | PVM, msg, 0);
-		VM_OBJECT_LOCK(object);
+		msleep(m, VM_OBJECT_MTX(m->object), PVM, msg, 0);
 		return (TRUE);
 	}
 	return (FALSE);
@@ -1482,9 +1480,8 @@ retrylookup:
 		vm_page_lock_queues();
 		if (m->busy || (m->flags & PG_BUSY)) {
 			vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
-			VM_OBJECT_UNLOCK(object);
-			msleep(m, &vm_page_queue_mtx, PDROP | PVM, "pgrbwt", 0);
-			VM_OBJECT_LOCK(object);
+			vm_page_unlock_queues();
+			msleep(m, VM_OBJECT_MTX(m->object), PVM, "pgrbwt", 0);
 			if ((allocflags & VM_ALLOC_RETRY) == 0)
 				return (NULL);
 			goto retrylookup;
