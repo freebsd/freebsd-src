@@ -35,15 +35,31 @@
 #include <bsm/audit.h>
 
 struct proc;
+struct sysent;
 struct thread;
 struct ksiginfo;
 
 typedef	int	sy_call_t(struct thread *, void *);
 
+/* Used by the machine dependent syscall() code. */
+typedef	void (*systrace_probe_func_t)(u_int32_t, int, struct sysent *, void *);
+
+/*
+ * Used by loaded syscalls to convert arguments to a DTrace array
+ * of 64-bit arguments.
+ */
+typedef	void (*systrace_args_func_t)(void *, u_int64_t *, int *);
+
+extern systrace_probe_func_t	systrace_probe_func;
+
 struct sysent {		/* system call table */
 	int	sy_narg;	/* number of arguments */
 	sy_call_t *sy_call;	/* implementing function */
 	au_event_t sy_auevent;	/* audit event associated with syscall */
+	systrace_args_func_t sy_systrace_args_func;
+				/* optional argument conversion function. */
+	u_int32_t sy_entry;	/* DTrace entry ID for systrace. */ 
+	u_int32_t sy_return;	/* DTrace return ID for systrace. */ 
 };
 
 struct image_params;
