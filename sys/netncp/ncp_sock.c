@@ -185,10 +185,28 @@ ncp_sock_send(struct socket *so, struct mbuf *top, struct ncp_rq *rqp)
 int
 ncp_poll(struct socket *so, int events)
 {
-    struct thread *td = curthread;
-    struct ucred *cred = NULL;
+	struct thread *td = curthread;
+	int revents;
 
-    return (sopoll(so, events, cred, td));
+	/* Fake up enough state to look like we are in poll(2). */
+	mtx_lock(&sellock);
+	mtx_lock_spin(&sched_lock);
+	td->td_flags |= TDF_SELECT;
+	mtx_unlock_spin(&sched_lock);
+	mtx_unlock(&sellock);
+	TAILQ_INIT(&td->td_selq);
+
+	revents = sopoll(so, events, NULL, td);
+
+	/* Tear down the fake poll(2) state. */
+	mtx_lock(&sellock);
+	clear_selinfo_list(td);
+	mtx_lock_spin(&sched_lock);
+	td->td_flags &= ~TDF_SELECT;
+	mtx_unlock_spin(&sched_lock);
+	mtx_unlock(&sellock);
+
+	return (revents);
 }
 
 int
@@ -196,7 +214,7 @@ ncp_sock_rselect(struct socket *so, struct thread *td, struct timeval *tv,
 		 int events)
 {
 	struct timeval atv, rtv, ttv;
-	int ncoll, timo, error = 0;
+	int ncoll, timo, error, revents;
 
 	if (tv) {
 		atv = *tv;
@@ -218,16 +236,18 @@ retry:
 	mtx_unlock(&sellock);
 
 	TAILQ_INIT(&td->td_selq);
-	error = ncp_poll(so, events);
+	revents = sopoll(so, events, NULL, td);
 	mtx_lock(&sellock);
-	if (error) {
+	if (revents) {
 		error = 0;
 		goto done;
 	}
 	if (tv) {
 		getmicrouptime(&rtv);
-		if (timevalcmp(&rtv, &atv, >=))
+		if (timevalcmp(&rtv, &atv, >=)) {
+			error = EWOULDBLOCK;
 			goto done;
+		}
 		ttv = atv;
 		timevalsub(&ttv, &rtv);
 		timo = tvtohz(&ttv);
