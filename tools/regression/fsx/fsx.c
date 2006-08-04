@@ -475,7 +475,7 @@ doread(unsigned offset, unsigned size)
 void
 check_eofpage(char *s, unsigned offset, char *p, int size)
 {
-	unsigned last_page, should_be_zero;
+	uintptr_t last_page, should_be_zero;
 
 	if (offset + size <= (file_size & ~page_mask))
 		return;
@@ -485,7 +485,7 @@ check_eofpage(char *s, unsigned offset, char *p, int size)
 	 * beyond the true end of the file mapping
 	 * (as required by mmap def in 1996 posix 1003.1)
 	 */
-	last_page = ((int)p + (offset & page_mask) + size) & ~page_mask;
+	last_page = ((uintptr_t)p + (offset & page_mask) + size) & ~page_mask;
 
 	for (should_be_zero = last_page + (file_size & page_mask);
 	     should_be_zero < last_page + page_size;
