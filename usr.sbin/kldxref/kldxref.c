@@ -260,7 +260,7 @@ maketempfile(char *dest, const char *root)
 	int fd;
 
 	strncpy(dest, root, MAXPATHLEN - 1);
-	dest[MAXPATHLEN] = '\0';
+	dest[MAXPATHLEN-1] = '\0';
 
 	if ((p = strrchr(dest, '/')) != 0)
 		p++;
