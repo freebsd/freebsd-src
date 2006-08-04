@@ -98,51 +98,69 @@ Default is 0, use legacy reboot support.
 Some newer systems require use of this register, while some only work
 with legacy rebooting support.
 .It Va hw.acpi.lid_switch_state
-Suspend state (S1-S5) to enter when the lid switch (i.e., a notebook screen)
-is closed.
+Suspend state
+.Pq Dv S1 Ns No \- Ns Dv S5
+to enter when the lid switch (i.e., a notebook screen) is closed.
 Default is NONE (do nothing).
 .It Va hw.acpi.power_button_state
-Suspend state (S1-S5) to enter when the power button is pressed.
-Default is S5 (power-off nicely).
+Suspend state
+.Pq Dv S1 Ns No \- Ns Dv S5
+to enter when the power button is pressed.
+Default is
+.Dv S5
+(power-off nicely).
 .It Va hw.acpi.reset_video
 Reset the video adapter from real mode during the resume path.
 Some systems need this help, others have display problems if it is enabled.
 Default is 0 (disabled).
 .It Va hw.acpi.s4bios
-Indicate whether the system supports S4BIOS.
+Indicate whether the system supports
+.Dv S4BIOS .
 This means that the BIOS can handle all the functions of suspending the
 system to disk.
-Otherwise, the OS is responsible for suspending to disk (S4OS).
-Most current systems do not support S4BIOS.
+Otherwise, the OS is responsible for suspending to disk
+.Pq Dv S4OS .
+Most current systems do not support
+.Dv S4BIOS .
 .It Va hw.acpi.sleep_button_state
-Suspend state (S1-S5) to enter when the sleep button is pressed.
+Suspend state
+.Pq Dv S1 Ns No \- Ns Dv S5
+to enter when the sleep button is pressed.
 This is usually a special function button on the keyboard.
-Default is S3 (suspend-to-RAM).
+Default is
+.Dv S3
+(suspend-to-RAM).
 .It Va hw.acpi.sleep_delay
 Wait this number of seconds between preparing the system to suspend and
 actually entering the suspend state.
 Default is 1 second.
 .It Va hw.acpi.supported_sleep_state
-Suspend states (S1-S5) supported by the BIOS.
+Suspend states
+.Pq Dv S1 Ns No \- Ns Dv S5
+supported by the BIOS.
 .Bl -tag -width indent
-.It Va S1
+.It Dv S1
 Quick suspend to RAM.
 The CPU enters a lower power state but most peripherals are left running.
-.It Va S2
-Lower power state than S1, but with the same basic characteristics.
+.It Dv S2
+Lower power state than
+.Dv S1 ,
+but with the same basic characteristics.
 Not supported by many systems.
-.It Va S3
+.It Dv S3
 Suspend to RAM.
 Most devices are powered off and the system stops running except for
 memory refresh.
-.It Va S4
+.It Dv S4
 Suspend to disk.
 All devices are powered off and the system stops running.
 When resuming, the system starts as if from a cold power on.
 Not yet supported by
 .Fx
-unless S4BIOS is available.
-.It Va S5
+unless
+.Dv S4BIOS
+is available.
+.It Dv S5
 System shuts down cleanly and powers off.
 .El
 .It Va hw.acpi.verbose
@@ -559,3 +577,15 @@ IRQ routing problems.
 Upgrade your BIOS to the latest version available from the vendor before
 deciding it's a problem with
 .Nm .
+.Pp
+The
+.Nm
+CPU idle power management drive conflicts with the local APIC (LAPIC)
+timer.
+Disable APIC mode with
+.Va hint.apic.0.disabled
+or don't use the
+.Dv C2
+and
+.Dv C3
+states if APIC mode is enabled.
