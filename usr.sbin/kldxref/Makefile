@@ -6,10 +6,6 @@ SRCS=	kldxref.c ef.c ef_obj.c
 
 WARNS?=	2
 
-.if ${MACHINE_ARCH} == powerpc
-NO_SHARED=YES
-.endif
-
 .if exists(ef_${MACHINE_ARCH}.c)
 SRCS+=	ef_${MACHINE_ARCH}.c
 .else
