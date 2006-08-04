@@ -226,6 +226,10 @@ isp_reset(ispsoftc_t *isp)
 		isp->isp_rqstoutrp = BIU_REQOUTP;
 		isp->isp_respinrp = BIU_RSPINP;
 		isp->isp_respoutrp = BIU_RSPOUTP;
+		ISP_WRITE(isp, isp->isp_rqstinrp, 0);
+        	ISP_WRITE(isp, isp->isp_rqstoutrp, 0);
+        	ISP_WRITE(isp, isp->isp_respinrp, 0);
+		ISP_WRITE(isp, isp->isp_respoutrp, 0);
 	} else {
 		isp->isp_rqstinrp = INMAILBOX4;
 		isp->isp_rqstoutrp = OUTMAILBOX4;
@@ -1437,13 +1441,6 @@ isp_fibre_init(ispsoftc_t *isp)
 	}
 	icbp->icb_logintime = ICB_LOGIN_TOV;
 	icbp->icb_lunetimeout = ICB_LUN_ENABLE_TOV;
-
-	if (IS_23XX(isp)) {
-		ISP_WRITE(isp, isp->isp_rqstinrp, 0);
-        	ISP_WRITE(isp, isp->isp_rqstoutrp, 0);
-        	ISP_WRITE(isp, isp->isp_respinrp, 0);
-		ISP_WRITE(isp, isp->isp_respoutrp, 0);
-	}
 
 	nwwn = ISP_NODEWWN(isp);
 	pwwn = ISP_PORTWWN(isp);
