@@ -60,8 +60,6 @@
 #include <netinet/icmp6.h>
 #include <netinet6/scope6_var.h>
 
-#include <net/net_osdep.h>
-
 #define SDL(s)	((struct sockaddr_dl *)s)
 
 static int rtpref __P((struct nd_defrouter *));

@@ -74,8 +74,6 @@
 #include <netkey/key.h>
 #include <netkey/keydb.h>
 
-#include <net/net_osdep.h>
-
 #ifdef INET
 static struct in_addr *ah4_finaldst __P((struct mbuf *));
 #endif

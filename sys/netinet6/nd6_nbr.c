@@ -68,8 +68,6 @@
 #include <netinet/ip_carp.h>
 #endif
 
-#include <net/net_osdep.h>
-
 #define SDL(s) ((struct sockaddr_dl *)s)
 
 struct dadq;

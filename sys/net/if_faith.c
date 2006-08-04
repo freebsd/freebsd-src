@@ -78,8 +78,6 @@
 #include <netinet6/ip6_var.h>
 #endif
 
-#include <net/net_osdep.h>
-
 #define FAITHNAME	"faith"
 
 struct faith_softc {

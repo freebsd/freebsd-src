@@ -93,8 +93,6 @@
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
 
-#include <net/net_osdep.h>
-
 static struct mtx addrsel_lock;
 #define	ADDRSEL_LOCK_INIT()	mtx_init(&addrsel_lock, "addrsel_lock", NULL, MTX_DEF)
 #define	ADDRSEL_LOCK()		mtx_lock(&addrsel_lock)

@@ -68,8 +68,6 @@
 #include <netinet/ip6.h>
 #include <netinet6/scope6_var.h>
 
-#include <net/net_osdep.h>
-
 /*
  * Checksum routine for Internet Protocol family headers (Portable Version).
  *

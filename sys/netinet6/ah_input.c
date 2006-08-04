@@ -90,8 +90,6 @@
 
 #include <machine/stdarg.h>
 
-#include <net/net_osdep.h>
-
 #define IPLEN_FLIPPED
 
 #ifdef INET
