@@ -370,7 +370,7 @@ histcmd(int argc, char **argv)
 				fputs(s, efp);
 		}
 		/*
-		 * At end?  (if we were to loose last, we'd sure be
+		 * At end?  (if we were to lose last, we'd sure be
 		 * messed up).
 		 */
 		if (he.num == last)
