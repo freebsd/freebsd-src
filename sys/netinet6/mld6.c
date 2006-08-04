@@ -89,8 +89,6 @@
 #include <netinet/icmp6.h>
 #include <netinet6/mld6_var.h>
 
-#include <net/net_osdep.h>
-
 /*
  * Protocol constants
  */

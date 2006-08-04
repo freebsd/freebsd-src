@@ -53,8 +53,6 @@
 #include <netinet/in_systm.h>	/* for ECN definitions */
 #include <netinet/ip.h>		/* for ECN definitions */
 
-#include <net/net_osdep.h>
-
 /*
  * Define it to get a correct behavior on per-interface statistics.
  * You will need to perform an extra routing table lookup, per fragment,

@@ -115,8 +115,6 @@
 
 #include <machine/stdarg.h>
 
-#include <net/net_osdep.h>
-
 #include <net/bpf.h>
 
 #define STFNAME		"stf"

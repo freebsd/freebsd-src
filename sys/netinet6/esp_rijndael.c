@@ -45,8 +45,6 @@
 
 #include <crypto/rijndael/rijndael.h>
 
-#include <net/net_osdep.h>
-
 size_t
 esp_rijndael_schedlen(algo)
 	const struct esp_algorithm *algo;

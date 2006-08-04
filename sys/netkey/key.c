@@ -109,8 +109,6 @@ __FBSDID("$FreeBSD$");
 /* randomness */
 #include <sys/random.h>
 
-#include <net/net_osdep.h>
-
 #ifndef satosin
 #define satosin(s) ((struct sockaddr_in *)s)
 #endif

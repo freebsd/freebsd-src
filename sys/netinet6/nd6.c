@@ -69,8 +69,6 @@
 
 #include <sys/limits.h>
 
-#include <net/net_osdep.h>
-
 #define ND6_SLOWTIMER_INTERVAL (60 * 60) /* 1 hour */
 #define ND6_RECALC_REACHTM_INTERVAL (60 * 120) /* 2 hours */
 

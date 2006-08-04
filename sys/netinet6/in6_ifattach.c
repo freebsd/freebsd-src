@@ -58,8 +58,6 @@
 #include <netinet6/nd6.h>
 #include <netinet6/scope6_var.h>
 
-#include <net/net_osdep.h>
-
 unsigned long in6_maxmtu = 0;
 
 #ifdef IP6_AUTO_LINKLOCAL

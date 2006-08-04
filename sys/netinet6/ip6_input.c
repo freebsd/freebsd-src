@@ -116,8 +116,6 @@
 
 #include <netinet6/ip6protosw.h>
 
-#include <net/net_osdep.h>
-
 extern struct domain inet6domain;
 
 u_char ip6_protox[IPPROTO_MAX];

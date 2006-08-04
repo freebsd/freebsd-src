@@ -91,8 +91,6 @@
 #include <opencrypto/rmd160.h>
 #define RIPEMD160_RESULTLEN	20
 
-#include <net/net_osdep.h>
-
 static int ah_sumsiz_1216 __P((struct secasvar *));
 static int ah_sumsiz_zero __P((struct secasvar *));
 static int ah_common_mature __P((struct secasvar *));

@@ -105,8 +105,6 @@
 #include <netipsec/key.h>
 #endif /* FAST_IPSEC */
 
-#include <net/net_osdep.h>
-
 #include <netinet6/ip6protosw.h>
 #include <netinet6/scope6_var.h>
 

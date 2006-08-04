@@ -67,8 +67,6 @@
 
 #include <machine/stdarg.h>
 
-#include <net/net_osdep.h>
-
 static void *deflate_alloc __P((void *, u_int, u_int));
 static void deflate_free __P((void *, void *));
 static int deflate_common __P((struct mbuf *, struct mbuf *, size_t *, int));

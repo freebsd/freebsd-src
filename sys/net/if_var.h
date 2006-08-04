@@ -222,6 +222,7 @@ typedef void if_init_f_t(void *);
 /* for compatibility with other BSDs */
 #define	if_addrlist	if_addrhead
 #define	if_list		if_link
+#define	if_name(ifp)	((ifp)->if_xname)
 
 /*
  * Locks for address lists on the network interface.
