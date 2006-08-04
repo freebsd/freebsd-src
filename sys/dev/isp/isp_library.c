@@ -1648,9 +1648,9 @@ isp_put_notify_ack_fc(ispsoftc_t *isp, na_fcentry_t *nasrc,
 	int i;
 	isp_copy_out_hdr(isp, &nasrc->na_header, &nadst->na_header);
 	ISP_IOXPUT_32(isp, nasrc->na_reserved, &nadst->na_reserved);
-	ISP_IOXPUT_8(isp, nasrc->na_lun, &nadst->na_lun);
+	ISP_IOXPUT_8(isp, nasrc->na_reserved1, &nadst->na_reserved1);
 	ISP_IOXPUT_8(isp, nasrc->na_iid, &nadst->na_iid);
-	ISP_IOXPUT_16(isp, nasrc->na_scclun, &nadst->na_scclun);
+	ISP_IOXPUT_16(isp, nasrc->na_response, &nadst->na_response);
 	ISP_IOXPUT_16(isp, nasrc->na_flags, &nadst->na_flags);
 	ISP_IOXPUT_16(isp, nasrc->na_reserved2, &nadst->na_reserved2);
 	ISP_IOXPUT_16(isp, nasrc->na_status, &nadst->na_status);
@@ -1670,7 +1670,7 @@ isp_put_notify_ack_fc_e(ispsoftc_t *isp, na_fcentry_e_t *nasrc,
 	isp_copy_out_hdr(isp, &nasrc->na_header, &nadst->na_header);
 	ISP_IOXPUT_32(isp, nasrc->na_reserved, &nadst->na_reserved);
 	ISP_IOXPUT_16(isp, nasrc->na_iid, &nadst->na_iid);
-	ISP_IOXPUT_16(isp, nasrc->na_scclun, &nadst->na_scclun);
+	ISP_IOXPUT_16(isp, nasrc->na_response, &nadst->na_response);
 	ISP_IOXPUT_16(isp, nasrc->na_flags, &nadst->na_flags);
 	ISP_IOXPUT_16(isp, nasrc->na_reserved2, &nadst->na_reserved2);
 	ISP_IOXPUT_16(isp, nasrc->na_status, &nadst->na_status);
@@ -1689,9 +1689,9 @@ isp_get_notify_ack_fc(ispsoftc_t *isp, na_fcentry_t *nasrc,
 	int i;
 	isp_copy_in_hdr(isp, &nasrc->na_header, &nadst->na_header);
 	ISP_IOXGET_32(isp, &nasrc->na_reserved, nadst->na_reserved);
-	ISP_IOXGET_8(isp, &nasrc->na_lun, nadst->na_lun);
+	ISP_IOXGET_8(isp, &nasrc->na_reserved1, nadst->na_reserved1);
 	ISP_IOXGET_8(isp, &nasrc->na_iid, nadst->na_iid);
-	ISP_IOXGET_16(isp, &nasrc->na_scclun, nadst->na_scclun);
+	ISP_IOXGET_16(isp, &nasrc->na_response, nadst->na_response);
 	ISP_IOXGET_16(isp, &nasrc->na_flags, nadst->na_flags);
 	ISP_IOXGET_16(isp, &nasrc->na_reserved2, nadst->na_reserved2);
 	ISP_IOXGET_16(isp, &nasrc->na_status, nadst->na_status);
@@ -1711,7 +1711,7 @@ isp_get_notify_ack_fc_e(ispsoftc_t *isp, na_fcentry_e_t *nasrc,
 	isp_copy_in_hdr(isp, &nasrc->na_header, &nadst->na_header);
 	ISP_IOXGET_32(isp, &nasrc->na_reserved, nadst->na_reserved);
 	ISP_IOXGET_16(isp, &nasrc->na_iid, nadst->na_iid);
-	ISP_IOXGET_16(isp, &nasrc->na_scclun, nadst->na_scclun);
+	ISP_IOXGET_16(isp, &nasrc->na_response, nadst->na_response);
 	ISP_IOXGET_16(isp, &nasrc->na_flags, nadst->na_flags);
 	ISP_IOXGET_16(isp, &nasrc->na_reserved2, nadst->na_reserved2);
 	ISP_IOXGET_16(isp, &nasrc->na_status, nadst->na_status);
