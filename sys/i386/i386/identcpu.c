@@ -586,9 +586,10 @@ printcpuinfo(void)
 			strcpy(cpu_model, "VIA C3 Nehemiah");
 			if ((cpu_id & 0xf) < 3)
 				break;
-			/* fall through. */
+			goto via_common;
 		case 0x6a0:
 			strcpy(cpu_model, "VIA C7 Esther");
+via_common:
 			do_cpuid(0xc0000000, regs);
 			i = regs[0];
 			if (i >= 0xC0000001) {
