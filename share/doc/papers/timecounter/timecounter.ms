@@ -72,7 +72,7 @@ Despite the fact that time is the physical quantity (or maybe entity
 ?) about which we know the least, it is at the same time [sic!] what we
 can measure with the highest precision of all physical quantities.
 .LP
-The current crop of atomic clocks will neither gain nor loose a
+The current crop of atomic clocks will neither gain nor lose a
 second in the next couple hundred million years, provided we
 stick to the preventative maintenance schedules.  This is a feat
 roughly in line with to knowing the circumference of the Earth

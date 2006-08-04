@@ -5459,7 +5459,7 @@ never when standing.
 Most of us just sit back and marvel at such a story; how could that terminal
 know whether the poor guy was sitting or standing?  Good debuggers, though,
 know that there has to be a reason.  Electrical theories are the easiest to
-hypothesize: was there a loose with under the carpet, or problems with static
+hypothesize: was there a loose wire under the carpet, or problems with static
 electricity?  But electrical problems are rarely consistently reproducible.
 An alert IBMer finally noticed that the problem was in the terminal's keyboard:
 the tops of two keys were switched.  When the programmer was seated he was a

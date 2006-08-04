@@ -2353,7 +2353,7 @@ g_raid3_determine_state(struct g_raid3_disk *disk)
 		 * and more fresh disk just arrive.
 		 * If there were writes, device is broken, sorry.
 		 * I think the best choice here is don't touch
-		 * this disk and inform the user laudly.
+		 * this disk and inform the user loudly.
 		 */
 		G_RAID3_DEBUG(0, "Device %s was started before the freshest "
 		    "disk (%s) arrives!! It will not be connected to the "

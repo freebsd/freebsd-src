@@ -226,7 +226,7 @@ patm_intr(void *p)
  * Feeding buffers is actually not so easy as it seems. We cannot use the
  * fraction fields in the status registers, because they round down, i.e.
  * if we have 34 buffers in the queue, it will show 1. If we now feed
- * 512 - 1 * 32 buffers, we loose two buffers. The only reliable way to know
+ * 512 - 1 * 32 buffers, we lose two buffers. The only reliable way to know
  * how many buffers are in the queue are the FBQP registers.
  */
 static u_int
