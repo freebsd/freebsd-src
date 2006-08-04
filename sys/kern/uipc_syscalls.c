@@ -2038,7 +2038,6 @@ retry_lookup:
 				VM_OBJECT_LOCK(obj);
 				goto retry_lookup;
 			}
-			vm_page_lock_queues();
 		} else {
 			vm_page_lock_queues();
 			if (vm_page_sleep_if_busy(pg, TRUE, "sfpbsy"))
@@ -2048,6 +2047,7 @@ retry_lookup:
 			 * under us.
 			 */
 			vm_page_wire(pg);
+			vm_page_unlock_queues();
 		}
 
 		/*
@@ -2066,7 +2066,6 @@ retry_lookup:
 			 * completes.
 			 */
 			vm_page_io_start(pg);
-			vm_page_unlock_queues();
 			VM_OBJECT_UNLOCK(obj);
 
 			/*
@@ -2089,12 +2088,14 @@ retry_lookup:
 			VM_OBJECT_LOCK(obj);
 			vm_page_lock_queues();
 			vm_page_io_finish(pg);
+			vm_page_unlock_queues();
 			if (!error)
 				VM_OBJECT_UNLOCK(obj);
 			mbstat.sf_iocnt++;
 		}
 	
 		if (error) {
+			vm_page_lock_queues();
 			vm_page_unwire(pg, 0);
 			/*
 			 * See if anyone else might know about this page.
@@ -2112,7 +2113,6 @@ retry_lookup:
 			SOCKBUF_UNLOCK(&so->so_snd);
 			goto done;
 		}
-		vm_page_unlock_queues();
 
 		/*
 		 * Get a sendfile buf. We usually wait as long as necessary,
