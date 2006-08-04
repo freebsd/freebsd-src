@@ -111,7 +111,7 @@ _libpthread=	libpthread
 _libthr= libthr
 .endif
 
-.if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "powerpc"
+.if ${MACHINE_ARCH} != "arm"
 _libthread_db= libthread_db
 .endif
 
