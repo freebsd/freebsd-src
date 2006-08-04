@@ -104,7 +104,7 @@ svr4_sock_ioctl(fp, td, retval, fd, cmd, data)
 			 */
 			IFNET_RLOCK();
 			TAILQ_FOREACH(ifp, &ifnet, if_link)
-				if (TAILQ_FIRST(&ifp->if_addrhead) == NULL)
+				if (TAILQ_EMPTY(&ifp->if_addrhead))
 					ifnum++;
 				else
 					TAILQ_FOREACH(ifa, &ifp->if_addrhead,
