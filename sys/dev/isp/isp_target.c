@@ -195,10 +195,12 @@ isp_target_notify(ispsoftc_t *isp, void *vptr, uint16_t *optrp)
 		bus = 0;
 		if (IS_FC(isp)) {
 			if (IS_2KLOGIN(isp)) {
-				isp_get_notify_fc_e(isp, inote_fcp, (in_fcentry_e_t *)local);
-            } else {
-                isp_get_notify_fc(isp, inot_fcp, (in_fcentry_t *)local);
-            }
+				isp_get_notify_fc_e(isp, inote_fcp,
+				    (in_fcentry_e_t *)local);
+			} else {
+				isp_get_notify_fc(isp, inot_fcp,
+				    (in_fcentry_t *)local);
+			}
 			inot_fcp = (in_fcentry_t *) local;
 			status = inot_fcp->in_status;
 			seqid = inot_fcp->in_seqid;
@@ -212,6 +214,7 @@ isp_target_notify(ispsoftc_t *isp, void *vptr, uint16_t *optrp)
 				SET_BUS_VAL(inotp->in_iid, 0);
 			}
 		}
+
 		isp_prt(isp, ISP_LOGTDEBUG0,
 		    "Immediate Notify On Bus %d, status=0x%x seqid=0x%x",
 		    bus, status, seqid);
@@ -676,18 +679,20 @@ static void
 isp_got_msg_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 {
 	tmd_notify_t nt;
-	static const char f1[] = "%s from iid 0x%08x%08x lun %d seq 0x%x";
+	static const char f1[] = "%s from loop id %d lun %d seq 0x%x";
 	static const char f2[] = 
-	    "unknown %s 0x%x lun %d iid 0x%08x%08x task flags 0x%x seq 0x%x\n";
-	uint16_t seqid;
+	    "unknown %s 0x%x lun %d loop id %d task flags 0x%x seq 0x%x\n";
+	uint16_t seqid, loopid;
 
 	MEMZERO(&nt, sizeof (tmd_notify_t));
 	nt.nt_hba = isp;
 	if (IS_2KLOGIN(isp)) {
 		nt.nt_iid = ((in_fcentry_e_t *)inp)->in_iid;
+		loopid = ((in_fcentry_e_t *)inp)->in_iid;
 		seqid = ((in_fcentry_e_t *)inp)->in_seqid;
 	} else {
 		nt.nt_iid = inp->in_iid;
+		loopid = inp->in_iid;
 		seqid = inp->in_seqid;
 	}
 	/* nt_tgt set in outer layers */
@@ -701,36 +706,35 @@ isp_got_msg_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 
 	if (inp->in_status != IN_MSG_RECEIVED) {
 		isp_prt(isp, ISP_LOGINFO, f2, "immediate notify status",
-		    inp->in_status, nt.nt_lun, (uint32_t) (nt.nt_iid >> 32), (uint32_t) nt.nt_iid,
-		    inp->in_task_flags,  inp->in_seqid);
+		    inp->in_status, nt.nt_lun, loopid, inp->in_task_flags,
+		    inp->in_seqid);
 		isp_notify_ack(isp, inp);
 		return;
 	}
 
 	if (inp->in_task_flags & TASK_FLAGS_ABORT_TASK_SET) {
 		isp_prt(isp, ISP_LOGINFO, f1, "ABORT TASK SET",
-		    (uint32_t) (nt.nt_iid >> 32), (uint32_t) nt.nt_iid, nt.nt_lun, inp->in_seqid);
+		    loopid, nt.nt_lun, inp->in_seqid);
 		nt.nt_ncode = NT_ABORT_TASK_SET;
 	} else if (inp->in_task_flags & TASK_FLAGS_CLEAR_TASK_SET) {
 		isp_prt(isp, ISP_LOGINFO, f1, "CLEAR TASK SET",
-		    (uint32_t) (nt.nt_iid >> 32), (uint32_t) nt.nt_iid, nt.nt_lun, inp->in_seqid);
+		    loopid, nt.nt_lun, inp->in_seqid);
 		nt.nt_ncode = NT_CLEAR_TASK_SET;
 	} else if (inp->in_task_flags & TASK_FLAGS_LUN_RESET) {
 		isp_prt(isp, ISP_LOGINFO, f1, "LUN RESET",
-		    (uint32_t) (nt.nt_iid >> 32), (uint32_t) nt.nt_iid, nt.nt_lun, inp->in_seqid);
+		    loopid, nt.nt_lun, inp->in_seqid);
 		nt.nt_ncode = NT_LUN_RESET;
 	} else if (inp->in_task_flags & TASK_FLAGS_TARGET_RESET) {
 		isp_prt(isp, ISP_LOGINFO, f1, "TARGET RESET",
-		    (uint32_t) (nt.nt_iid >> 32), (uint32_t) nt.nt_iid, nt.nt_lun, inp->in_seqid);
+		    loopid, nt.nt_lun, inp->in_seqid);
 		nt.nt_ncode = NT_TARGET_RESET;
 	} else if (inp->in_task_flags & TASK_FLAGS_CLEAR_ACA) {
 		isp_prt(isp, ISP_LOGINFO, f1, "CLEAR ACA",
-		    (uint32_t) (nt.nt_iid >> 32), (uint32_t) nt.nt_iid, nt.nt_lun, inp->in_seqid);
+		    loopid, nt.nt_lun, inp->in_seqid);
 		nt.nt_ncode = NT_CLEAR_ACA;
 	} else {
-		isp_prt(isp, ISP_LOGWARN, f2, "task flag",
-		    inp->in_status, nt.nt_lun, (uint32_t) (nt.nt_iid >> 32), (uint32_t) nt.nt_iid,
-		    inp->in_task_flags,  inp->in_seqid);
+		isp_prt(isp, ISP_LOGWARN, f2, "task flag", inp->in_status,
+		    nt.nt_lun, loopid, inp->in_task_flags,  inp->in_seqid);
 		isp_notify_ack(isp, inp);
 		return;
 	}
@@ -754,25 +758,30 @@ isp_notify_ack(ispsoftc_t *isp, void *arg)
 
 	if (IS_FC(isp)) {
 		na_fcentry_t *na = (na_fcentry_t *) storage;
+		int iid = 0;
+
 		if (arg) {
 			in_fcentry_t *inp = arg;
 			MEMCPY(storage, arg, sizeof (isphdr_t));
 			if (IS_2KLOGIN(isp)) {
-				((na_fcentry_e_t *)na)->na_iid = ((in_fcentry_e_t *)inp)->in_iid;
+				((na_fcentry_e_t *)na)->na_iid =
+				    ((in_fcentry_e_t *)inp)->in_iid;
+				iid = ((na_fcentry_e_t *)na)->na_iid;
 			} else {
 				na->na_iid = inp->in_iid;
+				iid = na->na_iid;
 			}
-			if (FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN) {
-				na->na_lun = inp->in_scclun;
-			} else {
-				na->na_lun = inp->in_lun;
-			}
-			na->na_task_flags = inp->in_task_flags;
+			na->na_task_flags =
+			    inp->in_task_flags & TASK_FLAGS_RESERVED_MASK;
 			na->na_seqid = inp->in_seqid;
 			na->na_flags = NAFC_RCOUNT;
 			na->na_status = inp->in_status;
 			if (inp->in_status == IN_RESET) {
 				na->na_flags |= NAFC_RST_CLRD;
+			}
+			if (inp->in_status == IN_MSG_RECEIVED) {
+				na->na_flags |= NAFC_TVALID;
+				na->na_response = 0;	/* XXX SUCCEEDED XXX */
 			}
 		} else {
 			na->na_flags = NAFC_RST_CLRD;
@@ -780,10 +789,14 @@ isp_notify_ack(ispsoftc_t *isp, void *arg)
 		na->na_header.rqs_entry_type = RQSTYPE_NOTIFY_ACK;
 		na->na_header.rqs_entry_count = 1;
 		if (IS_2KLOGIN(isp)) {
-			isp_put_notify_ack_fc_e(isp, (na_fcentry_e_t *) na, (na_fcentry_e_t *)outp);
+			isp_put_notify_ack_fc_e(isp, (na_fcentry_e_t *) na,
+			    (na_fcentry_e_t *)outp);
 		} else {
 			isp_put_notify_ack_fc(isp, na, (na_fcentry_t *)outp);
 		}
+		isp_prt(isp, ISP_LOGTDEBUG0, "notify ack iid %u seqid %x flags "
+		    "%x tflags %x response %x", iid, na->na_seqid,
+		    na->na_flags, na->na_task_flags, na->na_response);
 	} else {
 		na_entry_t *na = (na_entry_t *) storage;
 		if (arg) {
@@ -802,6 +815,9 @@ isp_notify_ack(ispsoftc_t *isp, void *arg)
 		na->na_header.rqs_entry_type = RQSTYPE_NOTIFY_ACK;
 		na->na_header.rqs_entry_count = 1;
 		isp_put_notify_ack(isp, na, (na_entry_t *)outp);
+		isp_prt(isp, ISP_LOGTDEBUG0, "notify ack iid %u lun %u tgt %u "
+		    "seqid %x event %x", na->na_iid, na->na_lun, na->na_tgt,
+		    na->na_seqid, na->na_event);
 	}
 	ISP_TDQE(isp, "isp_notify_ack", (int) optr, storage);
 	ISP_ADD_REQUEST(isp, nxti);
@@ -1192,7 +1208,8 @@ isp_handle_ctio2(ispsoftc_t *isp, ct2_entry_t *ct)
 		if (fmsg == NULL)
 			fmsg = "ABORT Task Management Function Received";
 
-		isp_prt(isp, ISP_LOGERR, "CTIO2 destroyed by %s: RX_ID=0x%x", fmsg, ct->ct_rxid);
+		isp_prt(isp, ISP_LOGERR, "CTIO2 destroyed by %s: RX_ID=0x%x",
+		    fmsg, ct->ct_rxid);
 		break;
 
 	case CT_INVAL:
