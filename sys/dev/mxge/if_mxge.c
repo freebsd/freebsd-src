@@ -2079,6 +2079,9 @@ mxge_open(mxge_softc_t *sc)
 	bus_dmamap_t map;
 
 
+	/* Copy the MAC address in case it was overridden */
+	bcopy(IF_LLADDR(sc->ifp), sc->mac_addr, ETHER_ADDR_LEN);
+
 	err = mxge_reset(sc);
 	if (err != 0) {
 		device_printf(sc->dev, "failed to reset\n");
