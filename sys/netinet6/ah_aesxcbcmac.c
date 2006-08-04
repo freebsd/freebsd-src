@@ -52,8 +52,6 @@
 
 #include <crypto/rijndael/rijndael.h>
 
-#include <net/net_osdep.h>
-
 #define AES_BLOCKSIZE	16
 
 typedef struct {

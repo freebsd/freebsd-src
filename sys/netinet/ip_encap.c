@@ -87,8 +87,6 @@
 
 #include <machine/stdarg.h>
 
-#include <net/net_osdep.h>
-
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 static MALLOC_DEFINE(M_NETADDR, "encap_export_host", "Export host address structure");

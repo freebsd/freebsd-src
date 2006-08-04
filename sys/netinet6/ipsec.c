@@ -103,7 +103,6 @@
 #include <netkey/key_debug.h>
 
 #include <machine/in_cksum.h>
-#include <net/net_osdep.h>
 
 #ifdef IPSEC_DEBUG
 int ipsec_debug = 1;

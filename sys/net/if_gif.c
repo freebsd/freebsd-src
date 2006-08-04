@@ -84,8 +84,6 @@
 #include <net/if_bridgevar.h>
 #include <net/if_gif.h>
 
-#include <net/net_osdep.h>
-
 #define GIFNAME		"gif"
 
 /*
