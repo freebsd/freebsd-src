@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20060704: KAME compat file net_osdep.h removed
+OLD_FILES+=usr/include/net/net_osdep.h
 # 20060517: pcvt removed
 OLD_FILES+=usr/share/pcvt/README.FIRST
 OLD_FILES+=usr/share/pcvt/Etc/xmodmap-german
