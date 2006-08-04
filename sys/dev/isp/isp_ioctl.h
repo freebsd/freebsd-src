@@ -188,7 +188,11 @@ struct isp_fc_tsk_mgmt {
 	uint32_t	loopid;		/* 0..255 */
 	uint32_t	lun;
 	enum {
-	    CLEAR_ACA, TARGET_RESET, LUN_RESET, CLEAR_TASK_SET, ABORT_TASK_SET
+		IPT_CLEAR_ACA,
+		IPT_TARGET_RESET,
+		IPT_LUN_RESET,
+		IPT_CLEAR_TASK_SET,
+		IPT_ABORT_TASK_SET
 	} action;
 };
 #define	ISP_TSK_MGMT		_IOWR(ISP_IOC, 97, struct isp_fc_tsk_mgmt)
