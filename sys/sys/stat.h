@@ -304,6 +304,14 @@ struct nstat {
 
 #endif /* __BSD_VISIBLE */
 
+/*
+ * Solaris compatibility definitions.
+ */
+#ifdef _SOLARIS_C_SOURCE
+#define	stat64	stat
+#define	fstat64	fstat
+#endif
+
 #ifndef _KERNEL
 __BEGIN_DECLS
 #if __BSD_VISIBLE
