@@ -970,6 +970,10 @@ send_dg(res_state statp,
 		res_nclose(statp);
 		return (0);
 	}
+#ifdef USE_KQUEUE
+	if (kv.ident != s)
+		goto wait;
+#endif
 	errno = 0;
 	fromlen = sizeof(from);
 	resplen = _recvfrom(s, (char*)ans, anssiz,0,
