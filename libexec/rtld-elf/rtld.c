@@ -2451,8 +2451,8 @@ symlook_obj(const char *name, unsigned long hash, const Obj_Entry *obj,
 	} else {
 	    if (obj->versyms == NULL) {
 		if (object_match_name(obj, ventry->name)) {
-		    _rtld_error("%s: object %s should provide version %s for ",
-			"symbol %s", obj->path, ventry->name,
+		    _rtld_error("%s: object %s should provide version %s for "
+			"symbol %s", obj_rtld.path, obj->path, ventry->name,
 			obj->strtab + symnum);
 		    continue;
 		}
