@@ -562,29 +562,29 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 			loopid <<= 8;
 		}
 		switch (fct->action) {
-		case CLEAR_ACA:
+		case IPT_CLEAR_ACA:
 			mbs.param[0] = MBOX_CLEAR_ACA;
 			mbs.param[1] = loopid;
 			mbs.param[2] = fct->lun;
 			break;
-		case TARGET_RESET:
+		case IPT_TARGET_RESET:
 			mbs.param[0] = MBOX_TARGET_RESET;
 			mbs.param[1] = loopid;
 			needmarker = 1;
 			break;
-		case LUN_RESET:
+		case IPT_LUN_RESET:
 			mbs.param[0] = MBOX_LUN_RESET;
 			mbs.param[1] = loopid;
 			mbs.param[2] = fct->lun;
 			needmarker = 1;
 			break;
-		case CLEAR_TASK_SET:
+		case IPT_CLEAR_TASK_SET:
 			mbs.param[0] = MBOX_CLEAR_TASK_SET;
 			mbs.param[1] = loopid;
 			mbs.param[2] = fct->lun;
 			needmarker = 1;
 			break;
-		case ABORT_TASK_SET:
+		case IPT_ABORT_TASK_SET:
 			mbs.param[0] = MBOX_ABORT_TASK_SET;
 			mbs.param[1] = loopid;
 			mbs.param[2] = fct->lun;
