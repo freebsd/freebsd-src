@@ -304,6 +304,8 @@ int	ratecheck(struct timeval *, const struct timeval *);
 void	timevaladd(struct timeval *t1, const struct timeval *t2);
 void	timevalsub(struct timeval *t1, const struct timeval *t2);
 int	tvtohz(struct timeval *tv);
+uint64_t	dtrace_gethrtime(void);
+uint64_t	dtrace_gethrestime(void);
 #else /* !_KERNEL */
 #include <time.h>
 
@@ -321,5 +323,28 @@ int	utimes(const char *, const struct timeval *);
 __END_DECLS
 
 #endif /* !_KERNEL */
+
+/*
+ * Solaris compatibility definitions.
+ */
+#ifdef _SOLARIS_C_SOURCE
+/*
+ *  Definitions for commonly used resolutions.
+ */
+#define SEC		1
+#define MILLISEC	1000
+#define MICROSEC	1000000
+#define NANOSEC		1000000000
+
+typedef longlong_t	hrtime_t;
+
+#ifndef _KERNEL
+static __inline hrtime_t gethrtime() {
+	struct timespec ts;
+	clock_gettime(CLOCK_UPTIME,&ts);
+	return (((u_int64_t) ts.tv_sec) * NANOSEC + ts.tv_nsec);
+}
+#endif
+#endif /* _SOLARIS_C_SOURCE */
 
 #endif /* !_SYS_TIME_H_ */
