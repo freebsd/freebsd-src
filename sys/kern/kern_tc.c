@@ -961,7 +961,7 @@ cpu_tickrate(void)
  * years) and in 64 bits at 4 GHz (146 years), but if we do a multiply
  * before divide conversion (to retain precision) we find that the
  * margin shrinks to 1.5 hours (one millionth of 146y).
- * With a three prong approach we never loose significant bits, no
+ * With a three prong approach we never lose significant bits, no
  * matter what the cputick rate and length of timeinterval is.
  */
 

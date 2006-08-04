@@ -1197,7 +1197,7 @@ fe_start (struct ifnet *ifp)
 		 * If txb_count is incorrect, leaving it as-is will cause
 		 * sending of garbage after next interrupt.  We have to
 		 * avoid it.  Hence, we reset the txb_count here.  If
-		 * txb_free was incorrect, resetting txb_count just loose
+		 * txb_free was incorrect, resetting txb_count just loses
 		 * some packets.  We can live with it.
 		 */
 		sc->txb_count = 0;

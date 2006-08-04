@@ -317,7 +317,7 @@ static struct SYM_FWA_SCR SYM_FWA_SCR = {
 	/*
 	 *  Now there are 4 possibilities:
 	 *
-	 *  (1) The chip looses arbitration.
+	 *  (1) The chip loses arbitration.
 	 *  This is ok, because it will try again,
 	 *  when the bus becomes idle.
 	 *  (But beware of the timeout function!)

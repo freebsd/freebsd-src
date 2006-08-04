@@ -1811,7 +1811,7 @@ dpttimeout(void *arg)
 	s = splcam();
 
 	/*
-	 * Try to clear any pending jobs.  FreeBSD will loose interrupts,
+	 * Try to clear any pending jobs.  FreeBSD will lose interrupts,
 	 * leaving the controller suspended, and commands timed-out.
 	 * By calling the interrupt handler, any command thus stuck will be
 	 * completed.

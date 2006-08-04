@@ -646,7 +646,7 @@ g_bde_worker(void *arg)
 			    PRIBIO, "-", hz);
 			if (error == EWOULDBLOCK) {
 				/*
-				 * Loose our skey cache in an orderly fashion.
+				 * Lose our skey cache in an orderly fashion.
 				 * The exact rate can be tuned to be less
 				 * aggressive if this is desirable.  10% per
 				 * second means that the cache is gone in a

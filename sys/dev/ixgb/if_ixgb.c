@@ -697,7 +697,7 @@ ixgb_init_locked(struct adapter *adapter)
 	}
 	ixgb_initialize_receive_unit(adapter);
 
-	/* Don't loose promiscuous settings */
+	/* Don't lose promiscuous settings */
 	ixgb_set_promisc(adapter);
 
 	ifp = adapter->ifp;

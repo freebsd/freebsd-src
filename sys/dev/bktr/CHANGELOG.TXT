@@ -182,7 +182,7 @@
                            video_open() function select PAL rather than NTSC.
                            This fixed all the hangs on my Dual Crystal card
                            when using a PAL video signal. As a result, you
-                           can loose the tsleep (of 2 seconds - now 0.25!!)
+                           can lose the tsleep (of 2 seconds - now 0.25!!)
                            which I previously added. (Unless someone else
                            wanted the 0.25 second tsleep).
 
