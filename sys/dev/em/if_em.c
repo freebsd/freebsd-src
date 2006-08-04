@@ -1055,7 +1055,7 @@ em_init_locked(struct adapter *adapter)
 	}
 	em_initialize_receive_unit(adapter);
 
-	/* Don't loose promiscuous settings */
+	/* Don't lose promiscuous settings */
 	em_set_promisc(adapter);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
