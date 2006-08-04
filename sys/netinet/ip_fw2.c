@@ -4086,10 +4086,6 @@ ipfw_ctl(struct sockopt *sopt)
 			}
 			size = sopt->sopt_valsize;
 			tbl = malloc(size, M_TEMP, M_WAITOK);
-			if (tbl == NULL) {
-				error = ENOMEM;
-				break;
-			}
 			error = sooptcopyin(sopt, tbl, size, sizeof(*tbl));
 			if (error) {
 				free(tbl, M_TEMP);
