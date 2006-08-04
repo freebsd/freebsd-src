@@ -83,7 +83,6 @@
 
 #include <net/bpf.h>
 
-#include <net/net_osdep.h>
 #include <net/if_gre.h>
 
 /*

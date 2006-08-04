@@ -80,8 +80,6 @@
 #define	IPSEC
 #endif /* FAST_IPSEC */
 
-#include <net/net_osdep.h>
-
 #include <netinet6/ip6protosw.h>
 
 struct	route_in6 ip6_forward_rt;

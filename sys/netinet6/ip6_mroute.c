@@ -117,8 +117,6 @@
 #include <netinet6/pim6.h>
 #include <netinet6/pim6_var.h>
 
-#include <net/net_osdep.h>
-
 static MALLOC_DEFINE(M_MRTABLE6, "mf6c", "multicast forwarding cache entry");
 
 #define M_HASCL(m) ((m)->m_flags & M_EXT)

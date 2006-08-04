@@ -68,8 +68,6 @@
 
 #include <net/if_gif.h>	
 
-#include <net/net_osdep.h>
-
 static int gif_validate4(const struct ip *, struct gif_softc *,
 	struct ifnet *);
 

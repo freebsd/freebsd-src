@@ -105,8 +105,6 @@
 #endif
 #endif /* IPSEC */
 
-#include <net/net_osdep.h>
-
 /*
  * UDP protocol inplementation.
  * Per RFC 768, August, 1980.

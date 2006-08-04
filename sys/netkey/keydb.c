@@ -54,8 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <netkey/key.h>
 #include <netinet6/ipsec.h>
 
-#include <net/net_osdep.h>
-
 MALLOC_DEFINE(M_SECA, "key_mgmt", "security associations, key management");
 
 /*

@@ -109,8 +109,6 @@
 #include <netipsec/key.h>
 #endif
 
-#include <net/net_osdep.h>
-
 extern struct domain inet6domain;
 
 struct icmp6stat icmp6stat;

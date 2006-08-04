@@ -97,8 +97,6 @@
 #include <netinet6/scope6_var.h>
 #include <netinet6/in6_pcb.h>
 
-#include <net/net_osdep.h>
-
 MALLOC_DEFINE(M_IP6MADDR, "in6_multi", "internet multicast address");
 
 /*

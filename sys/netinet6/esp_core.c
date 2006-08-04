@@ -85,8 +85,6 @@
 #define cast128_decrypt(key, inblock, outblock) \
 	cast_decrypt((key), (inblock), (outblock))
 
-#include <net/net_osdep.h>
-
 static int esp_null_mature __P((struct secasvar *));
 static int esp_null_decrypt __P((struct mbuf *, size_t,
 	struct secasvar *, const struct esp_algorithm *, int));
