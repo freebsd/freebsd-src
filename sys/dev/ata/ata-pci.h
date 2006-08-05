@@ -392,8 +392,7 @@ struct ata_connect_task {
 #define AMDBUG          0x0002
 #define NVIDIA          0x0004
 #define NV4             0x0010
-#define NV4BYTE         0x0030 
-#define NV4WORD         0x0050
+#define NV4LONG         0x0030
 #define VIACLK          0x0100
 #define VIABUG          0x0200
 #define VIABAR          0x0400
