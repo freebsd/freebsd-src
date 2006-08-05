@@ -217,6 +217,7 @@ ddp_abort(struct socket *so)
 	DDP_LOCK(ddp);
 	at_pcbdisconnect(ddp);
 	DDP_UNLOCK(ddp);
+	soisdisconnected(so);
 }
 
 static void
@@ -230,6 +231,7 @@ ddp_close(struct socket *so)
 	DDP_LOCK(ddp);
 	at_pcbdisconnect(ddp);
 	DDP_UNLOCK(ddp);
+	soisdisconnected(so);
 }
 
 void 
