@@ -226,8 +226,7 @@ read_kld(char *filename, char *kldname)
 		cp = strrchr(kldname, '.');
 		nmlen = cp ? min(MAXMODNAME, cp - kldname) : 
 		    min(MAXMODNAME, strlen(kldname));
-		strncpy(kldmodname, kldname, nmlen);
-		kldmodname[nmlen] = '\0';
+		strlcpy(kldmodname, kldname, nmlen);
 /*		fprintf(fxref, "%s:%s:%d\n", kldmodname, kldname, 0);*/
 	}
 	do {
@@ -259,8 +258,7 @@ maketempfile(char *dest, const char *root)
 	char *p;
 	int fd;
 
-	strncpy(dest, root, MAXPATHLEN - 1);
-	dest[MAXPATHLEN-1] = '\0';
+	strlcpy(dest, root, MAXPATHLEN);
 
 	if ((p = strrchr(dest, '/')) != 0)
 		p++;
