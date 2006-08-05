@@ -180,6 +180,8 @@ static int	ath_rate_setup(struct ath_softc *, u_int mode);
 static void	ath_setcurmode(struct ath_softc *, enum ieee80211_phymode);
 
 static void	ath_sysctlattach(struct ath_softc *);
+static int	ath_raw_xmit(struct ieee80211_node *,
+			struct mbuf *, const struct ieee80211_bpf_params *);
 static void	ath_bpfattach(struct ath_softc *);
 static void	ath_announce(struct ath_softc *);
 
@@ -607,6 +609,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_crypto.cs_key_set = ath_key_set;
 	ic->ic_crypto.cs_key_update_begin = ath_key_update_begin;
 	ic->ic_crypto.cs_key_update_end = ath_key_update_end;
+	ic->ic_raw_xmit = ath_raw_xmit;
 	/* complete initialization */
 	ieee80211_media_init(ic, ath_media_change, ieee80211_media_status);
 
@@ -3353,6 +3356,126 @@ ath_tx_findrix(const HAL_RATE_TABLE *rt, int rate)
 }
 
 static int
+ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
+{
+	struct mbuf *m;
+	int error;
+
+	/*
+	 * Load the DMA map so any coalescing is done.  This
+	 * also calculates the number of descriptors we need.
+	 */
+	error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m0,
+				     bf->bf_segs, &bf->bf_nseg,
+				     BUS_DMA_NOWAIT);
+	if (error == EFBIG) {
+		/* XXX packet requires too many descriptors */
+		bf->bf_nseg = ATH_TXDESC+1;
+	} else if (error != 0) {
+		sc->sc_stats.ast_tx_busdma++;
+		m_freem(m0);
+		return error;
+	}
+	/*
+	 * Discard null packets and check for packets that
+	 * require too many TX descriptors.  We try to convert
+	 * the latter to a cluster.
+	 */
+	if (bf->bf_nseg > ATH_TXDESC) {		/* too many desc's, linearize */
+		sc->sc_stats.ast_tx_linear++;
+		m = ath_defrag(m0, M_DONTWAIT, ATH_TXDESC);
+		if (m == NULL) {
+			m_freem(m0);
+			sc->sc_stats.ast_tx_nombuf++;
+			return ENOMEM;
+		}
+		m0 = m;
+		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m0,
+					     bf->bf_segs, &bf->bf_nseg,
+					     BUS_DMA_NOWAIT);
+		if (error != 0) {
+			sc->sc_stats.ast_tx_busdma++;
+			m_freem(m0);
+			return error;
+		}
+		KASSERT(bf->bf_nseg <= ATH_TXDESC,
+		    ("too many segments after defrag; nseg %u", bf->bf_nseg));
+	} else if (bf->bf_nseg == 0) {		/* null packet, discard */
+		sc->sc_stats.ast_tx_nodata++;
+		m_freem(m0);
+		return EIO;
+	}
+	DPRINTF(sc, ATH_DEBUG_XMIT, "%s: m %p len %u\n",
+		__func__, m0, m0->m_pkthdr.len);
+	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREWRITE);
+	bf->bf_m = m0;
+
+	return 0;
+}
+
+static void
+ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
+{
+	struct ath_hal *ah = sc->sc_ah;
+	struct ath_desc *ds, *ds0;
+	int i;
+
+	/*
+	 * Fillin the remainder of the descriptor info.
+	 */
+	ds0 = ds = bf->bf_desc;
+	for (i = 0; i < bf->bf_nseg; i++, ds++) {
+		ds->ds_data = bf->bf_segs[i].ds_addr;
+		if (i == bf->bf_nseg - 1)
+			ds->ds_link = 0;
+		else
+			ds->ds_link = bf->bf_daddr + sizeof(*ds) * (i + 1);
+		ath_hal_filltxdesc(ah, ds
+			, bf->bf_segs[i].ds_len	/* segment length */
+			, i == 0		/* first segment */
+			, i == bf->bf_nseg - 1	/* last segment */
+			, ds0			/* first descriptor */
+		);
+		DPRINTF(sc, ATH_DEBUG_XMIT,
+			"%s: %d: %08x %08x %08x %08x %08x %08x\n",
+			__func__, i, ds->ds_link, ds->ds_data,
+			ds->ds_ctl0, ds->ds_ctl1, ds->ds_hw[0], ds->ds_hw[1]);
+	}
+	/*
+	 * Insert the frame on the outbound list and pass it on
+	 * to the hardware.  Multicast frames buffered for power
+	 * save stations and transmit from the CAB queue are stored
+	 * on a s/w only queue and loaded on to the CAB queue in
+	 * the SWBA handler since frames only go out on DTIM and
+	 * to avoid possible races.
+	 */
+	ATH_TXQ_LOCK(txq);
+	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
+	if (txq != &sc->sc_mcastq) {
+		if (txq->axq_link == NULL) {
+			ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
+			DPRINTF(sc, ATH_DEBUG_XMIT,
+			    "%s: TXDP[%u] = %p (%p) depth %d\n", __func__,
+			    txq->axq_qnum, (caddr_t)bf->bf_daddr, bf->bf_desc,
+			    txq->axq_depth);
+		} else {
+			*txq->axq_link = bf->bf_daddr;
+			DPRINTF(sc, ATH_DEBUG_XMIT,
+			    "%s: link[%u](%p)=%p (%p) depth %d\n", __func__,
+			    txq->axq_qnum, txq->axq_link,
+			    (caddr_t)bf->bf_daddr, bf->bf_desc, txq->axq_depth);
+		}
+		txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
+		ath_hal_txstart(ah, txq->axq_qnum);
+	} else {
+		if (txq->axq_link != NULL)
+			*txq->axq_link = bf->bf_daddr;
+		txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
+	}
+	ATH_TXQ_UNLOCK(txq);
+}
+
+static int
 ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
     struct mbuf *m0)
 {
@@ -3360,11 +3483,11 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	struct ath_hal *ah = sc->sc_ah;
 	struct ifnet *ifp = sc->sc_ifp;
 	const struct chanAccParams *cap = &ic->ic_wme.wme_chanParams;
-	int i, error, iswep, ismcast, ismrr;
+	int error, iswep, ismcast, ismrr;
 	int keyix, hdrlen, pktlen, try0;
 	u_int8_t rix, txrate, ctsrate;
 	u_int8_t cix = 0xff;		/* NB: silence compiler */
-	struct ath_desc *ds, *ds0;
+	struct ath_desc *ds;
 	struct ath_txq *txq;
 	struct ieee80211_frame *wh;
 	u_int subtype, flags, ctsduration;
@@ -3372,7 +3495,6 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	const HAL_RATE_TABLE *rt;
 	HAL_BOOL shortPreamble;
 	struct ath_node *an;
-	struct mbuf *m;
 	u_int pri;
 
 	wh = mtod(m0, struct ieee80211_frame *);
@@ -3438,50 +3560,10 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	 * Load the DMA map so any coalescing is done.  This
 	 * also calculates the number of descriptors we need.
 	 */
-	error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m0,
-				     bf->bf_segs, &bf->bf_nseg,
-				     BUS_DMA_NOWAIT);
-	if (error == EFBIG) {
-		/* XXX packet requires too many descriptors */
-		bf->bf_nseg = ATH_TXDESC+1;
-	} else if (error != 0) {
-		sc->sc_stats.ast_tx_busdma++;
-		m_freem(m0);
-		return error;
-	}
-	/*
-	 * Discard null packets and check for packets that
-	 * require too many TX descriptors.  We try to convert
-	 * the latter to a cluster.
-	 */
-	if (bf->bf_nseg > ATH_TXDESC) {		/* too many desc's, linearize */
-		sc->sc_stats.ast_tx_linear++;
-		m = ath_defrag(m0, M_DONTWAIT, ATH_TXDESC);
-		if (m == NULL) {
-			m_freem(m0);
-			sc->sc_stats.ast_tx_nombuf++;
-			return ENOMEM;
-		}
-		m0 = m;
-		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m0,
-					     bf->bf_segs, &bf->bf_nseg,
-					     BUS_DMA_NOWAIT);
-		if (error != 0) {
-			sc->sc_stats.ast_tx_busdma++;
-			m_freem(m0);
-			return error;
-		}
-		KASSERT(bf->bf_nseg <= ATH_TXDESC,
-		    ("too many segments after defrag; nseg %u", bf->bf_nseg));
-	} else if (bf->bf_nseg == 0) {		/* null packet, discard */
-		sc->sc_stats.ast_tx_nodata++;
-		m_freem(m0);
-		return EIO;
-	}
-	DPRINTF(sc, ATH_DEBUG_XMIT, "%s: m %p len %u\n", __func__, m0, pktlen);
-	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREWRITE);
-	bf->bf_m = m0;
+	error = ath_tx_dmasetup(sc, bf, m0);
 	bf->bf_node = ni;			/* NB: held reference */
+	m0 = bf->bf_m;				/* NB: may have changed */
+	wh = mtod(m0, struct ieee80211_frame *);
 
 	/* setup descriptors */
 	ds = bf->bf_desc;
@@ -3763,60 +3845,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	if (ismrr)
 		ath_rate_setupxtxdesc(sc, an, ds, shortPreamble, rix);
 
-	/*
-	 * Fillin the remainder of the descriptor info.
-	 */
-	ds0 = ds;
-	for (i = 0; i < bf->bf_nseg; i++, ds++) {
-		ds->ds_data = bf->bf_segs[i].ds_addr;
-		if (i == bf->bf_nseg - 1)
-			ds->ds_link = 0;
-		else
-			ds->ds_link = bf->bf_daddr + sizeof(*ds) * (i + 1);
-		ath_hal_filltxdesc(ah, ds
-			, bf->bf_segs[i].ds_len	/* segment length */
-			, i == 0		/* first segment */
-			, i == bf->bf_nseg - 1	/* last segment */
-			, ds0			/* first descriptor */
-		);
-		DPRINTF(sc, ATH_DEBUG_XMIT,
-			"%s: %d: %08x %08x %08x %08x %08x %08x\n",
-			__func__, i, ds->ds_link, ds->ds_data,
-			ds->ds_ctl0, ds->ds_ctl1, ds->ds_hw[0], ds->ds_hw[1]);
-	}
-	/*
-	 * Insert the frame on the outbound list and pass it on
-	 * to the hardware.  Multicast frames buffered for power
-	 * save stations and transmit from the CAB queue are stored
-	 * on a s/w only queue and loaded on to the CAB queue in
-	 * the SWBA handler since frames only go out on DTIM and
-	 * to avoid possible races.
-	 */
-	ATH_TXQ_LOCK(txq);
-	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
-	if (txq != &sc->sc_mcastq) {
-		if (txq->axq_link == NULL) {
-			ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
-			DPRINTF(sc, ATH_DEBUG_XMIT,
-			    "%s: TXDP[%u] = %p (%p) depth %d\n", __func__,
-			    txq->axq_qnum, (caddr_t)bf->bf_daddr, bf->bf_desc,
-			    txq->axq_depth);
-		} else {
-			*txq->axq_link = bf->bf_daddr;
-			DPRINTF(sc, ATH_DEBUG_XMIT,
-			    "%s: link[%u](%p)=%p (%p) depth %d\n", __func__,
-			    txq->axq_qnum, txq->axq_link,
-			    (caddr_t)bf->bf_daddr, bf->bf_desc, txq->axq_depth);
-		}
-		txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
-		ath_hal_txstart(ah, txq->axq_qnum);
-	} else {
-		if (txq->axq_link != NULL)
-			*txq->axq_link = bf->bf_daddr;
-		txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
-	}
-	ATH_TXQ_UNLOCK(txq);
-
+	ath_tx_handoff(sc, txq, bf);
 	return 0;
 }
 
@@ -5478,6 +5507,232 @@ ath_bpfattach(struct ath_softc *sc)
 	sc->sc_rx_th_len = roundup(sizeof(sc->sc_rx_th), sizeof(u_int32_t));
 	sc->sc_rx_th.wr_ihdr.it_len = htole16(sc->sc_rx_th_len);
 	sc->sc_rx_th.wr_ihdr.it_present = htole32(ATH_RX_RADIOTAP_PRESENT);
+}
+
+static int
+ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
+	struct ath_buf *bf, struct mbuf *m0,
+	const struct ieee80211_bpf_params *params)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ath_hal *ah = sc->sc_ah;
+	int error, ismcast, ismrr;
+	int hdrlen, pktlen, try0, txantenna;
+	u_int8_t rix, cix, txrate, ctsrate, rate1, rate2, rate3;
+	struct ath_txq *txq;
+	struct ieee80211_frame *wh;
+	u_int flags, ctsduration;
+	HAL_PKT_TYPE atype;
+	const HAL_RATE_TABLE *rt;
+	struct ath_desc *ds;
+	u_int pri;
+
+	wh = mtod(m0, struct ieee80211_frame *);
+	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
+	hdrlen = ieee80211_anyhdrsize(wh);
+	/*
+	 * Packet length must not include any
+	 * pad bytes; deduct them here.
+	 */
+	/* XXX honor IEEE80211_BPF_DATAPAD */
+	pktlen = m0->m_pkthdr.len - (hdrlen & 3) + IEEE80211_CRC_LEN;
+
+	error = ath_tx_dmasetup(sc, bf, m0);
+	if (error != 0)
+		return error;
+	m0 = bf->bf_m;				/* NB: may have changed */
+	wh = mtod(m0, struct ieee80211_frame *);
+	bf->bf_node = ni;			/* NB: held reference */
+
+	flags = HAL_TXDESC_CLRDMASK;		/* XXX needed for crypto errs */
+	flags |= HAL_TXDESC_INTREQ;		/* force interrupt */
+	if (params->ibp_flags & IEEE80211_BPF_RTS)
+		flags |= HAL_TXDESC_RTSENA;
+	else if (params->ibp_flags & IEEE80211_BPF_CTS)
+		flags |= HAL_TXDESC_CTSENA;
+	/* XXX leave ismcast to injector? */
+	if ((params->ibp_flags & IEEE80211_BPF_NOACK) || ismcast)
+		flags |= HAL_TXDESC_NOACK;
+
+	rt = sc->sc_currates;
+	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
+	rix = ath_tx_findrix(rt, params->ibp_rate0);
+	txrate = rt->info[rix].rateCode;
+	if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
+		txrate |= rt->info[rix].shortPreamble;
+	try0 = params->ibp_try0;
+	ismrr = (params->ibp_try1 != 0);
+	txantenna = params->ibp_pri >> 2;
+	if (txantenna == 0)			/* XXX? */
+		txantenna = sc->sc_txantenna;
+	ctsduration = 0;
+	if (flags & (HAL_TXDESC_CTSENA | HAL_TXDESC_RTSENA)) {
+		cix = ath_tx_findrix(rt, params->ibp_ctsrate);
+		ctsrate = rt->info[cix].rateCode;
+		if (params->ibp_flags & IEEE80211_BPF_SHORTPRE) {
+			ctsrate |= rt->info[cix].shortPreamble;
+			if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
+				ctsduration += rt->info[cix].spAckDuration;
+			ctsduration += ath_hal_computetxtime(ah,
+				rt, pktlen, rix, AH_TRUE);
+			if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
+				ctsduration += rt->info[rix].spAckDuration;
+		} else {
+			if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
+				ctsduration += rt->info[cix].lpAckDuration;
+			ctsduration += ath_hal_computetxtime(ah,
+				rt, pktlen, rix, AH_FALSE);
+			if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
+				ctsduration += rt->info[rix].lpAckDuration;
+		}
+		ismrr = 0;			/* XXX */
+	} else
+		ctsrate = 0;
+	pri = params->ibp_pri & 3;
+	/*
+	 * NB: we mark all packets as type PSPOLL so the h/w won't
+	 * set the sequence number, duration, etc.
+	 */
+	atype = HAL_PKT_TYPE_PSPOLL;
+
+	if (IFF_DUMPPKTS(sc, ATH_DEBUG_XMIT))
+		ieee80211_dump_pkt(mtod(m0, caddr_t), m0->m_len,
+			sc->sc_hwmap[txrate].ieeerate, -1);
+	
+	if (bpf_peers_present(ic->ic_rawbpf))
+		bpf_mtap(ic->ic_rawbpf, m0);
+	if (bpf_peers_present(sc->sc_drvbpf)) {
+		u_int64_t tsf = ath_hal_gettsf64(ah);
+
+		sc->sc_tx_th.wt_tsf = htole64(tsf);
+		sc->sc_tx_th.wt_flags = sc->sc_hwmap[txrate].txflags;
+		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
+			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
+		sc->sc_tx_th.wt_rate = sc->sc_hwmap[txrate].ieeerate;
+		sc->sc_tx_th.wt_txpower = ni->ni_txpower;
+		sc->sc_tx_th.wt_antenna = sc->sc_txantenna;
+
+		bpf_mtap2(sc->sc_drvbpf,
+			&sc->sc_tx_th, sc->sc_tx_th_len, m0);
+	}
+
+	/*
+	 * Formulate first tx descriptor with tx controls.
+	 */
+	ds = bf->bf_desc;
+	/* XXX check return value? */
+	ath_hal_setuptxdesc(ah, ds
+		, pktlen		/* packet length */
+		, hdrlen		/* header length */
+		, atype			/* Atheros packet type */
+		, params->ibp_power	/* txpower */
+		, txrate, try0		/* series 0 rate/tries */
+		, HAL_TXKEYIX_INVALID	/* key cache index */
+		, txantenna		/* antenna mode */
+		, flags			/* flags */
+		, ctsrate		/* rts/cts rate */
+		, ctsduration		/* rts/cts duration */
+	);
+	bf->bf_flags = flags;
+
+	if (ismrr) {
+		rix = ath_tx_findrix(rt, params->ibp_rate1);
+		rate1 = rt->info[rix].rateCode;
+		if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
+			rate1 |= rt->info[rix].shortPreamble;
+		if (params->ibp_try2) {
+			rix = ath_tx_findrix(rt, params->ibp_rate2);
+			rate2 = rt->info[rix].rateCode;
+			if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
+				rate2 |= rt->info[rix].shortPreamble;
+		} else
+			rate2 = 0;
+		if (params->ibp_try3) {
+			rix = ath_tx_findrix(rt, params->ibp_rate3);
+			rate3 = rt->info[rix].rateCode;
+			if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
+				rate3 |= rt->info[rix].shortPreamble;
+		} else
+			rate3 = 0;
+		ath_hal_setupxtxdesc(ah, ds
+			, rate1, params->ibp_try1	/* series 1 */
+			, rate2, params->ibp_try2	/* series 2 */
+			, rate3, params->ibp_try3	/* series 3 */
+		);
+	}
+
+	/*
+	 * When servicing one or more stations in power-save mode
+	 * (or) if there is some mcast data waiting on the mcast
+	 * queue (to prevent out of order delivery) multicast
+	 * frames must be buffered until after the beacon.
+	 */
+	txq = sc->sc_ac2q[pri];
+	if (ismcast && (ic->ic_ps_sta || sc->sc_mcastq.axq_depth))
+		txq = &sc->sc_mcastq;
+	ath_tx_handoff(sc, txq, bf);
+	return 0;
+}
+
+static int
+ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
+	const struct ieee80211_bpf_params *params)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ifnet *ifp = ic->ic_ifp;
+	struct ath_softc *sc = ifp->if_softc;
+	struct ath_buf *bf;
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid) {
+		m_freem(m);
+		return ENETDOWN;
+	}
+	/*
+	 * Grab a TX buffer and associated resources.
+	 */
+	ATH_TXBUF_LOCK(sc);
+	bf = STAILQ_FIRST(&sc->sc_txbuf);
+	if (bf != NULL)
+		STAILQ_REMOVE_HEAD(&sc->sc_txbuf, bf_list);
+	ATH_TXBUF_UNLOCK(sc);
+	if (bf == NULL) {
+		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: out of xmit buffers\n",
+			__func__);
+		sc->sc_stats.ast_tx_qstop++;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		m_freem(m);
+		return ENOBUFS;
+	}
+
+	ifp->if_opackets++;
+	sc->sc_stats.ast_tx_raw++;
+
+	if (params == NULL) {
+		/*
+		 * Legacy path; interpret frame contents to decide
+		 * precisely how to send the frame.
+		 */
+		if (ath_tx_start(sc, ni, bf, m))
+			goto bad;
+	} else {
+		/*
+		 * Caller supplied explicit parameters to use in
+		 * sending the frame.
+		 */
+		if (ath_tx_raw_start(sc, ni, bf, m, params))
+			goto bad;
+	}
+	sc->sc_tx_timer = 5;
+	ifp->if_timer = 1;
+
+	return 0;
+bad:
+	ifp->if_oerrors++;
+	ATH_TXBUF_LOCK(sc);
+	STAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
+	ATH_TXBUF_UNLOCK(sc);
+	ieee80211_free_node(ni);
+	return EIO;		/* XXX */
 }
 
 /*
