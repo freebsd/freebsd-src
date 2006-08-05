@@ -88,7 +88,7 @@ SYSCTL_INT(_vfs, OID_AUTO, lookup_shared, CTLFLAG_RW, &lookup_shared, 0,
     "Enables/Disables shared locks for path name translation");
 
 /*
- * Convert a pathname into a pointer to a locked inode.
+ * Convert a pathname into a pointer to a locked vnode.
  *
  * The FOLLOW flag is set when symbolic links are to be followed
  * when they occur at the end of the name translation process.
@@ -607,7 +607,7 @@ unionlookup:
 		/*
 		 * We return with ni_vp NULL to indicate that the entry
 		 * doesn't currently exist, leaving a pointer to the
-		 * (possibly locked) directory inode in ndp->ni_dvp.
+		 * (possibly locked) directory vnode in ndp->ni_dvp.
 		 */
 		if (cnp->cn_flags & SAVESTART) {
 			ndp->ni_startdir = ndp->ni_dvp;
@@ -859,7 +859,7 @@ relookup(dvp, vpp, cnp)
 		/*
 		 * We return with ni_vp NULL to indicate that the entry
 		 * doesn't currently exist, leaving a pointer to the
-		 * (possibly locked) directory inode in ndp->ni_dvp.
+		 * (possibly locked) directory vnode in ndp->ni_dvp.
 		 */
 		return (0);
 	}
