@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 #include "opt_ktrace.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -50,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/file.h> 		/* Must come after sys/malloc.h */
-#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
