@@ -1424,11 +1424,6 @@ swp_pager_async_iodone(struct buf *bp)
 				 * NOTE: for reads, m->dirty will probably
 				 * be overridden by the original caller of
 				 * getpages so don't play cute tricks here.
-				 *
-				 * XXX IT IS NOT LEGAL TO FREE THE PAGE HERE
-				 * AS THIS MESSES WITH object->memq, and it is
-				 * not legal to mess with object->memq from an
-				 * interrupt.
 				 */
 				m->valid = 0;
 				if (i != bp->b_pager.pg_reqpage)
