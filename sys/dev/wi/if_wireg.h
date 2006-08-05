@@ -496,6 +496,7 @@ struct wi_pcf {
 #define WI_PORTTYPE_BSS		0x1
 #define WI_PORTTYPE_WDS		0x2
 #define WI_PORTTYPE_ADHOC	0x3
+#define WI_PORTTYPE_APSILENT	0x5
 #define	WI_PORTTYPE_HOSTAP	0x6
 
 /*
