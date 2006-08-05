@@ -114,6 +114,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/wi/if_wivar.h>
 
 static void wi_start(struct ifnet *);
+static int  wi_start_tx(struct ifnet *ifp, struct wi_frame *frmhdr,
+		struct mbuf *m0);
+static int  wi_raw_xmit(struct ieee80211_node *, struct mbuf *,
+		const struct ieee80211_bpf_params *);
 static int  wi_reset(struct wi_softc *);
 static void wi_watchdog(struct ifnet *);
 static int  wi_ioctl(struct ifnet *, u_long, caddr_t);
@@ -490,6 +494,7 @@ wi_attach(device_t dev)
 	sc->sc_key_alloc = ic->ic_crypto.cs_key_alloc;
 	ic->ic_crypto.cs_key_alloc = wi_key_alloc;
 	ic->ic_newstate = wi_newstate;
+	ic->ic_raw_xmit = wi_raw_xmit;
 	ieee80211_media_init(ic, wi_media_change, wi_media_status);
 
 #if NBPFILTER > 0
@@ -695,8 +700,16 @@ wi_init(void *arg)
 		wi_write_val(sc, WI_RID_PORTTYPE, WI_PORTTYPE_HOSTAP);
 		break;
 	case IEEE80211_M_MONITOR:
-		if (sc->sc_firmware_type == WI_LUCENT)
+		switch (sc->sc_firmware_type) {
+		case WI_LUCENT:
 			wi_write_val(sc, WI_RID_PORTTYPE, WI_PORTTYPE_ADHOC);
+			break;
+		
+		case WI_INTERSIL:
+			wi_write_val(sc, WI_RID_PORTTYPE, WI_PORTTYPE_APSILENT);
+			break;
+		}
+
 		wi_cmd(sc, WI_CMD_DEBUG | (WI_TEST_MONITOR << 8), 0, 0, 0);
 		break;
 	}
@@ -736,6 +749,7 @@ wi_init(void *arg)
 		wi_write_val(sc, WI_RID_MICROWAVE_OVEN, sc->sc_microwave_oven);
 	wi_write_txrate(sc);
 	wi_write_ssid(sc, WI_RID_NODENAME, sc->sc_nodename, sc->sc_nodelen);
+	wi_write_val(sc, WI_RID_ALT_RETRY_CNT, 0); /* for IEEE80211_BPF_NOACK */
 
 	if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
 	    sc->sc_firmware_type == WI_INTERSIL) {
@@ -883,7 +897,7 @@ wi_start(struct ifnet *ifp)
 	struct ether_header *eh;
 	struct mbuf *m0;
 	struct wi_frame frmhdr;
-	int cur, fid, off, error;
+	int cur;
 	WI_LOCK_DECL();
 
 	WI_LOCK(sc);
@@ -993,31 +1007,133 @@ wi_start(struct ifnet *ifp)
 		frmhdr.wi_dat_len = htole16(m0->m_pkthdr.len);
 		if (IFF_DUMPPKTS(ifp))
 			wi_dump_pkt(&frmhdr, NULL, -1);
-		fid = sc->sc_txd[cur].d_fid;
-		off = sizeof(frmhdr);
-		error = wi_write_bap(sc, fid, 0, &frmhdr, sizeof(frmhdr)) != 0
-		     || wi_mwrite_bap(sc, fid, off, m0, m0->m_pkthdr.len) != 0;
-		m_freem(m0);
 		if (ni != NULL)
 			ieee80211_free_node(ni);
-		if (error) {
-			ifp->if_oerrors++;
+		if (wi_start_tx(ifp, &frmhdr, m0))
 			continue;
-		}
-		sc->sc_txd[cur].d_len = off;
-		if (sc->sc_txcur == cur) {
-			if (wi_cmd(sc, WI_CMD_TX | WI_RECLAIM, fid, 0, 0)) {
-				if_printf(ifp, "xmit failed\n");
-				sc->sc_txd[cur].d_len = 0;
-				continue;
-			}
-			sc->sc_tx_timer = 5;
-			ifp->if_timer = 1;
-		}
 		sc->sc_txnext = cur = (cur + 1) % sc->sc_ntxbuf;
 	}
 
 	WI_UNLOCK(sc);
+}
+
+static int
+wi_start_tx(struct ifnet *ifp, struct wi_frame *frmhdr, struct mbuf *m0)
+{
+	struct wi_softc	*sc = ifp->if_softc;
+	int cur = sc->sc_txnext;
+	int fid, off, error;
+
+	fid = sc->sc_txd[cur].d_fid;
+	off = sizeof(*frmhdr);
+	error = wi_write_bap(sc, fid, 0, frmhdr, sizeof(*frmhdr)) != 0
+	     || wi_mwrite_bap(sc, fid, off, m0, m0->m_pkthdr.len) != 0;
+	m_freem(m0);
+	if (error) {
+		ifp->if_oerrors++;
+		return -1;
+	}
+	sc->sc_txd[cur].d_len = off;
+	if (sc->sc_txcur == cur) {
+		if (wi_cmd(sc, WI_CMD_TX | WI_RECLAIM, fid, 0, 0)) {
+			if_printf(ifp, "xmit failed\n");
+			sc->sc_txd[cur].d_len = 0;
+			return -1;
+		}
+		sc->sc_tx_timer = 5;
+		ifp->if_timer = 1;
+	}
+	return 0;
+}
+
+static int
+wi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m0,
+	    const struct ieee80211_bpf_params *params)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ifnet *ifp = ic->ic_ifp;
+	struct wi_softc	*sc = ifp->if_softc;
+	struct ieee80211_frame *wh;
+	struct wi_frame frmhdr;
+	int cur;
+	int rc = 0;
+	WI_LOCK_DECL();
+
+	WI_LOCK(sc);
+
+	if (sc->wi_gone) {
+		rc = ENETDOWN;
+		goto out;
+	}
+	if (sc->sc_flags & WI_FLAGS_OUTRANGE) {
+		rc = ENETDOWN;
+		goto out;
+	}
+
+	memset(&frmhdr, 0, sizeof(frmhdr));
+	cur = sc->sc_txnext;
+	if (sc->sc_txd[cur].d_len != 0) {
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		rc = ENOBUFS;
+		goto out;
+	}
+	m0->m_pkthdr.rcvif = NULL;
+
+	m_copydata(m0, 4, ETHER_ADDR_LEN * 2,
+	    (caddr_t)&frmhdr.wi_ehdr);
+	frmhdr.wi_ehdr.ether_type = 0;
+	wh = mtod(m0, struct ieee80211_frame *);
+			
+#if NBPFILTER > 0
+	if (bpf_peers_present(ic->ic_rawbpf))
+		bpf_mtap(ic->ic_rawbpf, m0);
+#endif
+	frmhdr.wi_tx_ctl = htole16(WI_ENC_TX_802_11|WI_TXCNTL_TX_EX);
+	if (params && (params->ibp_flags & IEEE80211_BPF_NOACK))
+		frmhdr.wi_tx_ctl |= htole16(WI_TXCNTL_ALTRTRY);
+	/* XXX check key for SWCRYPT instead of using operating mode */
+	if ((wh->i_fc[1] & IEEE80211_FC1_WEP) &&
+	    (sc->sc_encryption & HOST_ENCRYPT)) {
+	    	if (!params ||
+		    (params && (params->ibp_flags & IEEE80211_BPF_CRYPTO))) {
+			struct ieee80211_key *k;
+
+			k = ieee80211_crypto_encap(ic, ni, m0);
+			if (k == NULL) {
+				if (ni != NULL)
+					ieee80211_free_node(ni);
+				m_freem(m0);
+				rc = ENOMEM;
+				goto out;
+			}
+			frmhdr.wi_tx_ctl |= htole16(WI_TXCNTL_NOCRYPT);
+		}
+	}
+#if NBPFILTER > 0
+	if (bpf_peers_present(sc->sc_drvbpf)) {
+		sc->sc_tx_th.wt_rate =
+			ni->ni_rates.rs_rates[ni->ni_txrate];
+		bpf_mtap2(sc->sc_drvbpf,
+			&sc->sc_tx_th, sc->sc_tx_th_len, m0);
+	}
+#endif
+	m_copydata(m0, 0, sizeof(struct ieee80211_frame),
+	    (caddr_t)&frmhdr.wi_whdr);
+	m_adj(m0, sizeof(struct ieee80211_frame));
+	frmhdr.wi_dat_len = htole16(m0->m_pkthdr.len);
+	if (IFF_DUMPPKTS(ifp))
+		wi_dump_pkt(&frmhdr, NULL, -1);
+	if (ni != NULL)
+		ieee80211_free_node(ni);
+	rc = wi_start_tx(ifp, &frmhdr, m0);
+	if (rc)
+		goto out;
+
+	sc->sc_txnext = cur = (cur + 1) % sc->sc_ntxbuf;
+out:
+	WI_UNLOCK(sc);
+
+	return rc;
 }
 
 static int
@@ -1522,17 +1638,6 @@ wi_rx_intr(struct wi_softc *sc)
 
 	CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_RX);
 
-	wh = mtod(m, struct ieee80211_frame *);
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
-		/*
-		 * WEP is decrypted by hardware and the IV
-		 * is stripped.  Clear WEP bit so we don't
-		 * try to process it in ieee80211_input.
-		 * XXX fix for TKIP, et. al.
-		 */
-		wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
-	}
-
 #if NBPFILTER > 0
 	if (bpf_peers_present(sc->sc_drvbpf)) {
 		/* XXX replace divide by table */
@@ -1547,6 +1652,16 @@ wi_rx_intr(struct wi_softc *sc)
 			&sc->sc_rx_th, sc->sc_rx_th_len, m);
 	}
 #endif
+	wh = mtod(m, struct ieee80211_frame *);
+	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		/*
+		 * WEP is decrypted by hardware and the IV
+		 * is stripped.  Clear WEP bit so we don't
+		 * try to process it in ieee80211_input.
+		 * XXX fix for TKIP, et. al.
+		 */
+		wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
+	}
 
 	/* synchronize driver's BSSID with firmware's BSSID */
 	dir = wh->i_fc[1] & IEEE80211_FC1_DIR_MASK;
