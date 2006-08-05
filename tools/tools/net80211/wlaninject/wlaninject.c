@@ -145,7 +145,7 @@ void inject(int fd, void *buf, int buflen, struct ieee80211_bpf_params *p)
 	int rc;
 
 	iov[0].iov_base = p;
-	iov[0].iov_len = sizeof(*p);
+	iov[0].iov_len = p->ibp_len;
 
 	iov[1].iov_base = buf;
 	iov[1].iov_len = buflen;
@@ -486,11 +486,14 @@ int possible_match(struct ieee80211_frame *sent, int slen,
 
 int do_verify(struct ieee80211_frame *sent, int slen, void *got, int glen)
 {
+#define BIT(n)  (1<<(n))
 	struct bpf_hdr *bpfh = got;
 	struct ieee80211_frame *wh;
 	struct ieee80211_radiotap_header *rth;
 	int i;
 	unsigned char *ptr, *ptr2;
+	uint32_t present;
+	uint8_t rflags;
 
 	/* get the 802.11 header */
 	glen -= bpfh->bh_hdrlen;
@@ -503,7 +506,18 @@ int do_verify(struct ieee80211_frame *sent, int slen, void *got, int glen)
 	glen -= rth->it_len;
 	assert(glen > 0);
 	wh = (struct ieee80211_frame*) ((char*)rth + rth->it_len);
-	glen -= 4; /* 802.11 CRC */
+
+        /* check if FCS/CRC is included in packet */
+	present = le32toh(rth->it_present);
+	if (present & BIT(IEEE80211_RADIOTAP_FLAGS)) {
+		if (present & BIT(IEEE80211_RADIOTAP_TSFT))
+			rflags = ((const uint8_t *)rth)[8];
+		else
+			rflags = ((const uint8_t *)rth)[0];
+	} else  
+		rflags = 0;
+	if (rflags & IEEE80211_RADIOTAP_F_FCS)
+		glen -= IEEE80211_CRC_LEN;
 	assert(glen > 0);
 	
 	/* did we receive the packet we sent? */
@@ -526,6 +540,7 @@ int do_verify(struct ieee80211_frame *sent, int slen, void *got, int glen)
 			       i, *ptr, *ptr2);
 	}
 	return -1;
+#undef BIT
 }
 
 int main(int argc, char *argv[])
@@ -534,10 +549,10 @@ int main(int argc, char *argv[])
 	char *iface = "ath0";
 	char *verify = NULL;
 	int chan = 1;
-	union {
+	struct {
 		struct ieee80211_frame w;
 		unsigned char buf[2048];
-	} u;
+	} __packed u;
 	int len = 0;
 	int ch;
 	struct ieee80211_bpf_params params;
@@ -546,6 +561,8 @@ int main(int argc, char *argv[])
 
 	memset(&u, 0, sizeof(u));
 	memset(&params, 0, sizeof(params));
+	params.ibp_vers = IEEE80211_BPF_VERSION;
+	params.ibp_len = sizeof(struct ieee80211_bpf_params) - 6,
 	params.ibp_rate0 = 2;		/* 1 MB/s XXX */
 	params.ibp_try0 = 1;		/* no retransmits */
 	params.ibp_power = 100;		/* nominal max */
@@ -763,15 +780,35 @@ int main(int argc, char *argv[])
 		setup_if(verify, chan);
 		fd2 = open_bpf(verify);
 	}
-	inject(fd, u.buf, len, &params);
+	inject(fd, wh, len, &params);
 	close(fd);
 	if (verify) {
 		char buf2[4096];
 		int rc;
 		int max = 10;
+		int timeout = 2;
+		fd_set fds;
+		struct timeval tv;
+		time_t start;
 
 		printf("Verifying via %s\n", verify);
+		start = time(NULL);
 		while (max--) {
+			FD_ZERO(&fds);
+			FD_SET(fd2, &fds);
+
+			tv.tv_usec = 0;
+			tv.tv_sec = time(NULL) - start;
+			if (tv.tv_sec >= timeout) {
+				timeout = 0;
+				break;
+			}
+			tv.tv_sec = timeout - tv.tv_sec;
+			if (select(fd2+1, &fds, NULL, NULL, &tv) == -1)
+				err(1, "select()");
+			if (!FD_ISSET(fd2, &fds))
+				continue;
+
 			if ((rc = read(fd2, buf2, sizeof(buf2))) == -1)
 				err(1, "read()");
 
@@ -780,7 +817,7 @@ int main(int argc, char *argv[])
 				break;
 			}
 		}
-		if (max != 666)
+		if (max != 666 || !timeout)
 			printf("No luck\n");
 		close(fd2);
 	}
