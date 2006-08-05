@@ -226,6 +226,7 @@ struct wi_counters {
 #define WI_RID_P2_CRYPT_KEY2	0xFC26
 #define WI_RID_P2_CRYPT_KEY3	0xFC27
 #define WI_RID_P2_ENCRYPTION	0xFC28
+#define WI_RID_ALT_RETRY_CNT	0xFC32
 #define	 PRIVACY_INVOKED	0x01
 #define	 EXCLUDE_UNENCRYPTED	0x02
 #define	 HOST_ENCRYPT		0x10
@@ -466,7 +467,7 @@ struct wi_rx_frame {
 	u_int8_t	wi_src_addr[6];
 	u_int16_t	wi_len;
 };
-#define WI_DATA_HDRLEN		0x44
+#define WI_DATA_HDRLEN		0x3C
 #define WI_MGMT_HDRLEN		0x3C
 #define WI_CTL_HDRLEN		0x3C
 
