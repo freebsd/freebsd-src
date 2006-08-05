@@ -540,22 +540,7 @@ again:
 			ISP_SETBITS(isp, CDMA_CONF, DMA_ENABLE_BURST);
 			ISP_SETBITS(isp, DDMA_CONF, DMA_ENABLE_BURST);
 		}
-#ifdef	PTI_CARDS
-		if (((sdparam *) isp->isp_param)->isp_ultramode) {
-			while (ISP_READ(isp, RISC_MTR) != 0x1313) {
-				ISP_WRITE(isp, RISC_MTR, 0x1313);
-				ISP_WRITE(isp, HCCR, HCCR_CMD_STEP);
-			}
-		} else {
-			ISP_WRITE(isp, RISC_MTR, 0x1212);
-		}
-		/*
-		 * PTI specific register
-		 */
-		ISP_WRITE(isp, RISC_EMB, DUAL_BANK)
-#else
 		ISP_WRITE(isp, RISC_MTR, 0x1212);
-#endif
 	} else {
 		ISP_WRITE(isp, RISC_MTR2100, 0x1212);
 		if (IS_2200(isp) || IS_23XX(isp)) {
