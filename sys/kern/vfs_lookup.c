@@ -108,12 +108,11 @@ SYSCTL_INT(_vfs, OID_AUTO, lookup_shared, CTLFLAG_RW, &lookup_shared, 0,
  *	}
  */
 int
-namei(ndp)
-	register struct nameidata *ndp;
+namei(struct nameidata *ndp)
 {
-	register struct filedesc *fdp;	/* pointer to file descriptor state */
-	register char *cp;		/* pointer into pathname argument */
-	register struct vnode *dp;	/* the directory we are searching */
+	struct filedesc *fdp;	/* pointer to file descriptor state */
+	char *cp;		/* pointer into pathname argument */
+	struct vnode *dp;	/* the directory we are searching */
 	struct iovec aiov;		/* uio for reading symbolic links */
 	struct uio auio;
 	int error, linklen;
@@ -343,11 +342,10 @@ namei(ndp)
  *	    if WANTPARENT set, return unlocked parent in ni_dvp
  */
 int
-lookup(ndp)
-	register struct nameidata *ndp;
+lookup(struct nameidata *ndp)
 {
-	register char *cp;		/* pointer into pathname argument */
-	register struct vnode *dp = 0;	/* the directory we are searching */
+	char *cp;		/* pointer into pathname argument */
+	struct vnode *dp = 0;	/* the directory we are searching */
 	struct vnode *tdp;		/* saved dp */
 	struct mount *mp;		/* mount table entry */
 	int docache;			/* == 0 do not cache last component */
@@ -766,9 +764,7 @@ bad:
  *    Used by lookup to re-aquire things.
  */
 int
-relookup(dvp, vpp, cnp)
-	struct vnode *dvp, **vpp;
-	struct componentname *cnp;
+relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 {
 	struct thread *td = cnp->cn_thread;
 	struct vnode *dp = 0;		/* the directory we are searching */
@@ -910,9 +906,7 @@ bad:
  * Free data allocated by namei(); see namei(9) for details.
  */
 void
-NDFREE(ndp, flags)
-     struct nameidata *ndp;
-     const u_int flags;
+NDFREE(struct nameidata *ndp, const u_int flags)
 {
 	int unlock_dvp;
 	int unlock_vp;
