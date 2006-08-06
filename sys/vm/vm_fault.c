@@ -389,10 +389,8 @@ RetryFault:;
 				VM_OBJECT_LOCK(fs.object);
 				if (fs.m == vm_page_lookup(fs.object,
 				    fs.pindex)) {
-					vm_page_lock_queues();
-					if (!vm_page_sleep_if_busy(fs.m, TRUE,
-					    "vmpfw"))
-						vm_page_unlock_queues();
+					vm_page_sleep_if_busy(fs.m, TRUE,
+					    "vmpfw");
 				}
 				vm_object_pip_wakeup(fs.object);
 				VM_OBJECT_UNLOCK(fs.object);
