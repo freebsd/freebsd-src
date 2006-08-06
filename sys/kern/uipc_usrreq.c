@@ -800,9 +800,6 @@ struct pr_usrreqs uipc_usrreqs = {
 	.pru_sense =		uipc_sense,
 	.pru_shutdown =		uipc_shutdown,
 	.pru_sockaddr =		uipc_sockaddr,
-	.pru_sosend =		sosend_generic,
-	.pru_soreceive =	soreceive_generic,
-	.pru_sopoll =		sopoll_generic,
 	.pru_close =		uipc_close,
 };
 
