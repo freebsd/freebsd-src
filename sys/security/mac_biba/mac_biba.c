@@ -3019,7 +3019,7 @@ mac_biba_check_vnode_write(struct ucred *active_cred,
 	return (0);
 }
 
-static int
+static void
 mac_biba_associate_nfsd_label(struct ucred *cred)
 {
 	struct mac_biba *label;
@@ -3028,7 +3028,6 @@ mac_biba_associate_nfsd_label(struct ucred *cred)
 	mac_biba_set_effective(label, MAC_BIBA_TYPE_LOW, 0, NULL);
 	mac_biba_set_range(label, MAC_BIBA_TYPE_LOW, 0, NULL,
 	    MAC_BIBA_TYPE_HIGH, 0, NULL);
-	return (0);
 }
 
 static struct mac_policy_ops mac_biba_ops =

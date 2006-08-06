@@ -589,7 +589,7 @@ typedef int	(*mpo_check_vnode_stat_t)(struct ucred *active_cred,
 typedef int	(*mpo_check_vnode_write_t)(struct ucred *active_cred,
 		    struct ucred *file_cred, struct vnode *vp,
 		    struct label *label);
-typedef int	(*mpo_associate_nfsd_label_t)(struct ucred *cred);
+typedef void	(*mpo_associate_nfsd_label_t)(struct ucred *cred);
 
 struct mac_policy_ops {
 	/*
