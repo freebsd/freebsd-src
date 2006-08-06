@@ -2506,7 +2506,6 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 retry:
 		p = vm_page_lookup(object, pindex);
 		if (p != NULL) {
-			vm_page_lock_queues();
 			if (vm_page_sleep_if_busy(p, FALSE, "init4p"))
 				goto retry;
 		} else {
@@ -2525,8 +2524,8 @@ retry:
 			p = vm_page_lookup(object, pindex);
 			vm_page_lock_queues();
 			vm_page_wakeup(p);
+			vm_page_unlock_queues();
 		}
-		vm_page_unlock_queues();
 
 		ptepa = VM_PAGE_TO_PHYS(p);
 		if (ptepa & (NBPDR - 1))
