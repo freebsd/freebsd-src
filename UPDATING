@@ -8,6 +8,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060806:
+	The interface version of the i4b kernel part has changed. So
+	after updating the kernel sources and compiling a new kernel,
+	the i4b user space tools in "/usr/src/usr.sbin/i4b" must also
+	be rebuilt, and vice versa. This also applies to other tools
+	using the i4b kernel interface to userland.
+
 20060711:
 	The iwi(4) was updated to use the firmware(9) framework.  In order
 	for it to work you need a port change from net/iwi-firmware to
