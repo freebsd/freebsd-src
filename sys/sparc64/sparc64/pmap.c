@@ -1026,12 +1026,8 @@ pmap_pinit(pmap_t pm)
 	for (i = 0; i < TSB_PAGES; i++) {
 		m = vm_page_grab(pm->pm_tsb_obj, i, VM_ALLOC_NOBUSY |
 		    VM_ALLOC_RETRY | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
-
-		vm_page_lock_queues();
 		m->valid = VM_PAGE_BITS_ALL;
 		m->md.pmap = pm;
-		vm_page_unlock_queues();
-
 		ma[i] = m;
 	}
 	VM_OBJECT_UNLOCK(pm->pm_tsb_obj);
