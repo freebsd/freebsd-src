@@ -12,6 +12,7 @@
 # cd /sys/modules/foo; make depend; make; make install; kldload foo
 #
 # arg1 to this script is expected to be lowercase "foo"
+# arg2 path to the kernel sources, "/sys" if omitted
 #
 # Trust me, RUN THIS SCRIPT :)
 #
@@ -26,11 +27,13 @@ if [ "X${1}" = "X" ]; then
 	echo "Hey, how about some help here... give me a device name!"
 	exit 1
 fi
+if [ "X${2}" = "X" ]; then
+	TOP=`cd /sys; pwd -P`
+	echo "Using ${TOP} as the path to the kernel sources!"
+else
+	TOP=${2}
+fi
 UPPER=`echo ${1} |tr "[:lower:]" "[:upper:]"`
-
-HERE=`pwd`
-cd /sys
-TOP=`pwd`
 
 RCS_KEYWORD=FreeBSD
 
@@ -46,7 +49,7 @@ if [ -d ${TOP}/modules/${1} ]; then
 		echo "Cleaning up from prior runs"
 		rm -rf ${TOP}/dev/${1}
 		rm -rf ${TOP}/modules/${1}
-		rm ${TOP}/i386/conf/files.${UPPER}
+		rm ${TOP}/conf/files.${UPPER}
 		rm ${TOP}/i386/conf/${UPPER}
 		rm ${TOP}/sys/${1}io.h
 		;;
@@ -58,7 +61,7 @@ fi
 
 echo "The following files will be created:"
 echo ${TOP}/modules/${1}
-echo ${TOP}/i386/conf/files.${UPPER}
+echo ${TOP}/conf/files.${UPPER}
 echo ${TOP}/i386/conf/${UPPER}
 echo ${TOP}/dev/${1}
 echo ${TOP}/dev/${1}/${1}.c
@@ -79,7 +82,7 @@ echo ${TOP}/modules/${1}/Makefile
 # First add the file to a local file list.
 #######################################################################
 
-cat >${TOP}/i386/conf/files.${UPPER} <<DONE
+cat >${TOP}/conf/files.${UPPER} <<DONE
 dev/${1}/${1}.c	 optional ${1}
 DONE
 
@@ -88,11 +91,13 @@ DONE
 #######################################################################
 cat >${TOP}/i386/conf/${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
-ident	${UPPER}
 # \$${RCS_KEYWORD}$
-DONE
 
-grep -v GENERIC < /sys/i386/conf/GENERIC >>${TOP}/i386/conf/${UPPER}
+include		GENERIC
+
+ident		${UPPER}
+
+DONE
 
 cat >>${TOP}/i386/conf/${UPPER} <<DONE
 options		DDB		# trust me, you'll need this
@@ -964,15 +969,23 @@ opt_inet.h:
 .include <bsd.kmod.mk>
 DONE
 
-(cd ${TOP}/modules/${1}; make depend; make )
-exit
+echo -n "Do you want to build the '${1}' module? [Y]"
+read VAL
+if [ "-z" "$VAL" ]; then
+	VAL=YES
+fi
+case ${VAL} in
+[yY]*)
+	(cd ${TOP}/modules/${1}; make depend; make )
+	;;
+*)
+#	exit
+	;;
+esac
 
-config ${UPPER}
-cd ../../compile/${UPPER}
-make depend
-make ${1}.o
-make
-exit
+echo ""
+echo "To build the kernel you should merge ${TOP}/conf/files.${UPPER} " \
+	"into one of the ${TOP}/conf/files*"
 
 #--------------end of script---------------
 #
