@@ -209,14 +209,15 @@ timeest(void)
 		mins = (deltat % 3600) / 60;
 
 		tdone_str = ctime(&tdone);
+		tdone_str[(strlen(tdone_str) - 1)] = '\0';
 		setproctitle(
-		    "%s: pass %d: %3.2f%% done, finished in %d:%02d at %.*s",
-		    disk, passno, percent, hours, mins, strlen(tdone_str) - 1, tdone_str);
+		    "%s: pass %d: %3.2f%% done, finished in %d:%02d at %s",
+		    disk, passno, percent, hours, mins, tdone_str);
 		if (tnow >= tschedule) {
 			tschedule = tnow + 300;
 			if (blockswritten < 500)
 				return;
-			msg("%3.2f%% done, finished in %d:%02d at %s", percent,
+			msg("%3.2f%% done, finished in %d:%02d at %s\n", percent,
 			    hours, mins, tdone_str);
 		}
 	}
