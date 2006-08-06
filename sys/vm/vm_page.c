@@ -496,9 +496,10 @@ int
 vm_page_sleep_if_busy(vm_page_t m, int also_m_busy, const char *msg)
 {
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->flags & PG_BUSY) || (also_m_busy && m->busy)) {
+		if (!mtx_owned(&vm_page_queue_mtx))
+			vm_page_lock_queues();
 		vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
 		vm_page_unlock_queues();
 
