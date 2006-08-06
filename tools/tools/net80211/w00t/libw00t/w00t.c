@@ -154,8 +154,8 @@ int inject_params(int fd, void *buf, int len,
 		.ibp_vers = IEEE80211_BPF_VERSION,
 		/* NB: no need to pass series 2-4 rate+try */
 		.ibp_len = sizeof(struct ieee80211_bpf_params) - 6,
-		.ibp_rate1 = 2,		/* 1 MB/s XXX */
-		.ibp_try1 = 1,		/* no retransmits */
+		.ibp_rate0 = 2,		/* 1 MB/s XXX */
+		.ibp_try0 = 1,		/* no retransmits */
 		.ibp_flags = IEEE80211_BPF_NOACK,
 		.ibp_power = 100,	/* nominal max */
 		.ibp_pri = WME_AC_VO,	/* high priority */
