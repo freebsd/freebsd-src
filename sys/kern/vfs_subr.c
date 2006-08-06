@@ -3134,6 +3134,9 @@ vn_isdisk(struct vnode *vp, int *errp)
  * and optional call-by-reference privused argument allowing vaccess()
  * to indicate to the caller whether privilege was used to satisfy the
  * request (obsoleted).  Returns 0 on success, or an errno on failure.
+ *
+ * The ifdef'd CAPABILITIES version is here for reference, but is not
+ * actually used.
  */
 int
 vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
@@ -3207,9 +3210,11 @@ privcheck:
 	/*
 	 * Build a capability mask to determine if the set of capabilities
 	 * satisfies the requirements when combined with the granted mask
-	 * from above.
-	 * For each capability, if the capability is required, bitwise
-	 * or the request type onto the cap_granted mask.
+	 * from above.  For each capability, if the capability is required,
+	 * bitwise or the request type onto the cap_granted mask.
+	 *
+	 * Note: This is never actually used, but is here for reference
+	 * purposes.
 	 */
 	cap_granted = 0;
 
@@ -3219,7 +3224,8 @@ privcheck:
 		 * VEXEC requests, instead of CAP_DAC_EXECUTE.
 		 */
 		if ((acc_mode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
-		    !cap_check(cred, NULL, CAP_DAC_READ_SEARCH, SUSER_ALLOWJAIL))
+		    !cap_check(cred, NULL, CAP_DAC_READ_SEARCH,
+		    SUSER_ALLOWJAIL))
 			cap_granted |= VEXEC;
 	} else {
 		if ((acc_mode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
