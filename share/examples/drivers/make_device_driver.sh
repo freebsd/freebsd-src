@@ -152,8 +152,6 @@ __FBSDID("\$${RCS_KEYWORD}$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/bus_pio.h>
-#include <machine/bus_memio.h>
 #include <sys/rman.h>
 
 #include <dev/pci/pcireg.h>
@@ -198,7 +196,7 @@ struct ${1}_softc {
 	struct resource* res_irq;	/* Resource for irq range. */
 	struct resource* res_drq;	/* Resource for dma channel. */
 	device_t device;
-	dev_t dev;
+	struct cdev *dev;
 	void	*intr_cookie;
 	void	*vaddr;			/* Virtual address of mem resource. */
 	char	buffer[BUFFERSIZE];	/* If we need to buffer something. */
@@ -219,8 +217,8 @@ static d_mmap_t		${1}mmap;
 static d_poll_t		${1}poll;
 static	void		${1}intr(void *arg);
 
-#define CDEV_MAJOR 20
 static struct cdevsw ${1}_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	${1}open,
 	.d_close =	${1}close,
 	.d_read =	${1}read,
@@ -229,7 +227,6 @@ static struct cdevsw ${1}_cdevsw = {
 	.d_poll =	${1}poll,
 	.d_mmap =	${1}mmap,
 	.d_name =	"${1}",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static devclass_t ${1}_devclass;
@@ -818,7 +815,7 @@ ${1}intr(void *arg)
 }
 
 static int
-${1}ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+${1}ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
@@ -840,7 +837,7 @@ ${1}ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
  * This should get you started.
  */
 static int
-${1}open(dev_t dev, int oflags, int devtype, struct thread *td)
+${1}open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
@@ -852,7 +849,7 @@ ${1}open(dev_t dev, int oflags, int devtype, struct thread *td)
 }
 
 static int
-${1}close(dev_t dev, int fflag, int devtype, struct thread *td)
+${1}close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
@@ -864,7 +861,7 @@ ${1}close(dev_t dev, int fflag, int devtype, struct thread *td)
 }
 
 static int
-${1}read(dev_t dev, struct uio *uio, int ioflag)
+${1}read(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 	int	 toread;
@@ -879,7 +876,7 @@ ${1}read(dev_t dev, struct uio *uio, int ioflag)
 }
 
 static int
-${1}write(dev_t dev, struct uio *uio, int ioflag)
+${1}write(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 	int	towrite;
@@ -894,7 +891,7 @@ ${1}write(dev_t dev, struct uio *uio, int ioflag)
 }
 
 static int
-${1}mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+${1}mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
@@ -913,7 +910,7 @@ ${1}mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 }
 
 static int
-${1}poll(dev_t dev, int which, struct thread *td)
+${1}poll(struct cdev *dev, int which, struct thread *td)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
