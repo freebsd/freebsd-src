@@ -2038,14 +2038,14 @@ retry_lookup:
 				VM_OBJECT_LOCK(obj);
 				goto retry_lookup;
 			}
-		} else {
-			vm_page_lock_queues();
-			if (vm_page_sleep_if_busy(pg, TRUE, "sfpbsy"))
-				goto retry_lookup;
+		} else if (vm_page_sleep_if_busy(pg, TRUE, "sfpbsy"))
+			goto retry_lookup;
+		else {
 			/*
 			 * Wire the page so it does not get ripped out from
 			 * under us.
 			 */
+			vm_page_lock_queues();
 			vm_page_wire(pg);
 			vm_page_unlock_queues();
 		}
