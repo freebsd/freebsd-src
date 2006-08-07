@@ -31,7 +31,7 @@
  *
  */
 
-#include "sysinstall.h"
+#include "sade.h"
 #include <ctype.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -327,8 +327,8 @@ Mount(char *mountp, void *dev)
 	return DITEM_SUCCESS;
 
     if (*((char *)dev) != '/') {
-    	sprintf(device, "%s/dev/%s", RunningAsInit ? "/mnt" : "", (char *)dev);
-	sprintf(mountpoint, "%s%s", RunningAsInit ? "/mnt" : "", mountp);
+    	sprintf(device, "/dev/%s", (char *)dev);
+	sprintf(mountpoint, "%s", mountp);
     }
     else {
 	strcpy(device, dev);
@@ -344,7 +344,7 @@ Mount(char *mountp, void *dev)
 	msgDebug("mount %s %s\n", device, mountpoint);
 
     ufsargs.fspec = device;
-    if (mount("ufs", mountpoint, RunningAsInit ? MNT_ASYNC | MNT_NOATIME : 0,
+    if (mount("ufs", mountpoint, 0,
 	(caddr_t)&ufsargs) == -1) {
 	msgConfirm("Error mounting %s on %s : %s", device, mountpoint, strerror(errno));
 	return DITEM_FAILURE;
@@ -352,6 +352,7 @@ Mount(char *mountp, void *dev)
     return DITEM_SUCCESS;
 }
 
+#if 0
 int
 Mount_msdosfs(char *mountp, void *dev)
 {
@@ -363,8 +364,8 @@ Mount_msdosfs(char *mountp, void *dev)
 	return DITEM_SUCCESS;
 
     if (*((char *)dev) != '/') {
-    	sprintf(device, "%s/dev/%s", RunningAsInit ? "/mnt" : "", (char *)dev);
-	sprintf(mountpoint, "%s%s", RunningAsInit ? "/mnt" : "", mountp);
+    	sprintf(device, "/dev/%s", (char *)dev);
+	sprintf(mountpoint, "%s", mountp);
     }
     else {
 	strcpy(device, dev);
@@ -382,13 +383,14 @@ Mount_msdosfs(char *mountp, void *dev)
     mount_args.fspec = device;
     mount_args.magic = MSDOSFS_ARGSMAGIC;
     mount_args.mask = S_IRWXU | S_IRWXG | S_IRWXO;
-    if (mount("msdosfs", mountpoint, RunningAsInit ? MNT_ASYNC|MNT_NOATIME : 0,
+    if (mount("msdosfs", mountpoint, 0,
 	    (caddr_t)&mount_args) == -1) {
 	msgConfirm("Error mounting %s on %s : %s", device, mountpoint, strerror(errno));
 	return DITEM_FAILURE;
     }
     return DITEM_SUCCESS;
 }
+#endif
 
 WINDOW *
 openLayoutDialog(char *helpfile, char *title, int x, int y, int width, int height)

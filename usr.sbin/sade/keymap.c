@@ -25,7 +25,7 @@
  *
  */
 
-#include "sysinstall.h"
+#include "sade.h"
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,79 +49,6 @@ struct keymapInfo {
  * first pass, we make a second pass over the table looking just for
  * the language name only.
  */
-
-#ifdef WITH_SYSCONS
-static int
-keymapSetDefault(const char *prefix)
-{
-    dialogMenuItem *items = MenuSysconsKeymap.items;
-    int i;
-    size_t plen = strlen(prefix);
-
-    for (i = 0; items[i].data; ++i)
-	if (!strncmp(prefix, items[i].data, plen))
-	    return i;
-
-    return -1;
-}
-
-int
-keymapMenuSelect(dialogMenuItem *self)
-{
-    static const struct {
-	const char *country, *lang;
-    } map[] = {
-	{"dk", "danish"},
-	{"ee", "estonian"},
-	{"fi", "finnish"},
-	{"de", "german"},
-	{"is", "icelandic"},
-	{"no", "norwegian"},
-	{"pl", "pl_PL"},
-	{"es", "spanish"},
-	{"se", "swedish"},
-	{"ch", "swiss"},
-	{"gb", "uk"},
-	{NULL, NULL}
-    };
-    const char *country, *lang;
-    int i;
-    int choice, scroll, curr, max;
-    char prefix[16 + 1];
-
-    if ((country = variable_get(VAR_COUNTRY)) != NULL)
-    {
-	lang = country;
-	for (i = 0; map[i].country; ++i)
-	    if (!strcmp(country, map[i].country))
-	    {
-		lang = map[i].lang;
-		break;
-	    }
-
-	snprintf(prefix, sizeof(prefix), "keymap=%s.iso", lang);
-	if ((choice = keymapSetDefault(prefix)) == -1)
-	{
-	    snprintf(prefix, sizeof(prefix), "keymap=%s", lang);
-	    if ((choice = keymapSetDefault(prefix)) == -1) {
-#ifdef PC98
-		    snprintf(prefix, sizeof(prefix), "keymap=jp.pc98");
-#else
-		    snprintf(prefix, sizeof(prefix), "keymap=us.iso");
-#endif
-		    if ((choice = keymapSetDefault(prefix)) == -1)
-			    choice = 0;
-	    }
-	}
-
-	dmenuSetDefaultIndex(&MenuSysconsKeymap, &choice, &scroll, &curr, &max);
-	return dmenuOpen(&MenuSysconsKeymap, &choice, &scroll, &curr, &max, FALSE);
-    }
-    else
-	return dmenuOpenSimple(&MenuSysconsKeymap, FALSE) ? DITEM_SUCCESS :
-	    DITEM_FAILURE;
-}
-#endif
 
 /*
  * Return values:

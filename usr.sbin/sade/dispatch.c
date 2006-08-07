@@ -1,9 +1,4 @@
 /*
- * The new sysinstall program.
- *
- * This is probably the last program in the `sysinstall' line - the next
- * generation being essentially a complete rewrite.
- *
  * $FreeBSD$
  *
  * Copyright (c) 1995
@@ -34,7 +29,7 @@
  *
  */
 
-#include "sysinstall.h"
+#include "sade.h"
 #include <ctype.h>
 #include <errno.h>
 #include <sys/signal.h>
@@ -42,80 +37,22 @@
 
 #include "list.h"
 
-static int dispatch_shutdown(dialogMenuItem *unused);
 static int dispatch_systemExecute(dialogMenuItem *unused);
 static int dispatch_msgConfirm(dialogMenuItem *unused);
-static int dispatch_mediaOpen(dialogMenuItem *unused);
-static int dispatch_mediaClose(dialogMenuItem *unused);
 
 static struct _word {
     char *name;
     int (*handler)(dialogMenuItem *self);
 } resWords[] = {
-    { "configAnonFTP",		configAnonFTP		},
-    { "configRouter",		configRouter		},
-    { "configInetd",		configInetd		},
-    { "configNFSServer",	configNFSServer		},
-    { "configNTP",		configNTP		},
-    { "configPCNFSD",		configPCNFSD		},
-    { "configPackages",		configPackages		},
-    { "configUsers",		configUsers		},
 #ifdef WITH_SLICES
     { "diskPartitionEditor",	diskPartitionEditor	},
 #endif
     { "diskPartitionWrite",	diskPartitionWrite	},
     { "diskLabelEditor",	diskLabelEditor		},
     { "diskLabelCommit",	diskLabelCommit		},
-    { "distReset",		distReset		},
-    { "distSetCustom",		distSetCustom		},
-    { "distUnsetCustom",	distUnsetCustom		},
-    { "distSetDeveloper",	distSetDeveloper	},
-    { "distSetXDeveloper",	distSetXDeveloper	},
-    { "distSetKernDeveloper",	distSetKernDeveloper	},
-    { "distSetUser",		distSetUser		},
-    { "distSetXUser",		distSetXUser		},
-    { "distSetMinimum",		distSetMinimum		},
-    { "distSetEverything",	distSetEverything	},
-    { "distSetSrc",		distSetSrc		},
-    { "distExtractAll",		distExtractAll		},
-    { "docBrowser",		docBrowser		},
-    { "docShowDocument",	docShowDocument		},
-    { "installCommit",		installCommit		},
-    { "installExpress",		installExpress		},
-    { "installStandard",	installStandard		},
-    { "installUpgrade",		installUpgrade		},
-    { "installFixupBase",	installFixupBase	},
-    { "installFixitHoloShell",	installFixitHoloShell	},
-    { "installFixitCDROM",	installFixitCDROM	},
-    { "installFixitFloppy",	installFixitFloppy	},
-    { "installFilesystems",	installFilesystems	},
-    { "installVarDefaults",	installVarDefaults	},
-    { "loadConfig",		dispatch_load_file	},
-    { "loadFloppyConfig",	dispatch_load_floppy	},
-    { "mediaOpen",		dispatch_mediaOpen	},
-    { "mediaClose",		dispatch_mediaClose	},
-    { "mediaSetCDROM",		mediaSetCDROM		},
-    { "mediaSetFloppy",		mediaSetFloppy		},
-    { "mediaSetDOS",		mediaSetDOS		},
-    { "mediaSetTape",		mediaSetTape		},
-    { "mediaSetFTP",		mediaSetFTP		},
-    { "mediaSetFTPActive",	mediaSetFTPActive	},
-    { "mediaSetFTPPassive",	mediaSetFTPPassive	},
-    { "mediaSetHTTP",		mediaSetHTTP		},
-    { "mediaSetUFS",		mediaSetUFS		},
-    { "mediaSetNFS",		mediaSetNFS		},
-    { "mediaSetFTPUserPass",	mediaSetFTPUserPass	},
-    { "mediaSetCPIOVerbosity",	mediaSetCPIOVerbosity	},
-    { "mediaGetType",		mediaGetType		},
     { "msgConfirm",		dispatch_msgConfirm	},
-    { "optionsEditor",		optionsEditor		},
-    { "packageAdd",		packageAdd		},
-    { "addGroup",		userAddGroup		},
-    { "addUser",		userAddUser		},
-    { "shutdown",		dispatch_shutdown 	},
     { "system",			dispatch_systemExecute	},
     { "dumpVariables",		dump_variables		},
-    { "tcpMenuSelect",		tcpMenuSelect		},
     { NULL, NULL },
 };
 
@@ -166,18 +103,10 @@ dispatch_add_command(qelement *head, char *string)
 
     return new;
 }
-
+
 /*
  * Command processing
  */
-
-/* Just convenience */
-static int
-dispatch_shutdown(dialogMenuItem *unused)
-{
-    systemShutdown(0);
-    return DITEM_FAILURE;
-}
 
 static int
 dispatch_systemExecute(dialogMenuItem *unused)
@@ -203,19 +132,6 @@ dispatch_msgConfirm(dialogMenuItem *unused)
 
     msgDebug("_msgConfirm: No message passed in `command' variable.\n");
     return DITEM_FAILURE;
-}
-
-static int
-dispatch_mediaOpen(dialogMenuItem *unused)
-{
-    return mediaOpen();
-}
-
-static int
-dispatch_mediaClose(dialogMenuItem *unused)
-{
-    mediaClose();
-    return DITEM_SUCCESS;
 }
 
 static int
@@ -350,99 +266,3 @@ dispatch_execute(qelement *head)
 
     return result;
 }
-
-int
-dispatch_load_file_int(int quiet)
-{
-    FILE *fp;
-    char *cp;
-    int  i;
-    qelement *list;
-
-    static const char *names[] = {
-	"install.cfg",
-	"/stand/install.cfg",
-	"/tmp/install.cfg",
-	NULL
-    };
-
-    fp = NULL;
-    cp = variable_get(VAR_CONFIG_FILE);
-    if (!cp) {
-	for (i = 0; names[i]; i++)
-	    if ((fp = fopen(names[i], "r")) != NULL)
-		break;
-    } else
-	fp = fopen(cp, "r");
-
-    if (!fp) {
-	if (!quiet)
-	    msgConfirm("Unable to open %s: %s", cp, strerror(errno));
-	return DITEM_FAILURE;
-    }
-
-    list = dispatch_load_fp(fp);
-    fclose(fp);
-
-    return dispatch_execute(list);
-}
-
-int
-dispatch_load_file(dialogMenuItem *self)
-{
-    return dispatch_load_file_int(FALSE);
-}
-
-int
-dispatch_load_floppy(dialogMenuItem *self)
-{
-    int             what = DITEM_SUCCESS;
-    extern char    *distWanted;
-    char           *cp;
-    FILE           *fp;
-    qelement	   *list;
-
-    mediaClose();
-    cp = variable_get_value(VAR_INSTALL_CFG,
-			    "Specify the name of a configuration file\n"
-			    "residing on a MSDOS or UFS floppy.", 0);
-    if (!cp || !*cp) {
-	variable_unset(VAR_INSTALL_CFG);
-	what |= DITEM_FAILURE;
-	return what;
-    }
-
-    distWanted = cp;
-    /* Try to open the floppy drive */
-    if (DITEM_STATUS(mediaSetFloppy(NULL)) == DITEM_FAILURE) {
-	msgConfirm("Unable to set media device to floppy.");
-	what |= DITEM_FAILURE;
-	mediaClose();
-	return what;
-    }
-
-    if (!DEVICE_INIT(mediaDevice)) {
-	msgConfirm("Unable to mount floppy filesystem.");
-	what |= DITEM_FAILURE;
-	mediaClose();
-	return what;
-    }
-
-    fp = DEVICE_GET(mediaDevice, cp, TRUE);
-    if (fp) {
-	list = dispatch_load_fp(fp);
-	fclose(fp);
-	mediaClose();
-
-	what |= dispatch_execute(list);
-    }
-    else {
-	if (!variable_get(VAR_NO_ERROR))
-	    msgConfirm("Configuration file '%s' not found.", cp);
-	variable_unset(VAR_INSTALL_CFG);
-	what |= DITEM_FAILURE;
-	mediaClose();
-    }
-    return what;
-}
-

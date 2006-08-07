@@ -7,10 +7,9 @@
  * ----------------------------------------------------------------------------
  *
  * $FreeBSD$
- *
  */
 
-#include "sysinstall.h"
+#include "sade.h"
 #include <fcntl.h>
 #include <err.h>
 #include <libdisk.h>

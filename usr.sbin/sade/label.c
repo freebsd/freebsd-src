@@ -1,9 +1,4 @@
 /*
- * The new sysinstall program.
- *
- * This is probably the last program in the `sysinstall' line - the next
- * generation being essentially a complete rewrite.
- *
  * $FreeBSD$
  *
  * Copyright (c) 1995
@@ -34,7 +29,7 @@
  *
  */
 
-#include "sysinstall.h"
+#include "sade.h"
 #include <ctype.h>
 #include <inttypes.h>
 #include <libdisk.h>
@@ -826,8 +821,7 @@ print_command_summary(void)
 {
     mvprintw(17, 0, "The following commands are valid here (upper or lower case):");
     mvprintw(18, 0, "C = Create        D = Delete   M = Mount pt.");
-    if (!RunningAsInit)
-	mvprintw(18, 56, "W = Write");
+    mvprintw(18, 56, "W = Write");
     mvprintw(19, 0, "N = Newfs Opts    Q = Finish   S = Toggle SoftUpdates   Z = Custom Newfs");
     mvprintw(20, 0, "T = Toggle Newfs  U = Undo     A = Auto Defaults        R = Delete+Merge");
     mvprintw(22, 0, "Use F1 or ? to get more help, arrow keys to select.");
@@ -837,6 +831,7 @@ print_command_summary(void)
 static void
 clear_wins(void)
 {
+    extern void print_label_chunks();
     clear();
     print_label_chunks();
 }
