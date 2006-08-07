@@ -17,9 +17,8 @@ wesside's features:
   - Or, by contacting someone on the Internet [udps] and telling it to flood.
 * Uses aircrack periodically to attempt to crack the WEP key.  The supplied
   aircrack is modified to work with wesside.
-* Binds to a tap interface to allow TX.  RX works if a dictionary is being buil
-t
-  [dics] and a packt with a known IV traverses the network.
+* Binds to a tap interface to allow TX.  RX works if a dictionary is being built
+  [dics] and a packet with a known IV traverses the network.
 
 Examples:
 =========
@@ -31,6 +30,6 @@ To cause the Internet to flood:
 ./wesside -s ip_of_internet_box
 
 To build a dictionary:
-[Internet box]~# ./dicts source_ip_of_box 100
+[Internet box]~# ./dics source_ip_of_box 100
 ./wesside -s ip_of_internet_box
 Use tap3 as if it were the wifi.
