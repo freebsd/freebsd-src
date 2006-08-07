@@ -250,7 +250,7 @@ struct emu_memblk {
 };
 
 struct emu_mem {
-	uint8_t		bmap[MAXPAGES / 8];
+	uint8_t		bmap[EMU_MAXPAGES / 8];
 	uint32_t	*ptb_pages;
 	void		*silent_page;
 	bus_addr_t	silent_page_addr;
@@ -336,7 +336,6 @@ struct emu_sc_info {
 	int		timerinterval;
 	struct		emu_rm *rm;
 	struct		emu_mem mem;			/* memory */
-	int bufsz;
 
 	/* Mixer */
 	int		mixer_gpr[NUM_MIXERS];
@@ -975,10 +974,12 @@ emu_memalloc(struct emu_mem *mem, uint32_t sz, bus_addr_t * addr, const char *ow
 	blksz = sz / EMUPAGESIZE;
 	if (sz > (blksz * EMUPAGESIZE))
 		blksz++;
+	if (blksz > EMU_MAX_BUFSZ / EMUPAGESIZE)
+		return (NULL);
 	/* find a free block in the bitmap */
 	found = 0;
 	start = 1;
-	while (!found && start + blksz < MAXPAGES) {
+	while (!found && start + blksz < EMU_MAXPAGES) {
 		found = 1;
 		for (idx = start; idx < start + blksz; idx++)
 			if (mem->bmap[idx >> 3] & (1 << (idx & 7)))
@@ -1439,7 +1440,7 @@ emu_addefxmixer(struct emu_sc_info *sc, const char *mix_name, const int mix_id, 
 	if (mix_name != NULL) {
 		/* Temporary sysctls should start with underscore,
 		 * see freebsd-current mailing list, emu10kx driver
-		 * discussion around May, 24th. */
+		 * discussion around 2006-05-24. */
 		snprintf(sysctl_name, 32, "_%s", mix_name);
 		SYSCTL_ADD_PROC(sc->ctx,
 			SYSCTL_CHILDREN(sc->root),
@@ -2278,14 +2279,11 @@ emu_init(struct emu_sc_info *sc)
 		emu_wrptr(sc, 0, SPBYPASS, 0xf00);	/* What will happen if
 							 * we write 1 here? */
 
-	sc->bufsz = EMU_DEFAULT_BUFSZ; /* FIXME: pcm code can change this... */
-
-
 	if (bus_dma_tag_create( /* parent */ NULL, /* alignment */ 2, /* boundary */ 0,
 	     /* lowaddr */ 1 << 31,	/* can only access 0-2gb */
 	     /* highaddr */ BUS_SPACE_MAXADDR,
 	     /* filter */ NULL, /* filterarg */ NULL,
-	     /* maxsize */ sc->bufsz, /* nsegments */ 1, /* maxsegz */ 0x3ffff,
+	     /* maxsize */ EMU_MAX_BUFSZ, /* nsegments */ 1, /* maxsegz */ 0x3ffff,
 	     /* flags */ 0, /* lockfunc */ busdma_lock_mutex,
 	     /* lockarg */ &Giant, &(sc->mem.dmat)) != 0) {
 		device_printf(sc->dev, "unable to create dma tag\n");
@@ -2294,7 +2292,7 @@ emu_init(struct emu_sc_info *sc)
 	}
 
 	SLIST_INIT(&sc->mem.blocks);
-	sc->mem.ptb_pages = emu_malloc(&sc->mem, MAXPAGES * sizeof(uint32_t), &sc->mem.ptb_pages_addr);
+	sc->mem.ptb_pages = emu_malloc(&sc->mem, EMU_MAXPAGES * sizeof(uint32_t), &sc->mem.ptb_pages_addr);
 	if (sc->mem.ptb_pages == NULL)
 		return (ENOMEM);
 
@@ -2306,7 +2304,7 @@ emu_init(struct emu_sc_info *sc)
 	/* Clear page with silence & setup all pointers to this page */
 	bzero(sc->mem.silent_page, EMUPAGESIZE);
 	tmp = (uint32_t) (sc->mem.silent_page_addr) << 1;
-	for (i = 0; i < MAXPAGES; i++)
+	for (i = 0; i < EMU_MAXPAGES; i++)
 		sc->mem.ptb_pages[i] = tmp | i;
 
 	for (ch = 0; ch < NUM_G; ch++) {
