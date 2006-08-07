@@ -229,7 +229,7 @@
 
 struct emu_voice {
 	int	vnum;
-	int	b16:1, stereo:1, busy:1, running:1, ismaster:1;
+	unsigned int	b16:1, stereo:1, busy:1, running:1, ismaster:1;
 	int	speed;
 	int	start;
 	int	end;
