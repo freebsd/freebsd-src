@@ -411,7 +411,7 @@ re_read_eeprom(sc, dest, off, cnt)
 		re_eeprom_getword(sc, off + i, &word);
 		CSR_CLRBIT_1(sc, RL_EECMD, RL_EE_SEL);
 		ptr = (u_int16_t *)(dest + (i * 2));
-                *ptr = le16toh(word);
+                *ptr = word;
 	}
 
 	CSR_CLRBIT_1(sc, RL_EECMD, RL_EEMODE_PROGRAM);
@@ -1122,7 +1122,7 @@ re_attach(dev)
 	device_t		dev;
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
-	u_int16_t		as[3];
+	u_int16_t		as[ETHER_ADDR_LEN / 2];
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
 	struct rl_hwrev		*hw_rev;
@@ -1190,10 +1190,9 @@ re_attach(dev)
 	 * Get station address from the EEPROM.
 	 */
 	re_read_eeprom(sc, (caddr_t)as, RL_EE_EADDR, 3);
-	for (i = 0; i < 3; i++) {
-		eaddr[(i * 2) + 0] = as[i] & 0xff;
-		eaddr[(i * 2) + 1] = as[i] >> 8;
-	}
+	for (i = 0; i < ETHER_ADDR_LEN / 2; i++)
+		as[i] = le16toh(as[i]);
+	bcopy(as, eaddr, sizeof(eaddr));
 
 	if (sc->rl_type == RL_8169) {
 		/* Set RX length mask */
