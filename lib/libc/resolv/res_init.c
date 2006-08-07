@@ -77,6 +77,8 @@ __FBSDID("$FreeBSD$");
 
 #include "port_before.h"
 
+#include "namespace.h"
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -92,6 +94,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include <netdb.h>
+
+#include "un-namespace.h"
 
 #include "port_after.h"
 
@@ -735,13 +739,13 @@ res_nclose(res_state statp) {
 	int ns;
 
 	if (statp->_vcsock >= 0) { 
-		(void) close(statp->_vcsock);
+		(void) _close(statp->_vcsock);
 		statp->_vcsock = -1;
 		statp->_flags &= ~(RES_F_VC | RES_F_CONN);
 	}
 	for (ns = 0; ns < statp->_u._ext.nscount; ns++) {
 		if (statp->_u._ext.nssocks[ns] != -1) {
-			(void) close(statp->_u._ext.nssocks[ns]);
+			(void) _close(statp->_u._ext.nssocks[ns]);
 			statp->_u._ext.nssocks[ns] = -1;
 		}
 	}
