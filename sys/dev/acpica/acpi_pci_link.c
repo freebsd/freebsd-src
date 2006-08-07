@@ -941,19 +941,27 @@ acpi_pci_link_choose_irq(device_t dev, struct link *link)
 	KASSERT(!PCI_INTERRUPT_VALID(link->l_irq),
 	    ("%s: link already has an IRQ", __func__));
 
-	/* Check for a tunable override and use it if it is valid. */
+	/* Check for a tunable override. */
 	if (ACPI_SUCCESS(acpi_short_name(acpi_get_handle(dev), link_name,
 	    sizeof(link_name)))) {
 		snprintf(tunable_buffer, sizeof(tunable_buffer),
 		    "hw.pci.link.%s.%d.irq", link_name, link->l_res_index);
-		if (getenv_int(tunable_buffer, &i) &&
-		    PCI_INTERRUPT_VALID(i) && link_valid_irq(link, i))
+		if (getenv_int(tunable_buffer, &i) && PCI_INTERRUPT_VALID(i)) {
+			if (!link_valid_irq(link, i))
+				device_printf(dev,
+				    "Warning, IRQ %d is not listed as valid\n",
+				    i);
 			return (i);
+		}
 		snprintf(tunable_buffer, sizeof(tunable_buffer),
 		    "hw.pci.link.%s.irq", link_name);
-		if (getenv_int(tunable_buffer, &i) &&
-		    PCI_INTERRUPT_VALID(i) && link_valid_irq(link, i))
+		if (getenv_int(tunable_buffer, &i) && PCI_INTERRUPT_VALID(i)) {
+			if (!link_valid_irq(link, i))
+				device_printf(dev,
+				    "Warning, IRQ %d is not listed as valid\n",
+				    i);
 			return (i);
+		}
 	}
 
 	/*
