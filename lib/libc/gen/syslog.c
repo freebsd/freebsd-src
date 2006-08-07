@@ -116,7 +116,7 @@ writehook(void *cookie, const char *buf, int len)
 		h->base += len;
 		h->left -= len;
 	}
-	return 0;
+	return len;
 }
 
 /*
