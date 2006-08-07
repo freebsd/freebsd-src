@@ -1,9 +1,4 @@
 /*
- * The new sysinstall program.
- *
- * This is probably the last program in the `sysinstall' line - the next
- * generation being essentially a complete rewrite.
- *
  * $FreeBSD$
  *
  * Copyright (c) 1995
@@ -34,7 +29,7 @@
  *
  */
 
-#include "sysinstall.h"
+#include "sade.h"
 #include <stdarg.h>
 #include <sys/ioctl.h>
 #include <sys/consio.h>
@@ -175,7 +170,6 @@ msgFatal(char *fmt, ...)
     if (OnVTY)
 	msgDebug("Fatal error `%s'!\n", errstr);
     getch();
-    systemShutdown(1);
 }
 
 /* Put up a message in a popup confirmation box */

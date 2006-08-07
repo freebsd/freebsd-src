@@ -1,13 +1,8 @@
 /*
- * The new sysinstall program.
- *
- * This is probably the last attempt in the `sysinstall' line, the next
- * generation being slated for what's essentially a complete rewrite.
- *
  * $FreeBSD$
  *
  * Copyright (c) 1995
- *	Jordan Hubbard.  All rights reserved.
+ *     Jordan Hubbard.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,7 +29,7 @@
  *
  */
 
-#include "sysinstall.h"
+#include "sade.h"
 #include <sys/signal.h>
 #include <sys/fcntl.h>
 
@@ -55,11 +50,6 @@ main(int argc, char **argv)
     /* Record name to be able to restart */
     StartName = argv[0];
 
-    /* Catch fatal signals and complain about them if running as init */
-    if (getpid() == 1) {
-	signal(SIGBUS, screech);
-	signal(SIGSEGV, screech);
-    }
     signal(SIGPIPE, SIG_IGN);
 
     /* We don't work too well when running as non-root anymore */
@@ -82,9 +72,6 @@ main(int argc, char **argv)
 
     /* Set default flag and variable values */
     installVarDefaults(NULL);
-    /* only when multi-user is it reasonable to do this here */
-    if (!RunningAsInit)
-	installEnvironment();
 
     if (argc > 1 && !strcmp(argv[1], "-fake")) {
 	variable_set2(VAR_DEBUG, "YES", 0);
@@ -106,48 +93,13 @@ main(int argc, char **argv)
     /* Initialize driver modules, if we haven't already done so (ie,
        the user hit Ctrl-C -> Restart. */
     if (!pvariable_get("modulesInitialize")) {
-	moduleInitialize();
 	pvariable_set("modulesInitialize=1");
     }
-
-    /* Initialize PC Card, if we haven't already done so. */
-#ifdef PCCARD_ARCH
-    if (!variable_cmp(VAR_SKIP_PCCARD, "YES") &&
-      variable_get(VAR_SKIP_PCCARD)!=1 &&
-       !pvariable_get("pccardInitialize")) {
-	pccardInitialize();
-	pvariable_set("pccardInitialize=1");
-    }
-#endif
 
     /* Probe for all relevant devices on the system */
     deviceGetAll();
 
-    /* Prompt for the driver floppy if appropriate. */
-    if (!pvariable_get("driverFloppyCheck")) {
-	driverFloppyCheck();
-	pvariable_set("driverFloppyCheck=1");
-    }
-
     /* First, see if we have any arguments to process (and argv[0] counts if it's not "sysinstall") */
-    if (!RunningAsInit) {
-	int i, start_arg;
-
-	if (!strstr(argv[0], "sysinstall"))
-	    start_arg = 0;
-	else if (Fake || Restarting)
-	    start_arg = 2;
-	else
-	    start_arg = 1;
-	for (i = start_arg; i < argc; i++) {
-	    if (DITEM_STATUS(dispatchCommand(argv[i])) != DITEM_SUCCESS)
-		systemShutdown(1);
-	}
-	if (argc > start_arg)
-	    systemShutdown(0);
-    }
-    else
-	dispatch_load_file_int(TRUE);
 
     status = setjmp(BailOut);
     if (status) {
@@ -155,31 +107,19 @@ main(int argc, char **argv)
 		   "down.  If you can reproduce the problem, please turn Debug on\n"
 		   "in the Options menu for the extra information it provides\n"
 		   "in debugging problems like this.", status);
-	systemShutdown(status);
+  ;
     }
-
-    /* Get user's country and keymap */
-    if (RunningAsInit)
-	configCountry(NULL);
 
     /* Begin user dialog at outer menu */
     dialog_clear();
     while (1) {
 	choice = scroll = curr = max = 0;
-	dmenuOpen(&MenuInitial, &choice, &scroll, &curr, &max, TRUE);
+	dmenuOpen(&MenuMain, &choice, &scroll, &curr, &max, FALSE);
 	if (getpid() != 1
-#if defined(__alpha__) || defined(__sparc64__)
-	    || !msgNoYes("Are you sure you wish to exit?  The system will halt.")
-#else
-	    || !msgNoYes("Are you sure you wish to exit?  The system will reboot\n"
-		         "(be sure to remove any floppies/CDs/DVDs from the drives).")
-#endif
+	    || !msgNoYes("Are you sure you wish to exit?")
 	    )
 	    break;
     }
-
-    /* Say goodnight, Gracie */
-    systemShutdown(0);
 
     return 0; /* We should never get here */
 }

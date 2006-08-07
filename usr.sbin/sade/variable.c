@@ -1,9 +1,4 @@
 /*
- * The new sysinstall program.
- *
- * This is probably the last program in the `sysinstall' line - the next
- * generation being essentially a complete rewrite.
- *
  * $FreeBSD$
  *
  * Copyright (c) 1995
@@ -36,7 +31,7 @@
  *
  */
 
-#include "sysinstall.h"
+#include "sade.h"
 
 /* Routines for dealing with variable lists */
 

@@ -1,9 +1,4 @@
 /*
- * The new sysinstall program.
- *
- * This is probably the last program in the `sysinstall' line - the next
- * generation being essentially a complete rewrite.
- *
  * $FreeBSD$
  *
  * Copyright (c) 1995
@@ -34,39 +29,27 @@
  *
  */
 
-#include "sysinstall.h"
+#include "sade.h"
 #include <sys/fcntl.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/time.h>
-#include <net/if.h>
-#include <net/if_var.h>
-#include <net/if_dl.h>
-#include <netinet/in.h>
-#include <netinet/in_var.h>
-#include <arpa/inet.h>
+#include <sys/stat.h>
 #include <ctype.h>
 #include <libdisk.h>
+
+/* how much to bias minor number for a given /dev/<ct#><un#>s<s#> slice */
+#define SLICE_DELTA	(0x10000)
 
 static Device *Devices[DEV_MAX];
 static int numDevs;
 
-#define	DEVICE_ENTRY(type, name, descr, max)	{ type, name, descr, max }
+#define	DEVICE_ENTRY(type, name, descr, max)    { type, name, descr, max }
 
-#define	CDROM(name, descr, max)					\
-	DEVICE_ENTRY(DEVICE_TYPE_CDROM, name, descr, max)
-#define	TAPE(name, descr, max)						\
-	DEVICE_ENTRY(DEVICE_TYPE_TAPE, name, descr, max)
-#define	DISK(name, descr, max)						\
+#define	DISK(name, descr, max)                                          \
 	DEVICE_ENTRY(DEVICE_TYPE_DISK, name, descr, max)
-#define	FLOPPY(name, descr, max)					\
-	DEVICE_ENTRY(DEVICE_TYPE_FLOPPY, name, descr, max)
-#define	NETWORK(name, descr)						\
-	DEVICE_ENTRY(DEVICE_TYPE_NETWORK, name, descr, 0)
-#define	SERIAL(name, descr, max)					\
-	DEVICE_ENTRY(DEVICE_TYPE_NETWORK, name, descr, max)
 
 static struct _devname {
     DeviceType type;
@@ -74,83 +57,18 @@ static struct _devname {
     char *description;
     int max;
 } device_names[] = {
-    CDROM("cd%d",	"SCSI CDROM drive",			4),
-    CDROM("mcd%d",	"Mitsumi (old model) CDROM drive",	4),
-    CDROM("scd%d",	"Sony CDROM drive - CDU31/33A type",	4),
-    CDROM("acd%d",	"ATAPI/IDE CDROM",			4),
-    TAPE("sa%d",	"SCSI tape drive",			4),
-    TAPE("rwt%d",	"Wangtek tape drive",			4),
-    DISK("da%d",	"SCSI disk device",			16),
-    DISK("ad%d",	"ATA/IDE disk device",			16),
-    DISK("ar%d",	"ATA/IDE RAID device",			16),
-    DISK("afd%d",	"ATAPI/IDE floppy device",		4),
-    DISK("mlxd%d",	"Mylex RAID disk",			4),
-    DISK("amrd%d",	"AMI MegaRAID drive",			4),
-    DISK("idad%d",	"Compaq RAID array",			4),
-    DISK("twed%d",	"3ware ATA RAID array",			4),
-    DISK("aacd%d",	"Adaptec FSA RAID array",		4),
-    DISK("ipsd%d",	"IBM ServeRAID RAID array",		4),
-    DISK("mfid%d",	"LSI MegaRAID SAS array",		4),
-    FLOPPY("fd%d",	"floppy drive unit A",			4),
-    SERIAL("cuad%d",	"%s on device %s (COM%d)",		16),
-    NETWORK("an",	"Aironet 4500/4800 802.11 wireless adapter"),
-    NETWORK("aue",	"ADMtek USB ethernet adapter"),
-    NETWORK("axe",	"ASIX Electronics USB ethernet adapter"),
-    NETWORK("bfe",	"Broadcom BCM440x PCI ethernet card"),
-    NETWORK("bge",	"Broadcom BCM570x PCI gigabit ethernet card"),
-    NETWORK("cue",	"CATC USB ethernet adapter"),
-    NETWORK("fpa",	"DEC DEFPA PCI FDDI card"),
-    NETWORK("sr",	"SDL T1/E1 sync serial PCI card"),
-    NETWORK("cc3i",	"SDL HSSI sync serial PCI card"),
-    NETWORK("en",	"Efficient Networks ATM PCI card"),
-    NETWORK("dc",	"DEC/Intel 21143 (and clones) PCI fast ethernet card"),
-    NETWORK("de",	"DEC DE435 PCI NIC or other DC21040-AA based card"),
-    NETWORK("fxp",	"Intel EtherExpress Pro/100B PCI Fast Ethernet card"),
-    NETWORK("ed",	"Novell NE1000/2000; 3C503; NE2000-compatible PCMCIA"),
-    NETWORK("ep",	"3Com 3C509 ethernet card/3C589 PCMCIA"),
-    NETWORK("el",	"3Com 3C501 ethernet card"),
-    NETWORK("em",	"Intel(R) PRO/1000 ethernet card"),
-    NETWORK("ex",	"Intel EtherExpress Pro/10 ethernet card"),
-    NETWORK("fe",	"Fujitsu MB86960A/MB86965A ethernet card"),
-    NETWORK("gem",	"Apple/Sun GMAC ethernet adapter"),
-    NETWORK("ie",	"AT&T StarLAN 10 and EN100; 3Com 3C507; NI5210"),
-    NETWORK("ix",	"Intel Etherexpress ethernet card"),
-    NETWORK("kue",	"Kawasaki LSI USB ethernet adapter"),
-    NETWORK("le",	"DEC EtherWorks 2 or 3 ethernet card"),
-    NETWORK("lnc",	"Lance/PCnet (Isolan/Novell NE2100/NE32-VL) ethernet"),
-    NETWORK("lge",	"Level 1 LXT1001 gigabit ethernet card"),
-    NETWORK("nge",	"NatSemi PCI gigabit ethernet card"),
-    NETWORK("pcn",	"AMD Am79c79x PCI ethernet card"),
-    NETWORK("ray",	"Raytheon Raylink 802.11 wireless adaptor"),
-    NETWORK("re",	"RealTek 8139C+/8169/8169S/8110S PCI ethernet card"),
-    NETWORK("rl",	"RealTek 8129/8139 PCI ethernet card"),
-    NETWORK("rue",	"RealTek USB ethernet card"),
-    NETWORK("sf",	"Adaptec AIC-6915 PCI ethernet card"),
-    NETWORK("sis",	"SiS 900/SiS 7016 PCI ethernet card"),
-#ifdef PC98
-    NETWORK("snc",	"SONIC ethernet card"),
-#endif
-    NETWORK("sn",	"SMC/Megahertz ethernet card"),
-    NETWORK("ste",	"Sundance ST201 PCI ethernet card"),
-    NETWORK("sk",	"SysKonnect PCI gigabit ethernet card"),
-    NETWORK("tx",	"SMC 9432TX ethernet card"),
-    NETWORK("txp",	"3Com 3cR990 ethernet card"),
-    NETWORK("ti",	"Alteon Networks PCI gigabit ethernet card"),
-    NETWORK("tl",	"Texas Instruments ThunderLAN PCI ethernet card"),
-    NETWORK("vge",	"VIA VT612x PCI gigabit ethernet card"),
-    NETWORK("vr",	"VIA VT3043/VT86C100A Rhine PCI ethernet card"),
-    NETWORK("vlan",	"IEEE 802.1Q VLAN network interface"),
-    NETWORK("vx",	"3COM 3c590 / 3c595 ethernet card"),
-    NETWORK("wb",	"Winbond W89C840F PCI ethernet card"),
-    NETWORK("wi",	"Lucent WaveLAN/IEEE 802.11 wireless adapter"),
-    NETWORK("wx",	"Intel Gigabit Ethernet (82452) card"),
-    NETWORK("xe",	"Xircom/Intel EtherExpress Pro100/16 ethernet card"),
-    NETWORK("xl",	"3COM 3c90x / 3c90xB PCI ethernet card"),
-    NETWORK("fwe",	"FireWire Ethernet emulation"),
-    NETWORK("plip",	"Parallel Port IP (PLIP) peer connection"),
-    NETWORK("lo",	"Loop-back (local) network interface"),
-    NETWORK("disc",	"Software discard network interface"),
-    { 0, NULL, NULL, 0 }
+    DISK("da%d",	"SCSI disk device",		16),
+    DISK("ad%d",	"ATA/IDE disk device",		16),
+    DISK("ar%d",	"ATA/IDE RAID device",		16),
+    DISK("afd%d",	"ATAPI/IDE floppy device",	4),
+    DISK("mlxd%d",	"Mylex RAID disk",		4),
+    DISK("amrd%d",	"AMI MegaRAID drive",		4),
+    DISK("idad%d",	"Compaq RAID array",		4),
+    DISK("twed%d",	"3ware ATA RAID array",		4),
+    DISK("aacd%d",	"Adaptec FSA RAID array",	4),
+    DISK("ipsd%d",	"IBM ServeRAID RAID array",	4),
+    DISK("mfid%d",	"LSI MegaRAID SAS array",	4),
+    { 0, NULL, NULL, 0 },
 };
 
 Device *
@@ -189,6 +107,9 @@ deviceTry(struct _devname dev, char *try, int i)
 {
     int fd;
     char unit[80];
+    mode_t m;
+    dev_t d;
+    int fail;
 
     snprintf(unit, sizeof unit, dev.name, i);
     snprintf(try, FILENAME_MAX, "/dev/%s", unit);
@@ -197,10 +118,7 @@ deviceTry(struct _devname dev, char *try, int i)
     fd = open(try, O_RDONLY);
     if (fd >= 0) {
 	if (isDebug())
-	    msgDebug("deviceTry: open of %s succeeded on first try.\n", try);
-    } else {
-	if (isDebug())
-	    msgDebug("deviceTry: open of %s failed.\n", try);
+	    msgDebug("deviceTry: open of %s succeeded.\n", try);
     }
     return fd;
 }
@@ -255,75 +173,10 @@ void
 deviceGetAll(void)
 {
     int i, j, fd, s;
-    struct ifconf ifc;
-    struct ifreq *ifptr, *end;
-    int ifflags;
-    char buffer[INTERFACE_MAX * sizeof(struct ifreq)];
     char **names;
 
     msgNotify("Probing devices, please wait (this can take a while)...");
-    /* First go for the network interfaces.  Stolen shamelessly from ifconfig! */
-    ifc.ifc_len = sizeof(buffer);
-    ifc.ifc_buf = buffer;
 
-    s = socket(AF_INET, SOCK_DGRAM, 0);
-    if (s < 0)
-	goto skipif;	/* Jump over network iface probing */
-
-    if (ioctl(s, SIOCGIFCONF, (char *) &ifc) < 0)
-	goto skipif;	/* Jump over network iface probing */
-
-    close(s);
-    ifflags = ifc.ifc_req->ifr_flags;
-    end = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
-    for (ifptr = ifc.ifc_req; ifptr < end; ifptr++) {
-	char *descr;
-
-	/* If it's not a link entry, forget it */
-	if (ifptr->ifr_ifru.ifru_addr.sa_family != AF_LINK)
-	    goto loopend;
-
-	/* Eliminate network devices that don't make sense */
-	if (!strncmp(ifptr->ifr_name, "lo", 2))
-	    goto loopend;
-
-	/* If we have a slip device, don't register it */
-	if (!strncmp(ifptr->ifr_name, "sl", 2)) {
-	    goto loopend;
-	}
-	/* And the same for ppp */
-	if (!strncmp(ifptr->ifr_name, "tun", 3) || !strncmp(ifptr->ifr_name, "ppp", 3)) {
-	    goto loopend;
-	}
-	/* Try and find its description */
-	for (i = 0, descr = NULL; device_names[i].name; i++) {
-	    int len = strlen(device_names[i].name);
-
-	    if (!ifptr->ifr_name || !ifptr->ifr_name[0])
-		continue;
-	    else if (!strncmp(ifptr->ifr_name, device_names[i].name, len)) {
-		descr = device_names[i].description;
-		break;
-	    }
-	}
-	if (!descr)
-	    descr = "<unknown network interface type>";
-
-	deviceRegister(ifptr->ifr_name, descr, strdup(ifptr->ifr_name), DEVICE_TYPE_NETWORK, TRUE,
-		       mediaInitNetwork, NULL, mediaShutdownNetwork, NULL);
-	if (isDebug())
-	    msgDebug("Found a network device named %s\n", ifptr->ifr_name);
-	close(s);
-	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-	    continue;
-
-loopend:
-	if (ifptr->ifr_addr.sa_len)	/* I'm not sure why this is here - it's inherited */
-	    ifptr = (struct ifreq *)((caddr_t)ifptr + ifptr->ifr_addr.sa_len - sizeof(struct sockaddr));
-	close(s);
-    }
-
-skipif:
     /* Next, try to find all the types of devices one might need
      * during the second stage of the installation.
      */
@@ -332,75 +185,8 @@ skipif:
 	    char try[FILENAME_MAX];
 
 	    switch(device_names[i].type) {
-	    case DEVICE_TYPE_CDROM:
-		fd = deviceTry(device_names[i], try, j);
-		if (fd >= 0 || errno == EBUSY) {	/* EBUSY if already mounted */
-		    char n[BUFSIZ];
-
-		    if (fd >= 0) close(fd);
-		    snprintf(n, sizeof n, device_names[i].name, j);
-		    deviceRegister(strdup(n), device_names[i].description, strdup(try),
-					 DEVICE_TYPE_CDROM, TRUE, mediaInitCDROM, mediaGetCDROM,
-					 mediaShutdownCDROM, NULL);
-		    if (isDebug())
-			msgDebug("Found a CDROM device for %s\n", try);
-		}
-		break;
-
-	    case DEVICE_TYPE_TAPE:
-		fd = deviceTry(device_names[i], try, j);
-		if (fd >= 0) {
-		    char n[BUFSIZ];
-
-		    close(fd);
-		    snprintf(n, sizeof n, device_names[i].name, j);
-		    deviceRegister(strdup(n), device_names[i].description, strdup(try),
-				   DEVICE_TYPE_TAPE, TRUE, mediaInitTape, mediaGetTape, mediaShutdownTape, NULL);
-		    if (isDebug())
-			msgDebug("Found a TAPE device for %s\n", try);
-		}
-		break;
-
 	    case DEVICE_TYPE_DISK:
-		/* nothing to do */
-		break;
-
-	    case DEVICE_TYPE_FLOPPY:
 		fd = deviceTry(device_names[i], try, j);
-		if (fd >= 0) {
-		    char n[BUFSIZ];
-
-		    close(fd);
-		    snprintf(n, sizeof n, device_names[i].name, j);
-		    deviceRegister(strdup(n), device_names[i].description, strdup(try),
-				   DEVICE_TYPE_FLOPPY, TRUE, mediaInitFloppy, mediaGetFloppy,
-				   mediaShutdownFloppy, NULL);
-		    if (isDebug())
-			msgDebug("Found a floppy device for %s\n", try);
-		}
-		break;
-
-	    case DEVICE_TYPE_NETWORK:
-		fd = deviceTry(device_names[i], try, j);
-		/* The only network devices that you can open this way are serial ones */
-		if (fd >= 0) {
-		    char *newdesc, *cp;
-
-		    close(fd);
-		    cp = device_names[i].description;
-		    /* Serial devices get a slip and ppp device each, if supported */
-		    newdesc = safe_malloc(strlen(cp) + 40);
-		    sprintf(newdesc, cp, "SLIP interface", try, j + 1);
-		    deviceRegister("sl0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
-				   NULL, mediaShutdownNetwork, NULL);
-		    msgDebug("Add mapping for %s to sl0\n", try);
-		    newdesc = safe_malloc(strlen(cp) + 50);
-		    sprintf(newdesc, cp, "PPP interface", try, j + 1);
-		    deviceRegister("ppp0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
-				   NULL, mediaShutdownNetwork, NULL);
-		    if (isDebug())
-			msgDebug("Add mapping for %s to ppp0\n", try);
-		}
 		break;
 
 	    default:
@@ -446,6 +232,7 @@ skipif:
 	    if (isDebug())
 		msgDebug("Found a disk device named %s\n", names[i]);
 
+#if 0
 	    /* Look for existing DOS partitions to register as "DOS media devices" */
 	    for (c1 = d->chunks->part; c1; c1 = c1->next) {
 		if (c1->type == fat || c1->type == efi || c1->type == extended) {
@@ -455,12 +242,13 @@ skipif:
 		    /* Got one! */
 		    snprintf(devname, sizeof devname, "/dev/%s", c1->name);
 		    dev = deviceRegister(c1->name, c1->name, strdup(devname), DEVICE_TYPE_DOS, TRUE,
-					 mediaInitDOS, mediaGetDOS, mediaShutdownDOS, NULL);
+			mediaInitDOS, mediaGetDOS, mediaShutdownDOS, NULL);
 		    dev->private = c1;
 		    if (isDebug())
 			msgDebug("Found a DOS partition %s on drive %s\n", c1->name, d->name);
 		}
 	    }
+#endif
 	}
 	free(names);
     }
