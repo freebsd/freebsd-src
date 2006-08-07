@@ -1700,7 +1700,7 @@ emu_initefx(struct emu_sc_info *sc)
 		/* rec output to "ADC" */
 		/* volume controlled by AC97 emulation */
 		EFX_OUTPUT(NULL, C_REC_L, M_MASTER_REC_L, A_OUT_ADC_REC_L, 100);
-		EFX_OUTPUT(NULL, C_REC_R, M_MASTER_REC_L, A_OUT_ADC_REC_R, 100);
+		EFX_OUTPUT(NULL, C_REC_R, M_MASTER_REC_R, A_OUT_ADC_REC_R, 100);
 #ifdef	SND_EMU10KX_MULTICHANNEL
 		/*
 		 * Additional channel volume is controlled by mixer in
@@ -1716,7 +1716,7 @@ emu_initefx(struct emu_sc_info *sc)
 		EFX_OUTPUT(NULL, C_REAR_L, M_MASTER_REAR_L, A_OUT_A_REAR_L, 100);
 		EFX_OUTPUT(NULL, C_REAR_R, M_MASTER_REAR_R, A_OUT_A_REAR_R, 100);
 		EFX_OUTPUTD(C_REAR_L, M_MASTER_REAR_L, A_OUT_D_REAR_L);
-		EFX_OUTPUTD(C_REAR_R, M_MASTER_REAR_L, A_OUT_D_REAR_R);
+		EFX_OUTPUTD(C_REAR_R, M_MASTER_REAR_R, A_OUT_D_REAR_R);
 
 		/* fx4 (pcm2) to center */
 		EFX_CACHE(C_CENTER);
