@@ -1,9 +1,4 @@
 /*
- * The new sysinstall program.
- *
- * This is probably the last attempt in the `sysinstall' line, the next
- * generation being slated for what's essentially a complete rewrite.
- *
  * $FreeBSD$
  *
  * Copyright (c) 1997 FreeBSD, Inc.

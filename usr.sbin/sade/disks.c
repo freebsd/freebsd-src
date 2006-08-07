@@ -1,9 +1,4 @@
 /*
- * The new sysinstall program.
- *
- * This is probably the last program in the `sysinstall' line - the next
- * generation being essentially a complete rewrite.
- *
  * $FreeBSD$
  *
  * Copyright (c) 1995
@@ -34,7 +29,7 @@
  *
  */
 
-#include "sysinstall.h"
+#include "sade.h"
 #include <ctype.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -136,6 +131,8 @@ print_chunks(Disk *d, int u)
 		   "using.  Do NOT use a ``physical geometry''.",
 	  d->bios_cyl, d->bios_hd, d->bios_sect, d->name);
 	Sanitize_Bios_Geom(d);
+	msgDebug("Sanitized geometry for %s is %lu/%lu/%lu.\n",
+	    d->name, d->bios_cyl, d->bios_hd, d->bios_sect);
     }
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
@@ -186,8 +183,7 @@ print_command_summary(void)
     mvprintw(16, 0, "A = Use Entire Disk   G = set Drive Geometry   C = Create Slice   F = `DD' mode");
     mvprintw(17, 0, "D = Delete Slice      Z = Toggle Size Units    S = Set Bootable   | = Wizard m.");
     mvprintw(18, 0, "T = Change Type       U = Undo All Changes     Q = Finish");
-    if (!RunningAsInit)
-	mvprintw(18, 47, "W = Write Changes");
+    mvprintw(18, 47, "W = Write Changes");
     mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to select.");
     move(0, 0);
 }

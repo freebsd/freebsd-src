@@ -1,22 +1,17 @@
 /*
- * The new sysinstall program.
- *
- * This is probably the last program in the `sysinstall' line - the next
- * generation being essentially a complete rewrite.
- *
  * $FreeBSD$
  *
  * Jordan Hubbard
  *
  * My contributions are in the public domain.
  *
- * Parts of this file are also blatantly stolen from Poul-Henning Kamp's
+ * Parts of this file are also blatently stolen from Poul-Henning Kamp's
  * previous version of sysinstall, and as such fall under his "BEERWARE license"
  * so buy him a beer if you like it!  Buy him a beer for me, too!
  * Heck, get him completely drunk and send me pictures! :-)
  */
 
-#include "sysinstall.h"
+#include "sade.h"
 #include <signal.h>
 #include <termios.h>
 #include <sys/param.h>
@@ -48,19 +43,10 @@ intr_continue(dialogMenuItem *self)
 }
 
 static int
-intr_reboot(dialogMenuItem *self)
-{
-    systemShutdown(-1);
-    /* NOTREACHED */
-    return 0;
-}
-
-static int
 intr_restart(dialogMenuItem *self)
 {
     int ret, fd, fdmax;
 
-    mediaClose();
     free_variables();
     fdmax = getdtablesize();
     for (fd = 3; fd < fdmax; fd++)
@@ -72,9 +58,8 @@ intr_restart(dialogMenuItem *self)
 }
 
 static dialogMenuItem intrmenu[] = {
-    { "Abort",   "Abort the installation", NULL, intr_reboot },
-    { "Restart", "Restart the installation program", NULL, intr_restart },
-    { "Continue", "Continue the installation", NULL, intr_continue },
+    { "Restart", "Restart the program", NULL, intr_restart },
+    { "Continue", "Continue without restarting", NULL, intr_continue },
 };
 
 
@@ -91,30 +76,15 @@ handle_intr(int sig)
     }
     (void)dialog_menu("Installation interrupt",
 		     "Do you want to abort the installation?",
-		     -1, -1, 3, -3, intrmenu, NULL, NULL, NULL);
+		     -1, -1, 2, -2, intrmenu, NULL, NULL, NULL);
     restorescr(save);
 }
-
-#if 0
-/*
- * Harvest children if we are init.
- */
-static void
-reap_children(int sig)
-{
-    int errbak = errno;
-
-    while (waitpid(-1, NULL, WNOHANG) > 0)
-	;
-    errno = errbak;
-}
-#endif
 
 /* Expand a file into a convenient location, nuking it each time */
 static char *
 expand(char *fname)
 {
-    char *gunzip = RunningAsInit ? "/stand/gunzip" : "/usr/bin/gunzip";
+    char *gunzip = "/usr/bin/gunzip";
 
     if (!directory_exists(DOC_TMP_DIR)) {
 	Mkdir(DOC_TMP_DIR);
@@ -146,66 +116,7 @@ systemInitialize(int argc, char **argv)
         (i == sizeof(boothowto)) && (boothowto & RB_VERBOSE))
 	variable_set2(VAR_DEBUG, "YES", 0);
 
-    /* Are we running as init? */
-    if (getpid() == 1) {
-	struct ufs_args ufs_args;
-	int fd;
-
-	RunningAsInit = 1;
-	setsid();
-	close(0);
-	fd = open("/dev/ttyv0", O_RDWR);
-	if (fd == -1) {
-	    fd = open("/dev/console", O_RDWR);	/* fallback */
-	    variable_set2(VAR_FIXIT_TTY, "serial", 0); /* give fixit a hint */
-	} else
-	    OnVTY = TRUE;
-	/*
-	 * To make _sure_ we're on a VTY and don't have /dev/console switched
-	 * away to a serial port or something, attempt to set the cursor appearance.
-	 */
-	if (OnVTY) {
-	    int fd2, type;
-
-	    type = 0;	/* normal */
-	    if ((fd2 = open("/dev/console", O_RDWR)) != -1) {
-		if (ioctl(fd2, CONS_CURSORTYPE, &type) == -1) {
-		    OnVTY = FALSE;
-		    variable_set2(VAR_FIXIT_TTY, "serial", 0); /* Tell Fixit
-								  the console
-								  type */
-		    close(fd); close(fd2);
-		    open("/dev/console", O_RDWR);
-		}
-		else
-		    close(fd2);
-	    }
-	}
-	close(1); dup(0);
-	close(2); dup(0);
-	printf("%s running as init on %s\n", argv[0], OnVTY ? "vty0" : "serial console");
-	ioctl(0, TIOCSCTTY, (char *)NULL);
-	setlogin("root");
-	setenv("PATH", "/stand:/bin:/sbin:/usr/sbin:/usr/bin:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin:/usr/X11R6/bin", 1);
-	setbuf(stdin, 0);
-	setbuf(stderr, 0);
-#ifdef __alpha__
-	i = 0;
-	sysctlbyname("machdep.unaligned_print", NULL, 0, &i, sizeof(i));
-#endif
-#if 0
-	signal(SIGCHLD, reap_children);
-#endif
-	memset(&ufs_args, 0, sizeof(ufs_args));
-	mount("ufs", "/", MNT_UPDATE, &ufs_args);
-    }
-    else {
 	char hname[256];
-
-	/* Initalize various things for a multi-user environment */
-	if (!gethostname(hname, sizeof hname))
-	    variable_set2(VAR_HOSTNAME, hname, 0);
-    }
 
     if (set_termcap() == -1) {
 	printf("Can't find terminal entry\n");
@@ -219,8 +130,6 @@ systemInitialize(int argc, char **argv)
     DialogActive = TRUE;
 
     /* Make sure HOME is set for those utilities that need it */
-    if (!getenv("HOME"))
-	setenv("HOME", "/", 1);
     signal(SIGINT, handle_intr);
     /*
      * Make sure we can be interrupted even if we were re-executed
@@ -231,43 +140,6 @@ systemInitialize(int argc, char **argv)
     sigprocmask(SIG_UNBLOCK, &signalset, NULL);
 
     (void)vsystem("rm -rf %s", DOC_TMP_DIR);
-}
-
-/* Close down and prepare to exit */
-void
-systemShutdown(int status)
-{
-    /* If some media is open, close it down */
-    if (status >=0)
-	mediaClose();
-
-    /* write out any changes to rc.conf .. */
-    configRC_conf();
-
-    /* Shut down the dialog library */
-    if (DialogActive) {
-	end_dialog();
-	DialogActive = FALSE;
-    }
-
-    /* Shut down curses */
-    endwin();
-
-    /* If we have a temporary doc dir lying around, nuke it */
-    (void)vsystem("rm -rf %s", DOC_TMP_DIR);
-
-    /* REALLY exit! */
-    if (RunningAsInit) {
-	/* Put the console back */
-	ioctl(0, VT_ACTIVATE, 2);
-#if defined(__alpha__) || defined(__sparc64__)
-	reboot(RB_HALT);
-#else
-	reboot(0);
-#endif
-    }
-    else
-	exit(status);
 }
 
 /* Run some general command */
@@ -328,6 +200,7 @@ systemDisplayHelp(char *file)
     int ret = 0;
     WINDOW *w = savescr();
     
+		printf("zzz");
     fname = systemHelpFile(file, buf);
     if (!fname) {
 	snprintf(buf, FILENAME_MAX, "The %s file is not provided on this particular floppy image.", file);
@@ -364,10 +237,10 @@ systemHelpFile(char *file, char *buf)
     snprintf(buf, FILENAME_MAX, "/stand/help/%s.TXT", file);
     if (file_readable(buf)) 
 	return expand(buf);
-    snprintf(buf, FILENAME_MAX, "/usr/src/usr.sbin/sysinstall/help/%s.hlp", file);
+    snprintf(buf, FILENAME_MAX, "/usr/src/usr.sbin/sade/help/%s.hlp", file);
     if (file_readable(buf))
 	return buf;
-    snprintf(buf, FILENAME_MAX, "/usr/src/usr.sbin/sysinstall/help/%s.TXT", file);
+    snprintf(buf, FILENAME_MAX, "/usr/src/usr.sbin/sade/help/%s.TXT", file);
     if (file_readable(buf))
 	return buf;
     return NULL;
@@ -461,85 +334,3 @@ vsystem(char *fmt, ...)
     return i;
 }
 
-void
-systemCreateHoloshell(void)
-{
-    int waitstatus;
-
-    if ((FixItMode || OnVTY) && RunningAsInit) {
-
-	if (ehs_pid != 0) {
-	    int pstat;
-
-	    if (kill(ehs_pid, 0) == 0) {
-
-		if (msgNoYes("There seems to be an emergency holographic shell\n"
-			     "already running on VTY 4.\n\n"
-			     "Kill it and start a new one?"))
-		    return;
-
-		/* try cleaning up as much as possible */
-		(void) kill(ehs_pid, SIGHUP);
-		sleep(1);
-		(void) kill(ehs_pid, SIGKILL);
-	    }
-
-	    /* avoid too many zombies */
-	    (void) waitpid(ehs_pid, &pstat, WNOHANG);
-	}
-
-	if (strcmp(variable_get(VAR_FIXIT_TTY), "serial") == 0) 
-	    systemSuspendDialog();	/* must be before the fork() */
-	if ((ehs_pid = fork()) == 0) {
-	    int i, fd;
-	    struct termios foo;
-	    extern int login_tty(int);
-	    
-	    ioctl(0, TIOCNOTTY, NULL);
-	    for (i = getdtablesize(); i >= 0; --i)
-		close(i);
-	    if (strcmp(variable_get(VAR_FIXIT_TTY), "serial") == 0) 
-	        fd = open("/dev/console", O_RDWR);
-	    else
-	        fd = open("/dev/ttyv3", O_RDWR);
-	    ioctl(0, TIOCSCTTY, &fd);
-	    dup2(0, 1);
-	    dup2(0, 2);
-	    DebugFD = 2;
-	    if (login_tty(fd) == -1)
-		msgDebug("Doctor: I can't set the controlling terminal.\n");
-	    signal(SIGTTOU, SIG_IGN);
-	    if (tcgetattr(fd, &foo) != -1) {
-		foo.c_cc[VERASE] = '\010';
-		if (tcsetattr(fd, TCSANOW, &foo) == -1)
-		    msgDebug("Doctor: I'm unable to set the erase character.\n");
-	    }
-	    else
-		msgDebug("Doctor: I'm unable to get the terminal attributes!\n");
-	    if (strcmp(variable_get(VAR_FIXIT_TTY), "serial") == 0) {
-	        printf("Type ``exit'' in this fixit shell to resume sysinstall.\n\n");
-		fflush(stdout);
-	    }
-	    execlp("sh", "-sh", 0);
-	    msgDebug("Was unable to execute sh for Holographic shell!\n");
-	    exit(1);
-	}
-	else {
-	    if (strcmp(variable_get(VAR_FIXIT_TTY), "standard") == 0) {
-	        WINDOW *w = savescr();
-
-	        msgNotify("Starting an emergency holographic shell on VTY4");
-	        sleep(2);
-	        restorescr(w);
-	    }
-	    else {
-	        (void)waitpid(ehs_pid, &waitstatus, 0); /* we only wait for
-							   shell to finish 
-							   it serial mode
-							   since there is no
-							   virtual console */
-	        systemResumeDialog();
-	    }
-	}
-    }
-}
