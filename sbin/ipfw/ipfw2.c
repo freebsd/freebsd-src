@@ -3781,36 +3781,52 @@ static ipfw_insn *
 add_src(ipfw_insn *cmd, char *av, u_char proto)
 {
 	struct in6_addr a;
+	char *host, *ch;
+	ipfw_insn *ret = NULL;
+
+	if ((host = strdup(av)) == NULL)
+		return NULL;
+	if ((ch = strrchr(host, '/')) != NULL)
+		*ch = '\0';
 
 	if (proto == IPPROTO_IPV6  || strcmp(av, "me6") == 0 ||
-	    inet_pton(AF_INET6, av, &a))
-		return add_srcip6(cmd, av);
+	    inet_pton(AF_INET6, host, &a))
+		ret = add_srcip6(cmd, av);
 	/* XXX: should check for IPv4, not !IPv6 */
-	if (proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
-	    !inet_pton(AF_INET6, av, &a))
-		return add_srcip(cmd, av);
-	if (strcmp(av, "any") != 0)
-		return cmd;
+	if ((ret == NULL) && proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
+	    !inet_pton(AF_INET6, host, &a))
+		ret = add_srcip(cmd, av);
+	if ((ret == NULL) && strcmp(av, "any") != 0)
+		ret = cmd;
 
-	return NULL;
+	free(host);
+	return ret;
 }
 
 static ipfw_insn *
 add_dst(ipfw_insn *cmd, char *av, u_char proto)
 {
 	struct in6_addr a;
+	char *host, *ch;
+	ipfw_insn *ret = NULL;
+
+	if ((host = strdup(av)) == NULL)
+		return NULL;
+	if ((ch = strrchr(host, '/')) != NULL)
+		*ch = '\0';
 
 	if (proto == IPPROTO_IPV6  || strcmp(av, "me6") == 0 ||
-	    inet_pton(AF_INET6, av, &a))
-		return add_dstip6(cmd, av);
+	    inet_pton(AF_INET6, host, &a))
+		ret = add_dstip6(cmd, av);
 	/* XXX: should check for IPv4, not !IPv6 */
-	if (proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
+	if ((ret == NULL) && proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
 	    !inet_pton(AF_INET6, av, &a))
-		return add_dstip(cmd, av);
-	if (strcmp(av, "any") != 0)
-		return cmd;
+		ret = add_dstip(cmd, av);
+	if ((ret == NULL) && strcmp(av, "any") != 0)
+		ret = cmd;
 
-	return NULL;
+	free(host);
+	return ret;
 }
 
 /*
