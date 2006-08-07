@@ -393,7 +393,7 @@ eli_genkey(struct gctl_req *req, struct g_eli_metadata *md, unsigned char *key,
 			}
 		}
 		/*
-		 * If md_iterations is equal to 0, user don't want PKCS5v2.
+		 * If md_iterations is equal to 0, user don't want PKCS#5v2.
 		 */
 		if (md->md_iterations == 0) {
 			g_eli_crypto_hmac_update(&ctx, md->md_salt,
