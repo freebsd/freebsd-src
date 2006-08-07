@@ -432,7 +432,8 @@ emupchan_init(kobj_t obj __unused, void *devinfo, struct snd_dbuf *b, struct pcm
 	ch->buffer = b;
 	ch->pcm = sc;
 	ch->channel = c;
-	ch->blksz = sc->bufsz;
+	/* XXX blksz should not be modified, see emu10kx.h for reasons */
+	ch->blksz = EMU_PLAY_BUFSZ; 
 	ch->fmt = AFMT_U8;
 	ch->spd = 8000;
 	ch->master = emu_valloc(sc->card);
@@ -442,7 +443,7 @@ emupchan_init(kobj_t obj __unused, void *devinfo, struct snd_dbuf *b, struct pcm
 	 */
 	ch->slave = emu_valloc(sc->card);
 	ch->timer = emu_timer_create(sc->card);
-	r = (emu_vinit(sc->card, ch->master, ch->slave, sc->bufsz, ch->buffer)) ? NULL : ch;
+	r = (emu_vinit(sc->card, ch->master, ch->slave, EMU_PLAY_BUFSZ, ch->buffer)) ? NULL : ch;
 	return (r);
 }
 
@@ -749,7 +750,7 @@ emu_pcm_intr(void *pcm, uint32_t stat)
 static int
 emu_pcm_init(struct emu_pcm_info *sc)
 {
-	sc->bufsz = pcm_getbuffersize(sc->dev, 4096, EMU_DEFAULT_BUFSZ, EMU_MAX_BUFSZ);
+	sc->bufsz = pcm_getbuffersize(sc->dev, EMUPAGESIZE, EMU_REC_BUFSZ, EMU_MAX_BUFSZ);
 	return (0);
 }
 
