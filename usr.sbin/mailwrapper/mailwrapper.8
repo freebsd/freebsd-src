@@ -1,4 +1,5 @@
-.\"	$NetBSD: mailwrapper.8,v 1.6 1999/03/25 16:40:17 is Exp $
+.\"	$NetBSD: mailwrapper.8,v 1.11 2002/02/08 01:38:50 ross Exp $
+.\"	$OpenBSD: mailwrapper.8,v 1.8 2003/06/12 12:59:51 jmc Exp $
 .\" $FreeBSD$
 .\"
 .\" Copyright (c) 1998
@@ -31,7 +32,7 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" The following requests are required for all man pages.
-.Dd December 16, 1998
+.Dd August 7, 2006
 .Dt MAILWRAPPER 8
 .Os
 .Sh NAME
@@ -84,10 +85,10 @@ functionality, either through a program that also switches behavior
 based on calling name, or through a set of programs that provide
 similar functionality.
 .Pp
-Although having replacement programs that plug replace
+Although having drop-in replacements for
 .Xr sendmail 8
 helps in installing alternative MTAs, it essentially makes the
-configuration of the system depend on hard installing new programs in
+configuration of the system depend on hand installing new programs in
 .Pa /usr .
 This leads to configuration problems for many administrators, since
 they may wish to install a new MTA without altering the system
@@ -131,14 +132,15 @@ is kept in
 is typically set up as a symbolic link to
 .Nm
 which is not usually invoked on its own.
+.Sh EXIT STATUS
+The
+.Nm
+exits 0 on success, and \*[Gt]0 if an error occurs.
 .Sh DIAGNOSTICS
 The
 .Nm
-utility will return an error value and print a diagnostic if its configuration
-file is missing or malformed, or does not contain a mapping for the
-name under which
-.Nm
-was invoked.
+will print a diagnostic if its configuration file is missing or malformed,
+or does not contain a mapping for the name under which it was invoked.
 .Sh SEE ALSO
 .Xr mail 1 ,
 .Xr mailq 1 ,
