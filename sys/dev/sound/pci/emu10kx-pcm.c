@@ -94,6 +94,7 @@ struct emu_pcm_info {
 	int			pnum;		/* next free channel number */
 	struct emu_pcm_rchinfo	rch;
 	struct emu_route	rt;
+	struct emu_route	rt_mono;
 	int			route;
 	int			ihandle;	/* interrupt handler */
 	unsigned int		bufsz;
@@ -504,7 +505,10 @@ emupchan_trigger(kobj_t obj __unused, void *c_devinfo, int go)
 	snd_mtxlock(sc->lock); /* XXX can we trigger on parallel threads ? */
 	if (go == PCMTRIG_START) {
 		emu_vsetup(ch->master, ch->fmt, ch->spd);
-		emu_vroute(sc->card, &(sc->rt), ch->master);
+		if ((ch->fmt & AFMT_STEREO) == AFMT_STEREO)
+			emu_vroute(sc->card, &(sc->rt), ch->master);
+		else
+			emu_vroute(sc->card, &(sc->rt_mono), ch->master);
 		emu_vwrite(sc->card, ch->master);
 		emu_timer_set(sc->card, ch->timer, ch->blksz / sndbuf_getbps(ch->buffer));
 		emu_timer_enable(sc->card, ch->timer, 1);
@@ -833,12 +837,21 @@ emu_pcm_attach(device_t dev)
 		sc->rt.amounts_right[i] = 0x00;
 	}
 
+	for (i = 0; i < 8; i++) {
+		sc->rt_mono.routing_left[i] = i;
+		sc->rt_mono.amounts_left[i] = 0x00;
+		sc->rt_mono.routing_right[i] = i;
+		sc->rt_mono.amounts_right[i] = 0x00;
+	}
+
 	r = BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ROUTE, &route);
 	sc->route = route;
 	switch (route) {
 	case RT_FRONT:
 		sc->rt.amounts_left[0] = 0xff;
 		sc->rt.amounts_right[1] = 0xff;
+		sc->rt_mono.amounts_left[0] = 0xff;
+		sc->rt_mono.amounts_left[1] = 0xff;
 		if (sc->is_emu10k1)
 			sc->codec = AC97_CREATE(dev, sc, emu_ac97);
 		else
@@ -857,6 +870,8 @@ emu_pcm_attach(device_t dev)
 	case RT_REAR:
 		sc->rt.amounts_left[2] = 0xff;
 		sc->rt.amounts_right[3] = 0xff;
+		sc->rt_mono.amounts_left[2] = 0xff;
+		sc->rt_mono.amounts_left[3] = 0xff;
 		if (mixer_init(dev, &emudspmixer_class, sc)) {
 			device_printf(dev, "failed to initialize mixer\n");
 			goto bad;
@@ -864,6 +879,7 @@ emu_pcm_attach(device_t dev)
 		break;
 	case RT_CENTER:
 		sc->rt.amounts_left[4] = 0xff;
+		sc->rt_mono.amounts_left[4] = 0xff;
 		if (mixer_init(dev, &emudspmixer_class, sc)) {
 			device_printf(dev, "failed to initialize mixer\n");
 			goto bad;
@@ -871,6 +887,7 @@ emu_pcm_attach(device_t dev)
 		break;
 	case RT_SUB:
 		sc->rt.amounts_left[5] = 0xff;
+		sc->rt_mono.amounts_left[5] = 0xff;
 		if (mixer_init(dev, &emudspmixer_class, sc)) {
 			device_printf(dev, "failed to initialize mixer\n");
 			goto bad;
@@ -879,6 +896,8 @@ emu_pcm_attach(device_t dev)
 	case RT_SIDE:
 		sc->rt.amounts_left[6] = 0xff;
 		sc->rt.amounts_right[7] = 0xff;
+		sc->rt_mono.amounts_left[6] = 0xff;
+		sc->rt_mono.amounts_left[7] = 0xff;
 		if (mixer_init(dev, &emudspmixer_class, sc)) {
 			device_printf(dev, "failed to initialize mixer\n");
 			goto bad;
