@@ -1,5 +1,5 @@
-/*	$OpenBSD: mailwrapper.c,v 1.15 2003/03/09 01:24:26 millert Exp $	*/
-/*	$NetBSD: mailwrapper.c,v 1.7 2003/02/17 21:18:46 is Exp $	*/
+/*	$OpenBSD: mailwrapper.c,v 1.16 2004/07/06 03:38:14 millert Exp $	*/
+/*	$NetBSD: mailwrapper.c,v 1.9 2003/03/09 08:10:43 mjl Exp $	*/
 
 /*
  * Copyright (c) 1998
