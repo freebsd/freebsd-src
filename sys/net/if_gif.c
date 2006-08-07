@@ -935,13 +935,6 @@ gif_set_tunnel(ifp, src, dst)
 	if (odst)
 		free((caddr_t)odst, M_IFADDR);
 
-	if (sc->gif_psrc && sc->gif_pdst)
-		ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	else
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-
-	return 0;
-
  bad:
 	if (sc->gif_psrc && sc->gif_pdst)
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -972,9 +965,5 @@ gif_delete_tunnel(ifp)
 #ifdef INET6
 	(void)in6_gif_detach(sc);
 #endif
-
-	if (sc->gif_psrc && sc->gif_pdst)
-		ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	else
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 }
