@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 #include <stdio.h>
 #include <termcap.h>
 
