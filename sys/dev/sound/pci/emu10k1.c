@@ -1969,7 +1969,7 @@ emu_pci_probe(device_t dev)
 	}
 
 	device_set_desc(dev, s);
-	return BUS_PROBE_DEFAULT;
+	return BUS_PROBE_LOW_PRIORITY;
 }
 
 static int
