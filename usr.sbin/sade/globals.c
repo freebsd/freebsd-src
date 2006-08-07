@@ -1,9 +1,4 @@
 /*
- * The new sysinstall program.
- *
- * This is probably the last program in the `sysinstall' line - the next
- * generation being essentially a complete rewrite.
- *
  * $FreeBSD$
  *
  * Copyright (c) 1995
@@ -34,7 +29,7 @@
  *
  */
 
-#include "sysinstall.h"
+#include "sade.h"
 
 /*
  * Various global variables and an initialization hook to set them to
@@ -43,13 +38,11 @@
 
 int		DebugFD;	/* Where diagnostic output goes */
 Boolean		Fake;		/* Only pretend to be useful */
-Boolean		RunningAsInit;	/* Are we running as init? */
 Boolean		DialogActive;	/* Is libdialog initialized? */
 Boolean		ColorDisplay;	/* Are we on a color display? */
 Boolean		OnVTY;		/* Are we on a VTY? */
 Boolean		Restarting;	/* Are we restarting sysinstall? */
 Variable	*VarHead;	/* The head of the variable chain */
-Device		*mediaDevice;	/* Where we're installing from */
 int		BootMgr;	/* Which boot manager we're using */
 int		StatusLine;	/* Where to stick our status messages */
 jmp_buf		BailOut;	/* Beam me up, scotty! The natives are pissed! */
@@ -78,8 +71,6 @@ globalsInit(void)
     OnVTY = FALSE;
     DialogActive = FALSE;
     VarHead = NULL;
-    mediaDevice = NULL;
-    RunningAsInit = FALSE;
 
     HomeChunk = NULL;
     RootChunk = NULL;
