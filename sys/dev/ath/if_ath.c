@@ -3561,6 +3561,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	 * also calculates the number of descriptors we need.
 	 */
 	error = ath_tx_dmasetup(sc, bf, m0);
+	if (error != 0)
+		return error;
 	bf->bf_node = ni;			/* NB: held reference */
 	m0 = bf->bf_m;				/* NB: may have changed */
 	wh = mtod(m0, struct ieee80211_frame *);
