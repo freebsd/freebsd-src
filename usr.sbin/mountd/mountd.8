@@ -28,7 +28,7 @@
 .\"     @(#)mountd.8	8.4 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd April 28, 1995
+.Dd August 8, 2006
 .Dt MOUNTD 8
 .Os
 .Sh NAME
@@ -64,6 +64,9 @@ version 2
 protocol to mount file systems from this server.
 .It Fl d
 Output debugging information.
+.Nm
+will not detach from the controlling terminal and will print
+debugging messages to stderr.
 .It Fl l
 Cause all succeeded
 .Nm
