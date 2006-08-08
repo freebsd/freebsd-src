@@ -531,7 +531,8 @@ void	pmap_postinit(void);
 
 #ifdef ARM_USE_SMALL_ALLOC
 void	arm_add_smallalloc_pages(void *, void *, int, int);
-void 	arm_busy_pages(void);
+vm_offset_t arm_ptovirt(vm_paddr_t);
+void arm_init_smallalloc(void);
 struct arm_small_page {
 	void *addr;
 	TAILQ_ENTRY(arm_small_page) pg_list;

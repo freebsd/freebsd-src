@@ -442,6 +442,15 @@ initarm(void *arg, void *arg2)
 
 
 	pmap_curmaxkvaddr = afterkern + PAGE_SIZE;
+	/*
+	 * ARM_USE_SMALL_ALLOC uses dump_avail, so it must be filled before
+	 * calling pmap_bootstrap.
+	 */
+	dump_avail[0] = 0xa0000000;
+	dump_avail[1] = 0xa0000000 + memsize;
+	dump_avail[2] = 0;
+	dump_avail[3] = 0;
+					
 	pmap_bootstrap(pmap_curmaxkvaddr, 
 	    0xd0000000, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
@@ -460,10 +469,6 @@ initarm(void *arg, void *arg2)
 	phys_avail[i++] = trunc_page(0xa0000000 + memsize - 1);
 	phys_avail[i++] = 0;
 	phys_avail[i] = 0;
-	dump_avail[0] = 0xa0000000;
-	dump_avail[1] = 0xa0000000 + memsize;
-	dump_avail[2] = 0;
-	dump_avail[3] = 0;
 	
 	/* Do basic tuning, hz etc */
 	init_param1();
