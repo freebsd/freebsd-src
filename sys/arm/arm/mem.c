@@ -66,11 +66,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_global.h"
 
-#ifdef ARM_USE_SMALL_ALLOC
-extern vm_offset_t alloc_curaddr;
-extern vm_offset_t alloc_firstaddr;
-#endif
-
 /*
  * Used in /dev/mem drivers and elsewhere
  */
@@ -127,8 +122,8 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			    uio->uio_rw == UIO_READ ? 
 			    VM_PROT_READ : VM_PROT_WRITE))
 #ifdef ARM_USE_SMALL_ALLOC
-				if (addr < alloc_firstaddr || addr >
-				    alloc_curaddr)
+				if (addr <= VM_MAXUSER_ADDRESS ||
+				    addr >= KERNBASE)
 #endif
 					return (EFAULT);
 			error = uiomove((caddr_t)(int)uio->uio_offset, (int)c, uio);
