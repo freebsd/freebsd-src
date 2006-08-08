@@ -99,7 +99,7 @@ ata_begin_transaction(struct ata_request *request)
 	    if (ch->hw.command(request->device, request->u.ata.command,
 			       request->u.ata.lba, request->u.ata.count,
 			       request->u.ata.feature)) {
-		ata_prtdev(request->device, "error issueing %s command\n",
+		ata_prtdev(request->device, "error issuing %s command\n",
 			   ata_cmd2str(request));
 		request->result = EIO;
 		break;
@@ -144,7 +144,7 @@ ata_begin_transaction(struct ata_request *request)
 	if (ch->hw.command(request->device, request->u.ata.command,
 			   request->u.ata.lba, request->u.ata.count,
 			   request->u.ata.feature)) {
-	    ata_prtdev(request->device, "error issueing %s command\n",
+	    ata_prtdev(request->device, "error issuing %s command\n",
 		       ata_cmd2str(request));
 	    request->result = EIO;
 	    break;
