@@ -101,7 +101,7 @@ amphy_probe(dev)
 	else if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxDAVICOM)
 		device_set_desc(dev, MII_STR_xxDAVICOM_DM9101);
 
-	return(0);
+	return(BUS_PROBE_DEFAULT);
 }
 
 static int
