@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd September 5, 2005
+.Dd August 8, 2006
 .Dt ATH 4
 .Os
 .Sh NAME
@@ -125,54 +125,12 @@ Devices supported by the
 driver come in either Cardbus or mini-PCI packages.
 Wireless cards in Cardbus slots may be inserted and ejected on the fly.
 .Sh HARDWARE
-The following cards are among those supported by the
+The
 .Nm
-driver:
+driver supports all Atheros Cardbus or PCI cards,
+except those that are based on the AR5005VL chipset.
 .Pp
-.Bl -column -compact "Samsung SWL-5200N" "AR5212" "Cardbus" "a/b/g"
-.It Em "Card	Chip	Bus	Standard"
-.It "Aztech WL830PC	AR5212	CardBus	b/g"
-.It "Cisco AIR-CB21AG	AR5115	Cardbus	a/b/g"
-.It "Cisco AIR-PI21AG	AR5115	PCI	a/b/g"
-.It "D-Link DWL-A650	AR5210	CardBus	a"
-.It "D-Link DWL-AB650	AR5211	CardBus	a/b"
-.It "D-Link DWL-A520	AR5210	PCI	a"
-.It "D-Link DWL-AG520	AR5212	PCI	a/b/g"
-.It "D-Link DWL-AG650	AR5212	CardBus	a/b/g"
-.It "D-Link DWL-G520B	AR5212	PCI	b/g"
-.It "D-Link DWL-G650B	AR5212	CardBus	b/g"
-.It "Elecom LD-WL54AG	AR5212	Cardbus	a/b/g"
-.It "Elecom LD-WL54	AR5211	Cardbus	a"
-.It "Fujitsu E5454	AR5212	Cardbus	a/b/g"
-.It "Fujitsu FMV-JW481	AR5212	Cardbus	a/b/g"
-.It "Fujitsu E5454	AR5212	Cardbus	a/b/g"
-.It "HP NC4000	AR5212	PCI	a/b/g"
-.It "I/O Data WN-AB	AR5212	CardBus	a/b"
-.It "I/O Data WN-AG	AR5212	CardBus	a/b/g"
-.It "I/O Data WN-A54	AR5212	CardBus	a"
-.It "Linksys WMP55AG	AR5212	PCI	a/b/g"
-.It "Linksys WPC51AB	AR5211	CardBus	a/b"
-.It "Linksys WPC55AG	AR5212	CardBus	a/b/g"
-.It "NEC PA-WL/54AG	AR5212	CardBus	a/b/g"
-.It "Netgear WAG311	AR5212	PCI	a/b/g"
-.It "Netgear WAB501	AR5211	CardBus	a/b"
-.It "Netgear WAG511	AR5212	CardBus	a/b/g"
-.It "Netgear WG311T	AR5212	PCI	b/g"
-.It "Netgear WG511T	AR5212	CardBus	b/g"
-.It "Orinoco 8480	AR5212	CardBus	a/b/g"
-.It "Orinoco 8470WD	AR5212	CardBus	a/b/g"
-.It "Proxim Skyline 4030	AR5210	CardBus	a"
-.It "Proxim Skyline 4032	AR5210	PCI	a"
-.It "Samsung SWL-5200N	AR5212	CardBus	a/b/g"
-.It "SMC SMC2536W-AG	AR5212	CardBus	a/b/g"
-.It "SMC SMC2735W	AR5210	CardBus	a"
-.It "Sony PCWA-C700	AR5212	Cardbus	a/b"
-.It "Sony PCWA-C300S	AR5212	Cardbus	b/g"
-.It "Sony PCWA-C500	AR5210	Cardbus	a"
-.It "3Com 3CRPAG175	AR5212	CardBus	a/b/g"
-.El
-.Pp
-An up to date list can be found at
+A list of cards that are supported can be found at
 .Pa http://customerproducts.atheros.com/customerproducts .
 .Sh EXAMPLES
 Join an existing BSS network (ie: connect to an access point):
