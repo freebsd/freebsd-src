@@ -121,5 +121,8 @@ main(int argc, char **argv)
 	    break;
     }
 
-    return 0; /* We should never get here */
+    /* Shut down curses */
+    endwin();
+
+    return 0;
 }
