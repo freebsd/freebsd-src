@@ -438,18 +438,15 @@ initarm(void *arg, void *arg2)
 
 	pmap_curmaxkvaddr = freemempos + KERNEL_PT_VMDATA_NUM * 0x400000;
 
-	pmap_bootstrap(freemempos, 
-	    0xd0000000, &kernel_l1pt);
-
-	
-	mutex_init();
-	
-	
 	dump_avail[0] = phys_avail[0] = round_page(virtual_avail);
 	dump_avail[1] = phys_avail[1] = 0xc0000000 + 0x02000000 - 1;
 	dump_avail[2] = phys_avail[2] = 0;
 	dump_avail[3] = phys_avail[3] = 0;
-	
+					
+	mutex_init();
+	pmap_bootstrap(freemempos, 
+	    0xd0000000, &kernel_l1pt);
+
 	/* Do basic tuning, hz etc */
 	init_param1();
 	init_param2(physmem);
