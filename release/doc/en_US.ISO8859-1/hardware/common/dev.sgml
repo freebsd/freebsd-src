@@ -274,6 +274,8 @@
 
     &hwlist.snc;
 
+    &hwlist.stge;
+ 
     &hwlist.ste;
 
     &hwlist.ti;
