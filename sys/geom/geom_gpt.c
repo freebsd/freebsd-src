@@ -931,26 +931,6 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	g_topology_assert();
 
 	/*
-	 * Sanity-check the provider. Since the first sector on the provider
-	 * must be a PMBR and a PMBR is 512 bytes large, the sector size must
-	 * be at least 512 bytes. We also require that the sector size is a
-	 * multiple of the GPT entry size (which is 128 bytes).
-	 * Also, since the theoretical minimum number of sectors needed by
-	 * GPT is 6, any medium that has less than 6 sectors is never going
-	 * to hold a GPT. The number 6 comes from:
-	 *	1 sector for the PMBR
-	 *	2 sectors for the GPT headers (each 1 sector)
-	 *	2 sectors for the GPT tables (each 1 sector)
-	 *	1 sector for an actual partition
-	 * It's better to catch this pathological case early than behaving
-	 * pathologically later on by panicing...
-	 */
-	if (pp->sectorsize < 512 ||
-	    pp->sectorsize % sizeof(struct gpt_ent) != 0 ||
-	    pp->mediasize < 6 * pp->sectorsize)
-		return (NULL);
-
-	/*
 	 * We don't nest. That is, we disallow nesting a GPT inside a GPT
 	 * partition. We check only for direct nesting. Indirect nesting is
 	 * not easy to determine. If you want, you can therefore nest GPT
@@ -979,6 +959,27 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	}
 
 	g_topology_unlock();
+
+	/*
+	 * Now that we have access permissions, we can sanity-check the
+	 * provider. Since the first sector on the provider must be a PMBR
+	 * and a PMBR is 512 bytes large, the sector size must be at least
+	 * 512 bytes. We also require that the sector size is a multiple
+	 * of the GPT entry size (which is 128 bytes). Lastly, since the
+	 * theoretical minimum number of sectors needed by GPT is 6, any
+	 * medium that has less than 6 sectors is never going to be able
+	 * to hold a GPT. The number 6 comes from:
+	 *	1 sector for the PMBR
+	 *	2 sectors for the GPT headers (each 1 sector)
+	 *	2 sectors for the GPT tables (each 1 sector)
+	 *	1 sector for an actual partition
+	 * It's better to catch this pathological case early than behaving
+	 * pathologically later on by panicing...
+	 */
+	if (pp->sectorsize < 512 ||
+	    pp->sectorsize % sizeof(struct gpt_ent) != 0 ||
+	    pp->mediasize < 6 * pp->sectorsize)
+		goto fail;
 
 	/*
 	 * Read both the primary and secondary GPT headers.  We have all
