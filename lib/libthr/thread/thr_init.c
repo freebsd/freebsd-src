@@ -99,6 +99,7 @@ struct pthread_cond_attr _pthread_condattr_default = {
 };
 
 pid_t		_thr_pid;
+int		_thr_smp_cpus = 1;
 size_t		_thr_guard_default;
 size_t		_thr_stack_default = THR_STACK_DEFAULT;
 size_t		_thr_stack_initial = THR_STACK_INITIAL;
@@ -443,6 +444,8 @@ init_private(void)
 		len = sizeof (_usrstack);
 		if (sysctl(mib, 2, &_usrstack, &len, NULL, 0) == -1)
 			PANIC("Cannot get kern.usrstack from sysctl");
+		len = sizeof(_thr_smp_cpus);
+		sysctlbyname("kern.smp.cpus", &_thr_smp_cpus, &len, NULL, 0);
 		_thr_page_size = getpagesize();
 		_thr_guard_default = _thr_page_size;
 		_pthread_attr_default.guardsize_attr = _thr_guard_default;
