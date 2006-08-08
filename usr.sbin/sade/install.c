@@ -203,9 +203,7 @@ installFilesystems(dialogMenuItem *self)
 	    }
 #if defined(__ia64__)
 	    else if (c1->type == efi && c1->private_data) {
-		char bootdir[FILENAME_MAX];
 		PartInfo *pi = (PartInfo *)c1->private_data;
-		char *p;
 
 		sprintf(dname, "/dev/%s", c1->name);
 
@@ -213,8 +211,6 @@ installFilesystems(dialogMenuItem *self)
 		    !msgNoYes("You are upgrading - are you SURE you want to "
 		    "newfs /dev/%s?", c1->name)))
 			performNewfs(pi, dname, QUEUE_YES);
-
-		command_func_add(pi->mountpoint, Mount_msdosfs, c1->name);
 	    }
 #endif
 	}
