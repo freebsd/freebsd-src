@@ -51,9 +51,11 @@ ACPI_MODULE_NAME("DOCK")
 #define ACPI_DOCK_STATUS_UNDOCKED	0
 #define ACPI_DOCK_STATUS_DOCKED		1
 
-/* Prevent the device from being removed or not. */
-#define ACPI_DOCK_UNLOCK		0
-#define ACPI_DOCK_LOCK			1
+#define ACPI_DOCK_UNLOCK		0 /* Allow device to be ejected */
+#define ACPI_DOCK_LOCK			1 /* Prevent dev from being removed */
+
+#define ACPI_DOCK_ISOLATE		0 /* Isolate from dock connector */
+#define ACPI_DOCK_CONNECT		1 /* Connect to dock */
 
 struct acpi_dock_softc {
 	int		_sta;
@@ -63,9 +65,6 @@ struct acpi_dock_softc {
 	struct sysctl_ctx_list	*sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
 };
-
-/* Global docking status, for avoiding duplicated docking */
-static	int		acpi_dock_status = ACPI_DOCK_STATUS_UNKNOWN;
 
 ACPI_SERIAL_DECL(dock, "ACPI Docking Station");
 
@@ -116,7 +115,7 @@ acpi_dock_execute_dck(device_t dev, int dock)
 	/*
 	 * When _DCK is called with 0, OSPM will ignore the return value.
 	 */
-	if (dock == ACPI_DOCK_STATUS_UNDOCKED)
+	if (dock == ACPI_DOCK_ISOLATE)
 		return (0);
 
 	/* If _DCK returned 1, the request succeeded. */
@@ -127,7 +126,7 @@ acpi_dock_execute_dck(device_t dev, int dock)
 	return (-1);
 }
 
-/* Lock devices while docked. */
+/* Lock devices while docked to prevent surprise removal. */
 static void
 acpi_dock_execute_lck(device_t dev, int lock)
 {
@@ -137,6 +136,7 @@ acpi_dock_execute_lck(device_t dev, int lock)
 	acpi_SetInteger(h, "_LCK", lock);
 }
 
+/* Eject a device (i.e., motorized). */
 static int
 acpi_dock_execute_ejx(device_t dev, int eject, int state)
 {
@@ -153,6 +153,7 @@ acpi_dock_execute_ejx(device_t dev, int eject, int state)
 	return (-1);
 }
 
+/* Find dependent devices.  When their parent is removed, so are they. */
 static int
 acpi_dock_is_ejd_device(ACPI_HANDLE dock_handle, ACPI_HANDLE handle)
 {
@@ -267,17 +268,17 @@ acpi_dock_insert(device_t dev)
 	sc = device_get_softc(dev);
 	h = acpi_get_handle(dev);
 
-	if (acpi_dock_status == ACPI_DOCK_STATUS_UNDOCKED ||
-	    acpi_dock_status == ACPI_DOCK_STATUS_UNKNOWN) {
+	if (sc->status == ACPI_DOCK_STATUS_UNDOCKED ||
+	    sc->status == ACPI_DOCK_STATUS_UNKNOWN) {
 		acpi_dock_execute_lck(dev, ACPI_DOCK_LOCK);
-		if (acpi_dock_execute_dck(dev, 1) != 0) {
+		if (acpi_dock_execute_dck(dev, ACPI_DOCK_CONNECT) != 0) {
 			device_printf(dev, "_DCK failed\n");
 			return;
 		}
 
 		if (!cold)
 			acpi_dock_insert_children(dev);
-		sc->status = acpi_dock_status = ACPI_DOCK_STATUS_DOCKED;
+		sc->status = ACPI_DOCK_STATUS_DOCKED;
 	}
 }
 
@@ -334,10 +335,10 @@ acpi_dock_removal(device_t dev)
 	ACPI_SERIAL_ASSERT(dock);
 
 	sc = device_get_softc(dev);
-	if (acpi_dock_status == ACPI_DOCK_STATUS_DOCKED ||
-	    acpi_dock_status == ACPI_DOCK_STATUS_UNKNOWN) {
+	if (sc->status == ACPI_DOCK_STATUS_DOCKED ||
+	    sc->status == ACPI_DOCK_STATUS_UNKNOWN) {
 		acpi_dock_eject_children(dev);
-		if (acpi_dock_execute_dck(dev, 0) != 0)
+		if (acpi_dock_execute_dck(dev, ACPI_DOCK_ISOLATE) != 0)
 			return;
 
 		acpi_dock_execute_lck(dev, ACPI_DOCK_UNLOCK);
@@ -347,7 +348,7 @@ acpi_dock_removal(device_t dev)
 			return;
 		}
 
-		sc->status = acpi_dock_status = ACPI_DOCK_STATUS_UNDOCKED;
+		sc->status = ACPI_DOCK_STATUS_UNDOCKED;
 	}
 
 	acpi_dock_get_info(dev);
@@ -370,12 +371,14 @@ acpi_dock_device_check(device_t dev)
 	acpi_dock_get_info(dev);
 
 	/*
-	 * If the _STA indicates 'present' and 'functioning',
-	 * the system is docked.
+	 * If the _STA method indicates 'present' and 'functioning', the
+	 * system is docked.  If _STA does not exist for this device, it
+	 * is always present.
 	 */
-	if (ACPI_DEVICE_PRESENT(sc->_sta))
+	if (sc->_sta == ACPI_DOCK_STATUS_UNKNOWN ||
+	    ACPI_DEVICE_PRESENT(sc->_sta))
 		acpi_dock_insert(dev);
-	if (sc->_sta == 0)
+	else if (sc->_sta == 0)
 		acpi_dock_removal(dev);
 }
 
@@ -413,22 +416,23 @@ acpi_dock_status_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct acpi_dock_softc *sc;
 	device_t	dev;
-        int		status, err;
+	int		status, err;
 
 	err = 0;
-        dev = (device_t)arg1;
+	dev = (device_t)arg1;
+
 	sc = device_get_softc(dev);
-        status = sc->status;
+	status = sc->status;
 
 	ACPI_SERIAL_BEGIN(dock);
-        err = sysctl_handle_int(oidp, &status, 0, req);
-        if (err != 0 || req->newptr == NULL)
-                goto out;
+	err = sysctl_handle_int(oidp, &status, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		goto out;
 
 	if (status != ACPI_DOCK_STATUS_UNDOCKED &&
 	    status != ACPI_DOCK_STATUS_DOCKED) {
 		err = EINVAL;
-                goto out;
+		goto out;
 	}
 
 	if (status == sc->status)
@@ -460,9 +464,6 @@ acpi_dock_probe(device_t dev)
 	    ACPI_FAILURE(AcpiGetHandle(h, "_DCK", &tmp)))
 		return (ENXIO);
 
-	if (acpi_dock_status == ACPI_DOCK_STATUS_DOCKED)
-		return (ENXIO);
-
 	device_set_desc(dev, "ACPI Docking Station");
 
 	/*
@@ -479,14 +480,8 @@ acpi_dock_attach(device_t dev)
 	ACPI_HANDLE	h;
 
 	sc = device_get_softc(dev);
-	if (sc == NULL)
-		return (ENXIO);
-
 	h = acpi_get_handle(dev);
-	if (h == NULL)
-		return (ENXIO);
-
-	if (acpi_dock_status == ACPI_DOCK_STATUS_DOCKED)
+	if (sc == NULL || h == NULL)
 		return (ENXIO);
 
 	sc->status = ACPI_DOCK_STATUS_UNKNOWN;
@@ -497,7 +492,7 @@ acpi_dock_attach(device_t dev)
 
 	acpi_dock_device_check(dev);
 
-        /* Get the sysctl tree */
+	/* Get the sysctl tree */
 	sc->sysctl_ctx = device_get_sysctl_ctx(dev);
 	sc->sysctl_tree = device_get_sysctl_tree(dev);
 
