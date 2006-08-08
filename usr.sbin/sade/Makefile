@@ -15,7 +15,6 @@ SRCS=	command.c config.c devices.c \
 
 # command.c
 
-CFLAGS+= -DUSE_GZIP=1
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
 .endif

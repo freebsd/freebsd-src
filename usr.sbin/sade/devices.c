@@ -107,9 +107,6 @@ deviceTry(struct _devname dev, char *try, int i)
 {
     int fd;
     char unit[80];
-    mode_t m;
-    dev_t d;
-    int fail;
 
     snprintf(unit, sizeof unit, dev.name, i);
     snprintf(try, FILENAME_MAX, "/dev/%s", unit);
@@ -172,7 +169,7 @@ deviceReset(void)
 void
 deviceGetAll(void)
 {
-    int i, j, fd, s;
+    int i, j, fd;
     char **names;
 
     msgNotify("Probing devices, please wait (this can take a while)...");
@@ -200,7 +197,6 @@ deviceGetAll(void)
 	int i;
 
 	for (i = 0; names[i]; i++) {
-	    Chunk *c1;
 	    Disk *d;
 
 	    /* Ignore memory disks */

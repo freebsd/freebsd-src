@@ -831,7 +831,7 @@ print_command_summary(void)
 static void
 clear_wins(void)
 {
-    extern void print_label_chunks();
+
     clear();
     print_label_chunks();
 }

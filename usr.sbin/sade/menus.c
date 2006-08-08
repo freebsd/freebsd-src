@@ -34,14 +34,6 @@ static const char rcsid[] =
 
 #include "sade.h"
 
-/* Miscellaneous work routines for menus */
-
-static int
-checkTrue(dialogMenuItem *item)
-{
-    return TRUE;
-}
-
 /* All the system menus go here.
  *
  * Hardcoded things like version number strings will disappear from
@@ -61,7 +53,7 @@ DMenu MenuDiskDevices = {
     "Use [TAB] to get to the buttons and leave this menu.",
     "Press F1 for important information regarding disk geometry!",
     "drives",
-    { { NULL } },
+    { { NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0, 0 } },
 };
 
 DMenu MenuMain = {
@@ -71,9 +63,10 @@ DMenu MenuMain = {
     "DISKUTIL",
     "main",
     { 
-      { "1 Partition",		"Managing disk partitions",	NULL, diskPartitionEditor },
-      { "2 Label",		"Label allocated disk partitions",	NULL, diskLabelEditor },
-      { NULL } },
+      { "1 Partition",		"Managing disk partitions",	NULL, diskPartitionEditor, NULL, NULL, 0, 0, 0, 0 },
+      { "2 Label",		"Label allocated disk partitions",	NULL, diskLabelEditor, NULL, NULL, 0, 0, 0, 0 },
+      { NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0, 0 }
+    },
 };
 
 #if defined(__i386__) || defined(__amd64__)
@@ -90,7 +83,7 @@ DMenu MenuIPLType = {
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr },
       { "None",		"Leave the IPL untouched",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 1 },
-      { NULL } },
+      { NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0, 0 } },
 };
 #else
 /* MBR type menu */
@@ -109,12 +102,12 @@ DMenu MenuMBRType = {
     "Press F1 to read about drive setup",
     "drives",
     { { "BootMgr",	"Install the FreeBSD Boot Manager",
-	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr },
+	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, 0, 0, 0, 0 },
       { "Standard",	"Install a standard MBR (no boot manager)",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 1 },
       { "None",		"Leave the Master Boot Record untouched",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 2 },
-      { NULL } },
+      { NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0, 0 } },
 };
 #endif /* PC98 */
 #endif /* __i386__ */

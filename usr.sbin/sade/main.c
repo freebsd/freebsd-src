@@ -35,13 +35,6 @@
 
 const char *StartName;		/* Initial contents of argv[0] */
 
-static void
-screech(int sig)
-{
-    msgDebug("\007Signal %d caught!  That's bad!\n", sig);
-    longjmp(BailOut, sig);
-}
-
 int
 main(int argc, char **argv)
 {

@@ -44,7 +44,7 @@ isDebug(void)
 
 /* Whack up an informational message on the status line, in stand-out */
 void
-msgYap(char *fmt, ...)
+msgYap(const char *fmt, ...)
 {
     va_list args;
     char *errstr;
@@ -63,7 +63,7 @@ msgYap(char *fmt, ...)
 
 /* Whack up an informational message on the status line */
 void
-msgInfo(char *fmt, ...)
+msgInfo(const char *fmt, ...)
 {
     va_list args;
     char *errstr;
@@ -98,7 +98,7 @@ msgInfo(char *fmt, ...)
 
 /* Whack up a warning on the status line */
 void
-msgWarn(char *fmt, ...)
+msgWarn(const char *fmt, ...)
 {
     va_list args;
     char *errstr;
@@ -121,7 +121,7 @@ msgWarn(char *fmt, ...)
 
 /* Whack up an error on the status line */
 void
-msgError(char *fmt, ...)
+msgError(const char *fmt, ...)
 {
     va_list args;
     char *errstr;
@@ -144,7 +144,7 @@ msgError(char *fmt, ...)
 
 /* Whack up a fatal error on the status line */
 void
-msgFatal(char *fmt, ...)
+msgFatal(const char *fmt, ...)
 {
     va_list args;
     char *errstr;
@@ -174,7 +174,7 @@ msgFatal(char *fmt, ...)
 
 /* Put up a message in a popup confirmation box */
 void
-msgConfirm(char *fmt, ...)
+msgConfirm(const char *fmt, ...)
 {
     va_list args;
     char *errstr;
@@ -196,7 +196,7 @@ msgConfirm(char *fmt, ...)
 
 /* Put up a message in a popup information box */
 void
-msgNotify(char *fmt, ...)
+msgNotify(const char *fmt, ...)
 {
     va_list args;
     char *errstr;
@@ -214,7 +214,7 @@ msgNotify(char *fmt, ...)
 
 /* Put up a message in a popup yes/no box and return 0 for YES, 1 for NO */
 int
-msgYesNo(char *fmt, ...)
+msgYesNo(const char *fmt, ...)
 {
     va_list args;
     char *errstr;
@@ -240,7 +240,7 @@ msgYesNo(char *fmt, ...)
 
 /* Put up a message in a popup no/yes box and return 0 for YES, 1 for NO */
 int
-msgNoYes(char *fmt, ...)
+msgNoYes(const char *fmt, ...)
 {
     va_list args;
     char *errstr;
@@ -266,7 +266,7 @@ msgNoYes(char *fmt, ...)
 
 /* Put up a message in an input box and return the value */
 char *
-msgGetInput(char *buf, char *fmt, ...)
+msgGetInput(char *buf, const char *fmt, ...)
 {
     va_list args;
     char *errstr;
@@ -298,7 +298,7 @@ msgGetInput(char *buf, char *fmt, ...)
 
 /* Write something to the debugging port */
 void
-msgDebug(char *fmt, ...)
+msgDebug(const char *fmt, ...)
 {
     va_list args;
     char *dbg;
@@ -315,7 +315,7 @@ msgDebug(char *fmt, ...)
 
 /* Tell the user there's some output to go look at */
 void
-msgWeHaveOutput(char *fmt, ...)
+msgWeHaveOutput(const char *fmt, ...)
 {
     va_list args;
     char *errstr;
@@ -336,14 +336,14 @@ msgWeHaveOutput(char *fmt, ...)
 
 /* Simple versions of msgConfirm() and msgNotify() for calling from scripts */
 int
-msgSimpleConfirm(char *str)
+msgSimpleConfirm(const char *str)
 {
     msgConfirm("%s", str);
     return DITEM_SUCCESS;
 }
 
 int
-msgSimpleNotify(char *str)
+msgSimpleNotify(const char *str)
 {
     msgNotify("%s", str);
     return DITEM_SUCCESS;
