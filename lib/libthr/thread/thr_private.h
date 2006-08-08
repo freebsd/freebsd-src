@@ -588,6 +588,8 @@ extern struct pthread_cond_attr _pthread_condattr_default __hidden;
 extern struct pthread_prio _thr_priorities[] __hidden;
 
 extern pid_t	_thr_pid __hidden;
+extern int	_thr_smp_cpus __hidden;
+
 extern size_t	_thr_guard_default __hidden;
 extern size_t	_thr_stack_default __hidden;
 extern size_t	_thr_stack_initial __hidden;
