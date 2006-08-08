@@ -32,7 +32,7 @@
 .\"	@(#)split.1	8.3 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2005
+.Dd August 9, 2006
 .Dt SPLIT 1
 .Os
 .Sh NAME
@@ -40,17 +40,29 @@
 .Nd split a file into pieces
 .Sh SYNOPSIS
 .Nm
-.Op Fl a Ar suffix_length
-.Op Fl b Ar byte_count Ns Op Cm k Ns | Ns Cm m
 .Op Fl l Ar line_count
-.Op Fl p Ar pattern
-.Op Ar file Op Ar name
+.Op Fl a Ar suffix_length
+.Op Ar file Op Ar prefix
+.Nm
+.Fl b Ar byte_count Ns
+.Oo
+.Cm k Ns | Ns Cm m
+.Oc
+.Op Fl a Ar suffix_length
+.Op Ar file Op Ar prefix
+.Nm
+.Fl p Ar pattern
+.Op Fl a Ar suffix_length
+.Op Ar file Op Ar prefix
 .Sh DESCRIPTION
 The
 .Nm
 utility reads the given
 .Ar file
-and breaks it up into files of 1000 lines each.
+and breaks it up into files of 1000 lines each
+(if no options are specified), leaving the
+.Ar file
+unchanged.
 If
 .Ar file
 is a single dash
@@ -60,7 +72,7 @@ or absent,
 reads from the standard input.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl a Ar suffix_length
 Use
 .Ar suffix_length
@@ -81,7 +93,7 @@ is appended to the number, the file is split into
 megabyte pieces.
 .It Fl l Ar line_count
 Create smaller files
-.Ar n
+.Ar line_count
 lines in length.
 .It Fl p Ar pattern
 The file is split whenever an input line matches
@@ -103,13 +115,13 @@ In this case, each file into which the file is split is named by the
 prefix followed by a lexically ordered suffix using
 .Ar suffix_length
 characters in the range
-.Dq Li a-z .
+.Dq Li a Ns  - Ns Li z .
 If
 .Fl a
 is not specified, two letters are used as the suffix.
 .Pp
 If the
-.Ar name
+.Ar prefix
 argument is not specified, the file is split into lexically ordered
 files named with the prefix
 .Dq Li x
