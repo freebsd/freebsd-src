@@ -63,7 +63,9 @@ DMenu MenuMain = {
     "DISKUTIL",
     "main",
     { 
+#ifdef WITH_SLICES
       { "1 Partition",		"Managing disk partitions",	NULL, diskPartitionEditor, NULL, NULL, 0, 0, 0, 0 },
+#endif
       { "2 Label",		"Label allocated disk partitions",	NULL, diskLabelEditor, NULL, NULL, 0, 0, 0, 0 },
       { NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0, 0 }
     },

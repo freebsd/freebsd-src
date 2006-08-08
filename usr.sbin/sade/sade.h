@@ -433,7 +433,6 @@ extern void	items_free(dialogMenuItem *list, int *curr, int *max);
 extern int	Mkdir(char *);
 extern int	Mkdir_command(char *key, void *data);
 extern int	Mount(char *, void *data);
-extern int	Mount_msdosfs(char *mountp, void *devicename);
 extern WINDOW	*openLayoutDialog(char *helpfile, char *title, int x, int y, int width, int height);
 extern ComposeObj *initLayoutDialog(WINDOW *win, Layout *layout, int x, int y, int *max);
 extern int	layoutDialogLoop(WINDOW *win, Layout *layout, ComposeObj **obj,

@@ -74,7 +74,9 @@ static struct chunk *chunk_info[CHUNK_INFO_ENTRIES];
 static int current_chunk;
 
 static void	diskPartitionNonInteractive(Device *dev);
+#if defined(__i386__) || defined(__amd64__)	/* only meaningful on x86 */
 static u_char *	bootalloc(char *name, size_t *size);
+#endif
 
 static void
 record_chunks(Disk *d)
@@ -714,6 +716,7 @@ diskPartition(Device *dev)
 }
 #endif /* WITH_SLICES */
 
+#if defined(__i386__) || defined(__amd64__)	/* only meaningful on x86 */
 static u_char *
 bootalloc(char *name, size_t *size)
 {
@@ -746,6 +749,7 @@ bootalloc(char *name, size_t *size)
 	msgDebug("bootalloc: can't stat %s\n", buf);
     return NULL;
 }
+#endif	/* __i386__ || __amd64 */
 
 #ifdef WITH_SLICES 
 static int
@@ -856,7 +860,9 @@ diskPartitionWrite(dialogMenuItem *self)
 	msgDebug("diskPartitionWrite: Examining %d devices\n", deviceCount(devs));
     for (i = 0; devs[i]; i++) {
 	Disk *d = (Disk *)devs[i]->private;
+#if !defined(__ia64__)
 	static u_char *boot1;
+#endif
 #if defined(__i386__) || defined(__amd64__)
 	static u_char *boot2;
 #endif
