@@ -121,18 +121,10 @@ struct pthread_mutex {
 	int				m_refcount;
 
 	/*
-	 * Used for priority inheritence and protection.
-	 *
-	 *   m_prio       - For priority inheritence, the highest active
-	 *                  priority (threads locking the mutex inherit
-	 *                  this priority).  For priority protection, the
-	 *                  ceiling priority of this mutex.
-	 *   m_saved_prio - mutex owners inherited priority before
-	 *                  taking the mutex, restored when the owner
-	 *                  unlocks the mutex.
+	 * Used for priority protection, the ceiling priority of
+	 * this mutex.
 	 */
 	int				m_prio;
-	int				m_saved_prio;
 
 	/*
 	 * Link for list of all mutexes a thread currently owns.
