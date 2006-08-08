@@ -141,7 +141,7 @@ tlphy_probe(dev)
 
 	device_set_desc(dev, MII_STR_xxTI_TLAN10T);
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

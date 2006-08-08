@@ -117,7 +117,7 @@ pnphy_probe(dev)
 
 	device_set_desc(dev, "PNIC 82c168 media interface");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

@@ -94,13 +94,13 @@ xmphy_probe(dev)
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxXAQTI &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_XAQTI_XMACII) {
 		device_set_desc(dev, MII_STR_XAQTI_XMACII);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_JATO &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_JATO_BASEX) {
 		device_set_desc(dev, MII_STR_JATO_BASEX);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	return(ENXIO);

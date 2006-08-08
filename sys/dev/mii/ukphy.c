@@ -122,7 +122,7 @@ ukphy_probe(dev)
 	 * We know something is here, so always match at a low priority.
 	 */
 	device_set_desc(dev, "Generic IEEE 802.3u media interface");
-	return (-100);
+	return (BUS_PROBE_GENERIC);
 }
 
 static int
