@@ -68,7 +68,7 @@
 
 /* Internal functions */
 static int	ReadFile(FILE *fp);
-static void	ReadSockets(fd_set);
+static void	ReadSockets(fd_set *);
 static int	DoParseCommand(char *line);
 static int	DoCommand(int ac, char **av);
 static int	DoInteractive(void);
@@ -227,6 +227,7 @@ ReadFile(FILE *fp)
 static void
 Unblock(int signal)
 {
+
 	unblock = 1;
 }
 
@@ -262,8 +263,7 @@ Monitor(void *v)
 			}
 			err(EX_OSERR, "select");
 		}
-
-		ReadSockets(rfds);
+		ReadSockets(&rfds);
 	}
 
 	return (NULL);
@@ -272,7 +272,8 @@ Monitor(void *v)
 static char *
 Prompt(EditLine *el)
 {
-	return PROMPT;
+
+	return (PROMPT);
 }
 
 /*
@@ -371,7 +372,7 @@ DoInteractive(void)
 				printf("\n");
 		}
 
-		ReadSockets(rfds);
+		ReadSockets(&rfds);
 
 		/* Get any user input */
 		if (FD_ISSET(0, &rfds)) {
@@ -393,14 +394,14 @@ DoInteractive(void)
  * Read and process data on netgraph control and data sockets.
  */
 static void
-ReadSockets(fd_set rfds)
+ReadSockets(fd_set *rfds)
 {
 	/* Display any incoming control message. */
-	if (FD_ISSET(csock, &rfds))
+	if (FD_ISSET(csock, rfds))
 		MsgRead();
 
 	/* Display any incoming data packet. */
-	if (FD_ISSET(dsock, &rfds)) {
+	if (FD_ISSET(dsock, rfds)) {
 		char hook[NG_HOOKSIZ];
 		u_char *buf;
 		int rl;
