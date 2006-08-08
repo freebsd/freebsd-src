@@ -106,7 +106,7 @@ tdkphy_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, MII_STR_TDK_78Q2120);
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

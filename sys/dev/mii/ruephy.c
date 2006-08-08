@@ -104,7 +104,7 @@ ruephy_probe(device_t dev)
 
 	device_set_desc(dev, "RealTek RTL8150 internal media interface");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

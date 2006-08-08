@@ -102,7 +102,7 @@ rgephy_probe(dev)
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxREALTEK &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxREALTEK_RTL8169S) {
 		device_set_desc(dev, MII_STR_xxREALTEK_RTL8169S);
-		return(0);
+		return(BUS_PROBE_DEFAULT);
 	}
 
 	return(ENXIO);
