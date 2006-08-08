@@ -81,21 +81,16 @@ static void	ip1000phy_status(struct mii_softc *);
 static void	ip1000phy_reset(struct mii_softc *);
 static int	ip1000phy_mii_phy_auto(struct mii_softc *);
 
-static const struct mii_phydesc ip1000phys[] = {
-	MII_PHY_DESC(ICPLUS, IP1000A),
-	MII_PHY_END
-};
-
 static int
 ip1000phy_probe(device_t dev)
 {
 	struct mii_attach_args *ma;
-	const struct mii_phydesc *mpd;
 
 	ma = device_get_ivars(dev);
-	mpd = mii_phy_match(ma, ip1000phys);
-	if (mpd != NULL) {
-		device_set_desc(dev, mpd->mpd_name);
+
+	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_ICPLUS &&
+	    MII_MODEL(ma->mii_id2) == MII_MODEL_ICPLUS_IP1000A) {
+		device_set_desc(dev, MII_STR_ICPLUS_IP1000A);
 		return (BUS_PROBE_DEFAULT);
 	}
 
