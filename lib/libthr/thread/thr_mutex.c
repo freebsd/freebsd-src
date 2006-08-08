@@ -128,7 +128,6 @@ mutex_init(pthread_mutex_t *mutex,
 		pmutex->m_prio = attr->m_ceiling;
 	else
 		pmutex->m_prio = -1;
-	pmutex->m_saved_prio = 0;
 	MUTEX_INIT_LINK(pmutex);
 	*mutex = pmutex;
 	return (0);
@@ -191,7 +190,6 @@ _mutex_reinit(pthread_mutex_t *mutex)
 	(*mutex)->m_count = 0;
 	(*mutex)->m_refcount = 0;
 	(*mutex)->m_prio = 0;
-	(*mutex)->m_saved_prio = 0;
 	return (0);
 }
 
