@@ -315,6 +315,7 @@ MAN=	aac.4 \
 	ste.4 \
 	stf.4 \
 	stg.4 \
+	stge.4 \
 	sym.4 \
 	syncache.4 \
 	syncer.4 \
@@ -475,6 +476,7 @@ MLINKS+=${_spkr.4} ${_speaker.4}
 MLINKS+=splash.4 screensaver.4
 MLINKS+=ste.4 if_ste.4
 MLINKS+=stf.4 if_stf.4
+MLINKS+=stge.4 if_stge.4
 MLINKS+=syncache.4 syncookies.4
 MLINKS+=syscons.4 sc.4
 MLINKS+=tap.4 if_tap.4
