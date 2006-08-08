@@ -69,41 +69,6 @@ typedef struct command_buffer_ {
     char *	string;
 } command_buffer;
 
-static void
-dispatch_free_command(command_buffer *item)
-{
-    REMQUE(item);
-    free(item->string);
-    free(item);
-}
-
-static void
-dispatch_free_all(qelement *head)
-{
-    command_buffer *item;
-
-    while (!EMPTYQUE(*head)) {
-	item = (command_buffer *) head->q_forw;
-	dispatch_free_command(item);
-    }
-}
-
-static command_buffer *
-dispatch_add_command(qelement *head, char *string)
-{
-    command_buffer *new;
-
-    new = malloc(sizeof(command_buffer));
-
-    if (!new)
-	return NULL;
-
-    new->string = strdup(string);
-    INSQUEUE(new, head->q_back);
-
-    return new;
-}
-
 /*
  * Command processing
  */
@@ -194,75 +159,3 @@ dispatchCommand(char *str)
     return i;
 }
 
-
-/*
- * File processing
- */
-
-static qelement *
-dispatch_load_fp(FILE *fp)
-{
-    qelement *head;
-    char buf[BUFSIZ], *cp;
-
-    head = malloc(sizeof(qelement));
-
-    if (!head)
-	return NULL;
-
-    INITQUE(*head);
-
-    while (fgets(buf, sizeof buf, fp)) {
-
-	if ((cp = strchr(buf, '\n')) != NULL)
-	    *cp = '\0';
-	if (*buf == '\0' || *buf == '#')
-	    continue;
-
-	if (!dispatch_add_command(head, buf))
-	    return NULL;
-    }
-
-    return head;
-}
-
-static int
-dispatch_execute(qelement *head)
-{
-    int result = DITEM_SUCCESS;
-    command_buffer *item;
-    char *old_interactive;
-
-    if (!head)
-	return result | DITEM_FAILURE;
-
-    old_interactive = variable_get(VAR_NONINTERACTIVE);
-    if (old_interactive)
-	 old_interactive = strdup(old_interactive);	/* save copy */
-
-    /* Hint to others that we're running from a script, should they care */
-    variable_set2(VAR_NONINTERACTIVE, "yes", 0);
-
-    while (!EMPTYQUE(*head)) {
-	item = (command_buffer *) head->q_forw;
-	
-	if (DITEM_STATUS(dispatchCommand(item->string)) != DITEM_SUCCESS) {
-	    msgConfirm("Command `%s' failed - rest of script aborted.\n",
-		       item->string);
-	    result |= DITEM_FAILURE;
-	    break;
-	}
-	dispatch_free_command(item);
-    }
-
-    dispatch_free_all(head);
-
-    if (!old_interactive)
-	variable_unset(VAR_NONINTERACTIVE);
-    else {
-	variable_set2(VAR_NONINTERACTIVE, old_interactive, 0);
-	free(old_interactive);
-    }
-
-    return result;
-}

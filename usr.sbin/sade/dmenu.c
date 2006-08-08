@@ -240,7 +240,7 @@ dmenuVarsCheck(dialogMenuItem *item)
 int
 dmenuRadioCheck(dialogMenuItem *item)
 {
-    return (*((unsigned int *)item->data) == item->aux);
+    return (*((long *)item->data) == item->aux);
 }
 
 static int

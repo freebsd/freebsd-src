@@ -26,15 +26,7 @@
 static void
 prompt_term(char **termp, char **termcapp)
 {
-    char str[80];
-    static struct {
-	const char *term, *termcap;
-    } lookup[] = { { "ansi", termcap_ansi },
-		   { "vt100", termcap_vt100 },
-		   { "cons25", termcap_cons25 },
-		   { "cons25-m", termcap_cons25_m },
-		   { "xterm", termcap_xterm },
-		   { "cons25w", termcap_cons25w } }; /* must be last */
+	char str[80];
 
 	printf("\nPlease set your TERM variable before running this program.\n");
 	printf("Defaulting to an ANSI compatible terminal - please press RETURN\n");

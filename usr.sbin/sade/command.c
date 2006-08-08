@@ -92,7 +92,7 @@ addit(char *key, int type, void *cmd, void *data)
 
 /* Add a shell command under a given key */
 void
-command_shell_add(char *key, char *fmt, ...)
+command_shell_add(char *key, const char *fmt, ...)
 {
     va_list args;
     char *cmd;
