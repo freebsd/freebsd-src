@@ -130,17 +130,17 @@ main(int argc, char **argv)
 				errx(EX_USAGE, "%s: offset too large", optarg);
 			bytecnt = (off_t)(bytecnti * scale);
 			break;
-		case 'p' :      /* pattern matching. */
-			if (regcomp(&rgx, optarg, REG_EXTENDED|REG_NOSUB) != 0)
-				errx(EX_USAGE, "%s: illegal regexp", optarg);
-			pflag = 1;
-			break;
 		case 'l':		/* Line count. */
 			if (numlines != 0)
 				usage();
 			if ((numlines = strtol(optarg, &ep, 10)) <= 0 || *ep)
 				errx(EX_USAGE,
 				    "%s: illegal line count", optarg);
+			break;
+		case 'p':		/* pattern matching. */
+			if (regcomp(&rgx, optarg, REG_EXTENDED|REG_NOSUB) != 0)
+				errx(EX_USAGE, "%s: illegal regexp", optarg);
+			pflag = 1;
 			break;
 		default:
 			usage();
@@ -335,8 +335,8 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-"usage: split [-a sufflen] [-b byte_count] [-l line_count] [-p pattern]\n");
-	(void)fprintf(stderr,
-"             [file [prefix]]\n");
+"usage: split [-l line_count] [-a suffix_length] [file [prefix]]\n"
+"       split -b byte_count[k|m] [-a suffix_length] [file [prefix]]\n"
+"       split -p pattern [-a suffix_length] [file [prefix]]\n");
 	exit(EX_USAGE);
 }
