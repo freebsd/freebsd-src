@@ -210,7 +210,7 @@ initarm(void *arg, void *arg2)
 #ifdef DDB
 	vm_offset_t zstart = 0, zend = 0;
 #endif
-	int i = 0;
+	int i;
 	uint32_t fake_preload[35];
 	uint32_t memsize, memstart;
 

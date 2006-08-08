@@ -262,7 +262,7 @@ initarm(void *arg, void *arg2)
 	u_int l1pagetable;
 	vm_offset_t freemempos;
 	vm_offset_t afterkern;
-	int i = 0;
+	int i;
 	uint32_t fake_preload[35];
 	uint32_t memsize;
 	vm_offset_t lastaddr;
