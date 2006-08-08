@@ -146,13 +146,7 @@ typedef struct _dmenu {
     char *prompt;			/* Our prompt			*/
     char *helpline;			/* Line of help at bottom	*/
     char *helpfile;			/* Help file for "F1"		*/
-#if (__STDC_VERSION__ >= 199901L) || (__GNUC__ >= 3) 
     dialogMenuItem items[];		/* Array of menu items		*/
-#elif __GNUC__
-    dialogMenuItem items[0];		/* Array of menu items		*/
-#else
-#error "Create hack for C89 and K&R compilers."
-#endif
 } DMenu;
 
 /* An rc.conf variable */
@@ -255,7 +249,7 @@ typedef struct _opt {
     enum { OPT_IS_STRING, OPT_IS_INT, OPT_IS_FUNC, OPT_IS_VAR } type;
     void *data;
     void *aux;
-    char *(*check)();
+    char *(*check)(void);
 } Option;
 
 typedef int (*commandFunc)(char *key, void *data);
@@ -307,7 +301,7 @@ extern void display_helpline(WINDOW *w, int y, int width);
 extern void	command_clear(void);
 extern void	command_sort(void);
 extern void	command_execute(void);
-extern void	command_shell_add(char *key, char *fmt, ...) __printflike(2, 3);
+extern void	command_shell_add(char *key, const char *fmt, ...) __printflike(2, 3);
 extern void	command_func_add(char *key, commandFunc func, void *data);
 
 /* config.c */
@@ -327,7 +321,7 @@ extern Device	**deviceFind(char *name, DeviceType type);
 extern Device	**deviceFindDescr(char *name, char *desc, DeviceType class);
 extern int	deviceCount(Device **devs);
 extern Device	*new_device(char *name);
-extern Device	*deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
+extern Device	*deviceRegister(char *name, char *desc, char *devicename, DeviceType type, Boolean enabled,
 				Boolean (*init)(Device *mediadev),
 				FILE * (*get)(Device *dev, char *file, Boolean probe),
 				void (*shutDown)(Device *mediadev),
@@ -363,7 +357,7 @@ extern int	dmenuSetVariables(dialogMenuItem *tmp);
 extern int	dmenuToggleVariable(dialogMenuItem *tmp);
 extern int	dmenuSetFlag(dialogMenuItem *tmp);
 extern int	dmenuSetValue(dialogMenuItem *tmp);
-extern Boolean	dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max, Boolean buttons);
+extern Boolean	dmenuOpen(DMenu *menu, int *choice, int *bscroll, int *curr, int *max, Boolean buttons);
 extern Boolean	dmenuOpenSimple(DMenu *menu, Boolean buttons);
 extern int	dmenuVarCheck(dialogMenuItem *item);
 extern int	dmenuVarsCheck(dialogMenuItem *item);
@@ -439,7 +433,7 @@ extern void	items_free(dialogMenuItem *list, int *curr, int *max);
 extern int	Mkdir(char *);
 extern int	Mkdir_command(char *key, void *data);
 extern int	Mount(char *, void *data);
-extern int	Mount_msdosfs(char *mountp, void *devname);
+extern int	Mount_msdosfs(char *mountp, void *devicename);
 extern WINDOW	*openLayoutDialog(char *helpfile, char *title, int x, int y, int width, int height);
 extern ComposeObj *initLayoutDialog(WINDOW *win, Layout *layout, int x, int y, int *max);
 extern int	layoutDialogLoop(WINDOW *win, Layout *layout, ComposeObj **obj,
@@ -451,20 +445,20 @@ extern char	*sstrncpy(char *dst, const char *src, int size);
 
 /* msg.c */
 extern Boolean	isDebug(void);
-extern void	msgInfo(char *fmt, ...) __printf0like(1, 2);
-extern void	msgYap(char *fmt, ...) __printflike(1, 2);
-extern void	msgWarn(char *fmt, ...) __printflike(1, 2);
-extern void	msgDebug(char *fmt, ...) __printflike(1, 2);
-extern void	msgError(char *fmt, ...) __printflike(1, 2);
-extern void	msgFatal(char *fmt, ...) __printflike(1, 2);
-extern void	msgConfirm(char *fmt, ...) __printflike(1, 2);
-extern void	msgNotify(char *fmt, ...) __printflike(1, 2);
-extern void	msgWeHaveOutput(char *fmt, ...) __printflike(1, 2);
-extern int	msgYesNo(char *fmt, ...) __printflike(1, 2);
-extern int	msgNoYes(char *fmt, ...) __printflike(1, 2);
-extern char	*msgGetInput(char *buf, char *fmt, ...) __printflike(2, 3);
-extern int	msgSimpleConfirm(char *);
-extern int	msgSimpleNotify(char *);
+extern void	msgInfo(const char *fmt, ...) __printf0like(1, 2);
+extern void	msgYap(const char *fmt, ...) __printflike(1, 2);
+extern void	msgWarn(const char *fmt, ...) __printflike(1, 2);
+extern void	msgDebug(const char *fmt, ...) __printflike(1, 2);
+extern void	msgError(const char *fmt, ...) __printflike(1, 2);
+extern void	msgFatal(const char *fmt, ...) __printflike(1, 2);
+extern void	msgConfirm(const char *fmt, ...) __printflike(1, 2);
+extern void	msgNotify(const char *fmt, ...) __printflike(1, 2);
+extern void	msgWeHaveOutput(const char *fmt, ...) __printflike(1, 2);
+extern int	msgYesNo(const char *fmt, ...) __printflike(1, 2);
+extern int	msgNoYes(const char *fmt, ...) __printflike(1, 2);
+extern char	*msgGetInput(char *buf, const char *fmt, ...) __printflike(2, 3);
+extern int	msgSimpleConfirm(const char *);
+extern int	msgSimpleNotify(const char *);
 
 /* pccard.c */
 extern void	pccardInitialize(void);
@@ -482,7 +476,7 @@ extern void	systemChangeFont(const u_char font[]);
 extern void	systemChangeLang(char *lang);
 extern void	systemChangeTerminal(char *color, const u_char c_termcap[], char *mono, const u_char m_termcap[]);
 extern void	systemChangeScreenmap(const u_char newmap[]);
-extern int	vsystem(char *fmt, ...) __printflike(1, 2);
+extern int	vsystem(const char *fmt, ...) __printflike(1, 2);
 
 /* termcap.c */
 extern int	set_termcap(void);
@@ -510,12 +504,6 @@ extern void	slice_wizard(Disk *d);
 #define DEVICE_INIT(d)		((d) != NULL ? (d)->init((d)) : (Boolean)0)
 #define DEVICE_GET(d, b, f)	((d) != NULL ? (d)->get((d), (b), (f)) : NULL)
 #define DEVICE_SHUTDOWN(d)	((d) != NULL ? (d)->shutdown((d)) : (void)0)
-
-#ifdef USE_GZIP
-#define UNZIPPER "gunzip"
-#else
-#define UNZIPPER "bunzip2"
-#endif
 
 #endif
 /* _SYSINSTALL_H_INCLUDE */

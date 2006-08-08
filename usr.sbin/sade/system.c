@@ -29,8 +29,6 @@
 #define	DOC_TMP_DIR	"/tmp/.doc"
 #define	DOC_TMP_FILE	"/tmp/.doc/doc.tmp"
 
-static pid_t ehs_pid;
-
 /*
  * Handle interrupt signals - this probably won't work in all cases
  * due to our having bogotified the internal state of dialog or curses,
@@ -58,8 +56,8 @@ intr_restart(dialogMenuItem *self)
 }
 
 static dialogMenuItem intrmenu[] = {
-    { "Restart", "Restart the program", NULL, intr_restart },
-    { "Continue", "Continue without restarting", NULL, intr_continue },
+    { "Restart", "Restart the program", NULL, intr_restart, NULL, NULL, 0, 0, 0, 0 },
+    { "Continue", "Continue without restarting", NULL, intr_continue, NULL, NULL, 0, 0, 0, 0 },
 };
 
 
@@ -115,8 +113,6 @@ systemInitialize(int argc, char **argv)
     if (!sysctlbyname("debug.boothowto", &boothowto, &i, NULL, 0) &&
         (i == sizeof(boothowto)) && (boothowto & RB_VERBOSE))
 	variable_set2(VAR_DEBUG, "YES", 0);
-
-	char hname[256];
 
     if (set_termcap() == -1) {
 	printf("Can't find terminal entry\n");
@@ -274,7 +270,7 @@ systemChangeTerminal(char *color, const u_char c_term[],
 }
 
 int
-vsystem(char *fmt, ...)
+vsystem(const char *fmt, ...)
 {
     va_list args;
     int pstat;
