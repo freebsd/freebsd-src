@@ -51,21 +51,12 @@
 #include <unistd.h>
 #include <termios.h>
 
-static void	create_termcap(void);
-
 #define TERMCAP_FILE	"/usr/share/misc/termcap"
-
-static void	installConfigure(void);
 
 Boolean
 checkLabels(Boolean whinge)
 {
-    Device **devs;
     Boolean status;
-    Disk *disk;
-    PartInfo *pi;
-    Chunk *c1, *c2;
-    int i;
 
     /* Don't allow whinging if noWarn is set */
     if (variable_get(VAR_NO_WARN))
@@ -174,7 +165,7 @@ installFilesystems(dialogMenuItem *self)
 			if (c2 == RootChunk)
 			    continue;
 
-			sprintf(dname, "%s/dev/%s", c2->name);
+			sprintf(dname, "/dev/%s", c2->name);
 
 			if (tmp->do_newfs && (!upgrade ||
 			    !msgNoYes("You are upgrading - are you SURE you"
@@ -182,13 +173,7 @@ installFilesystems(dialogMenuItem *self)
 				performNewfs(tmp, dname, QUEUE_YES);
 			else
 			    command_shell_add(tmp->mountpoint,
-				"fsck_ffs -y %s/dev/%s", c2->name);
-#if 0
-			if (tmp->soft)
-			    command_shell_add(tmp->mountpoint,
-			    "tunefs -n enable %s/dev/%s", RunningAsInit ?
-			    "/mnt" : "", c2->name);
-#endif
+				"fsck_ffs -y /dev/%s", c2->name);
 			command_func_add(tmp->mountpoint, Mount, c2->name);
 		    }
 		    else if (c2->type == part && c2->subtype == FS_SWAP) {
@@ -197,7 +182,7 @@ installFilesystems(dialogMenuItem *self)
 
 			if (c2 == SwapChunk)
 			    continue;
-			sprintf(fname, "%s/dev/%s", c2->name);
+			sprintf(fname, "/dev/%s", c2->name);
 			i = (Fake || swapon(fname));
 			if (!i) {
 			    dialog_clear_norefresh();
@@ -213,7 +198,7 @@ installFilesystems(dialogMenuItem *self)
 		(root->do_newfs || upgrade)) {
 		char name[FILENAME_MAX];
 
-		sprintf(name, "%s/%s", ((PartInfo *)c1->private_data)->mountpoint);
+		sprintf(name, "/%s", ((PartInfo *)c1->private_data)->mountpoint);
 		Mkdir(name);
 	    }
 #if defined(__ia64__)
@@ -259,7 +244,6 @@ getRelname(void)
 int
 installVarDefaults(dialogMenuItem *self)
 {
-    char *cp;
 
     /* Set default startup options */
     variable_set2(VAR_RELNAME,			getRelname(), 0);

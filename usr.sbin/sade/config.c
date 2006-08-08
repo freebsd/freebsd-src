@@ -174,7 +174,7 @@ configFstab(dialogMenuItem *self)
     Device **devs;
     Disk *disk;
     FILE *fstab;
-    int i, cnt;
+    int i;
     Chunk *c1, *c2;
 
 	if (file_readable("/etc/fstab"))
