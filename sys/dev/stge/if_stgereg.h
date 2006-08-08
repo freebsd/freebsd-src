@@ -93,18 +93,18 @@
  * Register access macros
  */
 #define CSR_WRITE_4(_sc, reg, val)	\
-	bus_write_4((_sc)->sc_res[0], (reg), (val))
+	bus_space_write_4((_sc)->sc_st, (_sc)->sc_sh, (reg), (val))
 #define CSR_WRITE_2(_sc, reg, val)	\
-	bus_write_2((_sc)->sc_res[0], (reg), (val))
+	bus_space_write_2((_sc)->sc_st, (_sc)->sc_sh, (reg), (val))
 #define CSR_WRITE_1(_sc, reg, val)	\
-	bus_write_1((_sc)->sc_res[0], (reg), (val))
+	bus_space_write_1((_sc)->sc_st, (_sc)->sc_sh, (reg), (val))
 
 #define CSR_READ_4(_sc, reg)		\
-	bus_read_4((_sc)->sc_res[0], (reg))
+	bus_space_read_4((_sc)->sc_st, (_sc)->sc_sh, (reg))
 #define CSR_READ_2(_sc, reg)		\
-	bus_read_2((_sc)->sc_res[0], (reg))
+	bus_space_read_2((_sc)->sc_st, (_sc)->sc_sh, (reg))
 #define CSR_READ_1(_sc, reg)		\
-	bus_read_1((_sc)->sc_res[0], (reg))
+	bus_space_read_1((_sc)->sc_st, (_sc)->sc_sh, (reg))
 
 /*
  * TC9021 buffer fragment descriptor.
@@ -626,8 +626,12 @@ struct stge_softc {
 	struct ifnet 		*sc_ifp;	/* interface info */
 	device_t		sc_dev;
 	device_t		sc_miibus;
-	struct resource		*sc_res[2];
-	struct resource_spec	*sc_spec;
+	struct resource		*sc_res;
+	struct resource		*sc_irq;	/* IRQ resource handle */
+	int			sc_restype;
+	int			sc_rid;
+	bus_space_tag_t		sc_st;		/* bus space tag */
+	bus_space_handle_t	sc_sh;		/* bus space handle */
 	void			*sc_ih;		/* interrupt cookie */
 	int			sc_rev;		/* silicon revision */
 
