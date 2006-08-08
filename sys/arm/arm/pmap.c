@@ -1129,7 +1129,7 @@ pmap_l2ptp_ctor(void *mem, int size, void *arg, int flags)
 		l2b = pmap_get_l2_bucket(pmap_kernel(), va);
 		ptep = &l2b->l2b_kva[l2pte_index(va)];
 		pte = *ptep;
-
+		
 		if ((pte & L2_S_CACHE_MASK) != pte_l2_s_cache_mode_pt) {
 			/*
 			 * Page tables must have the cache-mode set to 
@@ -1140,7 +1140,6 @@ pmap_l2ptp_ctor(void *mem, int size, void *arg, int flags)
 			cpu_tlb_flushD_SE(va);
 			cpu_cpwait();
 		}
-		
 #ifdef ARM_USE_SMALL_ALLOC
 	}
 #endif
@@ -2384,8 +2383,6 @@ pmap_alloc_specials(vm_offset_t *availp, int pages, vm_offset_t *vap,
 #define PMAP_STATIC_L2_SIZE 16
 #ifdef ARM_USE_SMALL_ALLOC
 extern struct mtx smallalloc_mtx;
-extern vm_offset_t alloc_curaddr;
-extern vm_offset_t alloc_firstaddr;
 #endif
 
 void
@@ -2544,9 +2541,9 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 
 #ifdef ARM_USE_SMALL_ALLOC
 	mtx_init(&smallalloc_mtx, "Small alloc page list", NULL, MTX_DEF);
-	alloc_firstaddr = alloc_curaddr = arm_nocache_startaddr +
-	    ARM_NOCACHE_KVA_SIZE;
+	arm_init_smallalloc();
 #endif
+	pmap_set_pcb_pagedir(kernel_pmap, thread0.td_pcb);
 }
 
 /***************************************************
@@ -2933,6 +2930,9 @@ pmap_kremove(vm_offset_t va)
 vm_offset_t
 pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 {
+#ifdef ARM_USE_SMALL_ALLOC
+	return (arm_ptovirt(start));
+#else
 	vm_offset_t sva = *virt;
 	vm_offset_t va = sva;
 
@@ -2947,6 +2947,7 @@ pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 	}
 	*virt = va;
 	return (sva);
+#endif
 }
 
 static void
@@ -3488,7 +3489,7 @@ do_l2b_alloc:
 			 * is current
 			 */
 			PTE_SYNC(ptep);
-			if (L1_IDX(va) != L1_IDX(vector_page) &&
+			if (L1_IDX(va) != L1_IDX(vector_page) && 
 			    l2pte_valid(npte)) {
 				/*
 				 * This mapping is likely to be accessed as
@@ -3999,6 +4000,10 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 void
 pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 {
+#ifdef ARM_USE_SMALL_ALLOC
+	char *dstpg;
+#endif
+
 #ifdef DEBUG
 	struct vm_page *pg = PHYS_TO_VM_PAGE(phys);
 
@@ -4010,6 +4015,16 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 	    _arm_bzero((void *)(phys + off), size, IS_PHYSICAL) == 0)
 		return;
 
+#ifdef ARM_USE_SMALL_ALLOC
+	dstpg = (char *)arm_ptovirt(phys);
+	if (off || size != PAGE_SIZE) {
+		bzero(dstpg + off, size);
+		cpu_dcache_wbinv_range((vm_offset_t)(dstpg + off), size);
+	} else {
+		bzero_page((vm_offset_t)dstpg);
+		cpu_dcache_wbinv_range((vm_offset_t)dstpg, PAGE_SIZE);
+	}
+#else
 
 	mtx_lock(&cmtx);
 	/*
@@ -4021,12 +4036,15 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 	PTE_SYNC(cdst_pte);
 	cpu_tlb_flushD_SE(cdstp);
 	cpu_cpwait();
-	if (off || size != PAGE_SIZE)
+	if (off || size != PAGE_SIZE) {
 		bzero((void *)(cdstp + off), size);
-	else
+		cpu_dcache_wbinv_range(cdstp + off, size);
+	} else {
 		bzero_page(cdstp);
+		cpu_dcache_wbinv_range(cdstp, PAGE_SIZE);
+	}
 	mtx_unlock(&cmtx);
-	cpu_dcache_wbinv_range(cdstp, PAGE_SIZE);
+#endif
 }
 #endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
 
@@ -4034,7 +4052,6 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 void
 pmap_zero_page_xscale(vm_paddr_t phys, int off, int size)
 {
-	
 	if (_arm_bzero && 
 	    _arm_bzero((void *)(phys + off), size, IS_PHYSICAL) == 0)
 		return;
@@ -4344,12 +4361,23 @@ pmap_copy_page_xscale(vm_paddr_t src, vm_paddr_t dst)
 void
 pmap_copy_page(vm_page_t src, vm_page_t dst)
 {
+#ifdef ARM_USE_SMALL_ALLOC
+	vm_offset_t srcpg, dstpg;
+#endif
+
 	cpu_dcache_wbinv_all();
 	if (_arm_memcpy && 
 	    _arm_memcpy((void *)VM_PAGE_TO_PHYS(dst), 
 	    (void *)VM_PAGE_TO_PHYS(src), PAGE_SIZE, IS_PHYSICAL) == 0)
 		return;
+#ifdef ARM_USE_SMALL_ALLOC
+	srcpg = arm_ptovirt(VM_PAGE_TO_PHYS(src));
+	dstpg = arm_ptovirt(VM_PAGE_TO_PHYS(dst));
+	bcopy_page(srcpg, dstpg);
+	cpu_dcache_wbinv_range(dstpg, PAGE_SIZE);
+#else
 	pmap_copy_page_func(VM_PAGE_TO_PHYS(src), VM_PAGE_TO_PHYS(dst));
+#endif
 }
 
 

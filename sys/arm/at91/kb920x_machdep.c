@@ -465,6 +465,15 @@ initarm(void *arg, void *arg2)
 	arm_vector_init(ARM_VECTORS_LOW, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = afterkern + 0x100000 * (KERNEL_PT_KERN_NUM - 1);
+	/*
+	 * ARM_USE_SMALL_ALLOC uses dump_avail, so it must be filled before
+	 * calling pmap_bootstrap.
+	 */
+	dump_avail[0] = KERNPHYSADDR;
+	dump_avail[1] = KERNPHYSADDR + memsize;
+	dump_avail[2] = 0;
+	dump_avail[3] = 0;
+					
 	pmap_bootstrap(freemempos,
 	    KERNVIRTADDR + 3 * memsize,
 	    &kernel_l1pt);
@@ -473,10 +482,6 @@ initarm(void *arg, void *arg2)
 	mutex_init();
 	
 	i = 0;
-	dump_avail[0] = KERNPHYSADDR;
-	dump_avail[1] = KERNPHYSADDR + memsize;
-	dump_avail[2] = 0;
-	dump_avail[3] = 0;
 	
 	phys_avail[0] = virtual_avail - KERNVIRTADDR + KERNPHYSADDR;
 	phys_avail[1] = KERNPHYSADDR + memsize;
