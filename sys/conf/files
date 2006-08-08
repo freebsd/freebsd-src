@@ -681,8 +681,12 @@ dev/mii/e1000phy.c		optional miibus
 dev/mii/e1000phy.c		optional e1000phy
 dev/mii/exphy.c			optional miibus
 dev/mii/exphy.c			optional exphy
+dev/mii/gentbi.c		optional miibus
+dev/mii/gentbi.c		optional mii
 dev/mii/inphy.c			optional miibus
 dev/mii/inphy.c			optional inphy
+dev/mii/ip1000phy.c		optional miibus
+dev/mii/ip1000phy.c		optional ip1000phy
 dev/mii/lxtphy.c		optional miibus
 dev/mii/lxtphy.c		optional lxtphy
 dev/mii/mii.c			optional miibus
