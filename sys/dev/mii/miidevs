@@ -54,6 +54,7 @@ oui AMD				0x00001a	Advanced Micro Devices
 oui BROADCOM			0x001018	Broadcom Corporation
 oui CICADA			0x0003F1	Cicada Semiconductor
 oui DAVICOM			0x00606e	Davicom Semiconductor
+oui ICPLUS			0x0090c3	IC Plus Corp.
 oui ICS				0x00a0be	Integrated Circuit Systems
 oui INTEL			0x00aa00	Intel
 oui JATO			0x00e083	Jato Technologies
@@ -137,6 +138,9 @@ model xxDAVICOM DM9101		0x0000 DM9101 10/100 media interface
 
 /* Integrated Circuit Systems PHYs */
 model xxICS 1890		0x0002 ICS1890 10/100 media interface
+
+/* IC Plus Corp. PHYs */
+model ICPLUS IP1000A		0x0008 IC Plus 10/100/1000 media interface
 
 /* Intel PHYs */
 model xxINTEL I82553AB		0x0000 i83553 10/100 media interface
