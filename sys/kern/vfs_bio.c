@@ -3386,7 +3386,6 @@ vfs_busy_pages(struct buf *bp, int clear_modify)
 	vfs_setdirty(bp);
 	VM_OBJECT_LOCK(obj);
 retry:
-	vm_page_lock_queues();
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 
@@ -3394,6 +3393,7 @@ retry:
 			goto retry;
 	}
 	bogus = 0;
+	vm_page_lock_queues();
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 
