@@ -220,18 +220,6 @@ static devclass_t stge_devclass;
 DRIVER_MODULE(stge, pci, stge_driver, stge_devclass, 0, 0);
 DRIVER_MODULE(miibus, stge, miibus_driver, miibus_devclass, 0, 0);
 
-static struct resource_spec stge_res_spec_io[] = {
-	{ SYS_RES_IOPORT,	PCIR_BAR(0),	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,		RF_ACTIVE | RF_SHAREABLE },
-	{ -1,			0,		0 }
-};
-
-static struct resource_spec stge_res_spec_mem[] = {
-	{ SYS_RES_MEMORY,	PCIR_BAR(1),	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,		RF_ACTIVE | RF_SHAREABLE },
-	{ -1,			0,		0 }
-};
-
 #define	MII_SET(x)	\
 	CSR_WRITE_1(sc, STGE_PhyCtrl, CSR_READ_1(sc, STGE_PhyCtrl) | (x))
 #define	MII_CLR(x)	\
@@ -605,7 +593,7 @@ stge_attach(device_t dev)
 	struct stge_softc *sc;
 	struct ifnet *ifp;
 	uint8_t enaddr[ETHER_ADDR_LEN];
-	int error, i;
+	int error, i, rid;
 	uint16_t cmd;
 	uint32_t val;
 
@@ -625,24 +613,40 @@ stge_attach(device_t dev)
 	pci_enable_busmaster(dev);
 	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
 	val = pci_read_config(dev, PCIR_BAR(1), 4);
-	if ((val & 0x01) != 0)
-		sc->sc_spec = stge_res_spec_mem;
-	else {
+	if ((val & 0x01) != 0) {
+		sc->sc_restype = SYS_RES_MEMORY;
+		sc->sc_rid = PCIR_BAR(1);
+	} else {
 		val = pci_read_config(dev, PCIR_BAR(0), 4);
 		if ((val & 0x01) == 0) {
 			device_printf(sc->sc_dev, "couldn't locate IO BAR\n");
 			error = ENXIO;
 			goto fail;
 		}
-		sc->sc_spec = stge_res_spec_io;
+		sc->sc_restype = SYS_RES_IOPORT;
+		sc->sc_rid = PCIR_BAR(0);
 	}
-	error = bus_alloc_resources(dev, sc->sc_spec, sc->sc_res);
-	if (error != 0) {
-		device_printf(dev, "couldn't allocate %s resources\n",
-		    sc->sc_spec == stge_res_spec_mem ? "memory" : "I/O");
+	sc->sc_res = bus_alloc_resource_any(dev, sc->sc_restype, &sc->sc_rid,
+	    RF_ACTIVE);
+	if (sc->sc_res == NULL) {
+		device_printf(sc->sc_dev, "couldn't map %s\n",
+		    sc->sc_restype == SYS_RES_MEMORY ? "memory" : "ports");
+		error = ENXIO;
 		goto fail;
 	}
 	sc->sc_rev = pci_get_revid(dev);
+	sc->sc_st = rman_get_bustag(sc->sc_res);
+	sc->sc_sh = rman_get_bushandle(sc->sc_res);
+
+	/* Allocate interrupt. */
+	rid = 0;
+	sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_SHAREABLE | RF_ACTIVE);
+	if (sc->sc_irq == NULL) {
+		device_printf(sc->sc_dev, "couldn't map interrupt\n");
+		error = ENXIO;
+		goto fail;
+	}
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
@@ -777,8 +781,6 @@ stge_attach(device_t dev)
 
 	/* VLAN capability setup */
 	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING;
-	if (sc->sc_rev >= 0x0c)
-		ifp->if_capabilities |= IFCAP_VLAN_HWCSUM;
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -808,7 +810,7 @@ stge_attach(device_t dev)
 	/*
 	 * Hookup IRQ
 	 */
-	error = bus_setup_intr(dev, sc->sc_res[1], INTR_TYPE_NET | INTR_MPSAFE,
+	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    stge_intr, sc, &sc->sc_ih);
 	if (error != 0) {
 		ether_ifdetach(ifp);
@@ -861,10 +863,18 @@ stge_detach(device_t dev)
 	}
 
 	if (sc->sc_ih) {
-		bus_teardown_intr(dev, sc->sc_res[1], sc->sc_ih);
+		bus_teardown_intr(dev, sc->sc_irq, sc->sc_ih);
 		sc->sc_ih = NULL;
 	}
-	bus_release_resources(dev, sc->sc_spec, sc->sc_res);
+	if (sc->sc_irq) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq);
+		sc->sc_irq = NULL;
+	}
+	if (sc->sc_res) {
+		bus_release_resource(dev, sc->sc_restype, sc->sc_rid,
+				sc->sc_res);
+		sc->sc_res = NULL;
+	}
 
 	mtx_destroy(&sc->sc_mii_mtx);
 	mtx_destroy(&sc->sc_mtx);
@@ -1476,7 +1486,6 @@ stge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				STGE_UNLOCK(sc);
 			}
 		}
-		VLAN_CAPABILITIES(ifp);
 		break;
 	default:
 		error = ether_ioctl(ifp, cmd, data);
@@ -1860,7 +1869,7 @@ stge_rxeof(struct stge_softc *sc)
 			/* Check for VLAN tagged packets. */
 			if ((status & RFD_VLANDetected) != 0 &&
 			    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0)
-				VLAN_INPUT_TAG(ifp, m, RFD_TCI(status64));
+				VLAN_INPUT_TAG_NEW(ifp, m, RFD_TCI(status64));
 
 			STGE_UNLOCK(sc);
 			/* Pass it on. */
