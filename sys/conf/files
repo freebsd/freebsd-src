@@ -895,6 +895,7 @@ dev/stg/tmc18c30_isa.c		optional stg isa
 dev/stg/tmc18c30_pccard.c	optional stg pccard
 dev/stg/tmc18c30_pci.c		optional stg pci
 dev/stg/tmc18c30_subr.c		optional stg
+dev/stge/if_stge.c		optional stge
 dev/streams/streams.c		optional streams
 dev/sx/sx.c			optional sx
 #dev/sx/sx_isa.c		optional sx isa
