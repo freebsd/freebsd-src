@@ -123,6 +123,7 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"sn",		"SMC/Megahertz ethernet card"					},
     { DEVICE_TYPE_NETWORK,	"ste",		"Sundance ST201 PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"sk",		"SysKonnect PCI gigabit ethernet card"				},
+    { DEVICE_TYPE_NETWORK,	"stge",		"Sundance/Tamarack TC9021 gigabit Ethernet"				},
     { DEVICE_TYPE_NETWORK,	"tx",		"SMC 9432TX ethernet card"					},
     { DEVICE_TYPE_NETWORK,	"txp",		"3Com 3cR990 ethernet card"					},
     { DEVICE_TYPE_NETWORK,	"ti",		"Alteon Networks PCI gigabit ethernet card"			},
