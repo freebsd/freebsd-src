@@ -360,16 +360,17 @@ g_gpt_has_pmbr(struct g_consumer *cp, int *error)
 {
 	char *buf;
 	uint8_t *typ;
-	int i, pmbr, vmbr;
-	uint16_t magic;
+	uint64_t mediasize;
+	int i, pmbr, parts;
 	uint32_t dp_start, dp_size;
+	uint16_t magic;
 
 	buf = g_read_data(cp, 0L, cp->provider->sectorsize, error);
 	if (buf == NULL)
 		return (0);
 
 	pmbr = 0;
-	vmbr = 0;
+	*error = 0;
 
 	magic = le16toh(*(uint16_t *)(uintptr_t)(buf + DOSMAGICOFFSET));
 	if (magic != DOSMAGIC)
@@ -379,31 +380,45 @@ g_gpt_has_pmbr(struct g_consumer *cp, int *error)
 	 * Check that there are at least one partition of type
 	 * DOSPTYP_PMBR that covers the whole unit.
 	 */
+	parts = 0;
+	mediasize = cp->provider->mediasize / cp->provider->sectorsize;
 	for (i = 0; i < 4; i++) {
 		typ = buf + DOSPARTOFF + i * sizeof(struct dos_partition) +
 		    offsetof(struct dos_partition, dp_typ);
+		if (*typ != 0)
+			parts++;
+		if (*typ != DOSPTYP_PMBR)
+			continue;
+
 		bcopy(buf + DOSPARTOFF + i * sizeof(struct dos_partition) +
-		    offsetof(struct dos_partition, dp_start), &dp_start, sizeof(dp_start));
-		bcopy(buf + DOSPARTOFF + i * sizeof(struct dos_partition) +
-		    offsetof(struct dos_partition, dp_size), &dp_size, sizeof(dp_size));
-		if ((*typ == DOSPTYP_PMBR) &&
-		    (le32toh(dp_start) == 1) &&
-		    (cp->provider->mediasize ==
-		    (le32toh(dp_size) * 512ULL))) {
-			pmbr = 1;
+		    offsetof(struct dos_partition, dp_start), &dp_start,
+		    sizeof(dp_start));
+		if (le32toh(dp_start) != 1)
 			break;
-		}
-		if (*typ != 0 && *typ != DOSPTYP_PMBR)
-			vmbr = 1;
+
+		bcopy(buf + DOSPARTOFF + i * sizeof(struct dos_partition) +
+		    offsetof(struct dos_partition, dp_size), &dp_size,
+		    sizeof(dp_size));
+		if (le32toh(dp_size) != ~0U &&
+		    le32toh(dp_size) != mediasize - 1 &&
+		    /* Catch old FreeBSD bug for backward compatibility. */
+		    le32toh(dp_size) != mediasize)
+			break;
+
+		pmbr = 1;
 	}
+
+	/*
+	 * Treat empty MBRs as PMBRs for increased flexibility. Note that an
+	 * invalid entry of type DOSPTYP_PMBR counts towards the number of
+	 * partitions and will prevent the MBR from being treated as a PMBR.
+	 */
+	if (!pmbr && parts == 0)
+		pmbr = 1;
 
 out:
 	g_free(buf);
-	/*
-	 * Return true if protective MBR is detected or if MBR has
-	 * no valid entries at all.
-	 */
-	return (pmbr || !vmbr);
+	return (pmbr);
 }
 
 static void
@@ -1013,6 +1028,8 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	 * is none and fail.
 	 */
 	if (!g_gpt_has_pmbr(cp, &error)) {
+		if (error != 0)
+			goto fail;
 		printf("GEOM: %s: GPT detected, but no protective MBR.\n",
 		    pp->name);
 		error = ENXIO;
