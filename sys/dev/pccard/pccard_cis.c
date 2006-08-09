@@ -94,6 +94,16 @@ pccard_read_cis(struct pccard_softc *sc)
 	STAILQ_INIT(&state.card->pf_head);
 	state.pf = NULL;
 
+	/*
+	 * XXX The following shouldn't be needed, but some slow cards
+	 * XXX seem to need it still.  Need to investigate if there's
+	 * XXX a way to tell if the card is 'ready' or not rather than
+	 * XXX sleeping like this.  We're called just after the power
+	 * XXX up of the socket.  The standard timing diagrams don't
+	 * XXX seem to indicate that a delay is required.  The old
+	 * XXX delay was 1s.  This delay is .1s.
+	 */
+	tsleep(&state, 0, "pccard", hz / 10);
 	if (pccard_scan_cis(device_get_parent(sc->dev), sc->dev,
 	    pccard_parse_cis_tuple, &state) == -1)
 		state.card->error++;
