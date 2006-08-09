@@ -12,6 +12,7 @@ SRCS=	command.c config.c devices.c \
 	label.c main.c makedevs.c menus.c misc.c \
 	msg.c system.c termcap.c \
 	variable.c ${_wizard} keymap.h
+WARNS?=	3
 
 # command.c
 
