@@ -153,7 +153,6 @@ SUBDIR=	ac \
 	${_rtsold} \
 	rwhod \
 	sa \
-	sade \
 	${_sendmail} \
 	setfmac \
 	setpmac \
