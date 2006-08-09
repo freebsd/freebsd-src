@@ -74,7 +74,7 @@ static struct chunk *chunk_info[CHUNK_INFO_ENTRIES];
 static int current_chunk;
 
 static void	diskPartitionNonInteractive(Device *dev);
-#if defined(__i386__) || defined(__amd64__)	/* only meaningful on x86 */
+#if !defined(__ia64__)
 static u_char *	bootalloc(char *name, size_t *size);
 #endif
 
@@ -716,7 +716,7 @@ diskPartition(Device *dev)
 }
 #endif /* WITH_SLICES */
 
-#if defined(__i386__) || defined(__amd64__)	/* only meaningful on x86 */
+#if !defined(__ia64__)
 static u_char *
 bootalloc(char *name, size_t *size)
 {
@@ -749,7 +749,7 @@ bootalloc(char *name, size_t *size)
 	msgDebug("bootalloc: can't stat %s\n", buf);
     return NULL;
 }
-#endif	/* __i386__ || __amd64 */
+#endif /* !__ia64__ */
 
 #ifdef WITH_SLICES 
 static int
