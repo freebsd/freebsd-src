@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 #include <sys/rman.h>
 #include <sys/timetc.h>
+#include <sys/watchdog.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
@@ -48,13 +49,16 @@ __FBSDID("$FreeBSD$");
 static struct at91st_softc {
 	bus_space_tag_t		sc_st;
 	bus_space_handle_t	sc_sh;
-	device_t		dev;
+	device_t		sc_dev;
+	eventhandler_tag	sc_wet;	/* watchdog event handler tag */
 } *timer_softc;
 
 #define RD4(off) \
 	bus_space_read_4(timer_softc->sc_st, timer_softc->sc_sh, (off))
 #define WR4(off, val) \
 	bus_space_write_4(timer_softc->sc_st, timer_softc->sc_sh, (off), (val))
+
+static void at91st_watchdog(void *, u_int, int *);
 
 static inline int
 st_crtr(void)
@@ -97,7 +101,7 @@ at91st_attach(device_t dev)
 
 	timer_softc = device_get_softc(dev);
 	timer_softc->sc_st = sc->sc_st;
-	timer_softc->dev = dev;
+	timer_softc->sc_dev = dev;
 	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91RM92_ST_BASE,
 	    AT91RM92_ST_SIZE, &timer_softc->sc_sh) != 0)
 		panic("couldn't subregion timer registers");
@@ -108,6 +112,13 @@ at91st_attach(device_t dev)
 	WR4(ST_RTMR, 1);
 	/* Disable all interrupts */
 	WR4(ST_IDR, 0xffffffff);
+	/* disable watchdog timer */
+	WR4(ST_WDMR, 0);
+
+	timer_softc->sc_wet = EVENTHANDLER_REGISTER(watchdog_list,
+	  at91st_watchdog, dev, 0);
+	device_printf(dev,
+	  "watchdog registered, timeout intervall max. 64 sec\n");
 	return (0);
 }
 
@@ -140,6 +151,33 @@ at91st_get_timecount(struct timecounter *tc)
 #endif
 }
 
+/*
+ * t below is in a weird unit.  The watchdog is set to 2^t
+ * nanoseconds.  Since our watchdog timer can't really do that too
+ * well, we approximate it by assuming that the timeout interval for
+ * the lsb is 2^22 ns, which is 4.194ms.  This is an overestimation of
+ * the actual time (3.906ms), but close enough for watchdogging.
+ * These approximations, though a violation of the spec, improve the
+ * performance of the application which typically specifies things as
+ * WD_TO_32SEC.  In that last case, we'd wait 32s before the wdog
+ * reset.  The spec says we should wait closer to 34s, but given how
+ * it is likely to be used, and the extremely coarse nature time
+ * interval, I think this is the best solution.
+ */
+static void
+at91st_watchdog(void *argp, u_int cmd, int *error)
+{
+	uint32_t wdog;
+	int t;
+
+	wdog = 0;
+	t = cmd & WD_INTERVAL;
+	if (cmd != 0 && t >= 22 && t <= 37)
+		wdog = (1 << (t - 22)) | ST_WDMR_RSTEN;
+	WR4(ST_WDMR, wdog);
+	WR4(ST_CR, ST_CR_WDRST);
+}
+
 static void
 clock_intr(void *arg)
 {
@@ -161,7 +199,7 @@ cpu_initclocks(void)
 	struct resource *irq;
 	int rid = 0;
 	void *ih;
-	device_t dev = timer_softc->dev;
+	device_t dev = timer_softc->sc_dev;
 
 	if (32768 % hz) {
 		printf("Cannot get %d Hz clock; using 128Hz\n", hz);
@@ -229,4 +267,3 @@ void
 cpu_stopprofclock(void)
 {
 }
-
