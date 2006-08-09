@@ -59,6 +59,7 @@
  */
 #define	G_ELI_VERSION		1
 
+/* ON DISK FLAGS. */
 /* Use random, onetime keys. */
 #define	G_ELI_FLAG_ONETIME	0x00000001
 /* Ask for the passphrase from the kernel, before mounting root. */
@@ -69,6 +70,9 @@
 #define	G_ELI_FLAG_RW_DETACH	0x00000008
 /* Provide data authentication. */
 #define	G_ELI_FLAG_AUTH		0x00000010
+/* Provider is read-only, we should deny all write attempts. */
+#define	G_ELI_FLAG_RO		0x00000020
+/* RUNTIME FLAGS. */
 /* Provider was open for writing. */
 #define	G_ELI_FLAG_WOPEN	0x00010000
 /* Destroy device. */
