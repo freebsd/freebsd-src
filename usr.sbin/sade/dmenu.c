@@ -106,25 +106,6 @@ dmenuSetVariables(dialogMenuItem *tmp)
 }
 
 int
-dmenuSetKmapVariable(dialogMenuItem *tmp)
-{
-    char *lang;
-    int err;
-
-    variable_set((char *)tmp->data, TRUE);
-    lang = variable_get(VAR_KEYMAP);
-    if (lang != NULL)
-    {
-	err = loadKeymap(lang);
-	if (err == -1)
-	    msgConfirm("No appropriate keyboard map found, sorry.");
-	else if (err == -2)
-	    msgConfirm("Error installing keyboard map, errno = %d.", errno);
-    }
-    return DITEM_SUCCESS;
-}
-
-int
 dmenuToggleVariable(dialogMenuItem *tmp)
 {
     char *var, *cp;
