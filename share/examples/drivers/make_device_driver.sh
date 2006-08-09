@@ -93,6 +93,8 @@ cat >${TOP}/i386/conf/${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
 # \$${RCS_KEYWORD}$
 
+files		"${TOP}/conf/files.${UPPER}"
+
 include		GENERIC
 
 ident		${UPPER}
@@ -100,7 +102,9 @@ ident		${UPPER}
 DONE
 
 cat >>${TOP}/i386/conf/${UPPER} <<DONE
-options		DDB		# trust me, you'll need this
+# trust me, you'll need this
+options		KDB
+options		DDB
 device		${1}
 DONE
 
@@ -984,8 +988,25 @@ case ${VAL} in
 esac
 
 echo ""
-echo "To build the kernel you should merge ${TOP}/conf/files.${UPPER} " \
-	"into one of the ${TOP}/conf/files*"
+echo -n "Do you want to build the '${UPPER}' kernel? [Y]"
+read VAL
+if [ "-z" "$VAL" ]; then
+	VAL=YES
+fi
+case ${VAL} in
+[yY]*)
+	(
+	 cd ${TOP}/i386/conf; \
+	 config ${UPPER}; \
+	 cd ${TOP}/i386/compile/${UPPER}; \
+	 make depend; \
+	 make; \
+	)
+	;;
+*)
+#	exit
+	;;
+esac
 
 #--------------end of script---------------
 #
