@@ -1813,12 +1813,19 @@ g_mirror_worker(void *arg)
 		bioq_remove(&sc->sc_queue, bp);
 		mtx_unlock(&sc->sc_queue_mtx);
 
-		if ((bp->bio_cflags & G_MIRROR_BIO_FLAG_REGULAR) != 0)
-			g_mirror_regular_request(bp);
-		else if ((bp->bio_cflags & G_MIRROR_BIO_FLAG_SYNC) != 0)
-			g_mirror_sync_request(bp);
-		else
+		if (bp->bio_to != sc->sc_provider) {
+			if ((bp->bio_cflags & G_MIRROR_BIO_FLAG_REGULAR) != 0)
+				g_mirror_regular_request(bp);
+			else if ((bp->bio_cflags & G_MIRROR_BIO_FLAG_SYNC) != 0)
+				g_mirror_sync_request(bp);
+			else {
+				KASSERT(0,
+				    ("Invalid request cflags=0x%hhx to=%s.",
+				    bp->bio_cflags, bp->bio_to->name));
+			}
+		} else {
 			g_mirror_register_request(bp);
+		}
 		G_MIRROR_DEBUG(5, "%s: I'm here 9.", __func__);
 	}
 }
