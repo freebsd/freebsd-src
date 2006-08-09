@@ -900,7 +900,6 @@ build-tools:
     ${_aicasm} \
     usr.bin/awk \
     lib/libmagic \
-    usr.sbin/sade \
     usr.sbin/sysinstall
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,build-tools)"; \
 		cd ${.CURDIR}/${_tool}; \
