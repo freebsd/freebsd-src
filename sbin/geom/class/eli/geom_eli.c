@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -78,7 +78,7 @@ static void eli_dump(struct gctl_req *req);
  *
  * init [-bhPv] [-a aalgo] [-e ealgo] [-i iterations] [-l keylen] [-K newkeyfile] prov
  * label - alias for 'init'
- * attach [-dpv] [-k keyfile] prov
+ * attach [-dprv] [-k keyfile] prov
  * detach [-fl] prov ...
  * stop - alias for 'detach'
  * onetime [-d] [-a aalgo] [-e ealgo] [-l keylen] prov ...
@@ -124,9 +124,10 @@ struct g_command class_commands[] = {
 		{ 'd', "detach", NULL, G_TYPE_NONE },
 		{ 'k', "keyfile", keyfile, G_TYPE_STRING },
 		{ 'p', "nopassphrase", NULL, G_TYPE_NONE },
+		{ 'r', "readonly", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
 	    },
-	    "[-dpv] [-k keyfile] prov"
+	    "[-dprv] [-k keyfile] prov"
 	},
 	{ "detach", 0, NULL,
 	    {
