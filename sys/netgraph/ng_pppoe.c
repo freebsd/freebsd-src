@@ -55,6 +55,7 @@
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_pppoe.h>
+#include <netgraph/ng_ether.h>
 
 #ifdef NG_SEPARATE_MALLOC
 MALLOC_DEFINE(M_NETGRAPH_PPPOE, "netgraph_pppoe", "netgraph pppoe node");
@@ -74,6 +75,7 @@ static ng_constructor_t	ng_pppoe_constructor;
 static ng_rcvmsg_t	ng_pppoe_rcvmsg;
 static ng_shutdown_t	ng_pppoe_shutdown;
 static ng_newhook_t	ng_pppoe_newhook;
+static ng_connect_t	ng_pppoe_connect;
 static ng_rcvdata_t	ng_pppoe_rcvdata;
 static ng_disconnect_t	ng_pppoe_disconnect;
 
@@ -158,6 +160,13 @@ static const struct ng_cmdlist ng_pppoe_cmds[] = {
 	  NULL,
 	  &ng_parse_string_type
 	},
+	{
+	  NGM_PPPOE_COOKIE,
+	  NGM_PPPOE_SETENADDR,
+	  "setenaddr",
+	  &ng_parse_enaddr_type,
+	  NULL
+	},
 	{ 0 }
 };
 
@@ -169,6 +178,7 @@ static struct ng_type typestruct = {
 	.rcvmsg =	ng_pppoe_rcvmsg,
 	.shutdown =	ng_pppoe_shutdown,
 	.newhook =	ng_pppoe_newhook,
+	.connect =	ng_pppoe_connect,
 	.rcvdata =	ng_pppoe_rcvdata,
 	.disconnect =	ng_pppoe_disconnect,
 	.cmdlist =	ng_pppoe_cmds,
@@ -229,16 +239,6 @@ typedef struct sess_con *sessp;
 
 #define	NG_PPPOE_SESSION_NODE(sp) NG_HOOK_NODE(sp->hook)
 
-static const struct ether_header eh_standard =
-	{{0xff,0xff,0xff,0xff,0xff,0xff},
-	{0x00,0x00,0x00,0x00,0x00,0x00},
-	ETHERTYPE_PPPOE_DISC};
-
-static const struct ether_header eh_3Com =
-	{{0xff,0xff,0xff,0xff,0xff,0xff},
-	{0x00,0x00,0x00,0x00,0x00,0x00},
-	ETHERTYPE_PPPOE_3COM_DISC};
-
 /*
  * Information we store for each node
  */
@@ -251,7 +251,7 @@ struct PPPoE {
 	uint32_t	flags;
 #define	COMPAT_3COM	0x00000001
 #define	COMPAT_DLINK	0x00000002
-	const struct	ether_header	*eh;	/* standard PPPoE or 3Com? */
+	struct ether_header	eh;
 };
 typedef struct PPPoE *priv_p;
 
@@ -635,7 +635,8 @@ ng_pppoe_constructor(node_p node)
 	privp->node = node;
 
 	/* Initialize to standard mode. */
-	privp->eh = &eh_standard;
+	memset(&privp->eh.ether_dhost, 0xff, ETHER_ADDR_LEN);
+	privp->eh.ether_type = ETHERTYPE_PPPOE_DISC;
 
 	CTR3(KTR_NET, "%20s: created node [%x] (%p)",
 	    __func__, node->nd_ID, node);
@@ -683,6 +684,38 @@ ng_pppoe_newhook(node_p node, hook_p hook, const char *name)
 	return(0);
 }
 
+/*
+ * Hook has been added successfully. Request the MAC address of
+ * the underlying Ethernet node.
+ */
+static int
+ng_pppoe_connect(hook_p hook)
+{
+	const priv_p privp = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	struct ng_mesg *msg;
+	int error = 0;
+
+	if (hook != privp->ethernet_hook)
+		return (0);
+
+	/*
+	 * If this is Ethernet hook, then request MAC address
+	 * from our downstream.
+	 */
+	NG_MKMESSAGE(msg, NGM_ETHER_COOKIE, NGM_ETHER_GET_ENADDR, 0, M_NOWAIT);
+	if (msg == NULL)
+		return (ENOBUFS);
+
+	/*
+	 * Our hook and peer hook have HK_INVALID flag set,
+	 * so we can't use NG_SEND_MSG_HOOK() macro here.
+	 */
+	NG_SEND_MSG_ID(error, privp->node, msg,
+	    NG_NODE_ID(NG_PEER_NODE(privp->ethernet_hook)),
+	    NG_NODE_ID(privp->node));
+
+	return (error);
+}
 /*
  * Get a netgraph control message.
  * Check it is one we understand. If needed, send a response.
@@ -797,8 +830,7 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			neg->m->m_len = sizeof(struct pppoe_full_hdr);
 			neg->pkt = mtod(neg->m, union packet*);
 			memcpy((void *)&neg->pkt->pkt_header.eh,
-			    (const void *)privp->eh,
-			    sizeof(struct ether_header));
+			    &privp->eh, sizeof(struct ether_header));
 			neg->pkt->pkt_header.ph.ver = 0x1;
 			neg->pkt->pkt_header.ph.type = 0x1;
 			neg->pkt->pkt_header.ph.sid = 0x0000;
@@ -917,13 +949,14 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (len == strlen(NG_PPPOE_STANDARD) &&
 			    (strncmp(NG_PPPOE_STANDARD, s, len) == 0)) {
 				privp->flags = 0;
-				privp->eh = &eh_standard;
+				privp->eh.ether_type = ETHERTYPE_PPPOE_DISC;
 				break;
 			}
 			if (len == strlen(NG_PPPOE_3COM) &&
 			    (strncmp(NG_PPPOE_3COM, s, len) == 0)) {
 				privp->flags |= COMPAT_3COM;
-				privp->eh = &eh_3Com;
+				privp->eh.ether_type =
+				    ETHERTYPE_PPPOE_3COM_DISC;
 				break;
 			}
 			if (len == strlen(NG_PPPOE_DLINK) &&
@@ -969,8 +1002,28 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			break;
 		    }
+		case NGM_PPPOE_SETENADDR:
+			if (msg->header.arglen != ETHER_ADDR_LEN)
+				LEAVE(EINVAL);
+			bcopy(msg->data, &privp->eh.ether_shost,
+			    ETHER_ADDR_LEN);
+			break;
 		default:
 			LEAVE(EINVAL);
+		}
+		break;
+	case NGM_ETHER_COOKIE:
+		if (!(msg->header.flags & NGF_RESP))
+			LEAVE(EINVAL);
+		switch (msg->header.cmd) {
+		case NGM_ETHER_GET_ENADDR:
+			if (msg->header.arglen != ETHER_ADDR_LEN)
+				LEAVE(EINVAL);
+			bcopy(msg->data, &privp->eh.ether_shost,
+			    ETHER_ADDR_LEN);
+			break;
+		default:
+			error = EINVAL;
 		}
 		break;
 	default:
@@ -1006,11 +1059,10 @@ pppoe_start(sessp sp)
 	sp->state = PPPOE_SINIT;
 	/*
 	 * Reset the packet header to broadcast. Since we are
-	 * in a client
-	 * mode use configured ethertype.
+	 * in a client mode use configured ethertype.
 	 */
-	memcpy((void *)&sp->neg->pkt->pkt_header.eh,
-	    (const void *)privp->eh, sizeof(struct ether_header));
+	memcpy((void *)&sp->neg->pkt->pkt_header.eh, &privp->eh,
+	    sizeof(struct ether_header));
 	sp->neg->pkt->pkt_header.ph.code = PADI_CODE;
 	uniqtag.hdr.tag_type = PTT_HOST_UNIQ;
 	uniqtag.hdr.tag_len = htons((u_int16_t)sizeof(uniqtag.data));
