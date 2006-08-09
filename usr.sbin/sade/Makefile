@@ -9,7 +9,7 @@ MAN=	sade.8
 SRCS=	command.c config.c devices.c \
 	disks.c dispatch.c dmenu.c \
 	globals.c install.c keymap.c \
-	label.c main.c makedevs.c menus.c misc.c \
+	label.c main.c menus.c misc.c \
 	msg.c system.c termcap.c \
 	variable.c ${_wizard} keymap.h
 WARNS?=	3
@@ -24,52 +24,7 @@ CFLAGS+= -I${.CURDIR}/../../gnu/lib/libdialog -I.
 DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
 LDADD=	-ldialog -lncurses -lutil -ldisk -lftpio
 
-CLEANFILES=	makedevs.c rtermcap
-CLEANFILES+=	keymap.tmp keymap.h
-
-.if exists(${.CURDIR}/../../share/termcap/termcap.src)
-RTERMCAP=	TERMCAP=${.CURDIR}/../../share/termcap/termcap.src ./rtermcap
-.else
-RTERMCAP=	./rtermcap
-.endif
-
-makedevs.c:	Makefile rtermcap
-	echo '#include <sys/types.h>' > makedevs.c
-	${RTERMCAP} ansi | \
-		file2c 'const char termcap_ansi[] = {' ',0};' \
-		>> makedevs.c
-	${RTERMCAP} cons25w | \
-		file2c 'const char termcap_cons25w[] = {' ',0};' \
-		>> makedevs.c
-	${RTERMCAP} cons25 | \
-		file2c 'const char termcap_cons25[] = {' ',0};' \
-		>> makedevs.c
-	${RTERMCAP} cons25-m | \
-		file2c 'const char termcap_cons25_m[] = {' ',0};' \
-		>> makedevs.c
-	${RTERMCAP} cons25r | \
-		file2c 'const char termcap_cons25r[] = {' ',0};' \
-		>> makedevs.c
-	${RTERMCAP} cons25r-m | \
-		file2c 'const char termcap_cons25r_m[] = {' ',0};' \
-		>> makedevs.c
-	${RTERMCAP} cons25l1 | \
-		file2c 'const char termcap_cons25l1[] = {' ',0};' \
-		>> makedevs.c
-	${RTERMCAP} cons25l1-m | \
-		file2c 'const char termcap_cons25l1_m[] = {' ',0};' \
-		>> makedevs.c
-	${RTERMCAP} vt100 | \
-		file2c 'const char termcap_vt100[] = {' ',0};' \
-		>> makedevs.c
-	${RTERMCAP} xterm | \
-		file2c 'const char termcap_xterm[] = {' ',0};' \
-		>> makedevs.c
-
-build-tools:	rtermcap
-
-rtermcap:	rtermcap.c
-	${CC} -o ${.TARGET} ${.ALLSRC} -ltermcap
+CLEANFILES=	keymap.tmp keymap.h
 
 .if ${MACHINE} == "pc98"
 KEYMAPS= jp.pc98 jp.pc98.iso
