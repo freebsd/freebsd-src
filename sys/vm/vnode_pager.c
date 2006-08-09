@@ -956,7 +956,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			 * now tell them that it is ok to use
 			 */
 			if (!error) {
-				if (mt->flags & PG_WANTED)
+				if (mt->oflags & VPO_WANTED)
 					vm_page_activate(mt);
 				else
 					vm_page_deactivate(mt);

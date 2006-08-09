@@ -387,8 +387,8 @@ vm_page_flash(vm_page_t m)
 {
 
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
-	if (m->flags & PG_WANTED) {
-		vm_page_flag_clear(m, PG_WANTED);
+	if (m->oflags & VPO_WANTED) {
+		m->oflags &= ~VPO_WANTED;
 		wakeup(m);
 	}
 }
@@ -423,7 +423,6 @@ vm_page_io_finish(vm_page_t m)
 {
 
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	m->busy--;
 	if (m->busy == 0)
 		vm_page_flash(m);
@@ -500,7 +499,7 @@ vm_page_sleep_if_busy(vm_page_t m, int also_m_busy, const char *msg)
 	if ((m->flags & PG_BUSY) || (also_m_busy && m->busy)) {
 		if (!mtx_owned(&vm_page_queue_mtx))
 			vm_page_lock_queues();
-		vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
+		vm_page_flag_set(m, PG_REFERENCED);
 		vm_page_unlock_queues();
 
 		/*
@@ -510,6 +509,7 @@ vm_page_sleep_if_busy(vm_page_t m, int also_m_busy, const char *msg)
 		 * such that even if m->object changes, we can re-lock
 		 * it.
 		 */
+		m->oflags |= VPO_WANTED;
 		msleep(m, VM_OBJECT_MTX(m->object), PVM, msg, 0);
 		return (TRUE);
 	}
@@ -1480,8 +1480,9 @@ retrylookup:
 	if ((m = vm_page_lookup(object, pindex)) != NULL) {
 		vm_page_lock_queues();
 		if (m->busy || (m->flags & PG_BUSY)) {
-			vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
+			vm_page_flag_set(m, PG_REFERENCED);
 			vm_page_unlock_queues();
+			m->oflags |= VPO_WANTED;
 			msleep(m, VM_OBJECT_MTX(m->object), PVM, "pgrbwt", 0);
 			if ((allocflags & VM_ALLOC_RETRY) == 0)
 				return (NULL);
