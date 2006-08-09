@@ -3299,7 +3299,6 @@ vfs_unbusy_pages(struct buf *bp)
 
 	obj = bp->b_bufobj->bo_object;
 	VM_OBJECT_LOCK(obj);
-	vm_page_lock_queues();
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 		if (m == bogus_page) {
@@ -3313,7 +3312,6 @@ vfs_unbusy_pages(struct buf *bp)
 		vm_object_pip_subtract(obj, 1);
 		vm_page_io_finish(m);
 	}
-	vm_page_unlock_queues();
 	vm_object_pip_wakeupn(obj, 0);
 	VM_OBJECT_UNLOCK(obj);
 }

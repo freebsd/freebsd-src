@@ -116,6 +116,7 @@ struct vm_page {
 	u_short wire_count;		/* wired down maps refs (P) */
 	u_int cow;			/* page cow mapping count */
 	short hold_count;		/* page hold count */
+	u_short oflags;			/* page flags (O) */
 	u_char	act_count;		/* page usage count */
 	u_char	busy;			/* page busy count (O) */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page!!! */
@@ -134,6 +135,15 @@ struct vm_page {
 	u_long dirty;			/* map of dirty DEV_BSIZE chunks */
 #endif
 };
+
+/*
+ * Page flags stored in oflags:
+ *
+ * Access to these page flags is synchronized by the lock on the object
+ * containing the page (O).
+ */
+#define	VPO_WANTED	0x0002	/* someone is waiting for page */
+#define	VPO_SWAPINPROG	0x0200	/* swap I/O in progress on page */
 
 /* Make sure that u_long is at least 64 bits when PAGE_SIZE is 32K. */
 #if PAGE_SIZE == 32768
@@ -210,14 +220,12 @@ extern struct pq_coloring page_queue_coloring;
  *	 the object, and such pages are also not on any PQ queue.
  */
 #define	PG_BUSY		0x0001		/* page is in transit (O) */
-#define	PG_WANTED	0x0002		/* someone is waiting for page (O) */
 #define PG_WINATCFLS	0x0004		/* flush dirty page on inactive q */
 #define	PG_FICTITIOUS	0x0008		/* physical page doesn't exist (O) */
 #define	PG_WRITEABLE	0x0010		/* page is mapped writeable */
 #define	PG_ZERO		0x0040		/* page is zeroed */
 #define PG_REFERENCED	0x0080		/* page has been referenced */
 #define PG_CLEANCHK	0x0100		/* page will be checked for cleaning */
-#define PG_SWAPINPROG	0x0200		/* swap I/O in progress on page	     */
 #define PG_NOSYNC	0x0400		/* do not collect for syncer */
 #define PG_UNMANAGED	0x0800		/* No PV management for page */
 #define PG_MARKER	0x1000		/* special queue marker page */
