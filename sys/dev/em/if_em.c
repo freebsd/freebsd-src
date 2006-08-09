@@ -2255,9 +2255,12 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 			    0, NULL);
 		ifmedia_add(&adapter->media, IFM_ETHER | IFM_100_TX | IFM_FDX,
 			    0, NULL);
-		ifmedia_add(&adapter->media, IFM_ETHER | IFM_1000_T | IFM_FDX,
-			    0, NULL);
-		ifmedia_add(&adapter->media, IFM_ETHER | IFM_1000_T, 0, NULL);
+		if (adapter->hw.phy_type != em_phy_ife) {
+			ifmedia_add(&adapter->media, 
+				IFM_ETHER | IFM_1000_T | IFM_FDX, 0, NULL);
+			ifmedia_add(&adapter->media, 
+				IFM_ETHER | IFM_1000_T, 0, NULL);
+		}
 	}
 	ifmedia_add(&adapter->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
