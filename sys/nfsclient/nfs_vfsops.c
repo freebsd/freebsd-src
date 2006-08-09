@@ -397,9 +397,11 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 	struct nfsv3_diskless *nd = &nfsv3_diskless;
 	struct socket *so;
 	struct vnode *vp;
+	struct ifreq ir;
 	int error, i;
 	u_long l;
 	char buf[128];
+	char *cp;
 
 	NET_ASSERT_GIANT();
 
@@ -448,6 +450,14 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 	error = ifioctl(so, SIOCAIFADDR, (caddr_t)&nd->myif, td);
 	if (error)
 		panic("nfs_mountroot: SIOCAIFADDR: %d", error);
+	if ((cp = getenv("boot.netif.mtu")) != NULL) {
+		ir.ifr_mtu = strtol(cp, NULL, 10);
+		bcopy(nd->myif.ifra_name, ir.ifr_name, IFNAMSIZ);
+		freeenv(cp);
+		error = ifioctl(so, SIOCSIFMTU, (caddr_t)&ir, td);
+		if (error)
+			printf("nfs_mountroot: SIOCSIFMTU: %d", error);
+	}
 	soclose(so);
 
 	/*
