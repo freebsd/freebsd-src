@@ -24,7 +24,7 @@
 #define TTY_STATUS_LINE    23
 
 static void
-prompt_term(char **termp, char **termcapp)
+prompt_term(char **termp)
 {
 	char str[80];
 
@@ -32,7 +32,6 @@ prompt_term(char **termp, char **termcapp)
 	printf("Defaulting to an ANSI compatible terminal - please press RETURN\n");
 	fgets(str, 80, stdin);	/* Just to make it interactive */
 	*termp = (char *)"ansi";
-	*termcapp = (char *)termcap_ansi;
 }
 
 int
@@ -54,12 +53,10 @@ set_termcap(void)
 
     if (!OnVTY || (stat < 0)) {
 	if (!term) {
-	    char *term, *termcap;
+	    char *term;
 
-	    prompt_term(&term, &termcap);
+	    prompt_term(&term);
 	    if (setenv("TERM", term, 1) < 0)
-		return -1;
-	    if (setenv("TERMCAP", termcap, 1) < 0)
 		return -1;
 	}
 	if (DebugFD < 0)
@@ -82,23 +79,17 @@ set_termcap(void)
 	if (!term) {
 	    if (setenv("TERM", "cons25w", 1) < 0)
 		return -1;
-	    if (setenv("TERMCAP", termcap_cons25w, 1) < 0)
-		return -1;
 	}
 #else
 	if (ColorDisplay) {
 	    if (!term) {
 		if (setenv("TERM", "cons25", 1) < 0)
 		    return -1;
-		if (setenv("TERMCAP", termcap_cons25, 1) < 0)
-		    return -1;
 	    }
 	}
 	else {
 	    if (!term) {
 		if (setenv("TERM", "cons25-m", 1) < 0)
-		    return -1;
-		if (setenv("TERMCAP", termcap_cons25_m, 1) < 0)
 		    return -1;
 	    }
 	}
