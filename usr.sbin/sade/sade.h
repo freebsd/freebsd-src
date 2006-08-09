@@ -392,23 +392,6 @@ extern int	loadKeymap(const char *lang);
 extern int	diskLabelEditor(dialogMenuItem *self);
 extern int	diskLabelCommit(dialogMenuItem *self);
 
-/* makedevs.c (auto-generated) */
-extern const char	termcap_ansi[];
-extern const char	termcap_vt100[];
-extern const char	termcap_cons25w[];
-extern const char	termcap_cons25[];
-extern const char	termcap_cons25_m[];
-extern const char	termcap_cons25r[];
-extern const char	termcap_cons25r_m[];
-extern const char	termcap_cons25l1[];
-extern const char	termcap_cons25l1_m[];
-extern const char	termcap_xterm[];
-extern const u_char	font_iso_8x16[];
-extern const u_char	font_cp850_8x16[];
-extern const u_char	font_cp866_8x16[];
-extern const u_char	koi8_r2cp866[];
-extern u_char		default_scrnmap[];
-
 /* misc.c */
 extern Boolean	file_readable(char *fname);
 extern Boolean	file_executable(char *fname);

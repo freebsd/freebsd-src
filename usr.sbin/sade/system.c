@@ -242,33 +242,6 @@ systemHelpFile(char *file, char *buf)
     return NULL;
 }
 
-void
-systemChangeTerminal(char *color, const u_char c_term[],
-		     char *mono, const u_char m_term[])
-{
-    if (OnVTY) {
-	int setupterm(char *color, int, int *);
-
-	if (ColorDisplay) {
-	    setenv("TERM", color, 1);
-	    setenv("TERMCAP", c_term, 1);
-	    reset_shell_mode();
-	    setterm(color);
-	    cbreak(); noecho();
-	}
-	else {
-	    setenv("TERM", mono, 1);
-	    setenv("TERMCAP", m_term, 1);
-	    reset_shell_mode();
-	    setterm(mono);
-	    cbreak(); noecho();
-	}
-    }
-    clear();
-    refresh();
-    dialog_clear();
-}
-
 int
 vsystem(const char *fmt, ...)
 {
