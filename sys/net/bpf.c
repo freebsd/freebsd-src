@@ -93,7 +93,7 @@ static LIST_HEAD(, bpf_if)	bpf_iflist;
 static struct mtx	bpf_mtx;		/* bpf global lock */
 static int		bpf_bpfd_cnt;
 
-static int	bpf_allocbufs(struct bpf_d *);
+static void	bpf_allocbufs(struct bpf_d *);
 static void	bpf_attachd(struct bpf_d *, struct bpf_if *);
 static void	bpf_detachd(struct bpf_d *);
 static void	bpf_freed(struct bpf_d *);
@@ -1093,7 +1093,6 @@ static int
 bpf_setif(struct bpf_d *d, struct ifreq *ifr)
 {
 	struct bpf_if *bp;
-	int error;
 	struct ifnet *theywant;
 
 	theywant = ifunit(ifr->ifr_name);
@@ -1106,11 +1105,8 @@ bpf_setif(struct bpf_d *d, struct ifreq *ifr)
 	 * If we're already attached to requested interface,
 	 * just flush the buffer.
 	 */
-	if (d->bd_sbuf == NULL) {
-		error = bpf_allocbufs(d);
-		if (error != 0)
-			return (error);
-	}
+	if (d->bd_sbuf == NULL)
+		bpf_allocbufs(d);
 	if (bp != d->bd_bif) {
 		if (d->bd_bif)
 			/*
@@ -1459,21 +1455,18 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 /*
  * Initialize all nonzero fields of a descriptor.
  */
-static int
+static void
 bpf_allocbufs(struct bpf_d *d)
 {
-	d->bd_fbuf = (caddr_t)malloc(d->bd_bufsize, M_BPF, M_WAITOK);
-	if (d->bd_fbuf == NULL)
-		return (ENOBUFS);
 
+	KASSERT(d->bd_fbuf == NULL, ("bpf_allocbufs: bd_fbuf != NULL"));
+	KASSERT(d->bd_sbuf == NULL, ("bpf_allocbufs: bd_sbuf != NULL"));
+	KASSERT(d->bd_hbuf == NULL, ("bpf_allocbufs: bd_hbuf != NULL"));
+
+	d->bd_fbuf = (caddr_t)malloc(d->bd_bufsize, M_BPF, M_WAITOK);
 	d->bd_sbuf = (caddr_t)malloc(d->bd_bufsize, M_BPF, M_WAITOK);
-	if (d->bd_sbuf == NULL) {
-		free(d->bd_fbuf, M_BPF);
-		return (ENOBUFS);
-	}
 	d->bd_slen = 0;
 	d->bd_hlen = 0;
-	return (0);
 }
 
 /*
