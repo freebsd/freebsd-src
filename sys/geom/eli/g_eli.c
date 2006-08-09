@@ -455,6 +455,10 @@ g_eli_access(struct g_provider *pp, int dr, int dw, int de)
 	sc = gp->softc;
 
 	if (dw > 0) {
+		if (sc->sc_flags & G_ELI_FLAG_RO) {
+			/* Deny write attempts. */
+			return (EROFS);
+		}
 		/* Someone is opening us for write, we need to remember that. */
 		sc->sc_flags |= G_ELI_FLAG_WOPEN;
 		return (0);
@@ -495,19 +499,19 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	gp->start = g_eli_start;
 	/*
 	 * Spoiling cannot happen actually, because we keep provider open for
-	 * writing all the time.
+	 * writing all the time or provider is read-only.
 	 */
 	gp->spoiled = g_eli_orphan_spoil_assert;
 	gp->orphan = g_eli_orphan;
+	gp->dumpconf = g_eli_dumpconf;
 	/*
-	 * If detach-on-last-close feature is not enabled, we can simply use
-	 * g_std_access().
+	 * If detach-on-last-close feature is not enabled and we don't operate
+	 * on read-only provider, we can simply use g_std_access().
 	 */
-	if (md->md_flags & G_ELI_FLAG_WO_DETACH)
+	if (md->md_flags & (G_ELI_FLAG_WO_DETACH | G_ELI_FLAG_RO))
 		gp->access = g_eli_access;
 	else
 		gp->access = g_std_access;
-	gp->dumpconf = g_eli_dumpconf;
 
 	sc->sc_crypto = G_ELI_CRYPTO_SW;
 	sc->sc_flags = md->md_flags;
@@ -578,8 +582,13 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	 * Keep provider open all the time, so we can run critical tasks,
 	 * like Master Keys deletion, without wondering if we can open
 	 * provider or not.
+	 * We don't open provider for writing only when user requested read-only
+	 * access.
 	 */
-	error = g_access(cp, 1, 1, 1);
+	if (sc->sc_flags & G_ELI_FLAG_RO)
+		error = g_access(cp, 1, 0, 1);
+	else
+		error = g_access(cp, 1, 1, 1);
 	if (error != 0) {
 		if (req != NULL) {
 			gctl_error(req, "Cannot access %s (error=%d).",
@@ -997,6 +1006,7 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		ADD_FLAG(G_ELI_FLAG_AUTH, "AUTH");
 		ADD_FLAG(G_ELI_FLAG_WOPEN, "W-OPEN");
 		ADD_FLAG(G_ELI_FLAG_DESTROY, "DESTROY");
+		ADD_FLAG(G_ELI_FLAG_RO, "READ-ONLY");
 #undef  ADD_FLAG
 	}
 	sbuf_printf(sb, "</Flags>\n");
