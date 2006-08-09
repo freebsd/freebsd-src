@@ -82,7 +82,7 @@ DMenu MenuIPLType = {
     "Press F1 to read about drive setup",
     "drives",
     { { "BootMgr",	"Install the FreeBSD Boot Manager",
-	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr },
+	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, 0, 0, 0, 0 },
       { "None",		"Leave the IPL untouched",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 1 },
       { NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0, 0 } },
