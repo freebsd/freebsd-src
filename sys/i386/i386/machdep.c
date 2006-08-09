@@ -2215,8 +2215,8 @@ init386(first)
 		 * memory. The PCI host bridge should be programmed for this,
 		 * so we just query it. 
 		 */
-		outl (0xcf8, 0x80000084);
-		arch_i386_xbox_memsize = (inl (0xcfc) == 0x7FFFFFF) ? 128 : 64;
+		outl(0xcf8, 0x80000084);
+		arch_i386_xbox_memsize = (inl(0xcfc) == 0x7FFFFFF) ? 128 : 64;
 	}
 #endif /* XBOX */
 
