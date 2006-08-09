@@ -93,7 +93,6 @@
 #define VAR_GEOMETRY			"geometry"
 #define VAR_INSTALL_CFG			"installConfig"
 #define VAR_INSTALL_ROOT		"installRoot"
-#define VAR_KEYMAP			"keymap"
 #define VAR_LABEL			"label"
 #define VAR_LABEL_COUNT			"labelCount"
 #define VAR_NEWFS_ARGS			"newfsArgs"
@@ -352,7 +351,6 @@ extern int	dmenuSystemCommandBox(dialogMenuItem *tmp);
 extern int	dmenuExit(dialogMenuItem *tmp);
 extern int	dmenuISetVariable(dialogMenuItem *tmp);
 extern int	dmenuSetVariable(dialogMenuItem *tmp);
-extern int	dmenuSetKmapVariable(dialogMenuItem *tmp);
 extern int	dmenuSetVariables(dialogMenuItem *tmp);
 extern int	dmenuToggleVariable(dialogMenuItem *tmp);
 extern int	dmenuSetFlag(dialogMenuItem *tmp);
@@ -384,9 +382,6 @@ extern Boolean	copySelf(void);
 
 /* kget.c */
 extern int	kget(char *out);
-
-/* keymap.c */
-extern int	loadKeymap(const char *lang);
 
 /* label.c */
 extern int	diskLabelEditor(dialogMenuItem *self);
