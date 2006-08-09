@@ -93,10 +93,6 @@ __FBSDID("$FreeBSD$");
 #include <i386/bios/mca_machdep.h>
 #endif
 
-#ifdef XBOX
-#include <machine/xbox.h>
-#endif
-
 /*
  * 32-bit time_t's can't reach leap years before 1904 or after 2036, so we
  * can use a simple formula for leap years.
@@ -543,11 +539,6 @@ calibrate_clocks(void)
 	return (tot_count);
 
 fail:
-#ifdef XBOX
-	if (arch_i386_is_xbox)
-		timer_freq = 1125000; /* gives ~733.34MHz CPU clock */
-#endif
-
 	if (bootverbose)
 	        printf("failed, using default i8254 clock of %u Hz\n",
 		       timer_freq);
