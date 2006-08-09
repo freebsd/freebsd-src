@@ -36,7 +36,29 @@ DONE
 
 cat >../../dev/${1}.c <<DONE
 /*
- * Copyright ME
+ * Copyright (c) [year] [your name]
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
  * ${1} driver
  */
@@ -47,15 +69,19 @@ __FBSDID("\$FreeBSD\$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>		/* SYSINIT stuff */
+#include <sys/uio.h>		/* SYSINIT stuff */
 #include <sys/conf.h>		/* cdevsw stuff */
-#include <sys/devfsext.h>	/* DEVFS definitions */
 #include <sys/malloc.h>		/* malloc region definitions */
 #include <sys/proc.h>
 #include <sys/${1}io.h>		/* ${1} IOCTL definitions */
 
 #include <machine/clock.h>	/* DELAY() */
 
-#include "${1}.h"		/* generated file.. defines N${UPPER} */
+#define N${UPPER}	3	/* defines number of instances */
+
+/* XXX These should be defined in terms of bus-space ops. */
+#define ${UPPER}_INB(port) inb(port)
+#define ${UPPER}_OUTB(port, val) (port, (val))
 
 /* Function prototypes (these should all be static) */
 static  d_open_t	${1}open;
@@ -68,20 +94,15 @@ static  d_poll_t	${1}poll;
 
 #define CDEV_MAJOR 20
 static struct cdevsw ${1}_cdevsw = {
-	${1}open,
-	${1}close,
-	${1}read,
-	${1}write,
-	${1}ioctl,
-	nullstop,
-	nullreset,
-	nodevtotty,
-	${1}poll,
-	${1}mmap,
-	NULL,
-	"${1}",
-	NULL,
-	-1
+	.d_version =	D_VERSION,
+	.d_open =	${1}open,
+	.d_close =	${1}close,
+	.d_read =	${1}read,
+	.d_write =	${1}write,
+	.d_ioctl =	${1}ioctl,
+	.d_poll =	${1}poll,
+	.d_mmap =	${1}mmap,
+	.d_name =	"${1}",
 };
 
 /*
@@ -94,9 +115,9 @@ static struct cdevsw ${1}_cdevsw = {
  * One of these per allocated device
  */
 struct ${1}_softc {
-	struct isa_device *dev;
+	u_long	iobase;
 	char	buffer[BUFFERSIZE];
-	static void *devfs_token;
+  	struct cdev *dev;
 };
 
 typedef	struct ${1}_softc *sc_p;
@@ -129,7 +150,7 @@ do { /* the do-while is a safe way to do this grouping */		\
 #endif 	/* DIAGNOSTIC */
 
 static int
-${1}ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
+${1}ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	int unit = UNIT(dev);
 	sc_p scp  = sca[unit];
@@ -139,7 +160,10 @@ ${1}ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 	switch (cmd) {
 	    case DHIOCRESET:
 		/*  whatever resets it */
-		outb(scp->dev->id_iobase, 0xff);
+		(void)scp; /* Delete this line after using scp. */
+#if 0
+		${UPPER}_OUTB(scp->iobase, 0xff);
+#endif
 		break;
 	    default:
 		return ENXIO;
@@ -152,13 +176,14 @@ ${1}ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
  * This should get you started
  */
 static int
-${1}open(dev_t dev, int oflags, int devtype, struct thread *td)
+${1}open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	int unit = UNIT(dev);
 	sc_p scp  = sca[unit];
 
 	CHECKUNIT(ENXIO);
 
+	(void)scp; /* Delete this line after using scp. */
 	/*
 	 * Do processing
 	 */
@@ -166,13 +191,14 @@ ${1}open(dev_t dev, int oflags, int devtype, struct thread *td)
 }
 
 static int
-${1}close(dev_t dev, int fflag, int devtype, struct thread *td)
+${1}close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
 	int unit = UNIT(dev);
 	sc_p scp  = sca[unit];
 
 	CHECKUNIT_DIAG(ENXIO);
 
+	(void)scp; /* Delete this line after using scp. */
 	/*
 	 * Do processing
 	 */
@@ -180,7 +206,7 @@ ${1}close(dev_t dev, int fflag, int devtype, struct thread *td)
 }
 
 static int
-${1}read(dev_t dev, struct uio *uio, int ioflag)
+${1}read(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int unit = UNIT(dev);
 	sc_p scp  = sca[unit];
@@ -198,7 +224,7 @@ ${1}read(dev_t dev, struct uio *uio, int ioflag)
 }
 
 static int
-${1}write(dev_t dev, struct uio *uio, int ioflag)
+${1}write(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int unit = UNIT(dev);
 	sc_p scp  = sca[unit];
@@ -215,13 +241,14 @@ ${1}write(dev_t dev, struct uio *uio, int ioflag)
 }
 
 static int
-${1}mmap(dev_t dev, int offset, int nprot)
+${1}mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 	int unit = UNIT(dev);
 	sc_p scp  = sca[unit];
 
 	CHECKUNIT_DIAG(-1);
 
+	(void)scp; /* Delete this line after using scp. */
 	/*
 	 * Do processing
 	 */
@@ -236,13 +263,14 @@ ${1}mmap(dev_t dev, int offset, int nprot)
 }
 
 static int
-${1}poll(dev_t dev, int which, struct thread *td)
+${1}poll(struct cdev *dev, int which, struct thread *td)
 {
 	int unit = UNIT(dev);
 	sc_p scp  = sca[unit];
 
 	CHECKUNIT_DIAG(ENXIO);
 
+	(void)scp; /* Delete this line after using scp. */
 	/*
 	 * Do processing
 	 */
@@ -256,12 +284,9 @@ ${1}poll(dev_t dev, int which, struct thread *td)
 static void
 ${1}_drvinit(void *unused)
 {
-        dev_t dev;
 	int	unit;
 	sc_p scp  = sca[unit];
 
-	dev = makedev(CDEV_MAJOR, 0);
-	cdevsw_add(&dev, &${1}_cdevsw, NULL);
 	for (unit = 0; unit < N${UPPER}; unit++) {
 		/*
 		 * Allocate storage for this instance .
@@ -272,8 +297,8 @@ ${1}_drvinit(void *unused)
 			return;
 		}
 		sca[unit] = scp;
-    		scp->devfs_token = devfs_add_devswf(&${1}_cdevsw, unit, DV_CHR,
-	    		UID_ROOT, GID_KMEM, 0640, "${1}%d", unit);
+    		scp->dev = make_dev(&${1}_cdevsw, unit,
+			UID_ROOT, GID_KMEM, 0640, "${1}%d", unit);
 	}
 }
 
