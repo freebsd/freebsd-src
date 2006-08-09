@@ -38,4 +38,16 @@
 extern	int	need_pre_dma_flush;
 extern	int	need_post_dma_flush;
 
+/*
+ * The ad driver maps the IDE disk's actual geometry to the firmware's
+ * notion of geometry.  However, PC98 machines need to do something
+ * different sometimes, so override the hook so we can do so.  We have to
+ * have a knowledge that a device_t is a struct device * here to avoid
+ * including too many things from this file.
+ */
+struct disk;
+struct device;
+void	pc98_ad_firmware_geom_adjust(struct device *, struct disk *);
+#define ad_firmware_geom_adjust(dev, dsk) pc98_ad_firmware_geom_adjust(dev, dsk)
+
 #endif /* !_PC98_INCLUDE_MD_VAR_H_ */
