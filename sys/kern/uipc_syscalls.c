@@ -2086,9 +2086,7 @@ retry_lookup:
 			VOP_UNLOCK(vp, 0, td);
 			VFS_UNLOCK_GIANT(vfslocked);
 			VM_OBJECT_LOCK(obj);
-			vm_page_lock_queues();
 			vm_page_io_finish(pg);
-			vm_page_unlock_queues();
 			if (!error)
 				VM_OBJECT_UNLOCK(obj);
 			mbstat.sf_iocnt++;

@@ -1056,16 +1056,14 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	bp->b_pager.pg_reqpage = reqpage - i;
 
 	VM_OBJECT_LOCK(object);
-	vm_page_lock_queues();
 	{
 		int k;
 
 		for (k = i; k < j; ++k) {
 			bp->b_pages[k - i] = m[k];
-			vm_page_flag_set(m[k], PG_SWAPINPROG);
+			m[k]->oflags |= VPO_SWAPINPROG;
 		}
 	}
-	vm_page_unlock_queues();
 	bp->b_npages = j - i;
 
 	cnt.v_swapin++;
@@ -1093,14 +1091,15 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	swp_pager_strategy(bp);
 
 	/*
-	 * wait for the page we want to complete.  PG_SWAPINPROG is always
+	 * wait for the page we want to complete.  VPO_SWAPINPROG is always
 	 * cleared on completion.  If an I/O error occurs, SWAPBLK_NONE
 	 * is set in the meta-data.
 	 */
 	VM_OBJECT_LOCK(object);
-	while ((mreq->flags & PG_SWAPINPROG) != 0) {
+	while ((mreq->oflags & VPO_SWAPINPROG) != 0) {
+		mreq->oflags |= VPO_WANTED;
 		vm_page_lock_queues();
-		vm_page_flag_set(mreq, PG_WANTED | PG_REFERENCED);
+		vm_page_flag_set(mreq, PG_REFERENCED);
 		vm_page_unlock_queues();
 		cnt.v_intrans++;
 		if (msleep(mreq, VM_OBJECT_MTX(object), PSWP, "swread", hz*20)) {
@@ -1282,9 +1281,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 			vm_page_dirty(mreq);
 			rtvals[i+j] = VM_PAGER_OK;
 
-			vm_page_lock_queues();
-			vm_page_flag_set(mreq, PG_SWAPINPROG);
-			vm_page_unlock_queues();
+			mreq->oflags |= VPO_SWAPINPROG;
 			bp->b_pages[j] = mreq;
 		}
 		VM_OBJECT_UNLOCK(object);
@@ -1399,7 +1396,7 @@ swp_pager_async_iodone(struct buf *bp)
 	for (i = 0; i < bp->b_npages; ++i) {
 		vm_page_t m = bp->b_pages[i];
 
-		vm_page_flag_clear(m, PG_SWAPINPROG);
+		m->oflags &= ~VPO_SWAPINPROG;
 
 		if (bp->b_ioflags & BIO_ERROR) {
 			/*
@@ -1418,7 +1415,7 @@ swp_pager_async_iodone(struct buf *bp)
 				 * not match anything ).
 				 *
 				 * We have to wake specifically requested pages
-				 * up too because we cleared PG_SWAPINPROG and
+				 * up too because we cleared VPO_SWAPINPROG and
 				 * someone may be waiting for that.
 				 *
 				 * NOTE: for reads, m->dirty will probably
@@ -1472,7 +1469,7 @@ swp_pager_async_iodone(struct buf *bp)
 
 			/*
 			 * We have to wake specifically requested pages
-			 * up too because we cleared PG_SWAPINPROG and
+			 * up too because we cleared VPO_SWAPINPROG and
 			 * could be waiting for it in getpages.  However,
 			 * be sure to not unbusy getpages specifically
 			 * requested page - getpages expects it to be 
