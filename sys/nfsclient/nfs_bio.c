@@ -240,7 +240,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 			 * now tell them that it is ok to use.
 			 */
 			if (!error) {
-				if (m->flags & PG_WANTED)
+				if (m->oflags & VPO_WANTED)
 					vm_page_activate(m);
 				else
 					vm_page_deactivate(m);
