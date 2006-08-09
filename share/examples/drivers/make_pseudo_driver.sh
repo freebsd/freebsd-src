@@ -1,40 +1,99 @@
 #!/bin/sh
 # This writes a skeleton driver and puts it into the kernel tree for you
-#arg1 is lowercase "foo"
+#
+# arg1 is lowercase "foo"
+# arg2 path to the kernel sources, "/sys" if omitted
 #
 # Trust me, RUN THIS SCRIPT :)
 #
 # $FreeBSD$
 #
 #-------cut here------------------
-cd /sys/i386/conf
 
 if [ "${1}X" = "X" ]
 then
 	echo "Hey , how about some help here.. give me a device name!"
 	exit 1
 fi
+if [ "X${2}" = "X" ]; then
+	TOP=`cd /sys; pwd -P`
+	echo "Using ${TOP} as the path to the kernel sources!"
+else
+	TOP=${2}
+fi
+
+for i in "" "conf" "i386" "i386/conf" "dev" "sys" "modules"
+do
+	if [ -d ${TOP}/${i} ]
+	then
+		continue
+	fi
+	echo "${TOP}/${i}: no such directory."
+	echo "Please, correct the error and try again."
+	exit 1
+done
 
 UPPER=`echo ${1} |tr "[:lower:]" "[:upper:]"`
-cat >files.${UPPER} <<DONE
-dev/${1}.c      optional ${1} device-driver
+
+if [ -d ${TOP}/modules/${1} ]; then
+	echo "There appears to already be a module called ${1}"
+	echo -n "Should it be overwritten? [Y]"
+	read VAL
+	if [ "-z" "$VAL" ]; then
+		VAL=YES
+	fi
+	case ${VAL} in
+	[yY]*)
+		echo "Cleaning up from prior runs"
+		rm -rf ${TOP}/dev/${1}
+		rm -rf ${TOP}/modules/${1}
+		rm ${TOP}/conf/files.${UPPER}
+		rm ${TOP}/i386/conf/${UPPER}
+		rm ${TOP}/sys/${1}io.h
+		;;
+	*)
+		exit 1
+		;;
+	esac
+fi
+
+echo "The following files will be created:"
+echo ${TOP}/modules/${1}
+echo ${TOP}/conf/files.${UPPER}
+echo ${TOP}/i386/conf/${UPPER}
+echo ${TOP}/dev/${1}
+echo ${TOP}/dev/${1}/${1}.c
+echo ${TOP}/sys/${1}io.h
+echo ${TOP}/modules/${1}
+echo ${TOP}/modules/${1}/Makefile
+
+mkdir ${TOP}/modules/${1}
+
+cat >${TOP}/conf/files.${UPPER} <<DONE
+dev/${1}.c      optional ${1}
 DONE
 
-cat >${UPPER} <<DONE
+cat >${TOP}/i386/conf/${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
-ident	${UPPER}
 # \$FreeBSD\$
-DONE
 
-grep -v GENERIC < GENERIC >>${UPPER}
+files		"${TOP}/conf/files.${UPPER}"
 
-cat >>${UPPER} <<DONE
+include		GENERIC
+
+ident		${UPPER}
+
 # trust me, you'll need this
-options	DDB
-device	${1}
+options		KDB
+options		DDB
+device		${1}
 DONE
 
-cat >../../dev/${1}.c <<DONE
+if [ ! -d ${TOP}/dev/${1} ]; then
+	mkdir -p ${TOP}/dev/${1}
+fi
+
+cat >${TOP}/dev/${1}/${1}.c <<DONE
 /*
  * Copyright (c) [year] [your name]
  * All rights reserved.
@@ -306,7 +365,7 @@ SYSINIT(${1}dev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+CDEV_MAJOR,
 		${1}_drvinit, NULL)
 DONE
 
-cat >../../sys/${1}io.h <<DONE
+cat >${TOP}/sys/${1}io.h <<DONE
 /*
  * Definitions needed to access the ${1} device (ioctls etc)
  * see mtio.h , ioctl.h as examples
@@ -326,17 +385,58 @@ cat >../../sys/${1}io.h <<DONE
 #endif
 DONE
 
-config ${UPPER}
-cd ../../compile/${UPPER}
-make depend
-make ${1}.o
-make
-exit
+if [ ! -d ${TOP}/modules/${1} ]; then
+	mkdir -p ${TOP}/modules/${1}
+fi
+
+cat >${TOP}/modules/${1}/Makefile <<DONE
+#	${UPPER} Loadable Kernel Module
+#
+# \$FreeBSD\$
+
+.PATH:  \${.CURDIR}/../../dev/${1}
+KMOD    = ${1}
+SRCS    = ${1}.c
+
+.include <bsd.kmod.mk>
+DONE
+
+echo -n "Do you want to build the '${1}' module? [Y]"
+read VAL
+if [ "-z" "$VAL" ]; then
+	VAL=YES
+fi
+case ${VAL} in
+[yY]*)
+	(cd ${TOP}/modules/${1}; make depend; make )
+	;;
+*)
+#	exit
+	;;
+esac
+
+echo ""
+echo -n "Do you want to build the '${UPPER}' kernel? [Y]"
+read VAL
+if [ "-z" "$VAL" ]; then
+	VAL=YES
+fi
+case ${VAL} in
+[yY]*)
+	(
+	 cd ${TOP}/i386/conf; \
+	 config ${UPPER}; \
+	 cd ${TOP}/i386/compile/${UPPER}; \
+	 make depend; \
+	 make; \
+	)
+	;;
+*)
+#	exit
+	;;
+esac
 
 #--------------end of script---------------
-#
-#you also need to add an entry into the cdevsw[]
-#array in conf.c, but it's too hard to do in a script..
 #
 #edit to your taste..
 #
