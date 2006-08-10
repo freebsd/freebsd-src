@@ -83,7 +83,7 @@ InitEEPROM(void)
  * .KB_C_FN_DEFINITION_END
  */
 void
-ReadEEPROM(unsigned ee_addr, char *data_addr, unsigned size)
+ReadEEPROM(unsigned ee_off, char *data_addr, unsigned size)
 {
 	const AT91PS_TWI 	twiPtr = AT91C_BASE_TWI;
 	unsigned int status;
@@ -96,7 +96,7 @@ ReadEEPROM(unsigned ee_addr, char *data_addr, unsigned size)
 	    AT91C_TWI_IADRSZ_2_BYTE | AT91C_TWI_MREAD;
 
 	// Set TWI Internal Address Register
-	twiPtr->TWI_IADR = ee_addr;
+	twiPtr->TWI_IADR = ee_off;
 
 	// Start transfer
 	twiPtr->TWI_CR = AT91C_TWI_START;
@@ -128,8 +128,8 @@ ReadEEPROM(unsigned ee_addr, char *data_addr, unsigned size)
 
 /*
  * .KB_C_FN_DEFINITION_START
- * void WriteEEPROM(unsigned ee_addr, char *data_addr, unsigned size)
- *  This global function writes data to the eeprom at ee_addr using data
+ * void WriteEEPROM(unsigned ee_off, char *data_addr, unsigned size)
+ *  This global function writes data to the eeprom at ee_off using data
  * from data_addr for size bytes.  Assume the TWI has been initialized.
  * This function does not utilize the page write mode as the write time is
  * much greater than the time required to access the device for byte-write
@@ -137,14 +137,14 @@ ReadEEPROM(unsigned ee_addr, char *data_addr, unsigned size)
  * .KB_C_FN_DEFINITION_END
  */
 void
-WriteEEPROM(unsigned ee_addr, char *data_addr, unsigned size)
+WriteEEPROM(unsigned ee_off, char *data_addr, unsigned size)
 {
 	const AT91PS_TWI 	twiPtr = AT91C_BASE_TWI;
 	unsigned		status;
 	char			test_data;
 
 	while (size--) {
-		if (!(ee_addr & 0x3f))
+		if (!(ee_off & 0x3f))
 			putchar('.');
 
 		// Set the TWI Master Mode Register
@@ -152,7 +152,7 @@ WriteEEPROM(unsigned ee_addr, char *data_addr, unsigned size)
 		    AT91C_TWI_IADRSZ_2_BYTE) & ~AT91C_TWI_MREAD;
 
 		// Set TWI Internal Address Register
-		twiPtr->TWI_IADR = ee_addr++;
+		twiPtr->TWI_IADR = ee_off++;
 
 		status = twiPtr->TWI_SR;
 
@@ -173,7 +173,7 @@ WriteEEPROM(unsigned ee_addr, char *data_addr, unsigned size)
 			continue;
 
 		// wait for write operation to complete
-		ReadEEPROM(ee_addr, &test_data, 1);
+		ReadEEPROM(ee_off, &test_data, 1);
 	}
 
 	putchar('\r');
