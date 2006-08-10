@@ -2727,6 +2727,9 @@ OLD_FILES+=usr/games/worm
 OLD_FILES+=usr/games/worms
 OLD_FILES+=usr/games/wump
 
+# 20060729: OpenSSL 0.9.7e -> 0.9.8b upgrade
+OLD_LIBS+=lib/libcrypto.so.4
+OLD_LIBS+=usr/lib/libssl.so.4
 # 20060521: gethostbyaddr(3) ABI change
 OLD_LIBS+=usr/lib/libroken.so.8
 OLD_LIBS+=lib/libatm.so.3
