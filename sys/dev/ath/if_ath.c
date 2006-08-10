@@ -5152,6 +5152,9 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		sc->sc_stats.ast_tx_packets = ifp->if_opackets;
 		sc->sc_stats.ast_rx_packets = ifp->if_ipackets;
 		sc->sc_stats.ast_rx_rssi = ieee80211_getrssi(ic);
+		sc->sc_stats.ast_rx_noise =
+			ath_hal_getchannoise(sc->sc_ah, &sc->sc_curchan);
+		sc->sc_stats.ast_tx_rate = sc->sc_hwmap[sc->sc_txrate].ieeerate;
 		ATH_UNLOCK(sc);
 		/*
 		 * NB: Drop the softc lock in case of a page fault;
@@ -5562,6 +5565,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	txrate = rt->info[rix].rateCode;
 	if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
 		txrate |= rt->info[rix].shortPreamble;
+	sc->sc_txrate = txrate;
 	try0 = params->ibp_try0;
 	ismrr = (params->ibp_try1 != 0);
 	txantenna = params->ibp_pri >> 2;
