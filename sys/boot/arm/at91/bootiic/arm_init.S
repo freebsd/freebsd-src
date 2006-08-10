@@ -117,3 +117,4 @@ BootCommandSection:
 	.string "tftp 0x20000000 kernel.bin             "
 	.string "e 0x20000000                           "
 #endif
+	.space 0x50
