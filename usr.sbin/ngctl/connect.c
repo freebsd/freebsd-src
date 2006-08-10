@@ -37,6 +37,10 @@
  * $FreeBSD$
  */
 
+#include <err.h>
+#include <netgraph.h>
+#include <stdio.h>
+
 #include "ngctl.h"
 
 static int ConnectCmd(int ac, char **av);
@@ -72,15 +76,15 @@ ConnectCmd(int ac, char **av)
 		snprintf(con.peerhook, sizeof(con.peerhook), "%s", av[3]);
 		break;
 	default:
-		return(CMDRTN_USAGE);
+		return (CMDRTN_USAGE);
 	}
 
 	/* Send message */
 	if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
 	    NGM_CONNECT, &con, sizeof(con)) < 0) {
 		warn("send msg");
-		return(CMDRTN_ERROR);
+		return (CMDRTN_ERROR);
 	}
-	return(CMDRTN_OK);
+	return (CMDRTN_OK);
 }
 

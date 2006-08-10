@@ -37,6 +37,10 @@
  * $FreeBSD$
  */
 
+#include <err.h>
+#include <netgraph.h>
+#include <stdio.h>
+
 #include "ngctl.h"
 
 static int RmHookCmd(int ac, char **av);
@@ -68,15 +72,15 @@ RmHookCmd(int ac, char **av)
 		snprintf(rmh.ourhook, sizeof(rmh.ourhook), "%s", av[1]);
 		break;
 	default:
-		return(CMDRTN_USAGE);
+		return (CMDRTN_USAGE);
 	}
 
 	/* Send message */
 	if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
 	    NGM_RMHOOK, &rmh, sizeof(rmh)) < 0) {
 		warn("send msg");
-		return(CMDRTN_ERROR);
+		return (CMDRTN_ERROR);
 	}
-	return(CMDRTN_OK);
+	return (CMDRTN_OK);
 }
 

@@ -38,6 +38,14 @@
  * $FreeBSD$
  */
 
+#include <err.h>
+#include <netgraph.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sysexits.h>
+#include <unistd.h>
+
 #include "ngctl.h"
 
 static int MsgCmd(int ac, char **av);
@@ -62,7 +70,7 @@ MsgCmd(int ac, char **av)
 
 	/* Get arguments */
 	if (ac < 3)
-		return(CMDRTN_USAGE);
+		return (CMDRTN_USAGE);
 	path = av[1];
 	cmdstr = av[2];
 
@@ -71,7 +79,7 @@ MsgCmd(int ac, char **av)
 		len += strlen(av[i]) + 1;
 	if ((buf = malloc(len)) == NULL) {
 		warn("malloc");
-		return(CMDRTN_ERROR);
+		return (CMDRTN_ERROR);
 	}
 	for (*buf = '\0', i = 3; i < ac; i++) {
 		snprintf(buf + strlen(buf),
@@ -82,7 +90,7 @@ MsgCmd(int ac, char **av)
 	if (NgSendAsciiMsg(csock, path, "%s%s", cmdstr, buf) < 0) {
 		free(buf);
 		warn("send msg");
-		return(CMDRTN_ERROR);
+		return (CMDRTN_ERROR);
 	}
 	free(buf);
 
@@ -106,7 +114,7 @@ MsgCmd(int ac, char **av)
 	}
 
 	/* Done */
-	return(CMDRTN_OK);
+	return (CMDRTN_OK);
 }
 
 /*
