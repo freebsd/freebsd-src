@@ -181,7 +181,10 @@ struct ieee80211_stats {
 	u_int32_t	is_ff_decap;		/* fast frames decap'd */
 	u_int32_t	is_ff_encap;		/* fast frames encap'd for tx */
 	u_int32_t	is_rx_badbintval;	/* rx frame w/ bogus bintval */
-	u_int32_t	is_spare[9];
+	u_int32_t	is_rx_demicfail;	/* rx demic failed */
+	u_int32_t	is_rx_defrag;		/* rx defragmentation failed */
+	u_int32_t	is_rx_mgmt;		/* rx management frames */
+	u_int32_t	is_spare[6];
 };
 
 /*

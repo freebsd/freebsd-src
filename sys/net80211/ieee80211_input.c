@@ -417,6 +417,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 		if (key != NULL && !ieee80211_crypto_demic(ic, key, m, 0)) {
 			IEEE80211_DISCARD_MAC(ic, IEEE80211_MSG_INPUT,
 			    ni->ni_macaddr, "data", "%s", "demic error");
+			ic->ic_stats.is_rx_demicfail++;
 			IEEE80211_NODE_STAT(ni, rx_demicfail);
 			goto out;
 		}
@@ -474,14 +475,11 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 				goto out;
 			}
 		}
-		ifp->if_ipackets++;
-		IEEE80211_NODE_STAT(ni, rx_data);
-		IEEE80211_NODE_STAT_ADD(ni, rx_bytes, m->m_pkthdr.len);
-
 		ieee80211_deliver_data(ic, ni, m);
 		return IEEE80211_FC0_TYPE_DATA;
 
 	case IEEE80211_FC0_TYPE_MGT:
+		ic->ic_stats.is_rx_mgmt++;
 		IEEE80211_NODE_STAT(ni, rx_mgmt);
 		if (dir != IEEE80211_FC1_DIR_NODS) {
 			IEEE80211_DISCARD(ic, IEEE80211_MSG_INPUT,
@@ -543,8 +541,8 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 		return type;
 
 	case IEEE80211_FC0_TYPE_CTL:
-		IEEE80211_NODE_STAT(ni, rx_ctrl);
 		ic->ic_stats.is_rx_ctl++;
+		IEEE80211_NODE_STAT(ni, rx_ctrl);
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
 			switch (subtype) {
 			case IEEE80211_FC0_SUBTYPE_PS_POLL:
@@ -639,6 +637,7 @@ ieee80211_defrag(struct ieee80211com *ic, struct ieee80211_node *ni,
 
  	if (mfrag == NULL) {
 		if (fragno != 0) {		/* !first fragment, discard */
+			ic->ic_stats.is_rx_defrag++;
 			IEEE80211_NODE_STAT(ni, rx_defrag);
 			m_freem(m);
 			return NULL;
@@ -668,12 +667,24 @@ ieee80211_deliver_data(struct ieee80211com *ic,
 	struct ether_header *eh = mtod(m, struct ether_header *);
 	struct ifnet *ifp = ic->ic_ifp;
 
+	/*
+	 * Do accounting.
+	 */
+	ifp->if_ipackets++;
+	IEEE80211_NODE_STAT(ni, rx_data);
+	IEEE80211_NODE_STAT_ADD(ni, rx_bytes, m->m_pkthdr.len);
+	if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
+		m->m_flags |= M_MCAST;		/* XXX M_BCAST? */
+		IEEE80211_NODE_STAT(ni, rx_mcast);
+	} else
+		IEEE80211_NODE_STAT(ni, rx_ucast);
+
 	/* perform as a bridge within the AP */
 	if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
 	    (ic->ic_flags & IEEE80211_F_NOBRIDGE) == 0) {
 		struct mbuf *m1 = NULL;
 
-		if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
+		if (m->m_flags & M_MCAST) {
 			m1 = m_dup(m, M_DONTWAIT);
 			if (m1 == NULL)
 				ifp->if_oerrors++;
@@ -708,6 +719,7 @@ ieee80211_deliver_data(struct ieee80211com *ic,
 			IF_HANDOFF(&ifp->if_snd, m1, ifp);
 	}
 	if (m != NULL) {
+		m->m_pkthdr.rcvif = ifp;
 		if (ni->ni_vlan != 0) {
 			/* attach vlan tag */
 			VLAN_INPUT_TAG(ifp, m, ni->ni_vlan);
@@ -1757,7 +1769,6 @@ ieee80211_deliver_l2uf(struct ieee80211_node *ni)
 	l2uf->xid[2] = 0x00;
 	
 	m->m_pkthdr.len = m->m_len = sizeof(*l2uf);
-	m->m_pkthdr.rcvif = ifp;
 	ieee80211_deliver_data(ic, ni, m);
 }
 
