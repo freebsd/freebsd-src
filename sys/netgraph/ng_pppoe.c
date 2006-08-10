@@ -693,7 +693,7 @@ ng_pppoe_connect(hook_p hook)
 {
 	const priv_p privp = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct ng_mesg *msg;
-	int error = 0;
+	int error;
 
 	if (hook != privp->ethernet_hook)
 		return (0);
@@ -1023,7 +1023,7 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			    ETHER_ADDR_LEN);
 			break;
 		default:
-			error = EINVAL;
+			LEAVE(EINVAL);
 		}
 		break;
 	default:
