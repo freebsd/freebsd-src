@@ -4,9 +4,7 @@
 
 # The boot loader
 .if ${MK_BOOT} != "no"
-.if ${MACHINE_ARCH} != "arm"
 SUBDIR=	boot
-.endif
 .endif
 
 # Directories to include in cscope name file and TAGS.
