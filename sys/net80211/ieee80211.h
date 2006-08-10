@@ -636,4 +636,28 @@ enum {
 #define	IEEE80211_FRAG_MIN		256
 #define	IEEE80211_FRAG_MAX		2346
 
+/*
+ * Beacon interval (TU's).  Min+max come from WiFi requirements.
+ * As above, we treat default as implementation-dependent so
+ * define it elsewhere.
+ */
+#define	IEEE80211_BINTVAL_MAX	1000	/* max beacon interval (TU's) */
+#define	IEEE80211_BINTVAL_MIN	25	/* min beacon interval (TU's) */
+
+/*
+ * DTIM period (beacons).  Min+max are not really defined
+ * by the protocol but we want them publicly visible so
+ * define them here.
+ */
+#define	IEEE80211_DTIM_MAX	15	/* max DTIM period */
+#define	IEEE80211_DTIM_MIN	1	/* min DTIM period */
+
+/*
+ * Beacon miss threshold (beacons).  As for DTIM, we define
+ * them here to be publicly visible.  Note the max may be
+ * clamped depending on device capabilities.
+ */
+#define	IEEE80211_HWBMISS_MIN 	1
+#define	IEEE80211_HWBMISS_MAX 	255
+
 #endif /* _NET80211_IEEE80211_H_ */

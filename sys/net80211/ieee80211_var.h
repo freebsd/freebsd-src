@@ -61,17 +61,10 @@
 #define	IEEE80211_TXPOWER_MAX	100	/* .5 dbM (XXX units?) */
 #define	IEEE80211_TXPOWER_MIN	0	/* kill radio */
 
-#define	IEEE80211_DTIM_MAX	15	/* max DTIM period */
-#define	IEEE80211_DTIM_MIN	1	/* min DTIM period */
 #define	IEEE80211_DTIM_DEFAULT	1	/* default DTIM period */
-
-/* NB: min+max come from WiFi requirements */
-#define	IEEE80211_BINTVAL_MAX	1000	/* max beacon interval (TU's) */
-#define	IEEE80211_BINTVAL_MIN	25	/* min beacon interval (TU's) */
 #define	IEEE80211_BINTVAL_DEFAULT 100	/* default beacon interval (TU's) */
 
 #define	IEEE80211_BMISS_MAX	2	/* maximum consecutive bmiss allowed */
-#define	IEEE80211_SWBMISS_THRESHOLD 50	/* s/w bmiss threshold (TU's) */
 #define	IEEE80211_HWBMISS_DEFAULT 7	/* h/w bmiss threshold (beacons) */
 
 #define	IEEE80211_PS_SLEEP	0x1	/* STA is in power saving mode */
