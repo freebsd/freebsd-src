@@ -94,6 +94,8 @@ struct ath_stats {
 	u_int32_t	ast_rx_ctl;	/* rx discarded 'cuz ctl frame */
 	int8_t		ast_tx_rssi;	/* tx rssi of last ack */
 	int8_t		ast_rx_rssi;	/* rx rssi from histogram */
+	int8_t		ast_rx_noise;	/* rx noise floor */
+	u_int8_t	ast_tx_rate;	/* IEEE rate of last unicast tx */
 	u_int32_t	ast_be_xmit;	/* beacons transmitted */
 	u_int32_t	ast_be_nombuf;	/* beacon setup failed 'cuz no mbuf */
 	u_int32_t	ast_per_cal;	/* periodic calibration calls */
