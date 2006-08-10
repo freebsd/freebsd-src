@@ -1,4 +1,4 @@
-/******************************************************************************
+/*******************************************************************************
  *
  * Filename: emac.c
  *
@@ -18,27 +18,27 @@
  * owners.  This software is not copyrighted and is intended for reference
  * only.
  * END_BLOCK
- *
+ * 
  * $FreeBSD$
- *****************************************************************************/
+ ******************************************************************************/
 
 #include "at91rm9200.h"
-#include "emac.h"
-#include "p_string.h"
 #include "at91rm9200_lowlevel.h"
+#include "emac.h"
 #include "lib.h"
 
-/******************************* GLOBALS *************************************/
+/* ****************************** GLOBALS *************************************/
 
-/*********************** PRIVATE FUNCTIONS/DATA ******************************/
+/* ********************** PRIVATE FUNCTIONS/DATA ******************************/
 
-static unsigned localMACSet, serverMACSet, MAC_init;
+static unsigned localMACSet, serverMACSet;
 static unsigned char localMACAddr[6], serverMACAddr[6];
-static unsigned localIPAddr, serverIPAddr;
+static unsigned localMAClow, localMAChigh;
+static unsigned localIPSet, serverIPSet;
+static unsigned char localIPAddr[4], serverIPAddr[4];
 static unsigned short	serverPort, localPort;
 static int	ackBlock;
-
-static unsigned	lastAddress, lastSize;
+static unsigned	lastSize;
 static char *dlAddress;
 
 static unsigned transmitBuffer[1024 / sizeof(unsigned)];
@@ -54,16 +54,17 @@ receive_descriptor_t *p_rxBD;
  * .KB_C_FN_DEFINITION_END
  */
 static unsigned short
-IP_checksum(void *cp, int len)
+IP_checksum(unsigned short *p, int len) 
 {
 	unsigned	i, t;
-	unsigned short *p = (unsigned short *)cp;
 
 	len &= ~1;
+
 	for (i=0,t=0; i<len; i+=2, ++p)
 		t += SWAP16(*p);
+
 	t = (t & 0xffff) + (t >> 16);
-	return (~t);
+	return (~t);									
 }
 
 
@@ -79,7 +80,9 @@ GetServerAddress(void)
 	arp_header_t	*p_ARP;
 
 	p_ARP = (arp_header_t*)transmitBuffer;
+
 	p_memset((char*)p_ARP->dest_mac, 0xFF, 6);
+
 	p_memcpy((char*)p_ARP->src_mac, (char*)localMACAddr, 6);
 
 	p_ARP->frame_type = SWAP16(PROTOCOL_ARP);
@@ -90,8 +93,11 @@ GetServerAddress(void)
 	p_ARP->operation  = SWAP16(ARP_REQUEST);
 
 	p_memcpy((char*)p_ARP->sender_mac, (char*)localMACAddr, 6);
+
 	p_memcpy((char*)p_ARP->sender_ip, (char*)localIPAddr, 4);
+
 	p_memset((char*)p_ARP->target_mac, 0, 6);
+
 	p_memcpy((char*)p_ARP->target_ip, (char*)serverIPAddr, 4);
 
 	// wait until transmit is available
@@ -118,11 +124,12 @@ Send_TFTP_Packet(char *tftpData, unsigned tftpLength)
 	unsigned		t_checksum;
 
 	p_memcpy((char*)macHdr->dest_mac, (char*)serverMACAddr, 6);
+
 	p_memcpy((char*)macHdr->src_mac, (char*)localMACAddr, 6);
 
 	macHdr->proto_mac = SWAP16(PROTOCOL_IP);
 
-	ipHdr = &macHdr->iphdr;
+	ipHdr = (ip_header_t*)&macHdr->packet_length;
 
 	ipHdr->ip_v_hl = 0x45;
 	ipHdr->ip_tos = 0;
@@ -134,9 +141,10 @@ Send_TFTP_Packet(char *tftpData, unsigned tftpLength)
 	ipHdr->ip_sum = 0;
 
 	p_memcpy((char*)ipHdr->ip_src, (char*)localIPAddr, 4);
+
 	p_memcpy((char*)ipHdr->ip_dst, (char*)serverIPAddr, 4);
 
-	ipHdr->ip_sum = SWAP16(IP_checksum(ipHdr, 20));
+	ipHdr->ip_sum = SWAP16(IP_checksum((unsigned short*)ipHdr, 20));
 
 	udpHdr = (udp_header_t*)(ipHdr + 1);
 
@@ -147,7 +155,7 @@ Send_TFTP_Packet(char *tftpData, unsigned tftpLength)
 
 	p_memcpy((char*)udpHdr+8, tftpData, tftpLength);
 
-	t_checksum = IP_checksum((char *)ipHdr + 12, (16 + tftpLength));
+	t_checksum = IP_checksum((unsigned short*)ipHdr + 6, (16 + tftpLength));
 
 	t_checksum = (~t_checksum) & 0xFFFF;
 	t_checksum += 25 + tftpLength;
@@ -178,7 +186,7 @@ TFTP_RequestFile(char *filename)
 	char		*cPtr, *ePtr, *mPtr;
 	unsigned	length;
 
-	tftpHeader.opcode = SWAP16(TFTP_RRQ_OPCODE);
+	tftpHeader.opcode = TFTP_RRQ_OPCODE;
 
 	cPtr = (char*)&(tftpHeader.block_num);
 
@@ -203,19 +211,21 @@ TFTP_ACK_Data(char *data, unsigned short block_num, unsigned short len)
 {
 	tftp_header_t	tftpHeader;
 
-	if (block_num == SWAP16(ackBlock + 1)) {
+	if (block_num == (ackBlock + 1)) {
 		++ackBlock;
 		p_memcpy(dlAddress, data, len);
 		dlAddress += len;
 		lastSize += len;
+		if (ackBlock % 128 == 0)
+			printf("tftp: %u kB\r", lastSize / 1024);
 	}
-
-	tftpHeader.opcode = SWAP16(TFTP_ACK_OPCODE);
-	tftpHeader.block_num = block_num;
+	tftpHeader.opcode = TFTP_ACK_OPCODE;
+	tftpHeader.block_num = SWAP16(ackBlock);
 	Send_TFTP_Packet((char*)&tftpHeader, 4);
-
-	if (len < 512)
+	if (len < 512) {
 		ackBlock = -2;
+		printf("tftp: %u byte\r\n", lastSize);
+	}
 }
 
 
@@ -226,8 +236,8 @@ TFTP_ACK_Data(char *data, unsigned short block_num, unsigned short len)
  * any here.
  * .KB_C_FN_DEFINITION_END
  */
-static void
-CheckForNewPacket(void)
+static int
+CheckForNewPacket(ip_header_t *pHeader)
 {
 	unsigned short	*pFrameType;
 	unsigned	i;
@@ -246,21 +256,18 @@ CheckForNewPacket(void)
 	}
 		
 	if (!process)
-		return ;
+		return (0);
 						
 	process = i;
 		
-	pFrameType = (unsigned short *) ((p_rxBD[i].address & 0xFFFFFFFC) + 12);
+	pFrameType = (unsigned short *)((p_rxBD[i].address & 0xFFFFFFFC) + 12);
 	pData      = (char *)(p_rxBD[i].address & 0xFFFFFFFC);
 
-	switch (SWAP16(*pFrameType)) {
+	switch (*pFrameType) {
 
-	case PROTOCOL_ARP:
+	case SWAP16(PROTOCOL_ARP):
 		p_ARP = (arp_header_t*)pData;
-
-		i = SWAP16(p_ARP->operation);
-		if (i == ARP_REPLY) {
-
+		if (p_ARP->operation == SWAP16(ARP_REPLY)) {
 			// check if new server info is available
 			if ((!serverMACSet) &&
 				(!(p_memcmp((char*)p_ARP->sender_ip,
@@ -271,34 +278,38 @@ CheckForNewPacket(void)
 				p_memcpy((char*)serverMACAddr,
 					(char*)p_ARP->sender_mac, 6);
 			}
-		} else if (i == ARP_REQUEST) {
-
+		} else if (p_ARP->operation == SWAP16(ARP_REQUEST)) {
 			// ARP REPLY operation
 			p_ARP->operation =  SWAP16(ARP_REPLY);
 
-			// Swap the src/dst MAC addr
-			p_memcpy(p_ARP->dest_mac, p_ARP->src_mac, 6);
-			p_memcpy(p_ARP->src_mac, localMACAddr, 6);
-			
-			// Do IP and MAC addr at same time.
-			p_memcpy(p_ARP->target_mac, p_ARP->sender_mac, 10);
-			p_memcpy(p_ARP->sender_mac, localMACAddr, 6);
-			p_memcpy(p_ARP->sender_ip, (char *)&localIPAddr, 4);
+			// Fill the dest address and src address
+			for (i = 0; i <6; i++) {
+				// swap ethernet dest address and ethernet src address
+				pData[i] = pData[i+6];
+				pData[i+6] = localMACAddr[i];
+				// swap sender ethernet address and target ethernet address
+				pData[i+22] = localMACAddr[i];
+				pData[i+32] = pData[i+6];
+			}									
 
-			if (!(*AT91C_EMAC_TSR & AT91C_EMAC_BNQ))
-				break;
+			// swap sender IP address and target IP address
+			for (i = 0; i<4; i++) {				
+				pData[i+38] = pData[i+28];
+				pData[i+28] = localIPAddr[i];
+			}
+
+			if (!(*AT91C_EMAC_TSR & AT91C_EMAC_BNQ)) break;
 
 		  	*AT91C_EMAC_TSR |= AT91C_EMAC_COMP;
 			*AT91C_EMAC_TAR = (unsigned)pData;
  			*AT91C_EMAC_TCR = 0x40;
 		}
-	break;
+		break;
+	case SWAP16(PROTOCOL_IP):
+		pIpHeader = (ip_header_t*)(pData + 14);			
+		p_memcpy((char*)pHeader, (char*)pIpHeader,sizeof(ip_header_t));
 		
-	case PROTOCOL_IP:
-		pIpHeader = (ip_header_t*)(pData + 14);
-		switch(pIpHeader->ip_p) {
-		case PROTOCOL_UDP:
-		{
+		if (pIpHeader->ip_p == PROTOCOL_UDP) {
 			udp_header_t	*udpHdr;
 			tftp_header_t	*tftpHdr;
 
@@ -308,34 +319,26 @@ CheckForNewPacket(void)
 			if (udpHdr->dst_port != localPort)
 				break;
 
-			if (tftpHdr->opcode != SWAP16(TFTP_DATA_OPCODE))
+			if (tftpHdr->opcode != TFTP_DATA_OPCODE)
 				break;
 
 			if (ackBlock == -1) {
 				if (tftpHdr->block_num != SWAP16(1))
-						break;
-					serverPort = udpHdr->src_port;
-					ackBlock = 0;
-				}
+					break;
+				serverPort = udpHdr->src_port;
+				ackBlock = 0;
+			}
 
 			if (serverPort != udpHdr->src_port)
 				break;
 
 			TFTP_ACK_Data(tftpHdr->data,
-				tftpHdr->block_num,
-				SWAP16(udpHdr->udp_len) - 12);
+			    SWAP16(tftpHdr->block_num),
+			    SWAP16(udpHdr->udp_len) - 12);
 		}
-		break;
-
-		default:
-			break;
-		}
-	break;
-						
-	default:
-		break;
 	}
 	p_rxBD[process].address &= ~0x01;
+	return (1);
 }
 
 
@@ -357,6 +360,25 @@ AT91F_MII_ReadPhy (AT91PS_EMAC pEmac, unsigned char addr)
 	return (pEmac->EMAC_MAN & 0x0000ffff);
 }
 
+/*
+ * .KB_C_FN_DEFINITION_START
+ * unsigned short AT91F_MII_ReadPhy (AT91PS_EMAC pEmac, unsigned char addr)
+ *  This private function reads the PHY device.
+ * .KB_C_FN_DEFINITION_END
+ */
+#ifdef BOOT_TSC
+static unsigned short
+AT91F_MII_WritePhy (AT91PS_EMAC pEmac, unsigned char addr, unsigned short s)
+{
+	unsigned value = 0x50020000 | (addr << 18) | s;
+
+	pEmac->EMAC_CTL |= AT91C_EMAC_MPE;
+	pEmac->EMAC_MAN = value;
+  	while(!((pEmac->EMAC_SR) & AT91C_EMAC_IDLE));
+	pEmac->EMAC_CTL &= ~AT91C_EMAC_MPE;
+	return (pEmac->EMAC_MAN & 0x0000ffff);
+}
+#endif
 
 /*
  * .KB_C_FN_DEFINITION_START
@@ -367,28 +389,52 @@ AT91F_MII_ReadPhy (AT91PS_EMAC pEmac, unsigned char addr)
 static void
 MII_GetLinkSpeed(AT91PS_EMAC pEmac)
 {
-	unsigned short stat2;
-	unsigned update = 0;
-
+	unsigned short stat2; 
+	unsigned update;
+#ifdef BOOT_TSC
+	unsigned sec;
+	int i;
+#endif
+#ifdef BOOT_KB9202
 	stat2 = AT91F_MII_ReadPhy(pEmac, MII_STS2_REG);
-
-	if (!(stat2 & 0x400)) {
+	if (!(stat2 & MII_STS2_LINK))
 		return ;
-
-	} else if (stat2 & 0x4000) {
-
+	update = pEmac->EMAC_CFG & ~(AT91C_EMAC_SPD | AT91C_EMAC_FD);
+	if (stat2 & MII_STS2_100TX)
 		update |= AT91C_EMAC_SPD;
-
-		if (stat2 & 0x200) {
-			update |= AT91C_EMAC_FD;
+	if (stat2 & MII_STS2_FDX)
+		update |= AT91C_EMAC_FD;
+#endif
+#ifdef BOOT_TSC
+	while (1) {
+		for (i = 0; i < 10; i++) {
+			stat2 = AT91F_MII_ReadPhy(pEmac, MII_STS_REG);
+			if (stat2 & MII_STS_LINK_STAT)
+				break;
+			printf(".");
+			sec = GetSeconds();
+			while (GetSeconds() <= sec) continue;
 		}
-
-	} else if (stat2 & 0x200) {
+		if (stat2 & MII_STS_LINK_STAT)
+			break;
+		printf("Resetting MII...");
+		AT91F_MII_WritePhy(pEmac, 0x0, 0x8000);
+		while (AT91F_MII_ReadPhy(pEmac, 0x0) & 0x8000) continue;
+	}
+	printf("emac: link");
+	stat2 = AT91F_MII_ReadPhy(pEmac, MII_SPEC_STS_REG);
+	update = pEmac->EMAC_CFG & ~(AT91C_EMAC_SPD | AT91C_EMAC_FD);
+	if (stat2 & (MII_SSTS_100FDX | MII_SSTS_100HDX)) {
+		printf(" 100TX");
+		update |= AT91C_EMAC_SPD;
+	}
+	if (stat2 & (MII_SSTS_100FDX | MII_SSTS_10FDX)) {
+		printf(" FDX");
 		update |= AT91C_EMAC_FD;
 	}
-
-	pEmac->EMAC_CFG =
-		(pEmac->EMAC_CFG & ~(AT91C_EMAC_SPD | AT91C_EMAC_FD)) | update;
+	printf("\r\n");
+#endif
+	pEmac->EMAC_CFG = update;
 }
 
 
@@ -406,6 +452,7 @@ AT91F_EmacEntry(void)
 	AT91PS_EMAC	pEmac = AT91C_BASE_EMAC;
 
 	for (i = 0; i < MAX_RX_PACKETS; ++i) {
+
 		p_rxBD[i].address = (unsigned)pRxPacket;
 		p_rxBD[i].size = 0;
 		pRxPacket += RX_PACKET_SIZE;
@@ -414,23 +461,12 @@ AT91F_EmacEntry(void)
 	// Set the WRAP bit at the end of the list descriptor
 	p_rxBD[MAX_RX_PACKETS-1].address |= 0x02;
 
-	pEmac->EMAC_CTL  = 0;
-
-	if(!(pEmac->EMAC_SR & AT91C_EMAC_LINK))
+	if (!(pEmac->EMAC_SR & AT91C_EMAC_LINK))
 		MII_GetLinkSpeed(pEmac);
-
-	// the sequence write EMAC_SA1L and write EMAC_SA1H must be respected
-	pEmac->EMAC_SA1L = ((unsigned)localMACAddr[2] << 24) | 
-	    ((unsigned)localMACAddr[3] << 16) | ((int)localMACAddr[4] << 8) |
-	    localMACAddr[5];
-	pEmac->EMAC_SA1H = ((unsigned)localMACAddr[0] << 8) | localMACAddr[1];
 
 	pEmac->EMAC_RBQP = (unsigned) p_rxBD;
 	pEmac->EMAC_RSR  |= (AT91C_EMAC_OVR | AT91C_EMAC_REC | AT91C_EMAC_BNA);
-	pEmac->EMAC_CFG  |= AT91C_EMAC_CAF;
-	pEmac->EMAC_CFG  = (pEmac->EMAC_CFG & ~(AT91C_EMAC_CLK)) |
-		AT91C_EMAC_CLK_HCLK_32;
-	pEmac->EMAC_CTL  |= (AT91C_EMAC_TE | AT91C_EMAC_RE);
+	pEmac->EMAC_CTL  = AT91C_EMAC_TE | AT91C_EMAC_RE;
 
 	pEmac->EMAC_TAR = (unsigned)transmitBuffer;
 }	
@@ -447,33 +483,50 @@ AT91F_EmacEntry(void)
  * .KB_C_FN_DEFINITION_END
  */
 void
-SetMACAddress(unsigned low_address, unsigned high_address)
+SetMACAddress(unsigned char mac[6])
 {
-
-	AT91PS_EMAC	pEmac = AT91C_BASE_EMAC;
 	AT91PS_PMC	pPMC = AT91C_BASE_PMC;
+	AT91PS_EMAC	pEmac = AT91C_BASE_EMAC;
 
 	/* enable the peripheral clock before using EMAC */
 	pPMC->PMC_PCER = ((unsigned) 1 << AT91C_ID_EMAC);
 
-	pEmac->EMAC_SA1L = low_address;
-	pEmac->EMAC_SA1H = (high_address & 0x0000ffff);
-
-	localMACAddr[0] = (low_address >>  0) & 0xFF;
-	localMACAddr[1] = (low_address >>  8) & 0xFF;
-	localMACAddr[2] = (low_address >> 16) & 0xFF;
-	localMACAddr[3] = (low_address >> 24) & 0xFF;
-	localMACAddr[4] = (high_address >> 0) & 0xFF;
-	localMACAddr[5] = (high_address >> 8) & 0xFF;
-
+	p_memcpy(localMACAddr, mac, 6);
+	localMAClow = (mac[2] << 24) | (mac[3] << 16) | (mac[4] << 8) | mac[5];
+	localMAChigh = (mac[0] << 8) | mac[1];
 	localMACSet = 1;
 
-	// low_address  & 0x000000ff = first byte in address
-	// low_address  & 0x0000ff00 = next
-	// low_address  & 0x00ff0000 = next
-	// low_address  & 0xff000000 = next
-	// high_address & 0x000000ff = next
-	// high_address & 0x0000ff00 = last byte in address
+	AT91C_BASE_PMC->PMC_PCER = 1u << AT91C_ID_EMAC;
+	AT91C_BASE_PIOA->PIO_ASR = 
+	  AT91C_PA14_ERXER | AT91C_PA12_ERX0 | AT91C_PA13_ERX1 |
+	  AT91C_PA8_ETXEN | AT91C_PA16_EMDIO | AT91C_PA9_ETX0 |
+	  AT91C_PA10_ETX1 | AT91C_PA11_ECRS_ECRSDV | AT91C_PA15_EMDC |
+	  AT91C_PA7_ETXCK_EREFCK;
+	AT91C_BASE_PIOA->PIO_PDR = 
+	  AT91C_PA14_ERXER | AT91C_PA12_ERX0 | AT91C_PA13_ERX1 |
+	  AT91C_PA8_ETXEN | AT91C_PA16_EMDIO | AT91C_PA9_ETX0 |
+	  AT91C_PA10_ETX1 | AT91C_PA11_ECRS_ECRSDV | AT91C_PA15_EMDC |
+	  AT91C_PA7_ETXCK_EREFCK;
+#ifdef BOOT_KB9202	/* Really !RMII */
+	AT91C_BASE_PIOB->PIO_BSR =
+	  AT91C_PB12_ETX2 | AT91C_PB13_ETX3 | AT91C_PB14_ETXER |
+	  AT91C_PB15_ERX2 | AT91C_PB16_ERX3 | AT91C_PB17_ERXDV |
+	  AT91C_PB18_ECOL | AT91C_PB19_ERXCK;
+	AT91C_BASE_PIOB->PIO_PDR =
+	  AT91C_PB12_ETX2 | AT91C_PB13_ETX3 | AT91C_PB14_ETXER |
+	  AT91C_PB15_ERX2 | AT91C_PB16_ERX3 | AT91C_PB17_ERXDV |
+	  AT91C_PB18_ECOL | AT91C_PB19_ERXCK;
+#endif
+	pEmac->EMAC_CTL  = 0;
+
+	pEmac->EMAC_CFG  = (pEmac->EMAC_CFG & ~(AT91C_EMAC_CLK)) |
+#ifdef BOOT_TSC
+	    AT91C_EMAC_RMII |
+#endif
+	    AT91C_EMAC_CLK_HCLK_32 | AT91C_EMAC_CAF;
+	// the sequence write EMAC_SA1L and write EMAC_SA1H must be respected
+	pEmac->EMAC_SA1L = localMAClow;
+	pEmac->EMAC_SA1H = localMAChigh;
 }
 
 
@@ -488,7 +541,13 @@ SetServerIPAddress(unsigned address)
 {
 	// force update in case the IP has changed
 	serverMACSet = 0;
-	serverIPAddr = address;
+
+	serverIPAddr[0] = (address >> 24) & 0xFF;
+	serverIPAddr[1] = (address >> 16) & 0xFF;
+	serverIPAddr[2] = (address >>  8) & 0xFF;
+	serverIPAddr[3] = (address >>  0) & 0xFF;
+
+	serverIPSet = 1;
 }
 
 
@@ -503,7 +562,13 @@ SetLocalIPAddress(unsigned address)
 {
 	// force update in case the IP has changed
 	serverMACSet = 0;
-	localIPAddr = address;
+
+	localIPAddr[0] = (address >> 24) & 0xFF;
+	localIPAddr[1] = (address >> 16) & 0xFF;
+	localIPAddr[2] = (address >>  8) & 0xFF;
+	localIPAddr[3] = (address >>  0) & 0xFF;
+
+	localIPSet = 1;
 }
 
 
@@ -518,131 +583,46 @@ SetLocalIPAddress(unsigned address)
 void
 TFTP_Download(unsigned address, char *filename)
 {
-	unsigned	thisSeconds, running, state;
-	int		timeout, tickUpdate;
+	ip_header_t 	IpHeader;
+	unsigned	thisSeconds;
+	int		timeout;
 
-	if (!address) {
-		// report last transfer information
-		printf("Last tftp transfer info --\r\n"
-		  "address: 0x%x\r\n"
-		  "   size: 0x%x\r\n", lastAddress, lastSize);
+	if ((!localMACSet) || (!localIPSet) || (!serverIPSet))
 		return ;
-	}
-
-	if ((!localMACSet) || (!localIPAddr) || (!serverIPAddr))
-		return ;
-
-	if (!MAC_init) {
-		AT91C_BASE_PMC->PMC_PCER = 1u << AT91C_ID_EMAC;
-
-		AT91C_BASE_PIOA->PIO_ASR =
-			AT91C_PA14_ERXER |
-			AT91C_PA12_ERX0 |
-			AT91C_PA13_ERX1 |
-			AT91C_PA8_ETXEN |
-			AT91C_PA16_EMDIO |
-			AT91C_PA9_ETX0 |
-			AT91C_PA10_ETX1 |
-			AT91C_PA11_ECRS_ECRSDV |
-			AT91C_PA15_EMDC |
-			AT91C_PA7_ETXCK_EREFCK;
-		AT91C_BASE_PIOA->PIO_BSR = 0;
-		AT91C_BASE_PIOA->PIO_PDR =
-			AT91C_PA14_ERXER |
-			AT91C_PA12_ERX0 |
-			AT91C_PA13_ERX1 |
-			AT91C_PA8_ETXEN |
-			AT91C_PA16_EMDIO |
-			AT91C_PA9_ETX0 |
-			AT91C_PA10_ETX1 |
-			AT91C_PA11_ECRS_ECRSDV |
-			AT91C_PA15_EMDC |
-			AT91C_PA7_ETXCK_EREFCK;
-		AT91C_BASE_PIOB->PIO_ASR = 0;
-		AT91C_BASE_PIOB->PIO_BSR =
-			AT91C_PB12_ETX2 |
-			AT91C_PB13_ETX3 |
-			AT91C_PB14_ETXER |
-			AT91C_PB15_ERX2 |
-			AT91C_PB16_ERX3 |
-			AT91C_PB17_ERXDV |
-			AT91C_PB18_ECOL |
-			AT91C_PB19_ERXCK;
-		AT91C_BASE_PIOB->PIO_PDR =
-			AT91C_PB12_ETX2 |
-			AT91C_PB13_ETX3 |
-			AT91C_PB14_ETXER |
-			AT91C_PB15_ERX2 |
-			AT91C_PB16_ERX3 |
-			AT91C_PB17_ERXDV |
-			AT91C_PB18_ECOL |
-			AT91C_PB19_ERXCK;
-		MAC_init = 1;
-	}
 
 	AT91F_EmacEntry();
-
 	GetServerAddress();
-	lastAddress = address;
 	dlAddress = (char*)address;
 	lastSize = 0;
-	running = 1;
-	state = TFTP_WAITING_SERVER_MAC;
 	timeout = 10;
-	thisSeconds = GetSeconds();
+	thisSeconds = GetSeconds() + 1;
 	serverPort = SWAP16(69);
-	localPort++;		/* In network byte order, but who cares */
+	++localPort;
 	ackBlock = -1;
 
-	while (running && timeout) {
-
-		CheckForNewPacket();
-
-		tickUpdate = 0;
-
-		if (thisSeconds != GetSeconds()) {
-			tickUpdate = 1;
+	while (timeout) {
+		if (CheckForNewPacket(&IpHeader)) {
+			if (ackBlock == -2)
+				break;
+			timeout = 10;
+			thisSeconds = GetSeconds() + 1;
+		} else if (GetSeconds() > thisSeconds) {
 			--timeout;
-			thisSeconds = GetSeconds();
-		}
-
-		switch (state) {
-
-			case TFTP_WAITING_SERVER_MAC:
-				if (serverMACSet) {
-					state = TFTP_SEND_REQUEST;
-					break;
-				}
-
-				if (tickUpdate)
-					GetServerAddress();
-				break;
-
-			case TFTP_SEND_REQUEST:
-				// send request for file
-				if (ackBlock != -1) {
-					state = TFTP_GET_DATA;
-					break;
-				}
-
-				if (tickUpdate)
-					TFTP_RequestFile(filename);
-				break;
-
-			case TFTP_GET_DATA:
-				// receiving data
-				if (ackBlock == -2) {
-					state = TFTP_COMPLETE;
-					break;
-				}
-				break;
-
-			case TFTP_COMPLETE:
-			default:
-				running = 0;
-				break;
+			thisSeconds = GetSeconds() + 1;
+			if (!serverMACSet)
+				GetServerAddress();
+			else if (ackBlock == -1)
+				TFTP_RequestFile(filename);
+			else {
+				// Be sure to send a NAK, which is done by
+				// ACKing the last block we got.
+				TFTP_ACK_Data(0, ackBlock, 512);
+				printf("\nNAK %u\r\n", ackBlock);
+			}
 		}
 	}
+	if (timeout == 0)
+		printf("TFTP TIMEOUT!\r\n");
 }
 
 
@@ -658,8 +638,8 @@ EMAC_Init(void)
 	p_rxBD = (receive_descriptor_t*)RX_BUFFER_START;
 	localMACSet = 0;
 	serverMACSet = 0;
+	localIPSet = 0;
+	serverIPSet = 0;
 	localPort = SWAP16(0x8002);
-	lastAddress = 0;
 	lastSize = 0;
-	MAC_init = 0;
 }
