@@ -2653,15 +2653,15 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		LIST_FOREACH(node, &ng_nodelist, nd_nodes) {
 			struct nodeinfo *const np = &nl->nodeinfo[nl->numnames];
 
+			if (NG_NODE_NOT_VALID(node))
+				continue;
+			if (!unnamed && (! NG_NODE_HAS_NAME(node)))
+				continue;
 			if (nl->numnames >= num) {
 				log(LOG_ERR, "%s: number of %s changed\n",
 				    __func__, "nodes");
 				break;
 			}
-			if (NG_NODE_NOT_VALID(node))
-				continue;
-			if (!unnamed && (! NG_NODE_HAS_NAME(node)))
-				continue;
 			if (NG_NODE_HAS_NAME(node))
 				strcpy(np->name, NG_NODE_NAME(node));
 			strcpy(np->type, node->nd_type->name);
