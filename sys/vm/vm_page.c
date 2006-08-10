@@ -1733,7 +1733,7 @@ vm_page_cowfault(vm_page_t m)
  retry_alloc:
 	pmap_remove_all(m);
 	vm_page_remove(m);
-	mnew = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL);
+	mnew = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY);
 	if (mnew == NULL) {
 		vm_page_insert(m, object, pindex);
 		vm_page_unlock_queues();
@@ -1757,7 +1757,6 @@ vm_page_cowfault(vm_page_t m)
 			pmap_copy_page(m, mnew);
 		mnew->valid = VM_PAGE_BITS_ALL;
 		vm_page_dirty(mnew);
-		vm_page_flag_clear(mnew, PG_BUSY);
 		mnew->wire_count = m->wire_count - m->cow;
 		m->wire_count = m->cow;
 	}
