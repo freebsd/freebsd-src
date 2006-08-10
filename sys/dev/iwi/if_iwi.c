@@ -438,6 +438,7 @@ iwi_attach(device_t dev)
 	}
 
 	ieee80211_ifattach(ic);
+	ic->ic_bmissthreshold = 10;		/* override default */
 	/* override default methods */
 	ic->ic_node_alloc = iwi_node_alloc;
 	sc->sc_node_free = ic->ic_node_free;
