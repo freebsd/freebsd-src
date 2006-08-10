@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2005
+.Dd June 6, 2006
 .Dt PFSYNC 4
 .Os
 .Sh NAME
@@ -103,6 +103,9 @@ interface:
 .Bd -literal -offset indent
 # ifconfig pfsync0 syncdev fxp0
 .Ed
+.Pp
+It is important that the underlying synchronisation interface is up
+and has an IP address assigned.
 .Pp
 By default, state change messages are sent out on the synchronisation
 interface using IP multicast packets.
@@ -206,7 +209,7 @@ The following should be added to the top of
 .Pa /etc/pf.conf :
 .Bd -literal -offset indent
 pass quick on { sis2 } proto pfsync
-pass on { sis0 sis1 } proto carp keep state
+pass quick on { sis0 sis1 } proto carp keep state
 .Ed
 .Pp
 If it is preferable that one firewall handle the traffic,
