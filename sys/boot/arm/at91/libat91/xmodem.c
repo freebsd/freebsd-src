@@ -39,6 +39,7 @@
 #define CAN			0x18	/* Cancel */
 #define EOT			0x04	/* end of text */
 
+#define TO	10
 /*
  * int GetRecord(char , char *)
  *  This private function receives a x-modem record to the pointer and
@@ -53,17 +54,17 @@ GetRecord(char blocknum, char *dest)
 
 	chk = 0;
 
-	if ((ch = getc(1)) == -1)
+	if ((ch = getc(TO)) == -1)
 		goto err;
-	if (ch != blocknum)
+	if (ch != blocknum) 
 		goto err;
-	if ((ch = getc(1)) == -1)
+	if ((ch = getc(TO)) == -1) 
 		goto err;
 	if (ch != (~blocknum & 0xff))
 		goto err;
 	
 	for (size = 0; size < PACKET_SIZE; ++size) {
-		if ((ch = getc(1)) == -1)
+		if ((ch = getc(TO)) == -1)
 			goto err;
 		chk = chk ^ ch << 8;
 		for (j = 0; j < 8; ++j) {
@@ -77,10 +78,10 @@ GetRecord(char blocknum, char *dest)
 
 	chk &= 0xFFFF;
 
-	if (((ch = getc(1)) == -1) || ((ch & 0xff) != ((chk >> 8) & 0xFF)))
-	    goto err;
-	if (((ch = getc(1)) == -1) || ((ch & 0xff) != (chk & 0xFF)))
-	    goto err;
+	if (((ch = getc(TO)) == -1) || ((ch & 0xff) != ((chk >> 8) & 0xFF)))
+		goto err;
+	if (((ch = getc(TO)) == -1) || ((ch & 0xff) != (chk & 0xFF)))
+		goto err;
 	putchar(ACK);
 
 	return (1);
