@@ -109,16 +109,22 @@ static void	vo_set_device_state(ACPI_HANDLE, UINT32);
 #define DOS_BRIGHTNESS_BY_BIOS	(1 << 2)
 
 /* _DOD and subdev's _ADR */
-#define DOD_DEVID_MASK		0xffff
+#define DOD_DEVID_MASK		0x0f00
+#define DOD_DEVID_MASK_FULL	0xffff
+#define DOD_DEVID_MASK_DISPIDX	0x000f
+#define DOD_DEVID_MASK_DISPPORT	0x00f0
 #define DOD_DEVID_MONITOR	0x0100
-#define DOD_DEVID_PANEL		0x0110
+#define DOD_DEVID_LCD		0x0110
 #define DOD_DEVID_TV		0x0200
+#define DOD_DEVID_EXT		0x0300
+#define DOD_DEVID_INTDFP	0x0400
 #define DOD_BIOS		(1 << 16)
 #define DOD_NONVGA		(1 << 17)
 #define DOD_HEAD_ID_SHIFT	18
 #define DOD_HEAD_ID_BITS	3
 #define DOD_HEAD_ID_MASK \
 		(((1 << DOD_HEAD_ID_BITS) - 1) << DOD_HEAD_ID_SHIFT)
+#define DOD_DEVID_SCHEME_STD	(1 << 31)
 
 /* _BCL related constants */
 #define BCL_FULLPOWER		0
@@ -160,8 +166,8 @@ MODULE_DEPEND(acpi_video, acpi, 1, 1, 1);
 
 static struct sysctl_ctx_list	acpi_video_sysctl_ctx;
 static struct sysctl_oid	*acpi_video_sysctl_tree;
-static struct acpi_video_output_queue lcd_units, crt_units, tv_units,
-    other_units;
+static struct acpi_video_output_queue crt_units, tv_units,
+    ext_units, lcd_units, other_units;
 
 ACPI_SERIAL_DECL(video, "ACPI video");
 MALLOC_DEFINE(M_ACPIVIDEO, "acpivideo", "ACPI video extension");
@@ -175,9 +181,10 @@ acpi_video_modevent(struct module *mod __unused, int evt, void *cookie __unused)
 	switch (evt) {
 	case MOD_LOAD:
 		sysctl_ctx_init(&acpi_video_sysctl_ctx);
-		STAILQ_INIT(&lcd_units);
 		STAILQ_INIT(&crt_units);
 		STAILQ_INIT(&tv_units);
+		STAILQ_INIT(&ext_units);
+		STAILQ_INIT(&lcd_units);
 		STAILQ_INIT(&other_units);
 		break;
 	case MOD_UNLOAD:
@@ -404,26 +411,43 @@ acpi_video_vo_init(UINT32 adr)
 {
 	struct acpi_video_output *vn, *vo, *vp;
 	int n, x;
+	int display_index;
+	int display_port;
 	char name[8], env[32];
 	const char *type, *desc;
 	struct acpi_video_output_queue *voqh;
 
 	ACPI_SERIAL_ASSERT(video);
+	display_index = adr & DOD_DEVID_MASK_DISPIDX;
+	display_port = (adr & DOD_DEVID_MASK_DISPPORT) >> 4;
+
 	switch (adr & DOD_DEVID_MASK) {
 	case DOD_DEVID_MONITOR:
-		desc = "CRT monitor";
-		type = "crt";
-		voqh = &crt_units;
-		break;
-	case DOD_DEVID_PANEL:
-		desc = "LCD panel";
-		type = "lcd";
-		voqh = &lcd_units;
+		if ((adr & DOD_DEVID_MASK_FULL) == DOD_DEVID_LCD) {
+			/* DOD_DEVID_LCD is a common, backward compatible ID */
+			desc = "Internal/Integrated Digital Flat Panel";
+			type = "lcd";
+			voqh = &lcd_units;
+		} else {
+			desc = "VGA CRT or VESA Compatible Analog Monitor";
+			type = "crt";
+			voqh = &crt_units;
+		}
 		break;
 	case DOD_DEVID_TV:
-		desc = "TV";
+		desc = "TV/HDTV or Analog-Video Monitor";
 		type = "tv";
 		voqh = &tv_units;
+		break;
+	case DOD_DEVID_EXT:
+		desc = "External Digital Monitor";
+		type = "ext";
+		voqh = &ext_units;
+		break;
+	case DOD_DEVID_INTDFP:
+		desc = "Internal/Integrated Digital Flat Panel";
+		type = "lcd";
+		voqh = &lcd_units;
 		break;
 	default:
 		desc = "unknown output";
@@ -508,13 +532,16 @@ acpi_video_vo_init(UINT32 adr)
 		printf("%s: softc allocation failed\n", type);
 
 	if (bootverbose) {
-		printf("found %s(%x)", desc, adr & DOD_DEVID_MASK);
+		printf("found %s(%x)", desc, adr & DOD_DEVID_MASK_FULL);
+		printf(", idx#%x", adr & DOD_DEVID_MASK_DISPIDX);
+		printf(", port#%x", (adr & DOD_DEVID_MASK_DISPPORT) >> 4);
 		if (adr & DOD_BIOS)
 			printf(", detectable by BIOS");
 		if (adr & DOD_NONVGA)
-			printf(" (not a VGA output)");
+			printf(" (Non-VGA output device whose power "
+			    "is related to the VGA device)");
 		printf(", head #%d\n",
-		   (adr & DOD_HEAD_ID_MASK) >> DOD_HEAD_ID_SHIFT);
+			(adr & DOD_HEAD_ID_MASK) >> DOD_HEAD_ID_SHIFT);
 	}
 	return (vo);
 }
@@ -557,11 +584,14 @@ acpi_video_vo_destroy(struct acpi_video_output *vo)
 	case DOD_DEVID_MONITOR:
 		voqh = &crt_units;
 		break;
-	case DOD_DEVID_PANEL:
-		voqh = &lcd_units;
-		break;
 	case DOD_DEVID_TV:
 		voqh = &tv_units;
+		break;
+	case DOD_DEVID_EXT:
+		voqh = &ext_units;
+		break;
+	case DOD_DEVID_INTDFP:
+		voqh = &lcd_units;
 		break;
 	default:
 		voqh = &other_units;
@@ -751,7 +781,7 @@ vid_enum_outputs_subr(ACPI_HANDLE handle, UINT32 level __unused,
 
 	for (i = 0; i < argset->dod_pkg->Package.Count; i++) {
 		if (acpi_PkgInt32(argset->dod_pkg, i, &val) == 0 &&
-		    (val & DOD_DEVID_MASK) == adr) {
+		    (val & DOD_DEVID_MASK_FULL) == adr) {
 			argset->callback(handle, val, argset->context);
 			argset->count++;
 		}
