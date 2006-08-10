@@ -869,7 +869,7 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	 * Wait for available vnodes.
 	 */
 	if (numvnodes > desiredvnodes) {
-		if (mp->mnt_kern_flag & MNTK_SUSPEND) {
+		if (mp != NULL && (mp->mnt_kern_flag & MNTK_SUSPEND)) {
 			/*
 			 * File system is beeing suspended, we cannot risk a
 			 * deadlock here, so allocate new vnode anyway.
