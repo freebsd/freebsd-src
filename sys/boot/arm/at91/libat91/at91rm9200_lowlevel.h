@@ -42,7 +42,7 @@ typedef unsigned short sdram_size_t;
 #ifdef BOOT_TSC
 /* The following divisor sets PLLA frequency: e.g. 16/4 * 45 = 180MHz */
 #define OSC_MAIN_FREQ_DIV	4	/* for 16MHz osc */
-#define SDRAM_WIDTH	AT91C_SDRC_DBW_16_BITS
+#define SDRAM_WIDTH	AT91C_SDRC_DBW_32_BITS
 typedef unsigned int sdram_size_t;
 #define OSC_MAIN_MULT		45
 #endif
