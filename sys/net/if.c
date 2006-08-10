@@ -625,12 +625,6 @@ if_detach(struct ifnet *ifp)
 	 */
 	taskqueue_drain(taskqueue_swi, &ifp->if_linktask);
 
-#ifdef DEV_CARP
-	/* Maybe hook to the generalized departure handler above?!? */
-	if (ifp->if_carp)
-		carp_ifdetach(ifp);
-#endif
-
 	/*
 	 * Remove routes and flush queues.
 	 */
