@@ -682,6 +682,13 @@ DECL_CMD_FUNC(set80211fragthreshold, val, d)
 		isundefarg(val) ? IEEE80211_FRAG_MAX : atoi(val), 0, NULL);
 }
 
+static
+DECL_CMD_FUNC(set80211bmissthreshold, val, d)
+{
+	set80211(s, IEEE80211_IOC_BMISSTHRESHOLD,
+		isundefarg(val) ? IEEE80211_HWBMISS_MAX : atoi(val), 0, NULL);
+}
+
 static int
 getmaxrate(uint8_t rates[15], uint8_t nrates)
 {
@@ -1644,6 +1651,12 @@ ieee80211_status(int s)
 			LINE_CHECK("fragthreshold %d", ireq.i_val);
 	}
 
+	ireq.i_type = IEEE80211_IOC_BMISSTHRESHOLD;
+	if (ioctl(s, SIOCG80211, &ireq) != -1) {
+		if (ireq.i_val != IEEE80211_HWBMISS_MAX || verbose)
+			LINE_CHECK("bmiss %d", ireq.i_val);
+	}
+
 	if (IEEE80211_IS_CHAN_G(c) || IEEE80211_IS_CHAN_PUREG(c) || verbose) {
 		ireq.i_type = IEEE80211_IOC_PUREG;
 		if (ioctl(s, SIOCG80211, &ireq) != -1) {
@@ -1950,6 +1963,8 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD_ARG("fragthreshold",	set80211fragthreshold),
 	DEF_CMD("burst",	1,	set80211burst),
 	DEF_CMD("-burst",	0,	set80211burst),
+	DEF_CMD_ARG("bmiss",		set80211bmissthreshold),
+	DEF_CMD_ARG("bmissthreshold",	set80211bmissthreshold),
 };
 static struct afswtch af_ieee80211 = {
 	.af_name	= "af_ieee80211",
