@@ -42,7 +42,7 @@
 #include <net80211/ieee80211_crypto.h>
 
 /*
- * Per/node (station) statistics available when operating as an AP.
+ * Per/node (station) statistics.
  */
 struct ieee80211_nodestats {
 	u_int32_t	ns_rx_data;		/* rx data frames */
@@ -311,7 +311,7 @@ struct ieee80211req_sta_info {
 	u_int16_t	isi_flags;		/* channel flags */
 	u_int16_t	isi_state;		/* state flags */
 	u_int8_t	isi_authmode;		/* authentication algorithm */
-	u_int8_t	isi_rssi;
+	int8_t		isi_rssi;		/* receive signal strength */
 	u_int8_t	isi_capinfo;		/* capabilities */
 	u_int8_t	isi_erp;		/* ERP element */
 	u_int8_t	isi_macaddr[IEEE80211_ADDR_LEN];
@@ -319,6 +319,7 @@ struct ieee80211req_sta_info {
 						/* negotiated rates */
 	u_int8_t	isi_rates[IEEE80211_RATE_MAXSIZE];
 	u_int8_t	isi_txrate;		/* index to isi_rates[] */
+	int8_t		isi_noise;		/* noise floor */
 	u_int16_t	isi_ie_len;		/* IE length */
 	u_int16_t	isi_associd;		/* assoc response */
 	u_int16_t	isi_txpower;		/* current tx power */
@@ -433,7 +434,7 @@ struct ieee80211req {
 #define	IEEE80211_IOC_CHANINFO		42	/* channel info list */
 #define	IEEE80211_IOC_TXPOWMAX		43	/* max tx power for channel */
 #define	IEEE80211_IOC_STA_TXPOW		44	/* per-station tx power limit */
-#define	IEEE80211_IOC_STA_INFO		45	/* station/neighbor info */
+/* 45 was IEEE80211_IOC_STA_INFO */
 #define	IEEE80211_IOC_WME_CWMIN		46	/* WME: ECWmin */
 #define	IEEE80211_IOC_WME_CWMAX		47	/* WME: ECWmax */
 #define	IEEE80211_IOC_WME_AIFS		48	/* WME: AIFSN */
@@ -450,6 +451,7 @@ struct ieee80211req {
 #define	IEEE80211_IOC_BURST		75	/* packet bursting */
 #define	IEEE80211_IOC_SCAN_RESULTS	76	/* get scan results */
 #define	IEEE80211_IOC_BMISSTHRESHOLD	77	/* beacon miss threshold */
+#define	IEEE80211_IOC_STA_INFO		78	/* station/neighbor info */
 
 /*
  * Scan result data returned for IEEE80211_IOC_SCAN_RESULTS.
