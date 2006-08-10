@@ -23,7 +23,7 @@
  * $FreeBSD$
  *****************************************************************************/
 
-#include "p_string.h"
+#include "lib.h"
 
 /*
  * .KB_C_FN_DEFINITION_START

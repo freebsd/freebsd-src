@@ -33,11 +33,32 @@ void printf(const char *fmt,...);
 
 /* The following function write eeprom at ee_addr using data 	*/
 /*  from data_add for size bytes.				*/
-void ReadEEPROM(unsigned ee_addr, char *data_addr, unsigned size);
-void WriteEEPROM(unsigned ee_addr, char *data_addr, unsigned size);
+void ReadEEPROM(unsigned eeoff, char *data_addr, unsigned size);
+void WriteEEPROM(unsigned eeoff, char *data_addr, unsigned size);
 void InitEEPROM(void);
 
 /* XMODEM protocol */
 int xmodem_rx(char *dst);
+
+/*  */
+void start_wdog(int n);
+void reset(void);
+
+/* Delay us */
+void Delay(int us);
+
+#define ToASCII(x) ((x > 9) ? (x + 'A' - 0xa) : (x + '0'))
+
+int p_IsWhiteSpace(char cValue);
+unsigned p_HexCharValue(char cValue);
+unsigned p_ASCIIToHex(const char *buf);
+unsigned p_ASCIIToDec(const char *buf);
+
+void p_memset(char *buffer, char value, int size);
+int p_strlen(const char *buffer);
+char *p_strcpy(char *to, const char *from);
+void p_memcpy(char *to, const char *from, unsigned size);
+int p_memcmp(const char *to, const char *from, unsigned size);
+int p_strcmp(const char *to, const char *from);
 
 #endif
