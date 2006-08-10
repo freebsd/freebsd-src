@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd February 27, 2006
+.Dd July 25, 2006
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -556,6 +556,19 @@ The
 .Ar interval
 parameter is specified in TU's (1/1024 msecs).
 By default beacon frames are transmitted every 100 TU's.
+.It Cm bmissthreshold Ar count
+Set the number of consecutive missed beacons at which the station
+will attempt to roam (i.e. search for a new access point).
+The
+.Ar count
+parameter is must be in the range 1 to 255; though the
+upper bound may be reduced according to device capabilities..
+The default threshold is 7 consecutive missed beacons; but
+this may be overridden by the device driver.
+Another name for the
+.Cm bmissthreshold
+parameter is
+.Cm bmiss .
 .It Cm bssid Ar address
 Specify the MAC address of the access point to use when operating
 as a station in a BSS network.
