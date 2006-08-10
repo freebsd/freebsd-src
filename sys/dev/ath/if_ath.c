@@ -2137,7 +2137,8 @@ ath_beacon_proc(void *arg, int pending)
 	 * Enable the CAB queue before the beacon queue to
 	 * insure cab frames are triggered by this beacon.
 	 */
-	if (sc->sc_boff.bo_tim[4] & 1) {		/* NB: only at DTIM */
+	if (sc->sc_boff.bo_tim_len && (sc->sc_boff.bo_tim[4] & 1)) {
+		/* NB: only at DTIM */
 		ATH_TXQ_LOCK(cabq);
 		ATH_TXQ_LOCK(&sc->sc_mcastq);
 		if (nmcastq) {
