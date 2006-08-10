@@ -27,7 +27,6 @@
 #include "loader_prompt.h"
 #include "emac.h"
 #include "lib.h"
-#include "eeprom.h"
 
 /*
  * .KB_C_FN_DEFINITION_START
