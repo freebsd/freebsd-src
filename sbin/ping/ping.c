@@ -100,7 +100,7 @@ __FBSDID("$FreeBSD$");
 					/* runs out of buffer space */
 #define	MAXIPLEN	(sizeof(struct ip) + MAX_IPOPTLEN)
 #define	MAXICMPLEN	(ICMP_ADVLENMIN + MAX_IPOPTLEN)
-#define	MAXWAIT		10		/* max seconds to wait for response */
+#define	MAXWAIT		10000		/* max ms to wait for response */
 #define	MAXALARM	(60 * 60)	/* max seconds for alarm timeout */
 #define	MAXTOS		255
 
@@ -143,6 +143,7 @@ int options;
 #define	F_MASK		0x80000
 #define	F_TIME		0x100000
 #define	F_SWEEP		0x200000
+#define	F_WAITTIME	0x400000
 
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
@@ -183,6 +184,8 @@ int sweepmax;			/* max value of payload in sweep */
 int sweepmin = 0;		/* start value of payload in sweep */
 int sweepincr = 1;		/* payload increment in sweep */
 int interval = 1000;		/* interval between packets, ms */
+int waittime = MAXWAIT;		/* timeout for each packet */
+long nrcvtimeout = 0;		/* # of packets we got back after waittime */
 
 /* timing */
 int timing;			/* flag to do timing */
@@ -261,7 +264,7 @@ main(argc, argv)
 
 	outpack = outpackhdr + sizeof(struct ip);
 	while ((ch = getopt(argc, argv,
-		"Aac:DdfG:g:h:I:i:Ll:M:m:nop:QqRrS:s:T:t:vz:"
+		"Aac:DdfG:g:h:I:i:Ll:M:m:nop:QqRrS:s:T:t:vW:z:"
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 		"P:"
@@ -468,6 +471,14 @@ main(argc, argv)
 			break;
 		case 'v':
 			options |= F_VERBOSE;
+			break;
+		case 'W':		/* wait ms for answer */
+			t = strtod(optarg, &ep);
+			if (*ep || ep == optarg || t > (double)INT_MAX)
+				errx(EX_USAGE, "invalid timing interval: `%s'",
+				    optarg);
+			options |= F_WAITTIME;
+			waittime = (int)t;
 			break;
 		case 'z':
 			options |= F_HDRINCL;
@@ -880,8 +891,10 @@ main(argc, argv)
 					intvl.tv_sec = 2 * tmax / 1000;
 					if (!intvl.tv_sec)
 						intvl.tv_sec = 1;
-				} else
-					intvl.tv_sec = MAXWAIT;
+				} else {
+					intvl.tv_sec = waittime / 1000;
+					intvl.tv_usec = waittime % 1000 * 1000;
+				}
 			}
 			(void)gettimeofday(&last, NULL);
 			if (ntransmitted - nreceived - 1 > nmissedmax) {
@@ -1075,6 +1088,11 @@ pr_pack(buf, cc, from, tv)
 
 		if (options & F_QUIET)
 			return;
+	
+		if (options & F_WAITTIME && triptime > waittime) {
+			++nrcvtimeout;
+			return;
+		}
 
 		if (options & F_FLOOD)
 			(void)write(STDOUT_FILENO, &BSPACE, 1);
@@ -1373,6 +1391,8 @@ finish()
 			    (int)(((ntransmitted - nreceived) * 100) /
 			    ntransmitted));
 	}
+	if (nrcvtimeout)
+		(void)printf(", %ld packets out of wait time", nrcvtimeout);
 	(void)putchar('\n');
 	if (nreceived && timing) {
 		double n = nreceived + nrepeats;
@@ -1686,13 +1706,14 @@ static void
 usage()
 {
 
-	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: ping [-AaDdfnoQqRrv] [-c count] [-i wait] [-l preload] [-M mask | time]",
-"            [-m ttl]" SECOPT " [-p pattern] [-S src_addr] [-s packetsize]",
-"            [-t timeout] [-z tos] [-G sweepmaxsize ] [-g sweepminsize ]",
-"            [-h sweepincrsize ] host", 
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+"usage: ping [-AaDdfnoQqRrv] [-c count] [-G sweepmaxsize] [-g sweepminsize]",
+"            [-h sweepincrsize] [-i wait] [-l preload] [-M mask | time] [-m ttl]",
+"           " SECOPT " [-p pattern] [-S src_addr] [-s packetsize] [-t timeout]",
+"            [-W waittime] [-z tos] host",
 "       ping [-AaDdfLnoQqRrv] [-c count] [-I iface] [-i wait] [-l preload]",
 "            [-M mask | time] [-m ttl]" SECOPT " [-p pattern] [-S src_addr]",
-"            [-s packetsize] [-T ttl] [-t timeout] [-z tos] mcast-group");
+"            [-s packetsize] [-T ttl] [-t timeout] [-W waittime]",
+"            [-z tos] mcast-group");
 	exit(EX_USAGE);
 }
