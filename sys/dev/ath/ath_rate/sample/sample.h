@@ -200,7 +200,7 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
 
 	if (!rt->info[rix].rateKbps) {
-		printf("rix %d (%d) bad ratekbps %d mode %u",
+		printf("rix %d (%d) bad ratekbps %d mode %u\n",
 		       rix, rt->info[rix].dot11Rate,
 		       rt->info[rix].rateKbps,
 		       sc->sc_curmode);
@@ -254,7 +254,7 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 		int ctsduration = 0;
 
 		if (!rt->info[cix].rateKbps) {
-			printf("cix %d (%d) bad ratekbps %d mode %u",
+			printf("cix %d (%d) bad ratekbps %d mode %u\n",
 			       cix, rt->info[cix].dot11Rate,
 			       rt->info[cix].rateKbps,
 			       sc->sc_curmode);
