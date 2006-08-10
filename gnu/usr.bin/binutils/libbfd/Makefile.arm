@@ -6,7 +6,7 @@ SRCS+=	cpu-arm.c \
 	elf32.c	 \
 	elf32-arm-fbsd.c \
 	elf32-gen.c \
-	elf32-target.h
+	elf32-target.h \
 	elfarm-nabi.c \
 	elflink.c
 
