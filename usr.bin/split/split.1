@@ -32,7 +32,7 @@
 .\"	@(#)split.1	8.3 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd August 9, 2006
+.Dd August 10, 2006
 .Dt SPLIT 1
 .Os
 .Sh NAME
@@ -46,7 +46,7 @@
 .Nm
 .Fl b Ar byte_count Ns
 .Oo
-.Cm k Ns | Ns Cm m
+.Cm K Ns | Ns Cm k Ns | Ns Cm M Ns | Ns Cm m Ns | Ns Cm G Ns | Ns Cm g
 .Oc
 .Op Fl a Ar suffix_length
 .Op Ar file Op Ar prefix
@@ -77,20 +77,31 @@ The options are as follows:
 Use
 .Ar suffix_length
 letters to form the suffix of the file name.
-.It Fl b Ar byte_count Ns Op Cm k Ns | Ns Cm m
+.It Fl b Ar byte_count Ns Op Cm K Ns | Ns Cm k Ns | Ns Cm M Ns | Ns Cm m Ns | Ns Cm G Ns | Ns Cm g
 Create smaller files
 .Ar byte_count
 bytes in length.
 If
 .Cm k
+or
+.Cm K
 is appended to the number, the file is split into
 .Ar byte_count
 kilobyte pieces.
 If
 .Cm m
+or
+.Cm M
 is appended to the number, the file is split into
 .Ar byte_count
 megabyte pieces.
+If
+.Cm g
+or
+.Cm G
+is appended to the number, the file is split into
+.Ar byte_count
+gigabyte pieces.
 .It Fl l Ar line_count
 Create smaller files
 .Ar line_count
