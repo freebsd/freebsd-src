@@ -1,28 +1,39 @@
 # $FreeBSD$
 
 .if !target(__at91_boot_Makefile.inc__)
+.PATH:	${.CURDIR}/../../../../libkern ${.CURDIR}/../../../../libkern/arm
+
 __at91_boot_Makefile.inc__:
 
 CFLAGS=-O2 -mcpu=arm9 -ffreestanding \
 	-I${.CURDIR}/../libat91 \
-	-Wall -Waggregate-return -Wcast-align \
-	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
-	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
+	-I${.CURDIR}/../../../.. \
+	-I${.CURDIR}/../../../../arm \
+	-D_KERNEL \
+	-Wall -Waggregate-return  \
+	-Wnested-externs \
+	-Wpointer-arith -Wshadow -Wwrite-strings \
 	-Werror
+# -Wmissing-prototypes
+# -Wmissing-declarations 
+# -Wstrict-prototypes 
 
 #CFLAGS+=-DBOOT_TSC
 CFLAGS+=-DBOOT_KB9202
 
 LIBAT91=${.OBJDIR}/../libat91/libat91.a
 
+LD ?= ld
+OBJCOPY ?= objcopy
+
 .if defined(P)
 ${P}:	${P}.out
-	objcopy -S -O binary ${P}.out ${.TARGET}
-	@set -- `ls -l ${.TARGET}`; x=$$((8192-$$5)); \
+	${OBJCOPY} -S -O binary ${P}.out ${.TARGET}
+	@set -- `ls -l ${.TARGET}`; x=$$((12288-$$5)); \
 	    echo "$$x bytes available"; test $$x -ge 0
 
 ${P}.out: ${OBJS}
-	ld ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LIBAT91}
+	${LD} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LIBAT91}
 
 CLEANFILES+= ${P} ${P}.out
 .endif
@@ -31,6 +42,12 @@ CLEANFILES+= ${P} ${P}.out
 MK_TAG_LIST:=yes
 .else
 MK_TAG_LIST:=no
+.endif
+
+.if defined(WITHOUT_FPGA)
+MK_FPGA:=no
+.else
+MK_FPGA:=yes
 .endif
 
 .endif
