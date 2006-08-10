@@ -209,10 +209,6 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	char *path = NULL;
 	int len, error = 0;
 
-	if (pcbp == NULL) {
-		error = EINVAL;
-		goto release;
-	}
 #ifdef	NOTYET
 	if (control && (error = ng_internalize(control, td))) {
 		if (pcbp->sockdata == NULL) {
