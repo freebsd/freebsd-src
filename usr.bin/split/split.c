@@ -116,14 +116,15 @@ main(int argc, char **argv)
 		case 'b':		/* Byte count. */
 			errno = 0;
 			if ((bytecnti = strtoimax(optarg, &ep, 10)) <= 0 ||
-			    (*ep != '\0' && *ep != 'k' && *ep != 'm') ||
-			    errno != 0)
+			    strchr("kKmMgG", *ep) == NULL || errno != 0)
 				errx(EX_USAGE,
 				    "%s: illegal byte count", optarg);
-			if (*ep == 'k')
+			if (*ep == 'k' || *ep == 'K')
 				scale = 1024;
-			else if (*ep == 'm')
+			else if (*ep == 'm' || *ep == 'M')
 				scale = 1024 * 1024;
+			else if (*ep == 'g' || *ep == 'G')
+				scale = 1024 * 1024 * 1024;
 			else
 				scale = 1;
 			if (bytecnti > OFF_MAX / scale)
@@ -336,7 +337,7 @@ usage(void)
 {
 	(void)fprintf(stderr,
 "usage: split [-l line_count] [-a suffix_length] [file [prefix]]\n"
-"       split -b byte_count[k|m] [-a suffix_length] [file [prefix]]\n"
+"       split -b byte_count[K|k|M|m|G|g] [-a suffix_length] [file [prefix]]\n"
 "       split -p pattern [-a suffix_length] [file [prefix]]\n");
 	exit(EX_USAGE);
 }
