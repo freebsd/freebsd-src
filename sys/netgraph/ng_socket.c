@@ -255,6 +255,7 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	m_copydata(m, 0, len, (char *)msg);
 
 	if (msg->header.version != NG_VERSION) {
+		FREE(msg, M_NETGRAPH_MSG);
 		error = EINVAL;
 		goto release;
 	}
