@@ -767,6 +767,10 @@ ieee80211_encap(struct ieee80211com *ic, struct mbuf *m,
 	}
 
 	IEEE80211_NODE_STAT(ni, tx_data);
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+		IEEE80211_NODE_STAT(ni, tx_mcast);
+	else
+		IEEE80211_NODE_STAT(ni, tx_ucast);
 	IEEE80211_NODE_STAT_ADD(ni, tx_bytes, datalen);
 
 	return m;
