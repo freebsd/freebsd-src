@@ -960,8 +960,12 @@ ieee80211_ioctl_getstastats(struct ieee80211com *ic, struct ieee80211req *ireq)
 	if (error != 0)
 		return error;
 	ni = ieee80211_find_node(&ic->ic_sta, macaddr);
-	if (ni == NULL)
-		return EINVAL;		/* XXX */
+	if (ni == NULL) {
+		/* XXX special-case sta-mode until bss is node in ic_sta */
+		if (ic->ic_opmode != IEEE80211_M_STA)
+			return ENOENT;
+		ni = ieee80211_ref_node(ic->ic_bss);
+	}
 	if (ireq->i_len > sizeof(struct ieee80211req_sta_stats))
 		ireq->i_len = sizeof(struct ieee80211req_sta_stats);
 	/* NB: copy out only the statistics */
@@ -1251,6 +1255,7 @@ get_sta_info(void *arg, struct ieee80211_node *ni)
 	si->isi_state = ni->ni_flags;
 	si->isi_authmode = ni->ni_authmode;
 	si->isi_rssi = ic->ic_node_getrssi(ni);
+	si->isi_noise = 0;		/* XXX */
 	si->isi_capinfo = ni->ni_capinfo;
 	si->isi_erp = ni->ni_erp;
 	IEEE80211_ADDR_COPY(si->isi_macaddr, ni->ni_macaddr);
@@ -1293,38 +1298,84 @@ get_sta_info(void *arg, struct ieee80211_node *ni)
 }
 
 static int
-ieee80211_ioctl_getstainfo(struct ieee80211com *ic, struct ieee80211req *ireq)
+getstainfo_common(struct ieee80211com *ic, struct ieee80211req *ireq,
+	struct ieee80211_node *ni, int off)
 {
 	struct stainforeq req;
+	size_t space;
+	void *p;
 	int error;
-
-	if (ireq->i_len < sizeof(struct stainforeq))
-		return EFAULT;
 
 	error = 0;
 	req.space = 0;
-	ieee80211_iterate_nodes(&ic->ic_sta, get_sta_space, &req);
+	if (ni == NULL)
+		ieee80211_iterate_nodes(&ic->ic_sta, get_sta_space, &req);
+	else
+		get_sta_space(&req, ni);
 	if (req.space > ireq->i_len)
 		req.space = ireq->i_len;
 	if (req.space > 0) {
-		size_t space;
-		void *p;
-
 		space = req.space;
 		/* XXX M_WAITOK after driver lock released */
 		MALLOC(p, void *, space, M_TEMP, M_NOWAIT);
-		if (p == NULL)
-			return ENOMEM;
+		if (p == NULL) {
+			error = ENOMEM;
+			goto bad;
+		}
 		req.si = p;
-		ieee80211_iterate_nodes(&ic->ic_sta, get_sta_info, &req);
+		if (ni == NULL)
+			ieee80211_iterate_nodes(&ic->ic_sta, get_sta_info, &req);
+		else
+			get_sta_info(&req, ni);
 		ireq->i_len = space - req.space;
-		error = copyout(p, ireq->i_data, ireq->i_len);
+		error = copyout(p, (u_int8_t *) ireq->i_data+off, ireq->i_len);
 		FREE(p, M_TEMP);
 	} else
 		ireq->i_len = 0;
-
+bad:
+	if (ni != NULL)
+		ieee80211_free_node(ni);
 	return error;
 }
+
+static int
+ieee80211_ioctl_getstainfo(struct ieee80211com *ic, struct ieee80211req *ireq)
+{
+	u_int8_t macaddr[IEEE80211_ADDR_LEN];
+	const int off = __offsetof(struct ieee80211req_sta_req, info);
+	struct ieee80211_node *ni;
+	int error;
+
+	if (ireq->i_len < sizeof(struct ieee80211req_sta_req))
+		return EFAULT;
+	error = copyin(ireq->i_data, macaddr, IEEE80211_ADDR_LEN);
+	if (error != 0)
+		return error;
+	if (IEEE80211_ADDR_EQ(macaddr, ic->ic_ifp->if_broadcastaddr)) {
+		ni = NULL;
+	} else {
+		ni = ieee80211_find_node(&ic->ic_sta, macaddr);
+		if (ni == NULL) {
+			/* XXX special-case sta-mode until bss is in ic_sta */
+			if (ic->ic_opmode != IEEE80211_M_STA)
+				return EINVAL;		/* XXX */
+			ni = ieee80211_ref_node(ic->ic_bss);
+		}
+	}
+	return getstainfo_common(ic, ireq, ni, off);
+}
+
+#ifdef COMPAT_FREEBSD6
+#define	IEEE80211_IOC_STA_INFO_OLD	45
+
+static int
+old_getstainfo(struct ieee80211com *ic, struct ieee80211req *ireq)
+{
+	if (ireq->i_len < sizeof(struct ieee80211req_sta_info))
+		return EFAULT;
+	return getstainfo_common(ic, ireq, NULL, 0);
+}
+#endif /* COMPAT_FREEBSD6 */
 
 static int
 ieee80211_ioctl_getstatxpow(struct ieee80211com *ic, struct ieee80211req *ireq)
@@ -1611,6 +1662,11 @@ ieee80211_ioctl_get80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 	case IEEE80211_IOC_STA_TXPOW:
 		error = ieee80211_ioctl_getstatxpow(ic, ireq);
 		break;
+#ifdef COMPAT_FREEBSD6
+	case IEEE80211_IOC_STA_INFO_OLD:
+		error = old_getstainfo(ic, ireq);
+		break;
+#endif
 	case IEEE80211_IOC_STA_INFO:
 		error = ieee80211_ioctl_getstainfo(ic, ireq);
 		break;
