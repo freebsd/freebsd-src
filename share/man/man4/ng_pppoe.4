@@ -236,8 +236,8 @@ ngctl msg fxp0:orphans pppoe_setmode '"3Com"'
 .Ed
 .It Dv NGM_PPPOE_SETENADDR
 Set the node Ethernet address for outgoing datagrams.
-This message is important when node failed to obtain Ethernet address
-from peer on
+This message is important when a node has failed to obtain an Ethernet
+address from its peer on the
 .Dv ethernet
 hook, or when user wants to override this address with another one.
 .Tn ASCII
