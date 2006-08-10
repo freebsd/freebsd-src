@@ -429,9 +429,6 @@ if_attach(struct ifnet *ifp)
 	TASK_INIT(&ifp->if_linktask, 0, do_link_state_change, ifp);
 	IF_AFDATA_LOCK_INIT(ifp);
 	ifp->if_afdata_initialized = 0;
-	IFNET_WLOCK();
-	TAILQ_INSERT_TAIL(&ifnet, ifp, if_link);
-	IFNET_WUNLOCK();
 	/*
 	 * XXX -
 	 * The old code would work if the interface passed a pre-existing
@@ -501,6 +498,10 @@ if_attach(struct ifnet *ifp)
 	ifp->if_snd.altq_flags &= ALTQF_CANTCHANGE;
 	ifp->if_snd.altq_tbr  = NULL;
 	ifp->if_snd.altq_ifp  = ifp;
+
+	IFNET_WLOCK();
+	TAILQ_INSERT_TAIL(&ifnet, ifp, if_link);
+	IFNET_WUNLOCK();
 
 	if (domain_init_status >= 2)
 		if_attachdomain1(ifp);
@@ -618,7 +619,18 @@ if_detach(struct ifnet *ifp)
 	int i;
 	struct domain *dp;
  	struct ifnet *iter;
- 	int found;
+ 	int found = 0;
+
+	IFNET_WLOCK();
+	TAILQ_FOREACH(iter, &ifnet, if_link)
+		if (iter == ifp) {
+			TAILQ_REMOVE(&ifnet, ifp, if_link);
+			found = 1;
+			break;
+		}
+	IFNET_WUNLOCK();
+	if (!found)
+		return;
 
 	/*
 	 * Remove/wait for pending events.
@@ -700,16 +712,6 @@ if_detach(struct ifnet *ifp)
 	KNOTE_UNLOCKED(&ifp->if_klist, NOTE_EXIT);
 	knlist_clear(&ifp->if_klist, 0);
 	knlist_destroy(&ifp->if_klist);
-	IFNET_WLOCK();
- 	found = 0;
- 	TAILQ_FOREACH(iter, &ifnet, if_link)
- 		if (iter == ifp) {
- 			found = 1;
- 			break;
- 		}
- 	if (found)
- 		TAILQ_REMOVE(&ifnet, ifp, if_link);
-	IFNET_WUNLOCK();
 	mtx_destroy(&ifp->if_snd.ifq_mtx);
 	IF_AFDATA_DESTROY(ifp);
 	splx(s);
