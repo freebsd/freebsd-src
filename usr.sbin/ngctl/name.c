@@ -37,6 +37,11 @@
  * $FreeBSD$
  */
 
+#include <err.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <netgraph.h>
+
 #include "ngctl.h"
 
 static int NameCmd(int ac, char **av);
@@ -46,7 +51,7 @@ const struct ngcmd name_cmd = {
 	"name <path> <name>",
 	"Assign name <name> to the node at <path>",
 	NULL,
-	{}
+	{ NULL }
 };
 
 static int
@@ -62,15 +67,15 @@ NameCmd(int ac, char **av)
 		snprintf(name.name, sizeof(name.name), "%s", av[2]);
 		break;
 	default:
-		return(CMDRTN_USAGE);
+		return (CMDRTN_USAGE);
 	}
 
 	/* Send message */
 	if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
 	    NGM_NAME, &name, sizeof(name)) < 0) {
 		warn("send msg");
-		return(CMDRTN_ERROR);
+		return (CMDRTN_ERROR);
 	}
-	return(CMDRTN_OK);
+	return (CMDRTN_OK);
 }
 

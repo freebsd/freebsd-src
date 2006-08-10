@@ -33,6 +33,16 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#include <err.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <netgraph/ng_socket.h>
+
 #include "ngctl.h"
 
 #define BUF_SIZE	8192
@@ -62,16 +72,16 @@ WriteCmd(int ac, char **av)
 
 	/* Get arguments */
 	if (ac < 3)
-		return(CMDRTN_USAGE);
+		return (CMDRTN_USAGE);
 	hook = av[1];
 
 	/* Get data */
 	if (strcmp(av[2], "-f") == 0) {
 		if (ac != 4)
-			return(CMDRTN_USAGE);
+			return (CMDRTN_USAGE);
 		if ((fp = fopen(av[3], "r")) == NULL) {
 			warn("can't read file \"%s\"", av[3]);
-			return(CMDRTN_ERROR);
+			return (CMDRTN_ERROR);
 		}
 		if ((len = fread(buf, 1, sizeof(buf), fp)) == 0) {
 			if (ferror(fp))
@@ -79,7 +89,7 @@ WriteCmd(int ac, char **av)
 			else
 				warnx("file \"%s\" is empty", av[3]);
 			fclose(fp);
-			return(CMDRTN_ERROR);
+			return (CMDRTN_ERROR);
 		}
 		fclose(fp);
 	} else {
@@ -87,12 +97,12 @@ WriteCmd(int ac, char **av)
 			if (sscanf(av[i], "%i", &byte) != 1
 			    || (byte < -128 || byte > 255)) {
 				warnx("invalid byte \"%s\"", av[i]);
-				return(CMDRTN_ERROR);
+				return (CMDRTN_ERROR);
 			}
 			buf[len] = (u_char)byte;
 		}
 		if (len == 0)
-			return(CMDRTN_USAGE);
+			return (CMDRTN_USAGE);
 	}
 
 	/* Send data */
@@ -102,10 +112,10 @@ WriteCmd(int ac, char **av)
 	if (sendto(dsock, buf, len,
 	    0, (struct sockaddr *)sag, sag->sg_len) == -1) {
 		warn("writing to hook \"%s\"", hook);
-		return(CMDRTN_ERROR);
+		return (CMDRTN_ERROR);
 	}
 
 	/* Done */
-	return(CMDRTN_OK);
+	return (CMDRTN_OK);
 }
 
