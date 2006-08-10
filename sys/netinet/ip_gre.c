@@ -95,7 +95,7 @@ void gre_inet_ntoa(struct in_addr in);	/* XXX */
 
 static struct gre_softc *gre_lookup(struct mbuf *, u_int8_t);
 
-static int	gre_input2(struct mbuf *, int, u_char);
+static struct mbuf *gre_input2(struct mbuf *, int, u_char);
 
 /*
  * De-encapsulate a packet and feed it back through ip input (this
@@ -106,29 +106,27 @@ static int	gre_input2(struct mbuf *, int, u_char);
 void
 gre_input(struct mbuf *m, int off)
 {
-	int ret, proto;
+	int proto;
 
 	proto = (mtod(m, struct ip *))->ip_p;
 
-	ret = gre_input2(m, off, proto);
+	m = gre_input2(m, off, proto);
+
 	/*
-	 * ret == 0 : packet not processed, meaning that
-	 * no matching tunnel that is up is found.
-	 * we inject it to raw ip socket to see if anyone picks it up.
+	 * If no matching tunnel that is up is found. We inject
+	 * the mbuf to raw ip socket to see if anyone picks it up.
 	 */
-	if (ret == 0)
+	if (m != NULL)
 		rip_input(m, off);
 }
 
 /*
- * decapsulate.
- * Does the real work and is called from gre_input() (above)
- * returns 0 if packet is not yet processed
- * and 1 if it needs no further processing
- * proto is the protocol number of the "calling" foo_input()
- * routine.
+ * Decapsulate. Does the real work and is called from gre_input()
+ * (above). Returns an mbuf back if packet is not yet processed,
+ * and NULL if it needs no further processing. proto is the protocol
+ * number of the "calling" foo_input() routine.
  */
-static int
+static struct mbuf *
 gre_input2(struct mbuf *m ,int hlen, u_char proto)
 {
 	struct greip *gip;
@@ -139,13 +137,13 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 
 	if ((sc = gre_lookup(m, proto)) == NULL) {
 		/* No matching tunnel or tunnel is down. */
-		return (0);
+		return (m);
 	}
 
 	if (m->m_len < sizeof(*gip)) {
 		m = m_pullup(m, sizeof(*gip));
 		if (m == NULL)
-			return (ENOBUFS);
+			return (NULL);
 	}
 	gip = mtod(m, struct greip *);
 
@@ -164,7 +162,7 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 			hlen += 4;
 		/* We don't support routing fields (variable length) */
 		if (flags & GRE_RP)
-			return (0);
+			return (m);
 		if (flags & GRE_KP)
 			hlen += 4;
 		if (flags & GRE_SP)
@@ -191,18 +189,19 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 			af = AF_APPLETALK;
 			break;
 #endif
-		default:	   /* others not yet supported */
-			return (0);
+		default:
+			/* Others not yet supported. */
+			return (m);
 		}
 		break;
 	default:
-		/* others not yet supported */
-		return (0);
+		/* Others not yet supported. */
+		return (m);
 	}
 
 	if (hlen > m->m_pkthdr.len) {
 		m_freem(m);
-		return (EINVAL);
+		return (NULL);
 	}
 	/* Unlike NetBSD, in FreeBSD m_adj() adjusts m->m_pkthdr.len as well */
 	m_adj(m, hlen);
@@ -215,7 +214,8 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 
 	netisr_dispatch(isr, m);
 
-	return (1);	/* packet is done, no further processing needed */
+	/* Packet is done, no further processing needed. */
+	return (NULL);
 }
 
 /*
