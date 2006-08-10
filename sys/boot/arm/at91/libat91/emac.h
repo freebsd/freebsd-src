@@ -24,7 +24,7 @@
 #ifndef _EMAC_H_
 #define _EMAC_H_
 
-extern void SetMACAddress(unsigned low_address, unsigned high_address);
+extern void SetMACAddress(unsigned char addr[6]);
 extern void SetServerIPAddress(unsigned address);
 extern void SetLocalIPAddress(unsigned address);
 extern void EMAC_Init(void);
@@ -104,19 +104,27 @@ typedef struct {
 	unsigned char	data[512];
 } __attribute__((__packed__)) tftp_header_t;
 
-#define	TFTP_RRQ_OPCODE		1
-#define TFTP_WRQ_OPCODE		2
-#define TFTP_DATA_OPCODE	3
-#define TFTP_ACK_OPCODE		4
-#define TFTP_ERROR_OPCODE	5
-
-#define	TFTP_WAITING_SERVER_MAC	1
-#define	TFTP_SEND_REQUEST	2
-#define	TFTP_GET_DATA		3
-#define	TFTP_COMPLETE		4
+// Preswap bytes
+#define	TFTP_RRQ_OPCODE		0x0100
+#define TFTP_WRQ_OPCODE		0x0200
+#define TFTP_DATA_OPCODE	0x0300
+#define TFTP_ACK_OPCODE		0x0400
+#define TFTP_ERROR_OPCODE	0x0500
 
 /* MII registers definition */
 #define MII_STS_REG	0x01
+#define MII_STS_LINK_STAT	0x04
+#ifdef BOOT_KB9202
 #define MII_STS2_REG	0x11
+#define MII_STS2_LINK	0x400
+#define MII_STS2_100TX	0x4000
+#define MII_STS2_FDX	0x200
+#else
+#define MII_SPEC_STS_REG 0x11
+#define MII_SSTS_100FDX	0x8000
+#define MII_SSTS_100HDX	0x4000
+#define MII_SSTS_10FDX	0x2000
+#define MII_SSTS_10HDX	0x1000
+#endif
 
 #endif /* _EMAC_H_ */
