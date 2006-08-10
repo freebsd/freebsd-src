@@ -28,7 +28,7 @@
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd August 15, 2005
+.Dd April 4, 2006
 .Dt PING 8
 .Os
 .Sh NAME
@@ -52,6 +52,7 @@ packets to network hosts
 .Op Fl S Ar src_addr
 .Op Fl s Ar packetsize
 .Op Fl t Ar timeout
+.Op Fl W Ar waittime
 .Op Fl z Ar tos
 .Ar host
 .Nm
@@ -68,6 +69,7 @@ packets to network hosts
 .Op Fl s Ar packetsize
 .Op Fl T Ar ttl
 .Op Fl t Ar timeout
+.Op Fl W Ar waittime
 .Op Fl z Ar tos
 .Ar mcast-group
 .Sh DESCRIPTION
@@ -305,6 +307,10 @@ Verbose output.
 packets other than
 .Tn ECHO_RESPONSE
 that are received are listed.
+.It Fl W Ar waittime
+Time in milliseconds to wait for a reply for each packet sent.
+If a reply arrives later, the packet is not printed as replied, but
+considered as replied when calculating statistics.
 .It Fl z Ar tos
 Use the specified type of service.
 .El
