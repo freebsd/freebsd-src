@@ -717,6 +717,29 @@ When operating as an access point display the stations that are
 currently associated.
 When operating in ad-hoc mode display stations identified as
 neighbors in the IBSS.
+Capabilities advertised by the stations are described under
+the
+.Cm scan
+request.
+Depending on the capabilities of the stations the following
+flags can be included in the output:
+.Bl -tag -width 3n
+.It Li A
+Authorized.
+Indicates that the station is permitted to send/receive data frames.
+.It Li E
+Extended Rate Phy (ERP).
+Indicates that the station is operating in an 802.11g network
+using extended transmit rates.
+.It Li P
+Power Save.
+Indicates that the station is operating in power save mode.
+.It Li Q
+Quality of Service (QoS).
+Indicates that the station is using QoS encapsulation for
+data frame.
+QoS encapsulation is enabled only when WME mode is enabled.
+.El
 .It Cm list wme
 Display the current parameters to use when operating in WME mode.
 When WME mode is enabled for an adaptor this information will be
