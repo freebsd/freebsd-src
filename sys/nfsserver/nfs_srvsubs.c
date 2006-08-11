@@ -565,9 +565,10 @@ nfsrv_modevent(module_t mod, int type, void *data)
 			break;
 		}
 
-		callout_stop(&nfsrv_callout);
+		callout_drain(&nfsrv_callout);
 		sysent[SYS_nfssvc].sy_narg = nfs_prev_nfssvc_sy_narg;
 		sysent[SYS_nfssvc].sy_call = nfs_prev_nfssvc_sy_call;
+		nfsrv_destroycache();	/* Free the server request cache */
 		mtx_destroy(&nfsd_mtx);
 		break;
 	default:
