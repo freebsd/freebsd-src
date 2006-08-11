@@ -132,6 +132,10 @@ SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW, 0, "IEEE 802.1Q VLAN");
 SYSCTL_NODE(_net_link_vlan, PF_LINK, link, CTLFLAG_RW, 0, "for consistency");
 
+static int soft_pad = 0;
+SYSCTL_INT(_net_link_vlan, OID_AUTO, soft_pad, CTLFLAG_RW, &soft_pad, 0,
+	   "pad short frames before tagging");
+
 static MALLOC_DEFINE(M_VLAN, VLANNAME, "802.1Q Virtual LAN Interface");
 
 static eventhandler_tag ifdetach_tag;
@@ -806,6 +810,35 @@ vlan_start(struct ifnet *ifp)
 			m_freem(m);
 			ifp->if_collisions++;
 			continue;
+		}
+
+		/*
+		 * Pad the frame to the minimum size allowed if told to.
+		 * This option is in accord with IEEE Std 802.1Q, 2003 Ed.,
+		 * paragraph C.4.4.3.b.  It can help to work around buggy
+		 * bridges that violate paragraph C.4.4.3.a from the same
+		 * document, i.e., fail to pad short frames after untagging.
+		 * E.g., a tagged frame 66 bytes long (incl. FCS) is OK, but
+		 * untagging it will produce a 62-byte frame, which is a runt
+		 * and requires padding.  There are VLAN-enabled network
+		 * devices that just discard such runts instead or mishandle
+		 * them somehow.
+		 */
+		if (soft_pad) {
+			static char pad[8];	/* just zeros */
+			int n;
+
+			for (n = ETHERMIN + ETHER_HDR_LEN - m->m_pkthdr.len;
+			     n > 0; n -= sizeof(pad))
+				if (!m_append(m, min(n, sizeof(pad)), pad))
+					break;
+
+			if (n > 0) {
+				if_printf(ifp, "cannot pad short frame\n");
+				ifp->if_oerrors++;
+				m_freem(m);
+				continue;
+			}
 		}
 
 		/*
