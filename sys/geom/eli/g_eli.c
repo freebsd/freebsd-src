@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -365,9 +365,11 @@ void
 g_eli_crypto_ivgen(struct g_eli_softc *sc, off_t offset, u_char *iv,
     size_t size)
 {
-	u_char hash[SHA256_DIGEST_LENGTH];
+	u_char off[8], hash[SHA256_DIGEST_LENGTH];
 	SHA256_CTX ctx;
 
+	if (!(sc->sc_flags & G_ELI_FLAG_NATIVE_BYTE_ORDER))
+		le64enc(off, (uint64_t)offset);
 	/* Copy precalculated SHA256 context for IV-Key. */
 	bcopy(&sc->sc_ivctx, &ctx, sizeof(ctx));
 	SHA256_Update(&ctx, (uint8_t *)&offset, sizeof(offset));
@@ -515,6 +517,9 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 
 	sc->sc_crypto = G_ELI_CRYPTO_SW;
 	sc->sc_flags = md->md_flags;
+	/* Backward compatibility. */
+	if (md->md_version < 2)
+		sc->sc_flags |= G_ELI_FLAG_NATIVE_BYTE_ORDER;
 	sc->sc_ealgo = md->md_ealgo;
 	sc->sc_nkey = nkey;
 	/*
@@ -999,6 +1004,7 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sbuf_printf(sb, name);					\
 	}								\
 } while (0)
+		ADD_FLAG(G_ELI_FLAG_NATIVE_BYTE_ORDER, "NATIVE-BYTE-ORDER");
 		ADD_FLAG(G_ELI_FLAG_ONETIME, "ONETIME");
 		ADD_FLAG(G_ELI_FLAG_BOOT, "BOOT");
 		ADD_FLAG(G_ELI_FLAG_WO_DETACH, "W-DETACH");
