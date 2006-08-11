@@ -9,6 +9,21 @@
 # for GCC:  http://gcc.gnu.org/onlinedocs/gcc-3.0.4/gcc_3.html#IDX143
 
 .if !defined(NO_WARNS) && ${CC} != "icc"
+. if defined(CSTD)
+.  if ${CSTD} == "k&r"
+CFLAGS		+= -traditional
+.  elif ${CSTD} == "c89" || ${CSTD} == "c90"
+CFLAGS		+= -std=iso9899:1990
+.  elif ${CSTD} == "c94" || ${CSTD} == "c95"
+CFLAGS		+= -std=iso9899:199409
+.  elif ${CSTD} == "c99"
+CFLAGS		+= -std=iso9899:1999
+.  else
+CFLAGS		+= -std=${CSTD}
+.  endif
+# -pedantic is problematic because it also imposes namespace restrictions
+#CFLAGS		+= -pedantic
+. endif
 . if defined(WARNS)
 .  if ${WARNS} >= 1
 CWARNFLAGS	+=	-Wsystem-headers
