@@ -156,7 +156,7 @@ void	tcp_timer_init(void);
 void	tcp_timer_2msl(void *xtp);
 struct tcptw *
 	tcp_timer_2msl_tw(int _reuse);		/* XXX temporary */
-void	tcp_timer_2msl_reset(struct tcptw *_tw, int _timeo);
+void	tcp_timer_2msl_reset(struct tcptw *_tw, int _timeo, int rearm);
 void	tcp_timer_2msl_stop(struct tcptw *_tw);
 void	tcp_timer_keep(void *xtp);
 void	tcp_timer_persist(void *xtp);
