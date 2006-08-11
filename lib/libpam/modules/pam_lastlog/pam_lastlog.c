@@ -87,12 +87,17 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 	PAM_LOG("Got user: %s", user);
 
 	pam_err = pam_get_item(pamh, PAM_RHOST, &rhost);
-	if (pam_err != PAM_SUCCESS)
+	if (pam_err != PAM_SUCCESS) {
+		PAM_LOG("No PAM_RHOST");
 		goto err;
+	}
 	pam_err = pam_get_item(pamh, PAM_TTY, &tty);
-	if (pam_err != PAM_SUCCESS)
+	if (pam_err != PAM_SUCCESS) {
+		PAM_LOG("No PAM_TTY");
 		goto err;
+	}
 	if (tty == NULL) {
+		PAM_LOG("No PAM_TTY");
 		pam_err = PAM_SERVICE_ERR;
 		goto err;
 	}
@@ -102,8 +107,10 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 		return (PAM_SERVICE_ERR);
 
 	fd = open(_PATH_LASTLOG, O_RDWR|O_CREAT, 0644);
-	if (fd == -1)
+	if (fd == -1) {
+		PAM_LOG("Failed to open %s", _PATH_LASTLOG);
 		goto file_err;
+	}
 
 	/*
 	 * Record session in lastlog(5).
