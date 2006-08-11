@@ -367,6 +367,9 @@ socreate(dom, aso, type, proto, cred, td)
 	so->so_count = 1;
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto, td);
 	if (error) {
+		KASSERT(so->so_count == 1, ("socreate: so_count %d",
+		    so->so_count));
+		so->so_count = 0;
 		sodealloc(so);
 		return (error);
 	}
