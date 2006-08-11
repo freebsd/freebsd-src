@@ -289,6 +289,7 @@ _mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
 	LOCK_LOG_LOCK("LOCK", &m->mtx_object, opts, m->mtx_recurse, file,
 	    line);
 	WITNESS_LOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
+	curthread->td_locks++;
 #ifdef MUTEX_PROFILING
 	/* don't reset the timer when/if recursing */
 	if (m->mtx_acqtime == 0) {
@@ -310,6 +311,7 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 	KASSERT(LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_sleep,
 	    ("mtx_unlock() of spin mutex %s @ %s:%d", m->mtx_object.lo_name,
 	    file, line));
+	curthread->td_locks--;
 	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
 	    line);
@@ -441,9 +443,11 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 		rval = _obtain_lock(m, (uintptr_t)curthread);
 
 	LOCK_LOG_TRY("LOCK", &m->mtx_object, opts, rval, file, line);
-	if (rval)
+	if (rval) {
 		WITNESS_LOCK(&m->mtx_object, opts | LOP_EXCLUSIVE | LOP_TRYLOCK,
 		    file, line);
+		curthread->td_locks++;
+	}
 
 	return (rval);
 }
@@ -898,6 +902,8 @@ mtx_destroy(struct mtx *m)
 		/* Perform the non-mtx related part of mtx_unlock_spin(). */
 		if (LOCK_CLASS(&m->mtx_object) == &lock_class_mtx_spin)
 			spinlock_exit();
+		else
+			curthread->td_locks--;
 
 		/* Tell witness this isn't locked to make it happy. */
 		WITNESS_UNLOCK(&m->mtx_object, LOP_EXCLUSIVE, __FILE__,
