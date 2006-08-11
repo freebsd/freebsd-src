@@ -2026,8 +2026,7 @@ monitor_lock_host(const char *hostname)
 	bzero(&smon,sizeof(smon));
 	  
 	smon.mon_id.mon_name = nhp->name;
-	smon.mon_id.my_id.my_name = "localhost\0";
-
+	smon.mon_id.my_id.my_name = "localhost";
 	smon.mon_id.my_id.my_prog = NLM_PROG;
 	smon.mon_id.my_id.my_vers = NLM_SM;
 	smon.mon_id.my_id.my_proc = NLM_SM_NOTIFY;
