@@ -56,8 +56,9 @@
  * 0 - Initial version number.
  * 1 - Added data authentication support (md_aalgo field and
  *     G_ELI_FLAG_AUTH flag).
+ * 2 - Added G_ELI_FLAG_READONLY.
  */
-#define	G_ELI_VERSION		1
+#define	G_ELI_VERSION		2
 
 /* ON DISK FLAGS. */
 /* Use random, onetime keys. */
@@ -223,7 +224,7 @@ eli_metadata_decode_v0(const u_char *data, struct g_eli_metadata *md)
 	return (0);
 }
 static __inline int
-eli_metadata_decode_v1(const u_char *data, struct g_eli_metadata *md)
+eli_metadata_decode_v1v2(const u_char *data, struct g_eli_metadata *md)
 {
 	MD5_CTX ctx;
 	const u_char *p;
@@ -258,7 +259,8 @@ eli_metadata_decode(const u_char *data, struct g_eli_metadata *md)
 		error = eli_metadata_decode_v0(data, md);
 		break;
 	case 1:
-		error = eli_metadata_decode_v1(data, md);
+	case 2:
+		error = eli_metadata_decode_v1v2(data, md);
 		break;
 	default:
 		error = EINVAL;
