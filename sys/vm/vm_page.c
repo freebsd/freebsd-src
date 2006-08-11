@@ -932,6 +932,7 @@ loop:
 	if (req & (VM_ALLOC_NOBUSY | VM_ALLOC_NOOBJ))
 		flags &= ~PG_BUSY;
 	m->flags = flags;
+	m->oflags = 0;
 	if (req & VM_ALLOC_WIRED) {
 		atomic_add_int(&cnt.v_wire_count, 1);
 		m->wire_count = 1;
@@ -1478,16 +1479,12 @@ vm_page_grab(vm_object_t object, vm_pindex_t pindex, int allocflags)
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 retrylookup:
 	if ((m = vm_page_lookup(object, pindex)) != NULL) {
-		vm_page_lock_queues();
-		if (m->busy || (m->flags & PG_BUSY)) {
-			vm_page_flag_set(m, PG_REFERENCED);
-			vm_page_unlock_queues();
-			m->oflags |= VPO_WANTED;
-			msleep(m, VM_OBJECT_MTX(m->object), PVM, "pgrbwt", 0);
+		if (vm_page_sleep_if_busy(m, TRUE, "pgrbwt")) {
 			if ((allocflags & VM_ALLOC_RETRY) == 0)
 				return (NULL);
 			goto retrylookup;
 		} else {
+			vm_page_lock_queues();
 			if (allocflags & VM_ALLOC_WIRED)
 				vm_page_wire(m);
 			if ((allocflags & VM_ALLOC_NOBUSY) == 0)
