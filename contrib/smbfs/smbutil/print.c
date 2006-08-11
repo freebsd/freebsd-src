@@ -31,6 +31,10 @@
  *
  * $Id: print.c,v 1.4 2001/01/28 07:35:01 bp Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
@@ -145,7 +149,7 @@ void
 print_usage(void)
 {
 	printf(
-	"usage: smbutil print [connection optinons] //user@server/share\n"
+	"usage: smbutil print [connection options] //user@server/share\n"
 	);
 	exit(1);
 }
