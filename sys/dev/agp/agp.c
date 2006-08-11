@@ -312,12 +312,14 @@ agp_v3_enable(device_t dev, device_t mdev, u_int32_t mode)
 	pci_write_config(dev, agp_find_caps(dev) + AGP_COMMAND, 0, 4);
 
 	/* Construct the new mode word and tell the hardware */
+	command = 0;
 	command = AGP_MODE_SET_RQ(0, rq);
 	command = AGP_MODE_SET_ARQSZ(command, arqsz);
 	command = AGP_MODE_SET_CAL(command, cal);
 	command = AGP_MODE_SET_SBA(command, sba);
 	command = AGP_MODE_SET_FW(command, fw);
 	command = AGP_MODE_SET_RATE(command, rate);
+	command = AGP_MODE_SET_MODE_3(command, 1);
 	command = AGP_MODE_SET_AGP(command, 1);
 	pci_write_config(dev, agp_find_caps(dev) + AGP_COMMAND, command, 4);
 	pci_write_config(mdev, agp_find_caps(mdev) + AGP_COMMAND, command, 4);
@@ -366,6 +368,7 @@ agp_v2_enable(device_t dev, device_t mdev, u_int32_t mode)
 		device_printf(dev, "Setting AGP v2 mode %d\n", rate);
 
 	/* Construct the new mode word and tell the hardware */
+	command = 0;
 	command = AGP_MODE_SET_RQ(0, rq);
 	command = AGP_MODE_SET_SBA(command, sba);
 	command = AGP_MODE_SET_FW(command, fw);
@@ -399,7 +402,9 @@ agp_generic_enable(device_t dev, u_int32_t mode)
 	 * but should work fine for a classic single AGP slot system
 	 * with AGP v3.
 	 */
-	if (AGP_MODE_GET_MODE_3(tstatus) && AGP_MODE_GET_MODE_3(mstatus))
+	if (AGP_MODE_GET_MODE_3(mode) &&
+	    AGP_MODE_GET_MODE_3(tstatus) &&
+	    AGP_MODE_GET_MODE_3(mstatus))
 		return (agp_v3_enable(dev, mdev, mode));
 	else
 		return (agp_v2_enable(dev, mdev, mode));	    
