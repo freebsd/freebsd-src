@@ -86,7 +86,7 @@ int	em_display_debug_stats = 0;
  *  Driver version
  *********************************************************************/
 
-char em_driver_version[] = "Version - 6.0.5";
+char em_driver_version[] = "Version - 6.1.4";
 
 
 /*********************************************************************
@@ -150,6 +150,8 @@ static em_vendor_info_t em_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_82571EB_COPPER,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82571EB_FIBER,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82571EB_SERDES,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_82571EB_QUAD_COPPER,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
 
 	{ 0x8086, E1000_DEV_ID_82572EI_COPPER,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82572EI_FIBER,	PCI_ANY_ID, PCI_ANY_ID, 0},
@@ -1099,7 +1101,7 @@ em_init(void *arg)
 #ifdef DEVICE_POLLING
 /*********************************************************************
  *
- *  Legacy polling routine  
+ *  Legacy polling routine
  *
  *********************************************************************/
 static void
@@ -1134,7 +1136,7 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 /*********************************************************************
  *
- *  Legacy Interrupt Service routine  
+ *  Legacy Interrupt Service routine
  *
  *********************************************************************/
 static void
@@ -1245,7 +1247,7 @@ em_handle_rxtx(void *context, int pending)
 
 /*********************************************************************
  *
- *  Fast Interrupt Service routine  
+ *  Fast Interrupt Service routine
  *
  *********************************************************************/
 static void
@@ -1318,8 +1320,12 @@ em_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	ifmr->ifm_status |= IFM_ACTIVE;
 
-	if (adapter->hw.media_type == em_media_type_fiber) {
-		ifmr->ifm_active |= IFM_1000_SX | IFM_FDX;
+	if ((adapter->hw.media_type == em_media_type_fiber) ||
+	    (adapter->hw.media_type == em_media_type_internal_serdes)) {
+		if (adapter->hw.mac_type == em_82545)
+			ifmr->ifm_active |= IFM_1000_LX | IFM_FDX;
+		else
+			ifmr->ifm_active |= IFM_1000_SX | IFM_FDX;
 	} else {
 		switch (adapter->link_speed) {
 		case 10:
@@ -1363,6 +1369,7 @@ em_media_change(struct ifnet *ifp)
 		adapter->hw.autoneg = DO_AUTO_NEG;
 		adapter->hw.autoneg_advertised = AUTONEG_ADV_DEFAULT;
 		break;
+	case IFM_1000_LX:
 	case IFM_1000_SX:
 	case IFM_1000_T:
 		adapter->hw.autoneg = DO_AUTO_NEG;
@@ -2241,12 +2248,17 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	 * Specify the media types supported by this adapter and register
 	 * callbacks to update media and link information
 	 */
-	ifmedia_init(&adapter->media, IFM_IMASK, em_media_change, em_media_status);
-	if (adapter->hw.media_type == em_media_type_fiber) {
-		ifmedia_add(&adapter->media, IFM_ETHER | IFM_1000_SX | IFM_FDX,
-			    0, NULL);
-		ifmedia_add(&adapter->media, IFM_ETHER | IFM_1000_SX,
-			    0, NULL);
+	ifmedia_init(&adapter->media, IFM_IMASK, em_media_change,
+	    em_media_status);
+	if ((adapter->hw.media_type == em_media_type_fiber) ||
+	    (adapter->hw.media_type == em_media_type_internal_serdes)) {
+		u_char fiber_type = IFM_1000_SX;	// default type;
+
+		if (adapter->hw.mac_type == em_82545)
+			fiber_type = IFM_1000_LX;
+		ifmedia_add(&adapter->media, IFM_ETHER | fiber_type | IFM_FDX,
+		    0, NULL);
+		ifmedia_add(&adapter->media, IFM_ETHER | fiber_type, 0, NULL);
 	} else {
 		ifmedia_add(&adapter->media, IFM_ETHER | IFM_10_T, 0, NULL);
 		ifmedia_add(&adapter->media, IFM_ETHER | IFM_10_T | IFM_FDX,
@@ -2256,9 +2268,9 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 		ifmedia_add(&adapter->media, IFM_ETHER | IFM_100_TX | IFM_FDX,
 			    0, NULL);
 		if (adapter->hw.phy_type != em_phy_ife) {
-			ifmedia_add(&adapter->media, 
+			ifmedia_add(&adapter->media,
 				IFM_ETHER | IFM_1000_T | IFM_FDX, 0, NULL);
-			ifmedia_add(&adapter->media, 
+			ifmedia_add(&adapter->media,
 				IFM_ETHER | IFM_1000_T, 0, NULL);
 		}
 	}
@@ -2538,7 +2550,8 @@ em_initialize_transmit_unit(struct adapter *adapter)
 		    E1000_TIPG_IPGR2_SHIFT;
 		break;
 	default:
-		if (adapter->hw.media_type == em_media_type_fiber)
+		if ((adapter->hw.media_type == em_media_type_fiber) ||
+		    (adapter->hw.media_type == em_media_type_internal_serdes))
 			reg_tipg = DEFAULT_82543_TIPG_IPGT_FIBER;
 		else
 			reg_tipg = DEFAULT_82543_TIPG_IPGT_COPPER;
@@ -2563,8 +2576,6 @@ em_initialize_transmit_unit(struct adapter *adapter)
 	} else if (adapter->hw.mac_type == em_80003es2lan) {
 		reg_tarc = E1000_READ_REG(&adapter->hw, TARC0);
 		reg_tarc |= 1;
-		if (adapter->hw.media_type == em_media_type_internal_serdes)
-		    reg_tarc |= (1 << 20);
 		E1000_WRITE_REG(&adapter->hw, TARC0, reg_tarc);
 		reg_tarc = E1000_READ_REG(&adapter->hw, TARC1);
 		reg_tarc |= 1;
