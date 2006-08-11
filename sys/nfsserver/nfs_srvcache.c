@@ -134,6 +134,17 @@ nfsrv_initcache(void)
 }
 
 /*
+ * Teardown the server request cache list
+ */
+void
+nfsrv_destroycache(void)
+{
+
+	KASSERT(TAILQ_EMPTY(&nfsrvlruhead), ("%s: pending requests", __func__));
+	hashdestroy(nfsrvhashtbl, M_NFSD, nfsrvhash);
+}
+
+/*
  * Look for the request in the cache
  * If found then
  *    return action and optionally reply
