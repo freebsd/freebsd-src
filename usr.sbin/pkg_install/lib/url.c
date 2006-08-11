@@ -98,7 +98,7 @@ fileGetURL(const char *base, const char *spec, int keep_package)
     else
 	strcpy(fname, spec);
 
-   if (keep_package) {
+    if (keep_package) {
     	tmp = getenv("PKGDIR");
 	strlcpy(pkg, tmp ? tmp : ".", sizeof(pkg));
 	tmp = basename(fname);
@@ -109,7 +109,7 @@ fileGetURL(const char *base, const char *spec, int keep_package)
 	    perror("open");
 	    return NULL;
 	}
-   } 
+    }
 
     fetchDebug = (Verbose > 0);
     if ((ftp = fetchGetURL(fname, Verbose ? "v" : NULL)) == NULL) {
