@@ -339,6 +339,7 @@ em_set_mac_type(struct em_hw *hw)
     case E1000_DEV_ID_82571EB_COPPER:
     case E1000_DEV_ID_82571EB_FIBER:
     case E1000_DEV_ID_82571EB_SERDES:
+    case E1000_DEV_ID_82571EB_QUAD_COPPER:
             hw->mac_type = em_82571;
         break;
     case E1000_DEV_ID_82572EI_COPPER:
@@ -699,6 +700,16 @@ em_init_hw(struct em_hw *hw)
 
     DEBUGFUNC("em_init_hw");
 
+    if (hw->mac_type == em_ich8lan) {
+        reg_data = E1000_READ_REG(hw, TARC0);
+        reg_data |= 0x30000000;
+        E1000_WRITE_REG(hw, TARC0, reg_data);
+
+        reg_data = E1000_READ_REG(hw, STATUS);
+        reg_data &= ~0x80000000;
+        E1000_WRITE_REG(hw, STATUS, reg_data);
+    }
+
     /* Initialize Identification LED */
     ret_val = em_id_led_init(hw);
     if (ret_val) {
@@ -855,7 +866,6 @@ em_init_hw(struct em_hw *hw)
     }
 
 
-
     if (hw->mac_type == em_82573) {
         uint32_t gcr = E1000_READ_REG(hw, GCR);
         gcr |= E1000_GCR_L1_ACT_WITHOUT_L0S_RX;
@@ -869,7 +879,7 @@ em_init_hw(struct em_hw *hw)
      */
     em_clear_hw_cntrs(hw);
 
-    /* ICH8/Nahum No-snoop bits are opposite polarity.
+    /* ICH8 No-snoop bits are opposite polarity.
      * Set to snoop by default after reset. */
     if (hw->mac_type == em_ich8lan)
         em_set_pci_ex_no_snoop(hw, PCI_EX_82566_SNOOP_ALL);
@@ -1305,11 +1315,14 @@ em_copper_link_igp_setup(struct em_hw *hw)
     E1000_WRITE_REG(hw, LEDCTL, led_ctrl);
     }
 
-    /* disable lplu d3 during driver init */
-    ret_val = em_set_d3_lplu_state(hw, FALSE);
-    if (ret_val) {
-        DEBUGOUT("Error Disabling LPLU D3\n");
-        return ret_val;
+    /* The NVM settings will configure LPLU in D3 for IGP2 and IGP3 PHYs */
+    if (hw->phy_type == em_phy_igp) {
+        /* disable lplu d3 during driver init */
+        ret_val = em_set_d3_lplu_state(hw, FALSE);
+        if (ret_val) {
+            DEBUGOUT("Error Disabling LPLU D3\n");
+            return ret_val;
+        }
     }
 
     /* disable lplu d0 during driver init */
@@ -1732,19 +1745,6 @@ em_copper_link_autoneg(struct em_hw *hw)
     return E1000_SUCCESS;
 }
 
-/********************************************************************
-* Copper link setup for em_phy_ife (Fast Ethernet PHY) series.
-*
-* hw - Struct containing variables accessed by shared code
-*********************************************************************/
-static int32_t
-em_copper_link_ife_setup(struct em_hw *hw)
-{
-    if (hw->phy_reset_disable)
-        return E1000_SUCCESS;
-    return E1000_SUCCESS;
-}
-
 /******************************************************************************
 * Config the MAC and the PHY after link is up.
 *   1) Set up the MAC to the current PHY speed/duplex
@@ -1856,10 +1856,6 @@ em_setup_copper_link(struct em_hw *hw)
             return ret_val;
     } else if (hw->phy_type == em_phy_gg82563) {
         ret_val = em_copper_link_ggp_setup(hw);
-        if (ret_val)
-            return ret_val;
-    } else if (hw->phy_type == em_phy_ife) {
-        ret_val = em_copper_link_ife_setup(hw);
         if (ret_val)
             return ret_val;
     }
@@ -3716,14 +3712,13 @@ em_phy_hw_reset(struct em_hw *hw)
 
     /* Wait for FW to finish PHY configuration. */
     ret_val = em_get_phy_cfg_done(hw);
+    if (ret_val != E1000_SUCCESS)
+        return ret_val;
     em_release_software_semaphore(hw);
 
-        if ((hw->mac_type == em_ich8lan) &&
-            (hw->phy_type == em_phy_igp_3)) {
-            ret_val = em_init_lcd_from_nvm(hw);
-            if (ret_val)
-                return ret_val;
-        }
+    if ((hw->mac_type == em_ich8lan) && (hw->phy_type == em_phy_igp_3))
+        ret_val = em_init_lcd_from_nvm(hw);
+
     return ret_val;
 }
 
@@ -3850,8 +3845,8 @@ em_kumeran_lock_loss_workaround(struct em_hw *hw)
     if (hw->kmrn_lock_loss_workaround_disabled)
         return E1000_SUCCESS;
 
-    /* Make sure link is up before proceeding. If not just return. 
-     * Attempting this while link is negotiating fouls up link
+    /* Make sure link is up before proceeding.  If not just return.
+     * Attempting this while link is negotiating fouled up link
      * stability */
     ret_val = em_read_phy_reg(hw, PHY_STATUS, &phy_data);
     ret_val = em_read_phy_reg(hw, PHY_STATUS, &phy_data);
@@ -9047,6 +9042,14 @@ em_init_lcd_from_nvm_config_region(struct em_hw *hw,
 }
 
 
+/******************************************************************************
+ * This function initializes the PHY from the NVM on ICH8 platforms. This
+ * is needed due to an issue where the NVM configuration is not properly
+ * autoloaded after power transitions. Therefore, after each PHY reset, we
+ * will load the configuration data out of the NVM manually.
+ *
+ * hw: Struct containing variables accessed by shared code
+ *****************************************************************************/
 int32_t
 em_init_lcd_from_nvm(struct em_hw *hw)
 {
