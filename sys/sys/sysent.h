@@ -114,7 +114,7 @@ static moduledata_t name##_mod = {                             \
        syscall_module_handler,                                 \
        &name##_syscall_mod                                     \
 };                                                             \
-DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
+DECLARE_MODULE(name, name##_mod, SI_SUB_SYSCALLS, SI_ORDER_MIDDLE)
 
 #define SYSCALL_MODULE_HELPER(syscallname)              \
 static int syscallname##_syscall = SYS_##syscallname;   \
