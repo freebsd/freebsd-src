@@ -2778,11 +2778,11 @@ ata_nvidia_ident(device_t dev)
      { ATA_NFORCE_CK804_S1, 0, 0,         NV4,     ATA_SA300, "nForce CK804" },
      { ATA_NFORCE_CK804_S2, 0, 0,         NV4,     ATA_SA300, "nForce CK804" },
      { ATA_NFORCE_MCP51,    0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce MCP51" },
-     { ATA_NFORCE_MCP51_S1, 0, 0,         NV4LONG, ATA_SA300, "nForce MCP51" },
-     { ATA_NFORCE_MCP51_S2, 0, 0,         NV4LONG, ATA_SA300, "nForce MCP51" },
+     { ATA_NFORCE_MCP51_S1, 0, 0,         NV4|NVQ, ATA_SA300, "nForce MCP51" },
+     { ATA_NFORCE_MCP51_S2, 0, 0,         NV4|NVQ, ATA_SA300, "nForce MCP51" },
      { ATA_NFORCE_MCP55,    0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce MCP55" },
-     { ATA_NFORCE_MCP55_S1, 0, 0,         NV4LONG, ATA_SA300, "nForce MCP55" },
-     { ATA_NFORCE_MCP55_S2, 0, 0,         NV4LONG, ATA_SA300, "nForce MCP55" },
+     { ATA_NFORCE_MCP55_S1, 0, 0,         NV4|NVQ, ATA_SA300, "nForce MCP55" },
+     { ATA_NFORCE_MCP55_S2, 0, 0,         NV4|NVQ, ATA_SA300, "nForce MCP55" },
      { 0, 0, 0, 0, 0, 0}} ;
     char buffer[64] ;
 
@@ -2821,7 +2821,7 @@ ata_nvidia_chipinit(device_t dev)
 	    /* enable control access */
 	    pci_write_config(dev, 0x50, pci_read_config(dev, 0x50, 1) | 0x04,1);
 
-	    if (ctlr->chip->cfg2 & NV4LONG) {
+	    if (ctlr->chip->cfg2 & NVQ) {
 		/* clear interrupt status */
 		ATA_OUTL(ctlr->r_res2, offset, 0x00ff00ff);
 
@@ -2881,11 +2881,11 @@ ata_nvidia_status(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
     int offset = ctlr->chip->cfg2 & NV4 ? 0x0440 : 0x0010;
     struct ata_connect_task *tp;
-    int shift = ch->unit << (ctlr->chip->cfg2 & NV4LONG ? 4 : 2);
+    int shift = ch->unit << (ctlr->chip->cfg2 & NVQ ? 4 : 2);
     u_int32_t status;
 
     /* get and clear interrupt status */
-    if (ctlr->chip->cfg2 & NV4LONG) {
+    if (ctlr->chip->cfg2 & NVQ) {
 	status = ATA_INL(ctlr->r_res2, offset);
 	ATA_OUTL(ctlr->r_res2, offset, (0x0f << shift));
     }
