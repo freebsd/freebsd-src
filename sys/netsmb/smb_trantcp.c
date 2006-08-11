@@ -95,19 +95,12 @@ nb_setsockopt_int(struct socket *so, int level, int name, int val)
 	return sosetopt(so, &sopt);
 }
 
-static __inline int
-nb_poll(struct nbpcb *nbp, int events, struct thread *td)
-{
-	return nbp->nbp_tso->so_proto->pr_usrreqs->pru_sopoll(nbp->nbp_tso,
-	    events, NULL, td);
-}
-
 static int
 nbssn_rselect(struct nbpcb *nbp, struct timeval *tv, int events,
 	struct thread *td)
 {
 	struct timeval atv, rtv, ttv;
-	int ncoll, timo, error;
+	int ncoll, timo, error, revents;
 
 	if (tv) {
 		atv = *tv;
@@ -130,16 +123,19 @@ retry:
 
 	/* XXX: Should be done when the thread is initialized. */
 	TAILQ_INIT(&td->td_selq);
-	error = nb_poll(nbp, events, td);
+	revents = nbp->nbp_tso->so_proto->pr_usrreqs->pru_sopoll(nbp->nbp_tso,
+	    events, NULL, td);
 	mtx_lock(&sellock);
-	if (error) {
+	if (revents) {
 		error = 0;
 		goto done;
 	}
 	if (tv) {
 		getmicrouptime(&rtv);
-		if (timevalcmp(&rtv, &atv, >=))
+		if (timevalcmp(&rtv, &atv, >=)) {
+			error = EWOULDBLOCK;
 			goto done;
+		}
 		ttv = atv;
 		timevalsub(&ttv, &rtv);
 		timo = tvtohz(&ttv);
