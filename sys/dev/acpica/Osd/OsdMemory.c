@@ -58,7 +58,7 @@ ACPI_STATUS
 AcpiOsMapMemory(ACPI_PHYSICAL_ADDRESS PhysicalAddress, ACPI_SIZE Length,
     void **LogicalAddress)
 {
-    *LogicalAddress = pmap_mapdev((vm_offset_t)PhysicalAddress, Length);
+    *LogicalAddress = pmap_mapbios((vm_offset_t)PhysicalAddress, Length);
     if (*LogicalAddress == NULL)
 	return (AE_BAD_ADDRESS);
     return (AE_OK);
@@ -67,7 +67,7 @@ AcpiOsMapMemory(ACPI_PHYSICAL_ADDRESS PhysicalAddress, ACPI_SIZE Length,
 void
 AcpiOsUnmapMemory(void *LogicalAddress, ACPI_SIZE Length)
 {
-    pmap_unmapdev((vm_offset_t)LogicalAddress, Length);
+    pmap_unmapbios((vm_offset_t)LogicalAddress, Length);
 }
 
 ACPI_STATUS
