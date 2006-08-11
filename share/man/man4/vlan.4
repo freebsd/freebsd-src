@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 25, 2006
+.Dd August 11, 2006
 .Dt VLAN 4
 .Os
 .Sh NAME
@@ -79,6 +79,27 @@ The parent interface is likely to be an Ethernet card connected
 to a properly configured switch port.
 The VLAN tag should match one of those set up in the switched
 network.
+.Pp
+Initially
+.Nm
+assumes the same minimum length for tagged and untagged frames.
+This mode is selected by the
+.Xr sysctl(8)
+variable
+.Va net.link.vlan.soft_pad
+set to 0 (default).
+However, there are network devices that fail to adjust frame length,
+should it fall below the allowed minimum due to untagging.
+Such devices should be able to interoperate with
+.Nm
+after changing the value of
+.Va net.link.vlan.soft_pad
+to 1.
+In the latter mode,
+.Nm
+will pad short frames before tagging them
+so that their length stays not less than the minimum value
+after untagging by the non-compliant devices.
 .Sh HARDWARE
 The
 .Nm
@@ -205,7 +226,8 @@ can be corrected manually if used in conjunction with such parent interface.
 .Sh SEE ALSO
 .Xr kqueue 2 ,
 .Xr miibus 4 ,
-.Xr ifconfig 8
+.Xr ifconfig 8 ,
+.Xr sysctl 8
 .Sh BUGS
 No 802.1Q features except VLAN tagging are implemented.
 .Pp
