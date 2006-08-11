@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,27 +57,31 @@
  * 1 - Added data authentication support (md_aalgo field and
  *     G_ELI_FLAG_AUTH flag).
  * 2 - Added G_ELI_FLAG_READONLY.
+ *   - IV is generated from offset converted to little-endian
+ *     (flag G_ELI_FLAG_NATIVE_BYTE_ORDER will be set for older versions).
  */
 #define	G_ELI_VERSION		2
 
 /* ON DISK FLAGS. */
 /* Use random, onetime keys. */
-#define	G_ELI_FLAG_ONETIME	0x00000001
+#define	G_ELI_FLAG_ONETIME		0x00000001
 /* Ask for the passphrase from the kernel, before mounting root. */
-#define	G_ELI_FLAG_BOOT		0x00000002
+#define	G_ELI_FLAG_BOOT			0x00000002
 /* Detach on last close, if we were open for writing. */
-#define	G_ELI_FLAG_WO_DETACH	0x00000004
+#define	G_ELI_FLAG_WO_DETACH		0x00000004
 /* Detach on last close. */
-#define	G_ELI_FLAG_RW_DETACH	0x00000008
+#define	G_ELI_FLAG_RW_DETACH		0x00000008
 /* Provide data authentication. */
-#define	G_ELI_FLAG_AUTH		0x00000010
+#define	G_ELI_FLAG_AUTH			0x00000010
 /* Provider is read-only, we should deny all write attempts. */
-#define	G_ELI_FLAG_RO		0x00000020
+#define	G_ELI_FLAG_RO			0x00000020
 /* RUNTIME FLAGS. */
 /* Provider was open for writing. */
-#define	G_ELI_FLAG_WOPEN	0x00010000
+#define	G_ELI_FLAG_WOPEN		0x00010000
 /* Destroy device. */
-#define	G_ELI_FLAG_DESTROY	0x00020000
+#define	G_ELI_FLAG_DESTROY		0x00020000
+/* Provider uses native byte-order for IV generation. */
+#define	G_ELI_FLAG_NATIVE_BYTE_ORDER	0x00040000
 
 #define	SHA512_MDLEN		64
 #define	G_ELI_AUTH_SECKEYLEN	SHA256_DIGEST_LENGTH
