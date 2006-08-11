@@ -160,6 +160,7 @@ enum sysinit_sub_id {
 	SI_SUB_MOUNT_ROOT	= 0xb400000,	/* root mount*/
 	SI_SUB_SWAP		= 0xc000000,	/* swap */
 	SI_SUB_INTRINSIC_POST	= 0xd000000,	/* proc 0 cleanup*/
+	SI_SUB_SYSCALLS		= 0xd800000,	/* register system calls */
 	SI_SUB_KTHREAD_INIT	= 0xe000000,	/* init process*/
 	SI_SUB_KTHREAD_PAGE	= 0xe400000,	/* pageout daemon*/
 	SI_SUB_KTHREAD_VM	= 0xe800000,	/* vm daemon*/
