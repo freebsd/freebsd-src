@@ -112,6 +112,9 @@ ia32_syscall(struct trapframe *tf)
 	if (KTRPOINT(td, KTR_SYSCALL))
 		ktrsyscall(code, narg, args64);
 #endif
+	CTR4(KTR_SYSC, "syscall enter thread %p pid %d proc %s code %d", td,
+	    td->td_proc->p_pid, td->td_proc->p_comm, code);
+
 	/*
 	 * Try to run the syscall without Giant if the syscall
 	 * is MP safe.
@@ -174,6 +177,11 @@ ia32_syscall(struct trapframe *tf)
 		trapsignal(td, SIGTRAP, 0);
 	}
 
+	/*
+	 * End of syscall tracing.
+	 */
+	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
+	    td->td_proc->p_pid, td->td_proc->p_comm, code);
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))
 		ktrsysret(code, error, td->td_retval[0]);
