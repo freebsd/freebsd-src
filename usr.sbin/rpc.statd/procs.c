@@ -158,8 +158,9 @@ struct sm_stat_res *sm_mon_1_svc(mon *arg, struct svc_req *req)
     {
       syslog(LOG_DEBUG, "monitor request for host %s", arg->mon_id.mon_name);
       syslog(LOG_DEBUG, "recall host: %s prog: %d ver: %d proc: %d",
-      arg->mon_id.mon_name,
-      arg->mon_id.my_id.my_prog, arg->mon_id.my_id.my_vers,
+      arg->mon_id.my_id.my_name,
+      arg->mon_id.my_id.my_prog,
+      arg->mon_id.my_id.my_vers,
       arg->mon_id.my_id.my_proc);
     }
     res.res_stat = stat_fail;  /* Assume fail until set otherwise      */
