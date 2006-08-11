@@ -257,14 +257,14 @@ tcp_timer_init(void)
 }
 
 void
-tcp_timer_2msl_reset(struct tcptw *tw, int timeo)
+tcp_timer_2msl_reset(struct tcptw *tw, int timeo, int rearm)
 {
 	int i;
 	struct tcptw *tw_tail;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_LOCK_ASSERT(tw->tw_inpcb);
-	if (tw->tw_time != 0)
+	if (rearm)
 		LIST_REMOVE(tw, tw_2msl);
 	tw->tw_time = timeo + ticks;
 	i = timeo > tcp_msl ? 1 : 0;
@@ -277,8 +277,7 @@ tcp_timer_2msl_stop(struct tcptw *tw)
 {
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
-	if (tw->tw_time != 0)
-		LIST_REMOVE(tw, tw_2msl);
+	LIST_REMOVE(tw, tw_2msl);
 }
 
 struct tcptw *
