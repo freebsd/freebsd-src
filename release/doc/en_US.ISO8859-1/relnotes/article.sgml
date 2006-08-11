@@ -579,8 +579,9 @@
 	  architectures such as sparc64.  &merged;</para>
 
 	<para>The &man.em.4; driver has been updated to
-	  version 5.1.5 from Intel.  Among other changes, it now supports
-	  82571 and 82572 based adapters.</para>
+	  version 6.1.4 from Intel.  Among other changes, it now supports
+	  80003, 82571, 82571EB and 82572 based adapters, as well as
+	  onboard-NICs on ICH8-based motherboards.</para>
 
 	<para>The &man.em.4; driver now includes
 	  initial support for suspend and resume features.</para>
@@ -645,7 +646,7 @@
 
 	<para>The &man.stge.4; driver has been added.  It supports the
 	  Sundance/Tamarack TC9021 Gigabit Ethernet controller and was
-	  ported from NetBSD.</para>
+	  ported from NetBSD.  &merged;</para>
 
 	<para>The &man.ti.4; driver now supports big-endian
 	  architectures such as sparc64.</para>
