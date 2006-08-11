@@ -133,7 +133,7 @@ void
 view_usage(void)
 {
 	printf(
-	"usage: smbutil view [connection optinons] //[user@]server\n"
+	"usage: smbutil view [connection options] //[user@]server\n"
 	);
 	exit(1);
 }
