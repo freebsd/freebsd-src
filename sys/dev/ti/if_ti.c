@@ -2955,7 +2955,7 @@ ti_encap(sc, m_head)
 	struct ti_txdesc	*txd;
 	struct ti_tx_desc	*f;
 	struct ti_tx_desc	txdesc;
-	struct mbuf		*m, *n;
+	struct mbuf		*m;
 	struct m_tag		*mtag;
 	bus_dma_segment_t	txsegs[TI_MAXTXSEGS];
 	u_int16_t		csum_flags;
@@ -2963,6 +2963,36 @@ ti_encap(sc, m_head)
 
 	if ((txd = STAILQ_FIRST(&sc->ti_cdata.ti_txfreeq)) == NULL)
 		return (ENOBUFS);
+
+	error = bus_dmamap_load_mbuf_sg(sc->ti_mbuftx_dmat, txd->tx_dmamap,
+	    *m_head, txsegs, &nseg, 0);
+	if (error == EFBIG) {
+		m = m_defrag(*m_head, M_DONTWAIT);
+		if (m == NULL) {
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (ENOMEM);
+		}
+		*m_head = m;
+		error = bus_dmamap_load_mbuf_sg(sc->ti_mbuftx_dmat,
+		    txd->tx_dmamap, *m_head, txsegs, &nseg, 0);
+		if (error) {
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (error);
+		}
+	} else if (error != 0)
+		return (error);
+	if (nseg == 0) {
+		m_freem(*m_head);
+		*m_head = NULL;
+		return (EIO);
+	}
+
+	if (sc->ti_txcnt + nseg >= TI_TX_RING_CNT) {
+		bus_dmamap_unload(sc->ti_mbuftx_dmat, txd->tx_dmamap);
+		return (ENOBUFS);
+	}
 
 	m = *m_head;
 	csum_flags = 0;
@@ -2975,36 +3005,6 @@ ti_encap(sc, m_head)
 			csum_flags |= TI_BDFLAG_IP_FRAG_END;
 		else if (m->m_flags & M_FRAG)
 			csum_flags |= TI_BDFLAG_IP_FRAG;
-	}
-
-	error = bus_dmamap_load_mbuf_sg(sc->ti_mbuftx_dmat, txd->tx_dmamap,
-	    m, txsegs, &nseg, 0);
-	if (error == EFBIG) {
-		n = m_defrag(m, M_DONTWAIT);
-		if (n == NULL) {
-			m_freem(m);
-			m = NULL;
-			return (ENOMEM);
-		}
-		m = n;
-		error = bus_dmamap_load_mbuf_sg(sc->ti_mbuftx_dmat,
-		    txd->tx_dmamap, m, txsegs, &nseg, 0);
-		if (error) {
-			m_freem(m);
-			m = NULL;
-			return (error);
-		}
-	} else if (error != 0)
-		return (error);
-	if (nseg == 0) {
-		m_freem(m);
-		m = NULL;
-		return (EIO);
-	}
-
-	if (sc->ti_txcnt + nseg >= TI_TX_RING_CNT) {
-		bus_dmamap_unload(sc->ti_mbuftx_dmat, txd->tx_dmamap);
-		return (ENOBUFS);
 	}
 
 	bus_dmamap_sync(sc->ti_mbuftx_dmat, txd->tx_dmamap,
