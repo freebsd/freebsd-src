@@ -1183,8 +1183,6 @@ geom/geom_sunlabel.c		optional geom_sunlabel
 geom/geom_sunlabel_enc.c	optional geom_sunlabel
 geom/geom_vfs.c			standard
 geom/geom_vol_ffs.c		optional geom_vol
-geom/journal/g_journal.c	optional geom_journal
-geom/journal/g_journal_ufs.c	optional geom_journal
 geom/label/g_label.c		optional geom_label
 geom/label/g_label_ext2fs.c	optional geom_label
 geom/label/g_label_iso9660.c	optional geom_label
@@ -1945,7 +1943,6 @@ ufs/ufs/ufs_acl.c		optional ffs
 ufs/ufs/ufs_bmap.c		optional ffs
 ufs/ufs/ufs_dirhash.c		optional ffs
 ufs/ufs/ufs_extattr.c		optional ffs
-ufs/ufs/ufs_gjournal.c		optional ffs
 ufs/ufs/ufs_inode.c		optional ffs
 ufs/ufs/ufs_lookup.c		optional ffs
 ufs/ufs/ufs_quota.c		optional ffs
