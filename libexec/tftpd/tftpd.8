@@ -39,7 +39,7 @@
 .Nm tftpd
 .Nd Internet Trivial File Transfer Protocol server
 .Sh SYNOPSIS
-.Nm /usr/libexec/tftpd
+.Nm tftpd
 .Op Fl cClnw
 .Op Fl s Ar directory
 .Op Fl u Ar user
@@ -70,8 +70,11 @@ Due to the lack of authentication information,
 .Nm
 will allow only publicly readable files to be
 accessed.
-Files containing the string ``/\|\fB.\|.\fP\|/'' or starting with
-``\|\fB.\|.\fP\|/'' are not allowed.
+Files containing the string
+.Dq Li "/../"
+or starting with
+.Dq Li "../"
+are not allowed.
 Files may be written only if they already exist and are publicly writable.
 Note that this extends the concept of
 .Dq public
@@ -85,7 +88,7 @@ Access to files may be restricted by invoking
 .Nm
 with a list of directories by including up to 20 pathnames
 as server program arguments in
-.Pa /etc/inetd.conf .
+.Xr inetd.conf 5 .
 In this case access is restricted to files whose
 names are prefixed by the one of the given directories.
 The given directories are also treated as a search path for
@@ -94,21 +97,24 @@ relative filename requests.
 The
 .Fl s
 option provides additional security by changing
-.Nm Ns No 's
-root directory, thereby prohibiting accesses outside of the specified
+the root directory of
+.Nm ,
+thereby prohibiting accesses to outside of the specified
 .Ar directory .
 Because
 .Xr chroot 2
 requires super-user privileges,
 .Nm
-must be run as root.
+must be run as
+.Li root .
 However, after performing the
-.Fn chroot ,
+.Xr chroot 2
+call,
 .Nm
-will set its user id to that of the specified
+will set its user ID to that of the specified
 .Ar user ,
 or
-.Dq nobody
+.Dq Li nobody
 if no
 .Fl u
 option is specified.
@@ -116,8 +122,9 @@ option is specified.
 The options are:
 .Bl -tag -width Ds
 .It Fl c
-Changes the default root directory of a connecting host via chroot based on the
-connecting IP address.
+Changes the default root directory of a connecting host via
+.Xr chroot 2
+based on the connecting IP address.
 This prevents multiple clients from writing to the same file at the same time.
 If the directory does not exist, the client connection is refused.
 The
@@ -131,15 +138,17 @@ is used as a base.
 Operates the same as
 .Fl c
 except it falls back to
-.Fl s Ns No 's
 .Ar directory
+specified via
+.Fl s
 if a directory does not exist for the client's IP.
 .It Fl l
 Log all requests using
 .Xr syslog 3
 with the facility of
 .Dv LOG_FTP .
-Note: Logging of
+.Sy Note :
+Logging of
 .Dv LOG_FTP
 messages
 must also be enabled in the syslog configuration file,
@@ -151,15 +160,15 @@ relative filenames.
 Cause
 .Nm
 to change its root directory to
-.Pa directory .
-After changing roots but before accepting commands,
+.Ar directory .
+After doing that but before accepting commands,
 .Nm
 will switch credentials to an unprivileged user.
 .It Fl u Ar user
 Switch credentials to
 .Ar user
 (default
-.Dq nobody )
+.Dq Li nobody )
 when the
 .Fl s
 option is used.
@@ -169,7 +178,7 @@ Set the
 .Ar umask
 for newly created files.
 The default is 022
-.Pq Dv S_IWGRP | S_IWOTH .
+.Pq Dv S_IWGRP No | Dv S_IWOTH .
 .It Fl w
 Allow writes requests to create new files.
 By default
@@ -179,8 +188,11 @@ requires that the file specified in a write request exist.
 .Sh SEE ALSO
 .Xr tftp 1 ,
 .Xr chroot 2 ,
-.Xr inetd 8 ,
-.Xr syslogd 8
+.Xr syslog 3 ,
+.Xr inetd.conf 5 ,
+.Xr services 5 ,
+.Xr syslog.conf 5 ,
+.Xr inetd 8
 .Rs
 .%A K. R. Sollins
 .%T The TFTP Protocol (Revision 2)
