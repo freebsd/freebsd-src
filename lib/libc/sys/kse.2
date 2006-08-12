@@ -267,7 +267,7 @@ This system call does not return unless there is an error.
 .Pp
 As a special case, if the last remaining KSE in the last remaining KSE group
 invokes this system call, then the KSE is not destroyed;
-instead, the KSE just looses the association with its mailbox and
+instead, the KSE just loses the association with its mailbox and
 .Fn kse_exit
 returns normally.
 This returns the process to its original, unthreaded state.
