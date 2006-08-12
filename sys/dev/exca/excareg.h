@@ -402,6 +402,12 @@
 #define EXCA_O2CC_IREQ_INTC			0x80
 #define EXCA_O2CC_STSCHG_INTC			0x20
 
+/*
+ * TOPIC specific registers
+ */
+#define EXCA_TOPIC97_CTRL			0x3e
+#define EXCA_TOPIC97_CTRL_LV_MASK		0x03
+
 /* Plug and play */
 #define EXCA_PNP_ACTIONTEC	0x1802A904	/* AEI0218 */
 #define EXCA_PNP_IBM3765	0x65374d24	/* IBM3765 */
