@@ -700,7 +700,7 @@ cbb_o2micro_power_hack2(struct cbb_softc *sc, uint8_t reg)
 int
 cbb_power(device_t brdev, int volts)
 {
-	uint32_t status, sock_ctrl, mask;
+	uint32_t status, sock_ctrl, reg_ctrl, mask;
 	struct cbb_softc *sc = device_get_softc(brdev);
 	int cnt, sane;
 	int retval = 0;
@@ -744,14 +744,15 @@ cbb_power(device_t brdev, int volts)
 		reg = cbb_o2micro_power_hack(sc);
 
 	/*
-	 * We have to mask the card change detect interrupt while we're
-	 * messing with the power.  It is allowed to bounce while we're
-	 * messing with power as things settle down.  In addition, we mask off
-	 * the card's function interrupt by routing it via the ISA bus.  This
-	 * bit generally only affects 16bit cards.  Some bridges allow one to
-	 * set another bit to have it also affect 32bit cards.  Since 32bit
-	 * cards are required to be better behaved, we don't bother to get
-	 * into those bridge specific features.
+	 * We have to mask the card change detect interrupt while
+	 * we're messing with the power.  It is allowed to bounce
+	 * while we're messing with power as things settle down.  In
+	 * addition, we mask off the card's function interrupt by
+	 * routing it via the ISA bus.  This bit generally only
+	 * affects 16-bit cards.  Some bridges allow one to set
+	 * another bit to have it also affect 32-bit cards.  Since
+	 * 32-bit cards are required to be better behaved, we don't
+	 * bother to get into those bridge specific features.
 	 */
 	mask = cbb_get(sc, CBB_SOCKET_MASK);
 	mask |= CBB_SOCKET_MASK_POWER;
@@ -763,13 +764,29 @@ cbb_power(device_t brdev, int volts)
 	if (on) {
 		mtx_lock(&sc->mtx);
 		cnt = sc->powerintr;
-		sane = 200;
+		/*
+		 * We have a shortish timeout of 500ms here.  Some
+		 * bridges do not generate a POWER_CYCLE event for
+		 * 16-bit cards.  In those cases, we have to cope the
+		 * best we can, and having only a short delay is
+		 * better than the alternatives.
+		 */
+		sane = 10;
 		while (!(cbb_get(sc, CBB_SOCKET_STATE) & CBB_STATE_POWER_CYCLE) &&
 		    cnt == sc->powerintr && sane-- > 0)
-			cv_timedwait(&sc->powercv, &sc->mtx, hz / 10);
+			cv_timedwait(&sc->powercv, &sc->mtx, hz / 20);
 		mtx_unlock(&sc->mtx);
-		if (sane <= 0)
+		/*
+		 * The TOPIC95B requires a little bit extra time to get
+		 * its act together, so delay for an additional 100ms.  Also
+		 * as documented below, it doesn't seem to set the POWER_CYCLE
+		 * bit, so don't whine if it never came on.
+		 */
+		if (sc->chipset == CB_TOPIC95) {
+			tsleep(sc, PZERO, "cbb95B", hz / 10);
+		} else if (sane <= 0) {
 			device_printf(sc->dev, "power timeout, doom?\n");
+		}
 	}
 
 	/*
@@ -782,10 +799,13 @@ cbb_power(device_t brdev, int volts)
 	 * we're called from the card insertion code, in which case the cbb
 	 * thread will turn it on for us before it waits to be woken by a
 	 * change event.
+	 *
+	 * NB: Topic95B doesn't set the power cycle bit.  we assume that
+	 * both it and the TOPIC95 behave the same.
 	 */
 	cbb_clrb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_POWER);
 	status = cbb_get(sc, CBB_SOCKET_STATE);
-	if (on) {
+	if (on && sc->chipset != CB_TOPIC95) {
 		if ((status & CBB_STATE_POWER_CYCLE) == 0)
 			device_printf(sc->dev, "Power not on?\n");
 	}
@@ -793,6 +813,15 @@ cbb_power(device_t brdev, int volts)
 		device_printf(sc->dev, "Bad Vcc requested\n");	
 		/* XXX Do we want to do something to mitigate things here? */
 		goto done;
+	}
+	if (sc->chipset == CB_TOPIC97) {
+		reg_ctrl = pci_read_config(sc->dev, TOPIC_REG_CTRL, 4);
+		reg_ctrl &= ~TOPIC97_REG_CTRL_TESTMODE;
+		if (on)
+			reg_ctrl |= TOPIC97_REG_CTRL_CLKRUN_ENA;
+		else
+			reg_ctrl &= ~TOPIC97_REG_CTRL_CLKRUN_ENA;
+		pci_write_config(sc->dev, TOPIC_REG_CTRL, reg_ctrl, 4);
 	}
 	PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL,
 	    & ~CBBM_BRIDGECTRL_INTR_IREQ_ISA_EN, 2);
