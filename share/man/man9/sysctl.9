@@ -38,7 +38,9 @@
 .Nm SYSCTL_STRING ,
 .Nm SYSCTL_STRUCT ,
 .Nm SYSCTL_UINT ,
-.Nm SYSCTL_ULONG
+.Nm SYSCTL_ULONG ,
+.Nm SYSCTL_XINT ,
+.Nm SYSCTL_XLONG
 .Nd Static sysctl declaration functions
 .Sh SYNOPSIS
 .In sys/types.h
@@ -129,6 +131,24 @@
 .Fa "val"
 .Fa "descr"
 .Fc
+.Fo SYSCTL_XINT
+.Fa "parent"
+.Fa "nbr"
+.Fa "name"
+.Fa "access"
+.Fa "ptr"
+.Fa "val"
+.Fa "descr"
+.Fc
+.Fo SYSCTL_XLONG
+.Fa "parent"
+.Fa "nbr"
+.Fa "name"
+.Fa "access"
+.Fa "ptr"
+.Fa "val"
+.Fa "descr"
+.Fc
 .Sh DESCRIPTION
 The
 .Nm
@@ -153,8 +173,10 @@ New nodes are declared using one of
 .Nm SYSCTL_STRING ,
 .Nm SYSCTL_STRUCT ,
 .Nm SYSCTL_UINT ,
+.Nm SYSCTL_ULONG ,
+.Nm SYSCTL_XINT ,
 and
-.Nm SYSCTL_ULONG .
+.Nm SYSCTL_XLONG .
 Each macro accepts a parent name, as declared using
 .Nm SYSCTL_DECL ,
 an OID number, typically
@@ -271,6 +293,7 @@ Examples of integer, opaque, string, and procedure sysctls follow:
  * Example of a constant integer value.  Notice that the control
  * flags are CTLFLAG_RD, the variable pointer is NULL, and the
  * value is declared.
+ * If sysctl(8) should print this value in hex, use 'SYSCTL_XINT'.
  */
 SYSCTL_INT(_debug_sizeof, OID_AUTO, bio, CTLFLAG_RD, NULL,
     sizeof(struct bio), "sizeof(struct bio)");

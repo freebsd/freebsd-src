@@ -259,6 +259,14 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_UINT|(access),	    \
 	ptr, val, sysctl_handle_int, "IU", __DESCR(descr))
 
+#define SYSCTL_XINT(parent, nbr, name, access, ptr, val, descr) \
+	SYSCTL_OID(parent, nbr, name, CTLTYPE_UINT|(access), \
+		ptr, val, sysctl_handle_int, "IX", descr)
+
+#define SYSCTL_ADD_XINT(ctx, parent, nbr, name, access, ptr, val, descr)    \
+	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_UINT|(access),	    \
+	ptr, val, sysctl_handle_int, "IX", __DESCR(descr))
+
 /* Oid for a long.  The pointer must be non NULL. */
 #define SYSCTL_LONG(parent, nbr, name, access, ptr, val, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_LONG|(access), \
@@ -276,6 +284,14 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define SYSCTL_ADD_ULONG(ctx, parent, nbr, name, access, ptr, descr)	    \
 	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_ULONG|(access),	    \
 	ptr, 0, sysctl_handle_long, "LU", __DESCR(descr))
+
+#define SYSCTL_XLONG(parent, nbr, name, access, ptr, val, descr) \
+	SYSCTL_OID(parent, nbr, name, CTLTYPE_ULONG|(access), \
+		ptr, val, sysctl_handle_long, "LX", __DESCR(descr))
+
+#define SYSCTL_ADD_XLONG(ctx, parent, nbr, name, access, ptr, descr)	    \
+	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_ULONG|(access),	    \
+	ptr, 0, sysctl_handle_long, "LX", __DESCR(descr))
 
 /* Oid for an opaque object.  Specified by a pointer and a length. */
 #define SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, fmt, descr) \
