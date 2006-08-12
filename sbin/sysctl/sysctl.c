@@ -578,7 +578,11 @@ show_var(int *oid, int nlen)
 		while (len >= sizeof(int)) {
 			fputs(val, stdout);
 			if (*fmt == 'U')
-				printf(hflag ? "%'u" : "%u", *(unsigned int *)p);
+				printf(hflag ? "%'u" : "%u",
+				    *(unsigned int *)p);
+			else if (*fmt == 'X')
+				printf(hflag ? "%'#010x" : "%#010x",
+				    *(unsigned int *)p);
 			else if (*fmt == 'K') {
 				if (*(long *)p < 0)
 					printf("%ld", *(long *)p);
@@ -601,7 +605,11 @@ show_var(int *oid, int nlen)
 		while (len >= sizeof(long)) {
 			fputs(val, stdout);
 			if (*fmt == 'U')
-				printf(hflag ? "%'lu" : "%lu", *(unsigned long *)p);
+				printf(hflag ? "%'lu" : "%lu",
+				    *(unsigned long *)p);
+			else if (*fmt == 'X')
+				printf(hflag ? "%'#018lx" : "%#018lx",
+				    *(unsigned long *)p);
 			else if (*fmt == 'K') {
 				if (*(long *)p < 0)
 					printf("%ld", *(long *)p);
