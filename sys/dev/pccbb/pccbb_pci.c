@@ -302,10 +302,11 @@ cbb_pci_attach(device_t brdev)
 {
 	static int curr_bus_number = 2; /* XXX EVILE BAD (see below) */
 	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(brdev);
-	int rid;
-	device_t parent;
 	struct sysctl_ctx_list *sctx;
 	struct sysctl_oid *soid;
+	int rid;
+	device_t parent;
+	uint32_t pribus;
 
 	parent = device_get_parent(brdev);
 	mtx_init(&sc->mtx, device_get_nameunit(brdev), "cbb", MTX_DEF);
@@ -317,7 +318,7 @@ cbb_pci_attach(device_t brdev)
 	sc->exca[0].pccarddev = NULL;
 	sc->secbus = pci_read_config(brdev, PCIR_SECBUS_2, 1);
 	sc->subbus = pci_read_config(brdev, PCIR_SUBBUS_2, 1);
-	sc->pribus = pci_read_config(brdev, PCIR_PRIBUS_2, 1);
+	sc->pribus = pcib_get_bus(parent);
 	SLIST_INIT(&sc->rl);
 	cbb_powerstate_d0(brdev);
 
@@ -359,10 +360,11 @@ cbb_pci_attach(device_t brdev)
 	 * are in an appropriate range.
 	 */
 	DEVPRINTF((brdev, "Secondary bus is %d\n", sc->secbus));
-	if (sc->secbus == 0) {
+	pribus = pci_read_config(brdev, PCIR_PRIBUS_2, 1);
+	if (sc->secbus == 0 || sc->pribus != pribus) {
 		if (curr_bus_number <= sc->pribus)
 			curr_bus_number = sc->pribus + 1;
-		if (pci_read_config(brdev, PCIR_PRIBUS_2, 1) != sc->pribus) {
+		if (pribus != sc->pribus) {
 			DEVPRINTF((brdev, "Setting primary bus to %d\n",
 			    sc->pribus));
 			pci_write_config(brdev, PCIR_PRIBUS_2, sc->pribus, 1);
@@ -553,27 +555,32 @@ cbb_chipinit(struct cbb_softc *sc)
 		reg = (reg & 0x0f) |
 		    EXCA_O2CC_IREQ_INTC | EXCA_O2CC_STSCHG_INTC;
 		exca_putb(&sc->exca[0], EXCA_O2MICRO_CTRL_C, reg);
-
 		break;
 	case CB_TOPIC97:
 		/*
 		 * Disable Zoom Video, ToPIC 97, 100.
 		 */
-		pci_write_config(sc->dev, CBBR_TOPIC_ZV_CONTROL, 0, 1);
+		pci_write_config(sc->dev, TOPIC97_ZV_CONTROL, 0, 1);
 		/*
 		 * ToPIC 97, 100
 		 * At offset 0xa1: INTERRUPT CONTROL register
 		 * 0x1: Turn on INT interrupts.
 		 */
-		PCI_MASK_CONFIG(sc->dev, CBBR_TOPIC_INTCTRL,
-		    | CBBM_TOPIC_INTCTRL_INTIRQSEL, 1);
+		PCI_MASK_CONFIG(sc->dev, TOPIC_INTCTRL,
+		    | TOPIC97_INTCTRL_INTIRQSEL, 1);
+		/*
+		 * ToPIC97, 100
+		 * Need to assert support for low voltage cards
+		 */
+		exca_setb(&sc->exca[0], EXCA_TOPIC97_CTRL,
+		    EXCA_TOPIC97_CTRL_LV_MASK);
 		goto topic_common;
 	case CB_TOPIC95:
 		/*
 		 * SOCKETCTRL appears to be TOPIC 95/B specific
 		 */
-		PCI_MASK_CONFIG(sc->dev, CBBR_TOPIC_SOCKETCTRL,
-		    | CBBM_TOPIC_SOCKETCTRL_SCR_IRQSEL, 4);
+		PCI_MASK_CONFIG(sc->dev, TOPIC95_SOCKETCTRL,
+		    | TOPIC95_SOCKETCTRL_SCR_IRQSEL, 4);
 
 	topic_common:;
 		/*
@@ -586,20 +593,19 @@ cbb_chipinit(struct cbb_softc *sc)
 		 * in legacy mode to 0x3e0 and offset 0. (legacy
 		 * mode is determined elsewhere)
 		 */
-		pci_write_config(sc->dev, CBBR_TOPIC_SLOTCTRL,
-		    CBBM_TOPIC_SLOTCTRL_SLOTON |
-		    CBBM_TOPIC_SLOTCTRL_SLOTEN |
-		    CBBM_TOPIC_SLOTCTRL_ID_LOCK |
-		    CBBM_TOPIC_SLOTCTRL_ID_WP, 1);
+		pci_write_config(sc->dev, TOPIC_SLOTCTRL,
+		    TOPIC_SLOTCTRL_SLOTON |
+		    TOPIC_SLOTCTRL_SLOTEN |
+		    TOPIC_SLOTCTRL_ID_LOCK |
+		    TOPIC_SLOTCTRL_ID_WP, 1);
 
 		/*
 		 * At offset 0xa3 Card Detect Control Register
 		 * 0x80 CARDBUS enbale
 		 * 0x01 Cleared for hardware change detect
 		 */
-		PCI_MASK2_CONFIG(sc->dev, CBBR_TOPIC_CDC,
-		    | CBBM_TOPIC_CDC_CARDBUS,
-		    & ~CBBM_TOPIC_CDC_SWDETECT, 4);
+		PCI_MASK2_CONFIG(sc->dev, TOPIC_CDC,
+		    | TOPIC_CDC_CARDBUS, & ~TOPIC_CDC_SWDETECT, 4);
 		break;
 	}
 
