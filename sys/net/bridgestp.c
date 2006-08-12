@@ -929,6 +929,7 @@ static moduledata_t bstp_mod = {
 };
 
 DECLARE_MODULE(bridgestp, bstp_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(bridgestp, 1);
 
 void
 bstp_attach(struct bstp_state *bs, bstp_state_cb_t state_callback)
