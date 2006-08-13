@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <time.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -60,6 +61,7 @@ char *yp_dir = _PATH_YP;
 char *yppush_mapname = NULL;	/* Map to transfer. */
 char *yppush_domain = NULL;	/* Domain in which map resides. */
 char *yppush_master = NULL;	/* Master NIS server for said domain. */
+int skip_master = 0;		/* Do not attempt to push map to master. */
 int verbose = 0;		/* Toggle verbose mode. */
 unsigned long yppush_transid = 0;
 int yppush_timeout = 80;	/* Default timeout. */
@@ -480,6 +482,8 @@ yppush_foreach(int status, char *key, int keylen, char *val, int vallen,
 		return (status);
 
 	snprintf(server, sizeof(server), "%.*s", vallen, val);
+	if (skip_master && strcasecmp(server, yppush_master) == 0)
+		return (0);
 
 	/*
 	 * Restrict the number of concurrent jobs. If yppush_jobs number
@@ -615,7 +619,13 @@ main(int argc, char *argv[])
 		yppush_exit(1);
 	}
 
-	if (strncmp(myname, data.data, data.size)) {
+	if (strncasecmp(myname, data.data, data.size) == 0) {
+		/* I am master server, and no explicit host list was
+		   specified: do not push map to myself -- this will
+		   fail with YPPUSH_AGE anyway. */
+		if (yppush_hostlist == NULL)
+			skip_master = 1;
+	} else {
 		yp_error("warning: this host is not the master for %s",
 							yppush_mapname);
 #ifdef NITPICKY
