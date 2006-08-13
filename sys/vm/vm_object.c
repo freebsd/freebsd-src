@@ -687,7 +687,7 @@ vm_object_terminate(vm_object_t object)
  *
  *	Clean all dirty pages in the specified range of object.  Leaves page 
  * 	on whatever queue it is currently on.   If NOSYNC is set then do not
- *	write out pages with PG_NOSYNC set (originally comes from MAP_NOSYNC),
+ *	write out pages with VPO_NOSYNC set (originally comes from MAP_NOSYNC),
  *	leaving the object dirty.
  *
  *	When stuffing pages asynchronously, allow clustering.  XXX we need a
@@ -765,7 +765,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 			 * If we have been asked to skip nosync pages and 
 			 * this is a nosync page, we can't continue.
 			 */
-			if ((flags & OBJPC_NOSYNC) && (p->flags & PG_NOSYNC)) {
+			if ((flags & OBJPC_NOSYNC) && (p->oflags & VPO_NOSYNC)) {
 				if (--scanlimit == 0)
 					break;
 				++tscan;
@@ -805,7 +805,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 	clearobjflags = 1;
 	TAILQ_FOREACH(p, &object->memq, listq) {
 		vm_page_flag_set(p, PG_CLEANCHK);
-		if ((flags & OBJPC_NOSYNC) && (p->flags & PG_NOSYNC))
+		if ((flags & OBJPC_NOSYNC) && (p->oflags & VPO_NOSYNC))
 			clearobjflags = 0;
 		else
 			pmap_remove_write(p);
@@ -853,7 +853,7 @@ again:
 		 * nosync page, skip it.  Note that the object flags were
 		 * not cleared in this case so we do not have to set them.
 		 */
-		if ((flags & OBJPC_NOSYNC) && (p->flags & PG_NOSYNC)) {
+		if ((flags & OBJPC_NOSYNC) && (p->oflags & VPO_NOSYNC)) {
 			vm_page_flag_clear(p, PG_CLEANCHK);
 			continue;
 		}
