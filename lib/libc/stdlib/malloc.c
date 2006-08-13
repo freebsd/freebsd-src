@@ -3495,7 +3495,7 @@ calloc(size_t num, size_t size)
 
 	num_size = num * size;
 	if (num_size == 0) {
-		if (opt_sysv == false)
+		if ((opt_sysv == false) && ((num == 0) || (size == 0)))
 			num_size = 1;
 		else {
 			ret = NULL;
