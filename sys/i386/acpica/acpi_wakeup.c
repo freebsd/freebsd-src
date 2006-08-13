@@ -175,13 +175,6 @@ acpi_printcpu(void)
 	bcopy(&(val), addr, sizeof(type));			\
 } while (0)
 
-/* Turn off bits 1&2 of the PIT, stopping the beep. */
-static void
-acpi_stop_beep(void *arg)
-{
-	outb(0x61, inb(0x61) & ~0x3);
-}
-
 int
 acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
@@ -280,10 +273,6 @@ out:
 	pmap_remove(pm, sc->acpi_wakephys, sc->acpi_wakephys + PAGE_SIZE);
 	load_cr3(cr3);
 	write_eflags(ef);
-
-	/* If we beeped, turn it off after a delay. */
-	if (acpi_resume_beep)
-		timeout(acpi_stop_beep, NULL, 3 * hz);
 
 	return (ret);
 }
