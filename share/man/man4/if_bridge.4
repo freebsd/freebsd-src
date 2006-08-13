@@ -35,14 +35,27 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 10, 2005
+.Dd August 13, 2006
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
 .Nm if_bridge
 .Nd network bridge device
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device if_bridge"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_bridge_load="YES"
+bridgestp_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
