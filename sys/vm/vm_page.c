@@ -1580,7 +1580,7 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	/*
 	 * Set valid, clear dirty bits.  If validating the entire
 	 * page we can safely clear the pmap modify bit.  We also
-	 * use this opportunity to clear the PG_NOSYNC flag.  If a process
+	 * use this opportunity to clear the VPO_NOSYNC flag.  If a process
 	 * takes a write fault on a MAP_NOSYNC memory area the flag will
 	 * be set again.
 	 *
@@ -1603,7 +1603,7 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	m->dirty &= ~pagebits;
 	if (base == 0 && size == PAGE_SIZE) {
 		pmap_clear_modify(m);
-		vm_page_flag_clear(m, PG_NOSYNC);
+		m->oflags &= ~VPO_NOSYNC;
 	}
 }
 

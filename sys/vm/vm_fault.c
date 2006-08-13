@@ -842,14 +842,15 @@ readrest:
 	if (prot & VM_PROT_WRITE) {
 		vm_page_lock_queues();
 		vm_page_flag_set(fs.m, PG_WRITEABLE);
-		vm_object_set_writeable_dirty(fs.m->object);
+		vm_page_unlock_queues();
+		vm_object_set_writeable_dirty(fs.object);
 
 		/*
 		 * If the fault is a write, we know that this page is being
 		 * written NOW so dirty it explicitly to save on 
 		 * pmap_is_modified() calls later.
 		 *
-		 * If this is a NOSYNC mmap we do not want to set PG_NOSYNC
+		 * If this is a NOSYNC mmap we do not want to set VPO_NOSYNC
 		 * if the page is already dirty to prevent data written with
 		 * the expectation of being synced from not being synced.
 		 * Likewise if this entry does not request NOSYNC then make
@@ -861,11 +862,10 @@ readrest:
 		 */
 		if (fs.entry->eflags & MAP_ENTRY_NOSYNC) {
 			if (fs.m->dirty == 0)
-				vm_page_flag_set(fs.m, PG_NOSYNC);
+				fs.m->oflags |= VPO_NOSYNC;
 		} else {
-			vm_page_flag_clear(fs.m, PG_NOSYNC);
+			fs.m->oflags &= ~VPO_NOSYNC;
 		}
-		vm_page_unlock_queues();
 		if (fault_flags & VM_FAULT_DIRTY) {
 			vm_page_dirty(fs.m);
 			vm_pager_page_unswapped(fs.m);
