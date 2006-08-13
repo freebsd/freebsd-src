@@ -24,6 +24,9 @@ SRCS+=		aclconf.c builtin.c client.c config.c control.c \
 
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include -I${LIB_BIND_DIR}
 
+# Remove the date stamp to make it more obvious when real changes happen
+CFLAGS+=	-U__DATE__
+
 DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD}
 LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD}
 
