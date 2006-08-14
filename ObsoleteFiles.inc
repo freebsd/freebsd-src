@@ -2918,6 +2918,14 @@ OLD_FILES+=usr/libdata/msdosfs/iso22dos
 OLD_FILES+=usr/libdata/msdosfs/iso72dos
 OLD_FILES+=usr/libdata/msdosfs/koi2dos
 OLD_FILES+=usr/libdata/msdosfs/koi8u2dos
+# The following files are *not* obsolete, they just don't get touched at
+# install, so don't add them:
+#  - boot/loader.rc
+#  - usr/share/tmac/man.local
+#  - usr/share/tmac/mm/locale
+#  - usr/share/tmac/mm/se_locale
+#  - var/yp/Makefile
+
 
 # 20060729: OpenSSL 0.9.7e -> 0.9.8b upgrade
 OLD_LIBS+=lib/libcrypto.so.4
