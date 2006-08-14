@@ -2805,7 +2805,6 @@ em_txeof(struct adapter *adapter)
 static int
 em_get_buf(int i, struct adapter *adapter, struct mbuf *mp)
 {
-	struct ifnet		*ifp = adapter->ifp;
 	bus_dma_segment_t	segs[1];
 	struct em_buffer	*rx_buffer;
 	int			error, nsegs;
@@ -2823,7 +2822,7 @@ em_get_buf(int i, struct adapter *adapter, struct mbuf *mp)
 		mp->m_next = NULL;
 	}
 
-	if (ifp->if_mtu <= ETHERMTU)
+	if (adapter->hw.max_frame_size <= (MCLBYTES - ETHER_ALIGN))
 		m_adj(mp, ETHER_ALIGN);
 
 	rx_buffer = &adapter->rx_buffer_area[i];
@@ -3187,7 +3186,8 @@ em_rxeof(struct adapter *adapter, int count)
 				em_receive_checksum(adapter, current_desc,
 				    adapter->fmp);
 #ifndef __NO_STRICT_ALIGNMENT
-				if (ifp->if_mtu > ETHERMTU &&
+				if (adapter->hw.max_frame_size >
+				    (MCLBYTES - ETHER_ALIGN) &&
 				    em_fixup_rx(adapter) != 0)
 					goto skip;
 #endif
