@@ -652,7 +652,7 @@ nfe_alloc_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 			physaddr = jbuf->physaddr;
 		} else {
 		  error = bus_dma_tag_create(sc->nfe_parent_tag, 
-					     PAGE_SIZE, 0,	/* alignment, boundary */
+					     ETHER_ALIGN, 0,	/* alignment, boundary */
 					     BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
 					     BUS_SPACE_MAXADDR,	/* highaddr */
 					     NULL, NULL,	/* filter, filterarg */
@@ -681,7 +681,7 @@ nfe_alloc_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 		  error = bus_dmamap_load(data->rx_data_tag, data->rx_data_map, mtod(data->m, void *),
 					  MCLBYTES, nfe_dma_map_segs, &data->rx_data_segs, BUS_DMA_NOWAIT);
 		  if (error != 0) {
-		    printf("nfe%d: could not load rx buf DMA map", sc->nfe_unit);
+		    printf("nfe%d: could not load rx buf DMA map\n", sc->nfe_unit);
 		    goto fail;
 		  }
 
