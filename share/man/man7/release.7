@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2005
+.Dd August 14, 2006
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -197,15 +197,7 @@ hardware guide, and installation instructions.
 .El
 .Sh ENVIRONMENT
 Variables that must be specified:
-.Bl -tag -width ".Va BUILDNAME"
-.It Va BUILDNAME
-The name of the release to be built.
-This is used to set the
-.Va RELEASE
-value in
-.Pa sys/conf/newvers.sh ,
-which affects the output of
-.Xr uname 1 .
+.Bl -tag -width ".Va CHROOTDIR"
 .It Va CHROOTDIR
 The directory to be used as the
 .Xr chroot 8
@@ -230,6 +222,17 @@ directory tree.
 .Pp
 Optional variables:
 .Bl -tag -width ".Va NO_PREFETCHDISTFILES"
+.It Va BUILDNAME
+The name of the release to be built.
+This is used to set the
+.Va RELEASE
+value in
+.Pa sys/conf/newvers.sh ,
+which affects the output of
+.Xr uname 1 .
+If not set, a name with the timestamp and the
+.Dq Li -SNAP
+suffix will be generated.
 .It Va CD_PACKAGE_TREE
 A directory containing extra bits for the first and second CD-ROM images.
 The extra files for the first disc should be in
