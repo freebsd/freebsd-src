@@ -920,7 +920,7 @@ acpi_ibm_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 	ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, notify);
 
 	if (notify != 0x80)
-		printf("Unknown notify\n");
+		device_printf(dev, "Unknown notify\n");
 
 	for (;;) {
 		acpi_GetInteger(acpi_get_handle(dev), IBM_NAME_EVENTS_GET, &event);
@@ -934,7 +934,7 @@ acpi_ibm_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 		switch (type) {
 		case 1:
 			if (!(sc->events_availmask & (1 << (arg - 1)))) {
-				printf("Unknown key %d\n", arg);
+				device_printf(dev, "Unknown key %d\n", arg);
 				break;
 			}
 
