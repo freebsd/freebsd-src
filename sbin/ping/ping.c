@@ -1356,7 +1356,7 @@ check_status()
 
 	if (siginfo_p) {
 		siginfo_p = 0;
-		(void)fprintf(stderr, "\r%ld/%ld packets received (%.0f%%)",
+		(void)fprintf(stderr, "\r%ld/%ld packets received (%.1f%%)",
 		    nreceived, ntransmitted,
 		    ntransmitted ? nreceived * 100.0 / ntransmitted : 0.0);
 		if (nreceived && timing)
@@ -1387,9 +1387,9 @@ finish()
 		if (nreceived > ntransmitted)
 			(void)printf("-- somebody's printing up packets!");
 		else
-			(void)printf("%d%% packet loss",
-			    (int)(((ntransmitted - nreceived) * 100) /
-			    ntransmitted));
+			(void)printf("%.1f%% packet loss",
+			    ((ntransmitted - nreceived) * 100.0) /
+			    ntransmitted);
 	}
 	if (nrcvtimeout)
 		(void)printf(", %ld packets out of wait time", nrcvtimeout);
