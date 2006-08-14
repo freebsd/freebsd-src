@@ -2608,7 +2608,7 @@ em_initialize_transmit_unit(struct adapter *adapter)
 		   (E1000_COLLISION_THRESHOLD << E1000_CT_SHIFT);
 	if (adapter->hw.mac_type >= em_82571)
 		reg_tctl |= E1000_TCTL_MULR;
-	if (adapter->link_duplex == 1) {
+	if (adapter->link_duplex == FULL_DUPLEX) {
 		reg_tctl |= E1000_FDX_COLLISION_DISTANCE << E1000_COLD_SHIFT;
 	} else {
 		reg_tctl |= E1000_HDX_COLLISION_DISTANCE << E1000_COLD_SHIFT;
