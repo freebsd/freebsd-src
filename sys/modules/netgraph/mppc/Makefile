@@ -20,7 +20,7 @@ SRCS+= sha1.c
 
 .if !defined(KERNBUILDDIR)
 opt_netgraph.h:
-	touch ${.TARGET}
+	:> ${.TARGET}
 .if ${NETGRAPH_MPPC_COMPRESSION} > 0
 	echo "#define NETGRAPH_MPPC_COMPRESSION 1" >> ${.TARGET}
 .endif

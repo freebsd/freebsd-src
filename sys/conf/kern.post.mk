@@ -132,7 +132,7 @@ lint: ${LNFILES}
 # in the a.out ld.  For now, this works.
 HACK_EXTRA_FLAGS?= -shared
 hack.So: Makefile
-	touch hack.c
+	:> hack.c
 	${CC} ${HACK_EXTRA_FLAGS} -nostdlib hack.c -o hack.So
 	rm -f hack.c
 

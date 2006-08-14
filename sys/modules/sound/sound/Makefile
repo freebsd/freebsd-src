@@ -22,7 +22,7 @@ EXPORT_SYMS=	YES	# XXX evaluate
 # existing one from KERNBUILDDIR which possibly has DEV_ISA defined so
 # sound.ko is always built without isadma support.
 opt_isa.h:
-	touch ${.TARGET}
+	:> ${.TARGET}
 .else
 SRCS+=	sndbuf_dma.c
 
