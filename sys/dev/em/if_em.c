@@ -1486,20 +1486,45 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	tx_buffer = &adapter->tx_buffer_area[adapter->next_avail_tx_desc];
 	tx_buffer_last = tx_buffer;
 	map = tx_buffer->map;
-	error = bus_dmamap_load_mbuf_sg(adapter->txtag, map, m_head, segs, &nsegs,
-	    BUS_DMA_NOWAIT);
-	if (error != 0) {
+	error = bus_dmamap_load_mbuf_sg(adapter->txtag, map, *m_headp, segs,
+	    &nsegs, BUS_DMA_NOWAIT);
+	if (error == EFBIG) {
+		struct mbuf *m;
+
+		m = m_defrag(*m_headp, M_DONTWAIT);
+		if (m == NULL) {
+			/* Assume m_defrag(9) used only m_get(9). */
+			adapter->mbuf_alloc_failed++;
+			m_freem(*m_headp);
+			*m_headp = NULL;
+			return (ENOBUFS);
+		}
+		*m_headp = m;
+		error = bus_dmamap_load_mbuf_sg(adapter->txtag, map, *m_headp,
+		    segs, &nsegs, BUS_DMA_NOWAIT);
+		if (error != 0) {
+			adapter->no_tx_dma_setup++;
+			m_freem(*m_headp);
+			*m_headp = NULL;
+			return (error);
+		}
+	} else if (error != 0) {
 		adapter->no_tx_dma_setup++;
 		return (error);
 	}
-	KASSERT(nsegs != 0, ("em_encap: empty packet"));
+	if (nsegs == 0) {
+		m_freem(*m_headp);
+		*m_headp = NULL;
+		return (EIO);
+	}
 
 	if (nsegs > adapter->num_tx_desc_avail) {
 		adapter->no_tx_desc_avail2++;
-		error = ENOBUFS;
-		goto encap_fail;
+		bus_dmamap_unload(adapter->txtag, map);
+		return (ENOBUFS);
 	}
 
+	m_head = *m_headp;
 	if (ifp->if_hwassist > 0)
 		em_transmit_checksum_setup(adapter,  m_head, &txd_upper, &txd_lower);
 	else
@@ -1526,8 +1551,8 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 				if (txd_used == adapter->num_tx_desc_avail) {
 					adapter->next_avail_tx_desc = txd_saved;
 					adapter->no_tx_desc_avail2++;
-					error = ENOBUFS;
-					goto encap_fail;
+					bus_dmamap_unload(adapter->txtag, map);
+					return (ENOBUFS);
 				}
 				tx_buffer = &adapter->tx_buffer_area[i];
 				current_tx_desc = &adapter->tx_desc_base[i];
@@ -1599,10 +1624,6 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	}
 
 	return (0);
-
-encap_fail:
-	bus_dmamap_unload(adapter->txtag, map);
-	return (error);
 }
 
 /*********************************************************************
