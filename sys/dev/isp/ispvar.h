@@ -557,7 +557,8 @@ struct ispsoftc {
 #define	IS_FC(isp)	((isp)->isp_type & ISP_HA_FC)
 #define	IS_2100(isp)	((isp)->isp_type == ISP_HA_FC_2100)
 #define	IS_2200(isp)	((isp)->isp_type == ISP_HA_FC_2200)
-#define	IS_23XX(isp)	((isp)->isp_type >= ISP_HA_FC_2300)
+#define	IS_23XX(isp)	\
+    ((isp)->isp_type >= ISP_HA_FC_2300 && (isp)->isp_type < ISP_HA_FC_2400)
 #define	IS_2300(isp)	((isp)->isp_type == ISP_HA_FC_2300)
 #define	IS_2312(isp)	((isp)->isp_type == ISP_HA_FC_2312)
 #define	IS_2322(isp)	((isp)->isp_type == ISP_HA_FC_2322)
