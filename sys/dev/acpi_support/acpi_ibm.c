@@ -919,7 +919,6 @@ acpi_ibm_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 
 	ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, notify);
 
-	printf("IBM:NOTIFY:%x\n", notify);
 	if (notify != 0x80)
 		printf("Unknown notify\n");
 
@@ -929,7 +928,6 @@ acpi_ibm_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 		if (event == 0)
 			break;
 
-		printf("notify:%x\n", event);
 
 		type = (event >> 12) & 0xf;
 		arg = event & 0xfff;
