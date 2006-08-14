@@ -169,25 +169,24 @@ Enable debugging.
 .It Fl D
 Enable more debugging including the printing of internal timer information.
 .It Fl f
-.Fl f
-prevents
+Prevent
 .Nm
 from becoming a daemon (foreground mode).
 Warning messages are generated to standard error
 instead of
 .Xr syslog 3 .
 .It Fl F
-Configure
-.Xr sysctl 8
-variable related to
+Explicitly configure the kernel to accept Router Advertisements and
+disable IPv6 forwarding.
+These settings are required for proper
 .Nm
-by itself.
-Without
-.Fl F ,
-.Nm
-will not alter and obey the current
-.Xr sysctl 8
-settings.
+operation.
+Without this option, the current settings will be obeyed;
+if they are incompatible with proper operation,
+warning messages will be generated,
+but Router Solicitations will still be sent.
+The settings may be changed manually with
+.Xr sysctl 8 .
 .It Fl m
 Enable mobility support.
 If this option is specified,
