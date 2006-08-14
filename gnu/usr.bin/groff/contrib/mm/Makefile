@@ -26,7 +26,5 @@ beforeinstall:
 .if !exists(${DESTDIR}${TMACDIR}/mm/${locale})
 	${INSTALL} -o ${FILESOWN} -g ${FILESGRP} -m ${FILESMODE} \
 		/dev/null ${DESTDIR}${TMACDIR}/mm/${locale}
-.else
-	@:>>${DESTDIR}${TMACDIR}/mm/${locale}
 .endif
 .endfor
