@@ -80,8 +80,6 @@ beforeinstall:
 .if !exists(${DESTDIR}${TMACDIR}/man.local)
 	${INSTALL} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 	    ${DIST_DIR}/man.local ${DESTDIR}${TMACDIR}
-.else
-	@:>>${DESTDIR}${TMACDIR}/man.local
 .endif
 
 .include <bsd.prog.mk>
