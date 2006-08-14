@@ -56,7 +56,6 @@ SUBDIR=	accf_data \
 	libmchain \
 	linux \
 	md \
-	mfi \
 	mfs \
 	mii \
 	mlx \
@@ -130,6 +129,7 @@ SUBDIR+=ar \
 	hifn \
 	ibcs2 \
 	linprocfs \
+	mfi \
 	ncv \
 	nsp \
 	ray \
