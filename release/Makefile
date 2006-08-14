@@ -67,8 +67,8 @@ PORTSRELEASETAG?=	${AUXRELEASETAG}
 # If you want to pass flags to the world build such as -j X, use
 # WORLD_FLAGS.  Similarly, you can specify make flags for kernel
 # builds via KERNEL_FLAGS.
-WORLD_FLAGS=-j4 -s
-KERNEL_FLAGS=-j4
+#WORLD_FLAGS=-j4
+#KERNEL_FLAGS=-j4
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 .if ${TARGET_ARCH} == ${MACHINE_ARCH}
