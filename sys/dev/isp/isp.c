@@ -160,7 +160,7 @@ void
 isp_reset(ispsoftc_t *isp)
 {
 	mbreg_t mbs;
-	uint16_t code_org;
+	uint32_t code_org;
 	int loops, i, dodnld = 1;
 	char *btype = "????";
 
@@ -654,36 +654,27 @@ again:
 		}
 
 		/*
-		 * Verify that it downloaded correctly.
-		 */
-		MEMZERO(&mbs, sizeof (mbs));
-		mbs.param[0] = MBOX_VERIFY_CHECKSUM;
-		mbs.param[1] = code_org;
-		isp_mboxcmd(isp, &mbs, MBLOGNONE);
-		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			isp_prt(isp, ISP_LOGERR, "Ram Checksum Failure");
-			return;
-		}
-
-		/*
-		 * If we're a 2322 or 2422, the firmware actually comes
-		 * in three chunks. We loaded the first at the code_org
-		 * address. The other two chunks, which follow right
-		 * after each other in memory here, get loaded at addresses
-		 * specfied at offset 0x9..0xB.
+		 * If we're a 2322, the firmware actually comes in three chunks.
+		 * We loaded the first at the code_org address. The other two
+		 * chunks, which follow right after each other in memory here,
+		 * get loaded at addresses specfied at offset 0x9..0xB.
 		 */
 		if (IS_2322(isp)) {
+			uint32_t nxtaddr;
+			uint32_t offset;
 
-			ptr = &ptr[ptr[3]];
+			nxtaddr = ptr[3];
+			ptr = &ptr[nxtaddr];
+			offset = ptr[5] | (((uint32_t)(ptr[4] & 0xff)) << 16);
 			isp->isp_mbxworkp = &ptr[1];
-			isp->isp_mbxwrk0 = ptr[3] - 1;
-			isp->isp_mbxwrk1 = ptr[5] + 1;
-			isp->isp_mbxwrk8 = ptr[4];
+			isp->isp_mbxwrk0 = ptr[3] + 1;
+			isp->isp_mbxwrk1 = offset + 1;
+			isp->isp_mbxwrk8 = (offset + 1) >> 16;
 			MEMZERO(&mbs, sizeof (mbs));
 			mbs.param[0] = MBOX_WRITE_RAM_WORD_EXTENDED;
-			mbs.param[1] = ptr[5];
+			mbs.param[1] = offset;
 			mbs.param[2] = ptr[0];
-			mbs.param[8] = ptr[4];
+			mbs.param[8] = offset >> 16;
 			isp_mboxcmd(isp, &mbs, MBLOGNONE);
 			if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 				isp_prt(isp, ISP_LOGERR,
@@ -691,24 +682,39 @@ again:
 				return;
 			}
 
-			ptr = &ptr[ptr[3]];
+			nxtaddr = ptr[3];
+			ptr = &ptr[nxtaddr];
+			offset = ptr[5] | (((uint32_t)(ptr[4] & 0xff)) << 16);
 			isp->isp_mbxworkp = &ptr[1];
 			isp->isp_mbxwrk0 = ptr[3] - 1;
-			isp->isp_mbxwrk1 = ptr[5] + 1;
-			isp->isp_mbxwrk8 = ptr[4];
+			isp->isp_mbxwrk1 = (offset + 1);
+			isp->isp_mbxwrk8 = (offset + 1) >> 16;
 			MEMZERO(&mbs, sizeof (mbs));
 			mbs.param[0] = MBOX_WRITE_RAM_WORD_EXTENDED;
-			mbs.param[1] = ptr[5];
+			mbs.param[1] = offset;
 			mbs.param[2] = ptr[0];
-			mbs.param[8] = ptr[4];
+			mbs.param[8] = offset >> 16;
 			isp_mboxcmd(isp, &mbs, MBLOGNONE);
 			if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 				isp_prt(isp, ISP_LOGERR,
 				    "Transmit Sequencer F/W Load Failed");
 				return;
 			}
-		}
+		} else {
+			/*
+			 * Verify that it downloaded correctly.
+			 */
+			MEMZERO(&mbs, sizeof (mbs));
+			mbs.param[0] = MBOX_VERIFY_CHECKSUM;
+			mbs.param[1] = code_org;
+			isp_mboxcmd(isp, &mbs, MBLOGNONE);
+			if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+				isp_prt(isp, ISP_LOGERR,
+				    "Downloaded RISC Code Checksum Failure");
+				return;
+			}
 
+		}
 		isp->isp_loaded_fw = 1;
 	} else {
 		isp->isp_loaded_fw = 0;
@@ -732,9 +738,15 @@ again:
 		} else {
 			mbs.param[2] = 1;
 		}
-		mbs.obits |= 2;
 	}
 	isp_mboxcmd(isp, &mbs, MBLOGNONE);
+	if (IS_2322(isp) || IS_24XX(isp)) {
+		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+			isp_prt(isp, ISP_LOGERR, "EXEC F/W failed: 0x%x",
+			    mbs.param[0]);
+			return;
+		}
+	}
 
 	/*
 	 * Give it a chance to start.
@@ -1547,7 +1559,7 @@ isp_getpdb(ispsoftc_t *isp, int id, isp_pdb_t *pdbp)
 	mbs.param[0] = MBOX_GET_PORT_DB;
 	if (IS_2KLOGIN(isp)) {
 		mbs.param[1] = id;
-		mbs.obits |= (1 << 10);
+		mbs.ibits |= (1 << 10);
 	} else {
 		mbs.param[1] = id << 8;
 	}
@@ -1577,7 +1589,7 @@ isp_get_portname(ispsoftc_t *isp, int loopid, int nodename)
 	mbs.param[0] = MBOX_GET_PORT_NAME;
 	if (IS_2KLOGIN(isp)) {
 		mbs.param[1] = loopid;
-		mbs.obits |= (1 << 10);
+		mbs.ibits |= (1 << 10);
 		if (nodename) {
 			mbs.param[10] = 1;
 		}
@@ -2043,7 +2055,7 @@ isp_pdb_sync(ispsoftc_t *isp)
 				mbs.param[0] = MBOX_FABRIC_LOGOUT;
 				if (IS_2KLOGIN(isp)) {
 					mbs.param[1] = lp->loopid;
-					mbs.obits |= (1 << 10);
+					mbs.ibits |= (1 << 10);
 				} else {
 					mbs.param[1] = lp->loopid << 8;
 				}
@@ -2069,7 +2081,7 @@ isp_pdb_sync(ispsoftc_t *isp)
 			mbs.param[0] = MBOX_FABRIC_LOGIN;
 			if (IS_2KLOGIN(isp)) {
 				mbs.param[1] = loopid;
-				mbs.obits |= (1 << 10);
+				mbs.ibits |= (1 << 10);
 			} else {
 				mbs.param[1] = loopid << 8;
 			}
@@ -2195,7 +2207,7 @@ dump_em:
 		mbs.param[0] = MBOX_FABRIC_LOGOUT;
 		if (IS_2KLOGIN(isp)) {
 			mbs.param[1] = lp->loopid;
-			mbs.obits |= (1 << 10);
+			mbs.ibits |= (1 << 10);
 		} else {
 			mbs.param[1] = lp->loopid << 8;
 		}
@@ -3488,7 +3500,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, void *arg)
 		} else {
 			if (IS_2KLOGIN(isp)) {
 				mbs.param[1] = tgt;
-				mbs.obits |= (1 << 10);
+				mbs.ibits |= (1 << 10);
 			} else {
 				mbs.param[1] = (tgt << 8);
 			}
@@ -3583,7 +3595,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, void *arg)
 		if (IS_FC(isp)) {
 			mbs.param[0] = MBOX_INIT_LIP;
 			if (IS_2KLOGIN(isp)) {
-				mbs.obits |= (1 << 10);
+				mbs.ibits |= (1 << 10);
 			}
 			isp_mboxcmd(isp, &mbs, MBLOGALL);
 			if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
@@ -4865,7 +4877,7 @@ isp_parse_status(ispsoftc_t *isp, ispstatusreq_t *sp, XS_T *xs)
 			MEMZERO(&mbs, sizeof (mbs));
 			mbs.param[0] = MBOX_INIT_LIP;
 			if (IS_2KLOGIN(isp)) {
-				mbs.obits |= (1 << 10);
+				mbs.ibits |= (1 << 10);
 			}
 			isp_mboxcmd_qnw(isp, &mbs, 1);
 		}
@@ -4946,6 +4958,7 @@ isp_mbox_continue(ispsoftc_t *isp)
 {
 	mbreg_t mbs;
 	uint16_t *ptr;
+	uint32_t offset;
 
 	switch (isp->isp_lastmbxcmd) {
 	case MBOX_WRITE_RAM_WORD:
@@ -4974,33 +4987,37 @@ isp_mbox_continue(ispsoftc_t *isp)
 	ptr = isp->isp_mbxworkp;
 	switch (isp->isp_lastmbxcmd) {
 	case MBOX_WRITE_RAM_WORD:
-		mbs.param[2] = *ptr++;
-		mbs.param[1] = isp->isp_mbxwrk1++;
-		break;
-	case MBOX_WRITE_RAM_WORD_EXTENDED:
-		mbs.param[2] = *ptr++;
-		mbs.param[1] = isp->isp_mbxwrk1++;
-		if (isp->isp_mbxwrk1 == 0) {
-			isp->isp_mbxwrk8++;
-		}
-		mbs.param[8] = isp->isp_mbxwrk8;
+		mbs.param[1] = isp->isp_mbxwrk1++;;
+		mbs.param[2] = *ptr++;;
 		break;
 	case MBOX_READ_RAM_WORD:
 		*ptr++ = isp->isp_mboxtmp[2];
 		mbs.param[1] = isp->isp_mbxwrk1++;
 		break;
+	case MBOX_WRITE_RAM_WORD_EXTENDED:
+		offset = isp->isp_mbxwrk1;
+		offset |= ((uint32_t) isp->isp_mbxwrk8 << 16);
+
+		mbs.param[2] = *ptr++;;
+		mbs.param[1] = offset;
+		mbs.param[8] = offset >> 16;
+		isp->isp_mbxwrk1 = ++offset;
+		isp->isp_mbxwrk8 = offset >> 16;
+		break;
 	case MBOX_READ_RAM_WORD_EXTENDED:
+		offset = isp->isp_mbxwrk1;
+		offset |= ((uint32_t) isp->isp_mbxwrk8 << 16);
+
 		*ptr++ = isp->isp_mboxtmp[2];
-		mbs.param[1] = isp->isp_mbxwrk1++;
-		if (isp->isp_mbxwrk1 == 0) {
-			isp->isp_mbxwrk8++;
-		}
-		mbs.param[8] = isp->isp_mbxwrk8;
+		mbs.param[1] = offset;
+		mbs.param[8] = offset >> 16;
+		isp->isp_mbxwrk1 = ++offset;
+		isp->isp_mbxwrk8 = offset >> 16;
 		break;
 	}
 	isp->isp_mbxworkp = ptr;
+	isp->isp_mbxwrk0--;
 	mbs.param[0] = isp->isp_lastmbxcmd;
-	isp->isp_mbxwrk0 -= 1;
 	isp_mboxcmd_qnw(isp, &mbs, 0);
 	return (0);
 }
@@ -5017,7 +5034,7 @@ static const uint32_t mbpscsi[] = {
 	ISPOPMAP(0x07, 0x07),	/* 0x04: MBOX_WRITE_RAM_WORD */
 	ISPOPMAP(0x03, 0x07),	/* 0x05: MBOX_READ_RAM_WORD */
 	ISPOPMAP(0x3f, 0x3f),	/* 0x06: MBOX_MAILBOX_REG_TEST */
-	ISPOPMAP(0x03, 0x07),	/* 0x07: MBOX_VERIFY_CHECKSUM	*/
+	ISPOPMAP(0x07, 0x07),	/* 0x07: MBOX_VERIFY_CHECKSUM	*/
 	ISPOPMAP(0x01, 0x0f),	/* 0x08: MBOX_ABOUT_FIRMWARE */
 	ISPOPMAP(0x00, 0x00),	/* 0x09: */
 	ISPOPMAP(0x00, 0x00),	/* 0x0a: */
@@ -5208,7 +5225,7 @@ static char *scsi_mbcmd_names[] = {
 static const uint32_t mbpfc[] = {
 	ISPOPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
 	ISPOPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
-	ISPOPMAP(0x03, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
+	ISPOPMAP(0x07, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
 	ISPOPMAP(0xdf, 0x01),	/* 0x03: MBOX_DUMP_RAM */
 	ISPOPMAP(0x07, 0x07),	/* 0x04: MBOX_WRITE_RAM_WORD */
 	ISPOPMAP(0x03, 0x07),	/* 0x05: MBOX_READ_RAM_WORD */
@@ -5219,9 +5236,9 @@ static const uint32_t mbpfc[] = {
 	ISPOPMAP(0xdf, 0x01),	/* 0x0a: DUMP RAM */
 	ISPOPMAP(0x00, 0x00),	/* 0x0b: */
 	ISPOPMAP(0x00, 0x00),	/* 0x0c: */
-	ISPOPMAP(0x13, 0x01),	/* 0x0d: MBOX_WRITE_RAM_WORD_EXTENDED) */
+	ISPOPMAP(0x10f, 0x01),	/* 0x0d: MBOX_WRITE_RAM_WORD_EXTENDED) */
 	ISPOPMAP(0x01, 0x05),	/* 0x0e: MBOX_CHECK_FIRMWARE */
-	ISPOPMAP(0x13, 0x05),	/* 0x0f: MBOX_READ_RAM_WORD_EXTENDED */
+	ISPOPMAP(0x10f, 0x05),	/* 0x0f: MBOX_READ_RAM_WORD_EXTENDED */
 	ISPOPMAP(0x1f, 0x11),	/* 0x10: MBOX_INIT_REQ_QUEUE */
 	ISPOPMAP(0x2f, 0x21),	/* 0x11: MBOX_INIT_RES_QUEUE */
 	ISPOPMAP(0x0f, 0x01),	/* 0x12: MBOX_EXECUTE_IOCB */
@@ -5511,7 +5528,7 @@ isp_mboxcmd_qnw(ispsoftc_t *isp, mbreg_t *mbp, int nodelay)
 	 * command.
 	 */
 	if (nodelay) {
-		USEC_DELAY(1000);
+		USEC_DELAY(100);
 	}
 }
 
