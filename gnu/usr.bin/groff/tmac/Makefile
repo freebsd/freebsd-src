@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>			# SHAREDIR
+
 TMACOWN?=	${BINOWN}
 TMACGRP?=	${BINGRP}
 TMACMODE?=	${NOBINMODE}
@@ -78,6 +80,8 @@ beforeinstall:
 .if !exists(${DESTDIR}${TMACDIR}/man.local)
 	${INSTALL} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 	    ${DIST_DIR}/man.local ${DESTDIR}${TMACDIR}
+.else
+	@:>>${DESTDIR}${TMACDIR}/man.local
 .endif
 
 .include <bsd.prog.mk>
