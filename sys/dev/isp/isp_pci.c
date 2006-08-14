@@ -1127,7 +1127,7 @@ isp_pci_intr(void *arg)
 
 #define	IspVirt2Off(a, x)	\
 	(((struct isp_pcisoftc *)a)->pci_poff[((x) & _BLK_REG_MASK) >> \
-	_BLK_REG_SHFT] + ((x) & 0xff))
+	_BLK_REG_SHFT] + ((x) & 0xfff))
 
 #define	BXR2(pcs, off)		\
 	bus_space_read_2(pcs->pci_st, pcs->pci_sh, off)
