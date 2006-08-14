@@ -192,7 +192,7 @@ ${FULLPROG}: ${OBJS}
 .if defined(EXPORT_SYMS)
 .if ${EXPORT_SYMS} != YES
 .if ${EXPORT_SYMS} == NO
-	touch export_syms
+	:> export_syms
 .elif !exists(${.CURDIR}/${EXPORT_SYMS})
 	echo ${EXPORT_SYMS} > export_syms
 .else
@@ -311,7 +311,7 @@ ${_src}:
 CLEANFILES+=	${_src}
 .if !target(${_src})
 ${_src}:
-	touch ${.TARGET}
+	:> ${.TARGET}
 .endif
 .endfor
 .endif
