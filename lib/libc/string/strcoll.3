@@ -56,13 +56,16 @@ lexicographically compares the null-terminated strings
 .Fa s1
 and
 .Fa s2
-according to the current locale collation if any, otherwise call
-.Fa strcmp ,
+according to the current locale collation
 and returns an integer greater than, equal to, or less than 0,
 according as
 .Fa s1
 is greater than, equal to, or less than
 .Fa s2 .
+If information about the current locale collation is not available,
+the value of
+.Fn strcmp s1 s2
+is returned.
 .Sh SEE ALSO
 .Xr setlocale 3 ,
 .Xr strcmp 3 ,
