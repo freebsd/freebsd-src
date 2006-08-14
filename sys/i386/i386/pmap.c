@@ -2443,10 +2443,6 @@ validate:
 	if (pmap == kernel_pmap)
 		newpte |= pgeflag;
 
-	/* Preserve any caching attributes. */
-	/* XXX: Should this be conditional on something? */
-	newpte |= (origpte & (PG_PTE_PAT | PG_NC_PCD | PG_NC_PWT));
-
 	/*
 	 * if the mapping or permission bits are different, we need
 	 * to update the pte.
