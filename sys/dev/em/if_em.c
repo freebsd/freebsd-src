@@ -236,7 +236,7 @@ static void	em_disable_promisc(struct adapter *);
 static void	em_set_multi(struct adapter *);
 static void	em_print_hw_stats(struct adapter *);
 static void	em_update_link_status(struct adapter *);
-static int	em_get_buf(int i, struct adapter *, struct mbuf *);
+static int	em_get_buf(struct adapter *, int);
 static void	em_enable_vlans(struct adapter *);
 static void	em_disable_vlans(struct adapter *);
 static int	em_encap(struct adapter *, struct mbuf **);
@@ -2803,45 +2803,49 @@ em_txeof(struct adapter *adapter)
  *
  **********************************************************************/
 static int
-em_get_buf(int i, struct adapter *adapter, struct mbuf *mp)
+em_get_buf(struct adapter *adapter, int i)
 {
+	struct mbuf		*m;
 	bus_dma_segment_t	segs[1];
+	bus_dmamap_t		map;
 	struct em_buffer	*rx_buffer;
 	int			error, nsegs;
 
-	if (mp == NULL) {
-		mp = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-		if (mp == NULL) {
-			adapter->mbuf_cluster_failed++;
-			return (ENOBUFS);
-		}
-		mp->m_len = mp->m_pkthdr.len = MCLBYTES;
-	} else {
-		mp->m_len = mp->m_pkthdr.len = MCLBYTES;
-		mp->m_data = mp->m_ext.ext_buf;
-		mp->m_next = NULL;
+	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	if (m == NULL) {
+		adapter->mbuf_cluster_failed++;
+		return (ENOBUFS);
 	}
-
+	m->m_len = m->m_pkthdr.len = MCLBYTES;
 	if (adapter->hw.max_frame_size <= (MCLBYTES - ETHER_ALIGN))
-		m_adj(mp, ETHER_ALIGN);
-
-	rx_buffer = &adapter->rx_buffer_area[i];
+		m_adj(m, ETHER_ALIGN);
 
 	/*
 	 * Using memory from the mbuf cluster pool, invoke the
 	 * bus_dma machinery to arrange the memory mapping.
 	 */
-	error = bus_dmamap_load_mbuf_sg(adapter->rxtag, rx_buffer->map,
-	    mp, segs, &nsegs, 0);
+	error = bus_dmamap_load_mbuf_sg(adapter->rxtag, adapter->rx_sparemap,
+	    m, segs, &nsegs, BUS_DMA_NOWAIT);
 	if (error != 0) {
-		m_free(mp);
+		m_free(m);
 		return (error);
 	}
 	/* If nsegs is wrong then the stack is corrupt. */
 	KASSERT(nsegs == 1, ("Too many segments returned!"));
-	rx_buffer->m_head = mp;
-	adapter->rx_desc_base[i].buffer_addr = htole64(segs[0].ds_addr);
+
+	rx_buffer = &adapter->rx_buffer_area[i];
+	if (rx_buffer->m_head != NULL)
+		bus_dmamap_unload(adapter->rxtag, rx_buffer->map);
+
+	map = rx_buffer->map;
+	rx_buffer->map = adapter->rx_sparemap;
+	adapter->rx_sparemap = map;
 	bus_dmamap_sync(adapter->rxtag, rx_buffer->map, BUS_DMASYNC_PREREAD);
+	rx_buffer->m_head = m;
+
+	adapter->rx_desc_base[i].buffer_addr = htole64(segs[0].ds_addr);
+	/* Zero out the receive descriptors status. */
+	adapter->rx_desc_base[i].status = 0;
 
 	return (0);
 }
@@ -2888,6 +2892,13 @@ em_allocate_receive_structures(struct adapter *adapter)
 		goto fail;
 	}
 
+	error = bus_dmamap_create(adapter->rxtag, BUS_DMA_NOWAIT,
+	    &adapter->rx_sparemap);
+	if (error) {
+		device_printf(dev, "%s: bus_dmamap_create failed: %d\n",
+		    __func__, error);
+		goto fail;
+	}
 	rx_buffer = adapter->rx_buffer_area;
 	for (i = 0; i < adapter->num_rx_desc; i++, rx_buffer++) {
 		error = bus_dmamap_create(adapter->rxtag, BUS_DMA_NOWAIT,
@@ -2900,7 +2911,7 @@ em_allocate_receive_structures(struct adapter *adapter)
 	}
 
 	for (i = 0; i < adapter->num_rx_desc; i++) {
-		error = em_get_buf(i, adapter, NULL);
+		error = em_get_buf(adapter, i);
 		if (error)
 			goto fail;
 	}
@@ -3035,6 +3046,10 @@ em_free_receive_structures(struct adapter *adapter)
 
 	INIT_DEBUGOUT("free_receive_structures: begin");
 
+	if (adapter->rx_sparemap) {
+		bus_dmamap_destroy(adapter->rxtag, adapter->rx_sparemap);
+		adapter->rx_sparemap = NULL;
+	}
 	if (adapter->rx_buffer_area != NULL) {
 		rx_buffer = adapter->rx_buffer_area;
 		for (i = 0; i < adapter->num_rx_desc; i++, rx_buffer++) {
@@ -3103,10 +3118,12 @@ em_rxeof(struct adapter *adapter, int count)
 		struct mbuf *m = NULL;
 
 		mp = adapter->rx_buffer_area[i].m_head;
+		/*
+		 * Can't defer bus_dmamap_sync(9) because TBI_ACCEPT
+		 * needs to access the last received byte in the mbuf.
+		 */
 		bus_dmamap_sync(adapter->rxtag, adapter->rx_buffer_area[i].map,
 		    BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(adapter->rxtag,
-		    adapter->rx_buffer_area[i].map);
 
 		accept_frame = 1;
 		prev_len_adj = 0;
@@ -3145,14 +3162,9 @@ em_rxeof(struct adapter *adapter, int count)
 		}
 
 		if (accept_frame) {
-			if (em_get_buf(i, adapter, NULL) == ENOBUFS) {
-				adapter->dropped_pkts++;
-				em_get_buf(i, adapter, mp);
-				if (adapter->fmp != NULL)
-					m_freem(adapter->fmp);
-				adapter->fmp = NULL;
-				adapter->lmp = NULL;
-				break;
+			if (em_get_buf(adapter, i) != 0) {
+				ifp->if_iqdrops++;
+				goto discard;
 			}
 
 			/* Assign correct length to the current fragment */
@@ -3203,16 +3215,25 @@ skip:
 				adapter->lmp = NULL;
 			}
 		} else {
-			adapter->dropped_pkts++;
-			em_get_buf(i, adapter, mp);
-			if (adapter->fmp != NULL)
+			ifp->if_ierrors++;
+discard:
+			/* Reuse loaded DMA map and just update mbuf chain */
+			mp = adapter->rx_buffer_area[i].m_head;
+			mp->m_len = mp->m_pkthdr.len = MCLBYTES;
+			mp->m_data = mp->m_ext.ext_buf;
+			mp->m_next = NULL;
+			if (adapter->hw.max_frame_size <= (MCLBYTES - ETHER_ALIGN))
+				m_adj(mp, ETHER_ALIGN);
+			if (adapter->fmp != NULL) {
 				m_freem(adapter->fmp);
-			adapter->fmp = NULL;
-			adapter->lmp = NULL;
+				adapter->fmp = NULL;
+				adapter->lmp = NULL;
+			}
+			/* Zero out the receive descriptors status. */
+			adapter->rx_desc_base[i].status = 0;
+			m = NULL;
 		}
 
-		/* Zero out the receive descriptors status. */
-		current_desc->status = 0;
 		bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
@@ -3281,10 +3302,12 @@ em_fixup_rx(struct adapter *adapter)
 			n->m_next = m;
 			adapter->fmp = n;
 		} else {
-			adapter->dropped_pkts++;
+			adapter->ifp->if_iqdrops++;
+			adapter->mbuf_alloc_failed++;
 			m_freem(adapter->fmp);
 			adapter->fmp = NULL;
-			error = ENOMEM;
+			adapter->lmp = NULL;
+			error = ENOBUFS;
 		}
 	}
 
@@ -3556,9 +3579,9 @@ em_update_stats_counters(struct adapter *adapter)
 	ifp->if_collisions = adapter->stats.colc;
 
 	/* Rx Errors */
-	ifp->if_ierrors = adapter->dropped_pkts + adapter->stats.rxerrc +
-	    adapter->stats.crcerrs + adapter->stats.algnerrc + adapter->stats.ruc +
-	    adapter->stats.roc + adapter->stats.mpc + adapter->stats.cexterr;
+	ifp->if_ierrors = adapter->stats.rxerrc + adapter->stats.crcerrs +
+	    adapter->stats.algnerrc + adapter->stats.ruc + adapter->stats.roc +
+	    adapter->stats.mpc + adapter->stats.cexterr;
 
 	/* Tx Errors */
 	ifp->if_oerrors = adapter->stats.ecol + adapter->stats.latecol +
@@ -3611,8 +3634,6 @@ em_print_debug_info(struct adapter *adapter)
 	    adapter->mbuf_alloc_failed);
 	device_printf(dev, "Std mbuf cluster failed = %ld\n",
 	    adapter->mbuf_cluster_failed);
-	device_printf(dev, "Driver dropped packets = %ld\n",
-	    adapter->dropped_pkts);
 }
 
 static void
