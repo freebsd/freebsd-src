@@ -535,7 +535,7 @@ trap_pfault(frame, usermode)
 {
 	vm_offset_t va;
 	struct vmspace *vm = NULL;
-	vm_map_t map = 0;
+	vm_map_t map;
 	int rv = 0;
 	vm_prot_t ftype;
 	struct thread *td = curthread;
