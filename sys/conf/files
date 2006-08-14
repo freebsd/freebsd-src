@@ -1025,14 +1025,14 @@ dev/usb/ohci.c			optional ohci
 dev/usb/ohci_pci.c		optional ohci pci
 dev/usb/sl811hs.c		optional slhci
 dev/usb/slhci_pccard.c		optional slhci pccard
-dev/usb/ubsa.c			optional ubsa ucom
+dev/usb/ubsa.c			optional ubsa
 dev/usb/ubser.c			optional ubser
 dev/usb/ucom.c			optional ucom
-dev/usb/ucycom.c		optional ucycom ucom
+dev/usb/ucycom.c		optional ucycom
 dev/usb/udbp.c			optional udbp
-dev/usb/ufoma.c			optional ufoma ucom
+dev/usb/ufoma.c			optional ufoma
 dev/usb/ufm.c			optional ufm
-dev/usb/uftdi.c			optional uftdi ucom
+dev/usb/uftdi.c			optional uftdi
 dev/usb/ugen.c			optional ugen
 dev/usb/uhci.c			optional uhci
 dev/usb/uhci_pci.c		optional uhci pci
@@ -1044,7 +1044,7 @@ dev/usb/umass.c			optional umass
 dev/usb/umct.c			optional umct
 dev/usb/umodem.c		optional umodem
 dev/usb/ums.c			optional ums
-dev/usb/uplcom.c		optional uplcom ucom
+dev/usb/uplcom.c		optional uplcom
 dev/usb/urio.c			optional urio
 dev/usb/usb.c			optional usb
 dev/usb/usb_ethersubr.c		optional usb
@@ -1055,8 +1055,8 @@ dev/usb/usb_subr.c		optional usb
 dev/usb/usbdi.c			optional usb
 dev/usb/usbdi_util.c		optional usb
 dev/usb/uscanner.c		optional uscanner
-dev/usb/uvisor.c		optional uvisor ucom
-dev/usb/uvscom.c		optional uvscom ucom
+dev/usb/uvisor.c		optional uvisor
+dev/usb/uvscom.c		optional uvscom
 dev/utopia/idtphy.c		optional utopia
 dev/utopia/suni.c		optional utopia
 dev/utopia/utopia.c		optional utopia
