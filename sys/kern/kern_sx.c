@@ -48,9 +48,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sx.h>
 
+#ifdef DDB
 #include <ddb/ddb.h>
 
-#ifdef DDB
 static void	db_show_sx(struct lock_object *lock);
 #endif
 
@@ -394,5 +394,58 @@ db_show_sx(struct lock_object *lock)
 		db_printf("UNLOCKED\n");
 	db_printf(" waiters: %d shared, %d exclusive\n", sx->sx_shrd_wcnt,
 	    sx->sx_excl_wcnt);
+}
+
+/*
+ * Check to see if a thread that is blocked on a sleep queue is actually
+ * blocked on an sx lock.  If so, output some details and return true.
+ * If the lock has an exclusive owner, return that in *ownerp.
+ */
+int
+sx_chain(struct thread *td, struct thread **ownerp)
+{
+	struct sx *sx;
+	struct cv *cv;
+
+	/*
+	 * First, see if it looks like td is blocked on a condition
+	 * variable.
+	 */
+	cv = td->td_wchan;
+	if (cv->cv_description != td->td_wmesg)
+		return (0);
+
+	/*
+	 * Ok, see if it looks like td is blocked on the exclusive
+	 * condition variable.
+	 */
+	sx = (struct sx *)((char *)cv - offsetof(struct sx, sx_excl_cv));
+	if (LOCK_CLASS(&sx->sx_object) == &lock_class_sx &&
+	    sx->sx_excl_wcnt > 0)
+		goto ok;
+
+	/*
+	 * Second, see if it looks like td is blocked on the shared
+	 * condition variable.
+	 */
+	sx = (struct sx *)((char *)cv - offsetof(struct sx, sx_shrd_cv));
+	if (LOCK_CLASS(&sx->sx_object) == &lock_class_sx &&
+	    sx->sx_shrd_wcnt > 0)
+		goto ok;
+
+	/* Doesn't seem to be an sx lock. */
+	return (0);
+
+ok:
+	/* We think we have an sx lock, so output some details. */
+	db_printf("blocked on sx \"%s\" ", td->td_wmesg);
+	if (sx->sx_cnt >= 0) {
+		db_printf("SLOCK (count %d)\n", sx->sx_cnt);
+		*ownerp = NULL;
+	} else {
+		db_printf("XLOCK\n");
+		*ownerp = sx->sx_xholder;
+	}
+	return (1);
 }
 #endif

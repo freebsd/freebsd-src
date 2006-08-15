@@ -78,6 +78,8 @@ __FBSDID("$FreeBSD$");
 #ifdef DDB
 #include <sys/kdb.h>
 #include <ddb/ddb.h>
+#include <sys/lockmgr.h>
+#include <sys/sx.h>
 #endif
 
 /*
@@ -1118,6 +1120,71 @@ DB_SHOW_COMMAND(allchains, db_show_allchains)
 				return;
 		}
 	}
+}
+
+/*
+ * Show all the threads a particular thread is waiting on based on
+ * sleepable locks.
+ */
+static void
+print_sleepchain(struct thread *td, const char *prefix)
+{
+	struct thread *owner;
+
+	/*
+	 * Follow the chain.  We keep walking as long as the thread is
+	 * blocked on a sleep lock that has an owner.
+	 */
+	while (!db_pager_quit) {
+		db_printf("%sthread %d (pid %d, %s) ", prefix, td->td_tid,
+		    td->td_proc->p_pid, td->td_name[0] != '\0' ? td->td_name :
+		    td->td_proc->p_comm);
+		switch (td->td_state) {
+		case TDS_INACTIVE:
+			db_printf("is inactive\n");
+			return;
+		case TDS_CAN_RUN:
+			db_printf("can run\n");
+			return;
+		case TDS_RUNQ:
+			db_printf("is on a run queue\n");
+			return;
+		case TDS_RUNNING:
+			db_printf("running on CPU %d\n", td->td_oncpu);
+			return;
+		case TDS_INHIBITED:
+			if (TD_ON_SLEEPQ(td)) {
+				if (lockmgr_chain(td, &owner) ||
+				    sx_chain(td, &owner)) {
+					if (owner == NULL)
+						return;
+					td = owner;
+					break;
+				}
+				db_printf("sleeping on %p \"%s\"\n",
+				    td->td_wchan, td->td_wmesg);
+				return;
+			}
+			db_printf("inhibited\n");
+			return;
+		default:
+			db_printf("??? (%#x)\n", td->td_state);
+			return;
+		}
+	}
+}
+
+DB_SHOW_COMMAND(sleepchain, db_show_sleepchain)
+{
+	struct thread *td;
+
+	/* Figure out which thread to start with. */
+	if (have_addr)
+		td = db_lookup_thread(addr, TRUE);
+	else
+		td = kdb_thread;
+
+	print_sleepchain(td, "");
 }
 
 static void	print_waiters(struct turnstile *ts, int indent);
