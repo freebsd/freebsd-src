@@ -312,6 +312,8 @@ main(int argc, char *argv[])
 	dt = fstabsearch(disk);
 	if (dt != NULL) {
 		disk = rawname(dt->fs_spec);
+ 		if (disk == NULL)
+ 			errx(X_STARTUP, "%s: unknown file system", dt->fs_spec);
 		(void)strncpy(spcl.c_dev, dt->fs_spec, NAMELEN);
 		(void)strncpy(spcl.c_filesys, dt->fs_file, NAMELEN);
 	} else {
