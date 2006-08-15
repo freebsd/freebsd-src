@@ -604,6 +604,7 @@ void
 _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
     int line)
 {
+	struct thread *td;
 	int i = 0;
 
 	if (LOCK_LOG_TEST(&m->mtx_object, opts))
@@ -618,14 +619,19 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 				cpu_spinwait();
 				continue;
 			}
-			if (i < 60000000)
+			if (i < 60000000 || kdb_active || panicstr != NULL)
 				DELAY(1);
-			else if (!kdb_active && !panicstr) {
-				printf("spin lock %s held by %p for > 5 seconds\n",
-				    m->mtx_object.lo_name, (void *)m->mtx_lock);
+			else {
+				td = mtx_owner(m);
+
+				/* If the mutex is unlocked, try again. */
+				if (td == NULL)
+					continue;
+				printf(
+			"spin lock %p (%s) held by %p (tid %d) too long\n",
+				    m, m->mtx_object.lo_name, td, td->td_tid);
 #ifdef WITNESS
-				witness_display_spinlock(&m->mtx_object,
-				    mtx_owner(m));
+				witness_display_spinlock(&m->mtx_object, td);
 #endif
 				panic("spin lock held too long");
 			}
