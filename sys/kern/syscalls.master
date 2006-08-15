@@ -299,7 +299,7 @@
 153	AUE_NULL	UNIMPL	asyncdaemon (BSD/OS 2.x)
 154	AUE_NULL	UNIMPL	nosys
 ; 155 is initialized by the NFS code, if present.
-155	AUE_NFSSVC	NOIMPL	{ int nfssvc(int flag, caddr_t argp); }
+155	AUE_NFS_SVC	NOSTD	{ int nfssvc(int flag, caddr_t argp); }
 156	AUE_GETDIRENTRIES	COMPAT	{ int getdirentries(int fd, char *buf, \
 				    u_int count, long *basep); }
 157	AUE_STATFS	COMPAT4	{ int statfs(char *path, \
