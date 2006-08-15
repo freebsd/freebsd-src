@@ -61,7 +61,7 @@ structures, as described in
 .Pp
 Fields that are undefined for a particular file system are set to -1.
 The buffer is filled with an array of
-.Fa fsstat
+.Fa statfs
 structures, one for each mounted file system
 up to the byte count specified by
 .Fa bufsize .
@@ -94,7 +94,7 @@ will not block waiting for information from a file system that is
 unable to respond.
 .Sh RETURN VALUES
 Upon successful completion, the number of
-.Fa fsstat
+.Fa statfs
 structures is returned.
 Otherwise, -1 is returned and the global variable
 .Va errno
