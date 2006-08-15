@@ -113,6 +113,8 @@ SYSCTL_NODE(_net_link_vlan, PF_LINK, link, CTLFLAG_RW, 0, "for consistency");
 static MALLOC_DEFINE(M_VLAN, VLANNAME, "802.1Q Virtual LAN Interface");
 static LIST_HEAD(, ifvlan) ifv_list;
 
+static eventhandler_tag ifdetach_tag;
+
 /*
  * Locking: one lock is used to guard both the ifv_list and modification
  * to vlan data structures.  We are rather conservative here; probably
@@ -136,6 +138,7 @@ static	int vlan_setmulti(struct ifnet *ifp);
 static	int vlan_unconfig(struct ifnet *ifp);
 static	int vlan_config(struct ifvlan *ifv, struct ifnet *p);
 static	void vlan_link_state(struct ifnet *ifp, int link);
+static	void vlan_ifdetach(void *arg, struct ifnet *ifp);
 
 static	struct ifnet *vlan_clone_match_ethertag(struct if_clone *,
     const char *, int *);
@@ -219,6 +222,39 @@ vlan_setmulti(struct ifnet *ifp)
 }
 
 /*
+ * A handler for network interface departure events.
+ * Track departure of trunks here so that we don't access invalid
+ * pointers or whatever if a trunk is ripped from under us, e.g.,
+ * by ejecting its hot-plug card.
+ */
+static void
+vlan_ifdetach(void *arg __unused, struct ifnet *ifp)
+{
+	struct ifvlan *ifv;
+
+	/*
+	 * Check if it's a trunk interface first of all.
+	 */
+	if (ifp->if_nvlans == 0)
+		return;
+
+	/*
+	 * OK, it's a trunk.  Find all vlan's attached to it and detach them
+	 * from the parent interface.
+	 */
+	VLAN_LOCK();
+	LIST_FOREACH(ifv, &ifv_list, ifv_list)
+		if (ifv->ifv_p == ifp) {
+			vlan_unconfig(ifv->ifv_ifp);
+			ifv->ifv_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		}
+	VLAN_UNLOCK();
+
+	if (ifp->if_nvlans)
+		if_printf(ifp, "%d vlans failed to detach\n", ifp->if_nvlans);
+}
+
+/*
  * VLAN support can be loaded as a module.  The only place in the
  * system that's intimately aware of this is ether_input.  We hook
  * into this code through vlan_input_p which is defined there and
@@ -242,6 +278,10 @@ vlan_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
+		ifdetach_tag = EVENTHANDLER_REGISTER(ifnet_departure_event,
+		    vlan_ifdetach, NULL, EVENTHANDLER_PRI_ANY);
+		if (ifdetach_tag == NULL)
+			return (ENOMEM);
 		LIST_INIT(&ifv_list);
 		VLAN_LOCK_INIT();
 		vlan_input_p = vlan_input;
@@ -253,6 +293,7 @@ vlan_modevent(module_t mod, int type, void *data)
 			vlan_clone_destroy(&vlan_cloner,
 			    LIST_FIRST(&ifv_list)->ifv_ifp);
 		if_clone_detach(&vlan_cloner);
+		EVENTHANDLER_DEREGISTER(ifnet_departure_event, ifdetach_tag);
 		vlan_input_p = NULL;
 		vlan_link_state_p = NULL;
 		VLAN_LOCK_DESTROY();
