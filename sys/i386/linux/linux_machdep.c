@@ -36,13 +36,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/unistd.h>
+#include <sys/wait.h>
 
 #include <machine/frame.h>
 #include <machine/psl.h>
@@ -58,6 +61,16 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_ipc.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
+#include <compat/linux/linux_emul.h>
+
+#include <i386/include/pcb.h>			/* needed for pcb definition in linux_set_thread_area */
+
+#include "opt_posix.h"
+
+extern struct sx emul_shared_lock;
+extern struct sx emul_lock;
+
+extern struct sysentvec elf32_freebsd_sysvec;	/* defined in i386/i386/elf_machdep.c */
 
 struct l_descriptor {
 	l_uint		entry_number;
@@ -122,6 +135,14 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 	free(newpath, M_TEMP);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
+	if (error == 0)
+	   	/* linux process can exec fbsd one, dont attempt
+		 * to create emuldata for such process using
+		 * linux_proc_init, this leads to a panic on KASSERT
+		 * because such process has p->p_emuldata == NULL
+		 */
+	   	if (td->td_proc->p_sysent == &elf_linux_sysvec)
+   		   	error = linux_proc_init(td, 0, 0);
 	return (error);
 }
 
@@ -287,6 +308,10 @@ linux_fork(struct thread *td, struct linux_fork_args *args)
 
 	if (td->td_retval[1] == 1)
 		td->td_retval[0] = 0;
+	error = linux_proc_init(td, td->td_retval[0], 0);
+	if (error)
+		return (error);
+
 	return (0);
 }
 
@@ -305,17 +330,11 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	/* Are we the child? */
 	if (td->td_retval[1] == 1)
 		td->td_retval[0] = 0;
+	error = linux_proc_init(td, td->td_retval[0], 0);
+	if (error)
+		return (error);
 	return (0);
 }
-
-#define CLONE_VM	0x100
-#define CLONE_FS	0x200
-#define CLONE_FILES	0x400
-#define CLONE_SIGHAND	0x800
-#define CLONE_PID	0x1000
-#define CLONE_THREAD	0x10000
-
-#define THREADING_FLAGS	(CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND)
 
 int
 linux_clone(struct thread *td, struct linux_clone_args *args)
@@ -324,18 +343,15 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	struct proc *p2;
 	struct thread *td2;
 	int exit_signal;
+	struct linux_emuldata *em;
 
 #ifdef DEBUG
 	if (ldebug(clone)) {
-		printf(ARGS(clone, "flags %x, stack %x"),
-		    (unsigned int)args->flags, (unsigned int)args->stack);
-		if (args->flags & CLONE_PID)
-			printf(LMSG("CLONE_PID not yet supported"));
+   	   	printf(ARGS(clone, "flags %x, stack %x, parent tid: %x, child tid: %x"),
+		    (unsigned int)args->flags, (unsigned int)args->stack, 
+		    (unsigned int)args->parent_tidptr, (unsigned int)args->child_tidptr);
 	}
 #endif
-
-	if (!args->stack)
-		return (EINVAL);
 
 	exit_signal = args->flags & 0x000000ff;
 	if (exit_signal >= LINUX_NSIG)
@@ -371,12 +387,118 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if (error)
 		return (error);
 	
+	/* create the emuldata */
+	error = linux_proc_init(td, p2->p_pid, args->flags);
+	/* reference it - no need to check this */
+	em = em_find(p2, EMUL_UNLOCKED);
+	KASSERT(em != NULL, ("clone: emuldata not found.\n"));
+	/* and adjust it */
+	if (args->flags & CLONE_PARENT_SETTID) {
+	   	if (args->parent_tidptr == NULL) {
+		   	EMUL_UNLOCK(&emul_lock);
+			return (EINVAL);
+		}
+		error = copyout(&p2->p_pid, args->parent_tidptr, sizeof(p2->p_pid));
+		if (error) {
+		   	EMUL_UNLOCK(&emul_lock);
+			return (error);
+		}
+	}
+
+	if (args->flags & CLONE_PARENT) {
+#ifdef DEBUG
+	   	printf("linux_clone: CLONE_PARENT\n");
+#endif
+	}
+	   	
+	if (args->flags & CLONE_THREAD) {
+	   	/* XXX: linux mangles pgrp and pptr somehow
+		 * I think it might be this but I am not sure.
+		 */
+#ifdef notyet
+	   	p2->p_pgrp = td->td_proc->p_pgrp;
+	 	p2->p_pptr = td->td_proc->p_pptr;
+#endif
+	 	exit_signal = 0;
+#ifdef DEBUG
+	   	printf("linux_clone: CLONE_THREADS\n");
+#endif
+	}
+
+	if (args->flags & CLONE_CHILD_SETTID)
+		em->child_set_tid = args->child_tidptr;
+	else
+	   	em->child_set_tid = NULL;
+
+	if (args->flags & CLONE_CHILD_CLEARTID)
+		em->child_clear_tid = args->child_tidptr;
+	else
+	   	em->child_clear_tid = NULL;
+	EMUL_UNLOCK(&emul_lock);
 
 	PROC_LOCK(p2);
 	p2->p_sigparent = exit_signal;
 	PROC_UNLOCK(p2);
 	td2 = FIRST_THREAD_IN_PROC(p2);
-	td2->td_frame->tf_esp = (unsigned int)args->stack;
+	/* in a case of stack = NULL we are supposed to COW calling process stack
+	 * this is what normal fork() does so we just keep the tf_esp arg intact
+	 */
+	if (args->stack)
+   	   	td2->td_frame->tf_esp = (unsigned int)args->stack;
+
+	if (args->flags & CLONE_SETTLS) {
+   	   	struct l_user_desc info;
+   	   	int idx;
+	   	int a[2];
+		struct segment_descriptor sd;
+
+	   	error = copyin((void *)td->td_frame->tf_esi, &info, sizeof(struct l_user_desc));
+		if (error)
+   		   	return (error);
+		
+		idx = info.entry_number;
+		
+		/* looks like we're getting the idx we returned
+		 * in the set_thread_area() syscall
+		 */
+		if (idx != 6 && idx != 3)
+			return (EINVAL);
+
+		/* this doesnt happen in practice */
+		if (idx == 6) {
+		   	/* we might copy out the entry_number as 3 */
+		   	info.entry_number = 3;
+			error = copyout(&info, (void *) td->td_frame->tf_esi, sizeof(struct l_user_desc));
+			if (error)
+	   		   	return (error);
+		}
+
+		a[0] = LDT_entry_a(&info);
+		a[1] = LDT_entry_b(&info);
+
+		memcpy(&sd, &a, sizeof(a));
+#ifdef DEBUG
+	if (ldebug(clone))
+	   	printf("Segment created in clone with CLONE_SETTLS: lobase: %x, hibase: %x, lolimit: %x, hilimit: %x, type: %i, dpl: %i, p: %i, xx: %i, def32: %i, gran: %i\n", sd.sd_lobase,
+			sd.sd_hibase,
+			sd.sd_lolimit,
+			sd.sd_hilimit,
+			sd.sd_type,
+			sd.sd_dpl,
+			sd.sd_p,
+			sd.sd_xx,
+			sd.sd_def32,
+			sd.sd_gran);
+#endif
+
+		/* this is taken from i386 version of cpu_set_user_tls() */
+		critical_enter();
+		/* set %gs */
+		td2->td_pcb->pcb_gsd = sd;
+		PCPU_GET(fsgs_gdt)[1] = sd;
+		load_gs(GSEL(GUGS_SEL, SEL_UPL));
+		critical_exit();
+	} 
 
 #ifdef DEBUG
 	if (ldebug(clone))
@@ -847,25 +969,234 @@ linux_ftruncate64(struct thread *td, struct linux_ftruncate64_args *args)
 int
 linux_set_thread_area(struct thread *td, struct linux_set_thread_area_args *args)
 {
-	/*
-	 * Return an error code instead of raising a SIGSYS so that
-	 * the caller will fall back to simpler LDT methods.
+	struct l_user_desc info;
+	int error;
+	int idx;
+	int a[2];
+	struct segment_descriptor sd;
+
+	error = copyin(args->desc, &info, sizeof(struct l_user_desc));
+	if (error)
+		return (error);
+
+#ifdef DEBUG
+	if (ldebug(set_thread_area))
+	   	printf(ARGS(set_thread_area, "%i, %x, %x, %i, %i, %i, %i, %i, %i\n"),
+		      info.entry_number,
+      		      info.base_addr,
+      		      info.limit,
+      		      info.seg_32bit,
+		      info.contents,
+      		      info.read_exec_only,
+      		      info.limit_in_pages,
+      		      info.seg_not_present,
+      		      info.useable);
+#endif
+
+	idx = info.entry_number;
+	/* Semantics of linux version: every thread in the system has array
+	 * of 3 tls descriptors. 1st is GLIBC TLS, 2nd is WINE, 3rd unknown. This
+	 * syscall loads one of the selected tls decriptors with a value
+	 * and also loads GDT descriptors 6, 7 and 8 with the content of the per-thread 
+	 * descriptors.
+	 *
+	 * Semantics of fbsd version: I think we can ignore that linux has 3 per-thread
+	 * descriptors and use just the 1st one. The tls_array[] is used only in 
+	 * set/get-thread_area() syscalls and for loading the GDT descriptors. In fbsd 
+	 * we use just one GDT descriptor for TLS so we will load just one. 
+	 * XXX: this doesnt work when user-space process tries to use more then 1 TLS segment
+	 * comment in the linux sources says wine might do that.
 	 */
-	return (ENOSYS);
-}
 
-int
-linux_gettid(struct thread *td, struct linux_gettid_args *args)
-{
+	/* we support just GLIBC TLS now 
+	 * we should let 3 proceed as well because we use this segment so
+	 * if code does two subsequent calls it should succeed
+	 */
+	if (idx != 6 && idx != -1 && idx != 3)
+		return (EINVAL);
 
-	td->td_retval[0] = td->td_proc->p_pid;
+	/* we have to copy out the GDT entry we use
+	 * FreeBSD uses GDT entry #3 for storing %gs so load that 
+	 * XXX: what if userspace program doesnt check this value and tries
+	 * to use 6, 7 or 8? 
+	 */
+	idx = info.entry_number = 3;
+	error = copyout(&info, args->desc, sizeof(struct l_user_desc));
+	if (error)
+		return (error);
+
+	if (LDT_empty(&info)) {
+		a[0] = 0;
+		a[1] = 0;
+	} else {
+		a[0] = LDT_entry_a(&info);
+		a[1] = LDT_entry_b(&info);
+	}
+
+	memcpy(&sd, &a, sizeof(a));
+#ifdef DEBUG
+	if (ldebug(set_thread_area))
+	   	printf("Segment created in set_thread_area: lobase: %x, hibase: %x, lolimit: %x, hilimit: %x, type: %i, dpl: %i, p: %i, xx: %i, def32: %i, gran: %i\n", sd.sd_lobase,
+			sd.sd_hibase,
+			sd.sd_lolimit,
+			sd.sd_hilimit,
+			sd.sd_type,
+			sd.sd_dpl,
+			sd.sd_p,
+			sd.sd_xx,
+			sd.sd_def32,
+			sd.sd_gran);
+#endif
+
+	/* this is taken from i386 version of cpu_set_user_tls() */
+	critical_enter();
+	/* set %gs */
+	td->td_pcb->pcb_gsd = sd;
+	PCPU_GET(fsgs_gdt)[1] = sd;
+	load_gs(GSEL(GUGS_SEL, SEL_UPL));
+	critical_exit();
+   
 	return (0);
 }
 
 int
-linux_tkill(struct thread *td, struct linux_tkill_args *args)
+linux_get_thread_area(struct thread *td, struct linux_get_thread_area_args *args)
 {
+   	
+	struct l_user_desc info;
+	int error;
+	int idx;
+	struct l_desc_struct desc;
+	struct segment_descriptor sd;
 
-	return (linux_kill(td, (struct linux_kill_args *) args));
+#ifdef DEBUG
+	if (ldebug(get_thread_area))
+		printf(ARGS(get_thread_area, "%p"), args->desc);
+#endif
+
+	error = copyin(args->desc, &info, sizeof(struct l_user_desc));
+	if (error)
+		return (error);
+
+	idx = info.entry_number;
+	/* XXX: I am not sure if we want 3 to be allowed too. */
+	if (idx != 6 && idx != 3)
+		return (EINVAL);
+
+	idx = 3;
+
+	memset(&info, 0, sizeof(info));
+
+	sd = PCPU_GET(fsgs_gdt)[1];
+
+	memcpy(&desc, &sd, sizeof(desc));
+
+	info.entry_number = idx;
+	info.base_addr = GET_BASE(&desc);
+	info.limit = GET_LIMIT(&desc);
+	info.seg_32bit = GET_32BIT(&desc);
+	info.contents = GET_CONTENTS(&desc);
+	info.read_exec_only = !GET_WRITABLE(&desc);
+	info.limit_in_pages = GET_LIMIT_PAGES(&desc);
+	info.seg_not_present = !GET_PRESENT(&desc);
+	info.useable = GET_USEABLE(&desc);
+
+	error = copyout(&info, args->desc, sizeof(struct l_user_desc));
+	if (error)
+	   	return (EFAULT);
+
+	return (0);
+}
+
+/* copied from kern/kern_time.c */
+int
+linux_timer_create(struct thread *td, struct linux_timer_create_args *args)
+{
+   	return ktimer_create(td, (struct ktimer_create_args *) args);
+}
+
+int
+linux_timer_settime(struct thread *td, struct linux_timer_settime_args *args)
+{
+   	return ktimer_settime(td, (struct ktimer_settime_args *) args);
+}
+
+int
+linux_timer_gettime(struct thread *td, struct linux_timer_gettime_args *args)
+{
+   	return ktimer_gettime(td, (struct ktimer_gettime_args *) args);
+}
+
+int
+linux_timer_getoverrun(struct thread *td, struct linux_timer_getoverrun_args *args)
+{
+   	return ktimer_getoverrun(td, (struct ktimer_getoverrun_args *) args);
+}
+
+int
+linux_timer_delete(struct thread *td, struct linux_timer_delete_args *args)
+{
+   	return ktimer_delete(td, (struct ktimer_delete_args *) args);
+}
+
+/* XXX: this wont work with module - convert it */
+int
+linux_mq_open(struct thread *td, struct linux_mq_open_args *args)
+{
+#ifdef P1003_1B_MQUEUE
+   	return kmq_open(td, (struct kmq_open_args *) args);
+#else
+	return (ENOSYS);
+#endif
+}
+
+int
+linux_mq_unlink(struct thread *td, struct linux_mq_unlink_args *args)
+{
+#ifdef P1003_1B_MQUEUE
+   	return kmq_unlink(td, (struct kmq_unlink_args *) args);
+#else
+	return (ENOSYS);
+#endif
+}
+
+int
+linux_mq_timedsend(struct thread *td, struct linux_mq_timedsend_args *args)
+{
+#ifdef P1003_1B_MQUEUE
+   	return kmq_timedsend(td, (struct kmq_timedsend_args *) args);
+#else
+	return (ENOSYS);
+#endif
+}
+
+int
+linux_mq_timedreceive(struct thread *td, struct linux_mq_timedreceive_args *args)
+{
+#ifdef P1003_1B_MQUEUE
+   	return kmq_timedreceive(td, (struct kmq_timedreceive_args *) args);
+#else
+	return (ENOSYS);
+#endif
+}
+
+int
+linux_mq_notify(struct thread *td, struct linux_mq_notify_args *args)
+{
+#ifdef P1003_1B_MQUEUE
+	return kmq_notify(td, (struct kmq_notify_args *) args);
+#else
+	return (ENOSYS);
+#endif
+}
+
+int
+linux_mq_getsetattr(struct thread *td, struct linux_mq_getsetattr_args *args)
+{
+#ifdef P1003_1B_MQUEUE
+   	return kmq_setattr(td, (struct kmq_setattr_args *) args);
+#else
+	return (ENOSYS);
+#endif
 }
 

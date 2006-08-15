@@ -34,6 +34,10 @@
 #define	_AMD64_LINUX_LINUX_H_
 
 #include <sys/signal.h> /* for sigval union */
+#include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/sx.h>
 
 #include <amd64/linux32/linux32_syscall.h>
 
@@ -495,6 +499,7 @@ struct l_rt_sigframe {
 
 extern int bsd_to_linux_signal[];
 extern int linux_to_bsd_signal[];
+extern struct sysentvec elf_linux_sysvec;
 
 /*
  * Pluggable ioctl handlers
@@ -527,6 +532,11 @@ int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
 #define	LINUX_O_NDELAY		LINUX_O_NONBLOCK
 #define	LINUX_O_SYNC		010000
 #define	LINUX_FASYNC		020000
+#define	LINUX_O_DIRECT		040000	/* direct disk access hint */
+#define	LINUX_O_LARGEFILE	0100000
+#define	LINUX_O_DIRECTORY	0200000	/* must be a directory */
+#define	LINUX_O_NOFOLLOW	0400000	/* don't follow links */
+#define	LINUX_O_NOATIME		01000000
 
 #define	LINUX_F_DUPFD		0
 #define	LINUX_F_GETFD		1
@@ -736,5 +746,100 @@ struct l_pollfd {
 	l_short		events;
 	l_short		revents;
 } __packed;
+
+struct l_user_desc {
+	l_uint		entry_number;
+	l_uint		base_addr;
+	l_uint		limit;
+	l_uint		seg_32bit:1;
+	l_uint		contents:2;
+	l_uint		read_exec_only:1;
+	l_uint		limit_in_pages:1;
+	l_uint		seg_not_present:1;
+	l_uint		useable:1;
+};
+
+struct l_desc_struct {
+           unsigned long a,b;
+};
+
+
+#define LINUX_LOWERWORD	0x0000ffff
+
+/* macros which does the same thing as those in linux include/asm-um/ldt-i386.h 
+ * these convert linux user-space descriptor to machine one
+ */
+#define LDT_entry_a(info) \
+        ((((info)->base_addr & LINUX_LOWERWORD) << 16) | ((info)->limit & LINUX_LOWERWORD))
+
+#define ENTRY_B_READ_EXEC_ONLY	9
+#define ENTRY_B_CONTENTS	10
+#define ENTRY_B_SEG_NOT_PRESENT	15
+#define ENTRY_B_BASE_ADDR	16
+#define ENTRY_B_USEABLE		20
+#define ENTRY_B_SEG32BIT	22
+#define ENTRY_B_LIMIT		23
+
+#define LDT_entry_b(info) \
+        (((info)->base_addr & 0xff000000) | \
+        ((info)->limit & 0xf0000) | \
+        ((info)->contents << ENTRY_B_CONTENTS) | \
+        (((info)->seg_not_present == 0) << ENTRY_B_SEG_NOT_PRESENT) | \
+        (((info)->base_addr & 0x00ff0000) >> ENTRY_B_BASE_ADDR) | \
+        (((info)->read_exec_only == 0) << ENTRY_B_READ_EXEC_ONLY) | \
+        ((info)->seg_32bit << ENTRY_B_SEG32BIT) | \
+        ((info)->useable << ENTRY_B_USEABLE) | \
+        ((info)->limit_in_pages << ENTRY_B_LIMIT) | 0x7000)
+
+#define LDT_empty(info) (\
+        (info)->base_addr       == 0    && \
+        (info)->limit           == 0    && \
+        (info)->contents        == 0    && \
+        (info)->seg_not_present == 1    && \
+        (info)->read_exec_only  == 1    && \
+        (info)->seg_32bit       == 0    && \
+        (info)->limit_in_pages  == 0    && \
+        (info)->useable         == 0    )
+
+/* macros for converting segments, they do the same as those in arch/i386/kernel/process.c */
+#define GET_BASE(desc) ( \
+        (((desc)->a >> 16) & LINUX_LOWERWORD) | \
+        (((desc)->b << 16) & 0x00ff0000) | \
+        ( (desc)->b        & 0xff000000)   )
+
+#define GET_LIMIT(desc) ( \
+        ((desc)->a & LINUX_LOWERWORD) | \
+         ((desc)->b & 0xf0000) )
+
+#define GET_32BIT(desc)         (((desc)->b >> ENTRY_B_SEG32BIT) & 1)
+#define GET_CONTENTS(desc)      (((desc)->b >> ENTRY_B_CONTENTS) & 3)
+#define GET_WRITABLE(desc)      (((desc)->b >> ENTRY_B_READ_EXEC_ONLY) & 1)
+#define GET_LIMIT_PAGES(desc)   (((desc)->b >> ENTRY_B_LIMIT) & 1)
+#define GET_PRESENT(desc)       (((desc)->b >> ENTRY_B_SEG_NOT_PRESENT) & 1)
+#define GET_USEABLE(desc)       (((desc)->b >> ENTRY_B_USEABLE) & 1)
+
+#define LINUX_CLOCK_REALTIME            0
+#define LINUX_CLOCK_MONOTONIC           1
+#define LINUX_CLOCK_PROCESS_CPUTIME_ID  2
+#define LINUX_CLOCK_THREAD_CPUTIME_ID   3
+#define LINUX_CLOCK_REALTIME_HR         4
+#define LINUX_CLOCK_MONOTONIC_HR        5
+
+typedef int l_timer_t;
+typedef int l_mqd_t;
+
+#define CLONE_VM        0x100
+#define CLONE_FS        0x200
+#define CLONE_FILES     0x400
+#define CLONE_SIGHAND   0x800
+#define CLONE_PID       0x1000          /* this flag does not exist in linux anymore */
+#define CLONE_PARENT    0x00008000
+#define CLONE_THREAD    0x10000
+#define CLONE_SETTLS    0x80000
+#define CLONE_CHILD_CLEARTID    0x00200000
+#define CLONE_CHILD_SETTID      0x01000000
+#define CLONE_PARENT_SETTID     0x00100000
+
+#define THREADING_FLAGS (CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND)
 
 #endif /* !_AMD64_LINUX_LINUX_H_ */
