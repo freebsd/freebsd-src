@@ -108,11 +108,13 @@ struct	ifvlan {
 		int	ifvm_encaplen;	/* encapsulation length */
 		int	ifvm_mtufudge;	/* MTU fudged by this much */
 		int	ifvm_mintu;	/* min transmission unit */
+		uint16_t ifvm_proto;	/* encapsulation ethertype */
 		uint16_t ifvm_tag;	/* tag to apply on packets leaving if */
 	}	ifv_mib;
 	SLIST_HEAD(, vlan_mc_entry) vlan_mc_listhead;
 	LIST_ENTRY(ifvlan) ifv_list;
 };
+#define	ifv_proto	ifv_mib.ifvm_proto
 #define	ifv_tag		ifv_mib.ifvm_tag
 #define	ifv_encaplen	ifv_mib.ifvm_encaplen
 #define	ifv_mtufudge	ifv_mib.ifvm_mtufudge
@@ -888,7 +890,7 @@ vlan_start(struct ifnet *ifp)
 			      mtod(m, char *), ETHER_HDR_LEN);
 			evl = mtod(m, struct ether_vlan_header *);
 			evl->evl_proto = evl->evl_encap_proto;
-			evl->evl_encap_proto = htons(ETHERTYPE_VLAN);
+			evl->evl_encap_proto = htons(ifv->ifv_proto);
 			evl->evl_tag = htons(ifv->ifv_tag);
 #ifdef DEBUG
 			printf("%s: %*D\n", __func__, (int)sizeof(*evl),
@@ -944,10 +946,6 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 				return;
 			}
 			evl = mtod(m, struct ether_vlan_header *);
-			KASSERT(ntohs(evl->evl_encap_proto) == ETHERTYPE_VLAN,
-				("%s: bad encapsulation protocol (%u)",
-				 __func__, ntohs(evl->evl_encap_proto)));
-
 			tag = EVL_VLANOFTAG(ntohs(evl->evl_tag));
 
 			/*
@@ -1058,6 +1056,7 @@ exists:
 	if (error)
 		goto done;
 #endif
+	ifv->ifv_proto = ETHERTYPE_VLAN;
 	ifv->ifv_encaplen = ETHER_VLAN_ENCAP_LEN;
 	ifv->ifv_mintu = ETHERMIN;
 	ifv->ifv_pflags = 0;
