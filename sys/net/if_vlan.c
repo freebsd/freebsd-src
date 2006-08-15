@@ -1194,7 +1194,6 @@ vlan_unconfig_locked(struct ifnet *ifp)
 			 * lock, then it should preempt us right after
 			 * unlock and finish its work. Then we will acquire
 			 * lock again in trunk_destroy().
-			 * XXX: not true in case of VLAN_ARRAY
 			 */
 			TRUNK_UNLOCK(trunk);
 			trunk_destroy(trunk);
