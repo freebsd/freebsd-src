@@ -517,8 +517,11 @@ retry:
 						VM_OBJECT_UNLOCK(object);
 						vm_object_pip_wait(robject,
 						    "objde1");
-						VM_OBJECT_LOCK(object);
-						goto retry;
+						temp = robject->backing_object;
+						if (object == temp) {
+							VM_OBJECT_LOCK(object);
+							goto retry;
+						}
 					} else if (object->paging_in_progress) {
 						VM_OBJECT_UNLOCK(robject);
 						object->flags |= OBJ_PIPWNT;
@@ -526,10 +529,14 @@ retry:
 						    VM_OBJECT_MTX(object),
 						    PDROP | PVM, "objde2", 0);
 						VM_OBJECT_LOCK(robject);
-						VM_OBJECT_LOCK(object);
-						goto retry;
-					}
-					VM_OBJECT_UNLOCK(object);
+						temp = robject->backing_object;
+						if (object == temp) {
+							VM_OBJECT_LOCK(object);
+							goto retry;
+						}
+					} else
+						VM_OBJECT_UNLOCK(object);
+
 					if (robject->ref_count == 1) {
 						robject->ref_count--;
 						object = robject;
