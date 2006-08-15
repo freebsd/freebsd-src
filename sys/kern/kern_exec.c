@@ -889,9 +889,10 @@ exec_new_vmspace(imgp, sv)
 	vm_map_t map;
 
 	imgp->vmspace_destroyed = 1;
+	imgp->sysent = sv;
 
 	/* Called with Giant held, do not depend on it! */
-	EVENTHANDLER_INVOKE(process_exec, p);
+	EVENTHANDLER_INVOKE(process_exec, p, imgp);
 
 	/*
 	 * Here is as good a place as any to do any resource limit cleanups.
