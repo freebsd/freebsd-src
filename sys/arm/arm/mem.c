@@ -63,8 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #include <machine/memdev.h>
-
-#include "opt_global.h"
+#include <machine/vmparam.h>
 
 /*
  * Used in /dev/mem drivers and elsewhere
