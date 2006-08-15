@@ -21,6 +21,7 @@ namesname="syscallnames"
 systrace="systrace_args.c"
 
 # tmp files:
+sysaue="sysent.aue.$$"
 sysdcl="sysent.dcl.$$"
 syscompat="sysent.compat.$$"
 syscompatdcl="sysent.compatdcl.$$"
@@ -31,9 +32,9 @@ sysinc="sysinc.switch.$$"
 sysarg="sysarg.switch.$$"
 sysprotoend="sysprotoend.$$"
 
-trap "rm $sysdcl $syscompat $syscompatdcl $syscompat4 $syscompat4dcl $sysent $sysinc $sysarg $sysprotoend" 0
+trap "rm $sysaue $sysdcl $syscompat $syscompatdcl $syscompat4 $syscompat4dcl $sysent $sysinc $sysarg $sysprotoend" 0
 
-touch $sysdcl $syscompat $syscompatdcl $syscompat4 $syscompat4dcl $sysent $sysinc $sysarg $sysprotoend
+touch $sysaue $sysdcl $syscompat $syscompatdcl $syscompat4 $syscompat4dcl $sysent $sysinc $sysarg $sysprotoend
 
 case $# in
     0)	echo "usage: $0 input-file <config-file>" 1>&2
@@ -59,6 +60,7 @@ s/\$//g
 }
 ' < $1 | awk "
 	BEGIN {
+		sysaue = \"$sysaue\"
 		sysdcl = \"$sysdcl\"
 		sysproto = \"$sysproto\"
 		sysprotoend = \"$sysprotoend\"
@@ -125,6 +127,7 @@ s/\$//g
 		printf "#include <sys/acl.h>\n" > sysarg
 		printf "#include <posix4/_semaphore.h>\n" > sysarg
 		printf "#include <sys/ucontext.h>\n\n" > sysarg
+		printf "#include <bsm/audit_kevents.h>\n\n" > sysarg
 		printf "struct proc;\n\n" > sysarg
 		printf "struct thread;\n\n" > sysarg
 		printf "#define\tPAD_(t)\t(sizeof(register_t) <= sizeof(t) ? \\\n" > sysarg
@@ -343,6 +346,8 @@ s/\$//g
 			printf("%s\t%s(struct thread *, struct %s *)",
 			    rettype, funcname, argalias) > sysdcl
 			printf(";\n") > sysdcl
+			printf("#define\t%sAUE_%s\t%s\n", syscallprefix,
+			    funcalias, auditev) > sysaue
 		}
 		if (funcname == "nosys")
 			nosys = 1
@@ -481,7 +486,7 @@ s/\$//g
 
 		printf("\n#endif /* %s */\n\n", compat4) > syscompat4dcl
 
-		printf("#undef PAD_\n") > sysprotoend
+		printf("\n#undef PAD_\n") > sysprotoend
 		printf("#undef PADL_\n") > sysprotoend
 		printf("#undef PADR_\n") > sysprotoend
 		printf("\n#endif /* !%s */\n", sysproto_h) > sysprotoend
@@ -498,5 +503,5 @@ cat $sysinc $sysent >> $syssw
 cat $sysarg $sysdcl \
 	$syscompat $syscompatdcl \
 	$syscompat4 $syscompat4dcl \
-	$sysprotoend > $sysproto
+	$sysaue $sysprotoend > $sysproto
 
