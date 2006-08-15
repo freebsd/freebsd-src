@@ -827,6 +827,8 @@ fork_exit(callout, arg, frame)
 		kthread_exit(0);
 	}
 	mtx_assert(&Giant, MA_NOTOWNED);
+
+	EVENTHANDLER_INVOKE(schedtail, p);
 }
 
 /*
