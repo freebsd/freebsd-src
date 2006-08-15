@@ -1334,6 +1334,7 @@ linux_reboot(struct thread *td, struct linux_reboot_args *args)
 int
 linux_getpid(struct thread *td, struct linux_getpid_args *args)
 {
+#ifdef __i386__
    	struct linux_emuldata *em;
 
 	em = em_find(td->td_proc, EMUL_UNLOCKED);
@@ -1342,6 +1343,9 @@ linux_getpid(struct thread *td, struct linux_getpid_args *args)
 
 	td->td_retval[0] = em->shared->group_pid;
 	EMUL_UNLOCK(&emul_lock);
+#else
+	td->td_retval[0] = td->td_proc->p_pid;
+#endif
 	return (0);
 }
 
@@ -1361,6 +1365,7 @@ linux_gettid(struct thread *td, struct linux_gettid_args *args)
 int
 linux_getppid(struct thread *td, struct linux_getppid_args *args)
 {
+#ifdef	__i386__
    	struct linux_emuldata *em;
 	struct proc *p, *pp;
 
@@ -1393,7 +1398,9 @@ linux_getppid(struct thread *td, struct linux_getppid_args *args)
 
 	EMUL_UNLOCK(&emul_lock);
 	PROC_UNLOCK(pp);
-
+#else
+	return getppid(td, (struct getppid_args *) args);
+#endif
 	return (0);
 }
 
