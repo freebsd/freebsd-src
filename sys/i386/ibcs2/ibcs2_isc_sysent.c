@@ -19,25 +19,25 @@
 
 /* The casts are bogus but will do for now. */
 struct sysent isc_sysent[] = {
-	{ 0, (sy_call_t *)nosys, AUE_NULL },			/* 0 = nosys */
-	{ 0, (sy_call_t *)nosys, AUE_NULL },			/* 1 = isc_setostype */
-	{ AS(ibcs2_rename_args), (sy_call_t *)ibcs2_rename, AUE_RENAME },	/* 2 = ibcs2_rename */
-	{ AS(ibcs2_sigaction_args), (sy_call_t *)ibcs2_sigaction, AUE_NULL },	/* 3 = ibcs2_sigaction */
-	{ AS(ibcs2_sigprocmask_args), (sy_call_t *)ibcs2_sigprocmask, AUE_NULL },	/* 4 = ibcs2_sigprocmask */
-	{ AS(ibcs2_sigpending_args), (sy_call_t *)ibcs2_sigpending, AUE_NULL },	/* 5 = ibcs2_sigpending */
-	{ AS(getgroups_args), (sy_call_t *)getgroups, AUE_GETGROUPS },	/* 6 = getgroups */
-	{ AS(setgroups_args), (sy_call_t *)setgroups, AUE_SETGROUPS },	/* 7 = setgroups */
-	{ AS(ibcs2_pathconf_args), (sy_call_t *)ibcs2_pathconf, AUE_PATHCONF },	/* 8 = ibcs2_pathconf */
-	{ AS(ibcs2_fpathconf_args), (sy_call_t *)ibcs2_fpathconf, AUE_FPATHCONF },	/* 9 = ibcs2_fpathconf */
-	{ 0, (sy_call_t *)nosys, AUE_NULL },			/* 10 = nosys */
-	{ AS(ibcs2_wait_args), (sy_call_t *)ibcs2_wait, AUE_WAIT4 },	/* 11 = ibcs2_wait */
-	{ 0, (sy_call_t *)setsid, AUE_SETSID },		/* 12 = setsid */
-	{ 0, (sy_call_t *)getpid, AUE_GETPID },		/* 13 = getpid */
-	{ 0, (sy_call_t *)nosys, AUE_NULL },			/* 14 = isc_adduser */
-	{ 0, (sy_call_t *)nosys, AUE_NULL },			/* 15 = isc_setuser */
-	{ AS(ibcs2_sysconf_args), (sy_call_t *)ibcs2_sysconf, AUE_NULL },	/* 16 = ibcs2_sysconf */
-	{ AS(ibcs2_sigsuspend_args), (sy_call_t *)ibcs2_sigsuspend, AUE_NULL },	/* 17 = ibcs2_sigsuspend */
-	{ AS(ibcs2_symlink_args), (sy_call_t *)ibcs2_symlink, AUE_SYMLINK },	/* 18 = ibcs2_symlink */
-	{ AS(ibcs2_readlink_args), (sy_call_t *)ibcs2_readlink, AUE_READLINK },	/* 19 = ibcs2_readlink */
-	{ 0, (sy_call_t *)nosys, AUE_NULL },			/* 20 = isc_getmajor */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0 },			/* 0 = nosys */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0 },			/* 1 = isc_setostype */
+	{ AS(ibcs2_rename_args), (sy_call_t *)ibcs2_rename, AUE_RENAME, NULL, 0, 0 },	/* 2 = ibcs2_rename */
+	{ AS(ibcs2_sigaction_args), (sy_call_t *)ibcs2_sigaction, AUE_NULL, NULL, 0, 0 },	/* 3 = ibcs2_sigaction */
+	{ AS(ibcs2_sigprocmask_args), (sy_call_t *)ibcs2_sigprocmask, AUE_NULL, NULL, 0, 0 },	/* 4 = ibcs2_sigprocmask */
+	{ AS(ibcs2_sigpending_args), (sy_call_t *)ibcs2_sigpending, AUE_NULL, NULL, 0, 0 },	/* 5 = ibcs2_sigpending */
+	{ AS(getgroups_args), (sy_call_t *)getgroups, AUE_GETGROUPS, NULL, 0, 0 },	/* 6 = getgroups */
+	{ AS(setgroups_args), (sy_call_t *)setgroups, AUE_SETGROUPS, NULL, 0, 0 },	/* 7 = setgroups */
+	{ AS(ibcs2_pathconf_args), (sy_call_t *)ibcs2_pathconf, AUE_PATHCONF, NULL, 0, 0 },	/* 8 = ibcs2_pathconf */
+	{ AS(ibcs2_fpathconf_args), (sy_call_t *)ibcs2_fpathconf, AUE_FPATHCONF, NULL, 0, 0 },	/* 9 = ibcs2_fpathconf */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0 },			/* 10 = nosys */
+	{ AS(ibcs2_wait_args), (sy_call_t *)ibcs2_wait, AUE_WAIT4, NULL, 0, 0 },	/* 11 = ibcs2_wait */
+	{ 0, (sy_call_t *)setsid, AUE_SETSID, NULL, 0, 0 },		/* 12 = setsid */
+	{ 0, (sy_call_t *)getpid, AUE_GETPID, NULL, 0, 0 },		/* 13 = getpid */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0 },			/* 14 = isc_adduser */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0 },			/* 15 = isc_setuser */
+	{ AS(ibcs2_sysconf_args), (sy_call_t *)ibcs2_sysconf, AUE_NULL, NULL, 0, 0 },	/* 16 = ibcs2_sysconf */
+	{ AS(ibcs2_sigsuspend_args), (sy_call_t *)ibcs2_sigsuspend, AUE_NULL, NULL, 0, 0 },	/* 17 = ibcs2_sigsuspend */
+	{ AS(ibcs2_symlink_args), (sy_call_t *)ibcs2_symlink, AUE_SYMLINK, NULL, 0, 0 },	/* 18 = ibcs2_symlink */
+	{ AS(ibcs2_readlink_args), (sy_call_t *)ibcs2_readlink, AUE_READLINK, NULL, 0, 0 },	/* 19 = ibcs2_readlink */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0 },			/* 20 = isc_getmajor */
 };
