@@ -1352,7 +1352,6 @@ bce_nvram_erase_page(struct bce_softc *sc, u32 offset)
 	REG_WR(sc, BCE_NVM_COMMAND, cmd);
 
 	/* Wait for completion. */
-	 */
 	for (j = 0; j < NVRAM_TIMEOUT_COUNT; j++) {
 		u32 val;
 
