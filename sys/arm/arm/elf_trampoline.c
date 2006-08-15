@@ -36,6 +36,10 @@ __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 
+/*
+ * Since we are compiled outside of the normal kernel build process, we
+ * need to include opt_global.h manually.
+ */
 #include "opt_global.h"
 #include "opt_kernname.h"
 
