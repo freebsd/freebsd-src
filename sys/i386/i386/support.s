@@ -37,6 +37,7 @@
 #include <machine/pmap.h>
 #include <machine/specialreg.h>
 
+#include "opt_global.h"
 #include "assym.s"
 
 #define IDXSHIFT	10
