@@ -34,7 +34,6 @@
 #include <machine/xbox.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include "opt_global.h"
 
 #ifndef I686_CPU
 #error You must have a I686_CPU in your kernel if you want to make an XBOX-compitable kernel
