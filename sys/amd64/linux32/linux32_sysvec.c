@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/vnode.h>
+#include <sys/eventhandler.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -74,6 +75,7 @@ __FBSDID("$FreeBSD$");
 
 #include <amd64/linux32/linux.h>
 #include <amd64/linux32/linux32_proto.h>
+#include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
@@ -120,6 +122,15 @@ static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 static void	exec_linux_setregs(struct thread *td, u_long entry,
 				   u_long stack, u_long ps_strings);
 static void	linux32_fixlimits(struct proc *p);
+
+extern LIST_HEAD(futex_list, futex) futex_list;
+extern struct mtx futex_mtx;
+extern struct sx emul_shared_lock;
+extern struct sx emul_lock;
+
+static eventhandler_tag linux_exit_tag;
+static eventhandler_tag linux_schedtail_tag;
+static eventhandler_tag linux_exec_tag;
 
 /*
  * Linux syscalls return negative errno's, we do positive and map them
@@ -1068,6 +1079,15 @@ linux_elf_modevent(module_t mod, int type, void *data)
 				linux_ioctl_register_handler(*lihp);
 			SET_FOREACH(ldhp, linux_device_handler_set)
 				linux_device_register_handler(*ldhp);
+			sx_init(&emul_shared_lock, "emuldata->shared lock");
+			LIST_INIT(&futex_list);
+			mtx_init(&futex_mtx, "futex protection lock", NULL, MTX_DEF);
+			linux_exit_tag = EVENTHANDLER_REGISTER(process_exit, linux_proc_exit,
+			      NULL, 1000);
+			linux_schedtail_tag = EVENTHANDLER_REGISTER(schedtail, linux_schedtail,
+			      NULL, 1000);
+			linux_exec_tag = EVENTHANDLER_REGISTER(process_exec, linux_proc_exec,
+			      NULL, 1000);
 			if (bootverbose)
 				printf("Linux ELF exec handler installed\n");
 		} else
@@ -1089,6 +1109,12 @@ linux_elf_modevent(module_t mod, int type, void *data)
 				linux_ioctl_unregister_handler(*lihp);
 			SET_FOREACH(ldhp, linux_device_handler_set)
 				linux_device_unregister_handler(*ldhp);
+			sx_destroy(&emul_lock);
+			sx_destroy(&emul_shared_lock);
+			mtx_destroy(&futex_mtx);
+			EVENTHANDLER_DEREGISTER(process_exit, linux_exit_tag);
+			EVENTHANDLER_DEREGISTER(schedtail, linux_schedtail_tag);
+			EVENTHANDLER_DEREGISTER(process_exec, linux_exec_tag);
 			if (bootverbose)
 				printf("Linux ELF exec handler removed\n");
 		} else
