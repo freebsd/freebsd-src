@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/imgact.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
@@ -472,12 +473,6 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	return (0);
 }
 
-#define CLONE_VM	0x100
-#define CLONE_FS	0x200
-#define CLONE_FILES	0x400
-#define CLONE_SIGHAND	0x800
-#define CLONE_PID	0x1000
-
 int
 linux_clone(struct thread *td, struct linux_clone_args *args)
 {
@@ -491,13 +486,8 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		printf(ARGS(clone, "flags %x, stack %x"),
 		    (unsigned int)(uintptr_t)args->flags,
 		    (unsigned int)(uintptr_t)args->stack);
-		if (args->flags & CLONE_PID)
-			printf(LMSG("CLONE_PID not yet supported"));
 	}
 #endif
-
-	if (!args->stack)
-		return (EINVAL);
 
 	exit_signal = args->flags & 0x000000ff;
 	if (exit_signal >= LINUX_NSIG)
@@ -522,7 +512,11 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	p2->p_sigparent = exit_signal;
 	PROC_UNLOCK(p2);
 	td2 = FIRST_THREAD_IN_PROC(p2);
-	td2->td_frame->tf_rsp = PTROUT(args->stack);
+	/* in a case of stack = NULL we are supposed to COW calling process stack
+	 * this is what normal fork() does so we just keep the tf_rsp arg intact
+	 */
+	if (args->stack)
+   	   	td2->td_frame->tf_rsp = PTROUT(args->stack);
 
 #ifdef DEBUG
 	if (ldebug(clone))

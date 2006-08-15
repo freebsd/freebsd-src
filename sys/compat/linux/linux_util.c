@@ -32,6 +32,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
@@ -47,6 +49,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 #include <compat/linux/linux_util.h>
+#ifdef COMPAT_LINUX32
+#include <machine/../linux32/linux.h>
+#else
+#include <machine/../linux/linux.h>
+#endif
 
 const char      linux_emul_path[] = "/compat/linux";
 
@@ -84,8 +91,6 @@ linux_msg(const struct thread *td, const char *fmt, ...)
 	va_end(ap);
 	printf("\n");
 }
-
-MALLOC_DECLARE(M_LINUX);
 
 struct device_element
 {
