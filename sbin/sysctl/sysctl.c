@@ -584,11 +584,11 @@ show_var(int *oid, int nlen)
 				printf(hflag ? "%'#010x" : "%#010x",
 				    *(unsigned int *)p);
 			else if (*fmt == 'K') {
-				if (*(long *)p < 0)
-					printf("%ld", *(long *)p);
+				if (*(int *)p < 0)
+					printf("%d", *(int *)p);
 				else
 					printf("%.1fC",
-					    (*(long *)p - 2732.0) / 10);
+					    (*(int *)p - 2732.0) / 10);
 			} else
 				printf(hflag ? "%'d" : "%d", *(int *)p);
 			val = " ";
