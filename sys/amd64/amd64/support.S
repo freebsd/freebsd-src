@@ -412,7 +412,7 @@ ENTRY(fubyte)
 	ALIGN_TEXT
 fusufault:
 	movq	PCPU(CURPCB),%rcx
-	xorl	%eax,%eax
+	xorq	%rax,%rax
 	movq	%rax,PCB_ONFAULT(%rcx)
 	decq	%rax
 	ret
