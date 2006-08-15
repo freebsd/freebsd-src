@@ -36,7 +36,7 @@
 #include <vm/pmap.h>
 
 #ifndef I686_CPU
-#error You must have a I686_CPU in your kernel if you want to make an XBOX-compitable kernel
+#error You must have a I686_CPU in your kernel if you want to make an XBOX-compatible kernel
 #endif
 
 static void
