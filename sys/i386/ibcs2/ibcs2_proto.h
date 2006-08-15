@@ -11,11 +11,10 @@
 
 #include <sys/signal.h>
 #include <sys/acl.h>
-#include <sys/thr.h>
-#include <sys/umtx.h>
 #include <posix4/_semaphore.h>
-
 #include <sys/ucontext.h>
+
+#include <bsm/audit_kevents.h>
 
 struct proc;
 
@@ -348,6 +347,62 @@ int	ibcs2_isc(struct thread *, struct ibcs2_isc_args *);
 
 
 #endif /* COMPAT_FREEBSD4 */
+
+#define	IBCS2_SYS_AUE_ibcs2_read	AUE_NULL
+#define	IBCS2_SYS_AUE_ibcs2_open	AUE_OPEN_RWTC
+#define	IBCS2_SYS_AUE_ibcs2_wait	AUE_WAIT4
+#define	IBCS2_SYS_AUE_ibcs2_creat	AUE_CREAT
+#define	IBCS2_SYS_AUE_ibcs2_unlink	AUE_UNLINK
+#define	IBCS2_SYS_AUE_ibcs2_execv	AUE_EXECVE
+#define	IBCS2_SYS_AUE_ibcs2_chdir	AUE_CHDIR
+#define	IBCS2_SYS_AUE_ibcs2_time	AUE_NULL
+#define	IBCS2_SYS_AUE_ibcs2_mknod	AUE_MKNOD
+#define	IBCS2_SYS_AUE_ibcs2_chmod	AUE_CHMOD
+#define	IBCS2_SYS_AUE_ibcs2_chown	AUE_CHOWN
+#define	IBCS2_SYS_AUE_ibcs2_stat	AUE_STAT
+#define	IBCS2_SYS_AUE_ibcs2_lseek	AUE_LSEEK
+#define	IBCS2_SYS_AUE_ibcs2_mount	AUE_MOUNT
+#define	IBCS2_SYS_AUE_ibcs2_umount	AUE_UMOUNT
+#define	IBCS2_SYS_AUE_ibcs2_setuid	AUE_SETUID
+#define	IBCS2_SYS_AUE_ibcs2_stime	AUE_SETTIMEOFDAY
+#define	IBCS2_SYS_AUE_ibcs2_alarm	AUE_NULL
+#define	IBCS2_SYS_AUE_ibcs2_fstat	AUE_FSTAT
+#define	IBCS2_SYS_AUE_ibcs2_pause	AUE_NULL
+#define	IBCS2_SYS_AUE_ibcs2_utime	AUE_NULL
+#define	IBCS2_SYS_AUE_ibcs2_stty	AUE_NULL
+#define	IBCS2_SYS_AUE_ibcs2_gtty	AUE_NULL
+#define	IBCS2_SYS_AUE_ibcs2_access	AUE_ACCESS
+#define	IBCS2_SYS_AUE_ibcs2_nice	AUE_NICE
+#define	IBCS2_SYS_AUE_ibcs2_statfs	AUE_STATFS
+#define	IBCS2_SYS_AUE_ibcs2_kill	AUE_KILL
+#define	IBCS2_SYS_AUE_ibcs2_fstatfs	AUE_FSTATFS
+#define	IBCS2_SYS_AUE_ibcs2_pgrpsys	AUE_NULL
+#define	IBCS2_SYS_AUE_ibcs2_xenix	AUE_NULL
+#define	IBCS2_SYS_AUE_ibcs2_times	AUE_NULL
+#define	IBCS2_SYS_AUE_ibcs2_plock	AUE_NULL
+#define	IBCS2_SYS_AUE_ibcs2_setgid	AUE_SETGID
+#define	IBCS2_SYS_AUE_ibcs2_sigsys	AUE_NULL
+#define	IBCS2_SYS_AUE_ibcs2_msgsys	AUE_MSGSYS
+#define	IBCS2_SYS_AUE_ibcs2_sysi86	AUE_NULL
+#define	IBCS2_SYS_AUE_ibcs2_shmsys	AUE_SHMSYS
+#define	IBCS2_SYS_AUE_ibcs2_semsys	AUE_SEMSYS
+#define	IBCS2_SYS_AUE_ibcs2_ioctl	AUE_IOCTL
+#define	IBCS2_SYS_AUE_ibcs2_uadmin	AUE_NULL
+#define	IBCS2_SYS_AUE_ibcs2_utssys	AUE_NULL
+#define	IBCS2_SYS_AUE_ibcs2_execve	AUE_EXECVE
+#define	IBCS2_SYS_AUE_ibcs2_fcntl	AUE_FCNTL
+#define	IBCS2_SYS_AUE_ibcs2_ulimit	AUE_NULL
+#define	IBCS2_SYS_AUE_ibcs2_rmdir	AUE_RMDIR
+#define	IBCS2_SYS_AUE_ibcs2_mkdir	AUE_MKDIR
+#define	IBCS2_SYS_AUE_ibcs2_getdents	AUE_GETDIRENTRIES
+#define	IBCS2_SYS_AUE_ibcs2_sysfs	AUE_NULL
+#define	IBCS2_SYS_AUE_ibcs2_getmsg	AUE_GETMSG
+#define	IBCS2_SYS_AUE_ibcs2_putmsg	AUE_PUTMSG
+#define	IBCS2_SYS_AUE_ibcs2_secure	AUE_NULL
+#define	IBCS2_SYS_AUE_ibcs2_symlink	AUE_SYMLINK
+#define	IBCS2_SYS_AUE_ibcs2_lstat	AUE_LSTAT
+#define	IBCS2_SYS_AUE_ibcs2_readlink	AUE_READLINK
+#define	IBCS2_SYS_AUE_ibcs2_isc	AUE_NULL
 
 #undef PAD_
 #undef PADL_
