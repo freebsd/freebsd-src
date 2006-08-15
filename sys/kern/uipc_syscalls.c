@@ -1798,15 +1798,16 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
     struct uio *hdr_uio, struct uio *trl_uio, int compat)
 {
 	struct vnode *vp;
-	struct vm_object *obj;
+	struct vm_object *obj = NULL;
 	struct socket *so = NULL;
 	struct mbuf *m, *m_header = NULL;
 	struct sf_buf *sf;
 	struct vm_page *pg;
 	off_t off, xfsize, hdtr_size, sbytes = 0;
 	int error, headersize = 0, headersent = 0;
+	int vfslocked;
 
-	mtx_lock(&Giant);
+	NET_LOCK_GIANT();
 
 	hdtr_size = 0;
 
@@ -1815,9 +1816,26 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	 */
 	if ((error = fgetvp_read(td, uap->fd, &vp)) != 0)
 		goto done;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	obj = vp->v_object;
+	if (obj != NULL) {
+		/*
+		 * Temporarily increase the backing VM object's reference
+		 * count so that a forced reclamation of its vnode does not
+		 * immediately destroy it.
+		 */
+		VM_OBJECT_LOCK(obj);
+		if ((obj->flags & OBJ_DEAD) == 0) {
+			vm_object_reference_locked(obj);
+			VM_OBJECT_UNLOCK(obj);
+		} else {
+			VM_OBJECT_UNLOCK(obj);
+			obj = NULL;
+		}
+	}
 	VOP_UNLOCK(vp, 0, td);
+	VFS_UNLOCK_GIANT(vfslocked);
 	if (obj == NULL) {
 		error = EINVAL;
 		goto done;
@@ -1973,6 +1991,7 @@ retry_lookup:
 			 * Get the page from backing store.
 			 */
 			bsize = vp->v_mount->mnt_stat.f_iosize;
+			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 			vn_lock(vp, LK_SHARED | LK_RETRY, td);
 			/*
 			 * XXXMAC: Because we don't have fp->f_cred here,
@@ -1984,6 +2003,7 @@ retry_lookup:
 			    IO_VMIO | ((MAXBSIZE / bsize) << IO_SEQSHIFT),
 			    td->td_ucred, NOCRED, &resid, td);
 			VOP_UNLOCK(vp, 0, td);
+			VFS_UNLOCK_GIANT(vfslocked);
 			VM_OBJECT_LOCK(obj);
 			vm_page_lock_queues();
 			vm_page_io_finish(pg);
@@ -2163,14 +2183,19 @@ done:
 			sbytes += hdtr_size;
 		copyout(&sbytes, uap->sbytes, sizeof(off_t));
 	}
-	if (vp)
+	if (obj != NULL)
+		vm_object_deallocate(obj);
+	if (vp != NULL) {
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vrele(vp);
+		VFS_UNLOCK_GIANT(vfslocked);
+	}
 	if (so)
 		fputsock(so);
 	if (m_header)
 		m_freem(m_header);
 
-	mtx_unlock(&Giant);
+	NET_UNLOCK_GIANT();
 
 	if (error == ERESTART)
 		error = EINTR;
