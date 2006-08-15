@@ -203,26 +203,30 @@ static int
 db_numargs(fp)
 	struct i386_frame *fp;
 {
-	int	*argp;
+	char   *argp;
 	int	inst;
 	int	args;
 
-	argp = (int *)db_get_value((int)&fp->f_retaddr, 4, FALSE);
+	argp = (char *)db_get_value((int)&fp->f_retaddr, 4, FALSE);
 	/*
 	 * XXX etext is wrong for LKMs.  We should attempt to interpret
 	 * the instruction at the return address in all cases.  This
 	 * may require better fault handling.
 	 */
-	if (argp < (int *)btext || argp >= (int *)etext) {
-		args = 5;
+	if (argp < btext || argp >= etext) {
+		args = -1;
 	} else {
+retry:
 		inst = db_get_value((int)argp, 4, FALSE);
 		if ((inst & 0xff) == 0x59)	/* popl %ecx */
 			args = 1;
 		else if ((inst & 0xffff) == 0xc483)	/* addl $Ibs, %esp */
 			args = ((inst >> 16) & 0xff) / 4;
-		else
-			args = 5;
+		else if ((inst & 0xf8ff) == 0xc089) {	/* movl %eax, %Reg */
+			argp += 2;
+			goto retry;
+		} else
+			args = -1;
 	}
 	return (args);
 }
@@ -235,15 +239,19 @@ db_print_stack_entry(name, narg, argnp, argp, callpc)
 	int *argp;
 	db_addr_t callpc;
 {
+	int n = narg >= 0 ? narg : 5;
+
 	db_printf("%s(", name);
-	while (narg) {
+	while (n) {
 		if (argnp)
 			db_printf("%s=", *argnp++);
 		db_printf("%r", db_get_value((int)argp, 4, FALSE));
 		argp++;
-		if (--narg != 0)
+		if (--n != 0)
 			db_printf(",");
 	}
+	if (narg < 0)
+		db_printf(",...");
 	db_printf(") at ");
 	db_printsym(callpc, DB_STGY_PROC);
 	db_printf("\n");
