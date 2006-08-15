@@ -654,6 +654,16 @@ const struct puc_device_description puc_devices[] = {
 	    },
 	},
 
+	/* VScom PCI-200Li: 2S */
+	{   "VScom PCI-200Li",
+	    {	0x14d2,	0x8028,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x20, 0x00, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x20, 0x08, COM_FREQ * 8 },
+	    },
+	},
+
 	/* VScom PCI-400: 4S */
 	{   "VScom PCI-400",
 	    {	0x10b5,	0x1077,	0x10b5,	0x1077	},
