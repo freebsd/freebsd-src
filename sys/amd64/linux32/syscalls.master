@@ -121,7 +121,7 @@
 62	AUE_NULL	STD	{ int linux_ustat(l_dev_t dev, \
 				    struct l_ustat *ubuf); }
 63	AUE_DUP2	NOPROTO	{ int dup2(u_int from, u_int to); }
-64	AUE_GETPPID	NOPROTO	{ int getppid(void); }
+64	AUE_GETPPID	STD	{ int linux_getppid(void); }
 65	AUE_GETPGRP	NOPROTO	{ int getpgrp(void); }
 66	AUE_SETSID	NOPROTO	{ int setsid(void); }
 67	AUE_NULL	STD	{ int linux_sigaction(l_int sig, \
@@ -213,7 +213,9 @@
 118	AUE_FSYNC	NOPROTO	{ int fsync(int fd); }
 119	AUE_SIGRETURN	STD	{ int linux_sigreturn( \
 				    struct l_sigframe *sfp); }
-120	AUE_RFORK	STD	{ int linux_clone(l_int flags, void *stack); }
+; linux uses some strange calling convention here so we have to use the dummy arg
+120	AUE_RFORK	STD	{ int linux_clone(l_int flags, void *stack, \
+				    void *parent_tidptr, int dummy, void * child_tidptr); }
 121	AUE_SYSCTL	NOPROTO	{ int setdomainname(char *name, \
 				    int len); }
 122	AUE_NULL	STD	{ int linux_newuname( \
@@ -382,8 +384,7 @@
 				    uintptr_t arg); }
 222	AUE_NULL	UNIMPL
 223	AUE_NULL	UNIMPL
-224	AUE_NULL	NOPROTO	{ long linux_getpid(void); } gettid \
-					linux_getpid_args void
+224	AUE_NULL	STD	{ long linux_gettid(void); }
 225	AUE_NULL	UNIMPL	linux_readahead
 226	AUE_NULL	STD	{ int linux_setxattr(void); }
 227	AUE_NULL	STD	{ int linux_lsetxattr(void); }
@@ -397,9 +398,10 @@
 235	AUE_NULL	STD	{ int linux_removexattr(void); }
 236	AUE_NULL	STD	{ int linux_lremovexattr(void); }
 237	AUE_NULL	STD	{ int linux_fremovexattr(void); }
-238	AUE_NULL	UNIMPL	linux_tkill
+238	AUE_NULL	STD	{ int linux_tkill(int tid, int sig); }
 239	AUE_SENDFILE	UNIMPL	linux_sendfile64
-240	AUE_NULL	UNIMPL	linux_futex
+240	AUE_NULL	STD	{ int linux_sys_futex(void *uaddr, int op, int val, \
+					struct l_timespec *timeout, void *uaddr2, int val3); }
 241	AUE_NULL	UNIMPL	linux_sched_setaffinity
 242	AUE_NULL	UNIMPL	linux_sched_getaffinity
 243	AUE_NULL	UNIMPL	linux_set_thread_area
@@ -411,26 +413,26 @@
 249	AUE_NULL	UNIMPL	linux_io_cancel
 250	AUE_NULL	STD	{ int linux_fadvise64(void); }
 251	AUE_NULL	UNIMPL
-252	AUE_EXIT	NOPROTO	{ void sys_exit(int rval); } exit_group \
-				    sys_exit_args void
+252	AUE_EXIT	STD	{ int linux_exit_group(int error_code); }
 253	AUE_NULL	STD	{ int linux_lookup_dcookie(void); }
 254	AUE_NULL	STD	{ int linux_epoll_create(void); }
 255	AUE_NULL	STD	{ int linux_epoll_ctl(void); }
 256	AUE_NULL	STD	{ int linux_epoll_wait(void); }
 257	AUE_NULL	STD	{ int linux_remap_file_pages(void); }
-258	AUE_NULL	STD	{ int linux_set_tid_address(void); }
+258	AUE_NULL	STD	{ int linux_set_tid_address(int *tidptr); }
 259	AUE_NULL	STD	{ int linux_timer_create(void); }
 260	AUE_NULL	STD	{ int linux_timer_settime(void); }
 261	AUE_NULL	STD	{ int linux_timer_gettime(void); }
 262	AUE_NULL	STD	{ int linux_timer_getoverrun(void); }
 263	AUE_NULL	STD	{ int linux_timer_delete(void); }
-264	AUE_CLOCK_SETTIME	STD	{ int linux_clock_settime(void); }
-265	AUE_NULL	STD	{ int linux_clock_gettime(void); }
-266	AUE_NULL	STD	{ int linux_clock_getres(void); }
-267	AUE_NULL	STD	{ int linux_clock_nanosleep(void); }
+264	AUE_CLOCK_SETTIME	STD	{ int linux_clock_settime(clockid_t which, struct l_timespec *tp); }
+265	AUE_NULL	STD	{ int linux_clock_gettime(clockid_t which, struct l_timespec *tp); }
+266	AUE_NULL	STD	{ int linux_clock_getres(clockid_t which, struct l_timespec *tp); }
+267	AUE_NULL	STD	{ int linux_clock_nanosleep(clockid_t which, int flags, \
+					struct l_timespec *rqtp, struct l_timespec *rmtp); }
 268	AUE_NULL	STD	{ int linux_statfs64(void); }
 269	AUE_NULL	STD	{ int linux_fstatfs64(void); }
-270	AUE_NULL	STD	{ int linux_tgkill(void); }
+270	AUE_NULL	STD	{ int linux_tgkill(int tgid, int pid, int sig); }
 271	AUE_NULL	STD	{ int linux_utimes(void); }
 272	AUE_NULL	STD	{ int linux_fadvise64_64(void); }
 273	AUE_NULL	UNIMPL
