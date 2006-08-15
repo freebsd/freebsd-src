@@ -589,6 +589,34 @@ lockmgr_printinfo(lkp)
 }
 
 #ifdef DDB
+/*
+ * Check to see if a thread that is blocked on a sleep queue is actually
+ * blocked on a 'struct lock'.  If so, output some details and return true.
+ * If the lock has an exclusive owner, return that in *ownerp.
+ */
+int
+lockmgr_chain(struct thread *td, struct thread **ownerp)
+{
+	struct lock *lkp;
+
+	lkp = td->td_wchan;
+
+	/* Simple test to see if wchan points to a lockmgr lock. */
+	if (lkp->lk_wmesg != td->td_wmesg)
+		return (0);
+
+	/* Ok, we think we have a lockmgr lock, so output some details. */
+	db_printf("blocked on lk \"%s\" ", lkp->lk_wmesg);
+	if (lkp->lk_sharecount) {
+		db_printf("SHARED (count %d)\n", lkp->lk_sharecount);
+		*ownerp = NULL;
+	} else {
+		db_printf("EXCL (count %d)\n", lkp->lk_exclusivecount);
+		*ownerp = lkp->lk_lockholder;
+	}
+	return (1);
+}
+
 DB_SHOW_COMMAND(lockmgr, db_show_lockmgr)
 {
 	struct thread *td;
