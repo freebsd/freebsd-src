@@ -76,8 +76,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: sysctl [-bdehNnox] name[=value] ...",
-	    "       sysctl [-bdehNnox] -a");
+	    "usage: sysctl [-bdehNnoqx] name[=value] ...",
+	    "       sysctl [-bdehNnoqx] -a");
 	exit(1);
 }
 
