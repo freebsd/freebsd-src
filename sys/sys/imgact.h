@@ -63,6 +63,7 @@ struct image_params {
 	unsigned long ps_strings; /* PS_STRINGS for BSD/OS binaries */
 	size_t auxarg_size;
 	struct image_args *args;	/* system call arguments */
+	struct sysentvec *sysent;	/* system entry vector */
 };
 
 #ifdef _KERNEL

@@ -322,6 +322,7 @@ static int	aio_aqueue(struct thread *td, struct aiocb *job,
 			struct aioliojob *lio, int type, int osigev);
 static void	aio_physwakeup(struct buf *bp);
 static void	aio_proc_rundown(void *arg, struct proc *p);
+static void	aio_proc_rundown_exec(void *arg, struct proc *p, struct image_params *imgp);
 static int	aio_qphysio(struct proc *p, struct aiocblist *iocb);
 static void	biohelper(void *, int);
 static void	aio_daemon(void *param);
@@ -419,7 +420,7 @@ aio_onceonly(void)
 	aio_swake = &aio_swake_cb;
 	exit_tag = EVENTHANDLER_REGISTER(process_exit, aio_proc_rundown, NULL,
 	    EVENTHANDLER_PRI_ANY);
-	exec_tag = EVENTHANDLER_REGISTER(process_exec, aio_proc_rundown, NULL,
+	exec_tag = EVENTHANDLER_REGISTER(process_exec, aio_proc_rundown_exec, NULL,
 	    EVENTHANDLER_PRI_ANY);
 	kqueue_add_filteropts(EVFILT_AIO, &aio_filtops);
 	kqueue_add_filteropts(EVFILT_LIO, &lio_filtops);
@@ -628,6 +629,12 @@ aio_free_entry(struct aiocblist *aiocbe)
 	AIO_LOCK(ki);
 
 	return (0);
+}
+
+static void
+aio_proc_rundown_exec(void *arg, struct proc *p, struct image_params *imgp __unused)
+{
+   	aio_proc_rundown(arg, p);
 }
 
 /*
