@@ -11,11 +11,10 @@
 
 #include <sys/signal.h>
 #include <sys/acl.h>
-#include <sys/thr.h>
-#include <sys/umtx.h>
 #include <posix4/_semaphore.h>
-
 #include <sys/ucontext.h>
+
+#include <bsm/audit_kevents.h>
 
 struct proc;
 
@@ -496,6 +495,86 @@ int	svr4_sys_sendto(struct thread *, struct svr4_sys_sendto_args *);
 
 
 #endif /* COMPAT_FREEBSD4 */
+
+#define	SVR4_SYS_AUE_svr4_sys_open	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_wait	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_creat	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_execv	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_time	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_mknod	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_break	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_stat	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_alarm	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_fstat	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_pause	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_utime	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_access	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_nice	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_kill	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_pgrpsys	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_times	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_signal	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_msgsys	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_sysarch	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_shmsys	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_semsys	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_ioctl	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_utssys	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_execve	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_fcntl	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_ulimit	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_getdents	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_getmsg	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_putmsg	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_poll	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_lstat	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_sigprocmask	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_sigsuspend	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_sigaltstack	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_sigaction	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_sigpending	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_context	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_statvfs	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_fstatvfs	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_waitsys	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_hrtsys	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_pathconf	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_mmap	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_fpathconf	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_xstat	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_lxstat	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_fxstat	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_xmknod	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_setrlimit	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_getrlimit	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_memcntl	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_uname	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_sysconfig	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_systeminfo	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_fchroot	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_utimes	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_vhangup	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_gettimeofday	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_llseek	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_acl	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_auditsys	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_facl	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_resolvepath	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_getdents64	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_mmap64	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_stat64	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_lstat64	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_fstat64	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_statvfs64	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_fstatvfs64	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_setrlimit64	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_getrlimit64	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_creat64	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_open64	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_socket	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_recv	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_send	AUE_NULL
+#define	SVR4_SYS_AUE_svr4_sys_sendto	AUE_NULL
 
 #undef PAD_
 #undef PADL_

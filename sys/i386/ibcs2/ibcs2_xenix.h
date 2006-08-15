@@ -11,11 +11,10 @@
 
 #include <sys/signal.h>
 #include <sys/acl.h>
-#include <sys/thr.h>
-#include <sys/umtx.h>
 #include <posix4/_semaphore.h>
-
 #include <sys/ucontext.h>
+
+#include <bsm/audit_kevents.h>
 
 struct proc;
 
@@ -122,6 +121,24 @@ int	xenix_utsname(struct thread *, struct xenix_utsname_args *);
 
 
 #endif /* COMPAT_FREEBSD4 */
+
+#define	IBCS2_XENIX_AUE_xenix_rdchk	AUE_NULL
+#define	IBCS2_XENIX_AUE_xenix_chsize	AUE_FTRUNCATE
+#define	IBCS2_XENIX_AUE_xenix_ftime	AUE_NULL
+#define	IBCS2_XENIX_AUE_xenix_nap	AUE_NULL
+#define	IBCS2_XENIX_AUE_xenix_scoinfo	AUE_NULL
+#define	IBCS2_XENIX_AUE_xenix_eaccess	AUE_EACCESS
+#define	IBCS2_XENIX_AUE_ibcs2_sigaction	AUE_NULL
+#define	IBCS2_XENIX_AUE_ibcs2_sigprocmask	AUE_NULL
+#define	IBCS2_XENIX_AUE_ibcs2_sigpending	AUE_NULL
+#define	IBCS2_XENIX_AUE_ibcs2_sigsuspend	AUE_NULL
+#define	IBCS2_XENIX_AUE_ibcs2_getgroups	AUE_GETGROUPS
+#define	IBCS2_XENIX_AUE_ibcs2_setgroups	AUE_SETGROUPS
+#define	IBCS2_XENIX_AUE_ibcs2_sysconf	AUE_NULL
+#define	IBCS2_XENIX_AUE_ibcs2_pathconf	AUE_PATHCONF
+#define	IBCS2_XENIX_AUE_ibcs2_fpathconf	AUE_FPATHCONF
+#define	IBCS2_XENIX_AUE_ibcs2_rename	AUE_RENAME
+#define	IBCS2_XENIX_AUE_xenix_utsname	AUE_NULL
 
 #undef PAD_
 #undef PADL_

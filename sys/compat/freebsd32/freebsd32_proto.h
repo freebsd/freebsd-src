@@ -11,11 +11,10 @@
 
 #include <sys/signal.h>
 #include <sys/acl.h>
-#include <sys/thr.h>
-#include <sys/umtx.h>
 #include <posix4/_semaphore.h>
-
 #include <sys/ucontext.h>
+
+#include <bsm/audit_kevents.h>
 
 struct proc;
 
@@ -415,6 +414,53 @@ int	freebsd4_freebsd32_sigaction(struct thread *, struct freebsd4_freebsd32_siga
 int	freebsd4_freebsd32_sigreturn(struct thread *, struct freebsd4_freebsd32_sigreturn_args *);
 
 #endif /* COMPAT_FREEBSD4 */
+
+#define	FREEBSD32_SYS_AUE_freebsd32_wait4	AUE_WAIT4
+#define	FREEBSD32_SYS_AUE_freebsd32_recvmsg	AUE_RECVMSG
+#define	FREEBSD32_SYS_AUE_freebsd32_sendmsg	AUE_SENDMSG
+#define	FREEBSD32_SYS_AUE_freebsd32_recvfrom	AUE_RECVFROM
+#define	FREEBSD32_SYS_AUE_freebsd32_sigaltstack	AUE_SIGPENDING
+#define	FREEBSD32_SYS_AUE_freebsd32_execve	AUE_EXECVE
+#define	FREEBSD32_SYS_AUE_freebsd32_setitimer	AUE_SETITIMER
+#define	FREEBSD32_SYS_AUE_freebsd32_getitimer	AUE_GETITIMER
+#define	FREEBSD32_SYS_AUE_freebsd32_select	AUE_SELECT
+#define	FREEBSD32_SYS_AUE_freebsd32_gettimeofday	AUE_GETTIMEOFDAY
+#define	FREEBSD32_SYS_AUE_freebsd32_getrusage	AUE_GETRUSAGE
+#define	FREEBSD32_SYS_AUE_freebsd32_readv	AUE_READV
+#define	FREEBSD32_SYS_AUE_freebsd32_writev	AUE_WRITEV
+#define	FREEBSD32_SYS_AUE_freebsd32_settimeofday	AUE_SETTIMEOFDAY
+#define	FREEBSD32_SYS_AUE_freebsd32_utimes	AUE_UTIMES
+#define	FREEBSD32_SYS_AUE_freebsd32_adjtime	AUE_ADJTIME
+#define	FREEBSD32_SYS_AUE_freebsd32_semsys	AUE_SEMSYS
+#define	FREEBSD32_SYS_AUE_freebsd32_msgsys	AUE_MSGSYS
+#define	FREEBSD32_SYS_AUE_freebsd32_shmsys	AUE_SHMSYS
+#define	FREEBSD32_SYS_AUE_freebsd32_pread	AUE_PREAD
+#define	FREEBSD32_SYS_AUE_freebsd32_pwrite	AUE_PWRITE
+#define	FREEBSD32_SYS_AUE_freebsd32_stat	AUE_STAT
+#define	FREEBSD32_SYS_AUE_freebsd32_fstat	AUE_FSTAT
+#define	FREEBSD32_SYS_AUE_freebsd32_lstat	AUE_LSTAT
+#define	FREEBSD32_SYS_AUE_freebsd32_mmap	AUE_MMAP
+#define	FREEBSD32_SYS_AUE_freebsd32_lseek	AUE_LSEEK
+#define	FREEBSD32_SYS_AUE_freebsd32_truncate	AUE_TRUNCATE
+#define	FREEBSD32_SYS_AUE_freebsd32_ftruncate	AUE_FTRUNCATE
+#define	FREEBSD32_SYS_AUE_freebsd32_sysctl	AUE_SYSCTL
+#define	FREEBSD32_SYS_AUE_freebsd32_futimes	AUE_FUTIMES
+#define	FREEBSD32_SYS_AUE_freebsd32_shmctl	AUE_SHMCTL
+#define	FREEBSD32_SYS_AUE_freebsd32_clock_gettime	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd32_clock_settime	AUE_CLOCK_SETTIME
+#define	FREEBSD32_SYS_AUE_freebsd32_clock_getres	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd32_nanosleep	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd32_lutimes	AUE_LUTIMES
+#define	FREEBSD32_SYS_AUE_freebsd32_preadv	AUE_PREADV
+#define	FREEBSD32_SYS_AUE_freebsd32_pwritev	AUE_PWRITEV
+#define	FREEBSD32_SYS_AUE_freebsd32_modstat	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd32_kevent	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd32_sendfile	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd32_sigaction	AUE_SIGACTION
+#define	FREEBSD32_SYS_AUE_freebsd32_sigreturn	AUE_SIGRETURN
+#define	FREEBSD32_SYS_AUE_freebsd32_getcontext	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd32_setcontext	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd32_swapcontext	AUE_NULL
 
 #undef PAD_
 #undef PADL_
