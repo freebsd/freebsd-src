@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <posix4/sched.h>
 
 #include <compat/linux/linux_sysproto.h>
+#include <compat/linux/linux_emul.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -92,6 +93,9 @@ __FBSDID("$FreeBSD$");
 
 #define BSD_TO_LINUX_SIGNAL(sig)	\
 	(((sig) <= LINUX_SIGTBLSZ) ? bsd_to_linux_signal[_SIG_IDX(sig)] : sig)
+
+extern struct sx emul_shared_lock;
+extern struct sx emul_lock;
 
 static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] = {
 	RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK,
@@ -1330,8 +1334,66 @@ linux_reboot(struct thread *td, struct linux_reboot_args *args)
 int
 linux_getpid(struct thread *td, struct linux_getpid_args *args)
 {
+   	struct linux_emuldata *em;
+
+	em = em_find(td->td_proc, EMUL_UNLOCKED);
+
+	KASSERT(em != NULL, ("getpid: emuldata not found.\n"));
+
+	td->td_retval[0] = em->shared->group_pid;
+	EMUL_UNLOCK(&emul_lock);
+	return (0);
+}
+
+int
+linux_gettid(struct thread *td, struct linux_gettid_args *args)
+{
+#ifdef DEBUG
+	if (ldebug(gettid))
+		printf(ARGS(gettid, ""));
+#endif
 
 	td->td_retval[0] = td->td_proc->p_pid;
+	return (0);
+}
+
+
+int
+linux_getppid(struct thread *td, struct linux_getppid_args *args)
+{
+   	struct linux_emuldata *em;
+	struct proc *p, *pp;
+
+	em = em_find(td->td_proc, EMUL_UNLOCKED);
+
+	KASSERT(em != NULL, ("getppid: process emuldata not found.\n"));
+
+	/* find the group leader */
+	p = pfind(em->shared->group_pid);
+
+	if (p == NULL) {
+#ifdef DEBUG
+	   	printf(LMSG("parent process not found.\n"));
+#endif
+		return (0);
+	}
+
+	pp = p->p_pptr;		/* switch to parent */
+	PROC_LOCK(pp);
+	PROC_UNLOCK(p);
+
+	/* if its also linux process */
+	if (pp->p_sysent == &elf_linux_sysvec) {
+   	   	em = em_find(pp, EMUL_LOCKED);
+		KASSERT(em != NULL, ("getppid: parent emuldata not found.\n"));
+
+	   	td->td_retval[0] = em->shared->group_pid;
+	} else
+	   	td->td_retval[0] = pp->p_pid;
+
+	EMUL_UNLOCK(&emul_lock);
+	PROC_UNLOCK(pp);
+
 	return (0);
 }
 
@@ -1392,5 +1454,41 @@ linux_sethostname(struct thread *td, struct linux_sethostname_args *args)
 		return (error);
 	return (userland_sysctl(td, name, 2, 0, 0, 0, args->hostname, 
 		 args->len, 0, 0));
+}
+
+int
+linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
+{
+   	struct linux_emuldata *em, *td_em, *tmp_em;
+	struct proc *sp;
+
+#ifdef DEBUG
+	if (ldebug(exit_group))
+		printf(ARGS(exit_group, "%i"), args->error_code);
+#endif
+
+	td_em = em_find(td->td_proc, EMUL_UNLOCKED);
+
+	KASSERT(td_em != NULL, ("exit_group: emuldata not found.\n"));
+
+	EMUL_SHARED_RLOCK(&emul_shared_lock);
+     	LIST_FOREACH_SAFE(em, &td_em->shared->threads, threads, tmp_em) {
+	   	if (em->pid == td_em->pid)
+		   	continue;
+
+		sp = pfind(em->pid);
+		psignal(sp, SIGKILL);
+		PROC_UNLOCK(sp);
+#ifdef DEBUG
+		printf(LMSG("linux_sys_exit_group: kill PID %d\n"), em->pid);
+#endif
+	}
+
+	EMUL_SHARED_RUNLOCK(&emul_shared_lock);
+	EMUL_UNLOCK(&emul_lock);
+
+	exit1(td, W_EXITCODE(args->error_code,0));
+
+   	return (0);
 }
 

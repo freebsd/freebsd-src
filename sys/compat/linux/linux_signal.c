@@ -49,6 +49,10 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
+#include <compat/linux/linux_emul.h>
+
+extern struct sx emul_shared_lock;
+extern struct sx emul_lock;
 
 void
 linux_to_bsd_sigset(l_sigset_t *lss, sigset_t *bss)
@@ -446,4 +450,58 @@ linux_kill(struct thread *td, struct linux_kill_args *args)
 
 	tmp.pid = args->pid;
 	return (kill(td, &tmp));
+}
+
+int
+linux_tgkill(struct thread *td, struct linux_tgkill_args *args)
+{
+   	struct linux_emuldata *em;
+	struct linux_kill_args ka;
+	struct proc *p;
+
+#ifdef DEBUG
+	if (ldebug(tgkill))
+		printf(ARGS(tgkill, "%d, %d, %d"), args->tgid, args->pid, args->sig);
+#endif
+
+	ka.pid = args->pid;
+	ka.signum = args->sig;
+
+	if (args->tgid == -1)
+	   	return linux_kill(td, &ka);
+
+	if ((p = pfind(args->pid)) == NULL)
+	      	return ESRCH;
+
+	if (p->p_sysent != &elf_linux_sysvec)
+		return ESRCH;
+
+	PROC_UNLOCK(p);
+
+	em = em_find(p, EMUL_UNLOCKED);
+
+	if (em == NULL) {
+#ifdef DEBUG
+		printf("emuldata not found in tgkill.\n");
+#endif
+		return ESRCH;
+	}
+
+	if (em->shared->group_pid != args->tgid)
+	   	return ESRCH;
+
+	EMUL_UNLOCK(&emul_lock);
+
+	return linux_kill(td, &ka);
+}
+
+int
+linux_tkill(struct thread *td, struct linux_tkill_args *args)
+{
+#ifdef DEBUG
+	if (ldebug(tkill))
+		printf(ARGS(tkill, "%i, %i"), args->tid, args->sig);
+#endif
+
+	return (linux_kill(td, (struct linux_kill_args *) args));
 }
