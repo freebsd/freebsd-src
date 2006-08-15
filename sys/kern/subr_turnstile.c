@@ -1035,8 +1035,12 @@ found:
 	
 }
 
+/*
+ * Show all the threads a particular thread is waiting on based on
+ * non-sleepable and non-spin locks.
+ */
 static void
-print_threadchain(struct thread *td, const char *prefix)
+print_lockchain(struct thread *td, const char *prefix)
 {
 	struct lock_object *lock;
 	struct lock_class *class;
@@ -1084,7 +1088,7 @@ print_threadchain(struct thread *td, const char *prefix)
 	}
 }
 
-DB_SHOW_COMMAND(threadchain, db_show_threadchain)
+DB_SHOW_COMMAND(lockchain, db_show_lockchain)
 {
 	struct thread *td;
 
@@ -1094,7 +1098,7 @@ DB_SHOW_COMMAND(threadchain, db_show_threadchain)
 	else
 		td = kdb_thread;
 
-	print_threadchain(td, "");
+	print_lockchain(td, "");
 }
 
 DB_SHOW_COMMAND(allchains, db_show_allchains)
@@ -1108,7 +1112,7 @@ DB_SHOW_COMMAND(allchains, db_show_allchains)
 		FOREACH_THREAD_IN_PROC(p, td) {
 			if (TD_ON_LOCK(td) && LIST_EMPTY(&td->td_contested)) {
 				db_printf("chain %d:\n", i++);
-				print_threadchain(td, " ");
+				print_lockchain(td, " ");
 			}
 			if (db_pager_quit)
 				return;
@@ -1156,7 +1160,7 @@ print_waiters(struct turnstile *ts, int indent)
 		print_waiter(td, indent + 1);
 }
 
-DB_SHOW_COMMAND(lockchain, db_show_lockchain)
+DB_SHOW_COMMAND(locktree, db_show_locktree)
 {
 	struct lock_object *lock;
 	struct lock_class *class;
