@@ -162,10 +162,11 @@ EVENTHANDLER_DECLARE(vm_lowmem, vm_lowmem_handler_t);
  * exec handlers are called with Giant, but that is by accident.
  */
 struct proc;
+struct image_params;
 
 typedef void (*exitlist_fn)(void *, struct proc *);
 typedef void (*forklist_fn)(void *, struct proc *, struct proc *, int);
-typedef void (*execlist_fn)(void *, struct proc *);
+typedef void (*execlist_fn)(void *, struct proc *, struct image_params *);
 
 EVENTHANDLER_DECLARE(process_exit, exitlist_fn);
 EVENTHANDLER_DECLARE(process_fork, forklist_fn);
@@ -174,4 +175,7 @@ EVENTHANDLER_DECLARE(process_exec, execlist_fn);
 typedef void (*uma_zone_chfn)(void *);
 EVENTHANDLER_DECLARE(nmbclusters_change, uma_zone_chfn);
 EVENTHANDLER_DECLARE(maxsockets_change, uma_zone_chfn);
+
+typedef void(*schedtail_fn)(void *, struct proc *);
+EVENTHANDLER_DECLARE(schedtail, schedtail_fn);
 #endif /* SYS_EVENTHANDLER_H */

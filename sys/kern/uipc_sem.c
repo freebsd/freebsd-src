@@ -71,6 +71,7 @@ static void sem_free(struct ksem *ksnew);
 static int sem_perm(struct thread *td, struct ksem *ks);
 static void sem_enter(struct proc *p, struct ksem *ks);
 static int sem_leave(struct proc *p, struct ksem *ks);
+static void sem_exechook(void *arg, struct proc *p, struct image_params *imgp);
 static void sem_exithook(void *arg, struct proc *p);
 static void sem_forkhook(void *arg, struct proc *p1, struct proc *p2,
     int flags);
@@ -919,7 +920,13 @@ race_lost:
 }
 
 static void
-sem_exithook(void *arg, struct proc *p)
+sem_exithook(void *arg, struct proc *p, struct image_params *imgp __unused)
+{
+   	sem_exechook(arg, p);   	
+}
+
+static void
+sem_exechook(void *arg, struct proc *p)
 {
 	struct ksem *ks, *ksnext;
 
