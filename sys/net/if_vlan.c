@@ -744,7 +744,6 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 
 			return (error);
 		}
-		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 		/* Update flags on the parent, if necessary. */
 		vlan_setflags(ifp, 1);
@@ -1113,6 +1112,9 @@ exists:
 	 * joined on the vlan device.
 	 */
 	(void)vlan_setmulti(ifp); /* XXX: VLAN lock held */
+
+	/* We are ready for operation now. */
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 done:
 	TRUNK_UNLOCK(trunk);
 	VLAN_UNLOCK();
@@ -1443,7 +1445,6 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = vlan_config(ifv, p, vlr.vlr_tag);
 		if (error)
 			break;
-		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 		/* Update flags on the parent, if necessary. */
 		vlan_setflags(ifp, 1);
