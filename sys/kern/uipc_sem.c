@@ -920,13 +920,13 @@ race_lost:
 }
 
 static void
-sem_exithook(void *arg, struct proc *p, struct image_params *imgp __unused)
+sem_exechook(void *arg, struct proc *p, struct image_params *imgp __unused)
 {
-   	sem_exechook(arg, p);   	
+   	sem_exithook(arg, p);   	
 }
 
 static void
-sem_exechook(void *arg, struct proc *p)
+sem_exithook(void *arg, struct proc *p)
 {
 	struct ksem *ks, *ksnext;
 
@@ -958,7 +958,7 @@ sem_modload(struct module *module, int cmd, void *arg)
 		p31b_setcfg(CTL_P1003_1B_SEM_VALUE_MAX, SEM_VALUE_MAX);
 		sem_exit_tag = EVENTHANDLER_REGISTER(process_exit, sem_exithook,
 		    NULL, EVENTHANDLER_PRI_ANY);
-		sem_exec_tag = EVENTHANDLER_REGISTER(process_exec, sem_exithook,
+		sem_exec_tag = EVENTHANDLER_REGISTER(process_exec, sem_exechook,
 		    NULL, EVENTHANDLER_PRI_ANY);
 		sem_fork_tag = EVENTHANDLER_REGISTER(process_fork, sem_forkhook, NULL, EVENTHANDLER_PRI_ANY);
                 break;
