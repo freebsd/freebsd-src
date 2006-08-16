@@ -31,3 +31,5 @@ pass in proto icmp from any to any icmp-type squench
 pass in proto icmp from any to any icmp-type timest
 pass in proto icmp from any to any icmp-type timestrep
 pass in proto icmp from any to any icmp-type timex
+pass in proto icmp from any to any icmp-type 254
+pass in proto icmp from any to any icmp-type 253 code 254

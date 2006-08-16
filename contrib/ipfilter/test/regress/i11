@@ -7,4 +7,5 @@ pass in on ed0 out-via vx0 proto udp from any to any keep state
 pass out on ppp0 in-via le0 proto tcp from any to any keep state
 pass in on ed0,vx0 out-via vx0,ed0 proto udp from any to any keep state
 pass in proto tcp from any port gt 1024 to localhost port eq 1024 keep state
-pass in proto tcp all flags S keep state(strict,newisn,no-icmp-err,limit 101)
+pass in proto tcp all flags S keep state(strict,newisn,no-icmp-err,limit 101,age 600)
+pass in proto udp all keep state(age 10/20,sync)

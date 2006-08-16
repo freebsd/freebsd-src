@@ -3,12 +3,13 @@
 #
 # See the IPFILTER.LICENCE file for details on licencing.
 #
+TOP=../..
 BINDEST=/usr/sbin
 SBINDEST=/sbin
 MANDIR=/usr/share/man
 SEARCHDIRS!=echo $(BINDEST) $(SBINDEST) /bin /usr/bin /sbin /usr/sbin /usr/local/bin /usr/local/sbin | awk '{for(i=1;i<NF;i++){print $$i;}}' - | sort -u
 
-CC=gcc -Wall -Wuninitialized -Wstrict-prototypes -O
+CC=gcc -Wall -Wuninitialized -Wstrict-prototypes -O -Wmissing-prototypes -Wpointer-arith -Wno-sign-compare -Wno-traditional -Werror
 #UFLAGS=-fprofile-arcs -ftest-coverage
 CFLAGS=-g -I$(TOP)
 #
@@ -17,7 +18,7 @@ CFLAGS=-g -I$(TOP)
 DEVFS!=/usr/bin/lsvfs 2>&1 | sed -n 's/.*devfs.*/-DDEVFS/p'
 CPU!=uname -m
 INC=-I/usr/include -I/sys -I/sys/sys -I/sys/arch
-DEF=-D$(CPU) -D__$(CPU)__ -DINET -DKERNEL -D_KERNEL $(INC) $(DEVFS)
+DEF=-D$(CPU) -D__$(CPU)__ -DINET -DKERNEL -D_KERNEL $(INC) $(DEVFS) -fno-builtin
 IPDEF=$(DEF) -DGATEWAY -DDIRECTED_BROADCAST
 VNODESHDIR=/sys/kern
 MLD=$(ML)
@@ -516,8 +517,8 @@ install:
 	(cd $(TOP)/man; make INSTALL=$(INSTALL) MANDIR=$(MANDIR) install; cd $(TOP))
 
 coverage:
-	ksh -c 'for i in *.da; do j=$${i%%.da}.c; gcov $$j 2>&1 | egrep -v "y.tab.c|Could|Creating|_l\.c|\.h"; done'  | sort -n > report
-	sort -n report | perl -e 'while(<>) { next if (/^0.00/); s/\%//g; @F=split;$$lc+=$$F[2];$$t += $$F[0]/100*$$F[2];}  printf "%d of %d = %d%%\n", $$t, $$lc,$$t/$$lc*100;' >> report
+	ksh -c 'for i in *.da; do j=$${i%%.da}.c; gcov $$j 2>&1 | egrep -v "y.tab.c|Could|Creating|_l\.c|\.h"; done'  | sort -k 1n -k 3n > report
+	sort -k 1n -k 3n report | perl -e 'while(<>) { next if (/^0.00/); s/\%//g; @F=split;$$lc+=$$F[2];$$t += ($$F[0]/100)*$$F[2];}  printf "%d of %d = %d%%\n", $$t, $$lc,($$t/$$lc)*100;' >> report
 
 clean-coverage:
 	/bin/rm -f *.gcov *.da
