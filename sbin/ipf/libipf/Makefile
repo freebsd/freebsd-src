@@ -3,7 +3,7 @@
 LIB=		ipf
 INTERNALLIB=
 
-SRCS=		addicmp.c addipopt.c addkeep.c bcopywrap.c binprint.c \
+SRCS=		addicmp.c addipopt.c bcopywrap.c binprint.c \
 		buildopts.c checkrev.c count6bits.c count4bits.c debug.c \
 		extras.c facpri.c flags.c fill6bits.c genmask.c gethost.c \
 		getifname.c getline.c getnattype.c getport.c getportproto.c \
@@ -12,7 +12,7 @@ SRCS=		addicmp.c addipopt.c addkeep.c bcopywrap.c binprint.c \
 		ipoptsec.c ipf_dotuning.c ipft_ef.c ipft_hx.c ipft_pc.c \
 		ipft_sn.c ipft_td.c ipft_tx.c kmem.c kmemcpywrap.c \
 		kvatoname.c load_hash.c load_hashnode.c load_pool.c \
-		load_poolnode.c loglevel.c make_range.c mutex_emul.c \
+		load_poolnode.c loglevel.c mutex_emul.c \
 		nametokva.c nat_setgroupmap.c ntomask.c optname.c \
 		optprint.c optprintv6.c optvalue.c portname.c portnum.c \
 		ports.c print_toif.c printactivenat.c printaps.c printbuf.c \
