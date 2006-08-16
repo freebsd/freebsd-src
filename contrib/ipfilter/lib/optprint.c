@@ -3,7 +3,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: optprint.c,v 1.6 2002/07/13 15:59:49 darrenr Exp $
+ * $Id: optprint.c,v 1.6.4.1 2005/12/18 14:51:28 darrenr Exp $
  */
 #include "ipf.h"
 
@@ -23,6 +23,10 @@ u_long optmsk, optbits;
 			if ((io->on_value != IPOPT_SECURITY) ||
 			    (!secmsk && !secbits)) {
 				printf("%s%s", s, io->on_name);
+				/*
+				 * Because the ionames table has this entry
+				 * twice.
+				 */
 				if (io->on_value == IPOPT_SECURITY)
 					io++;
 				s = ",";

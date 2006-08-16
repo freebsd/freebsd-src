@@ -18,6 +18,33 @@ u_short *port;
 		return -1;
 	}
 
+	/*
+	 * Some people will use port names in rules without specifying
+	 * either TCP or UDP because it is implied by the group head.
+	 * If we don't know the protocol, then the best we can do here is
+	 * to take either only the TCP or UDP mapping (if one or the other
+	 * is missing) or make sure both of them agree.
+	 */
+	if (fr->fr_proto == 0) {
+		s = getservbyname(name, "tcp");
+		if (s != NULL)
+			p1 = s->s_port;
+		else
+			p1 = 0;
+		s = getservbyname(name, "udp");
+		if (s != NULL) {
+			if (p1 != s->s_port)
+				return -1;
+		}
+		if ((p1 == 0) && (s == NULL))
+			return -1;
+		if (p1)
+			*port = p1;
+		else
+			*port = s->s_port;
+		return 0;
+	}
+
 	if ((fr->fr_flx & FI_TCPUDP) != 0) {
 		/*
 		 * If a rule is "tcp/udp" then check that both TCP and UDP

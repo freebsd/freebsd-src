@@ -170,6 +170,8 @@ nextchar:
 	switch (c)
 	{
 	case '\n' :
+		lnext = 0;
+		nokey = 0;
 	case '\t' :
 	case '\r' :
 	case ' ' :
