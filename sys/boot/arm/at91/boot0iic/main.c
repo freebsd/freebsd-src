@@ -28,8 +28,6 @@
 #include "lib.h"
 #include "at91rm9200_lowlevel.h"
 
-extern void doit(void *);
-
 int
 main(void)
 {
@@ -37,6 +35,9 @@ main(void)
 
 	while (xmodem_rx(addr) == -1)
 		continue;
-	doit(addr);
+	InitEEPROM();
+	printf("Writing EEPROM from 0x%x to addr 0\r\n", addr);
+	WriteEEPROM(0, addr, 8192);
+	printf("Write complete.  Press reset\r\n");
 	return (1);
 }
