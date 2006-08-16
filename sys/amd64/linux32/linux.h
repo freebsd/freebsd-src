@@ -766,7 +766,8 @@ struct l_desc_struct {
 
 #define LINUX_LOWERWORD	0x0000ffff
 
-/* macros which does the same thing as those in linux include/asm-um/ldt-i386.h 
+/* 
+ * macros which does the same thing as those in linux include/asm-um/ldt-i386.h 
  * these convert linux user-space descriptor to machine one
  */
 #define LDT_entry_a(info) \

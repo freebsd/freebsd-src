@@ -440,7 +440,8 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	p2->p_sigparent = exit_signal;
 	PROC_UNLOCK(p2);
 	td2 = FIRST_THREAD_IN_PROC(p2);
-	/* in a case of stack = NULL we are supposed to COW calling process stack
+	/* 
+	 * in a case of stack = NULL we are supposed to COW calling process stack
 	 * this is what normal fork() does so we just keep the tf_esp arg intact
 	 */
 	if (args->stack)
@@ -458,7 +459,8 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		
 		idx = info.entry_number;
 		
-		/* looks like we're getting the idx we returned
+		/* 
+		 * looks like we're getting the idx we returned
 		 * in the set_thread_area() syscall
 		 */
 		if (idx != 6 && idx != 3)
@@ -606,7 +608,8 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 	if (linux_args->flags & LINUX_MAP_GROWSDOWN) {
 		bsd_args.flags |= MAP_STACK;
 
-		/* The linux MAP_GROWSDOWN option does not limit auto
+		/* 
+		 * The linux MAP_GROWSDOWN option does not limit auto
 		 * growth of the region.  Linux mmap with this option
 		 * takes as addr the inital BOS, and as len, the initial
 		 * region size.  It can then grow down from addr without
@@ -631,7 +634,8 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		bsd_args.addr = linux_args->addr + linux_args->len;
 
 		if (bsd_args.addr > p->p_vmspace->vm_maxsaddr) {
-			/* Some linux apps will attempt to mmap
+			/* 
+			 * Some linux apps will attempt to mmap
 			 * thread stacks near the top of their
 			 * address space.  If their TOS is greater
 			 * than vm_maxsaddr, vm_map_growstack()
@@ -658,7 +662,8 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		else
 			bsd_args.len  = STACK_SIZE - GUARD_SIZE;
 
-		/* This gives us a new BOS.  If we're using VM_STACK, then
+		/* 
+		 * This gives us a new BOS.  If we're using VM_STACK, then
 		 * mmap will just map the top SGROWSIZ bytes, and let
 		 * the stack grow down to the limit at BOS.  If we're
 		 * not using VM_STACK we map the full stack, since we
@@ -994,7 +999,8 @@ linux_set_thread_area(struct thread *td, struct linux_set_thread_area_args *args
 #endif
 
 	idx = info.entry_number;
-	/* Semantics of linux version: every thread in the system has array
+	/* 
+	 * Semantics of linux version: every thread in the system has array
 	 * of 3 tls descriptors. 1st is GLIBC TLS, 2nd is WINE, 3rd unknown. This
 	 * syscall loads one of the selected tls decriptors with a value
 	 * and also loads GDT descriptors 6, 7 and 8 with the content of the per-thread 
@@ -1008,14 +1014,16 @@ linux_set_thread_area(struct thread *td, struct linux_set_thread_area_args *args
 	 * comment in the linux sources says wine might do that.
 	 */
 
-	/* we support just GLIBC TLS now 
+	/* 
+	 * we support just GLIBC TLS now 
 	 * we should let 3 proceed as well because we use this segment so
 	 * if code does two subsequent calls it should succeed
 	 */
 	if (idx != 6 && idx != -1 && idx != 3)
 		return (EINVAL);
 
-	/* we have to copy out the GDT entry we use
+	/* 
+	 * we have to copy out the GDT entry we use
 	 * FreeBSD uses GDT entry #3 for storing %gs so load that 
 	 * XXX: what if userspace program doesnt check this value and tries
 	 * to use 6, 7 or 8? 
