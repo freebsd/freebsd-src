@@ -27,16 +27,35 @@
 #include "at91rm9200.h"
 #include "lib.h"
 #include "at91rm9200_lowlevel.h"
+#include "spi_flash.h"
 
-extern void doit(void *);
+#define OFFSET 0
 
 int
 main(void)
 {
+	int len, i, j, off;
 	char *addr = (char *)SDRAM_BASE + (1 << 20); /* Load to base + 1MB */
+	char *addr2 = (char *)SDRAM_BASE + (2 << 20); /* Load to base + 2MB */
+	char *addr3 = (char *)SDRAM_BASE + (3 << 20); /* Load to base + 2MB */
 
-	while (xmodem_rx(addr) == -1)
+	SPI_InitFlash();
+	printf("Waiting for data\r\n");
+	while ((len = xmodem_rx(addr)) == -1)
 		continue;
-	doit(addr);
+	printf("\r\nDownloaded %u bytes.\r\n", len);
+	p_memcpy(addr3, addr, (len + FLASH_PAGE_SIZE - 1) / FLASH_PAGE_SIZE * FLASH_PAGE_SIZE);
+	printf("Writing %u bytes to flash at %u\r\n", len, OFFSET);
+	for (i = 0; i < len; i+= FLASH_PAGE_SIZE) {
+		for (j = 0; j < 10; j++) {
+			off = i + OFFSET;
+			SPI_WriteFlash(off, addr + i, FLASH_PAGE_SIZE);
+			SPI_ReadFlash(off, addr2 + i, FLASH_PAGE_SIZE);
+			if (p_memcmp(addr3 + i, addr2 + i, FLASH_PAGE_SIZE) == 0)
+				break;
+		}
+		if (j >= 10)
+			printf("Bad Readback at %u\r\n", i);
+	}
 	return (1);
 }
