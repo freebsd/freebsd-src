@@ -512,7 +512,8 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	p2->p_sigparent = exit_signal;
 	PROC_UNLOCK(p2);
 	td2 = FIRST_THREAD_IN_PROC(p2);
-	/* in a case of stack = NULL we are supposed to COW calling process stack
+	/* 
+	 * in a case of stack = NULL we are supposed to COW calling process stack
 	 * this is what normal fork() does so we just keep the tf_rsp arg intact
 	 */
 	if (args->stack)
@@ -628,7 +629,8 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 	if (linux_args->flags & LINUX_MAP_GROWSDOWN) {
 		bsd_args.flags |= MAP_STACK;
 
-		/* The linux MAP_GROWSDOWN option does not limit auto
+		/* 
+		 * The linux MAP_GROWSDOWN option does not limit auto
 		 * growth of the region.  Linux mmap with this option
 		 * takes as addr the inital BOS, and as len, the initial
 		 * region size.  It can then grow down from addr without
@@ -655,7 +657,8 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 
 		if ((caddr_t)PTRIN(bsd_args.addr) >
 		    p->p_vmspace->vm_maxsaddr) {
-			/* Some linux apps will attempt to mmap
+			/* 
+			 * Some linux apps will attempt to mmap
 			 * thread stacks near the top of their
 			 * address space.  If their TOS is greater
 			 * than vm_maxsaddr, vm_map_growstack()
@@ -683,7 +686,8 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		else
 			bsd_args.len  = STACK_SIZE - GUARD_SIZE;
 
-		/* This gives us a new BOS.  If we're using VM_STACK, then
+		/* 
+		 * This gives us a new BOS.  If we're using VM_STACK, then
 		 * mmap will just map the top SGROWSIZ bytes, and let
 		 * the stack grow down to the limit at BOS.  If we're
 		 * not using VM_STACK we map the full stack, since we
