@@ -81,6 +81,10 @@ static	struct	wordtab logwords[33];
 		union	i6addr	m;
 	} ipp;
 	union	i6addr	ip6;
+	struct	{
+		char	*if1;
+		char	*if2;
+	} ifs;
 };
 
 %type	<port>	portnum
@@ -93,6 +97,7 @@ static	struct	wordtab logwords[33];
 %type	<str>	servicename name interfacename
 %type	<pc>	portrange portcomp
 %type	<alist>	addrlist poollist
+%type	<ifs>	onname
 
 %token	<num>	YY_NUMBER YY_HEX
 %token	<str>	YY_STR
@@ -101,7 +106,7 @@ static	struct	wordtab logwords[33];
 %token		YY_RANGE_OUT YY_RANGE_IN
 %token	<ip6>	YY_IPV6
 
-%token	IPFY_PASS IPFY_BLOCK IPFY_COUNT IPFY_CALL
+%token	IPFY_PASS IPFY_BLOCK IPFY_COUNT IPFY_CALL IPFY_NOMATCH
 %token	IPFY_RETICMP IPFY_RETRST IPFY_RETICMPASDST
 %token	IPFY_IN IPFY_OUT
 %token	IPFY_QUICK IPFY_ON IPFY_OUTVIA IPFY_INVIA
@@ -178,7 +183,7 @@ line:	xx rule		{ while ((fr = frtop) != NULL) {
 	| YY_COMMENT
 	;
 
-xx:	{ newrule(); }
+xx:					{ newrule(); }
 	;
 
 assign:	YY_STR assigning YY_STR ';'	{ set_variable($1, $3);
@@ -257,6 +262,7 @@ collection:
 
 action:	block
 	| IPFY_PASS			{ fr->fr_flags |= FR_PASS; }
+	| IPFY_NOMATCH			{ fr->fr_flags |= FR_NOMATCH; }
 	| log
 	| IPFY_COUNT			{ fr->fr_flags |= FR_ACCOUNT; }
 	| auth
@@ -286,7 +292,7 @@ log:	IPFY_LOG			{ fr->fr_flags |= FR_LOG; }
 	;
 
 auth:	IPFY_AUTH			{ fr->fr_flags |= FR_AUTH; }
-	| IPFY_AUTH IPFY_RETRST		{ fr->fr_flags |= (FR_AUTH|FR_RETRST);}
+	| IPFY_AUTH blockreturn		{ fr->fr_flags |= FR_AUTH;}
 	| IPFY_PREAUTH			{ fr->fr_flags |= FR_PREAUTH; }
 	;
 
@@ -467,18 +473,41 @@ quick:
 	;
 
 on:	IPFY_ON onname
+	| IPFY_ON lstart onlist lend
 	| IPFY_ON onname IPFY_INVIA vianame
 	| IPFY_ON onname IPFY_OUTVIA vianame
 	;
 
+onlist:	onname			{ DOREM(strncpy(fr->fr_ifnames[0], $1.if1, \
+					sizeof(fr->fr_ifnames[0])); 	   \
+					if ($1.if2 != NULL) {		   \
+						strncpy(fr->fr_ifnames[1], \
+							$1.if2,		   \
+						sizeof(fr->fr_ifnames[1]));\
+					}				   \
+					) }
+	| onlist lmore onname	{ DOREM(strncpy(fr->fr_ifnames[0], $3.if1, \
+					sizeof(fr->fr_ifnames[0])); 	   \
+					if ($3.if2 != NULL) {		   \
+						strncpy(fr->fr_ifnames[1], \
+							$3.if2,		   \
+						sizeof(fr->fr_ifnames[1]));\
+					}				   \
+					) }
+	;
+
 onname:	interfacename
 		{ strncpy(fr->fr_ifnames[0], $1, sizeof(fr->fr_ifnames[0]));
+		  $$.if1 = fr->fr_ifnames[0];
+		  $$.if2 = NULL;
 		  free($1);
 		}
 	| interfacename ',' interfacename
 		{ strncpy(fr->fr_ifnames[0], $1, sizeof(fr->fr_ifnames[0]));
+		  $$.if1 = fr->fr_ifnames[0];
 		  free($1);
 		  strncpy(fr->fr_ifnames[1], $3, sizeof(fr->fr_ifnames[1]));
+		  $$.if1 = fr->fr_ifnames[1];
 		  free($3);
 		}
 	;
@@ -1027,7 +1056,8 @@ codelist:
 	icmpcode
 	{ DOREM(fr->fr_icmp |= htons($1); fr->fr_icmpm |= htons(0xff);) }
 	| codelist lmore icmpcode
-	{ DOREM(fr->fr_icmp &= htons(0xff00); fr->fr_icmp |= htons($3); fr->fr_icmpm |= htons(0xff);) }
+	{ DOREM(fr->fr_icmp &= htons(0xff00); fr->fr_icmp |= htons($3); \
+		fr->fr_icmpm |= htons(0xff);) }
 	;
 
 age:	| IPFY_AGE YY_NUMBER		{ DOALL(fr->fr_age[0] = $2; \
@@ -1087,7 +1117,11 @@ stateopt:
 	| IPFY_NOICMPERR	{ DOALL(fr->fr_flags |= FR_NOICMPERR;) }
 
 	| IPFY_SYNC		{ DOALL(fr->fr_flags |= FR_STATESYNC;) }
-	age;
+	| IPFY_AGE YY_NUMBER		{ DOALL(fr->fr_age[0] = $2; \
+						fr->fr_age[1] = $2;) }
+	| IPFY_AGE YY_NUMBER '/' YY_NUMBER
+					{ DOALL(fr->fr_age[0] = $2; \
+						fr->fr_age[1] = $4;) }
 	;
 
 portnum:
@@ -1445,6 +1479,7 @@ static	struct	wordtab ipfwords[95] = {
 	{ "newisn",			IPFY_NEWISN },
 	{ "no",				IPFY_NO },
 	{ "no-icmp-err",		IPFY_NOICMPERR },
+	{ "nomatch",			IPFY_NOMATCH },
 	{ "now",			IPFY_NOW },
 	{ "not",			IPFY_NOT },
 	{ "oow",			IPFY_OOW },
@@ -1753,18 +1788,6 @@ static frentry_t *addrule()
 		;
 
 	count = nrules;
-	if (count == 0) {
-		f = (frentry_t *)calloc(sizeof(*f), 1);
-		added++;
-		f2->fr_next = f;
-		bcopy(f2, f, sizeof(*f));
-		if (f2->fr_caddr != NULL) {
-			f->fr_caddr = malloc(f->fr_dsize);
-			bcopy(f2->fr_caddr, f->fr_caddr, f->fr_dsize);
-		}
-		f->fr_next = NULL;
-		return f;
-	}
 	f = f2;
 	for (f1 = frc; count > 0; count--, f1 = f1->fr_next) {
 		f->fr_next = (frentry_t *)calloc(sizeof(*f), 1);
@@ -2035,7 +2058,7 @@ void *ptr;
 		del = SIOCRMAFR;
 	}
 
-	if (fr && (opts & OPT_OUTQUE))
+	if ((opts & OPT_OUTQUE) != 0)
 		fr->fr_flags |= FR_OUTQUE;
 	if (fr->fr_hits)
 		fr->fr_hits--;

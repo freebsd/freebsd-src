@@ -6,7 +6,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipsend.c	1.5 12/10/95 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipsend.c,v 2.8.2.2 2004/11/13 16:50:10 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipsend.c,v 2.8.2.3 2006/03/17 13:45:34 darrenr Exp $";
 #endif
 #include <sys/param.h>
 #include <sys/types.h>
@@ -155,6 +155,8 @@ struct in_addr gwip;
 	int wfd;
 
 	wfd = initdevice(dev, 5);
+	if (wfd == -1)
+		return -1;
 	return send_packet(wfd, mtu, ip, gwip);
 }
 

@@ -21,7 +21,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipf.c	1.23 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipf.c,v 1.35.2.3 2004/12/15 18:27:17 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipf.c,v 1.35.2.4 2006/03/17 11:48:08 darrenr Exp $";
 #endif
 
 #if !defined(__SVR4) && defined(__GNUC__)
@@ -198,7 +198,7 @@ static void closedevice()
 
 static	int	get_flags()
 {
-	int i;
+	int i = 0;
 
 	if ((opendevice(ipfname, 1) != -2) &&
 	    (ioctl(fd, SIOCGETFF, &i) == -1)) {

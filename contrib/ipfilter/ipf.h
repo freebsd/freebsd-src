@@ -6,7 +6,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ipf.h	1.12 6/5/96
- * $Id: ipf.h,v 2.71.2.7 2005/06/12 07:18:31 darrenr Exp $
+ * $Id: ipf.h,v 2.71.2.8 2005/12/30 07:03:21 darrenr Exp $
  */
 
 #ifndef	__IPF_H__
@@ -184,7 +184,6 @@ extern	struct ipopt_names v6ionames[];
 extern int addicmp __P((char ***, struct frentry *, int));
 extern int addipopt __P((char *, struct ipopt_names *, int, char *));
 extern int addkeep __P((char ***, struct frentry *, int));
-extern int bcopywrap __P((void *, void *, size_t));
 extern void binprint __P((void *, size_t));
 extern void initparse __P((void));
 extern u_32_t buildopts __P((char *, char *, int));

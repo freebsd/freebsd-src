@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: printfr.c,v 1.43.2.15 2005/11/14 17:45:06 darrenr Exp $
+ * $Id: printfr.c,v 1.43.2.16 2006/03/29 11:19:59 darrenr Exp $
  */
 
 #include "ipf.h"
@@ -122,20 +122,6 @@ ioctlfunc_t	iocfunc;
 		printf("pass");
 	else if (FR_ISBLOCK(fp->fr_flags)) {
 		printf("block");
-		if (fp->fr_flags & FR_RETICMP) {
-			if ((fp->fr_flags & FR_RETMASK) == FR_FAKEICMP)
-				printf(" return-icmp-as-dest");
-			else if ((fp->fr_flags & FR_RETMASK) == FR_RETICMP)
-				printf(" return-icmp");
-			if (fp->fr_icode) {
-				if (fp->fr_icode <= MAX_ICMPCODE)
-					printf("(%s)",
-						icmpcodes[(int)fp->fr_icode]);
-				else
-					printf("(%d)", fp->fr_icode);
-			}
-		} else if ((fp->fr_flags & FR_RETMASK) == FR_RETRST)
-			printf(" return-rst");
 	} else if ((fp->fr_flags & FR_LOGMASK) == FR_LOG) {
 		printlog(fp);
 	} else if (FR_ISACCOUNT(fp->fr_flags))
@@ -151,6 +137,20 @@ ioctlfunc_t	iocfunc;
 	else {
 		printf("%x", fp->fr_flags);
 	}
+	if (fp->fr_flags & FR_RETICMP) {
+		if ((fp->fr_flags & FR_RETMASK) == FR_FAKEICMP)
+			printf(" return-icmp-as-dest");
+		else if ((fp->fr_flags & FR_RETMASK) == FR_RETICMP)
+			printf(" return-icmp");
+		if (fp->fr_icode) {
+			if (fp->fr_icode <= MAX_ICMPCODE)
+				printf("(%s)",
+					icmpcodes[(int)fp->fr_icode]);
+			else
+				printf("(%d)", fp->fr_icode);
+		}
+	} else if ((fp->fr_flags & FR_RETMASK) == FR_RETRST)
+		printf(" return-rst");
 
 	if (fp->fr_flags & FR_OUTQUE)
 		printf(" out ");
