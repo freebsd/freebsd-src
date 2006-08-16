@@ -5,7 +5,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_fil_freebsd.c,v 2.53.2.27 2005/08/20 13:48:19 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_fil_freebsd.c,v 2.53.2.32 2006/03/25 13:03:01 darrenr Exp $";
 #endif
 
 #if defined(KERNEL) || defined(_KERNEL)
@@ -55,6 +55,7 @@ static const char rcsid[] = "@(#)$Id: ip_fil_freebsd.c,v 2.53.2.27 2005/08/20 13
 #endif
 #include <sys/protosw.h>
 #include <sys/socket.h>
+#include <sys/selinfo.h>
 
 #include <net/if.h>
 #if __FreeBSD_version >= 300000
@@ -131,6 +132,7 @@ int		ipf_locks_done = 0;
 #if (__FreeBSD_version >= 300000)
 struct callout_handle fr_slowtimer_ch;
 #endif
+struct	selinfo	ipfselwait[IPL_LOGSIZE];
 
 #if (__FreeBSD_version >= 500011)
 # include <sys/conf.h>
@@ -300,6 +302,7 @@ pfil_error:
 		fr_checkp = fr_check;
 	}
 
+	bzero((char *)ipfselwait, sizeof(ipfselwait));
 	bzero((char *)frcache, sizeof(frcache));
 	fr_running = 1;
 
@@ -476,9 +479,11 @@ int mode;
 	}
 
 	SPL_NET(s);
+	READ_ENTER(&ipf_global);
 
 	error = fr_ioctlswitch(unit, data, cmd, mode);
 	if (error != -1) {
+		RWLOCK_EXIT(&ipf_global);
 		SPL_X(s);
 		return error;
 	}
@@ -619,7 +624,10 @@ int mode;
 		error = EINVAL;
 		break;
 	}
+
+	RWLOCK_EXIT(&ipf_global);
 	SPL_X(s);
+
 	return error;
 }
 
@@ -742,14 +750,18 @@ dev_t dev;
 #endif
 register struct uio *uio;
 {
+	u_int	xmin = GET_MINOR(dev);
+
+	if (xmin < 0)
+		return ENXIO;
 
 # ifdef	IPFILTER_SYNC
-	if (GET_MINOR(dev) == IPL_LOGSYNC)
+	if (xmin == IPL_LOGSYNC)
 		return ipfsync_read(uio);
 # endif
 
 #ifdef IPFILTER_LOG
-	return ipflog_read(GET_MINOR(dev), uio);
+	return ipflog_read(xmin, uio);
 #else
 	return ENXIO;
 #endif
@@ -1155,6 +1167,8 @@ frdest_t *fdp;
 	u_short ip_off;
 	frentry_t *fr;
 
+	ro = NULL;
+
 #ifdef M_WRITABLE
 	/*
 	* HOT FIX/KLUDGE:
@@ -1168,15 +1182,15 @@ frdest_t *fdp;
 	* problem.
 	*/
 	if (M_WRITABLE(m) == 0) {
-		if ((m0 = m_dup(m, M_DONTWAIT)) != 0) {
+		m0 = m_dup(m, M_DONTWAIT);
+		if (m0 != 0) {
 			FREE_MB_T(m);
 			m = m0;
 			*mpp = m;
 		} else {
 			error = ENOBUFS;
 			FREE_MB_T(m);
-			*mpp = NULL;
-			fr_frouteok[1]++;
+			goto done;
 		}
 	}
 #endif
@@ -1218,18 +1232,8 @@ frdest_t *fdp;
 		goto bad;
 	}
 
-	/*
-	 * In case we're here due to "to <if>" being used with "keep state",
-	 * check that we're going in the correct direction.
-	 */
-	if ((fr != NULL) && (fin->fin_rev != 0)) {
-		if ((ifp != NULL) && (fdp == &fr->fr_tif))
-			return -1;
-	}
-	if (fdp != NULL) {
-		if (fdp->fd_ip.s_addr != 0)
-			dst->sin_addr = fdp->fd_ip;
-	}
+	if ((fdp != NULL) && (fdp->fd_ip.s_addr != 0))
+		dst->sin_addr = fdp->fd_ip;
 
 	dst->sin_len = sizeof(*dst);
 	rtalloc(ro);
@@ -1346,6 +1350,7 @@ frdest_t *fdp;
 		else
 			mhip->ip_off |= IP_MF;
 		mhip->ip_len = htons((u_short)(len + mhlen));
+		*mnext = m;
 		m->m_next = m_copy(m0, off, len);
 		if (m->m_next == 0) {
 			error = ENOBUFS;	/* ??? */
@@ -1356,7 +1361,6 @@ frdest_t *fdp;
 		mhip->ip_off = htons((u_short)mhip->ip_off);
 		mhip->ip_sum = 0;
 		mhip->ip_sum = in_cksum(m, mhlen);
-		*mnext = m;
 		mnext = &m->m_act;
 	}
 	/*
@@ -1385,7 +1389,7 @@ done:
 	else
 		fr_frouteok[1]++;
 
-	if (ro->ro_rt) {
+	if ((ro != NULL) && (ro->ro_rt != NULL)) {
 		RTFREE(ro->ro_rt);
 	}
 	*mpp = NULL;
@@ -1487,6 +1491,9 @@ struct in_addr *inp, *inpmask;
 		sock = ifa->ifa_broadaddr;
 	else if (atype == FRI_PEERADDR)
 		sock = ifa->ifa_dstaddr;
+
+	if (sock == NULL)
+		return -1;
 
 #ifdef USE_INET6
 	if (v == 6) {

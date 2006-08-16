@@ -1,5 +1,3 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright 2001, QNX Software Systems Ltd. All Rights Reserved
  *
@@ -248,7 +246,7 @@ nat_t *nat;
 	tcp = (tcphdr_t *)fin->fin_dp;
 	ipaddr = nat->nat_inip.s_addr;
 	data = (caddr_t)tcp + (TCP_OFF(tcp) << 2);
-	datlen = ip->ip_len - fin->fin_hlen - (TCP_OFF(tcp) << 2);
+	datlen = fin->fin_dlen - (TCP_OFF(tcp) << 2);
 	if (find_port(ipaddr, data, datlen, &off, &port) == 0) {
 		fr_info_t fi;
 		nat_t     *nat2;

@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_compat.h	1.8 1/14/96
- * $Id: ip_compat.h,v 2.142.2.33 2005/12/04 23:40:17 darrenr Exp $
+ * $Id: ip_compat.h,v 2.142.2.36 2006/03/26 05:50:29 darrenr Exp $
  */
 
 #ifndef	__IP_COMPAT_H__
@@ -441,6 +441,7 @@ extern	void	*get_unit __P((char *, int));
 				  wakeup(id + x); \
 				  spinunlock(_l); \
 				}
+#  define	POLLWAKEUP(x)	;
 #  define	KMALLOC(a, b)	MALLOC((a), b, sizeof(*(a)), M_IOSYS, M_NOWAIT)
 #  define	KMALLOCS(a, b, c)	MALLOC((a), b, (c), M_IOSYS, M_NOWAIT)
 #  define	KFREE(x)	kmem_free((char *)(x), sizeof(*(x)))
@@ -578,6 +579,7 @@ typedef struct {
 #  define	UIOMOVE(a,b,c,d)	uiomove((caddr_t)a,b,c,d)
 #  define	SLEEP(id, n)	sleep((id), PZERO+1)
 #  define	WAKEUP(id,x)	wakeup(id+x)
+#  define	POLLWAKEUP(x)	;
 #  define	KFREE(x)	kmem_free((char *)(x), sizeof(*(x)))
 #  define	KFREES(x,s)	kmem_free((char *)(x), (s))
 #  define	GETIFP(n,v)	ifunit(n)
@@ -659,6 +661,7 @@ typedef struct mbuf mb_t;
 #  define	GETIFP(n, v)		ifunit(n)
 #  define	GET_MINOR		getminor
 #  define	WAKEUP(id,x)		wakeup(id + x)
+#  define	POLLWAKEUP(x)		;
 #  define	COPYIN(a,b,c)	copyin((caddr_t)(a), (caddr_t)(b), (c))
 #  define	COPYOUT(a,b,c)	copyout((caddr_t)(a), (caddr_t)(b), (c))
 #  define	BCOPYIN(a,b,c)	bcopy((caddr_t)(a), (caddr_t)(b), (c))
@@ -1029,6 +1032,7 @@ typedef	u_int32_t	u_32_t;
 #  define	KFREES(x,s)	kmem_free((char *)(x), (s))
 #  define	SLEEP(id, n)	sleep((id), PZERO+1)
 #  define	WAKEUP(id,x)	wakeup(id + x)
+#  define	POLLWAKEUP(x)	;
 #  define	UIOMOVE(a,b,c,d)	uiomove((caddr_t)a,b,c,d)
 #  define	IPF_PANIC(x,y)	if (x) { printf y; panic("ipf_panic"); }
 
@@ -1074,6 +1078,7 @@ struct ip6_ext {
 #  define	FREE_MB_T(m)	kfree_skb(m)
 #  define	GETKTIME(x)	do_gettimeofday((struct timeval *)x)
 #  define	SLEEP(x,s)	0, interruptible_sleep_on(x##_linux)
+#  define	POLLWAKEUP(x)	;
 #  define	WAKEUP(x,y)	wake_up(x##_linux + y)
 #  define	UIOMOVE(a,b,c,d)	uiomove(a,b,c,d)
 #  define	USE_MUTEXES
@@ -1265,6 +1270,7 @@ extern void* getifp __P((char *, int));
 #  define	GET_MINOR		minor
 #  define	SLEEP(id, n)	sleepx((id), PZERO+1, 0)
 #  define	WAKEUP(id,x)	wakeup(id)
+#  define	POLLWAKEUP(x)	;
 #  define	COPYIN(a,b,c)	copyin((caddr_t)(a), (caddr_t)(b), (c))
 #  define	COPYOUT(a,b,c)	copyout((caddr_t)(a), (caddr_t)(b), (c))
 #  define	BCOPYIN(a,b,c)	bcopy((caddr_t)(a), (caddr_t)(b), (c))
@@ -1429,6 +1435,7 @@ typedef	struct	mb_s	{
 # define	FREE_MB_T(x)
 # define	SLEEP(x,y)	1;
 # define	WAKEUP(x,y)	;
+# define	POLLWAKEUP(y)	;
 # define	IPF_PANIC(x,y)	;
 # define	PANIC(x,y)	;
 # define	SPL_NET(x)	;
@@ -1451,6 +1458,7 @@ typedef	struct	mb_s	{
 # define	UIOMOVE(a,b,c,d)	ipfuiomove(a,b,c,d)
 extern	void	m_copydata __P((mb_t *, int, int, caddr_t));
 extern	int	ipfuiomove __P((caddr_t, int, int, struct uio *));
+extern	int	bcopywrap __P((void *, void *, size_t));
 # ifndef CACHE_HASH
 #  define	CACHE_HASH(x)	((IFNAME(fin->fin_ifp)[0] + \
 				  ((struct ifnet *)fin->fin_ifp)->if_unit) & 7)
@@ -1529,6 +1537,9 @@ typedef	struct ip6_hdr	ip6_t;
 #endif
 
 #if defined(_KERNEL)
+# ifdef BSD
+extern struct selinfo ipfselwait[];
+# endif
 # ifdef MENTAT
 #  define	COPYDATA	mb_copydata
 #  define	COPYBACK	mb_copyback
@@ -1578,6 +1589,7 @@ MALLOC_DECLARE(M_IPFILTER);
 #  define	UIOMOVE(a,b,c,d)	uiomove(a,b,d)
 #  define	SLEEP(id, n)	tsleep((id), PPAUSE|PCATCH, n, 0)
 #  define	WAKEUP(id,x)	wakeup(id+x)
+#  define	POLLWAKEUP(x)	selwakeup(ipfselwait+x)
 #  define	GETIFP(n, v)	ifunit(n)
 # endif /* (Free)BSD */
 
