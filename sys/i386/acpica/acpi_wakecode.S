@@ -34,24 +34,46 @@
 
 #include "assym.s"
 
+/*
+ * Resume entry point.  The BIOS enters here in real mode after POST with
+ * CS set to the page where we stored this code.  It should configure the
+ * segment registers with a flat 4 GB address space and EFLAGS.IF = 0.
+ * Depending on the previous sleep state, we may need to initialize more
+ * of the system (i.e., S3 suspend-to-RAM vs. S4 suspend-to-disk).
+ */
 	.align 4
 	.code16
 wakeup_16:
 	nop
 	cli
+	cld
 
 	/*
-	 * Set up segment registers for real mode and a small stack for
-	 * any calls we make.
+	 * Set up segment registers for real mode, a small stack for
+	 * any calls we make, and clear any flags.
 	 */
 	movw	%cs,%ax
 	movw	%ax,%ds
 	movw	%ax,%ss
 	movw	$PAGE_SIZE,%sp
+	pushl	$0
+	popfl
+
+	/* To debug resume hangs, beep the speaker if the user requested. */
+	cmpl	$1,resume_beep
+	jne	nobeep
+	movb	$0xc0,%al
+	outb	%al,$0x42
+	movb	$0x04,%al
+	outb	%al,$0x42
+	inb	$0x61,%al
+	orb	$0x3,%al
+	outb	%al,$0x61
+nobeep:
 
 	/* Re-initialize video BIOS if the reset_video tunable is set. */
-	cmp	$0,reset_video
-	je	wakeup_16_gdt
+	cmpl	$1,reset_video
+	jne	nobiosreset
 	lcall	$0xc000,$3
 
 	/*
@@ -61,24 +83,24 @@ wakeup_16:
 	movw	%cs,%ax
 	movw	%ax,%ds
 	movw	%ax,%ss
+nobiosreset:
 
-wakeup_16_gdt:
-	/* Load GDT for real mode */
-	lgdt	physical_gdt
+	/* Load GDT for real mode.  Use 32 bit prefix for addresses >16 MB. */
+	lgdtl	physical_gdt
 
 	/* Restore CR2, CR3 and CR4 */
-	mov	previous_cr2,%eax
-	mov	%eax,%cr2
-	mov	previous_cr3,%eax
-	mov	%eax,%cr3
-	mov	previous_cr4,%eax
-	mov	%eax,%cr4
+	movl	previous_cr2,%eax
+	movl	%eax,%cr2
+	movl	previous_cr3,%eax
+	movl	%eax,%cr3
+	movl	previous_cr4,%eax
+	movl	%eax,%cr4
 
-	/* Transfer some values to protected mode */
+	/* Transfer some values to protected mode with an inline stack */
 #define NVALUES	9
 #define TRANSFER_STACK32(val, idx)	\
-	mov	val,%eax;		\
-	mov	%eax,wakeup_32stack+(idx+1)+(idx*4);
+	movl	val,%eax;		\
+	movl	%eax,wakeup_32stack+(idx+1)+(idx*4)
 
 	TRANSFER_STACK32(previous_ss,		(NVALUES - 9))
 	TRANSFER_STACK32(previous_fs,		(NVALUES - 8))
@@ -94,21 +116,20 @@ wakeup_16_gdt:
 	mov	physical_esp,%esi	/* to be used in 32bit code */
 
 	/* Enable protected mode */
-	mov	%cr0,%eax
+	movl	%cr0,%eax
 	orl	$(CR0_PE),%eax
-	mov	%eax,%cr0
+	movl	%eax,%cr0
 
 wakeup_sw32:
 	/* Switch to protected mode by intersegmental jump */
 	ljmpl	$KCSEL,$0x12345678	/* Code location, to be replaced */
 
+	/*
+	 * Now switched to protected mode without paging enabled.
+	 *	%esi: KERNEL stack pointer (physical address)
+	 */
 	.code32
 wakeup_32:
-	/*
-	 * Switched to protected mode w/o paging
-	 *	%esi:	KERNEL stack pointer (physical address)
-	 */
-
 	nop
 
 	/* Set up segment registers for protected mode */
@@ -122,13 +143,13 @@ wakeup_32:
 	movl	%esi,%esp		/* physical address stack pointer */
 
 wakeup_32stack:
-	/* Operands are overwritten in 16bit code */
+	/* Operands are overwritten in 16 bit code by TRANSFER_STACK32 macro */
 	pushl	$0xabcdef09		/* ss + dummy */
 	pushl	$0xabcdef08		/* fs + gs */
 	pushl	$0xabcdef07		/* ds + es */
 	pushl	$0xabcdef06		/* gdt:base (physical address) */
-	pushl	$0xabcdef05		/* recover address */ 
-	pushl	$0xabcdef04		/* idt:base */ 
+	pushl	$0xabcdef05		/* recover address */
+	pushl	$0xabcdef04		/* idt:base */
 	pushl	$0xabcdef03		/* ldt + idt:limit */
 	pushl	$0xabcdef02		/* gdt:base */
 	pushl	$0xabcdef01		/* TR + gdt:limit */
@@ -157,15 +178,10 @@ wakeup_32stack:
 	andb	$TSS_TYPEFIX_MASK,5(%eax)
 
 	/* Prepare to return to sleep/wakeup code point */
-	lgdt	PREVIOUS_GDT
-	lidt	PREVIOUS_IDT
+	lgdtl	PREVIOUS_GDT
+	lidtl	PREVIOUS_IDT
 
-	xorl	%eax,%eax
-	movl	%eax,%ebx
-	movl	%eax,%ecx
-	movl	%eax,%edx
-	movl	%eax,%esi
-	movl	%eax,%edi
+	/* Pack values from the GDT to be loaded into segment registers. */
 	movl	PREVIOUS_DS,%ebx
 	movl	PREVIOUS_FS,%ecx
 	movl	PREVIOUS_SS,%edx
@@ -182,15 +198,17 @@ wakeup_32stack:
 	jmp	1f
 1:	jmp	1f
 1:
-	/*
-	 * Now that we are in kernel virtual memory addressing
-	 *	%ebx:	ds + es
-	 *	%ecx:	fs + gs
-	 *	%edx:	ss + dummy
-	 *	%esi:	LDTR + TR
-	 *	%edi:	recover address
-	 */
 
+	/*
+	 * Now we are in kernel virtual memory addressing with the following
+	 * original register values:
+	 *	%ebx: ds + es
+	 *	%ecx: fs + gs
+	 *	%edx: ss + dummy
+	 *	%esi: LDTR + TR
+	 *	%edi: recover address
+	 * We'll load these back into the segment registers now.
+	 */
 	nop
 
 	movl	%esi,%eax		/* LDTR + TR */
@@ -220,9 +238,13 @@ physical_esp:		.long 0
 previous_cr2:		.long 0
 previous_cr3:		.long 0
 previous_cr4:		.long 0
+resume_beep:		.long 0
 reset_video:		.long 0
 
-/* transfer from real mode to protected mode */
+/*
+ * Transfer from real mode to protected mode.  The order of these variables
+ * is very important, DO NOT INSERT OR CHANGE unless you know why.
+ */
 previous_cr0:		.long 0
 previous_tr:		.word 0
 previous_gdt:		.word 0
