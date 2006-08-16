@@ -6,7 +6,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * $FreeBSD$
- * Id: ip_auth.h,v 2.16 2003/07/25 12:29:56 darrenr Exp
+ * Id: ip_auth.h,v 2.16.2.2 2006/03/16 06:45:49 darrenr Exp $
  *
  */
 #ifndef	__IP_AUTH_H__
@@ -23,6 +23,7 @@ typedef struct  frauth {
 	char	*fra_buf;
 #ifdef	MENTAT
 	queue_t	*fra_q;
+	mb_t	*fra_m;
 #endif
 } frauth_t;
 
@@ -63,5 +64,6 @@ extern	mb_t	**fr_authpkts;
 extern	int	fr_newauth __P((mb_t *, fr_info_t *));
 extern	int	fr_preauthcmd __P((ioctlcmd_t, frentry_t *, frentry_t **));
 extern	int	fr_auth_ioctl __P((caddr_t, ioctlcmd_t, int));
+extern	int	fr_auth_waiting __P((void));
 
 #endif	/* __IP_AUTH_H__ */

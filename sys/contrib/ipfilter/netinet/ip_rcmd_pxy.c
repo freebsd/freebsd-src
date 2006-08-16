@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: ip_rcmd_pxy.c,v 1.41.2.5 2005/10/02 04:20:07 darrenr Exp $
+ * $Id: ip_rcmd_pxy.c,v 1.41.2.6 2006/04/01 10:14:54 darrenr Exp $
  *
  * Simple RCMD transparent proxy for in-kernel use.  For use with the NAT
  * code.
@@ -205,7 +205,7 @@ nat_t *nat;
 				fi.fin_fi.fi_daddr = nat->nat_inip.s_addr;
 				ip->ip_dst = nat->nat_inip;
 			}
-			(void) fr_addstate(&fi, &nat2->nat_state, SI_W_DPORT);
+			(void) fr_addstate(&fi, NULL, SI_W_DPORT);
 			if (fi.fin_state != NULL)
 				fr_statederef(&fi, (ipstate_t **)&fi.fin_state);
 		}

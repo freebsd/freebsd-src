@@ -9,7 +9,7 @@
  * code.
  *
  * $FreeBSD$
- * Id: ip_ftp_pxy.c,v 2.88.2.15 2005/03/19 19:38:10 darrenr Exp
+ * Id: ip_ftp_pxy.c,v 2.88.2.19 2006/04/01 10:14:53 darrenr Exp $
  */
 
 #define	IPF_FTP_PROXY
@@ -369,7 +369,7 @@ int dlen;
 				fi.fin_fi.fi_daddr = nat->nat_inip.s_addr;
 				ip->ip_dst = nat->nat_inip;
 			}
-			(void) fr_addstate(&fi, &nat2->nat_state, SI_W_DPORT);
+			(void) fr_addstate(&fi, NULL, SI_W_DPORT);
 			if (fi.fin_state != NULL)
 				fr_statederef(&fi, (ipstate_t **)&fi.fin_state);
 		}
@@ -731,7 +731,7 @@ u_int data_ip;
 				fi.fin_fi.fi_daddr = nat->nat_inip.s_addr;
 				ip->ip_dst = nat->nat_inip;
 			}
-			(void) fr_addstate(&fi, &nat2->nat_state, sflags);
+			(void) fr_addstate(&fi, NULL, sflags);
 			if (fi.fin_state != NULL)
 				fr_statederef(&fi, (ipstate_t **)&fi.fin_state);
 		}
@@ -1030,13 +1030,14 @@ int rv;
 	if (ippr_ftp_debug > 4)
 		printf("ippr_ftp_process: mlen %d\n", mlen);
 
-	if (mlen <= 0) {
-		if ((tcp->th_flags & TH_OPENING) == TH_OPENING) {
-			f->ftps_seq[0] = thseq + 1;
-			t->ftps_seq[0] = thack;
-		}
+	if ((mlen == 0) && ((tcp->th_flags & TH_OPENING) == TH_OPENING)) {
+		f->ftps_seq[0] = thseq + 1;
+		t->ftps_seq[0] = thack;
+		return 0;
+	} else if (mlen < 0) {
 		return 0;
 	}
+
 	aps = nat->nat_aps;
 
 	sel = aps->aps_sel[1 - rv];
@@ -1426,7 +1427,7 @@ int dlen;
 		ap += *s++ - '0';
 	}
 
-	if (!s)
+	if (!*s)
 		return 0;
 
 	if (*s == '|')
