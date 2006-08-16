@@ -290,7 +290,7 @@ nfs_dolock(struct vop_advlock_args *ap)
 			return (error);
 
 		/*
-		 * retry after 20 seconds if we haven't gotten a responce yet.
+		 * Retry after 20 seconds if we haven't gotten a response yet.
 		 * This number was picked out of thin air... but is longer
 		 * then even a reasonably loaded system should take (at least
 		 * on a local network).  XXX Probably should use a back-off
