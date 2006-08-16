@@ -20,6 +20,7 @@ f16 text text
 f17 hex hex
 f18 text text
 f19 text text fr_statemax=3
+f20 text text
 i1 text ipf
 i2 text ipf
 i3 text ipf
@@ -82,6 +83,9 @@ ni13 hex hex fr_update_ipid=1
 ni14 hex hex fr_update_ipid=1
 ni15 hex hex fr_update_ipid=1
 ni16 hex hex fr_update_ipid=1
+ni19 hex hex fr_update_ipid=0
+ni20 hex hex fr_update_ipid=0
+ni21 text text
 p1 text text
 p2 text text
 p3 text text
