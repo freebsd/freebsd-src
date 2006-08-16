@@ -2,7 +2,6 @@ INCDEP=$(TOP)/ip_compat.h $(TOP)/ip_fil.h $(TOP)/ipf.h
 
 LIBOBJS=$(DEST)/addicmp.o \
      $(DEST)/addipopt.o \
-     $(DEST)/addkeep.o \
      $(DEST)/bcopywrap.o \
      $(DEST)/binprint.o \
      $(DEST)/buildopts.o \
@@ -47,7 +46,6 @@ LIBOBJS=$(DEST)/addicmp.o \
      $(DEST)/load_pool.o \
      $(DEST)/load_poolnode.o \
      $(DEST)/loglevel.o \
-     $(DEST)/make_range.o \
      $(DEST)/mutex_emul.o \
      $(DEST)/nametokva.o \
      $(DEST)/nat_setgroupmap.o \
@@ -108,8 +106,6 @@ $(DEST)/addicmp.o: $(LIBSRC)/addicmp.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/addicmp.c -o $@
 $(DEST)/addipopt.o: $(LIBSRC)/addipopt.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/addipopt.c -o $@
-$(DEST)/addkeep.o: $(LIBSRC)/addkeep.c $(INCDEP)
-	$(CC) $(CCARGS) -c $(LIBSRC)/addkeep.c -o $@
 $(DEST)/bcopywrap.o: $(LIBSRC)/bcopywrap.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/bcopywrap.c -o $@
 $(DEST)/binprint.o: $(LIBSRC)/binprint.c $(INCDEP)
