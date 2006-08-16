@@ -10,6 +10,88 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+4.1.13 - Released 4 April 2006
+
+fix bug where null pointers introduced by proxies could cause a crash
+
+pass out the rule flags with SIOCAUTHW
+
+force loading NAT rules with bad proxy labels to cause an error
+
+nat_state is used unsafely in calls to fr_addstate
+
+make return-rst and return-icmp* work with auth rules
+
+4.1.12 - Released 28 March 2006
+
+poll support on FreeBSD/NetBSD needs to use selrecord/selwakeup
+
+make the fastroute code used by ipftest invoke state/NAT
+
+move verbose/debug macros out of fil.c and into ip_fil.h (for wider use)
+
+remove unused code in fr_fastroute
+
+fix NAT with rules that specify forward and reverise interfaces
+
+add missing ipfsync_canread() and ipfsync_canwrite()
+
+behaviour of \ on the end of a line in ipf.conf does not match older behaviour
+
+remove duplicate statistics line output with "ipfstat -s"
+4.1.11 - Released 19 March 2006
+
+Patch for NAT with ipfsync from N. Ersen (SESCI) - www.enderunix.org
+
+NetBSD coverity report fixes (from run 5)
+
+Possible to reacquire ipf_auth without releasing it in some circumstances
+
+Locking in FreeBSD's iplioctl for ipf_global isn't present like it shoudl be
+
+Add poll support for platforms I can build on: NetBSD, FreeBSD, Solaris, Linux
+
+Using auth rules to return "keep state" got broken with pushing fr_addstate
+call into fr_firewall
+
+all use of '!' in map/rdr rules to match use in ipf configs
+
+add -L command line option to ipmon to set the default syslog facility
+
+looking up a port number is more complex than needed in ipft_tx.c
+
+allow lib/getport to work when neither tcp or udp are specified in a rule
+
+remove some dead code from lib/addicmpc, lib/facpri.c, lib/icmpcode.c
+
+program in some more cases where TCP packets fail an initial in-window
+check but should be allowed to match
+
+filter rule added with NAT/state handling of SIOCSTPUT doesn't properly
+initialise all fields, making it possible to panic
+
+simplify NAT ICMP error handling where it updates checksums
+
+rename "min" variables to "xmin" on NetBSD to avoid problems with the
+macro "min"
+
+#ifdef's for NetBSD compile incorrect for pfil interface
+
+support select/poll on NetBSD
+
+copying out a packet with an auth rule fails (EFAULT) because the wrong
+pointer is passed to copyoutptr
+
+ip_len/ip_off where byte swapped twice instead of once for packets
+going to be stored on the auth queue
+
+change timeout queue manipulation functions to make fewer mutex calls
+
+fix use of skip rules with groups
+fix coding problems discovered by the coverity project for FreeBSD
+
+update BPF program validation with FreeBSD changes
+
 4.1.10 - Released 6 December 2005
 
 Expand regression testing to cover more features
