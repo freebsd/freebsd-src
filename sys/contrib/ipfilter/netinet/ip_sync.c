@@ -98,7 +98,7 @@ struct file;
 /* END OF INCLUDES */
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_sync.c,v 2.40.2.5 2005/09/04 12:51:12 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_sync.c,v 2.40.2.7 2006/03/19 14:59:39 darrenr Exp $";
 #endif
 
 #define	SYNC_STATETABSZ	256
@@ -704,7 +704,6 @@ int ipfsync_nat(sp, data)
 synchdr_t *sp;
 void *data;
 {
-	synclogent_t sle;
 	syncupdent_t su;
 	nat_t *n, *nat;
 	synclist_t *sl;
@@ -716,8 +715,6 @@ void *data;
 	switch (sp->sm_cmd)
 	{
 	case SMC_CREATE :
-		bcopy(data, &sle, sizeof(sle));
-
 		KMALLOC(n, nat_t *);
 		if (n == NULL) {
 			err = ENOMEM;
@@ -731,9 +728,7 @@ void *data;
 			break;
 		}
 
-		WRITE_ENTER(&ipf_nat);
-
-		nat = &sle.sle_un.sleu_ipn;
+		nat = (nat_t *)data;
 		bzero((char *)n, offsetof(nat_t, nat_age));
 		bcopy((char *)&nat->nat_age, (char *)&n->nat_age,
 		      sizeof(*n) - offsetof(nat_t, nat_age));
@@ -743,6 +738,8 @@ void *data;
 		sl->sl_idx = -1;
 		sl->sl_ipn = n;
 		sl->sl_num = ntohl(sp->sm_num);
+
+		WRITE_ENTER(&ipf_nat);
 		sl->sl_pnext = syncstatetab + hv;
 		sl->sl_next = syncstatetab[hv];
 		if (syncstatetab[hv] != NULL)
@@ -1006,5 +1003,17 @@ ioctlcmd_t cmd;
 int mode;
 {
 	return EINVAL;
+}
+
+
+int ipfsync_canread()
+{
+	return !((sl_tail == sl_idx) && (su_tail == su_idx));
+}
+
+
+int ipfsync_canwrite()
+{
+	return 1;
 }
 #endif /* IPFILTER_SYNC */

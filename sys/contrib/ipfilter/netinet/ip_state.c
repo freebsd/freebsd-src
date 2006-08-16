@@ -109,7 +109,7 @@ struct file;
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.186.2.36 2005/12/04 22:25:36 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.186.2.41 2006/04/01 10:16:28 darrenr Exp $";
 #endif
 
 static	ipstate_t **ips_table = NULL;
@@ -670,6 +670,7 @@ caddr_t data;
 		fr->fr_ref = 0;
 		fr->fr_dsize = 0;
 		fr->fr_data = NULL;
+		fr->fr_type = FR_T_NONE;
 
 		fr_resolvedest(&fr->fr_tif, fr->fr_v);
 		fr_resolvedest(&fr->fr_dif, fr->fr_v);
@@ -803,6 +804,11 @@ int rev;
 /* Inserts it into the state table and appends to the bottom of the active  */
 /* list.  If the capacity of the table has reached the maximum allowed then */
 /* the call will fail and a flush is scheduled for the next timeout call.   */
+/*                                                                          */
+/* NOTE: The use of stsave to point to nat_state will result in memory      */
+/*       corruption.  It should only be used to point to objects that will  */
+/*       either outlive this (not expired) or will deref the ip_state_t     */
+/*       when they are deleted.                                             */
 /* ------------------------------------------------------------------------ */
 ipstate_t *fr_addstate(fin, stsave, flags)
 fr_info_t *fin;
@@ -825,28 +831,30 @@ u_int flags;
 	if ((fin->fin_flx & FI_OOW) && !(fin->fin_tcpf & TH_SYN))
 		return NULL;
 
-	fr = fin->fin_fr;
-	if ((fr->fr_statemax == 0) && (ips_num == fr_statemax)) {
-		ATOMIC_INCL(ips_stats.iss_max);
-		fr_state_doflush = 1;
-		return NULL;
-	}
-
 	/*
 	 * If a "keep state" rule has reached the maximum number of references
 	 * to it, then schedule an automatic flush in case we can clear out
-	 * some "dead old wood".
+	 * some "dead old wood".  Note that because the lock isn't held on
+	 * fr it is possible that we could overflow.  The cost of overflowing
+	 * is being ignored here as the number by which it can overflow is
+	 * a product of the number of simultaneous threads that could be
+	 * executing in here, so a limit of 100 won't result in 200, but could
+	 * result in 101 or 102.
 	 */
-	MUTEX_ENTER(&fr->fr_lock);
-	if ((fr != NULL) && (fr->fr_statemax != 0) &&
-	    (fr->fr_statecnt >= fr->fr_statemax)) {
-		MUTEX_EXIT(&fr->fr_lock);
-		ATOMIC_INCL(ips_stats.iss_maxref);
-		fr_state_doflush = 1;
-		return NULL;
+	fr = fin->fin_fr;
+	if (fr != NULL) {
+		if ((ips_num == fr_statemax) && (fr->fr_statemax == 0)) {
+			ATOMIC_INCL(ips_stats.iss_max);
+			fr_state_doflush = 1;
+			return NULL;
+		}
+		if ((fr->fr_statemax != 0) &&
+		    (fr->fr_statecnt >= fr->fr_statemax)) {
+			ATOMIC_INCL(ips_stats.iss_maxref);
+			fr_state_doflush = 1;
+			return NULL;
+		}
 	}
-	fr->fr_statecnt++;
-	MUTEX_EXIT(&fr->fr_lock);
 
 	pass = (fr == NULL) ? 0 : fr->fr_flags;
 
@@ -1048,16 +1056,16 @@ u_int flags;
 			break;
 	}
 	if (is != NULL)
-		goto cantaddstate;
+		return NULL;
 
 	if (ips_stats.iss_bucketlen[hv] >= fr_state_maxbucket) {
 		ATOMIC_INCL(ips_stats.iss_bucketfull);
-		goto cantaddstate;
+		return NULL;
 	}
 	KMALLOC(is, ipstate_t *);
 	if (is == NULL) {
 		ATOMIC_INCL(ips_stats.iss_nomem);
-		goto cantaddstate;
+		return NULL;
 	}
 	bcopy((char *)&ips, (char *)is, sizeof(*is));
 	/*
@@ -1142,6 +1150,7 @@ u_int flags;
 		is->is_optmsk[0] &= ~0x8;
 		is->is_optmsk[1] &= ~0x8;
 	}
+	is->is_me = stsave;
 	is->is_sec = fin->fin_secmsk;
 	is->is_secmsk = 0xffff;
 	is->is_auth = fin->fin_auth;
@@ -1156,7 +1165,6 @@ u_int flags;
 		is->is_pass &= ~(FR_LOGFIRST|FR_LOG);
 
 	READ_ENTER(&ipf_state);
-	is->is_me = stsave;
 
 	fr_stinsert(is, fin->fin_rev);
 
@@ -1190,14 +1198,6 @@ u_int flags;
 		(void) fr_newfrag(fin, pass ^ FR_KEEPSTATE);
 
 	return is;
-
-cantaddstate:
-	if (fr != NULL) {
-		MUTEX_ENTER(&fr->fr_lock);
-		fr->fr_statecnt--;
-		MUTEX_EXIT(&fr->fr_lock);
-	}
-	return NULL;
 }
 
 
@@ -1457,18 +1457,6 @@ int flags;
 		win = ntohs(tcp->th_win);
 	else
 		win = ntohs(tcp->th_win) << fdata->td_winscale;
-#if 0
-	/*
-	 * XXX - This is a kludge is here because IPFilter doesn't track SACK
-	 * options in TCP packets.  This is not a trivial to do if one is to
-	 * consider the performance impact of it.  So instead, if the
-	 * receiver has said SACK is ok, double the allowed window size.
-	 * This is disabled for testing of another workaround for a problem
-	 * with Microsoft Windows - see below.
-	 */
-	if ((tdata->td_winflags & TCP_SACK_PERMIT) != 0)
-		win *= 2;
-#endif
 
 	/*
 	 * A window of 0 produces undesirable behaviour from this function.
@@ -1555,6 +1543,39 @@ int flags;
 	    (fdata->td_winflags & TCP_SACK_PERMIT) &&
 	    (tdata->td_winflags & TCP_SACK_PERMIT)) {
 		inseq = 1;
+	/*
+	 * Sometimes a TCP RST will be generated with only the ACK field
+	 * set to non-zero.
+	 */
+	} else if ((seq == 0) && (tcpflags == (TH_RST|TH_ACK)) &&
+		   (ackskew >= -1) && (ackskew <= 1)) {
+		inseq = 1;
+	} else if (!(flags & IS_TCPFSM)) {
+		int i;
+
+		i = (fin->fin_rev << 1) + fin->fin_out;
+
+#if 0
+		if (is_pkts[i]0 == 0) {
+			/*
+			 * Picking up a connection in the middle, the "next"
+			 * packet seen from a direction that is new should be
+			 * accepted, even if it appears out of sequence.
+			 */
+			inseq = 1;
+		} else 
+#endif
+		if (!(fdata->td_winflags &
+			    (TCP_WSCALE_SEEN|TCP_WSCALE_FIRST))) {
+			/*
+			 * No TCPFSM and no window scaling, so make some
+			 * extra guesses.
+			 */
+			if ((seq == fdata->td_maxend) && (ackskew == 0))
+				inseq = 1;
+			else if (SEQ_GE(seq + maxwin, fdata->td_end - maxwin))
+				inseq = 1;
+		}
 	}
 
 	if (inseq) {
@@ -2341,7 +2362,8 @@ icmp6again:
 			if ((is->is_p != pr) || (is->is_v != v))
 				continue;
 			is = fr_matchsrcdst(fin, is, &src, &dst, NULL, FI_CMP);
-			if (is != NULL &&
+			if ((is != NULL) &&
+			    (ic->icmp_id == is->is_icmp.ici_id) &&
 			    fr_matchicmpqueryreply(v, &is->is_icmp,
 						   ic, fin->fin_rev)) {
 				if (fin->fin_rev)
@@ -2434,11 +2456,13 @@ retry_tcpudp:
 		break;
 	}
 
-	if ((is != NULL) && ((is->is_sti.tqe_flags & TQE_RULEBASED) != 0) &&
-	    (is->is_tqehead[fin->fin_rev] != NULL))
-		ifq = is->is_tqehead[fin->fin_rev];
-	if (ifq != NULL && ifqp != NULL)
-		*ifqp = ifq;
+	if (is != NULL) {
+		if (((is->is_sti.tqe_flags & TQE_RULEBASED) != 0) &&
+		    (is->is_tqehead[fin->fin_rev] != NULL))
+			ifq = is->is_tqehead[fin->fin_rev];
+		if (ifq != NULL && ifqp != NULL)
+			*ifqp = ifq;
+	}
 	return is;
 }
 

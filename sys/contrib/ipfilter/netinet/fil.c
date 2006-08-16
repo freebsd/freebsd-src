@@ -142,7 +142,7 @@ struct file;
 #if !defined(lint)
 static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-2000 Darren Reed";
 static const char rcsid[] = "@(#)$FreeBSD$";
-/* static const char rcsid[] = "@(#)Id: fil.c,v 2.243.2.57 2005/03/28 10:47:50 darrenr Exp"; */
+/* static const char rcsid[] = "@(#)$Id: fil.c,v 2.243.2.78 2006/03/29 11:19:54 darrenr Exp $"; */
 #endif
 
 #ifndef	_KERNEL
@@ -150,12 +150,6 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 # include "ipt.h"
 # include "bpf-ipf.h"
 extern	int	opts;
-
-# define	FR_VERBOSE(verb_pr)			verbose verb_pr
-# define	FR_DEBUG(verb_pr)			debug verb_pr
-#else /* #ifndef _KERNEL */
-# define	FR_VERBOSE(verb_pr)
-# define	FR_DEBUG(verb_pr)
 #endif /* _KERNEL */
 
 
@@ -1977,24 +1971,23 @@ u_32_t pass;
 		 * it, except for increasing the hit counter.
 		 */
 		if ((passt & FR_CALLNOW) != 0) {
+			frentry_t *frs;
+
 			ATOMIC_INC64(fr->fr_hits);
 			if ((fr->fr_func != NULL) &&
-			    (fr->fr_func != (ipfunc_t)-1)) {
-				frentry_t *frs;
+			    (fr->fr_func == (ipfunc_t)-1))
+				continue;
 
-				frs = fin->fin_fr;
-				fin->fin_fr = fr;
-				fr = (*fr->fr_func)(fin, &passt);
-				if (fr == NULL) {
-					fin->fin_fr = frs;
-					continue;
-				}
-				passt = fr->fr_flags;
-				fin->fin_fr = fr;
-			}
-		} else {
+			frs = fin->fin_fr;
 			fin->fin_fr = fr;
+			fr = (*fr->fr_func)(fin, &passt);
+			if (fr == NULL) {
+				fin->fin_fr = frs;
+				continue;
+			}
+			passt = fr->fr_flags;
 		}
+		fin->fin_fr = fr;
 
 #ifdef  IPFILTER_LOG
 		/*
@@ -2026,18 +2019,20 @@ u_32_t pass;
 		(void) strncpy(fin->fin_group, fr->fr_group, FR_GROUPLEN);
 		if (fr->fr_grp != NULL) {
 			fin->fin_fr = *fr->fr_grp;
-			pass = fr_scanlist(fin, pass);
+			passt = fr_scanlist(fin, pass);
 			if (fin->fin_fr == NULL) {
 				fin->fin_rule = rulen;
 				(void) strncpy(fin->fin_group, fr->fr_group,
 					       FR_GROUPLEN);
 				fin->fin_fr = fr;
+				passt = pass;
 			}
 			if (fin->fin_flx & FI_DONTCACHE)
 				logged = 1;
+			pass = passt;
 		}
 
-		if (pass & FR_QUICK) {
+		if (passt & FR_QUICK) {
 			/*
 			 * Finally, if we've asked to track state for this
 			 * packet, set it up.  Add state for "quick" rules
@@ -2049,6 +2044,7 @@ u_32_t pass;
 			    !(fin->fin_flx & FI_STATE)) {
 				int out = fin->fin_out;
 
+				fin->fin_fr = fr;
 				if (fr_addstate(fin, NULL, 0) != NULL) {
 					ATOMIC_INCL(frstats[out].fr_ads);
 				} else {
@@ -2198,7 +2194,8 @@ u_32_t *passp;
 	if (FR_ISAUTH(pass)) {
 		if (fr_newauth(fin->fin_m, fin) != 0) {
 #ifdef	_KERNEL
-			fin->fin_m = *fin->fin_mp = NULL;
+			if ((pass & FR_RETMASK) == 0)
+				fin->fin_m = *fin->fin_mp = NULL;
 #else
 			;
 #endif
@@ -2235,21 +2232,6 @@ u_32_t *passp;
 			}
 		} else {
 			ATOMIC_INCL(frstats[out].fr_cfr);
-		}
-	}
-
-	/*
-	 * Finally, if we've asked to track state for this packet, set it up.
-	 */
-	if ((pass & FR_KEEPSTATE) && !(fin->fin_flx & FI_STATE)) {
-		if (fr_addstate(fin, NULL, 0) != NULL) {
-			ATOMIC_INCL(frstats[out].fr_ads);
-		} else {
-			ATOMIC_INCL(frstats[out].fr_bads);
-			if (FR_ISPASS(pass)) {
-				pass &= ~FR_CMDMASK;
-				pass |= FR_BLOCK;
-			}
 		}
 	}
 
@@ -2318,8 +2300,6 @@ int out;
 #ifdef USE_INET6
 	ip6_t *ip6;
 #endif
-	SPL_INT(s);
-
 	/*
 	 * The first part of fr_check() deals with making sure that what goes
 	 * into the filtering engine makes some sense.  Information about the
@@ -2333,6 +2313,8 @@ int out;
 
 	if ((u_int)ip & 0x3)
 		return 2;
+# else
+	SPL_INT(s);
 # endif
 
 	READ_ENTER(&ipf_global);
@@ -2498,6 +2480,23 @@ int out;
 	if ((pass & FR_NOMATCH) || (fr == NULL))
 		fr = fr_firewall(fin, &pass);
 
+	/*
+	 * If we've asked to track state for this packet, set it up.
+	 * Here rather than fr_firewall because fr_checkauth may decide
+	 * to return a packet for "keep state"
+	 */
+	if ((pass & FR_KEEPSTATE) && !(fin->fin_flx & FI_STATE)) {
+		if (fr_addstate(fin, NULL, 0) != NULL) {
+			ATOMIC_INCL(frstats[out].fr_ads);
+		} else {
+			ATOMIC_INCL(frstats[out].fr_bads);
+			if (FR_ISPASS(pass)) {
+				pass &= ~FR_CMDMASK;
+				pass |= FR_BLOCK;
+			}
+		}
+	}
+
 	fin->fin_fr = fr;
 
 	/*
@@ -2552,7 +2551,7 @@ int out;
 
 	RWLOCK_EXIT(&ipf_mutex);
 
-	if (pass & (FR_RETRST|FR_RETICMP)) {
+	if ((pass & FR_RETMASK) != 0) {
 		/*
 		 * Should we return an ICMP packet to indicate error
 		 * status passing through the packet filter ?
@@ -2577,6 +2576,14 @@ int out;
 				    (fr_send_reset(fin) == 0)) {
 					ATOMIC_INCL(frstats[1].fr_ret);
 				}
+			}
+
+			/*
+			 * When using return-* with auth rules, the auth code
+			 * takes over disposing of this packet.
+			 */
+			if (FR_ISAUTH(pass) && (fin->fin_m != NULL)) {
+				fin->fin_m = *fin->fin_mp = NULL;
 			}
 		} else {
 			if (pass & FR_RETRST)
@@ -2791,10 +2798,10 @@ int len;
 /*                                                                          */
 /* Expects ip_len to be in host byte order when called.                     */
 /* ------------------------------------------------------------------------ */
-u_short fr_cksum(m, ip, l4proto, l4hdr)
+u_short fr_cksum(m, ip, l4proto, l4hdr, l3len)
 mb_t *m;
 ip_t *ip;
-int l4proto;
+int l4proto, l3len;
 void *l4hdr;
 {
 	u_short *sp, slen, sumsave, l4hlen, *csump;
@@ -2819,7 +2826,7 @@ void *l4hdr;
 	if (IP_V(ip) == 4) {
 #endif
 		hlen = IP_HL(ip) << 2;
-		slen = ip->ip_len - hlen;
+		slen = l3len - hlen;
 		sum = htons((u_short)l4proto);
 		sum += htons(slen);
 		sp = (u_short *)&ip->ip_src;
@@ -2831,9 +2838,9 @@ void *l4hdr;
 	} else if (IP_V(ip) == 6) {
 		ip6 = (ip6_t *)ip;
 		hlen = sizeof(*ip6);
-		slen = ntohs(ip6->ip6_plen);
+		slen = ntohs(l3len);
 		sum = htons((u_short)l4proto);
-		sum += htons(slen);
+		sum += slen;
 		sp = (u_short *)&ip6->ip6_src;
 		sum += *sp++;	/* ip6_src */
 		sum += *sp++;
@@ -3064,7 +3071,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.243.2.70 2005/12/07 08:15:16 darrenr Exp $
+ * $Id: fil.c,v 2.243.2.78 2006/03/29 11:19:54 darrenr Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,
@@ -3477,7 +3484,7 @@ int proto, flags;
 char *memstr(src, dst, slen, dlen)
 const char *src;
 char *dst;
-int slen, dlen;
+size_t slen, dlen;
 {
 	char *s = NULL;
 
@@ -3765,13 +3772,7 @@ size_t size;
 	caddr_t ca;
 	int err;
 
-# if SOLARIS
-	err = COPYIN(dst, (caddr_t)&ca, sizeof(ca));
-	if (err != 0)
-		return err;
-# else
 	bcopy(dst, (caddr_t)&ca, sizeof(ca));
-# endif
 	err = COPYOUT(src, ca, size);
 	return err;
 }
@@ -4891,7 +4892,7 @@ ipftq_t *ifq;
 		ifq->ifq_next->ifq_pnext = ifq->ifq_pnext;
 
 	MUTEX_DESTROY(&ifq->ifq_lock);
-	fr_userifqs--;
+	ATOMIC_DEC(fr_userifqs);
 	KFREE(ifq);
 }
 
@@ -4913,8 +4914,6 @@ ipftqent_t *tqe;
 	ipftq_t *ifq;
 
 	ifq = tqe->tqe_ifq;
-	if (ifq == NULL)
-		return;
 
 	MUTEX_ENTER(&ifq->ifq_lock);
 
@@ -4986,24 +4985,21 @@ ipftqent_t *tqe;
 	tqe->tqe_die = fr_ticks + ifq->ifq_ttl;
 
 	MUTEX_ENTER(&ifq->ifq_lock);
-	if (tqe->tqe_next == NULL) {		/* at the end already ? */
-		MUTEX_EXIT(&ifq->ifq_lock);
-		return;
+	if (tqe->tqe_next != NULL) {		/* at the end already ? */
+		/*
+		 * Remove from list
+		 */
+		*tqe->tqe_pnext = tqe->tqe_next;
+		tqe->tqe_next->tqe_pnext = tqe->tqe_pnext;
+
+		/*
+		 * Make it the last entry.
+		 */
+		tqe->tqe_next = NULL;
+		tqe->tqe_pnext = ifq->ifq_tail;
+		*ifq->ifq_tail = tqe;
+		ifq->ifq_tail = &tqe->tqe_next;
 	}
-
-	/*
-	 * Remove from list
-	 */
-	*tqe->tqe_pnext = tqe->tqe_next;
-	tqe->tqe_next->tqe_pnext = tqe->tqe_pnext;
-
-	/*
-	 * Make it the last entry.
-	 */
-	tqe->tqe_next = NULL;
-	tqe->tqe_pnext = ifq->ifq_tail;
-	*ifq->ifq_tail = tqe;
-	ifq->ifq_tail = &tqe->tqe_next;
 	MUTEX_EXIT(&ifq->ifq_lock);
 }
 
@@ -5055,46 +5051,44 @@ ipftq_t *oifq, *nifq;
 	 * Is the operation here going to be a no-op ?
 	 */
 	MUTEX_ENTER(&oifq->ifq_lock);
-	if (oifq == nifq && *oifq->ifq_tail == tqe) {
-		MUTEX_EXIT(&oifq->ifq_lock);
-		return;
+	if ((oifq != nifq) || (*oifq->ifq_tail != tqe)) {
+		/*
+		 * Remove from the old queue
+		 */
+		*tqe->tqe_pnext = tqe->tqe_next;
+		if (tqe->tqe_next)
+			tqe->tqe_next->tqe_pnext = tqe->tqe_pnext;
+		else
+			oifq->ifq_tail = tqe->tqe_pnext;
+		tqe->tqe_next = NULL;
+
+		/*
+		 * If we're moving from one queue to another, release the
+		 * lock on the old queue and get a lock on the new queue.
+		 * For user defined queues, if we're moving off it, call
+		 * delete in case it can now be freed.
+		 */
+		if (oifq != nifq) {
+			tqe->tqe_ifq = NULL;
+
+			(void) fr_deletetimeoutqueue(oifq);
+
+			MUTEX_EXIT(&oifq->ifq_lock);
+
+			MUTEX_ENTER(&nifq->ifq_lock);
+
+			tqe->tqe_ifq = nifq;
+			nifq->ifq_ref++;
+		}
+
+		/*
+		 * Add to the bottom of the new queue
+		 */
+		tqe->tqe_die = fr_ticks + nifq->ifq_ttl;
+		tqe->tqe_pnext = nifq->ifq_tail;
+		*nifq->ifq_tail = tqe;
+		nifq->ifq_tail = &tqe->tqe_next;
 	}
-
-	/*
-	 * Remove from the old queue
-	 */
-	*tqe->tqe_pnext = tqe->tqe_next;
-	if (tqe->tqe_next)
-		tqe->tqe_next->tqe_pnext = tqe->tqe_pnext;
-	else
-		oifq->ifq_tail = tqe->tqe_pnext;
-	tqe->tqe_next = NULL;
-
-	/*
-	 * If we're moving from one queue to another, release the lock on the
-	 * old queue and get a lock on the new queue.  For user defined queues,
-	 * if we're moving off it, call delete in case it can now be freed.
-	 */
-	if (oifq != nifq) {
-		tqe->tqe_ifq = NULL;
-
-		(void) fr_deletetimeoutqueue(oifq);
-
-		MUTEX_EXIT(&oifq->ifq_lock);
-
-		MUTEX_ENTER(&nifq->ifq_lock);
-
-		tqe->tqe_ifq = nifq;
-		nifq->ifq_ref++;
-	}
-
-	/*
-	 * Add to the bottom of the new queue
-	 */
-	tqe->tqe_die = fr_ticks + nifq->ifq_ttl;
-	tqe->tqe_pnext = nifq->ifq_tail;
-	*nifq->ifq_tail = tqe;
-	nifq->ifq_tail = &tqe->tqe_next;
 	MUTEX_EXIT(&nifq->ifq_lock);
 }
 
@@ -5578,7 +5572,7 @@ fr_info_t *fin;
 
 		if (dosum)
 			sum = fr_cksum(fin->fin_m, fin->fin_ip,
-				       fin->fin_p, fin->fin_dp);
+				       fin->fin_p, fin->fin_dp, fin->fin_plen);
 #if SOLARIS && defined(_KERNEL) && (SOLARIS2 >= 6) && defined(ICK_VALID)
 	}
 #endif
