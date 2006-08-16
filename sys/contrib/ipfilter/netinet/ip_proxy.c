@@ -104,7 +104,7 @@ struct file;
 /* END OF INCLUDES */
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.62.2.14 2005/06/18 02:41:33 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.62.2.16 2006/03/29 11:19:56 darrenr Exp $";
 #endif
 
 static int appr_fixseqack __P((fr_info_t *, ip_t *, ap_session_t *, int ));
@@ -324,8 +324,7 @@ int mode;
 		if (error == 0)
 			error = appr_ctl(&ctl);
 
-		if ((ctl.apc_dsize > 0) && (ptr != NULL) &&
-		    (ctl.apc_data == ptr)) {
+		if (ptr != NULL) {
 			KFREES(ptr, ctl.apc_dsize);
 		}
 		break;
@@ -564,8 +563,8 @@ nat_t *nat;
 		if (err != 0) {
 			short adjlen = err & 0xffff;
 
-			s1 = LONG_SUM(ip->ip_len - adjlen);
-			s2 = LONG_SUM(ip->ip_len);
+			s1 = LONG_SUM(fin->fin_plen - adjlen);
+			s2 = LONG_SUM(fin->fin_plen);
 			CALC_SUMD(s1, s2, sd);
 			fix_outcksum(fin, &ip->ip_sum, sd);
 		}
@@ -585,19 +584,23 @@ nat_t *nat;
 #if SOLARIS && defined(_KERNEL) && (SOLARIS2 >= 6)
 			if (dosum)
 				tcp->th_sum = fr_cksum(fin->fin_qfm, ip,
-						       IPPROTO_TCP, tcp);
+						       IPPROTO_TCP, tcp,
+						       fin->fin_plen);
 #else
 			tcp->th_sum = fr_cksum(fin->fin_m, ip,
-					       IPPROTO_TCP, tcp);
+					       IPPROTO_TCP, tcp,
+					       fin->fin_plen);
 #endif
 		} else if ((udp != NULL) && (udp->uh_sum != 0)) {
 #if SOLARIS && defined(_KERNEL) && (SOLARIS2 >= 6)
 			if (dosum)
 				udp->uh_sum = fr_cksum(fin->fin_qfm, ip,
-						       IPPROTO_UDP, udp);
+						       IPPROTO_UDP, udp,
+						       fin->fin_plen);
 #else
 			udp->uh_sum = fr_cksum(fin->fin_m, ip,
-					       IPPROTO_UDP, udp);
+					       IPPROTO_UDP, udp,
+					       fin->fin_plen);
 #endif
 		}
 		aps->aps_bytes += fin->fin_plen;
@@ -688,9 +691,9 @@ int inc;
 	tcp = (tcphdr_t *)fin->fin_dp;
 	out = fin->fin_out;
 	/*
-	 * ip_len has already been adjusted by 'inc'.
+	 * fin->fin_plen has already been adjusted by 'inc'.
 	 */
-	nlen = ip->ip_len;
+	nlen = fin->fin_plen;
 	nlen -= (IP_HL(ip) << 2) + (TCP_OFF(tcp) << 2);
 
 	inc2 = inc;
