@@ -432,7 +432,7 @@ ENTRY(suword)
 	ja	fusufault
 
 	movq	%rsi,(%rdi)
-	xorq	%rax,%rax
+	xorl	%eax,%eax
 	movq	PCPU(CURPCB),%rcx
 	movq	%rax,PCB_ONFAULT(%rcx)
 	ret
