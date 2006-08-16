@@ -21,38 +21,37 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * This software is derived from software provided by kwikbyte without
- * copyright as follows:
- *
- * No warranty, expressed or implied, is included with this software.  It is
- * provided "AS IS" and no warranty of any kind including statutory or aspects
- * relating to merchantability or fitness for any purpose is provided.  All
- * intellectual property rights of others is maintained with the respective
- * owners.  This software is not copyrighted and is intended for reference
- * only.
- *
  * $FreeBSD$
  */
 
-#include "env_vars.h"
 #include "at91rm9200.h"
-#include "at91rm9200_lowlevel.h"
-#include "loader_prompt.h"
-#include "emac.h"
 #include "lib.h"
-#include "spi_flash.h"
 
-int
-main(void)
+/*
+ * void reset()
+ * 
+ * Forces a reset of the system.  Uses watchdog timer of '1', which
+ * corresponds to 128 / SLCK seconds (SLCK is 32,768 Hz, so 128/32768 is
+ * 1 / 256 ~= 5.4ms
+ */
+void
+reset(void)
 {
-	printf("\r\nBoot\r\n");
-	SPI_InitFlash();
-	EMAC_Init();
-	LoadBootCommands();
-	if (getc(1) == -1) {
-		start_wdog(30);
-		ExecuteEnvironmentFunctions();
-	}
-	Bootloader(getc);
-	return (1);
+	// The following should effect a reset.
+	AT91C_BASE_ST->ST_WDMR = 1 | AT91C_ST_RSTEN;
+	AT91C_BASE_ST->ST_CR = AT91C_ST_WDRST;
+}
+
+/*
+ * void start_wdog()
+ *
+ * Starts a watchdog timer.  We force the boot process to get to the point
+ * it can kick the watch dog part of the ST part for the OS's driver.
+ */
+void
+start_wdog(int n)
+{
+	// The following should effect a reset after N seconds.
+	AT91C_BASE_ST->ST_WDMR = (n * (32768 / 128)) | AT91C_ST_RSTEN;
+	AT91C_BASE_ST->ST_CR = AT91C_ST_WDRST;
 }

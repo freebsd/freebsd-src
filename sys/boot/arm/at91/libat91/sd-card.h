@@ -21,38 +21,18 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * This software is derived from software provided by kwikbyte without
- * copyright as follows:
- *
- * No warranty, expressed or implied, is included with this software.  It is
- * provided "AS IS" and no warranty of any kind including statutory or aspects
- * relating to merchantability or fitness for any purpose is provided.  All
- * intellectual property rights of others is maintained with the respective
- * owners.  This software is not copyrighted and is intended for reference
- * only.
+ * This software is derived from software provide by Kwikbyte who specifically
+ * disclaimed copyright on the code.
  *
  * $FreeBSD$
  */
 
-#include "env_vars.h"
-#include "at91rm9200.h"
-#include "at91rm9200_lowlevel.h"
-#include "loader_prompt.h"
-#include "emac.h"
-#include "lib.h"
-#include "spi_flash.h"
+#ifndef __SD_CARD_H
+#define __SD_CARD_H
 
-int
-main(void)
-{
-	printf("\r\nBoot\r\n");
-	SPI_InitFlash();
-	EMAC_Init();
-	LoadBootCommands();
-	if (getc(1) == -1) {
-		start_wdog(30);
-		ExecuteEnvironmentFunctions();
-	}
-	Bootloader(getc);
-	return (1);
-}
+int MCI_write (unsigned dest, char* source, unsigned length);
+int MCI_read (char* dest, unsigned source, unsigned length);
+int sdcard_init(void);
+
+#endif
+

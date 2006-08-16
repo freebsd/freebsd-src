@@ -31,21 +31,13 @@
 
 /* ********************** PRIVATE FUNCTIONS/DATA ******************************/
 
-static unsigned localMACSet, serverMACSet;
-static unsigned char localMACAddr[6], serverMACAddr[6];
-static unsigned localMAClow, localMAChigh;
-static unsigned localIPSet, serverIPSet;
+static char serverMACAddr[6];
 static unsigned char localIPAddr[4], serverIPAddr[4];
-static unsigned short	serverPort, localPort;
 static int	ackBlock;
-static unsigned	lastSize;
 static char *dlAddress;
 
 static unsigned transmitBuffer[1024 / sizeof(unsigned)];
 static unsigned tftpSendPacket[256 / sizeof(unsigned)];
-
-receive_descriptor_t *p_rxBD;
-
 
 /*
  * .KB_C_FN_DEFINITION_START
@@ -474,62 +466,6 @@ AT91F_EmacEntry(void)
 
 /* ************************** GLOBAL FUNCTIONS ********************************/
 
-
-/*
- * .KB_C_FN_DEFINITION_START
- * void SetMACAddress(unsigned low_address, unsigned high_address)
- *  This global function sets the MAC address.  low_address is the first
- * four bytes while high_address is the last 2 bytes of the 48-bit value.
- * .KB_C_FN_DEFINITION_END
- */
-void
-SetMACAddress(unsigned char mac[6])
-{
-	AT91PS_PMC	pPMC = AT91C_BASE_PMC;
-	AT91PS_EMAC	pEmac = AT91C_BASE_EMAC;
-
-	/* enable the peripheral clock before using EMAC */
-	pPMC->PMC_PCER = ((unsigned) 1 << AT91C_ID_EMAC);
-
-	p_memcpy(localMACAddr, mac, 6);
-	localMAClow = (mac[2] << 24) | (mac[3] << 16) | (mac[4] << 8) | mac[5];
-	localMAChigh = (mac[0] << 8) | mac[1];
-	localMACSet = 1;
-
-	AT91C_BASE_PMC->PMC_PCER = 1u << AT91C_ID_EMAC;
-	AT91C_BASE_PIOA->PIO_ASR = 
-	  AT91C_PA14_ERXER | AT91C_PA12_ERX0 | AT91C_PA13_ERX1 |
-	  AT91C_PA8_ETXEN | AT91C_PA16_EMDIO | AT91C_PA9_ETX0 |
-	  AT91C_PA10_ETX1 | AT91C_PA11_ECRS_ECRSDV | AT91C_PA15_EMDC |
-	  AT91C_PA7_ETXCK_EREFCK;
-	AT91C_BASE_PIOA->PIO_PDR = 
-	  AT91C_PA14_ERXER | AT91C_PA12_ERX0 | AT91C_PA13_ERX1 |
-	  AT91C_PA8_ETXEN | AT91C_PA16_EMDIO | AT91C_PA9_ETX0 |
-	  AT91C_PA10_ETX1 | AT91C_PA11_ECRS_ECRSDV | AT91C_PA15_EMDC |
-	  AT91C_PA7_ETXCK_EREFCK;
-#ifdef BOOT_KB9202	/* Really !RMII */
-	AT91C_BASE_PIOB->PIO_BSR =
-	  AT91C_PB12_ETX2 | AT91C_PB13_ETX3 | AT91C_PB14_ETXER |
-	  AT91C_PB15_ERX2 | AT91C_PB16_ERX3 | AT91C_PB17_ERXDV |
-	  AT91C_PB18_ECOL | AT91C_PB19_ERXCK;
-	AT91C_BASE_PIOB->PIO_PDR =
-	  AT91C_PB12_ETX2 | AT91C_PB13_ETX3 | AT91C_PB14_ETXER |
-	  AT91C_PB15_ERX2 | AT91C_PB16_ERX3 | AT91C_PB17_ERXDV |
-	  AT91C_PB18_ECOL | AT91C_PB19_ERXCK;
-#endif
-	pEmac->EMAC_CTL  = 0;
-
-	pEmac->EMAC_CFG  = (pEmac->EMAC_CFG & ~(AT91C_EMAC_CLK)) |
-#ifdef BOOT_TSC
-	    AT91C_EMAC_RMII |
-#endif
-	    AT91C_EMAC_CLK_HCLK_32 | AT91C_EMAC_CAF;
-	// the sequence write EMAC_SA1L and write EMAC_SA1H must be respected
-	pEmac->EMAC_SA1L = localMAClow;
-	pEmac->EMAC_SA1H = localMAChigh;
-}
-
-
 /*
  * .KB_C_FN_DEFINITION_START
  * void SetServerIPAddress(unsigned address)
@@ -623,23 +559,4 @@ TFTP_Download(unsigned address, char *filename)
 	}
 	if (timeout == 0)
 		printf("TFTP TIMEOUT!\r\n");
-}
-
-
-/*
- * .KB_C_FN_DEFINITION_START
- * void EMAC_Init(void)
- *  This global function initializes variables used in tftp transfers.
- * .KB_C_FN_DEFINITION_END
- */
-void
-EMAC_Init(void)
-{
-	p_rxBD = (receive_descriptor_t*)RX_BUFFER_START;
-	localMACSet = 0;
-	serverMACSet = 0;
-	localIPSet = 0;
-	serverIPSet = 0;
-	localPort = SWAP16(0x8002);
-	lastSize = 0;
 }

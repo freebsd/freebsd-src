@@ -21,38 +21,23 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * This software is derived from software provided by kwikbyte without
- * copyright as follows:
- *
- * No warranty, expressed or implied, is included with this software.  It is
- * provided "AS IS" and no warranty of any kind including statutory or aspects
- * relating to merchantability or fitness for any purpose is provided.  All
- * intellectual property rights of others is maintained with the respective
- * owners.  This software is not copyrighted and is intended for reference
- * only.
+ * This software is derived from software provide by Kwikbyte who specifically
+ * disclaimed copyright on the code.
  *
  * $FreeBSD$
  */
 
-#include "env_vars.h"
 #include "at91rm9200.h"
-#include "at91rm9200_lowlevel.h"
-#include "loader_prompt.h"
-#include "emac.h"
-#include "lib.h"
 #include "spi_flash.h"
+#include "lib.h"
 
-int
-main(void)
+void
+Delay(int us)
 {
-	printf("\r\nBoot\r\n");
-	SPI_InitFlash();
-	EMAC_Init();
-	LoadBootCommands();
-	if (getc(1) == -1) {
-		start_wdog(30);
-		ExecuteEnvironmentFunctions();
-	}
-	Bootloader(getc);
-	return (1);
+	unsigned later, now;
+
+	now = AT91C_BASE_ST->ST_CRTR;
+	later = (now + us / 25 + 1) & AT91C_ST_CRTV;
+	while (later != AT91C_BASE_ST->ST_CRTR)
+		continue;
 }
