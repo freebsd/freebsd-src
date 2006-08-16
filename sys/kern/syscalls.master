@@ -827,5 +827,7 @@
 468	AUE_NULL	STD	{ int thr_setschedparam(long id, \
 				    const struct sched_param *param, \
 				    int param_size); }
+469	AUE_NULL	UNIMPL	__getpath_fromfd
+470	AUE_NULL	UNIMPL	__getpath_fromaddr
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
