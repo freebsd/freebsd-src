@@ -2865,8 +2865,6 @@ em_get_buf(struct adapter *adapter, int i)
 	rx_buffer->m_head = m;
 
 	adapter->rx_desc_base[i].buffer_addr = htole64(segs[0].ds_addr);
-	/* Zero out the receive descriptors status. */
-	adapter->rx_desc_base[i].status = 0;
 
 	return (0);
 }
@@ -3123,6 +3121,7 @@ em_rxeof(struct adapter *adapter, int count)
 
 	/* Pointer to the receive descriptor being examined. */
 	struct em_rx_desc   *current_desc;
+	uint8_t		status;
 
 	ifp = adapter->ifp;
 	i = adapter->next_rx_desc_to_check;
@@ -3149,7 +3148,8 @@ em_rxeof(struct adapter *adapter, int count)
 		accept_frame = 1;
 		prev_len_adj = 0;
 		desc_len = le16toh(current_desc->length);
-		if (current_desc->status & E1000_RXD_STAT_EOP) {
+		status = current_desc->status;
+		if (status & E1000_RXD_STAT_EOP) {
 			count--;
 			eop = 1;
 			if (desc_len < ETHER_CRC_LEN) {
@@ -3170,9 +3170,8 @@ em_rxeof(struct adapter *adapter, int count)
 				pkt_len += adapter->fmp->m_pkthdr.len;
 
 			last_byte = *(mtod(mp, caddr_t) + desc_len - 1);			
-			if (TBI_ACCEPT(&adapter->hw, current_desc->status,
-			    current_desc->errors,
-			    pkt_len, last_byte)) {
+			if (TBI_ACCEPT(&adapter->hw, status,
+			    current_desc->errors, pkt_len, last_byte)) {
 				em_tbi_adjust_stats(&adapter->hw,
 				    &adapter->stats, pkt_len,
 				    adapter->hw.mac_addr);
@@ -3224,7 +3223,7 @@ em_rxeof(struct adapter *adapter, int count)
 				    em_fixup_rx(adapter) != 0)
 					goto skip;
 #endif
-				if (current_desc->status & E1000_RXD_STAT_VP)
+				if (status & E1000_RXD_STAT_VP)
 					VLAN_INPUT_TAG(ifp, adapter->fmp,
 					    (le16toh(current_desc->special) &
 					    E1000_RXD_SPC_VLAN_MASK));
@@ -3250,11 +3249,11 @@ discard:
 				adapter->fmp = NULL;
 				adapter->lmp = NULL;
 			}
-			/* Zero out the receive descriptors status. */
-			adapter->rx_desc_base[i].status = 0;
 			m = NULL;
 		}
 
+		/* Zero out the receive descriptors status. */
+		current_desc->status = 0;
 		bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
