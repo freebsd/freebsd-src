@@ -15,6 +15,10 @@
 #include <sys/conf.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/select.h>
+#if __FreeBSD_version >= 500000
+# include <sys/selinfo.h>
+#endif                  
 #include <net/if.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -27,6 +31,9 @@
 #include <netinet/ip_nat.h>
 #include <netinet/ip_auth.h>
 #include <netinet/ip_frag.h>
+#include <netinet/ip_sync.h>
+
+extern	struct	selinfo	ipfselwait[IPL_LOGSIZE];
 
 #if __FreeBSD_version >= 502116
 static struct cdev *ipf_devs[IPL_LOGSIZE];
@@ -95,6 +102,10 @@ SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_minttl, CTLFLAG_RW, &fr_minttl, 0, "");
 
 #define CDEV_MAJOR 79
 #if __FreeBSD_version >= 501000
+# include <sys/poll.h>
+# include <sys/select.h>
+static int iplpoll(struct cdev *dev, int events, struct thread *td);
+
 static struct cdevsw ipl_cdevsw = {
 # if __FreeBSD_version >= 502103
 	.d_version =	D_VERSION,
@@ -106,6 +117,7 @@ static struct cdevsw ipl_cdevsw = {
 	.d_write =	iplwrite,
 	.d_ioctl =	iplioctl,
 	.d_name =	"ipl",
+	.d_poll =	iplpoll,
 # if __FreeBSD_version < 600000
 	.d_maj =	CDEV_MAJOR,
 # endif
@@ -117,7 +129,7 @@ static struct cdevsw ipl_cdevsw = {
 	/* read */	iplread,
 	/* write */	iplwrite,
 	/* ioctl */	iplioctl,
-	/* poll */	nopoll,
+	/* poll */	iplpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"ipl",
@@ -271,5 +283,53 @@ sysctl_ipf_int ( SYSCTL_HANDLER_ARGS )
 			error = SYSCTL_IN(req, arg1, sizeof(int));
 	}
 	return (error);
+}
+#endif
+
+
+#if __FreeBSD_version >= 501000
+static int
+iplpoll(struct cdev *dev, int events, struct thread *td)
+{
+	u_int xmin = GET_MINOR(dev);
+	int revents;
+
+	if (xmin < 0 || xmin > IPL_LOGMAX)
+		return 0;
+
+	revents = 0;
+
+	switch (xmin) 
+	{
+	case IPL_LOGIPF :
+	case IPL_LOGNAT :
+	case IPL_LOGSTATE :
+#ifdef IPFILTER_LOG
+		if ((events & (POLLIN | POLLRDNORM)) && ipflog_canread(xmin))
+			revents |= events & (POLLIN | POLLRDNORM);
+#endif  
+		break;
+	case IPL_LOGAUTH :
+		if ((events & (POLLIN | POLLRDNORM)) && fr_auth_waiting())
+			revents |= events & (POLLIN | POLLRDNORM);
+		break; 
+	case IPL_LOGSYNC :
+#ifdef IPFILTER_SYNC
+		if ((events & (POLLIN | POLLRDNORM)) && ipfsync_canread())
+			revents |= events & (POLLIN | POLLRDNORM);
+		if ((events & (POLLOUT | POLLWRNORM)) && ipfsync_canwrite())
+			revents |= events & (POLLOUT | POLLWRNORM);
+#endif
+		break;
+	case IPL_LOGSCAN :
+	case IPL_LOGLOOKUP :
+	default :
+		break;
+	}
+
+	if ((revents == 0) && ((events & (POLLIN|POLLRDNORM)) != 0))
+		selrecord(td, &ipfselwait[xmin]);
+
+	return revents;
 }
 #endif

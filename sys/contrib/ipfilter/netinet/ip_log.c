@@ -6,7 +6,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * $FreeBSD$
- * Id: ip_log.c,v 2.75.2.6 2004/10/16 07:59:27 darrenr Exp
+ * Id: ip_log.c,v 2.75.2.11 2006/03/26 13:50:47 darrenr Exp $
  */
 #include <sys/param.h>
 #if defined(KERNEL) || defined(_KERNEL)
@@ -70,6 +70,10 @@ struct file;
 #  include <sys/dir.h>
 # endif
 # include <sys/mbuf.h>
+# include <sys/select.h>
+# if __FreeBSD_version >= 500000
+#  include <sys/selinfo.h>
+# endif
 #else
 # if !defined(__hpux) && defined(_KERNEL)
 #  include <sys/filio.h>
@@ -144,12 +148,14 @@ iplog_select_t	iplog_ss[IPL_LOGMAX+1];
 
 extern int selwait;
 # endif /* IPL_SELECT */
+extern struct selinfo	ipfselwait[IPL_LOGSIZE];
 
 # if defined(linux) && defined(_KERNEL)
 wait_queue_head_t	iplh_linux[IPL_LOGSIZE];
 # endif
 # if SOLARIS
 extern	kcondvar_t	iplwait;
+extern	struct pollhead	iplpollhead[IPL_LOGSIZE];
 # endif
 
 iplog_t	**iplh[IPL_LOGSIZE], *iplt[IPL_LOGSIZE], *ipll[IPL_LOGSIZE];
@@ -508,9 +514,11 @@ int *types, cnt;
 # if SOLARIS && defined(_KERNEL)
 	cv_signal(&iplwait);
 	MUTEX_EXIT(&ipl_mutex);
+	pollwakeup(&iplpollhead[dev], POLLRDNORM);
 # else
 	MUTEX_EXIT(&ipl_mutex);
-	WAKEUP(iplh,dev);
+	WAKEUP(iplh, dev);
+	POLLWAKEUP(dev);
 # endif
 	SPL_X(s);
 # ifdef	IPL_SELECT
@@ -667,5 +675,20 @@ minor_t unit;
 	MUTEX_EXIT(&ipl_mutex);
 	SPL_X(s);
 	return used;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipflog_canread                                              */
+/* Returns:     int    - 0 == no data to read, 1 = data present             */
+/* Parameters:  unit(I) - device we are reading from                        */
+/*                                                                          */
+/* Returns an indication of whether or not there is data present in the     */
+/* current buffer for the selected ipf device.                              */
+/* ------------------------------------------------------------------------ */
+int ipflog_canread(unit)
+int unit;
+{
+	return iplt[unit] != NULL;
 }
 #endif /* IPFILTER_LOG */
