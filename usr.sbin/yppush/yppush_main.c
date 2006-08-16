@@ -65,14 +65,12 @@ int skip_master = 0;		/* Do not attempt to push map to master. */
 int verbose = 0;		/* Toggle verbose mode. */
 unsigned long yppush_transid = 0;
 int yppush_timeout = 80;	/* Default timeout. */
-int yppush_jobs = 0;		/* Number of allowed concurrent jobs. */
+int yppush_jobs = 1;		/* Number of allowed concurrent jobs. */
 int yppush_running_jobs = 0;	/* Number of currently running jobs. */
-int yppush_alarm_tripped = 0;
 
 /* Structure for holding information about a running job. */
 struct jobs {
 	unsigned long tid;
-	int sock;
 	int port;
 	ypxfrstat stat;
 	unsigned long prognum;
@@ -83,6 +81,8 @@ struct jobs {
 };
 
 struct jobs *yppush_joblist;	/* Linked list of running jobs. */
+
+static int yppush_svc_run(int);
 
 /*
  * Local error messages.
@@ -114,19 +114,29 @@ yppush_show_status(ypxfrstat status, unsigned long tid)
 
 	job = yppush_joblist;
 
-	while (job) {
+	while (job != NULL) {
 		if (job->tid == tid)
 			break;
 		job = job->next;
 	}
 
-	if (job->polled) {
-		return(0);
+	if (job == NULL) {
+		yp_error("warning: received callback with invalid transaction ID: %lu",
+			 tid);
+		return (0);
 	}
 
-	if (verbose > 1)
+	if (job->polled) {
+		yp_error("warning: received callback with duplicate transaction ID: %lu",
+			 tid);
+		return (0);
+	}
+
+	if (verbose > 1) {
 		yp_error("checking return status: transaction ID: %lu",
 								job->tid);
+	}
+
 	if (status != YPPUSH_SUCC || verbose) {
 		yp_error("transfer of map %s to server %s %s",
 		 	job->map, job->server, status == YPPUSH_SUCC ?
@@ -173,11 +183,7 @@ yppush_exit(int now)
 				yp_error("%d transfer%sstill pending",
 					still_pending,
 					still_pending > 1 ? "s " : " ");
-			yppush_alarm_tripped = 0;
-			alarm(YPPUSH_RESPONSE_TIMEOUT);
-			pause();
-			alarm(0);
-			if (yppush_alarm_tripped == 1) {
+			if (yppush_svc_run (YPPUSH_RESPONSE_TIMEOUT) == 0) {
 				yp_error("timed out");
 				now = 1;
 			}
@@ -209,42 +215,31 @@ to %s (transid = %lu) still pending", jptr->server, jptr->tid);
 static void
 handler(int sig)
 {
-	if (sig == SIGTERM || sig == SIGINT || sig == SIGABRT) {
-		yppush_joblist = NULL;
-		yppush_exit(1);
-	}
-
-	if (sig == SIGALRM) {
-		alarm(0);
-		yppush_alarm_tripped++;
-	}
-
+	yppush_exit (1);
 	return;
 }
 
 /*
  * Dispatch loop for callback RPC services.
+ * Return value:
+ *   -1 error
+ *    0 timeout
+ *   >0 request serviced
  */
-static void
-yppush_svc_run(void)
+static int
+yppush_svc_run(int timeout_secs)
 {
-#ifdef FD_SETSIZE
+	int rc;
 	fd_set readfds;
-#else
-	int readfds;
-#endif /* def FD_SETSIZE */
 	struct timeval timeout;
 
 	timeout.tv_usec = 0;
-	timeout.tv_sec = 5;
+	timeout.tv_sec = timeout_secs;
 
 retry:
-#ifdef FD_SETSIZE
 	readfds = svc_fdset;
-#else
-	readfds = svc_fds;
-#endif /* def FD_SETSIZE */
-	switch (select(_rpc_dtablesize(), &readfds, NULL, NULL, &timeout)) {
+	rc = select(svc_maxfd + 1, &readfds, NULL, NULL, &timeout);
+	switch (rc) {
 	case -1:
 		if (errno == EINTR)
 			goto retry;
@@ -257,25 +252,7 @@ retry:
 		svc_getreqset(&readfds);
 		break;
 	}
-	return;
-}
-
-/*
- * Special handler for asynchronous socket I/O. We mark the
- * sockets of the callback handlers as O_ASYNC and handle SIGIO
- * events here, which will occur when the callback handler has
- * something interesting to tell us.
- */
-static void
-async_handler(int sig)
-{
-	yppush_svc_run();
-
-	/* reset any pending alarms. */
-	alarm(0);
-	yppush_alarm_tripped++;
-	kill(getpid(), SIGALRM);
-	return;
+	return rc;
 }
 
 /*
@@ -396,9 +373,17 @@ yp_push(char *server, char *map, unsigned long tid)
 	SVCXPRT *xprt;
 	struct jobs *job;
 
+	/* Register the job in our linked list of jobs. */
+
+	/* First allocate job structure */
+	if ((job = (struct jobs *)malloc(sizeof (struct jobs))) == NULL) {
+		yp_error("malloc failed");
+		yppush_exit (1);
+	}
+
 	/*
-	 * Register the callback service on the first free
-	 * transient program number.
+	 * Register the callback service on the first free transient
+	 * program number.
 	 */
 	xprt = svcudp_create(sock);
 	for (prognum = 0x40000000; prognum < 0x5FFFFFFF; prognum++) {
@@ -406,45 +391,21 @@ yp_push(char *server, char *map, unsigned long tid)
 		    yppush_xfrrespprog_1, IPPROTO_UDP) == TRUE)
 			break;
 	}
-
-	/* Register the job in our linked list of jobs. */
-	if ((job = (struct jobs *)malloc(sizeof (struct jobs))) == NULL) {
-		yp_error("malloc failed");
-		yppush_exit(1);
+	if (prognum == 0x5FFFFFFF) {
+		yp_error ("can't register yppush_xfrrespprog_1");
+		yppush_exit (1);
 	}
 
 	/* Initialize the info for this job. */
 	job->stat = 0;
 	job->tid = tid;
 	job->port = xprt->xp_port;
-	job->sock = xprt->xp_fd; /*XXX: Evil!! EEEEEEEVIL!!! */
 	job->server = strdup(server);
 	job->map = strdup(map);
 	job->prognum = prognum;
 	job->polled = 0;
 	job->next = yppush_joblist;
 	yppush_joblist = job;
-
-	/*
-	 * Set the RPC sockets to asynchronous mode. This will
-	 * cause the system to smack us with a SIGIO when an RPC
-	 * callback is delivered. This in turn allows us to handle
-	 * the callback even though we may be in the middle of doing
-	 * something else at the time.
-	 *
-	 * XXX This is a horrible thing to do for two reasons,
-	 * both of which have to do with portability:
-	 * 1) We really ought not to be sticking our grubby mits
-	 *    into the RPC service transport handle like this.
-	 * 2) Even in this day and age, there are still some *NIXes
-	 *    that don't support async socket I/O.
-	 */
-	if (fcntl(xprt->xp_fd, F_SETOWN, getpid()) == -1 ||
-	    fcntl(xprt->xp_fd, F_SETFL, O_ASYNC) == -1) {
-		yp_error("failed to set async I/O mode: %s",
-			 strerror(errno));
-		yppush_exit(1);
-	}
 
 	if (verbose) {
 		yp_error("initiating transfer: %s -> %s (transid = %lu)",
@@ -453,7 +414,7 @@ yp_push(char *server, char *map, unsigned long tid)
 
 	/*
 	 * Send the XFR request to ypserv. We don't have to wait for
-	 * a response here since we can handle them asynchronously.
+	 * a response here since we handle them asynchronously.
 	 */
 
 	if (yppush_send_xfr(job)){
@@ -486,27 +447,12 @@ yppush_foreach(int status, char *key, int keylen, char *val, int vallen,
 		return (0);
 
 	/*
-	 * Restrict the number of concurrent jobs. If yppush_jobs number
+	 * Restrict the number of concurrent jobs: if yppush_jobs number
 	 * of jobs have already been dispatched and are still pending,
 	 * wait for one of them to finish so we can reuse its slot.
 	 */
-	if (yppush_jobs <= 1) {
-		yppush_alarm_tripped = 0;
-		while (!yppush_alarm_tripped && yppush_running_jobs) {
-			alarm(yppush_timeout);
-			yppush_alarm_tripped = 0;
-			pause();
-			alarm(0);
-		}
-	} else {
-		yppush_alarm_tripped = 0;
-		while (!yppush_alarm_tripped && yppush_running_jobs >= yppush_jobs) {
-			alarm(yppush_timeout);
-			yppush_alarm_tripped = 0;
-			pause();
-			alarm(0);
-		}
-	}
+	while (yppush_running_jobs >= yppush_jobs && (yppush_svc_run (yppush_timeout) > 0))
+		;
 
 	/* Cleared for takeoff: set everything in motion. */
 	if (yp_push(server, yppush_mapname, yppush_transid))
@@ -638,26 +584,8 @@ main(int argc, char *argv[])
 	yppush_master[data.size] = '\0';
 
 	/* Install some handy handlers. */
-	signal(SIGALRM, handler);
 	signal(SIGTERM, handler);
 	signal(SIGINT, handler);
-	signal(SIGABRT, handler);
-
-	/*
-	 * Set up the SIGIO handler. Make sure that some of the
-	 * other signals are blocked while the handler is running so
-	 * select() doesn't get interrupted.
-	 */
-	sigemptyset(&sa.sa_mask);
-	sigaddset(&sa.sa_mask, SIGIO); /* Goes without saying. */
-	sigaddset(&sa.sa_mask, SIGPIPE);
-	sigaddset(&sa.sa_mask, SIGCHLD);
-	sigaddset(&sa.sa_mask, SIGALRM);
-	sigaddset(&sa.sa_mask, SIGINT);
-	sa.sa_handler = async_handler;
-	sa.sa_flags = 0;
-
-	sigaction(SIGIO, &sa, NULL);
 
 	/* set initial transaction ID */
 	yppush_transid = time((time_t *)NULL);
