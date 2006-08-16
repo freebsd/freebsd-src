@@ -23,14 +23,12 @@
  *****************************************************************************/
 
 #include "at91rm9200_lowlevel.h"
-#ifdef SUPPORT_TAG_LIST
-#include "tag_list.h"
-#endif
+#include "at91rm9200.h"
 #include "emac.h"
 #include "loader_prompt.h"
 #include "env_vars.h"
 #include "lib.h"
-
+#include "spi_flash.h"
 
 /******************************* GLOBALS *************************************/
 
@@ -43,27 +41,29 @@ static int	buffCount;
 // argv pointer are either NULL or point to locations in inputBuffer
 static char	*argv[MAX_COMMAND_PARAMS];
 
+#define FLASH_OFFSET (0 * FLASH_PAGE_SIZE)
+#define FPGA_OFFSET  (15 * FLASH_PAGE_SIZE)
+#define FPGA_LEN     (212608)
+#define KERNEL_OFFSET (220 * FLASH_PAGE_SIZE)
+#define KERNEL_LEN (6 * 1024 * FLASH_PAGE_SIZE)
 static const char *backspaceString = "\010 \010";
 
 static const command_entry_t	CommandTable[] = {
-	{COMMAND_COPY, "c"},
 	{COMMAND_DUMP, "d"},
 	{COMMAND_EXEC, "e"},
-	{COMMAND_HELP, "?"},
 	{COMMAND_LOCAL_IP, "ip"},
 	{COMMAND_MAC, "m"},
 	{COMMAND_SERVER_IP, "server_ip"},
-	{COMMAND_SET, "s"},
-#ifdef SUPPORT_TAG_LIST
-	{COMMAND_TAG, "t"},
-#endif
 	{COMMAND_TFTP, "tftp"},
-	{COMMAND_WRITE, "w"},
 	{COMMAND_XMODEM, "x"},
+	{COMMAND_RESET, "R"},
+	{COMMAND_LOAD_SPI_KERNEL, "k"},
+	{COMMAND_REPLACE_KERNEL_VIA_XMODEM, "K"},
+	{COMMAND_REPLACE_FLASH_VIA_XMODEM, "I"},
+	{COMMAND_REPLACE_FPGA_VIA_XMODEM, "F"},
+	{COMMAND_REPLACE_ID_EEPROM, "E"},
 	{COMMAND_FINAL_FLAG, 0}
 };
-
-static unsigned tagAddress;
 
 /*
  * .KB_C_FN_DEFINITION_START
@@ -97,26 +97,6 @@ StringToCommand(char *cPtr)
 			return (CommandTable[i].command);
 
 	return (COMMAND_INVALID);
-}
-
-
-/*
- * .KB_C_FN_DEFINITION_START
- * void RestoreSpace(int)
- *  This private function restores NULL characters to spaces in order to
- * process the remaining args as a string.  The number passed is the argc
- * of the first entry to begin restoring space in the inputBuffer.
- * .KB_C_FN_DEFINITION_END
- */
-static void
-RestoreSpace(int startArgc)
-{
-	char	*cPtr;
-
-	for (startArgc++; startArgc < MAX_COMMAND_PARAMS; startArgc++) {
-		if ((cPtr = argv[startArgc]))
-			*(cPtr - 1) = ' ';
-	}
 }
 
 
@@ -161,6 +141,45 @@ BreakCommand(char *buffer)
 	return (pCount);
 }
 
+#if 0
+static void
+UpdateEEProm(int eeaddr)
+{
+	char *addr = (char *)SDRAM_BASE + (1 << 20); /* Load to base + 1MB */
+	int len;
+
+	while ((len = xmodem_rx(addr)) == -1)
+		continue;
+	printf("\r\nDownloaded %u bytes.\r\n", len);
+	WriteEEPROM(eeaddr, 0, addr, len);
+}
+#endif
+
+static void
+UpdateFlash(int offset)
+{
+	char *addr = (char *)SDRAM_BASE + (1 << 20); /* Load to base + 1MB */
+	int len, i, off;
+
+	while ((len = xmodem_rx(addr)) == -1)
+		continue;
+	printf("\r\nDownloaded %u bytes.\r\n", len);
+	for (i = 0; i < len; i+= FLASH_PAGE_SIZE) {
+		off = i + offset;
+		SPI_WriteFlash(off, addr + i, FLASH_PAGE_SIZE);
+	}
+}
+
+static void
+LoadKernelFromSpi(char *addr)
+{
+	int i, off;
+
+	for (i = 0; i < KERNEL_LEN; i+= FLASH_PAGE_SIZE) {
+		off = i + KERNEL_OFFSET;
+		SPI_ReadFlash(off, addr + i, FLASH_PAGE_SIZE);
+	}
+}
 
 /*
  * .KB_C_FN_DEFINITION_START
@@ -177,22 +196,6 @@ ParseCommand(char *buffer)
 		return;
 
 	switch (StringToCommand(argv[0])) {
-	case COMMAND_COPY:
-	{
-		// "c <to> <from> <size in bytes>"
-		// copy memory
-		char		*to, *from;
-		unsigned	size;
-
-		if (argc > 3) {
-			to = (char *)p_ASCIIToHex(argv[1]);
-			from = (char *)p_ASCIIToHex(argv[2]);
-			size = p_ASCIIToHex(argv[3]);
-			p_memcpy(to, from, size);
-		}
-		break;
-	}
-
 	case COMMAND_DUMP:
 		// display boot commands
 		DumpBootCommands();
@@ -202,13 +205,13 @@ ParseCommand(char *buffer)
 	{
 		// "e <address>"
 		// execute at address
-		void (*execAddr)(unsigned, unsigned, unsigned);
+		void (*execAddr)(unsigned, unsigned);
 
 		if (argc > 1) {
 			/* in future, include machtypes (MACH_KB9200 = 612) */
-			execAddr = (void (*)(unsigned, unsigned, unsigned))
-			  p_ASCIIToHex(argv[1]);
-			(*execAddr)(0, 612, tagAddress);
+			execAddr = (void (*)(unsigned, unsigned))
+			    p_ASCIIToHex(argv[1]);
+			(*execAddr)(0, 612);
 		}
 		break;
 	}
@@ -232,24 +235,6 @@ ParseCommand(char *buffer)
 			SetServerIPAddress(BuildIP());
 		break;
 
-	case COMMAND_HELP:
-		// dump command info
-		printf("Commands:\r\n"
-		"\tc\r\n"
-		"\td\r\n"
-		"\te\r\n"
-		"\tip\r\n"
-		"\tserver_ip\r\n"
-		"\tm\r\n"
-		"\ttftp\r\n"
-		"\ts\r\n"
-#ifdef SUPPORT_TAG_LIST
-		"\tt\r\n"
-#endif
-		"\tw\r\n"
-		"\tx\r\n");
-		break;
-
 	case COMMAND_LOCAL_IP:
 		// "local_ip <local IP 192 200 1 21>
 		// set ip of this module
@@ -271,45 +256,37 @@ ParseCommand(char *buffer)
 		break;
 	}
 
-	case COMMAND_SET:
-	{
-		// s <index> <new boot command>
-		// set the boot command at index (0-based)
-		unsigned	index;
-
-		if (argc > 1) {
-			RestoreSpace(2);
-			index = p_ASCIIToHex(argv[1]);
-			SetBootCommand(index, argv[2]);
-		}
-		break;
-	}
-
-#ifdef SUPPORT_TAG_LIST
-	case COMMAND_TAG:
-		// t <address> <boot command line>
-		// create tag-list for linux boot
-		if (argc > 2) {
-			RestoreSpace(2);
-			tagAddress = p_ASCIIToHex(argv[1]);
-			InitTagList(argv[2], (void*)tagAddress);
-		}
-		break;
-#endif
-
-	case COMMAND_WRITE:
-		// write the command table to non-volatile
-		WriteCommandTable();
+	case COMMAND_LOAD_SPI_KERNEL:
+		// "k <address>"
+		if (argc > 1)
+			LoadKernelFromSpi((char *)p_ASCIIToHex(argv[1]));
 		break;
 
 	case COMMAND_XMODEM:
-	{
 		// "x <address>"
 		// download X-modem record at address
 		if (argc > 1)
 			xmodem_rx((char *)p_ASCIIToHex(argv[1]));
 		break;
-	}
+
+	case COMMAND_RESET:
+		printf("Reset\r\n");
+		reset();
+		while (1) continue;
+		break;
+
+	case COMMAND_REPLACE_KERNEL_VIA_XMODEM:
+		printf("Updating KERNEL image\r\n");
+		UpdateFlash(KERNEL_OFFSET);
+		break;
+	case COMMAND_REPLACE_FPGA_VIA_XMODEM:
+		printf("Updating FPGA image\r\n");
+		UpdateFlash(FPGA_OFFSET);
+		break;
+	case COMMAND_REPLACE_FLASH_VIA_XMODEM: 
+		printf("Updating FLASH image\r\n");
+		UpdateFlash(FLASH_OFFSET);
+		break;
 
 	default:
 		break;
@@ -373,11 +350,7 @@ Bootloader(int(*inputFunction)(int))
 	int	ch = 0;
 
 	p_memset((void*)inputBuffer, 0, sizeof(inputBuffer));
-
 	buffCount = 0;
-	if (!inputFunction) {
-		inputFunction = getc;
-	}
 
 	printf("\r\n>");
 
