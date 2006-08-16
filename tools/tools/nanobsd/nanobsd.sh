@@ -192,10 +192,23 @@ install_etc ( ) (
 	echo "## install /etc"
 	echo "### log: ${MAKEOBJDIRPREFIX}/_.etc"
 
-	cd ${NANO_SRC}/etc
+	cd ${NANO_SRC}
 	${NANO_PMAKE} __MAKE_CONF=${NANO_MAKE_CONF} distribution \
 		DESTDIR=${NANO_WORLDDIR} \
 		> ${MAKEOBJDIRPREFIX}/_.etc 2>&1
+	(
+	cd ${NANO_WORLDDIR}
+
+	# create diskless marker file
+	touch etc/diskless
+
+	# save config file for scripts
+	echo "NANO_DRIVE=${NANO_DRIVE}" > etc/nanobsd.conf
+
+	echo "/dev/${NANO_DRIVE}s1a / ufs ro 1 1" > etc/fstab
+	echo "/dev/${NANO_DRIVE}s3 /cfg ufs rw,noauto 2 2" >> etc/fstab
+	mkdir -p cfg
+	)
 )
 
 install_kernel ( ) (
@@ -227,16 +240,6 @@ setup_nanobsd ( ) (
 
 	(
 	cd ${NANO_WORLDDIR}
-
-	# create diskless marker file
-	touch etc/diskless
-
-	# save config file for scripts
-	echo "NANO_DRIVE=${NANO_DRIVE}" > etc/nanobsd.conf
-
-	echo "/dev/${NANO_DRIVE}s1a / ufs ro 1 1" > etc/fstab
-	echo "/dev/${NANO_DRIVE}s3 /cfg ufs rw,noauto 2 2" >> etc/fstab
-	mkdir -p cfg
 
 	for d in var etc
 	do
@@ -357,7 +360,7 @@ create_i386_diskimage ( ) (
 	# XXX: params
 	# XXX: pick up cached boot* files, they may not be in image anymore.
 	boot0cfg -B -b ${NANO_WORLDDIR}/boot/boot0sio -o packet -s 1 -m 3 ${MD}
-	bsdlabel -w -B ${MD}s1
+	bsdlabel -w -B -b ${NANO_WORLDDIR}/boot/boot ${MD}s1
 	bsdlabel ${MD}s1
 
 	# Create first image
@@ -461,16 +464,30 @@ customize_cmd () {
 #
 #######################################################################
 
+usage () {
+	(
+	echo "Usage: $0 [-b/-k/-w] [-c config_file]"
+	echo "	-b	suppress builds (both kernel and world)"
+	echo "	-k	suppress buildkernel"
+	echo "	-w	suppress buildworld"
+	echo "	-c	specify config file"
+	) 1>&2
+	exit 2
+}
+
 #######################################################################
 # Parse arguments
 
-do_build=true
+do_kernel=true
+do_world=true
 
-args=`getopt bc:h $*`
+set +e
+args=`getopt bc:hkw $*`
 if [ $? -ne 0 ] ; then
-	echo "Usage: $0 [-c config file]" 1>&2
+	usage
 	exit 2
 fi
+set -e
 
 set -- $args
 for i
@@ -479,7 +496,12 @@ do
 	in
 	-b)
 		shift;
-		do_build=false
+		do_world=false
+		do_kernel=false
+		;;
+	-k)
+		shift;
+		do_kernel=false
 		;;
 	-c)
 		. "$2"
@@ -487,8 +509,11 @@ do
 		shift;
 		;;
 	-h)
-		echo "Usage: $0 [-b] [-c config file]"
-		exit 2
+		usage
+		;;
+	-w)
+		shift;
+		do_world=false
 		;;
 	--)
 		shift;
@@ -497,8 +522,8 @@ do
 done
 
 if [ $# -gt 0 ] ; then
-	echo "Extraneous arguments"
-	exit 2
+	echo "$0: Extraneous arguments supplied"
+	usage
 fi
 
 #######################################################################
@@ -547,13 +572,18 @@ export NANO_WORLDDIR
 #######################################################################
 # And then it is as simple as that...
 
-if $do_build ; then
+if $do_world ; then
 	clean_build
 	make_conf_build
 	build_world
+else
+	echo "## Skipping buildworld (as instructed)"
+fi
+
+if $do_kernel ; then
 	build_kernel
 else
-	echo "## Skipping build steps (as instructed)"
+	echo "## Skipping buildkernel (as instructed)"
 fi
 
 clean_world
