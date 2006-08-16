@@ -12,7 +12,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipt.c	1.19 6/3/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipftest.c,v 1.44.2.7 2005/12/07 08:29:19 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipftest.c,v 1.44.2.9 2006/03/29 11:21:13 darrenr Exp $";
 #endif
 
 extern	char	*optarg;
@@ -212,7 +212,7 @@ char *argv[];
 	ip = MTOD(m, ip_t *);
 	while ((i = (*r->r_readip)(MTOD(m, char *), sizeof(m->mb_buf),
 				    &iface, &dir)) > 0) {
-		if (iface == NULL || *iface == '\0')
+		if ((iface == NULL) || (*iface == '\0'))
 			iface = ifname;
 		ifp = get_unit(iface, IP_V(ip));
 		if (!use_inet6) {
@@ -799,6 +799,6 @@ ip_t *ip;
 	}
 	if (hdr != NULL) {
 		*csump = 0;
-		*(u_short *)csump = fr_cksum(m, ip, ip->ip_p, hdr);
+		*(u_short *)csump = fr_cksum(m, ip, ip->ip_p, hdr, ip->ip_len);
 	}
 }

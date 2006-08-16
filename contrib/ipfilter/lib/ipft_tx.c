@@ -5,11 +5,11 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: ipft_tx.c,v 1.15.2.6 2005/12/04 10:07:22 darrenr Exp $
+ * $Id: ipft_tx.c,v 1.15.2.7 2005/12/18 14:53:39 darrenr Exp $
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_tx.c	1.7 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipft_tx.c,v 1.15.2.6 2005/12/04 10:07:22 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_tx.c,v 1.15.2.7 2005/12/18 14:53:39 darrenr Exp $";
 #endif
 
 #include <ctype.h>
@@ -75,36 +75,15 @@ int	*resolved;
 static	u_short	tx_portnum(name)
 char	*name;
 {
-	struct	servent	*sp, *sp2;
-	u_short	p1 = 0;
+	struct	servent	*sp;
 
 	if (ISDIGIT(*name))
 		return (u_short)atoi(name);
-	if (!tx_proto)
-		tx_proto = "tcp/udp";
-	if (strcasecmp(tx_proto, "tcp/udp")) {
-		sp = getservbyname(name, tx_proto);
-		if (sp)
-			return ntohs(sp->s_port);
-		(void) fprintf(stderr, "unknown service \"%s\".\n", name);
-		return 0;
-	}
-	sp = getservbyname(name, "tcp");
+	sp = getservbyname(name, tx_proto);
 	if (sp)
-		p1 = sp->s_port;
-	sp2 = getservbyname(name, "udp");
-	if (!sp || !sp2) {
-		(void) fprintf(stderr, "unknown tcp/udp service \"%s\".\n",
-			name);
-		return 0;
-	}
-	if (p1 != sp2->s_port) {
-		(void) fprintf(stderr, "%s %d/tcp is a different port to ",
-			name, p1);
-		(void) fprintf(stderr, "%s %d/udp\n", name, sp->s_port);
-		return 0;
-	}
-	return ntohs(p1);
+		return ntohs(sp->s_port);
+	(void) fprintf(stderr, "unknown service \"%s\".\n", name);
+	return 0;
 }
 
 
