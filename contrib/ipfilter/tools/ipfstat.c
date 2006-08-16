@@ -70,7 +70,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)fils.c	1.21 4/20/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipfstat.c,v 1.44.2.13 2005/10/17 17:26:32 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipfstat.c,v 1.44.2.14 2006/03/21 16:09:58 darrenr Exp $";
 #endif
 
 #ifdef __hpux
@@ -925,8 +925,6 @@ ips_stat_t *ipsp;
 			ipsp->iss_tcp, ipsp->iss_udp, ipsp->iss_icmp);
 		PRINTF("\t%lu hits\n\t%lu misses\n", ipsp->iss_hits,
 			ipsp->iss_miss);
-		PRINTF("\t%lu maximum\n\t%lu no memory\n\t%lu max bucket\n",
-			ipsp->iss_max, ipsp->iss_nomem, ipsp->iss_bucketfull);
 		PRINTF("\t%lu maximum\n\t%lu no memory\n\t%lu bkts in use\n",
 			ipsp->iss_max, ipsp->iss_nomem, ipsp->iss_inuse);
 		PRINTF("\t%lu active\n\t%lu expired\n\t%lu closed\n",

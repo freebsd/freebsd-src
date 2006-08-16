@@ -6,7 +6,7 @@
 # to the original author and the contributors.
 #
 # $FreeBSD$
-# Id: Makefile,v 2.76.2.13 2004/11/08 18:42:40 darrenr Exp
+# Id: Makefile,v 2.76.2.19 2006/03/17 10:38:38 darrenr Exp $
 #
 SHELL=/bin/sh
 BINDEST=/usr/local/bin
@@ -135,6 +135,7 @@ all:
 	@echo "freebsd3	- compile for FreeBSD-3.x"
 	@echo "freebsd4	- compile for FreeBSD-4.x"
 	@echo "freebsd5 - compile for FreeBSD-5.x"
+	@echo "freebsd6 - compile for FreeBSD-6.x"
 	@echo "bsd	- compile for generic 4.4BSD systems"
 	@echo "bsdi	- compile for BSD/OS"
 	@echo "irix	- compile for SGI IRIX"
@@ -187,7 +188,7 @@ freebsd22: include
 	fi
 	make freebsd20
 
-freebsd5: include
+freebsd5 freebsd6: include
 	if [ x$(INET6) = x ] ; then \
 		echo "#undef INET6" > opt_inet6.h; \
 	else \

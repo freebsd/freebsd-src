@@ -460,21 +460,19 @@ char *file;
 		i = read(sfd, &ips, sizeof(ips));
 		if (i == -1) {
 			perror("read");
-			close(sfd);
-			return 1;
+			goto freeipshead;
 		}
 		if (i == 0)
 			break;
 		if (i != sizeof(ips)) {
 			fprintf(stderr, "state:incomplete read: %d != %d\n",
 				i, (int)sizeof(ips));
-			close(sfd);
-			return 1;
+			goto freeipshead;
 		}
 		is = (ipstate_save_t *)malloc(sizeof(*is));
-		if(!is) {
+		if (is == NULL) {
 			fprintf(stderr, "malloc failed\n");
-			return 1;
+			goto freeipshead;
 		}
 
 		bcopy((char *)&ips, (char *)is, sizeof(ips));
@@ -512,7 +510,7 @@ char *file;
 	obj.ipfo_size = sizeof(*is);
 	obj.ipfo_type = IPFOBJ_STATESAVE;
 
-	for (is = ipshead; is; is = is->ips_next) {
+	while ((is = ipshead) != NULL) {
 		if (opts & OPT_VERBOSE)
 			printf("Loading new state table entry\n");
 		if (is->ips_is.is_flags & SI_NEWFR) {
@@ -524,7 +522,7 @@ char *file;
 		if (!(opts & OPT_DONOTHING))
 			if (ioctl(fd, SIOCSTPUT, &obj)) {
 				perror("SIOCSTPUT");
-				return 1;
+				goto freeipshead;
 			}
 
 		if (is->ips_is.is_flags & SI_NEWFR) {
@@ -534,9 +532,21 @@ char *file;
 				if (is1->ips_rule == (frentry_t *)&is->ips_rule)
 					is1->ips_rule = is->ips_rule;
 		}
+
+		ipshead = is->ips_next;
+		free(is);
 	}
 
 	return 0;
+
+freeipshead:
+	while ((is = ipshead) != NULL) {
+		ipshead = is->ips_next;
+		free(is);
+	}
+	if (sfd != -1)
+		close(sfd);
+	return 1;
 }
 
 
@@ -575,21 +585,21 @@ char *file;
 		i = read(nfd, &ipn, sizeof(ipn));
 		if (i == -1) {
 			perror("read");
-			close(nfd);
-			return 1;
+			goto freenathead;
 		}
 		if (i == 0)
 			break;
 		if (i != sizeof(ipn)) {
 			fprintf(stderr, "nat:incomplete read: %d != %d\n",
 				i, (int)sizeof(ipn));
-			close(nfd);
-			return 1;
+			goto freenathead;
 		}
 
 		in = (nat_save_t *)malloc(ipn.ipn_dsize);
-		if (!in)
-			break;
+		if (in == NULL) {
+			fprintf(stderr, "nat:cannot malloc nat save atruct\n");
+			goto freenathead;
+		}
 
 		if (ipn.ipn_dsize > sizeof(ipn)) {
 			n = ipn.ipn_dsize - sizeof(ipn);
@@ -602,8 +612,7 @@ char *file;
 					fprintf(stderr,
 					    "nat:incomplete read: %d != %d\n",
 					    i, n);
-					close(nfd);
-					return 1;
+					goto freenathead;
 				}
 			}
 		}
@@ -645,7 +654,7 @@ char *file;
 	obj.ipfo_rev = IPFILTER_VERSION;
 	obj.ipfo_type = IPFOBJ_NATSAVE;
 
-	for (in = ipnhead; in; in = in->ipn_next) {
+	while ((in = ipnhead) != NULL) {
 		if (opts & OPT_VERBOSE)
 			printf("Loading new NAT table entry\n");
 		nat = &in->ipn_nat;
@@ -670,9 +679,21 @@ char *file;
 				if (in1->ipn_rule == &in->ipn_fr)
 					in1->ipn_rule = nat->nat_fr;
 		}
+
+		ipnhead = in->ipn_next;
+		free(in);
 	}
 
 	return 0;
+
+freenathead:
+	while ((in = ipnhead) != NULL) {
+		ipnhead = in->ipn_next;
+		free(in);
+	}
+	if (nfd != -1)
+		close(nfd);
+	return 1;
 }
 
 

@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: printlog.c,v 1.6.4.1 2005/11/14 17:45:06 darrenr Exp $
+ * $Id: printlog.c,v 1.6.4.2 2005/12/18 14:49:06 darrenr Exp $
  */
 
 #include "ipf.h"
@@ -28,14 +28,11 @@ frentry_t *fp;
 	if (fp->fr_loglevel != 0xffff) {
 		printf(" level ");
 		s = fac_toname(fp->fr_loglevel);
-		if (s == NULL)
+		if (s == NULL || *s == '\0')
 			s = "!!!";
 		u = pri_toname(fp->fr_loglevel);
-		if (u == NULL)
+		if (u == NULL || *u == '\0')
 			u = "!!!";
-		if (*s)
-			printf("%s.%s", s, u);
-		else
-			printf("%s", u);
+		printf("%s.%s", s, u);
 	}
 }
