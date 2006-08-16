@@ -130,6 +130,15 @@ An attempt is made to connect to a broadcast address (obtained through the
 constant or the
 .Dv INADDR_NONE
 return value) through a socket that does not provide broadcast functionality.
+.It Bq Er EAGAIN
+An auto-assigned port number was requested but no auto-assigned ports 
+are available.  Increasing the port range specified by
+.Xr sysctl 3
+MIB variables
+.Dq Va net.inet.ip.portrange.first
+and
+.Dq Va net.inet.ip.portrange.last
+may alleviate the problem.
 .El
 .Pp
 The following errors are specific to connecting names in the UNIX domain.
@@ -154,7 +163,9 @@ Too many symbolic links were encountered in translating the pathname.
 .Xr getpeername 2 ,
 .Xr getsockname 2 ,
 .Xr select 2 ,
-.Xr socket 2
+.Xr socket 2 ,
+.Xr sysctl 3 ,
+.Xr sysctl 8
 .Sh HISTORY
 The
 .Fn connect
