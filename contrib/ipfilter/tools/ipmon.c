@@ -76,7 +76,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipmon.c,v 1.33.2.10 2005/06/18 02:41:35 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipmon.c,v 1.33.2.15 2006/03/18 06:59:39 darrenr Exp $";
 #endif
 
 
@@ -189,6 +189,7 @@ static	char	*conf_file = NULL;
 #ifndef	LOGFAC
 #define	LOGFAC	LOG_LOCAL0
 #endif
+int	logfac = LOGFAC;
 
 
 static icmp_subtype_t icmpunreachnames[] = {
@@ -648,10 +649,10 @@ int	len;
 		if (j && !(j & 0xf)) {
 			*t++ = '\n';
 			*t = '\0';
-			if (!(dopts & OPT_SYSLOG))
-				fputs(hline, log);
-			else
+			if ((dopts & OPT_SYSLOG))
 				syslog(LOG_INFO, "%s", hline);
+			else if (log != NULL)
+				fputs(hline, log);
 			t = (u_char *)hline;
 			*t = '\0';
 		}
@@ -684,11 +685,12 @@ int	len;
 		*t++ = '\n';
 		*t = '\0';
 	}
-	if (!(dopts & OPT_SYSLOG)) {
+	if ((dopts & OPT_SYSLOG) != 0)
+		syslog(LOG_INFO, "%s", hline);
+	else if (log != NULL) {
 		fputs(hline, log);
 		fflush(log);
-	} else
-		syslog(LOG_INFO, "%s", hline);
+	}
 }
 
 
@@ -782,7 +784,7 @@ int	blen;
 	*t++ = '\0';
 	if (opts & OPT_SYSLOG)
 		syslog(LOG_INFO, "%s", line);
-	else
+	else if (log != NULL)
 		(void) fprintf(log, "%s", line);
 }
 
@@ -899,7 +901,7 @@ int	blen;
 	*t++ = '\0';
 	if (opts & OPT_SYSLOG)
 		syslog(LOG_INFO, "%s", line);
-	else
+	else if (log != NULL)
 		(void) fprintf(log, "%s", line);
 }
 
@@ -1030,12 +1032,7 @@ int	blen;
 	(void) sprintf(t, "%*.*s%u", len, len, ipf->fl_ifname, ipf->fl_unit);
 	t += strlen(t);
 #endif
-#if defined(__sgi) || defined(_AIX51) || defined(__powerpc__) || \
-    defined(__arm__)
-	if ((ipf->fl_group[0] == 255) && (ipf->fl_group[1] == '\0'))
-#else
-	if ((ipf->fl_group[0] == -1) && (ipf->fl_group[1] == '\0'))
-#endif
+	if ((ipf->fl_group[0] == (char)~0) && (ipf->fl_group[1] == '\0'))
 		strcat(t, " @-1:");
 	else if (ipf->fl_group[0] == '\0')
 		(void) strcpy(t, " @0:");
@@ -1305,8 +1302,9 @@ printipflog:
 	if (defaction == 0) {
 		if (opts & OPT_SYSLOG)
 			syslog(lvl, "%s", line);
-		else
+		else if (log != NULL)
 			(void) fprintf(log, "%s", line);
+
 		if (opts & OPT_HEXHDR)
 			dumphex(log, opts, buf,
 				sizeof(iplog_t) + sizeof(*ipf));
@@ -1369,11 +1367,12 @@ FILE *log;
 	(void) close(fd);
 
 	if (flushed) {
-		if (opts & OPT_SYSLOG)
+		if (opts & OPT_SYSLOG) {
 			syslog(LOG_INFO, "%d bytes flushed from log\n",
 				flushed);
-		else if (log != stdout)
+		} else if ((log != stdout) && (log != NULL)) {
 			fprintf(log, "%d bytes flushed from log\n", flushed);
+		}
 	}
 }
 
@@ -1431,7 +1430,8 @@ char *argv[];
 	iplfile[1] = IPNAT_NAME;
 	iplfile[2] = IPSTATE_NAME;
 
-	while ((c = getopt(argc, argv, "?abB:C:Df:FhnN:o:O:pP:sS:tvxX")) != -1)
+	while ((c = getopt(argc, argv,
+			   "?abB:C:Df:FhL:nN:o:O:pP:sS:tvxX")) != -1)
 		switch (c)
 		{
 		case 'a' :
@@ -1463,6 +1463,15 @@ char *argv[];
 			flushlogs(iplfile[1], log);
 			flushlogs(iplfile[2], log);
 			break;
+		case 'L' :
+			logfac = fac_findname(optarg);
+			if (logfac == -1) {
+				fprintf(stderr,
+					"Unknown syslog facility '%s'\n",
+					 optarg);
+				exit(1);
+			}
+			break;
 		case 'n' :
 			opts |= OPT_RESOLVE;
 			break;
@@ -1493,7 +1502,7 @@ char *argv[];
 				s = argv[0];
 			else
 				s++;
-			openlog(s, LOG_NDELAY|LOG_PID, LOGFAC);
+			openlog(s, LOG_NDELAY|LOG_PID, logfac);
 			s = NULL;
 			opts |= OPT_SYSLOG;
 			log = NULL;
@@ -1588,8 +1597,8 @@ char *argv[];
 #endif /* !BSD */
 		close(0);
 		close(1);
+		write_pid(pidfile);
 	}
-	write_pid(pidfile);
 
 	signal(SIGHUP, handlehup);
 
@@ -1625,7 +1634,8 @@ char *argv[];
 					fclose(log);
 					log = fp;
 				}
-				if (binarylogfile && (fp = fopen(binarylogfile, "a"))) {
+				if (binarylogfile &&
+				    (fp = fopen(binarylogfile, "a"))) {
 					fclose(binarylog);
 					binarylog = fp;
 				}
@@ -1647,7 +1657,7 @@ char *argv[];
 			case 1 :
 				if (opts & OPT_SYSLOG)
 					syslog(LOG_CRIT, "aborting logging\n");
-				else
+				else if (log != NULL)
 					fprintf(log, "aborting logging\n");
 				doread = 0;
 				break;
