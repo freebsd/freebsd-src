@@ -24,7 +24,7 @@
 #ifndef _EMAC_H_
 #define _EMAC_H_
 
-extern void SetMACAddress(unsigned char addr[6]);
+extern void EMAC_SetMACAddress(unsigned char addr[6]);
 extern void SetServerIPAddress(unsigned address);
 extern void SetLocalIPAddress(unsigned address);
 extern void EMAC_Init(void);
@@ -126,5 +126,13 @@ typedef struct {
 #define MII_SSTS_10FDX	0x2000
 #define MII_SSTS_10HDX	0x1000
 #endif
+
+extern unsigned char localMACAddr[6];
+extern unsigned localMAClow, localMAChigh;
+extern unsigned localMACSet, serverMACSet;
+extern receive_descriptor_t *p_rxBD;
+extern unsigned	lastSize;
+extern unsigned localIPSet, serverIPSet;
+extern unsigned short	serverPort, localPort;
 
 #endif /* _EMAC_H_ */
