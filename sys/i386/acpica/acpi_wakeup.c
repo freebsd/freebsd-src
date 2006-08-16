@@ -52,21 +52,25 @@ __FBSDID("$FreeBSD$");
 
 #include "acpi_wakecode.h"
 
+/* Make sure the code is less than one page and leave room for the stack. */
+CTASSERT(sizeof(wakecode) < PAGE_SIZE - 1024);
+
 #ifndef _SYS_CDEFS_H_
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+extern uint32_t	acpi_resume_beep;
 extern uint32_t	acpi_reset_video;
 extern void	initializecpu(void);
 
-static struct region_descriptor	r_idt, r_gdt, *p_gdt;
-static uint16_t		r_ldt;
+static struct region_descriptor	saved_idt, saved_gdt, *p_gdt;
+static uint16_t		saved_ldt;
 
 static uint32_t		r_eax, r_ebx, r_ecx, r_edx, r_ebp, r_esi, r_edi,
 			r_efl, r_cr0, r_cr2, r_cr3, r_cr4, ret_addr;
 
 static uint16_t		r_cs, r_ds, r_es, r_fs, r_gs, r_ss, r_tr;
-static uint32_t		r_esp = 0;
+static uint32_t		r_esp;
 
 static void		acpi_printcpu(void);
 static void		acpi_realmodeinst(void *arg, bus_dma_segment_t *segs,
@@ -134,9 +138,9 @@ acpi_savecpu:				\n\
 					\n\
 	movl	%esp,r_esp		\n\
 					\n\
-	sgdt	r_gdt			\n\
-	sidt	r_idt			\n\
-	sldt	r_ldt			\n\
+	sgdt	saved_gdt		\n\
+	sidt	saved_idt		\n\
+	sldt	saved_ldt		\n\
 	str	r_tr			\n\
 					\n\
 	movl	(%esp),%eax		\n\
@@ -151,8 +155,9 @@ acpi_printcpu(void)
 {
 	printf("======== acpi_printcpu() debug dump ========\n");
 	printf("gdt[%04x:%08x] idt[%04x:%08x] ldt[%04x] tr[%04x] efl[%08x]\n",
-		r_gdt.rd_limit, r_gdt.rd_base, r_idt.rd_limit, r_idt.rd_base,
-		r_ldt, r_tr, r_efl);
+		saved_gdt.rd_limit, saved_gdt.rd_base,
+		saved_idt.rd_limit, saved_idt.rd_base,
+		saved_ldt, r_tr, r_efl);
 	printf("eax[%08x] ebx[%08x] ecx[%08x] edx[%08x]\n",
 		r_eax, r_ebx, r_ecx, r_edx);
 	printf("esi[%08x] edi[%08x] ebp[%08x] esp[%08x]\n",
@@ -174,6 +179,13 @@ acpi_printcpu(void)
 	addr = (void *)(sc->acpi_wakeaddr + offset);		\
 	bcopy(&(val), addr, sizeof(type));			\
 } while (0)
+
+/* Turn off bits 1&2 of the PIT, stopping the beep. */
+static void
+acpi_stop_beep(void *arg)
+{
+	outb(0x61, inb(0x61) & ~0x3);
+}
 
 int
 acpi_sleep_machdep(struct acpi_softc *sc, int state)
@@ -217,8 +229,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 		p_gdt = (struct region_descriptor *)
 				(sc->acpi_wakeaddr + physical_gdt);
-		p_gdt->rd_limit = r_gdt.rd_limit;
-		p_gdt->rd_base = vtophys(r_gdt.rd_base);
+		p_gdt->rd_limit = saved_gdt.rd_limit;
+		p_gdt->rd_base = vtophys(saved_gdt.rd_base);
 
 		WAKECODE_FIXUP(physical_esp, uint32_t, vtophys(r_esp));
 		WAKECODE_FIXUP(previous_cr0, uint32_t, r_cr0);
@@ -226,12 +238,13 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(previous_cr3, uint32_t, r_cr3);
 		WAKECODE_FIXUP(previous_cr4, uint32_t, r_cr4);
 
+		WAKECODE_FIXUP(resume_beep, uint32_t, acpi_resume_beep);
 		WAKECODE_FIXUP(reset_video, uint32_t, acpi_reset_video);
 
 		WAKECODE_FIXUP(previous_tr,  uint16_t, r_tr);
-		WAKECODE_BCOPY(previous_gdt, struct region_descriptor, r_gdt);
-		WAKECODE_FIXUP(previous_ldt, uint16_t, r_ldt);
-		WAKECODE_BCOPY(previous_idt, struct region_descriptor, r_idt);
+		WAKECODE_BCOPY(previous_gdt, struct region_descriptor, saved_gdt);
+		WAKECODE_FIXUP(previous_ldt, uint16_t, saved_ldt);
+		WAKECODE_BCOPY(previous_idt, struct region_descriptor, saved_idt);
 
 		WAKECODE_FIXUP(where_to_recover, void *, acpi_restorecpu);
 
@@ -274,12 +287,16 @@ out:
 	load_cr3(cr3);
 	write_eflags(ef);
 
+	/* If we beeped, turn it off after a delay. */
+	if (acpi_resume_beep)
+		timeout(acpi_stop_beep, NULL, 3 * hz);
+
 	return (ret);
 }
 
 static bus_dma_tag_t	acpi_waketag;
 static bus_dmamap_t	acpi_wakemap;
-static vm_offset_t	acpi_wakeaddr = 0;
+static vm_offset_t	acpi_wakeaddr;
 
 static void
 acpi_alloc_wakeup_handler(void)
@@ -289,16 +306,21 @@ acpi_alloc_wakeup_handler(void)
 	if (!cold)
 		return;
 
-	if (bus_dma_tag_create(/* parent */ NULL, /* alignment */ 2, 0,
-			       /* lowaddr below 1MB */ 0x9ffff,
-			       /* highaddr */ BUS_SPACE_MAXADDR, NULL, NULL,
-				PAGE_SIZE, 1, PAGE_SIZE, 0, busdma_lock_mutex,
-				&Giant, &acpi_waketag) != 0) {
+	/*
+	 * Specify the region for our wakeup code.  We want it in the low 1 MB
+	 * region, excluding video memory and above (0xa0000).  We ask for
+	 * it to be page-aligned, just to be safe.
+	 */
+	if (bus_dma_tag_create(/*parent*/ NULL,
+	    /*alignment*/ PAGE_SIZE, /*no boundary*/ 0,
+	    /*lowaddr*/ 0x9ffff, /*highaddr*/ BUS_SPACE_MAXADDR, NULL, NULL,
+	    /*maxsize*/ PAGE_SIZE, /*segments*/ 1, /*maxsegsize*/ PAGE_SIZE,
+	    0, busdma_lock_mutex, &Giant, &acpi_waketag) != 0) {
 		printf("acpi_alloc_wakeup_handler: can't create wake tag\n");
 		return;
 	}
-	if (bus_dmamem_alloc(acpi_waketag, &wakeaddr,
-			     BUS_DMA_NOWAIT, &acpi_wakemap)) {
+	if (bus_dmamem_alloc(acpi_waketag, &wakeaddr, BUS_DMA_NOWAIT,
+	    &acpi_wakemap) != 0) {
 		printf("acpi_alloc_wakeup_handler: can't alloc wake memory\n");
 		return;
 	}
@@ -310,13 +332,21 @@ SYSINIT(acpiwakeup, SI_SUB_KMEM, SI_ORDER_ANY, acpi_alloc_wakeup_handler, 0)
 static void
 acpi_realmodeinst(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
-	struct acpi_softc	*sc = arg;
-	uint32_t		*addr;
+	struct acpi_softc *sc;
+	uint32_t *addr;
 
-	addr = (uint32_t *)&wakecode[wakeup_sw32 + 2];
-	*addr = segs[0].ds_addr + wakeup_32;
-	bcopy(wakecode, (void *)sc->acpi_wakeaddr, sizeof(wakecode));
+	/* Overwrite the ljmp target with the real address */
+	sc = arg;
 	sc->acpi_wakephys = segs[0].ds_addr;
+	addr = (uint32_t *)&wakecode[wakeup_sw32 + 2];
+	*addr = sc->acpi_wakephys + wakeup_32;
+
+	/* Copy the wake code into our low page and save its physical addr. */
+	bcopy(wakecode, (void *)sc->acpi_wakeaddr, sizeof(wakecode));
+	if (bootverbose) {
+		device_printf(sc->acpi_dev, "wakeup code va %#x pa %#jx\n",
+		    acpi_wakeaddr, (uintmax_t)sc->acpi_wakephys);
+	}
 }
 
 void
@@ -330,6 +360,5 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 	sc->acpi_wakemap = acpi_wakemap;
 
 	bus_dmamap_load(sc->acpi_waketag, sc->acpi_wakemap,
-			(void *)sc->acpi_wakeaddr, PAGE_SIZE,
-			acpi_realmodeinst, sc, 0);
+	    (void *)sc->acpi_wakeaddr, PAGE_SIZE, acpi_realmodeinst, sc, 0);
 }

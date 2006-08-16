@@ -35,6 +35,7 @@
 .Cd "device acpi"
 .Pp
 .Cd "options ACPI_DEBUG"
+.Cd "options DDB"
 .Sh DESCRIPTION
 The
 .Nm
@@ -186,6 +187,9 @@ Tunables can be set at the
 .Xr loader 8
 prompt before booting the kernel or stored in
 .Pa /boot/loader.conf .
+Many of these tunables also have a matching
+.Xr sysctl 8
+entry for access after boot.
 .Bl -tag -width indent
 .It Va acpi_dsdt_load
 Enables loading of a custom ACPI DSDT.
@@ -200,6 +204,10 @@ handle parallel requests.
 The default value is 3.
 .It Va debug.acpi.quirks
 Override any automatic quirks completely.
+.It Va debug.acpi.resume_beep
+Beep the PC speaker on resume.
+This can help diagnose suspend/resume problems.
+Default is 0 (disabled).
 .It Va hint.acpi.0.disabled
 Set this to 1 to disable all of ACPI.
 If ACPI has been disabled on your system due to a blacklist entry for your
@@ -212,8 +220,9 @@ Try increasing this number if you get the error
 Override the assumed memory starting address for PCI host bridges.
 .It Va hw.acpi.reset_video
 Enables calling the VESA reset BIOS vector on the resume path.
-Some graphic chips have problems such as LCD white-out after resume.
-Try setting this to 0 if this causes problems for you.
+This can fix some graphics cards that have problems such as LCD white-out
+after resume.
+Default is 0 (disabled).
 .It Va hw.acpi.serialize_methods
 Allow override of whether methods execute in parallel or not.
 Enable this for serial behavior, which fixes

@@ -52,7 +52,13 @@ __FBSDID("$FreeBSD$");
 
 #include <i386/bios/apm.h>
 
-uint32_t acpi_reset_video = 1;
+SYSCTL_DECL(_debug_acpi);
+
+uint32_t acpi_resume_beep;
+TUNABLE_INT("debug.acpi.resume_beep", &acpi_resume_beep);
+SYSCTL_UINT(_debug_acpi, OID_AUTO, resume_beep, CTLFLAG_RW, &acpi_resume_beep,
+    0, "Beep the PC speaker when resuming");
+uint32_t acpi_reset_video;
 TUNABLE_INT("hw.acpi.reset_video", &acpi_reset_video);
 
 static int intr_model = ACPI_INTR_PIC;
@@ -320,7 +326,7 @@ acpi_machdep_init(device_t dev)
 
 	SYSCTL_ADD_UINT(&sc->acpi_sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->acpi_sysctl_tree), OID_AUTO,
-	    "reset_video", CTLFLAG_RD | CTLFLAG_RW, &acpi_reset_video, 0,
+	    "reset_video", CTLFLAG_RW, &acpi_reset_video, 0,
 	    "Call the VESA reset BIOS vector on the resume path");
 
 	return (0);
