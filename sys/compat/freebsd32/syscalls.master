@@ -754,3 +754,5 @@
 466	AUE_NULL	UNIMPL	thr_setscheduler
 467	AUE_NULL	UNIMPL	thr_getscheduler
 468	AUE_NULL	UNIMPL	thr_setschedparam
+469	AUE_NULL	UNIMPL	__getpath_fromfd
+470	AUE_NULL	UNIMPL	__getpath_fromaddr
