@@ -110,7 +110,8 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 	em->child_clear_tid = NULL;
 	em->child_set_tid = NULL;
 
-	/* allocate the shared struct only in clone()/fork cases 
+	/* 
+	 * allocate the shared struct only in clone()/fork cases 
 	 * in the case of clone() td = calling proc and child = pid of 
 	 * the newly created proc
 	 */
@@ -190,9 +191,10 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 		cup.uaddr2 = NULL;
 		cup.val3 = 0;
 		error = linux_sys_futex(FIRST_THREAD_IN_PROC(p), &cup);
-		/* this cannot happen at the moment and if this happens
+		/* 
+		 * this cannot happen at the moment and if this happens
 		 * it probably mean there is a userspace bug
-		*/
+		 */
 		if (error)
 		   	printf(LMSG("futex stuff in proc_exit failed.\n"));
 	}
@@ -201,7 +203,8 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 	FREE(em, M_LINUX);
 }
 
-/* This is used in a case of transition from FreeBSD binary execing to linux binary
+/* 
+ * This is used in a case of transition from FreeBSD binary execing to linux binary
  * in this case we create linux emuldata proc entry with the pid of the currently running
  * process.
  */
@@ -256,7 +259,8 @@ retry:
 	em = em_find(p, EMUL_UNLOCKED);
 
 	if (em == NULL) {
-	   	/* We might have been called before proc_init for this process so
+	   	/* 
+		 * We might have been called before proc_init for this process so
 		 * tsleep and be woken up by it. We use p->p_emuldata for this
 		 */
 

@@ -38,7 +38,8 @@ struct linux_emuldata_shared {
 	LIST_HEAD(, linux_emuldata) threads;	/* head of list of linux threads */
 };
 
-/* modeled after similar structure in NetBSD 
+/* 
+ * modeled after similar structure in NetBSD 
  * this will be extended as we need more functionality
  */
 struct linux_emuldata {
