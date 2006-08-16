@@ -57,7 +57,6 @@ char *argv[];
 	struct	sockaddr_in	sin, sloc, sout;
 	ipfobj_t	obj;
 	natlookup_t	natlook;
-	natlookup_t	*natlookp = &natlook;
 	char	buffer[512];
 	int	namelen, fd, n;
 
