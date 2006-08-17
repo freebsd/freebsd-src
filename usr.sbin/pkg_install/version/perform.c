@@ -259,7 +259,7 @@ show_version(Package plist, const char *latest, const char *source)
 
     if (!plist.name || strlen(plist.name) == 0)
 	return;
-    if (ShowOrigin != FALSE)
+    if (ShowOrigin != FALSE && plist.origin != NULL)
 	strlcpy(tmp, plist.origin, PATH_MAX);
     else {
 	strlcpy(tmp, plist.name, PATH_MAX);
