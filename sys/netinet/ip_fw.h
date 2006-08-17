@@ -521,6 +521,8 @@ struct ip_fw_args {
 	struct inpcb	*inp;
 
 	struct _ip6dn_args	dummypar; /* dummynet->ip6_output */
+	struct sockaddr_in hopstore;	/* store here if cannot use a pointer */
+
 };
 
 /*
