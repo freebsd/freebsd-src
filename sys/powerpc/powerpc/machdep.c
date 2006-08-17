@@ -329,7 +329,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	bcopy(&dsitrap,  (void *)EXC_DSI,  (size_t)&dsisize);
 	bcopy(&trapcode, (void *)EXC_ISI,  (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_EXI,  (size_t)&trapsize);
-	bcopy(&trapcode, (void *)EXC_ALI,  (size_t)&trapsize);
+	bcopy(&alitrap,  (void *)EXC_ALI,  (size_t)&alisize);
 	bcopy(&trapcode, (void *)EXC_PGM,  (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_FPU,  (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_DECR, (size_t)&trapsize);
