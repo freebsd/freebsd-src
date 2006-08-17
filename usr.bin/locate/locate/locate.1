@@ -33,7 +33,7 @@
 .\"	@(#)locate.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd July 23, 2004
+.Dd August 17, 2006
 .Dt LOCATE 1
 .Os
 .Sh NAME
@@ -102,7 +102,7 @@ Suppress normal output; instead print a count of matching file names.
 .It Fl d Ar database
 Search in
 .Ar database
-instead the default file name database.
+instead of the default file name database.
 Multiple
 .Fl d
 options are allowed.
@@ -237,20 +237,20 @@ to locate files that are of a more transitory nature.
 .Pp
 The
 .Nm
-database was built by user
-.Dq nobody .
-The
-.Xr find 1
-utility skips directories,
+database is typically built by user
+.Dq nobody
+and the 
+.Xr locate.updatedb 8
+utility skips directories
 which are not readable for user
 .Dq nobody ,
 group
 .Dq nobody ,
 or
 world.
-E.g.\& if your HOME directory is not world-readable, all your
-files are
-.Ar not
+For example, if your HOME directory is not world-readable,
+.Ar none
+of your files are
 in the database.
 .Pp
 The
@@ -260,12 +260,12 @@ It is not possible
 to share the databases between machines with different byte order.
 The current
 .Nm
-implementation understand databases in host byte order or
+implementation understands databases in host byte order or
 network byte order if both architectures use the same integer size.
-So you can read on a
+So on a
 .Fx Ns /i386
 machine
-(little endian)
+(little endian), you can read
 a locate database which was built on SunOS/sparc machine
 (big endian, net).
 .Pp
