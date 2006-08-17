@@ -34,7 +34,7 @@ dhclient_start()
 	fi
 
 	eval specific=\$background_dhclient_$ifn
-	if [ -n "$specific ]; then
+	if [ -n "$specific" ]; then
 		if checkyesno background_dhclient_$ifn; then
 			rc_flags="${rc_flags} -b"
 		fi
