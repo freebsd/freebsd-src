@@ -173,7 +173,7 @@ rgephy_service(sc, mii, cmd)
 	int cmd;
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-	int reg, speed, gig;
+	int reg, speed, gig, anar;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
@@ -203,6 +203,10 @@ rgephy_service(sc, mii, cmd)
 
 		rgephy_reset(sc);	/* XXX hardware bug work-around */
 
+		anar = PHY_READ(sc, RGEPHY_MII_ANAR);
+		anar &= ~(RGEPHY_ANAR_TX_FD | RGEPHY_ANAR_TX |
+		    RGEPHY_ANAR_10_FD | RGEPHY_ANAR_10);
+
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
 #ifdef foo
@@ -219,28 +223,30 @@ rgephy_service(sc, mii, cmd)
 			goto setit;
 		case IFM_100_TX:
 			speed = RGEPHY_S100;
+			anar |= RGEPHY_ANAR_TX_FD | RGEPHY_ANAR_TX;
 			goto setit;
 		case IFM_10_T:
 			speed = RGEPHY_S10;
+			anar |= RGEPHY_ANAR_10_FD | RGEPHY_ANAR_10;
 setit:
 			rgephy_loop(sc);
 			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX) {
 				speed |= RGEPHY_BMCR_FDX;
 				gig = RGEPHY_1000CTL_AFD;
+				anar &= ~(RGEPHY_ANAR_TX | RGEPHY_ANAR_10);
 			} else {
 				gig = RGEPHY_1000CTL_AHD;
+				anar &=
+				    ~(RGEPHY_ANAR_TX_FD | RGEPHY_ANAR_10_FD);
 			}
 
-			PHY_WRITE(sc, RGEPHY_MII_1000CTL, 0);
-			PHY_WRITE(sc, RGEPHY_MII_BMCR, speed);
-			PHY_WRITE(sc, RGEPHY_MII_ANAR, RGEPHY_SEL_TYPE);
-
-			if (IFM_SUBTYPE(ife->ifm_media) != IFM_1000_T) 
+			if (IFM_SUBTYPE(ife->ifm_media) != IFM_1000_T) {
+				PHY_WRITE(sc, RGEPHY_MII_1000CTL, 0);
+				PHY_WRITE(sc, RGEPHY_MII_ANAR, anar);
+				PHY_WRITE(sc, RGEPHY_MII_BMCR, speed |
+				    RGEPHY_BMCR_AUTOEN | RGEPHY_BMCR_STARTNEG);
 				break;
-
-			PHY_WRITE(sc, RGEPHY_MII_1000CTL, gig);
-			PHY_WRITE(sc, RGEPHY_MII_BMCR,
-			    speed|RGEPHY_BMCR_AUTOEN|RGEPHY_BMCR_STARTNEG);
+			}
 
 			/*
 			 * When settning the link manually, one side must
@@ -257,6 +263,8 @@ setit:
 				PHY_WRITE(sc, RGEPHY_MII_1000CTL,
 				    gig|RGEPHY_1000CTL_MSE);
 			}
+			PHY_WRITE(sc, RGEPHY_MII_BMCR, speed |
+			    RGEPHY_BMCR_AUTOEN | RGEPHY_BMCR_STARTNEG);
 			break;
 #ifdef foo
 		case IFM_NONE:
