@@ -51,9 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_emul.h>
 
-extern struct sx emul_shared_lock;
-extern struct sx emul_lock;
-
 void
 linux_to_bsd_sigset(l_sigset_t *lss, sigset_t *bss)
 {

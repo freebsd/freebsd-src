@@ -125,8 +125,6 @@ static void	linux32_fixlimits(struct proc *p);
 
 extern LIST_HEAD(futex_list, futex) futex_list;
 extern struct mtx futex_mtx;
-extern struct sx emul_shared_lock;
-extern struct sx emul_lock;
 
 static eventhandler_tag linux_exit_tag;
 static eventhandler_tag linux_schedtail_tag;
