@@ -890,7 +890,8 @@ get_worklist(char **files)
 static void
 expand_globs(struct conf_entry **work_p, struct conf_entry **glob_p)
 {
-	int gmatch, gres, i;
+	int gmatch, gres;
+	size_t i;
 	char *mfname;
 	struct conf_entry *dupent, *ent, *firstmatch, *globent;
 	struct conf_entry *lastmatch;
