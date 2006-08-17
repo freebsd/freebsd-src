@@ -1879,7 +1879,6 @@ bridge_forward(struct bridge_softc *sc, struct mbuf *m)
 	struct ether_header *eh;
 
 	src_if = m->m_pkthdr.rcvif;
-	BRIDGE_LOCK_ASSERT(sc);
 	ifp = sc->sc_ifp;
 
 	sc->sc_ifp->if_ipackets++;
@@ -2225,7 +2224,6 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 	struct ifnet *dst_if;
 	int error = 0, used = 0, i;
 
-	BRIDGE_LOCK_ASSERT(sc);
 	BRIDGE_LOCK2REF(sc, error);
 	if (error) {
 		m_freem(m);
