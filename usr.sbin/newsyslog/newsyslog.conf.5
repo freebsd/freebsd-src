@@ -296,21 +296,6 @@ indicates that the file specified by
 will contain the ID for a process group instead of a process.
 This option also requires that the first line in that file
 be a negative value to distinguish it from a process ID.
-.It Cm W
-if used with the
-.Cm Z
-or
-.Cm J
-flag, this indicates that
-.Xr newsyslog 8
-should wait for previously started compression jobs to complete before
-starting a new one for this entry.
-If this is used with the
-.Cm G
-flag and if multiple log files match the given pattern, then
-.Xr newsyslog 8
-will compress those logs one by one.
-This ensures that only one compression job is running at a time.
 .It Cm Z
 indicates that
 .Xr newsyslog 8
