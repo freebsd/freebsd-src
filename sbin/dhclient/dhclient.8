@@ -46,7 +46,7 @@
 .Nd "Dynamic Host Configuration Protocol (DHCP) client"
 .Sh SYNOPSIS
 .Nm
-.Op Fl bdqu
+.Op Fl bdpqu
 .Op Fl c Ar file
 .Op Fl l Ar file
 .Ar interface
@@ -83,6 +83,11 @@ will revert to running in the background.
 Specify an alternate location,
 .Ar file ,
 for the leases file.
+.It Fl p
+Tells dhclient to persist in trying to configure the interface, despite
+an inability to gain carrier.
+This is used to survive switch outages and when dhclient is required as
+soon as the cable is connected.
 .It Fl q
 Forces
 .Nm
