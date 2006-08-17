@@ -101,7 +101,7 @@ pccard_ether_stop()
 	/etc/rc.d/netif stop $ifn
 
 	# clean ARP table
-	arp -d -a
+	ifexists $ifn && arp -d -i $ifn -a
 
 	# Clean the routing table
 	if checkyesno removable_route_flush; then
