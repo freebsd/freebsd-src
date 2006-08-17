@@ -203,5 +203,8 @@ void	transferlockers(struct lock *, struct lock *);
 void	lockmgr_printinfo(struct lock *);
 int	lockstatus(struct lock *, struct thread *);
 int	lockcount(struct lock *);
+#ifdef DDB
+int	lockmgr_chain(struct thread *td, struct thread **ownerp);
+#endif
 
 #endif /* !_SYS_LOCKMGR_H_ */

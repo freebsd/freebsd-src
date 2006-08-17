@@ -60,6 +60,9 @@ void	_sx_downgrade(struct sx *sx, const char *file, int line);
 #ifdef INVARIANT_SUPPORT
 void	_sx_assert(struct sx *sx, int what, const char *file, int line);
 #endif
+#ifdef DDB
+int	sx_chain(struct thread *td, struct thread **ownerp);
+#endif
 
 struct sx_args {
 	struct sx 	*sa_sx;
