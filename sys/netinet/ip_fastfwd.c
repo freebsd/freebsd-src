@@ -476,11 +476,7 @@ forwardlocal:
 		 */
 #ifdef IPFIREWALL_FORWARD
 		if (fwd_tag) {
-#ifndef IPFIREWALL_FORWARD_EXTENDED
-			if (!in_localip(ip->ip_src) &&
-			    !in_localaddr(ip->ip_dst))
-#endif
-				dest.s_addr = ((struct sockaddr_in *)
+			dest.s_addr = ((struct sockaddr_in *)
 				    (fwd_tag + 1))->sin_addr.s_addr;
 			m_tag_delete(m, fwd_tag);
 		}
