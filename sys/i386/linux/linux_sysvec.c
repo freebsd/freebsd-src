@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
+#include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
@@ -106,12 +107,7 @@ static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 static void	exec_linux_setregs(struct thread *td, u_long entry,
 				   u_long stack, u_long ps_strings);
 
-extern void linux_proc_exit(void *, struct proc *, struct image_params *);
-extern void linux_proc_exec(void *, struct proc *, struct image_params *);
-extern void linux_schedtail(void *, struct proc *);
 extern LIST_HEAD(futex_list, futex) futex_list;
-extern struct sx emul_shared_lock;
-extern struct sx emul_lock;
 extern struct mtx futex_mtx;
 
 static eventhandler_tag linux_exit_tag;

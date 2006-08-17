@@ -67,9 +67,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_posix.h"
 
-extern struct sx emul_shared_lock;
-extern struct sx emul_lock;
-
 extern struct sysentvec elf32_freebsd_sysvec;	/* defined in i386/i386/elf_machdep.c */
 
 struct l_descriptor {
