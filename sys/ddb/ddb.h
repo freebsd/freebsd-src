@@ -98,6 +98,8 @@ void		db_error(const char *s);
 int		db_expression(db_expr_t *valuep);
 int		db_get_variable(db_expr_t *valuep);
 void		db_iprintf(const char *,...) __printflike(1, 2);
+struct proc	*db_lookup_proc(db_expr_t addr);
+struct thread	*db_lookup_thread(db_expr_t addr, boolean_t check_pid);
 struct vm_map	*db_map_addr(vm_offset_t);
 boolean_t	db_map_current(struct vm_map *);
 boolean_t	db_map_equal(struct vm_map *, struct vm_map *);
