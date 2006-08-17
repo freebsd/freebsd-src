@@ -72,4 +72,7 @@ void linux_proc_exit(void *, struct proc *);
 void linux_schedtail(void *, struct proc *);
 void linux_proc_exec(void *, struct proc *, struct image_params *);
 
+extern struct sx emul_shared_lock;
+extern struct sx emul_lock;
+
 #endif /* !_LINUX_EMUL_H_ */
