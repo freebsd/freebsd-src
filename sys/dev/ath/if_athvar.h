@@ -149,7 +149,7 @@ struct ath_txq {
 	snprintf((_tq)->axq_name, sizeof((_tq)->axq_name), "%s_txq%u", \
 		device_get_nameunit((_sc)->sc_dev), (_tq)->axq_qnum); \
 	mtx_init(&(_tq)->axq_lock, (_tq)->axq_name, "ath_txq", MTX_DEF); \
-} while (0);
+} while (0)
 #define	ATH_TXQ_LOCK_DESTROY(_tq)	mtx_destroy(&(_tq)->axq_lock)
 #define	ATH_TXQ_LOCK(_tq)		mtx_lock(&(_tq)->axq_lock)
 #define	ATH_TXQ_UNLOCK(_tq)		mtx_unlock(&(_tq)->axq_lock)
