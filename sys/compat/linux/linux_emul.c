@@ -246,9 +246,6 @@ linux_schedtail(void *arg __unused, struct proc *p)
 {
 	struct linux_emuldata *em;
 	int error = 0;
-#ifdef	DEBUG
-	struct thread *td = FIRST_THREAD_IN_PROC(p);
-#endif
 	int *child_set_tid;
 
 	if (p->p_sysent != &elf_linux_sysvec)
