@@ -666,11 +666,16 @@ chroot ${_user:+-u $_user }${_group:+-g $_group }${_groups:+-G $_groups }\
 $_chroot $command $rc_flags $command_args"
 			else
 				_doit="\
-${_chdir:+cd $_chdir; }\
-${_nice:+nice -n $_nice }\
+${_chdir:+cd $_chdir && }\
 $command $rc_flags $command_args"
 				if [ -n "$_user" ]; then
 				    _doit="su -m $_user -c 'sh -c \"$_doit\"'"
+				fi
+				if [ -n "$_nice" ]; then
+					if [ -z "$_user" ]; then
+						_doit="sh -c \"$_doit\""
+					fi	
+					_doit="nice -n $_nice $_doit"
 				fi
 			fi
 
