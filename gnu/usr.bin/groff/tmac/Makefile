@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>			# SHAREDIR
+
 TMACOWN?=	${BINOWN}
 TMACGRP?=	${BINGRP}
 TMACMODE?=	${NOBINMODE}
