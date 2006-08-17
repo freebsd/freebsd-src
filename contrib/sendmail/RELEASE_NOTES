@@ -1,10 +1,33 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.1777.2.6 2006/06/05 22:32:41 ca Exp $
+      $Id: RELEASE_NOTES,v 8.1777.2.15 2006/08/07 17:22:09 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.13.8/8.13.8	2006/08/09
+	Fix a regression in 8.13.7: if shared memory is activated, then
+		the server can erroneously report that there is
+		insufficient disk space.  Additionally make sure that
+		an internal variable is set properly to avoid those
+		misleading errors.  Based on patch from Steve Hubert
+		of University of Washington.
+	Fix a regression in 8.13.7: the PidFile could be removed after
+		the process that forks the daemon exited, i.e., if
+		sendmail -bd is invoked.  Problem reported by Kan Sasaki
+		of Fusion Communications Corp. and Werner Wiethege.
+	Avoid opening qf files if QueueSortOrder is "none".  Patch from
+		David F. Skoll.
+	Avoid a crash when finishing due to referencing a freed variable.
+		Problem reported and diagnosed by Moritz Jodeit.
+	CONTRIB: cidrexpand now deals with /0 by issuing the entire IPv4
+		range (0..255).
+	LIBMILTER: The "hostname" argument of the xxfi_connect() callback
+		previously was the equivalent of {client_ptr}.  However,
+		this did not match the documentation of the function, hence
+		it has been changed to {client_name}.  See doc/op/op.*
+		about these macros.
 
 8.13.7/8.13.7	2006/06/14
 	A malformed MIME structure with many parts can cause sendmail to
@@ -174,7 +197,7 @@ summary of the changes in that release.
 	Make sure return parameters are initialized in getmxrr().  Problem
 		found by Gael Roualland using valgrind.
 	If shared memory is used and the RunAsUser option is set, then the
-		owner and group of the shared memory segment is set to 
+		owner and group of the shared memory segment is set to
 		the ids specified RunAsUser and the access mode is set
 		to 0660 to allow for updates by sendmail processes.
 	The number of queue entries that is (optionally) kept in shared
