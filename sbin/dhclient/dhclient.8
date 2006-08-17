@@ -38,7 +38,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 22, 2005
+.Dd August 17, 2006
 .Dt DHCLIENT 8
 .Os
 .Sh NAME
@@ -84,10 +84,13 @@ Specify an alternate location,
 .Ar file ,
 for the leases file.
 .It Fl p
-Tells dhclient to persist in trying to configure the interface, despite
+Tells
+.Nm
+to persist in trying to configure the interface, despite
 an inability to gain carrier.
-This is used to survive switch outages and when dhclient is required as
-soon as the cable is connected.
+This is used to survive switch outages and when
+.Nm
+is required as soon as the cable is connected.
 .It Fl q
 Forces
 .Nm
