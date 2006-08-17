@@ -93,8 +93,6 @@ __FBSDID("$FreeBSD$");
  */
 #define	CE_COMPACT	0x0001	/* Compact the achived log files with gzip. */
 #define	CE_BZCOMPACT	0x0002	/* Compact the achived log files with bzip2. */
-#define	CE_COMPACTWAIT	0x0004	/* wait until compressing one file finishes */
-				/*    before starting the next step. */
 #define	CE_BINARY	0x0008	/* Logfile is in binary, do not add status */
 				/*    messages to logfile(s) when rotating. */
 #define	CE_NOSIGNAL	0x0010	/* There is no process to signal when */
@@ -1225,7 +1223,7 @@ no_trimat:
 				working->flags |= CE_SIGNALGROUP;
 				break;
 			case 'w':
-				working->flags |= CE_COMPACTWAIT;
+				/* Depreciated flag - keep for compatibility purposes */
 				break;
 			case 'z':
 				working->flags |= CE_COMPACT;
