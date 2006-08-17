@@ -437,7 +437,7 @@ typedef struct callout usb_callout_t;
 		device_detach(dev); \
 		free(uaap, M_USB); \
 		device_delete_child(device_get_parent(dev), dev); \
-	} while (0);
+	} while (0)
 
 typedef struct malloc_type *usb_malloc_type;
 
@@ -493,7 +493,7 @@ __CONCAT(dname,_attach)(device_t self)
 	do { \
 		sc->sc_dev = self; \
 		device_set_desc_copy(self, devinfo); \
-	} while (0);
+	} while (0)
 
 #define USB_DETACH(dname) \
 Static int \
