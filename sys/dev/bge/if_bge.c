@@ -330,7 +330,7 @@ static void bge_tick_locked(struct bge_softc *);
 static void bge_tick(void *);
 static void bge_stats_update(struct bge_softc *);
 static void bge_stats_update_regs(struct bge_softc *);
-static int bge_encap(struct bge_softc *, struct mbuf *, uint32_t *);
+static int bge_encap(struct bge_softc *, struct mbuf **, uint32_t *);
 
 static void bge_intr(void *);
 static void bge_start_locked(struct ifnet *);
@@ -2894,50 +2894,37 @@ bge_cksum_pad(struct mbuf *m)
  * pointers to descriptors.
  */
 static int
-bge_encap(struct bge_softc *sc, struct mbuf *m_head, uint32_t *txidx)
+bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 {
 	bus_dma_segment_t	segs[BGE_NSEG_NEW];
 	bus_dmamap_t		map;
-	struct bge_tx_bd	*d = NULL;
+	struct bge_tx_bd	*d;
+	struct mbuf		*m = *m_head;
 	struct m_tag		*mtag;
 	uint32_t		idx = *txidx;
-	uint16_t		csum_flags = 0;
+	uint16_t		csum_flags;
 	int			nsegs, i, error;
 
-	if (m_head->m_pkthdr.csum_flags) {
-		if (m_head->m_pkthdr.csum_flags & CSUM_IP)
-			csum_flags |= BGE_TXBDFLAG_IP_CSUM;
-		if (m_head->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP)) {
-			csum_flags |= BGE_TXBDFLAG_TCP_UDP_CSUM;
-			if (m_head->m_pkthdr.len < ETHER_MIN_NOPAD &&
-			    bge_cksum_pad(m_head) != 0)
-				return (ENOBUFS);
-		}
-		if (m_head->m_flags & M_LASTFRAG)
-			csum_flags |= BGE_TXBDFLAG_IP_FRAG_END;
-		else if (m_head->m_flags & M_FRAG)
-			csum_flags |= BGE_TXBDFLAG_IP_FRAG;
-	}
-
-	mtag = VLAN_OUTPUT_TAG(sc->bge_ifp, m_head);
-
 	map = sc->bge_cdata.bge_tx_dmamap[idx];
-	error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_mtag, map,
-	    m_head, segs, &nsegs, BUS_DMA_NOWAIT);
-	if (error) {
-		if (error == EFBIG) {
-			struct mbuf *m0;
-
-			m0 = m_defrag(m_head, M_DONTWAIT);
-			if (m0 == NULL)
-				return (ENOBUFS);
-			m_head = m0;
-			error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_mtag,
-			    map, m_head, segs, &nsegs, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_mtag, map, m, segs,
+	    &nsegs, BUS_DMA_NOWAIT);
+	if (error == EFBIG) {
+		m = m_defrag(m, M_DONTWAIT);
+		if (m == NULL) {
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (ENOBUFS);
 		}
-		if (error)
+		*m_head = m;
+		error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_mtag, map, m,
+		    segs, &nsegs, BUS_DMA_NOWAIT);
+		if (error) {
+			m_freem(m);
+			*m_head = NULL;
 			return (error);
-	}
+		}
+	} else if (error != 0)
+		return (error);
 
 	/*
 	 * Sanity check: avoid coming within 16 descriptors
@@ -2946,6 +2933,26 @@ bge_encap(struct bge_softc *sc, struct mbuf *m_head, uint32_t *txidx)
 	if (nsegs > (BGE_TX_RING_CNT - sc->bge_txcnt - 16)) {
 		bus_dmamap_unload(sc->bge_cdata.bge_mtag, map);
 		return (ENOBUFS);
+	}
+
+	csum_flags = 0;
+	if (m->m_pkthdr.csum_flags) {
+		if (m->m_pkthdr.csum_flags & CSUM_IP)
+			csum_flags |= BGE_TXBDFLAG_IP_CSUM;
+		if (m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP)) {
+			csum_flags |= BGE_TXBDFLAG_TCP_UDP_CSUM;
+			if (m->m_pkthdr.len < ETHER_MIN_NOPAD &&
+			    (error = bge_cksum_pad(m)) != 0) {
+				bus_dmamap_unload(sc->bge_cdata.bge_mtag, map);
+				m_freem(m);
+				*m_head = NULL;
+				return (error);
+			}
+		}
+		if (m->m_flags & M_LASTFRAG)
+			csum_flags |= BGE_TXBDFLAG_IP_FRAG_END;
+		else if (m->m_flags & M_FRAG)
+			csum_flags |= BGE_TXBDFLAG_IP_FRAG;
 	}
 
 	bus_dmamap_sync(sc->bge_cdata.bge_mtag, map, BUS_DMASYNC_PREWRITE);
@@ -2963,9 +2970,10 @@ bge_encap(struct bge_softc *sc, struct mbuf *m_head, uint32_t *txidx)
 
 	/* Mark the last segment as end of packet... */
 	d->bge_flags |= BGE_TXBDFLAG_END;
+
 	/* ... and put VLAN tag into first segment.  */
 	d = &sc->bge_ldata.bge_tx_ring[*txidx];
-	if (mtag != NULL) {
+	if ((mtag = VLAN_OUTPUT_TAG(sc->bge_ifp, m)) != NULL) {
 		d->bge_flags |= BGE_TXBDFLAG_VLAN_TAG;
 		d->bge_vlan_tag = VLAN_TAG_VALUE(mtag);
 	} else
@@ -2978,7 +2986,7 @@ bge_encap(struct bge_softc *sc, struct mbuf *m_head, uint32_t *txidx)
 	 */
 	sc->bge_cdata.bge_tx_dmamap[*txidx] = sc->bge_cdata.bge_tx_dmamap[idx];
 	sc->bge_cdata.bge_tx_dmamap[idx] = map;
-	sc->bge_cdata.bge_tx_chain[idx] = m_head;
+	sc->bge_cdata.bge_tx_chain[idx] = m;
 	sc->bge_txcnt += nsegs;
 
 	BGE_INC(idx, BGE_TX_RING_CNT);
@@ -3039,7 +3047,9 @@ bge_start_locked(struct ifnet *ifp)
 		 * don't have room, set the OACTIVE flag and wait
 		 * for the NIC to drain the ring.
 		 */
-		if (bge_encap(sc, m_head, &prodidx)) {
+		if (bge_encap(sc, &m_head, &prodidx)) {
+			if (m_head == NULL)
+				break;
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
