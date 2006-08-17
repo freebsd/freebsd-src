@@ -2716,7 +2716,7 @@ sk_encap(sc_if, m_head)
 {
 	struct sk_txdesc	*txd;
 	struct sk_tx_desc	*f = NULL;
-	struct mbuf		*m, *n;
+	struct mbuf		*m;
 	bus_dma_segment_t	txsegs[SK_MAXTXSEGS];
 	u_int32_t		cflags, frag, si, sk_ctl;
 	int			error, i, nseg;
@@ -2726,29 +2726,28 @@ sk_encap(sc_if, m_head)
 	if ((txd = STAILQ_FIRST(&sc_if->sk_cdata.sk_txfreeq)) == NULL)
 		return (ENOBUFS);
 
-	m = *m_head;
 	error = bus_dmamap_load_mbuf_sg(sc_if->sk_cdata.sk_tx_tag,
-	    txd->tx_dmamap, m, txsegs, &nseg, 0);
+	    txd->tx_dmamap, *m_head, txsegs, &nseg, 0);
 	if (error == EFBIG) {
-		n = m_defrag(m, M_DONTWAIT);
-		if (n == NULL) {
-			m_freem(m);
-			m = NULL;
+		m = m_defrag(*m_head, M_DONTWAIT);
+		if (m == NULL) {
+			m_freem(*m_head);
+			*m_head = NULL;
 			return (ENOMEM);
 		}
-		m = n;
+		*m_head = m;
 		error = bus_dmamap_load_mbuf_sg(sc_if->sk_cdata.sk_tx_tag,
-		    txd->tx_dmamap, m, txsegs, &nseg, 0);
+		    txd->tx_dmamap, *m_head, txsegs, &nseg, 0);
 		if (error != 0) {
-			m_freem(m);
-			m = NULL;
+			m_freem(*m_head);
+			*m_head = NULL;
 			return (error);
 		}
 	} else if (error != 0)
 		return (error);
 	if (nseg == 0) {
-		m_freem(m);
-		m = NULL;
+		m_freem(*m_head);
+		*m_head = NULL;
 		return (EIO);
 	}
 	if (sc_if->sk_cdata.sk_tx_cnt + nseg >= SK_TX_RING_CNT) {
@@ -2756,6 +2755,7 @@ sk_encap(sc_if, m_head)
 		return (ENOBUFS);
 	}
 
+	m = *m_head;
 	if ((m->m_pkthdr.csum_flags & sc_if->sk_ifp->if_hwassist) != 0)
 		cflags = SK_OPCODE_CSUM;
 	else
