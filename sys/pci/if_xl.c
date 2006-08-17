@@ -2116,9 +2116,6 @@ xl_txeof(struct xl_softc *sc)
 
 	XL_LOCK_ASSERT(sc);
 
-	/* Clear the timeout timer. */
-	ifp->if_timer = 0;
-
 	/*
 	 * Go through our tx list and free mbufs for those
 	 * frames that have been uploaded. Note: the 3c905B
@@ -2148,6 +2145,8 @@ xl_txeof(struct xl_softc *sc)
 
 	if (sc->xl_cdata.xl_tx_head == NULL) {
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		/* Clear the timeout timer. */
+		ifp->if_timer = 0;
 		sc->xl_cdata.xl_tx_tail = NULL;
 	} else {
 		if (CSR_READ_4(sc, XL_DMACTL) & XL_DMACTL_DOWN_STALLED ||
@@ -2191,9 +2190,10 @@ xl_txeof_90xB(struct xl_softc *sc)
 
 		sc->xl_cdata.xl_tx_cnt--;
 		XL_INC(idx, XL_TX_LIST_CNT);
-		ifp->if_timer = 0;
 	}
 
+	if (sc->xl_cdata.xl_tx_cnt == 0)
+		ifp->if_timer = 0;
 	sc->xl_cdata.xl_tx_cons = idx;
 
 	if (cur_tx != NULL)
