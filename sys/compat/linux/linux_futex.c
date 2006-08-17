@@ -146,9 +146,10 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 #ifdef DEBUG
 		if (ldebug(sys_futex))
    			printf("FUTEX_WAIT %d: val = %d, uaddr = %p, "
-		    		"*uaddr = %d, timeout = %d.%09ld\n", 
+		    		"*uaddr = %d, timeout = %d.%09lu\n", 
 		    		td->td_proc->p_pid, args->val, 
-		    		args->uaddr, val, timeout.tv_sec, timeout.tv_nsec); 
+		    		args->uaddr, val, timeout.tv_sec,
+				(unsigned long)timeout.tv_nsec); 
 #endif
 		tv.tv_usec = timeout.tv_sec * 1000000 + timeout.tv_nsec / 1000;
 		timeout_hz = tvtohz(&tv);
