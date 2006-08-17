@@ -56,10 +56,11 @@
  * it from the hash table.
  */
 
-#include "opt_turnstile_profiling.h"
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
+#include "opt_ddb.h"
+#include "opt_turnstile_profiling.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -73,6 +74,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/turnstile.h>
+
+#ifdef DDB
+#include <sys/kdb.h>
+#include <ddb/ddb.h>
+#include <sys/lockmgr.h>
+#include <sys/sx.h>
+#endif
 
 /*
  * Constants for the hash table of turnstile chains.  TC_SHIFT is a magic
@@ -839,6 +847,296 @@ turnstile_head(struct turnstile *ts)
 #endif
 	return (TAILQ_FIRST(&ts->ts_blocked));
 }
+
+#ifdef DDB
+static int db_pager_quit;
+
+static void
+print_thread(struct thread *td, const char *prefix)
+{
+
+	db_printf("%s%p (tid %d, pid %d, \"%s\")\n", prefix, td, td->td_tid,
+	    td->td_proc->p_pid, td->td_proc->p_comm);
+}
+
+static void
+print_queue(struct threadqueue *queue, const char *header, const char *prefix)
+{
+	struct thread *td;
+
+	db_printf("%s:\n", header);
+	if (TAILQ_EMPTY(queue)) {
+		db_printf("%sempty\n", prefix);
+		return;
+	}
+	TAILQ_FOREACH(td, queue, td_lockq) {
+		print_thread(td, prefix);
+	}
+}
+
+DB_SHOW_COMMAND(turnstile, db_show_turnstile)
+{
+	struct turnstile_chain *tc;
+	struct turnstile *ts;
+	struct lock_object *lock;
+	int i;
+
+	if (!have_addr)
+		return;
+
+	/*
+	 * First, see if there is an active turnstile for the lock indicated
+	 * by the address.
+	 */
+	lock = (struct lock_object *)addr;
+	tc = TC_LOOKUP(lock);
+	LIST_FOREACH(ts, &tc->tc_turnstiles, ts_hash)
+		if (ts->ts_lockobj == lock)
+			goto found;
+
+	/*
+	 * Second, see if there is an active turnstile at the address
+	 * indicated.
+	 */
+	for (i = 0; i < TC_TABLESIZE; i++)
+		LIST_FOREACH(ts, &turnstile_chains[i].tc_turnstiles, ts_hash) {
+			if (ts == (struct turnstile *)addr)
+				goto found;
+		}
+
+	db_printf("Unable to locate a turnstile via %p\n", (void *)addr);
+	return;
+found:
+	db_pager_quit = 0;
+	db_setup_paging(db_simple_pager, &db_pager_quit, db_lines_per_page);
+	lock = ts->ts_lockobj;
+	db_printf("Lock: %p - (%s) %s\n", lock, LOCK_CLASS(lock)->lc_name,
+	    lock->lo_name);
+	if (ts->ts_owner)
+		print_thread(ts->ts_owner, "Lock Owner: ");
+	else
+		db_printf("Lock Owner: none\n");
+	print_queue((struct threadqueue *)&ts->ts_blocked, "Waiters", "\t");
+	print_queue((struct threadqueue *)&ts->ts_pending, "Pending Threads",
+	    "\t");	
+}
+
+/*
+ * Show all the threads a particular thread is waiting on based on
+ * non-sleepable and non-spin locks.
+ */
+static void
+print_lockchain(struct thread *td, const char *prefix)
+{
+	struct lock_object *lock;
+	struct lock_class *class;
+	struct turnstile *ts;
+
+	/*
+	 * Follow the chain.  We keep walking as long as the thread is
+	 * blocked on a turnstile that has an owner.
+	 */
+	while (!db_pager_quit) {
+		db_printf("%sthread %d (pid %d, %s) ", prefix, td->td_tid,
+		    td->td_proc->p_pid, td->td_proc->p_comm);
+		switch (td->td_state) {
+		case TDS_INACTIVE:
+			db_printf("is inactive\n");
+			return;
+		case TDS_CAN_RUN:
+			db_printf("can run\n");
+			return;
+		case TDS_RUNQ:
+			db_printf("is on a run queue\n");
+			return;
+		case TDS_RUNNING:
+			db_printf("running on CPU %d\n", td->td_oncpu);
+			return;
+		case TDS_INHIBITED:
+			if (TD_ON_LOCK(td)) {
+				ts = td->td_blocked;
+				lock = ts->ts_lockobj;
+				class = LOCK_CLASS(lock);
+				db_printf("blocked on lock %p (%s) \"%s\"\n",
+				    lock, class->lc_name, lock->lo_name);
+				if (ts->ts_owner == NULL)
+					return;
+				td = ts->ts_owner;
+				break;
+			}
+			db_printf("inhibited\n");
+			return;
+		default:
+			db_printf("??? (%#x)\n", td->td_state);
+			return;
+		}
+	}
+}
+
+DB_SHOW_COMMAND(lockchain, db_show_lockchain)
+{
+	struct thread *td;
+
+	/* Figure out which thread to start with. */
+	if (have_addr)
+		td = db_lookup_thread(addr, TRUE);
+	else
+		td = kdb_thread;
+
+	db_pager_quit = 0;
+	db_setup_paging(db_simple_pager, &db_pager_quit, db_lines_per_page);
+	print_lockchain(td, "");
+}
+
+DB_SHOW_COMMAND(allchains, db_show_allchains)
+{
+	struct thread *td;
+	struct proc *p;
+	int i;
+
+	i = 1;
+	db_pager_quit = 0;
+	db_setup_paging(db_simple_pager, &db_pager_quit, db_lines_per_page);
+	LIST_FOREACH(p, &allproc, p_list) {
+		FOREACH_THREAD_IN_PROC(p, td) {
+			if (TD_ON_LOCK(td) && LIST_EMPTY(&td->td_contested)) {
+				db_printf("chain %d:\n", i++);
+				print_lockchain(td, " ");
+			}
+			if (db_pager_quit)
+				return;
+		}
+	}
+}
+
+/*
+ * Show all the threads a particular thread is waiting on based on
+ * sleepable locks.
+ */
+static void
+print_sleepchain(struct thread *td, const char *prefix)
+{
+	struct thread *owner;
+
+	/*
+	 * Follow the chain.  We keep walking as long as the thread is
+	 * blocked on a sleep lock that has an owner.
+	 */
+	while (!db_pager_quit) {
+		db_printf("%sthread %d (pid %d, %s) ", prefix, td->td_tid,
+		    td->td_proc->p_pid, td->td_proc->p_comm);
+		switch (td->td_state) {
+		case TDS_INACTIVE:
+			db_printf("is inactive\n");
+			return;
+		case TDS_CAN_RUN:
+			db_printf("can run\n");
+			return;
+		case TDS_RUNQ:
+			db_printf("is on a run queue\n");
+			return;
+		case TDS_RUNNING:
+			db_printf("running on CPU %d\n", td->td_oncpu);
+			return;
+		case TDS_INHIBITED:
+			if (TD_ON_SLEEPQ(td)) {
+				if (lockmgr_chain(td, &owner) ||
+				    sx_chain(td, &owner)) {
+					if (owner == NULL)
+						return;
+					td = owner;
+					break;
+				}
+				db_printf("sleeping on %p \"%s\"\n",
+				    td->td_wchan, td->td_wmesg);
+				return;
+			}
+			db_printf("inhibited\n");
+			return;
+		default:
+			db_printf("??? (%#x)\n", td->td_state);
+			return;
+		}
+	}
+}
+
+DB_SHOW_COMMAND(sleepchain, db_show_sleepchain)
+{
+	struct thread *td;
+
+	/* Figure out which thread to start with. */
+	if (have_addr)
+		td = db_lookup_thread(addr, TRUE);
+	else
+		td = kdb_thread;
+
+	db_pager_quit = 0;
+	db_setup_paging(db_simple_pager, &db_pager_quit, db_lines_per_page);
+	print_sleepchain(td, "");
+}
+
+static void	print_waiters(struct turnstile *ts, int indent);
+	
+static void
+print_waiter(struct thread *td, int indent)
+{
+	struct turnstile *ts;
+	int i;
+
+	if (db_pager_quit)
+		return;
+	for (i = 0; i < indent; i++)
+		db_printf(" ");
+	print_thread(td, "thread ");
+	LIST_FOREACH(ts, &td->td_contested, ts_link)
+		print_waiters(ts, indent + 1);
+}
+
+static void
+print_waiters(struct turnstile *ts, int indent)
+{
+	struct lock_object *lock;
+	struct lock_class *class;
+	struct thread *td;
+	int i;
+
+	if (db_pager_quit)
+		return;
+	lock = ts->ts_lockobj;
+	class = LOCK_CLASS(lock);
+	for (i = 0; i < indent; i++)
+		db_printf(" ");
+	db_printf("lock %p (%s) \"%s\"\n", lock, class->lc_name, lock->lo_name);
+	TAILQ_FOREACH(td, &ts->ts_blocked, td_lockq)
+		print_waiter(td, indent + 1);
+	TAILQ_FOREACH(td, &ts->ts_pending, td_lockq)
+		print_waiter(td, indent + 1);
+}
+
+DB_SHOW_COMMAND(locktree, db_show_locktree)
+{
+	struct lock_object *lock;
+	struct lock_class *class;
+	struct turnstile_chain *tc;
+	struct turnstile *ts;
+
+	if (!have_addr)
+		return;
+	db_pager_quit = 0;
+	db_setup_paging(db_simple_pager, &db_pager_quit, db_lines_per_page);
+	lock = (struct lock_object *)addr;
+	tc = TC_LOOKUP(lock);
+	LIST_FOREACH(ts, &tc->tc_turnstiles, ts_hash)
+		if (ts->ts_lockobj == lock)
+			break;
+	if (ts == NULL) {
+		class = LOCK_CLASS(lock);
+		db_printf("lock %p (%s) \"%s\"\n", lock, class->lc_name,
+		    lock->lo_name);
+	} else
+		print_waiters(ts, 0);
+}
+#endif
 
 /*
  * Returns true if a turnstile is empty.

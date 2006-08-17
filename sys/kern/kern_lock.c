@@ -43,6 +43,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -54,6 +56,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #ifdef DEBUG_LOCKS
 #include <sys/stack.h>
+#endif
+
+#ifdef DDB
+#include <ddb/ddb.h>
 #endif
 
 /*
@@ -575,3 +581,57 @@ lockmgr_printinfo(lkp)
 	stack_print(&lkp->lk_stack);
 #endif
 }
+
+#ifdef DDB
+/*
+ * Check to see if a thread that is blocked on a sleep queue is actually
+ * blocked on a 'struct lock'.  If so, output some details and return true.
+ * If the lock has an exclusive owner, return that in *ownerp.
+ */
+int
+lockmgr_chain(struct thread *td, struct thread **ownerp)
+{
+	struct lock *lkp;
+
+	lkp = td->td_wchan;
+
+	/* Simple test to see if wchan points to a lockmgr lock. */
+	if (lkp->lk_wmesg != td->td_wmesg)
+		return (0);
+
+	/* Ok, we think we have a lockmgr lock, so output some details. */
+	db_printf("blocked on lk \"%s\" ", lkp->lk_wmesg);
+	if (lkp->lk_sharecount) {
+		db_printf("SHARED (count %d)\n", lkp->lk_sharecount);
+		*ownerp = NULL;
+	} else {
+		db_printf("EXCL (count %d)\n", lkp->lk_exclusivecount);
+		*ownerp = lkp->lk_lockholder;
+	}
+	return (1);
+}
+
+DB_SHOW_COMMAND(lockmgr, db_show_lockmgr)
+{
+	struct thread *td;
+	struct lock *lkp;
+
+	if (!have_addr)
+		return;
+	lkp = (struct lock *)addr;
+
+	db_printf("lock type: %s\n", lkp->lk_wmesg);
+	db_printf("state: ");
+	if (lkp->lk_sharecount)
+		db_printf("SHARED (count %d)\n", lkp->lk_sharecount);
+	else if (lkp->lk_flags & LK_HAVE_EXCL) {
+		td = lkp->lk_lockholder;
+		db_printf("EXCL (count %d) %p ", lkp->lk_exclusivecount, td);
+		db_printf("(tid %d, pid %d, \"%s\")\n", td->td_tid,
+		    td->td_proc->p_pid, td->td_proc->p_comm);
+	} else
+		db_printf("UNLOCKED\n");
+	if (lkp->lk_waitcount > 0)
+		db_printf("waiters: %d\n", lkp->lk_waitcount);
+}
+#endif
