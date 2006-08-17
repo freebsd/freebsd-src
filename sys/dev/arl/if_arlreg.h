@@ -322,7 +322,7 @@ struct arl_softc {
 		for (i = cnt; i && ar->resetFlag; i--) { \
 			DELAY(delay); \
 		} \
-	} while (0);
+	} while (0)
 
 #ifdef _KERNEL
 void	arl_release_resources	(device_t);

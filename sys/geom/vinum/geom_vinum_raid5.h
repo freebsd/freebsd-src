@@ -45,7 +45,7 @@
 				pbp = pbp->bio_caller1;		\
 			pbp->bio_caller1 = cbp;			\
 		}						\
-	} while (0);
+	} while (0)
 
 struct gv_raid5_packet {
 	caddr_t	data;		/* Data buffer of this sub-request- */
