@@ -1216,7 +1216,7 @@ stge_encap(struct stge_softc *sc, struct mbuf **m_head)
 {
 	struct stge_txdesc *txd;
 	struct stge_tfd *tfd;
-	struct mbuf *m, *n;
+	struct mbuf *m;
 	struct m_tag *mtag;
 	bus_dma_segment_t txsegs[STGE_MAXTXSEGS];
 	int error, i, nsegs, si;
@@ -1227,32 +1227,32 @@ stge_encap(struct stge_softc *sc, struct mbuf **m_head)
 	if ((txd = STAILQ_FIRST(&sc->sc_cdata.stge_txfreeq)) == NULL)
 		return (ENOBUFS);
 
-	m = *m_head;
 	error =  bus_dmamap_load_mbuf_sg(sc->sc_cdata.stge_tx_tag,
-	    txd->tx_dmamap, m, txsegs, &nsegs, 0);
+	    txd->tx_dmamap, *m_head, txsegs, &nsegs, 0);
 	if (error == EFBIG) {
-		n = m_defrag(m, M_DONTWAIT);
-		if (n == NULL) {
-			m_freem(m);
-			m = NULL;
+		m = m_defrag(*m_head, M_DONTWAIT);
+		if (m == NULL) {
+			m_freem(*m_head);
+			*m_head = NULL;
 			return (ENOMEM);
 		}
-		m = n;
+		*m_head = m;
 		error = bus_dmamap_load_mbuf_sg(sc->sc_cdata.stge_tx_tag,
-		    txd->tx_dmamap, m, txsegs, &nsegs, 0);
+		    txd->tx_dmamap, *m_head, txsegs, &nsegs, 0);
 		if (error != 0) {
-			m_freem(m);
-			m = NULL;
+			m_freem(*m_head);
+			*m_head = NULL;
 			return (error);
 		}
 	} else if (error != 0)
 		return (error);
 	if (nsegs == 0) {
-		m_freem(m);
-		m = NULL;
+		m_freem(*m_head);
+		*m_head = NULL;
 		return (EIO);
 	}
 
+	m = *m_head;
 	csum_flags = 0;
 	if ((m->m_pkthdr.csum_flags & STGE_CSUM_FEATURES) != 0) {
 		if (m->m_pkthdr.csum_flags & CSUM_IP)
