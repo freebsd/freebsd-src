@@ -936,7 +936,6 @@ static int
 hme_load_txmbuf(struct hme_softc *sc, struct mbuf **m0)
 {
 	struct hme_txdesc *htx;
-	struct mbuf *m, *n;
 	caddr_t txd;
 	int i, pci, si, ri, nseg;
 	u_int32_t flags, cflags = 0;
@@ -944,31 +943,30 @@ hme_load_txmbuf(struct hme_softc *sc, struct mbuf **m0)
 
 	if ((htx = STAILQ_FIRST(&sc->sc_rb.rb_txfreeq)) == NULL)
 		return (-1);
-	m = *m0;
-	if ((m->m_pkthdr.csum_flags & sc->sc_csum_features) != 0)
-		hme_txcksum(m, &cflags);
 	error = bus_dmamap_load_mbuf_sg(sc->sc_tdmatag, htx->htx_dmamap,
-	    m, sc->sc_rb.rb_txsegs, &nseg, 0);
+	    *m0, sc->sc_rb.rb_txsegs, &nseg, 0);
 	if (error == EFBIG) {
-		n = m_defrag(m, M_DONTWAIT);
-		if (n == NULL) {
-			m_freem(m);
-			m = NULL;
+		struct mbuf *m;
+
+		m = m_defrag(*m0, M_DONTWAIT);
+		if (m == NULL) {
+			m_freem(*m0);
+			*m0 = NULL;
 			return (ENOMEM);
 		}
-		m = n;
+		*m0 = m;
 		error = bus_dmamap_load_mbuf_sg(sc->sc_tdmatag, htx->htx_dmamap,
-		    m, sc->sc_rb.rb_txsegs, &nseg, 0);
+		    *m0, sc->sc_rb.rb_txsegs, &nseg, 0);
 		if (error != 0) {
-			m_freem(m);
-			m = NULL;
+			m_freem(*m0);
+			*m0 = NULL;
 			return (error);
 		}
 	} else if (error != 0)
 		return (error);
 	if (nseg == 0) {
-		m_freem(m);
-		m = NULL;
+		m_freem(*m0);
+		*m0 = NULL;
 		return (EIO);
 	}
 	if (sc->sc_rb.rb_td_nbusy + nseg >= HME_NTXDESC) {
@@ -976,6 +974,8 @@ hme_load_txmbuf(struct hme_softc *sc, struct mbuf **m0)
 		/* retry with m_defrag(9)? */
 		return (-2);
 	}
+	if (((*m0)->m_pkthdr.csum_flags & sc->sc_csum_features) != 0)
+		hme_txcksum(*m0, &cflags);
 	bus_dmamap_sync(sc->sc_tdmatag, htx->htx_dmamap, BUS_DMASYNC_PREWRITE);
 
 	si = ri = sc->sc_rb.rb_tdhead;
@@ -1017,7 +1017,7 @@ hme_load_txmbuf(struct hme_softc *sc, struct mbuf **m0)
 
 	STAILQ_REMOVE_HEAD(&sc->sc_rb.rb_txfreeq, htx_q);
 	STAILQ_INSERT_TAIL(&sc->sc_rb.rb_txbusyq, htx, htx_q);
-	htx->htx_m = m;
+	htx->htx_m = *m0;
 
 	/* start the transmission. */
 	HME_ETX_WRITE_4(sc, HME_ETXI_PENDING, HME_ETX_TP_DMAWAKEUP);
