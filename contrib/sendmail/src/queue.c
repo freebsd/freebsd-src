@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/sem.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.954 2006/04/22 01:07:00 ca Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.954.2.5 2006/07/31 21:44:18 ca Exp $")
 
 #include <dirent.h>
 
@@ -2646,6 +2646,7 @@ gatherq(qgrp, qdir, doall, full, more)
 		/* avoid work if possible */
 		if ((QueueSortOrder == QSO_BYFILENAME ||
 		     QueueSortOrder == QSO_BYMODTIME ||
+		     QueueSortOrder == QSO_NONE ||
 		     QueueSortOrder == QSO_RANDOM) &&
 		    QueueLimitQuarantine == NULL &&
 		    QueueLimitSender == NULL &&
@@ -6312,7 +6313,19 @@ filesys_find(name, path, add)
 	for (i = 0; i < NumFileSys; ++i)
 	{
 		if (FILE_SYS_DEV(i) == st.st_dev)
+		{
+			/*
+			**  Make sure the file system (FS) name is set:
+			**  even though the source code indicates that
+			**  FILE_SYS_DEV() is only set below, it could be
+			**  set via shared memory, hence we need to perform
+			**  this check/assignment here.
+			*/
+
+			if (NULL == FILE_SYS_NAME(i))
+				FILE_SYS_NAME(i) = name;
 			return i;
+		}
 	}
 	if (i >= MAXFILESYS)
 	{
@@ -6406,8 +6419,7 @@ filesys_update()
 	static time_t nextupdate = 0;
 
 #if SM_CONF_SHM
-	/* only the daemon updates this structure */
-	if (ShmId == SM_SHM_NO_ID || DaemonPid != CurrentPid)
+	if (ShmId != SM_SHM_NO_ID && DaemonPid != CurrentPid)
 		return;
 #endif /* SM_CONF_SHM */
 	now = curtime();

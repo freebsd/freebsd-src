@@ -25,7 +25,7 @@ SM_UNUSED(static char copyright[]) =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
-SM_RCSID("@(#)$Id: main.c,v 8.944 2006/04/21 23:56:42 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.944.2.2 2006/08/03 22:05:03 ca Exp $")
 
 
 #if NETINET || NETINET6
@@ -2289,6 +2289,8 @@ main(argc, argv, envp)
 	{
 		char dtype[200];
 
+		/* avoid cleanup in finis(), DaemonPid will be set below */
+		DaemonPid = 0;
 		if (!run_in_foreground && !tTd(99, 100))
 		{
 			/* put us in background */
@@ -2321,7 +2323,10 @@ main(argc, argv, envp)
 
 		dtype[0] = '\0';
 		if (OpMode == MD_DAEMON)
+		{
 			(void) sm_strlcat(dtype, "+SMTP", sizeof dtype);
+			DaemonPid = CurrentPid;
+		}
 		if (QueueIntvl > 0)
 		{
 			(void) sm_strlcat2(dtype,
@@ -2903,6 +2908,9 @@ finis(drop, cleanup, exitstat)
 				dropenvelope(CurEnv, true, false);
 				sm_rpool_free(CurEnv->e_rpool);
 				CurEnv->e_rpool = NULL;
+
+				/* this may have pointed to the rpool */
+				CurEnv->e_to = NULL;
 			}
 			else
 				poststats(StatFile);
