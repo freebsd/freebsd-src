@@ -292,7 +292,7 @@ extract_addr_range(void)
 		errmsg = "invalid address";			\
 		return ERR;					\
 	}							\
-} while (0);
+} while (0)
 
 /*  next_addr: return the next line address in the command buffer */
 long
