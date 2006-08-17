@@ -1079,6 +1079,7 @@ linux_elf_modevent(module_t mod, int type, void *data)
 				linux_ioctl_register_handler(*lihp);
 			SET_FOREACH(ldhp, linux_device_handler_set)
 				linux_device_register_handler(*ldhp);
+			sx_init(&emul_lock, "emuldata lock");
 			sx_init(&emul_shared_lock, "emuldata->shared lock");
 			LIST_INIT(&futex_list);
 			mtx_init(&futex_mtx, "futex protection lock", NULL, MTX_DEF);
