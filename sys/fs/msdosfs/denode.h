@@ -241,7 +241,7 @@ struct denode {
 		    (dep)->de_flag |= DE_MODIFIED;			\
 	}								\
 	(dep)->de_flag &= ~(DE_UPDATE | DE_CREATE | DE_ACCESS);		\
-} while (0);
+} while (0)
 
 /*
  * This overlays the fid structure (see mount.h)
