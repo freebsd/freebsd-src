@@ -74,7 +74,7 @@ MALLOC_DECLARE(M_IPSBUF);
 #define ips_set_error(command, error)	do {				\
 	(command)->status.fields.basic_status = IPS_DRV_ERROR;		\
 	(command)->status.fields.reserved = ((error) & 0x0f);		\
-} while (0);
+} while (0)
 
 #ifndef IPS_DEBUG
 #define DEVICE_PRINTF(x...)

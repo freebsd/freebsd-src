@@ -1257,8 +1257,7 @@ typedef struct work_queue_item work_queue_item;
 		(w)->wqi_func = (func);			\
 		(w)->wqi_ctx = (ctx);			\
 		InitializeListHead(&((w)->wqi_entry));	\
-	} while (0);					\
-
+	} while (0)
 
 /*
  * FreeBSD's kernel stack is 2 pages in size by default. The

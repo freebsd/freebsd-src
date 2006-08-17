@@ -45,7 +45,7 @@ struct timeval32 {
 #define TV_CP(src,dst,fld) do {			\
 	CP((src).fld,(dst).fld,tv_sec);		\
 	CP((src).fld,(dst).fld,tv_usec);	\
-} while (0);
+} while (0)
 
 struct timespec32 {
 	u_int32_t tv_sec;
