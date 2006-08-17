@@ -31,18 +31,12 @@
 
 #define	GDB_BUFSZ	500
 #define	GDB_NREGS	56
-#define	GDB_REG_PC	18
+#define	GDB_REG_PC	16
 
 static __inline size_t
 gdb_cpu_regsz(int regnum)
 {
 	return ((regnum > 16 && regnum < 24) ? 4 : 8);
-}
-
-static __inline int
-gdb_cpu_signal(int type, int code __unused)
-{
-	return (type);
 }
 
 static __inline int
@@ -53,5 +47,6 @@ gdb_cpu_query(void)
 
 void *gdb_cpu_getreg(int, size_t *);
 void gdb_cpu_setreg(int, void *);
+int gdb_cpu_signal(int, int);
 
 #endif /* !_MACHINE_GDB_MACHDEP_H_ */
