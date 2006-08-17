@@ -447,7 +447,7 @@ usage(void)
 {
 	extern char	*__progname;
 
-	fprintf(stderr, "usage: %s [-bdqu] ", __progname);
+	fprintf(stderr, "usage: %s [-bdpqu] ", __progname);
 	fprintf(stderr, "[-c conffile] [-l leasefile] interface\n");
 	exit(1);
 }
