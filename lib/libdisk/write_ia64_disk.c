@@ -123,6 +123,8 @@ write_pmbr(int fd, const struct disk *disk)
 
 	error = 0;
 	nsects = disk->media_size / disk->sector_size;
+	nsects--;	/* The GPT starts at LBA 1 */
+
 	buffer = calloc(disk->sector_size, 1);
 	if (buffer == NULL)
 		return (ENOMEM);
