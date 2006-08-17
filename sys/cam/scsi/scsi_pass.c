@@ -361,7 +361,7 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	 */
 	if ((flags & O_NONBLOCK) != 0) {
 		xpt_print_path(periph->path);
-		printf("can't do nonblocking accesss\n");
+		printf("can't do nonblocking access\n");
 		splx(s);
 		return(EINVAL);
 	}
