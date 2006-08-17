@@ -1755,13 +1755,13 @@ bridge_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
 		struct mbuf *mc;
 		int error = 0, used = 0;
 
+		bridge_span(sc, m);
+
 		BRIDGE_LOCK2REF(sc, error);
 		if (error) {
 			m_freem(m);
 			return (0);
 		}
-
-		bridge_span(sc, m);
 
 		LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 			dst_if = bif->bif_ifp;
