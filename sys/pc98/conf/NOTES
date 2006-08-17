@@ -765,7 +765,9 @@ nodevice	alpm
 nodevice	ichsmb
 nodevice	viapm
 nodevice	amdpm
+nodevice	amdsmb
 nodevice	nfpm
+nodevice	nfsmb
 
 
 #####################################################################

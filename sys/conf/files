@@ -1810,6 +1810,7 @@ pci/agp_if.m			optional agp pci
 pci/alpm.c			optional alpm pci
 pci/amdpm.c			optional amdpm pci
 pci/amdpm.c			optional nfpm pci
+pci/amdsmb.c			optional amdsmb pci
 pci/if_dc.c			optional dc pci
 pci/if_de.c			optional de pci
 pci/if_mn.c			optional mn pci
@@ -1825,6 +1826,7 @@ pci/if_wb.c			optional wb pci
 pci/if_xl.c			optional xl pci
 pci/intpm.c			optional intpm pci
 pci/ncr.c			optional ncr pci
+pci/nfsmb.c			optional nfsmb pci
 pci/viapm.c			optional viapm pci
 pci/xrpu.c			optional xrpu pci
 posix4/ksched.c			optional _kposix_priority_scheduling
