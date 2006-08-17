@@ -1474,6 +1474,9 @@ xl_attach(device_t dev)
 	else
 		sc->xl_type = XL_TYPE_90X;
 
+	/* Set the TX start threshold for best performance. */
+	sc->xl_tx_thresh = XL_MIN_FRAMELEN;
+
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = xl_ioctl;
@@ -2842,7 +2845,6 @@ xl_init_locked(struct xl_softc *sc)
 	CSR_WRITE_1(sc, XL_TX_FREETHRESH, XL_PACKET_SIZE >> 8);
 
 	/* Set the TX start threshold for best performance. */
-	sc->xl_tx_thresh = XL_MIN_FRAMELEN;
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_SET_START|sc->xl_tx_thresh);
 
 	/*
