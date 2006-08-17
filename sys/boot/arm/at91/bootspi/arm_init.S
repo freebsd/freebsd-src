@@ -23,7 +23,6 @@
  * $FreeBSD$
  ******************************************************************************/
 
-	.equ	TWI_EEPROM_SIZE,	0x2000
 	.equ	ARM_MODE_USER,	0x10
 	.equ	ARM_MODE_FIQ,	0x11
 	.equ	ARM_MODE_IRQ,	0x12
@@ -60,7 +59,7 @@ pabtvec:
 dabtvec:
                 B           dabtvec         	@; Data Abort
 rsvdvec:
-		.long	(TWI_EEPROM_SIZE >> 9)
+		.long	((1056 << 17) | (13 << 13) | (12 * 2))
 irqvec:
                 ldr         pc, [pc,#-0xF20]    @; IRQ : read the AIC
 fiqvec:
@@ -102,9 +101,25 @@ infiniteLoop:
 
 	.global BootCommandSection
 BootCommandSection:
+#ifdef SUPPORT_LINUX
 	.string "Bootloader for KB9202 Evaluation Board."
 	.string "c 0x20210000 0x10100000 0x80000        "
 	.string "m 0 0 0 0 0 0                          "
 	.string "t 0x20000100 console=ttyS0,115200 root=/dev/ram rw initrd=0x20210000,654933"
 	.string "e 0x10000000                           "
 	.string "                 "
+#else
+#if 0
+	.string "Bootloader for KB9202 Evaluation Board."
+	.string "m 42 53 44 0 0 1                       "
+	.string "ip 206 168 13 194                      "
+	.string "server_ip 206 168 13 207               "
+	.string "tftp 0x20000000 kernel.bin             "
+	.string "e 0x20000000                           "
+#else
+	.string "m 42 53 44 0 0 1"
+	.string "k 0x20000000"
+	.string "e 0x20000000"
+#endif
+	.word	0
+#endif
