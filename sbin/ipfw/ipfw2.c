@@ -4034,11 +4034,10 @@ chkarg:
 				    "illegal forwarding port ``%s''", s);
 			p->sa.sin_port = (u_short)i;
 		}
-		if (_substrcmp(*av, "tablearg") == 0) {
-			p->sa.sin_addr.s_addr = INADDR_ANY; /* htonl not needed */
-		} else {
+		if (_substrcmp(*av, "tablearg") == 0) 
+			p->sa.sin_addr.s_addr = INADDR_ANY;
+		else
 			lookup_host(*av, &(p->sa.sin_addr));
-		}
 		ac--; av++;
 		break;
 	    }
@@ -4998,23 +4997,21 @@ table_handler(int ac, char *av[])
 			err(EX_OSERR, "getsockopt(IP_FW_TABLE_LIST)");
 		for (a = 0; a < tbl->cnt; a++) {
 			/* Heuristic to print it the right way */
-			/* valuse < 64k are printed as numbers */
+			/* values < 64k are printed as numbers */
 			unsigned int tval;
 			tval = tbl->ent[a].value;
 			if (tval > 0xffff) {
 			    char tbuf[128];
-			    strncpy(tbuf,
-				 inet_ntoa(*(struct in_addr *)
-					&tbl->ent[a].addr), 127);
+			    strncpy(tbuf, inet_ntoa(*(struct in_addr *)
+				&tbl->ent[a].addr), 127);
 			    /* inet_ntoa expects host order */
 			    tval = htonl(tval);
-			    printf("%s/%u %s\n",
-			      tbuf, tbl->ent[a].masklen,
-			      inet_ntoa(*(struct in_addr *)&tval));
+			    printf("%s/%u %s\n", tbuf, tbl->ent[a].masklen,
+			        inet_ntoa(*(struct in_addr *)&tval));
 			} else {
 			    printf("%s/%u %u\n",
-			      inet_ntoa(*(struct in_addr *)&tbl->ent[a].addr),
-			      tbl->ent[a].masklen, tbl->ent[a].value);
+			        inet_ntoa(*(struct in_addr *)&tbl->ent[a].addr),
+			        tbl->ent[a].masklen, tbl->ent[a].value);
 			}
 		}
 	} else
