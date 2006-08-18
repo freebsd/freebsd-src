@@ -2533,7 +2533,7 @@ ata_marvell_begin_transaction(struct ata_request *request)
 
     /* fill in this request */
     quadp[0] = (long)ch->dma->sg_bus & 0xffffffff;
-    quadp[1] = (ch->dma->sg_bus & 0xffffffff00000000) >> 32;
+    quadp[1] = (ch->dma->sg_bus & 0xffffffff00000000ull) >> 32;
     wordp[4] = (request->flags & ATA_R_READ ? 0x01 : 0x00) | (tag<<1);
 
     i = 10;
