@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd March 20, 2005
+.Dd August 18, 2006
 .Dt PS 1
 .Os
 .Sh NAME
@@ -179,14 +179,15 @@ the standard header.
 .It Fl o
 Display information associated with the space or comma separated
 list of keywords specified.
+The last keyword in the list may be appended with an equals
+.Pq Ql =
+sign and a string spanning the rest of the argument.
+This causes the printed header to use the specified string instead of
+the standard header.
 Multiple keywords may also be given in the form of more than one
 .Fl o
 option.
-Keywords may be appended with an equals
-.Pq Ql =
-sign and a string.
-This causes the printed header to use the specified string instead of
-the standard header.
+So the header texts for multiple keywords can be changed.
 If all keywords have empty header texts, no header line is written.
 .It Fl p
 Display information about processes which match the specified process IDs.
