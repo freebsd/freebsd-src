@@ -280,12 +280,9 @@ _find_processes()
 	fi
 
 	_proccheck="\
-		$PS 2>/dev/null -o pid,jid,command $_psargs"' |
+		$PS 2>/dev/null -o pid= -o jid= -o command= $_psargs"' |
 		while read _npid _jid '"$_fp_args"'; do
-			case "$_npid" in
-			PID)
-				continue;;
-			esac; '"$_fp_match"'
+			'"$_fp_match"'
 				if [ "$JID" -eq "$_jid" ];
 				then echo -n "$_pref$_npid";
 				_pref=" ";
