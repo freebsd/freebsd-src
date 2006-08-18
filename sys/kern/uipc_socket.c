@@ -1575,10 +1575,10 @@ dontblock:
 			}
 			cm = cmn;
 		}
-		if (so->so_rcv.sb_mb)
+		if (m != NULL)
 			nextrecord = so->so_rcv.sb_mb->m_nextpkt;
 		else
-			nextrecord = NULL;
+			nextrecord = so->so_rcv.sb_mb;
 		orig_resid = 0;
 	}
 	if (m != NULL) {
