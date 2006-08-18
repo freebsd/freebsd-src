@@ -2147,8 +2147,13 @@ ata_jmicron_ident(device_t dev)
     if (!(idx = ata_match_chip(dev, ids)))
         return ENXIO;
 
-    sprintf(buffer, "JMicron %s %s controller",
-            idx->text, ata_mode2str(idx->max_dma));
+    if ((pci_read_config(dev, 0xdf, 1) & 0x40) &&
+	(pci_get_function(dev) == (pci_read_config(dev, 0x40, 1) & 0x02 >> 1)))
+	sprintf(buffer, "JMicron %s %s controller",
+		idx->text, ata_mode2str(ATA_UDMA6));
+    else
+	sprintf(buffer, "JMicron %s %s controller",
+		idx->text, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_jmicron_chipinit;
@@ -2164,25 +2169,43 @@ ata_jmicron_chipinit(device_t dev)
     if (ata_setup_interrupt(dev))
 	return ENXIO;
 
-    /* set controller configuration to a setup we support */
-    pci_write_config(dev, 0x40, 0x80c0a131, 4);
-    pci_write_config(dev, 0x80, 0x01200000, 4);
+    /* do we have multiple PCI functions ? */
+    if (pci_read_config(dev, 0xdf, 1) & 0x40) {
+	/* if we have a memory BAR(5) we are on the AHCI part */
+	ctlr->r_type2 = SYS_RES_MEMORY;
+	ctlr->r_rid2 = PCIR_BAR(5);
+	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+						    &ctlr->r_rid2, RF_ACTIVE)))
+	    return ata_ahci_chipinit(dev);
 
-    ctlr->allocate = ata_jmicron_allocate;
-    ctlr->reset = ata_jmicron_reset;
-    ctlr->dmainit = ata_jmicron_dmainit;
-    ctlr->setmode = ata_jmicron_setmode;
-
-    ctlr->r_type2 = SYS_RES_MEMORY;
-    ctlr->r_rid2 = PCIR_BAR(5);
-    if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
-						&ctlr->r_rid2, RF_ACTIVE))) {
-	if ((error = ata_ahci_chipinit(dev)))
-	    return error;
+	/* otherwise we are on the PATA part */
+	ctlr->allocate = ata_pci_allocate;
+	ctlr->reset = ata_generic_reset;
+	ctlr->dmainit = ata_pci_dmainit;
+	ctlr->setmode = ata_jmicron_setmode;
+	ctlr->channels = ctlr->chip->cfg2;
     }
+    else {
+	/* set controller configuration to a combined setup we support */
+	pci_write_config(dev, 0x40, 0x80c0a131, 4);
+	pci_write_config(dev, 0x80, 0x01200000, 4);
 
-    /* set the number of HW channels */ 
-    ctlr->channels = ctlr->chip->cfg1 + ctlr->chip->cfg2;
+	ctlr->r_type2 = SYS_RES_MEMORY;
+	ctlr->r_rid2 = PCIR_BAR(5);
+	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+						    &ctlr->r_rid2, RF_ACTIVE))){
+	    if ((error = ata_ahci_chipinit(dev)))
+		return error;
+	}
+
+	ctlr->allocate = ata_jmicron_allocate;
+	ctlr->reset = ata_jmicron_reset;
+	ctlr->dmainit = ata_jmicron_dmainit;
+	ctlr->setmode = ata_jmicron_setmode;
+
+	/* set the number of HW channels */ 
+	ctlr->channels = ctlr->chip->cfg1 + ctlr->chip->cfg2;
+    }
     return 0;
 }
 
@@ -2233,7 +2256,7 @@ ata_jmicron_setmode(device_t dev, int mode)
     struct ata_pci_controller *ctlr = device_get_softc(GRANDPARENT(dev));
     struct ata_channel *ch = device_get_softc(device_get_parent(dev));
 
-    if (ch->unit >= ctlr->chip->cfg1) {
+    if (pci_read_config(dev, 0xdf, 1) & 0x40 || ch->unit >= ctlr->chip->cfg1) {
 	struct ata_device *atadev = device_get_softc(dev);
 
 	/* check for 80pin cable present */
