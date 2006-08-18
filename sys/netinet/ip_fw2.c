@@ -2791,7 +2791,8 @@ check_body:
 
 			case O_LOG:
 				if (fw_verbose)
-					ipfw_log(f, hlen, args, m, oif, offset, tablearg);
+					ipfw_log(f, hlen, args, m,
+					    oif, offset, tablearg);
 				match = 1;
 				break;
 
@@ -3156,15 +3157,17 @@ check_body:
 					if (sa->sin_addr.s_addr == INADDR_ANY) {
 						bcopy(sa, &args->hopstore,
 							sizeof(*sa));
-						args->hopstore.sin_addr.s_addr = htonl(tablearg);
-						args->next_hop = &args->hopstore;
+						args->hopstore.sin_addr.s_addr =
+						    htonl(tablearg);
+						args->next_hop =
+						    &args->hopstore;
 					} else {
 						args->next_hop = sa;
 					}
 				}
 				retval = IP_FW_PASS;
-				}
-				goto done;
+			    }
+			    goto done;
 
 			case O_NETGRAPH:
 			case O_NGTEE:
