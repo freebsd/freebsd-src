@@ -31,24 +31,33 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2004
+.Dd August 18, 2006
 .Dt IXGB 4
 .Os
 .Sh NAME
 .Nm ixgb
 .Nd "Intel(R) PRO/10GbE Ethernet driver for the FreeBSD operating system"
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device ixgb"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ixgb_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for PCI gigabit Ethernet adapters based on
+driver provides support for PCI Gigabit Ethernet adapters based on
 the Intel 82597EX Ethernet controller chips.
 The driver supports Transmit/Receive checksum offload
 and Jumbo Frames.
-For a list of supported adapters, see the
-.Pa README
-included with the driver.
 .Pp
 For questions related to hardware requirements,
 refer to the documentation supplied with your Intel PRO/10GbE adapter.
@@ -62,8 +71,8 @@ utility configures the adapter to receive and transmit Jumbo Frames.
 The maximum MTU size for Jumbo Frames is 16114.
 .Pp
 This driver version supports VLANs.
-For information on enabling VLANs, see the
-.Pa README .
+For information on enabling VLANs, see
+.Xr ifconfig 8 .
 .Sh HARDWARE
 The
 .Nm
@@ -86,10 +95,6 @@ The device has stopped responding to the network, or there is a problem with
 the network connection (cable).
 .El
 .Sh SUPPORT
-For additional information regarding building and installation,
-see the
-.Pa README
-included with the driver.
 For general information and support,
 go to the Intel support website at:
 .Pa http://support.intel.com .
