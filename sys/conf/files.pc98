@@ -55,7 +55,9 @@ opt_ah.h			optional	ath_hal			\
 #
 compat/linprocfs/linprocfs.c	optional linprocfs
 compat/linsysfs/linsysfs.c	optional linsysfs
+compat/linux/linux_emul.c	optional compat_linux
 compat/linux/linux_file.c	optional compat_linux
+compat/linux/linux_futex.c	optional compat_linux
 compat/linux/linux_getcwd.c	optional compat_linux
 compat/linux/linux_ioctl.c	optional compat_linux
 compat/linux/linux_ipc.c	optional compat_linux
@@ -65,6 +67,7 @@ compat/linux/linux_signal.c	optional compat_linux
 compat/linux/linux_socket.c	optional compat_linux
 compat/linux/linux_stats.c	optional compat_linux
 compat/linux/linux_sysctl.c	optional compat_linux
+compat/linux/linux_time.c	optional compat_linux
 compat/linux/linux_uid16.c	optional compat_linux
 compat/linux/linux_util.c	optional compat_linux
 compat/pecoff/imgact_pecoff.c	optional pecoff_support
