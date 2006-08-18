@@ -294,7 +294,7 @@
 	Various kernel tunable parameters can be overridden by specifying new 
 	values in the environment.
 
-	set kern.ipc.nmbclusters=<value>	NMBCLUSTERS
+	set kern.ipc.nmbclusters=<value>
 
 		Set the number of mbuf clusters to be allocated.  The value
 		cannot be set below the default determined when the kernel
