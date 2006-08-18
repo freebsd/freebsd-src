@@ -689,8 +689,8 @@ Change the next-hop on matching packets to
 .Ar ipaddr ,
 which can be an IP address or a host name.
 The next hop can also be supplied by the last table
-looked up for the packet by using the 
-.Em tablearg
+looked up for the packet by using the
+.Cm tablearg
 keyword instead of an explicit address.
 The search terminates if this rule matches.
 .Pp
@@ -1594,8 +1594,10 @@ action parameters:
 rule options:
 .Cm limit, tagged.
 .Pp
-When used with 'fwd' it is possible to supply table entries with values
-that are in the form of IP addresses or hostnames. 
+When used with
+.Cm fwd
+it is possible to supply table entries with values
+that are in the form of IP addresses or hostnames.
 See the
 .Sx EXAMPLES
 Section for example usage of tables and the tablearg keyword.
@@ -2388,7 +2390,9 @@ Then we classify traffic using a single rule:
 .Dl "..."
 .Dl "ipfw pipe tablearg ip from table(1) to any"
 .Pp
-Using the  fwd action, the table entries may include hostnames and IP addresses.
+Using the
+.Cn fwd
+action, the table entries may include hostnames and IP addresses.
 .Pp
 .Dl "ipfw table 1 add 192.168.2.0/24 10.23.2.1"
 .Dl "ipfw table 1 add 192.168.0.0/27 router1.dmz"
