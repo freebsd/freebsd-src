@@ -124,6 +124,7 @@ SUBDIR=	${_3dfx} \
 	isp \
 	ispfw \
 	${_iwi} \
+	${_ixgb} \
 	joy \
 	kbdmux \
 	kue \
@@ -416,6 +417,7 @@ _ipmi=		ipmi
 _ips=		ips
 _ipw=		ipw
 _iwi=		iwi
+_ixgb=   	ixgb
 _mly=		mly
 _mxge=		mxge
 _nfe=		nfe
@@ -465,6 +467,7 @@ _ipmi=		ipmi
 _ips=		ips
 _ipw=		ipw
 _iwi=		iwi
+_ixgb=   	ixgb
 _mly=		mly
 _mxge=		mxge
 _ndis=		ndis
