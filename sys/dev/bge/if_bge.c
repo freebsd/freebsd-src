@@ -2905,6 +2905,25 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 	uint16_t		csum_flags;
 	int			nsegs, i, error;
 
+	csum_flags = 0;
+	if (m->m_pkthdr.csum_flags) {
+		if (m->m_pkthdr.csum_flags & CSUM_IP)
+			csum_flags |= BGE_TXBDFLAG_IP_CSUM;
+		if (m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP)) {
+			csum_flags |= BGE_TXBDFLAG_TCP_UDP_CSUM;
+			if (m->m_pkthdr.len < ETHER_MIN_NOPAD &&
+			    (error = bge_cksum_pad(m)) != 0) {
+				m_freem(m);
+				*m_head = NULL;
+				return (error);
+			}
+		}
+		if (m->m_flags & M_LASTFRAG)
+			csum_flags |= BGE_TXBDFLAG_IP_FRAG_END;
+		else if (m->m_flags & M_FRAG)
+			csum_flags |= BGE_TXBDFLAG_IP_FRAG;
+	}
+
 	map = sc->bge_cdata.bge_tx_dmamap[idx];
 	error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_mtag, map, m, segs,
 	    &nsegs, BUS_DMA_NOWAIT);
@@ -2933,26 +2952,6 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 	if (nsegs > (BGE_TX_RING_CNT - sc->bge_txcnt - 16)) {
 		bus_dmamap_unload(sc->bge_cdata.bge_mtag, map);
 		return (ENOBUFS);
-	}
-
-	csum_flags = 0;
-	if (m->m_pkthdr.csum_flags) {
-		if (m->m_pkthdr.csum_flags & CSUM_IP)
-			csum_flags |= BGE_TXBDFLAG_IP_CSUM;
-		if (m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP)) {
-			csum_flags |= BGE_TXBDFLAG_TCP_UDP_CSUM;
-			if (m->m_pkthdr.len < ETHER_MIN_NOPAD &&
-			    (error = bge_cksum_pad(m)) != 0) {
-				bus_dmamap_unload(sc->bge_cdata.bge_mtag, map);
-				m_freem(m);
-				*m_head = NULL;
-				return (error);
-			}
-		}
-		if (m->m_flags & M_LASTFRAG)
-			csum_flags |= BGE_TXBDFLAG_IP_FRAG_END;
-		else if (m->m_flags & M_FRAG)
-			csum_flags |= BGE_TXBDFLAG_IP_FRAG;
 	}
 
 	bus_dmamap_sync(sc->bge_cdata.bge_mtag, map, BUS_DMASYNC_PREWRITE);
