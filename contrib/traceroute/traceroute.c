@@ -353,6 +353,7 @@ int doipcksum = 0;		/* don't calculate ip checksums by default */
 int doipcksum = 1;		/* calculate ip checksums by default */
 #endif
 int optlen;			/* length of ip options */
+int fixedPort = 0;		/* Use fixed destination port for TCP and UDP */
 
 extern int optind;
 extern int opterr;
@@ -521,11 +522,15 @@ main(int argc, char **argv)
 		prog = argv[0];
 
 	opterr = 0;
-	while ((op = getopt(argc, argv, "dFInrSvxf:g:i:M:m:P:p:q:s:t:w:z:")) != EOF)
+	while ((op = getopt(argc, argv, "edFInrSvxf:g:i:M:m:P:p:q:s:t:w:z:")) != EOF)
 		switch (op) {
 
 		case 'd':
 			options |= SO_DEBUG;
+			break;
+
+		case 'e':
+			fixedPort = 1;
 			break;
 
 		case 'f':
@@ -1012,6 +1017,41 @@ main(int argc, char **argv)
 					Printf(" !S");
 					break;
 
+				case ICMP_UNREACH_NET_UNKNOWN:
+					++unreachable;
+					Printf(" !U");
+					break;
+
+				case ICMP_UNREACH_HOST_UNKNOWN:
+					++unreachable;
+					Printf(" !W");
+					break;
+
+				case ICMP_UNREACH_ISOLATED:
+					++unreachable;
+					Printf(" !I");
+					break;
+
+				case ICMP_UNREACH_NET_PROHIB:
+					++unreachable;
+					Printf(" !A");
+					break;
+
+				case ICMP_UNREACH_HOST_PROHIB:
+					++unreachable;
+					Printf(" !Z");
+					break;
+
+				case ICMP_UNREACH_TOSNET:
+					++unreachable;
+					Printf(" !Q");
+					break;
+
+				case ICMP_UNREACH_TOSHOST:
+					++unreachable;
+					Printf(" !T");
+					break;
+
 				case ICMP_UNREACH_FILTER_PROHIB:
 					++unreachable;
 					Printf(" !X");
@@ -1289,8 +1329,8 @@ udp_prep(struct outdata *outdata)
 {
 	struct udphdr *const outudp = (struct udphdr *) outp;
 
-	outudp->uh_sport = htons(ident);
-	outudp->uh_dport = htons(port + outdata->seq);
+	outudp->uh_sport = htons(ident + (fixedPort ? outdata->seq : 0));
+	outudp->uh_dport = htons(port + (fixedPort ? 0 : outdata->seq));
 	outudp->uh_ulen = htons((u_short)protlen);
 	outudp->uh_sum = 0;
 	if (doipcksum) {
@@ -1306,8 +1346,8 @@ udp_check(const u_char *data, int seq)
 {
 	struct udphdr *const udp = (struct udphdr *) data;
 
-	return (ntohs(udp->uh_sport) == ident
-	    && ntohs(udp->uh_dport) == port + seq);
+	return (ntohs(udp->uh_sport) == ident + (fixedPort ? seq : 0) &&
+	    ntohs(udp->uh_dport) == port + (fixedPort ? 0 : seq));
 }
 
 void
@@ -1316,8 +1356,9 @@ tcp_prep(struct outdata *outdata)
 	struct tcphdr *const tcp = (struct tcphdr *) outp;
 
 	tcp->th_sport = htons(ident);
-	tcp->th_dport = htons(port + outdata->seq);
-	tcp->th_seq = (tcp->th_sport << 16) | tcp->th_dport;
+	tcp->th_dport = htons(port + (fixedPort ? 0 : outdata->seq));
+	tcp->th_seq = (tcp->th_sport << 16) | (tcp->th_dport +
+	    (fixedPort ? outdata->seq : 0));
 	tcp->th_ack = 0;
 	tcp->th_off = 5;
 	tcp->th_flags = TH_SYN;
@@ -1335,7 +1376,8 @@ tcp_check(const u_char *data, int seq)
 	struct tcphdr *const tcp = (struct tcphdr *) data;
 
 	return (ntohs(tcp->th_sport) == ident
-	    && ntohs(tcp->th_dport) == port + seq);
+	    && ntohs(tcp->th_dport) == port + (fixedPort ? 0 : seq))
+	    && tcp->th_seq == (ident << 16) | (port + seq);
 }
 
 void

@@ -24,7 +24,7 @@ traceroute \- print the route packets take to network host
 .na
 .B traceroute
 [
-.B \-dFISdnrvx
+.B \-deFISdnrvx
 ] [
 .B \-f
 .I first_ttl
@@ -97,6 +97,11 @@ by specifying a packet length (in bytes) after the destination host
 name.
 .PP
 Other options are:
+.TP
+.B \-e
+Firewall evasion mode.
+Use fixed destination ports for UDP and TCP probes.
+The destination port does NOT increment with each packet sent.
 .TP
 .B \-f
 Set the initial time-to-live used in the first outgoing probe packet.
@@ -277,7 +282,7 @@ traceroute to nis.nsf.net (35.1.1.48), 64 hops max, 38 byte packet
 .RE
 
 Note that lines 2 & 3 are the same.  This is due to a buggy
-kernel on the 2nd hop system \- lbl-csam.arpa \- that forwards
+kernel on the 2nd hop system \- lilac-dmc.Berkeley.EDU \- that forwards
 packets with a zero ttl (a bug in the distributed version
 of 4.3BSD).  Note that you have to guess what path
 the packets are taking cross-country since the NSFNet (129.140)
@@ -367,6 +372,20 @@ or
 (source route failed),
 .B !F\-<pmtu>
 (fragmentation needed \- the RFC1191 Path MTU Discovery value is displayed),
+.B !U
+or
+.B !W
+(destination network/host unknown),
+.B !I
+(source host is isolated),
+.B !A
+(communication with destination network administratively prohibited),
+.B !Z
+(communication with destination host administratively prohibited),
+.B !Q
+(for this ToS the destination network is unreachable),
+.B !T
+(for this ToS the destination host is unreachable),
 .B !X
 (communication administratively prohibited),
 .B !V
