@@ -509,8 +509,6 @@ compile-time configuration file.
 Set the number of mbuf clusters to be allocated.
 The value cannot be set below the default
 determined when the kernel was compiled.
-Modifies
-.Dv NMBCLUSTERS .
 .It Va kern.ipc.nsfbufs
 Set the number of
 .Xr sendfile 2
@@ -534,7 +532,7 @@ Only mess around with
 this parameter if you need to greatly extend the
 KVM reservation for other resources such as the
 buffer cache or
-.Dv NMBCLUSTERS .
+.Dv kern.ipc.nmbclusters .
 Modifies
 .Dv VM_SWZONE_SIZE_MAX .
 .It Va kern.maxbcache
@@ -547,7 +545,7 @@ KVM in large-memory machine configurations.
 Only mess around with this parameter if you need to
 greatly extend the KVM reservation for other resources
 such as the swap zone or
-.Dv NMBCLUSTERS .
+.Dv kern.ipc.nmbclusters .
 Note that
 the NBUF parameter will override this limit.
 Modifies
