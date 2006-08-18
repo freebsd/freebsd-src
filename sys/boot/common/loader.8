@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 22, 2005
+.Dd August 18, 2006
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -532,7 +532,7 @@ Only mess around with
 this parameter if you need to greatly extend the
 KVM reservation for other resources such as the
 buffer cache or
-.Dv kern.ipc.nmbclusters .
+.Va kern.ipc.nmbclusters .
 Modifies
 .Dv VM_SWZONE_SIZE_MAX .
 .It Va kern.maxbcache
@@ -545,7 +545,7 @@ KVM in large-memory machine configurations.
 Only mess around with this parameter if you need to
 greatly extend the KVM reservation for other resources
 such as the swap zone or
-.Dv kern.ipc.nmbclusters .
+.Va kern.ipc.nmbclusters .
 Note that
 the NBUF parameter will override this limit.
 Modifies
