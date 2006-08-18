@@ -2,9 +2,7 @@
 
 # The boot loader
 .if !defined(NO_BOOT)
-.if ${MACHINE_ARCH} != "arm"
 SUBDIR=	boot
-.endif
 .endif
 
 # Directories to include in cscope name file and TAGS.
