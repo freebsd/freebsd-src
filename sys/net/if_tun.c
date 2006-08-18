@@ -123,6 +123,25 @@ static d_read_t		tunread;
 static d_write_t	tunwrite;
 static d_ioctl_t	tunioctl;
 static d_poll_t		tunpoll;
+static d_kqfilter_t	tunkqfilter;
+
+static int		tunkqread(struct knote *, long);
+static int		tunkqwrite(struct knote *, long);
+static void		tunkqdetach(struct knote *);
+
+static struct filterops tun_read_filterops = {
+	.f_isfd =	1,
+	.f_attach =	NULL,
+	.f_detach =	tunkqdetach,
+	.f_event =	tunkqread,
+};
+
+static struct filterops tun_write_filterops = {
+	.f_isfd =	1,
+	.f_attach =	NULL,
+	.f_detach =	tunkqdetach,
+	.f_event =	tunkqwrite,
+};
 
 static struct cdevsw tun_cdevsw = {
 	.d_version =	D_VERSION,
@@ -133,6 +152,7 @@ static struct cdevsw tun_cdevsw = {
 	.d_write =	tunwrite,
 	.d_ioctl =	tunioctl,
 	.d_poll =	tunpoll,
+	.d_kqfilter =	tunkqfilter,
 	.d_name =	TUNNAME,
 };
 
@@ -179,6 +199,7 @@ tun_destroy(struct tun_softc *tp)
 	if_detach(TUN2IFP(tp));
 	if_free(TUN2IFP(tp));
 	destroy_dev(dev);
+	knlist_destroy(&tp->tun_rsel.si_note);
 	mtx_destroy(&tp->tun_mtx);
 	free(tp, M_TUN);
 }
@@ -231,6 +252,7 @@ tunstart(struct ifnet *ifp)
 	struct tun_softc *tp = ifp->if_softc;
 	struct mbuf *m;
 
+	TUNDEBUG(ifp,"%s starting\n", ifp->if_xname);
 	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
 		IFQ_LOCK(&ifp->if_snd);
 		IFQ_POLL_NOLOCK(&ifp->if_snd, m);
@@ -252,6 +274,7 @@ tunstart(struct ifnet *ifp)
 	} else
 		mtx_unlock(&tp->tun_mtx);
 	selwakeuppri(&tp->tun_rsel, PZERO + 1);
+	KNOTE_UNLOCKED(&tp->tun_rsel.si_note, 0);
 }
 
 /* XXX: should return an error code so it can fail. */
@@ -285,10 +308,13 @@ tuncreate(struct cdev *dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 	ifp->if_snd.ifq_drv_maxlen = 0;
 	IFQ_SET_READY(&ifp->if_snd);
+	knlist_init(&sc->tun_rsel.si_note, NULL, NULL, NULL, NULL);
 
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
 	dev->si_drv1 = sc;
+	TUNDEBUG(ifp, "interface %s is created, minor = %#x\n",
+	    ifp->if_xname, minor(dev));
 }
 
 static int
@@ -376,6 +402,7 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 
 	funsetown(&tp->tun_sigio);
 	selwakeuppri(&tp->tun_rsel, PZERO + 1);
+	KNOTE_UNLOCKED(&tp->tun_rsel.si_note, 0);
 	TUNDEBUG (ifp, "closed\n");
 	return (0);
 }
@@ -718,7 +745,7 @@ tunread(struct cdev *dev, struct uio *uio, int flag)
 			mtx_lock(&tp->tun_mtx);
 			tp->tun_flags |= TUN_RWAIT;
 			mtx_unlock(&tp->tun_mtx);
-			if((error = tsleep(tp, PCATCH | (PZERO + 1),
+			if ((error = tsleep(tp, PCATCH | (PZERO + 1),
 					"tunread", 0)) != 0) {
 				splx(s);
 				return (error);
@@ -862,4 +889,95 @@ tunpoll(struct cdev *dev, int events, struct thread *td)
 
 	splx(s);
 	return (revents);
+}
+
+/*
+ * tunkqfilter - support for the kevent() system call.
+ */
+static int
+tunkqfilter(struct cdev *dev, struct knote *kn)
+{
+	int			s;
+	struct tun_softc	*tp = dev->si_drv1;
+	struct ifnet	*ifp = TUN2IFP(tp);
+
+	s = splimp();
+	switch(kn->kn_filter) {
+	case EVFILT_READ:
+		TUNDEBUG(ifp, "%s kqfilter: EVFILT_READ, minor = %#x\n",
+		    ifp->if_xname, minor(dev));
+		kn->kn_fop = &tun_read_filterops;
+		break;
+
+	case EVFILT_WRITE:
+		TUNDEBUG(ifp, "%s kqfilter: EVFILT_WRITE, minor = %#x\n",
+		    ifp->if_xname, minor(dev));
+		kn->kn_fop = &tun_write_filterops;
+		break;
+	
+	default:
+		TUNDEBUG(ifp, "%s kqfilter: invalid filter, minor = %#x\n",
+		    ifp->if_xname, minor(dev));
+		splx(s);
+		return(EINVAL);
+	}
+	splx(s);
+
+	kn->kn_hook = (caddr_t) dev;
+	knlist_add(&tp->tun_rsel.si_note, kn, 0);
+
+	return (0);
+}
+
+/*
+ * Return true of there is data in the interface queue.
+ */
+static int
+tunkqread(struct knote *kn, long hint)
+{
+	int			ret, s;
+	struct cdev		*dev = (struct cdev *)(kn->kn_hook);
+	struct tun_softc	*tp = dev->si_drv1;
+	struct ifnet	*ifp = TUN2IFP(tp);
+
+	s = splimp();
+	if ((kn->kn_data = ifp->if_snd.ifq_len) > 0) {
+		TUNDEBUG(ifp,
+		    "%s have data in the queue.  Len = %d, minor = %#x\n",
+		    ifp->if_xname, ifp->if_snd.ifq_len, minor(dev));
+		ret = 1;
+	} else {
+		TUNDEBUG(ifp,
+		    "%s waiting for data, minor = %#x\n", ifp->if_xname,
+		    minor(dev));
+		ret = 0;
+	}
+	splx(s);
+
+	return (ret);
+}
+
+/*
+ * Always can write, always return MTU in kn->data.
+ */
+static int
+tunkqwrite(struct knote *kn, long hint)
+{
+	int			s;
+	struct tun_softc	*tp = ((struct cdev *)kn->kn_hook)->si_drv1;
+	struct ifnet	*ifp = TUN2IFP(tp);
+
+	s = splimp();
+	kn->kn_data = ifp->if_mtu;
+	splx(s);
+
+	return (1);
+}
+
+static void
+tunkqdetach(struct knote *kn)
+{
+	struct tun_softc	*tp = ((struct cdev *)kn->kn_hook)->si_drv1;
+
+	knlist_remove(&tp->tun_rsel.si_note, kn, 0);
 }
