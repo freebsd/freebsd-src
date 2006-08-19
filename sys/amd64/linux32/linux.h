@@ -34,10 +34,6 @@
 #define	_AMD64_LINUX_LINUX_H_
 
 #include <sys/signal.h> /* for sigval union */
-#include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/sx.h>
 
 #include <amd64/linux32/linux32_syscall.h>
 
