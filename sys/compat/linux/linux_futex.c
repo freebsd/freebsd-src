@@ -302,7 +302,9 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		ret = futex_wake(f, args->val, NULL);
 		futex_put(f);
 		if (op_ret > 0) {
+#ifdef	DEBUG
 		   	printf("second wakeup\n");
+#endif
 		   	op_ret = 0;
 		   	/* Linux always puts there 0 retries */
    		   	op_ret += futex_wake(f2, 0, NULL);
