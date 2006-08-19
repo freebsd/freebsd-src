@@ -82,14 +82,14 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 
 	if (child != 0) {
 	   	/* non-exec call */
-   		MALLOC(em, struct linux_emuldata *, sizeof *em, M_LINUX, M_WAITOK | M_ZERO);
+		em = malloc(sizeof *em, M_LINUX, M_WAITOK | M_ZERO);
 		em->pid = child;
 		if (flags & CLONE_VM) {
 		   	/* handled later in the code */
 		} else {
 		   	struct linux_emuldata_shared *s;
 
-   			MALLOC(s, struct linux_emuldata_shared *, sizeof *s, M_LINUX, M_WAITOK | M_ZERO);
+			s = malloc(sizeof *s, M_LINUX, M_WAITOK | M_ZERO);
 			em->shared = s;
 			s->refs = 1;
 			s->group_pid = child;
@@ -172,7 +172,7 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 
 	em->shared->refs--;
 	if (em->shared->refs == 0)
-		FREE(em->shared, M_LINUX);
+		free(em->shared, M_LINUX);
 	EMUL_SHARED_WUNLOCK(&emul_shared_lock);
 
 	if (child_clear_tid != NULL) {
@@ -200,7 +200,7 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 	}
 
 	/* clean the stuff up */
-	FREE(em, M_LINUX);
+	free(em, M_LINUX);
 }
 
 /* 
