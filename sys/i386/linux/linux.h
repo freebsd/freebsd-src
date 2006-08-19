@@ -32,10 +32,6 @@
 #define	_I386_LINUX_LINUX_H_
 
 #include <sys/signal.h> /* for sigval union */
-#include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/sx.h>
 
 #include <i386/linux/linux_syscall.h>
 
