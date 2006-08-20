@@ -3797,10 +3797,10 @@ add_src(ipfw_insn *cmd, char *av, u_char proto)
 	    inet_pton(AF_INET6, host, &a))
 		ret = add_srcip6(cmd, av);
 	/* XXX: should check for IPv4, not !IPv6 */
-	if ((ret == NULL) && proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
-	    !inet_pton(AF_INET6, host, &a))
+	if (ret == NULL && (proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
+	    !inet_pton(AF_INET6, host, &a)))
 		ret = add_srcip(cmd, av);
-	if ((ret == NULL) && strcmp(av, "any") != 0)
+	if (ret == NULL && strcmp(av, "any") != 0)
 		ret = cmd;
 
 	free(host);
@@ -3823,10 +3823,10 @@ add_dst(ipfw_insn *cmd, char *av, u_char proto)
 	    inet_pton(AF_INET6, host, &a))
 		ret = add_dstip6(cmd, av);
 	/* XXX: should check for IPv4, not !IPv6 */
-	if ((ret == NULL) && proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
-	    !inet_pton(AF_INET6, av, &a))
+	if (ret == NULL && (proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
+	    !inet_pton(AF_INET6, host, &a)))
 		ret = add_dstip(cmd, av);
-	if ((ret == NULL) && strcmp(av, "any") != 0)
+	if (ret == NULL && strcmp(av, "any") != 0)
 		ret = cmd;
 
 	free(host);
