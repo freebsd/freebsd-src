@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2002  Mark Nudelman
+ * Copyright (C) 1984-2005  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -122,9 +122,9 @@ cvt_text(odst, osrc, ops)
 
 	for (src = osrc, dst = odst;  *src != '\0';  src++)
 	{
-		if ((ops & CVT_TO_LC) && isupper((unsigned char) *src))
+		if ((ops & CVT_TO_LC) && IS_UPPER(*src))
 			/* Convert uppercase to lowercase. */
-			*dst++ = tolower((unsigned char) *src);
+			*dst++ = TO_LOWER(*src);
 		else if ((ops & CVT_BS) && *src == '\b' && dst > odst)
 			/* Delete BS and preceding char. */
 			dst--;
@@ -132,7 +132,7 @@ cvt_text(odst, osrc, ops)
 		{
 			/* Skip to end of ANSI escape sequence. */
 			while (src[1] != '\0')
-				if (is_ansi_end(*++src))
+				if (!is_ansi_middle(*++src))
 					break;
 		} else 
 			/* Just copy. */
@@ -177,7 +177,7 @@ is_ucase(s)
 	register char *p;
 
 	for (p = s;  *p != '\0';  p++)
-		if (isupper((unsigned char) *p))
+		if (IS_UPPER(*p))
 			return (1);
 	return (0);
 }
@@ -249,11 +249,18 @@ repaint_hilite(on)
 		if (pos == NULL_POSITION)
 			continue;
 		epos = position(slinenum+1);
+#if 0
 		/*
 		 * If any character in the line is highlighted, 
 		 * repaint the line.
+		 *
+		 * {{ This doesn't work -- if line is drawn with highlights
+		 * which should be erased (e.g. toggle -i with status column),
+		 * we must redraw the line even if it has no highlights.
+		 * For now, just repaint every line. }}
 		 */
-		if (is_hilited(pos, epos, 1))
+		if (is_hilited(pos, epos, 1, NULL))
+#endif
 		{
 			(void) forw_line(pos);
 			goto_line(slinenum);
@@ -534,15 +541,41 @@ clr_hilite()
 
 /*
  * Should any characters in a specified range be highlighted?
+ */
+	static int
+is_hilited_range(pos, epos)
+	POSITION pos;
+	POSITION epos;
+{
+	struct hilite *hl;
+
+	/*
+	 * Look at each highlight and see if any part of it falls in the range.
+	 */
+	for (hl = hilite_anchor.hl_first;  hl != NULL;  hl = hl->hl_next)
+	{
+		if (hl->hl_endpos > pos &&
+		    (epos == NULL_POSITION || epos > hl->hl_startpos))
+			return (1);
+	}
+	return (0);
+}
+
+/*
+ * Should any characters in a specified range be highlighted?
  * If nohide is nonzero, don't consider hide_hilite.
  */
 	public int
-is_hilited(pos, epos, nohide)
+is_hilited(pos, epos, nohide, p_matches)
 	POSITION pos;
 	POSITION epos;
 	int nohide;
+	int *p_matches;
 {
-	struct hilite *hl;
+	int match;
+
+	if (p_matches != NULL)
+		*p_matches = 0;
 
 	if (!status_col &&
 	    start_attnpos != NULL_POSITION && 
@@ -552,6 +585,16 @@ is_hilited(pos, epos, nohide)
 		 * The attn line overlaps this range.
 		 */
 		return (1);
+
+	match = is_hilited_range(pos, epos);
+	if (!match)
+		return (0);
+
+	if (p_matches != NULL)
+		/*
+		 * Report matches, even if we're hiding highlights.
+		 */
+		*p_matches = 1;
 
 	if (hilite_search == 0)
 		/*
@@ -565,16 +608,7 @@ is_hilited(pos, epos, nohide)
 		 */
 		return (0);
 
-	/*
-	 * Look at each highlight and see if any part of it falls in the range.
-	 */
-	for (hl = hilite_anchor.hl_first;  hl != NULL;  hl = hl->hl_next)
-	{
-		if (hl->hl_endpos > pos &&
-		    (epos == NULL_POSITION || epos > hl->hl_startpos))
-			return (1);
-	}
-	return (0);
+	return (1);
 }
 
 /*
@@ -615,6 +649,30 @@ add_hilite(anchor, hl)
 	}
 	hl->hl_next = ihl->hl_next;
 	ihl->hl_next = hl;
+}
+
+	static void
+adj_hilite_ansi(cvt_ops, line, npos)
+	int cvt_ops;
+	char **line;
+	POSITION *npos;
+{
+	if (cvt_ops & CVT_ANSI)
+		while (**line == ESC)
+		{
+			/*
+			 * Found an ESC.  The file position moves
+			 * forward past the entire ANSI escape sequence.
+			 */
+			(*line)++;
+			(*npos)++;
+			while (**line != '\0')
+			{
+				(*npos)++;
+				if (!is_ansi_middle(*(*line)++))
+					break;
+			}
+		}
 }
 
 /*
@@ -666,38 +724,30 @@ adj_hilite(anchor, linepos, cvt_ops)
 		}
 		if (*line == '\0')
 			break;
-		if (cvt_ops & CVT_ANSI)
-		{
-			while (line[0] == ESC)
-			{
-				/*
-				 * Found an ESC.  The file position moves
-				 * forward past the entire ANSI escape sequence.
-				 */
-				line++;
-				npos++;
-				while (*line != '\0')
-				{
-					npos++;
-					if (is_ansi_end(*line++))
-						break;
-				}
-			}
-		}
+		adj_hilite_ansi(cvt_ops, &line, &npos);
 		opos++;
 		npos++;
 		line++;
 		if (cvt_ops & CVT_BS)
 		{
-			while (line[0] == '\b' && line[1] != '\0')
+			while (*line == '\b')
 			{
+				npos++;
+				line++;
+				adj_hilite_ansi(cvt_ops, &line, &npos);
+				if (*line == '\0')
+				{
+					--npos;
+					--line;
+					break;
+				}
 				/*
 				 * Found a backspace.  The file position moves
 				 * forward by 2 relative to the processed line
 				 * which was searched in hilite_line.
 				 */
-				npos += 2;
-				line += 2;
+				npos++;
+				line++;
 			}
 		}
 	}
@@ -1043,7 +1093,7 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos)
 			 * Return it.
 			 */
 #if HILITE_SEARCH
-			if (hilite_search == 1)
+			if (hilite_search == OPT_ON)
 			{
 				/*
 				 * Clear the hilite list and add only
