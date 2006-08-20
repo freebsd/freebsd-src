@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2002  Mark Nudelman
+ * Copyright (C) 1984-2004  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -114,6 +114,7 @@ main(argc, argv)
 	init_prompt();
 	init_charset();
 	init_line();
+	init_cmdhist();
 	init_option();
 	s = lgetenv("LESS");
 	if (s != NULL)
@@ -335,14 +336,14 @@ sprefix(ps, s, uppercase)
 		c = *ps;
 		if (uppercase)
 		{
-			if (len == 0 && SIMPLE_IS_LOWER(c))
+			if (len == 0 && ASCII_IS_LOWER(c))
 				return (-1);
-			if (SIMPLE_IS_UPPER(c))
-				c = SIMPLE_TO_LOWER(c);
+			if (ASCII_IS_UPPER(c))
+				c = ASCII_TO_LOWER(c);
 		}
 		sc = *s;
-		if (len > 0 && SIMPLE_IS_UPPER(sc))
-			sc = SIMPLE_TO_LOWER(sc);
+		if (len > 0 && ASCII_IS_UPPER(sc))
+			sc = ASCII_TO_LOWER(sc);
 		if (c != sc)
 			break;
 		len++;
@@ -369,6 +370,7 @@ quit(status)
 		save_status = status;
 	quitting = 1;
 	edit((char*)NULL);
+	save_cmdhist();
 	if (any_display && is_tty)
 		clear_bot();
 	deinit();
