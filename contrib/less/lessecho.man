@@ -1,0 +1,49 @@
+LESSECHO(1)                                                        LESSECHO(1)
+
+
+
+NNAAMMEE
+       lessecho - expand metacharacters
+
+SSYYNNOOPPSSIISS
+       lleesssseecchhoo _[_-_o_x_] _[_-_c_x_] _[_-_p_n_] _[_-_d_n_] _[_-_m_x_] _[_-_n_n_] _[_-_e_x_] _[_-_a_] _f_i_l_e _._._.
+
+DDEESSCCRRIIPPTTIIOONN
+       _l_e_s_s_e_c_h_o  is a program that simply echos its arguments on standard out-
+       put.  But any argument containing spaces is enclosed in quotes.
+
+OOPPTTIIOONNSS
+       A summary of options is included below.
+
+       --ooxx    Specifies "x" to be the open quote character.
+
+       --ccxx    Specifies "x" to be the close quote character.
+
+       --ppnn    Specifies "n" to be the open quote character, as an integer.
+
+       --ddnn    Specifies "n" to be the close quote character, as an integer.
+
+       --mmxx    Specifies "x" to be a metachar.
+
+       --nnnn    Specifies "n" to be a metachar, as an integer.
+
+       --eexx    Specifies "x" to be the escape char for metachars.
+
+       --ffnn    Specifies "n" to be the escape char for metachars, as  an  inte-
+              ger.
+
+       --aa     Specifies  that  all arguments are to be quoted.  The default is
+              that only arguments containing spaces are quoted.
+
+SSEEEE AALLSSOO
+       less(1)
+
+AAUUTTHHOORR
+       This manual page was written by  Thomas  Schoepf  <schoepf@debian.org>,
+       for the Debian GNU/Linux system (but may be used by others).
+
+       Send bug reports or comments to bug-less@gnu.org.
+
+
+
+                           Version 394: 03 Dec 2005                LESSECHO(1)
