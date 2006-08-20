@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_ipc.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
+#include <compat/linux/linux_emul.h>
 
 struct l_old_select_argv {
 	l_int		nfds;
@@ -211,6 +212,14 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 	free(path, M_TEMP);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
+	if (error == 0)
+	   	/* linux process can exec fbsd one, dont attempt
+		 * to create emuldata for such process using
+		 * linux_proc_init, this leads to a panic on KASSERT
+		 * because such process has p->p_emuldata == NULL
+		 */
+	   	if (td->td_proc->p_sysent == &elf_linux_sysvec)
+   		   	error = linux_proc_init(td, 0, 0);
 	return (error);
 }
 
@@ -452,6 +461,10 @@ linux_fork(struct thread *td, struct linux_fork_args *args)
 
 	if (td->td_retval[1] == 1)
 		td->td_retval[0] = 0;
+	error = linux_proc_init(td, td->td_retval[0], 0);
+	if (error)
+		return (error);
+
 	return (0);
 }
 
@@ -470,6 +483,9 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	/* Are we the child? */
 	if (td->td_retval[1] == 1)
 		td->td_retval[0] = 0;
+	error = linux_proc_init(td, td->td_retval[0], 0);
+	if (error)
+		return (error);
 	return (0);
 }
 
@@ -480,12 +496,14 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	struct proc *p2;
 	struct thread *td2;
 	int exit_signal;
+	struct linux_emuldata *em;
 
 #ifdef DEBUG
 	if (ldebug(clone)) {
-		printf(ARGS(clone, "flags %x, stack %x"),
-		    (unsigned int)(uintptr_t)args->flags,
-		    (unsigned int)(uintptr_t)args->stack);
+   	   	printf(ARGS(clone, "flags %x, stack %x, parent tid: %x, child tid: %x"),
+		    (unsigned int)args->flags, (unsigned int)(uintptr_t)args->stack, 
+		    (unsigned int)(uintptr_t)args->parent_tidptr, 
+		    (unsigned int)(uintptr_t)args->child_tidptr);
 	}
 #endif
 
@@ -503,10 +521,74 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if (!(args->flags & CLONE_FILES))
 		ff |= RFFDG;
 
+	/*
+	 * Attempt to detect when linux_clone(2) is used for creating
+	 * kernel threads. Unfortunately despite the existence of the
+	 * CLONE_THREAD flag, version of linuxthreads package used in
+	 * most popular distros as of beginning of 2005 doesn't make
+	 * any use of it. Therefore, this detection relay fully on
+	 * empirical observation that linuxthreads sets certain
+	 * combination of flags, so that we can make more or less
+	 * precise detection and notify the FreeBSD kernel that several
+	 * processes are in fact part of the same threading group, so
+	 * that special treatment is necessary for signal delivery
+	 * between those processes and fd locking.
+	 */
+	if ((args->flags & 0xffffff00) == THREADING_FLAGS)
+		ff |= RFTHREAD;
+
 	error = fork1(td, ff, 0, &p2);
 	if (error)
 		return (error);
 	
+	/* create the emuldata */
+	error = linux_proc_init(td, p2->p_pid, args->flags);
+	/* reference it - no need to check this */
+	em = em_find(p2, EMUL_UNLOCKED);
+	KASSERT(em != NULL, ("clone: emuldata not found.\n"));
+	/* and adjust it */
+	if (args->flags & CLONE_PARENT_SETTID) {
+	   	if (args->parent_tidptr == NULL) {
+		   	EMUL_UNLOCK(&emul_lock);
+			return (EINVAL);
+		}
+		error = copyout(&p2->p_pid, args->parent_tidptr, sizeof(p2->p_pid));
+		if (error) {
+		   	EMUL_UNLOCK(&emul_lock);
+			return (error);
+		}
+	}
+
+	if (args->flags & CLONE_PARENT) {
+#ifdef DEBUG
+	   	printf("linux_clone: CLONE_PARENT\n");
+#endif
+	}
+	   	
+	if (args->flags & CLONE_THREAD) {
+	   	/* XXX: linux mangles pgrp and pptr somehow
+		 * I think it might be this but I am not sure.
+		 */
+#ifdef notyet
+	   	p2->p_pgrp = td->td_proc->p_pgrp;
+	 	p2->p_pptr = td->td_proc->p_pptr;
+#endif
+	 	exit_signal = 0;
+#ifdef DEBUG
+	   	printf("linux_clone: CLONE_THREADS\n");
+#endif
+	}
+
+	if (args->flags & CLONE_CHILD_SETTID)
+		em->child_set_tid = args->child_tidptr;
+	else
+	   	em->child_set_tid = NULL;
+
+	if (args->flags & CLONE_CHILD_CLEARTID)
+		em->child_clear_tid = args->child_tidptr;
+	else
+	   	em->child_clear_tid = NULL;
+	EMUL_UNLOCK(&emul_lock);
 
 	PROC_LOCK(p2);
 	p2->p_sigparent = exit_signal;
@@ -518,6 +600,10 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	 */
 	if (args->stack)
    	   	td2->td_frame->tf_rsp = PTROUT(args->stack);
+
+	if (args->flags & CLONE_SETTLS) {
+	   	/* XXX: todo */
+	}
 
 #ifdef DEBUG
 	if (ldebug(clone))
