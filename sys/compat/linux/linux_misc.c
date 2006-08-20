@@ -1331,7 +1331,6 @@ linux_reboot(struct thread *td, struct linux_reboot_args *args)
 int
 linux_getpid(struct thread *td, struct linux_getpid_args *args)
 {
-#ifdef __i386__
    	struct linux_emuldata *em;
 	char osrel[LINUX_MAX_UTSNAME];
 
@@ -1346,11 +1345,7 @@ linux_getpid(struct thread *td, struct linux_getpid_args *args)
    	   	td->td_retval[0] = td->td_proc->p_pid;
 	   	PROC_UNLOCK(td->td_proc);
 	}
-#else
-	PROC_LOCK(td->td_proc);
-	td->td_retval[0] = td->td_proc->p_pid;
-	PROC_UNLOCK(td->td_proc);
-#endif
+
 	return (0);
 }
 
@@ -1370,7 +1365,6 @@ linux_gettid(struct thread *td, struct linux_gettid_args *args)
 int
 linux_getppid(struct thread *td, struct linux_getppid_args *args)
 {
-#ifdef __i386__
    	struct linux_emuldata *em;
 	struct proc *p, *pp;
 	char osrel[LINUX_MAX_UTSNAME];
@@ -1412,9 +1406,6 @@ linux_getppid(struct thread *td, struct linux_getppid_args *args)
 
 	EMUL_UNLOCK(&emul_lock);
 	PROC_UNLOCK(pp);
-#else
-	return getppid(td, (struct getppid_args *) args);
-#endif
 
 	return (0);
 }
@@ -1481,7 +1472,6 @@ linux_sethostname(struct thread *td, struct linux_sethostname_args *args)
 int
 linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 {
-#ifdef __i386__
    	struct linux_emuldata *em, *td_em, *tmp_em;
 	struct proc *sp;
 	char osrel[LINUX_MAX_UTSNAME];
@@ -1513,10 +1503,8 @@ linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 		EMUL_SHARED_RUNLOCK(&emul_shared_lock);
 		EMUL_UNLOCK(&emul_lock);
 	}
-#endif
 
 	exit1(td, W_EXITCODE(args->error_code,0));
 
    	return (0);
 }
-
