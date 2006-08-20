@@ -12,6 +12,11 @@ LDADD=	-lkvm
 LINKS=	${BINDIR}/pkill ${BINDIR}/pgrep
 MLINKS=	pkill.1 pgrep.1
 
+#
+# If considering retirement of these compatibility symlinks,
+# keep in mind that pkill is installed to /usr/bin in other
+# OS types, e.g., NetBSD, OpenBSD, Solaris, and Linux.
+#
 SYMLINKS=	${BINDIR}/pkill /usr/bin/pkill
 SYMLINKS+=	${BINDIR}/pgrep /usr/bin/pgrep
 
