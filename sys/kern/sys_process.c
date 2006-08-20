@@ -934,7 +934,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_LWPINFO:
-		if (data == 0 || data > sizeof(*pl)) {
+		if (data <= 0 || data > sizeof(*pl)) {
 			error = EINVAL;
 			break;
 		}
