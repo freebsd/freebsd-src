@@ -188,7 +188,8 @@ in6_pcbbind(inp, nam, cred)
 			struct inpcb *t;
 
 			/* GROSS */
-			if (ntohs(lport) < IPV6PORT_RESERVED &&
+			if (ntohs(lport) <= ipport_reservedhigh &&
+			    ntohs(lport) >= ipport_reservedlow &&
 			    suser_cred(cred, SUSER_ALLOWJAIL))
 				return (EACCES);
 			if (so->so_cred->cr_uid != 0 &&
