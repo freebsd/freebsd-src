@@ -1790,7 +1790,7 @@ ufs_readdir(ap)
 		struct uio *a_uio;
 		struct ucred *a_cred;
 		int *a_eofflag;
-		int *ncookies;
+		int *a_ncookies;
 		u_long **a_cookies;
 	} */ *ap;
 {
