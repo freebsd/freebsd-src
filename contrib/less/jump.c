@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2002  Mark Nudelman
+ * Copyright (C) 1984-2005  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -22,6 +22,7 @@ extern int squished;
 extern int screen_trashed;
 extern int sc_width, sc_height;
 extern int show_attn;
+extern int top_scroll;
 
 /*
  * Jump to the end of the file.
@@ -279,7 +280,10 @@ jump_loc(pos, sline)
 			}
 		}
 		lastmark();
-		clear();
+		if (top_scroll != OPT_ON)
+			clear();
+		else
+			home();
 		screen_trashed = 0;
 		add_back_pos(pos);
 		back(sc_height-1, pos, 1, 0);

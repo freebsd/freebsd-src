@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2000  Mark Nudelman
+ * Copyright (C) 1984-2004  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -109,10 +109,13 @@
  * LESSKEYFILE_SYS is the filename of the system-wide lesskey output file.
  * DEF_LESSKEYINFILE is the filename of the default lesskey input 
  * (in the HOME directory).
+ * LESSHISTFILE is the filename of the history file
+ * (in the HOME directory).
  */
 #define	LESSKEYFILE		".less"
 #define	LESSKEYFILE_SYS		"/.sysless"
 #define	DEF_LESSKEYINFILE	".lesskey"
+#define LESSHISTFILE		".lesshst"
 
 
 /* Settings always true for OS-9.  */
@@ -277,6 +280,9 @@
 
 /* Define if you have the system function.  */
 #define HAVE_SYSTEM 1
+
+/* Define if you have the snprintf function.  */
+#define HAVE_SNPRINTF	0
 
 /* Define if you have the <ctype.h> header file.  */
 #define HAVE_CTYPE_H 1

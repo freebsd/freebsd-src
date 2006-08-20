@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2002  Mark Nudelman
+ * Copyright (C) 1984-2004  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -142,12 +142,12 @@ scan_option(s)
 		if (optname == NULL)
 		{
 			printopt = propt(optc);
-			lc = SIMPLE_IS_LOWER(optc);
+			lc = ASCII_IS_LOWER(optc);
 			o = findopt(optc);
 		} else
 		{
 			printopt = optname;
-			lc = SIMPLE_IS_LOWER(optname[0]);
+			lc = ASCII_IS_LOWER(optname[0]);
 			o = findopt_name(&optname, NULL, &err);
 			s = optname;
 			optname = NULL;
@@ -350,14 +350,14 @@ toggle_option(c, s, how_toggle)
 			{
 			case OPT_TOGGLE:
 				*(o->ovar) = flip_triple(*(o->ovar), 
-						islower(c));
+						ASCII_IS_LOWER(c));
 				break;
 			case OPT_UNSET:
 				*(o->ovar) = o->odefault;
 				break;
 			case OPT_SET:
 				*(o->ovar) = flip_triple(o->odefault,
-						islower(c));
+						ASCII_IS_LOWER(c));
 				break;
 			}
 			break;
