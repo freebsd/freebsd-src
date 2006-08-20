@@ -499,6 +499,7 @@ vendor DELORME		0x1163	DeLorme
 vendor SERVERWORKS	0x1166	ServerWorks
 vendor ACERCM		0x1189	Acer Communications & Multimedia
 vendor SIERRA		0x1199	Sierra Wireless
+vendor PROLIFIC2	0x11f6	Prolific
 vendor TWINMOS		0x126f	TwinMOS
 vendor TSUNAMI		0x1241	Tsunami
 vendor CREATIVE2	0x1292	Creative Labs
@@ -507,6 +508,7 @@ vendor AINCOMM		0x12fd	Aincomm
 vendor MOBILITY		0x1342	Mobility
 vendor LINKSYS4		0x13b1	Linksys
 vendor SHARK		0x13d2	Shark
+vendor RADIOSHACK	0x1453	Radio Shack
 vendor SILICOM		0x1485	Silicom
 vendor RALINK		0x148f	Ralink Technology
 vendor IMAGINATION	0x149a	Imagination Technologies
@@ -888,6 +890,7 @@ product EPSON 1660		0x011e	Perfection 1660 scanner
 product EPSON 1670		0x011f	Perfection 1670 scanner
 product EPSON 1270		0x0120	Perfection 1270 scanner
 product EPSON 2480		0x0121  Perfection 2480 scanner
+product EPSON 3500		0x080e	CX-3500/3600/3650 MFP
 product EPSON RX425		0x080f	Stylus Photo RX425 scanner
 
 /* e-TEK Labs products */
@@ -1402,7 +1405,9 @@ product PROLIFIC PL2303		0x2303	PL2303 Serial (ATEN/IOGEAR UC232A)
 product PROLIFIC PL2305		0x2305	Parallel printer
 product PROLIFIC ATAPI4		0x2307	ATAPI-4 Controller
 product PROLIFIC PL2501		0x2501	PL2501 Host-Host interface
+product	PROLIFIC PHAROS		0xaaa0	Prolific Pharos
 product PROLIFIC RSAQ3		0xaaa2	PL2303 Serial adapter (IODATA USB-RSAQ3)
+product PROLIFIC2 WSIM		0x2001  Willcom WSIM
 
 /* Putercom products */
 product PUTERCOM UPA100		0x047e	USB-1284 BRIDGE
@@ -1416,6 +1421,9 @@ product QTRONIX 980N		0x2011	Scorpion-980N keyboard
 
 /* Quickshot products */
 product QUICKSHOT STRIKEPAD	0x6238	USB StrikePad
+
+/* Radio Shack */
+product	RADIOSHACK USBCABLE	0x4026	USB to Serial Cable
 
 /* Rainbow Technologies products */
 product RAINBOW IKEY2000	0x1200	i-Key 2000
