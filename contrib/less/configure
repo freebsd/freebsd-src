@@ -843,6 +843,7 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-secure  Compile in secure mode
   --with-regex={auto,pcre,posix,regcmp,re_comp,regcomp,regcomp-local}  Select a regular expression library  auto
   --with-editor=PROGRAM   use PROGRAM as the default editor vi
 
@@ -2860,6 +2861,61 @@ else
   have_xcurses=no
 fi
 
+echo "$as_me:$LINENO: checking for initscr in -lncursesw" >&5
+echo $ECHO_N "checking for initscr in -lncursesw... $ECHO_C" >&6
+if test "${ac_cv_lib_ncursesw_initscr+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lncursesw  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+#line $LINENO "configure"
+#include "confdefs.h"
+
+/* Override any gcc2 internal prototype to avoid an error.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+/* We use char because int might match the return type of a gcc2
+   builtin and then its argument prototype would still apply.  */
+char initscr ();
+int
+main ()
+{
+initscr ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+         { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_ncursesw_initscr=yes
+else
+  echo "$as_me: failed program was:" >&5
+cat conftest.$ac_ext >&5
+ac_cv_lib_ncursesw_initscr=no
+fi
+rm -f conftest.$ac_objext conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_ncursesw_initscr" >&5
+echo "${ECHO_T}$ac_cv_lib_ncursesw_initscr" >&6
+if test $ac_cv_lib_ncursesw_initscr = yes; then
+  have_ncursesw=yes
+else
+  have_ncursesw=no
+fi
+
 echo "$as_me:$LINENO: checking for initscr in -lncurses" >&5
 echo $ECHO_N "checking for initscr in -lncurses... $ECHO_C" >&6
 if test "${ac_cv_lib_ncurses_initscr+set}" = set; then
@@ -3281,6 +3337,47 @@ if test $curses_broken = 0; then
 if test "x$TERMLIBS" = x; then
   if test $have_xcurses = yes; then
     TERMLIBS="-lxcurses"
+    SAVE_LIBS=$LIBS
+    LIBS="$LIBS $TERMLIBS"
+    cat >conftest.$ac_ext <<_ACEOF
+#line $LINENO "configure"
+#include "confdefs.h"
+
+int
+main ()
+{
+tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+         { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  termok=yes
+else
+  echo "$as_me: failed program was:" >&5
+cat conftest.$ac_ext >&5
+termok=no
+fi
+rm -f conftest.$ac_objext conftest$ac_exeext conftest.$ac_ext
+    LIBS=$SAVE_LIBS
+    if test $termok = no; then TERMLIBS=""; fi
+  fi
+fi
+
+if test "x$TERMLIBS" = x; then
+  if test $have_ncursesw = yes; then
+    TERMLIBS="-lncursesw"
     SAVE_LIBS=$LIBS
     LIBS="$LIBS $TERMLIBS"
     cat >conftest.$ac_ext <<_ACEOF
@@ -4222,6 +4319,8 @@ fi
 
 
 
+
+
 # Checks for identifiers.
 echo "$as_me:$LINENO: checking for off_t" >&5
 echo $ECHO_N "checking for off_t... $ECHO_C" >&6
@@ -4456,7 +4555,9 @@ _ACEOF
 
 
 
-for ac_func in fsync memcpy popen _setjmp sigprocmask sigsetmask stat strchr strstr system
+
+
+for ac_func in fsync memcpy popen _setjmp sigprocmask sigsetmask snprintf stat strchr strstr system fchmod
 do
 as_ac_var=`echo "ac_cv_func_$ac_func" | $as_tr_sh`
 echo "$as_me:$LINENO: checking for $ac_func" >&5
@@ -5057,12 +5158,29 @@ fi
 rm -f conftest.$ac_objext conftest$ac_exeext conftest.$ac_ext
 fi
 
+# Compile in secure mode?
+
+# Check whether --with-secure or --without-secure was given.
+if test "${with_secure+set}" = set; then
+  withval="$with_secure"
+  cat >>confdefs.h <<\_ACEOF
+#define SECURE_COMPILE 1
+_ACEOF
+
+else
+  cat >>confdefs.h <<\_ACEOF
+#define SECURE_COMPILE 0
+_ACEOF
+
+fi;
+
 # Checks for regular expression functions.
 have_regex=no
 have_posix_regex=unknown
 echo "$as_me:$LINENO: checking for regcomp" >&5
 echo $ECHO_N "checking for regcomp... $ECHO_C" >&6
 
+# Select a regular expression library.
 WANT_REGEX=auto
 
 # Check whether --with-regex or --without-regex was given.
