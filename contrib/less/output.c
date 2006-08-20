@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2002  Mark Nudelman
+ * Copyright (C) 1984-2005  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -47,7 +47,6 @@ put_line()
 	register int c;
 	register int i;
 	int a;
-	int curr_attr;
 
 	if (ABORT_SIGS())
 	{
@@ -58,49 +57,19 @@ put_line()
 		return;
 	}
 
-	curr_attr = AT_NORMAL;
+	final_attr = AT_NORMAL;
 
 	for (i = 0;  (c = gline(i, &a)) != '\0';  i++)
 	{
-		if (a != curr_attr)
-		{
-			/*
-			 * Changing attributes.
-			 * Display the exit sequence for the old attribute
-			 * and the enter sequence for the new one.
-			 */
-			switch (curr_attr)
-			{
-			case AT_UNDERLINE:	ul_exit();	break;
-			case AT_BOLD:		bo_exit();	break;
-			case AT_BLINK:		bl_exit();	break;
-			case AT_STANDOUT:	so_exit();	break;
-			}
-			switch (a)
-			{
-			case AT_UNDERLINE:	ul_enter();	break;
-			case AT_BOLD:		bo_enter();	break;
-			case AT_BLINK:		bl_enter();	break;
-			case AT_STANDOUT:	so_enter();	break;
-			}
-			curr_attr = a;
-		}
-		if (curr_attr == AT_INVIS)
-			continue;
+		at_switch(a);
+		final_attr = a;
 		if (c == '\b')
 			putbs();
 		else
 			putchr(c);
 	}
 
-	switch (curr_attr)
-	{
-	case AT_UNDERLINE:	ul_exit();	break;
-	case AT_BOLD:		bo_exit();	break;
-	case AT_BLINK:		bl_exit();	break;
-	case AT_STANDOUT:	so_exit();	break;
-	}
-	final_attr = curr_attr;
+	at_exit();
 }
 
 static char obuf[OUTBUF_SIZE];
@@ -360,6 +329,25 @@ flush()
 putchr(c)
 	int c;
 {
+#if 0 /* fake UTF-8 output for testing */
+	extern int utf_mode;
+	if (utf_mode)
+	{
+		static char ubuf[MAX_UTF_CHAR_LEN];
+		static int ubuf_len = 0;
+		static int ubuf_index = 0;
+		if (ubuf_len == 0)
+		{
+			ubuf_len = utf_len(c);
+			ubuf_index = 0;
+		}
+		ubuf[ubuf_index++] = c;
+		if (ubuf_index < ubuf_len)
+			return c;
+		c = get_wchar(ubuf) & 0xFF;
+		ubuf_len = 0;
+	}
+#endif
 	if (need_clr)
 	{
 		need_clr = 0;
@@ -534,8 +522,9 @@ error(fmt, parg)
 
 	if (any_display && is_tty)
 	{
+		at_exit();
 		clear_bot();
-		so_enter();
+		at_enter(AT_STANDOUT);
 		col += so_s_width;
 	}
 
@@ -548,7 +537,7 @@ error(fmt, parg)
 	}
 
 	putstr(return_to_continue);
-	so_exit();
+	at_exit();
 	col += sizeof(return_to_continue) + so_e_width;
 
 	get_return();
@@ -578,11 +567,12 @@ ierror(fmt, parg)
 	char *fmt;
 	PARG *parg;
 {
+	at_exit();
 	clear_bot();
-	so_enter();
+	at_enter(AT_STANDOUT);
 	(void) less_printf(fmt, parg);
 	putstr(intr_to_abort);
-	so_exit();
+	at_exit();
 	flush();
 	need_clr = 1;
 }
