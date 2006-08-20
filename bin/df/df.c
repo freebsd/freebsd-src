@@ -113,7 +113,7 @@ main(int argc, char *argv[])
 
 	memset(&totalbuf, 0, sizeof(totalbuf));
 	totalbuf.f_bsize = DEV_BSIZE;
-	strncpy(totalbuf.f_mntfromname, "total", MNAMELEN);
+	strlcpy(totalbuf.f_mntfromname, "total", MNAMELEN);
 	vfslist = NULL;
 	while ((ch = getopt(argc, argv, "abcgHhiklmnPt:")) != -1)
 		switch (ch) {
@@ -552,7 +552,7 @@ makenetvfslist(void)
 
 	*str = 'n'; *(str + 1) = 'o';
 	for (i = 0, strptr = str + 2; i < cnt; i++, strptr++) {
-		strncpy(strptr, listptr[i], 32);
+		strlcpy(strptr, listptr[i], 32);
 		strptr += strlen(listptr[i]);
 		*strptr = ',';
 		free(listptr[i]);
