@@ -182,14 +182,9 @@ agp_amd64_attach(device_t dev)
 
 	sc->n_mctrl = n;
 
-	if (bootverbose) {
+	if (bootverbose)
 		device_printf(dev, "%d Miscellaneous Control unit(s) found.\n",
 		    sc->n_mctrl);
-		for (i = 0; i < sc->n_mctrl; i++)
-			device_printf(dev, "Aperture Base[%d]: 0x%08x\n", i,
-			    pci_cfgregread(0, sc->mctrl[i], 3,
-			    AGP_AMD64_APBASE, 4) & AGP_AMD64_APBASE_MASK);
-	}
 
 	if ((error = agp_generic_attach(dev)))
 		return error;
@@ -380,11 +375,11 @@ agp_amd64_apbase_fixup(device_t dev)
 	uint32_t apbase;
 	int i;
 
-	apbase = pci_cfgregread(0, sc->mctrl[0], 3, AGP_AMD64_APBASE, 4);
+	sc->apbase = rman_get_start(sc->agp.as_aperture);
+	apbase = (sc->apbase >> 25) & AGP_AMD64_APBASE_MASK;
 	for (i = 0; i < sc->n_mctrl; i++)
-		pci_cfgregwrite(0, sc->mctrl[i], 3, AGP_AMD64_APBASE,
-		    apbase & ~(AGP_AMD64_APBASE_MASK & ~(uint32_t)0x7f), 4);
-	sc->apbase = apbase << 25;
+		pci_cfgregwrite(0, sc->mctrl[i], 3,
+		    AGP_AMD64_APBASE, apbase, 4);
 }
 
 static void
