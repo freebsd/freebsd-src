@@ -2749,8 +2749,9 @@ scsi_read_capacity_16(struct ccb_scsiio *csio, uint32_t retries,
 void
 scsi_report_luns(struct ccb_scsiio *csio, u_int32_t retries,
 		 void (*cbfcnp)(struct cam_periph *, union ccb *),
-		 u_int8_t tag_action, struct scsi_report_luns_data *rpl_buf,
-		 u_int32_t alloc_len, u_int8_t sense_len, u_int32_t timeout)
+		 u_int8_t tag_action, u_int8_t select_report,
+		 struct scsi_report_luns_data *rpl_buf, u_int32_t alloc_len,
+		 u_int8_t sense_len, u_int32_t timeout)
 {
 	struct scsi_report_luns *scsi_cmd;
 
@@ -2767,7 +2768,8 @@ scsi_report_luns(struct ccb_scsiio *csio, u_int32_t retries,
 	scsi_cmd = (struct scsi_report_luns *)&csio->cdb_io.cdb_bytes;
 	bzero(scsi_cmd, sizeof(*scsi_cmd));
 	scsi_cmd->opcode = REPORT_LUNS;
-	scsi_ulto4b(alloc_len, scsi_cmd->addr);
+	scsi_cmd->select_report = select_report;
+	scsi_ulto4b(alloc_len, scsi_cmd->length);
 }
 
 /*
