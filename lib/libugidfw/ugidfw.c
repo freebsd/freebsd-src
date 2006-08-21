@@ -34,6 +34,8 @@
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
+#include <sys/ucred.h>
+#include <sys/mount.h>
 
 #include <security/mac_bsdextended/mac_bsdextended.h>
 
@@ -47,8 +49,7 @@
 
 /*
  * Text format for rules: rules contain subject and object elements, mode.
- * Each element takes the form "[not] [uid number] [gid number]".
- * The total form is "subject [element] object [element] mode [mode]".
+ * The total form is "subject [s_element] object [o_element] mode [mode]".
  * At least * one of a uid or gid entry must be present; both may also be
  * present.
  */
@@ -60,114 +61,376 @@ bsde_rule_to_string(struct mac_bsdextended_rule *rule, char *buf, size_t buflen)
 {
 	struct group *grp;
 	struct passwd *pwd;
-	char *cur;
+	struct statfs *mntbuf;
+	char *cur, type[sizeof(rule->mbr_object.mbo_type) * CHAR_BIT + 1];
 	size_t left, len;
-	int anymode, unknownmode, truncated;
+	int anymode, unknownmode, truncated, numfs, i, notdone;
 
 	cur = buf;
 	left = buflen;
 	truncated = 0;
 
-	if (rule->mbr_subject.mbi_flags & (MBI_UID_DEFINED |
-	    MBI_GID_DEFINED)) {
-		len = snprintf(cur, left, "subject ");
-		if (len < 0 || len > left)
-			goto truncated;
-		left -= len;
-		cur += len;
-
-		if (rule->mbr_subject.mbi_flags & MBI_NEGATED) {
+	len = snprintf(cur, left, "subject ");
+	if (len < 0 || len > left)
+		goto truncated;
+	left -= len;
+	cur += len;
+	if (rule->mbr_subject.mbs_flags) {
+		if (rule->mbr_subject.mbs_neg == MBS_ALL_FLAGS) {
 			len = snprintf(cur, left, "not ");
 			if (len < 0 || len > left)
 				goto truncated;
 			left -= len;
 			cur += len;
+			notdone = 1;
+		} else {
+			notdone = 0;
 		}
-		if (rule->mbr_subject.mbi_flags & MBI_UID_DEFINED) {
-			pwd = getpwuid(rule->mbr_subject.mbi_uid);
+
+		if (!notdone && (rule->mbr_subject.mbs_neg & MBO_UID_DEFINED)) {
+			len = snprintf(cur, left, "! ");
+			if (len < 0 || len > left)
+				goto truncated;
+			left -= len;
+			cur += len;
+		}
+		if (rule->mbr_subject.mbs_flags & MBO_UID_DEFINED) {
+			pwd = getpwuid(rule->mbr_subject.mbs_uid_min);
 			if (pwd != NULL) {
-				len = snprintf(cur, left, "uid %s ",
+				len = snprintf(cur, left, "uid %s",
 				    pwd->pw_name);
 				if (len < 0 || len > left)
 					goto truncated;
 				left -= len;
 				cur += len;
 			} else {
-				len = snprintf(cur, left, "uid %u ",
-				    rule->mbr_subject.mbi_uid);
+				len = snprintf(cur, left, "uid %u",
+				    rule->mbr_subject.mbs_uid_min);
+				if (len < 0 || len > left)
+					goto truncated;
+				left -= len;
+				cur += len;
+			}
+			if (rule->mbr_subject.mbs_uid_min !=
+			    rule->mbr_subject.mbs_uid_max) {
+				pwd = getpwuid(rule->mbr_subject.mbs_uid_max);
+				if (pwd != NULL) {
+					len = snprintf(cur, left, ":%s ",
+					    pwd->pw_name);
+					if (len < 0 || len > left)
+						goto truncated;
+					left -= len;
+					cur += len;
+				} else {
+					len = snprintf(cur, left, ":%u ",
+					    rule->mbr_subject.mbs_uid_max);
+					if (len < 0 || len > left)
+						goto truncated;
+					left -= len;
+					cur += len;
+				}
+			} else {
+				len = snprintf(cur, left, " ");
 				if (len < 0 || len > left)
 					goto truncated;
 				left -= len;
 				cur += len;
 			}
 		}
-		if (rule->mbr_subject.mbi_flags & MBI_GID_DEFINED) {
-			grp = getgrgid(rule->mbr_subject.mbi_gid);
+		if (!notdone && (rule->mbr_subject.mbs_neg & MBO_GID_DEFINED)) {
+			len = snprintf(cur, left, "! ");
+			if (len < 0 || len > left)
+				goto truncated;
+			left -= len;
+			cur += len;
+		}
+		if (rule->mbr_subject.mbs_flags & MBO_GID_DEFINED) {
+			grp = getgrgid(rule->mbr_subject.mbs_gid_min);
 			if (grp != NULL) {
-				len = snprintf(cur, left, "gid %s ",
+				len = snprintf(cur, left, "gid %s",
 				    grp->gr_name);
 				if (len < 0 || len > left)
 					goto truncated;
 				left -= len;
 				cur += len;
 			} else {
-				len = snprintf(cur, left, "gid %u ",
-				    rule->mbr_subject.mbi_gid);
+				len = snprintf(cur, left, "gid %u",
+				    rule->mbr_subject.mbs_gid_min);
 				if (len < 0 || len > left)
 					goto truncated;
 				left -= len;
 				cur += len;
 			}
+			if (rule->mbr_subject.mbs_gid_min !=
+			    rule->mbr_subject.mbs_gid_max) {
+				grp = getgrgid(rule->mbr_subject.mbs_gid_max);
+				if (grp != NULL) {
+					len = snprintf(cur, left, ":%s ",
+					    grp->gr_name);
+					if (len < 0 || len > left)
+						goto truncated;
+					left -= len;
+					cur += len;
+				} else {
+					len = snprintf(cur, left, ":%u ",
+					    rule->mbr_subject.mbs_gid_max);
+					if (len < 0 || len > left)
+						goto truncated;
+					left -= len;
+					cur += len;
+				}
+			} else {
+				len = snprintf(cur, left, " ");
+				if (len < 0 || len > left)
+					goto truncated;
+				left -= len;
+				cur += len;
+			}
+		}
+		if (!notdone && (rule->mbr_subject.mbs_neg & MBS_PRISON_DEFINED)) {
+			len = snprintf(cur, left, "! ");
+			if (len < 0 || len > left)
+				goto truncated;
+			left -= len;
+			cur += len;
+		}
+		if (rule->mbr_subject.mbs_flags & MBS_PRISON_DEFINED) {
+			len = snprintf(cur, left, "jailid %d ", 
+			    rule->mbr_subject.mbs_prison);
+			if (len < 0 || len > left)
+				goto truncated;
+			left -= len;
+			cur += len;
 		}
 	}
-	if (rule->mbr_object.mbi_flags & (MBI_UID_DEFINED |
-	    MBI_GID_DEFINED)) {
-		len = snprintf(cur, left, "object ");
-		if (len < 0 || len > left)
-			goto truncated;
-		left -= len;
-		cur += len;
 
-		if (rule->mbr_object.mbi_flags & MBI_NEGATED) {
+	len = snprintf(cur, left, "object ");
+	if (len < 0 || len > left)
+		goto truncated;
+	left -= len;
+	cur += len;
+	if (rule->mbr_object.mbo_flags) {
+		if (rule->mbr_object.mbo_neg == MBO_ALL_FLAGS) {
 			len = snprintf(cur, left, "not ");
 			if (len < 0 || len > left)
 				goto truncated;
 			left -= len;
 			cur += len;
+			notdone = 1;
+		} else {
+			notdone = 0;
 		}
-		if (rule->mbr_object.mbi_flags & MBI_UID_DEFINED) {
-			pwd = getpwuid(rule->mbr_object.mbi_uid);
+
+		if (!notdone && (rule->mbr_object.mbo_neg & MBO_UID_DEFINED)) {
+			len = snprintf(cur, left, "! ");
+			if (len < 0 || len > left)
+				goto truncated;
+			left -= len;
+			cur += len;
+		}
+		if (rule->mbr_object.mbo_flags & MBO_UID_DEFINED) {
+			pwd = getpwuid(rule->mbr_object.mbo_uid_min);
 			if (pwd != NULL) {
-				len = snprintf(cur, left, "uid %s ",
+				len = snprintf(cur, left, "uid %s",
 				    pwd->pw_name);
 				if (len < 0 || len > left)
 					goto truncated;
 				left -= len;
 				cur += len;
 			} else {
-				len = snprintf(cur, left, "uid %u ",
-				    rule->mbr_object.mbi_uid);
+				len = snprintf(cur, left, "uid %u",
+				    rule->mbr_object.mbo_uid_min);
+				if (len < 0 || len > left)
+					goto truncated;
+				left -= len;
+				cur += len;
+			}
+			if (rule->mbr_object.mbo_uid_min !=
+			    rule->mbr_object.mbo_uid_max) {
+				pwd = getpwuid(rule->mbr_object.mbo_uid_max);
+				if (pwd != NULL) {
+					len = snprintf(cur, left, ":%s ",
+					    pwd->pw_name);
+					if (len < 0 || len > left)
+						goto truncated;
+					left -= len;
+					cur += len;
+				} else {
+					len = snprintf(cur, left, ":%u ",
+					    rule->mbr_object.mbo_uid_max);
+					if (len < 0 || len > left)
+						goto truncated;
+					left -= len;
+					cur += len;
+				}
+			} else {
+				len = snprintf(cur, left, " ");
+				if (len < 0 || len > left)
+					goto truncated;
 				left -= len;
 				cur += len;
 			}
 		}
-		if (rule->mbr_object.mbi_flags & MBI_GID_DEFINED) {
-			grp = getgrgid(rule->mbr_object.mbi_gid);
+		if (!notdone && (rule->mbr_object.mbo_neg & MBO_GID_DEFINED)) {
+			len = snprintf(cur, left, "! ");
+			if (len < 0 || len > left)
+				goto truncated;
+			left -= len;
+			cur += len;
+		}
+		if (rule->mbr_object.mbo_flags & MBO_GID_DEFINED) {
+			grp = getgrgid(rule->mbr_object.mbo_gid_min);
 			if (grp != NULL) {
-				len = snprintf(cur, left, "gid %s ",
+				len = snprintf(cur, left, "gid %s",
 				    grp->gr_name);
 				if (len < 0 || len > left)
 					goto truncated;
 				left -= len;
 				cur += len;
 			} else {
-				len = snprintf(cur, left, "gid %u ",
-				    rule->mbr_object.mbi_gid);
+				len = snprintf(cur, left, "gid %u",
+				    rule->mbr_object.mbo_gid_min);
 				if (len < 0 || len > left)
 					goto truncated;
 				left -= len;
 				cur += len;
 			}
+			if (rule->mbr_object.mbo_gid_min !=
+			    rule->mbr_object.mbo_gid_max) {
+				grp = getgrgid(rule->mbr_object.mbo_gid_max);
+				if (grp != NULL) {
+					len = snprintf(cur, left, ":%s ",
+					    grp->gr_name);
+					if (len < 0 || len > left)
+						goto truncated;
+					left -= len;
+					cur += len;
+				} else {
+					len = snprintf(cur, left, ":%u ",
+					    rule->mbr_object.mbo_gid_max);
+					if (len < 0 || len > left)
+						goto truncated;
+					left -= len;
+					cur += len;
+				}
+			} else {
+				len = snprintf(cur, left, " ");
+				if (len < 0 || len > left)
+					goto truncated;
+				left -= len;
+				cur += len;
+			}
+		}
+		if (!notdone && (rule->mbr_object.mbo_neg & MBO_FSID_DEFINED)) {
+			len = snprintf(cur, left, "! ");
+			if (len < 0 || len > left)
+				goto truncated;
+			left -= len;
+			cur += len;
+		}
+		if (rule->mbr_object.mbo_flags & MBO_FSID_DEFINED) {
+			numfs = getmntinfo(&mntbuf, MNT_NOWAIT);
+			for (i = 0; i < numfs; i++)
+				if (memcmp(&(rule->mbr_object.mbo_fsid),
+				    &(mntbuf[i].f_fsid),
+				    sizeof(mntbuf[i].f_fsid)) == 0)
+					break;
+			len = snprintf(cur, left, "filesys %s ", 
+			    i == numfs ? "???" : mntbuf[i].f_mntonname);
+			if (len < 0 || len > left)
+				goto truncated;
+			left -= len;
+			cur += len;
+		}
+		if (!notdone && (rule->mbr_object.mbo_neg & MBO_SUID)) {
+			len = snprintf(cur, left, "! ");
+			if (len < 0 || len > left)
+				goto truncated;
+			left -= len;
+			cur += len;
+		}
+		if (rule->mbr_object.mbo_flags & MBO_SUID) {
+			len = snprintf(cur, left, "suid ");
+			if (len < 0 || len > left)
+				goto truncated;
+			left -= len;
+			cur += len;
+		}
+		if (!notdone && (rule->mbr_object.mbo_neg & MBO_SGID)) {
+			len = snprintf(cur, left, "! ");
+			if (len < 0 || len > left)
+				goto truncated;
+			left -= len;
+			cur += len;
+		}
+		if (rule->mbr_object.mbo_flags & MBO_SGID) {
+			len = snprintf(cur, left, "sgid ");
+			if (len < 0 || len > left)
+				goto truncated;
+			left -= len;
+			cur += len;
+		}
+		if (!notdone && (rule->mbr_object.mbo_neg & MBO_UID_SUBJECT)) {
+			len = snprintf(cur, left, "! ");
+			if (len < 0 || len > left)
+				goto truncated;
+			left -= len;
+			cur += len;
+		}
+		if (rule->mbr_object.mbo_flags & MBO_UID_SUBJECT) {
+			len = snprintf(cur, left, "uid_of_subject ");
+			if (len < 0 || len > left)
+				goto truncated;
+			left -= len;
+			cur += len;
+		}
+		if (!notdone && (rule->mbr_object.mbo_neg & MBO_GID_SUBJECT)) {
+			len = snprintf(cur, left, "! ");
+			if (len < 0 || len > left)
+				goto truncated;
+			left -= len;
+			cur += len;
+		}
+		if (rule->mbr_object.mbo_flags & MBO_GID_SUBJECT) {
+			len = snprintf(cur, left, "gid_of_subject ");
+			if (len < 0 || len > left)
+				goto truncated;
+			left -= len;
+			cur += len;
+		}
+		if (!notdone && (rule->mbr_object.mbo_neg & MBO_TYPE_DEFINED)) {
+			len = snprintf(cur, left, "! ");
+			if (len < 0 || len > left)
+				goto truncated;
+			left -= len;
+			cur += len;
+		}
+		if (rule->mbr_object.mbo_flags & MBO_TYPE_DEFINED) {
+			i = 0;
+			if (rule->mbr_object.mbo_type & MBO_TYPE_REG)
+				type[i++] = 'r';
+			if (rule->mbr_object.mbo_type & MBO_TYPE_DIR)
+				type[i++] = 'd';
+			if (rule->mbr_object.mbo_type & MBO_TYPE_BLK)
+				type[i++] = 'b';
+			if (rule->mbr_object.mbo_type & MBO_TYPE_CHR)
+				type[i++] = 'c';
+			if (rule->mbr_object.mbo_type & MBO_TYPE_LNK)
+				type[i++] = 'l';
+			if (rule->mbr_object.mbo_type & MBO_TYPE_SOCK)
+				type[i++] = 's';
+			if (rule->mbr_object.mbo_type & MBO_TYPE_FIFO)
+				type[i++] = 'p';
+			if (rule->mbr_object.mbo_type == MBO_ALL_TYPE) {
+				i = 0;
+				type[i++] = 'a';
+			}
+			type[i++] = '\0';
+			len = snprintf(cur, left, "type %s ", type);
+			if (len < 0 || len > left)
+				goto truncated;
+			left -= len;
+			cur += len;
 		}
 	}
 
@@ -244,173 +507,438 @@ truncated:
 }
 
 int
-bsde_parse_identity(int argc, char *argv[],
-    struct mac_bsdextended_identity *identity, size_t buflen, char *errstr)
-{
-	struct group *grp;
+bsde_parse_uidrange(char *spec, uid_t *min, uid_t *max,
+    size_t buflen, char *errstr){
 	struct passwd *pwd;
-	int uid_seen, gid_seen, not_seen;
-	int current;
-	char *endp;
-	long value;
-	uid_t uid;
-	gid_t gid;
+	uid_t uid1, uid2;
+	char *spec1, *spec2, *endp;
+	unsigned long value;
 	size_t len;
 
-	if (argc == 0) {
-		len = snprintf(errstr, buflen, "Identity must not be empty");
-		return (-1);
+	spec2 = spec;
+	spec1 = strsep(&spec2, ":");
+
+	pwd = getpwnam(spec1);
+	if (pwd != NULL)
+		uid1 = pwd->pw_uid;
+	else {
+		value = strtoul(spec1, &endp, 10);
+		if (*endp != '\0') {
+			len = snprintf(errstr, buflen,
+			    "invalid uid: '%s'", spec1);
+			return (-1);
+		}
+		uid1 = value;
 	}
 
-	current = 0;
+	if (spec2 == NULL) {
+		*max = *min = uid1;
+		return (0);
+	}
 
-	/* First element might be "not". */
-	if (strcmp("not", argv[0]) == 0) {
+	pwd = getpwnam(spec2);
+	if (pwd != NULL)
+		uid2 = pwd->pw_uid;
+	else {
+		value = strtoul(spec2, &endp, 10);
+		if (*endp != '\0') {
+			len = snprintf(errstr, buflen,
+			    "invalid uid: '%s'", spec2);
+			return (-1);
+		}
+		uid2 = value;
+	}
+
+	*min = uid1;
+	*max = uid2;
+
+	return (0);
+}
+
+int
+bsde_parse_gidrange(char *spec, gid_t *min, gid_t *max,
+    size_t buflen, char *errstr){
+	struct group *grp;
+	gid_t gid1, gid2;
+	char *spec1, *spec2, *endp;
+	unsigned long value;
+	size_t len;
+
+	spec2 = spec;
+	spec1 = strsep(&spec2, ":");
+
+	grp = getgrnam(spec1);
+	if (grp != NULL)
+		gid1 = grp->gr_gid;
+	else {
+		value = strtoul(spec1, &endp, 10);
+		if (*endp != '\0') {
+			len = snprintf(errstr, buflen,
+			    "invalid gid: '%s'", spec1);
+			return (-1);
+		}
+		gid1 = value;
+	}
+
+	if (spec2 == NULL) {
+		*max = *min = gid1;
+		return (0);
+	}
+
+	grp = getgrnam(spec2);
+	if (grp != NULL)
+		gid2 = grp->gr_gid;
+	else {
+		value = strtoul(spec2, &endp, 10);
+		if (*endp != '\0') {
+			len = snprintf(errstr, buflen,
+			    "invalid gid: '%s'", spec2);
+			return (-1);
+		}
+		gid2 = value;
+	}
+
+	*min = gid1;
+	*max = gid2;
+
+	return (0);
+}
+
+int
+bsde_parse_subject(int argc, char *argv[],
+    struct mac_bsdextended_subject *subject, size_t buflen, char *errstr)
+{
+	int not_seen, flags;
+	int current, neg, nextnot;
+	char *endp;
+	uid_t uid_min, uid_max;
+	gid_t gid_min, gid_max;
+	int jid;
+	size_t len;
+	long value;
+
+	current = 0;
+	flags = 0;
+	neg = 0;
+	nextnot = 0;
+
+	if (strcmp("not", argv[current]) == 0) {
 		not_seen = 1;
 		current++;
 	} else
 		not_seen = 0;
 
-	if (current >= argc) {
-		len = snprintf(errstr, buflen, "Identity short");
-		return (-1);
-	}
-
-	uid_seen = 0;
-	uid = 0;
-	gid_seen = 0;
-	gid = 0;
-
-	/* First phrase: uid [uid] or gid [gid]. */
-	if (strcmp("uid", argv[current]) == 0) {
-		if (current + 2 > argc) {
-			len = snprintf(errstr, buflen, "uid short");
-			return (-1);
-		}
-		pwd = getpwnam(argv[current+1]);
-		if (pwd != NULL)
-			uid = pwd->pw_uid;
-		else {
-			value = strtol(argv[current+1], &endp, 10);
-			if (*endp != '\0') {
-				len = snprintf(errstr, buflen,
-				    "invalid uid: '%s'",
-				    argv[current+1]);
-				return (-1);
-			}
-			uid = value;
-		}
-		uid_seen = 1;
-		current += 2;
-	} else if (strcmp("gid", argv[current]) == 0) {
-		if (current + 2 > argc) {
-			len = snprintf(errstr, buflen, "gid short");
-			return (-1);
-		}
-		grp = getgrnam(argv[current+1]);
-		if (grp != NULL)
-			gid = grp->gr_gid;
-		else {
-			value = strtol(argv[current+1], &endp, 10);
-			if (*endp != '\0') {
-				len = snprintf(errstr, buflen,
-				    "invalid gid: '%s'",
-				    argv[current+1]);
-				return (-1);
-			}
-			gid = value;
-		}
-		gid_seen = 1;
-		current += 2;
-	} else {
-		len = snprintf(errstr, buflen, "'%s' not expected",
-		    argv[current]);
-		return (-1);
-	}
-
-	/* Onto optional second phrase. */
-	if (current + 1 < argc) {
-		/* Second phrase: uid [uid] or gid [gid], but not a repeat. */
-		if (strcmp("uid", argv[current]) == 0) {
-			if (uid_seen) {
-				len = snprintf(errstr, buflen,
-				    "Only one uid permitted per identity clause");
-				return (-1);
-			}
+	while (current < argc) {
+		if (strcmp(argv[current], "uid") == 0) {
 			if (current + 2 > argc) {
 				len = snprintf(errstr, buflen, "uid short");
 				return (-1);
 			}
-			pwd = getpwnam(argv[current+1]);
-			if (pwd != NULL)
-				uid = pwd->pw_uid;
-			else {
-				value = strtol(argv[current+1], &endp, 10);
-				if (*endp != '\0') {
-					len = snprintf(errstr, buflen,
-					    "invalid uid: '%s'",
-					    argv[current+1]);
-					return (-1);
-				}
-				uid = value;
-			}
-			uid_seen = 1;
-			current += 2;
-		} else if (strcmp("gid", argv[current]) == 0) {
-			if (gid_seen) {
-				len = snprintf(errstr, buflen,
-				    "Only one gid permitted per identity clause");
+			if (flags & MBS_UID_DEFINED) {
+				len = snprintf(errstr, buflen, "one uid only");
 				return (-1);
 			}
+			if (bsde_parse_uidrange(argv[current+1],
+			    &uid_min, &uid_max, buflen, errstr) < 0)
+				return (-1);
+			flags |= MBS_UID_DEFINED;
+			if (nextnot) {
+				neg ^= MBS_UID_DEFINED;
+				nextnot = 0;
+			}
+			current += 2;
+		} else if (strcmp(argv[current], "gid") == 0) {
 			if (current + 2 > argc) {
 				len = snprintf(errstr, buflen, "gid short");
 				return (-1);
 			}
-			grp = getgrnam(argv[current+1]);
-			if (grp != NULL)
-				gid = grp->gr_gid;
-			else {
-				value = strtol(argv[current+1], &endp, 10);
-				if (*endp != '\0') {
-					len = snprintf(errstr, buflen,
-					    "invalid gid: '%s'",
-					    argv[current+1]);
-					return (-1);
-				}
-				gid = value;
+			if (flags & MBS_GID_DEFINED) {
+				len = snprintf(errstr, buflen, "one gid only");
+				return (-1);
 			}
-			gid_seen = 1;
+			if (bsde_parse_gidrange(argv[current+1],
+			    &gid_min, &gid_max, buflen, errstr) < 0)
+				return (-1);
+			flags |= MBS_GID_DEFINED;
+			if (nextnot) {
+				neg ^= MBS_GID_DEFINED;
+				nextnot = 0;
+			}
 			current += 2;
+		} else if (strcmp(argv[current], "jailid") == 0) {
+			if (current + 2 > argc) {
+				len = snprintf(errstr, buflen, "prison short");
+				return (-1);
+			}
+			if (flags & MBS_PRISON_DEFINED) {
+				len = snprintf(errstr, buflen, "one jail only");
+				return (-1);
+			}
+			value = strtol(argv[current+1], &endp, 10);
+			if (*endp != '\0') {
+				len = snprintf(errstr, buflen,
+				    "invalid jid: '%s'", argv[current+1]);
+				return (-1);
+			}
+			jid = value;
+			flags |= MBS_PRISON_DEFINED;
+			if (nextnot) {
+				neg ^= MBS_PRISON_DEFINED;
+				nextnot = 0;
+			}
+			current += 2;
+		} else if (strcmp(argv[current], "!") == 0) {
+			if (nextnot) {
+				len = snprintf(errstr, buflen,
+				    "double negative");
+				return (-1);
+			}
+			nextnot = 1;
+			current += 1;
 		} else {
 			len = snprintf(errstr, buflen, "'%s' not expected",
 			    argv[current]);
 			return (-1);
+		}
+	}
+
+	subject->mbs_flags = flags;
+	if (not_seen)
+		subject->mbs_neg = MBS_ALL_FLAGS ^ neg;
+	else
+		subject->mbs_neg = neg;
+	if (flags & MBS_UID_DEFINED) {
+		subject->mbs_uid_min = uid_min;
+		subject->mbs_uid_max = uid_max;
+	}
+	if (flags & MBS_GID_DEFINED) {
+		subject->mbs_gid_min = gid_min;
+		subject->mbs_gid_max = gid_max;
+	}
+	if (flags & MBS_PRISON_DEFINED)
+		subject->mbs_prison = jid;
+
+	return (0);
+}
+
+int
+bsde_parse_type(char *spec, int *type, size_t buflen, char *errstr)
+{
+	size_t len;
+	int i;
+
+	*type = 0;
+	for (i = 0; i < strlen(spec); i++) {
+		switch (spec[i]) {
+		case 'r':
+		case '-':
+			*type |= MBO_TYPE_REG;
+			break;
+		case 'd':
+			*type |= MBO_TYPE_DIR;
+			break;
+		case 'b':
+			*type |= MBO_TYPE_BLK;
+			break;
+		case 'c':
+			*type |= MBO_TYPE_CHR;
+			break;
+		case 'l':
+			*type |= MBO_TYPE_LNK;
+			break;
+		case 's':
+			*type |= MBO_TYPE_SOCK;
+			break;
+		case 'p':
+			*type |= MBO_TYPE_FIFO;
+			break;
+		case 'a':
+			*type |= MBO_ALL_TYPE;
+			break;
+		default:
+			len = snprintf(errstr, buflen, "Unknown type code: %c",
+			    spec[i]);
+			return (-1);
 		} 
 	}
 
-	if (current +1 < argc) {
-		len = snprintf(errstr, buflen, "'%s' not expected",
-		    argv[current]);
+	return (0);
+}
+
+int
+bsde_parse_fsid(char *spec, struct fsid *fsid, size_t buflen, char *errstr)
+{
+	size_t len;
+	struct statfs buf;
+	int i;
+
+	if (statfs(spec, &buf) < 0) {
+		len = snprintf(errstr, buflen, "Unable to get id for %s: %s",
+		    spec, strerror(errno));
 		return (-1);
 	}
 
-	/* Fill out the identity. */
-	identity->mbi_flags = 0;
+	*fsid = buf.f_fsid;
 
+	return (0);
+}
+
+int
+bsde_parse_object(int argc, char *argv[],
+    struct mac_bsdextended_object *object, size_t buflen, char *errstr)
+{
+	int not_seen, flags;
+	int current, neg, nextnot;
+	uid_t uid_min, uid_max;
+	gid_t gid_min, gid_max;
+	int type;
+	struct fsid fsid;
+	size_t len;
+
+	current = 0;
+	flags = 0;
+	neg = 0;
+	nextnot = 0;
+
+	if (strcmp("not", argv[current]) == 0) {
+		not_seen = 1;
+		current++;
+	} else
+		not_seen = 0;
+
+	while (current < argc) {
+		if (strcmp(argv[current], "uid") == 0) {
+			if (current + 2 > argc) {
+				len = snprintf(errstr, buflen, "uid short");
+				return (-1);
+			}
+			if (flags & MBO_UID_DEFINED) {
+				len = snprintf(errstr, buflen, "one uid only");
+				return (-1);
+			}
+			if (bsde_parse_uidrange(argv[current+1],
+			    &uid_min, &uid_max, buflen, errstr) < 0)
+				return (-1);
+			flags |= MBO_UID_DEFINED;
+			if (nextnot) {
+				neg ^= MBO_UID_DEFINED;
+				nextnot = 0;
+			}
+			current += 2;
+		} else if (strcmp(argv[current], "gid") == 0) {
+			if (current + 2 > argc) {
+				len = snprintf(errstr, buflen, "gid short");
+				return (-1);
+			}
+			if (flags & MBO_GID_DEFINED) {
+				len = snprintf(errstr, buflen, "one gid only");
+				return (-1);
+			}
+			if (bsde_parse_gidrange(argv[current+1],
+			    &gid_min, &gid_max, buflen, errstr) < 0)
+				return (-1);
+			flags |= MBO_GID_DEFINED;
+			if (nextnot) {
+				neg ^= MBO_GID_DEFINED;
+				nextnot = 0;
+			}
+			current += 2;
+		} else if (strcmp(argv[current], "filesys") == 0) {
+			if (current + 2 > argc) {
+				len = snprintf(errstr, buflen, "filesys short");
+				return (-1);
+			}
+			if (flags & MBO_FSID_DEFINED) {
+				len = snprintf(errstr, buflen, "one fsid only");
+				return (-1);
+			}
+			if (bsde_parse_fsid(argv[current+1], &fsid,
+			    buflen, errstr) < 0)
+				return (-1);
+			flags |= MBO_FSID_DEFINED;
+			if (nextnot) {
+				neg ^= MBO_FSID_DEFINED;
+				nextnot = 0;
+			}
+			current += 2;
+		} else if (strcmp(argv[current], "suid") == 0) {
+			flags |= MBO_SUID;
+			if (nextnot) {
+				neg ^= MBO_SUID;
+				nextnot = 0;
+			}
+			current += 1;
+		} else if (strcmp(argv[current], "sgid") == 0) {
+			flags |= MBO_SGID;
+			if (nextnot) {
+				neg ^= MBO_SGID;
+				nextnot = 0;
+			}
+			current += 1;
+		} else if (strcmp(argv[current], "uid_of_subject") == 0) {
+			flags |= MBO_UID_SUBJECT;
+			if (nextnot) {
+				neg ^= MBO_UID_SUBJECT;
+				nextnot = 0;
+			}
+			current += 1;
+		} else if (strcmp(argv[current], "gid_of_subject") == 0) {
+			flags |= MBO_GID_SUBJECT;
+			if (nextnot) {
+				neg ^= MBO_GID_SUBJECT;
+				nextnot = 0;
+			}
+			current += 1;
+		} else if (strcmp(argv[current], "type") == 0) {
+			if (current + 2 > argc) {
+				len = snprintf(errstr, buflen, "type short");
+				return (-1);
+			}
+			if (flags & MBO_TYPE_DEFINED) {
+				len = snprintf(errstr, buflen, "one type only");
+				return (-1);
+			}
+			if (bsde_parse_type(argv[current+1], &type,
+			    buflen, errstr) < 0)
+				return (-1);
+			flags |= MBO_TYPE_DEFINED;
+			if (nextnot) {
+				neg ^= MBO_TYPE_DEFINED;
+				nextnot = 0;
+			}
+			current += 2;
+		} else if (strcmp(argv[current], "!") == 0) {
+			if (nextnot) {
+				len = snprintf(errstr, buflen,
+				    "double negative'");
+				return (-1);
+			}
+			nextnot = 1;
+			current += 1;
+		} else {
+			len = snprintf(errstr, buflen, "'%s' not expected",
+			    argv[current]);
+			return (-1);
+		}
+	}
+
+	object->mbo_flags = flags;
 	if (not_seen)
-		identity->mbi_flags |= MBI_NEGATED;
-
-	if (uid_seen) {
-		identity->mbi_flags |= MBI_UID_DEFINED;
-		identity->mbi_uid = uid;
-	} else
-		identity->mbi_uid = 0;
-
-	if (gid_seen) {
-		identity->mbi_flags |= MBI_GID_DEFINED;
-		identity->mbi_gid = gid;
-	} else
-		identity->mbi_gid = 0;
+		object->mbo_neg = MBO_ALL_FLAGS ^ neg;
+	else
+		object->mbo_neg = neg;
+	if (flags & MBO_UID_DEFINED) {
+		object->mbo_uid_min = uid_min;
+		object->mbo_uid_max = uid_max;
+	}
+	if (flags & MBO_GID_DEFINED) {
+		object->mbo_gid_min = gid_min;
+		object->mbo_gid_max = gid_max;
+	}
+	if (flags & MBO_FSID_DEFINED)
+		object->mbo_fsid = fsid;
+	if (flags & MBO_TYPE_DEFINED)
+		object->mbo_type = type;
 
 	return (0);
 }
@@ -516,12 +1044,12 @@ bsde_parse_rule(int argc, char *argv[], struct mac_bsdextended_rule *rule,
 	mode_elements = mode + 1;
 	mode_elements_length = argc - mode_elements;
 
-	error = bsde_parse_identity(subject_elements_length,
+	error = bsde_parse_subject(subject_elements_length,
 	    argv + subject_elements, &rule->mbr_subject, buflen, errstr);
 	if (error)
 		return (-1);
 
-	error = bsde_parse_identity(object_elements_length,
+	error = bsde_parse_object(object_elements_length,
 	    argv + object_elements, &rule->mbr_object, buflen, errstr);
 	if (error)
 		return (-1);
@@ -538,7 +1066,7 @@ int
 bsde_parse_rule_string(const char *string, struct mac_bsdextended_rule *rule,
     size_t buflen, char *errstr)
 {
-	char *stringdup, *stringp, *argv[20], **ap;
+	char *stringdup, *stringp, *argv[100], **ap;
 	int argc, error;
 
 	stringp = stringdup = strdup(string);
@@ -549,7 +1077,7 @@ bsde_parse_rule_string(const char *string, struct mac_bsdextended_rule *rule,
 	for (ap = argv; (*ap = strsep(&stringp, " \t")) != NULL;) {
 		argc++;
 		if (**ap != '\0')
-			if (++ap >= &argv[20])
+			if (++ap >= &argv[100])
 				break;
 	}
 
@@ -572,6 +1100,28 @@ bsde_get_mib(const char *string, int *name, size_t *namelen)
 		return (error);
 
 	*namelen = len;
+	return (0);
+}
+
+int
+bsde_check_version(size_t buflen, char *errstr)
+{
+	size_t len;
+	int error;
+	int version;
+
+	len = sizeof(version);
+	error = sysctlbyname(MIB ".rule_version", &version, &len, NULL, 0);
+	if (error) {
+		len = snprintf(errstr, buflen, "version check failed: %s",
+		    strerror(errno));
+		return (-1);
+	}
+	if (version != MB_VERSION) {
+		len = snprintf(errstr, buflen, "module v%d != library v%d",
+		    version, MB_VERSION);
+		return (-1);
+	}
 	return (0);
 }
 
@@ -632,6 +1182,9 @@ bsde_get_rule(int rulenum, struct mac_bsdextended_rule *rule, size_t errlen,
 	size_t len, size;
 	int error;
 
+	if (bsde_check_version(errlen, errstr) != 0)
+		return (-1);
+
 	len = 10;
 	error = bsde_get_mib(MIB ".rules", name, &len);
 	if (error) {
@@ -667,6 +1220,9 @@ bsde_delete_rule(int rulenum, size_t buflen, char *errstr)
 	size_t len, size;
 	int error;
 
+	if (bsde_check_version(buflen, errstr) != 0)
+		return (-1);
+
 	len = 10;
 	error = bsde_get_mib(MIB ".rules", name, &len);
 	if (error) {
@@ -696,6 +1252,9 @@ bsde_set_rule(int rulenum, struct mac_bsdextended_rule *rule, size_t buflen,
 	int name[10];
 	size_t len, size;
 	int error;
+
+	if (bsde_check_version(buflen, errstr) != 0)
+		return (-1);
 
 	len = 10;
 	error = bsde_get_mib(MIB ".rules", name, &len);
@@ -727,6 +1286,9 @@ bsde_add_rule(int *rulenum, struct mac_bsdextended_rule *rule, size_t buflen,
 	int name[10];
 	size_t len, size;
 	int error, rule_slots;
+
+	if (bsde_check_version(buflen, errstr) != 0)
+		return (-1);
 
 	len = 10;
 	error = bsde_get_mib(MIB ".rules", name, &len);

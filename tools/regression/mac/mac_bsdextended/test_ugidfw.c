@@ -26,8 +26,9 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/mac.h>
+#include <sys/mount.h>
 
 #include <security/mac_bsdextended/mac_bsdextended.h>
 
@@ -104,6 +105,47 @@ static const char *test_strings[] = {
 	"subject not uid operator object uid bin mode n",
 	"subject uid bin object not uid operator mode n",
 	"subject not uid daemon object not uid operator mode n",
+	/* Ranges */
+	"subject uid root:operator object gid wheel:bin mode n",
+	/* Jail ID */
+	"subject jailid 1 object uid root mode n",
+	/* Filesys */
+	"subject uid root object filesys / mode n",
+	"subject uid root object filesys /dev mode n",
+	/* S/UGID */
+	"subject not uid root object sgid mode n",
+	"subject not uid root object sgid mode n",
+	/* Matching uid/gid */
+	"subject not uid root:operator object not uid_of_subject mode n",
+	"subject not gid wheel:bin object not gid_of_subject mode n",
+	/* Object types */
+	"subject uid root object type a mode a",
+	"subject uid root object type r mode a",
+	"subject uid root object type d mode a",
+	"subject uid root object type b mode a",
+	"subject uid root object type c mode a",
+	"subject uid root object type l mode a",
+	"subject uid root object type s mode a",
+	"subject uid root object type rbc mode a",
+	"subject uid root object type dls mode a",
+	/* Empty rules always match */
+	"subject object mode a",
+	/* Partial negations */
+	"subject ! uid root object mode n",
+	"subject ! gid wheel object mode n",
+	"subject ! jailid 2 object mode n",
+	"subject object ! uid root mode n",
+	"subject object ! gid wheel mode n",
+	"subject object ! filesys / mode n",
+	"subject object ! suid mode n",
+	"subject object ! sgid mode n",
+	"subject object ! uid_of_subject mode n",
+	"subject object ! gid_of_subject mode n",
+	"subject object ! type d mode n",
+	/* All out nonsense */
+	"subject uid root ! gid wheel:bin ! jailid 1 "
+	    "object ! uid root:daemon gid daemon filesys / suid sgid uid_of_subject gid_of_subject ! type r "
+	    "mode rsx",
 };
 static const int test_strings_len = sizeof(test_strings) / sizeof(char *);
 
@@ -111,8 +153,8 @@ static void
 test_libugidfw_strings(void)
 {
 	struct mac_bsdextended_rule rule;
-	char errorstr[128];
-	char rulestr[128];
+	char errorstr[256];
+	char rulestr[256];
 	int i, error;
 
 	for (i = 0; i < test_users_len; i++) {
@@ -129,11 +171,11 @@ test_libugidfw_strings(void)
 
 	for (i = 0; i < test_strings_len; i++) {
 		error = bsde_parse_rule_string(test_strings[i], &rule,
-		    128, errorstr);
+		    sizeof(errorstr), errorstr);
 		if (error == -1)
 			errx(-1, "bsde_parse_rule_string: '%s' (%d): %s",
 			    test_strings[i], i, errorstr);
-		error = bsde_rule_to_string(&rule, rulestr, 128);
+		error = bsde_rule_to_string(&rule, rulestr, sizeof(rulestr));
 		if (error < 0)
 			errx(-1, "bsde_rule_to_string: rule for '%s' "
 			    "returned %d", test_strings[i], error);
@@ -147,7 +189,7 @@ test_libugidfw_strings(void)
 int
 main(int argc, char *argv[])
 {
-	char errorstr[128];
+	char errorstr[256];
 	int count, slots;
 
 	if (argc != 1)
@@ -182,13 +224,13 @@ main(int argc, char *argv[])
 	 * starting, but "slots" is a property of prior runs and so we ignore
 	 * the return value.
 	 */
-	count = bsde_get_rule_count(128, errorstr);
+	count = bsde_get_rule_count(sizeof(errorstr), errorstr);
 	if (count == -1)
 		errx(-1, "bsde_get_rule_count: %s", errorstr);
 	if (count != 0)
 		errx(-1, "bsde_get_rule_count: %d rules", count);
 
-	slots = bsde_get_rule_slots(128, errorstr);
+	slots = bsde_get_rule_slots(sizeof(errorstr), errorstr);
 	if (slots == -1)
 		errx(-1, "bsde_get_rule_slots: %s", errorstr);
 
