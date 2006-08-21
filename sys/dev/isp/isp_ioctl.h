@@ -61,9 +61,6 @@
 #define ISP_ROLE_TARGET         0x1
 #define ISP_ROLE_INITIATOR      0x2
 #define ISP_ROLE_BOTH           (ISP_ROLE_TARGET|ISP_ROLE_INITIATOR)
-#ifndef ISP_DEFAULT_ROLES
-#define ISP_DEFAULT_ROLES       ISP_ROLE_BOTH
-#endif
 
 /*
  * Get the current adapter role
