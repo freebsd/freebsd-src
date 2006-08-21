@@ -52,8 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 
-SYSCTL_DECL(_vm_stats_misc);
-
 static int cnt_prezero;
 SYSCTL_INT(_vm_stats_misc, OID_AUTO, cnt_prezero, CTLFLAG_RD,
     &cnt_prezero, 0, "");
