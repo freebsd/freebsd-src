@@ -29,9 +29,7 @@ MK_GDB=	no	# not yet
 .endif
 
 .if ${MK_CXX} != "no"
-.if ${MACHINE_ARCH} != "powerpc"
 _gperf=		gperf
-.endif
 .if ${MK_GROFF} != "no"
 _groff=		groff
 .endif
