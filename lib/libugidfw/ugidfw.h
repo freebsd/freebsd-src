@@ -37,9 +37,6 @@
 __BEGIN_DECLS
 int	bsde_rule_to_string(struct mac_bsdextended_rule *rule, char *buf,
 	    size_t buflen);
-int	bsde_parse_identity(int argc, char *argv[],
-	    struct mac_bsdextended_identity *identity, size_t buflen,
-	    char *errstr);
 int	bsde_parse_mode(int argc, char *argv[], mode_t *mode, size_t buflen,
 	    char *errstr);
 int	bsde_parse_rule(int argc, char *argv[],

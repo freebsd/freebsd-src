@@ -41,12 +41,52 @@
 .Cm add
 .Cm subject
 .Op Cm not
-.Op Cm uid Ar uid
-.Op Cm gid Ar gid
+.Oo
+.Op Cm \&!
+.Cm uid Ar uid | minuid:maxuid
+.Oc
+.Oo
+.Op Cm \&!
+.Cm gid Ar gid | mingid:maxgid
+.Oc
+.Oo
+.Op Cm \&!
+.Cm jailid Ad jailid
+.Oc
 .Cm object
 .Op Cm not
-.Op Cm uid Ar uid
-.Op Cm gid Ar gid
+.Oo
+.Op Cm \&!
+.Cm uid Ar uid | minuid:maxuid
+.Oc
+.Oo
+.Op Cm \&!
+.Cm gid Ar gid | mingid:maxgid
+.Oc
+.Oo
+.Op Cm \&!
+.Cm filesys Ad path
+.Oc
+.Oo
+.Op Cm \&!
+.Cm suid
+.Oc
+.Oo
+.Op Cm \&!
+.Cm sgid
+.Oc
+.Oo
+.Op Cm \&!
+.Cm uid_of_subject
+.Oc
+.Oo
+.Op Cm \&!
+.Cm gid_of_subject
+.Oc
+.Oo
+.Op Cm \&!
+.Cm type Ar ardbclsp
+.Oc
 .Cm mode
 .Ar arswxn
 .Nm
@@ -56,12 +96,52 @@
 .Ar rulenum
 .Cm subject
 .Op Cm not
-.Op Cm uid Ar uid
-.Op Cm gid Ar gid
+.Oo
+.Op Cm \&!
+.Cm uid Ar uid | minuid:maxuid
+.Oc
+.Oo
+.Op Cm \&!
+.Cm gid Ar gid | mingid:maxgid
+.Oc
+.Oo
+.Op Cm \&!
+.Cm jailid Ad jailid
+.Oc
 .Cm object
 .Op Cm not
-.Op Cm uid Ar uid
-.Op Cm gid Ar gid
+.Oo
+.Op Cm \&!
+.Cm uid Ar uid | minuid:maxuid
+.Oc
+.Oo
+.Op Cm \&!
+.Cm gid Ar gid | mingid:maxgid
+.Oc
+.Oo
+.Op Cm \&!
+.Cm filesys Ad path
+.Oc
+.Oo
+.Op Cm \&!
+.Cm suid
+.Oc
+.Oo
+.Op Cm \&!
+.Cm sgid
+.Oc
+.Oo
+.Op Cm \&!
+.Cm uid_of_subject
+.Oc
+.Oo
+.Op Cm \&!
+.Cm gid_of_subject
+.Oc
+.Oo
+.Op Cm \&!
+.Cm type Ar ardbclsp
+.Oc
 .Cm mode
 .Ar arswxn
 .Nm
@@ -80,20 +160,12 @@ policy.
 .Pp
 The arguments are as follows:
 .Bl -tag -width indent -offset indent
-.It Cm add
-Add a new
-.Nm
-rule.
 .It Xo
 .Cm add
 .Cm subject
-.Op Cm not
-.Op Cm uid Ar uid
-.Op Cm gid Ar gid
+.Ar ...
 .Cm object
-.Op Cm not
-.Op Cm uid Ar uid
-.Op Cm gid Ar gid
+.Ar ...
 .Cm mode
 .Ar arswxn
 .Xc
@@ -108,13 +180,9 @@ rules in the system.
 .It Xo
 .Cm set Ar rulenum
 .Cm subject
-.Op Cm not
-.Op Cm uid Ar uid
-.Op Cm gid Ar gid
+.Ar ...
 .Cm object
-.Op Cm not
-.Op Cm uid Ar uid
-.Op Cm gid Ar gid
+.Ar ...
 .Cm mode
 .Ar arswxn
 .Xc
@@ -131,37 +199,120 @@ will yield a slight performance increase.
 .It Xo
 .Cm subject
 .Op Cm not
-.Op Cm uid Ar uid
-.Op Cm gid Ar gid
+.Oo
+.Op Cm \&!
+.Cm uid Ar uid | minuid:maxuid
+.Oc
+.Oo
+.Op Cm \&!
+.Cm gid Ar gid | mingid:maxgid
+.Oc
+.Oo
+.Op Cm \&!
+.Cm jailid Ad jailid
+.Oc
 .Xc
-Subjects performing an operation must match
-(or, if
+Subjects performing an operation must match all the conditions given.
+A leading
 .Cm not
-is specified, must
-.Em not
-match)
-the user and group specified by
+means that the subject should not match the remainder of the specification.
+A condition may be prefixed by
+.Cm \&!
+to indicate that particular condition must not match the subject.
+The subject can be required to have a particular
 .Ar uid
 and/or
-.Ar gid
-for the rule to be applied.
+.Ar gid .
+A range of uids/gids can be specified,
+seperated by a colon.
+The subject can be required to be in a particular jail with the
+.Ar jailid .
 .It Xo
 .Cm object
 .Op Cm not
-.Op Cm uid Ar uid
-.Op Cm gid Ar gid
+.Oo
+.Op Cm \&!
+.Cm uid Ar uid | minuid:maxuid
+.Oc
+.Oo
+.Op Cm \&!
+.Cm gid Ar gid | mingid:maxgid
+.Oc
+.Oo
+.Op Cm \&!
+.Cm filesys Ad path
+.Oc
+.Oo
+.Op Cm \&!
+.Cm suid
+.Oc
+.Oo
+.Op Cm \&!
+.Cm sgid
+.Oc
+.Oo
+.Op Cm \&!
+.Cm uid_of_subject
+.Oc
+.Oo
+.Op Cm \&!
+.Cm gid_of_subject
+.Oc
+.Oo
+.Op Cm \&!
+.Cm type Ar ardbclsp
+.Oc
 .Xc
-Objects must be owned by
-(or, if
+The rule will apply only to objects matching all the specified conditions.
+A leading
 .Cm not
-is specified, must
-.Em not
-be owned by)
-the user and/or group specified by
+means that the object should not match all the remaining conditions.
+A condition may be prefixed by
+.Cm \&!
+to indicate that particular condition must not match the object.
+Objects can be required to be owned by the user and/or group specified by
 .Ar uid
 and/or
-.Ar gid
-for the rule to be applied.
+.Ar gid .
+A range of uids/gids can be specified, seperated by a colon.
+The object can be required to be in a particular filesystem by
+specifing the filesystem using
+.Cm filesys .
+Note,
+if the filesystem is unmounted and remounted,
+then the rule may need to be reapplied to ensure the correct filesystem
+id is used.
+The object can be required to have the
+.Cm suid
+or
+.Cm sgid
+bits set.
+The owner of the object can be required to match the
+.Cm uid_of_subject
+or the
+.Cm gid_of_subject
+attempting the operation.
+The type of the object can be restricted to a subset of
+the following types.
+.Pp
+.Bl -tag -width ".Cm w" -compact -offset indent
+.It Cm a
+any file type
+.It Cm r
+a regular file
+.It Cm d
+a directory
+.It Cm b
+a block special device
+.It Cm c
+a character special device
+.It Cm l
+a symbolic link
+.It Cm s
+a unix domain socket
+.It Cm p
+a named pipe (FIFO)
+.El
 .It Cm mode Ar arswxn
 Similar to
 .Xr chmod 1 ,
