@@ -295,14 +295,13 @@ main(int argc, char *argv[])
 	int			 ch, fd, quiet = 0, i = 0;
 	int			 pipe_fd[2];
 	int			 immediate_daemon = 0;
-	int			 persist = 0;
 	struct passwd		*pw;
 
 	/* Initially, log errors to stderr as well as to syslogd. */
 	openlog(__progname, LOG_PID | LOG_NDELAY, DHCPD_LOG_FACILITY);
 	setlogmask(LOG_UPTO(LOG_INFO));
 
-	while ((ch = getopt(argc, argv, "bc:dl:pqu")) != -1)
+	while ((ch = getopt(argc, argv, "bc:dl:qu")) != -1)
 		switch (ch) {
 		case 'b':
 			immediate_daemon = 1;
@@ -315,9 +314,6 @@ main(int argc, char *argv[])
 			break;
 		case 'l':
 			path_dhclient_db = optarg;
-			break;
-		case 'p':
-			persist = 1;
 			break;
 		case 'q':
 			quiet = 1;
@@ -366,18 +362,12 @@ main(int argc, char *argv[])
 			fprintf(stderr, ".");
 			fflush(stderr);
 			if (++i > 10) {
-				if (persist) {
-					fprintf(stderr, " giving up for now\n");
-					break;
-				} else {
-					fprintf(stderr, " giving up\n");
-					exit(1);
-				}
+				fprintf(stderr, " giving up\n");
+				exit(1);
 			}
 			sleep(1);
 		}
-		if (i <= 10)
-			fprintf(stderr, " got link\n");
+		fprintf(stderr, " got link\n");
 	}
 
 	if ((nullfd = open(_PATH_DEVNULL, O_RDWR, 0)) == -1)
@@ -447,7 +437,7 @@ usage(void)
 {
 	extern char	*__progname;
 
-	fprintf(stderr, "usage: %s [-bdpqu] ", __progname);
+	fprintf(stderr, "usage: %s [-bdqu] ", __progname);
 	fprintf(stderr, "[-c conffile] [-l leasefile] interface\n");
 	exit(1);
 }
