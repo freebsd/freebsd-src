@@ -267,7 +267,7 @@ icioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
  * icintr()
  */
 static void
-icintr (device_t dev, int event, char *ptr)
+icintr(device_t dev, int event, char *ptr)
 {
 	struct ic_softc *sc = (struct ic_softc *)device_get_softc(dev);
 	int unit = device_get_unit(dev);
@@ -340,8 +340,8 @@ icintr (device_t dev, int event, char *ptr)
  * icoutput()
  */
 static int
-icoutput(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct rtentry *rt)
+icoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+    struct rtentry *rt)
 {
 	device_t icdev = devclass_get_device(ic_devclass, ifp->if_dunit);
 	device_t parent = device_get_parent(icdev);

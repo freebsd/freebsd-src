@@ -104,14 +104,16 @@ driver_t iicbb_driver = {
 
 devclass_t iicbb_devclass;
 
-static int iicbb_probe(device_t dev)
+static int
+iicbb_probe(device_t dev)
 {
 	device_set_desc(dev, "I2C bit-banging driver");
 
 	return (0);
 }
 
-static int iicbb_attach(device_t dev)
+static int
+iicbb_attach(device_t dev)
 {
 	struct iicbb_softc *sc = (struct iicbb_softc *)device_get_softc(dev);
 
@@ -123,7 +125,8 @@ static int iicbb_attach(device_t dev)
 	return (0);
 }
 
-static int iicbb_detach(device_t dev)
+static int
+iicbb_detach(device_t dev)
 {
 	struct iicbb_softc *sc = (struct iicbb_softc *)device_get_softc(dev);
 
@@ -188,7 +191,8 @@ static int i2c_debug = 0;
 					printf(format, args);	\
 				} while (0)
 
-static void iicbb_setscl(device_t dev, int val, int timeout)
+static void
+iicbb_setscl(device_t dev, int val, int timeout)
 {
 	int k = 0;
 
@@ -203,7 +207,8 @@ static void iicbb_setscl(device_t dev, int val, int timeout)
 	return;
 }
 
-static void iicbb_one(device_t dev, int timeout)
+static void
+iicbb_one(device_t dev, int timeout)
 {
 	I2C_SET(dev,0,1);
 	I2C_SET(dev,1,1);
@@ -211,7 +216,8 @@ static void iicbb_one(device_t dev, int timeout)
 	return;
 }
 
-static void iicbb_zero(device_t dev, int timeout)
+static void
+iicbb_zero(device_t dev, int timeout)
 {
 	I2C_SET(dev,0,0);
 	I2C_SET(dev,1,0);
@@ -233,7 +239,8 @@ static void iicbb_zero(device_t dev, int timeout)
  * When the SLAVE has pulled this line low the MASTER will take the CLOCK
  * line low and then the SLAVE will release the SDA (data) line.
  */
-static int iicbb_ack(device_t dev, int timeout)
+static int
+iicbb_ack(device_t dev, int timeout)
 {
 	int noack;
 	int k = 0;
@@ -254,7 +261,8 @@ static int iicbb_ack(device_t dev, int timeout)
 	return (noack);
 }
 
-static void iicbb_sendbyte(device_t dev, u_char data, int timeout)
+static void
+iicbb_sendbyte(device_t dev, u_char data, int timeout)
 {
 	int i;
     
@@ -269,7 +277,8 @@ static void iicbb_sendbyte(device_t dev, u_char data, int timeout)
 	return;
 }
 
-static u_char iicbb_readbyte(device_t dev, int last, int timeout)
+static u_char
+iicbb_readbyte(device_t dev, int last, int timeout)
 {
 	int i;
 	unsigned char data=0;
@@ -291,17 +300,20 @@ static u_char iicbb_readbyte(device_t dev, int last, int timeout)
 	return data;
 }
 
-static int iicbb_callback(device_t dev, int index, caddr_t data)
+static int
+iicbb_callback(device_t dev, int index, caddr_t data)
 {
 	return (IICBB_CALLBACK(device_get_parent(dev), index, data));
 }
 
-static int iicbb_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
+static int
+iicbb_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 {
 	return (IICBB_RESET(device_get_parent(dev), speed, addr, oldaddr));
 }
 
-static int iicbb_start(device_t dev, u_char slave, int timeout)
+static int
+iicbb_start(device_t dev, u_char slave, int timeout)
 {
 	int error;
 
@@ -327,7 +339,8 @@ error:
 	return (error);
 }
 
-static int iicbb_stop(device_t dev)
+static int
+iicbb_stop(device_t dev)
 {
 	I2C_SET(dev,0,0);
 	I2C_SET(dev,1,0);
@@ -336,8 +349,8 @@ static int iicbb_stop(device_t dev)
 	return (0);
 }
 
-static int iicbb_write(device_t dev, char * buf, int len, int *sent,
-			int timeout)
+static int
+iicbb_write(device_t dev, char * buf, int len, int *sent, int timeout)
 {
 	int bytes, error = 0;
 
@@ -360,8 +373,8 @@ error:
 	return (error);
 }
 
-static int iicbb_read(device_t dev, char * buf, int len, int *read,
-			int last, int delay)
+static int
+iicbb_read(device_t dev, char * buf, int len, int *read, int last, int delay)
 {
 	int bytes;
 
