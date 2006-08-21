@@ -126,7 +126,8 @@ static void	bpf_timed_out __P((void *));
 static inline void
 		bpf_wakeup __P((struct bpf_d *));
 static void	catchpacket __P((struct bpf_d *, u_char *, u_int,
-		    u_int, void (*)(const void *, void *, size_t)));
+		    u_int, void (*)(const void *, void *, size_t),
+		    struct timeval *));
 static void	reset_d __P((struct bpf_d *));
 static int	 bpf_setf __P((struct bpf_d *, struct bpf_program *));
 
@@ -1188,17 +1189,25 @@ bpf_tap(ifp, pkt, pktlen)
 	struct bpf_if *bp;
 	register struct bpf_d *d;
 	register u_int slen;
+	int gottime;
+	struct timeval tv;
 	/*
 	 * Note that the ipl does not have to be raised at this point.
 	 * The only problem that could arise here is that if two different
 	 * interfaces shared any data.  This is not the case.
 	 */
+	gottime = 0;
 	bp = ifp->if_bpf;
 	for (d = bp->bif_dlist; d != 0; d = d->bd_next) {
 		++d->bd_rcount;
 		slen = bpf_filter(d->bd_filter, pkt, pktlen, pktlen);
-		if (slen != 0)
-			catchpacket(d, pkt, pktlen, slen, bcopy);
+		if (slen != 0) {
+			if (!gottime) {
+				microtime(&tv);
+				gottime = 1;
+			}
+			catchpacket(d, pkt, pktlen, slen, bcopy, &tv);
+		}
 	}
 }
 
@@ -1241,6 +1250,10 @@ bpf_mtap(ifp, m)
 	struct bpf_d *d;
 	u_int pktlen, slen;
 	struct mbuf *m0;
+	int gottime;
+	struct timeval tv;
+
+	gottime = 0;
 
 	pktlen = 0;
 	for (m0 = m; m0 != 0; m0 = m0->m_next)
@@ -1251,8 +1264,13 @@ bpf_mtap(ifp, m)
 			continue;
 		++d->bd_rcount;
 		slen = bpf_filter(d->bd_filter, (u_char *)m, pktlen, 0);
-		if (slen != 0)
-			catchpacket(d, (u_char *)m, pktlen, slen, bpf_mcopy);
+		if (slen != 0) {
+			if (!gottime) {
+				microtime(&tv);
+				gottime = 1;
+			}
+			catchpacket(d, (u_char *)m, pktlen, slen, bpf_mcopy, &tv);
+		}
 	}
 }
 
@@ -1265,11 +1283,12 @@ bpf_mtap(ifp, m)
  * pkt is really an mbuf.
  */
 static void
-catchpacket(d, pkt, pktlen, snaplen, cpfn)
+catchpacket(d, pkt, pktlen, snaplen, cpfn, tv)
 	register struct bpf_d *d;
 	register u_char *pkt;
 	register u_int pktlen, snaplen;
 	register void (*cpfn) __P((const void *, void *, size_t));
+	struct timeval *tv;
 {
 	register struct bpf_hdr *hp;
 	register int totlen, curlen;
@@ -1318,13 +1337,7 @@ catchpacket(d, pkt, pktlen, snaplen, cpfn)
 	 * Append the bpf header.
 	 */
 	hp = (struct bpf_hdr *)(d->bd_sbuf + curlen);
-#if BSD >= 199103
-	microtime(&hp->bh_tstamp);
-#elif defined(sun)
-	uniqtime(&hp->bh_tstamp);
-#else
-	hp->bh_tstamp = time;
-#endif
+	hp->bh_tstamp = *tv;
 	hp->bh_datalen = pktlen;
 	hp->bh_hdrlen = hdrlen;
 	/*
