@@ -539,7 +539,7 @@ fixit_common(void)
 	    dialog_clear_norefresh();
 	    msgNotify("Waiting for fixit shell to exit.  Go to VTY4 now by\n"
 		"typing ALT-F4.  When you are done, type ``exit'' to exit\n"
-		"the fixit shell and be returned here\n.");
+		"the fixit shell and be returned here.\n");
 	}
 	(void)waitpid(child, &waitstatus, 0);
 	if (strcmp(variable_get(VAR_FIXIT_TTY), "serial") == 0)
