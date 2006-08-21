@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 2, 2006
+.Dd August 21, 2006
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3586,6 +3586,91 @@ The default is
 which causes log files flagged with a
 .Cm C
 to be created.
+.It Va mdconfig_md Ns Ao Ar X Ac
+.Pq Vt str
+Arguments to
+.Xr mdconfig 8
+for
+.Xr md 4
+device
+.Ar X .
+At minimum a
+.Fl t Ar type
+must be specified and either a
+.Fl s Ar size
+for malloc or swap backed
+.Xr md 4
+devices or a
+.Fl f Ar file
+for vnode backed
+.Xr md 4
+devices.
+Note that
+.Va mdconfig_md Ns Ao Ar X Ac
+variables are evaluated until one variable is unset or null.
+.It Va mdconfig_md Ns Ao Ar X Ac Ns Va _newfs
+.Pq Vt str
+Optional arguments passed to
+.Xr newfs 8
+to initialize
+.Xr md 4
+device
+.Ar X .
+.It Va mdconfig_md Ns Ao Ar X Ac Ns Va _owner
+.Pq Vt str
+An ownership specification passed to
+.Xr chown 8
+after the specified
+.Xr md 4
+device
+.Ar X
+has been mounted.
+Both the
+.Xr md 4
+device and the mount point will be changed.
+.It Va mdconfig_md Ns Ao Ar X Ac Ns Va _perms
+.Pq Vt str
+A mode string passed to
+.Xr chmod 1
+after the specified
+.Xr md 4
+device
+.Ar X
+has been mounted.
+Both the
+.Xr md 4
+device and the mount point will be changed.
+.It Va mdconfig_md Ns Ao Ar X Ac Ns Va _files
+.Pq Vt str
+Files to be copied to the mount point of the
+.Xr md 4
+device
+.Ar X
+after it has been mounted.
+.It Va mdconfig_md Ns Ao Ar X Ac Ns Va _cmd
+.Pq Vt str
+Command to execute after the specified
+.Xr md 4
+device
+.Ar X
+has been mounted.
+Note that the command is passed to
+.Li eval
+and that both
+.Li _dev
+and
+.Li _mp
+variables can be used to reference respectively the
+.Xr md 4
+device and the mount point.
+Assuming that the
+.Xr md 4
+device is
+.Li md0 ,
+one could set the following:
+.Bd -literal
+mdconfig_md0_cmd="tar xfzC /var/file.tgz \\${_mp}"
+.Ed
 .It Va ramdisk_units
 .Pq Vt str
 A list of one or more ramdisk units to configure with
@@ -3601,6 +3686,8 @@ must specify at least a
 in a
 .Va ramdisk_ Ns Ao Ar X Ac Ns Va _config
 variable.
+Note that this way to configure ramdisks has been deprecated
+in favor of new mdconfig variables (see above).
 .It Va ramdisk_ Ns Ao Ar X Ac Ns Va _config
 .Pq Vt str
 Arguments to
