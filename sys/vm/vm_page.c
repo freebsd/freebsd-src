@@ -1131,14 +1131,6 @@ vm_page_free_toq(vm_page_t m)
 		}
 		panic("vm_page_free: freeing wired page");
 	}
-
-	/*
-	 * Clear the UNMANAGED flag when freeing an unmanaged page.
-	 */
-	if (m->flags & PG_UNMANAGED) {
-		m->flags &= ~PG_UNMANAGED;
-	}
-
 	if (m->hold_count != 0) {
 		m->flags &= ~PG_ZERO;
 		VM_PAGE_SETQUEUE2(m, PQ_HOLD);
