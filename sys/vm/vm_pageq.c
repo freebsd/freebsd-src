@@ -59,7 +59,6 @@ struct pq_coloring page_queue_coloring;
 static int pq_cachesize = 0;	/* size of the cache in KB */
 static int pq_cachenways = 0;	/* associativity of the cache */
 
-SYSCTL_DECL(_vm_stats);
 SYSCTL_NODE(_vm_stats, OID_AUTO, pagequeue, CTLFLAG_RW, 0, "VM meter stats");
 SYSCTL_INT(_vm_stats_pagequeue, OID_AUTO, page_colors, CTLFLAG_RD,
     &(PQ_NUMCOLORS), 0, "Number of colors in the page queue");
