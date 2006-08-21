@@ -338,7 +338,7 @@ bpf_filter(pc, p, wirelen, buflen)
 					return 0;
 				m = (struct mbuf *)p;
 				MINDEX(m, k);
-				A = mtod(m, char *)[k];
+				A = mtod(m, u_char *)[k];
 				continue;
 #else
 				return 0;
@@ -357,7 +357,7 @@ bpf_filter(pc, p, wirelen, buflen)
 					return 0;
 				m = (struct mbuf *)p;
 				MINDEX(m, k);
-				X = (mtod(m, char *)[k] & 0xf) << 2;
+				X = (mtod(m, u_char *)[k] & 0xf) << 2;
 				continue;
 #else
 				return 0;
