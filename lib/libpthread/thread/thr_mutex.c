@@ -551,14 +551,6 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 				/* Unlock the mutex structure: */
 				THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
 			} else {
-				/* Set the wakeup time: */
-				if (abstime) {
-					curthread->wakeup_time.tv_sec =
-						abstime->tv_sec;
-					curthread->wakeup_time.tv_nsec =
-						abstime->tv_nsec;
-				}
-
 				/*
 				 * Join the queue of threads waiting to lock
 				 * the mutex and save a pointer to the mutex.
@@ -572,6 +564,14 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 				 * be able to safely set the state.
 				 */
 				THR_SCHED_LOCK(curthread, curthread);
+				/* Set the wakeup time: */
+				if (abstime) {
+					curthread->wakeup_time.tv_sec =
+						abstime->tv_sec;
+					curthread->wakeup_time.tv_nsec =
+						abstime->tv_nsec;
+				}
+
 				THR_SET_STATE(curthread, PS_MUTEX_WAIT);
 				THR_SCHED_UNLOCK(curthread, curthread);
 
@@ -633,14 +633,6 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 				/* Unlock the mutex structure: */
 				THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
 			} else {
-				/* Set the wakeup time: */
-				if (abstime) {
-					curthread->wakeup_time.tv_sec =
-						abstime->tv_sec;
-					curthread->wakeup_time.tv_nsec =
-						abstime->tv_nsec;
-				}
-
 				/*
 				 * Join the queue of threads waiting to lock
 				 * the mutex and save a pointer to the mutex.
@@ -659,6 +651,13 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 					mutex_priority_adjust(curthread, *m);
 
 				THR_SCHED_LOCK(curthread, curthread);
+				/* Set the wakeup time: */
+				if (abstime) {
+					curthread->wakeup_time.tv_sec =
+						abstime->tv_sec;
+					curthread->wakeup_time.tv_nsec =
+						abstime->tv_nsec;
+				}
 				THR_SET_STATE(curthread, PS_MUTEX_WAIT);
 				THR_SCHED_UNLOCK(curthread, curthread);
 
@@ -730,14 +729,6 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 				/* Unlock the mutex structure: */
 				THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
 			} else {
-				/* Set the wakeup time: */
-				if (abstime) {
-					curthread->wakeup_time.tv_sec =
-						abstime->tv_sec;
-					curthread->wakeup_time.tv_nsec =
-						abstime->tv_nsec;
-				}
-
 				/*
 				 * Join the queue of threads waiting to lock
 				 * the mutex and save a pointer to the mutex.
@@ -756,6 +747,13 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 				 */
 
 				THR_SCHED_LOCK(curthread, curthread);
+				/* Set the wakeup time: */
+				if (abstime) {
+					curthread->wakeup_time.tv_sec =
+						abstime->tv_sec;
+					curthread->wakeup_time.tv_nsec =
+						abstime->tv_nsec;
+				}
 				THR_SET_STATE(curthread, PS_MUTEX_WAIT);
 				THR_SCHED_UNLOCK(curthread, curthread);
 

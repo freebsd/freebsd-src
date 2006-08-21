@@ -421,11 +421,6 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 				/* Return invalid argument error: */
 				rval = EINVAL;
 			} else {
-				/* Set the wakeup time: */
-				curthread->wakeup_time.tv_sec = abstime->tv_sec;
-				curthread->wakeup_time.tv_nsec =
-				    abstime->tv_nsec;
-
 				/* Reset the timeout and interrupted flags: */
 				curthread->timeout = 0;
 				curthread->interrupted = 0;
@@ -464,6 +459,11 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 					 * set the state.
 					 */
 					THR_SCHED_LOCK(curthread, curthread);
+					/* Set the wakeup time: */
+					curthread->wakeup_time.tv_sec =
+					    abstime->tv_sec;
+					curthread->wakeup_time.tv_nsec =
+					    abstime->tv_nsec;
 					THR_SET_STATE(curthread, PS_COND_WAIT);
 
 					/* Remember the CV: */

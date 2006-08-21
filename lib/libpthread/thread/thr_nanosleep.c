@@ -46,6 +46,7 @@ _nanosleep(const struct timespec *time_to_sleep,
 	int             ret = 0;
 	struct timespec ts, ts1;
 	struct timespec remaining_time;
+	struct timespec wakeup_time;
 
 	/* Check if the time to sleep is legal: */
 	if ((time_to_sleep == NULL) || (time_to_sleep->tv_sec < 0) ||
@@ -61,10 +62,11 @@ _nanosleep(const struct timespec *time_to_sleep,
 		KSE_GET_TOD(curthread->kse, &ts);
 
 		/* Calculate the time for the current thread to wake up: */
-		TIMESPEC_ADD(&curthread->wakeup_time, &ts, time_to_sleep);
+		TIMESPEC_ADD(&wakeup_time, &ts, time_to_sleep);
 
 		THR_LOCK_SWITCH(curthread);
 		curthread->interrupted = 0;
+		curthread->wakeup_time = wakeup_time;
 		THR_SET_STATE(curthread, PS_SLEEP_WAIT);
 
 		/* Reschedule the current thread to sleep: */
