@@ -326,6 +326,8 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 #define	INP_CHECK_SOCKAF(so, af)	(INP_SOCKAF(so) == af)
 
 #ifdef _KERNEL
+extern int	ipport_reservedhigh;
+extern int	ipport_reservedlow;
 extern int	ipport_lowfirstauto;
 extern int	ipport_lowlastauto;
 extern int	ipport_firstauto;

@@ -77,31 +77,9 @@
 #define __KAME_VERSION		"20010528/FreeBSD"
 
 /*
- * Local port number conventions:
- *
- * Ports < IPPORT_RESERVED are reserved for privileged processes (e.g. root),
- * unless a kernel is compiled with IPNOPRIVPORTS defined.
- *
- * When a user does a bind(2) or connect(2) with a port number of zero,
- * a non-conflicting local port address is chosen.
- *
- * The default range is IPPORT_ANONMIN to IPPORT_ANONMAX, although
- * that is settable by sysctl(3); net.inet.ip.anonportmin and
- * net.inet.ip.anonportmax respectively.
- *
- * A user may set the IPPROTO_IP option IP_PORTRANGE to change this
- * default assignment range.
- *
- * The value IP_PORTRANGE_DEFAULT causes the default behavior.
- *
- * The value IP_PORTRANGE_HIGH is the same as IP_PORTRANGE_DEFAULT,
- * and exists only for FreeBSD compatibility purposes.
- *
- * The value IP_PORTRANGE_LOW changes the range to the "low" are
- * that is (by convention) restricted to privileged processes.
- * This convention is based on "vouchsafe" principles only.
- * It is only secure if you trust the remote host to restrict these ports.
- * The range is IPPORT_RESERVEDMIN to IPPORT_RESERVEDMAX.
+ * IPv6 port allocation rules should mirror the IPv4 rules and are controlled
+ * by the the net.inet.ip.portrange sysctl tree. The following defines exist
+ * for compatibility with userland applications that need them.
  */
 #if __BSD_VISIBLE
 #define	IPV6PORT_RESERVED	1024
