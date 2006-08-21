@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1998, 1999, 2000, 2002, 2005 Kenneth D. Merry.
+.\" Copyright (c) 1998, 1999, 2000, 2002, 2005, 2006 Kenneth D. Merry.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -58,6 +58,13 @@
 .Op Fl D
 .Op Fl S
 .Op Fl R
+.Nm
+.Ic reportluns
+.Op device id
+.Op generic args
+.Op Fl c
+.Op Fl l
+.Op Fl r Ar reporttype
 .Nm
 .Ic start
 .Op device id
@@ -266,6 +273,37 @@ This is to aid in script writing.
 .It Fl R
 Print out transfer rate information.
 .El
+.It Ic reportluns
+Send the SCSI REPORT LUNS (0xA0) command to the given device.
+By default,
+.Nm
+will print out the list of logical units (LUNs) supported by the target device.
+There are a couple of options to modify the output:
+.Bl -tag -width 01234567890123
+.It Fl c
+Just print out a count of LUNs, not the actual LUN numbers.
+.It Fl l
+Just print out the LUNs, and don't print out the count.
+.It Fl r Ar reporttype
+Specify the type of report to request from the target:
+.Bl -tag -width 012345678
+.It default
+Return the default report.
+This is the
+.Nm
+default.
+Most targets will support this report if they support the REPORT LUNS
+command.
+.It wellknown
+Return only well known LUNs.
+.It all
+Return all available LUNs.
+.El
+.El
+.Pp
+.Nm
+will try to print out LUN numbers in a reasonable format.
+It can understand the peripheral, flat, LUN and extended LUN formats.
 .It Ic start
 Send the SCSI Start/Stop Unit (0x1B) command to the given device with the
 start bit set.
