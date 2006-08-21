@@ -1782,6 +1782,8 @@ trimthenstep6:
 		if (tp->t_state == TCPS_SYN_RECEIVED ||
 		    (tp->t_flags & TF_NEEDSYN))
 			goto step6;
+		else if (tp->t_flags & TF_ACKNOW)
+			goto dropafterack;
 		else
 			goto drop;
 	}
