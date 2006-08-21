@@ -708,11 +708,16 @@ struct scsi_read_capacity_data_long
 
 struct scsi_report_luns
 {
-	u_int8_t opcode;
-	u_int8_t byte2;
-	u_int8_t unused[3];
-	u_int8_t addr[4];
-	u_int8_t control;
+	uint8_t opcode;
+	uint8_t reserved1;
+#define	RPL_REPORT_DEFAULT	0x00
+#define	RPL_REPORT_WELLKNOWN	0x01
+#define	RPL_REPORT_ALL		0x02
+	uint8_t select_report;
+	uint8_t reserved2[3];
+	uint8_t length[4];
+	uint8_t reserved3;
+	uint8_t control;
 };
 
 struct scsi_report_luns_data {
@@ -723,10 +728,22 @@ struct scsi_report_luns_data {
 	 */
 	struct {
 		u_int8_t lundata[8];
-	} luns[1];
+	} luns[0];
 };
+#define	RPL_LUNDATA_PERIPH_BUS_MASK	0x3f
+#define	RPL_LUNDATA_FLAT_LUN_MASK	0x3f
+#define	RPL_LUNDATA_LUN_TARG_MASK	0x3f
+#define	RPL_LUNDATA_LUN_BUS_MASK	0xe0
+#define	RPL_LUNDATA_LUN_LUN_MASK	0x1f
+#define	RPL_LUNDATA_EXT_LEN_MASK	0x30
+#define	RPL_LUNDATA_EXT_EAM_MASK	0x0f
+#define	RPL_LUNDATA_EXT_EAM_WK		0x01
+#define	RPL_LUNDATA_EXT_EAM_NOT_SPEC	0x0f
 #define	RPL_LUNDATA_ATYP_MASK	0xc0	/* MBZ for type 0 lun */
-#define	RPL_LUNDATA_T0LUN	1	/* @ lundata[1] */
+#define	RPL_LUNDATA_ATYP_PERIPH	0x00
+#define	RPL_LUNDATA_ATYP_FLAT	0x40
+#define	RPL_LUNDATA_ATYP_LUN	0x80
+#define	RPL_LUNDATA_ATYP_EXTLUN	0xc0
 
 
 struct scsi_sense_data
@@ -1035,11 +1052,12 @@ void		scsi_read_capacity_16(struct ccb_scsiio *csio, uint32_t retries,
 				      uint32_t timeout);
 
 void		scsi_report_luns(struct ccb_scsiio *csio, u_int32_t retries,
-				   void (*cbfcnp)(struct cam_periph *, 
-				   union ccb *), u_int8_t tag_action, 
-				   struct scsi_report_luns_data *,
-				   u_int32_t alloc_len, u_int8_t sense_len,
-				   u_int32_t timeout);
+				 void (*cbfcnp)(struct cam_periph *, 
+				 union ccb *), u_int8_t tag_action, 
+				 u_int8_t select_report,
+				 struct scsi_report_luns_data *rpl_buf,
+				 u_int32_t alloc_len, u_int8_t sense_len,
+				 u_int32_t timeout);
 
 void		scsi_synchronize_cache(struct ccb_scsiio *csio, 
 				       u_int32_t retries,
