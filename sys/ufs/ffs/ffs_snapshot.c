@@ -2091,7 +2091,7 @@ ffs_copyonwrite(devvp, bp)
 	int launched_async_io, prev_norunningbuf;
 	long saved_runningbufspace;
 
-	if ((VTOI(bp->b_vp)->i_flags & SF_SNAPSHOT) != 0)
+	if (devvp != bp->b_vp && (VTOI(bp->b_vp)->i_flags & SF_SNAPSHOT) != 0)
 		return (0);		/* Update on a snapshot file */
 	if (td->td_pflags & TDP_COWINPROGRESS)
 		panic("ffs_copyonwrite: recursive call");
