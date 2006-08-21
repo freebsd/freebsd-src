@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <sys/sysctl.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -59,10 +60,12 @@ __FBSDID("$FreeBSD$");
 #include <vis.h>
 #include <sys/syslog.h>
 
+char s_msgbufp[] = "_msgbufp";
+
 struct nlist nl[] = {
 #define	X_MSGBUF	0
-	{ "_msgbufp" },
-	{ NULL },
+	{ s_msgbufp, 0, 0, 0, 0 },
+	{ NULL, 0, 0, 0, 0 },
 };
 
 void usage(void) __dead2;
@@ -99,7 +102,8 @@ main(int argc, char *argv[])
 			usage();
 		}
 	argc -= optind;
-	argv += optind;
+	if (argc != 0)
+		usage();
 
 	if (memf == NULL) {
 		/*
@@ -133,10 +137,10 @@ main(int argc, char *argv[])
 		/* Unwrap the circular buffer to start from the oldest data. */
 		bufpos = MSGBUF_SEQ_TO_POS(&cur, cur.msg_wseq);
 		if (kvm_read(kd, (long)&cur.msg_ptr[bufpos], bp,
-		    cur.msg_size - bufpos) != cur.msg_size - bufpos)
+		    cur.msg_size - bufpos) != (ssize_t)(cur.msg_size - bufpos))
 			errx(1, "kvm_read: %s", kvm_geterr(kd));
 		if (bufpos != 0 && kvm_read(kd, (long)cur.msg_ptr,
-		    &bp[cur.msg_size - bufpos], bufpos) != bufpos)
+		    &bp[cur.msg_size - bufpos], bufpos) != (ssize_t)bufpos)
 			errx(1, "kvm_read: %s", kvm_geterr(kd));
 		kvm_close(kd);
 		buflen = cur.msg_size;
@@ -166,13 +170,15 @@ main(int argc, char *argv[])
 			p++;
 	} else if (!all) {
 		/* Skip the first line, since it is probably incomplete. */
-		p = memchr(p, '\n', ep - p) + 1;
+		p = memchr(p, '\n', ep - p);
+		p++;
 	}
 	for (; p < ep; p = nextp) {
-		nextp = memchr(p, '\n', ep - p) + 1;
+		nextp = memchr(p, '\n', ep - p);
+		nextp++;
 
 		/* Skip ^<[0-9]+> syslog sequences. */
-		if (*p == '<') {
+		if (*p == '<' && isdigit(*(p+1))) {
 			errno = 0;
 			pri = strtol(p + 1, &q, 10);
 			if (*q == '>' && pri >= 0 && pri < INT_MAX &&
