@@ -194,7 +194,6 @@ SUBDIR=	alias \
 	tset \
 	tsort \
 	tty \
-	${_uac} \
 	ul \
 	uname \
 	unexpand \
@@ -263,7 +262,7 @@ _calendar=	calendar
 .if ${MK_OPENSSL} != "no"
 _chkey=		chkey
 _newkey=	newkey
-.if ${MACHINE_ARCH} == "alpha" || ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_ARCH} == "sparc64"
 .if ${MK_LIBTHR} != "no"
 _csup=		csup
 .endif
@@ -315,10 +314,6 @@ _ncplist=	ncplist
 _ncplogin=	ncplogin
 .endif
 _smbutil=	smbutil
-.endif
-
-.if ${MACHINE_ARCH} == "alpha"
-_uac=		uac
 .endif
 
 .if ${MACHINE_ARCH} == "amd64"
