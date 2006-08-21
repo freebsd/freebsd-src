@@ -41,7 +41,9 @@ __FBSDID("$FreeBSD$");
 
 _ENTRY(_C_LABEL(ntohs))
 _PROF_PROLOGUE
+#ifndef __ARMEB__
 	and		r1, r0, #0xff
 	mov		r0, r0, lsr #8
 	orr		r0, r0, r1, lsl #8
+#endif
 	mov		pc, lr  
