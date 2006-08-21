@@ -99,7 +99,7 @@ vm_page_zero_check(void)
 	return (1);
 }
 
-static int
+static void
 vm_page_zero_idle(void)
 {
 	static int free_rover;
@@ -122,7 +122,6 @@ vm_page_zero_idle(void)
 	}
 	free_rover = (free_rover + PQ_PRIME2) & PQ_COLORMASK;
 	mtx_unlock_spin(&vm_page_queue_free_mtx);
-	return (1);
 }
 
 /* Called by vm_page_free to hint that a new page is available. */
