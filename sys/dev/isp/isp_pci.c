@@ -509,6 +509,12 @@ isp_get_options(device_t dev, ispsoftc_t *isp)
 		}
 	}
 #endif
+	bitmap = 0;
+	if (getenv_int("role", &bitmap)) {
+		isp->isp_role = bitmap;
+	} else {
+		isp->isp_role = ISP_DEFAULT_ROLES;
+	}
 }
 
 static void
