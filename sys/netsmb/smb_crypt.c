@@ -241,8 +241,8 @@ smb_rq_sign(struct smb_rq *rqp)
 	}
 
 	/* Initialize sec. signature field to sequence number + zeros. */
-	*(u_int32_t *)rqp->sr_rqsig = htole32(rqp->sr_seqno);
-	*(u_int32_t *)(rqp->sr_rqsig + 4) = 0;
+	le32enc(rqp->sr_rqsig, rqp->sr_seqno);
+	le32enc(rqp->sr_rqsig + 4, 0);
 
 	/*
 	 * Compute HMAC-MD5 of packet data, keyed by MAC key.
