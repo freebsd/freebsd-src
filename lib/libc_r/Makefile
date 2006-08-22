@@ -25,7 +25,7 @@ PRECIOUSLIB=
 .include "${.CURDIR}/uthread/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
 
-.if ${MACHINE_ARCH} == "alpha" || ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_ARCH} == "sparc64"
 SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
 .if !defined(NO_PIC)
 SYMLINKS+=lib${LIB}.so ${LIBDIR}/libpthread.so

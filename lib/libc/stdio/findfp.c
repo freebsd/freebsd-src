@@ -86,7 +86,7 @@ FILE __sF[3] = {
  * with future versions of libc.  Or rather it allows us to work with
  * libraries that have been built with a newer libc that defines these
  * symbols and expects libc to provide them.  We only have need to support
- * i386 and alpha because they are the only "old" systems we have deployed.
+ * i386 because it is the only "old" system we have deployed.
  */
 FILE *__stdinp = &__sF[0];
 FILE *__stdoutp = &__sF[1];
