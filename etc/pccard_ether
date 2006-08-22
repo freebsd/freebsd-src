@@ -67,6 +67,8 @@ checkauto()
 
 pccard_ether_start()
 {
+	ifexists $ifn || exit 1
+
 	if [ -z "$rc_force" -a -x /usr/bin/grep ]; then
 		if ifconfig $ifn | grep -s '[<,]UP[,>]' > /dev/null 2>&1; then
 		    # Interface is already up, so ignore it.
@@ -101,7 +103,7 @@ pccard_ether_stop()
 	/etc/rc.d/netif stop $ifn
 
 	# clean ARP table
-	arp -d -a
+	ifexists $ifn && arp -d -i $ifn -a
 
 	# Clean the routing table
 	if checkyesno removable_route_flush; then
