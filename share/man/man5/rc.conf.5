@@ -397,6 +397,22 @@ to start the DHCP client in background.
 This can cause trouble with applications depending on
 a working network, but it will provide a faster startup
 in many cases.
+.It Va synchronous_dhclient
+.Pq Bt bool
+Set to
+.Dq Li NO
+to start
+.Xr dhclient 8
+only in response to interface events and not synchronously at startup.
+This behavior can be overridden on a per-interface basis by replacing
+the
+.Dq Li DHCP
+keyword in the
+.Va ifconfig_ Ns Aq Ar interface
+variable with
+.Dq Li SYNCDHCP
+or
+.Dq Li NOSYNCDHCP .
 .It Va firewall_enable
 .Pq Vt bool
 Set to
@@ -975,19 +991,25 @@ for more information.
 Set to the list of network interfaces to configure on this host or
 .Dq Li AUTO
 (the default) for all current interfaces.
-For example, if the only active network devices in the system
-are the loopback device
-.Pq Li lo0
-and a NIC using the
-.Xr ed 4
-driver,
-this could be set to
-.Dq Li "lo0 ed0" .
+Setting the
+.Va network_interfaces
+variable to anything other than the default is deprecated.
+Interfaces that the administrator wishes to store configration for,
+but not start at boot should be configured with the
+.Dq Li NOAUTO
+keyword in their
+.Va ifconfig_ Ns Aq Ar interface
+variables as described below.
 .Pp
 An
 .Va ifconfig_ Ns Aq Ar interface
 variable is also assumed to exist for each value of
 .Ar interface .
+When an interface name contains any of the characters
+.Dq Li .-/+
+they are translated to
+.Dq Li _
+before lookup.
 The variable can contain arguments to
 .Xr ifconfig 8 ,
 as well as special case-insensitive keywords described below.
