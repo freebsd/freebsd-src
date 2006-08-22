@@ -82,7 +82,7 @@ struct smb_rq {
 	u_int8_t		sr_rqflags;
 	u_int16_t		sr_rqflags2;
 	u_char *		sr_wcount;
-	u_short *		sr_bcount;
+	void *			sr_bcount;	/* Points to 2-byte buffer. */
 	struct mdchain		sr_rp;
 	int			sr_rpgen;
 	int			sr_rplast;
@@ -95,8 +95,8 @@ struct smb_rq {
 	struct timespec 	sr_timesent;
 	int			sr_lerror;
 	u_int8_t *		sr_rqsig;
-	u_int16_t *		sr_rqtid;
-	u_int16_t *		sr_rquid;
+	void *			sr_rqtid;	/* Points to 2-byte buffer. */
+	void *			sr_rquid;	/* Points to 2-byte buffer. */
 	u_int8_t		sr_errclass;
 	u_int16_t		sr_serror;
 	u_int32_t		sr_error;
