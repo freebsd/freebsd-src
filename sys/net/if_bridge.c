@@ -841,8 +841,6 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	struct ifnet *ifs;
 	int error = 0;
 
-	BRIDGE_LOCK_ASSERT(sc);
-
 	ifs = ifunit(req->ifbr_ifsname);
 	if (ifs == NULL)
 		return (ENOENT);
@@ -926,8 +924,6 @@ bridge_ioctl_del(struct bridge_softc *sc, void *arg)
 	struct ifbreq *req = arg;
 	struct bridge_iflist *bif;
 
-	BRIDGE_LOCK_ASSERT(sc);
-
 	bif = bridge_lookup_member(sc, req->ifbr_ifsname);
 	if (bif == NULL)
 		return (ENOENT);
@@ -942,8 +938,6 @@ bridge_ioctl_gifflags(struct bridge_softc *sc, void *arg)
 {
 	struct ifbreq *req = arg;
 	struct bridge_iflist *bif;
-
-	BRIDGE_LOCK_ASSERT(sc);
 
 	bif = bridge_lookup_member(sc, req->ifbr_ifsname);
 	if (bif == NULL)
@@ -963,8 +957,6 @@ bridge_ioctl_sifflags(struct bridge_softc *sc, void *arg)
 {
 	struct ifbreq *req = arg;
 	struct bridge_iflist *bif;
-
-	BRIDGE_LOCK_ASSERT(sc);
 
 	bif = bridge_lookup_member(sc, req->ifbr_ifsname);
 	if (bif == NULL)
@@ -999,8 +991,6 @@ bridge_ioctl_scache(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
 
-	BRIDGE_LOCK_ASSERT(sc);
-
 	sc->sc_brtmax = param->ifbrp_csize;
 	bridge_rttrim(sc);
 
@@ -1011,8 +1001,6 @@ static int
 bridge_ioctl_gcache(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
-
-	BRIDGE_LOCK_ASSERT(sc);
 
 	param->ifbrp_csize = sc->sc_brtmax;
 
@@ -1026,8 +1014,6 @@ bridge_ioctl_gifs(struct bridge_softc *sc, void *arg)
 	struct bridge_iflist *bif;
 	struct ifbreq breq;
 	int count, len, error = 0;
-
-	BRIDGE_LOCK_ASSERT(sc);
 
 	count = 0;
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next)
@@ -1090,8 +1076,6 @@ bridge_ioctl_rts(struct bridge_softc *sc, void *arg)
 	struct ifbareq bareq;
 	int count = 0, error = 0, len;
 
-	BRIDGE_LOCK_ASSERT(sc);
-
 	if (bac->ifbac_len == 0)
 		return (0);
 
@@ -1128,8 +1112,6 @@ bridge_ioctl_saddr(struct bridge_softc *sc, void *arg)
 	struct bridge_iflist *bif;
 	int error;
 
-	BRIDGE_LOCK_ASSERT(sc);
-
 	bif = bridge_lookup_member(sc, req->ifba_ifsname);
 	if (bif == NULL)
 		return (ENOENT);
@@ -1145,10 +1127,7 @@ bridge_ioctl_sto(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
 
-	BRIDGE_LOCK_ASSERT(sc);
-
 	sc->sc_brttimeout = param->ifbrp_ctime;
-
 	return (0);
 }
 
@@ -1157,10 +1136,7 @@ bridge_ioctl_gto(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
 
-	BRIDGE_LOCK_ASSERT(sc);
-
 	param->ifbrp_ctime = sc->sc_brttimeout;
-
 	return (0);
 }
 
@@ -1168,8 +1144,6 @@ static int
 bridge_ioctl_daddr(struct bridge_softc *sc, void *arg)
 {
 	struct ifbareq *req = arg;
-
-	BRIDGE_LOCK_ASSERT(sc);
 
 	return (bridge_rtdaddr(sc, req->ifba_dst));
 }
@@ -1179,10 +1153,7 @@ bridge_ioctl_flush(struct bridge_softc *sc, void *arg)
 {
 	struct ifbreq *req = arg;
 
-	BRIDGE_LOCK_ASSERT(sc);
-
 	bridge_rtflush(sc, req->ifbr_ifsflags);
-
 	return (0);
 }
 
@@ -1191,10 +1162,7 @@ bridge_ioctl_gpri(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
 
-	BRIDGE_LOCK_ASSERT(sc);
-
 	param->ifbrp_prio = sc->sc_bridge_priority;
-
 	return (0);
 }
 
@@ -1202,8 +1170,6 @@ static int
 bridge_ioctl_spri(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
-
-	BRIDGE_LOCK_ASSERT(sc);
 
 	sc->sc_bridge_priority = param->ifbrp_prio;
 
@@ -1218,10 +1184,7 @@ bridge_ioctl_ght(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
 
-	BRIDGE_LOCK_ASSERT(sc);
-
 	param->ifbrp_hellotime = sc->sc_bridge_hello_time >> 8;
-
 	return (0);
 }
 
@@ -1229,8 +1192,6 @@ static int
 bridge_ioctl_sht(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
-
-	BRIDGE_LOCK_ASSERT(sc);
 
 	if (param->ifbrp_hellotime == 0)
 		return (EINVAL);
@@ -1247,10 +1208,7 @@ bridge_ioctl_gfd(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
 
-	BRIDGE_LOCK_ASSERT(sc);
-
 	param->ifbrp_fwddelay = sc->sc_bridge_forward_delay >> 8;
-
 	return (0);
 }
 
@@ -1258,8 +1216,6 @@ static int
 bridge_ioctl_sfd(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
-
-	BRIDGE_LOCK_ASSERT(sc);
 
 	if (param->ifbrp_fwddelay == 0)
 		return (EINVAL);
@@ -1276,10 +1232,7 @@ bridge_ioctl_gma(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
 
-	BRIDGE_LOCK_ASSERT(sc);
-
 	param->ifbrp_maxage = sc->sc_bridge_max_age >> 8;
-
 	return (0);
 }
 
@@ -1287,8 +1240,6 @@ static int
 bridge_ioctl_sma(struct bridge_softc *sc, void *arg)
 {
 	struct ifbrparam *param = arg;
-
-	BRIDGE_LOCK_ASSERT(sc);
 
 	if (param->ifbrp_maxage == 0)
 		return (EINVAL);
@@ -1305,8 +1256,6 @@ bridge_ioctl_sifprio(struct bridge_softc *sc, void *arg)
 {
 	struct ifbreq *req = arg;
 	struct bridge_iflist *bif;
-
-	BRIDGE_LOCK_ASSERT(sc);
 
 	bif = bridge_lookup_member(sc, req->ifbr_ifsname);
 	if (bif == NULL)
@@ -1326,8 +1275,6 @@ bridge_ioctl_sifcost(struct bridge_softc *sc, void *arg)
 	struct ifbreq *req = arg;
 	struct bridge_iflist *bif;
 
-	BRIDGE_LOCK_ASSERT(sc);
-
 	bif = bridge_lookup_member(sc, req->ifbr_ifsname);
 	if (bif == NULL)
 		return (ENOENT);
@@ -1346,8 +1293,6 @@ bridge_ioctl_addspan(struct bridge_softc *sc, void *arg)
 	struct ifbreq *req = arg;
 	struct bridge_iflist *bif = NULL;
 	struct ifnet *ifs;
-
-	BRIDGE_LOCK_ASSERT(sc);
 
 	ifs = ifunit(req->ifbr_ifsname);
 	if (ifs == NULL)
@@ -1387,8 +1332,6 @@ bridge_ioctl_delspan(struct bridge_softc *sc, void *arg)
 	struct ifbreq *req = arg;
 	struct bridge_iflist *bif;
 	struct ifnet *ifs;
-
-	BRIDGE_LOCK_ASSERT(sc);
 
 	ifs = ifunit(req->ifbr_ifsname);
 	if (ifs == NULL)
@@ -1624,13 +1567,13 @@ bridge_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
 		struct mbuf *mc;
 		int error = 0, used = 0;
 
+		bridge_span(sc, m);
+
 		BRIDGE_LOCK2REF(sc, error);
 		if (error) {
 			m_freem(m);
 			return (0);
 		}
-
-		bridge_span(sc, m);
 
 		LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 			dst_if = bif->bif_ifp;
@@ -1748,7 +1691,6 @@ bridge_forward(struct bridge_softc *sc, struct mbuf *m)
 	struct ether_header *eh;
 
 	src_if = m->m_pkthdr.rcvif;
-	BRIDGE_LOCK_ASSERT(sc);
 	ifp = sc->sc_ifp;
 
 	sc->sc_ifp->if_ipackets++;
@@ -2094,7 +2036,6 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 	struct ifnet *dst_if;
 	int error = 0, used = 0, i;
 
-	BRIDGE_LOCK_ASSERT(sc);
 	BRIDGE_LOCK2REF(sc, error);
 	if (error) {
 		m_freem(m);
