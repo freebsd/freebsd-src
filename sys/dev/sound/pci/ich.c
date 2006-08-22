@@ -850,6 +850,7 @@ ich_pci_attach(device_t dev)
 	case 0x8197104d:	/* Sony S1XP */
 	case 0x81c0104d:	/* Sony VAIO type T */
 	case 0x81c5104d:	/* Sony VAIO VGN B1VP/B1XP */
+	case 0x3089103c:	/* Compaq Presario B3800 */
 		ac97_setflags(sc->codec, ac97_getflags(sc->codec) | AC97_F_EAPD_INV);
 		break;
 	default:
