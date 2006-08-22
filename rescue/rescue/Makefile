@@ -163,10 +163,6 @@ CRUNCH_PROGS_sbin+= mca gpt fdisk
 CRUNCH_PROGS_sbin+= sunlabel
 .endif
 
-.if ${MACHINE_ARCH} == "alpha"
-CRUNCH_ALIAS_bsdlabel= disklabel
-.endif
-
 .if ${MACHINE_ARCH} == "amd64"
 CRUNCH_PROGS_sbin+= fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel

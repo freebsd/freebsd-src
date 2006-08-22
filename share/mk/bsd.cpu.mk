@@ -8,9 +8,6 @@
 _CPUCFLAGS =
 . if ${MACHINE_ARCH} == "i386"
 MACHINE_CPU = i486
-. elif ${MACHINE_ARCH} == "alpha"
-_CPUCFLAGS = -mcpu=ev4 -mtune=ev5
-MACHINE_CPU = ev4
 . elif ${MACHINE_ARCH} == "amd64"
 MACHINE_CPU = amd64 sse2 sse
 . elif ${MACHINE_ARCH} == "ia64"
@@ -100,8 +97,6 @@ _ICC_CPUCFLAGS = -tpp5
 .  else
 _ICC_CPUCFLAGS =
 .  endif # ICC on 'i386'
-. elif ${MACHINE_ARCH} == "alpha"
-_CPUCFLAGS = -mcpu=${CPUTYPE}
 . elif ${MACHINE_ARCH} == "amd64"
 _CPUCFLAGS = -march=${CPUTYPE}
 . elif ${MACHINE_ARCH} == "arm"
@@ -153,22 +148,6 @@ MACHINE_CPU = i486 i386
 .  elif ${CPUTYPE} == "i386"
 MACHINE_CPU = i386
 .  endif
-. elif ${MACHINE_ARCH} == "alpha"
-.  if ${CPUTYPE} == "ev67"
-MACHINE_CPU = ev67 ev6 ev56 pca56 ev5 ev45 ev4
-.  elif ${CPUTYPE} == "ev6"
-MACHINE_CPU = ev6 ev56 pca56 ev5 ev45 ev4
-.  elif ${CPUTYPE} == "pca56"
-MACHINE_CPU = pca56 ev56 ev5 ev45 ev4
-.  elif ${CPUTYPE} == "ev56"
-MACHINE_CPU = ev56 ev5 ev45 ev4
-.  elif ${CPUTYPE} == "ev5"
-MACHINE_CPU = ev5 ev45 ev4
-.  elif ${CPUTYPE} == "ev45"
-MACHINE_CPU = ev45 ev4
-.  elif ${CPUTYPE} == "ev4"
-MACHINE_CPU = ev4
-.  endif
 . elif ${MACHINE_ARCH} == "amd64"
 .  if ${CPUTYPE} == "opteron" || ${CPUTYPE} == "athlon64" || ${CPUTYPE} == "k8"
 MACHINE_CPU = k8 3dnow
@@ -181,10 +160,6 @@ MACHINE_CPU += amd64 sse2 sse mmx
 MACHINE_CPU = itanium
 .  endif
 . endif
-.endif
-
-.if ${MACHINE_ARCH} == "alpha"
-_CPUCFLAGS += -mieee
 .endif
 
 .if ${MACHINE_ARCH} == "arm" && defined(ARM_BIG_ENDIAN)

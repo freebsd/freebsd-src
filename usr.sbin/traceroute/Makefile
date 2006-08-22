@@ -29,11 +29,6 @@ DPADD=	${LIBIPSEC}
 LDADD=	-lipsec
 .endif
 
-.if ${MACHINE_ARCH} == "alpha"
-# gcc builtin memcpy causes unaligned access
-CFLAGS+= -fno-builtin
-.endif
-
 CFLAGS+= -I${TRACEROUTE_DISTDIR}/lbl
 
 version.c: ${TRACEROUTE_DISTDIR}/VERSION
