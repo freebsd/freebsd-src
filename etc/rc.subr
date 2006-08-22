@@ -506,6 +506,9 @@ run_rc_command()
 		;;
 	esac
 
+	eval _override_command=\$${name}_program
+	command=${command:+${_override_command:-$command}}
+
 	_keywords="start stop restart rcvar $extra_commands"
 	rc_pid=
 	_pidcmd=
@@ -873,8 +876,6 @@ run_rc_script()
 #
 load_rc_config()
 {
-	local _tmp
-
 	_name=$1
 	if [ -z "$_name" ]; then
 		err 3 'USAGE: load_rc_config name'
@@ -893,35 +894,9 @@ load_rc_config()
 		fi
 		_rc_conf_loaded=true
 	fi
-
-	eval _override_command=\$${name}_program
-	command=${command:+${_override_command:-$command}}
-	
-	if [ -z "${command}" ]; then
-		_tmp=`/bin/realpath $0`
-		prefix=${_tmp%/etc/rc.d/*}/
-	else
-		prefix=${command%/*bin/*}/
-	fi
-	if [ "${prefix}" = "/" -o "${prefix}" = "/usr/" ] ; then
-		etcdir="/etc"
-	else
-		etcdir="${prefix}etc"
-	fi
-
-	# XXX - Deprecated
-	if [ -f /etc/rc.conf.d/${_name} -a ${etcdir} != "/etc" ]; then
+	if [ -f /etc/rc.conf.d/"$_name" ]; then
 		debug "Sourcing /etc/rc.conf.d/${_name}"
-		warn "Warning: /etc/rc.conf.d/${_name} is deprecated, please use ${etcdir}/rc.conf.d/${_name} instead."
-		if [ -f ${etcdir}/rc.conf.d/${_name} ]; then
-			warn "Warning: Both /etc/rc.conf.d/${_name} and ${etcdir}/rc.conf.d/${_name} exist."
-		fi
-		. /etc/rc.conf.d/${_name}
-	fi
-
-	if [ -f ${etcdir}/rc.conf.d/${_name} ]; then
-		debug "Sourcing ${etcdir}/rc.conf.d/${_name}"
-		. ${etcdir}/rc.conf.d/${_name}
+		. /etc/rc.conf.d/"$_name"
 	fi
 
 	# XXX - Deprecated variable name support
