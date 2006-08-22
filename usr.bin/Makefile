@@ -316,6 +316,10 @@ _ncplogin=	ncplogin
 _smbutil=	smbutil
 .endif
 
+.if ${MACHINE_ARCH} == "ia64"
+_smbutil=	smbutil
+.endif
+
 .if ${MACHINE_ARCH} == "amd64"
 .if ${MK_NCP} != "no"
 _ncplist=	ncplist

@@ -72,6 +72,10 @@ _libsmb=	libsmb
 _libvgl=	libvgl
 .endif
 
+.if ${MACHINE_ARCH} == "ia64"
+_libsmb=	libsmb
+.endif
+
 .if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "ia64" && \
     ${MACHINE_ARCH} != "powerpc" && ${MK_LIBC_R} != "no"
 _libc_r=
