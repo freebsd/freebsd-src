@@ -5,9 +5,6 @@ PROG=	ping
 MAN=	ping.8
 BINOWN=	root
 BINMODE=4555
-.if ${MACHINE_ARCH} == "alpha"
-CFLAGS+=-fno-builtin	# GCC's builtin memcpy doesn't do unaligned copies
-.endif
 WARNS?=	2
 DPADD=	${LIBM}
 LDADD=	-lm

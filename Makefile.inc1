@@ -926,9 +926,6 @@ _btxld=		usr.sbin/btxld
 .if ${MK_RESCUE} != "no" || defined(RELEASEDIR)
 _crunchide=	usr.sbin/crunch/crunchide
 .endif
-.if ${TARGET_ARCH} == "alpha"
-_elf2exe=	usr.sbin/elf2exe
-.endif
 .if ${TARGET_ARCH} == "i386" && defined(RELEASEDIR)
 _kgzip=		usr.sbin/kgzip
 .endif
@@ -941,7 +938,6 @@ cross-tools:
     usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
     ${_btxld} \
     ${_crunchide} \
-    ${_elf2exe} \
     ${_kgzip}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \

@@ -6,7 +6,7 @@ SUBDIR=	${_ggatec} \
 	${_ggated} \
 	ggatel
 
-.if ${MACHINE_ARCH} == "alpha" || ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_ARCH} == "sparc64"
 .if ${MK_LIBTHR} != "no"
 _ggatec=	ggatec
 _ggated=	ggated

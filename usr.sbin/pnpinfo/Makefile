@@ -11,9 +11,4 @@ CFLAGS+= -I${.CURDIR}/../../sys
 CFLAGS+= -DPC98
 .endif
 
-.if ${MACHINE_ARCH} == "alpha"
-LDADD=	-lio
-DPADD=  ${LIBIO}
-.endif
-
 .include <bsd.prog.mk>

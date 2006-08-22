@@ -30,7 +30,7 @@ SUBDIR=	${_csu} libbsm libcom_err libcrypt libkvm msun libmd libncurses \
 	libbegemot ${_libbluetooth} libbsnmp libbz2 libc ${_libc_r} \
 	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
 	libedit libexpat libfetch libform libftpio libgeom ${_libgpib} \
-	libgssapi ${_libio} libipsec \
+	libgssapi libipsec \
 	${_libipx} libkiconv libmagic libmemstat libmenu ${_libmilter} ${_libmp} \
 	${_libncp} ${_libngatm} libopie libpam libpanel libpcap \
 	libpmc ${_libpthread} librt ${_libsdp} ${_libsm} ${_libsmb} \
@@ -79,10 +79,6 @@ _libsmb=	libsmb
 .if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "ia64" && \
     ${MACHINE_ARCH} != "powerpc" && ${MK_LIBC_R} != "no"
 _libc_r=
-.endif
-
-.if ${MACHINE_ARCH} == "alpha"
-_libio=		libio
 .endif
 
 .if ${MK_SENDMAIL} != "no"

@@ -593,9 +593,6 @@ main(int argc, char **argv)
     if (open("/dev/io", O_RDONLY) < 0)
 	errx(1, "can't get I/O privilege");
 #endif
-#ifdef __alpha__
-    ioperm(0x203, 0x400 - 0x203, 1);
-#endif
 
     printf("Checking for Plug-n-Play devices...\n");
 
