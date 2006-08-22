@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_syscons.h"
+#include "opt_xbox.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -46,6 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/ppireg.h>
 #include <machine/timerreg.h>
 #include <machine/pc/bios.h>
+
+#ifdef XBOX
+#include <machine/xbox.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -201,6 +206,19 @@ sc_get_cons_priority(int *unit, int *flags)
 {
 	const char *at;
 	int u, f;
+
+#ifdef XBOX
+	/*
+	 * The XBox Loader does not support hints, which makes our initial
+	 * console probe fail. Therefore, if an XBox is found, we hardcode the
+	 * existence of the console, as it is always there anyway.
+	 */
+	if (arch_i386_is_xbox) {
+		*unit = 0;
+		*flags = SC_KERNEL_CONSOLE;
+		return CN_INTERNAL;
+	}
+#endif
 
 	*unit = -1;
 	for (u = 0; u < 16; u++) {
