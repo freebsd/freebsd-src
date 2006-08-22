@@ -946,6 +946,18 @@ em_watchdog(struct ifnet *ifp)
 		return;
 	}
 
+	/*
+	 * Reclaim first as there is a possibility of losing Tx completion
+	 * interrupts. Possible cause of missing Tx completion interrupts
+	 * comes from Tx interrupt moderation mechanism(delayed interrupts)
+	 * or chipset bug.
+	 */
+	em_txeof(adapter);
+	if (adapter->num_tx_desc_avail == adapter->num_tx_desc) {
+		EM_UNLOCK(adapter);
+		return;
+	}
+
 	if (em_check_for_link(&adapter->hw) == 0)
 		device_printf(adapter->dev, "watchdog timeout -- resetting\n");
 
