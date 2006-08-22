@@ -106,6 +106,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_cpu.h"
 #include "opt_pmap.h"
 #include "opt_msgbuf.h"
+#include "opt_xbox.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -122,6 +123,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #ifdef SMP
 #include <sys/smp.h>
+#endif
+
+#ifdef XBOX
+#include <machine/xbox.h>
 #endif
 
 #include <vm/vm.h>
@@ -392,6 +397,14 @@ pmap_bootstrap(firstaddr, loadaddr)
 	virtual_avail = va;
 
 	*CMAP1 = 0;
+
+#ifdef XBOX
+	/* FIXME: This is gross, but needed for the XBOX. Since we are in such
+	 * an early stadium, we cannot yet neatly map video memory ... :-(
+	 * Better fixes are very welcome!
+	 */
+	if (!arch_i386_is_xbox)
+#endif
 	for (i = 0; i < NKPT; i++)
 		PTD[i] = 0;
 
