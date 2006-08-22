@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20060822: ramdisk{,-own} have been replaced by mdconfig{,2}
+OLD_FILES+=etc/rc.d/ramdisk
+OLD_FILES+=etc/rc.d/ramdisk-own
 # 20060704: KAME compat file net_osdep.h removed
 OLD_FILES+=usr/include/net/net_osdep.h
 # 20060517: pcvt removed

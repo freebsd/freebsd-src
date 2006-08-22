@@ -30,7 +30,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	pf pflog pfsync \
 	powerd power_profile ppp pppoed pwcheck \
 	quota \
-	ramdisk ramdisk-own random rarpd resolv root \
+	random rarpd resolv root \
 	route6d routed routing rpcbind rtadvd rwho \
 	savecore sdpd securelevel sendmail \
 	serial sppp swap1 \
