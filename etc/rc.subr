@@ -368,6 +368,10 @@ wait_for_pids()
 #	rcvar		n	This is checked with checkyesno to determine
 #				if the action should be run.
 #
+#	${name}_program	n	Full path to command.
+#				Meant to be used in /etc/rc.conf to override
+#				${command}.
+#
 #	${name}_chroot	n	Directory to chroot to before running ${command}
 #				Requires /usr to be mounted.
 #
@@ -863,14 +867,14 @@ run_rc_script()
 }
 
 #
-# load_rc_config command
-#	Source in the configuration file for a given command.
+# load_rc_config name
+#	Source in the configuration file for a given name.
 #
 load_rc_config()
 {
-	_command=$1
-	if [ -z "$_command" ]; then
-		err 3 'USAGE: load_rc_config command'
+	_name=$1
+	if [ -z "$_name" ]; then
+		err 3 'USAGE: load_rc_config name'
 	fi
 
 	if ${_rc_conf_loaded:-false}; then
@@ -886,9 +890,9 @@ load_rc_config()
 		fi
 		_rc_conf_loaded=true
 	fi
-	if [ -f /etc/rc.conf.d/"$_command" ]; then
-		debug "Sourcing /etc/rc.conf.d/${_command}"
-		. /etc/rc.conf.d/"$_command"
+	if [ -f /etc/rc.conf.d/"$_name" ]; then
+		debug "Sourcing /etc/rc.conf.d/${_name}"
+		. /etc/rc.conf.d/"$_name"
 	fi
 
 	# XXX - Deprecated variable name support
@@ -909,15 +913,15 @@ load_rc_config()
 }
   
 #
-# load_rc_config_var cmd var
-#	Read the rc.conf(5) var for cmd and set in the
+# load_rc_config_var name var
+#	Read the rc.conf(5) var for name and set in the
 #	current shell, using load_rc_config in a subshell to prevent
 #	unwanted side effects from other variable assignments.
 #
 load_rc_config_var()
 {
 	if [ $# -ne 2 ]; then
-		err 3 'USAGE: load_rc_config_var cmd var'
+		err 3 'USAGE: load_rc_config_var name var'
 	fi
 	eval $(eval '(
 		load_rc_config '$1' >/dev/null;
