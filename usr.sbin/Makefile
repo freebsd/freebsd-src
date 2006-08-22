@@ -354,6 +354,7 @@ _zzz=		zzz
 _acpi=		acpi
 .endif
 _kgmon=		kgmon
+_mount_smbfs=	mount_smbfs
 .if ${MK_LIBPTHREAD} != "no"
 _pppctl=	pppctl
 .endif
