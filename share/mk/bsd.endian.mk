@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-.if ${MACHINE_ARCH} == "alpha" || \
-    ${MACHINE_ARCH} == "amd64" || \
+.if ${MACHINE_ARCH} == "amd64" || \
     ${MACHINE_ARCH} == "i386" || \
     ${MACHINE_ARCH} == "ia64" || \
     (${MACHINE_ARCH} == "arm" && !defined(ARM_BIG_ENDIAN))
