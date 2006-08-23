@@ -450,31 +450,32 @@ thr_setscheduler(struct thread *td, struct thr_setscheduler_args *uap)
 		return (EINVAL);
 
 	ret = copyin(uap->param, &param, sizeof(struct sched_param));
-	if (ret)
+	if (ret != 0)
 		return (ret);
-	
+
+	ret = suser(td);
+	if (ret != 0)
+		return (ret);
+
 	switch(uap->policy) {
 	case SCHED_FIFO:
-		if (suser(td) != 0)
-			return (EPERM);
 		rtp.type = PRI_FIFO;
+		rtp.prio = RTP_PRIO_MAX - param.sched_priority;
 		break;
 	case SCHED_RR:
-		if (suser(td) != 0)
-			return (EPERM);
 		rtp.type = PRI_REALTIME;
+		rtp.prio = RTP_PRIO_MAX - param.sched_priority;
 		break;
 	case SCHED_OTHER:
 		rtp.type = PRI_TIMESHARE;
+		rtp.prio = 0;
 		break;
 	default:
 		return (EINVAL);
-	}	
-	rtp.prio = param.sched_priority;
+	}
 
 	p = td->td_proc;
 	PROC_LOCK(p);
-	ret = p_cansched(td, p);
 	if (ret != 0) {
 		PROC_UNLOCK(p);
 		return (ret);
@@ -487,12 +488,8 @@ thr_setscheduler(struct thread *td, struct thr_setscheduler_args *uap)
 	}
 	mtx_lock_spin(&sched_lock);
 	ret = rtp_to_pri(&rtp, ttd->td_ksegrp);
-	if (ret == 0) {
-		if (TD_IS_RUNNING(ttd))
-			ttd->td_flags |= TDF_NEEDRESCHED;
-		else if (ttd->td_priority > ttd->td_ksegrp->kg_user_pri)
-			sched_prio(ttd, ttd->td_ksegrp->kg_user_pri);
-	}
+	if (ret == 0)
+		ttd->td_flags |= TDF_NEEDRESCHED;
 	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(p);
 	return (ret);
@@ -519,24 +516,25 @@ thr_getscheduler(struct thread *td, struct thr_getscheduler_args *uap)
 		return (ESRCH);
 	}
 	mtx_lock_spin(&sched_lock);
+	pri_to_rtp(ttd->td_ksegrp, &rtp);
 	switch(ttd->td_ksegrp->kg_pri_class) {
-	case PRI_TIMESHARE:
-		policy = SCHED_OTHER;
-		break;
 	case PRI_FIFO:
 		policy = SCHED_FIFO;
+		param.sched_priority = RTP_PRIO_MAX - rtp.prio;
 		break;
 	case PRI_REALTIME:
 		policy = SCHED_RR;
+		param.sched_priority = RTP_PRIO_MAX - rtp.prio;
 		break;
-	default:
-		policy = SCHED_OTHER; /* XXX SCHED_IDLE */
+	case PRI_TIMESHARE:
+	default: /* XXX SCHED_IDLE */
+		policy = SCHED_OTHER;
+		param.sched_priority = 0;
+		break;
 	}
-	pri_to_rtp(ttd->td_ksegrp, &rtp);
 	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(p);
 
-	param.sched_priority = rtp.prio;
 	ret = copyout(&policy, uap->policy, sizeof(policy));
 	if (ret == 0)
 		ret = copyout(&param, uap->param, sizeof(param));
@@ -556,33 +554,35 @@ thr_setschedparam(struct thread *td, struct thr_setschedparam_args *uap)
 		return (EINVAL);
 
 	ret = copyin(uap->param, &param, sizeof(struct sched_param));
-	if (ret)
+	if (ret != 0)
 		return (ret);
-	
+	ret = suser(td);
+	if (ret != 0)
+		return (ret);
 	p = td->td_proc;
 	PROC_LOCK(p);
-	ret = p_cansched(td, p);
-	if (ret != 0) {
-		PROC_UNLOCK(p);
-		return (ret);
-	}
-
 	ttd = thread_find(p, uap->id);
 	if (ttd == NULL) {
 		PROC_UNLOCK(p);
 		return (ESRCH);
 	}
-	
 	mtx_lock_spin(&sched_lock);
-	pri_to_rtp(ttd->td_ksegrp, &rtp);
-	rtp.prio = param.sched_priority;
-	ret = rtp_to_pri(&rtp, ttd->td_ksegrp);
-	if (ret == 0) {
-		if (TD_IS_RUNNING(ttd))
-			ttd->td_flags |= TDF_NEEDRESCHED;
-		else if (ttd->td_priority > ttd->td_ksegrp->kg_user_pri)
-			sched_prio(ttd, ttd->td_ksegrp->kg_user_pri);
+	switch(ttd->td_ksegrp->kg_pri_class) {
+	case PRI_FIFO:
+		rtp.prio = RTP_PRIO_MAX - param.sched_priority;
+		break;
+	case PRI_REALTIME:
+		rtp.prio = RTP_PRIO_MAX - param.sched_priority;
+		break;
+	case PRI_TIMESHARE:
+		rtp.prio = 0;
+		break;
+	default:
+		return (EINVAL);
 	}
+	ret = rtp_to_pri(&rtp, ttd->td_ksegrp);
+	if (ret == 0)
+		ttd->td_flags |= TDF_NEEDRESCHED;
 	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(p);
 	return (ret);
