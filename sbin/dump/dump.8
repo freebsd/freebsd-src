@@ -232,7 +232,8 @@ takes a snapshot of the file system in the
 .Pa .snap
 directory in the root of the file system being dumped and
 then does a dump of the snapshot.
-The snapshot is removed when the dump is complete.
+The snapshot is unlinked as soon as the dump starts, and
+is thus removed when the dump is complete.
 This option is ignored for unmounted or read-only file systems.
 If the
 .Pa .snap
