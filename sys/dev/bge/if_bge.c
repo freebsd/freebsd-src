@@ -683,7 +683,7 @@ bge_newbuf_std(struct bge_softc *sc, int i, struct mbuf *m)
 		m_new->m_data = m_new->m_ext.ext_buf;
 	}
 
-	if (!sc->bge_rx_alignment_bug)
+	if ((sc->bge_flags & BGE_FLAG_RX_ALIGNBUG) == 0)
 		m_adj(m_new, ETHER_ALIGN);
 	sc->bge_cdata.bge_rx_std_chain[i] = m_new;
 	r = &sc->bge_ldata.bge_rx_std_ring[i];
@@ -742,7 +742,7 @@ bge_newbuf_jumbo(struct bge_softc *sc, int i, struct mbuf *m)
 		m_new->m_data = m_new->m_ext.ext_buf;
 	}
 
-	if (!sc->bge_rx_alignment_bug)
+	if ((sc->bge_flags & BGE_FLAG_RX_ALIGNBUG) == 0)
 		m_adj(m_new, ETHER_ALIGN);
 
 	error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_mtag_jumbo,
@@ -1005,12 +1005,12 @@ bge_chipinit(struct bge_softc *sc)
 		BGE_MEMWIN_WRITE(sc, i, 0);
 
 	/* Set up the PCI DMA control register. */
-	if (sc->bge_pcie) {
+	if (sc->bge_flags & BGE_FLAG_PCIE) {
 		/* PCI Express bus */
 		dma_rw_ctl = BGE_PCI_READ_CMD|BGE_PCI_WRITE_CMD |
 		    (0xf << BGE_PCIDMARWCTL_RD_WAT_SHIFT) |
 		    (0x2 << BGE_PCIDMARWCTL_WR_WAT_SHIFT);
-	} else if (sc->bge_pcix) {
+	} else if (sc->bge_flags & BGE_FLAG_PCIX) {
 		/* PCI-X bus */
 		if (BGE_IS_5714_FAMILY(sc)) {
 			dma_rw_ctl = BGE_PCI_READ_CMD|BGE_PCI_WRITE_CMD;
@@ -1111,7 +1111,7 @@ bge_blockinit(struct bge_softc *sc)
 
 	if (!(BGE_IS_5705_OR_BEYOND(sc))) {
 		/* Configure mbuf memory pool */
-		if (sc->bge_extram) {
+		if (sc->bge_flags & BGE_FLAG_EXTRAM) {
 			CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_BASEADDR,
 			    BGE_EXT_SSRAM);
 			if (sc->bge_asicrev == BGE_ASICREV_BCM5704)
@@ -1195,7 +1195,7 @@ bge_blockinit(struct bge_softc *sc)
 	else
 		rcb->bge_maxlen_flags =
 		    BGE_RCB_MAXLEN_FLAGS(BGE_MAX_FRAMELEN, 0);
-	if (sc->bge_extram)
+	if (sc->bge_flags & BGE_FLAG_EXTRAM)
 		rcb->bge_nicaddr = BGE_EXT_STD_RX_RINGS;
 	else
 		rcb->bge_nicaddr = BGE_STD_RX_RINGS;
@@ -1224,7 +1224,7 @@ bge_blockinit(struct bge_softc *sc)
 		    BUS_DMASYNC_PREREAD);
 		rcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(0,
 		    BGE_RCB_FLAG_USE_EXT_RX_BD|BGE_RCB_FLAG_RING_DISABLED);
-		if (sc->bge_extram)
+		if (sc->bge_flags & BGE_FLAG_EXTRAM)
 			rcb->bge_nicaddr = BGE_EXT_JUMBO_RX_RINGS;
 		else
 			rcb->bge_nicaddr = BGE_JUMBO_RX_RINGS;
@@ -1402,7 +1402,8 @@ bge_blockinit(struct bge_softc *sc)
 	    BGE_MACMODE_RXDMA_ENB|BGE_MACMODE_RX_STATS_CLEAR|
 	    BGE_MACMODE_TX_STATS_CLEAR|BGE_MACMODE_RX_STATS_ENB|
 	    BGE_MACMODE_TX_STATS_ENB|BGE_MACMODE_FRMHDR_DMA_ENB|
-	    (sc->bge_tbi ? BGE_PORTMODE_TBI : BGE_PORTMODE_MII));
+	    ((sc->bge_flags & BGE_FLAG_TBI) ?
+	    BGE_PORTMODE_TBI : BGE_PORTMODE_MII));
 
 	/* Set misc. local control, enable interrupts on attentions */
 	CSR_WRITE_4(sc, BGE_MISC_LOCAL_CTL, BGE_MLC_INTR_ONATTN);
@@ -1466,7 +1467,7 @@ bge_blockinit(struct bge_softc *sc)
 	CSR_WRITE_4(sc, BGE_MI_STS, 0);
 
 	/* Enable PHY auto polling (for MII/GMII only) */
-	if (sc->bge_tbi) {
+	if (sc->bge_flags & BGE_FLAG_TBI) {
 		CSR_WRITE_4(sc, BGE_MI_STS, BGE_MISTS_LINK);
 	} else {
 		BGE_SETBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL|10<<16);
@@ -1565,7 +1566,7 @@ bge_probe(device_t dev)
 				    v->v_name, br->br_name, id);
 			device_set_desc_copy(dev, buf);
 			if (pci_get_subvendor(dev) == DELL_VENDORID)
-				sc->bge_no_3_led = 1;
+				sc->bge_flags |= BGE_FLAG_NO3LED;
 			return (0);
 		}
 		t++;
@@ -2045,7 +2046,7 @@ bge_attach(device_t dev)
 		if (((v >> 8) & 0xff) == BGE_PCIE_CAPID_REG) {
 			v = pci_read_config(dev, BGE_PCIE_CAPID_REG, 4);
 			if ((v & 0xff) == BGE_PCIE_CAPID)
-				sc->bge_pcie = 1;
+				sc->bge_flags |= BGE_FLAG_PCIE;
 		}
 	}
 
@@ -2054,7 +2055,7 @@ bge_attach(device_t dev)
 	 */
 	if ((pci_read_config(sc->bge_dev, BGE_PCI_PCISTATE, 4) &
 	    BGE_PCISTATE_PCI_BUSMODE) == 0)
-		sc->bge_pcix = 1;
+		sc->bge_flags |= BGE_FLAG_PCIX;
 
 	/* Try to reset the chip. */
 	bge_reset(sc);
@@ -2167,13 +2168,13 @@ bge_attach(device_t dev)
 	}
 
 	if ((hwcfg & BGE_HWCFG_MEDIA) == BGE_MEDIA_FIBER)
-		sc->bge_tbi = 1;
+		sc->bge_flags |= BGE_FLAG_TBI;
 
 	/* The SysKonnect SK-9D41 is a 1000baseSX card. */
 	if ((pci_read_config(dev, BGE_PCI_SUBSYS, 4) >> 16) == SK_SUBSYSID_9D41)
-		sc->bge_tbi = 1;
+		sc->bge_flags |= BGE_FLAG_TBI;
 
-	if (sc->bge_tbi) {
+	if (sc->bge_flags & BGE_FLAG_TBI) {
 		ifmedia_init(&sc->bge_ifmedia, IFM_IMASK,
 		    bge_ifmedia_upd, bge_ifmedia_sts);
 		ifmedia_add(&sc->bge_ifmedia, IFM_ETHER|IFM_1000_SX, 0, NULL);
@@ -2203,8 +2204,9 @@ bge_attach(device_t dev)
 	 * which do not support unaligned accesses, we will realign the
 	 * payloads by copying the received packets.
 	 */
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5701 && sc->bge_pcix)
-                sc->bge_rx_alignment_bug = 1;
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5701 &&
+	    sc->bge_flags & BGE_FLAG_PCIX)
+                sc->bge_flags |= BGE_FLAG_RX_ALIGNBUG;
 
 	/*
 	 * Call MI attach routine.
@@ -2248,7 +2250,7 @@ bge_detach(device_t dev)
 
 	ether_ifdetach(ifp);
 
-	if (sc->bge_tbi) {
+	if (sc->bge_flags & BGE_FLAG_TBI) {
 		ifmedia_removeall(&sc->bge_ifmedia);
 	} else {
 		bus_generic_detach(dev);
@@ -2313,7 +2315,7 @@ bge_reset(struct bge_softc *sc)
 	reset = BGE_MISCCFG_RESET_CORE_CLOCKS|(65<<1);
 
 	/* XXX: Broadcom Linux driver. */
-	if (sc->bge_pcie) {
+	if (sc->bge_flags & BGE_FLAG_PCIE) {
 		if (CSR_READ_4(sc, 0x7e2c) == 0x60)	/* PCIE 1.0 */
 			CSR_WRITE_4(sc, 0x7e2c, 0x20);
 		if (sc->bge_chipid != BGE_CHIPID_BCM5750_A0) {
@@ -2329,7 +2331,7 @@ bge_reset(struct bge_softc *sc)
 	DELAY(1000);
 
 	/* XXX: Broadcom Linux driver. */
-	if (sc->bge_pcie) {
+	if (sc->bge_flags & BGE_FLAG_PCIE) {
 		if (sc->bge_chipid == BGE_CHIPID_BCM5750_A0) {
 			uint32_t v;
 
@@ -2406,15 +2408,18 @@ bge_reset(struct bge_softc *sc)
 	 * adjustment to insure the SERDES drive level is set
 	 * to 1.2V.
 	 */
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5704 && sc->bge_tbi) {
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5704 &&
+	    sc->bge_flags & BGE_FLAG_TBI) {
 		uint32_t serdescfg;
+
 		serdescfg = CSR_READ_4(sc, BGE_SERDES_CFG);
 		serdescfg = (serdescfg & ~0xFFF) | 0x880;
 		CSR_WRITE_4(sc, BGE_SERDES_CFG, serdescfg);
 	}
 
 	/* XXX: Broadcom Linux driver. */
-	if (sc->bge_pcie && sc->bge_chipid != BGE_CHIPID_BCM5750_A0) {
+	if (sc->bge_flags & BGE_FLAG_PCIE &&
+	    sc->bge_chipid != BGE_CHIPID_BCM5750_A0) {
 		uint32_t v;
 
 		v = CSR_READ_4(sc, 0x7c00);
@@ -2532,7 +2537,7 @@ bge_rxeof(struct bge_softc *sc)
 		 * For architectures with strict alignment we must make sure
 		 * the payload is aligned.
 		 */
-		if (sc->bge_rx_alignment_bug) {
+		if (sc->bge_flags & BGE_FLAG_RX_ALIGNBUG) {
 			bcopy(m->m_data, m->m_data + ETHER_ALIGN,
 			    cur_rx->bge_len);
 			m->m_data += ETHER_ALIGN;
@@ -2663,7 +2668,7 @@ bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	if (cmd == POLL_AND_CHECK_STATUS)
 		if ((sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
 		    sc->bge_chipid != BGE_CHIPID_BCM5700_B2) ||
-		    sc->bge_link_evt || sc->bge_tbi)
+		    sc->bge_link_evt || (sc->bge_flags & BGE_FLAG_TBI))
 			bge_link_upd(sc);
 
 	sc->rxcycles = count;
@@ -2745,7 +2750,7 @@ bge_tick_locked(struct bge_softc *sc)
 	else
 		bge_stats_update(sc);
 
-	if (!sc->bge_tbi) {
+	if ((sc->bge_flags & BGE_FLAG_TBI) == 0) {
 		mii = device_get_softc(sc->bge_miibus);
 		mii_tick(mii);
 	} else {
@@ -3233,7 +3238,7 @@ bge_ifmedia_upd(struct ifnet *ifp)
 	ifm = &sc->bge_ifmedia;
 
 	/* If this is a 1000baseX NIC, enable the TBI port. */
-	if (sc->bge_tbi) {
+	if (sc->bge_flags & BGE_FLAG_TBI) {
 		if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
 			return (EINVAL);
 		switch(IFM_SUBTYPE(ifm->ifm_media)) {
@@ -3296,7 +3301,7 @@ bge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	sc = ifp->if_softc;
 
-	if (sc->bge_tbi) {
+	if (sc->bge_flags & BGE_FLAG_TBI) {
 		ifmr->ifm_status = IFM_AVALID;
 		ifmr->ifm_active = IFM_ETHER;
 		if (CSR_READ_4(sc, BGE_MAC_STS) &
@@ -3388,7 +3393,7 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
-		if (sc->bge_tbi) {
+		if (sc->bge_flags & BGE_FLAG_TBI) {
 			error = ifmedia_ioctl(ifp, ifr,
 			    &sc->bge_ifmedia, command);
 		} else {
@@ -3476,7 +3481,7 @@ bge_stop(struct bge_softc *sc)
 
 	ifp = sc->bge_ifp;
 
-	if (!sc->bge_tbi)
+	if ((sc->bge_flags & BGE_FLAG_TBI) == 0)
 		mii = device_get_softc(sc->bge_miibus);
 
 	callout_stop(&sc->bge_stat_ch);
@@ -3544,7 +3549,7 @@ bge_stop(struct bge_softc *sc)
 	 * unchanged so that things will be put back to normal when
 	 * we bring the interface back up.
 	 */
-	if (!sc->bge_tbi) {
+	if ((sc->bge_flags & BGE_FLAG_TBI) == 0) {
 		itmp = ifp->if_flags;
 		ifp->if_flags |= IFF_UP;
 		/*
@@ -3682,7 +3687,7 @@ bge_link_upd(struct bge_softc *sc)
 		return;
 	}
 
-	if (sc->bge_tbi) {
+	if (sc->bge_flags & BGE_FLAG_TBI) {
 		status = CSR_READ_4(sc, BGE_MAC_STS);
 		if (status & BGE_MACSTAT_TBI_PCS_SYNCHED) {
 			if (!sc->bge_link) {
