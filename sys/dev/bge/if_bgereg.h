@@ -2444,15 +2444,16 @@ struct bge_softc {
 	struct resource		*bge_irq;
 	struct resource		*bge_res;
 	struct ifmedia		bge_ifmedia;	/* TBI media info */
-	uint8_t		bge_extram;	/* has external SSRAM */
-	uint8_t		bge_tbi;
-	uint8_t		bge_rx_alignment_bug;
+	uint32_t		bge_flags;
+#define BGE_FLAG_EXTRAM		0x00000001	/* Has external SSRAM. */
+#define BGE_FLAG_TBI		0x00000002
+#define BGE_FLAG_RX_ALIGNBUG	0x00000004
+#define BGE_FLAG_NO3LED		0x00000008
+#define BGE_FLAG_PCIX		0x00000010
+#define BGE_FLAG_PCIE		0x00000020
 	uint32_t		bge_chipid;
 	uint8_t		bge_asicrev;
 	uint8_t		bge_chiprev;
-	uint8_t		bge_no_3_led;
-	uint8_t		bge_pcie;
-	uint8_t		bge_pcix;
 	struct bge_ring_data	bge_ldata;	/* rings */
 	struct bge_chain_data	bge_cdata;	/* mbufs */
 	uint16_t		bge_tx_saved_considx;
