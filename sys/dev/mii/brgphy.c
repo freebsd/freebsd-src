@@ -643,7 +643,7 @@ brgphy_reset(struct mii_softc *sc)
 		PHY_WRITE(sc, BRGPHY_MII_AUXCTL, val | (1 << 15) | (1 << 4));
 
 		/* Enable Link LED on Dell boxes */
-		if (bge_sc->bge_no_3_led) {
+		if (bge_sc->bge_flags & BGE_FLAG_NO3LED) {
 			PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL, 
 		    	PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL)
 			    & ~BRGPHY_PHY_EXTCTL_3_LED);
