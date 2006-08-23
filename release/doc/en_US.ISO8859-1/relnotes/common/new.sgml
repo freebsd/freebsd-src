@@ -330,6 +330,9 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
+    <para><application>sendmail</application> has been updated from
+      8.13.6 to 8.13.8.</para>
+
     <para>The timezone database has been updated from the
       <application>tzdata2005r</application> release to the
       <application>tzdata2006g</application> release.</para>
