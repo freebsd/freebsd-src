@@ -147,8 +147,10 @@ client_request(void)
 	case -1:
 		err(1, "fork");
 	case 0:
+		setproctitle("client");
 		break;
 	default:
+		setproctitle("server");
 		return (child);
 	}
 
