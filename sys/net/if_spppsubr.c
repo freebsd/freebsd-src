@@ -2359,7 +2359,8 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 
 	/* pass 1: check for things that need to be rejected */
 	p = (void*) (h+1);
-	for (rlen=0; len>1 && p[1]; len-=p[1], p+=p[1]) {
+	for (rlen=0; len >= 2 && p[1] >= 2 && len >= p[1];
+	    len-=p[1], p+=p[1]) {
 		if (debug)
 			log(-1, " %s ", sppp_lcp_opt_name(*p));
 		switch (*p) {
@@ -2438,7 +2439,8 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 
 	p = (void*) (h+1);
 	len = origlen;
-	for (rlen=0; len>1 && p[1]; len-=p[1], p+=p[1]) {
+	for (rlen=0; len >= 2 && p[1] >= 2 && len >= p[1];
+	    len-=p[1], p+=p[1]) {
 		if (debug)
 			log(-1, " %s ", sppp_lcp_opt_name(*p));
 		switch (*p) {
@@ -2580,7 +2582,8 @@ sppp_lcp_RCN_rej(struct sppp *sp, struct lcp_header *h, int len)
 		    SPP_ARGS(ifp));
 
 	p = (void*) (h+1);
-	for (; len > 1 && p[1]; len -= p[1], p += p[1]) {
+	for (; len >= 2 && p[1] >= 2 && len >= p[1];
+	    len -= p[1], p += p[1]) {
 		if (debug)
 			log(-1, " %s ", sppp_lcp_opt_name(*p));
 		switch (*p) {
@@ -2644,7 +2647,8 @@ sppp_lcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 		    SPP_ARGS(ifp));
 
 	p = (void*) (h+1);
-	for (; len > 1 && p[1]; len -= p[1], p += p[1]) {
+	for (; len >= 2 && p[1] >= 2 && len >= p[1];
+	    len -= p[1], p += p[1]) {
 		if (debug)
 			log(-1, " %s ", sppp_lcp_opt_name(*p));
 		switch (*p) {
@@ -3035,7 +3039,8 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 		log(LOG_DEBUG, SPP_FMT "ipcp parse opts: ",
 		    SPP_ARGS(ifp));
 	p = (void*) (h+1);
-	for (rlen=0; len>1 && p[1]; len-=p[1], p+=p[1]) {
+	for (rlen=0; len >= 2 && p[1] >= 2 && len >= p[1];
+	    len-=p[1], p+=p[1]) {
 		if (debug)
 			log(-1, " %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
@@ -3104,7 +3109,8 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 		       SPP_ARGS(ifp));
 	p = (void*) (h+1);
 	len = origlen;
-	for (rlen=0; len>1 && p[1]; len-=p[1], p+=p[1]) {
+	for (rlen=0; len >= 2 && p[1] >= 2 && len >= p[1];
+	    len-=p[1], p+=p[1]) {
 		if (debug)
 			log(-1, " %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
@@ -3235,7 +3241,8 @@ sppp_ipcp_RCN_rej(struct sppp *sp, struct lcp_header *h, int len)
 		    SPP_ARGS(ifp));
 
 	p = (void*) (h+1);
-	for (; len > 1 && p[1]; len -= p[1], p += p[1]) {
+	for (; len >= 2 && p[1] >= 2 && len >= p[1];
+	    len -= p[1], p += p[1]) {
 		if (debug)
 			log(-1, " %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
@@ -3281,7 +3288,8 @@ sppp_ipcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 		    SPP_ARGS(ifp));
 
 	p = (void*) (h+1);
-	for (; len > 1 && p[1]; len -= p[1], p += p[1]) {
+	for (; len >= 2 && p[1] >= 2 && len >= p[1];
+	    len -= p[1], p += p[1]) {
 		if (debug)
 			log(-1, " %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
@@ -3507,7 +3515,8 @@ sppp_ipv6cp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 		    SPP_ARGS(ifp));
 	p = (void*) (h+1);
 	ifidcount = 0;
-	for (rlen=0; len>1 && p[1]; len-=p[1], p+=p[1]) {
+	for (rlen=0; len >= 2 && p[1] >= 2 && len >= p[1];
+	    len-=p[1], p+=p[1]) {
 		if (debug)
 			log(-1, " %s", sppp_ipv6cp_opt_name(*p));
 		switch (*p) {
@@ -3557,7 +3566,8 @@ sppp_ipv6cp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	p = (void*) (h+1);
 	len = origlen;
 	type = CONF_ACK;
-	for (rlen=0; len>1 && p[1]; len-=p[1], p+=p[1]) {
+	for (rlen=0; len >= 2 && p[1] >= 2 && len >= p[1];
+	    len-=p[1], p+=p[1]) {
 		if (debug)
 			log(-1, " %s", sppp_ipv6cp_opt_name(*p));
 		switch (*p) {
@@ -3656,7 +3666,8 @@ sppp_ipv6cp_RCN_rej(struct sppp *sp, struct lcp_header *h, int len)
 		    SPP_ARGS(ifp));
 
 	p = (void*) (h+1);
-	for (; len > 1 && p[1]; len -= p[1], p += p[1]) {
+	for (; len >= 2 && p[1] >= 2 && len >= p[1];
+	    len -= p[1], p += p[1]) {
 		if (debug)
 			log(-1, " %s", sppp_ipv6cp_opt_name(*p));
 		switch (*p) {
@@ -3702,7 +3713,8 @@ sppp_ipv6cp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 		    SPP_ARGS(ifp));
 
 	p = (void*) (h+1);
-	for (; len > 1 && p[1]; len -= p[1], p += p[1]) {
+	for (; len >= 2 && p[1] >= 2 && len >= p[1];
+	    len -= p[1], p += p[1]) {
 		if (debug)
 			log(-1, " %s", sppp_ipv6cp_opt_name(*p));
 		switch (*p) {
