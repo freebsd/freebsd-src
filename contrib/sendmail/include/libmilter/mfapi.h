@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: mfapi.h,v 8.60 2004/08/20 21:24:14 ca Exp $
+ *	$Id: mfapi.h,v 8.61 2006/05/04 17:02:01 ca Exp $
  */
 
 /*
@@ -134,7 +134,7 @@ struct smfiDesc
 #endif /* SMFI_VERSION > 2 */
 
 #if SMFI_VERSION > 3
-	/* any unrecognized or unimplemented command filter */
+	/* SMTP DATA command filter */
 	sfsistat	(*xxfi_data) SM__P((SMFICTX *));
 #endif /* SMFI_VERSION > 3 */
 };

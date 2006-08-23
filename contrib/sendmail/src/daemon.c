@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: daemon.c,v 8.665 2006/03/02 19:12:00 ca Exp $")
+SM_RCSID("@(#)$Id: daemon.c,v 8.666 2006/04/18 01:23:42 ca Exp $")
 
 #if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
 # define USE_SOCK_STREAM	1
@@ -520,18 +520,22 @@ getrequests(e)
 
 			syserr("getrequests: accept");
 
-			/* arrange to re-open the socket next time around */
-			(void) close(Daemons[curdaemon].d_socket);
-			Daemons[curdaemon].d_socket = -1;
+			if (curdaemon >= 0)
+			{
+				/* arrange to re-open socket next time around */
+				(void) close(Daemons[curdaemon].d_socket);
+				Daemons[curdaemon].d_socket = -1;
 #if SO_REUSEADDR_IS_BROKEN
-			/*
-			**  Give time for bound socket to be released.
-			**  This creates a denial-of-service if you can
-			**  force accept() to fail on affected systems.
-			*/
+				/*
+				**  Give time for bound socket to be released.
+				**  This creates a denial-of-service if you can
+				**  force accept() to fail on affected systems.
+				*/
 
-			Daemons[curdaemon].d_refuse_connections_until = curtime() + 15;
+				Daemons[curdaemon].d_refuse_connections_until =
+					curtime() + 15;
 #endif /* SO_REUSEADDR_IS_BROKEN */
+			}
 			continue;
 		}
 
@@ -2083,7 +2087,7 @@ makeconnection(host, port, mci, e, enough)
 	SOCKADDR clt_addr;
 	int save_errno = 0;
 	volatile SOCKADDR_LEN_T addrlen;
-	volatile bool firstconnect;
+	volatile bool firstconnect = true;
 	SM_EVENT *volatile ev = NULL;
 #if NETINET6
 	volatile bool v6found = false;
@@ -2486,7 +2490,6 @@ gothostent:
 	}
 #endif /* XLA */
 
-	firstconnect = true;
 	for (;;)
 	{
 		if (tTd(16, 1))

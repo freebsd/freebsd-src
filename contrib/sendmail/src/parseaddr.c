@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: parseaddr.c,v 8.383 2006/02/01 19:46:11 ca Exp $")
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.384 2006/04/18 01:28:47 ca Exp $")
 
 static void	allocaddr __P((ADDRESS *, int, char *, ENVELOPE *));
 static int	callsubr __P((char**, int, ENVELOPE *));
@@ -1442,7 +1442,11 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 				endtoken = LOOKUPEND;
 				mapname = *++rvp;
 				if (mapname == NULL)
+				{
 					syserr("554 5.3.0 rewrite: missing mapname");
+					/* NOTREACHED */
+					SM_ASSERT(0);
+				}
 			}
 			map = stab(mapname, ST_MAP, ST_FIND);
 			if (map == NULL)
@@ -1452,8 +1456,12 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 			/* extract the match part */
 			key_rvp = ++rvp;
 			if (key_rvp == NULL)
+			{
 				syserr("554 5.3.0 rewrite: missing key for map %s",
 					mapname);
+				/* NOTREACHED */
+				SM_ASSERT(0);
+			}
 			default_rvp = NULL;
 			arg_rvp = argvect;
 			xpvp = NULL;
@@ -1522,7 +1530,8 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 			if (replac == NULL && default_rvp != NULL)
 			{
 				/* create the default */
-				cataddr(default_rvp, NULL, cbuf, sizeof cbuf, '\0');
+				cataddr(default_rvp, NULL, cbuf, sizeof cbuf,
+					'\0');
 				replac = cbuf;
 			}
 
@@ -3175,8 +3184,7 @@ rscap(rwset, p1, p2, e, pvp, pvpbuf, size)
 		sm_dprintf("rscap(%s, %s, %s)\n", rwset, p1,
 			p2 == NULL ? "(NULL)" : p2);
 
-	if (pvp != NULL)
-		*pvp = NULL;
+	SM_REQUIRE(pvp != NULL);
 	rsno = strtorwset(rwset, NULL, ST_FIND);
 	if (rsno < 0)
 		return EX_UNAVAILABLE;
