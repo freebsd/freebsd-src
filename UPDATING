@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060823:	p4	FreeBSD-SA-06:18.ppp
+	Correct buffer overflow in the handling of LCP options in ppp(4).
+
 20060707:	p3	FreeBSD-EN-06:01.jail
 	Correct bug in the startup scripts for jails.
 
