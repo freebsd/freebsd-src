@@ -16,7 +16,6 @@ gdb-6.1.1/gdb/config/mcore/*
 gdb-6.1.1/gdb/config/mn10300/*
 gdb-6.1.1/gdb/config/ns32k/*
 gdb-6.1.1/gdb/config/pa/*
-gdb-6.1.1/gdb/config/rs6000/*
 gdb-6.1.1/gdb/config/sh/*
 gdb-6.1.1/gdb/config/v850/*
 gdb-6.1.1/gdb/config/vax/*
@@ -34,7 +33,6 @@ gdb-6.1.1/gdb/ns32k*
 gdb-6.1.1/gdb/osf-share/*
 gdb-6.1.1/gdb/hppa*
 gdb-6.1.1/gdb/rdi-share/*
-gdb-6.1.1/gdb/rs6000*
 gdb-6.1.1/gdb/sh*
 gdb-6.1.1/gdb/testsuite/*
 gdb-6.1.1/gdb/v850*
