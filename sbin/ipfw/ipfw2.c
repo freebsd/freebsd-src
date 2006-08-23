@@ -3424,7 +3424,8 @@ end_mask:
 				end++;
 				p.bandwidth *= 1000000;
 			    }
-			    if (*end == 'B' ||
+			    if ((*end == 'B' &&
+				  _substrcmp2(end, "Bi", "Bit/s") != 0) ||
 			        _substrcmp2(end, "by", "bytes") == 0)
 				p.bandwidth *= 8;
 			    if (p.bandwidth < 0)
