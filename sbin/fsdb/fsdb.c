@@ -148,6 +148,7 @@ CMDFUNC(chgen);				/* change generation */
 CMDFUNC(chowner);			/* change owner */
 CMDFUNC(chgroup);			/* Change group */
 CMDFUNC(back);				/* pop back to last ino */
+CMDFUNC(chbtime);			/* Change btime */
 CMDFUNC(chmtime);			/* Change mtime */
 CMDFUNC(chctime);			/* Change ctime */
 CMDFUNC(chatime);			/* Change atime */
@@ -182,6 +183,7 @@ struct cmdtable cmds[] = {
 	{ "chgrp", "Change group of current inode to GROUP", 2, 2, FL_WR, chgroup },
 	{ "chflags", "Change flags of current inode to FLAGS", 2, 2, FL_WR, chaflags },
 	{ "chgen", "Change generation number of current inode to GEN", 2, 2, FL_WR, chgen },
+	{ "btime", "Change btime of current inode to BTIME", 2, 2, FL_WR, chbtime },
 	{ "mtime", "Change mtime of current inode to MTIME", 2, 2, FL_WR, chmtime },
 	{ "ctime", "Change ctime of current inode to CTIME", 2, 2, FL_WR, chctime },
 	{ "atime", "Change atime of current inode to ATIME", 2, 2, FL_WR, chatime },
@@ -1129,6 +1131,22 @@ badformat:
 	warnx("date/time out of range");
 	return 1;
     }
+    return 0;
+}
+
+CMDFUNCSTART(chbtime)
+{
+    time_t secs;
+    int32_t nsecs;
+
+    if (dotime(argv[1], &secs, &nsecs))
+	return 1;
+    if (sblock.fs_magic == FS_UFS1_MAGIC)
+	return 1;
+    curinode->dp2.di_birthtime = _time_to_time64(secs);
+    curinode->dp2.di_birthnsec = nsecs;
+    inodirty();
+    printactive(0);
     return 0;
 }
 
