@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 19, 2006
+.Dd August 23, 2006
 .Dt LOGIN.CONF 5
 .Os
 .Sh NAME
@@ -373,6 +373,11 @@ They are not implemented in the base system.
 .It Sy "Name	Type	Notes	Description
 .It "accounted	bool	false	Enable session time accounting for all users
 in this class.
+.It "auth	list	passwd	Allowed authentication styles.
+The first item is the default style.
+.It "auth-" Ns Ar type Ta "list		Allowed authentication styles for the
+authentication
+.Ar type .
 .It "autodelete	time		Time after expiry when account is auto-deleted.
 .It "bootfull	bool	false	Enable 'boot only if ttygroup is full' strategy
 when terminating sessions.
