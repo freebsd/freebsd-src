@@ -70,7 +70,7 @@ echo ${TOP}/modules/${1}/Makefile
 mkdir ${TOP}/modules/${1}
 
 cat >${TOP}/conf/files.${UPPER} <<DONE
-dev/${1}.c      optional ${1}
+dev/${1}/${1}.c      optional ${1}
 DONE
 
 cat >${TOP}/i386/conf/${UPPER} <<DONE
