@@ -156,6 +156,12 @@ printstat(const char *cp, ino_t inum, union dinode *dp)
     }
     printf("I=%lu MODE=%o SIZE=%ju", (u_long)inum, DIP(dp, di_mode),
 	(uintmax_t)DIP(dp, di_size));
+    if (sblock.fs_magic != FS_UFS1_MAGIC) {
+	t = _time64_to_time(dp->dp2.di_birthtime);
+	p = ctime(&t);
+	printf("\n\tBTIME=%15.15s %4.4s [%d nsec]", &p[4], &p[20],
+	   dp->dp2.di_birthnsec);
+    }
     if (sblock.fs_magic == FS_UFS1_MAGIC)
 	t = _time32_to_time(dp->dp1.di_mtime);
     else
