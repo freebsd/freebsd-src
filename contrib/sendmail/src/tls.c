@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2005 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: tls.c,v 8.102 2006/03/02 19:18:27 ca Exp $")
+SM_RCSID("@(#)$Id: tls.c,v 8.105 2006/05/11 22:59:31 ca Exp $")
 
 #if STARTTLS
 #  include <openssl/err.h>
@@ -506,6 +506,13 @@ tls_safe_f(var, sff, srv)
 
 static char server_session_id_context[] = "sendmail8";
 
+/* 0.9.8a and b have a problem with SSL_OP_TLS_BLOCK_PADDING_BUG */
+#if (OPENSSL_VERSION_NUMBER >= 0x0090800fL)
+# define SM_SSL_OP_TLS_BLOCK_PADDING_BUG	1
+#else
+# define SM_SSL_OP_TLS_BLOCK_PADDING_BUG	0
+#endif
+
 bool
 inittls(ctx, req, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
 	SSL_CTX **ctx;
@@ -518,7 +525,7 @@ inittls(ctx, req, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
 # endif /* !NO_DH */
 	int r;
 	bool ok;
-	long sff, status;
+	long sff, status, options;
 	char *who;
 # if _FFR_TLS_1
 	char *cf2, *kf2;
@@ -531,11 +538,19 @@ inittls(ctx, req, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
 	X509_CRL *crl;
 	X509_STORE *store;
 # endif /* OPENSSL_VERSION_NUMBER > 0x00907000L */
+#if SM_SSL_OP_TLS_BLOCK_PADDING_BUG
+	long rt_version;
+	STACK_OF(SSL_COMP) *comp_methods;
+#endif
 
 	status = TLS_S_NONE;
 	who = srv ? "server" : "client";
 	if (ctx == NULL)
+	{
 		syserr("STARTTLS=%s, inittls: ctx == NULL", who);
+		/* NOTREACHED */
+		SM_ASSERT(ctx != NULL);
+	}
 
 	/* already initialized? (we could re-init...) */
 	if (*ctx != NULL)
@@ -895,7 +910,29 @@ inittls(ctx, req, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
 # endif /* _FFR_TLS_1 */
 
 	/* SSL_CTX_set_quiet_shutdown(*ctx, 1); violation of standard? */
-	SSL_CTX_set_options(*ctx, SSL_OP_ALL);	/* XXX bug compatibility? */
+
+	options = SSL_OP_ALL;	/* bug compatibility? */
+#if SM_SSL_OP_TLS_BLOCK_PADDING_BUG
+
+	/*
+	**  In OpenSSL 0.9.8[ab], enabling zlib compression breaks the
+	**  padding bug work-around, leading to false positives and
+	**  failed connections. We may not interoperate with systems
+	**  with the bug, but this is better than breaking on all 0.9.8[ab]
+	**  systems that have zlib support enabled.
+	**  Note: this checks the runtime version of the library, not
+	**  just the compile time version.
+	*/
+
+	rt_version = SSLeay();
+	if (rt_version >= 0x00908000L && rt_version <= 0x0090802fL)
+	{
+		comp_methods = SSL_COMP_get_compression_methods();
+		if (comp_methods != NULL && sk_SSL_COMP_num(comp_methods) > 0)
+			options &= ~SSL_OP_TLS_BLOCK_PADDING_BUG;
+	}
+#endif
+	SSL_CTX_set_options(*ctx, options);
 
 # if !NO_DH
 	/* Diffie-Hellman initialization */

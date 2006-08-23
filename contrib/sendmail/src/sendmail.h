@@ -52,7 +52,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1006 2006/02/27 17:49:09 ca Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1008.2.1 2006/05/23 01:32:07 ca Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -2225,7 +2225,7 @@ EXTERN int	MaxNOOPCommands; /* max "noise" commands before slowdown */
 EXTERN int	MaxRcptPerMsg;	/* max recipients per SMTP message */
 EXTERN int	MaxRuleRecursion;	/* maximum depth of ruleset recursion */
 #if _FFR_MSG_ACCEPT
-EXTERN char	*MessageAccept;
+EXTERN char	*MessageAccept; /* "Message accepted for delivery" reply text */
 #endif /* _FFR_MSG_ACCEPT */
 
 EXTERN int	MimeMode;	/* MIME processing mode */

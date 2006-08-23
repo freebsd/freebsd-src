@@ -14,7 +14,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: mci.c,v 8.216 2005/07/12 22:27:44 ca Exp $")
+SM_RCSID("@(#)$Id: mci.c,v 8.217 2006/04/18 01:27:36 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -923,9 +923,17 @@ mci_read_persistent(fp, mci)
 	char buf[MAXLINE];
 
 	if (fp == NULL)
+	{
 		syserr("mci_read_persistent: NULL fp");
+		/* NOTREACHED */
+		return -1;
+	}
 	if (mci == NULL)
+	{
 		syserr("mci_read_persistent: NULL mci");
+		/* NOTREACHED */
+		return -1;
+	}
 	if (tTd(56, 93))
 	{
 		sm_dprintf("mci_read_persistent: fp=%lx, mci=",

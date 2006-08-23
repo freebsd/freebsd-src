@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003, 2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1994, 1996-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1994
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <string.h>
 
-SM_RCSID("@(#)$Id: mime.c,v 8.139 2006/03/01 18:07:45 ca Exp $")
+SM_RCSID("@(#)$Id: mime.c,v 8.142.2.1 2006/05/23 01:32:08 ca Exp $")
 
 /*
 **  MIME support.
@@ -227,7 +227,7 @@ mime8to7(mci, header, e, boundaries, flags, level)
 	if (subtype == NULL)
 		subtype = "-none-";
 
-	/* don't propogate some flags more than one level into the message */
+	/* don't propagate some flags more than one level into the message */
 	flags &= ~M87F_DIGEST;
 
 	/*

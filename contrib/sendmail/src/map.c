@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: map.c,v 8.671 2005/10/25 17:55:50 ca Exp $")
+SM_RCSID("@(#)$Id: map.c,v 8.672 2006/04/18 01:26:41 ca Exp $")
 
 #if LDAPMAP
 # include <sm/ldap.h>
@@ -5992,6 +5992,10 @@ user_map_lookup(map, key, av, statp)
 		  case 7:
 			rwval = user.mbdb_shell;
 			break;
+		  default:
+			syserr("user_map %s: bogus field %d",
+				map->map_mname, map->map_valcolno);
+			return NULL;
 		}
 		return map_rewrite(map, rwval, strlen(rwval), av);
 	}

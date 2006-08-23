@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/sem.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.951 2006/03/02 19:13:38 ca Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.954.2.5 2006/07/31 21:44:18 ca Exp $")
 
 #include <dirent.h>
 
@@ -2646,6 +2646,7 @@ gatherq(qgrp, qdir, doall, full, more)
 		/* avoid work if possible */
 		if ((QueueSortOrder == QSO_BYFILENAME ||
 		     QueueSortOrder == QSO_BYMODTIME ||
+		     QueueSortOrder == QSO_NONE ||
 		     QueueSortOrder == QSO_RANDOM) &&
 		    QueueLimitQuarantine == NULL &&
 		    QueueLimitSender == NULL &&
@@ -3902,6 +3903,7 @@ readqf(e, openonly)
 	**  Read and process the file.
 	*/
 
+	bp = NULL;
 	(void) sm_strlcpy(qf, queuename(e, ANYQFL_LETTER), sizeof qf);
 	qfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, qf, SM_IO_RDWR_B, NULL);
 	if (qfp == NULL)
@@ -4033,6 +4035,7 @@ readqf(e, openonly)
 		}
 		if (delim != '\0')
 			*bp = delim;
+		bp = NULL;
 	}
 	if (!bogus)
 		bogus = bitset(qsafe, st.st_mode);
@@ -4468,7 +4471,10 @@ readqf(e, openonly)
 		}
 
 		if (bp != buf)
+		{
 			sm_free(bp); /* XXX */
+			bp = NULL;
+		}
 	}
 
 	/*
@@ -4541,6 +4547,11 @@ readqf(e, openonly)
 	**	queueup() with bogus data.
 	*/
 
+	if (bp != NULL && bp != buf)
+	{
+		sm_free(bp); /* XXX */
+		bp = NULL;
+	}
 	if (qfp != NULL)
 		(void) sm_io_close(qfp, SM_TIME_DEFAULT);
 	e->e_lockfp = NULL;
@@ -5180,7 +5191,7 @@ queuename(e, type)
 	else
 	{
 		if (e->e_qgrp == NOQGRP || e->e_qdir == NOQDIR)
-			setnewqueue(e);
+			(void) setnewqueue(e);
 		if (type ==  DATAFL_LETTER)
 		{
 			qd = e->e_dfqdir;
@@ -5194,7 +5205,7 @@ queuename(e, type)
 	}
 
 	/* xf files always have a valid qd and qg picked above */
-	if (e->e_qdir == NOQDIR && type != XSCRPT_LETTER)
+	if ((qd == NOQDIR || qg == NOQGRP) && type != XSCRPT_LETTER)
 		(void) sm_strlcpyn(buf, sizeof buf, 2, pref, e->e_id);
 	else
 	{
@@ -6302,7 +6313,19 @@ filesys_find(name, path, add)
 	for (i = 0; i < NumFileSys; ++i)
 	{
 		if (FILE_SYS_DEV(i) == st.st_dev)
+		{
+			/*
+			**  Make sure the file system (FS) name is set:
+			**  even though the source code indicates that
+			**  FILE_SYS_DEV() is only set below, it could be
+			**  set via shared memory, hence we need to perform
+			**  this check/assignment here.
+			*/
+
+			if (NULL == FILE_SYS_NAME(i))
+				FILE_SYS_NAME(i) = name;
 			return i;
+		}
 	}
 	if (i >= MAXFILESYS)
 	{
@@ -6396,7 +6419,6 @@ filesys_update()
 	static time_t nextupdate = 0;
 
 #if SM_CONF_SHM
-	/* only the daemon updates this structure */
 	if (ShmId != SM_SHM_NO_ID && DaemonPid != CurrentPid)
 		return;
 #endif /* SM_CONF_SHM */
