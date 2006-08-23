@@ -41,9 +41,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#if __alpha__
-#   include "alpha.h"
-#endif
 #if __amd64__
 #   include "amd64.h"
 #endif
