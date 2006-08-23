@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -25,7 +25,7 @@ SM_UNUSED(static char copyright[]) =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
-SM_RCSID("@(#)$Id: main.c,v 8.942 2005/12/26 04:39:13 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.944.2.2 2006/08/03 22:05:03 ca Exp $")
 
 
 #if NETINET || NETINET6
@@ -516,6 +516,8 @@ main(argc, argv, envp)
 
 	/* reset macro */
 	set_op_mode(OpMode);
+	if (OpMode == MD_DAEMON)
+		DaemonPid = CurrentPid;	/* needed for finis() to work */
 
 	pw = sm_getpwuid(RealUid);
 	if (pw != NULL)
@@ -2287,6 +2289,8 @@ main(argc, argv, envp)
 	{
 		char dtype[200];
 
+		/* avoid cleanup in finis(), DaemonPid will be set below */
+		DaemonPid = 0;
 		if (!run_in_foreground && !tTd(99, 100))
 		{
 			/* put us in background */
@@ -2874,6 +2878,7 @@ finis(drop, cleanup, exitstat)
 	volatile int exitstat;
 {
 	char pidpath[MAXPATHLEN];
+	pid_t pid;
 
 	/* Still want to process new timeouts added below */
 	sm_clear_events();
@@ -2903,6 +2908,9 @@ finis(drop, cleanup, exitstat)
 				dropenvelope(CurEnv, true, false);
 				sm_rpool_free(CurEnv->e_rpool);
 				CurEnv->e_rpool = NULL;
+
+				/* this may have pointed to the rpool */
+				CurEnv->e_to = NULL;
 			}
 			else
 				poststats(StatFile);
@@ -2942,14 +2950,15 @@ finis(drop, cleanup, exitstat)
 
 		/* XXX clean up queues and related data structures */
 		cleanup_queues();
+		pid = getpid();
 #if SM_CONF_SHM
-		cleanup_shm(DaemonPid == getpid());
+		cleanup_shm(DaemonPid == pid);
 #endif /* SM_CONF_SHM */
 
 		/* close locked pid file */
 		close_sendmail_pid();
 
-		if (DaemonPid == getpid() || PidFilePid == getpid())
+		if (DaemonPid == pid || PidFilePid == pid)
 		{
 			/* blow away the pid file */
 			expand(PidFile, pidpath, sizeof pidpath, CurEnv);
@@ -3275,13 +3284,18 @@ disconnect(droplev, e)
 	{
 		fd = open(SM_PATH_DEVNULL, O_WRONLY, 0666);
 		if (fd == -1)
+		{
 			sm_syslog(LOG_ERR, e->e_id,
 				  "disconnect: open(\"%s\") failed: %s",
 				  SM_PATH_DEVNULL, sm_errstring(errno));
+		}
 		(void) sm_io_flush(smioout, SM_TIME_DEFAULT);
-		(void) dup2(fd, STDOUT_FILENO);
-		(void) dup2(fd, STDERR_FILENO);
-		(void) close(fd);
+		if (fd >= 0)
+		{
+			(void) dup2(fd, STDOUT_FILENO);
+			(void) dup2(fd, STDERR_FILENO);
+			(void) close(fd);
+		}
 	}
 
 	/* drop our controlling TTY completely if possible */

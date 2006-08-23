@@ -1242,13 +1242,10 @@ use_client_ptr	If this feature is enabled then check_relay will override
 		about check_relay, {client_name}, and {client_ptr}.
 
 dnsbl		Turns on rejection of hosts found in an DNS based rejection
-		list.  If an argument is provided it is used as the domain
-		in which blocked hosts are listed; otherwise it defaults to
-		blackholes.mail-abuse.org.  An explanation for an DNS based
-		rejection list can be found at http://mail-abuse.org/rbl/.
-		A second argument can be used to change the default error
-		message.  Without that second argument, the error message
-		will be
+		list.  The first is used as the domain in which blocked
+		hosts are listed.  A second argument can be used to change
+		the default error message.  Without that second argument,
+		the error message will be
 			Rejected: IP-ADDRESS listed at SERVER
 		where IP-ADDRESS and SERVER are replaced by the appropriate
 		information.  By default, temporary lookup failures are
@@ -1278,13 +1275,6 @@ dnsbl		Turns on rejection of hosts found in an DNS based rejection
 			define(`DNSBL_MAP', `dns -R A -r2')
 
 		See below (EDNSBL_TO) for an explanation.
-
-		NOTE: The default DNS blacklist, blackholes.mail-abuse.org,
-		is a service offered by the Mail Abuse Prevention System
-		(MAPS).  As of July 31, 2001, MAPS is a subscription
-		service, so using that network address won't work if you
-		haven't subscribed.  Contact MAPS to subscribe
-		(http://mail-abuse.org/).
 
 enhdnsbl	Enhanced version of dnsbl (see above).  Further arguments
 		(up to 5) can be used to specify specific return values
@@ -2631,22 +2621,16 @@ as value part in the access map.  Taking the example from above:
 Mail can't be sent to spammer@aol.com or anyone at cyberspammer.com.
 That's why tagged entries should be used.
 
-There are several DNS based blacklists, the first of which was
-the RBL (``Realtime Blackhole List'') run by the MAPS project,
-see http://mail-abuse.org/.  These are databases of spammers
+There are several DNS based blacklists which can be found by
+querying a search engine.  These are databases of spammers
 maintained in DNS.  To use such a database, specify
 
-	FEATURE(`dnsbl')
+	FEATURE(`dnsbl', `dnsbl.example.com')
 
-This will cause sendmail to reject mail from any site in the original
-Realtime Blackhole List database.  This default DNS blacklist,
-blackholes.mail-abuse.org, is a service offered by the Mail Abuse
-Prevention System (MAPS).  As of July 31, 2001, MAPS is a subscription
-service, so using that network address won't work if you haven't
-subscribed.  Contact MAPS to subscribe (http://mail-abuse.org/).
-
-You can specify an alternative RBL server to check by specifying an
-argument to the FEATURE.  The default error message is
+This will cause sendmail to reject mail from any site listed in the
+DNS based blacklist.  You must select an DNSB based blacklist domain
+to check by specifying an argument to the FEATURE.  The default
+error message is
 
 	Rejected: IP-ADDRESS listed at SERVER
 
@@ -2668,8 +2652,7 @@ where IP-ADDRESS and SERVER are replaced by the appropriate
 information.
 
 This FEATURE can be included several times to query different
-DNS based rejection lists, e.g., the dial-up user list (see
-http://mail-abuse.org/dul/).
+DNS based rejection lists.
 
 Notice: to avoid checking your own local domains against those
 blacklists, use the access_db feature and add:
@@ -4605,4 +4588,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.704 $, Last updated $Date: 2006/02/15 05:49:31 $
+$Revision: 8.706 $, Last updated $Date: 2006/04/18 22:31:06 $

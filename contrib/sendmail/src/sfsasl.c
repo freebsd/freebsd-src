@@ -9,9 +9,10 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sfsasl.c,v 8.113 2006/03/02 19:18:27 ca Exp $")
+SM_RCSID("@(#)$Id: sfsasl.c,v 8.115 2006/04/18 21:34:07 ca Exp $")
 #include <stdlib.h>
 #include <sendmail.h>
+#include <sm/time.h>
 #include <errno.h>
 
 /* allow to disable error handling code just in case... */
@@ -326,6 +327,7 @@ sasl_write(fp, buf, size)
 	{
 		while (outlen > 0)
 		{
+			errno = 0;
 			/* XXX result == 0? */
 			ret = sm_io_write(so->fp, SM_TIME_DEFAULT,
 					  &outbuf[total], outlen);
@@ -347,8 +349,9 @@ sasl_write(fp, buf, size)
 **
 **	Parameters:
 **		fin -- the sm_io file encrypted data to be read from
-**		fout -- the sm_io file encrypted data to be writen to
+**		fout -- the sm_io file encrypted data to be written to
 **		conn -- the sasl connection pointer
+**		tmo -- timeout
 **
 **	Returns:
 **		-1 on error
@@ -360,15 +363,16 @@ sasl_write(fp, buf, size)
 */
 
 int
-sfdcsasl(fin, fout, conn)
+sfdcsasl(fin, fout, conn, tmo)
 	SM_FILE_T **fin;
 	SM_FILE_T **fout;
 	sasl_conn_t *conn;
+	int tmo;
 {
 	SM_FILE_T *newin, *newout;
 	SM_FILE_T  SM_IO_SET_TYPE(sasl_vector, "sasl", sasl_open, sasl_close,
 		sasl_read, sasl_write, NULL, sasl_getinfo, NULL,
-		SM_TIME_FOREVER);
+		SM_TIME_DEFAULT);
 	struct sasl_info info;
 
 	if (conn == NULL)
@@ -379,7 +383,7 @@ sfdcsasl(fin, fout, conn)
 
 	SM_IO_INIT_TYPE(sasl_vector, "sasl", sasl_open, sasl_close,
 		sasl_read, sasl_write, NULL, sasl_getinfo, NULL,
-		SM_TIME_FOREVER);
+		SM_TIME_DEFAULT);
 	info.fp = *fin;
 	info.conn = conn;
 	newin = sm_io_open(&sasl_vector, SM_TIME_DEFAULT, &info,
@@ -399,6 +403,9 @@ sfdcsasl(fin, fout, conn)
 		return -1;
 	}
 	sm_io_automode(newin, newout);
+
+	sm_io_setinfo(*fin, SM_IO_WHAT_TIMEOUT, &tmo);
+	sm_io_setinfo(*fout, SM_IO_WHAT_TIMEOUT, &tmo);
 
 	*fin = newin;
 	*fout = newout;

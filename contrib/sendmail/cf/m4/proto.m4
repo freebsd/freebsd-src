@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.718 2005/08/24 18:07:23 ca Exp $')
+VERSIONID(`$Id: proto.m4,v 8.719 2006/03/30 20:50:13 ca Exp $')
 
 # level CF_LEVEL config file format
 V`'CF_LEVEL/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')
@@ -1959,7 +1959,7 @@ R<@> < $* @ $+ . $+ >	$: < $1 @ $2 . $3 >
 dnl prepend daemon_flags
 R<@> $*			$: $&{daemon_flags} $| <@> $1
 dnl workspace: ${daemon_flags} $| <@> <address>
-dnl 'r'equire qual.rcpt: ok
+dnl _r_equire qual.rcpt: ok
 R$* r $* $| <@> < $+ @ $+ >	$: < $3 @ $4 >
 dnl do not allow these at all or only from local systems?
 R$* r $* $| <@> < $* >	$: < ? $&{client_name} > < $3 >
