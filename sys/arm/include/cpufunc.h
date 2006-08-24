@@ -371,10 +371,11 @@ extern unsigned arm10_dcache_index_inc;
 #endif
 
 #if defined(CPU_ARM9) || defined(CPU_ARM10) || defined(CPU_SA110) || \
-    defined(CPU_SA1100) || defined(CPU_SA1110) || \
-    defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
-    defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425)
-
+  defined(CPU_SA1100) || defined(CPU_SA1110) ||			     \
+  defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||	     \
+  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	     \
+  defined(CPU_XSCALE_80219)
+  
 void	armv4_tlb_flushID	(void);
 void	armv4_tlb_flushI	(void);
 void	armv4_tlb_flushD	(void);
@@ -389,8 +390,9 @@ void	ixp12x0_context_switch	(void);
 void	ixp12x0_setup		(char *string);
 #endif
 
-#if defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
-    defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425)
+#if defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||	\
+  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
+  defined(CPU_XSCALE_80219)
 void	xscale_cpwait		(void);
 
 void	xscale_cpu_sleep	(int mode);
@@ -428,7 +430,8 @@ void	xscale_cache_flushD_rng	(vm_offset_t start, vm_size_t end);
 void	xscale_context_switch	(void);
 
 void	xscale_setup		(char *string);
-#endif	/* CPU_XSCALE_80200 || CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425 */
+#endif	/* CPU_XSCALE_80200 || CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425 
+	   CPU_XSCALE_80219 */
 
 #define tlb_flush	cpu_tlb_flushID
 #define setttb		cpu_setttb

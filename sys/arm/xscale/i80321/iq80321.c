@@ -157,16 +157,34 @@ iq80321_attach(device_t dev)
 	b0u = bus_space_read_4(sc->sc_st, sc->sc_atu_sh, PCIR_BARS+0x4);
 	b1l = bus_space_read_4(sc->sc_st, sc->sc_atu_sh, PCIR_BARS+0x8);
 	b1u = bus_space_read_4(sc->sc_st, sc->sc_atu_sh, PCIR_BARS+0xc);
+
+#ifdef VERBOSE_INIT_ARM	
+	printf("i80321: BAR0 = %08x.%08x BAR1 = %08x.%08x\n",
+		   b0l,b0u, b1l, b1u );
+#endif
+
 #define PCI_MAPREG_MEM_ADDR_MASK	0xfffffff0
 	b0l &= PCI_MAPREG_MEM_ADDR_MASK;
 	b0u &= PCI_MAPREG_MEM_ADDR_MASK;
 	b1l &= PCI_MAPREG_MEM_ADDR_MASK;
 	b1u &= PCI_MAPREG_MEM_ADDR_MASK;
 
+#ifdef VERBOSE_INIT_ARM	
+	printf("i80219: BAR0 = %08x.%08x BAR1 = %08x.%08x\n",
+		   b0l,b0u, b1l, b1u );
+#endif
+
 	if ((b0u != b1u) || (b0l != 0) || ((b1l & ~0x80000000U) != 0))
 		sc->sc_is_host = 0;
 	else
 		sc->sc_is_host = 1;
+
+	/* FIXME: i force it's */	
+
+#ifdef CPU_XSCALE_80219
+	sc->sc_is_host = 1;
+#endif
+	
 	i80321_sdram_bounds(sc->sc_st, sc->sc_mcu_sh, &memstart, &memsize);
 	/*
 	 * We set up the Inbound Windows as follows:
@@ -224,6 +242,21 @@ iq80321_attach(device_t dev)
 	sc->sc_iwin[3].iwin_base_hi = 0;
 	sc->sc_iwin[3].iwin_xlate = 0;
 	sc->sc_iwin[3].iwin_size = 0;
+	
+#ifdef 	VERBOSE_INIT_ARM
+	printf("i80321: Reserve space for private devices (Inbound Window 1) \n hi:0x%08x lo:0x%08x xlate:0x%08x size:0x%08x\n",
+		   sc->sc_iwin[1].iwin_base_hi,
+		   sc->sc_iwin[1].iwin_base_lo,
+		   sc->sc_iwin[1].iwin_xlate,
+		   sc->sc_iwin[1].iwin_size
+		);
+	printf("i80321: RAM access (Inbound Window 2) \n hi:0x%08x lo:0x%08x xlate:0x%08x size:0x%08x\n",
+		   sc->sc_iwin[2].iwin_base_hi,
+		   sc->sc_iwin[2].iwin_base_lo,
+		   sc->sc_iwin[2].iwin_xlate,
+		   sc->sc_iwin[2].iwin_size
+		);
+#endif
 
 	/*
 	 * We set up the Outbound Windows as follows:
@@ -259,11 +292,15 @@ iq80321_attach(device_t dev)
 	device_add_child(dev, "obio", 0);
 	device_add_child(dev, "itimer", 0);
 	device_add_child(dev, "iopwdog", 0);
+#ifndef 	CPU_XSCALE_80219
 	device_add_child(dev, "iqseg", 0);
+#endif	
 	device_add_child(dev, "pcib", busno);
 	device_add_child(dev, "i80321_dma", 0);
 	device_add_child(dev, "i80321_dma", 1);
+#ifndef CPU_XSCALE_80219	
 	device_add_child(dev, "i80321_aau", 0);
+#endif
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 

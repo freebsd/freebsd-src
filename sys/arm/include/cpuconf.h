@@ -64,7 +64,7 @@
 #define	ARM_ARCH_4	0
 #endif
 
-#if (defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
+#if (defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || defined(CPU_XSCALE_80219) || \
      defined(CPU_XSCALE_PXA2X0)) || defined(CPU_ARM10)
 #define	ARM_ARCH_5	1
 #else
@@ -112,7 +112,8 @@
 #endif
 
 #if(defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
-     defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425))
+    defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
+    defined(CPU_XSCALE_80219))
 #define	ARM_MMU_XSCALE		1
 #else
 #define	ARM_MMU_XSCALE		0
@@ -130,7 +131,8 @@
  *	ARM_XSCALE_PMU		Performance Monitoring Unit on 80200 and 80321
  */
 
-#if (defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321))
+#if (defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
+     defined(CPU_XSCALE_80219))
 #define ARM_XSCALE_PMU	1
 #else
 #define ARM_XSCALE_PMU	0

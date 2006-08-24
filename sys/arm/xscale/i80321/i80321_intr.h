@@ -73,9 +73,21 @@ i80321_set_intrsteer(void)
 	    : "r" (intr_steer & ICU_INT_HWMASK));
 }
 
+#if defined ( CPU_XSCALE_80219 )
+#define INT_SWMASK														\
+	((1U << ICU_INT_bit26) |											\
+	 (1U << ICU_INT_bit25) |											\
+	 (1U << ICU_INT_bit23) |											\
+	 (1U << ICU_INT_bit22) |											\
+	 (1U << ICU_INT_bit7)  |											\
+	 (1U << ICU_INT_bit6)  |											\
+	 (1U << ICU_INT_bit5)  |											\
+	 (1U << ICU_INT_bit4))
+#else
 #define INT_SWMASK                                                      \
         ((1U << ICU_INT_bit26) | (1U << ICU_INT_bit22) |                \
          (1U << ICU_INT_bit5)  | (1U << ICU_INT_bit4))
+#endif
 
 #if 0
 static __inline void __attribute__((__unused__))
