@@ -56,7 +56,7 @@ maxusers	10
 #
 # CONF_CFLAGS gives some extra compiler flags that are added to ${CFLAGS}
 # after most other flags.  Here we use it to inhibit use of non-optimal
-# gcc builtin functions (e.g., memcmp).
+# gcc built-in functions (e.g., memcmp).
 #
 # DEBUG happens to be magic.
 # The following is equivalent to 'config -g KERNELNAME' and creates
@@ -140,7 +140,7 @@ options 	GEOM_STRIPE		# Disk striping.
 options 	GEOM_SUNLABEL		# Sun/Solaris partitioning
 options 	GEOM_UZIP		# Read-only compressed disks
 options 	GEOM_VOL		# Volume names from UFS superblock
-options 	GEOM_ZERO		# Peformance testing helper.
+options 	GEOM_ZERO		# Performance testing helper.
 
 #
 # The root device and filesystem type can be compiled in;
@@ -158,7 +158,7 @@ options 	ROOTDEVNAME=\"ufs:da0s2e\"
 # select which scheduler is compiled in.
 #
 # SCHED_4BSD is the historical, proven, BSD scheduler.  It has a global run
-# queue and no cpu affinity which makes it suboptimal for SMP.  It has very
+# queue and no CPU affinity which makes it suboptimal for SMP.  It has very
 # good interactivity and priority selection.
 #
 # SCHED_ULE is a new scheduler that has been designed for SMP and has some
@@ -322,7 +322,7 @@ options 	GDB
 #
 # SYSCTL_DEBUG enables a 'sysctl' debug tree that can be used to dump the
 # contents of the registered sysctl nodes on the console.  It is disabled by
-# default because it generates excessively verbose consol output that can
+# default because it generates excessively verbose console output that can
 # interfere with serial console operation.
 #
 options 	SYSCTL_DEBUG
@@ -361,7 +361,7 @@ options 	KTRACE_REQUEST_POOL=101
 # defined by the KTR_* constants in <sys/ktr.h>.  KTR_MASK defines the
 # initial value of the ktr_mask variable which determines at runtime
 # what events to trace.  KTR_CPUMASK determines which CPU's log
-# events, with bit X corresponding to cpu X.  KTR_VERBOSE enables
+# events, with bit X corresponding to CPU X.  KTR_VERBOSE enables
 # dumping of KTR events to the console by default.  This functionality
 # can be toggled via the debug.ktr_verbose sysctl and defaults to off
 # if KTR_VERBOSE is not defined.
@@ -374,7 +374,7 @@ options 	KTR_CPUMASK=0x3
 options 	KTR_VERBOSE
 
 #
-# ALQ(9) is a facilty for the asynchronous queuing of records from the kernel
+# ALQ(9) is a facility for the asynchronous queuing of records from the kernel
 # to a vnode, and is employed by services such as KTR(4) to produce trace
 # files based on a kernel event stream.  Records are written asynchronously
 # in a worker thread.
@@ -725,7 +725,7 @@ device		stf			#6to4 IPv6 over IPv4 encapsulation
 # crafting the ruleset.
 #
 # IPSTEALTH enables code to support stealth forwarding (i.e., forwarding
-# packets without touching the ttl).  This can be useful to hide firewalls
+# packets without touching the TTL).  This can be useful to hide firewalls
 # from traceroute and similar tools.
 #
 # TCPDEBUG enables code which keeps traces of the TCP state machine
@@ -973,7 +973,7 @@ options 	MSDOSFS_LARGE
 #####################################################################
 # POSIX P1003.1B
 
-# Real time extensions added in the 1993 Posix
+# Real time extensions added in the 1993 POSIX
 # _KPOSIX_PRIORITY_SCHEDULING: Build in _POSIX_PRIORITY_SCHEDULING
 
 options 	_KPOSIX_PRIORITY_SCHEDULING
@@ -1295,7 +1295,7 @@ device		snake_saver
 device		star_saver
 device		warp_saver
 
-# The syscons console driver (sco color console compatible).
+# The syscons console driver (SCO color console compatible).
 device		sc
 hint.sc.0.at="isa"
 options 	MAXCONS=16		# number of virtual consoles
@@ -1947,9 +1947,9 @@ device		sound
 # snd_mss:		Microsoft Sound System ISA PnP/non-PnP.
 # snd_neomagic:		Neomagic 256 AV/ZX PCI.
 # snd_sb16:		Creative SoundBlaster16, to be used in
-#			conjuction with snd_sbc.
+#			conjunction with snd_sbc.
 # snd_sb8:		Creative SoundBlaster (pre-16), to be used in
-#			conjuction with snd_sbc.
+#			conjunction with snd_sbc.
 # snd_sbc:		Creative SoundBlaster ISA PnP/non-PnP.
 #			Supports ESS and Avance ISA chips as well.
 # snd_solo:		ESS Solo-1x PCI.
@@ -1993,7 +1993,7 @@ device		snd_via82c686
 device		snd_vibes
 device		snd_uaudio
 
-# For non-pnp sound cards:
+# For non-PnP sound cards:
 hint.pcm.0.at="isa"
 hint.pcm.0.irq="10"
 hint.pcm.0.drq="1"
@@ -2074,7 +2074,7 @@ hint.mcd.0.port="0x300"
 device		scd
 hint.scd.0.at="isa"
 hint.scd.0.port="0x230"
-device		joy			# PnP aware, hints for nonpnp only
+device		joy			# PnP aware, hints for non-PnP only
 hint.joy.0.at="isa"
 hint.joy.0.port="0x201"
 device		rc
@@ -2341,7 +2341,7 @@ device		umct
 device		umodem
 # USB mouse
 device		ums
-# Diamond Rio 500 Mp3 player
+# Diamond Rio 500 MP3 player
 device		urio
 # USB scanners
 device		uscanner
@@ -2421,7 +2421,7 @@ device		firewire	# FireWire bus code
 device		sbp		# SCSI over Firewire (Requires scbus and da)
 device		sbp_targ	# SBP-2 Target mode  (Requires scbus and targ)
 device		fwe		# Ethernet over FireWire (non-standard!)
-device		fwip		# IP over FireWire (rfc2734 and rfc3146)
+device		fwip		# IP over FireWire (RFC2734 and RFC3146)
 
 #####################################################################
 # dcons support (Dumb Console Device)
@@ -2436,12 +2436,12 @@ options 	DCONS_FORCE_GDB=1	# force to be the gdb device
 #####################################################################
 # crypto subsystem
 #
-# This is a port of the openbsd crypto framework.  Include this when
+# This is a port of the OpenBSD crypto framework.  Include this when
 # configuring FAST_IPSEC and when you have a h/w crypto device to accelerate
-# user applications that link to openssl.
+# user applications that link to OpenSSL.
 #
-# Drivers are ports from openbsd with some simple enhancements that have
-# been fed back to openbsd.
+# Drivers are ports from OpenBSD with some simple enhancements that have
+# been fed back to OpenBSD.
 
 device		crypto		# core crypto support
 device		cryptodev	# /dev/crypto for access to h/w
@@ -2467,7 +2467,7 @@ options 	INIT_PATH=/sbin/init:/stand/sysinstall
 
 # Debug options
 options 	BUS_DEBUG	# enable newbus debugging
-options 	DEBUG_VFS_LOCKS	# enable vfs lock debugging
+options 	DEBUG_VFS_LOCKS	# enable VFS lock debugging
 options 	SOCKBUF_DEBUG	# enable sockbuf last record/mb tail checking
 
 #
