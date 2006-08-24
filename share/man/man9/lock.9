@@ -138,6 +138,8 @@ Attempts to upgrade an exclusive lock will cause a
 .It Dv LK_UPGRADE
 Upgrade a shared lock to an exclusive lock.
 If this call fails, the shared lock is lost.
+During the upgrade, the shared lock could
+be temporarily dropped.
 Attempts to upgrade an exclusive lock will cause a
 .Xr panic 9 .
 .It Dv LK_RELEASE
