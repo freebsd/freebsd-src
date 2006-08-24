@@ -693,14 +693,13 @@ bail:
 	if (errmsg_pos != -1 && ((2 * errmsg_pos + 1) < fsoptions->uio_iovcnt)
 	    && errmsg_len > 0 && errmsg != NULL) {
 		if (fsoptions->uio_segflg == UIO_SYSSPACE) {
-			strncpy(fsoptions->uio_iov[2 * errmsg_pos + 1].iov_base,
-			    errmsg, 
+			bcopy(errmsg,
+			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_base,
 			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_len);
 		} else {
-			copystr(errmsg,
+			copyout(errmsg,
 			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_base,
-			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_len,
-			    NULL);
+			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_len);
 		} 
 	}
 
