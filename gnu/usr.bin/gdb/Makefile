@@ -1,9 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	doc libgdb gdb gdbtui
-
-.if ${MACHINE_ARCH} != "powerpc"
-SUBDIR+= kgdb
-.endif
+SUBDIR=	doc libgdb gdb gdbtui kgdb
 
 .include <bsd.subdir.mk>
