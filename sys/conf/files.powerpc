@@ -52,6 +52,7 @@ powerpc/powerpc/cpu.c		standard
 powerpc/powerpc/elf_machdep.c	standard
 powerpc/powerpc/fpu.c		standard
 powerpc/powerpc/fuswintr.c	standard
+powerpc/powerpc/gdb_machdep.c	optional	gdb
 powerpc/powerpc/in_cksum.c	optional	inet
 powerpc/powerpc/interrupt.c	standard
 powerpc/powerpc/intr_machdep.c	standard
@@ -121,6 +122,7 @@ powerpc/powermac/macio.c	optional	powermac pci
 powerpc/powermac/openpic_macio.c optional	powermac pci
 powerpc/powermac/pswitch.c	optional	powermac pswitch
 powerpc/powermac/uninorth.c	optional	powermac pci
+powerpc/powermac/viapmu.c	optional	powermac
 
 powerpc/psim/iobus.c 		optional psim
 powerpc/psim/ata_iobus.c	optional ata psim
