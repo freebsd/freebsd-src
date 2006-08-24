@@ -1093,6 +1093,7 @@ ng_fec_constructor(node_p node)
 	char ifname[NG_FEC_FEC_NAME_MAX + 1];
 	struct ifnet *ifp;
 	priv_p priv;
+	const uint8_t eaddr[ETHER_ADDR_LEN] = {0, 0, 0, 0, 0, 0};
 	struct ng_fec_bundle *b;
 	int error = 0;
 
@@ -1143,7 +1144,7 @@ ng_fec_constructor(node_p node)
 		log(LOG_WARNING, "%s: can't acquire netgraph name\n", ifname);
 
 	/* Attach the interface */
-	ether_ifattach(ifp, IF_LLADDR(priv->ifp));
+	ether_ifattach(ifp, eaddr);
 	callout_handle_init(&priv->fec_ch);
 
 	/* Override output method with our own */
