@@ -121,7 +121,11 @@ __ElfType(Auxinfo);
 
 /* Define "machine" characteristics */
 #define	ELF_TARG_CLASS	ELFCLASS32
+#ifdef __ARMEB__
+#define	ELF_TARG_DATA	ELFDATA2MSB
+#else
 #define	ELF_TARG_DATA	ELFDATA2LSB
+#endif
 #define	ELF_TARG_MACH	EM_ARM
 #define	ELF_TARG_VER	1
 
