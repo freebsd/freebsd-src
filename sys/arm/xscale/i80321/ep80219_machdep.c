@@ -99,11 +99,11 @@ __FBSDID("$FreeBSD$");
 #include <arm/xscale/i80321/iq80321reg.h>
 #include <arm/xscale/i80321/obiovar.h>
 
-#define KERNEL_PT_SYS		0	/* Page table for mapping proc0 zero page */
-#define	KERNEL_PT_IOPXS		1
+#define KERNEL_PT_SYS			0	/* Page table for mapping proc0 zero page */
+#define KERNEL_PT_IOPXS			1
 #define KERNEL_PT_BEFOREKERN	2
-#define KERNEL_PT_AFKERNEL	3	/* L2 table for mapping after kernel */
-#define	KERNEL_PT_AFKERNEL_NUM	9
+#define KERNEL_PT_AFKERNEL		3	/* L2 table for mapping after kernel */
+#define KERNEL_PT_AFKERNEL_NUM	9
 
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
@@ -149,46 +149,45 @@ struct pv_addr minidataclean;
 
 static struct trapframe proc0_tf;
 
-#define IQ80321_OBIO_BASE 0xfe800000UL
-#define IQ80321_OBIO_SIZE 0x00100000UL
+
+/* #define IQ80321_OBIO_BASE 0xfe800000UL */
+/* #define IQ80321_OBIO_SIZE 0x00100000UL */
+
 /* Static device mappings. */
-static const struct pmap_devmap iq80321_devmap[] = {
+static const struct pmap_devmap ep80219_devmap[] = {
 	/* 
 	 * Map the on-board devices VA == PA so that we can access them
 	 * with the MMU on or off.
 	 */
-	    {
-		    IQ80321_OBIO_BASE,
-		    IQ80321_OBIO_BASE,
-		    IQ80321_OBIO_SIZE,
-		    VM_PROT_READ|VM_PROT_WRITE,                             
-		    PTE_NOCACHE,
-	    },
-	    {
-	    	    IQ80321_IOW_VBASE,
-		    VERDE_OUT_XLATE_IO_WIN0_BASE,
-		    VERDE_OUT_XLATE_IO_WIN_SIZE,
-		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
-	    },
-	    
-	    {
-		    IQ80321_80321_VBASE,
-		    VERDE_PMMR_BASE,
-		    VERDE_PMMR_SIZE,
-		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
-	    },
-	    {
-		    0,
-		    0,
-		    0,
-		    0,
-		    0,
-	    }
+	{
+		IQ80321_OBIO_BASE,
+		IQ80321_OBIO_BASE,
+		IQ80321_OBIO_SIZE,
+		VM_PROT_READ|VM_PROT_WRITE,                             
+		PTE_NOCACHE,
+	},
+	{
+		IQ80321_IOW_VBASE,
+		VERDE_OUT_XLATE_IO_WIN0_BASE,
+		VERDE_OUT_XLATE_IO_WIN_SIZE,
+		VM_PROT_READ|VM_PROT_WRITE,
+		PTE_NOCACHE,
+	},	    
+	{
+		IQ80321_80321_VBASE,
+		VERDE_PMMR_BASE,
+		VERDE_PMMR_SIZE,
+		VM_PROT_READ|VM_PROT_WRITE,
+		PTE_NOCACHE,
+	},
+	{
+		0,
+		0,
+		0,
+		0,
+		0,
+	}
 };
-
-#define SDRAM_START 0xa0000000
 
 #ifdef DDB
 extern vm_offset_t ksym_start, ksym_end;
@@ -210,7 +209,7 @@ initarm(void *arg, void *arg2)
 #ifdef DDB
 	vm_offset_t zstart = 0, zend = 0;
 #endif
-	int i;
+	int i = 0;
 	uint32_t fake_preload[35];
 	uint32_t memsize, memstart;
 
@@ -247,7 +246,7 @@ initarm(void *arg, void *arg2)
 	} else
 #endif
 		lastaddr = (vm_offset_t)&end;
-
+	
 	fake_preload[i++] = 0;
 	fake_preload[i] = 0;
 	preload_metadata = (void *)fake_preload;
@@ -260,7 +259,7 @@ initarm(void *arg, void *arg2)
 	freemempos = 0xa0200000;
 	/* Define a macro to simplify memory allocation */
 #define	valloc_pages(var, np)			\
-	alloc_pages((var).pv_pa, (np));		\
+	alloc_pages((var).pv_pa, (np));				\
 	(var).pv_va = (var).pv_pa + 0x20000000;
 
 #define alloc_pages(var, np)			\
@@ -274,7 +273,7 @@ initarm(void *arg, void *arg2)
 	for (loop = 0; loop < NUM_KERNEL_PTS; ++loop) {
 		if (!(loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL))) {
 			valloc_pages(kernel_pt_table[loop],
-			    L2_TABLE_SIZE / PAGE_SIZE);
+						 L2_TABLE_SIZE / PAGE_SIZE);
 		} else {
 			kernel_pt_table[loop].pv_pa = freemempos +
 			    (loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
@@ -282,6 +281,7 @@ initarm(void *arg, void *arg2)
 			kernel_pt_table[loop].pv_va = 
 			    kernel_pt_table[loop].pv_pa + 0x20000000;
 		}
+		i++;
 	}
 	freemem_pt = freemempos;
 	freemempos = 0xa0100000;
@@ -303,13 +303,15 @@ initarm(void *arg, void *arg2)
 	freemempos -= PAGE_SIZE;
 	freemem_pt = trunc_page(freemem_pt);
 	freemem_after = freemempos - ((freemem_pt - 0xa0100000) /
-	    PAGE_SIZE) * sizeof(struct arm_small_page);
+								  PAGE_SIZE) * sizeof(struct arm_small_page);
 	arm_add_smallalloc_pages((void *)(freemem_after + 0x20000000)
-	    , (void *)0xc0100000, freemem_pt - 0xa0100000, 1);
+							 , (void *)0xc0100000, freemem_pt - 0xa0100000, 1);
 	freemem_after -= ((freemem_after - 0xa0001000) / PAGE_SIZE) *
 	    sizeof(struct arm_small_page);
-	arm_add_smallalloc_pages((void *)(freemem_after + 0x20000000)
-	, (void *)0xc0001000, trunc_page(freemem_after) - 0xa0001000, 0);
+	arm_add_smallalloc_pages((void *)(freemem_after + 0x20000000),
+							 (void *)0xc0001000,
+							 trunc_page(freemem_after) - 0xa0001000, 0);
+	
 	freemempos = trunc_page(freemem_after);
 	freemempos -= PAGE_SIZE;
 #endif
@@ -329,27 +331,27 @@ initarm(void *arg, void *arg2)
 
 	/* Map the L2 pages tables in the L1 page table */
 	pmap_link_l2pt(l1pagetable, ARM_VECTORS_HIGH & ~(0x00100000 - 1),
-	    &kernel_pt_table[KERNEL_PT_SYS]);
+				   &kernel_pt_table[KERNEL_PT_SYS]);
 	pmap_link_l2pt(l1pagetable, IQ80321_IOPXS_VBASE,
-	                &kernel_pt_table[KERNEL_PT_IOPXS]);
+				   &kernel_pt_table[KERNEL_PT_IOPXS]);
 	pmap_link_l2pt(l1pagetable, KERNBASE,
-	    &kernel_pt_table[KERNEL_PT_BEFOREKERN]);
-	pmap_map_chunk(l1pagetable, KERNBASE, SDRAM_START, 0x100000,
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	pmap_map_chunk(l1pagetable, KERNBASE + 0x100000, SDRAM_START + 0x100000,
-	    0x100000, VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
-	pmap_map_chunk(l1pagetable, KERNBASE + 0x200000, SDRAM_START + 0x200000,
-	   (((uint32_t)(lastaddr) - KERNBASE - 0x200000) + L1_S_SIZE) & ~(L1_S_SIZE - 1),
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+				   &kernel_pt_table[KERNEL_PT_BEFOREKERN]);
+	pmap_map_chunk(l1pagetable, KERNBASE, IQ80321_SDRAM_START, 0x100000,
+				   VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+	pmap_map_chunk(l1pagetable, KERNBASE + 0x100000, IQ80321_SDRAM_START + 0x100000,
+				   0x100000, VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
+	pmap_map_chunk(l1pagetable, KERNBASE + 0x200000, IQ80321_SDRAM_START + 0x200000,
+				   (((uint32_t)(lastaddr) - KERNBASE - 0x200000) + L1_S_SIZE) & ~(L1_S_SIZE - 1),
+				   VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	freemem_after = ((int)lastaddr + PAGE_SIZE) & ~(PAGE_SIZE - 1);
 	afterkern = round_page(((vm_offset_t)lastaddr + L1_S_SIZE) & ~(L1_S_SIZE 
-	    - 1));
+																   - 1));
 	for (i = 0; i < KERNEL_PT_AFKERNEL_NUM; i++) {
 		pmap_link_l2pt(l1pagetable, afterkern + i * 0x00100000,
-		    &kernel_pt_table[KERNEL_PT_AFKERNEL + i]);
+					   &kernel_pt_table[KERNEL_PT_AFKERNEL + i]);
 	}
 	pmap_map_entry(l1pagetable, afterkern, minidataclean.pv_pa, 
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+				   VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	
 
 #ifdef ARM_USE_SMALL_ALLOC
@@ -363,12 +365,12 @@ initarm(void *arg, void *arg2)
 
 	/* Map the Mini-Data cache clean area. */
 	xscale_setup_minidata(l1pagetable, afterkern,
-	    minidataclean.pv_pa);
+						  minidataclean.pv_pa);
 
 	/* Map the vector page. */
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	pmap_devmap_bootstrap(l1pagetable, iq80321_devmap);
+				   VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+	pmap_devmap_bootstrap(l1pagetable, ep80219_devmap);
 	/*
 	 * Give the XScale global cache clean code an appropriately
 	 * sized chunk of unmapped VA space starting at 0xff000000
@@ -442,15 +444,6 @@ initarm(void *arg, void *arg2)
 
 
 	pmap_curmaxkvaddr = afterkern + PAGE_SIZE;
-	/*
-	 * ARM_USE_SMALL_ALLOC uses dump_avail, so it must be filled before
-	 * calling pmap_bootstrap.
-	 */
-	dump_avail[0] = 0xa0000000;
-	dump_avail[1] = 0xa0000000 + memsize;
-	dump_avail[2] = 0;
-	dump_avail[3] = 0;
-					
 	pmap_bootstrap(pmap_curmaxkvaddr, 
 	    0xd0000000, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
@@ -465,10 +458,14 @@ initarm(void *arg, void *arg2)
 					 * pages in the vm_page_array
 					 . */
 #endif
-	phys_avail[i++] = round_page(virtual_avail - KERNBASE + SDRAM_START);
+	phys_avail[i++] = round_page(virtual_avail - KERNBASE + IQ80321_SDRAM_START);
 	phys_avail[i++] = trunc_page(0xa0000000 + memsize - 1);
 	phys_avail[i++] = 0;
 	phys_avail[i] = 0;
+	dump_avail[0] = 0xa0000000;
+	dump_avail[1] = 0xa0000000 + memsize;
+	dump_avail[2] = 0;
+	dump_avail[3] = 0;
 	
 	/* Do basic tuning, hz etc */
 	init_param1();
@@ -478,7 +475,6 @@ initarm(void *arg, void *arg2)
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
 }
-
 
 extern int
 machdep_pci_route_interrupt(device_t pcib, device_t dev, int pin)
@@ -498,35 +494,23 @@ machdep_pci_route_interrupt(device_t pcib, device_t dev, int pin)
 	if (bus != busno)
 		goto no_mapping;
 	switch (device) {
-		/* IQ31244 PCI */
-	case 1: /* PCIX-PCIX bridge */
+		/* EP80219 PCI */
+	case 1: /* Ethernet i82555 10/100 */
+		printf("Device %d routed to irq %d\n", device, ICU_INT_XINT(0));
+		return (ICU_INT_XINT(0));
+	case 2: /* UART */
+		printf("Device %d routed to irq %d\n", device, ICU_INT_XINT(1));
+		return (ICU_INT_XINT(1));
+	case 3:
 		/*
 		 * The S-ATA chips are behind the bridge, and all of
 		 * the S-ATA interrupts are wired together.
 		 */
+		printf("Device %d routed to irq %d\n", device, ICU_INT_XINT(2));
 		return (ICU_INT_XINT(2));
-	case 2: /* PCI slot */
-		/* All pins are wired together. */
-		return (ICU_INT_XINT(3));
-	case 3: /* i82546 dual Gig-E */
-		if (pin == 1 || pin == 2)
-			return (ICU_INT_XINT(0));
-		goto no_mapping;
-		/* IQ80321 PCI */
-	case 4: /* i82544 Gig-E */
-	case 8: /*
-		 * Apparently you can set the device for the ethernet adapter
-		 * to 8 with a jumper, so handle that as well
-		 */
-		if (pin == 1)
-			return (ICU_INT_XINT(0));
-		goto no_mapping;
-	case 6: /* S-PCI-X slot */
-		if (pin == 1)
-			return (ICU_INT_XINT(2));
-		if (pin == 2)
-			return (ICU_INT_XINT(3));
-		goto no_mapping;
+	case 4: /* MINI-PIC_INT */
+		printf("Device %d routed to irq %d\n", device, ICU_INT_XINT(3));
+		return( ICU_INT_XINT(3));
 	default:
 no_mapping:
 		printf("No mapping for %d/%d/%d/%c\n", bus, device, func, pin);

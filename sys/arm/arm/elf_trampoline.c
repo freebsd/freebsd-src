@@ -64,7 +64,8 @@ void __start(void);
     defined(CPU_IXP12X0)
 #define cpu_idcache_wbinv_all	sa1_cache_purgeID
 #elif defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
-    defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425)
+  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
+  defined(CPU_XSCALE_80219)
 #define cpu_idcache_wbinv_all	xscale_cache_purgeID
 #endif
 

@@ -229,6 +229,12 @@ const struct cpuidtab cpuids[] = {
 	{ CPU_ID_80321_600_B0,	CPU_CLASS_XSCALE,	"i80321 600MHz",
 	  i80321_steppings },
 
+	{ CPU_ID_80219_400,	CPU_CLASS_XSCALE,	"i80219 400MHz",
+	  xscale_steppings },
+	
+	{ CPU_ID_80219_600,	CPU_CLASS_XSCALE,	"i80219 600MHz",
+	  xscale_steppings },
+
 	{ CPU_ID_PXA250A,	CPU_CLASS_XSCALE,	"PXA250",
 	  pxa2x0_steppings },
 	{ CPU_ID_PXA210A,	CPU_CLASS_XSCALE,	"PXA210",

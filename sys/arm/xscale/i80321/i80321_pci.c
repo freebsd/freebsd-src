@@ -68,20 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 extern struct i80321_softc *i80321_softc;
 
-struct i80321_pci_softc {
-	device_t 		sc_dev;
-	bus_space_tag_t 	sc_st;
-	bus_space_handle_t 	sc_atu_sh;
-	bus_space_tag_t		sc_pciio;
-	bus_space_tag_t		sc_pcimem;
-	int			sc_busno;
-	struct rman		sc_mem_rman;
-	struct rman		sc_io_rman;
-	struct rman		sc_irq_rman;
-	uint32_t		sc_mem;
-	uint32_t		sc_io;
-};
-
 static int
 i80321_pci_probe(device_t dev)
 {
@@ -260,62 +246,6 @@ i80321_pci_write_config(device_t dev, int bus, int slot, int func, int reg,
 }
 
 static int
-i80321_pci_route_interrupt(device_t pcib, device_t dev, int pin)
-{
-	int bus;
-	int device;
-	int func;
-	uint32_t busno;
-	struct i80321_pci_softc *sc = device_get_softc(pcib);
-	bus = pci_get_bus(dev);
-	device = pci_get_slot(dev);
-	func = pci_get_function(dev);
-	busno = bus_space_read_4(sc->sc_st, sc->sc_atu_sh, ATU_PCIXSR);
-	busno = PCIXSR_BUSNO(busno);
-	if (busno == 0xff)
-		busno = 0;
-	if (bus != busno)
-		goto no_mapping;
-	switch (device) {
-		/* IQ31244 PCI */
-	case 1: /* PCIX-PCIX bridge */
-		/*
-		 * The S-ATA chips are behind the bridge, and all of
-		 * the S-ATA interrupts are wired together.
-		 */
-		return (ICU_INT_XINT(2));
-	case 2: /* PCI slot */
-		/* All pins are wired together. */
-		return (ICU_INT_XINT(3));
-	case 3: /* i82546 dual Gig-E */
-		if (pin == 1 || pin == 2)
-			return (ICU_INT_XINT(0));
-		goto no_mapping;
-		/* IQ80321 PCI */
-	case 4: /* i82544 Gig-E */
-	case 8: /*
-		 * Apparently you can set the device for the ethernet adapter
-		 * to 8 with a jumper, so handle that as well
-		 */
-		if (pin == 1)
-			return (ICU_INT_XINT(0));
-		goto no_mapping;
-	case 6: /* S-PCI-X slot */
-		if (pin == 1)
-			return (ICU_INT_XINT(2));
-		if (pin == 2)
-			return (ICU_INT_XINT(3));
-		goto no_mapping;
-	default:
-no_mapping:
-		printf("No mapping for %d/%d/%d/%c\n", bus, device, func, pin);
-		
-	}
-	return (0);
-
-}
-
-static int
 i80321_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	struct i80321_pci_softc *sc = device_get_softc(dev);
@@ -453,7 +383,7 @@ static device_method_t i80321_pci_methods[] = {
 	DEVMETHOD(pcib_maxslots,	i80321_pci_maxslots),
 	DEVMETHOD(pcib_read_config,	i80321_pci_read_config),
 	DEVMETHOD(pcib_write_config,	i80321_pci_write_config),
-	DEVMETHOD(pcib_route_interrupt,	i80321_pci_route_interrupt),
+	DEVMETHOD(pcib_route_interrupt,	machdep_pci_route_interrupt),
 
 	{0, 0}
 };
