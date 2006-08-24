@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 20, 2003
+.Dd August 24, 2006
 .Dt FAST_IPSEC 4
 .Os
 .Sh NAME
@@ -32,6 +32,7 @@
 .Nd hardware-accelerated IP Security Protocols
 .Sh SYNOPSIS
 .Cd "options FAST_IPSEC"
+.Cd "options IPSEC_FILTERGIF"
 .Cd "device crypto"
 .Pp
 .Bl -item -compact
@@ -69,6 +70,11 @@ This documentation concentrates on differences from that software.
 The user should refer to
 .Xr ipsec 4
 for basic information on setting up and using these protocols.
+Note that it is not currently possible to use
+.Nm
+in conjuction with the
+.Tn "KAME IPsec"
+implementation.
 .Pp
 System configuration requires the
 .Xr crypto 4
@@ -83,6 +89,12 @@ The packets can be passed to a virtual interface,
 .Dq enc0 ,
 to perform packet filtering before outbound encryption and after decapsulation
 inbound.
+.Pp
+To properly filter 
+.Xr gif 4
+tunnels with firewalls, add
+.Cd "options IPSEC_FILTERGIF"
+to the kernel configuration file.
 .Sh DIAGNOSTICS
 To be added.
 .Sh SEE ALSO
