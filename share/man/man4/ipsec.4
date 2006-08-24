@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2006
+.Dd August 24, 2006
 .Dt IPSEC 4
 .Os
 .Sh NAME
@@ -39,6 +39,10 @@
 .In sys/types.h
 .In netinet/in.h
 .In netinet6/ipsec.h
+.Cd "options IPSEC"
+.Cd "options IPSEC_DEBUG"
+.Cd "options IPSEC_ESP"
+.Cd "options IPSEC_FILTERGIF"
 .Sh DESCRIPTION
 .Nm
 is a security protocol implemented within the Internet Protocol layer
@@ -253,6 +257,7 @@ routines from looking into the IP payload.
 .Xr ioctl 2 ,
 .Xr socket 2 ,
 .Xr ipsec_set_policy 3 ,
+.Xr fast_ipsec 4 ,
 .Xr icmp6 4 ,
 .Xr intro 4 ,
 .Xr ip6 4 ,
