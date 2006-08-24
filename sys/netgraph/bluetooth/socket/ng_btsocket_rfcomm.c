@@ -1220,7 +1220,8 @@ ng_btsocket_rfcomm_session_create(ng_btsocket_rfcomm_session_p *sp,
 	ng_btsocket_rfcomm_session_p	s = NULL;
 	struct sockaddr_l2cap		l2sa;
 	struct sockopt			l2sopt;
-	int				mtu, error;
+	int				error;
+	u_int16_t			mtu;
 
 	mtx_assert(&ng_btsocket_rfcomm_sessions_mtx, MA_OWNED);
 
