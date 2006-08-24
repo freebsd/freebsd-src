@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060816:
+	The IPFIREWALL_FORWARD_EXTENDED option is gone and the behaviour
+	for IP_FIREWALL_FORWARD is now as it was before when it was first
+	committed and for years thereafter. The behaviour is now ON.
+
 20060806:
 	The interface version of the i4b kernel part has changed. So
 	after updating the kernel sources and compiling a new kernel,
