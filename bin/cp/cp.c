@@ -83,7 +83,7 @@ static char emptystring[] = "";
 
 PATH_T to = { to.p_path, emptystring, "" };
 
-int fflag, iflag, nflag, pflag, vflag;
+int fflag, iflag, lflag, nflag, pflag, vflag;
 static int Rflag, rflag;
 volatile sig_atomic_t info;
 
@@ -102,7 +102,7 @@ main(int argc, char *argv[])
 	char *target;
 
 	Hflag = Lflag = Pflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRfinprv")) != -1)
+	while ((ch = getopt(argc, argv, "HLPRfinprvl")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -139,6 +139,9 @@ main(int argc, char *argv[])
 			break;
 		case 'v':
 			vflag = 1;
+			break;
+		case 'l':
+			lflag = 1;
 			break;
 		default:
 			usage();
@@ -457,6 +460,9 @@ copy(char *argv[], enum op type, int fts_options)
 					badcp = rval = 1;
 			}
 			break;
+		case S_IFSOCK:
+			warnx("%s is a socket (not copied).",
+				    curr->fts_path);
 		case S_IFIFO:
 			if (Rflag) {
 				if (copy_fifo(curr->fts_statp, !dne))
