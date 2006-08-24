@@ -61,7 +61,7 @@ copy_file(const FTSENT *entp, int dne)
 {
 	static char buf[MAXBSIZE];
 	struct stat *fs;
-	int ch, checkch, from_fd, rcount, rval, to_fd;
+	int ch, checkch, from_fd = 0, rcount, rval, to_fd = 0;
 	ssize_t wcount;
 	size_t wresid;
 	size_t wtotal;
@@ -109,15 +109,20 @@ copy_file(const FTSENT *entp, int dne)
 		    /* remove existing destination file name, 
 		     * create a new file  */
 		    (void)unlink(to.p_path);
-		    to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
-				 fs->st_mode & ~(S_ISUID | S_ISGID));
-		} else 
-		    /* overwrite existing destination file name */
-		    to_fd = open(to.p_path, O_WRONLY | O_TRUNC, 0);
-	} else
-		to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
-		    fs->st_mode & ~(S_ISUID | S_ISGID));
-
+				if (!lflag)
+		    	to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
+				  fs->st_mode & ~(S_ISUID | S_ISGID));
+		} else {
+				if (!lflag)
+		    	/* overwrite existing destination file name */
+		    	to_fd = open(to.p_path, O_WRONLY | O_TRUNC, 0);
+		}
+	} else {
+		if (!lflag)
+			to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
+		  fs->st_mode & ~(S_ISUID | S_ISGID));
+	}
+	
 	if (to_fd == -1) {
 		warn("%s", to.p_path);
 		(void)close(from_fd);
@@ -126,77 +131,85 @@ copy_file(const FTSENT *entp, int dne)
 
 	rval = 0;
 
-	/*
-	 * Mmap and write if less than 8M (the limit is so we don't totally
-	 * trash memory on big files.  This is really a minor hack, but it
-	 * wins some CPU back.
-	 */
+	if (!lflag) {
+		/*
+		 * Mmap and write if less than 8M (the limit is so we don't totally
+		 * trash memory on big files.  This is really a minor hack, but it
+		 * wins some CPU back.
+		 */
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
-	if (S_ISREG(fs->st_mode) && fs->st_size > 0 &&
-	    fs->st_size <= 8 * 1048576) {
-		if ((p = mmap(NULL, (size_t)fs->st_size, PROT_READ,
-		    MAP_SHARED, from_fd, (off_t)0)) == MAP_FAILED) {
-			warn("%s", entp->fts_path);
-			rval = 1;
-		} else {
-			wtotal = 0;
-			for (bufp = p, wresid = fs->st_size; ;
-			    bufp += wcount, wresid -= (size_t)wcount) {
-				wcount = write(to_fd, bufp, wresid);
-				wtotal += wcount;
-				if (info) {
-					info = 0;
-					(void)fprintf(stderr,
-						"%s -> %s %3d%%\n",
-						entp->fts_path, to.p_path,
-						cp_pct(wtotal, fs->st_size));
-						
-				}
-				if (wcount >= (ssize_t)wresid || wcount <= 0)
-					break;
-			}
-			if (wcount != (ssize_t)wresid) {
-				warn("%s", to.p_path);
+		if (S_ISREG(fs->st_mode) && fs->st_size > 0 &&
+	    	fs->st_size <= 8 * 1048576) {
+			if ((p = mmap(NULL, (size_t)fs->st_size, PROT_READ,
+		    	MAP_SHARED, from_fd, (off_t)0)) == MAP_FAILED) {
+				warn("%s", entp->fts_path);
 				rval = 1;
+			} else {
+				wtotal = 0;
+				for (bufp = p, wresid = fs->st_size; ;
+			    	bufp += wcount, wresid -= (size_t)wcount) {
+					wcount = write(to_fd, bufp, wresid);
+					wtotal += wcount;
+					if (info) {
+						info = 0;
+						(void)fprintf(stderr,
+							"%s -> %s %3d%%\n",
+							entp->fts_path, to.p_path,
+							cp_pct(wtotal, fs->st_size));
+
+					}
+					if (wcount >= (ssize_t)wresid || wcount <= 0)
+						break;
+				}
+				if (wcount != (ssize_t)wresid) {
+					warn("%s", to.p_path);
+					rval = 1;
+				}
+				/* Some systems don't unmap on close(2). */
+				if (munmap(p, fs->st_size) < 0) {
+					warn("%s", entp->fts_path);
+					rval = 1;
+				}
 			}
-			/* Some systems don't unmap on close(2). */
-			if (munmap(p, fs->st_size) < 0) {
+		} else
+#endif
+		{
+			wtotal = 0;
+			while ((rcount = read(from_fd, buf, MAXBSIZE)) > 0) {
+				for (bufp = buf, wresid = rcount; ;
+			    	bufp += wcount, wresid -= wcount) {
+					wcount = write(to_fd, bufp, wresid);
+					wtotal += wcount;
+					if (info) {
+						info = 0;
+						(void)fprintf(stderr,
+							"%s -> %s %3d%%\n",
+							entp->fts_path, to.p_path,
+							cp_pct(wtotal, fs->st_size));
+
+					}
+					if (wcount >= (ssize_t)wresid || wcount <= 0)
+						break;
+				}
+				if (wcount != (ssize_t)wresid) {
+					warn("%s", to.p_path);
+					rval = 1;
+					break;
+				}
+			}
+			if (rcount < 0) {
 				warn("%s", entp->fts_path);
 				rval = 1;
 			}
 		}
-	} else
-#endif
-	{
-		wtotal = 0;
-		while ((rcount = read(from_fd, buf, MAXBSIZE)) > 0) {
-			for (bufp = buf, wresid = rcount; ;
-			    bufp += wcount, wresid -= wcount) {
-				wcount = write(to_fd, bufp, wresid);
-				wtotal += wcount;
-				if (info) {
-					info = 0;
-					(void)fprintf(stderr,
-						"%s -> %s %3d%%\n",
-						entp->fts_path, to.p_path,
-						cp_pct(wtotal, fs->st_size));
-						
-				}
-				if (wcount >= (ssize_t)wresid || wcount <= 0)
-					break;
-			}
-			if (wcount != (ssize_t)wresid) {
-				warn("%s", to.p_path);
-				rval = 1;
-				break;
-			}
-		}
-		if (rcount < 0) {
-			warn("%s", entp->fts_path);
+	} else {
+		if (link(entp->fts_path, to.p_path)) {
+			warn("%s", to.p_path);
 			rval = 1;
 		}
 	}
-
+	(void)close(from_fd);
+	
 	/*
 	 * Don't remove the target even after an error.  The target might
 	 * not be a regular file, or its attributes might be important,
@@ -204,14 +217,16 @@ copy_file(const FTSENT *entp, int dne)
 	 * to remove it if we created it and its length is 0.
 	 */
 
-	if (pflag && setfile(fs, to_fd))
-		rval = 1;
-	if (pflag && preserve_fd_acls(from_fd, to_fd) != 0)
-		rval = 1;
-	(void)close(from_fd);
-	if (close(to_fd)) {
-		warn("%s", to.p_path);
-		rval = 1;
+	if (!lflag) {
+		if (pflag && setfile(fs, to_fd))
+			rval = 1;
+		if (pflag && preserve_fd_acls(from_fd, to_fd) != 0)
+			rval = 1;
+		(void)close(from_fd);
+		if (close(to_fd)) {
+			warn("%s", to.p_path);
+			rval = 1;
+		}
 	}
 	return (rval);
 }
@@ -411,8 +426,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-"usage: cp [-R [-H | -L | -P]] [-f | -i | -n] [-pv] source_file target_file",
-"       cp [-R [-H | -L | -P]] [-f | -i | -n] [-pv] source_file ... "
+"usage: cp [-R [-H | -L | -P]] [-f | -i | -n] [-aplv] source_file target_file",
+"       cp [-R [-H | -L | -P]] [-f | -i | -n] [-aplv] source_file ... "
 "target_directory");
 	exit(EX_USAGE);
 }
