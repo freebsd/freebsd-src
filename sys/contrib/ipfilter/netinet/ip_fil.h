@@ -1,5 +1,3 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (C) 1993-2001, 2003 by Darren Reed.
  *
@@ -7,7 +5,7 @@
  *
  * @(#)ip_fil.h	1.35 6/5/96
  * $FreeBSD$
- * Id: ip_fil.h,v 2.170.2.18 2005/03/28 10:47:52 darrenr Exp
+ * Id: ip_fil.h,v 2.170.2.29 2006/03/29 11:19:55 darrenr Exp $
  */
 
 #ifndef	__IP_FIL_H__
@@ -27,7 +25,7 @@
 # endif
 #endif
 
-#if defined(__STDC__) || defined(__GNUC__)
+#if defined(__STDC__) || defined(__GNUC__) || defined(_AIX51)
 # define	SIOCADAFR	_IOW('r', 60, struct ipfobj)
 # define	SIOCRMAFR	_IOW('r', 61, struct ipfobj)
 # define	SIOCSETFF	_IOW('r', 62, u_int)
@@ -308,6 +306,7 @@ typedef	struct	fr_info	{
 #ifdef	MENTAT
 	mb_t	*fin_qfm;		/* pointer to mblk where pkt starts */
 	void	*fin_qpi;
+	char	fin_ifname[LIFNAMSIZ];
 #endif
 #ifdef	__sgi
 	void	*fin_hbuf;
@@ -907,6 +906,7 @@ typedef	struct	tcpdata	{
 
 #define	TCP_WSCALE_SEEN		0x00000001
 #define	TCP_WSCALE_FIRST	0x00000002
+#define	TCP_SACK_PERMIT		0x00000004
 
 
 typedef	struct tcpinfo {
@@ -916,6 +916,9 @@ typedef	struct tcpinfo {
 } tcpinfo_t;
 
 
+/*
+ * Structures to define a GRE header as seen in a packet.
+ */
 struct	grebits	{
 	u_32_t	grb_C:1;
 	u_32_t	grb_R:1;
@@ -950,7 +953,9 @@ typedef	struct	grehdr	{
 #define	gr_A		gr_bits.grb_A
 #define	gr_ver		gr_bits.grb_ver
 
-
+/*
+ * GRE information tracked by "keep state"
+ */
 typedef	struct	greinfo	{
 	u_short	gs_call[2];
 	u_short	gs_flags;
@@ -958,6 +963,20 @@ typedef	struct	greinfo	{
 } greinfo_t;
 
 #define	GRE_REV(x)	((ntohs(x) >> 13) & 7)
+
+
+/*
+ * Format of an Authentication header
+ */
+typedef	struct	authhdr	{
+	u_char	ah_next;
+	u_char	ah_plen;
+	u_short	ah_reserved;
+	u_32_t	ah_spi;
+	u_32_t	ah_seq;
+	/* Following the sequence number field is 0 or more bytes of */
+	/* authentication data, as specified by ah_plen - RFC 2402.  */
+} authhdr_t;
 
 
 /*
@@ -1108,13 +1127,24 @@ typedef	struct	ipftune	{
 #if (defined(NetBSD) && (NetBSD > 199609) && (NetBSD <= 1991011)) || \
     (defined(NetBSD1_2) && NetBSD1_2 > 1) || \
     (defined(__FreeBSD__) && (__FreeBSD_version >= 500043))
-# if (NetBSD >= 199905)
+# if defined(NetBSD) && (NetBSD >= 199905)
 #  define PFIL_HOOKS
 # endif
 # ifdef PFIL_HOOKS
 #  define NETBSD_PF
 # endif
 #endif
+
+#ifdef _KERNEL
+# define	FR_VERBOSE(verb_pr)
+# define	FR_DEBUG(verb_pr)
+#else
+extern	void	debug __P((char *, ...));
+extern	void	verbose __P((char *, ...));
+# define	FR_VERBOSE(verb_pr)	verbose verb_pr
+# define	FR_DEBUG(verb_pr)	debug verb_pr
+#endif
+
 
 #ifndef	_KERNEL
 extern	int	fr_check __P((struct ip *, int, void *, int, mb_t **));
@@ -1131,6 +1161,7 @@ extern	int	iplioctl __P((int, ioctlcmd_t, caddr_t, int));
 extern	int	iplopen __P((dev_t, int));
 extern	int	iplclose __P((dev_t, int));
 extern	void	m_freem __P((mb_t *));
+extern	int	bcopywrap __P((void *, void *, size_t));
 #else /* #ifndef _KERNEL */
 # if defined(__NetBSD__) && defined(PFIL_HOOKS)
 extern	void	ipfilterattach __P((int));
@@ -1180,9 +1211,11 @@ extern	void	ipfilter_sgi_intfsync __P((void));
 #   ifdef	IPFILTER_LKM
 extern	int	iplidentify __P((char *));
 #   endif
-#   if (_BSDI_VERSION >= 199510) || (__FreeBSD_version >= 220000) || \
+#   if (defined(_BSDI_VERSION) && _BSDI_VERSION >= 199510) || \
+      (__FreeBSD_version >= 220000) || \
       (NetBSD >= 199511) || defined(__OpenBSD__)
-#    if defined(__NetBSD__) || (_BSDI_VERSION >= 199701) || \
+#    if defined(__NetBSD__) || \
+       (defined(_BSDI_VERSION) && _BSDI_VERSION >= 199701) || \
        defined(__OpenBSD__) || (__FreeBSD_version >= 300000)
 #     if (__FreeBSD_version >= 500024)
 #      if (__FreeBSD_version >= 502116)
@@ -1240,8 +1273,9 @@ extern	ipfmutex_t	ipl_mutex, ipf_authmx, ipf_rw, ipf_hostmap;
 extern	ipfmutex_t	ipf_timeoutlock, ipf_stinsert, ipf_natio, ipf_nat_new;
 extern	ipfrwlock_t	ipf_mutex, ipf_global, ip_poolrw, ipf_ipidfrag;
 extern	ipfrwlock_t	ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth;
+extern	ipfrwlock_t	ipf_frcache;
 
-extern	char	*memstr __P((char *, char *, int, int));
+extern	char	*memstr __P((const char *, char *, size_t, size_t));
 extern	int	count4bits __P((u_32_t));
 extern	int	frrequest __P((int, ioctlcmd_t, caddr_t, int, int));
 extern	char	*getifname __P((struct ifnet *));
@@ -1298,6 +1332,7 @@ extern	void	fr_delgroup __P((char *, minor_t, int));
 extern	frgroup_t *fr_findgroup __P((char *, minor_t, int, frgroup_t ***));
 
 extern	int	fr_loginit __P((void));
+extern	int	ipflog_canread __P((int));
 extern	int	ipflog_clear __P((minor_t));
 extern	int	ipflog_read __P((minor_t, uio_t *));
 extern	int	ipflog __P((fr_info_t *, u_int));
@@ -1306,7 +1341,7 @@ extern	void	fr_logunload __P((void));
 
 extern	frentry_t	*fr_acctpkt __P((fr_info_t *, u_32_t *));
 extern	int		fr_copytolog __P((int, char *, int));
-extern	u_short		fr_cksum __P((mb_t *, ip_t *, int, void *));
+extern	u_short		fr_cksum __P((mb_t *, ip_t *, int, void *, int));
 extern	void		fr_deinitialise __P((void));
 extern	frentry_t 	*fr_dolog __P((fr_info_t *, u_32_t *));
 extern	frentry_t 	*fr_dstgrpmap __P((fr_info_t *, u_32_t *));
@@ -1314,7 +1349,6 @@ extern	void		fr_fixskip __P((frentry_t **, frentry_t *, int));
 extern	void		fr_forgetifp __P((void *));
 extern	frentry_t 	*fr_getrulen __P((int, char *, u_32_t));
 extern	void		fr_getstat __P((struct friostat *));
-extern	int		fr_icmp4errortype __P((int));
 extern	int		fr_ifpaddr __P((int, int, void *,
 				struct in_addr *, struct in_addr *));
 extern	int		fr_initialise __P((void));

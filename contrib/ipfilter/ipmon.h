@@ -6,7 +6,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * Id: ipmon.h,v 2.8 2003/07/25 22:16:20 darrenr Exp
+ * $Id: ipmon.h,v 2.8.2.1 2006/03/21 16:13:31 darrenr Exp $
  */
 
 
@@ -94,3 +94,4 @@ extern	int	load_config __P((char *));
 extern	void	dumphex __P((FILE *, int, char *, int));
 extern	int	check_action __P((char *, char *, int, int));
 extern	char	*getword __P((int));
+extern	int	fac_findname __P((char *));

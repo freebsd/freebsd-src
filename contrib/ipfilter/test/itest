@@ -13,7 +13,14 @@ else
 fi
 echo "$1...";
 /bin/cp /dev/null results/$1
-../ipf -Rnvf regress/$1 2>/dev/null > results/$1
+case $3 in
+ipf)
+	../ipf -Rnvf regress/$1 2>/dev/null > results/$1
+	;;
+ipftest)
+	../ipftest -D -r regress/$1 -i /dev/null > results/$1
+	;;
+esac
 cmp expected/$1 results/$1
 status=$?
 if [ $status = 0 ] ; then

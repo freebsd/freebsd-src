@@ -1,4 +1,4 @@
-nomatch
+block
 nomatch
 pass
 nomatch
@@ -9,9 +9,14 @@ pass
 List of active MAP/Redirect filters:
 
 List of active sessions:
+
+Hostmap table:
 List of active state sessions:
 List of configured pools
 List of configured hash tables
+# 'anonymous' table
+table role = ipf type = hash number = 2147483650 size = 3
+	{ 4.4.0.0/16; 127.0.0.1/32; };
 # 'anonymous' table
 table role = ipf type = hash number = 2147483649 size = 3
 	{ 4.4.0.0/16; 127.0.0.1/32; };

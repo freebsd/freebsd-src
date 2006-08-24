@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: icmpcode.c,v 1.7.2.1 2004/12/09 19:41:20 darrenr Exp
+ * $Id: icmpcode.c,v 1.7.2.4 2006/02/25 17:40:22 darrenr Exp $
  */
 
 #include <ctype.h>
@@ -22,28 +22,3 @@ char	*icmpcodes[MAX_ICMPCODE + 1] = {
 	"net-unk", "host-unk", "isolate", "net-prohib", "host-prohib",
 	"net-tos", "host-tos", "filter-prohib", "host-preced", "preced-cutoff",
 	NULL };
-
-/*
- * Return the number for the associated ICMP unreachable code.
- */
-int icmpcode(str)
-char *str;
-{
-	char	*s;
-	int	i, len;
-
-	if ((s = strrchr(str, ')')))
-		*s = '\0';
-	if (ISDIGIT(*str)) {
-		if (!ratoi(str, &i, 0, 255))
-			return -1;
-		else
-			return i;
-	}
-	len = strlen(str);
-	for (i = 0; icmpcodes[i]; i++)
-		if (!strncasecmp(str, icmpcodes[i], MIN(len,
-				 strlen(icmpcodes[i])) ))
-			return i;
-	return -1;
-}

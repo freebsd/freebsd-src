@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)Id: ip_fil_freebsd.c,v 2.53.2.25 2005/02/01 03:15:56 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ip_fil_freebsd.c,v 2.53.2.32 2006/03/25 13:03:01 darrenr Exp $";
 #endif
 
 #if defined(KERNEL) || defined(_KERNEL)
@@ -57,6 +57,7 @@ static const char rcsid[] = "@(#)Id: ip_fil_freebsd.c,v 2.53.2.25 2005/02/01 03:
 #endif
 #include <sys/protosw.h>
 #include <sys/socket.h>
+#include <sys/selinfo.h>
 
 #include <net/if.h>
 #if __FreeBSD_version >= 300000
@@ -112,7 +113,7 @@ extern	int	path_mtu_discovery;
 #endif
 
 # ifdef IPFILTER_M_IPFILTER
-MALLOC_DEFINE(M_IPFILTER, "IP Filter", "IP Filter packet filter data structures");
+MALLOC_DEFINE(M_IPFILTER, "ipfilter", "IP Filter packet filter data structures");
 # endif
 
 
@@ -125,7 +126,7 @@ static	int	fr_send_ip __P((fr_info_t *, mb_t *, mb_t **));
 # ifdef USE_MUTEXES
 ipfmutex_t	ipl_mutex, ipf_authmx, ipf_rw, ipf_stinsert;
 ipfmutex_t	ipf_nat_new, ipf_natio, ipf_timeoutlock;
-ipfrwlock_t	ipf_mutex, ipf_global, ipf_ipidfrag;
+ipfrwlock_t	ipf_mutex, ipf_global, ipf_ipidfrag, ipf_frcache;
 ipfrwlock_t	ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth;
 # endif
 int		ipf_locks_done = 0;
@@ -133,6 +134,7 @@ int		ipf_locks_done = 0;
 #if (__FreeBSD_version >= 300000)
 struct callout_handle fr_slowtimer_ch;
 #endif
+struct	selinfo	ipfselwait[IPL_LOGSIZE];
 
 #if (__FreeBSD_version >= 500011)
 # include <sys/conf.h>
@@ -145,6 +147,19 @@ struct callout_handle fr_slowtimer_ch;
 int (*fr_checkp) __P((ip_t *ip, int hlen, void *ifp, int out, mb_t **mp));
 # endif /* NETBSD_PF */
 #endif /* __FreeBSD_version >= 500011 */
+
+
+#if (__FreeBSD_version >= 502103)
+static eventhandler_tag ipf_arrivetag, ipf_departtag, ipf_clonetag;
+
+static void ipf_ifevent(void *arg);
+
+static void ipf_ifevent(arg)
+void *arg;
+{
+        frsync(NULL);
+}
+#endif
 
 
 #if (__FreeBSD_version >= 501108) && defined(_KERNEL)
@@ -203,6 +218,7 @@ int iplattach()
 	RWLOCK_INIT(&ipf_global, "ipf filter load/unload mutex");
 	MUTEX_INIT(&ipf_timeoutlock, "ipf timeout queue mutex");
 	RWLOCK_INIT(&ipf_mutex, "ipf filter rwlock");
+	RWLOCK_INIT(&ipf_frcache, "ipf cache rwlock");
 	RWLOCK_INIT(&ipf_ipidfrag, "ipf IP NAT-Frag rwlock");
 	ipf_locks_done = 1;
 
@@ -271,11 +287,24 @@ pfil_error:
 	}
 #  endif
 # endif
+
+#if (__FreeBSD_version >= 502103)
+	ipf_arrivetag =  EVENTHANDLER_REGISTER(ifnet_arrival_event, \
+					       ipf_ifevent, NULL, \
+					       EVENTHANDLER_PRI_ANY);
+	ipf_departtag =  EVENTHANDLER_REGISTER(ifnet_departure_event, \
+					       ipf_ifevent, NULL, \
+					       EVENTHANDLER_PRI_ANY);
+	ipf_clonetag =  EVENTHANDLER_REGISTER(if_clone_event, ipf_ifevent, \
+					      NULL, EVENTHANDLER_PRI_ANY);
+#endif
+
 	if (fr_checkp != fr_check) {
 		fr_savep = fr_checkp;
 		fr_checkp = fr_check;
 	}
 
+	bzero((char *)ipfselwait, sizeof(ipfselwait));
 	bzero((char *)frcache, sizeof(frcache));
 	fr_running = 1;
 
@@ -314,6 +343,18 @@ int ipldetach()
 
 	if (fr_control_forwarding & 2)
 		ipforwarding = 0;
+
+#if (__FreeBSD_version >= 502103)
+	if (ipf_arrivetag != NULL) {
+		EVENTHANDLER_DEREGISTER(ifnet_arrival_event, ipf_arrivetag);
+	}
+	if (ipf_departtag != NULL) {
+		EVENTHANDLER_DEREGISTER(ifnet_departure_event, ipf_departtag);
+	}
+	if (ipf_clonetag != NULL) {
+		EVENTHANDLER_DEREGISTER(if_clone_event, ipf_clonetag);
+	}
+#endif
 
 	SPL_NET(s);
 
@@ -380,6 +421,7 @@ int ipldetach()
 		MUTEX_DESTROY(&ipf_timeoutlock);
 		MUTEX_DESTROY(&ipf_rw);
 		RW_DESTROY(&ipf_mutex);
+		RW_DESTROY(&ipf_frcache);
 		RW_DESTROY(&ipf_ipidfrag);
 		RW_DESTROY(&ipf_global);
 		ipf_locks_done = 0;
@@ -421,7 +463,7 @@ int mode;
 	friostat_t fio;
 
 #if (BSD >= 199306) && defined(_KERNEL)
-	if ((securelevel >= 2) && (mode & FWRITE))
+	if ((securelevel >= 3) && (mode & FWRITE))
 		return EPERM;
 #endif
 
@@ -439,9 +481,11 @@ int mode;
 	}
 
 	SPL_NET(s);
+	READ_ENTER(&ipf_global);
 
 	error = fr_ioctlswitch(unit, data, cmd, mode);
 	if (error != -1) {
+		RWLOCK_EXIT(&ipf_global);
 		SPL_X(s);
 		return error;
 	}
@@ -582,7 +626,10 @@ int mode;
 		error = EINVAL;
 		break;
 	}
+
+	RWLOCK_EXIT(&ipf_global);
 	SPL_X(s);
+
 	return error;
 }
 
@@ -705,14 +752,18 @@ dev_t dev;
 #endif
 register struct uio *uio;
 {
+	u_int	xmin = GET_MINOR(dev);
+
+	if (xmin < 0)
+		return ENXIO;
 
 # ifdef	IPFILTER_SYNC
-	if (GET_MINOR(dev) == IPL_LOGSYNC)
+	if (xmin == IPL_LOGSYNC)
 		return ipfsync_read(uio);
 # endif
 
 #ifdef IPFILTER_LOG
-	return ipflog_read(GET_MINOR(dev), uio);
+	return ipflog_read(xmin, uio);
 #else
 	return ENXIO;
 #endif
@@ -1118,6 +1169,8 @@ frdest_t *fdp;
 	u_short ip_off;
 	frentry_t *fr;
 
+	ro = NULL;
+
 #ifdef M_WRITABLE
 	/*
 	* HOT FIX/KLUDGE:
@@ -1131,15 +1184,15 @@ frdest_t *fdp;
 	* problem.
 	*/
 	if (M_WRITABLE(m) == 0) {
-		if ((m0 = m_dup(m, M_DONTWAIT)) != 0) {
+		m0 = m_dup(m, M_DONTWAIT);
+		if (m0 != 0) {
 			FREE_MB_T(m);
 			m = m0;
 			*mpp = m;
 		} else {
 			error = ENOBUFS;
 			FREE_MB_T(m);
-			*mpp = NULL;
-			fr_frouteok[1]++;
+			goto done;
 		}
 	}
 #endif
@@ -1181,18 +1234,8 @@ frdest_t *fdp;
 		goto bad;
 	}
 
-	/*
-	 * In case we're here due to "to <if>" being used with "keep state",
-	 * check that we're going in the correct direction.
-	 */
-	if ((fr != NULL) && (fin->fin_rev != 0)) {
-		if ((ifp != NULL) && (fdp == &fr->fr_tif))
-			return -1;
-	}
-	if (fdp != NULL) {
-		if (fdp->fd_ip.s_addr != 0)
-			dst->sin_addr = fdp->fd_ip;
-	}
+	if ((fdp != NULL) && (fdp->fd_ip.s_addr != 0))
+		dst->sin_addr = fdp->fd_ip;
 
 	dst->sin_len = sizeof(*dst);
 	rtalloc(ro);
@@ -1309,6 +1352,7 @@ frdest_t *fdp;
 		else
 			mhip->ip_off |= IP_MF;
 		mhip->ip_len = htons((u_short)(len + mhlen));
+		*mnext = m;
 		m->m_next = m_copy(m0, off, len);
 		if (m->m_next == 0) {
 			error = ENOBUFS;	/* ??? */
@@ -1319,7 +1363,6 @@ frdest_t *fdp;
 		mhip->ip_off = htons((u_short)mhip->ip_off);
 		mhip->ip_sum = 0;
 		mhip->ip_sum = in_cksum(m, mhlen);
-		*mnext = m;
 		mnext = &m->m_act;
 	}
 	/*
@@ -1348,7 +1391,7 @@ done:
 	else
 		fr_frouteok[1]++;
 
-	if (ro->ro_rt) {
+	if ((ro != NULL) && (ro->ro_rt != NULL)) {
 		RTFREE(ro->ro_rt);
 	}
 	*mpp = NULL;
@@ -1450,6 +1493,9 @@ struct in_addr *inp, *inpmask;
 		sock = ifa->ifa_broadaddr;
 	else if (atype == FRI_PEERADDR)
 		sock = ifa->ifa_dstaddr;
+
+	if (sock == NULL)
+		return -1;
 
 #ifdef USE_INET6
 	if (v == 6) {

@@ -109,7 +109,7 @@ struct file;
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)Id: ip_state.c,v 2.186.2.29 2005/03/28 10:47:54 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.186.2.41 2006/04/01 10:16:28 darrenr Exp $";
 #endif
 
 static	ipstate_t **ips_table = NULL;
@@ -507,13 +507,17 @@ int mode;
 	 * means no packets match).
 	 */
 	case SIOCSTLCK :
-		fr_lock(data, &fr_state_lock);
+		if (!(mode & FWRITE)) {
+			error = EPERM;
+		} else {
+			fr_lock(data, &fr_state_lock);
+		}
 		break;
 	/*
 	 * Add an entry to the current state table.
 	 */
 	case SIOCSTPUT :
-		if (!fr_state_lock) {
+		if (!fr_state_lock || !(mode &FWRITE)) {
 			error = EACCES;
 			break;
 		}
@@ -635,6 +639,7 @@ caddr_t data;
 	if (fr == NULL) {
 		READ_ENTER(&ipf_state);
 		fr_stinsert(isn, 0);
+		MUTEX_EXIT(&isn->is_lock);
 		RWLOCK_EXIT(&ipf_state);
 		return 0;
 	}
@@ -665,6 +670,7 @@ caddr_t data;
 		fr->fr_ref = 0;
 		fr->fr_dsize = 0;
 		fr->fr_data = NULL;
+		fr->fr_type = FR_T_NONE;
 
 		fr_resolvedest(&fr->fr_tif, fr->fr_v);
 		fr_resolvedest(&fr->fr_dif, fr->fr_v);
@@ -682,6 +688,7 @@ caddr_t data;
 		}
 		READ_ENTER(&ipf_state);
 		fr_stinsert(isn, 0);
+		MUTEX_EXIT(&isn->is_lock);
 		RWLOCK_EXIT(&ipf_state);
 
 	} else {
@@ -689,6 +696,7 @@ caddr_t data;
 		for (is = ips_list; is; is = is->is_next)
 			if (is->is_rule == fr) {
 				fr_stinsert(isn, 0);
+				MUTEX_EXIT(&isn->is_lock);
 				break;
 			}
 
@@ -716,6 +724,7 @@ caddr_t data;
 /* to pointers and adjusts running stats for the hash table as appropriate. */
 /*                                                                          */
 /* Locking: it is assumed that some kind of lock on ipf_state is held.      */
+/*          Exits with is_lock initialised and held.                        */
 /* ------------------------------------------------------------------------ */
 void fr_stinsert(is, rev)
 ipstate_t *is;
@@ -780,7 +789,6 @@ int rev;
 	MUTEX_EXIT(&ipf_stinsert);
 
 	fr_setstatequeue(is, rev);
-	MUTEX_EXIT(&is->is_lock);
 }
 
 
@@ -796,6 +804,11 @@ int rev;
 /* Inserts it into the state table and appends to the bottom of the active  */
 /* list.  If the capacity of the table has reached the maximum allowed then */
 /* the call will fail and a flush is scheduled for the next timeout call.   */
+/*                                                                          */
+/* NOTE: The use of stsave to point to nat_state will result in memory      */
+/*       corruption.  It should only be used to point to objects that will  */
+/*       either outlive this (not expired) or will deref the ip_state_t     */
+/*       when they are deleted.                                             */
 /* ------------------------------------------------------------------------ */
 ipstate_t *fr_addstate(fin, stsave, flags)
 fr_info_t *fin;
@@ -818,24 +831,29 @@ u_int flags;
 	if ((fin->fin_flx & FI_OOW) && !(fin->fin_tcpf & TH_SYN))
 		return NULL;
 
-	fr = fin->fin_fr;
-	if ((fr->fr_statemax == 0) && (ips_num == fr_statemax)) {
-		ATOMIC_INCL(ips_stats.iss_max);
-		fr_state_doflush = 1;
-		return NULL;
-	}
-
 	/*
 	 * If a "keep state" rule has reached the maximum number of references
 	 * to it, then schedule an automatic flush in case we can clear out
-	 * some "dead old wood".
+	 * some "dead old wood".  Note that because the lock isn't held on
+	 * fr it is possible that we could overflow.  The cost of overflowing
+	 * is being ignored here as the number by which it can overflow is
+	 * a product of the number of simultaneous threads that could be
+	 * executing in here, so a limit of 100 won't result in 200, but could
+	 * result in 101 or 102.
 	 */
-	if ((fr != NULL) && (fr->fr_statemax != 0) &&
-	    (fr->fr_statecnt >= fr->fr_statemax)) {
-		MUTEX_EXIT(&fr->fr_lock);
-		ATOMIC_INCL(ips_stats.iss_maxref);
-		fr_state_doflush = 1;
-		return NULL;
+	fr = fin->fin_fr;
+	if (fr != NULL) {
+		if ((ips_num == fr_statemax) && (fr->fr_statemax == 0)) {
+			ATOMIC_INCL(ips_stats.iss_max);
+			fr_state_doflush = 1;
+			return NULL;
+		}
+		if ((fr->fr_statemax != 0) &&
+		    (fr->fr_statecnt >= fr->fr_statemax)) {
+			ATOMIC_INCL(ips_stats.iss_maxref);
+			fr_state_doflush = 1;
+			return NULL;
+		}
 	}
 
 	pass = (fr == NULL) ? 0 : fr->fr_flags;
@@ -979,9 +997,9 @@ u_int flags;
 			    TH_SYN &&
 			    (TCP_OFF(tcp) > (sizeof(tcphdr_t) >> 2))) {
 				if (fr_tcpoptions(fin, tcp,
-					      &is->is_tcp.ts_data[0]))
-					is->is_swinflags = TCP_WSCALE_SEEN|
-							   TCP_WSCALE_FIRST;
+					      &is->is_tcp.ts_data[0]) == -1) {
+					fin->fin_flx |= FI_BAD;
+				}
 			}
 
 			if ((fin->fin_out != 0) && (pass & FR_NEWISN) != 0) {
@@ -1124,8 +1142,15 @@ u_int flags;
 	 * this may change.
 	 */
 	is->is_v = fin->fin_v;
-	is->is_opt = fin->fin_optmsk;
-	is->is_optmsk = 0xffffffff;
+	is->is_opt[0] = fin->fin_optmsk;
+	is->is_optmsk[0] = 0xffffffff;
+	is->is_optmsk[1] = 0xffffffff;
+	if (is->is_v == 6) {
+		is->is_opt[0] &= ~0x8;
+		is->is_optmsk[0] &= ~0x8;
+		is->is_optmsk[1] &= ~0x8;
+	}
+	is->is_me = stsave;
 	is->is_sec = fin->fin_secmsk;
 	is->is_secmsk = 0xffff;
 	is->is_auth = fin->fin_auth;
@@ -1140,7 +1165,6 @@ u_int flags;
 		is->is_pass &= ~(FR_LOGFIRST|FR_LOG);
 
 	READ_ENTER(&ipf_state);
-	is->is_me = stsave;
 
 	fr_stinsert(is, fin->fin_rev);
 
@@ -1150,13 +1174,14 @@ u_int flags;
 		* timer on it as we'll never see an error if it fails to
 		* connect.
 		*/
-		MUTEX_ENTER(&is->is_lock);
 		(void) fr_tcp_age(&is->is_sti, fin, ips_tqtqb, is->is_flags);
 		MUTEX_EXIT(&is->is_lock);
 #ifdef	IPFILTER_SCAN
 		if ((is->is_flags & SI_CLONE) == 0)
 			(void) ipsc_attachis(is);
 #endif
+	} else {
+		MUTEX_EXIT(&is->is_lock);
 	}
 #ifdef	IPFILTER_SYNC
 	if ((is->is_flags & IS_STATESYNC) && ((is->is_flags & SI_CLONE) == 0))
@@ -1178,7 +1203,8 @@ u_int flags;
 
 /* ------------------------------------------------------------------------ */
 /* Function:    fr_tcpoptions                                               */
-/* Returns:     int - 1 == packet matches state entry, 0 == it does not     */
+/* Returns:     int - 1 == packet matches state entry, 0 == it does not,    */
+/*                   -1 == packet has bad TCP options data                  */
 /* Parameters:  fin(I) - pointer to packet information                      */
 /*              tcp(I) - pointer to TCP packet header                       */
 /*              td(I)  - pointer to TCP data held as part of the state      */
@@ -1195,13 +1221,14 @@ tcpdata_t *td;
 	char buf[64], *s, opt;
 	mb_t *m = NULL;
 
-	off = fin->fin_hlen + sizeof(*tcp);
-	len = (TCP_OFF(tcp) << 2) - sizeof(*tcp);
-	if (fin->fin_plen < off + len)
+	len = (TCP_OFF(tcp) << 2);
+	if (fin->fin_dlen < len)
 		return 0;
+	len -= sizeof(*tcp);
+
+	off = fin->fin_plen - fin->fin_dlen + sizeof(*tcp) + fin->fin_ipoff;
 
 	m = fin->fin_m;
-	off += fin->fin_ipoff;
 	mlen = MSGDSIZE(m) - off;
 	if (len > mlen) {
 		len = mlen;
@@ -1239,7 +1266,10 @@ tcpdata_t *td;
 					else if (i < 0)
 						i = 0;
 					td->td_winscale = i;
-				}
+					td->td_winflags |= TCP_WSCALE_SEEN|
+							   TCP_WSCALE_FIRST;
+				} else
+					retval = -1;
 				break;
 			case TCPOPT_MAXSEG :
 				/*
@@ -1251,7 +1281,14 @@ tcpdata_t *td;
 					i <<= 8;
 					i += (int)*(s + 3);
 					td->td_maxseg = i;
-				}
+				} else
+					retval = -1;
+				break;
+			case TCPOPT_SACK_PERMITTED :
+				if (ol == TCPOLEN_SACK_PERMITTED)
+					td->td_winflags |= TCP_SACK_PERMIT;
+				else
+					retval = -1;
 				break;
 			}
 		}
@@ -1322,24 +1359,22 @@ ipstate_t *is;
 			is->is_s0[source] = ntohl(tcp->th_ack);
 			is->is_s0[!source] = ntohl(tcp->th_seq) + 1;
 			if ((TCP_OFF(tcp) > (sizeof(tcphdr_t) >> 2)) &&
-			    tdata->td_winscale) {
-				if (fr_tcpoptions(fin, tcp, fdata)) {
-					fdata->td_winflags = TCP_WSCALE_SEEN|
-							     TCP_WSCALE_FIRST;
-				} else {
-					if (!fdata->td_winscale)
-						tdata->td_winscale = 0;
+			    (tdata->td_winflags & TCP_WSCALE_SEEN)) {
+				if (fr_tcpoptions(fin, tcp, fdata) == -1)
+					fin->fin_flx |= FI_BAD;
+				if (!(fdata->td_winflags & TCP_WSCALE_SEEN)) {
+					fdata->td_winscale = 0;
+					tdata->td_winscale = 0;
 				}
 			}
 			if ((fin->fin_out != 0) && (is->is_pass & FR_NEWISN))
 				fr_checknewisn(fin, is);
 		} else if (flags == TH_SYN) {
 			is->is_s0[source] = ntohl(tcp->th_seq) + 1;
-			if ((TCP_OFF(tcp) > (sizeof(tcphdr_t) >> 2)))
-				if (fr_tcpoptions(fin, tcp, tdata)) {
-					tdata->td_winflags = TCP_WSCALE_SEEN|
-							     TCP_WSCALE_FIRST;
-				}
+			if ((TCP_OFF(tcp) > (sizeof(tcphdr_t) >> 2))) {
+				if (fr_tcpoptions(fin, tcp, tdata) == -1)
+					fin->fin_flx |= FI_BAD;
+			}
 
 			if ((fin->fin_out != 0) && (is->is_pass & FR_NEWISN))
 				fr_checknewisn(fin, is);
@@ -1410,6 +1445,7 @@ int flags;
 	tcp_seq seq, ack, end;
 	int ackskew, tcpflags;
 	u_32_t win, maxwin;
+	int dsize, inseq;
 
 	/*
 	 * Find difference between last checked packet and this packet.
@@ -1421,8 +1457,15 @@ int flags;
 		win = ntohs(tcp->th_win);
 	else
 		win = ntohs(tcp->th_win) << fdata->td_winscale;
+
+	/*
+	 * A window of 0 produces undesirable behaviour from this function.
+	 */
 	if (win == 0)
 		win = 1;
+
+	dsize = fin->fin_dlen - (TCP_OFF(tcp) << 2) +
+	        ((tcpflags & TH_SYN) ? 1 : 0) + ((tcpflags & TH_FIN) ? 1 : 0);
 
 	/*
 	 * if window scaling is present, the scaling is only allowed
@@ -1441,14 +1484,15 @@ int flags;
 			fdata->td_maxwin = win;
 		} else {
 			fdata->td_winscale = 0;
-			fdata->td_winflags = 0;
+			fdata->td_winflags &= ~(TCP_WSCALE_FIRST|
+						TCP_WSCALE_SEEN);
 			tdata->td_winscale = 0;
-			tdata->td_winflags = 0;
+			tdata->td_winflags &= ~(TCP_WSCALE_FIRST|
+						TCP_WSCALE_SEEN);
 		  }
 	}
 
-	end = seq + fin->fin_dlen - (TCP_OFF(tcp) << 2) +
-	      ((tcpflags & TH_SYN) ? 1 : 0) + ((tcpflags & TH_FIN) ? 1 : 0);
+	end = seq + dsize;
 
 	if ((fdata->td_end == 0) &&
 	    (!(flags & IS_TCPFSM) ||
@@ -1456,7 +1500,7 @@ int flags;
 		/*
 		 * Must be a (outgoing) SYN-ACK in reply to a SYN.
 		 */
-		fdata->td_end = end;
+		fdata->td_end = end - 1;
 		fdata->td_maxwin = 1;
 		fdata->td_maxend = end + win;
 	}
@@ -1468,9 +1512,6 @@ int flags;
 		/* gross hack to get around certain broken tcp stacks */
 		ack = tdata->td_end;
 	}
-
-	if (seq == end)
-		seq = end = fdata->td_end;
 
 	maxwin = tdata->td_maxwin;
 	ackskew = tdata->td_end - ack;
@@ -1486,16 +1527,58 @@ int flags;
 
 #define	SEQ_GE(a,b)	((int)((a) - (b)) >= 0)
 #define	SEQ_GT(a,b)	((int)((a) - (b)) > 0)
-	if (
-#if defined(_KERNEL)
-	    (SEQ_GE(fdata->td_maxend, end)) &&
+	inseq = 0;
+	if ((SEQ_GE(fdata->td_maxend, end)) &&
 	    (SEQ_GE(seq, fdata->td_end - maxwin)) &&
-#endif
 /* XXX what about big packets */
 #define MAXACKWINDOW 66000
 	    (-ackskew <= (MAXACKWINDOW << fdata->td_winscale)) &&
 	    ( ackskew <= (MAXACKWINDOW << fdata->td_winscale))) {
+		inseq = 1;
+	/*
+	 * Microsoft Windows will send the next packet to the right of the
+	 * window if SACK is in use.
+	 */
+	} else if ((seq == fdata->td_maxend) && (ackskew == 0) &&
+	    (fdata->td_winflags & TCP_SACK_PERMIT) &&
+	    (tdata->td_winflags & TCP_SACK_PERMIT)) {
+		inseq = 1;
+	/*
+	 * Sometimes a TCP RST will be generated with only the ACK field
+	 * set to non-zero.
+	 */
+	} else if ((seq == 0) && (tcpflags == (TH_RST|TH_ACK)) &&
+		   (ackskew >= -1) && (ackskew <= 1)) {
+		inseq = 1;
+	} else if (!(flags & IS_TCPFSM)) {
+		int i;
 
+		i = (fin->fin_rev << 1) + fin->fin_out;
+
+#if 0
+		if (is_pkts[i]0 == 0) {
+			/*
+			 * Picking up a connection in the middle, the "next"
+			 * packet seen from a direction that is new should be
+			 * accepted, even if it appears out of sequence.
+			 */
+			inseq = 1;
+		} else 
+#endif
+		if (!(fdata->td_winflags &
+			    (TCP_WSCALE_SEEN|TCP_WSCALE_FIRST))) {
+			/*
+			 * No TCPFSM and no window scaling, so make some
+			 * extra guesses.
+			 */
+			if ((seq == fdata->td_maxend) && (ackskew == 0))
+				inseq = 1;
+			else if (SEQ_GE(seq + maxwin, fdata->td_end - maxwin))
+				inseq = 1;
+		}
+	}
+
+	if (inseq) {
 		/* if ackskew < 0 then this should be due to fragmented
 		 * packets. There is no way to know the length of the
 		 * total packet in advance.
@@ -1584,8 +1667,7 @@ ipstate_t *is;
 	clone->is_flags &= ~SI_CLONE;
 	clone->is_flags |= SI_CLONED;
 	fr_stinsert(clone, fin->fin_rev);
-	MUTEX_ENTER(&clone->is_lock);
-	clone->is_ref = 1;
+	clone->is_ref = 2;
 	if (clone->is_p == IPPROTO_TCP) {
 		(void) fr_tcp_age(&clone->is_sti, fin, ips_tqtqb,
 				  clone->is_flags);
@@ -1770,7 +1852,7 @@ u_32_t cmask;
 	 * Match up any flags set from IP options.
 	 */
 	if ((cflx && (flx != (cflx & cmask))) ||
-	    ((fin->fin_optmsk & is->is_optmsk) != is->is_opt) ||
+	    ((fin->fin_optmsk & is->is_optmsk[rev]) != is->is_opt[rev]) ||
 	    ((fin->fin_secmsk & is->is_secmsk) != is->is_sec) ||
 	    ((fin->fin_auth & is->is_authmsk) != is->is_auth))
 		return NULL;
@@ -1787,9 +1869,12 @@ u_32_t cmask;
 
 	if ((flags & (SI_W_SPORT|SI_W_DPORT))) {
 		if ((flags & SI_CLONE) != 0) {
-			is = fr_stclone(fin, tcp, is);
-			if (is == NULL)
+			ipstate_t *clone;
+
+			clone = fr_stclone(fin, tcp, is);
+			if (clone == NULL)
 				return NULL;
+			is = clone;
 		} else {
 			ATOMIC_DECL(ips_stats.iss_wild);
 		}
@@ -1820,8 +1905,14 @@ u_32_t cmask;
 
 	ret = -1;
 
-	if (is->is_flx[out][rev] == 0)
+	if (is->is_flx[out][rev] == 0) {
 		is->is_flx[out][rev] = flx;
+		is->is_opt[rev] = fin->fin_optmsk;
+		if (is->is_v == 6) {
+			is->is_opt[rev] &= ~0x8;
+			is->is_optmsk[rev] &= ~0x8;
+		}
+	}
 
 	/*
 	 * Check if the interface name for this "direction" is set and if not,
@@ -1867,21 +1958,16 @@ fr_info_t *fin;
 
 	/*
 	 * Does it at least have the return (basic) IP header ?
+	 * Is it an actual recognised ICMP error type?
 	 * Only a basic IP header (no options) should be with
 	 * an ICMP error header.
 	 */
 	if ((fin->fin_v != 4) || (fin->fin_hlen != sizeof(ip_t)) ||
-	    (fin->fin_plen < ICMPERR_MINPKTLEN))
+	    (fin->fin_plen < ICMPERR_MINPKTLEN) ||
+	    !(fin->fin_flx & FI_ICMPERR))
 		return NULL;
 	ic = fin->fin_dp;
 	type = ic->icmp_type;
-	/*
-	 * If it's not an error type, then return
-	 */
-	if ((type != ICMP_UNREACH) && (type != ICMP_SOURCEQUENCH) &&
-    	    (type != ICMP_REDIRECT) && (type != ICMP_TIMXCEED) &&
-    	    (type != ICMP_PARAMPROB))
-		return NULL;
 
 	oip = (ip_t *)((char *)ic + ICMPERR_ICMPHLEN);
 	/*
@@ -1944,7 +2030,7 @@ fr_info_t *fin;
 	 */
 	savelen = oip->ip_len;
 	oip->ip_len = len;
-	oip->ip_off = htons(oip->ip_off);
+	oip->ip_off = ntohs(oip->ip_off);
 
 	ofin.fin_flx = FI_NOCKSUM;
 	ofin.fin_v = 4;
@@ -1972,8 +2058,6 @@ fr_info_t *fin;
 	switch (oip->ip_p)
 	{
 	case IPPROTO_ICMP :
-		icmp = (icmphdr_t *)((char *)oip + (IP_HL(oip) << 2));
-
 		/*
 		 * an ICMP error can only be generated as a result of an
 		 * ICMP query, not as the response on an ICMP error
@@ -1981,15 +2065,13 @@ fr_info_t *fin;
 		 * XXX theoretically ICMP_ECHOREP and the other reply's are
 		 * ICMP query's as well, but adding them here seems strange XXX
 		 */
-		if ((icmp->icmp_type != ICMP_ECHO) &&
-		    (icmp->icmp_type != ICMP_TSTAMP) &&
-		    (icmp->icmp_type != ICMP_IREQ) &&
-		    (icmp->icmp_type != ICMP_MASKREQ))
+		if ((ofin.fin_flx & FI_ICMPERR) != 0)
 		    	return NULL;
 
 		/*
 		 * perform a lookup of the ICMP packet in the state table
 		 */
+		icmp = (icmphdr_t *)((char *)oip + (IP_HL(oip) << 2));
 		hv = (pr = oip->ip_p);
 		src.in4 = oip->ip_src;
 		hv += src.in4.s_addr;
@@ -2008,10 +2090,6 @@ fr_info_t *fin;
 			is = fr_matchsrcdst(&ofin, is, &src, &dst,
 					    NULL, FI_ICMPCMP);
 			if (is != NULL) {
-				if ((is->is_pass & FR_NOICMPERR) != 0) {
-					RWLOCK_EXIT(&ipf_state);
-					return NULL;
-				}
 				/*
 				 * i  : the index of this packet (the icmp
 				 *      unreachable)
@@ -2284,7 +2362,8 @@ icmp6again:
 			if ((is->is_p != pr) || (is->is_v != v))
 				continue;
 			is = fr_matchsrcdst(fin, is, &src, &dst, NULL, FI_CMP);
-			if (is != NULL &&
+			if ((is != NULL) &&
+			    (ic->icmp_id == is->is_icmp.ici_id) &&
 			    fr_matchicmpqueryreply(v, &is->is_icmp,
 						   ic, fin->fin_rev)) {
 				if (fin->fin_rev)
@@ -2377,11 +2456,13 @@ retry_tcpudp:
 		break;
 	}
 
-	if ((is != NULL) && ((is->is_sti.tqe_flags & TQE_RULEBASED) != 0) &&
-	    (is->is_tqehead[fin->fin_rev] != NULL))
-		ifq = is->is_tqehead[fin->fin_rev];
-	if (ifq != NULL && ifqp != NULL)
-		*ifqp = ifq;
+	if (is != NULL) {
+		if (((is->is_sti.tqe_flags & TQE_RULEBASED) != 0) &&
+		    (is->is_tqehead[fin->fin_rev] != NULL))
+			ifq = is->is_tqehead[fin->fin_rev];
+		if (ifq != NULL && ifqp != NULL)
+			*ifqp = ifq;
+	}
 	return is;
 }
 
@@ -2774,6 +2855,11 @@ int why;
 	if (ipstate_logging != 0 && why != 0)
 		ipstate_log(is, why);
 
+	if (is->is_p == IPPROTO_TCP)
+		ips_stats.iss_fin++;
+	else
+		ips_stats.iss_expire++;
+
 	if (is->is_rule != NULL) {
 		is->is_rule->fr_statecnt--;
 		(void)fr_derefrule(&is->is_rule);
@@ -2800,9 +2886,7 @@ void fr_timeoutstate()
 	ipftq_t *ifq, *ifqnext;
 	ipftqent_t *tqe, *tqn;
 	ipstate_t *is;
-#if defined(USE_SPL) && defined(_KERNEL)
-	int s;
-#endif
+	SPL_INT(s);
 
 	SPL_NET(s);
 	WRITE_ENTER(&ipf_state);
@@ -2872,9 +2956,7 @@ int which, proto;
 	int delete, removed;
 	long try, maxtick;
 	u_long interval;
-#if defined(_KERNEL) && !defined(MENTAT) && defined(USE_SPL)
-	int s;
-#endif
+	SPL_INT(s);
 
 	removed = 0;
 
@@ -2903,10 +2985,6 @@ int which, proto;
 		}
 
 		if (delete) {
-			if (is->is_p == IPPROTO_TCP)
-				ips_stats.iss_fin++;
-			else
-				ips_stats.iss_expire++;
 			fr_delstate(is, ISL_FLUSH);
 			removed++;
 		} else
@@ -3042,7 +3120,7 @@ int flags;
 	rval = 0;
 	dir = fin->fin_rev;
 	tcpflags = tcp->th_flags;
-	dlen = fin->fin_plen - fin->fin_hlen - (TCP_OFF(tcp) << 2);
+	dlen = fin->fin_dlen - (TCP_OFF(tcp) << 2);
 
 	if (tcpflags & TH_RST) {
 		if (!(tcpflags & TH_PUSH) && !dlen)
@@ -3180,13 +3258,34 @@ int flags;
 			break;
 
 		case IPF_TCPS_HALF_ESTAB: /* 4 */
-			if (ostate >= IPF_TCPS_HALF_ESTAB) {
-				if ((tcpflags & TH_ACKMASK) == TH_ACK) {
+			if (tcpflags & TH_FIN) {
+				nstate = IPF_TCPS_FIN_WAIT_1;
+				rval = 1;
+			} else if ((tcpflags & TH_ACKMASK) == TH_ACK) {
+				/*
+				 * If we've picked up a connection in mid
+				 * flight, we could be looking at a follow on
+				 * packet from the same direction as the one
+				 * that created this state.  Recognise it but
+				 * do not advance the entire connection's
+				 * state.
+				 */
+				switch (ostate)
+				{
+				case IPF_TCPS_CLOSED :
+				case IPF_TCPS_SYN_SENT :
+				case IPF_TCPS_SYN_RECEIVED :
+					rval = 1;
+					break;
+				case IPF_TCPS_HALF_ESTAB :
+				case IPF_TCPS_ESTABLISHED :
 					nstate = IPF_TCPS_ESTABLISHED;
 					rval = 1;
+					break;
+				default :
+					break;
 				}
 			}
-				
 			break;
 
 		case IPF_TCPS_ESTABLISHED: /* 5 */
@@ -3316,9 +3415,6 @@ int flags;
 				(u_long)tcp, tcpflags, (u_long)tqe,
 				nstate, ostate);
 # endif
-# ifdef DIAGNOSTIC
-			panic("invalid TCP state");
-# endif
 #else
 			abort();
 #endif
@@ -3442,20 +3538,16 @@ fr_info_t *fin;
 
 	/*
 	 * Does it at least have the return (basic) IP header ?
+	 * Is it an actual recognised ICMP error type?
 	 * Only a basic IP header (no options) should be with
 	 * an ICMP error header.
 	 */
-	if ((fin->fin_v != 6) || (fin->fin_plen < ICMP6ERR_MINPKTLEN))
+	if ((fin->fin_v != 6) || (fin->fin_plen < ICMP6ERR_MINPKTLEN) ||
+	    !(fin->fin_flx & FI_ICMPERR))
 		return NULL;
 
 	ic6 = fin->fin_dp;
 	type = ic6->icmp6_type;
-	/*
-	 * If it's not an error type, then return
-	 */
-	if ((type != ICMP6_DST_UNREACH) && (type != ICMP6_PACKET_TOO_BIG) &&
-	    (type != ICMP6_TIME_EXCEEDED) && (type != ICMP6_PARAM_PROB))
-		return NULL;
 
 	oip6 = (ip6_t *)((char *)ic6 + ICMPERR_ICMPHLEN);
 	if (fin->fin_plen < sizeof(*oip6))

@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: printmask.c,v 1.5 2002/06/15 04:48:33 darrenr Exp
+ * $Id: printmask.c,v 1.5 2002/06/15 04:48:33 darrenr Exp $
  */
 
 #include "ipf.h"

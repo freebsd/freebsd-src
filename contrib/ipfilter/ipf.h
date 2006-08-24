@@ -6,7 +6,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ipf.h	1.12 6/5/96
- * Id: ipf.h,v 2.71.2.6 2005/02/21 05:05:29 darrenr Exp
+ * $Id: ipf.h,v 2.71.2.8 2005/12/30 07:03:21 darrenr Exp $
  */
 
 #ifndef	__IPF_H__
@@ -184,7 +184,6 @@ extern	struct ipopt_names v6ionames[];
 extern int addicmp __P((char ***, struct frentry *, int));
 extern int addipopt __P((char *, struct ipopt_names *, int, char *));
 extern int addkeep __P((char ***, struct frentry *, int));
-extern int bcopywrap __P((void *, void *, size_t));
 extern void binprint __P((void *, size_t));
 extern void initparse __P((void));
 extern u_32_t buildopts __P((char *, char *, int));
@@ -265,6 +264,7 @@ extern void printpacket6 __P((struct ip *));
 extern struct ip_pool_s *printpool __P((struct ip_pool_s *, copyfunc_t,
 					char *, int));
 extern struct ip_pool_node *printpoolnode __P((struct ip_pool_node *, int));
+extern void printproto __P((struct protoent *, int, struct ipnat *));
 extern void printportcmp __P((int, struct frpcmp *));
 extern void optprint __P((u_short *, u_long, u_long));
 #ifdef	USE_INET6

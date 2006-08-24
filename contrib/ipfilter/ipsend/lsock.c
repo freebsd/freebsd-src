@@ -8,7 +8,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)lsock.c	1.2 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)Id: lsock.c,v 2.3 2001/06/09 17:09:26 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: lsock.c,v 2.3.4.1 2006/03/17 13:45:34 darrenr Exp $";
 #endif
 #include <stdio.h>
 #include <unistd.h>
@@ -227,6 +227,8 @@ struct	in_addr	gwip;
 	ti->ti_sport = lsin.sin_port;
 	printf("sport %d\n", ntohs(lsin.sin_port));
 	nfd = initdevice(dev, 0);
+	if (nfd == -1)
+		return -1;
 
 	if (!(s = find_tcp(fd, ti)))
 		return -1;

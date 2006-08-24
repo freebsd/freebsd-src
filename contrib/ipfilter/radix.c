@@ -103,6 +103,12 @@ static int rn_lexobetter __P((void *, void *));
 static struct radix_mask *rn_new_radix_mask __P((struct radix_node *,
     struct radix_mask *));
 static int rn_freenode __P((struct radix_node *, void *));
+#if defined(AIX) && !defined(_KERNEL)
+struct radix_node *rn_match __P((void *, struct radix_node_head *));
+struct radix_node *rn_addmask __P((int, int, void *));
+#define	FreeS(x, y)	KFREES(x, y)
+#define	Bcopy(x, y, z)	bcopy(x, y, z)
+#endif
 
 /*
  * The data structure for the keys is a radix tree with one way
@@ -133,7 +139,7 @@ static int rn_freenode __P((struct radix_node *, void *));
  * node as high in the tree as we can go.
  *
  * The present version of the code makes use of normal routes in short-
- * circuiting an explict mask and compare operation when testing whether
+ * circuiting an explicit mask and compare operation when testing whether
  * a key satisfies a normal route, and also in remembering the unique leaf
  * that governs a subtree.
  */

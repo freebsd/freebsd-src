@@ -98,7 +98,7 @@ struct file;
 /* END OF INCLUDES */
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)Id: ip_sync.c,v 2.40.2.3 2005/02/18 13:06:29 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ip_sync.c,v 2.40.2.7 2006/03/19 14:59:39 darrenr Exp $";
 #endif
 
 #define	SYNC_STATETABSZ	256
@@ -231,8 +231,10 @@ ipstate_t *ips;
 		ips->is_die = htonl(ips->is_die);
 		ips->is_pass = htonl(ips->is_pass);
 		ips->is_flags = htonl(ips->is_flags);
-		ips->is_opt = htonl(ips->is_opt);
-		ips->is_optmsk = htonl(ips->is_optmsk);
+		ips->is_opt[0] = htonl(ips->is_opt[0]);
+		ips->is_opt[1] = htonl(ips->is_opt[1]);
+		ips->is_optmsk[0] = htonl(ips->is_optmsk[0]);
+		ips->is_optmsk[1] = htonl(ips->is_optmsk[1]);
 		ips->is_sec = htons(ips->is_sec);
 		ips->is_secmsk = htons(ips->is_secmsk);
 		ips->is_auth = htons(ips->is_auth);
@@ -246,8 +248,10 @@ ipstate_t *ips;
 		ips->is_die = ntohl(ips->is_die);
 		ips->is_pass = ntohl(ips->is_pass);
 		ips->is_flags = ntohl(ips->is_flags);
-		ips->is_opt = ntohl(ips->is_opt);
-		ips->is_optmsk = ntohl(ips->is_optmsk);
+		ips->is_opt[0] = ntohl(ips->is_opt[0]);
+		ips->is_opt[1] = ntohl(ips->is_opt[1]);
+		ips->is_optmsk[0] = ntohl(ips->is_optmsk[0]);
+		ips->is_optmsk[1] = ntohl(ips->is_optmsk[1]);
 		ips->is_sec = ntohs(ips->is_sec);
 		ips->is_secmsk = ntohs(ips->is_secmsk);
 		ips->is_auth = ntohs(ips->is_auth);
@@ -700,7 +704,6 @@ int ipfsync_nat(sp, data)
 synchdr_t *sp;
 void *data;
 {
-	synclogent_t sle;
 	syncupdent_t su;
 	nat_t *n, *nat;
 	synclist_t *sl;
@@ -712,8 +715,6 @@ void *data;
 	switch (sp->sm_cmd)
 	{
 	case SMC_CREATE :
-		bcopy(data, &sle, sizeof(sle));
-
 		KMALLOC(n, nat_t *);
 		if (n == NULL) {
 			err = ENOMEM;
@@ -727,9 +728,7 @@ void *data;
 			break;
 		}
 
-		WRITE_ENTER(&ipf_nat);
-
-		nat = &sle.sle_un.sleu_ipn;
+		nat = (nat_t *)data;
 		bzero((char *)n, offsetof(nat_t, nat_age));
 		bcopy((char *)&nat->nat_age, (char *)&n->nat_age,
 		      sizeof(*n) - offsetof(nat_t, nat_age));
@@ -739,6 +738,8 @@ void *data;
 		sl->sl_idx = -1;
 		sl->sl_ipn = n;
 		sl->sl_num = ntohl(sp->sm_num);
+
+		WRITE_ENTER(&ipf_nat);
 		sl->sl_pnext = syncstatetab + hv;
 		sl->sl_next = syncstatetab[hv];
 		if (syncstatetab[hv] != NULL)
@@ -1002,5 +1003,17 @@ ioctlcmd_t cmd;
 int mode;
 {
 	return EINVAL;
+}
+
+
+int ipfsync_canread()
+{
+	return !((sl_tail == sl_idx) && (su_tail == su_idx));
+}
+
+
+int ipfsync_canwrite()
+{
+	return 1;
 }
 #endif /* IPFILTER_SYNC */

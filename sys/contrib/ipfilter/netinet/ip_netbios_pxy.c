@@ -1,9 +1,7 @@
-/*	$FreeBSD$	*/
-
 /*
  * Simple netbios-dgm transparent proxy for in-kernel use.
  * For use with the NAT code.
- * Id: ip_netbios_pxy.c,v 2.8 2003/12/01 02:52:16 darrenr Exp
+ * $Id: ip_netbios_pxy.c,v 2.8.2.1 2005/08/20 13:48:23 darrenr Exp $
  */
 
 /*-
@@ -31,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Id: ip_netbios_pxy.c,v 2.8 2003/12/01 02:52:16 darrenr Exp
+ * $Id: ip_netbios_pxy.c,v 2.8.2.1 2005/08/20 13:48:23 darrenr Exp $
  */
 
 #define	IPF_NETBIOS_PROXY
@@ -82,19 +80,17 @@ nat_t *nat;
 	aps = aps;	/* LINT */
 	nat = nat;	/* LINT */
 
-	ip = fin->fin_ip;
-	m = *(mb_t **)fin->fin_mp;
-	off = fin->fin_hlen + sizeof(udphdr_t);
-	dlen = M_LEN(m);
-	dlen -= off;
-
+	m = fin->fin_m;
+	dlen = fin->fin_dlen - sizeof(*udp);
 	/*
 	 * no net bios datagram could possibly be shorter than this
 	 */
 	if (dlen < 11)
 		return 0;
 
+	ip = fin->fin_ip;
 	udp = (udphdr_t *)fin->fin_dp;
+	off = (char *)udp - (char *)ip + sizeof(*udp) + fin->fin_ipoff;
 
 	/*
 	 * move past the

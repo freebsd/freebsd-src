@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: printfr.c,v 1.43.2.10 2005/03/16 15:38:13 darrenr Exp
+ * $Id: printfr.c,v 1.43.2.16 2006/03/29 11:19:59 darrenr Exp $
  */
 
 #include "ipf.h"
@@ -22,7 +22,7 @@ u_32_t *addr, *mask;
 	switch (type)
 	{
 	case FRI_BROADCAST :
-		suffix = "/bcast";
+		suffix = "bcast";
 		break;
 
 	case FRI_DYNAMIC :
@@ -32,15 +32,15 @@ u_32_t *addr, *mask;
 		break;
 
 	case FRI_NETWORK :
-		suffix = "/net";
+		suffix = "net";
 		break;
 
 	case FRI_NETMASKED :
-		suffix = "/netmasked";
+		suffix = "netmasked";
 		break;
 
 	case FRI_PEERADDR :
-		suffix = "/peer";
+		suffix = "peer";
 		break;
 
 	case FRI_LOOKUP :
@@ -107,6 +107,9 @@ ioctlfunc_t	iocfunc;
 	if ((fp->fr_type & FR_T_BUILTIN) != 0)
 		printf("# Builtin: ");
 
+	if (fp->fr_collect != 0)
+		printf("%u ", fp->fr_collect);
+
 	if (fp->fr_type == FR_T_CALLFUNC) {
 		;
 	} else if (fp->fr_func != NULL) {
@@ -119,20 +122,6 @@ ioctlfunc_t	iocfunc;
 		printf("pass");
 	else if (FR_ISBLOCK(fp->fr_flags)) {
 		printf("block");
-		if (fp->fr_flags & FR_RETICMP) {
-			if ((fp->fr_flags & FR_RETMASK) == FR_FAKEICMP)
-				printf(" return-icmp-as-dest");
-			else if ((fp->fr_flags & FR_RETMASK) == FR_RETICMP)
-				printf(" return-icmp");
-			if (fp->fr_icode) {
-				if (fp->fr_icode <= MAX_ICMPCODE)
-					printf("(%s)",
-						icmpcodes[(int)fp->fr_icode]);
-				else
-					printf("(%d)", fp->fr_icode);
-			}
-		} else if ((fp->fr_flags & FR_RETMASK) == FR_RETRST)
-			printf(" return-rst");
 	} else if ((fp->fr_flags & FR_LOGMASK) == FR_LOG) {
 		printlog(fp);
 	} else if (FR_ISACCOUNT(fp->fr_flags))
@@ -148,6 +137,20 @@ ioctlfunc_t	iocfunc;
 	else {
 		printf("%x", fp->fr_flags);
 	}
+	if (fp->fr_flags & FR_RETICMP) {
+		if ((fp->fr_flags & FR_RETMASK) == FR_FAKEICMP)
+			printf(" return-icmp-as-dest");
+		else if ((fp->fr_flags & FR_RETMASK) == FR_RETICMP)
+			printf(" return-icmp");
+		if (fp->fr_icode) {
+			if (fp->fr_icode <= MAX_ICMPCODE)
+				printf("(%s)",
+					icmpcodes[(int)fp->fr_icode]);
+			else
+				printf("(%d)", fp->fr_icode);
+		}
+	} else if ((fp->fr_flags & FR_RETMASK) == FR_RETRST)
+		printf(" return-rst");
 
 	if (fp->fr_flags & FR_OUTQUE)
 		printf(" out ");
@@ -189,12 +192,11 @@ ioctlfunc_t	iocfunc;
 		if (*fp->fr_ifnames[2]) {
 			printifname("", fp->fr_ifnames[2],
 				    fp->fr_ifas[2]);
-			putchar(' ');
-
 			if (*fp->fr_ifnames[3]) {
 				printifname(",", fp->fr_ifnames[3],
 					    fp->fr_ifas[3]);
 			}
+			putchar(' ');
 		}
 	}
 
@@ -208,10 +210,10 @@ ioctlfunc_t	iocfunc;
 			pr = -1;
 		} else if (fp->fr_mip.fi_p) {
 			pr = fp->fr_ip.fi_p;
-			if ((p = getprotobynumber(fp->fr_proto)))
-				printf("proto %s ", p->p_name);
-			else
-				printf("proto %d ", fp->fr_proto);
+			p = getprotobynumber(pr);
+			printf("proto ");
+			printproto(p, pr, NULL);
+			putchar(' ');
 		}
 	}
 
@@ -370,6 +372,35 @@ ioctlfunc_t	iocfunc;
 			if (!(fp->fr_flx & FI_OOW))
 				printf("not ");
 			printf("oow");
+			comma = ",";
+		}
+		if (fp->fr_mflx & FI_MBCAST) {
+			fputs(comma, stdout);
+			if (!(fp->fr_flx & FI_MBCAST))
+				printf("not ");
+			printf("mbcast");
+			comma = ",";
+		}
+		if (fp->fr_mflx & FI_BROADCAST) {
+			fputs(comma, stdout);
+			if (!(fp->fr_flx & FI_BROADCAST))
+				printf("not ");
+			printf("bcast");
+			comma = ",";
+		}
+		if (fp->fr_mflx & FI_MULTICAST) {
+			fputs(comma, stdout);
+			if (!(fp->fr_flx & FI_MULTICAST))
+				printf("not ");
+			printf("mcast");
+			comma = ",";
+		}
+		if (fp->fr_mflx & FI_STATE) {
+			fputs(comma, stdout);
+			if (!(fp->fr_flx & FI_STATE))
+				printf("not ");
+			printf("state");
+			comma = ",";
 		}
 	}
 
@@ -410,8 +441,8 @@ ioctlfunc_t	iocfunc;
 		if (fp->fr_flags & (FR_FRSTRICT)) {
 			printf(" (");
 			if (fp->fr_flags & FR_FRSTRICT)
-				printf(" strict");
-			printf(" )");
+				printf("strict");
+			printf(")");
 				
 		}
 	}

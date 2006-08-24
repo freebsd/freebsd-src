@@ -12,7 +12,7 @@
 #ifndef	__IP_STATE_H__
 #define	__IP_STATE_H__
 
-#if defined(__STDC__) || defined(__GNUC__)
+#if defined(__STDC__) || defined(__GNUC__) || defined(_AIX51)
 # define	SIOCDELST	_IOW('r', 61, struct ipfobj)
 #else
 # define	SIOCDELST	_IOW(r, 61, struct ipfobj)
@@ -61,8 +61,8 @@ typedef struct ipstate {
 	u_char	is_v;
 	u_32_t	is_hv;
 	u_32_t	is_tag;
-	u_32_t	is_opt;			/* packet options set */
-	u_32_t	is_optmsk;		/*    "      "    mask */
+	u_32_t	is_opt[2];		/* packet options set */
+	u_32_t	is_optmsk[2];		/*    "      "    mask */
 	u_short	is_sec;			/* security options set */
 	u_short	is_secmsk;		/*    "        "    mask */
 	u_short	is_auth;		/* authentication options set */

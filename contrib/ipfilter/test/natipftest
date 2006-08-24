@@ -27,7 +27,7 @@ single)
 	echo "$1...";
 	/bin/cp /dev/null results/$1
 	( while read rule; do
-		echo "$rule" | ../ipftest -R $format -bx -r regress/$1.ipf -N - -i input/$1 >> \
+		echo "$rule" | ../ipftest -R $format -b -r regress/$1.ipf -N - -i input/$1 >> \
 			results/$1;
 		if [ $? -ne 0 ] ; then
 			exit 1;
@@ -43,7 +43,7 @@ single)
 multi)
 	echo "$1...";
 	/bin/cp /dev/null results/$1
-	../ipftest -R $format -bx -r regress/$1.ipf -N regress/$1.nat \
+	../ipftest -R $format -b -r regress/$1.ipf -N regress/$1.nat \
 		-i input/$1 >> results/$1;
 	if [ $? -ne 0 ] ; then
 		exit 2;

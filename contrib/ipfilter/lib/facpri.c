@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: facpri.c,v 1.6 2003/12/01 01:59:43 darrenr Exp
+ * $Id: facpri.c,v 1.6.2.4 2006/03/17 22:28:41 darrenr Exp $
  */
 
 #include <stdio.h>
@@ -22,7 +22,7 @@
 #include "facpri.h"
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)Id: facpri.c,v 1.6 2003/12/01 01:59:43 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: facpri.c,v 1.6.2.4 2006/03/17 22:28:41 darrenr Exp $";
 #endif
 
 
@@ -42,10 +42,10 @@ table_t	facs[] = {
 #else
 	{ "cron", LOG_CRON1 },
 #endif
-#ifdef	LOG_FTP
+#ifdef LOG_FTP
 	{ "ftp", LOG_FTP },
 #endif
-#ifdef	LOG_AUTHPRIV
+#ifdef LOG_AUTHPRIV
 	{ "authpriv", LOG_AUTHPRIV },
 #endif
 #ifdef	LOG_AUDIT
@@ -81,13 +81,13 @@ fac_toname(facpri)
 
 	fac = facpri & LOG_FACMASK;
 	j = fac >> 3;
-	if (j < 24) {
+	if (j < (sizeof(facs)/sizeof(facs[0]))) {
 		if (facs[j].value == fac)
 			return facs[j].name;
-		for (i = 0; facs[i].name; i++)
-			if (fac == facs[i].value)
-				return facs[i].name;
 	}
+	for (i = 0; facs[i].name; i++)
+		if (fac == facs[i].value)
+			return facs[i].name;
 
 	return NULL;
 }
@@ -96,11 +96,11 @@ fac_toname(facpri)
 /*
  * map a facility name to its number
  */
-int
+int     
 fac_findname(name)
 	char *name;
 {
-	int	i;
+	int     i;
 
 	for (i = 0; facs[i].name; i++)
 		if (!strcmp(facs[i].name, name))
@@ -116,22 +116,6 @@ table_t	pris[] = {
 	{ "info", LOG_INFO },		{ "debug", LOG_DEBUG  },
 	{ NULL, 0 }
 };
-
-
-/*
- * map a priority name to its number
- */
-int
-pri_findname(name)
-	char *name;
-{
-	int	i;
-
-	for (i = 0; pris[i].name; i++)
-		if (!strcmp(pris[i].name, name))
-			return pris[i].value;
-	return -1;
-}
 
 
 /*
