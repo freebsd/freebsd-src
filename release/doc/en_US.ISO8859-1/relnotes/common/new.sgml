@@ -147,6 +147,11 @@
       allocation failures (as shown by <command>netstat -m</command>)
       to increase erroneously.</para>
 
+    <para>&os; now runs on the Xbox, whose architecture is nearly identical
+      to the i386.  For details of the latest development, see
+      <ulink url="http://www.FreeBSD.org/platforms/xbox.html"></ulink>.
+      </para>
+
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <sect3 id="boot">
@@ -216,6 +221,13 @@
 	added.  It allows firewall packages using the &man.pfil.9;
 	framework to examine (and filter) IPsec traffic before
 	outbound encryption and after inbound decryption.</para>
+
+      <para>The <literal>IPFIREWALL_FORWARD_EXTENDED</literal> kernel
+	option has been removed.  This option was used to permit
+	&man.ipfw.4; to redirect packets with local destinations.
+	This behavior is now always enabled when
+	the <literal>IPFIREWALL_FORWARD</literal> kernel option is
+	enabled.</para>
 
       <para>&os; &release.prev; contained a bug in the IPv6
 	implementation, which caused spurious error messages to be
@@ -329,6 +341,9 @@
 
   <sect2 id="contrib">
     <title>Contributed Software</title>
+
+    <para><application>IPFilter</application> has been updated from
+      4.1.8 to 4.1.13.</para>
 
     <para><application>sendmail</application> has been updated from
       8.13.6 to 8.13.8.</para>
