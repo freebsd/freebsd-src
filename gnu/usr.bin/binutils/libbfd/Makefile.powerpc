@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+ARCHS+=	rs6000
+
 DEFAULT_VECTOR=	bfd_elf32_powerpc_vec
 
 SRCS+=	cpu-powerpc.c	\
