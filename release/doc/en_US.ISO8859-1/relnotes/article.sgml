@@ -350,9 +350,9 @@
       implemented.</para>
 
     <para>&os; now runs on the Xbox, whose architecture is nearly identical
-      to the i386.  For details of the latest development,
-      see <ulink url="http://www.FreeBSD.org/platforms/xbox.html"></ulink>
-      and <ulink url="http://xbox-bsd.nl"></ulink>.</para>
+      to the i386.  For details of the latest development, see
+      <ulink url="http://www.FreeBSD.org/platforms/xbox.html"></ulink>.
+      &merged; </para>
 
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
@@ -767,6 +767,13 @@ pipe tablearg ip from table(1) to any</programlisting>
 	for example, by using <literal>tagged</literal>
 	rule option.  For more details, see &man.ipfw.8;.</para>
 
+      <para>The <literal>IPFIREWALL_FORWARD_EXTENDED</literal> kernel
+	option has been removed.  This option was used to permit
+	&man.ipfw.4; to redirect packets with local destinations.
+	This behavior is now always enabled when
+	the <literal>IPFIREWALL_FORWARD</literal> kernel option is
+	enabled. &merged;</para>
+
       <para>The ip6fw(8) packet filter has been removed.  Since &man.ipfw.4; has gained
         IPv6 support, it should be used instead.  Please note that some rules might need
         to be adjusted.</para>
@@ -1083,6 +1090,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.du.1; program now supports a <option>-n</option>
       flag, which causes it to ignore files and directories with
       the <literal>nodump</literal> flag set. &merged;</para>
+
+    <para>The &man.fsdb.8; utility now supports changing the birth
+      time of files on UFS2 file systems using the new 
+      the <literal>btime</literal> command.</para>
 
     <para>The &man.find.1; program now supports <option>-Btime</option>
       and other related primaries, which can be used to create expressions
@@ -1557,7 +1568,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       &merged;</para>
 
     <para><application>IPFilter</application> has been updated from
-      4.1.8 to 4.1.13.</para>
+      4.1.8 to 4.1.13. &merged;</para>
 
     <para><application>less</application> has been updated from v381
       to v394.</para>
