@@ -12,6 +12,7 @@
 # cd /sys/modules/foo; make depend; make; make install; kldload foo
 #
 # arg1 to this script is expected to be lowercase "foo"
+# arg2 path to the kernel sources, "/sys" if omitted
 #
 # Trust me, RUN THIS SCRIPT :)
 #
@@ -26,11 +27,13 @@ if [ "X${1}" = "X" ]; then
 	echo "Hey, how about some help here... give me a device name!"
 	exit 1
 fi
+if [ "X${2}" = "X" ]; then
+	TOP=`cd /sys; pwd -P`
+	echo "Using ${TOP} as the path to the kernel sources!"
+else
+	TOP=${2}
+fi
 UPPER=`echo ${1} |tr "[:lower:]" "[:upper:]"`
-
-HERE=`pwd`
-cd /sys
-TOP=`pwd`
 
 RCS_KEYWORD=FreeBSD
 
@@ -46,7 +49,7 @@ if [ -d ${TOP}/modules/${1} ]; then
 		echo "Cleaning up from prior runs"
 		rm -rf ${TOP}/dev/${1}
 		rm -rf ${TOP}/modules/${1}
-		rm ${TOP}/i386/conf/files.${UPPER}
+		rm ${TOP}/conf/files.${UPPER}
 		rm ${TOP}/i386/conf/${UPPER}
 		rm ${TOP}/sys/${1}io.h
 		;;
@@ -58,7 +61,7 @@ fi
 
 echo "The following files will be created:"
 echo ${TOP}/modules/${1}
-echo ${TOP}/i386/conf/files.${UPPER}
+echo ${TOP}/conf/files.${UPPER}
 echo ${TOP}/i386/conf/${UPPER}
 echo ${TOP}/dev/${1}
 echo ${TOP}/dev/${1}/${1}.c
@@ -79,7 +82,7 @@ echo ${TOP}/modules/${1}/Makefile
 # First add the file to a local file list.
 #######################################################################
 
-cat >${TOP}/i386/conf/files.${UPPER} <<DONE
+cat >${TOP}/conf/files.${UPPER} <<DONE
 dev/${1}/${1}.c	 optional ${1}
 DONE
 
@@ -88,14 +91,20 @@ DONE
 #######################################################################
 cat >${TOP}/i386/conf/${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
-ident	${UPPER}
 # \$${RCS_KEYWORD}$
+
+files		"${TOP}/conf/files.${UPPER}"
+
+include		GENERIC
+
+ident		${UPPER}
+
 DONE
 
-grep -v GENERIC < /sys/i386/conf/GENERIC >>${TOP}/i386/conf/${UPPER}
-
 cat >>${TOP}/i386/conf/${UPPER} <<DONE
-options		DDB		# trust me, you'll need this
+# trust me, you'll need this
+options		KDB
+options		DDB
 device		${1}
 DONE
 
@@ -152,8 +161,6 @@ __FBSDID("\$${RCS_KEYWORD}$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/bus_pio.h>
-#include <machine/bus_memio.h>
 #include <sys/rman.h>
 
 #include <dev/pci/pcireg.h>
@@ -198,7 +205,7 @@ struct ${1}_softc {
 	struct resource* res_irq;	/* Resource for irq range. */
 	struct resource* res_drq;	/* Resource for dma channel. */
 	device_t device;
-	dev_t dev;
+	struct cdev *dev;
 	void	*intr_cookie;
 	void	*vaddr;			/* Virtual address of mem resource. */
 	char	buffer[BUFFERSIZE];	/* If we need to buffer something. */
@@ -219,8 +226,8 @@ static d_mmap_t		${1}mmap;
 static d_poll_t		${1}poll;
 static	void		${1}intr(void *arg);
 
-#define CDEV_MAJOR 20
 static struct cdevsw ${1}_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	${1}open,
 	.d_close =	${1}close,
 	.d_read =	${1}read,
@@ -229,7 +236,6 @@ static struct cdevsw ${1}_cdevsw = {
 	.d_poll =	${1}poll,
 	.d_mmap =	${1}mmap,
 	.d_name =	"${1}",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static devclass_t ${1}_devclass;
@@ -818,7 +824,7 @@ ${1}intr(void *arg)
 }
 
 static int
-${1}ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+${1}ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
@@ -840,7 +846,7 @@ ${1}ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
  * This should get you started.
  */
 static int
-${1}open(dev_t dev, int oflags, int devtype, struct thread *td)
+${1}open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
@@ -852,7 +858,7 @@ ${1}open(dev_t dev, int oflags, int devtype, struct thread *td)
 }
 
 static int
-${1}close(dev_t dev, int fflag, int devtype, struct thread *td)
+${1}close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
@@ -864,7 +870,7 @@ ${1}close(dev_t dev, int fflag, int devtype, struct thread *td)
 }
 
 static int
-${1}read(dev_t dev, struct uio *uio, int ioflag)
+${1}read(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 	int	 toread;
@@ -879,7 +885,7 @@ ${1}read(dev_t dev, struct uio *uio, int ioflag)
 }
 
 static int
-${1}write(dev_t dev, struct uio *uio, int ioflag)
+${1}write(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 	int	towrite;
@@ -894,7 +900,7 @@ ${1}write(dev_t dev, struct uio *uio, int ioflag)
 }
 
 static int
-${1}mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+${1}mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
@@ -913,7 +919,7 @@ ${1}mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 }
 
 static int
-${1}poll(dev_t dev, int which, struct thread *td)
+${1}poll(struct cdev *dev, int which, struct thread *td)
 {
 	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
@@ -967,15 +973,40 @@ opt_inet.h:
 .include <bsd.kmod.mk>
 DONE
 
-(cd ${TOP}/modules/${1}; make depend; make )
-exit
+echo -n "Do you want to build the '${1}' module? [Y]"
+read VAL
+if [ "-z" "$VAL" ]; then
+	VAL=YES
+fi
+case ${VAL} in
+[yY]*)
+	(cd ${TOP}/modules/${1}; make depend; make )
+	;;
+*)
+#	exit
+	;;
+esac
 
-config ${UPPER}
-cd ../../compile/${UPPER}
-make depend
-make ${1}.o
-make
-exit
+echo ""
+echo -n "Do you want to build the '${UPPER}' kernel? [Y]"
+read VAL
+if [ "-z" "$VAL" ]; then
+	VAL=YES
+fi
+case ${VAL} in
+[yY]*)
+	(
+	 cd ${TOP}/i386/conf; \
+	 config ${UPPER}; \
+	 cd ${TOP}/i386/compile/${UPPER}; \
+	 make depend; \
+	 make; \
+	)
+	;;
+*)
+#	exit
+	;;
+esac
 
 #--------------end of script---------------
 #
