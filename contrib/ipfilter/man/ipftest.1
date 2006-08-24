@@ -5,7 +5,7 @@ ipftest \- test packet filter rules with arbitrary input.
 .SH SYNOPSIS
 .B ipftest
 [
-.B \-6bdDoRvx
+.B \-6bCdDoRvx
 ] [
 .B \-F
 input-format
@@ -27,6 +27,9 @@ interface
 ] [
 .B \-r
 <filename>
+] [
+.B \-S
+<ip_address>
 ] [
 .B \-T
 <optionlist>
@@ -56,6 +59,11 @@ Use IPv6.
 Cause the output to be a brief summary (one-word) of the result of passing
 the packet through the filter; either "pass", "block" or "nomatch".
 This is used in the regression testing.
+.TP
+.B \-C
+Force the checksums to be (re)calculated for all packets being input into
+\fBipftest\fP.  This may be necessary if pcap files from tcpdump are being
+fed in where there are partial checksums present due to hardware offloading.
 .TP
 .B \-d
 Turn on filter rule debugging.  Currently, this only shows you what caused
@@ -167,6 +175,14 @@ Specify the filename from which to read filter rules in \fBipf\fP(5) format.
 .TP
 .B \-R
 Don't attempt to convert IP addresses to hostnames.
+.TP
+.BR \-S \0<ip_address>
+The IP address specifived with this option is used by ipftest to determine
+whether a packet should be treated as "input" or "output".  If the source
+address in an IP packet matches then it is considered to be inbound.  If it
+does not match then it is considered to be outbound.  This is primarily
+for use with tcpdump (pcap) files where there is no in/out information
+saved with each packet.
 .TP
 .BR \-T \0<optionlist>
 This option simulates the run-time changing of IPFilter kernel variables

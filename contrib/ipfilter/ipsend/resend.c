@@ -8,7 +8,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)resend.c	1.3 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)Id: resend.c,v 2.8 2004/01/08 13:34:31 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: resend.c,v 2.8.2.2 2006/03/17 13:45:34 darrenr Exp $";
 #endif
 #include <sys/param.h>
 #include <sys/types.h>
@@ -81,6 +81,9 @@ char	*datain;
 	ip_t	*ip;
 	int	fd, wfd = initdevice(dev, 5), len, i;
 
+	if (wfd == -1)
+		return -1;
+
 	if (datain)
 		fd = (*r->r_open)(datain);
 	else
@@ -101,6 +104,7 @@ char	*datain;
 	if (gwip.s_addr && (arp((char *)&gwip, dhost) == -1))
 	    {
 		perror("arp");
+		free(eh);
 		return -2;
 	    }
 
@@ -137,5 +141,6 @@ char	*datain;
 		    }
 	    }
 	(*r->r_close)();
+	free(eh);
 	return 0;
 }

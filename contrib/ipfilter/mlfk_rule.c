@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: mlfk_rule.c,v 2.4.4.2 2004/04/16 23:32:08 darrenr Exp
+ * $Id: mlfk_rule.c,v 2.4.4.2 2004/04/16 23:32:08 darrenr Exp $
  */
 
 

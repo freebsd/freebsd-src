@@ -1,4 +1,4 @@
-#	$FreeBSD$
+# $FreeBSD$
 
 PROG=		ipf
 SRCS=		ipf.c ipfcomp.c ipf_y.c ipf_l.c bpf_filter.c
@@ -35,6 +35,7 @@ ipf_l.h: lexer.h
 LIBIPF_SRCS!=	cd ${.CURDIR}/../libipf && ${MAKE} -V SRCS
 SRCS+=	${LIBIPF_SRCS}
 .else
+DPADD+=	${LIBPCAP}
 LDADD+=	-lpcap
 .endif
 

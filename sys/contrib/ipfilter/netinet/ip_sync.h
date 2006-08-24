@@ -1,12 +1,10 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (C) 1993-2001 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * Id: ip_sync.h,v 2.11.2.2 2004/11/04 19:29:07 darrenr Exp
+ * $Id: ip_sync.h,v 2.11.2.3 2006/03/19 14:59:39 darrenr Exp $
  */
 
 #ifndef __IP_SYNC_H__
@@ -113,5 +111,7 @@ extern	int		ipfsync_nat __P((synchdr_t *sp, void *data));
 extern	int		ipfsync_state __P((synchdr_t *sp, void *data));
 extern	int		ipfsync_read __P((struct uio *uio));
 extern	int		ipfsync_write __P((struct uio *uio));
+extern	int		ipfsync_canread __P((void));
+extern	int		ipfsync_canwrite __P((void));
 
 #endif /* IP_SYNC */

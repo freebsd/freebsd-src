@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: genmask.c,v 1.7 2003/11/11 13:40:15 darrenr Exp
+ * $Id: genmask.c,v 1.7 2003/11/11 13:40:15 darrenr Exp $
  */
 
 #include "ipf.h"

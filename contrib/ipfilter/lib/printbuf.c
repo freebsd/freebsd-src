@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: printbuf.c,v 1.5.4.1 2004/12/09 19:41:22 darrenr Exp
+ * $Id: printbuf.c,v 1.5.4.1 2004/12/09 19:41:22 darrenr Exp $
  */
 
 #include <ctype.h>

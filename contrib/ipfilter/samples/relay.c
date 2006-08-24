@@ -18,9 +18,9 @@
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <net/if.h>
-#include "ip_compat.h"
-#include "ip_fil.h"
-#include "ip_nat.h"
+#include "netinet/ip_compat.h"
+#include "netinet/ip_fil.h"
+#include "netinet/ip_nat.h"
 #include "netinet/ipl.h"
 
 #define	RELAY_BUFSZ	8192

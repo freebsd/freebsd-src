@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)Id: ipfcomp.c,v 1.24.2.2 2004/04/28 10:34:44 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ipfcomp.c,v 1.24.2.3 2006/03/17 22:31:57 darrenr Exp $";
 #endif
 
 #include "ipf.h"
@@ -1224,7 +1224,7 @@ frgroup_t *grp;
 	char *instr;
 
 	group = grp->fg_name;
-	dogrp = 0;
+	dogrp = *group ? 1 : 0;
 
 	if (in && out) {
 		fprintf(stderr,

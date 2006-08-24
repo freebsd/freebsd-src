@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: fill6bits.c,v 1.5 2002/03/27 15:09:57 darrenr Exp
+ * $Id: fill6bits.c,v 1.5 2002/03/27 15:09:57 darrenr Exp $
  */
 
 #include "ipf.h"

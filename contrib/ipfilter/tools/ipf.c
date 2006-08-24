@@ -21,7 +21,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipf.c	1.23 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)Id: ipf.c,v 1.35.2.3 2004/12/15 18:27:17 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ipf.c,v 1.35.2.4 2006/03/17 11:48:08 darrenr Exp $";
 #endif
 
 #if !defined(__SVR4) && defined(__GNUC__)
@@ -198,7 +198,7 @@ static void closedevice()
 
 static	int	get_flags()
 {
-	int i;
+	int i = 0;
 
 	if ((opendevice(ipfname, 1) != -2) &&
 	    (ioctl(fd, SIOCGETFF, &i) == -1)) {
@@ -453,15 +453,21 @@ void ipf_frsync()
 
 void zerostats()
 {
+	ipfobj_t	obj;
 	friostat_t	fio;
-	friostat_t	*fiop = &fio;
+
+	obj.ipfo_rev = IPFILTER_VERSION;
+	obj.ipfo_type = IPFOBJ_IPFSTAT;
+	obj.ipfo_size = sizeof(fio);
+	obj.ipfo_ptr = &fio;
+	obj.ipfo_offset = 0;
 
 	if (opendevice(ipfname, 1) != -2) {
-		if (ioctl(fd, SIOCFRZST, &fiop) == -1) {
+		if (ioctl(fd, SIOCFRZST, &obj) == -1) {
 			perror("ioctl(SIOCFRZST)");
 			exit(-1);
 		}
-		showstats(fiop);
+		showstats(&fio);
 	}
 
 }

@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: getline.c,v 1.3 2001/06/09 17:09:24 darrenr Exp
+ * $Id: getline.c,v 1.3 2001/06/09 17:09:24 darrenr Exp $
  */
 
 #include <stdio.h>

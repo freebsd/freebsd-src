@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: facpri.h,v 1.3 2001/06/09 17:19:50 darrenr Exp
+ * $Id: facpri.h,v 1.3 2001/06/09 17:19:50 darrenr Exp $
  */
 
 #ifndef	__FACPRI_H__

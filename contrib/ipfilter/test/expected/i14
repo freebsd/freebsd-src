@@ -6,3 +6,5 @@ block in on vm0(!) proto tcp/udp from any to any head 101
 pass in proto tcp/udp from 1.1.1.1/32 to 2.2.2.2/32 group 101
 pass in proto tcp from 1.0.0.1/32 to 2.0.0.2/32 group 101
 pass in proto udp from 2.0.0.2/32 to 3.0.0.3/32 group 101
+block in on vm0(!) proto tcp/udp from any to any head vm0-group
+pass in proto tcp/udp from 1.1.1.1/32 to 2.2.2.2/32 group vm0-group

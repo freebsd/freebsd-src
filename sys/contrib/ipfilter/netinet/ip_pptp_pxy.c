@@ -1,12 +1,10 @@
-/*	$FreeBSD$	*/
-
 /*
  * Copyright (C) 2002-2003 by Darren Reed
  *
  * Simple PPTP transparent proxy for in-kernel use.  For use with the NAT
  * code.
  *
- * Id: ip_pptp_pxy.c,v 2.10.2.9 2005/03/16 18:17:34 darrenr Exp
+ * $Id: ip_pptp_pxy.c,v 2.10.2.13 2006/03/17 10:40:05 darrenr Exp $
  *
  */
 #define	IPF_PPTP_PROXY
@@ -89,15 +87,14 @@ nat_t *nat;
 	pptp_pxy_t *pptp;
 	ipnat_t *ipn;
 	ip_t *ip;
-	int off;
 
 	ip = fin->fin_ip;
-	off = fin->fin_hlen + sizeof(udphdr_t);
 
 	if (nat_outlookup(fin, 0, IPPROTO_GRE, nat->nat_inip,
 			  ip->ip_dst) != NULL) {
 		if (ippr_pptp_debug > 0)
-			printf("ippr_pptp_new: GRE session already exists\n");
+			printf("ippr_pptp_new: GRE session %s\n",
+			       "already exists");
 		return -1;
 	}
 
@@ -105,7 +102,8 @@ nat_t *nat;
 	KMALLOCS(aps->aps_data, pptp_pxy_t *, sizeof(*pptp));
 	if (aps->aps_data == NULL) {
 		if (ippr_pptp_debug > 0)
-			printf("ippr_pptp_new: malloc for aps_data failed\n");
+			printf("ippr_pptp_new: malloc for aps_data %s\n",
+			       "failed");
 		return -1;
 	}
 
@@ -212,10 +210,12 @@ pptp_pxy_t *pptp;
 		RWLOCK_EXIT(&ipf_state);
 	} else {
 		RWLOCK_EXIT(&ipf_state);
-		if (nat->nat_dir == NAT_INBOUND)
-			fi.fin_fi.fi_daddr = nat2->nat_inip.s_addr;
-		else
-			fi.fin_fi.fi_saddr = nat2->nat_inip.s_addr;
+		if (nat2 != NULL) {
+			if (nat->nat_dir == NAT_INBOUND)
+				fi.fin_fi.fi_daddr = nat2->nat_inip.s_addr;
+			else
+				fi.fin_fi.fi_saddr = nat2->nat_inip.s_addr;
+		}
 		fi.fin_ifp = NULL;
 		pptp->pptp_state = fr_addstate(&fi, &pptp->pptp_state,
 					       0);
@@ -238,7 +238,7 @@ nat_t *nat;
 pptp_pxy_t *pptp;
 int rev;
 {
-	static char *funcname = "ippr_pptp_nextmessage";
+	static const char *funcname = "ippr_pptp_nextmessage";
 	pptp_side_t *pptps;
 	u_32_t start, end;
 	pptp_hdr_t *hdr;

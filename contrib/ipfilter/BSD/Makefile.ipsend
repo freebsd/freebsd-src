@@ -1,5 +1,5 @@
 #
-# Id: Makefile.ipsend,v 2.8 2002/05/22 16:15:36 darrenr Exp
+# $Id: Makefile.ipsend,v 2.8 2002/05/22 16:15:36 darrenr Exp $
 #
 
 BINDEST=/usr/sbin

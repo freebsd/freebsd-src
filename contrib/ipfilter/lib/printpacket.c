@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: printpacket.c,v 1.12.4.1 2005/02/21 05:09:24 darrenr Exp
+ * $Id: printpacket.c,v 1.12.4.2 2005/12/04 09:33:06 darrenr Exp $
  */
 
 #include "ipf.h"
@@ -52,7 +52,8 @@ struct ip *ip;
 	}
 
 	tcp = (struct tcphdr *)((char *)ip + (IP_HL(ip) << 2));
-	printf("ip %d(%d) %d", ntohs(ip->ip_len), IP_HL(ip) << 2, ip->ip_p);
+	printf("ip #%d %d(%d) %d", ntohs(ip->ip_id), ntohs(ip->ip_len),
+	       IP_HL(ip) << 2, ip->ip_p);
 	if (off & IP_OFFMASK)
 		printf(" @%d", off << 3);
 	printf(" %s", inet_ntoa(ip->ip_src));
