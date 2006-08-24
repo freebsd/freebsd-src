@@ -172,6 +172,7 @@ static d_close_t	audit_pipe_close;
 static d_read_t		audit_pipe_read;
 static d_ioctl_t	audit_pipe_ioctl;
 static d_poll_t		audit_pipe_poll;
+static d_kqfilter_t	audit_pipe_kqfilter;
 
 static struct cdevsw	audit_pipe_cdevsw = {
 	.d_version =	D_VERSION,
@@ -181,7 +182,18 @@ static struct cdevsw	audit_pipe_cdevsw = {
 	.d_read =	audit_pipe_read,
 	.d_ioctl =	audit_pipe_ioctl,
 	.d_poll =	audit_pipe_poll,
+	.d_kqfilter =	audit_pipe_kqfilter,
 	.d_name =	AUDIT_PIPE_NAME,
+};
+
+static int	audit_pipe_kqread(struct knote *note, long hint);
+static void	audit_pipe_kqdetach(struct knote *note);
+
+static struct filterops audit_pipe_read_filterops = {
+	.f_isfd =	1,
+	.f_attach =	NULL,
+	.f_detach =	audit_pipe_kqdetach,
+	.f_event =	audit_pipe_kqread,
 };
 
 /*
@@ -425,6 +437,7 @@ audit_pipe_append(struct audit_pipe *ap, void *record, u_int record_len)
 	ap->ap_inserts++;
 	ap->ap_qlen++;
 	selwakeuppri(&ap->ap_selinfo, PSOCK);
+	KNOTE_LOCKED(&ap->ap_selinfo.si_note, 0);
 	if (ap->ap_flags & AUDIT_PIPE_ASYNC)
 		pgsigio(&ap->ap_sigio, SIGIO, 0);
 }
@@ -520,6 +533,8 @@ audit_pipe_alloc(void)
 		return (NULL);
 	ap->ap_qlimit = AUDIT_PIPE_QLIMIT_DEFAULT;
 	TAILQ_INIT(&ap->ap_queue);
+	knlist_init(&ap->ap_selinfo.si_note, &audit_pipe_mtx, NULL, NULL,
+	    NULL);
 
 	/*
 	 * Default flags, naflags, and auid-specific preselection settings to
@@ -533,6 +548,9 @@ audit_pipe_alloc(void)
 	TAILQ_INIT(&ap->ap_preselect_list);
 	ap->ap_preselect_mode = AUDITPIPE_PRESELECT_MODE_TRAIL;
 
+	/*
+	 * Add to global list and update global statistics.
+	 */
 	TAILQ_INSERT_HEAD(&audit_pipe_list, ap, ap_list);
 	audit_pipe_count++;
 	audit_pipe_ever++;
@@ -572,6 +590,7 @@ audit_pipe_free(struct audit_pipe *ap)
 
 	audit_pipe_preselect_flush_locked(ap);
 	audit_pipe_flush(ap);
+	knlist_destroy(&ap->ap_selinfo.si_note);
 	TAILQ_REMOVE(&audit_pipe_list, ap, ap_list);
 	free(ap, M_AUDIT_PIPE);
 	audit_pipe_count--;
@@ -943,6 +962,71 @@ audit_pipe_poll(struct cdev *dev, int events, struct thread *td)
 		mtx_unlock(&audit_pipe_mtx);
 	}
 	return (revents);
+}
+
+/*
+ * Audit pipe kqfilter.
+ */
+static int
+audit_pipe_kqfilter(struct cdev *dev, struct knote *kn)
+{
+	struct audit_pipe *ap;
+
+	ap = dev->si_drv1;
+	KASSERT(ap != NULL, ("audit_pipe_kqfilter: ap == NULL"));
+
+	if (kn->kn_filter != EVFILT_READ)
+		return (EINVAL);
+
+	kn->kn_fop = &audit_pipe_read_filterops;
+	kn->kn_hook = ap;
+
+	mtx_lock(&audit_pipe_mtx);
+	knlist_add(&ap->ap_selinfo.si_note, kn, 1);
+	mtx_unlock(&audit_pipe_mtx);
+	return (0);
+}
+
+/*
+ * Return true if there are records available for reading on the pipe.
+ */
+static int
+audit_pipe_kqread(struct knote *kn, long hint)
+{
+	struct audit_pipe_entry *ape;
+	struct audit_pipe *ap;
+
+	mtx_assert(&audit_pipe_mtx, MA_OWNED);
+
+	ap = (struct audit_pipe *)kn->kn_hook;
+	KASSERT(ap != NULL, ("audit_pipe_kqread: ap == NULL"));
+
+	if (ap->ap_qlen != 0) {
+		ape = TAILQ_FIRST(&ap->ap_queue);
+		KASSERT(ape != NULL, ("audit_pipe_kqread: ape == NULL"));
+
+		kn->kn_data = ape->ape_record_len;
+		return (1);
+	} else {
+		kn->kn_data = 0;
+		return (0);
+	}
+}
+
+/*
+ * Detach kqueue state from audit pipe.
+ */
+static void
+audit_pipe_kqdetach(struct knote *kn)
+{
+	struct audit_pipe *ap;
+
+	ap = (struct audit_pipe *)kn->kn_hook;
+	KASSERT(ap != NULL, ("audit_pipe_kqdetach: ap == NULL"));
+
+	mtx_lock(&audit_pipe_mtx);
+	knlist_remove(&ap->ap_selinfo.si_note, kn, 1);
+	mtx_unlock(&audit_pipe_mtx);
 }
 
 /*
