@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: to_interface.c,v 1.8 2002/01/28 06:50:48 darrenr Exp
+ * $Id: to_interface.c,v 1.8 2002/01/28 06:50:48 darrenr Exp $
  */
 
 #include "ipf.h"

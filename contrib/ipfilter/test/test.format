@@ -1,6 +1,6 @@
 #test input-format output-format
 bpf-f1 text text
-bpf1 text text
+bpf1 text ipf
 f1 text text
 f2 text text
 f3 text text
@@ -18,21 +18,30 @@ f14 text text
 f15 text text
 f16 text text
 f17 hex hex
-i1 text text
-i2 text text
-i3 text text
-i4 text text
-i5 text text
-i6 text text
-i7 text text
-i8 text text
-i9 text text
-i10 text text
-i11 text text
-i12 text text
-i13 text text
-i14 text text
-i15 text text
+f18 text text
+f19 text text fr_statemax=3
+f20 text text
+i1 text ipf
+i2 text ipf
+i3 text ipf
+i4 text ipf
+i5 text ipf
+i6 text ipf
+i7 text ipf
+i8 text ipf
+i9 text ipf
+i10 text ipf
+i11 text ipf
+i12 text ipf
+i13 text ipf
+i14 text ipf
+i15 text ipf
+i16 text ipf
+i17 text ipftest
+i18 text ipf
+i19 text ipf
+i20 text ipf
+i21 text ipf
 in1 text text
 in2 text text
 in3 text text
@@ -56,6 +65,8 @@ n9 hex hex fr_update_ipid=0
 n10 hex hex fr_update_ipid=0
 n11 text text
 n12 hex hex fr_update_ipid=0
+n13 text text
+n14 text text
 ni1 hex hex fr_update_ipid=1
 ni2 hex hex fr_update_ipid=1
 ni3 hex hex fr_update_ipid=1
@@ -72,6 +83,9 @@ ni13 hex hex fr_update_ipid=1
 ni14 hex hex fr_update_ipid=1
 ni15 hex hex fr_update_ipid=1
 ni16 hex hex fr_update_ipid=1
+ni19 hex hex fr_update_ipid=0
+ni20 hex hex fr_update_ipid=0
+ni21 text text
 p1 text text
 p2 text text
 p3 text text

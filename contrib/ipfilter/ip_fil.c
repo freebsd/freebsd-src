@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.133.2.9 2005/01/08 14:22:18 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.133.2.11 2006/03/25 11:15:30 darrenr Exp $";
 #endif
 
 #ifndef	SOLARIS
@@ -138,7 +138,7 @@ struct rtentry;
 #include "md5.h"
 
 
-#if !defined(__osf__)
+#if !defined(__osf__) && !defined(__linux__)
 extern	struct	protosw	inetsw[];
 #endif
 
@@ -718,13 +718,45 @@ frdest_t *fdp;
 {
 	struct ifnet *ifp = fdp->fd_ifp;
 	ip_t *ip = fin->fin_ip;
+	int error = 0;
+	frentry_t *fr;
+	void *sifp;
 
 	if (!ifp)
 		return 0;	/* no routing table out here */
 
-	ip->ip_len = htons((u_short)ip->ip_len);
-	ip->ip_off = htons((u_short)(ip->ip_off | IP_MF));
+	fr = fin->fin_fr;
 	ip->ip_sum = 0;
+
+	if (fin->fin_out == 0) {
+		sifp = fin->fin_ifp;
+		fin->fin_ifp = ifp;
+		fin->fin_out = 1;
+		(void) fr_acctpkt(fin, NULL);
+		fin->fin_fr = NULL;
+		if (!fr || !(fr->fr_flags & FR_RETMASK)) {
+			u_32_t pass;
+
+			(void) fr_checkstate(fin, &pass);
+		}
+
+		switch (fr_checknatout(fin, NULL))
+		{
+		case 0 :
+			break;
+		case 1 :
+			ip->ip_sum = 0;
+			break;
+		case -1 :
+			error = -1;
+			goto done;
+			break;
+		}
+
+		fin->fin_ifp = sifp;
+		fin->fin_out = 0;
+	}
+
 #if defined(__sgi) && (IRIX < 60500)
 	(*ifp->if_output)(ifp, (void *)ip, NULL);
 # if TRU64 >= 1885
@@ -733,7 +765,8 @@ frdest_t *fdp;
 	(*ifp->if_output)(ifp, (void *)m, NULL, 0);
 # endif
 #endif
-	return 0;
+done:
+	return error;
 }
 
 

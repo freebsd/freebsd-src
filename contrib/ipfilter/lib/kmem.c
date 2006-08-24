@@ -18,7 +18,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <sys/file.h>
-#if !defined(__sgi) && !defined(__hpux) && !defined(__osf__) && !defined(linux)
+#if !defined(__sgi) && !defined(__hpux) && !defined(__osf__) && !defined(linux) && !defined(_AIX51)
 #include <kvm.h>
 #endif
 #include <fcntl.h>
@@ -44,12 +44,13 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)kmem.c	1.4 1/12/96 (C) 1992 Darren Reed";
-static const char rcsid[] = "@(#)Id: kmem.c,v 1.16.2.1 2004/06/20 10:25:58 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: kmem.c,v 1.16.2.2 2005/06/12 07:18:41 darrenr Exp $";
 #endif
 
 
 
-#if !defined(__sgi) && !defined(__hpux) && !defined(__osf__) && !defined(linux)
+#if !defined(__sgi) && !defined(__hpux) && !defined(__osf__) && \
+    !defined(linux) && !defined(_AIX51)
 /*
  * For all platforms where there is a libkvm and a kvm_t, we use that...
  */

@@ -16,7 +16,7 @@
 #define SOLARIS (defined(sun) && (defined(__svr4__) || defined(__SVR4)))
 #endif
 
-#if defined(__STDC__) || defined(__GNUC__)
+#if defined(__STDC__) || defined(__GNUC__) || defined(_AIX51)
 #define	SIOCPROXY	_IOWR('r', 64, struct ap_control)
 #else
 #define	SIOCPROXY	_IOWR(r, 64, struct ap_control)

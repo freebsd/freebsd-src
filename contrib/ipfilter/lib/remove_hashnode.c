@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: remove_hashnode.c,v 1.1 2003/04/13 06:40:14 darrenr Exp
+ * $Id: remove_hashnode.c,v 1.1 2003/04/13 06:40:14 darrenr Exp $
  */
 
 #include <fcntl.h>

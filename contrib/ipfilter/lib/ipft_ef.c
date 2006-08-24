@@ -5,7 +5,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: ipft_ef.c,v 1.14 2004/01/08 13:34:31 darrenr Exp
+ * $Id: ipft_ef.c,v 1.14 2004/01/08 13:34:31 darrenr Exp $
  */
 
 /*
@@ -33,7 +33,7 @@ etherfind -n -t
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_ef.c	1.6 2/4/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)Id: ipft_ef.c,v 1.14 2004/01/08 13:34:31 darrenr Exp";
+static const char rcsid[] = "@(#)$Id: ipft_ef.c,v 1.14 2004/01/08 13:34:31 darrenr Exp $";
 #endif
 
 static	int	etherf_open __P((char *));

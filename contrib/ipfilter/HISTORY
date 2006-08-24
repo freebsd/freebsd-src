@@ -10,6 +10,167 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+4.1.13 - Released 4 April 2006
+
+fix bug where null pointers introduced by proxies could cause a crash
+
+pass out the rule flags with SIOCAUTHW
+
+force loading NAT rules with bad proxy labels to cause an error
+
+nat_state is used unsafely in calls to fr_addstate
+
+make return-rst and return-icmp* work with auth rules
+
+4.1.12 - Released 28 March 2006
+
+poll support on FreeBSD/NetBSD needs to use selrecord/selwakeup
+
+make the fastroute code used by ipftest invoke state/NAT
+
+move verbose/debug macros out of fil.c and into ip_fil.h (for wider use)
+
+remove unused code in fr_fastroute
+
+fix NAT with rules that specify forward and reverise interfaces
+
+add missing ipfsync_canread() and ipfsync_canwrite()
+
+behaviour of \ on the end of a line in ipf.conf does not match older behaviour
+
+remove duplicate statistics line output with "ipfstat -s"
+4.1.11 - Released 19 March 2006
+
+Patch for NAT with ipfsync from N. Ersen (SESCI) - www.enderunix.org
+
+NetBSD coverity report fixes (from run 5)
+
+Possible to reacquire ipf_auth without releasing it in some circumstances
+
+Locking in FreeBSD's iplioctl for ipf_global isn't present like it shoudl be
+
+Add poll support for platforms I can build on: NetBSD, FreeBSD, Solaris, Linux
+
+Using auth rules to return "keep state" got broken with pushing fr_addstate
+call into fr_firewall
+
+all use of '!' in map/rdr rules to match use in ipf configs
+
+add -L command line option to ipmon to set the default syslog facility
+
+looking up a port number is more complex than needed in ipft_tx.c
+
+allow lib/getport to work when neither tcp or udp are specified in a rule
+
+remove some dead code from lib/addicmpc, lib/facpri.c, lib/icmpcode.c
+
+program in some more cases where TCP packets fail an initial in-window
+check but should be allowed to match
+
+filter rule added with NAT/state handling of SIOCSTPUT doesn't properly
+initialise all fields, making it possible to panic
+
+simplify NAT ICMP error handling where it updates checksums
+
+rename "min" variables to "xmin" on NetBSD to avoid problems with the
+macro "min"
+
+#ifdef's for NetBSD compile incorrect for pfil interface
+
+support select/poll on NetBSD
+
+copying out a packet with an auth rule fails (EFAULT) because the wrong
+pointer is passed to copyoutptr
+
+ip_len/ip_off where byte swapped twice instead of once for packets
+going to be stored on the auth queue
+
+change timeout queue manipulation functions to make fewer mutex calls
+
+fix use of skip rules with groups
+fix coding problems discovered by the coverity project for FreeBSD
+
+update BPF program validation with FreeBSD changes
+
+4.1.10 - Released 6 December 2005
+
+Expand regression testing to cover more features
+
+Add "coverage" build target for BSD
+
+Fix building 64bit sparc target for Solaris
+
+Add IPv6 mobility header to list of accepted keywords for V6 headers
+
+Resolve locking problems on Solaris when sending RST/icmp packets
+
+#ifdef's for IPFILTER_BPF need to check if words are defined before
+using them in comparisons
+
+Add checking for SACK permitted option in TCP SYN packets
+
+Fix loading anonymous pools from inline rule configuration groups
+
+Add -C command line option to ipftest
+
+Include extra "const" from NetBSD
+
+Don't require SIOCKSTLCK for SIOCSTPUT
+
+Fix some use of "sticky" on NAT rules
+
+Fix statistical counting of deleting state for TCP connections
+
+Fix compile problems caused by changes to is_opt/is_optmsk in ip_sync.c
+
+Fix TCP out-of-window (OOW) problems:
+- window scaling turned off if one chose for its scale factor
+- Microsoft Windows TCP sends the "next packet" to the right of the window
+  when using SACK and filling in a hole
+
+4.1.9 - Released 13 August 2005
+
+make ipfilter fix IPv4 header checksums for outgoing packets if BRIDGE_IPF
+is defined when compiled.
+
+move the definition of SIOCPROXY from ip_nat.h to ip_proxy.h
+
+make the BSD/upgrade script more instructive about the requiements for
+ip_rules.[ch] when it is run
+
+register for interface events on FreeBSD (>5.2.1) and NetBSD so that
+"ipf -y" is not not requried to tell ipfilter about interface changes.
+
+for "quick" rules that do "keep state", move the state adding into the rule
+evaluation so that we can detect it failing as rules are evaluated and
+continue on to the next rather than wait until we're done and it's too late
+to recover for more rule processing.
+
+mark ICMP packets advertising an MTU that's too small as being bad
+
+rework ipv6 header parsing to get better code reuse and fix logic errors
+in dealing with ipv6 packets containing fragment headers.  Also, where a
+protocol handler was doing both v4 & v6, make a seperate function for each.
+
+build for both amd64 and i86pc (32bit) on Solaris10 and later, if possible
+
+include start of work to get IPFilter working on AIX 5.3
+
+Use FI_ICMPERR flag rather than try to compute its equivalent all the time
+
+Rewrork IPv6 extension header parsing to get better code reuse
+
+Add missing timeout on Linux
+
+Fix for locking when reading from ipsync (Frank Volf)
+
+Fix insertion/appending of rules that use a collection number
+
+Somehow turning up the spl knob to splnet disappeared on platforms that still
+use the spl interface.
+
+fix problems with "ipf -T" not listing multiple variables properly
+
 4.1.8 - Released 29 March 2005
 
 include path from Phil Dibowitz for sorting ipfstat -t output by source or
