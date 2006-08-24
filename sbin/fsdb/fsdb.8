@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 23, 2006
+.Dd August 24, 2006
 .Dt FSDB 8
 .Os
 .Sh NAME
@@ -224,6 +224,9 @@ If no nanoseconds are specified, the
 or
 .Va atimensec
 field will be set to zero.
+Note that
+.Cm btime
+is available on UFS2 file systems only.
 .Pp
 .It Cm quit , q , exit , Em <EOF>
 Exit the program.
