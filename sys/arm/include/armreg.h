@@ -155,6 +155,8 @@
 #define	CPU_ID_80321_600	0x69052430
 #define	CPU_ID_80321_400_B0	0x69052c20
 #define	CPU_ID_80321_600_B0	0x69052c30
+#define	CPU_ID_80219_400	0x69052e20 /* A0 stepping/revision. */
+#define	CPU_ID_80219_600	0x69052e30 /* A0 stepping/revision. */
 #define	CPU_ID_IXP425_533	0x690541c0
 #define	CPU_ID_IXP425_400	0x690541d0
 #define	CPU_ID_IXP425_266	0x690541f0

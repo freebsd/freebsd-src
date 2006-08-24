@@ -111,6 +111,22 @@ struct i80321_softc {
 	struct rman sc_irq_rman;
 			
 };
+
+
+struct i80321_pci_softc {
+	device_t 		sc_dev;
+	bus_space_tag_t 	sc_st;
+	bus_space_handle_t 	sc_atu_sh;
+	bus_space_tag_t		sc_pciio;
+	bus_space_tag_t		sc_pcimem;
+	int			sc_busno;
+	struct rman		sc_mem_rman;
+	struct rman		sc_io_rman;
+	struct rman		sc_irq_rman;
+	uint32_t		sc_mem;
+	uint32_t		sc_io;
+};
+
 void	i80321_sdram_bounds(bus_space_tag_t, bus_space_handle_t,
 	    vm_paddr_t *, vm_size_t *);
 
@@ -120,5 +136,7 @@ void	i80321_calibrate_delay(void);
 void	i80321_bs_init(bus_space_tag_t, void *);
 void	i80321_io_bs_init(bus_space_tag_t, void *);
 void	i80321_mem_bs_init(bus_space_tag_t, void *);
+extern int machdep_pci_route_interrupt(device_t pcib, device_t dev, int pin);
+
 
 #endif /* _ARM_XSCALE_I80321VAR_H_ */

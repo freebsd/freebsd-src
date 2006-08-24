@@ -91,14 +91,18 @@
 #define	VERDE_MCU_BASE			0x0500
 #define	VERDE_MCU_SIZE			0x0100
 
+#if defined(CPU_XSCALE_80321)
 #define	VERDE_SSP_BASE			0x0600
 #define	VERDE_SSP_SIZE			0x0080
+#endif
 
 #define	VERDE_PBIU_BASE			0x0680
 #define	VERDE_PBIU_SIZE			0x0080
 
+#if defined(CPU_XSCALE_80321)
 #define	VERDE_AAU_BASE			0x0800
 #define	VERDE_AAU_SIZE			0x0100
+#endif 
 
 #define	VERDE_I2C_BASE			0x1680
 #define	VERDE_I2C_BASE0			(VERDE_I2C_BASE + 0x00)
@@ -335,9 +339,23 @@
 #define	ICU_INT_XINT0		27	/* external interrupts */
 #define	ICU_INT_XINT(x)		((x) + ICU_INT_XINT0)
 #define	ICU_INT_bit26		26
+
+#if defined (CPU_XSCALE_80219)
+#define	ICU_INT_bit25		25	/* reserved */
+#else
+/* CPU_XSCALE_80321 */
 #define	ICU_INT_SSP		25	/* SSP serial port */
+#endif
+
 #define	ICU_INT_MUE		24	/* msg unit error */
+
+#if defined (CPU_XSCALE_80219)
+#define	ICU_INT_bit23		23	/* reserved */
+#else
+/* CPU_XSCALE_80321 */
 #define	ICU_INT_AAUE		23	/* AAU error */
+#endif
+
 #define	ICU_INT_bit22		22
 #define	ICU_INT_DMA1E		21	/* DMA Ch 1 error */
 #define	ICU_INT_DMA0E		20	/* DMA Ch 0 error */
@@ -353,8 +371,16 @@
 #define	ICU_INT_TMR1		10	/* timer 1 */
 #define	ICU_INT_TMR0		9	/* timer 0 */
 #define	ICU_INT_CPPM		8	/* core processor PMU */
+
+#if defined(CPU_XSCALE_80219)
+#define	ICU_INT_bit7		7 /* reserved */
+#define	ICU_INT_bit6		6 /* reserved */
+#else
+/* CPU_XSCALE_80321 */
 #define	ICU_INT_AAU_EOC		7	/* AAU end-of-chain */
 #define	ICU_INT_AAU_EOT		6	/* AAU end-of-transfer */
+#endif
+
 #define	ICU_INT_bit5		5
 #define	ICU_INT_bit4		4
 #define	ICU_INT_DMA1_EOC	3	/* DMA1 end-of-chain */
@@ -362,15 +388,30 @@
 #define	ICU_INT_DMA0_EOC	1	/* DMA0 end-of-chain */
 #define	ICU_INT_DMA0_EOT	0	/* DMA0 end-of-transfer */
 
+#if defined (CPU_XSCALE_80219)
+#define	ICU_INT_HWMASK		(0xffffffff &	 \
+							 ~((1 << ICU_INT_bit26) |	\
+							   (1 << ICU_INT_bit25) |	\
+							   (1 << ICU_INT_bit23) |	\
+							   (1 << ICU_INT_bit22) |	\
+							   (1 << ICU_INT_bit7)  |	\
+							   (1 << ICU_INT_bit6)  |	\
+							   (1 << ICU_INT_bit5)  |	\
+							   (1 << ICU_INT_bit4)))
+
+#else
+/* CPU_XSCALE_80321 */
 #define	ICU_INT_HWMASK		(0xffffffff & \
 					~((1 << ICU_INT_bit26) | \
 					  (1 << ICU_INT_bit22) | \
 					  (1 << ICU_INT_bit5)  | \
 					  (1 << ICU_INT_bit4)))
+#endif
 
 /*
  * SSP Serial Port
  */
+#if defined (CPU_XSCALE_80321)
 
 #define	SSP_SSCR0	0x00		/* SSC control 0 */
 #define	SSP_SSCR1	0x04		/* SSC control 1 */
@@ -420,6 +461,8 @@
 #define	SSP_SSITR_TTFS		(1U << 5)/* Test Tx FIFO service */
 #define	SSP_SSITR_TRFS		(1U << 6)/* Test Rx FIFO service */
 #define	SSP_SSITR_TROR		(1U << 7)/* Test Rx overrun */
+
+#endif /* CPU_XSCALE_80321 */
 
 /*
  * Peripheral Bus Interface Unit
