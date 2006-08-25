@@ -324,13 +324,13 @@ struct adapter {
 	int			rx_process_limit;
 	struct em_buffer	*rx_buffer_area;
 	bus_dma_tag_t		rxtag;
+	bus_dmamap_t		rx_sparemap;
 
 	/* First/last mbuf pointers, for collecting multisegment RX packets. */
 	struct mbuf	       *fmp;
 	struct mbuf	       *lmp;
 
 	/* Misc stats maintained by the driver */
-	unsigned long	dropped_pkts;
 	unsigned long	mbuf_alloc_failed;
 	unsigned long	mbuf_cluster_failed;
 	unsigned long	no_tx_desc_avail1;

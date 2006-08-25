@@ -551,6 +551,7 @@ int32_t em_ife_enable_dynamic_power_down(struct em_hw *hw);
 #define E1000_DEV_ID_82571EB_COPPER      0x105E
 #define E1000_DEV_ID_82571EB_FIBER       0x105F
 #define E1000_DEV_ID_82571EB_SERDES      0x1060
+#define E1000_DEV_ID_82571EB_QUAD_COPPER 0x10A4
 #define E1000_DEV_ID_82572EI_COPPER      0x107D
 #define E1000_DEV_ID_82572EI_FIBER       0x107E
 #define E1000_DEV_ID_82572EI_SERDES      0x107F
