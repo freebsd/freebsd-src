@@ -319,7 +319,7 @@ void vm_page_dirty(vm_page_t m);
 void vm_page_wakeup(vm_page_t m);
 
 void vm_pageq_init(void);
-vm_page_t vm_pageq_add_new_page(vm_paddr_t pa);
+void vm_pageq_add_new_page(vm_paddr_t pa);
 void vm_pageq_enqueue(int queue, vm_page_t m);
 void vm_pageq_remove_nowakeup(vm_page_t m);
 void vm_pageq_remove(vm_page_t m);
