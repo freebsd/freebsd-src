@@ -142,6 +142,6 @@ struct umtx_q *umtxq_alloc(void);
 void umtxq_free(struct umtx_q *);
 struct thread;
 int kern_umtx_wake(struct thread *td, void *uaddr, int n_wake);
-
+void umtx_pi_adjust(struct thread *td, u_char oldpri);
 #endif /* !_KERNEL */
 #endif /* !_SYS_UMTX_H_ */

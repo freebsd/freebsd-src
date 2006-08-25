@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/turnstile.h>
+#include <sys/umtx.h>
 #include <sys/unistd.h>
 #include <sys/vmmeter.h>
 #ifdef KTRACE
@@ -633,7 +634,7 @@ sched_calc_pri(struct ksegrp *kg)
 			pri = PUSER_MAX;
 		return (pri);
 	}
-	return (kg->kg_user_pri);
+	return (kg->kg_base_user_pri);
 }
 
 static int
@@ -646,7 +647,7 @@ sched_recalc_pri(struct kse *ke, uint64_t now)
 	kg = ke->ke_ksegrp;
 	delta = now - ke->ke_timestamp;
 	if (__predict_false(!sched_is_timeshare(kg)))
-		return (kg->kg_user_pri);
+		return (kg->kg_base_user_pri);
 
 	if (delta > NS_MAX_SLEEP_TIME)
 		sleep_time = NS_MAX_SLEEP_TIME;
@@ -948,6 +949,60 @@ sched_prio(struct thread *td, u_char prio)
 }
 
 void
+sched_user_prio(struct ksegrp *kg, u_char prio)
+{
+	struct thread *td;
+	u_char oldprio;
+
+	kg->kg_base_user_pri = prio;
+
+	/* XXXKSE only for 1:1 */
+
+	td = TAILQ_FIRST(&kg->kg_threads);
+	if (td == NULL) {
+		kg->kg_user_pri = prio;
+		return;
+	}
+
+	if (td->td_flags & TDF_UBORROWING && kg->kg_user_pri <= prio)
+		return;
+
+	oldprio = kg->kg_user_pri;
+	kg->kg_user_pri = prio;
+
+	if (TD_ON_UPILOCK(td) && oldprio != prio)
+		umtx_pi_adjust(td, oldprio);
+}
+
+void
+sched_lend_user_prio(struct thread *td, u_char prio)
+{
+	u_char oldprio;
+
+	td->td_flags |= TDF_UBORROWING;
+
+	oldprio = td->td_ksegrp->kg_user_pri;
+	td->td_ksegrp->kg_user_pri = prio;
+
+	if (TD_ON_UPILOCK(td) && oldprio != prio)
+		umtx_pi_adjust(td, oldprio);
+}
+
+void
+sched_unlend_user_prio(struct thread *td, u_char prio)
+{
+	struct ksegrp *kg = td->td_ksegrp;
+	u_char base_pri;
+
+	base_pri = kg->kg_base_user_pri;
+	if (prio >= base_pri) {
+		td->td_flags &= ~TDF_UBORROWING;
+		sched_user_prio(kg, base_pri);
+	} else
+		sched_lend_user_prio(td, prio);
+}
+
+void
 sched_switch(struct thread *td, struct thread *newtd, int flags)
 {
 	struct kseq *ksq;
@@ -1038,7 +1093,7 @@ sched_nice(struct proc *p, int nice)
 	p->p_nice = nice;
 	FOREACH_KSEGRP_IN_PROC(p, kg) {
 		if (kg->kg_pri_class == PRI_TIMESHARE) {
-			kg->kg_user_pri = sched_calc_pri(kg);
+			sched_user_prio(kg, sched_calc_pri(kg));
 			FOREACH_THREAD_IN_GROUP(kg, td)
 				td->td_flags |= TDF_NEEDRESCHED;
 		}
@@ -1082,7 +1137,7 @@ sched_wakeup(struct thread *td)
 				now = now - mykseq->ksq_last_timestamp +
 				    kseq->ksq_last_timestamp;
 #endif
-			kg->kg_user_pri = sched_recalc_pri(ke, now);
+			sched_user_prio(kg, sched_recalc_pri(ke, now));
 		}
 	}
 	setrunqueue(td, SRQ_BORING);
@@ -1109,7 +1164,7 @@ sched_fork_ksegrp(struct thread *td, struct ksegrp *child)
 	mtx_assert(&sched_lock, MA_OWNED);
 	child->kg_slptime = kg->kg_slptime * CHILD_WEIGHT / 100;
 	if (child->kg_pri_class == PRI_TIMESHARE)
-		child->kg_user_pri = sched_calc_pri(child);
+		sched_user_prio(child, sched_calc_pri(child));
 	kg->kg_slptime = kg->kg_slptime * PARENT_WEIGHT / 100;
 }
 
@@ -1275,7 +1330,7 @@ sched_tick(void)
 		td->td_flags |= TDF_NEEDRESCHED;
 		sched_update_runtime(ke, now);
 		sched_commit_runtime(ke);
-		kg->kg_user_pri = sched_calc_pri(kg);
+		sched_user_prio(kg, sched_calc_pri(kg));
 		ke->ke_slice = sched_timeslice(ke);
 		ke->ke_flags &= ~KEF_FIRST_SLICE;
 		if (ke->ke_flags & KEF_BOUND || td->td_pinned) {
