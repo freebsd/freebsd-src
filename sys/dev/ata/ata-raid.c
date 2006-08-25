@@ -4087,7 +4087,8 @@ ata_raid_subdisk_detach(device_t dev)
 	    ars->raid[volume]->disks[ars->disk_number[volume]].flags &= 
 		~(AR_DF_PRESENT | AR_DF_ONLINE);
 	    ars->raid[volume]->disks[ars->disk_number[volume]].dev = NULL;
-	    ata_raid_config_changed(ars->raid[volume], 1);
+	    if (mtx_initialized(&ars->raid[volume]->lock))
+		ata_raid_config_changed(ars->raid[volume], 1);
 	    ars->raid[volume] = NULL;
 	    ars->disk_number[volume] = -1;
 	}
@@ -4149,6 +4150,8 @@ ata_raid_module_event_handler(module_t mod, int what, void *arg)
 
 	    if (!rdp || !rdp->status)
 		continue;
+	    if (mtx_initialized(&rdp->lock))
+		mtx_destroy(&rdp->lock);
 	    if (rdp->disk)
 		disk_destroy(rdp->disk);
 	}
