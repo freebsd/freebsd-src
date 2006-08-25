@@ -345,12 +345,12 @@ struct thread {
 #define	TDF_SELECT	0x00000040 /* Selecting; wakeup/waiting danger. */
 #define	TDF_SLEEPABORT	0x00000080 /* sleepq_abort was called. */
 #define	TDF_TSNOBLOCK	0x00000100 /* Don't block on a turnstile due to race. */
-#define	TDF_UNUSED9	0x00000200 /* --available -- */
+#define	TDF_UBORROWING	0x00000200 /* Thread is borrowing user pri. */
 #define	TDF_BOUNDARY	0x00000400 /* Thread suspended at user boundary */
 #define	TDF_ASTPENDING	0x00000800 /* Thread has some asynchronous events. */
 #define	TDF_TIMOFAIL	0x00001000 /* Timeout from sleep after we were awake. */
 #define	TDF_INTERRUPT	0x00002000 /* Thread is marked as interrupted. */
-#define	TDF_UNUSED14	0x00004000 /* --available -- */
+#define	TDF_UPIBLOCKED	0x00004000 /* Thread blocked on user PI mutex. */
 #define	TDF_UNUSED15	0x00008000 /* --available -- */
 #define	TDF_NEEDRESCHED	0x00010000 /* Thread needs to yield. */
 #define	TDF_NEEDSIGCHK	0x00020000 /* Thread may need signal delivery. */
@@ -420,6 +420,7 @@ struct thread {
 #define	TD_ON_RUNQ(td)		((td)->td_state == TDS_RUNQ)
 #define	TD_CAN_RUN(td)		((td)->td_state == TDS_CAN_RUN)
 #define	TD_IS_INHIBITED(td)	((td)->td_state == TDS_INHIBITED)
+#define	TD_ON_UPILOCK(td)	((td)->td_flags & TDF_UPIBLOCKED)
 
 #define	TD_SET_INHIB(td, inhib) do {			\
 	(td)->td_state = TDS_INHIBITED;			\
@@ -492,6 +493,7 @@ struct ksegrp {
 #define	kg_startcopy	kg_endzero
 	u_char		kg_pri_class;	/* (j) Scheduling class. */
 	u_char		kg_user_pri;	/* (j) User pri from estcpu and nice. */
+	u_char		kg_base_user_pri;	/* (j) Base user pri */
 #define	kg_endcopy kg_numthreads
 	int		kg_numthreads;	/* (j) Num threads in total. */
 	struct kg_sched	*kg_sched;	/* (*) Scheduler-specific data. */
