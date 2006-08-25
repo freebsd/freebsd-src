@@ -540,7 +540,7 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 
 	ifp->if_softc = sc;
 	if_initname(ifp, ifc->ifc_name, unit);
-	ifp->if_flags = IFF_BROADCAST | IFF_MULTICAST;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = bridge_ioctl;
 	ifp->if_start = bridge_start;
 	ifp->if_init = bridge_init;
