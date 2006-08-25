@@ -284,14 +284,6 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 		(void)memcpy(eh->ether_shost, IF_LLADDR(ifp),
 			sizeof(eh->ether_shost));
 
-       /*
-	* Bridges require special output handling.
-	*/
-	if (ifp->if_bridge) {
-		BRIDGE_OUTPUT(ifp, m, error);
-		return (error);
-	}
-
 	/*
 	 * If a simplex interface, and the packet is being sent to our
 	 * Ethernet address or a broadcast address, loopback a copy.
@@ -328,6 +320,14 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 			(void) if_simloop(ifp, m, dst->sa_family, hlen);
 			return (0);	/* XXX */
 		}
+	}
+
+       /*
+	* Bridges require special output handling.
+	*/
+	if (ifp->if_bridge) {
+		BRIDGE_OUTPUT(ifp, m, error);
+		return (error);
 	}
 
 #ifdef DEV_CARP
