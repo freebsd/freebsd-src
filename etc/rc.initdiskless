@@ -99,19 +99,19 @@
 #
 # You will almost universally want to create the following files under /conf
 #
-# File				Content
-# ----------------------------	------------------------------------------
-# /conf/base/etc/md_size	size of /etc filesystem
-# /conf/base/diskless_remount	"/etc"
-# /conf/default/etc/rc.conf	generic diskless config parameters
-# /conf/default/etc/fstab	generic diskless fstab e.g. like this
+# File					Content
+# ----------------------------		----------------------------------
+# /conf/base/etc/md_size		size of /etc filesystem
+# /conf/base/etc/diskless_remount	"/etc"
+# /conf/default/etc/rc.conf		generic diskless config parameters
+# /conf/default/etc/fstab		generic diskless fstab e.g. like this
 #
-#	foo:/root_part		/	nfs	ro		0 0
-#	foo:/usr_part		/usr	nfs     ro		0 0
-#	foo:/home_part		/home   nfs     rw      	0 0
-#	md			/tmp	mfs     -s=30m,rw	0 0
-#	md			/var	mfs	-s=30m,rw	0 0
-#	proc			/proc	procfs	rw		0 0
+#	foo:/root_part			/	nfs	ro		0 0
+#	foo:/usr_part			/usr	nfs     ro		0 0
+#	foo:/home_part			/home   nfs     rw      	0 0
+#	md				/tmp	mfs     -s=30m,rw	0 0
+#	md				/var	mfs	-s=30m,rw	0 0
+#	proc				/proc	procfs	rw		0 0
 #
 # plus, possibly, overrides for password files etc.
 #
