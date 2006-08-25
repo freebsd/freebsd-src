@@ -346,6 +346,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	}
 	*mapp = newmap;
 	newmap->dmat = dmat;
+	newmap->allocbuffer = NULL;
 	dmat->map_count++;
 
 	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
