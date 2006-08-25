@@ -187,7 +187,7 @@ vm_pageq_enqueue(int queue, vm_page_t m)
  *
  *	Add a new page to the freelist for use by the system.
  */
-vm_page_t
+void
 vm_pageq_add_new_page(vm_paddr_t pa)
 {
 	vm_page_t m;
@@ -201,7 +201,6 @@ vm_pageq_add_new_page(vm_paddr_t pa)
 	mtx_lock_spin(&vm_page_queue_free_mtx);
 	vm_pageq_enqueue(m->pc + PQ_FREE, m);
 	mtx_unlock_spin(&vm_page_queue_free_mtx);
-	return (m);
 }
 
 /*
