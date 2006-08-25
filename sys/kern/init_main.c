@@ -422,6 +422,7 @@ proc0_init(void *dummy __unused)
 	td->td_state = TDS_RUNNING;
 	kg->kg_pri_class = PRI_TIMESHARE;
 	kg->kg_user_pri = PUSER;
+	kg->kg_base_user_pri = PUSER;
 	td->td_priority = PVM;
 	td->td_base_pri = PUSER;
 	td->td_oncpu = 0;
