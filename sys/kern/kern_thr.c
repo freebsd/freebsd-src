@@ -223,13 +223,13 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		switch (sched->policy) {
 		case SCHED_FIFO:
 			rtp.type = PRI_FIFO;
-			rtp.prio = sched->param.sched_priority;
+			rtp.prio = RTP_PRIO_MAX - sched->param.sched_priority;
 			rtp_to_pri(&rtp, newkg);
 			sched_prio(newtd, newkg->kg_user_pri);
 			break;
 		case SCHED_RR:
 			rtp.type = PRI_REALTIME;
-			rtp.prio = sched->param.sched_priority;
+			rtp.prio = RTP_PRIO_MAX - sched->param.sched_priority;
 			rtp_to_pri(&rtp, newkg);
 			sched_prio(newtd, newkg->kg_user_pri);
 			break;
