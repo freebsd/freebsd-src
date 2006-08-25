@@ -122,7 +122,6 @@ powerpc/powermac/macio.c	optional	powermac pci
 powerpc/powermac/openpic_macio.c optional	powermac pci
 powerpc/powermac/pswitch.c	optional	powermac pswitch
 powerpc/powermac/uninorth.c	optional	powermac pci
-powerpc/powermac/viapmu.c	optional	powermac
 
 powerpc/psim/iobus.c 		optional psim
 powerpc/psim/ata_iobus.c	optional ata psim
