@@ -66,11 +66,6 @@
 #endif
 
 /*
- * Size of User Raw I/O map
- */
-#define	USRIOSIZE	1024
-
-/*
  * The time for a process to be blocked before being very swappable.
  * This is a number of seconds which the system takes as being a non-trivial
  * amount of real time.  You probably shouldn't change this;
@@ -102,8 +97,6 @@
 #ifndef VM_MAX_KERNEL_BUF
 #define	VM_MAX_KERNEL_BUF	(SEGMENT_LENGTH * 7 / 10)
 #endif
-
-#define	VM_PHYS_SIZE		(USRIOSIZE * NBPG)
 
 struct pmap_physseg {
 	struct pv_entry *pvent;

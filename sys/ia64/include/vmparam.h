@@ -74,14 +74,6 @@
 #endif
 
 /*
- * PTEs for mapping user space into the kernel for phyio operations.
- * 64 pte's are enough to cover 8 disks * MAXBSIZE.
- */
-#ifndef USRIOSIZE
-#define USRIOSIZE	64
-#endif
-
-/*
  * Boundary at which to place first MAPMEM segment if not explicitly
  * specified.  Should be a power of two.  This allows some slop for
  * the data segment to grow underneath the first mapped segment.
