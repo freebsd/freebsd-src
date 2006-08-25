@@ -63,12 +63,15 @@ void	sched_nice(struct proc *p, int nice);
  */
 void	sched_exit_thread(struct thread *td, struct thread *child);
 void	sched_fork_thread(struct thread *td, struct thread *child);
+void	sched_lend_prio(struct thread *td, u_char prio);
+void	sched_lend_user_prio(struct thread *td, u_char pri);
 fixpt_t	sched_pctcpu(struct thread *td);
 void	sched_prio(struct thread *td, u_char prio);
-void	sched_lend_prio(struct thread *td, u_char prio);
 void	sched_sleep(struct thread *td);
 void	sched_switch(struct thread *td, struct thread *newtd, int flags);
 void	sched_unlend_prio(struct thread *td, u_char prio);
+void	sched_unlend_user_prio(struct thread *td, u_char pri);
+void	sched_user_prio(struct ksegrp *kg, u_char prio);
 void	sched_userret(struct thread *td);
 void	sched_wakeup(struct thread *td);
 
