@@ -150,7 +150,7 @@ static eventhandler_tag ifdetach_tag;
  * processing and exclusive when configuration is changed.
  *
  * The VLAN_ARRAY substitutes the dynamic hash with a static array
- * with 4096 entries. In theory this can give a boots in processing,
+ * with 4096 entries. In theory this can give a boost in processing,
  * however on practice it does not. Probably this is because array
  * is too big to fit into CPU cache.
  */
