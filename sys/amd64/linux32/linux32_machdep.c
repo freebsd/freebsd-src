@@ -472,20 +472,31 @@ int
 linux_vfork(struct thread *td, struct linux_vfork_args *args)
 {
 	int error;
+	struct proc *p2;
 
 #ifdef DEBUG
 	if (ldebug(vfork))
 		printf(ARGS(vfork, ""));
 #endif
 
-	if ((error = vfork(td, (struct vfork_args *)args)) != 0)
+	/* exclude RFPPWAIT */
+	if ((error = fork1(td, RFFDG | RFPROC | RFMEM, 0, &p2)) != 0)
 		return (error);
+	if (error == 0) {
+	   	td->td_retval[0] = p2->p_pid;
+		td->td_retval[1] = 0;
+	}
 	/* Are we the child? */
 	if (td->td_retval[1] == 1)
 		td->td_retval[0] = 0;
 	error = linux_proc_init(td, td->td_retval[0], 0);
 	if (error)
 		return (error);
+	/* wait for the children to exit, ie. emulate vfork */
+	PROC_LOCK(p2);
+	while (p2->p_flag & P_PPWAIT)
+	   	msleep(td->td_proc, &p2->p_mtx, PWAIT, "ppwait", 0);
+	PROC_UNLOCK(p2);
 	return (0);
 }
 
