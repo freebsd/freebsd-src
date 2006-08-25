@@ -41,9 +41,13 @@ __FBSDID("$FreeBSD$");
 #include <frame-unwind.h>
 
 #include "kgdb.h"
+#include <machine/pcb.h>
 
 static uintptr_t dumppcb;
 static int dumptid;
+
+static uintptr_t stoppcbs;
+static __cpumask_t stopped_cpus;
 
 static struct kthr *first;
 struct kthr *curkthr;
@@ -91,6 +95,14 @@ kgdb_thr_init(void)
 	else
 		dumptid = -1;
 
+	addr =  lookup("_stopped_cpus");
+	if (addr != 0)
+		kvm_read(kvm, addr, &stopped_cpus, sizeof(stopped_cpus));
+	else
+		stopped_cpus = 0;
+
+	stoppcbs = lookup("_stoppcbs");
+	
 	while (paddr != 0) {
 		if (kvm_read(kvm, paddr, &p, sizeof(p)) != sizeof(p))
 			warnx("kvm_read: %s", kvm_geterr(kvm));
@@ -101,8 +113,13 @@ kgdb_thr_init(void)
 			kt = malloc(sizeof(*kt));
 			kt->next = first;
 			kt->kaddr = addr;
-			kt->pcb = (td.td_tid == dumptid) ? dumppcb :
-			    (uintptr_t)td.td_pcb;
+			if (td.td_tid == dumptid)
+				kt->pcb = dumppcb;
+			else if (td.td_state == TDS_RUNNING && ((1 << td.td_oncpu) & stopped_cpus)
+				&& stoppcbs != 0)
+				kt->pcb = (uintptr_t) stoppcbs + sizeof(struct pcb) * td.td_oncpu;
+			else 
+				kt->pcb = (uintptr_t)td.td_pcb;
 			kt->kstack = td.td_kstack;
 			kt->tid = td.td_tid;
 			kt->pid = p.p_pid;
