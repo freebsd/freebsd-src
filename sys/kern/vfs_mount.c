@@ -778,7 +778,7 @@ mount(td, uap)
  */
 static int
 vfs_domount(
-	struct thread *td,	/* Flags common to all filesystems. */
+	struct thread *td,	/* Calling thread. */
 	const char *fstype,	/* Filesystem type. */
 	char *fspath,		/* Mount path. */
 	int fsflags,		/* Flags common to all filesystems. */
