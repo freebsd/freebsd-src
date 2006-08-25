@@ -149,7 +149,7 @@ _LIBS=		lib${LIB}.a
 lib${LIB}.a: ${OBJS} ${STATICOBJS}
 	@${ECHO} building static ${LIB} library
 	@rm -f ${.TARGET}
-	@${AR} cq ${.TARGET} `lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
+	@${AR} cq ${.TARGET} `env NM=${NM} lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
 	${RANLIB} ${.TARGET}
 .endif
 
@@ -162,7 +162,7 @@ POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
 lib${LIB}_p.a: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
 	@rm -f ${.TARGET}
-	@${AR} cq ${.TARGET} `lorder ${POBJS} | tsort -q` ${ARADD}
+	@${AR} cq ${.TARGET} `env NM=${NM} lorder ${POBJS} | tsort -q` ${ARADD}
 	${RANLIB} ${.TARGET}
 .endif
 
@@ -182,7 +182,7 @@ ${SHLIB_NAME}: ${SOBJS}
 .endif
 	@${CC} ${LDFLAGS} -shared -Wl,-x \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
-	    `lorder ${SOBJS} | tsort -q` ${LDADD}
+	    `env NM=${NM} lorder ${SOBJS} | tsort -q` ${LDADD}
 .endif
 
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
