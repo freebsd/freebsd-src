@@ -86,7 +86,7 @@ int	em_display_debug_stats = 0;
  *  Driver version
  *********************************************************************/
 
-char em_driver_version[] = "Version - 6.0.5";
+char em_driver_version[] = "Version - 6.1.4";
 
 
 /*********************************************************************
@@ -150,6 +150,8 @@ static em_vendor_info_t em_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_82571EB_COPPER,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82571EB_FIBER,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82571EB_SERDES,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_82571EB_QUAD_COPPER,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
 
 	{ 0x8086, E1000_DEV_ID_82572EI_COPPER,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82572EI_FIBER,	PCI_ANY_ID, PCI_ANY_ID, 0},
@@ -234,7 +236,7 @@ static void	em_disable_promisc(struct adapter *);
 static void	em_set_multi(struct adapter *);
 static void	em_print_hw_stats(struct adapter *);
 static void	em_update_link_status(struct adapter *);
-static int	em_get_buf(int i, struct adapter *, struct mbuf *);
+static int	em_get_buf(struct adapter *, int);
 static void	em_enable_vlans(struct adapter *);
 static void	em_disable_vlans(struct adapter *);
 static int	em_encap(struct adapter *, struct mbuf **);
@@ -1098,7 +1100,7 @@ em_init(void *arg)
 #ifdef DEVICE_POLLING
 /*********************************************************************
  *
- *  Legacy polling routine  
+ *  Legacy polling routine
  *
  *********************************************************************/
 static void
@@ -1133,7 +1135,7 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 /*********************************************************************
  *
- *  Legacy Interrupt Service routine  
+ *  Legacy Interrupt Service routine
  *
  *********************************************************************/
 static void
@@ -1244,7 +1246,7 @@ em_handle_rxtx(void *context, int pending)
 
 /*********************************************************************
  *
- *  Fast Interrupt Service routine  
+ *  Fast Interrupt Service routine
  *
  *********************************************************************/
 static void
@@ -1317,8 +1319,12 @@ em_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	ifmr->ifm_status |= IFM_ACTIVE;
 
-	if (adapter->hw.media_type == em_media_type_fiber) {
-		ifmr->ifm_active |= IFM_1000_SX | IFM_FDX;
+	if ((adapter->hw.media_type == em_media_type_fiber) ||
+	    (adapter->hw.media_type == em_media_type_internal_serdes)) {
+		if (adapter->hw.mac_type == em_82545)
+			ifmr->ifm_active |= IFM_1000_LX | IFM_FDX;
+		else
+			ifmr->ifm_active |= IFM_1000_SX | IFM_FDX;
 	} else {
 		switch (adapter->link_speed) {
 		case 10:
@@ -1362,6 +1368,7 @@ em_media_change(struct ifnet *ifp)
 		adapter->hw.autoneg = DO_AUTO_NEG;
 		adapter->hw.autoneg_advertised = AUTONEG_ADV_DEFAULT;
 		break;
+	case IFM_1000_LX:
 	case IFM_1000_SX:
 	case IFM_1000_T:
 		adapter->hw.autoneg = DO_AUTO_NEG;
@@ -1478,20 +1485,45 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	tx_buffer = &adapter->tx_buffer_area[adapter->next_avail_tx_desc];
 	tx_buffer_last = tx_buffer;
 	map = tx_buffer->map;
-	error = bus_dmamap_load_mbuf_sg(adapter->txtag, map, m_head, segs, &nsegs,
-	    BUS_DMA_NOWAIT);
-	if (error != 0) {
+	error = bus_dmamap_load_mbuf_sg(adapter->txtag, map, *m_headp, segs,
+	    &nsegs, BUS_DMA_NOWAIT);
+	if (error == EFBIG) {
+		struct mbuf *m;
+
+		m = m_defrag(*m_headp, M_DONTWAIT);
+		if (m == NULL) {
+			/* Assume m_defrag(9) used only m_get(9). */
+			adapter->mbuf_alloc_failed++;
+			m_freem(*m_headp);
+			*m_headp = NULL;
+			return (ENOBUFS);
+		}
+		*m_headp = m;
+		error = bus_dmamap_load_mbuf_sg(adapter->txtag, map, *m_headp,
+		    segs, &nsegs, BUS_DMA_NOWAIT);
+		if (error != 0) {
+			adapter->no_tx_dma_setup++;
+			m_freem(*m_headp);
+			*m_headp = NULL;
+			return (error);
+		}
+	} else if (error != 0) {
 		adapter->no_tx_dma_setup++;
 		return (error);
 	}
-	KASSERT(nsegs != 0, ("em_encap: empty packet"));
+	if (nsegs == 0) {
+		m_freem(*m_headp);
+		*m_headp = NULL;
+		return (EIO);
+	}
 
 	if (nsegs > adapter->num_tx_desc_avail) {
 		adapter->no_tx_desc_avail2++;
-		error = ENOBUFS;
-		goto encap_fail;
+		bus_dmamap_unload(adapter->txtag, map);
+		return (ENOBUFS);
 	}
 
+	m_head = *m_headp;
 	if (ifp->if_hwassist > 0)
 		em_transmit_checksum_setup(adapter,  m_head, &txd_upper, &txd_lower);
 	else
@@ -1518,8 +1550,8 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 				if (txd_used == adapter->num_tx_desc_avail) {
 					adapter->next_avail_tx_desc = txd_saved;
 					adapter->no_tx_desc_avail2++;
-					error = ENOBUFS;
-					goto encap_fail;
+					bus_dmamap_unload(adapter->txtag, map);
+					return (ENOBUFS);
 				}
 				tx_buffer = &adapter->tx_buffer_area[i];
 				current_tx_desc = &adapter->tx_desc_base[i];
@@ -1591,10 +1623,6 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	}
 
 	return (0);
-
-encap_fail:
-	bus_dmamap_unload(adapter->txtag, map);
-	return (error);
 }
 
 /*********************************************************************
@@ -2240,12 +2268,17 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	 * Specify the media types supported by this adapter and register
 	 * callbacks to update media and link information
 	 */
-	ifmedia_init(&adapter->media, IFM_IMASK, em_media_change, em_media_status);
-	if (adapter->hw.media_type == em_media_type_fiber) {
-		ifmedia_add(&adapter->media, IFM_ETHER | IFM_1000_SX | IFM_FDX,
-			    0, NULL);
-		ifmedia_add(&adapter->media, IFM_ETHER | IFM_1000_SX,
-			    0, NULL);
+	ifmedia_init(&adapter->media, IFM_IMASK, em_media_change,
+	    em_media_status);
+	if ((adapter->hw.media_type == em_media_type_fiber) ||
+	    (adapter->hw.media_type == em_media_type_internal_serdes)) {
+		u_char fiber_type = IFM_1000_SX;	// default type;
+
+		if (adapter->hw.mac_type == em_82545)
+			fiber_type = IFM_1000_LX;
+		ifmedia_add(&adapter->media, IFM_ETHER | fiber_type | IFM_FDX,
+		    0, NULL);
+		ifmedia_add(&adapter->media, IFM_ETHER | fiber_type, 0, NULL);
 	} else {
 		ifmedia_add(&adapter->media, IFM_ETHER | IFM_10_T, 0, NULL);
 		ifmedia_add(&adapter->media, IFM_ETHER | IFM_10_T | IFM_FDX,
@@ -2254,9 +2287,12 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 			    0, NULL);
 		ifmedia_add(&adapter->media, IFM_ETHER | IFM_100_TX | IFM_FDX,
 			    0, NULL);
-		ifmedia_add(&adapter->media, IFM_ETHER | IFM_1000_T | IFM_FDX,
-			    0, NULL);
-		ifmedia_add(&adapter->media, IFM_ETHER | IFM_1000_T, 0, NULL);
+		if (adapter->hw.phy_type != em_phy_ife) {
+			ifmedia_add(&adapter->media,
+				IFM_ETHER | IFM_1000_T | IFM_FDX, 0, NULL);
+			ifmedia_add(&adapter->media,
+				IFM_ETHER | IFM_1000_T, 0, NULL);
+		}
 	}
 	ifmedia_add(&adapter->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
@@ -2534,7 +2570,8 @@ em_initialize_transmit_unit(struct adapter *adapter)
 		    E1000_TIPG_IPGR2_SHIFT;
 		break;
 	default:
-		if (adapter->hw.media_type == em_media_type_fiber)
+		if ((adapter->hw.media_type == em_media_type_fiber) ||
+		    (adapter->hw.media_type == em_media_type_internal_serdes))
 			reg_tipg = DEFAULT_82543_TIPG_IPGT_FIBER;
 		else
 			reg_tipg = DEFAULT_82543_TIPG_IPGT_COPPER;
@@ -2559,8 +2596,6 @@ em_initialize_transmit_unit(struct adapter *adapter)
 	} else if (adapter->hw.mac_type == em_80003es2lan) {
 		reg_tarc = E1000_READ_REG(&adapter->hw, TARC0);
 		reg_tarc |= 1;
-		if (adapter->hw.media_type == em_media_type_internal_serdes)
-		    reg_tarc |= (1 << 20);
 		E1000_WRITE_REG(&adapter->hw, TARC0, reg_tarc);
 		reg_tarc = E1000_READ_REG(&adapter->hw, TARC1);
 		reg_tarc |= 1;
@@ -2572,7 +2607,7 @@ em_initialize_transmit_unit(struct adapter *adapter)
 		   (E1000_COLLISION_THRESHOLD << E1000_CT_SHIFT);
 	if (adapter->hw.mac_type >= em_82571)
 		reg_tctl |= E1000_TCTL_MULR;
-	if (adapter->link_duplex == 1) {
+	if (adapter->link_duplex == FULL_DUPLEX) {
 		reg_tctl |= E1000_FDX_COLLISION_DISTANCE << E1000_COLD_SHIFT;
 	} else {
 		reg_tctl |= E1000_HDX_COLLISION_DISTANCE << E1000_COLD_SHIFT;
@@ -2788,46 +2823,47 @@ em_txeof(struct adapter *adapter)
  *
  **********************************************************************/
 static int
-em_get_buf(int i, struct adapter *adapter, struct mbuf *mp)
+em_get_buf(struct adapter *adapter, int i)
 {
-	struct ifnet		*ifp = adapter->ifp;
+	struct mbuf		*m;
 	bus_dma_segment_t	segs[1];
+	bus_dmamap_t		map;
 	struct em_buffer	*rx_buffer;
 	int			error, nsegs;
 
-	if (mp == NULL) {
-		mp = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-		if (mp == NULL) {
-			adapter->mbuf_cluster_failed++;
-			return (ENOBUFS);
-		}
-		mp->m_len = mp->m_pkthdr.len = MCLBYTES;
-	} else {
-		mp->m_len = mp->m_pkthdr.len = MCLBYTES;
-		mp->m_data = mp->m_ext.ext_buf;
-		mp->m_next = NULL;
+	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	if (m == NULL) {
+		adapter->mbuf_cluster_failed++;
+		return (ENOBUFS);
 	}
-
-	if (ifp->if_mtu <= ETHERMTU)
-		m_adj(mp, ETHER_ALIGN);
-
-	rx_buffer = &adapter->rx_buffer_area[i];
+	m->m_len = m->m_pkthdr.len = MCLBYTES;
+	if (adapter->hw.max_frame_size <= (MCLBYTES - ETHER_ALIGN))
+		m_adj(m, ETHER_ALIGN);
 
 	/*
 	 * Using memory from the mbuf cluster pool, invoke the
 	 * bus_dma machinery to arrange the memory mapping.
 	 */
-	error = bus_dmamap_load_mbuf_sg(adapter->rxtag, rx_buffer->map,
-	    mp, segs, &nsegs, 0);
+	error = bus_dmamap_load_mbuf_sg(adapter->rxtag, adapter->rx_sparemap,
+	    m, segs, &nsegs, BUS_DMA_NOWAIT);
 	if (error != 0) {
-		m_free(mp);
+		m_free(m);
 		return (error);
 	}
 	/* If nsegs is wrong then the stack is corrupt. */
 	KASSERT(nsegs == 1, ("Too many segments returned!"));
-	rx_buffer->m_head = mp;
-	adapter->rx_desc_base[i].buffer_addr = htole64(segs[0].ds_addr);
+
+	rx_buffer = &adapter->rx_buffer_area[i];
+	if (rx_buffer->m_head != NULL)
+		bus_dmamap_unload(adapter->rxtag, rx_buffer->map);
+
+	map = rx_buffer->map;
+	rx_buffer->map = adapter->rx_sparemap;
+	adapter->rx_sparemap = map;
 	bus_dmamap_sync(adapter->rxtag, rx_buffer->map, BUS_DMASYNC_PREREAD);
+	rx_buffer->m_head = m;
+
+	adapter->rx_desc_base[i].buffer_addr = htole64(segs[0].ds_addr);
 
 	return (0);
 }
@@ -2874,6 +2910,13 @@ em_allocate_receive_structures(struct adapter *adapter)
 		goto fail;
 	}
 
+	error = bus_dmamap_create(adapter->rxtag, BUS_DMA_NOWAIT,
+	    &adapter->rx_sparemap);
+	if (error) {
+		device_printf(dev, "%s: bus_dmamap_create failed: %d\n",
+		    __func__, error);
+		goto fail;
+	}
 	rx_buffer = adapter->rx_buffer_area;
 	for (i = 0; i < adapter->num_rx_desc; i++, rx_buffer++) {
 		error = bus_dmamap_create(adapter->rxtag, BUS_DMA_NOWAIT,
@@ -2886,7 +2929,7 @@ em_allocate_receive_structures(struct adapter *adapter)
 	}
 
 	for (i = 0; i < adapter->num_rx_desc; i++) {
-		error = em_get_buf(i, adapter, NULL);
+		error = em_get_buf(adapter, i);
 		if (error)
 			goto fail;
 	}
@@ -3021,6 +3064,10 @@ em_free_receive_structures(struct adapter *adapter)
 
 	INIT_DEBUGOUT("free_receive_structures: begin");
 
+	if (adapter->rx_sparemap) {
+		bus_dmamap_destroy(adapter->rxtag, adapter->rx_sparemap);
+		adapter->rx_sparemap = NULL;
+	}
 	if (adapter->rx_buffer_area != NULL) {
 		rx_buffer = adapter->rx_buffer_area;
 		for (i = 0; i < adapter->num_rx_desc; i++, rx_buffer++) {
@@ -3073,6 +3120,7 @@ em_rxeof(struct adapter *adapter, int count)
 
 	/* Pointer to the receive descriptor being examined. */
 	struct em_rx_desc   *current_desc;
+	uint8_t		status;
 
 	ifp = adapter->ifp;
 	i = adapter->next_rx_desc_to_check;
@@ -3089,15 +3137,18 @@ em_rxeof(struct adapter *adapter, int count)
 		struct mbuf *m = NULL;
 
 		mp = adapter->rx_buffer_area[i].m_head;
+		/*
+		 * Can't defer bus_dmamap_sync(9) because TBI_ACCEPT
+		 * needs to access the last received byte in the mbuf.
+		 */
 		bus_dmamap_sync(adapter->rxtag, adapter->rx_buffer_area[i].map,
 		    BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(adapter->rxtag,
-		    adapter->rx_buffer_area[i].map);
 
 		accept_frame = 1;
 		prev_len_adj = 0;
 		desc_len = le16toh(current_desc->length);
-		if (current_desc->status & E1000_RXD_STAT_EOP) {
+		status = current_desc->status;
+		if (status & E1000_RXD_STAT_EOP) {
 			count--;
 			eop = 1;
 			if (desc_len < ETHER_CRC_LEN) {
@@ -3118,9 +3169,8 @@ em_rxeof(struct adapter *adapter, int count)
 				pkt_len += adapter->fmp->m_pkthdr.len;
 
 			last_byte = *(mtod(mp, caddr_t) + desc_len - 1);			
-			if (TBI_ACCEPT(&adapter->hw, current_desc->status,
-			    current_desc->errors,
-			    pkt_len, last_byte)) {
+			if (TBI_ACCEPT(&adapter->hw, status,
+			    current_desc->errors, pkt_len, last_byte)) {
 				em_tbi_adjust_stats(&adapter->hw,
 				    &adapter->stats, pkt_len,
 				    adapter->hw.mac_addr);
@@ -3131,14 +3181,9 @@ em_rxeof(struct adapter *adapter, int count)
 		}
 
 		if (accept_frame) {
-			if (em_get_buf(i, adapter, NULL) == ENOBUFS) {
-				adapter->dropped_pkts++;
-				em_get_buf(i, adapter, mp);
-				if (adapter->fmp != NULL)
-					m_freem(adapter->fmp);
-				adapter->fmp = NULL;
-				adapter->lmp = NULL;
-				break;
+			if (em_get_buf(adapter, i) != 0) {
+				ifp->if_iqdrops++;
+				goto discard;
 			}
 
 			/* Assign correct length to the current fragment */
@@ -3172,11 +3217,12 @@ em_rxeof(struct adapter *adapter, int count)
 				em_receive_checksum(adapter, current_desc,
 				    adapter->fmp);
 #ifndef __NO_STRICT_ALIGNMENT
-				if (ifp->if_mtu > ETHERMTU &&
+				if (adapter->hw.max_frame_size >
+				    (MCLBYTES - ETHER_ALIGN) &&
 				    em_fixup_rx(adapter) != 0)
 					goto skip;
 #endif
-				if (current_desc->status & E1000_RXD_STAT_VP)
+				if (status & E1000_RXD_STAT_VP)
 					VLAN_INPUT_TAG_NEW(ifp, adapter->fmp,
 					    (le16toh(current_desc->special) &
 					    E1000_RXD_SPC_VLAN_MASK));
@@ -3188,12 +3234,21 @@ skip:
 				adapter->lmp = NULL;
 			}
 		} else {
-			adapter->dropped_pkts++;
-			em_get_buf(i, adapter, mp);
-			if (adapter->fmp != NULL)
+			ifp->if_ierrors++;
+discard:
+			/* Reuse loaded DMA map and just update mbuf chain */
+			mp = adapter->rx_buffer_area[i].m_head;
+			mp->m_len = mp->m_pkthdr.len = MCLBYTES;
+			mp->m_data = mp->m_ext.ext_buf;
+			mp->m_next = NULL;
+			if (adapter->hw.max_frame_size <= (MCLBYTES - ETHER_ALIGN))
+				m_adj(mp, ETHER_ALIGN);
+			if (adapter->fmp != NULL) {
 				m_freem(adapter->fmp);
-			adapter->fmp = NULL;
-			adapter->lmp = NULL;
+				adapter->fmp = NULL;
+				adapter->lmp = NULL;
+			}
+			m = NULL;
 		}
 
 		/* Zero out the receive descriptors status. */
@@ -3266,10 +3321,12 @@ em_fixup_rx(struct adapter *adapter)
 			n->m_next = m;
 			adapter->fmp = n;
 		} else {
-			adapter->dropped_pkts++;
+			adapter->ifp->if_iqdrops++;
+			adapter->mbuf_alloc_failed++;
 			m_freem(adapter->fmp);
 			adapter->fmp = NULL;
-			error = ENOMEM;
+			adapter->lmp = NULL;
+			error = ENOBUFS;
 		}
 	}
 
@@ -3541,9 +3598,9 @@ em_update_stats_counters(struct adapter *adapter)
 	ifp->if_collisions = adapter->stats.colc;
 
 	/* Rx Errors */
-	ifp->if_ierrors = adapter->dropped_pkts + adapter->stats.rxerrc +
-	    adapter->stats.crcerrs + adapter->stats.algnerrc + adapter->stats.ruc +
-	    adapter->stats.roc + adapter->stats.mpc + adapter->stats.cexterr;
+	ifp->if_ierrors = adapter->stats.rxerrc + adapter->stats.crcerrs +
+	    adapter->stats.algnerrc + adapter->stats.ruc + adapter->stats.roc +
+	    adapter->stats.mpc + adapter->stats.cexterr;
 
 	/* Tx Errors */
 	ifp->if_oerrors = adapter->stats.ecol + adapter->stats.latecol +
@@ -3596,8 +3653,6 @@ em_print_debug_info(struct adapter *adapter)
 	    adapter->mbuf_alloc_failed);
 	device_printf(dev, "Std mbuf cluster failed = %ld\n",
 	    adapter->mbuf_cluster_failed);
-	device_printf(dev, "Driver dropped packets = %ld\n",
-	    adapter->dropped_pkts);
 }
 
 static void
