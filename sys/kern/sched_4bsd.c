@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sx.h>
 #include <sys/turnstile.h>
+#include <sys/umtx.h>
 #include <machine/pcb.h>
 #include <machine/smp.h>
 
@@ -586,7 +587,7 @@ resetpriority(struct ksegrp *kg)
 		    NICE_WEIGHT * (kg->kg_proc->p_nice - PRIO_MIN);
 		newpriority = min(max(newpriority, PRI_MIN_TIMESHARE),
 		    PRI_MAX_TIMESHARE);
-		kg->kg_user_pri = newpriority;
+		sched_user_prio(kg, newpriority);
 	}
 }
 
@@ -861,6 +862,60 @@ sched_prio(struct thread *td, u_char prio)
 	 */
 	if (TD_ON_LOCK(td) && oldprio != prio)
 		turnstile_adjust(td, oldprio);
+}
+
+void
+sched_user_prio(struct ksegrp *kg, u_char prio)
+{
+	struct thread *td;
+	u_char oldprio;
+
+	kg->kg_base_user_pri = prio;
+
+	/* XXXKSE only for 1:1 */
+
+	td = TAILQ_FIRST(&kg->kg_threads);
+	if (td == NULL) {
+		kg->kg_user_pri = prio;
+		return;
+	}
+
+	if (td->td_flags & TDF_UBORROWING && kg->kg_user_pri <= prio)
+		return;
+
+	oldprio = kg->kg_user_pri;
+	kg->kg_user_pri = prio;
+
+	if (TD_ON_UPILOCK(td) && oldprio != prio)
+		umtx_pi_adjust(td, oldprio);
+}
+
+void
+sched_lend_user_prio(struct thread *td, u_char prio)
+{
+	u_char oldprio;
+
+	td->td_flags |= TDF_UBORROWING;
+
+	oldprio = td->td_ksegrp->kg_user_pri;
+	td->td_ksegrp->kg_user_pri = prio;
+
+	if (TD_ON_UPILOCK(td) && oldprio != prio)
+		umtx_pi_adjust(td, oldprio);
+}
+
+void
+sched_unlend_user_prio(struct thread *td, u_char prio)
+{
+	struct ksegrp *kg = td->td_ksegrp;
+	u_char base_pri;
+
+	base_pri = kg->kg_base_user_pri;
+	if (prio >= base_pri) {
+		td->td_flags &= ~TDF_UBORROWING;
+		sched_user_prio(kg, base_pri);
+	} else
+		sched_lend_user_prio(td, prio);
 }
 
 void

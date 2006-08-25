@@ -601,6 +601,11 @@ kern_umtx_wake(struct thread *td, void *uaddr, int n_wake)
 	return (0);
 }
 
+void
+umtx_pi_adjust(struct thread *td __unused, u_char oldpri __unused)
+{
+}
+
 int
 _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
     /* struct umtx *umtx */
