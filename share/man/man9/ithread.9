@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2001
+.Dd August 25, 2006
 .Dt ITHREAD 9
 .Os
 .Sh NAME
@@ -202,6 +202,12 @@ Presently, the
 and
 .Dv INTR_ENTROPY
 flags are not valid for software interrupt handlers.
+.Pp
+It is not permitted to sleep in an interrupt thread; hence, any memory
+or zone allocations in an interrupt thread should be specified with the
+.Dv M_NOWAIT
+flag set.
+Any allocation errors must be handled thereafter.
 .Sh RETURN VALUES
 The
 .Fn ithread_add_handler ,
@@ -340,7 +346,9 @@ has no interrupt handlers.
 .El
 .Sh SEE ALSO
 .Xr kthread 9 ,
-.Xr swi 9
+.Xr malloc 9 ,
+.Xr swi 9 ,
+.Xr uma 9
 .Sh HISTORY
 Interrupt threads and their corresponding API first appeared in
 .Fx 5.0 .
