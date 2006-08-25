@@ -352,11 +352,6 @@ ate_activate(device_t dev)
 	    busdma_lock_mutex, &sc->sc_mtx, &sc->rxtag);
 	if (err != 0)
 		goto errout;
-	for (i = 0; i < ATE_MAX_RX_BUFFERS; i++) {
-		err = bus_dmamap_create(sc->rxtag, 0, &sc->rx_map[i]);
-		if (err != 0)
-			goto errout;
-	}
 
 	/* Dma TAG and MAP for the rx descriptors. */
 	err = bus_dma_tag_create(NULL, sizeof(eth_rx_desc_t), 0, 
