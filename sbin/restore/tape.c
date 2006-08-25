@@ -645,7 +645,7 @@ extractfile(char *name)
 		if (uflag)
 			(void) unlink(name);
 		if (mknod(name, (mode & (IFCHR | IFBLK)) | 0600,
-			(int)curfile.rdev) < 0) {
+		    (int)curfile.rdev) < 0) {
 			fprintf(stderr, "%s: cannot create special file: %s\n",
 			    name, strerror(errno));
 			skipfile();
