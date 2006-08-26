@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/test/bsm/generate.c#4 $
+ * $P4: //depot/projects/trustedbsd/openbsm/test/bsm/generate.c#5 $
  */
 
 /*
@@ -142,6 +142,17 @@ generate_file_token(const char *directory, const char *token_filename)
 	if (file_token == NULL)
 		err(EX_UNAVAILABLE, "au_to_file");
 	write_token(directory, token_filename, file_token);
+}
+
+static void
+generate_file_record(const char *directory, const char *record_filename)
+{
+	token_t *file_token;
+
+	file_token = au_to_file("test", file_token_timeval);
+	if (file_token == NULL)
+		err(EX_UNAVAILABLE, "au_to_file");
+	write_record(directory, record_filename, file_token, AUE_NULL);
 }
 
 /*
@@ -326,6 +337,32 @@ generate_subject32ex_token(const char *directory, const char *token_filename,
 	write_token(directory, buf, subject32ex_token);
 }
 
+static void
+generate_subject32ex_record(const char *directory, const char *record_filename,
+    u_int32_t type)
+{
+	token_t *subject32ex_token;
+	char *buf;
+
+	buf = (char *)malloc(strlen(record_filename) + 6);
+	if (type == AU_IPv6) {
+		inet_pton(AF_INET6, "fe80::1", subject32_tid_addr.at_addr);
+		subject32_tid_addr.at_type = AU_IPv6;
+		sprintf(buf, "%s%s", record_filename, "-IPv6");
+	} else {
+		subject32_tid_addr.at_addr[0] = inet_addr("127.0.0.1");
+		subject32_tid_addr.at_type = AU_IPv4;
+		sprintf(buf, "%s%s", record_filename, "-IPv4");
+	}
+
+	subject32ex_token = au_to_subject32_ex(subject32_auid, subject32_euid,
+	    subject32_egid, subject32_ruid, subject32_rgid, subject32_pid,
+	    subject32_sid, &subject32_tid_addr);
+	if (subject32ex_token == NULL)
+		err(EX_UNAVAILABLE, "au_to_subject32_ex");
+	write_record(directory, record_filename, subject32ex_token, AUE_NULL);
+}
+
 static au_id_t		 process32_auid = 0x12345678;
 static uid_t		 process32_euid = 0x01234567;
 static gid_t		 process32_egid = 0x23456789;
@@ -380,6 +417,22 @@ generate_process32ex_token(const char *directory, const char *token_filename)
 	if (process32ex_token == NULL)
 		err(EX_UNAVAILABLE, "au_to_process32_ex");
 	write_token(directory, token_filename, process32ex_token);
+}
+
+static void
+generate_process32ex_record(const char *directory, const char *record_filename)
+{
+	token_t *process32ex_token;
+
+	process32_tid_addr.at_addr[0] = inet_addr("127.0.0.1");
+	process32_tid_addr.at_type = AU_IPv4;
+
+	process32ex_token = au_to_process32_ex(process32_auid, process32_euid,
+	    process32_egid, process32_ruid, process32_rgid, process32_pid,
+	    process32_sid, &process32_tid_addr);
+	if (process32ex_token == NULL)
+		err(EX_UNAVAILABLE, "au_to_process32_ex");
+	write_record(directory, record_filename, process32ex_token, AUE_NULL);
 }
 
 static char		 return32_status = 0xd7;
@@ -777,29 +830,29 @@ main(int argc, char *argv[])
 	}
 
 	if (do_records) {
-		generate_file_token(directory, "file_token");
-		generate_trailer_token(directory, "trailer_token");
-		generate_header32_token(directory, "header32_token");
-		generate_data_token(directory, "data_record");
-		generate_ipc_token(directory, "ipc_record");
-		generate_path_token(directory, "path_record");
-		generate_subject32_token(directory, "subject32_record");
-		generate_subject32ex_token(directory, "subject32ex_record", AU_IPv4);
-		generate_subject32ex_token(directory, "subject32ex_record", AU_IPv6);
-		generate_process32_token(directory, "process32_record");
-		generate_process32ex_token(directory, "process32ex_token");
-		generate_return32_token(directory, "return32_record");
-		generate_text_token(directory, "text_record");
-		generate_opaque_token(directory, "opaque_record");
-		generate_in_addr_token(directory, "in_addr_record");
-		generate_ip_token(directory, "ip_record");
-		generate_iport_token(directory, "iport_record");
-		generate_arg32_token(directory, "arg32_record");
-		generate_seq_token(directory, "seq_record");
-		generate_attr_token(directory,  "attr_record");
-		generate_ipc_perm_token(directory, "ipc_perm_record");
-		generate_groups_token(directory, "groups_record");
-		generate_attr32_token(directory, "attr32_record");
+		generate_file_record(directory, "file_record");
+		generate_data_record(directory, "data_record");
+		generate_ipc_record(directory, "ipc_record");
+		generate_path_record(directory, "path_record");
+		generate_subject32_record(directory, "subject32_record");
+		generate_subject32ex_record(directory, "subject32ex_record",
+		    AU_IPv4);
+		generate_subject32ex_record(directory, "subject32ex_record",
+		    AU_IPv6);
+		generate_process32_record(directory, "process32_record");
+		generate_process32ex_record(directory, "process32ex_record");
+		generate_return32_record(directory, "return32_record");
+		generate_text_record(directory, "text_record");
+		generate_opaque_record(directory, "opaque_record");
+		generate_in_addr_record(directory, "in_addr_record");
+		generate_ip_record(directory, "ip_record");
+		generate_iport_record(directory, "iport_record");
+		generate_arg32_record(directory, "arg32_record");
+		generate_seq_record(directory, "seq_record");
+		generate_attr_record(directory,  "attr_record");
+		generate_ipc_perm_record(directory, "ipc_perm_record");
+		generate_groups_record(directory, "groups_record");
+		generate_attr32_record(directory, "attr32_record");
 	}
 
 	return (0);

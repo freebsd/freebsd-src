@@ -31,7 +31,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#37 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#40 $
  */
 
 #include <sys/types.h>
@@ -820,7 +820,7 @@ print_arg32_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
 	print_delim(fp, del);
 	print_1_byte(fp, tok->tt.arg32.no, "%u");
 	print_delim(fp, del);
-	print_4_bytes(fp, tok->tt.arg32.val, "%#x");
+	print_4_bytes(fp, tok->tt.arg32.val, "0x%x");
 	print_delim(fp, del);
 	print_string(fp, tok->tt.arg32.text, tok->tt.arg32.len);
 }
@@ -859,7 +859,7 @@ print_arg64_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
 	print_delim(fp, del);
 	print_1_byte(fp, tok->tt.arg64.no, "%u");
 	print_delim(fp, del);
-	print_8_bytes(fp, tok->tt.arg64.val, "%#llx");
+	print_8_bytes(fp, tok->tt.arg64.val, "0x%llx");
 	print_delim(fp, del);
 	print_string(fp, tok->tt.arg64.text, tok->tt.arg64.len);
 }
@@ -1259,7 +1259,7 @@ print_execenv_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
 {
 	int i;
 
-	print_tok_type(fp, tok->id, "exec arg", raw);
+	print_tok_type(fp, tok->id, "exec env", raw);
 	for (i = 0; i< tok->tt.execenv.count; i++) {
 		print_delim(fp, del);
 		print_string(fp, tok->tt.execenv.text[i],
@@ -2448,7 +2448,7 @@ fetch_invalid_tok(tokenstr_t *tok, char *buf, int len)
 	int err = 0;
 	int recoversize;
 
-	recoversize = len - (tok->len + BSM_TRAILER_SIZE);
+	recoversize = len - (tok->len + AUDIT_TRAILER_SIZE);
 	if (recoversize <= 0)
 		return (-1);
 

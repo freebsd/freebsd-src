@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 #
-# $P4: //depot/projects/trustedbsd/openbsm/tools/Makefile.in#3 $
+# $P4: //depot/projects/trustedbsd/openbsm/tools/Makefile.in#4 $
 #
 
 srcdir = @srcdir@
@@ -40,7 +40,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-bin_PROGRAMS = autool$(EXEEXT)
+bin_PROGRAMS = audump$(EXEEXT)
 subdir = tools
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -53,9 +53,9 @@ CONFIG_CLEAN_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
-am_autool_OBJECTS = autool.$(OBJEXT)
-autool_OBJECTS = $(am_autool_OBJECTS)
-autool_DEPENDENCIES = $(top_builddir)/libbsm/libbsm.la
+am_audump_OBJECTS = audump.$(OBJEXT)
+audump_OBJECTS = $(am_audump_OBJECTS)
+audump_DEPENDENCIES = $(top_builddir)/libbsm/libbsm.la
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)/config
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
 am__depfiles_maybe = depfiles
@@ -67,8 +67,8 @@ LTCOMPILE = $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) \
 CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(autool_SOURCES)
-DIST_SOURCES = $(autool_SOURCES)
+SOURCES = $(audump_SOURCES)
+DIST_SOURCES = $(audump_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -174,8 +174,8 @@ sharedstatedir = @sharedstatedir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 INCLUDES = -I$(top_srcdir)
-autool_SOURCES = autool.c
-autool_LDADD = $(top_builddir)/libbsm/libbsm.la
+audump_SOURCES = audump.c
+audump_LDADD = $(top_builddir)/libbsm/libbsm.la
 all: all-am
 
 .SUFFIXES:
@@ -237,9 +237,9 @@ clean-binPROGRAMS:
 	  echo " rm -f $$p $$f"; \
 	  rm -f $$p $$f ; \
 	done
-autool$(EXEEXT): $(autool_OBJECTS) $(autool_DEPENDENCIES) 
-	@rm -f autool$(EXEEXT)
-	$(LINK) $(autool_LDFLAGS) $(autool_OBJECTS) $(autool_LDADD) $(LIBS)
+audump$(EXEEXT): $(audump_OBJECTS) $(audump_DEPENDENCIES) 
+	@rm -f audump$(EXEEXT)
+	$(LINK) $(audump_LDFLAGS) $(audump_OBJECTS) $(audump_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -247,7 +247,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/autool.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/audump.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	if $(COMPILE) -MT $@ -MD -MP -MF "$(DEPDIR)/$*.Tpo" -c -o $@ $<; \
