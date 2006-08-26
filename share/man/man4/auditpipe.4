@@ -74,7 +74,7 @@ preselection parameters independent of the global audit trail parameters.
 .Ss Audit Pipe Queue Ioctls
 The following ioctls retrieve and set various audit pipe record queue
 properties:
-.Bl -tag -width AUDITPIPE_GET_QLIMIT_MIN
+.Bl -tag -width AUDITPIPE_GET_MAXAUDITDATA
 .It AUDITPIPE_GET_QLEN
 Query the current number of records available for reading on the pipe.
 .It AUDITPIPE_GET_QLIMIT
@@ -95,6 +95,9 @@ reading on the pipe.
 Flush all outstanding records on the audit pipe; useful after setting initial
 preselection properties to delete records queued during the configuration
 process which may not match the interests of the user process.
+.It AUDITPIPE_GET_MAXAUDITDATA
+Query the maximum size of an audit record, which is a useful minimum size for
+a user space buffer intended to hold audit records read from the audit pipe.
 .El
 .Ss Audit Pipe Preselection Mode Ioctls
 By default, the audit pipe facility configures pipes to present records
