@@ -1,3 +1,51 @@
+2006-03-05  Release Manager
+
+	* GCC 3.4.6 released.
+
+2005-11-30  Release Manager
+
+	* GCC 3.4.5 released.
+
+2005-09-10  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* testsuite/26_numerics/c99_classification_macros_c.cc:
+	XFAIL on *-*-linux*, not *-*-linux-gnu.
+
+2005-09-01  Benjamin Kosnik  <bkoz@redhat.com>
+
+        * include/c_std/std_cmath.h: Declare C99 functions and helper
+        functions as inline.
+
+2005-08-29  Paolo Carlini  <pcarlini@suse.de>
+
+        PR libstdc++/23528
+        Port from HEAD/4_0-branch:
+	2004-07-28  Matt Austern  <austern@apple.com>
+	* include/ext/hashtable.h: Use rebind so that allocator_type
+	has correct type for a container's allocator.
+	* testsuite/ext/23528.cc: New.
+
+2005-08-24  Lawrence Lim  <llim@redhat.com>
+            Jakub Jelinek  <jakub@redhat.com>
+	    Benjamin Kosnik  <bkoz@redhat.com>
+
+	PR libstdc++/23550
+	* testsuite/21_strings/char_traits/requirements/char/1.cc
+	(test01): Simplify counting.
+	* testsuite/21_strings/char_traits/requirements/wchar_t/1.cc
+	(test02): Same.
+
+2005-07-18  Paolo Carlini  <pcarlini@suse.de>
+	    Nathan Myers  <ncm@cantrip.org>
+
+	PR libstdc++/21286
+	* include/bits/fstream.tcc (basic_filebuf<>::xsgetn):
+	Loop on short reads.
+
+2005-05-27  Mark Mitchell  <mark@codesourcery.com>
+
+	* testsuite/Makefile.in: Regenerate with Automake 1.7.8.
+
 2005-05-19  Release Manager
 
 	* GCC 3.4.4 released.
