@@ -118,7 +118,7 @@ kau_close(struct au_record *rec, struct timespec *ctime, short event)
 	token_t *cur, *hdr, *trail;
 	struct timeval tm;
 
-	tot_rec_size = rec->len + BSM_HEADER_SIZE + BSM_TRAILER_SIZE;
+	tot_rec_size = rec->len + AUDIT_HEADER_SIZE + AUDIT_TRAILER_SIZE;
 	if (tot_rec_size <= MAX_AUDIT_RECORD_SIZE) {
 		/* Create the header token */
 		tm.tv_usec = ctime->tv_nsec / 1000;

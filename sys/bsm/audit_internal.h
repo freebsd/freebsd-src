@@ -34,7 +34,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_internal.h#7 $
+ * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_internal.h#11 $
  * $FreeBSD$
  */
 
@@ -69,15 +69,15 @@ struct au_record {
 typedef	struct au_record	au_record_t;
 
 
-/* We could determined the header and trailer sizes by
- * defining appropriate structures. We hold off that approach
- * till we have a consistant way of using structures for all tokens.
- * This is not straightforward since these token structures may
- * contain pointers of whose contents we dont know the size
- * (e.g text tokens)
+/*
+ * We could determined the header and trailer sizes by defining appropriate
+ * structures.  We hold off that approach until we have a consistant way of
+ * using structures for all tokens.  This is not straightforward since these
+ * token structures may contain pointers of whose contents we dont know the
+ * size (e.g text tokens).
  */
-#define	BSM_HEADER_SIZE		18
-#define	BSM_TRAILER_SIZE	7
+#define	AUDIT_HEADER_SIZE	18
+#define	AUDIT_TRAILER_SIZE	7
 
 /*
  * BSM token streams store fields in big endian byte order, so as to be
