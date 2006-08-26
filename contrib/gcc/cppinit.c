@@ -466,7 +466,7 @@ cpp_read_main_file (cpp_reader *pfile, const char *fname)
     }
 
   pfile->main_file
-    = _cpp_find_file (pfile, fname, &pfile->no_search_path, false);
+    = _cpp_find_file (pfile, fname, &pfile->no_search_path, false, 0);
   if (_cpp_find_failed (pfile->main_file))
     return NULL;
 
@@ -477,6 +477,8 @@ cpp_read_main_file (cpp_reader *pfile, const char *fname)
   if (CPP_OPTION (pfile, preprocessed))
     {
       read_original_filename (pfile);
+      if (!pfile->map)
+	return NULL;
       fname = pfile->map->to_file;
     }
   return fname;
@@ -496,8 +498,10 @@ read_original_filename (cpp_reader *pfile)
   token = _cpp_lex_direct (pfile);
   if (token->type == CPP_HASH)
     {
+      pfile->state.in_directive = 1;
       token1 = _cpp_lex_direct (pfile);
       _cpp_backup_tokens (pfile, 1);
+      pfile->state.in_directive = 0;
 
       /* If it's a #line directive, handle it.  */
       if (token1->type == CPP_NUMBER)

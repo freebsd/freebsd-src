@@ -429,7 +429,7 @@ reg_to_stack (rtx first, FILE *file)
      Also need to rebuild life when superblock scheduling is done
      as it don't update liveness yet.  */
   if (!optimize
-      || (flag_sched2_use_superblocks
+      || ((flag_sched2_use_superblocks || flag_sched2_use_traces)
 	  && flag_schedule_insns_after_reload))
     {
       count_or_remove_death_notes (NULL, 1);
@@ -1231,9 +1231,9 @@ swap_rtx_condition (rtx insn)
       pat = PATTERN (insn);
     }
 
-  /* See if this is, or ends in, a fnstsw, aka unspec 9.  If so, we're
-     not doing anything with the cc value right now.  We may be able to
-     search for one though.  */
+  /* See if this is, or ends in, a fnstsw.  If so, we're not doing anything
+     with the cc value right now.  We may be able to search for one
+     though.  */
 
   if (GET_CODE (pat) == SET
       && GET_CODE (SET_SRC (pat)) == UNSPEC
@@ -1252,9 +1252,13 @@ swap_rtx_condition (rtx insn)
 	    return 0;
 	}
 
+      /* We haven't found it.  */
+      if (insn == BB_END (current_block))
+	return 0;
+
       /* So we've found the insn using this value.  If it is anything
-	 other than sahf, aka unspec 10, or the value does not die
-	 (meaning we'd have to search further), then we must give up.  */
+	 other than sahf or the value does not die (meaning we'd have
+	 to search further), then we must give up.  */
       pat = PATTERN (insn);
       if (GET_CODE (pat) != SET
 	  || GET_CODE (SET_SRC (pat)) != UNSPEC
