@@ -306,8 +306,12 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		   	printf("second wakeup\n");
 #endif
 		   	op_ret = 0;
-		   	/* Linux always puts there 0 retries */
-   		   	op_ret += futex_wake(f2, 0, NULL);
+		   	/*
+			 * Linux uses the address of the timespec parameter
+			 * as the number of retries, so any large number will
+			 * be ok.
+			 */
+   		   	op_ret += futex_wake(f2, 0x7fffffff, NULL);
 			ret += op_ret;
 		}
 		futex_put(f2);
