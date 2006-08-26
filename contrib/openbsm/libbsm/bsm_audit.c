@@ -30,7 +30,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_audit.c#26 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_audit.c#28 $
  */
 
 #include <sys/types.h>
@@ -54,14 +54,14 @@
 static au_record_t	*open_desc_table[MAX_AUDIT_RECORDS];
 
 /* The current number of active record descriptors */
-static int	bsm_rec_count = 0;
+static int	audit_rec_count = 0;
 
 /*
  * Records that can be recycled are maintained in the list given below.  The
  * maximum number of elements that can be present in this list is bounded by
  * MAX_AUDIT_RECORDS.  Memory allocated for these records are never freed.
  */
-static LIST_HEAD(, au_record)	bsm_free_q;
+static LIST_HEAD(, au_record)	audit_free_q;
 
 static pthread_mutex_t	mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -93,15 +93,15 @@ au_open(void)
 
 	pthread_mutex_lock(&mutex);
 
-	if (bsm_rec_count == 0)
-		LIST_INIT(&bsm_free_q);
+	if (audit_rec_count == 0)
+		LIST_INIT(&audit_free_q);
 
 	/*
 	 * Find an unused descriptor, remove it from the free list, mark as
 	 * used.
 	 */
-	if (!LIST_EMPTY(&bsm_free_q)) {
-		rec = LIST_FIRST(&bsm_free_q);
+	if (!LIST_EMPTY(&audit_free_q)) {
+		rec = LIST_FIRST(&audit_free_q);
 		rec->used = 1;
 		LIST_REMOVE(rec, au_rec_q);
 	}
@@ -125,7 +125,7 @@ au_open(void)
 
 		pthread_mutex_lock(&mutex);
 
-		if (bsm_rec_count == MAX_AUDIT_RECORDS) {
+		if (audit_rec_count == MAX_AUDIT_RECORDS) {
 			pthread_mutex_unlock(&mutex);
 			free(rec->data);
 			free(rec);
@@ -134,9 +134,9 @@ au_open(void)
 			errno = ENOMEM;
 			return (-1);
 		}
-		rec->desc = bsm_rec_count;
-		open_desc_table[bsm_rec_count] = rec;
-		bsm_rec_count++;
+		rec->desc = audit_rec_count;
+		open_desc_table[audit_rec_count] = rec;
+		audit_rec_count++;
 
 		pthread_mutex_unlock(&mutex);
 
@@ -174,7 +174,7 @@ au_write(int d, token_t *tok)
 		return (-1); /* Invalid descriptor */
 	}
 
-	if (rec->len + tok->len + BSM_TRAILER_SIZE > MAX_AUDIT_RECORD_SIZE) {
+	if (rec->len + tok->len + AUDIT_TRAILER_SIZE > MAX_AUDIT_RECORD_SIZE) {
 		errno = ENOMEM;
 		return (-1);
 	}
@@ -208,7 +208,7 @@ au_assemble(au_record_t *rec, short event)
 	u_char *dptr;
 	int error;
 
-	tot_rec_size = rec->len + BSM_HEADER_SIZE + BSM_TRAILER_SIZE;
+	tot_rec_size = rec->len + AUDIT_HEADER_SIZE + AUDIT_TRAILER_SIZE;
 	header = au_to_header32(tot_rec_size, event, 0);
 	if (header == NULL)
 		return (-1);
@@ -257,7 +257,7 @@ au_teardown(au_record_t *rec)
 	pthread_mutex_lock(&mutex);
 
 	/* Add the record to the freelist tail */
-	LIST_INSERT_HEAD(&bsm_free_q, rec, au_rec_q);
+	LIST_INSERT_HEAD(&audit_free_q, rec, au_rec_q);
 
 	pthread_mutex_unlock(&mutex);
 }
@@ -285,7 +285,7 @@ au_close(int d, int keep, short event)
 		goto cleanup;
 	}
 
-	tot_rec_size = rec->len + BSM_HEADER_SIZE + BSM_TRAILER_SIZE;
+	tot_rec_size = rec->len + AUDIT_HEADER_SIZE + AUDIT_TRAILER_SIZE;
 
 	if (tot_rec_size > MAX_AUDIT_RECORD_SIZE) {
 		/*
@@ -335,7 +335,7 @@ au_close_buffer(int d, short event, u_char *buffer, size_t *buflen)
 	}
 
 	retval = 0;
-	tot_rec_size = rec->len + BSM_HEADER_SIZE + BSM_TRAILER_SIZE;
+	tot_rec_size = rec->len + AUDIT_HEADER_SIZE + AUDIT_TRAILER_SIZE;
 	if ((tot_rec_size > MAX_AUDIT_RECORD_SIZE) ||
 	    (tot_rec_size > *buflen)) {
 		/*

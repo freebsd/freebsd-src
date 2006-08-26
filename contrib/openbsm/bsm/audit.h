@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/audit.h#16 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/audit.h#19 $
  */
 
 #ifndef _BSM_AUDIT_H
@@ -38,11 +38,12 @@
 
 #define	AUDIT_RECORD_MAGIC	0x828a0f1b
 #define	MAX_AUDIT_RECORDS	20
-#define	MAX_AUDIT_RECORD_SIZE	4096
+#define	MAXAUDITDATA		(0x8000 - 1)
+#define	MAX_AUDIT_RECORD_SIZE	MAXAUDITDATA
 #define	MIN_AUDIT_FILE_SIZE	(512 * 1024)
 
 /*
- * Triggers for the audit daemon
+ * Triggers for the audit daemon.
  */
 #define	AUDIT_TRIGGER_MIN		1
 #define	AUDIT_TRIGGER_LOW_SPACE		1
@@ -53,7 +54,8 @@
 #define	AUDIT_TRIGGER_MAX		5
 
 /*
- * File that will be read for trigger events from the kernel
+ * Special file that will be read for trigger events from the kernel
+ * (FreeBSD).
  */
 #define	AUDIT_TRIGGER_FILE	"/dev/audit"
 
@@ -101,7 +103,7 @@
 #define	AU_ALL		0xffffffff
 
 /*
- * IPC types
+ * IPC types.
  */
 #define	AT_IPC_MSG	((u_char)1)	/* Message IPC id. */
 #define	AT_IPC_SEM	((u_char)2)	/* Semaphore IPC id. */
@@ -150,16 +152,19 @@
 #define	AUDIT_AHLT	0x0002
 #define	AUDIT_ARGV	0x0004
 #define	AUDIT_ARGE	0x0008
-#define	AUDIT_PASSWD	0x0010
-#define	AUDIT_SEQ	0x0020
-#define	AUDIT_WINDATA	0x0040
-#define	AUDIT_USER	0x0080
-#define	AUDIT_GROUP	0x0100
-#define	AUDIT_TRAIL	0x0200
-#define	AUDIT_PATH	0x0400
+#define	AUDIT_SEQ	0x0010
+#define	AUDIT_WINDATA	0x0020
+#define	AUDIT_USER	0x0040
+#define	AUDIT_GROUP	0x0080
+#define	AUDIT_TRAIL	0x0100
+#define	AUDIT_PATH	0x0200
+#define	AUDIT_SCNT	0x0400
+#define	AUDIT_PUBLIC	0x0800
+#define	AUDIT_ZONENAME	0x1000
+#define	AUDIT_PERZONE	0x2000
 
 /*
- * Audit queue control parameters
+ * Audit queue control parameters.
  */
 #define	AQ_HIWATER	100
 #define	AQ_MAXHIGH	10000

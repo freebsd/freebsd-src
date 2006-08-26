@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2005 Robert N. M. Watson
+.\" Copyright (c) 2005-2006 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit.log.5#9 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit.log.5#10 $
 .\"
 .Dd May 1, 2005
 .Dt AUDIT.LOG 5
@@ -91,10 +91,14 @@ The
 token is used to mark the beginning of a complete audit record, and includes
 the length of the total record in bytes, a version number for the record
 layout, the event type and subtype, and the time at which the event occurred.
-A
+A 32-bit
 .Dv header
 token can be created using
-.Xr au_to_header32 3 .
+.Xr au_to_header32 3 ;
+a 64-bit
+.Dv header
+token can be created using
+.Xr au_to_header64 3 .
 .Bl -column -offset ind ".Sy Field Name Width XX" ".Sy XX Bytes XXXX" ".Sy Description"
 .It Sy "Field" Ta Sy Bytes Ta Sy Description
 .It Li "Token ID" Ta "1 byte" Ta "Token ID"
@@ -111,11 +115,14 @@ The
 token is an expanded version of the
 .Dv header
 token, with the addition of a machine IPv4 or IPv6 address.
-The
-.Xr libbsm 3
-API cannot currently create an
-.Dv expanded header
-token.
+A 32-bit extended
+.Dv header
+token can be created using
+.Xr au_to_header32_ex 3 ;
+a 64-bit extended
+.Dv header
+token can be created using
+.Xr au_to_header64_ex 3 .
 .Bl -column -offset ind ".Sy Field Name Width XX" ".Sy XX Bytes XXXX" ".Sy Description"
 .It Sy "Field" Ta Sy Bytes Ta Sy Description
 .It Li "Token ID" Ta "1 byte" Ta "Token ID"
@@ -154,11 +161,10 @@ A
 .Dv How to print
 field is present to specify how to print the data, but interpretation of
 that field is not currently defined.
-The
-.Xr libbsm 3
-API cannot currently create an
+An
 .Dv arbitrary data
-token.
+token can be created using
+.Xr au_to_data 3 .
 .Bl -column -offset ind ".Sy Field Name Width XX" ".Sy XX Bytes XXXX" ".Sy Description"
 .It Sy "Field" Ta Sy Bytes Ta Sy Description
 .It Li "Token ID" Ta "1 byte" Ta "Token ID"

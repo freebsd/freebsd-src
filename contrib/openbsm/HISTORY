@@ -1,3 +1,31 @@
+OpenBSM 1.0 alpha 9
+
+- Rename many OpenBSM-specific constants and API elements containing the
+  strings "BSM" and "bsm" to "AUDIT" and "audit", observing that this is true
+  for almost all existing constants and APIs.
+- Instead of passing a per-instance cookie directly into all audit filter
+  APIs, pass in the audit filter daemon state pointer, which is then used by
+  the module using an audit_filter_{get,set}cookie() API.  This will allow
+  future service APIs provided by the filter daemon to maintain their own
+  state -- for example, per-module preselection state.
+
+OpenBSM 1.0 alpha 8
+
+- Correct typo in definition of AUR_INT.
+- Adopt OpenSolaris constant values for AUDIT_* configuration flags.
+- Arguments to au_to_exec_args() and au_to_exec_env() no longer const.
+- Add kernel versions of au_to_exec_args() and au_to_exec_env().
+- Fix exec argument type that is printed for env strings from 'arg' to 'env'.
+- New OpenBSM token version number assigned, constants added for other
+  commonly seen version numbers.
+- OpenBSM-specific events assigned numbers in the 43xxx range to avoid future
+  collisions with Solaris.  Darwin events renamed to AUE_DARWIN_foo, as they
+  are now deprecated numberings.
+- autoconf now detects clock_gettime(), which is not available on Darwin.
+- praudit output fixes relating to arg32 and arg64 tokens.
+- Maximum record size updated to 64k-1 to match Solaris record size limit.
+- Various style and comment cleanups in include files.
+
 OpenBSM 1.0 alpha 7
 
 - Adopted Solaris-compatible format for subject32_ex and subject64_ex
@@ -175,4 +203,4 @@ OpenBSM 1.0 alpha 1
   to support reloading of kernel event table.
 - Allow comments in /etc/security configuration files.
 
-$P4: //depot/projects/trustedbsd/openbsm/HISTORY#15 $
+$P4: //depot/projects/trustedbsd/openbsm/HISTORY#25 $
