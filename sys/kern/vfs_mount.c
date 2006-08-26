@@ -575,6 +575,7 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 	int error, fstypelen, fspathlen, errmsg_len, errmsg_pos;
 	int has_rw, has_noro;
 
+	errmsg = NULL;
 	errmsg_len = 0;
 	errmsg_pos = -1;
 	has_rw = 0;
@@ -586,8 +587,6 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 
 	if (vfs_getopt(optlist, "errmsg", (void **)&errmsg, &errmsg_len) == 0) 
 		errmsg_pos = vfs_getopt_pos(optlist, "errmsg");
-	else
-		errmsg_len = 0;
 
 	/*
 	 * We need these two options before the others,
