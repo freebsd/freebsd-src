@@ -91,7 +91,7 @@ __BEGIN_DECLS
 #define SDP_DATA_URL32					0x47
 
 /*
- * Protocols UUID (short) http://www.bluetoothsig.org/assigned-numbers/sdp.htm
+ * Protocols UUID (short) https://www.bluetooth.org/assigned-numbers/service_discovery.php
  * BASE UUID 00000000-0000-1000-8000-00805F9B34FB
  */
 
@@ -119,7 +119,7 @@ __BEGIN_DECLS
 #define SDP_UUID_PROTOCOL_L2CAP				0x0100
 
 /*
- * Service class IDs http://www.bluetoothsig.org/assigned-numbers/sdp.htm
+ * Service class IDs https://www.bluetooth.org/assigned-numbers/service_discovery.php
  */
 
 #define SDP_SERVICE_CLASS_SERVICE_DISCOVERY_SERVER	0x1000
@@ -170,6 +170,9 @@ __BEGIN_DECLS
 #define SDP_SERVICE_CLASS_UDI_TA			0x112B
 #define SDP_SERVICE_CLASS_AUDIO_VIDEO			0x112C
 #define SDP_SERVICE_CLASS_SIM_ACCESS			0x112D
+#define SDP_SERVICE_CLASS_PHONEBOOK_ACCESS_PCE		0x112E
+#define SDP_SERVICE_CLASS_PHONEBOOK_ACCESS_PSE		0x112F
+#define SDP_SERVICE_CLASS_PHONEBOOK_ACCESS		0x1130
 #define SDP_SERVICE_CLASS_PNP_INFORMATION		0x1200
 #define SDP_SERVICE_CLASS_GENERIC_NETWORKING		0x1201
 #define SDP_SERVICE_CLASS_GENERIC_FILE_TRANSFER		0x1202
@@ -180,10 +183,13 @@ __BEGIN_DECLS
 #define SDP_SERVICE_CLASS_ESDP_UPNP_IP_PAN		0x1300
 #define SDP_SERVICE_CLASS_ESDP_UPNP_IP_LAP		0x1301
 #define SDP_SERVICE_CLASS_ESDP_UPNP_L2CAP		0x1302
+#define SDP_SERVICE_CLASS_VIDEO_SOURCE			0x1303
+#define SDP_SERVICE_CLASS_VIDEO_SINK			0x1304
+#define SDP_SERVICE_CLASS_VIDEO_DISTRIBUTION		0x1305
 
 /*
  * Universal attribute definitions (page 366) and
- * http://www.bluetoothsig.org/assigned-numbers/sdp.htm
+ * https://www.bluetooth.org/assigned-numbers/service_discovery.php
  */
 
 #define SDP_ATTR_RANGE(lo, hi) \
@@ -230,6 +236,7 @@ __BEGIN_DECLS
 #define SDP_ATTR_SUPPORTED_FEATURES			0x0311
 #define SDP_ATTR_SUPPORTED_FUNCTIONS			0x0312
 #define SDP_ATTR_TOTAL_IMAGING_DATA_CAPACITY		0x0313
+#define SDP_ATTR_SUPPORTED_REPOSITORIES			0x0314
 
 /*
  * The offset must be added to the attribute ID base (contained in the 
