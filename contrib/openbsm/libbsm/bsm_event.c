@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_event.c#11 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_event.c#12 $
  */
 
 #include <bsm/libbsm.h>
@@ -62,27 +62,32 @@ eventfromstr(char *str, struct au_event_ent *e)
 	evdesc = strtok_r(NULL, eventdelim, &last);
 	evclass = strtok_r(NULL, eventdelim, &last);
 
-	if ((evno == NULL) || (evname == NULL) || (evdesc == NULL) ||
-	    (evclass == NULL))
+	if ((evno == NULL) || (evname == NULL))
 		return (NULL);
 
 	if (strlen(evname) >= AU_EVENT_NAME_MAX)
 		return (NULL);
 
 	strcpy(e->ae_name, evname);
-	if (strlen(evdesc) >= AU_EVENT_DESC_MAX)
-		return (NULL);
-	strcpy(e->ae_desc, evdesc);
+	if (evdesc != NULL) {
+		if (strlen(evdesc) >= AU_EVENT_DESC_MAX)
+			return (NULL);
+		strcpy(e->ae_desc, evdesc);
+	} else
+		strcpy(e->ae_desc, "");
 
 	e->ae_number = atoi(evno);
 
 	/*
 	 * Find out the mask that corresponds to the given list of classes.
 	 */
-	if (getauditflagsbin(evclass, &evmask) != 0)
+	if (evclass != NULL) {
+		if (getauditflagsbin(evclass, &evmask) != 0)
+			e->ae_class = AU_NULL;
+		else
+			e->ae_class = evmask.am_success;
+	} else
 		e->ae_class = AU_NULL;
-	else
-		e->ae_class = evmask.am_success;
 
 	return (e);
 }

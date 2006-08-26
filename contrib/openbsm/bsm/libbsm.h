@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#21 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#27 $
  */
 
 #ifndef _LIBBSM_H_
@@ -37,8 +37,8 @@
  * solely to allow OpenSSH to compile; Darwin/Apple code should not use them.
  */
 
-#define	MAX_ARGS	10
-#define	MAX_ENV		10
+#define	AUDIT_MAX_ARGS	10
+#define	AUDIT_MAX_ENV	10
 
 #include <sys/types.h>
 #include <sys/cdefs.h>
@@ -82,11 +82,10 @@
 #define	BSM_TEXTBUFSZ		MAX_AUDITSTRING_LEN	/* OpenSSH compatibility */
 
 /*
- * These are referenced in Solaris 9 au_open(3BSM); values are guesses.
- * Provided for OpenSSH compatibility.
+ * Arguments to au_close(3).
  */
-#define	AU_TO_NO_WRITE		0
-#define	AU_TO_WRITE		1
+#define	AU_TO_NO_WRITE		0	/* Abandon audit record. */
+#define	AU_TO_WRITE		1	/* Commit audit record. */
 
 __BEGIN_DECLS
 struct au_event_ent {
@@ -137,15 +136,6 @@ __END_DECLS
 } while(0)
 
 __BEGIN_DECLS
-
-/*
- * Internal representation of audit user in libnsl.
- */
-typedef struct au_user_str_s {
-	char	*au_name;
-	char	*au_always;
-	char	*au_never;
-} au_user_str_t;
 
 typedef struct au_tid32 {
 	u_int32_t	port;
@@ -228,7 +218,7 @@ typedef struct {
  */
 typedef struct {
 	u_int32_t	 count;
-	char		*text[MAX_ARGS];
+	char		*text[AUDIT_MAX_ARGS];
 } au_execarg_t;
 
 /*
@@ -237,7 +227,7 @@ typedef struct {
  */
 typedef struct {
 	u_int32_t	 count;
-	char		*text[MAX_ENV];
+	char		*text[AUDIT_MAX_ENV];
 } au_execenv_t;
 
 /*
@@ -269,7 +259,7 @@ typedef struct {
  */
 typedef struct {
 	u_int16_t	no;
-	u_int32_t	list[BSM_MAX_GROUPS];
+	u_int32_t	list[AUDIT_MAX_GROUPS];
 } au_groups_t;
 
 /*
@@ -729,8 +719,6 @@ int			 au_preselect(au_event_t event, au_mask_t *mask_p,
 
 /*
  * Functions relating to querying audit event information.
- *
- * XXXRW: getauevnonam() has no _r version?
  */
 void			 setauevent(void);
 void			 endauevent(void);
@@ -770,6 +758,11 @@ void			 au_print_tok(FILE *outfp, tokenstr_t *tok,
 			    char *del, char raw, char sfrm);
 __END_DECLS
 
+/*
+ * The remaining APIs are associated with Apple's BSM implementation, in
+ * particular as relates to Mach IPC auditing and triggers passed via Mach
+ * IPC.
+ */
 #ifdef __APPLE__
 #include <sys/appleapiopts.h>
 
