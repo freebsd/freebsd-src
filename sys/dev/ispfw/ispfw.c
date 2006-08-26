@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #define	ISP_2200	1
 #define	ISP_2300	1
 #define	ISP_2322	1
+#define	ISP_2400	1
 #ifdef __sparc64__
 #define	ISP_1000	1
 #endif
@@ -75,6 +76,9 @@ __FBSDID("$FreeBSD$");
 #if	defined(ISP_2322)
 #include <dev/ispfw/asm_2322.h>
 #endif
+#if	defined(ISP_2400)
+#include <dev/ispfw/asm_2400.h>
+#endif
 #if	defined(ISP_1000)
 #include <dev/ispfw/asm_1000.h>
 #endif
@@ -82,7 +86,8 @@ __FBSDID("$FreeBSD$");
 #define	ISPFW_VERSION	1
 #define	RMACRO(token)							\
 	if (firmware_register(#token, token##_risc_code,		\
-	    token##_risc_code [3] << 1, ISPFW_VERSION, NULL) == NULL) { \
+	    token##_risc_code [3] * sizeof token##_risc_code [3],	\
+	    ISPFW_VERSION, NULL) == NULL) {				\
 		printf("unable to register firmware '%s'\n", #token);	\
 	} else {							\
 		printf("registered firmware set <%s>\n", #token);	\
@@ -128,6 +133,9 @@ do_load_fw(void)
 #if	defined(ISP_2322)
 	RMACRO(isp_2322);
 #endif
+#if	defined(ISP_2400)
+	RMACRO(isp_2400);
+#endif
 	return (0);
 }
 
@@ -156,6 +164,8 @@ do_unload_fw(void)
 	UMACRO(isp_2300);
 #elif	defined(ISP_2322)
 	UMACRO(isp_2322);
+#elif	defined(ISP_2400)
+	UMACRO(isp_2400);
 #endif
 	return (0);
 }
@@ -205,5 +215,7 @@ DECLARE_MODULE(isp_2200, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 DECLARE_MODULE(isp_2300, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_2322)
 DECLARE_MODULE(isp_2322, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
+#elif	defined(ISP_2400)
+DECLARE_MODULE(isp_2400, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #endif
 #endif
