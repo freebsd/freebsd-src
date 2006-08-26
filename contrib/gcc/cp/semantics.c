@@ -2295,7 +2295,9 @@ check_multiple_declarators (void)
 void
 qualified_name_lookup_error (tree scope, tree name)
 {
-  if (TYPE_P (scope))
+  if (scope == error_mark_node)
+    ; /* We already complained.  */
+  else if (TYPE_P (scope))
     {
       if (!COMPLETE_TYPE_P (scope))
 	error ("incomplete type `%T' used in nested name specifier", scope);
@@ -2398,6 +2400,21 @@ finish_id_expression (tree id_expression,
 	 was entirely defined.  */
       if (!scope && decl != error_mark_node)
 	maybe_note_name_used_in_class (id_expression, decl);
+
+      /* Disallow uses of local variables from containing functions.  */
+      if (TREE_CODE (decl) == VAR_DECL || TREE_CODE (decl) == PARM_DECL)
+	{
+	  tree context = decl_function_context (decl);
+	  if (context != NULL_TREE && context != current_function_decl
+	      && ! TREE_STATIC (decl))
+	    {
+	      error (TREE_CODE (decl) == VAR_DECL
+		     ? "use of `auto' variable from containing function"
+		     : "use of parameter from containing function");
+	      cp_error_at ("  `%#D' declared here", decl);
+	      return error_mark_node;
+	    }
+	}
     }
 
   /* If we didn't find anything, or what we found was a type,
@@ -2664,23 +2681,6 @@ finish_id_expression (tree id_expression,
 	}
       else
 	{
-	  if (TREE_CODE (decl) == VAR_DECL
-	      || TREE_CODE (decl) == PARM_DECL
-	      || TREE_CODE (decl) == RESULT_DECL)
-	    {
-	      tree context = decl_function_context (decl);
-	      
-	      if (context != NULL_TREE && context != current_function_decl
-		  && ! TREE_STATIC (decl))
-		{
-		  error ("use of %s from containing function",
-			 (TREE_CODE (decl) == VAR_DECL
-			  ? "`auto' variable" : "parameter"));
-		  cp_error_at ("  `%#D' declared here", decl);
-		  return error_mark_node;
-		}
-	    }
-	  
 	  if (DECL_P (decl) && DECL_NONLOCAL (decl)
 	      && DECL_CLASS_SCOPE_P (decl)
 	      && DECL_CONTEXT (decl) != current_class_type)

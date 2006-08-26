@@ -4098,7 +4098,8 @@ digest_init (tree type, tree init, int require_constant)
      vector constructor is not constant (e.g. {1,2,3,foo()}) then punt
      below and handle as a constructor.  */
   if (code == VECTOR_TYPE
-      && comptypes (TREE_TYPE (inside_init), type, COMPARE_STRICT)
+      && TREE_CODE (TREE_TYPE (inside_init)) == VECTOR_TYPE
+      && vector_types_convertible_p (TREE_TYPE (inside_init), type)
       && TREE_CONSTANT (inside_init))
     {
       if (TREE_CODE (inside_init) == VECTOR_CST
@@ -4634,19 +4635,27 @@ push_init_level (int implicit)
   tree value = NULL_TREE;
 
   /* If we've exhausted any levels that didn't have braces,
-     pop them now.  */
-  while (constructor_stack->implicit)
+     pop them now.  If implicit == 1, this will have been done in
+     process_init_element; do not repeat it here because in the case
+     of excess initializers for an empty aggregate this leads to an
+     infinite cycle of popping a level and immediately recreating
+     it.  */
+  if (implicit != 1)
     {
-      if ((TREE_CODE (constructor_type) == RECORD_TYPE
-	   || TREE_CODE (constructor_type) == UNION_TYPE)
-	  && constructor_fields == 0)
-	process_init_element (pop_init_level (1));
-      else if (TREE_CODE (constructor_type) == ARRAY_TYPE
-	       && constructor_max_index
-	       && tree_int_cst_lt (constructor_max_index, constructor_index))
-	process_init_element (pop_init_level (1));
-      else
-	break;
+      while (constructor_stack->implicit)
+	{
+	  if ((TREE_CODE (constructor_type) == RECORD_TYPE
+	       || TREE_CODE (constructor_type) == UNION_TYPE)
+	      && constructor_fields == 0)
+	    process_init_element (pop_init_level (1));
+	  else if (TREE_CODE (constructor_type) == ARRAY_TYPE
+		   && constructor_max_index
+		   && tree_int_cst_lt (constructor_max_index,
+				       constructor_index))
+	    process_init_element (pop_init_level (1));
+	  else
+	    break;
+	}
     }
 
   /* Unless this is an explicit brace, we need to preserve previous
