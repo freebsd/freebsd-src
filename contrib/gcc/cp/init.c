@@ -1015,11 +1015,11 @@ expand_member_init (tree name)
       if (!direct_binfo && !virtual_binfo)
 	{
 	  if (TYPE_USES_VIRTUAL_BASECLASSES (current_class_type))
-	    error ("type `%D' is not a direct or virtual base of `%T'",
-		   name, current_class_type);
+	    error ("type `%T' is not a direct or virtual base of `%T'",
+		   basetype, current_class_type);
 	  else
-	    error ("type `%D' is not a direct base of `%T'",
-		   name, current_class_type);
+	    error ("type `%T' is not a direct base of `%T'",
+		   basetype, current_class_type);
 	  return NULL_TREE;
 	}
 
@@ -2075,9 +2075,6 @@ build_new_1 (tree exp)
 	  fns = lookup_fnfields (true_type, fnname, /*protect=*/2);
 	  if (!fns)
 	    {
-	      /* See PR 15967. This should never happen (and it is
-		 fixed correctly in mainline), but on the release branch
-		 we prefer this less-intrusive approacch.  */
 	      error ("no suitable or ambiguous `%D' found in class `%T'",
 		     fnname, true_type);
 	      return error_mark_node;

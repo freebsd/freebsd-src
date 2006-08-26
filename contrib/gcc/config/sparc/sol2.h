@@ -84,7 +84,7 @@ Boston, MA 02111-1307, USA.  */
 
 #undef  ASM_GENERATE_INTERNAL_LABEL
 #define ASM_GENERATE_INTERNAL_LABEL(LABEL,PREFIX,NUM)	\
-  sprintf ((LABEL), "*.L%s%ld", (PREFIX), (long)(NUM))
+  sprintf ((LABEL), "*.L%s%lu", (PREFIX), (unsigned long)(NUM))
 
 /* The native TLS-enabled assembler requires the directive #tls_object
    to be put on objects in TLS sections (as of v7.1).  This is not
@@ -113,6 +113,12 @@ Boston, MA 02111-1307, USA.  */
     }								\
   while (0)
 
+/* The Solaris assembler cannot grok r_tls_dtpoff.  This is
+   a kludge as ASM_OUTPUT_DWARF_DTPREL is defined in sparc.h,
+   undefined here and defined again in sol2-gas-bi.h.  */
+#ifdef HAVE_AS_TLS
+#undef ASM_OUTPUT_DWARF_DTPREL
+#endif
 
 
 #undef  ENDFILE_SPEC

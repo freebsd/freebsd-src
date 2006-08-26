@@ -188,6 +188,14 @@ simplify_gen_ternary (enum rtx_code code, enum machine_mode mode,
 
   return gen_rtx_fmt_eee (code, mode, op0, op1, op2);
 }
+
+/* Return true if X is a MEM referencing the constant pool.  */
+
+bool
+constant_pool_reference_p (rtx x)
+{
+  return avoid_constant_pool_reference (x) != x;
+}
 
 /* Likewise, for relational operations.
    CMP_MODE specifies mode comparison is done in.
@@ -3126,7 +3134,7 @@ simplify_immed_subreg (enum machine_mode outermode, rtx op,
 		}
 	      /* It shouldn't matter what's done here, so fill it with
 		 zero.  */
-	      for (; i < max_bitsize; i += value_bit)
+	      for (; i < elem_bitsize; i += value_bit)
 		*vp++ = 0;
 	    }
 	  else if (GET_MODE_CLASS (GET_MODE (el)) == MODE_FLOAT)

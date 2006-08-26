@@ -79,6 +79,8 @@ cp_convert_to_pointer (tree type, tree expr, bool force)
   tree intype = TREE_TYPE (expr);
   enum tree_code form;
   tree rval;
+  if (intype == error_mark_node)
+    return error_mark_node;
 
   if (IS_AGGR_TYPE (intype))
     {
@@ -1029,6 +1031,7 @@ build_expr_type_conversion (int desires, tree expr, bool complain)
 	  return expr;
 	/* else fall through...  */
 
+      case VECTOR_TYPE:
       case BOOLEAN_TYPE:
 	return (desires & WANT_INT) ? expr : NULL_TREE;
       case ENUMERAL_TYPE:
