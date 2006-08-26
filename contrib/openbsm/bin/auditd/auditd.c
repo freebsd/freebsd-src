@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#16 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#17 $
  */
 
 #include <sys/types.h>
@@ -88,7 +88,7 @@ fail_exit(void)
  * Free our local list of directory names.
  */
 static void
-free_dir_q()
+free_dir_q(void)
 {
 	struct dir_ent *dirent;
 

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/modules/auditfilter_noop/auditfilter_noop.c#2 $
+ * $P4: //depot/projects/trustedbsd/openbsm/modules/auditfilter_noop/auditfilter_noop.c#4 $
  */
 
 /*
@@ -39,7 +39,7 @@
 #include <bsm/audit_filter.h>
 
 int
-AUDIT_FILTER_ATTACH(void **instance, int argc, char *argv[])
+AUDIT_FILTER_ATTACH(void *instance, int argc, char *argv[])
 {
 
 	return (0);
@@ -60,7 +60,7 @@ AUDIT_FILTER_RECORD(void *instance, struct timespec *ts, int token_count,
 }
 
 void
-AUDIT_FILTER_BSMRECORD(void *instance, struct timespec *ts, u_char *data,
+AUDIT_FILTER_RAWRECORD(void *instance, struct timespec *ts, u_char *data,
     u_int len)
 {
 

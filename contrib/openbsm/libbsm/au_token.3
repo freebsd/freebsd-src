@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_token.3#7 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_token.3#8 $
 .\"
 .Dd April 19, 2005
 .Dt AU_TOKEN 3
@@ -155,9 +155,9 @@
 .Ft token_t *
 .Fn au_to_me "void"
 .Ft token_t *
-.Fn au_to_exec_args "const char **args"
+.Fn au_to_exec_args "char **argv"
 .Ft token_t *
-.Fn au_to_exec_env "const char **env"
+.Fn au_to_exec_env "char **envp"
 .Ft token_t *
 .Fn au_to_header "int rec_size" "au_event_t e_type" "au_emod_t emod"
 .Ft token_t *
