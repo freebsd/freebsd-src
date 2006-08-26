@@ -1,6 +1,6 @@
 /* Target definitions for GNU compiler for PowerPC running System V.4
    Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-   2004 Free Software Foundation, Inc.
+   2004, 2005 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
    This file is part of GCC.
@@ -123,8 +123,10 @@ extern const char *rs6000_tls_size_string; /* For -mtls-size= */
   { "no-toc",		 0, N_("no description yet") },			\
   { "toc",		 MASK_MINIMAL_TOC, N_("no description yet") },	\
   { "full-toc",		 MASK_MINIMAL_TOC, N_("no description yet") },	\
-  { "prototype",	 MASK_PROTOTYPE, N_("no description yet") },	\
-  { "no-prototype",	-MASK_PROTOTYPE, N_("no description yet") },	\
+  { "prototype",	 MASK_PROTOTYPE,				\
+    N_("Assume all variable arg functions are prototyped") },		\
+  { "no-prototype",	-MASK_PROTOTYPE,				\
+    N_("Non-prototyped functions might take a variable number of args") }, \
   { "no-traceback",	 0, N_("no description yet") },			\
   { "eabi",		 MASK_EABI, N_("Use EABI") },			\
   { "no-eabi",		-MASK_EABI, N_("Don't use EABI") },		\
@@ -1353,8 +1355,6 @@ ncrtn.o%s"
   ((flag_pic || TARGET_RELOCATABLE)					     \
    ? (((GLOBAL) ? DW_EH_PE_indirect : 0) | DW_EH_PE_pcrel | DW_EH_PE_sdata4) \
    : DW_EH_PE_absptr)
-
-#define TARGET_ASM_EXCEPTION_SECTION readonly_data_section
 
 #define DOUBLE_INT_ASM_OP "\t.quad\t"
 
