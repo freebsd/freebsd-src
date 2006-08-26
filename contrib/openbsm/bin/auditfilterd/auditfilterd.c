@@ -25,7 +25,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditfilterd/auditfilterd.c#6 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditfilterd/auditfilterd.c#9 $
+ */
+
+/*
+ * Main file for the audit filter daemon, which presents audit records to a
+ * set of run-time registered loadable modules.  This is the main event loop
+ * of the daemon, which handles starting up, waiting for records, and
+ * presenting records to configured modules.  auditfilterd_conf.c handles the
+ * reading and management of the configuration, module list and module state,
+ * etc.
  */
 
 #include <sys/types.h>
@@ -106,13 +115,13 @@ signal_handler(int signum)
  * Present raw BSM to a set of registered and interested filters.
  */
 static void
-present_bsmrecord(struct timespec *ts, u_char *data, u_int len)
+present_rawrecord(struct timespec *ts, u_char *data, u_int len)
 {
 	struct auditfilter_module *am;
 
 	TAILQ_FOREACH(am, &filter_list, am_list) {
-		if (am->am_bsmrecord != NULL)
-			(am->am_bsmrecord)(am->am_instance, ts, data, len);
+		if (am->am_rawrecord != NULL)
+			(am->am_rawrecord)(am, ts, data, len);
 	}
 }
 
@@ -140,8 +149,7 @@ present_tokens(struct timespec *ts, u_char *data, u_int len)
 
 	TAILQ_FOREACH(am, &filter_list, am_list) {
 		if (am->am_record != NULL)
-			(am->am_record)(am->am_instance, ts, tokencount,
-			    tokens);
+			(am->am_record)(am, ts, tokencount, tokens);
 	}
 }
 
@@ -191,7 +199,7 @@ mainloop_file(const char *conffile, const char *trailfile, FILE *trail_fp)
 			continue;
 		if (clock_gettime(CLOCK_REALTIME, &ts) < 0)
 			err(-1, "clock_gettime");
-		present_bsmrecord(&ts, buf, reclen);
+		present_rawrecord(&ts, buf, reclen);
 		present_tokens(&ts, buf, reclen);
 		free(buf);
 	}
@@ -241,7 +249,7 @@ mainloop_pipe(const char *conffile, const char *pipefile, int pipe_fd)
 			continue;
 		if (clock_gettime(CLOCK_REALTIME, &ts) < 0)
 			err(-1, "clock_gettime");
-		present_bsmrecord(&ts, record, reclen);
+		present_rawrecord(&ts, record, reclen);
 		present_tokens(&ts, record, reclen);
 	}
 }

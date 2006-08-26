@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/audit_filter.h#2 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/audit_filter.h#4 $
  */
 
 #ifndef _BSM_AUDIT_FILTER_H_
@@ -38,20 +38,26 @@
  * audit_filter_reinit_t - arguments to module have changed
  * audit_filter_record_t - present parsed record to filter module, with
  *                         receipt time
- * audit_filter_bsmrecord_t - present bsm format record to filter module,
+ * audit_filter_rawrecord_t - present BSM format record to filter module,
  *                            with receipt time
  * audit_filter_destach_t - filter module is being detached
  *
  * There may be many instances of the same filter, identified by the instance
  * void pointer maintained by the filter instance.
  */
-typedef int (*audit_filter_attach_t)(void **instance, int argc, char *argv[]);
+typedef int (*audit_filter_attach_t)(void *instance, int argc, char *argv[]);
 typedef int (*audit_filter_reinit_t)(void *instance, int argc, char *argv[]);
 typedef void (*audit_filter_record_t)(void *instance, struct timespec *ts,
 	    int token_count, const tokenstr_t tok[]);
-typedef void (*audit_filter_bsmrecord_t)(void *instance, struct timespec *ts,
+typedef void (*audit_filter_rawrecord_t)(void *instance, struct timespec *ts,
 	    void *data, u_int len);
 typedef void (*audit_filter_detach_t)(void *instance);
+
+/*
+ * APIs that may be called by audit filters.
+ */
+void	audit_filter_getcookie(void *instance, void **cookie);
+void	audit_filter_setcookie(void *instance, void *cookie);
 
 /*
  * Values to be returned by audit_filter_init_t.
@@ -66,12 +72,12 @@ typedef void (*audit_filter_detach_t)(void *instance);
 #define	AUDIT_FILTER_ATTACH	audit_filter_attach
 #define	AUDIT_FILTER_REINIT	audit_filter_reinit
 #define	AUDIT_FILTER_RECORD	audit_filter_record
-#define	AUDIT_FILTER_BSMRECORD	audit_filter_bsmrecord
+#define	AUDIT_FILTER_RAWRECORD	audit_filter_rawrecord
 #define	AUDIT_FILTER_DETACH	audit_filter_detach
 #define	AUDIT_FILTER_ATTACH_STRING	"audit_filter_attach"
 #define	AUDIT_FILTER_REINIT_STRING	"audit_filter_reinit"
 #define	AUDIT_FILTER_RECORD_STRING	"audit_filter_record"
-#define	AUDIT_FILTER_BSMRECORD_STRING	"audit_filter_bsmrecord"
+#define	AUDIT_FILTER_RAWRECORD_STRING	"audit_filter_rawrecord"
 #define	AUDIT_FILTER_DETACH_STRING	"audit_filter_detach"
 
 #endif /* !_BSM_AUDIT_FILTER_H_ */

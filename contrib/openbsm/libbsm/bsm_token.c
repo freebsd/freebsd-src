@@ -30,7 +30,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#48 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#51 $
  */
 
 #include <sys/types.h>
@@ -309,7 +309,7 @@ token_t *
 au_to_groups(int *groups)
 {
 
-	return (au_to_newgroups(BSM_MAX_GROUPS, groups));
+	return (au_to_newgroups(AUDIT_MAX_GROUPS, groups));
 }
 
 /*
@@ -1055,7 +1055,7 @@ au_to_me(void)
  * text					count null-terminated strings
  */
 token_t *
-au_to_exec_args(const char **args)
+au_to_exec_args(char **argv)
 {
 	token_t *t;
 	u_char *dptr = NULL;
@@ -1063,7 +1063,7 @@ au_to_exec_args(const char **args)
 	int i, count = 0;
 	size_t totlen = 0;
 
-	nextarg = *args;
+	nextarg = *argv;
 
 	while (nextarg != NULL) {
 		int nextlen;
@@ -1071,7 +1071,7 @@ au_to_exec_args(const char **args)
 		nextlen = strlen(nextarg);
 		totlen += nextlen + 1;
 		count++;
-		nextarg = *(args + count);
+		nextarg = *(argv + count);
 	}
 
 	totlen += count * sizeof(char);	/* nul terminations. */
@@ -1083,7 +1083,7 @@ au_to_exec_args(const char **args)
 	ADD_U_INT32(dptr, count);
 
 	for (i = 0; i < count; i++) {
-		nextarg = *(args + i);
+		nextarg = *(argv + i);
 		ADD_MEM(dptr, nextarg, strlen(nextarg) + 1);
 	}
 
@@ -1096,7 +1096,7 @@ au_to_exec_args(const char **args)
  * text					count null-terminated strings
  */
 token_t *
-au_to_exec_env(const char **env)
+au_to_exec_env(char **envp)
 {
 	token_t *t;
 	u_char *dptr = NULL;
@@ -1104,7 +1104,7 @@ au_to_exec_env(const char **env)
 	size_t totlen = 0;
 	const char *nextenv;
 
-	nextenv = *env;
+	nextenv = *envp;
 
 	while (nextenv != NULL) {
 		int nextlen;
@@ -1112,7 +1112,7 @@ au_to_exec_env(const char **env)
 		nextlen = strlen(nextenv);
 		totlen += nextlen + 1;
 		count++;
-		nextenv = *(env + count);
+		nextenv = *(envp + count);
 	}
 
 	totlen += sizeof(char) * count;
@@ -1124,7 +1124,7 @@ au_to_exec_env(const char **env)
 	ADD_U_INT32(dptr, count);
 
 	for (i = 0; i < count; i++) {
-		nextenv = *(env + i);
+		nextenv = *(envp + i);
 		ADD_MEM(dptr, nextenv, strlen(nextenv) + 1);
 	}
 
@@ -1155,7 +1155,7 @@ au_to_header32_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
 
 	ADD_U_CHAR(dptr, AUT_HEADER32);
 	ADD_U_INT32(dptr, rec_size);
-	ADD_U_CHAR(dptr, HEADER_VERSION);
+	ADD_U_CHAR(dptr, AUDIT_HEADER_VERSION_OPENBSM);
 	ADD_U_INT16(dptr, e_type);
 	ADD_U_INT16(dptr, e_mod);
 
