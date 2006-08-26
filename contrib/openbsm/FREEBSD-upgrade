@@ -23,7 +23,7 @@ upgrade of OpenBSM generally involves the following steps:
 - Run configure, commit src/contrib/openbsm/config/config.h.
 - Replication of src/contrib/openbsm/bsm changes into src/sys/bsm.
 - Possible updates to src/sys/security/audit, especially relating to
-  bsm_token.c.
+  audit_bsm_token.c.
 - Update any library, tool, or etc BSD Makefiles to add new files,
   defines, or other generally useful or necessary things.
 
@@ -39,6 +39,10 @@ the import is tested in order to perform the actual import.
 Propagation of changes to src/sys/{bsm,security/audit} is something that
 requires careful coordination and attention to detail.  These files are
 not on CVS vendor branches, but do have the same local vs. vendor merge
-issues.
+issues.  Remember that contrib/openbsm (and the rest of the system) will
+be built with the version of the bsm/ include files in src/sys/bsm, not
+the version in contrib/openbsm/bsm, so buildworld tests before committing
+are necessary, and the commits to various parts of the system must be
+made in close succession.
 
 $FreeBSD$
