@@ -117,6 +117,9 @@ static sdp_attr_desc_t	sdp_uuids_desc[] = {
 { SDP_SERVICE_CLASS_UDI_TA, "UDI TA", },
 { SDP_SERVICE_CLASS_AUDIO_VIDEO, "Audio/Video", },
 { SDP_SERVICE_CLASS_SIM_ACCESS, "SIM Access", },
+{ SDP_SERVICE_CLASS_PHONEBOOK_ACCESS_PCE, "Phonebook Access - PCE", },
+{ SDP_SERVICE_CLASS_PHONEBOOK_ACCESS_PSE, "Phonebook Access - PSE", },
+{ SDP_SERVICE_CLASS_PHONEBOOK_ACCESS, "Phonebook Access", },
 { SDP_SERVICE_CLASS_PNP_INFORMATION, "PNP Information", },
 { SDP_SERVICE_CLASS_GENERIC_NETWORKING, "Generic Networking", },
 { SDP_SERVICE_CLASS_GENERIC_FILE_TRANSFER, "Generic File Transfer", },
@@ -127,6 +130,9 @@ static sdp_attr_desc_t	sdp_uuids_desc[] = {
 { SDP_SERVICE_CLASS_ESDP_UPNP_IP_PAN, "ESDP UPNP IP PAN", },
 { SDP_SERVICE_CLASS_ESDP_UPNP_IP_LAP, "ESDP UPNP IP LAP", },
 { SDP_SERVICE_CLASS_ESDP_UPNP_L2CAP, "ESDP UPNP L2CAP", },
+{ SDP_SERVICE_CLASS_VIDEO_SOURCE, "Video Source", },
+{ SDP_SERVICE_CLASS_VIDEO_SINK, "Video Sink", },
+{ SDP_SERVICE_CLASS_VIDEO_DISTRIBUTION, "Video Distribution", },
 { 0xffff, NULL, }
 };
 
@@ -240,6 +246,9 @@ static sdp_attr_desc_t	sdp_attrs_desc[] = {
   },
 { SDP_ATTR_TOTAL_IMAGING_DATA_CAPACITY,
   "Total Imaging Data Capacity",
+  },
+{ SDP_ATTR_SUPPORTED_REPOSITORIES,
+  "Supported Repositories",
   },
 { 0xffff, NULL, }
 };
