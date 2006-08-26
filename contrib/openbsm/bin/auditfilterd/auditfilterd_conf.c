@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditfilterd/auditfilterd_conf.c#3 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditfilterd/auditfilterd_conf.c#5 $
  */
 
 /*
@@ -38,6 +38,12 @@
  * Modules are in one of two states: attached, or detached.  If attach fails,
  * detach is not called because it was not attached.  If a module is attached
  * and a call to its reinit method fails, we will detach it.
+ *
+ * Modules are passed a (void *) reference to their configuration state so
+ * that they may pass this into any common APIs we provide which may rely on
+ * that state.  Currently, the only such API is the cookie API, which allows
+ * per-instance state to be maintained by a module.  In the future, this will
+ * also be used to support per-instance preselection state.
  */
 
 #include <sys/types.h>
@@ -105,8 +111,8 @@ auditfilter_module_detach(struct auditfilter_module *am)
 {
 
 	if (am->am_detach != NULL)
-		am->am_detach(am->am_instance);
-	am->am_instance = NULL;
+		am->am_detach(am);
+	am->am_cookie = NULL;
 	(void)dlclose(am->am_dlhandle);
 	am->am_dlhandle = NULL;
 }
@@ -149,21 +155,22 @@ auditfilter_module_attach(struct auditfilter_module *am)
 	am->am_attach = dlsym(am->am_dlhandle, AUDIT_FILTER_ATTACH_STRING);
 	am->am_reinit = dlsym(am->am_dlhandle, AUDIT_FILTER_REINIT_STRING);
 	am->am_record = dlsym(am->am_dlhandle, AUDIT_FILTER_RECORD_STRING);
-	am->am_bsmrecord = dlsym(am->am_dlhandle,
-	    AUDIT_FILTER_BSMRECORD_STRING);
+	am->am_rawrecord = dlsym(am->am_dlhandle,
+	    AUDIT_FILTER_RAWRECORD_STRING);
 	am->am_detach = dlsym(am->am_dlhandle, AUDIT_FILTER_DETACH_STRING);
 
 	if (am->am_attach != NULL) {
-		if (am->am_attach(&am->am_instance, am->am_argc, am->am_argv)
+		if (am->am_attach(am, am->am_argc, am->am_argv)
 		    != AUDIT_FILTER_SUCCESS) {
 			warnx("auditfilter_module_attach: %s: failed",
 			    am->am_modulename);
 			dlclose(am->am_dlhandle);
 			am->am_dlhandle = NULL;
+			am->am_cookie = NULL;
 			am->am_attach = NULL;
 			am->am_reinit = NULL;
 			am->am_record = NULL;
-			am->am_bsmrecord = NULL;
+			am->am_rawrecord = NULL;
 			am->am_detach = NULL;
 			return (-1);
 		}
@@ -184,7 +191,7 @@ auditfilter_module_reinit(struct auditfilter_module *am)
 	if (am->am_reinit == NULL)
 		return (0);
 
-	if (am->am_reinit(&am->am_instance, am->am_argc, am->am_argv) !=
+	if (am->am_reinit(am, am->am_argc, am->am_argv) !=
 	    AUDIT_FILTER_SUCCESS) {
 		warnx("auditfilter_module_reinit: %s: failed",
 		    am->am_modulename);
@@ -482,4 +489,25 @@ auditfilterd_conf_shutdown(void)
 
 	auditfilter_module_list_detach(&filter_list);
 	auditfilter_module_list_free(&filter_list);
+}
+
+/*
+ * APIs to allow modules to query and set their per-instance cookie.
+ */
+void
+audit_filter_getcookie(void *instance, void **cookie)
+{
+	struct auditfilter_module *am;
+
+	am = (struct auditfilter_module *)instance;
+	*cookie = am->am_cookie;
+}
+
+void
+audit_filter_setcookie(void *instance, void *cookie)
+{
+	struct auditfilter_module *am;
+
+	am = (struct auditfilter_module *)instance;
+	am->am_cookie = cookie;
 }
