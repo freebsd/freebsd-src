@@ -1573,6 +1573,10 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 	tcpstat.tcps_mturesent++;
 	tp->t_rtttime = 0;
 	tp->snd_nxt = tp->snd_una;
+	tcp_free_sackholes(tp);
+	tp->snd_recover = tp->snd_max;
+	if (tp->sack_enable)
+		EXIT_FASTRECOVERY(tp);
 	tcp_output(tp);
 	return (inp);
 }
