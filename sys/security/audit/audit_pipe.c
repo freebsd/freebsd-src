@@ -855,6 +855,11 @@ audit_pipe_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 		error = 0;
 		break;
 
+	case AUDITPIPE_GET_MAXAUDITDATA:
+		*(u_int *)data = MAXAUDITDATA;
+		error = 0;
+		break;
+
 	case AUDITPIPE_GET_INSERTS:
 		*(u_int *)data = ap->ap_inserts;
 		error = 0;
