@@ -4899,7 +4899,7 @@ output_set_got (rtx dest)
   if (!flag_pic || TARGET_DEEP_BRANCH_PREDICTION)
     output_asm_insn ("add{l}\t{%1, %0|%0, %1}", xops);
   else if (!TARGET_MACHO)
-    output_asm_insn ("add{l}\t{%1+[.-%a2], %0|%0, %a1+(.-%a2)}", xops);
+    output_asm_insn ("add{l}\t{%1+[.-%a2], %0|%0, %1+(.-%a2)}", xops);
 
   return "";
 }
@@ -13956,6 +13956,7 @@ ix86_expand_unop_builtin (enum insn_code icode, tree arglist,
 
   if (! target
       || GET_MODE (target) != tmode
+      || (do_load && GET_CODE (target) == MEM)
       || ! (*insn_data[icode].operand[0].predicate) (target, tmode))
     target = gen_reg_rtx (tmode);
   if (do_load)
