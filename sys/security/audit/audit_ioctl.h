@@ -73,6 +73,7 @@ struct auditpipe_ioctl_preselect {
 #define	AUDITPIPE_GET_PRESELECT_MODE	_IOR(AUDITPIPE_IOBASE, 14, int)
 #define	AUDITPIPE_SET_PRESELECT_MODE	_IOW(AUDITPIPE_IOBASE, 15, int)
 #define	AUDITPIPE_FLUSH			_IO(AUDITPIPE_IOBASE, 16)
+#define	AUDITPIPE_GET_MAXAUDITDATA	_IOR(AUDITPIPE_IOBASE, 17, u_int)
 
 /*
  * Ioctls to retrieve audit pipe statistics.
