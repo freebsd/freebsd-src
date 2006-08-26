@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_kevents.h#23 $
+ * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_kevents.h#26 $
  * $FreeBSD$
  */
 
@@ -274,134 +274,200 @@
 #define	AUE_NTP_ADJTIME		288
 
 /*
- * Events not present in OpenSolaris BSM, generally derived from Apple Darwin
- * BSM or added in OpenBSM.  This start a little too close to the top end of
- * the OpenSolaris event list for my comfort.
+ * Events added for Apple Darwin that potentially collide with future Solaris
+ * BSM events.  These are assigned AUE_DARWIN prefixes, and are deprecated in
+ * new trails.  Systems generating these events should switch to the new
+ * identifiers that avoid colliding with the Solaris identifier space.
  */
-#define	AUE_GETFSSTAT		301
-#define	AUE_PTRACE		302
-#define	AUE_CHFLAGS		303
-#define	AUE_FCHFLAGS		304
-#define	AUE_PROFILE		305
-#define	AUE_KTRACE		306
-#define	AUE_SETLOGIN		307
+#define	AUE_DARWIN_GETFSSTAT	301
+#define	AUE_DARWIN_PTRACE	302
+#define	AUE_DARWIN_CHFLAGS	303
+#define	AUE_DARWIN_FCHFLAGS	304
+#define	AUE_DARWIN_PROFILE	305
+#define	AUE_DARWIN_KTRACE	306
+#define	AUE_DARWIN_SETLOGIN	307
 #define	AUE_DARWIN_REBOOT	308	/* XXX: See AUE_REBOOT. */
-#define	AUE_REVOKE		309
-#define	AUE_UMASK		310
-#define	AUE_MPROTECT		311
+#define	AUE_DARWIN_REVOKE	309
+#define	AUE_DARWIN_UMASK	310
+#define	AUE_DARWIN_MPROTECT	311
 #define	AUE_DARWIN_SETPRIORITY	312	/* XXX: See AUE_SETPRIORITY. */
 #define	AUE_DARWIN_SETTIMEOFDAY	313	/* XXX: See AUE_SETTIMEOFDAY. */
 #define	AUE_DARWIN_FLOCK	314	/* XXX: See AUE_FLOCK. */
-#define	AUE_MKFIFO		315
-#define	AUE_POLL		316
+#define	AUE_DARWIN_MKFIFO	315
+#define	AUE_DARWIN_POLL		316
 #define	AUE_DARWIN_SOCKETPAIR	317	/* XXXRW: See AUE_SOCKETPAIR. */
-#define	AUE_FUTIMES		318
-#define	AUE_SETSID		319
-#define	AUE_SETPRIVEXEC		320	/* Darwin-specific. */
+#define	AUE_DARWIN_FUTIMES	318
+#define	AUE_DARWIN_SETSID	319
+#define	AUE_DARWIN_SETPRIVEXEC	320	/* Darwin-specific. */
 #define	AUE_DARWIN_NFSSVC	321	/* XXX: See AUE_NFS_SVC. */
 #define	AUE_DARWIN_GETFH	322	/* XXX: See AUE_NFS_GETFH. */
 #define	AUE_DARWIN_QUOTACTL	323	/* XXX: See AUE_QUOTACTL. */
-#define	AUE_ADDPROFILE		324	/* Darwin-specific. */
-#define	AUE_KDEBUGTRACE		325	/* Darwin-specific. */
-#define	AUE_KDBUGTRACE		AUE_KDEBUGTRACE
-#define	AUE_FSTAT		326
-#define	AUE_FPATHCONF		327
-#define	AUE_GETDIRENTRIES	328
+#define	AUE_DARWIN_ADDPROFILE	324	/* Darwin-specific. */
+#define	AUE_DARWIN_KDEBUGTRACE	325	/* Darwin-specific. */
+#define	AUE_DARWIN_KDBUGTRACE	AUE_KDEBUGTRACE
+#define	AUE_DARWIN_FSTAT	326
+#define	AUE_DARWIN_FPATHCONF	327
+#define	AUE_DARWIN_GETDIRENTRIES	328
 #define	AUE_DARWIN_TRUNCATE	329	/* XXX: See AUE_TRUNCATE. */
 #define	AUE_DARWIN_FTRUNCATE	330	/* XXX: See AUE_FTRUNCATE. */
-#define	AUE_SYSCTL		331
-#define	AUE_MLOCK		332
-#define	AUE_MUNLOCK		333
-#define	AUE_UNDELETE		334
-#define	AUE_GETATTRLIST		335	/* Darwin-specific. */
-#define	AUE_SETATTRLIST		336	/* Darwin-specific. */
-#define	AUE_GETDIRENTRIESATTR	337	/* Darwin-specific. */
-#define	AUE_EXCHANGEDATA	338	/* Darwin-specific. */
-#define	AUE_SEARCHFS		339	/* Darwin-specific. */
-#define	AUE_MINHERIT		340
-#define	AUE_SEMCONFIG		341
-#define	AUE_SEMOPEN		342
-#define	AUE_SEMCLOSE		343
-#define	AUE_SEMUNLINK		344
-#define	AUE_SHMOPEN		345
-#define	AUE_SHMUNLINK		346
-#define	AUE_LOADSHFILE		347	/* Darwin-specific. */
-#define	AUE_RESETSHFILE		348	/* Darwin-specific. */
-#define	AUE_NEWSYSTEMSHREG	349	/* Darwin-specific. */
-#define	AUE_PTHREADKILL		350	/* Darwin-specific. */
-#define	AUE_PTHREADSIGMASK	351	/* Darwin-specific. */
-#define	AUE_AUDITCTL		352
-#define	AUE_RFORK		353
-#define	AUE_LCHMOD		354
-#define	AUE_SWAPOFF		355
-#define	AUE_INITPROCESS		356	/* Darwin-specific. */
-#define	AUE_MAPFD		357	/* Darwin-specific. */
-#define	AUE_TASKFORPID		358	/* Darwin-specific. */
-#define	AUE_PIDFORTASK		359	/* Darwin-specific. */
-#define	AUE_SYSCTL_NONADMIN	360
-#define	AUE_COPYFILE		361	/* Darwin-specific. */
-#define	AUE_LUTIMES		362
-#define	AUE_LCHFLAGS		363	/* FreeBSD-specific. */
-#define	AUE_SENDFILE		364	/* BSD/Linux-specific. */
-#define	AUE_USELIB		365	/* Linux-specific. */
-#define	AUE_GETRESUID		366
-#define	AUE_SETRESUID		367
-#define	AUE_GETRESGID		368
-#define	AUE_SETRESGID		369
-#define	AUE_WAIT4		370	/* FreeBSD-specific. */
-#define	AUE_LGETFH		371	/* FreeBSD-specific. */
-#define	AUE_FHSTATFS		372	/* FreeBSD-specific. */
-#define	AUE_FHOPEN		373	/* FreeBSD-specific. */
-#define	AUE_FHSTAT		374	/* FreeBSD-specific. */
-#define	AUE_JAIL		375	/* FreeBSD-specific. */
-#define	AUE_EACCESS		376	/* FreeBSD-specific. */
-#define	AUE_KQUEUE		377	/* FreeBSD-specific. */
-#define	AUE_KEVENT		378	/* FreeBSD-specific. */
-#define	AUE_FSYNC		379
-#define	AUE_NMOUNT		380	/* FreeBSD-specific. */
-#define	AUE_BDFLUSH		381	/* Linux-specific. */
-#define	AUE_SETFSUID		382	/* Linux-specific. */
-#define	AUE_SETFSGID		383	/* Linux-specific. */
-#define	AUE_PERSONALITY		384	/* Linux-specific. */
-#define	AUE_SCHED_GETSCHEDULER	385	/* POSIX.1b. */
-#define	AUE_SCHED_SETSCHEDULER	386	/* POSIX.1b. */
-#define	AUE_PRCTL		387	/* Linux-specific. */
-#define	AUE_GETCWD		388	/* FreeBSD/Linux-specific. */
-#define	AUE_CAPGET		389	/* Linux-specific. */
-#define	AUE_CAPSET		390	/* Linux-specific. */
-#define	AUE_PIVOT_ROOT		391	/* Linux-specific. */
-#define	AUE_RTPRIO		392	/* FreeBSD-specific. */
-#define	AUE_SCHED_GETPARAM	393	/* POSIX.1b. */
-#define	AUE_SCHED_SETPARAM	394	/* POSIX.1b. */
-#define	AUE_SCHED_GET_PRIORITY_MAX	395	/* POSIX.1b. */
-#define	AUE_SCHED_GET_PRIORITY_MIN	396	/* POSIX.1b. */
-#define	AUE_SCHED_RR_GET_INTERVAL	397	/* POSIX.1b. */
-#define	AUE_ACL_GET_FILE		398	/* FreeBSD. */
-#define	AUE_ACL_SET_FILE		399	/* FreeBSD. */
-#define	AUE_ACL_GET_FD			400	/* FreeBSD. */
-#define	AUE_ACL_SET_FD			401	/* FreeBSD. */
-#define	AUE_ACL_DELETE_FILE		402	/* FreeBSD. */
-#define	AUE_ACL_DELETE_FD		403	/* FreeBSD. */
-#define	AUE_ACL_CHECK_FILE		404	/* FreeBSD. */
-#define	AUE_ACL_CHECK_FD		405	/* FreeBSD. */
-#define	AUE_ACL_GET_LINK		406	/* FreeBSD. */
-#define	AUE_ACL_SET_LINK		407	/* FreeBSD. */
-#define	AUE_ACL_DELETE_LINK		408	/* FreeBSD. */
-#define	AUE_ACL_CHECK_LINK		409	/* FreeBSD. */
-#define	AUE_SYSARCH			410	/* FreeBSD. */
-#define	AUE_EXTATTRCTL			411	/* FreeBSD. */
-#define	AUE_EXTATTR_GET_FILE		412	/* FreeBSD. */
-#define	AUE_EXTATTR_SET_FILE		413	/* FreeBSD. */
-#define	AUE_EXTATTR_LIST_FILE		414	/* FreeBSD. */
-#define	AUE_EXTATTR_DELETE_FILE		415	/* FreeBSD. */
-#define	AUE_EXTATTR_GET_FD		416	/* FreeBSD. */
-#define	AUE_EXTATTR_SET_FD		417	/* FreeBSD. */
-#define	AUE_EXTATTR_LIST_FD		418	/* FreeBSD. */
-#define	AUE_EXTATTR_DELETE_FD		419	/* FreeBSD. */
-#define	AUE_EXTATTR_GET_LINK		420	/* FreeBSD. */
-#define	AUE_EXTATTR_SET_LINK		421	/* FreeBSD. */
-#define	AUE_EXTATTR_LIST_LINK		422	/* FreeBSD. */
-#define	AUE_EXTATTR_DELETE_LINK		423	/* FreeBSD. */
+#define	AUE_DARWIN_SYSCTL	331
+#define	AUE_DARWIN_MLOCK	332
+#define	AUE_DARWIN_MUNLOCK	333
+#define	AUE_DARWIN_UNDELETE	334
+#define	AUE_DARWIN_GETATTRLIST	335	/* Darwin-specific. */
+#define	AUE_DARWIN_SETATTRLIST	336	/* Darwin-specific. */
+#define	AUE_DARWIN_GETDIRENTRIESATTR	337	/* Darwin-specific. */
+#define	AUE_DARWIN_EXCHANGEDATA	338	/* Darwin-specific. */
+#define	AUE_DARWIN_SEARCHFS	339	/* Darwin-specific. */
+#define	AUE_DARWIN_MINHERIT	340
+#define	AUE_DARWIN_SEMCONFIG	341
+#define	AUE_DARWIN_SEMOPEN	342
+#define	AUE_DARWIN_SEMCLOSE	343
+#define	AUE_DARWIN_SEMUNLINK	344
+#define	AUE_DARWIN_SHMOPEN	345
+#define	AUE_DARWIN_SHMUNLINK	346
+#define	AUE_DARWIN_LOADSHFILE	347	/* Darwin-specific. */
+#define	AUE_DARWIN_RESETSHFILE	348	/* Darwin-specific. */
+#define	AUE_DARWIN_NEWSYSTEMSHREG	349	/* Darwin-specific. */
+#define	AUE_DARWIN_PTHREADKILL	350	/* Darwin-specific. */
+#define	AUE_DARWIN_PTHREADSIGMASK	351	/* Darwin-specific. */
+#define	AUE_DARWIN_AUDITCTL	352
+#define	AUE_DARWIN_RFORK	353
+#define	AUE_DARWIN_LCHMOD	354
+#define	AUE_DARWIN_SWAPOFF	355
+#define	AUE_DARWIN_INITPROCESS	356	/* Darwin-specific. */
+#define	AUE_DARWIN_MAPFD	357	/* Darwin-specific. */
+#define	AUE_DARWIN_TASKFORPID	358	/* Darwin-specific. */
+#define	AUE_DARWIN_PIDFORTASK	359	/* Darwin-specific. */
+#define	AUE_DARWIN_SYSCTL_NONADMIN	360
+#define	AUE_DARWIN_COPYFILE	361	/* Darwin-specific. */
+
+/*
+ * Audit event identifiers added as part of OpenBSM, generally corresponding
+ * to events in FreeBSD, Darwin, and Linux that were not present in Solaris.
+ * These often duplicate events added to the Solaris set by Darwin, but use
+ * event identifiers in a higher range in order to avoid colliding with
+ * future Solaris additions.
+ */
+#define	AUE_GETFSSTAT		43001
+#define	AUE_PTRACE		43002
+#define	AUE_CHFLAGS		43003
+#define	AUE_FCHFLAGS		43004
+#define	AUE_PROFILE		43005
+#define	AUE_KTRACE		43006
+#define	AUE_SETLOGIN		43007
+#define	AUE_REVOKE		43008
+#define	AUE_UMASK		43009
+#define	AUE_MPROTECT		43010
+#define	AUE_MKFIFO		43011
+#define	AUE_POLL		43012
+#define	AUE_FUTIMES		43013
+#define	AUE_SETSID		43014
+#define	AUE_SETPRIVEXEC		43015	/* Darwin-specific. */
+#define	AUE_ADDPROFILE		43016	/* Darwin-specific. */
+#define	AUE_KDEBUGTRACE		43017	/* Darwin-specific. */
+#define	AUE_KDBUGTRACE		AUE_KDEBUGTRACE
+#define	AUE_FSTAT		43018
+#define	AUE_FPATHCONF		43019
+#define	AUE_GETDIRENTRIES	43020
+#define	AUE_SYSCTL		43021
+#define	AUE_MLOCK		43022
+#define	AUE_MUNLOCK		43023
+#define	AUE_UNDELETE		43024
+#define	AUE_GETATTRLIST		43025	/* Darwin-specific. */
+#define	AUE_SETATTRLIST		43026	/* Darwin-specific. */
+#define	AUE_GETDIRENTRIESATTR	43027	/* Darwin-specific. */
+#define	AUE_EXCHANGEDATA	43028	/* Darwin-specific. */
+#define	AUE_SEARCHFS		43029	/* Darwin-specific. */
+#define	AUE_MINHERIT		43030
+#define	AUE_SEMCONFIG		43031
+#define	AUE_SEMOPEN		43032
+#define	AUE_SEMCLOSE		43033
+#define	AUE_SEMUNLINK		43034
+#define	AUE_SHMOPEN		43035
+#define	AUE_SHMUNLINK		43036
+#define	AUE_LOADSHFILE		43037	/* Darwin-specific. */
+#define	AUE_RESETSHFILE		43038	/* Darwin-specific. */
+#define	AUE_NEWSYSTEMSHREG	43039	/* Darwin-specific. */
+#define	AUE_PTHREADKILL		43040	/* Darwin-specific. */
+#define	AUE_PTHREADSIGMASK	43041	/* Darwin-specific. */
+#define	AUE_AUDITCTL		43042
+#define	AUE_RFORK		43043
+#define	AUE_LCHMOD		43044
+#define	AUE_SWAPOFF		43045
+#define	AUE_INITPROCESS		43046	/* Darwin-specific. */
+#define	AUE_MAPFD		43047	/* Darwin-specific. */
+#define	AUE_TASKFORPID		43048	/* Darwin-specific. */
+#define	AUE_PIDFORTASK		43049	/* Darwin-specific. */
+#define	AUE_SYSCTL_NONADMIN	43050
+#define	AUE_COPYFILE		43051	/* Darwin-specific. */
+
+/*
+ * Events added to OpenBSM for FreeBSD and Linux; may also be used by Darwin
+ * in the future.
+ */
+#define	AUE_LUTIMES		43052
+#define	AUE_LCHFLAGS		43053	/* FreeBSD-specific. */
+#define	AUE_SENDFILE		43054	/* BSD/Linux-specific. */
+#define	AUE_USELIB		43055	/* Linux-specific. */
+#define	AUE_GETRESUID		43056
+#define	AUE_SETRESUID		43057
+#define	AUE_GETRESGID		43058
+#define	AUE_SETRESGID		43059
+#define	AUE_WAIT4		43060	/* FreeBSD-specific. */
+#define	AUE_LGETFH		43061	/* FreeBSD-specific. */
+#define	AUE_FHSTATFS		43062	/* FreeBSD-specific. */
+#define	AUE_FHOPEN		43063	/* FreeBSD-specific. */
+#define	AUE_FHSTAT		43064	/* FreeBSD-specific. */
+#define	AUE_JAIL		43065	/* FreeBSD-specific. */
+#define	AUE_EACCESS		43066	/* FreeBSD-specific. */
+#define	AUE_KQUEUE		43067	/* FreeBSD-specific. */
+#define	AUE_KEVENT		43068	/* FreeBSD-specific. */
+#define	AUE_FSYNC		43069
+#define	AUE_NMOUNT		43070	/* FreeBSD-specific. */
+#define	AUE_BDFLUSH		43071	/* Linux-specific. */
+#define	AUE_SETFSUID		43072	/* Linux-specific. */
+#define	AUE_SETFSGID		43073	/* Linux-specific. */
+#define	AUE_PERSONALITY		43074	/* Linux-specific. */
+#define	AUE_SCHED_GETSCHEDULER	43075	/* POSIX.1b. */
+#define	AUE_SCHED_SETSCHEDULER	43076	/* POSIX.1b. */
+#define	AUE_PRCTL		43077	/* Linux-specific. */
+#define	AUE_GETCWD		43078	/* FreeBSD/Linux-specific. */
+#define	AUE_CAPGET		43079	/* Linux-specific. */
+#define	AUE_CAPSET		43080	/* Linux-specific. */
+#define	AUE_PIVOT_ROOT		43081	/* Linux-specific. */
+#define	AUE_RTPRIO		43082	/* FreeBSD-specific. */
+#define	AUE_SCHED_GETPARAM	43083	/* POSIX.1b. */
+#define	AUE_SCHED_SETPARAM	43084	/* POSIX.1b. */
+#define	AUE_SCHED_GET_PRIORITY_MAX	43085	/* POSIX.1b. */
+#define	AUE_SCHED_GET_PRIORITY_MIN	43086	/* POSIX.1b. */
+#define	AUE_SCHED_RR_GET_INTERVAL	43087	/* POSIX.1b. */
+#define	AUE_ACL_GET_FILE	43088	/* FreeBSD. */
+#define	AUE_ACL_SET_FILE	43089	/* FreeBSD. */
+#define	AUE_ACL_GET_FD		43090	/* FreeBSD. */
+#define	AUE_ACL_SET_FD		43091	/* FreeBSD. */
+#define	AUE_ACL_DELETE_FILE	43092	/* FreeBSD. */
+#define	AUE_ACL_DELETE_FD	43093	/* FreeBSD. */
+#define	AUE_ACL_CHECK_FILE	43094	/* FreeBSD. */
+#define	AUE_ACL_CHECK_FD	43095	/* FreeBSD. */
+#define	AUE_ACL_GET_LINK	43096	/* FreeBSD. */
+#define	AUE_ACL_SET_LINK	43097	/* FreeBSD. */
+#define	AUE_ACL_DELETE_LINK	43098	/* FreeBSD. */
+#define	AUE_ACL_CHECK_LINK	43099	/* FreeBSD. */
+#define	AUE_SYSARCH		43100	/* FreeBSD. */
+#define	AUE_EXTATTRCTL		43101	/* FreeBSD. */
+#define	AUE_EXTATTR_GET_FILE	43102	/* FreeBSD. */
+#define	AUE_EXTATTR_SET_FILE	43103	/* FreeBSD. */
+#define	AUE_EXTATTR_LIST_FILE	43104	/* FreeBSD. */
+#define	AUE_EXTATTR_DELETE_FILE	43105	/* FreeBSD. */
+#define	AUE_EXTATTR_GET_FD	43106	/* FreeBSD. */
+#define	AUE_EXTATTR_SET_FD	43107	/* FreeBSD. */
+#define	AUE_EXTATTR_LIST_FD	43108	/* FreeBSD. */
+#define	AUE_EXTATTR_DELETE_FD	43109	/* FreeBSD. */
+#define	AUE_EXTATTR_GET_LINK	43110	/* FreeBSD. */
+#define	AUE_EXTATTR_SET_LINK	43111	/* FreeBSD. */
+#define	AUE_EXTATTR_LIST_LINK	43112	/* FreeBSD. */
+#define	AUE_EXTATTR_DELETE_LINK	43113	/* FreeBSD. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the
