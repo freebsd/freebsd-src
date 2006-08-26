@@ -198,6 +198,11 @@
 	  included in the <filename>GENERIC</filename> kernel by
 	  default.</para>
 
+	<para>The &man.em.4; driver has been updated to
+	  version 6.1.4 from Intel.  Among other changes, it now supports
+	  80003, 82571, 82571EB and 82572 based adapters, as well as
+	  onboard-NICs on ICH8-based motherboards.</para>
+
 	<para>A number of improvements and bugfixes have been made to the
 	  functionality of the &man.iwi.4; driver.  This driver now
 	  requires the firmware image in the 
@@ -211,6 +216,10 @@
 	<para>The &man.nve.4; driver now has &man.altq.4; support.</para>
 
 	<para>The &man.sk.4; driver is now MPSAFE.</para>
+
+	<para>The &man.stge.4; driver has been added.  It supports the
+	  Sundance/Tamarack TC9021 Gigabit Ethernet controller and was
+	  ported from NetBSD.</para>
       </sect4>
     </sect3>
 
