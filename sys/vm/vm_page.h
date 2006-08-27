@@ -314,7 +314,6 @@ void vm_page_hold(vm_page_t mem);
 void vm_page_unhold(vm_page_t mem);
 void vm_page_free(vm_page_t m);
 void vm_page_free_zero(vm_page_t m);
-int vm_page_sleep_if_busy(vm_page_t m, int also_m_busy, const char *msg);
 void vm_page_dirty(vm_page_t m);
 void vm_page_wakeup(vm_page_t m);
 
@@ -342,6 +341,7 @@ vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
 void vm_page_remove (vm_page_t);
 void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
 vm_page_t vm_page_select_cache(int);
+void vm_page_sleep(vm_page_t m, const char *msg);
 vm_page_t vm_page_splay(vm_pindex_t, vm_page_t);
 vm_offset_t vm_page_startup(vm_offset_t vaddr);
 void vm_page_unmanage (vm_page_t);
@@ -359,6 +359,27 @@ void vm_page_zero_idle_wakeup(void);
 void vm_page_cowfault (vm_page_t);
 void vm_page_cowsetup (vm_page_t);
 void vm_page_cowclear (vm_page_t);
+
+/*
+ *	vm_page_sleep_if_busy:
+ *
+ *	Sleep and release the page queues lock if PG_BUSY is set or,
+ *	if also_m_busy is TRUE, busy is non-zero.  Returns TRUE if the
+ *	thread slept and the page queues lock was released.
+ *	Otherwise, retains the page queues lock and returns FALSE.
+ *
+ *	The object containing the given page must be locked.
+ */
+static __inline int
+vm_page_sleep_if_busy(vm_page_t m, int also_m_busy, const char *msg)
+{
+
+	if ((m->flags & PG_BUSY) || (also_m_busy && m->busy)) {
+		vm_page_sleep(m, msg);
+		return (TRUE);
+	}
+	return (FALSE);
+}
 
 /*
  *	vm_page_undirty:
