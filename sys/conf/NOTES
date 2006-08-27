@@ -1769,8 +1769,7 @@ device		miibus
 #       the Sundance/Tamarack TC9021, the D-Link DL-4000 and ASUS NX1101.
 # ti:   Support for PCI gigabit ethernet NICs based on the Alteon Networks
 #       Tigon 1 and Tigon 2 chipsets.  This includes the Alteon AceNIC, the
-#       3Com 3c985, the Netgear GA620 and various others.  Note that you will
-#       probably want to bump up NMBCLUSTERS a lot to use this driver.
+#       3Com 3c985, the Netgear GA620 and various others.
 # tl:   Support for the Texas Instruments TNETE100 series 'ThunderLAN'
 #       cards and integrated ethernet controllers.  This includes several
 #       Compaq Netelligent 10/100 cards and the built-in ethernet controllers
@@ -2560,8 +2559,6 @@ options 	MSGSSZ=16	# Size of a message segment
 options 	MSGTQL=41	# Max number of messages in system
 
 options 	NBUF=512	# Number of buffer headers
-
-options 	NMBCLUSTERS=1024	# Number of mbuf clusters
 
 options 	SCSI_NCR_DEBUG
 options 	SCSI_NCR_MAX_SYNC=10000
