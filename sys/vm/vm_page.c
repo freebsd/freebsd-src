@@ -484,36 +484,31 @@ vm_page_free_zero(vm_page_t m)
 }
 
 /*
- *	vm_page_sleep_if_busy:
+ *	vm_page_sleep:
  *
- *	Sleep and release the page queues lock if PG_BUSY is set or,
- *	if also_m_busy is TRUE, busy is non-zero.  Returns TRUE if the
- *	thread slept and the page queues lock was released.
- *	Otherwise, retains the page queues lock and returns FALSE.
+ *	Sleep and release the page queues lock.
+ *
+ *	The object containing the given page must be locked.
  */
-int
-vm_page_sleep_if_busy(vm_page_t m, int also_m_busy, const char *msg)
+void
+vm_page_sleep(vm_page_t m, const char *msg)
 {
 
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
-	if ((m->flags & PG_BUSY) || (also_m_busy && m->busy)) {
-		if (!mtx_owned(&vm_page_queue_mtx))
-			vm_page_lock_queues();
-		vm_page_flag_set(m, PG_REFERENCED);
-		vm_page_unlock_queues();
+	if (!mtx_owned(&vm_page_queue_mtx))
+		vm_page_lock_queues();
+	vm_page_flag_set(m, PG_REFERENCED);
+	vm_page_unlock_queues();
 
-		/*
-		 * It's possible that while we sleep, the page will get
-		 * unbusied and freed.  If we are holding the object
-		 * lock, we will assume we hold a reference to the object
-		 * such that even if m->object changes, we can re-lock
-		 * it.
-		 */
-		m->oflags |= VPO_WANTED;
-		msleep(m, VM_OBJECT_MTX(m->object), PVM, msg, 0);
-		return (TRUE);
-	}
-	return (FALSE);
+	/*
+	 * It's possible that while we sleep, the page will get
+	 * unbusied and freed.  If we are holding the object
+	 * lock, we will assume we hold a reference to the object
+	 * such that even if m->object changes, we can re-lock
+	 * it.
+	 */
+	m->oflags |= VPO_WANTED;
+	msleep(m, VM_OBJECT_MTX(m->object), PVM, msg, 0);
 }
 
 /*
