@@ -312,6 +312,19 @@ struct l_statfs {
 	l_int		f_spare[6];
 };
 
+struct l_statfs64 {
+	l_int		f_type;
+	l_int		f_bsize;
+	uint64_t	f_blocks;
+	uint64_t	f_bfree;
+	uint64_t	f_bavail;
+	uint64_t	f_files;
+	uint64_t	f_ffree;
+	l_fsid_t	f_fsid;
+	l_int		f_namelen;
+	l_int		f_spare[6];
+};
+
 #define	LINUX_CODA_SUPER_MAGIC	0x73757245L
 #define	LINUX_EXT2_SUPER_MAGIC	0xEF53L
 #define	LINUX_HPFS_SUPER_MAGIC	0xf995e849L
@@ -384,6 +397,44 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 	if (error)
 		return (error);
 	bsd_to_linux_statfs(&bsd_statfs, &linux_statfs);
+	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
+}
+
+static void
+bsd_to_linux_statfs64(struct statfs *bsd_statfs, struct l_statfs64 *linux_statfs)
+{
+
+	linux_statfs->f_type = bsd_to_linux_ftype(bsd_statfs->f_fstypename);
+	linux_statfs->f_bsize = bsd_statfs->f_bsize;
+	linux_statfs->f_blocks = bsd_statfs->f_blocks;
+	linux_statfs->f_bfree = bsd_statfs->f_bfree;
+	linux_statfs->f_bavail = bsd_statfs->f_bavail;
+	linux_statfs->f_ffree = bsd_statfs->f_ffree;
+	linux_statfs->f_files = bsd_statfs->f_files;
+	linux_statfs->f_fsid.val[0] = bsd_statfs->f_fsid.val[0];
+	linux_statfs->f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
+	linux_statfs->f_namelen = MAXNAMLEN;
+}
+
+int
+linux_statfs64(struct thread *td, struct linux_statfs64_args *args)
+{
+	struct l_statfs64 linux_statfs;
+	struct statfs bsd_statfs;
+	char *path;
+	int error;
+
+	LCONVPATHEXIST(td, args->path, &path);
+
+#ifdef DEBUG
+	if (ldebug(statfs64))
+		printf(ARGS(statfs64, "%s, *"), path);
+#endif
+	error = kern_statfs(td, path, UIO_SYSSPACE, &bsd_statfs);
+	LFREEPATH(path);
+	if (error)
+		return (error);
+	bsd_to_linux_statfs64(&bsd_statfs, &linux_statfs);
 	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
 }
 

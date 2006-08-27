@@ -77,7 +77,6 @@ DUMMY(timer_settime);
 DUMMY(timer_gettime);
 DUMMY(timer_getoverrun);
 DUMMY(timer_delete);
-DUMMY(statfs64);
 DUMMY(fstatfs64);
 DUMMY(utimes);
 DUMMY(fadvise64_64);

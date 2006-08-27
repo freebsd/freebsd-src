@@ -73,7 +73,6 @@ DUMMY(epoll_create);
 DUMMY(epoll_ctl);
 DUMMY(epoll_wait);
 DUMMY(remap_file_pages);
-DUMMY(statfs64);
 DUMMY(fstatfs64);
 DUMMY(utimes);
 DUMMY(fadvise64_64);
