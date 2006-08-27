@@ -551,20 +551,11 @@ creator_blank_display(video_adapter_t *adp, int mode)
 	v = FFB_READ(sc, FFB_DAC, FFB_DAC_VALUE);
 	switch (mode) {
 	case V_DISPLAY_ON:
-		v &= ~(FFB_DAC_CFG_TGEN_VSD | FFB_DAC_CFG_TGEN_HSD);
 		v |= FFB_DAC_CFG_TGEN_VIDE;
 		break;
 	case V_DISPLAY_BLANK:
-		v |= (FFB_DAC_CFG_TGEN_VSD | FFB_DAC_CFG_TGEN_HSD);
-		v &= ~FFB_DAC_CFG_TGEN_VIDE;
-		break;
 	case V_DISPLAY_STAND_BY:
-		v &= ~FFB_DAC_CFG_TGEN_VSD;
-		v &= ~FFB_DAC_CFG_TGEN_VIDE;
-		break;
 	case V_DISPLAY_SUSPEND:
-		v |=  FFB_DAC_CFG_TGEN_VSD;
-		v &= ~FFB_DAC_CFG_TGEN_HSD;
 		v &= ~FFB_DAC_CFG_TGEN_VIDE;
 		break;
 	}
