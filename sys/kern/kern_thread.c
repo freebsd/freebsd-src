@@ -140,6 +140,7 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 #ifdef AUDIT
 	audit_thread_alloc(td);
 #endif
+	umtx_thread_alloc(td);
 	return (0);
 }
 
@@ -194,9 +195,9 @@ thread_init(void *mem, int size, int flags)
 	cpu_thread_setup(td);
 	td->td_sleepqueue = sleepq_alloc();
 	td->td_turnstile = turnstile_alloc();
-	td->td_umtxq = umtxq_alloc();
 	td->td_sched = (struct td_sched *)&td[1];
 	sched_newthread(td);
+	umtx_thread_init(td);
 	return (0);
 }
 
@@ -211,7 +212,7 @@ thread_fini(void *mem, int size)
 	td = (struct thread *)mem;
 	turnstile_free(td->td_turnstile);
 	sleepq_free(td->td_sleepqueue);
-	umtxq_free(td->td_umtxq);
+	umtx_thread_fini(td);
 	vm_thread_dispose(td);
 }
 
@@ -485,6 +486,8 @@ thread_exit(void)
 		thread_stash(td->td_standin);
 		td->td_standin = NULL;
 	}
+
+	umtx_thread_exit(td);
 
 	/*
 	 * drop FPU & debug register state storage, or any other
