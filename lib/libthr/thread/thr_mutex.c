@@ -110,25 +110,32 @@ mutex_init(pthread_mutex_t *mutex,
 		    attr->m_protocol > PTHREAD_PRIO_PROTECT)
 			return (EINVAL);
 	}
-
 	if ((pmutex = (pthread_mutex_t)
-		malloc(sizeof(struct pthread_mutex))) == NULL)
+		calloc(1, sizeof(struct pthread_mutex))) == NULL)
 		return (ENOMEM);
 
-	_thr_umtx_init(&pmutex->m_lock);
 	pmutex->m_type = attr->m_type;
-	pmutex->m_protocol = attr->m_protocol;
 	pmutex->m_owner = NULL;
 	pmutex->m_flags = attr->m_flags | MUTEX_FLAGS_INITED;
 	if (private)
 		pmutex->m_flags |= MUTEX_FLAGS_PRIVATE;
 	pmutex->m_count = 0;
 	pmutex->m_refcount = 0;
-	if (attr->m_protocol == PTHREAD_PRIO_PROTECT)
-		pmutex->m_prio = attr->m_ceiling;
-	else
-		pmutex->m_prio = -1;
 	MUTEX_INIT_LINK(pmutex);
+	switch(attr->m_protocol) {
+	case PTHREAD_PRIO_INHERIT:
+		pmutex->m_lock.m_owner = UMUTEX_UNOWNED;
+		pmutex->m_lock.m_flags = UMUTEX_PRIO_INHERIT;
+		break;
+	case PTHREAD_PRIO_PROTECT:
+		pmutex->m_lock.m_owner = UMUTEX_CONTESTED;
+		pmutex->m_lock.m_flags = UMUTEX_PRIO_PROTECT;
+		pmutex->m_lock.m_ceilings[0] = attr->m_ceiling;
+		break;
+	case PTHREAD_PRIO_NONE:
+		pmutex->m_lock.m_owner = UMUTEX_UNOWNED;
+		pmutex->m_lock.m_flags = 0;
+	}
 	*mutex = pmutex;
 	return (0);
 }
@@ -181,18 +188,6 @@ __pthread_mutex_init(pthread_mutex_t *mutex,
 	return mutex_init(mutex, mutex_attr, 0);
 }
 
-int
-_mutex_reinit(pthread_mutex_t *mutex)
-{
-	_thr_umtx_init(&(*mutex)->m_lock);
-	MUTEX_INIT_LINK(*mutex);
-	(*mutex)->m_owner = NULL;
-	(*mutex)->m_count = 0;
-	(*mutex)->m_refcount = 0;
-	(*mutex)->m_prio = 0;
-	return (0);
-}
-
 void
 _mutex_fork(struct pthread *curthread)
 {
@@ -207,45 +202,65 @@ _mutex_fork(struct pthread *curthread)
 	 * process shared mutex is not supported, so I
 	 * am not worried.
 	 */
+
 	TAILQ_FOREACH(m, &curthread->mutexq, m_qe)
-		m->m_lock = (umtx_t)curthread->tid;
+		m->m_lock.m_owner = TID(curthread);
+	TAILQ_FOREACH(m, &curthread->pp_mutexq, m_qe)
+		m->m_lock.m_owner = TID(curthread) | UMUTEX_CONTESTED;
 }
 
 int
 _pthread_mutex_destroy(pthread_mutex_t *mutex)
 {
 	struct pthread *curthread = _get_curthread();
-	pthread_mutex_t m;
+	pthread_mutex_t m, m2;
+	uint32_t id;
 	int ret = 0;
 
 	if (__predict_false(*mutex == NULL))
 		ret = EINVAL;
 	else {
+		id = TID(curthread);
+
 		/*
 		 * Try to lock the mutex structure, we only need to
 		 * try once, if failed, the mutex is in used.
 		 */
-		ret = THR_UMTX_TRYLOCK(curthread, &(*mutex)->m_lock);
+		ret = _thr_umutex_trylock(&(*mutex)->m_lock, id);
 		if (ret)
 			return (ret);
-
+		m  = *mutex;
+		m2 = TAILQ_LAST(&curthread->pp_mutexq, mutex_queue);
 		/*
 		 * Check mutex other fields to see if this mutex is
 		 * in use. Mostly for prority mutex types, or there
 		 * are condition variables referencing it.
 		 */
-		if ((*mutex)->m_owner != NULL || (*mutex)->m_refcount != 0) {
-			THR_UMTX_UNLOCK(curthread, &(*mutex)->m_lock);
+		if (m->m_owner != NULL || m->m_refcount != 0) {
+			if (m->m_lock.m_flags & UMUTEX_PRIO_PROTECT) {
+				if (m2 != NULL)
+					m->m_lock.m_ceilings[1] =
+						 m2->m_lock.m_ceilings[0];
+				else
+					m->m_lock.m_ceilings[1] = -1;
+			}
+			_thr_umutex_unlock(&m->m_lock, id);
 			ret = EBUSY;
 		} else {
 			/*
 			 * Save a pointer to the mutex so it can be free'd
 			 * and set the caller's pointer to NULL.
 			 */
-			m = *mutex;
 			*mutex = NULL;
 
-			THR_UMTX_UNLOCK(curthread, &m->m_lock);
+			if (m->m_lock.m_flags & UMUTEX_PRIO_PROTECT) {
+				if (m2 != NULL)
+					m->m_lock.m_ceilings[1] =
+						m2->m_lock.m_ceilings[0];
+				else
+					m->m_lock.m_ceilings[1] = -1;
+			}
+			_thr_umutex_unlock(&m->m_lock, id);
 
 			MUTEX_ASSERT_NOT_OWNED(m);
 			free(m);
@@ -259,15 +274,20 @@ static int
 mutex_trylock_common(struct pthread *curthread, pthread_mutex_t *mutex)
 {
 	struct pthread_mutex *m;
+	uint32_t id;
 	int ret;
 
+	id = TID(curthread);
 	m = *mutex;
-	ret = THR_UMTX_TRYLOCK(curthread, &m->m_lock);
+	ret = _thr_umutex_trylock(&m->m_lock, id);
 	if (ret == 0) {
 		m->m_owner = curthread;
 		/* Add to the list of owned mutexes. */
 		MUTEX_ASSERT_NOT_OWNED(m);
-		TAILQ_INSERT_TAIL(&curthread->mutexq, m, m_qe);
+		if ((m->m_lock.m_flags & UMUTEX_PRIO_PROTECT) == 0)
+			TAILQ_INSERT_TAIL(&curthread->mutexq, m, m_qe);
+		else
+			TAILQ_INSERT_TAIL(&curthread->pp_mutexq, m, m_qe);
 	} else if (m->m_owner == curthread) {
 		ret = mutex_self_trylock(m);
 	} /* else {} */
@@ -317,20 +337,25 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 {
 	struct  timespec ts, ts2;
 	struct	pthread_mutex *m;
+	uint32_t	id;
 	int	ret;
 
+	id = TID(curthread);
 	m = *mutex;
-	ret = THR_UMTX_TRYLOCK(curthread, &m->m_lock);
+	ret = _thr_umutex_trylock(&m->m_lock, id);
 	if (ret == 0) {
 		m->m_owner = curthread;
 		/* Add to the list of owned mutexes: */
 		MUTEX_ASSERT_NOT_OWNED(m);
-		TAILQ_INSERT_TAIL(&curthread->mutexq, m, m_qe);
+		if ((m->m_lock.m_flags & UMUTEX_PRIO_PROTECT) == 0)
+			TAILQ_INSERT_TAIL(&curthread->mutexq, m, m_qe);
+		else
+			TAILQ_INSERT_TAIL(&curthread->pp_mutexq, m, m_qe);
 	} else if (m->m_owner == curthread) {
 		ret = mutex_self_lock(m, abstime);
 	} else {
 		if (abstime == NULL) {
-			THR_UMTX_LOCK(curthread, &m->m_lock);
+			_thr_umutex_lock(&m->m_lock, id);
 			ret = 0;
 		} else if (__predict_false(
 			   abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
@@ -339,7 +364,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 		} else {
 			clock_gettime(CLOCK_REALTIME, &ts);
 			TIMESPEC_SUB(&ts2, abstime, &ts);
-			ret = THR_UMTX_TIMEDLOCK(curthread, &m->m_lock, &ts2);
+			ret = _thr_umutex_timedlock(&m->m_lock, id, &ts2);
 			/*
 			 * Timed out wait is not restarted if
 			 * it was interrupted, not worth to do it.
@@ -351,7 +376,11 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 			m->m_owner = curthread;
 			/* Add to the list of owned mutexes: */
 			MUTEX_ASSERT_NOT_OWNED(m);
-			TAILQ_INSERT_TAIL(&curthread->mutexq, m, m_qe);
+			if ((m->m_lock.m_flags & UMUTEX_PRIO_PROTECT) == 0)
+				TAILQ_INSERT_TAIL(&curthread->mutexq, m, m_qe);
+			else
+				TAILQ_INSERT_TAIL(&curthread->pp_mutexq, m,
+					m_qe);
 		}
 	}
 	return (ret);
@@ -554,7 +583,8 @@ static int
 mutex_unlock_common(pthread_mutex_t *mutex)
 {
 	struct pthread *curthread = _get_curthread();
-	struct pthread_mutex *m;
+	struct pthread_mutex *m, *m2;
+	uint32_t id;
 
 	if (__predict_false((m = *mutex) == NULL))
 		return (EINVAL);
@@ -565,6 +595,7 @@ mutex_unlock_common(pthread_mutex_t *mutex)
 	if (__predict_false(m->m_owner != curthread))
 		return (EPERM);
 
+	id = TID(curthread);
 	if (__predict_false(
 		m->m_type == PTHREAD_MUTEX_RECURSIVE &&
 		m->m_count > 0)) {
@@ -573,9 +604,19 @@ mutex_unlock_common(pthread_mutex_t *mutex)
 		m->m_owner = NULL;
 		/* Remove the mutex from the threads queue. */
 		MUTEX_ASSERT_IS_OWNED(m);
-		TAILQ_REMOVE(&curthread->mutexq, m, m_qe);
+		if ((m->m_lock.m_flags & UMUTEX_PRIO_PROTECT) == 0)
+			TAILQ_REMOVE(&curthread->mutexq, m, m_qe);
+		else {
+			TAILQ_REMOVE(&curthread->pp_mutexq, m, m_qe);
+			m2 = TAILQ_LAST(&curthread->pp_mutexq, mutex_queue);
+			if (m2 != NULL)
+				m->m_lock.m_ceilings[1] =
+					m2->m_lock.m_ceilings[0];
+			else
+				m->m_lock.m_ceilings[1] = -1;
+		}
 		MUTEX_INIT_LINK(m);
-		THR_UMTX_UNLOCK(curthread, &m->m_lock);
+		_thr_umutex_unlock(&m->m_lock, id);
 	}
 	return (0);
 }
@@ -584,7 +625,7 @@ int
 _mutex_cv_unlock(pthread_mutex_t *mutex, int *count)
 {
 	struct pthread *curthread = _get_curthread();
-	struct pthread_mutex *m;
+	struct pthread_mutex *m, *m2;
 
 	if (__predict_false((m = *mutex) == NULL))
 		return (EINVAL);
@@ -604,9 +645,19 @@ _mutex_cv_unlock(pthread_mutex_t *mutex, int *count)
 	m->m_owner = NULL;
 	/* Remove the mutex from the threads queue. */
 	MUTEX_ASSERT_IS_OWNED(m);
-	TAILQ_REMOVE(&curthread->mutexq, m, m_qe);
+	if ((m->m_lock.m_flags & UMUTEX_PRIO_PROTECT) == 0)
+		TAILQ_REMOVE(&curthread->mutexq, m, m_qe);
+	else {
+		TAILQ_REMOVE(&curthread->pp_mutexq, m, m_qe);
+
+		m2 = TAILQ_LAST(&curthread->pp_mutexq, mutex_queue);
+		if (m2 != NULL)
+			m->m_lock.m_ceilings[1] = m2->m_lock.m_ceilings[0];
+		else
+			m->m_lock.m_ceilings[1] = -1;
+	}
 	MUTEX_INIT_LINK(m);
-	THR_UMTX_UNLOCK(curthread, &m->m_lock);
+	_thr_umutex_unlock(&m->m_lock, TID(curthread));
 	return (0);
 }
 
@@ -629,10 +680,10 @@ _pthread_mutex_getprioceiling(pthread_mutex_t *mutex,
 
 	if (*mutex == NULL)
 		ret = EINVAL;
-	else if ((*mutex)->m_protocol != PTHREAD_PRIO_PROTECT)
+	else if (((*mutex)->m_lock.m_flags & UMUTEX_PRIO_PROTECT) == 0)
 		ret = EINVAL;
 	else {
-		*prioceiling = (*mutex)->m_prio;
+		*prioceiling = (*mutex)->m_lock.m_ceilings[0];
 		ret = 0;
 	}
 
@@ -641,22 +692,16 @@ _pthread_mutex_getprioceiling(pthread_mutex_t *mutex,
 
 int
 _pthread_mutex_setprioceiling(pthread_mutex_t *mutex,
-			      int prioceiling, int *old_ceiling)
+			      int ceiling, int *old_ceiling)
 {
 	int ret = 0;
-	int tmp;
 
 	if (*mutex == NULL)
 		ret = EINVAL;
-	else if ((*mutex)->m_protocol != PTHREAD_PRIO_PROTECT)
+	else if (((*mutex)->m_lock.m_flags & UMUTEX_PRIO_PROTECT) == 0)
 		ret = EINVAL;
-	else if ((ret = _pthread_mutex_lock(mutex)) == 0) {
-		tmp = (*mutex)->m_prio;
-		(*mutex)->m_prio = prioceiling;
-		ret = _pthread_mutex_unlock(mutex);
-
-		/* Return the old ceiling. */
-		*old_ceiling = tmp;
-	}
-	return(ret);
+	else
+		ret = __thr_umutex_set_ceiling(&(*mutex)->m_lock,
+			ceiling, old_ceiling);
+	return (ret);
 }

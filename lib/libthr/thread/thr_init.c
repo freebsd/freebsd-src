@@ -407,6 +407,7 @@ init_main_thread(struct pthread *thread)
 
 	/* Initialize the mutex queue: */
 	TAILQ_INIT(&thread->mutexq);
+	TAILQ_INIT(&thread->pp_mutexq);
 
 	thread->state = PS_RUNNING;
 
