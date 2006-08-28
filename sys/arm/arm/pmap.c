@@ -4469,11 +4469,8 @@ void
 pmap_remove_write(vm_page_t m)
 {
 
-	if (m->md.pvh_attrs & PVF_WRITE)
+	if (m->flags & PG_WRITEABLE)
 		pmap_clearbit(m, PVF_WRITE);
-	else
-		KASSERT((m->flags & PG_WRITEABLE) == 0,
-		    ("pmap_clear_write: page %p has PG_WRITEABLE set", m));
 }
 
 
