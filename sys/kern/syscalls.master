@@ -794,8 +794,8 @@
 				    struct auditinfo_addr *auditinfo_addr, \
 				    u_int length); }
 453	AUE_AUDITCTL	STD	{ int auditctl(char *path); }
-454	AUE_NULL	STD	{ int _umtx_op(struct umtx *umtx, int op, \
-				    long id, void *uaddr, void *uaddr2); }
+454	AUE_NULL	STD	{ int _umtx_op(void *obj, int op, \
+				    uintptr_t val, void *uaddr1, void *uaddr2); }
 455	AUE_NULL	STD	{ int thr_new(struct thr_param *param, \
 				    int param_size); }
 456	AUE_NULL	STD	{ int sigqueue(pid_t pid, int signum, void *value); }
