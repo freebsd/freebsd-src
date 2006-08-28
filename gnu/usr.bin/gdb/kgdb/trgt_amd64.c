@@ -149,15 +149,12 @@ kgdb_trgt_trapframe_prev_register(struct frame_info *next_frame,
 	*lvalp = not_lval;
 	*realnump = -1;
 
-	cache = kgdb_trgt_frame_cache(next_frame, this_cache);
-	if (cache->pc == 0)
-		return;
-
 	ofs = (regnum >= AMD64_RAX_REGNUM && regnum <= AMD64_EFLAGS_REGNUM + 2)
 	    ? kgdb_trgt_frame_offset[regnum] : -1;
 	if (ofs == -1)
 		return;
 
+	cache = kgdb_trgt_frame_cache(next_frame, this_cache);
 	*addrp = cache->sp + ofs;
 	*lvalp = lval_memory;
 	target_read_memory(*addrp, valuep, regsz);
@@ -176,8 +173,6 @@ kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame)
 	CORE_ADDR pc;
 
 	pc = frame_pc_unwind(next_frame);
-	if (pc == 0)
-		return (&kgdb_trgt_trapframe_unwind);
 	pname = NULL;
 	find_pc_partial_function(pc, &pname, NULL, NULL);
 	if (pname == NULL)
