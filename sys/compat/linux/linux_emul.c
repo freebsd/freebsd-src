@@ -232,10 +232,10 @@ void linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *im
 
 		em->shared->refs--;
 		if (em->shared->refs == 0)
-		   	FREE(em->shared, M_LINUX);
+		   	free(em->shared, M_LINUX);
 		EMUL_SHARED_WUNLOCK(&emul_shared_lock);
 
-		FREE(em, M_LINUX);
+		free(em, M_LINUX);
 	}
 }
 
