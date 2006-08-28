@@ -322,8 +322,8 @@ token_t	*au_to_subject64_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 token_t	*au_to_exec_args(char *args, int argc);
 token_t	*au_to_exec_env(char *envs, int envc);
 #else
-token_t	*au_to_exec_args(char **argv);
-token_t	*au_to_exec_env(char **envp);
+token_t	*au_to_exec_args(const char **argv);
+token_t	*au_to_exec_env(const char **envp);
 #endif
 token_t	*au_to_text(char *text);
 token_t	*au_to_kevent(struct kevent *kev);
