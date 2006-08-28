@@ -2643,10 +2643,10 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 	/* _umtx_op */
 	case 454: {
 		struct _umtx_op_args *p = params;
-		uarg[0] = (intptr_t) p->umtx; /* struct umtx * */
+		uarg[0] = (intptr_t) p->obj; /* void * */
 		iarg[1] = p->op; /* int */
-		iarg[2] = p->id; /* long */
-		uarg[3] = (intptr_t) p->uaddr; /* void * */
+		uarg[2] = p->val; /* uintptr_t */
+		uarg[3] = (intptr_t) p->uaddr1; /* void * */
 		uarg[4] = (intptr_t) p->uaddr2; /* void * */
 		*n_args = 5;
 		break;
