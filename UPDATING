@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060828:	p5	FreeBSD-EN-06:02.net
+	Correct several problems in the network stack, including a
+	locally-triggered kernel panic, inaccuracy in reported memory
+	allocation statistics, and problems on IPv6 point-to-point links.
+
 20060823:	p4	FreeBSD-SA-06:18.ppp
 	Correct buffer overflow in the handling of LCP options in ppp(4).
 

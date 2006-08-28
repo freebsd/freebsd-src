@@ -1720,20 +1720,55 @@ in6_ifinit(ifp, ia, sin6, newhost)
 
 	/* we could do in(6)_socktrim here, but just omit it at this moment. */
 
+	if (newhost && nd6_need_cache(ifp) != 0) {
+		/* set the rtrequest function to create llinfo */
+		ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
+	}
+
 	/*
 	 * Special case:
 	 * If a new destination address is specified for a point-to-point
 	 * interface, install a route to the destination as an interface
-	 * direct route.
+	 * direct route.  In addition, if the link is expected to have neighbor
+	 * cache entries, specify RTF_LLINFO so that a cache entry for the
+	 * destination address will be created.
+	 * created
 	 * XXX: the logic below rejects assigning multiple addresses on a p2p
-	 * interface that share a same destination.
+	 * interface that share the same destination.
 	 */
 	plen = in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL); /* XXX */
 	if (!(ia->ia_flags & IFA_ROUTE) && plen == 128 &&
 	    ia->ia_dstaddr.sin6_family == AF_INET6) {
-		if ((error = rtinit(&(ia->ia_ifa), (int)RTM_ADD,
-				    RTF_UP | RTF_HOST)) != 0)
+		int rtflags = RTF_UP | RTF_HOST;
+		struct rtentry *rt = NULL, **rtp = NULL;
+
+		if (nd6_need_cache(ifp) != 0) {
+			rtflags |= RTF_LLINFO;
+			rtp = &rt;
+		}
+
+		error = rtrequest(RTM_ADD, (struct sockaddr *)&ia->ia_dstaddr,
+		    (struct sockaddr *)&ia->ia_addr,
+		    (struct sockaddr *)&ia->ia_prefixmask,
+		    ia->ia_flags | rtflags, rtp);
+		if (error != 0)
 			return (error);
+		if (rt != NULL) {
+			struct llinfo_nd6 *ln;
+
+			RT_LOCK(rt);
+			ln = (struct llinfo_nd6 *)rt->rt_llinfo;
+			if (ln != NULL) {
+				/*
+				 * Set the state to STALE because we don't
+				 * have to perform address resolution on this
+				 * link.
+				 */
+				ln->ln_state = ND6_LLINFO_STALE;
+			}
+			RT_REMREF(rt);
+			RT_UNLOCK(rt);
+		}
 		ia->ia_flags |= IFA_ROUTE;
 	}
 	if (plen < 128) {
@@ -1744,11 +1779,8 @@ in6_ifinit(ifp, ia, sin6, newhost)
 	}
 
 	/* Add ownaddr as loopback rtentry, if necessary (ex. on p2p link). */
-	if (newhost) {
-		/* set the rtrequest function to create llinfo */
-		ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
+	if (newhost)
 		in6_ifaddloop(&(ia->ia_ifa));
-	}
 
 	return (error);
 }

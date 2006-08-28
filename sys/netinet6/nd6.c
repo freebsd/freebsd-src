@@ -512,6 +512,19 @@ nd6_llinfo_timer(arg)
 			ln->ln_asked++;
 			nd6_llinfo_settimer(ln, (long)ndi->retrans * hz / 1000);
 			nd6_ns_output(ifp, dst, dst, ln, 0);
+		} else if (rt->rt_ifa != NULL &&
+		    rt->rt_ifa->ifa_addr->sa_family == AF_INET6 &&
+		    (((struct in6_ifaddr *)rt->rt_ifa)->ia_flags & IFA_ROUTE)) {
+			/*
+			 * This is an unreachable neighbor whose address is
+			 * specified as the destination of a p2p interface
+			 * (see in6_ifinit()).  We should not free the entry
+			 * since this is sort of a "static" entry generated
+			 * via interface address configuration. 
+			 */
+			ln->ln_asked = 0;
+			ln->ln_expire = 0; /* make it permanent */
+			ln->ln_state = ND6_LLINFO_STALE;
 		} else {
 			(void)nd6_free(rt, 0);
 			ln = NULL;
