@@ -642,9 +642,7 @@ do_lock(struct thread *td, struct umtx *umtx, uintptr_t id,
 			TIMESPEC_TO_TIMEVAL(&tv, &ts3);
 		}
 	}
-	/*
-	 * This lets userland back off critical region if needed.
-	 */
+	/* Mutex locking is be restarted if it is interrupted. */
 	if (error == EINTR)
 		error = ERESTART;
 	return (error);
@@ -771,6 +769,7 @@ do_wait(struct thread *td, struct umtx *umtx, uintptr_t id, struct timespec *tim
 		umtxq_unlock(&uq->uq_key);
 	}
 	umtx_key_release(&uq->uq_key);
+	/* Mutex locking is be restarted if it is interrupted. */
 	if (error == ERESTART)
 		error = EINTR;
 	return (error);
@@ -931,9 +930,7 @@ do_lock_normal(struct thread *td, struct umutex *m, uint32_t flags,
 			TIMESPEC_TO_TIMEVAL(&tv, &ts3);
 		}
 	}
-	/*
-	 * This lets userland back off critical region if needed.
-	 */
+	/* Mutex locking is be restarted if it is interrupted. */
 	if (error == EINTR)
 		error = ERESTART;
 	return (error);
@@ -1560,9 +1557,7 @@ do_lock_pi(struct thread *td, struct umutex *m, uint32_t flags,
 			TIMESPEC_TO_TIMEVAL(&tv, &ts3);
 		}
 	}
-	/*
-	 * This lets userland back off critical region if needed.
-	 */
+	/* Mutex locking is be restarted if it is interrupted. */
 	if (error == EINTR)
 		error = ERESTART;
 	return (error);
@@ -1817,9 +1812,7 @@ do_lock_pp(struct thread *td, struct umutex *m, uint32_t flags,
 			TIMESPEC_TO_TIMEVAL(&tv, &ts3);
 		}
 	}
-	/*
-	 * This lets userland back off critical region if needed.
-	 */
+	/* Mutex locking is be restarted if it is interrupted. */
 	if (error == EINTR)
 		error = ERESTART;
 	return (error);
