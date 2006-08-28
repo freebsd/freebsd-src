@@ -1142,6 +1142,8 @@ fastmove_tail_fault:
 /*
  * casuptr.  Compare and set user pointer.  Returns -1 or the current value.
  */
+
+ALTENTRY(casuword32)
 ENTRY(casuptr)
 	movl	PCPU(CURPCB),%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)

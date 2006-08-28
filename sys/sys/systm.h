@@ -203,7 +203,8 @@ int	suword(void *base, long word);
 int	suword16(void *base, int word);
 int	suword32(void *base, int32_t word);
 int	suword64(void *base, int64_t word);
-intptr_t casuptr(intptr_t *p, intptr_t old, intptr_t new);
+int32_t	casuword32(int32_t *base, int32_t oldval, int32_t newval);
+intptr_t casuptr(intptr_t *p, intptr_t oldval, intptr_t newval);
 
 void	realitexpire(void *);
 
