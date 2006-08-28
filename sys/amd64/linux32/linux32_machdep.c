@@ -570,24 +570,24 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		}
 	}
 
-	if (args->flags & CLONE_PARENT) {
-#ifdef DEBUG
-	   	printf("linux_clone: CLONE_PARENT\n");
-#endif
+	if (args->flags & (CLONE_PARENT|CLONE_THREAD)) {
+	   	sx_xlock(&proctree_lock);
+		PROC_LOCK(p2);
+		proc_reparent(p2, td->td_proc->p_pptr);
+		PROC_UNLOCK(p2);
+		sx_xunlock(&proctree_lock);
 	}
-	   	
+
 	if (args->flags & CLONE_THREAD) {
 	   	/* XXX: linux mangles pgrp and pptr somehow
 		 * I think it might be this but I am not sure.
 		 */
 #ifdef notyet
+	   	PROC_LOCK(p2);
 	   	p2->p_pgrp = td->td_proc->p_pgrp;
-	 	p2->p_pptr = td->td_proc->p_pptr;
+	   	PROC_UNLOCK(p2);
 #endif
 	 	exit_signal = 0;
-#ifdef DEBUG
-	   	printf("linux_clone: CLONE_THREADS\n");
-#endif
 	}
 
 	if (args->flags & CLONE_CHILD_SETTID)
@@ -599,6 +599,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		em->child_clear_tid = args->child_tidptr;
 	else
 	   	em->child_clear_tid = NULL;
+
 	EMUL_UNLOCK(&emul_lock);
 
 	PROC_LOCK(p2);
