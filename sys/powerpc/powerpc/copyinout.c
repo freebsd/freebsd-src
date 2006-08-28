@@ -322,6 +322,12 @@ fuword32(const void *addr)
 	return ((int32_t)fuword(addr));
 }
 
+int32_t
+casuword32(int32_t *base, int32_t oldval, int32_t newval)
+{
+	return (casuptr(base, oldval, newval));
+}
+
 intptr_t
 casuptr(intptr_t *addr, intptr_t old, intptr_t new)
 {

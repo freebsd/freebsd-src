@@ -402,7 +402,7 @@ fs_nofault_begin:
 	.set	susword, suword16
 	.set	suword, suword64
 
-	.globl	casuptr, fuptr, suptr
+	.globl	casuword32, casuptr, fuptr, suptr
 	.set	casuptr, casuword64
 	.set	fuptr, fuword64
 	.set	suptr, suword64
