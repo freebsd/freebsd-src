@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
  * Fetch an int from the user's address space.
  */
 
+ALTENTRY(casuword32)
 ENTRY(casuptr)
 #ifdef MULTIPROCESSOR
 	/* XXX Probably not appropriate for non-Hydra SMPs */
