@@ -60,6 +60,7 @@
 
 typedef TAILQ_HEAD(pthreadlist, pthread) pthreadlist;
 typedef TAILQ_HEAD(atfork_head, pthread_atfork) atfork_head;
+TAILQ_HEAD(mutex_queue, pthread_mutex);
 
 /* Signal to do cancellation */
 #define	SIGCANCEL		32
@@ -112,22 +113,14 @@ struct pthread_mutex {
 	/*
 	 * Lock for accesses to this structure.
 	 */
-	volatile umtx_t			m_lock;
+	struct umutex			m_lock;
 	enum pthread_mutextype		m_type;
-	int				m_protocol;
 	struct pthread			*m_owner;
 	int				m_flags;
 	int				m_count;
 	int				m_refcount;
-
 	/*
-	 * Used for priority protection, the ceiling priority of
-	 * this mutex.
-	 */
-	int				m_prio;
-
-	/*
-	 * Link for list of all mutexes a thread currently owns.
+	 * Link for all mutexes a thread currently owns.
 	 */
 	TAILQ_ENTRY(pthread_mutex)	m_qe;
 };
@@ -304,6 +297,12 @@ struct pthread_key {
 };
 
 /*
+ * lwpid_t is 32bit but kernel thr API exports tid as long type
+ * in very earily date.
+ */
+#define TID(thread)	((uint32_t) ((thread)->tid))
+
+/*
  * Thread structure.
  */
 struct pthread {
@@ -386,12 +385,6 @@ struct pthread {
 	 */
 	struct pthread		*joiner;
 
-	/*
-	 * The current thread can belong to a priority mutex queue.
-	 * This is the synchronization queue link.
-	 */
-	TAILQ_ENTRY(pthread)	sqe;
-
 	/* Miscellaneous flags; only set with scheduling lock held. */
 	int			flags;
 #define THR_FLAGS_PRIVATE	0x0001
@@ -405,8 +398,11 @@ struct pthread {
 #define	TLFLAGS_IN_GCLIST	0x0004	/* thread in gc list */
 #define	TLFLAGS_DETACHED	0x0008	/* thread is detached */
 
-	/* Queue of currently owned simple type mutexes. */
-	TAILQ_HEAD(, pthread_mutex)	mutexq;
+	/* Queue of currently owned NORMAL or PRIO_INHERIT type mutexes. */
+	struct mutex_queue	mutexq;
+
+	/* Queue of all owned PRIO_PROTECT mutexes. */
+	struct mutex_queue	pp_mutexq;
 
 	void				*ret;
 	struct pthread_specific_elem	*specific;
