@@ -54,7 +54,11 @@ at91_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 	vm_paddr_t pa, endpa;
 
 	pa = trunc_page(bpa);
-	if (pa >= 0xfff00000)
+	if (pa >= 0xfff00000) {
+		*bshp = pa - 0xf0000000 + 0xd0000000;
+		return (0);
+	}
+	if (pa >= 0xdff00000)
 		return (0);
 	endpa = round_page(bpa + size);
 
@@ -417,8 +421,8 @@ at91_attach(device_t dev)
 	    rman_manage_region(&sc->sc_irq_rman, 1, 31) != 0)
 		panic("at91_attach: failed to set up IRQ rman");
 	if (rman_init(&sc->sc_mem_rman) != 0 ||
-	    rman_manage_region(&sc->sc_mem_rman, 0xfff00000ul,
-	    0xfffffffful) != 0)
+	    rman_manage_region(&sc->sc_mem_rman, 0xdff00000ul,
+	    0xdffffffful) != 0)
 		panic("at91_attach: failed to set up memory rman");
 	if (rman_manage_region(&sc->sc_mem_rman, AT91RM92_OHCI_BASE,
 	    AT91RM92_OHCI_BASE + AT91RM92_OHCI_SIZE - 1) != 0)
@@ -543,7 +547,7 @@ at91_setup_intr(device_t dev, device_t child,
     void **cookiep)
 {
 	struct at91_softc *sc = device_get_softc(dev);
-	
+
 	if (rman_get_start(ires) == AT91RM92_IRQ_SYSTEM && !(flags & INTR_FAST))
 		panic("All system interrupt ISRs must be type INTR_FAST");
 	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, intr, arg,
