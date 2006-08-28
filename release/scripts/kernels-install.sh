@@ -13,7 +13,7 @@ if [ $# -lt 1 ]; then
 fi
 
 CONFIG=$1
-BOOT=${DESTDIR:-/}/boot
+BOOT=${DESTDIR}/boot
 KERNEL=$BOOT/$CONFIG
 
 if [ -d $KERNEL ]; then
