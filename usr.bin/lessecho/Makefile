@@ -2,7 +2,7 @@
 
 PROG=	lessecho
 SRCS=	lessecho.c version.c
-NO_MAN=
+CLEANFILES= lessecho.1
 
 .include "${.CURDIR}/../less/Makefile.common"
 .include <bsd.prog.mk>

@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2002  Mark Nudelman
+ * Copyright (C) 1984-2004  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -165,7 +165,7 @@ curr_byte(where)
 	POSITION pos;
 
 	pos = position(where);
-	while (pos == NULL_POSITION && where >= 0 && where < sc_height)
+	while (pos == NULL_POSITION && where >= 0 && where < sc_height-1)
 		pos = position(++where);
 	if (pos == NULL_POSITION)
 		pos = ch_length();
@@ -201,7 +201,7 @@ cond(c, where)
 	case 'd':	/* Same as l */
 		return (linenums);
 	case 'L':	/* Final line number known? */
-	case 'D':	/* Same as L */
+	case 'D':	/* Final page number known? */
 		return (linenums && ch_length() != NULL_POSITION);
 	case 'm':	/* More than one file? */
 #if TAGS
@@ -255,6 +255,9 @@ protochar(c, where, iseditproto)
 	LINENUM last_linenum;
 	IFILE h;
 
+#undef  PAGE_NUM
+#define PAGE_NUM(linenum)  ((((linenum) - 1) / (sc_height - 1)) + 1)
+
 	switch (c)
 	{
 	case 'b':	/* Current byte offset */
@@ -270,17 +273,26 @@ protochar(c, where, iseditproto)
 	case 'd':	/* Current page number */
 		linenum = currline(where);
 		if (linenum > 0 && sc_height > 1)
-			ap_linenum(((linenum - 1) / (sc_height - 1)) + 1);
+			ap_linenum(PAGE_NUM(linenum));
 		else
 			ap_quest();
 		break;
-	case 'D':	/* Last page number */
+	case 'D':	/* Final page number */
+		/* Find the page number of the last byte in the file (len-1). */
 		len = ch_length();
-		if (len == NULL_POSITION || len == ch_zero() ||
-		    (linenum = find_linenum(len)) <= 0)
+		if (len == NULL_POSITION)
 			ap_quest();
+		else if (len == 0)
+			/* An empty file has no pages. */
+			ap_linenum(0);
 		else
-			ap_linenum(((linenum - 1) / (sc_height - 1)) + 1);
+		{
+			linenum = find_linenum(len - 1);
+			if (linenum <= 0)
+				ap_quest();
+			else 
+				ap_linenum(PAGE_NUM(linenum));
+		}
 		break;
 #if EDITOR
 	case 'E':	/* Editor name */
@@ -519,7 +531,7 @@ pr_expand(proto, maxwidth)
 	}
 
 	if (mp == message)
-		return (NULL);
+		return ("");
 	if (maxwidth > 0 && mp >= message + maxwidth)
 	{
 		/*
