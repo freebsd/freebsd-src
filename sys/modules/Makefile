@@ -128,6 +128,7 @@ SUBDIR=	${_3dfx} \
 	isp \
 	ispfw \
 	iwi \
+	${_ixgb} \
 	joy \
 	kbdmux \
 	kue \
@@ -411,6 +412,7 @@ _idt=		idt
 _iir=		iir
 _ipmi=		ipmi
 _ips=		ips
+_ixgb=  	ixgb
 _mly=		mly
 _nve=		nve
 .if !defined(NO_CRYPT) || defined(ALL_MODULES)
@@ -465,6 +467,7 @@ _iir=		iir
 _io=		io
 _ipmi=		ipmi
 _ips=		ips
+_ixgb=  	ixgb
 #_lnc=		lnc
 _mly=		mly
 _ndis=		ndis
