@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 2, 2006
+.Dd August 29, 2006
 .Dt PERIODIC.CONF 5
 .Os
 .Sh NAME
@@ -607,23 +607,6 @@ All scripts must be absolute path names.
 The following variables are used by the standard scripts that reside in
 .Pa /etc/periodic/weekly :
 .Bl -tag -offset 4n -width 2n
-.It Va weekly_clean_kvmdb_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-if you want to purge old
-.Pa /var/db/kvm_*.db
-files.
-The kvm file for the current kernel will not be purged.
-.It Va weekly_clean_kvmdb_days
-.Pq Vt num
-Set to the number of days that the file must not have been accessed
-before being deleted.
-.It Va weekly_clean_kvmdb_verbose
-.Pq Vt bool
-Set to
-.Dq Li YES
-if you want the removed files to be reported in your weekly output.
 .It Va weekly_locate_enable
 .Pq Vt bool
 Set to
