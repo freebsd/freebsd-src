@@ -32,7 +32,7 @@
 .\"     @(#)vgrind.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd August 29, 2006
 .Dt VGRIND 1
 .Os
 .Sh NAME
@@ -48,16 +48,16 @@
 .Op Fl l Ns Ar language
 .Op Fl n
 .Op Fl p Ar postproc
-.Op Fl sn
+.Op Fl s Ar pointsize
 .Op Fl t
 .Op Fl x
 .Ar name Ar ...
 .Sh DESCRIPTION
 The
 .Nm
-utility formats the program sources which are arguments
-in a nice style using
-.Xr troff 1
+utility formats the program sources specified as arguments
+on the command line in a nice style using
+.Xr troff 1 .
 Comments are placed in italics, keywords in bold face,
 and the name of the current function is listed down the margin of each
 page as it is encountered.
@@ -158,7 +158,7 @@ use
 to post-process the output,
 .Xr psroff 1
 by default.
-.It Fl s
+.It Fl s Ar pointsize
 specifies a point size to use on output (exactly the same as the argument
 of a .ps)
 .It Fl t
