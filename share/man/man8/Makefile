@@ -6,6 +6,7 @@ MAN=	adding_user.8 \
 	diskless.8 \
 	intro.8 \
 	MAKEDEV.8 \
+	nanobsd.8 \
 	picobsd.8 \
 	rc.8 \
 	rc.sendmail.8 \
