@@ -1,6 +1,6 @@
 # Process this file with autoconf to produce a configure script.
 
-# Copyright (C) 1984-2002  Mark Nudelman
+# Copyright (C) 1984-2004  Mark Nudelman
 #
 # You may distribute under the terms of either the GNU General Public
 # License or the Less License, as specified in the README file.
@@ -24,6 +24,7 @@ AC_SYS_LARGEFILE
 
 # Checks for general libraries.
 AC_CHECK_LIB(xcurses, initscr, [have_xcurses=yes], [have_xcurses=no])
+AC_CHECK_LIB(ncursesw, initscr, [have_ncursesw=yes], [have_ncursesw=no])
 AC_CHECK_LIB(ncurses, initscr, [have_ncurses=yes], [have_ncurses=no])
 AC_CHECK_LIB(curses, initscr, [have_curses=yes], [have_curses=no])
 AC_CHECK_LIB(termcap, tgetent, [have_termcap=yes], [have_termcap=no])
@@ -54,6 +55,19 @@ if test $curses_broken = 0; then
 if test "x$TERMLIBS" = x; then
   if test $have_xcurses = yes; then
     TERMLIBS="-lxcurses"
+    SAVE_LIBS=$LIBS
+    LIBS="$LIBS $TERMLIBS"
+    AC_TRY_LINK(, [tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);],
+      [termok=yes], [termok=no])
+    LIBS=$SAVE_LIBS
+    if test $termok = no; then TERMLIBS=""; fi
+  fi
+fi
+
+dnl -- Try ncursesw.
+if test "x$TERMLIBS" = x; then
+  if test $have_ncursesw = yes; then
+    TERMLIBS="-lncursesw"
     SAVE_LIBS=$LIBS
     LIBS="$LIBS $TERMLIBS"
     AC_TRY_LINK(, [tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);],
@@ -196,6 +210,8 @@ AH_TEMPLATE([HAVE_SIGEMPTYSET],
 	[Define HAVE_SIGEMPTYSET if you have the sigemptyset macro.])
 AH_TEMPLATE([EDIT_PGM],
 	[Define EDIT_PGM to your editor.])
+AH_TEMPLATE([SECURE_COMPILE],
+	[Define SECURE_COMPILE=1 to build a secure version of less.])
 
 # Checks for identifiers.
 AC_TYPE_OFF_T
@@ -211,7 +227,7 @@ AC_TRY_COMPILE([#include <time.h>], [time_t t = 0;],
 
 # Checks for library functions.
 AC_TYPE_SIGNAL
-AC_CHECK_FUNCS([fsync memcpy popen _setjmp sigprocmask sigsetmask stat strchr strstr system])
+AC_CHECK_FUNCS([fsync memcpy popen _setjmp sigprocmask sigsetmask snprintf stat strchr strstr system fchmod])
 
 # Some systems have termios.h but not the corresponding functions.
 AC_CHECK_FUNC(tcgetattr, AC_DEFINE(HAVE_TERMIOS_FUNCS))
@@ -297,11 +313,17 @@ AC_TRY_LINK(, [extern short ospeed; ospeed = 0;],
   [AC_MSG_RESULT(no)])
 fi
 
+# Compile in secure mode?
+AC_ARG_WITH(secure,
+  [  --with-secure  Compile in secure mode],
+  AC_DEFINE(SECURE_COMPILE, 1), AC_DEFINE(SECURE_COMPILE, 0))
+
 # Checks for regular expression functions.
 have_regex=no
 have_posix_regex=unknown
 AC_MSG_CHECKING(for regcomp)
 
+# Select a regular expression library.
 WANT_REGEX=auto
 AC_ARG_WITH(regex,
   [  --with-regex={auto,pcre,posix,regcmp,re_comp,regcomp,regcomp-local}  Select a regular expression library  [auto]],
@@ -401,8 +423,9 @@ AH_TOP([
 /*
  * SECURE is 1 if you wish to disable a bunch of features in order to
  * be safe to run by unprivileged users.
+ * SECURE_COMPILE is set by the --with-secure configure option.
  */
-#define	SECURE		0
+#define	SECURE		SECURE_COMPILE
 
 /*
  * SHELL_ESCAPE is 1 if you wish to allow shell escapes.
@@ -488,10 +511,13 @@ AH_TOP([
  * LESSKEYFILE_SYS is the filename of the system-wide lesskey output file.
  * DEF_LESSKEYINFILE is the filename of the default lesskey input 
  * (in the HOME directory).
+ * LESSHISTFILE is the filename of the history file
+ * (in the HOME directory).
  */
 #define	LESSKEYFILE		".less"
 #define	LESSKEYFILE_SYS		SYSDIR "/sysless"
 #define	DEF_LESSKEYINFILE	".lesskey"
+#define LESSHISTFILE		".lesshst"
 
 
 /* Settings always true on Unix.  */
@@ -535,7 +561,7 @@ AH_TOP([
 /*
  * Default shell metacharacters and meta-escape character.
  */
-#define	DEF_METACHARS	"; *?\t\n'\"()<>|&^`#\\"
+#define	DEF_METACHARS	"; *?\t\n'\"()<>[]|&^`#\\"
 #define	DEF_METAESCAPE	"\\"
 
 /* 

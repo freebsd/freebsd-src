@@ -7,11 +7,66 @@
       http://www.greenwoodsoftware.com/less
   You can also download the latest version of less from there.
 
-  To report bugs, suggestions or comments, send email to 
-  bug-less@gnu.org or markn@greenwoodsoftware.com.
+  To report bugs, suggestions or comments, send email to bug-less@gnu.org.
 
 ======================================================================
 
+
+	Major changes between "less" versions 382 and 394
+
+* Add history file to save search and shell command history between
+  invocations of less.
+
+* Improve behavior of history list for search and shell commands.
+
+* Add -K (or --quit-on-intr) option to make less exit immediately on ctrl-C.
+
+* Improve handling of UTF-8 files and commands, including better
+  line wrapping and handling double-width chars.
+
+* Added LESSUTFBINFMT environment variable to control display of
+  non-printable characters in a UTF-8 file.
+
+* Add --with-secure option to configure, to make it easier to
+  build a secure version of less.
+
+* Show search matches in the status column even if search highlights
+  are disabled via the -G option or the ESC-u command.
+
+* Improve performance when the file contains very long lines.
+
+* Add "windows" charset.
+
+* Add man page for lessecho.
+
+* Add support for erase2 character, treated same as erase.
+
+* Use ASCII lowercase/uppercase logic when operating on the command line.
+
+* Update makefile for Borland C++ 5.5.1.
+
+* Fix bug in calculating number of pages for %D prompt.
+
+* Fix bug in handling tag file error.
+
+* Fix obscure bug if input file is deleted while viewing help.
+
+* Fix bug handling filenames which include square brackets.
+
+* Fix possible buffer overflow in "global" tag search.
+
+* Fix possible buffer overflow in usage of LESSOPEN and LESSCLOSE.
+
+* Fix buffer overflow in reverse search.
+
+======================================================================
+
+	Major changes between "less" versions 381 and 382
+
+* Removed some old copyrighted code.
+  This probably breaks OS/9 support.
+
+======================================================================
 
 	Major changes between "less" versions 378 and 381
 
