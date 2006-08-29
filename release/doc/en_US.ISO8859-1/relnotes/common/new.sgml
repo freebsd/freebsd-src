@@ -187,6 +187,9 @@
       see security advisory <ulink
       url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:17.sendmail.asc">FreeBSD-SA-06:17.sendmail</ulink>.</para>
 
+    <para>A potential buffer overflow condition in &man.sppp.4; has
+      been corrected.  For more details, see security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:18.ppp.asc">FreeBSD-SA-06:18.ppp</ulink>.</para>
   </sect2>
 
   <sect2 id="kernel">
