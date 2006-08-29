@@ -511,9 +511,9 @@ fdc_reset(struct fdc_data *fdc)
 		DELAY(100);
 		/* enable FDC, but defer interrupts a moment */
 		fdout_wr(fdc, fdc->fdout & ~FDO_FDMAEN);
-		DELAY(100);
-		fdout_wr(fdc, fdc->fdout);
 	}
+	DELAY(100);
+	fdout_wr(fdc, fdc->fdout);
 
 	/* XXX after a reset, silently believe the FDC will accept commands */
 	if (fdc_cmd(fdc, 3, NE7CMD_SPECIFY, spec1, spec2, 0))
