@@ -39,43 +39,43 @@ ALL : PARANOID : RFC931 20 : deny
 ALL : localhost 127.0.0.1 : allow
 # Comment out next line if you build libwrap without IPv6 support.
 ALL : [::1] : allow
-ALL : my.machine.example.com 192.0.2.35 : allow
+#ALL : my.machine.example.com 192.0.2.35 : allow
 
 # To use IPv6 addresses you must enclose them in []'s
-ALL : [fe80::%fxp0]/10 : allow
-ALL : [fe80::]/10 : deny
-ALL : [2001:db8:2:1:2:3:4:3fe1] : deny
-ALL : [2001:db8:2:1::]/64 : allow
+#ALL : [fe80::%fxp0]/10 : allow
+#ALL : [fe80::]/10 : deny
+#ALL : [2001:db8:2:1:2:3:4:3fe1] : deny
+#ALL : [2001:db8:2:1::]/64 : allow
 
 # Sendmail can help protect you against spammers and relay-rapers
 sendmail : localhost : allow
-sendmail : .nice.guy.example.com : allow
-sendmail : .evil.cracker.example.com : deny
+#sendmail : .nice.guy.example.com : allow
+#sendmail : .evil.cracker.example.com : deny
 sendmail : ALL : allow
 
 # Exim is an alternative to sendmail, available in the ports tree
 exim : localhost : allow
-exim : .nice.guy.example.com : allow
-exim : .evil.cracker.example.com : deny
+#exim : .nice.guy.example.com : allow
+#exim : .evil.cracker.example.com : deny
 exim : ALL : allow
 
 # Rpcbind is used for all RPC services; protect your NFS!
 # (IP addresses rather than hostnames *MUST* be used here)
-rpcbind : 192.0.2.32/255.255.255.224 : allow
-rpcbind : 192.0.2.96/255.255.255.224 : allow
+#rpcbind : 192.0.2.32/255.255.255.224 : allow
+#rpcbind : 192.0.2.96/255.255.255.224 : allow
 rpcbind : ALL : deny
 
 # NIS master server. Only local nets should have access
 # (Since this is an RPC service, rpcbind needs to be considered)
 ypserv : localhost : allow
-ypserv : .unsafe.my.net.example.com : deny
-ypserv : .my.net.example.com : allow
+#ypserv : .unsafe.my.net.example.com : deny
+#ypserv : .my.net.example.com : allow
 ypserv : ALL : deny
 
 # Provide a small amount of protection for ftpd
 ftpd : localhost : allow
-ftpd : .nice.guy.example.com : allow
-ftpd : .evil.cracker.example.com : deny
+#ftpd : .nice.guy.example.com : allow
+#ftpd : .evil.cracker.example.com : deny
 ftpd : ALL : allow
 
 # You need to be clever with finger; do _not_ backfinger!! You can easily
