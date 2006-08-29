@@ -265,7 +265,7 @@ archive_decompressor_none_skip(struct archive *a, size_t request)
 	struct archive_decompress_none *state;
 	ssize_t bytes_skipped, total_bytes_skipped = 0;
 	size_t min;
-	
+
 	state = a->compression_data;
 	if (state->fatal)
 		return (-1);
@@ -301,6 +301,7 @@ archive_decompressor_none_skip(struct archive *a, size_t request)
 			return (bytes_skipped);
 		}
 		total_bytes_skipped += bytes_skipped;
+		a->file_position += bytes_skipped;
 		request -= bytes_skipped;
 		state->client_next = state->client_buff;
 		a->raw_position += bytes_skipped;
