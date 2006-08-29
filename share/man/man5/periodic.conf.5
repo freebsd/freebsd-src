@@ -44,7 +44,9 @@ which itself may be overridden by the
 .Pa /etc/periodic.conf.local
 file.
 .Pp
+The
 .Nm
+file
 is actually sourced as a shell script from each of the periodic scripts
 and is intended to simply provide default configuration variables.
 .Pp
@@ -60,7 +62,7 @@ This list is always prefixed with
 and is only used when an argument to
 .Xr periodic 8
 is not an absolute directory name.
-.It Va dir Ns No _output
+.It Ao Ar dir Ac Ns Va _output
 .Pq Vt path No or Vt list
 What to do with the output of the scripts executed from
 the directory
@@ -76,16 +78,16 @@ For an unattended machine, suitable values for
 and
 .Va monthly_output
 might be
-.Dq /var/log/daily.log ,
-.Dq /var/log/weekly.log ,
+.Dq Li /var/log/daily.log ,
+.Dq Li /var/log/weekly.log ,
 and
-.Dq /var/log/monthly.log
+.Dq Li /var/log/monthly.log
 respectively, as
 .Xr newsyslog 8
 will rotate these files (if they exists) at the appropriate times.
-.It Va dir Ns No _show_success
-.It Va dir Ns No _show_info
-.It Va dir Ns No _show_badconfig
+.It Ao Ar dir Ac Ns Va _show_success
+.It Ao Ar dir Ac Ns Va _show_info
+.It Ao Ar dir Ac Ns Va _show_badconfig
 .Pq Vt bool
 These variables control whether
 .Xr periodic 8
@@ -96,36 +98,36 @@ is the base directory name in which each script resides).
 If the return code of a script is
 .Sq 0
 and
-.Va dir Ns No _show_success
+.Ao Ar dir Ac Ns Va _show_success
 is set to
-.Dq NO ,
+.Dq Li NO ,
 .Xr periodic 8
 will mask the script's output.
 If the return code of a script is
 .Sq 1
 and
-.Va dir Ns No _show_info
+.Ao Ar dir Ac Ns Va _show_info
 is set to
-.Dq NO ,
+.Dq Li NO ,
 .Xr periodic 8
 will mask the script's output.
 If the return code of a script is
 .Sq 2
 and
-.Va dir Ns No _show_badconfig
+.Ao Ar dir Ac Ns Va _show_badconfig
 is set to
-.Dq NO ,
+.Dq Li NO ,
 .Xr periodic 8
 will mask the script's output.
 If these variables are set to neither
-.Dq YES
+.Dq Li YES
 nor
-.Dq NO ,
+.Dq Li NO ,
 they default to
-.Dq YES ,
-.Dq YES
+.Dq Li YES ,
+.Dq Li YES
 and
-.Dq NO
+.Dq Li NO
 respectively.
 .Pp
 Refer to the
@@ -139,7 +141,7 @@ The following variables are used by the standard scripts that reside in
 .It Va daily_clean_disks_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to remove all files matching
 .Va daily_clean_disks_files
 daily.
@@ -152,25 +154,25 @@ Wild cards are permitted.
 When
 .Va daily_clean_disks_enable
 is set to
-.Dq YES ,
+.Dq Li YES ,
 this must also be set to the number of days old that a file's access
 and modification times must be before it is deleted.
 .It Va daily_clean_disks_verbose
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want the removed files to be reported in your daily output.
 .It Va daily_clean_tmps_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to clear temporary directories daily.
 .It Va daily_clean_tmps_dirs
 .Pq Vt str
 Set to the list of directories to clear if
 .Va daily_clean_tmps_enable
 is set to
-.Dq YES .
+.Dq Li YES .
 .It Va daily_clean_tmps_days
 .Pq Vt num
 When
@@ -182,17 +184,17 @@ and modification times must be before it is deleted.
 Set to the list of files that should not be deleted when
 .Va daily_clean_tmps_enable
 is set to
-.Dq YES .
+.Dq Li YES .
 Wild card characters are permitted.
 .It Va daily_clean_tmps_verbose
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want the removed files to be reported in your daily output.
 .It Va daily_clean_preserve_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you wish to remove old files from
 .Pa /var/preserve .
 .It Va daily_clean_preserve_days
@@ -202,12 +204,12 @@ they are deleted.
 .It Va daily_clean_preserve_verbose
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want the removed files to be reported in your daily output.
 .It Va daily_clean_msgs_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you wish old system messages to be purged.
 .It Va daily_clean_msgs_days
 .Pq Vt num
@@ -219,7 +221,7 @@ default is used.
 .It Va daily_clean_rwho_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you wish old files in
 .Pa /var/who
 to be purged.
@@ -230,12 +232,12 @@ they are deleted.
 .It Va daily_clean_rwho_verbose
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want the removed files to be reported in your daily output.
 .It Va daily_clean_hoststat_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 to run
 .Nm sendmail Fl bH
 to automatically purge stale entries from
@@ -249,7 +251,7 @@ as configured in
 .It Va daily_backup_passwd_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want the
 .Pa /etc/master.passwd
 and
@@ -263,21 +265,21 @@ file.
 .It Va daily_backup_aliases_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want the
 .Pa /etc/mail/aliases
 file backed up and modifications to be displayed in your daily output.
 .It Va daily_calendar_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to run
 .Nm calendar Fl a
 daily.
 .It Va daily_accounting_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to rotate your daily accounting files.
 No rotations are necessary unless
 .Va accounting_enable
@@ -286,7 +288,7 @@ is enabled in
 .It Va daily_accounting_compress
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want your daily accounting files to be compressed using
 .Xr gzip 1 .
 .It Va daily_accounting_save
@@ -296,7 +298,7 @@ When
 is set, this may also be set to the number of daily accounting files that are
 to be saved.
 The default is
-.Dq 3 .
+.Dq Li 3 .
 .It Va daily_accounting_flags
 .Pq Vt str
 Set to the arguments to pass to the
@@ -306,19 +308,19 @@ utility (in addition to
 when
 .Va daily_accounting_enable
 is set to
-.Dq YES .
+.Dq Li YES .
 The default is
 .Fl q .
 .It Va daily_news_expire_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to run
 .Pa /etc/news.expire .
 .It Va daily_status_disks_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to run
 .Xr df 1
 (with the arguments supplied in
@@ -332,62 +334,62 @@ Set to the arguments for the
 utility when
 .Va daily_status_disks_enable
 is set to
-.Dq YES .
+.Dq Li YES .
 .It Va daily_status_ata_raid_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to run
-.Nm atacontrol status
+.Nm atacontrol Cm status
 on your
 .Xr ataraid 4
 arrays.
 .It Va daily_status_gmirror_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to run
-.Nm gmirror status
+.Nm gmirror Cm status
 on your
 .Xr gmirror 8
 devices.
 .It Va daily_status_graid3_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to run
-.Nm graid3 status
+.Nm graid3 Cm status
 on your
 .Xr graid3 8
 devices.
 .It Va daily_status_gstripe_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to run
-.Nm gstripe status
+.Nm gstripe Cm status
 on your
 .Xr gstripe 8
 devices.
 .It Va daily_status_gconcat_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to run
-.Nm gconcat status
+.Nm gconcat Cm status
 on your
 .Xr gconcat 8
 devices.
 .It Va daily_status_network_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to run
 .Nm netstat Fl i .
 .It Va daily_status_network_usedns
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to run
 .Xr netstat 1
 without the
@@ -396,7 +398,7 @@ option (to do DNS lookups).
 .It Va daily_status_rwho_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to run
 .Xr uptime 1
 (or
@@ -404,41 +406,41 @@ if you want to run
 if
 .Va rwhod_enable
 is set to
-.Dq YES
+.Dq Li YES
 in
 .Pa /etc/rc.conf ) .
 .It Va daily_status_mailq_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to run
 .Xr mailq 1 .
 .It Va daily_status_mailq_shorten
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to shorten the
 .Xr mailq 1
 output when
 .Va daily_status_mailq_enable
 is set to
-.Dq YES .
+.Dq Li YES .
 .It Va daily_status_include_submit_mailq
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you also want to run
 .Xr mailq 1
 on the submit mail queue when
 .Va daily_status_mailq_enable
 is set to
-.Dq YES .
+.Dq Li YES .
 This may not work with MTAs other than
 .Xr sendmail 8 .
 .It Va daily_status_security_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to run the security check.
 The security check is another set of
 .Xr periodic 8
@@ -453,7 +455,7 @@ manual page for more information.
 .It Va daily_status_security_inline
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want the security check output inline.
 The default is to either mail or log the output according to the value of
 .Va daily_status_security_output .
@@ -462,7 +464,7 @@ The default is to either mail or log the output according to the value of
 Where to send the output of the security check if
 .Va daily_status_security_inline
 is set to
-.Dq NO .
+.Dq Li NO .
 This variable behaves in the same way as the
 .Va *_output
 variables above, namely it can be set either to one or more email addresses
@@ -477,18 +479,18 @@ The default is
 .It Va daily_status_security_chksetuid_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 to compare the modes and modification times of setuid executables with
 the previous day's values.
 .It Va daily_status_security_chkmounts_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 to check for changes mounted file systems to the previous day's values.
 .It Va daily_status_security_noamd
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to ignore
 .Xr amd 8
 mounts when comparing against yesterday's file system mounts in the
@@ -497,63 +499,63 @@ check.
 .It Va daily_status_security_chkuid0_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 to check
 .Pa /etc/master.passwd
-for accounts with uid 0.
+for accounts with UID 0.
 .It Va daily_status_security_passwdless_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 to check
 .Pa /etc/master.passwd
 for accounts with empty passwords.
 .It Va daily_status_security_ipfwdenied_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 to show log entries for packets denied by
 .Xr ipfw 8
 since yesterday's check.
 .It Va daily_status_security_ipfdenied_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 to show log entries for packets denied by
 .Xr ipf 8
 since yesterday's check.
 .It Va daily_status_security_pfdenied_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 to show log entries for packets denied by
 .Xr pf 4
 since yesterday's check.
 .It Va daily_status_security_ipfwlimit_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 to display
 .Xr ipfw 8
 rules that have reached their verbosity limit.
 .It Va daily_status_security_kernelmsg_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 to show new
 .Xr dmesg 8
 entries since yesterday's check.
 .It Va daily_status_security_loginfail_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 to display failed logins from
 .Pa /var/log/messages
 in the previous day.
 .It Va daily_status_security_tcpwrap_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 to display connections denied by tcpwrappers (see
 .Xr hosts_access 5 )
 from
@@ -562,7 +564,7 @@ during the previous day.
 .It Va daily_status_mail_rejects_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to summarise mail rejections logged to
 .Pa /var/log/maillog
 for the previous day.
@@ -573,28 +575,28 @@ for yesterday's mail rejects.
 .It Va daily_status_named_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to summarise denied zone transfers (AXFR and IXFR)
 for the previous day.
 .It Va daily_status_named_usedns
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to enable reverse DNS lookups.
 .It Va daily_queuerun_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to manually run the mail queue at least once a day.
 .It Va daily_submit_queuerun
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you also want to manually run the submit mail queue at least once a day
 when
 .Va daily_queuerun_enable
 is set to
-.Dq YES .
+.Dq Li YES .
 .It Va daily_local
 .Pq Vt str
 Set to a list of extra scripts that should be run after all other
@@ -608,7 +610,7 @@ The following variables are used by the standard scripts that reside in
 .It Va weekly_clean_kvmdb_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to purge old
 .Pa /var/db/kvm_*.db
 files.
@@ -620,25 +622,25 @@ before being deleted.
 .It Va weekly_clean_kvmdb_verbose
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want the removed files to be reported in your weekly output.
 .It Va weekly_locate_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to run
 .Pa /usr/libexec/locate.updatedb .
 This script is run using
 .Nm nice Fl 5
 as user
-.An nobody ,
+.Dq Li nobody ,
 and generates the table used by the
 .Xr locate 1
 command.
 .It Va weekly_whatis_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to run
 .Pa /usr/libexec/makewhatis.local .
 This script regenerates the database used by the
@@ -647,7 +649,7 @@ command.
 .It Va weekly_catman_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to run
 .Pa /usr/libexec/catman.local .
 This script processes all out of date manual pages, speeding up the
@@ -656,7 +658,7 @@ command at the expense of disk space.
 .It Va weekly_noid_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to locate orphaned files on the system.
 An orphaned file is one with an invalid owner or group.
 .It Va weekly_noid_dirs
@@ -667,26 +669,28 @@ This would usually be set to
 .It Va weekly_status_pkg_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to use
 .Xr pkg_version 1
 to list installed packages which are out of date.
 .It Va pkg_version
-.Pq Vt string
+.Pq Vt str
 When
 .Va weekly_status_pkg_enable
 is set to
-.Dq YES ,
+.Dq Li YES ,
 this variable specifies the program that is used to determine the out of
 date packages.
 If unset, the
 .Xr pkg_version 1
 program is used.
 As an example, this variable might be set to
-.Dq portversion
-if the portupgrade port has been installed.
+.Dq Li portversion
+if the
+.Pa ports/sysutils/portupgrade
+port has been installed.
 .It Va pkg_version_index
-.Pq Vt string
+.Pq Vt str
 This variable specifies the
 .Pa INDEX
 file from
@@ -725,7 +729,7 @@ The following variables are used by the standard scripts that reside in
 .It Va monthly_accounting_enable
 .Pq Vt bool
 Set to
-.Dq YES
+.Dq Li YES
 if you want to do login accounting using the
 .Xr ac 8
 command.
@@ -736,7 +740,7 @@ monthly scripts.
 All scripts must be absolute path names.
 .El
 .Sh FILES
-.Bl -tag -width /etc/defaults/periodic.conf
+.Bl -tag -width ".Pa /etc/defaults/periodic.conf"
 .It Pa /etc/defaults/periodic.conf
 The default configuration file.
 This file contains all default variables and values.
@@ -772,4 +776,4 @@ The
 file appeared in
 .Fx 4.1 .
 .Sh AUTHORS
-.An Brian Somers Aq brian@Awfulhak.org .
+.An Brian Somers Aq brian@Awfulhak.org
