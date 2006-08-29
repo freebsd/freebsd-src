@@ -1372,8 +1372,20 @@ nfs_timer(void *arg)
 		if (rep->r_mrep || (rep->r_flags & R_SOFTTERM)) {
 			mtx_unlock(&rep->r_mtx);			
 			continue;
-		} else
-			mtx_unlock(&rep->r_mtx);
+		} else {
+			/*
+			 * Terminate request if force-unmount in progress.
+			 * Note that NFS could have vfs_busy'ed the mount,
+			 * causing the unmount to wait for the mnt_lock, making
+			 * this bit of logic necessary.
+			 */
+			if (rep->r_nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF) {
+				nfs_softterm(rep);
+				mtx_unlock(&rep->r_mtx);
+				continue;
+			}				
+			mtx_unlock(&rep->r_mtx);			
+		}
 		if (nfs_sigintr(nmp, rep, rep->r_td))
 			continue;
 		mtx_lock(&nmp->nm_mtx);
