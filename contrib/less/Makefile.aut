@@ -24,9 +24,10 @@ DISTFILES = \
 	${SRC} regexp.c regexp.h \
 	COPYING INSTALL LICENSE Makefile.in Makefile.aut NEWS README \
 	configure configure.ac lesskey.c lessecho.c scrsize.c \
-	cmd.h funcs.h lglob.h less.h lesskey.h option.h pckeys.h position.h \
+	charset.h cmd.h funcs.h lglob.h less.h lesskey.h option.h pckeys.h position.h \
 	install.sh defines.h.in mkinstalldirs \
-	less.nro lesskey.nro less.man lesskey.man less.hlp \
+	less.nro less.man lesskey.nro lesskey.man lessecho.nro lessecho.man \
+	less.hlp \
 	mkfuncs.awk mkhelp.c \
 	${DISTFILES_W}
 
@@ -55,7 +56,8 @@ lint:
 
 clean: 
 	rm -f Makefile config.status config.log config.cache defines.h stamp-h \
-		README NEWS less.nro lesskey.nro  less.man lesskey.man
+		README NEWS \
+		less.nro less.man lesskey.nro lesskey.man lessecho.nro lessecho.man 
 
 distclean: clean
 realclean: clean
@@ -78,6 +80,8 @@ ${srcdir}/less.nro: ${srcdir}/less.nro.VER ${srcdir}/version.c
 	${REPLACE_VERSION} ${srcdir}/less.nro.VER
 ${srcdir}/lesskey.nro: ${srcdir}/lesskey.nro.VER ${srcdir}/version.c
 	${REPLACE_VERSION} ${srcdir}/lesskey.nro.VER
+${srcdir}/lessecho.nro: ${srcdir}/lessecho.nro.VER ${srcdir}/version.c
+	${REPLACE_VERSION} ${srcdir}/lessecho.nro.VER
 ${srcdir}/less.hlp: ${srcdir}/less.hlp.VER ${srcdir}/version.c
 	${REPLACE_VERSION} ${srcdir}/less.hlp.VER
 
@@ -85,6 +89,8 @@ ${srcdir}/less.man: ${srcdir}/less.nro
 	${NROFF} ${srcdir}/less.nro >${srcdir}/less.man
 ${srcdir}/lesskey.man: ${srcdir}/lesskey.nro
 	${NROFF} ${srcdir}/lesskey.nro >${srcdir}/lesskey.man
+${srcdir}/lessecho.man: ${srcdir}/lessecho.nro
+	${NROFF} ${srcdir}/lessecho.nro >${srcdir}/lessecho.man
 
 
 distfiles: ${DISTFILES}

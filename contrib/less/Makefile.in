@@ -59,12 +59,13 @@ lessecho: lessecho.${O} version.${O}
 
 ${OBJ}: ${srcdir}/less.h ${srcdir}/funcs.h defines.h 
 
-install: all ${srcdir}/less.nro ${srcdir}/lesskey.nro installdirs
+install: all ${srcdir}/less.nro ${srcdir}/lesskey.nro ${srcdir}/lessecho.nro installdirs
 	${INSTALL_PROGRAM} less ${bindir}/${binprefix}less
 	${INSTALL_PROGRAM} lesskey ${bindir}/${binprefix}lesskey
 	${INSTALL_PROGRAM} lessecho ${bindir}/${binprefix}lessecho
 	${INSTALL_DATA} ${srcdir}/less.nro ${mandir}/man${manext}/${manprefix}less.${manext}
 	${INSTALL_DATA} ${srcdir}/lesskey.nro ${mandir}/man${manext}/${manprefix}lesskey.${manext}
+	${INSTALL_DATA} ${srcdir}/lessecho.nro ${mandir}/man${manext}/${manprefix}lessecho.${manext}
 
 install-strip:
 	${MAKE} INSTALL_PROGRAM='${INSTALL_PROGRAM} -s' install

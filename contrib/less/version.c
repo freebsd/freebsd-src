@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2002  Mark Nudelman
+ * Copyright (C) 1984-2005  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -644,6 +644,30 @@ v379 11/23/02	Add -L option; fix bug with ctrl-K in lesskey files;
 		fix minor man page problems; change to autoconf 2.54.
 v380 11/24/02	Make LINENUM same as POSITION.
 v381 11/28/02	Make -N use 7 columns for line number if possible.
+-----------------------------------------------------------------
+v382   2/3/04	Remove copyrighted code.
+-----------------------------------------------------------------
+v383  2/16/04	Add history file; add -K option; improve UTF-8 handling;
+		fix some signed char bugs (thanks to Christian Biere);
+		fix some upper/lower case bugs (thanks to Bjoern Jacke);
+		add erase2 char (thanks to David Lawrence);
+		add windows charset (thanks to Dimitar Zhekov).
+v384  2/20/04	Improvements in UTF-8 handling.
+v385  2/23/04	Fix UTF-8 output bug.
+-----------------------------------------------------------------
+v386  9/13/05	Improvements to UTF-8 shift & color (thanks to Charles Levert);
+		protect against invalid LESSOPEN and LESSCLOSE values.
+v387  9/14/05	Update Charles Levert's UTF-8 patch.
+v388  9/14/05	Change history behavior; change most sprintf calls to snprintf.
+v389  9/14/05	Fix copy & paste with long lines; improve performance of 
+		expand_linebuf; fix crash in init_mlist; 
+v390  9/15/05	Show search matches in status column even if -G is set.
+-----------------------------------------------------------------
+v391  9/17/05	Fix bugs.
+v392  10/14/05	Fix line wrapping bug.
+v393  10/19/05	Allow multiple attributes per char; fix bold+underline bug
+		(thanks again to Charles Levert).
+v394  11/8/05	Fix prompt bug; fix compile problem in Windows build.
 */
 
-char version[] = "381";
+char version[] = "394";

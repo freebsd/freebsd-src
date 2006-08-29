@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2002  Mark Nudelman
+ * Copyright (C) 1984-2005  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -216,6 +216,7 @@ errno_message(filename)
 {
 	register char *p;
 	register char *m;
+	int len;
 #if HAVE_ERRNO
 #if MUST_DEFINE_ERRNO
 	extern int errno;
@@ -224,8 +225,9 @@ errno_message(filename)
 #else
 	p = "cannot open";
 #endif
-	m = (char *) ecalloc(strlen(filename) + strlen(p) + 3, sizeof(char));
-	sprintf(m, "%s: %s", filename, p);
+	len = strlen(filename) + strlen(p) + 3;
+	m = (char *) ecalloc(len, sizeof(char));
+	SNPRINTF2(m, len, "%s: %s", filename, p);
 	return (m);
 }
 
