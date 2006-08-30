@@ -2863,7 +2863,11 @@ ata_nvidia_chipinit(device_t dev)
 		ATA_OUTL(ctlr->r_res2, offset, 0x00ff00ff);
 
 		/* enable device and PHY state change interrupts */
-		ATA_OUTL(ctlr->r_res2, offset + 4, 0x00dd00dd);
+		ATA_OUTL(ctlr->r_res2, offset + 4, 0x000d000d);
+
+		/* disable NCQ support */
+		ATA_OUTL(ctlr->r_res2, 0x0400,
+			 ATA_INL(ctlr->r_res2, 0x0400) & 0xfffffff9);
 	    } 
 	    else {
 		/* clear interrupt status */
@@ -2924,7 +2928,7 @@ ata_nvidia_status(device_t dev)
     /* get and clear interrupt status */
     if (ctlr->chip->cfg2 & NVQ) {
 	status = ATA_INL(ctlr->r_res2, offset);
-	ATA_OUTL(ctlr->r_res2, offset, (0x0f << shift));
+	ATA_OUTL(ctlr->r_res2, offset, (0x0f << shift) | 0x00f000f0);
     }
     else {
 	status = ATA_INB(ctlr->r_res2, offset);
@@ -2947,6 +2951,7 @@ ata_nvidia_status(device_t dev)
 
     /* check for and handle disconnect events */
     if ((status & (0x08 << shift)) &&
+	!((status & (0x04 << shift) && ATA_IDX_INL(ch, ATA_SSTATUS))) &&
 	(tp = (struct ata_connect_task *)
 	      malloc(sizeof(struct ata_connect_task),
 		   M_ATA, M_NOWAIT | M_ZERO))) {
