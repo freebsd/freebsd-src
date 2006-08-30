@@ -13,7 +13,4 @@ case "$1" in
 	*.bz2)
 		exec bzip2 -d -c $1	2>/dev/null
 		;;
-	*)
-		exec cat $1		2>/dev/null
-		;;
 esac
