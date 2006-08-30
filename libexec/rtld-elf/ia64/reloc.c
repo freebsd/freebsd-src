@@ -594,7 +594,7 @@ init_pltgot(Obj_Entry *obj)
 void
 allocate_initial_tls(Obj_Entry *list)
 {
-    register Elf_Addr** tp __asm__("r13");
+    void *tpval;
 
     /*
      * Fix the size of the static TLS block by using the maximum
@@ -603,7 +603,8 @@ allocate_initial_tls(Obj_Entry *list)
      */
     tls_static_space = tls_last_offset + tls_last_size + RTLD_STATIC_TLS_EXTRA;
 
-    tp = allocate_tls(list, 0, 16, 16);
+    tpval = allocate_tls(list, 0, 16, 16);
+    __asm __volatile("mov r13 = %0" :: "r"(tpval));
 }
 
 void *__tls_get_addr(unsigned long module, unsigned long offset)
