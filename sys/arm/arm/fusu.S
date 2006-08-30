@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
  * Fetch an int from the user's address space.
  */
 
-ENTRY(casuword32)
+ENTRY_NP(casuword32)
 ENTRY(casuptr)
 #ifdef MULTIPROCESSOR
 	/* XXX Probably not appropriate for non-Hydra SMPs */
@@ -99,7 +99,7 @@ ENTRY(casuptr)
  * Fetch an int from the user's address space.
  */
 
-ENTRY(fuword32)
+ENTRY_NP(fuword32)
 ENTRY(fuword)
 #ifdef MULTIPROCESSOR
 	/* XXX Probably not appropriate for non-Hydra SMPs */
@@ -301,7 +301,7 @@ fusupcbfaulttext:
  * Store an int in the user's address space.
  */
 
-ENTRY(suword32)
+ENTRY_NP(suword32)
 ENTRY(suword)
 #ifdef MULTIPROCESSOR
 	/* XXX Probably not appropriate for non-Hydra SMPs */
