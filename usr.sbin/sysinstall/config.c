@@ -636,8 +636,8 @@ skip:
 	return DITEM_FAILURE;
     /* Add an entry for localhost */
     if (dp) {
-	fprintf(fp, "::1\t\t\tlocalhost.%s localhost\n", dp);
-	fprintf(fp, "127.0.0.1\t\tlocalhost.%s localhost\n", dp);
+	fprintf(fp, "::1\t\t\tlocalhost localhost.%s\n", dp);
+	fprintf(fp, "127.0.0.1\t\tlocalhost localhost.%s\n", dp);
     } else {
 	fprintf(fp, "::1\t\t\tlocalhost\n");
 	fprintf(fp, "127.0.0.1\t\tlocalhost\n");
