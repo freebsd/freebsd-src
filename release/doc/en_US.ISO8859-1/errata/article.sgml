@@ -138,6 +138,13 @@
 	    <entry>14&nbsp;June&nbsp;2006</entry>
 	    <entry><para>Incorrect multipart message handling in Sendmail</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:18.ppp.asc"
+		>SA-06:18.ppp</ulink></entry>
+	    <entry>23&nbsp;August&nbsp;2006</entry>
+	    <entry><para>Buffer overflow in &man.sppp.4;</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
@@ -195,17 +202,18 @@
       More details can be found in errata notice
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:01.jail.asc">FreeBSD-EN-06:01.jail</ulink>.</para>
 
-    <para>(2006/06/01) Deadlocks have been observed (and can be
+    <para>(2006/06/01, updated 2006/08/30) Deadlocks have been observed (and can be
       reproduced) in some cases where snapshots and quotas are both
       being used on a file system.  This problem has been fixed on the
-      HEAD and RELENG_6 branches; more testing is planned before a
-      merge to the RELENG_6_1 errata fix branch.</para>
+      HEAD and RELENG_6 branches.</para>
 
-    <para>(2006/06/01, updated 2006/07/07) A bug in the Neighbor Discovery Protocol (NDP)
+    <para>(2006/06/01, updated 2006/08/28) A bug in the Neighbor Discovery Protocol (NDP)
       implementation causes spurious error messages for point-to-point
       IPv6 links on &os; &release.bugfix;.  This behavior is a
       regression from &os; 6.0-RELEASE.  A solution for this
-      problem has been committed to HEAD and RELENG_6.</para>
+      problem has been committed to HEAD, RELENG_6, and RELENG_6_1.
+      Further details can be found in errata notice
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:02.net.asc">FreeBSD-EN-06:02.net</ulink>.</para>
 
     <para>(2006/06/01) Problems have been observed when trying to load
       packages from multiple CDROMs inside the &man.sysinstall.8;
@@ -220,13 +228,13 @@
       one should try to install &xorg; along with the base system, or
       at least before any other packages that depend on it.</para>
 
-    <para>(2006/06/01, updated 2006/06/07) An error in the statistics-keeping logic in the
+    <para>(2006/06/01, updated 2006/08/28) An error in the statistics-keeping logic in the
       UMA kernel memory allocator has led to the number of
       <literal>requests for mbufs denied</literal> (as reported by
       <command>netstat -m</command>) to increase erroneously.  A fix
-      for this problem has been committed to HEAD and RELENG_6 and will be merged
-      to the RELENG_6_1 branch after additional
-      testing.</para>
+      for this problem has been committed to HEAD, RELENG_6, and
+      RELENG_6_1.  More information is contained in errata notice
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:02.net.asc">FreeBSD-EN-06:02.net</ulink>.</para>
 
     <para>(2006/06/01) A longstanding bug in the i386 bootloader can
       cause root file system corruption when the &man.nextboot.8;
@@ -239,6 +247,12 @@
       cause noticeable slowdowns in NFS server performance.  A
       fix has been committed to HEAD and RELENG_6, and is a candidate
       for a merge to RELENG_6_1 after additional testing.</para>
+
+    <para>(2006/08/28) A local kernel panic in the network stack could
+      be caused by not checking the validity of a pointer before use.
+      This problem has been fixed on HEAD, RELENG_6, and RELENG_6_1,
+      as described in
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:02.net.asc">FreeBSD-EN-06:02.net</ulink>.</para>
 
   </sect1>
 
