@@ -36,7 +36,7 @@
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2004
+.Dd August 30, 2006
 .Dt SIO 4
 .Os
 .Sh NAME
@@ -179,15 +179,6 @@ PPS timestamping on CTS instead of DCD
 .It 0x20000
 device is assumed to use a 16650A-type (extended FIFO) chip
 .El
-.Pp
-Minor numbering:
-.Bd -literal -offset indent -compact
-0b\fIOLIMMMMM\fR
-  call\fBO\fRut
-   \fBL\fRock
-    \fBI\fRnitial
-     \fBMMMMM\fRinor
-.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -301,10 +292,6 @@ The
 .Nm
 driver also supports an initial-state and a lock-state control
 device for each of the callin and the callout "data" devices.
-The minor number of the initial-state device is 32 higher
-than that of the corresponding data device.
-The minor number of the lock-state device is 64 higher
-than that of the corresponding data device.
 The termios settings of a data device are copied
 from those of the corresponding initial-state device
 on first opens and are not inherited from previous opens.
@@ -321,6 +308,11 @@ on the lock-state device.
 Speeds and special characters
 may be locked by setting the corresponding value in the lock-state
 device to any nonzero value.
+E.g., to lock a speed to 115200, use
+.Dq Li stty 115200
+on the initial-state device and
+.Dq Li stty 1
+on the lock-state device.
 .Pp
 Correct programs talking to correctly wired external devices
 work with almost arbitrary initial states and almost no locking,
