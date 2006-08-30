@@ -126,7 +126,7 @@ struct umtx_q {
 	/* Thread contending with us */
 	TAILQ_HEAD(,umtx_pi)	uq_pi_contested;
 
-	/* Inherited prioroty from PP mutex */
+	/* Inherited priority from PP mutex */
 	u_char			uq_inherited_pri;
 };
 
@@ -1728,11 +1728,6 @@ _do_lock_pp(struct thread *td, struct umutex *m, uint32_t flags, int timo,
 		if (error != 0)
 			break;
 
-		/*
-		 * We set the contested bit, sleep. Otherwise the lock changed
-		 * and we need to retry or we lost a race to the thread
-		 * unlocking the umtx.
-		 */
 		umtxq_lock(&uq->uq_key);
 		umtxq_insert(uq);
 		umtxq_unbusy(&uq->uq_key);
@@ -1986,20 +1981,21 @@ do_lock_umutex(struct thread *td, struct umutex *m, struct timespec *ts,
 	int try)
 {
 	uint32_t flags;
-	int ret;
 
 	flags = fuword32(&m->m_flags);
 	if (flags == -1)
 		return (EFAULT);
 
-	if ((flags & UMUTEX_PRIO_INHERIT) != 0)
-		ret = do_lock_pi(td, m, flags, ts, try);
-	else if ((flags & UMUTEX_PRIO_PROTECT) != 0)
-		ret = do_lock_pp(td, m, flags, ts, try);
-	else
-		ret = do_lock_normal(td, m, flags, ts, try);
+	switch(flags & (UMUTEX_PRIO_INHERIT | UMUTEX_PRIO_PROTECT)) {
+	case 0:
+		return (do_lock_normal(td, m, flags, ts, try));
+	case UMUTEX_PRIO_INHERIT:
+		return (do_lock_pi(td, m, flags, ts, try));
+	case UMUTEX_PRIO_PROTECT:
+		return (do_lock_pp(td, m, flags, ts, try));
+	}
 
-	return (ret);
+	return (EINVAL);
 }
 
 /*
@@ -2067,12 +2063,6 @@ _umtx_op(struct thread *td, struct _umtx_op_args *uap)
 	case UMTX_OP_MUTEX_UNLOCK:
 		error = do_unlock_umutex(td, uap->obj);
 		break;
-	case UMTX_OP_MUTEX_TRYLOCK:
-		error = do_lock_umutex(td, uap->obj, NULL, 1);
-		break;
-	case UMTX_OP_SET_CEILING:
-		error = do_set_ceiling(td, uap->obj, uap->val, uap->uaddr1);
-		break;
 	case UMTX_OP_LOCK:
 		/* Allow a null timespec (wait forever). */
 		if (uap->uaddr2 == NULL)
@@ -2112,6 +2102,12 @@ _umtx_op(struct thread *td, struct _umtx_op_args *uap)
 		break;
 	case UMTX_OP_WAKE:
 		error = kern_umtx_wake(td, uap->obj, uap->val);
+		break;
+	case UMTX_OP_MUTEX_TRYLOCK:
+		error = do_lock_umutex(td, uap->obj, NULL, 1);
+		break;
+	case UMTX_OP_SET_CEILING:
+		error = do_set_ceiling(td, uap->obj, uap->val, uap->uaddr1);
 		break;
 	default:
 		error = EINVAL;
