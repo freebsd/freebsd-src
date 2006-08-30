@@ -55,15 +55,6 @@
 #define _JB_MAGIC__SETJMP       0x4278f500
 #define _JB_MAGIC_SETJMP        0x4278f501
 #endif
-#if 0
-#ifdef __STDC__
-# define __CONCAT(x,y)	x ## y
-# define __STRING(x)	#x
-#else
-# define __CONCAT(x,y)	x/**/y
-# define __STRING(x)	"x"
-#endif
-#endif
 
 #define I32_bit (1 << 7)	/* IRQ disable */
 #define F32_bit (1 << 6)        /* FIQ disable */
