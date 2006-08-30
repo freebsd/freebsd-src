@@ -29,7 +29,7 @@
 void
 _set_tp(void *tpval)
 {
-	register void* tp __asm__("r2");
+        register void *tp __asm__("r2");
 
-	tp = (char*) tpval + 0x7008;
+	__asm __volatile("mr %0,%1" : "=r"(tp) : "r"((char*)tpval + 0x7008));
 }
