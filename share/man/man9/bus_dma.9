@@ -60,7 +60,7 @@
 .\" $FreeBSD$
 .\" $NetBSD: bus_dma.9,v 1.25 2002/10/14 13:43:16 wiz Exp $
 .\"
-.Dd December 5, 2005
+.Dd August 31, 2006
 .Dt BUS_DMA 9
 .Os
 .Sh NAME
@@ -257,22 +257,22 @@ description below for more details on how to use these operations.
 All operations specified below are performed from the host memory point of view,
 where a read implies data coming from the device to the host memory, and a write
 implies data going from the host memory to the device.
-Alternately, the operations can be thought of in terms of driver operations,
+Alternatively, the operations can be thought of in terms of driver operations,
 where reading a network packet or storage sector corresponds to a read operation
 in
 .Nm .
-.Bl -tag -width BUS_DMASYNC_POSTWRITE
+.Bl -tag -width ".Dv BUS_DMASYNC_POSTWRITE"
 .It Dv BUS_DMASYNC_PREREAD
 Perform any synchronization required prior to an update of host memory by the
-DMA read operation.
+device.
 .It Dv BUS_DMASYNC_PREWRITE
 Perform any synchronization required after an update of host memory by the CPU
-and prior to DMA write operations.
+and prior to device access to host memory.
 .It Dv BUS_DMASYNC_POSTREAD
-Perform any synchronization required after DMA read operations and prior to
-CPU access to host memory.
+Perform any synchronization required after an update of host memory by the
+device and prior to CPU access to host memory.
 .It Dv BUS_DMASYNC_POSTWRITE
-Perform any synchronization required after DMA write operations.
+Perform any synchronization required after the device access to host memory.
 .El
 .It Vt bus_dma_lock_t
 Client specified lock/mutex manipulation method.
@@ -669,27 +669,32 @@ for a description of the acceptable values for
 .Fa op .
 .El
 .Pp
+The
 .Fn bus_dmamap_sync
-is the method used to ensure that CPU and device DMA access to shared
+function
+is the method used to ensure that CPU's and device's direct
+memory access (DMA) to shared
 memory is coherent.
-For example, the CPU might be used to setup the contents of a buffer
-that is to be DMA'ed into a device.
+For example, the CPU might be used to set up the contents of a buffer
+that is to be made available to a device.
 To ensure that the data are visible via the device's mapping of that
-memory, the buffer must be loaded and a dma sync operation of
+memory, the buffer must be loaded and a DMA sync operation of
 .Dv BUS_DMASYNC_PREWRITE
 must be performed.
-Additional sync operations must be performed after every CPU write
-to this memory if additional DMA reads are to be performed.
-Conversely, for the DMA write case, the buffer must be loaded,
-and a dma sync operation of
+If later CPU modifies this buffer again, another
+.Dv BUS_DMASYNC_PREWRITE
+sync operation must be performed before an additional
+access to this memory by a device.
+Conversely, a device updates the memory that is to be read by a CPU.
+In this case, the buffer must be loaded, and a DMA sync operation of
 .Dv BUS_DMASYNC_PREREAD
 must be performed.
-The CPU will only be able to see the results of this DMA write
-once the DMA has completed and a
+The CPU will only be able to see the results of this memory update
+once the DMA operation has completed and a
 .Dv BUS_DMASYNC_POSTREAD
-operation has been performed.
+sync operation has been performed.
 .Pp
-If DMA read and write operations are not preceded and followed by the
+If read and write operations are not preceded and followed by the
 appropriate synchronization operations, behavior is undefined.
 .It Fn bus_dmamem_alloc "dmat" "**vaddr" "flags" "*mapp"
 Allocates memory that is mapped into KVA at the address returned
