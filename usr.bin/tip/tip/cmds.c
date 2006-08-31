@@ -184,8 +184,8 @@ transfer(char *buf, int fd, char *eofchars)
 
 		if (c == '\n' && boolean(value(VERBOSE)))
 			printf("\r%d", ++ct);
-		if ((cnt = (p-buffer)) == number(value(FRAMESIZE))) {
-			if (write(fd, buffer, cnt) != cnt) {
+		if ((cnt = (p-buffer)) == (size_t)number(value(FRAMESIZE))) {
+			if ((size_t)write(fd, buffer, cnt) != cnt) {
 				printf("\r\nwrite error\r\n");
 				quit = 1;
 			}
@@ -193,7 +193,7 @@ transfer(char *buf, int fd, char *eofchars)
 		}
 	}
 	if ((cnt = (p-buffer)))
-		if (write(fd, buffer, cnt) != cnt)
+		if ((size_t)write(fd, buffer, cnt) != cnt)
 			printf("\r\nwrite error\r\n");
 
 	if (boolean(value(VERBOSE)))
@@ -885,7 +885,7 @@ hardwareflow(char *option)
 void
 linedisc(char *option)
 {
-	int ld = (int)value(LINEDISC);
+	int ld = (int)(intptr_t)value(LINEDISC);
 
 	ioctl(FD, TIOCSETD, &ld);
 }

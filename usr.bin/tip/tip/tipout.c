@@ -82,7 +82,7 @@ intEMT(int signo)
 	char reply;
 
 	read(fildes[0], &c, 1);
-	while (c != '\n' && pline - line < sizeof(line)) {
+	while (c != '\n' && (size_t)(pline - line) < sizeof(line)) {
 		*pline++ = c;
 		read(fildes[0], &c, 1);
 	}
