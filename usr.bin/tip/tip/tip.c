@@ -1,4 +1,4 @@
-/*	$OpenBSD: tip.c,v 1.15 2001/10/24 18:38:58 millert Exp $	*/
+/*	$OpenBSD: tip.c,v 1.30 2006/08/18 03:06:18 jason Exp $	*/
 /*	$NetBSD: tip.c,v 1.13 1997/04/20 00:03:05 mellon Exp $	*/
 
 /*
@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -35,7 +31,7 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
@@ -44,7 +40,7 @@ static char copyright[] =
 #if 0
 static char sccsid[] = "@(#)tip.c	8.1 (Berkeley) 6/6/93";
 #endif
-static char rcsid[] = "$OpenBSD: tip.c,v 1.15 2001/10/24 18:38:58 millert Exp $";
+static const char rcsid[] = "$OpenBSD: tip.c,v 1.30 2006/08/18 03:06:18 jason Exp $";
 #endif /* not lint */
 
 /*
@@ -56,29 +52,21 @@ static char rcsid[] = "$OpenBSD: tip.c,v 1.15 2001/10/24 18:38:58 millert Exp $"
 #include "tip.h"
 #include "pathnames.h"
 
-/*
- * Baud rate mapping table
- */
-int rates[] = {
-	0, 50, 75, 110, 134, 150, 200, 300, 600,
-	1200, 1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200, -1
-};
-
 int	disc = TTYDISC;		/* tip normally runs this way */
-void	intprompt();
-void	timeout();
-void	cleanup();
 char	PNbuf[256];			/* This limits the size of a number */
 
+static void	intprompt(int);
+static void	tipin(void);
+static int	escape(void);
+
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	char *system = NOSTR;
+	char *sys = NOSTR, sbuf[12], *p;
 	int i;
-	char *p;
-	char sbuf[12];
+
+	/* XXX preserve previous braindamaged behavior */
+	setboolean(value(DC), TRUE);
 
 	gid = getgid();
 	egid = getegid();
@@ -101,7 +89,7 @@ main(argc, argv)
 
 	for (; argc > 1; argv++, argc--) {
 		if (argv[1][0] != '-')
-			system = argv[1];
+			sys = argv[1];
 		else switch (argv[1][1]) {
 
 		case 'v':
@@ -124,34 +112,35 @@ main(argc, argv)
 		}
 	}
 
-	if (system == NOSTR)
+	if (sys == NOSTR)
 		goto notnumber;
-	if (isalpha(*system))
+	if (isalpha(*sys))
 		goto notnumber;
 	/*
 	 * System name is really a phone number...
 	 * Copy the number then stomp on the original (in case the number
 	 *	is private, we don't want 'ps' or 'w' to find it).
 	 */
-	if (strlen(system) > sizeof PNbuf - 1) {
+	if (strlen(sys) > sizeof PNbuf - 1) {
 		fprintf(stderr, "%s: phone number too long (max = %d bytes)\n",
 			__progname, (int)sizeof(PNbuf) - 1);
 		exit(1);
 	}
-	strncpy( PNbuf, system, sizeof PNbuf - 1 );
-	for (p = system; *p; p++)
+	strlcpy(PNbuf, sys, sizeof PNbuf - 1);
+	for (p = sys; *p; p++)
 		*p = '\0';
 	PN = PNbuf;
 	(void)snprintf(sbuf, sizeof(sbuf), "tip%ld", BR);
-	system = sbuf;
+	sys = sbuf;
 
 notnumber:
 	(void)signal(SIGINT, cleanup);
 	(void)signal(SIGQUIT, cleanup);
 	(void)signal(SIGHUP, cleanup);
 	(void)signal(SIGTERM, cleanup);
+	(void)signal(SIGCHLD, SIG_DFL);
 
-	if ((i = hunt(system)) == 0) {
+	if ((i = hunt(sys)) == 0) {
 		printf("all ports busy\n");
 		exit(3);
 	}
@@ -180,29 +169,32 @@ notnumber:
 		PH = _PATH_PHONES;
 	vinit();				/* init variables */
 	setparity("none");			/* set the parity table */
-	if ((i = speed(number(value(BAUDRATE)))) == 0) {
-		printf("%s: bad baud rate %ld\n", __progname,
-		    number(value(BAUDRATE)));
-		daemon_uid();
-		(void)uu_unlock(uucplock);
-		exit(3);
-	}
 
 	/*
 	 * Hardwired connections require the
 	 *  line speed set before they make any transmissions
 	 *  (this is particularly true of things like a DF03-AC)
 	 */
-	if (HW)
-		ttysetup(i);
-	if ((p = connect())) {
+	if (HW && ttysetup(number(value(BAUDRATE)))) {
+		fprintf(stderr, "%s: bad baud rate %ld\n", __progname,
+		    number(value(BAUDRATE)));
+		daemon_uid();
+		(void)uu_unlock(uucplock);
+		exit(3);
+	}
+	if ((p = con())) {
 		printf("\07%s\n[EOT]\n", p);
 		daemon_uid();
 		(void)uu_unlock(uucplock);
 		exit(1);
 	}
-	if (!HW)
-		ttysetup(i);
+	if (!HW && ttysetup(number(value(BAUDRATE)))) {
+		fprintf(stderr, "%s: bad baud rate %ld\n", __progname,
+		    number(value(BAUDRATE)));
+		daemon_uid();
+		(void)uu_unlock(uucplock);
+		exit(3);
+	}
 cucommon:
 	/*
 	 * From here down the code is shared with
@@ -212,15 +204,16 @@ cucommon:
 	i = fcntl(FD, F_GETFL);
 	if (i == -1) {
 		perror("fcntl");
-		cleanup();
+		cleanup(0);
 	}
 	i = fcntl(FD, F_SETFL, i & ~O_NONBLOCK);
 	if (i == -1) {
 		perror("fcntl");
-		cleanup();
+		cleanup(0);
 	}
 
 	tcgetattr(0, &defterm);
+	gotdefterm = 1;
 	term = defterm;
 	term.c_lflag &= ~(ICANON|IEXTEN|ECHO);
 	term.c_iflag &= ~(INPCK|ICRNL);
@@ -229,12 +222,17 @@ cucommon:
 	term.c_cc[VTIME] = 0;
 	defchars = term;
 	term.c_cc[VINTR] = term.c_cc[VQUIT] = term.c_cc[VSUSP] =
-		term.c_cc[VDSUSP] = term.c_cc[VDISCARD] = 
-	 	term.c_cc[VLNEXT] = _POSIX_VDISABLE;
+	    term.c_cc[VDSUSP] = term.c_cc[VDISCARD] =
+	    term.c_cc[VLNEXT] = _POSIX_VDISABLE;
 	raw();
 
 	pipe(fildes); pipe(repdes);
 	(void)signal(SIGALRM, timeout);
+
+	if (value(LINEDISC) != TTYDISC) {
+		int ld = (int)value(LINEDISC);
+		ioctl(FD, TIOCSETD, &ld);
+	}		
 
 	/*
 	 * Everything's set up now:
@@ -244,7 +242,8 @@ cucommon:
 	 * so, fork one process for local side and one for remote.
 	 */
 	printf(cumode ? "Connected\r\n" : "\07connected\r\n");
-	if ((pid = fork()))
+	tipin_pid = getpid();
+	if ((tipout_pid = fork()))
 		tipin();
 	else
 		tipout();
@@ -253,13 +252,17 @@ cucommon:
 }
 
 void
-cleanup()
+cleanup(int signo)
 {
-
 	daemon_uid();
 	(void)uu_unlock(uucplock);
 	if (odisc)
-		ioctl(0, TIOCSETD, (char *)&odisc);
+		ioctl(0, TIOCSETD, &odisc);
+	unraw();
+	if (signo && tipout_pid) {
+		kill(tipout_pid, signo);
+		wait(NULL);
+	}
 	exit(0);
 }
 
@@ -274,7 +277,7 @@ cleanup()
 static int uidswapped;
 
 void
-user_uid()
+user_uid(void)
 {
 	if (uidswapped == 0) {
 		seteuid(uid);
@@ -283,7 +286,7 @@ user_uid()
 }
 
 void
-daemon_uid()
+daemon_uid(void)
 {
 
 	if (uidswapped) {
@@ -293,7 +296,7 @@ daemon_uid()
 }
 
 void
-shell_uid()
+shell_uid(void)
 {
 	setegid(gid);
 	seteuid(uid);
@@ -303,7 +306,7 @@ shell_uid()
  * put the controlling keyboard into raw mode
  */
 void
-raw()
+raw(void)
 {
 	tcsetattr(0, TCSADRAIN, &term);
 }
@@ -313,9 +316,10 @@ raw()
  * return keyboard to normal mode
  */
 void
-unraw()
+unraw(void)
 {
-	tcsetattr(0, TCSADRAIN, &defterm);
+	if (gotdefterm)
+		tcsetattr(0, TCSADRAIN, &defterm);
 }
 
 static	jmp_buf promptbuf;
@@ -326,10 +330,7 @@ static	jmp_buf promptbuf;
  *  normal erase and kill characters.
  */
 int
-prompt(s, p, sz)
-	char *s;
-	char *p;
-	size_t sz;
+prompt(char *s, char *p, size_t sz)
 {
 	int c;
 	char *b = p;
@@ -354,10 +355,10 @@ prompt(s, p, sz)
 /*
  * Interrupt service routine during prompting
  */
-void
-intprompt()
+/*ARGSUSED*/
+static void
+intprompt(int signo)
 {
-
 	(void)signal(SIGINT, SIG_IGN);
 	stoprompt = 1;
 	printf("\r\n");
@@ -367,10 +368,12 @@ intprompt()
 /*
  * ****TIPIN   TIPIN****
  */
-void
-tipin()
+static void
+tipin(void)
 {
-	char gch, bol = 1;
+	int bol = 1;
+	int gch;
+	char ch;
 
 	/*
 	 * Kinda klugey here...
@@ -386,6 +389,7 @@ tipin()
 
 	while (1) {
 		gch = getchar()&STRIP_PAR;
+		/* XXX does not check for EOF */
 		if ((gch == character(value(ESCAPE))) && bol) {
 			if (!noesc) {
 				if (!(gch = escape()))
@@ -396,7 +400,8 @@ tipin()
 			continue;
 		} else if (gch == '\r') {
 			bol = 1;
-			parwrite(FD, &gch, 1);
+			ch = gch;
+			parwrite(FD, &ch, 1);
 			if (boolean(value(HALFDUPLEX)))
 				printf("\r\n");
 			continue;
@@ -405,9 +410,10 @@ tipin()
 		bol = any(gch, value(EOL));
 		if (boolean(value(RAISE)) && islower(gch))
 			gch = toupper(gch);
-		parwrite(FD, &gch, 1);
+		ch = gch;
+		parwrite(FD, &ch, 1);
 		if (boolean(value(HALFDUPLEX)))
-			printf("%c", gch);
+			printf("%c", ch);
 	}
 }
 
@@ -417,14 +423,15 @@ extern esctable_t etable[];
  * Escape handler --
  *  called on recognition of ``escapec'' at the beginning of a line
  */
-int
-escape()
+static int
+escape(void)
 {
-	char gch;
+	int gch;
 	esctable_t *p;
 	char c = character(value(ESCAPE));
 
 	gch = (getchar()&STRIP_PAR);
+	/* XXX does not check for EOF */
 	for (p = etable; p->e_char; p++)
 		if (p->e_char == gch) {
 			if ((p->e_flags&PRIV) && uid)
@@ -440,21 +447,7 @@ escape()
 }
 
 int
-speed(n)
-	int n;
-{
-	int *p;
-
-	for (p = rates; *p != -1;  p++)
-		if (*p == n)
-			return n;
-	return 0;
-}
-
-int
-any(cc, p)
-	int cc;
-	char *p;
+any(int cc, char *p)
 {
 	char c = cc;
 	while (p && *p)
@@ -463,11 +456,10 @@ any(cc, p)
 	return (0);
 }
 
-int
-size(s)
-	char *s;
+size_t
+size(char *s)
 {
-	int i = 0;
+	size_t i = 0;
 
 	while (s && *s++)
 		i++;
@@ -475,8 +467,7 @@ size(s)
 }
 
 char *
-interp(s)
-	char *s;
+interp(char *s)
 {
 	static char buf[256];
 	char *p = buf, c, *q;
@@ -501,8 +492,7 @@ interp(s)
 }
 
 char *
-ctrl(c)
-	char c;
+ctrl(char c)
 {
 	static char s[3];
 
@@ -521,8 +511,7 @@ ctrl(c)
  * Help command
  */
 void
-help(c)
-	char c;
+help(int c)
 {
 	esctable_t *p;
 
@@ -539,19 +528,20 @@ help(c)
 /*
  * Set up the "remote" tty's state
  */
-void
-ttysetup(speed)
-	int speed;
+int
+ttysetup(int speed)
 {
 	struct termios	cntrl;
 
-	tcgetattr(FD, &cntrl);
-	cfsetospeed(&cntrl, speed);
-	cfsetispeed(&cntrl, speed);
+	if (tcgetattr(FD, &cntrl))
+		return (-1);
+	cfsetspeed(&cntrl, speed);
 	cntrl.c_cflag &= ~(CSIZE|PARENB);
 	cntrl.c_cflag |= CS8;
 	if (boolean(value(DC)))
 		cntrl.c_cflag |= CLOCAL;
+	if (boolean(value(HARDWAREFLOW)))
+		cntrl.c_cflag |= CRTSCTS;
 	cntrl.c_iflag &= ~(ISTRIP|ICRNL);
 	cntrl.c_oflag &= ~OPOST;
 	cntrl.c_lflag &= ~(ICANON|ISIG|IEXTEN|ECHO);
@@ -559,7 +549,7 @@ ttysetup(speed)
 	cntrl.c_cc[VTIME] = 0;
 	if (boolean(value(TAND)))
 		cntrl.c_iflag |= IXOFF;
-	tcsetattr(FD, TCSAFLUSH, &cntrl);
+	return (tcsetattr(FD, TCSAFLUSH, &cntrl));
 }
 
 static char partab[0200];
@@ -570,10 +560,7 @@ static char partab[0200];
  * with the right parity and output it.
  */
 void
-parwrite(fd, buf, n)
-	int fd;
-	char *buf;
-	int n;
+parwrite(int fd, char *buf, size_t n)
 {
 	int i;
 	char *bp;
@@ -596,8 +583,7 @@ parwrite(fd, buf, n)
  * Build a parity table with appropriate high-order bit.
  */
 void
-setparity(defparity)
-	char *defparity;
+setparity(char *defparity)
 {
 	int i, flip, clr, set;
 	char *parity;
@@ -625,5 +611,5 @@ setparity(defparity)
 		(void) fflush(stderr);
 	}
 	for (i = 0; i < 0200; i++)
-		partab[i] = (evenpartab[i] ^ flip | set) & clr;
+		partab[i] = ((evenpartab[i] ^ flip) | set) & clr;
 }

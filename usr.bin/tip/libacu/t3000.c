@@ -1,4 +1,4 @@
-/*	$OpenBSD: t3000.c,v 1.9 2001/10/24 18:38:58 millert Exp $	*/
+/*	$OpenBSD: t3000.c,v 1.14 2006/03/17 19:17:13 moritz Exp $	*/
 /*	$NetBSD: t3000.c,v 1.5 1997/02/11 09:24:18 mrg Exp $	*/
 
 /*
@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,7 +34,7 @@
 #if 0
 static char sccsid[] = "@(#)t3000.c	8.1 (Berkeley) 6/6/93";
 #endif
-static char rcsid[] = "$OpenBSD: t3000.c,v 1.9 2001/10/24 18:38:58 millert Exp $";
+static const char rcsid[] = "$OpenBSD: t3000.c,v 1.14 2006/03/17 19:17:13 moritz Exp $";
 #endif /* not lint */
 
 /*
@@ -52,17 +48,22 @@ static char rcsid[] = "$OpenBSD: t3000.c,v 1.9 2001/10/24 18:38:58 millert Exp $
 
 #define	MAXRETRY	5
 
-static	void sigALRM();
-static	int timeout = 0;
+static	int dialtimeout = 0;
 static	int connected = 0;
-static	jmp_buf timeoutbuf, intbuf;
-static	int t3000_sync(), t3000_connect(), t3000_swallow();
-static	void t3000_nap();
+static	jmp_buf timeoutbuf;
+
+static void	sigALRM(int);
+static int	t3000_swallow(char *);
+static int	t3000_connect(void);
+static int	t3000_sync(void);
+static void	t3000_write(int, char *, int);
+static void	t3000_nap(void);
+#ifdef DEBUG
+static void	t3000_verbose_read(void);
+#endif
 
 int
-t3000_dialer(num, acu)
-	char *num;
-	char *acu;
+t3000_dialer(char *num, char *acu)
 {
 	char *cp;
 	struct termios cntrl;
@@ -106,19 +107,19 @@ badsynch:
 	t3000_write(FD, "\r", 1);
 	connected = t3000_connect();
 #ifdef ACULOG
-	if (timeout) {
-		(void)sprintf(line, "%ld second dial timeout",
+	if (dialtimeout) {
+		(void)snprintf(line, sizeof line, "%ld second dial timeout",
 			number(value(DIALTIMEOUT)));
 		logent(value(HOST), num, "t3000", line);
 	}
 #endif
-	if (timeout)
+	if (dialtimeout)
 		t3000_disconnect();
 	return (connected);
 }
 
 void
-t3000_disconnect()
+t3000_disconnect(void)
 {
 	 /* first hang up the modem*/
 	ioctl(FD, TIOCCDTR, 0);
@@ -129,29 +130,29 @@ t3000_disconnect()
 }
 
 void
-t3000_abort()
+t3000_abort(void)
 {
 	t3000_write(FD, "\r", 1);	/* send anything to abort the call */
 	t3000_disconnect();
 }
 
+/*ARGSUSED*/
 static void
-sigALRM()
+sigALRM(int signo)
 {
 	printf("\07timeout waiting for reply\n");
-	timeout = 1;
+	dialtimeout = 1;
 	longjmp(timeoutbuf, 1);
 }
 
 static int
-t3000_swallow(match)
-	char *match;
+t3000_swallow(char *match)
 {
 	sig_t f;
 	char c;
 
 	f = signal(SIGALRM, sigALRM);
-	timeout = 0;
+	dialtimeout = 0;
 	do {
 		if (*match =='\0') {
 			signal(SIGALRM, f);
@@ -188,24 +189,24 @@ struct tbaud_msg {
 	int baud;
 	int baud2;
 } tbaud_msg[] = {
-	"",		B300,	0,
-	" 1200",	B1200,	0,
-	" 2400",	B2400,	0,
-	" 4800",	B4800,	0,
-	" 9600",	B9600,	0,
-	" 14400",	B19200,	B9600,
-	" 19200",	B19200,	B9600,
-	" 38400",	B38400,	B9600,
-	" 57600",	B38400,	B9600,
-	" 7512",	B9600,	0,
-	" 1275",	B2400,	0,
-	" 7200",	B9600,	0,
-	" 12000",	B19200,	B9600,
-	0,		0,	0,
+	{ "",		B300,	0 },
+	{ " 1200",	B1200,	0 },
+	{ " 2400",	B2400,	0 },
+	{ " 4800",	B4800,	0 },
+	{ " 9600",	B9600,	0 },
+	{ " 14400",	B19200,	B9600 },
+	{ " 19200",	B19200,	B9600 },
+	{ " 38400",	B38400,	B9600 },
+	{ " 57600",	B38400,	B9600 },
+	{ " 7512",	B9600,	0 },
+	{ " 1275",	B2400,	0 },
+	{ " 7200",	B9600,	0 },
+	{ " 12000",	B19200,	B9600 },
+	{ 0,		0,	0 },
 };
 
 static int
-t3000_connect()
+t3000_connect(void)
 {
 	char c;
 	int nc, nl, n;
@@ -219,7 +220,7 @@ t3000_connect()
 again:
 	nc = 0; nl = sizeof(dialer_buf)-1;
 	bzero(dialer_buf, sizeof(dialer_buf));
-	timeout = 0;
+	dialtimeout = 0;
 	for (nc = 0, nl = sizeof(dialer_buf)-1 ; nl > 0 ; nc++, nl--) {
 		if (setjmp(timeoutbuf))
 			break;
@@ -278,7 +279,7 @@ again:
  * the t3000 in sync.
  */
 static int
-t3000_sync()
+t3000_sync(void)
 {
 	int already = 0;
 	int len;
@@ -322,11 +323,8 @@ if (len == 0) len = 1;
 	return (0);
 }
 
-static int
-t3000_write(fd, cp, n)
-int fd;
-char *cp;
-int n;
+static void
+t3000_write(int fd, char *cp, int n)
 {
 #ifdef notdef
 	if (boolean(value(VERBOSE)))
@@ -342,7 +340,8 @@ int n;
 }
 
 #ifdef DEBUG
-t3000_verbose_read()
+static void
+t3000_verbose_read(void)
 {
 	int n = 0;
 	char buf[BUFSIZ];
@@ -358,8 +357,8 @@ t3000_verbose_read()
 #endif
 
 /* Give the t3000 50 milliseconds between characters */
-void
-t3000_nap()
+static void
+t3000_nap(void)
 {
 	struct timespec ts;
 

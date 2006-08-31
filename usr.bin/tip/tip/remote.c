@@ -1,4 +1,4 @@
-/*	$OpenBSD: remote.c,v 1.10 2001/10/24 18:38:58 millert Exp $	*/
+/*	$OpenBSD: remote.c,v 1.16 2006/06/06 23:24:52 deraadt Exp $	*/
 /*	$NetBSD: remote.c,v 1.5 1997/04/20 00:02:45 mellon Exp $	*/
 
 /*
@@ -14,11 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +32,7 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
@@ -45,7 +41,7 @@ static char copyright[] =
 #if 0
 static char sccsid[] = "@(#)remote.c	8.1 (Berkeley) 6/6/93";
 #endif
-static char rcsid[] = "$OpenBSD: remote.c,v 1.10 2001/10/24 18:38:58 millert Exp $";
+static const char rcsid[] = "$OpenBSD: remote.c,v 1.16 2006/06/06 23:24:52 deraadt Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -72,13 +68,12 @@ static char	*db_array[3] = { _PATH_REMOTE, 0, 0 };
 
 #define cgetflag(f)	(cgetcap(bp, f, ':') != NULL)
 
+static void	getremcap(char *);
+
 static void
-getremcap(host)
-	char *host;
+getremcap(char *host)
 {
-	char **p, ***q;
-	char *bp;
-	char *rempath;
+	char **p, ***q, *bp, *rempath;
 	int   stat;
 
 	rempath = getenv("REMOTE");
@@ -93,8 +88,8 @@ getremcap(host)
 	}
 
 	if ((stat = cgetent(&bp, db_array, host)) < 0) {
-		if (DV ||
-		    host[0] == '/' && access(DV = host, R_OK | W_OK) == 0) {
+		if ((DV != NULL) ||
+		    (host[0] == '/' && access(DV = host, R_OK | W_OK) == 0)) {
 			CU = DV;
 			HO = host;
 			HW = 1;
@@ -104,18 +99,18 @@ getremcap(host)
 			FS = DEFFS;
 			return;
 		}
-		switch(stat) {
+		switch (stat) {
 		case -1:
 			fprintf(stderr, "%s: unknown host %s\n", __progname,
 			    host);
 			break;
 		case -2:
-			fprintf(stderr, 
+			fprintf(stderr,
 			    "%s: can't open host description file\n",
 			    __progname);
 			break;
 		case -3:
-			fprintf(stderr, 
+			fprintf(stderr,
 			    "%s: possible reference loop in host description file\n", __progname);
 			break;
 		}
@@ -127,6 +122,8 @@ getremcap(host)
 			cgetstr(bp, *p, *q);
 	if (!BR && (cgetnum(bp, "br", &BR) == -1))
 		BR = DEFBR;
+	if (!LD && (cgetnum(bp, "ld", &LD) == -1))
+		LD = TTYDISC;
 	if (cgetnum(bp, "fs", &FS) == -1)
 		FS = DEFFS;
 	if (DU < 0)
@@ -186,6 +183,8 @@ getremcap(host)
 		setboolean(value(HALFDUPLEX), 1);
 	if (cgetflag("dc"))
 		setboolean(value(DC), 1);
+	if (cgetflag("hf"))
+		setboolean(value(HARDWAREFLOW), 1);
 	if (RE == NOSTR)
 		RE = (char *)"tip.record";
 	if (EX == NOSTR)
@@ -207,8 +206,7 @@ getremcap(host)
 }
 
 char *
-getremote(host)
-	char *host;
+getremote(char *host)
 {
 	char *cp;
 	static char *next;
