@@ -154,4 +154,10 @@ ftpd_loginx(const struct utmpx *ut)
 {
 	(void)pututxline(ut);
 }
+
+int
+ftpd_logoutx(const char *line, int status, int mode)
+{
+	return logoutx(line, status, mode);
+}
 #endif

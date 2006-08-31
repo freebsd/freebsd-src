@@ -1,4 +1,4 @@
-.\"	$NetBSD: ftpd.8,v 1.74 2003-08-07 09:46:39 agc Exp $
+.\"	$NetBSD: ftpd.8,v 1.76 2005/08/07 11:13:34 wiz Exp $
 .\"
 .\" Copyright (c) 1997-2003 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -63,7 +63,7 @@
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
 .\"
-.Dd February 26, 2003
+.Dd August 4, 2005
 .Dt FTPD 8
 .Os
 .Sh NAME
@@ -72,10 +72,10 @@
 Internet File Transfer Protocol server
 .Sh SYNOPSIS
 .Nm
-.Op Fl dHlqQrsuUwWX
+.Op Fl 46DdHlQqrsUuWwX
 .Op Fl a Ar anondir
-.Op Fl c Ar confdir
 .Op Fl C Ar user
+.Op Fl c Ar confdir
 .Op Fl e Ar emailaddr
 .Op Fl h Ar hostname
 .Op Fl L Ar xferlogfile
@@ -93,6 +93,14 @@ service specification; see
 .Pp
 Available options:
 .Bl -tag -width Ds
+.It Fl 4
+When
+.Fl D
+is specified, bind to IPv4 addresses only.
+.It Fl 6
+When
+.Fl D
+is specified, bind to IPv6 addresses only.
 .It Fl a Ar anondir
 Define
 .Ar anondir
@@ -104,6 +112,16 @@ This can also be specified with the
 .Xr ftpd.conf 5
 .Sy chroot
 directive.
+.It Fl C Ar user
+Check whether
+.Ar user
+would be granted access under
+the restrictions given in
+.Xr ftpusers 5
+and exit without attempting a connection.
+.Nm
+exits with an exit code of 0 if access would be granted, or 1 otherwise.
+This can be useful for testing configurations.
 .It Fl c Ar confdir
 Change the root directory of the configuration files from
 .Dq Pa /etc
@@ -118,16 +136,16 @@ and the file specified by the
 .Xr ftpd.conf 5
 .Sy limit
 directive.
-.It Fl C Ar user
-Check whether
-.Ar user
-would be granted access under
-the restrictions given in
-.Xr ftpusers 5
-and exit without attempting a connection.
+.It Fl D
+Run as daemon.
 .Nm
-exits with an exit code of 0 if access would be granted, or 1 otherwise.
-This can be useful for testing configurations.
+will listen on the default FTP port for incoming connections
+and fork a child for each connection.
+This is lower overhead than starting
+.Nm
+from
+.Xr inetd 8
+and thus might be useful on busy servers to reduce load.
 .It Fl d
 Debugging information is written to the syslog using a facility of
 .Dv LOG_FTP .
@@ -138,6 +156,12 @@ for the
 .Dq "\&%E"
 escape sequence (see
 .Sx Display file escape sequences )
+.It Fl H
+Equivalent to
+.Do
+-h
+`hostname`
+.Dc .
 .It Fl h Ar hostname
 Explicitly set the hostname to advertise as to
 .Ar hostname .
@@ -155,12 +179,13 @@ servers, each listening on separate addresses as separate names.
 Refer to
 .Xr inetd.conf 5
 for more information on starting services to listen on specific IP addresses.
-.It Fl H
-Equivalent to
-.Do
--h
-`hostname`
-.Dc .
+.It Fl L Ar xferlogfile
+Log
+.Tn wu-ftpd
+style
+.Sq xferlog
+entries to
+.Ar xferlogfile .
 .It Fl l
 Each successful and failed
 .Tn FTP
@@ -169,13 +194,6 @@ session is logged using syslog with a facility of
 If this option is specified more than once, the retrieve (get), store (put),
 append, delete, make directory, remove directory and rename operations and
 their file name arguments are also logged.
-.It Fl L Ar xferlogfile
-Log
-.Tn wu-ftpd
-style
-.Sq xferlog
-entries to
-.Ar xferlogfile .
 .It Fl P Ar dataport
 Use
 .Ar dataport
@@ -183,16 +201,16 @@ as the data port, overriding the default of using the port one less
 that the port
 .Nm
 is listening on.
-.It Fl q
-Enable the use of pid files for keeping track of the number of logged-in
-users per class.
-This is the default.
 .It Fl Q
 Disable the use of pid files for keeping track of the number of logged-in
 users per class.
 This may reduce the load on heavily loaded
 .Tn FTP
 servers.
+.It Fl q
+Enable the use of pid files for keeping track of the number of logged-in
+users per class.
+This is the default.
 .It Fl r
 Permanently drop root privileges once the user is logged in.
 The use of this option may result in the server using a port other
@@ -206,6 +224,12 @@ See
 below for more details.
 .It Fl s
 Require a secure authentication mechanism like Kerberos or S/Key to be used.
+.It Fl U
+Don't log each concurrent
+.Tn FTP
+session to
+.Pa /var/run/utmp .
+This is the default.
 .It Fl u
 Log each concurrent
 .Tn FTP
@@ -213,12 +237,6 @@ session to
 .Pa /var/run/utmp ,
 making them visible to commands such as
 .Xr who 1 .
-.It Fl U
-Don't log each concurrent
-.Tn FTP
-session to
-.Pa /var/run/utmp .
-This is the default.
 .It Fl V Ar version
 Use
 .Ar version
@@ -232,6 +250,11 @@ If
 is empty or
 .Sq -
 then don't display any version information.
+.It Fl W
+Don't log each
+.Tn FTP
+session to
+.Pa /var/log/wtmp .
 .It Fl w
 Log each
 .Tn FTP
@@ -240,11 +263,6 @@ session to
 making them visible to commands such as
 .Xr last 1 .
 This is the default.
-.It Fl W
-Don't log each
-.Tn FTP
-session to
-.Pa /var/log/wtmp .
 .It Fl X
 Log
 .Tn wu-ftpd
