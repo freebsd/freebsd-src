@@ -39,13 +39,9 @@ struct tcb *
 _tcb_ctor(struct pthread *thread, int initial)
 {
 	struct tcb *tcb;
-	void *oldtls;
 
-	if (initial)
-		oldtls = _tp;
-	else
-		oldtls = NULL;
-	tcb = _rtld_allocate_tls(oldtls, sizeof(struct tcb), 16);
+	tcb = _rtld_allocate_tls((initial) ? _tp : NULL,
+	    sizeof(struct tcb), 16);
 	if (tcb)
 		tcb->tcb_thread = thread;
 	return (tcb);
