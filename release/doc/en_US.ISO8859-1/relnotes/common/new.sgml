@@ -188,9 +188,6 @@
       <para>The &man.nfsmb.4; driver, which supports the NVIDIA nForce
 	2/3/4 SMBus 2.0 controller, has been added.</para>
 
-      <para>The &man.padlock.4; driver now supports the cryptographic
-	functionality of the VIA C7 processor.</para>
-
       <sect4 id="mm">
 	<title>Multimedia Support</title>
 
