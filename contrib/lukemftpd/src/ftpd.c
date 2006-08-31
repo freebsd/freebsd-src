@@ -1,4 +1,4 @@
-/*	$NetBSD: ftpd.c,v 1.158 2004-08-09 12:56:47 lukem Exp $	*/
+/*	$NetBSD: ftpd.c,v 1.176 2006/05/09 20:18:06 mrg Exp $	*/
 
 /*
  * Copyright (c) 1997-2004 The NetBSD Foundation, Inc.
@@ -105,10 +105,10 @@ __COPYRIGHT(
 #if 0
 static char sccsid[] = "@(#)ftpd.c	8.5 (Berkeley) 4/28/95";
 #else
-__RCSID("$NetBSD: ftpd.c,v 1.158 2004-08-09 12:56:47 lukem Exp $");
+__RCSID("$NetBSD: ftpd.c,v 1.176 2006/05/09 20:18:06 mrg Exp $");
 #endif
-#endif /* not lint */
 __FBSDID("$FreeBSD$");
+#endif /* not lint */
 
 /*
  * FTP server.
@@ -141,6 +141,7 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <netdb.h>
 #include <pwd.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -164,8 +165,13 @@ __FBSDID("$FreeBSD$");
 #include <com_err.h>
 #include <krb5/krb5.h>
 #endif
-#ifdef LOGIN_CAP
+
+#ifdef	LOGIN_CAP
 #include <login_cap.h>
+#endif
+
+#ifdef USE_PAM
+#include <security/pam_appl.h>
 #endif
 
 #define	GLOBAL
@@ -173,10 +179,13 @@ __FBSDID("$FreeBSD$");
 #include "pathnames.h"
 #include "version.h"
 
+#include "nbsd_pidfile.h"
+
 volatile sig_atomic_t	transflag;
 volatile sig_atomic_t	urgflag;
 
 int	data;
+int	Dflag;
 int	sflag;
 int	stru;			/* avoid C keyword */
 int	mode;
@@ -191,6 +200,12 @@ int	mapped;			/* IPv4 connection on AF_INET6 socket */
 off_t	file_size;
 off_t	byte_count;
 static char ttyline[20];
+
+#ifdef USE_PAM
+static int	auth_pam(struct passwd **, const char *);
+pam_handle_t	*pamh = NULL;
+#endif
+
 #ifdef SUPPORT_UTMP
 static struct utmp utmp;	/* for utmp */
 #endif
@@ -233,20 +248,12 @@ enum send_status {
 	SS_DATA_ERROR			/* data send error */
 };
 
-
 #ifdef USE_OPIE
 #include <opie.h>
 static struct opie opiedata;
 static char opieprompt[OPIE_CHALLENGE_MAX+1];
 static int pwok;
 #endif
-
-#ifdef USE_PAM
-#include <security/pam_appl.h>
-pam_handle_t	*pamh = NULL;
-#include "pamize.h"
-#endif
-
 
 static int	 bind_pasv_addr(void);
 static int	 checkuser(const char *, const char *, int, int, char **);
@@ -255,7 +262,8 @@ static int	 checkpassword(const struct passwd *, const char *);
 static void	 end_login(void);
 static FILE	*getdatasock(const char *);
 static char	*gunique(const char *);
-static void	 login_utmp(const char *, const char *, const char *);
+static void	 login_utmp(const char *, const char *, const char *,
+		     struct sockinet *);
 static void	 logremotehost(struct sockinet *);
 static void	 lostconn(int);
 static void	 toolong(int);
@@ -288,7 +296,8 @@ void	k5destroy(void);
 int
 main(int argc, char *argv[])
 {
-	int		addrlen, ch, on = 1, tos, keepalive;
+	int		ch, on = 1, tos, keepalive;
+	socklen_t	addrlen;
 #ifdef KERBEROS5
 	krb5_error_code	kerror;
 #endif
@@ -296,11 +305,13 @@ main(int argc, char *argv[])
 	const char	*xferlogname = NULL;
 	long		l;
 	struct sigaction sa;
+	sa_family_t	af = AF_UNSPEC;
 
 	connections = 1;
-	debug = 0;
+	ftpd_debug = 0;
 	logging = 0;
 	pdata = -1;
+	Dflag = 0;
 	sflag = 0;
 	dataport = 0;
 	dopidfile = 1;		/* default: DO use a pid file to count users */
@@ -324,9 +335,17 @@ main(int argc, char *argv[])
 	 */
 	openlog("ftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
 
-	while ((ch = getopt(argc, argv, "a:c:C:de:h:HlL:P:qQrst:T:uUvV:wWX"))
-	    != -1) {
+	while ((ch = getopt(argc, argv,
+	    "46a:c:C:Dde:h:HlL:P:qQrst:T:uUvV:wWX")) != -1) {
 		switch (ch) {
+		case '4':
+			af = AF_INET;
+			break;
+
+		case '6':
+			af = AF_INET6;
+			break;
+
 		case 'a':
 			anondir = optarg;
 			break;
@@ -340,9 +359,13 @@ main(int argc, char *argv[])
 			exit(checkaccess(optarg) ? 0 : 1);
 			/* NOTREACHED */
 
+		case 'D':
+			Dflag = 1;
+			break;
+
 		case 'd':
 		case 'v':		/* deprecated */
-			debug = 1;
+			ftpd_debug = 1;
 			break;
 
 		case 'e':
@@ -416,7 +439,7 @@ main(int argc, char *argv[])
 			if (EMPTYSTR(optarg) || strcmp(optarg, "-") == 0)
 				version = NULL;
 			else
-				version = xstrdup(optarg);
+				version = ftpd_strdup(optarg);
 			break;
 
 		case 'w':
@@ -441,6 +464,14 @@ main(int argc, char *argv[])
 	if (EMPTYSTR(confdir))
 		confdir = _DEFAULT_CONFDIR;
 
+	if (dowtmp) {
+#ifdef SUPPORT_UTMPX
+		ftpd_initwtmpx();
+#endif
+#ifdef SUPPORT_UTMP
+		ftpd_initwtmp();
+#endif
+	}
 	errno = 0;
 	l = sysconf(_SC_LOGIN_NAME_MAX);
 	if (l == -1 && errno != 0) {
@@ -457,6 +488,108 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 	curname[0] = '\0';
+
+	if (Dflag) {
+		int error, fd, i, n, *socks;
+		struct pollfd *fds;
+		struct addrinfo hints, *res, *res0;
+
+		if (daemon(1, 0) == -1) {
+			syslog(LOG_ERR, "failed to daemonize: %m");
+			exit(1);
+		}
+		(void)memset(&sa, 0, sizeof(sa));
+		sa.sa_handler = SIG_IGN;
+		sa.sa_flags = SA_NOCLDWAIT;
+		sigemptyset(&sa.sa_mask);
+		(void)sigaction(SIGCHLD, &sa, NULL);
+
+		(void)memset(&hints, 0, sizeof(hints));
+		hints.ai_flags = AI_PASSIVE;
+		hints.ai_family = af;
+		hints.ai_socktype = SOCK_STREAM;
+		error = getaddrinfo(NULL, "ftp", &hints, &res0);
+		if (error) {
+			syslog(LOG_ERR, "getaddrinfo: %s", gai_strerror(error));
+			exit(1);
+		}
+
+		for (n = 0, res = res0; res != NULL; res = res->ai_next)
+			n++;
+		if (n == 0) {
+			syslog(LOG_ERR, "no addresses available");
+			exit(1);
+		}
+		socks = malloc(n * sizeof(int));
+		fds = malloc(n * sizeof(struct pollfd));
+		if (socks == NULL || fds == NULL) {
+			syslog(LOG_ERR, "malloc: %m");
+			exit(1);
+		}
+
+		for (n = 0, res = res0; res != NULL; res = res->ai_next) {
+			socks[n] = socket(res->ai_family, res->ai_socktype,
+			    res->ai_protocol);
+			if (socks[n] == -1)
+				continue;
+			(void)setsockopt(socks[n], SOL_SOCKET, SO_REUSEADDR,
+			    &on, sizeof(on));
+			if (bind(socks[n], res->ai_addr, res->ai_addrlen)
+			    == -1) {
+				(void)close(socks[n]);
+				continue;
+			}
+			if (listen(socks[n], 12) == -1) {
+				(void)close(socks[n]);
+				continue;
+			}
+
+			fds[n].fd = socks[n];
+			fds[n].events = POLLIN;
+			n++;
+		}
+		if (n == 0) {
+			syslog(LOG_ERR, "%m");
+			exit(1);
+		}
+		freeaddrinfo(res0);
+
+		if (pidfile(NULL) == -1)
+			syslog(LOG_ERR, "failed to write a pid file: %m");
+
+		for (;;) {
+			if (poll(fds, n, INFTIM) == -1) {
+				if (errno == EINTR)
+					continue;
+				syslog(LOG_ERR, "poll: %m");
+				exit(1);
+			}
+			for (i = 0; i < n; i++) {
+				if (fds[i].revents & POLLIN) {
+					fd = accept(fds[i].fd, NULL, NULL);
+					if (fd == -1) {
+						syslog(LOG_ERR, "accept: %m");
+						continue;
+					}
+					switch (fork()) {
+					case -1:
+						syslog(LOG_ERR, "fork: %m");
+						break;
+					case 0:
+						goto child;
+						/* NOTREACHED */
+					}
+					(void)close(fd);
+				}
+			}
+		}
+ child:
+		(void)dup2(fd, STDIN_FILENO);
+		(void)dup2(fd, STDOUT_FILENO);
+		(void)dup2(fd, STDERR_FILENO);
+		for (i = 0; i < n; i++)
+			(void)close(socks[i]);
+	}
 
 	memset((char *)&his_addr, 0, sizeof(his_addr));
 	addrlen = sizeof(his_addr.si_su);
@@ -606,7 +739,7 @@ main(int argc, char *argv[])
 		reply(530, "System not available.");
 		exit(0);
 	}
-	(void)display_file(conffilename(_PATH_FTPWELCOME), 220);
+	(void)display_file(conffilename(_NAME_FTPWELCOME), 220);
 		/* reply(220,) must follow */
 	if (EMPTYSTR(version))
 		reply(220, "%s FTP server ready.", hostname);
@@ -631,7 +764,7 @@ static void
 lostconn(int signo)
 {
 
-	if (debug)
+	if (ftpd_debug)
 		syslog(LOG_DEBUG, "lost connection");
 	dologout(1);
 }
@@ -654,7 +787,7 @@ static void
 sigquit(int signo)
 {
 
-	if (debug)
+	if (ftpd_debug)
 		syslog(LOG_DEBUG, "got signal %d", signo);
 	dologout(1);
 }
@@ -689,11 +822,11 @@ sgetpwnam(const char *name)
 		free((char *)save.pw_shell);
 	}
 	save = *p;
-	save.pw_name = xstrdup(p->pw_name);
-	save.pw_passwd = xstrdup(p->pw_passwd);
-	save.pw_gecos = xstrdup(p->pw_gecos);
-	save.pw_dir = xstrdup(p->pw_dir);
-	save.pw_shell = xstrdup(p->pw_shell);
+	save.pw_name = ftpd_strdup(p->pw_name);
+	save.pw_passwd = ftpd_strdup(p->pw_passwd);
+	save.pw_gecos = ftpd_strdup(p->pw_gecos);
+	save.pw_dir = ftpd_strdup(p->pw_dir);
+	save.pw_shell = ftpd_strdup(p->pw_shell);
 	return (&save);
 }
 
@@ -706,19 +839,19 @@ static int	permitted;	/* USER permitted */
  * Sets global passwd pointer pw if named account exists and is acceptable;
  * sets askpasswd if a PASS command is expected.  If logged in previously,
  * need to reset state.  If name is "ftp" or "anonymous", the name is not in
- * _PATH_FTPUSERS, and ftp account exists, set guest and pw, then just return.
+ * _NAME_FTPUSERS, and ftp account exists, set guest and pw, then just return.
  * If account doesn't exist, ask for passwd anyway.  Otherwise, check user
  * requesting login privileges.  Disallow anyone who does not have a standard
  * shell as returned by getusershell().  Disallow anyone mentioned in the file
- * _PATH_FTPUSERS to allow people such as root and uucp to be avoided.
+ * _NAME_FTPUSERS to allow people such as root and uucp to be avoided.
  */
 void
 user(const char *name)
 {
-#ifdef LOGIN_CAP
-	login_cap_t	*lc = NULL;
-#endif
 	char	*class;
+#ifdef	LOGIN_CAP
+	login_cap_t *lc = NULL;
+#endif
 
 	class = NULL;
 	if (logged_in) {
@@ -779,22 +912,19 @@ user(const char *name)
 	strlcpy(curname, name, curname_len);
 
 			/* check user in /etc/ftpusers, and setup class */
-	permitted = checkuser(_PATH_FTPUSERS, curname, 1, 0, &class);
+	permitted = checkuser(_NAME_FTPUSERS, curname, 1, 0, &class);
 
-#ifdef LOGIN_CAP	/* allow login.conf configuration as well */
-	if ((lc = login_getpwclass(pw)) != NULL)
-		goto cleanup_user;
-#endif
 			/* check user in /etc/ftpchroot */
-	if (checkuser(_PATH_FTPCHROOT, curname, 0, 0, NULL)
-#ifdef LOGIN_CAP	/* allow login.conf configuration as well */
+	lc = login_getpwclass(pw);
+	if (checkuser(_NAME_FTPCHROOT, curname, 0, 0, NULL)
+#ifdef	LOGIN_CAP	/* Allow login.conf configuration as well */
 	    || login_getcapbool(lc, "ftp-chroot", 0)
 #endif
-	    ) {
+	) {
 		if (curclass.type == CLASS_GUEST) {
 			syslog(LOG_NOTICE,
 	    "Can't change guest user to chroot class; remove entry in %s",
-			    _PATH_FTPCHROOT);
+			    _NAME_FTPCHROOT);
 			exit(1);
 		}
 		curclass.type = CLASS_CHROOT;
@@ -803,13 +933,13 @@ user(const char *name)
 	if (class == NULL) {
 		switch (curclass.type) {
 		case CLASS_GUEST:
-			class = xstrdup("guest");
+			class = ftpd_strdup("guest");
 			break;
 		case CLASS_CHROOT:
-			class = xstrdup("chroot");
+			class = ftpd_strdup("chroot");
 			break;
 		case CLASS_REAL:
-			class = xstrdup("real");
+			class = ftpd_strdup("real");
 			break;
 		default:
 			syslog(LOG_ERR, "unknown curclass.type %d; aborting",
@@ -858,7 +988,6 @@ user(const char *name)
 			    curname);
 		} else
 #endif
-
 #ifdef USE_OPIE
 		if (opiechallenge(&opiedata, (char *)curname, opieprompt) ==
 		    0) {
@@ -961,7 +1090,7 @@ checkuser(const char *fname, const char *name, int def, int nofile,
 
 			*p++ = '\0';
 					/* check against network or CIDR */
-			if (isdigit(*p) &&
+			if (isdigit((unsigned char)*p) &&
 			    (bits = inet_net_pton(AF_INET, p,
 			    &net, sizeof(net))) != -1) {
 				net = ntohl(net);
@@ -1024,7 +1153,7 @@ checkuser(const char *fname, const char *name, int def, int nofile,
 		else
 			retval = !def;
 		if (!EMPTYSTR(class) && retclass != NULL)
-			*retclass = xstrdup(class);
+			*retclass = ftpd_strdup(class);
 		free(buf);
 		break;
 	}
@@ -1042,11 +1171,12 @@ static int
 checkaccess(const char *name)
 {
 
-	return (checkuser(_PATH_FTPUSERS, name, 1, 0, NULL));
+	return (checkuser(_NAME_FTPUSERS, name, 1, 0, NULL));
 }
 
 static void
-login_utmp(const char *line, const char *name, const char *host)
+login_utmp(const char *line, const char *name, const char *host,
+    struct sockinet *haddr)
 {
 #if defined(SUPPORT_UTMPX) || defined(SUPPORT_UTMP)
 	struct timeval tv;
@@ -1065,10 +1195,11 @@ login_utmp(const char *line, const char *name, const char *host)
 		(void)strncpy(utmpx.ut_name, name, sizeof(utmpx.ut_name));
 		(void)strncpy(utmpx.ut_line, line, sizeof(utmpx.ut_line));
 		(void)strncpy(utmpx.ut_host, host, sizeof(utmpx.ut_host));
+		(void)memcpy(&utmpx.ut_ss, &haddr->si_su, haddr->su_len);
 		ftpd_loginx(&utmpx);
 	}
 	if (dowtmp)
-		ftpd_logwtmpx(line, name, host, 0, USER_PROCESS);
+		ftpd_logwtmpx(line, name, host, haddr, 0, USER_PROCESS);
 #endif
 #ifdef SUPPORT_UTMP
 	if (doutmp) {
@@ -1087,24 +1218,25 @@ login_utmp(const char *line, const char *name, const char *host)
 static void
 logout_utmp(void)
 {
+#ifdef SUPPORT_UTMPX
+	int okwtmpx = dowtmp;
+#endif
+#ifdef SUPPORT_UTMP
 	int okwtmp = dowtmp;
+#endif
 	if (logged_in) {
-		if (doutmp) {
 #ifdef SUPPORT_UTMPX
-			okwtmp = logoutx(ttyline, 0, DEAD_PROCESS) & dowtmp;
+		if (doutmp)
+			okwtmpx &= ftpd_logoutx(ttyline, 0, DEAD_PROCESS);
+		if (okwtmpx)
+			ftpd_logwtmpx(ttyline, "", "", NULL, 0, DEAD_PROCESS);
 #endif
 #ifdef SUPPORT_UTMP
-			okwtmp = ftpd_logout(ttyline) & dowtmp;
-#endif
-		}
-		if (okwtmp) {
-#ifdef SUPPORT_UTMPX
-			ftpd_logwtmpx(ttyline, "", "", 0, DEAD_PROCESS);
-#endif
-#ifdef SUPPORT_UTMP
+		if (doutmp)
+			okwtmp &= ftpd_logout(ttyline);
+		if (okwtmp)
 			ftpd_logwtmp(ttyline, "", "");
 #endif
-		}
 	}
 }
 
@@ -1130,33 +1262,36 @@ end_login(void)
 	gidcount = 0;
 	curclass.type = CLASS_REAL;
 	(void) seteuid((uid_t)0);
-#ifdef LOGIN_CAP
-	setusercontext(NULL, getpwuid(0), (uid_t)0,
-	    LOGIN_SETPRIORITY|LOGIN_SETRESOURCES|LOGIN_SETUMASK|LOGIN_SETMAC);
+#ifdef	LOGIN_CAP
+	setusercontext(NULL, getpwuid(0), 0,
+		       LOGIN_SETPRIORITY|LOGIN_SETRESOURCES|LOGIN_SETUMASK|LOGIN_SETMAC);
 #endif
 #ifdef USE_PAM
-	if ((e = pam_setcred(pamh, PAM_DELETE_CRED)) != PAM_SUCCESS)
-		syslog(LOG_ERR, "pam_setcred: %s", pam_strerror(pamh, e));
-	if ((e = pam_close_session(pamh,0)) != PAM_SUCCESS)
-		syslog(LOG_ERR, "pam_close_session: %s", pam_strerror(pamh, e));
-	if ((e = pam_end(pamh, e)) != PAM_SUCCESS)
-		syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e));
-	pamh = NULL;
+	if (pamh) {
+		if ((e = pam_setcred(pamh, PAM_DELETE_CRED)) != PAM_SUCCESS)
+			syslog(LOG_ERR, "pam_setcred: %s",
+			    pam_strerror(pamh, e));
+		if ((e = pam_close_session(pamh,0)) != PAM_SUCCESS)
+			syslog(LOG_ERR, "pam_close_session: %s",
+			    pam_strerror(pamh, e));
+		if ((e = pam_end(pamh, e)) != PAM_SUCCESS)
+			syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e));
+		pamh = NULL;
+	}
 #endif
 }
 
 void
 pass(const char *passwd)
 {
-#ifdef LOGIN_CAP
-	login_cap_t	*lc = NULL;
-#endif
-#ifdef USE_PAM
-	int		 e;
-#endif
 	int		 rval;
 	char		 root[MAXPATHLEN];
-
+#ifdef	LOGIN_CAP
+	login_cap_t *lc = NULL;
+#endif
+#ifdef USE_PAM
+	int e;
+#endif
 	if (logged_in || askpasswd == 0) {
 		reply(503, "Login with USER first.");
 		return;
@@ -1168,6 +1303,21 @@ pass(const char *passwd)
 			rval = 1;	/* failure below */
 			goto skip;
 		}
+#ifdef USE_PAM
+		rval = auth_pam(&pw, passwd);
+#ifdef notdef
+		/* If PAM fails, we proceed with other authentications */
+		if (rval >= 0) {
+#ifdef USE_OPIE
+			opieunlock();
+#endif
+			goto skip;
+		}
+#else
+		/* If PAM fails, that's it */
+		goto skip;
+#endif
+#endif
 #if defined(KERBEROS)
 		if (klogin(pw, "", hostname, (char *)passwd) == 0) {
 			rval = 0;
@@ -1185,7 +1335,7 @@ pass(const char *passwd)
 			char *p;
 			int r;
 
-			p = xstrdup(passwd);
+			p = ftpd_strdup(passwd);
 			r = skey_passcheck(pw->pw_name, p);
 			free(p);
 			if (r != -1) {
@@ -1193,16 +1343,6 @@ pass(const char *passwd)
 				goto skip;
 			}
 		}
-#endif
-
-#ifdef USE_PAM
-		rval = auth_pam(&pw, passwd);
-		if (rval >= 0) {
-#ifdef USE_OPIE
-			opieunlock();
-#endif
-			goto skip;
- 		}
 #endif
 #ifdef USE_OPIE
 		if (opieverify(&opiedata, (char *)passwd) == 0) {
@@ -1214,7 +1354,6 @@ pass(const char *passwd)
 			goto skip;
 		}
 #endif
-
 		if (!sflag)
 			rval = checkpassword(pw, passwd);
 		else
@@ -1262,56 +1401,59 @@ pass(const char *passwd)
 		reply(550, "Can't set gid.");
 		goto bad;
 	}
-
-#ifdef LOGIN_CAP
+#ifdef	LOGIN_CAP
 	if ((lc = login_getpwclass(pw)) != NULL) {
-		char remote_ip[MAXHOSTNAMELEN];
+#ifdef notyet
+		char	remote_ip[NI_MAXHOST];
 
-		getnameinfo((struct sockaddr *)&his_addr, his_addr.su_len,
-		    remote_ip, sizeof(remote_ip) - 1, NULL, 0, NI_NUMERICHOST);
+		if (getnameinfo((struct sockaddr *)&his_addr, his_addr.su_len,
+			remote_ip, sizeof(remote_ip) - 1, NULL, 0,
+			NI_NUMERICHOST))
+				*remote_ip = 0;
 		remote_ip[sizeof(remote_ip) - 1] = 0;
 		if (!auth_hostok(lc, remotehost, remote_ip)) {
 			syslog(LOG_INFO|LOG_AUTH,
 			    "FTP LOGIN FAILED (HOST) as %s: permission denied.",
 			    pw->pw_name);
-			reply(530, "Permission denied.\n");
+			reply(530, "Permission denied.");
 			pw = NULL;
 			return;
 		}
 		if (!auth_timeok(lc, time(NULL))) {
-			reply(530, "Login not available right now.\n");
+			reply(530, "Login not available right now.");
 			pw = NULL;
 			return;
 		}
+#endif
 	}
-	setusercontext(lc, pw, (uid_t)0,
-	    LOGIN_SETLOGIN|LOGIN_SETGROUP|LOGIN_SETPRIORITY|LOGIN_SETRESOURCES
-	    |LOGIN_SETUMASK|LOGIN_SETMAC);
-#endif /*LOGIN_CAP*/
-
+	setsid();
+	setusercontext(lc, pw, 0,
+		LOGIN_SETLOGIN|LOGIN_SETGROUP|LOGIN_SETPRIORITY|
+		LOGIN_SETRESOURCES|LOGIN_SETUMASK|LOGIN_SETMAC);
+#else
 	(void) initgroups(pw->pw_name, pw->pw_gid);
 			/* cache groups for cmds.c::matchgroup() */
+#endif
+#ifdef USE_PAM
+	if (pamh) {
+		if ((e = pam_open_session(pamh, 0)) != PAM_SUCCESS) {
+			syslog(LOG_ERR, "pam_open_session: %s",
+			    pam_strerror(pamh, e));
+		} else if ((e = pam_setcred(pamh, PAM_ESTABLISH_CRED))
+		    != PAM_SUCCESS) {
+			syslog(LOG_ERR, "pam_setcred: %s",
+			    pam_strerror(pamh, e));
+		}
+	}
+#endif
 	gidcount = getgroups(0, NULL);
 	if (gidlist)
 		free(gidlist);
 	gidlist = malloc(gidcount * sizeof *gidlist);
 	gidcount = getgroups(gidcount, gidlist);
 
-#ifdef USE_PAM
-	if (pamh) {
-		if ((e = pam_open_session(pamh, 0)) != PAM_SUCCESS) {
-			syslog(LOG_ERR, "pam_open_session: %s",
-			    pam_strerror(pamh, e));
-		} else if ((e = pam_setcred(pamh, PAM_ESTABLISH_CRED)) !=
-		    PAM_SUCCESS) {
-			syslog(LOG_ERR, "pam_setcred: %s",
-			    pam_strerror(pamh, e));
-		}
-	}
-#endif
-
 	/* open utmp/wtmp before chroot */
-	login_utmp(ttyline, pw->pw_name, remotehost);
+	login_utmp(ttyline, pw->pw_name, remotehost, &his_addr);
 
 	logged_in = 1;
 
@@ -1390,7 +1532,7 @@ pass(const char *passwd)
 		}
 		break;
 	case CLASS_REAL:
-			/* only chroot REAL if explictly requested */
+			/* only chroot REAL if explicitly requested */
 		if (! EMPTYSTR(curclass.chroot)) {
 			format_path(root, curclass.chroot);
 			if (EMPTYSTR(root) || chroot(root) < 0) {
@@ -1422,8 +1564,10 @@ pass(const char *passwd)
 		}
 		break;
 	}
+#ifndef LOGIN_CAP
 	setsid();
 	setlogin(pw->pw_name);
+#endif
 	if (dropprivs ||
 	    (curclass.type != CLASS_REAL && 
 	    ntohs(ctrl_addr.su_port) > IPPORT_RESERVED + 1)) {
@@ -1469,9 +1613,9 @@ pass(const char *passwd)
 			    remotehost, passwd,
 			    curclass.classname, CURCLASSTYPE);
 			/* store guest password reply into pw_passwd */
-		REASSIGN(pw->pw_passwd, xstrdup(passwd));
+		REASSIGN(pw->pw_passwd, ftpd_strdup(passwd));
 		for (p = pw->pw_passwd; *p; p++)
-			if (!isgraph(*p))
+			if (!isgraph((unsigned char)*p))
 				*p = '_';
 	} else {
 		reply(230, "User %s logged in.", pw->pw_name);
@@ -1486,17 +1630,17 @@ pass(const char *passwd)
 			    remotehost, pw->pw_name,
 			    curclass.classname, CURCLASSTYPE);
 	}
-#ifdef LOGIN_CAP
+	(void) umask(curclass.umask);
+#ifdef	LOGIN_CAP
 	login_close(lc);
 #endif
-	(void) umask(curclass.umask);
 	return;
 
  bad:
-			/* Forget all about it... */
-#ifdef LOGIN_CAP
+#ifdef	LOGIN_CAP
 	login_close(lc);
 #endif
+			/* Forget all about it... */
 	end_login();
 }
 
@@ -1806,7 +1950,8 @@ dataconn(const char *name, off_t size, const char *fmode)
 		sizebuf[0] = '\0';
 	if (pdata >= 0) {
 		struct sockinet from;
-		int s, fromlen = sizeof(from.su_len);
+		int s;
+		socklen_t fromlen = sizeof(from.su_len);
 
 		(void) alarm(curclass.timeout);
 		s = accept(pdata, (struct sockaddr *)&from.si_su, &fromlen);
@@ -1871,6 +2016,7 @@ dataconn(const char *name, off_t size, const char *fmode)
 			break;
 		conerrno = errno;
 		(void) fclose(file);
+		file = NULL;
 		data = -1;
 		if (conerrno == EADDRINUSE) {
 			sleep((unsigned) swaitint);
@@ -2016,7 +2162,7 @@ send_data_with_mmap(int filefd, int netfd, const struct stat *st, int isdata)
 
 	winsize = curclass.mmapsize;
 	filesize = st->st_size;
-	if (debug)
+	if (ftpd_debug)
 		syslog(LOG_INFO, "mmapsize = %ld, writesize = %ld",
 		    (long)winsize, (long)curclass.writesize);
 	if (winsize == 0)
@@ -2174,8 +2320,10 @@ receive_data(FILE *instr, FILE *outstr)
 {
 	int	c, bare_lfs, netfd, filefd, rval;
 	off_t	byteswritten;
-	char	buf[BUFSIZ];
+	char	*buf;
+	size_t	readsize;
 	struct sigaction sa, sa_saved;
+	struct stat st;
 #ifdef __GNUC__
 	(void) &bare_lfs;
 #endif
@@ -2191,6 +2339,7 @@ receive_data(FILE *instr, FILE *outstr)
 	transflag = 1;
 	rval = -1;
 	byteswritten = 0;
+	buf = NULL;
 
 #define FILESIZECHECK(x) \
 			do { \
@@ -2208,6 +2357,16 @@ receive_data(FILE *instr, FILE *outstr)
 		netfd = fileno(instr);
 		filefd = fileno(outstr);
 		(void) alarm(curclass.timeout);
+		if (curclass.readsize)
+			readsize = curclass.readsize;
+		else if (fstat(filefd, &st))
+			readsize = (size_t)st.st_blksize;
+		else
+			readsize = BUFSIZ;
+		if ((buf = malloc(readsize)) == NULL) {
+			perror_reply(451, "Local resource failure: malloc");
+			goto cleanup_recv_data;
+		}
 		if (curclass.rateput) {
 			while (1) {
 				int d;
@@ -2218,7 +2377,7 @@ receive_data(FILE *instr, FILE *outstr)
 				errno = c = d = 0;
 				for (bufrem = curclass.rateput; bufrem > 0; ) {
 					if ((c = read(netfd, buf,
-					    MIN(sizeof(buf), bufrem))) <= 0)
+					    MIN(readsize, bufrem))) <= 0)
 						goto recvdone;
 					if (urgflag && handleoobcmd())
 						goto cleanup_recv_data;
@@ -2239,7 +2398,7 @@ receive_data(FILE *instr, FILE *outstr)
 					usleep(1000000 - td.tv_usec);
 			}
 		} else {
-			while ((c = read(netfd, buf, sizeof(buf))) > 0) {
+			while ((c = read(netfd, buf, readsize)) > 0) {
 				if (urgflag && handleoobcmd())
 					goto cleanup_recv_data;
 				FILESIZECHECK(byte_count + c);
@@ -2335,6 +2494,8 @@ receive_data(FILE *instr, FILE *outstr)
  cleanup_recv_data:
 	(void) alarm(0);
 	(void) sigaction(SIGALRM, &sa_saved, NULL);
+	if (buf)
+		free(buf);
 	transflag = 0;
 	urgflag = 0;
 	total_files_in++;
@@ -2401,11 +2562,12 @@ statcmd(void)
 		ispassive = 1;
 		goto printaddr;
 	} else if (usedefault == 0) {
+		su = (struct sockinet *)&data_dest;
+
 		if (epsvall) {
 			reply(0, "EPSV only mode (EPSV ALL)");
 			goto epsvonly;
 		}
-		su = (struct sockinet *)&data_dest;
  printaddr:
 							/* PASV/PORT */
 		if (su->su_family == AF_INET) {
@@ -2582,6 +2744,11 @@ statcmd(void)
 			reply(0, "Write size: " LLF, (LLT)curclass.writesize);
 		else
 			reply(0, "Write size: default");
+		if (curclass.recvbufsize)
+			reply(0, "Receive buffer size: " LLF,
+			    (LLT)curclass.recvbufsize);
+		else
+			reply(0, "Receive buffer size: default");
 		if (curclass.sendbufsize)
 			reply(0, "Send buffer size: " LLF,
 			    (LLT)curclass.sendbufsize);
@@ -2642,7 +2809,7 @@ reply(int n, const char *fmt, ...)
 	va_end(ap);
 	cprintf(stdout, "%s\r\n", msg);
 	(void)fflush(stdout);
-	if (debug)
+	if (ftpd_debug)
 		syslog(LOG_DEBUG, "<--- %s", msg);
 }
 
@@ -2801,7 +2968,7 @@ bind_pasv_addr(void)
 void
 passive(void)
 {
-	int len;
+	socklen_t len, recvbufsize;
 	char *p, *a;
 
 	if (pdata >= 0)
@@ -2819,6 +2986,13 @@ passive(void)
 	if (getsockname(pdata, (struct sockaddr *) &pasv_addr.si_su, &len) < 0)
 		goto pasv_error;
 	pasv_addr.su_len = len;
+	if (curclass.recvbufsize) {
+		recvbufsize = curclass.recvbufsize;
+		if (setsockopt(pdata, SOL_SOCKET, SO_RCVBUF, &recvbufsize,
+			       sizeof(int)) == -1)
+			syslog(LOG_WARNING, "setsockopt(SO_RCVBUF, %d): %m",
+			       recvbufsize);
+	}
 	if (listen(pdata, 1) < 0)
 		goto pasv_error;
 	if (curclass.advertise.su_len != 0)
@@ -2914,7 +3088,7 @@ af2epsvproto(int af)
 void
 long_passive(char *cmd, int pf)
 {
-	int len;
+	socklen_t len;
 	char *p, *a;
 
 	if (!logged_in) {
@@ -3018,7 +3192,7 @@ extended_port(const char *arg)
 	int i;
 	unsigned long proto;
 
-	tmp = xstrdup(arg);
+	tmp = ftpd_strdup(arg);
 	p = tmp;
 	delim = p[0];
 	p++;
@@ -3086,8 +3260,6 @@ extended_port(const char *arg)
 	usedefault = 1;
 	if (tmp != NULL)
 		free(tmp);
-	if (res)
-		freeaddrinfo(res);
 	return -1;
 }
 
@@ -3189,16 +3361,16 @@ send_file_list(const char *whichf)
 		memset(&gl, 0, sizeof(gl));
 		freeglob = 1;
 		if (glob(whichf, flags, 0, &gl)) {
-			reply(550, "not found");
+			reply(450, "Not found");
 			goto cleanup_send_file_list;
 		} else if (gl.gl_pathc == 0) {
 			errno = ENOENT;
-			perror_reply(550, whichf);
+			perror_reply(450, whichf);
 			goto cleanup_send_file_list;
 		}
 		dirlist = gl.gl_pathv;
 	} else {
-		notglob = xstrdup(whichf);
+		notglob = ftpd_strdup(whichf);
 		onefile[0] = notglob;
 		dirlist = onefile;
 		simple = 1;
@@ -3222,7 +3394,7 @@ send_file_list(const char *whichf)
 				retrieve(argv, dirname);
 				goto cleanup_send_file_list;
 			}
-			perror_reply(550, whichf);
+			perror_reply(450, whichf);
 			goto cleanup_send_file_list;
 		}
 
@@ -3292,9 +3464,9 @@ send_file_list(const char *whichf)
 	}
 
 	if (dout == NULL)
-		reply(550, "No files found.");
+		reply(450, "No files found.");
 	else if (ferror(dout) != 0)
-		perror_reply(550, "Data connection");
+		perror_reply(451, "Data connection");
 	else
 		reply(226, "Transfer complete.");
 
@@ -3338,7 +3510,8 @@ void
 logxfer(const char *command, off_t bytes, const char *file1, const char *file2,
     const struct timeval *elapsed, const char *error)
 {
-	char		 buf[MAXPATHLEN * 2 + 100], realfile[MAXPATHLEN];
+	char		 buf[MAXPATHLEN * 2 + 100];
+	char		 realfile1[MAXPATHLEN], realfile2[MAXPATHLEN];
 	const char	*r1, *r2;
 	char		 direction;
 	size_t		 len;
@@ -3348,10 +3521,10 @@ logxfer(const char *command, off_t bytes, const char *file1, const char *file2,
 		return;
 
 	r1 = r2 = NULL;
-	if ((r1 = realpath(file1, realfile)) == NULL)
+	if ((r1 = realpath(file1, realfile1)) == NULL)
 		r1 = file1;
 	if (file2 != NULL)
-		if ((r2 = realpath(file2, realfile)) == NULL)
+		if ((r2 = realpath(file2, realfile2)) == NULL)
 			r2 = file2;
 
 		/*
@@ -3455,14 +3628,16 @@ int
 checkpassword(const struct passwd *pwent, const char *password)
 {
 	char	*orig, *new;
-	time_t	 expire;
+	time_t	 change, expire, now;
 
-	expire = 0;
+	change = expire = 0;
 	if (pwent == NULL)
 		return 1;
 
+	time(&now);
 	orig = pwent->pw_passwd;	/* save existing password */
 	expire = pwent->pw_expire;
+	change = (pwent->pw_change == _PASSWORD_CHGNOW)? now : pwent->pw_change;
 
 	if (orig[0] == '\0')		/* don't allow empty passwords */
 		return 1;
@@ -3471,14 +3646,14 @@ checkpassword(const struct passwd *pwent, const char *password)
 	if (strcmp(new, orig) != 0)	/* compare */
 		return 1;
 
-	if (expire && time(NULL) >= expire)
+	if ((expire && now >= expire) || (change && now >= change))
 		return 2;		/* check if expired */
 
 	return 0;			/* OK! */
 }
 
 char *
-xstrdup(const char *s)
+ftpd_strdup(const char *s)
 {
 	char *new = strdup(s);
 
@@ -3504,3 +3679,156 @@ cprintf(FILE *fd, const char *fmt, ...)
 	total_bytes += b;
 	total_bytes_out += b;
 }
+
+#ifdef USE_PAM
+/*
+ * the following code is stolen from imap-uw PAM authentication module and
+ * login.c
+ */
+#define COPY_STRING(s) (s ? strdup(s) : NULL)
+
+struct cred_t {
+	const char *uname;		/* user name */
+	const char *pass;		/* password */
+};
+typedef struct cred_t cred_t;
+
+static int
+auth_conv(int num_msg, const struct pam_message **msg,
+    struct pam_response **resp, void *appdata)
+{
+	int i;
+	cred_t *cred = (cred_t *) appdata;
+	struct pam_response *myreply;
+
+	myreply = calloc(num_msg, sizeof *myreply);
+	if (myreply == NULL)
+		return PAM_BUF_ERR;
+
+	for (i = 0; i < num_msg; i++) {
+		switch (msg[i]->msg_style) {
+		case PAM_PROMPT_ECHO_ON:	/* assume want user name */
+			myreply[i].resp_retcode = PAM_SUCCESS;
+			myreply[i].resp = COPY_STRING(cred->uname);
+			/* PAM frees resp. */
+			break;
+		case PAM_PROMPT_ECHO_OFF:	/* assume want password */
+			myreply[i].resp_retcode = PAM_SUCCESS;
+			myreply[i].resp = COPY_STRING(cred->pass);
+			/* PAM frees resp. */
+			break;
+		case PAM_TEXT_INFO:
+		case PAM_ERROR_MSG:
+			myreply[i].resp_retcode = PAM_SUCCESS;
+			myreply[i].resp = NULL;
+			break;
+		default:			/* unknown message style */
+			free(myreply);
+			return PAM_CONV_ERR;
+		}
+	}
+
+	*resp = myreply;
+	return PAM_SUCCESS;
+}
+
+/*
+ * Attempt to authenticate the user using PAM.  Returns 0 if the user is
+ * authenticated, or 1 if not authenticated.  If some sort of PAM system
+ * error occurs (e.g., the "/etc/pam.conf" file is missing) then this
+ * function returns -1.  This can be used as an indication that we should
+ * fall back to a different authentication mechanism.
+ */
+static int
+auth_pam(struct passwd **ppw, const char *pwstr)
+{
+	const char *tmpl_user;
+	const void *item;
+	int rval;
+	int e;
+	cred_t auth_cred = { (*ppw)->pw_name, pwstr };
+	struct pam_conv conv = { &auth_conv, &auth_cred };
+
+	e = pam_start("ftpd", (*ppw)->pw_name, &conv, &pamh);
+	if (e != PAM_SUCCESS) {
+		/*
+		 * In OpenPAM, it's OK to pass NULL to pam_strerror()
+		 * if context creation has failed in the first place.
+		 */
+		syslog(LOG_ERR, "pam_start: %s", pam_strerror(NULL, e));
+		return -1;
+	}
+
+	e = pam_set_item(pamh, PAM_RHOST, remotehost);
+	if (e != PAM_SUCCESS) {
+		syslog(LOG_ERR, "pam_set_item(PAM_RHOST): %s",
+			pam_strerror(pamh, e));
+		if ((e = pam_end(pamh, e)) != PAM_SUCCESS) {
+			syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e));
+		}
+		pamh = NULL;
+		return -1;
+	}
+
+	e = pam_authenticate(pamh, 0);
+	switch (e) {
+	case PAM_SUCCESS:
+		/*
+		 * With PAM we support the concept of a "template"
+		 * user.  The user enters a login name which is
+		 * authenticated by PAM, usually via a remote service
+		 * such as RADIUS or TACACS+.  If authentication
+		 * succeeds, a different but related "template" name
+		 * is used for setting the credentials, shell, and
+		 * home directory.  The name the user enters need only
+		 * exist on the remote authentication server, but the
+		 * template name must be present in the local password
+		 * database.
+		 *
+		 * This is supported by two various mechanisms in the
+		 * individual modules.  However, from the application's
+		 * point of view, the template user is always passed
+		 * back as a changed value of the PAM_USER item.
+		 */
+		if ((e = pam_get_item(pamh, PAM_USER, &item)) ==
+		    PAM_SUCCESS) {
+			tmpl_user = (const char *) item;
+			if (strcmp((*ppw)->pw_name, tmpl_user) != 0)
+				*ppw = sgetpwnam(tmpl_user);
+		} else
+			syslog(LOG_ERR, "Couldn't get PAM_USER: %s",
+			    pam_strerror(pamh, e));
+		rval = 0;
+		break;
+
+	case PAM_AUTH_ERR:
+	case PAM_USER_UNKNOWN:
+	case PAM_MAXTRIES:
+		rval = 1;
+		break;
+
+	default:
+		syslog(LOG_ERR, "pam_authenticate: %s", pam_strerror(pamh, e));
+		rval = -1;
+		break;
+	}
+
+	if (rval == 0) {
+		e = pam_acct_mgmt(pamh, 0);
+		if (e != PAM_SUCCESS) {
+			syslog(LOG_ERR, "pam_acct_mgmt: %s",
+						pam_strerror(pamh, e));
+			rval = 1;
+		}
+	}
+
+	if (rval != 0) {
+		if ((e = pam_end(pamh, e)) != PAM_SUCCESS) {
+			syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e));
+		}
+		pamh = NULL;
+	}
+	return rval;
+}
+
+#endif /* USE_PAM */
