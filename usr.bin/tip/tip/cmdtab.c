@@ -62,5 +62,5 @@ esctable_t etable[] = {
 	{ 'v',	NORM,	"list variables",		 listvariables },
 	{ '?',	NORM,	"get this summary",		 help },
 	{ '#',	NORM,	"send break",			 genbrk },
-	{ 0, 0, 0 }
+	{ '\0',	0,	NULL,				 NULL }
 };
