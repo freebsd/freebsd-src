@@ -1,4 +1,4 @@
-/*	$OpenBSD: dn11.c,v 1.5 2001/11/19 19:02:16 mpech Exp $	*/
+/*	$OpenBSD: dn11.c,v 1.9 2006/03/17 19:17:13 moritz Exp $	*/
 /*	$NetBSD: dn11.c,v 1.4 1995/10/29 00:49:53 pk Exp $	*/
 
 /*
@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -40,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)dn11.c	8.1 (Berkeley) 6/6/93";
-static char rcsid[] = "$OpenBSD: dn11.c,v 1.5 2001/11/19 19:02:16 mpech Exp $";
+static const char rcsid[] = "$OpenBSD: dn11.c,v 1.9 2006/03/17 19:17:13 moritz Exp $";
 #endif
 #endif /* not lint */
 
@@ -49,14 +45,13 @@ static char rcsid[] = "$OpenBSD: dn11.c,v 1.5 2001/11/19 19:02:16 mpech Exp $";
  */
 #include "tip.h"
 
-void dn_abort();
-void alarmtr();
 static jmp_buf jmpbuf;
-static int child = -1, dn;
+static pid_t child = -1, dn;
+
+static void alarmtr(int);
 
 int
-dn_dialer(num, acu)
-	char *num, *acu;
+dn_dialer(char *num, char *acu)
 {
 	int lt, nw;
 	int timelim;
@@ -119,8 +114,9 @@ dn_dialer(num, acu)
 	return (1);
 }
 
-void
-alarmtr()
+/*ARGSUSED*/
+static void
+alarmtr(int signo)
 {
 	alarm(0);
 	longjmp(jmpbuf, 1);
@@ -131,9 +127,8 @@ alarmtr()
  *  hanging up...
  */
 void
-dn_disconnect()
+dn_disconnect(void)
 {
-
 	sleep(2);
 	if (FD > 0)
 		ioctl(FD, TIOCCDTR, 0);
@@ -141,9 +136,8 @@ dn_disconnect()
 }
 
 void
-dn_abort()
+dn_abort(void)
 {
-
 	sleep(2);
 	if (child > 0)
 		kill(child, SIGKILL);
