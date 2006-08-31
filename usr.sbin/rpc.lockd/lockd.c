@@ -203,7 +203,7 @@ main(argc, argv)
 		exit(1);
 	}
 	grace_expired = 0;
-	alarm(10);
+	alarm(grace_period);
 
 	init_nsm();
 
