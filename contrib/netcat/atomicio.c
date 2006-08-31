@@ -1,4 +1,7 @@
+/* $OpenBSD: atomicio.c,v 1.8 2006/02/11 19:31:18 otto Exp $ */
+
 /*
+ * Copyright (c) 2005 Anil Madhavapeddy.  All rights served.
  * Copyright (c) 1995,1999 Theo de Raadt.  All rights reserved.
  * All rights reserved.
  *
@@ -25,20 +28,23 @@
 
 #include <sys/types.h>
 #include <sys/uio.h>
-
 #include <errno.h>
 #include <unistd.h>
-
-ssize_t atomicio(ssize_t (*f)(int, void *, size_t), int fd, void *_s, size_t n);
+#include "atomicio.h"
 
 /*
- * ensure all of data on socket comes through. f==read || f==write
+ * ensure all of data on socket comes through. f==read || f==vwrite
  */
-ssize_t
-atomicio(ssize_t (*f) (int, void *, size_t), int fd, void *_s, size_t n)
+size_t
+atomicio(f, fd, _s, n)
+	ssize_t (*f) (int, void *, size_t);
+	int fd;
+	void *_s;
+	size_t n;
 {
 	char *s = _s;
-	ssize_t res, pos = 0;
+	size_t pos = 0;
+	ssize_t res;
 
 	while (n > pos) {
 		res = (f) (fd, s + pos, n - pos);
@@ -46,11 +52,13 @@ atomicio(ssize_t (*f) (int, void *, size_t), int fd, void *_s, size_t n)
 		case -1:
 			if (errno == EINTR || errno == EAGAIN)
 				continue;
+			return 0;
 		case 0:
-			return (res);
+			errno = EPIPE;
+			return pos;
 		default:
-			pos += res;
+			pos += (size_t)res;
 		}
 	}
-	return (pos);
+	return pos;
 }
