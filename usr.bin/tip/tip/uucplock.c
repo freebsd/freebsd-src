@@ -49,6 +49,7 @@ static const char rcsid[] = "$OpenBSD: uucplock.c,v 1.11 2006/03/16 19:32:46 der
 #include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
+#include "tip.h"
 #include "pathnames.h"
 
 /*

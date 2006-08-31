@@ -233,7 +233,7 @@ cucommon:
 	(void)signal(SIGALRM, timeout);
 
 	if (value(LINEDISC) != TTYDISC) {
-		int ld = (int)value(LINEDISC);
+		int ld = (int)(intptr_t)value(LINEDISC);
 		ioctl(FD, TIOCSETD, &ld);
 	}		
 
@@ -565,7 +565,7 @@ static char partab[0200];
 void
 parwrite(int fd, char *buf, size_t n)
 {
-	int i;
+	size_t i;
 	char *bp;
 
 	bp = buf;
