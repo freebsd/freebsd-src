@@ -1,4 +1,4 @@
-/*	$OpenBSD: courier.c,v 1.9 2001/10/24 18:38:58 millert Exp $	*/
+/*	$OpenBSD: courier.c,v 1.15 2006/03/17 19:17:13 moritz Exp $	*/
 /*	$NetBSD: courier.c,v 1.7 1997/02/11 09:24:16 mrg Exp $	*/
 
 /*
@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -40,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)courier.c	8.1 (Berkeley) 6/6/93";
-static char rcsid[] = "$OpenBSD: courier.c,v 1.9 2001/10/24 18:38:58 millert Exp $";
+static const char rcsid[] = "$OpenBSD: courier.c,v 1.15 2006/03/17 19:17:13 moritz Exp $";
 #endif
 #endif /* not lint */
 
@@ -54,20 +50,22 @@ static char rcsid[] = "$OpenBSD: courier.c,v 1.9 2001/10/24 18:38:58 millert Exp
 
 #define	MAXRETRY	5
 
-static	void sigALRM();
-static	int timeout = 0;
+static	int dialtimeout = 0;
 static	int connected = 0;
-static	jmp_buf timeoutbuf, intbuf;
-static	int coursync(), cour_connect(), cour_swallow();
-void	cour_nap();
-static void cour_write(int fd, char *cp, int n);
+static	jmp_buf timeoutbuf;
 
-void cour_disconnect(void);
+static void	sigALRM(int);
+static int	cour_swallow(char *);
+static int	cour_connect(void);
+static int	coursync(void);
+static void	cour_write(int, char *, int);
+static void	cour_nap(void);
+#ifdef DEBUG
+static void	cour_verbose_read(void);
+#endif
 
 int
-cour_dialer(num, acu)
-	char *num;
-	char *acu;
+cour_dialer(char *num, char *acu)
 {
 	char *cp;
 #ifdef ACULOG
@@ -111,19 +109,19 @@ badsynch:
 	cour_write(FD, "\r", 1);
 	connected = cour_connect();
 #ifdef ACULOG
-	if (timeout) {
-		(void)sprintf(line, "%ld second dial timeout",
+	if (dialtimeout) {
+		(void)snprintf(line, sizeof line, "%ld second dial timeout",
 			number(value(DIALTIMEOUT)));
 		logent(value(HOST), num, "cour", line);
 	}
 #endif
-	if (timeout)
+	if (dialtimeout)
 		cour_disconnect();
 	return (connected);
 }
 
 void
-cour_disconnect()
+cour_disconnect(void)
 {
 	 /* first hang up the modem*/
 	ioctl(FD, TIOCCDTR, 0);
@@ -134,29 +132,29 @@ cour_disconnect()
 }
 
 void
-cour_abort()
+cour_abort(void)
 {
 	cour_write(FD, "\r", 1);	/* send anything to abort the call */
 	cour_disconnect();
 }
 
+/*ARGSUSED*/
 static void
-sigALRM()
+sigALRM(int signo)
 {
 	printf("\07timeout waiting for reply\n");
-	timeout = 1;
+	dialtimeout = 1;
 	longjmp(timeoutbuf, 1);
 }
 
 static int
-cour_swallow(match)
-	char *match;
+cour_swallow(char *match)
 {
 	sig_t f;
 	char c;
 
 	f = signal(SIGALRM, sigALRM);
-	timeout = 0;
+	dialtimeout = 0;
 	do {
 		if (*match =='\0') {
 			signal(SIGALRM, f);
@@ -187,16 +185,16 @@ struct baud_msg {
 	char *msg;
 	int baud;
 } baud_msg[] = {
-	"",		B300,
-	" 1200",	B1200,
-	" 2400",	B2400,
-	" 9600",	B9600,
-	" 9600/ARQ",	B9600,
-	0,		0,
+	{ "",		B300 },
+	{ " 1200",	B1200 },
+	{ " 2400",	B2400 },
+	{ " 9600",	B9600 },
+	{ " 9600/ARQ",	B9600 },
+	{ 0,		0 },
 };
 
 static int
-cour_connect()
+cour_connect(void)
 {
 	char c;
 	int nc, nl, n;
@@ -210,7 +208,7 @@ cour_connect()
 again:
 	nc = 0; nl = sizeof(dialer_buf)-1;
 	bzero(dialer_buf, sizeof(dialer_buf));
-	timeout = 0;
+	dialtimeout = 0;
 	for (nc = 0, nl = sizeof(dialer_buf)-1 ; nl > 0 ; nc++, nl--) {
 		if (setjmp(timeoutbuf))
 			break;
@@ -269,7 +267,7 @@ again:
  * the courier in sync.
  */
 static int
-coursync()
+coursync(void)
 {
 	int already = 0;
 	int len;
@@ -311,10 +309,7 @@ coursync()
 }
 
 static void
-cour_write(fd, cp, n)
-int fd;
-char *cp;
-int n;
+cour_write(int fd, char *cp, int n)
 {
 #ifdef notdef
 	if (boolean(value(VERBOSE)))
@@ -330,7 +325,8 @@ int n;
 }
 
 #ifdef DEBUG
-cour_verbose_read()
+static void
+cour_verbose_read(void)
 {
 	int n = 0;
 	char buf[BUFSIZ];
@@ -346,8 +342,8 @@ cour_verbose_read()
 #endif
 
 /* Give the courier 50 milliseconds between characters */
-void
-cour_nap()
+static void
+cour_nap(void)
 {
 	struct timespec ts;
 

@@ -1,4 +1,4 @@
-/*	$OpenBSD: partab.c,v 1.3 1997/04/02 01:47:02 millert Exp $	*/
+/*	$OpenBSD: partab.c,v 1.5 2003/06/03 02:56:18 millert Exp $	*/
 /*	$NetBSD: partab.c,v 1.4 1996/12/29 10:38:21 cgd Exp $	*/
 
 /*
@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -40,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)partab.c	8.1 (Berkeley) 6/6/93";
-static char rcsid[] = "$OpenBSD: partab.c,v 1.3 1997/04/02 01:47:02 millert Exp $";
+static const char rcsid[] = "$OpenBSD: partab.c,v 1.5 2003/06/03 02:56:18 millert Exp $";
 #endif
 #endif /* not lint */
 

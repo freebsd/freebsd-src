@@ -1,4 +1,4 @@
-/*	$OpenBSD: hunt.c,v 1.8 2001/10/24 18:38:58 millert Exp $	*/
+/*	$OpenBSD: hunt.c,v 1.13 2006/03/17 19:39:46 deraadt Exp $	*/
 /*	$NetBSD: hunt.c,v 1.6 1997/04/20 00:02:10 mellon Exp $	*/
 
 /*
@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -40,27 +36,27 @@ __FBSDID("$FreeBSD$");
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)hunt.c	8.1 (Berkeley) 6/6/93";
-static char rcsid[] = "$OpenBSD: hunt.c,v 1.8 2001/10/24 18:38:58 millert Exp $";
+static const char rcsid[] = "$OpenBSD: hunt.c,v 1.13 2006/03/17 19:39:46 deraadt Exp $";
 #endif
 #endif /* not lint */
 
 #include "tip.h"
 
-extern char *getremote();
-
 static	jmp_buf deadline;
 static	int deadfl;
 
-void
-dead()
+static void	dead(int);
+
+/*ARGSUSED*/
+static void
+dead(int signo)
 {
 	deadfl = 1;
 	longjmp(deadline, 1);
 }
 
 long
-hunt(name)
-	char *name;
+hunt(char *name)
 {
 	char *cp;
 	sig_t f;
@@ -88,7 +84,7 @@ hunt(name)
 		if (setjmp(deadline) == 0) {
 			alarm(10);
 			FD = open(cp, (O_RDWR |
-				       (boolean(value(DC)) ? O_NONBLOCK : 0)));
+			    (boolean(value(DC)) ? O_NONBLOCK : 0)));
 		}
 		alarm(0);
 		if (FD < 0) {
