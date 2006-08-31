@@ -232,9 +232,10 @@ typedef enum _XSUM_CONTEXT_T {
 	OFFLOAD_UDP_IP
 } XSUM_CONTEXT_T;
 
-struct adapter adapter;		/* XXX: ugly forward declaration */
+struct adapter;
+
 struct em_int_delay_info {
-	struct adapter *adapter;	/* XXX: ugly pointer */
+	struct adapter *adapter; /* Back-pointer to the adapter struct */
 	int offset;		/* Register offset to read/write */
 	int value;		/* Current value in usecs */
 };
