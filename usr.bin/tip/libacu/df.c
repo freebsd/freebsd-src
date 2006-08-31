@@ -1,4 +1,4 @@
-/*	$OpenBSD: df.c,v 1.5 2001/10/24 18:38:58 millert Exp $	*/
+/*	$OpenBSD: df.c,v 1.9 2006/03/17 19:17:13 moritz Exp $	*/
 /*	$NetBSD: df.c,v 1.4 1995/10/29 00:49:51 pk Exp $	*/
 
 /*
@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,7 +34,7 @@
 #if 0
 static char sccsid[] = "@(#)df.c	8.1 (Berkeley) 6/6/93";
 #endif
-static char rcsid[] = "$OpenBSD: df.c,v 1.5 2001/10/24 18:38:58 millert Exp $";
+static const char rcsid[] = "$OpenBSD: df.c,v 1.9 2006/03/17 19:17:13 moritz Exp $";
 #endif /* not lint */
 
 /*
@@ -48,28 +44,24 @@ static char rcsid[] = "$OpenBSD: df.c,v 1.5 2001/10/24 18:38:58 millert Exp $";
 #include "tip.h"
 
 static jmp_buf Sjbuf;
-static void timeout();
+
+static int	df_dialer(char *, char *, int);
+static void	alrm_timeout(int);
 
 int
-df02_dialer(num, acu)
-	char *num, *acu;
+df02_dialer(char *num, char *acu)
 {
-
 	return (df_dialer(num, acu, 0));
 }
 
 int
-df03_dialer(num, acu)
-	char *num, *acu;
+df03_dialer(char *num, char *acu)
 {
-
 	return (df_dialer(num, acu, 1));
 }
 
-int
-df_dialer(num, acu, df03)
-	char *num, *acu;
-	int df03;
+static int
+df_dialer(char *num, char *acu, int df03)
 {
 	int f = FD;
 	struct termios cntrl;
@@ -102,7 +94,7 @@ df_dialer(num, acu, df03)
 			ioctl(f, TIOCMBIS, &st); /* set ST for 1200 baud */
 	}
 #endif
-	signal(SIGALRM, timeout);
+	signal(SIGALRM, alrm_timeout);
 	alarm(5 * strlen(num) + 10);
 	tcflush(f, TCIOFLUSH);
 	write(f, "\001", 1);
@@ -121,25 +113,22 @@ df_dialer(num, acu, df03)
 }
 
 void
-df_disconnect()
+df_disconnect(void)
 {
 	write(FD, "\001", 1);
 	sleep(1);
 	tcflush(FD, TCIOFLUSH);
 }
 
-
 void
-df_abort()
+df_abort(void)
 {
-
 	df_disconnect();
 }
 
-
+/*ARGSUSED*/
 static void
-timeout()
+alrm_timeout(int signo)
 {
-
 	longjmp(Sjbuf, 1);
 }

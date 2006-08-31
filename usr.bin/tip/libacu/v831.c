@@ -1,4 +1,4 @@
-/*	$OpenBSD: v831.c,v 1.6 2001/11/19 19:02:16 mpech Exp $	*/
+/*	$OpenBSD: v831.c,v 1.11 2006/03/17 19:17:13 moritz Exp $	*/
 /*	$NetBSD: v831.c,v 1.5 1996/12/29 10:42:01 cgd Exp $	*/
 
 /*
@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,7 +34,7 @@
 #if 0
 static char sccsid[] = "@(#)v831.c	8.1 (Berkeley) 6/6/93";
 #endif
-static char rcsid[] = "$OpenBSD: v831.c,v 1.6 2001/11/19 19:02:16 mpech Exp $";
+static const char rcsid[] = "$OpenBSD: v831.c,v 1.11 2006/03/17 19:17:13 moritz Exp $";
 #endif /* not lint */
 
 /*
@@ -47,20 +43,19 @@ static char rcsid[] = "$OpenBSD: v831.c,v 1.6 2001/11/19 19:02:16 mpech Exp $";
 #include "tip.h"
 #include <termios.h>
 
-void	v831_abort();
-static	void alarmtr();
-static	int dialit();
-static	char *sanitize();
-
 static jmp_buf jmpbuf;
-static int child = -1;
+static pid_t child = -1;
+
+static void	alarmtr(int);
+static int	dialit(char *, char *);
+static char *	sanitize(char *);
 
 int
-v831_dialer(num, acu)
-        char *num, *acu;
+v831_dialer(char *num, char *acu)
 {
-        int status, pid;
+        int status;
         int timelim;
+	pid_t pid;
 
         if (boolean(value(VERBOSE)))
                 printf("\nstarting call...");
@@ -119,8 +114,9 @@ v831_dialer(num, acu)
         return (1);
 }
 
+/*ARGSUSED*/
 static void
-alarmtr()
+alarmtr(int signo)
 {
         alarm(0);
         longjmp(jmpbuf, 1);
@@ -131,7 +127,7 @@ alarmtr()
  *  hanging up...
  */
 void
-v831_disconnect()
+v831_disconnect(void)
 {
 	struct termios	cntrl;
 
@@ -151,18 +147,17 @@ v831_disconnect()
 }
 
 void
-v831_abort()
+v831_abort(void)
 {
-
 #ifdef DEBUG
         printf("[abort: AC=%d]\n", AC);
 #endif
         sleep(2);
         if (child > 0)
                 kill(child, SIGKILL);
-        if (AC > 0)
+        if (FD > 0)
                 ioctl(FD, TIOCNXCL, NULL);
-                close(AC);
+        close(AC);
         if (FD > 0)
                 ioctl(FD, TIOCCDTR, 0);
         close(FD);
@@ -188,9 +183,7 @@ struct vaconfig {
 #define ETX	03
 
 static int
-dialit(phonenum, acu)
-	char *phonenum;
-	char *acu;
+dialit(char *phonenum, char *acu)
 {
         struct vaconfig *vp;
 	struct termios cntrl;
@@ -250,8 +243,7 @@ dialit(phonenum, acu)
 }
 
 static char *
-sanitize(s)
-	char *s;
+sanitize(char *s)
 {
         static char buf[128];
         char *cp;
