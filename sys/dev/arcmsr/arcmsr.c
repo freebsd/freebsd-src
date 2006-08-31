@@ -2026,7 +2026,7 @@ static VOID arcmsr_action(struct cam_sim * psim,union ccb * pccb)
 /*
 **********************************************************************
 ** 
-**  start background rebulid
+**  start background rebuild
 **
 **********************************************************************
 */
@@ -2043,7 +2043,7 @@ VOID arcmsr_start_adapter_bgrb(PACB pACB)
 /*
 **********************************************************************
 ** 
-**  start background rebulid
+**  start background rebuild
 **
 **********************************************************************
 */
@@ -2065,7 +2065,7 @@ VOID arcmsr_iop_init(PACB pACB)
 	arcmsr_start_adapter_bgrb(pACB);
 	if(arcmsr_wait_msgint_ready(pACB)!=TRUE)
 	{
-		printf("arcmsr_HwInitialize: wait 'start adapter background rebulid' timeout................. \n");
+		printf("arcmsr_HwInitialize: wait 'start adapter background rebuild' timeout................. \n");
 	}
 	/* clear Qbuffer if door bell ringed */
 	outbound_doorbell=CHIP_REG_READ32(&pACB->pmu->outbound_doorbell);
@@ -2536,7 +2536,7 @@ static VOID arcmsr_shutdown(device_t dev)
 	arcmsr_stop_adapter_bgrb(pACB);
 	if(arcmsr_wait_msgint_ready(pACB)!=TRUE)
 	{
-		printf("arcmsr_pcidev_disattach: wait 'stop adapter rebulid' timeout.... \n");
+		printf("arcmsr_pcidev_disattach: wait 'stop adapter rebuild' timeout.... \n");
 	}
 	arcmsr_flush_adapter_cache(pACB);
 	if(arcmsr_wait_msgint_ready(pACB)!=TRUE)
