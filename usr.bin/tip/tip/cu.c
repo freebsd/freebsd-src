@@ -1,4 +1,4 @@
-/*	$OpenBSD: cu.c,v 1.10 2001/09/26 06:07:28 pvalchev Exp $	*/
+/*	$OpenBSD: cu.c,v 1.19 2006/05/25 08:41:52 jmc Exp $	*/
 /*	$NetBSD: cu.c,v 1.5 1997/02/11 09:24:05 mrg Exp $	*/
 
 /*
@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,23 +34,20 @@
 #if 0
 static char sccsid[] = "@(#)cu.c	8.1 (Berkeley) 6/6/93";
 #endif
-static char rcsid[] = "$OpenBSD: cu.c,v 1.10 2001/09/26 06:07:28 pvalchev Exp $";
+static const char rcsid[] = "$OpenBSD: cu.c,v 1.19 2006/05/25 08:41:52 jmc Exp $";
 #endif /* not lint */
 
 #include "tip.h"
 
-void	cleanup();
-void	cuusage();
+static void	cuusage(void);
 
 /*
  * Botch the interface to look like cu's
  */
 void
-cumain(argc, argv)
-	int argc;
-	char *argv[];
+cumain(int argc, char *argv[])
 {
-	int ch, i;
+	int ch, i, parity;
 	long l;
 	char *cp;
 	static char sbuf[12];
@@ -63,8 +56,9 @@ cumain(argc, argv)
 		cuusage();
 	CU = DV = NOSTR;
 	BR = DEFBR;
+	parity = 0;	/* none */
 	while ((ch = getopt(argc, argv, "a:l:s:htoe0123456789")) != -1) {
-		switch(ch) {
+		switch (ch) {
 		case 'a':
 			CU = optarg;
 			break;
@@ -82,8 +76,7 @@ cumain(argc, argv)
 			break;
 		case 's':
 			l = strtol(optarg, &cp, 10);
-			if (*cp != '\0' || l < 0 || l >= INT_MAX ||
-			    speed((int)l) == 0) {
+			if (*cp != '\0' || l < 0 || l >= INT_MAX) {
 				fprintf(stderr, "%s: unsupported speed %s\n",
 				    __progname, optarg);
 				exit(3);
@@ -98,10 +91,16 @@ cumain(argc, argv)
 			HW = 1, DU = -1;
 			break;
 		case 'o':
-			setparity("odd");
+			if (parity != 0)
+				parity = 0;	/* -e -o */
+			else
+				parity = 1;	/* odd */
 			break;
 		case 'e':
-			setparity("even");
+			if (parity != 0)
+				parity = 0;	/* -o -e */
+			else
+				parity = -1;	/* even */
 			break;
 		case '0': case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':
@@ -133,6 +132,7 @@ cumain(argc, argv)
 	signal(SIGQUIT, cleanup);
 	signal(SIGHUP, cleanup);
 	signal(SIGTERM, cleanup);
+	signal(SIGCHLD, SIG_DFL);
 
 	/*
 	 * The "cu" host name is used to define the
@@ -152,24 +152,44 @@ cumain(argc, argv)
 	loginit();
 	user_uid();
 	vinit();
-	setparity("none");
+	switch (parity) {
+	case -1:
+		setparity("even");
+		break;
+	case 1:
+		setparity("odd");
+		break;
+	default:
+		setparity("none");
+		break;
+	}
 	setboolean(value(VERBOSE), FALSE);
-	if (HW)
-		ttysetup(speed(BR));
-	if (connect()) {
+	if (HW && ttysetup(BR)) {
+		fprintf(stderr, "%s: unsupported speed %ld\n",
+		    __progname, BR);
+		daemon_uid();
+		(void)uu_unlock(uucplock);
+		exit(3);
+	}
+	if (con()) {
 		printf("Connect failed\n");
 		daemon_uid();
 		(void)uu_unlock(uucplock);
 		exit(1);
 	}
-	if (!HW)
-		ttysetup(speed(BR));
+	if (!HW && ttysetup(BR)) {
+		fprintf(stderr, "%s: unsupported speed %ld\n",
+		    __progname, BR);
+		daemon_uid();
+		(void)uu_unlock(uucplock);
+		exit(3);
+	}
 }
 
-void
-cuusage()
+static void
+cuusage(void)
 {
-	fprintf(stderr, "usage: cu [-ehot] [-a acu] [-l line] [-s speed] [-#] "
-	    "[phone-number]\n");
+	fprintf(stderr, "usage: cu [-ehot] [-a acu] [-l line] "
+	    "[-s speed | -speed] [phone-number]\n");
 	exit(8);
 }

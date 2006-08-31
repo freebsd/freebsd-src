@@ -1,4 +1,4 @@
-/*	$OpenBSD: ventel.c,v 1.7 2001/11/19 19:02:16 mpech Exp $	*/
+/*	$OpenBSD: ventel.c,v 1.12 2006/03/17 19:17:13 moritz Exp $	*/
 /*	$NetBSD: ventel.c,v 1.6 1997/02/11 09:24:21 mrg Exp $	*/
 
 /*
@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,7 +34,7 @@
 #if 0
 static char sccsid[] = "@(#)ventel.c	8.1 (Berkeley) 6/6/93";
 #endif
-static char rcsid[] = "$OpenBSD: ventel.c,v 1.7 2001/11/19 19:02:16 mpech Exp $";
+static const char rcsid[] = "$OpenBSD: ventel.c,v 1.12 2006/03/17 19:17:13 moritz Exp $";
 #endif /* not lint */
 
 /*
@@ -51,12 +47,13 @@ static char rcsid[] = "$OpenBSD: ventel.c,v 1.7 2001/11/19 19:02:16 mpech Exp $"
 
 #define	MAXRETRY	5
 
-static	void sigALRM();
-static	int timeout = 0;
+static	int dialtimeout = 0;
 static	jmp_buf timeoutbuf;
 
-static	int gobble(), vensync();
-static	void echo();
+static void	echo(char *);
+static void	sigALRM(int);
+static int	gobble(char, char *);
+static int	vensync(int);
 
 /*
  * some sleep calls have been replaced by this macro
@@ -69,9 +66,7 @@ static	void echo();
 #define busyloop(n) do { DELAY(n); } while (0)
 
 int
-ven_dialer(num, acu)
-	char *num;
-	char *acu;
+ven_dialer(char *num, char *acu)
 {
 	char *cp;
 	int connected = 0;
@@ -106,21 +101,21 @@ ven_dialer(num, acu)
 		connected = gobble('!', line);
 	tcflush(FD, TCIOFLUSH);
 #ifdef ACULOG
-	if (timeout) {
-		(void)sprintf(line, "%ld second dial timeout",
+	if (dialtimeout) {
+		(void)snprintf(line, sizeof line, "%ld second dial timeout",
 			number(value(DIALTIMEOUT)));
 		logent(value(HOST), num, "ventel", line);
 	}
 #endif
-	if (timeout)
+	if (dialtimeout)
 		ven_disconnect();	/* insurance */
-	if (connected || timeout || !boolean(value(VERBOSE)))
+	if (connected || dialtimeout || !boolean(value(VERBOSE)))
 		return (connected);
 	/* call failed, parse response for user */
 	cp = strchr(line, '\r');
 	if (cp)
 		*cp = '\0';
-	for (cp = line; cp = strchr(cp, ' '); cp++)
+	for (cp = line; (cp = strchr(cp, ' ')) != NULL; cp++)
 		if (cp[1] == ' ')
 			break;
 	if (cp) {
@@ -138,63 +133,59 @@ ven_dialer(num, acu)
 }
 
 void
-ven_disconnect()
+ven_disconnect(void)
 {
-
 	close(FD);
 }
 
 void
-ven_abort()
+ven_abort(void)
 {
-
 	write(FD, "\03", 1);
 	close(FD);
 }
 
 static void
-echo(s)
-	char *s;
+echo(char *s)
 {
 	char c;
 
-	while (c = *s++) switch (c) {
+	while ((c = *s++) != NULL)
+		switch (c) {
+		case '$':
+			read(FD, &c, 1);
+			s++;
+			break;
 
-	case '$':
-		read(FD, &c, 1);
-		s++;
-		break;
+		case '#':
+			c = *s++;
+			write(FD, &c, 1);
+			break;
 
-	case '#':
-		c = *s++;
-		write(FD, &c, 1);
-		break;
-
-	default:
-		write(FD, &c, 1);
-		read(FD, &c, 1);
-	}
+		default:
+			write(FD, &c, 1);
+			read(FD, &c, 1);
+		}
 }
 
+/*ARGSUSED*/
 static void
-sigALRM()
+sigALRM(int signo)
 {
 	printf("\07timeout waiting for reply\n");
-	timeout = 1;
+	dialtimeout = 1;
 	longjmp(timeoutbuf, 1);
 }
 
 static int
-gobble(match, response)
-	char match;
-	char response[];
+gobble(char match, char response[])
 {
 	char *cp = response;
 	sig_t f;
 	char c;
 
 	f = signal(SIGALRM, sigALRM);
-	timeout = 0;
+	dialtimeout = 0;
 	do {
 		if (setjmp(timeoutbuf)) {
 			signal(SIGALRM, f);
@@ -222,7 +213,7 @@ gobble(match, response)
  * there are gory ways to simulate this.
  */
 static int
-vensync(fd)
+vensync(int fd)
 {
 	int already = 0, nread;
 	char buf[60];
@@ -263,4 +254,3 @@ vensync(fd)
 	}
 	return (0);
 }
-

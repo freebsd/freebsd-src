@@ -1,4 +1,4 @@
-/*	$OpenBSD: v3451.c,v 1.6 2001/10/24 18:38:58 millert Exp $	*/
+/*	$OpenBSD: v3451.c,v 1.9 2006/03/17 19:17:13 moritz Exp $	*/
 /*	$NetBSD: v3451.c,v 1.6 1997/02/11 09:24:20 mrg Exp $	*/
 
 /*
@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,7 +34,7 @@
 #if 0
 static char sccsid[] = "@(#)v3451.c	8.1 (Berkeley) 6/6/93";
 #endif
-static char rcsid[] = "$OpenBSD: v3451.c,v 1.6 2001/10/24 18:38:58 millert Exp $";
+static const char rcsid[] = "$OpenBSD: v3451.c,v 1.9 2006/03/17 19:17:13 moritz Exp $";
 #endif /* not lint */
 
 /*
@@ -48,13 +44,14 @@ static char rcsid[] = "$OpenBSD: v3451.c,v 1.6 2001/10/24 18:38:58 millert Exp $
 
 static	jmp_buf Sjbuf;
 
-static	int expect(), notin(), prefix();
-static	void vawrite(), alarmtr();
+static void	vawrite(char *, int);
+static int	expect(char *);
+static void	alarmtr(int);
+static int	notin(char *, char *);
+static int	prefix(char *, char *);
 
 int
-v3451_dialer(num, acu)
-	char *num;
-	char *acu;
+v3451_dialer(char *num, char *acu)
 {
 	sig_t func;
 	int ok;
@@ -128,32 +125,26 @@ v3451_dialer(num, acu)
 }
 
 void
-v3451_disconnect()
+v3451_disconnect(void)
 {
-
 	close(FD);
 }
 
 void
-v3451_abort()
+v3451_abort(void)
 {
-
 	close(FD);
 }
 
 static void
-vawrite(cp, delay)
-	char *cp;
-	int delay;
+vawrite(char *cp, int delay)
 {
-
 	for (; *cp; sleep(delay), cp++)
 		write(FD, cp, 1);
 }
 
 static int
-expect(cp)
-	char *cp;
+expect(char *cp)
 {
 	char buf[300];
 	char *rp = buf;
@@ -190,17 +181,16 @@ expect(cp)
 	return (1);
 }
 
+/*ARGSUSED*/
 static void
-alarmtr()
+alarmtr(int signo)
 {
 	longjmp(Sjbuf, 1);
 }
 
 static int
-notin(sh, lg)
-	char *sh, *lg;
+notin(char *sh, char *lg)
 {
-
 	for (; *lg; lg++)
 		if (prefix(sh, lg))
 			return (0);
@@ -208,8 +198,7 @@ notin(sh, lg)
 }
 
 static int
-prefix(s1, s2)
-	char *s1, *s2;
+prefix(char *s1, char *s2)
 {
 	char c;
 

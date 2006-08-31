@@ -1,4 +1,4 @@
-/*	$OpenBSD: log.c,v 1.5 2001/09/09 19:30:49 millert Exp $	*/
+/*	$OpenBSD: log.c,v 1.8 2006/03/16 19:32:46 deraadt Exp $	*/
 /*	$NetBSD: log.c,v 1.4 1994/12/24 17:56:28 cgd Exp $	*/
 
 /*
@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,7 +34,7 @@
 #if 0
 static char sccsid[] = "@(#)log.c	8.1 (Berkeley) 6/6/93";
 #endif
-static char rcsid[] = "$OpenBSD: log.c,v 1.5 2001/09/09 19:30:49 millert Exp $";
+static const char rcsid[] = "$OpenBSD: log.c,v 1.8 2006/03/16 19:32:46 deraadt Exp $";
 #endif /* not lint */
 
 #include "tip.h"
@@ -50,8 +46,7 @@ static	FILE *flog = NULL;
  * Log file maintenance routines
  */
 void
-logent(group, num, acu, message)
-	char *group, *num, *acu, *message;
+logent(char *group, char *num, char *acu, char *message)
 {
 	char *user, *timestamp;
 	struct passwd *pwd;
@@ -85,7 +80,7 @@ logent(group, num, acu, message)
 }
 
 void
-loginit()
+loginit(void)
 {
 	flog = fopen(value(LOG), "a");
 	if (flog == NULL)
