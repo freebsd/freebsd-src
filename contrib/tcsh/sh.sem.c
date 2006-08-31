@@ -863,7 +863,7 @@ doio(t, pipein, pipeout)
 		stderror(ERR_SYSTEM, tmp, strerror(errno));
 	    /* allow input files larger than 2Gb  */
 #ifndef WINNT_NATIVE
-	    (void) fcntl(fd, O_LARGEFILE, 0);
+	    (void) fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_LARGEFILE);
 #endif /*!WINNT_NATIVE*/
 	    (void) dmove(fd, 0);
 	}
@@ -923,7 +923,7 @@ doio(t, pipein, pipeout)
 		stderror(ERR_SYSTEM, tmp, strerror(errno));
 	    /* allow input files larger than 2Gb  */
 #ifndef WINNT_NATIVE
-	    (void) fcntl(fd, O_LARGEFILE, 0);
+	    (void) fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_LARGEFILE);
 #endif /*!WINNT_NATIVE*/
 	}
 	(void) dmove(fd, 1);
