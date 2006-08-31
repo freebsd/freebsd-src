@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.9 2001/09/23 06:15:30 pvalchev Exp $
+#	$OpenBSD: Makefile,v 1.11 2006/05/25 08:41:52 jmc Exp $
 # $FreeBSD$
 #
 # Files are:
@@ -33,10 +33,9 @@
 
 PROG=	tip
 LINKS=	${BINDIR}/tip ${BINDIR}/cu
-MLINKS=	tip.1 cu.1
-CFLAGS+=-I${.CURDIR} \
-	-DDEFBR=9600 -DDEFFS=BUFSIZ -DACULOG -DPRISTINE -DCONNECT \
-	-DV831 -DVENTEL -DHAYES -DCOURIER -DT3000
+MAN=	tip.1 cu.1
+CFLAGS+=-I${.CURDIR} -DDEFBR=9600 -DDEFFS=BUFSIZ -DACULOG -DPRISTINE \
+	-DCONNECT -DV831 -DVENTEL -DHAYES -DCOURIER -DT3000
 WARNS?=	0
 .PATH:	${.CURDIR}/../libacu
 SRCS=	acu.c acutab.c cmds.c cmdtab.c cu.c hunt.c log.c partab.c \
