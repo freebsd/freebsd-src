@@ -1,4 +1,4 @@
-/*	$NetBSD: extern.h,v 1.50 2004-08-09 12:56:47 lukem Exp $	*/
+/*	$NetBSD: extern.h,v 1.55 2006/02/01 14:20:12 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -32,7 +32,7 @@
  */
 
 /*-
- * Copyright (c) 1997-2004 The NetBSD Foundation, Inc.
+ * Copyright (c) 1997-2005 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -174,22 +174,27 @@ void	statfilecmd(const char *);
 void	statxfer(void);
 void	store(const char *, const char *, int);
 void	user(const char *);
-char   *xstrdup(const char *);
+char   *ftpd_strdup(const char *);
 void	yyerror(char *);
 
 #ifdef SUPPORT_UTMP
 struct utmp;
 
+void	ftpd_initwtmp(void);
 void	ftpd_logwtmp(const char *, const char *, const char *);
-void	ftpd_login(const struct utmp *ut);
-int	ftpd_logout(const char *line);
+void	ftpd_login(const struct utmp *);
+int	ftpd_logout(const char *);
 #endif
 
 #ifdef SUPPORT_UTMPX
 struct utmpx;
+struct sockinet;
 
+void	ftpd_initwtmpx(void);
+void	ftpd_logwtmpx(const char *, const char *, const char *, 
+    struct sockinet *, int, int);
 void	ftpd_loginx(const struct utmpx *);
-void	ftpd_logwtmpx(const char *, const char *, const char *, int, int);
+int	ftpd_logoutx(const char *, int, int);
 #endif
 
 #include <netinet/in.h>
@@ -251,12 +256,15 @@ typedef enum {
 typedef enum {
 	FLAG_checkportcmd =	1<<0,	/* Check port commands */
 	FLAG_denyquick =	1<<1,	/* Check ftpusers(5) before PASS */
-	FLAG_modify =		1<<2,	/* Allow CHMOD, DELE, MKD, RMD, RNFR,
+	FLAG_hidesymlinks =	1<<2,	/* For symbolic links, list the file
+					   or directory the link references
+					   rather than the link itself */
+	FLAG_modify =		1<<3,	/* Allow CHMOD, DELE, MKD, RMD, RNFR,
 					   UMASK */
-	FLAG_passive =		1<<3,	/* Allow PASV mode */
-	FLAG_private =		1<<4,	/* Don't publish class info in STAT */
-	FLAG_sanenames =	1<<5,	/* Restrict names of uploaded files */ 
-	FLAG_upload =		1<<6,	/* As per modify, but also allow
+	FLAG_passive =		1<<4,	/* Allow PASV mode */
+	FLAG_private =		1<<5,	/* Don't publish class info in STAT */
+	FLAG_sanenames =	1<<6,	/* Restrict names of uploaded files */ 
+	FLAG_upload =		1<<7,	/* As per modify, but also allow
 					   APPE, STOR, STOU */
 } classflag_t;
 
@@ -290,6 +298,7 @@ struct ftpclass {
 	LLT		 mmapsize;	/* mmap window size */
 	LLT		 readsize;	/* data read size */
 	LLT		 writesize;	/* data write size */
+	LLT		 recvbufsize;	/* SO_RCVBUF size */
 	LLT		 sendbufsize;	/* SO_SNDBUF size */
 	LLT		 sendlowat;	/* SO_SNDLOWAT size */
 };
@@ -309,7 +318,7 @@ GLOBAL	struct sockinet	his_addr;
 GLOBAL	struct sockinet	pasv_addr;
 GLOBAL	int		connections;
 GLOBAL	struct ftpclass	curclass;
-GLOBAL	int		debug;
+GLOBAL	int		ftpd_debug;
 GLOBAL	char		*emailaddr;
 GLOBAL	int		form;
 GLOBAL	int		gidcount;	/* number of entries in gidlist[] */

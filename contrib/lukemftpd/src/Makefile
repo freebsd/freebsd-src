@@ -1,11 +1,11 @@
-#	$NetBSD: Makefile,v 1.51 2003-07-23 08:01:27 itojun Exp $
+#	$NetBSD: Makefile,v 1.56 2006/03/23 20:14:16 wiz Exp $
 #	@(#)Makefile	8.2 (Berkeley) 4/4/94
 
 .include <bsd.own.mk>
 
 PROG=	ftpd
 SRCS=	cmds.c conf.c ftpd.c ftpcmd.y logutmp.c logwtmp.c popen.c
-CPPFLAGS+=-I${.CURDIR} -DSUPPORT_UTMP -DSUPPORT_UTMPX
+CPPFLAGS+=-I${.CURDIR} -DSUPPORT_UTMP -DSUPPORT_UTMPX -DLOGIN_CAP
 DPADD+=	${LIBCRYPT} ${LIBUTIL}
 LDADD+=	-lcrypt -lutil
 MAN=	ftpd.conf.5 ftpusers.5 ftpd.8
@@ -15,8 +15,9 @@ MLINKS=	ftpusers.5 ftpchroot.5
 SRCS+=	ls.c cmp.c print.c stat_flags.c util.c
 .PATH:	${NETBSDSRCDIR}/bin/ls
 
+.if (${USE_INET6} != "no")
 CPPFLAGS+=-DINET6
-.include <bsd.own.mk>
+.endif
 
 WARNS=2
 
@@ -24,6 +25,11 @@ WARNS=2
 CPPFLAGS+=-DSKEY
 DPADD+= ${LIBSKEY}
 LDADD+= -lskey
+.endif
+.if (${USE_PAM} != "no")
+CPPFLAGS+=-DUSE_PAM
+DPADD+= ${LIBPAM} ${PAM_STATIC_DPADD}
+LDADD+= -lpam ${PAM_STATIC_LDADD}
 .endif
 
 ftpd.o ftpcmd.o: version.h
@@ -38,13 +44,8 @@ ftpd.o ftpcmd.o: version.h
 #DPADD+=	${LIBKRB5} ${LIBASN1}
 #LDADD+= -lkrb5 -lasn1
 #
-#SRCS+= klogin.c
-#CPPFLAGS+=-DKERBEROS -I${DESTDIR}/usr/include/kerberosIV
-#DPADD+=	${LIBKRB}
-#LDADD+= -lkrb
-#
-#DPADD+=	${LIBCRYPTO} ${LIBROKEN} ${LIBCOM_ERR}
-#LDADD+=	-lcrypto -lroken -lcom_err
+#DPADD+=	${LIBCRYPTO} ${{LIBCRYPT} ${LIBROKEN} ${LIBCOM_ERR}
+#LDADD+=	-lcrypto -lcrypt -lroken -lcom_err
 #
 #.endif
 
