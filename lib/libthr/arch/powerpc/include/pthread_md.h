@@ -37,6 +37,7 @@
 #include <sys/types.h>
 
 #define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
+#define	TLS_TP_OFFSET		0x7000
 
 /*
  * Variant I tcb. The structure layout is fixed, don't blindly
@@ -50,7 +51,7 @@ struct tcb {
 
 register uint8_t *_tp __asm("%r2");
 
-#define _tcb  ((struct tcb *)(_tp - sizeof(struct tcb)))
+#define _tcb  ((struct tcb *)(_tp - TLS_TP_OFFSET - sizeof(struct tcb)))
 
 struct tcb	*_tcb_ctor(struct pthread *, int);
 void		_tcb_dtor(struct tcb *);
@@ -58,7 +59,10 @@ void		_tcb_dtor(struct tcb *);
 static __inline void
 _tcb_set(struct tcb *tcb)
 {
-	_tp = (uint8_t *)tcb + sizeof(struct tcb);
+	uint8_t *tp;
+
+	tp = (uint8_t *)tcb + TLS_TP_OFFSET + sizeof(struct tcb);
+	__asm __volatile("mr %0,%1" : "=r"(_tp) : "r"(tp));
 }
 
 static __inline struct tcb *
