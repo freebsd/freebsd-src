@@ -28,8 +28,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)tip.1	8.4 (Berkeley) 4/18/94
+.\" $FreeBSD$
 .\"
-.Dd September 9, 2001
+.Dd September 1, 2006
 .Dt CU 1
 .Os
 .Sh NAME
@@ -40,17 +41,19 @@
 .Op Fl ehot
 .Op Fl a Ar acu
 .Op Fl l Ar line
-.Op Fl s Ar speed \*(Ba Fl speed
+.Op Fl s Ar speed | Fl Ar speed
 .Op Ar phone-number
 .Sh DESCRIPTION
+The
 .Nm
+utility
 establishes a full-duplex connection to another machine, giving the
 appearance of being logged in directly on the remote CPU.
 It goes without saying that you must have a login on the machine (or
 equivalent) to which you wish to connect.
 .Pp
 The options are as follows:
-.Bl -tag -width 4n
+.Bl -tag -width indent
 .It Fl a Ar acu
 Set the acu.
 .It Fl e
@@ -66,9 +69,9 @@ Echo characters locally (half-duplex mode).
 .It Fl l Ar line
 Specify the line to use.
 Either of the forms like
-.Pa tty00
+.Pa cuad0
 or
-.Pa /dev/tty00
+.Pa /dev/cuad0
 are permitted.
 .It Fl o
 Use odd parity.
@@ -78,7 +81,7 @@ and
 .Fl o
 are given, then no parity is used
 (the default).
-.It Fl s Ar speed \*(Ba Fl speed
+.It Fl s Ar speed | Fl Ar speed
 Set the speed of the connection.
 The default is 9600.
 .It Fl t
@@ -91,7 +94,7 @@ A tilde
 .Pq Ql ~
 appearing as the first character of a line is an escape signal; the
 following are recognized:
-.Bl -tag -offset indent -width Fl
+.Bl -tag -width indent
 .It Ic ~^D No or Ic ~.
 Drop the connection and exit.
 Only the connection is dropped \(en the login session is not terminated.
@@ -102,13 +105,17 @@ Change directory to
 .It Ic ~!
 Escape to a shell (exiting the shell will return to
 .Nm ) .
-.It Ic ~\*(Gt
+.It Ic ~>
 Copy file from local to remote.
+The
 .Nm
+utility
 prompts for the name of a local file to transmit.
-.It Ic ~\*(Lt
+.It Ic ~<
 Copy file from remote to local.
+The
 .Nm
+utility
 prompts first for the name of the file to be sent, then for a command
 to be executed on the remote machine.
 .It Ic ~p Ar from Op Ar to
@@ -119,21 +126,20 @@ This command causes the remote
 .Ux
 system to run the following command string,
 sending it the
-.Sq from
+.Ar from
 file:
-.Bd -literal -offset indent
-stty -echo; cat \*(Gt 'to'; stty echo
-.Ed
+.Pp
+.Dl "stty -echo; cat > 'to'; stty echo"
 .Pp
 If the
-.Sq to
-file isn't specified, the
-.Sq from
+.Ar to
+file is not specified, the
+.Ar from
 file name is used.
 This command is actually a
 .Ux
 specific version of the
-.Ic ~\*(Gt
+.Ic ~>
 command.
 .It Ic ~t Ar from Op Ar to
 Take a file from a remote
@@ -142,16 +148,15 @@ host.
 As in the
 .Ic ~p
 command, the
-.Sq to
+.Ar to
 file defaults to the
-.Sq from
-file name if it isn't specified.
+.Ar from
+file name if it is not specified.
 The remote host executes the following command string
 to send the file to
 .Nm :
-.Bd -literal -offset indent
-cat 'from'; echo '' | tr '\e012' '\e01'
-.Ed
+.Pp
+.Dl "cat 'from'; echo '' | tr '\e012' '\e01'"
 .It Ic ~|
 Pipe the output from a remote command to a local
 .Ux
@@ -168,22 +173,24 @@ The command string sent to the local
 system is processed by the shell.
 .It Ic ~C
 Fork a child process on the local system to perform special protocols
-such as \s-1XMODEM\s+1.
+such as
+.Tn XMODEM .
 The child program will be run with the following arrangement of
 file descriptors:
 .Bd -literal -offset indent
-0 \*(Lt-\*(Gt remote tty in
-1 \*(Lt-\*(Gt remote tty out
-2 \*(Lt-\*(Gt local tty stderr
+0 <-> remote tty in
+1 <-> remote tty out
+2 <-> local tty stderr
 .Ed
 .It Ic ~#
 Send a
 .Dv BREAK
 to the remote system.
-For systems which don't support the necessary
+For systems which do not support the necessary
 .Fn ioctl
 call, the break is simulated by a sequence of line speed changes and
-DEL characters.
+.Dv DEL
+characters.
 .It Ic ~s
 Set a variable (see the discussion below).
 .It Ic ~v
@@ -194,11 +201,11 @@ Stop
 (only available with job control).
 .It Ic ~^Y
 Stop only the
-.Dq local side
+.Dq "local side"
 of
 .Nm
 (only available with job control); the
-.Dq remote side
+.Dq "remote side"
 of
 .Nm ,
 the side that displays output from the remote host, is left running.
@@ -208,34 +215,36 @@ Get a summary of the tilde escapes.
 .Pp
 When
 .Nm
-prompts for an argument, for example during setup of a file transfer,
-the line typed may be edited with the standard erase and kill characters.
+prompts for an argument, for example during setup of a file transfer, the
+line typed may be edited with the standard erase and kill characters.
 A null line in response to a prompt, or an interrupt, will abort the
 dialogue and return the user to the remote machine.
 .Pp
+The
 .Nm
+utility
 guards against multiple users connecting to a remote system by opening
 modems and terminal lines with exclusive access, and by honoring the
 locking protocol used by
-.Xr uucico .
+.Xr uucico 8 Pq Pa ports/net/freebsd-uucp .
 .Pp
 During file transfers
 .Nm
 provides a running count of the number of lines transferred.
 When using the
-.Ic ~\*(Gt
+.Ic ~>
 and
-.Ic ~\*(Lt
+.Ic ~<
 commands, the
-.Dq eofread
+.Va eofread
 and
-.Dq eofwrite
+.Va eofwrite
 variables are used to recognize end-of-file when reading, and specify
 end-of-file when writing (see below).
 File transfers normally depend on hardwareflow or tandem mode for flow control.
 If the remote system does not support hardwareflow or tandem mode,
-.Dq echocheck
-may be set to indicate
+.Va echocheck
+may be set to indicate that
 .Nm
 should synchronize with the remote system on the echo of each
 transmitted character.
@@ -244,12 +253,14 @@ When
 .Nm
 must dial a phone number to connect to a system, it will print various
 messages indicating its actions.
+The
 .Nm
+utility
 supports a variety of auto-call units and modems with the
-.Ar at
+.Va at
 capability in system descriptions.
 .Pp
-Support for Ventel 212+	(ventel), Hayes AT-style (hayes),
+Support for Ventel 212+ (ventel), Hayes AT-style (hayes),
 USRobotics Courier (courier), Telebit T3000 (t3000) and
 Racal-Vadic 831 (vadic) units is enabled by default.
 .Pp
@@ -260,22 +271,24 @@ Racal-Vadic 3451 (v3451) units can be added by recompiling
 with the appropriate defines.
 .Pp
 Note that if support for both the Racal-Vadic 831 and 3451 is enabled,
-they are referred to as the v831 and v3451 respectively.
+they are referred to as the v831 and v3451, respectively.
 If only one of the two is supported, it is referred to as vadic.
-.Ss VARIABLES
+.Ss Variables
+The
 .Nm
+utility
 maintains a set of variables which control its operation.
 Some of these variables are read-only to normal users (root is allowed
 to change anything of interest).
 Variables may be displayed and set through the
-.Sq s
+.Ic ~s
 escape.
 The syntax for variables is patterned after
 .Xr vi 1
 and
 .Xr Mail 1 .
 Supplying
-.Dq all
+.Dq Li all
 as an argument to the set command displays all variables readable by
 the user.
 Alternatively, the user may request display of a particular variable
@@ -283,13 +296,13 @@ by attaching a
 .Ql \&?
 to the end.
 For example,
-.Dq escape?
+.Dq Li escape?
 displays the current escape character.
 .Pp
 Variables are numeric, string, character, or boolean values.
 Boolean variables are set merely by specifying their name; they may be
 reset by prepending a
-.Ql !\&
+.Ql \&!
 to the name.
 Other variable types are set by concatenating an
 .Ql =
@@ -300,163 +313,186 @@ number of variables.
 Certain common variables have abbreviations.
 The following is a list of common variables, their abbreviations, and
 their default values:
-.Bl -tag -width Ar
-.It Ar baudrate
-(num) The baud rate at which the connection was established;
+.Bl -tag -width indent
+.It Va baudrate
+.Pq Vt num
+The baud rate at which the connection was established;
 abbreviated
-.Ar ba .
-.It Ar beautify
-(bool) Discard unprintable characters when a session is being
+.Va ba .
+.It Va beautify
+.Pq Vt bool
+Discard unprintable characters when a session is being
 scripted; abbreviated
-.Ar be .
-.It Ar dialtimeout
-(num) When dialing a phone number, the time (in seconds) to wait for a
+.Va be .
+.It Va dialtimeout
+.Pq Vt num
+When dialing a phone number, the time (in seconds) to wait for a
 connection to be established; abbreviated
-.Ar dial .
-.It Ar echocheck
-(bool) Synchronize with the remote host during file transfer by
+.Va dial .
+.It Va echocheck
+.Pq Vt bool
+Synchronize with the remote host during file transfer by
 waiting for the echo of the last character transmitted; default is
-.Ar off .
-.It Ar eofread
-(str) The set of characters which signify an end-of-transmission
+.Cm off .
+.It Va eofread
+.Pq Vt str
+The set of characters which signify an end-of-transmission
 during a
-.Ic ~\*(Lt
+.Ic ~<
 file transfer command; abbreviated
-.Ar eofr .
-.It Ar eofwrite
-(str) The string sent to indicate end-of-transmission during a
-.Ic ~\*(Gt
+.Va eofr .
+.It Va eofwrite
+.Pq Vt str
+The string sent to indicate end-of-transmission during a
+.Ic ~>
 file transfer command; abbreviated
-.Ar eofw .
-.It Ar eol
-(str) The set of characters which indicate an end-of-line.
+.Va eofw .
+.It Va eol
+.Pq Vt str
+The set of characters which indicate an end-of-line.
+The
 .Nm
+utility
 will recognize escape characters only after an end-of-line.
-.It Ar escape
-(char) The command prefix (escape) character; abbreviated
-.Ar es ;
+.It Va escape
+.Pq Vt char
+The command prefix (escape) character; abbreviated
+.Va es ;
 default value is
 .Ql ~ .
-.It Ar exceptions
-(str) The set of characters which should not be discarded due to the
+.It Va exceptions
+.Pq Vt str
+The set of characters which should not be discarded due to the
 beautification switch; abbreviated
-.Ar ex ;
+.Va ex ;
 default value is
-.Dq \et\en\ef\eb .
-.It Ar force
-(char) The character used to force literal data transmission;
+.Dq Li \et\en\ef\eb .
+.It Va force
+.Pq Vt char
+The character used to force literal data transmission;
 abbreviated
-.Ar fo ;
+.Va fo ;
 default value is
 .Ql ^P .
-.It Ar framesize
-(num) The amount of data (in bytes) to buffer between filesystem
+.It Va framesize
+.Pq Vt num
+The amount of data (in bytes) to buffer between file system
 writes when receiving files; abbreviated
-.Ar fr .
-.It Ar hardwareflow
-(bool) Whether hardware flow control (CRTSCTS) is enabled for the
+.Va fr .
+.It Va hardwareflow
+.Pq Vt bool
+Whether hardware flow control (CRTSCTS) is enabled for the
 connection; abbreviated
-.Ar hf ;
+.Va hf ;
 default value is
-.Ql off .
-.It Ar host
-(str) The name of the host to which you are connected; abbreviated
-.Ar ho .
-.It Ar linedisc
-(num) The line discipline to use; abbreviated
-.Ar ld .
-.It Ar prompt
-(char) The character which indicates an end-of-line on the remote
+.Cm off .
+.It Va host
+.Pq Vt str
+The name of the host to which you are connected; abbreviated
+.Va ho .
+.It Va linedisc
+.Pq Vt num
+The line discipline to use; abbreviated
+.Va ld .
+.It Va prompt
+.Pq Vt char
+The character which indicates an end-of-line on the remote
 host; abbreviated
-.Ar pr ;
+.Va pr ;
 default value is
 .Ql \en .
 This value is used to synchronize during data transfers.
 The count of lines transferred during a file transfer command is based
 on receipt of this character.
-.It Ar raise
-(bool) Upper case mapping mode; abbreviated
-.Ar ra ;
+.It Va raise
+.Pq Vt bool
+Upper case mapping mode; abbreviated
+.Va ra ;
 default value is
-.Ar off .
+.Cm off .
 When this mode is enabled, all lowercase letters will be mapped to
 uppercase by
 .Nm
 for transmission to the remote machine.
-.It Ar raisechar
-(char) The input character used to toggle uppercase mapping mode;
+.It Va raisechar
+.Pq Vt char
+The input character used to toggle uppercase mapping mode;
 abbreviated
-.Ar rc ;
-default value is
-.Ql ^A .
-.It Ar record
-(str) The name of the file in which a session script is recorded;
+.Va rc ;
+not set by default.
+.It Va record
+.Pq Vt str
+The name of the file in which a session script is recorded;
 abbreviated
-.Ar rec .
-.It Ar script
-(bool) Session scripting mode; abbreviated
-.Ar sc ;
+.Va rec .
+.It Va script
+.Pq Vt bool
+Session scripting mode; abbreviated
+.Va sc ;
 default is
-.Ar off .
+.Cm off .
 When
-.Ar script
+.Va script
 is
-.Li true ,
+.Cm true ,
 .Nm
 will record everything transmitted by the remote machine in the script
 record file specified in
-.Ar record .
+.Va record .
 If the
-.Ar beautify
+.Va beautify
 switch is on, only printable
 .Tn ASCII
 characters will be included in the script file (those characters
 between 040 and 0177).
 The variable
-.Ar exceptions
+.Va exceptions
 is used to indicate characters which are an exception to the normal
 beautification rules.
-.It Ar tabexpand
-(bool) Expand tabs to spaces during file transfers; abbreviated
-.Ar tab ;
+.It Va tabexpand
+.Pq Vt bool
+Expand tabs to spaces during file transfers; abbreviated
+.Va tab ;
 default value is
-.Ar false .
+.Cm false .
 Each tab is expanded to 8 spaces.
-.It Ar tandem
-(bool) Use XON/XOFF flow control to throttle data from the remote host;
+.It Va tandem
+.Pq Vt bool
+Use XON/XOFF flow control to throttle data from the remote host;
 abbreviated
-.Ar ta .
+.Va ta .
 The default value is
-.Ar true .
-.It Ar verbose
-(bool) Verbose mode; abbreviated
-.Ar verb ;
+.Cm true .
+.It Va verbose
+.Pq Vt bool
+Verbose mode; abbreviated
+.Va verb ;
 default is
-.Ar true .
+.Cm true .
 When verbose mode is enabled,
 .Nm
 prints messages while dialing, shows the current number of lines
 transferred during a file transfer operations, and more.
 .El
 .Sh ENVIRONMENT
-.Bl -tag -width Fl
+.Bl -tag -width indent
 .It Ev HOME
 The home directory to use for the
 .Ic ~c
 command.
 .It Ev SHELL
 The name of the shell to use for the
-.Ic ~!\&
+.Ic ~!
 command; default value is
-.Dq /bin/sh .
+.Dq Li /bin/sh .
 .El
 .Sh FILES
-.Bl -tag -width "/var/spool/lock/LCK..*" -compact
+.Bl -tag -width ".Pa /var/spool/lock/LCK..*" -compact
 .It Pa /var/log/aculog
 line access log
 .It Pa /var/spool/lock/LCK..*
 lock file to avoid conflicts with
-.Xr uucp
+.Xr uucp 1 Pq Pa ports/net/freebsd-uucp
 .El
 .Sh SEE ALSO
 .Xr tip 1
