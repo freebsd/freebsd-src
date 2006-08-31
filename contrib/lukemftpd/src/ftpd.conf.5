@@ -1,6 +1,7 @@
-.\"	$NetBSD: ftpd.conf.5,v 1.28 2003-06-27 18:59:54 wiz Exp $
+.\"	$NetBSD: ftpd.conf.5,v 1.32 2005/09/11 23:31:46 wiz Exp $
+.\"	$FreeBSD$
 .\"
-.\" Copyright (c) 1997-2001 The NetBSD Foundation, Inc.
+.\" Copyright (c) 1997-2001, 2005 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
 .\" This code is derived from software contributed to The NetBSD Foundation
@@ -34,7 +35,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 30, 2002
+.Dd August 24, 2005
 .Dt FTPD.CONF 5
 .Os
 .Sh NAME
@@ -121,7 +122,6 @@ directive is set for the class.
 .Pp
 Each configuration line may be one of:
 .Bl -tag -width 4n
-.It Sy advertise Ar class Op Ar host
 .It Sy advertize Ar class Op Ar host
 Set the address to advertise in the response to the
 .Sy PASV
@@ -304,6 +304,26 @@ Escape sequences are supported; refer to
 in
 .Xr ftpd 8
 for more information.
+.It Sy hidesymlinks Ar class Op Sy off
+If
+.Ar class
+is
+.Dq none
+or
+.Sy off
+is specified, disable this feature.
+Otherwise, the
+.Sy LIST
+command lists symbolic links as the file or directory the link
+references
+.Pq Dq Li "ls -LlA" .
+Servers which run an anonymous service may wish to enable this
+feature for
+.Sy GUEST
+users, so that symbolic links do not leak names in
+directories that are not searchable by
+.Sy GUEST
+users.
 .It Sy homedir Ar class Op Sy pathformat
 If
 .Ar pathformat
@@ -551,6 +571,19 @@ The default is the file system block size.
 An optional suffix may be provided as per
 .Sy rateget .
 This option affects only binary transfers.
+If
+.Ar class
+is
+.Dq none
+or
+.Ar size
+is not specified, use the default.
+.It Sy recvbufsize Ar class Op Ar size
+Set the size of the socket receive buffer.
+An optional suffix may be provided as per
+.Sy rateget .
+The default is zero and the system default value will be used.
+This option affects only passive transfers.
 If
 .Ar class
 is
