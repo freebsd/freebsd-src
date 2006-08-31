@@ -160,7 +160,13 @@
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para></para>
+      <para>Multiple copies of a packet received via different
+        &man.bpf.4; listeners now all have identical
+        timestamps.</para>
+
+      <para>The sysctl variables <varname>net.inet.ip.portrange.reservedhigh</varname>
+	and <varname>net.inet.ip.portrange.reservedlow</varname>
+	can be used with IPv6 now.</para>
     </sect3>
 
     <sect3 id="disks">
@@ -198,6 +204,10 @@
 
   <sect2 id="contrib">
     <title>Contributed Software</title>
+
+    <para><application>netcat</application> has been updated from the
+      version in a 4 February 2005 OpenBSD snapshot to the version
+      included in OpenBSD 3.9.</para>
 
     <para><application>sendmail</application> has been updated from
       8.13.6 to 8.13.8.</para>
