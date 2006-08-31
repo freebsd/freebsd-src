@@ -176,7 +176,7 @@ struct vaconfig {
 } vaconfig[] = {
 	{ "/dev/cua0",'4','0' },
 	{ "/dev/cua1",'4','1' },
-	{ 0 }
+	{ NULL, '\0', '\0' }
 };
 
 #define pc(x)	(c = x, write(AC,&c,1))

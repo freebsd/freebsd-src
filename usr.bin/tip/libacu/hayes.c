@@ -177,7 +177,8 @@ gobble(char *match)
 {
 	char c;
 	sig_t f;
-	int i, status = 0;
+	size_t i;
+	int status = 0;
 
 	f = signal(SIGALRM, sigALRM);
 	dialtimeout = 0;
