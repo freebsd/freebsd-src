@@ -215,6 +215,13 @@
 	    <entry>14&nbsp;June&nbsp;2006</entry>
 	    <entry><para>Incorrect multipart message handling in Sendmail</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:18.ppp.asc"
+		>SA-06:18.ppp</ulink></entry>
+	    <entry>23&nbsp;August&nbsp;2006</entry>
+	    <entry><para>Buffer overflow in &man.sppp.4;</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
