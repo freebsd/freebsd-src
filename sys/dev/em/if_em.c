@@ -2118,7 +2118,7 @@ em_free_intr(struct adapter *adapter)
 {
 	device_t dev = adapter->dev;
 
-	if (adapter->res_interrupt != NULL) {
+	if (adapter->int_handler_tag != NULL) {
 		bus_teardown_intr(dev, adapter->res_interrupt, adapter->int_handler_tag);
 		adapter->int_handler_tag = NULL;
 	}
