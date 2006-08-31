@@ -124,10 +124,10 @@ SUBDIR=	${_3dfx} \
 	ip_mroute_mod \
 	${_ipmi} \
 	${_ips} \
-	ipw \
+	${_ipw} \
 	isp \
 	ispfw \
-	iwi \
+	${_iwi} \
 	${_ixgb} \
 	joy \
 	kbdmux \
@@ -412,6 +412,8 @@ _idt=		idt
 _iir=		iir
 _ipmi=		ipmi
 _ips=		ips
+_ipw=		ipw
+_iwi=		iwi
 _ixgb=  	ixgb
 _mly=		mly
 _nve=		nve
@@ -467,6 +469,8 @@ _iir=		iir
 _io=		io
 _ipmi=		ipmi
 _ips=		ips
+_ipw=		ipw
+_iwi=		iwi
 _ixgb=  	ixgb
 #_lnc=		lnc
 _mly=		mly
