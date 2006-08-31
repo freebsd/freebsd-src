@@ -1,4 +1,4 @@
-/*	$NetBSD: pathnames.h,v 1.11 2003-08-07 09:46:40 agc Exp $	*/
+/*	$NetBSD: pathnames.h,v 1.12 2004/12/11 18:37:26 christos Exp $	*/
 
 /*
  * Copyright (c) 1989, 1993
@@ -37,11 +37,11 @@
 #define	_DEFAULT_CONFDIR	"/etc"
 #endif
 
-#define	_PATH_FTPCHROOT		"ftpchroot"
-#define	_PATH_FTPDCONF		"ftpd.conf"
-#define	_PATH_FTPLOGINMESG	"motd"
-#define	_PATH_FTPUSERS		"ftpusers"
-#define	_PATH_FTPWELCOME	"ftpwelcome"
+#define	_NAME_FTPCHROOT		"ftpchroot"
+#define	_NAME_FTPDCONF		"ftpd.conf"
+#define	_NAME_FTPLOGINMESG	"motd"
+#define	_NAME_FTPUSERS		"ftpusers"
+#define	_NAME_FTPWELCOME	"ftpwelcome"
 
 #define _PATH_CLASSPIDS		"/var/run/ftpd.pids-"
 
