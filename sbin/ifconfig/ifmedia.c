@@ -146,6 +146,7 @@ media_status(int s)
 		printf("\tstatus: ");
 		switch (IFM_TYPE(ifmr.ifm_active)) {
 		case IFM_ETHER:
+		case IFM_ATM:
 			if (ifmr.ifm_status & IFM_ACTIVE)
 				printf("active");
 			else
@@ -158,13 +159,6 @@ media_status(int s)
 				printf("inserted");
 			else
 				printf("no ring");
-			break;
-
-		case IFM_ATM:
-			if (ifmr.ifm_status & IFM_ACTIVE)
-				printf("active");
-			else
-				printf("no carrier");
 			break;
 
 		case IFM_IEEE80211:
@@ -692,14 +686,11 @@ print_media_word(int ifmw, int print_toptype)
 
 	/* Find subtype. */
 	desc = get_subtype_desc(ifmw, ttos);
-	if (desc != NULL)
-		goto got_subtype;
+	if (desc == NULL) {
+		printf("<unknown subtype>");
+		return;
+	}
 
-	/* Falling to here means unknown subtype. */
-	printf("<unknown subtype>");
-	return;
-
- got_subtype:
 	if (print_toptype)
 		putchar(' ');
 
@@ -750,14 +741,11 @@ print_media_word_ifconfig(int ifmw)
 
 	/* Find subtype. */
 	desc = get_subtype_desc(ifmw, ttos);
-	if (desc != NULL)
-		goto got_subtype;
+	if (desc == NULL) {
+		printf("<unknown subtype>");
+		return;
+	}
 
-	/* Falling to here means unknown subtype. */
-	printf("<unknown subtype>");
-	return;
-
- got_subtype:
 	printf("media %s", desc->ifmt_string);
 
 	desc = get_mode_desc(ifmw, ttos);
