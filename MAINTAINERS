@@ -118,6 +118,7 @@ pkg_install	krion	Pre-commit review or approval from portmgr@ requested.
 linux emul	emulation	Please discuss changes here.
 bs{diff,patch}	cperciva	Pre-commit review requested.
 portsnap	cperciva	Pre-commit review requested.
+freebsd-update	cperciva	Pre-commit review requested.
 sys/netgraph/bluetooth	emax	Pre-commit review preferred.
 lib/libbluetooth	emax	Pre-commit review preferred.
 lib/libsdp		emax	Pre-commit review preferred.

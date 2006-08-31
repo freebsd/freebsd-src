@@ -55,6 +55,7 @@ SUBDIR=	ac \
 	fdread \
 	fdwrite \
 	flowctl \
+	freebsd-update \
 	fwcontrol \
 	getfmac \
 	getpmac \
