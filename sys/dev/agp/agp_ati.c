@@ -89,6 +89,8 @@ agp_ati_match(device_t dev)
 		return ("ATI RS100 AGP bridge");
 	case 0xcab21002:
 		return ("ATI RS200 AGP bridge");
+	case 0xcbb21002:
+		return ("ATI RS200M AGP bridge");
 	case 0xcab31002:
 		return ("ATI RS250 AGP bridge");
 	case 0x58301002:
@@ -181,7 +183,8 @@ agp_ati_attach(device_t dev)
 
 	switch (pci_get_devid(dev)) {
 	case 0xcab01002: /* ATI RS100 AGP bridge */
-	case 0xcab21002: /*ATI RS200 AGP bridge  */
+	case 0xcab21002: /* ATI RS200 AGP bridge */
+	case 0xcbb21002: /* ATI RS200M AGP bridge */
 	case 0xcab31002: /* ATI RS250 AGP bridge */
 		sc->is_rs300 = 0;
 		apsize_reg = ATI_RS100_APSIZE;
