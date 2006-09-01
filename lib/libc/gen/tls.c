@@ -147,10 +147,10 @@ __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign __unused)
 		dtv[2] = (Elf_Addr)tls + TLS_TCB_SIZE;
 
 		if (tls_init_size > 0)
-		    memcpy((void*)dtv[2], tls_init, tls_init_size);
+			memcpy((void*)dtv[2], tls_init, tls_init_size);
 		if (tls_static_space > tls_init_size)
-		    memset((void*)(dtv[2] + tls_init_size), 0,
-		      tls_static_space - tls_init_size);
+			memset((void*)(dtv[2] + tls_init_size), 0,
+			    tls_static_space - tls_init_size);
 	}
 
 	return(tcb); 
