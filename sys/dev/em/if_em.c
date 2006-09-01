@@ -1973,8 +1973,8 @@ em_identify_hardware(struct adapter *adapter)
 
 	/* Make sure our PCI config space has the necessary stuff set */
 	adapter->hw.pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
-	if ((adapter->hw.pci_cmd_word & PCIM_CMD_BUSMASTEREN) == 0 &&
-	    (adapter->hw.pci_cmd_word & PCIM_CMD_MEMEN)) {
+	if (!((adapter->hw.pci_cmd_word & PCIM_CMD_BUSMASTEREN) &&
+	    (adapter->hw.pci_cmd_word & PCIM_CMD_MEMEN))) {
 		device_printf(dev, "Memory Access and/or Bus Master bits "
 		    "were not set!\n");
 		adapter->hw.pci_cmd_word |=
