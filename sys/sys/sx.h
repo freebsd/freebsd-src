@@ -57,7 +57,7 @@ void	_sx_sunlock(struct sx *sx, const char *file, int line);
 void	_sx_xunlock(struct sx *sx, const char *file, int line);
 int	_sx_try_upgrade(struct sx *sx, const char *file, int line);
 void	_sx_downgrade(struct sx *sx, const char *file, int line);
-#ifdef INVARIANT_SUPPORT
+#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 void	_sx_assert(struct sx *sx, int what, const char *file, int line);
 #endif
 #ifdef DDB
