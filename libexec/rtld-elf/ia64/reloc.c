@@ -603,7 +603,7 @@ allocate_initial_tls(Obj_Entry *list)
      */
     tls_static_space = tls_last_offset + tls_last_size + RTLD_STATIC_TLS_EXTRA;
 
-    tpval = allocate_tls(list, 0, TLS_TCB_SIZE, 16);
+    tpval = allocate_tls(list, NULL, TLS_TCB_SIZE, 16);
     __asm __volatile("mov r13 = %0" :: "r"(tpval));
 }
 
