@@ -76,7 +76,7 @@ static void ieee802_1x_send(hostapd *hapd, struct sta_info *sta, u8 type,
 #endif
 
 	xhdr = (struct ieee802_1x_hdr *) buf;
-	xhdr->version = EAPOL_VERSION;
+	xhdr->version = hapd->conf->eapol_version;
 	xhdr->type = type;
 	xhdr->length = htons(datalen);
 
@@ -324,7 +324,7 @@ static void ieee802_1x_tx_key_one(hostapd *hapd, struct sta_info *sta,
 
 	/* This header is needed here for HMAC-MD5, but it will be regenerated
 	 * in ieee802_1x_send() */
-	hdr->version = EAPOL_VERSION;
+	hdr->version = hapd->conf->eapol_version;
 	hdr->type = IEEE802_1X_TYPE_EAPOL_KEY;
 	hdr->length = htons(len);
 	hmac_md5(sm->eapol_key_sign, sm->eapol_key_sign_len,
@@ -1665,7 +1665,7 @@ int ieee802_1x_get_mib_sta(struct hostapd_data *hapd, struct sta_info *sta,
 			"dot1xPaePortInitialize=%d\n"
 			"dot1xPaePortReauthenticate=FALSE\n",
 			sta->aid,
-			EAPOL_VERSION,
+			hapd->conf->eapol_version,
 			sm->initialize);
 
 	/* dot1xAuthConfigTable */
