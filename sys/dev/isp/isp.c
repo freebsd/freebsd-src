@@ -665,9 +665,9 @@ again:
 
 			nxtaddr = ptr[3];
 			ptr = &ptr[nxtaddr];
-			offset = ptr[5] | (((uint32_t)(ptr[4] & 0xff)) << 16);
+			offset = ptr[5] | (((uint32_t)(ptr[4] & 0x3f)) << 16);
 			isp->isp_mbxworkp = &ptr[1];
-			isp->isp_mbxwrk0 = ptr[3] + 1;
+			isp->isp_mbxwrk0 = ptr[3] - 1;
 			isp->isp_mbxwrk1 = offset + 1;
 			isp->isp_mbxwrk8 = (offset + 1) >> 16;
 			MEMZERO(&mbs, sizeof (mbs));
@@ -684,7 +684,7 @@ again:
 
 			nxtaddr = ptr[3];
 			ptr = &ptr[nxtaddr];
-			offset = ptr[5] | (((uint32_t)(ptr[4] & 0xff)) << 16);
+			offset = ptr[5] | (((uint32_t)(ptr[4] & 0x3f)) << 16);
 			isp->isp_mbxworkp = &ptr[1];
 			isp->isp_mbxwrk0 = ptr[3] - 1;
 			isp->isp_mbxwrk1 = (offset + 1);
