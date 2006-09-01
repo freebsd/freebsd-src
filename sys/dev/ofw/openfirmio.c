@@ -184,9 +184,9 @@ openfirm_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 	case OFIOCSET:
 		/*
 		 * Note: Text string values for at least the /options node
-		 * have to be null-terminated and the length paramter must
+		 * have to be null-terminated and the length parameter must
 		 * include this terminating null. However, like OF_getprop(),
-		 * OF_setprop() will return the the actual length of the text
+		 * OF_setprop() will return the actual length of the text
 		 * string, i.e. omitting the terminating null.
 		 */
 		if ((flags & FWRITE) == 0)
