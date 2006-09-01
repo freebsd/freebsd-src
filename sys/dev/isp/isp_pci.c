@@ -337,7 +337,6 @@ DRIVER_MODULE(isp, pci, isp_pci_driver, isp_devclass, 0, 0);
 MODULE_DEPEND(isp, ispfw, 1, 1, 1);
 MODULE_DEPEND(isp, firmware, 1, 1, 1);
 #else
-typedef void ispfwfunc(int, int, int, uint16_t **);
 extern ispfwfunc *isp_get_firmware_p;
 #endif
 
