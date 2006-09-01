@@ -42,7 +42,7 @@ _tcb_ctor(struct pthread *thread, int initial)
 {
 	struct tcb *tcb;
 
-	tcb = _rtld_allocate_tls((initial) ? _tp - TP_OFFSET : NULL,
+	tcb = _rtld_allocate_tls((initial) ? ppc_get_tp() : NULL,
 	    sizeof(struct tcb), 8);
 	if (tcb == NULL)
 		return (NULL);
