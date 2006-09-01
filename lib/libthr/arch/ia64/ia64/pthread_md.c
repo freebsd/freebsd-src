@@ -40,7 +40,7 @@ _tcb_ctor(struct pthread *thread, int initial)
 {
 	struct tcb *tcb;
 
-	tcb = _rtld_allocate_tls((initial) ? _tp : NULL,
+	tcb = _rtld_allocate_tls((initial) ? _tcb_get() : NULL,
 	    sizeof(struct tcb), 16);
 	if (tcb)
 		tcb->tcb_thread = thread;
