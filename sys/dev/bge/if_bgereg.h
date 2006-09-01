@@ -1768,10 +1768,11 @@
 	} while(0)
 
 /*
- * This magic number is used to prevent PXE restart when we
- * issue a software reset. We write this magic number to the
- * firmware mailbox at 0xB50 in order to prevent the PXE boot
- * code from running.
+ * This magic number is written to the firmware mailbox at 0xb50
+ * before a software reset is issued.  After the internal firmware
+ * has completed its initialization it will write the opposite of 
+ * this value, ~BGE_MAGIC_NUMBER, to the same location, allowing the
+ * driver to synchronize with the firmware.
  */
 #define BGE_MAGIC_NUMBER                0x4B657654
 

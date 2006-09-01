@@ -2326,6 +2326,12 @@ bge_reset(struct bge_softc *sc)
 		}
 	}
 
+	/*
+	 * Write the magic number to the firmware mailbox at 0xb50
+         * so that the driver can synchronize with the firmware.
+	 */
+	bge_writemem_ind(sc, BGE_SOFTWARE_GENCOMM, BGE_MAGIC_NUMBER);
+
 	/* Issue global reset */
 	bge_writereg_ind(sc, BGE_MISC_CFG, reset);
 
@@ -2361,11 +2367,6 @@ bge_reset(struct bge_softc *sc)
 	} else
 		CSR_WRITE_4(sc, BGE_MARB_MODE, BGE_MARBMODE_ENABLE);
 
-	/*
-	 * Prevent PXE restart: write a magic number to the
-	 * general communications memory at 0xB50.
-	 */
-	bge_writemem_ind(sc, BGE_SOFTWARE_GENCOMM, BGE_MAGIC_NUMBER);
 	/*
 	 * Poll the value location we just wrote until
 	 * we see the 1's complement of the magic number.
