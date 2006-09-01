@@ -1014,13 +1014,60 @@ au_to_me(void)
 }
 #endif
 
+#if defined(_KERNEL) || defined(KERNEL)
+static token_t *
+au_to_exec_strings(char *strs, int count, u_char type)
+{
+	token_t *t;
+	u_char *dptr = NULL;
+	u_int32_t totlen;
+	int ctr;
+	char *p;
+
+	totlen = 0;
+	ctr = count;
+	p = strs;
+	while (ctr-- > 0) {
+		totlen += strlen(p) + 1;
+		p = strs + totlen;
+	}
+	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(u_int32_t) + totlen);
+	ADD_U_CHAR(dptr, type);
+	ADD_U_INT32(dptr, count);
+	ADD_STRING(dptr, strs, totlen);
+
+	return (t);
+}
+
 /*
  * token ID				1 byte
  * count				4 bytes
  * text					count null-terminated strings
  */
 token_t *
-au_to_exec_args(const char **args)
+au_to_exec_args(char *args, int argc)
+{
+	return (au_to_exec_strings(args, argc, AUT_EXEC_ARGS));
+}
+
+/*
+ * token ID				1 byte
+ * count				4 bytes
+ * text					count null-terminated strings
+ */
+token_t *
+au_to_exec_env(char *envs, int envc)
+{
+	return (au_to_exec_strings(envs, envc, AUT_EXEC_ENV));
+}
+#else
+/*
+ * token ID				1 byte
+ * count				4 bytes
+ * text					count null-terminated strings
+ */
+token_t *
+au_to_exec_args(char **argv)
 {
 	token_t *t;
 	u_char *dptr = NULL;
@@ -1028,7 +1075,7 @@ au_to_exec_args(const char **args)
 	int i, count = 0;
 	size_t totlen = 0;
 
-	nextarg = *args;
+	nextarg = *argv;
 
 	while (nextarg != NULL) {
 		int nextlen;
@@ -1036,7 +1083,7 @@ au_to_exec_args(const char **args)
 		nextlen = strlen(nextarg);
 		totlen += nextlen + 1;
 		count++;
-		nextarg = *(args + count);
+		nextarg = *(argv + count);
 	}
 
 	totlen += count * sizeof(char);	/* nul terminations. */
@@ -1046,7 +1093,7 @@ au_to_exec_args(const char **args)
 	ADD_U_INT32(dptr, count);
 
 	for (i = 0; i < count; i++) {
-		nextarg = *(args + i);
+		nextarg = *(argv + i);
 		ADD_MEM(dptr, nextarg, strlen(nextarg) + 1);
 	}
 
@@ -1059,7 +1106,7 @@ au_to_exec_args(const char **args)
  * text					count null-terminated strings
  */
 token_t *
-au_to_exec_env(const char **env)
+au_to_exec_env(char **envp)
 {
 	token_t *t;
 	u_char *dptr = NULL;
@@ -1067,7 +1114,7 @@ au_to_exec_env(const char **env)
 	size_t totlen = 0;
 	const char *nextenv;
 
-	nextenv = *env;
+	nextenv = *envp;
 
 	while (nextenv != NULL) {
 		int nextlen;
@@ -1075,7 +1122,7 @@ au_to_exec_env(const char **env)
 		nextlen = strlen(nextenv);
 		totlen += nextlen + 1;
 		count++;
-		nextenv = *(env + count);
+		nextenv = *(envp + count);
 	}
 
 	totlen += sizeof(char) * count;
@@ -1085,12 +1132,13 @@ au_to_exec_env(const char **env)
 	ADD_U_INT32(dptr, count);
 
 	for (i = 0; i < count; i++) {
-		nextenv = *(env + i);
+		nextenv = *(envp + i);
 		ADD_MEM(dptr, nextenv, strlen(nextenv) + 1);
 	}
 
 	return (t);
 }
+#endif
 
 /*
  * token ID                1 byte

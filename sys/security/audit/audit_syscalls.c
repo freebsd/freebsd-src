@@ -190,16 +190,23 @@ auditon(struct thread *td, struct auditon_args *uap)
 			udata.au_policy |= AUDIT_CNT;
 		if (audit_panic_on_write_fail)
 			udata.au_policy |= AUDIT_AHLT;
+		if (audit_argv)
+			udata.au_policy |= AUDIT_ARGV;
+		if (audit_arge)
+			udata.au_policy |= AUDIT_ARGE;
 		break;
 
 	case A_SETPOLICY:
-		if (udata.au_policy & ~(AUDIT_CNT|AUDIT_AHLT))
+		if (udata.au_policy & ~(AUDIT_CNT|AUDIT_AHLT|AUDIT_ARGV|
+		    AUDIT_ARGE))
 			return (EINVAL);
 		/*
 		 * XXX - Need to wake up waiters if the policy relaxes?
 		 */
 		audit_fail_stop = ((udata.au_policy & AUDIT_CNT) == 0);
 		audit_panic_on_write_fail = (udata.au_policy & AUDIT_AHLT);
+		audit_argv = (udata.au_policy & AUDIT_ARGV);
+		audit_arge = (udata.au_policy & AUDIT_ARGE);
 		break;
 
 	case A_GETKMASK:
