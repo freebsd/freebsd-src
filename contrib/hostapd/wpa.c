@@ -1855,7 +1855,7 @@ static void wpa_send_eapol(struct hostapd_data *hapd, struct sta_info *sta,
 	if (hdr == NULL)
 		return;
 	memset(hdr, 0, len);
-	hdr->version = EAPOL_VERSION;
+	hdr->version = hapd->conf->eapol_version;
 	hdr->type = IEEE802_1X_TYPE_EAPOL_KEY;
 	hdr->length = htons(len  - sizeof(*hdr));
 	key = (struct wpa_eapol_key *) (hdr + 1);
