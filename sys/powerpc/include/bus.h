@@ -109,9 +109,15 @@ __ppc_ba(bus_space_tag_t tag __unused, bus_space_handle_t handle,
  *
  * Map a region of bus space.
  */
-#if 0
-bus_space_map(t, addr, size, flags, bshp) ! not implemented !
-#endif
+
+static __inline int
+bus_space_map(bus_space_tag_t t __unused, bus_addr_t addr,
+	      bus_size_t size __unused, int flags __unused,
+	      bus_space_handle_t *bshp)
+{
+
+	return (ENXIO);
+}
 
 /*
  *	int bus_space_unmap(bus_space_tag_t t,
