@@ -244,7 +244,7 @@ reloc_nonplt_object(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 
 		*(Elf_Addr **)where = *where * sizeof(Elf_Addr)
 		    + (Elf_Addr *)(def->st_value + rela->r_addend 
-		    + defobj->tlsoffset - TLS_TP_OFFSET - TLS_TCB_SIZE);
+		    + defobj->tlsoffset - TLS_TP_OFFSET);
 		
 		break;
 		
@@ -558,7 +558,7 @@ allocate_initial_tls(Obj_Entry *list)
 
 	tls_static_space = tls_last_offset + tls_last_size + RTLD_STATIC_TLS_EXTRA;
 
-	_tp = (Elf_Addr **) ((char *) allocate_tls(list, 0, 8, 8) 
+	_tp = (Elf_Addr **) ((char *) allocate_tls(list, NULL, TLS_TCB_SIZE, 8) 
 	    + TLS_TP_OFFSET + TLS_TCB_SIZE);
 
 	/*
