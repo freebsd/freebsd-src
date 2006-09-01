@@ -52,6 +52,9 @@ static timeout_t isp_watchdog;
 static void isp_kthread(void *);
 static void isp_action(struct cam_sim *, union ccb *);
 
+#if __FreeBSD_version < 700000
+ispfwfunc *isp_get_firmware_p = NULL;
+#endif
 
 #if __FreeBSD_version < 500000  
 #define ISP_CDEV_MAJOR	248
