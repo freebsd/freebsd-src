@@ -74,6 +74,8 @@ extern struct audit_fstat	audit_fstat;
 extern struct au_mask		audit_nae_mask;
 extern int			audit_panic_on_write_fail;
 extern int			audit_fail_stop;
+extern int			audit_argv;
+extern int			audit_arge;
 
 /*
  * Success/failure conditions for the conversion of a kernel audit record to
@@ -210,6 +212,10 @@ struct audit_record {
 	void *			ar_arg_svipc_addr;
 	struct posix_ipc_perm	ar_arg_pipc_perm;
 	union auditon_udata	ar_arg_auditon;
+	char			*ar_arg_argv;
+	int			ar_arg_argc;
+	char			*ar_arg_envv;
+	int			ar_arg_envc;
 	int			ar_arg_exitstatus;
 	int			ar_arg_exitretval;
 };

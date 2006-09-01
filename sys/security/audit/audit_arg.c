@@ -763,6 +763,48 @@ audit_arg_vnode(struct vnode *vp, u_int64_t flags)
 }
 
 /*
+ * Audit the argument strings passed to exec.
+ */
+void
+audit_arg_argv(char *argv, int argc, int length)
+{
+	struct kaudit_record *ar;
+
+	if (audit_argv == 0)
+		return;
+
+	ar = currecord();
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_argv = malloc(length, M_AUDITTEXT, M_WAITOK);
+	bcopy(argv, ar->k_ar.ar_arg_argv, length);
+	ar->k_ar.ar_arg_argc = argc;
+	ARG_SET_VALID(ar, ARG_ARGV);
+}
+
+/*
+ * Audit the environment strings passed to exec.
+ */
+void
+audit_arg_envv(char *envv, int envc, int length)
+{
+	struct kaudit_record *ar;
+
+	if (audit_arge == 0)
+		return;
+
+	ar = currecord();
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_envv = malloc(length, M_AUDITTEXT, M_WAITOK);
+	bcopy(envv, ar->k_ar.ar_arg_envv, length);
+	ar->k_ar.ar_arg_envc = envc;
+	ARG_SET_VALID(ar, ARG_ENVV);
+}
+
+/*
  * The close() system call uses it's own audit call to capture the path/vnode
  * information because those pieces are not easily obtained within the system
  * call itself.

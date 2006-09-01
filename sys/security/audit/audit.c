@@ -92,6 +92,8 @@ int			audit_suspended;
  */
 int			audit_panic_on_write_fail;
 int			audit_fail_stop;
+int			audit_argv;
+int			audit_arge;
 
 /*
  * Are we currently "failing stop" due to out of disk space?
@@ -204,6 +206,10 @@ audit_record_dtor(void *mem, int size, void *arg)
 		free(ar->k_ar.ar_arg_text, M_AUDITTEXT);
 	if (ar->k_udata != NULL)
 		free(ar->k_udata, M_AUDITDATA);
+	if (ar->k_ar.ar_arg_argv != NULL)
+		free(ar->k_ar.ar_arg_argv, M_AUDITTEXT);
+	if (ar->k_ar.ar_arg_envv != NULL)
+		free(ar->k_ar.ar_arg_envv, M_AUDITTEXT);
 }
 
 /*
@@ -221,6 +227,8 @@ audit_init(void)
 	audit_panic_on_write_fail = 0;
 	audit_fail_stop = 0;
 	audit_in_failure = 0;
+	audit_argv = 0;
+	audit_arge = 0;
 
 	audit_fstat.af_filesz = 0;	/* '0' means unset, unbounded */
 	audit_fstat.af_currsz = 0;

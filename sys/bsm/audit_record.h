@@ -319,8 +319,13 @@ token_t	*au_to_subject32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	    gid_t rgid, pid_t pid, au_asid_t sid, au_tid_addr_t *tid);
 token_t	*au_to_subject64_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	    gid_t rgid, pid_t pid, au_asid_t sid, au_tid_addr_t *tid);
-token_t	*au_to_exec_args(const char **);
-token_t	*au_to_exec_env(const char **);
+#if defined(_KERNEL) || defined(KERNEL)
+token_t	*au_to_exec_args(char *args, int argc);
+token_t	*au_to_exec_env(char *envs, int envc);
+#else
+token_t	*au_to_exec_args(char **argv);
+token_t	*au_to_exec_env(char **envp);
+#endif
 token_t	*au_to_text(char *text);
 token_t	*au_to_kevent(struct kevent *kev);
 token_t	*au_to_trailer(int rec_size);
