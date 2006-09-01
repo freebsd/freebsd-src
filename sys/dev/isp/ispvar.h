@@ -234,17 +234,19 @@ typedef struct {
 typedef struct {
 	uint32_t				: 13,
 				isp_gbspeed	: 3,
-						: 2,
+						: 1,
 				isp_iid_set	: 1,
 				loop_seen_once	: 1,
 				isp_loopstate	: 4,	/* Current Loop State */
-				isp_fwstate	: 3,	/* ISP F/W state */
+				isp_fwstate	: 4,	/* ISP F/W state */
 				isp_gotdparms	: 1,
 				isp_topo	: 3,
 				isp_onfabric	: 1;
 	uint32_t				: 8,
 				isp_portid	: 24;	/* S_ID */
 	uint16_t		isp_fwoptions;
+	uint16_t		isp_xfwoptions;
+	uint16_t		isp_zfwoptions;
 	uint16_t		isp_iid;	/* 'initiator' id */
 	uint16_t		isp_loopid;	/* hard loop id */
 	uint16_t		isp_fwattr;	/* firmware attributes */
@@ -380,8 +382,7 @@ struct ispsoftc {
 	 * Volatile state
 	 */
 
-	volatile uint32_t
-		isp_obits	:	8,	/* mailbox command output */
+	volatile uint32_t	:	8,
 		isp_mboxbsy	:	1,	/* mailbox command active */
 		isp_state	:	3,
 		isp_sendmarker	:	2,	/* send a marker entry */
@@ -393,11 +394,13 @@ struct ispsoftc {
 	volatile uint16_t	isp_resodx;	/* index of next result */
 	volatile uint16_t	isp_rspbsy;
 	volatile uint16_t	isp_lasthdls;	/* last handle seed */
+	volatile uint16_t	isp_obits;	/* mailbox command output */
 	volatile uint16_t	isp_mboxtmp[MAILBOX_STORAGE];
 	volatile uint16_t	isp_lastmbxcmd;	/* last mbox command sent */
 	volatile uint16_t	isp_mbxwrk0;
 	volatile uint16_t	isp_mbxwrk1;
 	volatile uint16_t	isp_mbxwrk2;
+	volatile uint16_t	isp_mbxwrk8;
 	void *			isp_mbxworkp;
 
 	/*
@@ -428,9 +431,10 @@ struct ispsoftc {
  * ISP Driver Run States
  */
 #define	ISP_NILSTATE	0
-#define	ISP_RESETSTATE	1
-#define	ISP_INITSTATE	2
-#define	ISP_RUNSTATE	3
+#define	ISP_CRASHED	1
+#define	ISP_RESETSTATE	2
+#define	ISP_INITSTATE	3
+#define	ISP_RUNSTATE	4
 
 /*
  * ISP Configuration Options
@@ -553,7 +557,8 @@ struct ispsoftc {
 #define	IS_FC(isp)	((isp)->isp_type & ISP_HA_FC)
 #define	IS_2100(isp)	((isp)->isp_type == ISP_HA_FC_2100)
 #define	IS_2200(isp)	((isp)->isp_type == ISP_HA_FC_2200)
-#define	IS_23XX(isp)	((isp)->isp_type >= ISP_HA_FC_2300)
+#define	IS_23XX(isp)	\
+    ((isp)->isp_type >= ISP_HA_FC_2300 && (isp)->isp_type < ISP_HA_FC_2400)
 #define	IS_2300(isp)	((isp)->isp_type == ISP_HA_FC_2300)
 #define	IS_2312(isp)	((isp)->isp_type == ISP_HA_FC_2312)
 #define	IS_2322(isp)	((isp)->isp_type == ISP_HA_FC_2322)

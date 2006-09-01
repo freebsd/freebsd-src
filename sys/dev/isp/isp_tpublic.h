@@ -279,7 +279,7 @@ typedef struct tmd_cmd {
         uint32_t        longs[QCDS / sizeof (uint32_t)];
         uint16_t        shorts[QCDS / sizeof (uint16_t)];
         uint8_t         bytes[QCDS];
-    } cd_lreserved[2], cd_hreserved[2];
+    } cd_lreserved[3], cd_hreserved[3];
 } tmd_cmd_t;
 
 /* defined tags */

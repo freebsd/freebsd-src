@@ -148,6 +148,7 @@ typedef struct {
 /*
  * Values for the in_task_flags field- should only get one at a time!
  */
+#define	TASK_FLAGS_RESERVED_MASK	(0xe700)
 #define	TASK_FLAGS_CLEAR_ACA		(1<<14)
 #define	TASK_FLAGS_TARGET_RESET		(1<<13)
 #define	TASK_FLAGS_LUN_RESET		(1<<12)
@@ -205,9 +206,9 @@ typedef struct {
 typedef struct {
 	isphdr_t	na_header;
 	uint32_t	na_reserved;
-	uint8_t		na_lun;		/* lun */
-	uint8_t		na_iid;		/* initiator */
-	uint16_t	na_scclun;
+	uint8_t		na_reserved1;
+	uint8_t		na_iid;		/* initiator loop id */
+	uint16_t	na_response;
 	uint16_t	na_flags;
 	uint16_t	na_reserved2;
 	uint16_t	na_status;
@@ -219,8 +220,8 @@ typedef struct {
 typedef struct {
 	isphdr_t	na_header;
 	uint32_t	na_reserved;
-	uint16_t	na_iid;		/* initiator */
-	uint16_t	na_scclun;
+	uint16_t	na_iid;		/* initiator loop id */
+	uint16_t	na_response;	/* response code */
 	uint16_t	na_flags;
 	uint16_t	na_reserved2;
 	uint16_t	na_status;
@@ -231,6 +232,8 @@ typedef struct {
 
 #define	NAFC_RCOUNT	0x80	/* increment resource count */
 #define NAFC_RST_CLRD	0x20	/* Clear LIP Reset */
+#define	NAFC_TVALID	0x10	/* task mangement response code is valid */
+
 /*
  * Accept Target I/O Entry structure
  */

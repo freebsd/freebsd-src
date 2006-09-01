@@ -1,7 +1,4 @@
 /*-
- * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
- * FreeBSD Version.
- *
  * Copyright (c) 1997-2006 by Matthew Jacob
  * All rights reserved.
  *
@@ -26,12 +23,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/*
+ * SBus specific probe and attach routines for Qlogic ISP SCSI adapters.
+ * FreeBSD Version.
+ */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#if __FreeBSD_version >= 700000
+#include <sys/linker.h>
+#include <sys/firmware.h>
+#endif
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -92,7 +97,6 @@ struct isp_sbussoftc {
 	struct resource *		sbus_ires;
 };
 
-extern ispfwfunc *isp_get_firmware_p;
 
 static device_method_t isp_sbus_methods[] = {
 	/* Device interface */
@@ -107,6 +111,11 @@ static driver_t isp_sbus_driver = {
 };
 static devclass_t isp_devclass;
 DRIVER_MODULE(isp, sbus, isp_sbus_driver, isp_devclass, 0, 0);
+#if __FreeBSD_version >= 700000
+MODULE_DEPEND(isp, firmware, 1, 1, 1);
+#else
+extern ispfwfunc *isp_get_firmware_p;
+#endif
 
 static int
 isp_sbus_probe(device_t dev)
@@ -249,13 +258,24 @@ isp_sbus_attach(device_t dev)
 	isp->isp_confopts |= ISP_CFG_NONVRAM;
 
 
+#if __FreeBSD_version >= 700000
+	isp->isp_osinfo.fw = firmware_get("isp_1000");
+	if (isp->isp_osinfo.fw) {
+		union {
+			const void *cp;
+			uint16_t *sp;
+		} stupid;
+		stupid.cp = isp->isp_osinfo.fw->data;
+		isp->isp_mdvec->dv_ispfw = stupid.sp;
+	}
+#else
 	/*
 	 * Try and find firmware for this device.
 	 */
-
 	if (isp_get_firmware_p) {
 		(*isp_get_firmware_p)(0, 0, 0x1000, &sbs->sbus_mdvec.dv_ispfw);
 	}
+#endif
 
 	iqd = 0;
 	sbs->sbus_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &iqd,

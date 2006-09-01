@@ -1,7 +1,4 @@
 /*-
- * Machine and OS Independent (well, as best as possible)
- * code for the Qlogic ISP SCSI adapters.
- *
  * Copyright (c) 1997-2006 by Matthew Jacob
  * All rights reserved.
  *
@@ -28,14 +25,14 @@
  */
 
 /*
+ * Machine and OS Independent (well, as best as possible)
+ * code for the Qlogic ISP SCSI adapters.
+ */
+/*
  * Inspiration and ideas about this driver are from Erik Moe's Linux driver
  * (qlogicisp.c) and Dave Miller's SBus version of same (qlogicisp.c). Some
  * ideas dredged from the Solaris driver.
  */
-#ifdef	__FreeBSD__
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-#endif
 
 /*
  * Include header file appropriate for platform we're building on.
@@ -44,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ic/isp_netbsd.h>
 #endif
 #ifdef	__FreeBSD__
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 #include <dev/isp/isp_freebsd.h>
 #endif
 #ifdef	__OpenBSD__
@@ -100,7 +99,7 @@ static const char topology[] =
 static const char swrej[] =
     "Fabric Nameserver rejected %s (Reason=0x%x Expl=0x%x) for Port ID 0x%x";
 static const char finmsg[] =
-    "(%d.%d.%d): FIN dl%d resid %d STS 0x%x SKEY %c XS_ERR=0x%x";
+    "%d.%d.%d: FIN dl%d resid %d STS 0x%x SKEY %c XS_ERR=0x%x";
 static const char sc0[] =
     "%s CHAN %d FTHRSH %d IID %d RESETD %d RETRYC %d RETRYD %d ASD 0x%x";
 static const char sc1[] =
@@ -129,7 +128,7 @@ static int isp_getmap(ispsoftc_t *, fcpos_map_t *);
 static int isp_getpdb(ispsoftc_t *, int, isp_pdb_t *);
 static uint64_t isp_get_portname(ispsoftc_t *, int, int);
 static int isp_fclink_test(ispsoftc_t *, int);
-static char *isp2100_fw_statename(int);
+static const char *isp2100_fw_statename(int);
 static int isp_pdb_sync(ispsoftc_t *);
 static int isp_scan_loop(ispsoftc_t *);
 static int isp_fabric_mbox_cmd(ispsoftc_t *, mbreg_t *);
@@ -161,12 +160,11 @@ void
 isp_reset(ispsoftc_t *isp)
 {
 	mbreg_t mbs;
-	uint16_t code_org;
+	uint32_t code_org;
 	int loops, i, dodnld = 1;
 	char *btype = "????";
 
 	isp->isp_state = ISP_NILSTATE;
-	MEMZERO(&mbs, sizeof (mbs));
 
 	/*
 	 * Basic types (SCSI, FibreChannel and PCI or SBus)
@@ -205,6 +203,7 @@ isp_reset(ispsoftc_t *isp)
 			 * Just in case it was paused...
 			 */
 			ISP_WRITE(isp, HCCR, HCCR_CMD_RELEASE);
+			MEMZERO(&mbs, sizeof (mbs));
 			mbs.param[0] = MBOX_ABOUT_FIRMWARE;
 			isp_mboxcmd(isp, &mbs, MBLOGNONE);
 			if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
@@ -227,6 +226,10 @@ isp_reset(ispsoftc_t *isp)
 		isp->isp_rqstoutrp = BIU_REQOUTP;
 		isp->isp_respinrp = BIU_RSPINP;
 		isp->isp_respoutrp = BIU_RSPOUTP;
+		ISP_WRITE(isp, isp->isp_rqstinrp, 0);
+        	ISP_WRITE(isp, isp->isp_rqstoutrp, 0);
+        	ISP_WRITE(isp, isp->isp_respinrp, 0);
+		ISP_WRITE(isp, isp->isp_respoutrp, 0);
 	} else {
 		isp->isp_rqstinrp = INMAILBOX4;
 		isp->isp_rqstoutrp = OUTMAILBOX4;
@@ -537,22 +540,7 @@ again:
 			ISP_SETBITS(isp, CDMA_CONF, DMA_ENABLE_BURST);
 			ISP_SETBITS(isp, DDMA_CONF, DMA_ENABLE_BURST);
 		}
-#ifdef	PTI_CARDS
-		if (((sdparam *) isp->isp_param)->isp_ultramode) {
-			while (ISP_READ(isp, RISC_MTR) != 0x1313) {
-				ISP_WRITE(isp, RISC_MTR, 0x1313);
-				ISP_WRITE(isp, HCCR, HCCR_CMD_STEP);
-			}
-		} else {
-			ISP_WRITE(isp, RISC_MTR, 0x1212);
-		}
-		/*
-		 * PTI specific register
-		 */
-		ISP_WRITE(isp, RISC_EMB, DUAL_BANK)
-#else
 		ISP_WRITE(isp, RISC_MTR, 0x1212);
-#endif
 	} else {
 		ISP_WRITE(isp, RISC_MTR2100, 0x1212);
 		if (IS_2200(isp) || IS_23XX(isp)) {
@@ -596,6 +584,7 @@ again:
 	/*
 	 * Do some sanity checking.
 	 */
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_NO_OP;
 	isp_mboxcmd(isp, &mbs, MBLOGALL);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
@@ -603,6 +592,7 @@ again:
 	}
 
 	if (IS_SCSI(isp)) {
+		MEMZERO(&mbs, sizeof (mbs));
 		mbs.param[0] = MBOX_MAILBOX_REG_TEST;
 		mbs.param[1] = 0xdead;
 		mbs.param[2] = 0xbeef;
@@ -639,18 +629,21 @@ again:
 		dodnld = 0;
 	}
 
-	if (IS_23XX(isp))
+	if (IS_23XX(isp)) {
 		code_org = ISP_CODE_ORG_2300;
-	else
+	} else {
 		code_org = ISP_CODE_ORG;
-
+	}
 	if (dodnld) {
-		isp->isp_mbxworkp = (void *) &isp->isp_mdvec->dv_ispfw[1];
-		isp->isp_mbxwrk0 = isp->isp_mdvec->dv_ispfw[3] - 1;
+		uint16_t *ptr = isp->isp_mdvec->dv_ispfw;
+
+		isp->isp_mbxworkp = &ptr[1];
+		isp->isp_mbxwrk0 = ptr[3] - 1;
 		isp->isp_mbxwrk1 = code_org + 1;
+		MEMZERO(&mbs, sizeof (mbs));
 		mbs.param[0] = MBOX_WRITE_RAM_WORD;
 		mbs.param[1] = code_org;
-		mbs.param[2] = isp->isp_mdvec->dv_ispfw[0];
+		mbs.param[2] = ptr[0];
 		isp_mboxcmd(isp, &mbs, MBLOGNONE);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			isp_prt(isp, ISP_LOGERR,
@@ -659,15 +652,68 @@ again:
 			dodnld = 0;
 			goto again;
 		}
+
 		/*
-		 * Verify that it downloaded correctly.
+		 * If we're a 2322, the firmware actually comes in three chunks.
+		 * We loaded the first at the code_org address. The other two
+		 * chunks, which follow right after each other in memory here,
+		 * get loaded at addresses specfied at offset 0x9..0xB.
 		 */
-		mbs.param[0] = MBOX_VERIFY_CHECKSUM;
-		mbs.param[1] = code_org;
-		isp_mboxcmd(isp, &mbs, MBLOGNONE);
-		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			isp_prt(isp, ISP_LOGERR, "Ram Checksum Failure");
-			return;
+		if (IS_2322(isp)) {
+			uint32_t nxtaddr;
+			uint32_t offset;
+
+			nxtaddr = ptr[3];
+			ptr = &ptr[nxtaddr];
+			offset = ptr[5] | (((uint32_t)(ptr[4] & 0x3f)) << 16);
+			isp->isp_mbxworkp = &ptr[1];
+			isp->isp_mbxwrk0 = ptr[3] - 1;
+			isp->isp_mbxwrk1 = offset + 1;
+			isp->isp_mbxwrk8 = (offset + 1) >> 16;
+			MEMZERO(&mbs, sizeof (mbs));
+			mbs.param[0] = MBOX_WRITE_RAM_WORD_EXTENDED;
+			mbs.param[1] = offset;
+			mbs.param[2] = ptr[0];
+			mbs.param[8] = offset >> 16;
+			isp_mboxcmd(isp, &mbs, MBLOGNONE);
+			if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+				isp_prt(isp, ISP_LOGERR,
+				    "Receive Sequencer F/W Load Failed");
+				return;
+			}
+
+			nxtaddr = ptr[3];
+			ptr = &ptr[nxtaddr];
+			offset = ptr[5] | (((uint32_t)(ptr[4] & 0x3f)) << 16);
+			isp->isp_mbxworkp = &ptr[1];
+			isp->isp_mbxwrk0 = ptr[3] - 1;
+			isp->isp_mbxwrk1 = (offset + 1);
+			isp->isp_mbxwrk8 = (offset + 1) >> 16;
+			MEMZERO(&mbs, sizeof (mbs));
+			mbs.param[0] = MBOX_WRITE_RAM_WORD_EXTENDED;
+			mbs.param[1] = offset;
+			mbs.param[2] = ptr[0];
+			mbs.param[8] = offset >> 16;
+			isp_mboxcmd(isp, &mbs, MBLOGNONE);
+			if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+				isp_prt(isp, ISP_LOGERR,
+				    "Transmit Sequencer F/W Load Failed");
+				return;
+			}
+		} else {
+			/*
+			 * Verify that it downloaded correctly.
+			 */
+			MEMZERO(&mbs, sizeof (mbs));
+			mbs.param[0] = MBOX_VERIFY_CHECKSUM;
+			mbs.param[1] = code_org;
+			isp_mboxcmd(isp, &mbs, MBLOGNONE);
+			if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+				isp_prt(isp, ISP_LOGERR,
+				    "Downloaded RISC Code Checksum Failure");
+				return;
+			}
+
 		}
 		isp->isp_loaded_fw = 1;
 	} else {
@@ -683,18 +729,25 @@ again:
 	 */
 
 
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_EXEC_FIRMWARE;
 	mbs.param[1] = code_org;
 	if (IS_2322(isp) || IS_24XX(isp)) {
 		if (isp->isp_loaded_fw) {
-			mbs.param[2] = 1;
-		} else {
 			mbs.param[2] = 0;
+		} else {
+			mbs.param[2] = 1;
 		}
-		mbs.obits |= 2;
+	}
+	isp_mboxcmd(isp, &mbs, MBLOGNONE);
+	if (IS_2322(isp) || IS_24XX(isp)) {
+		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+			isp_prt(isp, ISP_LOGERR, "EXEC F/W failed: 0x%x",
+			    mbs.param[0]);
+			return;
+		}
 	}
 
-	isp_mboxcmd(isp, &mbs, MBLOGNONE);
 	/*
 	 * Give it a chance to start.
 	 */
@@ -712,6 +765,7 @@ again:
 		}
 	}
 
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_ABOUT_FIRMWARE;
 	isp_mboxcmd(isp, &mbs, MBLOGALL);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
@@ -739,6 +793,7 @@ again:
 		isp->isp_fwrev[1] = mbs.param[2];
 		isp->isp_fwrev[2] = mbs.param[3];
 	}
+
 	isp_prt(isp, ISP_LOGCONFIG,
 	    "Board Type %s, Chip Revision 0x%x, %s F/W Revision %d.%d.%d",
 	    btype, isp->isp_revision, dodnld? "loaded" : "resident",
@@ -775,6 +830,7 @@ again:
 		    isp->isp_romfw_rev[2]);
 	}
 
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_GET_FIRMWARE_STATUS;
 	isp_mboxcmd(isp, &mbs, MBLOGALL);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
@@ -900,6 +956,7 @@ isp_scsi_init(ispsoftc_t *isp)
 	/*
 	 * Set ASYNC DATA SETUP time. This is very important.
 	 */
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_SET_ASYNC_DATA_SETUP_TIME;
 	mbs.param[1] = sdp_chan0->isp_async_data_setup;
 	mbs.param[2] = sdp_chan1->isp_async_data_setup;
@@ -911,6 +968,7 @@ isp_scsi_init(ispsoftc_t *isp)
 	/*
 	 * Set ACTIVE Negation State.
 	 */
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_SET_ACT_NEG_STATE;
 	mbs.param[1] =
 	    (sdp_chan0->isp_req_ack_active_neg << 4) |
@@ -919,6 +977,7 @@ isp_scsi_init(ispsoftc_t *isp)
 	    (sdp_chan1->isp_req_ack_active_neg << 4) |
 	    (sdp_chan1->isp_data_line_active_neg << 5);
 
+	MEMZERO(&mbs, sizeof (mbs));
 	isp_mboxcmd(isp, &mbs, MBLOGNONE);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		isp_prt(isp, ISP_LOGERR,
@@ -935,6 +994,7 @@ isp_scsi_init(ispsoftc_t *isp)
 	/*
 	 * Set the Tag Aging limit
 	 */
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_SET_TAG_AGE_LIMIT;
 	mbs.param[1] = sdp_chan0->isp_tag_aging;
 	mbs.param[2] = sdp_chan1->isp_tag_aging;
@@ -948,6 +1008,7 @@ isp_scsi_init(ispsoftc_t *isp)
 	/*
 	 * Set selection timeout.
 	 */
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_SET_SELECT_TIMEOUT;
 	mbs.param[1] = sdp_chan0->isp_selection_timeout;
 	mbs.param[2] = sdp_chan1->isp_selection_timeout;
@@ -966,6 +1027,7 @@ isp_scsi_init(ispsoftc_t *isp)
 	 */
 
 	if (IS_ULTRA2(isp) || IS_1240(isp)) {
+		MEMZERO(&mbs, sizeof (mbs));
 		mbs.param[0] = MBOX_INIT_RES_QUEUE_A64;
 		mbs.param[1] = RESULT_QUEUE_LEN(isp);
 		mbs.param[2] = DMA_WD1(isp->isp_result_dma);
@@ -979,6 +1041,7 @@ isp_scsi_init(ispsoftc_t *isp)
 		}
 		isp->isp_residx = mbs.param[5];
 
+		MEMZERO(&mbs, sizeof (mbs));
 		mbs.param[0] = MBOX_INIT_REQ_QUEUE_A64;
 		mbs.param[1] = RQUEST_QUEUE_LEN(isp);
 		mbs.param[2] = DMA_WD1(isp->isp_rquest_dma);
@@ -992,6 +1055,7 @@ isp_scsi_init(ispsoftc_t *isp)
 		}
 		isp->isp_reqidx = isp->isp_reqodx = mbs.param[4];
 	} else {
+		MEMZERO(&mbs, sizeof (mbs));
 		mbs.param[0] = MBOX_INIT_RES_QUEUE;
 		mbs.param[1] = RESULT_QUEUE_LEN(isp);
 		mbs.param[2] = DMA_WD1(isp->isp_result_dma);
@@ -1003,6 +1067,7 @@ isp_scsi_init(ispsoftc_t *isp)
 		}
 		isp->isp_residx = mbs.param[5];
 
+		MEMZERO(&mbs, sizeof (mbs));
 		mbs.param[0] = MBOX_INIT_REQ_QUEUE;
 		mbs.param[1] = RQUEST_QUEUE_LEN(isp);
 		mbs.param[2] = DMA_WD1(isp->isp_rquest_dma);
@@ -1024,6 +1089,7 @@ isp_scsi_init(ispsoftc_t *isp)
 	 * to assume not for them.
 	 */
 
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_SET_FW_FEATURES;
 	mbs.param[1] = 0;
 	if (IS_ULTRA2(isp))
@@ -1032,10 +1098,8 @@ isp_scsi_init(ispsoftc_t *isp)
 	if (IS_ULTRA2(isp) || IS_1240(isp))
 		mbs.param[1] |= FW_FEATURE_RIO_16BIT;
 #else
-#ifndef	ISP_NO_FASTPOST
 	if (IS_ULTRA2(isp) || IS_1240(isp))
 		mbs.param[1] |= FW_FEATURE_FAST_POST;
-#endif
 #endif
 	if (mbs.param[1] != 0) {
 		uint16_t sfeat = mbs.param[1];
@@ -1109,6 +1173,7 @@ isp_scsi_channel_init(ispsoftc_t *isp, int channel)
 		 */
 		sdp->isp_devparam[tgt].goal_flags = sdf = DPARM_DEFAULT;
 #endif
+		MEMZERO(&mbs, sizeof (mbs));
 		mbs.param[0] = MBOX_SET_TARGET_PARAMS;
 		mbs.param[1] = (channel << 15) | (tgt << 8);
 		mbs.param[2] = sdf;
@@ -1126,6 +1191,7 @@ isp_scsi_channel_init(ispsoftc_t *isp, int channel)
 		isp_mboxcmd(isp, &mbs, MBLOGNONE);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			sdf = DPARM_SAFE_DFLT;
+			MEMZERO(&mbs, sizeof (mbs));
 			mbs.param[0] = MBOX_SET_TARGET_PARAMS;
 			mbs.param[1] = (tgt << 8) | (channel << 15);
 			mbs.param[2] = sdf;
@@ -1149,6 +1215,7 @@ isp_scsi_channel_init(ispsoftc_t *isp, int channel)
 		 */
 		sdp->isp_devparam[tgt].actv_flags = sdf & ~DPARM_TQING;
 		for (lun = 0; lun < (int) isp->isp_maxluns; lun++) {
+			MEMZERO(&mbs, sizeof (mbs));
 			mbs.param[0] = MBOX_SET_DEV_QUEUE_PARAMS;
 			mbs.param[1] = (channel << 15) | (tgt << 8) | lun;
 			mbs.param[2] = sdp->isp_max_queue_depth;
@@ -1273,7 +1340,7 @@ isp_fibre_init(ispsoftc_t *isp)
 	icbp->icb_retry_delay = fcp->isp_retry_delay;
 	icbp->icb_retry_count = fcp->isp_retry_count;
 	icbp->icb_hardaddr = loopid;
-	if (icbp->icb_hardaddr >= 125) {
+	if (icbp->icb_hardaddr > 125) {
 		/*
 		 * We end up with these Loop IDs for F-Port topologies
 		 */
@@ -1284,6 +1351,15 @@ isp_fibre_init(ispsoftc_t *isp)
 		}
 		icbp->icb_hardaddr = 0;
 	}
+
+	/*
+	 * Our life seems so much better with 2200s and later with
+	 * the latest f/w if we set Hard Address.
+	 */
+	if (ISP_FW_NEWER_THAN(isp, 2, 2, 5)) {
+		icbp->icb_fwoptions |= ICBOPT_HARD_ADDRESS;
+	}
+
 	/*
 	 * Right now we just set extended options to prefer point-to-point
 	 * over loop based upon some soft config options.
@@ -1309,38 +1385,26 @@ isp_fibre_init(ispsoftc_t *isp)
 			icbp->icb_xfwoptions |= ICBXOPT_LOOP_2_PTP;
 			break;
 		}
-		if (IS_23XX(isp)) {
+		if (IS_2200(isp)) {
+			if (ISP_FW_NEWER_THAN(isp, 1, 17, 0)) {
+				icbp->icb_xfwoptions |= ICBXOPT_RIO_16BIT;
+				icbp->icb_racctimer = 4;
+				icbp->icb_idelaytimer = 8;
+			}
+			icbp->icb_fwoptions |= ICBOPT_FAST_POST;
+		} else {
 			/*
 			 * QLogic recommends that FAST Posting be turned
 			 * off for 23XX cards and instead allow the HBA
 			 * to write response queue entries and interrupt
 			 * after a delay (ZIO).
-			 *
-			 * If we set ZIO, it will disable fast posting,
-			 * so we don't need to clear it in fwoptions.
-			 *
-			 * Depending on the role we're selecting, we
-			 * chose fast posting or not as it still is
-			 * a win for target mode.
 			 */
-#ifndef	ISP_NO_ZIO
-			if (isp->isp_role == ISP_ROLE_TARGET) {
-				icbp->icb_fwoptions |= ICBOPT_FAST_POST;
-			} else {
+			icbp->icb_fwoptions &= ~ICBOPT_FAST_POST;
+			if ((fcp->isp_xfwoptions & ICBXOPT_TIMER_MASK) ==
+			    ICBXOPT_ZIO) {
 				icbp->icb_xfwoptions |= ICBXOPT_ZIO;
+				icbp->icb_idelaytimer = 10;
 			}
-#else
-			icbp->icb_fwoptions |= ICBOPT_FAST_POST;
-#endif
-#if	0
-			/*
-			 * Values, in 100us increments. The default
-			 * is 2 (200us) if a value 0 (default) is
-			 * selected.
-			 */
-			icbp->icb_idelaytimer = 2;
-#endif
-
 			if (isp->isp_confopts & ISP_CFG_ONEGB) {
 				icbp->icb_zfwoptions |= ICBZOPT_RATE_ONEGB;
 			} else if (isp->isp_confopts & ISP_CFG_TWOGB) {
@@ -1348,31 +1412,12 @@ isp_fibre_init(ispsoftc_t *isp)
 			} else {
 				icbp->icb_zfwoptions |= ICBZOPT_RATE_AUTO;
 			}
+			if (fcp->isp_zfwoptions & ICBZOPT_50_OHM) {
+				icbp->icb_zfwoptions |= ICBZOPT_50_OHM;
+			}
 		}
 	}
 
-#ifndef	ISP_NO_RIO_FC
-	/*
-	 * RIO seems to be enabled in 2100s for fw >= 1.17.0.
-	 *
-	 * I've had some questionable problems with RIO on 2200.
-	 * More specifically, on a 2204 I had problems with RIO
-	 * on a Linux system where I was dropping commands right
-	 * and left. It's not clear to me what the actual problem
-	 * was.
-	 *
-	 * 23XX Cards do not support RIO. Instead they support ZIO.
-	 */
-#if	0
-	if (!IS_23XX(isp) && ISP_FW_NEWER_THAN(isp, 1, 17, 0)) {
-		icbp->icb_xfwoptions |= ICBXOPT_RIO_16BIT;
-		icbp->icb_racctimer = 4;
-		icbp->icb_idelaytimer = 8;
-	}
-#endif
-#endif
-
-	MEMZERO(&mbs, sizeof (mbs));
 
 	/*
 	 * For 22XX > 2.1.26 && 23XX, set some options.
@@ -1384,6 +1429,7 @@ isp_fibre_init(ispsoftc_t *isp)
 		 * Turn on generate AE 8013 on all LIP Resets (2)
 		 * Disable LIP F7 switching (8)
 		 */
+		MEMZERO(&mbs, sizeof (mbs));
 		mbs.param[0] = MBOX_SET_FIRMWARE_OPTIONS;
 		mbs.param[1] = 0xb;
 		mbs.param[2] = 0;
@@ -1392,13 +1438,6 @@ isp_fibre_init(ispsoftc_t *isp)
 	}
 	icbp->icb_logintime = ICB_LOGIN_TOV;
 	icbp->icb_lunetimeout = ICB_LUN_ENABLE_TOV;
-
-	if (IS_23XX(isp)) {
-		ISP_WRITE(isp, isp->isp_rqstinrp, 0);
-        	ISP_WRITE(isp, isp->isp_rqstoutrp, 0);
-        	ISP_WRITE(isp, isp->isp_respinrp, 0);
-		ISP_WRITE(isp, isp->isp_respoutrp, 0);
-	}
 
 	nwwn = ISP_NODEWWN(isp);
 	pwwn = ISP_PORTWWN(isp);
@@ -1432,6 +1471,7 @@ isp_fibre_init(ispsoftc_t *isp)
 	icbp->icb_respaddr[RQRSP_ADDR1631] = DMA_WD1(isp->isp_result_dma);
 	icbp->icb_respaddr[RQRSP_ADDR3247] = DMA_WD2(isp->isp_result_dma);
 	icbp->icb_respaddr[RQRSP_ADDR4863] = DMA_WD3(isp->isp_result_dma);
+
 	isp_prt(isp, ISP_LOGDEBUG0,
 	    "isp_fibre_init: fwopt 0x%x xfwopt 0x%x zfwopt 0x%x",
 	    icbp->icb_fwoptions, icbp->icb_xfwoptions, icbp->icb_zfwoptions);
@@ -1442,14 +1482,16 @@ isp_fibre_init(ispsoftc_t *isp)
 	/*
 	 * Init the firmware
 	 */
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_INIT_FIRMWARE;
-	mbs.param[1] = 0;
 	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
-	mbs.param[4] = 0;
-	mbs.param[5] = 0;
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
 	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
+	isp_prt(isp, ISP_LOGDEBUG0, "INIT F/W from %p (%08x%08x)",
+	    fcp->isp_scratch, (uint32_t) ((uint64_t)fcp->isp_scdma >> 32),
+	    (uint32_t) fcp->isp_scdma);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, sizeof (*icbp));
 	isp_mboxcmd(isp, &mbs, MBLOGALL);
 	FC_SCRATCH_RELEASE(isp);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
@@ -1480,19 +1522,12 @@ isp_getmap(ispsoftc_t *isp, fcpos_map_t *map)
 
 	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_GET_FC_AL_POSITION_MAP;
-	mbs.param[1] = 0;
 	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
-	/*
-	 * Unneeded. For the 2100, except for initializing f/w, registers
-	 * 4/5 have to not be written to.
-	 *	mbs.param[4] = 0;
-	 *	mbs.param[5] = 0;
-	 *
-	 */
-	mbs.param[6] = 0;
-	mbs.param[7] = 0;
+	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
+	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
 	FC_SCRATCH_ACQUIRE(isp);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, sizeof (fcpos_map_t));
 	isp_mboxcmd(isp, &mbs, MBLOGALL & ~MBOX_COMMAND_PARAM_ERROR);
 	if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
 		MEMCPY(map, fcp->isp_scratch, sizeof (fcpos_map_t));
@@ -1524,22 +1559,16 @@ isp_getpdb(ispsoftc_t *isp, int id, isp_pdb_t *pdbp)
 	mbs.param[0] = MBOX_GET_PORT_DB;
 	if (IS_2KLOGIN(isp)) {
 		mbs.param[1] = id;
-		mbs.obits |= (1 << 10);
+		mbs.ibits |= (1 << 10);
 	} else {
 		mbs.param[1] = id << 8;
 	}
 	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
-	/*
-	 * Unneeded. For the 2100, except for initializing f/w, registers
-	 * 4/5 have to not be written to.
-	 *	mbs.param[4] = 0;
-	 *	mbs.param[5] = 0;
-	 *
-	 */
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
 	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
 	FC_SCRATCH_ACQUIRE(isp);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, sizeof (isp_pdb_t));
 	isp_mboxcmd(isp, &mbs, MBLOGALL & ~MBOX_COMMAND_PARAM_ERROR);
 	if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
 		isp_get_pdb(isp, (isp_pdb_t *)fcp->isp_scratch, pdbp);
@@ -1560,18 +1589,20 @@ isp_get_portname(ispsoftc_t *isp, int loopid, int nodename)
 	mbs.param[0] = MBOX_GET_PORT_NAME;
 	if (IS_2KLOGIN(isp)) {
 		mbs.param[1] = loopid;
-		if (nodename)
+		mbs.ibits |= (1 << 10);
+		if (nodename) {
 			mbs.param[10] = 1;
-		mbs.obits |= (1 << 10);
+		}
 	} else {
 		mbs.param[1] = loopid << 8;
-		if (nodename)
+		if (nodename) {
 			mbs.param[1] |= 1;
+		}
 	}
 	isp_mboxcmd(isp, &mbs, MBLOGALL & ~MBOX_COMMAND_PARAM_ERROR);
 	if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
 		wwn =
-		    (((uint64_t)(mbs.param[2] & 0xff)) << 56) |
+		    (((uint64_t)(mbs.param[2] & 0xff))  << 56) |
 		    (((uint64_t)(mbs.param[2] >> 8))	<< 48) |
 		    (((uint64_t)(mbs.param[3] & 0xff))	<< 40) |
 		    (((uint64_t)(mbs.param[3] >> 8))	<< 32) |
@@ -1605,6 +1636,8 @@ isp_fclink_test(ispsoftc_t *isp, int usdelay)
 	isp_pdb_t pdb;
 
 	fcp = isp->isp_param;
+
+	isp_prt(isp, ISP_LOGDEBUG0, "FC Link Test Entry");
 
 	/*
 	 * XXX: Here is where we would start a 'loop dead' timeout
@@ -1689,7 +1722,11 @@ isp_fclink_test(ispsoftc_t *isp, int usdelay)
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		return (-1);
 	}
-	fcp->isp_loopid = mbs.param[1];
+	if (IS_2KLOGIN(isp)) {
+		fcp->isp_loopid = mbs.param[1];
+	} else {
+		fcp->isp_loopid = mbs.param[1] & 0xff;
+	}
 	if (fcp->isp_loopid == 0xffff) {	/* happens with 2k login f/w */
 		fcp->isp_loopid = MAX_FC_TARG-1;
 	} else if (fcp->isp_loopid >= MAX_FC_TARG) {
@@ -1786,6 +1823,7 @@ not_on_fabric:
 
 	fcp->isp_gbspeed = 1;
 	if (IS_23XX(isp)) {
+		MEMZERO(&mbs, sizeof (mbs));
 		mbs.param[0] = MBOX_GET_SET_DATA_RATE;
 		mbs.param[1] = MBGSD_GET_RATE;
 		/* mbs.param[2] undefined if we're just getting rate */
@@ -1840,10 +1878,11 @@ not_on_fabric:
 	lp->loggedin = lp->valid = 1;
 	count = fcp->isp_iid;
 	(void) isp_async(isp, ISPASYNC_PROMENADE, &count);
+	isp_prt(isp, ISP_LOGDEBUG0, "FC Link Test Complete");
 	return (0);
 }
 
-static char *
+static const char *
 isp2100_fw_statename(int state)
 {
 	switch(state) {
@@ -2016,12 +2055,10 @@ isp_pdb_sync(ispsoftc_t *isp)
 				mbs.param[0] = MBOX_FABRIC_LOGOUT;
 				if (IS_2KLOGIN(isp)) {
 					mbs.param[1] = lp->loopid;
-					mbs.obits |= (1 << 10);
+					mbs.ibits |= (1 << 10);
 				} else {
 					mbs.param[1] = lp->loopid << 8;
 				}
-				mbs.param[2] = 0;
-				mbs.param[3] = 0;
 				isp_mboxcmd(isp, &mbs, MBLOGNONE);
 				isp_prt(isp, ISP_LOGINFO, plogout,
 				    (int) (lp - fcp->portdb), lp->loopid,
@@ -2044,7 +2081,7 @@ isp_pdb_sync(ispsoftc_t *isp)
 			mbs.param[0] = MBOX_FABRIC_LOGIN;
 			if (IS_2KLOGIN(isp)) {
 				mbs.param[1] = loopid;
-				mbs.obits |= (1 << 10);
+				mbs.ibits |= (1 << 10);
 			} else {
 				mbs.param[1] = loopid << 8;
 			}
@@ -2170,7 +2207,7 @@ dump_em:
 		mbs.param[0] = MBOX_FABRIC_LOGOUT;
 		if (IS_2KLOGIN(isp)) {
 			mbs.param[1] = lp->loopid;
-			mbs.obits |= (1 << 10);
+			mbs.ibits |= (1 << 10);
 		} else {
 			mbs.param[1] = lp->loopid << 8;
 		}
@@ -2209,10 +2246,14 @@ isp_scan_loop(ispsoftc_t *isp)
 		hival = FC_PORT_ID;
 		break;
 	default:
+		isp_prt(isp, ISP_LOGDEBUG0, "no loop topology to scan");
 		fcp->isp_loopstate = LOOP_LSCAN_DONE;
 		return (0);
 	}
 	fcp->isp_loopstate = LOOP_SCANNING_LOOP;
+
+	isp_prt(isp, ISP_LOGDEBUG0, "scanning local loop 0..%d", hival);
+
 
 	/*
 	 * make sure the temp port database is clean...
@@ -2233,30 +2274,30 @@ isp_scan_loop(ispsoftc_t *isp)
 		/*
 		 * Don't even try for ourselves...
 	 	 */
-		if (loopid == fcp->isp_loopid)
+		if (loopid == fcp->isp_loopid) {
 			continue;
+		}
 
-		lp->node_wwn = isp_get_portname(isp, loopid, 1);
-		if (fcp->isp_loopstate < LOOP_SCANNING_LOOP)
-			return (-1);
-		if (lp->node_wwn == 0)
-			continue;
-		lp->port_wwn = isp_get_portname(isp, loopid, 0);
-		if (fcp->isp_loopstate < LOOP_SCANNING_LOOP)
-			return (-1);
-		if (lp->port_wwn == 0) {
-			lp->node_wwn = 0;
-			continue;
+		if (IS_2100(isp) || IS_2200(isp)) {
+			lp->node_wwn = isp_get_portname(isp, loopid, 1);
+			if (fcp->isp_loopstate < LOOP_SCANNING_LOOP) {
+				return (-1);
+			}
+			if (lp->node_wwn == 0) {
+				continue;
+			}
 		}
 
 		/*
 		 * Get an entry....
 		 */
 		if (isp_getpdb(isp, loopid, &pdb) != 0) {
-			if (fcp->isp_loopstate < LOOP_SCANNING_LOOP)
+			if (fcp->isp_loopstate < LOOP_SCANNING_LOOP) {
 				return (-1);
+			}
 			continue;
 		}
+
 		if (fcp->isp_loopstate < LOOP_SCANNING_LOOP) {
 			return (-1);
 		}
@@ -2465,6 +2506,7 @@ isp_scan_loop(ispsoftc_t *isp)
 static int
 isp_fabric_mbox_cmd(ispsoftc_t *isp, mbreg_t *mbp)
 {
+	/* the caller sets up the mailbox */
 	isp_mboxcmd(isp, mbp, MBLOGNONE);
 	if (mbp->param[0] != MBOX_COMMAND_COMPLETE) {
 		if (FCPARAM(isp)->isp_loopstate == LOOP_SCANNING_FABRIC) {
@@ -2522,6 +2564,8 @@ isp_scan_fabric(ispsoftc_t *isp, int ftype)
 		fcp->isp_loopstate = LOOP_FSCAN_DONE;
 		return (0);
 	}
+
+	isp_prt(isp, ISP_LOGDEBUG0, "scanning fabric (GA_NXT)");
 
 	FC_SCRATCH_ACQUIRE(isp);
 
@@ -2688,6 +2732,8 @@ isp_scan_fabric(ispsoftc_t *isp, int ftype)
 		fcp->isp_loopstate = LOOP_FSCAN_DONE;
 		return (0);
 	}
+
+	isp_prt(isp, ISP_LOGDEBUG0, "scanning fabric (GID_FT)");
 
 	FC_SCRATCH_ACQUIRE(isp);
 	fcp->isp_loopstate = LOOP_SCANNING_FABRIC;
@@ -3015,6 +3061,7 @@ isp_register_fc4_type(ispsoftc_t *isp)
 	 */
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
 	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, SNS_RFT_ID_REQ_SIZE);
 	isp_mboxcmd(isp, &mbs, MBLOGALL);
 	FC_SCRATCH_RELEASE(isp);
 	if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
@@ -3421,15 +3468,16 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, void *arg)
 		 * Issue a bus reset.
 		 */
 		mbs.param[0] = MBOX_BUS_RESET;
-		mbs.param[2] = 0;
 		if (IS_SCSI(isp)) {
 			mbs.param[1] =
 			    ((sdparam *) isp->isp_param)->isp_bus_reset_delay;
-			if (mbs.param[1] < 2)
+			if (mbs.param[1] < 2) {
 				mbs.param[1] = 2;
+			}
 			bus = *((int *) arg);
-			if (IS_DUALBUS(isp))
+			if (IS_DUALBUS(isp)) {
 				mbs.param[2] = bus;
+			}
 		} else {
 			mbs.param[1] = 10;
 			bus = 0;
@@ -3452,7 +3500,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, void *arg)
 		} else {
 			if (IS_2KLOGIN(isp)) {
 				mbs.param[1] = tgt;
-				mbs.obits |= (1 << 10);
+				mbs.ibits |= (1 << 10);
 			} else {
 				mbs.param[1] = (tgt << 8);
 			}
@@ -3485,8 +3533,6 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, void *arg)
 				} else {
 					mbs.param[1] = tgt << 8;
 				}
-				mbs.param[4] = 0;
-				mbs.param[5] = 0;
 				mbs.param[6] = XS_LUN(xs);
 			} else {
 				mbs.param[1] = tgt << 8 | XS_LUN(xs);
@@ -3495,7 +3541,6 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, void *arg)
 			mbs.param[1] =
 			    (bus << 15) | (XS_TGT(xs) << 8) | XS_LUN(xs);
 		}
-		mbs.param[3] = 0;
 		mbs.param[2] = handle;
 		isp_mboxcmd(isp, &mbs, MBLOGALL & ~MBOX_COMMAND_ERROR);
 		if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
@@ -3549,6 +3594,9 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, void *arg)
 
 		if (IS_FC(isp)) {
 			mbs.param[0] = MBOX_INIT_LIP;
+			if (IS_2KLOGIN(isp)) {
+				mbs.ibits |= (1 << 10);
+			}
 			isp_mboxcmd(isp, &mbs, MBLOGALL);
 			if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
 				return (0);
@@ -3966,8 +4014,9 @@ again:
 				}
 			}
 			isp_prt(isp, ISP_LOGDEBUG2,
-			   "asked for %ld got resid %ld", (long) XS_XFRLEN(xs),
-			   (long) sp->req_resid);
+			   "asked for %ld got raw resid %ld settled for %ld",
+			    (long) XS_XFRLEN(xs), (long) sp->req_resid,
+			    (long) XS_RESID(xs));
 			break;
 		case RQSTYPE_REQUEST:
 			if (sp->req_header.rqs_flags & RQSFLAG_FULL) {
@@ -4085,6 +4134,20 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		isp_async(isp, ISPASYNC_BUS_RESET, &bus);
 		break;
 	case ASYNC_SYSTEM_ERROR:
+		isp->isp_state = ISP_CRASHED;
+		if (IS_FC(isp)) {
+			FCPARAM(isp)->isp_loopstate = LOOP_NIL;
+			FCPARAM(isp)->isp_fwstate = FW_CONFIG_WAIT;
+		}
+		/*
+		 * Were we waiting for a mailbox command to complete?
+		 * If so, it's dead, so wake up the waiter.
+		 */
+		if (isp->isp_mboxbsy) {
+			isp->isp_obits = 1;
+			isp->isp_mboxtmp[0] = MBOX_HOST_INTERFACE_ERROR;
+			MBOX_NOTIFY_COMPLETE(isp);
+		}
 #ifdef	ISP_FW_CRASH_DUMP
 		/*
 		 * If we have crash dumps enabled, it's up to the handler
@@ -4280,8 +4343,9 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		isp_mark_getpdb_all(isp);
 		isp_async(isp, ISPASYNC_LOOP_UP, NULL);
 #ifdef	ISP_TARGET_MODE
-		if (isp_target_async(isp, bus, mbox))
+		if (isp_target_async(isp, bus, mbox)) {
 			rval = -1;
+		}
 #endif
 		break;
 
@@ -4292,8 +4356,9 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		isp_mark_getpdb_all(isp);
 		isp_async(isp, ISPASYNC_LOOP_DOWN, NULL);
 #ifdef	ISP_TARGET_MODE
-		if (isp_target_async(isp, bus, mbox))
+		if (isp_target_async(isp, bus, mbox)) {
 			rval = -1;
+		}
 #endif
 		break;
 
@@ -4304,8 +4369,9 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		isp_mark_getpdb_all(isp);
 		isp_async(isp, ISPASYNC_LOOP_RESET, NULL);
 #ifdef	ISP_TARGET_MODE
-		if (isp_target_async(isp, bus, mbox))
+		if (isp_target_async(isp, bus, mbox)) {
 			rval = -1;
+		}
 #endif
 		break;
 
@@ -4810,6 +4876,9 @@ isp_parse_status(ispsoftc_t *isp, ispstatusreq_t *sp, XS_T *xs)
 			mbreg_t mbs;
 			MEMZERO(&mbs, sizeof (mbs));
 			mbs.param[0] = MBOX_INIT_LIP;
+			if (IS_2KLOGIN(isp)) {
+				mbs.ibits |= (1 << 10);
+			}
 			isp_mboxcmd_qnw(isp, &mbs, 1);
 		}
 
@@ -4889,10 +4958,12 @@ isp_mbox_continue(ispsoftc_t *isp)
 {
 	mbreg_t mbs;
 	uint16_t *ptr;
+	uint32_t offset;
 
 	switch (isp->isp_lastmbxcmd) {
 	case MBOX_WRITE_RAM_WORD:
 	case MBOX_READ_RAM_WORD:
+	case MBOX_WRITE_RAM_WORD_EXTENDED:
 	case MBOX_READ_RAM_WORD_EXTENDED:
 		break;
 	default:
@@ -4916,18 +4987,37 @@ isp_mbox_continue(ispsoftc_t *isp)
 	ptr = isp->isp_mbxworkp;
 	switch (isp->isp_lastmbxcmd) {
 	case MBOX_WRITE_RAM_WORD:
-		mbs.param[2] = *ptr++;
-		mbs.param[1] = isp->isp_mbxwrk1++;
+		mbs.param[1] = isp->isp_mbxwrk1++;;
+		mbs.param[2] = *ptr++;;
 		break;
 	case MBOX_READ_RAM_WORD:
-	case MBOX_READ_RAM_WORD_EXTENDED:
 		*ptr++ = isp->isp_mboxtmp[2];
 		mbs.param[1] = isp->isp_mbxwrk1++;
 		break;
+	case MBOX_WRITE_RAM_WORD_EXTENDED:
+		offset = isp->isp_mbxwrk1;
+		offset |= ((uint32_t) isp->isp_mbxwrk8 << 16);
+
+		mbs.param[2] = *ptr++;;
+		mbs.param[1] = offset;
+		mbs.param[8] = offset >> 16;
+		isp->isp_mbxwrk1 = ++offset;
+		isp->isp_mbxwrk8 = offset >> 16;
+		break;
+	case MBOX_READ_RAM_WORD_EXTENDED:
+		offset = isp->isp_mbxwrk1;
+		offset |= ((uint32_t) isp->isp_mbxwrk8 << 16);
+
+		*ptr++ = isp->isp_mboxtmp[2];
+		mbs.param[1] = offset;
+		mbs.param[8] = offset >> 16;
+		isp->isp_mbxwrk1 = ++offset;
+		isp->isp_mbxwrk8 = offset >> 16;
+		break;
 	}
 	isp->isp_mbxworkp = ptr;
+	isp->isp_mbxwrk0--;
 	mbs.param[0] = isp->isp_lastmbxcmd;
-	isp->isp_mbxwrk0 -= 1;
 	isp_mboxcmd_qnw(isp, &mbs, 0);
 	return (0);
 }
@@ -4944,7 +5034,7 @@ static const uint32_t mbpscsi[] = {
 	ISPOPMAP(0x07, 0x07),	/* 0x04: MBOX_WRITE_RAM_WORD */
 	ISPOPMAP(0x03, 0x07),	/* 0x05: MBOX_READ_RAM_WORD */
 	ISPOPMAP(0x3f, 0x3f),	/* 0x06: MBOX_MAILBOX_REG_TEST */
-	ISPOPMAP(0x03, 0x07),	/* 0x07: MBOX_VERIFY_CHECKSUM	*/
+	ISPOPMAP(0x07, 0x07),	/* 0x07: MBOX_VERIFY_CHECKSUM	*/
 	ISPOPMAP(0x01, 0x0f),	/* 0x08: MBOX_ABOUT_FIRMWARE */
 	ISPOPMAP(0x00, 0x00),	/* 0x09: */
 	ISPOPMAP(0x00, 0x00),	/* 0x0a: */
@@ -5135,7 +5225,7 @@ static char *scsi_mbcmd_names[] = {
 static const uint32_t mbpfc[] = {
 	ISPOPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
 	ISPOPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
-	ISPOPMAP(0x03, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
+	ISPOPMAP(0x07, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
 	ISPOPMAP(0xdf, 0x01),	/* 0x03: MBOX_DUMP_RAM */
 	ISPOPMAP(0x07, 0x07),	/* 0x04: MBOX_WRITE_RAM_WORD */
 	ISPOPMAP(0x03, 0x07),	/* 0x05: MBOX_READ_RAM_WORD */
@@ -5146,9 +5236,9 @@ static const uint32_t mbpfc[] = {
 	ISPOPMAP(0xdf, 0x01),	/* 0x0a: DUMP RAM */
 	ISPOPMAP(0x00, 0x00),	/* 0x0b: */
 	ISPOPMAP(0x00, 0x00),	/* 0x0c: */
-	ISPOPMAP(0x00, 0x00),	/* 0x0d: */
+	ISPOPMAP(0x10f, 0x01),	/* 0x0d: MBOX_WRITE_RAM_WORD_EXTENDED) */
 	ISPOPMAP(0x01, 0x05),	/* 0x0e: MBOX_CHECK_FIRMWARE */
-	ISPOPMAP(0x03, 0x07),	/* 0x0f: MBOX_READ_RAM_WORD_EXTENDED(1) */
+	ISPOPMAP(0x10f, 0x05),	/* 0x0f: MBOX_READ_RAM_WORD_EXTENDED */
 	ISPOPMAP(0x1f, 0x11),	/* 0x10: MBOX_INIT_REQ_QUEUE */
 	ISPOPMAP(0x2f, 0x21),	/* 0x11: MBOX_INIT_RES_QUEUE */
 	ISPOPMAP(0x0f, 0x01),	/* 0x12: MBOX_EXECUTE_IOCB */
@@ -5229,7 +5319,7 @@ static const uint32_t mbpfc[] = {
 	ISPOPMAP(0x07, 0x03),	/* 0x5d: MBOX_GET_SET_DATA_RATE */
 	ISPOPMAP(0x00, 0x00),	/* 0x5e: */
 	ISPOPMAP(0x00, 0x00),	/* 0x5f: */
-	ISPOPMAP(0xfd, 0x31),	/* 0x60: MBOX_INIT_FIRMWARE */
+	ISPOPMAP(0xcd, 0x31),	/* 0x60: MBOX_INIT_FIRMWARE */
 	ISPOPMAP(0x00, 0x00),	/* 0x61: */
 	ISPOPMAP(0x01, 0x01),	/* 0x62: MBOX_INIT_LIP */
 	ISPOPMAP(0xcd, 0x03),	/* 0x63: MBOX_GET_FC_AL_POSITION_MAP */
@@ -5266,7 +5356,8 @@ static const uint32_t mbpfc[] = {
  *
  * (1): this sets bits 21..16 in mailbox register #8, which we nominally 
  *	do not access at this time in the core driver. The caller is
- *	responsible for setting this register first (Gross!).
+ *	responsible for setting this register first (Gross!). The assumption
+ *	is that we won't overflow.
  */
 
 #ifndef	ISP_STRIPPED
@@ -5282,7 +5373,7 @@ static char *fc_mbcmd_names[] = {
 	"ABOUT FIRMWARE",
 	"LOAD RAM",
 	"DUMP RAM",
-	NULL,
+	"WRITE RAM WORD EXTENDED",
 	NULL,
 	"READ RAM WORD EXTENDED",
 	"CHECK FIRMWARE",
@@ -5342,7 +5433,7 @@ static char *fc_mbcmd_names[] = {
 	NULL,
 	NULL,
 	NULL,
-	"GET PORT DATABASE,, ENHANCED",
+	"GET PORT DATABASE ENHANCED",
 	NULL,
 	NULL,
 	NULL,
@@ -5437,7 +5528,7 @@ isp_mboxcmd_qnw(ispsoftc_t *isp, mbreg_t *mbp, int nodelay)
 	 * command.
 	 */
 	if (nodelay) {
-		USEC_DELAY(1000);
+		USEC_DELAY(100);
 	}
 }
 
@@ -5465,6 +5556,9 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp, int logmask)
 	ibits = HIWRD(mcp[opcode]) & NMBOX_BMASK(isp);
 	obits = LOWRD(mcp[opcode]) & NMBOX_BMASK(isp);
 
+	/*
+	 * Pick up any additional bits that the caller might have set.
+	 */
 	ibits |= mbp->ibits;
 	obits |= mbp->obits;
 
@@ -5481,6 +5575,8 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp, int logmask)
 
 	for (box = 0; box < MAX_MAILBOX(isp); box++) {
 		if (ibits & (1 << box)) {
+			isp_prt(isp, ISP_LOGDEBUG1, "IN mbox %d = 0x%x", box,
+			    mbp->param[box]);
 			ISP_WRITE(isp, MBOX_OFF(box), mbp->param[box]);
 		}
 		isp->isp_mboxtmp[box] = mbp->param[box] = 0;
@@ -5504,10 +5600,10 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp, int logmask)
 	 */
 	MBOX_WAIT_COMPLETE(isp);
 
+	/*
+	 * Did the command time out?
+	 */
 	if (isp->isp_mboxbsy) {
-		/*
-		 * Command timed out.
-		 */
 		isp->isp_mboxbsy = 0;
 		MBOX_RELEASE(isp);
 		return;
@@ -5519,6 +5615,8 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp, int logmask)
 	for (box = 0; box < MAX_MAILBOX(isp); box++) {
 		if (obits & (1 << box)) {
 			mbp->param[box] = isp->isp_mboxtmp[box];
+			isp_prt(isp, ISP_LOGDEBUG1, "OUT mbox %d = 0x%x", box,
+			    mbp->param[box]);
 		}
 	}
 
@@ -5545,36 +5643,44 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp, int logmask)
 	case MBOX_COMMAND_COMPLETE:
 		break;
 	case MBOX_INVALID_COMMAND:
-		if (logmask & MBLOGMASK(MBOX_COMMAND_COMPLETE))
+		if (logmask & MBLOGMASK(MBOX_COMMAND_COMPLETE)) {
 			xname = "INVALID COMMAND";
+		}
 		break;
 	case MBOX_HOST_INTERFACE_ERROR:
-		if (logmask & MBLOGMASK(MBOX_HOST_INTERFACE_ERROR))
+		if (logmask & MBLOGMASK(MBOX_HOST_INTERFACE_ERROR)) {
 			xname = "HOST INTERFACE ERROR";
+		}
 		break;
 	case MBOX_TEST_FAILED:
-		if (logmask & MBLOGMASK(MBOX_TEST_FAILED))
+		if (logmask & MBLOGMASK(MBOX_TEST_FAILED)) {
 			xname = "TEST FAILED";
+		}
 		break;
 	case MBOX_COMMAND_ERROR:
-		if (logmask & MBLOGMASK(MBOX_COMMAND_ERROR))
+		if (logmask & MBLOGMASK(MBOX_COMMAND_ERROR)) {
 			xname = "COMMAND ERROR";
+		}
 		break;
 	case MBOX_COMMAND_PARAM_ERROR:
-		if (logmask & MBLOGMASK(MBOX_COMMAND_PARAM_ERROR))
+		if (logmask & MBLOGMASK(MBOX_COMMAND_PARAM_ERROR)) {
 			xname = "COMMAND PARAMETER ERROR";
+		}
 		break;
 	case MBOX_LOOP_ID_USED:
-		if (logmask & MBLOGMASK(MBOX_LOOP_ID_USED))
+		if (logmask & MBLOGMASK(MBOX_LOOP_ID_USED)) {
 			xname = "LOOP ID ALREADY IN USE";
+		}
 		break;
 	case MBOX_PORT_ID_USED:
-		if (logmask & MBLOGMASK(MBOX_PORT_ID_USED))
+		if (logmask & MBLOGMASK(MBOX_PORT_ID_USED)) {
 			xname = "PORT ID ALREADY IN USE";
+		}
 		break;
 	case MBOX_ALL_IDS_USED:
-		if (logmask & MBLOGMASK(MBOX_ALL_IDS_USED))
+		if (logmask & MBLOGMASK(MBOX_ALL_IDS_USED)) {
 			xname = "ALL LOOP IDS IN USE";
+		}
 		break;
 	case 0:		/* special case */
 		xname = "TIMEOUT";
@@ -5584,9 +5690,10 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp, int logmask)
 		xname = mname;
 		break;
 	}
-	if (xname)
+	if (xname) {
 		isp_prt(isp, ISP_LOGALL, "Mailbox Command '%s' failed (%s)",
 		    cname, xname);
+	}
 }
 
 static void
@@ -5634,7 +5741,6 @@ isp_update_bus(ispsoftc_t *isp, int bus)
 	}
 	sdp = isp->isp_param;
 	sdp += bus;
-	MEMZERO(&mbs, sizeof (mbs));
 
 	for (tgt = 0; tgt < MAX_TARGETS; tgt++) {
 		uint16_t flags, period, offset;
@@ -5653,6 +5759,8 @@ isp_update_bus(ispsoftc_t *isp, int bus)
 		 * toward that. Otherwise, if we're just refreshing the
 		 * current device state, get the current parameters.
 		 */
+
+		MEMZERO(&mbs, sizeof (mbs));
 
 		/*
 		 * Refresh overrides set
@@ -5680,9 +5788,7 @@ isp_update_bus(ispsoftc_t *isp, int bus)
 				mbs.param[2] |= DPARM_PARITY;
 			}
 
-			if ((mbs.param[2] & DPARM_SYNC) == 0) {
-				mbs.param[3] = 0;
-			} else {
+			if (mbs.param[2] & DPARM_SYNC) {
 				mbs.param[3] =
 				    (sdp->isp_devparam[tgt].goal_offset << 8) |
 				    (sdp->isp_devparam[tgt].goal_period);
@@ -5747,10 +5853,8 @@ static void
 isp_setdfltparm(ispsoftc_t *isp, int channel)
 {
 	int tgt;
-	mbreg_t mbs;
 	sdparam *sdp;
 
-	MEMZERO(&mbs, sizeof (mbs));
 	if (IS_FC(isp)) {
 		fcparam *fcp = (fcparam *) isp->isp_param;
 		int nvfail;
@@ -5773,9 +5877,7 @@ isp_setdfltparm(ispsoftc_t *isp, int channel)
 		fcp->isp_fwoptions |= ICBOPT_FAIRNESS;
 		fcp->isp_fwoptions |= ICBOPT_PDBCHANGE_AE;
 		fcp->isp_fwoptions |= ICBOPT_HARD_ADDRESS;
-#ifndef	ISP_NO_FASTPOST_FC
 		fcp->isp_fwoptions |= ICBOPT_FAST_POST;
-#endif
 		if (isp->isp_confopts & ISP_CFG_FULL_DUPLEX)
 			fcp->isp_fwoptions |= ICBOPT_FULL_DUPLEX;
 
@@ -5791,8 +5893,9 @@ isp_setdfltparm(ispsoftc_t *isp, int channel)
 		 */
 		if ((isp->isp_confopts & ISP_CFG_NONVRAM) == 0) {
 		    	nvfail = isp_read_nvram(isp);
-			if (nvfail)
+			if (nvfail) {
 				isp->isp_confopts |= ISP_CFG_NONVRAM;
+			}
 		} else {
 			nvfail = 1;
 		}
@@ -5816,6 +5919,11 @@ isp_setdfltparm(ispsoftc_t *isp, int channel)
 			 * from NVRAM or our platform default.
 			 */
 			ISP_NODEWWN(isp) = fcp->isp_nodewwn;
+			if (fcp->isp_nodewwn == 0) {
+				isp_prt(isp, ISP_LOGCONFIG,
+				    "bad WWNN- using default\n");
+				ISP_NODEWWN(isp) = DEFAULT_NODEWWN(isp);
+			}
 		}
 		if (isp->isp_confopts & ISP_CFG_OWNWWPN) {
 			isp_prt(isp, ISP_LOGCONFIG, "Using Port WWN 0x%08x%08x",
@@ -5828,6 +5936,11 @@ isp_setdfltparm(ispsoftc_t *isp, int channel)
 			 * from NVRAM or our platform default.
 			 */
 			ISP_PORTWWN(isp) = fcp->isp_portwwn;
+			if (fcp->isp_portwwn == 0) {
+				isp_prt(isp, ISP_LOGCONFIG,
+				    "bad WWPN- using default\n");
+				ISP_PORTWWN(isp) = DEFAULT_PORTWWN(isp);
+			}
 		}
 		return;
 	}
@@ -5888,6 +6001,9 @@ isp_setdfltparm(ispsoftc_t *isp, int channel)
 	 * Now try and see whether we have specific values for them.
 	 */
 	if ((isp->isp_confopts & ISP_CFG_NONVRAM) == 0) {
+		mbreg_t mbs;
+
+		MEMZERO(&mbs, sizeof (mbs));
 		mbs.param[0] = MBOX_GET_ACT_NEG_STATE;
 		isp_mboxcmd(isp, &mbs, MBLOGNONE);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
@@ -6019,7 +6135,7 @@ isp_reinit(ispsoftc_t *isp)
 static int
 isp_read_nvram(ispsoftc_t *isp)
 {
-	int i, amt;
+	int i, amt, retval;
 	uint8_t csum, minversion;
 	union {
 		uint8_t _x[ISP2100_NVRAM_SIZE];
@@ -6053,7 +6169,8 @@ isp_read_nvram(ispsoftc_t *isp)
 			isp_prt(isp, ISP_LOGDEBUG0, "%x %x %x",
 			    nvram_data[0], nvram_data[1], nvram_data[2]);
 		}
-		return (-1);
+		retval = -1;
+		goto out;
 	}
 	for (i = 2; i < amt>>1; i++) {
 		isp_rdnvram_word(isp, i, &nvram_words[i]);
@@ -6063,12 +6180,14 @@ isp_read_nvram(ispsoftc_t *isp)
 	}
 	if (csum != 0) {
 		isp_prt(isp, ISP_LOGWARN, "invalid NVRAM checksum");
-		return (-1);
+		retval = -1;
+		goto out;
 	}
 	if (ISP_NVRAM_VERSION(nvram_data) < minversion) {
 		isp_prt(isp, ISP_LOGWARN, "version %d NVRAM not understood",
 		    ISP_NVRAM_VERSION(nvram_data));
-		return (-1);
+		retval = -1;
+		goto out;
 	}
 
 	if (IS_ULTRA3(isp)) {
@@ -6085,7 +6204,9 @@ isp_read_nvram(ispsoftc_t *isp)
 	} else {
 		isp_parse_nvram_2100(isp, nvram_data);
 	}
-	return (0);
+	retval = 0;
+out:
+	return (retval);
 #undef	nvram_data
 #undef	nvram_words
 }
@@ -6094,15 +6215,15 @@ static void
 isp_rdnvram_word(ispsoftc_t *isp, int wo, uint16_t *rp)
 {
 	int i, cbits;
-	uint16_t bit, rqst;
+	uint16_t bit, rqst, junk;
 
 	ISP_WRITE(isp, BIU_NVRAM, BIU_NVRAM_SELECT);
-	USEC_DELAY(2);
+	USEC_DELAY(10);
 	ISP_WRITE(isp, BIU_NVRAM, BIU_NVRAM_SELECT|BIU_NVRAM_CLOCK);
-	USEC_DELAY(2);
+	USEC_DELAY(10);
 
 	if (IS_FC(isp)) {
-		wo &= ((ISP2100_NVRAM_SIZE >> 1) - 1);
+		wo &= ((ISP2100_NVRAM_SIZE >> 1) - 1); 
 		if (IS_2312(isp) && isp->isp_port) {
 			wo += 128;
 		}
@@ -6128,11 +6249,14 @@ isp_rdnvram_word(ispsoftc_t *isp, int wo, uint16_t *rp)
 			bit = BIU_NVRAM_SELECT;
 		}
 		ISP_WRITE(isp, BIU_NVRAM, bit);
-		USEC_DELAY(2);
+		USEC_DELAY(10);
+		junk = ISP_READ(isp, BIU_NVRAM);	/* force PCI flush */
 		ISP_WRITE(isp, BIU_NVRAM, bit | BIU_NVRAM_CLOCK);
-		USEC_DELAY(2);
+		USEC_DELAY(10);
+		junk = ISP_READ(isp, BIU_NVRAM);	/* force PCI flush */
 		ISP_WRITE(isp, BIU_NVRAM, bit);
-		USEC_DELAY(2);
+		USEC_DELAY(10);
+		junk = ISP_READ(isp, BIU_NVRAM);	/* force PCI flush */
 	}
 	/*
 	 * Now read the result back in (bits come back in MSB format).
@@ -6142,17 +6266,19 @@ isp_rdnvram_word(ispsoftc_t *isp, int wo, uint16_t *rp)
 		uint16_t rv;
 		*rp <<= 1;
 		ISP_WRITE(isp, BIU_NVRAM, BIU_NVRAM_SELECT|BIU_NVRAM_CLOCK);
-		USEC_DELAY(2);
+		USEC_DELAY(10);
 		rv = ISP_READ(isp, BIU_NVRAM);
 		if (rv & BIU_NVRAM_DATAIN) {
 			*rp |= 1;
 		}
-		USEC_DELAY(2);
+		USEC_DELAY(10);
 		ISP_WRITE(isp, BIU_NVRAM, BIU_NVRAM_SELECT);
-		USEC_DELAY(2);
+		USEC_DELAY(10);
+		junk = ISP_READ(isp, BIU_NVRAM);	/* force PCI flush */
 	}
 	ISP_WRITE(isp, BIU_NVRAM, 0);
-	USEC_DELAY(2);
+	USEC_DELAY(10);
+	junk = ISP_READ(isp, BIU_NVRAM);	/* force PCI flush */
 	ISP_SWIZZLE_NVRAM_WORD(isp, rp);
 }
 
@@ -6492,7 +6618,7 @@ isp_parse_nvram_2100(ispsoftc_t *isp, uint8_t *nvram_data)
 	}
 	fcp->isp_portwwn = wwn;
 	if (IS_2200(isp) || IS_23XX(isp)) {
-		wwn = ISP2200_NVRAM_NODE_NAME(nvram_data);
+		wwn = ISP2100_NVRAM_NODE_NAME(nvram_data);
 		if (wwn) {
 			isp_prt(isp, ISP_LOGCONFIG, "NVRAM Node WWN 0x%08x%08x",
 			    (uint32_t) (wwn >> 32),
@@ -6532,13 +6658,6 @@ isp_parse_nvram_2100(ispsoftc_t *isp, uint8_t *nvram_data)
 		}
 	}
 
-	isp_prt(isp, ISP_LOGDEBUG0,
-	    "NVRAM: maxfrmlen %d execthrottle %d fwoptions 0x%x loopid %x",
-	    ISP2100_NVRAM_MAXFRAMELENGTH(nvram_data),
-	    ISP2100_NVRAM_EXECUTION_THROTTLE(nvram_data),
-	    ISP2100_NVRAM_OPTIONS(nvram_data),
-	    ISP2100_NVRAM_HARDLOOPID(nvram_data));
-
 	fcp->isp_maxalloc =
 		ISP2100_NVRAM_MAXIOCBALLOCATION(nvram_data);
 	if ((isp->isp_confopts & ISP_CFG_OWNFSZ) == 0)
@@ -6555,6 +6674,23 @@ isp_parse_nvram_2100(ispsoftc_t *isp, uint8_t *nvram_data)
 		fcp->isp_execthrottle =
 			ISP2100_NVRAM_EXECUTION_THROTTLE(nvram_data);
 	fcp->isp_fwoptions = ISP2100_NVRAM_OPTIONS(nvram_data);
+	isp_prt(isp, ISP_LOGDEBUG0,
+	    "NVRAM 0x%08x%08x 0x%08x%08x maxalloc %d maxframelen %d",
+	    (uint32_t) (fcp->isp_nodewwn >> 32), (uint32_t) fcp->isp_nodewwn,
+	    (uint32_t) (fcp->isp_portwwn >> 32), (uint32_t) fcp->isp_portwwn,
+	    ISP2100_NVRAM_MAXIOCBALLOCATION(nvram_data),
+	    ISP2100_NVRAM_MAXFRAMELENGTH(nvram_data));
+	isp_prt(isp, ISP_LOGDEBUG0,
+	    "execthrottle %d fwoptions 0x%x hardloop %d tov %d",
+	    ISP2100_NVRAM_EXECUTION_THROTTLE(nvram_data),
+	    ISP2100_NVRAM_OPTIONS(nvram_data),
+	    ISP2100_NVRAM_HARDLOOPID(nvram_data),
+	    ISP2100_NVRAM_TOV(nvram_data));
+	fcp->isp_xfwoptions = ISP2100_XFW_OPTIONS(nvram_data);
+	fcp->isp_zfwoptions = ISP2100_ZFW_OPTIONS(nvram_data);
+	isp_prt(isp, ISP_LOGDEBUG0,
+	    "xfwoptions 0x%x zfw options 0x%x",
+	    ISP2100_XFW_OPTIONS(nvram_data), ISP2100_ZFW_OPTIONS(nvram_data));
 }
 
 #ifdef	ISP_FW_CRASH_DUMP
@@ -6831,6 +6967,7 @@ isp2300_fw_dump(ispsoftc_t *isp)
 		return;
 	}
 	ENABLE_INTS(isp);
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_READ_RAM_WORD;
 	mbs.param[1] = 0x800;
 	isp->isp_mbxworkp = (void *) ptr;
@@ -6844,19 +6981,13 @@ isp2300_fw_dump(ispsoftc_t *isp)
 	}
 	ptr = isp->isp_mbxworkp;	/* finish fetch of final word */
 	*ptr++ = isp->isp_mboxtmp[2];
-
-	/*
-	 * We don't have access to mailbox registers 8.. onward
-	 * in our 'common' device model- so we have to set it
-	 * here and hope it stays the same!
-	 */
-	ISP_WRITE(isp, PCI_MBOX_REGS2300_OFF + (8 << 1), 0x1);
-
+	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_READ_RAM_WORD_EXTENDED;
-	mbs.param[1] = 0;
+	mbs.param[8] = 1;
 	isp->isp_mbxworkp = (void *) ptr;
 	isp->isp_mbxwrk0 = 0xffff;	/* continuation count */
 	isp->isp_mbxwrk1 = 0x1;		/* next SRAM address */
+	isp->isp_mbxwrk8 = 0x1;
 	isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		isp_prt(isp, ISP_LOGWARN,

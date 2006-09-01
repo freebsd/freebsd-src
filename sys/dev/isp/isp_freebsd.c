@@ -1,5 +1,4 @@
 /*-
- * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
  * Copyright (c) 1997-2006 by Matthew Jacob
  * All rights reserved.
@@ -26,9 +25,11 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
+ */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
 #include <dev/isp/isp_freebsd.h>
 #include <sys/unistd.h>
 #include <sys/kthread.h>
@@ -42,7 +43,6 @@ __FBSDID("$FreeBSD$");
 MODULE_VERSION(isp, 1);
 MODULE_DEPEND(isp, cam, 1, 1, 1);
 int isp_announced = 0;
-ispfwfunc *isp_get_firmware_p = NULL;
 
 static d_ioctl_t ispioctl;
 static void isp_intr_enable(void *);
@@ -52,6 +52,9 @@ static timeout_t isp_watchdog;
 static void isp_kthread(void *);
 static void isp_action(struct cam_sim *, union ccb *);
 
+#if __FreeBSD_version < 700000
+ispfwfunc *isp_get_firmware_p = NULL;
+#endif
 
 #if __FreeBSD_version < 500000  
 #define ISP_CDEV_MAJOR	248
@@ -291,37 +294,40 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 	switch (c) {
 #ifdef	ISP_FW_CRASH_DUMP
 	case ISP_GET_FW_CRASH_DUMP:
-	{
-		uint16_t *ptr = FCPARAM(isp)->isp_dump_data;
-		size_t sz;
+		if (IS_FC(isp)) {
+			uint16_t *ptr = FCPARAM(isp)->isp_dump_data;
+			size_t sz;
 
-		retval = 0;
-		if (IS_2200(isp))
-			sz = QLA2200_RISC_IMAGE_DUMP_SIZE;
-		else
-			sz = QLA2300_RISC_IMAGE_DUMP_SIZE;
-		ISP_LOCK(isp);
-		if (ptr && *ptr) {
-			void *uaddr = *((void **) addr);
-			if (copyout(ptr, uaddr, sz)) {
-				retval = EFAULT;
+			retval = 0;
+			if (IS_2200(isp)) {
+				sz = QLA2200_RISC_IMAGE_DUMP_SIZE;
 			} else {
-				*ptr = 0;
+				sz = QLA2300_RISC_IMAGE_DUMP_SIZE;
 			}
-		} else {
-			retval = ENXIO;
+			ISP_LOCK(isp);
+			if (ptr && *ptr) {
+				void *uaddr = *((void **) addr);
+				if (copyout(ptr, uaddr, sz)) {
+					retval = EFAULT;
+				} else {
+					*ptr = 0;
+				}
+			} else {
+				retval = ENXIO;
+			}
+			ISP_UNLOCK(isp);
 		}
-		ISP_UNLOCK(isp);
 		break;
-	}
-
 	case ISP_FORCE_CRASH_DUMP:
-		ISP_LOCK(isp);
-		isp_freeze_loopdown(isp, "ispioctl(ISP_FORCE_CRASH_DUMP)");
-		isp_fw_dump(isp);
-		isp_reinit(isp);
-		ISP_UNLOCK(isp);
-		retval = 0;
+		if (IS_FC(isp)) {
+			ISP_LOCK(isp);
+			isp_freeze_loopdown(isp,
+			    "ispioctl(ISP_FORCE_CRASH_DUMP)");
+			isp_fw_dump(isp);
+			isp_reinit(isp);
+			ISP_UNLOCK(isp);
+			retval = 0;
+		}
 		break;
 #endif
 	case ISP_SDBLEV:
@@ -378,6 +384,9 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 		struct isp_fc_device *ifc = (struct isp_fc_device *) addr;
 		struct lportdb *lp;
 
+		if (IS_SCSI(isp)) {
+			break;
+		}
 		if (ifc->loopid < 0 || ifc->loopid >= MAX_FC_TARG) {
 			retval = EINVAL;
 			break;
@@ -435,19 +444,20 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 	{
 		struct isp_hba_device *hba = (struct isp_hba_device *) addr;
 		MEMZERO(hba, sizeof (*hba));
-		ISP_LOCK(isp);
+
 		hba->fc_fw_major = ISP_FW_MAJORX(isp->isp_fwrev);
 		hba->fc_fw_minor = ISP_FW_MINORX(isp->isp_fwrev);
 		hba->fc_fw_micro = ISP_FW_MICROX(isp->isp_fwrev);
-		hba->fc_speed = FCPARAM(isp)->isp_gbspeed;
-		hba->fc_scsi_supported = 1;
-		hba->fc_topology = FCPARAM(isp)->isp_topo + 1;
-		hba->fc_loopid = FCPARAM(isp)->isp_loopid;
-		hba->nvram_node_wwn = FCPARAM(isp)->isp_nodewwn;
-		hba->nvram_port_wwn = FCPARAM(isp)->isp_portwwn;
-		hba->active_node_wwn = ISP_NODEWWN(isp);
-		hba->active_port_wwn = ISP_PORTWWN(isp);
-		ISP_UNLOCK(isp);
+		if (IS_FC(isp)) {
+			hba->fc_speed = FCPARAM(isp)->isp_gbspeed;
+			hba->fc_scsi_supported = 1;
+			hba->fc_topology = FCPARAM(isp)->isp_topo + 1;
+			hba->fc_loopid = FCPARAM(isp)->isp_loopid;
+			hba->nvram_node_wwn = FCPARAM(isp)->isp_nodewwn;
+			hba->nvram_port_wwn = FCPARAM(isp)->isp_portwwn;
+			hba->active_node_wwn = ISP_NODEWWN(isp);
+			hba->active_port_wwn = ISP_PORTWWN(isp);
+		}
 		retval = 0;
 		break;
 	}
@@ -455,8 +465,7 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 	{
 		struct isp_fc_param *f = (struct isp_fc_param *) addr;
 
-		if (!IS_FC(isp)) {
-			retval = EINVAL;
+		if (IS_SCSI(isp)) {
 			break;
 		}
 		f->parameter = 0;
@@ -489,8 +498,7 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 		struct isp_fc_param *f = (struct isp_fc_param *) addr;
 		uint32_t param = f->parameter;
 
-		if (!IS_FC(isp)) {
-			retval = EINVAL;
+		if (IS_SCSI(isp)) {
 			break;
 		}
 		f->parameter = 0;
@@ -547,7 +555,6 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 		mbreg_t mbs;
 
 		if (IS_SCSI(isp)) {
-			retval = EINVAL;
 			break;
 		}
 
@@ -558,29 +565,29 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 			loopid <<= 8;
 		}
 		switch (fct->action) {
-		case CLEAR_ACA:
+		case IPT_CLEAR_ACA:
 			mbs.param[0] = MBOX_CLEAR_ACA;
 			mbs.param[1] = loopid;
 			mbs.param[2] = fct->lun;
 			break;
-		case TARGET_RESET:
+		case IPT_TARGET_RESET:
 			mbs.param[0] = MBOX_TARGET_RESET;
 			mbs.param[1] = loopid;
 			needmarker = 1;
 			break;
-		case LUN_RESET:
+		case IPT_LUN_RESET:
 			mbs.param[0] = MBOX_LUN_RESET;
 			mbs.param[1] = loopid;
 			mbs.param[2] = fct->lun;
 			needmarker = 1;
 			break;
-		case CLEAR_TASK_SET:
+		case IPT_CLEAR_TASK_SET:
 			mbs.param[0] = MBOX_CLEAR_TASK_SET;
 			mbs.param[1] = loopid;
 			mbs.param[2] = fct->lun;
 			needmarker = 1;
 			break;
-		case ABORT_TASK_SET:
+		case IPT_ABORT_TASK_SET:
 			mbs.param[0] = MBOX_ABORT_TASK_SET;
 			mbs.param[1] = loopid;
 			mbs.param[2] = fct->lun;

@@ -46,7 +46,7 @@
 					/*   a */
 					/*   b */
 					/*   c */
-					/*   d */
+#define MBOX_WRITE_RAM_WORD_EXTENDED	0x000d
 #define MBOX_CHECK_FIRMWARE		0x000e
 #define	MBOX_READ_RAM_WORD_EXTENDED	0x000f
 #define MBOX_INIT_REQ_QUEUE		0x0010
@@ -691,9 +691,11 @@ typedef struct isp_icb {
 #define	ICBXOPT_RIO_16BIT_IOCB	3
 #define	ICBXOPT_RIO_32BIT_IOCB	4
 #define	ICBXOPT_ZIO		5	
+#define	ICBXOPT_TIMER_MASK	0x7
 
 #define	ICBZOPT_ENA_RDXFR_RDY	0x01
 #define	ICBZOPT_ENA_OOF		(1 << 6) /* out of order frame handling */
+#define	ICBZOPT_50_OHM		0x0200
 /* These 3 only apply to the 2300 */
 #define	ICBZOPT_RATE_ONEGB	(MBGSD_ONEGB << 14)
 #define	ICBZOPT_RATE_TWOGB	(MBGSD_TWOGB << 14)
