@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2003 Daniel Eischen <deischen@freebsd.org>
+ * Copyright (c) 2006 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +29,8 @@
 
 #include <stdlib.h>
 #include <strings.h>
+
+#include "rtld_tls.h"
 #include "pthread_md.h"
 
 /*
@@ -38,19 +41,19 @@ _tcb_ctor(struct pthread *thread, int initial)
 {
 	struct tcb *tcb;
 
-	if ((tcb = malloc(sizeof(struct tcb))) != NULL) {
-		bzero(tcb, sizeof(struct tcb));
-		tcb->tcb_thread = thread;
-		/* Allocate TDV */
-	}
+	tcb = _rtld_allocate_tls((initial) ? _tp : NULL,
+	    sizeof(struct tcb), 16);
+	if (tcb == NULL)
+		return (NULL);
+	tcb->tcb_thread = thread;
 	return (tcb);
 }
 
 void
 _tcb_dtor(struct tcb *tcb)
 {
-	/* Free TDV */
-	free(tcb);
+
+	_rtld_free_tls(tcb, sizeof(struct tcb), 16);
 }
 
 struct kcb *
@@ -58,13 +61,15 @@ _kcb_ctor(struct kse *kse)
 {
 	struct kcb *kcb;
 
-	if ((kcb = malloc(sizeof(struct kcb))) != NULL) {
-		bzero(kcb, sizeof(struct kcb));
-		kcb->kcb_faketcb.tcb_isfake = 1;
-		kcb->kcb_faketcb.tcb_tmbx.tm_flags = TMF_NOUPCALL;
-		kcb->kcb_curtcb = &kcb->kcb_faketcb;
-		kcb->kcb_kse = kse;
-	}
+	kcb = malloc(sizeof(struct kcb));
+	if (kcb == NULL)
+		return (NULL);
+	bzero(kcb, sizeof(struct kcb));
+	kcb->kcb_kse = kse;
+	kcb->kcb_faketcb.tcb_isfake = 1;
+	kcb->kcb_faketcb.tcb_tmbx.tm_flags = TMF_NOUPCALL;
+	kcb->kcb_faketcb.tcb_tp.tp_dtv = (void *)-1;
+	kcb->kcb_curtcb = &kcb->kcb_faketcb;
 	return (kcb);
 }
 

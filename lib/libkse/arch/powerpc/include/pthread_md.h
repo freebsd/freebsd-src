@@ -1,5 +1,7 @@
 /*
- * Copyright 2004 by Peter Grehan. All rights reserved.
+ * Copyright 2004 by Peter Grehan.
+ * Copyright 2006 Marcel Moolenaar
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,7 +44,7 @@ extern int  _ppc32_setcontext(mcontext_t *, intptr_t, intptr_t *);
 extern int  _ppc32_getcontext(mcontext_t *);
 
 #define	KSE_STACKSIZE		16384
-#define	DTV_OFFSET		offsetof(struct tcb, tcb_tp.tp_tdv)
+#define	DTV_OFFSET		offsetof(struct tcb, tcb_tp.tp_dtv)
 
 #define	THR_GETCONTEXT(ucp)	_ppc32_getcontext(&(ucp)->uc_mcontext)
 #define	THR_SETCONTEXT(ucp)	_ppc32_setcontext(&(ucp)->uc_mcontext, 0, NULL)
@@ -53,15 +55,14 @@ struct kcb;
 struct kse;
 struct pthread;
 struct tcb;
-struct tdv;
 
 /*
  * %r2 points to a struct kcb.
  */
 struct ppc32_tp {
-	struct tdv	*tp_tdv;	/* dynamic TLS */
+	void		*tp_dtv;	/* dynamic thread vector */
 	uint32_t	_reserved_;
-	long double	tp_tls[0];	/* static TLS */
+	double		tp_tls[0];	/* static TLS */
 };
 
 struct tcb {
@@ -74,9 +75,9 @@ struct tcb {
 
 struct kcb {
 	struct kse_mailbox	kcb_kmbx;
-	struct tcb		kcb_faketcb;
-	struct tcb		*kcb_curtcb;
 	struct kse		*kcb_kse;
+	struct tcb		*kcb_curtcb;
+	struct tcb		kcb_faketcb;
 };
 
 /*
@@ -86,9 +87,11 @@ struct kcb {
  * thread control block." Or, 0x7008 past the start of the 8-byte tcb
  */
 #define TP_OFFSET	0x7008
-register uint8_t *_tpr __asm("%r2");
+register uint8_t *_tp __asm__("%r2");
+#define	PPC_SET_TP(x)	\
+	__asm __volatile("mr %0,%1" : "=r"(_tp) : "r"((char*)(x) + TP_OFFSET))
 
-#define _tcb  ((struct tcb *)(_tpr - TP_OFFSET - offsetof(struct tcb, tcb_tp)))
+#define _tcb  ((struct tcb *)(_tp - TP_OFFSET - offsetof(struct tcb, tcb_tp)))
 
 /*
  * The kcb and tcb constructors.
@@ -103,7 +106,7 @@ static __inline void
 _kcb_set(struct kcb *kcb)
 {
 	/* There is no thread yet; use the fake tcb. */
-	_tpr = (uint8_t *)&kcb->kcb_faketcb.tcb_tp + TP_OFFSET;
+	PPC_SET_TP(&kcb->kcb_faketcb.tcb_tp);
 }
 
 /*
@@ -181,7 +184,7 @@ _tcb_set(struct kcb *kcb, struct tcb *tcb)
                 tcb = &kcb->kcb_faketcb;
         kcb->kcb_curtcb = tcb;
         tcb->tcb_curkcb = kcb;
-	_tpr = (uint8_t *)&tcb->tcb_tp + TP_OFFSET;
+	PPC_SET_TP(&tcb->tcb_tp);
 }
 
 static __inline struct tcb *
@@ -213,7 +216,7 @@ _thread_enter_uts(struct tcb *tcb, struct kcb *kcb)
 	if (_ppc32_getcontext(&tcb->tcb_tmbx.tm_context.uc_mcontext) == 0) {
 		/* Make the fake tcb the current thread. */
 		kcb->kcb_curtcb = &kcb->kcb_faketcb;
-		_tpr = (uint8_t *)&kcb->kcb_faketcb.tcb_tp + TP_OFFSET;
+		PPC_SET_TP(&kcb->kcb_faketcb.tcb_tp);
 		_ppc32_enter_uts(&kcb->kcb_kmbx, kcb->kcb_kmbx.km_func,
 		    kcb->kcb_kmbx.km_stack.ss_sp,
 		    kcb->kcb_kmbx.km_stack.ss_size - 32);
