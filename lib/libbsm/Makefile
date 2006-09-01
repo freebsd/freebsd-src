@@ -27,7 +27,7 @@ SRCS=	bsm_audit.c							\
 #
 # Must use BSM include files from within the contrib area, not the system.
 #
-CFLAGS+=	-I${OPENBSMDIR} -I${LIBBSMDIR} -I${.CURDIR}/../../sys
+CFLAGS+=	-I${OPENBSMDIR} -I${LIBBSMDIR}
 
 INCS=		audit_uevents.h libbsm.h
 INCSDIR=	${INCLUDEDIR}/bsm
