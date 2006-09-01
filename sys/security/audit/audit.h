@@ -111,6 +111,9 @@ extern int	audit_suspended;
 #define ARG_MACHPORT1		0x0000100000000000ULL
 #define ARG_MACHPORT2		0x0000200000000000ULL
 #define	ARG_EXIT		0x0000400000000000ULL
+#define	ARG_IOVECSTR		0x0000800000000000ULL
+#define	ARG_ARGV		0x0001000000000000ULL
+#define	ARG_ENVV		0x0002000000000000ULL
 #define ARG_NONE		0x0000000000000000ULL
 #define ARG_ALL			0xFFFFFFFFFFFFFFFFULL
 
@@ -165,6 +168,8 @@ void	 audit_arg_svipc_addr(void *addr);
 void	 audit_arg_posix_ipc_perm(uid_t uid, gid_t gid, mode_t mode);
 void	 audit_arg_auditon(union auditon_udata *udata);
 void	 audit_arg_file(struct proc *p, struct file *fp);
+void	 audit_arg_argv(char *argv, int argc, int length);
+void	 audit_arg_envv(char *envv, int envc, int length);
 void	 audit_sysclose(struct thread *td, int fd);
 void	 audit_proc_alloc(struct proc *p);
 void	 audit_proc_kproc0(struct proc *p);

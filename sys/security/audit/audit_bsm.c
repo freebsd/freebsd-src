@@ -572,7 +572,6 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_CHDIR:
 	case AUE_CHROOT:
 	case AUE_EACCESS:
-	case AUE_EXECVE:
 	case AUE_GETATTRLIST:
 	case AUE_NFS_GETFH:
 	case AUE_LSTAT:
@@ -669,6 +668,20 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			kau_write(rec, tok);
 		}
 		EXTATTR_TOKENS;
+		break;
+
+	case AUE_EXECVE:
+		if (ARG_IS_VALID(kar, ARG_ARGV)) {
+			tok = au_to_exec_args(ar->ar_arg_argv,
+			    ar->ar_arg_argc);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_ENVV)) {
+			tok = au_to_exec_env(ar->ar_arg_envv,
+			    ar->ar_arg_envc);
+			kau_write(rec, tok);
+		}
+		UPATH1_VNODE1_TOKENS;
 		break;
 
 	case AUE_FCHMOD:
