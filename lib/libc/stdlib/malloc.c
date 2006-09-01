@@ -278,7 +278,6 @@ __FBSDID("$FreeBSD$");
 #  define QUANTUM_2POW_MIN	4
 #  define SIZEOF_PTR		4
 #  define USE_BRK
-#  define NO_TLS
 #endif
 
 /* sizeof(int) == (1 << SIZEOF_INT_2POW). */
