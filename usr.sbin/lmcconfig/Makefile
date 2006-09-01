@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-MAN8= lmcconfig.8
-PROG= lmcconfig
+PROG=	lmcconfig
+MAN=	lmcconfig.8
 
-LDADD= -lnetgraph
-DPADD= ${LIBNETGRAPH}
+DPADD=	${LIBNETGRAPH}
+LDADD=	-lnetgraph
 
 .include <bsd.prog.mk>
