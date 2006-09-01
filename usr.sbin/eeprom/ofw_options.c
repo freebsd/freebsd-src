@@ -70,9 +70,8 @@ static struct ofwo_extabent ofwo_extab[] = {
 	{ NULL,				NULL }
 };
 
-static int		ofwo_setpass(int);
-static int		ofwo_setstr(int, const void *, int, const char *,
-			    const char *);
+static int	ofwo_setpass(int);
+static int	ofwo_setstr(int, const void *, int, const char *, const char *);
 
 static __inline void
 ofwo_printprop(const char *prop, const char* buf, int buflen)
