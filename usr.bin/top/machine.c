@@ -601,7 +601,8 @@ get_process_info(struct system_info *si, struct process_select *sel,
 			continue;
 
 		if (displaymode == DISP_CPU && !show_idle &&
-		    (pp->ki_pctcpu == 0 || pp->ki_stat != SRUN))
+		    (pp->ki_pctcpu == 0 ||
+		     pp->ki_stat == SSTOP || pp->ki_stat == SIDL))
 			/* skip idle or non-running processes */
 			continue;
 
