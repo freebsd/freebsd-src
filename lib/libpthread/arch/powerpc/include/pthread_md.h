@@ -57,7 +57,7 @@ struct pthread;
 struct tcb;
 
 /*
- * %r2 points to a struct kcb.
+ * %r2 points to the following.
  */
 struct ppc32_tp {
 	void		*tp_dtv;	/* dynamic thread vector */
@@ -87,11 +87,33 @@ struct kcb {
  * thread control block." Or, 0x7008 past the start of the 8-byte tcb
  */
 #define TP_OFFSET	0x7008
-register uint8_t *_tp __asm__("%r2");
-#define	PPC_SET_TP(x)	\
-	__asm __volatile("mr %0,%1" : "=r"(_tp) : "r"((char*)(x) + TP_OFFSET))
 
-#define _tcb  ((struct tcb *)(_tp - TP_OFFSET - offsetof(struct tcb, tcb_tp)))
+static __inline char *
+ppc_get_tp()
+{
+	register char *r2 __asm__("%r2");
+
+	return (r2 - TP_OFFSET);
+}
+
+static __inline void
+ppc_set_tp(char *tp)
+{
+	register char *r2 __asm__("%r2");
+	__asm __volatile("mr %0,%1" : "=r"(r2) : "r"(tp + TP_OFFSET));
+}
+
+static __inline struct tcb *
+ppc_get_tcb()
+{
+	return ((struct tcb *)(ppc_get_tp() - offsetof(struct tcb, tcb_tp)));
+}
+
+static __inline void
+ppc_set_tcb(struct tcb *tcb)
+{
+	ppc_set_tp((char*)&tcb->tcb_tp);
+}
 
 /*
  * The kcb and tcb constructors.
@@ -106,7 +128,7 @@ static __inline void
 _kcb_set(struct kcb *kcb)
 {
 	/* There is no thread yet; use the fake tcb. */
-	PPC_SET_TP(&kcb->kcb_faketcb.tcb_tp);
+	ppc_set_tcb(&kcb->kcb_faketcb);
 }
 
 /*
@@ -118,7 +140,7 @@ _kcb_set(struct kcb *kcb)
 static __inline struct kcb *
 _kcb_get(void)
 {
-	return (_tcb->tcb_curkcb);
+	return (ppc_get_tcb()->tcb_curkcb);
 }
 
 /*
@@ -130,20 +152,22 @@ static __inline struct kse_thr_mailbox *
 _kcb_critical_enter(void)
 {
 	struct kse_thr_mailbox *crit;
+	struct tcb *tcb;
 	uint32_t flags;
 
-	if (_tcb->tcb_isfake != 0) {
+	tcb = ppc_get_tcb();
+	if (tcb->tcb_isfake != 0) {
 		/*
 		 * We already are in a critical region since
 		 * there is no current thread.
 		 */
 		crit = NULL;
 	} else {
-		flags = _tcb->tcb_tmbx.tm_flags;
-		_tcb->tcb_tmbx.tm_flags |= TMF_NOUPCALL;
-		crit = _tcb->tcb_curkcb->kcb_kmbx.km_curthread;
-		_tcb->tcb_curkcb->kcb_kmbx.km_curthread = NULL;
-		_tcb->tcb_tmbx.tm_flags = flags;
+		flags = tcb->tcb_tmbx.tm_flags;
+		tcb->tcb_tmbx.tm_flags |= TMF_NOUPCALL;
+		crit = tcb->tcb_curkcb->kcb_kmbx.km_curthread;
+		tcb->tcb_curkcb->kcb_kmbx.km_curthread = NULL;
+		tcb->tcb_tmbx.tm_flags = flags;
 	}
 	return (crit);
 }
@@ -151,28 +175,34 @@ _kcb_critical_enter(void)
 static __inline void
 _kcb_critical_leave(struct kse_thr_mailbox *crit)
 {
-        /* No need to do anything if this is a fake tcb. */
-        if (_tcb->tcb_isfake == 0)
-                _tcb->tcb_curkcb->kcb_kmbx.km_curthread = crit;
+	struct tcb *tcb;
+
+	tcb = ppc_get_tcb();
+
+	/* No need to do anything if this is a fake tcb. */
+	if (tcb->tcb_isfake == 0)
+		tcb->tcb_curkcb->kcb_kmbx.km_curthread = crit;
 }
 
 static __inline int
 _kcb_in_critical(void)
 {
+	struct tcb *tcb;
 	uint32_t flags;
 	int ret;
 
-	if (_tcb->tcb_isfake != 0) {
+	tcb = ppc_get_tcb();
+	if (tcb->tcb_isfake != 0) {
 		/*
 		 * We are in a critical region since there is no
 		 * current thread.
 		 */
 		ret = 1;
 	} else {
-		flags = _tcb->tcb_tmbx.tm_flags;
-		_tcb->tcb_tmbx.tm_flags |= TMF_NOUPCALL;
-		ret = (_tcb->tcb_curkcb->kcb_kmbx.km_curthread == NULL);
-		_tcb->tcb_tmbx.tm_flags = flags;
+		flags = tcb->tcb_tmbx.tm_flags;
+		tcb->tcb_tmbx.tm_flags |= TMF_NOUPCALL;
+		ret = (tcb->tcb_curkcb->kcb_kmbx.km_curthread == NULL);
+		tcb->tcb_tmbx.tm_flags = flags;
 	}
 	return (ret);
 }
@@ -184,19 +214,19 @@ _tcb_set(struct kcb *kcb, struct tcb *tcb)
                 tcb = &kcb->kcb_faketcb;
         kcb->kcb_curtcb = tcb;
         tcb->tcb_curkcb = kcb;
-	PPC_SET_TP(&tcb->tcb_tp);
+	ppc_set_tcb(tcb);
 }
 
 static __inline struct tcb *
 _tcb_get(void)
 {
-	return (_tcb);
+	return (ppc_get_tcb());
 }
 
 static __inline struct pthread *
 _get_curthread(void)
 {
-	return (_tcb->tcb_thread);
+	return (ppc_get_tcb()->tcb_thread);
 }
 
 /*
@@ -207,7 +237,7 @@ _get_curthread(void)
 static __inline struct kse *
 _get_curkse(void)
 {
-	return (_tcb->tcb_curkcb->kcb_kse);
+	return (ppc_get_tcb()->tcb_curkcb->kcb_kse);
 }
 
 static __inline int
@@ -216,7 +246,7 @@ _thread_enter_uts(struct tcb *tcb, struct kcb *kcb)
 	if (_ppc32_getcontext(&tcb->tcb_tmbx.tm_context.uc_mcontext) == 0) {
 		/* Make the fake tcb the current thread. */
 		kcb->kcb_curtcb = &kcb->kcb_faketcb;
-		PPC_SET_TP(&kcb->kcb_faketcb.tcb_tp);
+		ppc_set_tcb(&kcb->kcb_faketcb);
 		_ppc32_enter_uts(&kcb->kcb_kmbx, kcb->kcb_kmbx.km_func,
 		    kcb->kcb_kmbx.km_stack.ss_sp,
 		    kcb->kcb_kmbx.km_stack.ss_size - 32);
@@ -243,8 +273,8 @@ _thread_switch(struct kcb *kcb, struct tcb *tcb, int setmbox)
 	if (mc->mc_vers != _MC_VERSION_KSE && _libkse_debug != 0) {
 		if (setmbox)
 			kse_switchin(&tcb->tcb_tmbx, KSE_SWITCHIN_SETTMBX);
-                else
-                        kse_switchin(&tcb->tcb_tmbx, 0);
+		else
+			kse_switchin(&tcb->tcb_tmbx, 0);
 	} else {
 		tcb->tcb_tmbx.tm_lwp = kcb->kcb_kmbx.km_lwp;
 		if (setmbox)
