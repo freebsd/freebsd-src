@@ -37,7 +37,7 @@
 #include <sys/types.h>
 
 #define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
-#define	TLS_TP_OFFSET		0x7000
+#define	TLS_TP_OFFSET		0x7008
 
 /*
  * Variant I tcb. The structure layout is fixed, don't blindly
@@ -49,26 +49,24 @@ struct tcb {
 	struct pthread		*tcb_thread;
 };
 
-register uint8_t *_tp __asm("%r2");
-
-#define _tcb  ((struct tcb *)(_tp - TLS_TP_OFFSET - sizeof(struct tcb)))
-
 struct tcb	*_tcb_ctor(struct pthread *, int);
 void		_tcb_dtor(struct tcb *);
 
 static __inline void
 _tcb_set(struct tcb *tcb)
 {
-	uint8_t *tp;
+	register uint8_t *_tp __asm__("%r2");
 
-	tp = (uint8_t *)tcb + TLS_TP_OFFSET + sizeof(struct tcb);
-	__asm __volatile("mr %0,%1" : "=r"(_tp) : "r"(tp));
+	__asm __volatile("mr %0,%1" : "=r"(_tp) :
+	    "r"((uint8_t *)tcb + TLS_TP_OFFSET));
 }
 
 static __inline struct tcb *
 _tcb_get(void)
 {
-	return (_tcb);
+	register uint8_t *_tp __asm__("%r2");
+
+	return ((struct tcb *)(_tp - TLS_TP_OFFSET));
 }
 
 extern struct pthread *_thr_initial;
@@ -77,7 +75,7 @@ static __inline struct pthread *
 _get_curthread(void)
 {
 	if (_thr_initial)
-		return (_tcb->tcb_thread);
+		return (_tcb_get()->tcb_thread);
 	return (NULL);
 }
 
