@@ -97,6 +97,10 @@
 #endif
 #endif
 
+#if __FreeBSD_version < 700000
+typedef void ispfwfunc(int, int, int, uint16_t **);
+#endif
+
 #ifdef	ISP_TARGET_MODE
 #define	ISP_TARGET_FUNCTIONS	1
 #define	ATPDPSIZE	256
