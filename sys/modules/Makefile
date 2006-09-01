@@ -466,7 +466,6 @@ _io=		io
 _ipmi=		ipmi
 _ips=		ips
 _ipw=		ipw
-_iwi=		iwi
 _ixgb=   	ixgb
 _mly=		mly
 _mxge=		mxge
