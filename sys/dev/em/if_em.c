@@ -1967,7 +1967,7 @@ em_stop(void *arg)
 }
 
 
-/*********************************************************************
+/********************************************************************
  *
  *  Determine hardware revision.
  *
@@ -2285,7 +2285,7 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	    em_media_status);
 	if ((adapter->hw.media_type == em_media_type_fiber) ||
 	    (adapter->hw.media_type == em_media_type_internal_serdes)) {
-		u_char fiber_type = IFM_1000_SX;	// default type;
+		u_char fiber_type = IFM_1000_SX;	/* default type; */
 
 		if (adapter->hw.mac_type == em_82545)
 			fiber_type = IFM_1000_LX;
