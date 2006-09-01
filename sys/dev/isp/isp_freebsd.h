@@ -97,7 +97,9 @@
 #endif
 #endif
 
+#if __FreeBSD_version < 700000
 typedef void ispfwfunc(int, int, int, uint16_t **);
+#endif
 
 #ifdef	ISP_TARGET_MODE
 #define	ISP_TARGET_FUNCTIONS	1
@@ -155,6 +157,7 @@ struct isposinfo {
 		intsok		: 1,
 		simqfrozen	: 3;
 #if __FreeBSD_version >= 500000  
+	struct firmware *	fw;
 	struct mtx		lock;
 	struct cv		kthread_cv;
 #endif

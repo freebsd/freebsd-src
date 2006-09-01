@@ -204,7 +204,8 @@
 #define		BIU2100_FB_REGS		(1 << 4)	/* FrameBuffer Regs */
 #define		BIU2100_FPM0_REGS	(2 << 4)	/* FPM 0 Regs */
 #define		BIU2100_FPM1_REGS	(3 << 4)	/* FPM 1 Regs */
-#define	BIU2100_PCI64			0x04	/*  R: 64 Bit PCI slot */
+#define	BIU2100_NVRAM_OFFSET		(1 << 14)
+#define	BIU2100_FLASH_UPPER_64K		0x04	/* RW: Upper 64K Bank Select */
 #define	BIU2100_FLASH_ENABLE		0x02	/* RW: Enable Flash RAM */
 #define	BIU2100_SOFT_RESET		0x01
 /* SOFT RESET FOR ISP2100 is same bit, but in this register, not ICR */
@@ -268,6 +269,7 @@
 #define	BIU_NVRAM_SELECT	0x0002
 #define	BIU_NVRAM_DATAOUT	0x0004
 #define	BIU_NVRAM_DATAIN	0x0008
+#define	BIU_NVRAM_BUSY		0x0080	/* 2322/24xx only */
 #define		ISP_NVRAM_READ		6
 
 /* COMNMAND && DATA DMA CONFIGURATION REGISTER */
@@ -947,7 +949,7 @@ typedef struct {
 #define	ISP2100_NVRAM_SIZE	256
 /* ISP_NVRAM_VERSION is in same overall place */
 #define	ISP2100_NVRAM_RISCVER(c)		(c)[6]
-#define	ISP2100_NVRAM_OPTIONS(c)		(c)[8]
+#define	ISP2100_NVRAM_OPTIONS(c)		((c)[8] | ((c)[9] << 8))
 #define	ISP2100_NVRAM_MAXFRAMELENGTH(c)		(((c)[10]) | ((c)[11] << 8))
 #define	ISP2100_NVRAM_MAXIOCBALLOCATION(c)	(((c)[12]) | ((c)[13] << 8))
 #define	ISP2100_NVRAM_EXECUTION_THROTTLE(c)	(((c)[14]) | ((c)[15] << 8))
@@ -964,9 +966,10 @@ typedef struct {
 		(((uint64_t)(c)[24]) <<  8) | \
 		(((uint64_t)(c)[25]) <<  0))
 
-#define	ISP2100_NVRAM_HARDLOOPID(c)		(c)[26]
+#define	ISP2100_NVRAM_HARDLOOPID(c)		((c)[26] | ((c)[27] << 8))
+#define	ISP2100_NVRAM_TOV(c)			((c)[29])
 
-#define	ISP2200_NVRAM_NODE_NAME(c)	(\
+#define	ISP2100_NVRAM_NODE_NAME(c)	(\
 		(((uint64_t)(c)[30]) << 56) | \
 		(((uint64_t)(c)[31]) << 48) | \
 		(((uint64_t)(c)[32]) << 40) | \
@@ -976,7 +979,16 @@ typedef struct {
 		(((uint64_t)(c)[36]) <<  8) | \
 		(((uint64_t)(c)[37]) <<  0))
 
-#define	ISP2100_NVRAM_HBA_OPTIONS(c)		(c)[70]
+#define	ISP2100_XFW_OPTIONS(c)			((c)[38] | ((c)[39] << 8))
+
+#define	ISP2100_RACC_TIMER(c)			(c)[40]
+#define	ISP2100_IDELAY_TIMER(c)			(c)[41]
+
+#define	ISP2100_ZFW_OPTIONS(c)			((c)[42] | ((c)[43] << 8))
+
+#define	ISP2100_SERIAL_LINK(c)			((c)[68] | ((c)[69] << 8))
+
+#define	ISP2100_NVRAM_HBA_OPTIONS(c)		((c)[70] | ((c)[71] << 8))
 #define	ISP2100_NVRAM_HBA_DISABLE(c)		ISPBSMX(c, 70, 0, 0x01)
 #define	ISP2100_NVRAM_BIOS_DISABLE(c)		ISPBSMX(c, 70, 1, 0x01)
 #define	ISP2100_NVRAM_LUN_DISABLE(c)		ISPBSMX(c, 70, 2, 0x01)
@@ -995,8 +1007,9 @@ typedef struct {
 		(((uint64_t)(c)[79]) <<  0))
 
 #define	ISP2100_NVRAM_BOOT_LUN(c)		(c)[80]
+#define	ISP2100_RESET_DELAY(c)			(c)[81]
 
-#define	ISP2200_HBA_FEATURES(c)			(c)[232] | ((c)[233] << 8)
+#define	ISP2100_HBA_FEATURES(c)			((c)[232] | ((c)[233] << 8))
 
 /*
  * Firmware Crash Dump
