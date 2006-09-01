@@ -358,6 +358,6 @@ int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
-	td->td_frame->fixreg[2] = (register_t)tls_base;
+	td->td_frame->fixreg[2] = (register_t)tls_base + 0x7008;
 	return (0);
 }
