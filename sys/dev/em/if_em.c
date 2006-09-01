@@ -1978,22 +1978,16 @@ em_identify_hardware(struct adapter *adapter)
 	device_t dev = adapter->dev;
 
 	/* Make sure our PCI config space has the necessary stuff set */
+	pci_enable_busmaster(dev);
+	pci_enable_io(dev, SYS_RES_MEMORY);
 	adapter->hw.pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (!((adapter->hw.pci_cmd_word & PCIM_CMD_BUSMASTEREN) &&
-	    (adapter->hw.pci_cmd_word & PCIM_CMD_MEMEN))) {
-		device_printf(dev, "Memory Access and/or Bus Master bits "
-		    "were not set!\n");
-		adapter->hw.pci_cmd_word |=
-		(PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
-		pci_write_config(dev, PCIR_COMMAND, adapter->hw.pci_cmd_word, 2);
-	}
 
 	/* Save off the information about this board */
 	adapter->hw.vendor_id = pci_get_vendor(dev);
 	adapter->hw.device_id = pci_get_device(dev);
-	adapter->hw.revision_id = pci_read_config(dev, PCIR_REVID, 1);
-	adapter->hw.subsystem_vendor_id = pci_read_config(dev, PCIR_SUBVEND_0, 2);
-	adapter->hw.subsystem_id = pci_read_config(dev, PCIR_SUBDEV_0, 2);
+	adapter->hw.revision_id = pci_get_revid(dev);
+	adapter->hw.subsystem_vendor_id = pci_get_subvendor(dev);
+	adapter->hw.subsystem_id = pci_get_subdevice(dev);
 
 	/* Identify the MAC */
 	if (em_set_mac_type(&adapter->hw))
