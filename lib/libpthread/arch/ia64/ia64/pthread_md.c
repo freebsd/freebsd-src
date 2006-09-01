@@ -39,9 +39,10 @@
 struct tcb *
 _tcb_ctor(struct pthread *thread, int initial)
 {
+	register char *tp __asm("%r13");
 	struct tcb *tcb;
 
-	tcb = _rtld_allocate_tls((initial) ? _tp : NULL,
+	tcb = _rtld_allocate_tls((initial) ? tp : NULL,
 	    sizeof(struct tcb), 16);
 	if (tcb == NULL)
 		return (NULL);
@@ -68,7 +69,6 @@ _kcb_ctor(struct kse *kse)
 	kcb->kcb_kse = kse;
 	kcb->kcb_faketcb.tcb_isfake = 1;
 	kcb->kcb_faketcb.tcb_tmbx.tm_flags = TMF_NOUPCALL;
-	kcb->kcb_faketcb.tcb_tp.tp_dtv = (void *)-1;
 	kcb->kcb_curtcb = &kcb->kcb_faketcb;
 	return (kcb);
 }
