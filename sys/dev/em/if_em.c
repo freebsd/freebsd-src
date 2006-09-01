@@ -1321,14 +1321,17 @@ em_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	INIT_DEBUGOUT("em_media_status: begin");
 
+	EM_LOCK(adapter);
 	em_check_for_link(&adapter->hw);
 	em_update_link_status(adapter);
 
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
 
-	if (!adapter->link_active)
+	if (!adapter->link_active) {
+		EM_UNLOCK(adapter);
 		return;
+	}
 
 	ifmr->ifm_status |= IFM_ACTIVE;
 
@@ -1355,6 +1358,7 @@ em_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 		else
 			ifmr->ifm_active |= IFM_HDX;
 	}
+	EM_UNLOCK(adapter);
 }
 
 /*********************************************************************
@@ -1376,6 +1380,7 @@ em_media_change(struct ifnet *ifp)
 	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
 		return (EINVAL);
 
+	EM_LOCK(adapter);
 	switch (IFM_SUBTYPE(ifm->ifm_media)) {
 	case IFM_AUTO:
 		adapter->hw.autoneg = DO_AUTO_NEG;
@@ -1412,7 +1417,8 @@ em_media_change(struct ifnet *ifp)
 	 */
 	adapter->hw.phy_reset_disable = FALSE;
 
-	em_init(adapter);
+	em_init_locked(adapter);
+	EM_UNLOCK(adapter);
 
 	return (0);
 }
