@@ -1055,7 +1055,7 @@ au_to_me(void)
  * text					count null-terminated strings
  */
 token_t *
-au_to_exec_args(const char **argv)
+au_to_exec_args(char **argv)
 {
 	token_t *t;
 	u_char *dptr = NULL;
@@ -1096,7 +1096,7 @@ au_to_exec_args(const char **argv)
  * text					count null-terminated strings
  */
 token_t *
-au_to_exec_env(const char **envp)
+au_to_exec_env(char **envp)
 {
 	token_t *t;
 	u_char *dptr = NULL;
