@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2001-2005 Douglas Barton, DougB@FreeBSD.org
+# Copyright (c) 2001-2006 Douglas Barton, DougB@FreeBSD.org
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,9 @@ PATH=/bin:/usr/bin
 #
 if [ -r /etc/defaults/rc.conf ]; then
 	. /etc/defaults/rc.conf
-	source_rc_confs
+	source_rc_confs 2>/dev/null
 elif [ -r /etc/rc.conf ]; then
-	. /etc/rc.conf
+	. /etc/rc.conf 2>/dev/null
 fi
 
 case ${entropy_dir} in
@@ -66,16 +66,16 @@ fi
 
 umask 377
 
-for file_num in `jot ${entropy_save_num} ${entropy_save_num} 1`; do
+esn_m1=$(( ${entropy_save_num} - 1 ))
+for file_num in `jot $esn_m1 $esn_m1 1`; do
 	if [ -e "${entropy_dir}/saved-entropy.${file_num}" ]; then
 		if [ -f "${entropy_dir}/saved-entropy.${file_num}" ]; then
-			new_num=$(($file_num + 1))
-			if [ "${new_num}" -gt "${entropy_save_num}" ]; then
-				rm -f "${entropy_dir}/saved-entropy.${file_num}"
-			else
-				mv "${entropy_dir}/saved-entropy.${file_num}" \
-				    "${entropy_dir}/saved-entropy.${new_num}"
+			new_file=saved-entropy.$(( $file_num + 1 ))
+			if [ -e "${entropy_dir}/${new_file}" ]; then
+				unlink ${entropy_dir}/${new_file}
 			fi
+			mv "${entropy_dir}/saved-entropy.${file_num}" \
+			    "${entropy_dir}/${new_file}"
 		else
 			logger -is -t "$0" \
 "${entropy_dir}/saved-entropy.${file_num} is not a regular file, and therefore \
