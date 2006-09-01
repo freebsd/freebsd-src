@@ -70,6 +70,7 @@ struct tcb {
 	struct pthread		*tcb_thread;
 	struct kcb		*tcb_curkcb;
 	long			tcb_isfake;
+	long			tcb_spare[3];
 	struct ppc32_tp		tcb_tp;
 };
 
