@@ -10,7 +10,7 @@
 
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.73.2.15
+	Original Revision: 1.73.2.29
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -19,7 +19,7 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "6.0-RELEASE">
+<!ENTITY release.bugfix "6.1-RELEASE">
 ]>
 
 <article>
@@ -100,7 +100,7 @@
 
     <para>下列安全公告与 &os; &release.bugfix; 有关。
       要了解进一步的信息， 请从
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/"></ulink>
+      <ulink url="http://security.FreeBSD.org/"></ulink>
       下载并阅读安全公告。</para>
 
     <informaltable frame="none" pgwide="0">
@@ -118,80 +118,30 @@
 
 	<tbody>
 	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:13.sendmail.asc"
-		>06:13.sendmail</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;3&nbsp;月&nbsp;22&nbsp;日</entry>
-	    <entry><para>sendmail 中的竞态条件</para></entry>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:15.ypserv.asc"
+		>SA-06:15.ypserv</ulink></entry>
+	    <entry>2006&nbsp;年&nbsp;5&nbsp;月&nbsp;31&nbsp;日</entry>
+	    <entry><para>&man.ypserv.8; 中的访问控制功能工作不正确</para></entry>
 	  </row>
 
 	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:12.opie.asc"
-		>06:12.opie</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;3&nbsp;月&nbsp;22&nbsp;日</entry>
-	    <entry><para>OPIE 允许修改任意口令</para></entry>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:16.smbfs.asc"
+		>SA-06:16.smbfs</ulink></entry>
+	    <entry>2006&nbsp;年&nbsp;5&nbsp;月&nbsp;31&nbsp;日</entry>
+	    <entry><para>在 smbfs 中可能绕过 chroot</para></entry>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:17.sendmail.asc"
+		>SA-06:17.sendmail</ulink></entry>
+	    <entry>2006&nbsp;年&nbsp;6&nbsp;月&nbsp;14日</entry>
+	    <entry><para>在 Sendmail 中对 multipart 信件的处理不正确</para></entry>
 	  </row>
 
 	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:11.ipsec.asc"
-		>06:11.ipsec</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;3&nbsp;月&nbsp;22&nbsp;日</entry>
-	    <entry><para>IPsec 回应攻击漏洞</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:10.nfs.asc"
-		>06:10.nfs</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;3&nbsp;月&nbsp;1&nbsp;日</entry>
-	    <entry><para>针对 NFS 服务器的远程拒绝服务攻击</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:07.pf.asc"
-		>06:07.pf</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;1&nbsp;月&nbsp;25&nbsp;日</entry>
-	    <entry><para>&man.pf.4; 中 IP 分片处理导致的 panic</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:06.kmem.asc"
-		>06:06.kmem</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;1&nbsp;月&nbsp;25&nbsp;日</entry>
-	    <entry><para>本地内核内存内容泄露</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:05.80211.asc"
-		>06:05.80211</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;1&nbsp;月&nbsp;18日</entry>
-	    <entry><para>IEEE 802.11 缓冲区溢出</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:04.ipfw.asc"
-		>06:04.ipfw</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;1&nbsp;月&nbsp;11日</entry>
-	    <entry><para>&man.ipfw.4; IP 分片拒绝服务攻击</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:03.cpio.asc"
-		>06:03.cpio</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;1&nbsp;月&nbsp;11日</entry>
-	    <entry><para>在 &man.cpio.1; 中存在多处漏洞</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:02.ee.asc"
-		>06:02.eex</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;1&nbsp;月&nbsp;11日</entry>
-	    <entry><para>&man.ee.1; 临时文件特权提升</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-06:01.texindex.asc"
-		>06:01.texindex</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;1&nbsp;月&nbsp;11日</entry>
-	    <entry><para>Texindex 临时文件特权提升</para></entry>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:18.ppp.asc"
+		>SA-06:18.ppp</ulink></entry>
+	    <entry>2006&nbsp;年&nbsp;8&nbsp;月&nbsp;23&nbsp;日</entry>
+	    <entry><para>在 &man.sppp.4; 中存在缓冲区溢出问题</para></entry>
 	  </row>
 	</tbody>
       </tgroup>
@@ -201,141 +151,88 @@
   <sect1 id="known-problems">
     <title>已知问题和解决方法</title>
 
-    <para>(2005/11/26)
-      在 6.0-RELEASE 上， 以下 &man.ipfw.4; 规则会以与先前版本不同的方式处理：</para>
+    <para>(2006/05/10) 随 &os;
+      &release.bugfix; 发布的勘误说明文件中错误地包含了仅适用于
+      &os; 6.0-RELEASE 的信息。</para>
 
-    <programlisting>allow ipv6 from 192.168.0.2 to me</programlisting>
+    <para>(2006/05/10) &os; &release.bugfix;
+      中的发行版说明文件中关于 KDE 升级的部分中，
+      KDE port 的名字是错的。 正确的名字应该是
+      <filename role="package">x11/kde3</filename>。</para>
 
-    <para>当 &man.ipfw.4; 不支持 IPv6 时 (具体细节请参见下一个问题)，
-      &man.ipfw.8; 会接受这个规则， 并阻止源地址为 <literal>192.168.0.2</literal>
-      的、 封装到 IPv4 包中的 IPv6 包
-      (IPv4-之上的-IPv6 隧道， 协议编号 41)。
-      如果它支持 IPv6， 则这表示一条允许来自 <literal>192.168.0.2</literal>
-      的 IPv6 包的规则， 而实际上 &man.ipfw.8; 会拒绝这一规则，
-      因为其语法是错误的 (<quote>来自 IPv4 地址的 IPv6 包</quote>
-      不能存在)。 不幸的是， 并没有简单的办法来绕过这一问题。</para>
+    <para>(2006/05/10) 针对 &os; &release.bugfix; 的发行版说明中，
+      未能提及在使用 SMP 内核时会默认启用双核的 i386 和 amd64 CPU 中的第二个核。</para>
 
-    <para>目前 &man.ipfw.4; 的 IPv6 支持仍然有很多不甚完善的地方，
-      由于两者之间的不兼容， 还存在许多其他问题。 要绕过这些问题，
-      您可以同时使用仅支持 IPv4 的 &man.ipfw.4; 和 &man.ip6fw.8;，
-      而不是包含 IPv6 支持的 &man.ipfw.4;， 这样能够最大限度地与先前的版本兼容。
-      要禁用 &man.ipfw.4; 的 IPv6 支持，
-      您应使用 <filename>ipfw.ko</filename> 内核模块，
-      而不应使用内核编译配置选项 <literal>IPFIREWALL</literal>。</para>
+    <para>(2006/05/13) 在 &os;
+      &release.bugfix; 中 &man.ata.4; 驱动的变动，
+      导致了用户态程序可见的一个软件接口变化。 所有使用
+      <literal>IOCATAREQUEST</literal> &man.ioctl.2; 接口的程序，
+      都必须重新编译才能继续使用。 通常这种程序是直接与 ATA 和 ATAPI 驱动器通讯的，
+      这其中包括 CDROM 刻录和音轨抓取， 以及监控程序等等。
+      目前已知会受到影响的程序是
+      <filename role="package">sysutils/smartmontools</filename>
+      port 所安装的 <filename>smartd</filename>。</para>
 
-    <para>(2005/11/19)
-      尽管 &os; 6.0-RELEASE 的发行版说明表示
-      &man.ipfw.4; 子系统已经能够支持 IPv6，
-      但同时使用 <filename>GENERIC</filename> 内核，
-      以及内核模块 <filename>ipfw.ko</filename>
-      时， 并不能在包过滤规则中支持 <literal>ip6</literal> 协议关键字。
-      这是因为内核编译配置文件中的选项
-      <literal>INET6</literal> 并不能为 <filename>ipfw.ko</filename>
-      的构建过程所识别。 要启用 &man.ipfw.4; 的 IPv6 支持，
-      您需要将内核以同时包含选项 <literal>INET6</literal>
-      和 <literal>IPFIREWALL</literal> 的方式重新构建，
-      而不是使用 <filename>ipfw.ko</filename> 模块。</para>
+    <para>(2006/05/27， 于 2006/06/01 更新) 在 &os;/alpha 上， 有时 &man.sysinstall.8;
+      会不允许对磁盘做 label 操作。 磁盘在 &man.sysinstall.8; 中能够看到，
+      但类似 <guimenuitem>Auto</guimenuitem> 这样的操作不会产生 disklabel。
+      绕过这个问题的方法是使用安装 CD 启动， 选择 <guimenuitem>Fixit</guimenuitem>。
+      接着在 <prompt>Fixit#</prompt> 提示符下手工执行 &man.disklabel.8;。 例如：
+      <command>disklabel -rw da1 auto</command> 会在
+      <devicename>da1</devicename> 中写入可用的 disklabel。 再用安装光盘重新启动系统，
+      则 &man.sysinstall.8; 就能检测到有效的 disklabel，
+      并正确地进行分区操作了。</para>
 
-    <para>(2005/11/16)
-      使用 &man.if.bridge.4; 配合包过滤器，
-      如 &man.ipfw.4; 以及 &man.pf.4; 可能会使网络协议栈停止工作，
-      甚至导致系统在一段时间之后发生 panic。
-      这是由于它会为网络数据包分配 &man.mbuf.9; 缓冲区，
-      但一直不释放它们， 这将最终耗竭全部的缓冲内存。
-      这一问题已经在 HEAD 以及 10:17:15 2005/11/16 UTC 之后的
-      RELENG_6 中修正。</para>
+    <para>(2006/05/27) &os; &release.bugfix; 中包含了一些对 <filename>src/sys/net/if_media.h</filename>
+      中某些定义 (版本为 1.30.2.1) 的变动。 这会破坏与为 &os; 6.0-RELEASE
+      所撰写的 10Gb 以太网设备驱动的源代码级别兼容性。 这一变动未能在发行版说明中体现。</para>
 
-    <para>(2005/11/16， 更新于 2005/11/19)
-      当 &man.ipfw.4; <literal>divert</literal> 规则与协议关键字 <literal>ip</literal>
-      或 <literal>all</literal> 联用时，
-      IPv6 会在这一规则处被直接丢弃，
-      因为 &man.divert.4; socket 并不支持 IPv6。
-      对于一台拥有 IPv4 和 IPv6 双协议栈，
-      并启用了 &man.natd.8; 的机器而言这可能是一个严重的问题。
-      <emphasis role="bold">请注意内核模块 <filename>ipfw.ko</filename>
-	并没有这个问题， 因为它并不支持 IPv6。</emphasis>
-      要避免这一问题， 应使用专用于 IPv4 的 divert (转向) 规则，
-      例如 <literal>divert natd ipv4</literal>
-      来代替 <literal>divert natd all</literal>。</para>
+    <para>(2006/06/01， 于 2006/07/07 更新) 在 <filename>rc.d/jail</filename>
+      启动脚本中存在一系列问题， 这些问题可能会给使用它来配置系统引导时的 &man.jail.2;
+      环境的用户带来麻烦。 对于这些问题的修正， 目前已经汇入了 HEAD、 RELENG_6 和 RELENG_6_1。
+      关于这一问题的更多细节， 请参见勘误公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:01.jail.asc">FreeBSD-EN-06:01.jail</ulink>。</para>
 
-    <para>(2005/11/6)
-      &os; 6.0-RELEASE 的发行版说明错误地说明了与 &man.ipfw.8; 有关的一个内核选项为
-      <literal>IPFIRWALL_FORWARD</literal>。
-      正确的关键字应该是 <literal>IPFIREWALL_FORWARD</literal>。</para>
+    <para>(2006/06/01， 于 2006/08/30 更新) 发现在某些情况下 (可重现) 文件系统同时使用快照和容量配额的机器上会发生死锁。
+      对于此问题的修正， 已经汇入
+      HEAD 和 RELENG_6 分支。</para>
 
-    <para>(2005/11/5)
-      &os; 6.0-RELEASE 的发行版说明错误地说明了集成到 &os;
-      中的 OpenSSH 和 IPFilter 的版本分别是 4.1p1 和 4.1.18。
-      正确的版本应该是 4.2p1 和 4.1.8。</para>
+    <para>(2006/06/01， 于 2006/08/28 更新) 在 Neighbor Discovery Protocol (NDP)
+      实现中的一处问题会导致 &os; &release.bugfix; 通过点对点
+      IPv6 链路发送无效消息。 这是 &os; 6.0-RELEASE 上的一个回归问题。
+      对此问题的修正， 已经汇入 HEAD、 RELENG_6 和 RELENG_6_1。
+      关于此问题的进一步详情， 请参见勘误公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:02.net.asc">FreeBSD-EN-06:02.net</ulink>。</para>
 
-    <para>(2005/11/5)
-      在 6.0-RELEASE 的安装文件中提供了 <filename>CHECKSUM.MD5</filename>
-      和 <filename>CHECKSUM.SHA256</filename> 来帮助验证数据完整性。
-      但是， 在 6.0-RELEASE 中的这些文件错误地包含了校验和文件本身的校验和。
-      尽管这种校验和看起来是不正确的， 但可以安全地忽略它们，
-      因为校验和文件的校验和与其所包含的其他的文件内容并不相关。
-      这一问题将在未来的发行版中修正。</para>
+    <para>(2006/06/01) 发现在 &man.sysinstall.8; 环境中从多个 CDROM
+      上加载包时存在一些问题。 具体说来，
+      &man.sysinstall.8; 的换盘功能对磁盘内容的识别有些问题。
+      这一状况主要见于在安装不带 &xorg; 的基本系统
+      (通常是第一张 CDROM)， 之后又使用 &man.sysinstall.8; 从后续的 CDROM 来安装需要
+      &xorg; 的包 (例如 GNOME 或 KDE 桌面环境) 时可能会触发问题。
+      绕过这一问题的方法是随基本系统安装 &xorg;， 或在安装依赖它的其它包之前单独安装它。</para>
 
-    <para>(2005/11/5， 仅限于 &os;/amd64)
-      在将 &man.hwpmc.4; 日志文件转换为 &man.gprof.1; 格式时，
-      &man.pmcstat.8; 工具尚无法处理 32-位
-      的可执行文件。</para>
+    <para>(2006/06/01， 于 2006/08/28 更新) 在 UMA 内核内存分配器中负责统计数据的逻辑存在问题，
+      这会导致 <literal>requests for mbufs denied(拒绝的 mbufs 请求)</literal> 数量 (使用
+      <command>netstat -m</command> 查看) 错误地增多。 对于此问题的修正，
+      目前已经汇入了 HEAD、 RELENG_6 和
+      RELENG_6_1。 关于此问题的进一步详情， 请参见勘误公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:02.net.asc">FreeBSD-EN-06:02.net</ulink>。</para>
 
-    <para>(2005/11/5， 仅限于 &os;/powerpc)
-      下列 panic 可能在某些较早的
-      PowerMac G4 系统启动时发生：</para>
+    <para>(2006/06/01) 修正了长期以来 i386 引导加载器在使用 &man.nextboot.8;
+      工具， 且 <filename>/boot/nextboot.conf</filename>
+      配置文件位于引导盘第 1023 柱面之后时可能导致根文件系统损坏的问题。
+      此问题的修正已经汇入了 HEAD， 在进行进一步测试之后会合并到其它分支。</para>
 
-<screen>...
-KDB: current backend: ddb
-panic: Assertion curthread != NULL failed at
-/usr/src/sys/kern/kern_mutex.c:268
-KDB: enter panic</screen>
+    <para>(2006/06/16) 发现了一处与锁有关的， 可导致 NFS 服务器性能明显下降的问题。
+      对于此问题的修正已经汇入了 HEAD 和 RELENG_6，
+      在进行了更多测试之后可能会汇入 RELENG_6_1。</para>
 
-    <para>这是一个已知但没有缓解方法的问题， 它将在下一个版本中修正。</para>
+    <para>(2006/08/28) 由于在使用指针时未进行有效性验证，
+      网络协议栈可以从本地触发 panic。 这一问题已经在 HEAD、 RELENG_6 以及 RELENG_6_1
+      中修正。 关于此问题的进一步详情， 请参见勘误公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:02.net.asc">FreeBSD-EN-06:02.net</ulink>。</para>
 
-    <para>(2005/11/5)
-      由于在 6.0-RELEASE 上 <filename>/usr/share/locale/*/LC_*</filename>
-      文件保存在磁盘上的格式发生了变化， 使用了
-      &man.setlocale.3; 的第三方软件的本地化功能，
-      在从 5.x 系统上升级之后会无法再正常工作。
-      这包括那些在系统在运行 5.x 时通过 &os; Ports 套件，
-      以及其他方式安装的软件。 要解决这个问题， 需要执行下列操作之一：</para>
-
-    <itemizedlist>
-      <listitem>
-	<para>将 misc/compat5x package 安装到升级后的 6.0 系统。
-	  这个包会安装一个 <filename>lib/compat/libc.so.5</filename>
-	  库， 它使得在 5.x 系统上编译的可执行文件使用旧的 locale 文件，
-	  以保持兼容性。 请注意您需要在升级前删除
-	  <filename>/lib/libc.so.5</filename>。</para>
-
-	<para>这个 package 只对 Tier-1 级别的平台可用。</para>
-      </listitem>
-
-      <listitem>
-	<para>在 6.0 系统中重新编译并安装所有软件。</para>
-      </listitem>
-    </itemizedlist>
-
-    <para>(2005/10/3)
-      如果机器没有 framebuffer， 在引导时 &os;/sparc64 GENERIC
-      内核可能输出下列消息：</para>
-
-    <screen>Aug 26 19:31:27 hostname getty[429]: open /dev/ttyv1: No such file or directory</screen>
-
-    <para>这是因为没有提供支持的图形硬件的机器无法识别 &man.syscons.4;，
-      因此也就无法建立 <filename>/dev/ttyv*</filename> 设备节点。
-      这并不是一个致命的错误， 通过在
-      <filename>/etc/ttys</filename> 中禁用
-      <filename>/dev/ttyv*</filename> 项就可以阻止它们出现。</para>
-
-    <para>(2005/10/3)
-      在 &os;/sparc64 上， 如果机器有超过 4GB 的内存， 就无法使用内核模块了。
-      除了事先将模块静态联编到内核中之外， 没有其他办法能够绕过这个问题。</para>
-
-    <para>(2005/10/3)
-      &man.kgdb.1; 工具在 &os;/sparc64 上无法正确地对包含 trap 的 panic
-      进行调试。 要绕过这个问题您可以先安装 <filename>devel/gdb53</filename>。</para>
   </sect1>
 
 </article>
