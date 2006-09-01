@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003 Marcel Moolenaar
+ * Copyright (c) 2003-2006 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 #include <ucontext.h>
 
 #define	KSE_STACKSIZE		16384
-#define	DTV_OFFSET		offsetof(struct tcb, tcb_tp.tp_tdv)
+#define	DTV_OFFSET		offsetof(struct tcb, tcb_tp.tp_dtv)
 
 #define	THR_GETCONTEXT(ucp)	_ia64_save_context(&(ucp)->uc_mcontext)
 #define	THR_SETCONTEXT(ucp)	PANIC("THR_SETCONTEXT() now in use!\n")
@@ -45,7 +45,6 @@ struct kcb;
 struct kse;
 struct pthread;
 struct tcb;
-struct tdv;	/* We don't know what this is yet? */
 
 /*
  * tp points to one of these. We define the static TLS as an array
@@ -55,7 +54,7 @@ struct tdv;	/* We don't know what this is yet? */
  * valid, well-aligned thread pointer.
  */
 struct ia64_tp {
-	struct tdv		*tp_tdv;	/* dynamic TLS */
+	void			*tp_dtv;	/* dynamic thread vector. */
 	uint64_t		_reserved_;
 	long double		tp_tls[0];	/* static TLS */
 };
@@ -70,12 +69,13 @@ struct tcb {
 
 struct kcb {
 	struct kse_mailbox	kcb_kmbx;
-	struct tcb		kcb_faketcb;
-	struct tcb		*kcb_curtcb;
 	struct kse		*kcb_kse;
+	struct tcb		*kcb_curtcb;
+	struct tcb		kcb_faketcb;
 };
 
-register struct ia64_tp *_tp __asm("%r13");
+register struct ia64_tp *_tp __asm("r13");
+#define	IA64_SET_TP(x)	__asm __volatile("mov r13 = %0;;" :: "r"(x))
 
 #define	_tcb	((struct tcb*)((char*)(_tp) - offsetof(struct tcb, tcb_tp)))
 
@@ -92,7 +92,7 @@ static __inline void
 _kcb_set(struct kcb *kcb)
 {
 	/* There is no thread yet; use the fake tcb. */
-	_tp = &kcb->kcb_faketcb.tcb_tp;
+	IA64_SET_TP(&kcb->kcb_faketcb.tcb_tp);
 }
 
 /*
@@ -170,7 +170,7 @@ _tcb_set(struct kcb *kcb, struct tcb *tcb)
 		tcb = &kcb->kcb_faketcb;
 	kcb->kcb_curtcb = tcb;
 	tcb->tcb_curkcb = kcb;
-	_tp = &tcb->tcb_tp;
+	IA64_SET_TP(&tcb->tcb_tp);
 }
 
 static __inline struct tcb *
@@ -208,7 +208,7 @@ _thread_enter_uts(struct tcb *tcb, struct kcb *kcb)
 	if (_ia64_save_context(&tcb->tcb_tmbx.tm_context.uc_mcontext) == 0) {
 		/* Make the fake tcb the current thread. */
 		kcb->kcb_curtcb = &kcb->kcb_faketcb;
-		_tp = &kcb->kcb_faketcb.tcb_tp;
+		IA64_SET_TP(&kcb->kcb_faketcb.tcb_tp);
 		_ia64_enter_uts(kcb->kcb_kmbx.km_func, &kcb->kcb_kmbx,
 		    kcb->kcb_kmbx.km_stack.ss_sp,
 		    kcb->kcb_kmbx.km_stack.ss_size);
