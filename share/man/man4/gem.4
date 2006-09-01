@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 15, 2004
+.Dd September 1, 2006
 .Dt GEM 4
 .Os
 .Sh NAME
@@ -50,17 +50,17 @@ the last Apple PowerBooks G3s and most G4-based Apple hardware, as
 well as many Sun UltraSPARCs.
 .Sh HARDWARE
 .Pp
-Cards supported by
+Chips supported by the
 .Nm
 driver include:
 .Pp
 .Bl -bullet -compact
 .It
-Sun GEM gigabit Ethernet
+Apple GMAC
 .It
 Sun ERI 10/100 Mbps Ethernet
 .It
-Apple GMAC
+Sun GEM Gigabit Ethernet
 .El
 .Sh NOTES
 On sparc64 the
@@ -83,9 +83,17 @@ the unique MAC address of each interface is used if present rather than
 the system's default MAC address.
 .Pp
 Supported interfaces having their own MAC address include the on-board
-Sun ERI 10/100 Mbps and GEM gigabit Ethernet Interfaces on boards equipped
-with more than one Ethernet interface and the Sun GEM gigabit Ethernet
-add-on cards.
+Sun ERI 10/100 Mbps on boards equipped with more than one Ethernet interface
+and the Sun Gigabit Ethernet 2.0/3.0 GBE add-on cards.
+.Sh CAVEATS
+Currently the
+.Nm
+driver fails to attach to Sun Gigabit Ethernet 2.0/3.0 (GBE/P) cards,
+as the SERDES used on these cards is not supported so far.
+The
+.Nm
+driver will also fail to probe and attach to Sun Gigabit Ethernet 2.0/3.0 (GBE/S) cards,
+as no SBus front-end has been written so far.
 .Sh SEE ALSO
 .Xr hme 4 ,
 .Xr miibus 4 ,
