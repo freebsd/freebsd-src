@@ -76,6 +76,9 @@
 #		If the file contains a pathname starting with "/", then
 #		the root path is prepended to it; this allows relocation of
 #		the root filesystem without changing configuration files.
+#		Because mount_nfs understands ".." in paths, it is
+#		possible to mount from locations above the NFS root with
+#		paths such as "/../../etc".
 #
 # /conf/T/M/md_size
 #		The contents of the file specifies the size of the memory
@@ -96,6 +99,12 @@
 # /conf/T/SUBDIR.remove
 #		The list of paths contained in the file are rm -rf'd
 #		relative to /SUBDIR.
+#
+# /conf/diskless_remount
+#		Similar to /conf/T/M/diskless_remount above, but allows
+#		all of /conf to be remounted.  This can be used to allow
+#		multiple roots to share the same /conf.
+#		
 #
 # You will almost universally want to create the following files under /conf
 #
@@ -222,8 +231,7 @@ fi
 # The list of filesystems to umount after the copy
 to_umount=""
 
-# If /conf/diskless_remount exists, remount all of /conf.  This allows
-# multiple roots to share the same conf files.
+# If /conf/diskless_remount exists, remount all of /conf.
 if [ -d /conf -a -f /conf/diskless_remount ]; then
     nfspt=`/bin/cat /conf/diskless_remount`
     if [ `expr "$nfspt" : '\(.\)'` = "/" ]; then
@@ -300,7 +308,7 @@ for i in ${templates} ; do
 	subdir=${j##*/}
 	if [ -d $j -a ! -f $j.cpio.gz  ]; then
 	    create_md $subdir
-	    cp -Rp $j/* /$subdir
+	    cp -Rp $j/ /$subdir
 	fi
     done
     for j in /conf/$i/*.cpio.gz ; do
