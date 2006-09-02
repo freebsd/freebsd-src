@@ -1,7 +1,9 @@
 # $FreeBSD$
 
 PROG=	athstats
+BINDIR=	/usr/local/bin
 NO_MAN=
-BINDIR?=/usr/local/bin
+
+SRCS=	main.c statfoo.c athstats.c
 
 .include <bsd.prog.mk>
