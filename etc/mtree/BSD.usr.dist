@@ -661,6 +661,8 @@
                 ..
                 i386
                 ..
+                powerpc
+                ..
                 sparc64
                 ..
             ..
@@ -693,6 +695,8 @@
                     amd64
                     ..
                     i386
+                    ..
+                    powerpc
                     ..
                     sparc64
                     ..
@@ -765,6 +769,8 @@
                 amd64
                 ..
                 i386
+                ..
+                powerpc
                 ..
                 sparc64
                 ..
