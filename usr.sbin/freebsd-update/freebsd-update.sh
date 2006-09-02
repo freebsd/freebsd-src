@@ -1046,7 +1046,7 @@ fetch_metadata () {
 	return 0
 }
 
-# Generated a filtered version of the metadata file $1 from the downloaded
+# Generate a filtered version of the metadata file $1 from the downloaded
 # file, by fishing out the lines corresponding to components we're trying
 # to keep updated, and then removing lines corresponding to paths we want
 # to ignore.
@@ -1521,7 +1521,7 @@ fetch_warn_eol () {
 	if [ ${EOLTIME} -lt ${NOWTIME} ]; then
 		echo
 		cat <<-EOF
-		WARNING: `uname -sr` HAS PAST ITS END-OF-LIFE DATE.
+		WARNING: `uname -sr` HAS PASSED ITS END-OF-LIFE DATE.
 		Any security issues discovered after `date -r ${EOLTIME}`
 		will not have been corrected.
 		EOF
