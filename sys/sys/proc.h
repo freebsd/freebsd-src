@@ -149,6 +149,8 @@ struct pargs {
  * either lock is sufficient for read access, but both locks must be held
  * for write access.
  */
+struct auditinfo;
+struct kaudit_record;
 struct kg_sched;
 struct nlminfo;
 struct kaioinfo;
@@ -321,6 +323,7 @@ struct thread {
 	volatile u_int	td_critnest;	/* (k*) Critical section nest level. */
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 	struct td_sched	*td_sched;	/* (*) Scheduler-specific data. */
+	struct kaudit_record	*td_ar;	/* (k) Active audit record, if any. */
 };
 
 /*
@@ -603,6 +606,7 @@ struct proc {
 	void		*p_emuldata;	/* (c) Emulator state data. */
 	struct label	*p_label;	/* (*) Proc (not subject) MAC label. */
 	struct p_sched	*p_sched;	/* (*) Scheduler-specific data. */
+	struct auditinfo	*p_au;	/* (c) Process audit properties. */
 };
 
 #define	p_session	p_pgrp->pg_session
