@@ -33,15 +33,27 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 1, 2006
+.Dd September 2, 2006
 .Dt GEM 4
 .Os
 .Sh NAME
 .Nm gem
 .Nd ERI/GEM/GMAC Ethernet device driver
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device miibus"
 .Cd "device gem"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_gem_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
