@@ -29,7 +29,6 @@
 void
 _set_tp(void *tpval)
 {
-	register void* tp __asm__("r13");
 
-	tp = tpval;
+	__asm __volatile("mov r13 = %0" :: "r"(tpval));
 }
