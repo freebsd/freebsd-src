@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 4, 2005
+.Dd September 2, 2006
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -418,6 +418,10 @@ On return,
 contains the number of times the timeout has expired since the last call to
 .Fn kevent .
 This filter automatically sets the EV_CLEAR flag internally.
+There is a system wide limit on the number of timers
+which is controlled by the
+.Va kern.kq_calloutmax
+sysctl.
 .It Dv EVFILT_NETDEV
 Takes a descriptor to a network interface as the identifier, and the events to watch for in
 .Va fflags .
@@ -504,7 +508,12 @@ The specified time limit or filter is invalid.
 .It Bq Er ENOENT
 The event could not be found to be modified or deleted.
 .It Bq Er ENOMEM
-No memory was available to register the event.
+No memory was available to register the event
+or, in the special case of a timer, the maximum number of
+timers has been exceeded.
+This maximum is configurable via the
+.Va kern.kq_calloutmax
+sysctl.
 .It Bq Er ESRCH
 The specified process to attach to does not exist.
 .El
