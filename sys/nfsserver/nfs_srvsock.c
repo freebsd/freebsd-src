@@ -361,17 +361,10 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 		}
 		nfsm_adv(nfsm_rndup(len));
 		tl = nfsm_dissect_nonblock(u_int32_t *, 3 * NFSX_UNSIGNED);
-		/*
-		 * XXX: This credential should be managed using crget(9)
-		 * and related calls.  Right now, this tramples on any
-		 * extensible data in the ucred, fails to initialize the
-		 * mutex, and worse.  This must be fixed before FreeBSD
-		 * 5.3-RELEASE.
-		 */
-		bzero((caddr_t)&nd->nd_cr, sizeof (struct ucred));
-		nd->nd_cr.cr_ref = 1;
-		nd->nd_cr.cr_uid = fxdr_unsigned(uid_t, *tl++);
-		nd->nd_cr.cr_gid = fxdr_unsigned(gid_t, *tl++);
+		nd->nd_cr->cr_uid = nd->nd_cr->cr_ruid =
+		    nd->nd_cr->cr_svuid = fxdr_unsigned(uid_t, *tl++);
+		nd->nd_cr->cr_groups[0] = nd->nd_cr->cr_rgid =
+		    nd->nd_cr->cr_svgid = fxdr_unsigned(gid_t, *tl++);
 		len = fxdr_unsigned(int, *tl);
 		if (len < 0 || len > RPCAUTH_UNIXGIDS) {
 			m_freem(mrep);
@@ -380,12 +373,12 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 		tl = nfsm_dissect_nonblock(u_int32_t *, (len + 2) * NFSX_UNSIGNED);
 		for (i = 1; i <= len; i++)
 		    if (i < NGROUPS)
-			nd->nd_cr.cr_groups[i] = fxdr_unsigned(gid_t, *tl++);
+			nd->nd_cr->cr_groups[i] = fxdr_unsigned(gid_t, *tl++);
 		    else
 			tl++;
-		nd->nd_cr.cr_ngroups = (len >= NGROUPS) ? NGROUPS : (len + 1);
-		if (nd->nd_cr.cr_ngroups > 1)
-		    nfsrvw_sort(nd->nd_cr.cr_groups, nd->nd_cr.cr_ngroups);
+		nd->nd_cr->cr_ngroups = (len >= NGROUPS) ? NGROUPS : (len + 1);
+		if (nd->nd_cr->cr_ngroups > 1)
+		    nfsrvw_sort(nd->nd_cr->cr_groups, nd->nd_cr->cr_ngroups);
 		len = fxdr_unsigned(int, *++tl);
 		if (len < 0 || len > RPCAUTH_MAXSIZ) {
 			m_freem(mrep);
@@ -709,6 +702,7 @@ nfsrv_dorec(struct nfssvc_sock *slp, struct nfsd *nfsd,
 	NFSD_UNLOCK();
 	MALLOC(nd, struct nfsrv_descript *, sizeof (struct nfsrv_descript),
 		M_NFSRVDESC, M_WAITOK);
+	nd->nd_cr = crget();
 	NFSD_LOCK();
 	nd->nd_md = nd->nd_mrep = m;
 	nd->nd_nam2 = nam;
@@ -718,6 +712,8 @@ nfsrv_dorec(struct nfssvc_sock *slp, struct nfsd *nfsd,
 		if (nam) {
 			FREE(nam, M_SONAME);
 		}
+		if (nd->nd_cr != NULL)
+			crfree(nd->nd_cr);
 		free((caddr_t)nd, M_NFSRVDESC);
 		return (error);
 	}
