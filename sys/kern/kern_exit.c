@@ -580,6 +580,8 @@ kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	struct proc *p, *q, *t;
 	int error, nfound;
 
+	AUDIT_ARG(pid, pid);
+
 	q = td->td_proc;
 	if (pid == 0) {
 		PROC_LOCK(q);
