@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2005
+.Dd August 4, 2006
 .Dt NG_ETHER 4
 .Os
 .Sh NAME
@@ -160,7 +160,7 @@ all outgoing packets to have their source Ethernet
 address field overwritten with the device's unique Ethernet address.
 If this flag is set to zero, the source address in outgoing packets
 is not modified.
-The default setting for this flag is enabled.
+The default setting for this flag is disabled.
 .It Dv NGM_ETHER_GET_AUTOSRC Pq Li getautosrc
 Get the current value of the node's source address override flag.
 The returned value is always either one or zero.
