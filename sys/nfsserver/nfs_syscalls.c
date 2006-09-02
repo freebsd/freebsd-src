@@ -390,6 +390,8 @@ nfssvc_nfsd(struct thread *td)
 		}
 		if (error || (slp->ns_flag & SLP_VALID) == 0) {
 			if (nd) {
+				if (nd->nd_cr != NULL)
+					crfree(nd->nd_cr);
 				free((caddr_t)nd, M_NFSRVDESC);
 				nd = NULL;
 			}
@@ -522,6 +524,8 @@ nfssvc_nfsd(struct thread *td)
 			if (slp->ns_so->so_proto->pr_flags & PR_CONNREQUIRED)
 				nfs_slpunlock(slp);
 			if (error == EINTR || error == ERESTART) {
+				if (nd->nd_cr != NULL)
+					crfree(nd->nd_cr);
 				free((caddr_t)nd, M_NFSRVDESC);
 				nfsrv_slpderef(slp);
 				s = splnet();
@@ -535,6 +539,8 @@ nfssvc_nfsd(struct thread *td)
 			break;
 		    };
 		    if (nd) {
+			if (nd->nd_cr != NULL)
+				crfree(nd->nd_cr);
 			FREE((caddr_t)nd, M_NFSRVDESC);
 			nd = NULL;
 		    }
@@ -630,6 +636,8 @@ nfsrv_zapsock(struct nfssvc_sock *slp)
 		for (nwp = LIST_FIRST(&slp->ns_tq); nwp; nwp = nnwp) {
 			nnwp = LIST_NEXT(nwp, nd_tq);
 			LIST_REMOVE(nwp, nd_tq);
+			if (nwp->nd_cr != NULL)
+				crfree(nwp->nd_cr);
 			free((caddr_t)nwp, M_NFSRVDESC);
 		}
 		LIST_INIT(&slp->ns_tq);

@@ -258,7 +258,7 @@ struct nfsrv_descript {
 	u_int32_t		nd_retxid;	/* Reply xid */
 	struct timeval		nd_starttime;	/* Time RPC initiated */
 	fhandle_t		nd_fh;		/* File handle */
-	struct ucred		nd_cr;		/* Credentials */
+	struct ucred		*nd_cr;		/* Credentials */
 };
 
 /* Bits for "nd_flag" */
