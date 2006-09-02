@@ -32,6 +32,8 @@
     db
         entropy         uname=operator gname=operator mode=0700
         ..
+        freebsd-update
+        ..
         ipf             mode=0700
         ..
         pkg
