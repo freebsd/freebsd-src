@@ -59,6 +59,7 @@ static void ata_sata_phy_enable(struct ata_channel *ch);
 static void ata_sata_phy_event(void *context, int dummy);
 static int ata_sata_connect(struct ata_channel *ch);
 static void ata_sata_setmode(device_t dev, int mode);
+static int ata_ahci_chipinit(device_t dev);
 static int ata_ahci_allocate(device_t dev);
 static int ata_ahci_status(device_t dev);
 static int ata_ahci_begin_transaction(struct ata_request *request);
@@ -141,6 +142,7 @@ static int ata_promise_apkt(u_int8_t *bytep, struct ata_request *request);
 static void ata_promise_queue_hpkt(struct ata_pci_controller *ctlr, u_int32_t hpkt);
 static void ata_promise_next_hpkt(struct ata_pci_controller *ctlr);
 static int ata_serverworks_chipinit(device_t dev);
+static int ata_serverworks_allocate(device_t dev);
 static void ata_serverworks_setmode(device_t dev, int mode);
 static int ata_sii_chipinit(device_t dev);
 static int ata_cmd_allocate(device_t dev);
@@ -394,6 +396,54 @@ struct ata_ahci_cmd_list {
 
 
 static int
+ata_ahci_chipinit(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+    u_int32_t version;
+
+    /* reset AHCI controller */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
+	     ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_HR);
+    DELAY(1000000);
+    if (ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) & ATA_AHCI_GHC_HR) {
+	bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2, ctlr->r_res2);
+	device_printf(dev, "AHCI controller reset failure\n");
+	return ENXIO;
+    }
+
+    /* enable AHCI mode */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
+	     ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_AE);
+
+    /* get the number of HW channels */
+    ctlr->channels = (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_NPMASK)+1;
+
+    /* clear interrupts */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, ATA_INL(ctlr->r_res2, ATA_AHCI_IS));
+
+    /* enable AHCI interrupts */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
+	     ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_IE);
+
+    ctlr->reset = ata_ahci_reset;
+    ctlr->dmainit = ata_ahci_dmainit;
+    ctlr->allocate = ata_ahci_allocate;
+    ctlr->setmode = ata_sata_setmode;
+
+    /* enable PCI interrupt */
+    pci_write_config(dev, PCIR_COMMAND,
+		     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
+
+    /* announce we support the HW */
+    version = ATA_INL(ctlr->r_res2, ATA_AHCI_VS);
+    device_printf(dev,
+		  "AHCI Version %x%x.%x%x controller with %d ports detected\n",
+		  (version >> 24) & 0xff, (version >> 16) & 0xff,
+		  (version >> 8) & 0xff, version & 0xff, ctlr->channels);
+    return 0;
+}
+
+static int
 ata_ahci_allocate(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
@@ -459,7 +509,8 @@ ata_ahci_status(device_t dev)
     int offset = (ch->unit << 7);
     int tag = 0;
 
-    if ((action = ATA_INL(ctlr->r_res2, ATA_AHCI_IS)) & (1 << ch->unit)) {
+    action = ATA_INL(ctlr->r_res2, ATA_AHCI_IS);
+    if (action & (1 << ch->unit)) {
 	istatus = ATA_INL(ctlr->r_res2, ATA_AHCI_P_IS + offset);
 	issued = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CI + offset);
 	sstatus = ATA_INL(ctlr->r_res2, ATA_AHCI_P_SSTS + offset);
@@ -472,7 +523,7 @@ ata_ahci_status(device_t dev)
 
 	/* do we have cold connect surprise */
 	if (istatus & ATA_AHCI_P_IX_CPD) {
-	    printf("ata_ahci_intr status=%08x sstatus=%08x error=%08x\n",
+	    printf("ata_ahci_status status=%08x sstatus=%08x error=%08x\n",
 		   istatus, sstatus, error);
 	}
 
@@ -521,8 +572,8 @@ ata_ahci_begin_transaction(struct ata_request *request)
     struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
     struct ata_ahci_cmd_tab *ctp;
     struct ata_ahci_cmd_list *clp;
-    int fis_size, entries;
-    int tag = 0;
+    int tag = 0, entries = 0;
+    int fis_size;
 
     /* get a piece of the workspace for this request */
     ctp = (struct ata_ahci_cmd_tab *)
@@ -608,15 +659,37 @@ ata_ahci_reset(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     u_int32_t cmd;
-    int offset = (ch->unit << 7);
+    int timeout, offset = (ch->unit << 7);
 
     /* kill off all activity on this channel */
     cmd = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD + offset);
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset,
-	     cmd & ~(ATA_AHCI_P_CMD_CR | ATA_AHCI_P_CMD_FR |
-		     ATA_AHCI_P_CMD_FRE | ATA_AHCI_P_CMD_ST));
+	     cmd & ~(ATA_AHCI_P_CMD_FRE | ATA_AHCI_P_CMD_ST));
 
-    DELAY(500000);      /* XXX SOS this is not entirely wrong */
+    /* XXX SOS this is not entirely wrong */
+    timeout = 0;
+    do {
+	DELAY(1000);
+	if (timeout++ > 500)
+	    device_printf(dev, "stopping AHCI engine failed\n");
+	    break;
+	}
+    while (ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD + offset) & ATA_AHCI_P_CMD_CR);
+
+    /* issue Command List Override if supported */ 
+    if (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_CLO) {
+	cmd = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD + offset);
+	cmd |= ATA_AHCI_P_CMD_CLO;
+	ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset, cmd);
+	timeout = 0;
+	do {
+	    DELAY(1000);
+	    if (timeout++ > 500)
+		device_printf(dev, "executing CLO failed\n");
+		break;
+	    }
+	while (ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD+offset)&ATA_AHCI_P_CMD_CLO);
+    }
 
     /* spin up device */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset, ATA_AHCI_P_CMD_SUD);
@@ -780,7 +853,7 @@ ata_acard_status(device_t dev)
 	ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, bmstat & ~ATA_BMSTAT_ERROR);
 	DELAY(1);
 	ATA_IDX_OUTB(ch, ATA_BMCMD_PORT,
-		     ATA_IDX_INB(ch, ATA_BMCMD_PORT)&~ATA_BMCMD_START_STOP);
+		     ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
 	DELAY(1);
     }
     if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY) {
@@ -1417,15 +1490,15 @@ ata_highpoint_ident(device_t dev)
     if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    strcpy(buffer, idx->text);
+    strcpy(buffer, "HighPoint ");
+    strcat(buffer, idx->text);
     if (idx->cfg1 == HPT374) {
 	if (pci_get_function(dev) == 0)
 	    strcat(buffer, " (channel 0+1)");
-	else if (pci_get_function(dev) == 1)
+	if (pci_get_function(dev) == 1)
 	    strcat(buffer, " (channel 2+3)");
     }
-    sprintf(buffer, "HighPoint %s %s controller",
-	    buffer, ata_mode2str(idx->max_dma));
+    sprintf(buffer, "%s %s controller", buffer, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_highpoint_chipinit;
@@ -1566,36 +1639,50 @@ ata_intel_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_I82371FB,    0,    0, 0x00, ATA_WDMA2, "PIIX" },
-     { ATA_I82371SB,    0,    0, 0x00, ATA_WDMA2, "PIIX3" },
-     { ATA_I82371AB,    0,    0, 0x00, ATA_UDMA2, "PIIX4" },
-     { ATA_I82443MX,    0,    0, 0x00, ATA_UDMA2, "PIIX4" },
-     { ATA_I82451NX,    0,    0, 0x00, ATA_UDMA2, "PIIX4" },
-     { ATA_I82801AB,    0,    0, 0x00, ATA_UDMA2, "ICH0" },
-     { ATA_I82801AA,    0,    0, 0x00, ATA_UDMA4, "ICH" },
-     { ATA_I82372FB,    0,    0, 0x00, ATA_UDMA4, "ICH" },
-     { ATA_I82801BA,    0,    0, 0x00, ATA_UDMA5, "ICH2" },
-     { ATA_I82801BA_1,  0,    0, 0x00, ATA_UDMA5, "ICH2" },
-     { ATA_I82801CA,    0,    0, 0x00, ATA_UDMA5, "ICH3" },
-     { ATA_I82801CA_1,  0,    0, 0x00, ATA_UDMA5, "ICH3" },
-     { ATA_I82801DB,    0,    0, 0x00, ATA_UDMA5, "ICH4" },
-     { ATA_I82801DB_1,  0,    0, 0x00, ATA_UDMA5, "ICH4" },
-     { ATA_I82801EB,    0,    0, 0x00, ATA_UDMA5, "ICH5" },
-     { ATA_I82801EB_S1, 0,    0, 0x00, ATA_SA150, "ICH5" },
-     { ATA_I82801EB_R1, 0,    0, 0x00, ATA_SA150, "ICH5" },
-     { ATA_I6300ESB,    0,    0, 0x00, ATA_UDMA5, "6300ESB" },
-     { ATA_I6300ESB_S1, 0,    0, 0x00, ATA_SA150, "6300ESB" },
-     { ATA_I6300ESB_R1, 0,    0, 0x00, ATA_SA150, "6300ESB" },
-     { ATA_I82801FB,    0,    0, 0x00, ATA_UDMA5, "ICH6" },
-     { ATA_I82801FB_S1, 0, AHCI, 0x00, ATA_SA150, "ICH6" },
-     { ATA_I82801FB_R1, 0, AHCI, 0x00, ATA_SA150, "ICH6" },
-     { ATA_I82801FB_M,  0, AHCI, 0x00, ATA_SA150, "ICH6" },
-     { ATA_I82801GB,    0,    0, 0x00, ATA_UDMA5, "ICH7" },
-     { ATA_I82801GB_S1, 0, AHCI, 0x00, ATA_SA300, "ICH7" },
-     { ATA_I82801GB_R1, 0, AHCI, 0x00, ATA_SA300, "ICH7" },
-     { ATA_I82801GB_M,  0, AHCI, 0x00, ATA_SA300, "ICH7" },
-     { ATA_I82801GB_AH, 0, AHCI, 0x00, ATA_SA300, "ICH7" },
-     { ATA_I31244,      0,    0, 0x00, ATA_SA150, "31244" },
+    {{ ATA_I82371FB,     0,    0, 0x00, ATA_WDMA2, "PIIX" },
+     { ATA_I82371SB,     0,    0, 0x00, ATA_WDMA2, "PIIX3" },
+     { ATA_I82371AB,     0,    0, 0x00, ATA_UDMA2, "PIIX4" },
+     { ATA_I82443MX,     0,    0, 0x00, ATA_UDMA2, "PIIX4" },
+     { ATA_I82451NX,     0,    0, 0x00, ATA_UDMA2, "PIIX4" },
+     { ATA_I82801AB,     0,    0, 0x00, ATA_UDMA2, "ICH0" },
+     { ATA_I82801AA,     0,    0, 0x00, ATA_UDMA4, "ICH" },
+     { ATA_I82372FB,     0,    0, 0x00, ATA_UDMA4, "ICH" },
+     { ATA_I82801BA,     0,    0, 0x00, ATA_UDMA5, "ICH2" },
+     { ATA_I82801BA_1,   0,    0, 0x00, ATA_UDMA5, "ICH2" },
+     { ATA_I82801CA,     0,    0, 0x00, ATA_UDMA5, "ICH3" },
+     { ATA_I82801CA_1,   0,    0, 0x00, ATA_UDMA5, "ICH3" },
+     { ATA_I82801DB,     0,    0, 0x00, ATA_UDMA5, "ICH4" },
+     { ATA_I82801DB_1,   0,    0, 0x00, ATA_UDMA5, "ICH4" },
+     { ATA_I82801EB,     0,    0, 0x00, ATA_UDMA5, "ICH5" },
+     { ATA_I82801EB_S1,  0,    0, 0x00, ATA_SA150, "ICH5" },
+     { ATA_I82801EB_R1,  0,    0, 0x00, ATA_SA150, "ICH5" },
+     { ATA_I6300ESB,     0,    0, 0x00, ATA_UDMA5, "6300ESB" },
+     { ATA_I6300ESB_S1,  0,    0, 0x00, ATA_SA150, "6300ESB" },
+     { ATA_I6300ESB_R1,  0,    0, 0x00, ATA_SA150, "6300ESB" },
+     { ATA_I82801FB,     0,    0, 0x00, ATA_UDMA5, "ICH6" },
+     { ATA_I82801FB_S1,  0, AHCI, 0x00, ATA_SA150, "ICH6" },
+     { ATA_I82801FB_R1,  0, AHCI, 0x00, ATA_SA150, "ICH6" },
+     { ATA_I82801FBM,    0, AHCI, 0x00, ATA_SA150, "ICH6M" },
+     { ATA_I82801GB,     0,    0, 0x00, ATA_UDMA5, "ICH7" },
+     { ATA_I82801GB_S1,  0, AHCI, 0x00, ATA_SA300, "ICH7" },
+     { ATA_I82801GB_R1,  0, AHCI, 0x00, ATA_SA300, "ICH7" },
+     { ATA_I82801GB_AH,  0, AHCI, 0x00, ATA_SA300, "ICH7" },
+     { ATA_I82801GBM_S1, 0, AHCI, 0x00, ATA_SA300, "ICH7M" },
+     { ATA_I82801GBM_R1, 0, AHCI, 0x00, ATA_SA300, "ICH7M" },
+     { ATA_I82801GBM_AH, 0, AHCI, 0x00, ATA_SA300, "ICH7M" },
+     { ATA_I63XXESB2,    0,    0, 0x00, ATA_UDMA5, "63XXESB2" },
+     { ATA_I63XXESB2_S1, 0, AHCI, 0x00, ATA_SA300, "63XXESB2" },
+     { ATA_I63XXESB2_S2, 0, AHCI, 0x00, ATA_SA300, "63XXESB2" },
+     { ATA_I63XXESB2_R1, 0, AHCI, 0x00, ATA_SA300, "63XXESB2" },
+     { ATA_I63XXESB2_R2, 0, AHCI, 0x00, ATA_SA300, "63XXESB2" },
+     { ATA_I82801HB_S1,  0, AHCI, 0x00, ATA_SA300, "ICH8" },
+     { ATA_I82801HB_S2,  0, AHCI, 0x00, ATA_SA300, "ICH8" },
+     { ATA_I82801HB_R1,  0, AHCI, 0x00, ATA_SA300, "ICH8" },
+     { ATA_I82801HB_AH4, 0, AHCI, 0x00, ATA_SA300, "ICH8" },
+     { ATA_I82801HB_AH6, 0, AHCI, 0x00, ATA_SA300, "ICH8" },
+     { ATA_I82801HBM_S1, 0, AHCI, 0x00, ATA_SA300, "ICH8M" },
+     { ATA_I82801HBM_S2, 0, AHCI, 0x00, ATA_SA300, "ICH8M" },
+     { ATA_I31244,       0,    0, 0x00, ATA_SA150, "31244" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
@@ -1653,43 +1740,18 @@ ata_intel_chipinit(device_t dev)
 	ctlr->allocate = ata_intel_allocate;
 	ctlr->reset = ata_intel_reset;
 
-	/* if we have AHCI capability and BAR(5) as a memory resource */
-	if (ctlr->chip->cfg1 == AHCI) {
+	/* 
+	 * if we have AHCI capability and BAR(5) as a memory resource
+	 * and AHCI or RAID mode enabled in BIOS we go for AHCI mode
+	 */ 
+	if ((ctlr->chip->cfg1 == AHCI) &&
+	    (pci_read_config(dev, 0x90, 1) & 0xc0)) {
 	    ctlr->r_type2 = SYS_RES_MEMORY;
 	    ctlr->r_rid2 = PCIR_BAR(5);
 	    if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
 						       &ctlr->r_rid2,
-						       RF_ACTIVE))) {
-		/* is AHCI or RAID mode enabled in BIOS ? */
-		if (pci_read_config(dev, 0x90, 1) & 0xc0) {
-
-		    /* reset AHCI controller */
-		    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
-		    ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_HR);
-		    DELAY(1000000);
-		    if (ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) & ATA_AHCI_GHC_HR) {
-			bus_release_resource(dev, ctlr->r_type2, 
-					     ctlr->r_rid2, ctlr->r_res2);
-			device_printf(dev, "AHCI controller reset failure\n");
-			return ENXIO;
-    		    }
-
-		    /* enable AHCI mode */
-		    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC, ATA_AHCI_GHC_AE);
-
-		    /* get the number of HW channels */
-		    ctlr->channels = (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) &
-				      ATA_AHCI_NPMASK) + 1;
-
-		    /* enable AHCI interrupts */
-		    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
-			     ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) |
-			     ATA_AHCI_GHC_IE);
-		    ctlr->allocate = ata_ahci_allocate;
-		    ctlr->reset = ata_ahci_reset;
-		    ctlr->dmainit = ata_ahci_dmainit;
-		}
-	    }
+						       RF_ACTIVE)))
+		return ata_ahci_chipinit(dev);
 	}
 	ctlr->setmode = ata_sata_setmode;
 
@@ -1847,6 +1909,8 @@ ata_intel_31244_allocate(device_t dev)
 
     for (i = ATA_DATA; i < ATA_MAX_RES; i++)
 	ch->r_io[i].res = ctlr->r_res2;
+
+    /* setup ATA registers */
     ch->r_io[ATA_DATA].offset = ch_offset + 0x00;
     ch->r_io[ATA_FEATURE].offset = ch_offset + 0x06;
     ch->r_io[ATA_COUNT].offset = ch_offset + 0x08;
@@ -1859,9 +1923,13 @@ ata_intel_31244_allocate(device_t dev)
     ch->r_io[ATA_STATUS].offset = ch_offset + 0x1c;
     ch->r_io[ATA_ALTSTAT].offset = ch_offset + 0x28;
     ch->r_io[ATA_CONTROL].offset = ch_offset + 0x29;
+
+    /* setup DMA registers */
     ch->r_io[ATA_SSTATUS].offset = ch_offset + 0x100;
     ch->r_io[ATA_SERROR].offset = ch_offset + 0x104;
     ch->r_io[ATA_SCONTROL].offset = ch_offset + 0x108;
+
+    /* setup SATA registers */
     ch->r_io[ATA_BMCMD_PORT].offset = ch_offset + 0x70;
     ch->r_io[ATA_BMSTAT_PORT].offset = ch_offset + 0x72;
     ch->r_io[ATA_BMDTP_PORT].offset = ch_offset + 0x74;
@@ -2079,8 +2147,13 @@ ata_jmicron_ident(device_t dev)
     if (!(idx = ata_match_chip(dev, ids)))
         return ENXIO;
 
-    sprintf(buffer, "JMicron %s %s controller",
-            idx->text, ata_mode2str(idx->max_dma));
+    if ((pci_read_config(dev, 0xdf, 1) & 0x40) &&
+	(pci_get_function(dev) == (pci_read_config(dev, 0x40, 1) & 0x02 >> 1)))
+	sprintf(buffer, "JMicron %s %s controller",
+		idx->text, ata_mode2str(ATA_UDMA6));
+    else
+	sprintf(buffer, "JMicron %s %s controller",
+		idx->text, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_jmicron_chipinit;
@@ -2091,51 +2164,48 @@ static int
 ata_jmicron_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
+    int error;
 
     if (ata_setup_interrupt(dev))
 	return ENXIO;
 
-    /* set controller configuration to a setup we support */
-    pci_write_config(dev, 0x40, 0x80c0a131, 4);
-    pci_write_config(dev, 0x80, 0x01200000, 4);
+    /* do we have multiple PCI functions ? */
+    if (pci_read_config(dev, 0xdf, 1) & 0x40) {
+	/* if we have a memory BAR(5) we are on the AHCI part */
+	ctlr->r_type2 = SYS_RES_MEMORY;
+	ctlr->r_rid2 = PCIR_BAR(5);
+	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+						    &ctlr->r_rid2, RF_ACTIVE)))
+	    return ata_ahci_chipinit(dev);
 
-    ctlr->allocate = ata_jmicron_allocate;
-    ctlr->reset = ata_jmicron_reset;
-    ctlr->dmainit = ata_jmicron_dmainit;
-    ctlr->setmode = ata_jmicron_setmode;
+	/* otherwise we are on the PATA part */
+	ctlr->allocate = ata_pci_allocate;
+	ctlr->reset = ata_generic_reset;
+	ctlr->dmainit = ata_pci_dmainit;
+	ctlr->setmode = ata_jmicron_setmode;
+	ctlr->channels = ctlr->chip->cfg2;
+    }
+    else {
+	/* set controller configuration to a combined setup we support */
+	pci_write_config(dev, 0x40, 0x80c0a131, 4);
+	pci_write_config(dev, 0x80, 0x01200000, 4);
 
-    ctlr->r_type2 = SYS_RES_MEMORY;
-    ctlr->r_rid2 = PCIR_BAR(5);
-    if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
-						&ctlr->r_rid2, RF_ACTIVE))) {
-	/* reset AHCI controller */
-	ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
-		 ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_HR);
-	DELAY(1000000);
-	if (ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) & ATA_AHCI_GHC_HR) {
-	    bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2,ctlr->r_res2);
-	    device_printf(dev, "AHCI controller reset failure\n");
-	    return ENXIO;
+	ctlr->r_type2 = SYS_RES_MEMORY;
+	ctlr->r_rid2 = PCIR_BAR(5);
+	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+						    &ctlr->r_rid2, RF_ACTIVE))){
+	    if ((error = ata_ahci_chipinit(dev)))
+		return error;
 	}
 
-	/* enable AHCI mode */
-	ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
-		 ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_AE);
+	ctlr->allocate = ata_jmicron_allocate;
+	ctlr->reset = ata_jmicron_reset;
+	ctlr->dmainit = ata_jmicron_dmainit;
+	ctlr->setmode = ata_jmicron_setmode;
 
-	/* clear interrupts */
-	ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, ATA_INL(ctlr->r_res2, ATA_AHCI_IS));
-
-	/* enable AHCI interrupts */
-	ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
-		 ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_IE);
-
-	/* enable PCI interrupt */
-	pci_write_config(dev, PCIR_COMMAND,
-			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
+	/* set the number of HW channels */ 
+	ctlr->channels = ctlr->chip->cfg1 + ctlr->chip->cfg2;
     }
-
-    /* set the number of HW channels */ 
-    ctlr->channels = ctlr->chip->cfg1 + ctlr->chip->cfg2;
     return 0;
 }
 
@@ -2186,7 +2256,7 @@ ata_jmicron_setmode(device_t dev, int mode)
     struct ata_pci_controller *ctlr = device_get_softc(GRANDPARENT(dev));
     struct ata_channel *ch = device_get_softc(device_get_parent(dev));
 
-    if (ch->unit >= ctlr->chip->cfg1) {
+    if (pci_read_config(dev, 0xdf, 1) & 0x40 || ch->unit >= ctlr->chip->cfg1) {
 	struct ata_device *atadev = device_get_softc(dev);
 
 	/* check for 80pin cable present */
@@ -2486,7 +2556,7 @@ ata_marvell_begin_transaction(struct ata_request *request)
 
     /* fill in this request */
     quadp[0] = (long)ch->dma->sg_bus & 0xffffffff;
-    quadp[1] = (ch->dma->sg_bus & 0xffffffff00000000) >> 32;
+    quadp[1] = (ch->dma->sg_bus & 0xffffffff00000000ull) >> 32;
     wordp[4] = (request->flags & ATA_R_READ ? 0x01 : 0x00) | (tag<<1);
 
     i = 10;
@@ -2730,26 +2800,26 @@ ata_nvidia_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_NFORCE1,         0, AMDNVIDIA, NVIDIA, ATA_UDMA5, "nForce" },
-     { ATA_NFORCE2,         0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce2" },
-     { ATA_NFORCE2_PRO,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce2 Pro" },
-     { ATA_NFORCE2_PRO_S1,  0, 0,         0,      ATA_SA150, "nForce2 Pro" },
-     { ATA_NFORCE3,         0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce3" },
-     { ATA_NFORCE3_PRO,     0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce3 Pro" },
-     { ATA_NFORCE3_PRO_S1,  0, 0,         0,      ATA_SA150, "nForce3 Pro" },
-     { ATA_NFORCE3_PRO_S2,  0, 0,         0,      ATA_SA150, "nForce3 Pro" },
-     { ATA_NFORCE_MCP04,    0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce MCP" },
-     { ATA_NFORCE_MCP04_S1, 0, 0,         NV4OFF, ATA_SA150, "nForce MCP" },
-     { ATA_NFORCE_MCP04_S2, 0, 0,         NV4OFF, ATA_SA150, "nForce MCP" },
-     { ATA_NFORCE_CK804,    0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce CK804" },
-     { ATA_NFORCE_CK804_S1, 0, 0,         NV4OFF, ATA_SA300, "nForce CK804" },
-     { ATA_NFORCE_CK804_S2, 0, 0,         NV4OFF, ATA_SA300, "nForce CK804" },
-     { ATA_NFORCE_MCP51,    0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce MCP51" },
-     { ATA_NFORCE_MCP51_S1, 0, 0,         NV4OFF, ATA_SA300, "nForce MCP51" },
-     { ATA_NFORCE_MCP51_S2, 0, 0,         NV4OFF, ATA_SA300, "nForce MCP51" },
-     { ATA_NFORCE_MCP55,    0, AMDNVIDIA, NVIDIA, ATA_UDMA6, "nForce MCP55" },
-     { ATA_NFORCE_MCP55_S1, 0, 0,         NV4OFF, ATA_SA300, "nForce MCP55" },
-     { ATA_NFORCE_MCP55_S2, 0, 0,         NV4OFF, ATA_SA300, "nForce MCP55" },
+    {{ ATA_NFORCE1,         0, AMDNVIDIA, NVIDIA,  ATA_UDMA5, "nForce" },
+     { ATA_NFORCE2,         0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce2" },
+     { ATA_NFORCE2_PRO,     0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce2 Pro" },
+     { ATA_NFORCE2_PRO_S1,  0, 0,         0,       ATA_SA150, "nForce2 Pro" },
+     { ATA_NFORCE3,         0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce3" },
+     { ATA_NFORCE3_PRO,     0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce3 Pro" },
+     { ATA_NFORCE3_PRO_S1,  0, 0,         0,       ATA_SA150, "nForce3 Pro" },
+     { ATA_NFORCE3_PRO_S2,  0, 0,         0,       ATA_SA150, "nForce3 Pro" },
+     { ATA_NFORCE_MCP04,    0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce MCP" },
+     { ATA_NFORCE_MCP04_S1, 0, 0,         NV4,     ATA_SA150, "nForce MCP" },
+     { ATA_NFORCE_MCP04_S2, 0, 0,         NV4,     ATA_SA150, "nForce MCP" },
+     { ATA_NFORCE_CK804,    0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce CK804" },
+     { ATA_NFORCE_CK804_S1, 0, 0,         NV4,     ATA_SA300, "nForce CK804" },
+     { ATA_NFORCE_CK804_S2, 0, 0,         NV4,     ATA_SA300, "nForce CK804" },
+     { ATA_NFORCE_MCP51,    0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce MCP51" },
+     { ATA_NFORCE_MCP51_S1, 0, 0,         NV4|NVQ, ATA_SA300, "nForce MCP51" },
+     { ATA_NFORCE_MCP51_S2, 0, 0,         NV4|NVQ, ATA_SA300, "nForce MCP51" },
+     { ATA_NFORCE_MCP55,    0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce MCP55" },
+     { ATA_NFORCE_MCP55_S1, 0, 0,         NV4|NVQ, ATA_SA300, "nForce MCP55" },
+     { ATA_NFORCE_MCP55_S2, 0, 0,         NV4|NVQ, ATA_SA300, "nForce MCP55" },
      { 0, 0, 0, 0, 0, 0}} ;
     char buffer[64] ;
 
@@ -2780,7 +2850,7 @@ ata_nvidia_chipinit(device_t dev)
 	ctlr->r_rid2 = PCIR_BAR(5);
 	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
 						   &ctlr->r_rid2, RF_ACTIVE))) {
-	    int offset = ctlr->chip->cfg2 & NV4OFF ? 0x0440 : 0x0010;
+	    int offset = ctlr->chip->cfg2 & NV4 ? 0x0440 : 0x0010;
 
 	    ctlr->allocate = ata_nvidia_allocate;
 	    ctlr->reset = ata_nvidia_reset;
@@ -2788,11 +2858,24 @@ ata_nvidia_chipinit(device_t dev)
 	    /* enable control access */
 	    pci_write_config(dev, 0x50, pci_read_config(dev, 0x50, 1) | 0x04,1);
 
-	    /* clear interrupt status */
-	    ATA_OUTB(ctlr->r_res2, offset, 0xff);
+	    if (ctlr->chip->cfg2 & NVQ) {
+		/* clear interrupt status */
+		ATA_OUTL(ctlr->r_res2, offset, 0x00ff00ff);
 
-	    /* enable device and PHY state change interrupts */
-	    ATA_OUTB(ctlr->r_res2, offset + 1, 0xdd);
+		/* enable device and PHY state change interrupts */
+		ATA_OUTL(ctlr->r_res2, offset + 4, 0x000d000d);
+
+		/* disable NCQ support */
+		ATA_OUTL(ctlr->r_res2, 0x0400,
+			 ATA_INL(ctlr->r_res2, 0x0400) & 0xfffffff9);
+	    } 
+	    else {
+		/* clear interrupt status */
+		ATA_OUTB(ctlr->r_res2, offset, 0xff);
+
+		/* enable device and PHY state change interrupts */
+		ATA_OUTB(ctlr->r_res2, offset + 1, 0xdd);
+	    }
 
 	    /* enable PCI interrupt */
 	    pci_write_config(dev, PCIR_COMMAND,
@@ -2837,13 +2920,20 @@ ata_nvidia_status(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    int offset = ctlr->chip->cfg2 & NV4OFF ? 0x0440 : 0x0010;
+    int offset = ctlr->chip->cfg2 & NV4 ? 0x0440 : 0x0010;
     struct ata_connect_task *tp;
-    int shift = ch->unit << 2;
-    u_int8_t status;
+    int shift = ch->unit << (ctlr->chip->cfg2 & NVQ ? 4 : 2);
+    u_int32_t status;
 
-    /* get interrupt status */
-    status = ATA_INB(ctlr->r_res2, offset);
+    /* get and clear interrupt status */
+    if (ctlr->chip->cfg2 & NVQ) {
+	status = ATA_INL(ctlr->r_res2, offset);
+	ATA_OUTL(ctlr->r_res2, offset, (0x0f << shift) | 0x00f000f0);
+    }
+    else {
+	status = ATA_INB(ctlr->r_res2, offset);
+	ATA_OUTB(ctlr->r_res2, offset, (0x0f << shift));
+    }
 
     /* check for and handle connect events */
     if (((status & (0x0c << shift)) == (0x04 << shift)) &&
@@ -2861,6 +2951,7 @@ ata_nvidia_status(device_t dev)
 
     /* check for and handle disconnect events */
     if ((status & (0x08 << shift)) &&
+	!((status & (0x04 << shift) && ATA_IDX_INL(ch, ATA_SSTATUS))) &&
 	(tp = (struct ata_connect_task *)
 	      malloc(sizeof(struct ata_connect_task),
 		   M_ATA, M_NOWAIT | M_ZERO))) {
@@ -2872,9 +2963,6 @@ ata_nvidia_status(device_t dev)
 	TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
 	taskqueue_enqueue(taskqueue_thread, &tp->task);
     }
-
-    /* clear interrupt status */
-    ATA_OUTB(ctlr->r_res2, offset, (0x0f << shift));
 
     /* do we have any device action ? */
     return (status & (0x01 << shift));
@@ -2992,7 +3080,6 @@ ata_promise_ident(device_t dev)
 	}
 	else if (pci_get_slot(dev) == 2 && start && end) {
 	    bus_set_resource(dev, SYS_RES_IRQ, 0, start, end);
-	    start = end = 0;
 	    strcat(buffer, " (channel 2+3)");
 	}
 	else {
@@ -3865,11 +3952,14 @@ ata_serverworks_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_ROSB4,  0x00, SWKS33,  0x00, ATA_UDMA2, "ROSB4" },
-     { ATA_CSB5,   0x92, SWKS100, 0x00, ATA_UDMA5, "CSB5" },
-     { ATA_CSB5,   0x00, SWKS66,  0x00, ATA_UDMA4, "CSB5" },
-     { ATA_CSB6,   0x00, SWKS100, 0x00, ATA_UDMA5, "CSB6" },
-     { ATA_CSB6_1, 0x00, SWKS66,  0x00, ATA_UDMA4, "CSB6" },
+    {{ ATA_ROSB4,     0x00, SWKS33,  0x00, ATA_UDMA2, "ROSB4" },
+     { ATA_CSB5,      0x92, SWKS100, 0x00, ATA_UDMA5, "CSB5" },
+     { ATA_CSB5,      0x00, SWKS66,  0x00, ATA_UDMA4, "CSB5" },
+     { ATA_CSB6,      0x00, SWKS100, 0x00, ATA_UDMA5, "CSB6" },
+     { ATA_CSB6_1,    0x00, SWKS66,  0x00, ATA_UDMA4, "CSB6" },
+     { ATA_HT1000,    0x00, SWKS100, 0x00, ATA_UDMA5, "HT1000" },
+     { ATA_HT1000_S1, 0x00, SWKS100, 0x00, ATA_SA150, "HT1000 SATA" },
+     { ATA_HT1000_S2, 0x00, SWKSMIO, 0x00, ATA_SA150, "HT1000 SATA mmio" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
@@ -3892,7 +3982,19 @@ ata_serverworks_chipinit(device_t dev)
     if (ata_setup_interrupt(dev))
 	return ENXIO;
 
-    if (ctlr->chip->cfg1 == SWKS33) {
+    if (ctlr->chip->cfg1 == SWKSMIO) {
+	ctlr->r_type2 = SYS_RES_MEMORY;
+	ctlr->r_rid2 = PCIR_BAR(5);
+	if (!(ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+						    &ctlr->r_rid2, RF_ACTIVE)))
+	    return ENXIO;
+
+	ctlr->channels = 4;
+	ctlr->allocate = ata_serverworks_allocate;
+	ctlr->setmode = ata_sata_setmode;
+	return 0;
+    }
+    else if (ctlr->chip->cfg1 == SWKS33) {
 	device_t *children;
 	int nchildren, i;
 
@@ -3915,6 +4017,46 @@ ata_serverworks_chipinit(device_t dev)
 			 (ctlr->chip->cfg1 == SWKS100) ? 0x03 : 0x02, 1);
     }
     ctlr->setmode = ata_serverworks_setmode;
+    return 0;
+}
+
+static int
+ata_serverworks_allocate(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+    int ch_offset;
+    int i;
+
+    ch_offset = ch->unit * 0x100;
+
+    for (i = ATA_DATA; i < ATA_MAX_RES; i++)
+	ch->r_io[i].res = ctlr->r_res2;
+
+    /* setup ATA registers */
+    ch->r_io[ATA_DATA].offset = ch_offset + 0x00;
+    ch->r_io[ATA_FEATURE].offset = ch_offset + 0x04;
+    ch->r_io[ATA_COUNT].offset = ch_offset + 0x08;
+    ch->r_io[ATA_SECTOR].offset = ch_offset + 0x0c;
+    ch->r_io[ATA_CYL_LSB].offset = ch_offset + 0x10;
+    ch->r_io[ATA_CYL_MSB].offset = ch_offset + 0x14;
+    ch->r_io[ATA_DRIVE].offset = ch_offset + 0x18;
+    ch->r_io[ATA_COMMAND].offset = ch_offset + 0x1c;
+    ch->r_io[ATA_CONTROL].offset = ch_offset + 0x20;
+    ata_default_registers(dev);
+
+    /* setup DMA registers */
+    ch->r_io[ATA_BMCMD_PORT].offset = ch_offset + 0x30;
+    ch->r_io[ATA_BMSTAT_PORT].offset = ch_offset + 0x32;
+    ch->r_io[ATA_BMDTP_PORT].offset = ch_offset + 0x34;
+
+    /* setup SATA registers */
+    ch->r_io[ATA_SSTATUS].offset = ch_offset + 0x40;
+    ch->r_io[ATA_SERROR].offset = ch_offset + 0x44;
+    ch->r_io[ATA_SCONTROL].offset = ch_offset + 0x48;
+
+    ch->flags |= ATA_NO_SLAVE;
+    ata_pci_hw(dev);
     return 0;
 }
 
@@ -4175,6 +4317,7 @@ ata_sii_allocate(device_t dev)
     ch->r_io[ATA_CONTROL].offset = 0x8a + (unit01 << 6) + (unit10 << 8);
     ch->r_io[ATA_IDX_ADDR].res = ctlr->r_res2;
     ata_default_registers(dev);
+
     ch->r_io[ATA_BMCMD_PORT].res = ctlr->r_res2;
     ch->r_io[ATA_BMCMD_PORT].offset = 0x00 + (unit01 << 3) + (unit10 << 8);
     ch->r_io[ATA_BMSTAT_PORT].res = ctlr->r_res2;
@@ -4607,13 +4750,15 @@ ata_via_ident(device_t dev)
      { ATA_VIA8233A,  0x00, VIA133, 0x00,    ATA_UDMA6, "8233A" },
      { ATA_VIA8235,   0x00, VIA133, 0x00,    ATA_UDMA6, "8235" },
      { ATA_VIA8237,   0x00, VIA133, 0x00,    ATA_UDMA6, "8237" },
+     { ATA_VIA8237A,  0x00, VIA133, 0x00,    ATA_UDMA6, "8237A" },
      { ATA_VIA8251,   0x00, VIA133, 0x00,    ATA_UDMA6, "8251" },
      { 0, 0, 0, 0, 0, 0 }};
     static struct ata_chip_id new_ids[] =
     {{ ATA_VIA6410,   0x00, 0,      0x00,    ATA_UDMA6, "6410" },
      { ATA_VIA6420,   0x00, 7,      0x00,    ATA_SA150, "6420" },
      { ATA_VIA6421,   0x00, 6,      VIABAR,  ATA_SA150, "6421" },
-     { ATA_VIA8251,   0x00, 0,      VIAAHCI, ATA_SA150, "8251" },
+     { ATA_VIA8237A,  0x00, 0,      0x00,    ATA_SA150, "8237A" },
+     { ATA_VIA8251,   0x00, 0,      VIAAHCI, ATA_SA300, "8251" },
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
 
@@ -4643,6 +4788,15 @@ ata_via_chipinit(device_t dev)
 	return ENXIO;
     
     if (ctlr->chip->max_dma >= ATA_SA150) {
+	if (ctlr->chip->cfg2 == VIAAHCI) {
+	    ctlr->r_type2 = SYS_RES_MEMORY;
+	    ctlr->r_rid2 = PCIR_BAR(5);
+	    if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+						       &ctlr->r_rid2,
+						       RF_ACTIVE))) {
+		 return ata_ahci_chipinit(dev);
+	    } 
+	}
 	ctlr->r_type2 = SYS_RES_IOPORT;
 	ctlr->r_rid2 = PCIR_BAR(5);
 	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,

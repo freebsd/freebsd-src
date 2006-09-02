@@ -270,7 +270,7 @@ ata_completed(void *context, int dummy)
 	return;
     }
     if (request->flags & ATA_R_DANGER1)
-	request->flags |= ATA_R_DANGER2
+	request->flags |= ATA_R_DANGER2;
 
     ATA_DEBUG_RQ(request, "completed entered");
 
@@ -430,6 +430,8 @@ ata_completed(void *context, int dummy)
 		       request->u.atapi.sense.specific & ATA_SENSE_SPEC_MASK,
 		       request->u.atapi.sense.specific1,
 		       request->u.atapi.sense.specific2);
+	    else
+		printf("\n");
 	}
 
 	if ((request->u.atapi.sense.key & ATA_SENSE_KEY_MASK ?
