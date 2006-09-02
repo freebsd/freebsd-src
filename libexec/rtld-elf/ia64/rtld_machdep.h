@@ -55,10 +55,12 @@ Elf_Addr reloc_jmpslot(Elf_Addr *, Elf_Addr, const struct Struct_Obj_Entry *,
 void *make_function_pointer(const Elf_Sym *, const struct Struct_Obj_Entry *);
 void call_initfini_pointer(const struct Struct_Obj_Entry *, Elf_Addr);
 
+#define	TLS_TCB_SIZE	16
+
 #define round(size, align) \
 	(((size) + (align) - 1) & ~((align) - 1))
 #define calculate_first_tls_offset(size, align) \
-	round(16, align)
+	round(TLS_TCB_SIZE, align)
 #define calculate_tls_offset(prev_offset, prev_size, size, align) \
 	round(prev_offset + prev_size, align)
 #define calculate_tls_end(off, size) 	((off) + (size))
