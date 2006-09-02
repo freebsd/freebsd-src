@@ -144,27 +144,41 @@ struct ata_connect_task {
 #define ATA_I6300ESB            0x25a28086
 #define ATA_I6300ESB_S1         0x25a38086
 #define ATA_I6300ESB_R1         0x25b08086
+#define ATA_I63XXESB2           0x269e8086
+#define ATA_I63XXESB2_S1        0x26808086
+#define ATA_I63XXESB2_S2        0x26818086
+#define ATA_I63XXESB2_R1        0x26828086
+#define ATA_I63XXESB2_R2        0x26838086
 #define ATA_I82801FB            0x266f8086
 #define ATA_I82801FB_S1         0x26518086
 #define ATA_I82801FB_R1         0x26528086
-#define ATA_I82801FB_M          0x26538086
+#define ATA_I82801FBM           0x26538086
 #define ATA_I82801GB            0x27df8086
 #define ATA_I82801GB_S1         0x27c08086
-#define ATA_I82801GB_R1         0x27c38086
 #define ATA_I82801GB_AH         0x27c18086
-#define ATA_I82801GB_M          0x27c58086
+#define ATA_I82801GB_R1         0x27c38086
+#define ATA_I82801GBM_S1        0x27c48086
+#define ATA_I82801GBM_AH        0x27c58086
+#define ATA_I82801GBM_R1        0x27c68086
+#define ATA_I82801HB_S1         0x28208086
+#define ATA_I82801HB_AH6        0x28218086
+#define ATA_I82801HB_R1         0x28228086
+#define ATA_I82801HB_AH4        0x28248086
+#define ATA_I82801HB_S2         0x28258086
+#define ATA_I82801HBM_S1        0x28298086
+#define ATA_I82801HBM_S2        0x282a8086
 #define ATA_I31244              0x32008086
 
 #define ATA_ITE_ID              0x1283
 #define ATA_IT8211F             0x82111283
 #define ATA_IT8212F             0x82121283
 
-#define ATA_JMICRON_ID		0x197b
-#define ATA_JMB360		0x2360197b
-#define ATA_JMB361		0x2361197b
-#define ATA_JMB363		0x2363197b
-#define ATA_JMB365		0x2365197b
-#define ATA_JMB366		0x2366197b
+#define ATA_JMICRON_ID          0x197b
+#define ATA_JMB360              0x2360197b
+#define ATA_JMB361              0x2361197b
+#define ATA_JMB363              0x2363197b
+#define ATA_JMB365              0x2365197b
+#define ATA_JMB366              0x2366197b
 
 #define ATA_MARVELL_ID          0x11ab
 #define ATA_M88SX5040           0x504011ab
@@ -249,6 +263,9 @@ struct ata_connect_task {
 #define ATA_CSB5                0x02121166
 #define ATA_CSB6                0x02131166
 #define ATA_CSB6_1              0x02171166
+#define ATA_HT1000              0x02141166
+#define ATA_HT1000_S1           0x024b1166
+#define ATA_HT1000_S2           0x024a1166
 
 #define ATA_SILICON_IMAGE_ID    0x1095
 #define ATA_SII3114             0x31141095
@@ -320,6 +337,7 @@ struct ata_connect_task {
 #define ATA_VIA8233C            0x31091106
 #define ATA_VIA8235             0x31771106
 #define ATA_VIA8237             0x32271106
+#define ATA_VIA8237A            0x05911106
 #define ATA_VIA8251             0x33491106
 #define ATA_VIA8361             0x31121106
 #define ATA_VIA8363             0x03051106
@@ -362,6 +380,7 @@ struct ata_connect_task {
 #define SWKS33          0
 #define SWKS66          1
 #define SWKS100         2
+#define SWKSMIO         3
 
 #define SIIMEMIO        1
 #define SIIINTR         0x01
@@ -384,14 +403,15 @@ struct ata_connect_task {
 #define VIA133          3
 #define AMDNVIDIA       4
 
-#define AMDCABLE        0x01
-#define AMDBUG          0x02
-#define NVIDIA          0x04
-#define NV4OFF          0x08
-#define VIACLK          0x10
-#define VIABUG          0x20
-#define VIABAR          0x40
-#define VIAAHCI         0x80
+#define AMDCABLE        0x0001
+#define AMDBUG          0x0002
+#define NVIDIA          0x0004
+#define NV4             0x0010
+#define NVQ             0x0020
+#define VIACLK          0x0100
+#define VIABUG          0x0200
+#define VIABAR          0x0400
+#define VIAAHCI         0x0800
 
 
 /* global prototypes ata-pci.c */
