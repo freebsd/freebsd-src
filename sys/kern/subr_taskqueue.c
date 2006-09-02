@@ -317,33 +317,49 @@ taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 {
 	va_list ap;
 	struct taskqueue *tq;
+	struct thread *td;
 	char ktname[MAXCOMLEN];
-	int i;
+	int i, error;
 
 	if (count <= 0)
 		return (EINVAL);
 	tq = *tqp;
 
-	if ((tq->tq_pproc = malloc(sizeof(struct proc *) * count, M_TASKQUEUE,
-	    M_NOWAIT | M_ZERO)) == NULL)
-		return (ENOMEM);
-	
 	va_start(ap, name);
 	vsnprintf(ktname, MAXCOMLEN, name, ap);
 	va_end(ap);
 
+	tq->tq_pproc = malloc(sizeof(struct proc *) * count, M_TASKQUEUE,
+	    M_NOWAIT | M_ZERO);
+	if (tq->tq_pproc == NULL) {
+		printf("%s: no memory for %s threads\n", __func__, ktname);
+		return (ENOMEM);
+	}
+
 	for (i = 0; i < count; i++) {
 		if (count == 1)
-			kthread_create(taskqueue_thread_loop, tqp,
-			    &tq->tq_pproc[i], 0, 0, ktname);
+			error = kthread_create(taskqueue_thread_loop, tqp,
+			    &tq->tq_pproc[i], RFSTOPPED, 0, ktname);
 		else
-			kthread_create(taskqueue_thread_loop, tqp,
-			    &tq->tq_pproc[i], 0, 0, "%s_%d", ktname, i);
-		mtx_lock_spin(&sched_lock);
-		sched_prio(FIRST_THREAD_IN_PROC(tq->tq_pproc[i]), pri);
-		mtx_unlock_spin(&sched_lock);
-		tq->tq_pcount++;
+			error = kthread_create(taskqueue_thread_loop, tqp,
+			    &tq->tq_pproc[i], RFSTOPPED, 0, "%s_%d", ktname, i);
+		if (error) {
+			/* should be ok to continue, taskqueue_free will dtrt */
+			printf("%s: kthread_create(%s): error %d",
+				__func__, ktname, error);
+			tq->tq_pproc[i] = NULL;		/* paranoid */
+		} else
+			tq->tq_pcount++;
 	}
+	mtx_lock_spin(&sched_lock);
+	for (i = 0; i < count; i++) {
+		if (tq->tq_pproc[i] == NULL)
+			continue;
+		td = FIRST_THREAD_IN_PROC(tq->tq_pproc[i]);
+		sched_prio(td, pri);
+		setrunqueue(td, SRQ_BORING);
+	}
+	mtx_unlock_spin(&sched_lock);
 
 	return (0);
 }
@@ -358,7 +374,7 @@ taskqueue_thread_loop(void *arg)
 	TQ_LOCK(tq);
 	do {
 		taskqueue_run(tq);
-		TQ_SLEEP(tq, tq, &tq->tq_mutex, curthread->td_priority, "-", 0);
+		TQ_SLEEP(tq, tq, &tq->tq_mutex, 0, "-", 0);
 	} while ((tq->tq_flags & TQ_FLAGS_ACTIVE) != 0);
 
 	/* rendezvous with thread that asked us to terminate */
