@@ -27,7 +27,15 @@ upgrade of OpenBSM generally involves the following steps:
 - Update any library, tool, or etc BSD Makefiles to add new files,
   defines, or other generally useful or necessary things.
 
-Normally, the CVS vendor import goes along the following lines:
+Certain files are present only in the vendor branch, and not in FreeBSD
+development branches:
+
+  contrib/openbsm/bsm  audit.h audit_internal.h audit_kevents.h 
+                       audit_record.h 
+
+This prevents confusion regarding whether the src/sys/bsm or contrib
+versions of the include files should be used in the build.  Normally, the
+CVS vendor import goes along the following lines:
 
   cd ~/p4/projects/trustedbsd/openbsm
   cvs -n -d rwatson@repoman.FreeBSD.org:/home/ncvs -q import \
