@@ -196,6 +196,17 @@ retry:
 		msleep(&p->p_lock, &p->p_mtx, PWAIT, "exithold", 0);
 	PROC_UNLOCK(p);
 
+#ifdef AUDIT
+	/*
+	 * The Sun BSM exit token contains two components: an exit status as
+	 * passed to exit(), and a return value to indicate what sort of exit
+	 * it was.  The exit status is WEXITSTATUS(rv), but it's not clear
+	 * what the return value is.
+	 */
+	AUDIT_ARG(exit, WEXITSTATUS(rv), 0);
+	AUDIT_SYSCALL_EXIT(0, td);
+#endif
+
 	/* Are we a task leader? */
 	if (p == p->p_leader) {
 		mtx_lock(&ppeers_lock);
