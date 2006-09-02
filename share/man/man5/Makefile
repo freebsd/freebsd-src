@@ -21,6 +21,7 @@ MAN=	acct.5 \
 	fbtab.5 \
 	fdescfs.5 \
 	forward.5 \
+	freebsd-update.conf.5 \
 	fs.5 \
 	fstab.5 \
 	group.5 \
