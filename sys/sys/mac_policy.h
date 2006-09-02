@@ -351,7 +351,7 @@ struct mac_policy_ops {
 	int	(*mpo_check_cred_relabel)(struct ucred *cred,
 		    struct label *newlabel);
 	int	(*mpo_check_cred_visible)(struct ucred *u1, struct ucred *u2);
-	void	(*_mpo_placeholder8)(void);
+	void	(*mpo_associate_nfsd_label)(struct ucred *cred);
 	void	(*_mpo_placeholder9)(void);
 	void	(*_mpo_placeholder10)(void);
 	void	(*_mpo_placeholder11)(void);

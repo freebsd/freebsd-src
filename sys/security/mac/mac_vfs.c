@@ -1028,3 +1028,10 @@ vn_setlabel(struct vnode *vp, struct label *intlabel, struct ucred *cred)
 
 	return (0);
 }
+
+void
+mac_associate_nfsd_label(struct ucred *cred)
+{
+
+	MAC_PERFORM(associate_nfsd_label, cred);
+}

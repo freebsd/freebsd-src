@@ -39,10 +39,13 @@ __FBSDID("$FreeBSD$");
  * Socket operations for use by nfs
  */
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mount.h>
@@ -365,6 +368,9 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 		    nd->nd_cr->cr_svuid = fxdr_unsigned(uid_t, *tl++);
 		nd->nd_cr->cr_groups[0] = nd->nd_cr->cr_rgid =
 		    nd->nd_cr->cr_svgid = fxdr_unsigned(gid_t, *tl++);
+#ifdef MAC
+		mac_associate_nfsd_label(nd->nd_cr);
+#endif
 		len = fxdr_unsigned(int, *tl);
 		if (len < 0 || len > RPCAUTH_UNIXGIDS) {
 			m_freem(mrep);
