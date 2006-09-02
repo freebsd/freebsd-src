@@ -34,7 +34,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/audit_internal.h#14 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/audit_internal.h#15 $
  */
 
 #ifndef _AUDIT_INTERNAL_H
@@ -70,9 +70,9 @@ typedef	struct au_record	au_record_t;
 
 /*
  * We could determined the header and trailer sizes by defining appropriate
- * structures.  We hold off that approach until we have a consistant way of
+ * structures.  We hold off that approach until we have a consistent way of
  * using structures for all tokens.  This is not straightforward since these
- * token structures may contain pointers of whose contents we dont know the
+ * token structures may contain pointers of whose contents we do not know the
  * size (e.g text tokens).
  */
 #define	AUDIT_HEADER_SIZE	18
