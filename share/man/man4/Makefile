@@ -27,6 +27,8 @@ MAN=	aac.4 \
 	ath_hal.4 \
 	atkbd.4 \
 	atkbdc.4 \
+	audit.4 \
+	auditpipe.4 \
 	aue.4 \
 	awi.4 \
 	axe.4 \
