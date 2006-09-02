@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003 Marcel Moolenaar
+ * Copyright (c) 2003-2006 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 #include <ucontext.h>
 
 #define	KSE_STACKSIZE		16384
-#define	DTV_OFFSET		offsetof(struct tcb, tcb_tp.tp_tdv)
+#define	DTV_OFFSET		offsetof(struct tcb, tcb_tp.tp_dtv)
 
 #define	THR_GETCONTEXT(ucp)	_ia64_save_context(&(ucp)->uc_mcontext)
 #define	THR_SETCONTEXT(ucp)	PANIC("THR_SETCONTEXT() now in use!\n")
@@ -45,19 +45,16 @@ struct kcb;
 struct kse;
 struct pthread;
 struct tcb;
-struct tdv;	/* We don't know what this is yet? */
 
 /*
- * tp points to one of these. We define the static TLS as an array
- * of long double to enforce 16-byte alignment of the TLS memory,
- * struct ia64_tp, struct tcb and also struct kcb. Both static and
- * dynamic allocation of any of these structures will result in a
- * valid, well-aligned thread pointer.
+ * tp points to one of these. We define the TLS structure as a union
+ * containing a long double to enforce 16-byte alignment. This makes
+ * sure that there will not be any padding in struct tcb after the
+ * TLS structure.
  */
-struct ia64_tp {
-	struct tdv		*tp_tdv;	/* dynamic TLS */
-	uint64_t		_reserved_;
-	long double		tp_tls[0];	/* static TLS */
+union ia64_tp {
+	void			*tp_dtv;
+	long double		_align_;
 };
 
 struct tcb {
@@ -65,19 +62,31 @@ struct tcb {
 	struct pthread		*tcb_thread;
 	struct kcb		*tcb_curkcb;
 	long			tcb_isfake;
-	struct ia64_tp		tcb_tp;
+	union ia64_tp		tcb_tp;
 };
 
 struct kcb {
 	struct kse_mailbox	kcb_kmbx;
-	struct tcb		kcb_faketcb;
-	struct tcb		*kcb_curtcb;
 	struct kse		*kcb_kse;
+	struct tcb		*kcb_curtcb;
+	struct tcb		kcb_faketcb;
 };
 
-register struct ia64_tp *_tp __asm("%r13");
+static __inline struct tcb *
+ia64_get_tcb()
+{
+	register char *tp __asm("%r13");
 
-#define	_tcb	((struct tcb*)((char*)(_tp) - offsetof(struct tcb, tcb_tp)))
+	return ((struct tcb *)(tp - offsetof(struct tcb, tcb_tp)));
+}
+
+static __inline void
+ia64_set_tcb(struct tcb *tcb)
+{
+	register char *tp __asm("%r13");
+
+	__asm __volatile("mov %0 = %1;;" : "=r"(tp) : "r"(&tcb->tcb_tp));
+}
 
 /*
  * The kcb and tcb constructors.
@@ -92,7 +101,7 @@ static __inline void
 _kcb_set(struct kcb *kcb)
 {
 	/* There is no thread yet; use the fake tcb. */
-	_tp = &kcb->kcb_faketcb.tcb_tp;
+	ia64_set_tcb(&kcb->kcb_faketcb);
 }
 
 /*
@@ -104,7 +113,7 @@ _kcb_set(struct kcb *kcb)
 static __inline struct kcb *
 _kcb_get(void)
 {
-	return (_tcb->tcb_curkcb);
+	return (ia64_get_tcb()->tcb_curkcb);
 }
 
 /*
@@ -115,21 +124,23 @@ _kcb_get(void)
 static __inline struct kse_thr_mailbox *
 _kcb_critical_enter(void)
 {
+	struct tcb *tcb;
 	struct kse_thr_mailbox *crit;
 	uint32_t flags;
 
-	if (_tcb->tcb_isfake != 0) {
+	tcb = ia64_get_tcb();
+	if (tcb->tcb_isfake != 0) {
 		/*
 		 * We already are in a critical region since
 		 * there is no current thread.
 		 */
 		crit = NULL;
 	} else {
-		flags = _tcb->tcb_tmbx.tm_flags;
-		_tcb->tcb_tmbx.tm_flags |= TMF_NOUPCALL;
-		crit = _tcb->tcb_curkcb->kcb_kmbx.km_curthread;
-		_tcb->tcb_curkcb->kcb_kmbx.km_curthread = NULL;
-		_tcb->tcb_tmbx.tm_flags = flags;
+		flags = tcb->tcb_tmbx.tm_flags;
+		tcb->tcb_tmbx.tm_flags |= TMF_NOUPCALL;
+		crit = tcb->tcb_curkcb->kcb_kmbx.km_curthread;
+		tcb->tcb_curkcb->kcb_kmbx.km_curthread = NULL;
+		tcb->tcb_tmbx.tm_flags = flags;
 	}
 	return (crit);
 }
@@ -137,28 +148,33 @@ _kcb_critical_enter(void)
 static __inline void
 _kcb_critical_leave(struct kse_thr_mailbox *crit)
 {
+	struct tcb *tcb;
+
+	tcb = ia64_get_tcb();
 	/* No need to do anything if this is a fake tcb. */
-	if (_tcb->tcb_isfake == 0)
-		_tcb->tcb_curkcb->kcb_kmbx.km_curthread = crit;
+	if (tcb->tcb_isfake == 0)
+		tcb->tcb_curkcb->kcb_kmbx.km_curthread = crit;
 }
 
 static __inline int
 _kcb_in_critical(void)
 {
+	struct tcb *tcb;
 	uint32_t flags;
 	int ret;
 
-	if (_tcb->tcb_isfake != 0) {
+	tcb = ia64_get_tcb();
+	if (tcb->tcb_isfake != 0) {
 		/*
 		 * We are in a critical region since there is no
 		 * current thread.
 		 */
 		ret = 1;
 	} else {
-		flags = _tcb->tcb_tmbx.tm_flags;
-		_tcb->tcb_tmbx.tm_flags |= TMF_NOUPCALL;
-		ret = (_tcb->tcb_curkcb->kcb_kmbx.km_curthread == NULL);
-		_tcb->tcb_tmbx.tm_flags = flags;
+		flags = tcb->tcb_tmbx.tm_flags;
+		tcb->tcb_tmbx.tm_flags |= TMF_NOUPCALL;
+		ret = (tcb->tcb_curkcb->kcb_kmbx.km_curthread == NULL);
+		tcb->tcb_tmbx.tm_flags = flags;
 	}
 	return (ret);
 }
@@ -170,19 +186,19 @@ _tcb_set(struct kcb *kcb, struct tcb *tcb)
 		tcb = &kcb->kcb_faketcb;
 	kcb->kcb_curtcb = tcb;
 	tcb->tcb_curkcb = kcb;
-	_tp = &tcb->tcb_tp;
+	ia64_set_tcb(tcb);
 }
 
 static __inline struct tcb *
 _tcb_get(void)
 {
-	return (_tcb);
+	return (ia64_get_tcb());
 }
 
 static __inline struct pthread *
 _get_curthread(void)
 {
-	return (_tcb->tcb_thread);
+	return (ia64_get_tcb()->tcb_thread);
 }
 
 /*
@@ -193,7 +209,7 @@ _get_curthread(void)
 static __inline struct kse *
 _get_curkse(void)
 {
-	return (_tcb->tcb_curkcb->kcb_kse);
+	return (ia64_get_tcb()->tcb_curkcb->kcb_kse);
 }
 
 void _ia64_break_setcontext(mcontext_t *mc);
@@ -208,7 +224,7 @@ _thread_enter_uts(struct tcb *tcb, struct kcb *kcb)
 	if (_ia64_save_context(&tcb->tcb_tmbx.tm_context.uc_mcontext) == 0) {
 		/* Make the fake tcb the current thread. */
 		kcb->kcb_curtcb = &kcb->kcb_faketcb;
-		_tp = &kcb->kcb_faketcb.tcb_tp;
+		ia64_set_tcb(&kcb->kcb_faketcb);
 		_ia64_enter_uts(kcb->kcb_kmbx.km_func, &kcb->kcb_kmbx,
 		    kcb->kcb_kmbx.km_stack.ss_sp,
 		    kcb->kcb_kmbx.km_stack.ss_size);
