@@ -4028,9 +4028,10 @@ ipfw_ctl(struct sockopt *sopt)
 		IPFW_WLOCK(&layer3_chain);
 		layer3_chain.reap = NULL;
 		free_chain(&layer3_chain, 0 /* keep default rule */);
-		rule = layer3_chain.reap, layer3_chain.reap = NULL;
+		rule = layer3_chain.reap;
+		layer3_chain.reap = NULL;
 		IPFW_WUNLOCK(&layer3_chain);
-		if (layer3_chain.reap != NULL)
+		if (rule != NULL)
 			reap_rules(rule);
 		break;
 
@@ -4156,10 +4157,6 @@ ipfw_ctl(struct sockopt *sopt)
 			}
 			size = sopt->sopt_valsize;
 			tbl = malloc(size, M_TEMP, M_WAITOK);
-			if (tbl == NULL) {
-				error = ENOMEM;
-				break;
-			}
 			error = sooptcopyin(sopt, tbl, size, sizeof(*tbl));
 			if (error) {
 				free(tbl, M_TEMP);
