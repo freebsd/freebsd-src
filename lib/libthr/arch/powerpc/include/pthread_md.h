@@ -37,6 +37,7 @@
 #include <sys/types.h>
 
 #define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
+#define	TP_OFFSET		0x7008
 
 /*
  * Variant I tcb. The structure layout is fixed, don't blindly
@@ -48,23 +49,24 @@ struct tcb {
 	struct pthread		*tcb_thread;
 };
 
-register uint8_t *_tp __asm("%r2");
-
-#define _tcb  ((struct tcb *)(_tp - sizeof(struct tcb)))
-
 struct tcb	*_tcb_ctor(struct pthread *, int);
 void		_tcb_dtor(struct tcb *);
 
 static __inline void
 _tcb_set(struct tcb *tcb)
 {
-	_tp = (uint8_t *)tcb + sizeof(struct tcb);
+	register uint8_t *_tp __asm__("%r2");
+
+	__asm __volatile("mr %0,%1" : "=r"(_tp) :
+	    "r"((uint8_t *)tcb + TP_OFFSET));
 }
 
 static __inline struct tcb *
 _tcb_get(void)
 {
-	return (_tcb);
+	register uint8_t *_tp __asm__("%r2");
+
+	return ((struct tcb *)(_tp - TP_OFFSET));
 }
 
 extern struct pthread *_thr_initial;
@@ -73,7 +75,7 @@ static __inline struct pthread *
 _get_curthread(void)
 {
 	if (_thr_initial)
-		return (_tcb->tcb_thread);
+		return (_tcb_get()->tcb_thread);
 	return (NULL);
 }
 
