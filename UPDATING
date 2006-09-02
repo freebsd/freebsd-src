@@ -44,6 +44,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	the nve(4) driver. Please update your configuration
 	accordingly.
 
+20060514:
+	The i386-only lnc(4) driver for the AMD Am7900 LANCE and Am79C9xx
+	PCnet family of NICs has been removed. The new le(4) driver serves
+	as an equivalent but cross-platform replacement with the pcn(4)
+	driver still providing performance-optimized support for the subset
+	of AMD Am79C971 PCnet-FAST and greater chips as before.
+
 20060511:
 	The machdep.* sysctls and the adjkerntz utility have been
 	modified a bit.  The new adjkerntz utility uses the new
