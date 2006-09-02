@@ -1,3 +1,9 @@
+OpenBSM 1.0 alpha 10
+
+- auditd now generates complete audit records for its events, as required for
+  application-submitted audit records in the the FreeBSD kernel audit
+  implementation.
+
 OpenBSM 1.0 alpha 9
 
 - Rename many OpenBSM-specific constants and API elements containing the
@@ -203,4 +209,4 @@ OpenBSM 1.0 alpha 1
   to support reloading of kernel event table.
 - Allow comments in /etc/security configuration files.
 
-$P4: //depot/projects/trustedbsd/openbsm/HISTORY#25 $
+$P4: //depot/projects/trustedbsd/openbsm/HISTORY#26 $
