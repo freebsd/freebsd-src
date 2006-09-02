@@ -1833,7 +1833,15 @@ posix4/ksched.c			optional _kposix_priority_scheduling
 posix4/p1003_1b.c		standard
 posix4/posix4_mib.c		standard
 rpc/rpcclnt.c			optional nfsclient
+security/audit/audit.c		optional audit
+security/audit/audit_arg.c	optional audit
+security/audit/audit_bsm.c	optional audit
+security/audit/audit_bsm_klib.c	optional audit
+security/audit/audit_bsm_token.c	optional audit
+security/audit/audit_pipe.c	optional audit
 security/audit/audit_syscalls.c	standard
+security/audit/audit_trigger.c	optional audit
+security/audit/audit_worker.c	optional audit
 security/mac/mac_inet.c		optional mac inet
 security/mac/mac_label.c	optional mac
 security/mac/mac_net.c		optional mac
