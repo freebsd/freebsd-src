@@ -330,9 +330,6 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	mtx_lock(&Giant);
 	vp = fp->f_vnode;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-#ifdef AUDIT
-	AUDIT_ARG(vnode, vp, ARG_VNODE1);
-#endif
 	mp = vp->v_mount;
 	if (mp)
 		vfs_ref(mp);
