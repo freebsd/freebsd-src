@@ -173,7 +173,9 @@ thread_dtor(void *mem, int size, void *arg)
 		/* NOTREACHED */
 	}
 #endif
-
+#ifdef AUDIT
+	audit_thread_free(td);
+#endif
 	free_unr(tid_unrhdr, td->td_tid);
 	sched_newthread(td);
 }
@@ -462,6 +464,10 @@ thread_exit(void)
 	KASSERT(kg != NULL, ("thread exiting without a kse group"));
 	CTR3(KTR_PROC, "thread_exit: thread %p (pid %ld, %s)", td,
 	    (long)p->p_pid, p->p_comm);
+
+#ifdef AUDIT
+	AUDIT_SYSCALL_EXIT(0, td);
+#endif
 
 	if (td->td_standin != NULL) {
 		/*
