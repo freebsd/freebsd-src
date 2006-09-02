@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 
+#include <security/audit/audit.h>
+
 static MALLOC_DEFINE(M_CRED, "cred", "credentials");
 
 SYSCTL_DECL(_security);
@@ -495,6 +497,7 @@ setuid(struct thread *td, struct setuid_args *uap)
 	int error;
 
 	uid = uap->uid;
+	AUDIT_ARG(uid, uid);
 	newcred = crget();
 	uip = uifind(uid);
 	PROC_LOCK(p);
@@ -608,6 +611,7 @@ seteuid(struct thread *td, struct seteuid_args *uap)
 	int error;
 
 	euid = uap->euid;
+	AUDIT_ARG(euid, euid);
 	newcred = crget();
 	euip = uifind(euid);
 	PROC_LOCK(p);
@@ -664,6 +668,7 @@ setgid(struct thread *td, struct setgid_args *uap)
 	int error;
 
 	gid = uap->gid;
+	AUDIT_ARG(gid, gid);
 	newcred = crget();
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
@@ -764,6 +769,7 @@ setegid(struct thread *td, struct setegid_args *uap)
 	int error;
 
 	egid = uap->egid;
+	AUDIT_ARG(egid, egid);
 	newcred = crget();
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
@@ -822,6 +828,7 @@ setgroups(struct thread *td, struct setgroups_args *uap)
 		crfree(tempcred);
 		return (error);
 	}
+	AUDIT_ARG(groupset, tempcred->cr_groups, ngrp);
 	newcred = crget();
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
@@ -890,6 +897,8 @@ setreuid(register struct thread *td, struct setreuid_args *uap)
 
 	euid = uap->euid;
 	ruid = uap->ruid;
+	AUDIT_ARG(euid, euid);
+	AUDIT_ARG(ruid, ruid);
 	newcred = crget();
 	euip = uifind(euid);
 	ruip = uifind(ruid);
@@ -958,6 +967,8 @@ setregid(register struct thread *td, struct setregid_args *uap)
 
 	egid = uap->egid;
 	rgid = uap->rgid;
+	AUDIT_ARG(egid, egid);
+	AUDIT_ARG(rgid, rgid);
 	newcred = crget();
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
@@ -1028,6 +1039,9 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 	euid = uap->euid;
 	ruid = uap->ruid;
 	suid = uap->suid;
+	AUDIT_ARG(euid, euid);
+	AUDIT_ARG(ruid, ruid);
+	AUDIT_ARG(suid, suid);
 	newcred = crget();
 	euip = uifind(euid);
 	ruip = uifind(ruid);
@@ -1108,6 +1122,9 @@ setresgid(register struct thread *td, struct setresgid_args *uap)
 	egid = uap->egid;
 	rgid = uap->rgid;
 	sgid = uap->sgid;
+	AUDIT_ARG(egid, egid);
+	AUDIT_ARG(rgid, rgid);
+	AUDIT_ARG(sgid, sgid);
 	newcred = crget();
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;

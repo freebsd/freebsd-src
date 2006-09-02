@@ -68,6 +68,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 
+#include <security/audit/audit.h>
+
 #include <vm/uma.h>
 
 #include <ddb/ddb.h>
@@ -976,6 +978,9 @@ close(td, uap)
 	error = 0;
 	holdleaders = 0;
 	fdp = td->td_proc->p_fd;
+
+	AUDIT_SYSCLOSE(td, fd);
+
 	FILEDESC_LOCK(fdp);
 	if ((unsigned)fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[fd]) == NULL) {
@@ -1079,8 +1084,13 @@ kern_fstat(struct thread *td, int fd, struct stat *sbp)
 	struct file *fp;
 	int error;
 
+	AUDIT_ARG(fd, fd);
+
 	if ((error = fget(td, fd, &fp)) != 0)
 		return (error);
+
+	AUDIT_ARG(file, td->td_proc, fp);
+
 	error = fo_stat(fp, sbp, td->td_ucred, td);
 	fdrop(fp, td);
 	return (error);
