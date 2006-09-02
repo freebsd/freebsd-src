@@ -66,6 +66,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/signalvar.h>
 
+#include <security/audit/audit.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
@@ -287,6 +289,9 @@ fork1(td, flags, pages, procp)
 #ifdef MAC
 	mac_init_proc(newproc);
 #endif
+#ifdef AUDIT
+	audit_proc_alloc(newproc);
+#endif
 	knlist_init(&newproc->p_klist, &newproc->p_mtx, NULL, NULL, NULL);
 
 	/* We have to lock the process tree while we look for a pid. */
@@ -507,7 +512,9 @@ again:
 	mtx_unlock_spin(&sched_lock);
 	p2->p_ucred = crhold(td->td_ucred);
 	td2->td_ucred = crhold(p2->p_ucred);	/* XXXKSE */
-
+#ifdef AUDIT
+	audit_proc_fork(p1, p2);
+#endif
 	pargs_hold(p2->p_args);
 
 	if (flags & RFSIGSHARE) {
@@ -745,6 +752,9 @@ fail:
 	sx_xunlock(&allproc_lock);
 #ifdef MAC
 	mac_destroy_proc(newproc);
+#endif
+#ifdef AUDIT
+	audit_proc_free(newproc);
 #endif
 	uma_zfree(proc_zone, newproc);
 	if (p1->p_flag & P_HADTHREADS) {
