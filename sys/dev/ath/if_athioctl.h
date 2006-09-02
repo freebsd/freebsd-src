@@ -94,6 +94,8 @@ struct ath_stats {
 	u_int32_t	ast_rx_ctl;	/* rx discarded 'cuz ctl frame */
 	int8_t		ast_tx_rssi;	/* tx rssi of last ack */
 	int8_t		ast_rx_rssi;	/* rx rssi from histogram */
+	int8_t		ast_rx_noise;	/* rx noise floor */
+	u_int8_t	ast_tx_rate;	/* IEEE rate of last unicast tx */
 	u_int32_t	ast_be_xmit;	/* beacons transmitted */
 	u_int32_t	ast_be_nombuf;	/* beacon setup failed 'cuz no mbuf */
 	u_int32_t	ast_per_cal;	/* periodic calibration calls */
@@ -108,7 +110,8 @@ struct ath_stats {
 	u_int32_t	ast_ant_tx[8];	/* tx frames with antenna */
 	u_int32_t	ast_cabq_xmit;	/* cabq frames transmitted */
 	u_int32_t	ast_cabq_busy;	/* cabq found busy */
-	u_int32_t	ast_pad[30];
+	u_int32_t	ast_tx_raw;	/* tx frames through raw api */
+	u_int32_t	ast_pad[29];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
