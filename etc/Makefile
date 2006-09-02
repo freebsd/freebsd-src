@@ -21,6 +21,15 @@ BIN1=	amd.map apmd.conf auth.conf \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
 	${.CURDIR}/../usr.bin/locate/locate/locate.rc
+
+OPENBSMDIR=			${.CURDIR}/../contrib/openbsm
+BSM_ETC_OPEN_FILES=		${OPENBSMDIR}/etc/audit_class \
+				${OPENBSMDIR}/etc/audit_event
+BSM_ETC_RESTRICTED_FILES=	${OPENBSMDIR}/etc/audit_control \
+				${OPENBSMDIR}/etc/audit_user
+BSM_ETC_EXEC_FILES=		${OPENBSMDIR}/etc/audit_warn
+BSM_ETC_DIR=			${DESTDIR}/etc/security
+
 .if !defined(NO_LPR)
 BIN1+=	printcap
 .endif
@@ -110,6 +119,12 @@ distribution:
 	cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap
 	cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt
 	cd ${.CURDIR}/pam.d; ${MAKE} install
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0444 \
+	    ${BSM_ETC_OPEN_FILES} ${BSM_ETC_DIR}
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0600 \
+	    ${BSM_ETC_RESTRICTED_FILES} ${BSM_ETC_DIR}
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0500 \
+	    ${BSM_ETC_EXEC_FILES} ${BSM_ETC_DIR}
 .if !defined(NO_I4B)
 	cd ${.CURDIR}/isdn; ${MAKE} install
 .endif
