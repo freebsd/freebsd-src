@@ -681,6 +681,7 @@ do_unlock(struct thread *td, struct umtx *umtx, uintptr_t id)
 			return (EFAULT);
 		if (old == owner)
 			return (0);
+		owner = old;
 	}
 
 	/* We should only ever be in here for contested locks */
@@ -965,6 +966,7 @@ do_unlock_normal(struct thread *td, struct umutex *m, uint32_t flags)
 			return (EFAULT);
 		if (old == owner)
 			return (0);
+		owner = old;
 	}
 
 	/* We should only ever be in here for contested locks */
@@ -1595,6 +1597,7 @@ do_unlock_pi(struct thread *td, struct umutex *m, uint32_t flags)
 			return (EFAULT);
 		if (old == owner)
 			return (0);
+		owner = old;
 	}
 
 	/* We should only ever be in here for contested locks */
@@ -2005,20 +2008,21 @@ static int
 do_unlock_umutex(struct thread *td, struct umutex *m)
 {
 	uint32_t flags;
-	int ret;
 
 	flags = fuword32(&m->m_flags);
 	if (flags == -1)
 		return (EFAULT);
 
-	if ((flags & UMUTEX_PRIO_INHERIT) != 0)
-		ret = do_unlock_pi(td, m, flags);
-	else if ((flags & UMUTEX_PRIO_PROTECT) != 0)
-		ret = do_unlock_pp(td, m, flags);
-	else
-		ret = do_unlock_normal(td, m, flags);
+	switch(flags & (UMUTEX_PRIO_INHERIT | UMUTEX_PRIO_PROTECT)) {
+	case 0:
+		return (do_unlock_normal(td, m, flags));
+	case UMUTEX_PRIO_INHERIT:
+		return (do_unlock_pi(td, m, flags));
+	case UMUTEX_PRIO_PROTECT:
+		return (do_unlock_pp(td, m, flags));
+	}
 
-	return (ret);
+	return (EINVAL);
 }
 
 int
