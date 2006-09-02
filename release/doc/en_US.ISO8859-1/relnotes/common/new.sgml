@@ -219,6 +219,11 @@
 
     <para>The &man.apm.4; suspend/resume support has been improved.</para>
 
+    <para>Security event auditing is now supported in the &os; kernel,
+      and is enabled by the <literal>AUDIT</literal> kernel
+      configuration option.  More information can be found in the
+      &man.audit.4; manual page.</para>
+
     <para>The <literal>options COMPAT_43</literal> kernel
       configuration option has been deemed unnecessary and has been
       removed from <filename>GENERIC</filename> and related kernel
@@ -1059,7 +1064,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The OpenBSM userland tools, including &man.audit.8;,
       &man.auditd.8;,
       &man.auditreduce.1;, and
-      &man.praudit.1;, have been added.</para>
+      &man.praudit.1;, have been added. &merged;</para>
 
     <para>The &man.bsdiff.1; and &man.bspatch.1; utilities
       have been added.  These are tools for constructing and
@@ -1083,6 +1088,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.config.8; utility now reads <filename>DEFAULTS</filename>
       kernel configuration file if it exists in the current directory
       before the specified configuration file.  &merged;</para>
+
+    <para>The &man.cp.1; utility now supports a <option>-l</option>
+      option, which causes it to create hardlinks to the source files
+      instead of copying them. &merged;</para>
 
     <para>The &man.csh.1; utility now supports NLS catalogs.
       Note that this requires installing
@@ -1119,7 +1128,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       has been fixed.</para>
 
     <para>The &man.freebsd-update.8; utility, a tool for managing
-      binary updates to the &os; base system, has been added.</para>
+      binary updates to the &os; base system, has been added. &merged;</para>
 
     <para>The &man.ftpd.8; utility now creates a PID file
       <filename>/var/run/ftpd.pid</filename> even when
@@ -1361,6 +1370,12 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       will ask for confirmation before sending a signal to
       each matching process.</para>
 
+    <para>The &man.pkill.1; utility (also known as &man.pgrep.1;) has
+      been moved from <filename>/usr/bin</filename>
+      to <filename>/bin</filename> so that it can be used by startup
+      scripts.  Symbolic links from its former location have been
+      created for backward compatibliity. &merged;</para>
+
     <para>The &man.powerd.8; program now supports a
       <option>-P</option> option, which specifies a pidfile to use.</para>
 
@@ -1464,7 +1479,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
       <para>The <filename>auditd</filename> script for
-	OpenBSM &man.auditd.8; has been added.</para>
+	OpenBSM &man.auditd.8; has been added. &merged;</para>
 
       <para>The <filename>bluetooth</filename> script
 	has been added.  This script will be called from
@@ -1597,6 +1612,10 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para><application>less</application> has been updated from v381
       to v394. &merged;</para>
 
+    <para><application>lukemftpd</application> has been updated from a
+      snapshot from NetBSD as of 9 August 2004 to a snapshot from
+      NetBSD as of 31 August 2006.</para>
+
     <para><application>OpenSSH</application> has been updated from
       4.2p1 to 4.3p1.</para>
 
@@ -1618,15 +1637,15 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       snapshot from OpenBSD as of 20060831.</para>
 
     <para>TrustedBSD <application>OpenBSM</application>,
-      version 1.0 alpha 9, an implementation of the documented Sun Basic
+      version 1.0 alpha 10, an implementation of the documented Sun Basic
       Security Module (BSM) Audit API and file format, as well as local
-      extensions to support the Mac OS X and FreeBSD operating systems
+      extensions to support the Mac OS X and &os; operating systems
       has been added.  This also includes command line tools for audit
       trail reduction and conversion to text, as well as documentation
       of the commands, file format, and APIs.
       For this functionality, the <literal>AUDIT</literal> kernel option,
       <filename>/var/audit</filename> directory, and
-      <literal>audit</literal> group have been added.</para>
+      <literal>audit</literal> group have been added. &merged;</para>
 
     <para><application>WPA Supplicant</application>
       has been updated from version 0.3.9 to version 0.4.8.
