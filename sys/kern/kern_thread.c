@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/umtx.h>
 
+#include <security/audit/audit.h>
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
@@ -134,6 +136,10 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	 * next thread.
 	 */
 	td->td_critnest = 1;
+
+#ifdef AUDIT
+	audit_thread_alloc(td);
+#endif
 	return (0);
 }
 
