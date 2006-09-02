@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
+#include <security/audit/audit.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -978,7 +979,9 @@ syscall(frame)
 
 		PTRACESTOP_SC(p, td, S_PT_SCE);
 
+		AUDIT_SYSCALL_ENTER(code, td);
 		error = (*callp->sy_call)(td, args);
+		AUDIT_SYSCALL_EXIT(error, td);
 	}
 
 	switch (error) {
