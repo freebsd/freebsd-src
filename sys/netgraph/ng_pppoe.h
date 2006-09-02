@@ -85,8 +85,9 @@ enum cmd {
 	NGM_PPPOE_ACNAME   = 9,	/* AC_NAME for informational purposes */
 	NGM_PPPOE_GET_STATUS = 10, /* data in/out */
 	NGM_PPPOE_SESSIONID  = 11,  /* Session_ID for informational purposes */
-	NGM_PPPOE_SETMODE  = 12, /* set to standard or 3Com mode */
+	NGM_PPPOE_SETMODE  = 12, /* set to standard or compat modes */
 	NGM_PPPOE_GETMODE  = 13, /* see current mode */
+	NGM_PPPOE_SETENADDR = 14, /* set Ethernet address */
 };
 
 /***********************

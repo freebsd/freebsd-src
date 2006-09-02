@@ -48,12 +48,14 @@
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
+#include <sys/syslog.h>
 #include <net/ethernet.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_pppoe.h>
+#include <netgraph/ng_ether.h>
 
 #ifdef NG_SEPARATE_MALLOC
 MALLOC_DEFINE(M_NETGRAPH_PPPOE, "netgraph_pppoe", "netgraph pppoe node");
@@ -73,6 +75,7 @@ static ng_constructor_t	ng_pppoe_constructor;
 static ng_rcvmsg_t	ng_pppoe_rcvmsg;
 static ng_shutdown_t	ng_pppoe_shutdown;
 static ng_newhook_t	ng_pppoe_newhook;
+static ng_connect_t	ng_pppoe_connect;
 static ng_rcvdata_t	ng_pppoe_rcvdata;
 static ng_disconnect_t	ng_pppoe_disconnect;
 
@@ -157,6 +160,13 @@ static const struct ng_cmdlist ng_pppoe_cmds[] = {
 	  NULL,
 	  &ng_parse_string_type
 	},
+	{
+	  NGM_PPPOE_COOKIE,
+	  NGM_PPPOE_SETENADDR,
+	  "setenaddr",
+	  &ng_parse_enaddr_type,
+	  NULL
+	},
 	{ 0 }
 };
 
@@ -168,6 +178,7 @@ static struct ng_type typestruct = {
 	.rcvmsg =	ng_pppoe_rcvmsg,
 	.shutdown =	ng_pppoe_shutdown,
 	.newhook =	ng_pppoe_newhook,
+	.connect =	ng_pppoe_connect,
 	.rcvdata =	ng_pppoe_rcvdata,
 	.disconnect =	ng_pppoe_disconnect,
 	.cmdlist =	ng_pppoe_cmds,
@@ -228,16 +239,6 @@ typedef struct sess_con *sessp;
 
 #define	NG_PPPOE_SESSION_NODE(sp) NG_HOOK_NODE(sp->hook)
 
-static const struct ether_header eh_standard =
-	{{0xff,0xff,0xff,0xff,0xff,0xff},
-	{0x00,0x00,0x00,0x00,0x00,0x00},
-	ETHERTYPE_PPPOE_DISC};
-
-static const struct ether_header eh_3Com =
-	{{0xff,0xff,0xff,0xff,0xff,0xff},
-	{0x00,0x00,0x00,0x00,0x00,0x00},
-	ETHERTYPE_PPPOE_3COM_DISC};
-
 /*
  * Information we store for each node
  */
@@ -250,7 +251,7 @@ struct PPPoE {
 	uint32_t	flags;
 #define	COMPAT_3COM	0x00000001
 #define	COMPAT_DLINK	0x00000002
-	const struct	ether_header	*eh;	/* standard PPPoE or 3Com? */
+	struct ether_header	eh;
 };
 typedef struct PPPoE *priv_p;
 
@@ -261,7 +262,7 @@ union uniq {
 
 #define	LEAVE(x) do { error = x; goto quit; } while(0)
 static void	pppoe_start(sessp sp);
-static void	sendpacket(sessp sp);
+static void	ng_pppoe_sendpacket(sessp sp);
 static void	pppoe_ticker(node_p node, hook_p hook, void *arg1, int arg2);
 static const	struct pppoe_tag *scan_tags(sessp sp,
 			const struct pppoe_hdr* ph);
@@ -383,7 +384,8 @@ insert_tag(sessp sp, const struct pppoe_tag *tp)
 	if ((i = neg->numtags++) < NUMTAGS) {
 		neg->tags[i] = tp;
 	} else {
-		printf("pppoe: asked to add too many tags to packet\n");
+		log(LOG_NOTICE, "ng_pppoe: asked to add too many tags to "
+		    "packet\n");
 		neg->numtags--;
 	}
 }
@@ -406,7 +408,7 @@ make_packet(sessp sp) {
 	uint16_t length = 0;
 
 	KASSERT((sp->neg != NULL) && (sp->neg->m != NULL),
-	    ("%s: make_packet called from wrong state", __func__));
+	    ("%s: called from wrong state", __func__));
 	CTR2(KTR_NET, "%20s: called %d", __func__, sp->Session_ID);
 
 	dp = (char *)wh->ph.tag;
@@ -415,7 +417,7 @@ make_packet(sessp sp) {
 	    tag++, count++) {
 		tlen = ntohs((*tag)->tag_len) + sizeof(**tag);
 		if ((length + tlen) > (ETHER_MAX_LEN - 4 - sizeof(*wh))) {
-			printf("pppoe: tags too long\n");
+			log(LOG_NOTICE, "ng_pppoe: tags too long\n");
 			sp->neg->numtags = count;
 			break;	/* XXX chop off what's too long */
 		}
@@ -633,7 +635,8 @@ ng_pppoe_constructor(node_p node)
 	privp->node = node;
 
 	/* Initialize to standard mode. */
-	privp->eh = &eh_standard;
+	memset(&privp->eh.ether_dhost, 0xff, ETHER_ADDR_LEN);
+	privp->eh.ether_type = ETHERTYPE_PPPOE_DISC;
 
 	CTR3(KTR_NET, "%20s: created node [%x] (%p)",
 	    __func__, node->nd_ID, node);
@@ -682,6 +685,38 @@ ng_pppoe_newhook(node_p node, hook_p hook, const char *name)
 }
 
 /*
+ * Hook has been added successfully. Request the MAC address of
+ * the underlying Ethernet node.
+ */
+static int
+ng_pppoe_connect(hook_p hook)
+{
+	const priv_p privp = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	struct ng_mesg *msg;
+	int error;
+
+	if (hook != privp->ethernet_hook)
+		return (0);
+
+	/*
+	 * If this is Ethernet hook, then request MAC address
+	 * from our downstream.
+	 */
+	NG_MKMESSAGE(msg, NGM_ETHER_COOKIE, NGM_ETHER_GET_ENADDR, 0, M_NOWAIT);
+	if (msg == NULL)
+		return (ENOBUFS);
+
+	/*
+	 * Our hook and peer hook have HK_INVALID flag set,
+	 * so we can't use NG_SEND_MSG_HOOK() macro here.
+	 */
+	NG_SEND_MSG_ID(error, privp->node, msg,
+	    NG_NODE_ID(NG_PEER_NODE(privp->ethernet_hook)),
+	    NG_NODE_ID(privp->node));
+
+	return (error);
+}
+/*
  * Get a netgraph control message.
  * Check it is one we understand. If needed, send a response.
  * We sometimes save the address for an async action later.
@@ -714,18 +749,21 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		case NGM_PPPOE_SERVICE:
 			ourmsg = (struct ngpppoe_init_data *)msg->data;
 			if (msg->header.arglen < sizeof(*ourmsg)) {
-				printf("pppoe: init data too small\n");
+				log(LOG_ERR, "ng_pppoe[%x]: init data too "
+				    "small\n", node->nd_ID);
 				LEAVE(EMSGSIZE);
 			}
 			if (msg->header.arglen - sizeof(*ourmsg) >
 			    PPPOE_SERVICE_NAME_SIZE) {
-				printf("pppoe_rcvmsg: service name too big");
+				log(LOG_ERR, "ng_pppoe[%x]: service name "
+				    "too big\n", node->nd_ID);
 				LEAVE(EMSGSIZE);
 			}
 			if (msg->header.arglen - sizeof(*ourmsg) <
 			    ourmsg->data_len) {
-				printf("pppoe: init data has bad length,"
-				    " %d should be %zd\n", ourmsg->data_len,
+				log(LOG_ERR, "ng_pppoe[%x]: init data has bad "
+				    "length, %d should be %zd\n", node->nd_ID,
+				    ourmsg->data_len,
 				    msg->header.arglen - sizeof (*ourmsg));
 				LEAVE(EMSGSIZE);
 			}
@@ -767,7 +805,8 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				break;
 
 			if (sp->state != PPPOE_SNONE) {
-				printf("pppoe: Session already active\n");
+				log(LOG_NOTICE, "ng_pppoe[%x]: Session already "
+				    "active\n", node->nd_ID);
 				LEAVE(EISCONN);
 			}
 
@@ -791,8 +830,7 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			neg->m->m_len = sizeof(struct pppoe_full_hdr);
 			neg->pkt = mtod(neg->m, union packet*);
 			memcpy((void *)&neg->pkt->pkt_header.eh,
-			    (const void *)privp->eh,
-			    sizeof(struct ether_header));
+			    &privp->eh, sizeof(struct ether_header));
 			neg->pkt->pkt_header.ph.ver = 0x1;
 			neg->pkt->pkt_header.ph.type = 0x1;
 			neg->pkt->pkt_header.ph.sid = 0x0000;
@@ -882,7 +920,8 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			 * If you do it twice you just overwrite.
 			 */
 			if (sp->state != PPPOE_PRIMED) {
-				printf("pppoe: Session not primed\n");
+				log(LOG_NOTICE, "ng_pppoe[%x]: session not "
+				    "primed\n", node->nd_ID);
 				LEAVE(EISCONN);
 			}
 			neg = sp->neg;
@@ -910,13 +949,14 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (len == strlen(NG_PPPOE_STANDARD) &&
 			    (strncmp(NG_PPPOE_STANDARD, s, len) == 0)) {
 				privp->flags = 0;
-				privp->eh = &eh_standard;
+				privp->eh.ether_type = ETHERTYPE_PPPOE_DISC;
 				break;
 			}
 			if (len == strlen(NG_PPPOE_3COM) &&
 			    (strncmp(NG_PPPOE_3COM, s, len) == 0)) {
 				privp->flags |= COMPAT_3COM;
-				privp->eh = &eh_3Com;
+				privp->eh.ether_type =
+				    ETHERTYPE_PPPOE_3COM_DISC;
 				break;
 			}
 			if (len == strlen(NG_PPPOE_DLINK) &&
@@ -962,6 +1002,26 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			break;
 		    }
+		case NGM_PPPOE_SETENADDR:
+			if (msg->header.arglen != ETHER_ADDR_LEN)
+				LEAVE(EINVAL);
+			bcopy(msg->data, &privp->eh.ether_shost,
+			    ETHER_ADDR_LEN);
+			break;
+		default:
+			LEAVE(EINVAL);
+		}
+		break;
+	case NGM_ETHER_COOKIE:
+		if (!(msg->header.flags & NGF_RESP))
+			LEAVE(EINVAL);
+		switch (msg->header.cmd) {
+		case NGM_ETHER_GET_ENADDR:
+			if (msg->header.arglen != ETHER_ADDR_LEN)
+				LEAVE(EINVAL);
+			bcopy(msg->data, &privp->eh.ether_shost,
+			    ETHER_ADDR_LEN);
+			break;
 		default:
 			LEAVE(EINVAL);
 		}
@@ -999,11 +1059,10 @@ pppoe_start(sessp sp)
 	sp->state = PPPOE_SINIT;
 	/*
 	 * Reset the packet header to broadcast. Since we are
-	 * in a client
-	 * mode use configured ethertype.
+	 * in a client mode use configured ethertype.
 	 */
-	memcpy((void *)&sp->neg->pkt->pkt_header.eh,
-	    (const void *)privp->eh, sizeof(struct ether_header));
+	memcpy((void *)&sp->neg->pkt->pkt_header.eh, &privp->eh,
+	    sizeof(struct ether_header));
 	sp->neg->pkt->pkt_header.ph.code = PADI_CODE;
 	uniqtag.hdr.tag_type = PTT_HOST_UNIQ;
 	uniqtag.hdr.tag_len = htons((u_int16_t)sizeof(uniqtag.data));
@@ -1012,7 +1071,7 @@ pppoe_start(sessp sp)
 	insert_tag(sp, &uniqtag.hdr);
 	insert_tag(sp, &sp->neg->service.hdr);
 	make_packet(sp);
-	sendpacket(sp);
+	ng_pppoe_sendpacket(sp);
 }
 
 static int
@@ -1105,7 +1164,8 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 		if( m->m_len < sizeof(*wh)) {
 			m = m_pullup(m, sizeof(*wh)); /* Checks length */
 			if (m == NULL) {
-				printf("couldn't m_pullup\n");
+				log(LOG_NOTICE, "ng_pppoe[%x]: couldn't "
+				    "m_pullup(wh)\n", node->nd_ID);
 				LEAVE(ENOBUFS);
 			}
 		}
@@ -1124,7 +1184,10 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 				if( m->m_len < m->m_pkthdr.len) {
 					m = m_pullup(m, m->m_pkthdr.len);
 					if (m == NULL) {
-						printf("couldn't m_pullup\n");
+						log(LOG_NOTICE, "ng_pppoe[%x]: "
+						    "couldn't "
+						    "m_pullup(pkthdr)\n",
+						    node->nd_ID);
 						LEAVE(ENOBUFS);
 					}
 				}
@@ -1147,7 +1210,8 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 					}
 				}
 				if (m == NULL) {
-					printf("packet fragmented\n");
+					log(LOG_NOTICE, "ng_pppoe[%x]: packet "
+					    "fragmented\n", node->nd_ID);
 					LEAVE(EMSGSIZE);
 				}
 			}
@@ -1204,13 +1268,15 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 				utag = get_tag(ph, PTT_HOST_UNIQ);
 				if ((utag == NULL)
 				|| (ntohs(utag->tag_len) != sizeof(sp))) {
-					printf("no host unique field\n");
+					log(LOG_NOTICE, "ng_pppoe[%x]: no host "
+					    "unique field\n", node->nd_ID);
 					LEAVE(ENETUNREACH);
 				}
 
 				sendhook = pppoe_finduniq(node, utag);
 				if (sendhook == NULL) {
-					printf("no matching session\n");
+					log(LOG_NOTICE, "ng_pppoe[%x]: no "
+					    "matching session\n", node->nd_ID);
 					LEAVE(ENETUNREACH);
 				}
 
@@ -1220,7 +1286,8 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 				 */
 				sp = NG_HOOK_PRIVATE(sendhook);
 				if (sp->state != PPPOE_SINIT) {
-					printf("session in wrong state\n");
+					log(LOG_NOTICE, "ng_pppoe[%x]: session "
+					    "in wrong state\n", node->nd_ID);
 					LEAVE(ENETUNREACH);
 				}
 				neg = sp->neg;
@@ -1249,7 +1316,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 				scan_tags(sp, ph);
 				make_packet(sp);
 				sp->state = PPPOE_SREQ;
-				sendpacket(sp);
+				ng_pppoe_sendpacket(sp);
 				break;
 			case	PADR_CODE:
 
@@ -1311,7 +1378,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 				scan_tags(sp, ph);
 				make_packet(sp);
 				sp->state = PPPOE_NEWCONNECTED;
-				sendpacket(sp);
+				ng_pppoe_sendpacket(sp);
 				/*
 				 * Having sent the last Negotiation header,
 				 * Set up the stored packet header to
@@ -1560,7 +1627,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 			insert_tag(sp, &uniqtag.hdr);
 			scan_tags(sp, ph);
 			make_packet(sp);
-			sendpacket(sp);
+			ng_pppoe_sendpacket(sp);
 			break;
 
 		/*
@@ -1655,8 +1722,9 @@ ng_pppoe_disconnect(hook_p hook)
 
 			/* Generate a packet of that type. */
 			MGETHDR(m, M_DONTWAIT, MT_DATA);
-			if(m == NULL)
-				printf("pppoe: Session out of mbufs\n");
+			if (m == NULL)
+				log(LOG_NOTICE, "ng_pppoe[%x]: session out of "
+				    "mbufs\n", node->nd_ID);
 			else {
 				m->m_pkthdr.rcvif = NULL;
 				m->m_pkthdr.len = m->m_len = sizeof(*wh);
@@ -1749,13 +1817,14 @@ pppoe_ticker(node_p node, hook_p hook, void *arg1, int arg2)
 		break;
 	default:
 		/* Timeouts have no meaning in other states. */
-		printf("pppoe: unexpected timeout\n");
+		log(LOG_NOTICE, "ng_pppoe[%x]: unexpected timeout\n",
+		    node->nd_ID);
 	}
 }
 
 
 static void
-sendpacket(sessp sp)
+ng_pppoe_sendpacket(sessp sp)
 {
 	struct	mbuf *m0 = NULL;
 	hook_p	hook = sp->hook;
@@ -1770,7 +1839,8 @@ sendpacket(sessp sp)
 	case	PPPOE_DEAD:
 	case	PPPOE_SNONE:
 	case	PPPOE_CONNECTED:
-		printf("pppoe: sendpacket: unexpected state\n");
+		log(LOG_NOTICE, "%s: unexpected state %d\n",
+		    __func__, sp->state);
 		break;
 
 	case	PPPOE_NEWCONNECTED:
@@ -1807,7 +1877,7 @@ sendpacket(sessp sp)
 
 	default:
 		error = EINVAL;
-		printf("pppoe: timeout: bad state\n");
+		log(LOG_NOTICE, "%s: bad state %d\n", __func__, sp->state);
 	}
 }
 
