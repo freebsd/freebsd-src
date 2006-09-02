@@ -273,6 +273,10 @@ main(int argc, char *argv[])
 	if (argc != 3)
 		usage();
 
+	if (numthreads > MAXTHREADS)
+		errx(-1, "%d exceeds max threads %d", numthreads,
+		    MAXTHREADS);
+
 	len = roundup(sizeof(struct state), getpagesize());
 	pagebuffer = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
 	if (pagebuffer == MAP_FAILED)
