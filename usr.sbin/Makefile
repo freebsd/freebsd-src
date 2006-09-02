@@ -12,6 +12,9 @@ SUBDIR=	ac \
 	${_apmd} \
 	${_arlcontrol} \
 	arp \
+	${_audit} \
+	${_auditd} \
+	${_auditreduce} \
 	${_asf} \
 	${_atm} \
 	${_authpf} \
@@ -119,6 +122,7 @@ SUBDIR=	ac \
 	pppd \
 	pppstats \
 	${_praliases} \
+	${_praudit} \
 	procctl \
 	pstat \
 	pw \
@@ -193,6 +197,13 @@ _sysinstall=	sysinstall
 
 .if !defined(NO_ATM)
 _atm=		atm
+.endif
+
+.if !defined(NO_AUDIT)
+_audit= 	audit
+_auditd=	auditd
+_auditreduce=	auditreduce
+_praudit=	praudit
 .endif
 
 .if !defined(NO_BIND)
