@@ -42,10 +42,6 @@ struct tcb {
 	struct pthread		*tcb_thread;
 };
 
-register struct tcb *_tp __asm("%r13");
-
-#define _tcb	_tp
-
 /*
  * The tcb constructors.
  */
@@ -56,13 +52,17 @@ void		_tcb_dtor(struct tcb *);
 static __inline void
 _tcb_set(struct tcb *tcb)
 {
-	_tp = tcb;
+	register struct tcb *tp __asm("%r13");
+
+	__asm __volatile("mov %0 = %1;;" : "=r"(tp) : "r"(tcb));
 }
 
 static __inline struct tcb *
 _tcb_get(void)
 {
-	return (_tcb);
+	register struct tcb *tp __asm("%r13");
+
+	return (tp);
 }
 
 extern struct pthread *_thr_initial;
@@ -71,7 +71,7 @@ static __inline struct pthread *
 _get_curthread(void)
 {
 	if (_thr_initial)
-		return (_tcb->tcb_thread);
+		return (_tcb_get()->tcb_thread);
 	return (NULL);
 }
 
