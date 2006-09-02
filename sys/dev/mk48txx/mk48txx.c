@@ -147,7 +147,7 @@ mk48txx_attach(device_t dev)
 		sc->sc_wet = EVENTHANDLER_REGISTER(watchdog_list,
 		    mk48txx_watchdog, dev, 0);
 		device_printf(dev,
-		    "watchdog registered, timeout intervall max. 128 sec\n");
+		    "watchdog registered, timeout interval max. 128 sec\n");
 	}
 
 	return (0);
