@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_pppoe.8,v 1.1 1999/01/25 23:46:27 archie Exp $
 .\"
-.Dd January 27, 2006
+.Dd August 9, 2006
 .Dt NG_PPPOE 4
 .Os
 .Sh NAME
@@ -70,7 +70,14 @@ This node type supports the following hooks:
 .Pp
 .Bl -tag -width [unspecified]
 .It Dv ethernet
-The hook that should normally be connected to an Ethernet node.
+The hook that should normally be connected to an
+.Xr ng_ether 4
+node.
+Once connected,
+.Nm
+will send a message down this hook to determine Ethernet address of
+the underlying node.
+Obtained address will be stored and then used for outgoing datagrams.
 .It Dv debug
 Presently no use.
 .It Dv [unspecified]
@@ -196,7 +203,7 @@ When
 .Nm
 is a PPPoE client, it initiates a session encapsulating packets into
 incorrect 3Com ethertypes.
-This compatibility option doesn't affect server mode.
+This compatibility option does not affect server mode.
 In server mode
 .Nm
 supports both modes simultaneously, depending on the ethertype, the
@@ -209,7 +216,7 @@ to a PADI requests with empty Service-Name tag, returning all available
 Service-Name(s) on node.
 This option is necessary for compatibility with D-Link DI-614+ and DI-624+
 SOHO routers as clients, when serving only specific Service-Name.
-This compatibility option doesn't affect client mode.
+This compatibility option does not affect client mode.
 .El
 .Pp
 .It Dv NGM_PPPOE_SETMODE
@@ -227,6 +234,15 @@ the next session in the proprietary 3Com mode:
 .Bd -literal -offset indent
 ngctl msg fxp0:orphans pppoe_setmode '"3Com"'
 .Ed
+.It Dv NGM_PPPOE_SETENADDR
+Set the node Ethernet address for outgoing datagrams.
+This message is important when a node has failed to obtain an Ethernet
+address from its peer on the
+.Dv ethernet
+hook, or when user wants to override this address with another one.
+.Tn ASCII
+form of this message is
+.Qq Li setenaddr .
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
@@ -466,6 +482,7 @@ setup(char *ethername, char *service, char *sessname,
 .Sh SEE ALSO
 .Xr netgraph 3 ,
 .Xr netgraph 4 ,
+.Xr ng_ether 4 ,
 .Xr ng_ppp 4 ,
 .Xr ng_socket 4 ,
 .Xr ngctl 8 ,
