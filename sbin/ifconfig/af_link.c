@@ -79,7 +79,7 @@ link_getaddr(const char *addr, int which)
 
 	if (which != ADDR)
 		errx(1, "can't set link-level netmask or broadcast");
-	if ((temp = malloc(strlen(addr) + 1)) == NULL)
+	if ((temp = malloc(strlen(addr) + 2)) == NULL)
 		errx(1, "malloc failed");
 	temp[0] = ':';
 	strcpy(temp + 1, addr);
