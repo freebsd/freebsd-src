@@ -58,6 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #endif
 
+#include <security/audit/audit.h>
+
 #include <vm/uma.h>
 
 #define	NAMEI_DIAGNOSTIC 1
@@ -144,6 +146,12 @@ namei(ndp)
 	else
 		error = copyinstr(ndp->ni_dirp, cnp->cn_pnbuf,
 			    MAXPATHLEN, (size_t *)&ndp->ni_pathlen);
+
+	/* If we are auditing the kernel pathname, save the user pathname. */
+	if (cnp->cn_flags & AUDITVNODE1)
+		AUDIT_ARG(upath, td, cnp->cn_pnbuf, ARG_UPATH1);
+	if (cnp->cn_flags & AUDITVNODE2)
+		AUDIT_ARG(upath, td, cnp->cn_pnbuf, ARG_UPATH2);
 
 	/*
 	 * Don't allow empty pathnames.
@@ -460,6 +468,12 @@ dirloop:
 			VREF(dp);
 		}
 		ndp->ni_vp = dp;
+
+		if (cnp->cn_flags & AUDITVNODE1)
+			AUDIT_ARG(vnode, dp, ARG_VNODE1);
+		else if (cnp->cn_flags & AUDITVNODE2)
+			AUDIT_ARG(vnode, dp, ARG_VNODE2);
+
 		if (!(cnp->cn_flags & (LOCKPARENT | LOCKLEAF)))
 			VOP_UNLOCK(dp, 0, td);
 		/* XXX This should probably move to the top of function. */
@@ -717,6 +731,11 @@ nextname:
 		dvfslocked = 0;
 	} else if ((cnp->cn_flags & LOCKPARENT) == 0 && ndp->ni_dvp != dp)
 		VOP_UNLOCK(ndp->ni_dvp, 0, td);
+
+	if (cnp->cn_flags & AUDITVNODE1)
+		AUDIT_ARG(vnode, dp, ARG_VNODE1);
+	else if (cnp->cn_flags & AUDITVNODE2)
+		AUDIT_ARG(vnode, dp, ARG_VNODE2);
 
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0, td);
