@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#17 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#18 $
  */
 
 #include <sys/types.h>
@@ -366,6 +366,7 @@ read_control_file(void)
 static int
 close_all(void)
 {
+	struct auditinfo ai;
 	int err_ret = 0;
 	char TS[POSTFIX_LEN];
 	int aufd;
@@ -377,6 +378,17 @@ close_all(void)
 		syslog(LOG_ERR, "Could not create audit shutdown event.");
 	else {
 		if ((tok = au_to_text("auditd::Audit shutdown")) != NULL)
+			au_write(aufd, tok);
+		/*
+		 * XXX we need to implement extended subject tokens so we can
+		 * effectively represent terminal lines with this token type.
+		 */
+		bzero(&ai, sizeof(ai));
+		if ((tok = au_to_subject32(getuid(), geteuid(), getegid(),
+		    getuid(), getgid(), getpid(), getpid(), &ai.ai_termid))
+		    != NULL)
+			au_write(aufd, tok);
+		if ((tok = au_to_return32(0, 0)) != NULL)
 			au_write(aufd, tok);
 		if (au_close(aufd, 1, AUE_audit_shutdown) == -1)
 			syslog(LOG_ERR,
@@ -745,6 +757,7 @@ config_audit_controls(void)
 static void
 setup(void)
 {
+	struct auditinfo ai;
 	auditinfo_t auinfo;
 	int aufd;
 	token_t *tok;
@@ -781,7 +794,19 @@ setup(void)
 	if ((aufd = au_open()) == -1)
 		syslog(LOG_ERR, "Could not create audit startup event.");
 	else {
+		/*
+		 * XXXCSJP Perhaps we wan't more robust audit records for
+		 * audit start up and shutdown. This might include capturing
+		 * failures to initialize the audit subsystem?
+		 */
+		bzero(&ai, sizeof(ai));
+		if ((tok = au_to_subject32(getuid(), geteuid(), getegid(),
+		    getuid(), getgid(), getpid(), getpid(), &ai.ai_termid))
+		    != NULL)
+			au_write(aufd, tok);
 		if ((tok = au_to_text("auditd::Audit startup")) != NULL)
+			au_write(aufd, tok);
+		if ((tok = au_to_return32(0, 0)) != NULL)
 			au_write(aufd, tok);
 		if (au_close(aufd, 1, AUE_audit_startup) == -1)
 			syslog(LOG_ERR,
