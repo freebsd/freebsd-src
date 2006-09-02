@@ -76,6 +76,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 
+#include <security/audit/audit.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -391,6 +393,10 @@ proc0_init(void *dummy __unused)
 	p->p_ucred->cr_uidinfo = uifind(0);
 	p->p_ucred->cr_ruidinfo = uifind(0);
 	p->p_ucred->cr_prison = NULL;	/* Don't jail it. */
+#ifdef AUDIT
+	audit_proc_alloc(p);
+	audit_proc_kproc0(p);
+#endif
 #ifdef MAC
 	mac_create_proc0(p->p_ucred);
 #endif
@@ -653,6 +659,9 @@ create_init(const void *udata __unused)
 	crcopy(newcred, oldcred);
 #ifdef MAC
 	mac_create_proc1(newcred);
+#endif
+#ifdef AUDIT
+	audit_proc_init(initproc);
 #endif
 	initproc->p_ucred = newcred;
 	PROC_UNLOCK(initproc);
