@@ -302,7 +302,6 @@ ng_ether_attach(struct ifnet *ifp)
 	NG_NODE_SET_PRIVATE(node, priv);
 	priv->ifp = ifp;
 	IFP2NG(ifp) = node;
-	priv->autoSrcAddr = 1;
 	priv->hwassist = ifp->if_hwassist;
 
 	/* Try to give the node the same name as the interface */
