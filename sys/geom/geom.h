@@ -275,6 +275,8 @@ void g_print_bio(struct bio *bp);
 
 #ifdef _KERNEL
 
+extern struct sx topology_lock;
+
 struct g_kerneldump {
 	off_t		offset;
 	off_t		length;
@@ -296,13 +298,14 @@ g_free(void *ptr)
 {
 
 #ifdef DIAGNOSTIC
-	KASSERT(g_valid_obj(ptr) == 0,
-	    ("g_free(%p) of live object, type %d", ptr, g_valid_obj(ptr)));
+	if (sx_xlocked(&topology_lock)) {
+		KASSERT(g_valid_obj(ptr) == 0,
+		    ("g_free(%p) of live object, type %d", ptr,
+		    g_valid_obj(ptr)));
+	}
 #endif
 	free(ptr, M_GEOM);
 }
-
-extern struct sx topology_lock;
 
 #define g_topology_lock() 					\
 	do {							\
