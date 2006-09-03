@@ -2788,6 +2788,17 @@ mac_mls_check_vnode_write(struct ucred *active_cred, struct ucred *file_cred,
 	return (0);
 }
 
+static void
+mac_mls_associate_nfsd_label(struct ucred *cred) 
+{
+	struct mac_mls *label;
+
+	label = SLOT(cred->cr_label);
+	mac_mls_set_effective(label, MAC_MLS_TYPE_LOW, 0, NULL);
+	mac_mls_set_range(label, MAC_MLS_TYPE_LOW, 0, NULL,
+	    MAC_MLS_TYPE_HIGH, 0, NULL);
+}
+
 static struct mac_policy_ops mac_mls_ops =
 {
 	.mpo_init = mac_mls_init,
@@ -2960,6 +2971,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_check_vnode_setutimes = mac_mls_check_vnode_setutimes,
 	.mpo_check_vnode_stat = mac_mls_check_vnode_stat,
 	.mpo_check_vnode_write = mac_mls_check_vnode_write,
+	.mpo_associate_nfsd_label = mac_mls_associate_nfsd_label,
 };
 
 MAC_POLICY_SET(&mac_mls_ops, mac_mls, "TrustedBSD MAC/MLS",
