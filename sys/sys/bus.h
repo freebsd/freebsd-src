@@ -29,6 +29,8 @@
 #ifndef _SYS_BUS_H_
 #define _SYS_BUS_H_
 
+#include <sys/_bus_dma.h>
+
 /**
  * @defgroup NEWBUS newbus - a generic framework for managing devices
  * @{
@@ -252,6 +254,8 @@ int	bus_generic_deactivate_resource(device_t dev, device_t child, int type,
 					int rid, struct resource *r);
 int	bus_generic_detach(device_t dev);
 void	bus_generic_driver_added(device_t dev, driver_t *driver);
+bus_dma_tag_t
+	bus_generic_get_dma_tag(device_t dev, device_t child);
 struct resource_list *
 	bus_generic_get_resource_list (device_t, device_t);
 int	bus_print_child_header(device_t dev, device_t child);
@@ -306,6 +310,7 @@ int	bus_activate_resource(device_t dev, int type, int rid,
 			      struct resource *r);
 int	bus_deactivate_resource(device_t dev, int type, int rid,
 				struct resource *r);
+bus_dma_tag_t bus_get_dma_tag(device_t dev);
 int	bus_release_resource(device_t dev, int type, int rid,
 			     struct resource *r);
 int	bus_free_resource(device_t dev, int type, struct resource *r);

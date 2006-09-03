@@ -109,8 +109,8 @@ ahd_pci_attach(device_t dev)
 
 	/* Allocate a dmatag for our SCB DMA maps */
 	/* XXX Should be a child of the PCI bus dma tag */
-	error = aic_dma_tag_create(ahd, /*parent*/NULL, /*alignment*/1,
-				   /*boundary*/0,
+	error = aic_dma_tag_create(ahd, /*parent*/bus_get_dma_tag(dev),
+				   /*alignment*/1, /*boundary*/0,
 				   (ahd->flags & AHD_39BIT_ADDRESSING)
 				   ? 0x7FFFFFFFFF
 				   : BUS_SPACE_MAXADDR_32BIT,
