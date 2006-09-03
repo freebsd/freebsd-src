@@ -1827,10 +1827,11 @@ do_unlock_pp(struct thread *td, struct umutex *m, uint32_t flags)
 	struct umtx_pi *pi;
 	uint32_t owner, id;
 	uint32_t rceiling;
-	int error, pri, new_inherited_pri;
+	int error, pri, new_inherited_pri, su;
 
 	id = td->td_tid;
 	uq = td->td_umtxq;
+	su = (suser(td) == 0);
 
 	/*
 	 * Make sure we own this mtx.
@@ -1879,7 +1880,8 @@ do_unlock_pp(struct thread *td, struct umutex *m, uint32_t flags)
 		error = EFAULT;
 	else {
 		mtx_lock_spin(&sched_lock);
-		uq->uq_inherited_pri = new_inherited_pri;
+		if (su != 0)
+			uq->uq_inherited_pri = new_inherited_pri;
 		pri = PRI_MAX;
 		TAILQ_FOREACH(pi, &uq->uq_pi_contested, pi_link) {
 			uq2 = TAILQ_FIRST(&pi->pi_blocked);
