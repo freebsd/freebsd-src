@@ -202,8 +202,8 @@ parse_args(argc, argv)
 		if (!strcmp(Filename, "-")) {
 			NewCrontab = stdin;
 		} else if (realpath(Filename, resolved_path) != NULL &&
-		    !strcmp(resolved_path, "/etc/crontab")) {
-			err(ERROR_EXIT, "/etc/crontab must be edited manually");
+		    !strcmp(resolved_path, SYSCRONTAB)) {
+			err(ERROR_EXIT, SYSCRONTAB " must be edited manually");
 		} else {
 			/* relinquish the setuid status of the binary during
 			 * the open, lest nonroot users read files they should
