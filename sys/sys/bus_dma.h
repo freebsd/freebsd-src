@@ -72,6 +72,8 @@
 #ifndef _BUS_DMA_H_
 #define _BUS_DMA_H_
 
+#include <sys/_bus_dma.h>
+
 /*
  * Machine independent interface for mapping physical addresses to peripheral
  * bus 'physical' addresses, and assisting with DMA operations.
@@ -108,28 +110,10 @@ struct uio;
 /*
  * Operations performed by bus_dmamap_sync().
  */
-typedef int bus_dmasync_op_t;
 #define	BUS_DMASYNC_PREREAD	1
 #define	BUS_DMASYNC_POSTREAD	2
 #define	BUS_DMASYNC_PREWRITE	4
 #define	BUS_DMASYNC_POSTWRITE	8
-
-/*
- *	bus_dma_tag_t
- *
- *	A machine-dependent opaque type describing the characteristics
- *	of how to perform DMA mappings.  This structure encapsultes
- *	information concerning address and alignment restrictions, number
- *	of S/G segments, amount of data per S/G segment, etc.
- */
-typedef struct bus_dma_tag	*bus_dma_tag_t;
-
-/*
- *	bus_dmamap_t
- *
- *	DMA mapping instance information.
- */
-typedef struct bus_dmamap	*bus_dmamap_t;
 
 /*
  *	bus_dma_segment_t
@@ -147,17 +131,6 @@ typedef struct bus_dma_segment {
  * a device and 0 if it can be.
  */
 typedef int bus_dma_filter_t(void *, bus_addr_t);
-
-/*
- * A function that performs driver-specific synchronization on behalf of
- * busdma.
- */
-typedef enum {
-	BUS_DMA_LOCK	= 0x01,
-	BUS_DMA_UNLOCK	= 0x02,
-} bus_dma_lock_op_t;
-
-typedef void bus_dma_lock_t(void *, bus_dma_lock_op_t);
 
 /*
  * Generic helper function for manipulating mutexes.
