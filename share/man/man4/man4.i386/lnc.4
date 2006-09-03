@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2005
+.Dd September 3, 2006
 .Dt LNC 4 i386
 .Os
 .Sh NAME
@@ -53,6 +53,13 @@ In
 .Cd hint.lnc.0.irq="10"
 .Cd hint.lnc.0.drq="0"
 .Sh DESCRIPTION
+.Bf -symbolic
+This device driver is deprecated and was replaced by
+.Xr le 4
+in
+.Fx 7.0 .
+.Ef
+.Pp
 The
 .Nm
 driver provides support for the AMD family of Lance/PCnet Ethernet NICs
@@ -65,8 +72,6 @@ driver supports the following adapters:
 .Bl -bullet -compact
 .It
 Diamond HomeFree
-.It
-Digital DEPCA
 .It
 Hewlett Packard Vectra 486/66XM
 .It
