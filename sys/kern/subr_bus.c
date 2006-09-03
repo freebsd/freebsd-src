@@ -3199,6 +3199,22 @@ bus_generic_config_intr(device_t dev, int irq, enum intr_trigger trig,
 }
 
 /**
+ * @brief Helper function for implementing BUS_GET_DMA_TAG().
+ *
+ * This simple implementation of BUS_GET_DMA_TAG() simply calls the
+ * BUS_GET_DMA_TAG() method of the parent of @p dev.
+ */
+bus_dma_tag_t
+bus_generic_get_dma_tag(device_t dev, device_t child)
+{
+
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent != NULL)
+		return (BUS_GET_DMA_TAG(dev->parent, child));
+	return (NULL);
+}
+
+/**
  * @brief Helper function for implementing BUS_GET_RESOURCE().
  *
  * This implementation of BUS_GET_RESOURCE() uses the
@@ -3597,6 +3613,23 @@ bus_child_location_str(device_t child, char *buf, size_t buflen)
 		return (0);
 	}
 	return (BUS_CHILD_LOCATION_STR(parent, child, buf, buflen));
+}
+
+/**
+ * @brief Wrapper function for BUS_GET_DMA_TAG().
+ *
+ * This function simply calls the BUS_GET_DMA_TAG() method of the
+ * parent of @p dev.
+ */
+bus_dma_tag_t
+bus_get_dma_tag(device_t dev)
+{
+	device_t parent;
+
+	parent = device_get_parent(dev);
+	if (parent == NULL)
+		return (NULL);
+	return (BUS_GET_DMA_TAG(parent, dev));
 }
 
 /* Resume all devices and then notify userland that we're up again. */

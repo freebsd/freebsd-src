@@ -131,8 +131,8 @@ aic7770_attach(device_t dev)
 
 	/* Allocate a dmatag for our SCB DMA maps */
 	/* XXX Should be a child of the PCI bus dma tag */
-	error = aic_dma_tag_create(ahc, /*parent*/NULL, /*alignment*/1,
-				   /*boundary*/0,
+	error = aic_dma_tag_create(ahc, /*parent*/bus_get_dma_tag(dev),
+				   /*alignment*/1, /*boundary*/0,
 				   /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 				   /*highaddr*/BUS_SPACE_MAXADDR,
 				   /*filter*/NULL, /*filterarg*/NULL,
