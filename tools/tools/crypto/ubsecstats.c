@@ -49,11 +49,13 @@ main(int argc, char *argv[])
 	printf("invalid %u badsession %u badflags %u\n",
 		stats.hst_invalid, stats.hst_badsession, stats.hst_badflags);
 	printf("nodesc %u badalg %u nomem %u queuefull %u\n",
-		stats.hst_badalg, stats.hst_nomem, stats.hst_queuefull);
+		stats.hst_nodesc, stats.hst_badalg, stats.hst_nomem,
+		stats.hst_queuefull);
 	printf("dmaerr %u mcrerr %u nodmafree %u\n",
 		stats.hst_dmaerr, stats.hst_mcrerr, stats.hst_nodmafree);
 	printf("lenmismatch %u skipmisatch %u iovmisalined %u\n",
-		stats.hst_lenmismatch, stats.hst_skipmismatch, stats.hst_iovmisaligned);
+		stats.hst_lenmismatch, stats.hst_skipmismatch,
+		stats.hst_iovmisaligned);
 	printf("noirq %u unaligned %u nomap %u noload %u nomcl %u\n",
 		stats.hst_noirq, stats.hst_unaligned, stats.hst_nomap,
 		stats.hst_noload, stats.hst_nomcl);
