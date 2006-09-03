@@ -261,6 +261,7 @@ int g_modevent(module_t, int, void *);
 
 /* geom_io.c */
 struct bio * g_clone_bio(struct bio *);
+struct bio * g_duplicate_bio(struct bio *);
 void g_destroy_bio(struct bio *);
 void g_io_deliver(struct bio *bp, int error);
 int g_io_getattr(const char *attr, struct g_consumer *cp, int *len, void *ptr);
