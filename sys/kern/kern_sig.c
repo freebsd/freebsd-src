@@ -74,6 +74,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 
+#include <security/audit/audit.h>
+
 #if defined (__alpha__) && !defined(COMPAT_43)
 #error "You *really* need COMPAT_43 on the alpha for longjmp(3)"
 #endif
@@ -1398,6 +1400,7 @@ kill(td, uap)
 	register struct proc *p;
 	int error;
 
+	AUDIT_ARG(signum, uap->signum);
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 
@@ -1407,12 +1410,14 @@ kill(td, uap)
 			if ((p = zpfind(uap->pid)) == NULL)
 				return (ESRCH);
 		}
+		AUDIT_ARG(process, p);
 		error = p_cansignal(td, p, uap->signum);
 		if (error == 0 && uap->signum)
 			psignal(p, uap->signum);
 		PROC_UNLOCK(p);
 		return (error);
 	}
+	AUDIT_ARG(pid, uap->pid);
 	switch (uap->pid) {
 	case -1:		/* broadcast signal */
 		return (killpg1(td, uap->signum, 0, 1));
@@ -1441,6 +1446,8 @@ okillpg(td, uap)
 	register struct okillpg_args *uap;
 {
 
+	AUDIT_ARG(signum, uap->signum);
+	AUDIT_ARG(pid, uap->pgid);
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 	return (killpg1(td, uap->signum, uap->pgid, 0));
