@@ -529,3 +529,14 @@ METHOD void hinted_child {
 	const char *	_dname;
 	int		_dunit;
 };
+
+/**
+ * @brief Returns bus_dma_tag_t for use w/ devices on the bus.
+ *
+ * @param _dev		the parent device of @p _child
+ * @param _child	the device to which the tag will belong
+ */
+METHOD bus_dma_tag_t get_dma_tag {
+	device_t	_dev;
+	device_t	_child;
+} DEFAULT bus_generic_get_dma_tag;

@@ -96,7 +96,7 @@ ata_dmaalloc(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_dc_cb_args ccba;
 
-    if (bus_dma_tag_create(NULL, ch->dma->alignment, 0,
+    if (bus_dma_tag_create(bus_get_dma_tag(dev), ch->dma->alignment, 0,
 			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 			   NULL, NULL, ch->dma->max_iosize,
 			   ATA_DMA_ENTRIES, ch->dma->segsize,
