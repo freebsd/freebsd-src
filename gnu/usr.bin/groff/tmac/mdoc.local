@@ -34,6 +34,7 @@
 .\" FreeBSD .Lb values
 .ds doc-str-Lb-libarchive  Streaming Archive Library (libarchive, \-larchive)
 .ds doc-str-Lb-libbluetooth Bluetooth User Library (libbluetooth, \-lbluetooth)
+.ds doc-str-Lb-libbsm      Basic Security Module User Library (libbsm, \-lbsm)
 .ds doc-str-Lb-libc_r      Reentrant C\~Library (libc_r, \-lc_r)
 .ds doc-str-Lb-libcalendar Calendar Arithmetic Library (libcalendar, \-lcalendar)
 .ds doc-str-Lb-libcam      Common Access Method User Library (libcam, \-lcam)
