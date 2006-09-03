@@ -43,6 +43,7 @@
 .Nm sx_downgrade ,
 .Nm sx_assert ,
 .Nm sx_unlock ,
+.Nm sx_xlocked ,
 .Nm SX_SYSINIT
 .Nd kernel shared/exclusive lock
 .Sh SYNOPSIS
@@ -71,6 +72,8 @@
 .Fn sx_downgrade "struct sx *sx"
 .Ft void
 .Fn sx_assert "struct sx *sx" "int what"
+.Ft int
+.Fn sx_xlocked "struct sx *sx"
 .\"
 .Ss Nm Ss utility macros
 .Fn sx_unlock "struct sx *sx"
@@ -165,6 +168,10 @@ Assert that the current thread has no lock on the
 lock pointed to
 by the first argument.
 .El
+.Pp
+.Fn sx_xlocked
+will return non-zero if the current process holds the exclusive lock;
+otherwise, it will return zero.
 .Pp
 For ease of programming,
 .Fn sx_unlock
