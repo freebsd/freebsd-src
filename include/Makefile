@@ -47,6 +47,7 @@ LSUBDIRS=	cam/scsi \
 	isofs/cd9660 \
 	netatm/ipatm netatm/sigpvc netatm/spans netatm/uni \
 	netgraph/atm netgraph/netflow \
+	security/audit \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
 	security/mac_mls security/mac_partition \
 	ufs/ffs ufs/ufs
