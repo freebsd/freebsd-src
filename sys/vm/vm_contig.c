@@ -355,7 +355,7 @@ vm_page_release_contigl(vm_page_t m, vm_pindex_t count)
 	}
 }
 
-void
+static void
 vm_page_release_contig(vm_page_t m, vm_pindex_t count)
 {
 	vm_page_lock_queues();
