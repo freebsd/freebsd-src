@@ -4257,6 +4257,7 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	error = prison_canseemount(td->td_ucred, mp);
 	if (error) {
 		vfs_rel(mp);
+		mtx_unlock(&Giant);
 		return (error);
 	}
 #ifdef MAC
