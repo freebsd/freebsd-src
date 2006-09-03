@@ -175,7 +175,8 @@ acct(struct thread *td, struct acct_args *uap)
 	 */
 	mtx_lock(&Giant);
 	if (uap->path != NULL) {
-		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
+		NDINIT(&nd, LOOKUP, NOFOLLOW | AUDITVNODE1, UIO_USERSPACE,
+		    uap->path, td);
 		flags = FWRITE | O_APPEND;
 		error = vn_open(&nd, &flags, 0, -1);
 		if (error)
