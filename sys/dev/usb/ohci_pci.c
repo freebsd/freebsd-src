@@ -307,10 +307,10 @@ ohci_pci_attach(device_t self)
 	}
 
 	/* Allocate a parent dma tag for DMA maps */
-	err = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, BUS_SPACE_MAXSIZE_32BIT,
-	    USB_DMA_NSEG, BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL,
-	    &sc->sc_bus.parent_dmatag);
+	err = bus_dma_tag_create(bus_get_dma_tag(self), 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    BUS_SPACE_MAXSIZE_32BIT, USB_DMA_NSEG, BUS_SPACE_MAXSIZE_32BIT, 0,
+	    NULL, NULL, &sc->sc_bus.parent_dmatag);
 	if (err) {
 		device_printf(self, "Could not allocate parent DMA tag (%d)\n",
 		    err);

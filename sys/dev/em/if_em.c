@@ -2389,7 +2389,7 @@ em_dma_malloc(struct adapter *adapter, bus_size_t size, struct em_dma_alloc *dma
 {
 	int error;
 
-	error = bus_dma_tag_create(NULL,		/* parent */
+	error = bus_dma_tag_create(bus_get_dma_tag(adapter->dev), /* parent */
 				EM_DBA_ALIGN, 0,	/* alignment, bounds */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
@@ -2493,7 +2493,7 @@ em_setup_transmit_structures(struct adapter *adapter)
 	 * Setup DMA descriptor areas.
 	 */
 	size = roundup2(adapter->hw.max_frame_size, MCLBYTES);
-	if ((error = bus_dma_tag_create(NULL,		/* parent */
+	if ((error = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 				1, 0,			/* alignment, bounds */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
@@ -2905,7 +2905,7 @@ em_allocate_receive_structures(struct adapter *adapter)
 
 	bzero(adapter->rx_buffer_area, sizeof(struct em_buffer) * adapter->num_rx_desc);
 
-	error = bus_dma_tag_create(NULL,		/* parent */
+	error = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 				1, 0,			/* alignment, bounds */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
