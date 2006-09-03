@@ -3019,6 +3019,17 @@ mac_biba_check_vnode_write(struct ucred *active_cred,
 	return (0);
 }
 
+static void
+mac_biba_associate_nfsd_label(struct ucred *cred)
+{
+	struct mac_biba *label;
+
+	label = SLOT(cred->cr_label);
+	mac_biba_set_effective(label, MAC_BIBA_TYPE_LOW, 0, NULL);
+	mac_biba_set_range(label, MAC_BIBA_TYPE_LOW, 0, NULL,
+	    MAC_BIBA_TYPE_HIGH, 0, NULL);
+}
+
 static struct mac_policy_ops mac_biba_ops =
 {
 	.mpo_init = mac_biba_init,
@@ -3198,6 +3209,7 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_check_vnode_setutimes = mac_biba_check_vnode_setutimes,
 	.mpo_check_vnode_stat = mac_biba_check_vnode_stat,
 	.mpo_check_vnode_write = mac_biba_check_vnode_write,
+	.mpo_associate_nfsd_label = mac_biba_associate_nfsd_label,
 };
 
 MAC_POLICY_SET(&mac_biba_ops, mac_biba, "TrustedBSD MAC/Biba",
