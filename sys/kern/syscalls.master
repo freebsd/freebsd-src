@@ -316,8 +316,8 @@
 163	AUE_SYSCTL	STD	{ int setdomainname(char *domainname, \
 				    int len); }
 164	AUE_NULL	STD	{ int uname(struct utsname *name); }
-165	AUE_NULL	STD	{ int sysarch(int op, char *parms); }
-166	AUE_NULL	STD	{ int rtprio(int function, pid_t pid, \
+165	AUE_SYSARCH	STD	{ int sysarch(int op, char *parms); }
+166	AUE_RTPRIO	STD	{ int rtprio(int function, pid_t pid, \
 				    struct rtprio *rtp); }
 167	AUE_NULL	UNIMPL	nosys
 168	AUE_NULL	UNIMPL	nosys
@@ -430,7 +430,8 @@
 ;
 232	AUE_NULL	STD	{ int clock_gettime(clockid_t clock_id, \
 				    struct timespec *tp); }
-233	AUE_NULL	STD	{ int clock_settime(clockid_t clock_id, \
+233	AUE_CLOCK_SETTIME	STD	{ int clock_settime( \
+				    clockid_t clock_id, \
 				    const struct timespec *tp); }
 234	AUE_NULL	STD	{ int clock_getres(clockid_t clock_id, \
 				    struct timespec *tp); }
@@ -504,9 +505,9 @@
 287	AUE_NULL	UNIMPL	nosys
 288	AUE_NULL	UNIMPL	nosys
 ; 289 and 290 from NetBSD (OpenBSD: 267 and 268)
-289	AUE_NULL	STD	{ ssize_t preadv(int fd, struct iovec *iovp, \
+289	AUE_PREADV	STD	{ ssize_t preadv(int fd, struct iovec *iovp, \
 					u_int iovcnt, off_t offset); }
-290	AUE_NULL	STD	{ ssize_t pwritev(int fd, struct iovec *iovp, \
+290	AUE_PWRITEV	STD	{ ssize_t pwritev(int fd, struct iovec *iovp, \
 					u_int iovcnt, off_t offset); }
 291	AUE_NULL	UNIMPL	nosys
 292	AUE_NULL	UNIMPL	nosys
@@ -558,7 +559,7 @@
 323	AUE_NULL	OBSOL	thr_wakeup
 324	AUE_MLOCKALL	STD	{ int mlockall(int how); }
 325	AUE_MUNLOCKALL	STD	{ int munlockall(void); }
-326	AUE_NULL	STD	{ int __getcwd(u_char *buf, u_int buflen); }
+326	AUE_GETCWD	STD	{ int __getcwd(u_char *buf, u_int buflen); }
 
 327	AUE_NULL	STD	{ int sched_setparam (pid_t pid, \
 				    const struct sched_param *param); }
@@ -635,7 +636,7 @@
 				    uid_t *suid); }
 361	AUE_GETRESGID	STD	{ int getresgid(gid_t *rgid, gid_t *egid, \
 				    gid_t *sgid); }
-362	AUE_NULL	STD	{ int kqueue(void); }
+362	AUE_KQUEUE	STD	{ int kqueue(void); }
 363	AUE_NULL	STD	{ int kevent(int fd, \
 				    struct kevent *changelist, int nchanges, \
 				    struct kevent *eventlist, int nevents, \
@@ -695,7 +696,7 @@
 396	AUE_STATFS	STD	{ int statfs(char *path, \
 				    struct statfs *buf); }
 397	AUE_FSTATFS	STD	{ int fstatfs(int fd, struct statfs *buf); }
-398	AUE_NULL	STD	{ int fhstatfs(const struct fhandle *u_fhp, \
+398	AUE_FHSTATFS	STD	{ int fhstatfs(const struct fhandle *u_fhp, \
 				    struct statfs *buf); }
 399	AUE_NULL	UNIMPL	nosys
 400	AUE_NULL	NOSTD	{ int ksem_close(semid_t id); }
@@ -778,7 +779,7 @@
 442	AUE_NULL	STD	{ int thr_suspend( \
 				    const struct timespec *timeout); }
 443	AUE_NULL	STD	{ int thr_wake(long id); }
-444	AUE_NULL	STD	{ int kldunloadf(int fileid, int flags); }
+444	AUE_MODUNLOAD	STD	{ int kldunloadf(int fileid, int flags); }
 445	AUE_AUDIT	STD	{ int audit(const void *record, \
 				    u_int length); }
 446	AUE_AUDITON	STD	{ int auditon(int cmd, void *data, \
