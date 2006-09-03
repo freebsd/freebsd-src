@@ -314,7 +314,7 @@
 				    u_int32_t offsetlo, u_int32_t offsethi); }
 ; XXX note - bigendian is different
 175	AUE_NULL	UNIMPL	nosys
-176	AUE_ADJTIME	NOPROTO	{ int ntp_adjtime(struct timex *tp); }
+176	AUE_NTP_ADJTIME	NOPROTO	{ int ntp_adjtime(struct timex *tp); }
 177	AUE_NULL	UNIMPL	sfork (BSD/OS 2.x)
 178	AUE_NULL	UNIMPL	getdescriptor (BSD/OS 2.x)
 179	AUE_NULL	UNIMPL	setdescriptor (BSD/OS 2.x)
