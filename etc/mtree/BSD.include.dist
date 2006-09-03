@@ -206,6 +206,8 @@
     rpcsvc
     ..
     security
+        audit
+        ..
         mac_biba
         ..
         mac_bsdextended
