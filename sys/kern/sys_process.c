@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/reg.h>
 
+#include <security/audit/audit.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
@@ -397,6 +399,10 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	if (td->td_proc->p_sysent == &ia32_freebsd_sysvec)
 		wrap32 = 1;
 #endif
+	AUDIT_ARG(pid, uap->pid);
+	AUDIT_ARG(cmd, uap->req);
+	AUDIT_ARG(addr, uap->addr);
+	AUDIT_ARG(value, uap->data);
 	addr = &r;
 	switch (uap->req) {
 	case PT_GETREGS:
@@ -549,6 +555,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		error = ESRCH;
 		goto fail;
 	}
+	AUDIT_ARG(process, p);
 	if ((error = p_cansee(td, p)) != 0)
 		goto fail;
 
