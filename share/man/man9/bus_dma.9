@@ -328,7 +328,8 @@ the arguments provided:
 .It Fa parent
 Indicates restrictions between the parent bridge, CPU memory, and the
 device.
-May be NULL, if no DMA restrictions are to be inherited.
+Each device must use a master parent tag by calling
+.Fn bus_get_dma_tag .
 .It Fa alignment
 Alignment constraint, in bytes, of any mappings created using this tag.
 The alignment must be a power of 2.
