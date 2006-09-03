@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2006
+.Dd September 3, 2006
 .Dt PERIODIC.CONF 5
 .Os
 .Sh NAME
@@ -510,6 +510,15 @@ Set to
 to check
 .Pa /etc/master.passwd
 for accounts with empty passwords.
+.It Va daily_status_security_logincheck_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to check
+.Pa /etc/login.conf
+ownership, ensuring user class information will
+not be ignored if modifications and a new database
+is built.
 .It Va daily_status_security_ipfwdenied_enable
 .Pq Vt bool
 Set to
@@ -746,6 +755,7 @@ is shared or distributed.
 .Xr netstat 1 ,
 .Xr nice 1 ,
 .Xr pkg_version 1 ,
+.Xr login.conf 5 ,
 .Xr rc.conf 5 ,
 .Xr ac 8 ,
 .Xr chkgrp 8 ,
