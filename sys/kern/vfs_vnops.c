@@ -118,7 +118,8 @@ restart:
 	fmode = *flagp;
 	if (fmode & O_CREAT) {
 		ndp->ni_cnd.cn_nameiop = CREATE;
-		ndp->ni_cnd.cn_flags = ISOPEN | LOCKPARENT | LOCKLEAF | MPSAFE;
+		ndp->ni_cnd.cn_flags = ISOPEN | LOCKPARENT | LOCKLEAF |
+		    MPSAFE | AUDITVNODE1;
 		if ((fmode & O_EXCL) == 0 && (fmode & O_NOFOLLOW) == 0)
 			ndp->ni_cnd.cn_flags |= FOLLOW;
 		bwillwrite();
@@ -178,7 +179,7 @@ restart:
 		ndp->ni_cnd.cn_nameiop = LOOKUP;
 		ndp->ni_cnd.cn_flags = ISOPEN |
 		    ((fmode & O_NOFOLLOW) ? NOFOLLOW : FOLLOW) |
-		    LOCKSHARED | LOCKLEAF | MPSAFE;
+		    LOCKSHARED | LOCKLEAF | MPSAFE | AUDITVNODE1;
 		if ((error = namei(ndp)) != 0)
 			return (error);
 		ndp->ni_cnd.cn_flags &= ~MPSAFE;
