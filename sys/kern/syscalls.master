@@ -339,7 +339,7 @@
 174	AUE_PWRITE	STD	{ ssize_t pwrite(int fd, const void *buf, \
 				    size_t nbyte, int pad, off_t offset); }
 175	AUE_NULL	UNIMPL	nosys
-176	AUE_ADJTIME	STD	{ int ntp_adjtime(struct timex *tp); }
+176	AUE_NTP_ADJTIME	STD	{ int ntp_adjtime(struct timex *tp); }
 177	AUE_NULL	UNIMPL	sfork (BSD/OS 2.x)
 178	AUE_NULL	UNIMPL	getdescriptor (BSD/OS 2.x)
 179	AUE_NULL	UNIMPL	setdescriptor (BSD/OS 2.x)
