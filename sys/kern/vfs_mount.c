@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
+#include <security/audit/audit.h>
+
 #include "opt_rootdevname.h"
 #include "opt_ddb.h"
 #include "opt_mac.h"
@@ -371,6 +373,8 @@ nmount(td, uap)
 	int error;
 	u_int iovcnt;
 
+	AUDIT_ARG(fflags, uap->flags);
+
 	/* Kick out MNT_ROOTFS early as it is legal internally */
 	if (uap->flags & MNT_ROOTFS)
 		return (EINVAL);
@@ -675,6 +679,8 @@ mount(td, uap)
 	struct mntarg *ma = NULL;
 	int error;
 
+	AUDIT_ARG(fflags, uap->flags);
+
 	/* Kick out MNT_ROOTFS early as it is legal internally */
 	uap->flags &= ~MNT_ROOTFS;
 
@@ -684,6 +690,7 @@ mount(td, uap)
 	fstype = malloc(MFSNAMELEN, M_TEMP, M_WAITOK);
 	error = copyinstr(uap->type, fstype, MFSNAMELEN, NULL);
 	if (!error) {
+		AUDIT_ARG(text, fstype);
 		mtx_lock(&Giant);	/* XXX ? */
 		vfsp = vfs_byname_kld(fstype, td, &error);
 		mtx_unlock(&Giant);
@@ -771,7 +778,8 @@ vfs_domount(
 	/*
 	 * Get vnode to be covered
 	 */
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, fspath, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_SYSSPACE,
+	    fspath, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1002,6 +1010,7 @@ unmount(td, uap)
 		free(pathbuf, M_TEMP);
 		return (error);
 	}
+	AUDIT_ARG(upath, td, pathbuf, ARG_UPATH1);
 	if (uap->flags & MNT_BYFSID) {
 		/* Decode the filesystem ID. */
 		if (sscanf(pathbuf, "FSID:%d:%d", &id0, &id1) != 2) {

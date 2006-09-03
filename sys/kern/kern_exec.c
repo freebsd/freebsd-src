@@ -79,6 +79,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/reg.h>
 
+#include <security/audit/audit.h>
+
 MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");
 
 static int sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS);
@@ -246,6 +248,10 @@ kern_execve(td, args, mac_p)
 	struct proc *p = td->td_proc;
 	int error;
 
+	AUDIT_ARG(argv, args->begin_argv, args->argc,
+	    args->begin_envv - args->begin_argv);
+	AUDIT_ARG(envv, args->begin_envv, args->envc,
+	    args->endp - args->begin_envv);
 	if (p->p_flag & P_HADTHREADS) {
 		PROC_LOCK(p);
 		if (thread_single(SINGLE_BOUNDARY)) {
@@ -357,10 +363,13 @@ do_execve(td, args, mac_p)
 	/*
 	 * Translate the file name. namei() returns a vnode pointer
 	 *	in ni_vp amoung other things.
+	 *
+	 * XXXAUDIT: It would be desirable to also audit the name of the
+	 * interpreter if this is an interpreted binary.
 	 */
 	ndp = &nd;
-	NDINIT(ndp, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW | SAVENAME | MPSAFE,
-	    UIO_SYSSPACE, args->fname, td);
+	NDINIT(ndp, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW | SAVENAME | MPSAFE |
+	    AUDITVNODE1, UIO_SYSSPACE, args->fname, td);
 
 interpret:
 	error = namei(ndp);
