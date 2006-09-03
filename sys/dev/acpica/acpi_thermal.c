@@ -733,7 +733,6 @@ acpi_tz_temp_sysctl(SYSCTL_HANDLER_ARGS)
 	return (EPERM);
 
     /* Check user-supplied value for sanity. */
-    temp = (temp * 10) + TZ_ZEROC;
     acpi_tz_sanity(sc, &temp, "user-supplied temp");
     if (temp == -1)
 	return (EINVAL);
