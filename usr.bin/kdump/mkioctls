@@ -38,6 +38,7 @@ BEGIN {
 	print "#include <sys/socket.h>"
 	print "#include <sys/time.h>"
 	print "#include <sys/tty.h>"
+	print "#include <bsm/audit.h>"
 	print "#include <net/ethernet.h>"
 	print "#include <net/if.h>"
 	print "#include <net/if_var.h>"
