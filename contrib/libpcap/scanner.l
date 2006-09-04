@@ -24,7 +24,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/scanner.l,v 1.99.2.3 2005/06/20 21:30:19 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/scanner.l,v 1.99.2.4 2005/09/05 09:08:07 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -264,6 +264,8 @@ outbound	return OUTBOUND;
 
 vlan		return VLAN;
 mpls		return MPLS;
+pppoed		return PPPOED;
+pppoes		return PPPOES;
 
 lane		return LANE;
 llc		return LLC;

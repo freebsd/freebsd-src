@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- * @(#) $Header: /tcpdump/master/libpcap/pcap-int.h,v 1.68.2.2 2005/05/03 18:54:36 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/pcap-int.h,v 1.68.2.6 2005/07/07 06:56:04 guy Exp $ (LBL)
  */
 
 #ifndef pcap_int_h
@@ -92,12 +92,21 @@ struct pcap_md {
 #endif
 
 #ifdef HAVE_DAG_API
+#ifdef HAVE_DAG_STREAMS_API
+	u_char	*dag_mem_bottom;	/* DAG card current memory bottom pointer */
+	u_char	*dag_mem_top;	/* DAG card current memory top pointer */
+#else
 	void	*dag_mem_base;	/* DAG card memory base address */
-	u_int	dag_mem_bottom;	/* DAG card current memory bottom pointer */
-	u_int	dag_mem_top;	/* DAG card current memory top pointer */
+	u_int	dag_mem_bottom;	/* DAG card current memory bottom offset */
+	u_int	dag_mem_top;	/* DAG card current memory top offset */
+#endif /* HAVE_DAG_STREAMS_API */
 	int	dag_fcs_bits;	/* Number of checksum bits from link layer */
 	int	dag_offset_flags; /* Flags to pass to dag_offset(). */
-#endif
+	int	dag_stream;	/* DAG stream number */
+	int	dag_timeout;	/* timeout specified to pcap_open_live.
+				 * Same as in linux above, introduce
+				 * generally? */
+#endif /* HAVE_DAG_API */
 };
 
 /*
@@ -152,7 +161,7 @@ struct pcap {
 	u_char *pkt;
 
 	/* We're accepting only packets in this direction/these directions. */
-	direction_t direction;
+	pcap_direction_t direction;
 
 	/*
 	 * Methods.
@@ -160,7 +169,7 @@ struct pcap {
 	int	(*read_op)(pcap_t *, int cnt, pcap_handler, u_char *);
 	int	(*inject_op)(pcap_t *, const void *, size_t);
 	int	(*setfilter_op)(pcap_t *, struct bpf_program *);
-	int	(*setdirection_op)(pcap_t *, direction_t);
+	int	(*setdirection_op)(pcap_t *, pcap_direction_t);
 	int	(*set_datalink_op)(pcap_t *, int);
 	int	(*getnonblock_op)(pcap_t *, char *);
 	int	(*setnonblock_op)(pcap_t *, int, char *);
