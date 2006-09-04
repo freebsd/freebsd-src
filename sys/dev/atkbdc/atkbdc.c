@@ -857,6 +857,7 @@ empty_both_buffers(KBDC p, int wait)
 {
     int t;
     int f;
+    int waited = 0;
 #if KBDIO_DEBUG >= 2
     int c1 = 0;
     int c2 = 0;
@@ -877,6 +878,16 @@ empty_both_buffers(KBDC p, int wait)
 	} else {
 	    t -= delta;
 	}
+
+	/*
+	 * Some systems (Intel/IBM blades) do not have keyboard devices and
+	 * will thus hang in this procedure. Time out after delta seconds to
+	 * avoid this hang -- the keyboard attach will fail later on.
+	 */
+        waited += (delta * 1000);
+        if (waited == (delta * 1000000))
+	    return;
+
 	DELAY(delta*1000);
     }
 #if KBDIO_DEBUG >= 2
