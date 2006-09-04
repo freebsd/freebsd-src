@@ -17,7 +17,7 @@
 #  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 #  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-# @(#) $Header: /tcpdump/master/tcpdump/Makefile.in,v 1.293.2.1 2005/05/20 21:15:45 hannes Exp $ (LBL)
+# @(#) $Header: /tcpdump/master/tcpdump/Makefile.in,v 1.293.2.3 2005/09/20 06:05:36 guy Exp $ (LBL)
 
 #
 # Various configurable paths (remember to edit Makefile.in, not Makefile)
@@ -70,7 +70,7 @@ CSRC =	addrtoname.c cpack.c gmpls.c oui.c gmt2local.c ipproto.c \
 	print-802_11.c print-ap1394.c print-ah.c print-arcnet.c \
 	print-aodv.c print-arp.c print-ascii.c print-atalk.c print-atm.c \
 	print-beep.c print-bfd.c print-bgp.c print-bootp.c print-cdp.c \
-	print-chdlc.c print-cip.c print-cnfp.c print-decnet.c \
+	print-chdlc.c print-cip.c print-cnfp.c print-dccp.c print-decnet.c \
 	print-domain.c print-dvmrp.c print-enc.c print-egp.c \
 	print-eap.c print-eigrp.c\
 	print-esp.c print-ether.c print-fddi.c print-fr.c \
@@ -84,7 +84,7 @@ CSRC =	addrtoname.c cpack.c gmpls.c oui.c gmt2local.c ipproto.c \
 	print-pflog.c print-pgm.c print-pim.c print-ppp.c print-pppoe.c \
 	print-pptp.c print-radius.c print-raw.c print-rip.c \
 	print-rsvp.c print-rx.c print-sctp.c print-sip.c print-sl.c print-sll.c \
-	print-snmp.c print-stp.c print-sunatm.c print-sunrpc.c \
+	print-slow.c print-snmp.c print-stp.c print-sunatm.c print-sunrpc.c \
 	print-symantec.c print-syslog.c print-tcp.c print-telnet.c print-tftp.c \
 	print-timed.c print-token.c print-udp.c print-vjc.c print-vrrp.c \
 	print-wb.c print-zephyr.c setsignal.c tcpdump.c util.c
@@ -98,7 +98,7 @@ SRC =	$(CSRC) $(GENSRC) $(LOCALSRC)
 # We would like to say "OBJ = $(SRC:.c=.o)" but Ultrix's make cannot
 # hack the extra indirection
 OBJ =	$(CSRC:.c=.o) $(GENSRC:.c=.o) $(LOCALSRC:.c=.o) $(LIBOBJS)
-HDR =   addrtoname.h appletalk.h bootp.h cpack.h decnet.h \
+HDR =   addrtoname.h appletalk.h bootp.h cpack.h dccp.h decnet.h \
 	ethertype.h extract.h fddi.h gmt2local.h igrp.h interface.h \
 	ipx.h llc.h machdep.h mib.h nfsfh.h nfsv2.h ntp.h ospf.h \
 	setsignal.h \
