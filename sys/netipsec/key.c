@@ -54,6 +54,7 @@
 #include <sys/errno.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/refcount.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
@@ -495,14 +496,26 @@ static const char *key_getuserfqdn __P((void));
 static void key_sa_chgstate __P((struct secasvar *, u_int8_t));
 static struct mbuf *key_alloc_mbuf __P((int));
 
-#define	SA_ADDREF(p) do {						\
-	(p)->refcnt++;							\
-	IPSEC_ASSERT((p)->refcnt != 0, ("SA refcnt overflow"));		\
-} while (0)
-#define	SA_DELREF(p) do {						\
-	IPSEC_ASSERT((p)->refcnt > 0, ("SA refcnt underflow"));		\
-	(p)->refcnt--;							\
-} while (0)
+static __inline void
+sa_initref(struct secasvar *sav)
+{
+
+	refcount_init(&sav->refcnt, 1);
+}
+static __inline void
+sa_addref(struct secasvar *sav)
+{
+
+	refcount_acquire(&sav->refcnt);
+	IPSEC_ASSERT(sav->refcnt != 0, ("SA refcnt overflow"));
+}
+static __inline int
+sa_delref(struct secasvar *sav)
+{
+
+	IPSEC_ASSERT(sav->refcnt > 0, ("SA refcnt underflow"));
+	return (refcount_release(&sav->refcnt));
+}
 
 #define	SP_ADDREF(p) do {						\
 	(p)->refcnt++;							\
@@ -993,7 +1006,7 @@ key_do_allocsa_policy(struct secashead *sah, u_int state)
 		}
 	}
 	if (candidate) {
-		SA_ADDREF(candidate);
+		sa_addref(candidate);
 		KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
 			printf("DP %s cause refcnt++:%d SA:%p\n",
 				__func__, candidate->refcnt, candidate));
@@ -1072,7 +1085,7 @@ key_allocsa(
 				/* check dst address */
 				if (key_sockaddrcmp(&dst->sa, &sav->sah->saidx.dst.sa, 0) != 0)
 					continue;
-				SA_ADDREF(sav);
+				sa_addref(sav);
 				goto done;
 			}
 		}
@@ -1191,16 +1204,16 @@ key_freesav(struct secasvar **psav, const char* where, int tag)
 
 	IPSEC_ASSERT(sav != NULL, ("null sav"));
 
-	/* XXX unguarded? */
-	SA_DELREF(sav);
-
-	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-		printf("DP %s SA:%p (SPI %u) from %s:%u; refcnt now %u\n",
-			__func__, sav, ntohl(sav->spi), where, tag, sav->refcnt));
-
-	if (sav->refcnt == 0) {
+	if (sa_delref(sav)) {
+		KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
+			printf("DP %s SA:%p (SPI %u) from %s:%u; refcnt now %u\n",
+				__func__, sav, ntohl(sav->spi), where, tag, sav->refcnt));
 		*psav = NULL;
 		key_delsav(sav);
+	} else {
+		KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
+			printf("DP %s SA:%p (SPI %u) from %s:%u; refcnt now %u\n",
+				__func__, sav, ntohl(sav->spi), where, tag, sav->refcnt));
 	}
 }
 
@@ -2757,7 +2770,7 @@ key_newsav(m, mhp, sah, errp, where, tag)
 
 	/* add to satree */
 	newsav->sah = sah;
-	newsav->refcnt = 1;
+	sa_initref(newsav);
 	newsav->state = SADB_SASTATE_LARVAL;
 
 	/* XXX locking??? */
@@ -4776,7 +4789,7 @@ key_getsavbyseq(sah, seq)
 		KEY_CHKSASTATE(state, sav->state, __func__);
 
 		if (sav->seq == seq) {
-			SA_ADDREF(sav);
+			sa_addref(sav);
 			KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
 				printf("DP %s cause refcnt++:%d SA:%p\n",
 					__func__, sav->refcnt, sav));

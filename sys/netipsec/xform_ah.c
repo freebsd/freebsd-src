@@ -81,11 +81,11 @@
 		sizeof (struct ah) : sizeof (struct ah) + sizeof (u_int32_t))
 /* 
  * Return authenticator size in bytes.  The old protocol is known
- * to use a fixed 16-byte authenticator.  The new algorithm gets
- * this size from the xform but is (currently) always 12.
+ * to use a fixed 16-byte authenticator.  The new algorithm use 12-byte
+ * authenticator.
  */
 #define	AUTHSIZE(sav) \
-	((sav->flags & SADB_X_EXT_OLD) ? 16 : (sav)->tdb_authalgxform->authsize)
+	((sav->flags & SADB_X_EXT_OLD) ? 16 : AH_HMAC_HASHLEN)
 
 int	ah_enable = 1;			/* control flow of packets with AH */
 int	ah_cleartos = 1;		/* clear ip_tos when doing AH calc */
@@ -116,11 +116,11 @@ ah_algorithm_lookup(int alg)
 	case SADB_X_AALG_NULL:
 		return &auth_hash_null;
 	case SADB_AALG_MD5HMAC:
-		return &auth_hash_hmac_md5_96;
+		return &auth_hash_hmac_md5;
 	case SADB_AALG_SHA1HMAC:
-		return &auth_hash_hmac_sha1_96;
+		return &auth_hash_hmac_sha1;
 	case SADB_X_AALG_RIPEMD160HMAC:
-		return &auth_hash_hmac_ripemd_160_96;
+		return &auth_hash_hmac_ripemd_160;
 	case SADB_X_AALG_MD5:
 		return &auth_hash_key_md5;
 	case SADB_X_AALG_SHA:
@@ -202,6 +202,7 @@ ah_init0(struct secasvar *sav, struct xformsw *xsp, struct cryptoini *cria)
 	cria->cri_alg = sav->tdb_authalgxform->type;
 	cria->cri_klen = _KEYBITS(sav->key_auth);
 	cria->cri_key = _KEYBUF(sav->key_auth);
+	cria->cri_mlen = AUTHSIZE(sav);
 
 	return 0;
 }
@@ -734,6 +735,8 @@ ah_input_cb(struct cryptop *crp)
 	caddr_t ptr;
 	int authsize;
 
+	NET_LOCK_GIANT();
+
 	crd = crp->crp_desc;
 
 	tc = (struct tdb_crypto *) crp->crp_opaque;
@@ -764,8 +767,11 @@ ah_input_cb(struct cryptop *crp)
 		if (sav->tdb_cryptoid != 0)
 			sav->tdb_cryptoid = crp->crp_sid;
 
-		if (crp->crp_etype == EAGAIN)
-			return crypto_dispatch(crp);
+		if (crp->crp_etype == EAGAIN) {
+			error = crypto_dispatch(crp);
+			NET_UNLOCK_GIANT();
+			return error;
+		}
 
 		ahstat.ahs_noxform++;
 		DPRINTF(("%s: crypto error %d\n", __func__, crp->crp_etype));
@@ -857,7 +863,7 @@ ah_input_cb(struct cryptop *crp)
 	IPSEC_COMMON_INPUT_CB(m, sav, skip, protoff, mtag);
 
 	KEY_FREESAV(&sav);
-
+	NET_UNLOCK_GIANT();
 	return error;
 bad:
 	if (sav)
@@ -868,6 +874,7 @@ bad:
 		free(tc, M_XDATA);
 	if (crp != NULL)
 		crypto_freereq(crp);
+	NET_UNLOCK_GIANT();
 	return error;
 }
 
@@ -1114,6 +1121,8 @@ ah_output_cb(struct cryptop *crp)
 	caddr_t ptr;
 	int err;
 
+	NET_LOCK_GIANT();
+
 	tc = (struct tdb_crypto *) crp->crp_opaque;
 	IPSEC_ASSERT(tc != NULL, ("null opaque data area!"));
 	skip = tc->tc_skip;
@@ -1140,7 +1149,9 @@ ah_output_cb(struct cryptop *crp)
 		if (crp->crp_etype == EAGAIN) {
 			KEY_FREESAV(&sav);
 			IPSECREQUEST_UNLOCK(isr);
-			return crypto_dispatch(crp);
+			error = crypto_dispatch(crp);
+			NET_UNLOCK_GIANT();
+			return error;
 		}
 
 		ahstat.ahs_noxform++;
@@ -1172,7 +1183,7 @@ ah_output_cb(struct cryptop *crp)
 	err = ipsec_process_done(m, isr);
 	KEY_FREESAV(&sav);
 	IPSECREQUEST_UNLOCK(isr);
-
+	NET_UNLOCK_GIANT();
 	return err;
 bad:
 	if (sav)
@@ -1182,6 +1193,7 @@ bad:
 		m_freem(m);
 	free(tc, M_XDATA);
 	crypto_freereq(crp);
+	NET_UNLOCK_GIANT();
 	return error;
 }
 
