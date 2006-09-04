@@ -70,7 +70,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-dlpi.c,v 1.108.2.5 2005/05/03 18:54:35 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-dlpi.c,v 1.108.2.6 2005/08/13 23:15:58 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -1039,8 +1039,13 @@ dl_dohpuxbind(int fd, char *ebuf)
 		/*
 		 * For any error other than a UNIX EBUSY, give up.
 		 */
-		if (uerror != EBUSY)
+		if (uerror != EBUSY) {
+			/*
+			 * dlbindack() has already filled in ebuf for
+			 * this error.
+			 */
 			return (-1);
+		}
 
 		/*
 		 * For EBUSY, try the next SAP value; that means that
@@ -1050,9 +1055,14 @@ dl_dohpuxbind(int fd, char *ebuf)
 		 */
 		*ebuf = '\0';
 		hpsap++;
-		if (hpsap > 100)
+		if (hpsap > 100) {
+			strlcpy(ebuf,
+			    "All SAPs from 22 through 100 are in use",
+			    PCAP_ERRBUF_SIZE);
 			return (-1);
+		}
 	}
+	return (0);
 }
 #endif
 
@@ -1126,6 +1136,13 @@ recv_ack(int fd, int size, const char *what, char *bufp, char *ebuf, int *uerror
 	struct	strbuf	ctl;
 	int	flags;
 
+	/*
+	 * Clear out "*uerror", so it's only set for DL_ERROR_ACK/DL_SYSERR,
+	 * making that the only place where EBUSY is treated specially.
+	 */
+	if (uerror != NULL)
+		*uerror = 0;
+
 	ctl.maxlen = MAXDLBUF;
 	ctl.len = 0;
 	ctl.buf = bufp;
@@ -1161,8 +1178,6 @@ recv_ack(int fd, int size, const char *what, char *bufp, char *ebuf, int *uerror
 			break;
 
 		default:
-			if (uerror != NULL)
-				*uerror = 0;
 			snprintf(ebuf, PCAP_ERRBUF_SIZE, "recv_ack: %s: %s",
 			    what, dlstrerror(dlp->error_ack.dl_errno));
 			break;
@@ -1170,8 +1185,6 @@ recv_ack(int fd, int size, const char *what, char *bufp, char *ebuf, int *uerror
 		return (-1);
 
 	default:
-		if (uerror != NULL)
-			*uerror = 0;
 		snprintf(ebuf, PCAP_ERRBUF_SIZE,
 		    "recv_ack: %s: Unexpected primitive ack %s",
 		    what, dlprim(dlp->dl_primitive));
@@ -1179,8 +1192,6 @@ recv_ack(int fd, int size, const char *what, char *bufp, char *ebuf, int *uerror
 	}
 
 	if (ctl.len < size) {
-		if (uerror != NULL)
-			*uerror = 0;
 		snprintf(ebuf, PCAP_ERRBUF_SIZE,
 		    "recv_ack: %s: Ack too small (%d < %d)",
 		    what, ctl.len, size);
