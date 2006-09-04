@@ -16,7 +16,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ldp.c,v 1.8.2.5 2005/06/16 01:10:35 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ldp.c,v 1.8.2.6 2005/07/11 20:24:34 hannes Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -302,7 +302,7 @@ ldp_tlv_print(register const u_char *tptr) {
 	    printf("IPv4, addresses:");
 	    for (i=0; i<(tlv_tlen-2)/4; i++) {
 		printf(" %s",ipaddr_string(tptr));
-		tptr+=4;
+		tptr+=sizeof(struct in_addr);
 	    }
 	}
 #ifdef INET6
@@ -310,7 +310,7 @@ ldp_tlv_print(register const u_char *tptr) {
 	    printf("IPv6, addresses:");
 	    for (i=0; i<(tlv_tlen-2)/16; i++) {
 		printf(" %s",ip6addr_string(tptr));
-		tptr+=16;
+		tptr+=sizeof(struct in6_addr);
 	    }
 	}
 #endif
