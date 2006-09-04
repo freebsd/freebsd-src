@@ -329,7 +329,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	}
 
 	/* Update the counters */
-	espstat.esps_ibytes += m->m_pkthdr.len - skip - hlen - alen;
+	espstat.esps_ibytes += m->m_pkthdr.len - (skip + hlen + alen);
 
 	/* Find out if we've already done crypto */
 	for (mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_CRYPTO_DONE, NULL);
@@ -460,6 +460,8 @@ esp_input_cb(struct cryptop *crp)
 	struct secasindex *saidx;
 	caddr_t ptr;
 
+	NET_LOCK_GIANT();
+
 	crd = crp->crp_desc;
 	IPSEC_ASSERT(crd != NULL, ("null crypto descriptor!"));
 
@@ -496,7 +498,9 @@ esp_input_cb(struct cryptop *crp)
 
 		if (crp->crp_etype == EAGAIN) {
 			KEY_FREESAV(&sav);
-			return crypto_dispatch(crp);
+			error = crypto_dispatch(crp);
+			NET_UNLOCK_GIANT();
+			return error;
 		}
 
 		espstat.esps_noxform++;
@@ -524,13 +528,13 @@ esp_input_cb(struct cryptop *crp)
 		ahstat.ahs_hist[sav->alg_auth]++;
 		if (mtag == NULL) {
 			/* Copy the authenticator from the packet */
-			m_copydata(m, m->m_pkthdr.len - esph->authsize,
-				esph->authsize, aalg);
+			m_copydata(m, m->m_pkthdr.len - AH_HMAC_HASHLEN,
+				AH_HMAC_HASHLEN, aalg);
 
 			ptr = (caddr_t) (tc + 1);
 
 			/* Verify authenticator */
-			if (bcmp(ptr, aalg, esph->authsize) != 0) {
+			if (bcmp(ptr, aalg, AH_HMAC_HASHLEN) != 0) {
 				DPRINTF(("%s: "
 		    "authentication hash mismatch for packet in SA %s/%08lx\n",
 				    __func__,
@@ -543,7 +547,7 @@ esp_input_cb(struct cryptop *crp)
 		}
 
 		/* Remove trailing authenticator */
-		m_adj(m, -(esph->authsize));
+		m_adj(m, -AH_HMAC_HASHLEN);
 	}
 
 	/* Release the crypto descriptors */
@@ -625,6 +629,7 @@ esp_input_cb(struct cryptop *crp)
 	IPSEC_COMMON_INPUT_CB(m, sav, skip, protoff, mtag);
 
 	KEY_FREESAV(&sav);
+	NET_UNLOCK_GIANT();
 	return error;
 bad:
 	if (sav)
@@ -635,6 +640,7 @@ bad:
 		free(tc, M_XDATA);
 	if (crp != NULL)
 		crypto_freereq(crp);
+	NET_UNLOCK_GIANT();
 	return error;
 }
 
@@ -881,6 +887,8 @@ esp_output_cb(struct cryptop *crp)
 	struct mbuf *m;
 	int err, error;
 
+	NET_LOCK_GIANT();
+
 	tc = (struct tdb_crypto *) crp->crp_opaque;
 	IPSEC_ASSERT(tc != NULL, ("null opaque data area!"));
 	m = (struct mbuf *) crp->crp_buf;
@@ -908,7 +916,9 @@ esp_output_cb(struct cryptop *crp)
 		if (crp->crp_etype == EAGAIN) {
 			KEY_FREESAV(&sav);
 			IPSECREQUEST_UNLOCK(isr);
-			return crypto_dispatch(crp);
+			error = crypto_dispatch(crp);
+			NET_UNLOCK_GIANT();
+			return error;
 		}
 
 		espstat.esps_noxform++;
@@ -936,7 +946,7 @@ esp_output_cb(struct cryptop *crp)
 	err = ipsec_process_done(m, isr);
 	KEY_FREESAV(&sav);
 	IPSECREQUEST_UNLOCK(isr);
-
+	NET_UNLOCK_GIANT();
 	return err;
 bad:
 	if (sav)
@@ -946,6 +956,7 @@ bad:
 		m_freem(m);
 	free(tc, M_XDATA);
 	crypto_freereq(crp);
+	NET_UNLOCK_GIANT();
 	return error;
 }
 
