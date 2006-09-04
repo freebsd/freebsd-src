@@ -401,7 +401,7 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 		if (auio.uio_resid && error == 0)
 			error = EIO;
 	if ((ioflg & IO_NODELOCKED) == 0) {
-		if (rw == UIO_WRITE)
+		if (rw == UIO_WRITE && vp->v_type != VCHR)
 			vn_finished_write(mp);
 		VOP_UNLOCK(vp, 0, td);
 	}
@@ -579,7 +579,8 @@ vn_write(fp, uio, active_cred, flags, td)
 		fp->f_offset = uio->uio_offset;
 	fp->f_nextoff = uio->uio_offset;
 	VOP_UNLOCK(vp, 0, td);
-	vn_finished_write(mp);
+	if (vp->v_type != VCHR)
+		vn_finished_write(mp);
 unlock:
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
