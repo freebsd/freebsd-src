@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/clock.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
@@ -1763,16 +1762,30 @@ hifn_dmamap_load_src(struct hifn_softc *sc, struct hifn_command *cmd)
 } 
 
 static void
-hifn_op_cb(void* arg, bus_dma_segment_t *seg, int nsegs, bus_size_t mapsize, int error)
+hifn_op_cb(struct hifn_operand *op, bus_dma_segment_t *seg, int nsegs,
+    int error)
 {
-	struct hifn_operand *op = arg;
 
 	KASSERT(nsegs <= MAX_SCATTER,
 		("hifn_op_cb: too many DMA segments (%u > %u) "
 		 "returned when mapping operand", nsegs, MAX_SCATTER));
-	op->mapsize = mapsize;
 	op->nsegs = nsegs;
 	bcopy(seg, op->segs, nsegs * sizeof (seg[0]));
+}
+
+static void
+hifn_op_cb1(void *arg, bus_dma_segment_t *seg, int nsegs, int error)
+{
+
+	hifn_op_cb(arg, seg, nsegs, error);
+}
+
+static void
+hifn_op_cb2(void *arg, bus_dma_segment_t *seg, int nsegs,
+    bus_size_t mapsize, int error)
+{
+
+	hifn_op_cb(arg, seg, nsegs, error);
 }
 
 static int 
@@ -1812,22 +1825,21 @@ hifn_crypto(
 		return (ENOMEM);
 	}
 
+	cmd->src_mapsize = cmd->dst_mapsize = crp->crp_ilen;
+
 	if (crp->crp_flags & CRYPTO_F_IMBUF) {
-		if (bus_dmamap_load_mbuf(sc->sc_dmat, cmd->src_map,
-		    cmd->src_m, hifn_op_cb, &cmd->src, BUS_DMA_NOWAIT)) {
-			hifnstats.hst_nomem_load++;
-			err = ENOMEM;
-			goto err_srcmap1;
-		}
+		err = bus_dmamap_load_mbuf(sc->sc_dmat, cmd->src_map,
+		    cmd->src_m, hifn_op_cb2, &cmd->src, BUS_DMA_NOWAIT);
 	} else if (crp->crp_flags & CRYPTO_F_IOV) {
-		if (bus_dmamap_load_uio(sc->sc_dmat, cmd->src_map,
-		    cmd->src_io, hifn_op_cb, &cmd->src, BUS_DMA_NOWAIT)) {
-			hifnstats.hst_nomem_load++;
-			err = ENOMEM;
-			goto err_srcmap1;
-		}
+		err = bus_dmamap_load_uio(sc->sc_dmat, cmd->src_map,
+		    cmd->src_io, hifn_op_cb2, &cmd->src, BUS_DMA_NOWAIT);
 	} else {
-		err = EINVAL;
+		err = bus_dmamap_load(sc->sc_dmat, cmd->src_map, cmd->src_buf,
+		    crp->crp_ilen, hifn_op_cb1, &cmd->src, BUS_DMA_NOWAIT);
+	}
+	if (err != 0) {
+		hifnstats.hst_nomem_load++;
+		err = ENOMEM;
 		goto err_srcmap1;
 	}
 
@@ -1914,6 +1926,9 @@ hifn_crypto(
 				mlast = m;
 			}
 			cmd->dst_m = m0;
+		} else {
+			err = EINVAL;
+			goto err_srcmap;
 		}
 	}
 
@@ -1924,19 +1939,21 @@ hifn_crypto(
 			goto err_srcmap;
 		}
 		if (crp->crp_flags & CRYPTO_F_IMBUF) {
-			if (bus_dmamap_load_mbuf(sc->sc_dmat, cmd->dst_map,
-			    cmd->dst_m, hifn_op_cb, &cmd->dst, BUS_DMA_NOWAIT)) {
-				hifnstats.hst_nomem_map++;
-				err = ENOMEM;
-				goto err_dstmap1;
-			}
+			err = bus_dmamap_load_mbuf(sc->sc_dmat, cmd->dst_map,
+			    cmd->dst_m, hifn_op_cb2, &cmd->dst, BUS_DMA_NOWAIT);
 		} else if (crp->crp_flags & CRYPTO_F_IOV) {
-			if (bus_dmamap_load_uio(sc->sc_dmat, cmd->dst_map,
-			    cmd->dst_io, hifn_op_cb, &cmd->dst, BUS_DMA_NOWAIT)) {
-				hifnstats.hst_nomem_load++;
-				err = ENOMEM;
-				goto err_dstmap1;
-			}
+			err = bus_dmamap_load_uio(sc->sc_dmat, cmd->dst_map,
+			    cmd->dst_io, hifn_op_cb2, &cmd->dst,
+			    BUS_DMA_NOWAIT);
+		} else {
+			err = bus_dmamap_load(sc->sc_dmat, cmd->dst_map,
+			    cmd->dst_buf, crp->crp_ilen, hifn_op_cb1, &cmd->dst,
+			    BUS_DMA_NOWAIT);
+		}
+		if (err != 0) {
+			hifnstats.hst_nomem_map++;
+			err = ENOMEM;
+			goto err_dstmap1;
 		}
 	}
 
@@ -2345,6 +2362,19 @@ hifn_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 			if (mac)
 				return (EINVAL);
 			mac = 1;
+			ses->hs_mlen = c->cri_mlen;
+			if (ses->hs_mlen == 0) {
+				switch (c->cri_alg) {
+				case CRYPTO_MD5:
+				case CRYPTO_MD5_HMAC:
+					ses->hs_mlen = 16;
+					break;
+				case CRYPTO_SHA1:
+				case CRYPTO_SHA1_HMAC:
+					ses->hs_mlen = 20;
+					break;
+				}
+			}
 			break;
 		case CRYPTO_DES_CBC:
 		case CRYPTO_3DES_CBC:
@@ -2428,8 +2458,8 @@ hifn_process(void *arg, struct cryptop *crp, int hint)
 		cmd->src_io = (struct uio *)crp->crp_buf;
 		cmd->dst_io = (struct uio *)crp->crp_buf;
 	} else {
-		err = EINVAL;
-		goto errout;	/* XXX we don't handle contiguous buffers! */
+		cmd->src_buf = (void *)crp->crp_buf;
+		cmd->dst_buf = (void *)crp->crp_buf;
 	}
 
 	crd1 = crp->crp_desc;
@@ -2529,24 +2559,18 @@ hifn_process(void *arg, struct cryptop *crp, int hint)
 
 				if ((enccrd->crd_flags & CRD_F_IV_PRESENT)
 				    == 0) {
-					if (crp->crp_flags & CRYPTO_F_IMBUF)
-						m_copyback(cmd->src_m,
-						    enccrd->crd_inject,
-						    ivlen, cmd->iv);
-					else if (crp->crp_flags & CRYPTO_F_IOV)
-						cuio_copyback(cmd->src_io,
-						    enccrd->crd_inject,
-						    ivlen, cmd->iv);
+					crypto_copyback(crp->crp_flags,
+					    crp->crp_buf, enccrd->crd_inject,
+					    ivlen, cmd->iv);
 				}
 			} else {
 				if (enccrd->crd_flags & CRD_F_IV_EXPLICIT)
 					bcopy(enccrd->crd_iv, cmd->iv, ivlen);
-				else if (crp->crp_flags & CRYPTO_F_IMBUF)
-					m_copydata(cmd->src_m,
-					    enccrd->crd_inject, ivlen, cmd->iv);
-				else if (crp->crp_flags & CRYPTO_F_IOV)
-					cuio_copydata(cmd->src_io,
-					    enccrd->crd_inject, ivlen, cmd->iv);
+				else {
+					crypto_copydata(crp->crp_flags,
+					    crp->crp_buf, enccrd->crd_inject,
+					    ivlen, cmd->iv);
+				}
 			}
 		}
 
@@ -2757,14 +2781,9 @@ hifn_callback(struct hifn_softc *sc, struct hifn_command *cmd, u_int8_t *macbuf)
 	}
 
 	if (cmd->sloplen != 0) {
-		if (crp->crp_flags & CRYPTO_F_IMBUF)
-			m_copyback((struct mbuf *)crp->crp_buf,
-			    cmd->src_mapsize - cmd->sloplen,
-			    cmd->sloplen, (caddr_t)&dma->slop[cmd->slopidx]);
-		else if (crp->crp_flags & CRYPTO_F_IOV)
-			cuio_copyback((struct uio *)crp->crp_buf,
-			    cmd->src_mapsize - cmd->sloplen,
-			    cmd->sloplen, (caddr_t)&dma->slop[cmd->slopidx]);
+		crypto_copyback(crp->crp_flags, crp->crp_buf,
+		    cmd->src_mapsize - cmd->sloplen, cmd->sloplen,
+		    (caddr_t)&dma->slop[cmd->slopidx]);
 	}
 
 	i = dma->dstk; u = dma->dstu;
@@ -2793,15 +2812,9 @@ hifn_callback(struct hifn_softc *sc, struct hifn_command *cmd, u_int8_t *macbuf)
 				continue;
 			ivlen = ((crd->crd_alg == CRYPTO_AES_CBC) ?
 				HIFN_AES_IV_LENGTH : HIFN_IV_LENGTH);
-			if (crp->crp_flags & CRYPTO_F_IMBUF)
-				m_copydata((struct mbuf *)crp->crp_buf,
-				    crd->crd_skip + crd->crd_len - ivlen, ivlen,
-				    cmd->softc->sc_sessions[cmd->session_num].hs_iv);
-			else if (crp->crp_flags & CRYPTO_F_IOV) {
-				cuio_copydata((struct uio *)crp->crp_buf,
-				    crd->crd_skip + crd->crd_len - ivlen, ivlen,
-				    cmd->softc->sc_sessions[cmd->session_num].hs_iv);
-			}
+			crypto_copydata(crp->crp_flags, crp->crp_buf,
+			    crd->crd_skip + crd->crd_len - ivlen, ivlen,
+			    cmd->softc->sc_sessions[cmd->session_num].hs_iv);
 			break;
 		}
 	}
@@ -2810,21 +2823,15 @@ hifn_callback(struct hifn_softc *sc, struct hifn_command *cmd, u_int8_t *macbuf)
 		for (crd = crp->crp_desc; crd; crd = crd->crd_next) {
                         int len;
 
-                        if (crd->crd_alg == CRYPTO_MD5)
-				len = 16;
-                        else if (crd->crd_alg == CRYPTO_SHA1)
-				len = 20;
-                        else if (crd->crd_alg == CRYPTO_MD5_HMAC ||
-                            crd->crd_alg == CRYPTO_SHA1_HMAC)
-				len = 12;
-                        else
+			if (crd->crd_alg != CRYPTO_MD5 &&
+			    crd->crd_alg != CRYPTO_SHA1 &&
+			    crd->crd_alg != CRYPTO_MD5_HMAC &&
+			    crd->crd_alg != CRYPTO_SHA1_HMAC) {
 				continue;
-
-			if (crp->crp_flags & CRYPTO_F_IMBUF)
-				m_copyback((struct mbuf *)crp->crp_buf,
-                                   crd->crd_inject, len, macbuf);
-			else if ((crp->crp_flags & CRYPTO_F_IOV) && crp->crp_mac)
-				bcopy((caddr_t)macbuf, crp->crp_mac, len);
+			}
+			len = cmd->softc->sc_sessions[cmd->session_num].hs_mlen;
+			crypto_copyback(crp->crp_flags, crp->crp_buf,
+			    crd->crd_inject, len, macbuf);
 			break;
 		}
 	}

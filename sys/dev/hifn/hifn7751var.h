@@ -112,6 +112,7 @@ struct hifn_dma {
 
 struct hifn_session {
 	int hs_used;
+	int hs_mlen;
 	u_int8_t hs_iv[HIFN_MAX_IV_LENGTH];
 };
 
@@ -256,6 +257,7 @@ struct hifn_operand {
 	union {
 		struct mbuf *m;
 		struct uio *io;
+		void *buf;
 	} u;
 	bus_dmamap_t	map;
 	bus_size_t	mapsize;
@@ -279,6 +281,7 @@ struct hifn_command {
 
 #define	src_m		src.u.m
 #define	src_io		src.u.io
+#define	src_buf		src.u.buf
 #define	src_map		src.map
 #define	src_mapsize	src.mapsize
 #define	src_segs	src.segs
@@ -286,6 +289,7 @@ struct hifn_command {
 
 #define	dst_m		dst.u.m
 #define	dst_io		dst.u.io
+#define	dst_buf		dst.u.buf
 #define	dst_map		dst.map
 #define	dst_mapsize	dst.mapsize
 #define	dst_segs	dst.segs
