@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ether.c,v 1.95.2.2 2005/07/01 16:16:30 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ether.c,v 1.95.2.4 2005/07/10 14:47:57 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -65,6 +65,7 @@ const struct tok ethertype_values[] = {
     { ETHERTYPE_AARP,           "Appletalk ARP" },
     { ETHERTYPE_IPX,            "IPX" },
     { ETHERTYPE_PPP,            "PPP" },
+    { ETHERTYPE_SLOW,           "Slow Protocols" },
     { ETHERTYPE_PPPOED,         "PPPoE D" },
     { ETHERTYPE_PPPOES,         "PPPoE S" },
     { ETHERTYPE_EAPOL,          "EAPOL" },
@@ -136,7 +137,7 @@ ether_print(const u_char *p, u_int length, u_int caplen)
 			if (!eflag)
 				ether_hdr_print((u_char *)ep, length + ETHER_HDRLEN);
 
-			if (!xflag && !qflag)
+			if (!suppress_default_print)
 				default_print(p, caplen);
 		}
 	} else if (ether_encap_print(ether_type, p, length, caplen,
@@ -145,7 +146,7 @@ ether_print(const u_char *p, u_int length, u_int caplen)
 		if (!eflag)
 			ether_hdr_print((u_char *)ep, length + ETHER_HDRLEN);
 
-		if (!xflag && !qflag)
+		if (!suppress_default_print)
 			default_print(p, caplen);
 	} 
 }
@@ -245,7 +246,7 @@ ether_encap_print(u_short ether_type, const u_char *p,
 				ether_hdr_print(p - 18, length + 4);
 		}
 
-		if (!xflag && !qflag)
+		if (!suppress_default_print)
 		        default_print(p - 18, caplen + 4);
 
 		return (1);
@@ -270,7 +271,7 @@ ether_encap_print(u_short ether_type, const u_char *p,
                     ether_hdr_print(p - 16, length + 2);
                 }
 
-                if (!xflag && !qflag)
+                if (!suppress_default_print)
                     default_print(p - 16, caplen + 2);
 
                 return (1);
@@ -293,6 +294,10 @@ ether_encap_print(u_short ether_type, const u_char *p,
 			printf(": ");
 			ppp_print(p, length);
 		}
+		return (1);
+
+	case ETHERTYPE_SLOW:
+	        slow_print(p, length);
 		return (1);
 
         case ETHERTYPE_LOOPBACK:

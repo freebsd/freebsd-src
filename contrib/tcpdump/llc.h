@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /tcpdump/master/tcpdump/llc.h,v 1.17.2.1 2005/04/26 07:27:16 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/llc.h,v 1.17.2.2 2005/09/29 07:40:12 hannes Exp $ (LBL)
  */
 
 /*
@@ -27,6 +27,7 @@
 
 #define	LLC_U_FMT	3
 #define	LLC_GSAP	1
+#define	LLC_IG	        1 /* Individual / Group */
 #define LLC_S_FMT	1
 
 #define	LLC_U_POLL	0x10
@@ -62,6 +63,9 @@
 #endif
 #ifndef LLCSAP_8021B_G
 #define	LLCSAP_8021B_G		0x03
+#endif
+#ifndef LLCSAP_SNA
+#define	LLCSAP_SNA		0x04
 #endif
 #ifndef LLCSAP_IP
 #define	LLCSAP_IP		0x06
