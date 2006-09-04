@@ -1335,8 +1335,10 @@ falloc(struct thread *td, struct file **resultfp, int *resultfd)
 
 	fp = uma_zalloc(file_zone, M_WAITOK | M_ZERO);
 	sx_xlock(&filelist_lock);
-	if ((openfiles >= maxuserfiles && (td->td_ucred->cr_ruid != 0 ||
-	   jailed(td->td_ucred))) || openfiles >= maxfiles) {
+
+	if ((openfiles >= maxuserfiles &&
+	     suser_cred(td->td_ucred, SUSER_RUID) != 0) ||
+	    openfiles >= maxfiles) {
 		if (ppsratecheck(&lastfail, &curfail, 1)) {
 			printf("kern.maxfiles limit exceeded by uid %i, please see tuning(7).\n",
 				td->td_ucred->cr_ruid);
