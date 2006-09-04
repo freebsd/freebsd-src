@@ -81,6 +81,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/uma.h>
 
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
+
 static MALLOC_DEFINE(M_NETADDR, "subr_export_host", "Export host address structure");
 
 static void	delmntque(struct vnode *vp);
@@ -2543,7 +2547,6 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 }
 
 #ifdef DDB
-#include <ddb/ddb.h>
 /*
  * List all of the locked vnodes in the system.
  * Called when debugging the kernel.
@@ -2569,7 +2572,20 @@ DB_SHOW_COMMAND(lockedvnods, lockedvnodes)
 		nmp = TAILQ_NEXT(mp, mnt_list);
 	}
 }
-#endif
+
+/*
+ * Show details about the given vnode.
+ */
+DB_SHOW_COMMAND(vnode, db_show_vnode)
+{
+	struct vnode *vp;
+
+	if (!have_addr)
+		return;
+	vp = (struct vnode *)addr;
+	vn_printf(vp, "vnode ");
+}
+#endif	/* DDB */
 
 /*
  * Fill in a struct xvfsconf based on a struct vfsconf.
