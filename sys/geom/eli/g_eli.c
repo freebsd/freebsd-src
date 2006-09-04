@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,16 +69,20 @@ SYSCTL_UINT(_kern_geom_eli, OID_AUTO, visible_passphrase, CTLFLAG_RW,
     &g_eli_visible_passphrase, 0,
     "Turn on echo when entering the passphrase (for debug purposes only!!)");
 u_int g_eli_overwrites = 5;
+TUNABLE_INT("kern.geom.eli.overwrites", &g_eli_overwrites);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, overwrites, CTLFLAG_RW, &g_eli_overwrites,
     0, "Number of times on-disk keys should be overwritten when destroying them");
 static u_int g_eli_threads = 0;
 TUNABLE_INT("kern.geom.eli.threads", &g_eli_threads);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, threads, CTLFLAG_RW, &g_eli_threads, 0,
     "Number of threads doing crypto work");
+u_int g_eli_batch = 0;
+TUNABLE_INT("kern.geom.eli.batch", &g_eli_batch);
+SYSCTL_UINT(_kern_geom_eli, OID_AUTO, batch, CTLFLAG_RW, &g_eli_batch, 0,
+    "Use crypto operations batching");
 
 static int g_eli_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
-static void g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp);
 
 static g_taste_t g_eli_taste;
 static g_dumpconf_t g_eli_dumpconf;
@@ -106,7 +110,7 @@ struct g_class g_eli_class = {
  * accelerator or something like this.
  * The function updates the SID and rerun the operation.
  */
-static int
+int
 g_eli_crypto_rerun(struct cryptop *crp)
 {
 	struct g_eli_softc *sc;
@@ -139,7 +143,7 @@ g_eli_crypto_rerun(struct cryptop *crp)
  *
  * g_eli_start -> g_io_request -> G_ELI_READ_DONE -> g_eli_crypto_run -> g_eli_crypto_read_done -> g_io_deliver
  */
-static void
+void
 g_eli_read_done(struct bio *bp)
 {
 	struct g_eli_softc *sc;
@@ -149,10 +153,20 @@ g_eli_read_done(struct bio *bp)
 	pbp = bp->bio_parent;
 	if (pbp->bio_error == 0)
 		pbp->bio_error = bp->bio_error;
+	/*
+	 * Do we have all sectors already?
+	 */
+	pbp->bio_inbed++;
+	if (pbp->bio_inbed < pbp->bio_children)
+		return;
 	g_destroy_bio(bp);
 	if (pbp->bio_error != 0) {
 		G_ELI_LOGREQ(0, pbp, "%s() failed", __func__);
 		pbp->bio_completed = 0;
+		if (pbp->bio_driver2 != NULL) {
+			free(pbp->bio_driver2, M_ELI);
+			pbp->bio_driver2 = NULL;
+		}
 		g_io_deliver(pbp, pbp->bio_error);
 		return;
 	}
@@ -164,69 +178,30 @@ g_eli_read_done(struct bio *bp)
 }
 
 /*
- * The function is called after we read and decrypt data.
- *
- * g_eli_start -> g_io_request -> g_eli_read_done -> g_eli_crypto_run -> G_ELI_CRYPTO_READ_DONE -> g_io_deliver
- */
-static int
-g_eli_crypto_read_done(struct cryptop *crp)
-{
-	struct bio *bp;
-
-	if (crp->crp_etype == EAGAIN) {
-		if (g_eli_crypto_rerun(crp) == 0)
-			return (0);
-	}
-	bp = (struct bio *)crp->crp_opaque;
-	bp->bio_inbed++;
-	if (crp->crp_etype == 0) {
-		G_ELI_DEBUG(3, "Crypto READ request done (%d/%d).",
-		    bp->bio_inbed, bp->bio_children);
-		bp->bio_completed += crp->crp_olen;
-	} else {
-		G_ELI_DEBUG(1, "Crypto READ request failed (%d/%d) error=%d.",
-		    bp->bio_inbed, bp->bio_children, crp->crp_etype);
-		if (bp->bio_error == 0)
-			bp->bio_error = crp->crp_etype;
-	}
-	/*
-	 * Do we have all sectors already?
-	 */
-	if (bp->bio_inbed < bp->bio_children)
-		return (0);
-	free(bp->bio_driver2, M_ELI);
-	bp->bio_driver2 = NULL;
-	if (bp->bio_error != 0) {
-		G_ELI_LOGREQ(0, bp, "Crypto READ request failed (error=%d).",
-		    bp->bio_error);
-		bp->bio_completed = 0;
-	}
-	/*
-	 * Read is finished, send it up.
-	 */
-	g_io_deliver(bp, bp->bio_error);
-	return (0);
-}
-
-/*
  * The function is called after we encrypt and write data.
  *
  * g_eli_start -> g_eli_crypto_run -> g_eli_crypto_write_done -> g_io_request -> G_ELI_WRITE_DONE -> g_io_deliver
  */
-static void
+void
 g_eli_write_done(struct bio *bp)
 {
 	struct bio *pbp;
 
 	G_ELI_LOGREQ(2, bp, "Request done.");
 	pbp = bp->bio_parent;
-	if (pbp->bio_error == 0)
-		pbp->bio_error = bp->bio_error;
+	if (pbp->bio_error == 0) {
+		if (bp->bio_error != 0)
+			pbp->bio_error = bp->bio_error;
+	}
+	/*
+	 * Do we have all sectors already?
+	 */
+	pbp->bio_inbed++;
+	if (pbp->bio_inbed < pbp->bio_children)
+		return;
 	free(pbp->bio_driver2, M_ELI);
 	pbp->bio_driver2 = NULL;
-	if (pbp->bio_error == 0)
-		pbp->bio_completed = pbp->bio_length;
-	else {
+	if (pbp->bio_error != 0) {
 		G_ELI_LOGREQ(0, pbp, "Crypto WRITE request failed (error=%d).",
 		    pbp->bio_error);
 		pbp->bio_completed = 0;
@@ -235,65 +210,8 @@ g_eli_write_done(struct bio *bp)
 	/*
 	 * Write is finished, send it up.
 	 */
+	pbp->bio_completed = pbp->bio_length;
 	g_io_deliver(pbp, pbp->bio_error);
-}
-
-/*
- * The function is called after data encryption.
- *
- * g_eli_start -> g_eli_crypto_run -> G_ELI_CRYPTO_WRITE_DONE -> g_io_request -> g_eli_write_done -> g_io_deliver
- */
-static int
-g_eli_crypto_write_done(struct cryptop *crp)
-{
-	struct g_geom *gp;
-	struct g_consumer *cp;
-	struct bio *bp, *cbp;
-
-	if (crp->crp_etype == EAGAIN) {
-		if (g_eli_crypto_rerun(crp) == 0)
-			return (0);
-	}
-	bp = (struct bio *)crp->crp_opaque;
-	bp->bio_inbed++;
-	if (crp->crp_etype == 0) {
-		G_ELI_DEBUG(3, "Crypto WRITE request done (%d/%d).",
-		    bp->bio_inbed, bp->bio_children);
-	} else {
-		G_ELI_DEBUG(1, "Crypto WRITE request failed (%d/%d) error=%d.",
-		    bp->bio_inbed, bp->bio_children, crp->crp_etype);
-		if (bp->bio_error == 0)
-			bp->bio_error = crp->crp_etype;
-	}
-	/*
-	 * All sectors are already encrypted?
-	 */
-	if (bp->bio_inbed < bp->bio_children)
-		return (0);
-	bp->bio_inbed = 0;
-	bp->bio_children = 1;
-	cbp = bp->bio_driver1;
-	bp->bio_driver1 = NULL;
-	if (bp->bio_error != 0) {
-		G_ELI_LOGREQ(0, bp, "Crypto WRITE request failed (error=%d).",
-		    bp->bio_error);
-		free(bp->bio_driver2, M_ELI);
-		bp->bio_driver2 = NULL;
-		g_destroy_bio(cbp);
-		g_io_deliver(bp, bp->bio_error);
-		return (0);
-	}
-	cbp->bio_data = bp->bio_driver2;
-	cbp->bio_done = g_eli_write_done;
-	gp = bp->bio_to->geom;
-	cp = LIST_FIRST(&gp->consumer);
-	cbp->bio_to = cp->provider;
-	G_ELI_LOGREQ(2, cbp, "Sending request.");
-	/*
-	 * Send encrypted data to the provider.
-	 */
-	g_io_request(cbp, cp);
-	return (0);
 }
 
 /*
@@ -358,15 +276,20 @@ g_eli_start(struct bio *bp)
 	}
 	switch (bp->bio_cmd) {
 	case BIO_READ:
-		cbp->bio_done = g_eli_read_done;
-		cp = LIST_FIRST(&sc->sc_geom->consumer);
-		cbp->bio_to = cp->provider;
-		G_ELI_LOGREQ(2, cbp, "Sending request.");
-		/*
-		 * Read encrypted data from provider.
-		 */
-		g_io_request(cbp, cp);
-		break;
+		if (!(sc->sc_flags & G_ELI_FLAG_AUTH)) {
+			bp->bio_driver2 = NULL;
+			cbp->bio_done = g_eli_read_done;
+			cp = LIST_FIRST(&sc->sc_geom->consumer);
+			cbp->bio_to = cp->provider;
+			G_ELI_LOGREQ(2, cbp, "Sending request.");
+			/*
+			 * Read encrypted data from provider.
+			 */
+			g_io_request(cbp, cp);
+			break;
+		}
+		bp->bio_pflags = 255;
+		/* FALLTHROUGH */
 	case BIO_WRITE:
 		bp->bio_driver1 = cbp;
 		mtx_lock(&sc->sc_queue_mtx);
@@ -411,7 +334,7 @@ g_eli_worker(void *arg)
 		mtx_lock(&sc->sc_queue_mtx);
 		bp = bioq_takefirst(&sc->sc_queue);
 		if (bp == NULL) {
-			if ((sc->sc_flags & G_ELI_FLAG_DESTROY) != 0) {
+			if (sc->sc_flags & G_ELI_FLAG_DESTROY) {
 				LIST_REMOVE(wr, w_next);
 				crypto_freesession(wr->w_sid);
 				free(wr, M_ELI);
@@ -426,129 +349,32 @@ g_eli_worker(void *arg)
 			continue;
 		}
 		mtx_unlock(&sc->sc_queue_mtx);
-		g_eli_crypto_run(wr, bp);
+		if (bp->bio_cmd == BIO_READ && bp->bio_pflags == 255)
+			g_eli_auth_read(sc, bp);
+		else if (sc->sc_flags & G_ELI_FLAG_AUTH)
+			g_eli_auth_run(wr, bp);
+		else
+			g_eli_crypto_run(wr, bp);
 	}
 }
 
 /*
  * Here we generate IV. It is unique for every sector.
  */
-static void
+void
 g_eli_crypto_ivgen(struct g_eli_softc *sc, off_t offset, u_char *iv,
     size_t size)
 {
-	u_char hash[SHA256_DIGEST_LENGTH];
+	u_char off[8], hash[SHA256_DIGEST_LENGTH];
 	SHA256_CTX ctx;
 
+	if (!(sc->sc_flags & G_ELI_FLAG_NATIVE_BYTE_ORDER))
+		le64enc(off, (uint64_t)offset);
 	/* Copy precalculated SHA256 context for IV-Key. */
 	bcopy(&sc->sc_ivctx, &ctx, sizeof(ctx));
 	SHA256_Update(&ctx, (uint8_t *)&offset, sizeof(offset));
 	SHA256_Final(hash, &ctx);
 	bcopy(hash, iv, size);
-}
-
-/*
- * This is the main function responsible for cryptography (ie. communication
- * with crypto(9) subsystem).
- */
-static void
-g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
-{
-	struct g_eli_softc *sc;
-	struct cryptop *crp;
-	struct cryptodesc *crd;
-	struct uio *uio;
-	struct iovec *iov;
-	u_int i, nsec, add, secsize;
-	int err, error;
-	size_t size;
-	u_char *p, *data;
-
-	G_ELI_LOGREQ(3, bp, "%s", __func__);
-
-	bp->bio_pflags = wr->w_number;
-	sc = wr->w_softc;
-	secsize = LIST_FIRST(&sc->sc_geom->provider)->sectorsize;
-	nsec = bp->bio_length / secsize;
-
-	/*
-	 * Calculate how much memory do we need.
-	 * We need separate crypto operation for every single sector.
-	 * It is much faster to calculate total amount of needed memory here and
-	 * do the allocation once instead of allocating memory in pieces (many,
-	 * many pieces).
-	 */
-	size = sizeof(*crp) * nsec;
-	size += sizeof(*crd) * nsec;
-	size += sizeof(*uio) * nsec;
-	size += sizeof(*iov) * nsec;
-	/*
-	 * If we write the data we cannot destroy current bio_data content,
-	 * so we need to allocate more memory for encrypted data.
-	 */
-	if (bp->bio_cmd == BIO_WRITE)
-		size += bp->bio_length;
-	p = malloc(size, M_ELI, M_WAITOK);
-
-	bp->bio_inbed = 0;
-	bp->bio_children = nsec;
-	bp->bio_driver2 = p;
-
-	if (bp->bio_cmd == BIO_READ)
-		data = bp->bio_data;
-	else {
-		data = p;
-		p += bp->bio_length;
-		bcopy(bp->bio_data, data, bp->bio_length);
-	}
-
-	error = 0;
-	for (i = 0, add = 0; i < nsec; i++, add += secsize) {
-		crp = (struct cryptop *)p;	p += sizeof(*crp);
-		crd = (struct cryptodesc *)p;	p += sizeof(*crd);
-		uio = (struct uio *)p;		p += sizeof(*uio);
-		iov = (struct iovec *)p;	p += sizeof(*iov);
-
-		iov->iov_len = secsize;
-		iov->iov_base = data;
-		data += secsize;
-
-		uio->uio_iov = iov;
-		uio->uio_iovcnt = 1;
-		uio->uio_segflg = UIO_SYSSPACE;
-		uio->uio_resid = secsize;
-
-		crp->crp_sid = wr->w_sid;
-		crp->crp_ilen = secsize;
-		crp->crp_olen = secsize;
-		crp->crp_opaque = (void *)bp;
-		crp->crp_buf = (void *)uio;
-		if (bp->bio_cmd == BIO_WRITE)
-			crp->crp_callback = g_eli_crypto_write_done;
-		else /* if (bp->bio_cmd == BIO_READ) */
-			crp->crp_callback = g_eli_crypto_read_done;
-		crp->crp_flags = CRYPTO_F_IOV | CRYPTO_F_CBIFSYNC | CRYPTO_F_REL;
-		crp->crp_desc = crd;
-
-		crd->crd_skip = 0;
-		crd->crd_len = secsize;
-		crd->crd_flags = CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT;
-		if (bp->bio_cmd == BIO_WRITE)
-			crd->crd_flags |= CRD_F_ENCRYPT;
-		crd->crd_alg = sc->sc_algo;
-		crd->crd_key = sc->sc_datakey;
-		crd->crd_klen = sc->sc_keylen;
-		g_eli_crypto_ivgen(sc, bp->bio_offset + add, crd->crd_iv,
-		    sizeof(crd->crd_iv));
-		crd->crd_next = NULL;
-
-		crp->crp_etype = 0;
-		err = crypto_dispatch(crp);
-		if (error == 0)
-			error = err;
-	}
-	if (bp->bio_error == 0)
-		bp->bio_error = error;
 }
 
 int
@@ -631,6 +457,10 @@ g_eli_access(struct g_provider *pp, int dr, int dw, int de)
 	sc = gp->softc;
 
 	if (dw > 0) {
+		if (sc->sc_flags & G_ELI_FLAG_RO) {
+			/* Deny write attempts. */
+			return (EROFS);
+		}
 		/* Someone is opening us for write, we need to remember that. */
 		sc->sc_flags |= G_ELI_FLAG_WOPEN;
 		return (0);
@@ -658,7 +488,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct g_consumer *cp;
-	struct cryptoini cri;
+	struct cryptoini crie, cria;
 	u_int i, threads;
 	int error;
 
@@ -671,31 +501,60 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	gp->start = g_eli_start;
 	/*
 	 * Spoiling cannot happen actually, because we keep provider open for
-	 * writing all the time.
+	 * writing all the time or provider is read-only.
 	 */
 	gp->spoiled = g_eli_orphan_spoil_assert;
 	gp->orphan = g_eli_orphan;
+	gp->dumpconf = g_eli_dumpconf;
 	/*
-	 * If detach-on-last-close feature is not enabled, we can simply use
-	 * g_std_access().
+	 * If detach-on-last-close feature is not enabled and we don't operate
+	 * on read-only provider, we can simply use g_std_access().
 	 */
-	if (md->md_flags & G_ELI_FLAG_WO_DETACH)
+	if (md->md_flags & (G_ELI_FLAG_WO_DETACH | G_ELI_FLAG_RO))
 		gp->access = g_eli_access;
 	else
 		gp->access = g_std_access;
-	gp->dumpconf = g_eli_dumpconf;
 
 	sc->sc_crypto = G_ELI_CRYPTO_SW;
 	sc->sc_flags = md->md_flags;
-	sc->sc_algo = md->md_algo;
+	/* Backward compatibility. */
+	if (md->md_version < 2)
+		sc->sc_flags |= G_ELI_FLAG_NATIVE_BYTE_ORDER;
+	sc->sc_ealgo = md->md_ealgo;
 	sc->sc_nkey = nkey;
 	/*
 	 * Remember the keys in our softc structure.
 	 */
-	bcopy(mkey, sc->sc_ivkey, sizeof(sc->sc_ivkey));
-	mkey += sizeof(sc->sc_ivkey);
-	bcopy(mkey, sc->sc_datakey, sizeof(sc->sc_datakey));
-	sc->sc_keylen = md->md_keylen;
+	g_eli_mkey_propagate(sc, mkey);
+	sc->sc_ekeylen = md->md_keylen;
+
+	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
+		sc->sc_akeylen = sizeof(sc->sc_akey) * 8;
+		sc->sc_aalgo = md->md_aalgo;
+		sc->sc_alen = g_eli_hashlen(sc->sc_aalgo);
+
+		sc->sc_data_per_sector = bpp->sectorsize - sc->sc_alen;
+		/*
+		 * Some hash functions (like SHA1 and RIPEMD160) generates hash
+		 * which length is not multiple of 128 bits, but we want data
+		 * length to be multiple of 128, so we can encrypt without
+		 * padding. The line below rounds down data length to multiple
+		 * of 128 bits.
+		 */
+		sc->sc_data_per_sector -= sc->sc_data_per_sector % 16;
+
+		sc->sc_bytes_per_sector =
+		    (md->md_sectorsize - 1) / sc->sc_data_per_sector + 1;
+		sc->sc_bytes_per_sector *= bpp->sectorsize;
+		/*
+		 * Precalculate SHA256 for HMAC key generation.
+		 * This is expensive operation and we can do it only once now or
+		 * for every access to sector, so now will be much better.
+		 */
+		SHA256_Init(&sc->sc_akeyctx);
+		SHA256_Update(&sc->sc_akeyctx, sc->sc_akey,
+		    sizeof(sc->sc_akey));
+	}
 
 	/*
 	 * Precalculate SHA256 for IV generation.
@@ -728,8 +587,13 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	 * Keep provider open all the time, so we can run critical tasks,
 	 * like Master Keys deletion, without wondering if we can open
 	 * provider or not.
+	 * We don't open provider for writing only when user requested read-only
+	 * access.
 	 */
-	error = g_access(cp, 1, 1, 1);
+	if (sc->sc_flags & G_ELI_FLAG_RO)
+		error = g_access(cp, 1, 0, 1);
+	else
+		error = g_access(cp, 1, 1, 1);
 	if (error != 0) {
 		if (req != NULL) {
 			gctl_error(req, "Cannot access %s (error=%d).",
@@ -743,10 +607,17 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 
 	LIST_INIT(&sc->sc_workers);
 
-	bzero(&cri, sizeof(cri));
-	cri.cri_alg = sc->sc_algo;
-	cri.cri_klen = sc->sc_keylen;
-	cri.cri_key = sc->sc_datakey;
+	bzero(&crie, sizeof(crie));
+	crie.cri_alg = sc->sc_ealgo;
+	crie.cri_klen = sc->sc_ekeylen;
+	crie.cri_key = sc->sc_ekey;
+	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
+		bzero(&cria, sizeof(cria));
+		cria.cri_alg = sc->sc_aalgo;
+		cria.cri_klen = sc->sc_akeylen;
+		cria.cri_key = sc->sc_akey;
+		crie.cri_next = &cria;
+	}
 
 	threads = g_eli_threads;
 	if (threads == 0)
@@ -766,12 +637,12 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		 * Use software cryptography, if we cannot get it.
 		 */
 		if (i == 0) {
-			error = crypto_newsession(&wr->w_sid, &cri, 1);
+			error = crypto_newsession(&wr->w_sid, &crie, 1);
 			if (error == 0)
 				sc->sc_crypto = G_ELI_CRYPTO_HW;
 		}
 		if (sc->sc_crypto == G_ELI_CRYPTO_SW)
-			error = crypto_newsession(&wr->w_sid, &cri, 0);
+			error = crypto_newsession(&wr->w_sid, &crie, 0);
 		if (error != 0) {
 			free(wr, M_ELI);
 			if (req != NULL) {
@@ -810,14 +681,22 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	pp = g_new_providerf(gp, "%s%s", bpp->name, G_ELI_SUFFIX);
 	pp->sectorsize = md->md_sectorsize;
 	pp->mediasize = bpp->mediasize;
-	if ((sc->sc_flags & G_ELI_FLAG_ONETIME) == 0)
+	if (!(sc->sc_flags & G_ELI_FLAG_ONETIME))
 		pp->mediasize -= bpp->sectorsize;
-	pp->mediasize -= (pp->mediasize % pp->sectorsize);
+	if (!(sc->sc_flags & G_ELI_FLAG_AUTH))
+		pp->mediasize -= (pp->mediasize % pp->sectorsize);
+	else {
+		pp->mediasize /= sc->sc_bytes_per_sector;
+		pp->mediasize *= pp->sectorsize;
+	}
+
 	g_error_provider(pp, 0);
 
 	G_ELI_DEBUG(0, "Device %s created.", pp->name);
-	G_ELI_DEBUG(0, "    Cipher: %s", g_eli_algo2str(sc->sc_algo));
-	G_ELI_DEBUG(0, "Key length: %u", sc->sc_keylen);
+	G_ELI_DEBUG(0, "Encryption: %s %u", g_eli_algo2str(sc->sc_ealgo),
+	    sc->sc_ekeylen);
+	if (sc->sc_flags & G_ELI_FLAG_AUTH)
+		G_ELI_DEBUG(0, " Integrity: %s", g_eli_algo2str(sc->sc_aalgo));
 	G_ELI_DEBUG(0, "    Crypto: %s",
 	    sc->sc_crypto == G_ELI_CRYPTO_SW ? "software" : "hardware");
 	return (gp);
@@ -995,7 +874,7 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	if (md.md_provsize != pp->mediasize)
 		return (NULL);
 	/* Should we attach it on boot? */
-	if ((md.md_flags & G_ELI_FLAG_BOOT) == 0)
+	if (!(md.md_flags & G_ELI_FLAG_BOOT))
 		return (NULL);
 	if (md.md_keys == 0x00) {
 		G_ELI_DEBUG(0, "No valid keys on %s.", pp->name);
@@ -1117,7 +996,7 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		int first = 1;
 
 #define ADD_FLAG(flag, name)	do {					\
-	if ((sc->sc_flags & (flag)) != 0) {				\
+	if (sc->sc_flags & (flag)) {					\
 		if (!first)						\
 			sbuf_printf(sb, ", ");				\
 		else							\
@@ -1125,17 +1004,20 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sbuf_printf(sb, name);					\
 	}								\
 } while (0)
+		ADD_FLAG(G_ELI_FLAG_NATIVE_BYTE_ORDER, "NATIVE-BYTE-ORDER");
 		ADD_FLAG(G_ELI_FLAG_ONETIME, "ONETIME");
 		ADD_FLAG(G_ELI_FLAG_BOOT, "BOOT");
 		ADD_FLAG(G_ELI_FLAG_WO_DETACH, "W-DETACH");
 		ADD_FLAG(G_ELI_FLAG_RW_DETACH, "RW-DETACH");
+		ADD_FLAG(G_ELI_FLAG_AUTH, "AUTH");
 		ADD_FLAG(G_ELI_FLAG_WOPEN, "W-OPEN");
 		ADD_FLAG(G_ELI_FLAG_DESTROY, "DESTROY");
+		ADD_FLAG(G_ELI_FLAG_RO, "READ-ONLY");
 #undef  ADD_FLAG
 	}
 	sbuf_printf(sb, "</Flags>\n");
 
-	if ((sc->sc_flags & G_ELI_FLAG_ONETIME) == 0) {
+	if (!(sc->sc_flags & G_ELI_FLAG_ONETIME)) {
 		sbuf_printf(sb, "%s<UsedKey>%u</UsedKey>\n", indent,
 		    sc->sc_nkey);
 	}
@@ -1152,9 +1034,15 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		break;
 	}
 	sbuf_printf(sb, "</Crypto>\n");
-	sbuf_printf(sb, "%s<KeyLength>%u</KeyLength>\n", indent, sc->sc_keylen);
-	sbuf_printf(sb, "%s<Cipher>%s</Cipher>\n", indent,
-	    g_eli_algo2str(sc->sc_algo));
+	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
+		sbuf_printf(sb,
+		    "%s<AuthenticationAlgorithm>%s</AuthenticationAlgorithm>\n",
+		    indent, g_eli_algo2str(sc->sc_aalgo));
+	}
+	sbuf_printf(sb, "%s<KeyLength>%u</KeyLength>\n", indent,
+	    sc->sc_ekeylen);
+	sbuf_printf(sb, "%s<EncryptionAlgorithm>%s</EncryptionAlgorithm>\n", indent,
+	    g_eli_algo2str(sc->sc_ealgo));
 }
 
 DECLARE_GEOM_CLASS(g_eli_class, g_eli);

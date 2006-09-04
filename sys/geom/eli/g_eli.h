@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,28 +54,43 @@
 /*
  * Version history:
  * 0 - Initial version number.
+ * 1 - Added data authentication support (md_aalgo field and
+ *     G_ELI_FLAG_AUTH flag).
+ * 2 - Added G_ELI_FLAG_READONLY.
+ *   - IV is generated from offset converted to little-endian
+ *     (flag G_ELI_FLAG_NATIVE_BYTE_ORDER will be set for older versions).
  */
-#define	G_ELI_VERSION		0
+#define	G_ELI_VERSION		2
 
+/* ON DISK FLAGS. */
 /* Use random, onetime keys. */
-#define	G_ELI_FLAG_ONETIME	0x00000001
+#define	G_ELI_FLAG_ONETIME		0x00000001
 /* Ask for the passphrase from the kernel, before mounting root. */
-#define	G_ELI_FLAG_BOOT		0x00000002
+#define	G_ELI_FLAG_BOOT			0x00000002
 /* Detach on last close, if we were open for writing. */
-#define	G_ELI_FLAG_WO_DETACH	0x00000004
+#define	G_ELI_FLAG_WO_DETACH		0x00000004
 /* Detach on last close. */
-#define	G_ELI_FLAG_RW_DETACH	0x00000008
+#define	G_ELI_FLAG_RW_DETACH		0x00000008
+/* Provide data authentication. */
+#define	G_ELI_FLAG_AUTH			0x00000010
+/* Provider is read-only, we should deny all write attempts. */
+#define	G_ELI_FLAG_RO			0x00000020
+/* RUNTIME FLAGS. */
 /* Provider was open for writing. */
-#define	G_ELI_FLAG_WOPEN	0x00010000
+#define	G_ELI_FLAG_WOPEN		0x00010000
 /* Destroy device. */
-#define	G_ELI_FLAG_DESTROY	0x00020000
+#define	G_ELI_FLAG_DESTROY		0x00020000
+/* Provider uses native byte-order for IV generation. */
+#define	G_ELI_FLAG_NATIVE_BYTE_ORDER	0x00040000
 
 #define	SHA512_MDLEN		64
+#define	G_ELI_AUTH_SECKEYLEN	SHA256_DIGEST_LENGTH
 
 #define	G_ELI_MAXMKEYS		2
 #define	G_ELI_MAXKEYLEN		64
 #define	G_ELI_USERKEYLEN	G_ELI_MAXKEYLEN
 #define	G_ELI_DATAKEYLEN	G_ELI_MAXKEYLEN
+#define	G_ELI_AUTHKEYLEN	G_ELI_MAXKEYLEN
 #define	G_ELI_IVKEYLEN		G_ELI_MAXKEYLEN
 #define	G_ELI_SALTLEN		64
 #define	G_ELI_DATAIVKEYLEN	(G_ELI_DATAKEYLEN + G_ELI_IVKEYLEN)
@@ -85,6 +100,7 @@
 #ifdef _KERNEL
 extern u_int g_eli_debug;
 extern u_int g_eli_overwrites;
+extern u_int g_eli_batch;
 
 #define	G_ELI_CRYPTO_HW		1
 #define	G_ELI_CRYPTO_SW		2
@@ -123,13 +139,21 @@ struct g_eli_worker {
 struct g_eli_softc {
 	struct g_geom	*sc_geom;
 	u_int		 sc_crypto;
-	uint8_t		 sc_datakey[G_ELI_DATAKEYLEN];
+	uint8_t		 sc_mkey[G_ELI_DATAIVKEYLEN];
+	uint8_t		 sc_ekey[G_ELI_DATAKEYLEN];
+	u_int		 sc_ealgo;
+	u_int		 sc_ekeylen;
+	uint8_t		 sc_akey[G_ELI_AUTHKEYLEN];
+	u_int		 sc_aalgo;
+	u_int		 sc_akeylen;
+	u_int		 sc_alen;
+	SHA256_CTX	 sc_akeyctx;
 	uint8_t		 sc_ivkey[G_ELI_IVKEYLEN];
 	SHA256_CTX	 sc_ivctx;
-	u_int		 sc_algo;
-	u_int		 sc_keylen;
 	int		 sc_nkey;
 	uint32_t	 sc_flags;
+	u_int		 sc_bytes_per_sector;
+	u_int		 sc_data_per_sector;
 
 	/* Only for software cryptography. */
 	struct bio_queue_head sc_queue;
@@ -143,8 +167,9 @@ struct g_eli_metadata {
 	char		md_magic[16];	/* Magic value. */
 	uint32_t	md_version;	/* Version number. */
 	uint32_t	md_flags;	/* Additional flags. */
-	uint16_t	md_algo;	/* Encryption algorithm. */
+	uint16_t	md_ealgo;	/* Encryption algorithm. */
 	uint16_t	md_keylen;	/* Key length. */
+	uint16_t	md_aalgo;	/* Authentication algorithm. */
 	uint64_t	md_provsize;	/* Provider's size. */
 	uint32_t	md_sectorsize;	/* Sector size. */
 	uint8_t		md_keys;	/* Available keys. */
@@ -165,8 +190,9 @@ eli_metadata_encode(struct g_eli_metadata *md, u_char *data)
 	bcopy(md->md_magic, p, sizeof(md->md_magic)); p += sizeof(md->md_magic);
 	le32enc(p, md->md_version);	p += sizeof(md->md_version);
 	le32enc(p, md->md_flags);	p += sizeof(md->md_flags);
-	le16enc(p, md->md_algo);	p += sizeof(md->md_algo);
+	le16enc(p, md->md_ealgo);	p += sizeof(md->md_ealgo);
 	le16enc(p, md->md_keylen);	p += sizeof(md->md_keylen);
+	le16enc(p, md->md_aalgo);	p += sizeof(md->md_aalgo);
 	le64enc(p, md->md_provsize);	p += sizeof(md->md_provsize);
 	le32enc(p, md->md_sectorsize);	p += sizeof(md->md_sectorsize);
 	*p = md->md_keys;		p += sizeof(md->md_keys);
@@ -186,8 +212,32 @@ eli_metadata_decode_v0(const u_char *data, struct g_eli_metadata *md)
 
 	p = data + sizeof(md->md_magic) + sizeof(md->md_version);
 	md->md_flags = le32dec(p);	p += sizeof(md->md_flags);
-	md->md_algo = le16dec(p);	p += sizeof(md->md_algo);
+	md->md_ealgo = le16dec(p);	p += sizeof(md->md_ealgo);
 	md->md_keylen = le16dec(p);	p += sizeof(md->md_keylen);
+	md->md_provsize = le64dec(p);	p += sizeof(md->md_provsize);
+	md->md_sectorsize = le32dec(p);	p += sizeof(md->md_sectorsize);
+	md->md_keys = *p;		p += sizeof(md->md_keys);
+	md->md_iterations = le32dec(p);	p += sizeof(md->md_iterations);
+	bcopy(p, md->md_salt, sizeof(md->md_salt)); p += sizeof(md->md_salt);
+	bcopy(p, md->md_mkeys, sizeof(md->md_mkeys)); p += sizeof(md->md_mkeys);
+	MD5Init(&ctx);
+	MD5Update(&ctx, data, p - data);
+	MD5Final(md->md_hash, &ctx);
+	if (bcmp(md->md_hash, p, 16) != 0)
+		return (EINVAL);
+	return (0);
+}
+static __inline int
+eli_metadata_decode_v1v2(const u_char *data, struct g_eli_metadata *md)
+{
+	MD5_CTX ctx;
+	const u_char *p;
+
+	p = data + sizeof(md->md_magic) + sizeof(md->md_version);
+	md->md_flags = le32dec(p);	p += sizeof(md->md_flags);
+	md->md_ealgo = le16dec(p);	p += sizeof(md->md_ealgo);
+	md->md_keylen = le16dec(p);	p += sizeof(md->md_keylen);
+	md->md_aalgo = le16dec(p);	p += sizeof(md->md_aalgo);
 	md->md_provsize = le64dec(p);	p += sizeof(md->md_provsize);
 	md->md_sectorsize = le32dec(p);	p += sizeof(md->md_sectorsize);
 	md->md_keys = *p;		p += sizeof(md->md_keys);
@@ -212,6 +262,10 @@ eli_metadata_decode(const u_char *data, struct g_eli_metadata *md)
 	case 0:
 		error = eli_metadata_decode_v0(data, md);
 		break;
+	case 1:
+	case 2:
+		error = eli_metadata_decode_v1v2(data, md);
+		break;
 	default:
 		error = EINVAL;
 		break;
@@ -221,7 +275,7 @@ eli_metadata_decode(const u_char *data, struct g_eli_metadata *md)
 #endif	/* !_OpenSSL */
 
 static __inline u_int
-g_eli_str2algo(const char *name)
+g_eli_str2ealgo(const char *name)
 {
 
 	if (strcasecmp("null", name) == 0)
@@ -235,6 +289,25 @@ g_eli_str2algo(const char *name)
 	return (CRYPTO_ALGORITHM_MIN - 1);
 }
 
+static __inline u_int
+g_eli_str2aalgo(const char *name)
+{
+
+	if (strcasecmp("hmac/md5", name) == 0)
+		return (CRYPTO_MD5_HMAC);
+	else if (strcasecmp("hmac/sha1", name) == 0)
+		return (CRYPTO_SHA1_HMAC);
+	else if (strcasecmp("hmac/ripemd160", name) == 0)
+		return (CRYPTO_RIPEMD160_HMAC);
+	else if (strcasecmp("hmac/sha256", name) == 0)
+		return (CRYPTO_SHA2_256_HMAC);
+	else if (strcasecmp("hmac/sha384", name) == 0)
+		return (CRYPTO_SHA2_384_HMAC);
+	else if (strcasecmp("hmac/sha512", name) == 0)
+		return (CRYPTO_SHA2_512_HMAC);
+	return (CRYPTO_ALGORITHM_MIN - 1);
+}
+
 static __inline const char *
 g_eli_algo2str(u_int algo)
 {
@@ -243,11 +316,23 @@ g_eli_algo2str(u_int algo)
 	case CRYPTO_NULL_CBC:
 		return ("NULL");
 	case CRYPTO_AES_CBC:
-		return ("AES");
+		return ("AES-CBC");
 	case CRYPTO_BLF_CBC:
-		return ("Blowfish");
+		return ("Blowfish-CBC");
 	case CRYPTO_3DES_CBC:
-		return ("3DES");
+		return ("3DES-CBC");
+	case CRYPTO_MD5_HMAC:
+		return ("HMAC/MD5");
+	case CRYPTO_SHA1_HMAC:
+		return ("HMAC/SHA1");
+	case CRYPTO_RIPEMD160_HMAC:
+		return ("HMAC/RIPEMD160");
+	case CRYPTO_SHA2_256_HMAC:
+		return ("HMAC/SHA256");
+	case CRYPTO_SHA2_384_HMAC:
+		return ("HMAC/SHA384");
+	case CRYPTO_SHA2_512_HMAC:
+		return ("HMAC/SHA512");
 	}
 	return ("unknown");
 }
@@ -262,8 +347,10 @@ eli_metadata_dump(const struct g_eli_metadata *md)
 	printf("     magic: %s\n", md->md_magic);
 	printf("   version: %u\n", (u_int)md->md_version);
 	printf("     flags: 0x%x\n", (u_int)md->md_flags);
-	printf("      algo: %s\n", g_eli_algo2str(md->md_algo));
+	printf("     ealgo: %s\n", g_eli_algo2str(md->md_ealgo));
 	printf("    keylen: %u\n", (u_int)md->md_keylen);
+	if (md->md_flags & G_ELI_FLAG_AUTH)
+		printf("     aalgo: %s\n", g_eli_algo2str(md->md_aalgo));
 	printf("  provsize: %ju\n", (uintmax_t)md->md_provsize);
 	printf("sectorsize: %u\n", (u_int)md->md_sectorsize);
 	printf("      keys: 0x%02x\n", (u_int)md->md_keys);
@@ -329,6 +416,27 @@ g_eli_keylen(u_int algo, u_int keylen)
 	}
 }
 
+static __inline u_int
+g_eli_hashlen(u_int algo)
+{
+
+	switch (algo) {
+	case CRYPTO_MD5_HMAC:
+		return (16);
+	case CRYPTO_SHA1_HMAC:
+		return (20);
+	case CRYPTO_RIPEMD160_HMAC:
+		return (20);
+	case CRYPTO_SHA2_256_HMAC:
+		return (32);
+	case CRYPTO_SHA2_384_HMAC:
+		return (48);
+	case CRYPTO_SHA2_512_HMAC:
+		return (64);
+	}
+	return (0);
+}
+
 #ifdef _KERNEL
 int g_eli_read_metadata(struct g_class *mp, struct g_provider *pp,
     struct g_eli_metadata *md);
@@ -339,6 +447,17 @@ int g_eli_destroy(struct g_eli_softc *sc, boolean_t force);
 
 int g_eli_access(struct g_provider *pp, int dr, int dw, int de);
 void g_eli_config(struct gctl_req *req, struct g_class *mp, const char *verb);
+
+void g_eli_read_done(struct bio *bp);
+void g_eli_write_done(struct bio *bp);
+int g_eli_crypto_rerun(struct cryptop *crp);
+void g_eli_crypto_ivgen(struct g_eli_softc *sc, off_t offset, u_char *iv,
+    size_t size);
+
+void g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp);
+
+void g_eli_auth_read(struct g_eli_softc *sc, struct bio *bp);
+void g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp);
 #endif
 
 void g_eli_mkey_hmac(unsigned char *mkey, const unsigned char *key);
@@ -346,6 +465,9 @@ int g_eli_mkey_decrypt(const struct g_eli_metadata *md,
     const unsigned char *key, unsigned char *mkey, unsigned *nkeyp);
 int g_eli_mkey_encrypt(unsigned algo, const unsigned char *key, unsigned keylen,
     unsigned char *mkey);
+#ifdef _KERNEL
+void g_eli_mkey_propagate(struct g_eli_softc *sc, const unsigned char *mkey);
+#endif
 
 int g_eli_crypto_encrypt(u_int algo, u_char *data, size_t datasize,
     const u_char *key, size_t keysize);
