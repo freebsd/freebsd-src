@@ -61,22 +61,42 @@
 #define CRYPTO_DRIVERS_INITIAL	4
 #define CRYPTO_SW_SESSIONS	32
 
+/* Hash values */
+#define	NULL_HASH_LEN		16
+#define	MD5_HASH_LEN		16
+#define	SHA1_HASH_LEN		20
+#define	RIPEMD160_HASH_LEN	20
+#define	SHA2_256_HASH_LEN	32
+#define	SHA2_384_HASH_LEN	48
+#define	SHA2_512_HASH_LEN	64
+#define	MD5_KPDK_HASH_LEN	16
+#define	SHA1_KPDK_HASH_LEN	20
+/* Maximum hash algorithm result length */
+#define	HASH_MAX_LEN		SHA2_512_HASH_LEN /* Keep this updated */
+
 /* HMAC values */
-#define HMAC_BLOCK_LEN		64
-#define HMAC_IPAD_VAL		0x36
-#define HMAC_OPAD_VAL		0x5C
+#define	NULL_HMAC_BLOCK_LEN		64
+#define	MD5_HMAC_BLOCK_LEN		64
+#define	SHA1_HMAC_BLOCK_LEN		64
+#define	RIPEMD160_HMAC_BLOCK_LEN	64
+#define	SHA2_256_HMAC_BLOCK_LEN		64
+#define	SHA2_384_HMAC_BLOCK_LEN		128
+#define	SHA2_512_HMAC_BLOCK_LEN		128
+/* Maximum HMAC block length */
+#define	HMAC_MAX_BLOCK_LEN		SHA2_512_HMAC_BLOCK_LEN /* Keep this updated */
+#define	HMAC_IPAD_VAL			0x36
+#define	HMAC_OPAD_VAL			0x5C
 
 /* Encryption algorithm block sizes */
+#define NULL_BLOCK_LEN		4
 #define DES_BLOCK_LEN		8
 #define DES3_BLOCK_LEN		8
 #define BLOWFISH_BLOCK_LEN	8
 #define SKIPJACK_BLOCK_LEN	8
 #define CAST128_BLOCK_LEN	8
 #define RIJNDAEL128_BLOCK_LEN	16
-#define EALG_MAX_BLOCK_LEN	16 /* Keep this updated */
-
-/* Maximum hash algorithm result length */
-#define AALG_MAX_RESULT_LEN	64 /* Keep this updated */
+#define AES_BLOCK_LEN		RIJNDAEL128_BLOCK_LEN
+#define EALG_MAX_BLOCK_LEN	AES_BLOCK_LEN /* Keep this updated */
 
 #define	CRYPTO_ALGORITHM_MIN	1
 #define CRYPTO_DES_CBC		1
@@ -94,11 +114,13 @@
 #define CRYPTO_ARC4		12
 #define	CRYPTO_MD5		13
 #define	CRYPTO_SHA1		14
-#define	CRYPTO_SHA2_HMAC	15
-#define CRYPTO_NULL_HMAC	16
-#define CRYPTO_NULL_CBC		17
-#define CRYPTO_DEFLATE_COMP	18 /* Deflate compression algorithm */
-#define CRYPTO_ALGORITHM_MAX	18 /* Keep updated - see below */
+#define	CRYPTO_NULL_HMAC	15
+#define	CRYPTO_NULL_CBC		16
+#define	CRYPTO_DEFLATE_COMP	17 /* Deflate compression algorithm */
+#define	CRYPTO_SHA2_256_HMAC	18
+#define	CRYPTO_SHA2_384_HMAC	19
+#define	CRYPTO_SHA2_512_HMAC	20
+#define	CRYPTO_ALGORITHM_MAX	20 /* Keep updated - see below */
 
 /* Algorithm flags */
 #define	CRYPTO_ALG_FLAG_SUPPORTED	0x01 /* Algorithm is supported */
@@ -129,8 +151,6 @@ struct crypt_op {
 	caddr_t		mac;		/* must be big enough for chosen MAC */
 	caddr_t		iv;
 };
-
-#define CRYPTO_MAX_MAC_LEN	20
 
 /* bignum parameter, in packed bytes, ... */
 struct crparam {
@@ -209,7 +229,8 @@ struct cryptostats {
 struct cryptoini {
 	int		cri_alg;	/* Algorithm to use */
 	int		cri_klen;	/* Key length, in bits */
-	int		cri_rnd;	/* Algorithm rounds, where relevant */
+	int		cri_mlen;	/* Number of bytes we want from the
+					   entire hash. 0 means all. */
 	caddr_t		cri_key;	/* key to use */
 	u_int8_t	cri_iv[EALG_MAX_BLOCK_LEN];	/* IV to use */
 	struct cryptoini *cri_next;
@@ -233,7 +254,6 @@ struct cryptodesc {
 	struct cryptoini	CRD_INI; /* Initialization/context data */
 #define crd_iv		CRD_INI.cri_iv
 #define crd_key		CRD_INI.cri_key
-#define crd_rnd		CRD_INI.cri_rnd
 #define crd_alg		CRD_INI.cri_alg
 #define crd_klen	CRD_INI.cri_klen
 
@@ -274,7 +294,6 @@ struct cryptop {
 
 	int (*crp_callback)(struct cryptop *); /* Callback function */
 
-	caddr_t		crp_mac;
 	struct bintime	crp_tstamp;	/* performance time stamp */
 };
 
@@ -302,9 +321,17 @@ struct cryptkop {
 	int		(*krp_callback)(struct cryptkop *);
 };
 
-/* Crypto capabilities structure */
+/*
+ * Crypto capabilities structure.
+ *
+ * Synchronization:
+ * (d) - protected by CRYPTO_DRIVER_LOCK()
+ * (q) - protected by CRYPTO_Q_LOCK()
+ * Not tagged fields are read-only.
+ */
 struct cryptocap {
-	u_int32_t	cc_sessions;
+	u_int32_t	cc_sessions;		/* (d) number of sessions */
+	u_int32_t	cc_koperations;		/* (d) number os asym operations */
 
 	/*
 	 * Largest possible operator length (in bits) for each type of
@@ -316,12 +343,12 @@ struct cryptocap {
 
 	u_int8_t	cc_kalg[CRK_ALGORITHM_MAX + 1];
 
-	u_int8_t	cc_flags;
-	u_int8_t	cc_qblocked;		/* symmetric q blocked */
-	u_int8_t	cc_kqblocked;		/* asymmetric q blocked */
+	u_int8_t	cc_flags;		/* (d) flags */
 #define CRYPTOCAP_F_CLEANUP	0x01		/* needs resource cleanup */
 #define CRYPTOCAP_F_SOFTWARE	0x02		/* software implementation */
 #define CRYPTOCAP_F_SYNC	0x04		/* operates synchronously */
+	u_int8_t	cc_qblocked;		/* (q) symmetric q blocked */
+	u_int8_t	cc_kqblocked;		/* (q) asymmetric q blocked */
 
 	void		*cc_arg;		/* callback argument */
 	int		(*cc_newsession)(void*, u_int32_t*, struct cryptoini*);
@@ -384,5 +411,14 @@ struct uio;
 extern	void cuio_copydata(struct uio* uio, int off, int len, caddr_t cp);
 extern	void cuio_copyback(struct uio* uio, int off, int len, caddr_t cp);
 extern	struct iovec *cuio_getptr(struct uio *uio, int loc, int *off);
+extern	int cuio_apply(struct uio *uio, int off, int len,
+	    int (*f)(void *, void *, u_int), void *arg);
+
+extern	void crypto_copyback(int flags, caddr_t buf, int off, int size,
+	    caddr_t in);
+extern	void crypto_copydata(int flags, caddr_t buf, int off, int size,
+	    caddr_t out);
+extern	int crypto_apply(int flags, caddr_t buf, int off, int len,
+	    int (*f)(void *, void *, u_int), void *arg);
 #endif /* _KERNEL */
 #endif /* _CRYPTO_CRYPTO_H_ */
