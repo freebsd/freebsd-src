@@ -879,6 +879,15 @@ getnewvnode(tag, mp, vops, vpp)
 	 * Wait for available vnodes.
 	 */
 	if (numvnodes > desiredvnodes) {
+		if (mp != NULL && (mp->mnt_kern_flag & MNTK_SUSPEND)) {
+			/*
+			 * File system is beeing suspended, we cannot risk a
+			 * deadlock here, so allocate new vnode anyway.
+			 */
+			if (freevnodes > wantfreevnodes)
+				vnlru_free(freevnodes - wantfreevnodes);
+			goto alloc;
+		}
 		if (vnlruproc_sig == 0) {
 			vnlruproc_sig = 1;      /* avoid unnecessary wakeups */
 			wakeup(vnlruproc);
@@ -892,6 +901,7 @@ getnewvnode(tag, mp, vops, vpp)
 		}
 #endif
 	}
+alloc:
 	numvnodes++;
 	mtx_unlock(&vnode_free_list_mtx);
 	vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK|M_ZERO);
