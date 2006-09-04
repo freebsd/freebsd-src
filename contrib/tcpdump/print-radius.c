@@ -44,7 +44,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "$Id: print-radius.c,v 1.27 2004/07/21 21:45:47 guy Exp $";
+    "$Id: print-radius.c,v 1.27.2.1 2005/09/26 01:02:40 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -454,9 +454,15 @@ print_attr_string(register u_char *data, u_int length, u_short attr_code )
    switch(attr_code)
    {
       case TUNNEL_PASS:
+           if (length < 3)
+           {
+              printf(" [|radius]");
+              return;
+           }
            if (*data && (*data <=0x1F) )
               printf("Tag %u, ",*data);
            data++;
+           length--;
            printf("Salt %u ",EXTRACT_16BITS(data) );
            data+=2;
            length-=2;
@@ -469,6 +475,11 @@ print_attr_string(register u_char *data, u_int length, u_short attr_code )
       case TUNNEL_SERVER_AUTH:
            if (*data <= 0x1F)
            {
+              if (length < 1)
+              {
+                 printf(" [|radius]");
+                 return;
+              }
               printf("Tag %u",*data);
               data++;
               length--;
@@ -482,7 +493,7 @@ print_attr_string(register u_char *data, u_int length, u_short attr_code )
    return;
 
    trunc:
-      printf("|radius");
+      printf(" [|radius]");
 }
 
 /*
@@ -497,7 +508,9 @@ print_vendor_attr(register u_char *data, u_int length, u_short attr_code _U_)
     u_int vendor_type;
     u_int vendor_length;
 
-    /* FIXME: all sort of boundary checks */
+    if (length < 4)
+        goto trunc;
+    TCHECK2(*data, 4);
     vendor_id = EXTRACT_32BITS(data);
     data+=4;
     length-=4;
@@ -507,15 +520,29 @@ print_vendor_attr(register u_char *data, u_int length, u_short attr_code _U_)
            vendor_id);
 
     while (length >= 2) {
-	if(!TTEST2(*data, 2)) 
-		return;
+	TCHECK2(*data, 2);
 
         vendor_type = *(data);
         vendor_length = *(data+1);
 
+        if (vendor_length < 2)
+        {
+            printf("\n\t    Vendor Attribute: %u, Length: %u (bogus, must be >= 2)",
+                   vendor_type,
+                   vendor_length);
+            return;
+        }
+        if (vendor_length > length)
+        {
+            printf("\n\t    Vendor Attribute: %u, Length: %u (bogus, goes past end of vendor-specific attribute)",
+                   vendor_type,
+                   vendor_length);
+            return;
+        }
         data+=2;
-	if(!TTEST2(*data, vendor_length))
-		return;
+        vendor_length-=2;
+        length-=2;
+	TCHECK2(*data, vendor_length);
 
         printf("\n\t    Vendor Attribute: %u, Length: %u, Value: ",
                vendor_type,
@@ -524,6 +551,10 @@ print_vendor_attr(register u_char *data, u_int length, u_short attr_code _U_)
             printf("%c",(*data < 32 || *data > 128) ? '.' : *data );
         length-=vendor_length;
     }
+    return;
+
+   trunc:
+     printf(" [|radius]");
 }
 
 
@@ -640,7 +671,7 @@ print_attr_num(register u_char *data, u_int length, u_short attr_code )
    return;
 
    trunc:
-     printf("|radius}");
+     printf(" [|radius]");
 }
 
 
@@ -683,7 +714,7 @@ print_attr_address(register u_char *data, u_int length, u_short attr_code )
    return;
 
    trunc:
-     printf("|radius");
+     printf(" [|radius]");
 }
 
 
@@ -716,7 +747,7 @@ static void print_attr_time(register u_char *data, u_int length, u_short attr_co
    return;
 
    trunc:
-     printf("|radius");
+     printf(" [|radius]");
 }
 
 
@@ -774,8 +805,8 @@ static void print_attr_strange(register u_char *data, u_int length, u_short attr
            len_data = 4;
            PRINT_HEX(len_data, data);
            printf(", Current Time: ");
-           len_data = 4;
            TCHECK2(data[0],4);
+           len_data = 4;
            PRINT_HEX(len_data, data);
         break;
 
@@ -790,63 +821,72 @@ static void print_attr_strange(register u_char *data, u_int length, u_short attr
            PRINT_HEX(len_data, data);
         break;
    }
+   return;
 
    trunc:
-     printf("|radius}");
+     printf(" [|radius]");
 }
 
 
 
 static void
-radius_attr_print(register const u_char *attr, u_int length)
+radius_attrs_print(register const u_char *attr, u_int length)
 {
    register const struct radius_attr *rad_attr = (struct radius_attr *)attr;
-
-   if (length < 3)
-   {
-      printf(" [|radius]");
-      return;
-   }
+   const char *attr_string;
 
    while (length > 0)
    {
-     if (rad_attr->len == 0 && rad_attr->type < (TAM_SIZE(attr_type)-1))
+     if (length < 2)
+        goto trunc;
+     TCHECK(*rad_attr);
+     
+     if (rad_attr->type > 0 && rad_attr->type < TAM_SIZE(attr_type))
+	attr_string = attr_type[rad_attr->type].name;
+     else
+	attr_string = "Unknown";
+     if (rad_attr->len < 2)
      {
-	printf("\n\t  %s Attribute (%u), zero-length",
-               attr_type[rad_attr->type].name,
-               rad_attr->type);
+	printf("\n\t  %s Attribute (%u), length: %u (bogus, must be >= 2)",
+               attr_string,
+               rad_attr->type,
+               rad_attr->len);
 	return;
      }
-     if ( rad_attr->len <= length && rad_attr->type < (TAM_SIZE(attr_type)-1))
+     if (rad_attr->len > length)
      {
-         printf("\n\t  %s Attribute (%u), length: %u, Value: ",
-                attr_type[rad_attr->type].name,
-                rad_attr->type,
-                rad_attr->len);
-
-         if ( !rad_attr->type || (rad_attr->type > (TAM_SIZE(attr_type)-1))  ) {
-         }
-         else {             
-             if (rad_attr->len > 2)
-             {
-                 if ( attr_type[rad_attr->type].print_func )
-                     (*attr_type[rad_attr->type].print_func)(
-                         ((u_char *)(rad_attr+1)),
-                         rad_attr->len - 2, rad_attr->type);
-             }
-         }
-     }
-     else {
-        printf(" [|radius]");
+	printf("\n\t  %s Attribute (%u), length: %u (bogus, goes past end of packet)",
+               attr_string,
+               rad_attr->type,
+               rad_attr->len);
         return;
      }
+     printf("\n\t  %s Attribute (%u), length: %u, Value: ",
+            attr_string,
+            rad_attr->type,
+            rad_attr->len);
+
+     if (rad_attr->type < TAM_SIZE(attr_type))
+     {
+         if (rad_attr->len > 2)
+         {
+             if ( attr_type[rad_attr->type].print_func )
+                 (*attr_type[rad_attr->type].print_func)(
+                     ((u_char *)(rad_attr+1)),
+                     rad_attr->len - 2, rad_attr->type);
+         }
+     }
      /* do we also want to see a hex dump ? */
-     if (vflag> 1 && rad_attr->len >= 2)
+     if (vflag> 1)
          print_unknown_data((u_char *)rad_attr+2,"\n\t    ",(rad_attr->len)-2);
 
      length-=(rad_attr->len);
      rad_attr = (struct radius_attr *)( ((char *)(rad_attr))+rad_attr->len);
    }
+   return;
+
+trunc:
+   printf(" [|radius]");
 }
 
 
@@ -854,24 +894,9 @@ void
 radius_print(const u_char *dat, u_int length)
 {
    register const struct radius_hdr *rad;
-   register u_int i;
    u_int len, auth_idx;
 
-   if (snapend < dat)
-   {
-	  printf(" [|radius]");
-	  return;
-   }
-   i = snapend - dat;
-   if (i > length)
-	  i = length;
-
-   if (i < MIN_RADIUS_LEN)
-   {
-	  printf(" [|radius]");
-	  return;
-   }
-
+   TCHECK2(*dat, MIN_RADIUS_LEN);
    rad = (struct radius_hdr *)dat;
    len = EXTRACT_16BITS(&rad->len);
 
@@ -881,22 +906,20 @@ radius_print(const u_char *dat, u_int length)
 	  return;
    }
 
-   if (len < i)
-	  i = len;
-
-   i -= MIN_RADIUS_LEN;
+   if (len > length)
+	  len = length;
 
    if (vflag < 1) {
        printf("RADIUS, %s (%u), id: 0x%02x length: %u",
               tok2str(radius_command_values,"Unknown Command",rad->code),
               rad->code,
               rad->id,
-              length);
+              len);
        return;
    }
    else {
        printf("RADIUS, length: %u\n\t%s (%u), id: 0x%02x, Authenticator: ",
-              length,
+              len,
               tok2str(radius_command_values,"Unknown Command",rad->code),
               rad->code,
               rad->id);
@@ -905,6 +928,10 @@ radius_print(const u_char *dat, u_int length)
             printf("%02x", rad->auth[auth_idx] );
    }
 
-   if (i)
-      radius_attr_print( dat + MIN_RADIUS_LEN, i);
+   if (len > MIN_RADIUS_LEN)
+      radius_attrs_print( dat + MIN_RADIUS_LEN, len - MIN_RADIUS_LEN);
+   return;
+
+trunc:
+   printf(" [|radius]");
 }
