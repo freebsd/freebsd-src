@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/errno.h>
-#include <sys/uio.h>
 #include <sys/random.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
@@ -71,10 +70,8 @@ struct csession {
 
 	caddr_t		mackey;
 	int		mackeylen;
-	u_char		tmp_mac[CRYPTO_MAX_MAC_LEN];
 
-	struct iovec	iovec;
-	struct uio	uio;
+	caddr_t		buf;
 	int		error;
 };
 
@@ -190,25 +187,22 @@ cryptof_ioctl(
 		case 0:
 			break;
 		case CRYPTO_MD5_HMAC:
-			thash = &auth_hash_hmac_md5_96;
+			thash = &auth_hash_hmac_md5;
 			break;
 		case CRYPTO_SHA1_HMAC:
-			thash = &auth_hash_hmac_sha1_96;
+			thash = &auth_hash_hmac_sha1;
 			break;
-		case CRYPTO_SHA2_HMAC:
-			if (sop->mackeylen == auth_hash_hmac_sha2_256.keysize)
-				thash = &auth_hash_hmac_sha2_256;
-			else if (sop->mackeylen == auth_hash_hmac_sha2_384.keysize)
-				thash = &auth_hash_hmac_sha2_384;
-			else if (sop->mackeylen == auth_hash_hmac_sha2_512.keysize)
-				thash = &auth_hash_hmac_sha2_512;
-			else {
-				mtx_unlock(&Giant);
-				return (EINVAL);
-			}
+		case CRYPTO_SHA2_256_HMAC:
+			thash = &auth_hash_hmac_sha2_256;
+			break;
+		case CRYPTO_SHA2_384_HMAC:
+			thash = &auth_hash_hmac_sha2_384;
+			break;
+		case CRYPTO_SHA2_512_HMAC:
+			thash = &auth_hash_hmac_sha2_512;
 			break;
 		case CRYPTO_RIPEMD160_HMAC:
-			thash = &auth_hash_hmac_ripemd_160_96;
+			thash = &auth_hash_hmac_ripemd_160;
 			break;
 #ifdef notdef
 		case CRYPTO_MD5:
@@ -265,8 +259,14 @@ cryptof_ioctl(
 		}
 
 		error = crypto_newsession(&sid, (txform ? &crie : &cria), 1);
-		if (error)
-			goto bail;
+		if (error) {
+			if (crypto_devallowsoft) {
+				error = crypto_newsession(&sid,
+				    (txform ? &crie : &cria), 0);
+			}
+			if (error)
+				goto bail;
+		}
 
 		cse = csecreate(fcr, sid, crie.cri_key, crie.cri_klen,
 		    cria.cri_key, cria.cri_klen, sop->cipher, sop->mac, txform,
@@ -331,7 +331,7 @@ cryptodev_op(
 {
 	struct cryptop *crp = NULL;
 	struct cryptodesc *crde = NULL, *crda = NULL;
-	int error;
+	int error, len;
 
 	if (cop->len > 256*1024-4)
 		return (E2BIG);
@@ -341,15 +341,9 @@ cryptodev_op(
 			return (EINVAL);
 	}
 
-	cse->uio.uio_iov = &cse->iovec;
-	cse->uio.uio_iovcnt = 1;
-	cse->uio.uio_offset = 0;
-	cse->uio.uio_resid = cop->len;
-	cse->uio.uio_segflg = UIO_SYSSPACE;
-	cse->uio.uio_rw = UIO_WRITE;
-	cse->uio.uio_td = td;
-	cse->uio.uio_iov[0].iov_len = cop->len;
-	cse->uio.uio_iov[0].iov_base = malloc(cop->len, M_XDATA, M_WAITOK);
+	len = cop->len + (cse->thash ? cse->thash->hashsize : 0);
+
+	cse->buf = malloc(len, M_XDATA, M_WAITOK);
 
 	crp = crypto_getreq((cse->txform != NULL) + (cse->thash != NULL));
 	if (crp == NULL) {
@@ -370,13 +364,13 @@ cryptodev_op(
 		}
 	}
 
-	if ((error = copyin(cop->src, cse->uio.uio_iov[0].iov_base, cop->len)))
+	if ((error = copyin(cop->src, cse->buf, cop->len)))
 		goto bail;
 
 	if (crda) {
 		crda->crd_skip = 0;
 		crda->crd_len = cop->len;
-		crda->crd_inject = 0;	/* ??? */
+		crda->crd_inject = cop->len;
 
 		crda->crd_alg = cse->mac;
 		crda->crd_key = cse->mackey;
@@ -396,10 +390,9 @@ cryptodev_op(
 		crde->crd_klen = cse->keylen * 8;
 	}
 
-	crp->crp_ilen = cop->len;
-	crp->crp_flags = CRYPTO_F_IOV | CRYPTO_F_CBIMM
-		       | (cop->flags & COP_F_BATCH);
-	crp->crp_buf = (caddr_t)&cse->uio;
+	crp->crp_ilen = len;
+	crp->crp_flags = CRYPTO_F_CBIMM | (cop->flags & COP_F_BATCH);
+	crp->crp_buf = cse->buf;
 	crp->crp_callback = (int (*) (struct cryptop *)) cryptodev_cb;
 	crp->crp_sid = cse->sid;
 	crp->crp_opaque = (void *)cse;
@@ -426,12 +419,9 @@ cryptodev_op(
 		crde->crd_len -= cse->txform->blocksize;
 	}
 
-	if (cop->mac) {
-		if (crda == NULL) {
-			error = EINVAL;
-			goto bail;
-		}
-		crp->crp_mac=cse->tmp_mac;
+	if (cop->mac && crda == NULL) {
+		error = EINVAL;
+		goto bail;
 	}
 
 	/*
@@ -460,19 +450,18 @@ cryptodev_op(
 		goto bail;
 	}
 
-	if (cop->dst &&
-	    (error = copyout(cse->uio.uio_iov[0].iov_base, cop->dst, cop->len)))
+	if (cop->dst && (error = copyout(cse->buf, cop->dst, cop->len)))
 		goto bail;
 
-	if (cop->mac &&
-	    (error = copyout(crp->crp_mac, cop->mac, cse->thash->authsize)))
+	if (cop->mac && (error = copyout(cse->buf + cop->len, cop->mac,
+	    cse->thash->hashsize))) {
 		goto bail;
+	}
 
 bail:
 	if (crp)
 		crypto_freereq(crp);
-	if (cse->uio.uio_iov[0].iov_base)
-		free(cse->uio.uio_iov[0].iov_base, M_XDATA);
+	free(cse->buf, M_XDATA);
 
 	return (error);
 }
