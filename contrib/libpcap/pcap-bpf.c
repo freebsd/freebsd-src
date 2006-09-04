@@ -17,6 +17,8 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * $FreeBSD$
  */
 #ifndef lint
 static const char rcsid[] _U_ =
@@ -746,7 +748,7 @@ pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
 		u_int i;
 		int is_ethernet;
 
-		bdl.bfl_list = (u_int *) malloc(sizeof(u_int) * bdl.bfl_len + 1);
+		bdl.bfl_list = (u_int *) malloc(sizeof(u_int) * (bdl.bfl_len + 1));
 		if (bdl.bfl_list == NULL) {
 			(void)snprintf(ebuf, PCAP_ERRBUF_SIZE, "malloc: %s",
 			    pcap_strerror(errno));
