@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,8 @@ __FBSDID("$FreeBSD$");
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_ELI_VERSION;
 
-static char algo[] = "aes";
+static char aalgo[] = "none";
+static char ealgo[] = "aes";
 static intmax_t keylen = 0;
 static intmax_t keyno = -1;
 static intmax_t iterations = -1;
@@ -75,12 +76,12 @@ static void eli_dump(struct gctl_req *req);
 /*
  * Available commands:
  *
- * init [-bhPv] [-a algo] [-i iterations] [-l keylen] [-K newkeyfile] prov
+ * init [-bhPv] [-a aalgo] [-e ealgo] [-i iterations] [-l keylen] [-K newkeyfile] prov
  * label - alias for 'init'
- * attach [-dpv] [-k keyfile] prov
+ * attach [-dprv] [-k keyfile] prov
  * detach [-fl] prov ...
  * stop - alias for 'detach'
- * onetime [-d] [-a algo] [-l keylen] prov ...
+ * onetime [-d] [-a aalgo] [-e ealgo] [-l keylen] prov ...
  * setkey [-pPv] [-n keyno] [-k keyfile] [-K newkeyfile] prov
  * delkey [-afv] [-n keyno] prov
  * kill [-av] [prov ...]
@@ -92,8 +93,9 @@ static void eli_dump(struct gctl_req *req);
 struct g_command class_commands[] = {
 	{ "init", G_FLAG_VERBOSE, eli_main,
 	    {
-		{ 'a', "algo", algo, G_TYPE_STRING },
+		{ 'a', "aalgo", aalgo, G_TYPE_STRING },
 		{ 'b', "boot", NULL, G_TYPE_NONE },
+		{ 'e', "ealgo", ealgo, G_TYPE_STRING },
 		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
 		{ 'K', "newkeyfile", newkeyfile, G_TYPE_STRING },
 		{ 'l', "keylen", &keylen, G_TYPE_NUMBER },
@@ -101,12 +103,13 @@ struct g_command class_commands[] = {
 		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-bPv] [-a algo] [-i iterations] [-l keylen] [-K newkeyfile] [-s sectorsize] prov"
+	    "[-bPv] [-a aalgo] [-e ealgo] [-i iterations] [-l keylen] [-K newkeyfile] [-s sectorsize] prov"
 	},
 	{ "label", G_FLAG_VERBOSE, eli_main,
 	    {
-		{ 'a', "algo", algo, G_TYPE_STRING },
+		{ 'a', "aalgo", aalgo, G_TYPE_STRING },
 		{ 'b', "boot", NULL, G_TYPE_NONE },
+		{ 'e', "ealgo", ealgo, G_TYPE_STRING },
 		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
 		{ 'K', "newkeyfile", newkeyfile, G_TYPE_STRING },
 		{ 'l', "keylen", &keylen, G_TYPE_NUMBER },
@@ -121,9 +124,10 @@ struct g_command class_commands[] = {
 		{ 'd', "detach", NULL, G_TYPE_NONE },
 		{ 'k', "keyfile", keyfile, G_TYPE_STRING },
 		{ 'p', "nopassphrase", NULL, G_TYPE_NONE },
+		{ 'r', "readonly", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
 	    },
-	    "[-dpv] [-k keyfile] prov"
+	    "[-dprv] [-k keyfile] prov"
 	},
 	{ "detach", 0, NULL,
 	    {
@@ -143,13 +147,14 @@ struct g_command class_commands[] = {
 	},
 	{ "onetime", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL,
 	    {
-		{ 'a', "algo", algo, G_TYPE_STRING },
+		{ 'a', "aalgo", aalgo, G_TYPE_STRING },
 		{ 'd', "detach", NULL, G_TYPE_NONE },
+		{ 'e', "ealgo", ealgo, G_TYPE_STRING },
 		{ 'l', "keylen", &keylen, G_TYPE_NUMBER },
 		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-d] [-a algo] [-l keylen] [-s sectorsize] prov ..."
+	    "[-d] [-a aalgo] [-e ealgo] [-l keylen] [-s sectorsize] prov ..."
 	},
 	{ "setkey", G_FLAG_VERBOSE, eli_main,
 	    {
@@ -389,7 +394,7 @@ eli_genkey(struct gctl_req *req, struct g_eli_metadata *md, unsigned char *key,
 			}
 		}
 		/*
-		 * If md_iterations is equal to 0, user don't want PKCS5v2.
+		 * If md_iterations is equal to 0, user don't want PKCS#5v2.
 		 */
 		if (md->md_iterations == 0) {
 			g_eli_crypto_hmac_update(&ctx, md->md_salt,
@@ -523,16 +528,44 @@ eli_init(struct gctl_req *req)
 	md.md_flags = 0;
 	if (gctl_get_int(req, "boot"))
 		md.md_flags |= G_ELI_FLAG_BOOT;
-	str = gctl_get_ascii(req, "algo");
-	md.md_algo = g_eli_str2algo(str);
-	if (md.md_algo < CRYPTO_ALGORITHM_MIN ||
-	    md.md_algo > CRYPTO_ALGORITHM_MAX) {
-		gctl_error(req, "Invalid encryption algorithm.");
-		return;
+	md.md_ealgo = CRYPTO_ALGORITHM_MIN - 1;
+	str = gctl_get_ascii(req, "aalgo");
+	if (strcmp(str, "none") != 0) {
+		md.md_aalgo = g_eli_str2aalgo(str);
+		if (md.md_aalgo >= CRYPTO_ALGORITHM_MIN &&
+		    md.md_aalgo <= CRYPTO_ALGORITHM_MAX) {
+			md.md_flags |= G_ELI_FLAG_AUTH;
+		} else {
+			/*
+			 * For backward compatibility, check if the -a option
+			 * was used to provide encryption algorithm.
+			 */
+			md.md_ealgo = g_eli_str2ealgo(str);
+			if (md.md_ealgo < CRYPTO_ALGORITHM_MIN ||
+			    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
+				gctl_error(req,
+				    "Invalid authentication algorithm.");
+				return;
+			} else {
+				fprintf(stderr, "warning: The -e option, not "
+				    "the -a option is now used to specify "
+				    "encryption algorithm to use.\n");
+			}
+		}
+	}
+	if (md.md_ealgo < CRYPTO_ALGORITHM_MIN ||
+	    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
+		str = gctl_get_ascii(req, "ealgo");
+		md.md_ealgo = g_eli_str2ealgo(str);
+		if (md.md_ealgo < CRYPTO_ALGORITHM_MIN ||
+		    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
+			gctl_error(req, "Invalid encryption algorithm.");
+			return;
+		}
 	}
 	val = gctl_get_intmax(req, "keylen");
 	md.md_keylen = val;
-	md.md_keylen = g_eli_keylen(md.md_algo, md.md_keylen);
+	md.md_keylen = g_eli_keylen(md.md_ealgo, md.md_keylen);
 	if (md.md_keylen == 0) {
 		gctl_error(req, "Invalid key length.");
 		return;
@@ -579,7 +612,7 @@ eli_init(struct gctl_req *req)
 	}
 
 	/* Encrypt the first and the only Master Key. */
-	error = g_eli_mkey_encrypt(md.md_algo, key, md.md_keylen, md.md_mkeys);
+	error = g_eli_mkey_encrypt(md.md_ealgo, key, md.md_keylen, md.md_mkeys);
 	bzero(key, sizeof(key));
 	if (error != 0) {
 		bzero(&md, sizeof(md));
@@ -733,7 +766,7 @@ eli_setkey_detached(struct gctl_req *req, const char *prov,
 	}
 
 	/* Encrypt the Master-Key with the new key. */
-	error = g_eli_mkey_encrypt(md->md_algo, key, md->md_keylen, mkeydst);
+	error = g_eli_mkey_encrypt(md->md_ealgo, key, md->md_keylen, mkeydst);
 	bzero(key, sizeof(key));
 	if (error != 0) {
 		bzero(md, sizeof(*md));

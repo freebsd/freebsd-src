@@ -57,7 +57,7 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 	struct g_provider *pp;
 	const char *name;
 	u_char *key, mkey[G_ELI_DATAIVKEYLEN];
-	int *nargs, *detach;
+	int *nargs, *detach, *readonly;
 	int keysize, error;
 	u_int nkey;
 
@@ -76,6 +76,12 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 	detach = gctl_get_paraml(req, "detach", sizeof(*detach));
 	if (detach == NULL) {
 		gctl_error(req, "No '%s' argument.", "detach");
+		return;
+	}
+
+	readonly = gctl_get_paraml(req, "readonly", sizeof(*readonly));
+	if (readonly == NULL) {
+		gctl_error(req, "No '%s' argument.", "readonly");
 		return;
 	}
 
@@ -124,8 +130,16 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 	}
 	G_ELI_DEBUG(1, "Using Master Key %u for %s.", nkey, pp->name);
 
+	if (*detach && *readonly) {
+		bzero(&md, sizeof(md));
+		gctl_error(req, "Options -d and -r are mutually exclusive.",
+		    pp->name, error);
+		return;
+	}
 	if (*detach)
 		md.md_flags |= G_ELI_FLAG_WO_DETACH;
+	if (*readonly)
+		md.md_flags |= G_ELI_FLAG_RO;
 	g_eli_create(req, mp, pp, &md, mkey, nkey);
 	bzero(mkey, sizeof(mkey));
 	bzero(&md, sizeof(md));
@@ -250,16 +264,49 @@ g_eli_ctl_onetime(struct gctl_req *req, struct g_class *mp)
 	if (*detach)
 		md.md_flags |= G_ELI_FLAG_WO_DETACH;
 
-	name = gctl_get_asciiparam(req, "algo");
+	md.md_ealgo = CRYPTO_ALGORITHM_MIN - 1;
+	name = gctl_get_asciiparam(req, "aalgo");
 	if (name == NULL) {
-		gctl_error(req, "No '%s' argument.", "algo");
+		gctl_error(req, "No '%s' argument.", "aalgo");
 		return;
 	}
-	md.md_algo = g_eli_str2algo(name);
-	if (md.md_algo < CRYPTO_ALGORITHM_MIN ||
-	    md.md_algo > CRYPTO_ALGORITHM_MAX) {
-		gctl_error(req, "Invalid '%s' argument.", "algo");
-		return;
+	if (strcmp(name, "none") != 0) {
+		md.md_aalgo = g_eli_str2aalgo(name);
+		if (md.md_aalgo >= CRYPTO_ALGORITHM_MIN &&
+		    md.md_aalgo <= CRYPTO_ALGORITHM_MAX) {
+			md.md_flags |= G_ELI_FLAG_AUTH;
+		} else {
+			/*
+			 * For backward compatibility, check if the -a option
+			 * was used to provide encryption algorithm.
+			 */
+			md.md_ealgo = g_eli_str2ealgo(name);
+			if (md.md_ealgo < CRYPTO_ALGORITHM_MIN ||
+			    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
+				gctl_error(req,
+				    "Invalid authentication algorithm.");
+				return;
+			} else {
+				gctl_error(req, "warning: The -e option, not "
+				    "the -a option is now used to specify "
+				    "encryption algorithm to use.");
+			}
+		}
+	}
+
+	if (md.md_ealgo < CRYPTO_ALGORITHM_MIN ||
+	    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
+		name = gctl_get_asciiparam(req, "ealgo");
+		if (name == NULL) {
+			gctl_error(req, "No '%s' argument.", "ealgo");
+			return;
+		}
+		md.md_ealgo = g_eli_str2ealgo(name);
+		if (md.md_ealgo < CRYPTO_ALGORITHM_MIN ||
+		    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
+			gctl_error(req, "Invalid encryption algorithm.");
+			return;
+		}
 	}
 
 	keylen = gctl_get_paraml(req, "keylen", sizeof(*keylen));
@@ -267,7 +314,7 @@ g_eli_ctl_onetime(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No '%s' argument.", "keylen");
 		return;
 	}
-	md.md_keylen = g_eli_keylen(md.md_algo, *keylen);
+	md.md_keylen = g_eli_keylen(md.md_ealgo, *keylen);
 	if (md.md_keylen == 0) {
 		gctl_error(req, "Invalid '%s' argument.", "keylen");
 		return;
@@ -341,6 +388,10 @@ g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "Provider %s is invalid.", name);
 		return;
 	}
+	if (sc->sc_flags & G_ELI_FLAG_RO) {
+		gctl_error(req, "Cannot change keys for read-only provider.");
+		return;
+	}
 	cp = LIST_FIRST(&sc->sc_geom->consumer);
 	pp = cp->provider;
 
@@ -395,12 +446,10 @@ g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 	mkeydst = md.md_mkeys + nkey * G_ELI_MKEYLEN;
 	md.md_keys |= (1 << nkey);
 
-	bcopy(sc->sc_ivkey, mkeydst, sizeof(sc->sc_ivkey));
-	bcopy(sc->sc_datakey, mkeydst + sizeof(sc->sc_ivkey),
-	    sizeof(sc->sc_datakey));
+	bcopy(sc->sc_mkey, mkeydst, sizeof(sc->sc_mkey));
 
 	/* Encrypt Master Key with the new key. */
-	error = g_eli_mkey_encrypt(md.md_algo, key, md.md_keylen, mkeydst);
+	error = g_eli_mkey_encrypt(md.md_ealgo, key, md.md_keylen, mkeydst);
 	bzero(key, sizeof(key));
 	if (error != 0) {
 		bzero(&md, sizeof(md));
@@ -450,6 +499,10 @@ g_eli_ctl_delkey(struct gctl_req *req, struct g_class *mp)
 	sc = g_eli_find_device(mp, name);
 	if (sc == NULL) {
 		gctl_error(req, "Provider %s is invalid.", name);
+		return;
+	}
+	if (sc->sc_flags & G_ELI_FLAG_RO) {
+		gctl_error(req, "Cannot delete keys for read-only provider.");
 		return;
 	}
 	cp = LIST_FIRST(&sc->sc_geom->consumer);
@@ -534,9 +587,7 @@ g_eli_kill_one(struct g_eli_softc *sc)
 {
 	struct g_provider *pp;
 	struct g_consumer *cp;
-	u_char *sector;
-	int err, error = 0;
-	u_int i;
+	int error = 0;
 
 	g_topology_assert();
 
@@ -549,22 +600,31 @@ g_eli_kill_one(struct g_eli_softc *sc)
 	cp = LIST_FIRST(&sc->sc_geom->consumer);
 	pp = cp->provider;
 
-	sector = malloc(pp->sectorsize, M_ELI, M_WAITOK);
-	for (i = 0; i <= g_eli_overwrites; i++) {
-		if (i == g_eli_overwrites)
-			bzero(sector, pp->sectorsize);
-		else
-			arc4rand(sector, pp->sectorsize, 0);
-		err = g_write_data(cp, pp->mediasize - pp->sectorsize, sector,
-		    pp->sectorsize);
-		if (err != 0) {
-			G_ELI_DEBUG(0, "Cannot erase metadata on %s "
-			    "(error=%d).", pp->name, err);
-			if (error == 0)
-				error = err;
+	if (sc->sc_flags & G_ELI_FLAG_RO) {
+		G_ELI_DEBUG(0, "WARNING: Metadata won't be erased on read-only "
+		    "provider: %s.", pp->name);
+	} else {
+		u_char *sector;
+		u_int i;
+		int err;
+
+		sector = malloc(pp->sectorsize, M_ELI, M_WAITOK);
+		for (i = 0; i <= g_eli_overwrites; i++) {
+			if (i == g_eli_overwrites)
+				bzero(sector, pp->sectorsize);
+			else
+				arc4rand(sector, pp->sectorsize, 0);
+			err = g_write_data(cp, pp->mediasize - pp->sectorsize,
+			    sector, pp->sectorsize);
+			if (err != 0) {
+				G_ELI_DEBUG(0, "Cannot erase metadata on %s "
+				    "(error=%d).", pp->name, err);
+				if (error == 0)
+					error = err;
+			}
 		}
+		free(sector, M_ELI);
 	}
-	free(sector, M_ELI);
 	if (error == 0)
 		G_ELI_DEBUG(0, "%s has been killed.", pp->name);
 	g_eli_destroy(sc, 1);
