@@ -59,6 +59,7 @@ static	int crypto_drivers_num = 0;
  * have one per-queue but having one simplifies handling of block/unblock
  * operations.
  */
+static	int crp_sleep = 0;
 static	TAILQ_HEAD(,cryptop) crp_q;		/* request queues */
 static	TAILQ_HEAD(,cryptkop) crp_kq;
 static	struct mtx crypto_q_mtx;
@@ -78,6 +79,7 @@ static	TAILQ_HEAD(,cryptkop) crp_ret_kq;
 static	struct mtx crypto_ret_q_mtx;
 #define	CRYPTO_RETQ_LOCK()	mtx_lock(&crypto_ret_q_mtx)
 #define	CRYPTO_RETQ_UNLOCK()	mtx_unlock(&crypto_ret_q_mtx)
+#define	CRYPTO_RETQ_EMPTY()	(TAILQ_EMPTY(&crp_ret_q) && TAILQ_EMPTY(&crp_ret_kq))
 
 static	uma_zone_t cryptop_zone;
 static	uma_zone_t cryptodesc_zone;
@@ -98,8 +100,8 @@ static	struct proc *cryptoproc;
 static	void crypto_ret_proc(void);
 static	struct proc *cryptoretproc;
 static	void crypto_destroy(void);
-static	int crypto_invoke(struct cryptop *crp, int hint);
-static	int crypto_kinvoke(struct cryptkop *krp, int hint);
+static	int crypto_invoke(struct cryptocap *cap, struct cryptop *crp, int hint);
+static	int crypto_kinvoke(struct cryptkop *krp);
 
 static	struct cryptostats cryptostats;
 SYSCTL_STRUCT(_kern, OID_AUTO, crypto_stats, CTLFLAG_RW, &cryptostats,
@@ -260,8 +262,9 @@ MODULE_DEPEND(crypto, zlib, 1, 1, 1);
 int
 crypto_newsession(u_int64_t *sid, struct cryptoini *cri, int hard)
 {
+	struct cryptocap *cap = NULL;
 	struct cryptoini *cr;
-	u_int32_t hid, lid;
+	u_int32_t hid = 0, lid;
 	int err = EINVAL;
 
 	CRYPTO_DRIVER_LOCK();
@@ -277,55 +280,99 @@ crypto_newsession(u_int64_t *sid, struct cryptoini *cri, int hard)
 	 * XXX another story altogether).
 	 */
 
-	for (hid = 0; hid < crypto_drivers_num; hid++) {
-		struct cryptocap *cap = &crypto_drivers[hid];
-		/*
-		 * If it's not initialized or has remaining sessions
-		 * referencing it, skip.
-		 */
-		if (cap->cc_newsession == NULL ||
-		    (cap->cc_flags & CRYPTOCAP_F_CLEANUP))
-			continue;
-
-		/* Hardware required -- ignore software drivers. */
-		if (hard > 0 && (cap->cc_flags & CRYPTOCAP_F_SOFTWARE))
-			continue;
-		/* Software required -- ignore hardware drivers. */
-		if (hard < 0 && (cap->cc_flags & CRYPTOCAP_F_SOFTWARE) == 0)
-			continue;
-
-		/* See if all the algorithms are supported. */
-		for (cr = cri; cr; cr = cr->cri_next)
-			if (cap->cc_alg[cr->cri_alg] == 0)
-				break;
-
-		if (cr == NULL) {
-			/* Ok, all algorithms are supported. */
-
+	/*
+	 * First try to find hardware crypto.
+	 */
+	if (hard >= 0) {
+		for (hid = 0; hid < crypto_drivers_num; hid++) {
+			cap = &crypto_drivers[hid];
 			/*
-			 * Can't do everything in one session.
-			 *
-			 * XXX Fix this. We need to inject a "virtual" session layer right
-			 * XXX about here.
+			 * If it's not initialized or has remaining sessions
+			 * referencing it, skip.
 			 */
+			if (cap->cc_newsession == NULL ||
+			    (cap->cc_flags & CRYPTOCAP_F_CLEANUP))
+				continue;
 
-			/* Call the driver initialization routine. */
-			lid = hid;		/* Pass the driver ID. */
-			err = (*cap->cc_newsession)(cap->cc_arg, &lid, cri);
-			if (err == 0) {
-				/* XXX assert (hid &~ 0xffffff) == 0 */
-				/* XXX assert (cap->cc_flags &~ 0xff) == 0 */
-				(*sid) = ((cap->cc_flags & 0xff) << 24) | hid;
-				(*sid) <<= 32;
-				(*sid) |= (lid & 0xffffffff);
-				cap->cc_sessions++;
+			/* Hardware required -- ignore software drivers. */
+			if (cap->cc_flags & CRYPTOCAP_F_SOFTWARE)
+				continue;
+
+			/* See if all the algorithms are supported. */
+			for (cr = cri; cr; cr = cr->cri_next)
+				if (cap->cc_alg[cr->cri_alg] == 0)
+					break;
+			if (cr == NULL) {
+				/* Ok, all algorithms are supported. */
+				break;
 			}
-			break;
+		}
+		if (hid == crypto_drivers_num)
+			cap = NULL;
+	}
+	/*
+	 * If no hardware crypto, look for software crypto.
+	 */
+	if (cap == NULL && hard <= 0) {
+		for (hid = 0; hid < crypto_drivers_num; hid++) {
+			cap = &crypto_drivers[hid];
+			/*
+			 * If it's not initialized or has remaining sessions
+			 * referencing it, skip.
+			 */
+			if (cap->cc_newsession == NULL ||
+			    (cap->cc_flags & CRYPTOCAP_F_CLEANUP))
+				continue;
+
+			/* Software required -- ignore hardware drivers. */
+			if (!(cap->cc_flags & CRYPTOCAP_F_SOFTWARE))
+				continue;
+
+			/* See if all the algorithms are supported. */
+			for (cr = cri; cr; cr = cr->cri_next)
+				if (cap->cc_alg[cr->cri_alg] == 0)
+					break;
+			if (cr == NULL) {
+				/* Ok, all algorithms are supported. */
+				break;
+			}
+		}
+		if (hid == crypto_drivers_num)
+			cap = NULL;
+	}
+
+	if (cap != NULL) {
+		/*
+		 * Can't do everything in one session.
+		 *
+		 * XXX Fix this. We need to inject a "virtual" session layer right
+		 * XXX about here.
+		 */
+
+		/* Call the driver initialization routine. */
+		lid = hid;		/* Pass the driver ID. */
+		err = (*cap->cc_newsession)(cap->cc_arg, &lid, cri);
+		if (err == 0) {
+			/* XXX assert (hid &~ 0xffffff) == 0 */
+			/* XXX assert (cap->cc_flags &~ 0xff) == 0 */
+			(*sid) = ((cap->cc_flags & 0xff) << 24) | hid;
+			(*sid) <<= 32;
+			(*sid) |= (lid & 0xffffffff);
+			cap->cc_sessions++;
 		}
 	}
 done:
 	CRYPTO_DRIVER_UNLOCK();
 	return err;
+}
+
+static void
+crypto_remove(struct cryptocap *cap)
+{
+
+	mtx_assert(&crypto_drivers_mtx, MA_OWNED);
+	if (cap->cc_sessions == 0 && cap->cc_koperations == 0)
+		bzero(cap, sizeof(*cap));
 }
 
 /*
@@ -335,6 +382,7 @@ done:
 int
 crypto_freesession(u_int64_t sid)
 {
+	struct cryptocap *cap;
 	u_int32_t hid;
 	int err;
 
@@ -352,24 +400,19 @@ crypto_freesession(u_int64_t sid)
 		err = ENOENT;
 		goto done;
 	}
+	cap = &crypto_drivers[hid];
 
-	if (crypto_drivers[hid].cc_sessions)
-		crypto_drivers[hid].cc_sessions--;
+	if (cap->cc_sessions)
+		cap->cc_sessions--;
 
 	/* Call the driver cleanup routine, if available. */
-	if (crypto_drivers[hid].cc_freesession)
-		err = crypto_drivers[hid].cc_freesession(
-				crypto_drivers[hid].cc_arg, sid);
+	if (cap->cc_freesession)
+		err = cap->cc_freesession(cap->cc_arg, sid);
 	else
 		err = 0;
 
-	/*
-	 * If this was the last session of a driver marked as invalid,
-	 * make the entry available for reuse.
-	 */
-	if ((crypto_drivers[hid].cc_flags & CRYPTOCAP_F_CLEANUP) &&
-	    crypto_drivers[hid].cc_sessions == 0)
-		bzero(&crypto_drivers[hid], sizeof(struct cryptocap));
+	if (cap->cc_flags & CRYPTOCAP_F_CLEANUP)
+		crypto_remove(cap);
 
 done:
 	CRYPTO_DRIVER_UNLOCK();
@@ -388,11 +431,12 @@ crypto_get_driverid(u_int32_t flags)
 
 	CRYPTO_DRIVER_LOCK();
 
-	for (i = 0; i < crypto_drivers_num; i++)
+	for (i = 0; i < crypto_drivers_num; i++) {
 		if (crypto_drivers[i].cc_process == NULL &&
-		    (crypto_drivers[i].cc_flags & CRYPTOCAP_F_CLEANUP) == 0 &&
-		    crypto_drivers[i].cc_sessions == 0)
+		    (crypto_drivers[i].cc_flags & CRYPTOCAP_F_CLEANUP) == 0) {
 			break;
+		}
+	}
 
 	/* Out of entries, allocate some more. */
 	if (i == crypto_drivers_num) {
@@ -543,9 +587,9 @@ crypto_register(u_int32_t driverid, int alg, u_int16_t maxoplen,
 int
 crypto_unregister(u_int32_t driverid, int alg)
 {
-	int i, err;
-	u_int32_t ses;
 	struct cryptocap *cap;
+	u_int32_t ses, kops;
+	int i, err;
 
 	CRYPTO_DRIVER_LOCK();
 
@@ -563,13 +607,15 @@ crypto_unregister(u_int32_t driverid, int alg)
 
 		if (i == CRYPTO_ALGORITHM_MAX + 1) {
 			ses = cap->cc_sessions;
-			bzero(cap, sizeof(struct cryptocap));
-			if (ses != 0) {
+			kops = cap->cc_koperations;
+			bzero(cap, sizeof(*cap));
+			if (ses != 0 || kops != 0) {
 				/*
 				 * If there are pending sessions, just mark as invalid.
 				 */
 				cap->cc_flags |= CRYPTOCAP_F_CLEANUP;
 				cap->cc_sessions = ses;
+				cap->cc_koperations = kops;
 			}
 		}
 		err = 0;
@@ -590,9 +636,9 @@ crypto_unregister(u_int32_t driverid, int alg)
 int
 crypto_unregister_all(u_int32_t driverid)
 {
-	int i, err;
-	u_int32_t ses;
 	struct cryptocap *cap;
+	u_int32_t ses, kops;
+	int i, err;
 
 	CRYPTO_DRIVER_LOCK();
 
@@ -603,13 +649,15 @@ crypto_unregister_all(u_int32_t driverid)
 			cap->cc_max_op_len[i] = 0;
 		}
 		ses = cap->cc_sessions;
-		bzero(cap, sizeof(struct cryptocap));
-		if (ses != 0) {
+		kops = cap->cc_koperations;
+		bzero(cap, sizeof(*cap));
+		if (ses != 0 || kops != 0) {
 			/*
 			 * If there are pending sessions, just mark as invalid.
 			 */
 			cap->cc_flags |= CRYPTOCAP_F_CLEANUP;
 			cap->cc_sessions = ses;
+			cap->cc_koperations = kops;
 		}
 		err = 0;
 	} else
@@ -627,21 +675,16 @@ int
 crypto_unblock(u_int32_t driverid, int what)
 {
 	struct cryptocap *cap;
-	int needwakeup, err;
+	int err;
 
 	CRYPTO_Q_LOCK();
 	cap = crypto_checkdriver(driverid);
 	if (cap != NULL) {
-		needwakeup = 0;
-		if (what & CRYPTO_SYMQ) {
-			needwakeup |= cap->cc_qblocked;
+		if (what & CRYPTO_SYMQ)
 			cap->cc_qblocked = 0;
-		}
-		if (what & CRYPTO_ASYMQ) {
-			needwakeup |= cap->cc_kqblocked;
+		if (what & CRYPTO_ASYMQ)
 			cap->cc_kqblocked = 0;
-		}
-		if (needwakeup)
+		if (crp_sleep)
 			wakeup_one(&crp_q);
 		err = 0;
 	} else
@@ -657,7 +700,8 @@ crypto_unblock(u_int32_t driverid, int what)
 int
 crypto_dispatch(struct cryptop *crp)
 {
-	u_int32_t hid = CRYPTO_SESID2HID(crp->crp_sid);
+	struct cryptocap *cap;
+	u_int32_t hid;
 	int result;
 
 	cryptostats.cs_ops++;
@@ -667,57 +711,33 @@ crypto_dispatch(struct cryptop *crp)
 		binuptime(&crp->crp_tstamp);
 #endif
 
-	CRYPTO_Q_LOCK();
+	hid = CRYPTO_SESID2HID(crp->crp_sid);
+
 	if ((crp->crp_flags & CRYPTO_F_BATCH) == 0) {
-		struct cryptocap *cap;
 		/*
 		 * Caller marked the request to be processed
 		 * immediately; dispatch it directly to the
 		 * driver unless the driver is currently blocked.
 		 */
 		cap = crypto_checkdriver(hid);
-		if (cap && !cap->cc_qblocked) {
-			result = crypto_invoke(crp, 0);
-			if (result == ERESTART) {
-				/*
-				 * The driver ran out of resources, mark the
-				 * driver ``blocked'' for cryptop's and put
-				 * the request on the queue.
-				 *
-				 * XXX ops are placed at the tail so their
-				 * order is preserved but this can place them
-				 * behind batch'd ops.
-				 */
-				crypto_drivers[hid].cc_qblocked = 1;
-				TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
-				cryptostats.cs_blocks++;
-				result = 0;
-			}
-		} else {
+		/* Driver cannot disappeared when there is an active session. */
+		KASSERT(cap != NULL, ("%s: Driver disappeared.", __func__));
+		if (!cap->cc_qblocked) {
+			result = crypto_invoke(cap, crp, 0);
+			if (result != ERESTART)
+				return (result);
 			/*
-			 * The driver is blocked, just queue the op until
-			 * it unblocks and the kernel thread gets kicked.
+			 * The driver ran out of resources, put the request on
+			 * the queue.
 			 */
-			TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
-			result = 0;
 		}
-	} else {
-		int wasempty;
-		/*
-		 * Caller marked the request as ``ok to delay'';
-		 * queue it for the dispatch thread.  This is desirable
-		 * when the operation is low priority and/or suitable
-		 * for batching.
-		 */
-		wasempty = TAILQ_EMPTY(&crp_q);
-		TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
-		if (wasempty)
-			wakeup_one(&crp_q);
-		result = 0;
 	}
+	CRYPTO_Q_LOCK();
+	TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
+	if (crp_sleep)
+		wakeup_one(&crp_q);
 	CRYPTO_Q_UNLOCK();
-
-	return result;
+	return 0;
 }
 
 /*
@@ -727,78 +747,71 @@ crypto_dispatch(struct cryptop *crp)
 int
 crypto_kdispatch(struct cryptkop *krp)
 {
-	struct cryptocap *cap;
 	int result;
 
 	cryptostats.cs_kops++;
 
+	result = crypto_kinvoke(krp);
+	if (result != ERESTART)
+		return (result);
 	CRYPTO_Q_LOCK();
-	cap = crypto_checkdriver(krp->krp_hid);
-	if (cap && !cap->cc_kqblocked) {
-		result = crypto_kinvoke(krp, 0);
-		if (result == ERESTART) {
-			/*
-			 * The driver ran out of resources, mark the
-			 * driver ``blocked'' for cryptkop's and put
-			 * the request back in the queue.  It would
-			 * best to put the request back where we got
-			 * it but that's hard so for now we put it
-			 * at the front.  This should be ok; putting
-			 * it at the end does not work.
-			 */
-			crypto_drivers[krp->krp_hid].cc_kqblocked = 1;
-			TAILQ_INSERT_TAIL(&crp_kq, krp, krp_next);
-			cryptostats.cs_kblocks++;
-		}
-	} else {
-		/*
-		 * The driver is blocked, just queue the op until
-		 * it unblocks and the kernel thread gets kicked.
-		 */
-		TAILQ_INSERT_TAIL(&crp_kq, krp, krp_next);
-		result = 0;
-	}
+	TAILQ_INSERT_TAIL(&crp_kq, krp, krp_next);
+	if (crp_sleep)
+		wakeup_one(&crp_q);
 	CRYPTO_Q_UNLOCK();
 
-	return result;
+	return 0;
 }
 
 /*
  * Dispatch an assymetric crypto request to the appropriate crypto devices.
  */
 static int
-crypto_kinvoke(struct cryptkop *krp, int hint)
+crypto_kinvoke(struct cryptkop *krp)
 {
+	struct cryptocap *cap = NULL;
 	u_int32_t hid;
-	int error;
+	int error = 0;
 
-	mtx_assert(&crypto_q_mtx, MA_OWNED);
+	KASSERT(krp != NULL, ("%s: krp == NULL", __func__));
+	KASSERT(krp->krp_callback != NULL,
+	    ("%s: krp->crp_callback == NULL", __func__));
 
-	/* Sanity checks. */
-	if (krp == NULL)
-		return EINVAL;
-	if (krp->krp_callback == NULL) {
-		free(krp, M_XDATA);		/* XXX allocated in cryptodev */
-		return EINVAL;
-	}
-
+	CRYPTO_DRIVER_LOCK();
 	for (hid = 0; hid < crypto_drivers_num; hid++) {
-		if ((crypto_drivers[hid].cc_flags & CRYPTOCAP_F_SOFTWARE) &&
-		    !crypto_devallowsoft)
+		cap = &crypto_drivers[hid];
+		if (cap == NULL)
 			continue;
-		if (crypto_drivers[hid].cc_kprocess == NULL)
+		if ((cap->cc_flags & CRYPTOCAP_F_SOFTWARE) &&
+		    !crypto_devallowsoft) {
 			continue;
-		if ((crypto_drivers[hid].cc_kalg[krp->krp_op] &
-		    CRYPTO_ALG_FLAG_SUPPORTED) == 0)
+		}
+		if (cap->cc_kprocess == NULL)
 			continue;
+		if (!(cap->cc_kalg[krp->krp_op] & CRYPTO_ALG_FLAG_SUPPORTED))
+			continue;
+		if (cap->cc_kqblocked) {
+			error = ERESTART;
+			continue;
+		}
+		error = 0;
 		break;
 	}
+	krp->krp_hid = hid;
 	if (hid < crypto_drivers_num) {
-		krp->krp_hid = hid;
-		error = crypto_drivers[hid].cc_kprocess(
-				crypto_drivers[hid].cc_karg, krp, hint);
-	} else
+		cap->cc_koperations++;
+		CRYPTO_DRIVER_UNLOCK();
+		error = cap->cc_kprocess(cap->cc_karg, krp, 0);
+		CRYPTO_DRIVER_LOCK();
+		if (error == ERESTART) {
+			cap->cc_koperations--;
+			CRYPTO_DRIVER_UNLOCK();
+			return (error);
+		}
+	} else {
 		error = ENODEV;
+	}
+	CRYPTO_DRIVER_UNLOCK();
 
 	if (error) {
 		krp->krp_status = error;
@@ -837,45 +850,31 @@ crypto_tstat(struct cryptotstat *ts, struct bintime *bt)
  * Dispatch a crypto request to the appropriate crypto devices.
  */
 static int
-crypto_invoke(struct cryptop *crp, int hint)
+crypto_invoke(struct cryptocap *cap, struct cryptop *crp, int hint)
 {
-	u_int32_t hid;
-	int (*process)(void*, struct cryptop *, int);
+
+	KASSERT(crp != NULL, ("%s: crp == NULL", __func__));
+	KASSERT(crp->crp_callback != NULL,
+	    ("%s: crp->crp_callback == NULL", __func__));
+	KASSERT(crp->crp_desc != NULL, ("%s: crp->crp_desc == NULL", __func__));
 
 #ifdef CRYPTO_TIMING
 	if (crypto_timing)
 		crypto_tstat(&cryptostats.cs_invoke, &crp->crp_tstamp);
 #endif
-	/* Sanity checks. */
-	if (crp == NULL)
-		return EINVAL;
-	if (crp->crp_callback == NULL) {
-		crypto_freereq(crp);
-		return EINVAL;
-	}
-	if (crp->crp_desc == NULL) {
-		crp->crp_etype = EINVAL;
-		crypto_done(crp);
-		return 0;
-	}
-
-	hid = CRYPTO_SESID2HID(crp->crp_sid);
-	if (hid < crypto_drivers_num) {
-		if (crypto_drivers[hid].cc_flags & CRYPTOCAP_F_CLEANUP)
-			crypto_freesession(crp->crp_sid);
-		process = crypto_drivers[hid].cc_process;
-	} else {
-		process = NULL;
-	}
-
-	if (process == NULL) {
+	if (cap->cc_flags & CRYPTOCAP_F_CLEANUP) {
 		struct cryptodesc *crd;
 		u_int64_t nid;
 
 		/*
 		 * Driver has unregistered; migrate the session and return
 		 * an error to the caller so they'll resubmit the op.
+		 *
+		 * XXX: What if there are more already queued requests for this
+		 *      session?
 		 */
+		crypto_freesession(crp->crp_sid);
+
 		for (crd = crp->crp_desc; crd->crd_next; crd = crd->crd_next)
 			crd->CRD_INI.cri_next = &(crd->crd_next->CRD_INI);
 
@@ -889,7 +888,7 @@ crypto_invoke(struct cryptop *crp, int hint)
 		/*
 		 * Invoke the driver to process the request.
 		 */
-		return (*process)(crypto_drivers[hid].cc_arg, crp, hint);
+		return cap->cc_process(cap->cc_arg, crp, hint);
 	}
 }
 
@@ -903,6 +902,27 @@ crypto_freereq(struct cryptop *crp)
 
 	if (crp == NULL)
 		return;
+
+#ifdef DIAGNOSTIC
+	{
+		struct cryptop *crp2;
+
+		CRYPTO_Q_LOCK();
+		TAILQ_FOREACH(crp2, &crp_q, crp_next) {
+			KASSERT(crp2 != crp,
+			    ("Freeing cryptop from the crypto queue (%p).",
+			    crp));
+		}
+		CRYPTO_Q_UNLOCK();
+		CRYPTO_RETQ_LOCK();
+		TAILQ_FOREACH(crp2, &crp_ret_q, crp_next) {
+			KASSERT(crp2 != crp,
+			    ("Freeing cryptop from the return queue (%p).",
+			    crp));
+		}
+		CRYPTO_RETQ_UNLOCK();
+	}
+#endif
 
 	while ((crd = crp->crp_desc) != NULL) {
 		crp->crp_desc = crd->crd_next;
@@ -982,16 +1002,13 @@ crypto_done(struct cryptop *crp)
 #endif
 			crp->crp_callback(crp);
 	} else {
-		int wasempty;
 		/*
 		 * Normal case; queue the callback for the thread.
 		 */
 		CRYPTO_RETQ_LOCK();
-		wasempty = TAILQ_EMPTY(&crp_ret_q);
-		TAILQ_INSERT_TAIL(&crp_ret_q, crp, crp_next);
-
-		if (wasempty)
+		if (CRYPTO_RETQ_EMPTY())
 			wakeup_one(&crp_ret_q);	/* shared wait channel */
+		TAILQ_INSERT_TAIL(&crp_ret_q, crp, crp_next);
 		CRYPTO_RETQ_UNLOCK();
 	}
 }
@@ -1002,16 +1019,24 @@ crypto_done(struct cryptop *crp)
 void
 crypto_kdone(struct cryptkop *krp)
 {
-	int wasempty;
+	struct cryptocap *cap;
 
 	if (krp->krp_status != 0)
 		cryptostats.cs_kerrs++;
+	CRYPTO_DRIVER_LOCK();
+	/* XXX: What if driver is loaded in the meantime? */
+	if (krp->krp_hid < crypto_drivers_num) {
+		cap = &crypto_drivers[krp->krp_hid];
+		cap->cc_koperations--;
+		KASSERT(cap->cc_koperations >= 0, ("cc_koperations < 0"));
+		if (cap->cc_flags & CRYPTOCAP_F_CLEANUP)
+			crypto_remove(cap);
+	}
+	CRYPTO_DRIVER_UNLOCK();
 	CRYPTO_RETQ_LOCK();
-	wasempty = TAILQ_EMPTY(&crp_ret_kq);
-	TAILQ_INSERT_TAIL(&crp_ret_kq, krp, krp_next);
-
-	if (wasempty)
+	if (CRYPTO_RETQ_EMPTY())
 		wakeup_one(&crp_ret_q);		/* shared wait channel */
+	TAILQ_INSERT_TAIL(&crp_ret_kq, krp, krp_next);
 	CRYPTO_RETQ_UNLOCK();
 }
 
@@ -1069,6 +1094,7 @@ crypto_proc(void)
 	struct cryptop *crp, *submit;
 	struct cryptkop *krp;
 	struct cryptocap *cap;
+	u_int32_t hid;
 	int result, hint;
 
 	CRYPTO_Q_LOCK();
@@ -1081,8 +1107,14 @@ crypto_proc(void)
 		submit = NULL;
 		hint = 0;
 		TAILQ_FOREACH(crp, &crp_q, crp_next) {
-			u_int32_t hid = CRYPTO_SESID2HID(crp->crp_sid);
+			hid = CRYPTO_SESID2HID(crp->crp_sid);
 			cap = crypto_checkdriver(hid);
+			/*
+			 * Driver cannot disappeared when there is an active
+			 * session.
+			 */
+			KASSERT(cap != NULL, ("%s:%u Driver disappeared.",
+			    __func__, __LINE__));
 			if (cap == NULL || cap->cc_process == NULL) {
 				/* Op needs to be migrated, process it. */
 				if (submit == NULL)
@@ -1112,7 +1144,11 @@ crypto_proc(void)
 		}
 		if (submit != NULL) {
 			TAILQ_REMOVE(&crp_q, submit, crp_next);
-			result = crypto_invoke(submit, hint);
+			hid = CRYPTO_SESID2HID(submit->crp_sid);
+			cap = crypto_checkdriver(hid);
+			KASSERT(cap != NULL, ("%s:%u Driver disappeared.",
+			    __func__, __LINE__));
+			result = crypto_invoke(cap, submit, hint);
 			if (result == ERESTART) {
 				/*
 				 * The driver ran out of resources, mark the
@@ -1142,7 +1178,7 @@ crypto_proc(void)
 		}
 		if (krp != NULL) {
 			TAILQ_REMOVE(&crp_kq, krp, krp_next);
-			result = crypto_kinvoke(krp, 0);
+			result = crypto_kinvoke(krp);
 			if (result == ERESTART) {
 				/*
 				 * The driver ran out of resources, mark the
@@ -1173,7 +1209,9 @@ crypto_proc(void)
 			 * out of order if dispatched to different devices
 			 * and some become blocked while others do not.
 			 */
+			crp_sleep = 1;
 			msleep(&crp_q, &crypto_q_mtx, PWAIT, "crypto_wait", 0);
+			crp_sleep = 0;
 			if (cryptoproc == NULL)
 				break;
 			cryptostats.cs_intrs++;
