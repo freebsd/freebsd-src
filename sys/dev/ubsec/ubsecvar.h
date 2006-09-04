@@ -139,6 +139,7 @@ struct ubsec_operand {
 	union {
 		struct mbuf *m;
 		struct uio *io;
+		void *buf;
 	} u;
 	bus_dmamap_t		map;
 	bus_size_t		mapsize;
@@ -162,6 +163,7 @@ struct ubsec_q {
 
 #define	q_src_m		q_src.u.m
 #define	q_src_io	q_src.u.io
+#define	q_src_buf	q_src.u.buf
 #define	q_src_map	q_src.map
 #define	q_src_nsegs	q_src.nsegs
 #define	q_src_segs	q_src.segs
@@ -169,6 +171,7 @@ struct ubsec_q {
 
 #define	q_dst_m		q_dst.u.m
 #define	q_dst_io	q_dst.u.io
+#define	q_dst_buf	q_dst.u.buf
 #define	q_dst_map	q_dst.map
 #define	q_dst_nsegs	q_dst.nsegs
 #define	q_dst_segs	q_dst.segs
@@ -218,6 +221,7 @@ struct ubsec_softc {
 struct ubsec_session {
 	u_int32_t	ses_used;
 	u_int32_t	ses_deskey[6];		/* 3DES key */
+	u_int32_t	ses_mlen;		/* hmac length */
 	u_int32_t	ses_hminner[5];		/* hmac inner state */
 	u_int32_t	ses_hmouter[5];		/* hmac outer state */
 	u_int32_t	ses_iv[2];		/* [3]DES iv */
