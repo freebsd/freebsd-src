@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap.c,v 1.88.2.3 2005/05/27 23:33:00 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap.c,v 1.88.2.8 2005/08/13 22:29:46 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -373,6 +373,11 @@ static struct dlt_choice dlt_choices[] = {
         DLT_CHOICE(DLT_JUNIPER_ES, "Juniper Encryption Services PIC"),
         DLT_CHOICE(DLT_JUNIPER_MONITOR, "Juniper Passive Monitor PIC"),
         DLT_CHOICE(DLT_JUNIPER_SERVICES, "Juniper Advanced Services PIC"),
+ 	DLT_CHOICE(DLT_JUNIPER_MFR, "Juniper FRF.16 Frame Relay"),
+ 	DLT_CHOICE(DLT_JUNIPER_ETHER, "Juniper Ethernet"),
+ 	DLT_CHOICE(DLT_JUNIPER_PPP, "Juniper PPP"),
+ 	DLT_CHOICE(DLT_JUNIPER_FRELAY, "Juniper Frame Relay"),
+ 	DLT_CHOICE(DLT_JUNIPER_CHDLC, "Juniper C-HDLC"),
 	DLT_CHOICE_SENTINEL
 };
 
@@ -696,7 +701,7 @@ pcap_setfilter(pcap_t *p, struct bpf_program *fp)
  * might not be supported.
  */
 int
-pcap_setdirection(pcap_t *p, direction_t d)
+pcap_setdirection(pcap_t *p, pcap_direction_t d)
 {
 	if (p->setdirection_op == NULL) {
 		snprintf(p->errbuf, PCAP_ERRBUF_SIZE,

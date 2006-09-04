@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-win32.c,v 1.25.2.2 2005/06/10 03:48:56 risso Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-win32.c,v 1.25.2.3 2005/07/10 17:52:54 risso Exp $ (LBL)";
 #endif
 
 #include <pcap-int.h>
@@ -497,6 +497,9 @@ pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
 
 	/* Set the buffer size */
 	p->bufsize = PcapBufSize;
+
+	/* Store the timeout. Used by pcap_setnonblock() */
+	p->timeout= to_ms;
 
 	/* allocate Packet structure used during the capture */
 	if((p->Packet = PacketAllocatePacket())==NULL)

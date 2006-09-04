@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/savefile.c,v 1.126.2.8 2005/06/03 20:36:57 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/savefile.c,v 1.126.2.13 2005/08/29 21:05:45 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -70,6 +70,12 @@ static const char rcsid[] _U_ =
  * as per a request from Dumas Hwang <dumas.hwang@navtelcom.com>.
  */
 #define NAVTEL_TCPDUMP_MAGIC	0xa12b3c4d
+
+/*
+ * Normal libpcap format, except for seconds/nanoseconds timestamps,
+ * as per a request by Ulf Lamping <ulf.lamping@web.de>
+ */
+#define NSEC_TCPDUMP_MAGIC	0xa1b23c4d
 
 /*
  * We use the "receiver-makes-right" approach to byte order,
@@ -412,6 +418,18 @@ static const char rcsid[] _U_ =
  */
 #define LINKTYPE_LINUX_LAPD	177
 
+/*
+ * Juniper-private data link type, as per request from
+ * Hannes Gredler <hannes@juniper.net>. 
+ * The Link Types are used for prepending meta-information
+ * like interface index, interface name
+ * before standard Ethernet, PPP, Frelay & C-HDLC Frames
+ */
+#define LINKTYPE_JUNIPER_ETHER  178
+#define LINKTYPE_JUNIPER_PPP    179
+#define LINKTYPE_JUNIPER_FRELAY 180
+#define LINKTYPE_JUNIPER_CHDLC  181
+
 static struct linktype_map {
 	int	dlt;
 	int	linktype;
@@ -611,6 +629,13 @@ static struct linktype_map {
 	/* viSDN LAPD */
 	{ DLT_LINUX_LAPD,	LINKTYPE_LINUX_LAPD },
 
+        /* Juniper meta-information before Ether, PPP, Frame Relay, C-HDLC Frames */
+        { DLT_JUNIPER_ETHER, LINKTYPE_JUNIPER_ETHER },
+        { DLT_JUNIPER_PPP, LINKTYPE_JUNIPER_PPP },
+        { DLT_JUNIPER_FRELAY, LINKTYPE_JUNIPER_FRELAY },
+        { DLT_JUNIPER_CHDLC, LINKTYPE_JUNIPER_CHDLC },
+
+
 	{ -1,			-1 }
 };
 
@@ -722,7 +747,7 @@ sf_inject(pcap_t *p, const void *buf _U_, size_t size _U_)
  * single device? IN, OUT or both?
  */
 static int
-sf_setdirection(pcap_t *p, direction_t d)
+sf_setdirection(pcap_t *p, pcap_direction_t d)
 {
 	snprintf(p->errbuf, sizeof(p->errbuf),
 	    "Setting direction is not supported on savefiles");
