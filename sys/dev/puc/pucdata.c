@@ -865,6 +865,17 @@ const struct puc_device_description puc_devices[] = {
 	    },
 	},
 
+	{   "SIIG Cyber 4S PCI 16C650 (20x family)",
+	    {	0x1415, 0x9501, 0x131f, 0x2051 },
+	    {	0xffff, 0xffff, 0xffff, 0xffff },
+            {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 10 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ * 10 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x10, COM_FREQ * 10 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x18, COM_FREQ * 10 },
+	    },
+	},
+
 	/* Oxford Semiconductor OX16PCI954 PCI UARTs */
 	{   "Oxford Semiconductor OX16PCI954 UARTs",
 	    {	0x1415,	0x9501,	0,	0	},
