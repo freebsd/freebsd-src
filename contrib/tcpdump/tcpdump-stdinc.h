@@ -29,7 +29,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#) $Header: /tcpdump/master/tcpdump/tcpdump-stdinc.h,v 1.12 2005/03/27 01:35:45 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/tcpdump-stdinc.h,v 1.12.2.4 2005/07/09 21:19:45 risso Exp $ (LBL)
  *
  * $FreeBSD$
  */
@@ -48,11 +48,11 @@
 
 #include <stdio.h>
 #include <winsock2.h>
+#include <Ws2tcpip.h>
 #include "bittypes.h"
 #include <ctype.h>
 #include <time.h>
 #include <io.h>
-#include "IP6_misc.h"
 #include <fcntl.h>
 #include <sys/types.h>
 #include <net/netdb.h>  /* in wpcap's Win32/include */

@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ip6.c,v 1.47.2.2 2005/07/03 20:36:33 hannes Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ip6.c,v 1.47.2.3 2005/09/20 06:05:38 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -118,7 +118,7 @@ ip6_print(register const u_char *bp, register u_int length)
 
 		if (cp == (const u_char *)(ip6 + 1) &&
 		    nh != IPPROTO_TCP && nh != IPPROTO_UDP &&
-		    nh != IPPROTO_SCTP) {
+		    nh != IPPROTO_DCCP && nh != IPPROTO_SCTP) {
 			(void)printf("%s > %s: ", ip6addr_string(&ip6->ip6_src),
 				     ip6addr_string(&ip6->ip6_dst));
 		}
@@ -161,6 +161,9 @@ ip6_print(register const u_char *bp, register u_int length)
 			break;
 		case IPPROTO_SCTP:
 			sctp_print(cp, (const u_char *)ip6, len);
+			return;
+		case IPPROTO_DCCP:
+			dccp_print(cp, (const u_char *)ip6, len);
 			return;
 		case IPPROTO_TCP:
 			tcp_print(cp, len, (const u_char *)ip6, fragmented);

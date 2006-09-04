@@ -19,25 +19,19 @@
  */
 #define PPP_HDRLEN	4	/* length of PPP header */
 
-#undef PPP_ADDRESS
 #define PPP_ADDRESS	0xff	/* The address byte value */
-#undef PPP_CONTROL
 #define PPP_CONTROL	0x03	/* The control byte value */
 
 #define PPP_WITHDIRECTION_IN  0x00 /* non-standard for DLT_PPP_WITHDIRECTION */
 #define PPP_WITHDIRECTION_OUT 0x01 /* non-standard for DLT_PPP_WITHDIRECTION */
 
 /* Protocol numbers */
-#ifndef PPP_IP
 #define PPP_IP		0x0021	/* Raw IP */
-#endif
 #define PPP_OSI		0x0023	/* OSI Network Layer */
 #define PPP_NS		0x0025	/* Xerox NS IDP */
 #define PPP_DECNET	0x0027	/* DECnet Phase IV */
 #define PPP_APPLE	0x0029	/* Appletalk */
-#ifndef PPP_IPX
 #define PPP_IPX		0x002b	/* Novell IPX */
-#endif
 #define PPP_VJC		0x002d	/* Van Jacobson Compressed TCP/IP */
 #define PPP_VJNC	0x002f	/* Van Jacobson Uncompressed TCP/IP */
 #define PPP_BRPDU	0x0031	/* Bridging PDU */

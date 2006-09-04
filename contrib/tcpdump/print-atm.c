@@ -22,7 +22,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-atm.c,v 1.38.2.2 2005/06/20 07:45:06 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-atm.c,v 1.38.2.3 2005/07/07 01:24:34 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -108,7 +108,7 @@ atm_llc_print(const u_char *p, int length, int caplen)
 			printf("(LLC %s) ",
 		etherproto_string(htons(extracted_ethertype)));
 		}
-		if (!xflag && !qflag)
+		if (!suppress_default_print)
 			default_print(p, caplen);
 	}
 }
