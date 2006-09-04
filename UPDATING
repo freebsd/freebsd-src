@@ -21,6 +21,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20060903:
+	libpcap updated to v0.9.4 and tcpdump to v3.9.4
+
 20060816:
 	The IPFIREWALL_FORWARD_EXTENDED option is gone and the behaviour
 	for IP_FIREWALL_FORWARD is now as it was before when it was first
