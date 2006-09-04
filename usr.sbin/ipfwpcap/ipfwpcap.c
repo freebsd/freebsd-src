@@ -39,6 +39,10 @@
 #include <netinet/in_systm.h>	/* for IP_MAXPACKET */
 #include <netinet/ip.h>		/* for IP_MAXPACKET */
 
+/* XXX normally defined in config.h */
+#define HAVE_STRLCPY 1
+#define HAVE_SNPRINTF 1
+#define HAVE_VSNPRINTF 1
 #include <pcap-int.h>	/* see pcap(3) and /usr/src/contrib/libpcap/. */
 
 #ifdef IP_MAXPACKET
