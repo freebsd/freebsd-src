@@ -19,7 +19,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * $FreeBSD$
- * @(#) $Header: /tcpdump/master/libpcap/gencode.h,v 1.60.2.5 2005/06/20 21:30:17 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/gencode.h,v 1.60.2.6 2005/09/05 09:08:06 guy Exp $ (LBL)
  */
 
 /*
@@ -289,6 +289,9 @@ struct block *gen_inbound(int);
 
 struct block *gen_vlan(int);
 struct block *gen_mpls(int);
+
+struct block *gen_pppoed(void);
+struct block *gen_pppoes(void);
 
 struct block *gen_atmfield_code(int atmfield, bpf_int32 jvalue, bpf_u_int32 jtype, int reverse);
 struct block *gen_atmtype_abbrev(int type);
