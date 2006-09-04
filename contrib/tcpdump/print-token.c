@@ -27,7 +27,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-token.c,v 1.25 2004/03/17 23:24:38 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-token.c,v 1.25.2.1 2005/07/07 01:24:40 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -169,7 +169,7 @@ token_print(const u_char *p, u_int length, u_int caplen)
 				printf("(LLC %s) ",
 			etherproto_string(htons(extracted_ethertype)));
 			}
-			if (!xflag && !qflag)
+			if (!suppress_default_print)
 				default_print(p, caplen);
 		}
 	} else {
@@ -178,7 +178,7 @@ token_print(const u_char *p, u_int length, u_int caplen)
 		if (!eflag)
 			token_hdr_print(trp, length + TOKEN_HDRLEN + route_len,
 			    ESRC(&ehdr), EDST(&ehdr));
-		if (!xflag && !qflag)
+		if (!suppress_default_print)
 			default_print(p, caplen);
 	}
 	return (hdr_len);
