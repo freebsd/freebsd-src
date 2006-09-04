@@ -2061,11 +2061,17 @@ process:
 		bioq_remove(&sc->sc_queue, bp);
 		mtx_unlock(&sc->sc_queue_mtx);
 
-		if ((bp->bio_cflags & G_RAID3_BIO_CFLAG_REGULAR) != 0)
-			g_raid3_regular_request(bp);
-		else if ((bp->bio_cflags & G_RAID3_BIO_CFLAG_SYNC) != 0)
-			g_raid3_sync_request(bp);
-		else if (g_raid3_register_request(bp) != 0) {
+		if (bp->bio_to != sc->sc_provider) {
+			if ((bp->bio_cflags & G_RAID3_BIO_CFLAG_REGULAR) != 0)
+				g_raid3_regular_request(bp);
+			else if ((bp->bio_cflags & G_RAID3_BIO_CFLAG_SYNC) != 0)
+				g_raid3_sync_request(bp);
+			else {
+				KASSERT(0,
+				    ("Invalid request cflags=0x%hhx to=%s.",
+				    bp->bio_cflags, bp->bio_to->name));
+			}
+		} else if (g_raid3_register_request(bp) != 0) {
 			mtx_lock(&sc->sc_queue_mtx);
 			bioq_insert_head(&sc->sc_queue, bp);
 			/*
@@ -2351,9 +2357,9 @@ g_raid3_determine_state(struct g_raid3_disk *disk)
 		 * Not good, NOT GOOD!
 		 * It means that device was started on stale disks
 		 * and more fresh disk just arrive.
-		 * If there were writes, device is fucked up, sorry.
+		 * If there were writes, device is broken, sorry.
 		 * I think the best choice here is don't touch
-		 * this disk and inform the user laudly.
+		 * this disk and inform the user loudly.
 		 */
 		G_RAID3_DEBUG(0, "Device %s was started before the freshest "
 		    "disk (%s) arrives!! It will not be connected to the "
