@@ -1669,7 +1669,7 @@ knlist_init(struct knlist *knl, void *lock, void (*kl_lock)(void *),
 		knl->kl_lock = knlist_mtx_lock;
 	else
 		knl->kl_lock = kl_lock;
-	if (kl_lock == NULL)
+	if (kl_unlock == NULL)
 		knl->kl_unlock = knlist_mtx_unlock;
 	else
 		knl->kl_unlock = kl_unlock;
