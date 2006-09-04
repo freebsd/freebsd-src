@@ -1222,7 +1222,8 @@ ipsec_init_pcbpolicy(so, pcb_sp)
 	}
 	bzero(new, sizeof(*new));
 
-	if (so->so_cred != 0 && so->so_cred->cr_uid == 0)
+	if (so->so_cred != NULL &&
+	    suser_cred(so->so_cred, SUSER_ALLOWJAIL) == 0)
 		new->priv = 1;
 	else
 		new->priv = 0;
