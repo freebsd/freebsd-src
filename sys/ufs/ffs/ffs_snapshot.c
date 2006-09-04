@@ -2295,13 +2295,10 @@ readblock(vp, bp, lbn)
 	bip->bio_offset = dbtob(fsbtodb(ip->i_fs, blkstofrags(ip->i_fs, lbn)));
 	bip->bio_data = bp->b_data;
 	bip->bio_length = bp->b_bcount;
+	bip->bio_done = NULL;
 
 	g_io_request(bip, ip->i_devvp->v_bufobj.bo_private);
-
-	do 
-		msleep(bip, NULL, PRIBIO, "snaprdb", hz/10);
-	while (!(bip->bio_flags & BIO_DONE));
-	bp->b_error = bip->bio_error;
+	bp->b_error = biowait(bip, "snaprdb");
 	g_destroy_bio(bip);
 	return (bp->b_error);
 }
