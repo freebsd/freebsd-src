@@ -80,6 +80,7 @@ struct safe_operand {
 	union {
 		struct mbuf *m;
 		struct uio *io;
+		void *buf;
 	} u;
 	bus_dmamap_t		map;
 	bus_size_t		mapsize;
@@ -120,6 +121,7 @@ struct safe_ringentry {
 
 #define	re_src_m	re_src.u.m
 #define	re_src_io	re_src.u.io
+#define	re_src_buf	re_src.u.buf
 #define	re_src_map	re_src.map
 #define	re_src_nsegs	re_src.nsegs
 #define	re_src_segs	re_src.segs
@@ -127,6 +129,7 @@ struct safe_ringentry {
 
 #define	re_dst_m	re_dst.u.m
 #define	re_dst_io	re_dst.u.io
+#define	re_dst_buf	re_dst.u.buf
 #define	re_dst_map	re_dst.map
 #define	re_dst_nsegs	re_dst.nsegs
 #define	re_dst_segs	re_dst.segs
@@ -138,6 +141,7 @@ struct safe_session {
 	u_int32_t	ses_used;
 	u_int32_t	ses_klen;		/* key length in bits */
 	u_int32_t	ses_key[8];		/* DES/3DES/AES key */
+	u_int32_t	ses_mlen;		/* hmac length in bytes */
 	u_int32_t	ses_hminner[5];		/* hmac inner state */
 	u_int32_t	ses_hmouter[5];		/* hmac outer state */
 	u_int32_t	ses_iv[4];		/* DES/3DES/AES iv */

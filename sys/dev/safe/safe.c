@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/clock.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
@@ -641,6 +640,70 @@ safe_feed(struct safe_softc *sc, struct safe_ringentry *re)
 	WRITE_REG(sc, SAFE_HI_RD_DESCR, 0);
 }
 
+#define	N(a)	(sizeof(a) / sizeof (a[0]))
+static void
+safe_setup_enckey(struct safe_session *ses, caddr_t key)
+{
+	int i;
+
+	bcopy(key, ses->ses_key, ses->ses_klen / 8);
+
+	/* PE is little-endian, insure proper byte order */
+	for (i = 0; i < N(ses->ses_key); i++)
+		ses->ses_key[i] = htole32(ses->ses_key[i]);
+}
+
+static void
+safe_setup_mackey(struct safe_session *ses, int algo, caddr_t key, int klen)
+{
+	MD5_CTX md5ctx;
+	SHA1_CTX sha1ctx;
+	int i;
+
+
+	for (i = 0; i < klen; i++)
+		key[i] ^= HMAC_IPAD_VAL;
+
+	if (algo == CRYPTO_MD5_HMAC) {
+		MD5Init(&md5ctx);
+		MD5Update(&md5ctx, key, klen);
+		MD5Update(&md5ctx, hmac_ipad_buffer, MD5_HMAC_BLOCK_LEN - klen);
+		bcopy(md5ctx.state, ses->ses_hminner, sizeof(md5ctx.state));
+	} else {
+		SHA1Init(&sha1ctx);
+		SHA1Update(&sha1ctx, key, klen);
+		SHA1Update(&sha1ctx, hmac_ipad_buffer,
+		    SHA1_HMAC_BLOCK_LEN - klen);
+		bcopy(sha1ctx.h.b32, ses->ses_hminner, sizeof(sha1ctx.h.b32));
+	}
+
+	for (i = 0; i < klen; i++)
+		key[i] ^= (HMAC_IPAD_VAL ^ HMAC_OPAD_VAL);
+
+	if (algo == CRYPTO_MD5_HMAC) {
+		MD5Init(&md5ctx);
+		MD5Update(&md5ctx, key, klen);
+		MD5Update(&md5ctx, hmac_opad_buffer, MD5_HMAC_BLOCK_LEN - klen);
+		bcopy(md5ctx.state, ses->ses_hmouter, sizeof(md5ctx.state));
+	} else {
+		SHA1Init(&sha1ctx);
+		SHA1Update(&sha1ctx, key, klen);
+		SHA1Update(&sha1ctx, hmac_opad_buffer,
+		    SHA1_HMAC_BLOCK_LEN - klen);
+		bcopy(sha1ctx.h.b32, ses->ses_hmouter, sizeof(sha1ctx.h.b32));
+	}
+
+	for (i = 0; i < klen; i++)
+		key[i] ^= HMAC_OPAD_VAL;
+
+	/* PE is little-endian, insure proper byte order */
+	for (i = 0; i < N(ses->ses_hminner); i++) {
+		ses->ses_hminner[i] = htole32(ses->ses_hminner[i]);
+		ses->ses_hmouter[i] = htole32(ses->ses_hmouter[i]);
+	}
+}
+#undef N
+
 /*
  * Allocate a new 'session' and return an encoded session id.  'sidp'
  * contains our registration id, and should contain an encoded session
@@ -649,13 +712,10 @@ safe_feed(struct safe_softc *sc, struct safe_ringentry *re)
 static int
 safe_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 {
-#define	N(a)	(sizeof(a) / sizeof (a[0]))
 	struct cryptoini *c, *encini = NULL, *macini = NULL;
 	struct safe_softc *sc = arg;
 	struct safe_session *ses = NULL;
-	MD5_CTX md5ctx;
-	SHA1_CTX sha1ctx;
-	int i, sesn;
+	int sesn;
 
 	if (sidp == NULL || cri == NULL || sc == NULL)
 		return (EINVAL);
@@ -739,69 +799,27 @@ safe_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 		read_random(ses->ses_iv, sizeof(ses->ses_iv));
 
 		ses->ses_klen = encini->cri_klen;
-		bcopy(encini->cri_key, ses->ses_key, ses->ses_klen / 8);
-
-		/* PE is little-endian, insure proper byte order */
-		for (i = 0; i < N(ses->ses_key); i++)
-			ses->ses_key[i] = htole32(ses->ses_key[i]);
+		if (encini->cri_key != NULL)
+			safe_setup_enckey(ses, encini->cri_key);
 	}
 
 	if (macini) {
-		for (i = 0; i < macini->cri_klen / 8; i++)
-			macini->cri_key[i] ^= HMAC_IPAD_VAL;
-
-		if (macini->cri_alg == CRYPTO_MD5_HMAC) {
-			MD5Init(&md5ctx);
-			MD5Update(&md5ctx, macini->cri_key,
-			    macini->cri_klen / 8);
-			MD5Update(&md5ctx, hmac_ipad_buffer,
-			    HMAC_BLOCK_LEN - (macini->cri_klen / 8));
-			bcopy(md5ctx.state, ses->ses_hminner,
-			    sizeof(md5ctx.state));
-		} else {
-			SHA1Init(&sha1ctx);
-			SHA1Update(&sha1ctx, macini->cri_key,
-			    macini->cri_klen / 8);
-			SHA1Update(&sha1ctx, hmac_ipad_buffer,
-			    HMAC_BLOCK_LEN - (macini->cri_klen / 8));
-			bcopy(sha1ctx.h.b32, ses->ses_hminner,
-			    sizeof(sha1ctx.h.b32));
+		ses->ses_mlen = macini->cri_mlen;
+		if (ses->ses_mlen == 0) {
+			if (macini->cri_alg == CRYPTO_MD5_HMAC)
+				ses->ses_mlen = MD5_HASH_LEN;
+			else
+				ses->ses_mlen = SHA1_HASH_LEN;
 		}
 
-		for (i = 0; i < macini->cri_klen / 8; i++)
-			macini->cri_key[i] ^= (HMAC_IPAD_VAL ^ HMAC_OPAD_VAL);
-
-		if (macini->cri_alg == CRYPTO_MD5_HMAC) {
-			MD5Init(&md5ctx);
-			MD5Update(&md5ctx, macini->cri_key,
+		if (macini->cri_key != NULL) {
+			safe_setup_mackey(ses, macini->cri_alg, macini->cri_key,
 			    macini->cri_klen / 8);
-			MD5Update(&md5ctx, hmac_opad_buffer,
-			    HMAC_BLOCK_LEN - (macini->cri_klen / 8));
-			bcopy(md5ctx.state, ses->ses_hmouter,
-			    sizeof(md5ctx.state));
-		} else {
-			SHA1Init(&sha1ctx);
-			SHA1Update(&sha1ctx, macini->cri_key,
-			    macini->cri_klen / 8);
-			SHA1Update(&sha1ctx, hmac_opad_buffer,
-			    HMAC_BLOCK_LEN - (macini->cri_klen / 8));
-			bcopy(sha1ctx.h.b32, ses->ses_hmouter,
-			    sizeof(sha1ctx.h.b32));
-		}
-
-		for (i = 0; i < macini->cri_klen / 8; i++)
-			macini->cri_key[i] ^= HMAC_OPAD_VAL;
-
-		/* PE is little-endian, insure proper byte order */
-		for (i = 0; i < N(ses->ses_hminner); i++) {
-			ses->ses_hminner[i] = htole32(ses->ses_hminner[i]);
-			ses->ses_hmouter[i] = htole32(ses->ses_hmouter[i]);
 		}
 	}
 
 	*sidp = SAFE_SID(device_get_unit(sc->sc_dev), sesn);
 	return (0);
-#undef N
 }
 
 /*
@@ -827,17 +845,31 @@ safe_freesession(void *arg, u_int64_t tid)
 }
 
 static void
-safe_op_cb(void *arg, bus_dma_segment_t *seg, int nsegs, bus_size_t mapsize, int error)
+safe_op_cb(struct safe_operand *op, bus_dma_segment_t *seg, int nsegs,
+    int error)
 {
-	struct safe_operand *op = arg;
 
 	DPRINTF(("%s: mapsize %u nsegs %d error %d\n", __func__,
-		(u_int) mapsize, nsegs, error));
+		(u_int)op->mapsize, nsegs, error));
 	if (error != 0)
 		return;
-	op->mapsize = mapsize;
 	op->nsegs = nsegs;
 	bcopy(seg, op->segs, nsegs * sizeof (seg[0]));
+}
+
+static void
+safe_op_cb1(void *arg, bus_dma_segment_t *seg, int nsegs, int error)
+{
+
+	safe_op_cb(arg, seg, nsegs, error);
+}
+
+static void
+safe_op_cb2(void *arg, bus_dma_segment_t *seg, int nsegs,
+    bus_size_t mapsize __unused, int error)
+{
+
+	safe_op_cb(arg, seg, nsegs, error);
 }
 
 static int
@@ -880,6 +912,8 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 
 	re->re_crp = crp;
 	re->re_sesn = SAFE_SESSION(crp->crp_sid);
+	re->re_src.mapsize = crp->crp_ilen;
+	re->re_dst.mapsize = crp->crp_ilen;
 
 	if (crp->crp_flags & CRYPTO_F_IMBUF) {
 		re->re_src_m = (struct mbuf *)crp->crp_buf;
@@ -888,9 +922,8 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 		re->re_src_io = (struct uio *)crp->crp_buf;
 		re->re_dst_io = (struct uio *)crp->crp_buf;
 	} else {
-		safestats.st_badflags++;
-		err = EINVAL;
-		goto errout;	/* XXX we don't handle contiguous blocks! */
+		re->re_src_buf = (void *)crp->crp_buf;
+		re->re_dst_buf = (void *)crp->crp_buf;
 	}
 
 	sa = &re->re_sa;
@@ -955,6 +988,9 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 	}
 
 	if (enccrd) {
+		if (enccrd->crd_flags & CRD_F_KEY_EXPLICIT)
+			safe_setup_enckey(ses, enccrd->crd_key);
+
 		if (enccrd->crd_alg == CRYPTO_DES_CBC) {
 			cmd0 |= SAFE_SA_CMD0_DES;
 			cmd1 |= SAFE_SA_CMD1_CBC;
@@ -995,12 +1031,8 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 			else
 				iv = (caddr_t) ses->ses_iv;
 			if ((enccrd->crd_flags & CRD_F_IV_PRESENT) == 0) {
-				if (crp->crp_flags & CRYPTO_F_IMBUF)
-					m_copyback(re->re_src_m,
-						enccrd->crd_inject, ivsize, iv);
-				else if (crp->crp_flags & CRYPTO_F_IOV)
-					cuio_copyback(re->re_src_io,
-						enccrd->crd_inject, ivsize, iv);
+				crypto_copyback(crp->crp_flags, crp->crp_buf,
+				    enccrd->crd_inject, ivsize, iv);
 			}
 			bcopy(iv, re->re_sastate.sa_saved_iv, ivsize);
 			cmd0 |= SAFE_SA_CMD0_IVLD_STATE | SAFE_SA_CMD0_SAVEIV;
@@ -1008,17 +1040,14 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 		} else {
 			cmd0 |= SAFE_SA_CMD0_INBOUND;
 
-			if (enccrd->crd_flags & CRD_F_IV_EXPLICIT)
+			if (enccrd->crd_flags & CRD_F_IV_EXPLICIT) {
 				bcopy(enccrd->crd_iv,
 					re->re_sastate.sa_saved_iv, ivsize);
-			else if (crp->crp_flags & CRYPTO_F_IMBUF)
-				m_copydata(re->re_src_m, enccrd->crd_inject,
-					ivsize,
-					(caddr_t)re->re_sastate.sa_saved_iv);
-			else if (crp->crp_flags & CRYPTO_F_IOV)
-				cuio_copydata(re->re_src_io, enccrd->crd_inject,
-					ivsize,
-					(caddr_t)re->re_sastate.sa_saved_iv);
+			} else {
+				crypto_copydata(crp->crp_flags, crp->crp_buf,
+				    enccrd->crd_inject, ivsize,
+				    (caddr_t)re->re_sastate.sa_saved_iv);
+			}
 			cmd0 |= SAFE_SA_CMD0_IVLD_STATE;
 		}
 		/*
@@ -1036,6 +1065,11 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 	}
 
 	if (maccrd) {
+		if (maccrd->crd_flags & CRD_F_KEY_EXPLICIT) {
+			safe_setup_mackey(ses, maccrd->crd_alg,
+			    maccrd->crd_key, maccrd->crd_klen / 8);
+		}
+
 		if (maccrd->crd_alg == CRYPTO_MD5_HMAC) {
 			cmd0 |= SAFE_SA_CMD0_MD5;
 			cmd1 |= SAFE_SA_CMD1_HMAC;	/* NB: enable HMAC */
@@ -1150,25 +1184,22 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 		goto errout;
 	}
 	if (crp->crp_flags & CRYPTO_F_IMBUF) {
-		if (bus_dmamap_load_mbuf(sc->sc_srcdmat, re->re_src_map,
-		    re->re_src_m, safe_op_cb,
-		    &re->re_src, BUS_DMA_NOWAIT) != 0) {
-			bus_dmamap_destroy(sc->sc_srcdmat, re->re_src_map);
-			re->re_src_map = NULL;
-			safestats.st_noload++;
-			err = ENOMEM;
-			goto errout;
-		}
+		err = bus_dmamap_load_mbuf(sc->sc_srcdmat, re->re_src_map,
+		    re->re_src_m, safe_op_cb2, &re->re_src, BUS_DMA_NOWAIT);
 	} else if (crp->crp_flags & CRYPTO_F_IOV) {
-		if (bus_dmamap_load_uio(sc->sc_srcdmat, re->re_src_map,
-		    re->re_src_io, safe_op_cb,
-		    &re->re_src, BUS_DMA_NOWAIT) != 0) {
-			bus_dmamap_destroy(sc->sc_srcdmat, re->re_src_map);
-			re->re_src_map = NULL;
-			safestats.st_noload++;
-			err = ENOMEM;
-			goto errout;
-		}
+		err = bus_dmamap_load_uio(sc->sc_srcdmat, re->re_src_map,
+		    re->re_src_io, safe_op_cb2, &re->re_src, BUS_DMA_NOWAIT);
+	} else {
+		err = bus_dmamap_load(sc->sc_srcdmat, re->re_src_map,
+		    re->re_src_buf, crp->crp_ilen, safe_op_cb1, &re->re_src,
+		    BUS_DMA_NOWAIT);
+	}
+	if (err != 0) {
+		bus_dmamap_destroy(sc->sc_srcdmat, re->re_src_map);
+		re->re_src_map = NULL;
+		safestats.st_noload++;
+		err = ENOMEM;
+		goto errout;
 	}
 	nicealign = safe_dmamap_aligned(&re->re_src);
 	uniform = safe_dmamap_uniform(&re->re_src);
@@ -1226,7 +1257,7 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 				}
 				if (bus_dmamap_load_uio(sc->sc_dstdmat,
 				    re->re_dst_map, re->re_dst_io,
-				    safe_op_cb, &re->re_dst,
+				    safe_op_cb2, &re->re_dst,
 				    BUS_DMA_NOWAIT) != 0) {
 					bus_dmamap_destroy(sc->sc_dstdmat,
 						re->re_dst_map);
@@ -1280,7 +1311,7 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 				}
 				if (bus_dmamap_load_mbuf(sc->sc_dstdmat,
 				    re->re_dst_map, re->re_dst_m,
-				    safe_op_cb, &re->re_dst,
+				    safe_op_cb2, &re->re_dst,
 				    BUS_DMA_NOWAIT) != 0) {
 					bus_dmamap_destroy(sc->sc_dstdmat,
 						re->re_dst_map);
@@ -1376,7 +1407,7 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 				}
 				if (bus_dmamap_load_mbuf(sc->sc_dstdmat,
 				    re->re_dst_map, re->re_dst_m,
-				    safe_op_cb, &re->re_dst,
+				    safe_op_cb2, &re->re_dst,
 				    BUS_DMA_NOWAIT) != 0) {
 					bus_dmamap_destroy(sc->sc_dstdmat,
 					re->re_dst_map);
@@ -1404,9 +1435,33 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 				}
 			}
 		} else {
-			safestats.st_badflags++;
-			err = EINVAL;
-			goto errout;
+			KASSERT(nicealign, ("no nicealign"));
+			if (uniform != 1) {
+				/*
+				 * Source is not suitable for direct use as
+				 * the destination.  Create a new scatter/gather
+				 * list based on the destination requirements
+				 * and check if that's ok.
+				 */
+				if (bus_dmamap_create(sc->sc_dstdmat,
+				    BUS_DMA_NOWAIT, &re->re_dst_map)) {
+					safestats.st_nomap++;
+					err = ENOMEM;
+					goto errout;
+				}
+				if (bus_dmamap_load(sc->sc_dstdmat,
+				    re->re_dst_map, re->re_dst_buf,
+				    crp->crp_ilen, safe_op_cb1, &re->re_dst,
+				    BUS_DMA_NOWAIT) != 0) {
+					bus_dmamap_destroy(sc->sc_dstdmat,
+						re->re_dst_map);
+					re->re_dst_map = NULL;
+					safestats.st_noload++;
+					err = ENOMEM;
+					goto errout;
+				}
+			} else
+				re->re_dst = re->re_src;
 		}
 
 		if (re->re_dst.nsegs > 1) {
@@ -1541,17 +1596,9 @@ safe_callback(struct safe_softc *sc, struct safe_ringentry *re)
 				ivsize = 4*sizeof(u_int32_t);
 			} else
 				continue;
-			if (crp->crp_flags & CRYPTO_F_IMBUF) {
-				m_copydata((struct mbuf *)crp->crp_buf,
-					crd->crd_skip + crd->crd_len - ivsize,
-					ivsize,
-					(caddr_t) sc->sc_sessions[re->re_sesn].ses_iv);
-			} else if (crp->crp_flags & CRYPTO_F_IOV) {
-				cuio_copydata((struct uio *)crp->crp_buf,
-					crd->crd_skip + crd->crd_len - ivsize,
-					ivsize,
-					(caddr_t)sc->sc_sessions[re->re_sesn].ses_iv);
-			}
+			crypto_copydata(crp->crp_flags, crp->crp_buf,
+			    crd->crd_skip + crd->crd_len - ivsize, ivsize,
+			    (caddr_t)sc->sc_sessions[re->re_sesn].ses_iv);
 			break;
 		}
 	}
@@ -1572,14 +1619,10 @@ safe_callback(struct safe_softc *sc, struct safe_ringentry *re)
 				bswap32(re->re_sastate.sa_saved_indigest[1]);
 				bswap32(re->re_sastate.sa_saved_indigest[2]);
 			}
-			if (crp->crp_flags & CRYPTO_F_IMBUF) {
-				m_copyback((struct mbuf *)crp->crp_buf,
-					crd->crd_inject, 12,
-					(caddr_t)re->re_sastate.sa_saved_indigest);
-			} else if (crp->crp_flags & CRYPTO_F_IOV && crp->crp_mac) {
-				bcopy((caddr_t)re->re_sastate.sa_saved_indigest,
-					crp->crp_mac, 12);
-			}
+			crypto_copyback(crp->crp_flags, crp->crp_buf,
+			    crd->crd_inject,
+			    sc->sc_sessions[re->re_sesn].ses_mlen,
+			    (caddr_t)re->re_sastate.sa_saved_indigest);
 			break;
 		}
 	}
