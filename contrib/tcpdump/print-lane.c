@@ -22,7 +22,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-lane.c,v 1.23 2004/03/17 23:24:37 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-lane.c,v 1.23.2.1 2005/07/07 01:24:37 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -146,7 +146,7 @@ lane_print(const u_char *p, u_int length, u_int caplen)
 				printf("(LLC %s) ",
 			       etherproto_string(htons(extracted_ethertype)));
 			}
-			if (!xflag && !qflag)
+			if (!suppress_default_print)
 				default_print(p, caplen);
 		}
 	} else if (ether_encap_print(ether_type, p, length, caplen,
@@ -154,7 +154,7 @@ lane_print(const u_char *p, u_int length, u_int caplen)
 		/* ether_type not known, print raw packet */
 		if (!eflag)
 			lane_hdr_print((u_char *)ep, length + sizeof(*ep));
-		if (!xflag && !qflag)
+		if (!suppress_default_print)
 			default_print(p, caplen);
 	}
 }

@@ -20,6 +20,7 @@ Additional people who have contributed patches:
         Andy Heffernan                  <ahh@juniper.net>
 	Arkadiusz Miskiewicz 		<misiek@pld.org.pl>
 	Armando L. Caro Jr.		<acaro@mail.eecis.udel.edu>
+	Arnaldo Carvalho de Melo	<acme@ghostprotocols.net>
 	Atsushi Onoe			<onoe@netbsd.org>
 	Ben Smithurst			<ben@scientia.demon.co.uk>
 	Brent L. Bates			<blbates@vigyan.com>
@@ -36,6 +37,7 @@ Additional people who have contributed patches:
 	Daniel Hagerty 			<hag@ai.mit.edu>
 	Darren Reed			<darrenr@reed.wattle.id.au>
 	David Binderman			<d.binderman@virgin.net>
+	David Smith			<dsmith@redhat.com>
 	David Young			<dyoung@ojctech.com>
 	Eddie Kohler			<xexd@sourceforge.net>
 	Francis Dupont			<Francis.Dupont@enst-bretagne.fr>
@@ -53,6 +55,7 @@ Additional people who have contributed patches:
 	Harry Raaymakers		<harryr@connect.com.au>
 	Heinz-Ado Arnolds		<Ado.Arnolds@dhm-systems.de>
 	Hendrik Scholz			<hendrik@scholz.net>
+	Ian McDonald			<imcdnzl@gmail.com>
 	Jakob Schlyter			<jakob@openbsd.org>
 	Jan Oravec			<wsx@wsx6.net>
 	Jason R. Thorpe			<thorpej@netbsd.org>
@@ -85,6 +88,7 @@ Additional people who have contributed patches:
 	Martin Husemann			<martin@netbsd.org>
 	Michael Madore			<mmadore@turbolinux.com>
 	Michael Shalayeff		<mickey@openbsd.org>
+	Michael Shields			<shields@msrl.com>
 	Michael T. Stolarchuk		<mts@off.to>
 	Michele "mydecay" Marchetto	<smarchetto1@tin.it>
 	Monroe Williams 		<monroe@pobox.com>
@@ -127,6 +131,7 @@ Additional people who have contributed patches:
 	Uns Lider			<unslider@miranda.org>
 	Wilbert de Graaf		<wilbertdg@hetnet.nl>
 	Yen Yen Lim
+	Yoshifumi Nishida
 
 The original LBL crew:
 	Steve McCanne

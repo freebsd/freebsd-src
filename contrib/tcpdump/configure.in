@@ -1,4 +1,4 @@
-dnl @(#) $Header: /tcpdump/master/tcpdump/configure.in,v 1.188.2.6 2005/04/24 01:36:19 guy Exp $ (LBL)
+dnl @(#) $Header: /tcpdump/master/tcpdump/configure.in,v 1.188.2.7 2005/09/21 16:50:01 guy Exp $ (LBL)
 dnl
 dnl Copyright (c) 1994, 1995, 1996, 1997
 dnl	The Regents of the University of California.  All rights reserved.
@@ -6,7 +6,7 @@ dnl
 dnl Process this file with autoconf to produce a configure script.
 dnl
 
-AC_REVISION($Revision: 1.188.2.6 $)
+AC_REVISION($Revision: 1.188.2.7 $)
 AC_PREREQ(2.50)
 AC_INIT(tcpdump.c)
 
@@ -908,7 +908,15 @@ AC_MSG_CHECKING(for SSLeay)
 ac_cv_ssleay_path=no
 incdir=no
 
-Xprefix=`eval echo $prefix`
+#
+# If Xprefix is set in the environment, use that value.
+# XXX - this should arguably be done by having --with-crypto take an
+# optional argument, and have that argument be used to set Xprefix
+# if present.
+#
+if test -z "$Xprefix"; then
+	Xprefix=`eval echo $prefix`
+fi
 
 for dir in $Xprefix /usr/${host_alias} /usr /usr/local /usr/local/ssl /usr/pkg; do
 	#

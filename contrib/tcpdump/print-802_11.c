@@ -22,7 +22,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-802_11.c,v 1.31.2.1 2005/04/20 19:32:41 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-802_11.c,v 1.31.2.5 2005/07/30 21:37:50 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -62,23 +62,7 @@ do { \
 } while (0)
 
 static const char *auth_alg_text[]={"Open System","Shared Key","EAP"};
-static const char *subtype_text[]={
-	"Assoc Request",
-	"Assoc Response",
-	"ReAssoc Request",
-	"ReAssoc Response",
-	"Probe Request",
-	"Probe Response",
-	"",
-	"",
-	"Beacon",
-	"ATIM",
-	"Disassociation",
-	"Authentication",
-	"DeAuthentication",
-	"",
-	""
-};
+#define NUM_AUTH_ALGS	(sizeof auth_alg_text / sizeof auth_alg_text[0])
 
 static const char *status_text[] = {
 	"Succesful",  /*  0  */
@@ -102,8 +86,8 @@ static const char *status_text[] = {
 	"Association denied because AP is unable to handle additional associated stations",	  /*  17 */
 	"Association denied due to requesting station not supporting all of the " \
 		"data rates in BSSBasicRateSet parameter",	  /*  18 */
-	NULL
 };
+#define NUM_STATUSES	(sizeof status_text / sizeof status_text[0])
 
 static const char *reason_text[] = {
 	"Reserved", /* 0 */
@@ -112,12 +96,12 @@ static const char *reason_text[] = {
 	"Deauthenticated because sending station is leaving (or has left) IBSS or ESS", /* 3 */
 	"Disassociated due to inactivity", /* 4 */
 	"Disassociated because AP is unable to handle all currently associated stations", /* 5 */
-	"Class 2 frame receivedfrom nonauthenticated station", /* 6 */
+	"Class 2 frame received from nonauthenticated station", /* 6 */
 	"Class 3 frame received from nonassociated station", /* 7 */
 	"Disassociated because sending station is leaving (or has left) BSS", /* 8 */
 	"Station requesting (re)association is not authenticated with responding station", /* 9 */
-	NULL
 };
+#define NUM_REASONS	(sizeof reason_text / sizeof reason_text[0])
 
 static int
 wep_print(const u_char *p)
@@ -309,7 +293,9 @@ handle_assoc_response(const u_char *p)
 
 	printf(" AID(%x) :%s: %s", ((u_int16_t)(pbody.aid << 2 )) >> 2 ,
 	    CAPABILITY_PRIVACY(pbody.capability_info) ? " PRIVACY " : "",
-	    (pbody.status_code < 19 ? status_text[pbody.status_code] : "n/a"));
+	    (pbody.status_code < NUM_STATUSES
+		? status_text[pbody.status_code]
+		: "n/a"));
 
 	return 1;
 }
@@ -419,8 +405,9 @@ handle_disassoc(const u_char *p)
 	pbody.reason_code = EXTRACT_LE_16BITS(p);
 
 	printf(": %s",
-	    (pbody.reason_code < 10) ? reason_text[pbody.reason_code]
-	                             : "Reserved" );
+	    (pbody.reason_code < NUM_REASONS)
+		? reason_text[pbody.reason_code]
+		: "Reserved" );
 
 	return 1;
 }
@@ -449,21 +436,25 @@ handle_auth(const u_char *p)
 	    ((pbody.auth_trans_seq_num == 2) ||
 	     (pbody.auth_trans_seq_num == 3))) {
 		printf(" (%s)-%x [Challenge Text] %s",
-		    (pbody.auth_alg < 4) ? auth_alg_text[pbody.auth_alg]
-		                         : "Reserved",
+		    (pbody.auth_alg < NUM_AUTH_ALGS)
+			? auth_alg_text[pbody.auth_alg]
+			: "Reserved",
 		    pbody.auth_trans_seq_num,
 		    ((pbody.auth_trans_seq_num % 2)
-		        ? ((pbody.status_code < 19)
+		        ? ((pbody.status_code < NUM_STATUSES)
 			       ? status_text[pbody.status_code]
 			       : "n/a") : ""));
 		return 1;
 	}
 	printf(" (%s)-%x: %s",
-	    (pbody.auth_alg < 4) ? auth_alg_text[pbody.auth_alg] : "Reserved",
+	    (pbody.auth_alg < NUM_AUTH_ALGS)
+		? auth_alg_text[pbody.auth_alg]
+		: "Reserved",
 	    pbody.auth_trans_seq_num,
 	    (pbody.auth_trans_seq_num % 2)
-	        ? ((pbody.status_code < 19) ? status_text[pbody.status_code]
-	                                    : "n/a")
+	        ? ((pbody.status_code < NUM_STATUSES)
+		    ? status_text[pbody.status_code]
+	            : "n/a")
 	        : "");
 
 	return 1;
@@ -483,8 +474,9 @@ handle_deauth(const struct mgmt_header_t *pmh, const u_char *p)
 	pbody.reason_code = EXTRACT_LE_16BITS(p);
 	offset += IEEE802_11_REASON_LEN;
 
-	reason = (pbody.reason_code < 10) ? reason_text[pbody.reason_code]
-	                                  : "Reserved";
+	reason = (pbody.reason_code < NUM_REASONS)
+			? reason_text[pbody.reason_code]
+			: "Reserved";
 
 	if (eflag) {
 		printf(": %s", reason);
@@ -504,28 +496,36 @@ static int
 mgmt_body_print(u_int16_t fc, const struct mgmt_header_t *pmh,
     const u_char *p)
 {
-	printf("%s", subtype_text[FC_SUBTYPE(fc)]);
-
 	switch (FC_SUBTYPE(fc)) {
 	case ST_ASSOC_REQUEST:
+		printf("Assoc Request");
 		return handle_assoc_request(p);
 	case ST_ASSOC_RESPONSE:
+		printf("Assoc Response");
 		return handle_assoc_response(p);
 	case ST_REASSOC_REQUEST:
+		printf("ReAssoc Request");
 		return handle_reassoc_request(p);
 	case ST_REASSOC_RESPONSE:
+		printf("ReAssoc Response");
 		return handle_reassoc_response(p);
 	case ST_PROBE_REQUEST:
+		printf("Probe Request");
 		return handle_probe_request(p);
 	case ST_PROBE_RESPONSE:
+		printf("Probe Response");
 		return handle_probe_response(p);
 	case ST_BEACON:
+		printf("Beacon");
 		return handle_beacon(p);
 	case ST_ATIM:
+		printf("ATIM");
 		return handle_atim();
 	case ST_DISASSOC:
+		printf("Disassociation");
 		return handle_disassoc(p);
 	case ST_AUTH:
+		printf("Authentication");
 		if (!TTEST2(*p, 3))
 			return 0;
 		if ((p[0] == 0 ) && (p[1] == 0) && (p[2] == 0)) {
@@ -534,6 +534,7 @@ mgmt_body_print(u_int16_t fc, const struct mgmt_header_t *pmh,
 		}
 		return handle_auth(p);
 	case ST_DEAUTH:
+		printf("DeAuthentication");
 		return handle_deauth(pmh, p);
 		break;
 	default:
@@ -900,7 +901,7 @@ ieee802_11_print(const u_char *p, u_int length, u_int caplen)
 				printf("(LLC %s) ",
 				    etherproto_string(
 				        htons(extracted_ethertype)));
-			if (!xflag && !qflag)
+			if (!suppress_default_print)
 				default_print(p, caplen);
 		}
 		break;

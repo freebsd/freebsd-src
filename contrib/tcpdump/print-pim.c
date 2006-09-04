@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-pim.c,v 1.45.2.2 2005/04/20 22:08:44 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-pim.c,v 1.45.2.3 2005/07/11 20:24:34 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -140,7 +140,7 @@ pimv1_join_prune_print(register const u_char *bp, register u_int len)
 		return;
 	}
 
-	TCHECK2(bp[0], 4);
+	TCHECK2(bp[0], sizeof(struct in_addr));
 	if (vflag > 1)
 		(void)printf("\n");
 	(void)printf(" Upstream Nbr: %s", ipaddr_string(bp));
@@ -165,9 +165,9 @@ pimv1_join_prune_print(register const u_char *bp, register u_int len)
 		 * XXX - does the address have length "addrlen" and the
 		 * mask length "maddrlen"?
 		 */
-		TCHECK2(bp[0], 4);
+		TCHECK2(bp[0], sizeof(struct in_addr));
 		(void)printf("\n\tGroup: %s", ipaddr_string(bp));
-		TCHECK2(bp[4], 4);
+		TCHECK2(bp[4], sizeof(struct in_addr));
 		if (EXTRACT_32BITS(&bp[4]) != 0xffffffff)
 			(void)printf("/%s", ipaddr_string(&bp[4]));
 		TCHECK2(bp[8], 4);
@@ -247,7 +247,7 @@ pimv1_print(register const u_char *bp, register u_int len)
 		break;
 	case 2:
 		(void)printf(" Register-Stop");
-		TCHECK2(bp[12], 4);
+		TCHECK2(bp[12], sizeof(struct in_addr));
 		(void)printf(" for %s > %s", ipaddr_string(&bp[8]),
 		    ipaddr_string(&bp[12]));
 		break;
@@ -270,7 +270,7 @@ pimv1_print(register const u_char *bp, register u_int len)
 		break;
 	case 5:
 		(void)printf(" Assert");
-		TCHECK2(bp[16], 4);
+		TCHECK2(bp[16], sizeof(struct in_addr));
 		(void)printf(" for %s > %s", ipaddr_string(&bp[16]),
 		    ipaddr_string(&bp[8]));
 		if (EXTRACT_32BITS(&bp[12]) != 0xffffffff)
@@ -520,12 +520,12 @@ pimv2_addr_print(const u_char *bp, enum pimv2_addrtype at, int silent)
 		switch (bp[0]) {
 		case 1:
 			af = AF_INET;
-			len = 4;
+			len = sizeof(struct in_addr);
 			break;
 #ifdef INET6
 		case 2:
 			af = AF_INET6;
-			len = 16;
+			len = sizeof(struct in6_addr);
 			break;
 #endif
 		default:
@@ -536,11 +536,11 @@ pimv2_addr_print(const u_char *bp, enum pimv2_addrtype at, int silent)
 		hdrlen = 2;
 	} else {
 		switch (pimv2_addr_len) {
-		case 4:
+		case sizeof(struct in_addr):
 			af = AF_INET;
 			break;
 #ifdef INET6
-		case 16:
+		case sizeof(struct in6_addr):
 			af = AF_INET6;
 			break;
 #endif

@@ -29,6 +29,7 @@ configure
 configure.in
 cpack.c
 cpack.h
+dccp.h
 decnet.h
 decode_prefix.h
 enc.h
@@ -125,6 +126,7 @@ print-cdp.c
 print-chdlc.c
 print-cip.c
 print-cnfp.c
+print-dccp.c
 print-decnet.c
 print-dhcp6.c
 print-domain.c
@@ -188,6 +190,7 @@ print-sctp.c
 print-sip.c
 print-sl.c
 print-sll.c
+print-slow.c
 print-smb.c
 print-snmp.c
 print-stp.c

@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp6.c,v 1.79.2.4 2005/05/14 00:42:54 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp6.c,v 1.79.2.6 2005/09/05 09:29:28 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -75,7 +75,7 @@ static struct tok icmp6_type_values[] = {
     { ND_ROUTER_SOLICIT, "router solicitation"},
     { ND_ROUTER_ADVERT, "router advertisement"},
     { ND_NEIGHBOR_SOLICIT, "neighbor solicitation"},
-    { ND_NEIGHBOR_ADVERT, "neighbor advertisment"},
+    { ND_NEIGHBOR_ADVERT, "neighbor advertisement"},
     { ND_REDIRECT, "redirect"},
     { ICMP6_ROUTER_RENUMBERING, "router renumbering"},
     { IND_SOLICIT, "inverse neighbor solicitation"},
@@ -131,7 +131,7 @@ static struct tok icmp6_opt_values[] = {
    { ND_OPT_PREFIX_INFORMATION, "prefix info"},
    { ND_OPT_REDIRECTED_HEADER, "redirected header"},
    { ND_OPT_MTU, "mtu"},
-   { ND_OPT_ADVINTERVAL, "advertisment interval"},
+   { ND_OPT_ADVINTERVAL, "advertisement interval"},
    { ND_OPT_HOMEAGENT_INFO, "homeagent information"},
    { ND_OPT_ROUTE_INFO, "route info"},
    { 0,	NULL }
@@ -764,13 +764,13 @@ mldv2_report_print(const u_char *bp, u_int len)
 		printf(" [invalid number of groups]");
 		return;
 	    }
-            TCHECK2(bp[group + 4], 16);
+            TCHECK2(bp[group + 4], sizeof(struct in6_addr));
             printf(" [gaddr %s", ip6addr_string(&bp[group + 4]));
 	    printf(" %s", tok2str(mldv2report2str, " [v2-report-#%d]",
 								bp[group]));
             nsrcs = (bp[group + 2] << 8) + bp[group + 3];
 	    /* Check the number of sources and print them */
-	    if (len < group + 20 + (nsrcs * 16)) {
+	    if (len < group + 20 + (nsrcs * sizeof(struct in6_addr))) {
 		printf(" [invalid number of sources %d]", nsrcs);
 		return;
 	    }
@@ -780,13 +780,14 @@ mldv2_report_print(const u_char *bp, u_int len)
 		/* Print the sources */
                 (void)printf(" {");
                 for (j = 0; j < nsrcs; j++) {
-                    TCHECK2(bp[group + 20 + j * 16], 16);
-		    printf(" %s", ip6addr_string(&bp[group + 20 + j * 16]));
+                    TCHECK2(bp[group + 20 + j * sizeof(struct in6_addr)],
+                            sizeof(struct in6_addr));
+		    printf(" %s", ip6addr_string(&bp[group + 20 + j * sizeof(struct in6_addr)]));
 		}
                 (void)printf(" }");
             }
 	    /* Next group record */
-            group += 20 + nsrcs * 16;
+            group += 20 + nsrcs * sizeof(struct in6_addr);
 	    printf("]");
         }
     }
@@ -820,7 +821,7 @@ mldv2_query_print(const u_char *bp, u_int len)
     if (vflag) {
 	(void)printf(" [max resp delay=%d]", mrt);
     }
-    TCHECK2(bp[8], 16);
+    TCHECK2(bp[8], sizeof(struct in6_addr));
     printf(" [gaddr %s", ip6addr_string(&bp[8]));
 
     if (vflag) {
@@ -842,13 +843,14 @@ mldv2_query_print(const u_char *bp, u_int len)
     TCHECK2(bp[26], 2);
     nsrcs = ntohs(*(u_short *)&bp[26]);
     if (nsrcs > 0) {
-	if (len < 28 + nsrcs * 16)
+	if (len < 28 + nsrcs * sizeof(struct in6_addr))
 	    printf(" [invalid number of sources]");
 	else if (vflag > 1) {
 	    printf(" {");
 	    for (i = 0; i < nsrcs; i++) {
-		TCHECK2(bp[28 + i * 16], 16);
-		printf(" %s", ip6addr_string(&bp[28 + i * 16]));
+		TCHECK2(bp[28 + i * sizeof(struct in6_addr)],
+                        sizeof(struct in6_addr));
+		printf(" %s", ip6addr_string(&bp[28 + i * sizeof(struct in6_addr)]));
 	    }
 	    printf(" }");
 	} else
