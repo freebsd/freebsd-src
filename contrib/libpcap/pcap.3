@@ -1,4 +1,4 @@
-.\" @(#) $Header: /tcpdump/master/libpcap/pcap.3,v 1.64.2.4 2005/06/03 20:36:56 guy Exp $
+.\" @(#) $Header: /tcpdump/master/libpcap/pcap.3,v 1.64.2.8 2005/09/07 08:29:17 guy Exp $
 .\"
 .\" Copyright (c) 1994, 1996, 1997
 .\"	The Regents of the University of California.  All rights reserved.
@@ -82,7 +82,7 @@ int pcap_compile(pcap_t *p, struct bpf_program *fp,
 char *str, int optimize, bpf_u_int32 netmask)
 int pcap_setfilter(pcap_t *p, struct bpf_program *fp)
 void pcap_freecode(struct bpf_program *)
-int pcap_setdirection(pcap_t *p, direction_t d)
+int pcap_setdirection(pcap_t *p, pcap_direction_t d)
 .ft
 .LP
 .ft B
@@ -691,7 +691,11 @@ supplied to
 as the source link-layer address, if the header contains such an
 address, might be changed to be the address assigned to the interface on
 which the packet it sent, if the platform doesn't support sending
-completely raw and unchanged packets.
+completely raw and unchanged packets.  Even worse, some drivers on some
+platforms might change the link-layer type field to whatever value
+libpcap used when attaching to the device, even on platforms that
+.I do
+nominally support sending completely raw and unchanged packets.
 .PP
 .B pcap_sendpacket()
 is like
@@ -783,23 +787,23 @@ has been made the filter program for a pcap structure by a call to
 .PP
 .B pcap_setdirection()
 is used to specify a direction that packets will be captured.
-.I direction_t 
+.I pcap_direction_t 
 is one of the constants
-.BR D_IN ,
-.B D_OUT
+.BR PCAP_D_IN ,
+.B PCAP_D_OUT
 or 
-.BR D_INOUT .
-.B D_IN
+.BR PCAP_D_INOUT .
+.B PCAP_D_IN
 will only capture packets received by the device,
-.B D_OUT
+.B PCAP_D_OUT
 will only capture packets sent by the device and
-.B D_INOUT
+.B PCAP_D_INOUT
 will capture packets received by or sent by the device.
-.B D_INOUT
+.B PCAP_D_INOUT
 is the default setting if this function is not called.  This isn't
 necessarily supported on all platforms; some platforms might return an
 error, and some other platforms might not support
-.BR D_OUT .
+.BR PCAP_D_OUT .
 This operation is not supported if a ``savefile'' is being read.
 .B \-1
 is returned on failure,
