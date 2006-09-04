@@ -453,6 +453,12 @@ cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 		intr_restore(s);
 		if ((ids & IDR_NACK) == 0)
 			return;
+		/*
+		 * Leave interrupts enabled for a bit before retrying
+		 * in order to avoid deadlocks if the other CPU is also
+		 * trying to send an IPI.
+		 */
+		DELAY(2);
 	}
 	if (
 #ifdef KDB
