@@ -975,6 +975,7 @@ found:
 #ifdef MAC
 		if (mac_init_ipq(fp, M_NOWAIT) != 0) {
 			uma_zfree(ipq_zone, fp);
+			fp = NULL;
 			goto dropfrag;
 		}
 		mac_create_ipq(m, fp);
