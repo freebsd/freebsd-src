@@ -22,7 +22,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/scanner.l,v 1.99.2.3 2005/06/20 21:30:19 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/scanner.l,v 1.99.2.4 2005/09/05 09:08:07 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -72,7 +72,6 @@ static char *in_buffer;
 #define getc(fp)  (*in_buffer == 0 ? EOF : *in_buffer++)
 #endif
 
-#define yylval pcap_lval
 extern YYSTYPE yylval;
 
 %}
@@ -263,6 +262,8 @@ outbound	return OUTBOUND;
 
 vlan		return VLAN;
 mpls		return MPLS;
+pppoed		return PPPOED;
+pppoes		return PPPOES;
 
 lane		return LANE;
 llc		return LLC;
