@@ -19,7 +19,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  *
- * @(#) $Header: /tcpdump/master/tcpdump/ethertype.h,v 1.24 2004/10/07 16:04:07 hannes Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/ethertype.h,v 1.24.2.1 2005/07/10 14:51:10 hannes Exp $ (LBL)
  * $FreeBSD$
  */
 
@@ -110,6 +110,9 @@
 #endif
 #ifndef ETHERTYPE_PPP
 #define	ETHERTYPE_PPP		0x880b
+#endif
+#ifndef ETHERTYPE_SLOW
+#define	ETHERTYPE_SLOW		0x8809
 #endif
 #ifndef	ETHERTYPE_MPLS
 #define	ETHERTYPE_MPLS		0x8847
