@@ -24,10 +24,17 @@ EXPORT_SYMS=	YES	# XXX evaluate
 opt_isa.h:
 	:> ${.TARGET}
 .else
+.if !defined(KERNBUILDDIR)
 SRCS+=	sndbuf_dma.c
 
 opt_isa.h:
 	echo "#define DEV_ISA 1" > ${.TARGET}
+.else
+DEV_ISA!= sed -n '/DEV_ISA/p' ${KERNBUILDDIR}/opt_isa.h
+.if !empty(DEV_ISA)
+SRCS+=	sndbuf_dma.c
+.endif
+.endif
 .endif
 
 .include <bsd.kmod.mk>
