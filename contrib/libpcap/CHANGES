@@ -1,6 +1,17 @@
-@(#) $Header: /tcpdump/master/libpcap/CHANGES,v 1.59.2.1 2005/07/05 21:04:27 mcr Exp $ (LBL)
+@(#) $Header: /tcpdump/master/libpcap/CHANGES,v 1.59.2.8 2005/09/05 09:17:47 guy Exp $ (LBL)
 
-Tue. 	July 5, 2005.  ken@xelerance.com. Summary for 3.9.x tcpdump
+Mon. 	September 5, 2005.  ken@xelerance.com. Summary for 0.9.4 libpcap release
+
+	Support for radiotap on Linux (Mike Kershaw)
+	Fixes for HP-UX
+	Support for additional Juniper link-layer types
+	Fixes for filters on MPLS-encapsulated packets
+	"vlan" filter fixed
+	"pppoed" and "pppoes" filters added; the latter modifies later
+	parts of the filter expression to look at the PPP headers and
+	headers in the PPP payload
+
+Tue. 	July 5, 2005.  ken@xelerance.com. Summary for 0.9.3 libpcap release
 
 	Fixes for compiling on nearly every platform,
 		including improved 64bit support
@@ -9,16 +20,12 @@ Tue. 	July 5, 2005.  ken@xelerance.com. Summary for 3.9.x tcpdump
 	OpenBSD pf format support
 	IrDA capture (Linux only)
 
-Tue.   May 27, 2005. mcr@sandelman.ottawa.on.ca. Summary for 0.9.1 release
-
-	Numerous fixes for 
-
 Tue.   March 30, 2004. mcr@sandelman.ottawa.on.ca. Summary for 3.8.3 release
 
 	Fixed minor problem in gencode.c that would appear on 64-bit
 	platforms.
 	Version number is now sane.
-	
+
 Mon.   March 29, 2004. mcr@sandelman.ottawa.on.ca. Summary for 3.8.2 release
 
 	updates for autoconf 2.5
@@ -31,13 +38,13 @@ Wed.   November 12, 2003. mcr@sandelman.ottawa.on.ca. Summary for 0.8 release
 	Win32 patches from NetGroup, Politecnico di Torino (Italy)
 	OpenBSD pf, DLT_PFLOG added
 	Many changes to ATM support.
-	lookup pcap_lookupnet()	
+	lookup pcap_lookupnet()
 	Added DLT_ARCNET_LINUX, DLT_ENC, DLT_IEEE802_11_RADIO, DLT_SUNATM,
 		DLT_IP_OVER_FC, DLT_FRELAY, others.
 	Sigh.  More AIX wonderfulness.
-	Document updates. 
+	Document updates.
 	Changes to API: pcap_next_ex(), pcap_breakloop(), pcap_dump_flush(),
-			pcap_list_datalinks(), pcap_set_datalink(), 
+			pcap_list_datalinks(), pcap_set_datalink(),
 			pcap_lib_version(), pcap_datalink_val_to_name(),
 			pcap_datalink_name_to_val(), new error returns.
 
@@ -58,7 +65,7 @@ Monday October 23, 2001. mcr@sandelman.ottawa.on.ca. Summary for 0.7 release
 
 	Added pcap_findalldevs() call to get list of interfaces in a MI way.
 
-	pcap_stats() has been documented as to what its counters mean on 
+	pcap_stats() has been documented as to what its counters mean on
 	each platform.
 
 Tuesday January 9, 2001. guy@alum.mit.edu. Summary for 0.6 release
@@ -131,7 +138,7 @@ Greg Troxel <gdt@ir.bbn.com>
 - Added a new "pcap_compile_nopcap()", which lets you compile a filter
   expression into a BPF program without having an open live capture or
   capture file.
-  
+
 v0.4 Sat Jul 25 12:40:09 PDT 1998
 
 - Fix endian problem with DLT_NULL devices. From FreeBSD via Bill
