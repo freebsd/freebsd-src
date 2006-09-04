@@ -810,7 +810,7 @@ findkn:
 			if (fp->f_data == kq) {
 				FILEDESC_UNLOCK(fdp);
 				error = EINVAL;
-				goto done_noglobal;
+				goto done;
 			}
 
 			KQ_GLOBAL_LOCK(&kq_global, haskqglobal);
@@ -866,6 +866,7 @@ findkn:
 			kn = tkn;
 			tkn = NULL;
 			if (kn == NULL) {
+				KQ_UNLOCK(kq);
 				error = ENOMEM;
 				goto done;
 			}
@@ -951,7 +952,6 @@ findkn:
 
 done:
 	KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
-done_noglobal:
 	if (fp != NULL)
 		fdrop(fp, td);
 	if (tkn != NULL)
@@ -1705,7 +1705,7 @@ knlist_destroy(struct knlist *knl)
 void
 knlist_cleardel(struct knlist *knl, struct thread *td, int islocked, int killkn)
 {
-	struct knote *kn;
+	struct knote *kn, *kn2;
 	struct kqueue *kq;
 
 	if (islocked)
@@ -1716,7 +1716,7 @@ again:		/* need to reaquire lock since we have dropped it */
 		knl->kl_lock(knl->kl_lockarg);
 	}
 
-	SLIST_FOREACH(kn, &knl->kl_list, kn_selnext) {
+	SLIST_FOREACH_SAFE(kn, &knl->kl_list, kn_selnext, kn2) {
 		kq = kn->kn_kq;
 		KQ_LOCK(kq);
 		if ((kn->kn_status & KN_INFLUX)) {
