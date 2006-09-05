@@ -177,6 +177,7 @@ static int	tcp_isn_reseed_interval = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
     &tcp_isn_reseed_interval, 0, "Seconds between reseeding of ISN secret");
 
+static uma_zone_t tcptw_zone;
 static int	maxtcptw;
 static int
 sysctl_maxtcptw(SYSCTL_HANDLER_ARGS)
@@ -189,9 +190,10 @@ sysctl_maxtcptw(SYSCTL_HANDLER_ARGS)
 		new = maxtcptw;
 	error = sysctl_handle_int(oidp, &new, sizeof(int), req);
 	if (error == 0 && req->newptr) {
-		if (new > maxtcptw)
+		if (new > maxtcptw) {
 			maxtcptw = new;
-		else
+			uma_zone_set_max(tcptw_zone, maxtcptw);
+		} else
 			error = EINVAL;
 	}
 	return (error);
@@ -261,7 +263,6 @@ struct	tcpcb_mem {
 };
 
 static uma_zone_t tcpcb_zone;
-static uma_zone_t tcptw_zone;
 struct callout isn_callout;
 static struct mtx isn_mtx;
 
