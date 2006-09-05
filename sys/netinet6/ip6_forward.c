@@ -525,7 +525,7 @@ ip6_forward(m, srcrt)
 	 * Also, don't send redirect if forwarding using a route
 	 * modified by a redirect.
 	 */
-	if (rt->rt_ifp == m->m_pkthdr.rcvif && !srcrt &&
+	if (ip6_sendredirects && rt->rt_ifp == m->m_pkthdr.rcvif && !srcrt &&
 #ifdef IPSEC
 	    !ipsecrt &&
 #endif
