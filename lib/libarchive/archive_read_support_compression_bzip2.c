@@ -187,6 +187,7 @@ init(struct archive *a, const void *buff, size_t n)
 
 	a->compression_read_ahead = read_ahead;
 	a->compression_read_consume = read_consume;
+	a->compression_skip = NULL; /* not supported */
 	a->compression_finish = finish;
 
 	/* Initialize compression library. */

@@ -27,6 +27,7 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#include <assert.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,6 +62,8 @@ struct archive_decompress_none {
  */
 #define	BUFFER_SIZE	65536
 
+#define minimum(a, b) (a < b ? a : b)
+
 static int	archive_decompressor_none_bid(const void *, size_t);
 static int	archive_decompressor_none_finish(struct archive *);
 static int	archive_decompressor_none_init(struct archive *,
@@ -69,6 +72,7 @@ static ssize_t	archive_decompressor_none_read_ahead(struct archive *,
 		    const void **, size_t);
 static ssize_t	archive_decompressor_none_read_consume(struct archive *,
 		    size_t);
+static ssize_t	archive_decompressor_none_skip(struct archive *, size_t);
 
 int
 archive_read_support_compression_none(struct archive *a)
@@ -123,6 +127,7 @@ archive_decompressor_none_init(struct archive *a, const void *buff, size_t n)
 	a->compression_data = state;
 	a->compression_read_ahead = archive_decompressor_none_read_ahead;
 	a->compression_read_consume = archive_decompressor_none_read_consume;
+	a->compression_skip = archive_decompressor_none_skip;
 	a->compression_finish = archive_decompressor_none_finish;
 
 	return (ARCHIVE_OK);
@@ -249,6 +254,74 @@ archive_decompressor_none_read_consume(struct archive *a, size_t request)
 	}
 	a->file_position += request;
 	return (request);
+}
+
+/*
+ * Skip at most request bytes. Skipped data is marked as consumed.
+ */
+static ssize_t
+archive_decompressor_none_skip(struct archive *a, size_t request)
+{
+	struct archive_decompress_none *state;
+	ssize_t bytes_skipped, total_bytes_skipped = 0;
+	size_t min;
+
+	state = a->compression_data;
+	if (state->fatal)
+		return (-1);
+	/*
+	 * If there is data in the buffers already, use that first.
+	 */
+	if (state->avail > 0) {
+		min = minimum(request, state->avail);
+		bytes_skipped = archive_decompressor_none_read_consume(a, min);
+		request -= bytes_skipped;
+		total_bytes_skipped += bytes_skipped;
+	}
+	if (state->client_avail > 0) {
+		min = minimum(request, state->client_avail);
+		bytes_skipped = archive_decompressor_none_read_consume(a, min);
+		request -= bytes_skipped;
+		total_bytes_skipped += bytes_skipped;
+	}
+	if (request == 0)
+		return (total_bytes_skipped);
+	/*
+	 * If no client_skipper is provided, just read the old way. It is very
+	 * likely that after skipping, the request has not yet been fully
+	 * satisfied (and is still > 0). In that case, read as well.
+	 */
+	if (a->client_skipper != NULL) {
+		bytes_skipped = (a->client_skipper)(a, a->client_data,
+		    request);
+		if (bytes_skipped < 0) {	/* error */
+			state->client_total = state->client_avail = 0;
+			state->client_next = state->client_buff = NULL;
+			state->fatal = 1;
+			return (bytes_skipped);
+		}
+		total_bytes_skipped += bytes_skipped;
+		a->file_position += bytes_skipped;
+		request -= bytes_skipped;
+		state->client_next = state->client_buff;
+		a->raw_position += bytes_skipped;
+		state->client_avail = state->client_total = 0;
+	}
+	while (request > 0) {
+		const void* dummy_buffer;
+		ssize_t bytes_read;
+		bytes_read = archive_decompressor_none_read_ahead(a,
+		    &dummy_buffer, request);
+		if (bytes_read < 0)
+			return (bytes_read);
+		assert(bytes_read >= 0); /* precondition for cast below */
+		min = minimum((size_t)bytes_read, request);
+		bytes_read = archive_decompressor_none_read_consume(a, min);
+		total_bytes_skipped += bytes_read;
+		request -= bytes_read;
+	}
+	assert(request == 0);
+	return (total_bytes_skipped);
 }
 
 static int

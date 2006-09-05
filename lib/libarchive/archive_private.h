@@ -68,6 +68,7 @@ struct archive {
 	/* Callbacks to open/read/write/close archive stream. */
 	archive_open_callback	*client_opener;
 	archive_read_callback	*client_reader;
+	archive_skip_callback	*client_skipper;
 	archive_write_callback	*client_writer;
 	archive_close_callback	*client_closer;
 	void			*client_data;
@@ -132,6 +133,7 @@ struct archive {
 	ssize_t	(*compression_read_ahead)(struct archive *,
 		    const void **, size_t request);
 	ssize_t	(*compression_read_consume)(struct archive *, size_t);
+	ssize_t (*compression_skip)(struct archive *, size_t);
 
 	/*
 	 * Format detection is mostly the same as compression
