@@ -189,9 +189,9 @@ sysctl_maxtcptw(SYSCTL_HANDLER_ARGS)
 		new = maxtcptw;
 	error = sysctl_handle_int(oidp, &new, sizeof(int), req);
 	if (error == 0 && req->newptr) {
-		if (new > maxtcptw) {
+		if (new > maxtcptw)
 			maxtcptw = new;
-		} else
+		else
 			error = EINVAL;
 	}
 	return (error);
