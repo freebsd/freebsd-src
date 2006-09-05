@@ -434,7 +434,7 @@ retry:
 				break;
 		}
 		/* There are no candidates at all. */
-		if (i == -1) {
+		if (i < 0) {
 			vm_page_unlock_queues();
 			continue;
 		}
