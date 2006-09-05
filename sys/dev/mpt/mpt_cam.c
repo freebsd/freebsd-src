@@ -104,9 +104,9 @@ __FBSDID("$FreeBSD$");
 #include "dev/mpt/mpilib/mpi_init.h"
 #include "dev/mpt/mpilib/mpi_targ.h"
 #include "dev/mpt/mpilib/mpi_fc.h"
-
+#if __FreeBSD_version >= 500000
 #include <sys/sysctl.h>
-
+#endif
 #include <sys/callout.h>
 #include <sys/kthread.h>
 
@@ -248,7 +248,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	 * If we support target mode, we register a reply handler for it,
 	 * but don't add resources until we actually enable target mode.
 	 */
-	if ((mpt->role & MPT_ROLE_TARGET) != 0) {
+	if (mpt->is_fc && (mpt->role & MPT_ROLE_TARGET) != 0) {
 		handler.reply_handler = mpt_scsi_tgt_reply_handler;
 		error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
 		    &mpt->scsi_tgt_handler_id);
@@ -816,7 +816,7 @@ mpt_cam_enable(struct mpt_softc *mpt)
 	 * If we're in target mode, hang out resources now
 	 * so we don't cause the world to hang talking to us.
 	 */
-	if (mpt->role & MPT_ROLE_TARGET) {
+	if (mpt->is_fc && (mpt->role & MPT_ROLE_TARGET)) {
 		/*
 		 * Try to add some target command resources
 		 */
@@ -3166,7 +3166,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		if ((mpt->role & MPT_ROLE_INITIATOR) == 0) {
 			cpi->hba_misc |= PIM_NOINITIATOR;
 		}
-		if ((mpt->role & MPT_ROLE_TARGET) != 0) {
+		if (mpt->is_fc && (mpt->role & MPT_ROLE_TARGET)) {
 			cpi->target_sprt =
 			    PIT_PROCESSOR | PIT_DISCONNECT | PIT_TERM_IO;
 		} else {
