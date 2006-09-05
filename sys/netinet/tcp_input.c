@@ -3226,7 +3226,7 @@ tcp_timewait(tw, to, th, m, tlen)
 	if (thflags & TH_FIN) {
 		seq = th->th_seq + tlen + (thflags & TH_SYN ? 1 : 0);
 		if (seq + 1 == tw->rcv_nxt)
-			tcp_timer_2msl_reset(tw, 2 * tcp_msl);
+			tcp_timer_2msl_reset(tw, 2 * tcp_msl, 1);
 	}
 
 	/*
