@@ -2,10 +2,10 @@
 # $FreeBSD$
 
 PROG=	login
-SRCS=	login.c login_fbtab.c
+SRCS=	login.c login_audit.c login_fbtab.c
 CFLAGS+=-DLOGALL
 DPADD=	${LIBUTIL} ${LIBPAM}
-LDADD=	-lutil ${MINUSLPAM}
+LDADD=	-lutil ${MINUSLPAM} -lbsm
 
 .if !defined(NO_SETUID_LOGIN)
 BINOWN=	root
