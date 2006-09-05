@@ -100,14 +100,18 @@ struct archive_entry;
 /* #define	ARCHIVE_ERRNO_MISC */
 
 /*
- * Callbacks are invoked to automatically read/write/open/close the archive.
- * You can provide your own for complex tasks (like breaking archives
- * across multiple tapes) or use standard ones built into the library.
+ * Callbacks are invoked to automatically read/skip/write/open/close the
+ * archive. You can provide your own for complex tasks (like breaking
+ * archives across multiple tapes) or use standard ones built into the
+ * library.
  */
 
 /* Returns pointer and size of next block of data from archive. */
 typedef ssize_t	archive_read_callback(struct archive *, void *_client_data,
 		    const void **_buffer);
+/* Skips at most request bytes from archive and returns the skipped amount */
+typedef ssize_t	archive_skip_callback(struct archive *, void *_client_data,
+		    size_t request);
 /* Returns size actually written, zero on EOF, -1 on error. */
 typedef ssize_t	archive_write_callback(struct archive *, void *_client_data,
 		    void *_buffer, size_t _length);
@@ -187,6 +191,9 @@ int		 archive_read_support_format_zip(struct archive *);
 int		 archive_read_open(struct archive *, void *_client_data,
 		     archive_open_callback *, archive_read_callback *,
 		     archive_close_callback *);
+int		 archive_read_open2(struct archive *, void *_client_data,
+		     archive_open_callback *, archive_read_callback *,
+		     archive_skip_callback *, archive_close_callback *);
 
 /*
  * The archive_read_open_file function is a convenience function built
