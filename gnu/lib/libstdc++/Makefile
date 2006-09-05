@@ -122,7 +122,7 @@ BKWHDRS=	complex.h iomanip.h istream.h ostream.h stream.h streambuf.h \
 BKWHDRS:=	${BKWHDRS:S;^;${SRCDIR}/include/backward/;}
 BKWHDRSDIR=	${CXXINCLUDEDIR}/backward
 
-EXTHDRS=	algorithm bitmap_allocator.h debug_allocator.h demangle.h \
+EXTHDRS=	algorithm bitmap_allocator.h debug_allocator.h \
 		enc_filebuf.h stdio_filebuf.h stdio_sync_filebuf.h functional \
 		hash_map hash_set iterator malloc_allocator.h memory \
 		mt_allocator.h new_allocator.h numeric pod_char_traits.h \
