@@ -88,7 +88,6 @@ archive_write_new(void)
 	return (a);
 }
 
-
 /*
  * Set the block size.  Returns 0 if successful.
  */
@@ -100,6 +99,15 @@ archive_write_set_bytes_per_block(struct archive *a, int bytes_per_block)
 	return (ARCHIVE_OK);
 }
 
+/*
+ * Get the current block size.  -1 if it has never been set.
+ */
+int
+archive_write_get_bytes_per_block(struct archive *a)
+{
+	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_ANY, "archive_write_get_bytes_per_block");
+	return (a->bytes_per_block);
+}
 
 /*
  * Set the size for the last block.
@@ -110,6 +118,30 @@ archive_write_set_bytes_in_last_block(struct archive *a, int bytes)
 {
 	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_ANY, "archive_write_set_bytes_in_last_block");
 	a->bytes_in_last_block = bytes;
+	return (ARCHIVE_OK);
+}
+
+/*
+ * Return the value set above.  -1 indicates it has not been set.
+ */
+int
+archive_write_get_bytes_in_last_block(struct archive *a)
+{
+	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_ANY, "archive_write_get_bytes_in_last_block");
+	return (a->bytes_in_last_block);
+}
+
+
+/*
+ * dev/ino of a file to be rejected.  Used to prevent adding
+ * an archive to itself recursively.
+ */
+int
+archive_write_set_skip_file(struct archive *a, dev_t d, ino_t i)
+{
+	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_ANY, "archive_write_set_skip_file");
+	a->skip_file_dev = d;
+	a->skip_file_ino = i;
 	return (ARCHIVE_OK);
 }
 
@@ -149,22 +181,30 @@ archive_write_open(struct archive *a, void *client_data,
 int
 archive_write_close(struct archive *a)
 {
+	int r = ARCHIVE_OK, r1 = ARCHIVE_OK;
+
 	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_ANY, "archive_write_close");
 
 	/* Finish the last entry. */
 	if (a->state & ARCHIVE_STATE_DATA)
-		((a->format_finish_entry)(a));
+		r = ((a->format_finish_entry)(a));
 
 	/* Finish off the archive. */
-	if (a->format_finish != NULL)
-		(a->format_finish)(a);
+	if (a->format_finish != NULL) {
+		r1 = (a->format_finish)(a);
+		if (r1 < r)
+			r = r1;
+	}
 
 	/* Finish the compression and close the stream. */
-	if (a->compression_finish != NULL)
-		(a->compression_finish)(a);
+	if (a->compression_finish != NULL) {
+		r1 = (a->compression_finish)(a);
+		if (r1 < r)
+			r = r1;
+	}
 
 	a->state = ARCHIVE_STATE_CLOSED;
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 /*

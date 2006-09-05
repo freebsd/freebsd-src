@@ -36,7 +36,7 @@
  */
 
 #include <sys/types.h>  /* Linux requires this for off_t */
-#include <inttypes.h>  /* For int64_t */
+@ARCHIVE_H_INCLUDE_INTTYPES_H@
 #include <unistd.h>  /* For ssize_t and size_t */
 
 #ifdef __cplusplus
@@ -267,6 +267,11 @@ int		 archive_read_extract(struct archive *, struct archive_entry *,
 void		 archive_read_extract_set_progress_callback(struct archive *,
 		     void (*_progress_func)(void *), void *_user_data);
 
+/* Record the dev/ino of a file that will not be written.  This is
+ * generally set to the dev/ino of the archive being read. */
+void		archive_read_extract_set_skip_file(struct archive *,
+		     dev_t, ino_t);
+
 /* Close the file and release most resources. */
 int		 archive_read_close(struct archive *);
 /* Release all resources and destroy the object. */
@@ -291,9 +296,15 @@ void		 archive_read_finish(struct archive *);
 struct archive	*archive_write_new(void);
 int		 archive_write_set_bytes_per_block(struct archive *,
 		     int bytes_per_block);
+int		 archive_write_get_bytes_per_block(struct archive *);
 /* XXX This is badly misnamed; suggestions appreciated. XXX */
 int		 archive_write_set_bytes_in_last_block(struct archive *,
 		     int bytes_in_last_block);
+int		 archive_write_get_bytes_in_last_block(struct archive *);
+
+/* The dev/ino of a file that won't be archived.  This is used
+ * to avoid recursively adding an archive to itself. */
+int		 archive_write_set_skip_file(struct archive *, dev_t, ino_t);
 
 int		 archive_write_set_compression_bzip2(struct archive *);
 int		 archive_write_set_compression_gzip(struct archive *);

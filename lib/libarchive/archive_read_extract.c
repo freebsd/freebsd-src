@@ -110,7 +110,7 @@ struct extract {
  */
 #define SECURE_DIR_MODE 0700
 
-static void	archive_extract_cleanup(struct archive *);
+static int	archive_extract_cleanup(struct archive *);
 static int	extract_block_device(struct archive *,
 		    struct archive_entry *, int);
 static int	extract_char_device(struct archive *,
@@ -318,7 +318,7 @@ cleanup:
  * name from archive_read_finish) reduces static link pollution, since
  * applications that don't use this API won't get this file linked in.
  */
-static void
+static int
 archive_extract_cleanup(struct archive *a)
 {
 	struct fixup_entry *next, *p;
@@ -353,6 +353,7 @@ archive_extract_cleanup(struct archive *a)
 	archive_string_free(&extract->create_parent_dir);
 	free(a->extract);
 	a->extract = NULL;
+	return (ARCHIVE_OK);
 }
 
 /*
