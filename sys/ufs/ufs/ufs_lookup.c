@@ -700,7 +700,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 	struct buf *bp;
 	u_int dsize;
 	struct direct *ep, *nep;
-	int error, ret, blkoff, loc, spacefree, flags;
+	int error, ret, blkoff, loc, spacefree, flags, namlen;
 	char *dirbuf;
 
 	td = curthread;	/* XXX */
@@ -875,8 +875,16 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 	 * Update the pointer fields in the previous entry (if any),
 	 * copy in the new entry, and write out the block.
 	 */
+#	if (BYTE_ORDER == LITTLE_ENDIAN)
+		if (OFSFMT(dvp))
+			namlen = ep->d_type;
+		else
+			namlen = ep->d_namlen;
+#	else
+		namlen = ep->d_namlen;
+#	endif
 	if (ep->d_ino == 0 ||
-	    (ep->d_ino == WINO &&
+	    (ep->d_ino == WINO && namlen == dirp->d_namlen &&
 	     bcmp(ep->d_name, dirp->d_name, dirp->d_namlen) == 0)) {
 		if (spacefree + dsize < newentrysize)
 			panic("ufs_direnter: compact1");
