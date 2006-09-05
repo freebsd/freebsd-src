@@ -12,7 +12,7 @@ SRCS+=	agp_i810.c agp_intel.c agp_via.c agp_sis.c agp_ali.c agp_amd.c \
 SRCS+=	agp_amd64.c
 .endif
 .if  ${MACHINE_ARCH} == "amd64"
-SRCS+=	agp_amd64.c
+SRCS+=	agp_amd64.c agp_i810.c
 .endif
 SRCS+=	device_if.h bus_if.h agp_if.h pci_if.h
 SRCS+=	opt_bus.h
