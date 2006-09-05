@@ -2129,8 +2129,10 @@ vge_ifmedia_upd(ifp)
 	struct mii_data		*mii;
 
 	sc = ifp->if_softc;
+	VGE_LOCK(sc);
 	mii = device_get_softc(sc->vge_miibus);
 	mii_mediachg(mii);
+	VGE_UNLOCK(sc);
 
 	return (0);
 }
