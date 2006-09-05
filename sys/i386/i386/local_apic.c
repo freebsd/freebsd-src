@@ -615,6 +615,16 @@ lapic_handle_timer(struct trapframe frame)
 	/* Send EOI first thing. */
 	lapic_eoi();
 
+	/*
+	 * Don't do any accounting for the disabled HTT cores, since it
+	 * will provide misleading numbers for the userland.
+	 *
+	 * No locking is necessary here, since even if we loose the race
+	 * when hlt_cpus_mask changes it is not a big deal, really.
+	 */
+	if ((hlt_cpus_mask & (1 << PCPU_GET(cpuid))) != 0)
+		return;
+
 	/* Look up our local APIC structure for the tick counters. */
 	la = &lapics[PCPU_GET(apic_id)];
 	(*la->la_timer_count)++;
