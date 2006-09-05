@@ -158,6 +158,8 @@ ahc_attach(struct ahc_softc *ahc)
 	count = 0;
 	sim = NULL;
 	sim2 = NULL;
+	path = NULL;
+	path2 = NULL;
 
 	/*
 	 * Create a thread to perform all recovery.
