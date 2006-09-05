@@ -97,6 +97,10 @@ OLD_FILES+=usr/share/man/man8/usbd.8.gz
 OLD_FILES+=etc/rc.d/ppp-user
 # 20051012: setkey(8) moved to /sbin/
 OLD_FILES+=usr/sbin/setkey
+# 20050930: pccardd(8) removed
+OLD_FILES+=usr/sbin/pccardd
+OLD_FILES+=usr/share/man/man5/pccard.conf.5.gz
+OLD_FILES+=usr/share/man/man8/pccardd.8.gz
 # 20050927: bridge(4) replaced by if_bridge(4)
 OLD_FILES+=usr/include/net/bridge.h
 # 20050831: not implemented
