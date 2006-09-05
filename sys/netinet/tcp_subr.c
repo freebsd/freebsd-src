@@ -1729,7 +1729,7 @@ tcp_twstart(tp)
 		tcp_twrespond(tw, TH_ACK);
 	inp->inp_ppcb = (caddr_t)tw;
 	inp->inp_vflag |= INP_TIMEWAIT;
-	tcp_timer_2msl_reset(tw, tw_time);
+	tcp_timer_2msl_reset(tw, tw_time, 0);
 	INP_UNLOCK(inp);
 }
 
