@@ -624,6 +624,9 @@ do_lock(struct thread *td, struct umtx *umtx, uintptr_t id,
 
 	if (timeout == NULL) {
 		error = _do_lock(td, umtx, id, 0);
+		/* Mutex locking is restarted if it is interrupted. */
+		if (error == EINTR)
+			error = ERESTART;
 	} else {
 		getnanouptime(&ts);
 		timespecadd(&ts, timeout);
@@ -641,10 +644,10 @@ do_lock(struct thread *td, struct umtx *umtx, uintptr_t id,
 			timespecsub(&ts3, &ts2);
 			TIMESPEC_TO_TIMEVAL(&tv, &ts3);
 		}
+		/* Timed-locking is not restarted. */
+		if (error == ERESTART)
+			error = EINTR;
 	}
-	/* Mutex locking is be restarted if it is interrupted. */
-	if (error == EINTR)
-		error = ERESTART;
 	return (error);
 }
 
@@ -770,7 +773,6 @@ do_wait(struct thread *td, struct umtx *umtx, uintptr_t id, struct timespec *tim
 		umtxq_unlock(&uq->uq_key);
 	}
 	umtx_key_release(&uq->uq_key);
-	/* Mutex locking is be restarted if it is interrupted. */
 	if (error == ERESTART)
 		error = EINTR;
 	return (error);
@@ -903,40 +905,6 @@ _do_lock_normal(struct thread *td, struct umutex *m, uint32_t flags, int timo,
 /*
  * Lock PTHREAD_PRIO_NONE protocol POSIX mutex.
  */
-static int
-do_lock_normal(struct thread *td, struct umutex *m, uint32_t flags,
-	struct timespec *timeout, int try)
-{
-	struct timespec ts, ts2, ts3;
-	struct timeval tv;
-	int error;
-
-	if (timeout == NULL) {
-		error = _do_lock_normal(td, m, flags, 0, try);
-	} else {
-		getnanouptime(&ts);
-		timespecadd(&ts, timeout);
-		TIMESPEC_TO_TIMEVAL(&tv, timeout);
-		for (;;) {
-			error = _do_lock_normal(td, m, flags, tvtohz(&tv), try);
-			if (error != ETIMEDOUT)
-				break;
-			getnanouptime(&ts2);
-			if (timespeccmp(&ts2, &ts, >=)) {
-				error = ETIMEDOUT;
-				break;
-			}
-			ts3 = ts;
-			timespecsub(&ts3, &ts2);
-			TIMESPEC_TO_TIMEVAL(&tv, &ts3);
-		}
-	}
-	/* Mutex locking is be restarted if it is interrupted. */
-	if (error == EINTR)
-		error = ERESTART;
-	return (error);
-}
-
 /*
  * Unlock PTHREAD_PRIO_NONE protocol POSIX mutex.
  */
@@ -1531,40 +1499,6 @@ _do_lock_pi(struct thread *td, struct umutex *m, uint32_t flags, int timo,
 	return (error);
 }
 
-static int
-do_lock_pi(struct thread *td, struct umutex *m, uint32_t flags,
-	struct timespec *timeout, int try)
-{
-	struct timespec ts, ts2, ts3;
-	struct timeval tv;
-	int error;
-
-	if (timeout == NULL) {
-		error = _do_lock_pi(td, m, flags, 0, try);
-	} else {
-		getnanouptime(&ts);
-		timespecadd(&ts, timeout);
-		TIMESPEC_TO_TIMEVAL(&tv, timeout);
-		for (;;) {
-			error = _do_lock_pi(td, m, flags, tvtohz(&tv), try);
-			if (error != ETIMEDOUT)
-				break;
-			getnanouptime(&ts2);
-			if (timespeccmp(&ts2, &ts, >=)) {
-				error = ETIMEDOUT;
-				break;
-			}
-			ts3 = ts;
-			timespecsub(&ts3, &ts2);
-			TIMESPEC_TO_TIMEVAL(&tv, &ts3);
-		}
-	}
-	/* Mutex locking is be restarted if it is interrupted. */
-	if (error == EINTR)
-		error = ERESTART;
-	return (error);
-}
-
 /*
  * Unlock a PI mutex.
  */
@@ -1780,43 +1714,6 @@ out:
 }
 
 /*
- * Lock a PP mutex.
- */
-static int
-do_lock_pp(struct thread *td, struct umutex *m, uint32_t flags,
-	struct timespec *timeout, int try)
-{
-	struct timespec ts, ts2, ts3;
-	struct timeval tv;
-	int error;
-
-	if (timeout == NULL) {
-		error = _do_lock_pp(td, m, flags, 0, try);
-	} else {
-		getnanouptime(&ts);
-		timespecadd(&ts, timeout);
-		TIMESPEC_TO_TIMEVAL(&tv, timeout);
-		for (;;) {
-			error = _do_lock_pp(td, m, flags, tvtohz(&tv), try);
-			if (error != ETIMEDOUT)
-				break;
-			getnanouptime(&ts2);
-			if (timespeccmp(&ts2, &ts, >=)) {
-				error = ETIMEDOUT;
-				break;
-			}
-			ts3 = ts;
-			timespecsub(&ts3, &ts2);
-			TIMESPEC_TO_TIMEVAL(&tv, &ts3);
-		}
-	}
-	/* Mutex locking is be restarted if it is interrupted. */
-	if (error == EINTR)
-		error = ERESTART;
-	return (error);
-}
-
-/*
  * Unlock a PP mutex.
  */
 static int
@@ -1978,29 +1875,64 @@ do_set_ceiling(struct thread *td, struct umutex *m, uint32_t ceiling,
 	return (error);
 }
 
+static int
+_do_lock_umutex(struct thread *td, struct umutex *m, int flags, int timo,
+	int try)
+{
+	switch(flags & (UMUTEX_PRIO_INHERIT | UMUTEX_PRIO_PROTECT)) {
+	case 0:
+		return (_do_lock_normal(td, m, flags, timo, try));
+	case UMUTEX_PRIO_INHERIT:
+		return (_do_lock_pi(td, m, flags, timo, try));
+	case UMUTEX_PRIO_PROTECT:
+		return (_do_lock_pp(td, m, flags, timo, try));
+	}
+	return (EINVAL);
+}
+
 /*
  * Lock a userland POSIX mutex.
  */
 static int
-do_lock_umutex(struct thread *td, struct umutex *m, struct timespec *ts,
-	int try)
+do_lock_umutex(struct thread *td, struct umutex *m,
+	struct timespec *timeout, int try)
 {
+	struct timespec ts, ts2, ts3;
+	struct timeval tv;
 	uint32_t flags;
+	int error;
 
 	flags = fuword32(&m->m_flags);
 	if (flags == -1)
 		return (EFAULT);
 
-	switch(flags & (UMUTEX_PRIO_INHERIT | UMUTEX_PRIO_PROTECT)) {
-	case 0:
-		return (do_lock_normal(td, m, flags, ts, try));
-	case UMUTEX_PRIO_INHERIT:
-		return (do_lock_pi(td, m, flags, ts, try));
-	case UMUTEX_PRIO_PROTECT:
-		return (do_lock_pp(td, m, flags, ts, try));
+	if (timeout == NULL) {
+		error = _do_lock_umutex(td, m, flags, 0, try);
+		/* Mutex locking is restarted if it is interrupted. */
+		if (error == EINTR)
+			error = ERESTART;
+	} else {
+		getnanouptime(&ts);
+		timespecadd(&ts, timeout);
+		TIMESPEC_TO_TIMEVAL(&tv, timeout);
+		for (;;) {
+			error = _do_lock_umutex(td, m, flags, tvtohz(&tv), try);
+			if (error != ETIMEDOUT)
+				break;
+			getnanouptime(&ts2);
+			if (timespeccmp(&ts2, &ts, >=)) {
+				error = ETIMEDOUT;
+				break;
+			}
+			ts3 = ts;
+			timespecsub(&ts3, &ts2);
+			TIMESPEC_TO_TIMEVAL(&tv, &ts3);
+		}
+		/* Timed-locking is not restarted. */
+		if (error == ERESTART)
+			error = EINTR;
 	}
-
-	return (EINVAL);
+	return (error);
 }
 
 /*
