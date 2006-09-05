@@ -35,12 +35,14 @@ WARNS?=	6
 INCS=	archive.h archive_entry.h
 
 # Build archive.h from archive.h.in by substituting version information.
+# Note: FreeBSD has inttypes.h, so enable that include in archive.h.in
 archive.h:	archive.h.in Makefile
 	cat ${.CURDIR}/archive.h.in |					\
 		sed 's/@VERSION@/${VERSION}/g' | 			\
 		sed 's/@SHLIB_MAJOR@/${SHLIB_MAJOR}/g' |		\
 		sed 's/@ARCHIVE_API_MAJOR@/${ARCHIVE_API_MAJOR}/g' |	\
 		sed 's/@ARCHIVE_API_MINOR@/${ARCHIVE_API_MINOR}/g' |	\
+		sed 's|@ARCHIVE_H_INCLUDE_INTTYPES_H@|#include <inttypes.h>  /* For int64_t */|g' |			\
 		cat > archive.h
 
 # archive.h needs to be cleaned
@@ -152,10 +154,12 @@ MLINKS+=	archive_read.3 archive_read_data_into_fd.3
 MLINKS+=	archive_read.3 archive_read_data_skip.3
 MLINKS+=	archive_read.3 archive_read_extract.3
 MLINKS+=	archive_read.3 archive_read_extract_set_progress_callback.3
+MLINKS+=	archive_read.3 archive_read_extract_set_skip_file.3
 MLINKS+=	archive_read.3 archive_read_finish.3
 MLINKS+=	archive_read.3 archive_read_new.3
 MLINKS+=	archive_read.3 archive_read_next_header.3
 MLINKS+=	archive_read.3 archive_read_open.3
+MLINKS+=	archive_read.3 archive_read_open2.3
 MLINKS+=	archive_read.3 archive_read_open_fd.3
 MLINKS+=	archive_read.3 archive_read_open_file.3
 MLINKS+=	archive_read.3 archive_read_set_bytes_per_block.3
