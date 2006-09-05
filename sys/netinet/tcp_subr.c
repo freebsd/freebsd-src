@@ -178,8 +178,27 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
     &tcp_isn_reseed_interval, 0, "Seconds between reseeding of ISN secret");
 
 static int	maxtcptw;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, maxtcptw, CTLFLAG_RDTUN,
-    &maxtcptw, 0, "Maximum number of compressed TCP TIME_WAIT entries");
+static int
+sysctl_maxtcptw(SYSCTL_HANDLER_ARGS)
+{
+	int error, new;
+
+	if (maxtcptw == 0)
+		new = maxsockets / 5;
+	else
+		new = maxtcptw;
+	error = sysctl_handle_int(oidp, &new, sizeof(int), req);
+	if (error == 0 && req->newptr) {
+		if (new > maxtcptw) {
+			maxtcptw = new;
+		} else
+			error = EINVAL;
+	}
+	return (error);
+}
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxtcptw, CTLTYPE_INT|CTLFLAG_RW,
+    &maxtcptw, 0, sysctl_maxtcptw, "IU",
+    "Maximum number of compressed TCP TIME_WAIT entries");
 
 /*
  * TCP bandwidth limiting sysctls.  Note that the default lower bound of
@@ -259,7 +278,8 @@ tcp_zone_change(void *tag)
 
 	uma_zone_set_max(tcbinfo.ipi_zone, maxsockets);
 	uma_zone_set_max(tcpcb_zone, maxsockets);
-	uma_zone_set_max(tcptw_zone, maxsockets / 5);
+	if (maxtcptw == 0)
+		uma_zone_set_max(tcptw_zone, maxsockets / 5);
 }
 
 static int
@@ -316,12 +336,13 @@ tcp_init(void)
 	tcpcb_zone = uma_zcreate("tcpcb", sizeof(struct tcpcb_mem),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(tcpcb_zone, maxsockets);
-	TUNABLE_INT_FETCH("net.inet.tcp.maxtcptw", &maxtcptw);
-	if (maxtcptw == 0)
-		maxtcptw = maxsockets / 5;
 	tcptw_zone = uma_zcreate("tcptw", sizeof(struct tcptw),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	uma_zone_set_max(tcptw_zone, maxtcptw);
+	TUNABLE_INT_FETCH("net.inet.tcp.maxtcptw", &maxtcptw);
+	if (maxtcptw == 0)
+		uma_zone_set_max(tcptw_zone, maxsockets / 5);
+	else
+		uma_zone_set_max(tcptw_zone, maxtcptw);
 	tcp_timer_init();
 	syncache_init();
 	tcp_hc_init();
