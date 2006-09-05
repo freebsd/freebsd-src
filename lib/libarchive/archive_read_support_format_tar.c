@@ -533,8 +533,8 @@ archive_read_format_tar_skip(struct archive *a)
 	const void *b;	/* dummy variables */
 	size_t s;
 	off_t o;
-	
-	
+
+
 	tar = *(a->pformat_data);
 	if (a->compression_skip == NULL) {
 		while (r == ARCHIVE_OK)

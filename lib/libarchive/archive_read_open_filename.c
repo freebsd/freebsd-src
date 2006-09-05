@@ -137,7 +137,7 @@ file_skip(struct archive *a, void *client_data, size_t request)
 {
 	struct read_file_data *mine = client_data;
 	off_t old_offset, new_offset;
-	
+
 	/* Reduce request to the next smallest multiple of block_size */
 	request = (request / mine->block_size) * mine->block_size;
 	/*

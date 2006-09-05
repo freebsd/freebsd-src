@@ -191,7 +191,7 @@ struct archive {
 	struct extract		 *extract;
 	void			(*extract_progress)(void *);
 	void			 *extract_progress_user_data;
-	void			(*cleanup_archive_extract)(struct archive *);
+	int			(*cleanup_archive_extract)(struct archive *);
 
 	int		  archive_error_number;
 	const char	 *error;
