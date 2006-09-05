@@ -2,7 +2,7 @@ $FreeBSD$
 FreeBSD* Driver for the Intel(R) PRO/1000 Family of Adapters
 ============================================================
 
-March 18, 2005
+May 2, 2006
 
 
 Contents
@@ -21,8 +21,8 @@ Contents
 Overview
 ========
 
-This file describes the FreeBSD* driver, version 2.1.x, for the Intel(R)
-PRO/1000 Family of Adapters.
+This file describes the FreeBSD* driver for the Intel(R) PRO/1000 Family of
+Adapters. This driver has been developed for use with FreeBSD, Release 6.x.
 
 For questions related to hardware requirements, refer to the documentation
 supplied with your Intel PRO/1000 adapter. All hardware requirements listed
@@ -35,16 +35,17 @@ Identifying Your Adapter
 For information on how to identify your adapter, go to the Adapter &
 Driver ID Guide at:
 
-http://support.intel.com/support/network/adapter/pro100/21397.htm
+http://support.intel.com/support/network/sb/cs-012904.htm
 
 
 For the latest Intel network drivers for FreeBSD, see:
 
-http://appsr.intel.com/scripts-df/support_intel.asp
+http://downloadfinder.intel.com/scripts-df-external/support_intel.aspx
 
 
 NOTE: Mobile adapters are not fully supported.
-
+NOTE: The Intel(R) 82562v 10/100 Network Connection only provides 10/100
+support.
 
 Building and Installation
 =========================
@@ -91,14 +92,14 @@ name of the driver tar file.
 
         cp Makefile.kernel /usr/src/sys/modules/em/Makefile
 
-   Edit the /usr/src/sys/conf/files.i386 file, and add the following lines only if
+   Edit the /usr/src/sys/conf/files file, and add the following lines only if
    they don't already exist:
 
         dev/em/if_em.c optional em
 
         dev/em/if_em_hw.c optional em
 
-   Remove the following lines from the /usr/src/sys/conf/files.i386 file,
+   Remove the following lines from the /usr/src/sys/conf/files file,
    if they exist:
 
         dev/em/if_em_fxhw.c optional em
@@ -173,32 +174,69 @@ Additional Configurations
 =========================
 
 The driver supports Transmit/Receive Checksum Offload and Jumbo Frames on
-all but the 82542-based adapters. For specific adapters, refer to the
+all but the 82542-based adapters.  For specific adapters, refer to the
 Identifying Your Adapter section.
 
   Jumbo Frames
   ------------
-  To enable Jumbo Frames, use the ifconfig utility to increase the MTU
-  beyond 1500 bytes.
+  To enable Jumbo Frames, use the ifconfig utility to set the Maximum
+  Transport Unit (MTU) frame size above its default of 1500 bytes.
 
-  NOTES: Only enable Jumbo Frames if your network infrastructure supports
-         them.
-
-         The Jumbo Frames setting on the switch must be set to at least
-         22 bytes larger than that of the MTU.
-
-         The Intel PRO/1000 PM Network Connection does not support jumbo
-         frames.
-
-
-  The Jumbo Frames MTU range for Intel Adapters is 1500 to 16114. The default
-  MTU range is 1500. To modify the setting, enter the following:
+  The Jumbo Frames MTU range for Intel Adapters is 1500 to 16110. To modify
+  the setting, enter the following:
 
         ifconfig em<interface_num> <hostname or IP address> mtu 9000
 
- To confirm the MTU used between two specific devices, use:
+  To confirm the MTU used between two specific devices, use:
 
         route get <destination_IP_address>
+
+  Notes:
+
+  - Only enable Jumbo Frames if your network infrastructure supports them.
+
+  - To enable Jumbo Frames, increase the MTU size on the interface beyond
+    1500.
+
+  - The Jumbo Frames setting on the switch must be set to at least 22 bytes
+    larger than that of the MTU.
+
+  - The maximum MTU setting for Jumbo Frames is 16110.  This value coincides
+    with the maximum Jumbo Frames size of 16128.
+
+  - Some Intel gigabit adapters that support Jumbo Frames have a frame size
+    limit of 9238 bytes, with a corresponding MTU size limit of 9216 bytes.
+    The adapters with this limitation are based on the Intel(R) 82571EB,
+    82572EI, 82573L and 80003ES2LAN controller.  These correspond to the
+    following product names:
+     Intel(R) PRO/1000 PT Server Adapter
+     Intel(R) PRO/1000 PT Desktop Adapter
+     Intel(R) PRO/1000 PT Network Connection
+     Intel(R) PRO/1000 PT Dual Port Server Adapter
+     Intel(R) PRO/1000 PT Dual Port Network Connection
+     Intel(R) PRO/1000 PF Server Adapter
+     Intel(R) PRO/1000 PF Network Connection
+     Intel(R) PRO/1000 PF Dual Port Server Adapter
+     Intel(R) PRO/1000 PB Server Connection
+     Intel(R) PRO/1000 PL Network Connection
+     Intel(R) PRO/1000 EB Network Connection with I/O Acceleration
+     Intel(R) PRO/1000 EB Backplane Connection with I/O Acceleration
+
+  - Adapters based on the Intel(R) 82542 and 82573V/E controller do not
+    support Jumbo Frames. These correspond to the following product names:
+     Intel(R) PRO/1000 Gigabit Server Adapter
+     Intel(R) PRO/1000 PM Network Connection
+
+  - Using Jumbo Frames at 10 or 100 Mbps may result in poor performance or
+    loss of link.
+
+  - The following adapters do not support Jumbo Frames:
+    Intel(R) 82562V 10/100 Network Connection
+    Intel(R) 82566DM Gigabit Network Connection
+    Intel(R) 82566DC Gigabit Network Connection
+    Intel(R) 82566MM Gigabit Network Connection
+    Intel(R) 82566MC Gigabit Network Connection
+
 
   VLANs
   -----
@@ -223,6 +261,7 @@ Identifying Your Adapter section.
 
         ifconfig <vlan_name> destroy
 
+
   Polling
   -------
   NOTES: DEVICE POLLING is only valid for non-SMP kernels.
@@ -239,7 +278,8 @@ Identifying Your Adapter section.
   At runtime use:
         sysctl kern.polling.enable=1 to turn polling on
   Use:
-        sysctl ker.polling.enable=0 to turn polling off
+        sysctl kern.polling.enable=0 to turn polling off
+
 
   Checksum Offload
   ----------------
@@ -269,6 +309,7 @@ Identifying Your Adapter section.
          options=3 <RXCSUM,TXCSUM>
 
   See the ifconfig man page for further information.
+
 
 Known Limitations
 =================
@@ -316,6 +357,7 @@ For general information and support, go to the Intel support website at:
 
 If an issue is identified, support is through email only at:
 freebsdnic@mailbox.intel.com
+
 
 License
 =======
