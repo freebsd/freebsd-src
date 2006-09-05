@@ -68,9 +68,9 @@
  */
 struct g_gate_softc {
 	int			 sc_unit;		/* P: (read-only) */
-	int16_t			 sc_ref;		/* P: g_gate_list_mtx */
+	int			 sc_ref;		/* P: g_gate_list_mtx */
 	struct g_provider	*sc_provider;		/* P: (read-only) */
-	uint32_t		 sc_flags;		/* P: (read-only) */
+	uint32_t		 sc_flags;		/* P: sc_queue_mtx */
 
 	struct bio_queue_head	 sc_inqueue;		/* P: sc_queue_mtx */
 	struct bio_queue_head	 sc_outqueue;		/* P: sc_queue_mtx */
