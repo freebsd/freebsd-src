@@ -88,19 +88,16 @@ archive_read_new(void)
 }
 
 /*
- * Set the block size.
+ * Record the do-not-extract-to file. This belongs in archive_read_extract.c.
  */
-/*
-int
-archive_read_set_bytes_per_block(struct archive *a, int bytes_per_block)
+void
+archive_read_extract_set_skip_file(struct archive *a, dev_t d, ino_t i)
 {
-	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW, "archive_read_set_bytes_per_block");
-	if (bytes_per_block < 1)
-		bytes_per_block = 1;
-	a->bytes_per_block = bytes_per_block;
-	return (0);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY, "archive_read_extract_set_skip_file");
+	a->skip_file_dev = d;
+	a->skip_file_ino = i;
 }
-*/
+
 
 /*
  * Open the archive
@@ -504,19 +501,25 @@ archive_read_data_block(struct archive *a,
 int
 archive_read_close(struct archive *a)
 {
+	int r = ARCHIVE_OK, r1 = ARCHIVE_OK;
+
 	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY, "archive_read_close");
 	a->state = ARCHIVE_STATE_CLOSED;
 
 	/* Call cleanup functions registered by optional components. */
 	if (a->cleanup_archive_extract != NULL)
-		(a->cleanup_archive_extract)(a);
+		r = (a->cleanup_archive_extract)(a);
 
 	/* TODO: Finish the format processing. */
 
 	/* Close the input machinery. */
-	if (a->compression_finish != NULL)
-		(a->compression_finish)(a);
-	return (ARCHIVE_OK);
+	if (a->compression_finish != NULL) {
+		r1 = (a->compression_finish)(a);
+		if (r1 < r)
+			r = r1;
+	}
+
+	return (r);
 }
 
 /*
