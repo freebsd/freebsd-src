@@ -110,6 +110,19 @@ archive_read_open(struct archive *a, void *client_data,
     archive_open_callback *client_opener, archive_read_callback *client_reader,
     archive_close_callback *client_closer)
 {
+	/* Old archive_read_open() is just a thin shell around
+	 * archive_read_open2. */
+	return archive_read_open2(a, client_data, client_opener,
+	    client_reader, NULL, client_closer);
+}
+
+int
+archive_read_open2(struct archive *a, void *client_data,
+    archive_open_callback *client_opener,
+    archive_read_callback *client_reader,
+    archive_skip_callback *client_skipper,
+    archive_close_callback *client_closer)
+{
 	const void *buffer;
 	ssize_t bytes_read;
 	int high_bidder;
@@ -129,6 +142,7 @@ archive_read_open(struct archive *a, void *client_data,
 	 */
 	a->client_opener = NULL;
 	a->client_reader = NULL;
+	a->client_skipper = NULL;
 	a->client_closer = NULL;
 	a->client_data = NULL;
 
@@ -167,6 +181,7 @@ archive_read_open(struct archive *a, void *client_data,
 	/* Now that the client callbacks have worked, remember them. */
 	a->client_opener = client_opener; /* Do we need to remember this? */
 	a->client_reader = client_reader;
+	a->client_skipper = client_skipper;
 	a->client_closer = client_closer;
 	a->client_data = client_data;
 
