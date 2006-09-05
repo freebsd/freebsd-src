@@ -122,6 +122,13 @@ command which is similar or identical to this utility.
 Consult the
 .Xr builtin 1
 manual page.
+.Pp
+The 
+.Nm
+utility will submit an audit record when login succeeds or fails.
+Failure to determine the current auditing state will
+result in an error exit from
+.Nm .
 .Sh FILES
 .Bl -tag -width ".Pa /etc/login.conf" -compact
 .It Pa /etc/fbtab
@@ -139,6 +146,10 @@ configure authentication services
 .It Pa /etc/pam.d/login
 .Xr pam 8
 configuration file
+.It Pa /etc/security/audit_user
+user flags for auditing
+.It Pa /etc/security/audit_control
+global flags for auditing
 .El
 .Sh SEE ALSO
 .Xr builtin 1 ,
