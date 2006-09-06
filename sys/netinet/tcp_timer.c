@@ -288,15 +288,20 @@ tcp_timer_2msl_tw(int reuse)
 	int i;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < TWLIST_NLISTS; i++) {
 		twl = tw_2msl_list[i];
 		tw_tail = &twl->tw_tail;
-		tw = LIST_FIRST(&twl->tw_list);
-		if (tw == tw_tail || (!reuse && tw->tw_time > ticks))
-			continue;
-		INP_LOCK(tw->tw_inpcb);
-		tcp_twclose(tw, reuse);
-		return (reuse ? tw : NULL);
+
+		for (;;) {
+			tw = LIST_FIRST(&twl->tw_list);
+			if (tw == tw_tail || (!reuse && tw->tw_time > ticks))
+				break;
+			INP_LOCK(tw->tw_inpcb);
+			tcp_twclose(tw, reuse);
+			if (reuse)
+				return (tw);
+		}
+
 	}
 	return (NULL);
 }
