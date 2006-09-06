@@ -541,7 +541,7 @@ oidfmt(int *oid, int len, char *fmt, u_int *kind)
 static int
 show_var(int *oid, int nlen)
 {
-	u_char buf[BUFSIZ], *val, *p;
+	u_char buf[BUFSIZ], *val, *oval, *p;
 	char name[BUFSIZ], *fmt, *sep;
 	int qoid[CTL_MAXNAME+2];
 	int i;
@@ -584,14 +584,21 @@ show_var(int *oid, int nlen)
 	i = sysctl(oid, nlen, 0, &j, 0, 0);
 	j += j; /* we want to be sure :-) */
 
-	val = alloca(j + 1);
+	val = oval = malloc(j + 1);
+	if (val == NULL) {
+		warnx("malloc failed");
+		return (-1);
+	}
 	len = j;
 	i = sysctl(oid, nlen, val, &len, 0, 0);
-	if (i || !len)
+	if (i || !len) {
+		free(oval);
 		return (1);
+	}
 
 	if (bflag) {
 		fwrite(val, 1, len, stdout);
+		free(oval);
 		return (0);
 	}
 	val[len] = '\0';
@@ -603,6 +610,7 @@ show_var(int *oid, int nlen)
 		if (!nflag)
 			printf("%s%s", name, sep);
 		printf("%.*s", len, p);
+		free(oval);
 		return (0);
 
 	case 'I':
@@ -630,6 +638,7 @@ show_var(int *oid, int nlen)
 			len -= sizeof(int);
 			p += sizeof(int);
 		}
+		free(oval);
 		return (0);
 
 	case 'L':
@@ -657,12 +666,14 @@ show_var(int *oid, int nlen)
 			len -= sizeof(long);
 			p += sizeof(long);
 		}
+		free(oval);
 		return (0);
 
 	case 'P':
 		if (!nflag)
 			printf("%s%s", name, sep);
 		printf("%p", *(void **)p);
+		free(oval);
 		return (0);
 
 	case 'T':
@@ -683,12 +694,15 @@ show_var(int *oid, int nlen)
 		if (func) {
 			if (!nflag)
 				printf("%s%s", name, sep);
+			free(oval);
 			return ((*func)(len, p));
 		}
 		/* FALLTHROUGH */
 	default:
-		if (!oflag && !xflag)
+		if (!oflag && !xflag) {
+			free(oval);
 			return (1);
+		}
 		if (!nflag)
 			printf("%s%s", name, sep);
 		printf("Format:%s Length:%d Dump:0x", fmt, len);
@@ -696,8 +710,10 @@ show_var(int *oid, int nlen)
 			printf("%02x", *p++);
 		if (!xflag && len > 16)
 			printf("...");
+		free(oval);
 		return (0);
 	}
+	free(oval);
 	return (1);
 }
 
