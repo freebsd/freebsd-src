@@ -1006,6 +1006,33 @@ done:
 }
 
 /*
+ * Locate an interface based on the broadcast address.
+ */
+/* ARGSUSED */
+struct ifaddr *
+ifa_ifwithbroadaddr(struct sockaddr *addr)
+{
+	struct ifnet *ifp;
+	struct ifaddr *ifa;
+
+	IFNET_RLOCK();
+	TAILQ_FOREACH(ifp, &ifnet, if_link)
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			if (ifa->ifa_addr->sa_family != addr->sa_family)
+				continue;
+			if ((ifp->if_flags & IFF_BROADCAST) &&
+			    ifa->ifa_broadaddr &&
+			    ifa->ifa_broadaddr->sa_len != 0 &&
+			    sa_equal(ifa->ifa_broadaddr, addr))
+				goto done;
+		}
+	ifa = NULL;
+done:
+	IFNET_RUNLOCK();
+	return (ifa);
+}
+
+/*
  * Locate the point to point interface with a given destination address.
  */
 /*ARGSUSED*/
