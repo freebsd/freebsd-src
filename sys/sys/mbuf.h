@@ -110,6 +110,7 @@ struct pkthdr {
 	/* variables for hardware checksum */
 	int	csum_flags;		/* flags regarding checksum */
 	int	csum_data;		/* data field used by csum routines */
+	u_int16_t tso_segsz;		/* TSO segment size */
 	SLIST_HEAD(packet_tags, m_tag) tags; /* list of packet tags */
 };
 
@@ -216,6 +217,7 @@ struct mbuf {
 #define	CSUM_UDP		0x0004		/* will csum UDP */
 #define	CSUM_IP_FRAGS		0x0008		/* will csum IP fragments */
 #define	CSUM_FRAGMENT		0x0010		/* will do IP fragmentation */
+#define	CSUM_TSO		0x0020		/* will do TSO */
 
 #define	CSUM_IP_CHECKED		0x0100		/* did csum IP */
 #define	CSUM_IP_VALID		0x0200		/*   ... the csum is valid */
