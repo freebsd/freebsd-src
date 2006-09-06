@@ -356,6 +356,23 @@ support, the exact level of offloading varies between drivers.
 If the driver supports user-configurable checksum offloading,
 disable receive (or transmit) checksum offloading on the interface.
 These settings may not always be independent of each other.
+.It Cm tso
+If the driver supports
+.Xr tcp 4
+segmentation offloading, enable TSO on the interface.
+Some drivers may not be able to support TSO for
+.Xr ip 4
+and
+.Xr ip6 4
+packets, so they may enable only one of them.
+.It Fl tso
+If the driver supports
+.Xr tcp 4
+segmentation offloading, disable TSO on the interface.
+It will always disable TSO for
+.Xr ip 4
+and
+.Xr ip6 4 .
 .It Cm vlanmtu , vlanhwtag
 If the driver offers user-configurable VLAN support, enable
 reception of extended frames or tag processing in hardware,
