@@ -282,10 +282,6 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 			break;
 		}
 		buf = malloc((unsigned long)s->count, M_TEMP, M_WAITOK);
-		if (buf == NULL) {
-			error = ENOMEM;
-			break;
-		}
 		error = copyin(s->buf, buf, s->count);
 		if (error)
 			break;
@@ -298,10 +294,6 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 			break;
 		}
 		buf = malloc((unsigned long)s->count, M_TEMP, M_WAITOK);
-		if (buf == NULL) {
-			error = ENOMEM;
-			break;
-		}
 		error = iicbus_read(parent, buf, s->count, &count, s->last, 10);
 		if (error)
 			break;
@@ -310,15 +302,7 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 
 	case I2CRDWR:
 		buf = malloc(sizeof(*d->msgs) * d->nmsgs, M_TEMP, M_WAITOK);
-		if (buf == NULL) {
-			error = ENOMEM;
-			break;
-		}
 		usrbufs = malloc(sizeof(void *) * d->nmsgs, M_TEMP, M_ZERO | M_WAITOK);
-		if (usrbufs == NULL) {
-			error = ENOMEM;
-			break;
-		}
 		error = copyin(d->msgs, buf, sizeof(*d->msgs) * d->nmsgs);
 		if (error)
 			break;
