@@ -69,7 +69,7 @@ _pthread_barrier_init(pthread_barrier_t *barrier,
 	if (bar == NULL)
 		return (ENOMEM);
 
-	_thr_umtx_init(&bar->b_lock);
+	_thr_umutex_init(&bar->b_lock);
 	bar->b_cycle	= 0;
 	bar->b_waiters	= 0;
 	bar->b_count	= count;
@@ -90,17 +90,17 @@ _pthread_barrier_wait(pthread_barrier_t *barrier)
 		return (EINVAL);
 
 	bar = *barrier;
-	THR_UMTX_LOCK(curthread, &bar->b_lock);
+	THR_UMUTEX_LOCK(curthread, &bar->b_lock);
 	if (++bar->b_waiters == bar->b_count) {
 		/* Current thread is lastest thread */
 		bar->b_waiters = 0;
 		bar->b_cycle++;
 		_thr_umtx_wake(&bar->b_cycle, bar->b_count - 1);
-		THR_UMTX_UNLOCK(curthread, &bar->b_lock);
+		THR_UMUTEX_UNLOCK(curthread, &bar->b_lock);
 		ret = PTHREAD_BARRIER_SERIAL_THREAD;
 	} else {
 		cycle = bar->b_cycle;
-		THR_UMTX_UNLOCK(curthread, &bar->b_lock);
+		THR_UMUTEX_UNLOCK(curthread, &bar->b_lock);
 		do {
 			_thr_umtx_wait(&bar->b_cycle, cycle, NULL);
 			/* test cycle to avoid bogus wakeup */

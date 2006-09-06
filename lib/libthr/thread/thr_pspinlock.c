@@ -53,7 +53,7 @@ _pthread_spin_init(pthread_spinlock_t *lock, int pshared)
 	else if ((lck = malloc(sizeof(struct pthread_spinlock))) == NULL)
 		ret = ENOMEM;
 	else {
-		_thr_umtx_init(&lck->s_lock);
+		_thr_umutex_init(&lck->s_lock);
 		*lock = lck;
 		ret = 0;
 	}
@@ -87,7 +87,7 @@ _pthread_spin_trylock(pthread_spinlock_t *lock)
 	if (lock == NULL || (lck = *lock) == NULL)
 		ret = EINVAL;
 	else
-		ret = THR_UMTX_TRYLOCK(curthread, &lck->s_lock);
+		ret = THR_UMUTEX_TRYLOCK(curthread, &lck->s_lock);
 	return (ret);
 }
 
@@ -102,8 +102,8 @@ _pthread_spin_lock(pthread_spinlock_t *lock)
 		ret = EINVAL;
 	else {
 		count = SPIN_COUNT;
-		while ((ret = THR_UMTX_TRYLOCK(curthread, &lck->s_lock)) != 0) {
-			while (lck->s_lock) {
+		while ((ret = THR_UMUTEX_TRYLOCK(curthread, &lck->s_lock)) != 0) {
+			while (lck->s_lock.m_owner) {
 				if (_thr_smp_cpus <= 1) {
 					_pthread_yield();
 				} else {
@@ -134,7 +134,7 @@ _pthread_spin_unlock(pthread_spinlock_t *lock)
 	if (lock == NULL || (lck = *lock) == NULL)
 		ret = EINVAL;
 	else {
-		ret = THR_UMTX_UNLOCK(curthread, &lck->s_lock);
+		ret = THR_UMUTEX_UNLOCK(curthread, &lck->s_lock);
 	}
 	return (ret);
 }
