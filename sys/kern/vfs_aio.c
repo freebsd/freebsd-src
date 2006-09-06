@@ -977,12 +977,6 @@ aio_daemon(void *_id)
 	aiop->aiothread = td;
 	aiop->aiothreadflags = 0;
 
-	/*
-	 * Get rid of our current filedescriptors.  AIOD's don't need any
-	 * filedescriptors, except as temporarily inherited from the client.
-	 */
-	fdfree(td);
-
 	/* The daemon resides in its own pgrp. */
 	setsid(td, NULL);
 
