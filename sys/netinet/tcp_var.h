@@ -114,6 +114,7 @@ struct tcpcb {
 #define	TF_WASFRECOVERY	0x200000	/* was in NewReno Fast Recovery */
 #define	TF_SIGNATURE	0x400000	/* require MD5 digests (RFC2385) */
 #define	TF_FORCEDATA	0x800000	/* force out a byte */
+#define	TF_TSO		0x1000000	/* TSO enabled on this connection */
 
 	tcp_seq	snd_una;		/* send unacknowledged */
 	tcp_seq	snd_max;		/* highest sequence number sent;
@@ -508,8 +509,8 @@ void	 tcp_init(void);
 void	 tcp_fini(void *);
 void	 tcp_reass_init(void);
 void	 tcp_input(struct mbuf *, int);
-u_long	 tcp_maxmtu(struct in_conninfo *);
-u_long	 tcp_maxmtu6(struct in_conninfo *);
+u_long	 tcp_maxmtu(struct in_conninfo *, int *);
+u_long	 tcp_maxmtu6(struct in_conninfo *, int *);
 void	 tcp_mss(struct tcpcb *, int);
 int	 tcp_mssopt(struct in_conninfo *);
 struct inpcb *

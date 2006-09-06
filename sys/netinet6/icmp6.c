@@ -1132,7 +1132,7 @@ icmp6_mtudisc_update(ip6cp, validated)
 	if (in6_setscope(&inc.inc6_faddr, m->m_pkthdr.rcvif, NULL))
 		return;
 
-	if (mtu < tcp_maxmtu6(&inc)) {
+	if (mtu < tcp_maxmtu6(&inc, NULL)) {
 		tcp_hc_updatemtu(&inc, mtu);
 		icmp6stat.icp6s_pmtuchg++;
 	}
