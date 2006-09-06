@@ -101,7 +101,7 @@ struct if_data {
 	u_long	ifi_omcasts;		/* packets sent via multicast */
 	u_long	ifi_iqdrops;		/* dropped on input, this interface */
 	u_long	ifi_noproto;		/* destined for unsupported protocol */
-	u_long	ifi_hwassist;		/* HW offload capabilities */
+	u_long	ifi_hwassist;		/* HW offload capabilities, see IFCAP */
 	time_t	ifi_epoch;		/* uptime at attach or stat reset */
 	struct	timeval ifi_lastchange;	/* time of last administrative change */
 };
@@ -180,7 +180,24 @@ struct if_data {
 #define	IF_Mbps(x)	(IF_Kbps((x) * 1000))	/* megabits/sec. */
 #define	IF_Gbps(x)	(IF_Mbps((x) * 1000))	/* gigabits/sec. */
 
-/* Capabilities that interfaces can advertise. */
+/*
+ * Capabilities that interfaces can advertise.
+ *
+ * struct ifnet.if_capabilities
+ *   contains the optional features & capabilities a particular interface
+ *   supports (not only the driver but also the detected hw revision).
+ *   Capabilities are defined by IFCAP_* below.
+ * struct ifnet.if_capenabled
+ *   contains the enabled (either by default or through ifconfig) optional
+ *   features & capabilities on this interface.
+ *   Capabilities are defined by IFCAP_* below.
+ * struct if_data.ifi_hwassist in mbuf CSUM_ flag form, controlled by above
+ *   contains the enabled optional feature & capabilites that can be used
+ *   individually per packet and are specified in the mbuf pkthdr.csum_flags
+ *   field.  IFCAP_* and CSUM_* do not match one to one and CSUM_* may be
+ *   more detailed or differenciated that IFCAP_*.
+ *   Hwassist features are defined CSUM_* in sys/mbuf.h
+ */
 #define IFCAP_RXCSUM		0x0001  /* can offload checksum on RX */
 #define IFCAP_TXCSUM		0x0002  /* can offload checksum on TX */
 #define IFCAP_NETCONS		0x0004  /* can be a network console */

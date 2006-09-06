@@ -137,8 +137,8 @@ struct ifnet {
 	short	if_timer;		/* time 'til if_watchdog called */
 	struct  ifvlantrunk *if_vlantrunk; /* pointer to 802.1q data */
 	int	if_flags;		/* up/down, broadcast, etc. */
-	int	if_capabilities;	/* interface capabilities */
-	int	if_capenable;		/* enabled features */
+	int	if_capabilities;	/* interface features & capabilities */
+	int	if_capenable;		/* enabled features & capabilities */
 	void	*if_linkmib;		/* link-type-specific MIB data */
 	size_t	if_linkmiblen;		/* length of above data */
 	struct	if_data if_data;
