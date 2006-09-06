@@ -27,7 +27,7 @@ changecom(,)dnl
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 20, 2004
+.Dd September 05, 2006
 .Dt PPP 8
 .Os
 .Sh NAME
@@ -3617,9 +3617,11 @@ See the
 .Dq set authname
 command below.
 .It Li COMPILATIONDATE
-This is replaced with the date on which
+In previous software revisions, this was replaced with the date on which
 .Nm
 was compiled.
+This is no longer supported as it breaks the ability to recompile the same
+code to produce an exact duplicate of a previous compilation.
 .It Li DNS0 & DNS1
 These are replaced with the primary and secondary nameserver IP numbers.
 If nameservers are negotiated by IPCP, the values of these macros will change.
