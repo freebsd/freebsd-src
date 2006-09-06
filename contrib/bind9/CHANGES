@@ -1,4 +1,11 @@
 
+	--- 9.3.2-P1 released ---
+
+2066.	[security]	Handle SIG queries gracefully. [RT #16300]
+
+1941.	[bug]		ncache_adderesult() should set eresult even if no
+			rdataset is passed to it. [RT #15642]
+
 	--- 9.3.2 released ---
 
 	--- 9.3.2rc1 released ---
