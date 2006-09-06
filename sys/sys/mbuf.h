@@ -111,6 +111,7 @@ struct pkthdr {
 	int	csum_flags;		/* flags regarding checksum */
 	int	csum_data;		/* data field used by csum routines */
 	u_int16_t tso_segsz;		/* TSO segment size */
+	u_int16_t ether_vlan;		/* Ethernet 802.1p+q vlan tag */
 	SLIST_HEAD(packet_tags, m_tag) tags; /* list of packet tags */
 };
 
