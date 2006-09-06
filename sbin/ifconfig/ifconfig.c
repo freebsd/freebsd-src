@@ -805,7 +805,7 @@ rt_xaddrs(caddr_t cp, caddr_t cplim, struct rt_addrinfo *rtinfo)
 
 #define	IFCAPBITS \
 "\020\1RXCSUM\2TXCSUM\3NETCONS\4VLAN_MTU\5VLAN_HWTAGGING\6JUMBO_MTU\7POLLING" \
-"\10VLAN_HWCSUM"
+"\8TSO4\9TSO6\10VLAN_HWCSUM"
 
 /*
  * Print the status of the interface.  If an address family was
@@ -1035,6 +1035,8 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD("-netcons",	-IFCAP_NETCONS,	setifcap),
 	DEF_CMD("polling",	IFCAP_POLLING,	setifcap),
 	DEF_CMD("-polling",	-IFCAP_POLLING,	setifcap),
+	DEF_CMD("tso",		IFCAP_TSO,	setifcap),
+	DEF_CMD("-tso",		-IFCAP_TSO,	setifcap),
 	DEF_CMD("normal",	-IFF_LINK0,	setifflags),
 	DEF_CMD("compress",	IFF_LINK0,	setifflags),
 	DEF_CMD("noicmp",	IFF_LINK1,	setifflags),
