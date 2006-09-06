@@ -1,3 +1,4 @@
+.\" Copyright (c) 2006, M. Warner Losh
 .\" Copyright (c) 1998, Nicolas Souchu
 .\" All rights reserved.
 .\"
@@ -24,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 25, 1998
+.Dd September 6, 2006
 .Dt IIC 4
 .Os
 .Sh NAME
@@ -32,6 +33,8 @@
 .Nd I2C generic i/o device driver
 .Sh SYNOPSIS
 .Cd "device iic"
+.Pp
+.In dev/iicbus/iic.h
 .Sh DESCRIPTION
 The
 .Em iic
@@ -43,16 +46,113 @@ In order to control I2C devices, use
 with the
 following ioctls:
 .Pp
-.Bl -column "I2CRSTCARD" -compact
-.It Em Ioctl Ta Em Description
-.It Sy I2CSTART Ta "send start condition to the specified device (with 7-bit address) on the bus"
-.It Sy I2CSTOP Ta "send stop condition to the bus"
-.It Sy I2CRSTCARD Ta "reset the bus"
+.Bl -tag -wdith ".Dv I2CRSTCARD"
+.It Dv I2CSTART
+.Vt "struct iiccmd" ;
+Sends the start condition to the slave specified by the
+.Vt slave
+element to the bus.
+All other elements are ignored.
+.It Dv I2CSTOP
+No argument is passed.
+Sends the stop condition to the bus.
+This terminates the current transaction.
+.It Dv I2CRSTCARD
+.Vt "struct iiccmd" ;
+Resets the bus.
+The argument is completely ignored.
+.It Dv I2CWRITE
+.Vt "struct iiccmd" ;
+Writes data to the iicbus.
+The bus should already be started.
+.Vt "slave"
+is ignored.
+.Vt "count"
+is the number of bytes to write.
+.Vt "last"
+is a boolean flag.
+It is non-zero when additional write commands will follow.
+.Vt "buf"
+is a pointer to the data to write to the bus.
+.It Dv I2CREAD
+.Vt "struct iiccmd" ;
+Reads data from the iicbus.
+The bus should already be started.
+.Vt "slave"
+is ignored.
+.Vt "count"
+is the number of bytes to write.
+.Vt "last"
+is a boolean flag.
+It is non-zero when additional write commands will follow.
+.Vt "buf"
+is a pointer to where to store the data read from the bus.
+Short reads on the bus produce undefined results.
+.It Dv I2CRDWR
+.Vt "struct iic_rdwr_data" ;
+Generic read/write interface.
+Allows for an arbitrary number of commands to be sent to
+an arbitrary number of devices on the bus.
+A read transfer is speficied if
+.Vt IIC_M_RD
+is set in
+.Vt flags .
+Otherwise the transfer is a write transfer.
+The 
+.Vt slave
+specifieds the 7-bit address for the transfer.
+.Vt len
+is the length of the data.
+.Vt buf
+is a buffer for that data.
+This ioctl is intended to be Linux compatible.
 .El
+.Pp
+The following data structures are defined in
+.In dev/iicbus/iic.h
+and referenced above:
+.Bd -literal
+struct iiccmd {
+	u_char slave;
+	int count;
+	int last;
+	char *buf;
+};
+
+/* Designed to be compatible with linux's struct i2c_msg */
+struct iic_msg
+{
+	uint16_t	slave;
+	uint16_t	flags;
+#define IIC_M_RD	0x0001	/* read vs write */
+	uint16_t	len;	/* msg legnth */
+	uint8_t *	buf;
+};
+
+struct iic_rdwr_data {
+	struct iic_msg *msgs;
+	uint32_t nmsgs;
+};
+
+.Ed
 .Pp
 You may also use read/write routines, then I2C start/stop handshake is
 managed by the iicbus system.
+However, the address used for the read/write routines is the one
+passed to last
+.Dv I2CSTART
+.Xr ioctl 2
+to this device.
+.Sh BUGS
+Only the 
+.Dv I2CRDWR
+.Xr ioctl 2
+is thread safe.
+All other interfaces suffer from some kind of race.
 .Sh SEE ALSO
+.Xr ioctl 2
+.Xr read 2
+.Xr write 2
 .Xr iicbus 4
 .Sh HISTORY
 The
@@ -62,4 +162,6 @@ manual page first appeared in
 .Sh AUTHORS
 This
 manual page was written by
-.An Nicolas Souchu .
+.An Nicolas Souchu
+and
+.An M. Warner Losh .
