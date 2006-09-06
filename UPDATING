@@ -17,6 +17,10 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20060906:	p21	FreeBSD-SA-06:19.openssl
+	Correct incorrect PKCS#1 v1.5 padding validation in
+	crypto(3).
+
 20060823:	p20	FreeBSD-SA-06:18.ppp
 	Correct buffer overflow in the handling of LCP options in ppp(4).
 
