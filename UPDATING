@@ -8,6 +8,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20060906:	p18	FreeBSD-SA-06:19.openssl, FreeBSD-SA-06:20.bind
+	Correct incorrect PKCS#1 v1.5 padding validation in
+	crypto(3). [06:19]
+
+	Correct multiple denial-of-service vulnerabilities in BIND related to
+	SIG Query Processing and Excessive Recursive Queries. [06:20]
+
 20060823:	p17	FreeBSD-SA-06:18.ppp
 	Correct buffer overflow in the handling of LCP options in ppp(4).
 

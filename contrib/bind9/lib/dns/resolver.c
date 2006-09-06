@@ -728,7 +728,8 @@ fctx_sendevents(fetchctx_t *fctx, isc_result_t result) {
 		INSIST(result != ISC_R_SUCCESS ||
 		       dns_rdataset_isassociated(event->rdataset) ||
 		       fctx->type == dns_rdatatype_any ||
-		       fctx->type == dns_rdatatype_rrsig);
+		       fctx->type == dns_rdatatype_rrsig ||
+		       fctx->type == dns_rdatatype_sig);
 
 		isc_task_sendanddetach(&task, ISC_EVENT_PTR(&event));
 	}
@@ -3151,7 +3152,8 @@ validated(isc_task_t *task, isc_event_t *event) {
 	if (hevent != NULL) {
 		if (!negative && !chaining &&
 		    (fctx->type == dns_rdatatype_any ||
-		     fctx->type == dns_rdatatype_rrsig)) {
+		     fctx->type == dns_rdatatype_rrsig ||
+		     fctx->type == dns_rdatatype_sig)) {
 			/*
 			 * Don't bind rdatasets; the caller
 			 * will iterate the node.
@@ -3263,7 +3265,8 @@ validated(isc_task_t *task, isc_event_t *event) {
 	if (!ISC_LIST_EMPTY(fctx->validators)) {
 		INSIST(!negative);
 		INSIST(fctx->type == dns_rdatatype_any ||
-		       fctx->type == dns_rdatatype_rrsig);
+		       fctx->type == dns_rdatatype_rrsig ||
+		       fctx->type == dns_rdatatype_sig);
 		/*
 		 * Don't send a response yet - we have
 		 * more rdatasets that still need to
@@ -3409,14 +3412,15 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, isc_stdtime_t now) {
 				return (result);
 			anodep = &event->node;
 			/*
-			 * If this is an ANY or SIG query, we're not going
-			 * to return any rdatasets, unless we encountered
+			 * If this is an ANY, SIG or RRSIG query, we're not
+			 * going to return any rdatasets, unless we encountered
 			 * a CNAME or DNAME as "the answer".  In this case,
 			 * we're going to return DNS_R_CNAME or DNS_R_DNAME
 			 * and we must set up the rdatasets.
 			 */
 			if ((fctx->type != dns_rdatatype_any &&
-			    fctx->type != dns_rdatatype_rrsig) ||
+			     fctx->type != dns_rdatatype_rrsig &&
+			     fctx->type != dns_rdatatype_sig) ||
 			    (name->attributes & DNS_NAMEATTR_CHAINING) != 0) {
 				ardataset = event->rdataset;
 				asigrdataset = event->sigrdataset;
@@ -3475,7 +3479,7 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, isc_stdtime_t now) {
 		 */
 		if (secure_domain && rdataset->trust != dns_trust_glue) {
 			/*
-			 * SIGs are validated as part of validating the
+			 * RRSIGs are validated as part of validating the
 			 * type they cover.
 			 */
 			if (rdataset->type == dns_rdatatype_rrsig)
@@ -3545,7 +3549,8 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, isc_stdtime_t now) {
 
 			if (ANSWER(rdataset) && need_validation) {
 				if (fctx->type != dns_rdatatype_any &&
-				    fctx->type != dns_rdatatype_rrsig) {
+				    fctx->type != dns_rdatatype_rrsig &&
+				    fctx->type != dns_rdatatype_sig) {
 					/*
 					 * This is The Answer.  We will
 					 * validate it, but first we cache
@@ -3740,23 +3745,28 @@ ncache_adderesult(dns_message_t *message, dns_db_t *cache, dns_dbnode_t *node,
 		  isc_result_t *eresultp)
 {
 	isc_result_t result;
+	dns_rdataset_t rdataset;
+
+	if (ardataset == NULL) {
+		dns_rdataset_init(&rdataset);
+		ardataset = &rdataset;
+	}
 	result = dns_ncache_add(message, cache, node, covers, now,
 				maxttl, ardataset);
-	if (result == DNS_R_UNCHANGED) {
+	if (result == DNS_R_UNCHANGED || result == ISC_R_SUCCESS) {
 		/*
-		 * The data in the cache are better than the negative cache
-		 * entry we're trying to add.
+		 * If the cache now contains a negative entry and we
+		 * care about whether it is DNS_R_NCACHENXDOMAIN or
+		 * DNS_R_NCACHENXRRSET then extract it.
 		 */
-		if (ardataset != NULL && ardataset->type == 0) {
+		if (ardataset->type == 0) {
 			/*
-			 * The cache data is also a negative cache
-			 * entry.
+			 * The cache data is a negative cache entry.
 			 */
 			if (NXDOMAIN(ardataset))
 				*eresultp = DNS_R_NCACHENXDOMAIN;
 			else
 				*eresultp = DNS_R_NCACHENXRRSET;
-			result = ISC_R_SUCCESS;
 		} else {
 			/*
 			 * Either we don't care about the nature of the
@@ -3768,14 +3778,11 @@ ncache_adderesult(dns_message_t *message, dns_db_t *cache, dns_dbnode_t *node,
 			 * XXXRTH  There's a CNAME/DNAME problem here.
 			 */
 			*eresultp = ISC_R_SUCCESS;
-			result = ISC_R_SUCCESS;
 		}
-	} else if (result == ISC_R_SUCCESS) {
-		if (NXDOMAIN(ardataset))
-			*eresultp = DNS_R_NCACHENXDOMAIN;
-		else
-			*eresultp = DNS_R_NCACHENXRRSET;
+		result = ISC_R_SUCCESS;
 	}
+	if (ardataset == &rdataset && dns_rdataset_isassociated(ardataset))
+		dns_rdataset_disassociate(ardataset);
 
 	return (result);
 }
