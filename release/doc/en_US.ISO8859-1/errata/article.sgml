@@ -143,6 +143,20 @@
 	    <entry>23&nbsp;August&nbsp;2006</entry>
 	    <entry><para>Buffer overflow in &man.sppp.4;</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:19.openssl.asc"
+		>SA-06:19.openssl</ulink></entry>
+	    <entry>06&nbsp;September&nbsp;2006</entry>
+	    <entry><para>Incorrect PKCS#1 v1.5 padding validation in &man.crypto.3;</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:20.bind.asc"
+		>SA-06:20.bind</ulink></entry>
+	    <entry>06&nbsp;September&nbsp;2006</entry>
+	    <entry><para>Denial of Service in &man.named.8;</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
