@@ -147,7 +147,7 @@ typedef struct ohci_softc {
 	usb_callout_t sc_tmo_rhsc;
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-	device_ptr_t sc_child;
+	device_t sc_child;
 #endif
 	char sc_dying;
 } ohci_softc_t;
@@ -166,7 +166,7 @@ usbd_status	ohci_init(ohci_softc_t *);
 void		ohci_intr(void *);
 int	 	ohci_detach(ohci_softc_t *, int);
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-int		ohci_activate(device_ptr_t, enum devact);
+int		ohci_activate(device_t, enum devact);
 #endif
 
 #define MS_TO_TICKS(ms) ((ms) * hz / 1000)

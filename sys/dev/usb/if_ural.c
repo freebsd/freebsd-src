@@ -105,72 +105,72 @@ static const struct usb_devno ural_devs[] = {
 
 MODULE_DEPEND(ural, wlan, 1, 1, 1);
 
-Static int		ural_alloc_tx_list(struct ural_softc *);
-Static void		ural_free_tx_list(struct ural_softc *);
-Static int		ural_alloc_rx_list(struct ural_softc *);
-Static void		ural_free_rx_list(struct ural_softc *);
-Static int		ural_media_change(struct ifnet *);
-Static void		ural_next_scan(void *);
-Static void		ural_task(void *);
-Static int		ural_newstate(struct ieee80211com *,
+static int		ural_alloc_tx_list(struct ural_softc *);
+static void		ural_free_tx_list(struct ural_softc *);
+static int		ural_alloc_rx_list(struct ural_softc *);
+static void		ural_free_rx_list(struct ural_softc *);
+static int		ural_media_change(struct ifnet *);
+static void		ural_next_scan(void *);
+static void		ural_task(void *);
+static int		ural_newstate(struct ieee80211com *,
 			    enum ieee80211_state, int);
-Static int		ural_rxrate(struct ural_rx_desc *);
-Static void		ural_txeof(usbd_xfer_handle, usbd_private_handle,
+static int		ural_rxrate(struct ural_rx_desc *);
+static void		ural_txeof(usbd_xfer_handle, usbd_private_handle,
 			    usbd_status);
-Static void		ural_rxeof(usbd_xfer_handle, usbd_private_handle,
+static void		ural_rxeof(usbd_xfer_handle, usbd_private_handle,
 			    usbd_status);
-Static int		ural_ack_rate(struct ieee80211com *, int);
-Static uint16_t		ural_txtime(int, int, uint32_t);
-Static uint8_t		ural_plcp_signal(int);
-Static void		ural_setup_tx_desc(struct ural_softc *,
+static int		ural_ack_rate(struct ieee80211com *, int);
+static uint16_t		ural_txtime(int, int, uint32_t);
+static uint8_t		ural_plcp_signal(int);
+static void		ural_setup_tx_desc(struct ural_softc *,
 			    struct ural_tx_desc *, uint32_t, int, int);
-Static int		ural_tx_bcn(struct ural_softc *, struct mbuf *,
+static int		ural_tx_bcn(struct ural_softc *, struct mbuf *,
 			    struct ieee80211_node *);
-Static int		ural_tx_mgt(struct ural_softc *, struct mbuf *,
+static int		ural_tx_mgt(struct ural_softc *, struct mbuf *,
 			    struct ieee80211_node *);
-Static int		ural_tx_data(struct ural_softc *, struct mbuf *,
+static int		ural_tx_data(struct ural_softc *, struct mbuf *,
 			    struct ieee80211_node *);
-Static void		ural_start(struct ifnet *);
-Static void		ural_watchdog(struct ifnet *);
-Static int		ural_reset(struct ifnet *);
-Static int		ural_ioctl(struct ifnet *, u_long, caddr_t);
-Static void		ural_set_testmode(struct ural_softc *);
-Static void		ural_eeprom_read(struct ural_softc *, uint16_t, void *,
+static void		ural_start(struct ifnet *);
+static void		ural_watchdog(struct ifnet *);
+static int		ural_reset(struct ifnet *);
+static int		ural_ioctl(struct ifnet *, u_long, caddr_t);
+static void		ural_set_testmode(struct ural_softc *);
+static void		ural_eeprom_read(struct ural_softc *, uint16_t, void *,
 			    int);
-Static uint16_t		ural_read(struct ural_softc *, uint16_t);
-Static void		ural_read_multi(struct ural_softc *, uint16_t, void *,
+static uint16_t		ural_read(struct ural_softc *, uint16_t);
+static void		ural_read_multi(struct ural_softc *, uint16_t, void *,
 			    int);
-Static void		ural_write(struct ural_softc *, uint16_t, uint16_t);
-Static void		ural_write_multi(struct ural_softc *, uint16_t, void *,
+static void		ural_write(struct ural_softc *, uint16_t, uint16_t);
+static void		ural_write_multi(struct ural_softc *, uint16_t, void *,
 			    int);
-Static void		ural_bbp_write(struct ural_softc *, uint8_t, uint8_t);
-Static uint8_t		ural_bbp_read(struct ural_softc *, uint8_t);
-Static void		ural_rf_write(struct ural_softc *, uint8_t, uint32_t);
-Static void		ural_set_chan(struct ural_softc *,
+static void		ural_bbp_write(struct ural_softc *, uint8_t, uint8_t);
+static uint8_t		ural_bbp_read(struct ural_softc *, uint8_t);
+static void		ural_rf_write(struct ural_softc *, uint8_t, uint32_t);
+static void		ural_set_chan(struct ural_softc *,
 			    struct ieee80211_channel *);
-Static void		ural_disable_rf_tune(struct ural_softc *);
-Static void		ural_enable_tsf_sync(struct ural_softc *);
-Static void		ural_update_slot(struct ifnet *);
-Static void		ural_set_txpreamble(struct ural_softc *);
-Static void		ural_set_basicrates(struct ural_softc *);
-Static void		ural_set_bssid(struct ural_softc *, uint8_t *);
-Static void		ural_set_macaddr(struct ural_softc *, uint8_t *);
-Static void		ural_update_promisc(struct ural_softc *);
-Static const char	*ural_get_rf(int);
-Static void		ural_read_eeprom(struct ural_softc *);
-Static int		ural_bbp_init(struct ural_softc *);
-Static void		ural_set_txantenna(struct ural_softc *, int);
-Static void		ural_set_rxantenna(struct ural_softc *, int);
-Static void		ural_init(void *);
-Static void		ural_stop(void *);
+static void		ural_disable_rf_tune(struct ural_softc *);
+static void		ural_enable_tsf_sync(struct ural_softc *);
+static void		ural_update_slot(struct ifnet *);
+static void		ural_set_txpreamble(struct ural_softc *);
+static void		ural_set_basicrates(struct ural_softc *);
+static void		ural_set_bssid(struct ural_softc *, uint8_t *);
+static void		ural_set_macaddr(struct ural_softc *, uint8_t *);
+static void		ural_update_promisc(struct ural_softc *);
+static const char	*ural_get_rf(int);
+static void		ural_read_eeprom(struct ural_softc *);
+static int		ural_bbp_init(struct ural_softc *);
+static void		ural_set_txantenna(struct ural_softc *, int);
+static void		ural_set_rxantenna(struct ural_softc *, int);
+static void		ural_init(void *);
+static void		ural_stop(void *);
 static int		ural_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			    const struct ieee80211_bpf_params *);
-Static void		ural_amrr_start(struct ural_softc *,
+static void		ural_amrr_start(struct ural_softc *,
 			    struct ieee80211_node *);
-Static void		ural_amrr_timeout(void *);
-Static void		ural_amrr_update(usbd_xfer_handle, usbd_private_handle,
+static void		ural_amrr_timeout(void *);
+static void		ural_amrr_update(usbd_xfer_handle, usbd_private_handle,
 			    usbd_status status);
-Static void		ural_ratectl(struct ural_amrr *,
+static void		ural_ratectl(struct ural_amrr *,
 			    struct ieee80211_node *);
 
 /*
@@ -567,7 +567,7 @@ USB_DETACH(ural)
 	return 0;
 }
 
-Static int
+static int
 ural_alloc_tx_list(struct ural_softc *sc)
 {
 	struct ural_tx_data *data;
@@ -604,7 +604,7 @@ fail:	ural_free_tx_list(sc);
 	return error;
 }
 
-Static void
+static void
 ural_free_tx_list(struct ural_softc *sc)
 {
 	struct ural_tx_data *data;
@@ -625,7 +625,7 @@ ural_free_tx_list(struct ural_softc *sc)
 	}
 }
 
-Static int
+static int
 ural_alloc_rx_list(struct ural_softc *sc)
 {
 	struct ural_rx_data *data;
@@ -668,7 +668,7 @@ fail:	ural_free_tx_list(sc);
 	return error;
 }
 
-Static void
+static void
 ural_free_rx_list(struct ural_softc *sc)
 {
 	struct ural_rx_data *data;
@@ -689,7 +689,7 @@ ural_free_rx_list(struct ural_softc *sc)
 	}
 }
 
-Static int
+static int
 ural_media_change(struct ifnet *ifp)
 {
 	struct ural_softc *sc = ifp->if_softc;
@@ -716,7 +716,7 @@ ural_media_change(struct ifnet *ifp)
  * This function is called periodically (every 200ms) during scanning to
  * switch from one channel to another.
  */
-Static void
+static void
 ural_next_scan(void *arg)
 {
 	struct ural_softc *sc = arg;
@@ -726,7 +726,7 @@ ural_next_scan(void *arg)
 		ieee80211_next_scan(ic);
 }
 
-Static void
+static void
 ural_task(void *arg)
 {
 	struct ural_softc *sc = arg;
@@ -806,7 +806,7 @@ ural_task(void *arg)
 	sc->sc_newstate(ic, sc->sc_state, -1);
 }
 
-Static int
+static int
 ural_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 {
 	struct ural_softc *sc = ic->ic_ifp->if_softc;
@@ -835,7 +835,7 @@ ural_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 /*
  * This function is only used by the Rx radiotap code.
  */
-Static int
+static int
 ural_rxrate(struct ural_rx_desc *desc)
 {
 	if (le32toh(desc->flags) & RAL_RX_OFDM) {
@@ -863,7 +863,7 @@ ural_rxrate(struct ural_rx_desc *desc)
 	return 2;	/* should not get there */
 }
 
-Static void
+static void
 ural_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct ural_tx_data *data = priv;
@@ -899,7 +899,7 @@ ural_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	ural_start(ifp);
 }
 
-Static void
+static void
 ural_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct ural_rx_data *data = priv;
@@ -993,7 +993,7 @@ skip:	/* setup a new transfer */
  * Return the expected ack rate for a frame transmitted at rate `rate'.
  * XXX: this should depend on the destination node basic rate set.
  */
-Static int
+static int
 ural_ack_rate(struct ieee80211com *ic, int rate)
 {
 	switch (rate) {
@@ -1028,7 +1028,7 @@ ural_ack_rate(struct ieee80211com *ic, int rate)
  * The function automatically determines the operating mode depending on the
  * given rate. `flags' indicates whether short preamble is in use or not.
  */
-Static uint16_t
+static uint16_t
 ural_txtime(int len, int rate, uint32_t flags)
 {
 	uint16_t txtime;
@@ -1048,7 +1048,7 @@ ural_txtime(int len, int rate, uint32_t flags)
 	return txtime;
 }
 
-Static uint8_t
+static uint8_t
 ural_plcp_signal(int rate)
 {
 	switch (rate) {
@@ -1073,7 +1073,7 @@ ural_plcp_signal(int rate)
 	}
 }
 
-Static void
+static void
 ural_setup_tx_desc(struct ural_softc *sc, struct ural_tx_desc *desc,
     uint32_t flags, int len, int rate)
 {
@@ -1119,7 +1119,7 @@ ural_setup_tx_desc(struct ural_softc *sc, struct ural_tx_desc *desc,
 
 #define RAL_TX_TIMEOUT	5000
 
-Static int
+static int
 ural_tx_bcn(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 {
 	struct ural_tx_desc *desc;
@@ -1171,7 +1171,7 @@ ural_tx_bcn(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	return error;
 }
 
-Static int
+static int
 ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -1248,7 +1248,7 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	return 0;
 }
 
-Static int
+static int
 ural_tx_raw(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
     const struct ieee80211_bpf_params *params)
 {
@@ -1316,7 +1316,7 @@ ural_tx_raw(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	return 0;
 }
 
-Static int
+static int
 ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -1405,7 +1405,7 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	return 0;
 }
 
-Static void
+static void
 ural_start(struct ifnet *ifp)
 {
 	struct ural_softc *sc = ifp->if_softc;
@@ -1477,7 +1477,7 @@ ural_start(struct ifnet *ifp)
 	}
 }
 
-Static void
+static void
 ural_watchdog(struct ifnet *ifp)
 {
 	struct ural_softc *sc = ifp->if_softc;
@@ -1508,7 +1508,7 @@ ural_watchdog(struct ifnet *ifp)
  * net-mgmt/kismet). In IBSS mode, we must explicitly reset the interface to
  * generate a new beacon frame.
  */
-Static int
+static int
 ural_reset(struct ifnet *ifp)
 {
 	struct ural_softc *sc = ifp->if_softc;
@@ -1522,7 +1522,7 @@ ural_reset(struct ifnet *ifp)
 	return 0;
 }
 
-Static int
+static int
 ural_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ural_softc *sc = ifp->if_softc;
@@ -1561,7 +1561,7 @@ ural_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return error;
 }
 
-Static void
+static void
 ural_set_testmode(struct ural_softc *sc)
 {
 	usb_device_request_t req;
@@ -1580,7 +1580,7 @@ ural_set_testmode(struct ural_softc *sc)
 	}
 }
 
-Static void
+static void
 ural_eeprom_read(struct ural_softc *sc, uint16_t addr, void *buf, int len)
 {
 	usb_device_request_t req;
@@ -1599,7 +1599,7 @@ ural_eeprom_read(struct ural_softc *sc, uint16_t addr, void *buf, int len)
 	}
 }
 
-Static uint16_t
+static uint16_t
 ural_read(struct ural_softc *sc, uint16_t reg)
 {
 	usb_device_request_t req;
@@ -1622,7 +1622,7 @@ ural_read(struct ural_softc *sc, uint16_t reg)
 	return le16toh(val);
 }
 
-Static void
+static void
 ural_read_multi(struct ural_softc *sc, uint16_t reg, void *buf, int len)
 {
 	usb_device_request_t req;
@@ -1641,7 +1641,7 @@ ural_read_multi(struct ural_softc *sc, uint16_t reg, void *buf, int len)
 	}
 }
 
-Static void
+static void
 ural_write(struct ural_softc *sc, uint16_t reg, uint16_t val)
 {
 	usb_device_request_t req;
@@ -1660,7 +1660,7 @@ ural_write(struct ural_softc *sc, uint16_t reg, uint16_t val)
 	}
 }
 
-Static void
+static void
 ural_write_multi(struct ural_softc *sc, uint16_t reg, void *buf, int len)
 {
 	usb_device_request_t req;
@@ -1679,7 +1679,7 @@ ural_write_multi(struct ural_softc *sc, uint16_t reg, void *buf, int len)
 	}
 }
 
-Static void
+static void
 ural_bbp_write(struct ural_softc *sc, uint8_t reg, uint8_t val)
 {
 	uint16_t tmp;
@@ -1698,7 +1698,7 @@ ural_bbp_write(struct ural_softc *sc, uint8_t reg, uint8_t val)
 	ural_write(sc, RAL_PHY_CSR7, tmp);
 }
 
-Static uint8_t
+static uint8_t
 ural_bbp_read(struct ural_softc *sc, uint8_t reg)
 {
 	uint16_t val;
@@ -1719,7 +1719,7 @@ ural_bbp_read(struct ural_softc *sc, uint8_t reg)
 	return ural_read(sc, RAL_PHY_CSR7) & 0xff;
 }
 
-Static void
+static void
 ural_rf_write(struct ural_softc *sc, uint8_t reg, uint32_t val)
 {
 	uint32_t tmp;
@@ -1744,7 +1744,7 @@ ural_rf_write(struct ural_softc *sc, uint8_t reg, uint32_t val)
 	DPRINTFN(15, ("RF R[%u] <- 0x%05x\n", reg & 0x3, val & 0xfffff));
 }
 
-Static void
+static void
 ural_set_chan(struct ural_softc *sc, struct ieee80211_channel *c)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -1848,7 +1848,7 @@ ural_set_chan(struct ural_softc *sc, struct ieee80211_channel *c)
 /*
  * Disable RF auto-tuning.
  */
-Static void
+static void
 ural_disable_rf_tune(struct ural_softc *sc)
 {
 	uint32_t tmp;
@@ -1868,7 +1868,7 @@ ural_disable_rf_tune(struct ural_softc *sc)
  * Refer to IEEE Std 802.11-1999 pp. 123 for more information on TSF
  * synchronization.
  */
-Static void
+static void
 ural_enable_tsf_sync(struct ural_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -1896,7 +1896,7 @@ ural_enable_tsf_sync(struct ural_softc *sc)
 	DPRINTF(("enabling TSF synchronization\n"));
 }
 
-Static void
+static void
 ural_update_slot(struct ifnet *ifp)
 {
 	struct ural_softc *sc = ifp->if_softc;
@@ -1922,7 +1922,7 @@ ural_update_slot(struct ifnet *ifp)
 	ural_write(sc, RAL_MAC_CSR12, eifs);
 }
 
-Static void
+static void
 ural_set_txpreamble(struct ural_softc *sc)
 {
 	uint16_t tmp;
@@ -1936,7 +1936,7 @@ ural_set_txpreamble(struct ural_softc *sc)
 	ural_write(sc, RAL_TXRX_CSR10, tmp);
 }
 
-Static void
+static void
 ural_set_basicrates(struct ural_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -1954,7 +1954,7 @@ ural_set_basicrates(struct ural_softc *sc)
 	}
 }
 
-Static void
+static void
 ural_set_bssid(struct ural_softc *sc, uint8_t *bssid)
 {
 	uint16_t tmp;
@@ -1971,7 +1971,7 @@ ural_set_bssid(struct ural_softc *sc, uint8_t *bssid)
 	DPRINTF(("setting BSSID to %6D\n", bssid, ":"));
 }
 
-Static void
+static void
 ural_set_macaddr(struct ural_softc *sc, uint8_t *addr)
 {
 	uint16_t tmp;
@@ -1988,7 +1988,7 @@ ural_set_macaddr(struct ural_softc *sc, uint8_t *addr)
 	DPRINTF(("setting MAC address to %6D\n", addr, ":"));
 }
 
-Static void
+static void
 ural_update_promisc(struct ural_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ic.ic_ifp;
@@ -2006,7 +2006,7 @@ ural_update_promisc(struct ural_softc *sc)
 	    "entering" : "leaving"));
 }
 
-Static const char *
+static const char *
 ural_get_rf(int rev)
 {
 	switch (rev) {
@@ -2021,7 +2021,7 @@ ural_get_rf(int rev)
 	}
 }
 
-Static void
+static void
 ural_read_eeprom(struct ural_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -2046,7 +2046,7 @@ ural_read_eeprom(struct ural_softc *sc)
 	ural_eeprom_read(sc, RAL_EEPROM_TXPOWER, sc->txpow, 14);
 }
 
-Static int
+static int
 ural_bbp_init(struct ural_softc *sc)
 {
 #define N(a)	(sizeof (a) / sizeof ((a)[0]))
@@ -2080,7 +2080,7 @@ ural_bbp_init(struct ural_softc *sc)
 #undef N
 }
 
-Static void
+static void
 ural_set_txantenna(struct ural_softc *sc, int antenna)
 {
 	uint16_t tmp;
@@ -2109,7 +2109,7 @@ ural_set_txantenna(struct ural_softc *sc, int antenna)
 	ural_write(sc, RAL_PHY_CSR6, tmp | (tx & 0x7));
 }
 
-Static void
+static void
 ural_set_rxantenna(struct ural_softc *sc, int antenna)
 {
 	uint8_t rx;
@@ -2129,7 +2129,7 @@ ural_set_rxantenna(struct ural_softc *sc, int antenna)
 	ural_bbp_write(sc, RAL_BBP_RX, rx);
 }
 
-Static void
+static void
 ural_init(void *priv)
 {
 #define N(a)	(sizeof (a) / sizeof ((a)[0]))
@@ -2278,7 +2278,7 @@ fail:	ural_stop(sc);
 #undef N
 }
 
-Static void
+static void
 ural_stop(void *priv)
 {
 	struct ural_softc *sc = priv;
@@ -2368,7 +2368,7 @@ bad:
 #define URAL_AMRR_MIN_SUCCESS_THRESHOLD	 1
 #define URAL_AMRR_MAX_SUCCESS_THRESHOLD	10
 
-Static void
+static void
 ural_amrr_start(struct ural_softc *sc, struct ieee80211_node *ni)
 {
 	struct ural_amrr *amrr = &sc->amrr;
@@ -2392,7 +2392,7 @@ ural_amrr_start(struct ural_softc *sc, struct ieee80211_node *ni)
 	callout_reset(&sc->amrr_ch, hz, ural_amrr_timeout, sc);
 }
 
-Static void
+static void
 ural_amrr_timeout(void *arg)
 {
 	struct ural_softc *sc = (struct ural_softc *)arg;
@@ -2418,7 +2418,7 @@ ural_amrr_timeout(void *arg)
 	splx(s);
 }
 
-Static void
+static void
 ural_amrr_update(usbd_xfer_handle xfer, usbd_private_handle priv,
     usbd_status status)
 {
@@ -2477,7 +2477,7 @@ ural_amrr_update(usbd_xfer_handle xfer, usbd_private_handle priv,
 	((ni)->ni_txrate--)
 #define reset_cnt(amrr)		\
 	do { (amrr)->txcnt = (amrr)->retrycnt = 0; } while (0)
-Static void
+static void
 ural_ratectl(struct ural_amrr *amrr, struct ieee80211_node *ni)
 {
 	int need_change = 0;

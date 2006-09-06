@@ -116,7 +116,7 @@ struct aue_type {
 #define PII	0x0004		/* Pegasus II chip */
 };
 
-Static const struct aue_type aue_devs[] = {
+static const struct aue_type aue_devs[] = {
  {{ USB_VENDOR_3COM,		USB_PRODUCT_3COM_3C460B},         PII },
  {{ USB_VENDOR_ABOCOM,		USB_PRODUCT_ABOCOM_XX1},	  PNA|PII },
  {{ USB_VENDOR_ABOCOM,		USB_PRODUCT_ABOCOM_XX2},	  PII },
@@ -177,43 +177,43 @@ Static const struct aue_type aue_devs[] = {
 };
 #define aue_lookup(v, p) ((const struct aue_type *)usb_lookup(aue_devs, v, p))
 
-Static int aue_match(device_ptr_t);
-Static int aue_attach(device_ptr_t);
-Static int aue_detach(device_ptr_t);
+static int aue_match(device_t);
+static int aue_attach(device_t);
+static int aue_detach(device_t);
 
-Static void aue_reset_pegasus_II(struct aue_softc *sc);
-Static int aue_encap(struct aue_softc *, struct mbuf *, int);
+static void aue_reset_pegasus_II(struct aue_softc *sc);
+static int aue_encap(struct aue_softc *, struct mbuf *, int);
 #ifdef AUE_INTR_PIPE
-Static void aue_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
+static void aue_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
 #endif
-Static void aue_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
-Static void aue_txeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
-Static void aue_tick(void *);
-Static void aue_rxstart(struct ifnet *);
-Static void aue_start(struct ifnet *);
-Static int aue_ioctl(struct ifnet *, u_long, caddr_t);
-Static void aue_init(void *);
-Static void aue_stop(struct aue_softc *);
-Static void aue_watchdog(struct ifnet *);
-Static void aue_shutdown(device_ptr_t);
-Static int aue_ifmedia_upd(struct ifnet *);
-Static void aue_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static void aue_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
+static void aue_txeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
+static void aue_tick(void *);
+static void aue_rxstart(struct ifnet *);
+static void aue_start(struct ifnet *);
+static int aue_ioctl(struct ifnet *, u_long, caddr_t);
+static void aue_init(void *);
+static void aue_stop(struct aue_softc *);
+static void aue_watchdog(struct ifnet *);
+static void aue_shutdown(device_t);
+static int aue_ifmedia_upd(struct ifnet *);
+static void aue_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
-Static void aue_eeprom_getword(struct aue_softc *, int, u_int16_t *);
-Static void aue_read_eeprom(struct aue_softc *, caddr_t, int, int, int);
-Static int aue_miibus_readreg(device_ptr_t, int, int);
-Static int aue_miibus_writereg(device_ptr_t, int, int, int);
-Static void aue_miibus_statchg(device_ptr_t);
+static void aue_eeprom_getword(struct aue_softc *, int, u_int16_t *);
+static void aue_read_eeprom(struct aue_softc *, caddr_t, int, int, int);
+static int aue_miibus_readreg(device_t, int, int);
+static int aue_miibus_writereg(device_t, int, int, int);
+static void aue_miibus_statchg(device_t);
 
-Static void aue_setmulti(struct aue_softc *);
-Static void aue_reset(struct aue_softc *);
+static void aue_setmulti(struct aue_softc *);
+static void aue_reset(struct aue_softc *);
 
-Static int aue_csr_read_1(struct aue_softc *, int);
-Static int aue_csr_write_1(struct aue_softc *, int, int);
-Static int aue_csr_read_2(struct aue_softc *, int);
-Static int aue_csr_write_2(struct aue_softc *, int, int);
+static int aue_csr_read_1(struct aue_softc *, int);
+static int aue_csr_write_1(struct aue_softc *, int, int);
+static int aue_csr_read_2(struct aue_softc *, int);
+static int aue_csr_write_2(struct aue_softc *, int, int);
 
-Static device_method_t aue_methods[] = {
+static device_method_t aue_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		aue_match),
 	DEVMETHOD(device_attach,	aue_attach),
@@ -232,13 +232,13 @@ Static device_method_t aue_methods[] = {
 	{ 0, 0 }
 };
 
-Static driver_t aue_driver = {
+static driver_t aue_driver = {
 	"aue",
 	aue_methods,
 	sizeof(struct aue_softc)
 };
 
-Static devclass_t aue_devclass;
+static devclass_t aue_devclass;
 
 DRIVER_MODULE(aue, uhub, aue_driver, aue_devclass, usbd_driver_load, 0);
 DRIVER_MODULE(miibus, aue, miibus_driver, miibus_devclass, 0, 0);
@@ -249,7 +249,7 @@ DRIVER_MODULE(miibus, aue, miibus_driver, miibus_devclass, 0, 0);
 #define AUE_CLRBIT(sc, reg, x)				\
 	aue_csr_write_1(sc, reg, aue_csr_read_1(sc, reg) & ~(x))
 
-Static int
+static int
 aue_csr_read_1(struct aue_softc *sc, int reg)
 {
 	usb_device_request_t	req;
@@ -278,7 +278,7 @@ aue_csr_read_1(struct aue_softc *sc, int reg)
 	return (val);
 }
 
-Static int
+static int
 aue_csr_read_2(struct aue_softc *sc, int reg)
 {
 	usb_device_request_t	req;
@@ -307,7 +307,7 @@ aue_csr_read_2(struct aue_softc *sc, int reg)
 	return (val);
 }
 
-Static int
+static int
 aue_csr_write_1(struct aue_softc *sc, int reg, int val)
 {
 	usb_device_request_t	req;
@@ -335,7 +335,7 @@ aue_csr_write_1(struct aue_softc *sc, int reg, int val)
 	return (0);
 }
 
-Static int
+static int
 aue_csr_write_2(struct aue_softc *sc, int reg, int val)
 {
 	usb_device_request_t	req;
@@ -366,7 +366,7 @@ aue_csr_write_2(struct aue_softc *sc, int reg, int val)
 /*
  * Read a word of data stored in the EEPROM at address 'addr.'
  */
-Static void
+static void
 aue_eeprom_getword(struct aue_softc *sc, int addr, u_int16_t *dest)
 {
 	int		i;
@@ -394,7 +394,7 @@ aue_eeprom_getword(struct aue_softc *sc, int addr, u_int16_t *dest)
 /*
  * Read a sequence of words from the EEPROM.
  */
-Static void
+static void
 aue_read_eeprom(struct aue_softc *sc, caddr_t dest, int off, int cnt, int swap)
 {
 	int			i;
@@ -412,8 +412,8 @@ aue_read_eeprom(struct aue_softc *sc, caddr_t dest, int off, int cnt, int swap)
 	return;
 }
 
-Static int
-aue_miibus_readreg(device_ptr_t dev, int phy, int reg)
+static int
+aue_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct aue_softc	*sc = USBGETSOFTC(dev);
 	int			i;
@@ -456,8 +456,8 @@ aue_miibus_readreg(device_ptr_t dev, int phy, int reg)
 	return (val);
 }
 
-Static int
-aue_miibus_writereg(device_ptr_t dev, int phy, int reg, int data)
+static int
+aue_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct aue_softc	*sc = USBGETSOFTC(dev);
 	int			i;
@@ -482,8 +482,8 @@ aue_miibus_writereg(device_ptr_t dev, int phy, int reg, int data)
 	return(0);
 }
 
-Static void
-aue_miibus_statchg(device_ptr_t dev)
+static void
+aue_miibus_statchg(device_t dev)
 {
 	struct aue_softc	*sc = USBGETSOFTC(dev);
 	struct mii_data		*mii = GET_MII(sc);
@@ -518,7 +518,7 @@ aue_miibus_statchg(device_ptr_t dev)
 
 #define AUE_BITS	6
 
-Static void
+static void
 aue_setmulti(struct aue_softc *sc)
 {
 	struct ifnet		*ifp;
@@ -558,7 +558,7 @@ aue_setmulti(struct aue_softc *sc)
 	return;
 }
 
-Static void
+static void
 aue_reset_pegasus_II(struct aue_softc *sc)
 {
 	/* Magic constants taken from Linux driver. */
@@ -572,7 +572,7 @@ aue_reset_pegasus_II(struct aue_softc *sc)
 		aue_csr_write_1(sc, AUE_REG_81, 2);
 }
 
-Static void
+static void
 aue_reset(struct aue_softc *sc)
 {
 	int		i;
@@ -776,8 +776,8 @@ USB_ATTACH(aue)
 	USB_ATTACH_SUCCESS_RETURN;
 }
 
-Static int
-aue_detach(device_ptr_t dev)
+static int
+aue_detach(device_t dev)
 {
 	struct aue_softc	*sc;
 	struct ifnet		*ifp;
@@ -813,7 +813,7 @@ aue_detach(device_ptr_t dev)
 }
 
 #ifdef AUE_INTR_PIPE
-Static void
+static void
 aue_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct aue_softc	*sc = priv;
@@ -854,7 +854,7 @@ aue_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 }
 #endif
 
-Static void
+static void
 aue_rxstart(struct ifnet *ifp)
 {
 	struct aue_softc	*sc;
@@ -887,7 +887,7 @@ aue_rxstart(struct ifnet *ifp)
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
  */
-Static void
+static void
 aue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct ue_chain	*c = priv;
@@ -966,7 +966,7 @@ done:
  * the list buffers.
  */
 
-Static void
+static void
 aue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct ue_chain	*c = priv;
@@ -1010,7 +1010,7 @@ aue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	return;
 }
 
-Static void
+static void
 aue_tick(void *xsc)
 {
 	struct aue_softc	*sc = xsc;
@@ -1044,7 +1044,7 @@ aue_tick(void *xsc)
 	return;
 }
 
-Static int
+static int
 aue_encap(struct aue_softc *sc, struct mbuf *m, int idx)
 {
 	int			total_len;
@@ -1087,7 +1087,7 @@ aue_encap(struct aue_softc *sc, struct mbuf *m, int idx)
 	return (0);
 }
 
-Static void
+static void
 aue_start(struct ifnet *ifp)
 {
 	struct aue_softc	*sc = ifp->if_softc;
@@ -1135,7 +1135,7 @@ aue_start(struct ifnet *ifp)
 	return;
 }
 
-Static void
+static void
 aue_init(void *xsc)
 {
 	struct aue_softc	*sc = xsc;
@@ -1250,7 +1250,7 @@ aue_init(void *xsc)
 /*
  * Set media options.
  */
-Static int
+static int
 aue_ifmedia_upd(struct ifnet *ifp)
 {
 	struct aue_softc	*sc = ifp->if_softc;
@@ -1270,7 +1270,7 @@ aue_ifmedia_upd(struct ifnet *ifp)
 /*
  * Report current media status.
  */
-Static void
+static void
 aue_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct aue_softc	*sc = ifp->if_softc;
@@ -1283,7 +1283,7 @@ aue_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	return;
 }
 
-Static int
+static int
 aue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct aue_softc	*sc = ifp->if_softc;
@@ -1333,7 +1333,7 @@ aue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	return (error);
 }
 
-Static void
+static void
 aue_watchdog(struct ifnet *ifp)
 {
 	struct aue_softc	*sc = ifp->if_softc;
@@ -1359,7 +1359,7 @@ aue_watchdog(struct ifnet *ifp)
  * Stop the adapter and free any mbufs allocated to the
  * RX and TX lists.
  */
-Static void
+static void
 aue_stop(struct aue_softc *sc)
 {
 	usbd_status		err;
@@ -1441,8 +1441,8 @@ aue_stop(struct aue_softc *sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-Static void
-aue_shutdown(device_ptr_t dev)
+static void
+aue_shutdown(device_t dev)
 {
 	struct aue_softc	*sc;
 

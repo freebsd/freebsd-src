@@ -172,28 +172,28 @@ struct umodem_softc {
 	struct task		sc_task;
 };
 
-Static void	*umodem_get_desc(usbd_device_handle dev, int type, int subtype);
-Static usbd_status umodem_set_comm_feature(struct umodem_softc *sc,
+static void	*umodem_get_desc(usbd_device_handle dev, int type, int subtype);
+static usbd_status umodem_set_comm_feature(struct umodem_softc *sc,
 					   int feature, int state);
-Static usbd_status umodem_set_line_coding(struct umodem_softc *sc,
+static usbd_status umodem_set_line_coding(struct umodem_softc *sc,
 					  usb_cdc_line_state_t *state);
 
-Static void	umodem_get_caps(usbd_device_handle, int *, int *);
+static void	umodem_get_caps(usbd_device_handle, int *, int *);
 
-Static void	umodem_get_status(void *, int portno, u_char *lsr, u_char *msr);
-Static void	umodem_set(void *, int, int, int);
-Static void	umodem_dtr(struct umodem_softc *, int);
-Static void	umodem_rts(struct umodem_softc *, int);
-Static void	umodem_break(struct umodem_softc *, int);
-Static void	umodem_set_line_state(struct umodem_softc *);
-Static int	umodem_param(void *, int, struct termios *);
-Static int	umodem_ioctl(void *, int, u_long, caddr_t, int, usb_proc_ptr );
-Static int	umodem_open(void *, int portno);
-Static void	umodem_close(void *, int portno);
-Static void	umodem_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
-Static void	umodem_notify(void *, int);
+static void	umodem_get_status(void *, int portno, u_char *lsr, u_char *msr);
+static void	umodem_set(void *, int, int, int);
+static void	umodem_dtr(struct umodem_softc *, int);
+static void	umodem_rts(struct umodem_softc *, int);
+static void	umodem_break(struct umodem_softc *, int);
+static void	umodem_set_line_state(struct umodem_softc *);
+static int	umodem_param(void *, int, struct termios *);
+static int	umodem_ioctl(void *, int, u_long, caddr_t, int, usb_proc_ptr );
+static int	umodem_open(void *, int portno);
+static void	umodem_close(void *, int portno);
+static void	umodem_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
+static void	umodem_notify(void *, int);
 
-Static struct ucom_callback umodem_callback = {
+static struct ucom_callback umodem_callback = {
 	umodem_get_status,
 	umodem_set,
 	umodem_param,
@@ -204,11 +204,11 @@ Static struct ucom_callback umodem_callback = {
 	NULL,
 };
 
-Static device_probe_t umodem_match;
-Static device_attach_t umodem_attach;
-Static device_detach_t umodem_detach;
+static device_probe_t umodem_match;
+static device_attach_t umodem_attach;
+static device_detach_t umodem_detach;
 
-Static device_method_t umodem_methods[] = {
+static device_method_t umodem_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, umodem_match),
 	DEVMETHOD(device_attach, umodem_attach),
@@ -216,7 +216,7 @@ Static device_method_t umodem_methods[] = {
 	{ 0, 0 }
 };
 
-Static driver_t umodem_driver = {
+static driver_t umodem_driver = {
 	"ucom",
 	umodem_methods,
 	sizeof (struct umodem_softc)
@@ -433,7 +433,7 @@ USB_ATTACH(umodem)
 	USB_ATTACH_ERROR_RETURN;
 }
 
-Static int
+static int
 umodem_open(void *addr, int portno)
 {
 	struct umodem_softc *sc = addr;
@@ -457,7 +457,7 @@ umodem_open(void *addr, int portno)
 	return 0;
 }
 
-Static void
+static void
 umodem_close(void *addr, int portno)
 {
 	struct umodem_softc *sc = addr;
@@ -478,7 +478,7 @@ umodem_close(void *addr, int portno)
 	}
 }
 
-Static void
+static void
 umodem_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct umodem_softc *sc = priv;
@@ -539,7 +539,7 @@ umodem_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	}
 }
 
-Static void
+static void
 umodem_notify(void *arg, int count)
 {
 	struct umodem_softc *sc;
