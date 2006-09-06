@@ -73,7 +73,7 @@ cond_init(pthread_cond_t *cond, const pthread_condattr_t *cond_attr)
 		/*
 		 * Initialise the condition variable structure:
 		 */
-		_thr_umtx_init(&pcond->c_lock);
+		_thr_umutex_init(&pcond->c_lock);
 		pcond->c_seqno = 0;
 		pcond->c_waiters = 0;
 		pcond->c_wakeups = 0;

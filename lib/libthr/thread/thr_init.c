@@ -66,7 +66,7 @@ pthreadlist	_thread_list = TAILQ_HEAD_INITIALIZER(_thread_list);
 pthreadlist 	_thread_gc_list = TAILQ_HEAD_INITIALIZER(_thread_gc_list);
 int		_thread_active_threads = 1;
 atfork_head	_thr_atfork_list = TAILQ_HEAD_INITIALIZER(_thr_atfork_list);
-umtx_t		_thr_atfork_lock;
+struct umutex	_thr_atfork_lock = DEFAULT_UMUTEX;
 
 struct pthread_prio	_thr_priorities[3] = {
 	{RTP_PRIO_MIN,  RTP_PRIO_MAX, 0}, /* FIFO */
@@ -105,12 +105,12 @@ size_t		_thr_stack_default = THR_STACK_DEFAULT;
 size_t		_thr_stack_initial = THR_STACK_INITIAL;
 int		_thr_page_size;
 int		_gc_count;
-umtx_t		_mutex_static_lock;
-umtx_t		_cond_static_lock;
-umtx_t		_rwlock_static_lock;
-umtx_t		_keytable_lock;
-umtx_t		_thr_list_lock;
-umtx_t		_thr_event_lock;
+struct umutex	_mutex_static_lock = DEFAULT_UMUTEX;
+struct umutex	_cond_static_lock = DEFAULT_UMUTEX;
+struct umutex	_rwlock_static_lock = DEFAULT_UMUTEX;
+struct umutex	_keytable_lock = DEFAULT_UMUTEX;
+struct umutex	_thr_list_lock = DEFAULT_UMUTEX;
+struct umutex	_thr_event_lock = DEFAULT_UMUTEX;
 
 int	__pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
 int	__pthread_mutex_lock(pthread_mutex_t *);
@@ -424,12 +424,12 @@ init_private(void)
 	size_t len;
 	int mib[2];
 
-	_thr_umtx_init(&_mutex_static_lock);
-	_thr_umtx_init(&_cond_static_lock);
-	_thr_umtx_init(&_rwlock_static_lock);
-	_thr_umtx_init(&_keytable_lock);
-	_thr_umtx_init(&_thr_atfork_lock);
-	_thr_umtx_init(&_thr_event_lock);
+	_thr_umutex_init(&_mutex_static_lock);
+	_thr_umutex_init(&_cond_static_lock);
+	_thr_umutex_init(&_rwlock_static_lock);
+	_thr_umutex_init(&_keytable_lock);
+	_thr_umutex_init(&_thr_atfork_lock);
+	_thr_umutex_init(&_thr_event_lock);
 	_thr_once_init();
 	_thr_spinlock_init();
 	_thr_list_init();

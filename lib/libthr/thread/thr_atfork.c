@@ -50,8 +50,8 @@ _pthread_atfork(void (*prepare)(void), void (*parent)(void),
 	af->prepare = prepare;
 	af->parent = parent;
 	af->child = child;
-	THR_UMTX_LOCK(curthread, &_thr_atfork_lock);
+	THR_UMUTEX_LOCK(curthread, &_thr_atfork_lock);
 	TAILQ_INSERT_TAIL(&_thr_atfork_list, af, qe);
-	THR_UMTX_UNLOCK(curthread, &_thr_atfork_lock);
+	THR_UMUTEX_UNLOCK(curthread, &_thr_atfork_lock);
 	return (0);
 }

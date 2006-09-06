@@ -31,37 +31,6 @@
 #include "thr_umtx.h"
 
 int
-__thr_umtx_lock(volatile umtx_t *mtx, long id)
-{
-	 while (_umtx_op(__DEVOLATILE(struct umtx *, mtx), 
-		UMTX_OP_LOCK, id, 0, 0))
-		;
-	return (0);
-}
-
-int
-__thr_umtx_timedlock(volatile umtx_t *mtx, long id,
-	const struct timespec *timeout)
-{
-	if (timeout && (timeout->tv_sec < 0 || (timeout->tv_sec == 0 &&
-		timeout->tv_nsec <= 0)))
-		return (ETIMEDOUT);
-	if (_umtx_op(__DEVOLATILE(struct umtx *, mtx), UMTX_OP_LOCK, id, 0,
-		__DECONST(void *, timeout)) == 0)
-		return (0);
-	return (errno);
-}
-
-int
-__thr_umtx_unlock(volatile umtx_t *mtx, long id)
-{
-	if (_umtx_op(__DEVOLATILE(struct umtx *, mtx), UMTX_OP_UNLOCK,
-		id, 0, 0) == 0)
-		return (0);
-	return (errno);
-}
-
-int
 __thr_umutex_lock(struct umutex *mtx, uint32_t id)
 {
 	if (_umtx_op(mtx, UMTX_OP_MUTEX_LOCK, 0, 0, 0) == 0)

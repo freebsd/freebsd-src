@@ -146,7 +146,7 @@ struct pthread_cond {
 	/*
 	 * Lock for accesses to this structure.
 	 */
-	volatile umtx_t	c_lock;
+	struct umutex	c_lock;
 	volatile umtx_t	c_seqno;
 	volatile int	c_waiters;
 	volatile int	c_wakeups;
@@ -160,7 +160,7 @@ struct pthread_cond_attr {
 };
 
 struct pthread_barrier {
-	volatile umtx_t	b_lock;
+	struct umutex	b_lock;
 	volatile umtx_t	b_cycle;
 	volatile int	b_count;
 	volatile int	b_waiters;
@@ -171,7 +171,7 @@ struct pthread_barrierattr {
 };
 
 struct pthread_spinlock {
-	volatile umtx_t	s_lock;
+	struct umutex	s_lock;
 };
 
 /*
@@ -313,7 +313,7 @@ struct pthread {
 	/*
 	 * Lock for accesses to this thread structure.
 	 */
-	umtx_t			lock;
+	struct umutex		lock;
 
 	/* Internal condition variable cycle number. */
 	umtx_t			cycle;
@@ -449,22 +449,22 @@ struct pthread {
 	(thrd)->critical_count--;			\
 	_thr_ast(thrd);
 
-#define THR_UMTX_TRYLOCK(thrd, lck)			\
-	_thr_umtx_trylock((lck), (thrd)->tid)
+#define THR_UMUTEX_TRYLOCK(thrd, lck)			\
+	_thr_umutex_trylock((lck), TID(thrd))
 
-#define	THR_UMTX_LOCK(thrd, lck)			\
-	_thr_umtx_lock((lck), (thrd)->tid)
+#define	THR_UMUTEX_LOCK(thrd, lck)			\
+	_thr_umutex_lock((lck), TID(thrd))
 
-#define	THR_UMTX_TIMEDLOCK(thrd, lck, timo)		\
-	_thr_umtx_timedlock((lck), (thrd)->tid, (timo))
+#define	THR_UMUTEX_TIMEDLOCK(thrd, lck, timo)		\
+	_thr_umutex_timedlock((lck), TID(thrd), (timo))
 
-#define	THR_UMTX_UNLOCK(thrd, lck)			\
-	_thr_umtx_unlock((lck), (thrd)->tid)
+#define	THR_UMUTEX_UNLOCK(thrd, lck)			\
+	_thr_umutex_unlock((lck), TID(thrd))
 
 #define	THR_LOCK_ACQUIRE(thrd, lck)			\
 do {							\
 	(thrd)->locklevel++;				\
-	_thr_umtx_lock(lck, (thrd)->tid);		\
+	_thr_umutex_lock(lck, TID(thrd));		\
 } while (0)
 
 #ifdef	_PTHREADS_INVARIANTS
@@ -480,7 +480,7 @@ do {							\
 #define	THR_LOCK_RELEASE(thrd, lck)			\
 do {							\
 	THR_ASSERT_LOCKLEVEL(thrd);			\
-	_thr_umtx_unlock((lck), (thrd)->tid);		\
+	_thr_umutex_unlock((lck), TID(thrd));		\
 	(thrd)->locklevel--;				\
 	_thr_ast(thrd);					\
 } while (0)
@@ -562,7 +562,7 @@ extern pthreadlist	_thread_gc_list __hidden;
 
 extern int		_thread_active_threads;
 extern atfork_head	_thr_atfork_list __hidden;
-extern umtx_t		_thr_atfork_lock __hidden;
+extern struct umutex	_thr_atfork_lock __hidden;
 
 /* Default thread attributes: */
 extern struct pthread_attr _pthread_attr_default __hidden;
@@ -585,12 +585,12 @@ extern int	_thr_page_size __hidden;
 /* Garbage thread count. */
 extern int	_gc_count __hidden;
 
-extern umtx_t	_mutex_static_lock __hidden;
-extern umtx_t	_cond_static_lock __hidden;
-extern umtx_t	_rwlock_static_lock __hidden;
-extern umtx_t	_keytable_lock __hidden;
-extern umtx_t	_thr_list_lock __hidden;
-extern umtx_t	_thr_event_lock __hidden;
+extern struct umutex	_mutex_static_lock __hidden;
+extern struct umutex	_cond_static_lock __hidden;
+extern struct umutex	_rwlock_static_lock __hidden;
+extern struct umutex	_keytable_lock __hidden;
+extern struct umutex	_thr_list_lock __hidden;
+extern struct umutex	_thr_event_lock __hidden;
 
 /*
  * Function prototype definitions.

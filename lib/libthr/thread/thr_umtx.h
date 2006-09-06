@@ -29,17 +29,13 @@
 #ifndef _THR_FBSD_UMTX_H_
 #define _THR_FBSD_UMTX_H_
 
+#include <strings.h>
 #include <sys/umtx.h>
+
+#define DEFAULT_UMUTEX	{0, 0, {0, 0}, {0, 0, 0, 0}}
 
 typedef long umtx_t;
 
-/* simple lock routines.*/
-int __thr_umtx_lock(volatile umtx_t *mtx, long id) __hidden;
-int __thr_umtx_timedlock(volatile umtx_t *mtx, long id,
-	const struct timespec *timeout) __hidden;
-int __thr_umtx_unlock(volatile umtx_t *mtx, long id) __hidden;
-
-/* POSIX semantic lock routines */
 int __thr_umutex_lock(struct umutex *mtx, uint32_t id) __hidden;
 int __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 	const struct timespec *timeout) __hidden;
@@ -48,52 +44,16 @@ int __thr_umutex_kern_trylock(struct umutex *mtx) __hidden;
 int __thr_umutex_set_ceiling(struct umutex *mtx, uint32_t ceiling,
 	uint32_t *oldceiling) __hidden;
 
-static inline void
-_thr_umtx_init(volatile umtx_t *mtx)
-{
-    *mtx = 0;
-}
-
-static inline int
-_thr_umtx_trylock(volatile umtx_t *mtx, long id)
-{
-    if (atomic_cmpset_acq_ptr((volatile uintptr_t *)mtx,
-	(uintptr_t)UMTX_UNOWNED, (uintptr_t)id))
-	return (0);
-    return (EBUSY);
-}
-
-static inline int
-_thr_umtx_lock(volatile umtx_t *mtx, long id)
-{
-    if (atomic_cmpset_acq_ptr((volatile uintptr_t *)mtx,
-	(uintptr_t)UMTX_UNOWNED, (uintptr_t)id))
-	return (0);
-    return (__thr_umtx_lock(mtx, id));
-}
-
-static inline int
-_thr_umtx_timedlock(volatile umtx_t *mtx, long id,
-	const struct timespec *timeout)
-{
-    if (atomic_cmpset_acq_ptr((volatile uintptr_t *)mtx,
-	(uintptr_t)UMTX_UNOWNED, (uintptr_t)id))
-	return (0);
-    return (__thr_umtx_timedlock(mtx, id, timeout));
-}
-
-static inline int
-_thr_umtx_unlock(volatile umtx_t *mtx, long id)
-{
-    if (atomic_cmpset_rel_ptr((volatile uintptr_t *)mtx,
-	(uintptr_t)id, (uintptr_t)UMTX_UNOWNED))
-	return (0);
-    return __thr_umtx_unlock(mtx, id);
-}
-
 int _thr_umtx_wait(volatile umtx_t *mtx, umtx_t exp,
 	const struct timespec *timeout) __hidden;
 int _thr_umtx_wake(volatile umtx_t *mtx, int count) __hidden;
+
+static inline void
+_thr_umutex_init(struct umutex *mtx)
+{
+    struct umutex tmp = DEFAULT_UMUTEX;
+    *mtx = tmp;
+}
 
 static inline int
 _thr_umutex_trylock(struct umutex *mtx, uint32_t id)

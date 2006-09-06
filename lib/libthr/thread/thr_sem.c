@@ -81,7 +81,7 @@ sem_alloc(unsigned int value, semid_t semid, int system_sem)
 		errno = ENOSPC;
 		return (NULL);
 	}
-	_thr_umtx_init((umtx_t *)&sem->lock);
+	bzero(sem, sizeof(*sem));
 	/*
 	 * Fortunatly count and nwaiters are adjacency, so we can
 	 * use umtx_wait to wait on it, umtx_wait needs an address
