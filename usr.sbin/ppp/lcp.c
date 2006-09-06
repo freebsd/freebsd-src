@@ -792,6 +792,9 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
         break;
       case MODE_REJ:
         lcp->his_reject |= (1 << opt->hdr.id);
+        /* Set the MTU to what we want anyway - the peer won't care! */
+        if (lcp->his_mru > lcp->want_mru)
+          lcp->his_mru = lcp->want_mru;
         break;
       }
       break;
