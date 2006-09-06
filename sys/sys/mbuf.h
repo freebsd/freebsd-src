@@ -209,6 +209,7 @@ struct mbuf {
 
 /*
  * Flags indicating hw checksum support and sw checksum requirements.
+ * This field can be directly tested against if_data.ifi_hwassist.
  */
 #define	CSUM_IP			0x0001		/* will csum IP */
 #define	CSUM_TCP		0x0002		/* will csum TCP */
