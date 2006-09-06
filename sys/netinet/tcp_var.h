@@ -494,7 +494,9 @@ struct tcpcb *
 	 tcp_close(struct tcpcb *);
 void	 tcp_discardcb(struct tcpcb *);
 void	 tcp_twstart(struct tcpcb *);
+#if 0
 int	 tcp_twrecycleable(struct tcptw *tw);
+#endif
 void	 tcp_twclose(struct tcptw *_tw, int _reuse);
 void	 tcp_ctlinput(int, struct sockaddr *, void *);
 int	 tcp_ctloutput(struct socket *, struct sockopt *);
