@@ -67,7 +67,7 @@ usbd_status	usbd_get_report(usbd_interface_handle iface, int type, int id,
 				void *data, int len);
 usbd_status	usbd_set_idle(usbd_interface_handle iface, int duration, int id);
 usbd_status	usbd_read_report_desc(usbd_interface_handle ifc, void **descp,
-				      int *sizep, usb_malloc_type mem);
+				      int *sizep, struct malloc_type *mem);
 usbd_status	usbd_get_config(usbd_device_handle dev, u_int8_t *conf);
 usbd_status	usbd_get_string_desc(usbd_device_handle dev, int sindex,
 				     int langid,usb_string_descriptor_t *sdesc,
@@ -86,8 +86,8 @@ usbd_status usbd_intr_transfer(usbd_xfer_handle xfer, usbd_pipe_handle pipe,
 			       u_int16_t flags, u_int32_t timeout, void *buf,
 			       u_int32_t *size, char *lbl);
 
-void usb_detach_wait(device_ptr_t);
-void usb_detach_wakeup(device_ptr_t);
+void usb_detach_wait(device_t);
+void usb_detach_wakeup(device_t);
 
 const usb_descriptor_t *usb_find_desc(usbd_device_handle dev, int type,
 				      int subtype);

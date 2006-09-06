@@ -68,13 +68,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_ethersubr.h>
 
-Static struct ifqueue usbq_rx;
-Static struct ifqueue usbq_tx;
-Static int mtx_inited = 0;
+static struct ifqueue usbq_rx;
+static struct ifqueue usbq_tx;
+static int mtx_inited = 0;
 
-Static void usbintr		(void);
+static void usbintr		(void);
 
-Static void usbintr(void)
+static void usbintr(void)
 {
 	struct mbuf		*m;
 	struct usb_qdat		*q;

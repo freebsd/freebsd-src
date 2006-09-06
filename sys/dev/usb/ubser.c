@@ -164,18 +164,18 @@ struct ubser_softc {
 	struct ubser_port	*sc_port;
 };
 
-Static int ubserparam(struct tty *, struct termios *);
-Static void ubserstart(struct tty *);
-Static void ubserstop(struct tty *, int);
-Static usbd_status ubserstartread(struct ubser_softc *);
-Static void ubserreadcb(usbd_xfer_handle, usbd_private_handle, usbd_status);
-Static void ubserwritecb(usbd_xfer_handle, usbd_private_handle, usbd_status);
-Static void ubser_cleanup(struct ubser_softc *sc);
+static int ubserparam(struct tty *, struct termios *);
+static void ubserstart(struct tty *);
+static void ubserstop(struct tty *, int);
+static usbd_status ubserstartread(struct ubser_softc *);
+static void ubserreadcb(usbd_xfer_handle, usbd_private_handle, usbd_status);
+static void ubserwritecb(usbd_xfer_handle, usbd_private_handle, usbd_status);
+static void ubser_cleanup(struct ubser_softc *sc);
 
-Static t_break_t	ubserbreak;
-Static t_open_t		ubseropen;
-Static t_close_t	ubserclose;
-Static t_modem_t	ubsermodem;
+static t_break_t	ubserbreak;
+static t_open_t		ubseropen;
+static t_close_t	ubserclose;
+static t_modem_t	ubsermodem;
 
 USB_DECLARE_DRIVER(ubser);
 
@@ -456,7 +456,7 @@ USB_DETACH(ubser)
 	return (0);
 }
 
-Static int
+static int
 ubserparam(struct tty *tp, struct termios *t)
 {
 	struct ubser_softc *sc;
@@ -516,7 +516,7 @@ ubserparam(struct tty *tp, struct termios *t)
 	return (0);
 }
 
-Static void
+static void
 ubserstart(struct tty *tp)
 {
 	struct ubser_softc *sc;
@@ -590,7 +590,7 @@ ubserstart(struct tty *tp)
 	ttwwakeup(tp);
 }
 
-Static void
+static void
 ubserstop(struct tty *tp, int flag)
 {
 	struct ubser_softc *sc;
@@ -611,7 +611,7 @@ ubserstop(struct tty *tp, int flag)
 	DPRINTF(("ubserstop: done\n"));
 }
 
-Static void
+static void
 ubserwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 {
 	struct tty *tp;
@@ -662,7 +662,7 @@ error:
 	return;
 }
 
-Static usbd_status
+static usbd_status
 ubserstartread(struct ubser_softc *sc)
 {
 	usbd_status err;
@@ -687,7 +687,7 @@ ubserstartread(struct ubser_softc *sc)
 	return (USBD_NORMAL_COMPLETION);
 }
 
-Static void
+static void
 ubserreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 {
 	struct ubser_softc *sc = (struct ubser_softc *)p;
@@ -783,7 +783,7 @@ resubmit:
 
 }
 
-Static void
+static void
 ubser_cleanup(struct ubser_softc *sc)
 {
 	int i;

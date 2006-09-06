@@ -281,7 +281,7 @@ d_write_t uscannerwrite;
 d_poll_t  uscannerpoll;
 
 
-Static struct cdevsw uscanner_cdevsw = {
+static struct cdevsw uscanner_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_NEEDGIANT,
 	.d_open =	uscanneropen,
@@ -296,9 +296,9 @@ Static struct cdevsw uscanner_cdevsw = {
 };
 #endif
 
-Static int uscanner_do_read(struct uscanner_softc *, struct uio *, int);
-Static int uscanner_do_write(struct uscanner_softc *, struct uio *, int);
-Static void uscanner_do_close(struct uscanner_softc *);
+static int uscanner_do_read(struct uscanner_softc *, struct uio *, int);
+static int uscanner_do_write(struct uscanner_softc *, struct uio *, int);
+static void uscanner_do_close(struct uscanner_softc *);
 
 #define USCANNERUNIT(n) (minor(n))
 
@@ -513,7 +513,7 @@ uscanner_do_close(struct uscanner_softc *sc)
 	sc->sc_state &= ~USCANNER_OPEN;
 }
 
-Static int
+static int
 uscanner_do_read(struct uscanner_softc *sc, struct uio *uio, int flag)
 {
 	u_int32_t n, tn;
@@ -568,7 +568,7 @@ uscannerread(struct cdev *dev, struct uio *uio, int flag)
 	return (error);
 }
 
-Static int
+static int
 uscanner_do_write(struct uscanner_softc *sc, struct uio *uio, int flag)
 {
 	u_int32_t n;
@@ -619,7 +619,7 @@ uscannerwrite(struct cdev *dev, struct uio *uio, int flag)
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int
-uscanner_activate(device_ptr_t self, enum devact act)
+uscanner_activate(device_t self, enum devact act)
 {
 	struct uscanner_softc *sc = (struct uscanner_softc *)self;
 

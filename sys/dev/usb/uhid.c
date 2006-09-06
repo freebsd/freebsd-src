@@ -160,7 +160,7 @@ d_ioctl_t	uhidioctl;
 d_poll_t	uhidpoll;
 
 
-Static struct cdevsw uhid_cdevsw = {
+static struct cdevsw uhid_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_NEEDGIANT,
 	.d_open =	uhidopen,
@@ -176,12 +176,12 @@ Static struct cdevsw uhid_cdevsw = {
 };
 #endif
 
-Static void uhid_intr(usbd_xfer_handle, usbd_private_handle,
+static void uhid_intr(usbd_xfer_handle, usbd_private_handle,
 			   usbd_status);
 
-Static int uhid_do_read(struct uhid_softc *, struct uio *uio, int);
-Static int uhid_do_write(struct uhid_softc *, struct uio *uio, int);
-Static int uhid_do_ioctl(struct uhid_softc *, u_long, caddr_t, int,
+static int uhid_do_read(struct uhid_softc *, struct uio *uio, int);
+static int uhid_do_write(struct uhid_softc *, struct uio *uio, int);
+static int uhid_do_ioctl(struct uhid_softc *, u_long, caddr_t, int,
 			      usb_proc_ptr);
 
 USB_DECLARE_DRIVER(uhid);
@@ -330,7 +330,7 @@ USB_ATTACH(uhid)
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int
-uhid_activate(device_ptr_t self, enum devact act)
+uhid_activate(device_t self, enum devact act)
 {
 	struct uhid_softc *sc = (struct uhid_softc *)self;
 

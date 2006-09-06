@@ -158,7 +158,7 @@ typedef struct ehci_softc {
 	usb_callout_t sc_tmo_intrlist;
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-	device_ptr_t sc_child;		/* /dev/usb# device */
+	device_t sc_child;		/* /dev/usb# device */
 #endif
 	char sc_dying;
 #if defined(__NetBSD__)
@@ -183,7 +183,7 @@ usbd_status	ehci_init(ehci_softc_t *);
 int		ehci_intr(void *);
 int		ehci_detach(ehci_softc_t *, int);
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-int		ehci_activate(device_ptr_t, enum devact);
+int		ehci_activate(device_t, enum devact);
 #endif
 void		ehci_power(int state, void *priv);
 void		ehci_shutdown(void *v);

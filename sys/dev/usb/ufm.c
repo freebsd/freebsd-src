@@ -88,7 +88,7 @@ d_open_t  ufmopen;
 d_close_t ufmclose;
 d_ioctl_t ufmioctl;
 
-Static struct cdevsw ufm_cdevsw = {
+static struct cdevsw ufm_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_NEEDGIANT,
 	.d_open =	ufmopen,
@@ -402,7 +402,7 @@ ufmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr td)
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int
-ufm_activate(device_ptr_t self, enum devact act)
+ufm_activate(device_t self, enum devact act)
 {
 	struct ufm_softc *sc = (struct ufm_softc *)self;
 
@@ -462,7 +462,7 @@ USB_DETACH(ufm)
 #endif /* defined(__NetBSD__) || defined(__OpenBSD__) */
 
 #if defined(__FreeBSD__)
-Static int
+static int
 ufm_detach(device_t self)
 {
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));

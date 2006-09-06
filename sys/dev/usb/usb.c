@@ -166,21 +166,21 @@ struct cdevsw usb_cdevsw = {
 };
 #endif
 
-Static void	usb_discover(void *);
+static void	usb_discover(void *);
 #ifdef __FreeBSD__
-Static bus_child_detached_t usb_child_detached;
+static bus_child_detached_t usb_child_detached;
 #endif
-Static void	usb_create_event_thread(void *);
-Static void	usb_event_thread(void *);
-Static void	usb_task_thread(void *);
-Static struct proc *usb_task_thread_proc = NULL;
+static void	usb_create_event_thread(void *);
+static void	usb_event_thread(void *);
+static void	usb_task_thread(void *);
+static struct proc *usb_task_thread_proc = NULL;
 
 #ifdef __FreeBSD__
-Static struct cdev *usb_dev;		/* The /dev/usb device. */
-Static int usb_ndevs;			/* Number of /dev/usbN devices. */
-Static int usb_taskcreated;		/* USB task thread exists. */
+static struct cdev *usb_dev;		/* The /dev/usb device. */
+static int usb_ndevs;			/* Number of /dev/usbN devices. */
+static int usb_taskcreated;		/* USB task thread exists. */
 /* Busses to explore at the end of boot-time device configuration. */
-Static TAILQ_HEAD(, usb_softc) usb_coldexplist =
+static TAILQ_HEAD(, usb_softc) usb_coldexplist =
     TAILQ_HEAD_INITIALIZER(usb_coldexplist);
 #endif
 
@@ -189,17 +189,17 @@ struct usb_event_q {
 	struct usb_event ue;
 	TAILQ_ENTRY(usb_event_q) next;
 };
-Static TAILQ_HEAD(, usb_event_q) usb_events =
+static TAILQ_HEAD(, usb_event_q) usb_events =
 	TAILQ_HEAD_INITIALIZER(usb_events);
-Static int usb_nevents = 0;
-Static struct selinfo usb_selevent;
-Static struct proc *usb_async_proc;  /* process that wants USB SIGIO */
-Static int usb_dev_open = 0;
-Static void usb_add_event(int, struct usb_event *);
+static int usb_nevents = 0;
+static struct selinfo usb_selevent;
+static struct proc *usb_async_proc;  /* process that wants USB SIGIO */
+static int usb_dev_open = 0;
+static void usb_add_event(int, struct usb_event *);
 
-Static int usb_get_next_event(struct usb_event *);
+static int usb_get_next_event(struct usb_event *);
 
-Static const char *usbrev_str[] = USBREV_STR;
+static const char *usbrev_str[] = USBREV_STR;
 
 USB_DECLARE_DRIVER_INIT(usb,
 			DEVMETHOD(bus_child_detached, usb_child_detached),
@@ -724,7 +724,7 @@ usbpoll(struct cdev *dev, int events, usb_proc_ptr p)
 }
 
 /* Explore device tree from the root. */
-Static void
+static void
 usb_discover(void *v)
 {
 	struct usb_softc *sc = v;
@@ -804,7 +804,7 @@ usbd_add_dev_event(int type, usbd_device_handle udev)
 }
 
 void
-usbd_add_drv_event(int type, usbd_device_handle udev, device_ptr_t dev)
+usbd_add_drv_event(int type, usbd_device_handle udev, device_t dev)
 {
 	struct usb_event ue;
 
@@ -883,7 +883,7 @@ usb_schedsoftintr(usbd_bus_handle bus)
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int
-usb_activate(device_ptr_t self, enum devact act)
+usb_activate(device_t self, enum devact act)
 {
 	struct usb_softc *sc = (struct usb_softc *)self;
 	usbd_device_handle dev = sc->sc_port.device;
@@ -958,7 +958,7 @@ USB_DETACH(usb)
 }
 
 #if defined(__FreeBSD__)
-Static void
+static void
 usb_child_detached(device_t self, device_t child)
 {
 	struct usb_softc *sc = device_get_softc(self);
@@ -968,7 +968,7 @@ usb_child_detached(device_t self, device_t child)
 }
 
 /* Explore USB busses at the end of device configuration. */
-Static void
+static void
 usb_cold_explore(void *arg)
 {
 	struct usb_softc *sc;

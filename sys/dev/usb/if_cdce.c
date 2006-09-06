@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 #include "usbdevs.h"
 #include <dev/usb/if_cdcereg.h>
 
-Static device_shutdown_t cdce_shutdown;
+static device_shutdown_t cdce_shutdown;
 USB_DECLARE_DRIVER_INIT(cdce,
 	DEVMETHOD(device_probe, cdce_match),
 	DEVMETHOD(device_attach, cdce_attach),
@@ -83,19 +83,19 @@ USB_DECLARE_DRIVER_INIT(cdce,
 DRIVER_MODULE(cdce, uhub, cdce_driver, cdce_devclass, usbd_driver_load, 0);
 MODULE_VERSION(cdce, 0);
 
-Static int	 cdce_encap(struct cdce_softc *, struct mbuf *, int);
-Static void	 cdce_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
-Static void	 cdce_txeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
-Static void	 cdce_start(struct ifnet *);
-Static int	 cdce_ioctl(struct ifnet *, u_long, caddr_t);
-Static void	 cdce_init(void *);
-Static void	 cdce_reset(struct cdce_softc *);
-Static void	 cdce_stop(struct cdce_softc *);
-Static void	 cdce_rxstart(struct ifnet *);
-Static int	 cdce_ifmedia_upd(struct ifnet *ifp);
-Static void	 cdce_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
+static int	 cdce_encap(struct cdce_softc *, struct mbuf *, int);
+static void	 cdce_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
+static void	 cdce_txeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
+static void	 cdce_start(struct ifnet *);
+static int	 cdce_ioctl(struct ifnet *, u_long, caddr_t);
+static void	 cdce_init(void *);
+static void	 cdce_reset(struct cdce_softc *);
+static void	 cdce_stop(struct cdce_softc *);
+static void	 cdce_rxstart(struct ifnet *);
+static int	 cdce_ifmedia_upd(struct ifnet *ifp);
+static void	 cdce_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
 
-Static const struct cdce_type cdce_devs[] = {
+static const struct cdce_type cdce_devs[] = {
   {{ USB_VENDOR_PROLIFIC, USB_PRODUCT_PROLIFIC_PL2501 }, CDCE_NO_UNION },
   {{ USB_VENDOR_SHARP, USB_PRODUCT_SHARP_SL5500 }, CDCE_ZAURUS },
   {{ USB_VENDOR_SHARP, USB_PRODUCT_SHARP_SLA300 }, CDCE_ZAURUS | CDCE_NO_UNION },
@@ -348,7 +348,7 @@ USB_DETACH(cdce)
 	return (0);
 }
 
-Static void
+static void
 cdce_start(struct ifnet *ifp)
 {
 	struct cdce_softc	*sc;
@@ -387,7 +387,7 @@ cdce_start(struct ifnet *ifp)
 	return;
 }
 
-Static int
+static int
 cdce_encap(struct cdce_softc *sc, struct mbuf *m, int idx)
 {
 	struct ue_chain	*c;
@@ -420,7 +420,7 @@ cdce_encap(struct cdce_softc *sc, struct mbuf *m, int idx)
 	return (0);
 }
 
-Static void
+static void
 cdce_stop(struct cdce_softc *sc)
 {
 	usbd_status	 err;
@@ -466,8 +466,8 @@ cdce_stop(struct cdce_softc *sc)
 	return;
 }
 
-Static int
-cdce_shutdown(device_ptr_t dev)
+static int
+cdce_shutdown(device_t dev)
 {
 	struct cdce_softc *sc;
 
@@ -477,7 +477,7 @@ cdce_shutdown(device_ptr_t dev)
 	return (0);
 }
 
-Static int
+static int
 cdce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct cdce_softc	*sc = ifp->if_softc;
@@ -512,14 +512,14 @@ cdce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	return (error);
 }
 
-Static void
+static void
 cdce_reset(struct cdce_softc *sc)
 {
 	/* XXX Maybe reset the bulk pipes here? */
 	return;
 }
 
-Static void
+static void
 cdce_init(void *xsc)
 {
 	struct cdce_softc	*sc = xsc;
@@ -584,7 +584,7 @@ cdce_init(void *xsc)
 	return;
 }
 
-Static void
+static void
 cdce_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct ue_chain	*c = priv;
@@ -652,7 +652,7 @@ done:
 	return;
 }
 
-Static void
+static void
 cdce_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct ue_chain	*c = priv;
@@ -702,7 +702,7 @@ cdce_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	return;
 }
 
-Static void
+static void
 cdce_rxstart(struct ifnet *ifp)
 {
 	struct cdce_softc   *sc;
@@ -736,7 +736,7 @@ cdce_rxstart(struct ifnet *ifp)
 	return;
 }
 
-Static int
+static int
 cdce_ifmedia_upd(struct ifnet *ifp)
 {
 
@@ -744,7 +744,7 @@ cdce_ifmedia_upd(struct ifnet *ifp)
 	return 0;
 }
 
-Static void
+static void
 cdce_ifmedia_sts(struct ifnet * const ifp, struct ifmediareq *req)
 {
 

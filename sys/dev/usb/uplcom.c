@@ -188,25 +188,25 @@ struct	uplcom_softc {
 #define UPLCOMIBUFSIZE 256
 #define UPLCOMOBUFSIZE 256
 
-Static	usbd_status uplcom_reset(struct uplcom_softc *);
-Static	usbd_status uplcom_set_line_coding(struct uplcom_softc *,
+static	usbd_status uplcom_reset(struct uplcom_softc *);
+static	usbd_status uplcom_set_line_coding(struct uplcom_softc *,
 					   usb_cdc_line_state_t *);
-Static	usbd_status uplcom_set_crtscts(struct uplcom_softc *);
-Static	void uplcom_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
+static	usbd_status uplcom_set_crtscts(struct uplcom_softc *);
+static	void uplcom_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
 
-Static	void uplcom_set(void *, int, int, int);
-Static	void uplcom_dtr(struct uplcom_softc *, int);
-Static	void uplcom_rts(struct uplcom_softc *, int);
-Static	void uplcom_break(struct uplcom_softc *, int);
-Static	void uplcom_set_line_state(struct uplcom_softc *);
-Static	void uplcom_get_status(void *, int, u_char *, u_char *);
+static	void uplcom_set(void *, int, int, int);
+static	void uplcom_dtr(struct uplcom_softc *, int);
+static	void uplcom_rts(struct uplcom_softc *, int);
+static	void uplcom_break(struct uplcom_softc *, int);
+static	void uplcom_set_line_state(struct uplcom_softc *);
+static	void uplcom_get_status(void *, int, u_char *, u_char *);
 #if 0 /* TODO */
-Static	int  uplcom_ioctl(void *, int, u_long, caddr_t, int, usb_proc_ptr);
+static	int  uplcom_ioctl(void *, int, u_long, caddr_t, int, usb_proc_ptr);
 #endif
-Static	int  uplcom_param(void *, int, struct termios *);
-Static	int  uplcom_open(void *, int);
-Static	void uplcom_close(void *, int);
-Static	void uplcom_notify(void *, int);
+static	int  uplcom_param(void *, int, struct termios *);
+static	int  uplcom_open(void *, int);
+static	void uplcom_close(void *, int);
+static	void uplcom_notify(void *, int);
 
 struct ucom_callback uplcom_callback = {
 	uplcom_get_status,
@@ -276,11 +276,11 @@ static const struct uplcom_product {
 	{ 0, 0 }
 };
 
-Static device_probe_t uplcom_match;
-Static device_attach_t uplcom_attach;
-Static device_detach_t uplcom_detach;
+static device_probe_t uplcom_match;
+static device_attach_t uplcom_attach;
+static device_detach_t uplcom_detach;
 
-Static device_method_t uplcom_methods[] = {
+static device_method_t uplcom_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, uplcom_match),
 	DEVMETHOD(device_attach, uplcom_attach),
@@ -288,7 +288,7 @@ Static device_method_t uplcom_methods[] = {
 	{ 0, 0 }
 };
 
-Static driver_t uplcom_driver = {
+static driver_t uplcom_driver = {
 	"ucom",
 	uplcom_methods,
 	sizeof (struct uplcom_softc)
@@ -583,7 +583,7 @@ USB_DETACH(uplcom)
 	return (rv);
 }
 
-Static usbd_status
+static usbd_status
 uplcom_reset(struct uplcom_softc *sc)
 {
 	usb_device_request_t req;
@@ -613,7 +613,7 @@ struct pl2303x_init {
 	uint16_t	length;
 };
 
-Static const struct pl2303x_init pl2303x[] = {
+static const struct pl2303x_init pl2303x[] = {
 	{ UT_READ_VENDOR_DEVICE,  UPLCOM_SET_REQUEST, 0x8484,    0, 0 },
 	{ UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x0404,    0, 0 },
 	{ UT_READ_VENDOR_DEVICE,  UPLCOM_SET_REQUEST, 0x8484,    0, 0 },
@@ -628,7 +628,7 @@ Static const struct pl2303x_init pl2303x[] = {
 };
 #define N_PL2302X_INIT	(sizeof(pl2303x)/sizeof(pl2303x[0]))
 
-Static usbd_status
+static usbd_status
 uplcom_pl2303x_init(struct uplcom_softc *sc)
 {
 	usb_device_request_t req;
@@ -654,7 +654,7 @@ uplcom_pl2303x_init(struct uplcom_softc *sc)
 	return (0);
 }
 
-Static void
+static void
 uplcom_set_line_state(struct uplcom_softc *sc)
 {
 	usb_device_request_t req;
@@ -675,7 +675,7 @@ uplcom_set_line_state(struct uplcom_softc *sc)
 		       USBDEVNAME(sc->sc_ucom.sc_dev), usbd_errstr(err));
 }
 
-Static void
+static void
 uplcom_set(void *addr, int portno, int reg, int onoff)
 {
 	struct uplcom_softc *sc = addr;
@@ -695,7 +695,7 @@ uplcom_set(void *addr, int portno, int reg, int onoff)
 	}
 }
 
-Static void
+static void
 uplcom_dtr(struct uplcom_softc *sc, int onoff)
 {
 	DPRINTF(("uplcom_dtr: onoff = %d\n", onoff));
@@ -707,7 +707,7 @@ uplcom_dtr(struct uplcom_softc *sc, int onoff)
 	uplcom_set_line_state(sc);
 }
 
-Static void
+static void
 uplcom_rts(struct uplcom_softc *sc, int onoff)
 {
 	DPRINTF(("uplcom_rts: onoff = %d\n", onoff));
@@ -719,7 +719,7 @@ uplcom_rts(struct uplcom_softc *sc, int onoff)
 	uplcom_set_line_state(sc);
 }
 
-Static void
+static void
 uplcom_break(struct uplcom_softc *sc, int onoff)
 {
 	usb_device_request_t req;
@@ -739,7 +739,7 @@ uplcom_break(struct uplcom_softc *sc, int onoff)
 		       USBDEVNAME(sc->sc_ucom.sc_dev), usbd_errstr(err));
 }
 
-Static usbd_status
+static usbd_status
 uplcom_set_crtscts(struct uplcom_softc *sc)
 {
 	usb_device_request_t req;
@@ -766,7 +766,7 @@ uplcom_set_crtscts(struct uplcom_softc *sc)
 	return (USBD_NORMAL_COMPLETION);
 }
 
-Static usbd_status
+static usbd_status
 uplcom_set_line_coding(struct uplcom_softc *sc, usb_cdc_line_state_t *state)
 {
 	usb_device_request_t req;
@@ -800,7 +800,7 @@ uplcom_set_line_coding(struct uplcom_softc *sc, usb_cdc_line_state_t *state)
 	return (USBD_NORMAL_COMPLETION);
 }
 
-Static const int uplcom_rates[] = {
+static const int uplcom_rates[] = {
 	75, 150, 300, 600, 1200, 1800, 2400, 3600, 4800, 7200, 9600, 14400,
 	19200, 28800, 38400, 57600, 115200,
 	/*
@@ -811,7 +811,7 @@ Static const int uplcom_rates[] = {
 };
 #define N_UPLCOM_RATES	(sizeof(uplcom_rates)/sizeof(uplcom_rates[0]))
 
-Static int
+static int
 uplcom_param(void *addr, int portno, struct termios *t)
 {
 	struct uplcom_softc *sc = addr;
@@ -870,7 +870,7 @@ uplcom_param(void *addr, int portno, struct termios *t)
 	return (0);
 }
 
-Static int
+static int
 uplcom_open(void *addr, int portno)
 {
 	struct uplcom_softc *sc = addr;
@@ -907,7 +907,7 @@ uplcom_open(void *addr, int portno)
 	return (0);
 }
 
-Static void
+static void
 uplcom_close(void *addr, int portno)
 {
 	struct uplcom_softc *sc = addr;
@@ -934,7 +934,7 @@ uplcom_close(void *addr, int portno)
 	}
 }
 
-Static void
+static void
 uplcom_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct uplcom_softc *sc = priv;
@@ -977,7 +977,7 @@ uplcom_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	taskqueue_enqueue(taskqueue_swi_giant, &sc->sc_task);
 }
 
-Static void
+static void
 uplcom_notify(void *arg, int count)
 {
 	struct uplcom_softc *sc;
@@ -988,7 +988,7 @@ uplcom_notify(void *arg, int count)
 	ucom_status_change(&sc->sc_ucom);
 }
 
-Static void
+static void
 uplcom_get_status(void *addr, int portno, u_char *lsr, u_char *msr)
 {
 	struct uplcom_softc *sc = addr;
@@ -1002,7 +1002,7 @@ uplcom_get_status(void *addr, int portno, u_char *lsr, u_char *msr)
 }
 
 #if 0 /* TODO */
-Static int
+static int
 uplcom_ioctl(void *addr, int portno, u_long cmd, caddr_t data, int flag,
 	     usb_proc_ptr p)
 {

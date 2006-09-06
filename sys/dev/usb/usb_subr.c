@@ -89,22 +89,22 @@ extern int usbdebug;
 #define DPRINTFN(n,x)
 #endif
 
-Static usbd_status usbd_set_config(usbd_device_handle, int);
-Static void usbd_devinfo_vp(usbd_device_handle, char *, char *, int);
-Static int usbd_getnewaddr(usbd_bus_handle bus);
+static usbd_status usbd_set_config(usbd_device_handle, int);
+static void usbd_devinfo_vp(usbd_device_handle, char *, char *, int);
+static int usbd_getnewaddr(usbd_bus_handle bus);
 #if defined(__NetBSD__)
-Static int usbd_print(void *aux, const char *pnp);
-Static int usbd_submatch(device_ptr_t, struct cfdata *cf, void *);
+static int usbd_print(void *aux, const char *pnp);
+static int usbd_submatch(device_t, struct cfdata *cf, void *);
 #elif defined(__OpenBSD__)
-Static int usbd_print(void *aux, const char *pnp);
-Static int usbd_submatch(device_ptr_t, void *, void *);
+static int usbd_print(void *aux, const char *pnp);
+static int usbd_submatch(device_t, void *, void *);
 #endif
-Static void usbd_free_iface_data(usbd_device_handle dev, int ifcno);
-Static void usbd_kill_pipe(usbd_pipe_handle);
-Static usbd_status usbd_probe_and_attach(device_ptr_t parent,
+static void usbd_free_iface_data(usbd_device_handle dev, int ifcno);
+static void usbd_kill_pipe(usbd_pipe_handle);
+static usbd_status usbd_probe_and_attach(device_t parent,
 				 usbd_device_handle dev, int port, int addr);
 
-Static u_int32_t usb_cookie_no = 0;
+static u_int32_t usb_cookie_no = 0;
 
 #ifdef USBVERBOSE
 typedef u_int16_t usb_vendor_id_t;
@@ -124,7 +124,7 @@ struct usb_knowndev {
 #include "usbdevs_data.h"
 #endif /* USBVERBOSE */
 
-Static const char * const usbd_error_strs[] = {
+static const char * const usbd_error_strs[] = {
 	"NORMAL_COMPLETION",
 	"IN_PROGRESS",
 	"PENDING_REQUESTS",
@@ -196,7 +196,7 @@ usbd_get_string_desc(usbd_device_handle dev, int sindex, int langid,
 	return (USBD_NORMAL_COMPLETION);
 }
 
-Static void
+static void
 usbd_trim_spaces(char *p)
 {
 	char *q, *e;
@@ -212,7 +212,7 @@ usbd_trim_spaces(char *p)
 	*e = 0;			/* kill trailing spaces */
 }
 
-Static void
+static void
 usbd_devinfo_vp(usbd_device_handle dev, char *v, char *p, int usedev)
 {
 	usb_device_descriptor_t *udd = &dev->ddesc;
@@ -537,7 +537,7 @@ usbd_free_iface_data(usbd_device_handle dev, int ifcno)
 		free(ifc->endpoints, M_USB);
 }
 
-Static usbd_status
+static usbd_status
 usbd_set_config(usbd_device_handle dev, int conf)
 {
 	usb_device_request_t req;
@@ -819,15 +819,15 @@ usbd_getnewaddr(usbd_bus_handle bus)
 
 
 usbd_status
-usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
+usbd_probe_and_attach(device_t parent, usbd_device_handle dev,
 		      int port, int addr)
 {
 	struct usb_attach_arg uaa;
 	usb_device_descriptor_t *dd = &dev->ddesc;
 	int found, i, confi, nifaces;
 	usbd_status err;
-	device_ptr_t dv;
-	device_ptr_t *tmpdv;
+	device_t dv;
+	device_t *tmpdv;
 	usbd_interface_handle ifaces[256]; /* 256 is the absolute max */
 	char *devinfo;
 
@@ -1026,7 +1026,7 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
  * and attach a driver.
  */
 usbd_status
-usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
+usbd_new_device(device_t parent, usbd_bus_handle bus, int depth,
 		int speed, int port, struct usbd_port *up)
 {
 	usbd_device_handle dev, adev;
@@ -1430,7 +1430,7 @@ usb_free_device(usbd_device_handle dev)
  * been disconnected.
  */
 void
-usb_disconnect_port(struct usbd_port *up, device_ptr_t parent)
+usb_disconnect_port(struct usbd_port *up, device_t parent)
 {
 	usbd_device_handle dev = up->device;
 	const char *hubname = USBDEVPTRNAME(parent);
