@@ -156,7 +156,7 @@ struct usbd_device {
 	usb_config_descriptor_t *cdesc;	       /* full config descr */
 	const struct usbd_quirks     *quirks;  /* device quirks, always set */
 	struct usbd_hub	       *hub;           /* only if this is a hub */
-	device_ptr_t	       *subdevs;       /* sub-devices, 0 terminated */
+	device_t	       *subdevs;       /* sub-devices, 0 terminated */
 	uint8_t		       *ifacenums;     /* sub-device interfacenumbers */
 };
 
@@ -259,7 +259,7 @@ usbd_status	usbd_setup_pipe(usbd_device_handle dev,
 				usbd_interface_handle iface,
 				struct usbd_endpoint *, int,
 				usbd_pipe_handle *pipe);
-usbd_status	usbd_new_device(device_ptr_t parent,
+usbd_status	usbd_new_device(device_t parent,
 				usbd_bus_handle bus, int depth,
 				int lowspeed, int port,
 				struct usbd_port *);
@@ -270,7 +270,7 @@ void		usb_free_device(usbd_device_handle);
 
 usbd_status	usb_insert_transfer(usbd_xfer_handle xfer);
 void		usb_transfer_complete(usbd_xfer_handle xfer);
-void		usb_disconnect_port(struct usbd_port *up, device_ptr_t);
+void		usb_disconnect_port(struct usbd_port *up, device_t);
 
 /* Routines from usb.c */
 void		usb_needs_explore(usbd_device_handle);

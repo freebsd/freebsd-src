@@ -79,19 +79,19 @@ extern int usbdebug;
 #define DPRINTFN(n,x)
 #endif
 
-Static usbd_status usbd_ar_pipe(usbd_pipe_handle pipe);
-Static void usbd_do_request_async_cb
+static usbd_status usbd_ar_pipe(usbd_pipe_handle pipe);
+static void usbd_do_request_async_cb
 	(usbd_xfer_handle, usbd_private_handle, usbd_status);
-Static void usbd_start_next(usbd_pipe_handle pipe);
-Static usbd_status usbd_open_pipe_ival
+static void usbd_start_next(usbd_pipe_handle pipe);
+static usbd_status usbd_open_pipe_ival
 	(usbd_interface_handle, u_int8_t, u_int8_t, usbd_pipe_handle *, int);
-Static int usbd_xfer_isread(usbd_xfer_handle xfer);
-Static void usbd_start_transfer(void *arg, bus_dma_segment_t *segs, int nseg,
+static int usbd_xfer_isread(usbd_xfer_handle xfer);
+static void usbd_start_transfer(void *arg, bus_dma_segment_t *segs, int nseg,
     int error);
-Static void usbd_alloc_callback(void *arg, bus_dma_segment_t *segs, int nseg,
+static void usbd_alloc_callback(void *arg, bus_dma_segment_t *segs, int nseg,
     int error);
 
-Static int usbd_nbuses = 0;
+static int usbd_nbuses = 0;
 
 void
 usbd_init(void)
@@ -343,7 +343,7 @@ usbd_transfer(usbd_xfer_handle xfer)
 	return (xfer->status);
 }
 
-Static void
+static void
 usbd_start_transfer(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	usbd_xfer_handle xfer = arg;
@@ -481,7 +481,7 @@ usbd_get_buffer(usbd_xfer_handle xfer)
 	return (xfer->allocbuf);
 }
 
-Static void
+static void
 usbd_alloc_callback(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	struct usbd_allocstate *allocstate = arg;
@@ -852,7 +852,7 @@ usbd_get_interface(usbd_interface_handle iface, u_int8_t *aiface)
 /*** Internal routines ***/
 
 /* Dequeue all pipe operations, called at splusb(). */
-Static usbd_status
+static usbd_status
 usbd_ar_pipe(usbd_pipe_handle pipe)
 {
 	usbd_xfer_handle xfer;

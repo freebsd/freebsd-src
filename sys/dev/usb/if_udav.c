@@ -153,54 +153,54 @@ USB_DECLARE_DRIVER(udav);
 #endif
 
 #if defined(__FreeBSD__)
-Static int udav_match(device_ptr_t);
-Static int udav_attach(device_ptr_t);
-Static int udav_detach(device_ptr_t);
-Static void udav_shutdown(device_ptr_t);
+static int udav_match(device_t);
+static int udav_attach(device_t);
+static int udav_detach(device_t);
+static void udav_shutdown(device_t);
 #endif
 
-Static int udav_openpipes(struct udav_softc *);
-Static void udav_start(struct ifnet *);
-Static int udav_send(struct udav_softc *, struct mbuf *, int);
-Static void udav_txeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
+static int udav_openpipes(struct udav_softc *);
+static void udav_start(struct ifnet *);
+static int udav_send(struct udav_softc *, struct mbuf *, int);
+static void udav_txeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
 #if defined(__FreeBSD__)
-Static void udav_rxstart(struct ifnet *ifp);
+static void udav_rxstart(struct ifnet *ifp);
 #endif
-Static void udav_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
-Static void udav_tick(void *);
-Static void udav_tick_task(void *);
-Static int udav_ioctl(struct ifnet *, u_long, caddr_t);
-Static void udav_stop_task(struct udav_softc *);
-Static void udav_stop(struct ifnet *, int);
-Static void udav_watchdog(struct ifnet *);
-Static int udav_ifmedia_change(struct ifnet *);
-Static void udav_ifmedia_status(struct ifnet *, struct ifmediareq *);
-Static void udav_lock_mii(struct udav_softc *);
-Static void udav_unlock_mii(struct udav_softc *);
-Static int udav_miibus_readreg(device_ptr_t, int, int);
-Static void udav_miibus_writereg(device_ptr_t, int, int, int);
-Static void udav_miibus_statchg(device_ptr_t);
+static void udav_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
+static void udav_tick(void *);
+static void udav_tick_task(void *);
+static int udav_ioctl(struct ifnet *, u_long, caddr_t);
+static void udav_stop_task(struct udav_softc *);
+static void udav_stop(struct ifnet *, int);
+static void udav_watchdog(struct ifnet *);
+static int udav_ifmedia_change(struct ifnet *);
+static void udav_ifmedia_status(struct ifnet *, struct ifmediareq *);
+static void udav_lock_mii(struct udav_softc *);
+static void udav_unlock_mii(struct udav_softc *);
+static int udav_miibus_readreg(device_t, int, int);
+static void udav_miibus_writereg(device_t, int, int, int);
+static void udav_miibus_statchg(device_t);
 #if defined(__NetBSD__)
-Static int udav_init(struct ifnet *);
+static int udav_init(struct ifnet *);
 #elif defined(__FreeBSD__)
-Static void udav_init(void *);
+static void udav_init(void *);
 #endif
-Static void udav_setmulti(struct udav_softc *);
-Static void udav_reset(struct udav_softc *);
+static void udav_setmulti(struct udav_softc *);
+static void udav_reset(struct udav_softc *);
 
-Static int udav_csr_read(struct udav_softc *, int, void *, int);
-Static int udav_csr_write(struct udav_softc *, int, void *, int);
-Static int udav_csr_read1(struct udav_softc *, int);
-Static int udav_csr_write1(struct udav_softc *, int, unsigned char);
+static int udav_csr_read(struct udav_softc *, int, void *, int);
+static int udav_csr_write(struct udav_softc *, int, void *, int);
+static int udav_csr_read1(struct udav_softc *, int);
+static int udav_csr_write1(struct udav_softc *, int, unsigned char);
 
 #if 0
-Static int udav_mem_read(struct udav_softc *, int, void *, int);
-Static int udav_mem_write(struct udav_softc *, int, void *, int);
-Static int udav_mem_write1(struct udav_softc *, int, unsigned char);
+static int udav_mem_read(struct udav_softc *, int, void *, int);
+static int udav_mem_write(struct udav_softc *, int, void *, int);
+static int udav_mem_write1(struct udav_softc *, int, unsigned char);
 #endif
 
 #if defined(__FreeBSD__)
-Static device_method_t udav_methods[] = {
+static device_method_t udav_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		udav_match),
 	DEVMETHOD(device_attach,	udav_attach),
@@ -219,13 +219,13 @@ Static device_method_t udav_methods[] = {
 	{ 0, 0 }
 };
 
-Static driver_t udav_driver = {
+static driver_t udav_driver = {
 	"udav",
 	udav_methods,
 	sizeof(struct udav_softc)
 };
 
-Static devclass_t udav_devclass;
+static devclass_t udav_devclass;
 
 DRIVER_MODULE(udav, uhub, udav_driver, udav_devclass, usbd_driver_load, 0);
 DRIVER_MODULE(miibus, udav, miibus_driver, miibus_devclass, 0, 0);
@@ -573,7 +573,7 @@ USB_DETACH(udav)
 
 #if 0
 /* read memory */
-Static int
+static int
 udav_mem_read(struct udav_softc *sc, int offset, void *buf, int len)
 {
 	usb_device_request_t req;
@@ -610,7 +610,7 @@ udav_mem_read(struct udav_softc *sc, int offset, void *buf, int len)
 }
 
 /* write memory */
-Static int
+static int
 udav_mem_write(struct udav_softc *sc, int offset, void *buf, int len)
 {
 	usb_device_request_t req;
@@ -647,7 +647,7 @@ udav_mem_write(struct udav_softc *sc, int offset, void *buf, int len)
 }
 
 /* write memory */
-Static int
+static int
 udav_mem_write1(struct udav_softc *sc, int offset, unsigned char ch)
 {
 	usb_device_request_t req;
@@ -684,7 +684,7 @@ udav_mem_write1(struct udav_softc *sc, int offset, unsigned char ch)
 #endif
 
 /* read register(s) */
-Static int
+static int
 udav_csr_read(struct udav_softc *sc, int offset, void *buf, int len)
 {
 	usb_device_request_t req;
@@ -721,7 +721,7 @@ udav_csr_read(struct udav_softc *sc, int offset, void *buf, int len)
 }
 
 /* write register(s) */
-Static int
+static int
 udav_csr_write(struct udav_softc *sc, int offset, void *buf, int len)
 {
 	usb_device_request_t req;
@@ -757,7 +757,7 @@ udav_csr_write(struct udav_softc *sc, int offset, void *buf, int len)
 	return (err);
 }
 
-Static int
+static int
 udav_csr_read1(struct udav_softc *sc, int offset)
 {
 	u_int8_t val = 0;
@@ -775,7 +775,7 @@ udav_csr_read1(struct udav_softc *sc, int offset)
 }
 
 /* write a register */
-Static int
+static int
 udav_csr_write1(struct udav_softc *sc, int offset, unsigned char ch)
 {
 	usb_device_request_t req;
@@ -811,10 +811,10 @@ udav_csr_write1(struct udav_softc *sc, int offset, unsigned char ch)
 }
 
 #if defined(__NetBSD__)
-Static int
+static int
 udav_init(struct ifnet *ifp)
 #elif defined(__FreeBSD__)
-Static void
+static void
 udav_init(void *xsc)
 #endif
 {
@@ -942,7 +942,7 @@ udav_init(void *xsc)
 #endif
 }
 
-Static void
+static void
 udav_reset(struct udav_softc *sc)
 {
 	int i;
@@ -979,7 +979,7 @@ udav_reset(struct udav_softc *sc)
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int
-udav_activate(device_ptr_t self, enum devact act)
+udav_activate(device_t self, enum devact act)
 {
 	struct udav_softc *sc = (struct udav_softc *)self;
 
@@ -1004,7 +1004,7 @@ udav_activate(device_ptr_t self, enum devact act)
 #define UDAV_CALCHASH(addr) \
 	(ether_crc32_le((addr), ETHER_ADDR_LEN) & ((1 << UDAV_BITS) - 1))
 
-Static void
+static void
 udav_setmulti(struct udav_softc *sc)
 {
 	struct ifnet *ifp;
@@ -1079,7 +1079,7 @@ udav_setmulti(struct udav_softc *sc)
 	udav_csr_write(sc, UDAV_MAR, hashes, sizeof(hashes));
 }
 
-Static int
+static int
 udav_openpipes(struct udav_softc *sc)
 {
 	struct ue_chain *c;
@@ -1147,7 +1147,7 @@ udav_openpipes(struct udav_softc *sc)
 	return (error);
 }
 
-Static void
+static void
 udav_start(struct ifnet *ifp)
 {
 	struct udav_softc *sc = ifp->if_softc;
@@ -1204,7 +1204,7 @@ udav_start(struct ifnet *ifp)
 	ifp->if_timer = 5;
 }
 
-Static int
+static int
 udav_send(struct udav_softc *sc, struct mbuf *m, int idx)
 {
 	int total_len;
@@ -1256,7 +1256,7 @@ udav_send(struct udav_softc *sc, struct mbuf *m, int idx)
 	return (0);
 }
 
-Static void
+static void
 udav_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct ue_chain *c = priv;
@@ -1329,7 +1329,7 @@ udav_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 #endif
 }
 
-Static void
+static void
 udav_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct ue_chain *c = priv;
@@ -1452,12 +1452,12 @@ udav_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 }
 
 #if 0
-Static void udav_intr()
+static void udav_intr()
 {
 }
 #endif
 
-Static int
+static int
 udav_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct udav_softc *sc = ifp->if_softc;
@@ -1535,7 +1535,7 @@ udav_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return (error);
 }
 
-Static void
+static void
 udav_watchdog(struct ifnet *ifp)
 {
 	struct udav_softc *sc = ifp->if_softc;
@@ -1572,14 +1572,14 @@ udav_watchdog(struct ifnet *ifp)
 #endif
 }
 
-Static void
+static void
 udav_stop_task(struct udav_softc *sc)
 {
 	udav_stop(GET_IFP(sc), 1);
 }
 
 /* Stop the adapter and free any mbufs allocated to the RX and TX lists. */
-Static void
+static void
 udav_stop(struct ifnet *ifp, int disable)
 {
 	struct udav_softc *sc = ifp->if_softc;
@@ -1650,7 +1650,7 @@ udav_stop(struct ifnet *ifp, int disable)
 }
 
 /* Set media options */
-Static int
+static int
 udav_ifmedia_change(struct ifnet *ifp)
 {
 	struct udav_softc *sc = ifp->if_softc;
@@ -1673,7 +1673,7 @@ udav_ifmedia_change(struct ifnet *ifp)
 }
 
 /* Report current media status. */
-Static void
+static void
 udav_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct udav_softc *sc = ifp->if_softc;
@@ -1699,7 +1699,7 @@ udav_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	ifmr->ifm_status = mii->mii_media_status;
 }
 
-Static void
+static void
 udav_tick(void *xsc)
 {
 	struct udav_softc *sc = xsc;
@@ -1717,7 +1717,7 @@ udav_tick(void *xsc)
 	usb_add_task(sc->sc_udev, &sc->sc_tick_task);
 }
 
-Static void
+static void
 udav_tick_task(void *xsc)
 {
 	struct udav_softc *sc = xsc;
@@ -1775,7 +1775,7 @@ udav_tick_task(void *xsc)
 }
 
 /* Get exclusive access to the MII registers */
-Static void
+static void
 udav_lock_mii(struct udav_softc *sc)
 {
 	DPRINTFN(0xff, ("%s: %s: enter\n", USBDEVNAME(sc->sc_dev),
@@ -1789,7 +1789,7 @@ udav_lock_mii(struct udav_softc *sc)
 #endif
 }
 
-Static void
+static void
 udav_unlock_mii(struct udav_softc *sc)
 {
 	DPRINTFN(0xff, ("%s: %s: enter\n", USBDEVNAME(sc->sc_dev),
@@ -1804,8 +1804,8 @@ udav_unlock_mii(struct udav_softc *sc)
 		usb_detach_wakeup(USBDEV(sc->sc_dev));
 }
 
-Static int
-udav_miibus_readreg(device_ptr_t dev, int phy, int reg)
+static int
+udav_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct udav_softc *sc;
 	u_int8_t val[2];
@@ -1861,8 +1861,8 @@ udav_miibus_readreg(device_ptr_t dev, int phy, int reg)
 	return (data16);
 }
 
-Static void
-udav_miibus_writereg(device_ptr_t dev, int phy, int reg, int data)
+static void
+udav_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct udav_softc *sc;
 	u_int8_t val[2];
@@ -1914,8 +1914,8 @@ udav_miibus_writereg(device_ptr_t dev, int phy, int reg, int data)
 	return;
 }
 
-Static void
-udav_miibus_statchg(device_ptr_t dev)
+static void
+udav_miibus_statchg(device_t dev)
 {
 #ifdef UDAV_DEBUG
 	struct udav_softc *sc;
@@ -1934,8 +1934,8 @@ udav_miibus_statchg(device_ptr_t dev)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-Static void
-udav_shutdown(device_ptr_t dev)
+static void
+udav_shutdown(device_t dev)
 {
 	struct udav_softc	*sc;
 
@@ -1946,7 +1946,7 @@ udav_shutdown(device_ptr_t dev)
 	return;
 }
 
-Static void
+static void
 udav_rxstart(struct ifnet *ifp)
 {
 	struct udav_softc	*sc;
