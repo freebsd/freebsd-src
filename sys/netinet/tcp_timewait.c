@@ -1252,7 +1252,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 					     * or route MTU.  tcp_mtudisc()
 					     * will do right thing by itself.
 					     */
-					    if (mtu <= tcp_maxmtu(&inc))
+					    if (mtu <= tcp_maxmtu(&inc, NULL))
 						tcp_hc_updatemtu(&inc, mtu);
 					}
 
@@ -1531,9 +1531,9 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 	maxmtu = tcp_hc_getmtu(&inp->inp_inc); /* IPv4 and IPv6 */
 	romtu =
 #ifdef INET6
-	    isipv6 ? tcp_maxmtu6(&inp->inp_inc) :
+	    isipv6 ? tcp_maxmtu6(&inp->inp_inc, NULL) :
 #endif /* INET6 */
-	    tcp_maxmtu(&inp->inp_inc);
+	    tcp_maxmtu(&inp->inp_inc, NULL);
 	if (!maxmtu)
 		maxmtu = romtu;
 	else
@@ -1610,7 +1610,7 @@ tcp_mtudisc(struct inpcb *inp, int errno)
  * to get the interface MTU.
  */
 u_long
-tcp_maxmtu(struct in_conninfo *inc)
+tcp_maxmtu(struct in_conninfo *inc, int *flags)
 {
 	struct route sro;
 	struct sockaddr_in *dst;
@@ -1633,6 +1633,13 @@ tcp_maxmtu(struct in_conninfo *inc)
 			maxmtu = ifp->if_mtu;
 		else
 			maxmtu = min(sro.ro_rt->rt_rmx.rmx_mtu, ifp->if_mtu);
+
+		/* Report additional interface capabilities. */
+		if (flags != NULL) {
+			if (ifp->if_capenable & IFCAP_TSO4 &&
+			    ifp->if_hwassist & CSUM_TSO)
+				*flags |= CSUM_TSO;
+		}
 		RTFREE(sro.ro_rt);
 	}
 	return (maxmtu);
@@ -1640,7 +1647,7 @@ tcp_maxmtu(struct in_conninfo *inc)
 
 #ifdef INET6
 u_long
-tcp_maxmtu6(struct in_conninfo *inc)
+tcp_maxmtu6(struct in_conninfo *inc, int *flags)
 {
 	struct route_in6 sro6;
 	struct ifnet *ifp;
@@ -1662,6 +1669,13 @@ tcp_maxmtu6(struct in_conninfo *inc)
 		else
 			maxmtu = min(sro6.ro_rt->rt_rmx.rmx_mtu,
 				     IN6_LINKMTU(sro6.ro_rt->rt_ifp));
+
+		/* Report additional interface capabilities. */
+		if (flags != NULL) {
+			if (ifp->if_capenable & IFCAP_TSO6 &&
+			    ifp->if_hwassist & CSUM_TSO)
+				*flags |= CSUM_TSO;
+		}
 		RTFREE(sro6.ro_rt);
 	}
 

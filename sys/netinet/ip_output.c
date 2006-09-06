@@ -495,19 +495,29 @@ passout:
 
 	/*
 	 * If small enough for interface, or the interface will take
-	 * care of the fragmentation for us, can just send directly.
+	 * care of the fragmentation for us, we can just send directly.
 	 */
-	if (ip->ip_len <= ifp->if_mtu || (ifp->if_hwassist & CSUM_FRAGMENT &&
-	    ((ip->ip_off & IP_DF) == 0))) {
+	if (ip->ip_len <= ifp->if_mtu ||
+	    (m->m_pkthdr.csum_flags & ifp->if_hwassist & CSUM_TSO) != 0 ||
+	    ((ip->ip_off & IP_DF) == 0 && (ifp->if_hwassist & CSUM_FRAGMENT))) {
 		ip->ip_len = htons(ip->ip_len);
 		ip->ip_off = htons(ip->ip_off);
 		ip->ip_sum = 0;
 		if (sw_csum & CSUM_DELAY_IP)
 			ip->ip_sum = in_cksum(m, hlen);
 
-		/* Record statistics for this interface address. */
+		/*
+		 * Record statistics for this interface address.
+		 * With CSUM_TSO the byte/packet count will be slightly
+		 * incorrect because we count the IP+TCP headers only
+		 * once instead of for every generated packet.
+		 */
 		if (!(flags & IP_FORWARDING) && ia) {
-			ia->ia_ifa.if_opackets++;
+			if (m->m_pkthdr.csum_flags & CSUM_TSO)
+				ia->ia_ifa.if_opackets +=
+				    m->m_pkthdr.len / m->m_pkthdr.tso_segsz;
+			else
+				ia->ia_ifa.if_opackets++;
 			ia->ia_ifa.if_obytes += m->m_pkthdr.len;
 		}
 #ifdef IPSEC
@@ -529,7 +539,8 @@ passout:
 		goto done;
 	}
 
-	if (ip->ip_off & IP_DF) {
+	/* Balk when DF bit is set or the interface didn't support TSO. */
+	if ((ip->ip_off & IP_DF) || (m->m_pkthdr.csum_flags & CSUM_TSO)) {
 		error = EMSGSIZE;
 		/*
 		 * This case can happen if the user changed the MTU

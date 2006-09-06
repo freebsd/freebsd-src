@@ -2857,6 +2857,7 @@ tcp_mss(tp, offer)
 	struct socket *so;
 	struct hc_metrics_lite metrics;
 	int origoffer = offer;
+	int mtuflags = 0;
 #ifdef INET6
 	int isipv6 = ((inp->inp_vflag & INP_IPV6) != 0) ? 1 : 0;
 	size_t min_protoh = isipv6 ?
@@ -2869,12 +2870,12 @@ tcp_mss(tp, offer)
 	/* initialize */
 #ifdef INET6
 	if (isipv6) {
-		maxmtu = tcp_maxmtu6(&inp->inp_inc);
+		maxmtu = tcp_maxmtu6(&inp->inp_inc, &mtuflags);
 		tp->t_maxopd = tp->t_maxseg = tcp_v6mssdflt;
 	} else
 #endif
 	{
-		maxmtu = tcp_maxmtu(&inp->inp_inc);
+		maxmtu = tcp_maxmtu(&inp->inp_inc, &mtuflags);
 		tp->t_maxopd = tp->t_maxseg = tcp_mssdflt;
 	}
 	so = inp->inp_socket;
@@ -3081,6 +3082,10 @@ tcp_mss(tp, offer)
 		tp->snd_cwnd = mss * ss_fltsz_local;
 	else
 		tp->snd_cwnd = mss * ss_fltsz;
+
+	/* Check the interface for TSO capabilities. */
+	if (mtuflags & CSUM_TSO)
+		tp->t_flags |= TF_TSO;
 }
 
 /*
@@ -3103,14 +3108,14 @@ tcp_mssopt(inc)
 #ifdef INET6
 	if (isipv6) {
 		mss = tcp_v6mssdflt;
-		maxmtu = tcp_maxmtu6(inc);
+		maxmtu = tcp_maxmtu6(inc, NULL);
 		thcmtu = tcp_hc_getmtu(inc); /* IPv4 and IPv6 */
 		min_protoh = sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
 	} else
 #endif
 	{
 		mss = tcp_mssdflt;
-		maxmtu = tcp_maxmtu(inc);
+		maxmtu = tcp_maxmtu(inc, NULL);
 		thcmtu = tcp_hc_getmtu(inc); /* IPv4 and IPv6 */
 		min_protoh = sizeof(struct tcpiphdr);
 	}

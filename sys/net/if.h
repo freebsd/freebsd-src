@@ -206,8 +206,11 @@ struct if_data {
 #define	IFCAP_JUMBO_MTU		0x0020	/* 9000 byte MTU supported */
 #define	IFCAP_POLLING		0x0040	/* driver supports polling */
 #define	IFCAP_VLAN_HWCSUM	0x0080	/* can do IFCAP_HWCSUM on VLANs */
+#define	IFCAP_TSO4		0x0100	/* can do TCP Segmentation Offload */
+#define	IFCAP_TSO6		0x0200	/* can do TCP6 Segmentation Offload */
 
 #define IFCAP_HWCSUM		(IFCAP_RXCSUM | IFCAP_TXCSUM)
+#define	IFCAP_TSO		(IFCAP_TSO4 | IFCAP_TSO6)
 
 #define	IFQ_MAXLEN	50
 #define	IFNET_SLOWHZ	1		/* granularity is 1 second */
