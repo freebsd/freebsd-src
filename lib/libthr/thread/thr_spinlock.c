@@ -48,9 +48,10 @@
  */
 struct spinlock_extra {
 	spinlock_t	*owner;
+	struct umutex	lock;
 };
 
-static umtx_t			spinlock_static_lock;
+static struct umutex		spinlock_static_lock = DEFAULT_UMUTEX;
 static struct spinlock_extra	extra[MAX_SPINLOCKS];
 static int			spinlock_count;
 static int			initialized;
@@ -65,19 +66,25 @@ static void	init_spinlock(spinlock_t *lck);
 void
 _spinunlock(spinlock_t *lck)
 {
-	THR_UMTX_UNLOCK(_get_curthread(), (volatile umtx_t *)&lck->access_lock);
+	struct spinlock_extra	*extra;
+
+	extra = (struct spinlock_extra *)lck->fname;
+	THR_UMUTEX_UNLOCK(_get_curthread(), &extra->lock);
 }
 
 void
 _spinlock(spinlock_t *lck)
 {
+	struct spinlock_extra *extra;
+
 	if (!__isthreaded)
 		PANIC("Spinlock called when not threaded.");
 	if (!initialized)
 		PANIC("Spinlocks not initialized.");
 	if (lck->fname == NULL)
 		init_spinlock(lck);
-	THR_UMTX_LOCK(_get_curthread(), (volatile umtx_t *)&lck->access_lock);
+	extra = (struct spinlock_extra *)lck->fname;
+	THR_UMUTEX_LOCK(_get_curthread(), &extra->lock);
 }
 
 void
@@ -89,17 +96,18 @@ _spinlock_debug(spinlock_t *lck, char *fname __unused, int lineno __unused)
 static void
 init_spinlock(spinlock_t *lck)
 {
-	static int count = 0;
+	struct pthread *curthread = _get_curthread();
 
-	THR_UMTX_LOCK(_get_curthread(), &spinlock_static_lock);
+	THR_UMUTEX_LOCK(curthread, &spinlock_static_lock);
 	if ((lck->fname == NULL) && (spinlock_count < MAX_SPINLOCKS)) {
 		lck->fname = (char *)&extra[spinlock_count];
+		_thr_umutex_init(&extra[spinlock_count].lock);
 		extra[spinlock_count].owner = lck;
 		spinlock_count++;
 	}
-	THR_UMTX_UNLOCK(_get_curthread(), &spinlock_static_lock);
-	if (lck->fname == NULL && ++count < 5)
-		stderr_debug("Warning: exceeded max spinlocks");
+	THR_UMUTEX_UNLOCK(curthread, &spinlock_static_lock);
+	if (lck->fname == NULL)
+		PANIC("Warning: exceeded max spinlocks");
 }
 
 void
@@ -107,7 +115,7 @@ _thr_spinlock_init(void)
 {
 	int i;
 
-	_thr_umtx_init(&spinlock_static_lock);
+	_thr_umutex_init(&spinlock_static_lock);
 	if (initialized != 0) {
 		/*
 		 * called after fork() to reset state of libc spin locks,
@@ -118,8 +126,7 @@ _thr_spinlock_init(void)
 		 * it is better to do pthread_atfork in libc.
 		 */
 		for (i = 0; i < spinlock_count; i++)
-			_thr_umtx_init((volatile umtx_t *)
-				&extra[i].owner->access_lock);
+			_thr_umutex_init(&extra[i].lock);
 	} else {
 		initialized = 1;
 	}
