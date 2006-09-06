@@ -1808,6 +1808,7 @@ tcp_twstart(struct tcpcb *tp)
 		INP_UNLOCK(inp);
 }
 
+#if 0
 /*
  * The appromixate rate of ISN increase of Microsoft TCP stacks;
  * the actual rate is slightly higher due to the addition of
@@ -1822,10 +1823,6 @@ tcp_twstart(struct tcpcb *tp)
  * Determine if the ISN we will generate has advanced beyond the last
  * sequence number used by the previous connection.  If so, indicate
  * that it is safe to recycle this tw socket by returning 1.
- *
- * XXXRW: This function should assert the inpcb lock as it does multiple
- * non-atomic reads from the tcptw, but is currently called without it from
- * in_pcb.c:in_pcblookup_local().
  */
 int
 tcp_twrecycleable(struct tcptw *tw)
@@ -1833,6 +1830,7 @@ tcp_twrecycleable(struct tcptw *tw)
 	tcp_seq new_iss = tw->iss;
 	tcp_seq new_irs = tw->irs;
 
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	new_iss += (ticks - tw->t_starttime) * (ISN_BYTES_PER_SECOND / hz);
 	new_irs += (ticks - tw->t_starttime) * (MS_ISN_BYTES_PER_SECOND / hz);
 
@@ -1841,6 +1839,7 @@ tcp_twrecycleable(struct tcptw *tw)
 	else
 		return (0);
 }
+#endif
 
 void
 tcp_twclose(struct tcptw *tw, int reuse)
