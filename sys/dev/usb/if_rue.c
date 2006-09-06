@@ -106,7 +106,7 @@ __FBSDID("$FreeBSD$");
 #include "miibus_if.h"
 
 #ifdef USB_DEBUG
-Static int	ruedebug = 0;
+static int	ruedebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, rue, CTLFLAG_RW, 0, "USB rue");
 SYSCTL_INT(_hw_usb_rue, OID_AUTO, debug, CTLFLAG_RW,
 	   &ruedebug, 0, "rue debug level");
@@ -124,49 +124,49 @@ SYSCTL_INT(_hw_usb_rue, OID_AUTO, debug, CTLFLAG_RW,
  * Various supported device vendors/products.
  */
 
-Static struct rue_type rue_devs[] = {
+static struct rue_type rue_devs[] = {
 	{ USB_VENDOR_MELCO, USB_PRODUCT_MELCO_LUAKTX },
 	{ USB_VENDOR_REALTEK, USB_PRODUCT_REALTEK_USBKR100 },
 	{ 0, 0 }
 };
 
-Static int rue_match(device_ptr_t);
-Static int rue_attach(device_ptr_t);
-Static int rue_detach(device_ptr_t);
+static int rue_match(device_t);
+static int rue_attach(device_t);
+static int rue_detach(device_t);
 
-Static int rue_encap(struct rue_softc *, struct mbuf *, int);
+static int rue_encap(struct rue_softc *, struct mbuf *, int);
 #ifdef RUE_INTR_PIPE
-Static void rue_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
+static void rue_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
 #endif
-Static void rue_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
-Static void rue_txeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
-Static void rue_tick(void *);
-Static void rue_rxstart(struct ifnet *);
-Static void rue_start(struct ifnet *);
-Static int rue_ioctl(struct ifnet *, u_long, caddr_t);
-Static void rue_init(void *);
-Static void rue_stop(struct rue_softc *);
-Static void rue_watchdog(struct ifnet *);
-Static void rue_shutdown(device_ptr_t);
-Static int rue_ifmedia_upd(struct ifnet *);
-Static void rue_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static void rue_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
+static void rue_txeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
+static void rue_tick(void *);
+static void rue_rxstart(struct ifnet *);
+static void rue_start(struct ifnet *);
+static int rue_ioctl(struct ifnet *, u_long, caddr_t);
+static void rue_init(void *);
+static void rue_stop(struct rue_softc *);
+static void rue_watchdog(struct ifnet *);
+static void rue_shutdown(device_t);
+static int rue_ifmedia_upd(struct ifnet *);
+static void rue_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
-Static int rue_miibus_readreg(device_ptr_t, int, int);
-Static int rue_miibus_writereg(device_ptr_t, int, int, int);
-Static void rue_miibus_statchg(device_ptr_t);
+static int rue_miibus_readreg(device_t, int, int);
+static int rue_miibus_writereg(device_t, int, int, int);
+static void rue_miibus_statchg(device_t);
 
-Static void rue_setmulti(struct rue_softc *);
-Static void rue_reset(struct rue_softc *);
+static void rue_setmulti(struct rue_softc *);
+static void rue_reset(struct rue_softc *);
 
-Static int rue_read_mem(struct rue_softc *, u_int16_t, void *, u_int16_t);
-Static int rue_write_mem(struct rue_softc *, u_int16_t, void *, u_int16_t);
-Static int rue_csr_read_1(struct rue_softc *, int);
-Static int rue_csr_write_1(struct rue_softc *, int, u_int8_t);
-Static int rue_csr_read_2(struct rue_softc *, int);
-Static int rue_csr_write_2(struct rue_softc *, int, u_int16_t);
-Static int rue_csr_write_4(struct rue_softc *, int, u_int32_t);
+static int rue_read_mem(struct rue_softc *, u_int16_t, void *, u_int16_t);
+static int rue_write_mem(struct rue_softc *, u_int16_t, void *, u_int16_t);
+static int rue_csr_read_1(struct rue_softc *, int);
+static int rue_csr_write_1(struct rue_softc *, int, u_int8_t);
+static int rue_csr_read_2(struct rue_softc *, int);
+static int rue_csr_write_2(struct rue_softc *, int, u_int16_t);
+static int rue_csr_write_4(struct rue_softc *, int, u_int32_t);
 
-Static device_method_t rue_methods[] = {
+static device_method_t rue_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, rue_match),
 	DEVMETHOD(device_attach, rue_attach),
@@ -185,13 +185,13 @@ Static device_method_t rue_methods[] = {
 	{ 0, 0 }
 };
 
-Static driver_t rue_driver = {
+static driver_t rue_driver = {
 	"rue",
 	rue_methods,
 	sizeof(struct rue_softc)
 };
 
-Static devclass_t rue_devclass;
+static devclass_t rue_devclass;
 
 DRIVER_MODULE(rue, uhub, rue_driver, rue_devclass, usbd_driver_load, 0);
 DRIVER_MODULE(miibus, rue, miibus_driver, miibus_devclass, 0, 0);
@@ -211,7 +211,7 @@ MODULE_DEPEND(rue, miibus, 1, 1, 1);
 #define RUE_CLRBIT_2(sc, reg, x) \
 	rue_csr_write_2(sc, reg, rue_csr_read_2(sc, reg) & ~(x))
 
-Static int
+static int
 rue_read_mem(struct rue_softc *sc, u_int16_t addr, void *buf, u_int16_t len)
 {
 	usb_device_request_t	req;
@@ -241,7 +241,7 @@ rue_read_mem(struct rue_softc *sc, u_int16_t addr, void *buf, u_int16_t len)
 	return (0);
 }
 
-Static int
+static int
 rue_write_mem(struct rue_softc *sc, u_int16_t addr, void *buf, u_int16_t len)
 {
 	usb_device_request_t	req;
@@ -271,7 +271,7 @@ rue_write_mem(struct rue_softc *sc, u_int16_t addr, void *buf, u_int16_t len)
 	return (0);
 }
 
-Static int
+static int
 rue_csr_read_1(struct rue_softc *sc, int reg)
 {
 	int		err;
@@ -285,7 +285,7 @@ rue_csr_read_1(struct rue_softc *sc, int reg)
 	return (val);
 }
 
-Static int
+static int
 rue_csr_read_2(struct rue_softc *sc, int reg)
 {
 	int		err;
@@ -302,7 +302,7 @@ rue_csr_read_2(struct rue_softc *sc, int reg)
 	return (val);
 }
 
-Static int
+static int
 rue_csr_write_1(struct rue_softc *sc, int reg, u_int8_t val)
 {
 	int	err;
@@ -315,7 +315,7 @@ rue_csr_write_1(struct rue_softc *sc, int reg, u_int8_t val)
 	return (0);
 }
 
-Static int
+static int
 rue_csr_write_2(struct rue_softc *sc, int reg, u_int16_t val)
 {
 	int	err;
@@ -330,7 +330,7 @@ rue_csr_write_2(struct rue_softc *sc, int reg, u_int16_t val)
 	return (0);
 }
 
-Static int
+static int
 rue_csr_write_4(struct rue_softc *sc, int reg, u_int32_t val)
 {
 	int	err;
@@ -345,8 +345,8 @@ rue_csr_write_4(struct rue_softc *sc, int reg, u_int32_t val)
 	return (0);
 }
 
-Static int
-rue_miibus_readreg(device_ptr_t dev, int phy, int reg)
+static int
+rue_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct rue_softc	*sc = USBGETSOFTC(dev);
 	int			rval;
@@ -389,8 +389,8 @@ rue_miibus_readreg(device_ptr_t dev, int phy, int reg)
 	return (rval);
 }
 
-Static int
-rue_miibus_writereg(device_ptr_t dev, int phy, int reg, int data)
+static int
+rue_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct rue_softc	*sc = USBGETSOFTC(dev);
 	int			ruereg;
@@ -431,8 +431,8 @@ rue_miibus_writereg(device_ptr_t dev, int phy, int reg, int data)
 	return (0);
 }
 
-Static void
-rue_miibus_statchg(device_ptr_t dev)
+static void
+rue_miibus_statchg(device_t dev)
 {
 	/*
 	 * When the code below is enabled the card starts doing weird
@@ -473,7 +473,7 @@ rue_miibus_statchg(device_ptr_t dev)
  * Program the 64-bit multicast hash filter.
  */
 
-Static void
+static void
 rue_setmulti(struct rue_softc *sc)
 {
 	struct ifnet		*ifp;
@@ -532,7 +532,7 @@ rue_setmulti(struct rue_softc *sc)
 	rue_csr_write_4(sc, RUE_MAR4, hashes[1]);
 }
 
-Static void
+static void
 rue_reset(struct rue_softc *sc)
 {
 	int	i;
@@ -720,8 +720,8 @@ USB_ATTACH(rue)
 	USB_ATTACH_ERROR_RETURN;
 }
 
-Static int
-rue_detach(device_ptr_t dev)
+static int
+rue_detach(device_t dev)
 {
 	struct rue_softc	*sc;
 	struct ifnet		*ifp;
@@ -757,7 +757,7 @@ rue_detach(device_ptr_t dev)
 }
 
 #ifdef RUE_INTR_PIPE
-Static void
+static void
 rue_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct rue_softc	*sc = priv;
@@ -795,7 +795,7 @@ rue_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 }
 #endif
 
-Static void
+static void
 rue_rxstart(struct ifnet *ifp)
 {
 	struct rue_softc	*sc;
@@ -828,7 +828,7 @@ rue_rxstart(struct ifnet *ifp)
  * the higher level protocols.
  */
 
-Static void
+static void
 rue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct ue_chain	*c = priv;
@@ -904,7 +904,7 @@ rue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
  * the list buffers.
  */
 
-Static void
+static void
 rue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct ue_chain	*c = priv;
@@ -947,7 +947,7 @@ rue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	RUE_UNLOCK(sc);
 }
 
-Static void
+static void
 rue_tick(void *xsc)
 {
 	struct rue_softc	*sc = xsc;
@@ -979,7 +979,7 @@ rue_tick(void *xsc)
 	RUE_UNLOCK(sc);
 }
 
-Static int
+static int
 rue_encap(struct rue_softc *sc, struct mbuf *m, int idx)
 {
 	int			total_len;
@@ -1020,7 +1020,7 @@ rue_encap(struct rue_softc *sc, struct mbuf *m, int idx)
 	return (0);
 }
 
-Static void
+static void
 rue_start(struct ifnet *ifp)
 {
 	struct rue_softc	*sc = ifp->if_softc;
@@ -1067,7 +1067,7 @@ rue_start(struct ifnet *ifp)
 	RUE_UNLOCK(sc);
 }
 
-Static void
+static void
 rue_init(void *xsc)
 {
 	struct rue_softc	*sc = xsc;
@@ -1196,7 +1196,7 @@ rue_init(void *xsc)
  * Set media options.
  */
 
-Static int
+static int
 rue_ifmedia_upd(struct ifnet *ifp)
 {
 	struct rue_softc	*sc = ifp->if_softc;
@@ -1217,7 +1217,7 @@ rue_ifmedia_upd(struct ifnet *ifp)
  * Report current media status.
  */
 
-Static void
+static void
 rue_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct rue_softc	*sc = ifp->if_softc;
@@ -1228,7 +1228,7 @@ rue_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	ifmr->ifm_status = mii->mii_media_status;
 }
 
-Static int
+static int
 rue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct rue_softc	*sc = ifp->if_softc;
@@ -1282,7 +1282,7 @@ rue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	return (error);
 }
 
-Static void
+static void
 rue_watchdog(struct ifnet *ifp)
 {
 	struct rue_softc	*sc = ifp->if_softc;
@@ -1309,7 +1309,7 @@ rue_watchdog(struct ifnet *ifp)
  * RX and TX lists.
  */
 
-Static void
+static void
 rue_stop(struct rue_softc *sc)
 {
 	usbd_status	err;
@@ -1392,8 +1392,8 @@ rue_stop(struct rue_softc *sc)
  * get confused by errant DMAs when rebooting.
  */
 
-Static void
-rue_shutdown(device_ptr_t dev)
+static void
+rue_shutdown(device_t dev)
 {
 	struct rue_softc	*sc;
 

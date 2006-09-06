@@ -121,14 +121,14 @@ struct uftdi_softc {
 	u_int			last_lcr;
 };
 
-Static void	uftdi_get_status(void *, int portno, u_char *lsr, u_char *msr);
-Static void	uftdi_set(void *, int, int, int);
-Static int	uftdi_param(void *, int, struct termios *);
-Static int	uftdi_open(void *sc, int portno);
-Static void	uftdi_read(void *sc, int portno, u_char **ptr,u_int32_t *count);
-Static void	uftdi_write(void *sc, int portno, u_char *to, u_char *from,
+static void	uftdi_get_status(void *, int portno, u_char *lsr, u_char *msr);
+static void	uftdi_set(void *, int, int, int);
+static int	uftdi_param(void *, int, struct termios *);
+static int	uftdi_open(void *sc, int portno);
+static void	uftdi_read(void *sc, int portno, u_char **ptr,u_int32_t *count);
+static void	uftdi_write(void *sc, int portno, u_char *to, u_char *from,
 			    u_int32_t *count);
-Static void	uftdi_break(void *sc, int portno, int onoff);
+static void	uftdi_break(void *sc, int portno, int onoff);
 
 struct ucom_callback uftdi_callback = {
 	uftdi_get_status,
@@ -363,7 +363,7 @@ bad:
 }
 #if 0
 int
-uftdi_activate(device_ptr_t self, enum devact act)
+uftdi_activate(device_t self, enum devact act)
 {
 	struct uftdi_softc *sc = (struct uftdi_softc *)self;
 	int rv = 0;
@@ -395,7 +395,7 @@ USB_DETACH(uftdi)
 	return rv;
 }
 #endif
-Static int
+static int
 uftdi_open(void *vsc, int portno)
 {
 	struct uftdi_softc *sc = vsc;
@@ -437,7 +437,7 @@ uftdi_open(void *vsc, int portno)
 	return (0);
 }
 
-Static void
+static void
 uftdi_read(void *vsc, int portno, u_char **ptr, u_int32_t *count)
 {
 	struct uftdi_softc *sc = vsc;
@@ -470,7 +470,7 @@ uftdi_read(void *vsc, int portno, u_char **ptr, u_int32_t *count)
 	*count -= 2;
 }
 
-Static void
+static void
 uftdi_write(void *vsc, int portno, u_char *to, u_char *from, u_int32_t *count)
 {
 	struct uftdi_softc *sc = vsc;
@@ -486,7 +486,7 @@ uftdi_write(void *vsc, int portno, u_char *to, u_char *from, u_int32_t *count)
 	*count += sc->sc_hdrlen;
 }
 
-Static void
+static void
 uftdi_set(void *vsc, int portno, int reg, int onoff)
 {
 	struct uftdi_softc *sc = vsc;
@@ -521,7 +521,7 @@ uftdi_set(void *vsc, int portno, int reg, int onoff)
 	(void)usbd_do_request(ucom->sc_udev, &req, NULL);
 }
 
-Static int
+static int
 uftdi_param(void *vsc, int portno, struct termios *t)
 {
 	struct uftdi_softc *sc = vsc;
@@ -687,7 +687,7 @@ uftdi_break(void *vsc, int portno, int onoff)
 	(void)usbd_do_request(ucom->sc_udev, &req, NULL);
 }
 
-Static device_method_t uftdi_methods[] = {
+static device_method_t uftdi_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, uftdi_match),
 	DEVMETHOD(device_attach, uftdi_attach),
@@ -696,7 +696,7 @@ Static device_method_t uftdi_methods[] = {
 	{ 0, 0 }
 };
 
-Static driver_t uftdi_driver = {
+static driver_t uftdi_driver = {
 	"ucom",
 	uftdi_methods,
 	sizeof (struct uftdi_softc)

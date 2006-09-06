@@ -162,7 +162,7 @@ void usbd_set_polling(usbd_device_handle, int);
 const char *usbd_errstr(usbd_status);
 
 void usbd_add_dev_event(int, usbd_device_handle);
-void usbd_add_drv_event(int, usbd_device_handle, device_ptr_t);
+void usbd_add_drv_event(int, usbd_device_handle, device_t);
 
 void usbd_devinfo(usbd_device_handle, int, char *);
 const struct usbd_quirks *usbd_get_quirks(usbd_device_handle);

@@ -149,14 +149,14 @@ const struct cdevsw ulpt_cdevsw = {
 #elif defined(__OpenBSD__)
 cdev_decl(ulpt);
 #elif defined(__FreeBSD__)
-Static d_open_t ulptopen;
-Static d_close_t ulptclose;
-Static d_write_t ulptwrite;
-Static d_read_t ulptread;
-Static d_ioctl_t ulptioctl;
+static d_open_t ulptopen;
+static d_close_t ulptclose;
+static d_write_t ulptwrite;
+static d_read_t ulptread;
+static d_ioctl_t ulptioctl;
 
 
-Static struct cdevsw ulpt_cdevsw = {
+static struct cdevsw ulpt_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_NEEDGIANT,
 	.d_open =	ulptopen,
@@ -366,7 +366,7 @@ USB_ATTACH(ulpt)
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int
-ulpt_activate(device_ptr_t self, enum devact act)
+ulpt_activate(device_t self, enum devact act)
 {
 	struct ulpt_softc *sc = (struct ulpt_softc *)self;
 

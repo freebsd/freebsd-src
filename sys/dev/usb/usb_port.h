@@ -70,9 +70,9 @@ MALLOC_DECLARE(M_USBHC);
 #define USB_USE_SOFTINTR
 
 #ifdef USB_DEBUG
-#define Static
+#define static
 #else
-#define Static static
+#define static static
 #endif
 
 #define SCSI_MODE_SENSE		MODE_SENSE
@@ -171,7 +171,7 @@ int __CONCAT(dname,_detach)(struct device *self, int flags)
 /*
  * OpenBSD
  */
-#define Static
+#define static
 
 typedef struct proc *usb_proc_ptr;
 
@@ -360,7 +360,7 @@ MALLOC_DECLARE(M_USBHC);
 #define USB_USE_SOFTINTR
 #endif
 
-#define Static static
+#define static static
 
 #define device_ptr_t device_t
 #define USBBASEDEVICE device_t
@@ -442,13 +442,13 @@ typedef struct callout usb_callout_t;
 typedef struct malloc_type *usb_malloc_type;
 
 #define USB_DECLARE_DRIVER_INIT(dname, init...) \
-Static device_probe_t __CONCAT(dname,_match); \
-Static device_attach_t __CONCAT(dname,_attach); \
-Static device_detach_t __CONCAT(dname,_detach); \
+static device_probe_t __CONCAT(dname,_match); \
+static device_attach_t __CONCAT(dname,_attach); \
+static device_detach_t __CONCAT(dname,_detach); \
 \
-Static devclass_t __CONCAT(dname,_devclass); \
+static devclass_t __CONCAT(dname,_devclass); \
 \
-Static device_method_t __CONCAT(dname,_methods)[] = { \
+static device_method_t __CONCAT(dname,_methods)[] = { \
         DEVMETHOD(device_probe, __CONCAT(dname,_match)), \
         DEVMETHOD(device_attach, __CONCAT(dname,_attach)), \
         DEVMETHOD(device_detach, __CONCAT(dname,_detach)), \
@@ -456,7 +456,7 @@ Static device_method_t __CONCAT(dname,_methods)[] = { \
         {0,0} \
 }; \
 \
-Static driver_t __CONCAT(dname,_driver) = { \
+static driver_t __CONCAT(dname,_driver) = { \
         #dname, \
         __CONCAT(dname,_methods), \
         sizeof(struct __CONCAT(dname,_softc)) \
@@ -468,7 +468,7 @@ MODULE_DEPEND(dname, usb, 1, 1, 1)
 #define USB_DECLARE_DRIVER(dname)	USB_DECLARE_DRIVER_INIT(dname, METHODS_NONE)
 
 #define USB_MATCH(dname) \
-Static int \
+static int \
 __CONCAT(dname,_match)(device_t self)
 
 #define USB_MATCH_START(dname, uaa) \
@@ -478,7 +478,7 @@ __CONCAT(dname,_match)(device_t self)
 	sc->sc_dev = self
 
 #define USB_ATTACH(dname) \
-Static int \
+static int \
 __CONCAT(dname,_attach)(device_t self)
 
 #define USB_ATTACH_START(dname, sc, uaa) \
@@ -496,7 +496,7 @@ __CONCAT(dname,_attach)(device_t self)
 	} while (0)
 
 #define USB_DETACH(dname) \
-Static int \
+static int \
 __CONCAT(dname,_detach)(device_t self)
 
 #define USB_DETACH_START(dname, sc) \

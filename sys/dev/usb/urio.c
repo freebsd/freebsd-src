@@ -116,7 +116,7 @@ d_write_t uriowrite;
 d_ioctl_t urioioctl;
 
 
-Static struct cdevsw urio_cdevsw = {
+static struct cdevsw urio_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_NEEDGIANT,
 	.d_open =	urioopen,
@@ -587,7 +587,7 @@ ret:
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int
-urio_activate(device_ptr_t self, enum devact act)
+urio_activate(device_t self, enum devact act)
 {
 	struct urio_softc *sc = (struct urio_softc *)self;
 
@@ -671,7 +671,7 @@ USB_DETACH(urio)
 #endif /* defined(__NetBSD__) || defined(__OpenBSD__) */
 
 #if defined(__FreeBSD__)
-Static int
+static int
 urio_detach(device_t self)
 {
 	struct urio_softc *sc = device_get_softc(self);

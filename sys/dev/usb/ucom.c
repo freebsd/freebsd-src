@@ -117,23 +117,23 @@ SYSCTL_INT(_hw_usb_ucom, OID_AUTO, debug, CTLFLAG_RW,
 #define DPRINTFN(n, x)
 #endif
 
-Static void ucom_cleanup(struct ucom_softc *);
-Static int ucomparam(struct tty *, struct termios *);
-Static void ucomstart(struct tty *);
-Static void ucomstop(struct tty *, int);
-Static void ucom_shutdown(struct ucom_softc *);
-Static void ucom_dtr(struct ucom_softc *, int);
-Static void ucom_rts(struct ucom_softc *, int);
-Static void ucombreak(struct tty *, int);
-Static usbd_status ucomstartread(struct ucom_softc *);
-Static void ucomreadcb(usbd_xfer_handle, usbd_private_handle, usbd_status);
-Static void ucomwritecb(usbd_xfer_handle, usbd_private_handle, usbd_status);
-Static void ucomstopread(struct ucom_softc *);
+static void ucom_cleanup(struct ucom_softc *);
+static int ucomparam(struct tty *, struct termios *);
+static void ucomstart(struct tty *);
+static void ucomstop(struct tty *, int);
+static void ucom_shutdown(struct ucom_softc *);
+static void ucom_dtr(struct ucom_softc *, int);
+static void ucom_rts(struct ucom_softc *, int);
+static void ucombreak(struct tty *, int);
+static usbd_status ucomstartread(struct ucom_softc *);
+static void ucomreadcb(usbd_xfer_handle, usbd_private_handle, usbd_status);
+static void ucomwritecb(usbd_xfer_handle, usbd_private_handle, usbd_status);
+static void ucomstopread(struct ucom_softc *);
 
-Static t_open_t  ucomopen;
-Static t_close_t ucomclose;
-Static t_modem_t ucommodem;
-Static t_ioctl_t ucomioctl;
+static t_open_t  ucomopen;
+static t_close_t ucomclose;
+static t_modem_t ucommodem;
+static t_ioctl_t ucomioctl;
 
 devclass_t ucom_devclass;
 
@@ -199,7 +199,7 @@ ucom_detach(struct ucom_softc *sc)
 	return (0);
 }
 
-Static void
+static void
 ucom_shutdown(struct ucom_softc *sc)
 {
 	struct tty *tp = sc->sc_tty;
@@ -215,7 +215,7 @@ ucom_shutdown(struct ucom_softc *sc)
 	}
 }
 
-Static int
+static int
 ucomopen(struct tty *tp, struct cdev *dev)
 {
 	struct ucom_softc *sc;
@@ -344,7 +344,7 @@ ucomioctl(struct tty *tp, u_long cmd, void *data, int flag, usb_proc_ptr p)
 	return (error);
 }
 
-Static int
+static int
 ucommodem(struct tty *tp, int sigon, int sigoff)
 {
 	struct ucom_softc *sc;
@@ -393,7 +393,7 @@ ucommodem(struct tty *tp, int sigon, int sigoff)
 	return (0);
 }
 
-Static void
+static void
 ucombreak(struct tty *tp, int onoff)
 {
 	struct ucom_softc *sc;
@@ -406,7 +406,7 @@ ucombreak(struct tty *tp, int onoff)
 				  UCOM_SET_BREAK, onoff);
 }
 
-Static void
+static void
 ucom_dtr(struct ucom_softc *sc, int onoff)
 {
 	DPRINTF(("ucom_dtr: onoff = %d\n", onoff));
@@ -417,7 +417,7 @@ ucom_dtr(struct ucom_softc *sc, int onoff)
 				  UCOM_SET_DTR, onoff);
 }
 
-Static void
+static void
 ucom_rts(struct ucom_softc *sc, int onoff)
 {
 	DPRINTF(("ucom_rts: onoff = %d\n", onoff));
@@ -453,7 +453,7 @@ ucom_status_change(struct ucom_softc *sc)
 	}
 }
 
-Static int
+static int
 ucomparam(struct tty *tp, struct termios *t)
 {
 	struct ucom_softc *sc;
@@ -520,7 +520,7 @@ ucomparam(struct tty *tp, struct termios *t)
 	return (0);
 }
 
-Static void
+static void
 ucomstart(struct tty *tp)
 {
 	struct ucom_softc *sc;
@@ -612,7 +612,7 @@ ucomstart(struct tty *tp)
 	splx(s);
 }
 
-Static void
+static void
 ucomstop(struct tty *tp, int flag)
 {
 	struct ucom_softc *sc;
@@ -644,7 +644,7 @@ ucomstop(struct tty *tp, int flag)
 	DPRINTF(("ucomstop: done\n"));
 }
 
-Static void
+static void
 ucomwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 {
 	struct ucom_softc *sc = (struct ucom_softc *)p;
@@ -695,7 +695,7 @@ ucomwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 	return;
 }
 
-Static usbd_status
+static usbd_status
 ucomstartread(struct ucom_softc *sc)
 {
 	usbd_status err;
@@ -722,7 +722,7 @@ ucomstartread(struct ucom_softc *sc)
 	return (USBD_NORMAL_COMPLETION);
 }
 
-Static void
+static void
 ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 {
 	struct ucom_softc *sc = (struct ucom_softc *)p;
@@ -812,7 +812,7 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 		ucommodem(tp, SER_RTS, 0);
 }
 
-Static void
+static void
 ucom_cleanup(struct ucom_softc *sc)
 {
 	DPRINTF(("ucom_cleanup: closing pipes\n"));
@@ -839,7 +839,7 @@ ucom_cleanup(struct ucom_softc *sc)
 	}
 }
 
-Static void
+static void
 ucomstopread(struct ucom_softc *sc)
 {
 	usbd_status err;

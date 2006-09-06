@@ -91,12 +91,12 @@ struct uhub_softc {
 #define UHUB_IS_HIGH_SPEED(sc) (UHUB_PROTO(sc) != UDPROTO_FSHUB)
 #define UHUB_IS_SINGLE_TT(sc) (UHUB_PROTO(sc) == UDPROTO_HSHUBSTT)
 
-Static usbd_status uhub_explore(usbd_device_handle hub);
-Static void uhub_intr(usbd_xfer_handle, usbd_private_handle,usbd_status);
+static usbd_status uhub_explore(usbd_device_handle hub);
+static void uhub_intr(usbd_xfer_handle, usbd_private_handle,usbd_status);
 
 #if defined(__FreeBSD__)
-Static bus_child_location_str_t uhub_child_location_str;
-Static bus_child_pnpinfo_str_t uhub_child_pnpinfo_str;
+static bus_child_location_str_t uhub_child_location_str;
+static bus_child_pnpinfo_str_t uhub_child_pnpinfo_str;
 #endif
 
 
@@ -125,7 +125,7 @@ USB_DECLARE_DRIVER_INIT(uhub,
 /* Create the driver instance for the hub connected to usb case. */
 devclass_t uhubroot_devclass;
 
-Static device_method_t uhubroot_methods[] = {
+static device_method_t uhubroot_methods[] = {
 	DEVMETHOD(bus_child_location_str, uhub_child_location_str),
 	DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_str),
 	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
@@ -139,7 +139,7 @@ Static device_method_t uhubroot_methods[] = {
 	{0,0}
 };
 
-Static	driver_t uhubroot_driver = {
+static	driver_t uhubroot_driver = {
 	"uhub",
 	uhubroot_methods,
 	sizeof(struct uhub_softc)
@@ -553,7 +553,7 @@ uhub_explore(usbd_device_handle dev)
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int
-uhub_activate(device_ptr_t self, enum devact act)
+uhub_activate(device_t self, enum devact act)
 {
 	struct uhub_softc *sc = (struct uhub_softc *)self;
 	struct usbd_hub *hub = sc->sc_hub->hub;

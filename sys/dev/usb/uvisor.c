@@ -175,11 +175,11 @@ struct uvisor_softc {
 	u_int16_t		sc_flags;
 };
 
-Static usbd_status uvisor_init(struct uvisor_softc *);
+static usbd_status uvisor_init(struct uvisor_softc *);
 
-/*Static usbd_status clie_3_5_init(struct uvisor_softc *);*/
+/*static usbd_status clie_3_5_init(struct uvisor_softc *);*/
 
-Static void uvisor_close(void *, int);
+static void uvisor_close(void *, int);
 
 struct ucom_callback uvisor_callback = {
 	NULL,
@@ -192,10 +192,10 @@ struct ucom_callback uvisor_callback = {
 	NULL,
 };
 
-Static device_probe_t uvisor_match;
-Static device_attach_t uvisor_attach;
-Static device_detach_t uvisor_detach;
-Static device_method_t uvisor_methods[] = {
+static device_probe_t uvisor_match;
+static device_attach_t uvisor_attach;
+static device_detach_t uvisor_detach;
+static device_method_t uvisor_methods[] = {
        /* Device interface */
        DEVMETHOD(device_probe, uvisor_match),
        DEVMETHOD(device_attach, uvisor_attach),
@@ -204,7 +204,7 @@ Static device_method_t uvisor_methods[] = {
  };
 
 
-Static driver_t uvisor_driver = {
+static driver_t uvisor_driver = {
        "ucom",
        uvisor_methods,
        sizeof (struct uvisor_softc)
@@ -389,7 +389,7 @@ bad:
 #if 0
 
 int
-uvisor_activate(device_ptr_t self, enum devact act)
+uvisor_activate(device_t self, enum devact act)
 {
 	struct uvisor_softc *sc = (struct uvisor_softc *)self;
 	int rv = 0;

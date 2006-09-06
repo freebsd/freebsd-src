@@ -137,24 +137,24 @@ struct ums_softc {
 #define MOUSE_FLAGS_MASK (HIO_CONST|HIO_RELATIVE)
 #define MOUSE_FLAGS (HIO_RELATIVE)
 
-Static void ums_intr(usbd_xfer_handle xfer,
+static void ums_intr(usbd_xfer_handle xfer,
 			  usbd_private_handle priv, usbd_status status);
 
-Static void ums_add_to_queue(struct ums_softc *sc,
+static void ums_add_to_queue(struct ums_softc *sc,
 				int dx, int dy, int dz, int dt, int buttons);
-Static void ums_add_to_queue_timeout(void *priv);
+static void ums_add_to_queue_timeout(void *priv);
 
-Static int  ums_enable(void *);
-Static void ums_disable(void *);
+static int  ums_enable(void *);
+static void ums_disable(void *);
 
-Static d_open_t  ums_open;
-Static d_close_t ums_close;
-Static d_read_t  ums_read;
-Static d_ioctl_t ums_ioctl;
-Static d_poll_t  ums_poll;
+static d_open_t  ums_open;
+static d_close_t ums_close;
+static d_read_t  ums_read;
+static d_ioctl_t ums_ioctl;
+static d_poll_t  ums_poll;
 
 
-Static struct cdevsw ums_cdevsw = {
+static struct cdevsw ums_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_NEEDGIANT,
 	.d_open =	ums_open,
@@ -381,7 +381,7 @@ USB_ATTACH(ums)
 }
 
 
-Static int
+static int
 ums_detach(device_t self)
 {
 	struct ums_softc *sc = device_get_softc(self);
@@ -518,7 +518,7 @@ ums_intr(xfer, addr, status)
 	}
 }
 
-Static void
+static void
 ums_add_to_queue_timeout(void *priv)
 {
 	struct ums_softc *sc = priv;
@@ -529,7 +529,7 @@ ums_add_to_queue_timeout(void *priv)
 	splx(s);
 }
 
-Static void
+static void
 ums_add_to_queue(struct ums_softc *sc, int dx, int dy, int dz, int dt, int buttons)
 {
 	/* Discard data in case of full buffer */
@@ -577,7 +577,7 @@ ums_add_to_queue(struct ums_softc *sc, int dx, int dy, int dz, int dt, int butto
 		selwakeuppri(&sc->rsel, PZERO);
 	}
 }
-Static int
+static int
 ums_enable(v)
 	void *v;
 {
@@ -611,7 +611,7 @@ ums_enable(v)
 	return (0);
 }
 
-Static void
+static void
 ums_disable(priv)
 	void *priv;
 {
@@ -629,7 +629,7 @@ ums_disable(priv)
 		DPRINTF(("Discarded %d bytes in queue\n", sc->qcount));
 }
 
-Static int
+static int
 ums_open(struct cdev *dev, int flag, int fmt, usb_proc_ptr p)
 {
 	struct ums_softc *sc;
@@ -639,7 +639,7 @@ ums_open(struct cdev *dev, int flag, int fmt, usb_proc_ptr p)
 	return ums_enable(sc);
 }
 
-Static int
+static int
 ums_close(struct cdev *dev, int flag, int fmt, usb_proc_ptr p)
 {
 	struct ums_softc *sc;
@@ -655,7 +655,7 @@ ums_close(struct cdev *dev, int flag, int fmt, usb_proc_ptr p)
 	return 0;
 }
 
-Static int
+static int
 ums_read(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct ums_softc *sc;
@@ -725,7 +725,7 @@ ums_read(struct cdev *dev, struct uio *uio, int flag)
 	return 0;
 }
 
-Static int
+static int
 ums_poll(struct cdev *dev, int events, usb_proc_ptr p)
 {
 	struct ums_softc *sc;

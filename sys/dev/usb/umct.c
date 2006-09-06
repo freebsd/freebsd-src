@@ -85,15 +85,15 @@ struct umct_softc {
 	struct task		sc_task;
 };
 
-Static void umct_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
-Static void umct_get_status(void *, int, u_char *, u_char *);
-Static void umct_set(void *, int, int, int);
-Static int  umct_param(void *, int, struct termios *);
-Static int  umct_open(void *, int);
-Static void umct_close(void *, int);
-Static void umct_notify(void *, int count);
+static void umct_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
+static void umct_get_status(void *, int, u_char *, u_char *);
+static void umct_set(void *, int, int, int);
+static int  umct_param(void *, int, struct termios *);
+static int  umct_open(void *, int);
+static void umct_close(void *, int);
+static void umct_notify(void *, int count);
 
-Static struct ucom_callback umct_callback = {
+static struct ucom_callback umct_callback = {
 	umct_get_status,	/* ucom_get_status */
 	umct_set,		/* ucom_set */
 	umct_param,		/* ucom_param */
@@ -104,7 +104,7 @@ Static struct ucom_callback umct_callback = {
 	NULL			/* ucom_write */
 };
 
-Static const struct umct_product {
+static const struct umct_product {
 	uint16_t	vendor;
 	uint16_t	product;
 } umct_products[] = {
@@ -116,18 +116,18 @@ Static const struct umct_product {
 	{ 0, 0 }
 };
 
-Static device_probe_t	umct_match;
-Static device_attach_t	umct_attach;
-Static device_detach_t	umct_detach;
+static device_probe_t	umct_match;
+static device_attach_t	umct_attach;
+static device_detach_t	umct_detach;
 
-Static device_method_t umct_methods[] = {
+static device_method_t umct_methods[] = {
 	DEVMETHOD(device_probe, umct_match),
 	DEVMETHOD(device_attach, umct_attach),
 	DEVMETHOD(device_detach, umct_detach),
 	{ 0, 0 }
 };
 
-Static driver_t umct_driver = {
+static driver_t umct_driver = {
 	"ucom",
 	umct_methods,
 	sizeof(struct umct_softc)
@@ -303,7 +303,7 @@ USB_DETACH(umct)
 	return (rv);
 }
 
-Static int
+static int
 umct_request(struct umct_softc *sc, uint8_t request, int len, uint32_t value)
 {
 	usb_device_request_t req;
@@ -324,7 +324,7 @@ umct_request(struct umct_softc *sc, uint8_t request, int len, uint32_t value)
 	return (err);
 }
 
-Static void
+static void
 umct_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct umct_softc *sc;
@@ -353,7 +353,7 @@ umct_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	taskqueue_enqueue(taskqueue_swi_giant, &sc->sc_task);
 }
 
-Static void
+static void
 umct_notify(void *arg, int count)
 {
 	struct umct_softc *sc;
@@ -363,7 +363,7 @@ umct_notify(void *arg, int count)
 		ucom_status_change(&sc->sc_ucom);
 }
 
-Static void
+static void
 umct_get_status(void *addr, int portno, u_char *lsr, u_char *msr)
 {
 	struct umct_softc *sc;
@@ -377,7 +377,7 @@ umct_get_status(void *addr, int portno, u_char *lsr, u_char *msr)
 	return;
 }
 
-Static void
+static void
 umct_set(void *addr, int portno, int reg, int onoff)
 {
 	struct umct_softc *sc;
@@ -404,7 +404,7 @@ umct_set(void *addr, int portno, int reg, int onoff)
 	}
 }
 
-Static int
+static int
 umct_calc_baud(u_int baud)
 {
 	switch(baud) {
@@ -426,7 +426,7 @@ umct_calc_baud(u_int baud)
 	return (0x0);
 }
 
-Static int
+static int
 umct_param(void *addr, int portno, struct termios *ti)
 {
 	struct umct_softc *sc;
@@ -463,7 +463,7 @@ umct_param(void *addr, int portno, struct termios *ti)
 	return (0);
 }
 
-Static int
+static int
 umct_open(void *addr, int portno)
 {
 	struct umct_softc *sc;
@@ -491,7 +491,7 @@ umct_open(void *addr, int portno)
 	return (0);
 }
 
-Static void
+static void
 umct_close(void *addr, int portno)
 {
 	struct umct_softc *sc;
