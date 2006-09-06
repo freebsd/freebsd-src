@@ -27,7 +27,7 @@ changecom(,)dnl
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 05, 2006
+.Dd September 5, 2006
 .Dt PPP 8
 .Os
 .Sh NAME
