@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.198.2.13.4.36 2005/08/11 05:25:20 marka Exp $ */
+/* $Id: query.c,v 1.198.2.13.4.36.6.1 2006/08/17 07:12:31 marka Exp $ */
 
 #include <config.h>
 
@@ -2393,7 +2393,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		is_zone = ISC_FALSE;
 
 		qtype = event->qtype;
-		if (qtype == dns_rdatatype_rrsig)
+		if (qtype == dns_rdatatype_rrsig || qtype == dns_rdatatype_sig)
 			type = dns_rdatatype_any;
 		else
 			type = qtype;
@@ -2434,7 +2434,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	/*
 	 * If it's a SIG query, we'll iterate the node.
 	 */
-	if (qtype == dns_rdatatype_rrsig)
+	if (qtype == dns_rdatatype_rrsig || qtype == dns_rdatatype_sig)
 		type = dns_rdatatype_any;
 	else
 		type = qtype;
