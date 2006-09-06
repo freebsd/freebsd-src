@@ -59,8 +59,8 @@
  * after a fork().
  */
 static TAILQ_HEAD(, pthread)	free_threadq;
-static umtx_t			free_thread_lock;
-static umtx_t			tcb_lock;
+static struct umutex		free_thread_lock = DEFAULT_UMUTEX;
+static struct umutex		tcb_lock = DEFAULT_UMUTEX;
 static int			free_thread_count = 0;
 static int			inited = 0;
 static int			total_threads;
@@ -79,11 +79,11 @@ _thr_list_init(void)
 
 	_gc_count = 0;
 	total_threads = 1;
-	_thr_umtx_init(&_thr_list_lock);
+	_thr_umutex_init(&_thr_list_lock);
 	TAILQ_INIT(&_thread_list);
 	TAILQ_INIT(&free_threadq);
-	_thr_umtx_init(&free_thread_lock);
-	_thr_umtx_init(&tcb_lock);
+	_thr_umutex_init(&free_thread_lock);
+	_thr_umutex_init(&tcb_lock);
 	if (inited) {
 		for (i = 0; i < HASH_QUEUES; ++i)
 			LIST_INIT(&thr_hashtable[i]);

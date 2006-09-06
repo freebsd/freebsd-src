@@ -90,9 +90,9 @@ _pthread_atfork(void (*prepare)(void), void (*parent)(void),
 	af->prepare = prepare;
 	af->parent = parent;
 	af->child = child;
-	THR_UMTX_LOCK(curthread, &_thr_atfork_lock);
+	THR_UMUTEX_LOCK(curthread, &_thr_atfork_lock);
 	TAILQ_INSERT_TAIL(&_thr_atfork_list, af, qe);
-	THR_UMTX_UNLOCK(curthread, &_thr_atfork_lock);
+	THR_UMUTEX_UNLOCK(curthread, &_thr_atfork_lock);
 	return (0);
 }
 
@@ -114,7 +114,7 @@ _fork(void)
 
 	curthread = _get_curthread();
 
-	THR_UMTX_LOCK(curthread, &_thr_atfork_lock);
+	THR_UMUTEX_LOCK(curthread, &_thr_atfork_lock);
 
 	/* Run down atfork prepare handlers. */
 	TAILQ_FOREACH_REVERSE(af, &_thr_atfork_list, atfork_head, qe) {
@@ -154,8 +154,8 @@ _fork(void)
 		thr_self(&curthread->tid);
 
 		/* clear other threads locked us. */
-		_thr_umtx_init(&curthread->lock);
-		_thr_umtx_init(&_thr_atfork_lock);
+		_thr_umutex_init(&curthread->lock);
+		_thr_umutex_init(&_thr_atfork_lock);
 		_thr_setthreaded(0);
 
 		/* reinitialize libc spinlocks. */
@@ -189,7 +189,7 @@ _fork(void)
 				af->parent();
 		}
 
-		THR_UMTX_UNLOCK(curthread, &_thr_atfork_lock);
+		THR_UMUTEX_UNLOCK(curthread, &_thr_atfork_lock);
 	}
 	errno = errsave;
 
