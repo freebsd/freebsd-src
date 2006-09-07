@@ -60,7 +60,26 @@ cumain(int argc, char *argv[])
 	CU = DV = NOSTR;
 	BR = DEFBR;
 	parity = 0;	/* none */
-	while ((ch = getopt(argc, argv, "a:l:s:htoe0123456789")) != -1) {
+
+	/*
+	 * We want to accept -# as a speed.  It's easiest to look through
+	 * the arguments, replace -# with -s#, and let getopt() handle it.
+	 */
+	for (i = 1; i < argc; i++) {
+		if (argv[i][0] == '-' &&
+		    argv[i][1] >= '0' && argv[i][1] <= '9') {
+			asprintf(&cp, "-s%s", argv[i] + 1);
+			if (cp == NULL) {
+				fprintf(stderr,
+				    "%s: cannot convert -# to -s#\n",
+				    __progname);
+				exit(3);
+			}
+			argv[i] = cp;
+		}
+	}
+
+	while ((ch = getopt(argc, argv, "a:l:s:htoe")) != -1) {
 		switch (ch) {
 		case 'a':
 			CU = optarg;
@@ -104,13 +123,6 @@ cumain(int argc, char *argv[])
 				parity = 0;	/* -o -e */
 			else
 				parity = -1;	/* even */
-			break;
-		case '0': case '1': case '2': case '3': case '4':
-		case '5': case '6': case '7': case '8': case '9':
-			if (CU)
-				CU[strlen(CU)-1] = ch;
-			if (DV)
-				DV[strlen(DV)-1] = ch;
 			break;
 		default:
 			cuusage();
