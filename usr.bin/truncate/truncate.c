@@ -146,7 +146,7 @@ main(int argc, char **argv)
 }
 
 /*
- * Return the numeric value of a string given in the form [+-][0-9]+[GMK]
+ * Return the numeric value of a string given in the form [+-][0-9]+[GMKT]
  * or -1 on format error or overflow.
  */
 static off_t
@@ -208,7 +208,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
-	    "usage: truncate [-c] -s [+|-]size[K|k|M|m|G|g] file ...",
+	    "usage: truncate [-c] -s [+|-]size[K|k|M|m|G|g|T|t] file ...",
 	    "       truncate [-c] -r rfile file ...");
 	exit(EXIT_FAILURE);
 }
