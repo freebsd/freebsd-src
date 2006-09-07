@@ -220,7 +220,7 @@ USB_ATTACH(ums)
 	ed = usbd_interface2endpoint_descriptor(iface, 0);
 	if (!ed) {
 		printf("%s: could not read endpoint descriptor\n",
-		       USBDEVNAME(sc->sc_dev));
+		       device_get_nameunit(sc->sc_dev));
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -236,7 +236,7 @@ USB_ATTACH(ums)
 	if (UE_GET_DIR(ed->bEndpointAddress) != UE_DIR_IN ||
 	    UE_GET_XFERTYPE(ed->bmAttributes) != UE_INTERRUPT) {
 		printf("%s: unexpected endpoint\n",
-		       USBDEVNAME(sc->sc_dev));
+		       device_get_nameunit(sc->sc_dev));
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -246,23 +246,23 @@ USB_ATTACH(ums)
 
 	if (!hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X),
 		       hid_input, &sc->sc_loc_x, &flags)) {
-		printf("%s: mouse has no X report\n", USBDEVNAME(sc->sc_dev));
+		printf("%s: mouse has no X report\n", device_get_nameunit(sc->sc_dev));
 		USB_ATTACH_ERROR_RETURN;
 	}
 	if ((flags & MOUSE_FLAGS_MASK) != MOUSE_FLAGS) {
 		printf("%s: X report 0x%04x not supported\n",
-		       USBDEVNAME(sc->sc_dev), flags);
+		       device_get_nameunit(sc->sc_dev), flags);
 		USB_ATTACH_ERROR_RETURN;
 	}
 
 	if (!hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y),
 		       hid_input, &sc->sc_loc_y, &flags)) {
-		printf("%s: mouse has no Y report\n", USBDEVNAME(sc->sc_dev));
+		printf("%s: mouse has no Y report\n", device_get_nameunit(sc->sc_dev));
 		USB_ATTACH_ERROR_RETURN;
 	}
 	if ((flags & MOUSE_FLAGS_MASK) != MOUSE_FLAGS) {
 		printf("%s: Y report 0x%04x not supported\n",
-		       USBDEVNAME(sc->sc_dev), flags);
+		       device_get_nameunit(sc->sc_dev), flags);
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -300,11 +300,11 @@ USB_ATTACH(ums)
 	sc->sc_loc_btn = malloc(sizeof(struct hid_location)*sc->nbuttons,
 				M_USBDEV, M_NOWAIT);
 	if (!sc->sc_loc_btn) {
-		printf("%s: no memory\n", USBDEVNAME(sc->sc_dev));
+		printf("%s: no memory\n", device_get_nameunit(sc->sc_dev));
 		USB_ATTACH_ERROR_RETURN;
 	}
 
-	printf("%s: %d buttons%s%s.\n", USBDEVNAME(sc->sc_dev),
+	printf("%s: %d buttons%s%s.\n", device_get_nameunit(sc->sc_dev),
 	       sc->nbuttons, sc->flags & UMS_Z? " and Z dir" : "", 
 	       sc->flags & UMS_T?" and a TILT dir": "");
 
@@ -315,7 +315,7 @@ USB_ATTACH(ums)
 	sc->sc_isize = hid_report_size(desc, size, hid_input, &sc->sc_iid);
 	sc->sc_ibuf = malloc(sc->sc_isize, M_USB, M_NOWAIT);
 	if (!sc->sc_ibuf) {
-		printf("%s: no memory\n", USBDEVNAME(sc->sc_dev));
+		printf("%s: no memory\n", device_get_nameunit(sc->sc_dev));
 		free(sc->sc_loc_btn, M_USB);
 		USB_ATTACH_ERROR_RETURN;
 	}
@@ -373,7 +373,7 @@ USB_ATTACH(ums)
 	usb_callout_init(sc->callout_handle);
 	if (usbd_get_quirks(uaa->device)->uq_flags & UQ_SPUR_BUT_UP) {
 		DPRINTF(("%s: Spurious button up events\n",
-			USBDEVNAME(sc->sc_dev)));
+			device_get_nameunit(sc->sc_dev)));
 		sc->flags |= UMS_SPUR_BUT_UP;
 	}
 
@@ -389,7 +389,7 @@ ums_detach(device_t self)
 	if (sc->sc_enabled)
 		ums_disable(sc);
 
-	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
+	DPRINTF(("%s: disconnected\n", device_get_nameunit(self)));
 
 	free(sc->sc_loc_btn, M_USB);
 	free(sc->sc_ibuf, M_USB);

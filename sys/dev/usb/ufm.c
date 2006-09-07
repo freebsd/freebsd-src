@@ -106,7 +106,7 @@ static struct cdevsw ufm_cdevsw = {
 #define FM_CMD2		0x02
 
 struct ufm_softc {
- 	USBBASEDEVICE sc_dev;
+ 	device_t sc_dev;
 	usbd_device_handle sc_udev;
 	usbd_interface_handle sc_iface;
 
@@ -217,7 +217,7 @@ USB_ATTACH(ufm)
 	USB_ATTACH_SUCCESS_RETURN;
 
  nobulk:
-	printf("%s: could not find %s\n", USBDEVNAME(sc->sc_dev),ermsg);
+	printf("%s: could not find %s\n", device_get_nameunit(sc->sc_dev),ermsg);
 	USB_ATTACH_ERROR_RETURN;
 }
 
@@ -465,7 +465,7 @@ USB_DETACH(ufm)
 static int
 ufm_detach(device_t self)
 {
-	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
+	DPRINTF(("%s: disconnected\n", device_get_nameunit(self)));
 	return 0;
 }
 

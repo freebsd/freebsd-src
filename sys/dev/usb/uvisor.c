@@ -287,7 +287,7 @@ USB_ATTACH(uvisor)
 	ucom->sc_udev = dev;
 	ucom->sc_iface = uaa->iface;
 
-	devname = USBDEVNAME(ucom->sc_dev);
+	devname = device_get_nameunit(ucom->sc_dev);
 	printf("%s: %s\n", devname, devinfo);
 
 	DPRINTFN(10,("\nuvisor_attach: sc=%p\n", sc));
@@ -340,12 +340,12 @@ USB_ATTACH(uvisor)
 	}
 	if (ucom->sc_bulkin_no == -1) {
 		printf("%s: Could not find data bulk in\n",
-		       USBDEVNAME(ucom->sc_dev));
+		       device_get_nameunit(ucom->sc_dev));
 		goto bad;
 	}
 	if (ucom->sc_bulkout_no == -1) {
 		printf("%s: Could not find data bulk out\n",
-		       USBDEVNAME(ucom->sc_dev));
+		       device_get_nameunit(ucom->sc_dev));
 		goto bad;
 	}
 
@@ -367,7 +367,7 @@ USB_ATTACH(uvisor)
 		err = uvisor_init(sc);
 
 	if (err) {
-		printf("%s: init failed, %s\n", USBDEVNAME(ucom->sc_dev),
+		printf("%s: init failed, %s\n", device_get_nameunit(ucom->sc_dev),
 		       usbd_errstr(err));
 		goto bad;
 	}
@@ -455,7 +455,7 @@ uvisor_init(struct uvisor_softc *sc)
 		char *string;
 
 		np = UGETW(coninfo.num_ports);
-		printf("%s: Number of ports: %d\n", USBDEVNAME(sc->sc_ucom.sc_dev), np);
+		printf("%s: Number of ports: %d\n", device_get_nameunit(sc->sc_ucom.sc_dev), np);
 		for (i = 0; i < np; ++i) {
 			switch (coninfo.connections[i].port_function_id) {
 			case UVISOR_FUNCTION_GENERIC:
@@ -475,7 +475,7 @@ uvisor_init(struct uvisor_softc *sc)
 				break;
 			}
 			printf("%s: port %d, is for %s\n",
-			    USBDEVNAME(sc->sc_ucom.sc_dev), coninfo.connections[i].port,
+			    device_get_nameunit(sc->sc_ucom.sc_dev), coninfo.connections[i].port,
 			    string);
 		}
 	}
@@ -596,7 +596,7 @@ clie_3_5_init(struct uvisor_softc *sc)
 		char *string;
 
 		np = UGETW(coninfo.num_ports);
-		DPRINTF(("%s: Number of ports: %d\n", USBDEVNAME(sc->sc_ucom.sc_dev), np));
+		DPRINTF(("%s: Number of ports: %d\n", device_get_nameunit(sc->sc_ucom.sc_dev), np));
 		for (i = 0; i < np; ++i) {
 			switch (coninfo.connections[i].port_function_id) {
 			case UVISOR_FUNCTION_GENERIC:
@@ -616,7 +616,7 @@ clie_3_5_init(struct uvisor_softc *sc)
 				break;	
 			}
 			DPRINTF(("%s: port %d, is for %s\n",
-			    USBDEVNAME(sc->sc_ucom.sc_dev), coninfo.connections[i].port,
+			    device_get_nameunit(sc->sc_ucom.sc_dev), coninfo.connections[i].port,
 			    string));
 		}
 	}
