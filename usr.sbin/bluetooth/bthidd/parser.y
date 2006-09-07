@@ -1,8 +1,10 @@
 %{
 /*
  * parser.y
- *
- * Copyright (c) 2004 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+ */
+
+/*-
+ * Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,12 +28,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: parser.y,v 1.4 2004/11/17 21:59:42 max Exp $
+ * $Id: parser.y,v 1.7 2006/09/07 21:06:53 max Exp $
  * $FreeBSD$
  */
 
 #include <sys/queue.h>
 #include <bluetooth.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usbhid.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -59,15 +63,17 @@
 
 	int	yyparse		(void);
 	int	yylex		(void);
-static	int	check_hid_device(hid_device_p hid_device);
+	void	yyerror		(char const *);
+static	int32_t	check_hid_device(hid_device_p hid_device);
 static	void	free_hid_device	(hid_device_p hid_device);
 
+extern	FILE			*yyin;
 extern	int			 yylineno;
-	char			*config_file = BTHIDD_CONFFILE;
-	char			*hids_file   = BTHIDD_HIDSFILE;
+	char const		*config_file = BTHIDD_CONFFILE;
+	char const		*hids_file   = BTHIDD_HIDSFILE;
 
 static	char			 buffer[1024];
-static	int			 hid_descriptor_size;
+static	int32_t			 hid_descriptor_size;
 static	hid_device_t		*hid_device = NULL;
 static	LIST_HEAD(, hid_device)	 hid_devices;
 
@@ -75,7 +81,7 @@ static	LIST_HEAD(, hid_device)	 hid_devices;
 
 %union {
 	bdaddr_t	bdaddr;
-	int		num;
+	int32_t		num;
 }
 
 %token <bdaddr> T_BDADDRSTRING
@@ -197,7 +203,7 @@ hid_descriptor_bytes: hid_descriptor_byte
 
 hid_descriptor_byte: T_HEXBYTE
 			{
-			if (hid_descriptor_size >= sizeof(buffer)) {
+			if (hid_descriptor_size >= (int32_t) sizeof(buffer)) {
 				SYSLOG(LOGCRIT, "HID descriptor is too big" EOL);
 				YYABORT;
 			}
@@ -221,11 +227,10 @@ yyerror(char const *message)
 }
 
 /* Re-read config file */
-int
+int32_t
 read_config_file(void)
 {
-	extern FILE	*yyin;
-	int		 e;
+	int32_t	e;
 
 	if (config_file == NULL) {
 		SYSLOG(LOGERR, "Unknown config file name!" EOL);
@@ -257,10 +262,10 @@ void
 clean_config(void)
 {
 	while (!LIST_EMPTY(&hid_devices)) {
-		hid_device_p	hid_device = LIST_FIRST(&hid_devices);
+		hid_device_p	d = LIST_FIRST(&hid_devices);
 
-		LIST_REMOVE(hid_device, next);
-		free_hid_device(hid_device);
+		LIST_REMOVE(d, next);
+		free_hid_device(d);
 	}
 }
 
@@ -268,13 +273,13 @@ clean_config(void)
 hid_device_p
 get_hid_device(bdaddr_p bdaddr)
 {
-	hid_device_p	hid_device;
+	hid_device_p	d;
 
-	LIST_FOREACH(hid_device, &hid_devices, next)
-		if (memcmp(&hid_device->bdaddr, bdaddr, sizeof(bdaddr_t)) == 0)
+	LIST_FOREACH(d, &hid_devices, next)
+		if (memcmp(&d->bdaddr, bdaddr, sizeof(bdaddr_t)) == 0)
 			break;
 
-	return (hid_device);
+	return (d);
 }
 
 /* Get next config entry */
@@ -286,7 +291,7 @@ get_next_hid_device(hid_device_p d)
 
 /* Print config entry */
 void
-print_hid_device(hid_device_p hid_device, FILE *f)
+print_hid_device(hid_device_p d, FILE *f)
 {
 	/* XXX FIXME hack! */
 	struct report_desc {
@@ -295,8 +300,8 @@ print_hid_device(hid_device_p hid_device, FILE *f)
 	};
 	/* XXX FIXME hack! */
 
-	struct report_desc	*desc = (struct report_desc *) hid_device->desc;
-	int			 i;
+	struct report_desc	*desc = (struct report_desc *) d->desc;
+	uint32_t		 i;
 
 	fprintf(f,
 "device {\n"					\
@@ -307,11 +312,11 @@ print_hid_device(hid_device_p hid_device, FILE *f)
 "	battery_power		%s;\n"		\
 "	normally_connectable	%s;\n"		\
 "	hid_descriptor		{",
-		bt_ntoa(&hid_device->bdaddr, NULL),
-		hid_device->control_psm, hid_device->interrupt_psm,
-                hid_device->reconnect_initiate? "true" : "false",
-                hid_device->battery_power? "true" : "false",
-                hid_device->normally_connectable? "true" : "false");
+		bt_ntoa(&d->bdaddr, NULL),
+		d->control_psm, d->interrupt_psm,
+                d->reconnect_initiate? "true" : "false",
+                d->battery_power? "true" : "false",
+                d->normally_connectable? "true" : "false");
  
 	for (i = 0; i < desc->size; i ++) {
 			if ((i % 8) == 0)
@@ -327,53 +332,76 @@ print_hid_device(hid_device_p hid_device, FILE *f)
 }
 
 /* Check config entry */
-static int
-check_hid_device(hid_device_p hid_device)
+static int32_t
+check_hid_device(hid_device_p d)
 {
-	if (get_hid_device(&hid_device->bdaddr) != NULL) {
+	hid_data_t	hd;
+	hid_item_t	hi;
+	int32_t		page;
+
+	if (get_hid_device(&d->bdaddr) != NULL) {
 		SYSLOG(LOGERR, "Ignoring duplicated entry for bdaddr %s" EOL,
-				bt_ntoa(&hid_device->bdaddr, NULL));
+				bt_ntoa(&d->bdaddr, NULL));
 		return (0);
 	}
 
-	if (hid_device->control_psm == 0) {
+	if (d->control_psm == 0) {
 		SYSLOG(LOGERR, "Ignoring entry with invalid control PSM" EOL);
 		return (0);
 	}
 
-	if (hid_device->interrupt_psm == 0) {
+	if (d->interrupt_psm == 0) {
 		SYSLOG(LOGERR, "Ignoring entry with invalid interrupt PSM" EOL);
 		return (0);
 	}
 
-	if (hid_device->desc == NULL) {
+	if (d->desc == NULL) {
 		SYSLOG(LOGERR, "Ignoring entry without HID descriptor" EOL);
 		return (0);
 	}
+
+	/* XXX somehow need to make sure descriptor is valid */
+	for (hd = hid_start_parse(d->desc, ~0, -1); hid_get_item(hd, &hi) > 0; ) {
+		switch (hi.kind) {
+		case hid_collection:
+		case hid_endcollection:
+		case hid_output:
+		case hid_feature:
+			break;
+
+		case hid_input:
+			/* Check if the device may send keystrokes */
+			page = HID_PAGE(hi.usage);
+			if (page == HUP_KEYBOARD || page == HUP_CONSUMER)
+				d->keyboard = 1;
+			break;
+		}
+	}
+	hid_end_parse(hd);
 
 	return (1);
 }
 
 /* Free config entry */
 static void
-free_hid_device(hid_device_p hid_device)
+free_hid_device(hid_device_p d)
 {
-	if (hid_device->desc != NULL)
-		hid_dispose_report_desc(hid_device->desc);
+	if (d->desc != NULL)
+		hid_dispose_report_desc(d->desc);
 
-	memset(hid_device, 0, sizeof(*hid_device));
-	free(hid_device);
+	memset(d, 0, sizeof(*d));
+	free(d);
 }
 
 /* Re-read hids file */
-int
+int32_t
 read_hids_file(void)
 {
-	FILE		*f = NULL;
-	hid_device_t	*hid_device = NULL;
-	char		*line = NULL;
+	FILE		*f;
+	hid_device_t	*d;
+	char		*line;
 	bdaddr_t	 bdaddr;
-	int		 lineno;
+	int32_t		 lineno;
 
 	if (hids_file == NULL) {
 		SYSLOG(LOGERR, "Unknown HIDs file name!" EOL);
@@ -399,8 +427,8 @@ read_hids_file(void)
 			continue;
 		}
 
-		if ((hid_device = get_hid_device(&bdaddr)) != NULL)
-			hid_device->new_device = 0;
+		if ((d = get_hid_device(&bdaddr)) != NULL)
+			d->new_device = 0;
 	}
 
 	fclose(f);
@@ -409,12 +437,12 @@ read_hids_file(void)
 }
 
 /* Write hids file */
-int
+int32_t
 write_hids_file(void)
 {
 	char		 path[PATH_MAX];
-	FILE		*f = NULL;
-	hid_device_t	*hid_device = NULL;
+	FILE		*f;
+	hid_device_t	*d;
 
 	if (hids_file == NULL) {
 		SYSLOG(LOGERR, "Unknown HIDs file name!" EOL);
@@ -429,9 +457,9 @@ write_hids_file(void)
 		return (-1);
 	}
 
-	LIST_FOREACH(hid_device, &hid_devices, next)
-		if (!hid_device->new_device)
-			fprintf(f, "%s\n", bt_ntoa(&hid_device->bdaddr, NULL));
+	LIST_FOREACH(d, &hid_devices, next)
+		if (!d->new_device)
+			fprintf(f, "%s\n", bt_ntoa(&d->bdaddr, NULL));
 
 	fclose(f);
 

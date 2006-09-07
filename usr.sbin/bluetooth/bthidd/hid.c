@@ -1,7 +1,9 @@
 /*
  * hid.c
- *
- * Copyright (c) 2004 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+ */
+
+/*-
+ * Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: hid.c,v 1.4 2004/11/17 21:59:42 max Exp $
+ * $Id: hid.c,v 1.5 2006/09/07 21:06:53 max Exp $
  * $FreeBSD$
  */
 
@@ -34,16 +36,16 @@
 #include <sys/queue.h>
 #include <assert.h>
 #include <bluetooth.h>
-#include <errno.h>
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
 #include <usbhid.h>
-#include "bthidd.h"
 #include "bthid_config.h"
+#include "bthidd.h"
 #include "kbd.h"
 
 #undef	min
@@ -52,15 +54,12 @@
 #undef	ASIZE
 #define	ASIZE(a)	(sizeof(a)/sizeof(a[0]))
 
-#undef	HID_BUT
-#define	HID_BUT(i)	((i) < 3 ? (((i) ^ 3) % 3) : (i))
-
 /*
  * Process data from control channel
  */
 
-int
-hid_control(bthid_session_p s, char *data, int len)
+int32_t
+hid_control(bthid_session_p s, uint8_t *data, int32_t len)
 {
 	assert(s != NULL);
 	assert(data != NULL);
@@ -123,13 +122,13 @@ hid_control(bthid_session_p s, char *data, int len)
  * Process data from the interrupt channel
  */
 
-int
-hid_interrupt(bthid_session_p s, char *data, int len)
+int32_t
+hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 {
-	hid_device_p	hid_device = NULL;
+	hid_device_p	hid_device;
 	hid_data_t	d;
 	hid_item_t	h;
-	int		report_id, usage, page, val,
+	int32_t		report_id, usage, page, val,
 			mouse_x, mouse_y, mouse_z, mouse_butt,
 			mevents, kevents;
 
@@ -143,7 +142,7 @@ hid_interrupt(bthid_session_p s, char *data, int len)
 		return (-1);
 	}
 
-	if ((unsigned char) data[0] != 0xa1) {
+	if (data[0] != 0xa1) {
 		syslog(LOG_ERR, "Got unexpected message 0x%x on " \
 			"Interrupt channel from %s",
 			data[0], bt_ntoa(&s->bdaddr, NULL));
@@ -198,10 +197,10 @@ hid_interrupt(bthid_session_p s, char *data, int len)
 
 			if (h.flags & HIO_VARIABLE) {
 				if (val && usage < kbd_maxkey())
-					bit_set(s->srv->keys, usage);
+					bit_set(s->keys1, usage);
 			} else {
 				if (val && val < kbd_maxkey())
-					bit_set(s->srv->keys, val);
+					bit_set(s->keys1, val);
 
 				data ++;
 				len --;
@@ -210,7 +209,7 @@ hid_interrupt(bthid_session_p s, char *data, int len)
 				while (len > 0) {
 					val = hid_get_data(data, &h);
 					if (val && val < kbd_maxkey())
-						bit_set(s->srv->keys, val);
+						bit_set(s->keys1, val);
 
 					data ++;
 					len --;
@@ -219,8 +218,15 @@ hid_interrupt(bthid_session_p s, char *data, int len)
 			break;
 
 		case HUP_BUTTON:
-			mouse_butt |= (val << HID_BUT(usage - 1));
-			mevents ++;
+			if (usage != 0) {
+				if (usage == 2)
+					usage = 3;
+				else if (usage == 3)
+					usage = 2;
+				
+				mouse_butt |= (val << (usage - 1));
+				mevents ++;
+			}
 			break;
 
 		case HUP_CONSUMER:
@@ -292,7 +298,7 @@ hid_interrupt(bthid_session_p s, char *data, int len)
 				val = 0x68;
 				break;
 
-			case 0x227: /* WWW Refresh */
+			case 0227: /* WWW Refresh */
 				val = 0x67;
 				break;
 
@@ -307,9 +313,17 @@ hid_interrupt(bthid_session_p s, char *data, int len)
 
 			/* XXX FIXME - UGLY HACK */
 			if (val != 0) {
-				int	buf[4] = { 0xe0, val, 0xe0, val|0x80 };
+				if (hid_device->keyboard) {
+					int32_t	buf[4] = { 0xe0, val,
+							   0xe0, val|0x80 };
 
-				write(s->srv->vkbd, buf, sizeof(buf));
+					assert(s->vkbd != -1);
+					write(s->vkbd, buf, sizeof(buf));
+				} else
+					syslog(LOG_ERR, "Keyboard events " \
+						"received from non-keyboard " \
+						"device %s. Please report",
+						bt_ntoa(&s->bdaddr, NULL));
 			}
 			break;
 
@@ -343,14 +357,30 @@ hid_interrupt(bthid_session_p s, char *data, int len)
 	}
 	hid_end_parse(d);
 
-	/* Feed keyboard events into kernel */
-	if (kevents > 0)
-		kbd_process_keys(s);
+	/*
+	 * XXX FIXME Feed keyboard events into kernel.
+	 * The code below works, bit host also needs to track
+	 * and handle repeat.
+	 *
+	 * Key repeat currently works in X, but not in console.
+	 */
+
+	if (kevents > 0) {
+		if (hid_device->keyboard) {
+			assert(s->vkbd != -1);
+			kbd_process_keys(s);
+		} else
+			syslog(LOG_ERR, "Keyboard events received from " \
+				"non-keyboard device %s. Please report",
+				bt_ntoa(&s->bdaddr, NULL));
+	}
 
 	/* 
 	 * XXX FIXME Feed mouse events into kernel.
 	 * The code block below works, but it is not good enough.
 	 * Need to track double-clicks etc.
+	 *
+	 * Double click currently works in X, but not in console.
 	 */
 
 	if (mevents > 0) {
@@ -370,4 +400,3 @@ hid_interrupt(bthid_session_p s, char *data, int len)
 
 	return (0);
 }
-

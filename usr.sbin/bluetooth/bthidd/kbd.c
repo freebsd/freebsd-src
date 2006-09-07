@@ -1,7 +1,9 @@
 /*
  * kbd.c
- *
- * Copyright (c) 2004 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+ */
+
+/*-
+ * Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kbd.c,v 1.2 2004/11/17 21:59:42 max Exp $
+ * $Id: kbd.c,v 1.4 2006/09/07 21:06:53 max Exp $
  * $FreeBSD$
  */
 
@@ -36,6 +38,9 @@
 #include <sys/wait.h>
 #include <assert.h>
 #include <bluetooth.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usbhid.h>
+#include <dev/vkbd/vkbd_var.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -45,11 +50,13 @@
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <usbhid.h>
+#include "bthid_config.h"
 #include "bthidd.h"
 #include "kbd.h"
 
-static void	kbd_write(bitstr_t *m, int fb, int make, int fd);
-static int	kbd_xlate(int code, int make, int *b, int const *eob);
+static void	kbd_write(bitstr_t *m, int32_t fb, int32_t make, int32_t fd);
+static int32_t	kbd_xlate(int32_t code, int32_t make, int32_t *b, int32_t const *eob);
 
 /*
  * HID code to PS/2 set 1 code translation table.
@@ -64,7 +71,7 @@ static int	kbd_xlate(int code, int make, int *b, int const *eob);
 #define NOBREAK		(1 << 30)
 #define CODEMASK	(~(E0PREFIX|NOBREAK))
 
-static int const	x[] =
+static int32_t const	x[] =
 {
 /*==================================================*/
 /* Name                   HID code    Make     Break*/
@@ -308,13 +315,13 @@ static int const	x[] =
 /* Right GUI                    E7 */ E0PREFIX|0x5C  /* E0 DC */
 };
 
-#define xsize	(sizeof(x)/sizeof(x[0]))
+#define xsize	((int32_t)(sizeof(x)/sizeof(x[0])))
 
 /*
  * Get a max HID keycode (aligned)
  */
 
-int
+int32_t
 kbd_maxkey(void)
 {
 	return (xsize);
@@ -324,164 +331,72 @@ kbd_maxkey(void)
  * Process keys
  */
 
-int
+int32_t
 kbd_process_keys(bthid_session_p s)
 {
-	bitstr_t	r[bitstr_size(xsize)];
-	int		f0, f1, i;
+	bitstr_t	diff[bitstr_size(xsize)];
+	int32_t		f1, f2, i;
 
 	assert(s != NULL);
 	assert(s->srv != NULL);
 
-	bit_ffs(s->srv->keys, xsize, &f0);
-	bit_ffs(s->keys, xsize, &f1);
+	/* Check if the new keys have been pressed */
+	bit_ffs(s->keys1, xsize, &f1);
 
-	if (f0 == -1) {
-		/* all keys are released, no keys pressed */
-		if (f1 != -1) {
-			kbd_write(s->keys, f1, 0, s->srv->vkbd);
-			memset(s->keys, 0, bitstr_size(xsize));
-		}
-
-		return (0);
-	}
+	/* Check if old keys still pressed */
+	bit_ffs(s->keys2, xsize, &f2);
 
 	if (f1 == -1) {
-		/* some keys got pressed, no keys released */
-		if (f0 != -1) {
-			memcpy(s->keys, s->srv->keys, bitstr_size(xsize));
-			kbd_write(s->keys, f0, 1, s->srv->vkbd);
-			memset(s->srv->keys, 0, bitstr_size(xsize));
+		/* no new key pressed */
+		if (f2 != -1) {
+			/* release old keys */
+			kbd_write(s->keys2, f2, 0, s->vkbd);
+			memset(s->keys2, 0, bitstr_size(xsize));
 		}
 
 		return (0);
 	}
 
-	/* some keys got pressed, some keys got released */
-	memset(r, 0, bitstr_size(xsize));
+	if (f2 == -1) {
+		/* no old keys, but new keys pressed */
+		assert(f1 != -1);
+		
+		memcpy(s->keys2, s->keys1, bitstr_size(xsize));
+		kbd_write(s->keys1, f1, 1, s->vkbd);
+		memset(s->keys1, 0, bitstr_size(xsize));
+
+		return (0);
+	}
+
+	/* new keys got pressed, old keys got released */
+	memset(diff, 0, bitstr_size(xsize));
+
+	for (i = f2; i < xsize; i ++) {
+		if (bit_test(s->keys2, i)) {
+			if (!bit_test(s->keys1, i)) {
+				bit_clear(s->keys2, i);
+				bit_set(diff, i);
+			}
+		}
+	}
 
 	for (i = f1; i < xsize; i++) {
-		if (bit_test(s->keys, i)) {
-			if (!bit_test(s->srv->keys, i)) {
-				bit_clear(s->keys, i);
-				bit_set(r, i);
-			} else
-				bit_clear(s->srv->keys, i);
-		}
-	}
-
-	for (i = f0; i < xsize; i++) {
-		if (bit_test(s->srv->keys, i)) {
-			if (!bit_test(s->keys, i))
-				bit_set(s->keys, i);
+		if (bit_test(s->keys1, i)) {
+			if (!bit_test(s->keys2, i))
+				bit_set(s->keys2, i);
 			else
-				bit_clear(s->srv->keys, i);
+				bit_clear(s->keys1, i);
 		}
 	}
 
-	bit_ffs(r, xsize, &f0);
-	bit_ffs(s->srv->keys, xsize, &f1);
+	bit_ffs(diff, xsize, &f2);
+	if (f2 > 0)
+		kbd_write(diff, f2, 0, s->vkbd);
 
-	if (f0 > 0)
-		kbd_write(r, f0, 0, s->srv->vkbd);
-
+	bit_ffs(s->keys1, xsize, &f1);
 	if (f1 > 0) {
-		kbd_write(s->srv->keys, f1, 1, s->srv->vkbd);
-		memset(s->srv->keys, 0, bitstr_size(xsize));
-	}
-
-	return (0);
-}
-
-/*
- * Get current keyboard index (fd version)
- */
-
-int
-kbd_get_index_fd(int fd)
-{
-	keyboard_info_t	info;
-
-	return ((ioctl(fd, KDGKBINFO, &info) < 0)? -1 : info.kb_index);
-}
-
-/*
- * Get current keyboard index (device node version)
- */
-
-int
-kbd_get_index(char const *device)
-{
-	int	fd, index;
-
-	fd = open(device, O_RDONLY);
-	if (fd < 0)
-		return (-1);
-
-	index = kbd_get_index_fd(fd);
-
-	close(fd);
-
-	return (index);
-}
-
-/*
- * Switch keyboards. Execute external script to switch keyboards. The keyboard
- * index will be passed to the script in the first argument (argv[1]). We use
- * external script here to allow user to customize his/her wireless keyboard,
- * i.e. set mapping etc. In theory, all parameters could be picked up from the
- * rc.conf.
- */
-
-int
-kbd_switch(char const *script, int index)
-{
-	pid_t	pid;
-	int	status;
-
-	if (script == NULL) {
-		syslog(LOG_NOTICE, "Could not switch keyboards. " \
-			"Switch script is not defined");
-		return (-1);
-	}
-
-	if (access(script, X_OK) < 0) {
-		syslog(LOG_ERR, "The %s is not executable. %s (%d)",
-			script, strerror(errno), errno);
-		return (-1);
-	}
-
-	pid = fork();
-
-	if (pid == (pid_t) -1) {
-		syslog(LOG_ERR, "Could not create process for %s. %s (%d)",
-			script, strerror(errno), errno);
-		return (-1);
-	}
-
-	if (pid == 0) {
-		char	 arg[16];
-		char	*argv[3] = { (char *) script, arg, NULL };
-
-		snprintf(arg, sizeof(arg), "%d", index);
-		execv(script, argv);
-
-		syslog(LOG_ERR, "Could not execute '%s %d'. %s (%d)",
-			script, index, strerror(errno), errno);
-
-		exit(1);
-	}
-
-	if (waitpid(pid, &status, 0) < 0) {
-		syslog(LOG_ERR, "Could not waitpid for %s. %s (%d)",
-			script, strerror(errno), errno);
-		return (-1);
-	}
-
-	if (WIFEXITED(status) && WEXITSTATUS(status)) {
-		syslog(LOG_ERR, "External command '%s %d' failed, exit code %d",
-			script, index, WEXITSTATUS(status));
-		return (-1);
+		kbd_write(s->keys1, f1, 1, s->vkbd);
+		memset(s->keys1, 0, bitstr_size(xsize));
 	}
 
 	return (0);
@@ -492,9 +407,9 @@ kbd_switch(char const *script, int index)
  */ 
 
 static void
-kbd_write(bitstr_t *m, int fb, int make, int fd)
+kbd_write(bitstr_t *m, int32_t fb, int32_t make, int32_t fd)
 {
-	int	i, *b, *eob, n, buf[64];
+	int32_t	i, *b, *eob, n, buf[64];
 
 	b = buf;
 	eob = b + sizeof(buf)/sizeof(buf[0]);
@@ -519,7 +434,6 @@ kbd_write(bitstr_t *m, int fb, int make, int fd)
 		write(fd, buf, (b - buf) * sizeof(buf[0]));
 }
 
-
 /*
  * Translate HID code into PS/2 code and put codes into buffer b.
  * Returns the number of codes put in b. Return -1 if buffer has not
@@ -536,10 +450,10 @@ do {				\
 	(n) ++;			\
 } while (0)
 
-static int
-kbd_xlate(int code, int make, int *b, int const *eob)
+static int32_t
+kbd_xlate(int32_t code, int32_t make, int32_t *b, int32_t const *eob)
 {
-	int	c, n;
+	int32_t	c, n;
 
 	n = 0;
 
@@ -589,5 +503,78 @@ XXX FIXME
 	}
 
 	return (n);
+}
+
+/*
+ * Process status change from vkbd(4)
+ */
+
+int32_t
+kbd_status_changed(bthid_session_p s, uint8_t *data, int32_t len)
+{
+	int32_t		leds;
+	uint8_t		hleds, report_id;
+	hid_device_p	hid_device;
+	hid_data_t	d;
+	hid_item_t	h;
+
+	assert(s != NULL);
+	assert(len == sizeof(vkbd_status_t));
+
+	leds = ((vkbd_status_p) data)->leds;
+	hleds = 0;
+	report_id = NO_REPORT_ID;
+
+	hid_device = get_hid_device(&s->bdaddr);
+	assert(hid_device != NULL);
+
+	for (d = hid_start_parse(hid_device->desc, 1 << hid_output, -1);
+	     hid_get_item(d, &h) > 0; ) {
+		if (HID_PAGE(h.usage) == HUP_LEDS) {
+			if (report_id == NO_REPORT_ID)
+				report_id = h.report_ID;
+			else if (h.report_ID != report_id)
+				syslog(LOG_WARNING, "Output HID report IDs " \
+					"for %s do not match: %d vs. %d. " \
+					"Please report",
+					bt_ntoa(&s->bdaddr, NULL),
+					h.report_ID, report_id);
+			
+			switch(HID_USAGE(h.usage)) {
+			case 0x01: /* Num Lock LED */
+				if (leds & LED_NUM)
+					hid_set_data(&hleds, &h, 1);
+				break;
+
+			case 0x02: /* Caps Lock LED */
+				if (leds & LED_CAP)
+					hid_set_data(&hleds, &h, 1);
+				break;
+
+			case 0x03: /* Scroll Lock LED */
+				if (leds & LED_SCR)
+					hid_set_data(&hleds, &h, 1);
+				break;
+
+			/* XXX add other LEDs ? */
+			}
+		}
+	}
+	hid_end_parse(d);
+
+	data[0] = 0xa2; /* DATA output (HID output report) */
+
+	if (report_id != NO_REPORT_ID) {
+		data[1] = report_id;
+		data[2] = hleds;
+		len = 3;
+	} else {
+		data[1] = hleds;
+		len = 2;
+	}
+
+	write(s->intr, data, len);
+
+	return (0);
 }
 
