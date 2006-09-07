@@ -210,7 +210,7 @@
 
     <para>A potential denial of service attack against &man.named.8;
       has been fixed.  For more details, see security advisory
-      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:20.named.asc">FreeBSD-SA-06:20.named</ulink>. &merged;</para>
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:20.bind.asc">FreeBSD-SA-06:20.bind</ulink>. &merged;</para>
 
   </sect2>
 
@@ -1609,8 +1609,8 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para><application>GCC</application> has been updated from 3.4.4
       to 3.4.6. &merged;</para>
 
-    <para><application>GNU Readline library</application>
-      has been updated from 5.0 to 5.1.</para>
+    <para><application>GNU Readline library</application> has been
+      updated from 5.0 to 5.1.</para>
 
     <para><application>GNU Troff</application>
       has been updated from version 1.19 to version 1.19.2.
