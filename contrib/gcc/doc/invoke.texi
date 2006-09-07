@@ -3651,7 +3651,8 @@ invoking @option{-O2} on programs that use computed gotos.
 @opindex O3
 Optimize yet more.  @option{-O3} turns on all optimizations specified by
 @option{-O2} and also turns on the @option{-finline-functions},
-@option{-fweb} and @option{-frename-registers} options.
+@option{-fweb}, @option{-frename-registers} and @option{-funswitch-loops}
+options.
 
 @item -O0
 @opindex O0
@@ -8691,7 +8692,8 @@ have any affect on which ld is called, it only changes what parameters
 are passed to that ld.  The ld that is called is determined by the
 @option{--with-ld} configure option, GCC's program search path, and
 finally by the user's @env{PATH}.  The linker used by GCC can be printed
-using @samp{which `gcc -print-prog-name=ld`}.
+using @samp{which `gcc -print-prog-name=ld`}.  This option is only available
+on the 64 bit HP-UX GCC, i.e. configured with @samp{hppa*64*-*-hpux*}.
 
 @item -mhp-ld
 @opindex hp-ld
@@ -8703,7 +8705,8 @@ which ld is called, it only changes what parameters are passed to that
 ld.  The ld that is called is determined by the @option{--with-ld}
 configure option, GCC's program search path, and finally by the user's
 @env{PATH}.  The linker used by GCC can be printed using @samp{which
-`gcc -print-prog-name=ld`}.
+`gcc -print-prog-name=ld`}.  This option is only available on the 64 bit
+HP-UX GCC, i.e. configured with @samp{hppa*64*-*-hpux*}.
 
 @item -mlong-calls
 @opindex mno-long-calls
@@ -10075,8 +10078,8 @@ specified separated by a comma.
 Specify bit size of immediate TLS offsets.  Valid values are 14, 22, and
 64.
 
-@item -mtune-arch=@var{cpu-type}
-@opindex mtune-arch
+@item -mtune=@var{cpu-type}
+@opindex mtune
 Tune the instruction scheduling for a particular CPU, Valid values are
 itanium, itanium1, merced, itanium2, and mckinley.
 

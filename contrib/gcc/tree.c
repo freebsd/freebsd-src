@@ -3417,10 +3417,8 @@ simple_cst_equal (tree t1, tree t2)
 			 TREE_STRING_LENGTH (t1)));
 
     case CONSTRUCTOR:
-      if (CONSTRUCTOR_ELTS (t1) == CONSTRUCTOR_ELTS (t2))
-	return 1;
-      else
-	abort ();
+      return simple_cst_list_equal (CONSTRUCTOR_ELTS (t1),
+				    CONSTRUCTOR_ELTS (t2));
 
     case SAVE_EXPR:
       return simple_cst_equal (TREE_OPERAND (t1, 0), TREE_OPERAND (t2, 0));
@@ -4156,6 +4154,7 @@ get_narrower (tree op, int *unsignedp_ptr)
   int uns = 0;
   int first = 1;
   tree win = op;
+  bool integral_p = INTEGRAL_TYPE_P (TREE_TYPE (op));
 
   while (TREE_CODE (op) == NOP_EXPR)
     {
@@ -4192,6 +4191,10 @@ get_narrower (tree op, int *unsignedp_ptr)
 	    uns = TREE_UNSIGNED (TREE_TYPE (op));
 	  first = 0;
 	  op = TREE_OPERAND (op, 0);
+	  /* Keep trying to narrow, but don't assign op to win if it
+	     would turn an integral type into something else.  */
+	  if (INTEGRAL_TYPE_P (TREE_TYPE (op)) != integral_p)
+	    continue;
 	}
 
       win = op;
@@ -4803,6 +4806,27 @@ finish_vector_type (tree t)
   }
 }
 
+static tree
+make_or_reuse_type (unsigned size, int unsignedp)
+{
+  if (size == INT_TYPE_SIZE)
+    return unsignedp ? unsigned_type_node : integer_type_node;
+  if (size == CHAR_TYPE_SIZE)
+    return unsignedp ? unsigned_char_type_node : signed_char_type_node;
+  if (size == SHORT_TYPE_SIZE)
+    return unsignedp ? short_unsigned_type_node : short_integer_type_node;
+  if (size == LONG_TYPE_SIZE)
+    return unsignedp ? long_unsigned_type_node : long_integer_type_node;
+  if (size == LONG_LONG_TYPE_SIZE)
+    return (unsignedp ? long_long_unsigned_type_node
+            : long_long_integer_type_node);
+
+  if (unsignedp)
+    return make_unsigned_type (size);
+  else
+    return make_signed_type (size);
+}
+
 /* Create nodes for all integer types (and error_mark_node) using the sizes
    of C datatypes.  The caller should call set_sizetype soon after calling
    this function to select one of the types as sizetype.  */
@@ -4845,18 +4869,20 @@ build_common_tree_nodes (int signed_char)
   TREE_TYPE (TYPE_MAX_VALUE (boolean_type_node)) = boolean_type_node;
   TYPE_PRECISION (boolean_type_node) = 1;
 
-  intQI_type_node = make_signed_type (GET_MODE_BITSIZE (QImode));
-  intHI_type_node = make_signed_type (GET_MODE_BITSIZE (HImode));
-  intSI_type_node = make_signed_type (GET_MODE_BITSIZE (SImode));
-  intDI_type_node = make_signed_type (GET_MODE_BITSIZE (DImode));
-  intTI_type_node = make_signed_type (GET_MODE_BITSIZE (TImode));
+  /* Fill in the rest of the sized types.  Reuse existing type nodes
+     when possible.  */
+  intQI_type_node = make_or_reuse_type (GET_MODE_BITSIZE (QImode), 0);
+  intHI_type_node = make_or_reuse_type (GET_MODE_BITSIZE (HImode), 0);
+  intSI_type_node = make_or_reuse_type (GET_MODE_BITSIZE (SImode), 0);
+  intDI_type_node = make_or_reuse_type (GET_MODE_BITSIZE (DImode), 0);
+  intTI_type_node = make_or_reuse_type (GET_MODE_BITSIZE (TImode), 0);
 
-  unsigned_intQI_type_node = make_unsigned_type (GET_MODE_BITSIZE (QImode));
-  unsigned_intHI_type_node = make_unsigned_type (GET_MODE_BITSIZE (HImode));
-  unsigned_intSI_type_node = make_unsigned_type (GET_MODE_BITSIZE (SImode));
-  unsigned_intDI_type_node = make_unsigned_type (GET_MODE_BITSIZE (DImode));
-  unsigned_intTI_type_node = make_unsigned_type (GET_MODE_BITSIZE (TImode));
-  
+  unsigned_intQI_type_node = make_or_reuse_type (GET_MODE_BITSIZE (QImode), 1);
+  unsigned_intHI_type_node = make_or_reuse_type (GET_MODE_BITSIZE (HImode), 1);
+  unsigned_intSI_type_node = make_or_reuse_type (GET_MODE_BITSIZE (SImode), 1);
+  unsigned_intDI_type_node = make_or_reuse_type (GET_MODE_BITSIZE (DImode), 1);
+  unsigned_intTI_type_node = make_or_reuse_type (GET_MODE_BITSIZE (TImode), 1);
+ 
   access_public_node = get_identifier ("public");
   access_protected_node = get_identifier ("protected");
   access_private_node = get_identifier ("private");
