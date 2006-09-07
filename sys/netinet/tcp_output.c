@@ -105,6 +105,10 @@ int     tcp_do_newreno = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, newreno, CTLFLAG_RW, &tcp_do_newreno,
 	0, "Enable NewReno Algorithms");
 
+int	tcp_do_tso = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, tso, CTLFLAG_RW,
+	&tcp_do_tso, 0, "Enable TCP Segmentation Offload");
+
 /*
  * Tcp output routine: figure out what should be sent and send it.
  */
@@ -127,6 +131,7 @@ tcp_output(struct tcpcb *tp)
 	int i, sack_rxmit;
 	int sack_bytes_rxmt;
 	struct sackhole *p;
+	int tso = 0;
 #if 0
 	int maxburst = TCP_MAXBURST;
 #endif
@@ -376,12 +381,34 @@ after_sack_rexmit:
 
 	/*
 	 * len will be >= 0 after this point.  Truncate to the maximum
-	 * segment length and ensure that FIN is removed if the length
-	 * no longer contains the last data byte.
+	 * segment length or enable TCP Segmentation Offloading (if supported
+	 * by hardware) and ensure that FIN is removed if the length no longer
+	 * contains the last data byte.
+	 *
+	 * TSO may only be used if we are in a pure bulk sending state.  The
+	 * presence of TCP-MD5, SACK retransmits, SACK advertizements and
+	 * IP options prevent using TSO.  With TSO the TCP header is the same
+	 * (except for the sequence number) for all generated packets.  This
+	 * makes it impossible to transmit any options which vary per generated
+	 * segment or packet.
+	 *
+	 * The length of TSO bursts is limited to TCP_MAXWIN.  That limit and
+	 * removal of FIN (if not already catched here) are handled later after
+	 * the exact length of the TCP options are known.
 	 */
 	if (len > tp->t_maxseg) {
-		len = tp->t_maxseg;
-		sendalot = 1;
+		if ((tp->t_flags & TF_TSO) && tcp_do_tso &&
+		    ((tp->t_flags & TF_SIGNATURE) == 0) &&
+		    tp->rcv_numsacks == 0 && sack_rxmit == 0 &&
+		    tp->t_inpcb->inp_options == NULL &&
+		    tp->t_inpcb->in6p_options == NULL &&
+		    tp->t_inpcb->inp_sp == NULL) {
+			tso = 1;
+		} else {
+			len = tp->t_maxseg;
+			sendalot = 1;
+			tso = 0;
+		}
 	}
 	if (sack_rxmit) {
 		if (SEQ_LT(p->rxmit + len, tp->snd_una + so->so_snd.sb_cc))
@@ -397,7 +424,7 @@ after_sack_rexmit:
 	 * Sender silly window avoidance.   We transmit under the following
 	 * conditions when len is non-zero:
 	 *
-	 *	- We have a full segment
+	 *	- We have a full segment (or more with TSO)
 	 *	- This is the last buffer in a write()/send() and we are
 	 *	  either idle or running NODELAY
 	 *	- we've timed out (e.g. persist timer)
@@ -406,7 +433,7 @@ after_sack_rexmit:
 	 *	- we need to retransmit
 	 */
 	if (len) {
-		if (len == tp->t_maxseg)
+		if (len >= tp->t_maxseg)
 			goto send;
 		/*
 		 * NOTE! on localhost connections an 'ack' from the remote
@@ -702,14 +729,24 @@ send:
 	 * bump the packet length beyond the t_maxopd length.
 	 * Clear the FIN bit because we cut off the tail of
 	 * the segment.
+	 *
+	 * When doing TSO limit a burst to TCP_MAXWIN and set the
+	 * flag to continue sending and prevent the last segment
+	 * from being fractional thus making them all equal sized.
 	 */
 	if (len + optlen + ipoptlen > tp->t_maxopd) {
-		/*
-		 * If there is still more to send, don't close the connection.
-		 */
 		flags &= ~TH_FIN;
-		len = tp->t_maxopd - optlen - ipoptlen;
-		sendalot = 1;
+		if (tso) {
+			if (len > TCP_MAXWIN) {
+				len = TCP_MAXWIN - TCP_MAXWIN %
+					(tp->t_maxopd - optlen);
+				sendalot = 1;
+			} else if (tp->t_flags & TF_NEEDFIN)
+				sendalot = 1;
+		} else {
+			len = tp->t_maxopd - optlen - ipoptlen;
+			sendalot = 1;
+		}
 	}
 
 /*#ifdef DIAGNOSTIC*/
@@ -947,6 +984,16 @@ send:
 	}
 
 	/*
+	 * Enable TSO and specify the size of the segments.
+	 * The TCP pseudo header checksum is always provided.
+	 * XXX: Fixme: This is currently not the case for IPv6.
+	 */
+	if (tso) {
+		m->m_pkthdr.csum_flags = CSUM_TSO;
+		m->m_pkthdr.tso_segsz = tp->t_maxopd - optlen;
+	}
+
+	/*
 	 * In transmit state, time the transmission and arrange for
 	 * the retransmit.  In persist state, just set snd_max.
 	 */
@@ -1119,11 +1166,22 @@ out:
 		}
 		if (error == EMSGSIZE) {
 			/*
-			 * ip_output() will have already fixed the route
-			 * for us.  tcp_mtudisc() will, as its last action,
-			 * initiate retransmission, so it is important to
-			 * not do so here.
+			 * For some reason the interface we used initially
+			 * to send segments changed to another or lowered
+			 * its MTU.
+			 *
+			 * tcp_mtudisc() will find out the new MTU and as
+			 * its last action, initiate retransmission, so it
+			 * is important to not do so here.
+			 *
+			 * If TSO was active we either got an interface
+			 * without TSO capabilits or TSO was turned off.
+			 * Disable it for this connection as too and
+			 * immediatly retry with MSS sized segments generated
+			 * by this function.
 			 */
+			if (tso)
+				tp->t_flags &= ~TF_TSO;
 			tcp_mtudisc(tp->t_inpcb, 0);
 			return 0;
 		}
