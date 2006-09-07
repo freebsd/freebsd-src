@@ -564,7 +564,7 @@ union mfi_evt {
 	struct {
 		uint16_t	locale;
 		uint8_t		reserved;
-		uint8_t		class;
+		int8_t		class;
 	} members;
 	uint32_t		word;
 } __packed;
