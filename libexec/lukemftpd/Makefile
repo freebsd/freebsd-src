@@ -11,6 +11,11 @@ SRCS=	cmds.c conf.c ftpd.c ftpcmd.y popen.c
 SRCS+=	strsuftoll.c
 
 WFORMAT= 0
+
+.if !defined(NO_INET6)
+CFLAGS+= -DINET6
+.endif
+
 CFLAGS+= -include nbsd2fbsd.h
 CFLAGS+= -I${.CURDIR} -I${LUKEMFTPD} -I${LUKEMFTPD}/src
 CFLAGS+= -I${.CURDIR}/../../lib/libc/stdtime
