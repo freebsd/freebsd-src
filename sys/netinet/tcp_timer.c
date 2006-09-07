@@ -241,7 +241,6 @@ struct twlist {
 };
 #define TWLIST_NLISTS	2
 static struct twlist twl_2msl[TWLIST_NLISTS];
-static struct twlist *tw_2msl_list[] = { &twl_2msl[0], &twl_2msl[1], NULL };
 
 void
 tcp_timer_init(void)
@@ -289,7 +288,7 @@ tcp_timer_2msl_tw(int reuse)
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	for (i = 0; i < TWLIST_NLISTS; i++) {
-		twl = tw_2msl_list[i];
+		twl = &twl_2msl[i];
 		tw_tail = &twl->tw_tail;
 
 		for (;;) {
