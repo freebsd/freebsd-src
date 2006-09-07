@@ -230,45 +230,30 @@ tcp_timer_2msl(xtp)
 }
 
 /*
- * The timed wait lists contain references to each of the TCP sessions
- * currently TIME_WAIT state.  The list pointers, including the list pointers
- * in each tcptw structure, are protected using the global tcbinfo lock,
- * which must be held over list iteration and modification.
+ * The timed wait queue contains references to each of the TCP sessions
+ * currently in the TIME_WAIT state.  The queue pointers, including the
+ * queue pointers in each tcptw structure, are protected using the global
+ * tcbinfo lock, which must be held over queue iteration and modification.
  */
-struct twlist {
-	LIST_HEAD(, tcptw)	tw_list;
-	struct tcptw	tw_tail;
-};
-#define TWLIST_NLISTS	2
-static struct twlist twl_2msl[TWLIST_NLISTS];
+static TAILQ_HEAD(, tcptw)	twq_2msl;
 
 void
 tcp_timer_init(void)
 {
-	int i;
-	struct twlist *twl;
 
-	for (i = 0; i < TWLIST_NLISTS; i++) {
-		twl = &twl_2msl[i];
-		LIST_INIT(&twl->tw_list);
-		LIST_INSERT_HEAD(&twl->tw_list, &twl->tw_tail, tw_2msl);
-	}
+	TAILQ_INIT(&twq_2msl);
 }
 
 void
-tcp_timer_2msl_reset(struct tcptw *tw, int timeo, int rearm)
+tcp_timer_2msl_reset(struct tcptw *tw, int rearm)
 {
-	int i;
-	struct tcptw *tw_tail;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_LOCK_ASSERT(tw->tw_inpcb);
 	if (rearm)
-		LIST_REMOVE(tw, tw_2msl);
-	tw->tw_time = timeo + ticks;
-	i = timeo > tcp_msl ? 1 : 0;
-	tw_tail = &twl_2msl[i].tw_tail;
-	LIST_INSERT_BEFORE(tw_tail, tw, tw_2msl);
+		TAILQ_REMOVE(&twq_2msl, tw, tw_2msl);
+	tw->tw_time = ticks + 2 * tcp_msl;
+	TAILQ_INSERT_TAIL(&twq_2msl, tw, tw_2msl);
 }
 
 void
@@ -276,31 +261,23 @@ tcp_timer_2msl_stop(struct tcptw *tw)
 {
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
-	LIST_REMOVE(tw, tw_2msl);
+	TAILQ_REMOVE(&twq_2msl, tw, tw_2msl);
 }
 
 struct tcptw *
 tcp_timer_2msl_tw(int reuse)
 {
-	struct tcptw *tw, *tw_tail;
-	struct twlist *twl;
-	int i;
+	struct tcptw *tw;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
-	for (i = 0; i < TWLIST_NLISTS; i++) {
-		twl = &twl_2msl[i];
-		tw_tail = &twl->tw_tail;
-
-		for (;;) {
-			tw = LIST_FIRST(&twl->tw_list);
-			if (tw == tw_tail || (!reuse && tw->tw_time > ticks))
-				break;
-			INP_LOCK(tw->tw_inpcb);
-			tcp_twclose(tw, reuse);
-			if (reuse)
-				return (tw);
-		}
-
+	for (;;) {
+		tw = TAILQ_FIRST(&twq_2msl);
+		if (tw == NULL || (!reuse && tw->tw_time > ticks))
+			break;
+		INP_LOCK(tw->tw_inpcb);
+		tcp_twclose(tw, reuse);
+		if (reuse)
+			return (tw);
 	}
 	return (NULL);
 }
