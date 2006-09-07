@@ -11,7 +11,7 @@
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
-#	TARGET_ARCH="arch" to crossbuild world to a different arch
+#	TARGET="arch" to crossbuild world to a different arch
 
 #
 # The intended user-driven targets are:
@@ -94,6 +94,9 @@ OSRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 .else
 OSRELDATE=	0
 .endif
+.endif
+.if defined(TARGET) && !defined(TARGET_ARCH)
+TARGET_ARCH=${TARGET:S/pc98/i386/}
 .endif
 TARGET_ARCH?=	${MACHINE_ARCH}
 .if ${TARGET_ARCH} == ${MACHINE_ARCH}
