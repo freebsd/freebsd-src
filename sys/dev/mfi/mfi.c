@@ -779,17 +779,10 @@ mfi_intr(void *arg)
 	mtx_lock(&sc->mfi_io_lock);
 	while (ci != pi) {
 		context = sc->mfi_comms->hw_reply_q[ci];
-		sc->mfi_comms->hw_reply_q[ci] = 0xffffffff;
-		if (context == 0xffffffff) {
-			device_printf(sc->mfi_dev, "mfi_intr: invalid context "
-			    "pi= %d ci= %d\n", pi, ci);
-		} else {
-			cm = &sc->mfi_commands[context];
-			mfi_remove_busy(cm);
-			mfi_complete(sc, cm);
-		}
-		ci++;
-		if (ci == (sc->mfi_max_fw_cmds + 1)) {
+		cm = &sc->mfi_commands[context];
+		mfi_remove_busy(cm);
+		mfi_complete(sc, cm);
+		if (++ci == (sc->mfi_max_fw_cmds + 1)) {
 			ci = 0;
 		}
 	}
