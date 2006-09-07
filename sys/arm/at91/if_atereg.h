@@ -52,15 +52,15 @@
 #define ETH_DTE		0x58		/* Deferred Transmittion Frame Reg */
 #define ETH_LCOL	0x5c		/* Late Collision Register */
 #define ETH_ECOL	0x60		/* Excessive Collision Register */
-#define ETH_CSE		0x64		/* Carrier Sense Error Register */
-#define ETH_TUE		0x68		/* Transmit Underrun Error Register */
-#define ETH_CDE		0x6c		/* Code Error Register */
-#define ETH_ELR		0x70		/* Excessive Length Error Register */
-#define ETH_RJB		0x74		/* Receive Jabber Register */
-#define ETH_USF		0x78		/* Undersize Frame Register */
-#define ETH_SQEE	0x7c		/* SQE Test Error Register */
-#define ETH_DRFC	0x80		/* Discarded RX Frame Register */
-		/*	0x84		   reserved */
+#define ETH_TUE		0x64		/* Transmit Underrun Error Register */
+#define ETH_CSE		0x68		/* Carrier Sense Error Register */
+#define ETH_DRFC	0x6c		/* Discarded RX Frame Register */
+#define ETH_ROV		0x68		/* Receive Overrun Register */
+#define ETH_CDE		0x64		/* Code Error Register */
+#define ETH_ELR		0x78		/* Excessive Length Error Register */
+#define ETH_RJB		0x7c		/* Receive Jabber Register */
+#define ETH_USF		0x80		/* Undersize Frame Register */
+#define ETH_SQEE	0x84		/* SQE Test Error Register */
 		/*	0x88		   reserved */
 		/*	0x8c		   reserved */
 #define ETH_HSH		0x90		/* EMAC Hash Address High [63:32] */
