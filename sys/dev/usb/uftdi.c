@@ -201,7 +201,7 @@ USB_ATTACH(uftdi)
 	ucom->sc_dev = self;
 	ucom->sc_udev = dev;
 
-	devname = USBDEVNAME(ucom->sc_dev);
+	devname = device_get_nameunit(ucom->sc_dev);
 
 	if (uaa->iface == NULL) {
 		/* Move the device into the configured state. */

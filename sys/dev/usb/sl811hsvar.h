@@ -84,7 +84,7 @@ struct slhci_softc {
 
 	u_int8_t		 sc_addr;	/* device address of root hub */
 	u_int8_t		 sc_conf;
-	SIMPLEQ_HEAD(, usbd_xfer) sc_free_xfers;
+	STAILQ_HEAD(, usbd_xfer) sc_free_xfers;
 
 	/* Information for the root hub interrupt pipe */
 	int			 sc_interval;

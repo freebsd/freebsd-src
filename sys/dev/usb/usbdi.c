@@ -158,7 +158,7 @@ usbd_dump_queue(usbd_pipe_handle pipe)
 	usbd_xfer_handle xfer;
 
 	printf("usbd_dump_queue: pipe=%p\n", pipe);
-	SIMPLEQ_FOREACH(xfer, &pipe->queue, next) {
+	STAILQ_FOREACH(xfer, &pipe->queue, next) {
 		printf("  xfer=%p\n", xfer);
 	}
 }
@@ -271,7 +271,7 @@ usbd_close_pipe(usbd_pipe_handle pipe)
 
 	if (--pipe->refcnt != 0)
 		return (USBD_NORMAL_COMPLETION);
-	if (! SIMPLEQ_EMPTY(&pipe->queue))
+	if (! STAILQ_EMPTY(&pipe->queue))
 		return (USBD_PENDING_REQUESTS);
 	LIST_REMOVE(pipe, next);
 	pipe->endpoint->refcnt--;
@@ -866,12 +866,12 @@ usbd_ar_pipe(usbd_pipe_handle pipe)
 #endif
 	pipe->repeat = 0;
 	pipe->aborting = 1;
-	while ((xfer = SIMPLEQ_FIRST(&pipe->queue)) != NULL) {
+	while ((xfer = STAILQ_FIRST(&pipe->queue)) != NULL) {
 		DPRINTFN(2,("usbd_ar_pipe: pipe=%p xfer=%p (methods=%p)\n",
 			    pipe, xfer, pipe->methods));
 		/* Make the HC abort it (and invoke the callback). */
 		pipe->methods->abort(xfer);
-		KASSERT(SIMPLEQ_FIRST(&pipe->queue) != xfer, ("usbd_ar_pipe"));
+		KASSERT(STAILQ_FIRST(&pipe->queue) != xfer, ("usbd_ar_pipe"));
 		/* XXX only for non-0 usbd_clear_endpoint_stall(pipe); */
 	}
 	pipe->aborting = 0;
@@ -936,12 +936,12 @@ usb_transfer_complete(usbd_xfer_handle xfer)
 #ifdef DIAGNOSTIC
 		xfer->busy_free = XFER_BUSY;
 #endif
-		KASSERT(SIMPLEQ_FIRST(&pipe->queue) == xfer,
+		KASSERT(STAILQ_FIRST(&pipe->queue) == xfer,
 		    ("usb_transfer_complete: bad dequeue"));
-		SIMPLEQ_REMOVE_HEAD(&pipe->queue, next);
+		STAILQ_REMOVE_HEAD(&pipe->queue, next);
 	}
 	DPRINTFN(5,("usb_transfer_complete: repeat=%d new head=%p\n",
-		    repeat, SIMPLEQ_FIRST(&pipe->queue)));
+		    repeat, STAILQ_FIRST(&pipe->queue)));
 
 	/* Count completed transfers. */
 	++pipe->device->bus->stats.uds_requests
@@ -1001,8 +1001,8 @@ usb_insert_transfer(usbd_xfer_handle xfer)
 	xfer->busy_free = XFER_ONQU;
 #endif
 	s = splusb();
-	KASSERT(SIMPLEQ_FIRST(&pipe->queue) != xfer, ("usb_insert_transfer"));
-	SIMPLEQ_INSERT_TAIL(&pipe->queue, xfer, next);
+	KASSERT(STAILQ_FIRST(&pipe->queue) != xfer, ("usb_insert_transfer"));
+	STAILQ_INSERT_TAIL(&pipe->queue, xfer, next);
 	if (pipe->running)
 		err = USBD_IN_PROGRESS;
 	else {
@@ -1034,7 +1034,7 @@ usbd_start_next(usbd_pipe_handle pipe)
 #endif
 
 	/* Get next request in queue. */
-	xfer = SIMPLEQ_FIRST(&pipe->queue);
+	xfer = STAILQ_FIRST(&pipe->queue);
 	DPRINTFN(5, ("usbd_start_next: pipe=%p, xfer=%p\n", pipe, xfer));
 	if (xfer == NULL) {
 		pipe->running = 0;

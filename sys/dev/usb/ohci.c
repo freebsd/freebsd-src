@@ -750,7 +750,7 @@ ohci_init(ohci_softc_t *sc)
 #if defined(__OpenBSD__)
 	printf(",");
 #else
-	printf("%s:", USBDEVNAME(sc->sc_bus.bdev));
+	printf("%s:", device_get_nameunit(sc->sc_bus.bdev));
 #endif
 	rev = OREAD4(sc, OHCI_REVISION);
 	printf(" OHCI version %d.%d%s\n", OHCI_REV_HI(rev), OHCI_REV_LO(rev),
@@ -758,7 +758,7 @@ ohci_init(ohci_softc_t *sc)
 
 	if (OHCI_REV_HI(rev) != 1 || OHCI_REV_LO(rev) != 0) {
 		printf("%s: unsupported OHCI revision\n",
-		       USBDEVNAME(sc->sc_bus.bdev));
+		       device_get_nameunit(sc->sc_bus.bdev));
 		sc->sc_bus.usbrev = USBREV_UNKNOWN;
 		return (USBD_INVAL);
 	}
@@ -769,7 +769,7 @@ ohci_init(ohci_softc_t *sc)
 	for (i = 0; i < OHCI_HASH_SIZE; i++)
 		LIST_INIT(&sc->sc_hash_itds[i]);
 
-	SIMPLEQ_INIT(&sc->sc_free_xfers);
+	STAILQ_INIT(&sc->sc_free_xfers);
 
 	/* XXX determine alignment by R/W */
 	/* Allocate the HCCA area. */
@@ -895,7 +895,7 @@ ohci_controller_init(ohci_softc_t *sc)
 		}
 		if ((ctl & OHCI_IR) == 0) {
 			printf("%s: SMM does not respond, resetting\n",
-			       USBDEVNAME(sc->sc_bus.bdev));
+			       device_get_nameunit(sc->sc_bus.bdev));
 			OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_RESET);
 			goto reset;
 		}
@@ -920,7 +920,7 @@ ohci_controller_init(ohci_softc_t *sc)
 	 * This reset should not be necessary according to the OHCI spec, but
 	 * without it some controllers do not start.
 	 */
-	DPRINTF(("%s: resetting\n", USBDEVNAME(sc->sc_bus.bdev)));
+	DPRINTF(("%s: resetting\n", device_get_nameunit(sc->sc_bus.bdev)));
 	OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_RESET);
 	usb_delay_ms(&sc->sc_bus, USB_BUS_RESET_DELAY);
 
@@ -936,7 +936,7 @@ ohci_controller_init(ohci_softc_t *sc)
 			break;
 	}
 	if (hcr) {
-		printf("%s: reset timeout\n", USBDEVNAME(sc->sc_bus.bdev));
+		printf("%s: reset timeout\n", device_get_nameunit(sc->sc_bus.bdev));
 		return (USBD_IOERROR);
 	}
 #ifdef USB_DEBUG
@@ -1014,9 +1014,9 @@ ohci_allocx(struct usbd_bus *bus)
 	struct ohci_softc *sc = (struct ohci_softc *)bus;
 	usbd_xfer_handle xfer;
 
-	xfer = SIMPLEQ_FIRST(&sc->sc_free_xfers);
+	xfer = STAILQ_FIRST(&sc->sc_free_xfers);
 	if (xfer != NULL) {
-		SIMPLEQ_REMOVE_HEAD(&sc->sc_free_xfers, next);
+		STAILQ_REMOVE_HEAD(&sc->sc_free_xfers, next);
 #ifdef DIAGNOSTIC
 		if (xfer->busy_free != XFER_FREE) {
 			printf("ohci_allocx: xfer=%p not free, 0x%08x\n", xfer,
@@ -1051,7 +1051,7 @@ ohci_freex(struct usbd_bus *bus, usbd_xfer_handle xfer)
 	}
 	xfer->busy_free = XFER_FREE;
 #endif
-	SIMPLEQ_INSERT_HEAD(&sc->sc_free_xfers, xfer, next);
+	STAILQ_INSERT_HEAD(&sc->sc_free_xfers, xfer, next);
 }
 
 /*
@@ -1248,7 +1248,7 @@ ohci_intr1(ohci_softc_t *sc)
 		sc->sc_overrun_cnt++;
 		if (usbd_ratecheck(&sc->sc_overrun_ntc)) {
 			printf("%s: %u scheduling overruns\n",
-			    USBDEVNAME(sc->sc_bus.bdev), sc->sc_overrun_cnt);
+			    device_get_nameunit(sc->sc_bus.bdev), sc->sc_overrun_cnt);
 			sc->sc_overrun_cnt = 0;
 		}
 		/* XXX do what */
@@ -1260,12 +1260,12 @@ ohci_intr1(ohci_softc_t *sc)
 		eintrs &= ~OHCI_WDH;
 	}
 	if (eintrs & OHCI_RD) {
-		printf("%s: resume detect\n", USBDEVNAME(sc->sc_bus.bdev));
+		printf("%s: resume detect\n", device_get_nameunit(sc->sc_bus.bdev));
 		/* XXX process resume detect */
 	}
 	if (eintrs & OHCI_UE) {
 		printf("%s: unrecoverable error, controller halted\n",
-		       USBDEVNAME(sc->sc_bus.bdev));
+		       device_get_nameunit(sc->sc_bus.bdev));
 		OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_RESET);
 		/* XXX what else */
 	}
@@ -1288,7 +1288,7 @@ ohci_intr1(ohci_softc_t *sc)
 		OWRITE4(sc, OHCI_INTERRUPT_DISABLE, eintrs);
 		sc->sc_eintrs &= ~eintrs;
 		printf("%s: blocking intrs 0x%x\n",
-		       USBDEVNAME(sc->sc_bus.bdev), eintrs);
+		       device_get_nameunit(sc->sc_bus.bdev), eintrs);
 	}
 
 	return (1);
@@ -1933,7 +1933,7 @@ ohci_hash_find_td(ohci_softc_t *sc, ohci_physaddr_t a)
 	 * stage.
 	 */
 	KASSERT((a&~OHCI_HEADMASK) == 0, ("%s: 0x%b has lower bits set\n",
-				      USBDEVNAME(sc->sc_bus.bdev),
+				      device_get_nameunit(sc->sc_bus.bdev),
 				      (int) a, "\20\1HALT\2TOGGLE"));
 
 	for (std = LIST_FIRST(&sc->sc_hash_tds[h]);
@@ -1943,7 +1943,7 @@ ohci_hash_find_td(ohci_softc_t *sc, ohci_physaddr_t a)
 			return (std);
 
 	DPRINTF(("%s: ohci_hash_find_td: addr 0x%08lx not found\n",
-		USBDEVNAME(sc->sc_bus.bdev), (u_long) a));
+		device_get_nameunit(sc->sc_bus.bdev), (u_long) a));
 	return (NULL);
 }
 
@@ -2492,7 +2492,7 @@ ohci_root_ctrl_transfer(usbd_xfer_handle xfer)
 		return (err);
 
 	/* Pipe isn't running, start first */
-	return (ohci_root_ctrl_start(SIMPLEQ_FIRST(&xfer->pipe->queue)));
+	return (ohci_root_ctrl_start(STAILQ_FIRST(&xfer->pipe->queue)));
 }
 
 static usbd_status
@@ -2828,7 +2828,7 @@ ohci_root_intr_transfer(usbd_xfer_handle xfer)
 		return (err);
 
 	/* Pipe isn't running, start first */
-	return (ohci_root_intr_start(SIMPLEQ_FIRST(&xfer->pipe->queue)));
+	return (ohci_root_intr_start(STAILQ_FIRST(&xfer->pipe->queue)));
 }
 
 static usbd_status
@@ -2885,7 +2885,7 @@ ohci_device_ctrl_transfer(usbd_xfer_handle xfer)
 		return (err);
 
 	/* Pipe isn't running, start first */
-	return (ohci_device_ctrl_start(SIMPLEQ_FIRST(&xfer->pipe->queue)));
+	return (ohci_device_ctrl_start(STAILQ_FIRST(&xfer->pipe->queue)));
 }
 
 static usbd_status
@@ -2960,7 +2960,7 @@ ohci_device_bulk_transfer(usbd_xfer_handle xfer)
 		return (err);
 
 	/* Pipe isn't running, start first */
-	return (ohci_device_bulk_start(SIMPLEQ_FIRST(&xfer->pipe->queue)));
+	return (ohci_device_bulk_start(STAILQ_FIRST(&xfer->pipe->queue)));
 }
 
 static usbd_status
@@ -3099,7 +3099,7 @@ ohci_device_intr_transfer(usbd_xfer_handle xfer)
 		return (err);
 
 	/* Pipe isn't running, start first */
-	return (ohci_device_intr_start(SIMPLEQ_FIRST(&xfer->pipe->queue)));
+	return (ohci_device_intr_start(STAILQ_FIRST(&xfer->pipe->queue)));
 }
 
 static usbd_status
@@ -3241,7 +3241,7 @@ ohci_device_intr_close(usbd_pipe_handle pipe)
 	if ((le32toh(sed->ed.ed_tailp) & OHCI_HEADMASK) !=
 	    (le32toh(sed->ed.ed_headp) & OHCI_HEADMASK))
 		panic("%s: Intr pipe %p still has TDs queued",
-			USBDEVNAME(sc->sc_bus.bdev), pipe);
+			device_get_nameunit(sc->sc_bus.bdev), pipe);
 #endif
 
 	for (p = sc->sc_eds[pos]; p && p->next != sed; p = p->next)
@@ -3346,7 +3346,7 @@ ohci_device_isoc_transfer(usbd_xfer_handle xfer)
 
 	/* and start if the pipe wasn't running */
 	if (!err)
-		ohci_device_isoc_start(SIMPLEQ_FIRST(&xfer->pipe->queue));
+		ohci_device_isoc_start(STAILQ_FIRST(&xfer->pipe->queue));
 
 	return (err);
 }
@@ -3451,7 +3451,7 @@ ohci_device_isoc_enter(usbd_xfer_handle xfer)
 		if (nsitd == NULL) {
 			/* XXX what now? */
 			printf("%s: isoc TD alloc failed\n",
-			       USBDEVNAME(sc->sc_bus.bdev));
+			       device_get_nameunit(sc->sc_bus.bdev));
 			return;
 		}
 

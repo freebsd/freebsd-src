@@ -444,7 +444,7 @@ USB_ATTACH(axe)
 
 	usbd_devinfo(uaa->device, 0, devinfo);
 	device_set_desc_copy(self, devinfo);
-	printf("%s: %s\n", USBDEVNAME(self), devinfo);
+	printf("%s: %s\n", device_get_nameunit(self), devinfo);
 
 	/* Find endpoints. */
 	for (i = 0; i < id->bNumEndpoints; i++) {
@@ -599,7 +599,7 @@ axe_rxstart(struct ifnet *ifp)
 	c->ue_mbuf = usb_ether_newbuf();
 	if (c->ue_mbuf == NULL) {
 		printf("%s: no memory for rx list "
-		    "-- packet dropped!\n", USBDEVNAME(sc->axe_dev));
+		    "-- packet dropped!\n", device_get_nameunit(sc->axe_dev));
 		ifp->if_ierrors++;
 		AXE_UNLOCK(sc);
 		return;

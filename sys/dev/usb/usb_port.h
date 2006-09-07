@@ -71,12 +71,7 @@ MALLOC_DECLARE(M_USBHC);
 #define USB_USE_SOFTINTR
 #endif
 
-#define USBBASEDEVICE device_t
 #define USBDEV(bdev) (bdev)
-#define USBDEVNAME(bdev) device_get_nameunit(bdev)
-#define USBDEVUNIT(bdev) device_get_unit(bdev)
-#define USBDEVPTRNAME(bdev) device_get_nameunit(bdev)
-#define USBDEVUNIT(bdev) device_get_unit(bdev)
 #define USBGETSOFTC(bdev) (device_get_softc(bdev))
 
 #define DECLARE_USB_DMA_T \
@@ -87,10 +82,7 @@ MALLOC_DECLARE(M_USBHC);
 		u_int len; \
 	} usb_dma_t
 
-#if __FreeBSD_version >= 500000
 typedef struct thread *usb_proc_ptr;
-
-#define uio_procp uio_td
 
 #define usb_kthread_create1(f, s, p, a0, a1) \
 		kthread_create((f), (s), (p), RFHIGHPID, 0, (a0), (a1))
@@ -106,32 +98,6 @@ typedef struct callout usb_callout_t;
 #define usb_callout(h, t, f, d) callout_reset(&(h), (t), (f), (d))
 #define usb_uncallout(h, f, d)  callout_stop(&(h))
 #define usb_uncallout_drain(h, f, d)  callout_drain(&(h))
-#else
-typedef struct proc *usb_proc_ptr;
-
-#define	PROC_LOCK(p)
-#define	PROC_UNLOCK(p)
-
-#define usb_kthread_create1(f, s, p, a0, a1) \
-		kthread_create((f), (s), (p), (a0), (a1))
-#define usb_kthread_create2(f, s, p, a0) \
-		kthread_create((f), (s), (p), (a0))
-#define usb_kthread_create	kthread_create
-
-#define	config_pending_incr()
-#define	config_pending_decr()
-
-typedef struct callout usb_callout_t;
-#define usb_callout_init(h)     callout_init(&(h))
-#define usb_callout(h, t, f, d) callout_reset(&(h), (t), (f), (d))
-#define usb_uncallout(h, f, d)  callout_stop(&(h))
-
-#define usb_lockmgr lockmgr
-
-#define	BUS_DMA_COHERENT	0
-#define	ETHER_ALIGN		2
-#define	BPF_MTAP(ifp, m)	if ((ifp)->if_bpf) bpf_mtap((ifp), (m));
-#endif
 
 #define clalloc(p, s, x) (clist_alloc_cblocks((p), (s), (s)), 0)
 #define clfree(p) clist_free_cblocks((p))
@@ -220,19 +186,6 @@ __CONCAT(dname,_detach)(device_t self)
 
 #define USB_DO_ATTACH(dev, bdev, parent, args, print, sub) \
 	(device_probe_and_attach((bdev)) == 0 ? (bdev) : 0)
-
-/* conversion from one type of queue to the other */
-#define SIMPLEQ_REMOVE_HEAD	STAILQ_REMOVE_HEAD
-#define SIMPLEQ_INSERT_HEAD	STAILQ_INSERT_HEAD
-#define SIMPLEQ_INSERT_TAIL	STAILQ_INSERT_TAIL
-#define SIMPLEQ_NEXT		STAILQ_NEXT
-#define SIMPLEQ_FIRST		STAILQ_FIRST
-#define SIMPLEQ_HEAD		STAILQ_HEAD
-#define SIMPLEQ_EMPTY		STAILQ_EMPTY
-#define SIMPLEQ_FOREACH		STAILQ_FOREACH
-#define SIMPLEQ_INIT		STAILQ_INIT
-#define SIMPLEQ_HEAD_INITIALIZER	STAILQ_HEAD_INITIALIZER
-#define SIMPLEQ_ENTRY		STAILQ_ENTRY
 
 #include <sys/syslog.h>
 /*

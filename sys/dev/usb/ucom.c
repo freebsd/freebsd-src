@@ -227,7 +227,7 @@ ucomopen(struct tty *tp, struct cdev *dev)
 	if (sc->sc_dying)
 		return (ENXIO);
 
-	DPRINTF(("%s: ucomopen: tp = %p\n", USBDEVNAME(sc->sc_dev), tp));
+	DPRINTF(("%s: ucomopen: tp = %p\n", device_get_nameunit(sc->sc_dev), tp));
 
 	sc->sc_poll = 0;
 	sc->sc_lsr = sc->sc_msr = sc->sc_mcr = 0;
@@ -253,7 +253,7 @@ ucomopen(struct tty *tp, struct cdev *dev)
 			     &sc->sc_bulkin_pipe);
 	if (err) {
 		printf("%s: open bulk in error (addr %d): %s\n",
-		       USBDEVNAME(sc->sc_dev), sc->sc_bulkin_no,
+		       device_get_nameunit(sc->sc_dev), sc->sc_bulkin_no,
 		       usbd_errstr(err));
 		error = EIO;
 		goto fail;
@@ -263,7 +263,7 @@ ucomopen(struct tty *tp, struct cdev *dev)
 			     USBD_EXCLUSIVE_USE, &sc->sc_bulkout_pipe);
 	if (err) {
 		printf("%s: open bulk out error (addr %d): %s\n",
-		       USBDEVNAME(sc->sc_dev), sc->sc_bulkout_no,
+		       device_get_nameunit(sc->sc_dev), sc->sc_bulkout_no,
 		       usbd_errstr(err));
 		error = EIO;
 		goto fail;
@@ -316,7 +316,7 @@ ucomclose(struct tty *tp)
 
 	sc = tp->t_sc;
 
-	DPRINTF(("%s: ucomclose \n", USBDEVNAME(sc->sc_dev)));
+	DPRINTF(("%s: ucomclose \n", device_get_nameunit(sc->sc_dev)));
 
 	ucom_cleanup(sc);
 
@@ -659,7 +659,7 @@ ucomwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		printf("%s: ucomwritecb: %s\n",
-		       USBDEVNAME(sc->sc_dev), usbd_errstr(status));
+		       device_get_nameunit(sc->sc_dev), usbd_errstr(status));
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall_async(sc->sc_bulkin_pipe);
 		/* XXX we should restart after some delay. */
@@ -670,7 +670,7 @@ ucomwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 	DPRINTF(("ucomwritecb: cc = %d\n", cc));
 	if (cc <= sc->sc_opkthdrlen) {
 		printf("%s: sent size too small, cc = %d\n",
-		       USBDEVNAME(sc->sc_dev), cc);
+		       device_get_nameunit(sc->sc_dev), cc);
 		goto error;
 	}
 
@@ -738,7 +738,7 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 	if (status != USBD_NORMAL_COMPLETION) {
 		if (!(sc->sc_state & UCS_RXSTOP))
 			printf("%s: ucomreadcb: %s\n",
-			       USBDEVNAME(sc->sc_dev), usbd_errstr(status));
+			       device_get_nameunit(sc->sc_dev), usbd_errstr(status));
 		sc->sc_state |= UCS_RXSTOP;
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall_async(sc->sc_bulkin_pipe);
@@ -758,7 +758,7 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 
 	if (cc > sc->sc_ibufsize) {
 		printf("%s: invalid receive data size, %d chars\n",
-		       USBDEVNAME(sc->sc_dev), cc);
+		       device_get_nameunit(sc->sc_dev), cc);
 		goto resubmit;
 	}
 	if (cc < 1)
@@ -782,7 +782,7 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 			ucomstart(tp);
 		}
 		if (lostcc > 0)
-			printf("%s: lost %d chars\n", USBDEVNAME(sc->sc_dev),
+			printf("%s: lost %d chars\n", device_get_nameunit(sc->sc_dev),
 			       lostcc);
 	} else {
 		/* Give characters to tty layer. */
@@ -791,7 +791,7 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 			if (ttyld_rint(tp, *cp) == -1) {
 				/* XXX what should we do? */
 				printf("%s: lost %d chars\n",
-				       USBDEVNAME(sc->sc_dev), cc);
+				       device_get_nameunit(sc->sc_dev), cc);
 				break;
 			}
 			cc--;
@@ -803,7 +803,7 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
     resubmit:
 	err = ucomstartread(sc);
 	if (err) {
-		printf("%s: read start failed\n", USBDEVNAME(sc->sc_dev));
+		printf("%s: read start failed\n", device_get_nameunit(sc->sc_dev));
 		/* XXX what should we dow now? */
 	}
 
