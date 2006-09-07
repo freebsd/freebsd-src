@@ -45,7 +45,11 @@ static __inline__ int radeon_check_and_fixup_offset(drm_radeon_private_t *
 						    drm_file_t * filp_priv,
 						    u32 * offset)
 {
-	u32 off = *offset;
+	u64 off = *offset;
+	u32 fb_start = dev_priv->fb_location;
+	u32 fb_end = fb_start + dev_priv->fb_size - 1;
+	u32 gart_start = dev_priv->gart_vm_start;
+	u32 gart_end = gart_start + dev_priv->gart_size - 1;
 	struct drm_radeon_driver_file_fields *radeon_priv;
 
 	/* Hrm ... the story of the offset ... So this function converts
@@ -65,10 +69,8 @@ static __inline__ int radeon_check_and_fixup_offset(drm_radeon_private_t *
 	/* First, the best case, the offset already lands in either the
 	 * framebuffer or the GART mapped space
 	 */
-	if ((off >= dev_priv->fb_location &&
-	     off < (dev_priv->fb_location + dev_priv->fb_size)) ||
-	    (off >= dev_priv->gart_vm_start &&
-	     off < (dev_priv->gart_vm_start + dev_priv->gart_size)))
+	if ((off >= fb_start && off <= fb_end) ||
+	    (off >= gart_start && off <= gart_end))
 		return 0;
 
 	/* Ok, that didn't happen... now check if we have a zero based
@@ -81,16 +83,13 @@ static __inline__ int radeon_check_and_fixup_offset(drm_radeon_private_t *
 	}
 
 	/* Finally, assume we aimed at a GART offset if beyond the fb */
-	if (off > (dev_priv->fb_location + dev_priv->fb_size))
-		off = off - (dev_priv->fb_location + dev_priv->fb_size) +
-			dev_priv->gart_vm_start;
+	if (off > fb_end)
+		off = off - fb_end - 1 + gart_start;
 
 	/* Now recheck and fail if out of bounds */
-	if ((off >= dev_priv->fb_location &&
-	     off < (dev_priv->fb_location + dev_priv->fb_size)) ||
-	    (off >= dev_priv->gart_vm_start &&
-	     off < (dev_priv->gart_vm_start + dev_priv->gart_size))) {
-		DRM_DEBUG("offset fixed up to 0x%x\n", off);
+	if ((off >= fb_start && off <= fb_end) ||
+	    (off >= gart_start && off <= gart_end)) {
+		DRM_DEBUG("offset fixed up to 0x%x\n", (unsigned int)off);
 		*offset = off;
 		return 0;
 	}
@@ -252,6 +251,7 @@ static __inline__ int radeon_check_and_fixup_packets(drm_radeon_private_t *
 	case R200_EMIT_PP_TXCTLALL_3:
 	case R200_EMIT_PP_TXCTLALL_4:
 	case R200_EMIT_PP_TXCTLALL_5:
+	case R200_EMIT_VAP_PVS_CNTL:
 		/* These packets don't contain memory offsets */
 		break;
 
@@ -629,6 +629,7 @@ static struct {
 	{R200_PP_TXFILTER_3, 8, "R200_PP_TXCTLALL_3"},
 	{R200_PP_TXFILTER_4, 8, "R200_PP_TXCTLALL_4"},
 	{R200_PP_TXFILTER_5, 8, "R200_PP_TXCTLALL_5"},
+	{R200_VAP_PVS_CNTL_1, 2, "R200_VAP_PVS_CNTL"},
 };
 
 /* ================================================================
@@ -2633,9 +2634,36 @@ static __inline__ int radeon_emit_vectors(drm_radeon_private_t *dev_priv,
 	int stride = header.vectors.stride;
 	RING_LOCALS;
 
-	BEGIN_RING(3 + sz);
+	BEGIN_RING(5 + sz);
+	OUT_RING_REG(RADEON_SE_TCL_STATE_FLUSH, 0);
 	OUT_RING(CP_PACKET0(RADEON_SE_TCL_VECTOR_INDX_REG, 0));
 	OUT_RING(start | (stride << RADEON_VEC_INDX_OCTWORD_STRIDE_SHIFT));
+	OUT_RING(CP_PACKET0_TABLE(RADEON_SE_TCL_VECTOR_DATA_REG, (sz - 1)));
+	OUT_RING_TABLE(cmdbuf->buf, sz);
+	ADVANCE_RING();
+
+	cmdbuf->buf += sz * sizeof(int);
+	cmdbuf->bufsz -= sz * sizeof(int);
+	return 0;
+}
+
+static __inline__ int radeon_emit_veclinear(drm_radeon_private_t *dev_priv,
+					  drm_radeon_cmd_header_t header,
+					  drm_radeon_kcmd_buffer_t *cmdbuf)
+{
+	int sz = header.veclinear.count * 4;
+	int start = header.veclinear.addr_lo | (header.veclinear.addr_hi << 8);
+	RING_LOCALS;
+
+	if (!sz)
+		return 0;
+	if (sz * 4 > cmdbuf->bufsz)
+		return DRM_ERR(EINVAL);
+
+	BEGIN_RING(5 + sz);
+	OUT_RING_REG(RADEON_SE_TCL_STATE_FLUSH, 0);
+	OUT_RING(CP_PACKET0(RADEON_SE_TCL_VECTOR_INDX_REG, 0));
+	OUT_RING(start | (1 << RADEON_VEC_INDX_OCTWORD_STRIDE_SHIFT));
 	OUT_RING(CP_PACKET0_TABLE(RADEON_SE_TCL_VECTOR_DATA_REG, (sz - 1)));
 	OUT_RING_TABLE(cmdbuf->buf, sz);
 	ADVANCE_RING();
@@ -2908,6 +2936,14 @@ static int radeon_cp_cmdbuf(DRM_IOCTL_ARGS)
 				goto err;
 			}
 			break;
+		case RADEON_CMD_VECLINEAR:
+			DRM_DEBUG("RADEON_CMD_VECLINEAR\n");
+			if (radeon_emit_veclinear(dev_priv, header, &cmdbuf)) {
+				DRM_ERROR("radeon_emit_veclinear failed\n");
+				goto err;
+			}
+			break;
+
 		default:
 			DRM_ERROR("bad cmd_type %d at %p\n",
 				  header.header.cmd_type,
@@ -2991,6 +3027,11 @@ static int radeon_cp_getparam(DRM_IOCTL_ARGS)
 	case RADEON_PARAM_GART_TEX_HANDLE:
 		value = dev_priv->gart_textures_offset;
 		break;
+	case RADEON_PARAM_SCRATCH_OFFSET:
+		if (!dev_priv->writeback_works)
+			return DRM_ERR(EINVAL);
+		value = RADEON_SCRATCH_REG_OFFSET;
+		break;
 	
 	case RADEON_PARAM_CARD_TYPE:
 		if (dev_priv->flags & CHIP_IS_PCIE)
@@ -3001,6 +3042,7 @@ static int radeon_cp_getparam(DRM_IOCTL_ARGS)
 			value = RADEON_CARD_PCI;
 		break;
 	default:
+		DRM_DEBUG( "Invalid parameter %d\n", param.param );
 		return DRM_ERR(EINVAL);
 	}
 

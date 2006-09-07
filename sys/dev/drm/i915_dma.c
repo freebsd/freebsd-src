@@ -34,6 +34,12 @@ __FBSDID("$FreeBSD$");
 #include "dev/drm/i915_drm.h"
 #include "dev/drm/i915_drv.h"
 
+#define IS_I965G(dev)  (dev->pci_device == 0x2972 || \
+			dev->pci_device == 0x2982 || \
+			dev->pci_device == 0x2992 || \
+			dev->pci_device == 0x29A2)
+
+
 /* Really want an OS-independent resettable timer.  Would like to have
  * this loop run for (eg) 3 sec, but have the timer reset every time
  * the head pointer changes, so that EBUSY only happens if the ring
@@ -350,14 +356,15 @@ static int i915_emit_cmds(drm_device_t * dev, int __user * buffer, int dwords)
 	if ((dwords+1) * sizeof(int) >= dev_priv->ring.Size - 8)
 		return DRM_ERR(EINVAL);
 
-	BEGIN_LP_RING(((dwords+1)&~1));
+	BEGIN_LP_RING((dwords+1)&~1);
 
 	for (i = 0; i < dwords;) {
 		int cmd, sz;
 
-		if (DRM_COPY_FROM_USER_UNCHECKED(&cmd, &buffer[i], sizeof(cmd)))
-			return DRM_ERR(EINVAL);
+	     if (DRM_COPY_FROM_USER_UNCHECKED(&cmd, &buffer[i], sizeof(cmd))) {
 
+			return DRM_ERR(EINVAL);
+	      }
 		if ((sz = validate_cmd(cmd)) == 0 || i + sz > dwords)
 			return DRM_ERR(EINVAL);
 
@@ -398,25 +405,40 @@ static int i915_emit_box(drm_device_t * dev,
 		return DRM_ERR(EINVAL);
 	}
 
-	BEGIN_LP_RING(6);
-	OUT_RING(GFX_OP_DRAWRECT_INFO);
-	OUT_RING(DR1);
-	OUT_RING((box.x1 & 0xffff) | (box.y1 << 16));
-	OUT_RING(((box.x2 - 1) & 0xffff) | ((box.y2 - 1) << 16));
-	OUT_RING(DR4);
-	OUT_RING(0);
-	ADVANCE_LP_RING();
+	if (IS_I965G(dev)) {
+		BEGIN_LP_RING(4);
+		OUT_RING(GFX_OP_DRAWRECT_INFO_I965);
+		OUT_RING((box.x1 & 0xffff) | (box.y1 << 16));
+		OUT_RING(((box.x2 - 1) & 0xffff) | ((box.y2 - 1) << 16));
+		OUT_RING(DR4);
+		ADVANCE_LP_RING();
+	} else {
+		BEGIN_LP_RING(6);
+		OUT_RING(GFX_OP_DRAWRECT_INFO);
+		OUT_RING(DR1);
+		OUT_RING((box.x1 & 0xffff) | (box.y1 << 16));
+		OUT_RING(((box.x2 - 1) & 0xffff) | ((box.y2 - 1) << 16));
+		OUT_RING(DR4);
+		OUT_RING(0);
+		ADVANCE_LP_RING();
+	}
 
 	return 0;
 }
 
+/* XXX: Emitting the counter should really be moved to part of the IRQ
+ * emit.  For now, do it in both places:
+ */
 
 static void i915_emit_breadcrumb(drm_device_t *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	RING_LOCALS;
 
-	dev_priv->sarea_priv->last_enqueue = dev_priv->counter++;
+	dev_priv->sarea_priv->last_enqueue = ++dev_priv->counter;
+
+	if (dev_priv->counter > 0x7FFFFFFFUL)
+		dev_priv->sarea_priv->last_enqueue = dev_priv->counter = 1;
 
 	BEGIN_LP_RING(4);
 	OUT_RING(CMD_STORE_DWORD_IDX);
@@ -775,7 +797,9 @@ drm_ioctl_desc_t i915_ioctls[] = {
 	[DRM_IOCTL_NR(DRM_I915_FREE)] = {i915_mem_free, DRM_AUTH},
 	[DRM_IOCTL_NR(DRM_I915_INIT_HEAP)] = {i915_mem_init_heap, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
 	[DRM_IOCTL_NR(DRM_I915_CMDBUFFER)] = {i915_cmdbuffer, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_I915_DESTROY_HEAP)] = { i915_mem_destroy_heap, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY }
+	[DRM_IOCTL_NR(DRM_I915_DESTROY_HEAP)] = { i915_mem_destroy_heap, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY },
+	[DRM_IOCTL_NR(DRM_I915_SET_VBLANK_PIPE)] = { i915_vblank_pipe_set, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY },
+	[DRM_IOCTL_NR(DRM_I915_GET_VBLANK_PIPE)] = { i915_vblank_pipe_get, DRM_AUTH },
 };
 
 int i915_max_ioctl = DRM_ARRAY_SIZE(i915_ioctls);
