@@ -1627,7 +1627,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
 
     <para><application>lukemftpd</application> has been updated from a
       snapshot from NetBSD as of 9 August 2004 to a snapshot from
-      NetBSD as of 31 August 2006.</para>
+      NetBSD as of 31 August 2006. &merged;</para>
 
     <para><application>OpenSSH</application> has been updated from
       4.2p1 to 4.3p1.</para>
