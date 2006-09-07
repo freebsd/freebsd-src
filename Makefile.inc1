@@ -487,9 +487,19 @@ WMAKE_TGTS+=	_includes _libraries _depend everything
 WMAKE_TGTS+=	build32
 .endif
 
-buildworld: ${WMAKE_TGTS}
-.ORDER: ${WMAKE_TGTS}
+buildworld: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue
+.ORDER: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue
 
+buildworld_prologue:
+	@echo "--------------------------------------------------------------"
+	@echo ">>> World build started on `LC_ALL=C date`"
+	@echo "--------------------------------------------------------------"
+
+buildworld_epilogue:
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> World build completed on `LC_ALL=C date`"
+	@echo "--------------------------------------------------------------"
 
 #
 # We need to have this as a target because the indirection between Makefile
