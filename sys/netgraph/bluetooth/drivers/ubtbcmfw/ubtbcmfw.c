@@ -50,6 +50,12 @@
 
 #include "usbdevs.h"
 
+/* FreeBSD 7.0 defines */
+
+#define	USBBASEDEVICE	device_t
+#define	USBDEVNAME	device_get_nameunit
+#define USBDEVUNIT(bdev) device_get_unit(bdev)
+
 /*
  * Download firmware to BCM2033.
  */
@@ -88,14 +94,14 @@ typedef struct ubtbcmfw_softc	*ubtbcmfw_softc_p;
 #define UBTBCMFW_MINOR(u, e)	(((u) << 4) | (e))
 #define UBTBCMFW_BSIZE		1024
 
-Static d_open_t		ubtbcmfw_open;
-Static d_close_t	ubtbcmfw_close;
-Static d_read_t		ubtbcmfw_read;
-Static d_write_t	ubtbcmfw_write;
-Static d_ioctl_t	ubtbcmfw_ioctl;
-Static d_poll_t		ubtbcmfw_poll;
+static d_open_t		ubtbcmfw_open;
+static d_close_t	ubtbcmfw_close;
+static d_read_t		ubtbcmfw_read;
+static d_write_t	ubtbcmfw_write;
+static d_ioctl_t	ubtbcmfw_ioctl;
+static d_poll_t		ubtbcmfw_poll;
 
-Static struct cdevsw	ubtbcmfw_cdevsw = {
+static struct cdevsw	ubtbcmfw_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_NEEDGIANT,
 	.d_open =	ubtbcmfw_open,
@@ -266,7 +272,7 @@ USB_DETACH(ubtbcmfw)
  * XXX FIXME softc locking
  */
 
-Static int
+static int
 ubtbcmfw_open(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 	ubtbcmfw_softc_p	sc = NULL;
@@ -318,7 +324,7 @@ ubtbcmfw_open(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
  * XXX FIXME softc locking
  */
 
-Static int
+static int
 ubtbcmfw_close(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 	ubtbcmfw_softc_p	sc = NULL;
@@ -355,7 +361,7 @@ ubtbcmfw_close(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
  * XXX FIXME softc locking
  */
 
-Static int
+static int
 ubtbcmfw_read(struct cdev *dev, struct uio *uio, int flag)
 {
 	ubtbcmfw_softc_p	sc = NULL;
@@ -419,7 +425,7 @@ ubtbcmfw_read(struct cdev *dev, struct uio *uio, int flag)
  * XXX FIXME softc locking
  */
 
-Static int
+static int
 ubtbcmfw_write(struct cdev *dev, struct uio *uio, int flag)
 {
 	ubtbcmfw_softc_p	sc = NULL;
@@ -484,7 +490,7 @@ ubtbcmfw_write(struct cdev *dev, struct uio *uio, int flag)
  * XXX FIXME softc locking
  */
 
-Static int
+static int
 ubtbcmfw_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 {
 	ubtbcmfw_softc_p	sc = NULL;
@@ -521,7 +527,7 @@ ubtbcmfw_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, usb_proc_pt
  * XXX FIXME softc locking
  */
 
-Static int
+static int
 ubtbcmfw_poll(struct cdev *dev, int events, usb_proc_ptr p)
 {
 	ubtbcmfw_softc_p	sc = NULL;
