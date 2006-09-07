@@ -128,20 +128,16 @@ at91_twi_attach(device_t dev)
 	sc->cwgr = TWI_CWGR_CKDIV(8 * AT91C_MASTER_CLOCK / 90000) |
 	    TWI_CWGR_CHDIV(TWI_CWGR_DIV(TWI_DEF_CLK)) |
 	    TWI_CWGR_CLDIV(TWI_CWGR_DIV(TWI_DEF_CLK));
-
 	WR4(sc, TWI_CR, TWI_CR_SWRST);
 	WR4(sc, TWI_CR, TWI_CR_MSEN | TWI_CR_SVDIS);
 	WR4(sc, TWI_CWGR, sc->cwgr);
-
 	WR4(sc, TWI_IER, TWI_SR_RXRDY | TWI_SR_OVRE | TWI_SR_UNRE |
 	    TWI_SR_NACK);
 
 	if ((sc->iicbus = device_add_child(dev, "iicbus", -1)) == NULL)
 		device_printf(dev, "could not allocate iicbus instance\n");
-
 	/* probe and attach the iicbus */
 	bus_generic_attach(dev);
-
 out:;
 	if (err)
 		at91_twi_deactivate(dev);
@@ -228,12 +224,15 @@ at91_twi_intr(void *xsc)
 }
 
 static int
-at91_twi_wait_stop_done(struct at91_twi_softc *sc)
+at91_twi_wait(struct at91_twi_softc *sc, uint32_t bit)
 {
 	int err = 0;
+	int counter = 10000;
 
-	while (!(RD4(sc, TWI_SR) & TWI_SR_TXCOMP))
+	while (!(RD4(sc, TWI_SR) & bit) && counter-- != 0)
 		continue;
+	if (counter == 0)
+		err = EIO;
 	return (err);
 }
 
@@ -252,7 +251,7 @@ at91_twi_stop(device_t dev)
 	sc = device_get_softc(dev);
 	if (sc->sc_started) {
 		WR4(sc, TWI_CR, TWI_CR_STOP);
-		err = at91_twi_wait_stop_done(sc);
+		err = at91_twi_wait(sc, TWI_SR_TXCOMP);
 	}
 	return (err);
 }
@@ -345,7 +344,7 @@ at91_twi_read(device_t dev, char *buf, int len, int *read, int last,
 	if (!last)
 		goto errout;
 	WR4(sc, TWI_CR, TWI_CR_STOP);
-	err = at91_twi_wait_stop_done(sc);
+	err = at91_twi_wait(sc, TWI_SR_TXCOMP);
 	*walker = RD4(sc, TWI_RHR) & 0xff;
 	if (read)
 		*read = walker - buf;
@@ -419,6 +418,53 @@ at91_twi_callback(device_t dev, int index, caddr_t *data)
 	return (error);
 }
 
+static int
+at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
+{
+	struct at91_twi_softc *sc;
+	int i, len;
+	uint32_t rdwr;
+	uint8_t *buf;
+
+	sc = device_get_softc(dev);
+	for (i = 0; i < nmsgs; i++) {
+		/*
+		 * The linux atmel driver doesn't use the internal device
+		 * address feature of twi.  A separate i2c message needs to
+		 * be written to use this.
+		 * See http://lists.arm.linux.org.uk/pipermail/linux-arm-kernel/2004-September/024411.html
+		 * for details.
+		 */
+		rdwr = (msgs[i].flags & IIC_M_RD) ? TWI_MMR_MREAD : 0;
+		WR4(sc, TWI_MMR, TWI_MMR_DADR(msgs[i].slave) | rdwr);
+		len = msgs[i].len;
+		buf = msgs[i].buf;
+		if (len != 0 || buf == NULL)
+			return EINVAL;
+		WR4(sc, TWI_CR, TWI_CR_START);
+		if (msgs[i].flags & IIC_M_RD) {
+			while (len--) {
+				if (len == 0)
+					WR4(sc, TWI_CR, TWI_CR_STOP);
+				if (!at91_twi_wait(sc, TWI_SR_RXRDY))
+					return EIO;
+				*buf++ = RD4(sc, TWI_RHR) & 0xff;
+			}
+		} else {
+			while (len--) {
+				WR4(sc, TWI_THR, *buf++);
+				if (len == 0)
+					WR4(sc, TWI_CR, TWI_CR_STOP);
+				if (!at91_twi_wait(sc, TWI_SR_TXRDY))
+					return EIO;
+			}
+		}
+		if (!at91_twi_wait(sc, TWI_SR_TXCOMP))
+			return EIO;
+	}
+	return 0;
+}
+
 static device_method_t at91_twi_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		at91_twi_probe),
@@ -433,6 +479,7 @@ static device_method_t at91_twi_methods[] = {
 	DEVMETHOD(iicbus_write,		at91_twi_write),
 	DEVMETHOD(iicbus_read,		at91_twi_read),
 	DEVMETHOD(iicbus_reset,		at91_twi_rst_card),
+	DEVMETHOD(iicbus_transfer,	at91_twi_transfer),
 	{ 0, 0 }
 };
 
