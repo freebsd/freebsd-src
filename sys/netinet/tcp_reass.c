@@ -3187,7 +3187,7 @@ tcp_timewait(inp, to, th, m, tlen)
 	const int isipv6 = 0;
 #endif
 
-	/* tcbinfo lock required for tcp_twclose(), tcp_2msl_reset. */
+	/* tcbinfo lock required for tcp_twclose(), tcp_timer_2msl_reset(). */
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_LOCK_ASSERT(inp);
 
@@ -3256,7 +3256,7 @@ tcp_timewait(inp, to, th, m, tlen)
 	if (thflags & TH_FIN) {
 		seq = th->th_seq + tlen + (thflags & TH_SYN ? 1 : 0);
 		if (seq + 1 == tw->rcv_nxt)
-			tcp_timer_2msl_reset(tw, 2 * tcp_msl, 1);
+			tcp_timer_2msl_reset(tw, 1);
 	}
 
 	/*
