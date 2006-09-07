@@ -519,6 +519,9 @@ static int drm_load(drm_device_t *dev)
 	dev->pci_slot = pci_get_slot(dev->device);
 	dev->pci_func = pci_get_function(dev->device);
 
+	dev->pci_vendor = pci_get_vendor(dev->device);
+	dev->pci_device = pci_get_device(dev->device);
+
 	TAILQ_INIT(&dev->maplist);
 
 	drm_mem_init();

@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 /* Max number of swaps allowed on the ring
  * before the client must wait
  */
-#define MACH64_MAX_QUEUED_FRAMES        3
+#define MACH64_MAX_QUEUED_FRAMES        3U
 
 /* Byte offsets for host blit buffer data
  */
