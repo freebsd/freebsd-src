@@ -177,6 +177,7 @@ typedef int mpt_load_handler_t(struct mpt_personality *);
 typedef int mpt_probe_handler_t(struct mpt_softc *);
 typedef int mpt_attach_handler_t(struct mpt_softc *);
 typedef int mpt_enable_handler_t(struct mpt_softc *);
+typedef void mpt_ready_handler_t(struct mpt_softc *);
 typedef int mpt_event_handler_t(struct mpt_softc *, request_t *,
 				MSG_EVENT_NOTIFY_REPLY *);
 typedef void mpt_reset_handler_t(struct mpt_softc *, int /*type*/);
@@ -195,6 +196,7 @@ struct mpt_personality
 	mpt_probe_handler_t	*probe;		/* configure personailty */
 	mpt_attach_handler_t	*attach;	/* initialize device instance */
 	mpt_enable_handler_t	*enable;	/* enable device */
+	mpt_ready_handler_t	*ready;		/* final open for business */
 	mpt_event_handler_t	*event;		/* Handle MPI event. */
 	mpt_reset_handler_t	*reset;		/* Re-init after reset. */
 	mpt_shutdown_handler_t	*shutdown;	/* Shutdown instance. */

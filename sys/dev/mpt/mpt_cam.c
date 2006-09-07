@@ -161,6 +161,7 @@ static uint32_t fc_els_handler_id = MPT_HANDLER_ID_NONE;
 static mpt_probe_handler_t	mpt_cam_probe;
 static mpt_attach_handler_t	mpt_cam_attach;
 static mpt_enable_handler_t	mpt_cam_enable;
+static mpt_ready_handler_t	mpt_cam_ready;
 static mpt_event_handler_t	mpt_cam_event;
 static mpt_reset_handler_t	mpt_cam_ioc_reset;
 static mpt_detach_handler_t	mpt_cam_detach;
@@ -171,6 +172,7 @@ static struct mpt_personality mpt_cam_personality =
 	.probe		= mpt_cam_probe,
 	.attach		= mpt_cam_attach,
 	.enable		= mpt_cam_enable,
+	.ready		= mpt_cam_ready,
 	.event		= mpt_cam_event,
 	.reset		= mpt_cam_ioc_reset,
 	.detach		= mpt_cam_detach,
@@ -246,7 +248,8 @@ mpt_cam_attach(struct mpt_softc *mpt)
 
 	/*
 	 * If we support target mode, we register a reply handler for it,
-	 * but don't add resources until we actually enable target mode.
+	 * but don't add command resources until we actually enable target
+	 * mode.
 	 */
 	if (mpt->is_fc && (mpt->role & MPT_ROLE_TARGET) != 0) {
 		handler.reply_handler = mpt_scsi_tgt_reply_handler;
@@ -812,6 +815,12 @@ mpt_cam_enable(struct mpt_softc *mpt)
 			return (EIO);
 		}
 	}
+	return (0);
+}
+
+void
+mpt_cam_ready(struct mpt_softc *mpt)
+{
 	/*
 	 * If we're in target mode, hang out resources now
 	 * so we don't cause the world to hang talking to us.
@@ -820,11 +829,12 @@ mpt_cam_enable(struct mpt_softc *mpt)
 		/*
 		 * Try to add some target command resources
 		 */
+		MPT_LOCK(mpt);
 		if (mpt_add_target_commands(mpt) == FALSE) {
-			return (ENOMEM);
+			mpt_prt(mpt, "failed to add target commands\n");
 		}
+		MPT_UNLOCK(mpt);
 	}
-	return (0);
 }
 
 void
@@ -2028,15 +2038,16 @@ static int
 mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 	      MSG_EVENT_NOTIFY_REPLY *msg)
 {
+
 	switch(msg->Event & 0xFF) {
 	case MPI_EVENT_UNIT_ATTENTION:
-		mpt_prt(mpt, "Bus: 0x%02x TargetID: 0x%02x\n",
+		mpt_prt(mpt, "UNIT ATTENTION: Bus: 0x%02x TargetID: 0x%02x\n",
 		    (msg->Data[0] >> 8) & 0xff, msg->Data[0] & 0xff);
 		break;
 
 	case MPI_EVENT_IOC_BUS_RESET:
 		/* We generated a bus reset */
-		mpt_prt(mpt, "IOC Bus Reset Port: %d\n",
+		mpt_prt(mpt, "IOC Generated Bus Reset Port: %d\n",
 		    (msg->Data[0] >> 8) & 0xff);
 		xpt_async(AC_BUS_RESET, mpt->path, NULL);
 		break;
@@ -2135,13 +2146,26 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		mpt_lprt(mpt, MPT_PRT_DEBUG,
 		    "mpt_cam_event: MPI_EVENT_EVENT_CHANGE\n");
 		break;
-	case MPI_EVENT_SAS_DEVICE_STATUS_CHANGE:
-		/*
-		 * Devices are attachin'.....
-		 */
-		mpt_prt(mpt,
-		    "mpt_cam_event: MPI_EVENT_SAS_DEVICE_STATUS_CHANGE\n");
+	case MPI_EVENT_QUEUE_FULL:
+	{
+		PTR_EVENT_DATA_QUEUE_FULL pqf =
+		    (PTR_EVENT_DATA_QUEUE_FULL) msg->Data;
+		mpt_prt(mpt, "QUEUE_FULL: Bus 0x%02x Target 0x%02x Depth %d\n",
+		    pqf->Bus, pqf->TargetID, pqf->CurrentDepth);
 		break;
+	}
+	case MPI_EVENT_SAS_DEVICE_STATUS_CHANGE:
+	{
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		    "mpt_cam_event: SAS_DEVICE_STATUS_CHANGE\n");
+		break;
+	}
+	case MPI_EVENT_SAS_SES:
+	{
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		    "mpt_cam_event: MPI_EVENT_SAS_SES\n");
+		break;
+	}
 	default:
 		mpt_lprt(mpt, MPT_PRT_WARN, "mpt_cam_event: 0x%x\n",
 		    msg->Event & 0xFF);
