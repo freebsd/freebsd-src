@@ -34,6 +34,11 @@
 #ifndef _NG_UBT_VAR_H_
 #define _NG_UBT_VAR_H_
 
+/* FreeBSD 7.0 defines */
+
+#define	USBBASEDEVICE	device_t
+#define	USBDEVNAME	device_get_nameunit
+
 /* pullup wrapper */
 #define NG_UBT_M_PULLUP(m, s) \
 	do { \
