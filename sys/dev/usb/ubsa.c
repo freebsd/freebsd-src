@@ -304,7 +304,7 @@ USB_ATTACH(ubsa)
 	ucom->sc_udev = dev;
 	ucom->sc_iface = uaa->iface;
 
-	devname = USBDEVNAME(ucom->sc_dev);
+	devname = device_get_nameunit(ucom->sc_dev);
 	printf("%s: %s\n", devname, devinfo);
 
 	DPRINTF(("ubsa attach: sc = %p\n", sc));
@@ -328,7 +328,7 @@ USB_ATTACH(ubsa)
 
 	if (cdesc == NULL) {
 		printf("%s: failed to get configuration descriptor\n",
-		    USBDEVNAME(ucom->sc_dev));
+		    device_get_nameunit(ucom->sc_dev));
 		ucom->sc_dying = 1;
 		goto error;
 	}
@@ -352,7 +352,7 @@ USB_ATTACH(ubsa)
 		ed = usbd_interface2endpoint_descriptor(ucom->sc_iface, i);
 		if (ed == NULL) {
 			printf("%s: no endpoint descriptor for %d\n",
-			    USBDEVNAME(ucom->sc_dev), i);
+			    device_get_nameunit(ucom->sc_dev), i);
 			ucom->sc_dying = 1;
 			goto error;
 		}
@@ -374,7 +374,7 @@ USB_ATTACH(ubsa)
 
 	if (sc->sc_intr_number == -1) {
 		printf("%s: Could not find interrupt in\n",
-		    USBDEVNAME(ucom->sc_dev));
+		    device_get_nameunit(ucom->sc_dev));
 		ucom->sc_dying = 1;
 		goto error;
 	}
@@ -384,14 +384,14 @@ USB_ATTACH(ubsa)
 
 	if (ucom->sc_bulkin_no == -1) {
 		printf("%s: Could not find data bulk in\n",
-		    USBDEVNAME(ucom->sc_dev));
+		    device_get_nameunit(ucom->sc_dev));
 		ucom->sc_dying = 1;
 		goto error;
 	}
 
 	if (ucom->sc_bulkout_no == -1) {
 		printf("%s: Could not find data bulk out\n",
-		    USBDEVNAME(ucom->sc_dev));
+		    device_get_nameunit(ucom->sc_dev));
 		ucom->sc_dying = 1;
 		goto error;
 	}
@@ -456,7 +456,7 @@ ubsa_request(struct ubsa_softc *sc, u_int8_t request, u_int16_t value)
 	err = usbd_do_request(sc->sc_ucom.sc_udev, &req, 0);
 	if (err)
 		printf("%s: ubsa_request: %s\n",
-		    USBDEVNAME(sc->sc_ucom.sc_dev), usbd_errstr(err));
+		    device_get_nameunit(sc->sc_ucom.sc_dev), usbd_errstr(err));
 	return (err);
 }
 
@@ -542,7 +542,7 @@ ubsa_baudrate(struct ubsa_softc *sc, speed_t speed)
 	default:
 		printf("%s: ubsa_param: unsupported baudrate, "
 		    "forcing default of 9600\n",
-		    USBDEVNAME(sc->sc_ucom.sc_dev));
+		    device_get_nameunit(sc->sc_ucom.sc_dev));
 		value = B230400 / B9600;
 		break;
 	};
@@ -585,7 +585,7 @@ ubsa_databits(struct ubsa_softc *sc, tcflag_t cflag)
 	default:
 		printf("%s: ubsa_param: unsupported databits requested, "
 		    "forcing default of 8\n",
-		    USBDEVNAME(sc->sc_ucom.sc_dev));
+		    device_get_nameunit(sc->sc_ucom.sc_dev));
 		value = 3;
 	}
 
@@ -663,7 +663,7 @@ ubsa_open(void *addr, int portno)
 		    UBSA_INTR_INTERVAL);
 		if (err) {
 			printf("%s: cannot open interrupt pipe (addr %d)\n",
-			    USBDEVNAME(sc->sc_ucom.sc_dev),
+			    device_get_nameunit(sc->sc_ucom.sc_dev),
 			    sc->sc_intr_number);
 			return (EIO);
 		}
@@ -688,12 +688,12 @@ ubsa_close(void *addr, int portno)
 		err = usbd_abort_pipe(sc->sc_intr_pipe);
 		if (err)
 			printf("%s: abort interrupt pipe failed: %s\n",
-			    USBDEVNAME(sc->sc_ucom.sc_dev),
+			    device_get_nameunit(sc->sc_ucom.sc_dev),
 			    usbd_errstr(err));
 		err = usbd_close_pipe(sc->sc_intr_pipe);
 		if (err)
 			printf("%s: close interrupt pipe failed: %s\n",
-			    USBDEVNAME(sc->sc_ucom.sc_dev),
+			    device_get_nameunit(sc->sc_ucom.sc_dev),
 			    usbd_errstr(err));
 		free(sc->sc_intr_buf, M_USBDEV);
 		sc->sc_intr_pipe = NULL;
@@ -716,7 +716,7 @@ ubsa_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 			return;
 
 		DPRINTF(("%s: ubsa_intr: abnormal status: %s\n",
-		    USBDEVNAME(sc->sc_ucom.sc_dev),
+		    device_get_nameunit(sc->sc_ucom.sc_dev),
 		    usbd_errstr(status)));
 		usbd_clear_endpoint_stall_async(sc->sc_intr_pipe);
 		return;
@@ -727,7 +727,7 @@ ubsa_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	sc->sc_msr = buf[3];
 
 	DPRINTF(("%s: ubsa lsr = 0x%02x, msr = 0x%02x\n",
-	    USBDEVNAME(sc->sc_ucom.sc_dev), sc->sc_lsr, sc->sc_msr));
+	    device_get_nameunit(sc->sc_ucom.sc_dev), sc->sc_lsr, sc->sc_msr));
 
 	taskqueue_enqueue(taskqueue_swi_giant, &sc->sc_task);
 }

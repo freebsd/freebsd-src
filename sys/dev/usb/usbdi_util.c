@@ -512,17 +512,17 @@ usbd_intr_transfer(usbd_xfer_handle xfer, usbd_pipe_handle pipe,
 void
 usb_detach_wait(device_t dv)
 {
-	DPRINTF(("usb_detach_wait: waiting for %s\n", USBDEVPTRNAME(dv)));
+	DPRINTF(("usb_detach_wait: waiting for %s\n", device_get_nameunit(dv)));
 	if (tsleep(dv, PZERO, "usbdet", hz * 60))
 		printf("usb_detach_wait: %s didn't detach\n",
-		        USBDEVPTRNAME(dv));
-	DPRINTF(("usb_detach_wait: %s done\n", USBDEVPTRNAME(dv)));
+		        device_get_nameunit(dv));
+	DPRINTF(("usb_detach_wait: %s done\n", device_get_nameunit(dv)));
 }
 
 void
 usb_detach_wakeup(device_t dv)
 {
-	DPRINTF(("usb_detach_wakeup: for %s\n", USBDEVPTRNAME(dv)));
+	DPRINTF(("usb_detach_wakeup: for %s\n", device_get_nameunit(dv)));
 	wakeup(dv);
 }
 

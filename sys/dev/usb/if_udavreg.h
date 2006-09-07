@@ -164,7 +164,7 @@ struct udav_softc {
 #if defined(__FreeBSD__)
 	struct ifnet		*sc_ifp;
 #endif
-	USBBASEDEVICE		sc_dev;	/* base device */
+	device_t		sc_dev;	/* base device */
 	usbd_device_handle	sc_udev;
 
 	/* USB */

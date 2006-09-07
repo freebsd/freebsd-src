@@ -181,7 +181,7 @@ USB_ATTACH(umct)
 
 	usbd_devinfo(dev, 0, devinfo);
 	device_set_desc_copy(self, devinfo);
-	devname = USBDEVNAME(ucom->sc_dev);
+	devname = device_get_nameunit(ucom->sc_dev);
 	printf("%s: %s\n", devname, devinfo);
 
 	ucom->sc_bulkout_no = -1;
@@ -320,7 +320,7 @@ umct_request(struct umct_softc *sc, uint8_t request, int len, uint32_t value)
 	err = usbd_do_request(sc->sc_ucom.sc_udev, &req, oval);
 	if (err)
 		printf("%s: ubsa_request: %s\n",
-		    USBDEVNAME(sc->sc_ucom.sc_dev), usbd_errstr(err));
+		    device_get_nameunit(sc->sc_ucom.sc_dev), usbd_errstr(err));
 	return (err);
 }
 
@@ -481,7 +481,7 @@ umct_open(void *addr, int portno)
 		    sc->sc_isize, umct_intr, UMCT_INTR_INTERVAL);
 		if (err) {
 			printf("%s: cannot open interrupt pipe (addr %d)\n",
-			    USBDEVNAME(sc->sc_ucom.sc_dev),
+			    device_get_nameunit(sc->sc_ucom.sc_dev),
 			    sc->sc_intr_number);
 			free(sc->sc_intr_buf, M_USBDEV);
 			return (EIO);
@@ -505,11 +505,11 @@ umct_close(void *addr, int portno)
 		err = usbd_abort_pipe(sc->sc_intr_pipe);
 		if (err)
 			printf("%s: abort interrupt pipe failed: %s\n",
-			    USBDEVNAME(sc->sc_ucom.sc_dev), usbd_errstr(err));
+			    device_get_nameunit(sc->sc_ucom.sc_dev), usbd_errstr(err));
 		err = usbd_close_pipe(sc->sc_intr_pipe);
 		if (err)
 			printf("%s: close interrupt pipe failed: %s\n",
-			    USBDEVNAME(sc->sc_ucom.sc_dev), usbd_errstr(err));
+			    device_get_nameunit(sc->sc_ucom.sc_dev), usbd_errstr(err));
 		free(sc->sc_intr_buf, M_USBDEV);
 		sc->sc_intr_pipe = NULL;
 	}

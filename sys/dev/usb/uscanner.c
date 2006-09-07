@@ -241,7 +241,7 @@ static const struct uscan_info uscanner_devs[] = {
 #define	USCANNER_BUFFERSIZE	1024
 
 struct uscanner_softc {
-	USBBASEDEVICE		sc_dev;		/* base device */
+	device_t		sc_dev;		/* base device */
 	usbd_device_handle	sc_udev;
 	usbd_interface_handle	sc_iface;
 #if defined(__FreeBSD__)
@@ -334,7 +334,7 @@ USB_ATTACH(uscanner)
 	err = usbd_set_config_no(uaa->device, 1, 1); /* XXX */
 	if (err) {
 		printf("%s: setting config no failed\n",
-		    USBDEVNAME(sc->sc_dev));
+		    device_get_nameunit(sc->sc_dev));
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -344,7 +344,7 @@ USB_ATTACH(uscanner)
 	    id = usbd_get_interface_descriptor(sc->sc_iface);
 	if (err || id == 0) {
 		printf("%s: could not get interface descriptor, err=%d,id=%p\n",
-		       USBDEVNAME(sc->sc_dev), err, id);
+		       device_get_nameunit(sc->sc_dev), err, id);
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -353,7 +353,7 @@ USB_ATTACH(uscanner)
 		ed = usbd_interface2endpoint_descriptor(sc->sc_iface, i);
 		if (ed == 0) {
 			printf("%s: could not read endpoint descriptor\n",
-			       USBDEVNAME(sc->sc_dev));
+			       device_get_nameunit(sc->sc_dev));
 			USB_ATTACH_ERROR_RETURN;
 		}
 
@@ -372,7 +372,7 @@ USB_ATTACH(uscanner)
 	/* Verify that we goething sensible */
 	if (ed_bulkin == NULL || ed_bulkout == NULL) {
 		printf("%s: bulk-in and/or bulk-out endpoint not found\n",
-			USBDEVNAME(sc->sc_dev));
+			device_get_nameunit(sc->sc_dev));
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -381,8 +381,8 @@ USB_ATTACH(uscanner)
 
 #ifdef __FreeBSD__
 	/* the main device, ctrl endpoint */
-	sc->dev = make_dev(&uscanner_cdevsw, USBDEVUNIT(sc->sc_dev),
-		UID_ROOT, GID_OPERATOR, 0644, "%s", USBDEVNAME(sc->sc_dev));
+	sc->dev = make_dev(&uscanner_cdevsw, device_get_unit(sc->sc_dev),
+		UID_ROOT, GID_OPERATOR, 0644, "%s", device_get_nameunit(sc->sc_dev));
 #endif
 
 	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, sc->sc_udev,
@@ -424,7 +424,7 @@ uscanneropen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 				     USBD_EXCLUSIVE_USE, &sc->sc_bulkin_pipe);
 		if (err) {
 			printf("%s: cannot open bulk-in pipe (addr %d)\n",
-			       USBDEVNAME(sc->sc_dev), sc->sc_bulkin);
+			       device_get_nameunit(sc->sc_dev), sc->sc_bulkin);
 			uscanner_do_close(sc);
 			return (EIO);
 		}
@@ -434,7 +434,7 @@ uscanneropen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 				     USBD_EXCLUSIVE_USE, &sc->sc_bulkout_pipe);
 		if (err) {
 			printf("%s: cannot open bulk-out pipe (addr %d)\n",
-			       USBDEVNAME(sc->sc_dev), sc->sc_bulkout);
+			       device_get_nameunit(sc->sc_dev), sc->sc_bulkout);
 			uscanner_do_close(sc);
 			return (EIO);
 		}
@@ -520,7 +520,7 @@ uscanner_do_read(struct uscanner_softc *sc, struct uio *uio, int flag)
 	usbd_status err;
 	int error = 0;
 
-	DPRINTFN(5, ("%s: uscannerread\n", USBDEVNAME(sc->sc_dev)));
+	DPRINTFN(5, ("%s: uscannerread\n", device_get_nameunit(sc->sc_dev)));
 
 	if (sc->sc_dying)
 		return (EIO);
@@ -575,7 +575,7 @@ uscanner_do_write(struct uscanner_softc *sc, struct uio *uio, int flag)
 	int error = 0;
 	usbd_status err;
 
-	DPRINTFN(5, ("%s: uscanner_do_write\n", USBDEVNAME(sc->sc_dev)));
+	DPRINTFN(5, ("%s: uscanner_do_write\n", device_get_nameunit(sc->sc_dev)));
 
 	if (sc->sc_dying)
 		return (EIO);

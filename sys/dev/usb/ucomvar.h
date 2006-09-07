@@ -120,7 +120,7 @@ struct ucom_callback {
 #define UCS_RTS_IFLOW	0x0008	/* use RTS input flow control */
 
 struct ucom_softc {
-	USBBASEDEVICE		sc_dev;		/* base device */
+	device_t		sc_dev;		/* base device */
 	usbd_device_handle	sc_udev;	/* USB device */
 	usbd_interface_handle	sc_iface;	/* data interface */
 

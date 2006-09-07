@@ -137,7 +137,7 @@ static struct cdevsw urio_cdevsw = {
 #define	URIO_BBSIZE	1024
 
 struct urio_softc {
- 	USBBASEDEVICE sc_dev;
+ 	device_t sc_dev;
 	usbd_device_handle sc_udev;
 	usbd_interface_handle sc_iface;
 
@@ -275,7 +275,7 @@ USB_ATTACH(urio)
 	USB_ATTACH_SUCCESS_RETURN;
 
  nobulk:
-	printf("%s: could not find %s\n", USBDEVNAME(sc->sc_dev),ermsg);
+	printf("%s: could not find %s\n", device_get_nameunit(sc->sc_dev),ermsg);
 	USB_ATTACH_ERROR_RETURN;
 }
 
@@ -555,7 +555,7 @@ urioioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 		uio.uio_rw =
 			req.bmRequestType & UT_READ ?
 			UIO_READ : UIO_WRITE;
-		uio.uio_procp = p;
+		uio.uio_td = p;
 		ptr = malloc(len, M_TEMP, M_WAITOK);
 		if (uio.uio_rw == UIO_WRITE) {
 			error = uiomove(ptr, len, &uio);
@@ -676,7 +676,7 @@ urio_detach(device_t self)
 {
 	struct urio_softc *sc = device_get_softc(self);
 
-	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
+	DPRINTF(("%s: disconnected\n", device_get_nameunit(self)));
 	destroy_dev(sc->sc_dev_t);
 	/* XXX not implemented yet */
 	device_set_desc(self, NULL);

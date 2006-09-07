@@ -329,7 +329,7 @@ USB_ATTACH(ufoma)
 	id = usbd_get_interface_descriptor(sc->sc_ctl_iface);
 	sc->sc_ctl_iface_no = id->bInterfaceNumber;
 	
-	devname = USBDEVNAME(self);
+	devname = device_get_nameunit(self);
 	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
 	usbd_devinfo(dev, 0, devinfo);
 	printf("%s: %s, iclass %d/%d ifno:%d\n", devname, devinfo,
@@ -539,13 +539,13 @@ static int ufoma_activate_state(struct ufoma_softc *sc, int state)
 	
 	err = usbd_do_request(ucom->sc_udev, &req, NULL);
 	if(err){
-		printf("%s:ACTIVATE:%s\n", USBDEVNAME(ucom->sc_dev), usbd_errstr(err));
+		printf("%s:ACTIVATE:%s\n", device_get_nameunit(ucom->sc_dev), usbd_errstr(err));
 		return EIO;
 	}
 
 	err = tsleep(&sc->sc_currentmode, PZERO|PCATCH, "fmaact", UFOMA_MAX_TIMEOUT*hz);
 	if(err){
-		printf("%s:NO response", USBDEVNAME(ucom->sc_dev));
+		printf("%s:NO response", device_get_nameunit(ucom->sc_dev));
 		return EIO;
 	}
 	if(sc->sc_currentmode != state){
@@ -606,7 +606,7 @@ static void ufoma_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_sta
 	if (status != USBD_NORMAL_COMPLETION) {
 		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED)
 			return;
-		printf("%s: abnormal status: %s\n", USBDEVNAME(ucom->sc_dev),
+		printf("%s: abnormal status: %s\n", device_get_nameunit(ucom->sc_dev),
 		       usbd_errstr(status));
 		return;
 	}
@@ -615,7 +615,7 @@ static void ufoma_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_sta
 		a =  UGETW(sc->sc_notify_buf.wValue);
 		sc->sc_currentmode = a>>8;
 		if(!(a&0xff)){
-			printf("%s:Mode change Failed\n", USBDEVNAME(ucom->sc_dev));
+			printf("%s:Mode change Failed\n", device_get_nameunit(ucom->sc_dev));
 		}
 		wakeup(&sc->sc_currentmode);
 	}
@@ -625,7 +625,7 @@ static void ufoma_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_sta
 	switch(sc->sc_notify_buf.bNotification){
 	case UCDC_N_RESPONSE_AVAILABLE:
 		if(sc->sc_is_ucom){
-			printf("%s:wrong response request?\n", USBDEVNAME(ucom->sc_dev));
+			printf("%s:wrong response request?\n", device_get_nameunit(ucom->sc_dev));
 			break;
 		}
 		mtx_lock(&sc->sc_mtx);
@@ -641,7 +641,7 @@ static void ufoma_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_sta
 		break;
 	case UCDC_N_SERIAL_STATE:
 		if(!sc->sc_is_ucom){
-			printf("%s:wrong sereal request?\n",USBDEVNAME(ucom->sc_dev));
+			printf("%s:wrong sereal request?\n",device_get_nameunit(ucom->sc_dev));
 			break;
 		}
 
@@ -651,12 +651,12 @@ static void ufoma_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_sta
 		 */
 		if (UGETW(sc->sc_notify_buf.wLength) != 2) {
 			printf("%s: Invalid notification length! (%d)\n",
-			       USBDEVNAME(ucom->sc_dev),
+			       device_get_nameunit(ucom->sc_dev),
 			       UGETW(sc->sc_notify_buf.wLength));
 			break;
 		}
 		DPRINTF(("%s: notify bytes = %02x%02x\n",
-			 USBDEVNAME(ucom->sc_dev),
+			 device_get_nameunit(ucom->sc_dev),
 			 sc->sc_notify_buf.data[0],
 			 sc->sc_notify_buf.data[1]));
 		/* Currently, lsr is always zero. */
@@ -948,7 +948,7 @@ static int ufoma_init_modem(struct ufoma_softc *sc,struct usb_attach_arg *uaa)
 	usb_cdc_cm_descriptor_t *cmd;	
 	usb_endpoint_descriptor_t *ed;
 	usb_interface_descriptor_t *id;
-	const char *devname = USBDEVNAME(ucom->sc_dev);
+	const char *devname = device_get_nameunit(ucom->sc_dev);
 	int i;
 	cd = usbd_get_config_descriptor(ucom->sc_udev);
 	id = usbd_get_interface_descriptor(sc->sc_ctl_iface);
