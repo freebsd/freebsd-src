@@ -6,7 +6,7 @@
 FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	abi accounting addswap adjkerntz amd \
 	apm apmd archdep atm1 atm2 atm3 auditd \
-	bgfsck bluetooth bootparams bridge bsnmpd \
+	bgfsck bluetooth bootparams bridge bsnmpd bthidd \
 	ccd cleanvar cleartmp cron \
 	devd devfs dhclient \
 	dmesg dumpon \
