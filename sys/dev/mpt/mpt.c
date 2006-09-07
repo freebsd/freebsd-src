@@ -116,7 +116,7 @@ static int maxwait_ack = 0;
 static int maxwait_int = 0;
 static int maxwait_state = 0;
 
-TAILQ_HEAD(, mpt_softc)	mpt_tailq = TAILQ_HEAD_INITIALIZER(mpt_tailq);
+static TAILQ_HEAD(, mpt_softc)	mpt_tailq = TAILQ_HEAD_INITIALIZER(mpt_tailq);
 mpt_reply_handler_t *mpt_reply_handlers[MPT_NUM_REPLY_HANDLERS];
 
 static mpt_reply_handler_t mpt_default_reply_handler;
@@ -186,6 +186,7 @@ static mpt_load_handler_t      mpt_stdload;
 static mpt_probe_handler_t     mpt_stdprobe;
 static mpt_attach_handler_t    mpt_stdattach;
 static mpt_enable_handler_t    mpt_stdenable;
+static mpt_ready_handler_t     mpt_stdready;
 static mpt_event_handler_t     mpt_stdevent;
 static mpt_reset_handler_t     mpt_stdreset;
 static mpt_shutdown_handler_t  mpt_stdshutdown;
@@ -197,6 +198,7 @@ static struct mpt_personality mpt_default_personality =
 	.probe		= mpt_stdprobe,
 	.attach		= mpt_stdattach,
 	.enable		= mpt_stdenable,
+	.ready		= mpt_stdready,
 	.event		= mpt_stdevent,
 	.reset		= mpt_stdreset,
 	.shutdown	= mpt_stdshutdown,
@@ -237,7 +239,6 @@ DECLARE_MODULE(mpt_core, mpt_core_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(mpt_core, 1);
 
 #define MPT_PERS_ATTACHED(pers, mpt) ((mpt)->mpt_pers_mask & (0x1 << pers->id))
-
 
 int
 mpt_modevent(module_t mod, int type, void *data)
@@ -326,6 +327,12 @@ mpt_stdenable(struct mpt_softc *mpt)
 	return (0);
 }
 
+void
+mpt_stdready(struct mpt_softc *mpt)
+{
+}
+
+
 int
 mpt_stdevent(struct mpt_softc *mpt, request_t *req, MSG_EVENT_NOTIFY_REPLY *msg)
 {
@@ -355,6 +362,25 @@ mpt_stdunload(struct mpt_personality *pers)
 	/* Unload is always successfull. */
 	return (0);
 }
+
+/*
+ * Post driver attachment, we may want to perform some global actions.
+ * Here is the hook to do so.
+ */
+
+static void
+mpt_postattach(void *unused)
+{
+	struct mpt_softc *mpt;
+	struct mpt_personality *pers;
+
+	TAILQ_FOREACH(mpt, &mpt_tailq, links) {
+		MPT_PERS_FOREACH(mpt, pers)
+			pers->ready(mpt);
+	}
+}
+SYSINIT(mptdev, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE, mpt_postattach, NULL);
+
 
 /******************************* Bus DMA Support ******************************/
 void
@@ -1980,6 +2006,7 @@ mpt_attach(struct mpt_softc *mpt)
 	int i;
 	int error;
 
+	TAILQ_INSERT_TAIL(&mpt_tailq, mpt, links);
 	for (i = 0; i < MPT_MAX_PERSONALITIES; i++) {
 		pers = mpt_personalities[i];
 		if (pers == NULL) {
@@ -2038,7 +2065,7 @@ mpt_detach(struct mpt_softc *mpt)
 		mpt->mpt_pers_mask &= ~(0x1 << pers->id);
 		pers->use_count--;
 	}
-
+	TAILQ_REMOVE(&mpt_tailq, mpt, links);
 	return (0);
 }
 
