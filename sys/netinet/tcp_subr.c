@@ -1736,7 +1736,7 @@ tcp_twstart(struct tcpcb *tp)
 {
 	struct tcptw *tw;
 	struct inpcb *inp;
-	int tw_time, acknow;
+	int acknow;
 	struct socket *so;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);	/* tcp_timer_2msl_reset(). */
@@ -1781,7 +1781,6 @@ tcp_twstart(struct tcpcb *tp)
  * be used for fin-wait-2 state also, then we may need
  * a ts_recent from the last segment.
  */
-	tw_time = 2 * tcp_msl;
 	acknow = tp->t_flags & TF_ACKNOW;
 
 	/*
@@ -1803,7 +1802,7 @@ tcp_twstart(struct tcpcb *tp)
 		tcp_twrespond(tw, TH_ACK);
 	inp->inp_ppcb = tw;
 	inp->inp_vflag |= INP_TIMEWAIT;
-	tcp_timer_2msl_reset(tw, tw_time, 0);
+	tcp_timer_2msl_reset(tw, 0);
 
 	/*
 	 * If the inpcb owns the sole reference to the socket, then we can
