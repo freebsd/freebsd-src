@@ -67,66 +67,66 @@
 
 USB_DECLARE_DRIVER(ubt);
 
-Static int         ubt_modevent		  (module_t, int, void *);
+static int         ubt_modevent		  (module_t, int, void *);
 
-Static usbd_status ubt_request_start      (ubt_softc_p);
-Static void        ubt_request_complete   (usbd_xfer_handle, 
+static usbd_status ubt_request_start      (ubt_softc_p);
+static void        ubt_request_complete   (usbd_xfer_handle, 
 					   usbd_private_handle, usbd_status);
-Static void        ubt_request_complete2  (node_p, hook_p, void *, int);
+static void        ubt_request_complete2  (node_p, hook_p, void *, int);
 
-Static usbd_status ubt_intr_start	  (ubt_softc_p);
-Static void        ubt_intr_complete      (usbd_xfer_handle, 
+static usbd_status ubt_intr_start	  (ubt_softc_p);
+static void        ubt_intr_complete      (usbd_xfer_handle, 
 					   usbd_private_handle, usbd_status);
-Static void        ubt_intr_complete2     (node_p, hook_p, void *, int); 
+static void        ubt_intr_complete2     (node_p, hook_p, void *, int); 
 
-Static usbd_status ubt_bulk_in_start	  (ubt_softc_p);
-Static void        ubt_bulk_in_complete   (usbd_xfer_handle, 
+static usbd_status ubt_bulk_in_start	  (ubt_softc_p);
+static void        ubt_bulk_in_complete   (usbd_xfer_handle, 
 					   usbd_private_handle, usbd_status);
-Static void        ubt_bulk_in_complete2  (node_p, hook_p, void *, int);
+static void        ubt_bulk_in_complete2  (node_p, hook_p, void *, int);
 
-Static usbd_status ubt_bulk_out_start     (ubt_softc_p);
-Static void        ubt_bulk_out_complete  (usbd_xfer_handle, 
+static usbd_status ubt_bulk_out_start     (ubt_softc_p);
+static void        ubt_bulk_out_complete  (usbd_xfer_handle, 
 					   usbd_private_handle, usbd_status);
-Static void        ubt_bulk_out_complete2 (node_p, hook_p, void *, int); 
+static void        ubt_bulk_out_complete2 (node_p, hook_p, void *, int); 
 
-Static usbd_status ubt_isoc_in_start      (ubt_softc_p);
-Static void        ubt_isoc_in_complete   (usbd_xfer_handle, 
+static usbd_status ubt_isoc_in_start      (ubt_softc_p);
+static void        ubt_isoc_in_complete   (usbd_xfer_handle, 
 					   usbd_private_handle, usbd_status);
-Static void        ubt_isoc_in_complete2  (node_p, hook_p, void *, int);
+static void        ubt_isoc_in_complete2  (node_p, hook_p, void *, int);
 
-Static usbd_status ubt_isoc_out_start     (ubt_softc_p);
-Static void        ubt_isoc_out_complete  (usbd_xfer_handle, 
+static usbd_status ubt_isoc_out_start     (ubt_softc_p);
+static void        ubt_isoc_out_complete  (usbd_xfer_handle, 
 					   usbd_private_handle, usbd_status);
-Static void        ubt_isoc_out_complete2 (node_p, hook_p, void *, int);
+static void        ubt_isoc_out_complete2 (node_p, hook_p, void *, int);
 
-Static void        ubt_reset              (ubt_softc_p);
+static void        ubt_reset              (ubt_softc_p);
 
 /*
  * Netgraph methods
  */
 
-Static ng_constructor_t	ng_ubt_constructor;
-Static ng_shutdown_t	ng_ubt_shutdown;
-Static ng_newhook_t	ng_ubt_newhook;
-Static ng_connect_t	ng_ubt_connect;
-Static ng_disconnect_t	ng_ubt_disconnect;
-Static ng_rcvmsg_t	ng_ubt_rcvmsg;
-Static ng_rcvdata_t	ng_ubt_rcvdata;
+static ng_constructor_t	ng_ubt_constructor;
+static ng_shutdown_t	ng_ubt_shutdown;
+static ng_newhook_t	ng_ubt_newhook;
+static ng_connect_t	ng_ubt_connect;
+static ng_disconnect_t	ng_ubt_disconnect;
+static ng_rcvmsg_t	ng_ubt_rcvmsg;
+static ng_rcvdata_t	ng_ubt_rcvdata;
 
 /* Queue length */
-Static const struct ng_parse_struct_field	ng_ubt_node_qlen_type_fields[] =
+static const struct ng_parse_struct_field	ng_ubt_node_qlen_type_fields[] =
 {
 	{ "queue", &ng_parse_int32_type, },
 	{ "qlen",  &ng_parse_int32_type, },
 	{ NULL, }
 };
-Static const struct ng_parse_type		ng_ubt_node_qlen_type = {
+static const struct ng_parse_type		ng_ubt_node_qlen_type = {
 	&ng_parse_struct_type,
 	&ng_ubt_node_qlen_type_fields
 };
 
 /* Stat info */
-Static const struct ng_parse_struct_field	ng_ubt_node_stat_type_fields[] =
+static const struct ng_parse_struct_field	ng_ubt_node_stat_type_fields[] =
 {
 	{ "pckts_recv", &ng_parse_uint32_type, },
 	{ "bytes_recv", &ng_parse_uint32_type, },
@@ -136,13 +136,13 @@ Static const struct ng_parse_struct_field	ng_ubt_node_stat_type_fields[] =
 	{ "ierrors",    &ng_parse_uint32_type, },
 	{ NULL, }
 };
-Static const struct ng_parse_type	ng_ubt_node_stat_type = {
+static const struct ng_parse_type	ng_ubt_node_stat_type = {
 	&ng_parse_struct_type,
 	&ng_ubt_node_stat_type_fields
 };
 
 /* Netgraph node command list */
-Static const struct ng_cmdlist	ng_ubt_cmdlist[] = {
+static const struct ng_cmdlist	ng_ubt_cmdlist[] = {
 {
 	NGM_UBT_COOKIE,
 	NGM_UBT_NODE_SET_DEBUG,
@@ -189,7 +189,7 @@ Static const struct ng_cmdlist	ng_ubt_cmdlist[] = {
 };
 
 /* Netgraph node type */
-Static struct ng_type	typestruct = {
+static struct ng_type	typestruct = {
 	.version =	NG_ABI_VERSION,
 	.name =		NG_UBT_NODE_TYPE,
 	.constructor =	ng_ubt_constructor,
@@ -220,7 +220,7 @@ MODULE_DEPEND(ng_ubt, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
  * Load/Unload the driver module
  */
 
-Static int
+static int
 ubt_modevent(module_t mod, int event, void *data)
 {
 	int	error;
@@ -266,7 +266,7 @@ USB_MATCH(ubt)
 	 * where VENDOR_ID and PRODUCT_ID are hex numbers.
 	 */
 
-	Static struct usb_devno const	ubt_ignored_devices[] = {
+	static struct usb_devno const	ubt_ignored_devices[] = {
 		{ USB_VENDOR_AVM, 0x2200 }, /* AVM USB Bluetooth-Adapter BlueFritz! v1.0 */
 		{ 0, 0 } /* This should be the last item in the list */
 	};
@@ -279,7 +279,7 @@ USB_MATCH(ubt)
 	 * to attach to the broken device.
 	 */
 
-	Static struct usb_devno const	ubt_broken_devices[] = {
+	static struct usb_devno const	ubt_broken_devices[] = {
 		{ USB_VENDOR_AVM, 0x3800 }, /* AVM USB Bluetooth-Adapter BlueFritz! v2.0 */
 		{ 0, 0 } /* This should be the last item in the list */
 	};
@@ -853,7 +853,7 @@ USB_DETACH(ubt)
  * Start USB control request (HCI command). Must be called with node locked
  */
 
-Static usbd_status
+static usbd_status
 ubt_request_start(ubt_softc_p sc)
 {
 	usb_device_request_t	 req;
@@ -939,14 +939,14 @@ ubt_request_start(ubt_softc_p sc)
  * USB control request callback
  */
 
-Static void
+static void
 ubt_request_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 {
 	ng_send_fn((node_p) p, NULL, ubt_request_complete2, (void *) h, s);
 	NG_NODE_UNREF((node_p) p);
 } /* ubt_request_complete */
 
-Static void
+static void
 ubt_request_complete2(node_p node, hook_p hook, void *arg1, int arg2)
 { 
 	ubt_softc_p		sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
@@ -994,7 +994,7 @@ ubt_request_complete2(node_p node, hook_p hook, void *arg1, int arg2)
  * Start interrupt transfer. Must be called when node is locked
  */
 
-Static usbd_status
+static usbd_status
 ubt_intr_start(ubt_softc_p sc)
 {
 	struct mbuf	*m = NULL;
@@ -1058,14 +1058,14 @@ ubt_intr_start(ubt_softc_p sc)
  * Process interrupt from USB device (We got data from interrupt pipe)
  */
 
-Static void
+static void
 ubt_intr_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 {
 	ng_send_fn((node_p) p, NULL, ubt_intr_complete2, (void *) h, s);
 	NG_NODE_UNREF((node_p) p);
 } /* ubt_intr_complete */
 
-Static void
+static void
 ubt_intr_complete2(node_p node, hook_p hook, void *arg1, int arg2)
 {
 	ubt_softc_p		 sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
@@ -1160,7 +1160,7 @@ done:
  * Start bulk-in USB transfer (ACL data). Must be called when node is locked
  */
 
-Static usbd_status
+static usbd_status
 ubt_bulk_in_start(ubt_softc_p sc)
 {
 	struct mbuf	*m = NULL;
@@ -1224,14 +1224,14 @@ ubt_bulk_in_start(ubt_softc_p sc)
  * USB bulk-in transfer callback
  */
 
-Static void
+static void
 ubt_bulk_in_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 {
 	ng_send_fn((node_p) p, NULL, ubt_bulk_in_complete2, (void *) h, s);
 	NG_NODE_UNREF((node_p) p);
 } /* ubt_bulk_in_complete */
 
-Static void
+static void
 ubt_bulk_in_complete2(node_p node, hook_p hook, void *arg1, int arg2)
 {
 	ubt_softc_p		 sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
@@ -1326,7 +1326,7 @@ done:
  * Start bulk-out USB transfer. Must be called with node locked
  */
 
-Static usbd_status
+static usbd_status
 ubt_bulk_out_start(ubt_softc_p sc)
 {
 	struct mbuf	*m = NULL;
@@ -1401,14 +1401,14 @@ ubt_bulk_out_start(ubt_softc_p sc)
  * USB bulk-out transfer callback
  */
 
-Static void
+static void
 ubt_bulk_out_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 {
 	ng_send_fn((node_p) p,  NULL, ubt_bulk_out_complete2, (void *) h, s);
 	NG_NODE_UNREF((node_p) p);
 } /* ubt_bulk_out_complete */
 
-Static void
+static void
 ubt_bulk_out_complete2(node_p node, hook_p hook, void *arg1, int arg2)
 {
 	ubt_softc_p		sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
@@ -1457,7 +1457,7 @@ ubt_bulk_out_complete2(node_p node, hook_p hook, void *arg1, int arg2)
  * Start Isochronous-in USB transfer. Must be called with node locked
  */
 
-Static usbd_status
+static usbd_status
 ubt_isoc_in_start(ubt_softc_p sc)
 {
 	usbd_status	status;
@@ -1503,14 +1503,14 @@ ubt_isoc_in_start(ubt_softc_p sc)
  * USB isochronous transfer callback
  */
 
-Static void
+static void
 ubt_isoc_in_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 {
 	ng_send_fn((node_p) p, NULL, ubt_isoc_in_complete2, (void *) h, s);
 	NG_NODE_UNREF((node_p) p);
 } /* ubt_isoc_in_complete */
 
-Static void
+static void
 ubt_isoc_in_complete2(node_p node, hook_p hook, void *arg1, int arg2)
 {
 	ubt_softc_p		 sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
@@ -1632,7 +1632,7 @@ done:
  * Start isochronous-out USB transfer. Must be called with node locked
  */
 
-Static usbd_status
+static usbd_status
 ubt_isoc_out_start(ubt_softc_p sc)
 {
 	struct mbuf	*m = NULL;
@@ -1717,14 +1717,14 @@ ubt_isoc_out_start(ubt_softc_p sc)
  * USB isoc-out. transfer callback
  */
 
-Static void
+static void
 ubt_isoc_out_complete(usbd_xfer_handle h, usbd_private_handle p, usbd_status s)
 {
 	ng_send_fn((node_p) p, NULL, ubt_isoc_out_complete2, (void *) h, s);
 	NG_NODE_UNREF((node_p) p);
 } /* ubt_isoc_out_complete */
 
-Static void
+static void
 ubt_isoc_out_complete2(node_p node, hook_p hook, void *arg1, int arg2)
 {
 	ubt_softc_p		sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
@@ -1774,7 +1774,7 @@ ubt_isoc_out_complete2(node_p node, hook_p hook, void *arg1, int arg2)
  * Abort transfers on all USB pipes
  */
 
-Static void
+static void
 ubt_reset(ubt_softc_p sc)
 {
 	/* Interrupt */
@@ -1809,7 +1809,7 @@ ubt_reset(ubt_softc_p sc)
  * Netgraph node constructor. Do not allow to create node of this type.
  */
 
-Static int
+static int
 ng_ubt_constructor(node_p node)
 {
 	return (EINVAL);
@@ -1819,7 +1819,7 @@ ng_ubt_constructor(node_p node)
  * Netgraph node destructor. Destroy node only when device has been detached
  */
 
-Static int
+static int
 ng_ubt_shutdown(node_p node)
 {
 	ubt_softc_p	sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
@@ -1858,7 +1858,7 @@ done:
  * Create new hook. There can only be one.
  */
 
-Static int
+static int
 ng_ubt_newhook(node_p node, hook_p hook, char const *name)
 {
 	ubt_softc_p	sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
@@ -1878,7 +1878,7 @@ ng_ubt_newhook(node_p node, hook_p hook, char const *name)
  * Connect hook. Start incoming USB transfers
  */
 
-Static int
+static int
 ng_ubt_connect(hook_p hook)
 {
 	ubt_softc_p	sc = (ubt_softc_p) NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
@@ -1930,7 +1930,7 @@ fail:
  * Disconnect hook
  */
 
-Static int
+static int
 ng_ubt_disconnect(hook_p hook)
 {
 	ubt_softc_p	sc = (ubt_softc_p) NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
@@ -1950,7 +1950,7 @@ ng_ubt_disconnect(hook_p hook)
  * Process control message
  */
 
-Static int
+static int
 ng_ubt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	ubt_softc_p		 sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
@@ -2131,7 +2131,7 @@ ng_ubt_rcvmsg(node_p node, item_p item, hook_p lasthook)
  * Process data
  */
 
-Static int
+static int
 ng_ubt_rcvdata(hook_p hook, item_p item)
 {
 	ubt_softc_p		 sc = (ubt_softc_p) NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
