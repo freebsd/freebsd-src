@@ -82,7 +82,7 @@ struct ural_softc {
 	struct ieee80211com		sc_ic;
 	int				(*sc_newstate)(struct ieee80211com *,
 					    enum ieee80211_state, int);
-	USBBASEDEVICE			sc_dev;
+	device_t			sc_dev;
 	usbd_device_handle		sc_udev;
 	usbd_interface_handle		sc_iface;
 

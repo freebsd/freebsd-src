@@ -102,7 +102,7 @@ struct usb_softc;
 
 struct usbd_bus {
 	/* Filled by HC driver */
-	USBBASEDEVICE		bdev; /* base device, host adapter */
+	device_t		bdev; /* base device, host adapter */
 	struct usbd_bus_methods	*methods;
 	u_int32_t		pipe_size; /* size of a pipe struct */
 	/* Filled by usb driver */
@@ -177,7 +177,7 @@ struct usbd_pipe {
 	int			refcnt;
 	char			running;
 	char			aborting;
-	SIMPLEQ_HEAD(, usbd_xfer) queue;
+	STAILQ_HEAD(, usbd_xfer) queue;
 	LIST_ENTRY(usbd_pipe)	next;
 
 	usbd_xfer_handle	intrxfer; /* used for repeating requests */
@@ -232,7 +232,7 @@ struct usbd_xfer {
 #define URQ_AUTO_DMABUF	0x10
 #define URQ_DEV_DMABUF	0x20
 
-	SIMPLEQ_ENTRY(usbd_xfer) next;
+	STAILQ_ENTRY(usbd_xfer) next;
 
 	void		       *hcpriv; /* private use by the HC driver */
 

@@ -201,7 +201,7 @@ ukbd_detach(device_t self)
 	kbd = kbd_get_keyboard(kbd_find_keyboard(DRIVER_NAME,
 						 device_get_unit(self)));
 	if (kbd == NULL) {
-		DPRINTF(("%s: keyboard not attached!?\n", USBDEVNAME(self)));
+		DPRINTF(("%s: keyboard not attached!?\n", device_get_nameunit(self)));
 		return ENXIO;
 	}
 	(*kbdsw[kbd->kb_index]->disable)(kbd);
@@ -215,7 +215,7 @@ ukbd_detach(device_t self)
 	if (error)
 		return error;
 
-	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
+	DPRINTF(("%s: disconnected\n", device_get_nameunit(self)));
 
 	return (0);
 }

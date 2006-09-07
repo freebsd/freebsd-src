@@ -143,7 +143,7 @@ static const struct umodem_product {
 struct umodem_softc {
 	struct ucom_softc	sc_ucom;
 
-	USBBASEDEVICE		sc_dev;		/* base device */
+	device_t		sc_dev;		/* base device */
 
 	usbd_device_handle	sc_udev;	/* USB device */
 
@@ -297,7 +297,7 @@ USB_ATTACH(umodem)
 	sc->sc_udev = dev;
 	sc->sc_ctl_iface = uaa->iface;
 
-	devname = USBDEVNAME(sc->sc_dev);
+	devname = device_get_nameunit(sc->sc_dev);
 	/* XXX ? use something else ? XXX */
 	id = usbd_get_interface_descriptor(sc->sc_ctl_iface);
 	printf("%s: %s, iclass %d/%d\n", devname, devinfo,
@@ -469,11 +469,11 @@ umodem_close(void *addr, int portno)
 		err = usbd_abort_pipe(sc->sc_notify_pipe);
 		if (err)
 			printf("%s: abort notify pipe failed: %s\n",
-			    USBDEVNAME(sc->sc_dev), usbd_errstr(err));
+			    device_get_nameunit(sc->sc_dev), usbd_errstr(err));
 		err = usbd_close_pipe(sc->sc_notify_pipe);
 		if (err)
 			printf("%s: close notify pipe failed: %s\n",
-			    USBDEVNAME(sc->sc_dev), usbd_errstr(err));
+			    device_get_nameunit(sc->sc_dev), usbd_errstr(err));
 		sc->sc_notify_pipe = NULL;
 	}
 }
@@ -490,14 +490,14 @@ umodem_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	if (status != USBD_NORMAL_COMPLETION) {
 		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED)
 			return;
-		printf("%s: abnormal status: %s\n", USBDEVNAME(sc->sc_dev),
+		printf("%s: abnormal status: %s\n", device_get_nameunit(sc->sc_dev),
 		       usbd_errstr(status));
 		return;
 	}
 
 	if (sc->sc_notify_buf.bmRequestType != UCDC_NOTIFICATION) {
 		DPRINTF(("%s: unknown message type (%02x) on notify pipe\n",
-			 USBDEVNAME(sc->sc_dev),
+			 device_get_nameunit(sc->sc_dev),
 			 sc->sc_notify_buf.bmRequestType));
 		return;
 	}
@@ -510,12 +510,12 @@ umodem_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 		 */
 		if (UGETW(sc->sc_notify_buf.wLength) != 2) {
 			printf("%s: Invalid notification length! (%d)\n",
-			       USBDEVNAME(sc->sc_dev),
+			       device_get_nameunit(sc->sc_dev),
 			       UGETW(sc->sc_notify_buf.wLength));
 			break;
 		}
 		DPRINTF(("%s: notify bytes = %02x%02x\n",
-			 USBDEVNAME(sc->sc_dev),
+			 device_get_nameunit(sc->sc_dev),
 			 sc->sc_notify_buf.data[0],
 			 sc->sc_notify_buf.data[1]));
 		/* Currently, lsr is always zero. */
@@ -533,7 +533,7 @@ umodem_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 		break;
 	default:
 		DPRINTF(("%s: unknown notify message: %02x\n",
-			 USBDEVNAME(sc->sc_dev),
+			 device_get_nameunit(sc->sc_dev),
 			 sc->sc_notify_buf.bNotification));
 		break;
 	}

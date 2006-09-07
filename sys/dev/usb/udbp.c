@@ -275,7 +275,7 @@ USB_ATTACH(udbp)
 		ed = usbd_interface2endpoint_descriptor(iface, i);
 		if (!ed) {
 			printf("%s: could not read endpoint descriptor\n",
-			       USBDEVNAME(sc->sc_dev));
+			       device_get_nameunit(sc->sc_dev));
 			USB_ATTACH_ERROR_RETURN;
 		}
 
@@ -294,14 +294,14 @@ USB_ATTACH(udbp)
 	/* Verify that we goething sensible */
 	if (ed_bulkin == NULL || ed_bulkout == NULL) {
 		printf("%s: bulk-in and/or bulk-out endpoint not found\n",
-			USBDEVNAME(sc->sc_dev));
+			device_get_nameunit(sc->sc_dev));
 		USB_ATTACH_ERROR_RETURN;
 	}
 
 	if (ed_bulkin->wMaxPacketSize[0] != ed_bulkout->wMaxPacketSize[0] ||
 	   ed_bulkin->wMaxPacketSize[1] != ed_bulkout->wMaxPacketSize[1]) {
 		printf("%s: bulk-in and bulk-out have different packet sizes %d %d %d %d\n",
-			USBDEVNAME(sc->sc_dev),
+			device_get_nameunit(sc->sc_dev),
 		       ed_bulkin->wMaxPacketSize[0],
 		       ed_bulkout->wMaxPacketSize[0],
 		       ed_bulkin->wMaxPacketSize[1],
@@ -313,7 +313,7 @@ USB_ATTACH(udbp)
 	sc->sc_bulkout = ed_bulkout->bEndpointAddress;
 
 	DPRINTF(("%s: Bulk-in: 0x%02x, bulk-out 0x%02x, packet size = %d\n",
-		USBDEVNAME(sc->sc_dev), sc->sc_bulkin, sc->sc_bulkout,
+		device_get_nameunit(sc->sc_dev), sc->sc_bulkin, sc->sc_bulkout,
 		ed_bulkin->wMaxPacketSize[0]));
 
 	/* Allocate the in transfer struct */
@@ -341,14 +341,14 @@ USB_ATTACH(udbp)
 				USBD_EXCLUSIVE_USE, &sc->sc_bulkin_pipe);
 	if (err) {
 		printf("%s: cannot open bulk-in pipe (addr %d)\n",
-			USBDEVNAME(sc->sc_dev), sc->sc_bulkin);
+			device_get_nameunit(sc->sc_dev), sc->sc_bulkin);
 		goto bad;
 	}
 	err = usbd_open_pipe(iface, sc->sc_bulkout,
 				USBD_EXCLUSIVE_USE, &sc->sc_bulkout_pipe);
 	if (err) {
 		printf("%s: cannot open bulk-out pipe (addr %d)\n",
-			USBDEVNAME(sc->sc_dev), sc->sc_bulkout);
+			device_get_nameunit(sc->sc_dev), sc->sc_bulkout);
 		goto bad;
 	}
 
@@ -362,7 +362,7 @@ USB_ATTACH(udbp)
 
 	if ((err = ng_make_node_common(&ng_udbp_typestruct, &sc->node)) == 0) {
 		char	nodename[128];
-		sprintf(nodename, "%s", USBDEVNAME(sc->sc_dev));
+		sprintf(nodename, "%s", device_get_nameunit(sc->sc_dev));
 		if ((err = ng_name_node(sc->node, nodename))) {
 			NG_NODE_UNREF(sc->node);
 			sc->node = NULL;
@@ -416,7 +416,7 @@ USB_DETACH(udbp)
 
 	sc->flags |= DISCONNECTED;
 
-	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
+	DPRINTF(("%s: disconnected\n", device_get_nameunit(self)));
 
 	if (sc->sc_bulkin_pipe) {
 		usbd_abort_pipe(sc->sc_bulkin_pipe);
@@ -475,7 +475,7 @@ udbp_setup_in_transfer(udbp_p sc)
 	err = usbd_transfer(sc->sc_bulkin_xfer);
 	if (err && err != USBD_IN_PROGRESS) {
 		DPRINTF(("%s: failed to setup in-transfer, %s\n",
-			USBDEVNAME(sc->sc_dev), usbd_errstr(err)));
+			device_get_nameunit(sc->sc_dev), usbd_errstr(err)));
 		return(err);
 	}
 
@@ -494,7 +494,7 @@ udbp_in_transfer_cb(usbd_xfer_handle xfer, usbd_private_handle priv,
 	if (err) {
 		if (err != USBD_CANCELLED) {
 			DPRINTF(("%s: bulk-out transfer failed: %s\n",
-				USBDEVNAME(sc->sc_dev), usbd_errstr(err)));
+				device_get_nameunit(sc->sc_dev), usbd_errstr(err)));
 		} else {
 			/* USBD_CANCELLED happens at unload of the driver */
 			return;
@@ -552,7 +552,7 @@ udbp_setup_out_transfer(udbp_p sc)
 	pktlen = m->m_pkthdr.len;
 	if (pktlen > sc->sc_bulkout_bufferlen) {
 		printf("%s: Packet too large, %d > %d\n",
-			USBDEVNAME(sc->sc_dev), pktlen,
+			device_get_nameunit(sc->sc_dev), pktlen,
 			sc->sc_bulkout_bufferlen);
 		return (USBD_IOERROR);
 	}
@@ -574,7 +574,7 @@ udbp_setup_out_transfer(udbp_p sc)
 	err = usbd_transfer(sc->sc_bulkout_xfer);
 	if (err && err != USBD_IN_PROGRESS) {
 		DPRINTF(("%s: failed to setup out-transfer, %s\n",
-			USBDEVNAME(sc->sc_dev), usbd_errstr(err)));
+			device_get_nameunit(sc->sc_dev), usbd_errstr(err)));
 		return(err);
 	}
 
@@ -590,7 +590,7 @@ udbp_out_transfer_cb(usbd_xfer_handle xfer, usbd_private_handle priv,
 
 	if (err) {
 		DPRINTF(("%s: bulk-out transfer failed: %s\n",
-			USBDEVNAME(sc->sc_dev), usbd_errstr(err)));
+			device_get_nameunit(sc->sc_dev), usbd_errstr(err)));
 		/* Transfer has failed, packet is not transmitted */
 		/* XXX Invalidate packet */
 		return;
@@ -797,7 +797,7 @@ ng_udbp_rmnode(node_p node)
 
 	if ((err = ng_make_node_common(&ng_udbp_typestruct, &sc->node)) == 0) {
 		char	nodename[128];
-		sprintf(nodename, "%s", USBDEVNAME(sc->sc_dev));
+		sprintf(nodename, "%s", device_get_nameunit(sc->sc_dev));
 		if ((err = ng_name_node(sc->node, nodename))) {
 			NG_NODE_UNREF(sc->node); /* out damned spot! */
 			sc->flags &= ~NETGRAPH_INITIALISED;

@@ -374,7 +374,7 @@ slhci_attach(struct slhci_softc *sc)
 		return -1;
 
 	printf("%s: ScanLogic %s USB Host Controller",
-		USBDEVNAME(sc->sc_bus.bdev), sltypestr[(rev > 0)]);
+		device_get_nameunit(sc->sc_bus.bdev), sltypestr[(rev > 0)]);
 	switch (rev) {
 	case SLTYPE_SL11H:
 		break;
@@ -397,7 +397,7 @@ slhci_attach(struct slhci_softc *sc)
 	sc->sc_bus.pipe_size = sizeof(struct slhci_pipe);
 	sc->sc_bus.parent_dmatag = NULL; /* XXX */
 	sc->sc_bus.buffer_dmatag = NULL; /* XXX */
-	SIMPLEQ_INIT(&sc->sc_free_xfers);
+	STAILQ_INIT(&sc->sc_free_xfers);
 
 	usb_callout_init(sc->sc_poll_handle);
 
@@ -595,9 +595,9 @@ slhci_allocx(struct usbd_bus *bus)
 
 	DPRINTF(D_MEM, ("SLallocx"));
 
-	xfer = SIMPLEQ_FIRST(&sc->sc_free_xfers);
+	xfer = STAILQ_FIRST(&sc->sc_free_xfers);
 	if (xfer) {
-		SIMPLEQ_REMOVE_HEAD(&sc->sc_free_xfers, next);
+		STAILQ_REMOVE_HEAD(&sc->sc_free_xfers, next);
 #ifdef DIAGNOSTIC
 		if (xfer->busy_free != XFER_FREE) {
 			printf("slhci_allocx: xfer=%p not free, 0x%08x\n",
@@ -633,7 +633,7 @@ slhci_freex(struct usbd_bus *bus, usbd_xfer_handle xfer)
 	}
 	xfer->busy_free = XFER_FREE;
 #endif
-	SIMPLEQ_INSERT_HEAD(&sc->sc_free_xfers, xfer, next);
+	STAILQ_INSERT_HEAD(&sc->sc_free_xfers, xfer, next);
 }
 
 void
@@ -743,7 +743,7 @@ slhci_root_ctrl_transfer(usbd_xfer_handle xfer)
 	 * Pipe isn't running (otherwise error would be USBD_INPROG),
 	 * so start it first.
 	 */
-	return slhci_root_ctrl_start(SIMPLEQ_FIRST(&xfer->pipe->queue));
+	return slhci_root_ctrl_start(STAILQ_FIRST(&xfer->pipe->queue));
 }
 
 usbd_status
@@ -1113,7 +1113,7 @@ slhci_root_intr_transfer(usbd_xfer_handle xfer)
 	 * Pipe isn't running (otherwise error would be USBD_INPROG),
 	 * start first.
 	 */
-	return slhci_root_intr_start(SIMPLEQ_FIRST(&xfer->pipe->queue));
+	return slhci_root_intr_start(STAILQ_FIRST(&xfer->pipe->queue));
 }
 
 static usbd_status
@@ -1164,7 +1164,7 @@ slhci_device_ctrl_transfer(usbd_xfer_handle xfer)
 	if (error)
 		return error;
 
-	return slhci_device_ctrl_start(SIMPLEQ_FIRST(&xfer->pipe->queue));
+	return slhci_device_ctrl_start(STAILQ_FIRST(&xfer->pipe->queue));
 }
 
 static usbd_status
@@ -1267,7 +1267,7 @@ slhci_device_intr_transfer(usbd_xfer_handle xfer)
 	if (error)
 		return error;
 
-	return slhci_device_intr_start(SIMPLEQ_FIRST(&xfer->pipe->queue));
+	return slhci_device_intr_start(STAILQ_FIRST(&xfer->pipe->queue));
 }
 
 static usbd_status

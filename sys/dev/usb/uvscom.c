@@ -341,7 +341,7 @@ USB_ATTACH(uvscom)
 	ucom->sc_udev = dev;
 	ucom->sc_iface = uaa->iface;
 
-	devname = USBDEVNAME(ucom->sc_dev);
+	devname = device_get_nameunit(ucom->sc_dev);
 	printf("%s: %s\n", devname, devinfo);
 
 	DPRINTF(("uvscom attach: sc = %p\n", sc));
@@ -364,7 +364,7 @@ USB_ATTACH(uvscom)
 
 	if (cdesc == NULL) {
 		printf("%s: failed to get configuration descriptor\n",
-			USBDEVNAME(ucom->sc_dev));
+			device_get_nameunit(ucom->sc_dev));
 		goto error;
 	}
 
@@ -385,7 +385,7 @@ USB_ATTACH(uvscom)
 		ed = usbd_interface2endpoint_descriptor(ucom->sc_iface, i);
 		if (ed == NULL) {
 			printf("%s: no endpoint descriptor for %d\n",
-				USBDEVNAME(ucom->sc_dev), i);
+				device_get_nameunit(ucom->sc_dev), i);
 			goto error;
 		}
 
@@ -404,17 +404,17 @@ USB_ATTACH(uvscom)
 
 	if (ucom->sc_bulkin_no == -1) {
 		printf("%s: Could not find data bulk in\n",
-			USBDEVNAME(ucom->sc_dev));
+			device_get_nameunit(ucom->sc_dev));
 		goto error;
 	}
 	if (ucom->sc_bulkout_no == -1) {
 		printf("%s: Could not find data bulk out\n",
-			USBDEVNAME(ucom->sc_dev));
+			device_get_nameunit(ucom->sc_dev));
 		goto error;
 	}
 	if (sc->sc_intr_number == -1) {
 		printf("%s: Could not find interrupt in\n",
-			USBDEVNAME(ucom->sc_dev));
+			device_get_nameunit(ucom->sc_dev));
 		goto error;
 	}
 
@@ -433,7 +433,7 @@ USB_ATTACH(uvscom)
 	err = uvscom_reset(sc);
 
 	if (err) {
-		printf("%s: reset failed, %s\n", USBDEVNAME(ucom->sc_dev),
+		printf("%s: reset failed, %s\n", device_get_nameunit(ucom->sc_dev),
 			usbd_errstr(err));
 		goto error;
 	}
@@ -481,7 +481,7 @@ uvscom_readstat(struct uvscom_softc *sc)
 	usbd_status err;
 	uint16_t r;
 
-	DPRINTF(("%s: send readstat\n", USBDEVNAME(sc->sc_ucom.sc_dev)));
+	DPRINTF(("%s: send readstat\n", device_get_nameunit(sc->sc_ucom.sc_dev)));
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
 	req.bRequest = UVSCOM_READ_STATUS;
@@ -492,12 +492,12 @@ uvscom_readstat(struct uvscom_softc *sc)
 	err = usbd_do_request(sc->sc_ucom.sc_udev, &req, &r);
 	if (err) {
 		printf("%s: uvscom_readstat: %s\n",
-		       USBDEVNAME(sc->sc_ucom.sc_dev), usbd_errstr(err));
+		       device_get_nameunit(sc->sc_ucom.sc_dev), usbd_errstr(err));
 		return (err);
 	}
 
 	DPRINTF(("%s: uvscom_readstat: r = %d\n",
-		 USBDEVNAME(sc->sc_ucom.sc_dev), r));
+		 device_get_nameunit(sc->sc_ucom.sc_dev), r));
 
 	return (USBD_NORMAL_COMPLETION);
 }
@@ -508,7 +508,7 @@ uvscom_shutdown(struct uvscom_softc *sc)
 	usb_device_request_t req;
 	usbd_status err;
 
-	DPRINTF(("%s: send shutdown\n", USBDEVNAME(sc->sc_ucom.sc_dev)));
+	DPRINTF(("%s: send shutdown\n", device_get_nameunit(sc->sc_ucom.sc_dev)));
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = UVSCOM_SHUTDOWN;
@@ -519,7 +519,7 @@ uvscom_shutdown(struct uvscom_softc *sc)
 	err = usbd_do_request(sc->sc_ucom.sc_udev, &req, NULL);
 	if (err) {
 		printf("%s: uvscom_shutdown: %s\n",
-		       USBDEVNAME(sc->sc_ucom.sc_dev), usbd_errstr(err));
+		       device_get_nameunit(sc->sc_ucom.sc_dev), usbd_errstr(err));
 		return (err);
 	}
 
@@ -529,7 +529,7 @@ uvscom_shutdown(struct uvscom_softc *sc)
 static usbd_status
 uvscom_reset(struct uvscom_softc *sc)
 {
-	DPRINTF(("%s: uvscom_reset\n", USBDEVNAME(sc->sc_ucom.sc_dev)));
+	DPRINTF(("%s: uvscom_reset\n", device_get_nameunit(sc->sc_ucom.sc_dev)));
 
 	return (USBD_NORMAL_COMPLETION);
 }
@@ -537,7 +537,7 @@ uvscom_reset(struct uvscom_softc *sc)
 static usbd_status
 uvscom_set_crtscts(struct uvscom_softc *sc)
 {
-	DPRINTF(("%s: uvscom_set_crtscts\n", USBDEVNAME(sc->sc_ucom.sc_dev)));
+	DPRINTF(("%s: uvscom_set_crtscts\n", device_get_nameunit(sc->sc_ucom.sc_dev)));
 
 	return (USBD_NORMAL_COMPLETION);
 }
@@ -549,7 +549,7 @@ uvscom_set_line(struct uvscom_softc *sc, uint16_t line)
 	usbd_status err;
 
 	DPRINTF(("%s: uvscom_set_line: %04x\n",
-		 USBDEVNAME(sc->sc_ucom.sc_dev), line));
+		 device_get_nameunit(sc->sc_ucom.sc_dev), line));
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = UVSCOM_LINE_CTL;
@@ -560,7 +560,7 @@ uvscom_set_line(struct uvscom_softc *sc, uint16_t line)
 	err = usbd_do_request(sc->sc_ucom.sc_udev, &req, NULL);
 	if (err) {
 		printf("%s: uvscom_set_line: %s\n",
-		       USBDEVNAME(sc->sc_ucom.sc_dev), usbd_errstr(err));
+		       device_get_nameunit(sc->sc_ucom.sc_dev), usbd_errstr(err));
 		return (err);
 	}
 
@@ -574,7 +574,7 @@ uvscom_set_line_coding(struct uvscom_softc *sc, uint16_t lsp, uint16_t ls)
 	usbd_status err;
 
 	DPRINTF(("%s: uvscom_set_line_coding: %02x %02x\n",
-		 USBDEVNAME(sc->sc_ucom.sc_dev), lsp, ls));
+		 device_get_nameunit(sc->sc_ucom.sc_dev), lsp, ls));
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = UVSCOM_SET_SPEED;
@@ -585,7 +585,7 @@ uvscom_set_line_coding(struct uvscom_softc *sc, uint16_t lsp, uint16_t ls)
 	err = usbd_do_request(sc->sc_ucom.sc_udev, &req, NULL);
 	if (err) {
 		printf("%s: uvscom_set_line_coding: %s\n",
-		       USBDEVNAME(sc->sc_ucom.sc_dev), usbd_errstr(err));
+		       device_get_nameunit(sc->sc_ucom.sc_dev), usbd_errstr(err));
 		return (err);
 	}
 
@@ -598,7 +598,7 @@ uvscom_set_line_coding(struct uvscom_softc *sc, uint16_t lsp, uint16_t ls)
 	err = usbd_do_request(sc->sc_ucom.sc_udev, &req, NULL);
 	if (err) {
 		printf("%s: uvscom_set_line_coding: %s\n",
-		       USBDEVNAME(sc->sc_ucom.sc_dev), usbd_errstr(err));
+		       device_get_nameunit(sc->sc_ucom.sc_dev), usbd_errstr(err));
 		return (err);
 	}
 
@@ -609,7 +609,7 @@ static void
 uvscom_dtr(struct uvscom_softc *sc, int onoff)
 {
 	DPRINTF(("%s: uvscom_dtr: onoff = %d\n",
-		 USBDEVNAME(sc->sc_ucom.sc_dev), onoff));
+		 device_get_nameunit(sc->sc_ucom.sc_dev), onoff));
 
 	if (sc->sc_dtr == onoff)
 		return;			/* no change */
@@ -628,7 +628,7 @@ static void
 uvscom_rts(struct uvscom_softc *sc, int onoff)
 {
 	DPRINTF(("%s: uvscom_rts: onoff = %d\n",
-		 USBDEVNAME(sc->sc_ucom.sc_dev), onoff));
+		 device_get_nameunit(sc->sc_ucom.sc_dev), onoff));
 
 	if (sc->sc_rts == onoff)
 		return;			/* no change */
@@ -647,7 +647,7 @@ static void
 uvscom_break(struct uvscom_softc *sc, int onoff)
 {
 	DPRINTF(("%s: uvscom_break: onoff = %d\n",
-		 USBDEVNAME(sc->sc_ucom.sc_dev), onoff));
+		 device_get_nameunit(sc->sc_ucom.sc_dev), onoff));
 
 	if (onoff)
 		uvscom_set_line(sc, SET(sc->sc_lcr, UVSCOM_BREAK));
@@ -682,7 +682,7 @@ uvscom_param(void *addr, int portno, struct termios *t)
 	uint16_t ls;
 
 	DPRINTF(("%s: uvscom_param: sc = %p\n",
-		 USBDEVNAME(sc->sc_ucom.sc_dev), sc));
+		 device_get_nameunit(sc->sc_ucom.sc_dev), sc));
 
 	ls = 0;
 
@@ -790,7 +790,7 @@ uvscom_open(void *addr, int portno)
 		err = uvscom_readstat(sc);
 		if (err) {
 			DPRINTF(("%s: uvscom_open: readstat faild\n",
-				 USBDEVNAME(sc->sc_ucom.sc_dev)));
+				 device_get_nameunit(sc->sc_ucom.sc_dev)));
 			return (ENXIO);
 		}
 
@@ -806,7 +806,7 @@ uvscom_open(void *addr, int portno)
 					  uvscominterval);
 		if (err) {
 			printf("%s: cannot open interrupt pipe (addr %d)\n",
-				 USBDEVNAME(sc->sc_ucom.sc_dev),
+				 device_get_nameunit(sc->sc_ucom.sc_dev),
 				 sc->sc_intr_number);
 			return (ENXIO);
 		}
@@ -824,14 +824,14 @@ uvscom_open(void *addr, int portno)
 		}
 		if (i == 0) {
 			DPRINTF(("%s: unit is not ready\n",
-				 USBDEVNAME(sc->sc_ucom.sc_dev)));
+				 device_get_nameunit(sc->sc_ucom.sc_dev)));
 			return (ENXIO);
 		}
 
 		/* check PC Card was inserted */
 		if (ISSET(sc->sc_usr, UVSCOM_NOCARD)) {
 			DPRINTF(("%s: no card\n",
-				 USBDEVNAME(sc->sc_ucom.sc_dev)));
+				 device_get_nameunit(sc->sc_ucom.sc_dev)));
 			return (ENXIO);
 		}
 	}
@@ -856,12 +856,12 @@ uvscom_close(void *addr, int portno)
 		err = usbd_abort_pipe(sc->sc_intr_pipe);
 		if (err)
 			printf("%s: abort interrupt pipe failed: %s\n",
-				USBDEVNAME(sc->sc_ucom.sc_dev),
+				device_get_nameunit(sc->sc_ucom.sc_dev),
 					   usbd_errstr(err));
 		err = usbd_close_pipe(sc->sc_intr_pipe);
 		if (err)
 			printf("%s: close interrupt pipe failed: %s\n",
-				USBDEVNAME(sc->sc_ucom.sc_dev),
+				device_get_nameunit(sc->sc_ucom.sc_dev),
 					   usbd_errstr(err));
 		free(sc->sc_intr_buf, M_USBDEV);
 		sc->sc_intr_pipe = NULL;
@@ -883,14 +883,14 @@ uvscom_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 			return;
 
 		printf("%s: uvscom_intr: abnormal status: %s\n",
-			USBDEVNAME(sc->sc_ucom.sc_dev),
+			device_get_nameunit(sc->sc_ucom.sc_dev),
 			usbd_errstr(status));
 		usbd_clear_endpoint_stall_async(sc->sc_intr_pipe);
 		return;
 	}
 
 	DPRINTFN(2, ("%s: uvscom status = %02x %02x\n",
-		 USBDEVNAME(sc->sc_ucom.sc_dev), buf[0], buf[1]));
+		 device_get_nameunit(sc->sc_ucom.sc_dev), buf[0], buf[1]));
 
 	sc->sc_lsr = sc->sc_msr = 0;
 	sc->sc_usr = buf[1];
