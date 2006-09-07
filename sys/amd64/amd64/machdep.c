@@ -160,8 +160,10 @@ int cold = 1;
 long Maxmem = 0;
 long realmem = 0;
 
-vm_paddr_t phys_avail[20];
-vm_paddr_t dump_avail[20];
+#define PHYSMAP_SIZE	(2 * 30)
+
+vm_paddr_t phys_avail[PHYSMAP_SIZE + 2];
+vm_paddr_t dump_avail[PHYSMAP_SIZE + 2];
 
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(phys_avail[0])) - 2)
@@ -831,8 +833,6 @@ isa_irq_pending(void)
 	return (0);
 }
 #endif
-
-#define PHYSMAP_SIZE	(2 * 20)
 
 u_int basemem;
 
