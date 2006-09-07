@@ -283,9 +283,9 @@ udp6_input(mp, offp, proto)
 				struct mbuf *n;
 
 				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
-					INP_LOCK(in6p);
-					udp6_append(in6p, n, off, &fromsa);
-					INP_UNLOCK(in6p);
+					INP_LOCK(last);
+					udp6_append(last, n, off, &fromsa);
+					INP_UNLOCK(last);
 				}
 			}
 			last = in6p;
