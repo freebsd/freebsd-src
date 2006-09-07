@@ -70,6 +70,7 @@ static int	sysctl_all (int *oid, int len);
 static int	name2oid(char *, int *);
 
 static void	set_T_dev_t (char *, void **, size_t *);
+static int	set_IK(char *, int *);
 
 static void
 usage(void)
@@ -232,10 +233,17 @@ parse(char *string)
 
 		switch (kind & CTLTYPE) {
 			case CTLTYPE_INT:
-				intval = (int)strtol(newval, &endptr, 0);
-				if (endptr == newval || *endptr != '\0')
-					errx(1, "invalid integer '%s'",
-					    newval);
+				if (strcmp(fmt, "IK") == 0) {
+					if (!set_IK((char*)newval, &intval))
+						errx(1, "invalid value '%s'",
+						    newval);
+ 				} else {
+					intval = (int)strtol(newval, &endptr,
+					    0);
+					if (endptr == newval || *endptr != '\0')
+						errx(1, "invalid integer '%s'",
+						    newval);
+				}
 				newval = &intval;
 				newsize = sizeof(intval);
 				break;
@@ -441,6 +449,33 @@ set_T_dev_t (char *path, void **val, size_t *size)
 	}
 	*val = (char*) &statb.st_rdev;
 	*size = sizeof statb.st_rdev;
+}
+
+static int
+set_IK(char *str, int *val)
+{
+	float temp;
+	int len, kelv;
+	char *p, *endptr;
+
+	if ((len = strlen(str)) == 0)
+		return (0);
+	p = &str[len - 1];
+	if (*p == 'C' || *p == 'F') {
+		*p = '\0';
+		temp = strtof(str, &endptr);
+		if (endptr == str || *endptr != '\0')
+			return (0);
+		if (*p == 'F')
+			temp = (temp - 32) * 5 / 9;
+		kelv = temp * 10 + 2732;
+	} else {
+		kelv = (int)strtol(str, &endptr, 10);
+		if (endptr == str || *endptr != '\0')
+			return (0);
+	}
+	*val = kelv;
+	return (1);
 }
 
 /*
