@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/poll.h>
@@ -60,9 +61,7 @@ static int	mfi_wait_command(struct mfi_softc *, struct mfi_command *);
 static int	mfi_get_controller_info(struct mfi_softc *);
 static int	mfi_get_log_state(struct mfi_softc *,
 		    struct mfi_evt_log_state **);
-#ifdef NOTYET
 static int	mfi_get_entry(struct mfi_softc *, int);
-#endif
 static int	mfi_dcmd_command(struct mfi_softc *, struct mfi_command **,
 		    uint32_t, void **, size_t);
 static void	mfi_data_cb(void *, bus_dma_segment_t *, int, int);
@@ -82,6 +81,15 @@ static int	mfi_send_frame(struct mfi_softc *, struct mfi_command *);
 static void	mfi_complete(struct mfi_softc *, struct mfi_command *);
 static int	mfi_abort(struct mfi_softc *, struct mfi_command *);
 static int	mfi_linux_ioctl_int(struct cdev *, u_long, caddr_t, int, d_thread_t *);
+
+
+SYSCTL_NODE(_hw, OID_AUTO, mfi, CTLFLAG_RD, 0, "MFI driver parameters");
+static int	mfi_event_locale = MFI_EVT_LOCALE_ALL;
+SYSCTL_INT(_hw_mfi, OID_AUTO, event_locale, CTLFLAG_RW, &mfi_event_locale,
+            0, "event message locale");
+static int	mfi_event_class =  MFI_EVT_CLASS_DEBUG;
+SYSCTL_INT(_hw_mfi, OID_AUTO, event_class, CTLFLAG_RW, &mfi_event_class,
+          0, "event message class");
 
 /* Management interface */
 static d_open_t		mfi_open;
@@ -618,8 +626,8 @@ mfi_aen_setup(struct mfi_softc *sc, uint32_t seq_start)
 	uint32_t seq;
 
 	class_locale.members.reserved = 0;
-	class_locale.members.locale = MFI_EVT_LOCALE_ALL;
-	class_locale.members.class  = MFI_EVT_CLASS_DEBUG;
+	class_locale.members.locale = mfi_event_locale;
+	class_locale.members.class  = mfi_event_class;
 
 	if (seq_start == 0) {
 		error = mfi_get_log_state(sc, &log_state);
@@ -634,14 +642,10 @@ mfi_aen_setup(struct mfi_softc *sc, uint32_t seq_start)
 		 * the AEN mechanism via setting it lower then
 		 * current.  The firmware will iterate through them.
 		 */
-#ifdef NOTYET
 		for (seq = log_state->shutdown_seq_num;
 		     seq <= log_state->newest_seq_num; seq++) {
 			mfi_get_entry(sc, seq);
 		}
-#endif
-
-		seq = log_state->shutdown_seq_num + 1;
 	} else
 		seq = seq_start;
 	mfi_aen_register(sc, seq, class_locale.word);
@@ -865,35 +869,26 @@ out:
 	return;
 }
 
-#ifdef NOTYET
-static void
-mfi_decode_log(struct mfi_softc *sc, struct mfi_log_detail *detail)
-{
-        switch (detail->arg_type) {
-	default:
-		device_printf(sc->mfi_dev, "%d - Log entry type %d\n",
-		    detail->seq,
-		    detail->arg_type
-		);
-		break;
-	}
-}
-#endif
-
 static void
 mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 {
 	switch (detail->arg_type) {
 	case MR_EVT_ARGS_NONE:
-		device_printf(sc->mfi_dev, "%d - %s\n",
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->description
 		    );
 		break;
 	case MR_EVT_ARGS_CDB_SENSE:
-		device_printf(sc->mfi_dev, "%d - PD %02d(e%d/s%d) CDB %*D"
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - PD %02d(e%d/s%d) CDB %*D"
 		    "Sense %*D\n: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.cdb_sense.pd.device_id,
 		    detail->args.cdb_sense.pd.enclosure_index,
 		    detail->args.cdb_sense.pd.slot_number,
@@ -907,18 +902,24 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 		    );
 		break;
 	case MR_EVT_ARGS_LD:
-		device_printf(sc->mfi_dev, "%d - VD %02d/%d "
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - VD %02d/%d "
 		    "event: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.ld.ld_index,
 		    detail->args.ld.target_id,
 		    detail->description
 		    );
 		break;
 	case MR_EVT_ARGS_LD_COUNT:
-		device_printf(sc->mfi_dev, "%d - VD %02d/%d "
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - VD %02d/%d "
 		    "count %lld: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.ld_count.ld.ld_index,
 		    detail->args.ld_count.ld.target_id,
 		    (long long)detail->args.ld_count.count,
@@ -926,9 +927,12 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 		    );
 		break;
 	case MR_EVT_ARGS_LD_LBA:
-		device_printf(sc->mfi_dev, "%d - VD %02d/%d "
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - VD %02d/%d "
 		    "lba %lld: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.ld_lba.ld.ld_index,
 		    detail->args.ld_lba.ld.target_id,
 		    (long long)detail->args.ld_lba.lba,
@@ -936,9 +940,12 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 		    );
 		break;
 	case MR_EVT_ARGS_LD_OWNER:
-		device_printf(sc->mfi_dev, "%d - VD %02d/%d "
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - VD %02d/%d "
 		    "owner changed: prior %d, new %d: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.ld_owner.ld.ld_index,
 		    detail->args.ld_owner.ld.target_id,
 		    detail->args.ld_owner.pre_owner,
@@ -947,9 +954,12 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 		    );
 		break;
 	case MR_EVT_ARGS_LD_LBA_PD_LBA:
-		device_printf(sc->mfi_dev, "%d - VD %02d/%d "
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - VD %02d/%d "
 		    "lba %lld, physical drive PD %02d(e%d/s%d) lba %lld: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.ld_lba_pd_lba.ld.ld_index,
 		    detail->args.ld_lba_pd_lba.ld.target_id,
 		    (long long)detail->args.ld_lba_pd_lba.ld_lba,
@@ -961,9 +971,12 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 		    );
 		break;
 	case MR_EVT_ARGS_LD_PROG:
-		device_printf(sc->mfi_dev, "%d - VD %02d/%d "
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - VD %02d/%d "
 		    "progress %d%% in %ds: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.ld_prog.ld.ld_index,
 		    detail->args.ld_prog.ld.target_id,
 		    detail->args.ld_prog.prog.progress/655,
@@ -972,9 +985,12 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 		    );
 		break;
 	case MR_EVT_ARGS_LD_STATE:
-		device_printf(sc->mfi_dev, "%d - VD %02d/%d "
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - VD %02d/%d "
 		    "state prior %d new %d: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.ld_state.ld.ld_index,
 		    detail->args.ld_state.ld.target_id,
 		    detail->args.ld_state.prev_state,
@@ -983,9 +999,12 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 		    );
 		break;
 	case MR_EVT_ARGS_LD_STRIP:
-		device_printf(sc->mfi_dev, "%d - VD %02d/%d "
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - VD %02d/%d "
 		    "strip %lld: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.ld_strip.ld.ld_index,
 		    detail->args.ld_strip.ld.target_id,
 		    (long long)detail->args.ld_strip.strip,
@@ -993,9 +1012,12 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 		    );
 		break;
 	case MR_EVT_ARGS_PD:
-		device_printf(sc->mfi_dev, "%d - PD %02d(e%d/s%d) "
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - PD %02d(e%d/s%d) "
 		    "event: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.pd.device_id,
 		    detail->args.pd.enclosure_index,
 		    detail->args.pd.slot_number,
@@ -1003,9 +1025,12 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 		    );
 		break;
 	case MR_EVT_ARGS_PD_ERR:
-		device_printf(sc->mfi_dev, "%d - PD %02d(e%d/s%d) "
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - PD %02d(e%d/s%d) "
 		    "err %d: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.pd_err.pd.device_id,
 		    detail->args.pd_err.pd.enclosure_index,
 		    detail->args.pd_err.pd.slot_number,
@@ -1014,9 +1039,12 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 		    );
 		break;
 	case MR_EVT_ARGS_PD_LBA:
-		device_printf(sc->mfi_dev, "%d - PD %02d(e%d/s%d) "
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - PD %02d(e%d/s%d) "
 		    "lba %lld: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.pd_lba.pd.device_id,
 		    detail->args.pd_lba.pd.enclosure_index,
 		    detail->args.pd_lba.pd.slot_number,
@@ -1025,9 +1053,12 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 		    );
 		break;
 	case MR_EVT_ARGS_PD_LBA_LD:
-		device_printf(sc->mfi_dev, "%d - PD %02d(e%d/s%d) "
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - PD %02d(e%d/s%d) "
 		    "lba %lld VD %02d/%d: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.pd_lba_ld.pd.device_id,
 		    detail->args.pd_lba_ld.pd.enclosure_index,
 		    detail->args.pd_lba_ld.pd.slot_number,
@@ -1038,9 +1069,12 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 		    );
 		break;
 	case MR_EVT_ARGS_PD_PROG:
-		device_printf(sc->mfi_dev, "%d - PD %02d(e%d/s%d) "
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - PD %02d(e%d/s%d) "
 		    "progress %d%% seconds %ds: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.pd_prog.pd.device_id,
 		    detail->args.pd_prog.pd.enclosure_index,
 		    detail->args.pd_prog.pd.slot_number,
@@ -1050,9 +1084,12 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 		    );
 		break;
 	case MR_EVT_ARGS_PD_STATE:
-		device_printf(sc->mfi_dev, "%d - PD %02d(e%d/s%d) "
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - PD %02d(e%d/s%d) "
 		    "state prior %d new %d: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.pd_prog.pd.device_id,
 		    detail->args.pd_prog.pd.enclosure_index,
 		    detail->args.pd_prog.pd.slot_number,
@@ -1062,9 +1099,12 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 		    );
 		break;
 	case MR_EVT_ARGS_PCI:
-		device_printf(sc->mfi_dev, "%d - PCI 0x04%x 0x04%x "
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - PCI 0x04%x 0x04%x "
 		    "0x04%x 0x04%x: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.pci.venderId,
 		    detail->args.pci.deviceId,
 		    detail->args.pci.subVenderId,
@@ -1073,24 +1113,33 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 		    );
 		break;
 	case MR_EVT_ARGS_RATE:
-		device_printf(sc->mfi_dev, "%d - Rebuild rate %d: %s\n",
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - Rebuild rate %d: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.rate,
 		    detail->description
 		    );
 		break;
 	case MR_EVT_ARGS_TIME:
-		device_printf(sc->mfi_dev, "%d - Adapter ticks %d "
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - Adapter ticks %d "
 		    "elapsed %ds: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.time.rtc,
 		    detail->args.time.elapsedSeconds,
 		    detail->description
 		    );
 		break;
 	case MR_EVT_ARGS_ECC:
-		device_printf(sc->mfi_dev, "%d - Adapter ECC %x,%x: %s: %s\n",
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - Adapter ECC %x,%x: %s: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->args.ecc.ecar,
 		    detail->args.ecc.elog,
 		    detail->args.ecc.str,
@@ -1098,8 +1147,11 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 		    );
 		break;
 	default:
-		device_printf(sc->mfi_dev, "%d - Type %d: %s\n",
+		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - Type %d: %s\n",
 		    detail->seq,
+		    detail->time,
+		    detail->class.members.locale,
+		    detail->class.members.class,
 		    detail->arg_type, detail->description
 		    );
 	}
@@ -1201,14 +1253,17 @@ mfi_aen_complete(struct mfi_command *cm)
 	}
 }
 
-#ifdef NOTYET
+/* Only do one event for now so we can easily iterate through them */
+#define MAX_EVENTS 1
 static int
 mfi_get_entry(struct mfi_softc *sc, int seq)
 {
 	struct mfi_command *cm;
 	struct mfi_dcmd_frame *dcmd;
-	struct mfi_log_detail *ed;
+	struct mfi_evt_list *el;
 	int error;
+	int i;
+	int size;
 
 	mtx_lock(&sc->mfi_io_lock);
 	if ((cm = mfi_dequeue_free(sc)) == NULL) {
@@ -1217,8 +1272,10 @@ mfi_get_entry(struct mfi_softc *sc, int seq)
 	}
 	mtx_unlock(&sc->mfi_io_lock);
 
-	ed = malloc(sizeof(struct mfi_log_detail), M_MFIBUF, M_NOWAIT | M_ZERO);
-	if (ed == NULL) {
+	size = sizeof(struct mfi_evt_list) + sizeof(struct mfi_evt_detail)
+		* (MAX_EVENTS - 1);
+	el = malloc(size, M_MFIBUF, M_NOWAIT | M_ZERO);
+	if (el == NULL) {
 		mtx_lock(&sc->mfi_io_lock);
 		mfi_release_command(cm);
 		mtx_unlock(&sc->mfi_io_lock);
@@ -1229,19 +1286,19 @@ mfi_get_entry(struct mfi_softc *sc, int seq)
 	bzero(dcmd->mbox, MFI_MBOX_SIZE);
 	dcmd->header.cmd = MFI_CMD_DCMD;
 	dcmd->header.timeout = 0;
-	dcmd->header.data_len = sizeof(struct mfi_log_detail);
+	dcmd->header.data_len = size;
 	dcmd->opcode = MFI_DCMD_CTRL_EVENT_GET;
 	((uint32_t *)&dcmd->mbox)[0] = seq;
 	((uint32_t *)&dcmd->mbox)[1] = MFI_EVT_LOCALE_ALL;
 	cm->cm_sg = &dcmd->sgl;
 	cm->cm_total_frame_size = MFI_DCMD_FRAME_SIZE;
 	cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_POLLED;
-	cm->cm_data = ed;
-	cm->cm_len = sizeof(struct mfi_evt_detail);
+	cm->cm_data = el;
+	cm->cm_len = size;
 
 	if ((error = mfi_mapcmd(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev, "Controller info buffer map failed");
-		free(ed, M_MFIBUF);
+		free(el, M_MFIBUF);
 		mfi_release_command(cm);
 		return (error);
 	}
@@ -1250,7 +1307,7 @@ mfi_get_entry(struct mfi_softc *sc, int seq)
 		device_printf(sc->mfi_dev, "Failed to get controller entry\n");
 		sc->mfi_max_io = (sc->mfi_total_sgl - 1) * PAGE_SIZE /
 		    MFI_SECTOR_LEN;
-		free(ed, M_MFIBUF);
+		free(el, M_MFIBUF);
 		mfi_release_command(cm);
 		return (0);
 	}
@@ -1259,7 +1316,9 @@ mfi_get_entry(struct mfi_softc *sc, int seq)
 	    BUS_DMASYNC_POSTREAD);
 	bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
 
-	mfi_decode_log(sc, ed);
+	for (i = 0; i < el->count; i++) {
+		mfi_decode_evt(sc, &el->event[0]);
+	}
 
 	mtx_lock(&sc->mfi_io_lock);
 	free(cm->cm_data, M_MFIBUF);
@@ -1267,7 +1326,6 @@ mfi_get_entry(struct mfi_softc *sc, int seq)
 	mtx_unlock(&sc->mfi_io_lock);
 	return (0);
 }
-#endif
 
 static int
 mfi_add_ld(struct mfi_softc *sc, int id)
