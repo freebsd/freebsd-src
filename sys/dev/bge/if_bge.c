@@ -341,6 +341,7 @@ static void bge_init(void *);
 static void bge_stop(struct bge_softc *);
 static void bge_watchdog(struct ifnet *);
 static void bge_shutdown(device_t);
+static int bge_ifmedia_upd_locked(struct ifnet *);
 static int bge_ifmedia_upd(struct ifnet *);
 static void bge_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
@@ -3192,7 +3193,7 @@ bge_init_locked(struct bge_softc *sc)
 	CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 0);
 	}
 	
-	bge_ifmedia_upd(ifp);
+	bge_ifmedia_upd_locked(ifp);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -3216,11 +3217,25 @@ bge_init(void *xsc)
 static int
 bge_ifmedia_upd(struct ifnet *ifp)
 {
-	struct bge_softc *sc;
+	struct bge_softc *sc = ifp->if_softc;
+	int res;
+
+	BGE_LOCK(sc);
+	res = bge_ifmedia_upd_locked(ifp);
+	BGE_UNLOCK(sc);
+
+	return (res);
+}
+
+static int
+bge_ifmedia_upd_locked(struct ifnet *ifp)
+{
+	struct bge_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
 	struct ifmedia *ifm;
 
-	sc = ifp->if_softc;
+	BGE_LOCK_ASSERT(sc);
+
 	ifm = &sc->bge_ifmedia;
 
 	/* If this is a 1000baseX NIC, enable the TBI port. */
@@ -3282,10 +3297,10 @@ bge_ifmedia_upd(struct ifnet *ifp)
 static void
 bge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
-	struct bge_softc *sc;
+	struct bge_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
 
-	sc = ifp->if_softc;
+	BGE_LOCK(sc);
 
 	if (sc->bge_tbi) {
 		ifmr->ifm_status = IFM_AVALID;
@@ -3295,6 +3310,7 @@ bge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 			ifmr->ifm_status |= IFM_ACTIVE;
 		else {
 			ifmr->ifm_active |= IFM_NONE;
+			BGE_UNLOCK(sc);
 			return;
 		}
 		ifmr->ifm_active |= IFM_1000_SX;
@@ -3302,6 +3318,7 @@ bge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 			ifmr->ifm_active |= IFM_HDX;
 		else
 			ifmr->ifm_active |= IFM_FDX;
+		BGE_UNLOCK(sc);
 		return;
 	}
 
@@ -3309,6 +3326,8 @@ bge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+
+	BGE_UNLOCK(sc);
 }
 
 static int
