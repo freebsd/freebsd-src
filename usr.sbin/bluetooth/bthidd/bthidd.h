@@ -1,7 +1,9 @@
 /*
  * bthidd.h
- *
- * Copyright (c) 2004 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+ */
+
+/*-
+ * Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: bthidd.h,v 1.6 2004/11/17 21:59:42 max Exp $
+ * $Id: bthidd.h,v 1.7 2006/09/07 21:06:53 max Exp $
  * $FreeBSD$
  */
 
@@ -40,14 +42,10 @@ struct bthid_session;
 struct bthid_server
 {
 	bdaddr_t			 bdaddr; /* local bdaddr */
-	int				 cons;	 /* /dev/consolectl */
-	int				 vkbd;	 /* /dev/vkbdctl */
-	char const			*script; /* keyboard switching script */
-	int				 windex; /* wired keyboard index */
-	bitstr_t			*keys;   /* pressed keys map */
-	int				 ctrl;   /* control channel (listen) */
-	int				 intr;   /* intr. channel (listen) */
-	int				 maxfd;	 /* max fd in sets */
+	int32_t				 cons;	 /* /dev/consolectl */
+	int32_t				 ctrl;   /* control channel (listen) */
+	int32_t				 intr;   /* intr. channel (listen) */
+	int32_t				 maxfd;	 /* max fd in sets */
 	fd_set				 rfdset; /* read descriptor set */
 	fd_set				 wfdset; /* write descriptor set */
 	LIST_HEAD(, bthid_session)	 sessions;
@@ -59,35 +57,37 @@ typedef struct bthid_server *	bthid_server_p;
 struct bthid_session
 {
 	bthid_server_p			 srv;	/* pointer back to server */
-	int				 ctrl;	/* control channel */
-	int				 intr;	/* interrupt channel */
+	int32_t				 ctrl;	/* control channel */
+	int32_t				 intr;	/* interrupt channel */
+	int32_t				 vkbd;	/* virual keyboard */
 	bdaddr_t			 bdaddr;/* remote bdaddr */
-	short				 state;	/* session state */
+	uint16_t			 state;	/* session state */
 #define CLOSED	0
 #define	W4CTRL	1
 #define	W4INTR	2
 #define	OPEN	3
-	bitstr_t			*keys;	/* pressed keys map */
+	bitstr_t			*keys1;	/* keys map (new) */
+	bitstr_t			*keys2;	/* keys map (old) */
 	LIST_ENTRY(bthid_session)	 next;	/* link to next */
 };
 
 typedef struct bthid_session	bthid_session_t;
 typedef struct bthid_session *	bthid_session_p;
 
-int		server_init      (bthid_server_p srv);
+int32_t		server_init      (bthid_server_p srv);
 void		server_shutdown  (bthid_server_p srv);
-int		server_do        (bthid_server_p srv);
+int32_t		server_do        (bthid_server_p srv);
 
-int		client_rescan    (bthid_server_p srv);
-int		client_connect   (bthid_server_p srv, int fd);
+int32_t		client_rescan    (bthid_server_p srv);
+int32_t		client_connect   (bthid_server_p srv, int fd);
 
-bthid_session_p	session_open     (bthid_server_p srv, bdaddr_p bdaddr);
+bthid_session_p	session_open     (bthid_server_p srv, hid_device_p const d);
 bthid_session_p	session_by_bdaddr(bthid_server_p srv, bdaddr_p bdaddr);
-bthid_session_p	session_by_fd    (bthid_server_p srv, int fd);
+bthid_session_p	session_by_fd    (bthid_server_p srv, int32_t fd);
 void		session_close    (bthid_session_p s);
 
-int		hid_control      (bthid_session_p s, char *data, int len);
-int		hid_interrupt    (bthid_session_p s, char *data, int len);
+int32_t		hid_control      (bthid_session_p s, uint8_t *data, int32_t len);
+int32_t		hid_interrupt    (bthid_session_p s, uint8_t *data, int32_t len);
 
 #endif /* ndef _BTHIDD_H_ */
 

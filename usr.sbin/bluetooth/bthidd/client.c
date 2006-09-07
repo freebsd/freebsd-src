@@ -1,7 +1,9 @@
 /*
  * client.c
- *
- * Copyright (c) 2004 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+ */
+
+/*-
+ * Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: client.c,v 1.6 2004/02/26 21:57:55 max Exp $
+ * $Id: client.c,v 1.7 2006/09/07 21:06:53 max Exp $
  * $FreeBSD$
  */
 
@@ -40,10 +42,10 @@
 #include <syslog.h>
 #include <unistd.h>
 #include <usbhid.h>
-#include "bthidd.h"
 #include "bthid_config.h"
+#include "bthidd.h"
 
-static int	client_socket(bdaddr_p bdaddr, int psm);
+static int32_t	client_socket(bdaddr_p bdaddr, int32_t psm);
 
 /*
  * Get next config entry and create outbound connection (if required)
@@ -53,13 +55,13 @@ static int	client_socket(bdaddr_p bdaddr, int psm);
  *	Create_Connection command is still pending. Weird...
  */
 
-static int	connect_in_progress = 0;
+static int32_t	connect_in_progress = 0;
 
-int
+int32_t
 client_rescan(bthid_server_p srv)
 {
-	static hid_device_p	d = NULL;
-	bthid_session_p		s = NULL;
+	static hid_device_p	d;
+	bthid_session_p		s;
 
 	assert(srv != NULL);
 
@@ -82,9 +84,9 @@ client_rescan(bthid_server_p srv)
 		"(new_device=%d, reconnect_initiate=%d)",
 		bt_ntoa(&d->bdaddr, NULL), d->new_device, d->reconnect_initiate);
 
-	if ((s = session_open(srv, &d->bdaddr)) == NULL) {
-		syslog(LOG_CRIT, "Could not open outbound session for %s. " \
-			"Not enough memory", bt_ntoa(&d->bdaddr, NULL));
+	if ((s = session_open(srv, d)) == NULL) {
+		syslog(LOG_CRIT, "Could not create outbound session for %s",
+			bt_ntoa(&d->bdaddr, NULL));
 		return (-1);
 	}
 
@@ -112,12 +114,12 @@ client_rescan(bthid_server_p srv)
  * Process connect on the socket
  */
 
-int
-client_connect(bthid_server_p srv, int fd)
+int32_t
+client_connect(bthid_server_p srv, int32_t fd)
 {
-	bthid_session_p	s = NULL;
-	hid_device_p	d = NULL;
-	int		error, len;
+	bthid_session_p	s;
+	hid_device_p	d;
+	int32_t		error, len;
 
 	assert(srv != NULL);
 	assert(fd >= 0);
@@ -181,6 +183,15 @@ client_connect(bthid_server_p srv, int fd)
 
 		s->state = OPEN;
 		connect_in_progress = 0;
+
+		/* Register session's vkbd descriptor (if any) for read */
+		if (s->state == OPEN && d->keyboard) {
+			assert(s->vkbd != -1);
+
+			FD_SET(s->vkbd, &srv->rfdset);
+			if (s->vkbd > srv->maxfd)
+				srv->maxfd = s->vkbd;
+	        }
 		break;
 
 	default:
@@ -200,10 +211,10 @@ client_connect(bthid_server_p srv, int fd)
  */
 
 static int
-client_socket(bdaddr_p bdaddr, int psm)
+client_socket(bdaddr_p bdaddr, int32_t psm)
 {
 	struct sockaddr_l2cap	l2addr;
-	int			s, m;
+	int32_t			s, m;
 
 	s = socket(PF_BLUETOOTH, SOCK_SEQPACKET, BLUETOOTH_PROTO_L2CAP);
 	if (s < 0)
@@ -222,7 +233,7 @@ client_socket(bdaddr_p bdaddr, int psm)
 
 	l2addr.l2cap_len = sizeof(l2addr);
 	l2addr.l2cap_family = AF_BLUETOOTH;
-	memcpy(&l2addr.l2cap_bdaddr, NG_HCI_BDADDR_ANY, sizeof(l2addr.l2cap_bdaddr));
+	memset(&l2addr.l2cap_bdaddr, 0, sizeof(l2addr.l2cap_bdaddr));
 	l2addr.l2cap_psm = 0;
 
 	if (bind(s, (struct sockaddr *) &l2addr, sizeof(l2addr)) < 0) {
@@ -231,7 +242,7 @@ client_socket(bdaddr_p bdaddr, int psm)
 	}
 
 	memcpy(&l2addr.l2cap_bdaddr, bdaddr, sizeof(l2addr.l2cap_bdaddr));
-	l2addr.l2cap_psm = htole16(psm);
+	l2addr.l2cap_psm = psm;
 
 	if (connect(s, (struct sockaddr *) &l2addr, sizeof(l2addr)) < 0 &&
 	    errno != EINPROGRESS) {
