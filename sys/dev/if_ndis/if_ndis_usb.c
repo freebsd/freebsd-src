@@ -69,9 +69,9 @@ __FBSDID("$FreeBSD$");
 
 MODULE_DEPEND(ndis, usb, 1, 1, 1);
 
-Static int ndisusb_match	(device_ptr_t);
-Static int ndisusb_attach	(device_ptr_t);
-Static struct resource_list *ndis_get_resource_list
+static int ndisusb_match	(device_t);
+static int ndisusb_attach	(device_t);
+static struct resource_list *ndis_get_resource_list
 				(device_t, device_t);
 
 extern int ndisdrv_modevent     (module_t, int, void *);
