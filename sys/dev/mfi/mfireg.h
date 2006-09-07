@@ -715,19 +715,10 @@ struct mfi_evt_detail {
 	char description[128];
 } __packed;
 
-/* SAS log detail guessed at */
-struct mfi_log_detail {
-	uint32_t		something1;
-	uint32_t		something2;
-	uint32_t		seq;
-	uint32_t		something3;
-	uint32_t		arg_type;
-	uint8_t			reserved1[15];
-
-	union {
-		uint8_t		b[96];
-	} args;
-	char description[128];
+struct mfi_evt_list {
+	uint32_t		count;
+	uint32_t		reserved;
+	struct mfi_evt_detail	event[1];
 } __packed;
 
 struct mfi_ldref {
