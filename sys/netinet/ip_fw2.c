@@ -71,6 +71,7 @@
 #include <netinet/ip_fw.h>
 #include <netinet/ip_divert.h>
 #include <netinet/ip_dummynet.h>
+#include <netinet/pim.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
@@ -2292,6 +2293,11 @@ do {									\
 			case IPPROTO_OSPFIGP:
 				/* XXX OSPF header check? */
 				PULLUP_TO(hlen, ulp, struct ip6_ext);
+				break;
+
+			case IPPROTO_PIM:
+				/* XXX PIM header check? */
+				PULLUP_TO(hlen, ulp, struct pim);
 				break;
 
 			case IPPROTO_IPV6:	/* RFC 2893 */
