@@ -41,7 +41,7 @@ LDIRS=	bsm cam geom net net80211 netatalk netatm netgraph netinet netinet6 \
 LSUBDIRS=	cam/scsi \
 	dev/acpica dev/an dev/bktr dev/firewire dev/hwpmc \
 	dev/ic dev/iicbus ${_dev_ieee488} dev/lmc dev/ofw \
-	dev/pbio ${_dev_powermac_nvram} dev/ppbus dev/smbus dev/speaker dev/usb dev/wi dev/utopia \
+	dev/pbio ${_dev_powermac_nvram} dev/ppbus dev/smbus dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
 	fs/devfs fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs \
 	${_fs_nwfs} fs/portalfs fs/procfs fs/smbfs fs/udf fs/umapfs \
 	fs/unionfs \
