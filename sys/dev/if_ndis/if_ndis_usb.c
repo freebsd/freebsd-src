@@ -83,7 +83,7 @@ extern int ndis_resume          (device_t);
 
 extern unsigned char drv_data[];
 
-Static device_method_t ndis_methods[] = {
+static device_method_t ndis_methods[] = {
         /* Device interface */
 	DEVMETHOD(device_probe,		ndisusb_match),
 	DEVMETHOD(device_attach,	ndisusb_attach),
@@ -98,13 +98,13 @@ Static device_method_t ndis_methods[] = {
 	{ 0, 0 }
 };
 
-Static driver_t ndis_driver = {
+static driver_t ndis_driver = {
 	"ndis",
 	ndis_methods,
 	sizeof(struct ndis_softc)
 };
 
-Static devclass_t ndis_devclass;
+static devclass_t ndis_devclass;
 
 DRIVER_MODULE(ndis, uhub, ndis_driver, ndis_devclass, ndisdrv_modevent, 0);
 
