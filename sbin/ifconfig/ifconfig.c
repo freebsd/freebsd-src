@@ -805,7 +805,7 @@ rt_xaddrs(caddr_t cp, caddr_t cplim, struct rt_addrinfo *rtinfo)
 
 #define	IFCAPBITS \
 "\020\1RXCSUM\2TXCSUM\3NETCONS\4VLAN_MTU\5VLAN_HWTAGGING\6JUMBO_MTU\7POLLING" \
-"\8TSO4\9TSO6\10VLAN_HWCSUM"
+"\10VLAN_HWCSUM\11TSO4\12TSO6"
 
 /*
  * Print the status of the interface.  If an address family was
