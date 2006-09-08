@@ -355,8 +355,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 		ret = mutex_self_lock(m, abstime);
 	} else {
 		if (abstime == NULL) {
-			_thr_umutex_lock(&m->m_lock, id);
-			ret = 0;
+			ret = _thr_umutex_lock(&m->m_lock, id);
 		} else if (__predict_false(
 			   abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
 			   abstime->tv_nsec >= 1000000000)) {
