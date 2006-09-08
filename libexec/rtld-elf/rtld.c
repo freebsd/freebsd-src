@@ -123,7 +123,7 @@ static const void **get_program_var_addr(const char *);
 static void set_program_var(const char *, const void *);
 static const Elf_Sym *symlook_default(const char *, unsigned long,
   const Obj_Entry *, const Obj_Entry **, const Ver_Entry *, int);
-static const Elf_Sym *symlook_list(const char *, unsigned long, Objlist *,
+static const Elf_Sym *symlook_list(const char *, unsigned long, const Objlist *,
   const Obj_Entry **, const Ver_Entry *, int flags, DoneList *);
 static void trace_loaded_objects(Obj_Entry *obj);
 static void unlink_object(Obj_Entry *);
@@ -1851,21 +1851,18 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 	    return NULL;
 	}
 
+	DoneList donelist;
+	const Objlist *srch_list;
+	donelist_init(&donelist);
 	if (obj->mainprog) {
-	    DoneList donelist;
-
 	    /* Search main program and all libraries loaded by it. */
-	    donelist_init(&donelist);
-	    def = symlook_list(name, hash, &list_main, &defobj, ve, flags,
-	      &donelist);
+	    srch_list = &list_main;
 	} else {
-	    /*
-	     * XXX - This isn't correct.  The search should include the whole
-	     * DAG rooted at the given object.
-	     */
-	    def = symlook_obj(name, hash, obj, ve, flags);
-	    defobj = obj;
+	    /* Search the whole DAG rooted at the given object. */
+	    srch_list = &(obj->dagmembers);
 	}
+	def = symlook_list(name, hash, srch_list, &defobj, ve, flags,
+			   &donelist);
     }
 
     if (def != NULL) {
@@ -2336,7 +2333,7 @@ symlook_default(const char *name, unsigned long hash, const Obj_Entry *refobj,
 }
 
 static const Elf_Sym *
-symlook_list(const char *name, unsigned long hash, Objlist *objlist,
+symlook_list(const char *name, unsigned long hash, const Objlist *objlist,
   const Obj_Entry **defobj_out, const Ver_Entry *ventry, int flags,
   DoneList *dlp)
 {
