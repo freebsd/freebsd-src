@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,6 +77,7 @@ g_nop_start(struct bio *bp)
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct bio *cbp;
+	u_int failprob = 0;
 
 	gp = bp->bio_to->geom;
 	sc = gp->softc;
@@ -85,19 +86,21 @@ g_nop_start(struct bio *bp)
 	case BIO_READ:
 		sc->sc_reads++;
 		sc->sc_readbytes += bp->bio_length;
+		failprob = sc->sc_rfailprob;
 		break;
 	case BIO_WRITE:
 		sc->sc_writes++;
 		sc->sc_wrotebytes += bp->bio_length;
+		failprob = sc->sc_wfailprob;
 		break;
 	}
-	if (sc->sc_failprob > 0) {
+	if (failprob > 0) {
 		u_int rval;
 
 		rval = arc4random() % 100;
-		if (rval < sc->sc_failprob) {
-			G_NOP_LOGREQ(bp, "Returning EIO.");
-			g_io_deliver(bp, EIO);
+		if (rval < failprob) {
+			G_NOP_LOGREQ(bp, "Returning error=%d.", sc->sc_error);
+			g_io_deliver(bp, sc->sc_error);
 			return;
 		}
 	}
@@ -133,7 +136,8 @@ g_nop_access(struct g_provider *pp, int dr, int dw, int de)
 
 static int
 g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
-    u_int failprob, off_t offset, off_t size, u_int secsize)
+    int ioerror, u_int rfailprob, u_int wfailprob, off_t offset, off_t size,
+    u_int secsize)
 {
 	struct g_nop_softc *sc;
 	struct g_geom *gp;
@@ -186,7 +190,9 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	}
 	sc = g_malloc(sizeof(*sc), M_WAITOK);
 	sc->sc_offset = offset;
-	sc->sc_failprob = failprob;
+	sc->sc_error = ioerror;
+	sc->sc_rfailprob = rfailprob;
+	sc->sc_wfailprob = wfailprob;
 	sc->sc_reads = 0;
 	sc->sc_writes = 0;
 	sc->sc_readbytes = 0;
@@ -276,7 +282,7 @@ static void
 g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_provider *pp;
-	intmax_t *failprob, *offset, *secsize, *size;
+	intmax_t *error, *rfailprob, *wfailprob, *offset, *secsize, *size;
 	const char *name;
 	char param[16];
 	int i, *nargs;
@@ -292,13 +298,27 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "Missing device(s).");
 		return;
 	}
-	failprob = gctl_get_paraml(req, "failprob", sizeof(*failprob));
-	if (failprob == NULL) {
-		gctl_error(req, "No '%s' argument", "failprob");
+	error = gctl_get_paraml(req, "error", sizeof(*error));
+	if (error == NULL) {
+		gctl_error(req, "No '%s' argument", "error");
 		return;
 	}
-	if (*failprob < 0 || *failprob > 100) {
-		gctl_error(req, "Invalid '%s' argument", "failprob");
+	rfailprob = gctl_get_paraml(req, "rfailprob", sizeof(*rfailprob));
+	if (rfailprob == NULL) {
+		gctl_error(req, "No '%s' argument", "rfailprob");
+		return;
+	}
+	if (*rfailprob < -1 || *rfailprob > 100) {
+		gctl_error(req, "Invalid '%s' argument", "rfailprob");
+		return;
+	}
+	wfailprob = gctl_get_paraml(req, "wfailprob", sizeof(*wfailprob));
+	if (wfailprob == NULL) {
+		gctl_error(req, "No '%s' argument", "wfailprob");
+		return;
+	}
+	if (*wfailprob < -1 || *wfailprob > 100) {
+		gctl_error(req, "Invalid '%s' argument", "wfailprob");
 		return;
 	}
 	offset = gctl_get_paraml(req, "offset", sizeof(*offset));
@@ -344,8 +364,11 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "Provider %s is invalid.", name);
 			return;
 		}
-		if (g_nop_create(req, mp, pp, (u_int)*failprob, (off_t)*offset,
-		    (off_t)*size, (u_int)*secsize) != 0) {
+		if (g_nop_create(req, mp, pp,
+		    *error == -1 ? EIO : (int)*error,
+		    *rfailprob == -1 ? 0 : (u_int)*rfailprob,
+		    *wfailprob == -1 ? 0 : (u_int)*wfailprob,
+		    (off_t)*offset, (off_t)*size, (u_int)*secsize) != 0) {
 			return;
 		}
 	}
@@ -356,7 +379,7 @@ g_nop_ctl_configure(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_nop_softc *sc;
 	struct g_provider *pp;
-	intmax_t *failprob;
+	intmax_t *error, *rfailprob, *wfailprob;
 	const char *name;
 	char param[16];
 	int i, *nargs;
@@ -372,13 +395,27 @@ g_nop_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "Missing device(s).");
 		return;
 	}
-	failprob = gctl_get_paraml(req, "failprob", sizeof(*failprob));
-	if (failprob == NULL) {
-		gctl_error(req, "No '%s' argument", "failprob");
+	error = gctl_get_paraml(req, "error", sizeof(*error));
+	if (error == NULL) {
+		gctl_error(req, "No '%s' argument", "error");
 		return;
 	}
-	if (*failprob < 0 || *failprob > 100) {
-		gctl_error(req, "Invalid '%s' argument", "failprob");
+	rfailprob = gctl_get_paraml(req, "rfailprob", sizeof(*rfailprob));
+	if (rfailprob == NULL) {
+		gctl_error(req, "No '%s' argument", "rfailprob");
+		return;
+	}
+	if (*rfailprob < -1 || *rfailprob > 100) {
+		gctl_error(req, "Invalid '%s' argument", "rfailprob");
+		return;
+	}
+	wfailprob = gctl_get_paraml(req, "wfailprob", sizeof(*wfailprob));
+	if (wfailprob == NULL) {
+		gctl_error(req, "No '%s' argument", "wfailprob");
+		return;
+	}
+	if (*wfailprob < -1 || *wfailprob > 100) {
+		gctl_error(req, "Invalid '%s' argument", "wfailprob");
 		return;
 	}
 
@@ -398,7 +435,12 @@ g_nop_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 		sc = pp->geom->softc;
-		sc->sc_failprob = (u_int)*failprob;
+		if (*error != -1)
+			sc->sc_error = (int)*error;
+		if (*rfailprob != -1)
+			sc->sc_rfailprob = (u_int)*rfailprob;
+		if (*wfailprob != -1)
+			sc->sc_wfailprob = (u_int)*wfailprob;
 	}
 }
 
@@ -552,7 +594,11 @@ g_nop_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	sc = gp->softc;
 	sbuf_printf(sb, "%s<Offset>%jd</Offset>\n", indent,
 	    (intmax_t)sc->sc_offset);
-	sbuf_printf(sb, "%s<FailProb>%u</FailProb>\n", indent, sc->sc_failprob);
+	sbuf_printf(sb, "%s<ReadFailProb>%u</ReadFailProb>\n", indent,
+	    sc->sc_rfailprob);
+	sbuf_printf(sb, "%s<WriteFailProb>%u</WriteFailProb>\n", indent,
+	    sc->sc_wfailprob);
+	sbuf_printf(sb, "%s<Error>%ju</Error>\n", indent, sc->sc_error);
 	sbuf_printf(sb, "%s<Reads>%ju</Reads>\n", indent, sc->sc_reads);
 	sbuf_printf(sb, "%s<Writes>%ju</Writes>\n", indent, sc->sc_writes);
 	sbuf_printf(sb, "%s<ReadBytes>%ju</ReadBytes>\n", indent,
