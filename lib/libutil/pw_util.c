@@ -488,7 +488,7 @@ pw_copy(int ffd, int tfd, const struct passwd *pw, struct passwd *old_pw)
 		fpw = pw_scan(r, PWSCAN_MASTER);
 
 		/*
-		 * fpw is either the struct password for the current line,
+		 * fpw is either the struct passwd for the current line,
 		 * or NULL if the line is malformed.
 		 */
 
