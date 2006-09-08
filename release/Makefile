@@ -1098,7 +1098,7 @@ doTARBALL:
 	@rm -rf ${RD}/dists/${TD}/${TN}*
 	@mkdir -p ${RD}/dists/${TD}
 	@( cd ${SD} && \
-		tn=`echo ${TN} | tr 'A-Z' 'a-z' | cut -c1-8` && \
+		tn=`echo ${TN} | tr 'A-Z' 'a-z'` && \
 		echo rolling ${TD}/$$tn tarball &&\
 		tar --exclude CVS --exclude obj --exclude BOOTMFS -cf - ${ARG} | \
 		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. && \
