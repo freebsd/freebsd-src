@@ -178,18 +178,6 @@ Refer to
 for a list of recognized
 .Va CPUTYPE
 options.
-.It Va NO_CPU_CFLAGS
-.Pq Vt str
-Setting this variable will prevent CPU specific compiler flags
-from being automatically added to
-.Va CFLAGS
-during compile time.
-.It Va NO_CPU_COPTFLAGS
-.Pq Vt str
-Setting this variable will prevent CPU specific compiler flags
-from being automatically added to
-.Va COPTFLAGS
-during compile time.
 .It Va CVS_UPDATE
 .Pq Vt bool
 Set this to use
@@ -209,6 +197,14 @@ value, use
 .Dq Li +=
 instead of
 .Dq Li = .
+.It Va DOCSUPFILE
+.Pq Vt str
+The documentation
+.Ar supfile
+to use when doing a
+.Dq Li "make update" .
+This defaults to
+.Pa /usr/share/examples/cvsup/doc\-supfile .
 .It Va INSTALL
 .Pq Vt str
 the default install command.
@@ -244,6 +240,18 @@ Set this to
 to cause
 .Xr mtree 8
 to follow symlinks.
+.It Va NO_CPU_CFLAGS
+.Pq Vt str
+Setting this variable will prevent CPU specific compiler flags
+from being automatically added to
+.Va CFLAGS
+during compile time.
+.It Va NO_CPU_COPTFLAGS
+.Pq Vt str
+Setting this variable will prevent CPU specific compiler flags
+from being automatically added to
+.Va COPTFLAGS
+during compile time.
 .It Va NO_DOCUPDATE
 .Pq Vt bool
 Set this to not update the doc tree during
@@ -252,12 +260,14 @@ Set this to not update the doc tree during
 .Pq Vt bool
 Set this to not update the ports tree during
 .Dq Li "make update" .
-.It Va SUP_UPDATE
-.Pq Vt bool
-Set this to use
-.Xr cvsup 1
-to update your ports with
+.It Va PORTSSUPFILE
+.Pq Vt str
+The ports
+.Ar supfile
+to use when doing a
 .Dq Li "make update" .
+This defaults to
+.Pa /usr/share/examples/cvsup/ports\-supfile .
 .It Va SUP
 .Pq Vt str
 The location of the
@@ -265,18 +275,6 @@ The location of the
 or
 .Xr cvsup 1
 command for
-.Dq Li "make update" .
-.It Va SUPFLAGS
-.Pq Vt str
-The flag for the
-.Xr sup 1
-command when doing
-.Dq Li "make update" .
-This defaults to
-.Op Fl g L Ar 2 .
-.It Va SUPHOST
-.Pq Vt str
-The hostname of the sup server to use when doing
 .Dq Li "make update" .
 .It Va SUPFILE
 .Pq Vt str
@@ -302,35 +300,30 @@ to use when doing a
 .Dq Li "make update" .
 This defaults to
 .Pa /usr/share/examples/cvsup/secure\-supfile .
-.It Va PORTSSUPFILE
+.It Va SUPFLAGS
 .Pq Vt str
-The ports
-.Ar supfile
-to use when doing a
+The flag for the
+.Xr sup 1
+command when doing
 .Dq Li "make update" .
 This defaults to
-.Pa /usr/share/examples/cvsup/ports\-supfile .
-.It Va DOCSUPFILE
+.Op Fl g L Ar 2 .
+.It Va SUPHOST
 .Pq Vt str
-The documentation
-.Ar supfile
-to use when doing a
+The hostname of the sup server to use when doing
 .Dq Li "make update" .
-This defaults to
-.Pa /usr/share/examples/cvsup/doc\-supfile .
+.It Va SUP_UPDATE
+.Pq Vt bool
+Set this to use
+.Xr cvsup 1
+to update your ports with
+.Dq Li "make update" .
 .El
+.Ss "BUILDING THE KERNEL"
 .Pp
 The following list provides a name and short description for variables
 that are only used doing a kernel build:
 .Bl -tag -width Ar
-.It Va BOOT_COMCONSOLE_PORT
-.Pq Vt str
-The port address to use for the console if the boot blocks have
-been configured to use a serial console instead of the keyboard/video card.
-.It Va BOOT_COMCONSOLE_SPEED
-.Pq Vt int
-The baud rate to use for the console if the boot blocks have
-been configured to use a serial console instead of the keyboard/video card.
 .It Va BOOTWAIT
 .Pq Vt int
 Controls the amount of time the kernel waits for a console keypress
@@ -366,37 +359,9 @@ and install the kernel specified by the config file
 .Pa MINE .
 It defaults to
 .Pa GENERIC .
-.It Va LOADER_TFTP_SUPPORT
-.Pq Vt bool
-While not a buildkernel-affected option, there is no better place for this.
-By default the
-.Xr pxeboot 8
-loader retrieves the kernel via NFS.
-Defining this and recompiling
-.Pa /usr/src/sys/boot
-will cause it to retrieve the kernel via TFTP.
-This allows
-.Xr pxeboot 8
-to load a custom BOOTP diskless kernel yet
-still mount the server's
-.Pa /
-rather than load the server's kernel.
 .It Va MODULES_OVERRIDE
 .Pq Vt str
 Set to a list of modules to build instead of all of them.
-.It Va WITHOUT_MODULES
-.Pq Vt str
-Set to a list of modules to exclude from the build.
-This provides a
-somewhat easier way to exclude modules you are certain you will never
-need than specifying
-.Va MODULES_OVERRIDE .
-This is applied
-.Em after
-.Va MODULES_OVERRIDE .
-.It Va PORTS_MODULES
-Set this to the list of ports you wish to rebuild every time the kernel
-is built.
 .It Va NO_KERNELCONFIG
 .Pq Vt bool
 Set this to skip running
@@ -412,28 +377,33 @@ during
 .It Va NO_MODULES
 .Pq Vt bool
 Set to not build modules with the kernel.
+.It Va PORTS_MODULES
+Set this to the list of ports you wish to rebuild every time the kernel
+is built.
+.It Va WITHOUT_MODULES
+.Pq Vt str
+Set to a list of modules to exclude from the build.
+This provides a
+somewhat easier way to exclude modules you are certain you will never
+need than specifying
+.Va MODULES_OVERRIDE .
+This is applied
+.Em after
+.Va MODULES_OVERRIDE .
 .El
+.Ss "BUILDING THE WORLD"
 .Pp
 The following list provides a name and short description for variables
 that are used during the world build:
 .Bl -tag -width Ar
-.It Va MAKE_IDEA
-.Pq Vt bool
-Set to build the IDEA encryption code.
-This code is patented in the USA and many European countries.
-It is
-.Em "YOUR RESPONSIBILITY"
-to determine if you can legally use IDEA.
-.It Va NO_DYNAMICROOT
-.Pq Vt bool
-Set this if you do not want to link
-.Pa /bin
-and
-.Pa /sbin
-dynamically.
-.It Va NO_KERBEROS
-.Pq Vt bool
-Set this if you do not want to build Kerberos 5 (KTH Heimdal).
+.It Va BOOT_COMCONSOLE_PORT
+.Pq Vt str
+The port address to use for the console if the boot blocks have
+been configured to use a serial console instead of the keyboard/video card.
+.It Va BOOT_COMCONSOLE_SPEED
+.Pq Vt int
+The baud rate to use for the console if the boot blocks have
+been configured to use a serial console instead of the keyboard/video card.
 .It Va ENABLE_SUID_K5SU
 .Pq Vt bool
 Set this if you wish to use the ksu utility.
@@ -452,6 +422,37 @@ will not be able to change users' groups.
 Set this to install
 .Xr ssh 1
 with the set-user-ID bit turned on.
+.It Va LOADER_TFTP_SUPPORT
+.Pq Vt bool
+By default the
+.Xr pxeboot 8
+loader retrieves the kernel via NFS.
+Defining this and recompiling
+.Pa /usr/src/sys/boot
+will cause it to retrieve the kernel via TFTP.
+This allows
+.Xr pxeboot 8
+to load a custom BOOTP diskless kernel yet
+still mount the server's
+.Pa /
+rather than load the server's kernel.
+.It Va MAKE_IDEA
+.Pq Vt bool
+Set to build the IDEA encryption code.
+This code is patented in the USA and many European countries.
+It is
+.Em "YOUR RESPONSIBILITY"
+to determine if you can legally use IDEA.
+.It Va NO_DYNAMICROOT
+.Pq Vt bool
+Set this if you do not want to link
+.Pa /bin
+and
+.Pa /sbin
+dynamically.
+.It Va NO_KERBEROS
+.Pq Vt bool
+Set this if you do not want to build Kerberos 5 (KTH Heimdal).
 .It Va NO_WPA_SUPPLICANT_EAPOL
 .Pq Vt bool
 Build
@@ -732,6 +733,69 @@ This includes
 .Xr rlogin 1 ,
 .Xr rsh 1 ,
 etc.
+.It Va SENDMAIL_ADDITIONAL_MC
+.Pq Vt str
+Additional
+.Pa .mc
+files which should be built into
+.Pa .cf
+files at build time.
+The value should include the full path to the
+.Pa .mc
+file(s), e.g.,
+.Pa /etc/mail/foo.mc
+.Pa /etc/mail/bar.mc .
+.It Va SENDMAIL_CFLAGS
+.Pq Vt str
+Flags to pass to the compile command when building
+.Xr sendmail 8 .
+The
+.Va SENDMAIL_*
+flags can be used to provide SASL support with setting such as:
+.Bd -literal -offset indent
+SENDMAIL_CFLAGS=-I/usr/local/include -DSASL
+SENDMAIL_LDFLAGS=-L/usr/local/lib
+SENDMAIL_LDADD=-lsasl
+.Ed
+.It Va SENDMAIL_CF_DIR
+.Pq Vt str
+Override the default location for the
+.Xr m4 1
+configuration files used to build a
+.Pa .cf
+file from a
+.Pa .mc
+file.
+.It Va SENDMAIL_DPADD
+.Pq Vt str
+Extra dependencies to add when building
+.Xr sendmail 8 .
+.It Va SENDMAIL_LDADD
+.Pq Vt str
+Flags to add to the end of the
+.Xr ld 1
+command when building
+.Xr sendmail 8 .
+.It Va SENDMAIL_LDFLAGS
+.Pq Vt str
+Flags to pass to the
+.Xr ld 1
+command when building
+.Xr sendmail 8 .
+.It Va SENDMAIL_M4_FLAGS
+.Pq Vt str
+Flags passed to
+.Xr m4 1
+when building a
+.Pa .cf
+file from a
+.Pa .mc
+file.
+.It Va SENDMAIL_MAP_PERMS
+.Pq Vt str
+Mode to use when generating alias and map database files using
+.Pa /etc/mail/Makefile .
+The default value is 0640.
 .It Va SENDMAIL_MC
 .Pq Vt str
 The default
@@ -746,6 +810,16 @@ Use with caution as a make install will overwrite any existing
 Note that
 .Va SENDMAIL_CF
 is now deprecated.
+.It Va SENDMAIL_SET_USER_ID
+.Pq Vt bool
+If set, install
+.Xr sendmail 8
+as a set-user-ID root binary instead of a set-group-ID binary
+and do not install
+.Pa /etc/mail/submit.{cf,mc} .
+Use of this flag is not recommended and the alternative advice in
+.Pa /etc/mail/README
+should be followed instead if at all possible.
 .It Va SENDMAIL_SUBMIT_MC
 .Pq Vt str
 The default
@@ -758,79 +832,6 @@ file, e.g.,
 .Pa /etc/mail/mysubmit.mc .
 Use with caution as a make install will overwrite any existing
 .Pa /etc/mail/submit.cf .
-.It Va SENDMAIL_ADDITIONAL_MC
-.Pq Vt str
-Additional
-.Pa .mc
-files which should be built into
-.Pa .cf
-files at build time.
-The value should include the full path to the
-.Pa .mc
-file(s), e.g.,
-.Pa /etc/mail/foo.mc
-.Pa /etc/mail/bar.mc .
-.It Va SENDMAIL_CF_DIR
-.Pq Vt str
-Override the default location for the
-.Xr m4 1
-configuration files used to build a
-.Pa .cf
-file from a
-.Pa .mc
-file.
-.It Va SENDMAIL_M4_FLAGS
-.Pq Vt str
-Flags passed to
-.Xr m4 1
-when building a
-.Pa .cf
-file from a
-.Pa .mc
-file.
-.It Va SENDMAIL_CFLAGS
-.Pq Vt str
-Flags to pass to the compile command when building
-.Xr sendmail 8 .
-The
-.Va SENDMAIL_*
-flags can be used to provide SASL support with setting such as:
-.Bd -literal -offset indent
-SENDMAIL_CFLAGS=-I/usr/local/include -DSASL
-SENDMAIL_LDFLAGS=-L/usr/local/lib
-SENDMAIL_LDADD=-lsasl
-.Ed
-.It Va SENDMAIL_LDFLAGS
-.Pq Vt str
-Flags to pass to the
-.Xr ld 1
-command when building
-.Xr sendmail 8 .
-.It Va SENDMAIL_LDADD
-.Pq Vt str
-Flags to add to the end of the
-.Xr ld 1
-command when building
-.Xr sendmail 8 .
-.It Va SENDMAIL_DPADD
-.Pq Vt str
-Extra dependencies to add when building
-.Xr sendmail 8 .
-.It Va SENDMAIL_SET_USER_ID
-.Pq Vt bool
-If set, install
-.Xr sendmail 8
-as a set-user-ID root binary instead of a set-group-ID binary
-and do not install
-.Pa /etc/mail/submit.{cf,mc} .
-Use of this flag is not recommended and the alternative advice in
-.Pa /etc/mail/README
-should be followed instead if at all possible.
-.It Va SENDMAIL_MAP_PERMS
-.Pq Vt str
-Mode to use when generating alias and map database files using
-.Pa /etc/mail/Makefile .
-The default value is 0640.
 .It Va TOP_TABLE_SIZE
 .Pq Vt int
 .Xr top 1
@@ -850,10 +851,11 @@ and above is known to trigger known optimizer bugs at various
 times \(em this is worse on the Alpha platform.
 The value assigned is the highest optimization value used.
 .El
+.Ss "BUILDING DOCUMENTATION"
 .Pp
 The following list provides a name and short description for variables
 that are used when building documentation.
-.Bl -tag -width Ar
+.Bl -tag -width ".Va PRINTERDEVICE"
 .It Va DISTDIR
 .Pq Vt str
 Where distfiles are kept.
