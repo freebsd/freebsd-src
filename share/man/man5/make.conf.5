@@ -404,6 +404,27 @@ been configured to use a serial console instead of the keyboard/video card.
 .Pq Vt int
 The baud rate to use for the console if the boot blocks have
 been configured to use a serial console instead of the keyboard/video card.
+.It Va BOOT_PXELDR_ALWAYS_SERIAL
+.Pq Vt bool
+Compile in the code into
+.Xr pxeboot 8
+that forces the use of a serial console.
+This is analogous to the
+.Fl h
+option in
+.Xr boot 8
+blocks.
+.It Va BOOT_PXELDR_PROBE_KEYBOARD
+.Pq Vt bool
+Compile in the code into
+.Xr pxeboot 8
+that probes the keyboard.
+If no keyboard is found, boot with the dual console configuration.
+This is analogous to the
+.Fl D
+option in
+.Xr boot 8
+blocks.
 .It Va ENABLE_SUID_K5SU
 .Pq Vt bool
 Set this if you wish to use the ksu utility.
