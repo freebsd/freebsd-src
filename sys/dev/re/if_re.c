@@ -541,6 +541,10 @@ re_miibus_readreg(dev, phy, reg)
 		return (0);
 	}
 	rval = CSR_READ_2(sc, re8139_reg);
+	if (sc->rl_type == RL_8139CPLUS && re8139_reg == RL_BMCR) {
+		/* 8139C+ has different bit layout. */
+		rval &= ~(BMCR_LOOP | BMCR_ISO);
+	}
 	return (rval);
 }
 
@@ -567,6 +571,10 @@ re_miibus_writereg(dev, phy, reg, data)
 	switch (reg) {
 	case MII_BMCR:
 		re8139_reg = RL_BMCR;
+		if (sc->rl_type == RL_8139CPLUS) {
+			/* 8139C+ has different bit layout. */
+			data &= ~(BMCR_LOOP | BMCR_ISO);
+		}
 		break;
 	case MII_BMSR:
 		re8139_reg = RL_BMSR;
