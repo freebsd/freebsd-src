@@ -1,4 +1,4 @@
-.\" Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 21, 2004
+.Dd September 8, 2006
 .Dt GNOP 8
 .Os
 .Sh NAME
@@ -34,15 +34,19 @@
 .Nm
 .Cm create
 .Op Fl v
-.Op Fl f Ar failprob
+.Op Fl e Ar error
 .Op Fl o Ar offset
+.Op Fl r Ar rfailprob
 .Op Fl s Ar size
 .Op Fl S Ar secsize
+.Op Fl w Ar wfailprob
 .Ar dev ...
 .Nm
 .Cm configure
 .Op Fl v
-.Op Fl f Ar failprob
+.Op Fl e Ar error
+.Op Fl r Ar rfailprob
+.Op Fl w Ar wfailprob
 .Ar prov ...
 .Nm
 .Cm destroy
@@ -104,17 +108,21 @@ See
 .El
 .Pp
 Additional options:
-.Bl -tag -width ".Fl f Ar failprob"
+.Bl -tag -width ".Fl f Ar rfailprob"
+.It Fl e Ar error
+Specifies the error number to return on failure.
 .It Fl f
 Force the removal of the specified provider.
-.It Fl f Ar failprob
-Specifies failure probability in percentage.
 .It Fl o Ar offset
 Where to begin on the original provider.
+.It Fl r Ar rfailprob
+Specifies read failure probability in percent.
 .It Fl s Ar size
 Size of the transparent provider.
 .It Fl S Ar secsize
 Sector size of the transparent provider.
+.It Fl w Ar wfailprob
+Specifies write failure probability in percent.
 .It Fl v
 Be more verbose.
 .El

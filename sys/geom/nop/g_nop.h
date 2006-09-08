@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
 #define	_G_NOP_H_
 
 #define	G_NOP_CLASS_NAME	"NOP"
-#define	G_NOP_VERSION		3
+#define	G_NOP_VERSION		4
 #define	G_NOP_SUFFIX		".nop"
 
 #ifdef _KERNEL
@@ -55,8 +55,10 @@
 } while (0)
 
 struct g_nop_softc {
+	int		sc_error;
 	off_t		sc_offset;
-	u_int		sc_failprob;
+	u_int		sc_rfailprob;
+	u_int		sc_wfailprob;
 	uintmax_t	sc_reads;
 	uintmax_t	sc_writes;
 	uintmax_t	sc_readbytes;
