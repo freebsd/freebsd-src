@@ -699,6 +699,12 @@ static chunk_tree_t	huge;
 /*
  * Try to use brk for chunk-size allocations, due to address space constraints.
  */
+/*
+ * Protects sbrk() calls.  This must be separate from chunks_mtx, since
+ * base_chunk_alloc() also uses sbrk(), but cannot lock chunks_mtx (doing so
+ * could cause recursive lock acquisition).
+ */
+static malloc_mutex_t	brk_mtx;
 /* Result of first sbrk(0) call. */
 static void		*brk_base;
 /* Current end of brk, or ((void *)-1) if brk is exhausted. */
@@ -816,6 +822,7 @@ static void	malloc_mutex_init(malloc_mutex_t *a_mutex);
 static void	wrtmessage(const char *p1, const char *p2, const char *p3,
 		const char *p4);
 static void	malloc_printf(const char *format, ...);
+static bool	base_chunk_alloc(size_t minsize);
 static void	*base_alloc(size_t size);
 static chunk_node_t *base_chunk_node_alloc(void);
 static void	base_chunk_node_dealloc(chunk_node_t *node);
@@ -967,6 +974,69 @@ malloc_printf(const char *format, ...)
 
 /******************************************************************************/
 
+static bool
+base_chunk_alloc(size_t minsize)
+{
+
+	assert(minsize <= chunk_size);
+
+#ifdef USE_BRK
+	/*
+	 * Do special brk allocation here, since the base chunk doesn't really
+	 * need to be chunk-aligned.
+	 */
+	if (brk_prev != (void *)-1) {
+		void *brk_cur;
+		intptr_t incr;
+
+		malloc_mutex_lock(&brk_mtx);
+		do {
+			/* Get the current end of brk. */
+			brk_cur = sbrk(0);
+
+			/*
+			 * Calculate how much padding is necessary to
+			 * chunk-align the end of brk.  Don't worry about
+			 * brk_cur not being chunk-aligned though.
+			 */
+			incr = (intptr_t)chunk_size
+			    - (intptr_t)CHUNK_ADDR2OFFSET(brk_cur);
+			if (incr < minsize)
+				incr += chunk_size;
+
+			brk_prev = sbrk(incr);
+			if (brk_prev == brk_cur) {
+				/* Success. */
+				malloc_mutex_unlock(&brk_mtx);
+				base_chunk = brk_cur;
+				base_next_addr = base_chunk;
+				base_past_addr = (void *)((uintptr_t)base_chunk +
+				    incr);
+#ifdef MALLOC_STATS
+				base_total += incr;
+#endif
+				return (false);
+			}
+		} while (brk_prev != (void *)-1);
+		malloc_mutex_unlock(&brk_mtx);
+	}
+#endif
+
+	/*
+	 * Don't worry about chunk alignment here, since base_chunk doesn't really
+	 * need to be aligned.
+	 */
+	base_chunk = pages_map(NULL, chunk_size);
+	if (base_chunk == NULL)
+		return (true);
+	base_next_addr = base_chunk;
+	base_past_addr = (void *)((uintptr_t)base_chunk + chunk_size);
+#ifdef MALLOC_STATS
+	base_total += chunk_size;
+#endif
+	return (false);
+}
+
 static void *
 base_alloc(size_t size)
 {
@@ -980,21 +1050,10 @@ base_alloc(size_t size)
 
 	/* Make sure there's enough space for the allocation. */
 	if ((uintptr_t)base_next_addr + csize > (uintptr_t)base_past_addr) {
-		void *tchunk;
-
-		assert(csize <= chunk_size);
-
-		tchunk = chunk_alloc(chunk_size);
-		if (tchunk == NULL) {
+		if (base_chunk_alloc(csize)) {
 			ret = NULL;
 			goto RETURN;
 		}
-		base_chunk = tchunk;
-		base_next_addr = (void *)base_chunk;
-		base_past_addr = (void *)((uintptr_t)base_chunk + chunk_size);
-#ifdef MALLOC_STATS
-		base_total += chunk_size;
-#endif
 	}
 
 	/* Allocate. */
@@ -1234,6 +1293,7 @@ chunk_alloc(size_t size)
 		 * The loop is necessary to recover from races with other
 		 * threads that are using brk for something other than malloc.
 		 */
+		malloc_mutex_lock(&brk_mtx);
 		do {
 			/* Get the current end of brk. */
 			brk_cur = sbrk(0);
@@ -1254,10 +1314,12 @@ chunk_alloc(size_t size)
 			brk_prev = sbrk(incr);
 			if (brk_prev == brk_cur) {
 				/* Success. */
+				malloc_mutex_unlock(&brk_mtx);
 				brk_max = (void *)(intptr_t)ret + size;
 				goto RETURN;
 			}
 		} while (brk_prev != (void *)-1);
+		malloc_mutex_unlock(&brk_mtx);
 	}
 #endif
 
@@ -1327,6 +1389,7 @@ chunk_dealloc(void *chunk, size_t size)
 	    && (uintptr_t)chunk < (uintptr_t)brk_max) {
 		void *brk_cur;
 
+		malloc_mutex_lock(&brk_mtx);
 		/* Get the current end of brk. */
 		brk_cur = sbrk(0);
 
@@ -1340,6 +1403,7 @@ chunk_dealloc(void *chunk, size_t size)
 		if (brk_cur == brk_max
 		    && (void *)(uintptr_t)chunk + size == brk_max
 		    && sbrk(-(intptr_t)size) == brk_max) {
+			malloc_mutex_unlock(&brk_mtx);
 			if (brk_prev == brk_max) {
 				/* Success. */
 				brk_prev = (void *)(intptr_t)brk_max
@@ -1348,6 +1412,7 @@ chunk_dealloc(void *chunk, size_t size)
 			}
 			goto RETURN;
 		} else
+			malloc_mutex_unlock(&brk_mtx);
 			madvise(chunk, size, MADV_FREE);
 	} else
 #endif
@@ -1567,7 +1632,7 @@ arena_run_reg_dalloc(arena_run_t *run, arena_bin_t *bin, void *ptr, size_t size)
 	 *
 	 * becomes
 	 *
-	 *   (size_invs[(D >> QUANTUM_2POW_MIN) - 3] * D) >> SIZE_INV_SHIFT
+	 *   (X * size_invs[(D >> QUANTUM_2POW_MIN) - 3]) >> SIZE_INV_SHIFT
 	 */
 #define SIZE_INV_SHIFT 21
 #define SIZE_INV(s) (((1 << SIZE_INV_SHIFT) / (s << QUANTUM_2POW_MIN)) + 1)
@@ -1645,7 +1710,7 @@ arena_run_reg_dalloc(arena_run_t *run, arena_bin_t *bin, void *ptr, size_t size)
 		 */
 		regind = diff / size;
 	};
-	assert(regind == diff / size);
+	assert(diff == regind * size);
 	assert(regind < bin->nregs);
 
 	elm = regind >> (SIZEOF_INT_2POW + 3);
@@ -2940,6 +3005,15 @@ malloc_print_stats(void)
 			malloc_printf("Allocated: %zu, space used: %zu\n",
 			    allocated, total);
 
+			/* Print base stats. */
+			{
+				malloc_mutex_lock(&base_mtx);
+				malloc_printf("\nbase:\n");
+				malloc_printf(" %13s\n", "total");
+				malloc_printf(" %13llu\n", base_total);
+				malloc_mutex_unlock(&base_mtx);
+			}
+
 			/* Print chunk stats. */
 			{
 				chunk_stats_t chunks_stats;
@@ -3240,6 +3314,7 @@ malloc_init_hard(void)
 	malloc_mutex_init(&chunks_mtx);
 	RB_INIT(&huge);
 #ifdef USE_BRK
+	malloc_mutex_init(&brk_mtx);
 	brk_base = sbrk(0);
 	brk_prev = brk_base;
 	brk_max = brk_base;
@@ -3257,49 +3332,11 @@ malloc_init_hard(void)
 #endif
 #ifdef USE_BRK
 	/*
-	 * Do special brk allocation here, since the base chunk doesn't really
-	 * need to be chunk-aligned.
+	 * Allocate a base chunk here, since it doesn't actually have to be
+	 * chunk-aligned.  Doing this before allocating any other chunks allows
+	 * the use of space that would otherwise be wasted.
 	 */
-	{
-		void *brk_cur;
-		intptr_t incr;
-
-		do {
-			/* Get the current end of brk. */
-			brk_cur = sbrk(0);
-
-			/*
-			 * Calculate how much padding is necessary to
-			 * chunk-align the end of brk.  Don't worry about
-			 * brk_cur not being chunk-aligned though.
-			 */
-			incr = (intptr_t)chunk_size
-			    - (intptr_t)CHUNK_ADDR2OFFSET(brk_cur);
-
-			brk_prev = sbrk(incr);
-			if (brk_prev == brk_cur) {
-				/* Success. */
-				break;
-			}
-		} while (brk_prev != (void *)-1);
-
-		base_chunk = brk_cur;
-		base_next_addr = base_chunk;
-		base_past_addr = (void *)((uintptr_t)base_chunk + incr);
-#ifdef MALLOC_STATS
-		base_total += incr;
-		stats_chunks.nchunks = 1;
-		stats_chunks.curchunks = 1;
-		stats_chunks.highchunks = 1;
-#endif
-	}
-#else
-	/*
-	 * The first base chunk will be allocated when needed by base_alloc().
-	 */
-	base_chunk = NULL;
-	base_next_addr = NULL;
-	base_past_addr = NULL;
+	base_chunk_alloc(0);
 #endif
 	base_chunk_nodes = NULL;
 	malloc_mutex_init(&base_mtx);
