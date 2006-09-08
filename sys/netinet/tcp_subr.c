@@ -202,6 +202,11 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxtcptw, CTLTYPE_INT|CTLFLAG_RW,
     &maxtcptw, 0, sysctl_maxtcptw, "IU",
     "Maximum number of compressed TCP TIME_WAIT entries");
 
+static int	nolocaltimewait = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, nolocaltimewait, CTLFLAG_RW,
+    &nolocaltimewait, 0, "Do not create compressed TCP TIME_WAIT entries"
+			 "for local connections");
+
 /*
  * TCP bandwidth limiting sysctls.  Note that the default lower bound of
  * 1024 exists only for debugging.  A good production default would be
@@ -1735,12 +1740,19 @@ void
 tcp_twstart(struct tcpcb *tp)
 {
 	struct tcptw *tw;
-	struct inpcb *inp;
+	struct inpcb *inp = tp->t_inpcb;
 	int acknow;
 	struct socket *so;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);	/* tcp_timer_2msl_reset(). */
-	INP_LOCK_ASSERT(tp->t_inpcb);
+	INP_LOCK_ASSERT(inp);
+
+	if (nolocaltimewait && in_localip(inp->inp_faddr)) {
+		tp = tcp_close(tp);
+		if (tp != NULL)
+			INP_UNLOCK(inp);
+		return;
+	}
 
 	tw = uma_zalloc(tcptw_zone, M_NOWAIT);
 	if (tw == NULL) {
@@ -1748,11 +1760,10 @@ tcp_twstart(struct tcpcb *tp)
 		if (tw == NULL) {
 			tp = tcp_close(tp);
 			if (tp != NULL)
-				INP_UNLOCK(tp->t_inpcb);
+				INP_UNLOCK(inp);
 			return;
 		}
 	}
-	inp = tp->t_inpcb;
 	tw->tw_inpcb = inp;
 
 	/*
