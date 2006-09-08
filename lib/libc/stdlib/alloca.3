@@ -32,7 +32,7 @@
 .\"     @(#)alloca.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd September 5, 2006
 .Dt ALLOCA 3
 .Os
 .Sh NAME
@@ -57,9 +57,6 @@ return.
 The
 .Fn alloca
 function returns a pointer to the beginning of the allocated space.
-If the allocation failed, a
-.Dv NULL
-pointer is returned.
 .Sh SEE ALSO
 .Xr brk 2 ,
 .Xr calloc 3 ,
@@ -81,3 +78,15 @@ The
 function
 is machine and compiler dependent;
 its use is discouraged.
+.Pp
+The
+.Fn alloca
+function is slightly unsafe because it cannot ensure that the pointer
+returned points to a valid and usable block of memory.
+The allocation made may exceed the bounds of the stack, or even go
+further into other objects in memory, and
+.Fn alloca
+cannot determine such an error.
+Avoid
+.Fn alloca
+with large unbounded allocations.
