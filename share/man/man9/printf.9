@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 10, 2004
+.Dd September 8, 2006
 .Dt PRINTF 9
 .Os
 .Sh NAME
@@ -90,7 +90,7 @@ The base value is the output base expressed as an integer value;
 for example, \e10 gives octal and \e20 gives hexadecimal.
 The arguments are made up of a sequence of bit identifiers.
 Each bit identifier begins with an integer value which is the number of the
-bit this identifier describes.
+bit (starting from 1) this identifier describes.
 The rest of the identifier is a string of characters containing the name of
 the bit.
 The string is terminated by either the bit number at the start of the next
@@ -140,7 +140,11 @@ and the
 .Fn uprintf
 functions return the number of characters displayed.
 .Sh EXAMPLES
-This example demonstrates the use of the \&%b and \&%D conversion specifiers.
+This example demonstrates the use of the
+.Cm \&%b
+and
+.Cm \&%D
+conversion specifiers.
 The function
 .Bd -literal -offset indent
 void
