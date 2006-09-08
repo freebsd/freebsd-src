@@ -598,7 +598,7 @@ g_nop_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	    sc->sc_rfailprob);
 	sbuf_printf(sb, "%s<WriteFailProb>%u</WriteFailProb>\n", indent,
 	    sc->sc_wfailprob);
-	sbuf_printf(sb, "%s<Error>%ju</Error>\n", indent, sc->sc_error);
+	sbuf_printf(sb, "%s<Error>%d</Error>\n", indent, sc->sc_error);
 	sbuf_printf(sb, "%s<Reads>%ju</Reads>\n", indent, sc->sc_reads);
 	sbuf_printf(sb, "%s<Writes>%ju</Writes>\n", indent, sc->sc_writes);
 	sbuf_printf(sb, "%s<ReadBytes>%ju</ReadBytes>\n", indent,
