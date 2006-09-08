@@ -521,7 +521,7 @@ fdc_reset(struct fdc_data *fdc)
 
 	if (fdc->fdct == FDC_ENHANCED) {
 		if (fdc_cmd(fdc, 4,
-		    I8207X_CONFIGURE,
+		    I8207X_CONFIG,
 		    0,
 		    0x40 |			/* Enable Implied Seek */
 		    0x10 |			/* Polling disabled */
@@ -532,7 +532,7 @@ fdc_reset(struct fdc_data *fdc)
 			    " CONFIGURE failed in reset\n");
 		if (debugflags & 1) {
 			if (fdc_cmd(fdc, 1,
-			    0x0e,			/* DUMPREG */
+			    I8207X_DUMPREG,
 			    10, &r[0], &r[1], &r[2], &r[3], &r[4],
 			    &r[5], &r[6], &r[7], &r[8], &r[9]))
 				device_printf(fdc->fdc_dev,
