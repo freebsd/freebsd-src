@@ -512,8 +512,8 @@ XXX FIXME
 int32_t
 kbd_status_changed(bthid_session_p s, uint8_t *data, int32_t len)
 {
-	int32_t		leds;
-	uint8_t		hleds, report_id;
+	vkbd_status_t	st;
+	uint8_t		leds, report_id;
 	hid_device_p	hid_device;
 	hid_data_t	d;
 	hid_item_t	h;
@@ -521,8 +521,8 @@ kbd_status_changed(bthid_session_p s, uint8_t *data, int32_t len)
 	assert(s != NULL);
 	assert(len == sizeof(vkbd_status_t));
 
-	leds = ((vkbd_status_p) data)->leds;
-	hleds = 0;
+	memcpy(&st, data, sizeof(st));
+	leds = 0;
 	report_id = NO_REPORT_ID;
 
 	hid_device = get_hid_device(&s->bdaddr);
@@ -542,18 +542,18 @@ kbd_status_changed(bthid_session_p s, uint8_t *data, int32_t len)
 			
 			switch(HID_USAGE(h.usage)) {
 			case 0x01: /* Num Lock LED */
-				if (leds & LED_NUM)
-					hid_set_data(&hleds, &h, 1);
+				if (st.leds & LED_NUM)
+					hid_set_data(&leds, &h, 1);
 				break;
 
 			case 0x02: /* Caps Lock LED */
-				if (leds & LED_CAP)
-					hid_set_data(&hleds, &h, 1);
+				if (st.leds & LED_CAP)
+					hid_set_data(&leds, &h, 1);
 				break;
 
 			case 0x03: /* Scroll Lock LED */
-				if (leds & LED_SCR)
-					hid_set_data(&hleds, &h, 1);
+				if (st.leds & LED_SCR)
+					hid_set_data(&leds, &h, 1);
 				break;
 
 			/* XXX add other LEDs ? */
@@ -566,10 +566,10 @@ kbd_status_changed(bthid_session_p s, uint8_t *data, int32_t len)
 
 	if (report_id != NO_REPORT_ID) {
 		data[1] = report_id;
-		data[2] = hleds;
+		data[2] = leds;
 		len = 3;
 	} else {
-		data[1] = hleds;
+		data[1] = leds;
 		len = 2;
 	}
 
