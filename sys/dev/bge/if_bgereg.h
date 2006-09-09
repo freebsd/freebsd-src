@@ -74,6 +74,11 @@
 #define BGE_SOFTWARE_GENCOMM		0x00000B50
 #define BGE_SOFTWARE_GENCOMM_SIG	0x00000B54
 #define BGE_SOFTWARE_GENCOMM_NICCFG	0x00000B58
+#define BGE_SOFTWARE_GENCOMM_FW		0x00000B78
+#define    BGE_FW_DRV_ALIVE		0x00000001
+#define    BGE_FW_PAUSE			0x00000002
+#define BGE_SOFTWARE_GENNCOMM_FW_LEN	0x00000B7C
+#define BGE_SOFTWARE_GENNCOMM_FW_DATA	0x00000B80
 #define BGE_SOFTWARE_GENCOMM_END	0x00000FFF
 #define BGE_UNMAPPED			0x00001000
 #define BGE_UNMAPPED_END		0x00001FFF
@@ -1651,6 +1656,7 @@
 #define BGE_MODE_CTL			0x6800
 #define BGE_MISC_CFG			0x6804
 #define BGE_MISC_LOCAL_CTL		0x6808
+#define BGE_CPU_EVENT			0x6810
 #define BGE_EE_ADDR			0x6838
 #define BGE_EE_DATA			0x683C
 #define BGE_EE_CTL			0x6840
@@ -2064,6 +2070,7 @@ struct bge_status_block {
 #define BGE_HWCFG_VOLTAGE		0x00000003
 #define BGE_HWCFG_PHYLED_MODE		0x0000000C
 #define BGE_HWCFG_MEDIA			0x00000030
+#define BGE_HWCFG_ASF			0x00000080
 
 #define BGE_VOLTAGE_1POINT3		0x00000000
 #define BGE_VOLTAGE_1POINT8		0x00000001
@@ -2434,6 +2441,10 @@ struct bge_bcom_hack {
 	int			val;
 };
 
+#define ASF_ENABLE		1
+#define ASF_NEW_HANDSHAKE	2
+#define ASF_STACKUP		4
+
 struct bge_softc {
 	struct ifnet		*bge_ifp;	/* interface info */
 	device_t		bge_dev;
@@ -2453,8 +2464,10 @@ struct bge_softc {
 #define BGE_FLAG_PCIX		0x00000010
 #define BGE_FLAG_PCIE		0x00000020
 	uint32_t		bge_chipid;
-	uint8_t		bge_asicrev;
-	uint8_t		bge_chiprev;
+	uint8_t			bge_asicrev;
+	uint8_t			bge_chiprev;
+	uint8_t			bge_asf_mode;
+	uint8_t			bge_asf_count;
 	struct bge_ring_data	bge_ldata;	/* rings */
 	struct bge_chain_data	bge_cdata;	/* mbufs */
 	uint16_t		bge_tx_saved_considx;
