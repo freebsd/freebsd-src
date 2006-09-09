@@ -163,9 +163,6 @@ sysctl_debug_ktr_alq_enable(SYSCTL_HANDLER_ARGS)
 	if (enable) {
 		if (ktr_alq_enabled)
 			return (0);
-		error = suser(curthread);
-		if (error)
-			return (error);
 		error = alq_open(&ktr_alq, (const char *)ktr_alq_file,
 		    req->td->td_ucred, ALQ_DEFAULT_CMODE,
 		    sizeof(struct ktr_entry), ktr_alq_depth);
