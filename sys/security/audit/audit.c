@@ -86,9 +86,8 @@ int			audit_enabled;
 int			audit_suspended;
 
 /*
- * Flags controlling behavior in low storage situations.
- * Should we panic if a write fails?  Should we fail stop
- * if we're out of disk space?
+ * Flags controlling behavior in low storage situations.  Should we panic if
+ * a write fails?  Should we fail stop if we're out of disk space?
  */
 int			audit_panic_on_write_fail;
 int			audit_fail_stop;
