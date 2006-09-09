@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/malloc.h>
 
 #ifdef COMPAT_LINUX32
@@ -73,10 +74,10 @@ struct futex {
 };
 
 LIST_HEAD(futex_list, futex) futex_list;
-struct mtx futex_mtx;		/* this protects the LIST of futexes */
+struct sx futex_sx;		/* this protects the LIST of futexes */
 
-#define FUTEX_LOCK mtx_lock(&futex_mtx)
-#define FUTEX_UNLOCK mtx_unlock(&futex_mtx)
+#define FUTEX_LOCK sx_xlock(&futex_sx)
+#define FUTEX_UNLOCK sx_xunlock(&futex_sx)
 
 #define FUTEX_LOCKED	1
 #define FUTEX_UNLOCKED	0
@@ -343,16 +344,11 @@ futex_get(void *uaddr, int locked)
 			return f;
 		}
 	}
-	if (locked == FUTEX_UNLOCKED)
-   	   	FUTEX_UNLOCK;
 
-	/* Not found, create it */
 	f = malloc(sizeof(*f), M_LINUX, M_WAITOK);
 	f->f_uaddr = uaddr;
 	f->f_refcount = 1;
 	TAILQ_INIT(&f->f_waiting_proc);
-	if (locked == FUTEX_UNLOCKED)
-   	   	FUTEX_LOCK;
 	LIST_INSERT_HEAD(&futex_list, f, f_list);
 	if (locked == FUTEX_UNLOCKED)
    	   	FUTEX_UNLOCK;
