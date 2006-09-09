@@ -1988,8 +1988,8 @@ g_mirror_launch_provider(struct g_mirror_softc *sc)
 	sc->sc_provider = pp;
 	g_error_provider(pp, 0);
 	g_topology_unlock();
-	G_MIRROR_DEBUG(0, "Device %s: provider %s launched.", sc->sc_name,
-	    pp->name);
+	G_MIRROR_DEBUG(0, "Device %s launched (%u/%u).", pp->name,
+	    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE), sc->sc_ndisks);
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING)
 			g_mirror_sync_start(disk);
@@ -2391,7 +2391,7 @@ again:
 			if (dp != NULL)
 				LIST_INSERT_AFTER(dp, disk, d_next);
 		}
-		G_MIRROR_DEBUG(0, "Device %s: provider %s detected.",
+		G_MIRROR_DEBUG(1, "Device %s: provider %s detected.",
 		    sc->sc_name, g_mirror_get_diskname(disk));
 		if (sc->sc_state == G_MIRROR_DEVICE_STATE_STARTING)
 			break;
@@ -2432,7 +2432,7 @@ again:
 		disk->d_sync.ds_offset_done = 0;
 		g_mirror_update_idle(sc, disk);
 		g_mirror_update_metadata(disk);
-		G_MIRROR_DEBUG(0, "Device %s: provider %s activated.",
+		G_MIRROR_DEBUG(1, "Device %s: provider %s activated.",
 		    sc->sc_name, g_mirror_get_diskname(disk));
 		break;
 	case G_MIRROR_DISK_STATE_STALE:
@@ -2849,7 +2849,8 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md)
 		return (NULL);
 	}
 
-	G_MIRROR_DEBUG(0, "Device %s created (id=%u).", sc->sc_name, sc->sc_id);
+	G_MIRROR_DEBUG(1, "Device %s created (%u components, id=%u).",
+	    sc->sc_name, sc->sc_ndisks, sc->sc_id);
 
 	sc->sc_rootmount = root_mount_hold("GMIRROR");
 	G_MIRROR_DEBUG(1, "root_mount_hold %p", sc->sc_rootmount);
