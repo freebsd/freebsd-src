@@ -101,6 +101,7 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 		   	panic("process not found in proc_init\n");
 		p->p_emuldata = em;
 		PROC_UNLOCK(p);
+		EMUL_LOCK(&emul_lock);
 	} else {
 		/* lookup the old one */
 		em = em_find(td->td_proc, EMUL_UNLOCKED);
@@ -129,14 +130,15 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 
 
 	if (child != 0) {
+		EMUL_UNLOCK(&emul_lock);
 	   	EMUL_SHARED_WLOCK(&emul_shared_lock);
    	   	LIST_INSERT_HEAD(&em->shared->threads, em, threads);
 	   	EMUL_SHARED_WUNLOCK(&emul_shared_lock);
 
 		p = pfind(child);
-		PROC_UNLOCK(p);
 		/* we might have a sleeping linux_schedtail */
 		wakeup(&p->p_emuldata);
+		PROC_UNLOCK(p);
 	} else
 	   	EMUL_UNLOCK(&emul_lock);
 
