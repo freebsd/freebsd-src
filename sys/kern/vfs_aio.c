@@ -799,12 +799,6 @@ aio_daemon(void *uproc)
 	TAILQ_INSERT_HEAD(&aio_freeproc, aiop, list);
 	mtx_unlock(&aio_freeproc_mtx);
 
-	/*
-	 * Get rid of our current filedescriptors.  AIOD's don't need any
-	 * filedescriptors, except as temporarily inherited from the client.
-	 */
-	fdfree(td);
-
 	/* The daemon resides in its own pgrp. */
 	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP,
 		M_WAITOK | M_ZERO);
