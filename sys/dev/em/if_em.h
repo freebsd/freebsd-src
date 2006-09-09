@@ -138,6 +138,11 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_CHECKSUM_FEATURES            (CSUM_TCP | CSUM_UDP)
 
 /*
+ * Inform the stack about transmit segmentation offload capabilities.
+ */
+#define EM_TCPSEG_FEATURES		CSUM_TSO
+
+/*
  * This parameter controls the duration of transmit watchdog timer.
  */
 #define EM_TX_TIMEOUT                   5    /* set to 5 seconds */
@@ -225,6 +230,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_RXBUFFER_16384      16384
 
 #define EM_MAX_SCATTER            64
+#define EM_TSO_SIZE		65535
 
 typedef enum _XSUM_CONTEXT_T {
 	OFFLOAD_NONE,
@@ -308,6 +314,7 @@ struct adapter {
         uint32_t		txd_cmd;
 	struct em_buffer	*tx_buffer_area;
 	bus_dma_tag_t		txtag;		/* dma tag for tx */
+	uint32_t		tx_tso;		/* last tx was tso */
 
 	/* 
 	 * Receive definitions
