@@ -56,6 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/proc.h>
 #include <machine/sysarch.h>
 
+#include <security/audit/audit.h>
+
 #include <vm/vm_kern.h>		/* for kernel_map */
 
 #define MAX_LD 8192
@@ -93,6 +95,7 @@ sysarch(td, uap)
 	uint32_t base;
 	struct segment_descriptor sd, *sdp;
 
+	AUDIT_ARG(cmd, uap->op);
 	switch (uap->op) {
 	case I386_GET_IOPERM:
 	case I386_SET_IOPERM:
