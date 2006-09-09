@@ -54,6 +54,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <machine/bus.h>
 #include <machine/resource.h>
+#include <machine/in_cksum.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>
