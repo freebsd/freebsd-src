@@ -239,11 +239,21 @@ add_cache(host, netid, taddr, uaddr)
 	ad_cache->ac_taddr = (struct netbuf *)malloc(sizeof (struct netbuf));
 	if (!ad_cache->ac_host || !ad_cache->ac_netid || !ad_cache->ac_taddr ||
 		(uaddr && !ad_cache->ac_uaddr)) {
-		return;
+		goto out;
 	}
 	ad_cache->ac_taddr->len = ad_cache->ac_taddr->maxlen = taddr->len;
 	ad_cache->ac_taddr->buf = (char *) malloc(taddr->len);
 	if (ad_cache->ac_taddr->buf == NULL) {
+out:
+		if (ad_cache->ac_host)
+			free(ad_cache->ac_host);
+		if (ad_cache->ac_netid)
+			free(ad_cache->ac_netid);
+		if (ad_cache->ac_uaddr)
+			free(ad_cache->ac_uaddr);
+		if (ad_cache->ac_taddr)
+			free(ad_cache->ac_taddr);
+		free(ad_cache);
 		return;
 	}
 	memcpy(ad_cache->ac_taddr->buf, taddr->buf, taddr->len);
@@ -1010,11 +1020,6 @@ regular_rpcbind:
 			clnt_geterr(client, &rpc_createerr.cf_error);
 			goto error;
 		}
-	}
-
-	if ((address == NULL) || (address->len == 0)) {
-		rpc_createerr.cf_stat = RPC_PROGNOTREGISTERED;
-		clnt_geterr(client, &rpc_createerr.cf_error);
 	}
 
 error:
