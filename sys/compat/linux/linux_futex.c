@@ -302,9 +302,6 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		ret = futex_wake(f, args->val, NULL);
 		futex_put(f);
 		if (op_ret > 0) {
-#ifdef	DEBUG
-		   	printf("second wakeup\n");
-#endif
 		   	op_ret = 0;
 		   	/*
 			 * Linux uses the address of the timespec parameter
@@ -421,13 +418,13 @@ futex_wake(struct futex *f, int n, struct futex *newf)
 	FUTEX_LOCK;
 	TAILQ_FOREACH(wp, &f->f_waiting_proc, wp_list) {
 		if (count <= n) {
-			wakeup(wp);
+			wakeup_one(wp);
 			count++;
 		} else {
 			if (newf != NULL) {
 				/* futex_put called after tsleep */
 				wp->wp_new_futex = futex_get(newf->f_uaddr, FUTEX_LOCKED);
-				wakeup(wp);
+				wakeup_one(wp);
 			}
 		}
 	}
