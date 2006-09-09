@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999, 2000, 2001, 2002, 2005 Kenneth D. Merry
+ * Copyright (c) 1997, 1998, 1999, 2000, 2001, 2002, 2005, 2006 Kenneth D. Merry
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,6 +69,7 @@ typedef enum {
 	CAM_CMD_TAG		= 0x0000000e,
 	CAM_CMD_RATE		= 0x0000000f,
 	CAM_CMD_DETACH		= 0x00000010,
+	CAM_CMD_REPORTLUNS	= 0x00000011
 } cam_cmdmask;
 
 typedef enum {
@@ -127,6 +128,7 @@ struct camcontrol_opts option_table[] = {
 	{"stop", CAM_CMD_STARTSTOP, CAM_ARG_NONE, NULL},
 	{"load", CAM_CMD_STARTSTOP, CAM_ARG_START_UNIT | CAM_ARG_EJECT, NULL},
 	{"eject", CAM_CMD_STARTSTOP, CAM_ARG_EJECT, NULL},
+	{"reportluns", CAM_CMD_REPORTLUNS, CAM_ARG_NONE, "clr:"},
 #endif /* MINIMALISTIC */
 	{"rescan", CAM_CMD_RESCAN, CAM_ARG_NONE, NULL},
 	{"reset", CAM_CMD_RESET, CAM_ARG_NONE, NULL},
@@ -203,6 +205,8 @@ static int ratecontrol(struct cam_device *device, int retry_count,
 		       int timeout, int argc, char **argv, char *combinedopt);
 static int scsiformat(struct cam_device *device, int argc, char **argv,
 		      char *combinedopt, int retry_count, int timeout);
+static int scsireportluns(struct cam_device *device, int argc, char **argv,
+			  char *combinedopt, int retry_count, int timeout);
 #endif /* MINIMALISTIC */
 
 camcontrol_optret
@@ -3152,6 +3156,251 @@ scsiformat_bailout:
 
 	return(error);
 }
+
+static int
+scsireportluns(struct cam_device *device, int argc, char **argv,
+	       char *combinedopt, int retry_count, int timeout)
+{
+	union ccb *ccb;
+	int c, countonly, lunsonly;
+	struct scsi_report_luns_data *lundata;
+	int alloc_len;
+	uint8_t report_type;
+	uint32_t list_len, i, j;
+	int retval;
+
+	retval = 0;
+	lundata = NULL;
+	report_type = RPL_REPORT_DEFAULT;
+	ccb = cam_getccb(device);
+
+	if (ccb == NULL) {
+		warnx("%s: error allocating ccb", __func__);
+		return (1);
+	}
+
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+
+	countonly = 0;
+	lunsonly = 0;
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'c':
+			countonly++;
+			break;
+		case 'l':
+			lunsonly++;
+			break;
+		case 'r':
+			if (strcasecmp(optarg, "default") == 0)
+				report_type = RPL_REPORT_DEFAULT;
+			else if (strcasecmp(optarg, "wellknown") == 0)
+				report_type = RPL_REPORT_WELLKNOWN;
+			else if (strcasecmp(optarg, "all") == 0)
+				report_type = RPL_REPORT_ALL;
+			else {
+				warnx("%s: invalid report type \"%s\"",
+				      __func__, optarg);
+				retval = 1;
+				goto bailout;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
+	if ((countonly != 0)
+	 && (lunsonly != 0)) {
+		warnx("%s: you can only specify one of -c or -l", __func__);
+		retval = 1;
+		goto bailout;
+	}
+	/*
+	 * According to SPC-4, the allocation length must be at least 16
+	 * bytes -- enough for the header and one LUN.
+	 */
+	alloc_len = sizeof(*lundata) + 8;
+
+retry:
+
+	lundata = malloc(alloc_len);
+
+	if (lundata == NULL) {
+		warn("%s: error mallocing %d bytes", __func__, alloc_len);
+		retval = 1;
+		goto bailout;
+	}
+
+	scsi_report_luns(&ccb->csio,
+			 /*retries*/ retry_count,
+			 /*cbfcnp*/ NULL,
+			 /*tag_action*/ MSG_SIMPLE_Q_TAG,
+			 /*select_report*/ report_type,
+			 /*rpl_buf*/ lundata,
+			 /*alloc_len*/ alloc_len,
+			 /*sense_len*/ SSD_FULL_SIZE,
+			 /*timeout*/ timeout ? timeout : 5000);
+
+	/* Disable freezing the device queue */
+	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
+
+	if (arglist & CAM_ARG_ERR_RECOVER)
+		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
+
+	if (cam_send_ccb(device, ccb) < 0) {
+		warn("error sending REPORT LUNS command");
+
+		if (arglist & CAM_ARG_VERBOSE)
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
+
+		retval = 1;
+		goto bailout;
+	}
+
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		cam_error_print(device, ccb, CAM_ESF_ALL, CAM_EPF_ALL, stderr);
+		retval = 1;
+		goto bailout;
+	}
+
+
+	list_len = scsi_4btoul(lundata->length);
+
+	/*
+	 * If we need to list the LUNs, and our allocation
+	 * length was too short, reallocate and retry.
+	 */
+	if ((countonly == 0)
+	 && (list_len > (alloc_len - sizeof(*lundata)))) {
+		alloc_len = list_len + sizeof(*lundata);
+		free(lundata);
+		goto retry;
+	}
+
+	if (lunsonly == 0)
+		fprintf(stdout, "%u LUN%s found\n", list_len / 8,
+			((list_len / 8) > 1) ? "s" : "");
+
+	if (countonly != 0)
+		goto bailout;
+
+	for (i = 0; i < (list_len / 8); i++) {
+		int no_more;
+
+		no_more = 0;
+		for (j = 0; j < sizeof(lundata->luns[i].lundata); j += 2) {
+			if (j != 0)
+				fprintf(stdout, ",");
+			switch (lundata->luns[i].lundata[j] &
+				RPL_LUNDATA_ATYP_MASK) {
+			case RPL_LUNDATA_ATYP_PERIPH:
+				if ((lundata->luns[i].lundata[j] &
+				    RPL_LUNDATA_PERIPH_BUS_MASK) != 0)
+					fprintf(stdout, "%d:", 
+						lundata->luns[i].lundata[j] &
+						RPL_LUNDATA_PERIPH_BUS_MASK);
+				else if ((j == 0)
+				      && ((lundata->luns[i].lundata[j+2] &
+					  RPL_LUNDATA_PERIPH_BUS_MASK) == 0))
+					no_more = 1;
+
+				fprintf(stdout, "%d",
+					lundata->luns[i].lundata[j+1]);
+				break;
+			case RPL_LUNDATA_ATYP_FLAT: {
+				uint8_t tmplun[2];
+				tmplun[0] = lundata->luns[i].lundata[j] &
+					RPL_LUNDATA_FLAT_LUN_MASK;
+				tmplun[1] = lundata->luns[i].lundata[j+1];
+
+				fprintf(stdout, "%d", scsi_2btoul(tmplun));
+				no_more = 1;
+				break;
+			}
+			case RPL_LUNDATA_ATYP_LUN:
+				fprintf(stdout, "%d:%d:%d",
+					(lundata->luns[i].lundata[j+1] &
+					RPL_LUNDATA_LUN_BUS_MASK) >> 5,
+					lundata->luns[i].lundata[j] &
+					RPL_LUNDATA_LUN_TARG_MASK,
+					lundata->luns[i].lundata[j+1] &
+					RPL_LUNDATA_LUN_LUN_MASK);
+				break;
+			case RPL_LUNDATA_ATYP_EXTLUN: {
+				int field_len, field_len_code, eam_code;
+
+				eam_code = lundata->luns[i].lundata[j] &
+					RPL_LUNDATA_EXT_EAM_MASK;
+				field_len_code = (lundata->luns[i].lundata[j] &
+					RPL_LUNDATA_EXT_LEN_MASK) >> 4;
+				field_len = field_len_code * 2;
+		
+				if ((eam_code == RPL_LUNDATA_EXT_EAM_WK)
+				 && (field_len_code == 0x00)) {
+					fprintf(stdout, "%d",
+						lundata->luns[i].lundata[j+1]);
+				} else if ((eam_code ==
+					    RPL_LUNDATA_EXT_EAM_NOT_SPEC)
+					&& (field_len_code == 0x03)) {
+					uint8_t tmp_lun[8];
+
+					/*
+					 * This format takes up all 8 bytes.
+					 * If we aren't starting at offset 0,
+					 * that's a bug.
+					 */
+					if (j != 0) {
+						fprintf(stdout, "Invalid "
+							"offset %d for "
+							"Extended LUN not "
+							"specified format", j);
+						no_more = 1;
+						break;
+					}
+					bzero(tmp_lun, sizeof(tmp_lun));
+					bcopy(&lundata->luns[i].lundata[j+1],
+					      &tmp_lun[1], sizeof(tmp_lun) - 1);
+					fprintf(stdout, "%#jx",
+					       (intmax_t)scsi_8btou64(tmp_lun));
+					no_more = 1;
+				} else {
+					fprintf(stderr, "Unknown Extended LUN"
+						"Address method %#x, length "
+						"code %#x", eam_code,
+						field_len_code);
+					no_more = 1;
+				}
+				break;
+			}
+			default:
+				fprintf(stderr, "Unknown LUN address method "
+					"%#x\n", lundata->luns[i].lundata[0] &
+					RPL_LUNDATA_ATYP_MASK);
+				break;
+			}
+			/*
+			 * For the flat addressing method, there are no
+			 * other levels after it.
+			 */
+			if (no_more != 0)
+				break;
+		}
+		fprintf(stdout, "\n");
+	}
+
+bailout:
+
+	cam_freeccb(ccb);
+
+	free(lundata);
+
+	return (retval);
+}
+
 #endif /* MINIMALISTIC */
 
 void 
@@ -3164,6 +3413,7 @@ usage(int verbose)
 "        camcontrol periphlist [dev_id][-n dev_name] [-u unit]\n"
 "        camcontrol tur        [dev_id][generic args]\n"
 "        camcontrol inquiry    [dev_id][generic args] [-D] [-S] [-R]\n"
+"        camcontrol reportluns [dev_id][generic args] [-c] [-l] [-r report]\n"
 "        camcontrol start      [dev_id][generic args]\n"
 "        camcontrol stop       [dev_id][generic args]\n"
 "        camcontrol load       [dev_id][generic args]\n"
@@ -3196,6 +3446,7 @@ usage(int verbose)
 "periphlist  list all CAM peripheral drivers attached to a device\n"
 "tur         send a test unit ready to the named device\n"
 "inquiry     send a SCSI inquiry command to the named device\n"
+"reportluns  send a SCSI report luns command to the device\n"
 "start       send a Start Unit command to the device\n"
 "stop        send a Stop Unit command to the device\n"
 "load        send a Start Unit command to the device with the load bit set\n"
@@ -3236,6 +3487,10 @@ usage(int verbose)
 "-D                get the standard inquiry data\n"
 "-S                get the serial number\n"
 "-R                get the transfer rate, etc.\n"
+"reportluns arguments:\n"
+"-c                only report a count of available LUNs\n"
+"-l                only print out luns, and not a count\n"
+"-r <reporttype>   specify \"default\", \"wellknown\" or \"all\"\n"
 "cmd arguments:\n"
 "-c cdb [args]     specify the SCSI CDB\n"
 "-i len fmt        specify input data and input data format\n"
@@ -3546,6 +3801,11 @@ main(int argc, char **argv)
 		case CAM_CMD_FORMAT:
 			error = scsiformat(cam_dev, argc, argv,
 					   combinedopt, retry_count, timeout);
+			break;
+		case CAM_CMD_REPORTLUNS:
+			error = scsireportluns(cam_dev, argc, argv,
+					       combinedopt, retry_count,
+					       timeout);
 			break;
 #endif /* MINIMALISTIC */
 		case CAM_CMD_USAGE:
