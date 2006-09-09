@@ -68,6 +68,7 @@ struct label;
 struct mac_policy_conf;
 struct mbuf;
 struct mount;
+struct msg;
 struct msqid_kernel;
 struct pipepair;
 struct proc;
