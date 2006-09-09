@@ -54,7 +54,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/in_cksum.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -73,6 +72,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 
+#include <machine/in_cksum.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/em/if_em_hw.h>
