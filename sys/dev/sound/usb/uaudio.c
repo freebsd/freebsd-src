@@ -4114,7 +4114,7 @@ uaudio_chan_set_param_speed(device_t dev, u_int32_t speed, int reqdir)
 						bestspeed = UA_SAMP_LO(asf1d);
 						hiscore = score;
 					}
-				} else if (speed < UA_SAMP_HI(asf1d)) {
+				} else if (speed > UA_SAMP_HI(asf1d)) {
 					score = 0xfff * UA_SAMP_HI(asf1d) / speed;
 					if (score > hiscore) {
 						bestspeed = UA_SAMP_HI(asf1d);
