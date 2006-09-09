@@ -2266,8 +2266,9 @@ g_raid3_launch_provider(struct g_raid3_softc *sc)
 	sc->sc_provider = pp;
 	g_error_provider(pp, 0);
 	g_topology_unlock();
-	G_RAID3_DEBUG(0, "Device %s: provider %s launched.", sc->sc_name,
-	    pp->name);
+	G_RAID3_DEBUG(0, "Device %s launched (%u/%u).", pp->name,
+	    g_raid3_ndisks(sc, G_RAID3_DISK_STATE_ACTIVE), sc->sc_ndisks);
+	
 	if (sc->sc_state == G_RAID3_DEVICE_STATE_DEGRADED)
 		g_raid3_sync_start(sc);
 }
@@ -2632,7 +2633,7 @@ again:
 		DISK_STATE_CHANGED();
 
 		disk->d_state = state;
-		G_RAID3_DEBUG(0, "Device %s: provider %s detected.",
+		G_RAID3_DEBUG(1, "Device %s: provider %s detected.",
 		    sc->sc_name, g_raid3_get_diskname(disk));
 		if (sc->sc_state == G_RAID3_DEVICE_STATE_STARTING)
 			break;
@@ -2675,7 +2676,7 @@ again:
 		disk->d_sync.ds_offset_done = 0;
 		g_raid3_update_idle(sc, disk);
 		g_raid3_update_metadata(disk);
-		G_RAID3_DEBUG(0, "Device %s: provider %s activated.",
+		G_RAID3_DEBUG(1, "Device %s: provider %s activated.",
 		    sc->sc_name, g_raid3_get_diskname(disk));
 		break;
 	case G_RAID3_DISK_STATE_STALE:
@@ -3126,7 +3127,8 @@ g_raid3_create(struct g_class *mp, const struct g_raid3_metadata *md)
 		return (NULL);
 	}
 
-	G_RAID3_DEBUG(0, "Device %s created (id=%u).", sc->sc_name, sc->sc_id);
+	G_RAID3_DEBUG(1, "Device %s created (%u components, id=%u).",
+	    sc->sc_name, sc->sc_ndisks, sc->sc_id);
 
 	sc->sc_rootmount = root_mount_hold("GRAID3");
 	G_RAID3_DEBUG(1, "root_mount_hold %p", sc->sc_rootmount);
