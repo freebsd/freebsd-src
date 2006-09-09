@@ -165,6 +165,10 @@ rpc_reg(prognum, versnum, procnum, progname, inproc, outproc, nettype)
 			if (((xdrbuf = malloc((unsigned)recvsz)) == NULL) ||
 				((netid = strdup(nconf->nc_netid)) == NULL)) {
 				warnx(rpc_reg_err, rpc_reg_msg, __no_mem_str);
+				if (xdrbuf != NULL)
+					free(xdrbuf);
+				if (netid != NULL)
+					free(netid);
 				SVC_DESTROY(svcxprt);
 				break;
 			}
