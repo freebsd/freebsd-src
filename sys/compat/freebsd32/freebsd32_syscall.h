@@ -310,5 +310,10 @@
 #define	FREEBSD32_SYS_thr_suspend	442
 #define	FREEBSD32_SYS_thr_wake	443
 #define	FREEBSD32_SYS_kldunloadf	444
+#define	FREEBSD32_SYS_sigqueue	456
 #define	FREEBSD32_SYS_abort2	463
+#define	FREEBSD32_SYS_thr_set_name	464
+#define	FREEBSD32_SYS_thr_setscheduler	466
+#define	FREEBSD32_SYS_thr_getscheduler	467
+#define	FREEBSD32_SYS_thr_setschedparam	468
 #define	FREEBSD32_SYS_MAXSYSCALL	471
