@@ -743,7 +743,8 @@
 453	AUE_AUDITCTL	UNIMPL	auditctl
 454	AUE_NULL	UNIMPL	_umtx_op
 455	AUE_NULL	UNIMPL	thr_new
-456	AUE_NULL	UNIMPL	sigqueue
+456	AUE_NULL	NOPROTO	{ int sigqueue(pid_t pid, int signum, \
+				    void *value); }
 457	AUE_NULL	UNIMPL	kmq_open
 458	AUE_NULL	UNIMPL	kmq_setattr
 459	AUE_NULL	UNIMPL	kmq_timedreceive
@@ -751,10 +752,16 @@
 461	AUE_NULL	UNIMPL	kmq_notify
 462	AUE_NULL	UNIMPL	kmq_unlink
 463	AUE_NULL	NOPROTO	{ int abort2(const char *why, int nargs, void **args); }
-464	AUE_NULL	UNIMPL	thr_set_name
+464	AUE_NULL 	NOPROTO	{ int thr_set_name(long id, const char *name); }
 465	AUE_NULL	UNIMPL	aio_fsync
-466	AUE_NULL	UNIMPL	thr_setscheduler
-467	AUE_NULL	UNIMPL	thr_getscheduler
-468	AUE_NULL	UNIMPL	thr_setschedparam
+466	AUE_NULL	NOPROTO	{ int thr_setscheduler(long id, int policy,\
+				    const struct sched_param *param, \
+				    int param_size); }
+467	AUE_NULL	NOPROTO { int thr_getscheduler(long id, int *policy,\
+				    struct sched_param *param, \
+				    int param_size); }
+468	AUE_NULL	NOPROTO	{ int thr_setschedparam(long id, \
+				    const struct sched_param *param, \
+				    int param_size); }
 469	AUE_NULL	UNIMPL	__getpath_fromfd
 470	AUE_NULL	UNIMPL	__getpath_fromaddr
