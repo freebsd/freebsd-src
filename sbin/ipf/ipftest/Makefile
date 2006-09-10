@@ -1,7 +1,7 @@
 #	$FreeBSD$
 
 PROG=		ipftest
-SRCS=		ipftest.c fil.c ip_frag.c ip_state.c ip_nat.c \
+SRCS=		${GENHDRS} ipftest.c fil.c ip_frag.c ip_state.c ip_nat.c \
 		ip_proxy.c ip_auth.c ip_htable.c ip_lookup.c \
 		ip_pool.c ip_scan.c ip_sync.c ip_rules.c \
 		ip_fil.c ip_log.c ippool_y.c ippool_l.c ipf_y.c \
@@ -13,16 +13,15 @@ CFLAGS+=	-DIPFILTER_LOG -DIPFILTER_COMPILED -DIPFILTER_LOOKUP \
 
 .PATH:		${.CURDIR}/../../../sys/contrib/ipfilter/netinet
 
-DPSRCS+=	ipnat_l.h ipnat_y.h ippool_l.h ippool_y.h ipf_l.h ipf_y.h
+GENHDRS=	ipnat_l.h ipnat_y.h ippool_l.h ippool_y.h ipf_l.h ipf_y.h
+DPSRCS+=	${GENHDRS}
 
-CLEANFILES+=	ipf_y.c ipf_y.h
-CLEANFILES+=	ipf_l.c ipf_l.h
+CLEANFILES+=	${GENHDRS} 
+CLEANFILES+=	ipf_y.c ipf_l.c
 CLEANFILES+=	ipf.tab.c ipf.tab.h
-CLEANFILES+=	ipnat_y.c ipnat_y.h
-CLEANFILES+=	ipnat_l.c ipnat_l.h
+CLEANFILES+=	ipnat_y.c ipnat_l.c
 CLEANFILES+=	ipnat.tab.c ipnat.tab.h
-CLEANFILES+=	ippool_y.c ippool_y.h
-CLEANFILES+=	ippool_l.c ippool_l.h
+CLEANFILES+=	ippool_y.c ippool_l.c
 CLEANFILES+=	ippool.tab.c ippool.tab.h
 
 ipnat_y.c: ipnat_y.y
