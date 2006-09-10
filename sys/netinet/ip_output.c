@@ -112,6 +112,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
 	struct ifnet *ifp = NULL;	/* keep compiler happy */
 	struct mbuf *m0;
 	int hlen = sizeof (struct ip);
+	int mtu;
 	int len, error = 0;
 	struct sockaddr_in *dst = NULL;	/* keep compiler happy */
 	struct in_ifaddr *ia = NULL;
@@ -172,7 +173,7 @@ again:
 			  dst->sin_family != AF_INET ||
 			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
 		RTFREE(ro->ro_rt);
-		ro->ro_rt = (struct rtentry *)0;
+		ro->ro_rt = (struct rtentry *)NULL;
 	}
 #ifdef IPFIREWALL_FORWARD
 	if (ro->ro_rt == NULL && fwd_tag == NULL) {
@@ -240,6 +241,24 @@ again:
 			isbroadcast = (ro->ro_rt->rt_flags & RTF_BROADCAST);
 		else
 			isbroadcast = in_broadcast(dst->sin_addr, ifp);
+	}
+	/*
+	 * Calculate MTU.  If we have a route that is up, use that,
+	 * otherwise use the interface's MTU.
+	 */
+	if (ro->ro_rt->rt_flags & (RTF_UP | RTF_HOST)) {
+		/*
+		 * This case can happen if the user changed the MTU
+		 * of an interface after enabling IP on it.  Because
+		 * most netifs don't keep track of routes pointing to
+		 * them, there is no way for one to update all its
+		 * routes when the MTU is changed.
+		 */
+		if (ro->ro_rt->rt_rmx.rmx_mtu > ifp->if_mtu)
+			ro->ro_rt->rt_rmx.rmx_mtu = ifp->if_mtu;
+		mtu = ro->ro_rt->rt_rmx.rmx_mtu;
+	} else {
+		mtu = ifp->if_mtu;
 	}
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		struct in_multi *inm;
@@ -360,10 +379,10 @@ again:
 	 */
 #ifdef ALTQ
 	if ((!ALTQ_IS_ENABLED(&ifp->if_snd)) &&
-	    ((ifp->if_snd.ifq_len + ip->ip_len / ifp->if_mtu + 1) >=
+	    ((ifp->if_snd.ifq_len + ip->ip_len / mtu + 1) >=
 	    ifp->if_snd.ifq_maxlen))
 #else
-	if ((ifp->if_snd.ifq_len + ip->ip_len / ifp->if_mtu + 1) >=
+	if ((ifp->if_snd.ifq_len + ip->ip_len / mtu + 1) >=
 	    ifp->if_snd.ifq_maxlen)
 #endif /* ALTQ */
 	{
@@ -388,7 +407,7 @@ again:
 			goto bad;
 		}
 		/* don't allow broadcast messages to be fragmented */
-		if (ip->ip_len > ifp->if_mtu) {
+		if (ip->ip_len > mtu) {
 			error = EMSGSIZE;
 			goto bad;
 		}
@@ -497,7 +516,7 @@ passout:
 	 * If small enough for interface, or the interface will take
 	 * care of the fragmentation for us, we can just send directly.
 	 */
-	if (ip->ip_len <= ifp->if_mtu ||
+	if (ip->ip_len <= mtu ||
 	    (m->m_pkthdr.csum_flags & ifp->if_hwassist & CSUM_TSO) != 0 ||
 	    ((ip->ip_off & IP_DF) == 0 && (ifp->if_hwassist & CSUM_FRAGMENT))) {
 		ip->ip_len = htons(ip->ip_len);
@@ -542,18 +561,6 @@ passout:
 	/* Balk when DF bit is set or the interface didn't support TSO. */
 	if ((ip->ip_off & IP_DF) || (m->m_pkthdr.csum_flags & CSUM_TSO)) {
 		error = EMSGSIZE;
-		/*
-		 * This case can happen if the user changed the MTU
-		 * of an interface after enabling IP on it.  Because
-		 * most netifs don't keep track of routes pointing to
-		 * them, there is no way for one to update all its
-		 * routes when the MTU is changed.
-		 */
-		if (ro != NULL &&
-		    (ro->ro_rt->rt_flags & (RTF_UP | RTF_HOST)) &&
-		    (ro->ro_rt->rt_rmx.rmx_mtu > ifp->if_mtu)) {
-			ro->ro_rt->rt_rmx.rmx_mtu = ifp->if_mtu;
-		}
 		ipstat.ips_cantfrag++;
 		goto bad;
 	}
@@ -562,7 +569,7 @@ passout:
 	 * Too large for interface; fragment if possible. If successful,
 	 * on return, m will point to a list of packets to be sent.
 	 */
-	error = ip_fragment(ip, &m, ifp->if_mtu, ifp->if_hwassist, sw_csum);
+	error = ip_fragment(ip, &m, mtu, ifp->if_hwassist, sw_csum);
 	if (error)
 		goto bad;
 	for (; m; m = m0) {
