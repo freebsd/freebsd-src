@@ -183,7 +183,10 @@ one_event(void)
 	g_topology_lock();
 	for (;;) {
 		mtx_lock(&g_eventlock);
-		pp = TAILQ_FIRST(&g_doorstep);
+		TAILQ_FOREACH(pp, &g_doorstep, orphan) {
+			if (pp->nstart == pp->nend)
+				break;
+		}
 		if (pp != NULL) {
 			G_VALID_PROVIDER(pp);
 			TAILQ_REMOVE(&g_doorstep, pp, orphan);
