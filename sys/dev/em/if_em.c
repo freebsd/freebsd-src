@@ -1456,7 +1456,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	current_tx_desc = NULL;
 	txd_upper = txd_lower = txd_used = txd_saved = 0;
 
-        do_tso = ((m_head->m_pkthdr.csum_flags & CSUM_TSO) != 0);
+	do_tso = ((m_head->m_pkthdr.csum_flags & CSUM_TSO) != 0);
 
 	/*
 	 * Force a cleanup if number of TX descriptors
@@ -1509,16 +1509,16 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 		*m_headp = m_head;
 	}
 
-        /*
-         * TSO workaround:
-         *  If an mbuf is only header we need
-         *     to pull 4 bytes of data into it.
-         */
-        if (do_tso && (m_head->m_len <= M_TSO_LEN)) {
-                m_head = m_pullup(m_head, M_TSO_LEN + 4);
-                if (m_head == NULL)
-                        return (ENOBUFS);
-        }
+	/*
+	 * TSO workaround:
+	 *  If an mbuf is only header we need
+	 *     to pull 4 bytes of data into it.
+	 */
+	if (do_tso && (m_head->m_len <= M_TSO_LEN)) {
+		m_head = m_pullup(m_head, M_TSO_LEN + 4);
+		if (m_head == NULL)
+			return (ENOBUFS);
+	}
 
 	/*
 	 * Map the packet for DMA.
@@ -1558,17 +1558,17 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 		return (EIO);
 	}
 
-        /*
-         * TSO Hardware workaround, if this packet is not
-         * TSO, and is only a single descriptor long, and
-         * it follows a TSO burst, then we need to add a
-         * sentinel descriptor to prevent premature writeback.
-         */
-        if ((do_tso == 0) && (adapter->tx_tso == TRUE)) {
-                if (nsegs == 1)
-                        tso_desc = TRUE;
-                adapter->tx_tso = FALSE;
-        }
+	/*
+	 * TSO Hardware workaround, if this packet is not
+	 * TSO, and is only a single descriptor long, and
+	 * it follows a TSO burst, then we need to add a
+	 * sentinel descriptor to prevent premature writeback.
+	 */
+	if ((do_tso == 0) && (adapter->tx_tso == TRUE)) {
+		if (nsegs == 1)
+			tso_desc = TRUE;
+		adapter->tx_tso = FALSE;
+	}
 
 	if (nsegs > adapter->num_tx_desc_avail - 2) {
 		adapter->no_tx_desc_avail2++;
@@ -1576,24 +1576,24 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 		return (ENOBUFS);
 	}
 
-        /* Do hardware assists */
+	/* Do hardware assists */
 	m_head = *m_headp;
-        if ( ifp->if_hwassist > 0) {
-                if (em_tso_setup(adapter, m_head, &txd_upper, &txd_lower)) {
-                        /* we need to make a final sentinel transmit desc */
-                        tso_desc = TRUE;
-                } else
-                        em_transmit_checksum_setup(adapter,  m_head,
-                            &txd_upper, &txd_lower);
-        }
+	if ( ifp->if_hwassist > 0) {
+		if (em_tso_setup(adapter, m_head, &txd_upper, &txd_lower)) {
+			/* we need to make a final sentinel transmit desc */
+			tso_desc = TRUE;
+		} else
+			em_transmit_checksum_setup(adapter,  m_head,
+			    &txd_upper, &txd_lower);
+	}
 
 	i = adapter->next_avail_tx_desc;
 	if (adapter->pcix_82544)
 		txd_saved = i;
 
 	for (j = 0; j < nsegs; j++) {
-                bus_size_t seg_len;
-                bus_addr_t seg_addr;
+		bus_size_t seg_len;
+		bus_addr_t seg_addr;
 		/* If adapter is 82544 and on PCIX bus. */
 		if(adapter->pcix_82544) {
 			DESC_ARRAY	desc_array;
@@ -1627,46 +1627,46 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 				txd_used++;
 			}
 		} else {
-                       tx_buffer = &adapter->tx_buffer_area[i];
-                        current_tx_desc = &adapter->tx_desc_base[i];
-                        seg_addr = htole64(segs[j].ds_addr);
-                        seg_len  = segs[j].ds_len;
-                        /*
-                        ** TSO Workaround:
-                        ** If this is the last descriptor, we want to
-                        ** split it so we have a small final sentinel
-                        */
-                        if (tso_desc && (j == (nsegs -1)) && (seg_len > 8)) {
-                                seg_len -= 4;
-                                current_tx_desc->buffer_addr = seg_addr;
-                                current_tx_desc->lower.data = htole32(
-                                adapter->txd_cmd | txd_lower | seg_len);
-                                current_tx_desc->upper.data =
-                                    htole32(txd_upper);
-                                if (++i == adapter->num_tx_desc)
-                                        i = 0;
-                                /* Now make the sentinel */
-                                ++txd_used; /* using an extra txd */
-                                current_tx_desc = &adapter->tx_desc_base[i];
-                                tx_buffer = &adapter->tx_buffer_area[i];
-                                current_tx_desc->buffer_addr =
-                                    seg_addr + seg_len;
-                                current_tx_desc->lower.data = htole32(
-                                adapter->txd_cmd | txd_lower | 4);
-                                current_tx_desc->upper.data =
-                                    htole32(txd_upper);
-                                if (++i == adapter->num_tx_desc)
-                                        i = 0;
-                        } else {
-                                current_tx_desc->buffer_addr = seg_addr;
-                                current_tx_desc->lower.data = htole32(
-                                adapter->txd_cmd | txd_lower | seg_len);
-                                current_tx_desc->upper.data =
-                                    htole32(txd_upper);
-                                if (++i == adapter->num_tx_desc)
-                                        i = 0;
-                        }
-                        tx_buffer->m_head = NULL;
+			tx_buffer = &adapter->tx_buffer_area[i];
+			current_tx_desc = &adapter->tx_desc_base[i];
+			seg_addr = htole64(segs[j].ds_addr);
+			seg_len  = segs[j].ds_len;
+			/*
+			** TSO Workaround:
+			** If this is the last descriptor, we want to
+			** split it so we have a small final sentinel
+			*/
+			if (tso_desc && (j == (nsegs -1)) && (seg_len > 8)) {
+				seg_len -= 4;
+				current_tx_desc->buffer_addr = seg_addr;
+				current_tx_desc->lower.data = htole32(
+				adapter->txd_cmd | txd_lower | seg_len);
+				current_tx_desc->upper.data =
+				    htole32(txd_upper);
+				if (++i == adapter->num_tx_desc)
+					i = 0;
+				/* Now make the sentinel */
+				++txd_used; /* using an extra txd */
+				current_tx_desc = &adapter->tx_desc_base[i];
+				tx_buffer = &adapter->tx_buffer_area[i];
+				current_tx_desc->buffer_addr =
+				    seg_addr + seg_len;
+				current_tx_desc->lower.data = htole32(
+				adapter->txd_cmd | txd_lower | 4);
+				current_tx_desc->upper.data =
+				    htole32(txd_upper);
+				if (++i == adapter->num_tx_desc)
+					i = 0;
+			} else {
+				current_tx_desc->buffer_addr = seg_addr;
+				current_tx_desc->lower.data = htole32(
+				adapter->txd_cmd | txd_lower | seg_len);
+				current_tx_desc->upper.data =
+				    htole32(txd_upper);
+				if (++i == adapter->num_tx_desc)
+					i = 0;
+			}
+			tx_buffer->m_head = NULL;
 		}
 	}
 
@@ -1675,9 +1675,9 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 		adapter->num_tx_desc_avail -= txd_used;
 	else {
 		adapter->num_tx_desc_avail -= nsegs;
-                if (tso_desc) /* TSO used an extra for sentinel */
-                        adapter->num_tx_desc_avail -= txd_used;
-        }
+		if (tso_desc) /* TSO used an extra for sentinel */
+			adapter->num_tx_desc_avail -= txd_used;
+	}
 
 	if (mtag != NULL) {
 		/* Set the vlan id. */
@@ -2337,12 +2337,12 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 		ifp->if_capenable |= IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM;
 	}
 
-        /* Enable TSO if available */
-        if ((adapter->hw.mac_type > em_82544) &&
-            (adapter->hw.mac_type != em_82547)) {
-                ifp->if_capabilities |= IFCAP_TSO;
-                ifp->if_capenable |= IFCAP_TSO;
-        }
+	/* Enable TSO if available */
+	if ((adapter->hw.mac_type > em_82544) &&
+	    (adapter->hw.mac_type != em_82547)) {
+		ifp->if_capabilities |= IFCAP_TSO;
+		ifp->if_capenable |= IFCAP_TSO;
+	}
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
@@ -2562,7 +2562,7 @@ em_allocate_transmit_structures(struct adapter *adapter)
 static int
 em_setup_transmit_structures(struct adapter *adapter)
 {
-        struct ifnet   *ifp = adapter->ifp;
+	struct ifnet   *ifp = adapter->ifp;
 	device_t dev = adapter->dev;
 	struct em_buffer *tx_buffer;
 	bus_size_t size, segsize;
@@ -2573,11 +2573,11 @@ em_setup_transmit_structures(struct adapter *adapter)
 	 */
 	segsize = size = roundup2(adapter->hw.max_frame_size, MCLBYTES);
 
-        /* Overrides for TSO - want large sizes */
-        if (ifp->if_hwassist & EM_TCPSEG_FEATURES) {
-                size = EM_TSO_SIZE;
-                segsize = PAGE_SIZE;
-        }
+	/* Overrides for TSO - want large sizes */
+	if (ifp->if_hwassist & EM_TCPSEG_FEATURES) {
+		size = EM_TSO_SIZE;
+		segsize = PAGE_SIZE;
+	}
 
 	if ((error = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 				1, 0,			/* alignment, bounds */
@@ -2852,76 +2852,74 @@ em_transmit_checksum_setup(struct adapter *adapter, struct mbuf *mp,
  *
  **********************************************************************/
 static boolean_t
-em_tso_setup(struct adapter *adapter,
-             struct mbuf *mp,
-             uint32_t *txd_upper,
-             uint32_t *txd_lower)
+em_tso_setup(struct adapter *adapter, struct mbuf *mp, uint32_t *txd_upper,
+   uint32_t *txd_lower)
 {
-        struct em_context_desc *TXD;
-        struct em_buffer *tx_buffer;
-        struct ip *ip;
-        struct tcphdr *th;
-        int curr_txd, hdr_len, ip_hlen, tcp_hlen;
+	struct em_context_desc *TXD;
+	struct em_buffer *tx_buffer;
+	struct ip *ip;
+	struct tcphdr *th;
+	int curr_txd, hdr_len, ip_hlen, tcp_hlen;
 
-        if (((mp->m_pkthdr.csum_flags & CSUM_TSO) == 0) ||
-            (mp->m_pkthdr.len <= E1000_TX_BUFFER_SIZE)) {
-                return FALSE;
-        }
+	if (((mp->m_pkthdr.csum_flags & CSUM_TSO) == 0) ||
+	    (mp->m_pkthdr.len <= E1000_TX_BUFFER_SIZE)) {
+		return FALSE;
+	}
 
-        *txd_lower = (E1000_TXD_CMD_DEXT |
-                      E1000_TXD_DTYP_D |
-                      E1000_TXD_CMD_TSE);
+	*txd_lower = (E1000_TXD_CMD_DEXT |
+		      E1000_TXD_DTYP_D |
+		      E1000_TXD_CMD_TSE);
 
-        *txd_upper = (E1000_TXD_POPTS_IXSM |
-                      E1000_TXD_POPTS_TXSM) << 8;
+	*txd_upper = (E1000_TXD_POPTS_IXSM |
+		      E1000_TXD_POPTS_TXSM) << 8;
 
-        curr_txd = adapter->next_avail_tx_desc;
-        tx_buffer = &adapter->tx_buffer_area[curr_txd];
-        TXD = (struct em_context_desc *) &adapter->tx_desc_base[curr_txd];
+	curr_txd = adapter->next_avail_tx_desc;
+	tx_buffer = &adapter->tx_buffer_area[curr_txd];
+	TXD = (struct em_context_desc *) &adapter->tx_desc_base[curr_txd];
 
-        mp->m_data += sizeof(struct ether_header);
-        ip = mtod(mp, struct ip *);
-        ip->ip_len = 0;
-        ip->ip_sum = 0;
-        ip_hlen = ip->ip_hl << 2 ;
-        th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
-        tcp_hlen = th->th_off << 2;
+	mp->m_data += sizeof(struct ether_header);
+	ip = mtod(mp, struct ip *);
+	ip->ip_len = 0;
+	ip->ip_sum = 0;
+	ip_hlen = ip->ip_hl << 2 ;
+	th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
+	tcp_hlen = th->th_off << 2;
 
-        hdr_len = ETHER_HDR_LEN + ip_hlen + tcp_hlen;
+	hdr_len = ETHER_HDR_LEN + ip_hlen + tcp_hlen;
 	th->th_sum = in_pseudo(ip->ip_src.s_addr,
 	    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
 
-        mp->m_data -= sizeof(struct ether_header);
-        TXD->lower_setup.ip_fields.ipcss = ETHER_HDR_LEN;
-        TXD->lower_setup.ip_fields.ipcso =
-                ETHER_HDR_LEN + offsetof(struct ip, ip_sum);
-        TXD->lower_setup.ip_fields.ipcse =
-                htole16(ETHER_HDR_LEN + ip_hlen - 1);
+	mp->m_data -= sizeof(struct ether_header);
+	TXD->lower_setup.ip_fields.ipcss = ETHER_HDR_LEN;
+	TXD->lower_setup.ip_fields.ipcso =
+		ETHER_HDR_LEN + offsetof(struct ip, ip_sum);
+	TXD->lower_setup.ip_fields.ipcse =
+		htole16(ETHER_HDR_LEN + ip_hlen - 1);
 
-        TXD->upper_setup.tcp_fields.tucss =
-                ETHER_HDR_LEN + ip_hlen;
-        TXD->upper_setup.tcp_fields.tucse = 0;
-        TXD->upper_setup.tcp_fields.tucso =
-                ETHER_HDR_LEN + ip_hlen +
-                offsetof(struct tcphdr, th_sum);
-        TXD->tcp_seg_setup.fields.mss = htole16(mp->m_pkthdr.tso_segsz);
-        TXD->tcp_seg_setup.fields.hdr_len = hdr_len;
-        TXD->cmd_and_length = htole32(adapter->txd_cmd |
-                                E1000_TXD_CMD_DEXT |
-                                E1000_TXD_CMD_TSE |
-                                E1000_TXD_CMD_IP | E1000_TXD_CMD_TCP |
-                                (mp->m_pkthdr.len - (hdr_len)));
+	TXD->upper_setup.tcp_fields.tucss =
+		ETHER_HDR_LEN + ip_hlen;
+	TXD->upper_setup.tcp_fields.tucse = 0;
+	TXD->upper_setup.tcp_fields.tucso =
+		ETHER_HDR_LEN + ip_hlen +
+		offsetof(struct tcphdr, th_sum);
+	TXD->tcp_seg_setup.fields.mss = htole16(mp->m_pkthdr.tso_segsz);
+	TXD->tcp_seg_setup.fields.hdr_len = hdr_len;
+	TXD->cmd_and_length = htole32(adapter->txd_cmd |
+				E1000_TXD_CMD_DEXT |
+				E1000_TXD_CMD_TSE |
+				E1000_TXD_CMD_IP | E1000_TXD_CMD_TCP |
+				(mp->m_pkthdr.len - (hdr_len)));
 
-        tx_buffer->m_head = NULL;
+	tx_buffer->m_head = NULL;
 
-        if (++curr_txd == adapter->num_tx_desc)
-                curr_txd = 0;
+	if (++curr_txd == adapter->num_tx_desc)
+		curr_txd = 0;
 
-        adapter->num_tx_desc_avail--;
-        adapter->next_avail_tx_desc = curr_txd;
-        adapter->tx_tso = TRUE;
+	adapter->num_tx_desc_avail--;
+	adapter->next_avail_tx_desc = curr_txd;
+	adapter->tx_tso = TRUE;
 
-        return TRUE;
+	return TRUE;
 }
 
 /**********************************************************************
@@ -3870,10 +3868,10 @@ em_print_hw_stats(struct adapter *adapter)
 	    (long long)adapter->stats.gprc);
 	device_printf(dev, "Good Packets Xmtd = %lld\n",
 	    (long long)adapter->stats.gptc);
-        device_printf(dev, "TSO Contexts Xmtd = %lld\n",
-            (long long)adapter->stats.tsctc);
-        device_printf(dev, "TSO Contexts Failed = %lld\n",
-            (long long)adapter->stats.tsctfc);
+	device_printf(dev, "TSO Contexts Xmtd = %lld\n",
+	    (long long)adapter->stats.tsctc);
+	device_printf(dev, "TSO Contexts Failed = %lld\n",
+	    (long long)adapter->stats.tsctfc);
 }
 
 static int
