@@ -56,13 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/device.h>
-#include <sys/select.h>
-#elif defined(__FreeBSD__)
 #include <sys/module.h>
 #include <sys/bus.h>
-#endif
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 
@@ -76,9 +71,7 @@ __FBSDID("$FreeBSD$");
 #include "usbdevs.h"
 #include <dev/usb/usb_quirks.h>
 
-#if defined(__FreeBSD__)
 #define delay(d)         DELAY(d)
-#endif
 
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (usbdebug) logprintf x
@@ -92,13 +85,6 @@ extern int usbdebug;
 static usbd_status usbd_set_config(usbd_device_handle, int);
 static void usbd_devinfo_vp(usbd_device_handle, char *, char *, int);
 static int usbd_getnewaddr(usbd_bus_handle bus);
-#if defined(__NetBSD__)
-static int usbd_print(void *aux, const char *pnp);
-static int usbd_submatch(device_t, struct cfdata *cf, void *);
-#elif defined(__OpenBSD__)
-static int usbd_print(void *aux, const char *pnp);
-static int usbd_submatch(device_t, void *, void *);
-#endif
 static void usbd_free_iface_data(usbd_device_handle dev, int ifcno);
 static void usbd_kill_pipe(usbd_pipe_handle);
 static usbd_status usbd_probe_and_attach(device_t parent,
@@ -948,7 +934,6 @@ usbd_probe_and_attach(device_t parent, usbd_device_handle dev,
 			if (dv != NULL) {
 				ifaces[i] = 0; /* consumed */
 				found++;
-#ifdef __FreeBSD__
 				/* create another child for the next iface */
 				bdev = device_add_child(parent, NULL, -1);
 				if (!bdev) {
@@ -962,19 +947,16 @@ usbd_probe_and_attach(device_t parent, usbd_device_handle dev,
 					return (USBD_NOMEM);
 				}
 				device_set_ivars(bdev, uaap);
-#endif
 			} else {
 				dev->subdevs[found] = 0;
 			}
 		}
-#ifdef __FreeBSD__
 		if (found != 0) {
 			/* remove the last created child.  It is unused */
 			free(uaap, M_USB);
 			free(devinfo, M_USB);
 			device_delete_child(parent, bdev);
 			/* free(uaap, M_USB); */ /* May be needed? xxx */
-#endif
 			return (USBD_NORMAL_COMPLETION);
 		}
 		tmpdv = dev->subdevs;
@@ -1232,101 +1214,6 @@ usbd_remove_device(usbd_device_handle dev, struct usbd_port *up)
 	free(dev, M_USB);
 }
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-int
-usbd_print(void *aux, const char *pnp)
-{
-	struct usb_attach_arg *uaa = aux;
-	char devinfo[1024];
-
-	DPRINTFN(15, ("usbd_print dev=%p\n", uaa->device));
-	if (pnp) {
-		if (!uaa->usegeneric)
-			return (QUIET);
-		usbd_devinfo(uaa->device, 1, devinfo);
-		printf("%s, %s", devinfo, pnp);
-	}
-	if (uaa->port != 0)
-		printf(" port %d", uaa->port);
-	if (uaa->configno != UHUB_UNK_CONFIGURATION)
-		printf(" configuration %d", uaa->configno);
-	if (uaa->ifaceno != UHUB_UNK_INTERFACE)
-		printf(" interface %d", uaa->ifaceno);
-#if 0
-	/*
-	 * It gets very crowded with these locators on the attach line.
-	 * They are not really needed since they are printed in the clear
-	 * by each driver.
-	 */
-	if (uaa->vendor != UHUB_UNK_VENDOR)
-		printf(" vendor 0x%04x", uaa->vendor);
-	if (uaa->product != UHUB_UNK_PRODUCT)
-		printf(" product 0x%04x", uaa->product);
-	if (uaa->release != UHUB_UNK_RELEASE)
-		printf(" release 0x%04x", uaa->release);
-#endif
-	return (UNCONF);
-}
-
-#if defined(__NetBSD__)
-int
-usbd_submatch(struct device *parent, struct cfdata *cf, void *aux)
-{
-#elif defined(__OpenBSD__)
-int
-usbd_submatch(struct device *parent, void *match, void *aux)
-{
-	struct cfdata *cf = match;
-#endif
-	struct usb_attach_arg *uaa = aux;
-
-	DPRINTFN(5,("usbd_submatch port=%d,%d configno=%d,%d "
-	    "ifaceno=%d,%d vendor=%d,%d product=%d,%d release=%d,%d\n",
-	    uaa->port, cf->uhubcf_port,
-	    uaa->configno, cf->uhubcf_configuration,
-	    uaa->ifaceno, cf->uhubcf_interface,
-	    uaa->vendor, cf->uhubcf_vendor,
-	    uaa->product, cf->uhubcf_product,
-	    uaa->release, cf->uhubcf_release));
-	if (uaa->port != 0 &&	/* root hub has port 0, it should match */
-	    ((uaa->port != 0 &&
-	      cf->uhubcf_port != UHUB_UNK_PORT &&
-	      cf->uhubcf_port != uaa->port) ||
-	     (uaa->configno != UHUB_UNK_CONFIGURATION &&
-	      cf->uhubcf_configuration != UHUB_UNK_CONFIGURATION &&
-	      cf->uhubcf_configuration != uaa->configno) ||
-	     (uaa->ifaceno != UHUB_UNK_INTERFACE &&
-	      cf->uhubcf_interface != UHUB_UNK_INTERFACE &&
-	      cf->uhubcf_interface != uaa->ifaceno) ||
-	     (uaa->vendor != UHUB_UNK_VENDOR &&
-	      cf->uhubcf_vendor != UHUB_UNK_VENDOR &&
-	      cf->uhubcf_vendor != uaa->vendor) ||
-	     (uaa->product != UHUB_UNK_PRODUCT &&
-	      cf->uhubcf_product != UHUB_UNK_PRODUCT &&
-	      cf->uhubcf_product != uaa->product) ||
-	     (uaa->release != UHUB_UNK_RELEASE &&
-	      cf->uhubcf_release != UHUB_UNK_RELEASE &&
-	      cf->uhubcf_release != uaa->release)
-	     )
-	   )
-		return 0;
-	if (cf->uhubcf_vendor != UHUB_UNK_VENDOR &&
-	    cf->uhubcf_vendor == uaa->vendor &&
-	    cf->uhubcf_product != UHUB_UNK_PRODUCT &&
-	    cf->uhubcf_product == uaa->product) {
-		/* We have a vendor&product locator match */
-		if (cf->uhubcf_release != UHUB_UNK_RELEASE &&
-		    cf->uhubcf_release == uaa->release)
-			uaa->matchlvl = UMATCH_VENDOR_PRODUCT_REV;
-		else
-			uaa->matchlvl = UMATCH_VENDOR_PRODUCT;
-	} else
-		uaa->matchlvl = 0;
-	return ((*cf->cf_attach->ca_match)(parent, cf, aux));
-}
-
-#endif
-
 void
 usbd_fill_deviceinfo(usbd_device_handle dev, struct usb_device_info *di,
 		     int usedev)
@@ -1464,17 +1351,3 @@ usb_disconnect_port(struct usbd_port *up, device_t parent)
 	up->device = NULL;
 	usb_free_device(dev);
 }
-
-#ifdef __OpenBSD__
-void *usb_realloc(void *p, u_int size, int pool, int flags)
-{
-	void *q;
-
-	q = malloc(size, pool, flags);
-	if (q == NULL)
-		return (NULL);
-	bcopy(p, q, size);
-	free(p, pool);
-	return (q);
-}
-#endif
