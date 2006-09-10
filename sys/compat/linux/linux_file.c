@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/stat.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/tty.h>
@@ -495,6 +496,7 @@ linux_unlink(struct thread *td, struct linux_unlink_args *args)
 {
 	char *path;
 	int error;
+	struct stat st;
 
 	LCONVPATHEXIST(td, args->path, &path);
 
@@ -504,6 +506,11 @@ linux_unlink(struct thread *td, struct linux_unlink_args *args)
 #endif
 
 	error = kern_unlink(td, path, UIO_SYSSPACE);
+	if (error == EPERM)
+		/* Introduce POSIX noncompliant behaviour of Linux */
+		if (kern_stat(td, path, UIO_SYSSPACE, &st) == 0)
+			if (S_ISDIR(st.st_mode))
+				error = EISDIR;
 	LFREEPATH(path);
 	return (error);
 }
