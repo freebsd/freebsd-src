@@ -1639,8 +1639,8 @@ ttymodem(struct tty *tp, int flag)
 		    !ISSET(tp->t_cflag, CLOCAL)) {
 			SET(tp->t_state, TS_ZOMBIE);
 			CLR(tp->t_state, TS_CONNECTED);
+			sx_slock(&proctree_lock);	/* XXX: protect t_session */
 			if (tp->t_session) {
-				sx_slock(&proctree_lock);
 				if (tp->t_session->s_leader) {
 					struct proc *p;
 
@@ -1649,8 +1649,8 @@ ttymodem(struct tty *tp, int flag)
 					psignal(p, SIGHUP);
 					PROC_UNLOCK(p);
 				}
-				sx_sunlock(&proctree_lock);
 			}
+			sx_sunlock(&proctree_lock);
 			ttyflush(tp, FREAD | FWRITE);
 			return (0);
 		}
