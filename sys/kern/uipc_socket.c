@@ -420,7 +420,6 @@ sonewconn(head, connstatus)
 	so->so_linger = head->so_linger;
 	so->so_state = head->so_state | SS_NOFDREF;
 	so->so_proto = head->so_proto;
-	so->so_timeo = head->so_timeo;
 	so->so_cred = crhold(head->so_cred);
 #ifdef MAC
 	SOCK_LOCK(head);
@@ -436,6 +435,10 @@ sonewconn(head, connstatus)
 		sodealloc(so);
 		return (NULL);
 	}
+	so->so_rcv.sb_lowat = head->so_rcv.sb_lowat;
+	so->so_snd.sb_lowat = head->so_snd.sb_lowat;
+	so->so_rcv.sb_timeo = head->so_rcv.sb_timeo;
+	so->so_snd.sb_timeo = head->so_snd.sb_timeo;
 	so->so_state |= connstatus;
 	ACCEPT_LOCK();
 	if (connstatus) {
