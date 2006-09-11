@@ -162,7 +162,7 @@ amdsmb_detach(device_t dev)
 }
 
 static int
-amdsmb_callback(device_t dev, int index, caddr_t *data)
+amdsmb_callback(device_t dev, int index, void *data)
 {
 	int error = 0;
 
@@ -444,13 +444,14 @@ static int
 amdsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 {
 	struct amdsmb_softc *sc = (struct amdsmb_softc *)device_get_softc(dev);
-	u_char len, i;
+	u_char i;
 	int error;
 
-	len = min(count, 32);
+	if (count < 1 || count > 32)
+		return (SMB_EINVAL);
 	amdsmb_ec_write(sc, SMB_CMD, cmd);
-	amdsmb_ec_write(sc, SMB_BCNT, len);
-	for (i = 0; i < len; i++)
+	amdsmb_ec_write(sc, SMB_BCNT, count);
+	for (i = 0; i < count; i++)
 		amdsmb_ec_write(sc, SMB_DATA + i, buf[i]);
 	amdsmb_ec_write(sc, SMB_ADDR, slave);
 	amdsmb_ec_write(sc, SMB_PRTCL, SMB_PRTCL_WRITE | SMB_PRTCL_BLOCK_DATA);
@@ -464,25 +465,30 @@ amdsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 }
 
 static int
-amdsmb_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
+amdsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 {
 	struct amdsmb_softc *sc = (struct amdsmb_softc *)device_get_softc(dev);
-	u_char len, i;
+	u_char data, len, i;
 	int error;
 
+	if (*count < 1 || *count > 32)
+		return (SMB_EINVAL);
 	amdsmb_ec_write(sc, SMB_CMD, cmd);
 	amdsmb_ec_write(sc, SMB_ADDR, slave);
 	amdsmb_ec_write(sc, SMB_PRTCL, SMB_PRTCL_READ | SMB_PRTCL_BLOCK_DATA);
 
 	if ((error = amdsmb_wait(sc)) == SMB_ENOERR) {
 		amdsmb_ec_read(sc, SMB_BCNT, &len);
-		len = min(len, 32);
-		for (i = 0; i < len; i++)
-			amdsmb_ec_read(sc, SMB_DATA + i, buf + i);
+		for (i = 0; i < len; i++) {
+			amdsmb_ec_read(sc, SMB_DATA + i, &data);
+			if (i < *count)
+				buf[i] = data;
+		}
+		*count = len;
 	}
 
 	AMDSMB_DEBUG(printf("amdsmb: READBLK to 0x%x, count=0x%x, cmd=0x%x, "
-	    "error=0x%x", slave, count, cmd, error));
+	    "error=0x%x", slave, *count, cmd, error));
 
 	return (error);
 }
@@ -517,6 +523,7 @@ static driver_t amdsmb_driver = {
 };
 
 DRIVER_MODULE(amdsmb, pci, amdsmb_driver, amdsmb_devclass, 0, 0);
+DRIVER_MODULE(smbus, amdsmb, smbus_driver, smbus_devclass, 0, 0);
 
 MODULE_DEPEND(amdsmb, pci, 1, 1, 1);
 MODULE_DEPEND(amdsmb, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
