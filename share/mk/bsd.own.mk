@@ -282,6 +282,7 @@ WITH_IDEA=
 #
 .for var in \
     ACPI \
+    ASSERT_DEBUG \
     ATM \
     AUDIT \
     AUTHPF \
