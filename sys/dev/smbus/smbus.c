@@ -30,32 +30,30 @@
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/bus.h> 
 
 #include <dev/smbus/smbconf.h>
 #include <dev/smbus/smbus.h>
 
 /*
- * Autoconfiguration and support routines for the Philips serial I2C bus
+ * Autoconfiguration and support routines for System Management bus
  */
-
-#define DEVTOSMBUS(dev) ((struct smbus_device*)device_get_ivars(dev))
-
-static devclass_t smbus_devclass;
 
 /*
  * Device methods
  */
 static int smbus_probe(device_t);
 static int smbus_attach(device_t);
+static int smbus_detach(device_t);
 
 static device_method_t smbus_methods[] = {
         /* device interface */
         DEVMETHOD(device_probe,         smbus_probe),
         DEVMETHOD(device_attach,        smbus_attach),
-        DEVMETHOD(device_detach,        bus_generic_detach),
+        DEVMETHOD(device_detach,        smbus_detach),
 
         /* bus interface */
         DEVMETHOD(bus_print_child,	bus_generic_print_child),
@@ -63,11 +61,13 @@ static device_method_t smbus_methods[] = {
         { 0, 0 }
 };
 
-static driver_t smbus_driver = {
+driver_t smbus_driver = {
         "smbus",
         smbus_methods,
         sizeof(struct smbus_softc),
 };
+
+devclass_t smbus_devclass;
 
 /*
  * At 'probe' time, we add all the devices which we know about to the
@@ -77,6 +77,7 @@ static driver_t smbus_driver = {
 static int
 smbus_probe(device_t dev)
 {
+
 	device_set_desc(dev, "System Management Bus");
 
 	return (0);
@@ -85,8 +86,25 @@ smbus_probe(device_t dev)
 static int
 smbus_attach(device_t dev)
 {
-	device_add_child(dev, NULL, -1);
+	struct smbus_softc *sc = device_get_softc(dev);
+
+	mtx_init(&sc->lock, device_get_nameunit(dev), "smbus", MTX_DEF);
+	bus_generic_probe(dev);
 	bus_generic_attach(dev);
+
+	return (0);
+}
+
+static int
+smbus_detach(device_t dev)
+{
+	struct smbus_softc *sc = device_get_softc(dev);
+	int error;
+
+	error = bus_generic_detach(dev);
+	if (error)
+		return (error);
+	mtx_destroy(&sc->lock);
 
 	return (0);
 }
@@ -94,16 +112,6 @@ smbus_attach(device_t dev)
 void
 smbus_generic_intr(device_t dev, u_char devaddr, char low, char high)
 {
-	return;
 }
 
-DRIVER_MODULE(smbus, iicsmb, smbus_driver, smbus_devclass, 0, 0);
-DRIVER_MODULE(smbus, bktr, smbus_driver, smbus_devclass, 0, 0);
-DRIVER_MODULE(smbus, intsmb, smbus_driver, smbus_devclass, 0, 0);
-DRIVER_MODULE(smbus, alpm, smbus_driver, smbus_devclass, 0, 0);
-DRIVER_MODULE(smbus, ichsmb, smbus_driver, smbus_devclass, 0, 0);
-DRIVER_MODULE(smbus, amdpm, smbus_driver, smbus_devclass, 0, 0);
-DRIVER_MODULE(smbus, amdsmb, smbus_driver, smbus_devclass, 0, 0);
-DRIVER_MODULE(smbus, nfsmb, smbus_driver, smbus_devclass, 0, 0);
-DRIVER_MODULE(smbus, viapropm, smbus_driver, smbus_devclass, 0, 0);
 MODULE_VERSION(smbus, SMBUS_MODVER);
