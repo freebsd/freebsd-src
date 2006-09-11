@@ -30,10 +30,10 @@
 #define __SMBUS_H
 
 struct smbus_softc {
-
 	device_t owner;		/* smbus owner device structure */
+	struct mtx lock;
 };
 
-extern void smbus_generic_intr(device_t dev, u_char devaddr, char low, char high);
+void	smbus_generic_intr(device_t dev, u_char devaddr, char low, char high);
 
 #endif

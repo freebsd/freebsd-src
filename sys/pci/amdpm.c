@@ -236,7 +236,7 @@ amdpm_detach(device_t dev)
 }
 
 static int
-amdpm_callback(device_t dev, int index, caddr_t *data)
+amdpm_callback(device_t dev, int index, void *data)
 {
 	int error = 0;
 
@@ -504,84 +504,79 @@ static int
 amdpm_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 {
 	struct amdpm_softc *sc = (struct amdpm_softc *)device_get_softc(dev);
-	u_char remain, len, i;
-	int error = SMB_ENOERR;
+	u_char i;
+	int error;
 	u_short l;
 
+	if (count < 1 || count > 32)
+		return (SMB_EINVAL);
 	amdpm_clear(sc);
 	if(!amdpm_idle(sc))
 		return (SMB_EBUSY);
 
-	remain = count;
-	while (remain) {
-		len = min(remain, 32);
-
-		AMDPM_SMBOUTW(sc, AMDSMB_HSTADDR, slave & ~LSB);
+	AMDPM_SMBOUTW(sc, AMDSMB_HSTADDR, slave & ~LSB);
 	
-		/*
-		 * Do we have to reset the internal 32-byte buffer?
-		 * Can't see how to do this from the data sheet.
-		 */
+	/*
+	 * Do we have to reset the internal 32-byte buffer?
+	 * Can't see how to do this from the data sheet.
+	 */
+	AMDPM_SMBOUTW(sc, AMDSMB_HSTDATA, count);
 
-		AMDPM_SMBOUTW(sc, AMDSMB_HSTDATA, len);
-
-		/* Fill the 32-byte internal buffer */
-		for (i=0; i<len; i++) {
-			AMDPM_SMBOUTB(sc, AMDSMB_HSTDFIFO, buf[count-remain+i]);
-			DELAY(2);
-		}
-		AMDPM_SMBOUTB(sc, AMDSMB_HSTCMD, cmd);
-		l = AMDPM_SMBINW(sc, AMDSMB_GLOBAL_ENABLE);
-		AMDPM_SMBOUTW(sc, AMDSMB_GLOBAL_ENABLE, (l & 0xfff8) | AMDSMB_GE_CYC_BLOCK | AMDSMB_GE_HOST_STC);
-
-		if ((error = amdpm_wait(sc)) != SMB_ENOERR)
-			goto error;
-
-		remain -= len;
+	/* Fill the 32-byte internal buffer */
+	for (i = 0; i < count; i++) {
+		AMDPM_SMBOUTB(sc, AMDSMB_HSTDFIFO, buf[i]);
+		DELAY(2);
 	}
+	AMDPM_SMBOUTB(sc, AMDSMB_HSTCMD, cmd);
+	l = AMDPM_SMBINW(sc, AMDSMB_GLOBAL_ENABLE);
+	AMDPM_SMBOUTW(sc, AMDSMB_GLOBAL_ENABLE,
+	    (l & 0xfff8) | AMDSMB_GE_CYC_BLOCK | AMDSMB_GE_HOST_STC);
 
-error:
+	error = amdpm_wait(sc);
+
 	AMDPM_DEBUG(printf("amdpm: WRITEBLK to 0x%x, count=0x%x, cmd=0x%x, error=0x%x", slave, count, cmd, error));
 
 	return (error);
 }
 
 static int
-amdpm_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
+amdpm_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 {
 	struct amdpm_softc *sc = (struct amdpm_softc *)device_get_softc(dev);
-	u_char remain, len, i;
-	int error = SMB_ENOERR;
+	u_char data, len, i;
+	int error;
 	u_short l;
 
+	if (*count < 1 || *count > 32)
+		return (SMB_EINVAL);
 	amdpm_clear(sc);
 	if (!amdpm_idle(sc))
 		return (SMB_EBUSY);
 
-	remain = count;
-	while (remain) {
-		AMDPM_SMBOUTW(sc, AMDSMB_HSTADDR, slave | LSB);
+	AMDPM_SMBOUTW(sc, AMDSMB_HSTADDR, slave | LSB);
 	
-		AMDPM_SMBOUTB(sc, AMDSMB_HSTCMD, cmd);
+	AMDPM_SMBOUTB(sc, AMDSMB_HSTCMD, cmd);
 
-		l = AMDPM_SMBINW(sc, AMDSMB_GLOBAL_ENABLE);
-		AMDPM_SMBOUTW(sc, AMDSMB_GLOBAL_ENABLE, (l & 0xfff8) | AMDSMB_GE_CYC_BLOCK | AMDSMB_GE_HOST_STC);
+	l = AMDPM_SMBINW(sc, AMDSMB_GLOBAL_ENABLE);
+	AMDPM_SMBOUTW(sc, AMDSMB_GLOBAL_ENABLE,
+	    (l & 0xfff8) | AMDSMB_GE_CYC_BLOCK | AMDSMB_GE_HOST_STC);
 		
-		if ((error = amdpm_wait(sc)) != SMB_ENOERR)
-			goto error;
+	if ((error = amdpm_wait(sc)) != SMB_ENOERR)
+		goto error;
 
-		len = AMDPM_SMBINW(sc, AMDSMB_HSTDATA);
+	len = AMDPM_SMBINW(sc, AMDSMB_HSTDATA);
 
-		/* Read the 32-byte internal buffer */
-		for (i=0; i<len; i++) {
-			buf[count-remain+i] = AMDPM_SMBINB(sc, AMDSMB_HSTDFIFO);
-			DELAY(2);
-		}
-
-		remain -= len;
+	/* Read the 32-byte internal buffer */
+	for (i = 0; i < len; i++) {
+		data = AMDPM_SMBINB(sc, AMDSMB_HSTDFIFO);
+		if (i < *count)
+			buf[i] = data;
+		DELAY(2);
 	}
+	*count = len;
+
 error:
-	AMDPM_DEBUG(printf("amdpm: READBLK to 0x%x, count=0x%x, cmd=0x%x, error=0x%x", slave, count, cmd, error));
+	AMDPM_DEBUG(printf("amdpm: READBLK to 0x%x, count=0x%x, cmd=0x%x, error=0x%x", slave, *count, cmd, error));
 
 	return (error);
 }
@@ -616,8 +611,8 @@ static driver_t amdpm_driver = {
 };
 
 DRIVER_MODULE(amdpm, pci, amdpm_driver, amdpm_devclass, 0, 0);
+DRIVER_MODULE(smbus, amdpm, smbus_driver, smbus_devclass, 0, 0);
 
 MODULE_DEPEND(amdpm, pci, 1, 1, 1);
 MODULE_DEPEND(amdpm, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(amdpm, 1);
-

@@ -259,7 +259,7 @@ alpm_detach(device_t dev)
 }
 
 static int
-alpm_callback(device_t dev, int index, caddr_t *data)
+alpm_callback(device_t dev, int index, void *data)
 {
 	int error = 0;
 
@@ -525,82 +525,76 @@ static int
 alpm_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 {
 	struct alpm_softc *sc = (struct alpm_softc *)device_get_softc(dev);
-	u_char remain, len, i;
-	int error = SMB_ENOERR;
+	u_char i;
+	int error;
 
+	if (count < 1 || count > 32)
+		return (SMB_EINVAL);
 	alpm_clear(sc);
 	if(!alpm_idle(sc))
 		return (SMB_EBUSY);
 
-	remain = count;
-	while (remain) {
-		len = min(remain, 32);
-
-		ALPM_SMBOUTB(sc, SMBHADDR, slave & ~LSB);
+	ALPM_SMBOUTB(sc, SMBHADDR, slave & ~LSB);
 	
-		/* set the cmd and reset the
-		 * 32-byte long internal buffer */
-		ALPM_SMBOUTB(sc, SMBCMD, SMBWRBLOCK | SMB_BLK_CLR);
+	/* set the cmd and reset the
+	 * 32-byte long internal buffer */
+	ALPM_SMBOUTB(sc, SMBCMD, SMBWRBLOCK | SMB_BLK_CLR);
 
-		ALPM_SMBOUTB(sc, SMBHDATA, len);
+	ALPM_SMBOUTB(sc, SMBHDATA, count);
 
-		/* fill the 32-byte internal buffer */
-		for (i=0; i<len; i++) {
-			ALPM_SMBOUTB(sc, SMBHBLOCK, buf[count-remain+i]);
-			DELAY(2);
-		}
-		ALPM_SMBOUTB(sc, SMBHCMD, cmd);
-		ALPM_SMBOUTB(sc, SMBSTART, 0xff);
-
-		if ((error = alpm_wait(sc)) != SMB_ENOERR)
-			goto error;
-
-		remain -= len;
+	/* fill the 32-byte internal buffer */
+	for (i = 0; i < count; i++) {
+		ALPM_SMBOUTB(sc, SMBHBLOCK, buf[i]);
+		DELAY(2);
 	}
+	ALPM_SMBOUTB(sc, SMBHCMD, cmd);
+	ALPM_SMBOUTB(sc, SMBSTART, 0xff);
 
-error:
+	error = alpm_wait(sc);
+
 	ALPM_DEBUG(printf("alpm: WRITEBLK to 0x%x, count=0x%x, cmd=0x%x, error=0x%x", slave, count, cmd, error));
 
 	return (error);
 }
 
 static int
-alpm_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
+alpm_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 {
 	struct alpm_softc *sc = (struct alpm_softc *)device_get_softc(dev);
-	u_char remain, len, i;
-	int error = SMB_ENOERR;
+	u_char data, len, i;
+	int error;
 
+	if (*count < 1 || *count > 32)
+		return (SMB_EINVAL);
 	alpm_clear(sc);
 	if (!alpm_idle(sc))
 		return (SMB_EBUSY);
 
-	remain = count;
-	while (remain) {
-		ALPM_SMBOUTB(sc, SMBHADDR, slave | LSB);
+	ALPM_SMBOUTB(sc, SMBHADDR, slave | LSB);
 	
-		/* set the cmd and reset the
-		 * 32-byte long internal buffer */
-		ALPM_SMBOUTB(sc, SMBCMD, SMBWRBLOCK | SMB_BLK_CLR);
+	/* set the cmd and reset the
+	 * 32-byte long internal buffer */
+	ALPM_SMBOUTB(sc, SMBCMD, SMBWRBLOCK | SMB_BLK_CLR);
 
-		ALPM_SMBOUTB(sc, SMBHCMD, cmd);
-		ALPM_SMBOUTB(sc, SMBSTART, 0xff);
+	ALPM_SMBOUTB(sc, SMBHCMD, cmd);
+	ALPM_SMBOUTB(sc, SMBSTART, 0xff);
 
-		if ((error = alpm_wait(sc)) != SMB_ENOERR)
+	if ((error = alpm_wait(sc)) != SMB_ENOERR)
 			goto error;
 
-		len = ALPM_SMBINB(sc, SMBHDATA);
+	len = ALPM_SMBINB(sc, SMBHDATA);
 
-		/* read the 32-byte internal buffer */
-		for (i=0; i<len; i++) {
-			buf[count-remain+i] = ALPM_SMBINB(sc, SMBHBLOCK);
-			DELAY(2);
-		}
-
-		remain -= len;
+	/* read the 32-byte internal buffer */
+	for (i = 0; i < len; i++) {
+		data = ALPM_SMBINB(sc, SMBHBLOCK);
+		if (i < *count)
+			buf[i] = data;
+		DELAY(2);
 	}
+	*count = len;
+
 error:
-	ALPM_DEBUG(printf("alpm: READBLK to 0x%x, count=0x%x, cmd=0x%x, error=0x%x", slave, count, cmd, error));
+	ALPM_DEBUG(printf("alpm: READBLK to 0x%x, count=0x%x, cmd=0x%x, error=0x%x", slave, *count, cmd, error));
 
 	return (error);
 }
@@ -635,6 +629,7 @@ static driver_t alpm_driver = {
 };
 
 DRIVER_MODULE(alpm, pci, alpm_driver, alpm_devclass, 0, 0);
+DRIVER_MODULE(smbus, alpm, smbus_driver, smbus_devclass, 0, 0);
 MODULE_DEPEND(alpm, pci, 1, 1, 1);
 MODULE_DEPEND(alpm, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(alpm, 1);
