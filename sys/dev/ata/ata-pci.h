@@ -266,6 +266,9 @@ struct ata_connect_task {
 #define ATA_HT1000              0x02141166
 #define ATA_HT1000_S1           0x024b1166
 #define ATA_HT1000_S2           0x024a1166
+#define ATA_K2			0x02401166
+#define ATA_FRODO4		0x02411166
+#define ATA_FRODO8		0x02421166
 
 #define ATA_SILICON_IMAGE_ID    0x1095
 #define ATA_SII3114             0x31141095
