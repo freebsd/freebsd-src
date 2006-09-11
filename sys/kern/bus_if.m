@@ -194,7 +194,7 @@ METHOD device_t add_child {
 	int _order;
 	const char *_name;
 	int _unit;
-} DEFAULT bus_generic_add_child;
+};
 
 /**
  * @brief Allocate a system resource
