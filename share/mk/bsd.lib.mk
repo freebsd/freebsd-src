@@ -28,6 +28,10 @@ SONAME?=	${SHLIB_NAME}
 CFLAGS+=	${CRUNCH_CFLAGS}
 .endif
 
+.if ${MK_ASSERT_DEBUG} == "no"
+CFLAGS+= -DNDEBUG
+.endif
+
 .if defined(DEBUG_FLAGS)
 CFLAGS+= ${DEBUG_FLAGS}
 .endif
