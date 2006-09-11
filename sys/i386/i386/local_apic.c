@@ -797,6 +797,76 @@ DB_SHOW_COMMAND(apic, db_show_apic)
 		}
 	}
 }
+
+static void
+dump_mask(const char *prefix, uint32_t v, int base)
+{
+	int i, first;
+
+	first = 1;
+	for (i = 0; i < 32; i++)
+		if (v & (1 << i)) {
+			if (first) {
+				db_printf("%s:", prefix);
+				first = 0;
+			}
+			db_printf(" %02x", base + i);
+		}
+	if (!first)
+		db_printf("\n");
+}
+
+/* Show info from the lapic regs for this CPU. */
+DB_SHOW_COMMAND(lapic, db_show_lapic)
+{
+	uint32_t v;
+
+	db_printf("lapic ID = %d\n", lapic_id());
+	v = lapic->version;
+	db_printf("version  = %d.%d\n", (v & APIC_VER_VERSION) >> 4,
+	    v & 0xf);
+	db_printf("max LVT  = %d\n", (v & APIC_VER_MAXLVT) >> MAXLVTSHIFT);
+	v = lapic->svr;
+	db_printf("SVR      = %02x (%s)\n", v & APIC_SVR_VECTOR,
+	    v & APIC_SVR_ENABLE ? "enabled" : "disabled");
+	db_printf("TPR      = %02x\n", lapic->tpr);
+
+#define dump_field(prefix, index)					\
+	dump_mask(__XSTRING(prefix ## index), lapic->prefix ## index,	\
+	    index * 32)
+
+	db_printf("In-service Interrupts:\n");
+	dump_field(isr, 0);
+	dump_field(isr, 1);
+	dump_field(isr, 2);
+	dump_field(isr, 3);
+	dump_field(isr, 4);
+	dump_field(isr, 5);
+	dump_field(isr, 6);
+	dump_field(isr, 7);
+
+	db_printf("TMR Interrupts:\n");
+	dump_field(tmr, 0);
+	dump_field(tmr, 1);
+	dump_field(tmr, 2);
+	dump_field(tmr, 3);
+	dump_field(tmr, 4);
+	dump_field(tmr, 5);
+	dump_field(tmr, 6);
+	dump_field(tmr, 7);
+
+	db_printf("IRR Interrupts:\n");
+	dump_field(irr, 0);
+	dump_field(irr, 1);
+	dump_field(irr, 2);
+	dump_field(irr, 3);
+	dump_field(irr, 4);
+	dump_field(irr, 5);
+	dump_field(irr, 6);
+	dump_field(irr, 7);
+
+#undef dump_field
+}
 #endif
 
 /*
