@@ -85,7 +85,7 @@ struct bbb_csw {
 
 /* USB-ATA 'controller' softc */
 struct atausb_softc {
-    USBBASEDEVICE	dev;		/* base device */
+    device_t		dev;		/* base device */
     usbd_interface_handle iface;	/* interface */
     int			ifaceno;	/* interface number */
     u_int8_t		bulkin;		/* endpoint address's */
@@ -349,7 +349,7 @@ atausb_attach(device_t dev)
 }
 
 static int
-atausb_detach(device_ptr_t dev)
+atausb_detach(device_t dev)
 {
     struct atausb_softc *sc = device_get_softc(dev);
     usbd_device_handle udev;
