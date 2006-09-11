@@ -488,18 +488,14 @@ static int
 sysctl_handle_sb_max(SYSCTL_HANDLER_ARGS)
 {
 	int error = 0;
-	u_long old_sb_max = sb_max;
+	u_long tmp_sb_max = sb_max;
 
-	error = SYSCTL_OUT(req, arg1, sizeof(u_long));
+	error = sysctl_handle_long(oidp, &tmp_sb_max, arg2, req);
 	if (error || !req->newptr)
 		return (error);
-	error = SYSCTL_IN(req, arg1, sizeof(u_long));
-	if (error)
-		return (error);
-	if (sb_max < MSIZE + MCLBYTES) {
-		sb_max = old_sb_max;
+	if (tmp_sb_max < MSIZE + MCLBYTES)
 		return (EINVAL);
-	}
+	sb_max = tmp_sb_max;
 	sb_max_adj = (u_quad_t)sb_max * MCLBYTES / (MSIZE + MCLBYTES);
 	return (0);
 }
