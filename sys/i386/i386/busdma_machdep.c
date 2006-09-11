@@ -53,6 +53,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 
 #define MAX_BPAGES 512
+#define BUS_DMA_USE_FILTER	BUS_DMA_BUS2
+#define BUS_DMA_COULD_BOUNCE	BUS_DMA_BUS3
+#define BUS_DMA_MIN_ALLOC_COMP	BUS_DMA_BUS4
 
 struct bounce_zone;
 
@@ -137,7 +140,7 @@ static int reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
 static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
 				   vm_offset_t vaddr, bus_size_t size);
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
-static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
+static int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
 
 /*
  * Return true if a match is made.
@@ -147,7 +150,7 @@ static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
  * If paddr is within the bounds of the dma tag then call the filter callback
  * to check for a match, if there is no filter callback then assume a match.
  */
-static __inline int
+static int
 run_filter(bus_dma_tag_t dmat, bus_addr_t paddr)
 {
 	int retval;
@@ -202,8 +205,6 @@ dflt_lock(void *arg, bus_dma_lock_op_t op)
 	panic("driver error: busdma dflt_lock called");
 }
 
-#define BUS_DMA_COULD_BOUNCE	BUS_DMA_BUS3
-#define BUS_DMA_MIN_ALLOC_COMP	BUS_DMA_BUS4
 /*
  * Allocate a device specific dma_tag.
  */
@@ -265,6 +266,9 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		else if (parent->boundary != 0)
 			newtag->boundary = MIN(parent->boundary,
 					       newtag->boundary);
+		if ((newtag->filter != NULL) ||
+		    ((parent->flags & BUS_DMA_USE_FILTER) != 0))
+			newtag->flags |= BUS_DMA_USE_FILTER;
 		if (newtag->filter == NULL) {
 			/*
 			 * Short circuit looking at our parent directly
@@ -553,37 +557,16 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	CTR3(KTR_BUSDMA, "%s: tag %p flags 0x%x", __func__, dmat, dmat->flags);
 }
 
-/*
- * Utility function to load a linear buffer.  lastaddrp holds state
- * between invocations (for multiple-buffer loads).  segp contains
- * the starting segment on entrace, and the ending segment on exit.
- * first indicates if this is the first invocation of this function.
- */
-static __inline int
-_bus_dmamap_load_buffer(bus_dma_tag_t dmat,
-    			bus_dmamap_t map,
-			void *buf, bus_size_t buflen,
-			pmap_t pmap,
-			int flags,
-			bus_addr_t *lastaddrp,
-			bus_dma_segment_t *segs,
-			int *segp,
-			int first)
+static int
+_bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
+			bus_size_t buflen, int flags, int *nb)
 {
-	bus_size_t sgsize;
-	bus_addr_t curaddr, lastaddr, baddr, bmask;
 	vm_offset_t vaddr;
+	vm_offset_t vendaddr;
 	bus_addr_t paddr;
-	int needbounce = 0;
-	int seg;
+	int needbounce = *nb;
 
-	if (map == NULL)
-		map = &nobounce_dmamap;
-
-	if ((map != &nobounce_dmamap && map->pagesneeded == 0) 
-	 && ((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0)) {
-		vm_offset_t	vendaddr;
-
+	if ((map != &nobounce_dmamap && map->pagesneeded == 0)) {
 		CTR4(KTR_BUSDMA, "lowaddr= %d Maxmem= %d, boundary= %d, "
 		    "alignment= %d", dmat->lowaddr, ptoa((vm_paddr_t)Maxmem),
 		    dmat->boundary, dmat->alignment);
@@ -598,7 +581,8 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 
 		while (vaddr < vendaddr) {
 			paddr = pmap_kextract(vaddr);
-			if (run_filter(dmat, paddr) != 0) {
+			if (((dmat->flags & BUS_DMA_USE_FILTER) != 0) &&
+			    run_filter(dmat, paddr) != 0) {
 				needbounce = 1;
 				map->pagesneeded++;
 			}
@@ -630,6 +614,43 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		mtx_unlock(&bounce_lock);
 	}
 
+	*nb = needbounce;
+	return (0);
+}
+
+/*
+ * Utility function to load a linear buffer.  lastaddrp holds state
+ * between invocations (for multiple-buffer loads).  segp contains
+ * the starting segment on entrace, and the ending segment on exit.
+ * first indicates if this is the first invocation of this function.
+ */
+static __inline int
+_bus_dmamap_load_buffer(bus_dma_tag_t dmat,
+    			bus_dmamap_t map,
+			void *buf, bus_size_t buflen,
+			pmap_t pmap,
+			int flags,
+			bus_addr_t *lastaddrp,
+			bus_dma_segment_t *segs,
+			int *segp,
+			int first)
+{
+	bus_size_t sgsize;
+	bus_addr_t curaddr, lastaddr, baddr, bmask;
+	vm_offset_t vaddr;
+	int needbounce = 0;
+	int seg, error;
+
+	if (map == NULL)
+		map = &nobounce_dmamap;
+
+	if ((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) {
+		error = _bus_dmamap_count_pages(dmat, map, buf, buflen, flags,
+		    &needbounce);
+		if (error)
+			return (error);
+	}
+
 	vaddr = (vm_offset_t)buf;
 	lastaddr = *lastaddrp;
 	bmask = ~(dmat->boundary - 1);
@@ -659,7 +680,8 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 				sgsize = (baddr - curaddr);
 		}
 
-		if (map->pagesneeded != 0 && run_filter(dmat, curaddr))
+		if (((dmat->flags & BUS_DMA_USE_FILTER) != 0) &&
+		    map->pagesneeded != 0 && run_filter(dmat, curaddr))
 			curaddr = add_bounce_page(dmat, map, vaddr, sgsize);
 
 		/*
