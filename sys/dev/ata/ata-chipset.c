@@ -3952,14 +3952,17 @@ ata_serverworks_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_ROSB4,     0x00, SWKS33,  0x00, ATA_UDMA2, "ROSB4" },
-     { ATA_CSB5,      0x92, SWKS100, 0x00, ATA_UDMA5, "CSB5" },
-     { ATA_CSB5,      0x00, SWKS66,  0x00, ATA_UDMA4, "CSB5" },
-     { ATA_CSB6,      0x00, SWKS100, 0x00, ATA_UDMA5, "CSB6" },
-     { ATA_CSB6_1,    0x00, SWKS66,  0x00, ATA_UDMA4, "CSB6" },
-     { ATA_HT1000,    0x00, SWKS100, 0x00, ATA_UDMA5, "HT1000" },
-     { ATA_HT1000_S1, 0x00, SWKS100, 0x00, ATA_SA150, "HT1000 SATA" },
-     { ATA_HT1000_S2, 0x00, SWKSMIO, 0x00, ATA_SA150, "HT1000 SATA mmio" },
+    {{ ATA_ROSB4,     0x00, SWKS33,  0, ATA_UDMA2, "ROSB4" },
+     { ATA_CSB5,      0x92, SWKS100, 0, ATA_UDMA5, "CSB5" },
+     { ATA_CSB5,      0x00, SWKS66,  0, ATA_UDMA4, "CSB5" },
+     { ATA_CSB6,      0x00, SWKS100, 0, ATA_UDMA5, "CSB6" },
+     { ATA_CSB6_1,    0x00, SWKS66,  0, ATA_UDMA4, "CSB6" },
+     { ATA_HT1000,    0x00, SWKS100, 0, ATA_UDMA5, "HT1000" },
+     { ATA_HT1000_S1, 0x00, SWKS100, 4, ATA_SA150, "HT1000" },
+     { ATA_HT1000_S2, 0x00, SWKSMIO, 4, ATA_SA150, "HT1000" },
+     { ATA_K2,        0x00, SWKSMIO, 4, ATA_SA150, "K2" },
+     { ATA_FRODO4,    0x00, SWKSMIO, 4, ATA_SA150, "Frodo4" },
+     { ATA_FRODO8,    0x00, SWKSMIO, 8, ATA_SA150, "Frodo8" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
@@ -3989,7 +3992,7 @@ ata_serverworks_chipinit(device_t dev)
 						    &ctlr->r_rid2, RF_ACTIVE)))
 	    return ENXIO;
 
-	ctlr->channels = 4;
+	ctlr->channels = ctlr->chip->cfg2;
 	ctlr->allocate = ata_serverworks_allocate;
 	ctlr->setmode = ata_sata_setmode;
 	return 0;
