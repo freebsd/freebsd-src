@@ -640,7 +640,7 @@ viasmb_quick(device_t dev, u_char slave, int how)
 
 	viapm_clear(viapm);
 	if (viapm_busy(viapm))
-		return (EBUSY);
+		return (SMB_EBUSY);
 
 	switch (how) {
 	case SMB_QWRITE:
@@ -670,7 +670,7 @@ viasmb_sendb(device_t dev, u_char slave, char byte)
 
 	viapm_clear(viapm);
 	if (viapm_busy(viapm))
-		return (EBUSY);
+		return (SMB_EBUSY);
 
 	VIAPM_OUTB(SMBHADDR, slave & ~ LSB);
 	VIAPM_OUTB(SMBHCMD, byte);
@@ -692,7 +692,7 @@ viasmb_recvb(device_t dev, u_char slave, char *byte)
 
 	viapm_clear(viapm);
 	if (viapm_busy(viapm))
-		return (EBUSY);
+		return (SMB_EBUSY);
 
 	VIAPM_OUTB(SMBHADDR, slave | LSB);
 
@@ -714,7 +714,7 @@ viasmb_writeb(device_t dev, u_char slave, char cmd, char byte)
 
 	viapm_clear(viapm);
 	if (viapm_busy(viapm))
-		return (EBUSY);
+		return (SMB_EBUSY);
 
 	VIAPM_OUTB(SMBHADDR, slave & ~ LSB);
 	VIAPM_OUTB(SMBHCMD, cmd);
@@ -737,7 +737,7 @@ viasmb_readb(device_t dev, u_char slave, char cmd, char *byte)
 
 	viapm_clear(viapm);
 	if (viapm_busy(viapm))
-		return (EBUSY);
+		return (SMB_EBUSY);
 
 	VIAPM_OUTB(SMBHADDR, slave | LSB);
 	VIAPM_OUTB(SMBHCMD, cmd);
@@ -760,7 +760,7 @@ viasmb_writew(device_t dev, u_char slave, char cmd, short word)
 
 	viapm_clear(viapm);
 	if (viapm_busy(viapm))
-		return (EBUSY);
+		return (SMB_EBUSY);
 
 	VIAPM_OUTB(SMBHADDR, slave & ~ LSB);
 	VIAPM_OUTB(SMBHCMD, cmd);
@@ -785,7 +785,7 @@ viasmb_readw(device_t dev, u_char slave, char cmd, short *word)
 
 	viapm_clear(viapm);
 	if (viapm_busy(viapm))
-		return (EBUSY);
+		return (SMB_EBUSY);
 
 	VIAPM_OUTB(SMBHADDR, slave | LSB);
 	VIAPM_OUTB(SMBHCMD, cmd);
@@ -808,37 +808,31 @@ static int
 viasmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 {
 	struct viapm_softc *viapm = (struct viapm_softc *)device_get_softc(dev);
-	u_char remain, len, i;
-	int error = SMB_ENOERR;
+	u_char i;
+	int error;
+
+	if (count < 1 || count > 32)
+		return (SMB_EINVAL);
 
 	viapm_clear(viapm);
 	if (viapm_busy(viapm))
-		return (EBUSY);
+		return (SMB_EBUSY);
 
-	remain = count;
-	while (remain) {
-		len = min(remain, 32);
+	VIAPM_OUTB(SMBHADDR, slave & ~LSB);
+	VIAPM_OUTB(SMBHCMD, cmd);
+	VIAPM_OUTB(SMBHDATA0, count);
+	i = VIAPM_INB(SMBHCTRL);
 
-		VIAPM_OUTB(SMBHADDR, slave & ~LSB);
-		VIAPM_OUTB(SMBHCMD, cmd);
-		VIAPM_OUTB(SMBHDATA0, len);
-		i = VIAPM_INB(SMBHCTRL);
-
-		/* fill the 32-byte internal buffer */
-		for (i=0; i<len; i++) {
-			VIAPM_OUTB(SMBHBLOCK, buf[count-remain+i]);
-			DELAY(2);
-		}
-		VIAPM_OUTB(SMBHCMD, cmd);
-		VIAPM_OUTB(SMBHCTRL, SMBHCTRL_START | SMBHCTRL_BLOCK);
-
-		if ((error = viapm_wait(viapm)) != SMB_ENOERR)
-			goto error;
-
-		remain -= len;
+	/* fill the 32-byte internal buffer */
+	for (i = 0; i < count; i++) {
+		VIAPM_OUTB(SMBHBLOCK, buf[i]);
+		DELAY(2);
 	}
+	VIAPM_OUTB(SMBHCMD, cmd);
+	VIAPM_OUTB(SMBHCTRL, SMBHCTRL_START | SMBHCTRL_BLOCK);
 
-error:
+	error = viapm_wait(viapm);
+
 	VIAPM_DEBUG(printf("viapm: WRITEBLK to 0x%x, count=0x%x, cmd=0x%x, error=0x%x", slave, count, cmd, error));
 
 	return (error);
@@ -846,40 +840,40 @@ error:
 }
 
 static int
-viasmb_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
+viasmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 {
 	struct viapm_softc *viapm = (struct viapm_softc *)device_get_softc(dev);
-	u_char remain, len, i;
-	int error = SMB_ENOERR;
+	u_char data, len, i;
+	int error;
+
+	if (*count < 1 || *count > 32)
+		return (SMB_EINVAL);
 
 	viapm_clear(viapm);
 	if (viapm_busy(viapm))
-		return (EBUSY);
+		return (SMB_EBUSY);
 
-	remain = count;
-	while (remain) {
-		VIAPM_OUTB(SMBHADDR, slave | LSB);
-		VIAPM_OUTB(SMBHCMD, cmd);
-		VIAPM_OUTB(SMBHCTRL, SMBHCTRL_START | SMBHCTRL_BLOCK);
+	VIAPM_OUTB(SMBHADDR, slave | LSB);
+	VIAPM_OUTB(SMBHCMD, cmd);
+	VIAPM_OUTB(SMBHCTRL, SMBHCTRL_START | SMBHCTRL_BLOCK);
 
-		if ((error = viapm_wait(viapm)) != SMB_ENOERR)
-			goto error;
+	if ((error = viapm_wait(viapm)) != SMB_ENOERR)
+		goto error;
 
-		len = VIAPM_INB(SMBHDATA0);
-		i = VIAPM_INB(SMBHCTRL); 		/* reset counter */
+	len = VIAPM_INB(SMBHDATA0);
+	i = VIAPM_INB(SMBHCTRL); 		/* reset counter */
 
-		len = min(len, remain);
-
-		/* read the 32-byte internal buffer */
-		for (i=0; i<len; i++) {
-			buf[count-remain+i] = VIAPM_INB(SMBHBLOCK);
-			DELAY(2);
-		}
-
-		remain -= len;
+	/* read the 32-byte internal buffer */
+	for (i = 0; i < len; i++) {
+		data = VIAPM_INB(SMBHBLOCK);
+		if (i < *count)
+			buf[i] = data;
+		DELAY(2);
 	}
+	*count = len;
+
 error:
-	VIAPM_DEBUG(printf("viapm: READBLK to 0x%x, count=0x%x, cmd=0x%x, error=0x%x", slave, count, cmd, error));
+	VIAPM_DEBUG(printf("viapm: READBLK to 0x%x, count=0x%x, cmd=0x%x, error=0x%x", slave, *count, cmd, error));
 
 	return (error);
 }
@@ -954,6 +948,7 @@ static driver_t viapropm_driver = {
 
 DRIVER_MODULE(viapm, pci, viapm_driver, viapm_devclass, 0, 0);
 DRIVER_MODULE(viapropm, pci, viapropm_driver, viapropm_devclass, 0, 0);
+DRIVER_MODULE(smbus, viapropm, smbus_driver, smbus_devclass, 0, 0);
 
 MODULE_DEPEND(viapm, pci, 1, 1, 1);
 MODULE_DEPEND(viapropm, pci, 1, 1, 1);

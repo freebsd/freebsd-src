@@ -71,7 +71,7 @@ static int intsmb_attach(device_t);
 static int intsmb_intr(device_t dev);
 static int intsmb_slvintr(device_t dev);
 static void  intsmb_alrintr(device_t dev);
-static int intsmb_callback(device_t dev, int index, caddr_t data);
+static int intsmb_callback(device_t dev, int index, void *data);
 static int intsmb_quick(device_t dev, u_char slave, int how);
 static int intsmb_sendb(device_t dev, u_char slave, char byte);
 static int intsmb_recvb(device_t dev, u_char slave, char *byte);
@@ -81,7 +81,7 @@ static int intsmb_readb(device_t dev, u_char slave, char cmd, char *byte);
 static int intsmb_readw(device_t dev, u_char slave, char cmd, short *word);
 static int intsmb_pcall(device_t dev, u_char slave, char cmd, short sdata, short *rdata);
 static int intsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf);
-static int intsmb_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf);
+static int intsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf);
 static void intsmb_start(device_t dev,u_char cmd,int nointr);
 static int intsmb_stop(device_t dev);
 static int intsmb_stop_poll(device_t dev);
@@ -175,7 +175,7 @@ intsmb_attach(device_t dev)
 }
 
 static int 
-intsmb_callback(device_t dev, int index, caddr_t data)
+intsmb_callback(device_t dev, int index, void *data)
 {
 	int error = 0;
 	intrmask_t s;
@@ -585,7 +585,7 @@ intsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
         struct intsmb_softc *sc = (struct intsmb_softc *)device_get_softc(dev);
         error=intsmb_free(dev);
         if(count>SMBBLOCKTRANS_MAX||count==0)
-                error=EINVAL;
+                error=SMB_EINVAL;
         if(!error){
                 /*Reset internal array index*/
                 bus_space_read_1(sc->st,sc->sh,PIIX4_SMBHSTCNT);
@@ -603,32 +603,35 @@ intsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 }
 
 static int
-intsmb_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
+intsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 {
         int error,i;
+	u_char data, nread;
         struct intsmb_softc *sc = (struct intsmb_softc *)device_get_softc(dev);
         error=intsmb_free(dev);
-        if(count>SMBBLOCKTRANS_MAX||count==0)
-                error=EINVAL;
+        if(*count>SMBBLOCKTRANS_MAX||*count==0)
+                error=SMB_EINVAL;
         if(!error){
                 /*Reset internal array index*/
                 bus_space_read_1(sc->st,sc->sh,PIIX4_SMBHSTCNT);
 		
                 bus_space_write_1(sc->st,sc->sh,PIIX4_SMBHSTADD,slave|LSB);
                 bus_space_write_1(sc->st,sc->sh,PIIX4_SMBHSTCMD,cmd);
-                bus_space_write_1(sc->st,sc->sh,PIIX4_SMBHSTDAT0,count);
+                bus_space_write_1(sc->st,sc->sh,PIIX4_SMBHSTDAT0,*count);
                 intsmb_start(dev,PIIX4_SMBHSTCNT_PROT_BLOCK,0);
                 error=intsmb_stop(dev);
                 if(!error){
-                        bzero(buf,count);/*Is it needed?*/
-                        count= bus_space_read_1(sc->st,sc->sh,
+                        nread= bus_space_read_1(sc->st,sc->sh,
 						PIIX4_SMBHSTDAT0);
-                        if(count!=0&&count<=SMBBLOCKTRANS_MAX){
-			        for(i=0;i<count;i++){
-				        buf[i]=bus_space_read_1(sc->st,
+                        if(nread!=0&&nread<=SMBBLOCKTRANS_MAX){
+			        for(i=0;i<nread;i++){
+					data = bus_space_read_1(sc->st,
 								sc->sh,
 								PIIX4_SMBBLKDAT);
+					if (i < *count)
+						buf[i] = data;
 				}
+				*count = nread;
 			}
                         else{
 				error=EIO;
@@ -739,6 +742,7 @@ intpm_probe(device_t dev)
     }
 }
 DRIVER_MODULE(intpm, pci , intpm_pci_driver, intpm_devclass, 0, 0);
+DRIVER_MODULE(smbus, intsmb, smbus_driver, smbus_devclass, 0, 0);
 MODULE_DEPEND(intpm, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(intpm, 1);
 
