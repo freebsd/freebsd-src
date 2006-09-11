@@ -49,7 +49,6 @@ OPTION_FILES=${GCCDIR}/f/lang.opt ${GCCDIR}/c.opt ${GCCDIR}/common.opt
 .ORDER: options.h options.c
 options.h options.c: opts.sh ${OPTION_FILES}
 	/bin/sh ${GCCDIR}/opts.sh mv options.c options.h ${OPTION_FILES}
-	
 
 GENSRCS+=	options.c options.h
 CLEANFILES+=	options.c options.h
@@ -154,7 +153,7 @@ tm-preds.h: genpreds
 GENSRCS+=	tm-preds.h
 
 #-----------------------------------------------------------------------
-# Gengtype 
+# Gengtype
 
 gengtype-lex.c : gengtype-lex.l
 	${LEX} -t  ${.ALLSRC} | \
@@ -500,7 +499,7 @@ genconditions.o: insn-modes.h genrtl.h
 gencodes.o: insn-modes.h genrtl.h
 genconfig.o: insn-modes.h genrtl.h
 print-rtl.o: insn-modes.h genrtl.h tm-preds.h tree-check.h
-read-rtl.o: insn-modes.h genrtl.h 
+read-rtl.o: insn-modes.h genrtl.h
 genattr.o: insn-modes.h genrtl.h
 genemit.o: insn-modes.h genrtl.h
 genflags.o: insn-modes.h genrtl.h
