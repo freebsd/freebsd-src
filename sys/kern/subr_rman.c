@@ -155,7 +155,7 @@ rman_init(struct rman *rm)
 int
 rman_manage_region(struct rman *rm, u_long start, u_long end)
 {
-	struct resource_i *r, *s;
+	struct resource_i *r, *s, *t;
 
 	DPRINTF(("rman_manage_region: <%s> request: start %#lx, end %#lx\n",
 	    rm->rm_descr, start, end));
@@ -167,15 +167,53 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 	r->r_rm = rm;
 
 	mtx_lock(rm->rm_mtx);
+
+	/* Skip entries before us. */
 	for (s = TAILQ_FIRST(&rm->rm_list);
-	     s && s->r_end < r->r_start;
+	     s && s->r_end + 1 < r->r_start;
 	     s = TAILQ_NEXT(s, r_link))
 		;
 
+	/* If we ran off the end of the list, insert at the tail. */
 	if (s == NULL) {
 		TAILQ_INSERT_TAIL(&rm->rm_list, r, r_link);
 	} else {
-		TAILQ_INSERT_BEFORE(s, r, r_link);
+		/* Check for any overlap with the current region. */
+		if (r->r_start <= s->r_end && r->r_end >= s->r_start)
+			return EBUSY;
+
+		/* Check for any overlap with the next region. */
+		t = TAILQ_NEXT(s, r_link);
+		if (t && r->r_start <= t->r_end && r->r_end >= t->r_start)
+			return EBUSY;
+
+		/*
+		 * See if this region can be merged with the next region.  If
+		 * not, clear the pointer.
+		 */
+		if (t && (r->r_end + 1 != t->r_start || t->r_flags != 0))
+			t = NULL;
+
+		/* See if we can merge with the current region. */
+		if (s->r_end + 1 == r->r_start && s->r_flags == 0) {
+			/* Can we merge all 3 regions? */
+			if (t != NULL) {
+				s->r_end = t->r_end;
+				TAILQ_REMOVE(&rm->rm_list, t, r_link);
+				free(r, M_RMAN);
+				free(t, M_RMAN);
+			} else {
+				s->r_end = r->r_end;
+				free(r, M_RMAN);
+			}
+		} else {
+			/* Can we merge with just the next region? */
+			if (t != NULL) {
+				t->r_start = r->r_start;
+				free(r, M_RMAN);
+			} else
+				TAILQ_INSERT_BEFORE(s, r, r_link);
+		}
 	}
 
 	mtx_unlock(rm->rm_mtx);
