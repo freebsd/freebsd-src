@@ -194,11 +194,11 @@ $ SIGQUIT
 $ SIGILL
 4 Àß¸øµÈ ¸í·É
 $ SIGTRAP
-5 Trace/BPT µ£
+5 Trace/BPT Æ®·¦
 $ SIGABRT
-6 Abort µ£
+6 Abort Æ®·¦
 $ SIGEMT
-7 EMT µ£
+7 EMT Æ®·¦
 $ SIGFPE
 8 ºÎµ¿¼Ò¼öÁ¡ ¿¬»ê ¿¹¿Ü
 $ SIGKILL
