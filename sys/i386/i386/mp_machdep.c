@@ -385,7 +385,11 @@ cpu_mp_start(void)
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(IPI_INVLRNG, IDTVEC(invlrng),
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	
+
+	/* Install an inter-CPU IPI for cache invalidation. */
+	setidt(IPI_INVLCACHE, IDTVEC(invlcache),
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+
 	/* Install an inter-CPU IPI for lazy pmap release */
 	setidt(IPI_LAZYPMAP, IDTVEC(lazypmap),
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
