@@ -1516,8 +1516,10 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	 */
 	if (do_tso && (m_head->m_len <= M_TSO_LEN)) {
 		m_head = m_pullup(m_head, M_TSO_LEN + 4);
-		if (m_head == NULL)
+		*m_headp = m_head;
+		if (m_head == NULL) {
 			return (ENOBUFS);
+		}
 	}
 
 	/*
@@ -1578,7 +1580,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 
 	/* Do hardware assists */
 	m_head = *m_headp;
-	if ( ifp->if_hwassist > 0) {
+	if (ifp->if_hwassist > 0) {
 		if (em_tso_setup(adapter, m_head, &txd_upper, &txd_lower)) {
 			/* we need to make a final sentinel transmit desc */
 			tso_desc = TRUE;
