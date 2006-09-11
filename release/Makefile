@@ -587,7 +587,7 @@ release.1:
 
 # Install the system into the various distributions.
 release.2:
-	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/base
+	cd ${.CURDIR}/.. && ${CROSSMAKE} distrib-dirs DESTDIR=${RD}/trees/base
 	cd ${.CURDIR}/.. && ${CROSSMAKE} ${WORLD_FLAGS} distributeworld \
 	    DISTDIR=${RD}/trees
 	touch ${.TARGET}
@@ -611,7 +611,8 @@ release.4:
 .if exists(${.CURDIR}/${TARGET}/${j}_crunch.conf)
 	rm -rf ${j}_crunch
 	mkdir ${j}_crunch
-	cd ${j}_crunch; ${WMAKEENV} crunchgen -o \
+	cd ${j}_crunch; ${WMAKEENV} MAKEFLAGS="-m ${.CURDIR}/../share/mk" \
+	    crunchgen -o \
 	    ${.CURDIR}/${TARGET}/${j}_crunch.conf
 	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk subclean
 	cd ${.CURDIR}/..; ${BINMAKE} -f Makefile.inc1 _build-tools
