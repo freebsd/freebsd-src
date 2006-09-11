@@ -246,7 +246,7 @@ again:
 	 * Calculate MTU.  If we have a route that is up, use that,
 	 * otherwise use the interface's MTU.
 	 */
-	if (ro->ro_rt->rt_flags & (RTF_UP | RTF_HOST)) {
+	if (ro->ro_rt != NULL && (ro->ro_rt->rt_flags & (RTF_UP|RTF_HOST))) {
 		/*
 		 * This case can happen if the user changed the MTU
 		 * of an interface after enabling IP on it.  Because
