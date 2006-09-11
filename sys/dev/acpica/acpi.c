@@ -415,13 +415,13 @@ acpi_attach(device_t dev)
     acpi_rman_io.rm_type = RMAN_ARRAY;
     acpi_rman_io.rm_start = 0;
     acpi_rman_io.rm_end = 0xffff;
-    acpi_rman_io.rm_descr = "I/O ports";
+    acpi_rman_io.rm_descr = "ACPI I/O ports";
     if (rman_init(&acpi_rman_io) != 0)
 	panic("acpi rman_init IO ports failed");
     acpi_rman_mem.rm_type = RMAN_ARRAY;
     acpi_rman_mem.rm_start = 0;
     acpi_rman_mem.rm_end = ~0ul;
-    acpi_rman_mem.rm_descr = "I/O memory addresses";
+    acpi_rman_mem.rm_descr = "ACPI I/O memory addresses";
     if (rman_init(&acpi_rman_mem) != 0)
 	panic("acpi rman_init memory failed");
 
