@@ -189,8 +189,10 @@ static void freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask,
 long Maxmem = 0;
 long realmem = 0;
 
-vm_paddr_t phys_avail[10];
-vm_paddr_t dump_avail[10];
+#define PHYSMAP_SIZE	(2 * 16)
+
+vm_paddr_t phys_avail[PHYSMAP_SIZE + 2];
+vm_paddr_t dump_avail[PHYSMAP_SIZE + 2];
 
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(phys_avail[0])) - 2)
@@ -1612,8 +1614,6 @@ sdtossd(sd, ssd)
 	ssd->ssd_def32 = sd->sd_def32;
 	ssd->ssd_gran  = sd->sd_gran;
 }
-
-#define PHYSMAP_SIZE	(2 * 8)
 
 /*
  * Populate the (physmap) array with base/bound pairs describing the
