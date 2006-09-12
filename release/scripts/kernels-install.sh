@@ -35,8 +35,8 @@ if [ "$ans" = "y" ]; then
 		echo "Saving existing $KERNEL as $sav"
 		mv $KERNEL $sav
 	fi
-	# translate per Makefile:doTARBALL XXX are we sure to have tr+cut?
-	tn=`echo ${CONFIG} | tr 'A-Z' 'a-z' | cut -c1-8`
+	# translate per Makefile:doTARBALL XXX are we sure to have tr?
+	tn=`echo ${CONFIG} | tr 'A-Z' 'a-z'`
 	cat $tn.?? | tar --unlink -xpzf - -C $BOOT
 else
 	echo "Installation of $CONFIG kernel distribution not done." 
