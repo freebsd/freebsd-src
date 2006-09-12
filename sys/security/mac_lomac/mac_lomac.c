@@ -1446,6 +1446,17 @@ mac_lomac_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 	mac_lomac_copy_single(source, dest);
 }
 
+static void
+mac_lomac_create_mbuf_from_firewall(struct mbuf *m, struct label *label)
+{
+	struct mac_lomac *dest;
+
+	dest = SLOT(label);
+
+	/* XXX: where is the label for the firewall really comming from? */
+	mac_lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
+}
+
 /*
  * Labeling event operations: processes.
  */
@@ -2685,6 +2696,7 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_check_vnode_setutimes = mac_lomac_check_vnode_setutimes,
 	.mpo_check_vnode_write = mac_lomac_check_vnode_write,
 	.mpo_thread_userret = mac_lomac_thread_userret,
+	.mpo_create_mbuf_from_firewall = mac_lomac_create_mbuf_from_firewall,
 };
 
 MAC_POLICY_SET(&mac_lomac_ops, mac_lomac, "TrustedBSD MAC/LOMAC",
