@@ -15,8 +15,11 @@
  * all derivative works or modified versions.
  *
  * Cronyx Id: sconfig.c,v 1.4.2.2 2005/11/09 13:01:35 rik Exp $
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,9 +41,6 @@ int tflag, uflag;
 char mask[64];
 int adapter_type;		/* 0-sigma, 1-tau, 2-taupci, 3-tau32 */
 char chan_name[16];
-
-extern char *optarg;
-extern int optind;
 
 static void
 usage (void)
@@ -257,7 +257,11 @@ print_modems (int fd, int need_header)
 }
 
 static void
+#ifdef __linux__
 print_ifconfig (int fd)
+#else
+print_ifconfig (int fd __unused)
+#endif
 {
 	char buf [64];
 #ifdef __linux__
@@ -508,14 +512,14 @@ format_e3_status (unsigned long status)
 }
 
 static char *
-format_e3_cv (unsigned long cv, unsigned long baud, unsigned long time)
+format_e3_cv (unsigned long cv, unsigned long baud, unsigned long atime)
 {
 	static char buf[80];
 	
-	if (!cv || !baud || !time)
+	if (!cv || !baud || !atime)
 		sprintf (buf, "         -         ");
 	else
-		sprintf (buf, "%10lu (%.1e)", cv, (double)cv/baud/time);
+		sprintf (buf, "%10lu (%.1e)", cv, (double)cv/baud/atime);
 	return buf;
 }
 
