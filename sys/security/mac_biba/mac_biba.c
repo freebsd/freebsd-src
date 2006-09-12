@@ -1381,6 +1381,17 @@ mac_biba_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 	mac_biba_copy(source, dest);
 }
 
+static void
+mac_biba_create_mbuf_from_firewall(struct mbuf *m, struct label *label)
+{
+	struct mac_biba *dest;
+
+	dest = SLOT(label);
+
+	/* XXX: where is the label for the firewall really comming from? */
+	mac_biba_set_effective(dest, MAC_BIBA_TYPE_EQUAL, 0, NULL);
+}
+
 /*
  * Labeling event operations: processes.
  */
@@ -3210,6 +3221,7 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_check_vnode_stat = mac_biba_check_vnode_stat,
 	.mpo_check_vnode_write = mac_biba_check_vnode_write,
 	.mpo_associate_nfsd_label = mac_biba_associate_nfsd_label,
+	.mpo_create_mbuf_from_firewall = mac_biba_create_mbuf_from_firewall,
 };
 
 MAC_POLICY_SET(&mac_biba_ops, mac_biba, "TrustedBSD MAC/Biba",

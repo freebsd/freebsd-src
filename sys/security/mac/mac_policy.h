@@ -326,6 +326,8 @@ typedef void	(*mpo_inpcb_sosetlabel_t)(struct socket *so,
 		    struct label *label, struct inpcb *inp,
 		    struct label *inplabel);
 
+typedef	void	(*mpo_create_mbuf_from_firewall_t)(struct mbuf *m,
+		    struct label *label);
 /*
  * Labeling event operations: processes.
  */
@@ -880,6 +882,7 @@ struct mac_policy_ops {
 	mpo_check_vnode_stat_t			mpo_check_vnode_stat;
 	mpo_check_vnode_write_t			mpo_check_vnode_write;
 	mpo_associate_nfsd_label_t		mpo_associate_nfsd_label;
+	mpo_create_mbuf_from_firewall_t		mpo_create_mbuf_from_firewall;
 };
 
 /*
