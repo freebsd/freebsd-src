@@ -250,6 +250,7 @@ __opendir2(name, flags)
 		dirp->dd_size = ddptr - dirp->dd_buf;
 	} else {
 		dirp->dd_len = incr;
+		dirp->dd_size = 0;
 		dirp->dd_buf = malloc(dirp->dd_len);
 		if (dirp->dd_buf == NULL)
 			goto fail;
