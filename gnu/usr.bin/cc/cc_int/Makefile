@@ -80,6 +80,10 @@ insn-$F.c: ${.OBJDIR}/../cc_tools/gen$F
 CFLAGS+=	-DHAVE_CONFIG_H
 CFLAGS+=	-DTARGET_NAME=\"${target}\" -DIN_GCC
 
+.if ${TARGET_ARCH} == "arm" && defined(TARGET_BIG_ENDIAN)
+CFLAGS+=	-DTARGET_ENDIAN_DEFAULT=ARM_FLAG_BIG_END
+.endif
+
 # c-pch.o needs extra defines. Replicate the rule here rather than
 # pollute compiler command line for all other files.
 c-pch.o: c-pch.c
