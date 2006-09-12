@@ -48,10 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 
 #include <dev/iicbus/iiconf.h>
-#include <dev/iicbus/iicbus.h>
 
 #include <dev/smbus/smbconf.h>
-#include <dev/smbus/smbus.h>
 
 #include "iicbb_if.h"
 #include "smbus_if.h"
