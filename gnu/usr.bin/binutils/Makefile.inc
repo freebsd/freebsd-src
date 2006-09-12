@@ -1,6 +1,4 @@
-#
 # $FreeBSD$
-#
 
 .if (${TARGET_ARCH} == "alpha")
 WARNS?=	2
