@@ -140,7 +140,7 @@ parallel(char **argv)
 	LIST *head, *tmp;
 	int opencnt, output;
 
-	for (cnt = 0, head = NULL; (p = *argv); ++argv, ++cnt) {
+	for (cnt = 0, head = tmp = NULL; (p = *argv); ++argv, ++cnt) {
 		if ((lp = malloc(sizeof(LIST))) == NULL)
 			err(1, NULL);
 		if (p[0] == '-' && !p[1])
