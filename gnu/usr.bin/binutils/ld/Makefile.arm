@@ -1,6 +1,10 @@
 # $FreeBSD$
 
-NATIVE_EMULATION=	armelf_fbsd
+.if ${TARGET_ARCH} == "arm" && defined(TARGET_BIG_ENDIAN)
+NATIVE_EMULATION= armelfb_fbsd
+.else
+NATIVE_EMULATION= armelf_fbsd
+.endif
 
 SRCS+=		e${NATIVE_EMULATION}.c
 CLEANFILES+=	e${NATIVE_EMULATION}.c
