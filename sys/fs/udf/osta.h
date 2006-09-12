@@ -4,6 +4,21 @@
  * $FreeBSD$
  */
 
+/*-
+ **********************************************************************
+ * OSTA compliant Unicode compression, uncompression routines.
+ * Copyright 1995 Micro Design International, Inc.
+ * Written by Jason M. Rinn.
+ * Micro Design International gives permission for the free use of the
+ * following source code.
+ */
+
+/*
+ * Various routines from the OSTA 2.01 specs.  Copyrights are included with
+ * each code segment.  Slight whitespace modifications have been made for
+ * formatting purposes.  Typos/bugs have been fixed.
+ */
+
 #ifndef UNIX
 #define	UNIX
 #endif
