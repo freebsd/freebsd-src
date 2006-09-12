@@ -4869,7 +4869,7 @@ ata_via_allocate(device_t dev)
 	ata_default_registers(dev);
 	for (i = ATA_BMCMD_PORT; i <= ATA_BMDTP_PORT; i++) {
 	    ch->r_io[i].res = ctlr->r_res1;
-	    ch->r_io[i].offset = i - ATA_BMCMD_PORT;
+	    ch->r_io[i].offset = (i - ATA_BMCMD_PORT)+(ch->unit * ATA_BMIOSIZE);
 	}
 	ata_pci_hw(dev);
     }
