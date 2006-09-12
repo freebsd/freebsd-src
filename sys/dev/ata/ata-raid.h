@@ -76,7 +76,7 @@ struct ar_softc {
 #define AR_F_SII_RAID           0x0800
 #define AR_F_SIS_RAID           0x1000
 #define AR_F_VIA_RAID           0x2000
-#define AR_F_FORMAT_MASK        0x1fff
+#define AR_F_FORMAT_MASK        0x3fff
 
     u_int               generation;
     u_int64_t           total_sectors;
