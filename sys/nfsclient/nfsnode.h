@@ -189,7 +189,7 @@ int	nfs_reclaim(struct vop_reclaim_args *);
 /* other stuff */
 int	nfs_removeit(struct sillyrename *);
 int	nfs4_removeit(struct sillyrename *);
-int	nfs_nget(struct mount *, nfsfh_t *, int, struct nfsnode **);
+int	nfs_nget(struct mount *, nfsfh_t *, int, struct nfsnode **, int flags);
 nfsuint64 *nfs_getcookie(struct nfsnode *, off_t, int);
 uint64_t *nfs4_getcookie(struct nfsnode *, off_t, int);
 void	nfs_invaldir(struct vnode *);

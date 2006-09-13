@@ -254,7 +254,7 @@ nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 	error = vfs_busy(mp, LK_NOWAIT, NULL, td);
 	if (error)
 		return (error);
-	error = nfs_nget(mp, (nfsfh_t *)nmp->nm_fh, nmp->nm_fhsize, &np);
+	error = nfs_nget(mp, (nfsfh_t *)nmp->nm_fh, nmp->nm_fhsize, &np, LK_EXCLUSIVE);
 	if (error) {
 		vfs_unbusy(mp, td);
 		return (error);
@@ -785,7 +785,7 @@ nfs_mount(struct mount *mp, struct thread *td)
 	error = mountnfs(&args, mp, nam, hst, &vp, td->td_ucred);
 out:
 	if (!error)
-		mp->mnt_kern_flag |= MNTK_MPSAFE;
+		mp->mnt_kern_flag |= (MNTK_MPSAFE|MNTK_LOOKUP_SHARED);
 	return (error);
 }
 
@@ -913,7 +913,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	 * this problem, because one can identify root inodes by their
 	 * number == ROOTINO (2).
 	 */
-	error = nfs_nget(mp, (nfsfh_t *)nmp->nm_fh, nmp->nm_fhsize, &np);
+	error = nfs_nget(mp, (nfsfh_t *)nmp->nm_fh, nmp->nm_fhsize, &np, LK_EXCLUSIVE);
 	if (error)
 		goto bad;
 	*vpp = NFSTOV(np);
@@ -995,7 +995,7 @@ nfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 	int error;
 
 	nmp = VFSTONFS(mp);
-	error = nfs_nget(mp, (nfsfh_t *)nmp->nm_fh, nmp->nm_fhsize, &np);
+	error = nfs_nget(mp, (nfsfh_t *)nmp->nm_fh, nmp->nm_fhsize, &np, flags);
 	if (error)
 		return error;
 	vp = NFSTOV(np);
