@@ -485,11 +485,11 @@ twiddle:	push %ax			# Save
 		ret
 
 #
-# Enable A20. Put upper limit on amount of time we wait for the
+# Enable A20. Put an upper limit on the amount of time we wait for the
 # keyboard controller to get ready (65K x ISA access time). If
-# we wait more than that amount it's likely that the hardware
-# is legacy-free and simply doesn't have keyboard controller
-# and don't need enabling A20 at all.
+# we wait more than that amount, the hardware is probably
+# legacy-free and simply doesn't have a keyboard controller.
+# Thus, the A20 line is already enabled.
 #
 seta20: 	cli				# Disable interrupts
 		xor %cx,%cx			# Clear
