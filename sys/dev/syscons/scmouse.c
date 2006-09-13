@@ -178,13 +178,13 @@ sc_draw_mouse_image(scr_stat *scp)
     if (ISGRAPHSC(scp))
 	return;
 
-    ++scp->sc->videoio_in_progress;
+    SC_VIDEO_LOCK(scp->sc);
     (*scp->rndr->draw_mouse)(scp, scp->mouse_xpos, scp->mouse_ypos, TRUE);
     scp->mouse_oldpos = scp->mouse_pos;
     scp->mouse_oldxpos = scp->mouse_xpos;
     scp->mouse_oldypos = scp->mouse_ypos;
     scp->status |= MOUSE_VISIBLE;
-    --scp->sc->videoio_in_progress;
+    SC_VIDEO_UNLOCK(scp->sc);
 }
 
 void
@@ -196,7 +196,7 @@ sc_remove_mouse_image(scr_stat *scp)
     if (ISGRAPHSC(scp))
 	return;
 
-    ++scp->sc->videoio_in_progress;
+    SC_VIDEO_LOCK(scp->sc);
     (*scp->rndr->draw_mouse)(scp,
 			     (scp->mouse_oldpos%scp->xsize + scp->xoff)
 			         * scp->font_width,
@@ -217,7 +217,7 @@ sc_remove_mouse_image(scr_stat *scp)
     }
 #endif /* PC98 */
     scp->status &= ~MOUSE_VISIBLE;
-    --scp->sc->videoio_in_progress;
+    SC_VIDEO_UNLOCK(scp->sc);
 }
 
 int

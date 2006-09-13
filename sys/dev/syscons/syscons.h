@@ -34,6 +34,9 @@
 #ifndef _DEV_SYSCONS_SYSCONS_H_
 #define	_DEV_SYSCONS_SYSCONS_H_
 
+#include <sys/lock.h>
+#include <sys/mutex.h>
+
 /* machine-dependent part of the header */
 
 #ifdef PC98
@@ -225,9 +228,9 @@ typedef struct sc_softc {
 
 	char        	font_loading_in_progress;
 	char        	switch_in_progress;
-	char        	videoio_in_progress;
 	char        	write_in_progress;
 	char        	blink_in_progress;
+	struct mtx	video_mtx;
 
 	long		scrn_time_stamp;
 
@@ -531,6 +534,19 @@ typedef struct {
 		(*kbdsw[(kbd)->kb_index]->get_fkeystr)((kbd), (fkey), (len))
 #define kbd_poll(kbd, on)						\
 		(*kbdsw[(kbd)->kb_index]->poll)((kbd), (on))
+
+#define SC_VIDEO_LOCKINIT(sc)						\
+		mtx_init(&(sc)->video_mtx, "syscons video lock", NULL,MTX_SPIN);
+#define SC_VIDEO_LOCK(sc)						\
+		do {							\
+			if (!cold)					\
+				mtx_lock_spin(&(sc)->video_mtx);	\
+		} while(0)
+#define SC_VIDEO_UNLOCK(sc)						\
+		do {							\
+			if (!cold)					\
+				mtx_unlock_spin(&(sc)->video_mtx);	\
+		} while(0)
 
 /* syscons.c */
 extern int 	(*sc_user_ioctl)(struct cdev *dev, u_long cmd, caddr_t data,
