@@ -204,6 +204,16 @@ A|Auto-baud:\
 
 autologin|al.9600:\
 	:al=root:tc=std.9600:
+al.19200:\
+	:al=root:tc=std.19200:
+al.38400:\
+	:al=root:tc=std.38400:
+al.57600:\
+	:al=root:tc=std.57600:
+al.115200:\
+	:al=root:tc=std.115200:
+al.230400:\
+	:al=root:tc=std.230400:
 
 #
 # Entries for 3-wire serial terminals.  These don't supply carrier, so
