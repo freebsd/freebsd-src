@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 
 int debug = 0;		/* Controls syslog() calls for debug messages	*/
 
-extern void sm_prog_1(struct svc_req *rqstp, SVCXPRT *transp);
 static void handle_sigchld(int sig);
 static void usage(void);
 
