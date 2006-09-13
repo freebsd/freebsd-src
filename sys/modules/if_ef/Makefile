@@ -19,16 +19,16 @@ CFLAGS+= -DEF_DEBUG
 #ETHER_SNAP=
 
 opt_inet.h:
-	echo "#define INET 1" > opt_inet.h
+	echo "#define INET 1" > ${.TARGET}
 
 opt_ipx.h:
-	echo "#define IPX 1" > opt_ipx.h
+	echo "#define IPX 1" > ${.TARGET}
 
 opt_ef.h:
-	touch opt_ef.h
+	:> ${.TARGET}
 .for frame in ETHER_II ETHER_8023 ETHER_8022 ETHER_SNAP
 .if defined(${frame})
-	echo "#define ${frame} 1" >> opt_ef.h
+	echo "#define ${frame} 1" >> ${.TARGET}
 .endif
 .endfor
 .endif

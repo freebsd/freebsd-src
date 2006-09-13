@@ -22,16 +22,16 @@ SRCS+=	ppp_deflate.c
 .if !defined(KERNBUILDDIR)
 .if ${PPP_INET} > 0
 opt_inet.h:
-	echo "#define INET 1" >> ${.TARGET}
+	echo "#define INET 1" > ${.TARGET}
 .endif
 
 .if ${PPP_IPX} > 0
 opt_ipx.h:
-	echo "#define IPX ${PPP_IPX}" >> ${.TARGET}
+	echo "#define IPX ${PPP_IPX}" > ${.TARGET}
 .endif
 
 opt_ppp.h:
-	touch ${.TARGET}
+	:> ${.TARGET}
 .if ${PPP_BSDCOMP} > 0
 	echo "#define PPP_BSDCOMP ${PPP_BSDCOMP}" >> ${.TARGET}
 .endif
