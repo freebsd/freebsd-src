@@ -152,6 +152,7 @@ main(int argc, char **argv)
     be_save = 0;
 
     output = 0;
+    tabs_to_var = 0;
 
     /*--------------------------------------------------*\
     |   		COMMAND LINE SCAN		 |
