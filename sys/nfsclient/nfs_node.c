@@ -99,7 +99,7 @@ nfs_vncmpf(struct vnode *vp, void *arg)
  * nfsnode structure is returned.
  */
 int
-nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp)
+nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp, int flags)
 {
 	struct thread *td = curthread;	/* XXX */
 	struct nfsnode *np;
@@ -117,7 +117,7 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp)
 	ncmp.fhsize = fhsize;
 	ncmp.fh = fhp;
 
-	error = vfs_hash_get(mntp, hash, LK_EXCLUSIVE,
+	error = vfs_hash_get(mntp, hash, flags,
 	    td, &nvp, nfs_vncmpf, &ncmp);
 	if (error)
 		return (error);
@@ -153,7 +153,7 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp)
 	 */
 	vp->v_vnlock->lk_flags |= LK_CANRECURSE;
 	vp->v_vnlock->lk_flags &= ~LK_NOSHARE;
-	error = vfs_hash_insert(vp, hash, LK_EXCLUSIVE,
+	error = vfs_hash_insert(vp, hash, flags, 
 	    td, &nvp, nfs_vncmpf, &ncmp);
 	if (error)
 		return (error);

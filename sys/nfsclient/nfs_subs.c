@@ -930,7 +930,7 @@ nfsm_mtofh_xx(struct vnode *d, struct vnode **v, int v3, int *f,
 		t1 = nfsm_getfh_xx(&ttfhp, &ttfhsize, (v3), md, dpos);
 		if (t1 != 0)
 			return t1;
-		t1 = nfs_nget(d->v_mount, ttfhp, ttfhsize, &ttnp);
+		t1 = nfs_nget(d->v_mount, ttfhp, ttfhsize, &ttnp, LK_EXCLUSIVE);
 		if (t1 != 0)
 			return t1;
 		*v = NFSTOV(ttnp);
