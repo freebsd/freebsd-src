@@ -32,7 +32,7 @@
 .\"     From: @(#)send.2	8.2 (Berkeley) 2/21/94
 .\" $FreeBSD$
 .\"
-.Dd February 15, 1995
+.Dd September 13, 2006
 .Dt SEND 2
 .Os
 .Sh NAME
@@ -130,10 +130,7 @@ this flag is only implemented for
 .Dv SOCK_STREAM
 sockets in the
 .Dv PF_INET
-protocol family, and is used to implement Transaction
-.Tn TCP
-(see
-.Xr ttcp 4 ) .
+protocol family.
 .Dv MSG_DONTROUTE
 is usually used only by diagnostic or routing programs.
 .Dv MSG_NOSIGNAL
