@@ -1325,7 +1325,7 @@ kern_setsockopt(td, s, level, name, val, valseg, valsize)
 
 	if (val == NULL && valsize != 0)
 		return (EFAULT);
-	if (valsize < 0)
+	if ((int)valsize < 0)
 		return (EINVAL);
 
 	sopt.sopt_dir = SOPT_SET;
@@ -1408,7 +1408,7 @@ kern_getsockopt(td, s, level, name, val, valseg, valsize)
 
 	if (val == NULL)
 		*valsize = 0;
-	if (*valsize < 0)
+	if ((int)*valsize < 0)
 		return (EINVAL);
 
 	sopt.sopt_dir = SOPT_GET;
