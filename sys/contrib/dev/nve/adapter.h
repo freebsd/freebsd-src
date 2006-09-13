@@ -116,7 +116,11 @@ typedef struct  _ADAPTER_WRITE_DATA
     PNV_VOID                    pvID;
     NV_UINT8                    uc8021pPriority;
     ADAPTER_WRITE_OFFLOAD       *psOffload;
+#ifdef linux
+    ADAPTER_WRITE_ELEMENT       sElement[32];
+#else
     ADAPTER_WRITE_ELEMENT       sElement[100];
+#endif
 }   ADAPTER_WRITE_DATA, *PADAPTER_WRITE_DATA;
 //////////////////////////////////////////////////////////////////
 
