@@ -874,7 +874,7 @@ g_mirror_done(struct bio *bp)
 	struct g_mirror_softc *sc;
 
 	sc = bp->bio_from->geom->softc;
-	bp->bio_cflags |= G_MIRROR_BIO_FLAG_REGULAR;
+	bp->bio_cflags = G_MIRROR_BIO_FLAG_REGULAR;
 	mtx_lock(&sc->sc_queue_mtx);
 	bioq_disksort(&sc->sc_queue, bp);
 	wakeup(sc);
@@ -1002,7 +1002,7 @@ g_mirror_sync_done(struct bio *bp)
 
 	G_MIRROR_LOGREQ(3, bp, "Synchronization request delivered.");
 	sc = bp->bio_from->geom->softc;
-	bp->bio_cflags |= G_MIRROR_BIO_FLAG_SYNC;
+	bp->bio_cflags = G_MIRROR_BIO_FLAG_SYNC;
 	mtx_lock(&sc->sc_queue_mtx);
 	bioq_disksort(&sc->sc_queue, bp);
 	wakeup(sc);
@@ -1813,11 +1813,14 @@ g_mirror_worker(void *arg)
 		bioq_remove(&sc->sc_queue, bp);
 		mtx_unlock(&sc->sc_queue_mtx);
 
-		if (bp->bio_to != sc->sc_provider) {
+		if (bp->bio_from->geom == sc->sc_sync.ds_geom &&
+		    (bp->bio_cflags & G_MIRROR_BIO_FLAG_SYNC) != 0) {
+			g_mirror_sync_request(bp);	/* READ */
+		} else if (bp->bio_to != sc->sc_provider) {
 			if ((bp->bio_cflags & G_MIRROR_BIO_FLAG_REGULAR) != 0)
 				g_mirror_regular_request(bp);
 			else if ((bp->bio_cflags & G_MIRROR_BIO_FLAG_SYNC) != 0)
-				g_mirror_sync_request(bp);
+				g_mirror_sync_request(bp);	/* WRITE */
 			else {
 				KASSERT(0,
 				    ("Invalid request cflags=0x%hhx to=%s.",
