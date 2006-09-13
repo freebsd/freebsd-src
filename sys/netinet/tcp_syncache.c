@@ -36,8 +36,6 @@
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 #include "opt_mac.h"
-#include "opt_tcpdebug.h"
-#include "opt_tcp_sack.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -51,9 +49,10 @@
 #include <sys/md5.h>
 #include <sys/proc.h>		/* for proc0 declaration */
 #include <sys/random.h>
-#include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+
+#include <vm/uma.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -73,16 +72,10 @@
 #include <netinet6/in6_pcb.h>
 #endif
 #include <netinet/tcp.h>
-#ifdef TCPDEBUG
-#include <netinet/tcpip.h>
-#endif
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
-#ifdef TCPDEBUG
-#include <netinet/tcp_debug.h>
-#endif
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
@@ -103,7 +96,6 @@
 #endif /*FAST_IPSEC*/
 
 #include <machine/in_cksum.h>
-#include <vm/uma.h>
 
 static int tcp_syncookies = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, syncookies, CTLFLAG_RW,
