@@ -1028,11 +1028,11 @@ sosend_dgram(so, addr, uio, top, control, flags, td)
 	if (flags & MSG_OOB)
 		space += 1024;
 	space -= clen;
+	SOCKBUF_UNLOCK(&so->so_snd);
 	if (resid > space) {
 		error = EMSGSIZE;
 		goto out;
 	}
-	SOCKBUF_UNLOCK(&so->so_snd);
 	if (uio == NULL) {
 		resid = 0;
 		if (flags & MSG_EOR)
