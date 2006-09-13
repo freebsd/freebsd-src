@@ -175,9 +175,10 @@ struct tcpcb {
 	u_char	rcv_scale;		/* window scaling for recv window */
 	u_char	request_r_scale;	/* pending window scaling */
 	u_char	requested_s_scale;	/* unused, to be reused later */
-	u_long	ts_recent;		/* timestamp echo data */
-
+	u_int32_t  ts_recent;		/* timestamp echo data */
 	u_long	ts_recent_age;		/* when last updated */
+	u_int32_t  ts_offset;		/* our timestamp offset */
+
 	tcp_seq	last_ack_sent;
 /* experimental */
 	u_long	snd_cwnd_prev;		/* cwnd prior to retransmit */
@@ -537,8 +538,8 @@ void	 tcp_trace(int, int, struct tcpcb *, void *, struct tcphdr *, int);
 void	 tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq);
 void	 syncache_init(void);
 void	 syncache_unreach(struct in_conninfo *, struct tcphdr *);
-int	 syncache_expand(struct in_conninfo *, struct tcphdr *,
-	     struct socket **, struct mbuf *);
+int	 syncache_expand(struct in_conninfo *, struct tcpopt *,
+	     struct tcphdr *, struct socket **, struct mbuf *);
 int	 syncache_add(struct in_conninfo *, struct tcpopt *,
 	     struct tcphdr *, struct inpcb *, struct socket **, struct mbuf *);
 void	 syncache_chkrst(struct in_conninfo *, struct tcphdr *);
