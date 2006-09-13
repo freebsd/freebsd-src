@@ -31,10 +31,8 @@
  *
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <stdio.h>
@@ -329,6 +327,7 @@ void *sm_simu_crash_1_svc(void *v __unused, struct svc_req *req __unused)
   HostInfo *hp;
   int i;
 
+  work_to_do = FALSE;
   if (debug) syslog(LOG_DEBUG, "simu_crash called!!");
 
   /* Simulate crash by setting notify-required flag on all monitored	*/
