@@ -303,6 +303,16 @@ namei(struct nameidata *ndp)
 	return (error);
 }
 
+static int
+compute_cn_lkflags(struct mount *mp, int lkflags)
+{
+	if ((lkflags & LK_SHARED) && !(mp->mnt_kern_flag & MNTK_LOOKUP_SHARED)) {
+		lkflags &= ~LK_SHARED;
+		lkflags |= LK_EXCLUSIVE;
+	}
+	return lkflags;
+}
+
 /*
  * Search a pathname.
  * This is a very central and rather complicated routine.
@@ -359,7 +369,8 @@ lookup(struct nameidata *ndp)
 	int vfslocked;			/* VFS Giant state for child */
 	int dvfslocked;			/* VFS Giant state for parent */
 	int tvfslocked;
-
+	int lkflags_save;
+	
 	/*
 	 * Setup: break out flag bits into variables.
 	 */
@@ -387,7 +398,7 @@ lookup(struct nameidata *ndp)
 		cnp->cn_lkflags = LK_EXCLUSIVE;
 	dp = ndp->ni_startdir;
 	ndp->ni_startdir = NULLVP;
-	vn_lock(dp, cnp->cn_lkflags | LK_RETRY, td);
+	vn_lock(dp, compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags | LK_RETRY), td);
 
 dirloop:
 	/*
@@ -524,7 +535,7 @@ dirloop:
 			VREF(dp);
 			vput(tdp);
 			VFS_UNLOCK_GIANT(tvfslocked);
-			vn_lock(dp, cnp->cn_lkflags | LK_RETRY, td);
+			vn_lock(dp, compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags | LK_RETRY), td);
 		}
 	}
 
@@ -560,7 +571,10 @@ unionlookup:
 #ifdef NAMEI_DIAGNOSTIC
 	vprint("lookup in", dp);
 #endif
+	lkflags_save = cnp->cn_lkflags;
+	cnp->cn_lkflags = compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags);
 	if ((error = VOP_LOOKUP(dp, &ndp->ni_vp, cnp)) != 0) {
+		cnp->cn_lkflags = lkflags_save;
 		KASSERT(ndp->ni_vp == NULL, ("leaf should be empty"));
 #ifdef NAMEI_DIAGNOSTIC
 		printf("not found\n");
@@ -575,7 +589,7 @@ unionlookup:
 			VREF(dp);
 			vput(tdp);
 			VFS_UNLOCK_GIANT(tvfslocked);
-			vn_lock(dp, cnp->cn_lkflags | LK_RETRY, td);
+			vn_lock(dp, compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags | LK_RETRY), td);
 			goto unionlookup;
 		}
 
@@ -612,7 +626,8 @@ unionlookup:
 			VREF(ndp->ni_startdir);
 		}
 		goto success;
-	}
+	} else
+		cnp->cn_lkflags = lkflags_save;
 #ifdef NAMEI_DIAGNOSTIC
 	printf("found\n");
 #endif
@@ -643,9 +658,9 @@ unionlookup:
 		vfslocked = VFS_LOCK_GIANT(mp);
 		if (dp != ndp->ni_dvp)
 			VOP_UNLOCK(ndp->ni_dvp, 0, td);
-		error = VFS_ROOT(mp, cnp->cn_lkflags, &tdp, td);
+		error = VFS_ROOT(mp, compute_cn_lkflags(mp, cnp->cn_lkflags), &tdp, td);
 		vfs_unbusy(mp, td);
-		vn_lock(ndp->ni_dvp, cnp->cn_lkflags | LK_RETRY, td);
+		vn_lock(ndp->ni_dvp, compute_cn_lkflags(mp, cnp->cn_lkflags | LK_RETRY), td);
 		if (error) {
 			dpunlocked = 1;
 			goto bad2;
@@ -859,6 +874,7 @@ relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 		 */
 		return (0);
 	}
+
 	dp = *vpp;
 
 	/*

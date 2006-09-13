@@ -497,7 +497,7 @@ nfs4_openrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	if (vp == NULL) {
 		/* New file */
 		error = nfs_nget(dvp->v_mount, &getfh.fh_val,
-		    getfh.fh_len, &np);
+				 getfh.fh_len, &np, LK_EXCLUSIVE);
 		if (error != 0)
 			goto nfsmout;
 
@@ -1031,7 +1031,7 @@ nfs4_lookup(struct vop_lookup_args *ap)
 		if (NFS_CMPFH(np, fhp, fhsize))
 			return (EISDIR);
 
-		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np);
+		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np, LK_EXCLUSIVE);
 		if (error)
 			return (error);
 
@@ -1047,7 +1047,7 @@ nfs4_lookup(struct vop_lookup_args *ap)
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(dvp, 0, td);
 
-		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np);
+		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np, LK_EXCLUSIVE);
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 		if (error)
 			return (error);
@@ -1058,7 +1058,7 @@ nfs4_lookup(struct vop_lookup_args *ap)
 		VREF(dvp);
 		newvp = dvp;
 	} else {
-		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np);
+		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np, LK_EXCLUSIVE);
 		if (error)
 			return (error);
 		newvp = NFSTOV(np);
@@ -1431,7 +1431,7 @@ nfs4_createrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	nfsm_v4dissect_getattr(&cp, &ga);
 	nfsm_v4dissect_getfh(&cp, &gfh);	
 	
-	error = nfs_nget(dvp->v_mount, &gfh.fh_val, gfh.fh_len, &np);
+	error = nfs_nget(dvp->v_mount, &gfh.fh_val, gfh.fh_len, &np, LK_EXCLUSIVE);
 	if (error != 0)
 		goto nfsmout;
 
@@ -2336,7 +2336,7 @@ nfs4_lookitup(struct vnode *dvp, const char *name, int len, struct ucred *cred,
 			VREF(dvp);
 			newvp = dvp;
 		} else {
-			error = nfs_nget(dvp->v_mount, nfhp, fhlen, &np);
+			error = nfs_nget(dvp->v_mount, nfhp, fhlen, &np, LK_EXCLUSIVE);
 			if (error) {
 				m_freem(mrep);
 				return (error);
