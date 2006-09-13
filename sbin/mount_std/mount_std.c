@@ -37,10 +37,8 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -68,15 +66,13 @@ static volatile sig_atomic_t caughtsig;
 static void usage(void) __dead2;
 
 static void
-catchsig(int s)
+catchsig(int s __unused)
 {
 	caughtsig = 1;
 }
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch, mntflags;
 	char mntpath[MAXPATHLEN];
@@ -154,7 +150,7 @@ main(argc, argv)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 		"usage: mount_%s [-o options] what_to_mount mount_point\n",
