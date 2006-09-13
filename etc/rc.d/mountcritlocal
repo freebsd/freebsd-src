@@ -27,6 +27,7 @@ mountcritlocal_start()
 	esac
 
 	# Mount everything except nfs filesystems.
+	echo -n 'Mounting local file systems:'
 	mount_excludes='no'
 	for i in ${netfs_types}; do
 		fstype=${i%:*}
@@ -34,6 +35,7 @@ mountcritlocal_start()
 	done
 	mount_excludes=${mount_excludes%,}
 	mount -a -t ${mount_excludes}
+	echo '.'
 
 	case $? in
 	0)
