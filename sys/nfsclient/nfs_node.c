@@ -158,6 +158,11 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp)
 		vp->v_bufobj.bo_ops = &buf_ops_nfs;
 	vp->v_data = np;
 	np->n_vnode = vp;
+	/*
+	 * NFS supports recursive and shared locking.
+	 */
+	vp->v_vnlock->lk_flags |= LK_CANRECURSE;
+	vp->v_vnlock->lk_flags &= ~LK_NOSHARE;
 	error = vfs_hash_insert(vp, hash, LK_EXCLUSIVE,
 	    td, &nvp, nfs_vncmpf, &ncmp);
 	if (error)
