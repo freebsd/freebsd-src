@@ -32,7 +32,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd August 25, 2005
+.Dd September 13, 2006
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -460,6 +460,24 @@ only.
 .It Va sack.initburst
 Control the number of SACK retransmissions done upon initiation of SACK
 recovery.
+.It Va maxtcptw
+When a TCP connection enters the
+.Dv TIME_WAIT
+state, its associated socket structure is freed, since it is of
+negligible size and use, and a new structure is allocated to contain a
+minimal amount of information necessary for sustaining a connection in
+this state, called the compressed TCP TIME_WAIT state.
+Since this structure is smaller than a socket structure, it can save
+a significant amount of system memory.
+The
+.Va net.inet.tcp.maxtcptw
+MIB variable controls the maximum number of these structures allocated.
+By default, it is initialized to
+.Va kern.ipc.maxsockets
+/ 5 .
+.It Va nolocaltimewait
+Suppress creating of compressed TCP TIME_WAIT states for connections in
+which both endpoints are local.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
