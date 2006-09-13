@@ -310,6 +310,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNTK_SUSPENDED	0x10000000	/* write operations are suspended */
 #define	MNTK_MPSAFE	0x20000000	/* Filesystem is MPSAFE. */
 #define	MNTK_NOKNOTE	0x80000000	/* Don't send KNOTEs from VOP hooks */
+#define MNTK_LOOKUP_SHARED	0x40000000 /* FS supports shared lock lookups */
 
 /*
  * Sysctl CTL_VFS definitions.

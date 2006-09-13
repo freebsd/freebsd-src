@@ -200,7 +200,7 @@ nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 #ifndef nolint
 	sfp = NULL;
 #endif
-	error = nfs_nget(mp, (nfsfh_t *)nmp->nm_fh, nmp->nm_fhsize, &np);
+	error = nfs_nget(mp, (nfsfh_t *)nmp->nm_fh, nmp->nm_fhsize, &np, LK_EXCLUSIVE);
 	if (error)
 		return (error);
 	vp = NFSTOV(np);
@@ -724,7 +724,7 @@ nfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 	int error;
 
 	nmp = VFSTONFS(mp);
-	error = nfs_nget(mp, (nfsfh_t *)nmp->nm_fh, nmp->nm_fhsize, &np);
+	error = nfs_nget(mp, (nfsfh_t *)nmp->nm_fh, nmp->nm_fhsize, &np, LK_EXCLUSIVE);
 	if (error)
 		return (error);
 	vp = NFSTOV(np);
