@@ -1045,7 +1045,11 @@ options 	PMAP_SHPGPERPROC=201
 # constraints in loader(8) on i386, this must be a multiple of 4.
 # 256 = 1 GB of kernel address space.  Increasing this also causes
 # a reduction of the address space in user processes.  512 splits
-# the 4GB cpu address space in half (2GB user, 2GB kernel).
+# the 4GB cpu address space in half (2GB user, 2GB kernel).  For PAE
+# kernels, the value will need to be double non-PAE.  A value of 1024
+# for PAE kernels is necessary to split the address space in half.
+# This will likely need to be increased to handle memory sizes >4GB.
+# PAE kernels default to a value of 512.
 #
 options 	KVA_PAGES=260
 
