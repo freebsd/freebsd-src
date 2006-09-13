@@ -2061,11 +2061,14 @@ process:
 		bioq_remove(&sc->sc_queue, bp);
 		mtx_unlock(&sc->sc_queue_mtx);
 
-		if (bp->bio_to != sc->sc_provider) {
+		if (bp->bio_from->geom == sc->sc_sync.ds_geom &&
+		    (bp->bio_cflags & G_RAID3_BIO_CFLAG_SYNC) != 0) {
+			g_raid3_sync_request(bp);	/* READ */
+		} else if (bp->bio_to != sc->sc_provider) {
 			if ((bp->bio_cflags & G_RAID3_BIO_CFLAG_REGULAR) != 0)
 				g_raid3_regular_request(bp);
 			else if ((bp->bio_cflags & G_RAID3_BIO_CFLAG_SYNC) != 0)
-				g_raid3_sync_request(bp);
+				g_raid3_sync_request(bp);	/* WRITE */
 			else {
 				KASSERT(0,
 				    ("Invalid request cflags=0x%hhx to=%s.",
