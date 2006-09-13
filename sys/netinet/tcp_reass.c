@@ -837,7 +837,13 @@ findpcb:
 		 */
 		if ((thflags & (TH_RST|TH_ACK|TH_SYN)) != TH_SYN) {
 			if ((thflags & (TH_RST|TH_ACK|TH_SYN)) == TH_ACK) {
-				if (!syncache_expand(&inc, th, &so, m)) {
+				/*
+				 * Parse the TCP options here because
+				 * syncookies need access to the reflected
+				 * timestamp.
+				 */
+				tcp_dooptions(&to, optp, optlen, 0);
+				if (!syncache_expand(&inc, &to, th, &so, m)) {
 					/*
 					 * No syncache entry, or ACK was not
 					 * for our SYN/ACK.  Send a RST.
@@ -1106,11 +1112,15 @@ after_listen:
 
 	/*
 	 * If echoed timestamp is later than the current time,
-	 * fall back to non RFC1323 RTT calculation.
+	 * fall back to non RFC1323 RTT calculation.  Normalize
+	 * timestamp if syncookies were used when this connection
+	 * was established.
 	 */
-	if ((to.to_flags & TOF_TS) && (to.to_tsecr != 0) &&
-	    TSTMP_GT(to.to_tsecr, ticks))
-		to.to_tsecr = 0;
+	if ((to.to_flags & TOF_TS) && (to.to_tsecr != 0)) {
+		to.to_tsecr =- tp->ts_offset;
+		if (TSTMP_GT(to.to_tsecr, ticks))
+			to.to_tsecr = 0;
+	}
 
 	/*
 	 * Process options only when we get SYN/ACK back. The SYN case
