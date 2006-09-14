@@ -44,12 +44,10 @@
 #define NORM_TYPE	0
 #define MUX_TYPE	1
 #define MUXPLUS_TYPE	2
-#define TTCP_TYPE	3
 #define FAITH_TYPE	4
 #define ISMUX(sep)	(((sep)->se_type == MUX_TYPE) || \
 			 ((sep)->se_type == MUXPLUS_TYPE))
 #define ISMUXPLUS(sep)	((sep)->se_type == MUXPLUS_TYPE)
-#define ISTTCP(sep)	((sep)->se_type == TTCP_TYPE)
 
 struct procinfo {
 	LIST_ENTRY(procinfo) pr_link;
