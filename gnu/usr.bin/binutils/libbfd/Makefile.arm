@@ -7,8 +7,8 @@ DEFAULT_VECTOR=	bfd_elf32_littlearm_vec
 .endif
 
 SRCS+=	cpu-arm.c \
-	elf32-arm-fbsd.c \
 	elf32.c \
+	elf32-arm-fbsd.c \
 	elf32-gen.c \
 	elf32-target.h \
 	elflink.c
@@ -20,6 +20,8 @@ VECS+=	bfd_elf32_littlearm_vec
 VECS+=	bfd_elf32_bigarm_vec
 .endif
 
+CFLAGS+= -DDEFAULT_VECTOR=${DEFAULT_VECTOR}
+
 CLEANFILES+=	elf32-arm-fbsd.c
 
 # XXX: We should really add the FreeBSD case in elf32_arm_nabi_grok_prstatus
@@ -28,9 +30,9 @@ CLEANFILES+=	elf32-arm-fbsd.c
 elf32-arm-fbsd.c: elfarm-nabi.c
 	cat ${.ALLSRC} | sed \
 	    -e s/ELFOSABI_ARM/ELFOSABI_FREEBSD/g \
-	    -e "s/\(.*#define.*\)elf32_arm_nabi_grok_prstatus/\1elf32_fbsd_arm_grok_prstatus/"
+	    -e "s/\(.*#define.*\)elf32_arm_nabi_grok_prstatus/\1elf32_fbsd_arm_grok_prstatus/" \
 	    -e s/"#include.*elf32-arm.h.*//" >${.TARGET}
-	echo '\
+	echo ' \
 	    static bfd_boolean \
 	    elf32_fbsd_arm_grok_prstatus(bfd *abfd, Elf_Internal_Note *note) \
 	    { size_t raw_size =68 ; int offset = 28; \
