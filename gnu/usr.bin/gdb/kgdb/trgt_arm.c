@@ -28,8 +28,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#ifndef CROSS_DEBUGGER
 #include <machine/pcb.h>
 #include <machine/frame.h>
+#include <machine/armreg.h>
+#endif
 #include <err.h>
 #include <kvm.h>
 #include <string.h>
@@ -47,6 +50,7 @@ __FBSDID("$FreeBSD$");
 void
 kgdb_trgt_fetch_registers(int regno __unused)
 {
+#ifndef CROSS_DEBUGGER
 	struct kthr *kt;
 	struct pcb pcb;
 	int i, reg;
@@ -76,6 +80,7 @@ kgdb_trgt_fetch_registers(int regno __unused)
 		else
 			supply_register(ARM_PC_REGNUM, (char *)&reg);
 	}
+#endif
 }
 
 void
@@ -84,6 +89,7 @@ kgdb_trgt_store_registers(int regno __unused)
 	fprintf_unfiltered(gdb_stderr, "XXX: %s\n", __func__);
 }
 
+#ifndef CROSS_DEBUGGER
 struct kgdb_frame_cache {
 	CORE_ADDR	fp;
 	CORE_ADDR	sp;
@@ -130,6 +136,8 @@ kgdb_trgt_frame_cache(struct frame_info *next_frame, void **this_cache)
 	return (cache);
 }
 
+static int is_undef;
+
 static void
 kgdb_trgt_trapframe_this_id(struct frame_info *next_frame, void **this_cache,
     struct frame_id *this_id)
@@ -148,6 +156,7 @@ kgdb_trgt_trapframe_prev_register(struct frame_info *next_frame,
 	char dummy_valuep[MAX_REGISTER_SIZE];
 	struct kgdb_frame_cache *cache;
 	int ofs, regsz;
+	int is_undefined = 0;
 
 	regsz = register_size(current_gdbarch, regnum);
 
@@ -165,9 +174,24 @@ kgdb_trgt_trapframe_prev_register(struct frame_info *next_frame,
 		return;
 
 	cache = kgdb_trgt_frame_cache(next_frame, this_cache);
+			
+	if (is_undef && (regnum == ARM_SP_REGNUM || regnum == ARM_PC_REGNUM)) {
+		*addrp = cache->sp + offsetof(struct trapframe, tf_spsr);
+		target_read_memory(*addrp, valuep, regsz);
+		is_undefined = 1;
+		ofs = kgdb_trgt_frame_offset[ARM_SP_REGNUM];
+
+	}
 	*addrp = cache->sp + ofs;
 	*lvalp = lval_memory;
 	target_read_memory(*addrp, valuep, regsz);
+
+	if (is_undefined) {
+		*addrp = *(unsigned int *)valuep + (regnum == ARM_SP_REGNUM ?
+		    0 : 8);
+		target_read_memory(*addrp, valuep, regsz);
+
+	}
 }
 
 static const struct frame_unwind kgdb_trgt_trapframe_unwind = {
@@ -175,22 +199,34 @@ static const struct frame_unwind kgdb_trgt_trapframe_unwind = {
         &kgdb_trgt_trapframe_this_id,
         &kgdb_trgt_trapframe_prev_register
 };
+#endif
 
 const struct frame_unwind *
 kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame)
 {
+#ifndef CROSS_DEBUGGER
 	char *pname;
 	CORE_ADDR pc;
 
 	pc = frame_pc_unwind(next_frame);
 	pname = NULL;
 	find_pc_partial_function(pc, &pname, NULL, NULL);
-	if (pname == NULL)
+	if (pname == NULL) {
+		is_undef = 0;
 		return (NULL);
+	}
+	if (!strcmp(pname, "undefinedinstruction"))
+		is_undef = 1;
 	if (strcmp(pname, "Laddress_exception_entry") == 0 ||
 	    strcmp(pname, "undefined_entry") == 0 ||
 	    strcmp(pname, "exception_exit") == 0 ||
+	    strcmp(pname, "Laddress_exception_msg") == 0 ||
 	    strcmp(pname, "irq_entry") == 0)
 		return (&kgdb_trgt_trapframe_unwind);
+	if (!strcmp(pname, "undefinedinstruction"))
+		is_undef = 1;
+	else
+		is_undef = 0;
+#endif
 	return (NULL);
 }
