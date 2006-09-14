@@ -28,7 +28,7 @@
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
 .\" $FreeBSD$
 .\"
-.Dd February 4, 2006
+.Dd September 14, 2006
 .Dt INETD 8
 .Os
 .Sh NAME
@@ -283,21 +283,6 @@ The names
 and
 .Dq udp46
 specify that the entry accepts both IPv4 and IPv6 connections
-via a wildcard
-.Dv AF_INET6
-socket.
-If it is desired that the service is reachable via T/TCP, one should
-specify
-.Dq tcp/ttcp ,
-which implies IPv4 for backward compatibility.
-The name
-.Dq tcp4/ttcp
-specifies IPv4 only, while
-.Dq tcp6/ttcp
-specifies IPv6 only.
-The name
-.Dq tcp46/ttcp
-specifies that the entry accepts both IPv6 and IPv6 connections
 via a wildcard
 .Dv AF_INET6
 socket.
