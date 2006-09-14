@@ -92,7 +92,7 @@ sio_pccard_attach(device_t dev)
 #endif
 	/* Do not probe IRQ - pccard doesn't turn on the interrupt line */
 	/* until bus_setup_intr */
-	if ((err = sioprobe(dev, 0, 0UL, 1)) != 0)
+	if ((err = sioprobe(dev, 0, 0UL, 1)) > 0)
 		return (err);
 	return (sioattach(dev, 0, 0UL));
 }
