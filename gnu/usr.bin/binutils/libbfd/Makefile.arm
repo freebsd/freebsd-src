@@ -18,7 +18,7 @@ VECS+=	${DEFAULT_VECTOR}
 VECS+=	bfd_elf32_littlearm_vec
 .else
 VECS+=	bfd_elf32_bigarm_vec
-.end
+.endif
 
 CLEANFILES+=	elf32-arm-fbsd.c
 
