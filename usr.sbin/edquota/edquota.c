@@ -41,12 +41,14 @@ static const char copyright[] =
 static char sccsid[] = "@(#)edquota.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 #endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 /*
  * Disk quota editor.
  */
+
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/file.h>
@@ -114,6 +116,8 @@ main(int argc, char **argv)
 		errx(1, "permission denied");
 	quotatype = USRQUOTA;
 	protoprivs = NULL;
+	curprivs = NULL;
+	protoname = NULL;
 	while ((ch = getopt(argc, argv, "ugtf:p:e:")) != -1) {
 		switch(ch) {
 		case 'f':
@@ -252,7 +256,7 @@ main(int argc, char **argv)
 		if (writetimes(protoprivs, tmpfd, quotatype) == 0)
 			exit(1);
 		if (editit(tmpfil) && readtimes(protoprivs, tmpfil))
-			putprivs(0, quotatype, protoprivs);
+			putprivs(0L, quotatype, protoprivs);
 		freeprivs(protoprivs);
 		close(tmpfd);
 		unlink(tmpfil);
@@ -339,7 +343,7 @@ getprivs(id, quotatype, fspath)
 	static int warned = 0;
 
 	setfsent();
-	quphead = (struct quotause *)0;
+	quphead = quptail = NULL;
 	qcmd = QCMD(Q_GETQUOTA, quotatype);
 	while ((fs = getfsent())) {
 		if (fspath && *fspath && strcmp(fspath, fs->fs_spec) &&
