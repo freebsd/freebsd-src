@@ -1403,7 +1403,9 @@ syncookie_generate(struct syncache_head *sch, struct syncache *sc,
 	data |= (md5_buffer[0] << 7);
 	sc->sc_iss = data;
 
+#ifdef INET6
 	*flowlabel = md5_buffer[1] & IPV6_FLOWLABEL_MASK;
+#endif
 
 	/* Additional parameters are stored in the timestamp if present. */
 	if (sc->sc_flags & SCF_TIMESTAMP) {
