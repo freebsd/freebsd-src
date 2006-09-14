@@ -20,8 +20,6 @@ VECS+=	bfd_elf32_littlearm_vec
 VECS+=	bfd_elf32_bigarm_vec
 .endif
 
-CFLAGS+= -DDEFAULT_VECTOR=${DEFAULT_VECTOR}
-
 CLEANFILES+=	elf32-arm-fbsd.c
 
 # XXX: We should really add the FreeBSD case in elf32_arm_nabi_grok_prstatus
