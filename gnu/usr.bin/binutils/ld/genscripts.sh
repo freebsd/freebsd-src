@@ -37,7 +37,12 @@ CUSTOMIZER_SCRIPT=$3
 # FSF BU ver 2.15 which allows for a more generic emulparams processing.
 # To reduce the diff, I also include the ${EMULATION_NAME} parameter in uses
 # of 'CUSTOMIZER_SCRIPT'.
+
+# XXX: arm hack : until those file are merged back into the FSF repo, just
+# use the version in this directory.
+if !(test -f ${CUSTOMIZER_SCRIPT}"";) then
 CUSTOMIZER_SCRIPT="${srcdir}/emulparams/${EMULATION_NAME}.sh"
+fi
 
 # Include the emulation-specific parameters:
 . ${CUSTOMIZER_SCRIPT} ${EMULATION_NAME}
