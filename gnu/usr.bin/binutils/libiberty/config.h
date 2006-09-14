@@ -7,7 +7,7 @@
 
 
 /* 1234 = LIL_ENDIAN, 4321 = BIGENDIAN */
-#if defined(__sparc64__) || defined(__ARMEB__) || defined(TARGET_BIG_ENDIAN)
+#if defined(__sparc64__) || defined(__ARMEB__)
 #define BYTEORDER 4321
 #else
 #define BYTEORDER 1234
@@ -325,7 +325,7 @@
 
 /* Define if the host machine stores words of multi-word integers in
    big-endian order. */
-#if defined(__sparc64__) || defined(__ARMEB__) || defined(TARGET_BIG_ENDIAN)
+#if defined(__sparc64__) || defined(__ARMEB__)
 #define HOST_WORDS_BIG_ENDIAN 1
 #endif
 
