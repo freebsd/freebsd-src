@@ -914,7 +914,6 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 		 * First see if this local port is in use by looking on the
 		 * port hash list.
 		 */
-		retrylookup:
 		porthash = &pcbinfo->porthashbase[INP_PCBPORTHASH(lport,
 		    pcbinfo->porthashmask)];
 		LIST_FOREACH(phd, porthash, phd_hash) {
@@ -947,18 +946,6 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 				if ((inp->inp_vflag & INP_IPV6) != 0)
 					wildcard += INP_LOOKUP_MAPPED_PCB_COST;
 #endif
-				/*
-				 * Clean out old time_wait sockets if they
-				 * are clogging up needed local ports.
-				 */
-				if ((inp->inp_vflag & INP_TIMEWAIT) != 0) {
-					if (tcp_twrecycleable((struct tcptw *)inp->inp_ppcb)) {
-						INP_LOCK(inp);
-						tcp_twclose((struct tcptw *)inp->inp_ppcb, 0);
-						match = NULL;
-						goto retrylookup;
-					}
-				}
 				if (inp->inp_faddr.s_addr != INADDR_ANY)
 					wildcard++;
 				if (inp->inp_laddr.s_addr != INADDR_ANY) {

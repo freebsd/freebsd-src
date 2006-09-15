@@ -301,7 +301,7 @@ struct tcptw {
 	u_long		t_recent;
 	u_long		t_starttime;
 	int		tw_time;
-	LIST_ENTRY(tcptw) tw_2msl;
+	TAILQ_ENTRY(tcptw) tw_2msl;
 };
 
 #define	intotcpcb(ip)	((struct tcpcb *)(ip)->inp_ppcb)
