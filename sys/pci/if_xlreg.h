@@ -581,6 +581,7 @@ struct xl_mii_frame {
 
 struct xl_softc {
 	struct ifnet		*xl_ifp;	/* interface info */
+	device_t		 xl_dev;	/* device info */
 	struct ifmedia		ifmedia;	/* media info */
 	bus_space_handle_t	xl_bhandle;
 	bus_space_tag_t		xl_btag;

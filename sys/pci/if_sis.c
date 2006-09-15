@@ -639,7 +639,7 @@ sis_miibus_readreg(device_t dev, int phy, int reg)
 		}
 
 		if (i == SIS_TIMEOUT) {
-			if_printf(sc->sis_ifp, "PHY failed to come ready\n");
+			device_printf(sc->sis_dev, "PHY failed to come ready\n");
 			return(0);
 		}
 
@@ -697,7 +697,7 @@ sis_miibus_writereg(device_t dev, int phy, int reg, int data)
 		}
 
 		if (i == SIS_TIMEOUT)
-			if_printf(sc->sis_ifp, "PHY failed to come ready\n");
+			device_printf(sc->sis_dev, "PHY failed to come ready\n");
 	} else {
 		bzero((char *)&frame, sizeof(frame));
 
@@ -863,7 +863,7 @@ sis_reset(struct sis_softc *sc)
 	}
 
 	if (i == SIS_TIMEOUT)
-		if_printf(sc->sis_ifp, "reset never completed\n");
+		device_printf(sc->sis_dev, "reset never completed\n");
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -918,7 +918,7 @@ sis_attach(device_t dev)
 	waittime = 0;
 	sc = device_get_softc(dev);
 
-	sc->sis_self = dev;
+	sc->sis_dev = dev;
 
 	mtx_init(&sc->sis_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
@@ -1889,7 +1889,7 @@ sis_initl(struct sis_softc *sc)
 
 	/* Init circular TX/RX lists. */
 	if (sis_ring_init(sc) != 0) {
-		if_printf(ifp,
+		device_printf(sc->sis_dev,
 		    "initialization failed: no memory for rx buffers\n");
 		sis_stop(sc);
 		return;
@@ -2013,7 +2013,7 @@ sis_initl(struct sis_softc *sc)
 		DELAY(100000);
 		reg = CSR_READ_4(sc, NS_PHY_TDATA) & 0xff;
 		if ((reg & 0x0080) == 0 || (reg > 0xd8 && reg <= 0xff)) {
-			device_printf(sc->sis_self,
+			device_printf(sc->sis_dev,
 			    "Applying short cable fix (reg=%x)\n", reg);
 			CSR_WRITE_4(sc, NS_PHY_TDATA, 0x00e8);
 			reg = CSR_READ_4(sc, NS_PHY_DSPCFG);
