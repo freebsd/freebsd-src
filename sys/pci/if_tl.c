@@ -526,7 +526,7 @@ static u_int8_t tl_eeprom_getbyte(sc, addr, dest)
 {
 	register int		i;
 	u_int8_t		byte = 0;
-	struct ifnet		*ifp = sc->tl_ifp;
+	device_t		tl_dev = sc->tl_dev;
 
 	tl_dio_write8(sc, TL_NETSIO, 0);
 
@@ -536,7 +536,7 @@ static u_int8_t tl_eeprom_getbyte(sc, addr, dest)
 	 * Send write control code to EEPROM.
 	 */
 	if (tl_eeprom_putbyte(sc, EEPROM_CTL_WRITE)) {
-		if_printf(ifp, "failed to send write command, status: %x\n",
+		device_printf(tl_dev, "failed to send write command, status: %x\n",
 		    tl_dio_read8(sc, TL_NETSIO));
 		return(1);
 	}
@@ -545,7 +545,7 @@ static u_int8_t tl_eeprom_getbyte(sc, addr, dest)
 	 * Send address of byte we want to read.
 	 */
 	if (tl_eeprom_putbyte(sc, addr)) {
-		if_printf(ifp, "failed to send address, status: %x\n",
+		device_printf(tl_dev, "failed to send address, status: %x\n",
 		    tl_dio_read8(sc, TL_NETSIO));
 		return(1);
 	}
@@ -556,7 +556,7 @@ static u_int8_t tl_eeprom_getbyte(sc, addr, dest)
 	 * Send read control code to EEPROM.
 	 */
 	if (tl_eeprom_putbyte(sc, EEPROM_CTL_READ)) {
-		if_printf(ifp, "failed to send write command, status: %x\n",
+		device_printf(tl_dev, "failed to send write command, status: %x\n",
 		    tl_dio_read8(sc, TL_NETSIO));
 		return(1);
 	}
@@ -1115,6 +1115,7 @@ tl_attach(dev)
 	vid = pci_get_vendor(dev);
 	did = pci_get_device(dev);
 	sc = device_get_softc(dev);
+	sc->tl_dev = dev;
 	unit = device_get_unit(dev);
 
 	t = tl_devs;
@@ -1669,7 +1670,7 @@ tl_intvec_adchk(xsc, type)
 	sc = xsc;
 
 	if (type)
-		if_printf(sc->tl_ifp, "adapter check: %x\n",
+		device_printf(sc->tl_dev, "adapter check: %x\n",
 			(unsigned int)CSR_READ_4(sc, TL_CH_PARM));
 
 	tl_softreset(sc, 1);
@@ -1693,7 +1694,7 @@ tl_intvec_netsts(xsc, type)
 	netsts = tl_dio_read16(sc, TL_NETSTS);
 	tl_dio_write16(sc, TL_NETSTS, netsts);
 
-	if_printf(sc->tl_ifp, "network status: %x\n", netsts);
+	device_printf(sc->tl_dev, "network status: %x\n", netsts);
 
 	return(1);
 }
@@ -1724,7 +1725,7 @@ tl_intr(xsc)
 	switch(ints) {
 	case (TL_INTR_INVALID):
 #ifdef DIAGNOSTIC
-		if_printf(ifp, "got an invalid interrupt!\n");
+		device_printf(sc->tl_dev, "got an invalid interrupt!\n");
 #endif
 		/* Re-enable interrupts but don't ack this one. */
 		CMD_PUT(sc, type);
@@ -1744,7 +1745,7 @@ tl_intr(xsc)
 		r = tl_intvec_rxeof((void *)sc, type);
 		break;
 	case (TL_INTR_DUMMY):
-		if_printf(ifp, "got a dummy interrupt\n");
+		device_printf(sc->tl_dev, "got a dummy interrupt\n");
 		r = 1;
 		break;
 	case (TL_INTR_ADCHK):
@@ -1757,7 +1758,7 @@ tl_intr(xsc)
 		r = tl_intvec_rxeoc((void *)sc, type);
 		break;
 	default:
-		if_printf(ifp, "bogus interrupt type\n");
+		device_printf(sc->tl_dev, "bogus interrupt type\n");
 		break;
 	}
 
@@ -1813,7 +1814,7 @@ tl_stats_update(xsc)
 		if (tx_thresh != TL_AC_TXTHRESH_WHOLEPKT) {
 			tx_thresh >>= 4;
 			tx_thresh++;
-			if_printf(ifp, "tx underrun -- increasing "
+			device_printf(sc->tl_dev, "tx underrun -- increasing "
 			    "tx threshold to %d bytes\n",
 			    (64 * (tx_thresh * 4)));
 			tl_dio_clrbit(sc, TL_ACOMMIT, TL_AC_TXTHRESH);
@@ -2094,7 +2095,7 @@ tl_init_locked(sc)
 
 	/* Init circular RX list. */
 	if (tl_list_rx_init(sc) == ENOBUFS) {
-		if_printf(ifp,
+		device_printf(sc->tl_dev,
 		    "initialization failed: no memory for rx buffers\n");
 		tl_stop(sc);
 		return;

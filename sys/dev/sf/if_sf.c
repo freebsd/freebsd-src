@@ -616,7 +616,7 @@ sf_reset(sc)
 	}
 
 	if (i == SF_TIMEOUT)
-		if_printf(sc->sf_ifp, "reset never completed!\n");
+		device_printf(sc->sf_dev, "reset never completed!\n");
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -690,6 +690,7 @@ sf_attach(dev)
 	u_char			eaddr[6];
 
 	sc = device_get_softc(dev);
+	sc->sf_dev = dev;
 
 	mtx_init(&sc->sf_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
@@ -1081,7 +1082,7 @@ sf_txthresh_adjust(sc)
 		txfctl &= ~SF_TXFRMCTL_TXTHRESH;
 		txfctl |= txthresh;
 #ifdef DIAGNOSTIC
-		if_printf(sc->sf_ifp, "tx underrun, increasing "
+		device_printf(sc->sf_dev, "tx underrun, increasing "
 		    "tx threshold to %d bytes\n",
 		    txthresh * 4);
 #endif
@@ -1243,7 +1244,7 @@ sf_init_locked(sc)
 	sf_setperf(sc, 0, IF_LLADDR(sc->sf_ifp));
 
 	if (sf_init_rx_ring(sc) == ENOBUFS) {
-		if_printf(sc->sf_ifp,
+		device_printf(sc->sf_dev,
 		    "initialization failed: no memory for rx buffers\n");
 		return;
 	}

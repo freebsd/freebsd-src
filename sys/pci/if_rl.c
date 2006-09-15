@@ -578,7 +578,7 @@ rl_miibus_readreg(device_t dev, int phy, int reg)
 			rval = CSR_READ_1(sc, RL_MEDIASTAT);
 			return (rval);
 		default:
-			if_printf(sc->rl_ifp, "bad phy register\n");
+			device_printf(sc->rl_dev, "bad phy register\n");
 			return (0);
 		}
 		rval = CSR_READ_2(sc, rl8139_reg);
@@ -628,7 +628,7 @@ rl_miibus_writereg(device_t dev, int phy, int reg, int data)
 			return (0);
 			break;
 		default:
-			if_printf(sc->rl_ifp, "bad phy register\n");
+			device_printf(sc->rl_dev, "bad phy register\n");
 			return (0);
 		}
 		CSR_WRITE_2(sc, rl8139_reg, data);
@@ -718,7 +718,7 @@ rl_reset(struct rl_softc *sc)
 			break;
 	}
 	if (i == RL_TIMEOUT)
-		if_printf(sc->rl_ifp, "reset never completed!\n");
+		device_printf(sc->rl_dev, "reset never completed!\n");
 }
 
 /*
@@ -793,6 +793,7 @@ rl_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
+	sc->rl_dev = dev;
 
 	mtx_init(&sc->rl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
@@ -974,7 +975,7 @@ rl_attach(device_t dev)
 	error = bus_setup_intr(dev, sc->rl_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    rl_intr, sc, &sc->rl_intrhand);
 	if (error) {
-		if_printf(ifp, "couldn't set up irq\n");
+		device_printf(sc->rl_dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
 	}
 
