@@ -414,7 +414,8 @@ my_autoneg_mii(struct my_softc * sc, int flag, int verbose)
 	phy_sts = my_phy_readreg(sc, PHY_BMSR);
 	if (!(phy_sts & PHY_BMSR_CANAUTONEG)) {
 		if (verbose)
-			if_printf(ifp, "autonegotiation not supported\n");
+			device_printf(sc->my_dev,
+			    "autonegotiation not supported\n");
 		ifm->ifm_media = IFM_ETHER | IFM_10_T | IFM_HDX;
 		return;
 	}
@@ -452,17 +453,17 @@ my_autoneg_mii(struct my_softc * sc, int flag, int verbose)
 		sc->my_autoneg = 0;
 		break;
 	default:
-		if_printf(ifp, "invalid autoneg flag: %d\n", flag);
+		device_printf(sc->my_dev, "invalid autoneg flag: %d\n", flag);
 		return;
 	}
 
 	if (my_phy_readreg(sc, PHY_BMSR) & PHY_BMSR_AUTONEGCOMP) {
 		if (verbose)
-			if_printf(ifp, "autoneg complete, ");
+			device_printf(sc->my_dev, "autoneg complete, ");
 		phy_sts = my_phy_readreg(sc, PHY_BMSR);
 	} else {
 		if (verbose)
-			if_printf(ifp, "autoneg not complete, ");
+			device_printf(sc->my_dev, "autoneg not complete, ");
 	}
 
 	media = my_phy_readreg(sc, PHY_BMCR);
@@ -470,7 +471,7 @@ my_autoneg_mii(struct my_softc * sc, int flag, int verbose)
 	/* Link is good. Report modes and set duplex mode. */
 	if (my_phy_readreg(sc, PHY_BMSR) & PHY_BMSR_LINKSTAT) {
 		if (verbose)
-			if_printf(ifp, "link status good. ");
+			device_printf(sc->my_dev, "link status good. ");
 		advert = my_phy_readreg(sc, PHY_ANAR);
 		ability = my_phy_readreg(sc, PHY_LPAR);
 		if ((sc->my_pinfo->my_vid == MarvellPHYID0) ||
@@ -540,7 +541,7 @@ my_autoneg_mii(struct my_softc * sc, int flag, int verbose)
 		my_setcfg(sc, media);
 	} else {
 		if (verbose)
-			if_printf(ifp, "no carrier\n");
+			device_printf(sc->my_dev, "no carrier\n");
 	}
 
 	my_init_locked(sc);
@@ -565,21 +566,23 @@ my_getmode_mii(struct my_softc * sc)
 	ifp = sc->my_ifp;
 	bmsr = my_phy_readreg(sc, PHY_BMSR);
 	if (bootverbose)
-		if_printf(ifp, "PHY status word: %x\n", bmsr);
+		device_printf(sc->my_dev, "PHY status word: %x\n", bmsr);
 
 	/* fallback */
 	sc->ifmedia.ifm_media = IFM_ETHER | IFM_10_T | IFM_HDX;
 
 	if (bmsr & PHY_BMSR_10BTHALF) {
 		if (bootverbose)
-			if_printf(ifp, "10Mbps half-duplex mode supported\n");
+			device_printf(sc->my_dev,
+			    "10Mbps half-duplex mode supported\n");
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_10_T | IFM_HDX,
 		    0, NULL);
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_10_T, 0, NULL);
 	}
 	if (bmsr & PHY_BMSR_10BTFULL) {
 		if (bootverbose)
-			if_printf(ifp, "10Mbps full-duplex mode supported\n");
+			device_printf(sc->my_dev,
+			    "10Mbps full-duplex mode supported\n");
 
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_10_T | IFM_FDX,
 		    0, NULL);
@@ -587,7 +590,8 @@ my_getmode_mii(struct my_softc * sc)
 	}
 	if (bmsr & PHY_BMSR_100BTXHALF) {
 		if (bootverbose)
-			if_printf(ifp, "100Mbps half-duplex mode supported\n");
+			device_printf(sc->my_dev,
+			    "100Mbps half-duplex mode supported\n");
 		ifp->if_baudrate = 100000000;
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_100_TX, 0, NULL);
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_100_TX | IFM_HDX,
@@ -596,7 +600,8 @@ my_getmode_mii(struct my_softc * sc)
 	}
 	if (bmsr & PHY_BMSR_100BTXFULL) {
 		if (bootverbose)
-			if_printf(ifp, "100Mbps full-duplex mode supported\n");
+			device_printf(sc->my_dev,
+			    "100Mbps full-duplex mode supported\n");
 		ifp->if_baudrate = 100000000;
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_100_TX | IFM_FDX,
 		    0, NULL);
@@ -605,13 +610,14 @@ my_getmode_mii(struct my_softc * sc)
 	/* Some also support 100BaseT4. */
 	if (bmsr & PHY_BMSR_100BT4) {
 		if (bootverbose)
-			if_printf(ifp, "100baseT4 mode supported\n");
+			device_printf(sc->my_dev, "100baseT4 mode supported\n");
 		ifp->if_baudrate = 100000000;
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_100_T4, 0, NULL);
 		sc->ifmedia.ifm_media = IFM_ETHER | IFM_100_T4;
 #ifdef FORCE_AUTONEG_TFOUR
 		if (bootverbose)
-			if_printf(ifp, "forcing on autoneg support for BT4\n");
+			device_printf(sc->my_dev,
+			    "forcing on autoneg support for BT4\n");
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_AUTO, 0 NULL):
 		sc->ifmedia.ifm_media = IFM_ETHER | IFM_AUTO;
 #endif
@@ -619,14 +625,16 @@ my_getmode_mii(struct my_softc * sc)
 #if 0				/* this version did not support 1000M, */
 	if (sc->my_pinfo->my_vid == MarvellPHYID0) {
 		if (bootverbose)
-			if_printf(ifp, "1000Mbps half-duplex mode supported\n");
+			device_printf(sc->my_dev,
+			    "1000Mbps half-duplex mode supported\n");
 
 		ifp->if_baudrate = 1000000000;
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_1000_T, 0, NULL);
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_1000_T | IFM_HDX,
 		    0, NULL);
 		if (bootverbose)
-			if_printf(ifp, "1000Mbps full-duplex mode supported\n");
+			device_printf(sc->my_dev,
+			    "1000Mbps full-duplex mode supported\n");
 		ifp->if_baudrate = 1000000000;
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_1000_T | IFM_FDX,
 		    0, NULL);
@@ -635,7 +643,7 @@ my_getmode_mii(struct my_softc * sc)
 #endif
 	if (bmsr & PHY_BMSR_CANAUTONEG) {
 		if (bootverbose)
-			if_printf(ifp, "autoneg supported\n");
+			device_printf(sc->my_dev, "autoneg supported\n");
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_AUTO, 0, NULL);
 		sc->ifmedia.ifm_media = IFM_ETHER | IFM_AUTO;
 	}
@@ -657,13 +665,13 @@ my_setmode_mii(struct my_softc * sc, int media)
 	 * If an autoneg session is in progress, stop it.
 	 */
 	if (sc->my_autoneg) {
-		if_printf(ifp, "canceling autoneg session\n");
+		device_printf(sc->my_dev, "canceling autoneg session\n");
 		ifp->if_timer = sc->my_autoneg = sc->my_want_auto = 0;
 		bmcr = my_phy_readreg(sc, PHY_BMCR);
 		bmcr &= ~PHY_BMCR_AUTONEGENBL;
 		my_phy_writereg(sc, PHY_BMCR, bmcr);
 	}
-	if_printf(ifp, "selecting MII, ");
+	device_printf(sc->my_dev, "selecting MII, ");
 	bmcr = my_phy_readreg(sc, PHY_BMCR);
 	bmcr &= ~(PHY_BMCR_AUTONEGENBL | PHY_BMCR_SPEEDSEL | PHY_BMCR_1000 |
 		  PHY_BMCR_DUPLEX | PHY_BMCR_LOOPBK);
@@ -722,7 +730,7 @@ my_setcfg(struct my_softc * sc, int bmcr)
 				break;
 		}
 		if (i == MY_TIMEOUT)
-			if_printf(sc->my_ifp,
+			device_printf(sc->my_dev,
 			    "failed to force tx and rx to idle \n");
 	}
 	MY_CLRBIT(sc, MY_TCRRCR, MY_PS1000);
@@ -753,7 +761,7 @@ my_reset(struct my_softc * sc)
 			break;
 	}
 	if (i == MY_TIMEOUT)
-		if_printf(sc->my_ifp, "reset never completed!\n");
+		device_printf(sc->my_dev, "reset never completed!\n");
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -802,6 +810,7 @@ my_attach(device_t dev)
 	int             rid, error = 0;
 
 	sc = device_get_softc(dev);
+	sc->my_dev = dev;
 	mtx_init(&sc->my_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 
@@ -1070,13 +1079,13 @@ my_newbuf(struct my_softc * sc, struct my_chain_onefrag * c)
 	MY_LOCK_ASSERT(sc);
 	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 	if (m_new == NULL) {
-		if_printf(sc->my_ifp,
+		device_printf(sc->my_dev,
 		    "no memory for rx list -- packet dropped!\n");
 		return (ENOBUFS);
 	}
 	MCLGET(m_new, M_DONTWAIT);
 	if (!(m_new->m_flags & M_EXT)) {
-		if_printf(sc->my_ifp,
+		device_printf(sc->my_dev,
 		    "no memory for rx list -- packet dropped!\n");
 		m_freem(m_new);
 		return (ENOBUFS);
@@ -1337,14 +1346,14 @@ my_encap(struct my_softc * sc, struct my_chain * c, struct mbuf * m_head)
 	m = m_head;
 	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 	if (m_new == NULL) {
-		if_printf(sc->my_ifp, "no memory for tx list");
+		device_printf(sc->my_dev, "no memory for tx list");
 		return (1);
 	}
 	if (m_head->m_pkthdr.len > MHLEN) {
 		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
 			m_freem(m_new);
-			if_printf(sc->my_ifp, "no memory for tx list");
+			device_printf(sc->my_dev, "no memory for tx list");
 			return (1);
 		}
 	}
@@ -1502,7 +1511,7 @@ my_init_locked(struct my_softc *sc)
 	my_setcfg(sc, phy_bmcr);
 	/* Init circular RX list. */
 	if (my_list_rx_init(sc) == ENOBUFS) {
-		if_printf(ifp, "init failed: no memory for rx buffers\n");
+		device_printf(sc->my_dev, "init failed: no memory for rx buffers\n");
 		my_stop(sc);
 		return;
 	}

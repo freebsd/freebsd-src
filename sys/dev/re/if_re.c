@@ -451,7 +451,7 @@ re_gmii_readreg(dev, phy, reg)
 	}
 
 	if (i == RL_TIMEOUT) {
-		if_printf(sc->rl_ifp, "PHY read failed\n");
+		device_printf(sc->rl_dev, "PHY read failed\n");
 		return (0);
 	}
 
@@ -481,7 +481,7 @@ re_gmii_writereg(dev, phy, reg, data)
 	}
 
 	if (i == RL_TIMEOUT) {
-		if_printf(sc->rl_ifp, "PHY write failed\n");
+		device_printf(sc->rl_dev, "PHY write failed\n");
 		return (0);
 	}
 
@@ -537,7 +537,7 @@ re_miibus_readreg(dev, phy, reg)
 		rval = CSR_READ_1(sc, RL_MEDIASTAT);
 		return (rval);
 	default:
-		if_printf(sc->rl_ifp, "bad phy register\n");
+		device_printf(sc->rl_dev, "bad phy register\n");
 		return (0);
 	}
 	rval = CSR_READ_2(sc, re8139_reg);
@@ -593,7 +593,7 @@ re_miibus_writereg(dev, phy, reg, data)
 		return (0);
 		break;
 	default:
-		if_printf(sc->rl_ifp, "bad phy register\n");
+		device_printf(sc->rl_dev, "bad phy register\n");
 		return (0);
 	}
 	CSR_WRITE_2(sc, re8139_reg, data);
@@ -680,7 +680,7 @@ re_reset(sc)
 			break;
 	}
 	if (i == RL_TIMEOUT)
-		if_printf(sc->rl_ifp, "reset never completed!\n");
+		device_printf(sc->rl_dev, "reset never completed!\n");
 
 	CSR_WRITE_1(sc, 0x82, 1);
 }
@@ -792,8 +792,9 @@ re_diag(sc)
 	}
 
 	if (i == RL_TIMEOUT) {
-		if_printf(ifp, "diagnostic failed, failed to receive packet "
-		    "in loopback mode\n");
+		device_printf(sc->rl_dev,
+		    "diagnostic failed, failed to receive packet in"
+		    " loopback mode\n");
 		error = EIO;
 		goto done;
 	}
@@ -821,7 +822,8 @@ re_diag(sc)
 	rxstat = le32toh(cur_rx->rl_cmdstat);
 
 	if (total_len != ETHER_MIN_LEN) {
-		if_printf(ifp, "diagnostic failed, received short packet\n");
+		device_printf(sc->rl_dev,
+		    "diagnostic failed, received short packet\n");
 		error = EIO;
 		goto done;
 	}
@@ -831,17 +833,18 @@ re_diag(sc)
 	if (bcmp((char *)&eh->ether_dhost, (char *)&dst, ETHER_ADDR_LEN) ||
 	    bcmp((char *)&eh->ether_shost, (char *)&src, ETHER_ADDR_LEN) ||
 	    ntohs(eh->ether_type) != ETHERTYPE_IP) {
-		if_printf(ifp, "WARNING, DMA FAILURE!\n");
-		if_printf(ifp, "expected TX data: %6D/%6D/0x%x\n",
+		device_printf(sc->rl_dev, "WARNING, DMA FAILURE!\n");
+		device_printf(sc->rl_dev, "expected TX data: %6D/%6D/0x%x\n",
 		    dst, ":", src, ":", ETHERTYPE_IP);
-		if_printf(ifp, "received RX data: %6D/%6D/0x%x\n",
+		device_printf(sc->rl_dev, "received RX data: %6D/%6D/0x%x\n",
 		    eh->ether_dhost, ":",  eh->ether_shost, ":",
 		    ntohs(eh->ether_type));
-		if_printf(ifp, "You may have a defective 32-bit NIC plugged "
-		    "into a 64-bit PCI slot.\n");
-		if_printf(ifp, "Please re-install the NIC in a 32-bit slot "
-		    "for proper operation.\n");
-		if_printf(ifp, "Read the re(4) man page for more details.\n");
+		device_printf(sc->rl_dev, "You may have a defective 32-bit "
+		    "NIC plugged into a 64-bit PCI slot.\n");
+		device_printf(sc->rl_dev, "Please re-install the NIC in a "
+		    "32-bit slot for proper operation.\n");
+		device_printf(sc->rl_dev, "Read the re(4) man page for more "
+		    "details.\n");
 		error = EIO;
 	}
 
@@ -2058,7 +2061,7 @@ re_encap(sc, m_head, idx)
 		    *m_head, re_dma_map_desc, &arg, BUS_DMA_NOWAIT);
 
 	if (error && error != EFBIG) {
-		if_printf(sc->rl_ifp, "can't map mbuf (error %d)\n", error);
+		device_printf(sc->rl_dev, "can't map mbuf (error %d)\n", error);
 		return (ENOBUFS);
 	}
 
@@ -2092,7 +2095,7 @@ re_encap(sc, m_head, idx)
 		error = bus_dmamap_load_mbuf(sc->rl_ldata.rl_mtag, map,
 		    *m_head, re_dma_map_desc, &arg, BUS_DMA_NOWAIT);
 		if (error) {
-			if_printf(sc->rl_ifp, "can't map mbuf (error %d)\n",
+			device_printf(sc->rl_dev, "can't map mbuf (error %d)\n",
 			    error);
 			return (EFBIG);
 		}

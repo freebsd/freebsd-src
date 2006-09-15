@@ -330,7 +330,7 @@ static u_int8_t ti_eeprom_getbyte(sc, addr, dest)
 	 * Send write control code to EEPROM.
 	 */
 	if (ti_eeprom_putbyte(sc, EEPROM_CTL_WRITE)) {
-		if_printf(sc->ti_ifp,
+		device_printf(sc->ti_dev,
 		    "failed to send write command, status: %x\n",
 		    CSR_READ_4(sc, TI_MISC_LOCAL_CTL));
 		return (1);
@@ -340,7 +340,7 @@ static u_int8_t ti_eeprom_getbyte(sc, addr, dest)
 	 * Send first byte of address of byte we want to read.
 	 */
 	if (ti_eeprom_putbyte(sc, (addr >> 8) & 0xFF)) {
-		if_printf(sc->ti_ifp, "failed to send address, status: %x\n",
+		device_printf(sc->ti_dev, "failed to send address, status: %x\n",
 		    CSR_READ_4(sc, TI_MISC_LOCAL_CTL));
 		return (1);
 	}
@@ -348,7 +348,7 @@ static u_int8_t ti_eeprom_getbyte(sc, addr, dest)
 	 * Send second byte address of byte we want to read.
 	 */
 	if (ti_eeprom_putbyte(sc, addr & 0xFF)) {
-		if_printf(sc->ti_ifp, "failed to send address, status: %x\n",
+		device_printf(sc->ti_dev, "failed to send address, status: %x\n",
 		    CSR_READ_4(sc, TI_MISC_LOCAL_CTL));
 		return (1);
 	}
@@ -359,7 +359,7 @@ static u_int8_t ti_eeprom_getbyte(sc, addr, dest)
 	 * Send read control code to EEPROM.
 	 */
 	if (ti_eeprom_putbyte(sc, EEPROM_CTL_READ)) {
-		if_printf(sc->ti_ifp,
+		device_printf(sc->ti_dev,
 		    "failed to send read command, status: %x\n",
 		    CSR_READ_4(sc, TI_MISC_LOCAL_CTL));
 		return (1);
@@ -526,10 +526,10 @@ ti_copy_mem(sc, tigon_addr, len, buf, useraddr, readdata)
 	 */
 	if ((readdata == 0)
 	 && (tigon_addr & 0x3)) {
-		if_printf(sc->ti_ifp, "ti_copy_mem: tigon address %#x isn't "
-		    "word-aligned\n", tigon_addr);
-		if_printf(sc->ti_ifp, "ti_copy_mem: unaligned writes aren't "
-		    "yet supported\n");
+		device_printf(sc->ti_dev, "%s: tigon address %#x isn't "
+		    "word-aligned\n", __func__, tigon_addr);
+		device_printf(sc->ti_dev, "%s: unaligned writes aren't "
+		    "yet supported\n", __func__);
 		return (EINVAL);
 	}
 
@@ -723,14 +723,14 @@ ti_copy_scratch(sc, tigon_addr, len, buf, useraddr, readdata, cpu)
 	 * If this proves to be a problem, it will be fixed.
 	 */
 	if (tigon_addr & 0x3) {
-		if_printf(sc->ti_ifp, "ti_copy_scratch: tigon address %#x "
-		    "isn't word-aligned\n", tigon_addr);
+		device_printf(sc->ti_dev, "%s: tigon address %#x "
+		    "isn't word-aligned\n", __func__, tigon_addr);
 		return (EINVAL);
 	}
 
 	if (len & 0x3) {
-		if_printf(sc->ti_ifp, "ti_copy_scratch: transfer length %d "
-		    "isn't word-aligned\n", len);
+		device_printf(sc->ti_dev, "%s: transfer length %d "
+		    "isn't word-aligned\n", __func__, len);
 		return (EINVAL);
 	}
 
@@ -771,12 +771,12 @@ ti_copy_scratch(sc, tigon_addr, len, buf, useraddr, readdata, cpu)
 			 */
 
 			if (tmpval2 == 0xc0017c)
-				if_printf(sc->ti_ifp, "found 0xc0017c at %#x "
-				       "(tmpval2)\n", segptr);
+				device_printf(sc->ti_dev, "found 0xc0017c at "
+				    "%#x (tmpval2)\n", segptr);
 
 			if (tmpval == 0xc0017c)
-				if_printf(sc->ti_ifp, "found 0xc0017c at %#x "
-				       "(tmpval)\n", segptr);
+				device_printf(sc->ti_dev, "found 0xc0017c at "
+				    "%#x (tmpval)\n", segptr);
 
 			if (useraddr)
 				copyout(&tmpval, ptr, 4);
@@ -855,7 +855,7 @@ ti_loadfw(sc)
 		if (tigonFwReleaseMajor != TI_FIRMWARE_MAJOR ||
 		    tigonFwReleaseMinor != TI_FIRMWARE_MINOR ||
 		    tigonFwReleaseFix != TI_FIRMWARE_FIX) {
-			if_printf(sc->ti_ifp, "firmware revision mismatch; "
+			device_printf(sc->ti_dev, "firmware revision mismatch; "
 			    "want %d.%d.%d, got %d.%d.%d\n",
 			    TI_FIRMWARE_MAJOR, TI_FIRMWARE_MINOR,
 			    TI_FIRMWARE_FIX, tigonFwReleaseMajor,
@@ -874,7 +874,7 @@ ti_loadfw(sc)
 		if (tigon2FwReleaseMajor != TI_FIRMWARE_MAJOR ||
 		    tigon2FwReleaseMinor != TI_FIRMWARE_MINOR ||
 		    tigon2FwReleaseFix != TI_FIRMWARE_FIX) {
-			if_printf(sc->ti_ifp, "firmware revision mismatch; "
+			device_printf(sc->ti_dev, "firmware revision mismatch; "
 			    "want %d.%d.%d, got %d.%d.%d\n",
 			    TI_FIRMWARE_MAJOR, TI_FIRMWARE_MINOR,
 			    TI_FIRMWARE_FIX, tigon2FwReleaseMajor,
@@ -892,7 +892,7 @@ ti_loadfw(sc)
 		CSR_WRITE_4(sc, TI_CPU_PROGRAM_COUNTER, tigon2FwStartAddr);
 		break;
 	default:
-		if_printf(sc->ti_ifp,
+		device_printf(sc->ti_dev,
 		    "can't load firmware: unknown hardware rev\n");
 		break;
 	}
@@ -959,19 +959,19 @@ ti_handle_events(sc)
 		case TI_EV_LINKSTAT_CHANGED:
 			sc->ti_linkstat = TI_EVENT_CODE(e);
 			if (sc->ti_linkstat == TI_EV_CODE_LINK_UP)
-				if_printf(sc->ti_ifp, "10/100 link up\n");
+				device_printf(sc->ti_dev, "10/100 link up\n");
 			else if (sc->ti_linkstat == TI_EV_CODE_GIG_LINK_UP)
-				if_printf(sc->ti_ifp, "gigabit link up\n");
+				device_printf(sc->ti_dev, "gigabit link up\n");
 			else if (sc->ti_linkstat == TI_EV_CODE_LINK_DOWN)
-				if_printf(sc->ti_ifp, "link down\n");
+				device_printf(sc->ti_dev, "link down\n");
 			break;
 		case TI_EV_ERROR:
 			if (TI_EVENT_CODE(e) == TI_EV_CODE_ERR_INVAL_CMD)
-				if_printf(sc->ti_ifp, "invalid command\n");
+				device_printf(sc->ti_dev, "invalid command\n");
 			else if (TI_EVENT_CODE(e) == TI_EV_CODE_ERR_UNIMP_CMD)
-				if_printf(sc->ti_ifp, "unknown command\n");
+				device_printf(sc->ti_dev, "unknown command\n");
 			else if (TI_EVENT_CODE(e) == TI_EV_CODE_ERR_BADCFG)
-				if_printf(sc->ti_ifp, "bad config data\n");
+				device_printf(sc->ti_dev, "bad config data\n");
 			break;
 		case TI_EV_FIRMWARE_UP:
 			ti_init2(sc);
@@ -984,7 +984,7 @@ ti_handle_events(sc)
 			/* Who cares. */
 			break;
 		default:
-			if_printf(sc->ti_ifp, "unknown event: %d\n",
+			device_printf(sc->ti_dev, "unknown event: %d\n",
 			    TI_EVENT_EVENT(e));
 			break;
 		}
@@ -1159,7 +1159,7 @@ static void *ti_jalloc(sc)
 	entry = SLIST_FIRST(&sc->ti_jfree_listhead);
 
 	if (entry == NULL) {
-		if_printf(sc->ti_ifp, "no free jumbo buffers\n");
+		device_printf(sc->ti_dev, "no free jumbo buffers\n");
 		return (NULL);
 	}
 
@@ -1367,7 +1367,7 @@ ti_newbuf_jumbo(sc, i, m)
 		buf = ti_jalloc(sc);
 		if (buf == NULL) {
 			m_freem(m_new);
-			if_printf(sc->ti_ifp, "jumbo allocation failed "
+			device_printf(sc->ti_dev, "jumbo allocation failed "
 			    "-- packet dropped!\n");
 			return (ENOBUFS);
 		}
@@ -1452,19 +1452,19 @@ ti_newbuf_jumbo(sc, idx, m_old)
 		/* Allocate the mbufs. */
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
-			if_printf(sc->ti_ifp, "mbuf allocation failed "
+			device_printf(sc->ti_dev, "mbuf allocation failed "
 			    "-- packet dropped!\n");
 			goto nobufs;
 		}
 		MGET(m[NPAYLOAD], M_DONTWAIT, MT_DATA);
 		if (m[NPAYLOAD] == NULL) {
-			if_printf(sc->ti_ifp, "cluster mbuf allocation failed "
-			    "-- packet dropped!\n");
+			device_printf(sc->ti_dev, "cluster mbuf allocation "
+			    "failed -- packet dropped!\n");
 			goto nobufs;
 		}
 		MCLGET(m[NPAYLOAD], M_DONTWAIT);
 		if ((m[NPAYLOAD]->m_flags & M_EXT) == 0) {
-			if_printf(sc->ti_ifp, "mbuf allocation failed "
+			device_printf(sc->ti_dev, "mbuf allocation failed "
 			    "-- packet dropped!\n");
 			goto nobufs;
 		}
@@ -1473,15 +1473,15 @@ ti_newbuf_jumbo(sc, idx, m_old)
 		for (i = 0; i < NPAYLOAD; i++){
 			MGET(m[i], M_DONTWAIT, MT_DATA);
 			if (m[i] == NULL) {
-				if_printf(sc->ti_ifp, "mbuf allocation failed "
-				    "-- packet dropped!\n");
+				device_printf(sc->ti_dev, "mbuf allocation "
+				    "failed -- packet dropped!\n");
 				goto nobufs;
 			}
 			frame = vm_page_alloc(NULL, color++,
 			    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ |
 			    VM_ALLOC_WIRED);
 			if (frame == NULL) {
-				if_printf(sc->ti_ifp, "buffer allocation "
+				device_printf(sc->ti_dev, "buffer allocation "
 				    "failed -- packet dropped!\n");
 				printf("      index %d page %d\n", idx, i);
 				goto nobufs;
@@ -1492,7 +1492,7 @@ ti_newbuf_jumbo(sc, idx, m_old)
 				vm_page_unwire(frame, 0);
 				vm_page_free(frame);
 				vm_page_unlock_queues();
-				if_printf(sc->ti_ifp, "buffer allocation "
+				device_printf(sc->ti_dev, "buffer allocation "
 				    "failed -- packet dropped!\n");
 				printf("      index %d page %d\n", idx, i);
 				goto nobufs;
@@ -1769,7 +1769,7 @@ ti_add_mcast(sc, addr)
 		TI_DO_CMD_EXT(TI_CMD_EXT_ADD_MCAST, 0, 0, (caddr_t)&ext, 2);
 		break;
 	default:
-		if_printf(sc->ti_ifp, "unknown hwrev\n");
+		device_printf(sc->ti_dev, "unknown hwrev\n");
 		break;
 	}
 }
@@ -1797,7 +1797,7 @@ ti_del_mcast(sc, addr)
 		TI_DO_CMD_EXT(TI_CMD_EXT_DEL_MCAST, 0, 0, (caddr_t)&ext, 2);
 		break;
 	default:
-		if_printf(sc->ti_ifp, "unknown hwrev\n");
+		device_printf(sc->ti_dev, "unknown hwrev\n");
 		break;
 	}
 }
@@ -1856,7 +1856,8 @@ ti_setmulti(sc)
 			continue;
 		mc = malloc(sizeof(struct ti_mc_entry), M_DEVBUF, M_NOWAIT);
 		if (mc == NULL) {
-			if_printf(ifp, "no memory for mcast filter entry\n");
+			device_printf(sc->ti_dev,
+			    "no memory for mcast filter entry\n");
 			continue;
 		}
 		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
@@ -1928,7 +1929,7 @@ ti_chipinit(sc)
 
 	/* Check the ROM failed bit to see if self-tests passed. */
 	if (CSR_READ_4(sc, TI_CPU_STATE) & TI_CPUSTATE_ROMFAIL) {
-		if_printf(sc->ti_ifp, "board self-diagnostics failed!\n");
+		device_printf(sc->ti_dev, "board self-diagnostics failed!\n");
 		return (ENODEV);
 	}
 
@@ -1944,7 +1945,7 @@ ti_chipinit(sc)
 		sc->ti_hwrev = TI_HWREV_TIGON_II;
 		break;
 	default:
-		if_printf(sc->ti_ifp, "unsupported chip revision\n");
+		device_printf(sc->ti_dev, "unsupported chip revision\n");
 		return (ENODEV);
 	}
 
@@ -1963,7 +1964,7 @@ ti_chipinit(sc)
 	if (sc->ti_hwrev != TI_HWREV_TIGON)
 		sc->ti_hdrsplit = 1;
 	else
-		if_printf(sc->ti_ifp,
+		device_printf(sc->ti_dev,
 		    "can't do header splitting on a Tigon I board\n");
 #endif /* TI_JUMBO_HDRSPLIT */
 
@@ -1998,8 +1999,8 @@ ti_chipinit(sc)
 		default:
 		/* Disable PCI memory write and invalidate. */
 			if (bootverbose)
-				if_printf(sc->ti_ifp, "cache line size %d not "
-				    "supported; disabling PCI MWI\n",
+				device_printf(sc->ti_dev, "cache line size %d"
+				    " not supported; disabling PCI MWI\n",
 				    cacheline);
 			CSR_WRITE_4(sc, TI_PCI_CMDSTAT, CSR_READ_4(sc,
 			    TI_PCI_CMDSTAT) & ~PCIM_CMD_MWIEN);
@@ -2054,7 +2055,7 @@ ti_chipinit(sc)
 	CSR_WRITE_4(sc, TI_GCR_DMA_READCFG, TI_DMA_STATE_THRESH_8W);
 
 	if (ti_64bitslot_war(sc)) {
-		if_printf(sc->ti_ifp, "bios thinks we're in a 64 bit slot, "
+		device_printf(sc->ti_dev, "bios thinks we're in a 64 bit slot, "
 		    "but we aren't");
 		return (EINVAL);
 	}
@@ -3159,7 +3160,7 @@ ti_init_locked(xsc)
 
 	/* Init the gen info block, ring control blocks and firmware. */
 	if (ti_gibinit(sc)) {
-		if_printf(sc->ti_ifp, "initialization failure\n");
+		device_printf(sc->ti_dev, "initialization failure\n");
 		return;
 	}
 }

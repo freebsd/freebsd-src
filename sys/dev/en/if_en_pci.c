@@ -150,8 +150,8 @@ adp_busreset(void *v)
 	dummy = bus_space_read_4(sc->en_memt, sc->en_base, ADP_PCIREG);
 	if ((dummy & (ADP_PCIREG_SWAP_WORD | ADP_PCIREG_SWAP_DMA)) !=
 	    ADP_PCIREG_SWAP_DMA)
-		if_printf(sc->ifp, "adp_busreset: Adaptec ATM did "
-		    "NOT reset!\n");
+		device_printf(sc->dev, "%s: Adaptec ATM did NOT reset!\n",
+		    __func__);
 }
 
 /***********************************************************************/
@@ -197,6 +197,7 @@ en_pci_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	scp = (struct en_pci_softc *)sc;
+	sc->dev = dev;	
 	sc->ifp = if_alloc(IFT_ATM);
 	if (sc->ifp == NULL) {
 		device_printf(dev, "can not if_alloc()\n");
@@ -225,7 +226,6 @@ en_pci_attach(device_t dev)
 		goto fail;
 	}
 
-	sc->dev = dev;
 	sc->en_memt = rman_get_bustag(scp->res);
 	sc->en_base = rman_get_bushandle(scp->res);
 
@@ -308,7 +308,7 @@ en_pci_detach(device_t dev)
 	 * Stop DMA and drop transmit queue.
 	 */
 	if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-		if_printf(sc->ifp, "still running\n");
+		device_printf(sc->dev, "still running\n");
 		sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	}
 
