@@ -391,7 +391,7 @@ xl_wait(struct xl_softc *sc)
 	}
 
 	if (i == XL_TIMEOUT)
-		if_printf(sc->xl_ifp, "command never completed!\n");
+		device_printf(sc->xl_dev, "command never completed!\n");
 }
 
 /*
@@ -656,8 +656,7 @@ xl_miibus_mediainit(device_t dev)
 		if (sc->xl_type == XL_TYPE_905B &&
 		    sc->xl_media == XL_MEDIAOPT_10FL) {
 			if (bootverbose)
-				if_printf(sc->xl_ifp,
-				    "found 10baseFL\n");
+				device_printf(sc->xl_dev, "found 10baseFL\n");
 			ifmedia_add(ifm, IFM_ETHER | IFM_10_FL, 0, NULL);
 			ifmedia_add(ifm, IFM_ETHER | IFM_10_FL|IFM_HDX, 0,
 			    NULL);
@@ -666,14 +665,14 @@ xl_miibus_mediainit(device_t dev)
 				    IFM_ETHER | IFM_10_FL | IFM_FDX, 0, NULL);
 		} else {
 			if (bootverbose)
-				if_printf(sc->xl_ifp, "found AUI\n");
+				device_printf(sc->xl_dev, "found AUI\n");
 			ifmedia_add(ifm, IFM_ETHER | IFM_10_5, 0, NULL);
 		}
 	}
 
 	if (sc->xl_media & XL_MEDIAOPT_BNC) {
 		if (bootverbose)
-			if_printf(sc->xl_ifp, "found BNC\n");
+			device_printf(sc->xl_dev, "found BNC\n");
 		ifmedia_add(ifm, IFM_ETHER | IFM_10_2, 0, NULL);
 	}
 }
@@ -695,7 +694,7 @@ xl_eeprom_wait(struct xl_softc *sc)
 	}
 
 	if (i == 100) {
-		if_printf(sc->xl_ifp, "eeprom failed to come ready\n");
+		device_printf(sc->xl_dev, "eeprom failed to come ready\n");
 		return (1);
 	}
 
@@ -984,7 +983,7 @@ xl_setmode(struct xl_softc *sc, int media)
 	DELAY(800);
 	XL_SEL_WIN(7);
 
-	if_printf(sc->xl_ifp, "selecting %s, %s duplex\n", pmsg, dmsg);
+	device_printf(sc->xl_dev, "selecting %s, %s duplex\n", pmsg, dmsg);
 }
 
 static void
@@ -1016,7 +1015,7 @@ xl_reset(struct xl_softc *sc)
 	}
 
 	if (i == XL_TIMEOUT)
-		if_printf(sc->xl_ifp, "reset didn't complete\n");
+		device_printf(sc->xl_dev, "reset didn't complete\n");
 
 	/* Reset TX and RX. */
 	/* Note: the RX reset takes an absurd amount of time
@@ -1099,20 +1098,20 @@ xl_mediacheck(struct xl_softc *sc)
 		if (sc->xl_xcvr <= XL_XCVR_AUTO)
 			return;
 		else {
-			if_printf(sc->xl_ifp,
+			device_printf(sc->xl_dev,
 			    "bogus xcvr value in EEPROM (%x)\n", sc->xl_xcvr);
-			if_printf(sc->xl_ifp,
+			device_printf(sc->xl_dev,
 			    "choosing new default based on card type\n");
 		}
 	} else {
 		if (sc->xl_type == XL_TYPE_905B &&
 		    sc->xl_media & XL_MEDIAOPT_10FL)
 			return;
-		if_printf(sc->xl_ifp,
+		device_printf(sc->xl_dev,
 "WARNING: no media options bits set in the media options register!!\n");
-		if_printf(sc->xl_ifp,
+		device_printf(sc->xl_dev,
 "this could be a manufacturing defect in your adapter or system\n");
-		if_printf(sc->xl_ifp,
+		device_printf(sc->xl_dev,
 "attempting to guess media type; you should probably consult your vendor\n");
 	}
 
@@ -1137,7 +1136,7 @@ xl_choose_xcvr(struct xl_softc *sc, int verbose)
 		sc->xl_media = XL_MEDIAOPT_BT;
 		sc->xl_xcvr = XL_XCVR_10BT;
 		if (verbose)
-			if_printf(sc->xl_ifp,
+			device_printf(sc->xl_dev,
 			    "guessing 10BaseT transceiver\n");
 		break;
 	case TC_DEVICEID_BOOMERANG_10BT_COMBO:	/* 3c900-COMBO */
@@ -1145,20 +1144,20 @@ xl_choose_xcvr(struct xl_softc *sc, int verbose)
 		sc->xl_media = XL_MEDIAOPT_BT|XL_MEDIAOPT_BNC|XL_MEDIAOPT_AUI;
 		sc->xl_xcvr = XL_XCVR_10BT;
 		if (verbose)
-			if_printf(sc->xl_ifp,
+			device_printf(sc->xl_dev,
 			    "guessing COMBO (AUI/BNC/TP)\n");
 		break;
 	case TC_DEVICEID_KRAKATOA_10BT_TPC:	/* 3c900B-TPC */
 		sc->xl_media = XL_MEDIAOPT_BT|XL_MEDIAOPT_BNC;
 		sc->xl_xcvr = XL_XCVR_10BT;
 		if (verbose)
-			if_printf(sc->xl_ifp, "guessing TPC (BNC/TP)\n");
+			device_printf(sc->xl_dev, "guessing TPC (BNC/TP)\n");
 		break;
 	case TC_DEVICEID_CYCLONE_10FL:		/* 3c900B-FL */
 		sc->xl_media = XL_MEDIAOPT_10FL;
 		sc->xl_xcvr = XL_XCVR_AUI;
 		if (verbose)
-			if_printf(sc->xl_ifp, "guessing 10baseFL\n");
+			device_printf(sc->xl_dev, "guessing 10baseFL\n");
 		break;
 	case TC_DEVICEID_BOOMERANG_10_100BT:	/* 3c905-TX */
 	case TC_DEVICEID_HURRICANE_555:		/* 3c555 */
@@ -1175,15 +1174,14 @@ xl_choose_xcvr(struct xl_softc *sc, int verbose)
 		sc->xl_media = XL_MEDIAOPT_MII;
 		sc->xl_xcvr = XL_XCVR_MII;
 		if (verbose)
-			if_printf(sc->xl_ifp, "guessing MII\n");
+			device_printf(sc->xl_dev, "guessing MII\n");
 		break;
 	case TC_DEVICEID_BOOMERANG_100BT4:	/* 3c905-T4 */
 	case TC_DEVICEID_CYCLONE_10_100BT4:	/* 3c905B-T4 */
 		sc->xl_media = XL_MEDIAOPT_BT4;
 		sc->xl_xcvr = XL_XCVR_MII;
 		if (verbose)
-			if_printf(sc->xl_ifp,
-			    "guessing 100baseT4/MII\n");
+			device_printf(sc->xl_dev, "guessing 100baseT4/MII\n");
 		break;
 	case TC_DEVICEID_HURRICANE_10_100BT:	/* 3c905B-TX */
 	case TC_DEVICEID_HURRICANE_10_100BT_SERV:/*3c980-TX */
@@ -1194,18 +1192,17 @@ xl_choose_xcvr(struct xl_softc *sc, int verbose)
 		sc->xl_media = XL_MEDIAOPT_BTX;
 		sc->xl_xcvr = XL_XCVR_AUTO;
 		if (verbose)
-			if_printf(sc->xl_ifp,
-			    "guessing 10/100 internal\n");
+			device_printf(sc->xl_dev, "guessing 10/100 internal\n");
 		break;
 	case TC_DEVICEID_CYCLONE_10_100_COMBO:	/* 3c905B-COMBO */
 		sc->xl_media = XL_MEDIAOPT_BTX|XL_MEDIAOPT_BNC|XL_MEDIAOPT_AUI;
 		sc->xl_xcvr = XL_XCVR_AUTO;
 		if (verbose)
-			if_printf(sc->xl_ifp,
+			device_printf(sc->xl_dev,
 			    "guessing 10/100 plus BNC/AUI\n");
 		break;
 	default:
-		if_printf(sc->xl_ifp,
+		device_printf(sc->xl_dev,
 		    "unknown device ID: %x -- defaulting to 10baseT\n", devid);
 		sc->xl_media = XL_MEDIAOPT_BT;
 		break;
@@ -1228,6 +1225,8 @@ xl_attach(device_t dev)
 	uint16_t		did;
 
 	sc = device_get_softc(dev);
+	sc->xl_dev = dev;
+	
 	unit = device_get_unit(dev);
 
 	mtx_init(&sc->xl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
@@ -1663,7 +1662,7 @@ xl_choose_media(struct xl_softc *sc, int *media)
 		*media = IFM_ETHER|IFM_100_FX;
 		break;
 	default:
-		if_printf(sc->xl_ifp, "unknown XCVR type: %d\n",
+		device_printf(sc->xl_dev, "unknown XCVR type: %d\n",
 		    sc->xl_xcvr);
 		/*
 		 * This will probably be wrong, but it prevents
@@ -1911,7 +1910,7 @@ xl_newbuf(struct xl_softc *sc, struct xl_chain_onefrag *c)
 	    xl_dma_map_rxbuf, &baddr, BUS_DMA_NOWAIT);
 	if (error) {
 		m_freem(m_new);
-		if_printf(sc->xl_ifp, "can't map mbuf (error %d)\n",
+		device_printf(sc->xl_dev, "can't map mbuf (error %d)\n",
 		    error);
 		return (error);
 	}
@@ -2010,7 +2009,7 @@ again:
 		 * If not, something truly strange has happened.
 		 */
 		if (!(rxstat & XL_RXSTAT_UP_CMPLT)) {
-			if_printf(ifp,
+			device_printf(sc->xl_dev,
 			    "bad receive status -- packet dropped\n");
 			ifp->if_ierrors++;
 			cur_rx->xl_ptr->xl_status = 0;
@@ -2225,7 +2224,7 @@ xl_txeoc(struct xl_softc *sc)
 		if (txstat & XL_TXSTATUS_UNDERRUN ||
 			txstat & XL_TXSTATUS_JABBER ||
 			txstat & XL_TXSTATUS_RECLAIM) {
-			if_printf(sc->xl_ifp,
+			device_printf(sc->xl_dev,
 			    "transmission error: %x\n", txstat);
 			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_RESET);
 			xl_wait(sc);
@@ -2253,7 +2252,7 @@ xl_txeoc(struct xl_softc *sc)
 			if (txstat & XL_TXSTATUS_UNDERRUN &&
 			    sc->xl_tx_thresh < XL_PACKET_SIZE) {
 				sc->xl_tx_thresh += XL_MIN_FRAMELEN;
-				if_printf(sc->xl_ifp,
+				device_printf(sc->xl_dev,
 "tx underrun, increasing tx start threshold to %d bytes\n", sc->xl_tx_thresh);
 			}
 			CSR_WRITE_2(sc, XL_COMMAND,
@@ -2824,7 +2823,7 @@ xl_init_locked(struct xl_softc *sc)
 	/* Init circular RX list. */
 	error = xl_list_rx_init(sc);
 	if (error) {
-		if_printf(ifp, "initialization of the rx ring failed (%d)\n",
+		device_printf(sc->xl_dev, "initialization of the rx ring failed (%d)\n",
 		    error);
 		xl_stop(sc);
 		return;
@@ -2836,7 +2835,7 @@ xl_init_locked(struct xl_softc *sc)
 	else
 		error = xl_list_tx_init(sc);
 	if (error) {
-		if_printf(ifp, "initialization of the tx ring failed (%d)\n",
+		device_printf(sc->xl_dev, "initialization of the tx ring failed (%d)\n",
 		    error);
 		xl_stop(sc);
 		return;

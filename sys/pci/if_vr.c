@@ -603,10 +603,10 @@ vr_reset(struct vr_softc *sc)
 	}
 	if (i == VR_TIMEOUT) {
 		if (sc->vr_revid < REV_ID_VT3065_A)
-			if_printf(sc->vr_ifp, "reset never completed!\n");
+			device_printf(sc->vr_dev, "reset never completed!\n");
 		else {
 			/* Use newer force reset command */
-			if_printf(sc->vr_ifp, "Using force reset command.\n");
+			device_printf(sc->vr_dev, "Using force reset command.\n");
 			VR_SETBIT(sc, VR_MISC_CR1, VR_MISCCR1_FORSRST);
 		}
 	}
@@ -651,6 +651,7 @@ vr_attach(dev)
 	int			unit, error = 0, rid;
 
 	sc = device_get_softc(dev);
+	sc->vr_dev = dev;
 	unit = device_get_unit(dev);
 
 	mtx_init(&sc->vr_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
@@ -973,7 +974,8 @@ vr_rxeof(struct vr_softc *sc)
 		 */
 		if (rxstat & VR_RXSTAT_RXERR) {
 			ifp->if_ierrors++;
-			if_printf(ifp, "rx error (%02x):", rxstat & 0x000000ff);
+			device_printf(sc->vr_dev,
+			    "rx error (%02x):", rxstat & 0x000000ff);
 			if (rxstat & VR_RXSTAT_CRCERR)
 				printf(" crc error");
 			if (rxstat & VR_RXSTAT_FRAMEALIGNERR)
@@ -1042,7 +1044,7 @@ vr_rxeoc(struct vr_softc *sc)
 	}
 
 	if (!i) {
-		if_printf(ifp, "rx shutdown error!\n");
+		device_printf(sc->vr_dev, "rx shutdown error!\n");
 		sc->vr_flags |= VR_F_RESTART;
 		return;
 	}
@@ -1084,7 +1086,7 @@ vr_txeof(struct vr_softc *sc)
 			     i--)
 				;	/* Wait for chip to shutdown */
 			if (!i) {
-				if_printf(ifp, "tx shutdown timeout\n");
+				device_printf(sc->vr_dev, "tx shutdown timeout\n");
 				sc->vr_flags |= VR_F_RESTART;
 				break;
 			}
@@ -1127,7 +1129,7 @@ vr_tick(void *xsc)
 	VR_LOCK_ASSERT(sc);
 
 	if (sc->vr_flags & VR_F_RESTART) {
-		if_printf(sc->vr_ifp, "restarting\n");
+		device_printf(sc->vr_dev, "restarting\n");
 		vr_stop(sc);
 		vr_reset(sc);
 		vr_init_locked(sc);
@@ -1261,13 +1263,13 @@ vr_intr(void *arg)
 			vr_rxeof(sc);
 
 		if (status & VR_ISR_RX_DROPPED) {
-			if_printf(ifp, "rx packet lost\n");
+			device_printf(sc->vr_dev, "rx packet lost\n");
 			ifp->if_ierrors++;
 		}
 
 		if ((status & VR_ISR_RX_ERR) || (status & VR_ISR_RX_NOBUF) ||
 		    (status & VR_ISR_RX_NOBUF) || (status & VR_ISR_RX_OFLOW)) {
-			if_printf(ifp, "receive error (%04x)", status);
+			device_printf(sc->vr_dev, "receive error (%04x)", status);
 			if (status & VR_ISR_RX_NOBUF)
 				printf(" no buffers");
 			if (status & VR_ISR_RX_OFLOW)
@@ -1469,7 +1471,7 @@ vr_init_locked(struct vr_softc *sc)
 
 	/* Init circular RX list. */
 	if (vr_list_rx_init(sc) == ENOBUFS) {
-		if_printf(ifp,
+		device_printf(sc->vr_dev,
 		    "initialization failed: no memory for rx buffers\n");
 		vr_stop(sc);
 		return;

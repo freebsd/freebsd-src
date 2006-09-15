@@ -655,7 +655,7 @@ wb_setcfg(sc, media)
 		}
 
 		if (i == WB_TIMEOUT)
-			if_printf(sc->wb_ifp,
+			device_printf(sc->wb_dev,
 			    "failed to force tx and rx to idle state\n");
 	}
 
@@ -696,7 +696,7 @@ wb_reset(sc)
 			break;
 	}
 	if (i == WB_TIMEOUT)
-		if_printf(sc->wb_ifp, "reset never completed!\n");
+		device_printf(sc->wb_dev, "reset never completed!\n");
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -784,6 +784,7 @@ wb_attach(dev)
 	int			error = 0, rid;
 
 	sc = device_get_softc(dev);
+	sc->wb_dev = dev;
 
 	mtx_init(&sc->wb_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
@@ -1087,8 +1088,9 @@ wb_rxeof(sc)
 		    !(rxstat & WB_RXSTAT_RXCMP)) {
 			ifp->if_ierrors++;
 			wb_newbuf(sc, cur_rx, m);
-			if_printf(ifp, "receiver babbling: possible chip "
-				"bug, forcing reset\n");
+			device_printf(sc->wb_dev,
+			    "receiver babbling: possible chip bug,"
+			    " forcing reset\n");
 			wb_fixmedia(sc);
 			wb_reset(sc);
 			wb_init_locked(sc);
@@ -1602,7 +1604,7 @@ wb_init_locked(sc)
 
 	/* Init circular RX list. */
 	if (wb_list_rx_init(sc) == ENOBUFS) {
-		if_printf(ifp,
+		device_printf(sc->wb_dev,
 		    "initialization failed: no memory for rx buffers\n");
 		wb_stop(sc);
 		return;

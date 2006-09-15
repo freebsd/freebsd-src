@@ -453,6 +453,7 @@ struct vr_mii_frame {
 
 struct vr_softc {
 	struct ifnet		*vr_ifp;	/* interface info */
+	device_t		 vr_dev;
 	bus_space_handle_t	vr_bhandle;	/* bus space handle */
 	bus_space_tag_t		vr_btag;	/* bus space tag */
 	struct resource		*vr_res;
