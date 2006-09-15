@@ -58,7 +58,7 @@
 .\" 	[90/08/30            dbg]
 .\"
 .\" $FreeBSD$
-.Dd February 27, 2006
+.Dd September 15, 2006
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -422,6 +422,17 @@ The support of the
 .Li u
 modifier depends on the machine.
 If not supported, incorrect information will be displayed.
+.It Xo
+.Cm show geom
+.Op Ar addr
+.Xc
+If the
+.Ar addr
+argument is not given, displays the entire GEOM topology.
+If the
+.Ar addr
+is given, displays details about the given GEOM object (class, geom, provider 
+or consumer).
 .It Xo
 .Cm show map Ns Op Cm /f
 .Ar addr
