@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/tcp.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -1230,19 +1231,180 @@ mxge_submit_req_wc(mxge_tx_buf_t *tx, mcp_kreq_ether_send_t *src, int cnt)
 }
 
 static void
+mxge_encap_tso(mxge_softc_t *sc, struct mbuf *m, int busdma_seg_cnt)
+{
+	mxge_tx_buf_t *tx;
+	mcp_kreq_ether_send_t *req;
+	bus_dma_segment_t *seg;
+	struct ether_header *eh;
+	struct ip *ip;
+	struct tcphdr *tcp;
+	uint32_t low, high_swapped;
+	int len, seglen, cum_len, cum_len_next;
+	int next_is_first, chop, cnt, rdma_count, small;
+	uint16_t pseudo_hdr_offset, cksum_offset, mss;
+	uint8_t flags, flags_next;
+	static int once;
+	
+	mss = m->m_pkthdr.tso_segsz;
+
+	/* negative cum_len signifies to the
+	 * send loop that we are still in the
+	 * header portion of the TSO packet.
+	 */
+
+	/* ensure we have the ethernet, IP and TCP
+	   header together in the first mbuf, copy
+	   it to a scratch buffer if not */
+	if (__predict_false(m->m_len < sizeof (*eh)
+			    + sizeof (*ip))) {
+		m_copydata(m, 0, sizeof (*eh) + sizeof (*ip),
+			   sc->scratch);
+		eh = (struct ether_header *)sc->scratch;
+	} else {
+		eh = mtod(m, struct ether_header *);
+	}
+	ip = (struct ip *) (eh + 1);
+	if (__predict_false(m->m_len < sizeof (*eh) + (ip->ip_hl << 2)
+			    + sizeof (*tcp))) {
+		m_copydata(m, 0, sizeof (*eh) + (ip->ip_hl << 2)
+			   + sizeof (*tcp),  sc->scratch);
+		eh = (struct ether_header *) sc->scratch;
+		ip = (struct ip *) (eh + 1);
+	} 
+
+	tcp = (struct tcphdr *)((char *)ip + (ip->ip_hl << 2));
+	cum_len = -(sizeof (*eh) + ((ip->ip_hl + tcp->th_off) << 2));
+
+	/* TSO implies checksum offload on this hardware */
+	cksum_offset = sizeof(*eh) + (ip->ip_hl << 2);
+	flags = MXGEFW_FLAGS_TSO_HDR | MXGEFW_FLAGS_FIRST;
+
+	
+	/* for TSO, pseudo_hdr_offset holds mss.
+	 * The firmware figures out where to put
+	 * the checksum by parsing the header. */
+	pseudo_hdr_offset = htobe16(mss);
+
+	tx = &sc->tx;
+	req = tx->req_list;
+	seg = tx->seg_list;
+	cnt = 0;
+	rdma_count = 0;
+	/* "rdma_count" is the number of RDMAs belonging to the
+	 * current packet BEFORE the current send request. For
+	 * non-TSO packets, this is equal to "count".
+	 * For TSO packets, rdma_count needs to be reset
+	 * to 0 after a segment cut.
+	 *
+	 * The rdma_count field of the send request is
+	 * the number of RDMAs of the packet starting at
+	 * that request. For TSO send requests with one ore more cuts
+	 * in the middle, this is the number of RDMAs starting
+	 * after the last cut in the request. All previous
+	 * segments before the last cut implicitly have 1 RDMA.
+	 *
+	 * Since the number of RDMAs is not known beforehand,
+	 * it must be filled-in retroactively - after each
+	 * segmentation cut or at the end of the entire packet.
+	 */
+
+	while (busdma_seg_cnt) {
+		/* Break the busdma segment up into pieces*/
+		low = MXGE_LOWPART_TO_U32(seg->ds_addr);
+		high_swapped = 	htobe32(MXGE_HIGHPART_TO_U32(seg->ds_addr));
+		len = seglen = seg->ds_len;
+
+		while (len) {
+			flags_next = flags & ~MXGEFW_FLAGS_FIRST;
+			cum_len_next = cum_len + seglen;
+			(req-rdma_count)->rdma_count = rdma_count + 1;
+			if (__predict_true(cum_len >= 0)) {
+				/* payload */
+				chop = (cum_len_next > mss);
+				cum_len_next = cum_len_next % mss;
+				next_is_first = (cum_len_next == 0);
+				flags |= chop * MXGEFW_FLAGS_TSO_CHOP;
+				flags_next |= next_is_first *
+					MXGEFW_FLAGS_FIRST;
+				rdma_count |= -(chop | next_is_first);
+				rdma_count += chop & !next_is_first;
+			} else if (cum_len_next >= 0) {
+				/* header ends */
+				rdma_count = -1;
+				cum_len_next = 0;
+				seglen = -cum_len;
+				small = (mss <= MXGEFW_SEND_SMALL_SIZE);
+				flags_next = MXGEFW_FLAGS_TSO_PLD |
+					MXGEFW_FLAGS_FIRST | 
+					(small * MXGEFW_FLAGS_SMALL);
+			    }
+			
+			req->addr_high = high_swapped;
+			req->addr_low = htobe32(low);
+			req->pseudo_hdr_offset = pseudo_hdr_offset;
+			req->pad = 0;
+			req->rdma_count = 1;
+			req->length = htobe16(seglen);
+			req->cksum_offset = cksum_offset;
+			req->flags = flags | ((cum_len & 1) *
+					      MXGEFW_FLAGS_ALIGN_ODD);
+			low += seglen;
+			len -= seglen;
+			cum_len = cum_len_next;
+			flags = flags_next;
+			req++;
+			cnt++;
+			rdma_count++;
+			if (__predict_false(cksum_offset > seglen))
+				cksum_offset -= seglen;
+			else
+				cksum_offset = 0;
+			if (__predict_false(cnt > MXGE_MAX_SEND_DESC))
+				goto drop;
+		}
+		busdma_seg_cnt--;
+		seg++;
+	}
+	(req-rdma_count)->rdma_count = rdma_count;
+
+	do {
+		req--;
+		req->flags |= MXGEFW_FLAGS_TSO_LAST;
+	} while (!(req->flags & (MXGEFW_FLAGS_TSO_CHOP | MXGEFW_FLAGS_FIRST)));
+
+	tx->info[((cnt - 1) + tx->req) & tx->mask].flag = 1;
+	if (tx->wc_fifo == NULL)
+		mxge_submit_req(tx, tx->req_list, cnt);
+	else
+		mxge_submit_req_wc(tx, tx->req_list, cnt);
+	return;
+
+drop:
+	m_freem(m);
+	sc->ifp->if_oerrors++;
+	if (!once) {
+		printf("MXGE_MAX_SEND_DESC exceeded via TSO!\n");
+		printf("mss = %d, %ld!\n", mss, (long)seg - (long)tx->seg_list);
+		once = 1;
+	}
+	return;
+
+}
+
+static void
 mxge_encap(mxge_softc_t *sc, struct mbuf *m)
 {
 	mcp_kreq_ether_send_t *req;
-	bus_dma_segment_t seg_list[MXGE_MAX_SEND_DESC];
 	bus_dma_segment_t *seg;
 	struct mbuf *m_tmp;
 	struct ifnet *ifp;
 	mxge_tx_buf_t *tx;
 	struct ether_header *eh;
 	struct ip *ip;
-	int cnt, cum_len, err, i, idx;
-	uint16_t flags, pseudo_hdr_offset;
-        uint8_t cksum_offset;
+	int cnt, cum_len, err, i, idx, odd_flag;
+	uint16_t pseudo_hdr_offset;
+        uint8_t flags, cksum_offset;
 
 
 
@@ -1252,7 +1414,7 @@ mxge_encap(mxge_softc_t *sc, struct mbuf *m)
 	/* (try to) map the frame for DMA */
 	idx = tx->req & tx->mask;
 	err = bus_dmamap_load_mbuf_sg(tx->dmat, tx->info[idx].map,
-				      m, seg_list, &cnt, 
+				      m, tx->seg_list, &cnt, 
 				      BUS_DMA_NOWAIT);
 	if (err == EFBIG) {
 		/* Too many segments in the chain.  Try
@@ -1264,17 +1426,24 @@ mxge_encap(mxge_softc_t *sc, struct mbuf *m)
 		m = m_tmp;
 		err = bus_dmamap_load_mbuf_sg(tx->dmat, 
 					      tx->info[idx].map,
-					      m, seg_list, &cnt, 
+					      m, tx->seg_list, &cnt, 
 					      BUS_DMA_NOWAIT);
 	}
 	if (err != 0) {
-		device_printf(sc->dev, "bus_dmamap_load_mbuf_sg returned %d\n",
-			      err);
+		device_printf(sc->dev, "bus_dmamap_load_mbuf_sg returned %d"
+			      " packet len = %d\n", err, m->m_pkthdr.len);
 		goto drop;
 	}
 	bus_dmamap_sync(tx->dmat, tx->info[idx].map,
 			BUS_DMASYNC_PREWRITE);
 	tx->info[idx].m = m;
+
+
+	/* TSO is different enough, we handle it in another routine */
+	if (m->m_pkthdr.csum_flags & (CSUM_TSO)) {
+		mxge_encap_tso(sc, m, cnt);
+		return;
+	}
 
 	req = tx->req_list;
 	cksum_offset = 0;
@@ -1283,20 +1452,32 @@ mxge_encap(mxge_softc_t *sc, struct mbuf *m)
 
 	/* checksum offloading? */
 	if (m->m_pkthdr.csum_flags & (CSUM_DELAY_DATA)) {
-		eh = mtod(m, struct ether_header *);
+		/* ensure ip header is in first mbuf, copy
+		   it to a scratch buffer if not */
+		if (__predict_false(m->m_len < sizeof (*eh)
+				    + sizeof (*ip))) {
+			m_copydata(m, 0, sizeof (*eh) + sizeof (*ip),
+				   sc->scratch);
+			eh = (struct ether_header *)sc->scratch;
+		} else {
+			eh = mtod(m, struct ether_header *);
+		}
 		ip = (struct ip *) (eh + 1);
 		cksum_offset = sizeof(*eh) + (ip->ip_hl << 2);
 		pseudo_hdr_offset = cksum_offset +  m->m_pkthdr.csum_data;
 		pseudo_hdr_offset = htobe16(pseudo_hdr_offset);
 		req->cksum_offset = cksum_offset;
 		flags |= MXGEFW_FLAGS_CKSUM;
+		odd_flag = MXGEFW_FLAGS_ALIGN_ODD;
+	} else {
+		odd_flag = 0;
 	}
 	if (m->m_pkthdr.len < MXGEFW_SEND_SMALL_SIZE)
 		flags |= MXGEFW_FLAGS_SMALL;
 
 	/* convert segments into a request list */
 	cum_len = 0;
-	seg = seg_list;
+	seg = tx->seg_list;
 	req->flags = MXGEFW_FLAGS_FIRST;
 	for (i = 0; i < cnt; i++) {
 		req->addr_low = 
@@ -1312,7 +1493,7 @@ mxge_encap(mxge_softc_t *sc, struct mbuf *m)
 		req->pseudo_hdr_offset = pseudo_hdr_offset;
 		req->pad = 0; /* complete solid 16-byte block */
 		req->rdma_count = 1;
-		req->flags |= flags | ((cum_len & 1) * MXGEFW_FLAGS_ALIGN_ODD);
+		req->flags |= flags | ((cum_len & 1) * odd_flag);
 		cum_len += seg->ds_len;
 		seg++;
 		req++;
@@ -1331,7 +1512,7 @@ mxge_encap(mxge_softc_t *sc, struct mbuf *m)
 		req->pseudo_hdr_offset = pseudo_hdr_offset;
 		req->pad = 0; /* complete solid 16-byte block */
 		req->rdma_count = 1;
-		req->flags |= flags | ((cum_len & 1) * MXGEFW_FLAGS_ALIGN_ODD);
+		req->flags |= flags | ((cum_len & 1) * odd_flag);
 		cnt++;
 	}
 
@@ -1849,9 +2030,10 @@ mxge_free_rings(mxge_softc_t *sc)
 {
 	int i;
 
-	if (sc->tx.req_bytes != NULL) {
+	if (sc->tx.req_bytes != NULL)
 		free(sc->tx.req_bytes, M_DEVBUF);
-	}
+	if (sc->tx.seg_list != NULL)
+		free(sc->tx.seg_list, M_DEVBUF);
 	if (sc->rx_small.shadow != NULL)
 		free(sc->rx_small.shadow, M_DEVBUF);
 	if (sc->rx_big.shadow != NULL)
@@ -1935,6 +2117,13 @@ mxge_alloc_rings(mxge_softc_t *sc)
 	sc->tx.req_list = (mcp_kreq_ether_send_t *)
 		((unsigned long)(sc->tx.req_bytes + 7) & ~7UL);
 
+	/* allocate the tx busdma segment list */
+	bytes = sizeof (*sc->tx.seg_list) * MXGE_MAX_SEND_DESC;
+	sc->tx.seg_list = (bus_dma_segment_t *) 
+		malloc(bytes, M_DEVBUF, M_WAITOK);
+	if (sc->tx.seg_list == NULL)
+		goto abort_with_alloc;
+
 	/* allocate the rx shadow rings */
 	bytes = rx_ring_entries * sizeof (*sc->rx_small.shadow);
 	sc->rx_small.shadow = malloc(bytes, M_DEVBUF, M_ZERO|M_WAITOK);
@@ -1969,8 +2158,8 @@ mxge_alloc_rings(mxge_softc_t *sc)
 				 BUS_SPACE_MAXADDR,	/* low */
 				 BUS_SPACE_MAXADDR,	/* high */
 				 NULL, NULL,		/* filter */
-				 MXGE_MAX_ETHER_MTU,	/* maxsize */
-				 MXGE_MAX_SEND_DESC,	/* num segs */
+				 65536 + 256,		/* maxsize */
+				 MXGE_MAX_SEND_DESC/2,	/* num segs */
 				 sc->tx.boundary,	/* maxsegsize */
 				 BUS_DMA_ALLOCNOW,	/* flags */
 				 NULL, NULL,		/* lock */
@@ -2315,8 +2504,9 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 		if (mask & IFCAP_TXCSUM) {
 			if (IFCAP_TXCSUM & ifp->if_capenable) {
-				ifp->if_capenable &= ~IFCAP_TXCSUM;
-				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP);
+				ifp->if_capenable &= ~(IFCAP_TXCSUM|IFCAP_TSO4);
+				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP
+						      | CSUM_TSO);
 			} else {
 				ifp->if_capenable |= IFCAP_TXCSUM;
 				ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
@@ -2328,6 +2518,19 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			} else {
 				ifp->if_capenable |= IFCAP_RXCSUM;
 				sc->csum_flag = 1;
+			}
+		}
+		if (mask & IFCAP_TSO4) {
+			if (IFCAP_TSO4 & ifp->if_capenable) {
+				ifp->if_capenable &= ~IFCAP_TSO4;
+				ifp->if_hwassist &= ~CSUM_TSO;
+			} else if (IFCAP_TXCSUM & ifp->if_capenable) {
+				ifp->if_capenable |= IFCAP_TSO4;
+				ifp->if_hwassist |= CSUM_TSO;
+			} else {
+				printf("mxge requires tx checksum offload"
+				       " be enabled to use TSO\n");
+				err = EINVAL;
 			}
 		}
 		sx_xunlock(&sc->driver_lock);
@@ -2384,7 +2587,7 @@ mxge_attach(device_t dev)
 				 BUS_SPACE_MAXADDR,	/* low */
 				 BUS_SPACE_MAXADDR,	/* high */
 				 NULL, NULL,		/* filter */
-				 MXGE_MAX_ETHER_MTU,	/* maxsize */
+				 65536 + 256,		/* maxsize */
 				 MXGE_MAX_SEND_DESC, 	/* num segs */
 				 4096,			/* maxsegsize */
 				 0,			/* flags */
@@ -2495,8 +2698,8 @@ mxge_attach(device_t dev)
 	/* hook into the network stack */
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_baudrate = 100000000;
-	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM;
-	ifp->if_hwassist = CSUM_TCP | CSUM_UDP;
+	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4;
+	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_TSO;
 	ifp->if_capenable = ifp->if_capabilities;
 	sc->csum_flag = 1;
         ifp->if_init = mxge_init;

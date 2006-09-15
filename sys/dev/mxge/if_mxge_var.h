@@ -43,7 +43,8 @@ $FreeBSD$
 
 #define MXGE_FW_OFFSET 1024*1024
 #define MXGE_EEPROM_STRINGS_SIZE 256
-#define MXGE_MAX_SEND_DESC 12
+#define MXGE_MAX_SEND_DESC 64 /* should be large enough for
+				 any TSO packet */
 
 typedef struct {
 	void *addr;
@@ -97,6 +98,7 @@ typedef struct
 	volatile uint8_t *wc_fifo;		/* w/c send fifo address */
 	mcp_kreq_ether_send_t *req_list;	/* host shadow of sendq */
 	char *req_bytes;
+	bus_dma_segment_t *seg_list;
 	struct mxge_tx_buffer_state *info;
 	bus_dma_tag_t dmat;
 	int req;			/* transmits submitted	*/
@@ -104,6 +106,7 @@ typedef struct
 	int done;			/* transmits completed	*/
 	int pkt_done;			/* packets completed */
 	int boundary;			/* boundary transmits cannot cross*/
+
 } mxge_tx_buf_t;
 
 typedef struct {
@@ -155,7 +158,7 @@ typedef struct {
 	char *mac_addr_string;
 	char product_code_string[64];
 	char serial_number_string[64];
-
+	char scratch[256];
 } mxge_softc_t;
 
 #define MXGE_PCI_VENDOR_MYRICOM 	0x14c1
