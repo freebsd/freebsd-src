@@ -730,16 +730,18 @@ send:
 	 * Clear the FIN bit because we cut off the tail of
 	 * the segment.
 	 *
-	 * When doing TSO limit a burst to TCP_MAXWIN and set the
-	 * flag to continue sending and prevent the last segment
-	 * from being fractional thus making them all equal sized.
+	 * When doing TSO limit a burst to TCP_MAXWIN minus the
+	 * IP, TCP and Options length to keep ip->ip_len from
+	 * overflowing.  Prevent the last segment from being
+	 * fractional thus making them all equal sized and set
+	 * the flag to continue sending.
 	 */
 	if (len + optlen + ipoptlen > tp->t_maxopd) {
 		flags &= ~TH_FIN;
 		if (tso) {
 			if (len > TCP_MAXWIN) {
-				len = TCP_MAXWIN - TCP_MAXWIN %
-					(tp->t_maxopd - optlen);
+				len = TCP_MAXWIN - hdrlen;
+				len = len - (len % (tp->t_maxopd - optlen));
 				sendalot = 1;
 			} else if (tp->t_flags & TF_NEEDFIN)
 				sendalot = 1;
