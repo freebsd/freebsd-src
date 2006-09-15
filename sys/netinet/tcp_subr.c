@@ -177,6 +177,36 @@ static int	tcp_isn_reseed_interval = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
     &tcp_isn_reseed_interval, 0, "Seconds between reseeding of ISN secret");
 
+static uma_zone_t tcptw_zone;
+static int	maxtcptw;
+static int
+sysctl_maxtcptw(SYSCTL_HANDLER_ARGS)
+{
+	int error, new;
+
+	if (maxtcptw == 0)
+		new = maxsockets / 5;
+	else
+		new = maxtcptw;
+	error = sysctl_handle_int(oidp, &new, sizeof(int), req);
+	if (error == 0 && req->newptr) {
+		if (new > maxtcptw) {
+			maxtcptw = new;
+			uma_zone_set_max(tcptw_zone, maxtcptw);
+		} else
+			error = EINVAL;
+	}
+	return (error);
+}
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxtcptw, CTLTYPE_INT|CTLFLAG_RW,
+    &maxtcptw, 0, sysctl_maxtcptw, "IU",
+    "Maximum number of compressed TCP TIME_WAIT entries");
+
+static int	nolocaltimewait = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, nolocaltimewait, CTLFLAG_RW,
+    &nolocaltimewait, 0, "Do not create compressed TCP TIME_WAIT entries"
+			 "for local connections");
+
 /*
  * TCP bandwidth limiting sysctls.  Note that the default lower bound of
  * 1024 exists only for debugging.  A good production default would be
@@ -239,7 +269,6 @@ struct	tcpcb_mem {
 };
 
 static uma_zone_t tcpcb_zone;
-static uma_zone_t tcptw_zone;
 struct callout isn_callout;
 
 /*
@@ -251,7 +280,8 @@ tcp_zone_change(void *tag)
 
 	uma_zone_set_max(tcbinfo.ipi_zone, maxsockets);
 	uma_zone_set_max(tcpcb_zone, maxsockets);
-	uma_zone_set_max(tcptw_zone, maxsockets / 5);
+	if (maxtcptw == 0)
+		uma_zone_set_max(tcptw_zone, maxsockets / 5);
 }
 
 void
@@ -302,7 +332,11 @@ tcp_init()
 	uma_zone_set_max(tcpcb_zone, maxsockets);
 	tcptw_zone = uma_zcreate("tcptw", sizeof(struct tcptw),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	uma_zone_set_max(tcptw_zone, maxsockets / 5);
+	TUNABLE_INT_FETCH("net.inet.tcp.maxtcptw", &maxtcptw);
+	if (maxtcptw == 0)
+		uma_zone_set_max(tcptw_zone, maxsockets / 5);
+	else
+		uma_zone_set_max(tcptw_zone, maxtcptw);
 	tcp_timer_init();
 	syncache_init();
 	tcp_hc_init();
@@ -1674,12 +1708,17 @@ tcp_twstart(tp)
 	struct tcpcb *tp;
 {
 	struct tcptw *tw;
-	struct inpcb *inp;
-	int tw_time, acknow;
+	struct inpcb *inp = tp->t_inpcb;
+	int acknow;
 	struct socket *so;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);	/* tcp_timer_2msl_reset(). */
-	INP_LOCK_ASSERT(tp->t_inpcb);
+	INP_LOCK_ASSERT(inp);
+
+	if (nolocaltimewait && in_localip(inp->inp_faddr)) {
+		tcp_close(tp);
+		return;
+	}
 
 	tw = uma_zalloc(tcptw_zone, M_NOWAIT);
 	if (tw == NULL) {
@@ -1689,7 +1728,6 @@ tcp_twstart(tp)
 			return;
 		}
 	}
-	inp = tp->t_inpcb;
 	tw->tw_inpcb = inp;
 
 	/*
@@ -1718,7 +1756,6 @@ tcp_twstart(tp)
  * be used for fin-wait-2 state also, then we may need
  * a ts_recent from the last segment.
  */
-	tw_time = 2 * tcp_msl;
 	acknow = tp->t_flags & TF_ACKNOW;
 	tcp_discardcb(tp);
 	so = inp->inp_socket;
@@ -1733,10 +1770,11 @@ tcp_twstart(tp)
 		tcp_twrespond(tw, TH_ACK);
 	inp->inp_ppcb = (caddr_t)tw;
 	inp->inp_vflag |= INP_TIMEWAIT;
-	tcp_timer_2msl_reset(tw, tw_time, 0);
+	tcp_timer_2msl_reset(tw, 0);
 	INP_UNLOCK(inp);
 }
 
+#if 0
 /*
  * The appromixate rate of ISN increase of Microsoft TCP stacks;
  * the actual rate is slightly higher due to the addition of
@@ -1751,10 +1789,6 @@ tcp_twstart(tp)
  * Determine if the ISN we will generate has advanced beyond the last
  * sequence number used by the previous connection.  If so, indicate
  * that it is safe to recycle this tw socket by returning 1.
- *
- * XXXRW: This function should assert the inpcb lock as it does multiple
- * non-atomic reads from the tcptw, but is currently called without it from
- * in_pcb.c:in_pcblookup_local().
  */
 int
 tcp_twrecycleable(struct tcptw *tw)
@@ -1762,6 +1796,7 @@ tcp_twrecycleable(struct tcptw *tw)
 	tcp_seq new_iss = tw->iss;
 	tcp_seq new_irs = tw->irs;
 
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	new_iss += (ticks - tw->t_starttime) * (ISN_BYTES_PER_SECOND / hz);
 	new_irs += (ticks - tw->t_starttime) * (MS_ISN_BYTES_PER_SECOND / hz);
 
@@ -1770,6 +1805,7 @@ tcp_twrecycleable(struct tcptw *tw)
 	else
 		return (0);
 }
+#endif
 
 struct tcptw *
 tcp_twclose(struct tcptw *tw, int reuse)
