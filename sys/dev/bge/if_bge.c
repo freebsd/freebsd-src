@@ -591,7 +591,7 @@ bge_miibus_readreg(device_t dev, int phy, int reg)
 	}
 
 	if (i == BGE_TIMEOUT) {
-		if_printf(sc->bge_ifp, "PHY read timed out\n");
+		device_printf(sc->bge_dev, "PHY read timed out\n");
 		val = 0;
 		goto done;
 	}
@@ -640,7 +640,7 @@ bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 	}
 
 	if (i == BGE_TIMEOUT) {
-		if_printf(sc->bge_ifp, "PHY read timed out\n");
+		device_printf(sc->bge_dev, "PHY read timed out\n");
 		return (0);
 	}
 

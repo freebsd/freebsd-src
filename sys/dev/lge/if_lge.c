@@ -230,7 +230,7 @@ lge_eeprom_getword(sc, addr, dest)
 			break;
 
 	if (i == LGE_TIMEOUT) {
-		if_printf(sc->lge_ifp, "EEPROM read timed out\n");
+		device_printf(sc->lge_dev, "EEPROM read timed out\n");
 		return;
 	}
 
@@ -295,7 +295,7 @@ lge_miibus_readreg(dev, phy, reg)
 			break;
 
 	if (i == LGE_TIMEOUT) {
-		if_printf(sc->lge_ifp, "PHY read timed out\n");
+		device_printf(sc->lge_dev, "PHY read timed out\n");
 		return(0);
 	}
 
@@ -320,7 +320,7 @@ lge_miibus_writereg(dev, phy, reg, data)
 			break;
 
 	if (i == LGE_TIMEOUT) {
-		if_printf(sc->lge_ifp, "PHY write timed out\n");
+		device_printf(sc->lge_dev, "PHY write timed out\n");
 		return(0);
 	}
 
@@ -426,7 +426,7 @@ lge_reset(sc)
 	}
 
 	if (i == LGE_TIMEOUT)
-		if_printf(sc->lge_ifp, "reset never completed\n");
+		device_printf(sc->lge_dev, "reset never completed\n");
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -472,6 +472,8 @@ lge_attach(dev)
 	int			error = 0, rid;
 
 	sc = device_get_softc(dev);
+	sc->lge_dev = dev;
+	
 	mtx_init(&sc->lge_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	callout_init_mtx(&sc->lge_stat_callout, &sc->lge_mtx, 0);
@@ -698,7 +700,7 @@ lge_newbuf(sc, c, m)
 	if (m == NULL) {
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
-			if_printf(sc->lge_ifp, "no memory for rx list "
+			device_printf(sc->lge_dev, "no memory for rx list "
 			    "-- packet dropped!\n");
 			return(ENOBUFS);
 		}
@@ -707,7 +709,7 @@ lge_newbuf(sc, c, m)
 		buf = lge_jalloc(sc);
 		if (buf == NULL) {
 #ifdef LGE_VERBOSE
-			if_printf(sc->lge_ifp, "jumbo allocation failed "
+			device_printf(sc->lge_dev, "jumbo allocation failed "
 			    "-- packet dropped!\n");
 #endif
 			m_freem(m_new);
@@ -768,7 +770,7 @@ lge_alloc_jumbo_mem(sc)
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->lge_cdata.lge_jumbo_buf == NULL) {
-		if_printf(sc->lge_ifp, "no memory for jumbo buffers!\n");
+		device_printf(sc->lge_dev, "no memory for jumbo buffers!\n");
 		return(ENOBUFS);
 	}
 
@@ -786,7 +788,7 @@ lge_alloc_jumbo_mem(sc)
 		entry = malloc(sizeof(struct lge_jpool_entry),
 		    M_DEVBUF, M_NOWAIT);
 		if (entry == NULL) {
-			if_printf(sc->lge_ifp, "no memory for jumbo "
+			device_printf(sc->lge_dev, "no memory for jumbo "
 			    "buffer queue!\n");
 			return(ENOBUFS);
 		}
@@ -829,7 +831,7 @@ lge_jalloc(sc)
 	
 	if (entry == NULL) {
 #ifdef LGE_VERBOSE
-		if_printf(sc->lge_ifp, "no free jumbo buffers\n");
+		device_printf(sc->lge_dev, "no free jumbo buffers\n");
 #endif
 		return(NULL);
 	}
@@ -925,7 +927,7 @@ lge_rxeof(sc, cnt)
 			    ifp, NULL);
 			lge_newbuf(sc, &LGE_RXTAIL(sc), m);
 			if (m0 == NULL) {
-				if_printf(ifp, "no receive buffers "
+				device_printf(sc->lge_dev, "no receive buffers "
 				    "available -- packet dropped!\n");
 				ifp->if_ierrors++;
 				continue;
@@ -1048,7 +1050,7 @@ lge_tick(xsc)
 			if (bootverbose &&
 		  	    (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX||
 			    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T))
-				if_printf(ifp, "gigabit link up\n");
+				device_printf(sc->lge_dev, "gigabit link up\n");
 			if (ifp->if_snd.ifq_head != NULL)
 				lge_start_locked(ifp);
 		}
@@ -1267,7 +1269,7 @@ lge_init_locked(sc)
 
 	/* Init circular RX list. */
 	if (lge_list_rx_init(sc) == ENOBUFS) {
-		if_printf(ifp, "initialization failed: no "
+		device_printf(sc->lge_dev, "initialization failed: no "
 		    "memory for rx buffers\n");
 		lge_stop(sc);
 		return;

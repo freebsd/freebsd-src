@@ -523,6 +523,7 @@ struct lge_ring_data {
 
 struct lge_softc {
 	struct ifnet		*lge_ifp;
+	device_t		lge_dev;
 	bus_space_handle_t	lge_bhandle;
 	bus_space_tag_t		lge_btag;
 	struct resource		*lge_res;
