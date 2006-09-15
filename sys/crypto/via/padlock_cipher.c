@@ -225,7 +225,7 @@ padlock_cipher_process(struct padlock_session *ses, struct cryptodesc *enccrd,
 		cw->cw_direction = PADLOCK_DIRECTION_ENCRYPT;
 		key = ses->ses_ekey;
 		if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT) != 0)
-			bcopy(enccrd->crd_iv, ses->ses_iv, 16);
+			bcopy(enccrd->crd_iv, ses->ses_iv, AES_BLOCK_LEN);
 
 		if ((enccrd->crd_flags & CRD_F_IV_PRESENT) == 0) {
 			crypto_copyback(crp->crp_flags, crp->crp_buf,
@@ -247,7 +247,8 @@ padlock_cipher_process(struct padlock_session *ses, struct cryptodesc *enccrd,
 		    enccrd->crd_len, abuf);
 	}
 
-	padlock_cbc(abuf, abuf, enccrd->crd_len / 16, key, cw, ses->ses_iv);
+	padlock_cbc(abuf, abuf, enccrd->crd_len / AES_BLOCK_LEN, key, cw,
+	    ses->ses_iv);
 
 	if (allocated) {
 		crypto_copyback(crp->crp_flags, crp->crp_buf, enccrd->crd_skip,
