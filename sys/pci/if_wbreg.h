@@ -363,7 +363,7 @@ struct wb_mii_frame {
 
 struct wb_softc {
 	struct ifnet		*wb_ifp;	/* interface info */
-	device_t		 wb_dev;
+	device_t		wb_dev;
 	device_t		wb_miibus;
 	bus_space_handle_t	wb_bhandle;
 	bus_space_tag_t		wb_btag;
