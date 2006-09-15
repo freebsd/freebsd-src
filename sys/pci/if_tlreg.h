@@ -110,7 +110,7 @@ struct tl_chain_data {
 
 struct tl_softc {
 	struct ifnet		*tl_ifp;
-	device_t		 tl_dev;
+	device_t		tl_dev;
 	struct ifmedia		ifmedia;	/* media info */
 	bus_space_handle_t	tl_bhandle;
 	bus_space_tag_t		tl_btag;
