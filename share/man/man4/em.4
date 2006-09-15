@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 27, 2005
+.Dd September 15, 2006
 .Dt EM 4
 .Os
 .Sh NAME
@@ -58,7 +58,9 @@ driver provides support for PCI Gigabit Ethernet adapters based on
 the Intel 82540, 82541ER, 82541PI, 82542, 82543, 82544, 82545, 82546,
 82546EB, 82546GB, 82547, 82571, 81572 and 82573 Ethernet controller chips.
 The driver supports Transmit/Receive checksum offload
-and Jumbo Frames only on 82540, 82543, 82544 and 82546-based adapters.
+and Jumbo Frames on all but 82542-based adapters.
+Furthermore it supports TCP segmentation offload (TSO) on all adapters but
+those based on the 82543, 82544 and 82547 controller chips.
 For further hardware information, see the
 .Pa README
 included with the driver.
@@ -75,8 +77,6 @@ utility configures the adapter to receive and transmit Jumbo Frames.
 The maximum MTU size for Jumbo Frames is 16114.
 .Pp
 This driver version supports VLANs.
-For information on enabling VLANs, see the
-.Pa README .
 The
 .Nm
 driver supports the following media types:
@@ -218,10 +218,6 @@ The device has stopped responding to the network, or there is a problem with
 the network connection (cable).
 .El
 .Sh SUPPORT
-For additional information regarding building and installation,
-see the
-.Pa README
-included with the driver.
 For general information and support,
 go to the Intel support website at:
 .Pa http://support.intel.com .
