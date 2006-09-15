@@ -241,8 +241,10 @@ void g_wither_geom(struct g_geom *gp, int error);
 void g_wither_geom_close(struct g_geom *gp, int error);
 void g_wither_provider(struct g_provider *pp, int error);
 
-#ifdef DIAGNOSTIC
+#if defined(DIAGNOSTIC) || defined(DDB)
 int g_valid_obj(void const *ptr);
+#endif
+#ifdef DIAGNOSTIC
 #define G_VALID_CLASS(foo) \
     KASSERT(g_valid_obj(foo) == 1, ("%p is not a g_class", foo))
 #define G_VALID_GEOM(foo) \
