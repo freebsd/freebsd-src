@@ -426,8 +426,10 @@ mxge_select_firmware(mxge_softc_t *sc)
 	}
 	/* see if the upstream bridge is known to
 	   provided aligned completions */
-	if (/* HT2000  */ (pvend == 0x1166 && pdid == 0x0132) ||
-	    /* Ontario */ (pvend == 0x10b5 && pdid == 0x8532)) {
+	if (/* HT2000 */ (pvend == 0x1166 && pdid == 0x0132) ||
+	    /* PLX */    (pvend == 0x10b5 && pdid == 0x8532) || 
+	    /* Intel */   (pvend == 0x8086 && 
+			   /* E5000 */(pdid >= 0x25f7 && pdid <= 0x25fa))) {
 		if (mxge_verbose)
 			device_printf(sc->dev,
 				      "Assuming aligned completions "
@@ -579,7 +581,7 @@ mxge_dummy_rdma(mxge_softc_t *sc, int enable)
 	buf[5] = htobe32(enable);			/* enable? */
 
 
-	submit = (volatile char *)(sc->sram + 0xfc01c0);
+	submit = (volatile char *)(sc->sram + MXGEFW_BOOT_DUMMY_RDMA);
 
 	mxge_pio_copy(submit, buf, 64);
 	mb();
@@ -604,7 +606,7 @@ mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data)
 	mcp_cmd_t *buf;
 	char buf_bytes[sizeof(*buf) + 8];
 	volatile mcp_cmd_response_t *response = sc->cmd;
-	volatile char *cmd_addr = sc->sram + MXGEFW_CMD_OFFSET;
+	volatile char *cmd_addr = sc->sram + MXGEFW_ETH_CMD;
 	uint32_t dma_low, dma_high;
 	int sleep_total = 0;
 
@@ -748,7 +750,7 @@ mxge_load_firmware(mxge_softc_t *sc)
 	buf[5] = htobe32(8);		/* where to copy to */
 	buf[6] = htobe32(0);		/* where to jump to */
 
-	submit = (volatile char *)(sc->sram + 0xfc0000);
+	submit = (volatile char *)(sc->sram + MXGEFW_BOOT_HANDOFF);
 	mxge_pio_copy(submit, buf, 64);
 	mb();
 	DELAY(1000);
@@ -824,6 +826,73 @@ mxge_change_promisc(mxge_softc_t *sc, int promisc)
 		device_printf(sc->dev, "Failed to set promisc mode\n");
 	}
 }
+
+static void
+mxge_set_multicast_list(mxge_softc_t *sc)
+{
+	mxge_cmd_t cmd;
+	struct ifmultiaddr *ifma;
+	struct ifnet *ifp = sc->ifp;
+	int err;
+
+	/* This firmware is known to not support multicast */
+	if (!sc->fw_multicast_support)
+		return;
+
+	/* Disable multicast filtering while we play with the lists*/
+	err = mxge_send_cmd(sc, MXGEFW_ENABLE_ALLMULTI, &cmd);
+	if (err != 0) {
+		device_printf(sc->dev, "Failed MXGEFW_ENABLE_ALLMULTI,"
+		       " error status: %d\n", err);
+		return;
+	}
+
+	
+	if (ifp->if_flags & IFF_ALLMULTI)
+		/* request to disable multicast filtering, so quit here */
+		return;
+
+	/* Flush all the filters */
+
+	err = mxge_send_cmd(sc, MXGEFW_LEAVE_ALL_MULTICAST_GROUPS, &cmd);
+	if (err != 0) {
+		device_printf(sc->dev, 
+			      "Failed MXGEFW_LEAVE_ALL_MULTICAST_GROUPS"
+			      ", error status: %d\n", err);
+		return;
+	}
+
+	/* Walk the multicast list, and add each address */
+
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		if (ifma->ifma_addr->sa_family != AF_LINK)
+			continue;
+		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
+		      &cmd.data0, 4);
+		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr) + 4,
+		      &cmd.data1, 2);
+		cmd.data0 = htonl(cmd.data0);
+		cmd.data1 = htonl(cmd.data1);
+		err = mxge_send_cmd(sc, MXGEFW_JOIN_MULTICAST_GROUP, &cmd);
+		if (err != 0) {
+			device_printf(sc->dev, "Failed "
+			       "MXGEFW_JOIN_MULTICAST_GROUP, error status:"
+			       "%d\t", err);
+			/* abort, leaving multicast filtering off */
+			IF_ADDR_UNLOCK(ifp);
+			return;
+		}
+	}
+	IF_ADDR_UNLOCK(ifp);
+	/* Enable multicast filtering */
+	err = mxge_send_cmd(sc, MXGEFW_DISABLE_ALLMULTI, &cmd);
+	if (err != 0) {
+		device_printf(sc->dev, "Failed MXGEFW_DISABLE_ALLMULTI"
+		       ", error status: %d\n", err);
+	}
+}
+
 
 static int
 mxge_reset(mxge_softc_t *sc)
@@ -932,6 +1001,7 @@ dmabench_fail:
 	status = mxge_update_mac_address(sc);
 	mxge_change_promisc(sc, 0);
 	mxge_change_pause(sc, sc->pause);
+	mxge_set_multicast_list(sc);
 	return status;
 }
 
@@ -1086,6 +1156,12 @@ mxge_add_sysctls(mxge_softc_t *sc)
 			0, mxge_handle_be32,
 			"I", "dropped_link_error_or_filtered");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+			"dropped_multicast_filtered",
+			CTLTYPE_INT|CTLFLAG_RD, 
+			&fw->dropped_multicast_filtered,
+			0, mxge_handle_be32,
+			"I", "dropped_multicast_filtered");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
 			"dropped_runt",
 			CTLTYPE_INT|CTLFLAG_RD, &fw->dropped_runt,
 			0, mxge_handle_be32,
@@ -1225,7 +1301,7 @@ mxge_submit_req_wc(mxge_tx_buf_t *tx, mcp_kreq_ether_send_t *src, int cnt)
     if (cnt > 0) {
 	    /* pad it to 64 bytes.  The src is 64 bytes bigger than it
 	       needs to be so that we don't overrun it */
-	    mxge_pio_copy(tx->wc_fifo + (cnt<<18), src, 64);
+	    mxge_pio_copy(tx->wc_fifo + MXGEFW_ETH_SEND_OFFSET(cnt), src, 64);
 	    mb();
     }
 }
@@ -2266,6 +2342,7 @@ mxge_open(mxge_softc_t *sc)
 	mxge_cmd_t cmd;
 	int i, err;
 	bus_dmamap_t map;
+	bus_addr_t bus;
 
 
 	/* Copy the MAC address in case it was overridden */
@@ -2317,9 +2394,9 @@ mxge_open(mxge_softc_t *sc)
 	}
 
 	if (sc->wc) {
-		sc->tx.wc_fifo = sc->sram + 0x200000;
-		sc->rx_small.wc_fifo = sc->sram + 0x300000;
-		sc->rx_big.wc_fifo = sc->sram + 0x340000;
+		sc->tx.wc_fifo = sc->sram + MXGEFW_ETH_SEND_4;
+		sc->rx_small.wc_fifo = sc->sram + MXGEFW_ETH_RECV_SMALL;
+		sc->rx_big.wc_fifo = sc->sram + MXGEFW_ETH_RECV_BIG;
 	} else {
 		sc->tx.wc_fifo = 0;
 		sc->rx_small.wc_fifo = 0;
@@ -2357,10 +2434,31 @@ mxge_open(mxge_softc_t *sc)
 			     &cmd);
 	cmd.data0 = sc->big_bytes;
 	err |= mxge_send_cmd(sc, MXGEFW_CMD_SET_BIG_BUFFER_SIZE, &cmd);
+
+	if (err != 0) {
+		device_printf(sc->dev, "failed to setup params\n");
+		goto abort;
+	}
+
 	/* Now give him the pointer to the stats block */
 	cmd.data0 = MXGE_LOWPART_TO_U32(sc->fw_stats_dma.bus_addr);
 	cmd.data1 = MXGE_HIGHPART_TO_U32(sc->fw_stats_dma.bus_addr);
-	err = mxge_send_cmd(sc, MXGEFW_CMD_SET_STATS_DMA, &cmd);
+	cmd.data2 = sizeof(struct mcp_irq_data);
+	err = mxge_send_cmd(sc, MXGEFW_CMD_SET_STATS_DMA_V2, &cmd);
+
+	if (err != 0) {
+		bus = sc->fw_stats_dma.bus_addr;
+		bus += offsetof(struct mcp_irq_data, send_done_count);
+		cmd.data0 = MXGE_LOWPART_TO_U32(bus);
+		cmd.data1 = MXGE_HIGHPART_TO_U32(bus);
+		err = mxge_send_cmd(sc,
+				    MXGEFW_CMD_SET_STATS_DMA_OBSOLETE,
+				    &cmd);
+		/* Firmware cannot support multicast without STATS_DMA_V2 */
+		sc->fw_multicast_support = 0;
+	} else {
+		sc->fw_multicast_support = 1;
+	}
 
 	if (err != 0) {
 		device_printf(sc->dev, "failed to setup params\n");
@@ -2487,6 +2585,13 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifp->if_flags & IFF_UP) {
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				err = mxge_open(sc);
+			else {
+				/* take care of promis can allmulti
+				   flag chages */
+				mxge_change_promisc(sc, 
+						    ifp->if_flags & IFF_PROMISC);
+				mxge_set_multicast_list(sc);
+			}
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				mxge_close(sc);
@@ -2496,7 +2601,9 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		err = 0;
+		sx_xlock(&sc->driver_lock);
+		mxge_set_multicast_list(sc);
+		sx_xunlock(&sc->driver_lock);
 		break;
 
 	case SIOCSIFCAP:
