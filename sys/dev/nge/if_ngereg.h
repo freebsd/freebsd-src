@@ -649,6 +649,7 @@ struct nge_ring_data {
 
 struct nge_softc {
 	struct ifnet		*nge_ifp;
+	device_t		nge_dev;
 	bus_space_handle_t	nge_bhandle;
 	bus_space_tag_t		nge_btag;
 	struct resource		*nge_res;

@@ -1395,7 +1395,7 @@ dc_setcfg(struct dc_softc *sc, int media)
 		}
 
 		if (i == DC_TIMEOUT)
-			if_printf(sc->dc_ifp,
+			device_printf(sc->dc_dev,
 			    "failed to force tx and rx to idle state\n");
 	}
 
@@ -1536,7 +1536,7 @@ dc_reset(struct dc_softc *sc)
 	}
 
 	if (i == DC_TIMEOUT)
-		if_printf(sc->dc_ifp, "reset never completed!\n");
+		device_printf(sc->dc_dev, "reset never completed!\n");
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -1815,6 +1815,7 @@ dc_attach(device_t dev)
 	u_int8_t *mac;
 
 	sc = device_get_softc(dev);
+	sc->dc_dev = dev;
 
 	mtx_init(&sc->dc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
@@ -2968,13 +2969,13 @@ dc_tx_underrun(struct dc_softc *sc)
 			DELAY(10);
 		}
 		if (i == DC_TIMEOUT) {
-			if_printf(sc->dc_ifp,
+			device_printf(sc->dc_dev,
 			    "failed to force tx to idle state\n");
 			dc_init_locked(sc);
 		}
 	}
 
-	if_printf(sc->dc_ifp, "TX underrun -- ");
+	device_printf(sc->dc_dev, "TX underrun -- ");
 	sc->dc_txthresh += DC_TXTHRESH_INC;
 	if (sc->dc_txthresh > DC_TXTHRESH_MAX) {
 		printf("using store and forward mode\n");
@@ -3040,7 +3041,7 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			dc_tx_underrun(sc);
 
 		if (status & DC_ISR_BUS_ERR) {
-			if_printf(ifp, "dc_poll: bus error\n");
+			if_printf(ifp, "%s: bus error\n", __func__);
 			dc_reset(sc);
 			dc_init_locked(sc);
 		}
@@ -3446,7 +3447,7 @@ dc_init_locked(struct dc_softc *sc)
 
 	/* Init circular RX list. */
 	if (dc_list_rx_init(sc) == ENOBUFS) {
-		if_printf(ifp,
+		device_printf(sc->dc_dev,
 		    "initialization failed: no memory for rx buffers\n");
 		dc_stop(sc);
 		return;
