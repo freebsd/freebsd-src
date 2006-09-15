@@ -826,9 +826,15 @@ ng_fec_input(struct ifnet *ifp, struct mbuf *m0)
 
 	/* Convince the system that this is our frame. */
 	m0->m_pkthdr.rcvif = bifp;
-	bifp->if_ipackets++;
-	bifp->if_ibytes += m0->m_pkthdr.len + sizeof(struct ether_header);
 
+	/*
+	 * Count bytes on an individual interface in a bundle.
+	 * The bytes will also be added to the aggregate interface
+	 * once we call ether_input().
+	 */
+	ifp->if_ibytes += m0->m_pkthdr.len;
+
+	bifp->if_ipackets++;
 	(*bifp->if_input)(bifp, m0);
 
 	return;
