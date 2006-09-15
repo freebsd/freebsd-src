@@ -507,6 +507,7 @@ struct tulip_perfstat {
  * Per-driver-instance state.
  */
 struct tulip_softc {
+	device_t		tulip_dev;
 	struct ifmedia		tulip_ifmedia;
 	int			tulip_unit;
 	struct ifnet		*tulip_ifp;

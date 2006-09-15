@@ -351,6 +351,7 @@ struct my_type {
 
 struct my_softc {
         struct ifnet            *my_ifp;
+	device_t		my_dev;
         struct ifmedia          ifmedia;        /* media info */
         bus_space_handle_t      my_bhandle;
         bus_space_tag_t         my_btag;

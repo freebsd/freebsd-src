@@ -741,7 +741,7 @@ nge_reset(sc)
 	}
 
 	if (i == NGE_TIMEOUT)
-		if_printf(sc->nge_ifp, "reset never completed\n");
+		device_printf(sc->nge_dev, "reset never completed\n");
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -794,6 +794,7 @@ nge_attach(dev)
 	int			error = 0, rid;
 
 	sc = device_get_softc(dev);
+	sc->nge_dev = dev;
 
 	NGE_LOCK_INIT(sc, device_get_nameunit(dev));
 	callout_init_mtx(&sc->nge_stat_ch, &sc->nge_mtx, 0);
@@ -1321,7 +1322,7 @@ nge_tick(xsc)
 			if (CSR_READ_4(sc, NGE_TBI_BMSR) 
 			    & NGE_TBIBMSR_ANEG_DONE) {
 				if (bootverbose)
-					if_printf(sc->nge_ifp, 
+					device_printf(sc->nge_dev, 
 					    "gigabit link up\n");
 				nge_miibus_statchg(sc->nge_miibus);
 				sc->nge_link++;
@@ -1339,7 +1340,7 @@ nge_tick(xsc)
 				sc->nge_link++;
 				if (IFM_SUBTYPE(mii->mii_media_active) 
 				    == IFM_1000_T && bootverbose)
-					if_printf(sc->nge_ifp, 
+					device_printf(sc->nge_dev, 
 					    "gigabit link up\n");
 				if (ifp->if_snd.ifq_head != NULL)
 					nge_start_locked(ifp);
@@ -1678,7 +1679,7 @@ nge_init_locked(sc)
 
 	/* Init circular RX list. */
 	if (nge_list_rx_init(sc) == ENOBUFS) {
-		if_printf(sc->nge_ifp, "initialization failed: no "
+		device_printf(sc->nge_dev, "initialization failed: no "
 			"memory for rx buffers\n");
 		nge_stop(sc);
 		return;
@@ -2079,7 +2080,7 @@ nge_watchdog(ifp)
 	sc = ifp->if_softc;
 
 	ifp->if_oerrors++;
-	if_printf(sc->nge_ifp, "watchdog timeout\n");
+	if_printf(ifp, "watchdog timeout\n");
 
 	NGE_LOCK(sc);
 	nge_stop(sc);

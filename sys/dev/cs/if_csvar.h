@@ -37,6 +37,7 @@
 struct cs_softc {
 	/* Ethernet common code */
 	struct ifnet *ifp;
+	device_t dev;
 
 	/* Configuration words from EEPROM */
 	int auto_neg_cnf;               /* AutoNegotitation configuration */

@@ -198,7 +198,7 @@ cs_duplex_auto(struct cs_softc *sc)
 	    RE_NEG_NOW | ALLOW_FDX | AUTO_NEG_ENABLE);
 	for (i=0; cs_readreg(sc, PP_AutoNegST) & AUTO_NEG_BUSY; i++) {
 		if (i > 40000) {
-			if_printf(sc->ifp,
+			device_printf(sc->dev,
 			    "full/half duplex auto negotiation timeout\n");
 			error = ETIMEDOUT;
 			break;
@@ -218,7 +218,7 @@ enable_tp(struct cs_softc *sc)
 	DELAY( 150000 );
 
 	if ((cs_readreg(sc, PP_LineST) & LINK_OK)==0) {
-		if_printf(sc->ifp, "failed to enable TP\n");
+		device_printf(sc->dev, "failed to enable TP\n");
 		return (EINVAL);
 	}
 
@@ -279,7 +279,7 @@ enable_aui(struct cs_softc *sc)
 	    (sc->line_ctl & ~AUTO_AUI_10BASET) | AUI_ONLY);
 
 	if (!send_test_pkt(sc)) {
-		if_printf(sc->ifp, "failed to enable AUI\n");
+		device_printf(sc->dev, "failed to enable AUI\n");
 		return (EINVAL);
 	}
 	return (0);
@@ -297,7 +297,7 @@ enable_bnc(struct cs_softc *sc)
 	    (sc->line_ctl & ~AUTO_AUI_10BASET) | AUI_ONLY);
 
 	if (!send_test_pkt(sc)) {
-		if_printf(sc->ifp, "failed to enable BNC\n");
+		device_printf(sc->dev, "failed to enable BNC\n");
 		return (EINVAL);
 	}
 	return (0);
@@ -586,6 +586,8 @@ cs_attach(device_t dev)
 	struct cs_softc *sc = device_get_softc(dev);;
 	struct ifnet *ifp;
 
+	sc->dev = dev;
+	
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(dev, "can not if_alloc()\n");
@@ -630,7 +632,7 @@ cs_attach(device_t dev)
 
 	sc->buffer=malloc(ETHER_MAX_LEN-ETHER_CRC_LEN,M_DEVBUF,M_NOWAIT);
 	if (sc->buffer == NULL) {
-		if_printf(ifp, "Couldn't allocate memory for NIC\n");
+		device_printf(sc->dev, "Couldn't allocate memory for NIC\n");
 		return(0);
 	}
 
@@ -665,7 +667,7 @@ cs_attach(device_t dev)
 	case A_CNF_MEDIA_10B_2: media = IFM_ETHER|IFM_10_2; break;
 	case A_CNF_MEDIA_AUI:   media = IFM_ETHER|IFM_10_5; break;
 	default:
-		if_printf(ifp, "no media, assuming 10baseT\n");
+		device_printf(sc->dev, "no media, assuming 10baseT\n");
 		sc->adapter_cnf |= A_CNF_10B_T;
 		ifmedia_add(&sc->media, IFM_ETHER|IFM_10_T, 0, NULL);
 		if (sc->chip_type != CS8900) {
@@ -799,13 +801,13 @@ cs_get_packet(struct cs_softc *sc)
 	length = cs_inw(sc, RX_FRAME_PORT);
 
 #ifdef CS_DEBUG
-	if_printf(ifp, "rcvd: stat %x, len %d\n",
+	device_printf(sc->dev, "rcvd: stat %x, len %d\n",
 		status, length);
 #endif
 
 	if (!(status & RX_OK)) {
 #ifdef CS_DEBUG
-		if_printf(ifp, "bad pkt stat %x\n", status);
+		device_printf(sc->dev, "bad pkt stat %x\n", status);
 #endif
 		ifp->if_ierrors++;
 		return (-1);
@@ -864,13 +866,13 @@ csintr(void *arg)
 	int status;
 
 #ifdef CS_DEBUG
-	if_printf(ifp, "Interrupt.\n");
+	device_printf(sc->dev, "Interrupt.\n");
 #endif
 
 	while ((status=cs_inw(sc, ISQ_PORT))) {
 
 #ifdef CS_DEBUG
-		if_printf(ifp, "from ISQ: %04x\n", status);
+		device_printf(sc->dev, "from ISQ: %04x\n", status);
 #endif
 
 		switch (status & ISQ_EVENT_MASK) {
@@ -1138,7 +1140,7 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 	int s,error=0;
 
 #ifdef CS_DEBUG
-	if_printf(ifp, "ioctl(%lx)\n", command);
+	if_printf(ifp, "%s command=%lx\n", __func__, command);
 #endif
 
 	s=splimp();
@@ -1266,7 +1268,7 @@ cs_mediaset(struct cs_softc *sc, int media)
 	    ~(SERIAL_RX_ON | SERIAL_TX_ON));
 
 #ifdef CS_DEBUG
-	if_printf(sc->ifp, "cs_setmedia(%x)\n", media);
+	device_printf(sc->dev, "%s media=%x\n", __func__, media);
 #endif
 
 	switch (IFM_SUBTYPE(media)) {
