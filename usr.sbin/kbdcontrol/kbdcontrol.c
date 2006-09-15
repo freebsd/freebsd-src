@@ -130,7 +130,7 @@ void		print_key_definition_line(FILE *fp, int scancode,
 			struct keyent_t *key);
 void		print_keymap(void);
 void		release_keyboard(void);
-void		mux_keyboard(int op, char *kbd);
+void		mux_keyboard(u_int op, char *kbd);
 void		set_bell_values(char *opt);
 void		set_functionkey(char *keynumstr, char *string);
 void		set_keyboard(char *device);
@@ -1082,7 +1082,7 @@ release_keyboard(void)
 }
 
 void
-mux_keyboard(int op, char *kbd)
+mux_keyboard(u_int op, char *kbd)
 {
 	keyboard_info_t	info;
 	char		*unit, *ep;
