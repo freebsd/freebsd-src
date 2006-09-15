@@ -59,11 +59,11 @@
 .ds doc-str-Lb-libvgl      Video Graphics Library (libvgl, \-lvgl)
 .
 .\" Default .Os value
-.ds doc-default-operating-system FreeBSD\~6.1
+.ds doc-default-operating-system FreeBSD\~6.2
 .
 .\" FreeBSD releases not found in doc-common
 .ds doc-operating-system-FreeBSD-5.5    5.5
-.ds doc-operating-system-FreeBSD-6.2    6.2
+.ds doc-operating-system-FreeBSD-6.3    6.3
 .ds doc-operating-system-FreeBSD-7.0    7.0
 .
 .ec
