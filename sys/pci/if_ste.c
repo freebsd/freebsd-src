@@ -504,7 +504,7 @@ ste_wait(sc)
 	}
 
 	if (i == STE_TIMEOUT)
-		if_printf(sc->ste_ifp, "command never completed!\n");
+		device_printf(sc->ste_dev, "command never completed!\n");
 
 	return;
 }
@@ -529,7 +529,7 @@ ste_eeprom_wait(sc)
 	}
 
 	if (i == 100) {
-		if_printf(sc->ste_ifp, "eeprom failed to come ready\n");
+		device_printf(sc->ste_dev, "eeprom failed to come ready\n");
 		return(1);
 	}
 
@@ -812,7 +812,7 @@ ste_rxeof(sc)
 		 * If not, something truly strange has happened.
 		 */
 		if (!(rxstat & STE_RXSTAT_DMADONE)) {
-			if_printf(ifp,
+			device_printf(sc->ste_dev,
 			    "bad receive status -- packet dropped\n");
 			ifp->if_ierrors++;
 			cur_rx->ste_ptr->ste_status = 0;
@@ -866,7 +866,8 @@ ste_txeoc(sc)
 		    txstat & STE_TXSTATUS_EXCESSCOLLS ||
 		    txstat & STE_TXSTATUS_RECLAIMERR) {
 			ifp->if_oerrors++;
-			if_printf(ifp, "transmission error: %x\n", txstat);
+			device_printf(sc->ste_dev,
+			    "transmission error: %x\n", txstat);
 
 			ste_reset(sc);
 			ste_init_locked(sc);
@@ -874,7 +875,8 @@ ste_txeoc(sc)
 			if (txstat & STE_TXSTATUS_UNDERRUN &&
 			    sc->ste_tx_thresh < STE_PACKET_SIZE) {
 				sc->ste_tx_thresh += STE_MIN_FRAMELEN;
-				if_printf(ifp, "tx underrun, increasing tx"
+				device_printf(sc->ste_dev,
+				    "tx underrun, increasing tx"
 				    " start threshold to %d bytes\n",
 				    sc->ste_tx_thresh);
 			}
@@ -1309,7 +1311,7 @@ ste_init_locked(sc)
 
 	/* Init RX list */
 	if (ste_init_rx_list(sc) == ENOBUFS) {
-		if_printf(ifp,
+		device_printf(sc->ste_dev,
 		    "initialization failed: no memory for RX buffers\n");
 		ste_stop(sc);
 		return;
@@ -1469,7 +1471,7 @@ ste_reset(sc)
 	}
 
 	if (i == STE_TIMEOUT)
-		if_printf(sc->ste_ifp, "global reset never completed\n");
+		device_printf(sc->ste_dev, "global reset never completed\n");
 
 	return;
 }

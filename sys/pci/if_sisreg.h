@@ -433,7 +433,7 @@ struct sis_softc {
 	struct ifnet		*sis_ifp;	/* interface info */
 	struct resource		*sis_res[2];
 	void			*sis_intrhand;
-	device_t		sis_self;
+	device_t		sis_dev;
 	device_t		sis_miibus;
 	u_int8_t		sis_type;
 	u_int8_t		sis_rev;
