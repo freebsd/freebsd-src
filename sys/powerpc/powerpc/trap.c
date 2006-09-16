@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/vmmeter.h>
 
+#include <security/audit/audit.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
@@ -418,7 +420,9 @@ syscall(struct trapframe *frame)
 
 		PTRACESTOP_SC(p, td, S_PT_SCE);
 
+		AUDIT_SYSCALL_ENTER(code, td);
 		error = (*callp->sy_call)(td, params);
+		AUDIT_SYSCALL_EXIT(error, td);
 
 		CTR3(KTR_SYSC, "syscall: p=%s %s ret=%x", p->p_comm,
 		     syscallnames[code], td->td_retval[0]);
