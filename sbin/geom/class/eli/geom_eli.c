@@ -65,6 +65,7 @@ static char keyfile[] = "", newkeyfile[] = "";
 static void eli_main(struct gctl_req *req, unsigned flags);
 static void eli_init(struct gctl_req *req);
 static void eli_attach(struct gctl_req *req);
+static void eli_configure(struct gctl_req *req);
 static void eli_setkey(struct gctl_req *req);
 static void eli_delkey(struct gctl_req *req);
 static void eli_kill(struct gctl_req *req);
@@ -82,6 +83,7 @@ static void eli_dump(struct gctl_req *req);
  * detach [-fl] prov ...
  * stop - alias for 'detach'
  * onetime [-d] [-a aalgo] [-e ealgo] [-l keylen] prov ...
+ * configure [-bB] prov ...
  * setkey [-pPv] [-n keyno] [-k keyfile] [-K newkeyfile] prov
  * delkey [-afv] [-n keyno] prov
  * kill [-av] [prov ...]
@@ -155,6 +157,14 @@ struct g_command class_commands[] = {
 		G_OPT_SENTINEL
 	    },
 	    "[-d] [-a aalgo] [-e ealgo] [-l keylen] [-s sectorsize] prov ..."
+	},
+	{ "configure", G_FLAG_VERBOSE, eli_main,
+	    {
+		{ 'b', "boot", NULL, G_TYPE_NONE },
+		{ 'B', "noboot", NULL, G_TYPE_NONE },
+		G_OPT_SENTINEL
+	    },
+	    "[-bB] prov ..."
 	},
 	{ "setkey", G_FLAG_VERBOSE, eli_main,
 	    {
@@ -242,6 +252,8 @@ eli_main(struct gctl_req *req, unsigned flags)
 		eli_init(req);
 	else if (strcmp(name, "attach") == 0)
 		eli_attach(req);
+	else if (strcmp(name, "configure") == 0)
+		eli_configure(req);
 	else if (strcmp(name, "setkey") == 0)
 		eli_setkey(req);
 	else if (strcmp(name, "delkey") == 0)
@@ -663,6 +675,64 @@ eli_attach(struct gctl_req *req)
 			printf("Attched to %s.\n", prov);
 	}
 	bzero(key, sizeof(key));
+}
+
+static void
+eli_configure_detached(struct gctl_req *req, const char *prov, int boot)
+{
+	struct g_eli_metadata md;
+
+	if (eli_metadata_read(req, prov, &md) == -1)
+		return;
+
+	if (boot && (md.md_flags & G_ELI_FLAG_BOOT)) {
+		if (verbose)
+			printf("BOOT flag already configured for %s.\n", prov);
+	} else if (!boot && !(md.md_flags & G_ELI_FLAG_BOOT)) {
+		if (verbose)
+			printf("BOOT flag not configured for %s.\n", prov);
+	} else {
+		if (boot)
+			md.md_flags |= G_ELI_FLAG_BOOT;
+		else
+			md.md_flags &= ~G_ELI_FLAG_BOOT;
+		eli_metadata_store(req, prov, &md);
+	}
+	bzero(&md, sizeof(md));
+}
+
+static void
+eli_configure(struct gctl_req *req)
+{
+	const char *prov;
+	int i, nargs, boot, noboot;
+
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs == 0) {
+		gctl_error(req, "Too few arguments.");
+		return;
+	}
+
+	boot = gctl_get_int(req, "boot");
+	noboot = gctl_get_int(req, "noboot");
+
+	if (boot && noboot) {
+		gctl_error(req, "Options -b and -B are mutually exclusive.");
+		return;
+	}
+	if (!boot && !noboot) {
+		gctl_error(req, "No option given.");
+		return;
+	}
+
+	/* First attached providers. */
+	gctl_issue(req);
+	/* Now the rest. */
+	for (i = 0; i < nargs; i++) {
+		prov = gctl_get_ascii(req, "arg%d", i);
+		if (!eli_is_attached(prov))
+			eli_configure_detached(req, prov, boot);
+	}
 }
 
 static void
