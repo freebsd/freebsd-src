@@ -138,6 +138,10 @@ __FBSDID("$FreeBSD$");
 #define	PCI_PRODUCT_LSI_FC7X04X		0x0640
 #endif
 
+#ifndef	PCI_PRODUCT_LSI_FC646
+#define	PCI_PRODUCT_LSI_FC646		0x0646
+#endif
+
 #ifndef	PCI_PRODUCT_LSI_1030
 #define	PCI_PRODUCT_LSI_1030		0x0030
 #endif
@@ -213,8 +217,9 @@ mpt_pci_probe(device_t dev)
 {
 	char *desc;
 
-	if (pci_get_vendor(dev) != PCI_VENDOR_LSI)
+	if (pci_get_vendor(dev) != PCI_VENDOR_LSI) {
 		return (ENXIO);
+	}
 
 	switch ((pci_get_device(dev) & ~1)) {
 	case PCI_PRODUCT_LSI_FC909:
@@ -227,16 +232,19 @@ mpt_pci_probe(device_t dev)
 		desc = "LSILogic FC919 FC Adapter";
 		break;
 	case PCI_PRODUCT_LSI_FC929:
-		desc = "LSILogic FC929 FC Adapter";
+		desc = "Dual LSILogic FC929 FC Adapter";
 		break;
 	case PCI_PRODUCT_LSI_FC919X:
-		desc = "LSILogic FC919X FC Adapter";
+		desc = "LSILogic FC919 FC PCI-X Adapter";
 		break;
 	case PCI_PRODUCT_LSI_FC929X:
-		desc = "LSILogic FC929X 2Gb/s FC Adapter";
+		desc = "Dual LSILogic FC929X 2Gb/s FC PCI-X Adapter";
+		break;
+	case PCI_PRODUCT_LSI_FC646:
+		desc = "Dual LSILogic FC7X04X 4Gb/s FC PCI-Express Adapter";
 		break;
 	case PCI_PRODUCT_LSI_FC7X04X:
-		desc = "LSILogic FC7X04X 4Gb/s FC Adapter";
+		desc = "Dual LSILogic FC7X04X 4Gb/s FC PCI-X Adapter";
 		break;
 	case PCI_PRODUCT_LSI_1030:
 		desc = "LSILogic 1030 Ultra4 Adapter";
@@ -249,7 +257,7 @@ mpt_pci_probe(device_t dev)
 	case PCI_PRODUCT_LSI_SAS1068:
 	case PCI_PRODUCT_LSI_SAS1068E:
 	case PCI_PRODUCT_LSI_SAS1078:
-		desc = "LSILogic SAS Adapter";
+		desc = "LSILogic SAS/SATA Adapter";
 		break;
 	default:
 		return (ENXIO);
@@ -295,6 +303,29 @@ mpt_set_options(struct mpt_softc *mpt)
 			mpt->verbose = MPT_PRT_DEBUG3;
 		}
 	}
+
+	mpt->cfg_role = MPT_ROLE_DEFAULT;
+	bitmap = 0;
+	if (getenv_int("mpt_nil_role", &bitmap)) {
+		if (bitmap & (1 << mpt->unit)) {
+			mpt->cfg_role = 0;
+		}
+		mpt->do_cfg_role = 1;
+	}
+	bitmap = 0;
+	if (getenv_int("mpt_tgt_role", &bitmap)) {
+		if (bitmap & (1 << mpt->unit)) {
+			mpt->cfg_role |= MPT_ROLE_TARGET;
+		}
+		mpt->do_cfg_role = 1;
+	}
+	bitmap = 0;
+	if (getenv_int("mpt_ini_role", &bitmap)) {
+		if (bitmap & (1 << mpt->unit)) {
+			mpt->cfg_role |= MPT_ROLE_INITIATOR;
+		}
+		mpt->do_cfg_role = 1;
+	}
 }
 #else
 static void
@@ -312,11 +343,12 @@ mpt_set_options(struct mpt_softc *mpt)
 	    device_get_unit(mpt->dev), "debug", &tval) == 0 && tval != 0) {
 		mpt->verbose = tval;
 	}
-	tval = 0;
+	tval = -1;
 	if (resource_int_value(device_get_name(mpt->dev),
-	    device_get_unit(mpt->dev), "role", &tval) == 0 && tval != 0 &&
+	    device_get_unit(mpt->dev), "role", &tval) == 0 && tval >= 0 &&
 	    tval <= 3) {
-		mpt->role = tval;
+		mpt->cfg_role = tval;
+		mpt->do_cfg_role = 1;
 	}
 }
 #endif
@@ -381,6 +413,7 @@ mpt_pci_attach(device_t dev)
 	case PCI_PRODUCT_LSI_FC919:
 	case PCI_PRODUCT_LSI_FC929:
 	case PCI_PRODUCT_LSI_FC919X:
+	case PCI_PRODUCT_LSI_FC646:
 	case PCI_PRODUCT_LSI_FC7X04X:
 		mpt->is_fc = 1;
 		break;
@@ -438,6 +471,7 @@ mpt_pci_attach(device_t dev)
 	 * If so, link with our partner (around yet)
 	 */
 	if ((pci_get_device(dev) & ~1) == PCI_PRODUCT_LSI_FC929 ||
+	    (pci_get_device(dev) & ~1) == PCI_PRODUCT_LSI_FC646 ||
 	    (pci_get_device(dev) & ~1) == PCI_PRODUCT_LSI_FC7X04X ||
 	    (pci_get_device(dev) & ~1) == PCI_PRODUCT_LSI_1030) {
 		mpt_link_peer(mpt);
@@ -478,13 +512,8 @@ mpt_pci_attach(device_t dev)
 
 	/* Get a handle to the interrupt */
 	iqd = 0;
-#if __FreeBSD_version < 500000  
-	mpt->pci_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &iqd, 0, ~0, 1,
-	    RF_ACTIVE | RF_SHAREABLE);
-#else
 	mpt->pci_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &iqd,
 	    RF_ACTIVE | RF_SHAREABLE);
-#endif
 	if (mpt->pci_irq == NULL) {
 		device_printf(dev, "could not allocate interrupt\n");
 		goto bad;
