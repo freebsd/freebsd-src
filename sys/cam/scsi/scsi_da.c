@@ -1519,15 +1519,30 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				block_size = scsi_4btoul(rcaplong->length);
 				maxsector = scsi_8btou64(rcaplong->addr);
 			}
-			dasetgeom(periph, block_size, maxsector);
-			dp = &softc->params;
-			snprintf(announce_buf, sizeof(announce_buf),
-			        "%juMB (%ju %u byte sectors: %dH %dS/T %dC)",
-				(uintmax_t) (((uintmax_t)dp->secsize *
-				dp->sectors) / (1024*1024)),
-			        (uintmax_t)dp->sectors,
-				dp->secsize, dp->heads, dp->secs_per_track,
-				dp->cylinders);
+
+			/*
+			 * Because GEOM code just will panic us if we
+			 * give them an 'illegal' value we'll avoid that
+			 * here.
+			 */
+			if (block_size >= MAXPHYS || block_size == 0) {
+				xpt_print_path(periph->path);
+				printf("unsupportable block size %ju\n",
+				      (uintmax_t) block_size);
+				announce_buf[0] = '\0';
+				cam_periph_invalidate(periph);
+			} else {
+				dasetgeom(periph, block_size, maxsector);
+				dp = &softc->params;
+				snprintf(announce_buf, sizeof(announce_buf),
+				        "%juMB (%ju %u byte sectors: %dH %dS/T "
+                                        "%dC)", (uintmax_t)
+	                                (((uintmax_t)dp->secsize *
+				        dp->sectors) / (1024*1024)),
+			                (uintmax_t)dp->sectors,
+				        dp->secsize, dp->heads,
+                                        dp->secs_per_track, dp->cylinders);
+			}
 		} else {
 			int	error;
 
