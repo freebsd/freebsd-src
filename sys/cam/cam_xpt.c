@@ -592,6 +592,10 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		  CAM_QUIRK_NOHILUNS, /*mintags*/2, /*maxtags*/255
 	},
 	{
+		{ T_ENCLOSURE, SIP_MEDIA_FIXED, "DP", "BACKPLANE", "*" },
+		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
+	},
+	{
 		/* Default tagged queuing parameters for all devices */
 		{
 		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
