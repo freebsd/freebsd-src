@@ -1,4 +1,4 @@
-.\" Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" Copyright (c) 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 9, 2006
+.Dd September 16, 2006
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -414,6 +414,9 @@ It will destroy all keys on the given provider and will detach it forcibly
 (if it is attached).
 This is absolutely a one-way command - if you do not have a metadata
 backup, your data is gone for good.
+In case provider was attached with the
+.Fl r
+flag, the keys won't be destroyed, only the provider will be detached.
 .Bl -tag -width ".Fl a Ar algo"
 .It Fl a
 If specified, all currently attached providers will be killed.
