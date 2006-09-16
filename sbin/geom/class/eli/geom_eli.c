@@ -926,18 +926,14 @@ eli_kill(struct gctl_req *req)
 	 * geli kill da0 da1
 	 */
 
-	/*
-	 * First attached providers.
-	 */
-	gctl_issue(req);
-	/*
-	 * Now the rest.
-	 */
+	/* First detached provider. */
 	for (i = 0; i < nargs; i++) {
 		prov = gctl_get_ascii(req, "arg%d", i);
 		if (!eli_is_attached(prov))
 			eli_kill_detached(req, prov);
 	}
+	/* Now attached providers. */
+	gctl_issue(req);
 }
 
 static void
