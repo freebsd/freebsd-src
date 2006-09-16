@@ -69,8 +69,10 @@ mpt_issue_raid_req(struct mpt_softc *, struct mpt_raid_volume *,
 cam_status
 mpt_map_physdisk(struct mpt_softc *, union ccb *, target_id_t *);
 int mpt_is_raid_volume(struct mpt_softc *, int);
+#if	0
 cam_status
 mpt_raid_quiesce_disk(struct mpt_softc *, struct mpt_raid_disk *, request_t *);
+#endif
 
 int	mpt_refresh_raid_data(struct mpt_softc *);
 void	mpt_schedule_raid_refresh(struct mpt_softc *);

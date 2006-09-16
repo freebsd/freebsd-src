@@ -116,7 +116,7 @@ static int maxwait_ack = 0;
 static int maxwait_int = 0;
 static int maxwait_state = 0;
 
-TAILQ_HEAD(, mpt_softc)	mpt_tailq = TAILQ_HEAD_INITIALIZER(mpt_tailq);
+static TAILQ_HEAD(, mpt_softc)	mpt_tailq = TAILQ_HEAD_INITIALIZER(mpt_tailq);
 mpt_reply_handler_t *mpt_reply_handlers[MPT_NUM_REPLY_HANDLERS];
 
 static mpt_reply_handler_t mpt_default_reply_handler;
@@ -186,6 +186,7 @@ static mpt_load_handler_t      mpt_stdload;
 static mpt_probe_handler_t     mpt_stdprobe;
 static mpt_attach_handler_t    mpt_stdattach;
 static mpt_enable_handler_t    mpt_stdenable;
+static mpt_ready_handler_t     mpt_stdready;
 static mpt_event_handler_t     mpt_stdevent;
 static mpt_reset_handler_t     mpt_stdreset;
 static mpt_shutdown_handler_t  mpt_stdshutdown;
@@ -197,6 +198,7 @@ static struct mpt_personality mpt_default_personality =
 	.probe		= mpt_stdprobe,
 	.attach		= mpt_stdattach,
 	.enable		= mpt_stdenable,
+	.ready		= mpt_stdready,
 	.event		= mpt_stdevent,
 	.reset		= mpt_stdreset,
 	.shutdown	= mpt_stdshutdown,
@@ -237,7 +239,6 @@ DECLARE_MODULE(mpt_core, mpt_core_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(mpt_core, 1);
 
 #define MPT_PERS_ATTACHED(pers, mpt) ((mpt)->mpt_pers_mask & (0x1 << pers->id))
-
 
 int
 mpt_modevent(module_t mod, int type, void *data)
@@ -326,6 +327,12 @@ mpt_stdenable(struct mpt_softc *mpt)
 	return (0);
 }
 
+void
+mpt_stdready(struct mpt_softc *mpt)
+{
+}
+
+
 int
 mpt_stdevent(struct mpt_softc *mpt, request_t *req, MSG_EVENT_NOTIFY_REPLY *msg)
 {
@@ -355,6 +362,25 @@ mpt_stdunload(struct mpt_personality *pers)
 	/* Unload is always successfull. */
 	return (0);
 }
+
+/*
+ * Post driver attachment, we may want to perform some global actions.
+ * Here is the hook to do so.
+ */
+
+static void
+mpt_postattach(void *unused)
+{
+	struct mpt_softc *mpt;
+	struct mpt_personality *pers;
+
+	TAILQ_FOREACH(mpt, &mpt_tailq, links) {
+		MPT_PERS_FOREACH(mpt, pers)
+			pers->ready(mpt);
+	}
+}
+SYSINIT(mptdev, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE, mpt_postattach, NULL);
+
 
 /******************************* Bus DMA Support ******************************/
 void
@@ -483,6 +509,11 @@ mpt_config_reply_handler(struct mpt_softc *mpt, request_t *req,
 		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 		if ((req->state & REQ_STATE_NEED_WAKEUP) != 0) {
 			wakeup(req);
+		} else if ((req->state & REQ_STATE_TIMEDOUT) != 0) {
+			/*
+			 * Whew- we can free this request (late completion)
+			 */
+			mpt_free_request(mpt, req);
 		}
 	}
 
@@ -1282,6 +1313,7 @@ mpt_wait_req(struct mpt_softc *mpt, request_t *req,
 	}
 	if (time_ms && timeout <= 0) {
 		MSG_REQUEST_HEADER *msg_hdr = req->req_vbuf;
+		req->state |= REQ_STATE_TIMEDOUT;
 		mpt_prt(mpt, "mpt_wait_req(%x) timed out\n", msg_hdr->Function);
 		return (ETIMEDOUT);
 	}
@@ -1560,7 +1592,12 @@ mpt_read_cfg_header(struct mpt_softc *mpt, int PageType, int PageNumber,
 				  PageType, PageAddress, /*addr*/0, /*len*/0,
 				  sleep_ok, timeout_ms);
 	if (error != 0) {
-		mpt_free_request(mpt, req);
+		/*
+		 * Leave the request. Without resetting the chip, it's
+		 * still owned by it and we'll just get into trouble
+		 * freeing it now. Mark it as abandoned so that if it
+		 * shows up later it can be freed.
+		 */
 		mpt_prt(mpt, "read_cfg_header timed out\n");
 		return (ETIMEDOUT);
 	}
@@ -1640,13 +1677,26 @@ mpt_write_cfg_page(struct mpt_softc *mpt, int Action, uint32_t PageAddress,
 			hdr->PageType & MPI_CONFIG_PAGETYPE_MASK);
 		return (-1);
 	}
-	hdr->PageType &= MPI_CONFIG_PAGETYPE_MASK,
+
+#if	0
+	/*
+	 * We shouldn't mask off other bits here.
+	 */
+	hdr->PageType &= MPI_CONFIG_PAGETYPE_MASK;
+#endif
 
 	req = mpt_get_request(mpt, sleep_ok);
 	if (req == NULL)
 		return (-1);
 
-	memcpy(((caddr_t)req->req_vbuf)+MPT_RQSL(mpt), hdr, len);
+	memcpy(((caddr_t)req->req_vbuf) + MPT_RQSL(mpt), hdr, len);
+
+	/*
+	 * There isn't any point in restoring stripped out attributes
+	 * if you then mask them going down to issue the request.
+	 */
+
+#if	0
 	/* Restore stripped out attributes */
 	hdr->PageType |= hdr_attr;
 
@@ -1655,6 +1705,13 @@ mpt_write_cfg_page(struct mpt_softc *mpt, int Action, uint32_t PageAddress,
 				  hdr->PageType & MPI_CONFIG_PAGETYPE_MASK,
 				  PageAddress, req->req_pbuf + MPT_RQSL(mpt),
 				  len, sleep_ok, timeout_ms);
+#else
+	error = mpt_issue_cfg_req(mpt, req, Action, hdr->PageVersion,
+				  hdr->PageLength, hdr->PageNumber,
+				  hdr->PageType, PageAddress,
+				  req->req_pbuf + MPT_RQSL(mpt),
+				  len, sleep_ok, timeout_ms);
+#endif
 	if (error != 0) {
 		mpt_prt(mpt, "mpt_write_cfg_page timed out\n");
 		return (-1);
@@ -1936,6 +1993,9 @@ mpt_sysctl_attach(struct mpt_softc *mpt)
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		       "debug", CTLFLAG_RW, &mpt->verbose, 0,
 		       "Debugging/Verbose level");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		       "role", CTLFLAG_RD, &mpt->role, 0,
+		       "HBA role");
 #endif
 }
 
@@ -1946,6 +2006,7 @@ mpt_attach(struct mpt_softc *mpt)
 	int i;
 	int error;
 
+	TAILQ_INSERT_TAIL(&mpt_tailq, mpt, links);
 	for (i = 0; i < MPT_MAX_PERSONALITIES; i++) {
 		pers = mpt_personalities[i];
 		if (pers == NULL) {
@@ -2004,7 +2065,7 @@ mpt_detach(struct mpt_softc *mpt)
 		mpt->mpt_pers_mask &= ~(0x1 << pers->id);
 		pers->use_count--;
 	}
-
+	TAILQ_REMOVE(&mpt_tailq, mpt, links);
 	return (0);
 }
 
@@ -2454,9 +2515,11 @@ mpt_configure_ioc(struct mpt_softc *mpt)
 		mpt->mpt_max_devices = pfp.MaxDevices;
 
 		/*
-		 * Set our expected role with what this port supports.
+		 * Set our role with what this port supports.
+		 *
+		 * Note this might be changed later in different modules
+		 * if this is different from what is wanted.
 		 */
-
 		mpt->role = MPT_ROLE_NONE;
 		if (pfp.ProtocolFlags & MPI_PORTFACTS_PROTOCOL_INITIATOR) {
 			mpt->role |= MPT_ROLE_INITIATOR;
@@ -2464,12 +2527,6 @@ mpt_configure_ioc(struct mpt_softc *mpt)
 		if (pfp.ProtocolFlags & MPI_PORTFACTS_PROTOCOL_TARGET) {
 			mpt->role |= MPT_ROLE_TARGET;
 		}
-		if (mpt->role == MPT_ROLE_NONE) {
-			mpt_prt(mpt, "port does not support either target or "
-			    "initiator role\n");
-			return (ENXIO);
-		}
-
 		if (mpt_enable_ioc(mpt, 0) != MPT_OK) {
 			mpt_prt(mpt, "unable to initialize IOC\n");
 			return (ENXIO);

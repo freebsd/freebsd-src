@@ -801,6 +801,21 @@ mpt_dump_sgl(SGE_IO_UNION *su, int offset)
 }
 
 void
+mpt_dump_data(struct mpt_softc *mpt, const char *msg, void *addr, int len)
+{
+	int offset;
+	uint8_t *cp = addr;
+	mpt_prt(mpt, "%s:", msg);
+	for (offset = 0; offset < len; offset++) {
+		if ((offset & 0xf) == 0) {
+			mpt_prtc(mpt, "\n");
+		}
+		mpt_prtc(mpt, " %02x", cp[offset]);
+	}
+	mpt_prtc(mpt, "\n");
+}
+
+void
 mpt_dump_request(struct mpt_softc *mpt, request_t *req)
 {
         uint32_t *pReq = req->req_vbuf;
