@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #endif
 
+#include <security/audit/audit.h>
+
 #include <ia64/disasm/disasm.h>
 
 static int print_usertrap = 0;
@@ -1016,7 +1018,9 @@ syscall(struct trapframe *tf)
 
 	PTRACESTOP_SC(p, td, S_PT_SCE);
 
+	AUDIT_SYSCALL_ENTER(code, td);
 	error = (*callp->sy_call)(td, args);
+	AUDIT_SYSCALL_EXIT(error, td);
 
 	if (error != EJUSTRETURN) {
 		/*
