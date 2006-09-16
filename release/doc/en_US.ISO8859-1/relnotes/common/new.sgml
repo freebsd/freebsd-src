@@ -199,6 +199,12 @@
 	standard designed to enable remote monitoring and control of server,
 	networking and telecommunication platforms.</para>
 
+      <para>Support for the PadLock Security Co-processor in VIA C3,
+	Eden, and C7
+	processors has been added to the &man.crypto.9; subsystem.
+	More information can be found in the &man.padlock.4; manual
+	page.</para>
+
       <para>The &man.nfsmb.4; driver, which supports the NVIDIA nForce
 	2/3/4 SMBus 2.0 controller, has been added.</para>
 
@@ -234,7 +240,8 @@
 
 	<para>The &man.my.4; driver now has &man.altq.4; support.</para>
 
-	<para>The &man.nve.4; driver now has &man.altq.4; support.</para>
+	<para>The &man.nve.4; driver has been updated to version 1.0-0310
+	  (23-Nov-2005).  It also now has &man.altq.4; support.</para>
 
 	<para>The &man.sk.4; driver is now MPSAFE.</para>
 
@@ -276,7 +283,13 @@
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
-      <para></para>
+      <para>&man.geli.8; is now able to perform data integrity
+        verification (data authentication) of encrypted data stored on
+        disk.  Note that the encryption algorithm is now specified to
+        the &man.geli.8; control program using the <option>-e</option>
+        option; the <option>-a</option> option is now used to specify
+        the authentication algorithm.</para>
+
     </sect3>
 
     <sect3 id="fs">
@@ -360,6 +373,12 @@
     <para>The &man.ls.1; utility now supports
       an <option>-U</option> flag to use the file creation
       time for sorting.</para>
+
+    <para>The &man.mount.8; utility now supports a
+      <literal>late</literal> keyword in &man.fstab.5;, along with a
+      corresponding <option>-l</option> command-line option to specify
+      that these <quote>late</quote> file systems should be
+      mounted.</para>
 
     <para>The &man.pkill.1; utility (also known as &man.pgrep.1;) has
       been moved from <filename>/usr/bin</filename>
@@ -496,6 +515,7 @@
 
     <para>Documentation of existing functionality has been improved by
       the addition of the following manual pages:
+      &man.nanobsd.8;,
       &man.sysctl.9;.</para>
 
   </sect2>
