@@ -1151,7 +1151,7 @@ eli_restore(struct gctl_req *req)
 		gctl_error(req, "MD5 hash mismatch: not a geli backup file?");
 		goto out;
 	}
-	/* Read metadata from the provider. */
+	/* Write metadata from the provider. */
 	if (pwrite(provfd, sector, secsize, mediasize - secsize) !=
 	    (ssize_t)secsize) {
 		gctl_error(req, "Cannot write metadata: %s.", strerror(errno));
