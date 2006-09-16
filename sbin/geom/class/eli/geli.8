@@ -83,6 +83,10 @@ utility:
 .Op Fl s Ar sectorsize
 .Ar prov ...
 .Nm
+.Cm configure
+.Op Fl bB
+.Ar prov ...
+.Nm
 .Cm setkey
 .Op Fl pPv
 .Op Fl i Ar iterations
@@ -196,7 +200,7 @@ Allows to verify data integrity (data authentication).
 The first argument to
 .Nm
 indicates an action to be performed:
-.Bl -tag -width ".Cm onetime"
+.Bl -tag -width ".Cm configure"
 .It Cm init
 Initialize provider which needs to be encrypted.
 Here you can set up the cryptographic algorithm to use, key length, etc.
@@ -350,6 +354,19 @@ Change decrypted provider's sector size.
 For more information, see the description of the
 .Cm init
 subcommand.
+.El
+.It Cm configure
+Change configuration of the given providers.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl b"
+.It Fl b
+Set the BOOT flag on the given providers.
+For more information, see the description of the
+.Cm init
+subcommand.
+.It Fl B
+Remove the BOOT flag from the given providers.
 .El
 .It Cm setkey
 Change or setup (if not yet initialized) selected key.
