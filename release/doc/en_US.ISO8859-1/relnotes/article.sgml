@@ -1023,7 +1023,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
         disk.  Note that the encryption algorithm is now specified to
         the &man.geli.8; control program using the <option>-e</option>
         option; the <option>-a</option> option is now used to specify
-        the authentication algorithm</para>
+        the authentication algorithm. &merged;</para>
 
       <para>The &man.umass.4; driver now supports
 	<literal>PLAY_MSF</literal>,
@@ -1329,7 +1329,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       <literal>late</literal> keyword in &man.fstab.5;, along with a
       corresponding <option>-l</option> command-line option to specify
       that these <quote>late</quote> file systems should be
-      mounted.</para>
+      mounted. &merged;</para>
 
     <para>The &man.moused.8; daemon now supports an <option>-H</option> flag
       to enable horizontal virtual scrolling similar to the
