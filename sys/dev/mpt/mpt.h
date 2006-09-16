@@ -177,6 +177,7 @@ typedef int mpt_load_handler_t(struct mpt_personality *);
 typedef int mpt_probe_handler_t(struct mpt_softc *);
 typedef int mpt_attach_handler_t(struct mpt_softc *);
 typedef int mpt_enable_handler_t(struct mpt_softc *);
+typedef void mpt_ready_handler_t(struct mpt_softc *);
 typedef int mpt_event_handler_t(struct mpt_softc *, request_t *,
 				MSG_EVENT_NOTIFY_REPLY *);
 typedef void mpt_reset_handler_t(struct mpt_softc *, int /*type*/);
@@ -195,6 +196,7 @@ struct mpt_personality
 	mpt_probe_handler_t	*probe;		/* configure personailty */
 	mpt_attach_handler_t	*attach;	/* initialize device instance */
 	mpt_enable_handler_t	*enable;	/* enable device */
+	mpt_ready_handler_t	*ready;		/* final open for business */
 	mpt_event_handler_t	*event;		/* Handle MPI event. */
 	mpt_reset_handler_t	*reset;		/* Re-init after reset. */
 	mpt_shutdown_handler_t	*shutdown;	/* Shutdown instance. */
@@ -317,7 +319,9 @@ typedef struct {
 	uint32_t bytes_xfered;	/* current relative offset */
 	union ccb *ccb;		/* pointer to currently active ccb */
 	request_t *req;		/* pointer to currently active assist request */
-	int	nxfers;
+	uint32_t
+		is_local : 1,
+		nxfers	 : 31;
 	uint32_t tag_id;
 	enum {
 		TGT_STATE_NIL,
@@ -490,13 +494,12 @@ struct mpt_softc {
 	int			mpt_locksetup;
 #endif
 	uint32_t		mpt_pers_mask;
-	uint32_t		: 8,
+	uint32_t
 		unit		: 8,
-				: 1,
+				: 3,
 		twildcard	: 1,
 		tenabled	: 1,
-		role		: 2,	/* none, ini, target, both */
-				: 1,
+		do_cfg_role	: 1,
 		raid_enabled	: 1,
 		raid_mwce_set	: 1,
 		getreqwaiter	: 1,
@@ -507,6 +510,9 @@ struct mpt_softc {
 		is_spi		: 1,
 		is_sas		: 1,
 		is_fc		: 1;
+
+	u_int			cfg_role;
+	u_int			role;	/* role: none, ini, target, both */
 
 	u_int			verbose;
 
@@ -556,6 +562,20 @@ struct mpt_softc {
 #define	mpt_fcport_speed	cfg.fc._port_speed
 		} fc;
 	} cfg;
+#if __FreeBSD_version >= 500000  
+	/*
+	 * Device config information stored up for sysctl to access
+	 */
+	union {
+		struct {
+			unsigned int initiator_id;
+		} spi;
+		struct {
+			char wwnn[19];
+			char wwpn[19];
+		} fc;
+	} scinfo;
+#endif
 
 	/* Controller Info for RAID information */
 	CONFIG_PAGE_IOC_2 *	ioc_page2;
@@ -650,7 +670,7 @@ struct mpt_softc {
 	 * forgets to point to it exactly and we index off of trt with
 	 * CAM_LUN_WILDCARD.
 	 */
-	tgt_resource_t		trt_wildcard;	/* wildcard luns */
+	tgt_resource_t		trt_wildcard;		/* wildcard luns */
 	tgt_resource_t		trt[MPT_MAX_LUNS];
 	uint16_t		tgt_cmds_allocated;
 	uint16_t		els_cmds_allocated;	/* FC only */
@@ -942,6 +962,7 @@ int mpt_decode_value(mpt_decode_entry_t *table, u_int num_entries,
 		     const char *name, u_int value, u_int *cur_column,
 		     u_int wrap_point);
 
+void mpt_dump_data(struct mpt_softc *, const char *, void *, int);
 void mpt_dump_request(struct mpt_softc *, request_t *);
 
 enum {
@@ -1100,6 +1121,9 @@ mpt_req_not_spcl(struct mpt_softc *mpt, request_t *req, const char *s, int line)
 }
 #endif
 
+/*
+ * Task Management Types, purely for internal consumption
+ */
 typedef enum {
 	MPT_ABORT_TASK_SET=1234,
 	MPT_CLEAR_TASK_SET,
