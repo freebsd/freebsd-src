@@ -132,8 +132,7 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 
 	if (*detach && *readonly) {
 		bzero(&md, sizeof(md));
-		gctl_error(req, "Options -d and -r are mutually exclusive.",
-		    pp->name, error);
+		gctl_error(req, "Options -d and -r are mutually exclusive.");
 		return;
 	}
 	if (*detach)
