@@ -51,13 +51,13 @@
 .Sh DESCRIPTION
 The
 .Fn ipsec_set_policy
-function generates an IPsec policy specification structure, 
+function generates an IPsec policy specification structure,
 .Li struct sadb_x_policy
 and/or
 .Li struct sadb_x_ipsecrequest
 from a human-readable policy specification.
-The policy specification must be given as a C string, 
-passed in the 
+The policy specification must be given as a C string,
+passed in the
 .Fa policy
 argument and the length of the string, given as
 .Fa len .
@@ -66,7 +66,7 @@ The
 function returns pointer to a buffer which contains a properly formed
 IPsec policy specification structure.
 The buffer is dynamically allocated, and must be freed by using the
-.Xr free 3 
+.Xr free 3
 library function.
 .Pp
 The
@@ -94,13 +94,13 @@ The
 .Fn ipsec_dump_policy
 function returns a pointer to dynamically allocated string.
 It is the caller's responsibility to free the returned pointer using the
-.Xr free 3 
+.Xr free 3
 library call.
 .Pp
-A 
+A
 .Fa policy
 is given in the following way:
-.Bl -tag  -width "discard"
+.Bl -tag -width "discard"
 .It Ar direction Li discard
 The
 .Ar direction
@@ -108,7 +108,7 @@ must be
 .Li in
 or
 .Li out
-and 
+and
 specifies which direction the policy needs to be applied, either on
 inbound or outbound packets.
 When the
@@ -121,10 +121,11 @@ means to consult the security policy database
 in the kernel, as controlled by
 .Xr setkey 8 .
 .It Ar direction Li bypass
-A direction of 
+A direction of
 .Li bypass
 indicates that IPsec processing should not occur and that the
-packet will be transmitted in clear.  The bypass option is only
+packet will be transmitted in clear.
+The bypass option is only
 available to privileged sockets.
 .It Xo
 .Ar direction
@@ -138,7 +139,7 @@ means that matching packets are processed by IPsec.
 can be followed by one or more
 .Ar request
 string, which is formatted as:
-.Bl -tag  -width "discard"
+.Bl -tag -width "discard"
 .It Xo
 .Ar protocol
 .Li /
@@ -164,8 +165,8 @@ The
 is either
 .Li transport
 or
-.Li tunnel 
-the meanings of both modes are described in 
+.Li tunnel
+the meanings of both modes are described in
 .Xr ipsec 4 .
 .Pp
 The
@@ -210,9 +211,10 @@ or
 means that the kernel should consult the default security policies as
 defined by a set of
 .Xr sysctl 8 ,
-variables.  The relevant
-.Xr sysctl 8 
-variables are described in 
+variables.
+The relevant
+.Xr sysctl 8
+variables are described in
 .Xr ipsec 4 .
 .Pp
 When
@@ -221,15 +223,16 @@ is selected a relevant security association
 (SA)
 can be used when available but is not necessary.
 If the SA is available then packets will be handled by IPsec,
-i.e. encrypted and/or authenticated but if an SA is not available then
-packets will be transmitted in the clear.  The
+i.e., encrypted and/or authenticated but if an SA is not available then
+packets will be transmitted in the clear.
+The
 .Li use
 option is not recommended because it allows for accidental
 mis-configurations where encrypted or authenticated link becomes
 unencrypted or unauthenticated, the
 .Li require
 keyword is recommended instead of
-.Li use 
+.Li use
 where possible.
 Using the
 .Li require
@@ -250,7 +253,7 @@ Put the decimal number as the identifier after the
 .Li unique
 keyword in this way:
 .Li unique : number ,
-where 
+where
 .Li number
 must be between 1 and 32767.
 .Pp
@@ -270,7 +273,7 @@ is omitted, it will be interpreted as
 .El
 .Pp
 Note that there is a difference between the specification allowed here
-and in 
+and in
 .Xr setkey 8 .
 When specifying security policies with
 .Xr setkey 8 ,
@@ -278,42 +281,16 @@ neither entrust nor bypass are used.
 Refer to
 .Xr setkey 8
 for details.
-.Sh EXAMPLES
-Set a policy that all inbound packets are discarded.
-.Bd -literal -offset indent
-in discard
-
-.Ed
-.\"
-All outbound packets are required to be processed by IPsec and
-transported using ESP.
-.Bd -literal -offset indent
-out ipsec esp/transport//require
-
-.Ed
-.\"
-All inbound packets are required to be authenticated using the AH protocol.
-.Bd -literal -offset indent
-in ipsec ah/transport//require
-
-.Ed
-.\"
-Tunnel packets outbound through the endpoints at 10.1.1.2 and 10.1.1.1.
-.Bd -literal -offset indent
-out ipsec esp/tunnel/10.1.1.2-10.1.1.1/require
-
-.Ed
-.\"
 .Sh RETURN VALUES
 The
 .Fn ipsec_set_policy
 function returns a pointer to the allocated buffer containing a the
 policy specification if successful; otherwise a NULL pointer is
-returned.  
+returned.
 .Pp
 The
 .Fn ipsec_get_policylen
-function returns a positive value, 
+function returns a positive value,
 indicating the buffer size,
 on success, and a negative value on error.
 .Pp
@@ -323,6 +300,26 @@ function returns a pointer to a dynamically allocated region
 containing a human readable security policy on success, and
 .Dv NULL
 on error.
+.Sh EXAMPLES
+Set a policy that all inbound packets are discarded.
+.Pp
+.Dl "in discard"
+.Pp
+.\"
+All outbound packets are required to be processed by IPsec and
+transported using ESP.
+.Pp
+.Dl "out ipsec esp/transport//require"
+.Pp
+.\"
+All inbound packets are required to be authenticated using the AH protocol.
+.Pp
+.Dl "in ipsec ah/transport//require"
+.Pp
+.\"
+Tunnel packets outbound through the endpoints at 10.1.1.2 and 10.1.1.1.
+.Pp
+.Dl "out ipsec esp/tunnel/10.1.1.2-10.1.1.1/require"
 .Sh SEE ALSO
 .Xr ipsec_strerror 3 ,
 .Xr ipsec 4 ,
@@ -332,4 +329,4 @@ These functions first appeared in WIDE/KAME IPv6 protocol stack kit.
 .Pp
 IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
 was initially integrated into
-.Fx 4.0
+.Fx 4.0 .

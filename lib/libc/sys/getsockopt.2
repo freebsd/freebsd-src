@@ -163,7 +163,10 @@ and set with
 .It Dv SO_SNDTIMEO Ta "set timeout value for output"
 .It Dv SO_RCVTIMEO Ta "set timeout value for input"
 .It Dv SO_ACCEPTFILTER Ta "set accept filter on listening socket"
-.It Dv SO_NOSIGPIPE Ta "controls generation of SIGPIPE for the socket"
+.It Dv SO_NOSIGPIPE Ta
+controls generation of
+.Dv SIGPIPE
+for the socket
 .It Dv SO_TYPE Ta "get the type of the socket (get only)"
 .It Dv SO_ERROR Ta "get and clear error on the socket (get only)"
 .El
@@ -359,7 +362,9 @@ of NULL will remove the filter.
 .Pp
 The
 .Dv SO_NOSIGPIPE
-option controls generation of the SIGPIPE signal normally sent
+option controls generation of the
+.Dv SIGPIPE
+signal normally sent
 when writing to a connected socket where the other end has been
 closed returns with the error
 .Er EPIPE .

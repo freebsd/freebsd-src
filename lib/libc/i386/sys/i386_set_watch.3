@@ -57,12 +57,12 @@ will set up the specified debug registers as indicated by the
 arguments.
 The
 .Fa watchnum
-argument specifies which watch register is used, 0, 1, 2, 3, or -1.
+argument specifies which watch register is used, 0, 1, 2, 3, or \-1.
 If
 .Fa watchnum
-is -1, a free watch register is found and used.
+is \-1, a free watch register is found and used.
 If there are no free
-watch registers, an error code of -1 is returned.
+watch registers, an error code of \-1 is returned.
 The
 .Fa watchaddr
 argument
@@ -89,7 +89,7 @@ to retrieve and install the debug register values for a process.
 On success, the
 .Fn i386_clr_watch
 function returns 0.
-On error, -1 returned which indicates that
+On error, \-1 returned which indicates that
 .Fa watchnum
 is invalid (not in the range of 0-3).
 If the specified watchnum was already disabled, no error is returned.
@@ -100,10 +100,10 @@ function returns the
 .Fa watchnum
 argument, or the watchnum actually used in the case where the specified
 .Fa watchnum
-was -1.
+was \-1.
 On error, the
 .Fn i386_set_watch
-function returns -1 indicating that the watchpoint could not established
+function returns \-1 indicating that the watchpoint could not established
 because either no more watchpoints are available, or
 .Fa watchnum ,
 .Fa size ,
