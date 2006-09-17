@@ -1,6 +1,6 @@
 .\" $FreeBSD$
-.\" $Id: file.man,v 1.54 2003/10/27 18:09:08 christos Exp $
-.Dd October 27, 2003
+.\" $Id: file.man,v 1.57 2005/08/18 15:18:22 christos Exp $
+.Dd August 18, 2005
 .Dt FILE 1 "Copyright but distributable"
 .Os
 .Sh NAME
@@ -8,7 +8,7 @@
 .Nd determine file type
 .Sh SYNOPSIS
 .Nm
-.Op Fl bcikLnNprsvz
+.Op Fl bchikLnNprsvz
 .Op Fl f Ar namefile
 .Op Fl F Ar separator
 .Op Fl m Ar magicfiles
@@ -17,7 +17,7 @@
 .Fl C
 .Op Fl m Ar magicfile
 .Sh DESCRIPTION
-This manual page documents version 4.12 of the
+This manual page documents version 4.17 of the
 .Nm
 utility which tests each argument in an attempt to classify it.
 There are three sets of tests, performed in this order:
@@ -103,6 +103,13 @@ magic file
 or
 .Pa /usr/share/misc/magic
 if the compile file does not exist.
+In addition
+.Nm
+will look in
+.Pa $HOME/.magic.mgc ,
+or
+.Pa $HOME/.magic
+for magic entries.
 .Pp
 If a file does not match any of the entries in the magic file,
 it is examined to see if it seems to be a text file.
@@ -187,6 +194,13 @@ Use the specified string as the separator between the filename and the
 file result returned.
 Defaults to
 .Ql \&: .
+.It Fl h , -no-dereference
+Causes symlinks not to be followed
+(on systems that support symbolic links).
+This is the default if the
+environment variable
+.Ev POSIXLY_CORRECT
+is not defined.
 .It Fl i , -mime
 Causes the file command to output mime type strings rather than the more
 traditional human readable ones.
@@ -206,8 +220,11 @@ section, below).
 Do not stop at the first match, keep going.
 .It Fl L , -dereference
 option causes symlinks to be followed, as the like-named option in
-.Xr ls 1 .
+.Xr ls 1
 (on systems that support symbolic links).
+This is the default if the environment variable
+.Ev POSIXLY_CORRECT
+is defined.
 .It Fl m , -magic-file Ar list
 Specify an alternate list of files containing magic numbers.
 This can be a single file, or a colon-separated list of files.
@@ -281,19 +298,35 @@ option is specified.
 Default list of magic numbers, used to output mime types when the
 .Fl i
 option is specified.
-.It Pa /etc/magic
-Local additions to magic wisdom.
 .El
 .Sh ENVIRONMENT
 The environment variable
 .Ev MAGIC
 can be used to set the default magic number file name.
+If that variable is set, then
+.Nm
+will not attempt to open
+.Pa $HOME/.magic .
 .Nm
 adds
 .Pa .mime
 and/or
 .Pa .mgc
 to the value of this variable as appropriate.
+The environment variable
+.Ev POSIXLY_CORRECT
+controls (on systems that support symbolic links), if
+.Nm
+will attempt to follow symlinks or not.
+If set, then
+.Nm
+follows symlink, otherwise it does not.
+This is also controlled
+by the
+.Fl L
+and
+.Fl h
+options.
 .Sh SEE ALSO
 .Xr hexdump 1 ,
 .Xr od 1 ,
