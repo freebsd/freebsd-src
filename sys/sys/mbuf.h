@@ -111,7 +111,7 @@ struct pkthdr {
 	int	csum_flags;		/* flags regarding checksum */
 	int	csum_data;		/* data field used by csum routines */
 	u_int16_t tso_segsz;		/* TSO segment size */
-	u_int16_t ether_vlan;		/* Ethernet 802.1p+q vlan tag */
+	u_int16_t ether_vtag;		/* Ethernet 802.1p+q vlan tag */
 	SLIST_HEAD(packet_tags, m_tag) tags; /* list of packet tags */
 };
 
@@ -329,7 +329,6 @@ extern uma_zone_t	zone_jumbop;
 extern uma_zone_t	zone_jumbo9;
 extern uma_zone_t	zone_jumbo16;
 extern uma_zone_t	zone_ext_refcnt;
-extern uma_zone_t	zone_mtag_vlan;
 
 static __inline struct mbuf	*m_get(int how, short type);
 static __inline struct mbuf	*m_gethdr(int how, short type);
@@ -755,8 +754,6 @@ struct	mbuf	*m_unshare(struct mbuf *, int how);
 #define	PACKET_TAG_CARP                         28 /* CARP info */
 
 /* Specific cookies and tags. */
-#define	MTAG_VLAN				1035328035
-#define	MTAG_VLAN_TAG				0 /* tag of VLAN interface */
 
 /* Packet tag routines. */
 struct	m_tag	*m_tag_alloc(u_int32_t, int, int, int);

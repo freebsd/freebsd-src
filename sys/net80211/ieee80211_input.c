@@ -722,18 +722,10 @@ ieee80211_deliver_data(struct ieee80211com *ic,
 		m->m_pkthdr.rcvif = ifp;
 		if (ni->ni_vlan != 0) {
 			/* attach vlan tag */
-			VLAN_INPUT_TAG(ifp, m, ni->ni_vlan);
-			if (m == NULL)
-				goto out;	/* XXX goto err? */
+			m->m_pkthdr.ether_vtag = ni->ni_vlan;
+			m->m_flags |= M_VLANTAG;
 		}
 		(*ifp->if_input)(ifp, m);
-	}
-	return;
-  out:
-	if (m != NULL) {
-		if (bpf_peers_present(ic->ic_rawbpf))
-			bpf_mtap(ic->ic_rawbpf, m);
-		m_freem(m);
 	}
 }
 

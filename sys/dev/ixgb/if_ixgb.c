@@ -926,8 +926,6 @@ ixgb_encap(struct adapter * adapter, struct mbuf * m_head)
 
 #if __FreeBSD_version < 500000
 	struct ifvlan  *ifv = NULL;
-#else
-	struct m_tag   *mtag;
 #endif
 	bus_dma_segment_t segs[IXGB_MAX_SCATTER];
 	bus_dmamap_t	map;
@@ -981,7 +979,7 @@ ixgb_encap(struct adapter * adapter, struct mbuf * m_head)
 	    m_head->m_pkthdr.rcvif != NULL &&
 	    m_head->m_pkthdr.rcvif->if_type == IFT_L2VLAN)
 		ifv = m_head->m_pkthdr.rcvif->if_softc;
-#else
+#elseif __FreeBSD_version < 700000
 	mtag = VLAN_OUTPUT_TAG(ifp, m_head);
 #endif
 	i = adapter->next_avail_tx_desc;
@@ -1005,10 +1003,13 @@ ixgb_encap(struct adapter * adapter, struct mbuf * m_head)
 	if (ifv != NULL) {
 		/* Set the vlan id */
 		current_tx_desc->vlan = ifv->ifv_tag;
-#else
+#elseif __FreeBSD_version < 700000
 	if (mtag != NULL) {
 		/* Set the vlan id */
 		current_tx_desc->vlan = VLAN_TAG_VALUE(mtag);
+#else
+	if (m_head->m_flags & M_VLANTAG) {
+		current_tx_desc->vlan = m_head->m_pkthdr.ether_vtag;
 #endif
 
 		/* Tell hardware to add tag */
@@ -2151,9 +2152,17 @@ ixgb_process_receive_interrupts(struct adapter * adapter, int count)
 #else
 				ixgb_receive_checksum(adapter, current_desc,
 						      adapter->fmp);
+#if __FreeBSD_version < 700000
 				if (current_desc->status & IXGB_RX_DESC_STATUS_VP)
 					VLAN_INPUT_TAG(ifp, adapter->fmp,
 						       current_desc->special);
+#else
+				if (current_desc->status & IXGB_RX_DESC_STATUS_VP) {
+					adapter->fmp->m_pkthdr.ether_vtag =
+					    current_desc->special;
+					adapter->fmp->m_flags |= M_VLANTAG;
+				}
+#endif
 
 				if (adapter->fmp != NULL) {
 					IXGB_UNLOCK(adapter);

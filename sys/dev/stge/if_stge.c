@@ -1207,7 +1207,6 @@ stge_encap(struct stge_softc *sc, struct mbuf **m_head)
 	struct stge_txdesc *txd;
 	struct stge_tfd *tfd;
 	struct mbuf *m;
-	struct m_tag *mtag;
 	bus_dma_segment_t txsegs[STGE_MAXTXSEGS];
 	int error, i, nsegs, si;
 	uint64_t csum_flags, tfc;
@@ -1270,9 +1269,8 @@ stge_encap(struct stge_softc *sc, struct mbuf **m_head)
 	sc->sc_cdata.stge_tx_prod = (si + 1) % STGE_TX_RING_CNT;
 
 	/* Check if we have a VLAN tag to insert. */
-	mtag = VLAN_OUTPUT_TAG(sc->sc_ifp, m);
-	if (mtag != NULL)
-		tfc |= TFD_VLANTagInsert | TFD_VID(VLAN_TAG_VALUE(mtag));
+	if (m->m_flags & M_VLANTAG)
+		tfc |= (TFD_VLANTagInsert | TFD_VID(m->m_pkthdr.ether_vtag));
 	tfd->tfd_control = htole64(tfc);
 
 	/* Update Tx Queue. */
@@ -1859,8 +1857,10 @@ stge_rxeof(struct stge_softc *sc)
 #endif
 			/* Check for VLAN tagged packets. */
 			if ((status & RFD_VLANDetected) != 0 &&
-			    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0)
-				VLAN_INPUT_TAG(ifp, m, RFD_TCI(status64));
+			    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) {
+				m->m_pkthdr.ether_vtag = RFD_TCI(status64);
+				m->m_flags |= M_VLANTAG;
+			}
 
 			STGE_UNLOCK(sc);
 			/* Pass it on. */

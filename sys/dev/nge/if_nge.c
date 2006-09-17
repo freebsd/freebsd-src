@@ -1227,10 +1227,9 @@ nge_rxeof(sc)
 		 * to vlan_input() instead of ether_input().
 		 */
 		if (extsts & NGE_RXEXTSTS_VLANPKT) {
-			VLAN_INPUT_TAG(ifp, m,
-			    ntohs(extsts & NGE_RXEXTSTS_VTCI));
-			if (m == NULL)
-				continue;
+			m->m_pkthdr.ether_vtag =
+			    ntohs(extsts & NGE_RXEXTSTS_VTCI);
+			m->m_flags |= M_VLANTAG;
 		}
 		NGE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
@@ -1507,7 +1506,6 @@ nge_encap(sc, m_head, txidx)
 	struct nge_desc		*f = NULL;
 	struct mbuf		*m;
 	int			frag, cur, cnt = 0;
-	struct m_tag		*mtag;
 
 	/*
  	 * Start packing the mbufs in this chain into
@@ -1549,10 +1547,9 @@ nge_encap(sc, m_head, txidx)
 			    NGE_TXEXTSTS_UDPCSUM;
 	}
 
-	mtag = VLAN_OUTPUT_TAG(sc->nge_ifp, m_head);
-	if (mtag != NULL) {
+	if (m_head->m_flags & M_VLANTAG) {
 		sc->nge_ldata->nge_tx_list[cur].nge_extsts |=
-		    (NGE_TXEXTSTS_VLANPKT|htons(VLAN_TAG_VALUE(mtag)));
+		    (NGE_TXEXTSTS_VLANPKT|htons(m_head->m_pkthdr.ether_vtag));
 	}
 
 	sc->nge_ldata->nge_tx_list[cur].nge_mbuf = m_head;

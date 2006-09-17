@@ -400,12 +400,11 @@ ieee80211_classify(struct ieee80211com *ic, struct mbuf *m, struct ieee80211_nod
 	 */
 	v_wme_ac = 0;
 	if (ni->ni_vlan != 0) {
-		 struct m_tag *mtag = VLAN_OUTPUT_TAG(ic->ic_ifp, m);
-		 if (mtag == NULL) {
+		 if ((m->m_flags & M_VLANTAG) == 0) {
 			IEEE80211_NODE_STAT(ni, tx_novlantag);
 			return 1;
 		}
-		if (EVL_VLANOFTAG(VLAN_TAG_VALUE(mtag)) !=
+		if (EVL_VLANOFTAG(m->m_pkthdr.ether_vtag) !=
 		    EVL_VLANOFTAG(ni->ni_vlan)) {
 			IEEE80211_NODE_STAT(ni, tx_vlanmismatch);
 			return 1;
