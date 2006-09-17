@@ -63,13 +63,20 @@ which is specified by
 The
 .Fa clock_id
 argument
-can be one of four values: CLOCK_REALTIME for time that increments as
-a wall clock should, CLOCK_MONOTONIC which increments in SI seconds,
-CLOCK_UPTIME which starts at zero when the kernel boots and increments
+can be one of five values:
+.Dv CLOCK_REALTIME
+for time that increments as
+a wall clock should,
+.Dv CLOCK_MONOTONIC
+which increments in SI seconds,
+.Dv CLOCK_UPTIME
+which starts at zero when the kernel boots and increments
 monotonically in SI seconds while the machine is running,
-CLOCK_VIRTUAL for time that increments only when
+.Dv CLOCK_VIRTUAL
+for time that increments only when
 the CPU is running in user mode on behalf of the calling process, or
-CLOCK_PROF for time that increments when the CPU is running in user or
+.Dv CLOCK_PROF
+for time that increments when the CPU is running in user or
 kernel mode.
 .Pp
 The structure pointed to by

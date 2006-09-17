@@ -32,7 +32,7 @@
 .\"     @(#)connect.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd August 16, 2006
 .Dt CONNECT 2
 .Os
 .Sh NAME
@@ -131,13 +131,14 @@ constant or the
 .Dv INADDR_NONE
 return value) through a socket that does not provide broadcast functionality.
 .It Bq Er EAGAIN
-An auto-assigned port number was requested but no auto-assigned ports 
-are available.  Increasing the port range specified by
+An auto-assigned port number was requested but no auto-assigned ports
+are available.
+Increasing the port range specified by
 .Xr sysctl 3
 MIB variables
-.Dq Va net.inet.ip.portrange.first
+.Va net.inet.ip.portrange.first
 and
-.Dq Va net.inet.ip.portrange.last
+.Va net.inet.ip.portrange.last
 may alleviate the problem.
 .El
 .Pp
