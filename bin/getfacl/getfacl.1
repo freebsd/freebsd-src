@@ -30,7 +30,7 @@
 .\" Developed by the TrustedBSD Project.
 .\" Support for POSIX.1e access control lists.
 .\"
-.Dd December 30, 2002
+.Dd March 13, 2006
 .Dt GETFACL 1
 .Os
 .Sh NAME
@@ -65,7 +65,8 @@ An error is generated if a default ACL cannot be associated with
 If the target of the operation is a symbolic link, return the ACL from
 the symbolic link itself rather than following the link.
 .It Fl q
-Don't write commented information about file name and ownership. This is
+Do not write commented information about file name and ownership.
+This is
 useful when dealing with filenames with unprintable characters.
 .El
 .Pp
