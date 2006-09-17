@@ -33,9 +33,8 @@
 .Nd "device state change daemon"
 .Sh SYNOPSIS
 .Nm
-.Op Fl Dd
+.Op Fl Ddn
 .Op Fl f Ar file
-.Op Fl n
 .Sh DESCRIPTION
 The
 .Nm
@@ -43,7 +42,7 @@ daemon provides a way to have userland programs run when certain
 kernel events happen.
 .Pp
 The following options are accepted.
-.Bl -tag -width indent-two
+.Bl -tag -width ".Fl f Ar file"
 .It Fl D
 Enable debugging messages.
 .It Fl d
