@@ -323,7 +323,7 @@ audit_worker_process_record(struct vnode *audit_vp, struct ucred *audit_cred,
 	int sorf;
 
 	if ((ar->k_ar_commit & AR_COMMIT_USER) &&
-	    (ar->k_ar_commit & AR_PRESELECT_TRAIL)) {
+	    (ar->k_ar_commit & AR_PRESELECT_USER_TRAIL)) {
 		error = audit_record_write(audit_vp, audit_cred, audit_td,
 		    ar->k_udata, ar->k_ulen);
 		if (error && audit_panic_on_write_fail)
@@ -331,11 +331,14 @@ audit_worker_process_record(struct vnode *audit_vp, struct ucred *audit_cred,
 		else if (error)
 			printf("audit_worker: write error %d\n", error);
 	}
+
 	if ((ar->k_ar_commit & AR_COMMIT_USER) &&
-	    (ar->k_ar_commit & AR_PRESELECT_PIPE))
+	    (ar->k_ar_commit & AR_PRESELECT_USER_PIPE))
 		audit_pipe_submit_user(ar->k_udata, ar->k_ulen);
 
-	if (!(ar->k_ar_commit & AR_COMMIT_KERNEL))
+	if (!(ar->k_ar_commit & AR_COMMIT_KERNEL) ||
+	    ((ar->k_ar_commit & AR_PRESELECT_PIPE) == 0 &&
+	    (ar->k_ar_commit & AR_PRESELECT_TRAIL) == 0))
 		return;
 
 	auid = ar->k_ar.ar_subj_auid;
@@ -372,6 +375,7 @@ audit_worker_process_record(struct vnode *audit_vp, struct ucred *audit_cred,
 			printf("audit_worker: write error %d\n",
 			    error);
 	}
+
 	if (ar->k_ar_commit & AR_PRESELECT_PIPE)
 		audit_pipe_submit(auid, event, class, sorf,
 		    ar->k_ar_commit & AR_PRESELECT_TRAIL, bsm->data,
