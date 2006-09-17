@@ -124,7 +124,7 @@
 50	AUE_SETLOGIN	NOPROTO	{ int setlogin(char *namebuf); }
 51	AUE_ACCT	NOPROTO	{ int acct(char *path); }
 52	AUE_SIGPENDING	COMPAT	{ int freebsd32_sigpending(void); }
-53	AUE_SIGPENDING	STD	{ int freebsd32_sigaltstack( \
+53	AUE_SIGALTSTACK	STD	{ int freebsd32_sigaltstack( \
 				    struct sigaltstack32 *ss, \
 				    struct sigaltstack32 *oss); }
 54	AUE_IOCTL	NOPROTO	{ int ioctl(int fd, u_long com, \
