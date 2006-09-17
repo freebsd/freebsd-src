@@ -70,9 +70,7 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_CRED, "cred", "credentials");
 
-SYSCTL_DECL(_security);
-SYSCTL_NODE(_security, OID_AUTO, bsd, CTLFLAG_RW, 0,
-    "BSD security policy");
+SYSCTL_NODE(_security, OID_AUTO, bsd, CTLFLAG_RW, 0, "BSD security policy");
 
 #ifndef _SYS_SYSPROTO_H_
 struct getpid_args {
