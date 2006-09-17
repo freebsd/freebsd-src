@@ -82,11 +82,7 @@ as:
 .Pp
 .Bd -literal
 struct timeval {
-#ifdef __alpha__
-	long		tv_sec;		/* seconds */
-#else
 	time_t		tv_sec;		/* seconds */
-#endif
 	suseconds_t	tv_usec;	/* and microseconds */
 };
 
