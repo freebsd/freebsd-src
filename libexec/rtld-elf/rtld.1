@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2003
+.Dd March 27, 2006
 .Dt RTLD 1
 .Os
 .Sh NAME
@@ -83,7 +83,9 @@ recognizes a number of environment variables that can be used to modify
 its behaviour.
 On 64-bit architectures, the linker for 32-bit objects recognizes
 all the environment variables listed below, but is being prefixed with
-LD_32_, for example: LD_32_TRACE_LOADED_OBJECTS.
+.Ev LD_32_ ,
+for example:
+.Ev LD_32_TRACE_LOADED_OBJECTS .
 .Pp
 .Bl -tag -width ".Ev LD_LIBMAP_DISABLE"
 .It Ev LD_DUMP_REL_POST
