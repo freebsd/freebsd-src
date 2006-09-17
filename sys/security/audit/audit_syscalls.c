@@ -118,6 +118,14 @@ audit(struct thread *td, struct audit_args *uap)
 	ar->k_udata = rec;
 	ar->k_ulen  = uap->length;
 	ar->k_ar_commit |= AR_COMMIT_USER;
+
+	/*
+	 * Currently we assume that all preselection has been performed in
+	 * userspace. We unconditionally set these masks so that the records
+	 * get committed both to the trail and pipe.  In the future we will
+	 * want to setup kernel based preselection.
+	 */
+	ar->k_ar_commit |= (AR_PRESELECT_USER_TRAIL | AR_PRESELECT_USER_PIPE);
 	return (0);
 
 free_out:

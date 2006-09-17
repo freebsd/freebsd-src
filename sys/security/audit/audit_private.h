@@ -96,6 +96,9 @@ extern int			audit_arge;
 #define	AR_PRESELECT_TRAIL	0x00001000U
 #define	AR_PRESELECT_PIPE	0x00002000U
 
+#define	AR_PRESELECT_USER_TRAIL	0x00004000U
+#define	AR_PRESELECT_USER_PIPE	0x00008000U
+
 /*
  * Audit data is generated as a stream of struct audit_record structures,
  * linked by struct kaudit_record, and contain storage for possible audit so
