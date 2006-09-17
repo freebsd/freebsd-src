@@ -61,12 +61,6 @@ the ``.et'' suffix replaced by ``.c'' and ``.h''.
 .Pp
 A ``#'' in the source file is treated as a comment character, and all
 remaining text to the end of the source line will be ignored.
-.Sh BUGS
-Since
-.Nm compile_et
-uses a very simple parser based on
-.Xr yacc 1 ,
-its error recovery leaves much to be desired.
 .Sh SEE ALSO
 .Xr yacc 1 ,
 .Xr com_err 3
@@ -74,3 +68,9 @@ its error recovery leaves much to be desired.
 .%A Ken Raeburn
 .%T "A Common Error Description Library for UNIX"
 .Re
+.Sh BUGS
+Since
+.Nm compile_et
+uses a very simple parser based on
+.Xr yacc 1 ,
+its error recovery leaves much to be desired.
