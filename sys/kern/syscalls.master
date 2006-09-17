@@ -792,7 +792,7 @@
 452	AUE_SETAUDIT_ADDR	MSTD	{ int setaudit_addr( \
 				    struct auditinfo_addr *auditinfo_addr, \
 				    u_int length); }
-453	AUE_AUDITCTL	MSTD	{ int auditctl(int cmd, char *path); }
+453	AUE_AUDITCTL	MSTD	{ int auditctl(char *path); }
 454	AUE_NULL	MSTD	{ int _umtx_op(struct umtx *umtx, int op, \
 				    long id, void *uaddr, void *uaddr2); }
 455	AUE_NULL	MSTD	{ int thr_new(struct thr_param *param, \
