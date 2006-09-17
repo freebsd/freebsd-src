@@ -32,7 +32,7 @@
 .\"	@(#)chflags.2	8.3 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2002
+.Dd May 16, 2006
 .Dt CHFLAGS 2
 .Os
 .Sh NAME
@@ -74,34 +74,33 @@ The flags specified are formed by
 .Em or Ns 'ing
 the following values
 .Pp
-.Bl -tag -width "SF_IMMUTABLE" -compact -offset indent
-.It UF_NODUMP
+.Bl -tag -width ".Dv SF_IMMUTABLE" -compact -offset indent
+.It Dv UF_NODUMP
 Do not dump the file.
-.It UF_IMMUTABLE
+.It Dv UF_IMMUTABLE
 The file may not be changed.
-.It UF_APPEND
+.It Dv UF_APPEND
 The file may only be appended to.
-.It UF_NOUNLINK
+.It Dv UF_NOUNLINK
 The file may not be renamed or deleted.
-.It UF_OPAQUE
+.It Dv UF_OPAQUE
 The directory is opaque when viewed through a union stack.
-.It SF_ARCHIVED
+.It Dv SF_ARCHIVED
 The file may be archived.
-.It SF_IMMUTABLE
+.It Dv SF_IMMUTABLE
 The file may not be changed.
-.It SF_APPEND
+.It Dv SF_APPEND
 The file may only be appended to.
-.It SF_NOUNLINK
+.It Dv SF_NOUNLINK
 The file may not be renamed or deleted.
-.It SF_SNAPSHOT
+.It Dv SF_SNAPSHOT
 The file is a snapshot file.
 .El
 .Pp
-If one of 
-.Dq SF_IMMUTABLE ,
-.Dq SF_APPEND ,
+If one of
+.Dv SF_IMMUTABLE , SF_APPEND ,
 or
-.Dq SF_NOUNLINK
+.Dv SF_NOUNLINK
 is set a non-super-user cannot change any flags and even the super-user
 can change flags only if securelevel is greater than 0.
 (See
@@ -109,20 +108,15 @@ can change flags only if securelevel is greater than 0.
 for details.)
 .Pp
 The
-.Dq UF_IMMUTABLE ,
-.Dq UF_APPEND ,
-.Dq UF_NOUNLINK ,
-.Dq UF_NODUMP ,
+.Dv UF_IMMUTABLE , UF_APPEND , UF_NOUNLINK , UF_NODUMP ,
 and
-.Dq UF_OPAQUE
+.Dv UF_OPAQUE
 flags may be set or unset by either the owner of a file or the super-user.
 .Pp
 The
-.Dq SF_IMMUTABLE ,
-.Dq SF_APPEND ,
-.Dq SF_NOUNLINK ,
+.Dv SF_IMMUTABLE , SF_APPEND , SF_NOUNLINK ,
 and
-.Dq SF_ARCHIVED
+.Dv SF_ARCHIVED
 flags may only be set or unset by the super-user.
 Attempts to set these flags by non-super-users are rejected, attempts by
 non-superusers to clear flags that are already unset are silently ignored.
@@ -133,7 +127,7 @@ the system is in single-user mode.
 for details.)
 .Pp
 The
-.Dq SF_SNAPSHOT
+.Dv SF_SNAPSHOT
 flag is maintained by the system and cannot be changed by any user.
 .Sh RETURN VALUES
 .Rv -std
@@ -158,18 +152,16 @@ The effective user ID does not match the owner of the file and
 the effective user ID is not the super-user.
 .It Bq Er EPERM
 One of
-.Dq SF_IMMUTABLE ,
-.Dq SF_APPEND ,
+.Dv SF_IMMUTABLE , SF_APPEND ,
 or
-.Dq SF_NOUNLINK
+.Dv SF_NOUNLINK
 is set and the user is either not the super-user or
 securelevel is greater than 0.
 .It Bq Er EPERM
 A non-super-user tries to set one of
-.Dq SF_IMMUTABLE ,
-.Dq SF_APPEND ,
+.Dv SF_IMMUTABLE , SF_APPEND ,
 or
-.Dq SF_NOUNLINK .
+.Dv SF_NOUNLINK .
 .It Bq Er EROFS
 The named file resides on a read-only file system.
 .It Bq Er EFAULT
@@ -201,18 +193,16 @@ The effective user ID does not match the owner of the file and
 the effective user ID is not the super-user.
 .It Bq Er EPERM
 One of
-.Dq SF_IMMUTABLE ,
-.Dq SF_APPEND ,
+.Dv SF_IMMUTABLE , SF_APPEND ,
 or
-.Dq SF_NOUNLINK
+.Dv SF_NOUNLINK
 is set and the user is either not the super-user or
 securelevel is greater than 0.
 .It Bq Er EPERM
 A non-super-user tries to set one of
-.Dq SF_IMMUTABLE ,
-.Dq SF_APPEND ,
+.Dv SF_IMMUTABLE , SF_APPEND ,
 or
-.Dq SF_NOUNLINK .
+.Dv SF_NOUNLINK .
 .It Bq Er EROFS
 The file resides on a read-only file system.
 .It Bq Er EIO
