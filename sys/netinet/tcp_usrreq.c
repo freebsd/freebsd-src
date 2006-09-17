@@ -800,6 +800,10 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	KASSERT(inp != NULL, ("tcp_usr_send: inp == NULL"));
 	INP_LOCK(inp);
 	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
+		if (control)
+			m_freem(control);
+		if (m)
+			m_freem(m);
 		error = EINVAL;
 		goto out;
 	}
