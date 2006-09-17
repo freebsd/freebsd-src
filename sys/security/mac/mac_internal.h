@@ -40,7 +40,6 @@
  * MAC Framework sysctl namespace.
  */
 #ifdef SYSCTL_DECL
-SYSCTL_DECL(_security);
 SYSCTL_DECL(_security_mac);
 #ifdef MAC_DEBUG
 SYSCTL_DECL(_security_mac_debug);

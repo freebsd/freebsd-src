@@ -58,8 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
-SYSCTL_DECL(_security_bsd);
-
 static int unprivileged_get_quota = 0;
 SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_get_quota, CTLFLAG_RW,
     &unprivileged_get_quota, 0,
