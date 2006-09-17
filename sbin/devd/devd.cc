@@ -902,7 +902,7 @@ gensighand(int)
 static void
 usage()
 {
-	fprintf(stderr, "usage: %s [-Ddn]\n", getprogname());
+	fprintf(stderr, "usage: %s [-Ddn] [-f file]\n", getprogname());
 	exit(1);
 }
 
