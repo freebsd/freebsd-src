@@ -70,53 +70,30 @@ struct	vlanreq {
  */
 
 /*
- * Drivers that support hardware VLAN tagging pass a packet's tag
- * up through the stack by appending a packet tag with this value.
- * Output is handled likewise, the driver must locate the packet
- * tag to extract the VLAN tag.  The following macros are used to
- * do this work.  On input, do:
+ * VLAN tags are stored in host byte order.  Byte swapping may be
+ * necessary.
  *
- *	VLAN_INPUT_TAG(ifp, m, tag,);
+ * Drivers that support hardware VLAN tag stripping fill in the
+ * received VLAN tag (containing both vlan and priority information)
+ * into the ether_vtag mbuf packet header field:
+ * 
+ *	m->m_pkthdr.ether_vtag = vlan_id;	// ntohs()?
+ *	m->m_flags |= M_VLANTAG;
  *
- * to mark the packet m with the specified VLAN tag.  The last
- * parameter provides code to execute in case of an error.  On
- * output the driver should check mbuf to see if a VLAN tag is
- * present and only then check for a tag; this is done with:
+ * to mark the packet m with the specified VLAN tag.
  *
- *	struct m_tag *mtag;
- *	mtag = VLAN_OUTPUT_TAG(ifp, m);
- *	if (mtag != NULL) {
- *		... = VLAN_TAG_VALUE(mtag);
+ * On output the driver should check the mbuf for the M_VLANTAG
+ * flag to see if a VLAN tag is present and valid:
+ *
+ *	if (m->m_flags & M_VLANTAG) {
+ *		... = m->m_pkthdr.ether_vtag;	// htons()?
  *		... pass tag to hardware ...
  *	}
  *
  * Note that a driver must indicate it supports hardware VLAN
- * tagging by marking IFCAP_VLAN_HWTAGGING in if_capabilities.
+ * stripping/insertion by marking IFCAP_VLAN_HWTAGGING in
+ * if_capabilities.
  */
-
-/*
- * This macro must expand to a lvalue so that it can be used
- * to set a tag with a simple assignment.
- */
-#define	VLAN_TAG_VALUE(_mt)	(*(u_int *)((_mt) + 1))
-
-#define	VLAN_INPUT_TAG(_ifp, _m, _t) do {			\
-	struct m_tag *mtag = (struct m_tag *)			\
-	    uma_zalloc(zone_mtag_vlan, M_NOWAIT);		\
-	if (mtag != NULL) {					\
-		VLAN_TAG_VALUE(mtag) = (_t);			\
-		m_tag_prepend((_m), mtag);			\
-		(_m)->m_flags |= M_VLANTAG;			\
-	} else {						\
-		(_ifp)->if_ierrors++;				\
-		m_freem(_m);					\
-		_m = NULL;					\
-	}							\
-} while (0)
-
-#define	VLAN_OUTPUT_TAG(_ifp, _m)				\
-	((_m)->m_flags & M_VLANTAG ?				\
-		m_tag_locate((_m), MTAG_VLAN, MTAG_VLAN_TAG, NULL) : NULL)
 
 #define	VLAN_CAPABILITIES(_ifp) do {				\
 	if ((_ifp)->if_vlantrunk != NULL) 			\

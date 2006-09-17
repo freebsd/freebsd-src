@@ -4251,9 +4251,8 @@ bce_rx_intr(struct bce_softc *sc)
 #if __FreeBSD_version < 700000
 				VLAN_INPUT_TAG(ifp, m, l2fhdr->l2_fhdr_vlan_tag, continue);
 #else
-				VLAN_INPUT_TAG(ifp, m, l2fhdr->l2_fhdr_vlan_tag);
-				if (m == NULL)
-					continue;
+				m->m_pkthdr.ether_vtag = l2fhdr->l2_fhdr_vlan_tag;
+				m->m_flags |= M_VLANTAG;
 #endif	
 			}
 
@@ -4600,7 +4599,6 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf *m_head, u16 *prod,
 	u16 *chain_prod, u32 *prod_bseq)
 {
 	u32 vlan_tag_flags = 0;
-	struct m_tag *mtag;
 	struct bce_dmamap_arg map_arg;
 	bus_dmamap_t map;
 	int i, error, rc = 0;
@@ -4614,10 +4612,9 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf *m_head, u16 *prod,
 	}
 
 	/* Transfer any VLAN tags to the bd. */
-	mtag = VLAN_OUTPUT_TAG(sc->bce_ifp, m_head);
-	if (mtag != NULL)
+	if (m_head->m_flags & M_VLANTAG)
 		vlan_tag_flags |= (TX_BD_FLAGS_VLAN_TAG |
-			(VLAN_TAG_VALUE(mtag) << 16));
+			(m_head->m_pkthdr.ether_vtag << 16));
 
 	/* Map the mbuf into DMAable memory. */
 	map = sc->tx_mbuf_map[*chain_prod];

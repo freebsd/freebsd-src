@@ -2813,9 +2813,8 @@ ti_rxeof(sc)
 		 * tag it before passing the packet upward.
 		 */
 		if (have_tag) {
-			VLAN_INPUT_TAG(ifp, m, vlan_tag);
-			if (m == NULL)
-				continue;
+			m->m_pkthdr.ether_vtag = vlan_tag;
+			m->m_flags |= M_VLANTAG;
 		}
 		TI_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
@@ -2957,7 +2956,6 @@ ti_encap(sc, m_head)
 	struct ti_tx_desc	*f;
 	struct ti_tx_desc	txdesc;
 	struct mbuf		*m;
-	struct m_tag		*mtag;
 	bus_dma_segment_t	txsegs[TI_MAXTXSEGS];
 	u_int16_t		csum_flags;
 	int			error, frag, i, nseg;
@@ -3013,7 +3011,6 @@ ti_encap(sc, m_head)
 	bus_dmamap_sync(sc->ti_rdata_dmat, sc->ti_rdata_dmamap,
 	    BUS_DMASYNC_PREWRITE);
 
-	mtag = VLAN_OUTPUT_TAG(sc->ti_ifp, m);
 	frag = sc->ti_tx_saved_prodidx;
 	for (i = 0; i < nseg; i++) {
 		if (sc->ti_hwrev == TI_HWREV_TIGON) {
@@ -3024,9 +3021,9 @@ ti_encap(sc, m_head)
 		ti_hostaddr64(&f->ti_addr, txsegs[i].ds_addr);
 		f->ti_len = txsegs[i].ds_len;
 		f->ti_flags = csum_flags;
-		if (mtag != NULL) {
+		if (m->m_flags & M_VLANTAG) {
 			f->ti_flags |= TI_BDFLAG_VLAN_TAG;
-			f->ti_vlan_tag = VLAN_TAG_VALUE(mtag) & 0xfff;
+			f->ti_vlan_tag = m->m_pkthdr.ether_vtag & 0xfff;
 		} else {
 			f->ti_vlan_tag = 0;
 		}

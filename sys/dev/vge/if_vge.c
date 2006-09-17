@@ -1490,10 +1490,9 @@ vge_rxeof(sc)
 		}
 
 		if (rxstat & VGE_RDSTS_VTAG) {
-			VLAN_INPUT_TAG(ifp, m,
-			    ntohs((rxctl & VGE_RDCTL_VLANID)));
-			if (m == NULL)
-				continue;
+			m->m_pkthdr.ether_vtag =
+			    ntohs((rxctl & VGE_RDCTL_VLANID));
+			m->m_flags |= M_VLANTAG;
 		}
 
 		VGE_UNLOCK(sc);
@@ -1757,7 +1756,6 @@ vge_encap(sc, m_head, idx)
 	struct vge_dmaload_arg	arg;
 	bus_dmamap_t		map;
 	int			error;
-	struct m_tag		*mtag;
 
 	if (sc->vge_ldata.vge_tx_free <= 2)
 		return (EFBIG);
@@ -1816,10 +1814,9 @@ vge_encap(sc, m_head, idx)
 	 * Set up hardware VLAN tagging.
 	 */
 
-	mtag = VLAN_OUTPUT_TAG(sc->vge_ifp, m_head);
-	if (mtag != NULL)
+	if (m_head->m_flags & M_VLANTAG)
 		sc->vge_ldata.vge_tx_list[idx].vge_ctl |=
-		    htole32(htons(VLAN_TAG_VALUE(mtag)) | VGE_TDCTL_VTAG);
+		    htole32(htons(m_head->m_pkthdr.ether_vtag) | VGE_TDCTL_VTAG);
 
 	sc->vge_ldata.vge_tx_list[idx].vge_sts |= htole32(VGE_TDSTS_OWN);
 
