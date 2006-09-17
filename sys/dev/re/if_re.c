@@ -1726,10 +1726,9 @@ re_rxeof(sc)
 		}
 		maxpkt--;
 		if (rxvlan & RL_RDESC_VLANCTL_TAG) {
-			VLAN_INPUT_TAG(ifp, m,
-			    ntohs((rxvlan & RL_RDESC_VLANCTL_DATA)));
-			if (m == NULL)
-				continue;
+			m->m_pkthdr.ether_vtag =
+			    ntohs((rxvlan & RL_RDESC_VLANCTL_DATA));
+			m->m_flags |= M_VLANTAG;
 		}
 		RL_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
@@ -2007,7 +2006,6 @@ re_encap(sc, m_head, idx)
 	struct rl_dmaload_arg	arg;
 	bus_dmamap_t		map;
 	int			error;
-	struct m_tag		*mtag;
 
 	RL_LOCK_ASSERT(sc);
 
@@ -2118,11 +2116,10 @@ re_encap(sc, m_head, idx)
 	 * appear in the first descriptor of a multi-descriptor
 	 * transmission attempt.
 	 */
-
-	mtag = VLAN_OUTPUT_TAG(sc->rl_ifp, *m_head);
-	if (mtag != NULL)
+	if ((*m_head)->m_flags & M_VLANTAG)
 		sc->rl_ldata.rl_tx_list[*idx].rl_vlanctl =
-		    htole32(htons(VLAN_TAG_VALUE(mtag)) | RL_TDESC_VLANCTL_TAG);
+		    htole32(htons((*m_head)->m_pkthdr.ether_vtag) |
+		    RL_TDESC_VLANCTL_TAG);
 
 	/* Transfer ownership of packet to the chip. */
 

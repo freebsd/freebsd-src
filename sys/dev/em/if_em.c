@@ -1447,7 +1447,6 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	struct em_buffer	*tx_buffer, *tx_buffer_last;
 	struct em_tx_desc	*current_tx_desc;
 	struct mbuf		*m_head;
-	struct m_tag		*mtag;
 	uint32_t		txd_upper, txd_lower, txd_used, txd_saved;
 	int			nsegs, i, j;
 	int			error, do_tso, tso_desc = 0;
@@ -1470,16 +1469,13 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 		}
 	}
 
-	/* Find out if we are in vlan mode. */
-	mtag = VLAN_OUTPUT_TAG(ifp, m_head);
-
 	/*
 	 * When operating in promiscuous mode, hardware encapsulation for
 	 * packets is disabled.  This means we have to add the vlan
 	 * encapsulation in the driver, since it will have come down from the
 	 * VLAN layer with a tag instead of a VLAN header.
 	 */
-	if (mtag != NULL && adapter->em_insert_vlan_header) {
+	if ((m_head->m_flags & M_VLANTAG) && adapter->em_insert_vlan_header) {
 		struct ether_vlan_header *evl;
 		struct ether_header eh;
 
@@ -1503,9 +1499,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 		bcopy(&eh, evl, sizeof(*evl));
 		evl->evl_proto = evl->evl_encap_proto;
 		evl->evl_encap_proto = htons(ETHERTYPE_VLAN);
-		evl->evl_tag = htons(VLAN_TAG_VALUE(mtag));
-		m_tag_delete(m_head, mtag);
-		mtag = NULL;
+		evl->evl_tag = htons(m_head->m_pkthdr.ether_vtag);
 		*m_headp = m_head;
 	}
 
@@ -1681,10 +1675,10 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 			adapter->num_tx_desc_avail -= txd_used;
 	}
 
-	if (mtag != NULL) {
+	if (m_head->m_flags & M_VLANTAG) {
 		/* Set the vlan id. */
 		current_tx_desc->upper.fields.special =
-		    htole16(VLAN_TAG_VALUE(mtag));
+		    htole16(m_head->m_pkthdr.ether_vtag);
 
 		/* Tell hardware to add tag. */
 		current_tx_desc->lower.data |= htole32(E1000_TXD_CMD_VLE);
@@ -3400,9 +3394,10 @@ em_rxeof(struct adapter *adapter, int count)
 					goto skip;
 #endif
 				if (status & E1000_RXD_STAT_VP)
-					VLAN_INPUT_TAG(ifp, adapter->fmp,
+					adapter->fmp->m_pkthdr.ether_vtag =
 					    (le16toh(current_desc->special) &
-					    E1000_RXD_SPC_VLAN_MASK));
+					    E1000_RXD_SPC_VLAN_MASK);
+					adapter->fmp->m_flags |= M_VLANTAG;
 #ifndef __NO_STRICT_ALIGNMENT
 skip:
 #endif

@@ -850,15 +850,7 @@ vlan_start(struct ifnet *ifp)
 		 * packet tag that holds it.
 		 */
 		if (p->if_capenable & IFCAP_VLAN_HWTAGGING) {
-			struct m_tag *mtag = (struct m_tag *)
-			    uma_zalloc(zone_mtag_vlan, M_NOWAIT);
-			if (mtag == NULL) {
-				ifp->if_oerrors++;
-				m_freem(m);
-				continue;
-			}
-			VLAN_TAG_VALUE(mtag) = ifv->ifv_tag;
-			m_tag_prepend(m, mtag);
+			m->m_pkthdr.ether_vtag = ifv->ifv_tag;
 			m->m_flags |= M_VLANTAG;
 		} else {
 			struct ether_vlan_header *evl;
@@ -915,7 +907,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ifvlantrunk *trunk = ifp->if_vlantrunk;
 	struct ifvlan *ifv;
-	struct m_tag *mtag;
+	int inenc = 0;
 	uint16_t tag;
 
 	KASSERT(trunk != NULL, ("%s: no trunk", __func__));
@@ -925,11 +917,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		 * Packet is tagged, but m contains a normal
 		 * Ethernet frame; the tag is stored out-of-band.
 		 */
-		mtag = m_tag_locate(m, MTAG_VLAN, MTAG_VLAN_TAG, NULL);
-		KASSERT(mtag != NULL,
-			("%s: M_VLANTAG without m_tag", __func__));
-		tag = EVL_VLANOFTAG(VLAN_TAG_VALUE(mtag));
-		m_tag_delete(m, mtag);
+		tag = EVL_VLANOFTAG(m->m_pkthdr.ether_vtag);
 		m->m_flags &= ~M_VLANTAG;
 	} else {
 		struct ether_vlan_header *evl;
@@ -937,7 +925,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		/*
 		 * Packet is tagged in-band as specified by 802.1q.
 		 */
-		mtag = NULL;
+		inenc = 1;
 		switch (ifp->if_type) {
 		case IFT_ETHER:
 			if (m->m_len < sizeof(*evl) &&
@@ -980,7 +968,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 	}
 	TRUNK_RUNLOCK(trunk);
 
-	if (mtag == NULL) {
+	if (inenc) {
 		/*
 		 * Packet had an in-line encapsulation header;
 		 * remove it.  The original header has already
