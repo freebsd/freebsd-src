@@ -1482,9 +1482,8 @@ static void nfe_rxeof(struct nfe_softc *sc)
 
 #if NVLAN > 1
 		if (have_tag) {
-			VLAN_INPUT_TAG_NEW(ifp, m, vlan_tag);
-			if (m == NULL)
-				continue;
+			m->m_pkthdr.ether_vtag = vlan_tag;
+			m->m_flags |= M_VLANTAG;
 		}
 #endif
 
@@ -1604,9 +1603,6 @@ static int nfe_encap(struct nfe_softc *sc, struct mbuf *m0)
 	struct nfe_tx_data *data=NULL;
 	bus_dmamap_t map;
 	u_int16_t flags = NFE_TX_VALID;
-#if NVLAN > 0
-	struct m_tag *vtag;
-#endif
 	bus_dma_segment_t segs[NFE_MAX_SCATTER];
 	int nsegs;
 	int error, i;
@@ -1627,11 +1623,6 @@ static int nfe_encap(struct nfe_softc *sc, struct mbuf *m0)
 		return ENOBUFS;
 	}
 
-
-#if NVLAN > 0
-	/* setup h/w VLAN tagging */
-	vtag = VLAN_OUTPUT_TAG(sc->nfe_ifp, m0);
-#endif
 
 #ifdef NFE_CSUM
 	if (m0->m_pkthdr.csum_flags & CSUM_IP)
@@ -1655,8 +1646,9 @@ static int nfe_encap(struct nfe_softc *sc, struct mbuf *m0)
 			desc64->length = htole16(segs[i].ds_len - 1);
 			desc64->flags = htole16(flags);
 #if NVLAN > 0
-			desc64->vtag = htole32(NFE_TX_VTAG |
-			    VLAN_TAG_VALUE(vtag));
+			if (m0->m_flags & M_VLANTAG)
+				desc64->vtag = htole32(NFE_TX_VTAG |
+				    m0->m_pkthdr.ether_vtag);
 #endif
 		} else {
 			desc32 = &sc->txq.desc32[sc->txq.cur];
@@ -1669,9 +1661,6 @@ static int nfe_encap(struct nfe_softc *sc, struct mbuf *m0)
 		/* csum flags and vtag belong to the first fragment only */
 		if (nsegs > 1) {
 			flags &= ~(NFE_TX_IP_CSUM | NFE_TX_TCP_CSUM);
-#if NVLAN > 0
-			vtag = 0;
-#endif
 		}
 		
 		sc->txq.queued++;

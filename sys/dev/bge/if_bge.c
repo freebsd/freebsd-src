@@ -2716,9 +2716,8 @@ bge_rxeof(struct bge_softc *sc)
 		 * attach that information to the packet.
 		 */
 		if (have_tag) {
-			VLAN_INPUT_TAG(ifp, m, vlan_tag);
-			if (m == NULL)
-				continue;
+			m->m_pkthdr.ether_vtag = vlan_tag;
+			m->m_flags |= M_VLANTAG;
 		}
 
 		BGE_UNLOCK(sc);
@@ -3078,7 +3077,6 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 	bus_dmamap_t		map;
 	struct bge_tx_bd	*d;
 	struct mbuf		*m = *m_head;
-	struct m_tag		*mtag;
 	uint32_t		idx = *txidx;
 	uint16_t		csum_flags;
 	int			nsegs, i, error;
@@ -3150,9 +3148,9 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 
 	/* ... and put VLAN tag into first segment.  */
 	d = &sc->bge_ldata.bge_tx_ring[*txidx];
-	if ((mtag = VLAN_OUTPUT_TAG(sc->bge_ifp, m)) != NULL) {
+	if (m->m_flags & M_VLANTAG) {
 		d->bge_flags |= BGE_TXBDFLAG_VLAN_TAG;
-		d->bge_vlan_tag = VLAN_TAG_VALUE(mtag);
+		d->bge_vlan_tag = m->m_pkthdr.ether_vtag;
 	} else
 		d->bge_vlan_tag = 0;
 

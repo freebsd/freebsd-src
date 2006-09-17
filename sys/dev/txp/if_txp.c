@@ -765,9 +765,8 @@ txp_rx_reclaim(sc, r)
 		}
 
 		if (rxd->rx_stat & RX_STAT_VLAN) {
-			VLAN_INPUT_TAG(ifp, m, htons(rxd->rx_vlan >> 16));
-			if (m == NULL)
-				goto next;
+			m->m_pkthdr.ether_vtag = htons(rxd->rx_vlan >> 16);
+			m->m_flags |= M_VLANTAG;
 		}
 
 		TXP_UNLOCK(sc);
@@ -1272,7 +1271,6 @@ txp_start_locked(ifp)
 	struct mbuf *m, *m0;
 	struct txp_swdesc *sd;
 	u_int32_t firstprod, firstcnt, prod, cnt;
-	struct m_tag *mtag;
 
 	TXP_LOCK_ASSERT(sc);
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
@@ -1311,10 +1309,9 @@ txp_start_locked(ifp)
 		if (++cnt >= (TX_ENTRIES - 4))
 			goto oactive;
 
-		mtag = VLAN_OUTPUT_TAG(ifp, m);
-		if (mtag != NULL) {
+		if (m->m_flags & M_VLANTAG) {
 			txd->tx_pflags = TX_PFLAGS_VLAN |
-			    (htons(VLAN_TAG_VALUE(mtag)) << TX_PFLAGS_VLANTAG_S);
+			    (htons(m->m_pkthdr.ether_vtag) << TX_PFLAGS_VLANTAG_S);
 		}
 
 		if (m->m_pkthdr.csum_flags & CSUM_IP)
