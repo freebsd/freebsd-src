@@ -252,8 +252,6 @@ SYSCTL_INT(_kern_hwpmc, OID_AUTO, mtxpoolsize, CTLFLAG_TUN|CTLFLAG_RD,
  * per-process measurements.  This feature is turned off by default.
  */
 
-SYSCTL_DECL(_security_bsd);
-
 static int pmc_unprivileged_syspmcs = 0;
 TUNABLE_INT("security.bsd.unprivileged_syspmcs", &pmc_unprivileged_syspmcs);
 SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_syspmcs, CTLFLAG_RW,

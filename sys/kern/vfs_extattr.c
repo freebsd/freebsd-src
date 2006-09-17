@@ -1367,8 +1367,6 @@ link(td, uap)
 	return (error);
 }
 
-SYSCTL_DECL(_security_bsd);
-
 static int hardlink_check_uid = 0;
 SYSCTL_INT(_security_bsd, OID_AUTO, hardlink_check_uid, CTLFLAG_RW,
     &hardlink_check_uid, 0,

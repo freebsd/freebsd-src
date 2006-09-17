@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_PRISON, "prison", "Prison structures");
 
-SYSCTL_DECL(_security);
 SYSCTL_NODE(_security, OID_AUTO, jail, CTLFLAG_RW, 0,
     "Jail rules");
 
