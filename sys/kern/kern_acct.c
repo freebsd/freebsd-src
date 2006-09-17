@@ -94,6 +94,7 @@ static int	acct_disable(struct thread *);
  * acct_sx protects against changes to the active vnode and credentials
  * while accounting records are being committed to disk.
  */
+static int		 acct_configured;
 static int		 acct_suspended;
 static struct vnode	*acct_vp;
 static struct ucred	*acct_cred;
@@ -145,6 +146,9 @@ sysctl_acct_chkfreq(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, OID_AUTO, acct_chkfreq, CTLTYPE_INT|CTLFLAG_RW,
     &acctchkfreq, 0, sysctl_acct_chkfreq, "I",
     "frequency for checking the free space");
+
+SYSCTL_INT(_kern, OID_AUTO, acct_configured, CTLFLAG_RD, &acct_configured, 0,
+	"Accounting configured or not");
 
 SYSCTL_INT(_kern, OID_AUTO, acct_suspended, CTLFLAG_RD, &acct_suspended, 0,
 	"Accounting suspended or not");
@@ -252,6 +256,7 @@ acct(struct thread *td, struct acct_args *uap)
 			(void) vn_close(acct_vp, acct_flags, acct_cred, td);
 			VFS_UNLOCK_GIANT(vfslocked);
 			crfree(acct_cred);
+			acct_configured = 0;
 			acct_vp = NULL;
 			acct_cred = NULL;
 			acct_flags = 0;
@@ -260,6 +265,7 @@ acct(struct thread *td, struct acct_args *uap)
 			return (error);
 		}
 	}
+	acct_configured = 1;
 	sx_xunlock(&acct_sx);
 	log(LOG_NOTICE, "Accounting enabled\n");
 	return (error);
@@ -277,6 +283,7 @@ acct_disable(struct thread *td)
 	sx_assert(&acct_sx, SX_XLOCKED);
 	error = vn_close(acct_vp, acct_flags, acct_cred, td);
 	crfree(acct_cred);
+	acct_configured = 0;
 	acct_vp = NULL;
 	acct_cred = NULL;
 	acct_flags = 0;
