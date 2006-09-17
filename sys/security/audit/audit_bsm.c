@@ -1313,6 +1313,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_GETCWD:
+	case AUE_SYSARCH:
 		break;
 
 	default:
