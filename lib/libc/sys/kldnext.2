@@ -43,12 +43,12 @@ The
 .Fn kldnext
 system call
 returns the fileid of the next kld file (that is, the one after
-.Va fileid )
+.Fa fileid )
 or 0 if
-.Va fileid
+.Fa fileid
 is the last file loaded.
 To get the fileid of the first kld file, pass
-.Va fileid
+.Fa fileid
 of 0 to
 .Fn kldnext .
 .Sh RETURN VALUES
@@ -67,7 +67,7 @@ The only error set by
 is
 .Er ENOENT ,
 which is set when
-.Va fileid
+.Fa fileid
 refers to a kld file that does not exist (is not loaded).
 .Sh SEE ALSO
 .Xr kldfind 2 ,

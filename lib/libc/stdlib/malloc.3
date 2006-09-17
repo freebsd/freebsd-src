@@ -143,8 +143,9 @@ function returns the usable size of the allocation pointed to by
 .Fa ptr .
 The return value may be larger than the size that was requested during
 allocation.
+The
 .Fn malloc_usable_size
-is not a mechanism for in-place
+function is not a mechanism for in-place
 .Fn realloc ;
 rather it is provided solely as a tool for introspection purposes.
 Any discrepancy between the requested allocation size and the size reported by
@@ -177,7 +178,7 @@ The process will call
 .Xr abort 3
 in these cases.
 .It H
-Use 
+Use
 .Xr madvise 2
 when pages within a chunk are no longer in use, but the chunk as a whole cannot
 yet be deallocated.
@@ -263,7 +264,7 @@ Each byte of new memory allocated by
 .Fn realloc
 or
 .Fn reallocf
-will be initialized to 0x0.
+will be initialized to 0.
 Note that this initialization only happens once for each byte, so
 .Fn realloc
 and
@@ -279,48 +280,6 @@ and
 options are intended for testing and debugging.
 An application which changes its behavior when these options are used
 is flawed.
-.Sh RETURN VALUES
-The
-.Fn malloc
-and
-.Fn calloc
-functions return a pointer to the allocated memory if successful; otherwise
-a
-.Dv NULL
-pointer is returned and
-.Va errno
-is set to
-.Er ENOMEM .
-.Pp
-The
-.Fn realloc
-and
-.Fn reallocf
-functions return a pointer, possibly identical to
-.Fa ptr ,
-to the allocated memory
-if successful; otherwise a
-.Dv NULL
-pointer is returned, and
-.Va errno
-is set to
-.Er ENOMEM
-if the error was the result of an allocation failure.
-The
-.Fn realloc
-function always leaves the original buffer intact
-when an error occurs, whereas
-.Fn reallocf
-deallocates it in this case.
-.Pp
-The
-.Fn free
-function returns no value.
-.Pp
-The
-.Fn malloc_usable_size
-function returns the usable size of the allocation pointed to by
-.Fa ptr .
 .Sh IMPLEMENTATION NOTES
 This allocator uses multiple arenas in order to reduce lock contention for
 threaded programs on multi-processor systems.
@@ -353,7 +312,7 @@ Allocation requests that are larger than the maximum quantum-multiple size
 class, but no larger than one half of a page, are rounded up to the nearest
 power of two.
 Allocation requests that are larger than half of a page, but no larger than half
-of a chunk (see the 
+of a chunk (see the
 .Dq K
 option), are rounded up to the nearest run size.
 Allocation requests that are larger than half of a chunk are rounded up to the
@@ -402,7 +361,8 @@ which focus on detecting and pinpointing problems by trading performance for
 extra sanity checks and detailed diagnostics.
 .Sh DIAGNOSTIC MESSAGES
 If any of the memory allocation/deallocation functions detect an error or
-warning condition, a message will be printed to file descriptor STDERR_FILENO.
+warning condition, a message will be printed to file descriptor
+.Dv STDERR_FILENO .
 Errors will result in the process dumping core.
 If the
 .Dq A
@@ -418,10 +378,50 @@ file descriptor is not suitable for this.
 Please note that doing anything which tries to allocate memory in
 this function is likely to result in a crash or deadlock.
 .Pp
-All messages are prefixed by:
-.Bl -diag
-.It <progname>: (malloc)
-.El
+All messages are prefixed by
+.Dq Ao Ar progname Ac Ns Li : (malloc) .
+.Sh RETURN VALUES
+The
+.Fn malloc
+and
+.Fn calloc
+functions return a pointer to the allocated memory if successful; otherwise
+a
+.Dv NULL
+pointer is returned and
+.Va errno
+is set to
+.Er ENOMEM .
+.Pp
+The
+.Fn realloc
+and
+.Fn reallocf
+functions return a pointer, possibly identical to
+.Fa ptr ,
+to the allocated memory
+if successful; otherwise a
+.Dv NULL
+pointer is returned, and
+.Va errno
+is set to
+.Er ENOMEM
+if the error was the result of an allocation failure.
+The
+.Fn realloc
+function always leaves the original buffer intact
+when an error occurs, whereas
+.Fn reallocf
+deallocates it in this case.
+.Pp
+The
+.Fn free
+function returns no value.
+.Pp
+The
+.Fn malloc_usable_size
+function returns the usable size of the allocation pointed to by
+.Fa ptr .
 .Sh ENVIRONMENT
 The following environment variables affect the execution of the allocation
 functions:
