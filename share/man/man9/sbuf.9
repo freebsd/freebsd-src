@@ -29,6 +29,7 @@
 .Dt SBUF 9
 .Os
 .Sh NAME
+.Nm sbuf ,
 .Nm sbuf_new ,
 .Nm sbuf_clear ,
 .Nm sbuf_setpos ,
@@ -92,7 +93,7 @@
 .Fn sbuf_delete "struct sbuf *s"
 .Sh DESCRIPTION
 The
-.Nm sbuf
+.Nm
 family of functions allows one to safely allocate, construct and
 release bounded null-terminated strings in kernel space.
 Instead of arrays of characters, these functions operate on structures
@@ -308,37 +309,46 @@ size of its storage buffer using
 or it is reinitialized to a sufficiently short string using
 .Fn sbuf_cpy .
 .Sh RETURN VALUES
+The
 .Fn sbuf_new
-returns
+function returns
 .Dv NULL
 if it failed to allocate a storage buffer, and a pointer to the new
 .Fa sbuf
 otherwise.
 .Pp
+The
 .Fn sbuf_setpos
-returns \-1 if
+function returns \-1 if
 .Fa pos
 was invalid, and zero otherwise.
 .Pp
+The
 .Fn sbuf_cat ,
 .Fn sbuf_cpy ,
 .Fn sbuf_printf ,
 .Fn sbuf_putc ,
 and
 .Fn sbuf_trim
+functions
 all return \-1 if the buffer overflowed, and zero otherwise.
 .Pp
+The
 .Fn sbuf_overflowed
+function
 returns a non-zero value if the buffer overflowed, and zero otherwise.
 .Pp
+The
 .Fn sbuf_data
 and
 .Fn sbuf_len
-return
+functions return
 .Dv NULL
 and \-1, respectively, if the buffer overflowed.
 .Pp
+The
 .Fn sbuf_copyin
+function
 returns \-1 if copying string from userland failed, and number of bytes
 copied otherwise.
 .Sh SEE ALSO
@@ -350,13 +360,13 @@ copied otherwise.
 .Xr printf 9
 .Sh HISTORY
 The
-.Nm sbuf
+.Nm
 family of functions first appeared in
 .Fx 4.4 .
 .Sh AUTHORS
 .An -nosplit
 The
-.Nm sbuf
+.Nm
 family of functions was designed by
 .An Poul-Henning Kamp Aq phk@FreeBSD.org
 and implemented by

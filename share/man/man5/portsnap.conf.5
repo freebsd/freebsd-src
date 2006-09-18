@@ -30,7 +30,7 @@
 .Os FreeBSD
 .Sh NAME
 .Nm portsnap.conf
-.Nd configuration file for 
+.Nd configuration file for
 .Xr portsnap 8
 .Sh DESCRIPTION
 The
@@ -46,7 +46,7 @@ A line of the form
 specifies the source from which snapshots should be fetched.
 This is equivalent to the
 .Fl s Ar server
-option to 
+option to
 .Xr portsnap 8 , and will be ignored if the command-line
 option is used.
 .Pp
@@ -57,7 +57,7 @@ specifies the SHA-256 hash of the OpenSSL public key file
 belonging to an RSA keypair which is trusted to sign updates.
 This is equivalent to the
 .Fl k Ar KEY
-option to 
+option to
 .Xr portsnap 8 , and will be ignored if the command-line
 option is used.
 .Pp
@@ -94,7 +94,7 @@ Finally, a line of the form
 will instruct
 .Xr portsnap 8
 to ignore parts of the ports tree with paths starting with
-.Ar foo 
+.Ar foo
 or
 .Ar bar ,
 which are interpreted as extended regular expressions by
@@ -128,9 +128,9 @@ Any lines not of the above forms will be ignored.
 Default location of the portsnap configuration file.
 .El
 .Sh SEE ALSO
-.Xr egrep 1
-.Xr fetch 1
-.Xr portsnap 8
+.Xr egrep 1 ,
+.Xr fetch 1 ,
+.Xr portsnap 8 ,
 .Xr sha256 8
 .Sh AUTHORS
 .An Colin Percival Aq cperciva@FreeBSD.org

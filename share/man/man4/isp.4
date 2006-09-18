@@ -141,40 +141,37 @@ The following options are switchable by setting values in
 .Pa /boot/device.hints .
 .Pp
 They are:
-.Pp
 .Bl -tag -width indent
 .It Va hint.isp.0.disable
 A hint value to disable driver in kernel.
 .It Va hint.isp.0.fwload_disable
 A hint value to disable loading of firmware
-.Cd ispfw(4) .
+.Xr ispfw 4 .
 .It Va hint.isp.0.prefer_memmap
-A hint value to use PCI Memory space instead of I/O space
+A hint value to use PCI memory space instead of I/O space
 access for.
 .It Va hint.isp.0.prefer_iomap
 A hint value to use PCI I/O space instead of Memory space
 access for.
 .It Va hint.isp.0.ignore_nvram
-A hint value to ignore board NVRAM settings for. Otherwise
-use NVRAM settings.
+A hint value to ignore board NVRAM settings for.
+Otherwise use NVRAM settings.
 .It Va hint.isp.0.fullduplex
 A hint value to set full duplex mode.
 .It Va hint.isp.0.topology
-A hint value to select topology of connection. Supported
-values are:
+A hint value to select topology of connection.
+Supported values are:
 .Pp
-.Cd lport
-(Prefer loopback and fallback to point to point).
-.Pp
-.Cd nport
-(Prefer point to point and fallback to loopback).
-.Pp
-.Cd lport-only
-(Loopback only).
-.Pp
-.Cd nport-only
-(Point to point only).
-.Pp
+.Bl -tag -width ".Li lport-only" -compact
+.It Li lport
+Prefer loopback and fallback to point to point.
+.It Li nport
+Prefer point to point and fallback to loopback.
+.It Li lport-only
+Loopback only.
+.It Li nport-only
+Point to point only.
+.El
 .It Va hint.isp.0.portwwn
 This should be the full 64 bit World Wide Port Name you would like
 to use, overriding the value in NVRAM for the card.

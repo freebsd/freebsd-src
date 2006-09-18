@@ -194,7 +194,7 @@ as a string.
 .Tn ASCII
 form of this message is
 .Qq Li pppoe_getmode .
-The following keywords are can be returned:
+The following keywords can be returned:
 .Bl -tag -width 3n
 .It Qq standard
 The node operates according to RFC 2516.
@@ -218,11 +218,10 @@ This option is necessary for compatibility with D-Link DI-614+ and DI-624+
 SOHO routers as clients, when serving only specific Service-Name.
 This compatibility option does not affect client mode.
 .El
-.Pp
 .It Dv NGM_PPPOE_SETMODE
 Configure node to the specified mode.
 The string argument is required.
-This command understands same keywords, that are returned by
+This command understands the same keywords that are returned by the
 .Dv NGM_PPPOE_GETMODE
 command.
 .Tn ASCII
@@ -230,7 +229,6 @@ form of this message is
 .Qq Li pppoe_setmode .
 For example, the following command will configure the node to initiate
 the next session in the proprietary 3Com mode:
-.Pp
 .Bd -literal -offset indent
 ngctl msg fxp0:orphans pppoe_setmode '"3Com"'
 .Ed
