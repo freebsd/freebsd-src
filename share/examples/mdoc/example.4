@@ -33,16 +33,19 @@
 .Nm example
 .Nd "example device driver manual page"
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
+To compile
+.Ns Nm
+into the kernel,
+place the following lines in the
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device example"
 .Cd "options EXAMPLE_DEBUG"
 .Ed
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+Alternatively, to load
+.Ns Nm
+as a module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 example_load="YES"
