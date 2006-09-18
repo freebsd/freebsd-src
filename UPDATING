@@ -26,7 +26,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 
 20060816:
 	The IPFIREWALL_FORWARD_EXTENDED option is gone and the behaviour
-	for IP_FIREWALL_FORWARD is now as it was before when it was first
+	for IPFIREWALL_FORWARD is now as it was before when it was first
 	committed and for years after. The behaviour is now ON.
 
 20060725:
