@@ -3526,7 +3526,7 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct bge_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
 	struct mii_data *mii;
-	int mask, error = 0;
+	int flags, mask, error = 0;
 
 	switch (command) {
 	case SIOCSIFMTU:
@@ -3553,19 +3553,18 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			 * waiting for it to start up, which may take a
 			 * second or two.  Similarly for ALLMULTI.
 			 */
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    ifp->if_flags & IFF_PROMISC &&
-			    !(sc->bge_if_flags & IFF_PROMISC)) {
-				BGE_SETBIT(sc, BGE_RX_MODE,
-				    BGE_RXMODE_RX_PROMISC);
-			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    !(ifp->if_flags & IFF_PROMISC) &&
-			    sc->bge_if_flags & IFF_PROMISC) {
-				BGE_CLRBIT(sc, BGE_RX_MODE,
-				    BGE_RXMODE_RX_PROMISC);
-			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    (ifp->if_flags ^ sc->bge_if_flags) & IFF_ALLMULTI) {
-				bge_setmulti(sc);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				flags = ifp->if_flags ^ sc->bge_if_flags;
+				if (flags & IFF_PROMISC) {
+					if (ifp->if_flags & IFF_PROMISC)
+						BGE_SETBIT(sc, BGE_RX_MODE,
+						    BGE_RXMODE_RX_PROMISC);
+					else
+						BGE_CLRBIT(sc, BGE_RX_MODE,
+						    BGE_RXMODE_RX_PROMISC);
+				}
+				if (flags & IFF_ALLMULTI)
+					bge_setmulti(sc);
 			} else
 				bge_init_locked(sc);
 		} else {
