@@ -349,6 +349,7 @@ static void bge_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static uint8_t bge_eeprom_getbyte(struct bge_softc *, int, uint8_t *);
 static int bge_read_eeprom(struct bge_softc *, caddr_t, int, int);
 
+static void bge_setpromisc(struct bge_softc *);
 static void bge_setmulti(struct bge_softc *);
 
 static int bge_newbuf_std(struct bge_softc *, int, struct mbuf *);
@@ -934,6 +935,27 @@ bge_init_tx_ring(struct bge_softc *sc)
 		CSR_WRITE_4(sc, BGE_MBX_TX_NIC_PROD0_LO, 0);
 
 	return (0);
+}
+
+static void
+bge_setpromisc(struct bge_softc *sc)
+{
+	struct ifnet *ifp;
+
+	BGE_LOCK_ASSERT(sc);
+
+	ifp = sc->bge_ifp;
+
+	/*
+	 * Enable or disable promiscuous mode as needed.
+	 * Do not strip VLAN tag when promiscuous mode is enabled.
+	 */
+	if (ifp->if_flags & IFF_PROMISC)
+		BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_RX_PROMISC |
+		    BGE_RXMODE_RX_KEEP_VLAN_DIAG);
+	else
+		BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_RX_PROMISC |
+		    BGE_RXMODE_RX_KEEP_VLAN_DIAG);
 }
 
 static void
@@ -2632,7 +2654,8 @@ bge_rxeof(struct bge_softc *sc)
 		rxidx = cur_rx->bge_idx;
 		BGE_INC(sc->bge_rx_saved_considx, sc->bge_return_ring_cnt);
 
-		if (cur_rx->bge_flags & BGE_RXBDFLAG_VLAN_TAG) {
+		if (!(ifp->if_flags & IFF_PROMISC) &&
+		    (cur_rx->bge_flags & BGE_RXBDFLAG_VLAN_TAG)) {
 			have_tag = 1;
 			vlan_tag = cur_rx->bge_vlan_tag;
 		}
@@ -3315,12 +3338,8 @@ bge_init_locked(struct bge_softc *sc)
 	CSR_WRITE_4(sc, BGE_MAC_ADDR1_LO, htons(m[0]));
 	CSR_WRITE_4(sc, BGE_MAC_ADDR1_HI, (htons(m[1]) << 16) | htons(m[2]));
 
-	/* Enable or disable promiscuous mode as needed. */
-	if (ifp->if_flags & IFF_PROMISC) {
-		BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_RX_PROMISC);
-	} else {
-		BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_RX_PROMISC);
-	}
+	/* Program promiscuous mode. */
+	bge_setpromisc(sc);
 
 	/* Program multicast filter. */
 	bge_setmulti(sc);
@@ -3555,14 +3574,8 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			 */
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				flags = ifp->if_flags ^ sc->bge_if_flags;
-				if (flags & IFF_PROMISC) {
-					if (ifp->if_flags & IFF_PROMISC)
-						BGE_SETBIT(sc, BGE_RX_MODE,
-						    BGE_RXMODE_RX_PROMISC);
-					else
-						BGE_CLRBIT(sc, BGE_RX_MODE,
-						    BGE_RXMODE_RX_PROMISC);
-				}
+				if (flags & IFF_PROMISC)
+					bge_setpromisc(sc);
 				if (flags & IFF_ALLMULTI)
 					bge_setmulti(sc);
 			} else
