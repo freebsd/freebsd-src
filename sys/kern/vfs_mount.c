@@ -1103,16 +1103,6 @@ unmount(td, uap)
 	}
 
 	/*
-	 * Only privileged root, or (if MNT_USER is set) the user that did the
-	 * original mount is permitted to unmount this filesystem.
-	 */
-	error = vfs_suser(mp, td);
-	if (error) {
-		mtx_unlock(&Giant);
-		return (error);
-	}
-
-	/*
 	 * Don't allow unmounting the root filesystem.
 	 */
 	if (mp->mnt_flag & MNT_ROOTFS) {
@@ -1139,8 +1129,32 @@ dounmount(mp, flags, td)
 
 	mtx_assert(&Giant, MA_OWNED);
 
-	if ((coveredvp = mp->mnt_vnodecovered) != NULL)
-		vn_lock(coveredvp, LK_EXCLUSIVE | LK_RETRY, td);
+	if ((coveredvp = mp->mnt_vnodecovered) != NULL) {
+		VI_LOCK(coveredvp);
+		vholdl(coveredvp);
+		error = vn_lock(coveredvp, LK_EXCLUSIVE | LK_INTERLOCK, td);
+		vdrop(coveredvp);
+		/*
+		 * Check for mp being unmounted while waiting for the
+		 * covered vnode lock.
+		 */
+		if (error)
+			return (error);
+		if (coveredvp->v_mountedhere != mp) {
+			VOP_UNLOCK(coveredvp, 0, td);
+			return (EBUSY);
+		}
+	}
+	/*
+	 * Only privileged root, or (if MNT_USER is set) the user that did the
+	 * original mount is permitted to unmount this filesystem.
+	 */
+	error = vfs_suser(mp, td);
+	if (error) {
+		VOP_UNLOCK(coveredvp, 0, td);
+		return (error);
+	}
+
 	MNT_ILOCK(mp);
 	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
 		MNT_IUNLOCK(mp);
