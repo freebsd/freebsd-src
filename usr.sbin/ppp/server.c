@@ -346,6 +346,13 @@ server_TcpOpen(struct bundle *bundle, u_short port)
     goto failed;
   }
 
+#ifndef NOINET6
+  if (probe.ipv6_available) {
+    int off = 0;
+    setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&off, sizeof(off));
+  }
+#endif
+
   setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &s, sizeof s);
   if (bind(s, (struct sockaddr *)&ss, sz) < 0) {
     log_Printf(LogWARN, "Tcp: bind: %s\n", strerror(errno));
