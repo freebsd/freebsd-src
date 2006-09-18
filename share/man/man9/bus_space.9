@@ -1607,45 +1607,43 @@ Access to these types of memory regions should be with the
 .Fn bus_space_*_stream_N
 functions.
 .Pp
-.Bl -ohang -compact
-.Nm bus_space_set_multi_stream_1 ,
-.Nm bus_space_set_region_stream_1 ,
-.It Fn bus_space_copy_region_1 "space" "handle" "srcoffset" "dsthandle" "dstoffset" "count"
-.It Fn bus_space_copy_region_2 "space" "handle" "srcoffset" "dsthandle" "dstoffset" "count"
-.It Fn bus_space_copy_region_4 "space" "handle" "srcoffset" "dsthandle" "dstoffset" "count"
-.It Fn bus_space_copy_region_8 "space" "handle" "srcoffset" "dsthandle" "dstoffset" "count"
-.It Fn bus_space_read_stream_1 "space" "handle" "offset"
-.It Fn bus_space_read_stream_2 "space" "handle" "offset"
-.It Fn bus_space_read_stream_4 "space" "handle" "offset"
-.It Fn bus_space_read_stream_8 "space" "handle" "offset"
-.It Fn bus_space_read_multi_stream_1 "space" "handle" "offset" "datap" "count"
-.It Fn bus_space_read_multi_stream_2 "space" "handle" "offset" "datap" "count"
-.It Fn bus_space_read_multi_stream_4 "space" "handle" "offset" "datap" "count"
-.It Fn bus_space_read_multi_stream_8 "space" "handle" "offset" "datap" "count"
-.It Fn bus_space_read_region_stream_1 "space" "handle" "offset" "datap" "count"
-.It Fn bus_space_read_region_stream_2 "space" "handle" "offset" "datap" "count"
-.It Fn bus_space_read_region_stream_4 "space" "handle" "offset" "datap" "count"
-.It Fn bus_space_read_region_stream_8 "space" "handle" "offset" "datap" "count"
-.It Fn bus_space_set_multi_1 "space" "handle" "offset" "value" "count"
-.It Fn bus_space_set_multi_2 "space" "handle" "offset" "value" "count"
-.It Fn bus_space_set_multi_4 "space" "handle" "offset" "value" "count"
-.It Fn bus_space_set_multi_8 "space" "handle" "offset" "value" "count"
-.It Fn bus_space_set_region_1 "space" "handle" "offset" "value" "count"
-.It Fn bus_space_set_region_2 "space" "handle" "offset" "value" "count"
-.It Fn bus_space_set_region_4 "space" "handle" "offset" "value" "count"
-.It Fn bus_space_set_region_8 "space" "handle" "offset" "value" "count"
-.It Fn bus_space_write_stream_1 "space" "handle" "offset" "value"
-.It Fn bus_space_write_stream_2 "space" "handle" "offset" "value"
-.It Fn bus_space_write_stream_4 "space" "handle" "offset" "value"
-.It Fn bus_space_write_stream_8 "space" "handle" "offset" "value"
-.It Fn bus_space_write_multi_stream_1 "space" "handle" "offset" "datap" "count"
-.It Fn bus_space_write_multi_stream_2 "space" "handle" "offset" "datap" "count"
-.It Fn bus_space_write_multi_stream_4 "space" "handle" "offset" "datap" "count"
-.It Fn bus_space_write_multi_stream_8 "space" "handle" "offset" "datap" "count"
-.It Fn bus_space_write_region_stream_1 "space" "handle" "offset" "datap" "count"
-.It Fn bus_space_write_region_stream_2 "space" "handle" "offset" "datap" "count"
-.It Fn bus_space_write_region_stream_4 "space" "handle" "offset" "datap" "count"
-.It Fn bus_space_write_region_stream_8 "space" "handle" "offset" "datap" "count"
+.Bl -tag -compact
+.It Fn bus_space_read_stream_1
+.It Fn bus_space_read_stream_2
+.It Fn bus_space_read_stream_4
+.It Fn bus_space_read_stream_8
+.It Fn bus_space_read_multi_stream_1
+.It Fn bus_space_read_multi_stream_2
+.It Fn bus_space_read_multi_stream_4
+.It Fn bus_space_read_multi_stream_8
+.It Fn bus_space_read_region_stream_1
+.It Fn bus_space_read_region_stream_2
+.It Fn bus_space_read_region_stream_4
+.It Fn bus_space_read_region_stream_8
+.It Fn bus_space_write_stream_1
+.It Fn bus_space_write_stream_2
+.It Fn bus_space_write_stream_4
+.It Fn bus_space_write_stream_8
+.It Fn bus_space_write_multi_stream_1
+.It Fn bus_space_write_multi_stream_2
+.It Fn bus_space_write_multi_stream_4
+.It Fn bus_space_write_multi_stream_8
+.It Fn bus_space_write_region_stream_1
+.It Fn bus_space_write_region_stream_2
+.It Fn bus_space_write_region_stream_4
+.It Fn bus_space_write_region_stream_8
+.It Fn bus_space_copy_region_stream_1
+.It Fn bus_space_copy_region_stream_2
+.It Fn bus_space_copy_region_stream_4
+.It Fn bus_space_copy_region_stream_8
+.It Fn bus_space_set_multi_stream_1
+.It Fn bus_space_set_multi_stream_2
+.It Fn bus_space_set_multi_stream_4
+.It Fn bus_space_set_multi_stream_8
+.It Fn bus_space_set_region_stream_1
+.It Fn bus_space_set_region_stream_2
+.It Fn bus_space_set_region_stream_4
+.It Fn bus_space_set_region_stream_8
 .El
 .Pp
 These functions are defined just as their non-stream counterparts,
