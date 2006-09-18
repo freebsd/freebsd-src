@@ -44,18 +44,17 @@
 # maintenance and isolate the bits that are not (currently) distributed
 # in source form.
 #
-HAL=	${.CURDIR}/../../contrib/dev/ath
+HAL?=	${.CURDIR}/../../contrib/dev/ath
 
-.PATH: ${HAL}/freebsd
+.PATH: ${.CURDIR}/../../dev/ath
 
 KMOD=	ath_hal
 SRCS=	ah_osdep.c
-SRCS+=	bus_if.h device_if.h pci_if.h ah_if.h opt_ah.h
+SRCS+=	bus_if.h device_if.h pci_if.h opt_ah.h
 OBJS=	hal.o
-MFILES=	kern/bus_if.m kern/device_if.m dev/pci/pci_if.m \
-	contrib/dev/ath/freebsd/ah_if.m
+MFILES=	kern/bus_if.m kern/device_if.m dev/pci/pci_if.m
 
-CFLAGS+= -I. -I${HAL}/freebsd -I${HAL}
+CFLAGS+= -I. -I${.CURDIR}/../../dev/ath -I${HAL}
 
 # patch for hal naming difference
 .if ${MACHINE_ARCH} == "amd64"
@@ -68,14 +67,9 @@ ATH_MODULE_ARCH=powerpc-be
 ATH_MODULE_ARCH=${MACHINE_ARCH}
 .endif
 
-.if defined(HAL_SRC)
-.include "${HAL}/freebsd/Makefile.inc"
-.else
-
 hal.o:	${HAL}/public/${ATH_MODULE_ARCH}-elf.hal.o.uu
 	uudecode -p < ${HAL}/public/${ATH_MODULE_ARCH}-elf.hal.o.uu > ${.TARGET}
 opt_ah.h: ${HAL}/public/${ATH_MODULE_ARCH}-elf.opt_ah.h
 	cp ${HAL}/public/${ATH_MODULE_ARCH}-elf.opt_ah.h ${.TARGET}
-.endif
 
 .include <bsd.kmod.mk>
