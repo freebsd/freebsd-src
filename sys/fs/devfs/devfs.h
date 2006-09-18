@@ -129,6 +129,8 @@ struct devfs_dirent {
 #define	DE_WHITEOUT	0x1
 #define	DE_DOT		0x2
 #define	DE_DOTDOT	0x4
+#define DE_DOOMED	0x8
+	int			de_holdcnt;
 	struct dirent 		*de_dirent;
 	TAILQ_ENTRY(devfs_dirent) de_list;
 	TAILQ_HEAD(, devfs_dirent) de_dlist;
@@ -150,6 +152,7 @@ struct devfs_mount {
 	struct mount		*dm_mount;
 	struct devfs_dirent	*dm_rootdir;
 	unsigned		dm_generation;
+	int			dm_holdcnt;
 	struct sx		dm_lock;
 	devfs_rsnum		dm_ruleset;
 };
@@ -160,13 +163,21 @@ extern unsigned devfs_rule_depth;
 
 #define VFSTODEVFS(mp)	((struct devfs_mount *)((mp)->mnt_data))
 
+#define DEVFS_DE_HOLD(de)	((de)->de_holdcnt++)
+#define DEVFS_DE_DROP(de)	(--(de)->de_holdcnt == 0)
+
+#define DEVFS_DMP_HOLD(dmp)	((dmp)->dm_holdcnt++)
+#define DEVFS_DMP_DROP(dmp)	(--(dmp)->dm_holdcnt == 0)
+
 void devfs_rules_apply(struct devfs_mount *dm, struct devfs_dirent *de);
 void devfs_rules_cleanup (struct devfs_mount *dm);
 int devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct thread *td);
 int devfs_allocv (struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, struct thread *td);
 void devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de);
+void devfs_dirent_free(struct devfs_dirent *de);
 void devfs_populate (struct devfs_mount *dm);
 void devfs_cleanup (struct devfs_mount *dm);
+void devfs_unmount_final(struct devfs_mount *mp);
 struct devfs_dirent *devfs_newdirent (char *name, int namelen);
 struct devfs_dirent *devfs_vmkdir (struct devfs_mount *, char *name, int namelen, struct devfs_dirent *dotdot, u_int inode);
 struct devfs_dirent *devfs_find (struct devfs_dirent *dd, const char *name, int namelen);
