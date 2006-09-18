@@ -256,7 +256,6 @@ struct ath_softc {
 	u_int32_t		*sc_rxlink;	/* link ptr in last RX desc */
 	struct task		sc_rxtask;	/* rx int processing */
 	struct task		sc_rxorntask;	/* rxorn int processing */
-	struct task		sc_radartask;	/* radar processing */
 	u_int8_t		sc_defant;	/* current default antenna */
 	u_int8_t		sc_rxotherant;	/* rx's on non-default antenna*/
 	u_int64_t		sc_lastrx;	/* tsf at last rx'd frame */
@@ -575,12 +574,6 @@ void	ath_intr(void *);
 #define ath_hal_gpiosetintr(_ah, _gpio, _b) \
         ((*(_ah)->ah_gpioSetIntr)((_ah), (_gpio), (_b)))
 
-#define ath_hal_radar_event(_ah) \
-	((*(_ah)->ah_radarHaveEvent)((_ah)))
-#define ath_hal_procdfs(_ah, _chan) \
-	((*(_ah)->ah_processDfs)((_ah), (_chan)))
-#define ath_hal_checknol(_ah, _chan, _nchans) \
-	((*(_ah)->ah_dfsNolCheck)((_ah), (_chan), (_nchans)))
 #define ath_hal_radar_wait(_ah, _chan) \
 	((*(_ah)->ah_radarWait)((_ah), (_chan)))
 
