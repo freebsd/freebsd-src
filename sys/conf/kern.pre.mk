@@ -58,12 +58,6 @@ INCLUDES= ${NOSTDINC} -I- ${INCLMAGIC} -I. -I$S
 # include path into contrib'ed source files.
 INCLUDES+= -I$S/contrib/altq
 
-# ... and the same for Atheros HAL when the author builds it from
-#     non-distributable sources.
-.if defined(ATH_BUILDING_FROM_SOURCE)
-INCLUDES+= -I$S/contrib/dev/ath
-.endif
-
 .if make(depend) || make(kernel-depend)
 
 # ... and the same for ipfilter
