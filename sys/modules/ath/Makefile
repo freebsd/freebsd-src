@@ -43,7 +43,7 @@ SRCS=	if_ath.c if_ath_pci.c
 SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h
 
 HAL=	${.CURDIR}/../../contrib/dev/ath
-CFLAGS+=  -I. -I${HAL}/freebsd -I${HAL}
+CFLAGS+=  -I. -I${.CURDIR}/../../dev/ath -I${HAL}
 
 opt_ath.h:
 	echo > $@
