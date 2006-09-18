@@ -117,7 +117,6 @@ static int	ath_ioctl(struct ifnet *, u_long, caddr_t);
 static void	ath_fatal_proc(void *, int);
 static void	ath_rxorn_proc(void *, int);
 static void	ath_bmiss_proc(void *, int);
-static void	ath_radar_proc(void *, int);
 static int	ath_key_alloc(struct ieee80211com *,
 			const struct ieee80211_key *,
 			ieee80211_keyix *, ieee80211_keyix *);
@@ -403,7 +402,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	TASK_INIT(&sc->sc_rxorntask, 0, ath_rxorn_proc, sc);
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
-	TASK_INIT(&sc->sc_radartask, 0, ath_radar_proc, sc);
 
 	/*
 	 * Allocate hardware transmit queues: one queue for
@@ -875,24 +873,6 @@ ath_bmiss_proc(void *arg, int pending)
 			NET_UNLOCK_GIANT();
 		} else
 			sc->sc_stats.ast_bmiss_phantom++;
-	}
-}
-
-static void
-ath_radar_proc(void *arg, int pending)
-{
-	struct ath_softc *sc = arg;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ath_hal *ah = sc->sc_ah;
-	HAL_CHANNEL hchan;
-
-	if (ath_hal_procdfs(ah, &hchan)) {
-		if_printf(ifp, "radar detected on channel %u/0x%x/0x%x\n",
-			hchan.channel, hchan.channelFlags, hchan.privFlags);
-		/*
-		 * Initiate channel change.
-		 */
-		/* XXX not yet */
 	}
 }
 
@@ -3082,8 +3062,6 @@ rx_next:
 
 	/* rx signal state monitoring */
 	ath_hal_rxmonitor(ah, &sc->sc_halstats, &sc->sc_curchan);
-	if (ath_hal_radar_event(ah))
-		taskqueue_enqueue(sc->sc_tq, &sc->sc_radartask);
 	if (ngood)
 		sc->sc_lastrx = tsf;
 
