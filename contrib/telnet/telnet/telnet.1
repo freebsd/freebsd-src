@@ -32,7 +32,7 @@
 .\"	@(#)telnet.1	8.6 (Berkeley) 6/1/94
 .\" $FreeBSD$
 .\"
-.Dd January 27, 2000
+.Dd September 18, 2006
 .Dt TELNET 1
 .Os
 .Sh NAME
@@ -640,6 +640,13 @@ without white space are the start of a machine entry.
 The
 first thing on the line is the name of the machine that is
 being connected to.
+It may be the hostname or numeric address specified as the argument
+.Ar host ,
+the canonical name of that string as determined by
+.Xr getaddrinfo 3 ,
+or the string
+.Dq DEFAULT
+indicating all hosts.
 The rest of the line, and successive
 lines that begin with white space are assumed to be
 .Nm
