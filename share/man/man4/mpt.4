@@ -80,8 +80,7 @@ LSI Logic LSI2x320-X
 .It
 LSI Logic AS1064,
 LSI Logic AS1068
-(
-.Tn SAS/SATA )
+.Pq Tn SAS/SATA
 .It
 LSI Logic FC909
 (1Gb/s
@@ -146,11 +145,6 @@ can take on - no separate compilation is required.
 .%T "LSI Logic Website"
 .%O http://www.lsilogic.com/
 .Re
-.Sh BUGS
-.Pp
-This driver has been reported to have problems under the VMware ESX server.
-.Pp
-This driver does not yet work on big endian machines like Sparc64.
 .Sh HISTORY
 The
 .Nm
@@ -169,3 +163,7 @@ by
 .An Matt Jacob Aq mjacob@FreeBSD.org
 and
 .An Justin Gibbs Aq gibbs@FreeBSD.org .
+.Sh BUGS
+This driver has been reported to have problems under the VMware ESX server.
+.Pp
+This driver does not yet work on big endian machines like Sparc64.

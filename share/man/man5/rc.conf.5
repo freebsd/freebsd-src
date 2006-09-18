@@ -69,7 +69,7 @@ See the
 variable below.
 .Pp
 Options are set with
-.Dq Li name=value
+.Dq Ar name Ns Li = Ns Ar value
 assignments that use
 .Xr sh 1
 syntax.
@@ -110,8 +110,10 @@ listed in the
 .Va local_startup
 variable (see below).
 Thus, the two likely candidates for this value are
-mountcritlocal for the typical system,
-and mountcritremote if the system needs remote file
+.Pa mountcritlocal
+for the typical system, and
+.Pa mountcritremote
+if the system needs remote file
 systems mounted to get access to the
 .Va local_startup
 directories; for example when
@@ -121,7 +123,8 @@ For
 .Pa rc.conf
 within a
 .Xr jail 8
-NETWORKING is likely to be an appropriate value.
+.Pa NETWORKING
+is likely to be an appropriate value.
 Extreme care should be taken when changing this value,
 and before changing it one should ensure that there are
 adequate provisions to recover from a failed boot
@@ -356,9 +359,9 @@ For the
 DHCP client, see the
 .Xr dhclient 8
 manpage for a description of the command line options available.
-.It Va dhclient_flags_ Ns Va iface
+.It Va dhclient_flags_ Ns Aq Ar iface
 Additional flags to pass to the DHCP client program running on
-.Va iface
+.Ar iface
 only.
 When specified, this variable overrides
 .Va dhclient_flags .
@@ -370,11 +373,11 @@ to start the DHCP client in background.
 This can cause trouble with applications depending on
 a working network, but it will provide a faster startup
 in many cases.
-.It Va background_dhclient_ Ns Va iface
+.It Va background_dhclient_ Ns Aq Ar iface
 When specified, this variable overrides the
 .Va background_dhclient
 variable for interface
-.Va iface
+.Ar iface
 only.
 .It Va synchronous_dhclient
 .Pq Bt bool
@@ -1453,7 +1456,9 @@ This must match the location in
 .Xr named.conf 5 .
 .It Va named_uid
 .Pq Vt str
-The user that the named process should be run as.
+The user that the
+.Xr named 8
+process should be run as.
 .It Va named_chrootdir
 .Pq Vt str
 The root directory for a name server run in a
@@ -1721,7 +1726,7 @@ If set to
 run the
 .Xr pppoed 8
 daemon at boot time to provide PPP over Ethernet services.
-.It Va pppoed_ Ns Ar provider
+.It Va pppoed_ Ns Aq Ar provider
 .Pq Vt str
 .Xr pppoed 8
 listens to requests to this
@@ -1783,11 +1788,11 @@ An option to set this up initially
 .Xr sysinstall 8
 program when the system is first installed.
 .It Va ntpdate_config
+.Pq Vt str
 Configuration file for
 .Xr ntpdate 8 .
-.Pq Vt str
-(default
-.Pa /etc/ntp.conf ).
+Default
+.Pa /etc/ntp.conf .
 .It Va ntpdate_hosts
 .Pq Vt str
 A whitespace-separated list of NTP servers to synchronize with at startup.
@@ -1827,8 +1832,8 @@ Path to
 Path to
 .Xr ntpd 8
 configuration file.
-(default
-.Pa /etc/ntp.conf ) .
+Default
+.Pa /etc/ntp.conf .
 .It Va ntpd_flags
 .Pq Vt str
 If
@@ -2877,8 +2882,7 @@ Set to the list of local 32-bit compatibility
 directories.
 The names of all files in the directories listed will be
 passed as arguments to
-.Xr ldconfig 8
-.Fl 32 .
+.Dq Nm ldconfig Fl 32 .
 .It Va kern_securelevel_enable
 .Pq Vt bool
 Set to
@@ -3047,7 +3051,9 @@ When set to
 .Dq Li YES ,
 sets
 .Va jail_ Ns Ao Ar jname Ac Ns Va _mount_enable
-to YES by default for every jail in
+to
+.Dq Li YES
+by default for every jail in
 .Va jail_list .
 .It Va jail_devfs_ruleset
 .Pq Vt str
@@ -3065,7 +3071,9 @@ When set to
 .Dq Li YES ,
 sets
 .Va jail_ Ns Ao Ar jname Ac Ns Va _devfs_enable
-to YES by default for every jail in
+to
+.Dq Li YES
+by default for every jail in
 .Va jail_list .
 .It Va jail_fdescfs_enable
 .Pq Vt bool
@@ -3076,7 +3084,9 @@ When set to
 .Dq Li YES ,
 sets
 .Va jail_ Ns Ao Ar jname Ac Ns Va _fdescfs_enable
-to YES by default for every jail in
+to
+.Dq Li YES
+by default for every jail in
 .Va jail_list .
 .It Va jail_procfs_enable
 .Pq Vt bool
@@ -3087,14 +3097,16 @@ When set to
 .Dq Li YES ,
 sets
 .Va jail_ Ns Ao Ar jname Ac Ns Va _fdescfs_enable
-to YES by default for every jail in
+to
+.Dq Li YES
+by default for every jail in
 .Va jail_list .
 .It Va jail_exec_start
 .Pq Vt str
 Unset by default.
 When set, use as default value for
 .Va jail_ Ns Ao Ar jname Ac Ns Va _exec_start
-for every jail in 
+for every jail in
 .Va jail_list .
 .It Va jail_exec_afterstart Ns Aq Ar N
 .Pq Vt str
@@ -3139,7 +3151,7 @@ Note that the alias is created at jail startup and removed at jail shutdown.
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _fstab
 .Pq Vt str
 Set to
-.Pa /etc/fstab. Ns Ao Ar jname Ac
+.Pa /etc/fstab. Ns Aq Ar jname
 by default.
 This is the file system information file to use for jail
 .Va jname .
@@ -3198,9 +3210,9 @@ This is the command executed at jail startup.
 .Pq Vt str
 Unset by default.
 This is the command run as
-.Ar N Ns 
+.Ar N Ns
 th command
-after jail startup, where 
+after jail startup, where
 .Ar N
 is 1, 2, and so on.
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_stop
@@ -3436,7 +3448,7 @@ The default is
 which causes log files flagged with a
 .Cm C
 to be created.
-.It Va mdconfig_md Ns Ao Ar X Ac
+.It Va mdconfig_md Ns Aq Ar X
 .Pq Vt str
 Arguments to
 .Xr mdconfig 8
@@ -3456,7 +3468,7 @@ for vnode backed
 .Xr md 4
 devices.
 Note that
-.Va mdconfig_md Ns Ao Ar X Ac
+.Va mdconfig_md Ns Aq Ar X
 variables are evaluated until one variable is unset or null.
 .It Va mdconfig_md Ns Ao Ar X Ac Ns Va _newfs
 .Pq Vt str
@@ -3505,11 +3517,11 @@ device
 .Ar X
 has been mounted.
 Note that the command is passed to
-.Li eval
+.Ic eval
 and that both
-.Li _dev
+.Va _dev
 and
-.Li _mp
+.Va _mp
 variables can be used to reference respectively the
 .Xr md 4
 device and the mount point.
@@ -3519,7 +3531,7 @@ device is
 .Li md0 ,
 one could set the following:
 .Bd -literal
-mdconfig_md0_cmd="tar xfzC /var/file.tgz \\${_mp}"
+mdconfig_md0_cmd="tar xfzC /var/file.tgz \e${_mp}"
 .Ed
 .It Va ramdisk_units
 .Pq Vt str
@@ -3537,7 +3549,9 @@ in a
 .Va ramdisk_ Ns Ao Ar X Ac Ns Va _config
 variable.
 Note that this way to configure ramdisks has been deprecated
-in favor of new mdconfig variables (see above).
+in favor of new
+.Va mdconfig_md*
+variables (see above).
 .It Va ramdisk_ Ns Ao Ar X Ac Ns Va _config
 .Pq Vt str
 Arguments to

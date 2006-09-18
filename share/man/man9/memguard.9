@@ -48,19 +48,25 @@ and
 .Fn free
 for a particular malloc type.
 .Sh EXAMPLES
-To use memguard for memory type compiled into the kernel, one has to add the
+To use
+.Nm
+for memory type compiled into the kernel, one has to add the
 following line to the
 .Pa /boot/loader.conf :
 .Bd -literal -offset indent
 vm.memguard.desc=<memory_type>
 .Ed
 .Pp
-Where memory_type is a short description of memory type to monitor.
+Where
+.Ar memory_type
+is a short description of memory type to monitor.
 The short description of memory type is the second argument to
 .Xr MALLOC_DEFINE 9 ,
 so one has to find it in the kernel source.
 .Pp
-To use memguard for memory type defined in a kernel module, one has to set
+To use
+.Nm
+for memory type defined in a kernel module, one has to set
 .Va vm.memguard.desc
 .Xr sysctl 8
 variable before loading the module:

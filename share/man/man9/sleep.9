@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 17, 1998
+.Dd April 17, 2006
 .Os
 .Dt SLEEP 9
 .Sh NAME
@@ -124,8 +124,8 @@ If
 .Fa timo
 is not 0,
 then the thread will sleep for at most
-.Fa timo
-\&/ hz seconds.
+.Fa timo No / Va hz
+seconds.
 If the
 .Va Giant
 lock is not held and

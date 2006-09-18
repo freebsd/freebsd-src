@@ -69,13 +69,6 @@ The
 .Xr mknod 8
 tool can be used to recover deleted device entries under
 .Nm .
-.Sh EXAMPLES
-To mount a  
-.Nm
-volume located on
-.Pa /dev :
-.Pp
-.Dl "mount -t devfs devfs /dev"
 .Sh FILES
 .Bl -tag -width /dev/XXXX -compact
 .It Pa /dev
@@ -83,6 +76,13 @@ The normal
 .Nm
 mount point.
 .El
+.Sh EXAMPLES
+To mount a
+.Nm
+volume located on
+.Pa /dev :
+.Pp
+.Dl "mount -t devfs devfs /dev"
 .Sh SEE ALSO
 .Xr devfs 8 ,
 .Xr mount 8
