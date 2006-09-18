@@ -3393,11 +3393,12 @@ em_rxeof(struct adapter *adapter, int count)
 				    em_fixup_rx(adapter) != 0)
 					goto skip;
 #endif
-				if (status & E1000_RXD_STAT_VP)
+				if (status & E1000_RXD_STAT_VP) {
 					adapter->fmp->m_pkthdr.ether_vtag =
 					    (le16toh(current_desc->special) &
 					    E1000_RXD_SPC_VLAN_MASK);
 					adapter->fmp->m_flags |= M_VLANTAG;
+				}
 #ifndef __NO_STRICT_ALIGNMENT
 skip:
 #endif
