@@ -694,8 +694,26 @@ ng_fec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	/* These two are mostly handled at a higher layer */
 	case SIOCSIFADDR:
 	case SIOCGIFADDR:
-	case SIOCSIFMTU:
 		error = ether_ioctl(ifp, command, data);
+		break;
+
+	case SIOCSIFMTU:
+		if (ifr->ifr_mtu >= NG_FEC_MTU_MIN &&
+		    ifr->ifr_mtu <= NG_FEC_MTU_MAX) {
+			struct ng_fec_portlist *p;
+			struct ifnet *bifp;
+
+			TAILQ_FOREACH(p, &b->ng_fec_ports, fec_list) {
+				bifp = p->fec_if;
+				error = (*bifp->if_ioctl)(bifp, SIOCSIFMTU,
+				    data);
+				if (error != 0)
+					break;
+			}
+			if (error == 0)
+				ifp->if_mtu = ifr->ifr_mtu;
+		} else
+			error = EINVAL;
 		break;
 
 	/* Set flags */
@@ -808,9 +826,15 @@ ng_fec_input(struct ifnet *ifp, struct mbuf *m0)
 
 	/* Convince the system that this is our frame. */
 	m0->m_pkthdr.rcvif = bifp;
-	bifp->if_ipackets++;
-	bifp->if_ibytes += m0->m_pkthdr.len + sizeof(struct ether_header);
 
+	/*
+	 * Count bytes on an individual interface in a bundle.
+	 * The bytes will also be added to the aggregate interface
+	 * once we call ether_input().
+	 */
+	ifp->if_ibytes += m0->m_pkthdr.len;
+
+	bifp->if_ipackets++;
 	(*bifp->if_input)(bifp, m0);
 
 	return;
