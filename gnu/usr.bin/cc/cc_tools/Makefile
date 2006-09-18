@@ -215,7 +215,9 @@ CLEANFILES+=	fini
 .if ${TARGET_ARCH} == "amd64"
 TARGET_INC=	i386/biarch64.h
 .endif
+.if ${TARGET_ARCH} != "arm"
 TARGET_INC+=	${GCC_CPU}/${GCC_CPU}.h
+.endif
 .if ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "amd64"
 TARGET_INC+=	${GCC_CPU}/unix.h
 TARGET_INC+=	${GCC_CPU}/att.h
@@ -235,7 +237,19 @@ TARGET_INC+=	${GCC_CPU}/elf.h
 TARGET_INC+=	${GCC_CPU}/sysv4.h
 .endif
 .endif
+.if ${TARGET_ARCH} == "arm"
+TARGET_INC+=	${GCC_CPU}/elf.h
+TARGET_INC+=	${GCC_CPU}/aout.h
+TARGET_INC+=	${GCC_CPU}/${GCC_CPU}.h
+. if defined(TARGET_BIG_ENDIAN)
+CFLAGS+= -DTARGET_ENDIAN_DEFAULT=ARM_FLAG_BIG_END
+. endif
+.endif
+.if ${TARGET_ARCH} == "arm"
+TARGET_INC+=	freebsd-diked.h
+.else
 TARGET_INC+=	${GCC_CPU}/freebsd.h
+.endif
 .if ${TARGET_ARCH} == "amd64"
 TARGET_INC+=	${GCC_CPU}/x86-64.h
 TARGET_INC+=	${GCC_CPU}/freebsd64.h
@@ -457,6 +471,26 @@ gtyp-gen.h:
 gcov-iov.h:
 	echo "#define GCOV_VERSION ((gcov_unsigned_t)0x33303470)" >> ${.TARGET}
 
+.if ${TARGET_ARCH} == "arm"
+freebsd-diked.h: ${GCCDIR}/../../gnu/usr.bin/cc/cc_tools/arm-freebsd.h.diff
+	cp ${GCCDIR}/config/arm/freebsd.h freebsd.h
+	patch freebsd.h ${.ALLSRC}
+	mv freebsd.h ${.TARGET}
+COMMONHDRS+=	freebsd-diked.h
+CLEANFILES+=    freebsd.h.orig
+
+# Make sure freebsd-diked.h is built when tm.h is built for csu's sake
+tm.h:	freebsd-diked.h
+
+${MD_FILE}: ${MFILE}
+	cp ${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}.md .
+	ln -sf ${GCCDIR}/config/${GCC_CPU}/fpa.md .
+	ln -sf ${GCCDIR}/config/${GCC_CPU}/cirrus.md .
+	ln -sf ${GCCDIR}/config/${GCC_CPU}/iwmmxt.md .
+	patch ${GCC_CPU}.md ${.CURDIR}/arm.md.diff
+	mv ${GCC_CPU}.md ${.TARGET}
+CLEANFILES+=	arm-diked.md ${GCC_CPU}.md.orig fpa.md cirrus.md iwmmxt.md
+.endif
 #-----------------------------------------------------------------------
 # General things.
 
