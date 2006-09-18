@@ -453,13 +453,6 @@ program.
 Pathname of a remote shell program, if not
 .Xr rsh 1 .
 .El
-.Sh EXAMPLES
-Dumps the "/u" file system to dvds using growisofs.
-Uses a 16MB cache and creates a snapshot of the dump and records the
-dumpdates file.
-.Bd -literal
-/sbin/dump -0u  -L -C16 -B4589840 -P 'growisofs -Z /dev/cd0=/dev/fd/0' /u
-.Ed
 .Sh FILES
 .Bl -tag -width /etc/dumpdates -compact
 .It Pa /dev/sa0
@@ -480,6 +473,17 @@ to find group
 Dump exits with zero status on success.
 Startup errors are indicated with an exit code of 1;
 abnormal termination is indicated with an exit code of 3.
+.Sh EXAMPLES
+Dumps the
+.Pa /u
+file system to DVDs using
+.Nm growisofs .
+Uses a 16MB cache, creates a snapshot of the dump, and records the
+.Pa dumpdates
+file.
+.Bd -literal
+/sbin/dump -0u  -L -C16 -B4589840 -P 'growisofs -Z /dev/cd0=/dev/fd/0' /u
+.Ed
 .Sh DIAGNOSTICS
 Many, and verbose.
 .Sh SEE ALSO
