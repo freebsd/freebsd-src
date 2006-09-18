@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd July 25, 2006
+.Dd September 6, 2006
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -595,11 +595,11 @@ parameter is specified in TU's (1/1024 msecs).
 By default beacon frames are transmitted every 100 TU's.
 .It Cm bmissthreshold Ar count
 Set the number of consecutive missed beacons at which the station
-will attempt to roam (i.e. search for a new access point).
+will attempt to roam (i.e., search for a new access point).
 The
 .Ar count
-parameter is must be in the range 1 to 255; though the
-upper bound may be reduced according to device capabilities..
+parameter must be in the range 1 to 255; though the
+upper bound may be reduced according to device capabilities.
 The default threshold is 7 consecutive missed beacons; but
 this may be overridden by the device driver.
 Another name for the
@@ -719,7 +719,8 @@ mode.
 Channels identified as
 .Ql 11a Turbo
 may be used only for Atheros' Static Turbo mode
-.Pq specified with Cm mediaopt turbo .
+(specified with
+. Cm mediaopt turbo ) .
 Channels marked with a
 .Ql *
 have a regulatory constraint that they be passively scanned.
@@ -787,7 +788,7 @@ See the description of the
 directive for information on the various parameters.
 .It Cm mcastrate Ar rate
 Set the rate for transmitting multicast/broadcast frames.
-Rates are specified as megabits/second in decimal; e.g. 5.5 for 5.5 Mb/s.
+Rates are specified as megabits/second in decimal; e.g.\& 5.5 for 5.5 Mb/s.
 This rate should be valid for the current operating conditions;
 if an invalid rate is specified drivers are free to chose an
 appropriate rate.
@@ -1322,7 +1323,7 @@ interfaces:
 .It Cm maxupd Ar n
 Set the maximum number of updates for a single state which
 can be collapsed into one.
-This is an 8-bit number; the default value is 128. 
+This is an 8-bit number; the default value is 128.
 .El
 .Pp
 The following parameters are specific to
