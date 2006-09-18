@@ -108,7 +108,7 @@ See
 .El
 .Pp
 Additional options:
-.Bl -tag -width ".Fl f Ar rfailprob"
+.Bl -tag -width ".Fl r Ar rfailprob"
 .It Fl e Ar error
 Specifies the error number to return on failure.
 .It Fl f
@@ -153,10 +153,11 @@ gnop create -v -f 50 da0
 gnop destroy -v da0.nop
 .Ed
 .Pp
-The traffic statistics for the given transparent providers we can get with
+The traffic statistics for the given transparent providers can be obtained
+with the
 .Cm list
 command.
-Example below shows how can we obtain number of bytes written with
+Example below shows the number of bytes written with
 .Xr newfs 8 :
 .Bd -literal -offset indent
 gnop create da0

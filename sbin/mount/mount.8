@@ -39,14 +39,14 @@
 .Op Fl adflpruvw
 .Op Fl F Ar fstab
 .Op Fl o Ar options
-.Op Fl t Ar ufs | external_type
+.Op Fl t Cm ufs | Ar external_type
 .Nm
 .Op Fl dfpruvw
 .Ar special | node
 .Nm
 .Op Fl dfpruvw
 .Op Fl o Ar options
-.Op Fl t Ar ufs | external_type
+.Op Fl t Cm ufs | Ar external_type
 .Ar special node
 .Sh DESCRIPTION
 The
@@ -54,8 +54,8 @@ The
 utility calls the
 .Xr nmount 2
 system call to prepare and graft a
-.Ar "special device"
-or the remote node (rhost:path) on to the file system tree at the point
+.Ar special
+device or the remote node (rhost:path) on to the file system tree at the point
 .Ar node .
 If either
 .Ar special
@@ -77,9 +77,9 @@ All the file systems described in
 .Xr fstab 5
 are mounted.
 Exceptions are those marked as
-.Dq noauto ,
+.Dq Li noauto ,
 those marked as
-.Dq late
+.Dq Li late
 (unless the
 .Fl l
 option was specified),
@@ -110,7 +110,7 @@ caution).
 When used in conjunction with the
 .Fl a
 option, also mount those file systems which are marked as
-.Dq late .
+.Dq Li late .
 .It Fl o
 Options are specified with a
 .Fl o
@@ -368,12 +368,12 @@ The same as the
 argument to the
 .Fl o
 option.
-.It Fl t Ar ufs | external_type
+.It Fl t Cm ufs | Ar external_type
 The argument following the
 .Fl t
 is used to indicate the file system type.
 The type
-.Ar ufs
+.Cm ufs
 is the default.
 The
 .Fl t
@@ -382,7 +382,7 @@ to indicate that the actions should only be taken on
 file systems of the specified type.
 More than one type may be specified in a comma separated list.
 The list of file system types can be prefixed with
-.Dq no
+.Dq Li no
 to specify the file system types for which action should
 .Em not
 be taken.
@@ -409,20 +409,20 @@ system call in the
 option.
 .Pp
 However, for the following file system types:
-.Ar cd9660 ,
-.Ar mfs , 
-.Ar msdosfs ,
-.Ar nfs ,
-.Ar nfs4 ,
-.Ar ntfs ,
-.Ar nwfs ,
-.Ar nullfs ,
-.Ar portalfs ,
-.Ar smbfs ,
-.Ar udf ,
-.Ar umapfs ,
+.Cm cd9660 ,
+.Cm mfs ,
+.Cm msdosfs ,
+.Cm nfs ,
+.Cm nfs4 ,
+.Cm ntfs ,
+.Cm nwfs ,
+.Cm nullfs ,
+.Cm portalfs ,
+.Cm smbfs ,
+.Cm udf ,
+.Cm umapfs ,
 and
-.Ar unionfs ,
+.Cm unionfs ,
 .Nm
 will not call
 .Xr nmount 2
@@ -499,10 +499,10 @@ support for a particular file system might be provided either on a static
 .Xr nmount 2 ,
 .Xr acl 3 ,
 .Xr mac 4 ,
-.Xr fstab 5 ,
-.Xr kldload 8 ,
 .Xr ext2fs 5 ,
+.Xr fstab 5 ,
 .Xr procfs 5 ,
+.Xr kldload 8 ,
 .Xr mount_cd9660 8 ,
 .Xr mount_msdosfs 8 ,
 .Xr mount_nfs 8 ,

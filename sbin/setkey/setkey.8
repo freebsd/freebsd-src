@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2006
+.Dd May 13, 2006
 .Dt SETKEY 8
 .Os
 .\"
@@ -408,10 +408,11 @@ as well as
 .Li ip4 ,
 or
 .Li any .
-.Li Any
+The word
+.Li any
 stands for
 .Dq any protocol .
-The protocol number may also be used to specify the 
+The protocol number may also be used to specify the
 .Ar upperspec .
 A type and code related to ICMPv6 may also be specified as an
 .Ar upperspec .
@@ -419,8 +420,8 @@ The type is specified first, followed by a comma and then the relevant
 code.
 The specification must be placed after
 .Li icmp6 .
-The kernel considers a zero to be a wildcard but 
-cannot distinguish between a wildcard and an ICMPv6 
+The kernel considers a zero to be a wildcard but
+cannot distinguish between a wildcard and an ICMPv6
 type which is zero.
 The following example shows a policy where IPSec is not required for
 inbound Neighbor Solicitations:
@@ -452,21 +453,25 @@ The direction of a policy must be specified as
 one of:
 .Li out ,
 .Li in ,
-.Li discard 
+.Li discard ,
 .Li none ,
-or 
+or
 .Li ipsec .
-.Li Discard
+The
+.Li discard
+direction
 means that packets matching the supplied indices will be discarded
-while 
+while
 .Li none
 means that IPsec operations will not take place on the packet and
 .Li ipsec
 means that IPsec operation will take place onto the packet.
-The 
+The
 .Ar protocol/mode/src-dst/level
 statement gives the rule for how to process the packet.
-.Ar Protocol is specified as
+The
+.Ar protocol
+is specified as
 .Li ah ,
 .Li esp
 or
@@ -485,7 +490,7 @@ you must specify the end-point addresses of the SA as
 .Ar src
 and
 .Ar dst
-with a dash, 
+with a dash,
 .Sq - ,
 between the addresses.
 If
@@ -507,17 +512,19 @@ If the SA is not available in every level, the kernel will request
 the SA from the key exchange daemon.
 A value of
 .Li default
-tells the kernel to use the system wide default protocol 
-e.g. the one from the
+tells the kernel to use the system wide default protocol
+e.g.\& the one from the
 .Li esp_trans_deflev
 sysctl variable, when the kernel processes the packet.
-.Li Use
+A value of
+.Li use
 means that the kernel will use an SA if it is available,
 otherwise the kernel will pass the packet as it would normally.
-.Li Require
+A value of
+.Li require
 means that an SA is required whenever the kernel sends a packet matched
 that matches the policy.
-The 
+The
 .Li unique
 level is the same as
 .Li require
@@ -535,12 +542,13 @@ as in the following example:
 .Li unique:number .
 In order to bind this policy to the SA,
 .Li number
-must be between 1 and 32767, 
+must be between 1 and 32767,
 which corresponds to
 .Ar extensions Fl u
 of manual SA configuration.
 .Pp
-When you want to use an SA bundle, you can define multiple rules.  For
+When you want to use an SA bundle, you can define multiple rules.
+For
 example, if an IP header was followed by an AH header followed by an
 ESP header followed by an upper layer protocol header, the rule would
 be:
