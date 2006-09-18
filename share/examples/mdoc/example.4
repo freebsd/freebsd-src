@@ -33,9 +33,9 @@
 .Nm example
 .Nd "example device driver manual page"
 .Sh SYNOPSIS
-To compile
+To compile the
 .Ns Nm
-into the kernel,
+driver into the kernel,
 place the following lines in the
 kernel configuration file:
 .Bd -ragged -offset indent
@@ -43,9 +43,10 @@ kernel configuration file:
 .Cd "options EXAMPLE_DEBUG"
 .Ed
 .Pp
-Alternatively, to load
+Alternatively, to load the
 .Ns Nm
-as a module at boot time, place the following line in
+driver as a
+module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 example_load="YES"
