@@ -292,7 +292,7 @@ If this option is not defined, this behavior may be controled at runtime
 by the
 .Xr sysctl 8
 variable
-.Pq Va hw.syscons.kbd_kbdkey .
+.Va hw.syscons.kbd_debug .
 .It Dv SC_DISABLE_REBOOT
 This option disables the ``reboot'' key (by default, it is
 .Dv Ctl-Alt-Del ) ,
@@ -301,7 +301,7 @@ If this option is not defined, this behavior may be controled at runtime
 by the
 .Xr sysctl 8
 variable
-.Pq Va hw.syscons.kbd_reboot .
+.Va hw.syscons.kbd_reboot .
 .It Dv SC_HISTORY_SIZE=N
 Sets the size of back scroll buffer to
 .Fa N
@@ -361,7 +361,7 @@ This option, which is also available as
 tunable and
 .Xr sysctl 8
 variable
-.Pq Va hw.syscons.sc_no_suspend_vtswitch ,
+.Va hw.syscons.sc_no_suspend_vtswitch ,
 disables switching between virtual terminals (graphics <-> text) during
 suspend/resume (ACPI and APM).
 Use this option if your system is freezing
