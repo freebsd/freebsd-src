@@ -125,36 +125,84 @@ devfs_fqpn(char *buf, struct vnode *dvp, struct componentname *cnp)
 	return (buf + i);
 }
 
+static int
+devfs_allocv_drop_refs(int drop_dm_lock, struct devfs_mount *dmp,
+	struct devfs_dirent *de)
+{
+	int not_found;
+
+	not_found = 0;
+	if (de->de_flags & DE_DOOMED)
+		not_found = 1;
+	if (DEVFS_DE_DROP(de)) {
+		KASSERT(not_found == 1, ("DEVFS de dropped but not doomed"));
+		devfs_dirent_free(de);
+	}
+	if (DEVFS_DMP_DROP(dmp)) {
+		KASSERT(not_found == 1,
+			("DEVFS mount struct freed before dirent"));
+		not_found = 2;
+		sx_xunlock(&dmp->dm_lock);
+		devfs_unmount_final(dmp);
+	}
+	if (not_found == 1 || drop_dm_lock)
+		sx_unlock(&dmp->dm_lock);
+	return (not_found);
+}
+
+/*
+ * devfs_allocv shall be entered with dmp->dm_lock held, and it drops
+ * it on return.
+ */
 int
 devfs_allocv(struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, struct thread *td)
 {
 	int error;
 	struct vnode *vp;
 	struct cdev *dev;
+	struct devfs_mount *dmp;
 
 	KASSERT(td == curthread, ("devfs_allocv: td != curthread"));
-loop:
-
+	dmp = VFSTODEVFS(mp);
+	if (de->de_flags & DE_DOOMED) {
+		sx_xunlock(&dmp->dm_lock);
+		return (ENOENT);
+	}
+ loop:
+	DEVFS_DE_HOLD(de);
+	DEVFS_DMP_HOLD(dmp);
 	mtx_lock(&devfs_de_interlock);
 	vp = de->de_vnode;
 	if (vp != NULL) {
 		VI_LOCK(vp);
 		mtx_unlock(&devfs_de_interlock);
-		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td))
+		sx_xunlock(&dmp->dm_lock);
+		error = vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td);
+		sx_xlock(&dmp->dm_lock);
+		if (devfs_allocv_drop_refs(0, dmp, de)) {
+			if (error == 0)
+				vput(vp);
+			return (ENOENT);
+		}
+		else if (error)
 			goto loop;
+		sx_xunlock(&dmp->dm_lock);
 		*vpp = vp;
 		return (0);
 	}
 	mtx_unlock(&devfs_de_interlock);
 	if (de->de_dirent->d_type == DT_CHR) {
-		if (!(de->de_cdp->cdp_flags & CDP_ACTIVE))
+		if (!(de->de_cdp->cdp_flags & CDP_ACTIVE)) {
+			devfs_allocv_drop_refs(1, dmp, de);
 			return (ENOENT);
+		}
 		dev = &de->de_cdp->cdp_c;
 	} else {
 		dev = NULL;
 	}
 	error = getnewvnode("devfs", mp, &devfs_vnodeops, &vp);
 	if (error != 0) {
+		devfs_allocv_drop_refs(1, dmp, de);
 		printf("devfs_allocv: failed to allocate new vnode\n");
 		return (error);
 	}
@@ -182,10 +230,17 @@ loop:
 	vp->v_data = de;
 	de->de_vnode = vp;
 	mtx_unlock(&devfs_de_interlock);
+	sx_xunlock(&dmp->dm_lock);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	sx_xlock(&dmp->dm_lock);
+	if (devfs_allocv_drop_refs(0, dmp, de)) {
+		vput(vp);
+		return (ENOENT);
+	}
 #ifdef MAC
 	mac_associate_vnode_devfs(mp, de, vp);
 #endif
+	sx_xunlock(&dmp->dm_lock);
 	*vpp = vp;
 	return (0);
 }
@@ -456,7 +511,7 @@ devfs_kqfilter_f(struct file *fp, struct knote *kn)
 }
 
 static int
-devfs_lookupx(struct vop_lookup_args *ap)
+devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 {
 	struct componentname *cnp;
 	struct vnode *dvp, **vpp;
@@ -508,6 +563,7 @@ devfs_lookupx(struct vop_lookup_args *ap)
 		de = TAILQ_NEXT(de, de_list);		/* ".." */
 		de = de->de_dir;
 		error = devfs_allocv(de, dvp->v_mount, vpp, td);
+		*dm_unlock = 0;
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 		return (error);
 	}
@@ -565,6 +621,7 @@ devfs_lookupx(struct vop_lookup_args *ap)
 		}
 	}
 	error = devfs_allocv(de, dvp->v_mount, vpp, td);
+	*dm_unlock = 0;
 	return (error);
 }
 
@@ -573,11 +630,14 @@ devfs_lookup(struct vop_lookup_args *ap)
 {
 	int j;
 	struct devfs_mount *dmp;
+	int dm_unlock;
 
 	dmp = VFSTODEVFS(ap->a_dvp->v_mount);
+	dm_unlock = 1;
 	sx_xlock(&dmp->dm_lock);
-	j = devfs_lookupx(ap);
-	sx_xunlock(&dmp->dm_lock);
+	j = devfs_lookupx(ap, &dm_unlock);
+	if (dm_unlock == 1)
+		sx_xunlock(&dmp->dm_lock);
 	return (j);
 }
 
@@ -599,7 +659,6 @@ devfs_mknod(struct vop_mknod_args *ap)
 		return (EOPNOTSUPP);
 	dvp = ap->a_dvp;
 	dmp = VFSTODEVFS(dvp->v_mount);
-	sx_xlock(&dmp->dm_lock);
 
 	cnp = ap->a_cnp;
 	vpp = ap->a_vpp;
@@ -607,6 +666,7 @@ devfs_mknod(struct vop_mknod_args *ap)
 	dd = dvp->v_data;
 
 	error = ENOENT;
+	sx_xlock(&dmp->dm_lock);
 	TAILQ_FOREACH(de, &dd->de_dlist, de_list) {
 		if (cnp->cn_namelen != de->de_dirent->d_namlen)
 			continue;
@@ -621,6 +681,7 @@ devfs_mknod(struct vop_mknod_args *ap)
 		goto notfound;
 	de->de_flags &= ~DE_WHITEOUT;
 	error = devfs_allocv(de, dvp->v_mount, vpp, td);
+	return (error);
 notfound:
 	sx_xunlock(&dmp->dm_lock);
 	return (error);
@@ -1124,9 +1185,7 @@ devfs_symlink(struct vop_symlink_args *ap)
 	mac_create_devfs_symlink(ap->a_cnp->cn_cred, dmp->dm_mount, dd, de);
 #endif
 	TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
-	devfs_allocv(de, ap->a_dvp->v_mount, ap->a_vpp, td);
-	sx_xunlock(&dmp->dm_lock);
-	return (0);
+	return (devfs_allocv(de, ap->a_dvp->v_mount, ap->a_vpp, td));
 }
 
 /* ARGSUSED */
