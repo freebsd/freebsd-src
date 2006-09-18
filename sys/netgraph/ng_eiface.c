@@ -145,7 +145,7 @@ ng_eiface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * If the interface is marked up and stopped, then start it.
 		 * If it is marked down and running, then stop it.
 		 */
-		if (ifr->ifr_flags & IFF_UP) {
+		if (ifp->if_flags & IFF_UP) {
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE);
 				ifp->if_drv_flags |= IFF_DRV_RUNNING;
