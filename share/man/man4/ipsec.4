@@ -36,13 +36,14 @@
 .Nm ipsec
 .Nd IP security protocol
 .Sh SYNOPSIS
-.In sys/types.h
-.In netinet/in.h
-.In netinet6/ipsec.h
 .Cd "options IPSEC"
 .Cd "options IPSEC_DEBUG"
 .Cd "options IPSEC_ESP"
 .Cd "options IPSEC_FILTERGIF"
+.Pp
+.In sys/types.h
+.In netinet/in.h
+.In netinet6/ipsec.h
 .Sh DESCRIPTION
 .Nm
 is a security protocol implemented within the Internet Protocol layer
@@ -53,7 +54,7 @@ is defined for both IPv4 and IPv6
 and
 .Xr inet6 4 ) .
 .Nm
-contains two protocols, 
+contains two protocols,
 ESP, the encapsulated security payload protocol and
 AH, the authentication header protocol.
 ESP prevents unauthorized parties from reading the payload of an IP packet
@@ -70,9 +71,11 @@ and is designed for security gateways such as VPN endpoints.
 .Ss Kernel interface
 .Nm
 is controlled by a key management and policy engine,
-that reside in the operating system kernel.  Key management
+that reside in the operating system kernel.
+Key management
 is the process of associating keys with security associations, also
-know as SAs.  Policy management dictates when new security
+know as SAs.
+Policy management dictates when new security
 associations created or destroyed.
 .Pp
 The key management engine can be accessed from userland by using
@@ -93,7 +96,8 @@ The kernel implements
 an extended version of the
 .Dv PF_KEY
 interface, and allows the programmer to define IPsec policies
-which are similar to the per-packet filters.  The
+which are similar to the per-packet filters.
+The
 .Xr setsockopt 2
 interface is used to define per-socket behavior, and
 .Xr sysctl 3
@@ -107,14 +111,14 @@ should be implemented as daemon processes which call the
 .Nm APIs.
 .\"
 .Ss Policy management
-IPsec policies can be managed in one of two ways, either by 
+IPsec policies can be managed in one of two ways, either by
 configuring per-socket policies using the
-.Xr setsockopt 2 
+.Xr setsockopt 2
 system calls, or by configuring kernel level packet filter-based
 policies using the
 .Dv PF_KEY
 interface, via the
-.Xr setkey 8 
+.Xr setkey 8
 command.
 In either case, IPsec policies must be specified using the syntax described in
 .Xr ipsec_set_policy 3 .
@@ -129,18 +133,21 @@ command the
 option you can have the system use its default policy, explained
 below, for processing packets.
 The following sysctl variables are available for configuring the
-system's IPsec behavior.  The variables can have one of two values.
+system's IPsec behavior.
+The variables can have one of two values.
 A
 .Li 1
 means
 .Dq Li use ,
 which means that if there is a security association then use it but if
-there is not then the packets are not processed by IPsec.  The value
+there is not then the packets are not processed by IPsec.
+The value
 .Li 2
 is synonymous with
 .Dq Li require ,
 which requires that a security association must exist for the packets
-to move, and not be dropped.  These terms are defined in
+to move, and not be dropped.
+These terms are defined in
 .Xr ipsec_set_policy 8 .
 .Bl -column net.inet6.ipsec6.esp_trans_deflev integerxxx
 .It Sy "Name	Type	Changeable"
@@ -155,7 +162,8 @@ to move, and not be dropped.  These terms are defined in
 .El
 .Pp
 If the kernel does not find a matching, system wide, policy then the
-default value is applied.  The system wide default policy is specified
+default value is applied.
+The system wide default policy is specified
 by the following
 .Xr sysctl 8
 variables.
@@ -239,12 +247,13 @@ protocol acts as a plug-in to the
 and
 .Xr inet6 4
 protocols and therefore supports most of the protocols defined upon
-those IP-layer protocols.  The
+those IP-layer protocols.
+The
 .Xr icmp 4
 and
-.Xr icmp6 4 
+.Xr icmp6 4
 protocols may behave differently with
-.Nm 
+.Nm
 because
 .Nm
 can prevent
@@ -325,5 +334,6 @@ and
 .Dv SADB_SPDDUMP
 operations on
 .Dv PF_KEY
-sockets may fail due to lack of space.  Increasing the socket buffer
+sockets may fail due to lack of space.
+Increasing the socket buffer
 size may alleviate this problem.

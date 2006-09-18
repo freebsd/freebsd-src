@@ -422,16 +422,13 @@ The support of the
 .Li u
 modifier depends on the machine.
 If not supported, incorrect information will be displayed.
-.It Xo
-.Cm show geom
-.Op Ar addr
-.Xc
+.It Cm show geom Op Ar addr
 If the
 .Ar addr
 argument is not given, displays the entire GEOM topology.
 If the
 .Ar addr
-is given, displays details about the given GEOM object (class, geom, provider 
+is given, displays details about the given GEOM object (class, geom, provider
 or consumer).
 .It Xo
 .Cm show map Ns Op Cm /f
@@ -453,10 +450,7 @@ If the
 .Li f
 option is specified the
 complete object is printed.
-.It Xo
-.Cm show vnode
-.Ar addr
-.Xc
+.It Cm show vnode Ar addr
 Displays details about the given vnode.
 .It Cm "show watches"
 Displays all watchpoints.

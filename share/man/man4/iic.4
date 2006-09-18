@@ -157,12 +157,6 @@ passed to last
 .Dv I2CSTART
 .Xr ioctl 2
 to this device.
-.Sh BUGS
-Only the
-.Dv I2CRDWR
-.Xr ioctl 2
-is thread safe.
-All other interfaces suffer from some kind of race.
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr read 2 ,
@@ -180,3 +174,9 @@ manual page was written by
 .An Nicolas Souchu
 and
 .An M. Warner Losh .
+.Sh BUGS
+Only the
+.Dv I2CRDWR
+.Xr ioctl 2
+is thread safe.
+All other interfaces suffer from some kind of race.

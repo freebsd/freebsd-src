@@ -101,9 +101,9 @@ variable using
 .Pp
 All the bridged member interfaces need to be up in order to pass network traffic.
 These can be enabled using
-.Xr ifconfig 8 
+.Xr ifconfig 8
 or
-.Va ifconfig_ Ns Ao Ar interface Ac Ns Va ="up"
+.Va ifconfig_ Ns Ao Ar interface Ac Ns Li ="up"
 in
 .Xr rc.conf 5 .
 .Pp
@@ -124,7 +124,6 @@ stream.
 This is useful for reconstructing the traffic for network taps
 that transmit the RX/TX signals out through two separate interfaces.
 .Sh PACKET FILTERING
-.Pp
 Packet filtering can be used with any firewall package that hooks in via the
 .Xr pfil 9
 framework.
