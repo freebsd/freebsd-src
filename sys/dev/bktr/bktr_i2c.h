@@ -39,7 +39,7 @@ extern int bti2c_iic_getsda(device_t);
 extern int bti2c_iic_getscl(device_t);
 extern int bti2c_iic_reset(device_t, u_char, u_char, u_char *);
 
-extern int bti2c_smb_callback(device_t, int, caddr_t *);
+extern int bti2c_smb_callback(device_t, int, void *);
 extern int bti2c_smb_writeb(device_t dev, u_char slave, char cmd, char byte);
 extern int bti2c_smb_writew(device_t dev, u_char slave, char cmd, short word);
 extern int bti2c_smb_readb(device_t dev, u_char slave, char cmd, char *byte);
