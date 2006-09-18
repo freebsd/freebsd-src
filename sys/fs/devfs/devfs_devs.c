@@ -179,6 +179,7 @@ devfs_newdirent(char *name, int namelen)
 	vfs_timestamp(&de->de_ctime);
 	de->de_mtime = de->de_atime = de->de_ctime;
 	de->de_links = 1;
+	de->de_holdcnt = 1;
 #ifdef MAC
 	mac_init_devfsdirent(de);
 #endif
@@ -230,9 +231,18 @@ devfs_vmkdir(struct devfs_mount *dmp, char *name, int namelen, struct devfs_dire
 }
 
 void
+devfs_dirent_free(struct devfs_dirent *de)
+{
+	free(de, M_DEVFS3);
+}
+
+void
 devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de)
 {
 
+	KASSERT((de->de_flags & DE_DOOMED) == 0,
+		("devfs_delete doomed dirent"));
+	de->de_flags |= DE_DOOMED;
 	if (de->de_symlink) {
 		free(de->de_symlink, M_DEVFS);
 		de->de_symlink = NULL;
@@ -251,7 +261,8 @@ devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de)
 		free_unr(devfs_inos, de->de_inode);
 		de->de_inode = 0;
 	}
-	free(de, M_DEVFS3);
+	if (DEVFS_DE_DROP(de))
+		devfs_dirent_free(de);
 }
 
 /*
