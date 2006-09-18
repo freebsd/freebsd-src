@@ -733,7 +733,6 @@ dev/mii/mii.c			optional miibus | mii
 dev/mii/mii_physubr.c		optional miibus | mii
 dev/mii/miibus_if.m		optional miibus | mii
 dev/mii/mlphy.c			optional miibus | mlphy
-dev/mii/mvphy.c			optional miibus | mvphy
 dev/mii/nsgphy.c		optional miibus | nsgphy
 dev/mii/nsphy.c			optional miibus | nsphy
 dev/mii/pnaphy.c		optional miibus | pnaphy
