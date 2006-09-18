@@ -292,7 +292,9 @@ is an mbuf chain.
 .It Dv CRYPTO_F_IOV
 The buffer pointed to by
 .Va crp_buf
-is an uio structure.
+is an
+.Vt uio
+structure.
 .It Dv CRYPTO_F_REL
 Must return data in the same place.
 .It Dv CRYPTO_F_BATCH
@@ -355,7 +357,7 @@ For MAC algorithms, this is where the result of the keyed hash will be
 inserted.
 .It Va crd_flags
 The following flags are defined:
-.Bl -tag -width ".Dv CRD"
+.Bl -tag -width 3n
 .It Dv CRD_F_ENCRYPT
 For encryption algorithms, this bit is set when encryption is required
 (when not set, decryption is performed).

@@ -177,39 +177,52 @@ mode, command operations may be detected with a
 .Xr select 2
 for exceptional conditions.
 .El
-
-There is currently two pty systems available : the original BSD pty, and a
+.Pp
+There is currently two
+.Nm
+systems available: the original
+.Bx Nm ,
+and a
 SysVR4 pts-like implementation.
-You can switch between the two implementations by setting the
+It is possible to switch between the two implementations by setting the
 .Va kern.pts.enable
-sysctl. Setting it to 0 will use the BSD pty, to non-zero the pts 
-implementation. It defaults to 0.
-You can set the maximum number of ptys which can be allocated at the same time
-with the
+sysctl.
+Setting it to 0 will use the
+.Bx Nm ,
+to non-zero the pts implementation.
+It defaults to 0.
+It is possible to set the maximum number of ptys
+which can be allocated at the same time with the
 .Va kern.pts.max
-sysctl. It defaults to 1000. 
+sysctl.
+It defaults to 1000.
 It is not recommanded to use more than 1000 pseudo-terminals, as all software
 which use
 .Xr utmp 5
 will not be able to handle pseudo-terminals with number superior to 999.
-
-The pts implementation also supports the 
+.Pp
+The pts implementation also supports the
 .Dv TIOCGPTN
 .Xr ioctl 2
-call, which takes a pointer to an unsigned int as a parameter and provides the
+call, which takes a pointer to an
+.Vt "unsigned int"
+as a parameter and provides the
 number of the pty.
-
 .Sh FILES
-.Bl -tag -width /dev/tty[p-sP-S][0-9a-v]x -compact
-The files used by the BSD pseudo terminals implementation are :
+The files used by the
+.Bx
+pseudo terminals implementation are:
+.Pp
+.Bl -tag -width ".Pa /dev/tty[p-sP-S][0-9a-v]" -compact
 .It Pa /dev/pty[p-sP-S][0-9a-v]
 master pseudo terminals
 .It Pa /dev/tty[p-sP-S][0-9a-v]
 slave pseudo terminals
-
 .El
-The files used by the pts implementation are :
-.Bl -tag -width /dev/pts/[num]x -compact
+.Pp
+The files used by the pts implementation are:
+.Pp
+.Bl -tag -width ".Pa /dev/pts/[num]" -compact
 .It Pa /dev/ptmx
 control device, returns a file descriptor to a new master pseudo terminal
 when opened.
