@@ -93,11 +93,10 @@ static void *fill_search_info(const char *, size_t, void *);
 static char *find_library(const char *, const Obj_Entry *);
 static const char *gethints(void);
 static void init_dag(Obj_Entry *);
-static void init_dag1(Obj_Entry *root, Obj_Entry *obj, DoneList *);
+static void init_dag1(Obj_Entry *, Obj_Entry *, DoneList *);
 static void init_rtld(caddr_t);
-static void initlist_add_neededs(Needed_Entry *needed, Objlist *list);
-static void initlist_add_objects(Obj_Entry *obj, Obj_Entry **tail,
-  Objlist *list);
+static void initlist_add_neededs(Needed_Entry *, Objlist *);
+static void initlist_add_objects(Obj_Entry *, Obj_Entry **, Objlist *);
 static bool is_exported(const Elf_Sym *);
 static void linkmap_add(Obj_Entry *);
 static void linkmap_delete(Obj_Entry *);
@@ -124,11 +123,11 @@ static void set_program_var(const char *, const void *);
 static const Elf_Sym *symlook_default(const char *, unsigned long,
   const Obj_Entry *, const Obj_Entry **, const Ver_Entry *, int);
 static const Elf_Sym *symlook_list(const char *, unsigned long, const Objlist *,
-  const Obj_Entry **, const Ver_Entry *, int flags, DoneList *);
+  const Obj_Entry **, const Ver_Entry *, int, DoneList *);
 static const Elf_Sym *symlook_needed(const char *, unsigned long,
   const Needed_Entry *, const Obj_Entry **, const Ver_Entry *,
-  int flags, DoneList *dlp);
-static void trace_loaded_objects(Obj_Entry *obj);
+  int, DoneList *);
+static void trace_loaded_objects(Obj_Entry *);
 static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *);
 static void unref_dag(Obj_Entry *);
@@ -138,7 +137,7 @@ static int  rtld_verify_object_versions(Obj_Entry *);
 static void object_add_name(Obj_Entry *, const char *);
 static int  object_match_name(const Obj_Entry *, const char *);
 
-void r_debug_state(struct r_debug*, struct link_map*);
+void r_debug_state(struct r_debug *, struct link_map *);
 
 /*
  * Data declarations.
@@ -1811,10 +1810,10 @@ static void *
 do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
     int flags)
 {
-    const Obj_Entry *obj;
-    unsigned long hash;
+    DoneList donelist;
+    const Obj_Entry *obj, *defobj;
     const Elf_Sym *def;
-    const Obj_Entry *defobj;
+    unsigned long hash;
     int lockstate;
 
     hash = elf_hash(name);
@@ -1854,7 +1853,6 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 	    return NULL;
 	}
 
-	DoneList donelist;
 	donelist_init(&donelist);
 	if (obj->mainprog) {
 	    /* Search main program and all libraries loaded by it. */
@@ -2382,18 +2380,18 @@ symlook_needed(const char *name, unsigned long hash, const Needed_Entry *needed,
     const Elf_Sym *def, *def_w;
     const Needed_Entry *n;
     const Obj_Entry *obj, *defobj, *defobj1;
-    
+
     def = def_w = NULL;
     defobj = NULL;
     for (n = needed; n != NULL; n = n->next) {
-        if ((obj = n->obj) == NULL ||
-            donelist_check(dlp, obj) ||
-            (def = symlook_obj(name, hash, obj, ventry, flags)) == NULL)
-                continue;
-        defobj = obj;
-        if (ELF_ST_BIND(def->st_info) != STB_WEAK) {
-            *defobj_out = defobj;
-            return (def);
+	if ((obj = n->obj) == NULL ||
+	    donelist_check(dlp, obj) ||
+	    (def = symlook_obj(name, hash, obj, ventry, flags)) == NULL)
+	    continue;
+	defobj = obj;
+	if (ELF_ST_BIND(def->st_info) != STB_WEAK) {
+	    *defobj_out = defobj;
+	    return (def);
 	}
     }
     /*
@@ -2401,22 +2399,22 @@ symlook_needed(const char *name, unsigned long hash, const Needed_Entry *needed,
      * directly needed objects, or found symbol is weak.
      */
     for (n = needed; n != NULL; n = n->next) {
-        if ((obj = n->obj) == NULL)
-            continue;
-        def_w = symlook_needed(name, hash, obj->needed, &defobj1,
+	if ((obj = n->obj) == NULL)
+	    continue;
+	def_w = symlook_needed(name, hash, obj->needed, &defobj1,
 			       ventry, flags, dlp);
-        if (def_w == NULL)
-            continue;
-        if (def == NULL || ELF_ST_BIND(def_w->st_info) != STB_WEAK) {
-            def = def_w;
-            defobj = defobj1;
-        }
-        if (ELF_ST_BIND(def_w->st_info) != STB_WEAK)
-            break;
+	if (def_w == NULL)
+	    continue;
+	if (def == NULL || ELF_ST_BIND(def_w->st_info) != STB_WEAK) {
+	    def = def_w;
+	    defobj = defobj1;
+	}
+	if (ELF_ST_BIND(def_w->st_info) != STB_WEAK)
+	    break;
     }
     if (def != NULL)
-        *defobj_out = defobj;
-    return def;
+	*defobj_out = defobj;
+    return (def);
 }
 
 /*
