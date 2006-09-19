@@ -12,7 +12,6 @@ static char rcsid[] = "$FreeBSD$";
 #include "gzip.h"
 #include "crypt.h"
 
-#define MIN(a,b) ((a) <= (b) ? (a) : (b))
 /* The arguments must not have side effects. */
 
 #define MAX_BITLEN 25
@@ -132,7 +131,7 @@ local void read_tree()
 	/* Remember where the literals of this length start in literal[] : */
 	lit_base[len] = base;
 	/* And read the literals: */
-	for (n = leaves[len]; n > 0; n--) {
+	for (n = leaves[len]; n > 0 && base < LITERALS; n--) {
 	    literal[base++] = (uch)get_byte();
 	}
     }
@@ -168,7 +167,7 @@ local void build_tree()
     prefixp = &prefix_len[1<<peek_bits];
     for (len = 1; len <= peek_bits; len++) {
 	int prefixes = leaves[len] << (peek_bits-len); /* may be 0 */
-	while (prefixes--) *--prefixp = (uch)len;
+	while (prefixes-- && prefixp > prefix_len) *--prefixp = (uch)len;
     }
     /* The length of all other codes is unknown: */
     while (prefixp > prefix_len) *--prefixp = 0;
