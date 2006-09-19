@@ -17,6 +17,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20060919:	p22	FreeBSD-SA-06:21.gzip
+	Correct multiple vulnerabilities in gzip(1).
+
 20060906:	p21	FreeBSD-SA-06:19.openssl
 	Correct incorrect PKCS#1 v1.5 padding validation in
 	crypto(3).

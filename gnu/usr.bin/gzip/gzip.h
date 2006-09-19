@@ -2,6 +2,8 @@
  * Copyright (C) 1992-1993 Jean-loup Gailly.
  * This is free software; you can redistribute it and/or modify it under the
  * terms of the GNU General Public License, see the file COPYING.
+ *
+ * $FreeBSD$
  */
 
 #if defined(__STDC__) || defined(PROTO)
@@ -198,6 +200,8 @@ extern int level;          /* compression level */
 extern int test;           /* check .z file integrity */
 extern int to_stdout;      /* output to stdout (-c) */
 extern int save_orig_name; /* set if original name must be saved */
+
+#define MIN(a,b) ((a) <= (b) ? (a) : (b))
 
 #define get_byte()  (inptr < insize ? inbuf[inptr++] : fill_inbuf(0))
 #define try_byte()  (inptr < insize ? inbuf[inptr++] : fill_inbuf(1))
