@@ -132,8 +132,7 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 
 	if (*detach && *readonly) {
 		bzero(&md, sizeof(md));
-		gctl_error(req, "Options -d and -r are mutually exclusive.",
-		    pp->name, error);
+		gctl_error(req, "Options -d and -r are mutually exclusive.");
 		return;
 	}
 	if (*detach)
@@ -362,6 +361,115 @@ g_eli_ctl_onetime(struct gctl_req *req, struct g_class *mp)
 	g_eli_create(req, mp, pp, &md, mkey, -1);
 	bzero(mkey, sizeof(mkey));
 	bzero(&md, sizeof(md));
+}
+
+static void
+g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_eli_softc *sc;
+	struct g_eli_metadata md;
+	struct g_provider *pp;
+	struct g_consumer *cp;
+	char param[16];
+	const char *prov;
+	u_char *sector;
+	int *nargs, *boot, *noboot;
+	int error;
+	u_int i;
+
+	g_topology_assert();
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
+		return;
+	}
+	if (*nargs <= 0) {
+		gctl_error(req, "Missing device(s).");
+		return;
+	}
+
+	boot = gctl_get_paraml(req, "boot", sizeof(*boot));
+	if (boot == NULL) {
+		gctl_error(req, "No '%s' argument.", "boot");
+		return;
+	}
+	noboot = gctl_get_paraml(req, "noboot", sizeof(*noboot));
+	if (noboot == NULL) {
+		gctl_error(req, "No '%s' argument.", "noboot");
+		return;
+	}
+	if (*boot && *noboot) {
+		gctl_error(req, "Options -b and -B are mutually exclusive.");
+		return;
+	}
+	if (!*boot && !*noboot) {
+		gctl_error(req, "No option given.");
+		return;
+	}
+
+	for (i = 0; i < *nargs; i++) {
+		snprintf(param, sizeof(param), "arg%d", i);
+		prov = gctl_get_asciiparam(req, param);
+		if (prov == NULL) {
+			gctl_error(req, "No 'arg%d' argument.", i);
+			return;
+		}
+		sc = g_eli_find_device(mp, prov);
+		if (sc == NULL) {
+			/*
+			 * We ignore not attached providers, userland part will
+			 * take care of them.
+			 */
+			G_ELI_DEBUG(1, "Skipping configuration of not attached "
+			    "provider %s.", prov);
+			continue;
+		}
+		if (*boot && (sc->sc_flags & G_ELI_FLAG_BOOT)) {
+			G_ELI_DEBUG(1, "BOOT flag already configured for %s.",
+			    prov);
+			continue;
+		} else if (!*boot && !(sc->sc_flags & G_ELI_FLAG_BOOT)) {
+			G_ELI_DEBUG(1, "BOOT flag not configured for %s.",
+			    prov);
+			continue;
+		}
+		if (sc->sc_flags & G_ELI_FLAG_RO) {
+			gctl_error(req, "Cannot change configuration of "
+			    "read-only provider %s.", prov);
+			continue;
+		}
+		cp = LIST_FIRST(&sc->sc_geom->consumer);
+		pp = cp->provider;
+		error = g_eli_read_metadata(mp, pp, &md);
+		if (error != 0) {
+			gctl_error(req,
+			    "Cannot read metadata from %s (error=%d).",
+			    prov, error);
+			continue;
+		}
+
+		if (*boot) {
+			md.md_flags |= G_ELI_FLAG_BOOT;
+			sc->sc_flags |= G_ELI_FLAG_BOOT;
+		} else {
+			md.md_flags &= ~G_ELI_FLAG_BOOT;
+			sc->sc_flags &= ~G_ELI_FLAG_BOOT;
+		}
+
+		sector = malloc(pp->sectorsize, M_ELI, M_WAITOK | M_ZERO);
+		eli_metadata_encode(&md, sector);
+		error = g_write_data(cp, pp->mediasize - pp->sectorsize, sector,
+		    pp->sectorsize);
+		if (error != 0) {
+			gctl_error(req,
+			    "Cannot store metadata on %s (error=%d).",
+			    prov, error);
+		}
+		bzero(&md, sizeof(md));
+		bzero(sector, sizeof(sector));
+		free(sector, M_ELI);
+	}
 }
 
 static void
@@ -711,6 +819,8 @@ g_eli_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		g_eli_ctl_detach(req, mp);
 	else if (strcmp(verb, "onetime") == 0)
 		g_eli_ctl_onetime(req, mp);
+	else if (strcmp(verb, "configure") == 0)
+		g_eli_ctl_configure(req, mp);
 	else if (strcmp(verb, "setkey") == 0)
 		g_eli_ctl_setkey(req, mp);
 	else if (strcmp(verb, "delkey") == 0)
