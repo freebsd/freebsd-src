@@ -3210,7 +3210,7 @@ tcp_timewait(tw, to, th, m, tlen)
 	 * are above the previous ones.
 	 */
 	if ((thflags & TH_SYN) && SEQ_GT(th->th_seq, tw->rcv_nxt)) {
-		(void) tcp_twclose(tw, 0);
+		tcp_twclose(tw, 0);
 		return (1);
 	}
 
