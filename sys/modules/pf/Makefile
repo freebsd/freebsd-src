@@ -6,7 +6,7 @@
 KMOD=	pf
 SRCS = 	pf.c pf_if.c pf_subr.c pf_osfp.c pf_ioctl.c pf_norm.c pf_table.c \
 	in4_cksum.c \
-	opt_pf.h opt_inet.h opt_inet6.h opt_bpf.h
+	opt_pf.h opt_inet.h opt_inet6.h opt_bpf.h opt_mac.h
 
 CFLAGS+=  -I${.CURDIR}/../../contrib/pf
 

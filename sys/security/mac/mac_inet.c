@@ -290,3 +290,13 @@ mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp)
 	INP_LOCK_ASSERT(inp);
 	MAC_PERFORM(inpcb_sosetlabel, so, so->so_label, inp, inp->inp_label);
 }
+
+void
+mac_create_mbuf_from_firewall(struct mbuf *m)
+{
+	struct label *label;
+
+	M_ASSERTPKTHDR(m);
+	label = mac_mbuf_to_label(m);
+	MAC_PERFORM(create_mbuf_from_firewall, m, label);
+}

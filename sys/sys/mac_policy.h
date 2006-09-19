@@ -352,7 +352,8 @@ struct mac_policy_ops {
 		    struct label *newlabel);
 	int	(*mpo_check_cred_visible)(struct ucred *u1, struct ucred *u2);
 	void	(*mpo_associate_nfsd_label)(struct ucred *cred);
-	void	(*_mpo_placeholder9)(void);
+	void	(*mpo_create_mbuf_from_firewall)(struct mbuf *m,
+		    struct label *label);
 	void	(*_mpo_placeholder10)(void);
 	void	(*_mpo_placeholder11)(void);
 	void	(*_mpo_placeholder12)(void);

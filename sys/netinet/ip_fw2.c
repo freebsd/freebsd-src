@@ -43,6 +43,7 @@
 #endif
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -51,6 +52,7 @@
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/jail.h>
+#include <sys/mac.h>
 #include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
@@ -1572,9 +1574,12 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
  * When flags & TH_RST, we are sending a RST packet, because of a
  * "reset" action matched the packet.
  * Otherwise we are sending a keepalive, and flags & TH_
+ * The 'replyto' mbuf is the mbuf being replied to, if any, and is required
+ * so that MAC can label the reply appropriately.
  */
 static struct mbuf *
-send_pkt(struct ipfw_flow_id *id, u_int32_t seq, u_int32_t ack, int flags)
+send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
+    u_int32_t ack, int flags)
 {
 	struct mbuf *m;
 	struct ip *ip;
@@ -1584,6 +1589,16 @@ send_pkt(struct ipfw_flow_id *id, u_int32_t seq, u_int32_t ack, int flags)
 	if (m == 0)
 		return (NULL);
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
+
+#ifdef MAC
+	if (replyto != NULL)
+		mac_create_mbuf_netlayer(replyto, m);
+	else
+		mac_create_mbuf_from_firewall(m);
+#else
+	(void)replyto;		/* don't warn about unused arg */
+#endif
+
 	m->m_pkthdr.len = m->m_len = sizeof(struct ip) + sizeof(struct tcphdr);
 	m->m_data += max_linkhdr;
 
@@ -1668,8 +1683,8 @@ send_reject(struct ip_fw_args *args, int code, u_short offset, int ip_len)
 		    L3HDR(struct tcphdr, mtod(args->m, struct ip *));
 		if ( (tcp->th_flags & TH_RST) == 0) {
 			struct mbuf *m;
-			m = send_pkt(&(args->f_id), ntohl(tcp->th_seq),
-				ntohl(tcp->th_ack),
+			m = send_pkt(args->m, &(args->f_id),
+				ntohl(tcp->th_seq), ntohl(tcp->th_ack),
 				tcp->th_flags | TH_RST);
 			if (m != NULL)
 				ip_output(m, NULL, NULL, 0, NULL, NULL);
@@ -4237,11 +4252,11 @@ ipfw_tick(void * __unused unused)
 			if (TIME_LEQ(q->expire, time_second))
 				continue;	/* too late, rule expired */
 
-			*mtailp = send_pkt(&(q->id), q->ack_rev - 1,
+			*mtailp = send_pkt(NULL, &(q->id), q->ack_rev - 1,
 				q->ack_fwd, TH_SYN);
 			if (*mtailp != NULL)
 				mtailp = &(*mtailp)->m_nextpkt;
-			*mtailp = send_pkt(&(q->id), q->ack_fwd - 1,
+			*mtailp = send_pkt(NULL, &(q->id), q->ack_fwd - 1,
 				q->ack_rev, 0);
 			if (*mtailp != NULL)
 				mtailp = &(*mtailp)->m_nextpkt;
