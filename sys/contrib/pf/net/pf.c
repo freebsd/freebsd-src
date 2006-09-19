@@ -42,6 +42,7 @@
 #endif
 
 #ifdef __FreeBSD__
+#include "opt_mac.h"
 #include "opt_bpf.h"
 #include "opt_pf.h"
 #define	NBPFILTER	DEV_BPF
@@ -62,6 +63,7 @@
 #include <sys/kernel.h>
 #include <sys/time.h>
 #ifdef __FreeBSD__
+#include <sys/mac.h>
 #include <sys/sysctl.h>
 #include <sys/endian.h>
 #else
@@ -176,7 +178,12 @@ void			 pf_change_icmp(struct pf_addr *, u_int16_t *,
 			    struct pf_addr *, struct pf_addr *, u_int16_t,
 			    u_int16_t *, u_int16_t *, u_int16_t *,
 			    u_int16_t *, u_int8_t, sa_family_t);
+#ifdef __FreeBSD__
+void			 pf_send_tcp(struct mbuf *,
+			    const struct pf_rule *, sa_family_t,
+#else
 void			 pf_send_tcp(const struct pf_rule *, sa_family_t,
+#endif
 			    const struct pf_addr *, const struct pf_addr *,
 			    u_int16_t, u_int16_t, u_int32_t, u_int32_t,
 			    u_int8_t, u_int16_t, u_int16_t, u_int8_t, int,
@@ -1098,7 +1105,11 @@ pf_purge_expired_state(struct pf_state *cur)
 	cur->local_flags |= PFSTATE_EXPIRING;
 #endif
 	if (cur->src.state == PF_TCPS_PROXY_DST)
+#ifdef __FreeBSD__
+		pf_send_tcp(NULL, cur->rule.ptr, cur->af,
+#else
 		pf_send_tcp(cur->rule.ptr, cur->af,
+#endif
 		    &cur->ext.addr, &cur->lan.addr,
 		    cur->ext.port, cur->lan.port,
 		    cur->src.seqhi, cur->src.seqlo + 1,
@@ -1558,7 +1569,11 @@ pf_change_icmp(struct pf_addr *ia, u_int16_t *ip, struct pf_addr *oa,
 }
 
 void
+#ifdef __FreeBSD__
+pf_send_tcp(struct mbuf *replyto, const struct pf_rule *r, sa_family_t af,
+#else
 pf_send_tcp(const struct pf_rule *r, sa_family_t af,
+#endif
     const struct pf_addr *saddr, const struct pf_addr *daddr,
     u_int16_t sport, u_int16_t dport, u_int32_t seq, u_int32_t ack,
     u_int8_t flags, u_int16_t win, u_int16_t mss, u_int8_t ttl, int tag,
@@ -1597,6 +1612,16 @@ pf_send_tcp(const struct pf_rule *r, sa_family_t af,
 	m = m_gethdr(M_DONTWAIT, MT_HEADER);
 	if (m == NULL)
 		return;
+#ifdef __FreeBSD__
+#ifdef MAC
+	if (replyto)
+		mac_create_mbuf_netlayer(replyto, m);
+	else
+		mac_create_mbuf_from_firewall(m);
+#else
+	(void)replyto;
+#endif
+#endif
 	if (tag) {
 #ifdef __FreeBSD__
 		m->m_flags |= M_SKIP_FIREWALL;
@@ -3130,7 +3155,11 @@ pf_test_tcp(struct pf_rule **rm, struct pf_state **sm, int direction,
 				ack++;
 			if (th->th_flags & TH_FIN)
 				ack++;
+#ifdef __FreeBSD__
+			pf_send_tcp(m, r, af, pd->dst,
+#else
 			pf_send_tcp(r, af, pd->dst,
+#endif
 			    pd->src, th->th_dport, th->th_sport,
 			    ntohl(th->th_ack), ack, TH_RST|TH_ACK, 0, 0,
 			    r->return_ttl, 1, pd->eh, kif->pfik_ifp);
@@ -3331,7 +3360,11 @@ cleanup:
 			mss = pf_calc_mss(saddr, af, mss);
 			mss = pf_calc_mss(daddr, af, mss);
 			s->src.mss = mss;
+#ifdef __FreeBSD__
+			pf_send_tcp(NULL, r, af, daddr, saddr, th->th_dport,
+#else
 			pf_send_tcp(r, af, daddr, saddr, th->th_dport,
+#endif
 			    th->th_sport, s->src.seqhi, ntohl(th->th_seq) + 1,
 			    TH_SYN|TH_ACK, 0, s->src.mss, 0, 1, NULL, NULL);
 			REASON_SET(&reason, PFRES_SYNPROXY);
@@ -4332,7 +4365,11 @@ pf_test_state_tcp(struct pf_state **state, int direction, struct pfi_kif *kif,
 				REASON_SET(reason, PFRES_SYNPROXY);
 				return (PF_DROP);
 			}
+#ifdef __FreeBSD__
+			pf_send_tcp(NULL, (*state)->rule.ptr, pd->af, pd->dst,
+#else
 			pf_send_tcp((*state)->rule.ptr, pd->af, pd->dst,
+#endif
 			    pd->src, th->th_dport, th->th_sport,
 			    (*state)->src.seqhi, ntohl(th->th_seq) + 1,
 			    TH_SYN|TH_ACK, 0, (*state)->src.mss, 0, 1,
@@ -4371,7 +4408,12 @@ pf_test_state_tcp(struct pf_state **state, int direction, struct pfi_kif *kif,
 			(*state)->src.max_win = MAX(ntohs(th->th_win), 1);
 			if ((*state)->dst.seqhi == 1)
 				(*state)->dst.seqhi = htonl(arc4random());
+#ifdef __FreeBSD__
+			pf_send_tcp(NULL, (*state)->rule.ptr, pd->af,
+			    &src->addr,
+#else
 			pf_send_tcp((*state)->rule.ptr, pd->af, &src->addr,
+#endif
 			    &dst->addr, src->port, dst->port,
 			    (*state)->dst.seqhi, 0, TH_SYN, 0,
 			    (*state)->src.mss, 0, 0, NULL, NULL);
@@ -4385,12 +4427,21 @@ pf_test_state_tcp(struct pf_state **state, int direction, struct pfi_kif *kif,
 		} else {
 			(*state)->dst.max_win = MAX(ntohs(th->th_win), 1);
 			(*state)->dst.seqlo = ntohl(th->th_seq);
+#ifdef __FreeBSD__
+			pf_send_tcp(NULL, (*state)->rule.ptr, pd->af, pd->dst,
+#else
 			pf_send_tcp((*state)->rule.ptr, pd->af, pd->dst,
+#endif
 			    pd->src, th->th_dport, th->th_sport,
 			    ntohl(th->th_ack), ntohl(th->th_seq) + 1,
 			    TH_ACK, (*state)->src.max_win, 0, 0, 0,
 			    NULL, NULL);
+#ifdef __FreeBSD__
+			pf_send_tcp(NULL, (*state)->rule.ptr, pd->af,
+			    &src->addr,
+#else
 			pf_send_tcp((*state)->rule.ptr, pd->af, &src->addr,
+#endif
 			    &dst->addr, src->port, dst->port,
 			    (*state)->src.seqhi + 1, (*state)->src.seqlo + 1,
 			    TH_ACK, (*state)->dst.max_win, 0, 0, 1,
@@ -4669,7 +4720,11 @@ pf_test_state_tcp(struct pf_state **state, int direction, struct pfi_kif *kif,
 		    (*state)->src.state == TCPS_SYN_SENT) {
 			/* Send RST for state mismatches during handshake */
 			if (!(th->th_flags & TH_RST))
+#ifdef __FreeBSD__
+				pf_send_tcp(m, (*state)->rule.ptr, pd->af,
+#else
 				pf_send_tcp((*state)->rule.ptr, pd->af,
+#endif
 				    pd->dst, pd->src, th->th_dport,
 				    th->th_sport, ntohl(th->th_ack), 0,
 				    TH_RST, 0, 0,

@@ -267,6 +267,7 @@ void	mac_reflect_mbuf_tcp(struct mbuf *m);
 void	mac_update_ipq(struct mbuf *fragment, struct ipq *ipq);
 void	mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp);
 
+void	mac_create_mbuf_from_firewall(struct mbuf *m);
 /*
  * Labeling event operations: processes.
  */
