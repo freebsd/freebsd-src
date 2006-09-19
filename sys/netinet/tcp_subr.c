@@ -1807,7 +1807,7 @@ tcp_twrecycleable(struct tcptw *tw)
 }
 #endif
 
-struct tcptw *
+void
 tcp_twclose(struct tcptw *tw, int reuse)
 {
 	struct inpcb *inp;
@@ -1829,9 +1829,8 @@ tcp_twclose(struct tcptw *tw, int reuse)
 	crfree(tw->tw_cred);
 	tw->tw_cred = NULL;
 	if (reuse)
-		return (tw);
+		return;
 	uma_zfree(tcptw_zone, tw);
-	return (NULL);
 }
 
 int

@@ -520,8 +520,7 @@ struct tcpcb *
 	 tcp_close(struct tcpcb *);
 void	 tcp_twstart(struct tcpcb *);
 int	 tcp_twrecycleable(struct tcptw *tw);
-struct tcptw *
-	 tcp_twclose(struct tcptw *_tw, int _reuse);
+void	 tcp_twclose(struct tcptw *_tw, int _reuse);
 void	 tcp_ctlinput(int, struct sockaddr *, void *);
 int	 tcp_ctloutput(struct socket *, struct sockopt *);
 struct tcpcb *
