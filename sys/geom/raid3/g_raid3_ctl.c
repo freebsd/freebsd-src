@@ -274,7 +274,7 @@ g_raid3_ctl_rebuild(struct gctl_req *req, struct g_class *mp)
 	}
 	if (disk->d_state == G_RAID3_DISK_STATE_ACTIVE &&
 	    g_raid3_ndisks(sc, G_RAID3_DISK_STATE_ACTIVE) < sc->sc_ndisks) {
-		gctl_error(req, "There is one stale disk already.", name);
+		gctl_error(req, "There is one stale disk already.");
 		sx_xunlock(&sc->sc_lock);
 		return;
 	}
@@ -446,7 +446,7 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 	disk = &sc->sc_disks[*no];
 	if (disk->d_state != G_RAID3_DISK_STATE_NODISK) {
 		sx_xunlock(&sc->sc_lock);
-		gctl_error(req, "Component %u is already connected.", *no);
+		gctl_error(req, "Component %jd is already connected.", *no);
 		goto end;
 	}
 	if (((sc->sc_sectorsize / (sc->sc_ndisks - 1)) % pp->sectorsize) != 0) {
@@ -542,7 +542,7 @@ g_raid3_ctl_remove(struct gctl_req *req, struct g_class *mp)
 		 */
 		if (g_raid3_ndisks(sc, G_RAID3_DISK_STATE_ACTIVE) <
 		    sc->sc_ndisks) {
-			gctl_error(req, "Cannot replace component number %u.",
+			gctl_error(req, "Cannot replace component number %jd.",
 			    *no);
 			break;
 		}
@@ -561,7 +561,7 @@ g_raid3_ctl_remove(struct gctl_req *req, struct g_class *mp)
 	case G_RAID3_DISK_STATE_NODISK:
 		break;
 	default:
-		gctl_error(req, "Cannot replace component number %u.", *no);
+		gctl_error(req, "Cannot replace component number %jd.", *no);
 		break;
 	}
 	sx_xunlock(&sc->sc_lock);
