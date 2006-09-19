@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <i386/include/psl.h>
 
+#include <security/audit/audit.h>
+
 #ifdef WITNESS
 extern char *syscallnames[];
 #endif
@@ -130,7 +132,9 @@ ia32_syscall(struct trapframe *tf)
 
 		PTRACESTOP_SC(p, td, S_PT_SCE);
 
+		AUDIT_SYSCALL_ENTER(code, td);
 		error = (*callp->sy_call)(td, args64);
+		AUDIT_SYSCALL_EXIT(error, td);
 	}
 
 	switch (error) {

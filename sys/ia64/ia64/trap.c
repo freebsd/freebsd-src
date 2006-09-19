@@ -73,6 +73,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #endif
 
+#include <security/audit/audit.h>
+
 #include <ia64/disasm/disasm.h>
 
 static int print_usertrap = 0;
@@ -1001,12 +1003,14 @@ syscall(struct trapframe *tf)
 	/*
 	 * Grab Giant if the syscall is not flagged as MP safe.
 	 */
+	AUDIT_SYSCALL_ENTER(code, td);
 	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
 		mtx_lock(&Giant);
 		error = (*callp->sy_call)(td, args);
 		mtx_unlock(&Giant);
 	} else
 		error = (*callp->sy_call)(td, args);
+	AUDIT_SYSCALL_EXIT(error, td);
 
 	if (error != EJUSTRETURN) {
 		/*
