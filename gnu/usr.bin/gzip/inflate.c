@@ -316,7 +316,7 @@ int *m;                 /* maximum lookup bits, returns actual */
   {
     *t = (struct huft *)NULL;
     *m = 0;
-    return 0;
+    return 2;
   }
 
 
