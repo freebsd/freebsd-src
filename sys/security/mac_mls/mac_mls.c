@@ -1305,6 +1305,17 @@ mac_mls_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 	mac_mls_copy(source, dest);
 }
 
+static void
+mac_mls_create_mbuf_from_firewall(struct mbuf *m, struct label *mbuflabel)
+{
+	struct mac_mls *dest;
+
+	dest = SLOT(mbuflabel);
+
+	/* XXX: where is the label for the firewall really comming from? */
+	mac_mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
+}
+
 /*
  * Labeling event operations: processes.
  */
@@ -2972,6 +2983,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_check_vnode_stat = mac_mls_check_vnode_stat,
 	.mpo_check_vnode_write = mac_mls_check_vnode_write,
 	.mpo_associate_nfsd_label = mac_mls_associate_nfsd_label,
+	.mpo_create_mbuf_from_firewall = mac_mls_create_mbuf_from_firewall,
 };
 
 MAC_POLICY_SET(&mac_mls_ops, mac_mls, "TrustedBSD MAC/MLS",
