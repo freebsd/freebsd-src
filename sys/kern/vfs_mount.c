@@ -1151,7 +1151,8 @@ dounmount(mp, flags, td)
 	 */
 	error = vfs_suser(mp, td);
 	if (error) {
-		VOP_UNLOCK(coveredvp, 0, td);
+		if (coveredvp)
+			VOP_UNLOCK(coveredvp, 0, td);
 		return (error);
 	}
 
