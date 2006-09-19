@@ -145,7 +145,7 @@ devfs_allocv_drop_refs(int drop_dm_lock, struct devfs_mount *dmp,
 		sx_xunlock(&dmp->dm_lock);
 		devfs_unmount_final(dmp);
 	}
-	if (not_found == 1 || drop_dm_lock)
+	if (not_found == 1 || (drop_dm_lock && not_found != 2))
 		sx_unlock(&dmp->dm_lock);
 	return (not_found);
 }
