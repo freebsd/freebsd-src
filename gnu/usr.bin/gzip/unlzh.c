@@ -148,13 +148,17 @@ local void make_table(nchar, bitlen, tablebits, table)
     unsigned i, k, len, ch, jutbits, avail, nextcode, mask;
 
     for (i = 1; i <= 16; i++) count[i] = 0;
-    for (i = 0; i < (unsigned)nchar; i++) count[bitlen[i]]++;
+    for (i = 0; i < (unsigned)nchar; i++) {
+        if (bitlen[i] > 16)
+        error("Bad table (case a)\n");
+        else count[bitlen[i]]++;
+    }
 
     start[1] = 0;
     for (i = 1; i <= 16; i++)
 	start[i + 1] = start[i] + (count[i] << (16 - i));
-    if ((start[17] & 0xffff) != 0)
-	error("Bad table\n");
+    if ((start[17] & 0xffff) != 0 || tablebits > 16) /* 16 for weight below */
+	error("Bad table (case b)\n");
 
     jutbits = 16 - tablebits;
     for (i = 1; i <= (unsigned)tablebits; i++) {
@@ -168,15 +172,15 @@ local void make_table(nchar, bitlen, tablebits, table)
 
     i = start[tablebits + 1] >> jutbits;
     if (i != 0) {
-	k = 1 << tablebits;
-	while (i != k) table[i++] = 0;
+	k = MIN(1 << tablebits, DIST_BUFSIZE);
+	while (i < k) table[i++] = 0;
     }
 
     avail = nchar;
     mask = (unsigned) 1 << (15 - tablebits);
     for (ch = 0; ch < (unsigned)nchar; ch++) {
 	if ((len = bitlen[ch]) == 0) continue;
-	nextcode = start[len] + weight[len];
+	nextcode = MIN(start[len] + weight[len], DIST_BUFSIZE);
 	if (len <= (unsigned)tablebits) {
 	    for (i = start[len]; i < nextcode; i++) table[i] = ch;
 	} else {
@@ -217,7 +221,7 @@ local void read_pt_len(nn, nbit, i_special)
 	for (i = 0; i < 256; i++) pt_table[i] = c;
     } else {
 	i = 0;
-	while (i < n) {
+	while (i < MIN(n,NPT)) {
 	    c = bitbuf >> (BITBUFSIZ - 3);
 	    if (c == 7) {
 		mask = (unsigned) 1 << (BITBUFSIZ - 1 - 3);
@@ -227,7 +231,7 @@ local void read_pt_len(nn, nbit, i_special)
 	    pt_len[i++] = c;
 	    if (i == i_special) {
 		c = getbits(2);
-		while (--c >= 0) pt_len[i++] = 0;
+		while (--c >= 0 && i < NPT) pt_len[i++] = 0;
 	    }
 	}
 	while (i < nn) pt_len[i++] = 0;
@@ -247,7 +251,7 @@ local void read_c_len()
 	for (i = 0; i < 4096; i++) c_table[i] = c;
     } else {
 	i = 0;
-	while (i < n) {
+	while (i < MIN(n,NC)) {
 	    c = pt_table[bitbuf >> (BITBUFSIZ - 8)];
 	    if (c >= NT) {
 		mask = (unsigned) 1 << (BITBUFSIZ - 1 - 8);
@@ -255,14 +259,14 @@ local void read_c_len()
 		    if (bitbuf & mask) c = right[c];
 		    else               c = left [c];
 		    mask >>= 1;
-		} while (c >= NT);
+		} while (c >= NT && (mask || c != left[c]));
 	    }
 	    fillbuf((int) pt_len[c]);
 	    if (c <= 2) {
 		if      (c == 0) c = 1;
 		else if (c == 1) c = getbits(4) + 3;
 		else             c = getbits(CBIT) + 20;
-		while (--c >= 0) c_len[i++] = 0;
+		while (--c >= 0 && i < NC) c_len[i++] = 0;
 	    } else c_len[i++] = c - 2;
 	}
 	while (i < NC) c_len[i++] = 0;
@@ -291,7 +295,7 @@ local unsigned decode_c()
 	    if (bitbuf & mask) j = right[j];
 	    else               j = left [j];
 	    mask >>= 1;
-	} while (j >= NC);
+	} while (j >= NC && (mask || j != left[j]));
     }
     fillbuf((int) c_len[j]);
     return j;
@@ -308,7 +312,7 @@ local unsigned decode_p()
 	    if (bitbuf & mask) j = right[j];
 	    else               j = left [j];
 	    mask >>= 1;
-	} while (j >= NP);
+	} while (j >= NP && (mask || j != left[j]));
     }
     fillbuf((int) pt_len[j]);
     if (j != 0) j = ((unsigned) 1 << (j - 1)) + getbits((int) (j - 1));
@@ -355,7 +359,7 @@ local unsigned decode(count, buffer)
     while (--j >= 0) {
 	buffer[r] = buffer[i];
 	i = (i + 1) & (DICSIZ - 1);
-	if (++r == count) return r;
+	if (++r >= count) return r;
     }
     for ( ; ; ) {
 	c = decode_c();
@@ -365,14 +369,14 @@ local unsigned decode(count, buffer)
 	}
 	if (c <= UCHAR_MAX) {
 	    buffer[r] = c;
-	    if (++r == count) return r;
+	    if (++r >= count) return r;
 	} else {
 	    j = c - (UCHAR_MAX + 1 - THRESHOLD);
 	    i = (r - decode_p() - 1) & (DICSIZ - 1);
 	    while (--j >= 0) {
 		buffer[r] = buffer[i];
 		i = (i + 1) & (DICSIZ - 1);
-		if (++r == count) return r;
+		if (++r >= count) return r;
 	    }
 	}
     }
