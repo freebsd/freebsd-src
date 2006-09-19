@@ -1044,7 +1044,7 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 	case KDGKBMODE: /* get kyboard mode */
 		KBDMUX_LOCK(state);
-		*((int *) arg) = state->ks_mode;
+		*(int *)arg = state->ks_mode;
 		KBDMUX_UNLOCK(state);
 		break;
 
@@ -1078,7 +1078,7 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 	case KDGETLED: /* get keyboard LED */
 		KBDMUX_LOCK(state);
-		*((int *) arg) = KBD_LED_VAL(kbd);
+		*(int *)arg = KBD_LED_VAL(kbd);
 		KBDMUX_UNLOCK(state);
 		break;
 
@@ -1103,7 +1103,7 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 	case KDGKBSTATE: /* get lock key state */
 		KBDMUX_LOCK(state);
-		*((int *) arg) = state->ks_state & LOCK_MASK;
+		*(int *)arg = state->ks_state & LOCK_MASK;
 		KBDMUX_UNLOCK(state);
 		break;
 
@@ -1137,13 +1137,13 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 			/* lookup delay */
 			for (i = sizeof(delays)/sizeof(delays[0]) - 1; i > 0; i --)
-				if (((int *) arg)[0] >= delays[i])
+				if (((int *)arg)[0] >= delays[i])
 					break;
 			mode = i << 5;
 
 			/* lookup rate */
 			for (i = sizeof(rates)/sizeof(rates[0]) - 1; i > 0; i --)
-				if (((int *) arg)[1] >= rates[i])
+				if (((int *)arg)[1] >= rates[i])
 					break;
 			mode |= i;
 		} else
