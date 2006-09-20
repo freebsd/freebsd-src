@@ -573,6 +573,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_CHROOT:
 	case AUE_EACCESS:
 	case AUE_GETATTRLIST:
+	case AUE_LUTIMES:
 	case AUE_NFS_GETFH:
 	case AUE_LSTAT:
 	case AUE_PATHCONF:
