@@ -307,6 +307,7 @@ kvm_nlist(kd, nl)
 	struct nlist *p;
 	int nvalid;
 	struct kld_sym_lookup lookup;
+	int error;
 
 	/*
 	 * If we can't use the kld symbol lookup, revert to the
@@ -339,9 +340,13 @@ kvm_nlist(kd, nl)
 		}
 	}
 	/*
-	 * Return the number of entries that weren't found.
+	 * Return the number of entries that weren't found. If they exist,
+	 * also fill internal error buffer.
 	 */
-	return ((p - nl) - nvalid);
+	error = ((p - nl) - nvalid);
+	if (error)
+		_kvm_syserr(kd, kd->program, "kvm_nlist");
+	return (error);
 }
 
 ssize_t
