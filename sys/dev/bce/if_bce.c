@@ -309,6 +309,7 @@ static int  bce_ifmedia_upd			(struct ifnet *);
 static void bce_ifmedia_sts			(struct ifnet *, struct ifmediareq *);
 static void bce_init_locked			(struct bce_softc *);
 static void bce_init				(void *);
+static void bce_mgmt_init_locked(struct bce_softc *sc);
 
 static void bce_init_context		(struct bce_softc *);
 static void bce_get_mac_addr		(struct bce_softc *);
@@ -780,6 +781,11 @@ bce_attach(device_t dev)
 
 	/* Add the supported sysctls to the kernel. */
 	bce_add_sysctls(sc);
+
+	/* Get the firmware running so IPMI still works */
+	BCE_LOCK(sc);
+	bce_mgmt_init_locked(sc);
+	BCE_UNLOCK(sc);
 
 	goto bce_attach_exit;
 
@@ -3241,6 +3247,7 @@ bce_stop(struct bce_softc *sc)
 
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
 
+	bce_mgmt_init_locked(sc);
 }
 
 
@@ -4564,6 +4571,43 @@ bce_init_locked(struct bce_softc *sc)
 	callout_reset(&sc->bce_stat_ch, hz, bce_tick, sc);
 
 bce_init_locked_exit:
+	DBPRINT(sc, BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
+
+	return;
+}
+
+static void
+bce_mgmt_init_locked(struct bce_softc *sc)
+{
+	u32 val;
+	struct ifnet *ifp;
+
+	DBPRINT(sc, BCE_VERBOSE_RESET, "Entering %s()\n", __FUNCTION__);
+
+	BCE_LOCK_ASSERT(sc);
+
+	ifp = sc->bce_ifp;
+
+	/* Check if the driver is still running and bail out if it is. */
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		goto bce_mgmt_init_locked_exit;
+
+	/* Initialize the on-boards CPUs */
+	bce_init_cpus(sc);
+
+	val = (BCM_PAGE_BITS - 8) << 24;
+	REG_WR(sc, BCE_RV2P_CONFIG, val);
+
+	/* Enable all critical blocks in the MAC. */
+	REG_WR(sc, BCE_MISC_ENABLE_SET_BITS,
+	       BCE_MISC_ENABLE_SET_BITS_RX_V2P_ENABLE |
+	       BCE_MISC_ENABLE_SET_BITS_RX_DMA_ENABLE |
+	       BCE_MISC_ENABLE_SET_BITS_COMPLETION_ENABLE);
+	REG_RD(sc, BCE_MISC_ENABLE_SET_BITS);
+	DELAY(20);
+
+	bce_ifmedia_upd(ifp);
+bce_mgmt_init_locked_exit:
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
 
 	return;
