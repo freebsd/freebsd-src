@@ -1206,7 +1206,7 @@ fill_icmp6types(ipfw_insn_icmp6 *cmd, char *av)
 {
        uint8_t type;
 
-       cmd->d[0] = 0;
+       bzero(cmd, sizeof(*cmd));
        while (*av) {
            if (*av == ',')
                av++;
