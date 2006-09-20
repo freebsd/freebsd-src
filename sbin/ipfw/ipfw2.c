@@ -2855,6 +2855,8 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 	len += 2;	/* two words... */
 	d += 2;
     } /* end while */
+    if (len + 1 > F_LEN_MASK)
+	errx(EX_DATAERR, "address list too long");
     cmd->o.len |= len+1;
 }
 
@@ -3006,6 +3008,8 @@ fill_ip6(ipfw_insn_ip6 *cmd, char *av)
 	 * Total length of the command, remember that 1 is the size of
 	 * the base command.
 	 */
+	if (len + 1 > F_LEN_MASK)
+		errx(EX_DATAERR, "address list too long");
 	cmd->o.len |= len+1;
 	free(av);
 	return (1);
