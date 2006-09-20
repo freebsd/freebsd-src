@@ -41,10 +41,6 @@
  */
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_security_mac);
-#ifdef MAC_DEBUG
-SYSCTL_DECL(_security_mac_debug);
-SYSCTL_DECL(_security_mac_debug_counters);
-#endif
 #endif /* SYSCTL_DECL */
 
 /*
@@ -67,18 +63,6 @@ extern int				mac_enforce_socket;
 extern int				mac_enforce_vm;
 #ifndef MAC_ALWAYS_LABEL_MBUF
 extern int				mac_labelmbufs;
-#endif
-
-/*
- * MAC Framework object/access counter primitives, conditionally
- * compiled.
- */
-#ifdef MAC_DEBUG
-#define	MAC_DEBUG_COUNTER_INC(x)	atomic_add_int(x, 1);
-#define	MAC_DEBUG_COUNTER_DEC(x)	atomic_subtract_int(x, 1);
-#else
-#define	MAC_DEBUG_COUNTER_INC(x)
-#define	MAC_DEBUG_COUNTER_DEC(x)
 #endif
 
 /*
