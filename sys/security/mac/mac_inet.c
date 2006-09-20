@@ -66,15 +66,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_internal.h>
 
-#ifdef MAC_DEBUG
-static unsigned int nmacinpcbs, nmacipqs;
-
-SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, inpcbs, CTLFLAG_RD,
-    &nmacinpcbs, 0, "number of inpcbs in use");
-SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, ipqs, CTLFLAG_RD,
-    &nmacipqs, 0, "number of ipqs in use");
-#endif
-
 static struct label *
 mac_inpcb_label_alloc(int flag)
 {
@@ -90,7 +81,6 @@ mac_inpcb_label_alloc(int flag)
 		mac_labelzone_free(label);
 		return (NULL);
 	}
-	MAC_DEBUG_COUNTER_INC(&nmacinpcbs);
 	return (label);
 }
 
@@ -120,7 +110,6 @@ mac_ipq_label_alloc(int flag)
 		mac_labelzone_free(label);
 		return (NULL);
 	}
-	MAC_DEBUG_COUNTER_INC(&nmacipqs);
 	return (label);
 }
 
@@ -140,7 +129,6 @@ mac_inpcb_label_free(struct label *label)
 
 	MAC_PERFORM(destroy_inpcb_label, label);
 	mac_labelzone_free(label);
-	MAC_DEBUG_COUNTER_DEC(&nmacinpcbs);
 }
 
 void
@@ -157,7 +145,6 @@ mac_ipq_label_free(struct label *label)
 
 	MAC_PERFORM(destroy_ipq_label, label);
 	mac_labelzone_free(label);
-	MAC_DEBUG_COUNTER_DEC(&nmacipqs);
 }
 
 void

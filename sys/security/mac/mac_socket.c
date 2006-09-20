@@ -80,13 +80,6 @@ SYSCTL_INT(_security_mac, OID_AUTO, enforce_socket, CTLFLAG_RW,
     &mac_enforce_socket, 0, "Enforce MAC policy on socket operations");
 TUNABLE_INT("security.mac.enforce_socket", &mac_enforce_socket);
 
-#ifdef MAC_DEBUG
-static unsigned int nmacsockets;
-
-SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, sockets, CTLFLAG_RD,
-    &nmacsockets, 0, "number of sockets in use");
-#endif
-
 struct label *
 mac_socket_label_alloc(int flag)
 {
@@ -103,7 +96,6 @@ mac_socket_label_alloc(int flag)
 		mac_labelzone_free(label);
 		return (NULL);
 	}
-	MAC_DEBUG_COUNTER_INC(&nmacsockets);
 	return (label);
 }
 
@@ -123,7 +115,6 @@ mac_socket_peer_label_alloc(int flag)
 		mac_labelzone_free(label);
 		return (NULL);
 	}
-	MAC_DEBUG_COUNTER_INC(&nmacsockets);
 	return (label);
 }
 
@@ -149,7 +140,6 @@ mac_socket_label_free(struct label *label)
 
 	MAC_PERFORM(destroy_socket_label, label);
 	mac_labelzone_free(label);
-	MAC_DEBUG_COUNTER_DEC(&nmacsockets);
 }
 
 static void
@@ -158,7 +148,6 @@ mac_socket_peer_label_free(struct label *label)
 
 	MAC_PERFORM(destroy_socket_peer_label, label);
 	mac_labelzone_free(label);
-	MAC_DEBUG_COUNTER_DEC(&nmacsockets);
 }
 
 void

@@ -83,23 +83,6 @@ SYSCTL_INT(_security_mac, OID_AUTO, enforce_fs, CTLFLAG_RW,
     &mac_enforce_fs, 0, "Enforce MAC policy on file system objects");
 TUNABLE_INT("security.mac.enforce_fs", &mac_enforce_fs);
 
-#ifdef MAC_DEBUG
-static int	mac_debug_label_fallback = 0;
-SYSCTL_INT(_security_mac_debug, OID_AUTO, label_fallback, CTLFLAG_RW,
-    &mac_debug_label_fallback, 0, "Filesystems should fall back to fs label"
-    "when label is corrupted.");
-TUNABLE_INT("security.mac.debug_label_fallback",
-    &mac_debug_label_fallback);
-
-static unsigned int nmacmounts, nmacvnodes, nmacdevfsdirents;
-SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, mounts, CTLFLAG_RD,
-    &nmacmounts, 0, "number of mounts in use");
-SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, vnodes, CTLFLAG_RD,
-    &nmacvnodes, 0, "number of vnodes in use");
-SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, devfsdirents, CTLFLAG_RD,
-    &nmacdevfsdirents, 0, "number of devfs dirents inuse");
-#endif
-
 static int	mac_setlabel_vnode_extattr(struct ucred *cred,
 		    struct vnode *vp, struct label *intlabel);
 
@@ -110,7 +93,6 @@ mac_devfsdirent_label_alloc(void)
 
 	label = mac_labelzone_alloc(M_WAITOK);
 	MAC_PERFORM(init_devfsdirent_label, label);
-	MAC_DEBUG_COUNTER_INC(&nmacdevfsdirents);
 	return (label);
 }
 
@@ -128,7 +110,6 @@ mac_mount_label_alloc(void)
 
 	label = mac_labelzone_alloc(M_WAITOK);
 	MAC_PERFORM(init_mount_label, label);
-	MAC_DEBUG_COUNTER_INC(&nmacmounts);
 	return (label);
 }
 
@@ -139,7 +120,6 @@ mac_mount_fs_label_alloc(void)
 
 	label = mac_labelzone_alloc(M_WAITOK);
 	MAC_PERFORM(init_mount_fs_label, label);
-	MAC_DEBUG_COUNTER_INC(&nmacmounts);
 	return (label);
 }
 
@@ -158,7 +138,6 @@ mac_vnode_label_alloc(void)
 
 	label = mac_labelzone_alloc(M_WAITOK);
 	MAC_PERFORM(init_vnode_label, label);
-	MAC_DEBUG_COUNTER_INC(&nmacvnodes);
 	return (label);
 }
 
@@ -175,7 +154,6 @@ mac_devfsdirent_label_free(struct label *label)
 
 	MAC_PERFORM(destroy_devfsdirent_label, label);
 	mac_labelzone_free(label);
-	MAC_DEBUG_COUNTER_DEC(&nmacdevfsdirents);
 }
 
 void
@@ -192,7 +170,6 @@ mac_mount_label_free(struct label *label)
 
 	MAC_PERFORM(destroy_mount_label, label);
 	mac_labelzone_free(label);
-	MAC_DEBUG_COUNTER_DEC(&nmacmounts);
 }
 
 static void
@@ -201,7 +178,6 @@ mac_mount_fs_label_free(struct label *label)
 
 	MAC_PERFORM(destroy_mount_fs_label, label);
 	mac_labelzone_free(label);
-	MAC_DEBUG_COUNTER_DEC(&nmacmounts);
 }
 
 void
@@ -220,7 +196,6 @@ mac_vnode_label_free(struct label *label)
 
 	MAC_PERFORM(destroy_vnode_label, label);
 	mac_labelzone_free(label);
-	MAC_DEBUG_COUNTER_DEC(&nmacvnodes);
 }
 
 void

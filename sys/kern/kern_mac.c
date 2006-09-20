@@ -136,17 +136,6 @@ int	mac_late = 0;
 int	mac_labelmbufs = 0;
 #endif
 
-#ifdef MAC_DEBUG
-SYSCTL_NODE(_security_mac, OID_AUTO, debug, CTLFLAG_RW, 0,
-    "TrustedBSD MAC debug info");
-SYSCTL_NODE(_security_mac_debug, OID_AUTO, counters, CTLFLAG_RW, 0,
-    "TrustedBSD MAC object counters");
-
-static unsigned int nmactemp;
-SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, temp, CTLFLAG_RD,
-    &nmactemp, 0, "number of temporary labels in use");
-#endif
-
 static int	mac_policy_register(struct mac_policy_conf *mpc);
 static int	mac_policy_unregister(struct mac_policy_conf *mpc);
 

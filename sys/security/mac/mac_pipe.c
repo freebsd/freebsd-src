@@ -56,12 +56,6 @@ SYSCTL_INT(_security_mac, OID_AUTO, enforce_pipe, CTLFLAG_RW,
     &mac_enforce_pipe, 0, "Enforce MAC policy on pipe operations");
 TUNABLE_INT("security.mac.enforce_pipe", &mac_enforce_pipe);
 
-#ifdef MAC_DEBUG
-static unsigned int nmacpipes;
-SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, pipes, CTLFLAG_RD,
-    &nmacpipes, 0, "number of pipes in use");
-#endif
-
 struct label *
 mac_pipe_label_alloc(void)
 {
@@ -69,7 +63,6 @@ mac_pipe_label_alloc(void)
 
 	label = mac_labelzone_alloc(M_WAITOK);
 	MAC_PERFORM(init_pipe_label, label);
-	MAC_DEBUG_COUNTER_INC(&nmacpipes);
 	return (label);
 }
 
@@ -86,7 +79,6 @@ mac_pipe_label_free(struct label *label)
 
 	MAC_PERFORM(destroy_pipe_label, label);
 	mac_labelzone_free(label);
-	MAC_DEBUG_COUNTER_DEC(&nmacpipes);
 }
 
 void
