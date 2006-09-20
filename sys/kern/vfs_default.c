@@ -353,10 +353,12 @@ vop_stdgetwritemount(ap)
 	 * harmful to return with a ref to our previous mountpoint.
 	 */
 	mp = ap->a_vp->v_mount;
-	vfs_ref(mp);
-	if (mp != ap->a_vp->v_mount) {
-		vfs_rel(mp);
-		mp = NULL;
+	if (mp != NULL) {
+		vfs_ref(mp);
+		if (mp != ap->a_vp->v_mount) {
+			vfs_rel(mp);
+			mp = NULL;
+		}
 	}
 	*(ap->a_mpp) = mp;
 	return (0);
