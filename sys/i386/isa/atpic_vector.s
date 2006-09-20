@@ -41,7 +41,7 @@
 #include "assym.s"
 
 /*
- * Macros for interrupt interrupt entry, call to handler, and exit.
+ * Macros for interrupt entry, call to handler, and exit.
  */
 #define	INTR(irq_num, vec_name) \
 	.text ;								\
