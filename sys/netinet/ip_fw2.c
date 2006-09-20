@@ -2920,22 +2920,25 @@ check_body:
 				    &((ipfw_insn_ip6 *)cmd)->addr6);
 				break;
 			case O_IP6_SRC_MASK:
-				if (is_ipv6) {
-					ipfw_insn_ip6 *te = (ipfw_insn_ip6 *)cmd;
-					struct in6_addr p = args->f_id.src_ip6;
-
-					APPLY_MASK(&p, &te->mask6);
-					match = IN6_ARE_ADDR_EQUAL(&te->addr6, &p);
-				}
-				break;
-
 			case O_IP6_DST_MASK:
 				if (is_ipv6) {
-					ipfw_insn_ip6 *te = (ipfw_insn_ip6 *)cmd;
-					struct in6_addr p = args->f_id.dst_ip6;
+					int i = cmdlen - 1;
+					struct in6_addr p;
+					struct in6_addr *d =
+					    &((ipfw_insn_ip6 *)cmd)->addr6;
 
-					APPLY_MASK(&p, &te->mask6);
-					match = IN6_ARE_ADDR_EQUAL(&te->addr6, &p);
+					for (; !match && i > 0; d += 2,
+					    i -= F_INSN_SIZE(struct in6_addr)
+					    * 2) {
+						p = (cmd->opcode ==
+						    O_IP6_SRC_MASK) ?
+						    args->f_id.src_ip6:
+						    args->f_id.dst_ip6;
+						APPLY_MASK(&p, &d[1]);
+						match =
+						    IN6_ARE_ADDR_EQUAL(&d[0],
+						    &p);
+					}
 				}
 				break;
 
