@@ -81,11 +81,6 @@ static int sysvmsg_modload(struct module *, int, void *);
 #else
 #define DPRINTF(a)
 #endif
-#ifdef MAC_DEBUG
-#define MPRINTF(a)	printf a
-#else
-#define MPRINTF(a)
-#endif
 
 static void msg_freehdr(struct msg *msghdr);
 
@@ -445,10 +440,8 @@ kern_msgctl(td, msqid, cmd, msqbuf)
 	}
 #ifdef MAC
 	error = mac_check_sysv_msqctl(td->td_ucred, msqkptr, cmd);
-	if (error != 0) {
-		MPRINTF(("mac_check_sysv_msqctl returned %d\n", error));
+	if (error != 0)
 		goto done2;
-	}
 #endif
 
 	error = 0;
@@ -475,11 +468,8 @@ kern_msgctl(td, msqid, cmd, msqbuf)
 		for (msghdr = msqkptr->u.msg_first; msghdr != NULL;
 		    msghdr = msghdr->msg_next) {
 			error = mac_check_sysv_msgrmid(td->td_ucred, msghdr);
-			if (error != 0) {
-				MPRINTF(("mac_check_sysv_msgrmid returned %d\n",
-				    error));
+			if (error != 0)
 				goto done2;
-			}
 		}
 #endif
 
@@ -608,11 +598,8 @@ msgget(td, uap)
 			}
 #ifdef MAC
 			error = mac_check_sysv_msqget(cred, msqkptr);
-			if (error != 0) {
-				MPRINTF(("mac_check_sysv_msqget returned %d\n",
-				    error));
+			if (error != 0)
 				goto done2;
-			}
 #endif
 			goto found;
 		}
@@ -733,10 +720,8 @@ msgsnd(td, uap)
 
 #ifdef MAC
 	error = mac_check_sysv_msqsnd(td->td_ucred, msqkptr);
-	if (error != 0) {
-		MPRINTF(("mac_check_sysv_msqsnd returned %d\n", error));
+	if (error != 0)
 		goto done2;
-	}
 #endif
 
 	segs_needed = (msgsz + msginfo.msgssz - 1) / msginfo.msgssz;
@@ -978,7 +963,6 @@ msgsnd(td, uap)
 	 */
 	error = mac_check_sysv_msgmsq(td->td_ucred, msghdr, msqkptr);
 	if (error != 0) {
-		MPRINTF(("mac_check_sysv_msqmsq returned %d\n", error));
 		msg_freehdr(msghdr);
 		wakeup(msqkptr);
 		goto done2;
@@ -1072,10 +1056,8 @@ msgrcv(td, uap)
 
 #ifdef MAC
 	error = mac_check_sysv_msqrcv(td->td_ucred, msqkptr);
-	if (error != 0) {
-		MPRINTF(("mac_check_sysv_msqrcv returned %d\n", error));
+	if (error != 0)
 		goto done2;
-	}
 #endif
 
 	msghdr = NULL;
@@ -1094,11 +1076,8 @@ msgrcv(td, uap)
 #ifdef MAC
 				error = mac_check_sysv_msgrcv(td->td_ucred,
 				    msghdr);
-				if (error != 0) {
-					MPRINTF(("mac_check_sysv_msgrcv "
-					    "returned %d\n", error));
+				if (error != 0)
 					goto done2;
-				}
 #endif
 				if (msqkptr->u.msg_first == msqkptr->u.msg_last) {
 					msqkptr->u.msg_first = NULL;
@@ -1142,12 +1121,8 @@ msgrcv(td, uap)
 #ifdef MAC
 					error = mac_check_sysv_msgrcv(
 					    td->td_ucred, msghdr);
-					if (error != 0) {
-						MPRINTF(("mac_check_sysv_"
-						    "msgrcv returned %d\n",
-						    error));
+					if (error != 0)
 						goto done2;
-					}
 #endif
 					*prev = msghdr->msg_next;
 					if (msghdr == msqkptr->u.msg_last) {
