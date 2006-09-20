@@ -148,23 +148,19 @@ struct mfi_softc {
 	 */
 	int				mfi_max_fw_cmds;
 	/*
-	 * Max number of S/G elements the firmware can handle
-	 */
-	int				mfi_max_fw_sgl;
-	/*
 	 * How many S/G elements we'll ever actually use 
 	 */
-	int				mfi_total_sgl;
+	int				mfi_max_sge;
 	/*
 	 * How many bytes a compound frame is, including all of the extra frames
 	 * that are used for S/G elements.
 	 */
-	int				mfi_frame_size;
+	int				mfi_cmd_size;
 	/*
 	 * How large an S/G element is.  Used to calculate the number of single
 	 * frames in a command.
 	 */
-	int				mfi_sgsize;
+	int				mfi_sge_size;
 	/*
 	 * Max number of sectors that the firmware allows
 	 */
