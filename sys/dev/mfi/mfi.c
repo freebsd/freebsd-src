@@ -179,7 +179,7 @@ mfi_attach(struct mfi_softc *sc)
 {
 	uint32_t status;
 	int error, commsz, framessz, sensesz;
-	int frames, unit;
+	int frames, unit, max_fw_sge;
 
 	mtx_init(&sc->mfi_io_lock, "MFI I/O lock", NULL, MTX_DEF);
 	TAILQ_INIT(&sc->mfi_ld_tqh);
@@ -206,8 +206,8 @@ mfi_attach(struct mfi_softc *sc)
 	 */
 	status = MFI_READ4(sc, MFI_OMSG0);
 	sc->mfi_max_fw_cmds = status & MFI_FWSTATE_MAXCMD_MASK;
-	sc->mfi_max_fw_sgl = (status & MFI_FWSTATE_MAXSGL_MASK) >> 16;
-	sc->mfi_total_sgl = min(sc->mfi_max_fw_sgl, ((MAXPHYS / PAGE_SIZE) +1));
+	max_fw_sge = (status & MFI_FWSTATE_MAXSGL_MASK) >> 16;
+	sc->mfi_max_sge = min(max_fw_sge, ((MAXPHYS / PAGE_SIZE) + 1));
 
 	/*
 	 * Create the dma tag for data buffers.  Used both for block I/O
@@ -219,7 +219,7 @@ mfi_attach(struct mfi_softc *sc)
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
 				BUS_SPACE_MAXSIZE_32BIT,/* maxsize */
-				sc->mfi_total_sgl,	/* nsegments */
+				sc->mfi_max_sge,	/* nsegments */
 				BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 				BUS_DMA_ALLOCNOW,	/* flags */
 				busdma_lock_mutex,	/* lockfunc */
@@ -262,24 +262,23 @@ mfi_attach(struct mfi_softc *sc)
 
 	/*
 	 * Allocate DMA memory for the command frames.  Keep them in the
-	 * lower 4GB for efficiency.  Calculate the size of the frames at
-	 * the same time; the frame is 64 bytes plus space for the SG lists.
+	 * lower 4GB for efficiency.  Calculate the size of the commands at
+	 * the same time; each command is one 64 byte frame plus a set of
+         * additional frames for holding sg lists or other data.
 	 * The assumption here is that the SG list will start at the second
-	 * 64 byte segment of the frame and not use the unused bytes in the
-	 * frame.  While this might seem wasteful, apparently the frames must
-	 * be 64 byte aligned, so any savings would be negated by the extra
-	 * alignment padding.
+	 * frame and not use the unused bytes in the first frame.  While this
+	 * isn't technically correct, it simplifies the calculation and allows
+	 * for command frames that might be larger than an mfi_io_frame.
 	 */
 	if (sizeof(bus_addr_t) == 8) {
-		sc->mfi_sgsize = sizeof(struct mfi_sg64);
+		sc->mfi_sge_size = sizeof(struct mfi_sg64);
 		sc->mfi_flags |= MFI_FLAGS_SG64;
 	} else {
-		sc->mfi_sgsize = sizeof(struct mfi_sg32);
+		sc->mfi_sge_size = sizeof(struct mfi_sg32);
 	}
-	frames = (sc->mfi_sgsize * sc->mfi_total_sgl + MFI_FRAME_SIZE - 1) /
-	    MFI_FRAME_SIZE + 1;
-	sc->mfi_frame_size = frames * MFI_FRAME_SIZE;
-	framessz = sc->mfi_frame_size * sc->mfi_max_fw_cmds;
+	frames = (sc->mfi_sge_size * sc->mfi_max_sge - 1) / MFI_FRAME_SIZE + 2;
+	sc->mfi_cmd_size = frames * MFI_FRAME_SIZE;
+	framessz = sc->mfi_cmd_size * sc->mfi_max_fw_cmds;
 	if (bus_dma_tag_create( sc->mfi_parent_dmat,	/* parent */
 				64, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
@@ -407,9 +406,9 @@ mfi_alloc_commands(struct mfi_softc *sc)
 	for (i = 0; i < ncmds; i++) {
 		cm = &sc->mfi_commands[i];
 		cm->cm_frame = (union mfi_frame *)((uintptr_t)sc->mfi_frames +
-		    sc->mfi_frame_size * i);
+		    sc->mfi_cmd_size * i);
 		cm->cm_frame_busaddr = sc->mfi_frames_busaddr +
-		    sc->mfi_frame_size * i;
+		    sc->mfi_cmd_size * i;
 		cm->cm_frame->header.context = i;
 		cm->cm_sense = &sc->mfi_sense[i];
 		cm->cm_sense_busaddr= sc->mfi_sense_busaddr + MFI_SENSE_LEN * i;
@@ -559,7 +558,7 @@ mfi_get_controller_info(struct mfi_softc *sc)
 	/* It's ok if this fails, just use default info instead */
 	if ((error = mfi_polled_command(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev, "Failed to get controller info\n");
-		sc->mfi_max_io = (sc->mfi_total_sgl - 1) * PAGE_SIZE /
+		sc->mfi_max_io = (sc->mfi_max_sge - 1) * PAGE_SIZE /
 		    MFI_SECTOR_LEN;
 		error = 0;
 		goto out;
@@ -1305,7 +1304,7 @@ mfi_get_entry(struct mfi_softc *sc, int seq)
 
 	if ((error = mfi_polled_command(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev, "Failed to get controller entry\n");
-		sc->mfi_max_io = (sc->mfi_total_sgl - 1) * PAGE_SIZE /
+		sc->mfi_max_io = (sc->mfi_max_sge - 1) * PAGE_SIZE /
 		    MFI_SECTOR_LEN;
 		free(el, M_MFIBUF);
 		mfi_release_command(cm);
@@ -1581,7 +1580,7 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	 * least 1 frame, so don't compensate for the modulo of the
 	 * following division.
 	 */
-	cm->cm_total_frame_size += (sc->mfi_sgsize * nsegs);
+	cm->cm_total_frame_size += (sc->mfi_sge_size * nsegs);
 	cm->cm_extra_frames = (cm->cm_total_frame_size - 1) / MFI_FRAME_SIZE;
 
 	/* The caller will take care of delivering polled commands */
@@ -1601,15 +1600,17 @@ mfi_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 	 * The bus address of the command is aligned on a 64 byte boundary,
 	 * leaving the least 6 bits as zero.  For whatever reason, the
 	 * hardware wants the address shifted right by three, leaving just
-	 * 3 zero bits.  These three bits are then used to indicate how many
-	 * 64 byte frames beyond the first one are used in the command.  The
-	 * extra frames are typically filled with S/G elements.  The extra
-	 * frames must also be contiguous.  Thus, a compound frame can be at
-	 * most 512 bytes long, allowing for up to 59 32-bit S/G elements or
-	 * 39 64-bit S/G elements for block I/O commands.  This means that
-	 * I/O transfers of 256k and higher simply are not possible, which
-	 * is quite odd for such a modern adapter.
+	 * 3 zero bits.  These three bits are then used as a prefetching
+	 * hint for the hardware to predict how many frames need to be
+	 * fetched across the bus.  If a command has more than 8 frames
+	 * then the 3 bits are set to 0x7 and the firmware uses other
+	 * information in the command to determine the total amount to fetch.
+	 * However, FreeBSD doesn't support I/O larger than 128K, so 8 frames
+	 * is enough for both 32bit and 64bit systems.
 	 */
+	if (cm->cm_extra_frames > 7)
+		cm->cm_extra_frames = 7;
+
 	MFI_WRITE4(sc, MFI_IQP, (cm->cm_frame_busaddr >> 3) |
 	    cm->cm_extra_frames);
 	return (0);
