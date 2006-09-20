@@ -72,17 +72,6 @@ SYSCTL_INT(_security_mac, OID_AUTO, enforce_network, CTLFLAG_RW,
     &mac_enforce_network, 0, "Enforce MAC policy on network packets");
 TUNABLE_INT("security.mac.enforce_network", &mac_enforce_network);
 
-#ifdef MAC_DEBUG
-static unsigned int nmacbpfdescs, nmacifnets, nmacmbufs;
-
-SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, bpfdescs, CTLFLAG_RD,
-    &nmacbpfdescs, 0, "number of bpfdescs in use");
-SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, ifnets, CTLFLAG_RD,
-    &nmacifnets, 0, "number of ifnets in use");
-SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, mbufs, CTLFLAG_RD,
-    &nmacmbufs, 0, "number of mbufs in use");
-#endif
-
 /*
  * XXXRW: struct ifnet locking is incomplete in the network code, so we
  * use our own global mutex for struct ifnet.  Non-ideal, but should help
@@ -115,7 +104,6 @@ mac_bpfdesc_label_alloc(void)
 
 	label = mac_labelzone_alloc(M_WAITOK);
 	MAC_PERFORM(init_bpfdesc_label, label);
-	MAC_DEBUG_COUNTER_INC(&nmacbpfdescs);
 	return (label);
 }
 
@@ -133,7 +121,6 @@ mac_ifnet_label_alloc(void)
 
 	label = mac_labelzone_alloc(M_WAITOK);
 	MAC_PERFORM(init_ifnet_label, label);
-	MAC_DEBUG_COUNTER_INC(&nmacifnets);
 	return (label);
 }
 
@@ -157,8 +144,6 @@ mac_init_mbuf_tag(struct m_tag *tag, int flag)
 	if (error) {
 		MAC_PERFORM(destroy_mbuf_label, label);
 		mac_destroy_label(label);
-	} else {
-		MAC_DEBUG_COUNTER_INC(&nmacmbufs);
 	}
 	return (error);
 }
@@ -198,7 +183,6 @@ mac_bpfdesc_label_free(struct label *label)
 
 	MAC_PERFORM(destroy_bpfdesc_label, label);
 	mac_labelzone_free(label);
-	MAC_DEBUG_COUNTER_DEC(&nmacbpfdescs);
 }
 
 void
@@ -215,7 +199,6 @@ mac_ifnet_label_free(struct label *label)
 
 	MAC_PERFORM(destroy_ifnet_label, label);
 	mac_labelzone_free(label);
-	MAC_DEBUG_COUNTER_DEC(&nmacifnets);
 }
 
 void
@@ -235,7 +218,6 @@ mac_destroy_mbuf_tag(struct m_tag *tag)
 
 	MAC_PERFORM(destroy_mbuf_label, label);
 	mac_destroy_label(label);
-	MAC_DEBUG_COUNTER_DEC(&nmacmbufs);
 }
 
 void

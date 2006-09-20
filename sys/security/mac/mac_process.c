@@ -91,14 +91,6 @@ SYSCTL_INT(_security_mac, OID_AUTO, enforce_suid, CTLFLAG_RW,
     &mac_enforce_suid, 0, "Enforce MAC policy on suid/sgid operations");
 TUNABLE_INT("security.mac.enforce_suid", &mac_enforce_suid);
 
-#ifdef MAC_DEBUG
-static unsigned int nmaccreds, nmacprocs;
-SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, creds, CTLFLAG_RD,
-    &nmaccreds, 0, "number of ucreds in use");
-SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, procs, CTLFLAG_RD,
-    &nmacprocs, 0, "number of procs in use");
-#endif
-
 static void	mac_cred_mmapped_drop_perms_recurse(struct thread *td,
 		    struct ucred *cred, struct vm_map *map);
 
@@ -109,7 +101,6 @@ mac_cred_label_alloc(void)
 
 	label = mac_labelzone_alloc(M_WAITOK);
 	MAC_PERFORM(init_cred_label, label);
-	MAC_DEBUG_COUNTER_INC(&nmaccreds);
 	return (label);
 }
 
@@ -127,7 +118,6 @@ mac_proc_label_alloc(void)
 
 	label = mac_labelzone_alloc(M_WAITOK);
 	MAC_PERFORM(init_proc_label, label);
-	MAC_DEBUG_COUNTER_INC(&nmacprocs);
 	return (label);
 }
 
@@ -144,7 +134,6 @@ mac_cred_label_free(struct label *label)
 
 	MAC_PERFORM(destroy_cred_label, label);
 	mac_labelzone_free(label);
-	MAC_DEBUG_COUNTER_DEC(&nmaccreds);
 }
 
 void
@@ -161,7 +150,6 @@ mac_proc_label_free(struct label *label)
 
 	MAC_PERFORM(destroy_proc_label, label);
 	mac_labelzone_free(label);
-	MAC_DEBUG_COUNTER_DEC(&nmacprocs);
 }
 
 void

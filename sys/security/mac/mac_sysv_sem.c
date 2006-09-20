@@ -58,12 +58,6 @@ SYSCTL_INT(_security_mac, OID_AUTO, enforce_sysv_sem, CTLFLAG_RW,
     &mac_enforce_sysv_sem, 0, "Enforce MAC policy on System V IPC Semaphores");
 TUNABLE_INT("security.mac.enforce_sysv", &mac_enforce_sysv_sem);
 
-#ifdef MAC_DEBUG
-static unsigned int nmacipcsemas;
-SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, ipc_semas, CTLFLAG_RD,
-    &nmacipcsemas, 0, "number of sysv ipc semaphore identifiers inuse");
-#endif
-
 static struct label *
 mac_sysv_sem_label_alloc(void)
 {
@@ -71,7 +65,6 @@ mac_sysv_sem_label_alloc(void)
 
 	label = mac_labelzone_alloc(M_WAITOK);
 	MAC_PERFORM(init_sysv_sem_label, label);
-	MAC_DEBUG_COUNTER_INC(&nmacipcsemas);
 	return (label);
 }
 
@@ -88,7 +81,6 @@ mac_sysv_sem_label_free(struct label *label)
 
 	MAC_PERFORM(destroy_sysv_sem_label, label);
 	mac_labelzone_free(label);
-	MAC_DEBUG_COUNTER_DEC(&nmacipcsemas);
 }
 
 void
