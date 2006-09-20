@@ -85,9 +85,12 @@ static int	mfi_linux_ioctl_int(struct cdev *, u_long, caddr_t, int, d_thread_t *
 
 SYSCTL_NODE(_hw, OID_AUTO, mfi, CTLFLAG_RD, 0, "MFI driver parameters");
 static int	mfi_event_locale = MFI_EVT_LOCALE_ALL;
+TUNABLE_INT("hw.mfi.event_locale", &mfi_event_locale);
 SYSCTL_INT(_hw_mfi, OID_AUTO, event_locale, CTLFLAG_RW, &mfi_event_locale,
             0, "event message locale");
+
 static int	mfi_event_class =  MFI_EVT_CLASS_DEBUG;
+TUNABLE_INT("hw.mfi.event_class", &mfi_event_class);
 SYSCTL_INT(_hw_mfi, OID_AUTO, event_class, CTLFLAG_RW, &mfi_event_class,
           0, "event message class");
 
@@ -1315,8 +1318,11 @@ mfi_get_entry(struct mfi_softc *sc, int seq)
 	    BUS_DMASYNC_POSTREAD);
 	bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
 
-	for (i = 0; i < el->count; i++) {
-		mfi_decode_evt(sc, &el->event[0]);
+	if (dcmd->header.cmd_status != MFI_STAT_NOT_FOUND) {
+		for (i = 0; i < el->count; i++) {
+			if (seq + i == el->event[i].seq)
+				mfi_decode_evt(sc, &el->event[i]);
+		}
 	}
 
 	mtx_lock(&sc->mfi_io_lock);
