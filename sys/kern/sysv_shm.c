@@ -94,12 +94,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
-#ifdef MAC_DEBUG
-#define MPRINTF(a)      printf a
-#else
-#define MPRINTF(a)	
-#endif
-
 static MALLOC_DEFINE(M_SHM, "shm", "SVID compatible shared memory segments");
 
 #if defined(__i386__) && (defined(COMPAT_FREEBSD4) || defined(COMPAT_43))
@@ -332,10 +326,8 @@ shmdt(td, uap)
 #ifdef MAC
 	shmsegptr = &shmsegs[IPCID_TO_IX(shmmap_s->shmid)];
 	error = mac_check_sysv_shmdt(td->td_ucred, shmsegptr);
-	if (error != 0) {
-		MPRINTF(("mac_check_sysv_shmdt returned %d\n", error));
+	if (error != 0)
 		goto done2;
-	}
 #endif
 	error = shm_delete_mapping(p->p_vmspace, shmmap_s);
 done2:
@@ -393,10 +385,8 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 		goto done2;
 #ifdef MAC
 	error = mac_check_sysv_shmat(td->td_ucred, shmseg, shmflg);
-	if (error != 0) {
-	 	MPRINTF(("mac_check_sysv_shmat returned %d\n", error));
+	if (error != 0)
 		goto done2;
-	}
 #endif
 	for (i = 0; i < shminfo.shmseg; i++) {
 		if (shmmap_s->shmid == -1)
@@ -514,11 +504,8 @@ oshmctl(td, uap)
 			goto done2;
 #ifdef MAC
 		error = mac_check_sysv_shmctl(td->td_ucred, shmseg, uap->cmd);
-		if (error != 0) {
-			MPRINTF(("mac_check_sysv_shmctl returned %d\n",
-			    error));
+		if (error != 0)
 			goto done2;
-		}
 #endif
 		outbuf.shm_perm = shmseg->u.shm_perm;
 		outbuf.shm_segsz = shmseg->u.shm_segsz;
@@ -604,10 +591,8 @@ kern_shmctl(td, shmid, cmd, buf, bufsz)
 	}
 #ifdef MAC
 	error = mac_check_sysv_shmctl(td->td_ucred, shmseg, cmd);
-	if (error != 0) {
-		MPRINTF(("mac_check_sysv_shmctl returned %d\n", error));
+	if (error != 0)
 		goto done2;
-	}
 #endif
 	switch (cmd) {
 	case SHM_STAT:
@@ -733,10 +718,8 @@ shmget_existing(td, uap, mode, segnum)
 		return (EEXIST);
 #ifdef MAC
 	error = mac_check_sysv_shmget(td->td_ucred, shmseg, uap->shmflg);
-	if (error != 0) {
-		MPRINTF(("mac_check_sysv_shmget returned %d\n", error));
+	if (error != 0)
 		return (error);
-	}
 #endif
 	error = ipcperm(td, &shmseg->u.shm_perm, mode);
 	if (error)

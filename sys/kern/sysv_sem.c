@@ -68,11 +68,6 @@ static MALLOC_DEFINE(M_SEM, "sem", "SVID compatible semaphores");
 #else
 #define DPRINTF(a)
 #endif
-#ifdef MAC_DEBUG
-#define MPRINTF(a)      printf a
-#else
-#define MPRINTF(a)
-#endif
 
 static void seminit(void);
 static int sysvsem_modload(struct module *, int, void *);
@@ -650,11 +645,8 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 			goto done2;
 #ifdef MAC
 		error = mac_check_sysv_semctl(cred, semakptr, cmd);
-		if (error != 0) {
-			MPRINTF(("mac_check_sysv_semctl returned %d\n",
-			    error));
+		if (error != 0)
 			goto done2;
-		}
 #endif
 		bcopy(&semakptr->u, arg->buf, sizeof(struct semid_ds));
 		*rval = IXSEQ_TO_IPCID(semid, semakptr->u.sem_perm);
@@ -671,10 +663,8 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 	mtx_lock(sema_mtxp);
 #ifdef MAC
 	error = mac_check_sysv_semctl(cred, semakptr, cmd);
-	if (error != 0) {
-		MPRINTF(("mac_check_sysv_semctl returned %d\n", error));
+	if (error != 0)
 		goto done2;
-	}
 #endif
 
 	error = 0;
@@ -926,11 +916,8 @@ semget(td, uap)
 			}
 #ifdef MAC
 			error = mac_check_sysv_semget(cred, &sema[semid]);
-			if (error != 0) {
-				MPRINTF(("mac_check_sysv_semget returned %d\n",
-				    error));
+			if (error != 0)
 				goto done2;
-			}
 #endif
 			goto found;
 		}
@@ -1090,10 +1077,8 @@ semop(td, uap)
 	}
 #ifdef MAC
 	error = mac_check_sysv_semop(td->td_ucred, semakptr, j);
-	if (error != 0) {
-		MPRINTF(("mac_check_sysv_semop returned %d\n", error));
+	if (error != 0)
 		goto done2;
-	}
 #endif
 
 	/*
