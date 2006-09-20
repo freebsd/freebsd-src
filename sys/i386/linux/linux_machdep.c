@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/imgact.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -598,9 +600,20 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		off_t pos;
 	} */ bsd_args;
 	int error;
+	struct file *fp;
 
 	error = 0;
 	bsd_args.flags = 0;
+	fp = NULL;
+
+	/*
+	 * Linux mmap(2):
+	 * You must specify exactly one of MAP_SHARED and MAP_PRIVATE
+	 */
+	if (! ((linux_args->flags & LINUX_MAP_SHARED) ^
+	    (linux_args->flags & LINUX_MAP_PRIVATE)))
+		return EINVAL;
+
 	if (linux_args->flags & LINUX_MAP_SHARED)
 		bsd_args.flags |= MAP_SHARED;
 	if (linux_args->flags & LINUX_MAP_PRIVATE)
@@ -681,11 +694,38 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		bsd_args.len  = linux_args->len;
 	}
 
-	bsd_args.prot = linux_args->prot | PROT_READ;	/* always required */
+	bsd_args.prot = linux_args->prot;
 	if (linux_args->flags & LINUX_MAP_ANON)
 		bsd_args.fd = -1;
-	else
+	else {
+		/*
+		 * Linux follows Solaris mmap(2) description:
+		 * The file descriptor fildes is opened with
+		 * read permission, regardless of the
+		 * protection options specified.
+		 * If PROT_WRITE is specified, the application
+		 * must have opened the file descriptor
+		 * fildes with write permission unless
+		 * MAP_PRIVATE is specified in the flag
+		 * argument as described below.
+		 */
+
+		if ((error = fget(td, linux_args->fd, &fp)) != 0)
+			return error;
+		if (fp->f_type != DTYPE_VNODE) {
+			fdrop(fp, td);
+			return EINVAL;
+		}
+
+		/* Linux mmap() just fails for O_WRONLY files */
+		if (! (fp->f_flag & FREAD)) {
+			fdrop(fp, td);
+			return EACCES;
+		}
+
 		bsd_args.fd = linux_args->fd;
+		fdrop(fp, td);
+	}
 	bsd_args.pos = linux_args->pos;
 	bsd_args.pad = 0;
 
