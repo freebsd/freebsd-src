@@ -84,8 +84,7 @@ kau_open(void)
 	struct au_record *rec;
 
 	rec = malloc(sizeof(*rec), M_AUDITBSM, M_WAITOK);
-	rec->data = malloc(MAX_AUDIT_RECORD_SIZE * sizeof(u_char),
-	    M_AUDITBSM, M_WAITOK | M_ZERO);
+	rec->data = NULL;
 	TAILQ_INIT(&rec->token_q);
 	rec->len = 0;
 	rec->used = 1;
@@ -119,23 +118,22 @@ kau_close(struct au_record *rec, struct timespec *ctime, short event)
 	struct timeval tm;
 
 	tot_rec_size = rec->len + AUDIT_HEADER_SIZE + AUDIT_TRAILER_SIZE;
-	if (tot_rec_size <= MAX_AUDIT_RECORD_SIZE) {
-		/* Create the header token */
-		tm.tv_usec = ctime->tv_nsec / 1000;
-		tm.tv_sec = ctime->tv_sec;
-		hdr = au_to_header32_tm(tot_rec_size, event, 0, tm);
-		TAILQ_INSERT_HEAD(&rec->token_q, hdr, tokens);
+	rec->data = malloc(tot_rec_size, M_AUDITBSM, M_WAITOK | M_ZERO);
+	/* Create the header token */
+	tm.tv_usec = ctime->tv_nsec / 1000;
+	tm.tv_sec = ctime->tv_sec;
+	hdr = au_to_header32_tm(tot_rec_size, event, 0, tm);
+	TAILQ_INSERT_HEAD(&rec->token_q, hdr, tokens);
 
-		trail = au_to_trailer(tot_rec_size);
-		TAILQ_INSERT_TAIL(&rec->token_q, trail, tokens);
+	trail = au_to_trailer(tot_rec_size);
+	TAILQ_INSERT_TAIL(&rec->token_q, trail, tokens);
 
-		/* Serialize token data to the record. */
-		rec->len = tot_rec_size;
-		dptr = rec->data;
-		TAILQ_FOREACH(cur, &rec->token_q, tokens) {
-			memcpy(dptr, cur->t_data, cur->len);
-			dptr += cur->len;
-		}
+	/* Serialize token data to the record. */
+	rec->len = tot_rec_size;
+	dptr = rec->data;
+	TAILQ_FOREACH(cur, &rec->token_q, tokens) {
+		memcpy(dptr, cur->t_data, cur->len);
+		dptr += cur->len;
 	}
 }
 
