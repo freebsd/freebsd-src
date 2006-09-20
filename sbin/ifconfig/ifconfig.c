@@ -733,6 +733,7 @@ setifcap(const char *vname, int value, int s, const struct afswtch *afp)
 		flags &= ~value;
 	} else
 		flags |= value;
+	flags &= ifr.ifr_reqcap;
 	ifr.ifr_reqcap = flags;
 	if (ioctl(s, SIOCSIFCAP, (caddr_t)&ifr) < 0)
 		Perror(vname);
