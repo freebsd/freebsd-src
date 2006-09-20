@@ -1051,7 +1051,7 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	case KDSKBMODE: /* set keyboard mode */
 		KBDMUX_LOCK(state);
 
-		switch ((int)*(intptr_t *)arg) {
+		switch (*(int *)arg) {
 		case K_XLATE:
 			if (state->ks_mode != K_XLATE) {
 				/* make lock key state and LED state match */
@@ -1062,9 +1062,9 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 		case K_RAW:
 		case K_CODE:
-			if (state->ks_mode != (int)*(intptr_t *)arg) {
+			if (state->ks_mode != *(int *)arg) {
 				kbdmux_clear_state_locked(state);
-				state->ks_mode = (int)*(intptr_t *)arg;
+				state->ks_mode = *(int *)arg;
 			}
 			break;
 
@@ -1086,13 +1086,13 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		KBDMUX_LOCK(state);
 
 		/* NOTE: lock key state in ks_state won't be changed */
-		if ((int)*(intptr_t *)arg & ~LOCK_MASK) {
+		if (*(int *)arg & ~LOCK_MASK) {
 			KBDMUX_UNLOCK(state);
 
 			return (EINVAL);
 		}
 
-		KBD_LED_VAL(kbd) = (int)*(intptr_t *)arg;
+		KBD_LED_VAL(kbd) = *(int *)arg;
 
 		/* KDSETLED on all slave keyboards */
 		SLIST_FOREACH(k, &state->ks_kbds, next)
@@ -1110,14 +1110,14 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	case KDSKBSTATE: /* set lock key state */
 		KBDMUX_LOCK(state);
 
-		if ((int)*(intptr_t *)arg & ~LOCK_MASK) {
+		if (*(int *)arg & ~LOCK_MASK) {
 			KBDMUX_UNLOCK(state);
 
 			return (EINVAL);
 		}
 
 		state->ks_state &= ~LOCK_MASK;
-		state->ks_state |= (int)*(intptr_t *)arg;
+		state->ks_state |= *(int *)arg;
 
 		/* KDSKBSTATE on all slave keyboards */
 		SLIST_FOREACH(k, &state->ks_kbds, next)
@@ -1147,7 +1147,7 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 					break;
 			mode |= i;
 		} else
-			mode = (int)*(intptr_t *)arg;
+			mode = *(int *)arg;
 
 		if (mode & ~0x7f) {
 			KBDMUX_UNLOCK(state);
