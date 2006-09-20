@@ -54,12 +54,6 @@ SYSCTL_INT(_security_mac, OID_AUTO, enforce_posix_sem, CTLFLAG_RW,
     &mac_enforce_posix_sem, 0, "Enforce MAC policy on global POSIX semaphores");
 TUNABLE_INT("security.mac.enforce_posix_sem", &mac_enforce_posix_sem);
 
-#ifdef MAC_DEBUG
-static unsigned int nmacposixsems;
-SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, posix_sems, CTLFLAG_RD,
-    &nmacposixsems, 0, "number of posix global semaphores inuse");
-#endif
-
 static struct label *
 mac_posix_sem_label_alloc(void)
 {
@@ -67,7 +61,6 @@ mac_posix_sem_label_alloc(void)
 
 	label = mac_labelzone_alloc(M_WAITOK);
 	MAC_PERFORM(init_posix_sem_label, label);
-	MAC_DEBUG_COUNTER_INC(&nmacposixsems);
 	return (label);
 }
 
@@ -83,7 +76,6 @@ mac_posix_sem_label_free(struct label *label)
 {
 
 	MAC_PERFORM(destroy_posix_sem_label, label);
-	MAC_DEBUG_COUNTER_DEC(&nmacposixsems);
 }
 
 void

@@ -59,14 +59,6 @@ SYSCTL_INT(_security_mac, OID_AUTO, enforce_sysv_msg, CTLFLAG_RW,
     "Enforce MAC policy on System V IPC Message Queues");
 TUNABLE_INT("security.mac.enforce_sysv_msg", &mac_enforce_sysv_msg);
 
-#ifdef MAC_DEBUG
-static unsigned int nmacipcmsgs, nmacipcmsqs;
-SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, ipc_msgs, CTLFLAG_RD,
-    &nmacipcmsgs, 0, "number of sysv ipc messages inuse");
-SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, ipc_msqs, CTLFLAG_RD,
-    &nmacipcmsqs, 0, "number of sysv ipc message queue identifiers inuse");
-#endif
-
 static struct label *
 mac_sysv_msgmsg_label_alloc(void)
 {
@@ -74,7 +66,6 @@ mac_sysv_msgmsg_label_alloc(void)
 
 	label = mac_labelzone_alloc(M_WAITOK);
 	MAC_PERFORM(init_sysv_msgmsg_label, label);
-	MAC_DEBUG_COUNTER_INC(&nmacipcmsgs);
 	return (label);
 }
 
@@ -92,7 +83,6 @@ mac_sysv_msgqueue_label_alloc(void)
 
 	label = mac_labelzone_alloc(M_WAITOK);
 	MAC_PERFORM(init_sysv_msgqueue_label, label);
-	MAC_DEBUG_COUNTER_INC(&nmacipcmsqs);
 	return (label);
 }
 
@@ -109,7 +99,6 @@ mac_sysv_msgmsg_label_free(struct label *label)
 
 	MAC_PERFORM(destroy_sysv_msgmsg_label, label);
 	mac_labelzone_free(label);
-	MAC_DEBUG_COUNTER_DEC(&nmacipcmsgs);
 }
 
 void
@@ -126,7 +115,6 @@ mac_sysv_msgqueue_label_free(struct label *label)
 
 	MAC_PERFORM(destroy_sysv_msgqueue_label, label);
 	mac_labelzone_free(label);
-	MAC_DEBUG_COUNTER_DEC(&nmacipcmsqs);
 }
 
 void
