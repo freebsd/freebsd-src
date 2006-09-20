@@ -612,7 +612,7 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 	 */
 	if (! ((linux_args->flags & LINUX_MAP_SHARED) ^
 	    (linux_args->flags & LINUX_MAP_PRIVATE)))
-		return EINVAL;
+		return (EINVAL);
 
 	if (linux_args->flags & LINUX_MAP_SHARED)
 		bsd_args.flags |= MAP_SHARED;
@@ -711,16 +711,16 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		 */
 
 		if ((error = fget(td, linux_args->fd, &fp)) != 0)
-			return error;
+			return (error);
 		if (fp->f_type != DTYPE_VNODE) {
 			fdrop(fp, td);
-			return EINVAL;
+			return (EINVAL);
 		}
 
 		/* Linux mmap() just fails for O_WRONLY files */
 		if (! (fp->f_flag & FREAD)) {
 			fdrop(fp, td);
-			return EACCES;
+			return (EACCES);
 		}
 
 		bsd_args.fd = linux_args->fd;
