@@ -1047,6 +1047,7 @@ au_to_exec_strings(char *strs, int count, u_char type)
 token_t *
 au_to_exec_args(char *args, int argc)
 {
+
 	return (au_to_exec_strings(args, argc, AUT_EXEC_ARGS));
 }
 
@@ -1058,6 +1059,7 @@ au_to_exec_args(char *args, int argc)
 token_t *
 au_to_exec_env(char *envs, int envc)
 {
+
 	return (au_to_exec_strings(envs, envc, AUT_EXEC_ENV));
 }
 #else
