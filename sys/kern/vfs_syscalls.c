@@ -4313,7 +4313,6 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 		return (error);
 	}
 	vput(vp);
-	sp = NULL;
 	error = prison_canseemount(td->td_ucred, mp);
 	if (error)
 		goto out;
