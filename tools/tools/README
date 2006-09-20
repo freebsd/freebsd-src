@@ -50,6 +50,7 @@ recoverdisk	Copy as much data as possible from a deffective disk.
 scsi-defects	Get at the primary or grown defect list of a SCSI disk.
 sysdoc		Build a manual page with available sysctls for a specific
 		kernel configuration.
+tinybsd		Script to build FreeBSD embedded systems.
 vop_table	Generates a HTML document that shows all the VOP's in
 		the kernel.
 whereintheworld	Summarizes "make world" output.
