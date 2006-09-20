@@ -396,8 +396,8 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	if (audit_pipe_preselect(auid, event, class, sorf,
 	    ar->k_ar_commit & AR_PRESELECT_TRAIL) != 0)
 		ar->k_ar_commit |= AR_PRESELECT_PIPE;
-	if ((ar->k_ar_commit & (AR_PRESELECT_TRAIL | AR_PRESELECT_PIPE)) ==
-	    0) {
+	if ((ar->k_ar_commit & (AR_PRESELECT_TRAIL | AR_PRESELECT_PIPE |
+	    AR_PRESELECT_USER_TRAIL | AR_PRESELECT_USER_PIPE)) == 0) {
 		mtx_lock(&audit_mtx);
 		audit_pre_q_len--;
 		mtx_unlock(&audit_mtx);
