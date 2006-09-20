@@ -106,11 +106,6 @@ pccard_ether_stop()
 
 	# clean ARP table
 	ifexists $ifn && arp -d -i $ifn -a
-
-	# Clean the routing table
-	if checkyesno removable_route_flush; then
-		route -n flush -inet > /dev/null
-	fi
 }
 
 pccard_ether_restart()
