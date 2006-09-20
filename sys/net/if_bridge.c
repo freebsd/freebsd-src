@@ -2579,34 +2579,6 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 		}
 	}
 
-	/*
-	 * If we're trying to filter bridge traffic, don't look at anything
-	 * other than IP and ARP traffic.  If the filter doesn't understand
-	 * IPv6, don't allow IPv6 through the bridge either.  This is lame
-	 * since if we really wanted, say, an AppleTalk filter, we are hosed,
-	 * but of course we don't have an AppleTalk filter to begin with.
-	 * (Note that since pfil doesn't understand ARP it will pass *ALL*
-	 * ARP traffic.)
-	 */
-	switch (ether_type) {
-		case ETHERTYPE_ARP:
-		case ETHERTYPE_REVARP:
-			return (0); /* Automatically pass */
-		case ETHERTYPE_IP:
-#ifdef INET6
-		case ETHERTYPE_IPV6:
-#endif /* INET6 */
-			break;
-		default:
-			/*
-			 * Check to see if the user wants to pass non-ip
-			 * packets, these will not be checked by pfil(9) and
-			 * passed unconditionally so the default is to drop.
-			 */
-			if (pfil_onlyip)
-				goto bad;
-	}
-
 	/* Strip off the Ethernet header and keep a copy. */
 	m_copydata(*mp, 0, ETHER_HDR_LEN, (caddr_t) &eh2);
 	m_adj(*mp, ETHER_HDR_LEN);
@@ -2679,9 +2651,14 @@ ipfwpass:
 	error = 0;
 
 	/*
-	 * Run the packet through pfil
+	 * Run the packet through pfil. Note that since pfil doesn't understand
+	 * ARP it will pass all ARP traffic.
 	 */
 	switch (ether_type) {
+	case ETHERTYPE_ARP:
+	case ETHERTYPE_REVARP:
+		return (0); /* Automatically pass */
+
 	case ETHERTYPE_IP:
 		/*
 		 * before calling the firewall, swap fields the same as
@@ -2773,7 +2750,14 @@ ipfwpass:
 		break;
 #endif
 	default:
-		error = 0;
+		/*
+		 * Check to see if the user wants to pass non-ip
+		 * packets.
+		 */
+		if (pfil_onlyip) {
+			error = -1;
+			goto bad;
+		}
 		break;
 	}
 
