@@ -3,7 +3,7 @@
 .include "../Makefile.inc"
 .include "../Makefile.fe"
 
-.PATH: ${GCCDIR}
+.PATH: ${GCCDIR} ${GCCDIR}/doc
 
 PROG=	cc
 MAN=	gcc.1
