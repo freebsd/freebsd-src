@@ -11,7 +11,7 @@ BINMODE= 6555
 
 SRCS=   authpf.c
 
-CFLAGS+= -I${.CURDIR}/../../contrib/pf/pfctl -Wall -Werror
+CFLAGS+= -I${.CURDIR}/../../contrib/pf/pfctl
 
 # XXX ALTQ:
 CFLAGS+= -DENABLE_ALTQ
