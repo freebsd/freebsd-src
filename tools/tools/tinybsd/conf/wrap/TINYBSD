@@ -35,17 +35,12 @@ options 	ADAPTIVE_GIANT		# Giant mutex is adaptive.
 
 #device		apic			# I/O APIC
 
-# Bus support.  Do not remove isa, even if you have no isa slots
-device		isa
 device		pci
 
 # ATA and ATAPI devices
 device		ata
 device		atadisk		# ATA disk drives
 options 	ATA_STATIC_ID	# Static device numbering
-
-# Floating point support - do not disable.
-device		npx
 
 # Serial (COM) ports
 device		sio		# 8250, 16[45]50 based serial ports
@@ -89,7 +84,6 @@ device		ex		# Intel EtherExpress Pro/10 and Pro/10+
 device		ep		# Etherlink III based cards
 device		fe		# Fujitsu MB8696x based cards
 device		ie		# EtherExpress 8/16, 3C507, StarLAN 10 etc.
-device		lnc		# NE2100, NE32-VL Lance Ethernet cards
 device		sn		# SMC's 9000 series of Ethernet chips
 device		xe		# Xircom pccard Ethernet
 
@@ -109,8 +103,6 @@ device 		ath_rate_sample
 
 # Pseudo devices.
 device		loop		# Network loopback
-device		mem		# Memory and kernel memory devices
-device		io		# I/O device
 device		random		# Entropy device
 device		ether		# Ethernet support
 device		ppp		# Kernel PPP
@@ -131,7 +123,6 @@ options         IPFIREWALL
 options         IPFIREWALL_DEFAULT_TO_ACCEPT
 options         IPDIVERT
 options         DUMMYNET
-options         BRIDGE
 
 options         ALTQ
 options         ALTQ_CBQ
@@ -145,5 +136,6 @@ device          pf
 device          pflog
 device          pfsync
 device          carp
+device		if_bridge
 
 options         DEVICE_POLLING

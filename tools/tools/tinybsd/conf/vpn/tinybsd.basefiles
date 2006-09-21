@@ -84,6 +84,7 @@ sbin/nos-tun
 sbin/ping
 sbin/rcorder
 sbin/route
+sbin/setkey
 sbin/shutdown
 sbin/slattach
 sbin/swapon
@@ -204,7 +205,6 @@ usr/sbin/ntpdate
 usr/sbin/pciconf
 usr/sbin/pw
 usr/sbin/pwd_mkdb
-usr/sbin/setkey
 usr/sbin/slstat
 usr/sbin/sshd
 usr/sbin/syslogd
