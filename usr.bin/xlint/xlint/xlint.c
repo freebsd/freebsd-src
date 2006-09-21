@@ -402,7 +402,8 @@ main(int argc, char *argv[])
 			break;
 
 		case 'p':
-			appcstrg(&lcflags, "-Wtraditional -Wno-system-headers");
+			appcstrg(&lcflags, "-Wtraditional");
+			appcstrg(&lcflags, "-Wno-system-headers");
 			appcstrg(&l1flags, "-p");
 			appcstrg(&l2flags, "-p");
 			if (*deflibs != NULL) {
