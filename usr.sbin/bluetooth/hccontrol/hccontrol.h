@@ -59,21 +59,21 @@ int                hci_simple_request  (int, int, char *, int *);
 int                hci_send            (int, char const *, int);
 int                hci_recv            (int, char *, int *);
 
-char const * const hci_link2str        (int);
-char const * const hci_pin2str         (int);
-char const * const hci_scan2str        (int);
-char const * const hci_encrypt2str     (int, int);
-char const * const hci_coding2str      (int);
-char const * const hci_vdata2str       (int);
-char const * const hci_hmode2str       (int, char *, int);
-char const * const hci_ver2str         (int);
-char const * const hci_lmpver2str      (int);
-char const * const hci_manufacturer2str(int);
-char const * const hci_features2str    (uint8_t *, char *, int);
-char const * const hci_cc2str          (int);
-char const * const hci_con_state2str   (int);
-char const * const hci_status2str      (int);
-char const * const hci_bdaddr2str      (bdaddr_t const *);
+char const *	hci_link2str        (int);
+char const *	hci_pin2str         (int);
+char const *	hci_scan2str        (int);
+char const *	hci_encrypt2str     (int, int);
+char const *	hci_coding2str      (int);
+char const *	hci_vdata2str       (int);
+char const *	hci_hmode2str       (int, char *, int);
+char const *	hci_ver2str         (int);
+char const *	hci_lmpver2str      (int);
+char const *	hci_manufacturer2str(int);
+char const *	hci_features2str    (uint8_t *, char *, int);
+char const *	hci_cc2str          (int);
+char const *	hci_con_state2str   (int);
+char const *	hci_status2str      (int);
+char const *	hci_bdaddr2str      (bdaddr_t const *);
 
 #endif /* _HCCONTROL_H_ */
 
