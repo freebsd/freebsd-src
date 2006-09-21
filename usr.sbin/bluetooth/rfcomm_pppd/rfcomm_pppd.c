@@ -301,8 +301,8 @@ main(int argc, char *argv[])
 		}
 		
 		for (done = 0; !done; ) {
-			int	len = sizeof(sock_addr);
-			int	s1 = accept(s, (struct sockaddr *) &sock_addr, &len);
+			socklen_t	len = sizeof(sock_addr);
+			int		s1 = accept(s, (struct sockaddr *) &sock_addr, &len);
 
 			if (s1 < 0) {
 				syslog(LOG_ERR, "Could not accept connection " \

@@ -119,7 +119,8 @@ client_connect(bthid_server_p srv, int32_t fd)
 {
 	bthid_session_p	s;
 	hid_device_p	d;
-	int32_t		error, len;
+	int32_t		error;
+	socklen_t	len;
 
 	assert(srv != NULL);
 	assert(fd >= 0);
