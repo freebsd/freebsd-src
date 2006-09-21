@@ -2749,32 +2749,12 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* thr_setscheduler */
+	/* rtprio_thread */
 	case 466: {
-		struct thr_setscheduler_args *p = params;
-		iarg[0] = p->id; /* long */
-		iarg[1] = p->policy; /* int */
-		uarg[2] = (intptr_t) p->param; /* const struct sched_param * */
-		iarg[3] = p->param_size; /* int */
-		*n_args = 4;
-		break;
-	}
-	/* thr_getscheduler */
-	case 467: {
-		struct thr_getscheduler_args *p = params;
-		iarg[0] = p->id; /* long */
-		uarg[1] = (intptr_t) p->policy; /* int * */
-		uarg[2] = (intptr_t) p->param; /* struct sched_param * */
-		iarg[3] = p->param_size; /* int */
-		*n_args = 4;
-		break;
-	}
-	/* thr_setschedparam */
-	case 468: {
-		struct thr_setschedparam_args *p = params;
-		iarg[0] = p->id; /* long */
-		uarg[1] = (intptr_t) p->param; /* const struct sched_param * */
-		iarg[2] = p->param_size; /* int */
+		struct rtprio_thread_args *p = params;
+		iarg[0] = p->function; /* int */
+		iarg[1] = p->lwpid; /* lwpid_t */
+		uarg[2] = (intptr_t) p->rtp; /* struct rtprio * */
 		*n_args = 3;
 		break;
 	}

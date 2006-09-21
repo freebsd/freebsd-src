@@ -389,7 +389,5 @@
 #define	SYS_abort2	463
 #define	SYS_thr_set_name	464
 #define	SYS_aio_fsync	465
-#define	SYS_thr_setscheduler	466
-#define	SYS_thr_getscheduler	467
-#define	SYS_thr_setschedparam	468
+#define	SYS_rtprio_thread	466
 #define	SYS_MAXSYSCALL	471

@@ -1446,22 +1446,10 @@ struct aio_fsync_args {
 	char op_l_[PADL_(int)]; int op; char op_r_[PADR_(int)];
 	char aiocbp_l_[PADL_(struct aiocb *)]; struct aiocb * aiocbp; char aiocbp_r_[PADR_(struct aiocb *)];
 };
-struct thr_setscheduler_args {
-	char id_l_[PADL_(long)]; long id; char id_r_[PADR_(long)];
-	char policy_l_[PADL_(int)]; int policy; char policy_r_[PADR_(int)];
-	char param_l_[PADL_(const struct sched_param *)]; const struct sched_param * param; char param_r_[PADR_(const struct sched_param *)];
-	char param_size_l_[PADL_(int)]; int param_size; char param_size_r_[PADR_(int)];
-};
-struct thr_getscheduler_args {
-	char id_l_[PADL_(long)]; long id; char id_r_[PADR_(long)];
-	char policy_l_[PADL_(int *)]; int * policy; char policy_r_[PADR_(int *)];
-	char param_l_[PADL_(struct sched_param *)]; struct sched_param * param; char param_r_[PADR_(struct sched_param *)];
-	char param_size_l_[PADL_(int)]; int param_size; char param_size_r_[PADR_(int)];
-};
-struct thr_setschedparam_args {
-	char id_l_[PADL_(long)]; long id; char id_r_[PADR_(long)];
-	char param_l_[PADL_(const struct sched_param *)]; const struct sched_param * param; char param_r_[PADR_(const struct sched_param *)];
-	char param_size_l_[PADL_(int)]; int param_size; char param_size_r_[PADR_(int)];
+struct rtprio_thread_args {
+	char function_l_[PADL_(int)]; int function; char function_r_[PADR_(int)];
+	char lwpid_l_[PADL_(lwpid_t)]; lwpid_t lwpid; char lwpid_r_[PADR_(lwpid_t)];
+	char rtp_l_[PADL_(struct rtprio *)]; struct rtprio * rtp; char rtp_r_[PADR_(struct rtprio *)];
 };
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_exit(struct thread *, struct sys_exit_args *);
@@ -1790,9 +1778,7 @@ int	kmq_unlink(struct thread *, struct kmq_unlink_args *);
 int	abort2(struct thread *, struct abort2_args *);
 int	thr_set_name(struct thread *, struct thr_set_name_args *);
 int	aio_fsync(struct thread *, struct aio_fsync_args *);
-int	thr_setscheduler(struct thread *, struct thr_setscheduler_args *);
-int	thr_getscheduler(struct thread *, struct thr_getscheduler_args *);
-int	thr_setschedparam(struct thread *, struct thr_setschedparam_args *);
+int	rtprio_thread(struct thread *, struct rtprio_thread_args *);
 
 #ifdef COMPAT_43
 
@@ -2339,9 +2325,7 @@ int	freebsd4_sigreturn(struct thread *, struct freebsd4_sigreturn_args *);
 #define	SYS_AUE_abort2	AUE_NULL
 #define	SYS_AUE_thr_set_name	AUE_NULL
 #define	SYS_AUE_aio_fsync	AUE_NULL
-#define	SYS_AUE_thr_setscheduler	AUE_NULL
-#define	SYS_AUE_thr_getscheduler	AUE_NULL
-#define	SYS_AUE_thr_setschedparam	AUE_NULL
+#define	SYS_AUE_rtprio_thread	AUE_RTPRIO
 
 #undef PAD_
 #undef PADL_

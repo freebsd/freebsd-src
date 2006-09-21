@@ -495,9 +495,9 @@ struct sysent sysent[] = {
 	{ AS(abort2_args), (sy_call_t *)abort2, AUE_NULL, NULL, 0, 0 },	/* 463 = abort2 */
 	{ AS(thr_set_name_args), (sy_call_t *)thr_set_name, AUE_NULL, NULL, 0, 0 },	/* 464 = thr_set_name */
 	{ AS(aio_fsync_args), (sy_call_t *)lkmressys, AUE_NULL, NULL, 0, 0 },	/* 465 = aio_fsync */
-	{ AS(thr_setscheduler_args), (sy_call_t *)thr_setscheduler, AUE_NULL, NULL, 0, 0 },	/* 466 = thr_setscheduler */
-	{ AS(thr_getscheduler_args), (sy_call_t *)thr_getscheduler, AUE_NULL, NULL, 0, 0 },	/* 467 = thr_getscheduler */
-	{ AS(thr_setschedparam_args), (sy_call_t *)thr_setschedparam, AUE_NULL, NULL, 0, 0 },	/* 468 = thr_setschedparam */
+	{ AS(rtprio_thread_args), (sy_call_t *)rtprio_thread, AUE_RTPRIO, NULL, 0, 0 },	/* 466 = rtprio_thread */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0 },			/* 467 = nosys */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0 },			/* 468 = nosys */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0 },			/* 469 = __getpath_fromfd */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0 },			/* 470 = __getpath_fromaddr */
 };
