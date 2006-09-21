@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004 Apple Computer, Inc.
+ * Copyright (c) 2006 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_control.c#13 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_control.c#15 $
  */
 
 #include <bsm/libbsm.h>
@@ -37,9 +38,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <config/config.h>
+#ifndef HAVE_STRLCAT
+#include <compat/strlcat.h>
+#endif
+
 /*
  * Parse the contents of the audit_control file to return the audit control
- * parameters.
+ * parameters.  These static fields are protected by 'mutex'.
  */
 static FILE	*fp = NULL;
 static char	linestr[AU_LINE_MAX];
@@ -98,21 +104,223 @@ getstrfromtype_locked(char *name, char **str)
 }
 
 /*
+ * Convert a policy to a string.  Return -1 on failure, or >= 0 representing
+ * the actual size of the string placed in the buffer (excluding terminating
+ * nul).
+ */
+ssize_t
+au_poltostr(long policy, size_t maxsize, char *buf)
+{
+	int first;
+
+	if (maxsize < 1)
+		return (-1);
+	first = 1;
+	buf[0] = '\0';
+
+	if (policy & AUDIT_CNT) {
+		if (strlcat(buf, "cnt", maxsize) >= maxsize)
+			return (-1);
+		first = 0;
+	}
+	if (policy & AUDIT_AHLT) {
+		if (!first) {
+			if (strlcat(buf, ",", maxsize) >= maxsize)
+				return (-1);
+		}
+		if (strlcat(buf, "ahlt", maxsize) >= maxsize)
+			return (-1);
+		first = 0;
+	}
+	if (policy & AUDIT_ARGV) {
+		if (!first) {
+			if (strlcat(buf, ",", maxsize) >= maxsize)
+				return (-1);
+		}
+		if (strlcat(buf, "argv", maxsize) >= maxsize)
+			return (-1);
+		first = 0;
+	}
+	if (policy & AUDIT_ARGE) {
+		if (!first) {
+			if (strlcat(buf, ",", maxsize) >= maxsize)
+				return (-1);
+		}
+		if (strlcat(buf, "arge", maxsize) >= maxsize)
+			return (-1);
+		first = 0;
+	}
+	if (policy & AUDIT_SEQ) {
+		if (!first) {
+			if (strlcat(buf, ",", maxsize) >= maxsize)
+				return (-1);
+		}
+		if (strlcat(buf, "seq", maxsize) >= maxsize)
+			return (-1);
+		first = 0;
+	}
+	if (policy & AUDIT_WINDATA) {
+		if (!first) {
+			if (strlcat(buf, ",", maxsize) >= maxsize)
+				return (-1);
+		}
+		if (strlcat(buf, "windata", maxsize) >= maxsize)
+			return (-1);
+		first = 0;
+	}
+	if (policy & AUDIT_USER) {
+		if (!first) {
+			if (strlcat(buf, ",", maxsize) >= maxsize)
+				return (-1);
+		}
+		if (strlcat(buf, "user", maxsize) >= maxsize)
+			return (-1);
+		first = 0;
+	}
+	if (policy & AUDIT_GROUP) {
+		if (!first) {
+			if (strlcat(buf, ",", maxsize) >= maxsize)
+				return (-1);
+		}
+		if (strlcat(buf, "group", maxsize) >= maxsize)
+			return (-1);
+		first = 0;
+	}
+	if (policy & AUDIT_TRAIL) {
+		if (!first) {
+			if (strlcat(buf, ",", maxsize) >= maxsize)
+				return (-1);
+		}
+		if (strlcat(buf, "trail", maxsize) >= maxsize)
+			return (-1);
+		first = 0;
+	}
+	if (policy & AUDIT_PATH) {
+		if (!first) {
+			if (strlcat(buf, ",", maxsize) >= maxsize)
+				return (-1);
+		}
+		if (strlcat(buf, "path", maxsize) >= maxsize)
+			return (-1);
+		first = 0;
+	}
+	if (policy & AUDIT_SCNT) {
+		if (!first) {
+			if (strlcat(buf, ",", maxsize) >= maxsize)
+				return (-1);
+		}
+		if (strlcat(buf, "scnt", maxsize) >= maxsize)
+			return (-1);
+		first = 0;
+	}
+	if (policy & AUDIT_PUBLIC) {
+		if (!first) {
+			if (strlcat(buf, ",", maxsize) >= maxsize)
+				return (-1);
+		}
+		if (strlcat(buf, "public", maxsize) >= maxsize)
+			return (-1);
+		first = 0;
+	}
+	if (policy & AUDIT_ZONENAME) {
+		if (!first) {
+			if (strlcat(buf, ",", maxsize) >= maxsize)
+				return (-1);
+		}
+		if (strlcat(buf, "zonename", maxsize) >= maxsize)
+			return (-1);
+		first = 0;
+	}
+	if (policy & AUDIT_PERZONE) {
+		if (!first) {
+			if (strlcat(buf, ",", maxsize) >= maxsize)
+				return (-1);
+		}
+		if (strlcat(buf, "perzone", maxsize) >= maxsize)
+			return (-1);
+		first = 0;
+	}
+	return (strlen(buf));
+}
+
+/*
+ * Convert a string to a policy.  Return -1 on failure (with errno EINVAL,
+ * ENOMEM) or 0 on success.
+ */
+int
+au_strtopol(const char *polstr, long *policy)
+{
+	char *bufp, *string;
+	char *buffer;
+
+	*policy = 0;
+	buffer = strdup(polstr);
+	if (buffer == NULL)
+		return (-1);
+
+	bufp = buffer;
+	while ((string = strsep(&bufp, ",")) != NULL) {
+		if (strcmp(string, "cnt") == 0)
+			*policy |= AUDIT_CNT;
+		else if (strcmp(string, "ahlt") == 0)
+			*policy |= AUDIT_AHLT;
+		else if (strcmp(string, "argv") == 0)
+			*policy |= AUDIT_ARGV;
+		else if (strcmp(string, "arge") == 0)
+			*policy |= AUDIT_ARGE;
+		else if (strcmp(string, "seq") == 0)
+			*policy |= AUDIT_SEQ;
+		else if (strcmp(string, "winau_fstat") == 0)
+			*policy |= AUDIT_WINDATA;
+		else if (strcmp(string, "user") == 0)
+			*policy |= AUDIT_USER;
+		else if (strcmp(string, "group") == 0)
+			*policy |= AUDIT_GROUP;
+		else if (strcmp(string, "trail") == 0)
+			*policy |= AUDIT_TRAIL;
+		else if (strcmp(string, "path") == 0)
+			*policy |= AUDIT_PATH;
+		else if (strcmp(string, "scnt") == 0)
+			*policy |= AUDIT_SCNT;
+		else if (strcmp(string, "public") == 0)
+			*policy |= AUDIT_PUBLIC;
+		else if (strcmp(string, "zonename") == 0)
+			*policy |= AUDIT_ZONENAME;
+		else if (strcmp(string, "perzone") == 0)
+			*policy |= AUDIT_PERZONE;
+		else {
+			free(buffer);
+			errno = EINVAL;
+			return (-1);
+		}
+	}
+	free(buffer);
+	return (0);
+}
+
+/*
  * Rewind the file pointer to beginning.
  */
+static void
+setac_locked(void)
+{
+
+	ptrmoved = 1;
+	if (fp != NULL)
+		fseek(fp, 0, SEEK_SET);
+}
+
 void
 setac(void)
 {
 
 	pthread_mutex_lock(&mutex);
-	ptrmoved = 1;
-	if (fp != NULL)
-		fseek(fp, 0, SEEK_SET);
+	setac_locked();
 	pthread_mutex_unlock(&mutex);
 }
 
 /*
- * Close the audit_control file
+ * Close the audit_control file.
  */
 void
 endac(void)
@@ -136,72 +344,54 @@ getacdir(char *name, int len)
 	char *dir;
 	int ret = 0;
 
-	if (name == NULL) {
-		errno = EINVAL;
-		return (-2);
-	}
-
-	pthread_mutex_lock(&mutex);
-
 	/*
-	 * Check if another function was called between
-	 * successive calls to getacdir
+	 * Check if another function was called between successive calls to
+	 * getacdir.
 	 */
+	pthread_mutex_lock(&mutex);
 	if (inacdir && ptrmoved) {
 		ptrmoved = 0;
 		if (fp != NULL)
 			fseek(fp, 0, SEEK_SET);
 		ret = 2;
 	}
-
-
 	if (getstrfromtype_locked(DIR_CONTROL_ENTRY, &dir) < 0) {
 		pthread_mutex_unlock(&mutex);
 		return (-2);
 	}
-
-	pthread_mutex_unlock(&mutex);
-
-	if (dir == NULL)
+	if (dir == NULL) {
+		pthread_mutex_unlock(&mutex);
 		return (-1);
-
-	if (strlen(dir) >= len)
+	}
+	if (strlen(dir) >= len) {
+		pthread_mutex_unlock(&mutex);
 		return (-3);
-
+	}
 	strcpy(name, dir);
-
+	pthread_mutex_unlock(&mutex);
 	return (ret);
 }
 
 /*
- * Return the minimum free diskspace value from the audit control file
+ * Return the minimum free diskspace value from the audit control file.
  */
 int
 getacmin(int *min_val)
 {
 	char *min;
 
-	setac();
-
-	if (min_val == NULL) {
-		errno = EINVAL;
-		return (-2);
-	}
-
 	pthread_mutex_lock(&mutex);
-
+	setac_locked();
 	if (getstrfromtype_locked(MINFREE_CONTROL_ENTRY, &min) < 0) {
 		pthread_mutex_unlock(&mutex);
 		return (-2);
 	}
-
-	pthread_mutex_unlock(&mutex);
-
-	if (min == NULL)
+	if (min == NULL) {
+		pthread_mutex_unlock(&mutex);
 		return (1);
-
+	}
 	*min_val = atoi(min);
-
+	pthread_mutex_unlock(&mutex);
 	return (0);
 }
 
@@ -213,30 +403,22 @@ getacflg(char *auditstr, int len)
 {
 	char *str;
 
-	setac();
-
-	if (auditstr == NULL) {
-		errno = EINVAL;
-		return (-2);
-	}
-
 	pthread_mutex_lock(&mutex);
-
+	setac_locked();
 	if (getstrfromtype_locked(FLAGS_CONTROL_ENTRY, &str) < 0) {
 		pthread_mutex_unlock(&mutex);
 		return (-2);
 	}
-
-	pthread_mutex_unlock(&mutex);
-
-	if (str == NULL)
+	if (str == NULL) {
+		pthread_mutex_unlock(&mutex);
 		return (1);
-
-	if (strlen(str) >= len)
+	}
+	if (strlen(str) >= len) {
+		pthread_mutex_unlock(&mutex);
 		return (-3);
-
+	}
 	strcpy(auditstr, str);
-
+	pthread_mutex_unlock(&mutex);
 	return (0);
 }
 
@@ -248,28 +430,47 @@ getacna(char *auditstr, int len)
 {
 	char *str;
 
-	setac();
-
-	if (auditstr == NULL) {
-		errno = EINVAL;
-		return (-2);
-	}
-
 	pthread_mutex_lock(&mutex);
-
+	setac_locked();
 	if (getstrfromtype_locked(NA_CONTROL_ENTRY, &str) < 0) {
 		pthread_mutex_unlock(&mutex);
 		return (-2);
 	}
-	pthread_mutex_unlock(&mutex);
-
-	if (str == NULL)
+	if (str == NULL) {
+		pthread_mutex_unlock(&mutex);
 		return (1);
-
-	if (strlen(str) >= len)
+	}
+	if (strlen(str) >= len) {
+		pthread_mutex_unlock(&mutex);
 		return (-3);
-
+	}
 	strcpy(auditstr, str);
+	return (0);
+}
 
+/*
+ * Return the policy field from the audit control file.
+ */
+int
+getacpol(char *auditstr, size_t len)
+{
+	char *str;
+
+	pthread_mutex_lock(&mutex);
+	setac_locked();
+	if (getstrfromtype_locked(POLICY_CONTROL_ENTRY, &str) < 0) {
+		pthread_mutex_unlock(&mutex);
+		return (-2);
+	}
+	if (str == NULL) {
+		pthread_mutex_unlock(&mutex);
+		return (-1);
+	}
+	if (strlen(str) >= len) {
+		pthread_mutex_unlock(&mutex);
+		return (-3);
+	}
+	strcpy(auditstr, str);
+	pthread_mutex_unlock(&mutex);
 	return (0);
 }

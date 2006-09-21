@@ -25,7 +25,7 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_control.5#9 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_control.5#11 $
 .\"
 .Dd January 4, 2006
 .Dt AUDIT_CONTROL 5
@@ -63,6 +63,9 @@ an action cannot be attributed to a specific user.
 The minimum free space required on the file system audit logs are being written to.
 When the free space falls below this limit a warning will be issued.
 Not currently used as the value of 20 percent is chosen by the kernel.
+.It Va policy
+A list of global audit policy flags specifying various behaviors, such as
+fail stop, auditing of paths and arguments, etc.
 .El
 .Sh AUDIT FLAGS
 Audit flags are a comma-delimited list of audit classes as defined in the
@@ -86,6 +89,53 @@ Do not record successful events
 .It ^-
 Do not record failed events
 .El
+.Sh AUDIT POLICY FLAGS
+The policy flags field is a comma-delimited list of policy flags from the
+following list:
+.Pp
+.Bl -tag -width zonename -compact -offset indent
+.It cnt
+Allow processes to continue running even though events are not being audited.
+If not set, processes will be suspended when the audit store space is
+exhausted.
+Currently, this is not a recoverable state.
+.It ahlt
+Fail stop the system if unable to audit an event--this consists of first
+draining pending records to disk, and then halting the operating system.
+.It argv
+Audit command line arguments to
+.Xr execve 2 .
+.It arge
+Audit environmental variable arguments to
+.Xr execve 2 .
+.It seq
+Include a unique audit sequence number token in generated audit records (not
+implemented on FreeBSD or Darwin).
+.It group
+Include supplementary groups list in generated audit records (not implemented
+on FreeBSD or Darwin; supplementary groups are never included in records on
+these systems).
+.It trail
+Append a trailer token to each audit record (not implemented on FreeBSD or
+Darwin; trailers are always included in records on these systems).
+.It path
+Include secondary file paths in audit records (not implemented on FreeBSD or
+Darwin; secondary paths are never included in records on these systems).
+.It zonename
+Include a zone ID token with each audit record (not implemented on FreeBSD or
+Darwin; FreeBSD audit records do not currently include the jail ID or name.)
+.It perzone
+Enable auditing for each local zone (not implemented on FreeBSD or Darwin; on
+FreeBSD, audit records are collected from all jails and placed in a single
+global trail, and only limited audit controls are permitted within a jail.)
+.El
+.Pp
+It is recommended that installations set the
+.Dv cnt
+flag but not
+.Dv ahlt
+flag unless it is intended that audit logs exceeding available disk space
+halt the system.
 .Sh DEFAULT
 The following settings appear in the default
 .Nm
@@ -95,12 +145,18 @@ dir:/var/audit
 flags:lo
 minfree:20
 naflags:lo
+policy:cnt
 .Ed
 .Pp
 The
 .Va flags
 parameter above specifies the system-wide mask corresponding to login/logout
 events.
+The
+.Va policy
+parameter specifies that the system should neither fail stop nor suspend
+processes when the audit store fills.
+will be audited.
 .Sh FILES
 .Bl -tag -width "/etc/security/audit_control" -compact
 .It Pa /etc/security/audit_control
