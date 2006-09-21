@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.c#6 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.c#7 $
  */
 /*
  * Program to trigger the audit daemon with a message that is either:
@@ -75,7 +75,7 @@ main(int argc, char **argv)
 		switch(ch) {
 
 		case 'n':
-			trigger = AUDIT_TRIGGER_OPEN_NEW;
+			trigger = AUDIT_TRIGGER_ROTATE_USER;
 			break;
 
 		case 's':

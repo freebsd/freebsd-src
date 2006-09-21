@@ -30,7 +30,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#51 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#52 $
  */
 
 #include <sys/types.h>
@@ -71,7 +71,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/socketvar.h>
 
 #include <bsm/audit_internal.h>
 #include <bsm/libbsm.h>
