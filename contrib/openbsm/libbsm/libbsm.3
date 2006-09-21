@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/libbsm.3#5 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/libbsm.3#7 $
 .\"
 .Dd April 19, 2005
 .Dt LIBBSM 3
@@ -55,15 +55,18 @@ These are described respectively in the
 .Xr au_notify 3 ,
 .Xr au_stream 3 ,
 .Xr au_token 3 ,
+and
 .Xr au_user 3
-man pages.
+manual pages.
 .Ss Audit Event Stream Interfaces
 Audit event stream interfaces support interaction with file-backed audit
 event streams:
-.Xr au_close 3 .
+.Xr au_close 3 ,
+.Xr au_close_buffer 3 ,
 .Xr au_free_token 3 ,
 .Xr au_open 3 ,
 .Xr au_write 3 ,
+.Xr audit_submit 3 .
 .Ss Audit Class Interfaces
 Audit class interfaces support the look up of information from the
 .Xr audit_class 5
@@ -83,7 +86,10 @@ database:
 .Xr getacdir 3 ,
 .Xr getacflg 3 ,
 .Xr getacmin 3 ,
-.Xr getacna 3 .
+.Xr getacna 3 ,
+.Xr getacpol 3 ,
+.Xr au_poltostr 3 ,
+.Xr au_strtopol 3 .
 .Ss Audit Event Interfaces
 Audit event interfaces support the look up of information from the
 .Xr audit_event 5
@@ -188,6 +194,7 @@ database:
 .Xr au_stream 3 ,
 .Xr au_token 3 ,
 .Xr au_user 3 ,
+.Xr audit_submit 3 ,
 .Xr audit_class 5 ,
 .Xr audit_control 5
 .Sh AUTHORS

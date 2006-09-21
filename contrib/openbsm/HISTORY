@@ -1,3 +1,37 @@
+OpenBSM 1.0 alpha 11
+
+- Reclassify certain read/write operations as having no class rather than the
+  fr/fw class; our default classes audit intent (open) not operations (read,
+  write).
+- Introduce AUE_SYSCTL_WRITE event so that BSD/Darwin systems can audit reads
+  and writes of sysctls as separate events.  Add additional kernel
+  environment and jail events for FreeBSD.
+- Break AUDIT_TRIGGER_OPEN_NEW into two events, AUDIT_TRIGGER_ROTATE_USER
+  (issued by the user audit(8) tool) and AUDIT_TRIGGER_ROTATE_KERNEL (issued
+  by the kernel audit implementation) so that they can be distinguished.
+- Disable rate limiting of rotate requests; as the kernel doesn't retransmit
+  a dropped request, the log file will otherwise grow indefinitely if the
+  trigger is dropped.
+- Improve auditd debugging output.
+- Fix a number of threading related bugs in audit_control file reading
+  routines.
+- Add APIs au_poltostr() and au_strtopol() to convert between text
+  representations of audit_control policy flags and the flags passed to
+  auditon(A_SETPOLICY) and retrieved from auditon(A_GETPOLICY).
+- Add API getacpol() to return the 'policy:' entry from audit_control, an
+  extension to the Solaris file format to allow specification of policy
+  persistent flags.
+- Update audump to print the audit_control policy field.
+- Update auditd to read the audit_control policy field and set the kernel
+  policy to match it when configuring/reconfiguring.  Remove the -s and -h
+  arguments as these policies are now set via the configuration file.  If a
+  policy line is not found in the configuration file, continue with the
+  current default of setting AUDIT_CNT.
+- Fix bugs in the parsing of large execve(2) arguments and environmental
+  variable tokens; increase maximum parsed argument and variable count.
+- configure now detects strlcat(), used by policy-related functions.
+- Reference token and record sample files added to test tree.
+
 OpenBSM 1.0 alpha 10
 
 - auditd now generates complete audit records for its events, as required for
@@ -209,4 +243,4 @@ OpenBSM 1.0 alpha 1
   to support reloading of kernel event table.
 - Allow comments in /etc/security configuration files.
 
-$P4: //depot/projects/trustedbsd/openbsm/HISTORY#26 $
+$P4: //depot/projects/trustedbsd/openbsm/HISTORY#33 $

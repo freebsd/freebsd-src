@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_control.3#3 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_control.3#4 $
 .\"
 .Dd April 19, 2005
 .Dt AU_CONTROL 3
@@ -34,7 +34,10 @@
 .Nm getacdir ,
 .Nm getacmin ,
 .Nm getacflg ,
-.Nm getacna
+.Nm getacna ,
+.Nm getacpol ,
+.Nm au_poltostr
+.Nm au_strtopol
 .Nd "Look up information from the audit_control database"
 .Sh LIBRARY
 .Lb libbsm
@@ -52,6 +55,12 @@
 .Fn getacflg "char *auditstr" "int len"
 .Ft int
 .Fn getacna "char *auditstr" "int len"
+.Ft int
+.Fn getacpol "char *auditstr" "size_t len"
+.Ft ssize_t
+.Fn au_poltostr "long policy" "size_t maxsize" "char *buf"
+.Ft int
+.Fn au_strtopol "const char *polstr" "long *policy"
 .Sh DESCRIPTION
 These interfaces may be used to look up information from the
 .Xr audit_control 5
@@ -90,15 +99,42 @@ returns the non-attributable flags via the passed character buffer
 .Va auditstr
 of length
 .Va len .
+.Pp
+.Fn getacpol
+returns the audit policy flags via the passed character buffer
+.Va auditstr
+of length
+.Va len .
+.Pp
+.Fn au_poltostr
+converts a numeric audit policy mask,
+.Va policy ,
+value to a string in the passed character buffer
+.Va buf
+of lenth
+.Va maxsize .
+.Pp
+.Fn au_strtopol
+converts an audit policy flags string,
+.Va polstr ,
+to a numeric audit policy mask returned via
+.Va policy .
 .Sh RETURN VALULES
 .Fn getacdir ,
 .Fn getacmin ,
 .Fn getacflg ,
+.Fn getacna ,
+.Fn getacpol ,
 and
-.Fn getacna
+.Fn au_strtopol
 return 0 on success, or a negative value on failure, along with error
 information in
 .Va errno .
+.Pp
+.Fn au_poltostr
+returns a string length of 0 or more on success, or a negative value on
+if there is a failure.
+.Pp
 Functions that return a string value will return a failure if there is
 insufficient room in the passed character buffer for the full string.
 .Sh SEE ALSO
