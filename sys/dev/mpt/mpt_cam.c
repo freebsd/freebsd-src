@@ -2148,10 +2148,40 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		break;
 	case MPI_EVENT_QUEUE_FULL:
 	{
+		struct cam_sim *sim;
+		struct cam_path *tmppath;
+		struct ccb_relsim crs;
 		PTR_EVENT_DATA_QUEUE_FULL pqf =
 		    (PTR_EVENT_DATA_QUEUE_FULL) msg->Data;
-		mpt_prt(mpt, "QUEUE_FULL: Bus 0x%02x Target 0x%02x Depth %d\n",
-		    pqf->Bus, pqf->TargetID, pqf->CurrentDepth);
+		lun_id_t lun_id;
+
+		mpt_prt(mpt, "QUEUE FULL EVENT: Bus 0x%02x Target 0x%02x Depth "
+		    "%d\n", pqf->Bus, pqf->TargetID, pqf->CurrentDepth);
+		if (mpt->phydisk_sim) {
+			sim = mpt->phydisk_sim;
+		} else {
+			sim = mpt->sim;
+		}
+		MPTLOCK_2_CAMLOCK(mpt);
+		for (lun_id = 0; lun_id < MPT_MAX_LUNS; lun_id++) {
+			if (xpt_create_path(&tmppath, NULL, cam_sim_path(sim),
+			    pqf->TargetID, lun_id) != CAM_REQ_CMP) {
+				mpt_prt(mpt, "unable to create a path to send "
+				    "XPT_REL_SIMQ");
+				CAMLOCK_2_MPTLOCK(mpt);
+				break;
+			}
+			xpt_setup_ccb(&crs.ccb_h, tmppath, 5);
+			crs.ccb_h.func_code = XPT_REL_SIMQ;
+			crs.release_flags = RELSIM_ADJUST_OPENINGS;
+			crs.openings = pqf->CurrentDepth - 1;
+			xpt_action((union ccb *)&crs);
+			if (crs.ccb_h.status != CAM_REQ_CMP) {
+				mpt_prt(mpt, "XPT_REL_SIMQ failed\n");
+			}
+			xpt_free_path(tmppath);
+		}
+		CAMLOCK_2_MPTLOCK(mpt);
 		break;
 	}
 	case MPI_EVENT_SAS_DEVICE_STATUS_CHANGE:
