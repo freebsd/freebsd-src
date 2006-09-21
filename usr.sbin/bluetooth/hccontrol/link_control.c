@@ -42,7 +42,7 @@ static int
 hci_inquiry(int s, int argc, char **argv)
 {
 	int			 n0, n1, n2, timo;
-	uint8_t			 b[512];
+	char			 b[512];
 	ng_hci_inquiry_cp	 cp;
 	ng_hci_event_pkt_t	*e = (ng_hci_event_pkt_t *) b;
 

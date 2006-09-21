@@ -189,7 +189,7 @@ hid_descriptor:	T_HID_DESCRIPTOR
 			if (hid_device->desc != NULL)
 				hid_dispose_report_desc(hid_device->desc);
 
-			hid_device->desc = hid_use_report_desc(buffer, hid_descriptor_size);
+			hid_device->desc = hid_use_report_desc((unsigned char *) buffer, hid_descriptor_size);
 			if (hid_device->desc == NULL) {
 				SYSLOG(LOGCRIT, "Could not use HID descriptor" EOL);
 				YYABORT;
