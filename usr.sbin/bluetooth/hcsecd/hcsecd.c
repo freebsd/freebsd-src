@@ -282,8 +282,8 @@ send_pin_code_reply(int sock, struct sockaddr_hci *addr,
 
 		cp = (ng_hci_pin_code_rep_cp *)(cmd + 1);
 		memcpy(&cp->bdaddr, bdaddr, sizeof(cp->bdaddr));
-		strncpy(cp->pin, pin, sizeof(cp->pin));
-		cp->pin_size = strlen(cp->pin);
+		strncpy((char *) cp->pin, pin, sizeof(cp->pin));
+		cp->pin_size = strlen((char const *) cp->pin);
 
 		syslog(LOG_DEBUG, "Sending PIN_Code_Reply to '%s' " \
 				"for remote bdaddr %s",
