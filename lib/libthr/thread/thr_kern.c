@@ -29,6 +29,7 @@
 
 #include <sys/types.h>
 #include <sys/signalvar.h>
+#include <sys/rtprio.h>
 #include <pthread.h>
 
 #include "thr_private.h"
@@ -95,4 +96,69 @@ void
 _thr_assert_lock_level()
 {
 	PANIC("locklevel <= 0");
+}
+
+int
+_rtp_to_schedparam(const struct rtprio *rtp, int *policy,
+	struct sched_param *param)
+{
+	switch(rtp->type) {
+	case RTP_PRIO_REALTIME:
+		*policy = SCHED_RR;
+		param->sched_priority = RTP_PRIO_MAX - rtp->prio;
+		break;
+	case RTP_PRIO_FIFO:
+		*policy = SCHED_FIFO;
+		param->sched_priority = RTP_PRIO_MAX - rtp->prio;
+		break;
+	default:
+		*policy = SCHED_OTHER;
+		param->sched_priority = 0;
+		break;
+	}
+	return (0);
+}
+
+int
+_schedparam_to_rtp(int policy, const struct sched_param *param,
+	struct rtprio *rtp)
+{
+	switch(policy) {
+	case SCHED_RR:
+		rtp->type = RTP_PRIO_REALTIME;
+		rtp->prio = RTP_PRIO_MAX - param->sched_priority;
+		break;
+	case SCHED_FIFO:
+		rtp->type = RTP_PRIO_FIFO;
+		rtp->prio = RTP_PRIO_MAX - param->sched_priority;
+		break;
+	case SCHED_OTHER:
+	default:
+		rtp->type = RTP_PRIO_NORMAL;
+		rtp->prio = 0;
+		break;
+	}
+	return (0);
+}
+
+int
+_thr_getscheduler(lwpid_t lwpid, int *policy, struct sched_param *param)
+{
+	struct rtprio rtp;
+	int ret;
+
+	ret = rtprio_thread(RTP_LOOKUP, lwpid, &rtp);
+	if (ret == -1)
+		return (ret);
+	_rtp_to_schedparam(&rtp, policy, param);
+	return (0);
+}
+
+int
+_thr_setscheduler(lwpid_t lwpid, int policy, const struct sched_param *param)
+{
+	struct rtprio rtp;
+
+	_schedparam_to_rtp(policy, param, &rtp);
+	return (rtprio_thread(RTP_SET, lwpid, &rtp));
 }

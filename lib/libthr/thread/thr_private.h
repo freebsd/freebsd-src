@@ -640,6 +640,12 @@ void	_thr_once_init(void) __hidden;
 void	_thr_report_creation(struct pthread *curthread,
 	    struct pthread *newthread) __hidden;
 void	_thr_report_death(struct pthread *curthread) __hidden;
+int	_thr_getscheduler(lwpid_t, int *, struct sched_param *) __hidden;
+int	_thr_setscheduler(lwpid_t, int, const struct sched_param *) __hidden;
+int	_rtp_to_schedparam(const struct rtprio *rtp, int *policy,
+		struct sched_param *param) __hidden;
+int	_schedparam_to_rtp(int policy, const struct sched_param *param,
+		struct rtprio *rtp) __hidden;
 void	_thread_bp_create(void);
 void	_thread_bp_death(void);
 
