@@ -17,5 +17,10 @@
   just at the beginning of a record.  This will make it easier to use
   praudit in test suites processing single-token files without header and
   trailer context.
+- Teach auditd how to notify a script when it is done with trail files so
+  that the script can archive them, compress them, delete them, whatever.
+  It should walk any trail files found at startup also, assuming it
+  successfully registers.
+- Put hostname in trail file name.
 
-$P4: //depot/projects/trustedbsd/openbsm/TODO#6 $
+$P4: //depot/projects/trustedbsd/openbsm/TODO#7 $

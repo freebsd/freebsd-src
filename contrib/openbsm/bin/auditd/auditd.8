@@ -29,7 +29,7 @@
 .\"
 .\" @APPLE_BSD_LICENSE_HEADER_END@
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.8#8 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.8#9 $
 .\"
 .Dd January 24, 2004
 .Dt AUDITD 8
@@ -51,14 +51,20 @@ The options are as follows:
 .Bl -tag -width Ds
 .It Fl d
 Starts the daemon in debug mode - it will not daemonize.
-.It Fl h
-Specifies that if auditing cannot be performed as specified, the system should
-halt (panic).  Normally, the system will attempt to proceed - although individual
-processes may be stopped (see the -s option).
-.It Fl s
-Specifies that individual processes should stop rather than perform operations
-that may cause audit records to be lost due to log file full conditions
 .El
+.Pp
+The historical
+.Fl h
+and
+.Fl s
+flags are now configured using
+.Xr audit_control 5
+policy flags
+.Dv ahlt
+and
+.Dv cnt ,
+and are no longer available as arguments to
+.Xr auditd 8 .
 .Sh NOTE
 .Pp
 To assure uninterrupted audit support, the
