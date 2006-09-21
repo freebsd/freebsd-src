@@ -49,7 +49,7 @@
 6	AUE_CLOSE	NOPROTO	{ int close(int fd); }
 7	AUE_WAIT4	STD	{ int linux_waitpid(l_pid_t pid, \
 				    l_int *status, l_int options); }
-8	AUE_O_CREAT	STD	{ int linux_creat(char *path, \
+8	AUE_CREAT	STD	{ int linux_creat(char *path, \
 				    l_int mode); }
 9	AUE_LINK	STD	{ int linux_link(char *path, char *to); }
 10	AUE_UNLINK	STD	{ int linux_unlink(char *path); }
