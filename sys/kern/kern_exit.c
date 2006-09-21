@@ -294,13 +294,13 @@ retry:
 
 	vmspace_exit(td);
 
+	mtx_lock(&Giant);	/* XXX TTY */
 	sx_xlock(&proctree_lock);
 	if (SESS_LEADER(p)) {
 		struct session *sp;
 
 		sp = p->p_session;
 		if (sp->s_ttyvp) {
-			locked = VFS_LOCK_GIANT(sp->s_ttyvp->v_mount);
 			/*
 			 * Controlling process.
 			 * Signal foreground pgrp,
@@ -346,7 +346,6 @@ retry:
 			 * that the session once had a controlling terminal.
 			 * (for logging and informational purposes)
 			 */
-			VFS_UNLOCK_GIANT(locked);
 		}
 		SESS_LOCK(p->p_session);
 		sp->s_leader = NULL;
@@ -355,6 +354,7 @@ retry:
 	fixjobc(p, p->p_pgrp, 0);
 	sx_xunlock(&proctree_lock);
 	(void)acct_process(td);
+	mtx_unlock(&Giant);	
 #ifdef KTRACE
 	/*
 	 * Drain any pending records on the thread and release the trace
