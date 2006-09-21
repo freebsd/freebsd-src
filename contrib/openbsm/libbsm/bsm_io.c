@@ -31,7 +31,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#40 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#41 $
  */
 
 #include <sys/types.h>
@@ -1190,7 +1190,8 @@ fetch_execarg_tok(tokenstr_t *tok, char *buf, int len)
 
 	for (i = 0; i < tok->tt.execarg.count; i++) {
 		bptr = buf + tok->len;
-		tok->tt.execarg.text[i] = bptr;
+		if (i < AUDIT_MAX_ARGS)
+			tok->tt.execarg.text[i] = bptr;
 
 		/* Look for a null terminated string. */
 		while (bptr && (*bptr != '\0')) {
@@ -1202,6 +1203,8 @@ fetch_execarg_tok(tokenstr_t *tok, char *buf, int len)
 			return (-1);
 		tok->len++; /* \0 character */
 	}
+	if (tok->tt.execarg.count > AUDIT_MAX_ARGS)
+		tok->tt.execarg.count = AUDIT_MAX_ARGS;
 
 	return (0);
 }
@@ -1235,9 +1238,10 @@ fetch_execenv_tok(tokenstr_t *tok, char *buf, int len)
 	if (err)
 		return (-1);
 
-	for (i = 0; i< tok->tt.execenv.count; i++) {
+	for (i = 0; i < tok->tt.execenv.count; i++) {
 		bptr = buf + tok->len;
-		tok->tt.execenv.text[i] = bptr;
+		if (i < AUDIT_MAX_ENV)
+			tok->tt.execenv.text[i] = bptr;
 
 		/* Look for a null terminated string. */
 		while (bptr && (*bptr != '\0')) {
@@ -1249,6 +1253,8 @@ fetch_execenv_tok(tokenstr_t *tok, char *buf, int len)
 			return (-1);
 		tok->len++; /* \0 character */
 	}
+	if (tok->tt.execenv.count > AUDIT_MAX_ENV)
+		tok->tt.execenv.count = AUDIT_MAX_ENV;
 
 	return (0);
 }

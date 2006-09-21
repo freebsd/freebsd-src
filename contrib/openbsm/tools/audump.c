@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Robert N. M. Watson
+ * Copyright (c) 2005-2006 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/tools/audump.c#5 $
+ * $P4: //depot/projects/trustedbsd/openbsm/tools/audump.c#6 $
  */
 
 #include <bsm/libbsm.h>
@@ -77,8 +77,9 @@ audump_class_r(void)
 static void
 audump_control(void)
 {
-	char string[PATH_MAX];
+	char string[PATH_MAX], string2[PATH_MAX];
 	int ret, val;
+	long policy;
 
 	ret = getacflg(string, PATH_MAX);
 	if (ret == -2)
@@ -116,6 +117,15 @@ audump_control(void)
 		printf("dir:%s\n", string);
 
 	} while (ret == 0);
+
+	ret = getacpol(string, PATH_MAX);
+	if (ret != 0)
+		err(-1, "getacpol");
+	if (au_strtopol(string, &policy) < 0)
+		err(-1, "au_strtopol");
+	if (au_poltostr(policy, string2, PATH_MAX) < 0)
+		err(-1, "au_poltostr");
+	printf("policy:%s\n", string2);
 }
 
 static void
