@@ -237,6 +237,30 @@ wpaif()
 	return 1
 }
 
+# ipv6if if
+#	Returns 0 if the interface should be configured for IPv6 and
+#	1 otherwise.
+ipv6if()
+{
+	if ! checkyesno ipv6_enable; then
+		return 1
+	fi
+	case "${ipv6_network_interfaces}" in
+	[Aa][Uu][Tt][Oo])
+		return 0
+		;;
+	''|[Nn][Oo][Nn][Ee])
+		return 1
+		;;
+	esac
+	for v6if in ${ipv6_network_interfaces}; do
+		if [ "${v6if}" = "${1}" ]; then
+			return 0
+		fi
+	done
+	return 1
+}
+
 # ifexists if
 #	Returns 0 if the interface exists and 1 otherwise.
 ifexists()
