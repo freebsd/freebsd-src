@@ -819,15 +819,10 @@
 463	AUE_NULL	STD	{ int abort2(const char *why, int nargs, void **args); }
 464	AUE_NULL	STD	{ int thr_set_name(long id, const char *name); }
 465	AUE_NULL	NOSTD	{ int aio_fsync(int op, struct aiocb *aiocbp); }
-466	AUE_NULL	STD	{ int thr_setscheduler(long id, int policy,\
-				    const struct sched_param *param, \
-				    int param_size); }
-467	AUE_NULL	STD	{ int thr_getscheduler(long id, int *policy,\
-				    struct sched_param *param, \
-				    int param_size); }
-468	AUE_NULL	STD	{ int thr_setschedparam(long id, \
-				    const struct sched_param *param, \
-				    int param_size); }
+466	AUE_RTPRIO	STD	{ int rtprio_thread(int function, \
+				    lwpid_t lwpid, struct rtprio *rtp); }
+467	AUE_NULL	UNIMPL	nosys
+468	AUE_NULL	UNIMPL	nosys
 469	AUE_NULL	UNIMPL	__getpath_fromfd
 470	AUE_NULL	UNIMPL	__getpath_fromaddr
 ; Please copy any additions and changes to the following compatability tables:
