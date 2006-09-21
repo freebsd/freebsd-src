@@ -473,9 +473,9 @@ const char *syscallnames[] = {
 	"abort2",			/* 463 = abort2 */
 	"thr_set_name",			/* 464 = thr_set_name */
 	"aio_fsync",			/* 465 = aio_fsync */
-	"thr_setscheduler",			/* 466 = thr_setscheduler */
-	"thr_getscheduler",			/* 467 = thr_getscheduler */
-	"thr_setschedparam",			/* 468 = thr_setschedparam */
+	"rtprio_thread",			/* 466 = rtprio_thread */
+	"#467",			/* 467 = nosys */
+	"#468",			/* 468 = nosys */
 	"#469",			/* 469 = __getpath_fromfd */
 	"#470",			/* 470 = __getpath_fromaddr */
 };

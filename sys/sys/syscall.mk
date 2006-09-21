@@ -331,6 +331,4 @@ MIASM =  \
 	abort2.o \
 	thr_set_name.o \
 	aio_fsync.o \
-	thr_setscheduler.o \
-	thr_getscheduler.o \
-	thr_setschedparam.o
+	rtprio_thread.o
