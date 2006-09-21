@@ -164,7 +164,7 @@
 87	AUE_SWAPON	NOPROTO	{ int swapon(char *name); }
 88	AUE_REBOOT	STD	{ int linux_reboot(l_int magic1, \
 				    l_int magic2, l_uint cmd, void *arg); }
-89	AUE_O_GETDENTS	STD	{ int linux_readdir(l_uint fd, \
+89	AUE_GETDIRENTRIES	STD { int linux_readdir(l_uint fd, \
 				    struct l_dirent *dent, l_uint count); }
 90	AUE_MMAP	STD	{ int linux_mmap(struct l_mmap_argv *ptr); }
 91	AUE_MUNMAP	NOPROTO	{ int munmap(caddr_t addr, int len); }
@@ -176,7 +176,7 @@
 96	AUE_GETPRIORITY	STD	{ int linux_getpriority(int which, int who); }
 97	AUE_SETPRIORITY	NOPROTO	{ int setpriority(int which, int who, \
 				    int prio); }
-98	AUE_AUE_PROFILE	UNIMPL	profil
+98	AUE_PROFILE	UNIMPL	profil
 99	AUE_STATFS	STD	{ int linux_statfs(char *path, \
 				    struct l_statfs_buf *buf); }
 100	AUE_FSTATFS	STD	{ int linux_fstatfs(l_uint fd, \
@@ -245,8 +245,8 @@
 140	AUE_LSEEK	STD	{ int linux_llseek(l_int fd, l_ulong ohigh, \
 				    l_ulong olow, l_loff_t *res, \
 				    l_uint whence); }
-141	AUE_O_GETDENTS	STD	{ int linux_getdents(l_uint fd, void *dent, \
-				    l_uint count); }
+141	AUE_GETDIRENTRIES	STD { int linux_getdents(l_uint fd, \
+				    void *dent, l_uint count); }
 142	AUE_SELECT	STD	{ int linux_select(l_int nfds, \
 				    l_fd_set *readfds, l_fd_set *writefds, \
 				    l_fd_set *exceptfds, \
@@ -270,14 +270,15 @@
 				    const struct sched_param *param); }
 155	AUE_SCHED_GETPARAM	NOPROTO	{ int sched_getparam(pid_t pid, \
 				    struct sched_param *param); }
-156	AUE_SCHED_SETSCHEDULER	STD	{ int linux_sched_setscheduler(l_pid_t pid, \
-				    l_int policy, \
+156	AUE_SCHED_SETSCHEDULER	STD { int linux_sched_setscheduler( \
+				    l_pid_t pid, l_int policy, \
 				    struct l_sched_param *param); }
-157	AUE_SCHED_GETSCHEDULER	STD	{ int linux_sched_getscheduler(l_pid_t pid); }
+157	AUE_SCHED_GETSCHEDULER	STD { int linux_sched_getscheduler( \
+				    l_pid_t pid); }
 158	AUE_NULL	NOPROTO	{ int sched_yield(void); }
-159	AUE_SCHED_GET_PRIORITY_MAX	STD	{ int linux_sched_get_priority_max( \
+159	AUE_SCHED_GET_PRIORITY_MAX	STD { int linux_sched_get_priority_max( \
 				    l_int policy); }
-160	AUE_SCHED_GET_PRIORITY_MIN	STD	{ int linux_sched_get_priority_min( \
+160	AUE_SCHED_GET_PRIORITY_MIN	STD { int linux_sched_get_priority_min( \
 				    l_int policy); }
 161	AUE_SCHED_RR_GET_INTERVAL	NOPROTO	{ int sched_rr_get_interval(l_pid_t pid, \
 				    struct l_timespec *interval); }
@@ -380,7 +381,7 @@
 				    l_size_t len, u_char *vec); }
 219	AUE_MADVISE	NOPROTO	{ int madvise(void *addr, size_t len, \
 				    int behav); }
-220	AUE_O_GETDENTS	STD	{ int linux_getdents64(l_uint fd, \
+220	AUE_GETDIRENTRIES	STD { int linux_getdents64(l_uint fd, \
 				    void *dirent, l_uint count); }
 221	AUE_FCNTL	STD	{ int linux_fcntl64(l_uint fd, l_uint cmd, \
 				    l_ulong arg); }
@@ -434,10 +435,10 @@
 266	AUE_NULL	STD	{ int linux_clock_getres(clockid_t which, struct l_timespec *tp); }
 267	AUE_NULL	STD	{ int linux_clock_nanosleep(clockid_t which, int flags, \
 					struct l_timespec *rqtp, struct l_timespec *rmtp); }
-268	AUE_NULL	STD	{ int linux_statfs64(char *path, struct l_statfs64_buf *buf); }
-269	AUE_NULL	STD	{ int linux_fstatfs64(void); }
+268	AUE_STATFS	STD	{ int linux_statfs64(char *path, struct l_statfs64_buf *buf); }
+269	AUE_FSTATFS	STD	{ int linux_fstatfs64(void); }
 270	AUE_NULL	STD	{ int linux_tgkill(int tgid, int pid, int sig); }
-271	AUE_NULL	STD	{ int linux_utimes(void); }
+271	AUE_UTIMES	STD	{ int linux_utimes(void); }
 272	AUE_NULL	STD	{ int linux_fadvise64_64(void); }
 273	AUE_NULL	UNIMPL
 274	AUE_NULL	STD	{ int linux_mbind(void); }
