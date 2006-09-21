@@ -143,7 +143,7 @@ MsgRead()
 		if (m->header.arglen == 0)
 			printf("No arguments\n");
 		else
-			DumpAscii(m->data, m->header.arglen);
+			DumpAscii((const u_char *)m->data, m->header.arglen);
 		free(m);
 		return;
 	}
