@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: devd
-# REQUIRE: netif
+# REQUIRE: netif network_ipv6
 # BEFORE: NETWORKING mountcritremote
 # KEYWORD: nojail
 
