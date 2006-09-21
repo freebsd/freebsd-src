@@ -33,6 +33,8 @@
  */
 
 #include "namespace.h"
+#include <sys/types.h>
+#include <sys/rtprio.h>
 #include <errno.h>
 #include <pthread.h>
 #include "un-namespace.h"

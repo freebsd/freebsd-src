@@ -62,8 +62,7 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 			THR_UNLOCK(curthread);
 			return (0);
 		}
-		ret = thr_setscheduler(curthread->tid, policy, param,
-			sizeof(struct sched_param));
+		ret = _thr_setscheduler(curthread->tid, policy, param);
 		if (ret == -1)
 			ret = errno;
 		else {
@@ -81,8 +80,7 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 			THR_THREAD_UNLOCK(curthread, pthread);
 			return (0);
 		}
-		ret = thr_setscheduler(pthread->tid, policy, param,
-			sizeof(struct sched_param));
+		ret = _thr_setscheduler(pthread->tid, policy, param);
 		if (ret == -1)
 			ret = errno;
 		else {
