@@ -32,8 +32,6 @@ options 	ADAPTIVE_GIANT		# Giant mutex is adaptive.
 
 device		apic			# I/O APIC
 
-# Bus support.  Do not remove isa, even if you have no isa slots
-device		isa
 device		pci
 
 # ATA and ATAPI devices
@@ -60,9 +58,6 @@ device		sc
 
 device		agp		# support several AGP chipsets
 
-# Floating point support - do not disable.
-device		npx
-
 # Power management support (see NOTES for more options)
 #device		apm
 # Add suspend/resume support for the i8254.
@@ -70,8 +65,6 @@ device		pmtimer
 
 # Pseudo devices.
 device		loop		# Network loopback
-device		mem		# Memory and kernel memory devices
-device		io		# I/O device
 device		random		# Entropy device
 device		ether		# Ethernet support
 device		pty		# Pseudo-ttys (telnet etc)
@@ -87,3 +80,4 @@ options         CPU_SOEKRIS
 options         CPU_ELAN_XTAL=32768000
 options         CPU_ELAN_PPS
 
+device          bpf

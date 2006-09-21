@@ -33,8 +33,6 @@ options 	ADAPTIVE_GIANT		# Giant mutex is adaptive.
 
 device		apic			# I/O APIC
 
-# Bus support.  Do not remove isa, even if you have no isa slots
-device		isa
 device		eisa
 device		pci
 
@@ -64,9 +62,6 @@ device		sc
 #options 	FAT_CURSOR	# start with block cursor
 
 device		agp		# support several AGP chipsets
-
-# Floating point support - do not disable.
-device		npx
 
 # Power management support (see NOTES for more options)
 #device		apm
@@ -121,7 +116,6 @@ device		ex		# Intel EtherExpress Pro/10 and Pro/10+
 device		ep		# Etherlink III based cards
 device		fe		# Fujitsu MB8696x based cards
 device		ie		# EtherExpress 8/16, 3C507, StarLAN 10 etc.
-device		lnc		# NE2100, NE32-VL Lance Ethernet cards
 device		sn		# SMC's 9000 series of Ethernet chips
 device		xe		# Xircom pccard Ethernet
 
@@ -137,8 +131,6 @@ device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 
 # Pseudo devices.
 device		loop		# Network loopback
-device		mem		# Memory and kernel memory devices
-device		io		# I/O device
 device		random		# Entropy device
 device		ether		# Ethernet support
 device		pty		# Pseudo-ttys (telnet etc)
@@ -151,11 +143,12 @@ device		bpf		# Berkeley packet filter
 
 options         IPFIREWALL
 options         IPFIREWALL_DEFAULT_TO_ACCEPT
-options         BRIDGE
 
 device          ath
 device          ath_hal
 device 		ath_rate_sample
+
+device          if_bridge               #Bridge interface
 
 # CLK_USE_I8254_CALIBRATION causes the calibrated frequency of the i8254
 # clock to actually be used.
