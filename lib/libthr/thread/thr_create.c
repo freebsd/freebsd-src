@@ -29,6 +29,7 @@
 
 #include "namespace.h"
 #include <sys/types.h>
+#include <sys/rtprio.h>
 #include <sys/signalvar.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -50,7 +51,8 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 {
 	struct pthread *curthread, *new_thread;
 	struct thr_param param;
-	struct thr_sched_param sched_param;
+	struct sched_param sched_param;
+	struct rtprio rtp;
 	int ret = 0, locked, create_suspended;
 	sigset_t set, oset;
 
@@ -144,12 +146,12 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	if (new_thread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		param.flags |= THR_SYSTEM_SCOPE;
 	if (new_thread->attr.sched_inherit == PTHREAD_INHERIT_SCHED)
-		param.sched_param = NULL;
+		param.rtp = NULL;
 	else {
-		param.sched_param = &sched_param;
-		param.sched_param_size = sizeof(sched_param);
-		sched_param.policy = new_thread->attr.sched_policy;
-		sched_param.param.sched_priority = new_thread->attr.prio;
+		sched_param.sched_priority = new_thread->attr.prio;
+		_schedparam_to_rtp(new_thread->attr.sched_policy,
+			&sched_param, &rtp);
+		param.rtp = &rtp;
 	}
 
 	/* Schedule the new thread. */
