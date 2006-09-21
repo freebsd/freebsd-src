@@ -65,7 +65,8 @@ static void usage
 int
 main(int argc, char *argv[])
 {
-	int					 n, detach, sock, size;
+	int					 n, detach, sock;
+	socklen_t				 size;
 	struct sigaction			 sa;
 	struct sockaddr_hci			 addr;
 	struct ng_btsocket_hci_raw_filter	 filter;

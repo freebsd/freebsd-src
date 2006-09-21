@@ -223,7 +223,8 @@ server_accept(bthid_server_p srv, int32_t fd)
 	bthid_session_p		s;
 	hid_device_p		d;
 	struct sockaddr_l2cap	l2addr;
-	int32_t			len, new_fd;
+	int32_t			new_fd;
+	socklen_t		len;
 
 	len = sizeof(l2addr);
 	if ((new_fd = accept(fd, (struct sockaddr *) &l2addr, &len)) < 0) {
