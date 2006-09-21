@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
-#include <strings.h>
+#include <string.h>
 #include <locale.h>
 
 #include <netncp/ncp_lib.h>
