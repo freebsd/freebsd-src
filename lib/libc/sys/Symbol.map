@@ -229,6 +229,7 @@ FBSD_1.0 {
 	rfork;
 	rmdir;
 	rtprio;
+	rtprio_thread;
 	sched_get_priority_max;
 	sched_get_priority_min;
 	sched_getparam;
@@ -294,13 +295,10 @@ FBSD_1.0 {
 	syscall;
 	thr_create;
 	thr_exit;
-	thr_getscheduler;
 	thr_kill;
 	thr_new;
 	thr_self;
 	thr_set_name;
-	thr_setschedparam;
-	thr_setscheduler;
 	thr_suspend;
 	thr_wake;
 	ktimer_create;		# Do we want these to be publc interfaces?
@@ -778,6 +776,8 @@ FBSDprivate {
 	__sys_rmdir;
 	_rtprio;
 	__sys_rtprio;
+	_rtprio_thread;
+	__sys_rtprio_thread;
 	_sched_get_priority_max;
 	__sys_sched_get_priority_max;
 	_sched_get_priority_min;
@@ -908,8 +908,6 @@ FBSDprivate {
 	__sys_thr_create;
 	_thr_exit;
 	__sys_thr_exit;
-	_thr_getscheduler;
-	__sys_thr_getscheduler;
 	_thr_kill;
 	__sys_thr_kill;
 	_thr_new;
@@ -918,10 +916,6 @@ FBSDprivate {
 	__sys_thr_self;
 	_thr_set_name;
 	__sys_thr_set_name;
-	_thr_setschedparam;
-	__sys_thr_setscheduler;
-	_thr_setscheduler;
-	__sys_thr_setscheduler;
 	_thr_suspend;
 	__sys_thr_suspend;
 	_thr_wake;
