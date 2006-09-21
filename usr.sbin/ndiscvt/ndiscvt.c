@@ -377,7 +377,7 @@ main(int argc, char *argv[])
 
 	if (bin) {
 		sysfile = strdup(basename(sysfile));
-		ptr = sysfile;
+		ptr = (unsigned char *)sysfile;
 		while (*ptr) {
 			if (*ptr == '.')
 				*ptr = '_';
