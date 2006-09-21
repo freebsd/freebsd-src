@@ -1538,7 +1538,7 @@ done:
 			(*argtable) [n].sizearg = va_arg (ap, size_t);
 			break;
 		    case TP_SIZET:
-			(*argtable) [n].psizearg = va_arg (ap, ssize_t *);
+			(*argtable) [n].psizearg = va_arg (ap, size_t *);
 			break;
 		    case T_INTMAXT:
 			(*argtable) [n].intmaxarg = va_arg (ap, intmax_t);
