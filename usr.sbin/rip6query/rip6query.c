@@ -74,10 +74,11 @@ main(argc, argv)
 {
 	struct netinfo6 *np;
 	struct sockaddr_in6 fsock;
-	int i, n, len, flen;
+	int i, n, len;
 	int c;
 	int ifidx = -1;
 	int error;
+	socklen_t flen;
 	char pbuf[10];
 	struct addrinfo hints, *res;
 
