@@ -1058,6 +1058,18 @@ em_init_locked(struct adapter *adapter)
 	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
 		em_enable_vlans(adapter);
 
+	ifp->if_hwassist = 0;
+	if (adapter->hw.mac_type >= em_82543) {
+		if (ifp->if_capenable & IFCAP_TXCSUM)
+			ifp->if_hwassist = EM_CHECKSUM_FEATURES;
+		/*
+		 * em_setup_transmit_structures() will behave differently
+		 * based on the state of TSO.
+		 */
+		if (ifp->if_capenable & IFCAP_TSO)
+			ifp->if_hwassist |= EM_TCPSEG_FEATURES;
+	}
+
 	/* Prepare transmit descriptors and buffers */
 	if (em_setup_transmit_structures(adapter)) {
 		device_printf(dev, "Could not setup transmit structures\n");
@@ -1082,14 +1094,6 @@ em_init_locked(struct adapter *adapter)
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-
-	ifp->if_hwassist = 0;
-	if (adapter->hw.mac_type >= em_82543) {
-		if (ifp->if_capenable & IFCAP_TXCSUM)
-			ifp->if_hwassist = EM_CHECKSUM_FEATURES;
-		if (ifp->if_capenable & IFCAP_TSO)
-			ifp->if_hwassist |= EM_TCPSEG_FEATURES;
-	}
 
 	callout_reset(&adapter->timer, hz, em_local_timer, adapter);
 	em_clear_hw_cntrs(&adapter->hw);
