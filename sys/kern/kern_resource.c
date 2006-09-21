@@ -273,6 +273,101 @@ donice(struct thread *td, struct proc *p, int n)
 }
 
 /*
+ * Set realtime priority for LWP.
+ *
+ * MPSAFE
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct rtprio_thread_args {
+	int		function;
+	lwpid_t		lwpid;
+	struct rtprio	*rtp;
+};
+#endif
+
+int
+rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
+{
+	struct proc *curp;
+	struct proc *p;
+	struct rtprio rtp;
+	struct thread *td1;
+	int cierror, error;
+
+	/* Perform copyin before acquiring locks if needed. */
+	if (uap->function == RTP_SET)
+		cierror = copyin(uap->rtp, &rtp, sizeof(struct rtprio));
+	else
+		cierror = 0;
+
+	curp = td->td_proc;
+	/*
+	 * Though lwpid is unique, only current process is supported
+	 * since there is no efficient way to look up a LWP yet.
+	 */
+	p = curp;
+	PROC_LOCK(p);
+
+	switch (uap->function) {
+	case RTP_LOOKUP:
+		if ((error = p_cansee(td, p)))
+			break;
+		mtx_lock_spin(&sched_lock);
+		if (uap->lwpid == 0 || uap->lwpid == td->td_tid)
+			td1 = td;
+		else
+			td1 = thread_find(p, uap->lwpid);
+		if (td1 != NULL)
+			pri_to_rtp(td1->td_ksegrp, &rtp);
+		else
+			error = ESRCH;
+		mtx_unlock_spin(&sched_lock);
+		PROC_UNLOCK(p);
+		return (copyout(&rtp, uap->rtp, sizeof(struct rtprio)));
+	case RTP_SET:
+		if ((error = p_cansched(td, p)) || (error = cierror))
+			break;
+
+		/* Disallow setting rtprio in most cases if not superuser. */
+		if (suser(td) != 0) {
+			/* can't set realtime priority */
+/*
+ * Realtime priority has to be restricted for reasons which should be
+ * obvious.  However, for idle priority, there is a potential for
+ * system deadlock if an idleprio process gains a lock on a resource
+ * that other processes need (and the idleprio process can't run
+ * due to a CPU-bound normal process).  Fix me!  XXX
+ */
+#if 0
+ 			if (RTP_PRIO_IS_REALTIME(rtp.type)) {
+#else
+			if (rtp.type != RTP_PRIO_NORMAL) {
+#endif
+				error = EPERM;
+				break;
+			}
+		}
+
+		mtx_lock_spin(&sched_lock);
+		if (uap->lwpid == 0 || uap->lwpid == td->td_tid)
+			td1 = td;
+		else
+			td1 = thread_find(p, uap->lwpid);
+		if (td1 != NULL)
+			error = rtp_to_pri(&rtp, td1->td_ksegrp);
+		else
+			error = ESRCH;
+		mtx_unlock_spin(&sched_lock);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	PROC_UNLOCK(p);
+	return (error);
+}
+
+/*
  * Set realtime priority.
  *
  * MPSAFE
