@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <errno.h>
 #include <stdio.h>
+#include <string.h>
 #include <netncp/ncp_lib.h>
 
 int
