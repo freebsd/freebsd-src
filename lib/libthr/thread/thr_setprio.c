@@ -55,8 +55,8 @@ _pthread_setprio(pthread_t pthread, int prio)
 			curthread->attr.prio = prio;
 			ret = 0;
 		} else {
-			ret = thr_setschedparam(curthread->tid,
-				 &param, sizeof(struct sched_param));
+			ret = _thr_setscheduler(curthread->tid,
+			    curthread->attr.sched_policy, &param);
 			if (ret == -1)
 				ret = errno;
 			else 
@@ -71,8 +71,8 @@ _pthread_setprio(pthread_t pthread, int prio)
 			pthread->attr.prio = prio;
 			ret = 0;
 		} else {
-			ret = thr_setschedparam(pthread->tid, &param,
-				sizeof(struct sched_param));
+			ret = _thr_setscheduler(pthread->tid,
+				curthread->attr.sched_policy, &param);
 			if (ret == -1)
 				ret = errno;
 			else

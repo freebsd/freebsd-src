@@ -411,8 +411,8 @@ init_main_thread(struct pthread *thread)
 
 	thread->state = PS_RUNNING;
 
-	thr_getscheduler(thread->tid, &thread->attr.sched_policy,
-		 &sched_param, sizeof(sched_param));
+	_thr_getscheduler(thread->tid, &thread->attr.sched_policy,
+		 &sched_param);
 	thread->attr.prio = sched_param.sched_priority;
 
 	/* Others cleared to zero by thr_alloc() */
