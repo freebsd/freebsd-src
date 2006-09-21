@@ -276,7 +276,8 @@ process(fd, pkt_type)
 	int pkt_type;
 {
 	struct sockaddr from;
-	int fromlen = sizeof (from), cc, omask;
+	int  cc, omask;
+	socklen_t fromlen = sizeof (from);
 	struct ipx *ipxdp = (struct ipx *)packet;
 
 	cc = recvfrom(fd, packet, sizeof (packet), 0, &from, &fromlen);
