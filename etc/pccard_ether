@@ -89,7 +89,11 @@ pccard_ether_start()
 	fi
 
 	# IPv6 setup
-	if checkyesno ipv6_enable; then
+	if ipv6if $ifn; then
+		# XXX: network6_interface_setup assumes you're calling
+		# it with ALL the IPv6 interfaces at once and thus isn't
+		# really appropraite for this job, but it's the best we've
+		# got for now.
 		network6_interface_setup $ifn
 	fi
 }
