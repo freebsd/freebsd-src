@@ -715,8 +715,7 @@
 428	AUE_NULL	UNIMPL	__acl_aclcheck_link
 ; XXX implement
 429	AUE_SIGWAIT	UNIMPL	sigwait
-430	AUE_NULL	NOPROTO	{ int thr_create(ucontext_t *ctx, long *id, \
-				    int flag s); }
+430	AUE_NULL	UNIMPL	thr_create;
 431	AUE_NULL	NOPROTO	{ void thr_exit(long *state); }
 432	AUE_NULL	NOPROTO	{ int thr_self(long *id); }
 433	AUE_NULL	NOPROTO	{ int thr_kill(long id, int sig); }
@@ -728,8 +727,8 @@
 439	AUE_EXTATTR_LIST_LINK	UNIMPL	extattr_list_link
 440	AUE_NULL	UNIMPL	kse_switchin
 441	AUE_NULL	UNIMPL	ksem_timedwait
-442	AUE_NULL	NOPROTO	{ int thr_suspend( \
-				    const struct timespec *timeout); }
+442	AUE_NULL	STD	{ int freebsd32_thr_suspend( \
+				    const struct timespec32 *timeout); }
 443	AUE_NULL	NOPROTO	{ int thr_wake(long id); }
 444	AUE_MODUNLOAD	NOPROTO	{ int kldunloadf(int fileid, int flags); }
 445	AUE_AUDIT	UNIMPL	audit
@@ -744,7 +743,9 @@
 454	AUE_NULL	STD	{ int freebsd32_umtx_op(void *obj, int op,\
 				    uintptr_t val, void *uaddr, \
 				    void *uaddr2); }
-455	AUE_NULL	UNIMPL	thr_new
+455	AUE_NULL	STD	{ int freebsd32_thr_new(	\
+				    struct thr_param32 *param,	\
+				    int param_size); }
 456	AUE_NULL	NOPROTO	{ int sigqueue(pid_t pid, int signum, \
 				    void *value); }
 457	AUE_NULL	UNIMPL	kmq_open
