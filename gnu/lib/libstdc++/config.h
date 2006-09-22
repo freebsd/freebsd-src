@@ -55,6 +55,9 @@
 // Define if LFS support is available.
 /* #undef _GLIBCXX_USE_LFS */
 
+// Define if a fully dynamic basic_string is wanted.
+/* #undef _GLIBCXX_FULLY_DYNAMIC_STRING */
+
 // Define if NLS translations are to be used.
 /* #undef _GLIBCXX_USE_NLS */
 
@@ -368,6 +371,21 @@
 /* Define to 1 if you have the `m' library (-lm). */
 #define HAVE_LIBM 1
 
+/* Only used in build directory testsuite_hooks.h. */
+#define HAVE_LIMIT_AS 1
+
+/* Only used in build directory testsuite_hooks.h. */
+#define HAVE_LIMIT_DATA 1
+
+/* Only used in build directory testsuite_hooks.h. */
+#define HAVE_LIMIT_FSIZE 1
+
+/* Only used in build directory testsuite_hooks.h. */
+#define HAVE_LIMIT_RSS 1
+
+/* Only used in build directory testsuite_hooks.h. */
+#define HAVE_LIMIT_VMEM 1
+
 /* Define to 1 if you have the <locale.h> header file. */
 #define HAVE_LOCALE_H 1
 
@@ -400,18 +418,6 @@
 
 /* Define to 1 if you have the `mbsrtowcs' function. */
 #define HAVE_MBSRTOWCS 1
-
-/* Only used in build directory testsuite_hooks.h. */
-#define HAVE_MEMLIMIT_AS 0
-
-/* Only used in build directory testsuite_hooks.h. */
-#define HAVE_MEMLIMIT_DATA 1
-
-/* Only used in build directory testsuite_hooks.h. */
-#define HAVE_MEMLIMIT_RSS 1
-
-/* Only used in build directory testsuite_hooks.h. */
-#define HAVE_MEMLIMIT_VMEM 1
 
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
