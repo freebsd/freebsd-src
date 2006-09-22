@@ -280,6 +280,8 @@ evWait *evFreeWait(evContext_p *ctx, evWait *old);
 #endif
 
 /* Global options */
+#ifndef _LIBC
 extern int	__evOptMonoTime;
+#endif
 
 #endif /*_EVENTLIB_P_H*/
