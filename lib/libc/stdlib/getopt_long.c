@@ -558,7 +558,6 @@ start:
 		optarg = NULL;
 		if (*place)			/* no white space */
 			optarg = place;
-		/* XXX: disable test for :: if PC? (GNU doesn't) */
 		else if (oli[1] != ':') {	/* arg not optional */
 			if (++optind >= nargc) {	/* no arg */
 				place = EMSG;
@@ -568,7 +567,10 @@ start:
 				return (BADARG);
 			} else
 				optarg = nargv[optind];
-		} else if (!(flags & FLAG_PERMUTE)) {
+		}
+#ifndef GNU_COMPATIBLE
+		/* XXX: disable test for :: if PC? (GNU doesn't) */
+		else if (!(flags & FLAG_PERMUTE)) {
 			/*
 			 * If permutation is disabled, we can accept an
 			 * optional arg separated by whitespace so long
@@ -577,6 +579,7 @@ start:
 			if (optind + 1 < nargc && *nargv[optind + 1] != '-')
 				optarg = nargv[++optind];
 		}
+#endif
 		place = EMSG;
 		++optind;
 	}
