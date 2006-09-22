@@ -2396,8 +2396,8 @@ static _umtx_op_func op_table_compat32[] = {
 	__umtx_op_unlock_umtx_compat32,	/* UMTX_OP_UNLOCK */
 	__umtx_op_wait_compat32,	/* UMTX_OP_WAIT */
 	__umtx_op_wake,			/* UMTX_OP_WAKE */
-	__umtx_op_lock_umutex_compat32,	/* UMTX_OP_MUTEX_TRYLOCK */
 	__umtx_op_trylock_umutex,	/* UMTX_OP_MUTEX_LOCK */
+	__umtx_op_lock_umutex_compat32,	/* UMTX_OP_MUTEX_TRYLOCK */
 	__umtx_op_unlock_umutex,	/* UMTX_OP_MUTEX_UNLOCK	*/
 	__umtx_op_set_ceiling		/* UMTX_OP_SET_CEILING */
 };
