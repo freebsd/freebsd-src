@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_posix.h"
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -50,6 +51,26 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 
 #include <machine/frame.h>
+
+#ifdef COMPAT_IA32
+
+extern struct sysentvec ia32_freebsd_sysvec;
+
+static inline int
+suword_lwpid(void *addr, lwpid_t lwpid)
+{
+	int error;
+
+	if (curproc->p_sysent != &ia32_freebsd_sysvec)
+		error = suword(addr, lwpid);
+	else
+		error = suword32(addr, lwpid);
+	return (error);
+}
+
+#else
+#define suword_lwpid	suword
+#endif
 
 extern int max_threads_per_proc;
 
@@ -83,22 +104,30 @@ thr_new(struct thread *td, struct thr_new_args *uap)
     /* struct thr_param * */
 {
 	struct thr_param param;
+	int error;
+
+	if (uap->param_size < 0 || uap->param_size > sizeof(param))
+		return (EINVAL);
+	bzero(&param, sizeof(param));
+	if ((error = copyin(uap->param, &param, uap->param_size)))
+		return (error);
+	return (kern_thr_new(td, &param));
+}
+
+int
+kern_thr_new(struct thread *td, struct thr_param *param)
+{
 	struct rtprio rtp, *rtpp;
 	int error;
 
-	if (uap->param_size < sizeof(param))
-		return (EINVAL);
-	bzero(&param, sizeof(param));
-	if ((error = copyin(uap->param, &param, sizeof(param))))
-		return (error);
 	rtpp = NULL;
-	if (param.rtp != 0) {
-		error = copyin(param.rtp, &rtp, sizeof(struct rtprio));
+	if (param->rtp != 0) {
+		error = copyin(param->rtp, &rtp, sizeof(struct rtprio));
 		rtpp = &rtp;
 	}
-	error = create_thread(td, NULL, param.start_func, param.arg,
-		param.stack_base, param.stack_size, param.tls_base,
-		param.child_tid, param.parent_tid, param.flags,
+	error = create_thread(td, NULL, param->start_func, param->arg,
+		param->stack_base, param->stack_size, param->tls_base,
+		param->child_tid, param->parent_tid, param->flags,
 		rtpp);
 	return (error);
 }
@@ -158,12 +187,13 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	 */
 	id = newtd->td_tid;
 	if ((child_tid != NULL &&
-	    (error = copyout(&id, child_tid, sizeof(long)))) ||
+	    suword_lwpid(child_tid, newtd->td_tid)) ||
 	    (parent_tid != NULL &&
-	    (error = copyout(&id, parent_tid, sizeof(long))))) {
-	    	thread_free(newtd);
-		return (error);
+	    suword_lwpid(parent_tid, newtd->td_tid))) {
+		thread_free(newtd);
+		return (EFAULT);
 	}
+
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	bcopy(&td->td_startcopy, &newtd->td_startcopy,
@@ -231,13 +261,11 @@ int
 thr_self(struct thread *td, struct thr_self_args *uap)
     /* long *id */
 {
-	long id;
 	int error;
 
-	id = td->td_tid;
-	if ((error = copyout(&id, uap->id, sizeof(long))))
-		return (error);
-
+	error = suword_lwpid(uap->id, (unsigned)td->td_tid);
+	if (error == -1)
+		return (EFAULT);
 	return (0);
 }
 
@@ -251,7 +279,7 @@ thr_exit(struct thread *td, struct thr_exit_args *uap)
 
 	/* Signal userland that it can free the stack. */
 	if ((void *)uap->state != NULL) {
-		suword((void *)uap->state, 1);
+		suword_lwpid(uap->state, 1);
 		kern_umtx_wake(td, uap->state, INT_MAX);
 	}
 
@@ -320,23 +348,34 @@ int
 thr_suspend(struct thread *td, struct thr_suspend_args *uap)
 	/* const struct timespec *timeout */
 {
-	struct timespec ts;
-	struct timeval	tv;
+	struct timespec ts, *tsp;
 	int error;
-	int hz;
 
-	hz = 0;
 	error = 0;
+	tsp = NULL;
 	if (uap->timeout != NULL) {
 		error = copyin((const void *)uap->timeout, (void *)&ts,
 		    sizeof(struct timespec));
 		if (error != 0)
 			return (error);
-		if (ts.tv_nsec < 0 || ts.tv_nsec > 1000000000)
+		tsp = &ts;
+	}
+
+	return (kern_thr_suspend(td, tsp));
+}
+
+int
+kern_thr_suspend(struct thread *td, struct timespec *tsp)
+{
+	struct timeval tv;
+	int error = 0, hz = 0;
+
+	if (tsp != NULL) {
+		if (tsp->tv_nsec < 0 || tsp->tv_nsec > 1000000000)
 			return (EINVAL);
-		if (ts.tv_sec == 0 && ts.tv_nsec == 0)
+		if (tsp->tv_sec == 0 && tsp->tv_nsec == 0)
 			return (ETIMEDOUT);
-		TIMESPEC_TO_TIMEVAL(&tv, &ts);
+		TIMESPEC_TO_TIMEVAL(&tv, tsp);
 		hz = tvtohz(&tv);
 	}
 	PROC_LOCK(td->td_proc);
