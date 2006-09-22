@@ -180,7 +180,7 @@ struct mbuf {
 #define	M_FRAG		0x0800	/* packet is a fragment of a larger packet */
 #define	M_FIRSTFRAG	0x1000	/* packet is first fragment */
 #define	M_LASTFRAG	0x2000	/* packet is last fragment */
-#define	M_VLANTAG	0x10000	/* packet has VLAN tag attached */
+#define	M_VLANTAG	0x10000	/* ether_vtag is valid */
 
 /*
  * External buffer types: identify ext_buf type.
