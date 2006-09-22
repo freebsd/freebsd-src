@@ -1716,8 +1716,12 @@ in6_ifinit(ifp, ia, sin6, newhost)
 
 	/* we could do in(6)_socktrim here, but just omit it at this moment. */
 
-	if (newhost && nd6_need_cache(ifp) != 0) {
-		/* set the rtrequest function to create llinfo */
+	if (newhost) {
+		/*
+		 * set the rtrequest function to create llinfo.  It also
+		 * adjust outgoing interface of the route for the local
+		 * address when called via in6_ifaddloop() below.
+		 */
 		ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
 	}
 
