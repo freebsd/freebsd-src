@@ -119,7 +119,7 @@ error:
 	return (error);
 }
 
-int bti2c_smb_callback(device_t dev, int index, caddr_t *data)
+int bti2c_smb_callback(device_t dev, int index, void *data)
 {
 	struct bktr_softc *bktr_sc = (struct bktr_softc *)device_get_softc(dev);
 	struct bktr_i2c_softc *sc = &bktr_sc->i2c_sc;
@@ -337,5 +337,7 @@ bti2c_smb_readb(device_t dev, u_char slave, char cmd, char *byte)
 
 	return (0);
 }
+
+DRIVER_MODULE(smbus, bktr, smbus_driver, smbus_devclass, 0, 0);
 
 #endif /* defined(BKTR_USE_FREEBSD_SMBUS) */

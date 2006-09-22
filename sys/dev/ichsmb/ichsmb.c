@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/errno.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/syslog.h>
 #include <sys/bus.h>
@@ -136,7 +137,7 @@ ichsmb_attach(device_t dev)
 ********************************************************************/
 
 int 
-ichsmb_callback(device_t dev, int index, caddr_t data)
+ichsmb_callback(device_t dev, int index, void *data)
 {
 	int smb_error = 0;
 
@@ -381,7 +382,7 @@ ichsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	KASSERT(sc->ich_cmd == -1,
 	    ("%s: ich_cmd=%d\n", __func__ , sc->ich_cmd));
 	if (count < 1 || count > 32)
-		return (EINVAL);
+		return (SMB_EINVAL);
 	bcopy(buf, sc->block_data, count);
 	sc->block_count = count;
 	sc->block_index = 1;
@@ -403,7 +404,7 @@ ichsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 }
 
 int
-ichsmb_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
+ichsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 {
 	const sc_p sc = device_get_softc(dev);
 	int smb_error;
@@ -411,10 +412,10 @@ ichsmb_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	DBG("slave=0x%02x cmd=0x%02x count=%d\n", slave, (u_char)cmd, count);
 	KASSERT(sc->ich_cmd == -1,
 	    ("%s: ich_cmd=%d\n", __func__ , sc->ich_cmd));
-	if (count < 1 || count > 32)
-		return (EINVAL);
+	if (*count < 1 || *count > 32)
+		return (SMB_EINVAL);
 	bzero(sc->block_data, sizeof(sc->block_data));
-	sc->block_count = count;
+	sc->block_count = 0;
 	sc->block_index = 0;
 	sc->block_write = 0;
 
@@ -423,11 +424,13 @@ ichsmb_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_XMIT_SLVA,
 	    (slave << 1) | ICH_XMIT_SLVA_READ);
 	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_HST_CMD, cmd);
-	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_D0, count); /* XXX? */
+	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_D0, *count); /* XXX? */
 	bus_space_write_1(sc->io_bst, sc->io_bsh, ICH_HST_CNT,
 	    ICH_HST_CNT_START | ICH_HST_CNT_INTREN | sc->ich_cmd);
-	if ((smb_error = ichsmb_wait(sc)) == SMB_ENOERR)
-		bcopy(sc->block_data, buf, sc->block_count);
+	if ((smb_error = ichsmb_wait(sc)) == SMB_ENOERR) {
+		bcopy(sc->block_data, buf, min(sc->block_count, *count));
+		*count = sc->block_count;
+	}
 	mtx_unlock(&sc->mutex);
 	DBG("smb_error=%d\n", smb_error);
 #if ICHSMB_DEBUG
@@ -674,14 +677,20 @@ ichsmb_release_resources(sc_p sc)
 	}
 }
 
-int ichsmb_detach(device_t dev)
+int
+ichsmb_detach(device_t dev)
 {
 	const sc_p sc = device_get_softc(dev);
+	int error;
 
-	mtx_destroy(&sc->mutex);
-	bus_generic_detach(dev);
+	error = bus_generic_detach(dev);
+	if (error)
+		return (error);
 	device_delete_child(dev, sc->smb);
 	ichsmb_release_resources(sc);
+	mtx_destroy(&sc->mutex);
 	
 	return 0;
 }
+
+DRIVER_MODULE(smbus, ichsmb, smbus_driver, smbus_devclass, 0, 0);
