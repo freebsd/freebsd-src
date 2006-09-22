@@ -68,6 +68,7 @@ struct umutex {
 #define UMTX_OP_MUTEX_LOCK	5
 #define UMTX_OP_MUTEX_UNLOCK	6
 #define UMTX_OP_SET_CEILING	7
+#define UMTX_OP_MAX		8
 
 #ifndef _KERNEL
 
