@@ -47,6 +47,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/ipmi/ipmivars.h>
 #endif
 
+#if __FreeBSD_version < 700020
+#define	pmap_mapbios		pmap_mapdev
+#define	pmap_unmapbios		pmap_unmapdev
+#endif
+
 struct smbios_table_entry {
 	uint8_t		anchor_string[4];
 	uint8_t		checksum;
