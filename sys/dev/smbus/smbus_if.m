@@ -47,7 +47,7 @@ METHOD void intr {
 METHOD int callback {
 	device_t dev;
 	int index;
-	caddr_t data;
+	void *data;
 };
 
 #
@@ -146,6 +146,6 @@ METHOD int bread {
 	device_t dev;
 	u_char slave;
 	char cmd;
-	u_char count;
+	u_char *count;
 	char *buf;
 };
