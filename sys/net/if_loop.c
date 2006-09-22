@@ -259,16 +259,32 @@ if_simloop(ifp, m, af, hlen)
 	m_tag_delete_nonpersistent(m);
 	m->m_pkthdr.rcvif = ifp;
 
-	/* Let BPF see incoming packet */
-	if (bpf_peers_present(ifp->if_bpf)) {
-		if (ifp->if_bpf->bif_dlt == DLT_NULL) {
-			u_int32_t af1 = af;	/* XXX beware sizeof(af) != 4 */
-			/*
-			 * We need to prepend the address family.
-			 */
-			bpf_mtap2(ifp->if_bpf, &af1, sizeof(af1), m);
-		} else
+	/*
+	 * Let BPF see incoming packet in the following manner:
+	 *  - Emulated packet loopback for a simplex interface 
+	 *    (net/if_ethersubr.c)
+	 *	-> passes it to ifp's BPF
+	 *  - IPv4/v6 multicast packet loopback (netinet(6)/ip(6)_output.c)
+	 *	-> not passes it to any BPF
+	 *  - Normal packet loopback from myself to myself (net/if_loop.c)
+	 *	-> passes to lo0's BPF (even in case of IPv6, where ifp!=lo0)
+	 */
+	if (hlen > 0) {
+		if (bpf_peers_present(ifp->if_bpf)) {
 			bpf_mtap(ifp->if_bpf, m);
+		}
+	} else {
+		if (bpf_peers_present(loif->if_bpf)) {
+			if ((m->m_flags & M_MCAST) == 0 || loif == ifp) {
+				/* XXX beware sizeof(af) != 4 */
+				u_int32_t af1 = af;	
+
+				/*
+				 * We need to prepend the address family.
+				 */
+				bpf_mtap2(loif->if_bpf, &af1, sizeof(af1), m);
+			}
+		}
 	}
 
 	/* Strip away media header */
