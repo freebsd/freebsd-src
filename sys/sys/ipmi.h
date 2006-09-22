@@ -26,6 +26,9 @@
  * $FreeBSD$
  */
 
+#ifndef __SYS_IPMI_H__
+#define	__SYS_IPMI_H__
+
 #define IPMI_MAX_ADDR_SIZE		0x20
 #define IPMI_MAX_RX			1024
 #define IPMI_BMC_SLAVE_ADDR		0x20 /* Linux Default slave address */
@@ -117,3 +120,36 @@ struct ipmi_ipmb_addr {
 	unsigned char	slave_addr;
 	unsigned char	lun;
 };
+
+#if defined(__amd64__)
+/* Compatiblity with 32-bit binaries. */
+
+#define IPMICTL_RECEIVE_MSG_TRUNC_32	_IOWR(IPMI_IOC_MAGIC, 11, struct ipmi_recv32)
+#define IPMICTL_RECEIVE_MSG_32		_IOWR(IPMI_IOC_MAGIC, 12, struct ipmi_recv32)
+#define IPMICTL_SEND_COMMAND_32		_IOW(IPMI_IOC_MAGIC, 13, struct ipmi_req32)
+
+struct ipmi_msg32 {
+	unsigned char	netfn;
+        unsigned char	cmd;
+        unsigned short	data_len;
+	uint32_t	data;
+};
+
+struct ipmi_req32 {
+	uint32_t	addr;
+	unsigned int	addr_len;
+	int32_t		msgid;
+	struct ipmi_msg32 msg;
+};
+
+struct ipmi_recv32 {
+	int		recv_type;
+	uint32_t	addr;
+	unsigned int	addr_len;
+	int32_t		msgid;
+	struct ipmi_msg32 msg;
+};
+
+#endif
+
+#endif	/* !__SYS_IPMI_H__ */

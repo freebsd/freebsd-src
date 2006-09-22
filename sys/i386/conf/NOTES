@@ -698,6 +698,7 @@ options 	SAFE_RNDTEST	# enable rndtest support
 # Miscellaneous hardware:
 #
 # apm: Laptop Advanced Power Management (experimental)
+# ipmi: Intelligent Platform Management Interface
 # pmtimer: Timer device driver for power management events (APM or ACPI)
 # smapi: System Management Application Program Interface driver
 # smbios: DMI/SMBIOS entry point
@@ -730,6 +731,7 @@ options 	SAFE_RNDTEST	# enable rndtest support
 
 device		apm
 hint.apm.0.flags="0x20"
+device		ipmi
 device		smapi
 device		smbios
 device		vpd
