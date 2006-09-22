@@ -41,7 +41,6 @@ options		IPDIVERT		# divert (for natd)
 options		DUMMYNET
 options		BRIDGE
 options		HZ=1000
-#options		NMBCLUSTERS=4096
 
 device		isa
 device		pci
