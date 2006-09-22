@@ -610,7 +610,7 @@ cdce_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 			printf("%s: usb error on rx: %s\n",
 			    device_get_nameunit(sc->cdce_dev), usbd_errstr(status));
 		if (status == USBD_STALLED)
-			usbd_clear_endpoint_stall(sc->cdce_bulkin_pipe);
+			usbd_clear_endpoint_stall_async(sc->cdce_bulkin_pipe);
 		DELAY(sc->cdce_rxeof_errors * 10000);
 		sc->cdce_rxeof_errors++;
 		goto done;
@@ -678,7 +678,7 @@ cdce_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 		printf("%s: usb error on tx: %s\n", device_get_nameunit(sc->cdce_dev),
 		    usbd_errstr(status));
 		if (status == USBD_STALLED)
-			usbd_clear_endpoint_stall(sc->cdce_bulkout_pipe);
+			usbd_clear_endpoint_stall_async(sc->cdce_bulkout_pipe);
 		CDCE_UNLOCK(sc);
 		return;
 	}
