@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 2, 2006
+.Dd September 22, 2006
 .Dt FSDB 8
 .Os
 .Sh NAME
@@ -204,11 +204,12 @@ Change the group of the current inode to
 Change the generation number of the current inode to
 .Ar gen .
 .Pp
+.It Cm btime Ar time
 .It Cm mtime Ar time
 .It Cm ctime Ar time
 .It Cm atime Ar time
-Change the modification, change, or access time (respectively) on the
-current inode to
+Change the creation (birth), modification, change, or access
+time (respectively) on the current inode to
 .Ar time .
 .Ar Time
 should be in the format
@@ -217,11 +218,15 @@ where
 .Em nsec
 is an optional nanosecond specification.
 If no nanoseconds are specified, the
+.Va birthnsec ,
 .Va mtimensec ,
 .Va ctimensec ,
 or
 .Va atimensec
 field will be set to zero.
+Note that
+.Cm btime
+is available on UFS2 file systems only.
 .Pp
 .It Cm quit , q , exit , Em <EOF>
 Exit the program.
