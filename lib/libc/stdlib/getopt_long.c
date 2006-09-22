@@ -568,18 +568,6 @@ start:
 			} else
 				optarg = nargv[optind];
 		}
-#ifndef GNU_COMPATIBLE
-		/* XXX: disable test for :: if PC? (GNU doesn't) */
-		else if (!(flags & FLAG_PERMUTE)) {
-			/*
-			 * If permutation is disabled, we can accept an
-			 * optional arg separated by whitespace so long
-			 * as it does not start with a dash (-).
-			 */
-			if (optind + 1 < nargc && *nargv[optind + 1] != '-')
-				optarg = nargv[++optind];
-		}
-#endif
 		place = EMSG;
 		++optind;
 	}
