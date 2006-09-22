@@ -161,7 +161,13 @@ dev/if_ndis/if_ndis_pci.c	optional	ndis cardbus | ndis pci
 dev/if_ndis/if_ndis_usb.c	optional	ndis usb
 dev/io/iodev.c			optional	io
 dev/ipmi/ipmi.c			optional	ipmi
-dev/ipmi/ipmi_smbios.c		optional	ipmi isa
+dev/ipmi/ipmi_acpi.c		optional	ipmi acpi
+dev/ipmi/ipmi_isa.c		optional	ipmi isa
+dev/ipmi/ipmi_kcs.c		optional	ipmi
+dev/ipmi/ipmi_smic.c		optional	ipmi
+dev/ipmi/ipmi_smbus.c		optional	ipmi smbus
+dev/ipmi/ipmi_smbios.c		optional	ipmi
+dev/ipmi/ipmi_ssif.c		optional	ipmi smbus
 dev/ipmi/ipmi_pci.c		optional	ipmi pci
 dev/fdc/fdc.c			optional	fdc
 dev/fdc/fdc_acpi.c		optional	fdc
