@@ -78,11 +78,11 @@ main(int argc, char *argv[])
 	struct group *gr;
 	struct passwd *pw;
 	int Gflag, Mflag, Pflag, ch, gflag, id, nflag, pflag, rflag, uflag;
-	int aflag;
+	int Aflag;
 	const char *myname;
 
 	Gflag = Mflag = Pflag = gflag = nflag = pflag = rflag = uflag = 0;
-	aflag = 0;
+	Aflag = 0;
 
 	myname = strrchr(argv[0], '/');
 	myname = (myname != NULL) ? myname + 1 : argv[0];
@@ -96,8 +96,13 @@ main(int argc, char *argv[])
 	}
 
 	while ((ch = getopt(argc, argv,
-	    (isgroups || iswhoami) ? "" : "PGMagnpru")) != -1)
+	    (isgroups || iswhoami) ? "" : "APGMgnpru")) != -1)
 		switch(ch) {
+#ifdef USE_BSM_AUDIT
+		case 'A':
+			Aflag = 1;
+			break;
+#endif
 		case 'G':
 			Gflag = 1;
 			break;
@@ -106,9 +111,6 @@ main(int argc, char *argv[])
 			break;
 		case 'P':
 			Pflag = 1;
-			break;
-		case 'a':
-			aflag = 1;
 			break;
 		case 'g':
 			gflag = 1;
@@ -135,7 +137,7 @@ main(int argc, char *argv[])
 	if (iswhoami && argc > 0)
 		usage();
 
-	switch(Gflag + Mflag + Pflag + aflag + gflag + pflag + uflag) {
+	switch(Aflag + Gflag + Mflag + Pflag + gflag + pflag + uflag) {
 	case 1:
 		break;
 	case 0:
@@ -152,13 +154,10 @@ main(int argc, char *argv[])
 		usage();
 
 #ifdef USE_BSM_AUDIT
-	if (aflag) {
+	if (Aflag) {
 		auditid();
 		exit(0);
 	}
-#else
-	if (aflag)
-		usage();
 #endif
 
 	if (gflag) {
@@ -418,16 +417,16 @@ usage(void)
 	else if (iswhoami)
 		(void)fprintf(stderr, "usage: whoami\n");
 	else
-		(void)fprintf(stderr, "%s\n%s\n%s\n%s%s\n%s\n%s\n%s\n",
+		(void)fprintf(stderr, "%s\n%s%s\n%s\n%s\n%s\n%s\n%s\n",
 		    "usage: id [user]",
-		    "       id -G [-n] [user]",
-		    "       id -M",
-		    "       id -P [user]",
 #ifdef USE_BSM_AUDIT
-		    "       id -a\n",
+		    "       id -A\n",
 #else
 		    "",
 #endif
+		    "       id -G [-n] [user]",
+		    "       id -M",
+		    "       id -P [user]",
 		    "       id -g [-nr] [user]",
 		    "       id -p [user]",
 		    "       id -u [-nr] [user]");
