@@ -294,8 +294,10 @@ arp_rtrequest(req, rt, info)
 			rt->rt_expire = 0;
 			bcopy(IF_LLADDR(rt->rt_ifp), LLADDR(SDL(gate)),
 			      SDL(gate)->sdl_alen = rt->rt_ifp->if_addrlen);
-			if (useloopback)
+			if (useloopback) {
 				rt->rt_ifp = loif;
+				rt->rt_rmx.rmx_mtu = loif->if_mtu;
+			}
 
 		    /*
 		     * make sure to set rt->rt_ifa to the interface
