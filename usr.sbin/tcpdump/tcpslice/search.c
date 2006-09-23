@@ -281,7 +281,7 @@ sf_find_end( pcap_t *p, struct timeval *first_timestamp,
 	 * end of the file.
 	 */
 	num_bytes = MAX_BYTES_FOR_DEFINITE_HEADER;
-	if ( fseek( pcap_file( p ), (long) -num_bytes, 2 ) < 0 )
+	if ( fseeko( pcap_file( p ), (off_t)-num_bytes, 2 ) < 0 )
 		return 0;
 
 	buf = (u_char *)malloc((u_int) num_bytes);
@@ -346,8 +346,8 @@ sf_find_end( pcap_t *p, struct timeval *first_timestamp,
 	status = 1;
 
 	/* Seek so that the next read will start at last valid packet. */
-	if ( fseek( pcap_file( p ), (long) -(bufend - hdrpos), 2 ) < 0 )
-		error( "final fseek() failed in sf_find_end()" );
+	if ( fseeko( pcap_file( p ), (off_t) -(bufend - hdrpos), 2 ) < 0 )
+		error( "final fseeko() failed in sf_find_end()" );
 
     done:
 	free( (char *) buf );
@@ -412,14 +412,14 @@ read_up_to( pcap_t *p, struct timeval *desired_time )
 	{
 	struct pcap_pkthdr hdr;
 	const u_char *buf;
-	long pos;
+	fpos_t pos;
 	int status;
 
 	for ( ; ; )
 		{
 		struct timeval *timestamp;
 
-		pos = ftell( pcap_file( p ) );
+		fgetpos( pcap_file( p ), &pos );
 		buf = pcap_next( p, &hdr );
 
 		if ( buf == 0 )
@@ -443,8 +443,8 @@ read_up_to( pcap_t *p, struct timeval *desired_time )
 			}
 		}
 
-	if ( fseek( pcap_file( p ), pos, 0 ) < 0 )
-		error( "fseek() failed in read_up_to()" );
+	if ( fsetpos( pcap_file( p ), &pos ) < 0 )
+		error( "fsetpos() failed in read_up_to()" );
 
 	return (status);
 	}
@@ -474,7 +474,7 @@ sf_find_packet( pcap_t *p,
 	struct timeval min_time_copy, max_time_copy;
 	u_int num_bytes = MAX_BYTES_FOR_DEFINITE_HEADER;
 	int num_bytes_read;
-	long desired_pos, present_pos;
+	fpos_t desired_pos, present_pos;
 	u_char *buf, *hdrpos;
 	struct pcap_pkthdr hdr;
 
@@ -501,7 +501,7 @@ sf_find_packet( pcap_t *p,
 			break;
 			}
 
-		present_pos = ftell( pcap_file( p ) );
+		fgetpos( pcap_file( p ), &present_pos );
 
 		if ( present_pos <= desired_pos &&
 		     desired_pos - present_pos < STRAIGHT_SCAN_THRESHOLD )
@@ -517,8 +517,8 @@ sf_find_packet( pcap_t *p,
 		if ( desired_pos < min_pos )
 			desired_pos = min_pos;
 
-		if ( fseek( pcap_file( p ), desired_pos, 0 ) < 0 )
-			error( "fseek() failed in sf_find_packet()" );
+		if ( fsetpos( pcap_file( p ), &desired_pos ) < 0 )
+			error( "fsetpos() failed in sf_find_packet()" );
 
 		num_bytes_read =
 			fread( (char *) buf, 1, num_bytes, pcap_file( p ) );
@@ -540,8 +540,8 @@ sf_find_packet( pcap_t *p,
 		desired_pos += (hdrpos - buf);
 
 		/* Seek to the beginning of the header. */
-		if ( fseek( pcap_file( p ), desired_pos, 0 ) < 0 )
-			error( "fseek() failed in sf_find_packet()" );
+		if ( fsetpos( pcap_file( p ), &desired_pos ) < 0 )
+			error( "fsetpos() failed in sf_find_packet()" );
 
 		if ( sf_timestamp_less_than( &hdr.ts, desired_time ) )
 			{ /* too early in the file */
