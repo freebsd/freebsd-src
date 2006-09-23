@@ -68,6 +68,24 @@ static int report_soft_formats = 1;
 SYSCTL_INT(_hw_snd, OID_AUTO, report_soft_formats, CTLFLAG_RW,
 	&report_soft_formats, 1, "report software-emulated formats");
 
+/**
+ * @brief Channel sync group lock
+ *
+ * Clients should acquire this lock @b without holding any channel locks
+ * before touching syncgroups or the main syncgroup list.
+ */
+struct mtx snd_pcm_syncgroups_mtx;
+MTX_SYSINIT(pcm_syncgroup, &snd_pcm_syncgroups_mtx, "PCM channel sync group lock", MTX_DEF);
+/**
+ * @brief syncgroups' master list
+ *
+ * Each time a channel syncgroup is created, it's added to this list.  This
+ * list should only be accessed with @sa snd_pcm_syncgroups_mtx held.
+ *
+ * See SNDCTL_DSP_SYNCGROUP for more information.
+ */
+struct pcm_synclist snd_pcm_syncgroups = SLIST_HEAD_INITIALIZER(head);
+
 static int chn_buildfeeder(struct pcm_channel *c);
 
 static void
@@ -87,14 +105,23 @@ chn_lockinit(struct pcm_channel *c, int dir)
 		c->lock = snd_mtxcreate(c->name, "pcm fake channel");
 		break;
 	}
+
+	cv_init(&c->cv, c->name);
 }
 
 static void
 chn_lockdestroy(struct pcm_channel *c)
 {
 	snd_mtxfree(c->lock);
+	cv_destroy(&c->cv);
 }
 
+/**
+ * @brief Determine channel is ready for I/O
+ *
+ * @retval 1 = ready for I/O
+ * @retval 0 = not ready for I/O
+ */
 static int
 chn_polltrigger(struct pcm_channel *c)
 {
@@ -112,8 +139,8 @@ chn_polltrigger(struct pcm_channel *c)
 #if 0
 		lim = (c->flags & CHN_F_HAS_SIZE)? sndbuf_getblksz(bs) : 1;
 #endif
-		lim = 1;
-		return (amt >= lim)? 1 : 0;
+		lim = c->lw;
+		return (amt >= lim) ? 1 : 0;
 	}
 	return 0;
 }
@@ -310,12 +337,25 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 
 	ret = 0;
 	count = hz;
+
 	while (!ret && (buf->uio_resid > 0) && (count > 0)) {
 		sz = sndbuf_getfree(bs);
 		if (sz == 0) {
 			if (c->flags & CHN_F_NBIO)
 				ret = EWOULDBLOCK;
-			else {
+			else if (c->flags & CHN_F_NOTRIGGER) {
+				/**
+				 * @todo Evaluate whether EAGAIN is truly desirable.
+				 * 	 4Front drivers behave like this, but I'm
+				 * 	 not sure if it at all violates the "write
+				 * 	 should be allowed to block" model.
+				 *
+				 * 	 The idea is that, while set with CHN_F_NOTRIGGER,
+				 * 	 a channel isn't playing, *but* without this we
+				 * 	 end up with "interrupt timeout / channel dead".
+				 */
+				ret = EAGAIN;
+			} else {
 				timeout = (hz * sndbuf_getblksz(bs)) / (sndbuf_getspd(bs) * sndbuf_getbps(bs));
 				if (timeout < 1)
 					timeout = 1;
@@ -829,6 +869,7 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir, int direction)
 	c->bufsoft = bs;
 	c->flags = 0;
 	c->feederflags = 0;
+	c->sm = NULL;
 
 	ret = ENODEV;
 	CHN_UNLOCK(c); /* XXX - Unlock for CHANNEL_INIT() malloc() call */
@@ -853,6 +894,19 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir, int direction)
 	if (ret)
 		goto out;
 
+	/**
+	 * @todo Should this be moved somewhere else?  The primary buffer
+	 * 	 is allocated by the driver or via DMA map setup, and tmpbuf
+	 * 	 seems to only come into existence in sndbuf_resize().
+	 */
+	if (c->direction == PCMDIR_PLAY) {
+		bs->sl = sndbuf_getmaxsize(bs);
+		bs->shadbuf = malloc(bs->sl, M_DEVBUF, M_NOWAIT);
+		if (bs->shadbuf == NULL) {
+			ret = ENOMEM;
+			goto out;
+		}
+	}
 
 out:
 	CHN_UNLOCK(c);
@@ -1195,6 +1249,12 @@ chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz)
 			goto out1;
 	}
 
+	/*
+	 * OSSv4 docs: "By default OSS will set the low water level equal
+	 * to the fragment size which is optimal in most cases."
+	 */
+	c->lw = sndbuf_getblksz(bs);
+
 	chn_resetbuf(c);
 out1:
 	KASSERT(sndbuf_getsize(bs) ==  0 ||
@@ -1243,6 +1303,17 @@ chn_trigger(struct pcm_channel *c, int go)
 	return ret;
 }
 
+/**
+ * @brief Queries sound driver for sample-aligned hardware buffer pointer index
+ *
+ * This function obtains the hardware pointer location, then aligns it to
+ * the current bytes-per-sample value before returning.  (E.g., a channel
+ * running in 16 bit stereo mode would require 4 bytes per sample, so a
+ * hwptr value ranging from 32-35 would be returned as 32.)
+ *
+ * @param c	PCM channel context	
+ * @returns 	sample-aligned hardware buffer pointer index
+ */
 int
 chn_getptr(struct pcm_channel *c)
 {
@@ -1501,6 +1572,77 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 	return 0;
 }
 
+/**
+ * @brief Fetch array of supported discrete sample rates
+ *
+ * Wrapper for CHANNEL_GETRATES.  Please see channel_if.m:getrates() for
+ * detailed information.
+ *
+ * @note If the operation isn't supported, this function will just return 0
+ *       (no rates in the array), and *rates will be set to NULL.  Callers
+ *       should examine rates @b only if this function returns non-zero.
+ *
+ * @param c	pcm channel to examine
+ * @param rates	pointer to array of integers; rate table will be recorded here
+ *
+ * @return number of rates in the array pointed to be @c rates
+ */
+int
+chn_getrates(struct pcm_channel *c, int **rates)
+{
+	KASSERT(rates != NULL, ("rates is null"));
+	CHN_LOCKASSERT(c);
+	return CHANNEL_GETRATES(c->methods, c->devinfo, rates);
+}
+
+/**
+ * @brief Remove channel from a sync group, if there is one.
+ *
+ * This function is initially intended for the following conditions:
+ *   - Starting a syncgroup (@c SNDCTL_DSP_SYNCSTART ioctl)
+ *   - Closing a device.  (A channel can't be destroyed if it's still in use.)
+ *
+ * @note Before calling this function, the syncgroup list mutex must be
+ * held.  (Consider pcm_channel::sm protected by the SG list mutex
+ * whether @c c is locked or not.)
+ *
+ * @param c	channel device to be started or closed
+ * @returns	If this channel was the only member of a group, the group ID
+ * 		is returned to the caller so that the caller can release it
+ * 		via free_unr() after giving up the syncgroup lock.  Else it
+ * 		returns 0.
+ */
+int
+chn_syncdestroy(struct pcm_channel *c)
+{
+	struct pcmchan_syncmember *sm;
+	struct pcmchan_syncgroup *sg;
+	int sg_id;
+
+	sg_id = 0;
+
+	PCM_SG_LOCKASSERT(MA_OWNED);
+
+	if (c->sm != NULL) {
+		sm = c->sm;
+		sg = sm->parent;
+		c->sm = NULL;
+
+		KASSERT(sg != NULL, ("syncmember has null parent"));
+
+		SLIST_REMOVE(&sg->members, sm, pcmchan_syncmember, link);
+		free(sm, M_DEVBUF);
+
+		if (SLIST_EMPTY(&sg->members)) {
+			SLIST_REMOVE(&snd_pcm_syncgroups, sg, pcmchan_syncgroup, link);
+			sg_id = sg->id;
+			free(sg, M_DEVBUF);
+		}
+	}
+
+	return sg_id;
+}
+
 void
 chn_lock(struct pcm_channel *c)
 {
@@ -1512,3 +1654,12 @@ chn_unlock(struct pcm_channel *c)
 {
 	CHN_UNLOCK(c);
 }
+
+#ifdef OSSV4_EXPERIMENT
+int
+chn_getpeaks(struct pcm_channel *c, int *lpeak, int *rpeak)
+{
+	CHN_LOCKASSERT(c);
+	return CHANNEL_GETPEAKS(c->methods, c->devinfo, lpeak, rpeak);
+}
+#endif

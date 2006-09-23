@@ -70,6 +70,19 @@ CODE {
 		return 0;
 	}
 
+	static int
+	channel_nogetpeaks(kobj_t obj, void *data, int *lpeak, int *rpeak)
+	{
+		return -1;
+	}
+
+	static int
+	channel_nogetrates(kobj_t obj, void *data, int **rates)
+	{
+		*rates = NULL;
+		return 0;
+	}
+
 };
 
 METHOD void* init {
@@ -140,3 +153,54 @@ METHOD int notify {
 	void *data;
 	u_int32_t changed;
 } DEFAULT channel_nonotify;
+
+/**
+ * @brief Retrieve channel peak values
+ *
+ * This function is intended to obtain peak volume values for samples
+ * played/recorded on a channel.  Values are on a linear scale from 0 to
+ * 32767.  If the channel is monaural, a single value should be recorded
+ * in @c lpeak.
+ *
+ * If hardware support isn't available, the SNDCTL_DSP_GET[IO]PEAKS
+ * operation should return EINVAL.  However, we may opt to provide
+ * software support that the user may toggle via sysctl/mixext.
+ *
+ * @param obj	standard kobj object (usually @c channel->methods)
+ * @param data	driver-specific data (usually @c channel->devinfo)
+ * @param lpeak	pointer to store left peak level
+ * @param rpeak	pointer to store right peak level
+ *
+ * @retval -1	Error; usually operation isn't supported.
+ * @retval 0	success
+ */
+METHOD int getpeaks {
+	kobj_t obj;
+	void *data;
+	int *lpeak;
+	int *rpeak;
+} DEFAULT channel_nogetpeaks;
+
+/**
+ * @brief Retrieve discrete supported sample rates
+ *
+ * Some cards operate at fixed rates, and this call is intended to retrieve
+ * those rates primarily for when in-kernel rate adjustment is undesirable
+ * (e.g., application wants direct DMA access after setting a channel to run
+ * "uncooked").
+ *
+ * The parameter @c rates is a double pointer which will be reset to
+ * point to an array of supported sample rates.  The number of elements
+ * in the array is returned to the caller.
+ *
+ * @param obj	standard kobj object (usually @c channel->methods)
+ * @param data	driver-specific data (usually @c channel->devinfo)
+ * @param rates	rate array pointer
+ *
+ * @return Number of rates in the array
+ */
+METHOD int getrates {
+	kobj_t obj;
+	void *data;
+	int **rates;
+} DEFAULT channel_nogetrates;
