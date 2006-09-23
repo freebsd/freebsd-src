@@ -3067,6 +3067,12 @@ ttyopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	struct tty	*tp;
 
 	tp = dev->si_tty;
+
+	/* XXX It can happen that devfs_open calls us with tp->t_refcnt == 0 */
+	if (tp == NULL || tp->t_refcnt == 0) {
+		return (ENXIO);
+	}
+
 	s = spltty();
 	/*
 	 * We jump to this label after all non-interrupted sleeps to pick

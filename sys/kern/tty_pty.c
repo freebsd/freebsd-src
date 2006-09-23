@@ -196,6 +196,12 @@ ptsopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 		return(ENXIO);
 	pt = dev->si_drv1;
 	tp = dev->si_tty;
+
+        /* XXX It can happen that devfs_open calls us with tp->t_refcnt == 0 */
+	if (tp == NULL || tp->t_refcnt == 0) {
+		return (ENXIO);
+        }
+
 	if ((tp->t_state & TS_ISOPEN) == 0) {
 		ttyinitmode(tp, 1, 0);
 	} else if (tp->t_state & TS_XCLUDE && suser(td))
@@ -314,6 +320,12 @@ ptcopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 	if (!dev->si_drv1)
 		return(ENXIO);
 	tp = dev->si_tty;
+
+	/* XXX It can happen that devfs_open calls us with tp->t_refcnt == 0 */
+        if (tp == NULL || tp->t_refcnt == 0) {
+                return (ENXIO);
+        }
+
 	if (tp->t_oproc)
 		return (EIO);
 	tp->t_timeout = -1;
