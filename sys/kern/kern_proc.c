@@ -313,6 +313,7 @@ enterpgrp(p, pgid, pgrp, sess)
 		PROC_LOCK(p);
 		p->p_flag &= ~P_CONTROLT;
 		PROC_UNLOCK(p);
+		mtx_lock(&Giant);       /* XXX TTY */
 		PGRP_LOCK(pgrp);
 		sess->s_leader = p;
 		sess->s_sid = p->p_pid;
@@ -325,6 +326,7 @@ enterpgrp(p, pgid, pgrp, sess)
 		KASSERT(p == curproc,
 		    ("enterpgrp: mksession and p != curproc"));
 	} else {
+		mtx_lock(&Giant);       /* XXX TTY */
 		pgrp->pg_session = p->p_session;
 		SESS_LOCK(pgrp->pg_session);
 		pgrp->pg_session->s_count++;
@@ -342,6 +344,7 @@ enterpgrp(p, pgid, pgrp, sess)
 	pgrp->pg_jobc = 0;
 	SLIST_INIT(&pgrp->pg_sigiolst);
 	PGRP_UNLOCK(pgrp);
+	mtx_unlock(&Giant);       /* XXX TTY */
 
 	doenterpgrp(p, pgrp);
 
