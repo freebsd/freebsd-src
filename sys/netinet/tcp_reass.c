@@ -548,10 +548,8 @@ tcp_input(m, off0)
 			tcpstat.tcps_rcvbadsum++;
 			goto drop;
 		}
-#ifdef INET6
 		/* Re-initialization for later version check */
 		ip->ip_v = IPVERSION;
-#endif
 	}
 
 	/*
