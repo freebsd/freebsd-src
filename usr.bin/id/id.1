@@ -53,6 +53,8 @@
 .Fl P
 .Op Ar user
 .Nm
+.Fl a
+.Nm
 .Fl g Op Fl nr
 .Op Ar user
 .Nm
@@ -84,6 +86,9 @@ as white-space separated numbers, in no particular order.
 Display the MAC label of the current process.
 .It Fl P
 Display the id as a password file entry.
+.It Fl a
+Display the process audit user ID and other process audit properties, which
+requires privilege.
 .It Fl g
 Display the effective group ID as a number.
 .It Fl n
