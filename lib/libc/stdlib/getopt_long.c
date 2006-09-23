@@ -1,4 +1,4 @@
-/*	$OpenBSD: getopt_long.c,v 1.17 2004/06/03 18:46:52 millert Exp $	*/
+/*	$OpenBSD: getopt_long.c,v 1.21 2006/09/22 17:22:05 millert Exp $	*/
 /*	$NetBSD: getopt_long.c,v 1.15 2002/01/31 22:43:40 tv Exp $	*/
 
 /*
@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 
 #define GNU_COMPATIBLE		/* Be more compatible, configure's use us! */
 
-#ifndef GNU_COMPATIBLE
+#if 0				/* we prefer to keep our getopt(3) */
 #define	REPLACE_GETOPT		/* use this getopt as the system getopt(3) */
 #endif
 
@@ -366,7 +366,7 @@ getopt_internal(int nargc, char * const *nargv, const char *options,
 {
 	char *oli;				/* option letter list index */
 	int optchar, short_too;
-	int posixly_correct;
+	int posixly_correct;	/* no static, can be changed on the fly */
 
 	if (options == NULL)
 		return (-1);
@@ -603,12 +603,8 @@ getopt(int nargc, char * const *nargv, const char *options)
  *	Parse argc/argv argument vector.
  */
 int
-getopt_long(nargc, nargv, options, long_options, idx)
-	int nargc;
-	char * const *nargv;
-	const char *options;
-	const struct option *long_options;
-	int *idx;
+getopt_long(int nargc, char * const *nargv, const char *options,
+	const struct option *long_options, int *idx)
 {
 
 	return (getopt_internal(nargc, nargv, options, long_options, idx,
@@ -620,12 +616,8 @@ getopt_long(nargc, nargv, options, long_options, idx)
  *	Parse argc/argv argument vector.
  */
 int
-getopt_long_only(nargc, nargv, options, long_options, idx)
-	int nargc;
-	char * const *nargv;
-	const char *options;
-	const struct option *long_options;
-	int *idx;
+getopt_long_only(int nargc, char * const *nargv, const char *options,
+	const struct option *long_options, int *idx)
 {
 
 	return (getopt_internal(nargc, nargv, options, long_options, idx,
