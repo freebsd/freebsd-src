@@ -453,7 +453,7 @@ void
 extract_slice(char filename[], char write_file_name[],
 		struct timeval *start_time, struct timeval *stop_time)
 {
-	long start_pos, stop_pos;
+	off_t start_pos, stop_pos;
 	struct timeval file_start_time, file_stop_time;
 	struct pcap_pkthdr hdr;
 	pcap_t *p;
@@ -464,7 +464,7 @@ extract_slice(char filename[], char write_file_name[],
 		error( "bad tcpdump file %s: %s", filename, errbuf );
 
 	snaplen = pcap_snapshot( p );
-	start_pos = ftell( pcap_file( p ) );
+	fgetpos( pcap_file( p ), &start_pos );
 
 	if ( ! dumper )
 		{
@@ -485,7 +485,7 @@ extract_slice(char filename[], char write_file_name[],
 		error( "problems finding end packet of file %s",
 			filename );
 
-	stop_pos = ftell( pcap_file( p ) );
+	fgetpos( pcap_file( p ), &stop_pos );
 
 
 	/* sf_find_packet() requires that the time it's passed as its last
