@@ -243,9 +243,9 @@ clnt_vc_create(fd, raddr, prog, vers, sendsz, recvsz)
 		}
 	}
 	mutex_unlock(&clnt_fd_lock);
+	thr_sigsetmask(SIG_SETMASK, &(mask), NULL);
 	if (!__rpc_fd2sockinfo(fd, &si))
 		goto err;
-	thr_sigsetmask(SIG_SETMASK, &(mask), NULL);
 
 	ct->ct_closeit = FALSE;
 
