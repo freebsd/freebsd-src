@@ -37,6 +37,37 @@ struct pcmchan_caps {
 	u_int32_t caps;
 };
 
+/* Forward declarations */
+struct pcm_channel;
+struct pcmchan_syncgroup;
+struct pcmchan_syncmember;
+
+extern struct mtx snd_pcm_syncgroups_mtx;
+extern SLIST_HEAD(pcm_synclist, pcmchan_syncgroup) snd_pcm_syncgroups;
+
+#define PCM_SG_LOCK()	    mtx_lock(&snd_pcm_syncgroups_mtx)
+#define PCM_SG_TRYLOCK()    mtx_trylock(&snd_pcm_syncgroups_mtx)
+#define PCM_SG_UNLOCK()	    mtx_unlock(&snd_pcm_syncgroups_mtx)
+#define PCM_SG_LOCKASSERT(arg)	mtx_assert(&snd_pcm_syncgroups_mtx, arg)
+
+/**
+ * @brief Specifies an audio device sync group
+ */
+struct pcmchan_syncgroup {
+	SLIST_ENTRY(pcmchan_syncgroup) link;
+	SLIST_HEAD(, pcmchan_syncmember) members;
+	int id; /**< Group identifier; set to address of group. */
+};
+
+/**
+ * @brief Specifies a container for members of a sync group
+ */
+struct pcmchan_syncmember {
+	SLIST_ENTRY(pcmchan_syncmember) link;
+	struct pcmchan_syncgroup *parent; /**< group head */
+	struct pcm_channel *ch;
+};
+
 #define	CHN_NAMELEN	32
 struct pcm_channel {
 	kobj_t methods;
@@ -63,6 +94,33 @@ struct pcm_channel {
 	device_t dev;
 	char name[CHN_NAMELEN];
 	struct mtx *lock;
+	/**
+	 * Increment,decrement this around operations that temporarily yield
+	 * lock.
+	 */
+	unsigned int inprog;
+	/**
+	 * Special channel operations should examine @c inprog after acquiring
+	 * lock.  If zero, operations may continue.  Else, thread should
+	 * wait on this cv for previous operation to finish.
+	 */
+	struct cv cv;
+	/**
+	 * Low water mark for select()/poll().
+	 *
+	 * This is initialized to the channel's fragment size, and will be
+	 * overwritten if a new fragment size is set.  Users may alter this
+	 * value directly with the @c SNDCTL_DSP_LOW_WATER ioctl.
+	 */
+	unsigned int lw;
+	/**
+	 * If part of a sync group, this will point to the syncmember
+	 * container.
+	 */
+	struct pcmchan_syncmember *sm;
+#ifdef OSSV4_EXPERIMENT
+	u_int16_t lpeak, rpeak;	/**< Peak value from 0-32767. */
+#endif
 	SLIST_HEAD(, pcmchan_children) children;
 };
 
@@ -102,13 +160,22 @@ int chn_notify(struct pcm_channel *c, u_int32_t flags);
 void chn_lock(struct pcm_channel *c);
 void chn_unlock(struct pcm_channel *c);
 
+int chn_getrates(struct pcm_channel *c, int **rates);
+int chn_syncdestroy(struct pcm_channel *c);
+
+#ifdef OSSV4_EXPERIMENT
+int chn_getpeaks(struct pcm_channel *c, int *lpeak, int *rpeak);
+#endif
+
 #ifdef	USING_MUTEX
 #define CHN_LOCK(c) mtx_lock((struct mtx *)((c)->lock))
 #define CHN_UNLOCK(c) mtx_unlock((struct mtx *)((c)->lock))
+#define CHN_TRYLOCK(c) mtx_trylock((struct mtx *)((c)->lock))
 #define CHN_LOCKASSERT(c) mtx_assert((struct mtx *)((c)->lock), MA_OWNED)
 #else
 #define CHN_LOCK(c)
 #define CHN_UNLOCK(c)
+#define CHN_TRYLOCK(c)
 #define CHN_LOCKASSERT(c)
 #endif
 

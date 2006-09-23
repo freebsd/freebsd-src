@@ -28,6 +28,7 @@
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/vchan.h>
 #include <dev/sound/pcm/dsp.h>
+#include <sys/limits.h>
 #include <sys/sysctl.h>
 
 #include "feeder_if.h"
@@ -50,6 +51,11 @@ int snd_maxautovchans = 4;
 TUNABLE_INT("hw.snd.maxautovchans", &snd_maxautovchans);
 
 SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
+
+/**
+ * @brief Unit number allocator for syncgroup IDs
+ */
+struct unrhdr *pcmsg_unrhdr = NULL;
 
 static int sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose);
 
@@ -1126,13 +1132,143 @@ sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 
 /************************************************************************/
 
+/**
+ * @brief	Handle OSSv4 SNDCTL_SYSINFO ioctl.
+ *
+ * @param si	Pointer to oss_sysinfo struct where information about the
+ * 		sound subsystem will be written/copied.
+ *
+ * This routine returns information about the sound system, such as the
+ * current OSS version, number of audio, MIDI, and mixer drivers, etc.
+ * Also includes a bitmask showing which of the above types of devices
+ * are open (busy).
+ *
+ * @note
+ * Calling threads must not hold any snddev_info or pcm_channel locks.
+ *
+ * @author	Ryan Beasley <ryanb@FreeBSD.org>
+ */
+void
+sound_oss_sysinfo(oss_sysinfo *si)
+{
+	static char si_product[] = "FreeBSD native OSS ABI";
+	static char si_version[] = __XSTRING(__FreeBSD_version);
+	static int intnbits = sizeof(int) * 8;	/* Better suited as macro?
+						   Must pester a C guru. */
+
+	struct snddev_channel *sce;
+	struct snddev_info *d;
+	struct pcm_channel *c;
+	int i, j, ncards;
+	
+	ncards = 0;
+
+	strlcpy(si->product, si_product, sizeof(si->product));
+	strlcpy(si->version, si_version, sizeof(si->version));
+	si->versionnum = SOUND_VERSION;
+
+	/*
+	 * Iterate over PCM devices and their channels, gathering up data
+	 * for the numaudios, ncards, and openedaudio fields.
+	 */
+	si->numaudios = 0;
+	bzero((void *)&si->openedaudio, sizeof(si->openedaudio));
+
+	if (pcm_devclass != NULL) {
+		j = 0;
+
+		for (i = 0; i < devclass_get_maxunit(pcm_devclass); i++) {
+			d = devclass_get_softc(pcm_devclass, i);
+			if (!d)
+				continue;
+
+			/* See note in function's docblock */
+			mtx_assert(d->lock, MA_NOTOWNED);
+			/* Increment device's "operations in progress" */
+			pcm_inprog(d, 1);
+			pcm_lock(d);
+
+			si->numaudios += d->devcount;
+			++ncards;
+
+			SLIST_FOREACH(sce, &d->channels, link) {
+				c = sce->channel;
+				mtx_assert(c->lock, MA_NOTOWNED);
+				CHN_LOCK(c);
+				if (c->flags & CHN_F_BUSY)
+					si->openedaudio[j / intnbits] |=
+					    (1 << (j % intnbits));
+				CHN_UNLOCK(c);
+				j++;
+			}
+
+			pcm_unlock(d);
+			pcm_inprog(d, -1);
+		}
+	}
+
+	si->numsynths = 0;	/* OSSv4 docs:  this field is obsolete */
+	/**
+	 * @todo	Collect num{midis,timers}.
+	 *
+	 * Need access to sound/midi/midi.c::midistat_lock in order
+	 * to safely touch midi_devices and get a head count of, well,
+	 * MIDI devices.  midistat_lock is a global static (i.e., local to
+	 * midi.c), but midi_devices is a regular global; should the mutex
+	 * be publicized, or is there another way to get this information?
+	 *
+	 * NB:	MIDI/sequencer stuff is currently on hold.
+	 */
+	si->nummidis = 0;
+	si->numtimers = 0;
+	si->nummixers = mixer_count;
+	si->numcards = ncards;
+		/* OSSv4 docs:	Intended only for test apps; API doesn't
+		   really have much of a concept of cards.  Shouldn't be
+		   used by applications. */
+
+	/**
+	 * @todo	Fill in "busy devices" fields.
+	 *
+	 *  si->openedmidi = " MIDI devices
+	 */
+	bzero((void *)&si->openedmidi, sizeof(si->openedmidi));
+
+	/*
+	 * Si->filler is a reserved array, but according to docs each
+	 * element should be set to -1.
+	 */
+	for (i = 0; i < sizeof(si->filler)/sizeof(si->filler[0]); i++)
+		si->filler[i] = -1;
+}
+
+/************************************************************************/
+
 static int
 sound_modevent(module_t mod, int type, void *data)
 {
+	int ret;
 #if 0
 	return (midi_modevent(mod, type, data));
 #else
-	return 0;
+	ret = 0;
+
+	switch(type) {
+		case MOD_LOAD:
+			pcmsg_unrhdr = new_unrhdr(1, INT_MAX, NULL);
+			break;
+		case MOD_UNLOAD:
+		case MOD_SHUTDOWN:
+			if (pcmsg_unrhdr != NULL) {
+				delete_unrhdr(pcmsg_unrhdr);
+				pcmsg_unrhdr = NULL;
+			}
+			break;
+		default:
+			ret = EOPNOTSUPP;
+	}
+
+	return ret;
 #endif
 }
 

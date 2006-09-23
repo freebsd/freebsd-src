@@ -117,6 +117,11 @@ sndbuf_free(struct snd_dbuf *b)
 		free(b->tmpbuf, M_DEVBUF);
 	b->tmpbuf = NULL;
 
+	if (b->shadbuf)
+		free(b->shadbuf, M_DEVBUF);
+	b->shadbuf = NULL;
+	b->sl = 0;
+
 	if (b->dmamap)
 		bus_dmamap_unload(b->dmatag, b->dmamap);
 
@@ -168,6 +173,7 @@ int
 sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 {
         u_int8_t *buf, *tmpbuf, *f1, *f2;
+	u_int8_t *shadbuf, *f3;
         unsigned int bufsize;
 	int ret;
 
@@ -189,6 +195,15 @@ sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 		ret = ENOMEM;
 		goto out;
 	}
+
+	shadbuf = malloc(bufsize, M_DEVBUF, M_WAITOK);
+	if (shadbuf == NULL) {
+		free(buf, M_DEVBUF);
+		free(tmpbuf, M_DEVBUF);
+		ret = ENOMEM;
+		goto out;
+	}
+
 	chn_lock(b->channel);
 
 	b->blkcnt = blkcnt;
@@ -199,6 +214,9 @@ sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 	f2 = b->tmpbuf;
 	b->buf = buf;
 	b->tmpbuf = tmpbuf;
+	f3 = b->shadbuf;
+	b->shadbuf = shadbuf;
+	b->sl = bufsize;
 
 	sndbuf_reset(b);
 
@@ -207,6 +225,8 @@ sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 		free(f1, M_DEVBUF);
       	if (f2)
 		free(f2, M_DEVBUF);
+	if (f3)
+		free(f3, M_DEVBUF);
 
 	ret = 0;
 out:
@@ -214,6 +234,15 @@ out:
 	return ret;
 }
 
+/**
+ * @brief Zero out space in buffer free area
+ *
+ * This function clears a chunk of @c length bytes in the buffer free area
+ * (i.e., where the next write will be placed).
+ *
+ * @param b		buffer context
+ * @param length	number of bytes to blank
+ */
 void
 sndbuf_clear(struct snd_dbuf *b, unsigned int length)
 {
@@ -241,6 +270,11 @@ sndbuf_clear(struct snd_dbuf *b, unsigned int length)
 	}
 }
 
+/**
+ * @brief Zap buffer contents, resetting "ready area" fields
+ *
+ * @param b	buffer context
+ */
 void
 sndbuf_fillsilence(struct snd_dbuf *b)
 {
@@ -260,6 +294,23 @@ sndbuf_fillsilence(struct snd_dbuf *b)
 	b->rl = b->bufsize;
 }
 
+/**
+ * @brief Reset buffer w/o flushing statistics
+ *
+ * This function just zeroes out buffer contents and sets the "ready length"
+ * to zero.  This was originally to facilitate minimal playback interruption
+ * (i.e., dropped samples) in SNDCTL_DSP_SILENCE/SKIP ioctls.
+ *
+ * @param b	buffer context
+ */
+void
+sndbuf_softreset(struct snd_dbuf *b)
+{
+	b->rl = 0;
+	if (b->buf && b->bufsize > 0)
+		sndbuf_clear(b, b->bufsize);
+}
+
 void
 sndbuf_reset(struct snd_dbuf *b)
 {
@@ -272,6 +323,7 @@ sndbuf_reset(struct snd_dbuf *b)
 	b->xrun = 0;
 	if (b->buf && b->bufsize > 0)
 		sndbuf_clear(b, b->bufsize);
+	sndbuf_clearshadow(b);
 }
 
 u_int32_t
@@ -493,6 +545,19 @@ sndbuf_updateprevtotal(struct snd_dbuf *b)
 
 /************************************************************/
 
+/**
+ * @brief Acquire buffer space to extend ready area
+ *
+ * This function extends the ready area length by @c count bytes, and may
+ * optionally copy samples from another location stored in @c from.  The
+ * counter @c snd_dbuf::total is also incremented by @c count bytes.
+ *
+ * @param b	audio buffer
+ * @param from	sample source (optional)
+ * @param count	number of bytes to acquire
+ *
+ * @retval 0	Unconditional
+ */
 int
 sndbuf_acquire(struct snd_dbuf *b, u_int8_t *from, unsigned int count)
 {
@@ -516,6 +581,20 @@ sndbuf_acquire(struct snd_dbuf *b, u_int8_t *from, unsigned int count)
 	return 0;
 }
 
+/**
+ * @brief Dispose samples from channel buffer, increasing size of ready area
+ *
+ * This function discards samples from the supplied buffer by advancing the
+ * ready area start pointer and decrementing the ready area length.  If 
+ * @c to is not NULL, then the discard samples will be copied to the location
+ * it points to.
+ *
+ * @param b	PCM channel sound buffer
+ * @param to	destination buffer (optional)
+ * @param count	number of bytes to discard
+ *
+ * @returns 0 unconditionally
+ */
 int
 sndbuf_dispose(struct snd_dbuf *b, u_int8_t *to, unsigned int count)
 {
@@ -592,3 +671,49 @@ sndbuf_setflags(struct snd_dbuf *b, u_int32_t flags, int on)
 		b->flags |= flags;
 }
 
+/**
+ * @brief Clear the shadow buffer by filling with samples equal to zero.
+ *
+ * @param b buffer to clear
+ */
+void
+sndbuf_clearshadow(struct snd_dbuf *b)
+{
+	KASSERT(b != NULL, ("b is a null pointer"));
+	KASSERT(b->sl >= 0, ("illegal shadow length"));
+
+	if ((b->shadbuf != NULL) && (b->sl > 0)) {
+		if (b->fmt & AFMT_SIGNED)
+			memset(b->shadbuf, 0x00, b->sl);
+		else
+			memset(b->shadbuf, 0x80, b->sl);
+	}
+}
+
+#ifdef OSSV4_EXPERIMENT
+/**
+ * @brief Return peak value from samples in buffer ready area.
+ *
+ * Peak ranges from 0-32767.  If channel is monaural, most significant 16
+ * bits will be zero.  For now, only expects to work with 1-2 channel
+ * buffers.
+ *
+ * @note  Currently only operates with linear PCM formats.
+ *
+ * @param b buffer to analyze
+ * @param lpeak pointer to store left peak value
+ * @param rpeak pointer to store right peak value
+ */
+void
+sndbuf_getpeaks(struct snd_dbuf *b, int *lp, int *rp)
+{
+	u_int32_t lpeak, rpeak;
+
+	lpeak = 0;
+	rpeak = 0;
+
+	/**
+	 * @todo fill this in later
+	 */
+}
+#endif
