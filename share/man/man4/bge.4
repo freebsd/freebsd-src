@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 15, 2005
+.Dd September 23, 2006
 .Dt BGE 4
 .Os
 .Sh NAME
@@ -52,12 +52,6 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 if_bge_load="YES"
 .Ed
-.Pp
-The following tunable is settable from the loader:
-.Bl -ohang -offset indent
-.It Va hw.bge.fake_autoneg
-set to 1 for special handling of the BCM5704 HW (default is 0).
-.El
 .Sh DESCRIPTION
 The
 .Nm
@@ -207,6 +201,20 @@ Netgear GA302T (10/100/1000baseTX)
 SysKonnect SK-9D21 (10/100/1000baseTX)
 .It
 SysKonnect SK-9D41 (1000baseSX)
+.El
+.Sh LOADER TUNABLES
+Tunabled can be set at the
+.Xr loader 8
+prompt before booting the kernel, or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.bge.fake_autoneg
+Set to 1 for special handling of the BCM5704 HW.
+Disabled by default.
+.It Va hw.bge.allow_asf
+Allow the ASF feature for cooperating with IPMI.
+Can cause system lockup problems on a small number of systems.
+Enabled by default.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
