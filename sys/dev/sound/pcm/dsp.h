@@ -1,3 +1,5 @@
+#ifndef _PCMDSP_H_
+#define _PCMDSP_H_
 /*-
  * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>
  * All rights reserved.
@@ -27,3 +29,7 @@
  */
 
 extern struct cdevsw dsp_cdevsw;
+
+int dsp_oss_audioinfo(struct cdev *, oss_audioinfo *);
+
+#endif /* !_PCMDSP_H_ */
