@@ -714,7 +714,8 @@
 427	AUE_NULL	UNIMPL	__acl_delete_link
 428	AUE_NULL	UNIMPL	__acl_aclcheck_link
 ; XXX implement
-429	AUE_SIGWAIT	UNIMPL	sigwait
+429	AUE_SIGWAIT	NOPROTO	{ int sigwait(const sigset_t *set, \
+				    int *sig); }
 430	AUE_NULL	UNIMPL	thr_create;
 431	AUE_NULL	NOPROTO	{ void thr_exit(long *state); }
 432	AUE_NULL	NOPROTO	{ int thr_self(long *id); }
