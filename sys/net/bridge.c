@@ -160,6 +160,8 @@ extern u_char ip_protox[];			/* from netinet/ip_input.c */
 static int n_clusters;				/* number of clusters */
 static struct cluster_softc *clusters;
 
+static int bridge_hwassmask = 0xFFFFFFFFUL;
+
 #define BDG_MUTED(ifp) (ifp2sc[ifp->if_index].flags & IFF_MUTE)
 #define BDG_MUTE(ifp) ifp2sc[ifp->if_index].flags |= IFF_MUTE
 #define BDG_CLUSTER(ifp) (ifp2sc[ifp->if_index].cluster)
@@ -315,6 +317,7 @@ bridge_off(void)
 	if ( b->flags & IFF_BDG_PROMISC ) {
 	    s = splimp();
 	    ifpromisc(ifp, 0);
+	    ifp->if_hwassist = b->hwassist;
 	    splx(s);
 	    b->flags &= ~(IFF_BDG_PROMISC|IFF_MUTE) ;
 	    DEB(printf(">> now %s%d promisc OFF if_flags 0x%x bdg_flags 0x%x\n",
@@ -361,6 +364,8 @@ bridge_on(void)
 	if ( !(b->flags & IFF_BDG_PROMISC) ) {
 	    int ret ;
 	    s = splimp();
+	    b->hwassist = ifp->if_hwassist;
+	    ifp->if_hwassist &= (u_long)bridge_hwassmask;
 	    ret = ifpromisc(ifp, 1);
 	    splx(s);
 	    b->flags |= IFF_BDG_PROMISC ;
@@ -536,6 +541,11 @@ SYSCTL_INT(_net_link_ether, OID_AUTO, bridge_ipfw, CTLFLAG_RW,
 
 SYSCTL_INT(_net_link_ether, OID_AUTO, bridge_ipf, CTLFLAG_RW,
 	    &bdg_ipf, 0,"Pass bridged pkts through IPFilter");
+
+SYSCTL_INT(_net_link_ether, OID_AUTO, bridge_hwassmask, CTLFLAG_RW,
+	&bridge_hwassmask, 0,
+	"Mask to apply to if_hwassist field for bridge interfaces");
+
 
 /*
  * The follow macro declares a variable, and maps it to
