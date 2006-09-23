@@ -48,6 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/mac.h>
 
+#ifdef USE_BSM_AUDIT
+#include <bsm/audit.h>
+#endif
+
 #include <err.h>
 #include <errno.h>
 #include <grp.h>
@@ -60,6 +64,7 @@ __FBSDID("$FreeBSD$");
 void	id_print(struct passwd *, int, int, int);
 void	pline(struct passwd *);
 void	pretty(struct passwd *);
+void	auditid(void);
 void	group(struct passwd *, int);
 void	maclabel(void);
 void	usage(void);
@@ -73,9 +78,11 @@ main(int argc, char *argv[])
 	struct group *gr;
 	struct passwd *pw;
 	int Gflag, Mflag, Pflag, ch, gflag, id, nflag, pflag, rflag, uflag;
+	int aflag;
 	const char *myname;
 
 	Gflag = Mflag = Pflag = gflag = nflag = pflag = rflag = uflag = 0;
+	aflag = 0;
 
 	myname = strrchr(argv[0], '/');
 	myname = (myname != NULL) ? myname + 1 : argv[0];
@@ -89,7 +96,7 @@ main(int argc, char *argv[])
 	}
 
 	while ((ch = getopt(argc, argv,
-	    (isgroups || iswhoami) ? "" : "PGMgnpru")) != -1)
+	    (isgroups || iswhoami) ? "" : "PGMagnpru")) != -1)
 		switch(ch) {
 		case 'G':
 			Gflag = 1;
@@ -99,6 +106,9 @@ main(int argc, char *argv[])
 			break;
 		case 'P':
 			Pflag = 1;
+			break;
+		case 'a':
+			aflag = 1;
 			break;
 		case 'g':
 			gflag = 1;
@@ -125,7 +135,7 @@ main(int argc, char *argv[])
 	if (iswhoami && argc > 0)
 		usage();
 
-	switch(Gflag + Pflag + gflag + pflag + uflag) {
+	switch(Gflag + Mflag + Pflag + aflag + gflag + pflag + uflag) {
 	case 1:
 		break;
 	case 0:
@@ -140,6 +150,16 @@ main(int argc, char *argv[])
 
 	if (Mflag && pw != NULL)
 		usage();
+
+#ifdef USE_BSM_AUDIT
+	if (aflag) {
+		auditid();
+		exit(0);
+	}
+#else
+	if (aflag)
+		usage();
+#endif
 
 	if (gflag) {
 		id = pw ? pw->pw_gid : rflag ? getgid() : getegid();
@@ -278,6 +298,22 @@ id_print(struct passwd *pw, int use_ggl, int p_euid, int p_egid)
 	printf("\n");
 }
 
+#ifdef USE_BSM_AUDIT
+void
+auditid(void)
+{
+	auditinfo_t auditinfo;
+
+	if (getaudit(&auditinfo) < 0)
+		err(-1, "getauditinfo");
+	printf("auid=%d\n", auditinfo.ai_auid);
+	printf("mask.success=0x%08x\n", auditinfo.ai_mask.am_success);
+	printf("mask.failure=0x%08x\n", auditinfo.ai_mask.am_failure);
+	printf("termid.port=0x%08x\n", auditinfo.ai_termid.port);
+	printf("asid=%d\n", auditinfo.ai_asid);
+}
+#endif
+
 void
 group(struct passwd *pw, int nflag)
 {
@@ -382,11 +418,16 @@ usage(void)
 	else if (iswhoami)
 		(void)fprintf(stderr, "usage: whoami\n");
 	else
-		(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+		(void)fprintf(stderr, "%s\n%s\n%s\n%s%s\n%s\n%s\n%s\n",
 		    "usage: id [user]",
 		    "       id -G [-n] [user]",
 		    "       id -M",
 		    "       id -P [user]",
+#ifdef USE_BSM_AUDIT
+		    "       id -a\n",
+#else
+		    "",
+#endif
 		    "       id -g [-nr] [user]",
 		    "       id -p [user]",
 		    "       id -u [-nr] [user]");
