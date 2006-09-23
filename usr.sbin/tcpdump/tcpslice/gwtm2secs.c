@@ -52,6 +52,13 @@ time_t gwtm2secs( struct tm *tm )
 		else
 			year += 2000;
 
+	/* Make sure our year is still >= 1970.  We fix 3-digit years
+	 * this way, because localtime(3) can return tm_year >= 100,
+	 * starting in year 2000.
+	 */
+	if ( year < 1970 )
+		year += 1900;
+
 	days = 0;
 	for ( i = 1970; i < year; ++i )
 		{
