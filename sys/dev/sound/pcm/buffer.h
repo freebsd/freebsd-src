@@ -38,6 +38,8 @@
 struct snd_dbuf {
 	device_t dev;
 	u_int8_t *buf, *tmpbuf;
+	u_int8_t *shadbuf; /**< shadow buffer used w/ S_D_SILENCE/SKIP */
+	volatile int sl; /**< shadbuf ready length in # of bytes */
 	unsigned int bufsize, maxsize;
 	volatile int dl; /* transfer size */
 	volatile int rp; /* pointers to the ready area */
@@ -70,6 +72,8 @@ int sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 void sndbuf_reset(struct snd_dbuf *b);
 void sndbuf_clear(struct snd_dbuf *b, unsigned int length);
 void sndbuf_fillsilence(struct snd_dbuf *b);
+void sndbuf_softreset(struct snd_dbuf *b);
+void sndbuf_clearshadow(struct snd_dbuf *b);
 
 u_int32_t sndbuf_getfmt(struct snd_dbuf *b);
 int sndbuf_setfmt(struct snd_dbuf *b, u_int32_t fmt);
@@ -117,3 +121,7 @@ int sndbuf_dmasetdir(struct snd_dbuf *b, int dir);
 void sndbuf_dma(struct snd_dbuf *b, int go);
 int sndbuf_dmaptr(struct snd_dbuf *b);
 void sndbuf_dmabounce(struct snd_dbuf *b);
+
+#ifdef OSSV4_EXPERIMENT
+void sndbuf_getpeaks(struct snd_dbuf *b, int *lp, int *rp);
+#endif

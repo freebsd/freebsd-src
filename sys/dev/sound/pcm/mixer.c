@@ -49,6 +49,13 @@ struct snd_mixer {
 	u_int16_t level[32];
 	char name[MIXER_NAMELEN];
 	struct mtx *lock;
+	oss_mixer_enuminfo enuminfo;
+	/** 
+	 * Counter is incremented when applications change any of this
+	 * mixer's controls.  A change in value indicates that persistent
+	 * mixer applications should update their displays.
+	 */
+	int modify_counter;
 };
 
 static u_int16_t snd_mixerdefaults[SOUND_MIXER_NRDEVICES] = {
@@ -82,6 +89,11 @@ static struct cdevsw mixer_cdevsw = {
 	.d_ioctl =	mixer_ioctl,
 	.d_name =	"mixer",
 };
+
+/**
+ * Keeps a count of mixer devices; used only by OSSv4 SNDCTL_SYSINFO ioctl.
+ */
+int mixer_count = 0;
 
 #ifdef USING_DEVFS
 static eventhandler_tag mixer_ehtag;
@@ -181,6 +193,83 @@ mixer_getrecsrc(struct snd_mixer *mixer)
 	return mixer->recsrc;
 }
 
+/**
+ * @brief Retrieve the route number of the current recording device
+ *
+ * OSSv4 assigns routing numbers to recording devices, unlike the previous
+ * API which relied on a fixed table of device numbers and names.  This
+ * function returns the routing number of the device currently selected
+ * for recording.
+ *
+ * For now, this function is kind of a goofy compatibility stub atop the
+ * existing sound system.  (For example, in theory, the old sound system
+ * allows multiple recording devices to be specified via a bitmask.)
+ *
+ * @param m	mixer context container thing
+ *
+ * @retval 0		success
+ * @retval EIDRM	no recording device found (generally not possible)
+ * @todo Ask about error code
+ */
+static int
+mixer_get_recroute(struct snd_mixer *m, int *route)
+{
+	int i, cnt;
+
+	cnt = 0;
+
+	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
+		/** @todo can user set a multi-device mask? (== or &?) */
+		if ((1 << i) == m->recsrc)
+			break;
+		if ((1 << i) & m->recdevs)
+			++cnt;
+	}
+
+	if (i == SOUND_MIXER_NRDEVICES)
+		return EIDRM;
+
+	*route = cnt;
+	return 0;
+}
+
+/**
+ * @brief Select a device for recording
+ *
+ * This function sets a recording source based on a recording device's
+ * routing number.  Said number is translated to an old school recdev
+ * mask and passed over mixer_setrecsrc. 
+ *
+ * @param m	mixer context container thing
+ *
+ * @retval 0		success(?)
+ * @retval EINVAL	User specified an invalid device number
+ * @retval otherwise	error from mixer_setrecsrc
+ */
+static int
+mixer_set_recroute(struct snd_mixer *m, int route)
+{
+	int i, cnt, ret;
+
+	ret = 0;
+	cnt = 0;
+
+	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
+		if ((1 << i) & m->recdevs) {
+			if (route == cnt)
+				break;
+			++cnt;
+		}
+	}
+
+	if (i == SOUND_MIXER_NRDEVICES)
+		ret = EINVAL;
+	else
+		ret = mixer_setrecsrc(m, (1 << i));
+
+	return ret;
+}
+
 void
 mix_setdevs(struct snd_mixer *m, u_int32_t v)
 {
@@ -190,9 +279,71 @@ mix_setdevs(struct snd_mixer *m, u_int32_t v)
 	m->devs = v;
 }
 
+/**
+ * @brief Record mask of available recording devices
+ *
+ * Calling functions are responsible for defining the mask of available
+ * recording devices.  This function records that value in a structure
+ * used by the rest of the mixer code.
+ *
+ * This function also populates a structure used by the SNDCTL_DSP_*RECSRC*
+ * family of ioctls that are part of OSSV4.  All recording device labels
+ * are concatenated in ascending order corresponding to their routing
+ * numbers.  (Ex:  a system might have 0 => 'vol', 1 => 'cd', 2 => 'line',
+ * etc.)  For now, these labels are just the standard recording device
+ * names (cd, line1, etc.), but will eventually be fully dynamic and user
+ * controlled.
+ *
+ * @param m	mixer device context container thing
+ * @param v	mask of recording devices
+ */
 void
 mix_setrecdevs(struct snd_mixer *m, u_int32_t v)
 {
+	oss_mixer_enuminfo *ei;
+	char *loc;
+	int i, nvalues, nwrote, nleft, ncopied;
+
+	ei = &m->enuminfo;
+
+	nvalues = 0;
+	nwrote = 0;
+	nleft = sizeof(ei->strings);
+	loc = ei->strings;
+
+	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
+		if ((1 << i) & v) {
+			ei->strindex[nvalues] = nwrote;
+			ncopied = strlcpy(loc, snd_mixernames[i], nleft) + 1;
+			    /* strlcpy retval doesn't include terminator */
+
+			nwrote += ncopied;
+			nleft -= ncopied;
+			nvalues++;
+
+			/*
+			 * XXX I don't think this should ever be possible.
+			 * Even with a move to dynamic device/channel names,
+			 * each label is limited to ~16 characters, so that'd
+			 * take a LOT to fill this buffer.
+			 */
+			if ((nleft <= 0) || (nvalues >= OSS_ENUM_MAXVALUE)) {
+				device_printf(m->dev,
+				    "mix_setrecdevs:  Not enough room to store device names--please file a bug report.\n");
+				device_printf(m->dev, 
+				    "mix_setrecdevs:  Please include details about your sound hardware, OS version, etc.\n");
+				break;
+			}
+
+			loc = &ei->strings[nwrote];
+		}
+	}
+
+	/*
+	 * NB:	The SNDCTL_DSP_GET_RECSRC_NAMES ioctl ignores the dev
+	 * 	and ctrl fields.
+	 */
+	ei->nvalues = nvalues;
 	m->recdevs = v;
 }
 
@@ -256,6 +407,8 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 	snddev = device_get_softc(dev);
 	snddev->mixer_dev = pdev;
 
+	++mixer_count;
+
 	return 0;
 
 bad:
@@ -299,6 +452,8 @@ mixer_uninit(device_t dev)
 	kobj_delete((kobj_t)m, M_MIXER);
 
 	d->mixer_dev = NULL;
+
+	--mixer_count;
 
 	return 0;
 }
@@ -481,6 +636,11 @@ mixer_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread
 		return EBADF;
 	}
 
+	if (cmd == SNDCTL_MIXERINFO) {
+		snd_mtxunlock(m->lock);
+		return mixer_oss_mixerinfo(i_dev, (oss_mixerinfo *)arg);
+	}
+
 	if ((cmd & MIXER_WRITE(0)) == MIXER_WRITE(0)) {
 		if (j == SOUND_MIXER_RECSRC)
 			ret = mixer_setrecsrc(m, *arg_i);
@@ -513,8 +673,32 @@ mixer_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread
 		snd_mtxunlock(m->lock);
 		return (v != -1)? 0 : ENXIO;
 	}
+
+	ret = 0;
+
+	switch (cmd) {
+ 	/** @todo Double check return values, error codes. */
+	case SNDCTL_SYSINFO:
+		sound_oss_sysinfo((oss_sysinfo *)arg);
+		break;
+	case SNDCTL_AUDIOINFO:
+		ret = dsp_oss_audioinfo(i_dev, (oss_audioinfo *)arg);
+		break;
+	case SNDCTL_DSP_GET_RECSRC_NAMES:
+		bcopy((void *)&m->enuminfo, arg, sizeof(oss_mixer_enuminfo));
+		break;
+	case SNDCTL_DSP_GET_RECSRC:
+		ret = mixer_get_recroute(m, arg_i);
+		break;
+	case SNDCTL_DSP_SET_RECSRC:
+		ret = mixer_set_recroute(m, *arg_i);
+		break;
+	default:
+		ret = ENXIO;
+	}
+
 	snd_mtxunlock(m->lock);
-	return ENXIO;
+	return ret;
 }
 
 #ifdef USING_DEVFS
@@ -552,4 +736,154 @@ SYSINIT(mixer_sysinit, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, mixer_sysinit, NULL);
 SYSUNINIT(mixer_sysuninit, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, mixer_sysuninit, NULL);
 #endif
 
+/**
+ * @brief Handler for SNDCTL_MIXERINFO
+ *
+ * This function searches for a mixer based on the numeric ID stored
+ * in oss_miserinfo::dev.  If set to -1, then information about the
+ * current mixer handling the request is provided.  Note, however, that
+ * this ioctl may be made with any sound device (audio, mixer, midi).
+ *
+ * @note Caller must not hold any PCM device, channel, or mixer locks.
+ *
+ * See http://manuals.opensound.com/developer/SNDCTL_MIXERINFO.html for
+ * more information.
+ *
+ * @param i_dev	character device on which the ioctl arrived
+ * @param arg	user argument (oss_mixerinfo *)
+ *
+ * @retval EINVAL	oss_mixerinfo::dev specified a bad value
+ * @retval 0		success
+ */
+int
+mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
+{
+	struct snddev_info *d;
+	struct snd_mixer *m;
+	struct cdev *t_cdev;
+	int nmix, ret, pcmunit, i;
 
+	/*
+	 * If probing the device handling the ioctl, make sure it's a mixer
+	 * device.  (This ioctl is valid on audio, mixer, and midi devices.)
+	 */
+	if ((mi->dev == -1) && (i_dev->si_devsw != &mixer_cdevsw))
+		return EINVAL;
+
+	m = NULL;
+	t_cdev = NULL;
+	nmix = 0;
+	ret = 0;
+	pcmunit = -1; /* pcmX */
+
+	/*
+	 * There's a 1:1 relationship between mixers and PCM devices, so
+	 * begin by iterating over PCM devices and search for our mixer.
+	 */
+	for (i = 0; i < devclass_get_maxunit(pcm_devclass); i++) {
+		d = devclass_get_softc(pcm_devclass, i);
+		if (d == NULL)
+			continue;
+
+		/* See the note in function docblock. */
+		mtx_assert(d->lock, MA_NOTOWNED);
+		pcm_inprog(d, 1);
+		pcm_lock(d);
+
+		if (d->mixer_dev != NULL) {
+			if (((mi->dev == -1) && (d->mixer_dev == i_dev)) || (mi->dev == nmix)) {
+				t_cdev = d->mixer_dev;
+				pcmunit = i;
+				break;
+			}
+			++nmix;
+		}
+
+		pcm_unlock(d);
+		pcm_inprog(d, -1);
+	}
+
+	/*
+	 * If t_cdev is NULL, then search was exhausted and device wasn't
+	 * found.  No locks are held, so just return.
+	 */
+	if (t_cdev == NULL)
+		return EINVAL;
+
+	m = t_cdev->si_drv1;
+	mtx_lock(m->lock);
+
+	/*
+	 * At this point, the following synchronization stuff has happened:
+	 *   - a specific PCM device is locked and its "in progress
+	 *     operations" counter has been incremented, so be sure to unlock
+	 *     and decrement when exiting;
+	 *   - a specific mixer device has been locked, so be sure to unlock
+	 *     when existing.
+	 */
+
+	bzero((void *)mi, sizeof(*mi));
+
+	mi->dev = nmix;
+	snprintf(mi->id, sizeof(mi->id), "mixer%d", dev2unit(t_cdev));
+	strlcpy(mi->name, m->name, sizeof(mi->name));
+	mi->modify_counter = m->modify_counter;
+	mi->card_number = pcmunit;
+	/*
+	 * Currently, FreeBSD assumes 1:1 relationship between a pcm and
+	 * mixer devices, so this is hardcoded to 0.
+	 */
+	mi->port_number = 0;
+
+	/**
+	 * @todo Fill in @sa oss_mixerinfo::mixerhandle.
+	 * @note From 4Front:  "mixerhandle is an arbitrary string that
+	 * 	 identifies the mixer better than the device number
+	 * 	 (mixerinfo.dev). Device numbers may change depending on
+	 * 	 the order the drivers are loaded. However the handle
+	 * 	 should remain the same provided that the sound card is
+	 * 	 not moved to another PCI slot."
+	 */
+
+	/**
+	 * @note
+	 * @sa oss_mixerinfo::magic is a reserved field.
+	 * 
+	 * @par
+	 * From 4Front:  "magic is usually 0. However some devices may have
+	 * dedicated setup utilities and the magic field may contain an
+	 * unique driver specific value (managed by [4Front])."
+	 */
+
+	mi->enabled = device_is_attached(m->dev) ? 1 : 0;
+	/**
+	 * The only flag for @sa oss_mixerinfo::caps is currently
+	 * MIXER_CAP_VIRTUAL, which I'm not sure we really worry about.
+	 */
+	/**
+	 * Mixer extensions currently aren't supported, so leave 
+	 * @sa oss_mixerinfo::nrext blank for now.
+	 */
+	/**
+	 * @todo Fill in @sa oss_mixerinfo::priority (requires touching
+	 * 	 drivers?)
+	 * @note The priority field is for mixer applets to determine which
+	 * mixer should be the default, with 0 being least preferred and 10
+	 * being most preferred.  From 4Front:  "OSS drivers like ICH use
+	 * higher values (10) because such chips are known to be used only
+	 * on motherboards.  Drivers for high end pro devices use 0 because
+	 * they will never be the default mixer. Other devices use values 1
+	 * to 9 depending on the estimated probability of being the default
+	 * device.
+	 *
+	 * XXX Described by Hannu@4Front, but not found in soundcard.h.
+	strlcpy(mi->devnode, t_cdev->si_name, sizeof(mi->devnode));
+	mi->legacy_device = pcmunit;
+	 */
+
+	mtx_unlock(m->lock);
+	pcm_unlock(d);
+	pcm_inprog(d, -1);
+
+	return ret;
+}

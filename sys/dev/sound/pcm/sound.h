@@ -73,6 +73,7 @@
 #if __FreeBSD_version > 500000
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/condvar.h>
 
 #define USING_MUTEX
 #define USING_DEVFS
@@ -92,6 +93,7 @@ struct snd_mixer;
 #include <dev/sound/pcm/channel.h>
 #include <dev/sound/pcm/feeder.h>
 #include <dev/sound/pcm/mixer.h>
+#include <dev/sound/pcm/dsp.h>
 
 #define	PCM_SOFTC_SIZE	512
 
@@ -193,6 +195,7 @@ int fkchan_kill(struct pcm_channel *c);
 extern int pcm_veto_load;
 extern int snd_unit;
 extern devclass_t pcm_devclass;
+extern struct unrhdr *pcmsg_unrhdr;
 
 /*
  * some macros for debugging purposes
@@ -303,6 +306,8 @@ struct snddev_info {
 	struct cdev *mixer_dev;
 
 };
+
+void	sound_oss_sysinfo(oss_sysinfo *);
 
 #ifdef	PCM_DEBUG_MTX
 #define	pcm_lock(d) mtx_lock(((struct snddev_info *)(d))->lock)

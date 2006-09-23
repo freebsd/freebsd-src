@@ -57,7 +57,7 @@
  *		is created, otherwise 1.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 700022	/* Master, propagated to newvers */
+#define __FreeBSD_version 700023	/* Master, propagated to newvers */
 
 #ifndef LOCORE
 #include <sys/types.h>
