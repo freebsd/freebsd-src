@@ -1321,6 +1321,13 @@ linux_sched_get_priority_min(struct thread *td,
 #define REBOOT_CAD_ON	0x89abcdef
 #define REBOOT_CAD_OFF	0
 #define REBOOT_HALT	0xcdef0123
+#define REBOOT_RESTART	0x01234567
+#define REBOOT_RESTART2	0xA1B2C3D4
+#define REBOOT_POWEROFF	0x4321FEDC
+#define REBOOT_MAGIC1	0xfee1dead
+#define REBOOT_MAGIC2	0x28121969
+#define REBOOT_MAGIC2A	0x05121996
+#define REBOOT_MAGIC2B	0x16041998
 
 int
 linux_reboot(struct thread *td, struct linux_reboot_args *args)
@@ -1331,10 +1338,37 @@ linux_reboot(struct thread *td, struct linux_reboot_args *args)
 	if (ldebug(reboot))
 		printf(ARGS(reboot, "0x%x"), args->cmd);
 #endif
-	if (args->cmd == REBOOT_CAD_ON || args->cmd == REBOOT_CAD_OFF)
-		return (0);
-	bsd_args.opt = (args->cmd == REBOOT_HALT) ? RB_HALT : 0;
-	return (reboot(td, &bsd_args));
+
+	if (args->magic1 != REBOOT_MAGIC1)
+		return EINVAL;
+
+	switch (args->magic2) {
+	case REBOOT_MAGIC2:
+	case REBOOT_MAGIC2A:
+	case REBOOT_MAGIC2B:
+		break;
+	default:
+		return EINVAL;
+	}
+
+	switch (args->cmd) {
+	case REBOOT_CAD_ON:
+	case REBOOT_CAD_OFF:
+		return suser(td);
+	case REBOOT_HALT:
+		bsd_args.opt = RB_HALT;
+		break;
+	case REBOOT_RESTART:
+	case REBOOT_RESTART2:
+		bsd_args.opt = 0;
+		break;
+	case REBOOT_POWEROFF:
+		bsd_args.opt = RB_POWEROFF;
+		break;
+	default:
+		return EINVAL;
+	}
+	return reboot(td, &bsd_args);
 }
 
 #ifndef __alpha__
