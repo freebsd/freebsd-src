@@ -48,6 +48,7 @@ struct bdg_softc {
 #define IFF_MUTE        0x0002  /* mute this if for bridging.   */
 #define IFF_USED        0x0004  /* use this if for bridging.    */
     struct cluster_softc *cluster;
+    u_long hwassist;		/* saved ifp->if_hwassist field */
 } ;
 
 extern struct bdg_softc *ifp2sc;
