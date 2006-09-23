@@ -611,6 +611,8 @@ linux_bind(struct thread *td, struct linux_bind_args *args)
 
 	error = kern_bind(td, linux_args.s, sa);
 	free(sa, M_SONAME);
+	if (error == EADDRNOTAVAIL && linux_args.namelen != sizeof(struct sockaddr_in))
+	   	return (EINVAL);
 	return (error);
 }
 
@@ -719,8 +721,11 @@ linux_accept(struct thread *td, struct linux_accept_args *args)
 	bsd_args.anamelen = PTRIN(linux_args.namelen);/* XXX */
 	error = accept(td, &bsd_args);
 	bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.name);
-	if (error)
+	if (error) {
+	   	if (error == EFAULT && linux_args.namelen != sizeof(struct sockaddr_in))
+		   	return (EINVAL);
 		return (error);
+	}
 	if (linux_args.addr) {
 		error = linux_sa_put(PTRIN(linux_args.addr));
 		if (error) {
@@ -1135,7 +1140,7 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		break;
 	}
 	if (name == -1)
-		return (EINVAL);
+		return (ENOPROTOOPT);
 
 	bsd_args.name = name;
 	bsd_args.val = PTRIN(linux_args.optval);

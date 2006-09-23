@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/tty.h>
+#include <sys/unistd.h>
 #include <sys/vnode.h>
 
 #include <ufs/ufs/extattr.h>
@@ -480,6 +481,10 @@ linux_access(struct thread *td, struct linux_access_args *args)
 	char *path;
 	int error;
 
+	/* linux convention */
+	if (args->flags & ~(F_OK | X_OK | W_OK | R_OK))
+		return (EINVAL);
+
 	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
@@ -488,6 +493,7 @@ linux_access(struct thread *td, struct linux_access_args *args)
 #endif
 	error = kern_access(td, path, UIO_SYSSPACE, args->flags);
 	LFREEPATH(path);
+
 	return (error);
 }
 
@@ -724,12 +730,28 @@ linux_pread(td, uap)
 	struct linux_pread_args *uap;
 {
 	struct pread_args bsd;
+	struct vnode *vp;
+	int error;
 
 	bsd.fd = uap->fd;
 	bsd.buf = uap->buf;
 	bsd.nbyte = uap->nbyte;
 	bsd.offset = uap->offset;
-	return pread(td, &bsd);
+
+	error = pread(td, &bsd);
+
+	if (error == 0) {
+   	   	/* This seems to violate POSIX but linux does it */
+   	   	if ((error = fgetvp(td, uap->fd, &vp)) != 0)
+   		   	return (error);
+		if (vp->v_type == VDIR) {
+   		   	vrele(vp);
+			return (EISDIR);
+		}
+		vrele(vp);
+	}
+
+	return (error);
 }
 
 int
