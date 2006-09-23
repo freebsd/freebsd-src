@@ -39,7 +39,7 @@
 .Sm off
 .Op Cm + | -
 .Ar size
-.Op Cm K | k | M | m | G | g
+.Op Cm K | k | M | m | G | g | T | t
 .Sm on
 .Xc
 .Ek
@@ -71,7 +71,7 @@ Truncate files to the length of the file
 .Sm off
 .Op Cm + | -
 .Ar size
-.Op Cm K | k | M | m | G | g
+.Op Cm K | k | M | m | G | g | T | t
 .Sm on
 .Xc
 If the
@@ -94,11 +94,12 @@ The
 .Ar size
 argument may be suffixed with one of
 .Cm K ,
-.Cm M
-or
+.Cm M ,
 .Cm G
+or
+.Cm T
 (either upper or lower case) to indicate a multiple of
-Kilobytes, Megabytes or Gigabytes
+Kilobytes, Megabytes, Gigabytes or Terabytes
 respectively.
 .El
 .Pp
