@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -419,7 +420,16 @@ DRIVER_MODULE(bge, pci, bge_driver, bge_devclass, 0, 0);
 DRIVER_MODULE(miibus, bge, miibus_driver, miibus_devclass, 0, 0);
 
 static int bge_fake_autoneg = 0;
+static int bge_allow_asf = 1;
+
 TUNABLE_INT("hw.bge.fake_autoneg", &bge_fake_autoneg);
+TUNABLE_INT("hw.bge.allow_asf", &bge_allow_asf);
+
+SYSCTL_NODE(_hw, OID_AUTO, bge, CTLFLAG_RD, 0, "BGE driver parameters");
+SYSCTL_INT(_hw_bge, OID_AUTO, fake_autoneg, CTLFLAG_RD, &bge_fake_autoneg, 0,
+	"Enable fake autonegotiation for certain blade systems");
+SYSCTL_INT(_hw_bge, OID_AUTO, allow_asf, CTLFLAG_RD, &bge_allow_asf, 0,
+	"Allow ASF mode if available");
 
 static uint32_t
 bge_readmem_ind(struct bge_softc *sc, int off)
@@ -2179,8 +2189,8 @@ bge_attach(device_t dev)
 	}
 
 	sc->bge_asf_mode = 0;
-	if (bge_readmem_ind(sc, BGE_SOFTWARE_GENCOMM_SIG)
-	    == BGE_MAGIC_NUMBER) {
+	if (bge_allow_asf && (bge_readmem_ind(sc, BGE_SOFTWARE_GENCOMM_SIG)
+	    == BGE_MAGIC_NUMBER)) {
 		if (bge_readmem_ind(sc, BGE_SOFTWARE_GENCOMM_NICCFG)
 		    & BGE_HWCFG_ASF) {
 			sc->bge_asf_mode |= ASF_ENABLE;
