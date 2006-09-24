@@ -1332,12 +1332,10 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 	struct aiocblist *aiocbe, *cb;
 	struct kaioinfo *ki;
 	struct kevent kev;
-	struct kqueue *kq;
-	struct file *kq_fp;
 	struct sockbuf *sb;
 	int opcode;
 	int error;
-	int fd;
+	int fd, kqfd;
 	int jid;
 
 	if (p->p_aioinfo == NULL)
@@ -1452,26 +1450,15 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 		goto aqueue_fail;
 	}
 
-	if (aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_KEVENT)
-		kev.ident = aiocbe->uaiocb.aio_sigevent.sigev_notify_kqueue;
-	else
+	if (aiocbe->uaiocb.aio_sigevent.sigev_notify != SIGEV_KEVENT)
 		goto no_kqueue;
-	error = fget(td, (u_int)kev.ident, &kq_fp);
-	if (error)
-		goto aqueue_fail;
-	if (kq_fp->f_type != DTYPE_KQUEUE) {
-		fdrop(kq_fp, td);
-		error = EBADF;
-		goto aqueue_fail;
-	}
-	kq = kq_fp->f_data;
+	kqfd = aiocbe->uaiocb.aio_sigevent.sigev_notify_kqueue;
 	kev.ident = (uintptr_t)aiocbe->uuaiocb;
 	kev.filter = EVFILT_AIO;
 	kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1;
 	kev.data = (intptr_t)aiocbe;
 	kev.udata = aiocbe->uaiocb.aio_sigevent.sigev_value.sival_ptr;
-	error = kqueue_register(kq, &kev, td, 1);
-	fdrop(kq_fp, td);
+	error = kqfd_register(kqfd, &kev, td, 1);
 aqueue_fail:
 	if (error) {
 		fdrop(fp, td);
@@ -1979,8 +1966,6 @@ do_lio_listio(struct thread *td, struct lio_listio_args *uap, int oldsigev)
 	struct kaioinfo *ki;
 	struct aioliojob *lj;
 	struct kevent kev;
-	struct kqueue * kq;
-	struct file *kq_fp;
 	int nent;
 	int error;
 	int nerror;
@@ -2020,26 +2005,14 @@ do_lio_listio(struct thread *td, struct lio_listio_args *uap, int oldsigev)
 
 		if (lj->lioj_signal.sigev_notify == SIGEV_KEVENT) {
 			/* Assume only new style KEVENT */
-			error = fget(td, lj->lioj_signal.sigev_notify_kqueue,
-				&kq_fp);
-			if (error) {
-				uma_zfree(aiolio_zone, lj);
-				return (error);
-			}
-			if (kq_fp->f_type != DTYPE_KQUEUE) {
-				fdrop(kq_fp, td);
-				uma_zfree(aiolio_zone, lj);
-				return (EBADF);
-			}
-			kq = (struct kqueue *)kq_fp->f_data;
 			kev.filter = EVFILT_LIO;
 			kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1;
 			kev.ident = (uintptr_t)uap->acb_list; /* something unique */
 			kev.data = (intptr_t)lj;
 			/* pass user defined sigval data */
 			kev.udata = lj->lioj_signal.sigev_value.sival_ptr;
-			error = kqueue_register(kq, &kev, td, 1);
-			fdrop(kq_fp, td);
+			error = kqfd_register(
+			    lj->lioj_signal.sigev_notify_kqueue, &kev, td, 1);
 			if (error) {
 				uma_zfree(aiolio_zone, lj);
 				return (error);
