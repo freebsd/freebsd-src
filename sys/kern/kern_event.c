@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ktrace.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -57,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/taskqueue.h>
 #include <sys/uio.h>
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
 
 #include <vm/uma.h>
 
@@ -560,6 +565,12 @@ kevent(struct thread *td, struct kevent_args *uap)
 					kevent_copyout,
 					kevent_copyin};
 	int error;
+#ifdef KTRACE
+	struct uio ktruio;
+	struct iovec ktriov;
+	struct uio *ktruioin = NULL;
+	struct uio *ktruioout = NULL;
+#endif
 
 	if (uap->timeout != NULL) {
 		error = copyin(uap->timeout, &ts, sizeof(ts));
@@ -569,8 +580,33 @@ kevent(struct thread *td, struct kevent_args *uap)
 	} else
 		tsp = NULL;
 
-	return (kern_kevent(td, uap->fd, uap->nchanges, uap->nevents,
-	    &k_ops, tsp));
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_GENIO)) {
+		ktriov.iov_base = uap->changelist;
+		ktriov.iov_len = uap->nchanges * sizeof(struct kevent);
+		ktruio = (struct uio){ .uio_iov = &ktriov, .uio_iovcnt = 1,
+		    .uio_segflg = UIO_USERSPACE, .uio_rw = UIO_READ,
+		    .uio_td = td };
+		ktruioin = cloneuio(&ktruio);
+		ktriov.iov_base = uap->eventlist;
+		ktriov.iov_len = uap->nevents * sizeof(struct kevent);
+		ktruioout = cloneuio(&ktruio);
+	}
+#endif
+
+	error = kern_kevent(td, uap->fd, uap->nchanges, uap->nevents,
+	    &k_ops, tsp);
+
+#ifdef KTRACE
+	if (ktruioin != NULL) {
+		ktruioin->uio_resid = uap->nchanges * sizeof(struct kevent);
+		ktrgenio(uap->fd, UIO_WRITE, ktruioin, 0);
+		ktruioout->uio_resid = td->td_retval[0] * sizeof(struct kevent);
+		ktrgenio(uap->fd, UIO_READ, ktruioout, error);
+	}
+#endif
+
+	return (error);
 }
 
 /*
