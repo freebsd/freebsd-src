@@ -280,6 +280,10 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 			g_access(pmp->pm_cp, 0, -1, 0);
 			g_topology_unlock();
 			PICKUP_GIANT();
+			/* Now the volume is clean. Mark it. */
+			error = markvoldirty(pmp, 0);
+			if (error && (flags & FORCECLOSE) == 0)
+				return (error);
 		} else if ((pmp->pm_flags & MSDOSFSMNT_RONLY) &&
 		    !vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0)) {
 			/*
