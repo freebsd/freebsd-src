@@ -117,7 +117,6 @@ SYSCTL_INT(_hw_usb_ehci, OID_AUTO, debug, CTLFLAG_RW,
 
 struct ehci_pipe {
 	struct usbd_pipe pipe;
-	int nexttoggle;
 
 	ehci_soft_qh_t *sqh;
 	union {
@@ -764,11 +763,12 @@ void
 ehci_idone(struct ehci_xfer *ex)
 {
 	usbd_xfer_handle xfer = &ex->xfer;
+#ifdef USB_DEBUG
 	struct ehci_pipe *epipe = (struct ehci_pipe *)xfer->pipe;
+#endif
 	ehci_soft_qtd_t *sqtd, *lsqtd;
 	u_int32_t status = 0, nstatus = 0;
 	int actlen, cerr;
-	u_int pkts_left;
 
 	DPRINTFN(/*12*/2, ("ehci_idone: ex=%p\n", ex));
 #ifdef DIAGNOSTIC
@@ -817,29 +817,6 @@ ehci_idone(struct ehci_xfer *ex)
 		if (EHCI_QTD_GET_PID(status) !=	EHCI_QTD_PID_SETUP)
 			actlen += sqtd->len - EHCI_QTD_GET_BYTES(status);
 	}
-
-	/*
-	 * If there are left over TDs we need to update the toggle.
-	 * The default pipe doesn't need it since control transfers
-	 * start the toggle at 0 every time.
-	 */
-	if (sqtd != lsqtd->nextqtd &&
-	    xfer->pipe->device->default_pipe != xfer->pipe) {
-		DPRINTF(("ehci_idone: need toggle update status=%08x nstatus=%08x\n", status, nstatus));
-#if 0
-		ehci_dump_sqh(epipe->sqh);
-		ehci_dump_sqtds(ex->sqtdstart);
-#endif
-		epipe->nexttoggle = EHCI_QTD_GET_TOGGLE(nstatus);
-	}
-
-	/*
-	 * For a short transfer we need to update the toggle for the missing
-	 * packets within the qTD.
-	 */
-	pkts_left = EHCI_QTD_GET_BYTES(status) /
-	    UGETW(xfer->pipe->endpoint->edesc->wMaxPacketSize);
-	epipe->nexttoggle ^= pkts_left % 2;
 
 	cerr = EHCI_QTD_GET_CERR(status);
 	DPRINTFN(/*10*/2, ("ehci_idone: len=%d, actlen=%d, cerr=%d, "
@@ -1222,7 +1199,10 @@ ehci_device_clear_toggle(usbd_pipe_handle pipe)
 	if (ehcidebug)
 		usbd_dump_pipe(pipe);
 #endif
-	epipe->nexttoggle = 0;
+	KASSERT((epipe->sqh->qh.qh_qtd.qtd_status &
+	    htole32(EHCI_QTD_ACTIVE)) == 0,
+	    ("ehci_device_clear_toggle: queue active"));
+	epipe->sqh->qh.qh_qtd.qtd_status &= htole32(~EHCI_QTD_TOGGLE_MASK);
 }
 
 Static void
@@ -1390,8 +1370,6 @@ ehci_open(usbd_pipe_handle pipe)
 	if (sc->sc_dying)
 		return (USBD_IOERROR);
 
-	epipe->nexttoggle = pipe->endpoint->savedtoggle;
-
 	if (addr == sc->sc_addr) {
 		switch (ed->bEndpointAddress) {
 		case USB_CONTROL_ENDPOINT:
@@ -1431,7 +1409,7 @@ ehci_open(usbd_pipe_handle pipe)
 		EHCI_QH_SET_ADDR(addr) |
 		EHCI_QH_SET_ENDPT(UE_GET_ADDR(ed->bEndpointAddress)) |
 		EHCI_QH_SET_EPS(speed) |
-		EHCI_QH_DTC |
+		(xfertype == UE_CONTROL ? EHCI_QH_DTC : 0) |
 		EHCI_QH_SET_MPL(UGETW(ed->wMaxPacketSize)) |
 		(speed != EHCI_QH_SPEED_HIGH && xfertype == UE_CONTROL ?
 		 EHCI_QH_CTL : 0) |
@@ -1448,7 +1426,8 @@ ehci_open(usbd_pipe_handle pipe)
 	/* Fill the overlay qTD */
 	sqh->qh.qh_qtd.qtd_next = EHCI_NULL;
 	sqh->qh.qh_qtd.qtd_altnext = EHCI_NULL;
-	sqh->qh.qh_qtd.qtd_status = htole32(0);
+	sqh->qh.qh_qtd.qtd_status =
+	    htole32(EHCI_QTD_SET_TOGGLE(pipe->endpoint->savedtoggle));
 
 	epipe->sqh = sqh;
 
@@ -2303,19 +2282,17 @@ ehci_alloc_sqtd_chain(struct ehci_pipe *epipe, ehci_softc_t *sc,
 	ehci_physaddr_t dataphys, dataphyspage, dataphyslastpage, nextphys;
 	u_int32_t qtdstatus;
 	int len, curlen, mps, offset;
-	int i, tog;
+	int i, iscontrol;
 	usb_dma_t *dma = &xfer->dmabuf;
 
 	DPRINTFN(alen<4*4096,("ehci_alloc_sqtd_chain: start len=%d\n", alen));
 
 	offset = 0;
 	len = alen;
+	iscontrol = (epipe->pipe.endpoint->edesc->bmAttributes & UE_XFERTYPE) ==
+	    UE_CONTROL;
 	dataphys = DMAADDR(dma, 0);
 	dataphyslastpage = EHCI_PAGE(DMAADDR(dma, len - 1));
-#if 0
-printf("status=%08x toggle=%d\n", epipe->sqh->qh.qh_qtd.qtd_status,
-    epipe->nexttoggle);
-#endif
 	qtdstatus = EHCI_QTD_ACTIVE |
 	    EHCI_QTD_SET_PID(rd ? EHCI_QTD_PID_IN : EHCI_QTD_PID_OUT) |
 	    EHCI_QTD_SET_CERR(3)
@@ -2323,8 +2300,12 @@ printf("status=%08x toggle=%d\n", epipe->sqh->qh.qh_qtd.qtd_status,
 	    /* BYTES set below */
 	    ;
 	mps = UGETW(epipe->pipe.endpoint->edesc->wMaxPacketSize);
-	tog = epipe->nexttoggle;
-	qtdstatus |= EHCI_QTD_SET_TOGGLE(tog);
+	/*
+	 * The control transfer data stage always starts with a toggle of 1.
+	 * For other transfers we let the hardware track the toggle state.
+	 */
+	if (iscontrol)
+		qtdstatus |= EHCI_QTD_SET_TOGGLE(1);
 
 	cur = ehci_alloc_sqtd(sc);
 	*sp = cur;
@@ -2417,11 +2398,13 @@ printf("status=%08x toggle=%d\n", epipe->sqh->qh.qh_qtd.qtd_status,
 		cur->len = curlen;
 		DPRINTFN(10,("ehci_alloc_sqtd_chain: cbp=0x%08x end=0x%08x\n",
 			    dataphys, dataphys + curlen));
-		/* adjust the toggle based on the number of packets in this
-		   qtd */
-		if (((curlen + mps - 1) / mps) & 1) {
-			tog ^= 1;
-			qtdstatus ^= EHCI_QTD_TOGGLE_MASK;
+		if (iscontrol) {
+			/*
+			 * adjust the toggle based on the number of packets
+			 * in this qtd
+			 */
+			if (((curlen + mps - 1) / mps) & 1)
+				qtdstatus ^= EHCI_QTD_TOGGLE_MASK;
 		}
 		if (len == 0)
 			break;
@@ -2432,7 +2415,6 @@ printf("status=%08x toggle=%d\n", epipe->sqh->qh.qh_qtd.qtd_status,
 	}
 	cur->qtd.qtd_status |= htole32(EHCI_QTD_IOC);
 	*ep = cur;
-	epipe->nexttoggle = tog;
 
 	DPRINTFN(10,("ehci_alloc_sqtd_chain: return sqtd=%p sqtdend=%p\n",
 		     *sp, *ep));
@@ -2478,9 +2460,9 @@ ehci_close_pipe(usbd_pipe_handle pipe, ehci_soft_qh_t *head)
 	s = splusb();
 	ehci_rem_qh(sc, sqh, head);
 	splx(s);
+	pipe->endpoint->savedtoggle =
+	    EHCI_QTD_GET_TOGGLE(le32toh(sqh->qh.qh_qtd.qtd_status));
 	ehci_free_sqh(sc, epipe->sqh);
-
-	pipe->endpoint->savedtoggle = epipe->nexttoggle;
 }
 
 /*
@@ -2626,14 +2608,12 @@ ehci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 		 * Now reinitialise the QH to point to the next qTD
 		 * (if there is one). We only need to do this if
 		 * it was previously pointing to us.
-		 * XXX Not quite sure what to do about the data toggle.
 		 */
 		sqtd = exfer->sqtdstart;
 		for (sqtd = exfer->sqtdstart; ; sqtd = sqtd->nextqtd) {
 			if (cur == sqtd->physaddr) {
 				hit++;
 			}
-			/* count++; */
 			if (sqtd == exfer->sqtdend)
 				break;
 		}
@@ -2648,7 +2628,8 @@ ehci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 			} else {
 
 				sqh->qh.qh_curqtd = 0; /* unlink qTDs */
-				sqh->qh.qh_qtd.qtd_status = 0;
+				sqh->qh.qh_qtd.qtd_status &=
+				    htole32(EHCI_QTD_TOGGLE_MASK);
 				sqh->qh.qh_qtd.qtd_next =
 				    sqh->qh.qh_qtd.qtd_altnext
 				        = EHCI_NULL;
@@ -2872,8 +2853,6 @@ ehci_device_request(usbd_xfer_handle xfer)
 	if (len != 0) {
 		ehci_soft_qtd_t *end;
 
-		/* Start toggle at 1. */
-		epipe->nexttoggle = 1;
 		err = ehci_alloc_sqtd_chain(epipe, sc, len, isread, xfer,
 			  &next, &end);
 		if (err)
