@@ -12,6 +12,23 @@
 .In netinet/in.h
 .Ft int
 .Fn socket PF_INET SOCK_RAW IPPROTO_DIVERT
+.Pp
+To enable support for divert sockets, place the following lines in the
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options IPFIREWALL"
+.Cd "options IPDIVERT"
+.Ed
+.Pp
+Alternatively, to load
+.Ns Nm
+as a module at boot time, add the following lines into the
+.Xr loader.conf 5
+file:
+.Bd -literal -offset indent
+ipfw_load="YES"
+ipdivert_load="YES"
+.Ed
 .Sh DESCRIPTION
 Divert sockets are similar to raw IP sockets, except that they
 can be bound to a specific
@@ -112,14 +129,6 @@ is altered to indicate an alternative re-entry point, care should be taken
 to avoid loops, where the same packet is diverted more than once at the
 same rule.
 .Sh DETAILS
-To enable divert sockets, a kernel must be compiled with
-.Cd "options IPDIVERT"
-or the
-.Pa ipdivert.ko
-module can be loaded at run-time:
-.Pp
-.Dl "kldload ipdivert"
-.Pp
 If a packet is diverted but no socket is bound to the
 port, or if
 .Dv IPDIVERT
@@ -163,6 +172,7 @@ that was not associated with any interface.
 .Xr recvfrom 2 ,
 .Xr sendto 2 ,
 .Xr socket 2 ,
+.Xr ipfw 4 ,
 .Xr ipfw 8
 .Sh AUTHORS
 .An Archie Cobbs Aq archie@FreeBSD.org ,
