@@ -102,96 +102,103 @@ static struct ucred		*audit_replacement_cred;
 static int			audit_file_rotate_wait;
 
 /*
- * XXXAUDIT: Should adjust comments below to make it clear that we get to
- * this point only if we believe we have storage, so not having space here is
- * a violation of invariants derived from administrative procedures. I.e.,
- * someone else has written to the audit partition, leaving less space than
- * we accounted for.
+ * Write an audit record to a file, performed as the last stage after both
+ * preselection and BSM conversion.  Both space management and write failures
+ * are handled in this function.
+ *
+ * No attempt is made to deal with possible failure to deliver a trigger to
+ * the audit daemon, since the message is asynchronous anyway.
  */
-static int
+static void
 audit_record_write(struct vnode *vp, struct ucred *cred, struct thread *td,
     void *data, size_t len)
 {
-	int ret;
-	long temp;
-	struct vattr vattr;
+	static struct timeval last_lowspace_trigger;
+	static struct timeval last_fail;
+	static int cur_lowspace_trigger;
 	struct statfs *mnt_stat;
-	int vfslocked;
+	int error, vfslocked;
+	static int cur_fail;
+	struct vattr vattr;
+	long temp;
 
 	if (vp == NULL)
-		return (0);
+		return;
 
  	mnt_stat = &vp->v_mount->mnt_stat;
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 
 	/*
 	 * First, gather statistics on the audit log file and file system so
-	 * that we know how we're doing on space.  In both cases, if we're
-	 * unable to perform the operation, we drop the record and return.
-	 * However, this is arguably an assertion failure.
-	 * XXX Need a FreeBSD equivalent.
+	 * that we know how we're doing on space.  Consider failure of these
+	 * operations to indicate a future inability to write to the file.
 	 */
-	ret = VFS_STATFS(vp->v_mount, mnt_stat, td);
-	if (ret)
-		goto out;
-
+	error = VFS_STATFS(vp->v_mount, mnt_stat, td);
+	if (error)
+		goto fail;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	ret = VOP_GETATTR(vp, &vattr, cred, td);
+	error = VOP_GETATTR(vp, &vattr, cred, td);
 	VOP_UNLOCK(vp, 0, td);
-	if (ret)
-		goto out;
-
-	/* update the global stats struct */
+	if (error)
+		goto fail;
 	audit_fstat.af_currsz = vattr.va_size;
 
 	/*
-	 * XXX Need to decide what to do if the trigger to the audit daemon
-	 * fails.
-	 */
-
-	/*
-	 * If we fall below minimum free blocks (hard limit), tell the audit
-	 * daemon to force a rotation off of the file system. We also stop
-	 * writing, which means this audit record is probably lost.  If we
-	 * fall below the minimum percent free blocks (soft limit), then
-	 * kindly suggest to the audit daemon to do something.
+	 * We handle four different space-related limits:
+	 *
+	 * - A fixed (hard) limit on the minimum free blocks we require on
+	 *   the file system, and results in record loss, a trigger, and
+	 *   possible fail stop due to violating invariants.
+	 *
+	 * - An administrative (soft) limit, which when fallen below, results
+	 *   in the kernel notifying the audit daemon of low space.
+	 *
+	 * - An audit trail size limit, which when gone above, results in the
+	 *   kernel notifying the audit daemon that rotation is desired.
+	 *
+	 * - The total depth of the kernel audit record exceeding free space,
+	 *   which can lead to possible fail stop (with drain), in order to
+	 *   prevent violating invariants.  Failure here doesn't halt
+	 *   immediately, but prevents new records from being generated.
+	 *
+	 * Possibly, the last of these should be handled differently, always
+	 * allowing a full queue to be lost, rather than trying to prevent
+	 * loss.
+	 *
+	 * First, handle the hard limit, which generates a trigger and may
+	 * fail stop.  This is handled in the same manner as ENOSPC from
+	 * VOP_WRITE, and results in record loss.
 	 */
 	if (mnt_stat->f_bfree < AUDIT_HARD_LIMIT_FREE_BLOCKS) {
-		(void)send_trigger(AUDIT_TRIGGER_NO_SPACE);
-		/*
-		 * Hopefully userspace did something about all the previous
-		 * triggers that were sent prior to this critical condition.
-		 * If fail-stop is set, then we're done; goodnight Gracie.
-		 */
-		if (audit_fail_stop)
-			panic("Audit log space exhausted and fail-stop set.");
-		else {
-			audit_suspended = 1;
-			ret = ENOSPC;
-			goto out;
-		}
-	} else
-		/*
-		 * Send a message to the audit daemon that disk space is
-		 * getting low.
-		 *
-		 * XXXAUDIT: Check math and block size calculation here.
-		 */
-		if (audit_qctrl.aq_minfree != 0) {
-			temp = mnt_stat->f_blocks / (100 /
-			    audit_qctrl.aq_minfree);
-			if (mnt_stat->f_bfree < temp)
-				(void)send_trigger(AUDIT_TRIGGER_LOW_SPACE);
-		}
+		error = ENOSPC;
+		goto fail_enospc;
+	}
 
 	/*
-	 * Check if the current log file is full; if so, call for a log
-	 * rotate. This is not an exact comparison; we may write some records
-	 * over the limit. If that's not acceptable, then add a fudge factor
-	 * here.
+	 * Second, handle falling below the soft limit, if defined; we send
+	 * the daemon a trigger and continue processing the record.  Triggers
+	 * are limited to 1/sec.
 	 */
-	if ((audit_fstat.af_filesz != 0) &&
-	    (audit_file_rotate_wait == 0) &&
+	if (audit_qctrl.aq_minfree != 0) {
+		/*
+		 * XXXAUDIT: Check math and block size calculations here.
+		 */
+		temp = mnt_stat->f_blocks / (100 / audit_qctrl.aq_minfree);
+		if (mnt_stat->f_bfree < temp) {
+			if (ppsratecheck(&last_lowspace_trigger,
+			    &cur_lowspace_trigger, 1)) {
+				(void)send_trigger(AUDIT_TRIGGER_LOW_SPACE);
+				printf("Warning: audit space low\n");
+			}
+		}
+	}
+
+	/*
+	 * If the current file is getting full, generate a rotation trigger
+	 * to the daemon.  This is only approximate, which is fine as more
+	 * records may be generated before the daemon rotates the file.
+	 */
+	if ((audit_fstat.af_filesz != 0) && (audit_file_rotate_wait == 0) &&
 	    (vattr.va_size >= audit_fstat.af_filesz)) {
 		audit_file_rotate_wait = 1;
 		(void)send_trigger(AUDIT_TRIGGER_ROTATE_KERNEL);
@@ -202,41 +209,87 @@ audit_record_write(struct vnode *vp, struct ucred *cred, struct thread *td,
 	 * (plus records allocated but not yet queued) has reached the amount
 	 * of free space on the disk, then we need to go into an audit fail
 	 * stop state, in which we do not permit the allocation/committing of
-	 * any new audit records.  We continue to process packets but don't
+	 * any new audit records.  We continue to process records but don't
 	 * allow any activities that might generate new records.  In the
 	 * future, we might want to detect when space is available again and
 	 * allow operation to continue, but this behavior is sufficient to
 	 * meet fail stop requirements in CAPP.
 	 */
-	if (audit_fail_stop &&
-	    (unsigned long)
-	    ((audit_q_len + audit_pre_q_len + 1) * MAX_AUDIT_RECORD_SIZE) /
-	    mnt_stat->f_bsize >= (unsigned long)(mnt_stat->f_bfree)) {
-		printf("audit_record_write: free space below size of audit "
-		    "queue, failing stop\n");
-		audit_in_failure = 1;
+	if (audit_fail_stop) {
+		if ((unsigned long)((audit_q_len + audit_pre_q_len + 1) *
+		    MAX_AUDIT_RECORD_SIZE) / mnt_stat->f_bsize >=
+		    (unsigned long)(mnt_stat->f_bfree)) {
+			if (ppsratecheck(&last_fail, &cur_fail, 1))
+				printf("audit_record_write: free space "
+				    "below size of audit queue, failing "
+				    "stop\n");
+			audit_in_failure = 1;
+		} else if (audit_in_failure) {
+			/*
+			 * XXXRW: If we want to handle recovery, this is the
+			 * spot to do it: unset audit_in_failure, and issue a
+			 * wakeup on the cv.
+			 */
+		}
 	}
 
-	ret = vn_rdwr(UIO_WRITE, vp, data, len, (off_t)0, UIO_SYSSPACE,
+	error = vn_rdwr(UIO_WRITE, vp, data, len, (off_t)0, UIO_SYSSPACE,
 	    IO_APPEND|IO_UNIT, cred, NULL, NULL, td);
+	if (error == ENOSPC)
+		goto fail_enospc;
+	else if (error)
+		goto fail;
 
-out:
 	/*
-	 * When we're done processing the current record, we have to check to
-	 * see if we're in a failure mode, and if so, whether this was the
-	 * last record left to be drained.  If we're done draining, then we
-	 * fsync the vnode and panic.
+	 * Catch completion of a queue drain here; if we're draining and the
+	 * queue is now empty, fail stop.  That audit_fail_stop is implicitly
+	 * true, since audit_in_failure can only be set of audit_fail_stop is
+	 * set.
+	 *
+	 * XXXRW: If we handle recovery from audit_in_failure, then we need
+	 * to make panic here conditional.
 	 */
-	if (audit_in_failure && audit_q_len == 0 && audit_pre_q_len == 0) {
-		VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, td);
-		(void)VOP_FSYNC(vp, MNT_WAIT, td);
-		VOP_UNLOCK(vp, 0, td);
-		panic("Audit store overflow; record queue drained.");
+	if (audit_in_failure) {
+		if (audit_q_len == 0 && audit_pre_q_len == 0) {
+			VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, td);
+			(void)VOP_FSYNC(vp, MNT_WAIT, td);
+			VOP_UNLOCK(vp, 0, td);
+			panic("Audit store overflow; record queue drained.");
+		}
 	}
 
 	VFS_UNLOCK_GIANT(vfslocked);
+	return;
 
-	return (ret);
+fail_enospc:
+	/*
+	 * ENOSPC is considered a special case with respect to failures, as
+	 * this can reflect either our preemptive detection of insufficient
+	 * space, or ENOSPC returned by the vnode write call.
+	 */
+	if (audit_fail_stop) {
+		VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, td);
+		(void)VOP_FSYNC(vp, MNT_WAIT, td);
+		VOP_UNLOCK(vp, 0, td);
+		panic("Audit log space exhausted and fail-stop set.");
+	}
+	(void)send_trigger(AUDIT_TRIGGER_NO_SPACE);
+	audit_suspended = 1;
+
+	/* FALLTHROUGH */
+fail:
+	/*
+	 * We have failed to write to the file, so the current record is
+	 * lost, which may require an immediate system halt.
+	 */
+	if (audit_panic_on_write_fail) {
+		VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, td);
+		(void)VOP_FSYNC(vp, MNT_WAIT, td);
+		VOP_UNLOCK(vp, 0, td);
+		panic("audit_worker: write error %d\n", error);
+	} else if (ppsratecheck(&last_fail, &cur_fail, 1))
+		printf("audit_worker: write error %d\n", error);
+	VFS_UNLOCK_GIANT(vfslocked);
 }
 
 /*
@@ -318,19 +371,17 @@ audit_worker_process_record(struct vnode *audit_vp, struct ucred *audit_cred,
 	struct au_record *bsm;
 	au_class_t class;
 	au_event_t event;
-	int error, ret;
 	au_id_t auid;
-	int sorf;
+	int error, sorf;
 
+	/*
+	 * First, handle the user record, if any: commit to the system trail
+	 * and audit pipes as selected.
+	 */
 	if ((ar->k_ar_commit & AR_COMMIT_USER) &&
-	    (ar->k_ar_commit & AR_PRESELECT_USER_TRAIL)) {
-		error = audit_record_write(audit_vp, audit_cred, audit_td,
+	    (ar->k_ar_commit & AR_PRESELECT_USER_TRAIL))
+		audit_record_write(audit_vp, audit_cred, audit_td,
 		    ar->k_udata, ar->k_ulen);
-		if (error && audit_panic_on_write_fail)
-			panic("audit_worker: write error %d\n", error);
-		else if (error)
-			printf("audit_worker: write error %d\n", error);
-	}
 
 	if ((ar->k_ar_commit & AR_COMMIT_USER) &&
 	    (ar->k_ar_commit & AR_PRESELECT_USER_PIPE))
@@ -349,8 +400,8 @@ audit_worker_process_record(struct vnode *audit_vp, struct ucred *audit_cred,
 	else
 		sorf = AU_PRS_FAILURE;
 
-	ret = kaudit_to_bsm(ar, &bsm);
-	switch (ret) {
+	error = kaudit_to_bsm(ar, &bsm);
+	switch (error) {
 	case BSM_NOAUDIT:
 		return;
 
@@ -362,24 +413,18 @@ audit_worker_process_record(struct vnode *audit_vp, struct ucred *audit_cred,
 		break;
 
 	default:
-		panic("kaudit_to_bsm returned %d", ret);
+		panic("kaudit_to_bsm returned %d", error);
 	}
 
-	if (ar->k_ar_commit & AR_PRESELECT_TRAIL) {
-		error = audit_record_write(audit_vp, audit_cred,
-		    audit_td, bsm->data, bsm->len);
-		if (error && audit_panic_on_write_fail)
-			panic("audit_worker: write error %d\n",
-			    error);
-		else if (error)
-			printf("audit_worker: write error %d\n",
-			    error);
-	}
+	if (ar->k_ar_commit & AR_PRESELECT_TRAIL)
+		audit_record_write(audit_vp, audit_cred, audit_td, bsm->data,
+		    bsm->len);
 
 	if (ar->k_ar_commit & AR_PRESELECT_PIPE)
 		audit_pipe_submit(auid, event, class, sorf,
 		    ar->k_ar_commit & AR_PRESELECT_TRAIL, bsm->data,
 		    bsm->len);
+
 	kau_free(bsm);
 }
 
