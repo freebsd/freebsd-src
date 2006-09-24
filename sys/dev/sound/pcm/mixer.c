@@ -770,6 +770,7 @@ mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
 	if ((mi->dev == -1) && (i_dev->si_devsw != &mixer_cdevsw))
 		return EINVAL;
 
+	d = NULL;
 	m = NULL;
 	t_cdev = NULL;
 	nmix = 0;
