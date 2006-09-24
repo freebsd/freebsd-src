@@ -25,6 +25,7 @@ auditd_stop()
 {
 
 	/usr/sbin/audit -t
+	sleep 1
 }
 
 load_rc_config $name
