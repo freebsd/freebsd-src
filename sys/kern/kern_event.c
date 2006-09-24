@@ -88,6 +88,8 @@ TASKQUEUE_DEFINE_THREAD(kqueue);
 
 static int	kevent_copyout(void *arg, struct kevent *kevp, int count);
 static int	kevent_copyin(void *arg, struct kevent *kevp, int count);
+static int	kqueue_register(struct kqueue *kq, struct kevent *kev,
+		    struct thread *td, int waitok);
 static int	kqueue_aquire(struct file *fp, struct kqueue **kqp);
 static void	kqueue_release(struct kqueue *kq, int locked);
 static int	kqueue_expand(struct kqueue *kq, struct filterops *fops,
@@ -783,11 +785,11 @@ kqueue_fo_release(int filt)
 }
 
 /*
- * A ref to kq (obtained via kqueue_aquire) should be held.  waitok will
+ * A ref to kq (obtained via kqueue_aquire) must be held.  waitok will
  * influence if memory allocation should wait.  Make sure it is 0 if you
  * hold any mutexes.
  */
-int
+static int
 kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td, int waitok)
 {
 	struct filterops *fops;
@@ -1938,4 +1940,30 @@ knote_free(struct knote *kn)
 {
 	if (kn != NULL)
 		uma_zfree(knote_zone, kn);
+}
+
+/*
+ * Register the kev w/ the kq specified by fd.
+ */
+int 
+kqfd_register(int fd, struct kevent *kev, struct thread *td, int waitok)
+{
+	struct kqueue *kq;
+	struct file *fp;
+	int error;
+
+	if ((error = fget(td, fd, &fp)) != 0)
+		return (error);
+	if ((error = kqueue_aquire(fp, &kq)) != 0)
+		goto noaquire;
+
+	error = kqueue_register(kq, kev, td, waitok);
+
+	kqueue_release(kq, 0);
+
+noaquire:
+	if (fp != NULL)
+		fdrop(fp, td);
+
+	return error;
 }

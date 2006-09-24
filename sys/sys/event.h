@@ -218,8 +218,8 @@ extern void	knlist_cleardel(struct knlist *knl, struct thread *td,
 #define knlist_delete(knl, td, islocked)			\
 		knlist_cleardel((knl), (td), (islocked), 1)
 extern void	knote_fdclose(struct thread *p, int fd);
-extern int 	kqueue_register(struct kqueue *kq,
-		    struct kevent *kev, struct thread *p, int waitok);
+extern int 	kqfd_register(int fd, struct kevent *kev, struct thread *p,
+		    int waitok);
 extern int	kqueue_add_filteropts(int filt, struct filterops *filtops);
 extern int	kqueue_del_filteropts(int filt);
 
