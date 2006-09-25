@@ -272,7 +272,7 @@ struct mon_table mon_dispatch_postauth15[] = {
     {MONITOR_REQ_TERM, 0, mm_answer_term},
 #ifdef SSH_AUDIT_EVENTS
     {MONITOR_REQ_AUDIT_EVENT, MON_PERMIT, mm_answer_audit_event},
-    {MONITOR_REQ_AUDIT_COMMAND, MON_ONCE, mm_answer_audit_command},
+    {MONITOR_REQ_AUDIT_COMMAND, MON_PERMIT|MON_ONCE, mm_answer_audit_command},
 #endif
     {0, 0, NULL}
 };
@@ -638,9 +638,6 @@ mm_answer_pwnamallow(int sock, Buffer *m)
 #ifdef USE_PAM
 	if (options.use_pam)
 		monitor_permit(mon_dispatch, MONITOR_REQ_PAM_START, 1);
-#endif
-#ifdef SSH_AUDIT_EVENTS
-	monitor_permit(mon_dispatch, MONITOR_REQ_AUDIT_COMMAND, 1);
 #endif
 
 	return (0);
