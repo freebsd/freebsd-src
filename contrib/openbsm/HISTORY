@@ -1,3 +1,24 @@
+OpenBSM 1.0 alpha 12
+
+- Correct bug in auditreduce which prevented the -c option from working
+  correctly when the user specifies to process successful or failed events.
+  The problem stemmed from not having access to the return token at the time
+  the initial preselection occurred, but now a second preselection process
+  occurs while processing the return token.
+- getacfilesz(3) API added to read new audit_control(5) filesz setting,
+  which auditd(8) now sets the kernel audit trail rotation size to.
+- auditreduce(1) now uses stdin if no file names are specified on the command
+  line; this was the documented behavior previously, but it was not
+  implemented.  Be more specific in auditreduce(1)'s examples section about
+  what might be done with the output of auditreduce.
+- Add audit_warn(5) closefile event so that administrators can hook
+  termination of an audit trail file.  For example, this might be used to
+  compress the trail file after it is closed.
+- auditreduce(1) now uses regular expressions for pathname matching. Users can
+  now supply one or more (comma delimited) regular expressions for searching
+  the pathnames. If one of the regular expressions is prefixed with a tilde
+  (~), and a path matches, it will be excluded from the search results.
+
 OpenBSM 1.0 alpha 11
 
 - Reclassify certain read/write operations as having no class rather than the
@@ -243,4 +264,4 @@ OpenBSM 1.0 alpha 1
   to support reloading of kernel event table.
 - Allow comments in /etc/security configuration files.
 
-$P4: //depot/projects/trustedbsd/openbsm/HISTORY#33 $
+$P4: //depot/projects/trustedbsd/openbsm/HISTORY#39 $
