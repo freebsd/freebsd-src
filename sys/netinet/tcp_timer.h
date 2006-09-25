@@ -133,7 +133,7 @@ static const char *tcptimers[] =
 	(tv) = (value) + tcp_rexmit_slop; \
 	if ((u_long)(tv) < (u_long)(tvmin)) \
 		(tv) = (tvmin); \
-	else if ((u_long)(tv) > (u_long)(tvmax)) \
+	if ((u_long)(tv) > (u_long)(tvmax)) \
 		(tv) = (tvmax); \
 } while(0)
 
