@@ -481,13 +481,22 @@ pw_copy(int ffd, int tfd, const struct passwd *pw, struct passwd *old_pw)
 		}
 
 		/* is it the one we're looking for? */
+
 		t = *q;
 		*q = '\0';
+
 		fpw = pw_scan(r, PWSCAN_MASTER);
+
+		/*
+		 * fpw is either the struct passwd for the current line,
+		 * or NULL if the line is malformed.
+		 */
+
 		*q = t;
-		if (strcmp(fpw->pw_name, pw->pw_name) != 0) {
+		if (fpw == NULL || strcmp(fpw->pw_name, pw->pw_name) != 0) {
 			/* nope */
-			free(fpw);
+			if (fpw != NULL)
+				free(fpw);
 			if (write(tfd, p, q - p + 1) != q - p + 1)
 				goto err;
 			++q;
