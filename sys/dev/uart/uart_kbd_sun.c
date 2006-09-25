@@ -549,9 +549,11 @@ sunkbd_repeat(void *v)
 {
 	struct sunkbd_softc *sc = v;
 
-	if (sc->sc_repeat_key != -1) {
-		sc->sc_repeating = 1;
-		sc->sc_kbd.kb_callback.kc_func(&sc->sc_kbd,
-		    KBDIO_KEYINPUT, sc->sc_kbd.kb_callback.kc_arg);
+	if (KBD_IS_ACTIVE(&sc->sc_kbd) && KBD_IS_BUSY(&sc->sc_kbd)) {
+		if (sc->sc_repeat_key != -1) {
+			sc->sc_repeating = 1;
+			sc->sc_kbd.kb_callback.kc_func(&sc->sc_kbd,
+			    KBDIO_KEYINPUT, sc->sc_kbd.kb_callback.kc_arg);
+		}
 	}
 }
