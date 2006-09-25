@@ -32,6 +32,10 @@
 #define COPYRIGHT_FreeBSD \
 	"Copyright (c) 1992-2006 The FreeBSD Project.\n"
 
+/* Foundation */
+#define	TRADEMARK_Foundation \
+	"FreeBSD is a registered trademark of The FreeBSD Foundation.\n"
+
 /* Berkeley */
 #define COPYRIGHT_UCB \
 	"Copyright (c) 1979, 1980, 1983, 1986, 1988, 1989, 1991, 1992, 1993, 1994\n\tThe Regents of the University of California. All rights reserved.\n"
@@ -45,4 +49,5 @@ char copyright[] = COPYRIGHT_FreeBSD COPYRIGHT_PC98 COPYRIGHT_UCB;
 
 #else
 char copyright[] = COPYRIGHT_FreeBSD COPYRIGHT_UCB;
+char trademark[] = TRADEMARK_Foundation;
 #endif
