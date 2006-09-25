@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#15 $
+# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#16 $
 # $FreeBSD$
 #
 0:AUE_NULL:indir system call:no
@@ -419,6 +419,10 @@
 43114:AUE_KENV:kenv(8):ad
 43115:AUE_JAIL_ATTACH:jail_attach(2):ad
 43116:AUE_SYSCTL_WRITE:sysctl(3):ad
+43117:AUE_IOPERM:linux ioperm:ad
+43118:AUE_READDIR:readdir(3):no
+43119:AUE_IOPL:linux iopl:ad
+43120:AUE_VM86:linux vm86:pc
 #
 # User space system events.
 #
