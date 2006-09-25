@@ -515,7 +515,7 @@ static struct afswtch af_inet6 = {
 	.af_settunnel	= in6_set_tunnel,
 	.af_difaddr	= SIOCDIFADDR_IN6,
 	.af_aifaddr	= SIOCAIFADDR_IN6,
-	.af_ridreq	= &in6_addreq,
+	.af_ridreq	= &in6_ridreq,
 	.af_addreq	= &in6_addreq,
 };
 
