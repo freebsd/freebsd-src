@@ -116,6 +116,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
 	int len, error = 0;
 	struct sockaddr_in *dst = NULL;	/* keep compiler happy */
 	struct in_ifaddr *ia = NULL;
+	struct in_ifaddr *sia = NULL;
 	int isbroadcast, sw_csum;
 	struct route iproute;
 	struct in_addr odst;
@@ -532,12 +533,15 @@ passout:
 		 * once instead of for every generated packet.
 		 */
 		if (!(flags & IP_FORWARDING) && ia) {
+			INADDR_TO_IFADDR(ip->ip_src, sia);
+			if (sia == NULL)
+				sia = ia;
 			if (m->m_pkthdr.csum_flags & CSUM_TSO)
-				ia->ia_ifa.if_opackets +=
+				sia->ia_ifa.if_opackets +=
 				    m->m_pkthdr.len / m->m_pkthdr.tso_segsz;
 			else
-				ia->ia_ifa.if_opackets++;
-			ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+				sia->ia_ifa.if_opackets++;
+			sia->ia_ifa.if_obytes += m->m_pkthdr.len;
 		}
 #ifdef IPSEC
 		/* clean ipsec history once it goes out of the node */
@@ -582,8 +586,11 @@ passout:
 		if (error == 0) {
 			/* Record statistics for this interface address. */
 			if (ia != NULL) {
-				ia->ia_ifa.if_opackets++;
-				ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+				INADDR_TO_IFADDR(ip->ip_src, sia);
+				if (sia == NULL)
+					sia = ia;
+				sia->ia_ifa.if_opackets++;
+				sia->ia_ifa.if_obytes += m->m_pkthdr.len;
 			}
 			/*
 			 * Reset layer specific mbuf flags
