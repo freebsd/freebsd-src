@@ -217,7 +217,12 @@ main(int argc, char *argv[])
 		pw_fini();
 		if (pw == NULL)
 			err(1, "edit()");
-		if (pw_equal(old_pw, pw))
+		/* 
+		 * pw_equal does not check for crypted passwords, so we
+		 * should do it explicitly
+		 */
+		if (pw_equal(old_pw, pw) && 
+		    strcmp(old_pw->pw_passwd, pw->pw_passwd) == 0)
 			errx(0, "user information unchanged");
 	}
 
