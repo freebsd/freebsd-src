@@ -985,6 +985,13 @@ ata_ali_chipinit(device_t dev)
 	ctlr->allocate = ata_ali_sata_allocate;
 	ctlr->setmode = ata_sata_setmode;
 
+	/* if we have a memory resource we can likely do AHCI */
+	ctlr->r_type2 = SYS_RES_MEMORY;
+	ctlr->r_rid2 = PCIR_BAR(5);
+	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+						   &ctlr->r_rid2, RF_ACTIVE)))
+	    return ata_ahci_chipinit(dev);
+
 	/* enable PCI interrupt */
 	pci_write_config(dev, PCIR_COMMAND,
 			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
