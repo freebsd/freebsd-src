@@ -809,12 +809,12 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	 * isn't clear, we know we have a BAR that doesn't conform to the
 	 * spec, so ignore it.  Also, sanity check the size of the data
 	 * areas to the type of memory involved.  Memory must be at least
-	 * 32 bytes in size, while I/O ranges must be at least 4.
+	 * 16 bytes in size, while I/O ranges must be at least 4.
 	 */
 	if ((testval & 0x1) == 0x1 &&
 	    (testval & 0x2) != 0)
 		return (barlen);
-	if ((type == SYS_RES_MEMORY && ln2size < 5) ||
+	if ((type == SYS_RES_MEMORY && ln2size < 4) ||
 	    (type == SYS_RES_IOPORT && ln2size < 2))
 		return (barlen);
 
