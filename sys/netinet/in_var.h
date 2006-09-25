@@ -94,6 +94,19 @@ extern	u_long in_ifaddrhmask;			/* mask for hash table */
 #define INADDR_HASH(x) \
 	(&in_ifaddrhashtbl[INADDR_HASHVAL(x) & in_ifaddrhmask])
 
+/*
+ * Macro for finding the internet address structure (in_ifaddr) corresponding
+ * corresponding to one of our IP addresses (in_addr).
+ */
+#define INADDR_TO_IFADDR(addr, ia) \
+	/* struct in_addr addr; */ \
+	/* struct in_ifaddr *ia; */ \
+do { \
+\
+	LIST_FOREACH(ia, INADDR_HASH((addr).s_addr), ia_hash) \
+		if (IA_SIN(ia)->sin_addr.s_addr == (addr).s_addr) \
+			break; \
+} while (0)
 
 /*
  * Macro for finding the interface (ifnet structure) corresponding to one
@@ -105,9 +118,7 @@ extern	u_long in_ifaddrhmask;			/* mask for hash table */
 { \
 	struct in_ifaddr *ia; \
 \
-	LIST_FOREACH(ia, INADDR_HASH((addr).s_addr), ia_hash) \
-		if (IA_SIN(ia)->sin_addr.s_addr == (addr).s_addr) \
-			break; \
+	INADDR_TO_IFADDR(addr, ia); \
 	(ifp) = (ia == NULL) ? NULL : ia->ia_ifp; \
 }
 
