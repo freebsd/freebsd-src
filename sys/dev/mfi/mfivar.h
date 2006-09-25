@@ -46,6 +46,7 @@ struct mfi_softc;
 
 struct mfi_command {
 	TAILQ_ENTRY(mfi_command) cm_link;
+	time_t			cm_timestamp;
 	struct mfi_softc	*cm_sc;
 	union mfi_frame		*cm_frame;
 	uint32_t		cm_frame_busaddr;
@@ -70,6 +71,7 @@ struct mfi_command {
 	int			cm_aen_abort;
 	void			(* cm_complete)(struct mfi_command *cm);
 	void			*cm_private;
+	int			cm_index;
 };
 
 struct mfi_ld {
@@ -170,6 +172,7 @@ struct mfi_softc {
 	eventhandler_tag		mfi_eh;
 	struct cdev			*mfi_cdev;
 
+	struct callout			mfi_watchdog_callout;
 	struct mtx			mfi_io_lock;
 };
 
@@ -318,5 +321,17 @@ mfi_print_sense(struct mfi_softc *sc, void *sense)
 	(sc)->mfi_bhandle, (reg))
 
 MALLOC_DECLARE(M_MFIBUF);
+
+#define MFI_CMD_TIMEOUT 30
+
+#ifdef MFI_DEBUG
+extern void mfi_print_cmd(struct mfi_command *cm);
+extern void mfi_dump_cmds(struct mfi_softc *sc);
+#define MFI_PRINT_CMD(cm)	mfi_print_cmd(cm)
+#define MFI_DUMP_CMDS(sc)	mfi_dump_cmds(sc);
+#else
+#define MFI_PRINT_CMD(cm)
+#define MFI_DUMP_CMDS(sc)
+#endif
 
 #endif /* _MFIVAR_H */
