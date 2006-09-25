@@ -95,7 +95,7 @@ extern	u_long in_ifaddrhmask;			/* mask for hash table */
 	(&in_ifaddrhashtbl[INADDR_HASHVAL(x) & in_ifaddrhmask])
 
 /*
- * Macro for finding the internet address structure (in_ifaddr) corresponding
+ * Macro for finding the internet address structure (in_ifaddr)
  * corresponding to one of our IP addresses (in_addr).
  */
 #define INADDR_TO_IFADDR(addr, ia) \
