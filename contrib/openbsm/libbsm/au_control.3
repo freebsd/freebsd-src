@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2005 Robert N. M. Watson
+.\" Copyright (c) 2005-2006 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_control.3#4 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_control.3#5 $
 .\"
 .Dd April 19, 2005
 .Dt AU_CONTROL 3
@@ -33,6 +33,7 @@
 .Nm endac ,
 .Nm getacdir ,
 .Nm getacmin ,
+.Nm getacfilesz ,
 .Nm getacflg ,
 .Nm getacna ,
 .Nm getacpol ,
@@ -51,6 +52,8 @@
 .Fn getacdir "char *name" "int len"
 .Ft int
 .Fn getacmin "int *min_val"
+.Ft int
+.Fn getacfilesz "size_t *size_val"
 .Ft int
 .Fn getacflg "char *auditstr" "int len"
 .Ft int
@@ -87,6 +90,10 @@ returns the minimum free disk space for the audit log target file system via
 the passed
 .Va min_val
 variable.
+.Pp
+.Fn getacfilesz
+returns the audit trail rotation size in the passed size_t buffer
+.Fa size_val .
 .Pp
 .Fn getacflg
 returns the audit system flags via the the passed character buffer
