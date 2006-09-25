@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_kevents.h#28 $
+ * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_kevents.h#29 $
  * $FreeBSD$
  */
 
@@ -471,6 +471,10 @@
 #define	AUE_KENV		43114	/* FreeBSD. */
 #define	AUE_JAIL_ATTACH		43115	/* FreeBSD. */
 #define	AUE_SYSCTL_WRITE	43116	/* FreeBSD. */
+#define	AUE_IOPERM		43117	/* Linux. */
+#define	AUE_READDIR		43118	/* Linux. */
+#define	AUE_IOPL		43119	/* Linux. */
+#define	AUE_VM86		43120	/* Linux. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the
