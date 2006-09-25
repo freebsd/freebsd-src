@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_control.c#15 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_control.c#16 $
  */
 
 #include <bsm/libbsm.h>
@@ -391,6 +391,46 @@ getacmin(int *min_val)
 		return (1);
 	}
 	*min_val = atoi(min);
+	pthread_mutex_unlock(&mutex);
+	return (0);
+}
+
+/*
+ * Return the desired trail rotation size from the audit control file.
+ */
+int
+getacfilesz(size_t *filesz_val)
+{
+	char *filesz, *dummy;
+	long long ll;
+
+	pthread_mutex_lock(&mutex);
+	setac_locked();
+	if (getstrfromtype_locked(FILESZ_CONTROL_ENTRY, &filesz) < 0) {
+		pthread_mutex_unlock(&mutex);
+		return (-2);
+	}
+	if (filesz == NULL) {
+		pthread_mutex_unlock(&mutex);
+		errno = EINVAL;
+		return (1);
+	}
+	ll = strtoll(filesz, &dummy, 10);
+	if (*dummy != '\0') {
+		pthread_mutex_unlock(&mutex);
+		errno = EINVAL;
+		return (-1);
+	}
+	/*
+	 * The file size must either be 0 or >= MIN_AUDIT_FILE_SIZE.  0
+	 * indicates no rotation size.
+	 */
+	if (ll < 0 || (ll > 0 && ll < MIN_AUDIT_FILE_SIZE)) {
+		pthread_mutex_unlock(&mutex);
+		errno = EINVAL;
+		return (-1);
+	}
+	*filesz_val = ll;
 	pthread_mutex_unlock(&mutex);
 	return (0);
 }
