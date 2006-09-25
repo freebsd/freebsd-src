@@ -1962,8 +1962,7 @@ kqfd_register(int fd, struct kevent *kev, struct thread *td, int waitok)
 	kqueue_release(kq, 0);
 
 noaquire:
-	if (fp != NULL)
-		fdrop(fp, td);
+	fdrop(fp, td);
 
 	return error;
 }
