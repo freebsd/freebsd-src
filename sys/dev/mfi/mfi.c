@@ -81,6 +81,7 @@ static int	mfi_send_frame(struct mfi_softc *, struct mfi_command *);
 static void	mfi_complete(struct mfi_softc *, struct mfi_command *);
 static int	mfi_abort(struct mfi_softc *, struct mfi_command *);
 static int	mfi_linux_ioctl_int(struct cdev *, u_long, caddr_t, int, d_thread_t *);
+static void	mfi_timeout(void *);
 
 
 SYSCTL_NODE(_hw, OID_AUTO, mfi, CTLFLAG_RD, 0, "MFI driver parameters");
@@ -389,6 +390,11 @@ mfi_attach(struct mfi_softc *sc)
 	if (sc->mfi_cdev != NULL)
 		sc->mfi_cdev->si_drv1 = sc;
 
+	/* Start the timeout watchdog */
+	callout_init(&sc->mfi_watchdog_callout, 1);
+	callout_reset(&sc->mfi_watchdog_callout, MFI_CMD_TIMEOUT * hz,
+	    mfi_timeout, sc);
+
 	return (0);
 }
 
@@ -416,6 +422,7 @@ mfi_alloc_commands(struct mfi_softc *sc)
 		cm->cm_sense = &sc->mfi_sense[i];
 		cm->cm_sense_busaddr= sc->mfi_sense_busaddr + MFI_SENSE_LEN * i;
 		cm->cm_sc = sc;
+		cm->cm_index = i;
 		if (bus_dmamap_create(sc->mfi_buffer_dmat, 0,
 		    &cm->cm_dmamap) == 0)
 			mfi_release_command(cm);
@@ -700,6 +707,8 @@ mfi_free(struct mfi_softc *sc)
 {
 	struct mfi_command *cm;
 	int i;
+
+	callout_drain(&sc->mfi_watchdog_callout);
 
 	if (sc->mfi_cdev != NULL)
 		destroy_dev(sc->mfi_cdev);
@@ -1530,6 +1539,7 @@ mfi_mapcmd(struct mfi_softc *sc, struct mfi_command *cm)
 			return (0);
 		}
 	} else {
+		cm->cm_timestamp = time_uptime;
 		mfi_enqueue_busy(cm);
 		error = mfi_send_frame(sc, cm);
 	}
@@ -1591,6 +1601,7 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 
 	/* The caller will take care of delivering polled commands */
 	if ((cm->cm_flags & MFI_CMD_POLLED) == 0) {
+		cm->cm_timestamp = time_uptime;
 		mfi_enqueue_busy(cm);
 		mfi_send_frame(sc, cm);
 	}
@@ -2022,4 +2033,37 @@ mfi_poll(struct cdev *dev, int poll_events, struct thread *td)
 	}
 
 	return revents;
+}
+
+static void
+mfi_timeout(void *data)
+{
+	struct mfi_softc *sc = (struct mfi_softc *)data;
+	struct mfi_command *cm;
+	time_t deadline;
+	int timedout = 0;
+
+	deadline = time_uptime - MFI_CMD_TIMEOUT;
+	mtx_lock(&sc->mfi_io_lock);
+	TAILQ_FOREACH(cm, &sc->mfi_busy, cm_link) {
+		if (cm->cm_timestamp < deadline) {
+			device_printf(sc->mfi_dev,
+			    "COMMAND %p TIMEOUT AFTER %d SECONDS\n", cm,
+			    (int)(time_uptime - cm->cm_timestamp));
+			MFI_PRINT_CMD(cm);
+			timedout++;
+		}
+	}
+
+#if 0
+	if (timedout)
+		MFI_DUMP_CMDS(SC);
+#endif
+
+	mtx_unlock(&sc->mfi_io_lock);
+
+	callout_reset(&sc->mfi_watchdog_callout, MFI_CMD_TIMEOUT * hz,
+	    mfi_timeout, sc);
+
+	return;
 }
