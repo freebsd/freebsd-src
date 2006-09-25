@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#21 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#23 $
  */
 
 #include <sys/types.h>
@@ -163,9 +163,11 @@ close_lastfile(char *TS)
 				syslog(LOG_ERR,
 				    "Could not rename %s to %s: %m", oldname,
 				    lastfile);
-			else
+			else {
 				syslog(LOG_INFO, "renamed %s to %s",
 				    oldname, lastfile);
+				audit_warn_closefile(lastfile);
+			}
 		}
 		free(lastfile);
 		free(oldname);
@@ -727,6 +729,8 @@ config_audit_controls(void)
 	char naeventstr[NA_EVENT_STR_SIZE];
 	char polstr[POL_STR_SIZE];
 	long policy;
+	au_fstat_t au_fstat;
+	size_t filesz;
 
 	/*
 	 * Process the audit event file, obtaining a class mapping for each
@@ -805,6 +809,17 @@ config_audit_controls(void)
 			syslog(LOG_ERR,
 			    "Failed to set default audit policy: %m");
 	}
+
+	/*
+	 * Set trail rotation size.
+	 */
+	if (getacfilesz(&filesz) == 0) {
+		bzero(&au_fstat, sizeof(au_fstat));
+		au_fstat.af_filesz = filesz;
+		if (auditon(A_SETFSIZE, &au_fstat, sizeof(au_fstat)) < 0)
+			syslog(LOG_ERR, "Failed to set filesz: %m");
+	} else
+		syslog(LOG_ERR, "Failed to obtain filesz: %m");
 
 	return (0);
 }

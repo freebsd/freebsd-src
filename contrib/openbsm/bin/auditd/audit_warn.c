@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/audit_warn.c#6 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/audit_warn.c#7 $
  */
 
 #include <sys/types.h>
@@ -120,6 +120,21 @@ audit_warn_auditoff(void)
 
 	args[0] = AUDITOFF_WARN;
 	args[1] = NULL;
+
+	return (auditwarnlog(args));
+}
+
+/*
+ * Indicate that a trail file has been closed, so can now be post-processed.
+ */
+int
+audit_warn_closefile(char *filename)
+{
+	char *args[3];
+
+	args[0] = CLOSEFILE_WARN;
+	args[1] = filename;
+	args[2] = NULL;
 
 	return (auditwarnlog(args));
 }

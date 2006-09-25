@@ -26,12 +26,19 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.h#4 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.h#5 $
  */
 
 #ifndef _AUDITREDUCE_H_
 #define _AUDITREDUCE_H_
 
+
+struct re_entry {
+	char		*re_pattern;
+	int		 re_negate;
+	regex_t		 re_regexp;
+	TAILQ_ENTRY(re_entry) re_glue;
+};
 
 #define OPT_a	0x00000001
 #define OPT_b	0x00000002

@@ -1,4 +1,5 @@
 .\" Copyright (c) 2004 Apple Computer, Inc.
+.\" Copyright (c) 2006 Robert N. M. Watson
 .\" All rights reserved.
 .\" 
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +26,7 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_control.5#11 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_control.5#13 $
 .\"
 .Dd January 4, 2006
 .Dt AUDIT_CONTROL 5
@@ -66,6 +67,12 @@ Not currently used as the value of 20 percent is chosen by the kernel.
 .It Va policy
 A list of global audit policy flags specifying various behaviors, such as
 fail stop, auditing of paths and arguments, etc.
+.It Va filesz
+Maximum trail size in bytes; if set to a non-0 value, the audit daemon will
+rotate the audit trail file at around this size.
+Sizes less than the minimum trail size (default of 512K) will be rejected as
+invalid.
+If 0, trail files will not be automatically rotated based on file size.
 .El
 .Sh AUDIT FLAGS
 Audit flags are a comma-delimited list of audit classes as defined in the
@@ -78,12 +85,14 @@ Event classes may be preceded by a prefix which changes their interpretation.
 The following prefixes may be used for each class:
 .Pp
 .Bl -tag -width Ds -compact -offset indent
+.It (none)
+Record both successful and failed events
 .It +
 Record successful events
 .It -
 Record failed events
 .It ^
-Record both successful and failed events
+Record neither successful nor failed events
 .It ^+
 Do not record successful events
 .It ^-
@@ -146,6 +155,7 @@ flags:lo
 minfree:20
 naflags:lo
 policy:cnt
+filesz:0
 .Ed
 .Pp
 The
@@ -156,7 +166,8 @@ The
 .Va policy
 parameter specifies that the system should neither fail stop nor suspend
 processes when the audit store fills.
-will be audited.
+The trail file will not be automatically rotated by the audit daemon based on
+file size.
 .Sh FILES
 .Bl -tag -width "/etc/security/audit_control" -compact
 .It Pa /etc/security/audit_control

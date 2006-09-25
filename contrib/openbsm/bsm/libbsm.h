@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#29 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#30 $
  */
 
 #ifndef _LIBBSM_H_
@@ -78,6 +78,7 @@
 
 #define	DIR_CONTROL_ENTRY	"dir"
 #define	MINFREE_CONTROL_ENTRY	"minfree"
+#define	FILESZ_CONTROL_ENTRY	"filesz"
 #define	FLAGS_CONTROL_ENTRY	"flags"
 #define	NA_CONTROL_ENTRY	"naflags"
 #define	POLICY_CONTROL_ENTRY	"policy"
@@ -719,6 +720,7 @@ void			 setac(void);
 void			 endac(void);
 int			 getacdir(char *name, int len);
 int			 getacmin(int *min_val);
+int			 getacfilesz(size_t *size_val);
 int			 getacflg(char *auditstr, int len);
 int			 getacna(char *auditstr, int len);
 int			 getacpol(char *auditstr, size_t len);
