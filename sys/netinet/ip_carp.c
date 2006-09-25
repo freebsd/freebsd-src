@@ -379,6 +379,7 @@ carp_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	    (sizeof(struct in_multi *) * IP_MIN_MEMBERSHIPS), M_CARP,
 	    M_WAITOK);
 	sc->sc_imo.imo_max_memberships = IP_MIN_MEMBERSHIPS;
+	sc->sc_imo.imo_multicast_vif = -1;
 
 	callout_init(&sc->sc_ad_tmo, NET_CALLOUT_MPSAFE);
 	callout_init(&sc->sc_md_tmo, NET_CALLOUT_MPSAFE);
