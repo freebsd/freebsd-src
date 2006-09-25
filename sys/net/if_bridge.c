@@ -277,8 +277,11 @@ static int pfil_onlyip = 1; /* only pass IP[46] packets when pfil is enabled */
 static int pfil_bridge = 1; /* run pfil hooks on the bridge interface */
 static int pfil_member = 1; /* run pfil hooks on the member interface */
 static int pfil_ipfw = 0;   /* layer2 filter with ipfw */
+static int pfil_ipfw_arp = 0;   /* layer2 filter with ipfw */
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_onlyip, CTLFLAG_RW,
     &pfil_onlyip, 0, "Only pass IP packets when pfil is enabled");
+SYSCTL_INT(_net_link_bridge, OID_AUTO, ipfw_arp, CTLFLAG_RW,
+    &pfil_ipfw_arp, 0, "Filter ARP packets through IPFW layer2");
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_bridge, CTLFLAG_RW,
     &pfil_bridge, 0, "Packet filter on the bridge interface");
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_member, CTLFLAG_RW,
@@ -2579,6 +2582,37 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 		}
 	}
 
+	/*
+	 * If we're trying to filter bridge traffic, don't look at anything
+	 * other than IP and ARP traffic.  If the filter doesn't understand
+	 * IPv6, don't allow IPv6 through the bridge either.  This is lame
+	 * since if we really wanted, say, an AppleTalk filter, we are hosed,
+	 * but of course we don't have an AppleTalk filter to begin with.
+	 * (Note that since pfil doesn't understand ARP it will pass *ALL*
+	 * ARP traffic.)
+	 */
+	switch (ether_type) {
+		case ETHERTYPE_ARP:
+		case ETHERTYPE_REVARP:
+			if (pfil_ipfw_arp == 0)
+				return (0); /* Automatically pass */
+			break;
+
+		case ETHERTYPE_IP:
+#ifdef INET6
+		case ETHERTYPE_IPV6:
+#endif /* INET6 */
+			break;
+		default:
+			/*
+			 * Check to see if the user wants to pass non-ip
+			 * packets, these will not be checked by pfil(9) and
+			 * passed unconditionally so the default is to drop.
+			 */
+			if (pfil_onlyip)
+				goto bad;
+	}
+
 	/* Strip off the Ethernet header and keep a copy. */
 	m_copydata(*mp, 0, ETHER_HDR_LEN, (caddr_t) &eh2);
 	m_adj(*mp, ETHER_HDR_LEN);
@@ -2651,14 +2685,9 @@ ipfwpass:
 	error = 0;
 
 	/*
-	 * Run the packet through pfil. Note that since pfil doesn't understand
-	 * ARP it will pass all ARP traffic.
+	 * Run the packet through pfil
 	 */
 	switch (ether_type) {
-	case ETHERTYPE_ARP:
-	case ETHERTYPE_REVARP:
-		return (0); /* Automatically pass */
-
 	case ETHERTYPE_IP:
 		/*
 		 * before calling the firewall, swap fields the same as
@@ -2750,14 +2779,7 @@ ipfwpass:
 		break;
 #endif
 	default:
-		/*
-		 * Check to see if the user wants to pass non-ip
-		 * packets.
-		 */
-		if (pfil_onlyip) {
-			error = -1;
-			goto bad;
-		}
+		error = 0;
 		break;
 	}
 
