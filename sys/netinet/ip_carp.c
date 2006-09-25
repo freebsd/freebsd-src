@@ -375,6 +375,7 @@ carp_clone_create(struct if_clone *ifc, int unit)
 #ifdef INET6
 	sc->sc_im6o.im6o_multicast_hlim = CARP_DFLTTL;
 #endif
+	sc->sc_imo.imo_multicast_vif = -1;
 
 	callout_init(&sc->sc_ad_tmo, NET_CALLOUT_MPSAFE);
 	callout_init(&sc->sc_md_tmo, NET_CALLOUT_MPSAFE);
