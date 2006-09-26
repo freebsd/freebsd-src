@@ -26,6 +26,10 @@
  * $FreeBSD$
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_compat.h"
+#endif
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -270,7 +274,9 @@ smbioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		}
 		break;
 
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD6)
 	case SMB_OLD_BREAD:
+#endif
 	case SMB_BREAD:
 		if (s->count && s->data.byte_ptr) {
 			count = min(s->count, SMB_MAXBLOCKSIZE);
