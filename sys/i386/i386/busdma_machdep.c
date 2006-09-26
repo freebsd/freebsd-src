@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 
 #define MAX_BPAGES 512
-#define BUS_DMA_USE_FILTER	BUS_DMA_BUS2
 #define BUS_DMA_COULD_BOUNCE	BUS_DMA_BUS3
 #define BUS_DMA_MIN_ALLOC_COMP	BUS_DMA_BUS4
 
@@ -269,8 +268,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 			newtag->boundary = MIN(parent->boundary,
 					       newtag->boundary);
 		if ((newtag->filter != NULL) ||
-		    ((parent->flags & BUS_DMA_USE_FILTER) != 0))
-			newtag->flags |= BUS_DMA_USE_FILTER;
+		    ((parent->flags & BUS_DMA_COULD_BOUNCE) != 0))
+			newtag->flags |= BUS_DMA_COULD_BOUNCE;
 		if (newtag->filter == NULL) {
 			/*
 			 * Short circuit looking at our parent directly
@@ -583,7 +582,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 
 		while (vaddr < vendaddr) {
 			paddr = pmap_kextract(vaddr);
-			if (((dmat->flags & BUS_DMA_USE_FILTER) != 0) &&
+			if (((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) &&
 			    run_filter(dmat, paddr) != 0) {
 				needbounce = 1;
 				map->pagesneeded++;
@@ -682,7 +681,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 				sgsize = (baddr - curaddr);
 		}
 
-		if (((dmat->flags & BUS_DMA_USE_FILTER) != 0) &&
+		if (((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) &&
 		    map->pagesneeded != 0 && run_filter(dmat, curaddr))
 			curaddr = add_bounce_page(dmat, map, vaddr, sgsize);
 
