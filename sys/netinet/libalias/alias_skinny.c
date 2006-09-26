@@ -32,26 +32,92 @@
 
 #ifdef _KERNEL
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #else
-#include <sys/types.h>
-#include <sys/socket.h>
+#include <errno.h>
 #include <stdio.h>
-#include <string.h>
 #include <unistd.h>
-#include <arpa/inet.h>
 #endif
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
-#include <netinet/udp.h>
 
 #ifdef _KERNEL
-#include <netinet/libalias/alias.h>
 #include <netinet/libalias/alias_local.h>
+#include <netinet/libalias/alias_mod.h>
 #else
 #include "alias_local.h"
+#include "alias_mod.h"
+#endif
+
+static void
+AliasHandleSkinny(struct libalias *, struct ip *, struct alias_link *);
+
+static int 
+fingerprint(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+
+	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL)
+		return (-1);
+	if (la->skinnyPort != 0 && (ntohs(*ah->sport) == la->skinnyPort ||
+				    ntohs(*ah->dport) == la->skinnyPort))
+		return (0);
+	return (-1);
+}
+
+static int 
+protohandler(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+	
+        AliasHandleSkinny(la, pip, ah->lnk);
+	return (0);
+}
+
+struct proto_handler handlers[] = {
+	{ 
+	  .pri = 110, 
+	  .dir = IN|OUT, 
+	  .proto = TCP, 
+	  .fingerprint = &fingerprint, 
+	  .protohandler = &protohandler
+	}, 
+	{ EOH }
+};
+
+static int
+mod_handler(module_t mod, int type, void *data)
+{
+	int error;
+
+	switch (type) {
+	case MOD_LOAD:
+		error = 0;
+		LibAliasAttachHandlers(handlers);
+		break;
+	case MOD_UNLOAD:
+		error = 0;
+		LibAliasDetachHandlers(handlers);
+		break;
+	default:
+		error = EINVAL;
+	}
+	return (error);
+}
+
+#ifdef _KERNEL
+static 
+#endif
+moduledata_t alias_mod = {
+       "alias_skinny", mod_handler, NULL
+};
+
+#ifdef	_KERNEL
+DECLARE_MODULE(alias_skinny, alias_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
+MODULE_VERSION(alias_skinny, 1);
+MODULE_DEPEND(alias_skinny, libalias, 1, 1, 1);
 #endif
 
 /*
@@ -233,7 +299,7 @@ alias_skinny_opnrcvch_ack(struct libalias *la, struct OpenReceiveChannelAck *opn
 	return (0);
 }
 
-void
+static void
 AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 {
 	size_t hlen, tlen, dlen;

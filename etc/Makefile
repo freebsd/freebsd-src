@@ -12,7 +12,7 @@ BIN1=	amd.map apmd.conf auth.conf \
 	dhclient.conf disktab fbtab freebsd-update.conf \
 	ftpusers gettytab group \
 	hosts hosts.allow hosts.equiv hosts.lpd \
-	inetd.conf login.access login.conf mac.conf motd \
+	inetd.conf libalias.conf login.access login.conf mac.conf motd \
 	netconfig network.subr networks newsyslog.conf nsswitch.conf \
 	portsnap.conf pf.conf pf.os phones profile protocols \
 	rc rc.bsdextended rc.firewall rc.firewall6 rc.initdiskless \

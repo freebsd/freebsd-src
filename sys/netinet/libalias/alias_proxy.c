@@ -58,30 +58,24 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/ctype.h>
 #include <sys/libkern.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/limits.h>
 #else
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <netdb.h>
-#include <arpa/inet.h>
+#include <string.h>
 #endif
 
-/* BSD IPV4 includes */
-#include <netinet/in_systm.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
 #include <netinet/tcp.h>
 
 #ifdef _KERNEL
 #include <netinet/libalias/alias.h>
 #include <netinet/libalias/alias_local.h>
+#include <netinet/libalias/alias_mod.h>
 #else
+#include <arpa/inet.h>
 #include "alias.h"		/* Public API functions for libalias */
 #include "alias_local.h"	/* Functions used by alias*.c */
 #endif

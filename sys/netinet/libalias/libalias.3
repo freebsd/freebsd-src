@@ -893,6 +893,9 @@ added support for PPTP and RTSP.
 added support for RTSP/PNA.
 .An Ruslan Ermilov Aq ru@FreeBSD.org
 added support for PPTP and LSNAT as well as general hacking.
+.An Paolo Pisati Aq piso@FreeBSD.org
+made the library modular, moving support for all
+protocols (except for IP, TCP and UDP) to external modules.
 .Sh ACKNOWLEDGMENTS
 Listed below, in approximate chronological order, are individuals who
 have provided valuable comments and/or debugging assistance.
@@ -1011,3 +1014,429 @@ If this results in a conflict, then port numbers are randomly chosen until
 a unique aliasing link can be established.
 In an alternate operating mode, the first choice of an aliasing port is also
 random and unrelated to the local port number.
+.Sh MODULAR ARCHITECTURE (AND Xr ipfw 4 Sh SUPPORT)
+One of the latest improvements to
+.Nm libalias was to make its support
+for new protocols independent from the rest of the library, giving it
+the ability to load/unload at run-time support for new protocols.
+To achieve this feature, all the code for protocol handling was moved
+to a series of modules outside of the main library.
+These modules are compiled from the same sources but works in a
+different ways, depending on whether they are compiled to work inside a kernel
+or as part of the userland library.
+.Ss LIBALIAS MODULES IN KERNEL LAND
+When compiled to be parts of a kernel,
+.Nm libalias
+modules are plain simple KLDs:
+.Pp
+.Bl -item -compact
+.It
+.Pa /boot/kernel/alias_cuseeme.ko
+.It
+.Pa /boot/kernel/alias_dummy.ko
+.It
+.Pa /boot/kernel/alias_ftp.ko
+.It
+.Pa /boot/kernel/alias_irc.ko
+.It
+.Pa /boot/kernel/alias_nbt.ko
+.It
+.Pa /boot/kernel/alias_pptp.ko
+.It
+.Pa /boot/kernel/alias_skinny.ko
+.It
+.Pa /boot/kernel/alias_smedia.ko
+.El
+.Pp
+To add support for new protocol just kldload its module, for example:
+.Pp
+.Dl "kldload alias_ftp
+.Pp
+and when you don't need it anymore, you can unload it:
+.Pp
+.Dl "kldunload alias_ftp
+.Ss LIBALIAS MODULES IN USERLAND
+Due to the differences between kernel and userland (no kld mechanism,
+many different address spaces, etc etc), we had to change a bit how to
+handle modules loading/tracking/unloading in userland.
+.Pp
+While compiled for a userland
+.Nm libalias
+all the modules are plain libraries:
+.Pp
+.Bl -item -compact
+.It
+.Pa /usr/lib/libalias_cuseeme.a
+.It
+.Pa /usr/lib/libalias_cuseeme.so -> /lib/libalias_cuseeme.so.4
+.It
+.Pa /usr/lib/libalias_cuseeme_p.a
+.It
+.Pa /usr/lib/libalias_dummy.a
+.It
+.Pa /usr/lib/libalias_dummy.so -> /lib/libalias_dummy.so.4
+.It
+.Pa /usr/lib/libalias_dummy_p.a
+.It
+.Pa /usr/lib/libalias_ftp.a
+.It
+.Pa /usr/lib/libalias_ftp.so -> /lib/libalias_ftp.so.4
+.It
+.Pa /usr/lib/libalias_ftp_p.a
+.It
+.Pa /usr/lib/libalias_irc.a
+.It
+.Pa /usr/lib/libalias_irc.so -> /lib/libalias_irc.so.4
+.It
+.Pa /usr/lib/libalias_irc_p.a
+.It
+.Pa /usr/lib/libalias_nbt.a
+.It
+.Pa /usr/lib/libalias_nbt.so -> /lib/libalias_nbt.so.4
+.It
+.Pa /usr/lib/libalias_nbt_p.a
+.It
+.Pa /usr/lib/libalias_pptp.a
+.It
+.Pa /usr/lib/libalias_pptp.so -> /lib/libalias_pptp.so.4
+.It
+.Pa /usr/lib/libalias_pptp_p.a
+.It
+.Pa /usr/lib/libalias_skinny.a
+.It
+.Pa /usr/lib/libalias_skinny.so -> /lib/libalias_skinny.so.4
+.It
+.Pa /usr/lib/libalias_skinny_p.a
+.It
+.Pa /usr/lib/libalias_smedia.a
+.It
+.Pa /usr/lib/libalias_smedia.so -> /lib/libalias_smedia.so.4
+.It
+.Pa /usr/lib/libalias_smedia_p.a
+.El
+.Pp
+To take advantage of modules, an application must be
+patched to handle SIGHUP signal and call LibAliasRefreshModules()
+whenever it receives that signal (see below for details).
+.Pp
+If you have correctly installed
+.Nm libalias
+in /etc you should
+find a file called libalias.conf with the following contents (or
+similar):
+.Pp
+.Bl -item -compact
+.It
+.Pa /usr/lib/libalias_cuseeme.so
+.It
+.Pa /usr/lib/libalias_ftp.so
+.It
+.Pa /usr/lib/libalias_irc.so
+.It
+.Pa /usr/lib/libalias_nbt.so
+.It
+.Pa /usr/lib/libalias_pptp.so
+.It
+.Pa /usr/lib/libalias_skinny.so
+.It
+.Pa /usr/lib/libalias_smedia.so
+.El
+.Pp
+this file contains the paths to the modules that
+.Nm libalias
+will load.
+To load/unload a new module just add its path to libalias.conf and
+send a SIGHUP signal to the application that needs the new module:
+.Pp
+.Dl "kill -HUP <process pid>
+.Ss MODULAR ARCHITECURE: HOW IT WORKS
+The modular architecture of
+.Nm libalias
+work (almost) the same when it's
+running inside kernel or in userland. From alias_mod.c:
+.Bd -literal
+/* protocol and userland module handlers chains */
+struct chain handler_chain, dll_chain;
+
+handler_chain keep tracks of all the protocol handlers loaded, while
+ddl_chain takes care of userland modules loaded.
+
+handler_chain is composed of struct proto_handler entries:
+
+struct proto_handler {
+
+	/* handler priority */
+	int pri;
+	/* flow direction */
+        int16_t dir;
+	/* working protocol */
+	int16_t	proto;
+	/* fingerprint * function */
+	int (*fingerprint)(struct libalias *la,
+		 struct ip *pip, struct alias_data *ah);
+	/* aliasing * function */
+	int (*protohandler)(struct libalias *la,
+		 struct ip *pip, struct alias_data *ah);
+	struct proto_handler *next;
+};
+.Ed
+.Pp
+where:
+.Pp
+pri is the priority assigned to a protocol handler, lower
+is better.
+.Pp
+dir is the direction of packets: ingoing or outgoing.
+.Pp
+proto says at which protocol this packet belongs: IP, TCP or UDP
+.Pp
+fingerprint points to the fingerprint function while protohandler points
+to the protocol handler function.
+.Pp
+The fingerprint function has the double of scope of checking if the
+incoming packet is sound and if it belongs to any categories that this
+module can handle.
+.Pp
+The protocol handler function is the function that actually manipulates
+the packet to make
+.Nm libalias
+correctly nat it.
+.Pp
+When a packet enters
+.Nm libalias
+, if it meets a module hook,
+handler_chain is searched to see if there's an handler that match
+this type of packet (it checks protocol and direction of packet), then if
+more then one handler is found, it starts with the module with
+a lower priority number: it calls fingerprints and read the result.
+.Pp
+If the result value is equal to OK, then it calls the protocol handler
+of this handler and return, else it skip to the fingerprint function
+of the next eligible module, till the end of handler_chain
+.Pp
+Inside
+.Nm libalias
+the module hook looks like this:
+.Bd -literal
+		struct alias_data ad = {
+			lnk,
+			&original_address,
+			&alias_address,
+			&alias_port,
+			&ud->uh_sport,          /* original source port */
+			&ud->uh_dport,		/* original dest port */
+			256                     /* maxpacketsize */
+		};
+
+		...
+
+		/* walk out chain */
+		err = find_handler(IN, UDP, la, pip, &ad);
+.Ed
+all data useful to a module are gathered together in a alias_data
+structure, then find_handler is called.
+find_handler is the function responsible of walking out the handler
+chain, it receives as input parameters:
+.Pp
+IN:     direction
+.Pp
+UDP:    working protocol
+.Pp
+la:     pointer to this instance of libalias
+.Pp
+pip:    pointer to a struct ip
+.Pp
+ad:     pointer to struct alias_data (see above)
+.Pp
+in this case, find_handler will search only for modules registered for
+supporting INcoming UDP packets.
+.Pp
+As i said earlier,
+.Nm libalias
+in userland is a bit different, cause we
+have to take care of module handling too (avoiding duplicate load of
+module, avoiding module with same name, etc etc) so dll_chain was
+introduced.
+.Pp
+dll_chain contains a list of all userland
+.Nm libalias
+modules loaded.
+.Pp
+When an application calls LibAliasRefreshModules(),
+.Nm libalias
+first unload all the loaded modules, then reload all the modules listed in
+/etc/libalias.conf: for every module loaded, a new entry to dll_chain
+is added.
+.Pp
+dll_chain is composed of struct dll entries:
+.Bd -literal
+struct dll {
+	/* name of module */
+	char            name[DLL_LEN];
+	/*
+	 * ptr to shared obj obtained through
+	 * dlopen() - use this ptr to get access
+	 * to any symbols from a loaded module				 
+	 * via dlsym()
+	 */
+	void            *handle;
+	struct dll      *next;
+};	
+.Ed					
+name is the name of the module
+.Pp	
+handle is a pointer to the module obtained through dlopen()
+.Pp
+Whenever a module is loaded in userland, an entry is added to
+dll_chain, than every protocol handler present in that module
+is resolved and registered in handler_chain.
+.Ss HOW TO WRITE A MODULE FOR LIBALIAS
+There's a module (called alias_dummy.[ch]) in
+.Nm libalias
+that can be used as a skeleton for future work, here we analyse some parts of that
+module.
+From alias_dummy.c:
+.Bd -literal
+struct proto_handler handlers [] = {{666, IN|OUT, UDP|TCP,
+				    &fingerprint, &protohandler}};
+.Ed
+.Pp
+The variable 'handlers' is the 'most important thing' in your module,
+cause it describes the handlers present and let the outside world use
+it in an opaque way.
+.Pp
+It must ALWAYS be present in every module, and it MUST retain
+the name 'handlers', else if you'll try to load
+this module in userland, it will complain about missing symbols: for
+more info about module load/unload, please refer to
+LibAliasRefreshModules, LibAliasLoadModule and LibAliasUnloadModule in
+alias.c
+.Pp
+handlers[] contains all the proto_handler structures present in a
+module.
+.Bd -literal
+static int
+mod_handler(module_t mod, int type, void *data)
+{
+	int error;
+
+	switch (type) {
+	case MOD_LOAD:
+		error = 0;
+		attach_handlers(handlers);
+		break;
+	case MOD_UNLOAD:
+		error = 0;
+		detach_handlers(handlers;
+		break;
+	default:
+		error = EINVAL;
+	}
+	return (error);
+}
+.Ed
+When running as kld, mod_handler register/deregister the module using
+attach_handlers/detach_handlers respectively.
+.Pp
+Every module must contain at least 2 functions: one fingerprint
+function and a protocol handler function.
+.Bd -literal
+#ifdef _KERNEL
+static
+#endif
+int
+fingerprint(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+
+...
+}
+
+#ifdef _KERNEL
+static
+#endif
+int
+protohandler(struct libalias *la, struct ip *pip,
+             struct alias_data *ah)
+{
+
+...
+}
+.Ed
+and they must accept exactly these input parameters.
+.Ss PATCHING AN APPLICATION FOR USERLAND LIBALIAS MODULES
+If you have any application that uses
+.Nm libalias
+and you want to add it
+support for modules, then follow this simple 5 steps
+procedure.
+.Bd -ragged -offset indent
+.An -split
+.An 1) first, figure out which file is the main file of your program
+.An   (let's call it main.c)
+.An 2) add this to the header section of main,c, if not already
+.An   present:
+.Pp
+.An #include <signal.h>
+.Pp
+.An 3) and this just after the header section:
+.Pp
+.An static void signal_handler(int);
+.Pp
+.An 4) add this line in the init function of you program or, if it
+.An   doesn't have any init function, put it in main():
+.Pp
+.An signal(SIGHUP, signal_handler);
+.Pp
+.An 5) and place this function somewhere in main.c:
+.Pp
+.An static void
+.An signal_handler(int sig)
+.An {
+.Pp	
+.An	LibAliasRefreshModules();
+.An }
+.Pp
+.An   else, if your program already trap SIGHUP signal, just add a call
+.An   to LibAliasRefreshModules() in the function serving that signal.
+.Pp
+.An For example, to patch natd to use libalias modules, just add
+.An the following line to RefreshAddr (int sig __unused):
+.Pp
+.An LibAliasRefreshModules()
+.Pp
+.An recompile and you are done.
+.Ed
+.Ss LOGGING SUPPORT IN KERNEL LAND
+.Pp
+While working as kld,
+.Nm libalias
+now have log support that
+happens on a buffer allocated inside struct libalias(from alias_local.h):
+.Bd -literal
+struct libalias {
+       ...
+
+	/* log descriptor        */
+#ifdef	KERNEL_LOG
+	char           *logDesc;        /*
+					 * ptr to an auto-malloced
+					 * memory buffer when libalias
+					 * works as kld
+					 */
+#else
+	FILE           *logDesc;	/*
+					 * ptr to /var/log/alias.log
+					 * when libalias runs as a
+					 * userland lib
+					 */
+#endif
+
+...
+}
+.Ed
+so all the applications using
+.Nm libalias
+, will be able to handle their
+own logs, if they want, accessing logDesc.
+Moreover, every change to log buffer is automatically added to syslog
+with facilities security and info.
