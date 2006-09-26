@@ -38,6 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/ioccom.h>
 #include <dev/isp/isp_ioctl.h>
+#if	__FreeBSD_version >= 500000
+#include <sys/sysctl.h>
+#endif
 
 
 MODULE_VERSION(isp, 1);
@@ -73,6 +76,7 @@ static struct cdevsw isp_cdevsw = {
 	/* psize */	nopsize,
 	/* flags */	D_TAPE,
 };
+#define	isp_sysctl_update(x)	do { ; } while (0)
 #else
 static struct cdevsw isp_cdevsw = {
 	.d_version =	D_VERSION,
@@ -80,6 +84,7 @@ static struct cdevsw isp_cdevsw = {
 	.d_ioctl =	ispioctl,
 	.d_name =	"isp",
 };
+static void isp_sysctl_update(ispsoftc_t *);
 #endif
 
 static ispsoftc_t *isplist = NULL;
@@ -248,7 +253,7 @@ isp_attach(ispsoftc_t *isp)
 		}
 		tmp->isp_osinfo.next = isp;
 	}
-
+	isp_sysctl_update(isp);
 }
 
 static __inline void
@@ -614,6 +619,38 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 	}
 	return (retval);
 }
+
+#if __FreeBSD_version >= 500000
+static void
+isp_sysctl_update(ispsoftc_t *isp)
+{
+	struct sysctl_ctx_list *ctx =
+	    device_get_sysctl_ctx(isp->isp_osinfo.dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(isp->isp_osinfo.dev);
+
+	if (IS_SCSI(isp)) {
+		isp->isp_osinfo.sysctl_info.spi.iid = DEFAULT_IID(isp);
+		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "iid",
+		    CTLFLAG_RD, &isp->isp_osinfo.sysctl_info.spi.iid, 0,
+		    "Initiator ID");
+		return;
+	}
+	snprintf(isp->isp_osinfo.sysctl_info.fc.wwnn,
+	    sizeof (isp->isp_osinfo.sysctl_info.fc.wwnn), "0x%08x%08x",
+	    (uint32_t) (ISP_NODEWWN(isp) >> 32), (uint32_t) ISP_NODEWWN(isp));
+
+	snprintf(isp->isp_osinfo.sysctl_info.fc.wwpn,
+	    sizeof (isp->isp_osinfo.sysctl_info.fc.wwpn), "0x%08x%08x",
+	    (uint32_t) (ISP_PORTWWN(isp) >> 32), (uint32_t) ISP_PORTWWN(isp));
+
+	SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	       "wwnn", CTLFLAG_RD, isp->isp_osinfo.sysctl_info.fc.wwnn, 0,
+	       "World Wide Node Name");
+	SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	       "wwpn", CTLFLAG_RD, isp->isp_osinfo.sysctl_info.fc.wwpn, 0,
+	       "World Wide Port Name");
+}
+#endif
 
 static void
 isp_intr_enable(void *arg)
