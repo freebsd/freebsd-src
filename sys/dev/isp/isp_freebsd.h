@@ -160,6 +160,15 @@ struct isposinfo {
 	struct firmware *	fw;
 	struct mtx		lock;
 	struct cv		kthread_cv;
+	union {
+		struct {
+			char wwnn[17];
+			char wwpn[17];
+		} fc;
+		struct {
+			int iid;
+		} spi;
+	} sysctl_info;
 #endif
 	struct proc		*kproc;
 	bus_dma_tag_t		cdmat;
