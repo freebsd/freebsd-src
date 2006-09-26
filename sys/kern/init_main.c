@@ -302,7 +302,7 @@ SYSINIT(witwarn, SI_SUB_COPYRIGHT, SI_ORDER_THIRD + 1,
 #ifdef DIAGNOSTIC
 static char diag_warn[] =
      "WARNING: DIAGNOSTIC option enabled, expect reduced performance.\n";
-SYSINIT(diagwarn, SI_SUB_COPYRIGHT, SI_ORDER_FOURTH + 2,
+SYSINIT(diagwarn, SI_SUB_COPYRIGHT, SI_ORDER_THIRD + 2,
     print_caddr_t, diag_warn)
 #endif
 
