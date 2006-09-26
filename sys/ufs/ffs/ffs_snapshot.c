@@ -194,7 +194,7 @@ ffs_snapshot(mp, snapfile)
 	ufs2_daddr_t numblks, blkno, *blkp, *snapblklist;
 	int error, cg, snaploc;
 	int i, size, len, loc;
-	int flag = mp->mnt_flag;
+	int flag;
 	struct timespec starttime = {0, 0}, endtime;
 	char saved_nice = 0;
 	long redo = 0, snaplistsize = 0;
@@ -216,6 +216,9 @@ ffs_snapshot(mp, snapfile)
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
 	sn = NULL;
+	MNT_ILOCK(mp);
+	flag = mp->mnt_flag;
+	MNT_IUNLOCK(mp);
 
 	/*
 	 * Need to serialize access to snapshot code per filesystem.
@@ -828,7 +831,9 @@ out:
 		fs->fs_active = 0;
 	}
 	UFS_UNLOCK(ump);
+	MNT_ILOCK(mp);
 	mp->mnt_flag = flag;
+	MNT_IUNLOCK(mp);
 	if (error)
 		(void) ffs_truncate(vp, (off_t)0, 0, NOCRED, td);
 	(void) ffs_syncvnode(vp, MNT_WAIT);

@@ -561,8 +561,10 @@ mqfs_mount(struct mount *mp, struct thread *td)
 		return (EOPNOTSUPP);
 
 	mp->mnt_data = &mqfs_data;
+	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_kern_flag |= MNTK_MPSAFE;
+	MNT_IUNLOCK(mp);
 	vfs_getnewfsid(mp);
 
 	sbp = &mp->mnt_stat;

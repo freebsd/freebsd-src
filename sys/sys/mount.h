@@ -156,7 +156,7 @@ struct mount {
 	int		mnt_nvnodelistsize;	/* (i) # of vnodes */
 	int		mnt_writeopcount;	/* (i) write syscalls pending */
 	int		mnt_kern_flag;		/* (i) kernel only flags */
-	u_int		mnt_flag;		/* flags shared with user */
+	u_int		mnt_flag;		/* (i) flags shared with user */
 	struct vfsoptlist *mnt_opt;		/* current mount options */
 	struct vfsoptlist *mnt_optnew;		/* new options passed to fs */
 	int		mnt_maxsymlinklen;	/* max size of short symlink */

@@ -471,7 +471,9 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
 	mp->mnt_vfc = vfsp;
 	vfsp->vfc_refcount++;	/* XXX Unlocked */
 	mp->mnt_stat.f_type = vfsp->vfc_typenum;
+	MNT_ILOCK(mp);
 	mp->mnt_flag |= vfsp->vfc_flags & MNT_VISFLAGMASK;
+	MNT_IUNLOCK(mp);
 	strlcpy(mp->mnt_stat.f_fstypename, vfsp->vfc_name, MFSNAMELEN);
 	mp->mnt_vnodecovered = vp;
 	mp->mnt_cred = crdup(td->td_ucred);
@@ -848,6 +850,7 @@ vfs_domount(
 			return (EINVAL);
 		}
 		mp = vp->v_mount;
+		MNT_ILOCK(mp);
 		flag = mp->mnt_flag;
 		kern_flag = mp->mnt_kern_flag;
 		/*
@@ -856,9 +859,11 @@ vfs_domount(
 		 */
 		if ((fsflags & MNT_RELOAD) &&
 		    ((mp->mnt_flag & MNT_RDONLY) == 0)) {
+			MNT_IUNLOCK(mp);
 			vput(vp);
 			return (EOPNOTSUPP);	/* Needs translation */
 		}
+		MNT_IUNLOCK(mp);
 		/*
 		 * Only privileged root, or (if MNT_USER is set) the user that
 		 * did the original mount is permitted to update it.
@@ -882,8 +887,10 @@ vfs_domount(
 		}
 		vp->v_iflag |= VI_MOUNT;
 		VI_UNLOCK(vp);
+		MNT_ILOCK(mp);
 		mp->mnt_flag |= fsflags &
 		    (MNT_RELOAD | MNT_FORCE | MNT_UPDATE | MNT_SNAPSHOT | MNT_ROOTFS);
+		MNT_IUNLOCK(mp);
 		VOP_UNLOCK(vp, 0, td);
 		mp->mnt_optnew = fsdata;
 		vfs_mergeopts(mp->mnt_optnew, mp->mnt_opt);
@@ -935,10 +942,12 @@ vfs_domount(
 	/*
 	 * Set the mount level flags.
 	 */
+	MNT_ILOCK(mp);
 	if (fsflags & MNT_RDONLY)
 		mp->mnt_flag |= MNT_RDONLY;
 	mp->mnt_flag &=~ MNT_UPDATEMASK;
 	mp->mnt_flag |= fsflags & (MNT_UPDATEMASK | MNT_FORCE | MNT_ROOTFS);
+	MNT_IUNLOCK(mp);
 	/*
 	 * Mount the filesystem.
 	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
@@ -968,12 +977,14 @@ vfs_domount(
 	*/
 	mp->mnt_optnew = NULL;
 	if (mp->mnt_flag & MNT_UPDATE) {
+		MNT_ILOCK(mp);
 		mp->mnt_flag &=
 		    ~(MNT_UPDATE | MNT_RELOAD | MNT_FORCE | MNT_SNAPSHOT);
 		if (error) {
 			mp->mnt_flag = flag;
 			mp->mnt_kern_flag = kern_flag;
 		}
+		MNT_IUNLOCK(mp);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0) {
 			if (mp->mnt_syncer == NULL)
 				error = vfs_allocate_syncvnode(mp);
@@ -1185,8 +1196,10 @@ dounmount(mp, flags, td)
 		vfs_setpublicfs(NULL, NULL, NULL);
 
 	vfs_msync(mp, MNT_WAIT);
+	MNT_ILOCK(mp);
 	async_flag = mp->mnt_flag & MNT_ASYNC;
 	mp->mnt_flag &= ~MNT_ASYNC;
+	MNT_IUNLOCK(mp);
 	cache_purgevfs(mp);	/* remove cache entries for this file sys */
 	if (mp->mnt_syncer != NULL)
 		vrele(mp->mnt_syncer);
