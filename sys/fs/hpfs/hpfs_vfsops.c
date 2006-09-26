@@ -315,7 +315,9 @@ hpfs_mountfs(devvp, mp, td)
 	mp->mnt_stat.f_fsid.val[0] = (long)dev2udev(dev);
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	mp->mnt_maxsymlinklen = 0;
+	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
+	MNT_IUNLOCK(mp);
 	return (0);
 
 failed:
@@ -359,7 +361,9 @@ hpfs_unmount(
 	hpfs_cpdeinit(hpmp);
 	hpfs_bmdeinit(hpmp);
 	mp->mnt_data = (qaddr_t)0;
+	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
+	MNT_IUNLOCK(mp);
 	FREE(hpmp, M_HPFSMNT);
 
 	return (0);

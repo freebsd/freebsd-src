@@ -430,7 +430,9 @@ ntfs_mountfs(devvp, mp, td)
 	mp->mnt_stat.f_fsid.val[0] = dev2udev(dev);
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	mp->mnt_maxsymlinklen = 0;
+	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
+	MNT_IUNLOCK(mp);
 	return (0);
 
 out1:
@@ -507,7 +509,9 @@ ntfs_unmount(
 	ntfs_u28_uninit(ntmp);
 	ntfs_82u_uninit(ntmp);
 	mp->mnt_data = (qaddr_t)0;
+	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
+	MNT_IUNLOCK(mp);
 	FREE(ntmp->ntm_ad, M_NTFSMNT);
 	FREE(ntmp, M_NTFSMNT);
 	return (error);

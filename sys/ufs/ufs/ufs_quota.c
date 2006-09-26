@@ -443,7 +443,9 @@ quotaon(td, mp, type, fname)
 	if (*vpp != vp)
 		quotaoff(td, mp, type);
 	ump->um_qflags[type] |= QTF_OPENING;
+	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_QUOTA;
+	MNT_IUNLOCK(mp);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	vp->v_vflag |= VV_SYSTEM;
 	VOP_UNLOCK(vp, 0, td);
@@ -562,8 +564,11 @@ again:
 	for (type = 0; type < MAXQUOTAS; type++)
 		if (ump->um_quotas[type] != NULLVP)
 			break;
-	if (type == MAXQUOTAS)
+	if (type == MAXQUOTAS) {
+		MNT_ILOCK(mp);
 		mp->mnt_flag &= ~MNT_QUOTA;
+		MNT_IUNLOCK(mp);
+	}
 	return (error);
 }
 

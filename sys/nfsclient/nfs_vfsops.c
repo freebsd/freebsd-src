@@ -522,8 +522,10 @@ nfs_mountdiskless(char *path, int mountflag,
 	struct sockaddr *nam;
 	int error;
 
+	MNT_ILOCK(mp);
 	mp->mnt_kern_flag = 0;
 	mp->mnt_flag = mountflag;
+	MNT_IUNLOCK(mp);
 	nam = sodupsockaddr((struct sockaddr *)sin, M_WAITOK);
 	if ((error = mountnfs(args, mp, nam, path, vpp,
 	    td->td_ucred)) != 0) {
@@ -548,10 +550,15 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp)
 	 * flag is already clear, or this is a root mount and it was set
 	 * intentionally at some previous point.
 	 */
-	if (vfs_getopt(mp->mnt_optnew, "ro", NULL, NULL) == 0)
+	if (vfs_getopt(mp->mnt_optnew, "ro", NULL, NULL) == 0) {
+		MNT_ILOCK(mp);
 		mp->mnt_flag |= MNT_RDONLY;
-	else if (mp->mnt_flag & MNT_UPDATE)
+		MNT_IUNLOCK(mp);
+	} else if (mp->mnt_flag & MNT_UPDATE) {
+		MNT_ILOCK(mp);
 		mp->mnt_flag &= ~MNT_RDONLY;
+		MNT_IUNLOCK(mp);
+	}
 
 	/*
 	 * Silently clear NFSMNT_NOCONN if it's a TCP mount, it makes
@@ -784,8 +791,11 @@ nfs_mount(struct mount *mp, struct thread *td)
 	args.fh = nfh;
 	error = mountnfs(&args, mp, nam, hst, &vp, td->td_ucred);
 out:
-	if (!error)
+	if (!error) {
+		MNT_ILOCK(mp);
 		mp->mnt_kern_flag |= (MNTK_MPSAFE|MNTK_LOOKUP_SHARED);
+		MNT_IUNLOCK(mp);
+	}
 	return (error);
 }
 

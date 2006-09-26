@@ -133,11 +133,15 @@ sync(td, uap)
 		vfslocked = VFS_LOCK_GIANT(mp);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0 &&
 		    vn_start_write(NULL, &mp, V_NOWAIT) == 0) {
+			MNT_ILOCK(mp);
 			asyncflag = mp->mnt_flag & MNT_ASYNC;
 			mp->mnt_flag &= ~MNT_ASYNC;
+			MNT_IUNLOCK(mp);
 			vfs_msync(mp, MNT_NOWAIT);
 			VFS_SYNC(mp, MNT_NOWAIT, td);
+			MNT_ILOCK(mp);
 			mp->mnt_flag |= asyncflag;
+			MNT_IUNLOCK(mp);
 			vn_finished_write(mp);
 		}
 		VFS_UNLOCK_GIANT(vfslocked);
