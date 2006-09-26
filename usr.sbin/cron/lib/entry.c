@@ -507,7 +507,9 @@ get_range(bits, low, high, names, ch, file)
 		if (EOF == (ch = get_number(&num1, low, names, ch, file)))
 			return EOF;
 
-		if (ch != '-') {
+		if (ch == '/')
+			num2 = high;
+		else if (ch != '-') {
 			/* not a range, it's a single number.
 			 */
 			if (EOF == set_element(bits, low, high, num1))
