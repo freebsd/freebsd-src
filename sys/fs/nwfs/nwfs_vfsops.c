@@ -267,7 +267,9 @@ nwfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	if (nmp->m.flags & NWFS_MOUNT_HAVE_NLS)
 		free(nmp->m.nls.to_lower, M_NWFSDATA);
 	free(nmp, M_NWFSDATA);
+	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
+	MNT_IUNLOCK(mp);
 	return (error);
 }
 
