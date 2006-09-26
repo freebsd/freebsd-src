@@ -92,7 +92,7 @@ ext2_update(vp, waitfor)
 	}
 	ext2_i2ei(ip, (struct ext2_inode *)((char *)bp->b_data +
 	    EXT2_INODE_SIZE * ino_to_fsbo(fs, ip->i_number)));
-	if (waitfor && (vp->v_mount->mnt_flag & MNT_ASYNC) == 0)
+	if (waitfor && (vp->v_mount->mnt_kern_flag & MNTK_ASYNC) == 0)
 		return (bwrite(bp));
 	else {
 		bdwrite(bp);

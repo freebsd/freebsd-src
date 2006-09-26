@@ -157,6 +157,7 @@ struct mount {
 	int		mnt_writeopcount;	/* (i) write syscalls pending */
 	int		mnt_kern_flag;		/* (i) kernel only flags */
 	u_int		mnt_flag;		/* (i) flags shared with user */
+	u_int		mnt_noasync;		/* (i) # noasync overrides */ 
 	struct vfsoptlist *mnt_opt;		/* current mount options */
 	struct vfsoptlist *mnt_optnew;		/* new options passed to fs */
 	int		mnt_maxsymlinklen;	/* max size of short symlink */
@@ -303,6 +304,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
  * with the unmount attempt (used by NFS).
  */
 #define MNTK_UNMOUNTF	0x00000001	/* forced unmount in progress */
+#define MNTK_ASYNC	0x00000002	/* filtered async flag */
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */

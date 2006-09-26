@@ -946,6 +946,8 @@ vfs_domount(
 		mp->mnt_flag |= MNT_RDONLY;
 	mp->mnt_flag &=~ MNT_UPDATEMASK;
 	mp->mnt_flag |= fsflags & (MNT_UPDATEMASK | MNT_FORCE | MNT_ROOTFS);
+	if ((mp->mnt_flag & MNT_ASYNC) == 0)
+		mp->mnt_kern_flag &= ~MNTK_ASYNC;
 	MNT_IUNLOCK(mp);
 	/*
 	 * Mount the filesystem.
@@ -981,6 +983,10 @@ vfs_domount(
 		    ~(MNT_UPDATE | MNT_RELOAD | MNT_FORCE | MNT_SNAPSHOT);
 		if (error)
 			mp->mnt_flag = flag;
+		if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
+			mp->mnt_kern_flag |= MNTK_ASYNC;
+		else
+			mp->mnt_kern_flag &= ~MNTK_ASYNC;
 		MNT_IUNLOCK(mp);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0) {
 			if (mp->mnt_syncer == NULL)
@@ -997,6 +1003,12 @@ vfs_domount(
 		vrele(vp);
 		return (error);
 	}
+	MNT_ILOCK(mp);
+	if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
+		mp->mnt_kern_flag |= MNTK_ASYNC;
+	else
+		mp->mnt_kern_flag &= ~MNTK_ASYNC;
+	MNT_IUNLOCK(mp);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	/*
 	 * Put the new filesystem on the mount list after root.
@@ -1196,6 +1208,7 @@ dounmount(mp, flags, td)
 	MNT_ILOCK(mp);
 	async_flag = mp->mnt_flag & MNT_ASYNC;
 	mp->mnt_flag &= ~MNT_ASYNC;
+	mp->mnt_kern_flag &= ~MNTK_ASYNC;
 	MNT_IUNLOCK(mp);
 	cache_purgevfs(mp);	/* remove cache entries for this file sys */
 	if (mp->mnt_syncer != NULL)
@@ -1238,6 +1251,8 @@ dounmount(mp, flags, td)
 		MNT_ILOCK(mp);
 		mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_UNMOUNTF);
 		mp->mnt_flag |= async_flag;
+		if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
+			mp->mnt_kern_flag |= MNTK_ASYNC;
 		lockmgr(&mp->mnt_lock, LK_RELEASE, NULL, td);
 		if (mp->mnt_kern_flag & MNTK_MWAIT)
 			wakeup(mp);
