@@ -282,7 +282,7 @@ receive_packet(struct interface_info *interface, unsigned char *buf,
 	 */
 	do {
 		/* If the buffer is empty, fill it. */
-		if (interface->rbuf_offset == interface->rbuf_len) {
+		if (interface->rbuf_offset >= interface->rbuf_len) {
 			length = read(interface->rfdesc, interface->rbuf,
 			    interface->rbuf_max);
 			if (length <= 0)
