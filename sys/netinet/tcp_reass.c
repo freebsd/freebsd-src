@@ -1115,7 +1115,7 @@ after_listen:
 	 * was established.
 	 */
 	if ((to.to_flags & TOF_TS) && (to.to_tsecr != 0)) {
-		to.to_tsecr =- tp->ts_offset;
+		to.to_tsecr -= tp->ts_offset;
 		if (TSTMP_GT(to.to_tsecr, ticks))
 			to.to_tsecr = 0;
 	}
