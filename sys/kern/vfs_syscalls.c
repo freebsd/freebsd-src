@@ -122,7 +122,6 @@ sync(td, uap)
 {
 	struct mount *mp, *nmp;
 	int vfslocked;
-	int asyncflag;
 
 	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
@@ -134,13 +133,16 @@ sync(td, uap)
 		if ((mp->mnt_flag & MNT_RDONLY) == 0 &&
 		    vn_start_write(NULL, &mp, V_NOWAIT) == 0) {
 			MNT_ILOCK(mp);
-			asyncflag = mp->mnt_flag & MNT_ASYNC;
-			mp->mnt_flag &= ~MNT_ASYNC;
+			mp->mnt_noasync++;
+			mp->mnt_kern_flag &= ~MNTK_ASYNC;
 			MNT_IUNLOCK(mp);
 			vfs_msync(mp, MNT_NOWAIT);
 			VFS_SYNC(mp, MNT_NOWAIT, td);
 			MNT_ILOCK(mp);
-			mp->mnt_flag |= asyncflag;
+			mp->mnt_noasync--;
+			if ((mp->mnt_flag & MNT_ASYNC) != 0 &&
+			    mp->mnt_noasync == 0)
+				mp->mnt_kern_flag |= MNTK_ASYNC;
 			MNT_IUNLOCK(mp);
 			vn_finished_write(mp);
 		}
