@@ -143,40 +143,32 @@ __FBSDID("$FreeBSD$");
 */
 
 #ifdef _KERNEL
+#include <machine/stdarg.h>
 #include <sys/param.h>
-#else
-#include <sys/types.h>
-#endif
-
-#include <sys/errno.h>
-#include <sys/queue.h>
-#include <sys/socket.h>
-#include <sys/time.h>
-
-#ifdef _KERNEL
-#include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/module.h>
-#else 
+#include <sys/syslog.h>
+#else
+#include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/errno.h>
+#include <sys/time.h>
 #include <unistd.h> 
-#include <arpa/inet.h>
 #endif
 
-/* BSD network include files */
-#include <netinet/in_systm.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
+#include <sys/socket.h>
 #include <netinet/tcp.h>
 
 #ifdef _KERNEL  
 #include <netinet/libalias/alias.h>
 #include <netinet/libalias/alias_local.h>
+#include <netinet/libalias/alias_mod.h>
+#include <net/if.h>
 #else
 #include "alias.h"
 #include "alias_local.h"
+#include "alias_mod.h"
 #endif
 
 static		LIST_HEAD(, libalias) instancehead = LIST_HEAD_INITIALIZER(instancehead);
@@ -358,10 +350,12 @@ alias_mod_handler(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		error = 0;
+		handler_chain_init();
 		break;
 	case MOD_QUIESCE:
 	case MOD_UNLOAD:
-		finishoff();
+	        handler_chain_destroy();
+	        finishoff();
 		error = 0;
 		break;
 	default:
@@ -409,12 +403,10 @@ static void	ClearFWHole(struct alias_link *);
 
 #endif
 
-#ifndef	NO_LOGGING
 /* Log file control */
 static void	ShowAliasStats(struct libalias *);
-static void	InitPacketAliasLog(struct libalias *);
+static int	InitPacketAliasLog(struct libalias *);
 static void	UninitPacketAliasLog(struct libalias *);
-#endif
 
 static		u_int
 StartPointIn(struct in_addr alias_addr,
@@ -462,37 +454,55 @@ SeqDiff(u_long x, u_long y)
 	return (ntohl(y) - ntohl(x));
 }
 
+#ifdef _KERNEL
 
-#ifndef	NO_LOGGING
+static void
+AliasLog(char *str, const char *format, ...)
+{		
+	va_list ap;
+	
+	va_start(ap, format);
+	vsnprintf(str, LIBALIAS_BUF_SIZE, format, ap);
+	log(LOG_SECURITY | LOG_INFO, "%s\n", str);
+	va_end(ap);
+}
+#else
+static void
+AliasLog(FILE *stream, const char *format, ...)
+{
+	va_list ap;
+	
+	va_start(ap, format);
+	vfprintf(stream, format, ap);
+	va_end(ap);
+	fflush(stream);
+}
+#endif
+
 static void
 ShowAliasStats(struct libalias *la)
 {
 /* Used for debugging */
-
-	if (la->monitorFile) {
-		fprintf(la->monitorFile,
-		    "icmp=%d, udp=%d, tcp=%d, pptp=%d, proto=%d, frag_id=%d frag_ptr=%d",
-		    la->icmpLinkCount,
-		    la->udpLinkCount,
-		    la->tcpLinkCount,
-		    la->pptpLinkCount,
-		    la->protoLinkCount,
-		    la->fragmentIdLinkCount,
-		    la->fragmentPtrLinkCount);
-
-		fprintf(la->monitorFile, " / tot=%d  (sock=%d)\n",
-		    la->icmpLinkCount + la->udpLinkCount
-		    + la->tcpLinkCount
-		    + la->pptpLinkCount
-		    + la->protoLinkCount
-		    + la->fragmentIdLinkCount
-		    + la->fragmentPtrLinkCount,
-		    la->sockCount);
-
-		fflush(la->monitorFile);
+	if (la->logDesc) {
+		int tot  = la->icmpLinkCount + la->udpLinkCount + 
+			la->tcpLinkCount + la->pptpLinkCount +
+			la->protoLinkCount + la->fragmentIdLinkCount +
+			la->fragmentPtrLinkCount;
+		
+		AliasLog(la->logDesc,
+			 "icmp=%u, udp=%u, tcp=%u, pptp=%u, proto=%u, frag_id=%u frag_ptr=%u / tot=%u",
+			 la->icmpLinkCount,
+			 la->udpLinkCount,
+			 la->tcpLinkCount,
+			 la->pptpLinkCount,
+			 la->protoLinkCount,
+			 la->fragmentIdLinkCount,
+			 la->fragmentPtrLinkCount, tot);
+#ifndef _KERNEL
+		AliasLog(la->logDesc, " (sock=%u)\n", la->sockCount); 
+#endif
 	}
 }
-#endif
 
 /* Internal routines for finding, deleting and adding links
 
@@ -929,12 +939,10 @@ DeleteLink(struct alias_link *lnk)
 /* Free memory */
 	free(lnk);
 
-#ifndef	NO_LOGGING
 /* Write statistics, if logging enabled */
 	if (la->packetAliasMode & PKT_ALIAS_LOG) {
 		ShowAliasStats(la);
 	}
-#endif
 }
 
 
@@ -1072,11 +1080,9 @@ AddLink(struct libalias *la, struct in_addr src_addr,
 		fprintf(stderr, "malloc() call failed.\n");
 #endif
 	}
-#ifndef	NO_LOGGING
 	if (la->packetAliasMode & PKT_ALIAS_LOG) {
 		ShowAliasStats(la);
 	}
-#endif
 	return (lnk);
 }
 
@@ -2203,30 +2209,40 @@ HouseKeeping(struct libalias *la)
 	}
 }
 
-#ifndef	NO_LOGGING
 /* Init the log file and enable logging */
-static void
+static int
 InitPacketAliasLog(struct libalias *la)
 {
-	if ((~la->packetAliasMode & PKT_ALIAS_LOG)
-	    && (la->monitorFile = fopen("/var/log/alias.log", "w"))) {
+	if (~la->packetAliasMode & PKT_ALIAS_LOG) {
+#ifdef _KERNEL
+		if ((la->logDesc = malloc(LIBALIAS_BUF_SIZE)))
+			;
+#else 		
+		if ((la->logDesc = fopen("/var/log/alias.log", "w")))
+			fprintf(la->logDesc, "PacketAlias/InitPacketAliasLog: Packet alias logging enabled.\n");	       
+#endif
+		else 
+			return (ENOMEM); /* log initialization failed */
 		la->packetAliasMode |= PKT_ALIAS_LOG;
-		fprintf(la->monitorFile,
-		    "PacketAlias/InitPacketAliasLog: Packet alias logging enabled.\n");
 	}
+
+	return (1);
 }
 
 /* Close the log-file and disable logging. */
 static void
 UninitPacketAliasLog(struct libalias *la)
 {
-	if (la->monitorFile) {
-		fclose(la->monitorFile);
-		la->monitorFile = NULL;
-	}
+		if (la->logDesc) {
+#ifdef _KERNEL
+			free(la->logDesc);
+#else
+			fclose(la->logDesc);
+#endif
+			la->logDesc = NULL;
+		}
 	la->packetAliasMode &= ~PKT_ALIAS_LOG;
 }
-#endif
 
 /* Outside world interfaces
 
@@ -2489,6 +2505,9 @@ LibAliasInit(struct libalias *la)
 #ifndef NO_FW_PUNCH
 	la->fireWallFD = -1;
 #endif
+#ifndef _KERNEL
+	LibAliasRefreshModules();
+#endif
 	return (la);
 }
 
@@ -2498,9 +2517,7 @@ LibAliasUninit(struct libalias *la)
 	la->deleteAllLinks = 1;
 	CleanupAliasData(la);
 	la->deleteAllLinks = 0;
-#ifndef	NO_LOGGING
 	UninitPacketAliasLog(la);
-#endif
 #ifndef NO_FW_PUNCH
 	UninitPunchFW(la);
 #endif
@@ -2517,16 +2534,16 @@ LibAliasSetMode(
 				 * do a probe for flag values) */
 )
 {
-#ifndef	NO_LOGGING
 /* Enable logging? */
 	if (flags & mask & PKT_ALIAS_LOG) {
-		InitPacketAliasLog(la);	/* Do the enable */
+		/* Do the enable */
+		if (InitPacketAliasLog(la) == ENOMEM)
+			return (-1);
 	} else
 /* _Disable_ logging? */
 	if (~flags & mask & PKT_ALIAS_LOG) {
 		UninitPacketAliasLog(la);
 	}
-#endif
 #ifndef NO_FW_PUNCH
 /* Start punching holes in the firewall? */
 	if (flags & mask & PKT_ALIAS_PUNCH_FW) {

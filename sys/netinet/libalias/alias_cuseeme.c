@@ -31,7 +31,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #else
+#include <errno.h>
 #include <sys/types.h>
 #include <stdio.h>
 #endif
@@ -44,8 +47,100 @@ __FBSDID("$FreeBSD$");
 #ifdef _KERNEL
 #include <netinet/libalias/alias.h>
 #include <netinet/libalias/alias_local.h>
+#include <netinet/libalias/alias_mod.h>
 #else
 #include "alias_local.h"
+#include "alias_mod.h"
+#endif
+
+#define CUSEEME_PORT_NUMBER 7648
+
+static void
+AliasHandleCUSeeMeOut(struct libalias *la, struct ip *pip, 
+		      struct alias_link *lnk);
+
+static void
+AliasHandleCUSeeMeIn(struct libalias *la, struct ip *pip, 
+		     struct in_addr original_addr);
+
+static int 
+fingerprint(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+
+	if (ah->dport == NULL || ah->oaddr == NULL)
+		return (-1);
+	if (ntohs(*ah->dport) == CUSEEME_PORT_NUMBER)
+		return (0);
+	return (-1);
+}
+
+static int 
+protohandlerin(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+	
+	AliasHandleCUSeeMeIn(la, pip, *ah->oaddr);
+	return (0);
+}
+
+static int 
+protohandlerout(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+	
+	AliasHandleCUSeeMeOut(la, pip, ah->lnk);
+	return (0);
+}
+
+/* Kernel module definition. */
+struct proto_handler handlers[] = {
+	{ 
+	  .pri = 120, 
+	  .dir = OUT, 
+	  .proto = UDP, 
+	  .fingerprint = &fingerprint, 
+	  .protohandler = &protohandlerout
+	}, 
+	{
+	  .pri = 120, 
+	  .dir = IN, 
+	  .proto = UDP, 
+	  .fingerprint = &fingerprint, 
+	  .protohandler = &protohandlerin
+	}, 
+	{ EOH }
+};
+
+static int
+mod_handler(module_t mod, int type, void *data)
+{
+	int error;
+
+	switch (type) {
+	case MOD_LOAD:
+		error = 0;
+		LibAliasAttachHandlers(handlers);
+		break;
+	case MOD_UNLOAD:
+		error = 0;
+		LibAliasDetachHandlers(handlers);
+		break;
+	default:
+		error = EINVAL;
+	}
+	return (error);
+}
+
+#ifdef _KERNEL
+static 
+#endif
+moduledata_t 
+alias_mod = {
+       "alias_cuseeme", mod_handler, NULL
+};
+
+#ifdef	_KERNEL
+DECLARE_MODULE(alias_cuseeme, alias_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
+MODULE_VERSION(alias_cuseeme, 1);
+MODULE_DEPEND(alias_cuseeme, libalias, 1, 1, 1);
 #endif
 
 /* CU-SeeMe Data Header */
@@ -77,7 +172,7 @@ struct client_info {
 					 * counts etc */
 };
 
-void
+static void
 AliasHandleCUSeeMeOut(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 {
 	struct udphdr *ud = ip_next(pip);
@@ -100,7 +195,7 @@ AliasHandleCUSeeMeOut(struct libalias *la, struct ip *pip, struct alias_link *ln
 	}
 }
 
-void
+static void
 AliasHandleCUSeeMeIn(struct libalias *la, struct ip *pip, struct in_addr original_addr)
 {
 	struct in_addr alias_addr;

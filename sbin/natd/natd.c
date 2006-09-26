@@ -970,7 +970,8 @@ void Warn (const char* msg)
 
 static void RefreshAddr (int sig __unused)
 {
-	if (mip->ifName)
+	LibAliasRefreshModules();
+	if (mip != NULL && mip->ifName != NULL)
 		mip->assignAliasAddr = 1;
 }
 
