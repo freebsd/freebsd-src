@@ -45,6 +45,8 @@
 .Nm
 .Op Ar user
 .Nm
+.Fl A
+.Nm
 .Fl G Op Fl n
 .Op Ar user
 .Nm
@@ -77,6 +79,9 @@ In this case, the real and effective IDs are assumed to be the same.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl A
+Display the process audit user ID and other process audit properties, which
+requires privilege.
 .It Fl G
 Display the different group IDs (effective, real and supplementary)
 as white-space separated numbers, in no particular order.
