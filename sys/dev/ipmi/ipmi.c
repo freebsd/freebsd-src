@@ -949,9 +949,11 @@ ipmi_unload(void *arg)
 	int		count;
 	int		i;
 
-	devclass_get_devices(ipmi_devclass, &devs, &count);
+	if (devclass_get_devices(ipmi_devclass, &devs, &count) != 0)
+		return;
 	for (i = 0; i < count; i++)
 		device_delete_child(device_get_parent(devs[i]), devs[i]);
+	free(devs, M_TEMP);
 }
 SYSUNINIT(ipmi_unload, SI_SUB_DRIVERS, SI_ORDER_FIRST, ipmi_unload, NULL);
 
