@@ -147,7 +147,7 @@ revert(void)
 {
 	int size[3];
 
-	ioctl(0, VT_ACTIVATE, (caddr_t) (long) cur_info.active_vty);
+	ioctl(0, VT_ACTIVATE, cur_info.active_vty);
 
 	fprintf(stderr, "\033[=%dA", cur_info.console_info.mv_ovscan);
 	fprintf(stderr, "\033[=%dF", cur_info.console_info.mv_norm.fore);
@@ -785,7 +785,7 @@ set_console(char *arg)
 	if (n < 1 || n > 16) {
 		revert();
 		errx(1, "console number out of range");
-	} else if (ioctl(0, VT_ACTIVATE, (caddr_t) (long) n) == -1) {
+	} else if (ioctl(0, VT_ACTIVATE, n) == -1) {
 		revert();
 		errc(1, errno, "switching vty");
 	}
