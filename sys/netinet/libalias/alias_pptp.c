@@ -39,6 +39,169 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+/* Includes */
+#ifdef _KERNEL
+#include <sys/param.h>
+#include <sys/limits.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#else
+#include <errno.h>
+#include <limits.h>
+#include <sys/types.h>
+#include <stdio.h>
+#endif
+
+#include <netinet/tcp.h>
+
+#ifdef _KERNEL
+#include <netinet/libalias/alias.h>
+#include <netinet/libalias/alias_local.h>
+#include <netinet/libalias/alias_mod.h>
+#else
+#include "alias.h"
+#include "alias_local.h"
+#include "alias_mod.h"
+#endif
+
+#define PPTP_CONTROL_PORT_NUMBER 1723
+
+static void
+AliasHandlePptpOut(struct libalias *, struct ip *, struct alias_link *);
+
+static void
+AliasHandlePptpIn(struct libalias *, struct ip *, struct alias_link *);
+
+static int
+AliasHandlePptpGreOut(struct libalias *, struct ip *);
+
+static int
+AliasHandlePptpGreIn(struct libalias *, struct ip *);
+
+static int 
+fingerprint(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+
+	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL)
+		return (-1);
+	if (ntohs(*ah->dport) == PPTP_CONTROL_PORT_NUMBER
+	    || ntohs(*ah->sport) == PPTP_CONTROL_PORT_NUMBER)
+		return (0);
+	return (-1);
+}
+
+static int 
+fingerprintgre(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+
+	return (0);
+}
+
+static int 
+protohandlerin(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+	
+	AliasHandlePptpIn(la, pip, ah->lnk);
+	return (0);
+}
+
+static int 
+protohandlerout(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+	
+	AliasHandlePptpOut(la, pip, ah->lnk);
+	return (0);
+}
+
+static int 
+protohandlergrein(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+
+	if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY ||
+	    AliasHandlePptpGreIn(la, pip) == 0)
+		return (0);
+	return (-1);
+}
+
+static int 
+protohandlergreout(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+
+	if (AliasHandlePptpGreOut(la, pip) == 0)
+		return (0);
+	return (-1);
+}
+
+/* Kernel module definition. */
+struct proto_handler handlers[] = {
+	{ 
+	  .pri = 200, 
+	  .dir = IN, 
+	  .proto = TCP, 
+	  .fingerprint = &fingerprint, 
+	  .protohandler = &protohandlerin
+	},
+	{ 
+	  .pri = 210, 
+	  .dir = OUT, 
+	  .proto = TCP, 
+	  .fingerprint = &fingerprint, 
+	  .protohandler = &protohandlerout
+	},
+/* 
+ * WATCH OUT!!! these 2 handlers NEED a priority of INT_MAX (highest possible) 
+ * cause they will ALWAYS process packets, so they must be the last one
+ * in chain: look fingerprintgre() above.
+ */
+	{ 
+	  .pri = INT_MAX, 
+	  .dir = IN, 
+	  .proto = IP, 
+	  .fingerprint = &fingerprintgre, 
+	  .protohandler = &protohandlergrein
+	},
+	{ 
+	  .pri = INT_MAX, 
+	  .dir = OUT, 
+	  .proto = IP, 
+	  .fingerprint = &fingerprintgre, 
+	  .protohandler = &protohandlergreout
+	}, 
+	{ EOH }
+};
+static int
+mod_handler(module_t mod, int type, void *data)
+{
+	int error;
+
+	switch (type) {
+	case MOD_LOAD:
+		error = 0;
+		LibAliasAttachHandlers(handlers);
+		break;
+	case MOD_UNLOAD:
+		error = 0;
+		LibAliasDetachHandlers(handlers);
+		break;
+	default:
+		error = EINVAL;
+	}
+	return (error);
+}
+
+#ifdef _KERNEL
+static 
+#endif
+moduledata_t alias_mod = {
+       "alias_pptp", mod_handler, NULL
+};
+
+#ifdef	_KERNEL
+DECLARE_MODULE(alias_pptp, alias_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
+MODULE_VERSION(alias_pptp, 1);
+MODULE_DEPEND(alias_pptp, libalias, 1, 1, 1);
+#endif
+
 /*
    Alias_pptp.c performs special processing for PPTP sessions under TCP.
    Specifically, watch PPTP control messages and alias the Call ID or the
@@ -64,26 +227,6 @@ __FBSDID("$FreeBSD$");
    Initial version:  May, 2000 (eds)
 
 */
-
-/* Includes */
-#ifdef _KERNEL
-#include <sys/param.h>
-#else
-#include <sys/types.h>
-#include <stdio.h>
-#endif
-
-#include <netinet/in_systm.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <netinet/tcp.h>
-
-#ifdef _KERNEL
-#include <netinet/libalias/alias.h>
-#include <netinet/libalias/alias_local.h>
-#else
-#include "alias_local.h"
-#endif
 
 /*
  * PPTP definitions
@@ -153,7 +296,7 @@ typedef struct pptpCallIds *PptpCallId;
 static PptpCallId AliasVerifyPptp(struct ip *, u_int16_t *);
 
 
-void
+static void
 AliasHandlePptpOut(struct libalias *la,
     struct ip *pip,		/* IP packet to examine/patch */
     struct alias_link *lnk)
@@ -225,7 +368,7 @@ AliasHandlePptpOut(struct libalias *la,
 	}
 }
 
-void
+static void
 AliasHandlePptpIn(struct libalias *la,
     struct ip *pip,		/* IP packet to examine/patch */
     struct alias_link *lnk)
@@ -328,8 +471,7 @@ AliasVerifyPptp(struct ip *pip, u_int16_t * ptype)
 		return (PptpCallId) (hptr + 1);
 }
 
-
-int
+static int
 AliasHandlePptpGreOut(struct libalias *la, struct ip *pip)
 {
 	GreHdr *gr;
@@ -353,8 +495,7 @@ AliasHandlePptpGreOut(struct libalias *la, struct ip *pip)
 	return (0);
 }
 
-
-int
+static int
 AliasHandlePptpGreIn(struct libalias *la, struct ip *pip)
 {
 	GreHdr *gr;

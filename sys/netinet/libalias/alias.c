@@ -115,7 +115,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #else
 #include <sys/types.h>
+#include <stdlib.h>
 #include <stdio.h>
+#include <dlfcn.h>
+#include <errno.h>
+#include <string.h>
 #endif
 
 #include <netinet/in_systm.h>
@@ -128,21 +132,13 @@ __FBSDID("$FreeBSD$");
 #ifdef _KERNEL
 #include <netinet/libalias/alias.h>
 #include <netinet/libalias/alias_local.h>
+#include <netinet/libalias/alias_mod.h>
 #else
+#include <err.h>
 #include "alias.h"
 #include "alias_local.h"
+#include "alias_mod.h"
 #endif
-
-#define NETBIOS_NS_PORT_NUMBER 137
-#define NETBIOS_DGM_PORT_NUMBER 138
-#define FTP_CONTROL_PORT_NUMBER 21
-#define IRC_CONTROL_PORT_NUMBER_1 6667
-#define IRC_CONTROL_PORT_NUMBER_2 6668
-#define CUSEEME_PORT_NUMBER 7648
-#define RTSP_CONTROL_PORT_NUMBER_1 554
-#define RTSP_CONTROL_PORT_NUMBER_2 7070
-#define TFTP_PORT_NUMBER 69
-#define PPTP_CONTROL_PORT_NUMBER 1723
 
 static __inline int
 twowords(void *p)
@@ -725,24 +721,24 @@ UdpAliasIn(struct libalias *la, struct ip *pip)
 		struct in_addr original_address;
 		u_short alias_port;
 		int accumulate;
-		int r = 0;
+		int r = 0, error;
+		struct alias_data ad = {
+			.lnk = lnk, 
+			.oaddr = &original_address, 
+			.aaddr = &alias_address,
+			.aport = &alias_port,
+			.sport = &ud->uh_sport,
+			.dport = &ud->uh_dport,
+			.maxpktsize = 0
+		};
 
 		alias_address = GetAliasAddress(lnk);
 		original_address = GetOriginalAddress(lnk);
 		alias_port = ud->uh_dport;
 		ud->uh_dport = GetOriginalPort(lnk);
 
-/* Special processing for IP encoding protocols */
-		if (ntohs(ud->uh_dport) == CUSEEME_PORT_NUMBER)
-			AliasHandleCUSeeMeIn(la, pip, original_address);
-/* If NETBIOS Datagram, It should be alias address in UDP Data, too */
-		else if (ntohs(ud->uh_dport) == NETBIOS_DGM_PORT_NUMBER
-		    || ntohs(ud->uh_sport) == NETBIOS_DGM_PORT_NUMBER)
-			r = AliasHandleUdpNbt(la, pip, lnk, &original_address, ud->uh_dport);
-		else if (ntohs(ud->uh_dport) == NETBIOS_NS_PORT_NUMBER
-		    || ntohs(ud->uh_sport) == NETBIOS_NS_PORT_NUMBER)
-			r = AliasHandleUdpNbtNS(la, pip, lnk, &alias_address, &alias_port,
-			    &original_address, &ud->uh_dport);
+		/* Walk out chain. */		
+		error = find_handler(IN, UDP, la, pip, &ad);
 
 /* If UDP checksum is not zero, then adjust since destination port */
 /* is being unaliased and destination address is being altered.    */
@@ -774,6 +770,7 @@ UdpAliasOut(struct libalias *la, struct ip *pip, int create)
 {
 	struct udphdr *ud;
 	struct alias_link *lnk;
+	int error;
 
 /* Return if proxy-only mode is enabled */
 	if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
@@ -787,29 +784,21 @@ UdpAliasOut(struct libalias *la, struct ip *pip, int create)
 	if (lnk != NULL) {
 		u_short alias_port;
 		struct in_addr alias_address;
+		struct alias_data ad = {
+			.lnk = lnk, 
+			.oaddr = NULL,
+			.aaddr = &alias_address,
+			.aport = &alias_port,
+			.sport = &ud->uh_sport,
+			.dport = &ud->uh_dport,
+			.maxpktsize = 0
+		};
 
 		alias_address = GetAliasAddress(lnk);
 		alias_port = GetAliasPort(lnk);
 
-/* Special processing for IP encoding protocols */
-		if (ntohs(ud->uh_dport) == CUSEEME_PORT_NUMBER)
-			AliasHandleCUSeeMeOut(la, pip, lnk);
-/* If NETBIOS Datagram, It should be alias address in UDP Data, too */
-		else if (ntohs(ud->uh_dport) == NETBIOS_DGM_PORT_NUMBER
-		    || ntohs(ud->uh_sport) == NETBIOS_DGM_PORT_NUMBER)
-			AliasHandleUdpNbt(la, pip, lnk, &alias_address, alias_port);
-		else if (ntohs(ud->uh_dport) == NETBIOS_NS_PORT_NUMBER
-		    || ntohs(ud->uh_sport) == NETBIOS_NS_PORT_NUMBER)
-			AliasHandleUdpNbtNS(la, pip, lnk, &pip->ip_src, &ud->uh_sport,
-			    &alias_address, &alias_port);
-/*
- * We don't know in advance what TID the TFTP server will choose,
- * so we create a wilcard link (destination port is unspecified)
- * that will match any TID from a given destination.
- */
-		else if (ntohs(ud->uh_dport) == TFTP_PORT_NUMBER)
-			FindRtspOut(la, pip->ip_src, pip->ip_dst,
-			    ud->uh_sport, alias_port, IPPROTO_UDP);
+		/* Walk out chain. */		
+		error = find_handler(OUT, UDP, la, pip, &ad);
 
 /* If UDP checksum is not zero, adjust since source port is */
 /* being aliased and source address is being altered        */
@@ -855,15 +844,26 @@ TcpAliasIn(struct libalias *la, struct ip *pip)
 		struct in_addr proxy_address;
 		u_short alias_port;
 		u_short proxy_port;
-		int accumulate;
+		int accumulate, error;
 
-/* Special processing for IP encoding protocols */
-		if (ntohs(tc->th_dport) == PPTP_CONTROL_PORT_NUMBER
-		    || ntohs(tc->th_sport) == PPTP_CONTROL_PORT_NUMBER)
-			AliasHandlePptpIn(la, pip, lnk);
-		else if (la->skinnyPort != 0 && (ntohs(tc->th_dport) == la->skinnyPort
-		    || ntohs(tc->th_sport) == la->skinnyPort))
-			AliasHandleSkinny(la, pip, lnk);
+		/* 
+		 * The init of MANY vars is a bit below, but aliashandlepptpin 
+		 * seems to need the destination port that came within the
+		 * packet and not the original one looks below [*].
+		 */
+
+		struct alias_data ad = {
+			.lnk = lnk, 
+			.oaddr = NULL,
+			.aaddr = NULL,
+			.aport = NULL,
+			.sport = &tc->th_sport,
+			.dport = &tc->th_dport,
+			.maxpktsize = 0
+		};
+
+		/* Walk out chain. */		
+		error = find_handler(IN, TCP, la, pip, &ad);
 
 		alias_address = GetAliasAddress(lnk);
 		original_address = GetOriginalAddress(lnk);
@@ -871,6 +871,28 @@ TcpAliasIn(struct libalias *la, struct ip *pip)
 		alias_port = tc->th_dport;
 		tc->th_dport = GetOriginalPort(lnk);
 		proxy_port = GetProxyPort(lnk);
+
+		/* 
+		 * Look above, if anyone is going to add find_handler AFTER 
+		 * this aliashandlepptpin/point, please redo alias_data too.
+		 * Uncommenting the piece here below should be enough.
+		 */
+#if 0
+				 struct alias_data ad = {
+					.lnk = lnk,
+					.oaddr = &original_address,
+					.aaddr = &alias_address,
+					.aport = &alias_port,
+					.sport = &ud->uh_sport,
+					.dport = &ud->uh_dport,
+					.maxpktsize = 0
+				};
+		
+				/* Walk out chain. */
+				error = find_handler(la, pip, &ad);
+				if (error == EHDNOF)
+					printf("Protocol handler not found\n");
+#endif
 
 /* Adjust TCP checksum since destination port is being unaliased */
 /* and destination port is being altered.                        */
@@ -926,7 +948,7 @@ TcpAliasIn(struct libalias *la, struct ip *pip)
 static int
 TcpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 {
-	int proxy_type;
+	int proxy_type, error;
 	u_short dest_port;
 	u_short proxy_server_port;
 	struct in_addr dest_address;
@@ -973,6 +995,15 @@ TcpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 		u_short alias_port;
 		struct in_addr alias_address;
 		int accumulate;
+		struct alias_data ad = {
+			.lnk = lnk, 
+			.oaddr = NULL,
+			.aaddr = &alias_address,
+			.aport = &alias_port,
+			.sport = &tc->th_sport,
+			.dport = &tc->th_dport,
+			.maxpktsize = maxpacketsize
+		};
 
 /* Save original destination address, if this is a proxy packet.
    Also modify packet to include destination encoding.  This may
@@ -989,25 +1020,9 @@ TcpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 
 /* Monitor TCP connection state */
 		TcpMonitorOut(pip, lnk);
-
-/* Special processing for IP encoding protocols */
-		if (ntohs(tc->th_dport) == FTP_CONTROL_PORT_NUMBER
-		    || ntohs(tc->th_sport) == FTP_CONTROL_PORT_NUMBER)
-			AliasHandleFtpOut(la, pip, lnk, maxpacketsize);
-		else if (ntohs(tc->th_dport) == IRC_CONTROL_PORT_NUMBER_1
-		    || ntohs(tc->th_dport) == IRC_CONTROL_PORT_NUMBER_2)
-			AliasHandleIrcOut(la, pip, lnk, maxpacketsize);
-		else if (ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_1
-			    || ntohs(tc->th_sport) == RTSP_CONTROL_PORT_NUMBER_1
-			    || ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_2
-		    || ntohs(tc->th_sport) == RTSP_CONTROL_PORT_NUMBER_2)
-			AliasHandleRtspOut(la, pip, lnk, maxpacketsize);
-		else if (ntohs(tc->th_dport) == PPTP_CONTROL_PORT_NUMBER
-		    || ntohs(tc->th_sport) == PPTP_CONTROL_PORT_NUMBER)
-			AliasHandlePptpOut(la, pip, lnk);
-		else if (la->skinnyPort != 0 && (ntohs(tc->th_sport) == la->skinnyPort
-		    || ntohs(tc->th_dport) == la->skinnyPort))
-			AliasHandleSkinny(la, pip, lnk);
+		
+		/* Walk out chain. */		
+		error = find_handler(OUT, TCP, la, pip, &ad);
 
 /* Adjust TCP checksum since source port is being aliased */
 /* and source address is being altered                    */
@@ -1208,13 +1223,26 @@ LibAliasIn(struct libalias *la, char *ptr, int maxpacketsize)
 		case IPPROTO_TCP:
 			iresult = TcpAliasIn(la, pip);
 			break;
-		case IPPROTO_GRE:
-			if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY ||
-			    AliasHandlePptpGreIn(la, pip) == 0)
+ 		case IPPROTO_GRE: {
+			int error;
+			struct alias_data ad = {
+				.lnk = NULL, 
+				.oaddr = NULL, 
+				.aaddr = NULL,
+				.aport = NULL,
+				.sport = NULL,
+				.dport = NULL,
+				.maxpktsize = 0                  
+			};
+			
+			/* Walk out chain. */		
+			error = find_handler(IN, IP, la, pip, &ad);
+			if (error ==  0)
 				iresult = PKT_ALIAS_OK;
 			else
 				iresult = ProtoAliasIn(la, pip);
-			break;
+		}
+ 			break; 
 		default:
 			iresult = ProtoAliasIn(la, pip);
 			break;
@@ -1321,12 +1349,25 @@ LibAliasOutTry(struct libalias *la, char *ptr,	/* valid IP packet */
 			case IPPROTO_TCP:
 			iresult = TcpAliasOut(la, pip, maxpacketsize, create);
 			break;
-		case IPPROTO_GRE:
-			if (AliasHandlePptpGreOut(la, pip) == 0)
-				iresult = PKT_ALIAS_OK;
-			else
-				iresult = ProtoAliasOut(la, pip, create);
-			break;
+ 		case IPPROTO_GRE: {
+			int error;
+			struct alias_data ad = {
+				.lnk = NULL, 
+				.oaddr = NULL, 
+				.aaddr = NULL,
+				.aport = NULL,
+				.sport = NULL,
+				.dport = NULL,
+				.maxpktsize = 0                  
+			};
+			/* Walk out chain. */		
+			error = find_handler(OUT, IP, la, pip, &ad);
+			if (error == 0)
+ 				iresult = PKT_ALIAS_OK;
+ 			else
+ 				iresult = ProtoAliasOut(la, pip, create);
+		}
+ 			break;
 		default:
 			iresult = ProtoAliasOut(la, pip, create);
 			break;
@@ -1443,3 +1484,93 @@ LibAliasUnaliasOut(struct libalias *la, char *ptr,	/* valid IP packet */
 	return (iresult);
 
 }
+
+#ifndef _KERNEL
+
+int
+LibAliasRefreshModules(void)
+{
+	char buf[256], conf[] = "/etc/libalias.conf";
+	FILE *fd;
+	int len;
+
+	fd = fopen(conf, "r");
+	if (fd == NULL)
+		err(1, "fopen(%s)", conf);
+
+	LibAliasUnLoadAllModule();
+
+	for (;;) {
+		fgets(buf, 256, fd);
+		if feof(fd) 
+		        break;
+		len = strlen(buf);
+		if (len > 1) {
+			buf[len - 1] = '\0';
+			printf("Loading %s\n", buf);
+			LibAliasLoadModule(buf);
+		}
+	}
+	return (0);
+}
+
+int
+LibAliasLoadModule(char *path)
+{
+	struct dll *t;
+	void *handle;
+	struct proto_handler *m;
+        const char *error;
+	moduledata_t *p;
+
+        handle = dlopen (path, RTLD_LAZY);
+        if (!handle) {
+            fputs (dlerror(), stderr);
+            return (EINVAL);
+        }
+
+	p = dlsym(handle, "alias_mod");
+        if ((error = dlerror()) != NULL)  {
+            fputs(error, stderr);
+	    return (EINVAL);
+        }
+	
+	t = malloc(sizeof(struct dll));
+	if (t == NULL)
+		return (ENOMEM);
+	strncpy(t->name, p->name, DLL_LEN);
+	t->handle = handle;
+	if (attach_dll(t) == EEXIST) {
+		free(t);
+		fputs("dll conflict", stderr);
+		return (EEXIST);
+	}
+
+        m = dlsym(t->handle, "handlers");
+        if ((error = dlerror()) != NULL)  {
+            fputs(error, stderr);
+	    return (EINVAL);
+        }       
+
+	LibAliasAttachHandlers(m);
+	return (0);
+}
+
+int
+LibAliasUnLoadAllModule(void)
+{
+	struct dll *t;
+	struct proto_handler *p;
+
+	/* Unload all modules then reload everything. */
+	while ((p = first_handler()) != NULL) {	
+		detach_handler(p);
+	}
+	while ((t = walk_dll_chain()) != NULL) {	
+		dlclose(t->handle);
+		free(t);
+	}
+	return (1);
+}
+
+#endif

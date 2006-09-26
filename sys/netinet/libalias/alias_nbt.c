@@ -43,27 +43,147 @@ __FBSDID("$FreeBSD$");
 /* Includes */
 #ifdef _KERNEL
 #include <sys/param.h>
-#include <sys/ctype.h>
-#include <sys/libkern.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #else
+#include <errno.h>
 #include <sys/types.h>
-#include <ctype.h>
 #include <stdio.h>
-#include <string.h>
-#include <arpa/inet.h>
 #endif
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
-#include <netinet/tcp.h>
 
 #ifdef _KERNEL
-#include <netinet/libalias/alias.h>
 #include <netinet/libalias/alias_local.h>
+#include <netinet/libalias/alias_mod.h>
 #else
 #include "alias_local.h"
+#include "alias_mod.h"
+#endif
+
+#define NETBIOS_NS_PORT_NUMBER 137
+#define NETBIOS_DGM_PORT_NUMBER 138
+
+static int
+AliasHandleUdpNbt(struct libalias *, struct ip *, struct alias_link *, 
+		  struct in_addr *, u_short);
+
+static int
+AliasHandleUdpNbtNS(struct libalias *, struct ip *, struct alias_link *,
+		    struct in_addr *, u_short *, struct in_addr *, u_short *);
+static int 
+fingerprint1(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+
+	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL || 
+	    ah->aaddr == NULL || ah->aport == NULL)
+		return (-1);
+	if (ntohs(*ah->dport) == NETBIOS_DGM_PORT_NUMBER
+	    || ntohs(*ah->sport) == NETBIOS_DGM_PORT_NUMBER)		
+		return (0);
+	return (-1);
+}
+
+static int 
+protohandler1(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+	
+	AliasHandleUdpNbt(la, pip, ah->lnk, ah->aaddr, *ah->aport);
+	return (0);
+}
+
+static int 
+fingerprint2(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+
+	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL || 
+	    ah->aaddr == NULL || ah->aport == NULL)
+		return (-1);
+	if (ntohs(*ah->dport) == NETBIOS_NS_PORT_NUMBER
+	    || ntohs(*ah->sport) == NETBIOS_NS_PORT_NUMBER)
+		return (0);
+	return (-1);
+}
+
+static int 
+protohandler2in(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+	
+	AliasHandleUdpNbtNS(la, pip, ah->lnk, ah->aaddr, ah->aport,
+ 			    ah->oaddr, ah->dport);
+	return (0);
+}
+
+static int 
+protohandler2out(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+	
+	AliasHandleUdpNbtNS(la, pip, ah->lnk, &pip->ip_src, ah->sport,
+ 			    ah->aaddr, ah->aport);
+	return (0);
+}
+
+/* Kernel module definition. */
+struct proto_handler handlers[] = {
+	{ 
+	  .pri = 130, 
+	  .dir = IN|OUT, 
+	  .proto = UDP, 
+	  .fingerprint = &fingerprint1, 
+	  .protohandler = &protohandler1
+	}, 
+	{ 
+	  .pri = 140, 
+	  .dir = IN, 
+	  .proto = UDP, 
+	  .fingerprint = &fingerprint2, 
+	  .protohandler = &protohandler2in
+	}, 
+	{ 
+	  .pri = 140, 
+	  .dir = OUT, 
+	  .proto = UDP, 
+	  .fingerprint = &fingerprint2, 
+	  .protohandler = &protohandler2out
+	}, 
+	{ EOH }
+};
+
+static int
+mod_handler(module_t mod, int type, void *data)
+{
+	int error;
+
+	switch (type) {
+	case MOD_LOAD:
+		error = 0;
+		LibAliasAttachHandlers(handlers);
+		break;
+	case MOD_UNLOAD:
+		error = 0;
+		LibAliasDetachHandlers(handlers);
+		break;
+	default:
+		error = EINVAL;
+	}
+	return (error);
+}
+
+#ifdef	_KERNEL
+static 
+#endif
+moduledata_t alias_mod = {
+       "alias_nbt", mod_handler, NULL
+};
+
+#ifdef	_KERNEL
+DECLARE_MODULE(alias_nbt, alias_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
+MODULE_VERSION(alias_nbt, 1);
+MODULE_DEPEND(alias_nbt, libalias, 1, 1, 1);
 #endif
 
 typedef struct {
@@ -212,7 +332,7 @@ AliasHandleName(u_char * p, char *pmax)
 #define DGM_POSITIVE_RES	0x15
 #define DGM_NEGATIVE_RES	0x16
 
-int
+static int
 AliasHandleUdpNbt(
     struct libalias *la,
     struct ip *pip,		/* IP packet to examine/patch */
@@ -640,7 +760,7 @@ AliasHandleResource(
 	return ((u_char *) q);
 }
 
-int
+static int
 AliasHandleUdpNbtNS(
     struct libalias *la,
     struct ip *pip,		/* IP packet to examine/patch */
