@@ -33,6 +33,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 /*
  * IEEE 802.11 ioctl support (FreeBSD-specific)
  */
@@ -975,7 +977,6 @@ ieee80211_ioctl_getstastats(struct ieee80211com *ic, struct ieee80211req *ireq)
 	return error;
 }
 
-#define COMPAT_FREEBSD6
 #ifdef COMPAT_FREEBSD6
 #define	IEEE80211_IOC_SCAN_RESULTS_OLD	24
 
