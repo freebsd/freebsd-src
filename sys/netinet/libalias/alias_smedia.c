@@ -100,8 +100,11 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 #include <sys/param.h>
-#include <sys/libkern.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #else
+#include <errno.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <string.h>
@@ -111,13 +114,92 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
-#include <netinet/udp.h>
 
 #ifdef _KERNEL
 #include <netinet/libalias/alias.h>
 #include <netinet/libalias/alias_local.h>
+#include <netinet/libalias/alias_mod.h>
 #else
 #include "alias_local.h"
+#include "alias_mod.h"
+#endif
+
+#define RTSP_CONTROL_PORT_NUMBER_1 554
+#define RTSP_CONTROL_PORT_NUMBER_2 7070
+#define TFTP_PORT_NUMBER 69
+
+static void
+AliasHandleRtspOut(struct libalias *, struct ip *, struct alias_link *,	
+		  int maxpacketsize);
+static int 
+fingerprint(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+
+	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL || 
+	    ah->maxpktsize == 0)
+		return (-1);
+	if (ntohs(*ah->dport) == RTSP_CONTROL_PORT_NUMBER_1
+	    || ntohs(*ah->sport) == RTSP_CONTROL_PORT_NUMBER_1
+	    || ntohs(*ah->dport) == RTSP_CONTROL_PORT_NUMBER_2
+	    || ntohs(*ah->sport) == RTSP_CONTROL_PORT_NUMBER_2
+	    || ntohs(*ah->dport) == TFTP_PORT_NUMBER)
+		return (0);
+	return (-1);
+}
+
+static int 
+protohandler(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+	
+	if (ntohs(*ah->dport) == TFTP_PORT_NUMBER)
+		FindRtspOut(la, pip->ip_src, pip->ip_dst,
+ 			    *ah->sport, *ah->aport, IPPROTO_UDP);
+	else AliasHandleRtspOut(la, pip, ah->lnk, ah->maxpktsize);	
+	return (0);
+}
+
+struct proto_handler handlers[] = {
+	{ 
+	  .pri = 100, 
+	  .dir = OUT, 
+	  .proto = TCP|UDP,
+	  .fingerprint = &fingerprint, 
+	  .protohandler = &protohandler
+	}, 
+	{ EOH }
+};
+
+static int
+mod_handler(module_t mod, int type, void *data)
+{
+	int error;
+
+	switch (type) {
+	case MOD_LOAD:
+		error = 0;
+		LibAliasAttachHandlers(handlers);
+		break;
+	case MOD_UNLOAD:
+		error = 0;
+		LibAliasDetachHandlers(handlers);
+		break;
+	default:
+		error = EINVAL;
+	}
+	return (error);
+}
+
+#ifdef _KERNEL
+static 
+#endif
+moduledata_t alias_mod = {
+       "alias_smedia", mod_handler, NULL
+};
+
+#ifdef	_KERNEL
+DECLARE_MODULE(alias_smedia, alias_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
+MODULE_VERSION(alias_smedia, 1);
+MODULE_DEPEND(alias_smedia, libalias, 1, 1, 1);
 #endif
 
 #define RTSP_CONTROL_PORT_NUMBER_1 554
@@ -392,7 +474,7 @@ alias_pna_out(struct libalias *la, struct ip *pip,
 	return (0);
 }
 
-void
+static void
 AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *lnk, int maxpacketsize)
 {
 	int hlen, tlen, dlen;

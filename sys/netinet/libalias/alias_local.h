@@ -46,18 +46,13 @@
 #ifndef _ALIAS_LOCAL_H_
 #define	_ALIAS_LOCAL_H_
 
-#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
 
-/* Use kernel allocator. */
-#if defined(_KERNEL) && defined(_SYS_MALLOC_H_)
-MALLOC_DECLARE(M_ALIAS);
-#define	malloc(x)	malloc(x, M_ALIAS, M_NOWAIT|M_ZERO)
-#define	calloc(x, n)	malloc(x*n)
-#define	free(x)		free(x, M_ALIAS)
-#endif
-
-/* XXX: LibAliasSetTarget() uses this constant. */
 #ifdef _KERNEL
+#include <sys/malloc.h>
+#include <sys/lock.h>
+/* XXX: LibAliasSetTarget() uses this constant. */
 #define	INADDR_NONE	0xffffffff
 #endif
 
@@ -116,10 +111,14 @@ struct libalias {
 
 	int		deleteAllLinks;	/* If equal to zero, DeleteLink()  */
 	/* will not remove permanent links */
-#ifndef	NO_LOGGING
-	FILE           *monitorFile;	/* File descriptor for link        */
+	
+	/* log descriptor        */ 
+#ifdef  _KERNEL
+	char           *logDesc;        
+#else 
+	FILE           *logDesc;	
 #endif
-	/* statistics monitoring file      */
+	/* statistics monitoring */
 
 	int		newDefaultLink;	/* Indicates if a new aliasing     */
 	/* link has been created after a   */
@@ -296,43 +295,6 @@ void		HouseKeeping(struct libalias *);
 /* Tcp specfic routines */
 /* lint -save -library Suppress flexelint warnings */
 
-/* FTP routines */
-void
-AliasHandleFtpOut(struct libalias *la, struct ip *_pip, struct alias_link *_lnk,
-    int _maxpacketsize);
-
-/* IRC routines */
-void
-AliasHandleIrcOut(struct libalias *la, struct ip *_pip, struct alias_link *_lnk,
-    int _maxsize);
-
-/* RTSP routines */
-void
-AliasHandleRtspOut(struct libalias *la, struct ip *_pip, struct alias_link *_lnk,
-    int _maxpacketsize);
-
-/* PPTP routines */
-void		AliasHandlePptpOut(struct libalias *la, struct ip *_pip, struct alias_link *_lnk);
-void		AliasHandlePptpIn(struct libalias *la, struct ip *_pip, struct alias_link *_lnk);
-int		AliasHandlePptpGreOut(struct libalias *la, struct ip *_pip);
-int		AliasHandlePptpGreIn(struct libalias *la, struct ip *_pip);
-
-/* NetBIOS routines */
-int
-AliasHandleUdpNbt(struct libalias *la, struct ip *_pip, struct alias_link *_lnk,
-    struct in_addr *_alias_address, u_short _alias_port);
-int
-AliasHandleUdpNbtNS(struct libalias *la, struct ip *_pip, struct alias_link *_lnk,
-    struct in_addr *_alias_address, u_short * _alias_port,
-    struct in_addr *_original_address, u_short * _original_port);
-
-/* CUSeeMe routines */
-void		AliasHandleCUSeeMeOut(struct libalias *la, struct ip *_pip, struct alias_link *_lnk);
-void		AliasHandleCUSeeMeIn(struct libalias *la, struct ip *_pip, struct in_addr _original_addr);
-
-/* Skinny routines */
-void		AliasHandleSkinny(struct libalias *la, struct ip *_pip, struct alias_link *_lnk);
-
 /* Transparent proxy routines */
 int
 ProxyCheck(struct libalias *la, struct ip *_pip, struct in_addr *_proxy_server_addr,
@@ -372,7 +334,5 @@ udp_next(struct udphdr *udphdr)
 	return ((void *)(udphdr + 1));
 }
 #endif
-
-/*lint -restore */
 
 #endif				/* !_ALIAS_LOCAL_H_ */

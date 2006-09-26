@@ -72,12 +72,13 @@ __FBSDID("$FreeBSD$");
 #ifdef _KERNEL
 #include <sys/param.h>
 #include <sys/ctype.h>
-#include <sys/libkern.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #else
+#include <errno.h>
 #include <sys/types.h>
-#include <ctype.h>
 #include <stdio.h>
-#include <string.h>
 #endif
 
 #include <netinet/in_systm.h>
@@ -88,8 +89,81 @@ __FBSDID("$FreeBSD$");
 #ifdef _KERNEL
 #include <netinet/libalias/alias.h>
 #include <netinet/libalias/alias_local.h>
+#include <netinet/libalias/alias_mod.h>
 #else
 #include "alias_local.h"
+#include "alias_mod.h"
+#endif
+
+#define FTP_CONTROL_PORT_NUMBER 21
+
+static void
+AliasHandleFtpOut(struct libalias *, struct ip *, struct alias_link *,	
+		  int maxpacketsize);
+
+static int 
+fingerprint(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+
+	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL || 
+		ah->maxpktsize == 0)
+		return (-1);
+	if (ntohs(*ah->dport) == FTP_CONTROL_PORT_NUMBER
+	    || ntohs(*ah->sport) == FTP_CONTROL_PORT_NUMBER)
+		return (0);
+	return (-1);
+}
+
+static int 
+protohandler(struct libalias *la, struct ip *pip, struct alias_data *ah)
+{
+	
+	AliasHandleFtpOut(la, pip, ah->lnk, ah->maxpktsize);
+	return (0);
+}
+
+struct proto_handler handlers[] = {
+	{ 
+	  .pri = 80, 
+	  .dir = OUT, 
+	  .proto = TCP, 
+	  .fingerprint = &fingerprint, 
+	  .protohandler = &protohandler
+	}, 
+	{ EOH }
+};
+
+static int
+mod_handler(module_t mod, int type, void *data)
+{
+	int error;
+
+	switch (type) {	  
+	case MOD_LOAD:
+		error = 0;
+		LibAliasAttachHandlers(handlers);
+		break;
+	case MOD_UNLOAD:
+		error = 0;
+		LibAliasDetachHandlers(handlers);
+		break;
+	default:
+		error = EINVAL;
+	}
+	return (error);
+}
+
+#ifdef _KERNEL
+static
+#endif
+moduledata_t alias_mod = {
+       "alias_ftp", mod_handler, NULL
+};
+
+#ifdef	_KERNEL
+DECLARE_MODULE(alias_ftp, alias_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
+MODULE_VERSION(alias_ftp, 1);
+MODULE_DEPEND(alias_ftp, libalias, 1, 1, 1);
 #endif
 
 #define FTP_CONTROL_PORT_NUMBER 21
@@ -112,7 +186,7 @@ static int	ParseFtp227Reply(struct libalias *la, char *, int);
 static int	ParseFtp229Reply(struct libalias *la, char *, int);
 static void	NewFtpMessage(struct libalias *la, struct ip *, struct alias_link *, int, int);
 
-void
+static void
 AliasHandleFtpOut(
     struct libalias *la,
     struct ip *pip,		/* IP packet to examine/patch */
