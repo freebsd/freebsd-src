@@ -49,5 +49,6 @@ char copyright[] = COPYRIGHT_FreeBSD COPYRIGHT_PC98 COPYRIGHT_UCB;
 
 #else
 char copyright[] = COPYRIGHT_FreeBSD COPYRIGHT_UCB;
-char trademark[] = TRADEMARK_Foundation;
 #endif
+
+char trademark[] = TRADEMARK_Foundation;
