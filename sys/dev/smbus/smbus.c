@@ -56,6 +56,7 @@ static device_method_t smbus_methods[] = {
         DEVMETHOD(device_detach,        smbus_detach),
 
         /* bus interface */
+	DEVMETHOD(bus_add_child,	bus_generic_add_child),
         DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
         { 0, 0 }
