@@ -1426,6 +1426,11 @@ softdep_mount(devvp, mp, fs, cred)
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_ASYNC;
 	mp->mnt_flag |= MNT_SOFTDEP;
+	if ((mp->mnt_kern_flag & MNTK_SOFTDEP) == 0) {
+		mp->mnt_kern_flag = (mp->mnt_kern_flag & ~MNTK_ASYNC) | 
+			MNTK_SOFTDEP;
+		mp->mnt_noasync++;
+	}
 	MNT_IUNLOCK(mp);
 	ump = VFSTOUFS(mp);
 	LIST_INIT(&ump->softdep_workitem_pending);
