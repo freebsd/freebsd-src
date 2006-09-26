@@ -117,7 +117,9 @@ vfs_hang_addrlist(mp, nep, argp)
 		bcopy(argp->ex_anon.cr_groups, np->netc_anon.cr_groups,
 		    sizeof(np->netc_anon.cr_groups));
 		refcount_init(&np->netc_anon.cr_ref, 1);
+		MNT_ILOCK(mp);
 		mp->mnt_flag |= MNT_DEFEXPORTED;
+		MNT_IUNLOCK(mp);
 		return (0);
 	}
 
@@ -236,13 +238,17 @@ vfs_export(mp, argp)
 			return (ENOENT);
 		if (mp->mnt_flag & MNT_EXPUBLIC) {
 			vfs_setpublicfs(NULL, NULL, NULL);
+			MNT_ILOCK(mp);
 			mp->mnt_flag &= ~MNT_EXPUBLIC;
+			MNT_IUNLOCK(mp);
 		}
 		vfs_free_addrlist(nep);
 		mp->mnt_export = NULL;
 		free(nep, M_MOUNT);
 		nep = NULL;
+		MNT_ILOCK(mp);
 		mp->mnt_flag &= ~(MNT_EXPORTED | MNT_DEFEXPORTED);
+		MNT_IUNLOCK(mp);
 	}
 	if (argp->ex_flags & MNT_EXPORTED) {
 		if (nep == NULL) {
@@ -252,11 +258,15 @@ vfs_export(mp, argp)
 		if (argp->ex_flags & MNT_EXPUBLIC) {
 			if ((error = vfs_setpublicfs(mp, nep, argp)) != 0)
 				return (error);
+			MNT_ILOCK(mp);
 			mp->mnt_flag |= MNT_EXPUBLIC;
+			MNT_IUNLOCK(mp);
 		}
 		if ((error = vfs_hang_addrlist(mp, nep, argp)))
 			return (error);
+		MNT_ILOCK(mp);
 		mp->mnt_flag |= MNT_EXPORTED;
+		MNT_IUNLOCK(mp);
 	}
 	return (0);
 }

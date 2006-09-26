@@ -216,8 +216,11 @@ umapfs_omount(mp, path, data, ndp, td)
 	umapm_rootvp = vp;
 	umapm_rootvp->v_vflag |= VV_ROOT;
 	amp->umapm_rootvp = umapm_rootvp;
-	if (UMAPVPTOLOWERVP(umapm_rootvp)->v_mount->mnt_flag & MNT_LOCAL)
+	if (UMAPVPTOLOWERVP(umapm_rootvp)->v_mount->mnt_flag & MNT_LOCAL) {
+		MNT_ILOCK(mp);
 		mp->mnt_flag |= MNT_LOCAL;
+		MNT_IUNLOCK(mp);
+	}
 	mp->mnt_data = (qaddr_t) amp;
 	vfs_getnewfsid(mp);
 

@@ -129,6 +129,7 @@ ffs_mount(struct mount *mp, struct thread *td)
 	struct ufsmount *ump = 0;
 	struct fs *fs;
 	int error, flags;
+	u_int mntorflags, mntandnotflags;
 	mode_t accessmode;
 	struct nameidata ndp;
 	char *fspec;
@@ -151,33 +152,38 @@ ffs_mount(struct mount *mp, struct thread *td)
 	if (error)
 		return (error);
 
+	mntorflags = 0;
+	mntandnotflags = 0;
 	if (vfs_getopt(mp->mnt_optnew, "acls", NULL, NULL) == 0)
-		mp->mnt_flag |= MNT_ACLS;
+		mntorflags |= MNT_ACLS;
 
 	if (vfs_getopt(mp->mnt_optnew, "async", NULL, NULL) == 0)
-		mp->mnt_flag |= MNT_ASYNC;
+		mntorflags |= MNT_ASYNC;
 
 	if (vfs_getopt(mp->mnt_optnew, "force", NULL, NULL) == 0)
-		mp->mnt_flag |= MNT_FORCE;
+		mntorflags |= MNT_FORCE;
 
 	if (vfs_getopt(mp->mnt_optnew, "multilabel", NULL, NULL) == 0)
-		mp->mnt_flag |= MNT_MULTILABEL;
+		mntorflags |= MNT_MULTILABEL;
 
 	if (vfs_getopt(mp->mnt_optnew, "noasync", NULL, NULL) == 0)
-		mp->mnt_flag &= ~MNT_ASYNC;
+		mntandnotflags |= MNT_ASYNC;
 
 	if (vfs_getopt(mp->mnt_optnew, "noatime", NULL, NULL) == 0)
-		mp->mnt_flag |= MNT_NOATIME;
+		mntorflags |= MNT_NOATIME;
 
 	if (vfs_getopt(mp->mnt_optnew, "noclusterr", NULL, NULL) == 0)
-		mp->mnt_flag |= MNT_NOCLUSTERR;
+		mntorflags |= MNT_NOCLUSTERR;
 
 	if (vfs_getopt(mp->mnt_optnew, "noclusterw", NULL, NULL) == 0)
-		mp->mnt_flag |= MNT_NOCLUSTERW;
+		mntorflags |= MNT_NOCLUSTERW;
 
 	if (vfs_getopt(mp->mnt_optnew, "snapshot", NULL, NULL) == 0)
-		mp->mnt_flag |= MNT_SNAPSHOT;
+		mntorflags |= MNT_SNAPSHOT;
 
+	MNT_ILOCK(mp);
+	mp->mnt_flag = (mp->mnt_flag | mntorflags) & ~mntandnotflags;
+	MNT_IUNLOCK(mp);
 	/*
 	 * If updating, check whether changing from read-only to
 	 * read/write; if there is no device name, that's all we do.
@@ -237,7 +243,9 @@ ffs_mount(struct mount *mp, struct thread *td)
 			g_topology_unlock();
 			PICKUP_GIANT();
 			fs->fs_ronly = 1;
+			MNT_ILOCK(mp);
 			mp->mnt_flag |= MNT_RDONLY;
+			MNT_IUNLOCK(mp);
 		}
 		if ((mp->mnt_flag & MNT_RELOAD) &&
 		    (error = ffs_reload(mp, td)) != 0)
@@ -289,7 +297,9 @@ ffs_mount(struct mount *mp, struct thread *td)
 			if ((error = vn_start_write(NULL, &mp, V_WAIT)) != 0)
 				return (error);
 			fs->fs_ronly = 0;
+			MNT_ILOCK(mp);
 			mp->mnt_flag &= ~MNT_RDONLY;
+			MNT_IUNLOCK(mp);
 			fs->fs_clean = 0;
 			if ((error = ffs_sbupdate(ump, MNT_WAIT, 0)) != 0) {
 				vn_finished_write(mp);
@@ -312,13 +322,21 @@ ffs_mount(struct mount *mp, struct thread *td)
 		 * Softdep_mount() clears it in an initial mount 
 		 * or ro->rw remount.
 		 */
-		if (mp->mnt_flag & MNT_SOFTDEP)
+		if (mp->mnt_flag & MNT_SOFTDEP) {
+			/* XXX: Reset too late ? */
+			MNT_ILOCK(mp);
 			mp->mnt_flag &= ~MNT_ASYNC;
+			MNT_IUNLOCK(mp);
+		}
 		/*
 		 * Keep MNT_ACLS flag if it is stored in superblock.
 		 */
-		if ((fs->fs_flags & FS_ACLS) != 0)
+		if ((fs->fs_flags & FS_ACLS) != 0) {
+			/* XXX: Set too late ? */
+			MNT_ILOCK(mp);
 			mp->mnt_flag |= MNT_ACLS;
+			MNT_IUNLOCK(mp);
+		}
 
 		/*
 		 * If this is a snapshot request, take the snapshot.
@@ -745,23 +763,31 @@ ffs_mountfs(devvp, mp, td)
 		vfs_getnewfsid(mp);
 	}
 	mp->mnt_maxsymlinklen = fs->fs_maxsymlinklen;
+	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	if ((fs->fs_flags & FS_MULTILABEL) != 0)
+	MNT_IUNLOCK(mp);
+	if ((fs->fs_flags & FS_MULTILABEL) != 0) {
 #ifdef MAC
+		MNT_ILOCK(mp);
 		mp->mnt_flag |= MNT_MULTILABEL;
+		MNT_IUNLOCK(mp);
 #else
 		printf(
 "WARNING: %s: multilabel flag on fs but no MAC support\n",
 		    mp->mnt_stat.f_mntonname);
 #endif
-	if ((fs->fs_flags & FS_ACLS) != 0)
+	}
+	if ((fs->fs_flags & FS_ACLS) != 0) {
 #ifdef UFS_ACL
+		MNT_ILOCK(mp);
 		mp->mnt_flag |= MNT_ACLS;
+		MNT_IUNLOCK(mp);
 #else
 		printf(
 "WARNING: %s: ACLs flag on fs but no ACLs support\n",
 		    mp->mnt_stat.f_mntonname);
 #endif
+	}
 	ump->um_mountp = mp;
 	ump->um_dev = dev;
 	ump->um_devvp = devvp;
@@ -825,7 +851,9 @@ ffs_mountfs(devvp, mp, td)
 	 */
 	devvp->v_bufobj.bo_flag |= BO_NEEDSGIANT;
 #else
+	MNT_ILOCK(mp);
 	mp->mnt_kern_flag |= MNTK_MPSAFE;
+	MNT_IUNLOCK(mp);
 #endif
 	return (0);
 out:
@@ -1003,7 +1031,9 @@ ffs_unmount(mp, mntflags, td)
 	free(fs, M_UFSMNT);
 	free(ump, M_UFSMNT);
 	mp->mnt_data = (qaddr_t)0;
+	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
+	MNT_IUNLOCK(mp);
 	return (error);
 }
 

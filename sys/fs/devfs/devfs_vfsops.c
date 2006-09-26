@@ -79,11 +79,13 @@ devfs_mount(struct mount *mp, struct thread *td)
 	sx_init(&fmp->dm_lock, "devfsmount");
 	fmp->dm_holdcnt = 1;
 
+	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_kern_flag |= MNTK_MPSAFE;
 #ifdef MAC
 	mp->mnt_flag |= MNT_MULTILABEL;
 #endif
+	MNT_IUNLOCK(mp);
 	fmp->dm_mount = mp;
 	mp->mnt_data = (void *) fmp;
 	vfs_getnewfsid(mp);

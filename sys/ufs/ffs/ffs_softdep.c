@@ -1423,8 +1423,10 @@ softdep_mount(devvp, mp, fs, cred)
 	struct buf *bp;
 	int error, cyl;
 
+	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_ASYNC;
 	mp->mnt_flag |= MNT_SOFTDEP;
+	MNT_IUNLOCK(mp);
 	ump = VFSTOUFS(mp);
 	LIST_INIT(&ump->softdep_workitem_pending);
 	ump->softdep_worklist_tail = NULL;
