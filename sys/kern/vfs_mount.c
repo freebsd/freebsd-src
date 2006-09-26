@@ -982,7 +982,8 @@ vfs_domount(
 		mp->mnt_flag &=
 		    ~(MNT_UPDATE | MNT_RELOAD | MNT_FORCE | MNT_SNAPSHOT);
 		if (error)
-			mp->mnt_flag = flag;
+			mp->mnt_flag = (mp->mnt_flag & MNT_QUOTA) |
+				(flag & ~MNT_QUOTA);
 		if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
 			mp->mnt_kern_flag |= MNTK_ASYNC;
 		else
