@@ -264,11 +264,8 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	vput(nd.ni_vp);
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
-	if (error) {
-		vfs_rel(mp);
-		mtx_unlock(&Giant);
-		return (error);
-	}
+	if (error)
+		goto out;
 #endif
 	/*
 	 * Set these in case the underlying filesystem fails to do so.
@@ -278,20 +275,19 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
-	vfs_rel(mp);
-	if (error) {
-		mtx_unlock(&Giant);
-		return (error);
-	}
+	if (error)
+		goto out;
 	if (suser(td)) {
 		bcopy(sp, &sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		prison_enforce_statfs(td->td_ucred, mp, &sb);
 		sp = &sb;
 	}
-	mtx_unlock(&Giant);
 	*buf = *sp;
-	return (0);
+ out:
+	vfs_rel(mp);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
@@ -352,11 +348,8 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	}
 #ifdef MAC
 	error = mac_check_mount_stat(td->td_ucred, mp);
-	if (error) {
-		vfs_rel(mp);
-		mtx_unlock(&Giant);
-		return (error);
-	}
+	if (error)
+		goto out;
 #endif
 	/*
 	 * Set these in case the underlying filesystem fails to do so.
@@ -366,20 +359,19 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
-	vfs_rel(mp);
-	if (error) {
-		mtx_unlock(&Giant);
-		return (error);
-	}
+	if (error)
+		goto out;
 	if (suser(td)) {
 		bcopy(sp, &sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		prison_enforce_statfs(td->td_ucred, mp, &sb);
 		sp = &sb;
 	}
-	mtx_unlock(&Giant);
 	*buf = *sp;
-	return (0);
+out:
+	vfs_rel(mp);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
