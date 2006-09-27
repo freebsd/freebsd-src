@@ -143,14 +143,17 @@ struct vfsopt;
  *
  */
 struct mount {
+#define	mnt_startzero	mnt_list
 	TAILQ_ENTRY(mount) mnt_list;		/* (m) mount list */
 	struct vfsops	*mnt_op;		/* operations on fs */
 	struct vfsconf	*mnt_vfc;		/* configuration info */
 	struct vnode	*mnt_vnodecovered;	/* vnode we mounted on */
 	struct vnode	*mnt_syncer;		/* syncer vnode */
 	struct vnodelst	mnt_nvnodelist;		/* (i) list of vnodes */
+#define	mnt_endzero	mnt_lock
 	struct lock	mnt_lock;		/* mount structure lock */
 	struct mtx	mnt_mtx;		/* mount structure interlock */
+#define	mnt_startzero2	mnt_writeopcount
 	int		mnt_writeopcount;	/* (i) write syscalls pending */
 	u_int		mnt_flag;		/* flags shared with user */
 	struct vfsoptlist *mnt_opt;		/* current mount options */
@@ -171,6 +174,7 @@ struct mount {
 	int		mnt_holdcnt;		/* hold count */
 	int		mnt_holdcntwaiters;	/* waits on hold count */
 	int		mnt_secondary_writes;   /* (i) # of secondary writes */
+#define	mnt_endzero2	mnt_secondary_accwrites
 	int		mnt_secondary_accwrites;/* (i) secondary wr. starts */
 	int		mnt_ref;		/* (i) Reference count */
 };
