@@ -493,9 +493,7 @@ v86mon.3:	cmpb $0xf,%al			# Prefixed instruction?
 		je v86wrmsr			# Yes
 		cmpb $0x32,(%esi)		# Is it a RDMSR?
 		je v86rdmsr			# Yes
-		cmpb $0x20,(%esi)		# Is this a
-		jne v86mon.4			#  MOV EAX,CR0
-		cmpb $0xc0,0x1(%esi)		#  instruction?
+		cmpb $0x20,(%esi)		# Is this a MOV reg,CRx?
 		je v86mov			# Yes
 v86mon.4:	cmpb $0xfa,%al			# CLI?
 		je v86cli			# Yes
@@ -527,10 +525,24 @@ v86mon.7:	subl %edi,%esi			# From linear
 		leal 0x8(%esp,1),%esp		# Discard int no, error
 		iret				# To V86 mode
 /*
- * Emulate MOV EAX,CR0.
+ * Emulate MOV reg,CRx.
  */
-v86mov: 	movl %cr0,%eax			# CR0 to
-		movl %eax,0x1c(%ebp)		#  saved EAX
+v86mov: 	movb 0x1(%esi),%bl		# Fetch Mod R/M byte
+		testb $0x10,%bl			# Read CR2 or CR3?
+		jnz v86mov.1			# Yes
+		movl %cr0,%eax			# Read CR0
+		testb $0x20,%bl			# Read CR4 instead?
+		jz v86mov.2			# No
+		movl %cr4,%eax			# Read CR4
+		jmp v86mov.2
+v86mov.1:	movl %cr2,%eax			# Read CR2
+		testb $0x08,%bl			# Read CR3 instead?
+		jz v86mov.2			# No
+		movl %cr3,%eax			# Read CR3
+v86mov.2:	andl $0x7,%ebx			# Compute offset in
+		shl $2,%ebx			#  frame of destination
+		neg %ebx			#  register
+		movl %eax,0x1c(%ebp,%ebx,1)	# Store CR to reg
 		incl %esi			# Adjust IP
 /*
  * Return from emulating a 0x0f prefixed instruction
