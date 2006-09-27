@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
+#include <vm/uma.h>
 
 #include <geom/geom.h>
 
@@ -92,6 +93,7 @@ SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
 
 MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
 MALLOC_DEFINE(M_VNODE_MARKER, "vnodemarker", "vnode marker");
+static uma_zone_t mount_zone;
 
 /* List of mounted filesystems. */
 struct mntlist mountlist = TAILQ_HEAD_INITIALIZER(mountlist);
@@ -426,6 +428,27 @@ vfs_rel(struct mount *mp)
 	MNT_IUNLOCK(mp);
 }
 
+static int
+mount_init(void *mem, int size, int flags)
+{
+	struct mount *mp;
+
+	mp = (struct mount *)mem;
+	mtx_init(&mp->mnt_mtx, "struct mount mtx", NULL, MTX_DEF);
+	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, 0);
+	return (0);
+}
+
+static void
+mount_fini(void *mem, int size)
+{
+	struct mount *mp;
+
+	mp = (struct mount *)mem;
+	lockdestroy(&mp->mnt_lock);
+	mtx_destroy(&mp->mnt_mtx);
+}
+
 /*
  * Allocate and initialize the mount point struct.
  */
@@ -435,13 +458,15 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
 {
 	struct mount *mp;
 
-	mp = malloc(sizeof(struct mount), M_MOUNT, M_WAITOK | M_ZERO);
+	mp = uma_zalloc(mount_zone, M_WAITOK);
+	bzero(&mp->mnt_startzero,
+	    __rangeof(struct mount, mnt_startzero, mnt_endzero));
+	bzero(&mp->mnt_startzero2,
+	    __rangeof(struct mount, mnt_startzero2, mnt_endzero2));
 	TAILQ_INIT(&mp->mnt_nvnodelist);
 	mp->mnt_nvnodelistsize = 0;
-	mtx_init(&mp->mnt_mtx, "struct mount mtx", NULL, MTX_DEF);
-	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, 0);
-	(void) vfs_busy(mp, LK_NOWAIT, 0, td);
 	mp->mnt_ref = 0;
+	(void) vfs_busy(mp, LK_NOWAIT, 0, td);
 	mp->mnt_op = vfsp->vfc_vfsops;
 	mp->mnt_vfc = vfsp;
 	vfsp->vfc_refcount++;	/* XXX Unlocked */
@@ -470,7 +495,7 @@ vfs_mount_destroy(struct mount *mp, struct thread *td)
 {
 	int i;
 
-	vfs_unbusy(mp, td);
+	lockmgr(&mp->mnt_lock, LK_RELEASE, NULL, td);
 	MNT_ILOCK(mp);
 	for (i = 0; mp->mnt_ref && i < 3; i++)
 		msleep(mp, MNT_MTX(mp), PVFS, "mntref", hz);
@@ -516,7 +541,6 @@ vfs_mount_destroy(struct mount *mp, struct thread *td)
 	mp->mnt_vfc->vfc_refcount--;
 	if (!TAILQ_EMPTY(&mp->mnt_nvnodelist))
 		panic("unmount: dangling vnode");
-	lockdestroy(&mp->mnt_lock);
 	MNT_ILOCK(mp);
 	if (mp->mnt_kern_flag & MNTK_MWAIT)
 		wakeup(mp);
@@ -530,14 +554,13 @@ vfs_mount_destroy(struct mount *mp, struct thread *td)
 	mp->mnt_nvnodelistsize = -1000;
 	mp->mnt_secondary_writes = -1000;
 	MNT_IUNLOCK(mp);
-	mtx_destroy(&mp->mnt_mtx);
 #ifdef MAC
 	mac_destroy_mount(mp);
 #endif
 	if (mp->mnt_opt != NULL)
 		vfs_freeopts(mp->mnt_opt);
 	crfree(mp->mnt_cred);
-	free(mp, M_MOUNT);
+	uma_zfree(mount_zone, mp);
 }
 
 static int
@@ -1373,6 +1396,9 @@ vfs_mountroot(void)
 
 	root_mount_wait();
 
+	mount_zone = uma_zcreate("Mountpoints", sizeof(struct mount),
+	    NULL, NULL, mount_init, mount_fini,
+	    UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	devfs_first();
 
 	/*
