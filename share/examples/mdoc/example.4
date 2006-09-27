@@ -33,9 +33,11 @@
 .Nm example
 .Nd "example device driver manual page"
 .Sh SYNOPSIS
-To enable support for
-.Ns Nm ,
-place the following lines in the kernel configuration file:
+To compile the
+.Ns Nm
+driver into the kernel,
+place the following lines in the
+kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device example"
 .Cd "options EXAMPLE_DEBUG"
@@ -43,9 +45,9 @@ place the following lines in the kernel configuration file:
 .Pp
 Alternatively, to load the
 .Ns Nm
-as a module at boot time, add the following line into the
-.Xr loader.conf 5
-file:
+driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
 .Bd -literal -offset indent
 example_load="YES"
 .Ed
