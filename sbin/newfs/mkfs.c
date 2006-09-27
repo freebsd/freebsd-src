@@ -755,7 +755,7 @@ fsinit(time_t utime)
 	if ((grp = getgrnam("operator")) != NULL) {
 		gid = grp->gr_gid;
 	} else {
-		warnx("Cannot retrieve operator gid.");
+		warnx("Cannot retrieve operator gid, using gid 0.");
 		gid = 0;
 	}
 	entries = (nflag) ? ROOTLINKCNT - 1: ROOTLINKCNT;
