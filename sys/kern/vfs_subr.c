@@ -365,7 +365,6 @@ vfs_busy(mp, flags, interlkp, td)
 	lkflags = LK_SHARED | LK_INTERLOCK;
 	if (lockmgr(&mp->mnt_lock, lkflags, MNT_MTX(mp), td))
 		panic("vfs_busy: unexpected lock failure");
-	vfs_rel(mp);
 	return (0);
 }
 
@@ -379,6 +378,7 @@ vfs_unbusy(mp, td)
 {
 
 	lockmgr(&mp->mnt_lock, LK_RELEASE, NULL, td);
+	vfs_rel(mp);
 }
 
 /*
@@ -394,6 +394,7 @@ vfs_getvfs(fsid)
 	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
 		if (mp->mnt_stat.f_fsid.val[0] == fsid->val[0] &&
 		    mp->mnt_stat.f_fsid.val[1] == fsid->val[1]) {
+			vfs_ref(mp);
 			mtx_unlock(&mountlist_mtx);
 			return (mp);
 		}
@@ -435,6 +436,7 @@ vfs_getnewfsid(mp)
 	struct mount *mp;
 {
 	static u_int16_t mntid_base;
+	struct mount *nmp;
 	fsid_t tfsid;
 	int mtype;
 
@@ -446,8 +448,9 @@ vfs_getnewfsid(mp)
 		tfsid.val[0] = makedev(255,
 		    mtype | ((mntid_base & 0xFF00) << 8) | (mntid_base & 0xFF));
 		mntid_base++;
-		if (vfs_getvfs(&tfsid) == NULL)
+		if ((nmp = vfs_getvfs(&tfsid)) == NULL)
 			break;
+		vfs_rel(nmp);
 	}
 	mp->mnt_stat.f_fsid.val[0] = tfsid.val[0];
 	mp->mnt_stat.f_fsid.val[1] = tfsid.val[1];
@@ -3739,10 +3742,13 @@ sysctl_vfs_ctl(SYSCTL_HANDLER_ARGS)
 	/* ensure that a specific sysctl goes to the right filesystem. */
 	if (strcmp(vc.vc_fstypename, "*") != 0 &&
 	    strcmp(vc.vc_fstypename, mp->mnt_vfc->vfc_name) != 0) {
+		vfs_rel(mp);
 		return (EINVAL);
 	}
 	VCTLTOREQ(&vc, req);
-	return (VFS_SYSCTL(mp, vc.vc_op, req));
+	error = VFS_SYSCTL(mp, vc.vc_op, req);
+	vfs_rel(mp);
+	return (error);
 }
 
 SYSCTL_PROC(_vfs, OID_AUTO, ctl, CTLFLAG_WR,
