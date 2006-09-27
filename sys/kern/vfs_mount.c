@@ -539,8 +539,13 @@ vfs_mount_destroy(struct mount *mp, struct thread *td)
 	}
 	MNT_IUNLOCK(mp);
 	mp->mnt_vfc->vfc_refcount--;
-	if (!TAILQ_EMPTY(&mp->mnt_nvnodelist))
+	if (!TAILQ_EMPTY(&mp->mnt_nvnodelist)) {
+		struct vnode *vp;
+
+		TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes)
+			vprint("", vp);
 		panic("unmount: dangling vnode");
+	}
 	MNT_ILOCK(mp);
 	if (mp->mnt_kern_flag & MNTK_MWAIT)
 		wakeup(mp);
