@@ -26,7 +26,7 @@
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
-.Dd January 12, 2005
+.Dd September 27, 2006
 .Dt EXAMPLE 9
 .Os
 .Sh NAME
@@ -96,14 +96,14 @@ otherwise one of the values listed in the
 section is returned, to indicate the error.
 .Sh EXAMPLES
 .Bd -literal
-	int val;
+	int error;
 
-	mutex_lock(&example_lock);
-	if ((val = example(NULL, EXAMPLE_ONE)) != 0) {
-		mutex_unlock(&example_lock);
-		return (val);
+	mtx_lock(&example_lock);
+	if ((error = example(NULL, EXAMPLE_ONE)) != 0) {
+		mtx_unlock(&example_lock);
+		return (error);
 	}
-	mutex_unlock(&example_lock);
+	mtx_unlock(&example_lock);
 .Ed
 .Sh COMPATIBILITY
 The
@@ -298,7 +298,8 @@ Programming error.
 .Xr example 1 ,
 .Xr example 3 ,
 .Xr example 4 ,
-.Xr mdoc 7
+.Xr mdoc 7 ,
+.Xr mutex 9
 .Rs
 .%A "A. B. Author"
 .%T "Example RFC Title"
