@@ -337,8 +337,22 @@ vop_stdgetwritemount(ap)
 		struct mount **a_mpp;
 	} */ *ap;
 {
+	struct mount *mp;
 
-	*(ap->a_mpp) = ap->a_vp->v_mount;
+	/*
+	 * XXX Since this is called unlocked we may be recycled while
+	 * attempting to ref the mount.  If this is the case or mountpoint
+	 * will be set to NULL.  We only have to prevent this call from
+	 * returning with a ref to an incorrect mountpoint.  It is not
+	 * harmful to return with a ref to our previous mountpoint.
+	 */
+	mp = ap->a_vp->v_mount;
+	vfs_ref(mp);
+	if (mp != ap->a_vp->v_mount) {
+		vfs_rel(mp);
+		mp = NULL;
+	}
+	*(ap->a_mpp) = mp;
 	return (0);
 }
 
