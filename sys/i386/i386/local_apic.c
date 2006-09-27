@@ -622,6 +622,10 @@ lapic_handle_timer(struct trapframe frame)
 	 *
 	 * No locking is necessary here, since even if we loose the race
 	 * when hlt_cpus_mask changes it is not a big deal, really.
+	 *
+	 * Don't do that for ULE, since ULE doesn't consider hlt_cpus_mask
+	 * and unlike other schedulers it actually schedules threads to
+	 * those CPUs.
 	 */
 	if ((hlt_cpus_mask & (1 << PCPU_GET(cpuid))) != 0)
 		return;
