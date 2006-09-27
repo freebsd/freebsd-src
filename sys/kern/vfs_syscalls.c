@@ -4341,12 +4341,11 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	sp->f_namemax = NAME_MAX;
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	error = VFS_STATFS(mp, sp, td);
+	if (error == 0)
+		*buf = *sp;
 	vfs_rel(mp);
 	mtx_unlock(&Giant);
-	if (error)
-		return (error);
-	*buf = *sp;
-	return (0);
+	return (error);
 }
 
 /*
