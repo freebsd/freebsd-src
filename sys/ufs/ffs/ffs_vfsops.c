@@ -553,6 +553,7 @@ ffs_mountfs(devvp, mp, td)
 	int32_t *lp;
 	struct ucred *cred;
 	struct g_consumer *cp;
+	struct mount *nmp;
 
 	dev = devvp->v_rdev;
 	cred = td ? td->td_ucred : NOCRED;
@@ -708,9 +709,13 @@ ffs_mountfs(devvp, mp, td)
 	mp->mnt_data = (qaddr_t)ump;
 	mp->mnt_stat.f_fsid.val[0] = fs->fs_id[0];
 	mp->mnt_stat.f_fsid.val[1] = fs->fs_id[1];
+	nmp = NULL;
 	if (fs->fs_id[0] == 0 || fs->fs_id[1] == 0 || 
-	    vfs_getvfs(&mp->mnt_stat.f_fsid)) 
+	    (nmp = vfs_getvfs(&mp->mnt_stat.f_fsid))) {
+		if (nmp)
+			vfs_rel(nmp);
 		vfs_getnewfsid(mp);
+	}
 	mp->mnt_maxsymlinklen = fs->fs_maxsymlinklen;
 	mp->mnt_flag |= MNT_LOCAL;
 	if ((fs->fs_flags & FS_MULTILABEL) != 0)

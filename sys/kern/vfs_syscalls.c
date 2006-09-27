@@ -4075,7 +4075,7 @@ fhopen(td, uap)
 	mp = vfs_getvfs(&fhp.fh_fsid);
 	if (mp == NULL) {
 		error = ESTALE;
-		goto out;
+		goto out_nomp;
 	}
 	/* now give me my vnode, it gets returned to me locked */
 	error = VFS_FHTOVP(mp, &fhp.fh_fid, &vp);
@@ -4207,6 +4207,7 @@ fhopen(td, uap)
 
 	VOP_UNLOCK(vp, 0, td);
 	fdrop(fp, td);
+	vfs_rel(mp);
 	mtx_unlock(&Giant);
 	td->td_retval[0] = indx;
 	return (0);
@@ -4214,6 +4215,8 @@ fhopen(td, uap)
 bad:
 	vput(vp);
 out:
+	vfs_rel(mp);
+out_nomp:
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -4255,11 +4258,13 @@ fhstat(td, uap)
 		return (ESTALE);
 	}
 	if ((error = VFS_FHTOVP(mp, &fh.fh_fid, &vp))) {
+		vfs_rel(mp);
 		mtx_unlock(&Giant);
 		return (error);
 	}
 	error = vn_stat(vp, &sb, td->td_ucred, NOCRED, td);
 	vput(vp);
+	vfs_rel(mp);
 	mtx_unlock(&Giant);
 	if (error)
 		return (error);
@@ -4318,14 +4323,10 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	error = VFS_FHTOVP(mp, &fh.fh_fid, &vp);
 	if (error) {
 		mtx_unlock(&Giant);
+		vfs_rel(mp);
 		return (error);
 	}
-	mp = vp->v_mount;
-	if (mp)
-		vfs_ref(mp);
 	vput(vp);
-	if (mp == NULL)
-		return (EBADF);
 	error = prison_canseemount(td->td_ucred, mp);
 	if (error) {
 		vfs_rel(mp);
