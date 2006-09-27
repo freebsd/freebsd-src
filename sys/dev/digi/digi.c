@@ -913,6 +913,10 @@ digiioctl(struct tty *tp, u_long cmd, void *data, int flag, struct thread *td)
 {
 	struct digi_softc *sc;
 	struct digi_p *port;
+#if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
+	int ival;
+#endif
 
 	port = tp->t_sc;
 	sc = port->sc;
@@ -942,8 +946,15 @@ digiioctl(struct tty *tp, u_long cmd, void *data, int flag, struct thread *td)
 			}
 		}
 		return (0);
+#if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
+	case _IO('e', 'C'):
+		ival = IOCPARM_IVAL(data);
+		data = &ival;
+		/* FALLTHROUGH */
+#endif
 	case DIGIIO_RING:
-		port->send_ring = *(u_char *)data;
+		port->send_ring = (u_char)*(int *)data;
 		break;
 	default:
 		return (ENOTTY);
