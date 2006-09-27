@@ -89,6 +89,8 @@ struct agp_i810_softc {
 	bus_space_tag_t gtt_bst;	/* bus_space tag */
 	bus_space_handle_t gtt_bsh;	/* bus_space handle */
 
+	struct resource *gm;		/* unmapped (but allocated) aperture */
+
 	void *argb_cursor;		/* contigmalloc area for ARGB cursor */
 };
 
@@ -121,15 +123,10 @@ static const struct agp_i810_match {
 	    "Intel 82915G (915G GMCH) SVGA controller"},
 	{0x25928086, CHIP_I915, 0x00020000,
 	    "Intel 82915GM (915GM GMCH) SVGA controller"},
-	/* XXX: I believe these chipsets should work, but they haven't been
-	 * tested yet.
-	 */
-	/*
 	{0x27728086, CHIP_I915, 0x00020000,
 	    "Intel 82945G (945G GMCH) SVGA controller"},
 	{0x27A28086, CHIP_I915, 0x00020000,
 	    "Intel 82945GM (945GM GMCH) SVGA controller"},
-	*/
 	{0, 0, 0, NULL}
 };
 
@@ -317,12 +314,30 @@ agp_i810_attach(device_t dev)
 						 RF_ACTIVE);
 		if (!sc->gtt) {
 			bus_release_resource(dev, SYS_RES_MEMORY,
-					     AGP_I810_MMADR, sc->regs);
+					     AGP_I915_MMADR, sc->regs);
 			agp_generic_detach(dev);
 			return ENODEV;
 		}
 		sc->gtt_bst = rman_get_bustag(sc->gtt);
 		sc->gtt_bsh = rman_get_bushandle(sc->gtt);
+
+		/* While agp_generic_attach allocates the AGP_APBASE resource
+		 * to try to reserve the aperture, on the 915 the aperture
+		 * isn't in PCIR_BAR(0), it's in PCIR_BAR(2), so it allocated
+		 * the registers that we just mapped anyway.  So, allocate the
+		 * aperture here, which also gives us easy access to it for the
+		 * agp_i810_get_aperture().
+		 */
+		rid = AGP_I915_GMADR;
+		sc->gm = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 0);
+		if (sc->gm == NULL) {
+			bus_release_resource(dev, SYS_RES_MEMORY,
+					     AGP_I915_MMADR, sc->regs);
+			bus_release_resource(dev, SYS_RES_MEMORY,
+					     AGP_I915_GTTADR, sc->regs);
+			agp_generic_detach(dev);
+			return ENODEV;
+		}
 	}
 
 	sc->initial_aperture = AGP_GET_APERTURE(dev);
@@ -475,6 +490,8 @@ agp_i810_detach(device_t dev)
 	free(sc->gatt, M_AGP);
 
 	if (sc->chiptype == CHIP_I915) {
+		bus_release_resource(dev, SYS_RES_MEMORY, AGP_I915_GMADR,
+				     sc->gm);
 		bus_release_resource(dev, SYS_RES_MEMORY, AGP_I915_GTTADR,
 				     sc->gtt);
 		bus_release_resource(dev, SYS_RES_MEMORY, AGP_I915_MMADR,
@@ -510,13 +527,12 @@ agp_i810_get_aperture(device_t dev)
 	case CHIP_I855:
 		return 128 * 1024 * 1024;
 	case CHIP_I915:
-		temp = pci_read_config(dev, AGP_I915_MSAC, 1);
-		if ((temp & AGP_I915_MSAC_GMASIZE) ==
-		    AGP_I915_MSAC_GMASIZE_128) {
-			return 128 * 1024 * 1024;
-		} else {
-			return 256 * 1024 * 1024;
-		}
+		/* The documentation states that AGP_I915_MSAC should have bit
+		 * 1 set if the aperture is 128MB instead of 256.  However,
+		 * that bit appears to not get set, so we instead use the
+		 * aperture resource size, which should always be correct.
+		 */
+		return rman_get_size(sc->gm);
 	}
 
 	return 0;
