@@ -1073,6 +1073,7 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp,
 	int i;
 	struct ucred *credanon;
 	int error, exflags;
+	int vfslocked;
 #ifdef MNT_EXNORESPORT		/* XXX needs mountd and /etc/exports help yet */
 	struct sockaddr_int *saddr;
 #endif
@@ -1091,7 +1092,7 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp,
 	if (!mp)
 		return (ESTALE);
 	NFSD_UNLOCK();
-	mtx_lock(&Giant);	/* VFS */
+	vfslocked = VFS_LOCK_GIANT(mp);
 	error = VFS_CHECKEXP(mp, nam, &exflags, &credanon);
 	if (error)
 		goto out;
@@ -1128,7 +1129,8 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp,
 	if (!lockflag)
 		VOP_UNLOCK(*vpp, 0, td);
 out:
-	mtx_unlock(&Giant);	/* VFS */
+	vfs_rel(mp);
+	VFS_UNLOCK_GIANT(vfslocked);
 	NFSD_LOCK();
 	return (error);
 }
