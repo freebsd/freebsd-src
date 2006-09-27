@@ -67,7 +67,7 @@ ctty_clone(void *arg, struct ucred *cred, char *name, int namelen,
 	else if (curthread->td_proc->p_session->s_ttyvp->v_type == VBAD ||
 	    curthread->td_proc->p_session->s_ttyvp->v_rdev == NULL) {
 		/* e.g. s_ttyvp was revoked */
-		return;
+		*dev = ctty;
 	} else
 		*dev = curthread->td_proc->p_session->s_ttyvp->v_rdev;
 	dev_ref(*dev);
