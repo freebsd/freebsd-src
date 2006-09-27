@@ -900,6 +900,8 @@ vn_start_write(vp, mpp, flags)
 	if ((mp = *mpp) == NULL)
 		return (0);
 	MNT_ILOCK(mp);
+	if (vp == NULL)
+		MNT_REF(mp);
 	/*
 	 * Check on status of suspension.
 	 */
@@ -917,6 +919,7 @@ vn_start_write(vp, mpp, flags)
 		goto unlock;
 	mp->mnt_writeopcount++;
 unlock:
+	MNT_REL(mp);
 	MNT_IUNLOCK(mp);
 	return (error);
 }
@@ -950,19 +953,25 @@ vn_write_suspend_wait(vp, mp, flags)
 	if (mp == NULL)
 		return (0);
 	MNT_ILOCK(mp);
+	if (vp == NULL)
+		MNT_REF(mp);
 	if ((mp->mnt_kern_flag & MNTK_SUSPENDED) == 0) {
+		MNT_REL(mp);
 		MNT_IUNLOCK(mp);
 		return (0);
 	}
 	if (flags & V_NOWAIT) {
+		MNT_REL(mp);
 		MNT_IUNLOCK(mp);
 		return (EWOULDBLOCK);
 	}
 	/*
 	 * Wait for the suspension to finish.
 	 */
-	return (msleep(&mp->mnt_flag, MNT_MTX(mp),
-	    (PUSER - 1) | (flags & PCATCH) | PDROP, "suspfs", 0));
+	error = msleep(&mp->mnt_flag, MNT_MTX(mp),
+	    (PUSER - 1) | (flags & PCATCH) | PDROP, "suspfs", 0);
+	vfs_rel(mp);
+	return (error);
 }
 
 /*
@@ -997,13 +1006,17 @@ vn_start_secondary_write(vp, mpp, flags)
 	if ((mp = *mpp) == NULL)
 		return (0);
 	MNT_ILOCK(mp);
+	if (vp == NULL)
+		MNT_REF(mp);
 	if ((mp->mnt_kern_flag & (MNTK_SUSPENDED | MNTK_SUSPEND2)) == 0) {
 		mp->mnt_secondary_writes++;
 		mp->mnt_secondary_accwrites++;
+		MNT_REL(mp);
 		MNT_IUNLOCK(mp);
 		return (0);
 	}
 	if (flags & V_NOWAIT) {
+		MNT_REL(mp);
 		MNT_IUNLOCK(mp);
 		return (EWOULDBLOCK);
 	}
@@ -1012,6 +1025,7 @@ vn_start_secondary_write(vp, mpp, flags)
 	 */
 	error = msleep(&mp->mnt_flag, MNT_MTX(mp),
 		       (PUSER - 1) | (flags & PCATCH) | PDROP, "suspfs", 0);
+	vfs_rel(mp);
 	if (error == 0)
 		goto retry;
 	return (error);
