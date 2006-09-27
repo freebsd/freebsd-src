@@ -192,9 +192,9 @@ enter:
  * Traverse the tsb of a pmap, calling the callback function for any tte entry
  * that has a virtual address between start and end. If this function returns 0,
  * tsb_foreach() terminates.
- * This is used by pmap_remove() and pmap_protect() in the case that the number
- * of pages in the range given to them reaches the dimensions of the tsb size as
- * an optimization.
+ * This is used by pmap_remove(), pmap_protect(), and pmap_copy() in the case
+ * that the number of pages in the range given to them reaches the
+ * dimensions of the tsb size as an optimization.
  */
 void
 tsb_foreach(pmap_t pm1, pmap_t pm2, vm_offset_t start, vm_offset_t end,
@@ -202,11 +202,20 @@ tsb_foreach(pmap_t pm1, pmap_t pm2, vm_offset_t start, vm_offset_t end,
 {
 	vm_offset_t va;
 	struct tte *tp;
-	int i;
+	struct tte *tsbp;
+	uintptr_t i;
+	uintptr_t n;
 
 	PMAP_STATS_INC(tsb_nforeach);
-	for (i = 0; i < TSB_SIZE; i++) {
-		tp = &pm1->pm_tsb[i];
+	if (pm1 == kernel_pmap) {
+		tsbp = tsb_kernel;
+		n = tsb_kernel_size / sizeof(struct tte);
+	} else {
+		tsbp = pm1->pm_tsb;
+		n = TSB_SIZE;
+	}
+	for (i = 0; i < n; i++) {
+		tp = &tsbp[i];
 		if ((tp->tte_data & TD_V) != 0) {
 			va = TTE_GET_VA(tp);
 			if (va >= start && va < end) {
