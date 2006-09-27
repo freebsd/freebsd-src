@@ -2046,6 +2046,8 @@ mfi_timeout(void *data)
 	deadline = time_uptime - MFI_CMD_TIMEOUT;
 	mtx_lock(&sc->mfi_io_lock);
 	TAILQ_FOREACH(cm, &sc->mfi_busy, cm_link) {
+		if (sc->mfi_aen_cm == cm)
+			continue;
 		if (cm->cm_timestamp < deadline) {
 			device_printf(sc->mfi_dev,
 			    "COMMAND %p TIMEOUT AFTER %d SECONDS\n", cm,
