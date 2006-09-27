@@ -57,7 +57,7 @@ struct tapinfo {
 #define	TAPGIFINFO		_IOR('t', 92, struct tapinfo)
 
 /* VMware ioctl's */
-#define VMIO_SIOCSIFFLAGS	_IO('V', 0)
+#define VMIO_SIOCSIFFLAGS	_IOWINT('V', 0)
 #define VMIO_SIOCSKEEP		_IO('V', 1)
 #define VMIO_SIOCSIFBR		_IO('V', 2)
 #define VMIO_SIOCSLADRF		_IO('V', 3)

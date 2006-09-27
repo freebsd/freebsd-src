@@ -51,10 +51,10 @@
 #define KD_TEXT1	2		/* set text mode !restore fonts */
 #define KD_PIXEL	3		/* set pixel mode		*/
 #define KDGETMODE	_IOR('K', 9, int)
-#define KDSETMODE	_IO('K', 10 /*, int */)
+#define KDSETMODE	_IOWINT('K', 10)
 
 /* set border color */
-#define KDSBORDER	_IO('K', 13 /*, int */)
+#define KDSBORDER	_IOWINT('K', 13)
 
 /* set up raster(pixel) text mode */
 struct _scr_size {
@@ -255,10 +255,10 @@ typedef struct vid_info vid_info_t;
 #define CONS_FINDMODE	_IOWR('c', 103, video_info_t)
 
 /* set the frame buffer window origin (equivalent to FBIO_SETWINORG) */
-#define CONS_SETWINORG	_IO('c', 104 /*, u_int */) 
+#define CONS_SETWINORG	_IOWINT('c', 104)
 
 /* use the specified keyboard */
-#define CONS_SETKBD	_IO('c', 110 /*, int */)
+#define CONS_SETKBD	_IOWINT('c', 110)
 
 /* release the current keyboard */
 #define CONS_RELKBD	_IO('c', 111)
@@ -320,13 +320,13 @@ typedef struct vt_mode vtmode_t;
 #define VT_FALSE	0
 #define VT_TRUE		1
 #define VT_ACKACQ	2
-#define VT_RELDISP	_IO('v', 4 /*, int */)
+#define VT_RELDISP	_IOWINT('v', 4)
 
 /* activate the specified vty */
-#define VT_ACTIVATE	_IO('v', 5 /*, int */)
+#define VT_ACTIVATE	_IOWINT('v', 5)
 
 /* wait until the specified vty is activate */
-#define VT_WAITACTIVE	_IO('v', 6 /*, int */)
+#define VT_WAITACTIVE	_IOWINT('v', 6)
 
 /* get the currently active vty */
 #define VT_GETACTIVE	_IOR('v', 7, int)
