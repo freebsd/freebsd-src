@@ -2342,7 +2342,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			
 		if (srcptepaddr & PG_PS) {
 			if (dst_pmap->pm_pdir[ptepindex] == 0) {
-				dst_pmap->pm_pdir[ptepindex] = srcptepaddr;
+				dst_pmap->pm_pdir[ptepindex] = srcptepaddr &
+				    ~PG_W;
 				dst_pmap->pm_stats.resident_count +=
 				    NBPDR / PAGE_SIZE;
 			}
@@ -2376,12 +2377,13 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				dst_pte = pmap_pte_quick(dst_pmap, addr);
 				if (*dst_pte == 0) {
 					/*
-					 * Clear the modified and
+					 * Clear the wired, modified, and
 					 * accessed (referenced) bits
 					 * during the copy.
 					 */
 					m = PHYS_TO_VM_PAGE(ptetemp);
-					*dst_pte = ptetemp & ~(PG_M | PG_A);
+					*dst_pte = ptetemp & ~(PG_W | PG_M |
+					    PG_A);
 					dst_pmap->pm_stats.resident_count++;
 					pmap_insert_entry(dst_pmap, addr, m);
 	 			} else
