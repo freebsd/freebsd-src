@@ -615,7 +615,7 @@ lapic_handle_timer(struct trapframe frame)
 	/* Send EOI first thing. */
 	lapic_eoi();
 
-#ifdef SMP
+#if defined(SMP) && !defined(SCHED_ULE)
 	/*
 	 * Don't do any accounting for the disabled HTT cores, since it
 	 * will provide misleading numbers for the userland.
