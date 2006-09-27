@@ -85,7 +85,7 @@ static int	vfs_mountroot_try(const char *mountfrom);
 static int	vfs_donmount(struct thread *td, int fsflags,
 		    struct uio *fsoptions);
 static void	free_mntarg(struct mntarg *ma);
-static void	vfs_mount_destroy(struct mount *, struct thread *);
+static void	vfs_mount_destroy(struct mount *);
 
 static int	usermount = 0;
 SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
@@ -491,11 +491,10 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
  * Destroy the mount struct previously allocated by vfs_mount_alloc().
  */
 static void
-vfs_mount_destroy(struct mount *mp, struct thread *td)
+vfs_mount_destroy(struct mount *mp)
 {
 	int i;
 
-	lockmgr(&mp->mnt_lock, LK_RELEASE, NULL, td);
 	MNT_ILOCK(mp);
 	for (i = 0; mp->mnt_ref && i < 3; i++)
 		msleep(mp, MNT_MTX(mp), PVFS, "mntref", hz);
@@ -993,7 +992,8 @@ vfs_domount(
 		VI_LOCK(vp);
 		vp->v_iflag &= ~VI_MOUNT;
 		VI_UNLOCK(vp);
-		vfs_mount_destroy(mp, td);
+		vfs_unbusy(mp, td);
+		vfs_mount_destroy(mp);
 		vput(vp);
 	}
 	return (error);
@@ -1196,7 +1196,8 @@ dounmount(mp, flags, td)
 		vput(coveredvp);
 	}
 	vfs_event_signal(NULL, VQ_UNMOUNT, 0);
-	vfs_mount_destroy(mp, td);
+	lockmgr(&mp->mnt_lock, LK_RELEASE, NULL, td);
+	vfs_mount_destroy(mp);
 	return (0);
 }
 
