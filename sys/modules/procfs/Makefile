@@ -32,6 +32,7 @@ opt_compat.h:
 	echo "#define COMPAT_43 1" > ${.TARGET}
 	echo "#define COMPAT_FREEBSD4 1" >> ${.TARGET}
 	echo "#define COMPAT_FREEBSD5 1" >> ${.TARGET}
+	echo "#define COMPAT_FREEBSD6 1" >> ${.TARGET}
 .if ${MACHINE_ARCH} == "amd64"
 	echo "#define COMPAT_IA32 1" >> ${.TARGET}
 	echo "#define COMPAT_LINUX32 1" >> ${.TARGET}

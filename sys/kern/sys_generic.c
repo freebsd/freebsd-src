@@ -524,9 +524,9 @@ int
 ioctl(struct thread *td, struct ioctl_args *uap)
 {
 	u_long com;
-	int error;
+	int arg, error;
 	u_int size;
-	caddr_t data, memp;
+	caddr_t data;
 
 	if (uap->com > 0xffffffff) {
 		printf(
@@ -548,20 +548,24 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 #else
 	    ((com & (IOC_IN | IOC_OUT)) && size == 0) ||
 #endif
-	    ((com & IOC_VOID) && size > 0))
+	    ((com & IOC_VOID) && size > 0 && size != sizeof(int)))
 		return (ENOTTY);
 
 	if (size > 0) {
-		memp = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
-		data = memp;
-	} else {
-		memp = NULL;
+		if (!(com & IOC_VOID))
+			data = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
+		else {
+			/* Integer argument. */
+			arg = (intptr_t)uap->data;
+			data = (void *)&arg;
+			size = 0;
+		}
+	} else
 		data = (void *)&uap->data;
-	}
 	if (com & IOC_IN) {
 		error = copyin(uap->data, data, (u_int)size);
 		if (error) {
-			free(memp, M_IOCTLOPS);
+			free(data, M_IOCTLOPS);
 			return (error);
 		}
 	} else if (com & IOC_OUT) {
@@ -577,8 +581,8 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 	if (error == 0 && (com & IOC_OUT))
 		error = copyout(data, uap->data, (u_int)size);
 
-	if (memp != NULL)
-		free(memp, M_IOCTLOPS);
+	if (size > 0)
+		free(data, M_IOCTLOPS);
 	return (error);
 }
 
