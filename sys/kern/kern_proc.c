@@ -310,10 +310,10 @@ enterpgrp(p, pgid, pgrp, sess)
 		 * new session
 		 */
 		mtx_init(&sess->s_mtx, "session", NULL, MTX_DEF);
+		mtx_lock(&Giant);       /* XXX TTY */
 		PROC_LOCK(p);
 		p->p_flag &= ~P_CONTROLT;
 		PROC_UNLOCK(p);
-		mtx_lock(&Giant);       /* XXX TTY */
 		PGRP_LOCK(pgrp);
 		sess->s_leader = p;
 		sess->s_sid = p->p_pid;
