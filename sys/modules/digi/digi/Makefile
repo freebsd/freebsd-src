@@ -10,6 +10,7 @@ SRCS+=	opt_compat.h
 .if !defined(KERNBUILDDIR)
 opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h
+	echo "#define COMPAT_FREEBSD6 1" >> opt_compat.h
 .endif
 
 .include <bsd.kmod.mk>

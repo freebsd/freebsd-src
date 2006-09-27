@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_kbd.h"
 
 #include <sys/param.h>
@@ -425,6 +426,9 @@ sunkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t data)
 {
 	struct sunkbd_softc *sc;
 	int error;
+#if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5)
+	int ival;
+#endif
 
 	sc = (struct sunkbd_softc *)kbd;
 	error = 0;
@@ -432,6 +436,12 @@ sunkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t data)
 	case KDGKBMODE:
 		*(int *)data = sc->sc_mode;
 		break;
+#if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5)
+	case _IO('K', 7):
+		ival = IOCPARM_IVAL(data);
+		data = (caddr_t)&ival;
+		/* FALLTHROUGH */
+#endif
 	case KDSKBMODE:
 		switch (*(int *)data) {
 		case K_XLATE:
@@ -456,6 +466,12 @@ sunkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t data)
 	case KDGETLED:
 		*(int *)data = KBD_LED_VAL(kbd);
 		break;
+#if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5)
+	case _IO('K', 66):
+		ival = IOCPARM_IVAL(data);
+		data = (caddr_t)&ival;
+		/* FALLTHROUGH */
+#endif
 	case KDSETLED:
 		if (*(int *)data & ~LOCK_MASK) {
 			error = EINVAL;
@@ -478,6 +494,12 @@ sunkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t data)
 	case KDGKBSTATE:
 		*(int *)data = sc->sc_state & LOCK_MASK;
 		break;
+#if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5)
+	case _IO('K', 20):
+		ival = IOCPARM_IVAL(data);
+		data = (caddr_t)&ival;
+		/* FALLTHROUGH */
+#endif
 	case KDSKBSTATE:
 		if (*(int *)data & ~LOCK_MASK) {
 			error = EINVAL;
@@ -485,7 +507,8 @@ sunkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t data)
 		}
 		sc->sc_state &= ~LOCK_MASK;
 		sc->sc_state |= *(int *)data;
-		break;
+		/* set LEDs and quit */
+		return (sunkbd_ioctl(kbd, KDSETLED, data));
 	case KDSETREPEAT:
 	case KDSETRAD:
 		break;

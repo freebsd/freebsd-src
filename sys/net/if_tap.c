@@ -35,6 +35,7 @@
  * $Id: if_tap.c,v 0.21 2000/07/23 21:46:02 max Exp $
  */
 
+#include "opt_compat.h"
 #include "opt_inet.h"
 
 #include <sys/param.h>
@@ -612,6 +613,10 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 	struct tapinfo		*tapp = NULL;
 	int			 s;
 	int			 f;
+#if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD4)
+	int			 ival;
+#endif
 
 	switch (cmd) {
 		case TAPSIFINFO:
@@ -686,8 +691,15 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 			bcopy(&ifp->if_flags, data, sizeof(ifp->if_flags));
 			break;
 
+#if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD4)
+		case _IO('V', 0):
+			ival = IOCPARM_IVAL(data);
+			data = (caddr_t)&ival;
+			/* FALLTHROUGH */
+#endif
 		case VMIO_SIOCSIFFLAGS: /* VMware/VMnet SIOCSIFFLAGS */
-			f = *(intptr_t *)data;
+			f = *(int *)data;
 			f &= 0x0fff;
 			f &= ~IFF_CANTCHANGE;
 			f |= IFF_UP;

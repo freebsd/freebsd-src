@@ -573,6 +573,10 @@ ptcioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 {
 	struct tty *tp = dev->si_tty;
 	struct ptsc *pt = dev->si_drv1;
+#if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
+	int ival;
+#endif
 
 	switch (cmd) {
 
@@ -627,6 +631,13 @@ ptcioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 		ndflush(&tp->t_outq, tp->t_outq.c_cc);
 		break;
 
+#if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
+	case _IO('t', 95):
+		ival = IOCPARM_IVAL(data);
+		data = (caddr_t)&ival;
+		/* FALLTHROUGH */
+#endif
 	case TIOCSIG:
 		if (*(unsigned int *)data >= NSIG ||
 		    *(unsigned int *)data == 0)
