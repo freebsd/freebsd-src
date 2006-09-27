@@ -56,12 +56,13 @@
 /* Maximum amount to transfer per CTIO */
 #define MAX_XFER	MAXPHYS
 /* Maximum number of allocated CTIOs */
-#define MAX_CTIOS	32
+#define MAX_CTIOS	64
 /* Maximum sector size for emulated volume */
 #define MAX_SECTOR	32768
 
 /* Global variables */
 int		debug;
+int		notaio = 0;
 off_t		volume_size;
 u_int		sector_size;
 size_t		buf_size;
@@ -86,7 +87,7 @@ static void		request_loop(void);
 static void		handle_read(void);
 /* static int		work_atio(struct ccb_accept_tio *); */
 static void		queue_io(struct ccb_scsiio *);
-static void		run_queue(struct ccb_accept_tio *);
+static int		run_queue(struct ccb_accept_tio *);
 static int		work_inot(struct ccb_immed_notify *);
 static struct ccb_scsiio *
 			get_ctio(void);
@@ -117,7 +118,7 @@ main(int argc, char *argv[])
 	TAILQ_INIT(&pending_queue);
 	TAILQ_INIT(&work_queue);
 
-	while ((ch = getopt(argc, argv, "AdSTb:c:s:W:")) != -1) {
+	while ((ch = getopt(argc, argv, "AdSTYb:c:s:W:")) != -1) {
 		switch(ch) {
 		case 'A':
 			req_flags |= SID_Addr16;
@@ -193,6 +194,9 @@ main(int argc, char *argv[])
 				/* NOTREACHED */
 			}
 			break;
+		case 'Y':
+			notaio = 1;
+			break;
 		default:
 			usage();
 			/* NOTREACHED */
@@ -246,20 +250,16 @@ main(int argc, char *argv[])
 		volume_size = user_size / sector_size;
 	}
 	if (debug)
-#if __FreeBSD_version >= 500000
-		warnx("volume_size: %d bytes x %jd sectors",
-#else
-		warnx("volume_size: %d bytes x %lld sectors",
-#endif
+		warnx("volume_size: %d bytes x " OFF_FMT " sectors",
 		    sector_size, volume_size);
 
 	if (volume_size <= 0)
 		errx(1, "volume must be larger than %d", sector_size);
 
-	{
+	if (notaio == 0) {
 		struct aiocb aio, *aiop;
 		
-		/* Make sure we have working AIO support */
+		/* See if we have we have working AIO support */
 		memset(&aio, 0, sizeof(aio));
 		aio.aio_buf = malloc(sector_size);
 		if (aio.aio_buf == NULL)
@@ -269,16 +269,17 @@ main(int argc, char *argv[])
 		aio.aio_nbytes = sector_size;
 		signal(SIGSYS, SIG_IGN);
 		if (aio_read(&aio) != 0) {
-			printf("You must enable VFS_AIO in your kernel "
-			       "or load the aio(4) module.\n");
-			err(1, "aio_read");
+			printf("AIO support is not available- switchin to"
+			       " single-threaded mode.\n");
+			notaio = 1;
+		} else {
+			if (aio_waitcomplete(&aiop, NULL) != sector_size)
+				err(1, "aio_waitcomplete");
+			assert(aiop == &aio);
+			signal(SIGSYS, SIG_DFL);
 		}
-		if (aio_waitcomplete(&aiop, NULL) != sector_size)
-			err(1, "aio_waitcomplete");
-		assert(aiop == &aio);
-		signal(SIGSYS, SIG_DFL);
 		free((void *)aio.aio_buf);
-		if (debug)
+		if (debug && notaio == 0)
 			warnx("aio support tested ok");
 	}
 
@@ -311,7 +312,7 @@ main(int argc, char *argv[])
 	/* Enable debugging if requested */
 	if (debug) {
 		if (ioctl(targ_fd, TARGIOCDEBUG, &debug) != 0)
-			err(1, "TARGIOCDEBUG");
+			warnx("TARGIOCDEBUG");
 	}
 
 	/* Set up inquiry data according to what SIM supports */
@@ -421,7 +422,7 @@ request_loop()
 
 	/* Loop until user signal */
 	while (quit == 0) {
-		int retval, i;
+		int retval, i, oo;
 		struct ccb_hdr *ccb_h;
 
 		/* Check for the next signal, read ready, or AIO completion */
@@ -440,7 +441,7 @@ request_loop()
 		}
 
 		/* Process all received events. */
-		for (i = 0; i < retval; i++) {
+		for (oo = i = 0; i < retval; i++) {
 			if ((events[i].flags & EV_ERROR) != 0)
 				errx(1, "kevent registration failed");
 
@@ -464,7 +465,7 @@ request_loop()
 				/* Queue on the appropriate ATIO */
 				queue_io(ctio);
 				/* Process any queued completions. */
-				run_queue(c_descr->atio);
+				oo += run_queue(c_descr->atio);
 				break;
 			}
 			case EVFILT_SIGNAL:
@@ -473,12 +474,17 @@ request_loop()
 				quit = 1;
 				break;
 			default:
-				warnx("unknown event %#x", events[i].filter);
+				warnx("unknown event %d", events[i].filter);
 				break;
 			}
 
 			if (debug)
-				warnx("event done");
+				warnx("event %d done", events[i].filter);
+		}
+
+		if (oo) {
+			tptr = &ts;
+			continue;
 		}
 
 		/* Grab the first CCB and perform one work unit. */
@@ -534,7 +540,7 @@ static void
 handle_read()
 {
 	union ccb *ccb_array[MAX_INITIATORS], *ccb;
-	int ccb_count, i;
+	int ccb_count, i, oo;
 
 	ccb_count = read(targ_fd, ccb_array, sizeof(ccb_array));
 	if (ccb_count <= 0) {
@@ -586,7 +592,7 @@ handle_read()
 			/* Queue on the appropriate ATIO */
 			queue_io(ctio);
 			/* Process any queued completions. */
-			run_queue(c_descr->atio);
+			oo += run_queue(c_descr->atio);
 			break;
 		}
 		case XPT_IMMED_NOTIFY:
@@ -619,8 +625,9 @@ work_atio(struct ccb_accept_tio *atio)
 
 	/* Get a CTIO and initialize it according to our known parameters */
 	ctio = get_ctio();
-	if (ctio == NULL)
+	if (ctio == NULL) {
 		return (1);
+	}
 	ret = 0;
 	ctio->ccb_h.flags = a_descr->flags;
 	ctio->tag_id = atio->tag_id;
@@ -659,6 +666,7 @@ work_atio(struct ccb_accept_tio *atio)
 		ret = tcmd_handle(atio, ctio, ATIO_WORK);
 		break;
 	case CAM_REQ_ABORTED:
+		warn("ATIO %p aborted", a_descr);
 		/* Requeue on HBA */
 		TAILQ_REMOVE(&work_queue, &atio->ccb_h, periph_links.tqe);
 		send_ccb((union ccb *)atio, /*priority*/1);
@@ -679,35 +687,29 @@ queue_io(struct ccb_scsiio *ctio)
 {
 	struct ccb_hdr *ccb_h;
 	struct io_queue *ioq;
-	struct ctio_descr *c_descr, *curr_descr;
+	struct ctio_descr *c_descr;
 	
 	c_descr = (struct ctio_descr *)ctio->ccb_h.targ_descr;
-	/* If the completion is for a specific ATIO, queue in order */
-	if (c_descr->atio != NULL) {
-		struct atio_descr *a_descr;
-
-		a_descr = (struct atio_descr *)c_descr->atio->ccb_h.targ_descr;
-		ioq = &a_descr->cmplt_io;
-	} else {
+	if (c_descr->atio == NULL) {
 		errx(1, "CTIO %p has NULL ATIO", ctio);
 	}
+	ioq = &((struct atio_descr *)c_descr->atio->ccb_h.targ_descr)->cmplt_io;
 
-	/* Insert in order, sorted by offset */
-	if (!TAILQ_EMPTY(ioq)) {
-		TAILQ_FOREACH_REVERSE(ccb_h, ioq, io_queue, periph_links.tqe) {
-			curr_descr = (struct ctio_descr *)ccb_h->targ_descr;
-			if (curr_descr->offset <= c_descr->offset) {
-				TAILQ_INSERT_AFTER(ioq, ccb_h, &ctio->ccb_h,
-						   periph_links.tqe);
-				break;
-			}
-			if (TAILQ_PREV(ccb_h, io_queue, periph_links.tqe)
-			    == NULL) {
-				TAILQ_INSERT_BEFORE(ccb_h, &ctio->ccb_h, 
-						    periph_links.tqe);
-				break;
-			}
+	if (TAILQ_EMPTY(ioq)) {
+		TAILQ_INSERT_HEAD(ioq, &ctio->ccb_h, periph_links.tqe);
+		return;
+	}
+
+	TAILQ_FOREACH_REVERSE(ccb_h, ioq, io_queue, periph_links.tqe) {
+		struct ctio_descr *curr_descr = 
+		    (struct ctio_descr *)ccb_h->targ_descr;
+		if (curr_descr->offset <= c_descr->offset) {
+			break;
 		}
+	}
+
+	if (ccb_h) {
+		TAILQ_INSERT_AFTER(ioq, ccb_h, &ctio->ccb_h, periph_links.tqe);
 	} else {
 		TAILQ_INSERT_HEAD(ioq, &ctio->ccb_h, periph_links.tqe);
 	}
@@ -717,7 +719,7 @@ queue_io(struct ccb_scsiio *ctio)
  * Go through all completed AIO/CTIOs for a given ATIO and advance data
  * counts, start continuation IO, etc.
  */
-static void
+static int
 run_queue(struct ccb_accept_tio *atio)
 {
 	struct atio_descr *a_descr;
@@ -725,7 +727,7 @@ run_queue(struct ccb_accept_tio *atio)
 	int sent_status, event;
 
 	if (atio == NULL)
-		return;
+		return (0);
 
 	a_descr = (struct atio_descr *)atio->ccb_h.targ_descr;
 
@@ -761,11 +763,14 @@ run_queue(struct ccb_accept_tio *atio)
 				send_ccb((union ccb *)atio, /*priority*/1);
 		} else {
 			/* Gap in offsets so wait until later callback */
-			if (debug)
-				warnx("IO %p out of order", ccb_h);
-			break;
+			if (/* debug */ 1)
+				warnx("IO %p:%p out of order %s",  ccb_h,
+				    a_descr, c_descr->event == AIO_DONE?
+				    "aio" : "ctio");
+			return (1);
 		}
 	}
+	return (0);
 }
 
 static int
@@ -856,8 +861,10 @@ get_ctio()
 	struct ctio_descr *c_descr;
 	struct sigevent *se;
 
-	if (num_ctios == MAX_CTIOS)
+	if (num_ctios == MAX_CTIOS) {
+		warnx("at CTIO max");
 		return (NULL);
+	}
 
 	ctio = (struct ccb_scsiio *)malloc(sizeof(*ctio));
 	if (ctio == NULL) {
@@ -987,7 +994,7 @@ static void
 usage()
 {
 	fprintf(stderr,
-		"Usage: scsi_target [-AdST] [-b bufsize] [-c sectorsize]\n"
+		"Usage: scsi_target [-AdSTY] [-b bufsize] [-c sectorsize]\n"
 		"\t\t[-r numbufs] [-s volsize] [-W 8,16,32]\n"
 		"\t\tbus:target:lun filename\n");
 	exit(1);
