@@ -27,7 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <opt_mfi.h>
+#include "opt_mfi.h"
 
 #ifdef MFI_DEBUG
 
