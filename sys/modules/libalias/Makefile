@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=        libalias modules
+SUBDIR=	libalias modules
 
 .include <bsd.subdir.mk>

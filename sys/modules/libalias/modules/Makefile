@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-.include "modules.inc"
+.include "${.CURDIR}/modules.inc"
 
-SUBDIR= ${MODULES}
+SUBDIR=	${MODULES}
 
 .include <bsd.subdir.mk>

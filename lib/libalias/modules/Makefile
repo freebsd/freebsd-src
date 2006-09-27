@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-.include "../../../sys/modules/libalias/modules/modules.inc"
+.include "${.CURDIR}/../../../sys/modules/libalias/modules/modules.inc"
 
-SUBDIR= ${MODULES}
+SUBDIR=	${MODULES}
 
 .include <bsd.subdir.mk>
