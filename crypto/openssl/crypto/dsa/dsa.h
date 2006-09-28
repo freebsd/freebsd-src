@@ -79,6 +79,10 @@
 # include <openssl/dh.h>
 #endif
 
+#ifndef OPENSSL_DSA_MAX_MODULUS_BITS
+# define OPENSSL_DSA_MAX_MODULUS_BITS	10000
+#endif
+
 #define DSA_FLAG_CACHE_MONT_P	0x01
 
 #if defined(OPENSSL_FIPS)
@@ -245,8 +249,10 @@ void ERR_load_DSA_strings(void);
 #define DSA_F_SIG_CB					 114
 
 /* Reason codes. */
+#define DSA_R_BAD_Q_VALUE				 102
 #define DSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE		 100
 #define DSA_R_MISSING_PARAMETERS			 101
+#define DSA_R_MODULUS_TOO_LARGE				 103
 
 #ifdef  __cplusplus
 }
