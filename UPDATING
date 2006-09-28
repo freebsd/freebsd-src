@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20060928:	p20	FreeBSD-SA-06:23.openssl
+	Correct multiple vulnerabilities in crypto(3).
+	Limit the size of public keys used in order to protect applications
+	from a denial of service via insane key sizes.
+
 20060919:	p19	FreeBSD-SA-06:21.gzip
 	Correct multiple vulnerabilities in gzip(1).
 
