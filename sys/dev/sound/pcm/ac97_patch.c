@@ -46,6 +46,12 @@ void ad198x_patch(struct ac97_info* codec)
 	ac97_wrcd(codec, 0x76, ac97_rdcd(codec, 0x76) | 0x0420);
 }
 
+void ad1981b_patch(struct ac97_info* codec)
+{
+	ac97_wrcd(codec, AC97_AD_JACK_SPDIF,
+	    ac97_rdcd(codec, AC97_AD_JACK_SPDIF) | 0x0800);
+}
+
 void cmi9739_patch(struct ac97_info* codec)
 {
 	/*

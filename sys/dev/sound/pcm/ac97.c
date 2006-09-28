@@ -136,7 +136,7 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x41445368, 0x00, 0, "AD1888", 	ad198x_patch },
 	{ 0x41445370, 0x00, 0, "AD1980",	ad198x_patch },
 	{ 0x41445372, 0x00, 0, "AD1981A",	0 },
-	{ 0x41445374, 0x00, 0, "AD1981B",	0 },
+	{ 0x41445374, 0x00, 0, "AD1981B",	ad1981b_patch },
 	{ 0x41445375, 0x00, 0, "AD1985",	ad198x_patch },
 	{ 0x41445378, 0x00, 0, "AD1986",	ad198x_patch },
 	{ 0x414b4d00, 0x00, 1, "AK4540", 	0 },
@@ -545,40 +545,6 @@ ac97_fix_tone(struct ac97_info *codec)
 	}
 }
 
-static void
-ac97_fix_volume(struct ac97_info *codec)
-{
-    	struct snddev_info *d = device_get_softc(codec->dev);
-
-#if 0
-	/* XXX For the sake of debugging purposes */
-	ac97_wrcd(codec, AC97_MIX_PCM, 0);
-	bzero(&codec->mix[SOUND_MIXER_PCM],
-		sizeof(codec->mix[SOUND_MIXER_PCM]));
-	codec->flags |= AC97_F_SOFTVOL;
-	if (d)
-		d->flags |= SD_F_SOFTVOL;
-	return;
-#endif
-	switch (codec->id) {
-		case 0x434d4941:	/* CMI9738 */
-		case 0x434d4961:	/* CMI9739 */
-		case 0x434d4978:	/* CMI9761 */
-		case 0x434d4982:	/* CMI9761 */
-		case 0x434d4983:	/* CMI9761 */
-			ac97_wrcd(codec, AC97_MIX_PCM, 0);
-			break;
-		default:
-			return;
-			break;
-	}
-	bzero(&codec->mix[SOUND_MIXER_PCM],
-			sizeof(codec->mix[SOUND_MIXER_PCM]));
-	codec->flags |= AC97_F_SOFTVOL;
-	if (d)
-		d->flags |= SD_F_SOFTVOL;
-}
-
 static const char*
 ac97_hw_desc(u_int32_t id, const char* vname, const char* cname, char* buf)
 {
@@ -684,7 +650,6 @@ ac97_initmixer(struct ac97_info *codec)
 	}
 	ac97_fix_auxout(codec);
 	ac97_fix_tone(codec);
-	ac97_fix_volume(codec);
 	if (codec_patch)
 		codec_patch(codec);
 
@@ -758,8 +723,6 @@ ac97_initmixer(struct ac97_info *codec)
 	if (bootverbose) {
 		if (codec->flags & AC97_F_RDCD_BUG)
 			device_printf(codec->dev, "Buggy AC97 Codec: aggressive ac97_rdcd() workaround enabled\n");
-		if (codec->flags & AC97_F_SOFTVOL)
-			device_printf(codec->dev, "Soft PCM volume\n");
 		device_printf(codec->dev, "Codec features ");
 		for (i = j = 0; i < 10; i++)
 			if (codec->caps & (1 << i))
@@ -828,14 +791,15 @@ struct ac97_info *
 ac97_create(device_t dev, void *devinfo, kobj_class_t cls)
 {
 	struct ac97_info *codec;
+	int eapd_inv;
 
-	codec = (struct ac97_info *)malloc(sizeof *codec, M_AC97, M_NOWAIT);
+	codec = (struct ac97_info *)malloc(sizeof *codec, M_AC97, M_NOWAIT | M_ZERO);
 	if (codec == NULL)
 		return NULL;
 
 	snprintf(codec->name, AC97_NAMELEN, "%s:ac97", device_get_nameunit(dev));
 	codec->lock = snd_mtxcreate(codec->name, "ac97 codec");
-	codec->methods = kobj_create(cls, M_AC97, M_WAITOK);
+	codec->methods = kobj_create(cls, M_AC97, M_WAITOK | M_ZERO);
 	if (codec->methods == NULL) {
 		snd_mtxlock(codec->lock);
 		snd_mtxfree(codec->lock);
@@ -846,6 +810,11 @@ ac97_create(device_t dev, void *devinfo, kobj_class_t cls)
 	codec->dev = dev;
 	codec->devinfo = devinfo;
 	codec->flags = 0;
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+		    "ac97_eapd_inv", &eapd_inv) == 0) {
+		if (eapd_inv != 0)
+			codec->flags |= AC97_F_EAPD_INV;
+	}
 	return codec;
 }
 
@@ -877,6 +846,7 @@ static int
 ac97mix_init(struct snd_mixer *m)
 {
 	struct ac97_info *codec = mix_getdevinfo(m);
+	struct snddev_info *d;
 	u_int32_t i, mask;
 
 	if (codec == NULL)
@@ -884,6 +854,46 @@ ac97mix_init(struct snd_mixer *m)
 
 	if (ac97_initmixer(codec))
 		return -1;
+
+	switch (codec->id) {
+	case 0x41445374:	/* AD1981B */
+		mask = 0;
+		if (codec->mix[SOUND_MIXER_OGAIN].enable)
+			mask |= SOUND_MASK_OGAIN;
+		if (codec->mix[SOUND_MIXER_PHONEOUT].enable)
+			mask |= SOUND_MASK_PHONEOUT;
+		/* Tie ogain/phone to master volume */
+		if (codec->mix[SOUND_MIXER_VOLUME].enable)
+			mix_setparentchild(m, SOUND_MIXER_VOLUME, mask);
+		else {
+			mix_setparentchild(m, SOUND_MIXER_VOLUME, mask);
+			mix_setrealdev(m, SOUND_MIXER_VOLUME, SOUND_MIXER_NONE);
+		}
+		break;
+	case 0x434d4941:	/* CMI9738 */
+	case 0x434d4961:	/* CMI9739 */
+	case 0x434d4978:	/* CMI9761 */
+	case 0x434d4982:	/* CMI9761 */
+	case 0x434d4983:	/* CMI9761 */
+		ac97_wrcd(codec, AC97_MIX_PCM, 0);
+		bzero(&codec->mix[SOUND_MIXER_PCM],
+		    sizeof(codec->mix[SOUND_MIXER_PCM]));
+		d = device_get_softc(codec->dev);
+		if (d != NULL)
+			d->flags |= SD_F_SOFTPCMVOL;
+		/* XXX How about master volume ? */
+		break;
+	default:
+		break;
+	}
+
+#if 0
+	/* XXX For the sake of debugging purposes */
+	mix_setparentchild(m, SOUND_MIXER_VOLUME,
+	    SOUND_MASK_PCM | SOUND_MASK_CD);
+	mix_setrealdev(m, SOUND_MIXER_VOLUME, SOUND_MIXER_NONE);
+	ac97_wrcd(codec, AC97_MIX_MASTER, 0);
+#endif
 
 	mask = 0;
 	for (i = 0; i < 32; i++)
