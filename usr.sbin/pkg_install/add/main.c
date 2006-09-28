@@ -74,6 +74,7 @@ struct {
 	{ 502010, 502099, "/packages-5.2.1-release" },
 	{ 503000, 503099, "/packages-5.3-release" },
 	{ 504000, 504099, "/packages-5.4-release" },
+	{ 505000, 505099, "/packages-5.5-release" },
 	{ 600000, 600099, "/packages-6.0-release" },
 	{ 601000, 601099, "/packages-6.1-release" },
 	{ 602000, 602099, "/packages-6.2-release" },
