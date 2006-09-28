@@ -229,6 +229,20 @@
 	    <entry>06&nbsp;September&nbsp;2006</entry>
 	    <entry><para>Incorrect PKCS#1 v1.5 padding validation in &man.crypto.3;</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:21.gzip.asc"
+		>SA-06:21.gzip</ulink></entry>
+	    <entry>19&nbsp;September&nbsp;2006</entry>
+	    <entry><para>Multiple vulnerabilities in &man.gzip.1;</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:23.openssl.asc"
+		>SA-06:23.openssl</ulink></entry>
+	    <entry>28&nbsp;September&nbsp;2006</entry>
+	    <entry><para>Multiple problems in &man.crypto.3;</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
