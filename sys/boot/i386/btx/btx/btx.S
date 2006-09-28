@@ -208,7 +208,7 @@ init.7: 	stosl				# Set entry
 #ifdef PAGING
 		or $0x80000001,%eax             #  mode and enable paging
 #else
-		or $0x01,%eax			#  mode
+		inc %ax				#  mode
 #endif
 		mov %eax,%cr0			#
 		ljmp $SEL_SCODE,$init.8		# To 32-bit code
@@ -919,8 +919,7 @@ dump.2: 	testb $DMP_MEM,%ch		# Dump memory?
 dump.3: 	lodsl				# Set offset
 		xchgl %eax,%edx 		# Save
 		lodsl				# Get segment
-		shll $0x4,%eax			#  * 0x10
-		addl %edx,%eax			#  + offset
+		leal (%edx,%eax,4),%eax		#  * 0x10 + offset
 		xchgl %eax,%esi 		# Set pointer
 dump.4: 	movb $2,%dl			# Num lines
 dump.4a:	movb $0x10,%cl			# Bytes to dump
