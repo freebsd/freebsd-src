@@ -17,6 +17,8 @@
 # 20060924: tcpslice removed
 OLD_FILES+=usr/sbin/tcpslice
 OLD_FILES+=usr/share/man/man1/tcpslice.1.gz
+# 20060829: kvmdb cleanup script removed
+OLD_FILES+=etc/periodic/weekly/120.clean-kvmdb
 # 20060822: ramdisk{,-own} have been replaced by mdconfig{,2}
 OLD_FILES+=etc/rc.d/ramdisk
 OLD_FILES+=etc/rc.d/ramdisk-own
