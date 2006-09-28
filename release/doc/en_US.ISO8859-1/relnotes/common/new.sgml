@@ -212,6 +212,17 @@
       has been fixed.  For more details, see security advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:20.bind.asc">FreeBSD-SA-06:20.bind</ulink>. &merged;</para>
 
+    <para>Several programming errors have been fixed in &man.gzip.1;.
+      They could have the effect of causing a crash or an infinite
+      loop when decompressing files.  More information can be found in
+      security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:21.gzip.asc">FreeBSD-SA-06:21.gzip</ulink>. &merged;</para>
+
+    <para>Multiple errors in the OpenSSL &man.crypto.3; library have
+      been fixed.  Potential effects are varied, and are documented in
+      more detail in security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:23.openssl.asc">FreeBSD-SA-06:23.openssl</ulink>. &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
