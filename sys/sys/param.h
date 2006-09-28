@@ -290,28 +290,6 @@ __END_DECLS
 #endif /* _KERNEL */
 
 /*
- * Constants for setting the parameters of the kernel memory allocator.
- *
- * 2 ** MINBUCKET is the smallest unit of memory that will be
- * allocated. It must be at least large enough to hold a pointer.
- *
- * Units of memory less or equal to MAXALLOCSAVE will permanently
- * allocate physical memory; requests for these size pieces of
- * memory are quite fast. Allocations greater than MAXALLOCSAVE must
- * always allocate and free physical memory; requests for these
- * size allocations should be done infrequently as they will be slow.
- *
- * Constraints: PAGE_SIZE <= MAXALLOCSAVE <= 2 ** (MINBUCKET + 14), and
- * MAXALLOCSIZE must be a power of two.
- */
-#if defined(__ia64__) || defined(__sparc64__)
-#define MINBUCKET	5		/* 5 => min allocation of 32 bytes */
-#else
-#define MINBUCKET	4		/* 4 => min allocation of 16 bytes */
-#endif
-#define MAXALLOCSAVE	(2 * PAGE_SIZE)
-
-/*
  * Scale factor for scaled integers used to count %cpu time and load avgs.
  *
  * The number of CPU `tick's that map to a unique `%age' can be expressed
