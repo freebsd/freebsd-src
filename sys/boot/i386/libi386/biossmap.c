@@ -95,6 +95,7 @@ bios_getsmap(void)
 			break;
 	} while (v86.ebx != 0 && smaplen < n);
 }
+
 void
 bios_addsmapdata(struct preloaded_file *kfp)
 {
@@ -104,4 +105,18 @@ bios_addsmapdata(struct preloaded_file *kfp)
 		return;
 	len = smaplen * sizeof(*smapbase);
 	file_addmetadata(kfp, MODINFOMD_SMAP, len, smapbase);
+}
+
+COMMAND_SET(smap, "smap", "show BIOS SMAP", command_smap);
+
+static int
+command_smap(int argc, char *argv[])
+{
+	int i;
+
+	if (smapbase == 0 || smaplen == 0)
+		return;
+	for (i = 0; i < smaplen; i++)
+		printf("SMAP type=%02x base=%016llx len=%016llx\n",
+		    smapbase[i].type, smapbase[i].base, smapbase[i].length);
 }

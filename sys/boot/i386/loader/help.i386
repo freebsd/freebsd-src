@@ -54,3 +54,10 @@
 	forced by setting this variable.
 
 ################################################################################
+# Tsmap DDisplay BIOS SMAP table
+
+	smap
+
+	Displays the BIOS SMAP (system memory map) table.
+
+################################################################################
