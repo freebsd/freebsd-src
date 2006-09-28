@@ -1137,9 +1137,18 @@ timer:
 		/*
 		 * We know that the packet was lost, so back out the
 		 * sequence number advance, if any.
+		 *
+		 * If the error is EPERM the packet got blocked by the
+		 * local firewall.  Normally we should terminate the
+		 * connection but the blocking may have been spurious
+		 * due to a firewall reconfiguration cycle.  So we treat
+		 * it like a packet loss and let the retransmit timer and
+		 * timeouts do their work over time.
+		 * XXX: It is a POLA question whether calling tcp_drop right
+		 * away would be the really correct behavior instead.
 		 */
-		if ((tp->t_flags & TF_FORCEDATA) == 0 || 
-		    !callout_active(tp->tt_persist)) {
+		if (error != EPERM && ((tp->t_flags & TF_FORCEDATA) == 0 ||
+		    !callout_active(tp->tt_persist))) {
 			/*
 			 * No need to check for TH_FIN here because
 			 * the TF_SENTFIN flag handles that case.
@@ -1154,6 +1163,10 @@ timer:
 				} else
 					tp->snd_nxt -= len;
 			}
+		}
+		if (error == EPERM) {
+			tp->t_softerror = error;
+			return (error);
 		}
 
 out:
