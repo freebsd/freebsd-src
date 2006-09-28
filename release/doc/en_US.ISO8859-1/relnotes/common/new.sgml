@@ -1180,6 +1180,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.id.1; utility now prints the effective user
       ID after the group ID.</para>
 
+    <para>The &man.id.1; utility now supports a <option>-A</option>
+      flag to print process audit properties, including the audit user
+      id. &merged;</para>
+
     <para>The &man.ifconfig.8; utility now supports
       a <option>-k</option> flag to allow printing
       potentially sensitive keying material to standard output.
@@ -1444,6 +1448,11 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       flag to suppress header lines when multiple files are
       specified. &merged;</para>
 
+    <para>The version of tcpslice in the &os; base system has been
+      removed due to obsolescence.  A more up-to-date version can be
+      found in the Ports Collection
+      as <filename role="package">net/tcpslice</filename>.</para>
+
     <para>The &man.time.1; utility now prints the time that a given
       command has been running if sent a <literal>SIGINFO</literal> signal.</para>
 
@@ -1484,6 +1493,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The <function>wcsdup()</function> function has been
       implemented.  This function is popular in Microsoft and GNU
       systems.</para>
+
+    <para>The compiler toolchain is now capable of generating
+      executables for systems using the ARM processor.</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
@@ -1825,7 +1837,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para>The supported version of
       the <application>KDE</application> desktop environment
       (<filename role="package">x11/kde3</filename>) has been
-      updated from 3.4.2 to 3.5.3. &merged;</para>
+      updated from 3.4.2 to 3.5.4. &merged;</para>
 
     <para arch="i386,amd64">The supported Linux emulation now uses the
       libraries in the
