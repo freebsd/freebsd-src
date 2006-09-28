@@ -657,23 +657,16 @@ v86intn:	lodsb				# Get int no
 		cmpb $0x19,%al			# is it int 19?
 		je reboot			#  yes, reboot the machine
 		cmpb $0x15,%al			# is it int 15?
-		jne v86intn.3			#  no, skip parse
-		pushl %eax                      # stash EAX
-		movl 0x1c(%ebp),%eax		# user's saved EAX
-		cmpb $0x87,%ah			# is it the memcpy subfunction?
-		jne v86intn.1			#  no, keep checking
-		popl %eax			# get the stack straight
-		jmp int15_87			# it's our cue
-v86intn.1:	cmpw $0x4f53,%ax		# is it the delete key callout?
-		jne v86intn.2			#  no, handle the int normally
-		movb BDA_KEYFLAGS,%al		# get the shift key state
-		andb $0xc,%al			# mask off just Ctrl and Alt
-		cmpb $0xc,%al			# are both Ctrl and Alt down?
-		jne v86intn.2			#  no, handle the int normally
-		popl %eax			# restore EAX
-		jmp reboot			# reboot the machine
-v86intn.2:	popl %eax			# restore EAX
-v86intn.3:	subl %edi,%esi			# From
+		jne v86intn.1			#  no, skip parse
+		cmpb $0x87,0x1d(%ebp)		# is it the memcpy subfunction?
+		je int15_87			#  yes
+		cmpw $0x4f53,0x1c(%ebp)		# is it the delete key callout?
+		jne v86intn.1			#  no, handle the int normally
+		movb BDA_KEYFLAGS,%ch		# get the shift key state
+		andb $0xc,%ch			# mask off just Ctrl and Alt
+		cmpb $0xc,%ch			# are both Ctrl and Alt down?
+		je reboot			# yes, reboot the machine
+v86intn.1:	subl %edi,%esi			# From
 		shrl $0x4,%edi			#  linear
 		movw %dx,-0x2(%ebx)		# Save flags
 		movw %di,-0x4(%ebx)		# Save CS
