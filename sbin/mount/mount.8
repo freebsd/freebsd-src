@@ -131,9 +131,12 @@ All
 to the file system should be done asynchronously.
 This is a
 .Em dangerous
-flag to set,
-and should not be used unless you are prepared to recreate the file
-system should your system crash.
+flag to set, since it does not guarantee that the file system structure
+on the disk will remain consistent.
+For this reason, the
+.Cm async
+flag should be used sparingly, and only when some data recovery
+mechanism is present.
 .It Cm current
 When used with the
 .Fl u
