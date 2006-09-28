@@ -134,8 +134,10 @@ extern u_char *	cache_key;		/* key pointer */
 extern u_int	cache_keylen;		/* key length */
 
 /* clocktypes.c */
+#ifdef NTP_REFCLOCK_H
 struct clktype;
 extern struct clktype clktypes[];
+#endif
 
 /* getopt.c */
 extern char *	ntp_optarg;		/* global argument pointer */
