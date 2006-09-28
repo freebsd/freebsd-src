@@ -70,6 +70,10 @@
 #include <openssl/crypto.h>
 #include <openssl/ossl_typ.h>
 	
+#ifndef OPENSSL_DH_MAX_MODULUS_BITS
+# define OPENSSL_DH_MAX_MODULUS_BITS	10000
+#endif
+
 #define DH_FLAG_CACHE_MONT_P	0x01
 
 #ifdef  __cplusplus
@@ -200,6 +204,7 @@ void ERR_load_DH_strings(void);
 /* Reason codes. */
 #define DH_R_BAD_GENERATOR				 101
 #define DH_R_NO_PRIVATE_VALUE				 100
+#define DH_R_MODULUS_TOO_LARGE				 103
 
 #ifdef  __cplusplus
 }
