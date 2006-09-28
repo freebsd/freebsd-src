@@ -618,41 +618,27 @@ v86popf.1:	movl (%ebx),%eax		# Load flags
  * reads count of words from saved %cx
  * returns success by setting %ah to 0
  */
-int15_87:	pushl %eax			# Save
-		pushl %ebx			#  some information
-		pushl %esi			#  onto the stack.
-		pushl %edi
-		xorl %eax,%eax			# clean EAX
-		xorl %ebx,%ebx			# clean EBX
-		movl 0x4(%ebp),%esi		# Get user's ESI
-		movl 0x3C(%ebp),%ebx		# store ES
-		movw %si,%ax			# store SI
-		shll $0x4,%ebx			# Make it a seg.
-		addl %eax,%ebx			# ebx=(es<<4)+si
-		movb 0x14(%ebx),%al		# Grab the
-		movb 0x17(%ebx),%ah		#  necessary
-		shll $0x10,%eax			#  information
-		movw 0x12(%ebx),%ax		#  from
-		movl %eax,%esi			#  the
-		movb 0x1c(%ebx),%al		#  GDT in order to
-		movb 0x1f(%ebx),%ah		#  have %esi offset
-		shll $0x10,%eax			#  of source and %edi
-		movw 0x1a(%ebx),%ax		#  of destination.
-		movl %eax,%edi
+int15_87:	pushl %esi			# Save 
+		pushl %edi			#  registers
+		movzwl 0x4(%ebp),%eax		# Load user's SI
+		movl 0x3C(%ebp),%edi		# Load ES
+		leal (%eax,%edi,4),%edi		# EDI = (ES << 4) + SI
+		movl 0x11(%edi),%eax		# Read base of
+		movb 0x17(%edi),%al		#  GDT entry
+		ror $8,%eax			#  for source
+		xchgl %eax,%esi			#  into %esi
+		movl 0x19(%edi),%eax		# Read base of
+		movb 0x1f(%edi),%al		#  GDT entry for
+		ror $8,%eax			#  destination
+		xchgl %eax,%edi			#  into %edi
 		pushl %ds			# Make:
 		popl %es			# es = ds
-		pushl %ecx			# stash ECX
-		xorl %ecx,%ecx			# highw of ECX is clear
-		movw 0x18(%ebp),%cx		# Get user's ECX
-		shll $0x1,%ecx			# Convert from num words to num
-						#  bytes
+		movzwl 0x18(%ebp),%ecx		# Get user's CX
+		shll $0x1,%ecx			# Convert count from words
 		rep				# repeat...
 		movsb				#  perform copy.
-		popl %ecx			# Restore
-		popl %edi
-		popl %esi			#  previous
-		popl %ebx			#  register
-		popl %eax			#  values.
+		popl %edi			# Restore
+		popl %esi			#  registers
 		movb $0x0,0x1d(%ebp)		# set ah = 0 to indicate
 						#  success
 		andb $0xfe,%dl			# clear CF
