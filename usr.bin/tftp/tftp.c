@@ -205,6 +205,7 @@ abort:
 	stopclock();
 	if (amount > 0)
 		printstats("Sent", amount);
+	txrx_error = 1;
 }
 
 /*
@@ -330,6 +331,7 @@ abort:						/* ok to ack, since user */
 	stopclock();
 	if (amount > 0)
 		printstats("Received", amount);
+	txrx_error = 1;
 }
 
 static int
