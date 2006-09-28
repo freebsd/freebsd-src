@@ -38,6 +38,7 @@ main(int argc, char **argv)
 	char c;
 	intmax_t offset;
 
+	offset = 0;
 	while ((c = getopt(argc, argv, "o:")) != -1) {
 		switch (c) {
 		case 'o':
