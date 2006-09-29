@@ -171,7 +171,11 @@ static void
 pty_destroy_slave(struct ptsc *pt)
 {
 
+	if (pt->pt_tty->t_refcnt > 1)
+		return;
 	pt->pt_tty->t_dev = NULL;
+	ttyrel(pt->pt_tty);
+	pt->pt_tty = NULL;
 	destroy_dev(pt->devs);
 	pt->devs = NULL;
 }
@@ -180,7 +184,7 @@ static void
 pty_maybe_destroy_slave(struct ptsc *pt)
 {
 
-	if (0 && pt->pt_devc_open == 0 && pt->pt_devs_open == 0)
+	if (pt->pt_devc_open == 0 && pt->pt_devs_open == 0)
 		pty_destroy_slave(pt);
 }
 
@@ -196,11 +200,6 @@ ptsopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 		return(ENXIO);
 	pt = dev->si_drv1;
 	tp = dev->si_tty;
-
-        /* XXX It can happen that devfs_open calls us with tp->t_refcnt == 0 */
-	if (tp == NULL || tp->t_refcnt == 0) {
-		return (ENXIO);
-        }
 
 	if ((tp->t_state & TS_ISOPEN) == 0) {
 		ttyinitmode(tp, 1, 0);
@@ -319,12 +318,19 @@ ptcopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 		ptyinit(dev, td);
 	if (!dev->si_drv1)
 		return(ENXIO);
-	tp = dev->si_tty;
 
-	/* XXX It can happen that devfs_open calls us with tp->t_refcnt == 0 */
-        if (tp == NULL || tp->t_refcnt == 0) {
-                return (ENXIO);
-        }
+	pt = dev->si_drv1;
+	/*
+	 * In case we have destroyed the struct tty at the last connect time,
+	 * we need to recreate it.
+	 */
+	if (pt->pt_tty == NULL) {
+		pt->pt_tty = ttyalloc();
+		pt->pt_tty->t_sc = pt;
+		dev->si_tty = pt->pt_tty;
+		pty_create_slave(td->td_ucred, pt, minor(dev));
+	}
+	tp = dev->si_tty;
 
 	if (tp->t_oproc)
 		return (EIO);
@@ -333,7 +339,6 @@ ptcopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 	tp->t_stop = ptsstop;
 	(void)ttyld_modem(tp, 1);
 	tp->t_lflag &= ~EXTPROC;
-	pt = dev->si_drv1;
 	pt->pt_prison = td->td_ucred->cr_prison;
 	pt->pt_flags = 0;
 	pt->pt_send = 0;
