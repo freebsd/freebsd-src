@@ -1475,40 +1475,6 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	}
 
 	/*
-	 * When operating in promiscuous mode, hardware encapsulation for
-	 * packets is disabled.  This means we have to add the vlan
-	 * encapsulation in the driver, since it will have come down from the
-	 * VLAN layer with a tag instead of a VLAN header.
-	 */
-	if ((m_head->m_flags & M_VLANTAG) && adapter->em_insert_vlan_header) {
-		struct ether_vlan_header *evl;
-		struct ether_header eh;
-
-		m_head = m_pullup(m_head, sizeof(eh));
-		if (m_head == NULL) {
-			*m_headp = NULL;
-			return (ENOBUFS);
-		}
-		eh = *mtod(m_head, struct ether_header *);
-		M_PREPEND(m_head, sizeof(*evl), M_DONTWAIT);
-		if (m_head == NULL) {
-			*m_headp = NULL;
-			return (ENOBUFS);
-		}
-		m_head = m_pullup(m_head, sizeof(*evl));
-		if (m_head == NULL) {
-			*m_headp = NULL;
-			return (ENOBUFS);
-		}
-		evl = mtod(m_head, struct ether_vlan_header *);
-		bcopy(&eh, evl, sizeof(*evl));
-		evl->evl_proto = evl->evl_encap_proto;
-		evl->evl_encap_proto = htons(ETHERTYPE_VLAN);
-		evl->evl_tag = htons(m_head->m_pkthdr.ether_vtag);
-		*m_headp = m_head;
-	}
-
-	/*
 	 * TSO workaround:
 	 *  If an mbuf is only header we need
 	 *     to pull 4 bytes of data into it.
@@ -1865,9 +1831,12 @@ em_set_promisc(struct adapter *adapter)
 	if (ifp->if_flags & IFF_PROMISC) {
 		reg_rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
 		E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
-		/* Disable VLAN stripping in promiscous mode
+		/*
+		 * Disable VLAN stripping in promiscous mode.
 		 * This enables bridging of vlan tagged frames to occur
-		 * and also allows vlan tags to be seen in tcpdump
+		 * and also allows vlan tags to be seen in tcpdump.
+		 * XXX: This is a bit bogus as tcpdump may be used
+		 * w/o promisc mode as well.
 		 */
 		if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
 			em_disable_vlans(adapter);
