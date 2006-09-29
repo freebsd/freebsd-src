@@ -228,12 +228,12 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: pkg_create [-YNOhvyz] [-P pkgs] [-C conflicts] [-p prefix] ",
-"                  [-i iscript] [-I piscript] [-k dscript] [-K pdscript] ",
-"                  [-r rscript] [-t template] [-X excludefile] ",
-"                  [-D displayfile] [-m mtreefile] [-o origin] ",
-"                  [-s srcdir] [-S basedir] ",
+"usage: pkg_create [-YNOhjvyz] [-C conflicts] [-P pkgs] [-p prefix]",
+"                  [-i iscript] [-I piscript] [-k dscript] [-K pdscript]",
+"                  [-r rscript] [-s srcdir] [-S basedir]",
+"                  [-t template] [-X excludefile]",
+"                  [-D displayfile] [-m mtreefile] [-o originpath]",
 "                  -c comment -d description -f packlist pkg-filename",
-"       pkg_create [-EGYNhvxyzR] -b pkg-name [pkg-filename]");
+"       pkg_create [-EGYNRhvxy] -b pkg-name [pkg-filename]");
     exit(1);
 }
