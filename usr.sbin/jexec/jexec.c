@@ -117,6 +117,6 @@ usage(void)
 
 	fprintf(stderr, "%s%s\n",
 		"usage: jexec [-u username | -U username]",
-		" jid command [...]");
+		" jid command ...");
 	exit(1); 
 }
