@@ -696,11 +696,11 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 		DEB( printf("FIOASYNC\n") ; )
 		break;
 
-    	case SNDCTL_DSP_NONBLOCK:
+    	case SNDCTL_DSP_NONBLOCK: /* set non-blocking i/o */
     	case FIONBIO: /* set/clear non-blocking i/o */
 		if (rdch) {
 			CHN_LOCK(rdch);
-			if (*arg_i)
+			if (cmd == SNDCTL_DSP_NONBLOCK || *arg_i)
 				rdch->flags |= CHN_F_NBIO;
 			else
 				rdch->flags &= ~CHN_F_NBIO;
@@ -708,7 +708,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 		}
 		if (wrch) {
 			CHN_LOCK(wrch);
-			if (*arg_i)
+			if (cmd == SNDCTL_DSP_NONBLOCK || *arg_i)
 				wrch->flags |= CHN_F_NBIO;
 			else
 				wrch->flags &= ~CHN_F_NBIO;
