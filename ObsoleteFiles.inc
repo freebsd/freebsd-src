@@ -14,6 +14,15 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20060929: mrouted removed
+OLD_FILES+=usr/sbin/map-mbone
+OLD_FILES+=usr/sbin/mrinfo
+OLD_FILES+=usr/sbin/mrouted
+OLD_FILES+=usr/sbin/mtrace
+OLD_FILES+=usr/share/man/man8/map-mbone.8.gz
+OLD_FILES+=usr/share/man/man8/mrinfo.8.gz
+OLD_FILES+=usr/share/man/man8/mrouted.8.gz
+OLD_FILES+=usr/share/man/man8/mtrace.8.gz
 # 20060924: tcpslice removed
 OLD_FILES+=usr/sbin/tcpslice
 OLD_FILES+=usr/share/man/man1/tcpslice.1.gz
