@@ -213,7 +213,9 @@ CLEANFILES+=	fini
 .if ${TARGET_ARCH} == "amd64"
 TARGET_INC=	i386/biarch64.h
 .endif
+.if ${TARGET_ARCH} != "arm"
 TARGET_INC+=	${GCC_CPU}/${GCC_CPU}.h
+.endif
 .if ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "amd64"
 TARGET_INC+=	${GCC_CPU}/unix.h
 TARGET_INC+=	${GCC_CPU}/att.h
@@ -232,6 +234,14 @@ TARGET_INC+=	${GCC_CPU}/elf.h
 .if exists(${GCCDIR}/config/${GCC_CPU}/sysv4.h)
 TARGET_INC+=	${GCC_CPU}/sysv4.h
 .endif
+.endif
+.if ${TARGET_ARCH} == "arm"
+TARGET_INC+=	${GCC_CPU}/elf.h
+TARGET_INC+=	${GCC_CPU}/aout.h
+TARGET_INC+=	${GCC_CPU}/${GCC_CPU}.h
+. if defined(TARGET_BIG_ENDIAN)
+CFLAGS+= -DTARGET_ENDIAN_DEFAULT=ARM_FLAG_BIG_END
+. endif
 .endif
 TARGET_INC+=	${GCC_CPU}/freebsd.h
 .if ${TARGET_ARCH} == "amd64"
