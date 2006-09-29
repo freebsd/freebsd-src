@@ -12,7 +12,7 @@
 
 name="mrouted"
 rcvar=`set_rcvar`
-command="/usr/sbin/${name}"
+command="/usr/local/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 required_files="/etc/${name}.conf"
 extra_commands="reload"

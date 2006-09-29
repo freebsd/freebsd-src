@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 17, 2006
+.Dd September 29, 2006
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2089,11 +2089,14 @@ The IPv6 equivalent of
 If set to
 .Dq Li YES ,
 run the IPv6 multicast routing daemon.
-Note that no IPv6 multicast routing daemon is included in the
+.Pp
+Note that multicast routing daemons are no longer included in the
 .Fx
-base system but
+base system, however, both
+.Xr mrouted 8
+and
 .Xr pim6dd 8
-can be installed from the
+may be installed from the
 .Fx
 Ports Collection.
 .It Va mrouted_flags

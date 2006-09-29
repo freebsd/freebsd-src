@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 29, 2004
+.Dd September 29, 2006
 .Dt IP6 4
 .Os
 .Sh NAME
@@ -178,8 +178,7 @@ any network but may be delivered locally if the sending host belongs to
 the destination group and if multicast loopback (see below) has not been
 disabled on the sending socket.
 Multicast datagrams with a hop limit greater than 1 may be forwarded to
-the other networks if a multicast router (such as
-.Xr mrouted 8 )
+the other networks if a multicast router (such as mrouted)
 is attached to the local network.
 .It Dv IPV6_MULTICAST_LOOP Fa "u_int *"
 Get or set the status of whether multicast datagrams will be looped back
