@@ -148,12 +148,12 @@ These are described following.
 .It Ic \&? Op Ar command_keyword
 .It Ic help Op Ar command_keyword
 A
-.Ic Ql \&?
+.Sq Ic \&?
 by itself will print a list of all the command
 keywords known to this incarnation of
 .Nm .
 A
-.Ic Ql \&?
+.Sq Ic \&?
 followed by a command keyword will print function and usage
 information about the command.
 This command is probably a better
@@ -241,7 +241,8 @@ modified using the command line
 switch.
 .It Ic keyid Ar keyid
 This command specifies the key number to be used to authenticate
-configuration requests. This must correspond to a key number the server has
+configuration requests.
+This must correspond to a key number the server has
 been configured to use for this purpose.
 .It Xo Ic ntpversion
 .Cm 1 |
@@ -259,7 +260,8 @@ There appear
 to be no servers left which demand version 1.
 .It Ic passwd
 This command prompts for a password (which will not be echoed) which will
-be used to authenticate configuration requests. The password must
+be used to authenticate configuration requests.
+The password must
 correspond to the key configured for NTP server for this purpose.
 .It Ic quit
 Exit
@@ -281,8 +283,10 @@ a timeout will be twice the timeout value set.
 .El
 .Ss Control Message Commands
 Each association known to an NTP server has a 16 bit integer association
-identifier. NTP control messages which carry peer variables must identify the
-peer the values correspond to by including its association ID. An association
+identifier.
+NTP control messages which carry peer variables must identify the
+peer the values correspond to by including its association ID.
+An association
 ID of 0 is special, and indicates the variables are system variables, whose
 names are drawn from a separate name space.
 .Pp
@@ -430,7 +434,8 @@ register, in octal, and the current estimated delay,
 offset and dispersion of the peer, all in milliseconds.
 The character at the left margin of each line shows the
 synchronization status of the association and is a valuable
-diagnostic tool. The encoding and meaning of this character,
+diagnostic tool.
+The encoding and meaning of this character,
 called the tally code, is given later in this page.
 .It Ic pstatus Ar assocID
 Sends a read status request to the server for the given
@@ -466,7 +471,8 @@ system variables, otherwise they are peer variables and the values
 returned will be those of the corresponding peer.
 Omitting the
 variable list will send a request with no data which should induce
-the server to return a default display. The
+the server to return a default display.
+The
 encoding and meaning of the variables derived from NTPv3 is given in
 RFC-1305; the encoding and meaning of the additional NTPv4 variables are
 given later in this page.
@@ -512,7 +518,8 @@ The peer is a survivor and a candidate for the combining algorithm.
 .It \&#
 .Pq selected
 The peer is a survivor, but not among the first six peers sorted by
-synchronization distance. If the association is ephemeral, it may be
+synchronization distance.
+If the association is ephemeral, it may be
 demobilized to conserve resources.
 .It \&*
 .Pq sys.peer
@@ -521,7 +528,8 @@ system variables.
 .It o
 .Pq pps.peer
 The peer has been declared the system peer and lends its variables to
-the system variables. However, the actual system synchronization is derived
+the system variables.
+However, the actual system synchronization is derived
 from a pulse-per-second (PPS) signal, either indirectly via the PPS
 reference clock driver or directly via kernel interface.
 .El
@@ -540,7 +548,8 @@ The
 and
 .Cm frequency
 variables are described in RFC-1305
-specification. Additional NTPv4 system variables include the following.
+specification.
+Additional NTPv4 system variables include the following.
 .Bl -tag -width indent
 .It version
 Everything you might need to know about the software version and generation
@@ -550,7 +559,8 @@ The processor and kernel identification string.
 .It system
 The operating system version and release identifier.
 .It state
-The state of the clock discipline state machine. The values are described
+The state of the clock discipline state machine.
+The values are described
 in the architecture briefing on the NTP Project page linked from
 www.ntp.org.
 .It peer
@@ -570,7 +580,8 @@ depending on the particular dance:
 .Bl -tag -width indent
 .It flags
 The current flags word bits and message digest algorithm identifier (NID)
-in hex format. The high order 16 bits of the four-byte word contain the NID
+in hex format.
+The high order 16 bits of the four-byte word contain the NID
 from the OpenSSL ligrary, while the low-order bits are interpreted as
 follows:
 .Bl -tag -width indent
@@ -593,8 +604,10 @@ function.
 .It hostkey
 The NTP filestamp of the host key file.
 .It cert
-A list of certificates held by the host. Each entry includes the subject,
-issuer, flags and NTP filestamp in order. The bits are interpreted as
+A list of certificates held by the host.
+Each entry includes the subject,
+issuer, flags and NTP filestamp in order.
+The bits are interpreted as
 follows:
 .Bl -tag -width indent
 .It 0x01
@@ -647,7 +660,8 @@ Additional NTPv4 system variables include
 the following.
 .Bl -tag -width indent
 .It flash
-The flash code for the most recent packet received. The encoding and
+The flash code for the most recent packet received.
+The encoding and
 meaning of these codes is given later in this page.
 .It jitter
 The estimated time error of the peer clock measured as an exponential
@@ -661,8 +675,10 @@ When the NTPv4 daemon is compiled with the OpenSSL software library, additional
 peer variables are displayed, including the following:
 .Bl -tag -width indent
 .It flags
-The current flag bits. This word is the server host status word with
-additional bits used by the Autokey state machine. See the source code for
+The current flag bits.
+This word is the server host status word with
+additional bits used by the Autokey state machine.
+See the source code for
 the bit encoding.
 .It hostname
 The server host name.
@@ -680,18 +696,22 @@ The NTP timestamp when the last Autokey key list was generated and signed.
 The
 .Cm flash
 code is a valuable debugging aid displayed in the peer variables
-list. It shows the results of the original sanity checks defined in the NTP
-specification RFC-1305 and additional ones added in NTPv4. There are 12 tests
+list.
+It shows the results of the original sanity checks defined in the NTP
+specification RFC-1305 and additional ones added in NTPv4.
+There are 12 tests
 designated
 .Sy TEST1
 through
 .Sy TEST12 .
 The tests are performed in a certain order
 designed to gain maximum diagnostic information while protecting against
-accidental or malicious errors. The
+accidental or malicious errors.
+The
 .Sy flash
 variable is initialized to zero as
-each packet is received. If after each set of tests one or more bits are set,
+each packet is received.
+If after each set of tests one or more bits are set,
 the packet is discarded.
 .Pp
 Tests
@@ -699,22 +719,27 @@ Tests
 through
 .Sy TEST3
 check the packet timestamps from which the offset and
-delay are calculated. If any bits are set, the packet is discarded; otherwise,
+delay are calculated.
+If any bits are set, the packet is discarded; otherwise,
 the packet header variables are saved.
 .Sy TEST4
 and
 .Sy TEST5
 are associated with
-access control and cryptographic authentication. If any bits are set, the
+access control and cryptographic authentication.
+If any bits are set, the
 packet is discarded immediately with nothing changed.
 .Pp
 Tests
 .Sy TEST6
 through
 .Sy TEST8
-check the health of the server. If any bits are set,
+check the health of the server.
+If any bits are set,
 the packet is discarded; otherwise, the offset and delay relative to the server
-are calculated and saved. TEST9 checks the health of the association itself. If
+are calculated and saved.
+TEST9 checks the health of the association itself.
+If
 any bits are set, the packet is discarded; otherwise, the saved variables are
 passed to the clock filter and mitigation algorithms.
 .Pp
@@ -738,35 +763,44 @@ bits for each test are defined as follows.
 .Bl -tag -width indent
 .It 0x001
 .Pq TEST1
-Duplicate packet. The packet is at best a casual retransmission and at
+Duplicate packet.
+The packet is at best a casual retransmission and at
 worst a malicious replay.
 .It 0x002
 .Pq TEST2
-Bogus packet. The packet is not a reply to a message previously sent. This
+Bogus packet.
+The packet is not a reply to a message previously sent.
+This
 can happen when the NTP daemon is restarted and before somebody else
 notices.
 .It 0x004
 .Pq TEST3
-Unsynchronized. One or more timestamp fields are invalid. This normally
+Unsynchronized.
+One or more timestamp fields are invalid.
+This normally
 happens when the first packet from a peer is received.
 .It 0x008
 .Pq TEST4
-Access is denied. See the
+Access is denied.
+See the
 .Sx Access Control Support
 section of
 .Xr ntp.conf 5 .
 .It 0x010
 .Pq TEST5
-Cryptographic authentication fails. See the
+Cryptographic authentication fails.
+See the
 .Sx Authentication Options
 section of
 .Xr ntp.conf 5 .
 .It 0x020
 .Pq TEST6
-The server is unsynchronized. Wind up its clock first.
+The server is unsynchronized.
+Wind up its clock first.
 .It 0x040
 .Pq TEST7
-The server stratum is at the maximum than 15. It is probably unsynchronized
+The server stratum is at the maximum than 15.
+It is probably unsynchronized
 and its clock needs to be wound up.
 .It 0x080
 .Pq TEST8
@@ -778,21 +812,24 @@ Either the peer delay or dispersion is greater than one second, which is
 higly unlikely unless the peer is on Mars.
 .It 0x200
 .Pq TEST10
-The autokey protocol has detected an authentication failure. See the
+The autokey protocol has detected an authentication failure.
+See the
 .Sx Authentication Options
 section of
 .Xr ntp.conf 5 .
 .It 0x400
 .Pq TEST11
 The autokey protocol has not verified the server or peer is proventic and
-has valid public key credentials. See the
+has valid public key credentials.
+See the
 .Sx Authentication Options
 section of
 .Xr ntp.conf 5 .
 .It 0x800
 .Pq TEST12
 A protocol or configuration error has occurred in the public key algorithms
-or a possible intrusion event has been detected. See the
+or a possible intrusion event has been detected.
+See the
 .Sx Authentication Options
 section of
 .Xr ntp.conf 5 .

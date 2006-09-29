@@ -72,7 +72,8 @@ mode.
 Debugging mode: 0 = no, 1 = minimal, 2 = verbose, 3 = msg dumps, 4 =
 excessive.
 .It Va dump_file
-Dump file for state information (on SIGUSR1).
+Dump file for state information (on
+.Dv SIGUSR1 ) .
 .It Va ctrl_interface
 The pathname of the directory in which
 .Xr hostapd 8
@@ -185,8 +186,8 @@ seconds.
 Rekey GTK when any STA that possesses the current GTK is leaving the
 BSS.
 .It Va wpa_gmk_rekey
-Time interval for rekeying GMK (master key used internally to generate GTKs
-(in seconds).
+Time interval for rekeying GMK (master key used internally to generate GTKs),
+in seconds.
 .El
 .Sh SEE ALSO
 .Xr hostapd 8 ,
