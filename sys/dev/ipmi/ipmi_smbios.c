@@ -29,20 +29,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/condvar.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
-#include <sys/poll.h>
 #include <sys/selinfo.h>
 
-#include <sys/module.h>
-#include <sys/bus.h>
-
-#include <machine/bus.h>
-#include <machine/resource.h>
-#include <sys/rman.h>
-#include <sys/watchdog.h>
-
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <machine/pc/bios.h>
 
@@ -52,6 +45,11 @@ __FBSDID("$FreeBSD$");
 #else
 #include <sys/ipmi.h>
 #include <dev/ipmi/ipmivars.h>
+#endif
+
+#if __FreeBSD_version < 700020
+#define	pmap_mapbios		pmap_mapdev
+#define	pmap_unmapbios		pmap_unmapdev
 #endif
 
 struct smbios_table_entry {
@@ -77,7 +75,7 @@ struct structure_header {
 	uint16_t	handle;
 };
 
-struct ipmi_device {
+struct ipmi_entry {
 	uint8_t		type;
 	uint8_t		length;
 	uint16_t	handle;
@@ -90,50 +88,88 @@ struct ipmi_device {
 	uint8_t		interrupt_number;
 };
 
+/* Fields in the base_address field of an IPMI entry. */
+#define	IPMI_BAR_MODE(ba)	((ba) & 0x0000000000000001)
+#define	IPMI_BAR_ADDR(ba)	((ba) & 0xfffffffffffffffe)
+
+/* Fields in the base_address_modifier field of an IPMI entry. */
+#define	IPMI_BAM_IRQ_TRIGGER	0x01
+#define	IPMI_BAM_IRQ_POLARITY	0x02
+#define	IPMI_BAM_IRQ_VALID	0x08
+#define	IPMI_BAM_ADDR_LSB(bam)	(((bam) & 0x10) >> 4)
+#define	IPMI_BAM_REG_SPACING(bam) (((bam) & 0xc0) >> 6)
+#define	SPACING_8		0x0
+#define	SPACING_32		0x1
+#define	SPACING_16		0x2
+
 #define	SMBIOS_START		0xf0000
 #define	SMBIOS_STEP		0x10
 #define	SMBIOS_OFF		0
 #define	SMBIOS_LEN		4
 #define	SMBIOS_SIG		"_SM_"
 
-devclass_t ipmi_devclass;
 typedef void (*dispatchproc_t)(uint8_t *p, char **table,
     struct ipmi_get_info *info);
 
-static void smbios_run_table(uint8_t *, int, dispatchproc_t *,
-    struct ipmi_get_info *);
-static char *get_strings(char *, char **);
-static int smbios_cksum	(struct smbios_table_entry *);
-static void smbios_t38_proc_info(uint8_t *, char **, struct ipmi_get_info *);
-static int ipmi_smbios_attach	(device_t);
-static int ipmi_smbios_modevent(module_t, int, void *);
+static struct ipmi_get_info ipmi_info;
+static int ipmi_probed;
+static struct mtx ipmi_info_mtx;
+MTX_SYSINIT(ipmi_info, &ipmi_info_mtx, "ipmi info", MTX_DEF);
+
+static char	*get_strings(char *, char **);
+static void	ipmi_smbios_probe(struct ipmi_get_info *);
+static int	smbios_cksum	(struct smbios_table_entry *);
+static void	smbios_run_table(uint8_t *, int, dispatchproc_t *,
+		    struct ipmi_get_info *);
+static void	smbios_t38_proc_info(uint8_t *, char **,
+		    struct ipmi_get_info *);
 
 static void
 smbios_t38_proc_info(uint8_t *p, char **table, struct ipmi_get_info *info)
 {
-	struct ipmi_device *s = (struct ipmi_device *) p;
+	struct ipmi_entry *s = (struct ipmi_entry *)p;
 
 	bzero(info, sizeof(struct ipmi_get_info));
-	if (s->interface_type == 0x01)
-		info->kcs_mode = 1;
-	if (s->interface_type == 0x02)
-		info->smic_mode = 1;
-	info->address = s->base_address & ~1;
-	switch (s->base_address_modifier >> 6) {
-	case 0x00:
-		info->offset = 1;
+	switch (s->interface_type) {
+	case KCS_MODE:
+	case SMIC_MODE:
+		info->address = IPMI_BAR_ADDR(s->base_address) |
+		    IPMI_BAM_ADDR_LSB(s->base_address_modifier);
+		info->io_mode = IPMI_BAR_MODE(s->base_address);
+		switch (IPMI_BAM_REG_SPACING(s->base_address_modifier)) {
+		case SPACING_8:
+			info->offset = 1;
+			break;
+		case SPACING_32:
+			info->offset = 4;
+			break;
+		case SPACING_16:
+			info->offset = 2;
+			break;
+		default:
+			printf("SMBIOS: Invalid register spacing\n");
+			return;
+		}
 		break;
-	case 0x01:
-		info->offset = 4;
+	case SSIF_MODE:
+		if ((s->base_address & 0xffffffffffffff00) != 0) {
+			printf("SMBIOS: Invalid SSIF SMBus address, using BMC I2C slave address instead\n");
+			info->address = s->i2c_slave_address >> 1;
+			break;
+		}
+		info->address = IPMI_BAR_ADDR(s->base_address) >> 1;
 		break;
-	case 0x10:
-		info->offset = 2;
-		break;
-	case 0x11:
-		info->offset = 0;
-		break;
+	default:
+		return;
 	}
-	info->io_mode = s->base_address & 1;
+	if (s->length > offsetof(struct ipmi_entry, interrupt_number)) {
+		if (s->interrupt_number > 15)
+			printf("SMBIOS: Non-ISA IRQ %d for IPMI\n",
+			    s->interrupt_number);
+		else
+			info->irq = s->interrupt_number;
+	}
+	info->iface_type = s->interface_type;
 }
 
 static char *
@@ -147,7 +183,7 @@ get_strings(char *p, char **table)
 	*table = 0;
 
 	/* Skip past terminating null byte */
-	return p + 1;
+	return (p + 1);
 }
 
 
@@ -177,282 +213,88 @@ smbios_run_table(uint8_t *p, int entries, dispatchproc_t *dispatchstatus,
 	}
 }
 
-device_t
-ipmi_smbios_identify (driver_t *driver, device_t parent)
+/*
+ * Walk the SMBIOS table looking for an IPMI (type 38) entry.  If we find
+ * one, return the parsed data in the passed in ipmi_get_info structure and
+ * return true.  If we don't find one, return false.
+ */
+static void
+ipmi_smbios_probe(struct ipmi_get_info *info)
 {
-	device_t child = NULL;
+	dispatchproc_t dispatch_smbios_ipmi[256];
+	struct smbios_table_entry *header;
+	void *table;
 	u_int32_t addr;
-	int length;
-	int rid1, rid2;
 
+	bzero(info, sizeof(struct ipmi_get_info));
+
+	/* Find the SMBIOS table header. */
 	addr = bios_sigsearch(SMBIOS_START, SMBIOS_SIG, SMBIOS_LEN,
 			      SMBIOS_STEP, SMBIOS_OFF);
-	if (addr != 0) {
-		rid1 = 0;
-		length = ((struct smbios_table_entry *)BIOS_PADDRTOVADDR(addr))
-		    ->length;
+	if (addr == 0)
+		return;
 
-		child = BUS_ADD_CHILD(parent, 0, "ipmi", -1);
-		if (driver != NULL)
-			device_set_driver(child, driver);
-		bus_set_resource(child, SYS_RES_MEMORY, rid1, addr, length);
-		rid2 = 1;
-		length = ((struct smbios_table_entry *)BIOS_PADDRTOVADDR(addr))
-		    ->structure_table_length;
-		addr = ((struct smbios_table_entry *)BIOS_PADDRTOVADDR(addr))
-		    ->structure_table_address;
-		bus_set_resource(child, SYS_RES_MEMORY, rid2, addr, length);
-		device_set_desc(child, "System Management BIOS");
-	} else {
-		device_printf(parent, "Failed to find SMBIOS signature\n");
+	/*
+	 * Map the header.  We first map a fixed size to get the actual
+	 * length and then map it a second time with the actual length so
+	 * we can verify the checksum.
+	 */
+	header = pmap_mapbios(addr, sizeof(struct smbios_table_entry));
+	table = pmap_mapbios(addr, header->length);
+	pmap_unmapbios((vm_offset_t)header, sizeof(struct smbios_table_entry));
+	header = table;
+	if (smbios_cksum(header) != 0) {
+		pmap_unmapbios((vm_offset_t)header, header->length);
+		return;
 	}
 
-	return child;
-}
-
-int
-ipmi_smbios_probe(device_t dev)
-{
-	struct resource *res1 = NULL, *res2 = NULL;
-	int rid1, rid2;
-	int error;
-
-	if (ipmi_attached)
-		return(EBUSY);
-
-	error = 0;
-	rid1 = 0;
-	rid2 = 1;
-	res1 = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid1,
-		0ul, ~0ul, 1, RF_ACTIVE | RF_SHAREABLE);
-
-	if (res1 == NULL) {
-		device_printf(dev, "Unable to allocate memory resource.\n");
-		error = ENOMEM;
-		goto bad;
-	}
-	res2 = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid2,
-		0ul, ~0ul, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (res2 == NULL) {
-		device_printf(dev, "Unable to allocate memory resource.\n");
-		error = ENOMEM;
-		goto bad;
-	}
-
-	if (smbios_cksum(
-	    (struct smbios_table_entry *)rman_get_virtual(res1))) {
-		device_printf(dev, "SMBIOS checksum failed.\n");
-		error = ENXIO;
-		goto bad;
-	}
-
-bad:
-	if (res1)
-		bus_release_resource(dev, SYS_RES_MEMORY, rid1, res1);
-	if (res2)
-		bus_release_resource(dev, SYS_RES_MEMORY, rid2, res2);
-	return error;
-}
-
-
-int
-ipmi_smbios_query(device_t dev)
-{
-	struct ipmi_softc *sc = device_get_softc(dev);
-	dispatchproc_t dispatch_smbios_ipmi[256];
-	struct resource *res = NULL , *res2 = NULL;
-	int rid, rid2;
-	int error;
-
-	error = 0;
-
-	rid = 0;
-	res = bus_alloc_resource(sc->ipmi_smbios_dev, SYS_RES_MEMORY, &rid,
-	    0ul, ~0ul, 1, RF_ACTIVE | RF_SHAREABLE );
-	if (res == NULL) {
-		device_printf(dev, "Unable to allocate memory resource.\n");
-		error = ENOMEM;
-		goto bad;
-	}
-	rid2 = 1;
-	res2 = bus_alloc_resource(sc->ipmi_smbios_dev, SYS_RES_MEMORY, &rid2,
-	    0ul, ~0ul, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (res2 == NULL) {
-		device_printf(dev, "Unable to allocate memory resource.\n");
-		error = ENOMEM;
-		goto bad;
-	}
-
-	sc->ipmi_smbios =
-	    (struct smbios_table_entry *)rman_get_virtual(res);
-
-	sc->ipmi_busy = 0;
-
-	device_printf(sc->ipmi_smbios_dev, "SMBIOS Version: %d.%02d",
-		sc->ipmi_smbios->major_version,
-		sc->ipmi_smbios->minor_version);
-	if (bcd2bin(sc->ipmi_smbios->BCD_revision))
-		printf(", revision: %d.%02d",
-			bcd2bin(sc->ipmi_smbios->BCD_revision >> 4),
-			bcd2bin(sc->ipmi_smbios->BCD_revision & 0x0f));
-	printf("\n");
-
-	bzero(&sc->ipmi_bios_info, sizeof(sc->ipmi_bios_info));
-
+	/* Now map the actual table and walk it looking for an IPMI entry. */
+	table = pmap_mapbios(header->structure_table_address,
+	    header->structure_table_length);
 	bzero((void *)dispatch_smbios_ipmi, sizeof(dispatch_smbios_ipmi));
 	dispatch_smbios_ipmi[38] = (void *)smbios_t38_proc_info;
-	smbios_run_table(
-	    (void *)rman_get_virtual(res2),
-	    sc->ipmi_smbios->number_structures,
-	    dispatch_smbios_ipmi,
-	    (void*)&sc->ipmi_bios_info);
+	smbios_run_table(table, header->number_structures, dispatch_smbios_ipmi,
+	    info);
 
-bad:
-	if (res)
-		bus_release_resource(sc->ipmi_smbios_dev, SYS_RES_MEMORY,
-		    rid, res);
-	res = NULL;
-	if (res2)
-		bus_release_resource(sc->ipmi_smbios_dev, SYS_RES_MEMORY,
-		    rid2, res2);
-	res2 = NULL;
-	return 0;
+	/* Unmap everything. */
+	pmap_unmapbios((vm_offset_t)table, header->structure_table_length);
+	pmap_unmapbios((vm_offset_t)header, header->length);
 }
 
-static int
-ipmi_smbios_attach(device_t dev)
+/*
+ * Return the SMBIOS IPMI table entry info to the caller.  If we haven't
+ * searched the IPMI table yet, search it.  Otherwise, return a cached
+ * copy of the data.
+ */
+int
+ipmi_smbios_identify(struct ipmi_get_info *info)
 {
-	struct ipmi_softc *sc = device_get_softc(dev);
-	int error;
-	int status, flags;
 
-	error = 0;
-	sc->ipmi_smbios_dev = dev;
-	sc->ipmi_dev = dev;
-	ipmi_smbios_query(dev);
-
-	if (sc->ipmi_bios_info.kcs_mode) {
-		if (sc->ipmi_bios_info.io_mode)
-			device_printf(dev, "KCS mode found at io 0x%llx "
-			    "alignment 0x%x on %s\n",
-			    (long long)sc->ipmi_bios_info.address,
-			    sc->ipmi_bios_info.offset,
-			    device_get_name(device_get_parent(sc->ipmi_dev)));
-		else
-			device_printf(dev, "KCS mode found at mem 0x%llx "
-			    "alignment 0x%x on %s\n",
-			    (long long)sc->ipmi_bios_info.address,
-			    sc->ipmi_bios_info.offset,
-			    device_get_name(device_get_parent(sc->ipmi_dev)));
-
-		sc->ipmi_kcs_status_reg   = sc->ipmi_bios_info.offset;
-		sc->ipmi_kcs_command_reg  = sc->ipmi_bios_info.offset;
-		sc->ipmi_kcs_data_out_reg = 0;
-		sc->ipmi_kcs_data_in_reg  = 0;
-
-		if (sc->ipmi_bios_info.io_mode) {
-			sc->ipmi_io_rid = 2;
-			sc->ipmi_io_res = bus_alloc_resource(dev,
-			    SYS_RES_IOPORT, &sc->ipmi_io_rid,
-			    sc->ipmi_bios_info.address,
-			    sc->ipmi_bios_info.address +
-				(sc->ipmi_bios_info.offset * 2),
-			    sc->ipmi_bios_info.offset * 2,
-			    RF_ACTIVE);
-		} else {
-			sc->ipmi_mem_rid = 2;
-			sc->ipmi_mem_res = bus_alloc_resource(dev,
-			    SYS_RES_MEMORY, &sc->ipmi_mem_rid,
-			    sc->ipmi_bios_info.address,
-			    sc->ipmi_bios_info.address +
-			        (sc->ipmi_bios_info.offset * 2),
-			    sc->ipmi_bios_info.offset * 2,
-			    RF_ACTIVE);
-		}
-
-		if (!sc->ipmi_io_res){
-			device_printf(dev,
-			    "couldn't configure smbios io res\n");
-			goto bad;
-		}
-
-		status = INB(sc, sc->ipmi_kcs_status_reg);
-		if (status == 0xff) {
-			device_printf(dev, "couldn't find it\n");
-			error = ENXIO;
-			goto bad;
-		}
-		if(status & KCS_STATUS_OBF){
-			ipmi_read(dev, NULL, 0);
-		}
-	} else if (sc->ipmi_bios_info.smic_mode) {
-		if (sc->ipmi_bios_info.io_mode)
-			device_printf(dev, "SMIC mode found at io 0x%llx "
-			    "alignment 0x%x on %s\n",
-			    (long long)sc->ipmi_bios_info.address,
-			    sc->ipmi_bios_info.offset,
-			    device_get_name(device_get_parent(sc->ipmi_dev)));
-		else
-			device_printf(dev, "SMIC mode found at mem 0x%llx "
-			    "alignment 0x%x on %s\n",
-			    (long long)sc->ipmi_bios_info.address,
-			    sc->ipmi_bios_info.offset,
-			    device_get_name(device_get_parent(sc->ipmi_dev)));
-
-		sc->ipmi_smic_data    = 0;
-		sc->ipmi_smic_ctl_sts = sc->ipmi_bios_info.offset;
-		sc->ipmi_smic_flags   = sc->ipmi_bios_info.offset * 2;
-
-		if (sc->ipmi_bios_info.io_mode) {
-			sc->ipmi_io_rid = 2;
-			sc->ipmi_io_res = bus_alloc_resource(dev,
-			    SYS_RES_IOPORT, &sc->ipmi_io_rid,
-			    sc->ipmi_bios_info.address,
-			    sc->ipmi_bios_info.address +
-				(sc->ipmi_bios_info.offset * 3),
-			    sc->ipmi_bios_info.offset * 3,
-			    RF_ACTIVE);
-		} else {
-			sc->ipmi_mem_res = bus_alloc_resource(dev,
-			    SYS_RES_MEMORY, &sc->ipmi_mem_rid,
-			    sc->ipmi_bios_info.address,
-			    sc->ipmi_bios_info.address +
-			        (sc->ipmi_bios_info.offset * 2),
-			    sc->ipmi_bios_info.offset * 2,
-			    RF_ACTIVE);
-		}
-
-		if (!sc->ipmi_io_res && !sc->ipmi_mem_res){
-			device_printf(dev, "couldn't configure smbios res\n");
-			error = ENXIO;
-			goto bad;
-		}
-
-		flags = INB(sc, sc->ipmi_smic_flags);
-		if (flags == 0xff) {
-			device_printf(dev, "couldn't find it\n");
-			error = ENXIO;
-			goto bad;
-		}
-		if ((flags & SMIC_STATUS_SMS_ATN)
-		    && (flags & SMIC_STATUS_RX_RDY)){
-			/* skip in smbio mode
-			ipmi_read(dev, NULL, 0);
-			*/
-		}
-	} else {
-		device_printf(dev, "No IPMI interface found\n");
-		error = ENXIO;
-		goto bad;
+	mtx_lock(&ipmi_info_mtx);
+	switch (ipmi_probed) {
+	case 0:
+		/* Need to probe the SMBIOS table. */
+		ipmi_probed++;
+		mtx_unlock(&ipmi_info_mtx);
+		ipmi_smbios_probe(&ipmi_info);
+		mtx_lock(&ipmi_info_mtx);
+		ipmi_probed++;
+		wakeup(&ipmi_info);
+		break;
+	case 1:
+		/* Another thread is currently probing the table, so wait. */
+		while (ipmi_probed == 1)
+			msleep(&ipmi_info, &ipmi_info_mtx, 0, "ipmi info", 0);
+		break;
+	default:
+		/* The cached data is available. */
+		break;
 	}
-	ipmi_attach(dev);
 
-	return 0;
-bad:
-	/*
-	device_delete_child(device_get_parent(dev), dev);
-	*/
-	return error;
+	bcopy(&ipmi_info, info, sizeof(ipmi_info));
+	mtx_unlock(&ipmi_info_mtx);
+
+	return (info->iface_type != 0);
 }
 
 static int
@@ -468,71 +310,5 @@ smbios_cksum (struct smbios_table_entry *e)
 		cksum += ptr[i];
 	}
 
-	return cksum;
+	return (cksum);
 }
-
-
-static int
-ipmi_smbios_detach (device_t dev)
-{
-	struct ipmi_softc *sc;
-
-	sc = device_get_softc(dev);
-	ipmi_detach(dev);
-	if (sc->ipmi_ev_tag)
-		EVENTHANDLER_DEREGISTER(watchdog_list, sc->ipmi_ev_tag);
-
-	if (sc->ipmi_mem_res)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->ipmi_mem_rid,
-		    sc->ipmi_mem_res);
-	if (sc->ipmi_io_res)
-		bus_release_resource(dev, SYS_RES_IOPORT, sc->ipmi_io_rid,
-		    sc->ipmi_io_res);
-	return 0;
-}
-
-
-static device_method_t ipmi_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_identify,      ipmi_smbios_identify),
-	DEVMETHOD(device_probe,         ipmi_smbios_probe),
-	DEVMETHOD(device_attach,        ipmi_smbios_attach),
-	DEVMETHOD(device_detach,        ipmi_smbios_detach),
-	{ 0, 0 }
-};
-
-static driver_t ipmi_smbios_driver = {
-	"ipmi",
-	ipmi_methods,
-	sizeof(struct ipmi_softc),
-};
-
-static int
-ipmi_smbios_modevent (mod, what, arg)
-        module_t        mod;
-        int             what;
-        void *          arg;
-{
-	device_t *	devs;
-	int		count;
-	int		i;
-
-	switch (what) {
-	case MOD_LOAD:
-		return 0;
-	case MOD_UNLOAD:
-		devclass_get_devices(ipmi_devclass, &devs, &count);
-		for (i = 0; i < count; i++) {
-			device_delete_child(device_get_parent(devs[i]),
-					    devs[i]);
-		}
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
-DRIVER_MODULE(ipmi, isa, ipmi_smbios_driver, ipmi_devclass,
-    ipmi_smbios_modevent, 0);

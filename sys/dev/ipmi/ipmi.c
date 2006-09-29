@@ -29,20 +29,17 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/condvar.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/poll.h>
-#include <sys/selinfo.h>
-
-#include <sys/disk.h>
 #include <sys/module.h>
-#include <sys/bus.h>
-
-#include <machine/bus.h>
-#include <machine/resource.h>
+#include <sys/poll.h>
 #include <sys/rman.h>
-#include <sys/watchdog.h>
+#include <sys/selinfo.h>
 #include <sys/sysctl.h>
+#include <sys/watchdog.h>
 
 #ifdef LOCAL_MODULE
 #include <ipmi.h>
@@ -52,29 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ipmi/ipmivars.h>
 #endif
 
-struct ipmi_done_list {
-	u_char		*data;
-	int		channel;
-	int		msgid;
-	int		len;
-	TAILQ_ENTRY(ipmi_done_list) list;
-};
-
-#define MAX_TIMEOUT 3 * hz
-
-static int ipmi_wait_for_ibf(device_t, int);
-static int ipmi_wait_for_obf(device_t, int);
-static void ipmi_clear_obf(device_t, int);
-static void ipmi_error(device_t);
-static void ipmi_check_read(device_t);
-static int ipmi_write(device_t, u_char *, int);
-static void ipmi_wait_for_tx_okay(device_t);
-static void ipmi_wait_for_rx_okay(device_t);
-static void ipmi_wait_for_not_busy(device_t);
-static void ipmi_set_busy(device_t);
-static int ipmi_ready_to_read(device_t);
 #ifdef IPMB
-static int ipmi_handle_attn(device_t dev);
 static int ipmi_ipmb_checksum(u_char, int);
 static int ipmi_ipmb_send_message(device_t, u_char, u_char, u_char,
      u_char, u_char, int)
@@ -92,11 +67,10 @@ int ipmi_attached = 0;
 static int on = 1;
 SYSCTL_NODE(_hw, OID_AUTO, ipmi, CTLFLAG_RD, 0, "IPMI driver parameters");
 SYSCTL_INT(_hw_ipmi, OID_AUTO, on, CTLFLAG_RW,
-        &on, 0, "");
+	&on, 0, "");
 
 static struct cdevsw ipmi_cdevsw = {
 	.d_version =    D_VERSION,
-	.d_flags =      D_NEEDGIANT,
 	.d_open =	ipmi_open,
 	.d_close =	ipmi_close,
 	.d_ioctl =	ipmi_ioctl,
@@ -106,60 +80,126 @@ static struct cdevsw ipmi_cdevsw = {
 
 MALLOC_DEFINE(M_IPMI, "ipmi", "ipmi");
 
-static	int
-ipmi_open(struct cdev *dev, int flags, int fmt, struct thread *td)
+static int
+ipmi_open(struct cdev *cdev, int flags, int fmt, struct thread *td)
 {
+	struct ipmi_device *dev;
 	struct ipmi_softc *sc;
 
 	if (!on)
-		return ENOENT;
+		return (ENOENT);
 
-	sc = dev->si_drv1;
-	if (sc->ipmi_refcnt) {
-		return EBUSY;
+	dev = cdev->si_drv1;
+	sc = dev->ipmi_softc;
+	IPMI_LOCK(sc);
+	if (dev->ipmi_open) {
+		IPMI_UNLOCK(sc);
+		return (EBUSY);
 	}
-	sc->ipmi_refcnt = 1;
+	dev->ipmi_open = 1;
+	IPMI_UNLOCK(sc);
 
-	return 0;
+	return (0);
 }
 
-static	int
-ipmi_poll(struct cdev *dev, int poll_events, struct thread *td)
+static int
+ipmi_poll(struct cdev *cdev, int poll_events, struct thread *td)
 {
+	struct ipmi_device *dev;
 	struct ipmi_softc *sc;
 	int revents = 0;
 
-	sc = dev->si_drv1;
+	dev = cdev->si_drv1;
+	sc = dev->ipmi_softc;
 
-	ipmi_check_read(sc->ipmi_dev);
-
+	IPMI_LOCK(sc);
 	if (poll_events & (POLLIN | POLLRDNORM)) {
-		if (!TAILQ_EMPTY(&sc->ipmi_done))
+		if (!TAILQ_EMPTY(&dev->ipmi_completed_requests))
 		    revents |= poll_events & (POLLIN | POLLRDNORM);
-		if (TAILQ_EMPTY(&sc->ipmi_done) && sc->ipmi_requests == 0) {
+		if (dev->ipmi_requests == 0)
 		    revents |= POLLERR;
-		}
 	}
 
 	if (revents == 0) {
 		if (poll_events & (POLLIN | POLLRDNORM))
-			selrecord(td, &sc->ipmi_select);
+			selrecord(td, &dev->ipmi_select);
 	}
+	IPMI_UNLOCK(sc);
 
-	return revents;
+	return (revents);
 }
 
-static	int
-ipmi_close(struct cdev *dev, int flags, int fmt, struct thread *td)
+static void
+ipmi_purge_completed_requests(struct ipmi_device *dev)
 {
+	struct ipmi_request *req;
+
+	while (!TAILQ_EMPTY(&dev->ipmi_completed_requests)) {
+		req = TAILQ_FIRST(&dev->ipmi_completed_requests);
+		TAILQ_REMOVE(&dev->ipmi_completed_requests, req, ir_link);
+		dev->ipmi_requests--;
+		ipmi_free_request(req);
+	}
+}
+
+static int
+ipmi_close(struct cdev *cdev, int flags, int fmt, struct thread *td)
+{
+	struct ipmi_request *req, *nreq;
+	struct ipmi_device *dev;
 	struct ipmi_softc *sc;
-	int error = 0;
+#ifdef CLONING
+	int bit;
+#endif
 
-	sc = dev->si_drv1;
+	dev = cdev->si_drv1;
+	sc = dev->ipmi_softc;
 
-	sc->ipmi_refcnt = 0;
+	IPMI_LOCK(sc);
+	if (dev->ipmi_requests) {
+		/* Throw away any pending requests for this device. */
+		TAILQ_FOREACH_SAFE(req, &sc->ipmi_pending_requests, ir_link,
+		    nreq) {
+			if (req->ir_owner == dev) {
+				TAILQ_REMOVE(&sc->ipmi_pending_requests, req,
+				    ir_link);
+				dev->ipmi_requests--;
+				ipmi_free_request(req);
+			}
+		}
 
-	return error;
+		/* Throw away any pending completed requests for this device. */
+		ipmi_purge_completed_requests(dev);
+
+		/*
+		 * If we still have outstanding requests, they must be stuck
+		 * in an interface driver, so wait for those to drain.
+		 */
+		dev->ipmi_closing = 1;
+		while (dev->ipmi_requests > 0) {
+			msleep(&dev->ipmi_requests, &sc->ipmi_lock, PWAIT,
+			    "ipmidrain", 0);
+			ipmi_purge_completed_requests(dev);
+		}
+	}
+
+#ifdef CLONING
+	/* Detach this sub-device from the main driver. */
+	bit = minor(cdev) % 32;
+	sc->ipmi_cdev_mask &= ~(1 << bit);
+	TAILQ_REMOVE(&sc->ipmi_cdevs, dev, ipmi_link);
+	IPMI_UNLOCK(sc);
+
+	/* Cleanup. */
+	cdev->si_drv1 = NULL;
+	free(dev, M_IPMI);
+	destroy_dev(cdev);
+#else
+	dev->ipmi_open = 0;
+	IPMI_UNLOCK(sc);
+#endif
+
+	return (0);
 }
 
 #ifdef IPMB
@@ -171,707 +211,384 @@ ipmi_ipmb_checksum(u_char *data, int len)
 	for (; len; len--) {
 		sum += *data++;
 	}
-	return -sum;
+	return (-sum);
 }
 
+/* XXX: Needs work */
 static int
 ipmi_ipmb_send_message(device_t dev, u_char channel, u_char netfn,
     u_char command, u_char seq, u_char *data, int data_len)
 {
-	u_char *temp;
 	struct ipmi_softc *sc = device_get_softc(dev);
-	int error;
+	struct ipmi_request *req;
 	u_char slave_addr = 0x52;
+	int error;
 
-	temp = malloc(data_len + 10, M_IPMI, M_WAITOK);
-	bzero(temp, data_len + 10);
-	temp[0] = IPMI_APP_REQUEST << 2;
-	temp[1] = IPMI_SEND_MSG;
-	temp[2] = channel;
-	temp[3] = slave_addr;
-	temp[4] = netfn << 2;
-	temp[5] = ipmi_ipmb_check_sum(&temp[3], 2);
-	temp[6] = sc->ipmi_address;
-	temp[7] = seq << 2 | sc->ipmi_lun;
-	temp[8] = command;
+	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+	    IPMI_SEND_MSG, data_len + 8, 0);
+	req->ir_request[0] = channel;
+	req->ir_request[1] = slave_addr;
+	req->ir_request[2] = IPMI_ADDR(netfn, 0);
+	req->ir_request[3] = ipmi_ipmb_checksum(&req->ir_request[1], 2);
+	req->ir_request[4] = sc->ipmi_address;
+	req->ir_request[5] = IPMI_ADDR(seq, sc->ipmi_lun);
+	req->ir_request[6] = command;
 
-	bcopy(data, &temp[9], data_len);
-	temp[data_len + 9] = ipmi_ipmb_check(&temp[6], data_len + 3);
-	ipmi_write(sc->ipmi_dev, temp, data_len + 9);
-	free(temp, M_IPMI);
+	bcopy(data, &req->ir_request[7], data_len);
+	temp[data_len + 7] = ipmi_ipmb_checksum(&req->ir_request[4],
+	    data_len + 3);
 
-	while (!ipmi_ready_to_read(dev))
-		DELAY(1000);
-	temp = malloc(IPMI_MAX_RX, M_IPMI, M_WAITOK);
-	bzero(temp, IPMI_MAX_RX);
-	error = ipmi_read(dev, temp, IPMI_MAX_RX);
-	free(temp, M_IPMI);
+	ipmi_submit_driver_request(sc, req);
+	error = req->ir_error;
+	ipmi_free_request(req);
 
-	return error;
+	return (error);
 }
 
 static int
-ipmi_handle_attn(device_t dev)
+ipmi_handle_attn(struct ipmi_softc *sc)
 {
-	u_char temp[IPMI_MAX_RX];
-	struct ipmi_softc *sc = device_get_softc(dev);
+	struct ipmi_request *req;
 	int error;
 
 	device_printf(sc->ipmi_dev, "BMC has a message\n");
-	temp[0] = IPMI_APP_REQUEST << 2;
-	temp[1] = IPMI_GET_MSG_FLAGS;
-	ipmi_write(sc->ipmi_dev, temp, 2);
-	while (!ipmi_ready_to_read(dev))
-		DELAY(1000);
-	bzero(temp, IPMI_MAX_RX);
-	error = ipmi_read(dev, temp, IPMI_MAX_RX);
+	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+	    IPMI_GET_MSG_FLAGS, 0, 1);
 
-	if (temp[2] == 0) {
-		if (temp[3] & IPMI_MSG_BUFFER_FULL) {
+	ipmi_submit_driver_request(sc, req);
+
+	if (req->ir_error == 0 && req->ir_compcode == 0) {
+		if (req->ir_reply[0] & IPMI_MSG_BUFFER_FULL) {
 			device_printf(sc->ipmi_dev, "message buffer full");
 		}
-		if (temp[3] & IPMI_WDT_PRE_TIMEOUT) {
+		if (req->ir_reply[0] & IPMI_WDT_PRE_TIMEOUT) {
 			device_printf(sc->ipmi_dev,
 			    "watchdog about to go off");
 		}
-		if (temp[3] & IPMI_MSG_AVAILABLE) {
-			temp[0] = IPMI_APP_REQUEST << 2;
-			temp[1] = IPMI_GET_MSG;
-			ipmi_write(sc->ipmi_dev, temp, 2);
-			while (!ipmi_ready_to_read(dev))
-				DELAY(1000);
-			bzero(temp, IPMI_MAX_RX);
-			error = ipmi_read(dev, temp, IPMI_MAX_RX);
+		if (req->ir_reply[0] & IPMI_MSG_AVAILABLE) {
+			ipmi_free_request(req);
+
+			req = ipmi_alloc_driver_request(
+			    IPMI_ADDR(IPMI_APP_REQUEST, 0), IPMI_GET_MSG, 0,
+			    16);
 
 			device_printf(sc->ipmi_dev, "throw out message ");
 			dump_buf(temp, 16);
 		}
-	} else
-		return -1;
-	return error;
+	}
+	error = req->ir_error;
+	ipmi_free_request(req);
+
+	return (error);
 }
+#endif
+
+#ifdef IPMICTL_SEND_COMMAND_32
+#define	PTRIN(p)	((void *)(uintptr_t)(p))
+#define	PTROUT(p)	((uintptr_t)(p))
 #endif
 
 static int
-ipmi_ready_to_read(device_t dev)
-{
-	struct ipmi_softc *sc = device_get_softc(dev);
-	int status, flags;
-
-	if (sc->ipmi_bios_info.smic_mode) {
-		flags = INB(sc, sc->ipmi_smic_flags);
-#ifdef IPMB
-		if (flags & SMIC_STATUS_SMS_ATN) {
-			ipmi_handle_attn(dev);
-			return 0;
-		}
-#endif
-		if (flags & SMIC_STATUS_RX_RDY)
-			 return 1;
-	} else if (sc->ipmi_bios_info.kcs_mode) {
-		status = INB(sc, sc->ipmi_kcs_status_reg);
-#ifdef IPMB
-		if (status & KCS_STATUS_SMS_ATN) {
-			ipmi_handle_attn(dev);
-			return 0;
-		}
-#endif
-		if (status & KCS_STATUS_OBF)
-			 return 1;
-	} else {
-		device_printf(dev,"Unsupported mode\n");
-	}
-
-	return 0;
-}
-
-void
-ipmi_intr(void *arg) {
-	device_t  dev = arg;
-
-	ipmi_check_read(dev);
-}
-
-static void
-ipmi_check_read(device_t dev){
-	struct ipmi_softc *sc = device_get_softc(dev);
-	struct ipmi_done_list *item;
-	int status;
-	u_char *temp;
-
-	if (!sc->ipmi_requests)
-		return;
-
-	untimeout((timeout_t *)ipmi_check_read, dev, sc->ipmi_timeout_handle);
-
-	if(ipmi_ready_to_read(dev)) {
-		sc->ipmi_requests--;
-		temp = malloc(IPMI_MAX_RX, M_IPMI, M_WAITOK);
-		bzero(temp, IPMI_MAX_RX);
-		status = ipmi_read(dev, temp, IPMI_MAX_RX);
-		item = malloc(sizeof(struct ipmi_done_list), M_IPMI, M_WAITOK);
-		bzero(item, sizeof(struct ipmi_done_list));
-		item->data = temp;
-		item->len  = status;
-		if (ticks - sc->ipmi_timestamp > MAX_TIMEOUT) {
-			device_printf(dev, "read timeout when ready\n");
-			TAILQ_INSERT_TAIL(&sc->ipmi_done, item, list);
-			selwakeup(&sc->ipmi_select);
-		} else if (status) {
-			TAILQ_INSERT_TAIL(&sc->ipmi_done, item, list);
-			selwakeup(&sc->ipmi_select);
-		}
-	} else {
-		if (ticks - sc->ipmi_timestamp > MAX_TIMEOUT) {
-			sc->ipmi_requests--;
-			device_printf(dev, "read timeout when not ready\n");
-			temp = malloc(IPMI_MAX_RX, M_IPMI, M_WAITOK);
-			bzero(temp, IPMI_MAX_RX);
-			sc->ipmi_busy = 0;
-			wakeup(&sc->ipmi_busy);
-			status = -1;
-			item = malloc(sizeof(struct ipmi_done_list),
-			    M_IPMI, M_WAITOK);
-			bzero(item, sizeof(struct ipmi_done_list));
-			item->data = temp;
-			item->len  = status;
-			TAILQ_INSERT_TAIL(&sc->ipmi_done, item, list);
-			selwakeup(&sc->ipmi_select);
-		}
-	}
-	if (sc->ipmi_requests)
-		sc->ipmi_timeout_handle
-			= timeout((timeout_t *)ipmi_check_read, dev, hz/30);
-}
-
-static int
-ipmi_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
+ipmi_ioctl(struct cdev *cdev, u_long cmd, caddr_t data,
     int flags, struct thread *td)
 {
 	struct ipmi_softc *sc;
+	struct ipmi_device *dev;
+	struct ipmi_request *kreq;
 	struct ipmi_req *req = (struct ipmi_req *)data;
 	struct ipmi_recv *recv = (struct ipmi_recv *)data;
 	struct ipmi_addr addr;
-	struct ipmi_done_list *item;
-	u_char *temp;
+#ifdef IPMICTL_SEND_COMMAND_32
+	struct ipmi_req32 *req32 = (struct ipmi_req32 *)data;
+	struct ipmi_recv32 *recv32 = (struct ipmi_recv32 *)data;
+	union {
+		struct ipmi_req req;
+		struct ipmi_recv recv;
+	} thunk32;
+#endif
 	int error, len;
 
-	sc = dev->si_drv1;
+	dev = cdev->si_drv1;
+	sc = dev->ipmi_softc;
+
+#ifdef IPMICTL_SEND_COMMAND_32
+	/* Convert 32-bit structures to native. */
+	switch (cmd) {
+	case IPMICTL_SEND_COMMAND_32:
+		req = &thunk32.req;
+		req->addr = PTRIN(req32->addr);
+		req->addr_len = req32->addr_len;
+		req->msgid = req32->msgid;
+		req->msg.netfn = req32->msg.netfn;
+		req->msg.cmd = req32->msg.cmd;
+		req->msg.data_len = req32->msg.data_len;
+		req->msg.data = PTRIN(req32->msg.data);
+		break;
+	case IPMICTL_RECEIVE_MSG_TRUNC_32:
+	case IPMICTL_RECEIVE_MSG_32:
+		recv = &thunk32.recv;
+		recv->addr = PTRIN(recv32->addr);
+		recv->addr_len = recv32->addr_len;
+		recv->msg.data_len = recv32->msg.data_len;
+		recv->msg.data = PTRIN(recv32->msg.data);
+		break;
+	}
+#endif
 
 	switch (cmd) {
+#ifdef IPMICTL_SEND_COMMAND_32
+	case IPMICTL_SEND_COMMAND_32:
+#endif
 	case IPMICTL_SEND_COMMAND:
-		/* clear out old stuff in queue of stuff done */
-		while((item = TAILQ_FIRST(&sc->ipmi_done))) {
-			TAILQ_REMOVE(&sc->ipmi_done, item, list);
-			free(item->data, M_IPMI);
-			free(item, M_IPMI);
-		}
-
+		/*
+		 * XXX: Need to add proper handling of this.
+		 */
 		error = copyin(req->addr, &addr, sizeof(addr));
-		temp = malloc(req->msg.data_len + 2, M_IPMI, M_WAITOK);
-		if (temp == NULL) {
-			return ENOMEM;
+		if (error)
+			return (error);
+
+		IPMI_LOCK(sc);
+		/* clear out old stuff in queue of stuff done */
+		/* XXX: This seems odd. */
+		while ((kreq = TAILQ_FIRST(&dev->ipmi_completed_requests))) {
+			TAILQ_REMOVE(&dev->ipmi_completed_requests, kreq,
+			    ir_link);
+			dev->ipmi_requests--;
+			ipmi_free_request(kreq);
 		}
-		temp[0] = req->msg.netfn << 2;
-		temp[1] = req->msg.cmd;
-		error = copyin(req->msg.data, &temp[2],
+		IPMI_UNLOCK(sc);
+
+		kreq = ipmi_alloc_request(dev, req->msgid,
+		    IPMI_ADDR(req->msg.netfn, 0), req->msg.cmd,
+		    req->msg.data_len, IPMI_MAX_RX);
+		error = copyin(req->msg.data, kreq->ir_request,
 		    req->msg.data_len);
-		if (error != 0) {
-			free(temp, M_IPMI);
-			return error;
+		if (error) {
+			ipmi_free_request(kreq);
+			return (error);
 		}
-		error = ipmi_write(sc->ipmi_dev,
-		    temp, req->msg.data_len + 2);
-		free(temp, M_IPMI);
-
-		if (error != 1)
-			return EIO;
-		sc->ipmi_requests++;
-		sc->ipmi_timestamp = ticks;
-		ipmi_check_read(sc->ipmi_dev);
-
-		return 0;
+		IPMI_LOCK(sc);
+		dev->ipmi_requests++;
+		error = sc->ipmi_enqueue_request(sc, kreq);
+		IPMI_UNLOCK(sc);
+		if (error)
+			return (error);
+		break;
+#ifdef IPMICTL_SEND_COMMAND_32
+	case IPMICTL_RECEIVE_MSG_TRUNC_32:
+	case IPMICTL_RECEIVE_MSG_32:
+#endif
 	case IPMICTL_RECEIVE_MSG_TRUNC:
 	case IPMICTL_RECEIVE_MSG:
-		item = TAILQ_FIRST(&sc->ipmi_done);
-		if (!item) {
-			return EAGAIN;
-		}
-
 		error = copyin(recv->addr, &addr, sizeof(addr));
-		if (error != 0)
-			return error;
-		TAILQ_REMOVE(&sc->ipmi_done, item, list);
-		addr.channel = IPMI_BMC_CHANNEL;
-		recv->recv_type = IPMI_RESPONSE_RECV_TYPE;
-		recv->msgid = item->msgid;
-		recv->msg.netfn = item->data[0] >> 2;
-		recv->msg.cmd = item->data[1];
-		error = len = item->len;
-		len -= 2;
-		if (len < 0)
-			len = 1;
-		if (recv->msg.data_len < len && cmd == IPMICTL_RECEIVE_MSG) {
-			TAILQ_INSERT_HEAD(&sc->ipmi_done, item, list);
-			return EMSGSIZE;
+		if (error)
+			return (error);
+
+		IPMI_LOCK(sc);
+		kreq = TAILQ_FIRST(&dev->ipmi_completed_requests);
+		if (kreq == NULL) {
+			IPMI_UNLOCK(sc);
+			return (EAGAIN);
 		}
+		addr.channel = IPMI_BMC_CHANNEL;
+		/* XXX */
+		recv->recv_type = IPMI_RESPONSE_RECV_TYPE;
+		recv->msgid = kreq->ir_msgid;
+		recv->msg.netfn = IPMI_REPLY_ADDR(kreq->ir_addr) >> 2;
+		recv->msg.cmd = kreq->ir_command;
+		error = kreq->ir_error;
+		if (error) {
+			TAILQ_REMOVE(&dev->ipmi_completed_requests, kreq,
+			    ir_link);
+			dev->ipmi_requests--;
+			IPMI_UNLOCK(sc);
+			ipmi_free_request(kreq);
+			return (error);
+		}
+		len = kreq->ir_replylen + 1;
+		if (recv->msg.data_len < len &&
+		    (cmd == IPMICTL_RECEIVE_MSG
+#ifdef IPMICTL_RECEIVE_MSG_32
+		     || cmd == IPMICTL_RECEIVE_MSG
+#endif
+		    )) {
+			IPMI_UNLOCK(sc);
+			return (EMSGSIZE);
+		}
+		TAILQ_REMOVE(&dev->ipmi_completed_requests, kreq, ir_link);
+		dev->ipmi_requests--;
+		IPMI_UNLOCK(sc);
 		len = min(recv->msg.data_len, len);
 		recv->msg.data_len = len;
 		error = copyout(&addr, recv->addr,sizeof(addr));
 		if (error == 0)
-			error = copyout(&item->data[2], recv->msg.data, len);
-		free(item->data, M_IPMI);
-		free(item, M_IPMI);
-
-		if (error != 0)
-			return error;
-		return 0;
+			error = copyout(&kreq->ir_compcode, recv->msg.data, 1);
+		if (error == 0)
+			error = copyout(kreq->ir_reply, recv->msg.data + 1,
+			    len - 1);
+		ipmi_free_request(kreq);
+		if (error)
+			return (error);
+		break;
 	case IPMICTL_SET_MY_ADDRESS_CMD:
-		sc->ipmi_address = *(int*)data;
-		return 0;
+		IPMI_LOCK(sc);
+		dev->ipmi_address = *(int*)data;
+		IPMI_UNLOCK(sc);
+		break;
 	case IPMICTL_GET_MY_ADDRESS_CMD:
-		*(int*)data = sc->ipmi_address;
-		return 0;
+		IPMI_LOCK(sc);
+		*(int*)data = dev->ipmi_address;
+		IPMI_UNLOCK(sc);
+		break;
 	case IPMICTL_SET_MY_LUN_CMD:
-		sc->ipmi_lun = *(int*)data & 0x3;
-		return 0;
+		IPMI_LOCK(sc);
+		dev->ipmi_lun = *(int*)data & 0x3;
+		IPMI_UNLOCK(sc);
+		break;
 	case IPMICTL_GET_MY_LUN_CMD:
-		*(int*)data = sc->ipmi_lun;
-		return 0;
+		IPMI_LOCK(sc);
+		*(int*)data = dev->ipmi_lun;
+		IPMI_UNLOCK(sc);
+		break;
 	case IPMICTL_SET_GETS_EVENTS_CMD:
 		/*
 		device_printf(sc->ipmi_dev,
 		    "IPMICTL_SET_GETS_EVENTS_CMD NA\n");
 		*/
-		return 0;
+		break;
 	case IPMICTL_REGISTER_FOR_CMD:
 	case IPMICTL_UNREGISTER_FOR_CMD:
-		return EOPNOTSUPP;
+		return (EOPNOTSUPP);
+	default:
+		device_printf(sc->ipmi_dev, "Unknown IOCTL %lX\n", cmd);
+		return (ENOIOCTL);
 	}
 
-	device_printf(sc->ipmi_dev, "Unknown IOCTL %lX\n", cmd);
-
-	return ENOIOCTL;
-}
-
-static int
-ipmi_wait_for_ibf(device_t dev, int state) {
-	struct ipmi_softc *sc = device_get_softc(dev);
-	int status, start = ticks;
-	int first = 1;
-
-	if (state == 0) {
-		/* WAIT FOR IBF = 0 */
-		do {
-			if (first)
-				first =0;
-			else
-				DELAY(100);
-			status = INB(sc, sc->ipmi_kcs_status_reg);
-		} while (ticks - start < MAX_TIMEOUT
-		    && status & KCS_STATUS_IBF);
-	} else {
-		/* WAIT FOR IBF = 1 */
-		do {
-			if (first)
-				first =0;
-			else
-				DELAY(100);
-			status = INB(sc, sc->ipmi_kcs_status_reg);
-		} while (ticks - start < MAX_TIMEOUT
-		    && !(status & KCS_STATUS_IBF));
+#ifdef IPMICTL_SEND_COMMAND_32
+	/* Update changed fields in 32-bit structures. */
+	switch (cmd) {
+	case IPMICTL_RECEIVE_MSG_TRUNC_32:
+	case IPMICTL_RECEIVE_MSG_32:
+		recv32->recv_type = recv->recv_type;
+		recv32->msgid = recv->msgid;
+		recv32->msg.netfn = recv->msg.netfn;
+		recv32->msg.cmd = recv->msg.cmd;
+		recv32->msg.data_len = recv->msg.data_len;
+		break;
 	}
-	return status;
+#endif
+	return (0);
 }
 
-static int
-ipmi_wait_for_obf(device_t dev, int state) {
-	struct ipmi_softc *sc = device_get_softc(dev);
-	int status, start = ticks;
-	int first = 1;
+/*
+ * Request management.
+ */
 
-	if (state == 0) {
-		/* WAIT FOR OBF = 0 */
-		do {
-			if (first)
-				first = 0;
-			else
-				DELAY(100);
-			status = INB(sc, sc->ipmi_kcs_status_reg);
-		} while (ticks - start < MAX_TIMEOUT
-		    && status & KCS_STATUS_OBF);
-	} else {
-		/* WAIT FOR OBF = 1 */
-		do {
-			if (first)
-				first =0;
-			else
-				DELAY(100);
-			status = INB(sc, sc->ipmi_kcs_status_reg);
-		} while (ticks - start < MAX_TIMEOUT
-		    && !(status & KCS_STATUS_OBF));
+/* Allocate a new request with request and reply buffers. */
+struct ipmi_request *
+ipmi_alloc_request(struct ipmi_device *dev, long msgid, uint8_t addr,
+    uint8_t command, size_t requestlen, size_t replylen)
+{
+	struct ipmi_request *req;
+
+	req = malloc(sizeof(struct ipmi_request) + requestlen + replylen,
+	    M_IPMI, M_WAITOK | M_ZERO);
+	req->ir_owner = dev;
+	req->ir_msgid = msgid;
+	req->ir_addr = addr;
+	req->ir_command = command;
+	if (requestlen) {
+		req->ir_request = (char *)&req[1];
+		req->ir_requestlen = requestlen;
 	}
-	return status;
-}
-
-static void
-ipmi_clear_obf(device_t dev, int status) {
-	struct ipmi_softc *sc = device_get_softc(dev);
-	int data;
-
-	/* Clear OBF */
-	if (status & KCS_STATUS_OBF) {
-		data = INB(sc, sc->ipmi_kcs_data_out_reg);
+	if (replylen) {
+		req->ir_reply = (char *)&req[1] + requestlen;
+		req->ir_replybuflen = replylen;
 	}
+	return (req);
 }
 
-static void
-ipmi_error(device_t dev) {
-	struct ipmi_softc *sc = device_get_softc(dev);
-	int status, data = 0;
-	int retry = 0;
+/* Free a request no longer in use. */
+void
+ipmi_free_request(struct ipmi_request *req)
+{
 
-	for(;;){
-		status = ipmi_wait_for_ibf(dev, 0);
+	free(req, M_IPMI);
+}
 
-		/* ABORT */
-		OUTB(sc, sc->ipmi_kcs_command_reg,
-		     KCS_CONTROL_GET_STATUS_ABORT);
+/* Store a processed request on the appropriate completion queue. */
+void
+ipmi_complete_request(struct ipmi_softc *sc, struct ipmi_request *req)
+{
+	struct ipmi_device *dev;
 
-		/* Wait for IBF = 0 */
-		status = ipmi_wait_for_ibf(dev, 0);
+	IPMI_LOCK_ASSERT(sc);
 
-		/* Clear OBF */
-		ipmi_clear_obf(dev, status);
-
-		if (status & KCS_STATUS_OBF) {
-			data = INB(sc, sc->ipmi_kcs_data_out_reg);
-			device_printf(dev, "Data %x\n", data);
-		}
-
-		/* 0x00 to DATA_IN */
-		OUTB(sc, sc->ipmi_kcs_data_in_reg, 0x00);
-
-		/* Wait for IBF = 0 */
-		status = ipmi_wait_for_ibf(dev, 0);
-
-		if (KCS_STATUS_STATE(status) == KCS_STATUS_STATE_READ) {
-
-			/* Wait for OBF = 1 */
-			status = ipmi_wait_for_obf(dev, 1);
-
-			/* Read error status */
-			data = INB(sc, sc->ipmi_kcs_data_out_reg);
-
-			/* Write READ into Data_in */
-			OUTB(sc, sc->ipmi_kcs_data_in_reg, KCS_DATA_IN_READ);
-
-			/* Wait for IBF = 0 */
-			status = ipmi_wait_for_ibf(dev, 0);
-		}
-
-		/* IDLE STATE */
-		if (KCS_STATUS_STATE(status) == KCS_STATUS_STATE_IDLE) {
-			/* Wait for OBF = 1 */
-			status = ipmi_wait_for_obf(dev, 1);
-
-			/* Clear OBF */
-			ipmi_clear_obf(dev, status);
-			break;
-		}
-
-		retry++;
-		if (retry > 2) {
-			device_printf(dev, "Retry exhausted %x\n", retry);
-			break;
-		}
+	/*
+	 * Anonymous requests (from inside the driver) always have a
+	 * waiter that we awaken.
+	 */
+	if (req->ir_owner == NULL)
+		wakeup(req);
+	else {
+		dev = req->ir_owner;
+		TAILQ_INSERT_TAIL(&dev->ipmi_completed_requests, req, ir_link);
+		selwakeup(&dev->ipmi_select);
+		if (dev->ipmi_closing)
+			wakeup(&dev->ipmi_requests);
 	}
 }
 
-static void
-ipmi_wait_for_tx_okay(device_t dev) {
-	struct ipmi_softc *sc = device_get_softc(dev);
-	int flags;
-
-	do {
-		flags = INB(sc, sc->ipmi_smic_flags);
-	} while(!flags & SMIC_STATUS_TX_RDY);
-}
-
-static void
-ipmi_wait_for_rx_okay(device_t dev) {
-	struct ipmi_softc *sc = device_get_softc(dev);
-	int flags;
-
-	do {
-		flags = INB(sc, sc->ipmi_smic_flags);
-	} while(!flags & SMIC_STATUS_RX_RDY);
-}
-
-static void
-ipmi_wait_for_not_busy(device_t dev) {
-	struct ipmi_softc *sc = device_get_softc(dev);
-	int flags;
-
-	do {
-		flags = INB(sc, sc->ipmi_smic_flags);
-	} while(flags & SMIC_STATUS_BUSY);
-}
-
-static void
-ipmi_set_busy(device_t dev) {
-	struct ipmi_softc *sc = device_get_softc(dev);
-	int flags;
-
-	flags = INB(sc, sc->ipmi_smic_flags);
-	flags |= SMIC_STATUS_BUSY;
-	OUTB(sc, sc->ipmi_smic_flags, flags);
-}
-
+/* Enqueue an internal driver request and wait until it is completed. */
 int
-ipmi_read(device_t dev, u_char *bytes, int len){
-	struct ipmi_softc *sc = device_get_softc(dev);
-	int status, flags, data, i = -1, error;
+ipmi_submit_driver_request(struct ipmi_softc *sc, struct ipmi_request *req,
+    int timo)
+{
+	int error;
 
-	bzero(bytes, len);
-	if (sc->ipmi_bios_info.smic_mode) {
-		ipmi_wait_for_not_busy(dev);
-		do {
-			flags = INB(sc, sc->ipmi_smic_flags);
-		} while(!flags & SMIC_STATUS_RX_RDY);
-
-		OUTB(sc, sc->ipmi_smic_ctl_sts, SMIC_CC_SMS_RD_START);
-		ipmi_wait_for_rx_okay(dev);
-		ipmi_set_busy(dev);
-		ipmi_wait_for_not_busy(dev);
-		status = INB(sc, sc->ipmi_smic_ctl_sts);
-		if (status != SMIC_SC_SMS_RD_START) {
-			error = INB(sc, sc->ipmi_smic_data);
-			device_printf(dev, "Read did not start %x %x\n",
-			    status, error);
-			sc->ipmi_busy = 0;
-			return -1;
-		}
-		for (i = -1; ; len--) {
-			i++;
-			data = INB(sc, sc->ipmi_smic_data);
-			if (len > 0)
-				*bytes++ = data;
-			else {
-				device_printf(dev, "Read short %x\n", data);
-				break;
-			}
-			do {
-				flags = INB(sc, sc->ipmi_smic_flags);
-			} while(!flags & SMIC_STATUS_RX_RDY);
-
-			OUTB(sc, sc->ipmi_smic_ctl_sts, SMIC_CC_SMS_RD_NEXT);
-			ipmi_wait_for_rx_okay(dev);
-			ipmi_set_busy(dev);
-			ipmi_wait_for_not_busy(dev);
-			status = INB(sc, sc->ipmi_smic_ctl_sts);
-			if (status == SMIC_SC_SMS_RD_NEXT) {
-				continue;
-			} else if (status == SMIC_SC_SMS_RD_END) {
-				break;
-			} else {
-				device_printf(dev, "Read did not next %x\n",
-				    status);
-			}
-		}
-		i++;
-		data = INB(sc, sc->ipmi_smic_data);
-		if (len > 0)
-			*bytes++ = data;
-		else
-			device_printf(dev, "Read short %x\n", data);
-
-		OUTB(sc, sc->ipmi_smic_ctl_sts, SMIC_CC_SMS_RD_END);
-		i++;
-
-	} else if (sc->ipmi_bios_info.kcs_mode) {
-		for (i = -1; ; len--) {
-			/* Wait for IBF = 0 */
-			status = ipmi_wait_for_ibf(dev, 0);
-
-			/* Read State */
-			if (KCS_STATUS_STATE(status)
-			    == KCS_STATUS_STATE_READ) {
-				i++;
-
-				/* Wait for OBF = 1 */
-				status = ipmi_wait_for_obf(dev, 1);
-
-				/* Read Data_out */
-				data = INB(sc, sc->ipmi_kcs_data_out_reg);
-				if (len > 0)
-					*bytes++ = data;
-				else {
-					device_printf(dev, "Read short %x byte %d\n", data, i);
-					break;
-				}
-
-				/* Write READ into Data_in */
-				OUTB(sc, sc->ipmi_kcs_data_in_reg,
-				    KCS_DATA_IN_READ);
-
-				/* Idle State */
-			} else if (KCS_STATUS_STATE(status)
-			    == KCS_STATUS_STATE_IDLE) {
-				i++;
-
-				/* Wait for OBF = 1*/
-				status = ipmi_wait_for_obf(dev, 1);
-
-				/* Read Dummy */
-				data = INB(sc, sc->ipmi_kcs_data_out_reg);
-				break;
-
-				/* error state */
-			} else {
-				device_printf(dev,
-				    "read status error %x byte %d\n",
-				    status, i);
-				sc->ipmi_busy = 0;
-				ipmi_error(dev);
-				return -1;
-			}
-		}
-	} else {
-		device_printf(dev, "Unsupported mode\n");
-	}
-	sc->ipmi_busy = 0;
-	wakeup(&sc->ipmi_busy);
-
-	return i;
+	IPMI_LOCK(sc);
+	error = sc->ipmi_enqueue_request(sc, req);
+	if (error == 0)
+		error = msleep(req, &sc->ipmi_lock, 0, "ipmireq", timo);
+	if (error == 0)
+		error = req->ir_error;
+	IPMI_UNLOCK(sc);
+	return (error);
 }
 
+/*
+ * Helper routine for polled system interfaces that use
+ * ipmi_polled_enqueue_request() to queue requests.  This request
+ * waits until there is a pending request and then returns the first
+ * request.  If the driver is shutting down, it returns NULL.
+ */
+struct ipmi_request *
+ipmi_dequeue_request(struct ipmi_softc *sc)
+{
+	struct ipmi_request *req;
 
-static int
-ipmi_write(device_t dev, u_char *bytes, int len){
-	struct ipmi_softc *sc = device_get_softc(dev);
-	int status, flags, retry;
+	IPMI_LOCK_ASSERT(sc);
 
-	while(sc->ipmi_busy){
-		status = tsleep(&sc->ipmi_busy, PCATCH, "ipmi", 0);
-		if (status)
-			return status;
-	}
-	sc->ipmi_busy = 1;
-	if (sc->ipmi_bios_info.smic_mode) {
-		ipmi_wait_for_not_busy(dev);
+	while (!sc->ipmi_detaching && TAILQ_EMPTY(&sc->ipmi_pending_requests))
+		cv_wait(&sc->ipmi_request_added, &sc->ipmi_lock);
+	if (sc->ipmi_detaching)
+		return (NULL);
 
-		OUTB(sc, sc->ipmi_smic_ctl_sts, SMIC_CC_SMS_WR_START);
-		ipmi_wait_for_tx_okay(dev);
-		OUTB(sc, sc->ipmi_smic_data, *bytes++);
-		len--;
-		ipmi_set_busy(dev);
-		ipmi_wait_for_not_busy(dev);
-		status = INB(sc, sc->ipmi_smic_ctl_sts);
-		if (status != SMIC_SC_SMS_WR_START) {
-			device_printf(dev, "Write did not start %x\n",status);
-			sc->ipmi_busy = 0;
-			return -1;
-		}
-		for(len--; len; len--) {
-			OUTB(sc, sc->ipmi_smic_ctl_sts, SMIC_CC_SMS_WR_NEXT);
-			ipmi_wait_for_tx_okay(dev);
-			OUTB(sc, sc->ipmi_smic_data, *bytes++);
-			ipmi_set_busy(dev);
-			ipmi_wait_for_not_busy(dev);
-			status = INB(sc, sc->ipmi_smic_ctl_sts);
-			if (status != SMIC_SC_SMS_WR_NEXT) {
-				device_printf(dev, "Write did not next %x\n",
-				    status);
-				sc->ipmi_busy = 0;
-				return -1;
-			}
-		}
-		do {
-			flags = INB(sc, sc->ipmi_smic_flags);
-		} while(!flags & SMIC_STATUS_TX_RDY);
-		OUTB(sc, sc->ipmi_smic_ctl_sts, SMIC_CC_SMS_WR_END);
-		ipmi_wait_for_tx_okay(dev);
-		OUTB(sc, sc->ipmi_smic_data, *bytes);
-		ipmi_set_busy(dev);
-		ipmi_wait_for_not_busy(dev);
-		status = INB(sc, sc->ipmi_smic_ctl_sts);
-		if (status != SMIC_SC_SMS_WR_END) {
-			device_printf(dev, "Write did not end %x\n",status);
-			return -1;
-		}
-	} else if (sc->ipmi_bios_info.kcs_mode) {
-		for (retry = 0; retry < 10; retry++) {
-			/* Wait for IBF = 0 */
-			status = ipmi_wait_for_ibf(dev, 0);
+	req = TAILQ_FIRST(&sc->ipmi_pending_requests);
+	TAILQ_REMOVE(&sc->ipmi_pending_requests, req, ir_link);
+	return (req);
+}
 
-			/* Clear OBF */
-			ipmi_clear_obf(dev, status);
+/* Default implementation of ipmi_enqueue_request() for polled interfaces. */
+int
+ipmi_polled_enqueue_request(struct ipmi_softc *sc, struct ipmi_request *req)
+{
 
-			/* Write start to command */
-			OUTB(sc, sc->ipmi_kcs_command_reg,
-			     KCS_CONTROL_WRITE_START);
-
-			/* Wait for IBF = 0 */
-			status = ipmi_wait_for_ibf(dev, 0);
-			if (KCS_STATUS_STATE(status) == KCS_STATUS_STATE_WRITE)
-				break;
-			DELAY(1000000);
-		}
-
-		for(len--; len; len--) {
-			if (KCS_STATUS_STATE(status)
-			    != KCS_STATUS_STATE_WRITE) {
-				/* error state */
-				device_printf(dev, "status error %x\n",status);
-				ipmi_error(dev);
-				sc->ipmi_busy = 0;
-				return -1;
-				break;
-			} else {
-				/* Clear OBF */
-				ipmi_clear_obf(dev, status);
-
-				/* Data to Data */
-				OUTB(sc, sc->ipmi_kcs_data_out_reg, *bytes++);
-
-				/* Wait for IBF = 0 */
-				status = ipmi_wait_for_ibf(dev, 0);
-
-				if (KCS_STATUS_STATE(status)
-				    != KCS_STATUS_STATE_WRITE) {
-					device_printf(dev, "status error %x\n"
-					    ,status);
-					ipmi_error(dev);
-					return -1;
-				} else {
-					/* Clear OBF */
-					ipmi_clear_obf(dev, status);
-				}
-			}
-		}
-		/* Write end to command */
-		OUTB(sc, sc->ipmi_kcs_command_reg, KCS_CONTROL_WRITE_END);
-
-		/* Wait for IBF = 0 */
-		status = ipmi_wait_for_ibf(dev, 0);
-
-		if (KCS_STATUS_STATE(status) != KCS_STATUS_STATE_WRITE) {
-			/* error state */
-			device_printf(dev, "status error %x\n",status);
-			ipmi_error(dev);
-			sc->ipmi_busy = 0;
-			return -1;
-		} else {
-			/* Clear OBF */
-			ipmi_clear_obf(dev, status);
-			OUTB(sc, sc->ipmi_kcs_data_out_reg, *bytes++);
-		}
-	} else {
-		device_printf(dev, "Unsupported mode\n");
-	}
-	sc->ipmi_busy = 2;
-	return 1;
+	IPMI_LOCK(sc);
+	TAILQ_INSERT_TAIL(&sc->ipmi_pending_requests, req, ir_link);
+	IPMI_UNLOCK(sc);
+	cv_signal(&sc->ipmi_request_added);
+	return (0);
 }
 
 /*
@@ -879,56 +596,50 @@ ipmi_write(device_t dev, u_char *bytes, int len){
  */
 
 static void
-ipmi_set_watchdog(device_t dev, int sec) {
-	u_char *temp;
-	int s;
+ipmi_set_watchdog(struct ipmi_softc *sc, int sec)
+{
+	struct ipmi_request *req;
+	int error;
 
-	temp = malloc(IPMI_MAX_RX, M_IPMI, M_WAITOK);
+	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+	    IPMI_SET_WDOG, 6, 0);
 
-	temp[0] = IPMI_APP_REQUEST << 2;
 	if (sec) {
-		temp[1] = IPMI_SET_WDOG;
-		temp[2] = IPMI_SET_WD_TIMER_DONT_STOP
+		req->ir_request[0] = IPMI_SET_WD_TIMER_DONT_STOP
 		    | IPMI_SET_WD_TIMER_SMS_OS;
-		temp[3] = IPMI_SET_WD_ACTION_RESET;
-		temp[4] = 0;
-		temp[5] = 0;	/* Timer use */
-		temp[6] = (sec * 10) & 0xff;
-		temp[7] = (sec * 10) / 2550;
+		req->ir_request[1] = IPMI_SET_WD_ACTION_RESET;
+		req->ir_request[2] = 0;
+		req->ir_request[3] = 0;	/* Timer use */
+		req->ir_request[4] = (sec * 10) & 0xff;
+		req->ir_request[5] = (sec * 10) / 2550;
 	} else {
- 		temp[1] = IPMI_SET_WDOG;
-		temp[2] = IPMI_SET_WD_TIMER_SMS_OS;
-		temp[3] = 0;
-		temp[4] = 0;
-		temp[5] = 0;	/* Timer use */
-		temp[6] = 0;
-		temp[7] = 0;
+		req->ir_request[0] = IPMI_SET_WD_TIMER_SMS_OS;
+		req->ir_request[1] = 0;
+		req->ir_request[2] = 0;
+		req->ir_request[3] = 0;	/* Timer use */
+		req->ir_request[4] = 0;
+		req->ir_request[5] = 0;
 	}
 
-	s = splhigh();
-	ipmi_write(dev, temp, 8);
+	error = ipmi_submit_driver_request(sc, req, 0);
+	if (error)
+		device_printf(sc->ipmi_dev, "Failed to set watchdog\n");
 
-	while (!ipmi_ready_to_read(dev))
-		DELAY(1000);
-	bzero(temp, IPMI_MAX_RX);
-	ipmi_read(dev, temp, IPMI_MAX_RX);
+	if (error == 0 && sec) {
+		ipmi_free_request(req);
 
-	if (sec) {
-		temp[0] = IPMI_APP_REQUEST << 2;
-		temp[1] = IPMI_RESET_WDOG;
+		req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+		    IPMI_RESET_WDOG, 0, 0);
 
-		ipmi_write(dev, temp, 2);
-
-		while (!ipmi_ready_to_read(dev))
-			DELAY(1000);
-		bzero(temp, IPMI_MAX_RX);
-		ipmi_read(dev, temp, IPMI_MAX_RX);
+		error = ipmi_submit_driver_request(sc, req, 0);
+		if (error)
+			device_printf(sc->ipmi_dev,
+			    "Failed to reset watchdog\n");
 	}
-	splx(s);
 
-	free(temp, M_IPMI);
+	ipmi_free_request(req);
 	/*
-	dump_watchdog(dev);
+	dump_watchdog(sc);
 	*/
 }
 
@@ -940,7 +651,7 @@ ipmi_wd_event(void *arg, unsigned int cmd, int *error)
 
 	/* disable / enable */
 	if (!(cmd & WD_ACTIVE)) {
-		ipmi_set_watchdog(sc->ipmi_dev, 0);
+		ipmi_set_watchdog(sc, 0);
 		*error = 0;
 		return;
 	}
@@ -954,92 +665,208 @@ ipmi_wd_event(void *arg, unsigned int cmd, int *error)
 	timeout = ((uint64_t)1 << cmd) / 1800000000;
 
 	/* reload */
-	ipmi_set_watchdog(sc->ipmi_dev, timeout);
+	ipmi_set_watchdog(sc, timeout);
 
 	*error = 0;
+}
+
+#ifdef CLONING
+static void
+ipmi_clone(void *arg, struct ucred *cred, char *name, int namelen,
+    struct cdev **cdev)
+{
+	struct ipmi_softc *sc = arg;
+	struct ipmi_device *dev;
+	int minor, unit;
+
+	if (*cdev != NULL)
+		return;
+
+	if (strcmp(name, device_get_nameunit(sc->ipmi_dev)) != 0)
+		return;
+
+	dev = malloc(sizeof(struct ipmi_device), M_IPMI, M_WAITOK | M_ZERO);
+
+	/* Reserve a sub-device. */
+	IPMI_LOCK(sc);
+	minor = ffs(~(sc->ipmi_cdev_mask & 0xffff));
+	if (minor == 0 || !sc->ipmi_cloning) {
+		IPMI_UNLOCK(sc);
+		free(dev, M_IPMI);
+		return;
+	}
+	minor--;
+	sc->ipmi_cdev_mask |= (1 << minor);
+	TAILQ_INSERT_TAIL(&sc->ipmi_cdevs, dev, ipmi_link);
+	IPMI_UNLOCK(sc);
+
+	/* Initialize the device. */
+	TAILQ_INIT(&dev->ipmi_completed_requests);
+	dev->ipmi_softc = sc;
+	dev->ipmi_address = IPMI_BMC_SLAVE_ADDR;
+	dev->ipmi_lun = IPMI_BMC_SMS_LUN;
+	unit = device_get_unit(sc->ipmi_dev);
+	dev->ipmi_cdev = make_dev_cred(&ipmi_cdevsw, unit * 32 + minor, cred,
+	    UID_ROOT, GID_OPERATOR, 0660, "ipmi%d.%d", unit, minor);
+	if (dev->ipmi_cdev == NULL) {
+		IPMI_LOCK(sc);
+		sc->ipmi_cdev_mask &= ~(1 << minor);
+		TAILQ_REMOVE(&sc->ipmi_cdevs, dev, ipmi_link);
+		IPMI_UNLOCK(sc);
+		free(dev, M_IPMI);
+		return;
+	}
+	dev->ipmi_cdev->si_drv1 = dev;
+	*cdev = dev->ipmi_cdev;
+	dev_ref(*cdev);
+}
+#endif
+
+static void
+ipmi_startup(void *arg)
+{
+	struct ipmi_softc *sc = arg;
+	struct ipmi_request *req;
+	device_t dev;
+	int error, i;
+
+	config_intrhook_disestablish(&sc->ipmi_ich);
+	dev = sc->ipmi_dev;
+
+	/* Initialize interface-independent state. */
+	mtx_init(&sc->ipmi_lock, device_get_nameunit(dev), "ipmi", MTX_DEF);
+	cv_init(&sc->ipmi_request_added, "ipmireq");
+	TAILQ_INIT(&sc->ipmi_pending_requests);
+#ifdef CLONING
+	TAILQ_INIT(&sc->ipmi_cdevs);
+#endif
+
+	/* Initialize interface-dependent state. */
+	error = sc->ipmi_startup(sc);
+	if (error) {
+		device_printf(dev, "Failed to initialize interface: %d\n",
+		    error);
+		return;
+	}
+
+	/* Send a GET_DEVICE_ID request. */
+	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+	    IPMI_GET_DEVICE_ID, 0, 15);
+
+	error = ipmi_submit_driver_request(sc, req, MAX_TIMEOUT);
+	if (error == EWOULDBLOCK) {
+		device_printf(dev, "Timed out waiting for GET_DEVICE_ID\n");
+		return;
+	} else if (error) {
+		device_printf(dev, "Failed GET_DEVICE_ID: %d\n", error);
+		return;
+	} else if (req->ir_compcode != 0) {
+		device_printf(dev,
+		    "Bad completion code for GET_DEVICE_ID: %d\n",
+		    req->ir_compcode);
+		return;
+	} else if (req->ir_replylen < 5) {
+		device_printf(dev, "Short reply for GET_DEVICE_ID: %d\n",
+		    req->ir_replylen);
+		return;
+	}
+
+	device_printf(dev, "IPMI device rev. %d, firmware rev. %d.%d, "
+	    "version %d.%d\n",
+	     req->ir_reply[1] & 0x0f,
+	     req->ir_reply[2] & 0x0f, req->ir_reply[4],
+	     req->ir_reply[4] & 0x0f, req->ir_reply[4] >> 4);
+
+	ipmi_free_request(req);
+
+	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+	    IPMI_CLEAR_FLAGS, 1, 0);
+
+	ipmi_submit_driver_request(sc, req, 0);
+
+	/* XXX: Magic numbers */
+	if (req->ir_compcode == 0xc0) {
+		device_printf(dev, "Clear flags is busy\n");
+	}
+	if (req->ir_compcode == 0xc1) {
+		device_printf(dev, "Clear flags illegal\n");
+	}
+	ipmi_free_request(req);
+
+	for (i = 0; i < 8; i++) {
+		req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+		    IPMI_GET_CHANNEL_INFO, 1, 0);
+		req->ir_request[0] = i;
+
+		ipmi_submit_driver_request(sc, req, 0);
+
+		if (req->ir_compcode != 0) {
+			ipmi_free_request(req);
+			break;
+		}
+		ipmi_free_request(req);
+	}
+	device_printf(dev, "Number of channels %d\n", i);
+
+	/* probe for watchdog */
+	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+	    IPMI_GET_WDOG, 0, 0);
+
+	ipmi_submit_driver_request(sc, req, 0);
+
+	if (req->ir_compcode == 0x00) {
+		device_printf(dev, "Attached watchdog\n");
+		/* register the watchdog event handler */
+		sc->ipmi_watchdog_tag = EVENTHANDLER_REGISTER(watchdog_list,
+		    ipmi_wd_event, sc, 0);
+	}
+	ipmi_free_request(req);
+
+#ifdef CLONING
+	sc->ipmi_cloning = 1;
+	sc->ipmi_clone_tag = EVENTHANDLER_REGISTER(dev_clone,  ipmi_clone, sc,
+	    1000);
+#else
+	/* Initialize the device. */
+	TAILQ_INIT(&sc->ipmi_idev.ipmi_completed_requests);
+	sc->ipmi_idev.ipmi_softc = sc;
+	sc->ipmi_idev.ipmi_address = IPMI_BMC_SLAVE_ADDR;
+	sc->ipmi_idev.ipmi_lun = IPMI_BMC_SMS_LUN;
+	sc->ipmi_idev.ipmi_cdev = make_dev(&ipmi_cdevsw, device_get_unit(dev),
+	    UID_ROOT, GID_OPERATOR, 0660, "ipmi%d", device_get_unit(dev));
+	if (sc->ipmi_idev.ipmi_cdev == NULL) {
+		device_printf(dev, "Failed to create cdev\n");
+		return;
+	}
+	sc->ipmi_idev.ipmi_cdev->si_drv1 = &sc->ipmi_idev;
+#endif
 }
 
 int
 ipmi_attach(device_t dev)
 {
 	struct ipmi_softc *sc = device_get_softc(dev);
-	u_char temp[1024];
-	int i;
-	int status;
-	int unit;
+	int error;
 
-	TAILQ_INIT(&sc->ipmi_done);
-	sc->ipmi_address = IPMI_BMC_SLAVE_ADDR;
-	sc->ipmi_lun = IPMI_BMC_SMS_LUN;
-	temp[0] = IPMI_APP_REQUEST << 2;
-	temp[1] = IPMI_GET_DEVICE_ID;
-	ipmi_write(dev, temp, 2);
-
-	while (!ipmi_ready_to_read(dev))
-		DELAY(1000);
-	bzero(temp, sizeof(temp));
-	ipmi_read(dev, temp, sizeof(temp));
-	device_printf(dev, "IPMI device rev. %d, firmware rev. %d.%d, "
-	    "version %d.%d\n",
-	     temp[4] & 0x0f,
-	     temp[5] & 0x0f, temp[7],
-	     temp[7] & 0x0f, temp[7] >> 4);
-
-	temp[0] = IPMI_APP_REQUEST << 2;
-	temp[1] = IPMI_CLEAR_FLAGS;
-	temp[2] = 8;
-	ipmi_write(dev, temp, 3);
-
-	while (!ipmi_ready_to_read(dev))
-		DELAY(1000);
-	bzero(temp, sizeof(temp));
-	ipmi_read(dev, temp, sizeof(temp));
-	if (temp[2] == 0xc0) {
-		device_printf(dev, "Clear flags is busy\n");
-	}
-	if (temp[2] == 0xc1) {
-		device_printf(dev, "Clear flags illegal\n");
-	}
-
-	for(i = 0; i < 8; i++){
-		temp[0] = IPMI_APP_REQUEST << 2;
-		temp[1] = IPMI_GET_CHANNEL_INFO;
-		temp[2] = i;
-		ipmi_write(dev, temp, 3);
-		while (!ipmi_ready_to_read(dev))
-			DELAY(1000);
-		bzero(temp, sizeof(temp));
-		ipmi_read(dev, temp, sizeof(temp));
-		if (temp[2]) {
-			break;
+	if (sc->ipmi_irq_res != NULL && sc->ipmi_intr != NULL) {
+		error = bus_setup_intr(dev, sc->ipmi_irq_res, INTR_TYPE_MISC,
+		    sc->ipmi_intr, sc, &sc->ipmi_irq);
+		if (error) {
+			device_printf(dev, "can't set up interrupt\n");
+			return (error);
 		}
 	}
-	device_printf(dev, "Number of channels %d\n", i);
 
-	/* probe for watchdog */
-	bzero(temp, sizeof(temp));
-        temp[0] = IPMI_APP_REQUEST << 2;
-        temp[1] = IPMI_GET_WDOG;
-        status = ipmi_write(dev, temp, 2);
-        while (!ipmi_ready_to_read(dev))
-                DELAY(1000);
-        bzero(temp, sizeof(temp));
-        ipmi_read(dev, temp, sizeof(temp));
-        if (temp[0] == 0x1c && temp[2] == 0x00) {
-		device_printf(dev, "Attached watchdog\n");
-		/* register the watchdog event handler */
-		sc->ipmi_ev_tag = EVENTHANDLER_REGISTER(watchdog_list,
-						   ipmi_wd_event, sc, 0);
+	bzero(&sc->ipmi_ich, sizeof(struct intr_config_hook));
+	sc->ipmi_ich.ich_func = ipmi_startup;
+	sc->ipmi_ich.ich_arg = sc;
+	if (config_intrhook_establish(&sc->ipmi_ich) != 0) {
+		device_printf(dev, "can't establish configuration hook\n");
+		return (ENOMEM);
 	}
-	unit = device_get_unit(sc->ipmi_dev);
-	/* force device to be ipmi0 since that is what ipmitool expects */
-	sc->ipmi_dev_t = make_dev(&ipmi_cdevsw, unit, UID_ROOT, GID_OPERATOR,
-			     0660, "ipmi%d", 0);
-	sc->ipmi_dev_t->si_drv1 = sc;
 
 	ipmi_attached = 1;
-
-	return 0;
+	return (0);
 }
 
 int
@@ -1048,16 +875,92 @@ ipmi_detach(device_t dev)
 	struct ipmi_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (sc->ipmi_requests)
-		untimeout((timeout_t *)ipmi_check_read, dev,
-		    sc->ipmi_timeout_handle);
-	destroy_dev(sc->ipmi_dev_t);
-	return 0;
+
+	/* Fail if there are any open handles. */
+	IPMI_LOCK(sc);
+#ifdef CLONING
+	if (!TAILQ_EMPTY(&sc->ipmi_cdevs)) {
+		IPMI_UNLOCK(sc);
+		return (EBUSY);
+	}
+
+	/* Turn off cloning. */
+	sc->ipmi_cloning = 0;
+	IPMI_UNLOCK(sc);
+
+	EVENTHANDLER_DEREGISTER(dev_clone, sc->ipmi_clone_tag);
+#else
+	if (sc->ipmi_idev.ipmi_open) {
+		IPMI_UNLOCK(sc);
+		return (EBUSY);
+	}
+	IPMI_UNLOCK(sc);
+	destroy_dev(sc->ipmi_idev.ipmi_cdev);
+#endif
+
+	/* Detach from watchdog handling and turn off watchdog. */
+	if (sc->ipmi_watchdog_tag) {
+		EVENTHANDLER_DEREGISTER(watchdog_list, sc->ipmi_watchdog_tag);
+		ipmi_set_watchdog(sc, 0);
+	}
+
+	/* XXX: should use shutdown callout I think. */
+	/* If the backend uses a kthread, shut it down. */
+	IPMI_LOCK(sc);
+	sc->ipmi_detaching = 1;
+	if (sc->ipmi_kthread) {
+		cv_broadcast(&sc->ipmi_request_added);
+		msleep(sc->ipmi_kthread, &sc->ipmi_lock, 0, "ipmi_wait", 0);
+	}
+	IPMI_UNLOCK(sc);
+	if (sc->ipmi_irq)
+		bus_teardown_intr(dev, sc->ipmi_irq_res, sc->ipmi_irq);
+
+	ipmi_release_resources(dev);
+	mtx_destroy(&sc->ipmi_lock);
+	return (0);
 }
+
+void
+ipmi_release_resources(device_t dev)
+{
+	struct ipmi_softc *sc;
+	int i;
+
+	sc = device_get_softc(dev);
+	if (sc->ipmi_irq)
+		bus_teardown_intr(dev, sc->ipmi_irq_res, sc->ipmi_irq);
+	if (sc->ipmi_irq_res)
+		bus_release_resource(dev, SYS_RES_IRQ, sc->ipmi_irq_rid,
+		    sc->ipmi_irq_res);
+	for (i = 0; i < MAX_RES; i++)
+		if (sc->ipmi_io_res[i])
+			bus_release_resource(dev, sc->ipmi_io_type,
+			    sc->ipmi_io_rid + i, sc->ipmi_io_res[i]);
+}
+
+devclass_t ipmi_devclass;
+
+/* XXX: Why? */
+static void
+ipmi_unload(void *arg)
+{
+	device_t *	devs;
+	int		count;
+	int		i;
+
+	if (devclass_get_devices(ipmi_devclass, &devs, &count) != 0)
+		return;
+	for (i = 0; i < count; i++)
+		device_delete_child(device_get_parent(devs[i]), devs[i]);
+	free(devs, M_TEMP);
+}
+SYSUNINIT(ipmi_unload, SI_SUB_DRIVERS, SI_ORDER_FIRST, ipmi_unload, NULL);
 
 #ifdef IMPI_DEBUG
 static void
-dump_buf(u_char *data, int len){
+dump_buf(u_char *data, int len)
+{
 	char buf[20];
 	char line[1024];
 	char temp[30];
