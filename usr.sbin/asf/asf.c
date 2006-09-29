@@ -253,7 +253,7 @@ usage(const char *myname)
 {
     fprintf(stderr,
 	"Usage:\n"
-	"%s [-afKksVx] [-M core] [-N system ] [-o outfile] [-X suffix]\n"
+	"%s [-afKksVx] [-M core] [-N system] [-o outfile] [-X suffix]\n"
 	"%*s [modules-path [outfile]]\n\n"
 	"\t-a\tappend to outfile\n"
 	"\t-f\tfind the module in any subdirectory of modules-path\n"
