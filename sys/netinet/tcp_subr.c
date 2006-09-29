@@ -179,23 +179,39 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
 
 static uma_zone_t tcptw_zone;
 static int	maxtcptw;
+
+static int
+tcptw_auto_size(void)
+{
+	int halfrange;
+
+	/*
+         * Max out at half the ephemeral port range so that TIME_WAIT
+         * sockets don't tie up too many ephemeral ports.
+         */
+	if (ipport_lastauto > ipport_firstauto)
+		halfrange = (ipport_lastauto - ipport_firstauto) / 2;
+	else
+		halfrange = (ipport_firstauto - ipport_lastauto) / 2;
+	/* Protect against goofy port ranges smaller than 32. */
+	return (imin(imax(halfrange, 32), maxsockets / 5));
+}
+
 static int
 sysctl_maxtcptw(SYSCTL_HANDLER_ARGS)
 {
 	int error, new;
 
 	if (maxtcptw == 0)
-		new = maxsockets / 5;
+		new = tcptw_auto_size();
 	else
 		new = maxtcptw;
 	error = sysctl_handle_int(oidp, &new, sizeof(int), req);
-	if (error == 0 && req->newptr) {
-		if (new > maxtcptw) {
+	if (error == 0 && req->newptr)
+		if (new >= 32) {
 			maxtcptw = new;
 			uma_zone_set_max(tcptw_zone, maxtcptw);
-		} else
-			error = EINVAL;
-	}
+		}
 	return (error);
 }
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxtcptw, CTLTYPE_INT|CTLFLAG_RW,
@@ -285,7 +301,7 @@ tcp_zone_change(void *tag)
 	uma_zone_set_max(tcbinfo.ipi_zone, maxsockets);
 	uma_zone_set_max(tcpcb_zone, maxsockets);
 	if (maxtcptw == 0)
-		uma_zone_set_max(tcptw_zone, maxsockets / 5);
+		uma_zone_set_max(tcptw_zone, tcptw_auto_size());
 }
 
 static int
@@ -346,7 +362,7 @@ tcp_init(void)
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	TUNABLE_INT_FETCH("net.inet.tcp.maxtcptw", &maxtcptw);
 	if (maxtcptw == 0)
-		uma_zone_set_max(tcptw_zone, maxsockets / 5);
+		uma_zone_set_max(tcptw_zone, tcptw_auto_size());
 	else
 		uma_zone_set_max(tcptw_zone, maxtcptw);
 	tcp_timer_init();
