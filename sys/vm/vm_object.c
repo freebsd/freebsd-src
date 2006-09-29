@@ -440,23 +440,37 @@ vm_object_deallocate(vm_object_t object)
 
 	while (object != NULL) {
 		int vfslocked;
-		/*
-		 * In general, the object should be locked when working with
-		 * its type.  In this case, in order to maintain proper lock
-		 * ordering, an exception is possible because a vnode-backed
-		 * object never changes its type.
-		 */
+
 		vfslocked = 0;
-		if (object->type == OBJT_VNODE) {
-			struct vnode *vp = (struct vnode *) object->handle;
-			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-		}
+	restart:
 		VM_OBJECT_LOCK(object);
 		if (object->type == OBJT_VNODE) {
+			struct vnode *vp = (struct vnode *) object->handle;
+
+			/*
+			 * Conditionally acquire Giant for a vnode-backed
+			 * object.  We have to be careful since the type of
+			 * a vnode object can change while the object is
+			 * unlocked.
+			 */
+			if (VFS_NEEDSGIANT(vp->v_mount) && !vfslocked) {
+				vfslocked = 1;
+				if (!mtx_trylock(&Giant)) {
+					VM_OBJECT_UNLOCK(object);
+					mtx_lock(&Giant);
+					goto restart;
+				}
+			}
 			vm_object_vndeallocate(object);
 			VFS_UNLOCK_GIANT(vfslocked);
 			return;
-		}
+		} else
+			/*
+			 * This is to handle the case that the object
+			 * changed type while we dropped its lock to
+			 * obtain Giant.
+			 */
+			VFS_UNLOCK_GIANT(vfslocked);
 
 		KASSERT(object->ref_count != 0,
 			("vm_object_deallocate: object deallocated too many times: %d", object->type));
