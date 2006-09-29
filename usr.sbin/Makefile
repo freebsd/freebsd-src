@@ -95,7 +95,6 @@ SUBDIR=	ac \
 	${_mount_smbfs} \
 	moused \
 	${_mptable} \
-	mrouted \
 	mtest \
 	mtree \
 	${_named} \

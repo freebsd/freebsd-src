@@ -21,6 +21,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20060929:
+	mrouted and its utilities have been removed from the base system.
+
 20060924:
 	tcpslice has been removed from the base system.
 
