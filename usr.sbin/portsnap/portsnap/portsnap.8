@@ -54,7 +54,7 @@ uncompressed ports tree.
 The following options are supported:
 .Bl -tag -width "-f conffile"
 .It Fl d Ar workdir
-Store working files (e.g. downloaded updates) in
+Store working files (e.g.\& downloaded updates) in
 .Ar workdir .
 (default:
 .Pa /var/db/portsnap ,
@@ -72,7 +72,7 @@ command, update INDEX files, but not the rest of the ports tree.
 Expect a public key with given SHA256 hash.
 (default: read value from configuration file.)
 .It Fl l Ar descfile
-Merge the specified local describes file into the INDEX files being 
+Merge the specified local describes file into the INDEX files being
 built.
 The
 .Ar descfile
@@ -95,9 +95,9 @@ For
 .Cm extract
 command only, operate only on parts of the ports tree starting with
 .Ar path .
-(e.g.
+(e.g.\&
 .Nm
-.cm extract
+.Cm extract
 .Ar sysutils/port
 would extract sysutils/portsman, sysutils/portsnap,
 sysutils/portupgrade, etc.)
@@ -206,16 +206,16 @@ of files are not needed by any particular client.
 .Sh PRIVACY NOTICE
 As an unavoidable part of its operation, a machine running
 .Nm
-will make its public IP address and the list of files it fetches 
+will make its public IP address and the list of files it fetches
 available to the server from which it fetches updates.
-Using these it may be possible to recognize a machine over an extended 
-period of time, determine when it is updated, and identify which 
-portions of the FreeBSD ports tree, if any, are being ignored using 
+Using these it may be possible to recognize a machine over an extended
+period of time, determine when it is updated, and identify which
+portions of the FreeBSD ports tree, if any, are being ignored using
 "REFUSE" directives in
 .Pa portsnap.conf .
 In addition, the FreeBSD release level is transmitted to the server.
 .Pp
-Statistical data generated from information collected in this manner 
+Statistical data generated from information collected in this manner
 may be published, but only in aggregate and after anonymizing the
 individual systems.
 .Sh FILES
@@ -228,9 +228,9 @@ Default location where compressed snapshots are stored.
 Default location where the ports tree is extracted.
 .El
 .Sh SEE ALSO
-.Xr fetch 1
-.Xr fetch 3
+.Xr fetch 1 ,
+.Xr sha256 1 ,
+.Xr fetch 3 ,
 .Xr portsnap.conf 5
-.Xr sha256 1
 .Sh AUTHORS
 .An Colin Percival Aq cperciva@FreeBSD.org
