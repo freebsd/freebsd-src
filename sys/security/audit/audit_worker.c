@@ -201,7 +201,7 @@ audit_record_write(struct vnode *vp, struct ucred *cred, struct thread *td,
 	if ((audit_fstat.af_filesz != 0) && (audit_file_rotate_wait == 0) &&
 	    (vattr.va_size >= audit_fstat.af_filesz)) {
 		audit_file_rotate_wait = 1;
-		(void)send_trigger(AUDIT_TRIGGER_OPEN_NEW);
+		(void)send_trigger(AUDIT_TRIGGER_ROTATE_KERNEL);
 	}
 
 	/*
