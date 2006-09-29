@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit.h#31 $
+ * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit.h#34 $
  * $FreeBSD$
  */
 
@@ -59,23 +59,19 @@
  * Triggers for the audit daemon.
  */
 #define	AUDIT_TRIGGER_MIN		1
-#define	AUDIT_TRIGGER_LOW_SPACE		1
-#define	AUDIT_TRIGGER_OPEN_NEW		2
-#define	AUDIT_TRIGGER_READ_FILE		3
-#define	AUDIT_TRIGGER_CLOSE_AND_DIE	4
-#define	AUDIT_TRIGGER_NO_SPACE		5
-#define	AUDIT_TRIGGER_MAX		5
+#define	AUDIT_TRIGGER_LOW_SPACE		1	/* Below low watermark. */
+#define	AUDIT_TRIGGER_ROTATE_KERNEL	2	/* Kernel requests rotate. */
+#define	AUDIT_TRIGGER_READ_FILE		3	/* Re-read config file. */
+#define	AUDIT_TRIGGER_CLOSE_AND_DIE	4	/* Terminate audit. */
+#define	AUDIT_TRIGGER_NO_SPACE		5	/* Below min free space. */
+#define	AUDIT_TRIGGER_ROTATE_USER	6	/* User requests roate. */
+#define	AUDIT_TRIGGER_MAX		6
 
 /*
- * Special file that will be read for trigger events from the kernel
- * (FreeBSD).
- */
-#define	AUDIT_TRIGGER_FILE	"/dev/audit"
-
-/*
- * The special device filename.
+ * The special device filename (FreeBSD).
  */
 #define	AUDITDEV_FILENAME	"audit"
+#define	AUDIT_TRIGGER_FILE	("/dev/" AUDITDEV_FILENAME)
 
 /*
  * Pre-defined audit IDs
@@ -182,12 +178,12 @@
 #define	AUDIT_PERZONE	0x2000
 
 /*
- * Audit queue control parameters.
+ * Default audit queue control parameters.
  */
 #define	AQ_HIWATER	100
 #define	AQ_MAXHIGH	10000
 #define	AQ_LOWATER	10
-#define	AQ_BUFSZ	1024
+#define	AQ_BUFSZ	MAXAUDITDATA
 #define	AQ_MAXBUFSZ	1048576
 
 /*
