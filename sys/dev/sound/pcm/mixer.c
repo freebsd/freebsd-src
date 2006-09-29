@@ -322,11 +322,13 @@ mixer_set_recroute(struct snd_mixer *m, int route)
 void
 mix_setdevs(struct snd_mixer *m, u_int32_t v)
 {
-	struct snddev_info *d = device_get_softc(m->dev);
+	struct snddev_info *d;
 	int i;
 
 	if (m == NULL)
 		return;
+
+	d = device_get_softc(m->dev);
 	if (d != NULL && (d->flags & SD_F_SOFTPCMVOL))
 		v |= SOUND_MASK_PCM;
 	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
