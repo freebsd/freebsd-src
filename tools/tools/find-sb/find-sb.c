@@ -34,6 +34,7 @@ main(int argc, char **argv)
 	char c;
 	intmax_t offset;
 
+	offset = 0;
 	while ((c = getopt(argc, argv, "o:")) != -1) {
 		switch (c) {
 		case 'o':
@@ -103,7 +104,7 @@ main(int argc, char **argv)
 				len -= DEV_BSIZE;
 				memmove(u.buf, &u.buf[DEV_BSIZE], len);
 			} else if (u.sblock.fs_magic == FS_UFS2_MAGIC) {
-				intmax_t fsbegin = offset - SBLOCK_UFS1;
+				intmax_t fsbegin = offset - SBLOCK_UFS2;
 				printf("Found UFS2 superblock at offset %jd, "
 				       "block %jd\n", offset,
 				       offset / DEV_BSIZE);
