@@ -1133,9 +1133,17 @@ seq_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 		break;
 	    case SNDCTL_TMR_TEMPO:
 		event[1] = TMR_TEMPO;
+		event[4] = *(int *)arg & 0xFF;
+		event[5] = (*(int *)arg >> 8) & 0xFF;
+		event[6] = (*(int *)arg >> 16) & 0xFF;
+		event[7] = (*(int *)arg >> 24) & 0xFF;
 		goto timerevent;
 	    case SNDCTL_TMR_TIMEBASE:
 		event[1] = TMR_TIMERBASE;
+		event[4] = *(int *)arg & 0xFF;
+		event[5] = (*(int *)arg >> 8) & 0xFF;
+		event[6] = (*(int *)arg >> 16) & 0xFF;
+		event[7] = (*(int *)arg >> 24) & 0xFF;
 		goto timerevent;
 	    case SNDCTL_TMR_START:
 		event[1] = TMR_START;
@@ -1147,10 +1155,6 @@ seq_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 		event[1] = TMR_CONTINUE;
 	    timerevent:
 		event[0] = EV_TIMING;
-		event[4] = *(int *)arg & 0xFF;
-		event[5] = (*(int *)arg >> 8) & 0xFF;
-		event[6] = (*(int *)arg >> 16) & 0xFF;
-		event[7] = (*(int *)arg >> 24) & 0xFF;
 		mtx_lock(&scp->seq_lock);
 		if (!scp->music) {
 		    ret = EINVAL;
