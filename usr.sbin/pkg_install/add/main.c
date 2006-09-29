@@ -329,7 +329,7 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n",
-	"usage: pkg_add [-vInrfRMSK] [-t template] [-p prefix] [-P prefix] [-C chrootdir]",
+	"usage: pkg_add [-vInfFrRMSK] [-t template] [-p prefix] [-P prefix] [-C chrootdir]",
 	"               pkg-name [pkg-name ...]");
     exit(1);
 }
