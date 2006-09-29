@@ -311,6 +311,7 @@ options 	SAFE_RNDTEST	# enable rndtest support
 #
 # cy: Cyclades serial driver
 # digi: Digiboard driver
+# ipmi: Intelligent Platform Management Interface
 # smbios: DMI/SMBIOS entry point
 
 # Notes on the Specialix SI/XIO driver:
@@ -330,6 +331,7 @@ device		digi_EPCX_PCI
 device		digi_Xe
 device		digi_Xem
 device		digi_Xr
+device		ipmi
 # Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
 device		pbio
 hint.pbio.0.at="isa"

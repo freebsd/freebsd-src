@@ -28,18 +28,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/malloc.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/condvar.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/selinfo.h>
-
-#include <sys/bus.h>
-#include <sys/conf.h>
-
-#include <machine/bus.h>
-#include <machine/resource.h>
 #include <sys/rman.h>
+#include <sys/selinfo.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -52,17 +48,8 @@ __FBSDID("$FreeBSD$");
 
 static int ipmi_pci_probe(device_t dev);
 static int ipmi_pci_attach(device_t dev);
-static int ipmi_pci_detach(device_t dev);
 
-static device_method_t ipmi_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,     ipmi_pci_probe),
-	DEVMETHOD(device_attach,    ipmi_pci_attach),
-	DEVMETHOD(device_detach,    ipmi_pci_detach),
-	{ 0, 0 }
-};
-
-struct ipmi_ident
+static struct ipmi_ident
 {
 	u_int16_t	vendor;
 	u_int16_t	device;
@@ -72,238 +59,237 @@ struct ipmi_ident
 	{0, 0, 0}
 };
 
-static int
-ipmi_pci_probe(device_t dev) {
+const char *
+ipmi_pci_match(uint16_t vendor, uint16_t device)
+{
 	struct ipmi_ident *m;
 
-	if (ipmi_attached)
-		return ENXIO;
-
-	for (m = ipmi_identifiers; m->vendor != 0; m++) {
-		if ((m->vendor == pci_get_vendor(dev)) &&
-		    (m->device == pci_get_device(dev))) {
-			device_set_desc(dev, m->desc);
-			return (BUS_PROBE_DEFAULT);
-		}
-	}
-
-	return ENXIO;
+	for (m = ipmi_identifiers; m->vendor != 0; m++)
+		if (m->vendor == vendor && m->device == device)
+			return (m->desc);
+	return (NULL);
 }
 
 static int
-ipmi_pci_attach(device_t dev) {
+ipmi_pci_probe(device_t dev)
+{
+	const char *desc;
+
+	if (ipmi_attached)
+		return (ENXIO);
+
+	desc = ipmi_pci_match(pci_get_vendor(dev), pci_get_device(dev));
+	if (desc != NULL) {
+		device_set_desc(dev, desc);
+		return (BUS_PROBE_DEFAULT);
+	}
+
+	return (ENXIO);
+}
+
+static int
+ipmi_pci_attach(device_t dev)
+{
 	struct ipmi_softc *sc = device_get_softc(dev);
-	device_t parent, smbios_attach_dev = NULL;
-	devclass_t dc;
-	int status, flags;
-	int error;
+	struct ipmi_get_info info;
+	const char *mode;
+	int error, type;
 
+	/* Look for an IPMI entry in the SMBIOS table. */
+	if (!ipmi_smbios_identify(&info))
+		return (ENXIO);
 
-	/*
-	 * We need to attach to something that can address the BIOS/
-	 * SMBIOS memory range.  This is usually the isa bus however
-	 * during a static kernel boot the isa bus is not available
-	 * so we run up the tree to the nexus bus.  A module load
-	 * will use the isa bus attachment.  If neither work bail
-	 * since the SMBIOS defines stuff we need to know to attach to
-	 * this device.
-	 */
-	dc = devclass_find("isa");
-	if (dc != NULL) {
-		smbios_attach_dev = devclass_get_device(dc, 0);
-	}
-
-	if (smbios_attach_dev == NULL) {
-		smbios_attach_dev = dev;
-		for (;;) {
-			parent = device_get_parent(smbios_attach_dev);
-			if (parent == NULL)
-				break;
-			if (strcmp(device_get_name(smbios_attach_dev),
-			    "nexus") == 0)
-				break;
-			smbios_attach_dev = parent;
-		} 
-	}
-	
-	if (smbios_attach_dev == NULL) {
-		device_printf(dev, "Couldn't find isa/nexus device\n");
-		goto bad;
-	}
-	sc->ipmi_smbios_dev = ipmi_smbios_identify(NULL, smbios_attach_dev);
-	if (sc->ipmi_smbios_dev == NULL) {
-		device_printf(dev, "Couldn't find isa device\n");
-		goto bad;
-	}
-	error = ipmi_smbios_probe(sc->ipmi_smbios_dev);
-	if (error != 0) {
-		goto bad;
-	}
 	sc->ipmi_dev = dev;
-	error = ipmi_smbios_query(dev);
-	device_delete_child(dev, sc->ipmi_smbios_dev);
-	if (error != 0)
-		goto bad;
 
-	/* Now we know about the IPMI attachment info. */
-	if (sc->ipmi_bios_info.kcs_mode) {
-		if (sc->ipmi_bios_info.io_mode)
-			device_printf(dev, "KCS mode found at io 0x%llx "
-			    "alignment 0x%x on %s\n",
-			    (long long)sc->ipmi_bios_info.address,
-			    sc->ipmi_bios_info.offset,
-			    device_get_name(device_get_parent(sc->ipmi_dev)));
-		else
-			device_printf(dev, "KCS mode found at mem 0x%llx "
-			    "alignment 0x%x on %s\n",
-			    (long long)sc->ipmi_bios_info.address,
-			    sc->ipmi_bios_info.offset,
-			    device_get_name(device_get_parent(sc->ipmi_dev)));
-
-		sc->ipmi_kcs_status_reg   = sc->ipmi_bios_info.offset;
-		sc->ipmi_kcs_command_reg  = sc->ipmi_bios_info.offset;
-		sc->ipmi_kcs_data_out_reg = 0;
-		sc->ipmi_kcs_data_in_reg  = 0;
-
-		if (sc->ipmi_bios_info.io_mode) {
-			sc->ipmi_io_rid = PCIR_BAR(0);
-			sc->ipmi_io_res = bus_alloc_resource(dev,
-			    SYS_RES_IOPORT, &sc->ipmi_io_rid,
-			    sc->ipmi_bios_info.address,
-			    sc->ipmi_bios_info.address +
-				(sc->ipmi_bios_info.offset * 2),
-			    sc->ipmi_bios_info.offset * 2,
-			    RF_ACTIVE);
-		} else {
-			sc->ipmi_mem_rid = PCIR_BAR(0);
-			sc->ipmi_mem_res = bus_alloc_resource(dev,
-			    SYS_RES_MEMORY, &sc->ipmi_mem_rid,
-			    sc->ipmi_bios_info.address,
-			    sc->ipmi_bios_info.address +
-			        (sc->ipmi_bios_info.offset * 2),
-			    sc->ipmi_bios_info.offset * 2,
-			    RF_ACTIVE);
-		}
-
-		if (!sc->ipmi_io_res){
-			device_printf(dev, "couldn't configure pci io res\n");
-			goto bad;
-		}
-
-		status = INB(sc, sc->ipmi_kcs_status_reg);
-		if (status == 0xff) {
-			device_printf(dev, "couldn't find it\n");
-			goto bad;
-		}
-		if(status & KCS_STATUS_OBF){
-			ipmi_read(dev, NULL, 0);
-		}
-	} else if (sc->ipmi_bios_info.smic_mode) {
-		if (sc->ipmi_bios_info.io_mode)
-			device_printf(dev, "SMIC mode found at io 0x%llx "
-			    "alignment 0x%x on %s\n",
-			    (long long)sc->ipmi_bios_info.address,
-			    sc->ipmi_bios_info.offset,
-			    device_get_name(device_get_parent(sc->ipmi_dev)));
-		else
-			device_printf(dev, "SMIC mode found at mem 0x%llx "
-			    "alignment 0x%x on %s\n",
-			    (long long)sc->ipmi_bios_info.address,
-			    sc->ipmi_bios_info.offset,
-			    device_get_name(device_get_parent(sc->ipmi_dev)));
-
-		sc->ipmi_smic_data    = 0;
-		sc->ipmi_smic_ctl_sts = sc->ipmi_bios_info.offset;
-		sc->ipmi_smic_flags   = sc->ipmi_bios_info.offset * 2;
-
-		if (sc->ipmi_bios_info.io_mode) {
-			sc->ipmi_io_rid = PCIR_BAR(0);
-			sc->ipmi_io_res = bus_alloc_resource(dev,
-			    SYS_RES_IOPORT, &sc->ipmi_io_rid,
-			    sc->ipmi_bios_info.address,
-			    sc->ipmi_bios_info.address +
-				(sc->ipmi_bios_info.offset * 3),
-			    sc->ipmi_bios_info.offset * 3,
-			    RF_ACTIVE);
-		} else {
-			sc->ipmi_mem_rid = PCIR_BAR(0);
-			sc->ipmi_mem_res = bus_alloc_resource(dev,
-			    SYS_RES_MEMORY, &sc->ipmi_mem_rid,
-			    sc->ipmi_bios_info.address,
-			    sc->ipmi_bios_info.address +
-			        (sc->ipmi_bios_info.offset * 2),
-			    sc->ipmi_bios_info.offset * 2,
-			    RF_ACTIVE);
-		}
-
-		if (!sc->ipmi_io_res && !sc->ipmi_mem_res){
-			device_printf(dev, "couldn't configure pci res\n");
-			goto bad;
-		}
-
-		flags = INB(sc, sc->ipmi_smic_flags);
-		if (flags == 0xff) {
-			device_printf(dev, "couldn't find it\n");
-			goto bad;
-		}
-		if ((flags & SMIC_STATUS_SMS_ATN)
-		    && (flags & SMIC_STATUS_RX_RDY)){
-			ipmi_read(dev, NULL, 0);
-		}
-	} else {
+	switch (info.iface_type) {
+	case KCS_MODE:
+		mode = "KCS";
+		break;
+	case SMIC_MODE:
+		mode = "SMIC";
+		break;
+	case BT_MODE:
+		device_printf(dev, "BT mode is unsupported\n");
+		return (ENXIO);
+	default:
 		device_printf(dev, "No IPMI interface found\n");
-		goto bad;
+		return (ENXIO);
 	}
-	ipmi_attach(dev);
+
+	device_printf(dev, "%s mode found at %s 0x%jx alignment 0x%x on %s\n",
+	    mode, info.io_mode ? "io" : "mem",
+	    (uintmax_t)info.address, info.offset,
+	    device_get_name(device_get_parent(dev)));
+	if (info.io_mode)
+		type = SYS_RES_IOPORT;
+	else
+		type = SYS_RES_MEMORY;
+
+	sc->ipmi_io_rid = PCIR_BAR(0);
+	sc->ipmi_io_res[0] = bus_alloc_resource_any(dev, type,
+	    &sc->ipmi_io_rid, RF_ACTIVE);
+	sc->ipmi_io_type = type;
+	sc->ipmi_io_spacing = info.offset;
+
+	if (sc->ipmi_io_res[0] == NULL) {
+		device_printf(dev, "couldn't configure pci io res\n");
+		return (ENXIO);
+	}
 
 	sc->ipmi_irq_rid = 0;
-        sc->ipmi_irq_res = bus_alloc_resource_any(sc->ipmi_dev, SYS_RES_IRQ,
+	sc->ipmi_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 	    &sc->ipmi_irq_rid, RF_SHAREABLE | RF_ACTIVE);
-	if (sc->ipmi_irq_res == NULL) {
-                device_printf(sc->ipmi_dev, "can't allocate interrupt\n");
-        } else {
-		if (bus_setup_intr(sc->ipmi_dev, sc->ipmi_irq_res,
-				   INTR_TYPE_MISC, ipmi_intr,
-				   sc->ipmi_dev, &sc->ipmi_irq)) {
-			device_printf(sc->ipmi_dev,
-			    "can't set up interrupt\n");
-			return (EINVAL);
-		}
+
+	switch (info.iface_type) {
+	case KCS_MODE:
+		error = ipmi_kcs_attach(sc);
+		if (error)
+			goto bad;
+		break;
+	case SMIC_MODE:
+		error = ipmi_smic_attach(sc);
+		if (error)
+			goto bad;
+		break;
 	}
+	error = ipmi_attach(dev);
+	if (error)
+		goto bad;
 
-	return 0;
+	return (0);
 bad:
-	return ENXIO;
+	ipmi_release_resources(dev);
+	return (error);
 }
 
-static int ipmi_pci_detach(device_t dev) {
-	struct ipmi_softc *sc;
-
-	sc = device_get_softc(dev);
-	ipmi_detach(dev);
-	if (sc->ipmi_ev_tag)
-		EVENTHANDLER_DEREGISTER(watchdog_list, sc->ipmi_ev_tag);
-
-	if (sc->ipmi_mem_res)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->ipmi_mem_rid,
-		    sc->ipmi_mem_res);
-	if (sc->ipmi_io_res)
-		bus_release_resource(dev, SYS_RES_IOPORT, sc->ipmi_io_rid,
-		    sc->ipmi_io_res);
-	if (sc->ipmi_irq)
-		bus_teardown_intr(sc->ipmi_dev, sc->ipmi_irq_res,
-		    sc->ipmi_irq);
-	if (sc->ipmi_irq_res)
-		bus_release_resource(sc->ipmi_dev, SYS_RES_IRQ,
-		    sc->ipmi_irq_rid, sc->ipmi_irq_res);
-
-	return 0;
-}
-
-static driver_t ipmi_pci_driver = {
-        "ipmi",
-        ipmi_methods,
-        sizeof(struct ipmi_softc)
+static device_method_t ipmi_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,     ipmi_pci_probe),
+	DEVMETHOD(device_attach,    ipmi_pci_attach),
+	DEVMETHOD(device_detach,    ipmi_detach),
+	{ 0, 0 }
 };
 
-DRIVER_MODULE(ipmi_foo, pci, ipmi_pci_driver, ipmi_devclass, 0, 0);
+static driver_t ipmi_pci_driver = {
+	"ipmi",
+	ipmi_methods,
+	sizeof(struct ipmi_softc)
+};
+
+DRIVER_MODULE(ipmi_pci, pci, ipmi_pci_driver, ipmi_devclass, 0, 0);
+
+/* Native IPMI on PCI driver. */
+
+static int
+ipmi2_pci_probe(device_t dev)
+{
+
+	if (pci_get_class(dev) == PCIC_SERIALBUS &&
+	    pci_get_subclass(dev) == 0x07) {
+		device_set_desc(dev, "IPMI System Interface");
+		return (BUS_PROBE_GENERIC);
+	}
+
+	return (ENXIO);
+}
+
+static int
+ipmi2_pci_attach(device_t dev)
+{
+	struct ipmi_softc *sc;
+	int error, iface, type;
+
+	sc = device_get_softc(dev);
+	sc->ipmi_dev = dev;
+
+	/* Interface is determined by progif. */
+	switch (pci_get_progif(dev)) {
+	case 0:
+		iface = SMIC_MODE;
+		break;
+	case 1:
+		iface = KCS_MODE;
+		break;
+	case 2:
+		iface = BT_MODE;
+		device_printf(dev, "BT interface unsupported\n");
+		return (ENXIO);
+	default:
+		device_printf(dev, "Unsupported interface: %d\n",
+		    pci_get_progif(dev));
+		return (ENXIO);
+	}
+
+	/*
+	 * Bottom bit of bar indicates resouce type.  There should be
+	 * constants in pcireg.h for fields in a BAR.
+	 */
+	sc->ipmi_io_rid = PCIR_BAR(0);
+	if (pci_read_config(dev, PCIR_BAR(0), 4) & 0x1)
+		type = SYS_RES_IOPORT;
+	else
+		type = SYS_RES_MEMORY;
+	sc->ipmi_io_type = type;
+	sc->ipmi_io_spacing = 1;
+	sc->ipmi_io_res[0] = bus_alloc_resource_any(dev, type,
+	    &sc->ipmi_io_rid, RF_ACTIVE);
+	if (sc->ipmi_io_res[0] == NULL) {
+		device_printf(dev, "couldn't map ports/memory\n");
+		return (ENXIO);
+	}
+
+	sc->ipmi_irq_rid = 0;
+	sc->ipmi_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+	    &sc->ipmi_irq_rid, RF_SHAREABLE | RF_ACTIVE);
+
+	switch (iface) {
+	case KCS_MODE:
+		device_printf(dev, "using KSC interface\n");
+
+		/*
+		 * We have to examine the resource directly to determine the
+		 * alignment.
+		 */
+		if (!ipmi_kcs_probe_align(sc)) {
+			device_printf(dev, "Unable to determine alignment\n");
+			error = ENXIO;
+			goto bad;
+		}
+
+		error = ipmi_kcs_attach(sc);
+		if (error)
+			goto bad;
+		break;
+	case SMIC_MODE:
+		device_printf(dev, "using SMIC interface\n");
+
+		error = ipmi_smic_attach(sc);
+		if (error)
+			goto bad;
+		break;
+	}
+	error = ipmi_attach(dev);
+	if (error)
+		goto bad;
+
+	return (0);
+bad:
+	ipmi_release_resources(dev);
+	return (error);
+}
+
+static device_method_t ipmi2_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,     ipmi2_pci_probe),
+	DEVMETHOD(device_attach,    ipmi2_pci_attach),
+	DEVMETHOD(device_detach,    ipmi_detach),
+	{ 0, 0 }
+};
+
+static driver_t ipmi2_pci_driver = {
+	"ipmi",
+	ipmi2_methods,
+	sizeof(struct ipmi_softc)
+};
+
+DRIVER_MODULE(ipmi2_pci, pci, ipmi2_pci_driver, ipmi_devclass, 0, 0);

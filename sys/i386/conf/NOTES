@@ -666,9 +666,10 @@ options 	SAFE_RNDTEST	# enable rndtest support
 # Miscellaneous hardware:
 #
 # apm: Laptop Advanced Power Management (experimental)
-# pmtimer: Timer device driver for power management events (APM or ACPI)
 # cy: Cyclades serial driver
 # digi: Digiboard driver
+# ipmi: Intelligent Platform Management Interface
+# pmtimer: Timer device driver for power management events (APM or ACPI)
 # spic: Sony Programmable I/O controller (VAIO notebooks)
 
 # Notes on APM
@@ -695,7 +696,6 @@ options 	SAFE_RNDTEST	# enable rndtest support
 
 device		apm
 hint.apm.0.flags="0x20"
-device		pmtimer			# Adjust system timer at wakeup time
 device		cy
 options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
 hint.cy.0.at="isa"
@@ -714,10 +714,12 @@ device		digi_EPCX_PCI
 device		digi_Xe
 device		digi_Xem
 device		digi_Xr
+device		ipmi
 # Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
 device		pbio
 hint.pbio.0.at="isa"
 hint.pbio.0.port="0x360"
+device		pmtimer			# Adjust system timer at wakeup time
 device		spic
 hint.spic.0.at="isa"
 hint.spic.0.port="0x10a0"
