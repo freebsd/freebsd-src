@@ -2795,66 +2795,126 @@ em_transmit_checksum_setup(struct adapter *adapter, struct mbuf *mp,
 {
 	struct em_context_desc *TXD;
 	struct em_buffer *tx_buffer;
-	int curr_txd;
+	struct ether_vlan_header *eh;
+	struct ip *ip;
+	struct ip6_hdr *ip6;
+	struct tcp_hdr *th;
+	int curr_txd, ehdrlen, hdr_len, ip_hlen;
+	uint32_t cmd = 0;
+	uint16_t etype;
+	uint8_t ipproto;
 
-	if (mp->m_pkthdr.csum_flags) {
+	/* Setup checksum offload context. */
+	curr_txd = adapter->next_avail_tx_desc;
+	tx_buffer = &adapter->tx_buffer_area[curr_txd];
+	TXD = (struct em_context_desc *) &adapter->tx_desc_base[curr_txd];
 
-		if (mp->m_pkthdr.csum_flags & CSUM_TCP) {
-			*txd_upper = E1000_TXD_POPTS_TXSM << 8;
-			*txd_lower = E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D;
-			if (adapter->active_checksum_context == OFFLOAD_TCP_IP)
-				return;
-			else
-				adapter->active_checksum_context = OFFLOAD_TCP_IP;
+	*txd_lower = E1000_TXD_CMD_DEXT |	/* Extended descr type */
+		     E1000_TXD_DTYP_D;		/* Data descr */
 
-		} else if (mp->m_pkthdr.csum_flags & CSUM_UDP) {
-			*txd_upper = E1000_TXD_POPTS_TXSM << 8;
-			*txd_lower = E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D;
-			if (adapter->active_checksum_context == OFFLOAD_UDP_IP)
-				return;
-			else
-				adapter->active_checksum_context = OFFLOAD_UDP_IP;
-		} else {
-			*txd_upper = 0;
-			*txd_lower = 0;
-			return;
-		}
+	/*
+	 * Determine where frame payload starts.
+	 * Jump over vlan headers if already present,
+	 * helpful for QinQ too.
+	 */
+	eh = mtod(mp, struct ether_vlan_header *);
+	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
+		etype = ntohs(eh->evl_proto);
+		ehdrlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
 	} else {
+		etype = ntohs(eh->evl_encap_proto);
+		ehdrlen = ETHER_HDR_LEN;
+	}
+
+	/*
+	 * We only support TCP/UDP for IPv4 and IPv6 for the moment.
+	 * TODO: Support SCTP too when it hits the tree.
+	 */
+	switch (etype) {
+	case ETHERTYPE_IP:
+		ip = (struct ip *)(mp->m_data + ehdrlen);
+		ip_hlen = ip->ip_hl << 2;
+
+		/* Setup of IP header checksum. */
+		if (mp->m_pkthdr.csum_flags & CSUM_IP) {
+			/*
+			 * Start offset for header checksum calculation.
+			 * End offset for header checksum calculation.
+			 * Offset of place to put the checksum.
+			 */
+			TXD->lower_setup.ip_fields.ipcss = ehdrlen;
+			TXD->lower_setup.ip_fields.ipcse =
+			    htole16(ehdrlen + ip_hlen);
+			TXD->lower_setup.ip_fields.ipcso =
+			    ehdrlen + offsetof(struct ip, ip_sum);
+			cmd |= E1000_TXD_CMD_IP;
+			*txd_upper |= E1000_TXD_POPTS_IXSM << 8;
+		}
+
+		if (mp->m_len < ehdrlen + ip_hlen)
+			return;	/* failure */
+
+		hdr_len = ehdrlen + ip_hlen;
+		ipproto = ip->ip_p;
+
+		break;
+	case ETHERTYPE_IPV6:
+		ip6 = (struct ip6_hdr *)(mp->m_data + ehdrlen);
+		ip_hlen = sizeof(struct ip6_hdr); /* XXX: No header stacking. */
+
+		if (mp->m_len < ehdrlen + ip_hlen)
+			return;	/* failure */
+
+		/* IPv6 doesn't have a header checksum. */
+
+		hdr_len = ehdrlen + ip_hlen;
+		ipproto = ip6->ip6_nxt;
+
+		break;
+	default:
 		*txd_upper = 0;
 		*txd_lower = 0;
 		return;
 	}
 
-	/* If we reach this point, the checksum offload context
-	 * needs to be reset.
-	 */
-	curr_txd = adapter->next_avail_tx_desc;
-	tx_buffer = &adapter->tx_buffer_area[curr_txd];
-	TXD = (struct em_context_desc *) &adapter->tx_desc_base[curr_txd];
-
-	TXD->lower_setup.ip_fields.ipcss = ETHER_HDR_LEN;
-	TXD->lower_setup.ip_fields.ipcso =
-		ETHER_HDR_LEN + offsetof(struct ip, ip_sum);
-	TXD->lower_setup.ip_fields.ipcse =
-		htole16(ETHER_HDR_LEN + sizeof(struct ip) - 1);
-
-	TXD->upper_setup.tcp_fields.tucss =
-		ETHER_HDR_LEN + sizeof(struct ip);
-	TXD->upper_setup.tcp_fields.tucse = htole16(0);
-
-	if (adapter->active_checksum_context == OFFLOAD_TCP_IP) {
-		TXD->upper_setup.tcp_fields.tucso =
-			ETHER_HDR_LEN + sizeof(struct ip) +
-			offsetof(struct tcphdr, th_sum);
-	} else if (adapter->active_checksum_context == OFFLOAD_UDP_IP) {
-		TXD->upper_setup.tcp_fields.tucso =
-			ETHER_HDR_LEN + sizeof(struct ip) +
-			offsetof(struct udphdr, uh_sum);
+	switch (ipproto) {
+	case IPPROTO_TCP:
+		if (mp->m_pkthdr.csum_flags & CSUM_TCP) {
+			/*
+			 * Start offset for payload checksum calculation.
+			 * End offset for payload checksum calculation.
+			 * Offset of place to put the checksum.
+			 */
+			th = (struct tcp_hdr *)(mp->m_data + hdr_len);
+			TXD->upper_setup.tcp_fields.tucss = hdr_len;
+			TXD->upper_setup.tcp_fields.tucse = htole16(0);
+			TXD->upper_setup.tcp_fields.tucso =
+			    hdr_len + offsetof(struct tcphdr, th_sum);
+			cmd |= E1000_TXD_CMD_TCP;
+			*txd_upper |= E1000_TXD_POPTS_TXSM << 8;
+		}
+		break;
+	case IPPROTO_UDP:
+		if (mp->m_pkthdr.csum_flags & CSUM_UDP) {
+			/*
+			 * Start offset for header checksum calculation.
+			 * End offset for header checksum calculation.
+			 * Offset of place to put the checksum.
+			 */
+			TXD->upper_setup.tcp_fields.tucss = hdr_len;
+			TXD->upper_setup.tcp_fields.tucse = htole16(0);
+			TXD->upper_setup.tcp_fields.tucso =
+			    hdr_len + offsetof(struct udphdr, uh_sum);
+			*txd_upper |= E1000_TXD_POPTS_TXSM << 8;
+		}
+		break;
+	default:
+		break;
 	}
 
 	TXD->tcp_seg_setup.data = htole32(0);
-	TXD->cmd_and_length = htole32(adapter->txd_cmd | E1000_TXD_CMD_DEXT);
-
+	TXD->cmd_and_length =
+	    htole32(adapter->txd_cmd | E1000_TXD_CMD_DEXT | cmd);
 	tx_buffer->m_head = NULL;
 
 	if (++curr_txd == adapter->num_tx_desc)
