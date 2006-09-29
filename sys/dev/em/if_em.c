@@ -1475,6 +1475,45 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	}
 
 	/*
+	 * When operating in promiscuous mode, hardware stripping of the
+	 * VLAN tag on receive is disabled.  This should not prevent us
+	 * from doing hardware insertion of the VLAN tag here as that
+	 * is controlled by the dma descriptor flags and not the receive
+	 * tag strip setting.  Unfortunatly this hardware switches the
+	 * VLAN encapsulation type from 802.1q to ISL when stripping om
+	 * receive is disabled.  This means we have to add the vlan
+	 * encapsulation here in the driver, since it will have come down
+	 * from the VLAN layer with a tag instead of a VLAN header.
+	 */
+	if ((m_head->m_flags & M_VLANTAG) && adapter->em_insert_vlan_header) {
+		struct ether_vlan_header *evl;
+		struct ether_header eh;
+
+		m_head = m_pullup(m_head, sizeof(eh));
+		if (m_head == NULL) {
+			*m_headp = NULL;
+			return (ENOBUFS);
+		}
+		eh = *mtod(m_head, struct ether_header *);
+		M_PREPEND(m_head, sizeof(*evl), M_DONTWAIT);
+		if (m_head == NULL) {
+			*m_headp = NULL;
+			return (ENOBUFS);
+		}
+		m_head = m_pullup(m_head, sizeof(*evl));
+		if (m_head == NULL) {
+			*m_headp = NULL;
+			return (ENOBUFS);
+		}
+		evl = mtod(m_head, struct ether_vlan_header *);
+		bcopy(&eh, evl, sizeof(*evl));
+		evl->evl_proto = evl->evl_encap_proto;
+		evl->evl_encap_proto = htons(ETHERTYPE_VLAN);
+		evl->evl_tag = htons(m_head->m_pkthdr.ether_vtag);
+		*m_headp = m_head;
+	}
+
+	/*
 	 * TSO workaround:
 	 *  If an mbuf contains only the IP and TCP header we have
 	 *  to pull 4 bytes of data into it.
