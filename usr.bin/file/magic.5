@@ -424,12 +424,7 @@ is newer than
 .Pa /usr/share/misc/magic.mgc
 it is not used.
 Use the command:
-.Po
-cd /usr/share/misc &&
-.Nm file
-.Fl C
-.Fl m Ar magic
-.Pc
+.Dq Li "cd /usr/share/misc && file -C -m magic"
 to rebuild.
 .Sh SEE ALSO
 .Xr file 1

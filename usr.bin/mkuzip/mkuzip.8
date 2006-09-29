@@ -7,7 +7,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2004
+.Dd March 17, 2006
 .Dt MKUZIP 8
 .Os
 .Sh NAME
@@ -30,7 +30,9 @@ class will be able to decompress the resulting image at run-time.
 This allows for a significant reduction of size of disk image at
 the expense of some CPU time required to decompress the data each
 time it is read.
+The
 .Nm
+utility
 works in two phases:
 .Bl -enum
 .It
@@ -74,7 +76,9 @@ sizes lead to higher overhead in the
 class, as the class has to decompress the whole cluster even if
 only a few bytes from that cluster have to be read.
 .Pp
+The
 .Nm
+utility
 inserts a short shell script at the beginning of the generated image,
 which makes it possible to
 .Dq run
