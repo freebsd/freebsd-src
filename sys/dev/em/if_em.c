@@ -1526,8 +1526,19 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	tx_buffer = &adapter->tx_buffer_area[adapter->next_avail_tx_desc];
 	tx_buffer_last = tx_buffer;
 	map = tx_buffer->map;
+
 	error = bus_dmamap_load_mbuf_sg(adapter->txtag, map, *m_headp, segs,
 	    &nsegs, BUS_DMA_NOWAIT);
+
+	/*
+	 * There are two types of errors we can (try) to handle:
+	 * - EFBIG means the mbuf chain was too long and bus_dma ran
+	 *   out of segments.  Defragment the mbuf chain and try again.
+	 * - ENOMEM means bus_dma could not obtain enough bounce buffers
+	 *   at this point in time.  Defer sending and try again later.
+	 * All other errors, in particular EINVAL, are fatal and prevent the
+	 * mbuf chain from ever going through.  Drop it and report error.
+	 */
 	if (error == EFBIG) {
 		struct mbuf *m;
 
@@ -1540,22 +1551,27 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 			return (ENOBUFS);
 		}
 		*m_headp = m;
+
 		error = bus_dmamap_load_mbuf_sg(adapter->txtag, map, *m_headp,
 		    segs, &nsegs, BUS_DMA_NOWAIT);
-		if (error != 0) {
+
+		if (error == ENOMEM) {
+			adapter->no_tx_dma_setup++;
+			return (error);
+		} else if (error != 0) {
 			adapter->no_tx_dma_setup++;
 			m_freem(*m_headp);
 			*m_headp = NULL;
 			return (error);
 		}
-	} else if (error != 0) {
+	} else if (error == ENOMEM) {
 		adapter->no_tx_dma_setup++;
 		return (error);
-	}
-	if (nsegs == 0) {
+	} else if (error != 0) {
+		adapter->no_tx_dma_setup++;
 		m_freem(*m_headp);
 		*m_headp = NULL;
-		return (EIO);
+		return (error);
 	}
 
 	/*
