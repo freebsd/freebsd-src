@@ -403,12 +403,6 @@ main(int argc, char *argv[])
 	}
 	setpriority(PRIO_PROCESS, 0, prio);
 
-	/* Switch to home directory */
-	if (asthem) {
-		if (chdir(pwd->pw_dir) < 0)
-			errx(1, "no directory");
-	}
-
 	/*
 	 * PAM modules might add supplementary groups in pam_setcred(), so
 	 * initialize them first.
@@ -540,6 +534,10 @@ main(int argc, char *argv[])
 					LOGIN_SETENV);
 				if (p)
 					setenv("TERM", p, 1);
+
+				p = pam_getenv(pamh, "HOME");
+				if (chdir(p ? p : pwd->pw_dir) < 0)
+					errx(1, "no directory");
 			}
 		}
 		login_close(lc);
