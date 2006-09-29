@@ -24,6 +24,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 20060924:
 	tcpslice has been removed from the base system.
 
+20060913:
+	The sizes of struct tcpcb (and struct xtcpcb) have changed due to
+	the rewrite of TCP syncookies.  Tools like netstat, sockstat, and
+	systat needs to be rebuilt.
+
 20060903:
 	libpcap updated to v0.9.4 and tcpdump to v3.9.4
 
