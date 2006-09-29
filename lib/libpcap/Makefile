@@ -1,6 +1,8 @@
 # Makefile for libpcap
 # $FreeBSD$
 
+SHLIBDIR?= /lib
+
 LIB=	pcap
 SRCS=	grammar.y tokdefs.h version.h pcap-bpf.c \
 	pcap.c inet.c fad-getad.c gencode.c optimize.c nametoaddr.c \
