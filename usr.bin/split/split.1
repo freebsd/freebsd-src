@@ -46,7 +46,9 @@
 .Nm
 .Fl b Ar byte_count Ns
 .Oo
-.Cm K Ns | Ns Cm k Ns | Ns Cm M Ns | Ns Cm m Ns | Ns Cm G Ns | Ns Cm g
+.Sm off
+.Cm K | k | M | m | G | g
+.Sm on
 .Oc
 .Op Fl a Ar suffix_length
 .Op Ar file Op Ar prefix
@@ -77,7 +79,11 @@ The options are as follows:
 Use
 .Ar suffix_length
 letters to form the suffix of the file name.
-.It Fl b Ar byte_count Ns Op Cm K Ns | Ns Cm k Ns | Ns Cm M Ns | Ns Cm m Ns | Ns Cm G Ns | Ns Cm g
+.It Fl b Ar byte_count Ns Oo
+.Sm off
+.Cm K | k | M | m | G | g
+.Sm on
+.Oc
 Create smaller files
 .Ar byte_count
 bytes in length.
@@ -126,7 +132,7 @@ In this case, each file into which the file is split is named by the
 prefix followed by a lexically ordered suffix using
 .Ar suffix_length
 characters in the range
-.Dq Li a Ns  - Ns Li z .
+.Dq Li a Ns - Ns Li z .
 If
 .Fl a
 is not specified, two letters are used as the suffix.
