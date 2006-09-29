@@ -233,7 +233,7 @@ not specified, the default
 port is used.
 .El
 .Pp
-When in rlogin mode, a line of the form ~. disconnects from the
+When in rlogin mode, a line of the form ~.\& disconnects from the
 remote host; ~ is the
 .Nm
 escape character.
@@ -645,7 +645,7 @@ It may be the hostname or numeric address specified as the argument
 the canonical name of that string as determined by
 .Xr getaddrinfo 3 ,
 or the string
-.Dq DEFAULT
+.Dq Li DEFAULT
 indicating all hosts.
 The rest of the line, and successive
 lines that begin with white space are assumed to be
