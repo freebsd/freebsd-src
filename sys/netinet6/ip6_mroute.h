@@ -126,7 +126,7 @@ struct mf6cctl {
 struct mrt6stat {
 	u_quad_t mrt6s_mfc_lookups;	/* # forw. cache hash table hits   */
 	u_quad_t mrt6s_mfc_misses;	/* # forw. cache hash table misses */
-	u_quad_t mrt6s_upcalls;		/* # calls to mrouted              */
+	u_quad_t mrt6s_upcalls;		/* # calls to routing daemon       */
 	u_quad_t mrt6s_no_route;	/* no route for packet's origin    */
 	u_quad_t mrt6s_bad_tunnel;	/* malformed tunnel options        */
 	u_quad_t mrt6s_cant_tunnel;	/* no room for tunnel options      */
