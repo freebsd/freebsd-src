@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include "devinfo.h"
 
@@ -208,7 +209,10 @@ main(int argc, char *argv[])
 			vflag++;
 			break;
 		default:
-			errx(1, "usage: %s [-ruv]", argv[0]);
+			fprintf(stderr, "%s\n%s\n",
+			    "usage: devinfo [-rv]",
+			    "       devinfo -u");
+			exit(1);
 		}
 	}
 
