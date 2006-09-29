@@ -69,6 +69,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 
@@ -1591,11 +1592,12 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 		bus_dmamap_unload(adapter->txtag, map);
 		return (ENOBUFS);
 	}
+	m_head = *m_headp;
 
 	/* Do hardware assists */
-	m_head = *m_headp;
-	if (ifp->if_hwassist > 0) {
-		if (em_tso_setup(adapter, m_head, &txd_upper, &txd_lower)) {
+	if (ifp->if_hwassist) {
+		if (do_tso &&
+		    em_tso_setup(adapter, m_head, &txd_upper, &txd_lower)) {
 			/* we need to make a final sentinel transmit desc */
 			tso_desc = TRUE;
 		} else
@@ -2873,58 +2875,140 @@ em_tso_setup(struct adapter *adapter, struct mbuf *mp, uint32_t *txd_upper,
 {
 	struct em_context_desc *TXD;
 	struct em_buffer *tx_buffer;
+	struct ether_vlan_header *eh;
 	struct ip *ip;
+	struct ip6_hdr *ip6;
 	struct tcphdr *th;
-	int curr_txd, hdr_len, ip_hlen, tcp_hlen;
+	int curr_txd, ehdrlen, hdr_len, ip_hlen, isip6;
+	uint16_t etype;
 
-	if (((mp->m_pkthdr.csum_flags & CSUM_TSO) == 0) ||
-	    (mp->m_pkthdr.len <= E1000_TX_BUFFER_SIZE)) {
-		return FALSE;
+	/*
+	 * XXX: This is not really correct as the stack would not have
+	 * set up all checksums.
+	 * XXX: Return FALSE is not sufficient as we may have to return
+	 * in true failure cases as well.  Should do -1 (failure), 0 (no)
+	 * and 1 (success).
+	 */
+	if (mp->m_pkthdr.len <= E1000_TX_BUFFER_SIZE)
+		return FALSE;	/* 0 */
+
+	/*
+	 * This function could/should be extended to support IP/IPv6
+	 * fragmentation as well.  But as they say, one step at a time.
+	 */
+
+	/*
+	 * Determine where frame payload starts.
+	 * Jump over vlan headers if already present,
+	 * helpful for QinQ too.
+	 */
+	eh = mtod(mp, struct ether_vlan_header *);
+	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
+		etype = ntohs(eh->evl_proto);
+		ehdrlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+	} else {
+		etype = ntohs(eh->evl_encap_proto);
+		ehdrlen = ETHER_HDR_LEN;
 	}
 
-	*txd_lower = (E1000_TXD_CMD_DEXT |
-		      E1000_TXD_DTYP_D |
-		      E1000_TXD_CMD_TSE);
+	/* Ensure we have at least the IP+TCP header in the first mbuf. */
+	if (mp->m_len < ehdrlen + sizeof(struct ip) + sizeof(struct tcphdr))
+		return FALSE;	/* -1 */
 
-	*txd_upper = (E1000_TXD_POPTS_IXSM |
+	/*
+	 * We only support TCP for IPv4 and IPv6 (notyet) for the moment.
+	 * TODO: Support SCTP too when it hits the tree.
+	 */
+	switch (etype) {
+	case ETHERTYPE_IP:
+		isip6 = 0;
+		ip = (struct ip *)(mp->m_data + ehdrlen);
+		if (ip->ip_p != IPPROTO_TCP)
+			return FALSE;	/* 0 */
+		ip->ip_len = 0;
+		ip->ip_sum = 0;
+		ip_hlen = ip->ip_hl << 2;
+		if (mp->m_len < ehdrlen + ip_hlen + sizeof(struct tcphdr))
+			return FALSE;	/* -1 */
+		th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
+#if 1
+		th->th_sum = in_pseudo(ip->ip_src.s_addr,
+		    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
+#else
+		th->th_sum = mp->m_pkthdr.csum_data;
+#endif
+		break;
+	case ETHERTYPE_IPV6:
+		isip6 = 1;
+		return FALSE;			/* Not supported yet. */
+		ip6 = (struct ip6_hdr *)(mp->m_data + ehdrlen);
+		if (ip6->ip6_nxt != IPPROTO_TCP)
+			return FALSE;	/* 0 */
+		ip6->ip6_plen = 0;
+		ip_hlen = sizeof(struct ip6_hdr); /* XXX: no header stacking. */
+		if (mp->m_len < ehdrlen + ip_hlen + sizeof(struct tcphdr))
+			return FALSE;	/* -1 */
+		th = (struct tcphdr *)((caddr_t)ip6 + ip_hlen);
+#if 0
+		th->th_sum = in6_pseudo(ip6->ip6_src, ip->ip6_dst,
+		    htons(IPPROTO_TCP));	/* XXX: function notyet. */
+#else
+		th->th_sum = mp->m_pkthdr.csum_data;
+#endif
+		break;
+	default:
+		return FALSE;
+	}
+	hdr_len = ehdrlen + ip_hlen + (th->th_off << 2);
+
+	*txd_lower = (E1000_TXD_CMD_DEXT |	/* Extended descr type */
+		      E1000_TXD_DTYP_D |	/* Data descr type */
+		      E1000_TXD_CMD_TSE);	/* Do TSE on this packet */
+
+	/* IP and/or TCP header checksum calculation and insertion. */
+	*txd_upper = ((isip6 ? 0 : E1000_TXD_POPTS_IXSM) |
 		      E1000_TXD_POPTS_TXSM) << 8;
 
 	curr_txd = adapter->next_avail_tx_desc;
 	tx_buffer = &adapter->tx_buffer_area[curr_txd];
 	TXD = (struct em_context_desc *) &adapter->tx_desc_base[curr_txd];
 
-	mp->m_data += sizeof(struct ether_header);
-	ip = mtod(mp, struct ip *);
-	ip->ip_len = 0;
-	ip->ip_sum = 0;
-	ip_hlen = ip->ip_hl << 2 ;
-	th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
-	tcp_hlen = th->th_off << 2;
-
-	hdr_len = ETHER_HDR_LEN + ip_hlen + tcp_hlen;
-	th->th_sum = in_pseudo(ip->ip_src.s_addr,
-	    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
-
-	mp->m_data -= sizeof(struct ether_header);
-	TXD->lower_setup.ip_fields.ipcss = ETHER_HDR_LEN;
-	TXD->lower_setup.ip_fields.ipcso =
-		ETHER_HDR_LEN + offsetof(struct ip, ip_sum);
-	TXD->lower_setup.ip_fields.ipcse =
-		htole16(ETHER_HDR_LEN + ip_hlen - 1);
-
+	/* IPv6 doesn't have a header checksum. */
+	if (!isip6) {
+		/*
+		 * Start offset for header checksum calculation.
+		 * End offset for header checksum calculation.
+		 * Offset of place put the checksum.
+		 */
+		TXD->lower_setup.ip_fields.ipcss = ehdrlen;
+		TXD->lower_setup.ip_fields.ipcse =
+		    htole16(ehdrlen + ip_hlen - 1);
+		TXD->lower_setup.ip_fields.ipcso =
+		    ehdrlen + offsetof(struct ip, ip_sum);
+	}
+	/*
+	 * Start offset for payload checksum calculation.
+	 * End offset for payload checksum calculation.
+	 * Offset of place to put the checksum.
+	 */
 	TXD->upper_setup.tcp_fields.tucss =
-		ETHER_HDR_LEN + ip_hlen;
+	    ehdrlen + ip_hlen;
 	TXD->upper_setup.tcp_fields.tucse = 0;
 	TXD->upper_setup.tcp_fields.tucso =
-		ETHER_HDR_LEN + ip_hlen +
-		offsetof(struct tcphdr, th_sum);
+	    ehdrlen + ip_hlen + offsetof(struct tcphdr, th_sum);
+	/*
+	 * Payload size per packet w/o any headers.
+	 * Length of all headers up to payload.
+	 */
 	TXD->tcp_seg_setup.fields.mss = htole16(mp->m_pkthdr.tso_segsz);
 	TXD->tcp_seg_setup.fields.hdr_len = hdr_len;
+
 	TXD->cmd_and_length = htole32(adapter->txd_cmd |
-				E1000_TXD_CMD_DEXT |
-				E1000_TXD_CMD_TSE |
-				E1000_TXD_CMD_IP | E1000_TXD_CMD_TCP |
-				(mp->m_pkthdr.len - (hdr_len)));
+				E1000_TXD_CMD_DEXT |	/* Extended descr */
+				E1000_TXD_CMD_TSE |	/* TSE context */
+				(isip6 ? 0 : E1000_TXD_CMD_IP) | /* Do IP csum */
+				E1000_TXD_CMD_TCP |	/* Do TCP checksum */
+				(mp->m_pkthdr.len - (hdr_len))); /* Total len */
 
 	tx_buffer->m_head = NULL;
 
