@@ -694,8 +694,8 @@ usage(void)
 
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
 		"usage: syslogd [-46ACcdknosuv] [-a allowed_peer]",
-		"               [-b bind address] [-f config_file]",
-		"               [-l log_socket] [-m mark_interval]",
+		"               [-b bind_address] [-f config_file]",
+		"               [-l [mode:]path] [-m mark_interval]",
 		"               [-P pid_file] [-p log_socket]");
 	exit(1);
 }
