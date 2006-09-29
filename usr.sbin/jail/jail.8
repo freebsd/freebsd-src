@@ -56,7 +56,9 @@ The options are as follows:
 .It Fl i
 Output the jail identifier of the newly created jail.
 .It Fl J Ar jid_file
-Write a JidFile, like a PidFile, containing jailid, path, hostname, ip and
+Write a
+.Ar jid_file
+file, containing jail identifier, path, hostname, IP and
 command used to start the jail.
 .It Fl l
 Run program in the clean environment.
@@ -75,9 +77,9 @@ is imported from the current environment.
 The environment variables from the login class capability database for the
 target login are also set.
 .It Fl s Ar securelevel
-Sets 
-.Va kern.securelevel 
-to the specified value inside the newly created jail.
+Sets the
+.Va kern.securelevel
+sysctl variable to the specified value inside the newly created jail.
 .It Fl u Ar username
 The user name from host environment as whom the
 .Ar command
@@ -141,7 +143,7 @@ See
 .Xr devfs 8
 for information on how to use devfs rules to limit access to entries
 in the per-jail devfs.
-A simple devfs ruleset for jails is available as ruleset #4 in 
+A simple devfs ruleset for jails is available as ruleset #4 in
 .Pa /etc/defaults/devfs.rules .
 .Pp
 In many cases this example would put far more in the jail than needed.
@@ -546,14 +548,14 @@ constraints on
 .Va kern.securelevel .
 .El
 .Pp
-The read-only
+The read-only sysctl variable
 .Va security.jail.jailed
-variable can be used to determine if a process is running inside a jail (value
+can be used to determine if a process is running inside a jail (value
 is one) or not (value is zero).
 .Pp
 The
-.Va security.jail.list 
-MIB entry is read-only and it returns an array of 
+.Va security.jail.list
+MIB entry is read-only and it returns an array of
 .Vt "struct xprison"
 defined in
 .In sys/jail.h .

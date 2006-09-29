@@ -133,18 +133,17 @@ the loopback interface.
 Enables ARP proxying for all hosts on net.
 .El
 .Sh DIAGNOSTICS
-.Em "arp: %x:%x:%x:%x:%x:%x is using my IP address %d.%d.%d.%d!" :
+.Bl -diag
+.It "arp: %x:%x:%x:%x:%x:%x is using my IP address %d.%d.%d.%d!"
 ARP has discovered another host on the local network which responds to
 mapping requests for its own Internet address with a different Ethernet
 address, generally indicating that two hosts are attempting to use the
 same Internet address.
-.Pp
-.Em "arp: link address is broadcast for IP address %d.%d.%d.%d!" :
+.It "arp: link address is broadcast for IP address %d.%d.%d.%d!"
 ARP requested information for a host, and received an answer indicating
 that the host's ethernet address is the ethernet broadcast address.
 This indicates a misconfigured or broken device.
-.Pp
-.Em "arp: %d.%d.%d.%d moved from %x:%x:%x:%x:%x:%x to %x:%x:%x:%x:%x:%x on %s" :
+.It "arp: %d.%d.%d.%d moved from %x:%x:%x:%x:%x:%x to %x:%x:%x:%x:%x:%x on %s"
 ARP had a cached value for the ethernet address of the referenced host,
 but received a reply indicating that the host is at a new address.
 This can happen normally when host hardware addresses change,
@@ -153,15 +152,13 @@ It can also indicate a problem with proxy ARP.
 This message can only be issued if the sysctl
 .Va net.link.ether.inet.log_arp_movements
 is set to 1, which is the system's default behaviour.
-.Pp
-.Em "arpresolve: can't allocate llinfo for %d.%d.%d.%d" :
+.It "arpresolve: can't allocate llinfo for %d.%d.%d.%d"
 The route for the referenced host points to a device upon which ARP is
 required, but ARP was unable to allocate a routing table entry in which
 to store the host's MAC address.
 This usually points to a misconfigured routing table.
 It can also occur if the kernel cannot allocate memory.
-.Pp
-.Em "arp: %d.%d.%d.%d is on if0 but got reply from %x:%x:%x:%x:%x:%x on if1" :
+.It "arp: %d.%d.%d.%d is on if0 but got reply from %x:%x:%x:%x:%x:%x on if1"
 Physical connections exist to the same logical IP network on both if0 and if1.
 It can also occur if an entry already exists in the ARP cache for the IP
 address above, and the cable has been disconnected from if0, then reconnected
@@ -169,13 +166,13 @@ to if1.
 This message can only be issued if the sysctl
 .Va net.link.ether.inet.log_arp_wrong_iface
 is set to 1, which is the system's default behaviour.
-.Pp
-.Em "arp: %x:%x:%x:%x:%x:%x attempts to modify permanent entry for %d.%d.%d.%d on %s" :
+.It "arp: %x:%x:%x:%x:%x:%x attempts to modify permanent entry for %d.%d.%d.%d on %s"
 ARP has received an ARP reply that attempts to overwrite a permanent
-antry in the local ARP table.
-This error will be only logged, if the sysctl
+entry in the local ARP table.
+This error will only be logged if the sysctl
 .Va net.link.ether.inet.log_arp_permanent_modify
 is set to 1, which is the system's default behaviour.
+.El
 .Sh SEE ALSO
 .Xr inet 4 ,
 .Xr route 4 ,
