@@ -5309,6 +5309,8 @@ ipfw_readfile(int ac, char *av[])
 			 */
 			av += optind - 1;
 			ac -= optind - 1;
+			if (ac < 2)
+				errx(EX_USAGE, "no filename argument");
 			av[ac-1] = NULL;
 			fprintf(stderr, "command is %s\n", av[0]);
 			break;
