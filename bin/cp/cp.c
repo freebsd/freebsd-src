@@ -102,7 +102,7 @@ main(int argc, char *argv[])
 	char *target;
 
 	Hflag = Lflag = Pflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRfinprvl")) != -1)
+	while ((ch = getopt(argc, argv, "HLPRfilnprv")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -127,6 +127,9 @@ main(int argc, char *argv[])
 			iflag = 1;
 			fflag = nflag = 0;
 			break;
+		case 'l':
+			lflag = 1;
+			break;
 		case 'n':
 			nflag = 1;
 			fflag = iflag = 0;
@@ -139,9 +142,6 @@ main(int argc, char *argv[])
 			break;
 		case 'v':
 			vflag = 1;
-			break;
-		case 'l':
-			lflag = 1;
 			break;
 		default:
 			usage();
