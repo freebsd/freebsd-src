@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <machine/stdarg.h>
 
+extern void exit(int) __dead2;
+
 void
 panic(const char *fmt,...)
 {
