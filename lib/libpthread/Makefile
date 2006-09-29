@@ -11,6 +11,7 @@
 LIB=kse
 .else
 LIB=pthread
+SHLIBDIR?= /lib
 .endif
 SHLIB_MAJOR= 2
 CFLAGS+=-DPTHREAD_KERNEL
