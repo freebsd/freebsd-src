@@ -523,7 +523,7 @@
 /* The number of bytes in type int */
 #define SIZEOF_INT 4
 
-#if defined(__i386__) || defined(__powerpc__) || defined(__strongarm__)
+#if defined(__i386__) || defined(__powerpc__) || defined(__arm__)
 /* The number of bytes in type long */
 # define SIZEOF_LONG SIZEOF_INT
 #elif defined(__alpha__) || defined(__sparc64__) || defined(__ia64__) || defined(__amd64__)
