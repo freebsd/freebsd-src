@@ -879,10 +879,10 @@ loop:
 			pagedaemon_wakeup();
 
 			if (page_req != VM_ALLOC_SYSTEM) 
-				return NULL;
+				return (NULL);
 
 			mtx_lock_spin(&vm_page_queue_free_mtx);
-			if (cnt.v_free_count <=  cnt.v_interrupt_free_min) {
+			if (cnt.v_free_count <= cnt.v_interrupt_free_min) {
 				mtx_unlock_spin(&vm_page_queue_free_mtx);
 				return (NULL);
 			}
