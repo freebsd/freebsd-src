@@ -361,7 +361,7 @@ again:
 
 		goto sendit;
 	}
-#ifndef notdef
+
 	/*
 	 * If the source address is not specified yet, use the address
 	 * of the outoing interface.
@@ -372,7 +372,7 @@ again:
 			ip->ip_src = IA_SIN(ia)->sin_addr;
 		}
 	}
-#endif /* notdef */
+
 	/*
 	 * Verify that we have any chance at all of being able to queue the
 	 * packet or packet fragments, unless ALTQ is enabled on the given
