@@ -298,6 +298,7 @@ enterpgrp(p, pgid, pgrp, sess)
 		 * new session
 		 */
 		mtx_init(&sess->s_mtx, "session", NULL, MTX_DEF);
+		mtx_lock(&Giant);       /* XXX TTY */
 		PROC_LOCK(p);
 		p->p_flag &= ~P_CONTROLT;
 		PROC_UNLOCK(p);
@@ -313,6 +314,7 @@ enterpgrp(p, pgid, pgrp, sess)
 		KASSERT(p == curproc,
 		    ("enterpgrp: mksession and p != curproc"));
 	} else {
+		mtx_lock(&Giant);       /* XXX TTY */
 		pgrp->pg_session = p->p_session;
 		SESS_LOCK(pgrp->pg_session);
 		pgrp->pg_session->s_count++;
@@ -330,6 +332,7 @@ enterpgrp(p, pgid, pgrp, sess)
 	pgrp->pg_jobc = 0;
 	SLIST_INIT(&pgrp->pg_sigiolst);
 	PGRP_UNLOCK(pgrp);
+	mtx_unlock(&Giant);       /* XXX TTY */
 
 	doenterpgrp(p, pgrp);
 
@@ -389,6 +392,7 @@ doenterpgrp(p, pgrp)
 	fixjobc(p, pgrp, 1);
 	fixjobc(p, p->p_pgrp, 0);
 
+	mtx_lock(&Giant);       /* XXX TTY */
 	PGRP_LOCK(pgrp);
 	PGRP_LOCK(savepgrp);
 	PROC_LOCK(p);
@@ -398,6 +402,7 @@ doenterpgrp(p, pgrp)
 	LIST_INSERT_HEAD(&pgrp->pg_members, p, p_pglist);
 	PGRP_UNLOCK(savepgrp);
 	PGRP_UNLOCK(pgrp);
+	mtx_unlock(&Giant);     /* XXX TTY */
 	if (LIST_EMPTY(&savepgrp->pg_members))
 		pgdelete(savepgrp);
 }
@@ -413,12 +418,14 @@ leavepgrp(p)
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
 	savepgrp = p->p_pgrp;
+	mtx_lock(&Giant);	/* XXX TTY */
 	PGRP_LOCK(savepgrp);
 	PROC_LOCK(p);
 	LIST_REMOVE(p, p_pglist);
 	p->p_pgrp = NULL;
 	PROC_UNLOCK(p);
 	PGRP_UNLOCK(savepgrp);
+	mtx_unlock(&Giant);	/* XXX TTY */
 	if (LIST_EMPTY(&savepgrp->pg_members))
 		pgdelete(savepgrp);
 	return (0);
@@ -443,6 +450,7 @@ pgdelete(pgrp)
 	 */
 	funsetownlst(&pgrp->pg_sigiolst);
 
+	mtx_lock(&Giant);       /* XXX TTY */
 	PGRP_LOCK(pgrp);
 	if (pgrp->pg_session->s_ttyp != NULL &&
 	    pgrp->pg_session->s_ttyp->t_pgrp == pgrp)
@@ -453,6 +461,7 @@ pgdelete(pgrp)
 	PGRP_UNLOCK(pgrp);
 	mtx_destroy(&pgrp->pg_mtx);
 	FREE(pgrp, M_PGRP);
+	mtx_unlock(&Giant);     /* XXX TTY */
 }
 
 static void
