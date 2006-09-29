@@ -186,9 +186,9 @@ tcptw_auto_size(void)
 	int halfrange;
 
 	/*
-         * Max out at half the ephemeral port range so that TIME_WAIT
-         * sockets don't tie up too many ephemeral ports.
-         */
+	 * Max out at half the ephemeral port range so that TIME_WAIT
+	 * sockets don't tie up too many ephemeral ports.
+	 */
 	if (ipport_lastauto > ipport_firstauto)
 		halfrange = (ipport_lastauto - ipport_firstauto) / 2;
 	else
