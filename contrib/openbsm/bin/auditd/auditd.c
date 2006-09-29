@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#18 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#23 $
  */
 
 #include <sys/types.h>
@@ -59,6 +59,7 @@
 #include "auditd.h"
 
 #define	NA_EVENT_STR_SIZE	25
+#define	POL_STR_SIZE		128
 
 static int	 ret, minval;
 static char	*lastfile = NULL;
@@ -67,7 +68,6 @@ static int	 triggerfd = 0;
 static int	 sigchlds, sigchlds_handled;
 static int	 sighups, sighups_handled;
 static int	 sigterms, sigterms_handled;
-static long	 global_flags;
 
 static TAILQ_HEAD(, dir_ent)	dir_q;
 
@@ -160,11 +160,14 @@ close_lastfile(char *TS)
 			*ptr = '.';
 			strcpy(ptr+1, TS);
 			if (rename(oldname, lastfile) != 0)
-				syslog(LOG_ERR, "Could not rename %s to %s",
-				    oldname, lastfile);
-			else
+				syslog(LOG_ERR,
+				    "Could not rename %s to %s: %m", oldname,
+				    lastfile);
+			else {
 				syslog(LOG_INFO, "renamed %s to %s",
 				    oldname, lastfile);
+				audit_warn_closefile(lastfile);
+			}
 		}
 		free(lastfile);
 		free(oldname);
@@ -286,7 +289,7 @@ swap_audit_file(void)
 		free(dirent->dirname);
 		free(dirent);
 	}
-	syslog(LOG_ERR, "Log directories exhausted\n");
+	syslog(LOG_ERR, "Log directories exhausted");
 	return (-1);
 }
 
@@ -343,7 +346,7 @@ read_control_file(void)
 	 * XXX is generated here?
 	 */
 	if (0 == (ret = getacmin(&minval))) {
-		syslog(LOG_DEBUG, "min free = %d\n", minval);
+		syslog(LOG_DEBUG, "min free = %d", minval);
 		if (auditon(A_GETQCTRL, &qctrl, sizeof(qctrl)) != 0) {
 			syslog(LOG_ERR,
 			    "could not get audit queue settings");
@@ -494,31 +497,65 @@ register_daemon(void)
 }
 
 /*
- * Suppress duplicate messages within a 30 second interval.   This should be
- * enough to time to rotate log files without thrashing from soft warnings
- * generated before the log is actually rotated.
+ * Handle the audit trigger event.
+ *
+ * We suppress (ignore) duplicated triggers in close succession in order to
+ * try to avoid thrashing-like behavior.  However, not all triggers can be
+ * ignored, as triggers generally represent edge triggers, not level
+ * triggers, and won't be retransmitted if the condition persists.  Of
+ * specific concern is the rotate trigger -- if one is dropped, then it will
+ * not be retransmitted, and the log file will grow in an unbounded fashion.
  */
 #define	DUPLICATE_INTERVAL	30
 static void
 handle_audit_trigger(int trigger)
 {
-	static int last_trigger;
+	static int last_trigger, last_warning;
 	static time_t last_time;
 	struct dir_ent *dirent;
-
-	/*
-	 * Suppres duplicate messages from the kernel within the specified
-	 * interval.
-	 */
 	struct timeval ts;
 	struct timezone tzp;
 	time_t tt;
 
+	/*
+	 * Suppress duplicate messages from the kernel within the specified
+	 * interval.
+	 */
 	if (gettimeofday(&ts, &tzp) == 0) {
 		tt = (time_t)ts.tv_sec;
-		if ((trigger == last_trigger) &&
-		    (tt < (last_time + DUPLICATE_INTERVAL)))
-			return;
+		switch (trigger) {
+		case AUDIT_TRIGGER_LOW_SPACE:
+		case AUDIT_TRIGGER_NO_SPACE:
+			/*
+			 * Triggers we can suppress.  Of course, we also need
+			 * to rate limit the warnings, so apply the same
+			 * interval limit on syslog messages.
+			 */
+			if ((trigger == last_trigger) &&
+			    (tt < (last_time + DUPLICATE_INTERVAL))) {
+				if (tt >= (last_warning + DUPLICATE_INTERVAL))
+					syslog(LOG_INFO,
+					    "Suppressing duplicate trigger %d",
+					    trigger);
+				return;
+			}
+			last_warning = tt;
+			break;
+
+		case AUDIT_TRIGGER_ROTATE_KERNEL:
+		case AUDIT_TRIGGER_ROTATE_USER:
+		case AUDIT_TRIGGER_READ_FILE:
+			/*
+			 * Triggers that we cannot suppress.
+			 */
+			break;
+		}
+
+		/*
+		 * Only update last_trigger after aborting due to a duplicate
+		 * trigger, not before, or we will never allow that trigger
+		 * again.
+		 */
 		last_trigger = trigger;
 		last_time = tt;
 	}
@@ -528,7 +565,6 @@ handle_audit_trigger(int trigger)
  	 */
 	dirent = TAILQ_FIRST(&dir_q);
 	switch(trigger) {
-
 	case AUDIT_TRIGGER_LOW_SPACE:
 		syslog(LOG_INFO, "Got low space trigger");
 		if (dirent && (dirent->softlim != 1)) {
@@ -554,7 +590,8 @@ handle_audit_trigger(int trigger)
 		} else {
 			/*
 			 * Continue auditing to the current file.  Also
-			 * generate  an allsoft warning.
+			 * generate an allsoft warning.
+			 *
 			 * XXX do we want to do this ?
 			 */
 			audit_warn_allsoft();
@@ -577,12 +614,14 @@ handle_audit_trigger(int trigger)
 		audit_warn_allhard(++allhardcount);
 		break;
 
-	case AUDIT_TRIGGER_OPEN_NEW:
+	case AUDIT_TRIGGER_ROTATE_KERNEL:
+	case AUDIT_TRIGGER_ROTATE_USER:
 		/*
 		 * Create a new file and swap with the one being used in
 		 * kernel
 		 */
-		syslog(LOG_INFO, "Got open new trigger");
+		syslog(LOG_INFO, "Got open new trigger from %s", trigger ==
+		    AUDIT_TRIGGER_ROTATE_KERNEL ? "kernel" : "user");
 		if (swap_audit_file() == -1)
 			syslog(LOG_ERR, "Error swapping audit file");
 		break;
@@ -656,10 +695,8 @@ wait_for_events(void)
 			syslog(LOG_DEBUG, "%s: SIGTERM", __FUNCTION__);
 			break;
 		}
-		if (sigchlds != sigchlds_handled) {
-			syslog(LOG_DEBUG, "%s: SIGCHLD", __FUNCTION__);
+		if (sigchlds != sigchlds_handled)
 			handle_sigchld();
-		}
 		if (sighups != sighups_handled) {
 			syslog(LOG_DEBUG, "%s: SIGHUP", __FUNCTION__);
 			handle_sighup();
@@ -670,7 +707,6 @@ wait_for_events(void)
 			syslog(LOG_ERR, "%s: read EOF", __FUNCTION__);
 			return (-1);
 		}
-		syslog(LOG_DEBUG, "%s: read %d", __FUNCTION__, trigger);
 		if (trigger == AUDIT_TRIGGER_CLOSE_AND_DIE)
 			break;
 		else
@@ -691,10 +727,15 @@ config_audit_controls(void)
 	au_mask_t aumask;
 	int ctr = 0;
 	char naeventstr[NA_EVENT_STR_SIZE];
+	char polstr[POL_STR_SIZE];
+	long policy;
+	au_fstat_t au_fstat;
+	size_t filesz;
 
 	/*
 	 * Process the audit event file, obtaining a class mapping for each
 	 * event, and send that mapping into the kernel.
+	 *
 	 * XXX There's a risk here that the BSM library will return NULL
 	 * for an event when it can't properly map it to a class. In that
 	 * case, we will not process any events beyond the one that failed,
@@ -703,10 +744,17 @@ config_audit_controls(void)
 	ev.ae_name = (char *)malloc(AU_EVENT_NAME_MAX);
 	ev.ae_desc = (char *)malloc(AU_EVENT_DESC_MAX);
 	if ((ev.ae_name == NULL) || (ev.ae_desc == NULL)) {
+		if (ev.ae_name != NULL)
+			free(ev.ae_name);
 		syslog(LOG_ERR,
 		    "Memory allocation error when configuring audit controls.");
 		return (-1);
 	}
+
+	/*
+	 * XXXRW: Currently we have no way to remove mappings from the kernel
+	 * when they are removed from the file-based mappings.
+	 */
 	evp = &ev;
 	setauevent();
 	while ((evp = getauevent_r(evp)) != NULL) {
@@ -746,10 +794,32 @@ config_audit_controls(void)
 		    "Failed to obtain non-attributable event mask.");
 
 	/*
-	 * Set the audit policy flags based on passed in parameter values.
+	 * If a policy is configured in audit_control(5), implement the
+	 * policy.  However, if one isn't defined, set AUDIT_CNT to avoid
+	 * leaving the system in a fragile state.
 	 */
-	if (auditon(A_SETPOLICY, &global_flags, sizeof(global_flags)))
-		syslog(LOG_ERR, "Failed to set audit policy.");
+	if ((getacpol(polstr, POL_STR_SIZE) == 0) &&
+	    (au_strtopol(polstr, &policy) == 0)) {
+		if (auditon(A_SETPOLICY, &policy, sizeof(policy)))
+			syslog(LOG_ERR, "Failed to set audit policy: %m");
+	} else {
+		syslog(LOG_ERR, "Failed to obtain policy flags: %m");
+		policy = AUDIT_CNT;
+		if (auditon(A_SETPOLICY, &policy, sizeof(policy)))
+			syslog(LOG_ERR,
+			    "Failed to set default audit policy: %m");
+	}
+
+	/*
+	 * Set trail rotation size.
+	 */
+	if (getacfilesz(&filesz) == 0) {
+		bzero(&au_fstat, sizeof(au_fstat));
+		au_fstat.af_filesz = filesz;
+		if (auditon(A_SETFSIZE, &au_fstat, sizeof(au_fstat)) < 0)
+			syslog(LOG_ERR, "Failed to set filesz: %m");
+	} else
+		syslog(LOG_ERR, "Failed to obtain filesz: %m");
 
 	return (0);
 }
@@ -826,7 +896,6 @@ main(int argc, char **argv)
 	int debug = 0;
 	int rc;
 
-	global_flags |= AUDIT_CNT;
 	while ((ch = getopt(argc, argv, "dhs")) != -1) {
 		switch(ch) {
 		case 'd':
@@ -834,20 +903,10 @@ main(int argc, char **argv)
 			debug = 1;
 			break;
 
-		case 's':
-			/* Fail-stop option. */
-			global_flags &= ~(AUDIT_CNT);
-			break;
-
-		case 'h':
-			/* Halt-stop option. */
-			global_flags |= AUDIT_AHLT;
-			break;
-
 		case '?':
 		default:
 			(void)fprintf(stderr,
-			    "usage: auditd [-h | -s] [-d] \n");
+			    "usage: auditd [-d] \n");
 			exit(1);
 		}
 	}

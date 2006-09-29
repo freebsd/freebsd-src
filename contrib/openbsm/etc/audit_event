@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#12 $
+# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#16 $
 # $FreeBSD$
 #
 0:AUE_NULL:indir system call:no
@@ -118,8 +118,8 @@
 113:AUE_SYSTEMBOOT:system booted:na
 114:AUE_ASYNC_DAEMON_EXIT:async_daemon(2) exited:ad
 115:AUE_NFSSVC_EXIT:nfssvc(2) exited:ad
-128:AUE_WRITEL:writel(2):fw
-129:AUE_WRITEVL:writevl(2):fw
+128:AUE_WRITEL:writel(2):no
+129:AUE_WRITEVL:writevl(2):no
 130:AUE_GETAUID:getauid(2):ad
 131:AUE_SETAUID:setauid(2):ad
 132:AUE_GETAUDIT:getaudit(2):ad
@@ -266,7 +266,7 @@
 325:AUE_DARWIN_KDEBUGTRACE:system call:pc
 326:AUE_DARWIN_FSTAT:fstat(2):fa
 327:AUE_DARWIN_FPATHCONF:fpathconf(2):fa
-328:AUE_DARWIN_GETDIRENTRIES:getdirentries(2):fr
+328:AUE_DARWIN_GETDIRENTRIES:getdirentries(2):no
 329:AUE_DARWIN_TRUNCATE:truncate(2):fw
 330:AUE_DARWIN_FTRUNCATE:ftruncate(2):fw
 331:AUE_DARWIN_SYSCTL:sysctl(3):ad
@@ -322,8 +322,8 @@
 43017:AUE_KDEBUGTRACE:system call:pc
 43018:AUE_FSTAT:fstat(2):fa
 43019:AUE_FPATHCONF:fpathconf(2):fa
-43020:AUE_GETDIRENTRIES:getdirentries(2):fr
-43021:AUE_SYSCTL:sysctl(3):ad
+43020:AUE_GETDIRENTRIES:getdirentries(2):no
+43021:AUE_SYSCTL:sysctl(3):ot
 43022:AUE_MLOCK:mlock(2):pc
 43023:AUE_MUNLOCK:munlock(2):pc
 43024:AUE_UNDELETE:undelete(2):fm
@@ -416,6 +416,13 @@
 43111:AUE_EXTATTR_SET_LINK:extattr_set_link(2):fm
 43112:AUE_EXTATTR_LIST_LINK:extattr_list_link(2):fa
 43113:AUE_EXTATTR_DELETE_LINK:extattr_delete_link(2):fm
+43114:AUE_KENV:kenv(8):ad
+43115:AUE_JAIL_ATTACH:jail_attach(2):ad
+43116:AUE_SYSCTL_WRITE:sysctl(3):ad
+43117:AUE_IOPERM:linux ioperm:ad
+43118:AUE_READDIR:readdir(3):no
+43119:AUE_IOPL:linux iopl:ad
+43120:AUE_VM86:linux vm86:pc
 #
 # User space system events.
 #

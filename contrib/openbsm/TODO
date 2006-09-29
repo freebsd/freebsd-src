@@ -17,5 +17,7 @@
   just at the beginning of a record.  This will make it easier to use
   praudit in test suites processing single-token files without header and
   trailer context.
+- Put hostname in trail file name.
+- Document audit_warn event arguments.
 
-$P4: //depot/projects/trustedbsd/openbsm/TODO#6 $
+$P4: //depot/projects/trustedbsd/openbsm/TODO#8 $
