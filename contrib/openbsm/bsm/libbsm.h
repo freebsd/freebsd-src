@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#27 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#30 $
  */
 
 #ifndef _LIBBSM_H_
@@ -36,9 +36,6 @@
  * NB: definitions, etc., marked with "OpenSSH compatibility" were introduced
  * solely to allow OpenSSH to compile; Darwin/Apple code should not use them.
  */
-
-#define	AUDIT_MAX_ARGS	10
-#define	AUDIT_MAX_ENV	10
 
 #include <sys/types.h>
 #include <sys/cdefs.h>
@@ -55,12 +52,24 @@
 #include <mach/mach.h>		/* audit_token_t */
 #endif
 
+/*
+ * Size parsed token vectors for execve(2) arguments and environmental
+ * variables.  Note: changing these sizes affects the ABI of the token
+ * structure, and as the token structure is often placed in the caller stack,
+ * this is undesirable.
+ */
+#define	AUDIT_MAX_ARGS	128
+#define	AUDIT_MAX_ENV	128
+
+/*
+ * Arguments to au_preselect(3).
+ */
+#define	AU_PRS_USECACHE	0
+#define	AU_PRS_REREAD	1
+
 #define	AU_PRS_SUCCESS	1
 #define	AU_PRS_FAILURE	2
 #define	AU_PRS_BOTH	(AU_PRS_SUCCESS|AU_PRS_FAILURE)
-
-#define	AU_PRS_USECACHE	0
-#define	AU_PRS_REREAD	1
 
 #define	AUDIT_EVENT_FILE	"/etc/security/audit_event"
 #define	AUDIT_CLASS_FILE	"/etc/security/audit_class"
@@ -69,8 +78,10 @@
 
 #define	DIR_CONTROL_ENTRY	"dir"
 #define	MINFREE_CONTROL_ENTRY	"minfree"
+#define	FILESZ_CONTROL_ENTRY	"filesz"
 #define	FLAGS_CONTROL_ENTRY	"flags"
 #define	NA_CONTROL_ENTRY	"naflags"
+#define	POLICY_CONTROL_ENTRY	"policy"
 
 #define	AU_CLASS_NAME_MAX	8
 #define	AU_CLASS_DESC_MAX	72
@@ -709,13 +720,17 @@ void			 setac(void);
 void			 endac(void);
 int			 getacdir(char *name, int len);
 int			 getacmin(int *min_val);
+int			 getacfilesz(size_t *size_val);
 int			 getacflg(char *auditstr, int len);
 int			 getacna(char *auditstr, int len);
+int			 getacpol(char *auditstr, size_t len);
 int			 getauditflagsbin(char *auditstr, au_mask_t *masks);
 int			 getauditflagschar(char *auditstr, au_mask_t *masks,
 			    int verbose);
 int			 au_preselect(au_event_t event, au_mask_t *mask_p,
 			    int sorf, int flag);
+ssize_t			 au_poltostr(long policy, size_t maxsize, char *buf);
+int			 au_strtopol(const char *polstr, long *policy);
 
 /*
  * Functions relating to querying audit event information.

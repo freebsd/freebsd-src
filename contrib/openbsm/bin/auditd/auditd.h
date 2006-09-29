@@ -30,7 +30,7 @@
  *
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.h#5 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.h#7 $
  */
 
 #ifndef _AUDITD_H_
@@ -61,7 +61,8 @@ struct dir_ent {
 
 #define	HARDLIM_ALL_WARN	"allhard"
 #define	SOFTLIM_ALL_WARN	"allsoft"
-#define	AUDITOFF_WARN		"aditoff"
+#define	AUDITOFF_WARN		"auditoff"
+#define	CLOSEFILE_WARN		"closefile"
 #define	EBUSY_WARN		"ebusy"
 #define	GETACDIR_WARN		"getacdir"
 #define	HARDLIM_WARN		"hard"
@@ -76,6 +77,7 @@ struct dir_ent {
 int	audit_warn_allhard(int count);
 int	audit_warn_allsoft(void);
 int	audit_warn_auditoff(void);
+int	audit_warn_closefile(char *filename);
 int	audit_warn_ebusy(void);
 int	audit_warn_getacdir(char *filename);
 int	audit_warn_hard(char *filename);

@@ -23,16 +23,17 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_open.3#4 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_open.3#5 $
 .\"
 .Dd March 4, 2006
 .Dt AU_OPEN 3
 .Os
 .Sh NAME
-.Nm au_open ,
-.Nm au_write ,
 .Nm au_close ,
-.Nm au_close_buffer
+.Nm au_close_buffer ,
+.Nm au_close_token ,
+.Nm au_open ,
+.Nm au_write
 .Nd "Create and commit audit records"
 .Sh LIBRARY
 .Lb libbsm
@@ -120,6 +121,7 @@ return 0 on success, or a negative value on failure, along with error
 information in
 .Va errno .
 .Sh SEE ALSO
+.Xr audit_submit 3 ,
 .Xr libbsm 3
 .Sh AUTHORS
 This software was created by Robert Watson, Wayne Salamon, and Suresh

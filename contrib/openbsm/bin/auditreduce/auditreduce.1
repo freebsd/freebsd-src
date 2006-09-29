@@ -25,7 +25,7 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.1#10 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.1#12 $
 .\"
 .Dd January 24, 2004
 .Dt AUDITREDUCE 1
@@ -105,12 +105,17 @@ for a description of audit event names and numbers.
 .It Fl o Ar object=value
 .Bl -tag -width Ds
 .It Nm file
-Select records containing the given path name.
-file="/usr" matches paths
-starting with
-.Pa usr .
-file="~/usr" matches paths not starting with
-.Pa usr .
+Select records containing path tokens, where the pathname matches
+one of the comma delimited extended regular expression contained in
+given specification.
+Regular expressions which are prefixed with a tilde (~) are excluded
+from the search results.
+These extended regular expressions are processed from left to right,
+and a path will either be selected or deslected based on the first match.
+.Pp
+Since commas are used to delimit the regular expressions, a backslash (\\)
+character should be used to escape the comma if it's a part of the search
+pattern.
 .It Nm msgqid
 Select records containing the given message queue id.
 .It Nm pid
@@ -136,6 +141,30 @@ events from that log:
 .Pp
 .Nm
 -m AUE_SETLOGIN /var/audit/20031016184719.20031017122634
+.Pp
+Output from the above command lines will typically be piped to a new trail
+file, or via standard output to the
+.Xr praudit 1
+command.
+.Pp
+Select all records containing a path token where the pathname contains
+.Pa /etc/master.passwd
+.Pp
+.Nm
+-ofile="/etc/master.passwd" /var/audit/20031016184719.20031017122634
+.Pp
+Select all records containing path tokens, where the pathname is a TTY
+device:
+.Pp
+.Nm
+-ofile="/dev/tty[a-zA-Z][0-9]+" /var/audit/20031016184719.20031017122634
+.Pp
+Select all records containing path tokens, where the pathname is a TTY
+except for
+.Pa /dev/ttyp2
+.Pp
+.Nm
+-ofile="~/dev/ttyp2,/dev/tty[a-zA-Z][0-9]+" /var/audit/20031016184719.20031017122634
 .Sh SEE ALSO
 .Xr praudit 1 ,
 .Xr audit_control 5 ,
