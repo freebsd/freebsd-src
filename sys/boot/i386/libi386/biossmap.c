@@ -115,8 +115,9 @@ command_smap(int argc, char *argv[])
 	int i;
 
 	if (smapbase == 0 || smaplen == 0)
-		return;
+		return (CMD_ERROR);
 	for (i = 0; i < smaplen; i++)
 		printf("SMAP type=%02x base=%016llx len=%016llx\n",
 		    smapbase[i].type, smapbase[i].base, smapbase[i].length);
+	return (CMD_OK);
 }
