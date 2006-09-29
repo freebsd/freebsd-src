@@ -834,7 +834,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 		ifp->if_mtu = ifr->ifr_mtu;
 		adapter->hw.max_frame_size =
-		ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
+		    ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
 		em_init_locked(adapter);
 		EM_UNLOCK(adapter);
 		break;
@@ -1476,8 +1476,8 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 
 	/*
 	 * TSO workaround:
-	 *  If an mbuf is only header we need
-	 *     to pull 4 bytes of data into it.
+	 *  If an mbuf contains only the IP and TCP header we have
+	 *  to pull 4 bytes of data into it.
 	 */
 	if (do_tso && (m_head->m_len <= M_TSO_LEN)) {
 		m_head = m_pullup(m_head, M_TSO_LEN + 4);
@@ -1688,7 +1688,9 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	 */
 	bus_dmamap_sync(adapter->txdma.dma_tag, adapter->txdma.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-	if (adapter->hw.mac_type == em_82547 && adapter->link_duplex == HALF_DUPLEX)
+
+	if (adapter->hw.mac_type == em_82547 &&
+	    adapter->link_duplex == HALF_DUPLEX)
 		em_82547_move_tail_locked(adapter);
 	else {
 		E1000_WRITE_REG(&adapter->hw, TDT, i);
