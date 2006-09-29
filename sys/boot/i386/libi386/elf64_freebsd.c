@@ -61,7 +61,7 @@ extern p2_entry_t PT2[];
 u_int32_t entry_hi;
 u_int32_t entry_lo;
 
-extern amd64_tramp();
+extern void amd64_tramp();
 
 /*
  * There is an a.out kernel and one or more a.out modules loaded.  

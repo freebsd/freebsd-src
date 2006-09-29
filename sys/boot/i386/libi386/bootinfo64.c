@@ -143,9 +143,7 @@ bi_load64(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
     u_int64_t			envp;
     vm_offset_t			size;
     char			*rootdevname;
-    int				i, howto;
-    char			*kernelname;
-    const char			*kernelpath;
+    int				howto;
 
     howto = bi_getboothowto(args);
 
