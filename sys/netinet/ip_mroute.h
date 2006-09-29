@@ -211,7 +211,7 @@ struct bw_upcall {
 struct mrtstat {
     u_long	mrts_mfc_lookups;	/* # forw. cache hash table hits   */
     u_long	mrts_mfc_misses;	/* # forw. cache hash table misses */
-    u_long	mrts_upcalls;		/* # calls to mrouted              */
+    u_long	mrts_upcalls;		/* # calls to routing daemon       */
     u_long	mrts_no_route;		/* no route for packet's origin    */
     u_long	mrts_bad_tunnel;	/* malformed tunnel options        */
     u_long	mrts_cant_tunnel;	/* no room for tunnel options      */

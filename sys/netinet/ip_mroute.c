@@ -1429,7 +1429,7 @@ del_mfc(struct mfcctl2 *mfccp)
 }
 
 /*
- * Send a message to mrouted on the multicast routing socket
+ * Send a message to the routing daemon on the multicast routing socket
  */
 static int
 socket_send(struct socket *s, struct mbuf *mm, struct sockaddr_in *src)

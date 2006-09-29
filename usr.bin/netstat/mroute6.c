@@ -216,7 +216,7 @@ mrt6_stats(u_long mstaddr)
 
 	p(mrt6s_mfc_lookups, "\t%ju multicast forwarding cache lookup%s\n");
 	p2(mrt6s_mfc_misses, "\t%ju multicast forwarding cache miss%s\n");
-	p(mrt6s_upcalls, "\t%ju upcall%s to mrouted\n");
+	p(mrt6s_upcalls, "\t%ju upcall%s to routing daemon\n");
 	p(mrt6s_upq_ovflw, "\t%ju upcall queue overflow%s\n");
 	p(mrt6s_upq_sockfull,
 	    "\t%ju upcall%s dropped due to full socket buffer\n");

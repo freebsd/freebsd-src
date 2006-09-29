@@ -290,7 +290,7 @@ mrt_stats(u_long mstaddr)
 
 	p(mrts_mfc_lookups, "\t%lu multicast forwarding cache lookup%s\n");
 	p2(mrts_mfc_misses, "\t%lu multicast forwarding cache miss%s\n");
-	p(mrts_upcalls, "\t%lu upcall%s to mrouted\n");
+	p(mrts_upcalls, "\t%lu upcall%s to routing daemon\n");
 	p(mrts_upq_ovflw, "\t%lu upcall queue overflow%s\n");
 	p(mrts_upq_sockfull,
 	    "\t%lu upcall%s dropped due to full socket buffer\n");
