@@ -627,8 +627,8 @@ usage(void)
 		"       arp [-n] [-i interface] -a",
 		"       arp -d hostname [pub]",
 		"       arp -d [-i interface] -a",
-		"       arp -s hostname ether_addr [temp] [pub]",
-		"       arp -S hostname ether_addr [temp] [pub]",
+		"       arp -s hostname ether_addr [temp] [pub [only]]",
+		"       arp -S hostname ether_addr [temp] [pub [only]]",
 		"       arp -f filename");
 	exit(1);
 }
