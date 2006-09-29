@@ -238,6 +238,9 @@ pty_maybecleanup(struct pt_desc *pt)
 	if (pt->pt_ptc_open || pt->pt_pts_open)
 		return;
 
+	if (pt->pt_tty->t_refcnt > 1)
+		return;
+
 	if (bootverbose)
 		printf("destroying pty %d\n", pt->pt_num);
 
@@ -245,6 +248,8 @@ pty_maybecleanup(struct pt_desc *pt)
 	destroy_dev(pt->pt_devc);
 	pt->pt_devs = pt->pt_devc = NULL;
 	pt->pt_tty->t_dev = NULL;
+	ttyrel(pt->pt_tty);
+	pt->pt_tty = NULL;
 
 	mtx_lock(&pt_mtx);
 	pty_release(pt);
@@ -378,10 +383,19 @@ ptcwakeup(struct tty *tp, int flag)
 static int
 ptcopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 {
-	struct pt_desc *pt = dev->si_drv1;
+	struct pt_desc *pt;
 	struct tty *tp;
 	struct cdev *devs;
 
+	pt = dev->si_drv1;
+	/*
+	 * In case we have destroyed the struct tty at the last connect time,
+	 * we need to recreate it.
+	 */
+	if (pt->pt_tty == NULL) {
+		pt->pt_tty = ttyalloc();
+		dev->si_tty = pt->pt_tty;
+	}
 	tp = dev->si_tty;
 	if (tp->t_oproc)
 		return (EIO);
