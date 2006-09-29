@@ -81,7 +81,8 @@ Historically, locate only stored characters between 32 and 127.
 The
 current implementation store any character except newline
 .Pq Sq \en
-and NUL
+and
+.Dv NUL
 .Pq Sq \e0 .
 The 8-bit character support does not waste extra space for
 plain ASCII file names.
@@ -92,7 +93,8 @@ The following options are available:
 .Bl -tag -width 10n
 .It Fl 0
 Print pathnames separated by an
-.Tn ASCII NUL
+.Tn ASCII
+.Dv NUL
 character (character code 0) instead of default NL
 (newline, character code 10).
 .It Fl S
@@ -150,7 +152,7 @@ or
 .Dl "$ locate -d db1:db2 -d db3 pattern"
 .Pp
 If
-.Ar -
+.Fl
 is given as the database name, standard input will be read instead.
 For example, you can compress your database
 and use:
@@ -161,7 +163,7 @@ $ zcat database.gz | locate -d - pattern
 This might be useful on machines with a fast CPU and little RAM and slow
 I/O.
 Note: you can only use
-.Ar one
+.Em one
 pattern for stdin.
 .It Fl i
 Ignore case distinctions in both the pattern and the database.
@@ -239,7 +241,7 @@ The
 .Nm
 database is typically built by user
 .Dq nobody
-and the 
+and the
 .Xr locate.updatedb 8
 utility skips directories
 which are not readable for user
@@ -249,7 +251,7 @@ group
 or
 world.
 For example, if your HOME directory is not world-readable,
-.Ar none
+.Em none
 of your files are
 in the database.
 .Pp
