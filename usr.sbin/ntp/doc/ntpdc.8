@@ -162,12 +162,12 @@ following.
 .It Ic \&? Ar command_keyword
 .It Ic help Ar command_keyword
 A
-.Ic Ql \&?
+.Sq Ic \&?
 will print a list of all the command
 keywords known to this incarnation of
 .Nm .
 A
-.Ic Ql \&?
+.Sq Ic \&?
 followed by a command keyword will print function and usage
 information about the command.
 This command is probably a better
@@ -592,11 +592,13 @@ configuration file commands of
 .It Cm auth
 Enables the server to synchronize with unconfigured peers only
 if the peer has been correctly authenticated using either public key
-or private key cryptography. The default for this flag is enable.
+or private key cryptography.
+The default for this flag is enable.
 .It Cm bclient
 Enables the server to listen for a message from a broadcast or
 multicast server, as in the multicastclient command with
-default address. The default for this flag is disable.
+default address.
+The default for this flag is disable.
 .It Cm calibrate
 Enables the calibrate feature for reference clocks.
 The default for this flag is disable.
@@ -604,14 +606,16 @@ The default for this flag is disable.
 Enables the kernel time discipline, if available.
 The default for this flag is enable if support is available, otherwise disable.
 .It Cm monitor
-Enables the monitoring facility. See the
+Enables the monitoring facility.
+See the
 .Xr ntpdc 8 .
 program and the monlist command or further information.
 The default for this flag is enable.
 .It Cm ntp
 Enables time and frequency discipline.
 In effect, this switch opens and closes the feedback loop,
-which is useful for testing. The default for this flag is enable.
+which is useful for testing.
+The default for this flag is enable.
 .It Cm pps
 Enables the pulse-per-second (PPS) signal when frequency
 and time is disciplined by the precision time kernel modifications.
@@ -620,7 +624,8 @@ See the
 (available as part of the HTML documentation
 provided in
 .Pa /usr/share/doc/ntp )
-page for further information. The default for this flag is disable.
+page for further information.
+The default for this flag is disable.
 .It Cm stats
 Enables the statistics facility.
 See the
