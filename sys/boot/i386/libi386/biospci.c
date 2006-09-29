@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <bootstrap.h>
 #include <isapnp.h>
 #include <btxv86.h>
+#include "libi386.h"
 
 /*
  * Stupid PCI BIOS interface doesn't let you simply enumerate everything
