@@ -884,10 +884,20 @@ loop:
 			vm_page_unlock_queues();
 			atomic_add_int(&vm_pageout_deficit, 1);
 			pagedaemon_wakeup();
-			return (NULL);
+
+			if (page_req != VM_ALLOC_SYSTEM) 
+				return (NULL);
+
+			mtx_lock_spin(&vm_page_queue_free_mtx);
+			if (cnt.v_free_count <= cnt.v_interrupt_free_min) {
+				mtx_unlock_spin(&vm_page_queue_free_mtx);
+				return (NULL);
+			}
+			m = vm_pageq_find(PQ_FREE, color, (req & VM_ALLOC_ZERO) != 0);
+		} else {
+			vm_page_unlock_queues();
+			goto loop;
 		}
-		vm_page_unlock_queues();
-		goto loop;
 	} else {
 		/*
 		 * Not allocatable from cache from interrupt, give up.
