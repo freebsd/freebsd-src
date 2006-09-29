@@ -911,8 +911,8 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_HWCSUM;
 			reinit = 1;
 		}
-		if (mask & IFCAP_TSO) {
-			ifp->if_capenable ^= IFCAP_TSO;
+		if (mask & IFCAP_TSO4) {
+			ifp->if_capenable ^= IFCAP_TSO4;
 			reinit = 1;
 		}
 		if (mask & IFCAP_VLAN_HWTAGGING) {
@@ -2356,8 +2356,8 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	/* Enable TSO if available */
 	if ((adapter->hw.mac_type > em_82544) &&
 	    (adapter->hw.mac_type != em_82547)) {
-		ifp->if_capabilities |= IFCAP_TSO;
-		ifp->if_capenable |= IFCAP_TSO;
+		ifp->if_capabilities |= IFCAP_TSO4;
+		ifp->if_capenable |= IFCAP_TSO4;
 	}
 
 	/*
