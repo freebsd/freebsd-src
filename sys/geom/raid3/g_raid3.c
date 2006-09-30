@@ -2271,7 +2271,7 @@ g_raid3_launch_provider(struct g_raid3_softc *sc)
 	g_topology_unlock();
 	G_RAID3_DEBUG(0, "Device %s launched (%u/%u).", pp->name,
 	    g_raid3_ndisks(sc, G_RAID3_DISK_STATE_ACTIVE), sc->sc_ndisks);
-	
+
 	if (sc->sc_state == G_RAID3_DEVICE_STATE_DEGRADED)
 		g_raid3_sync_start(sc);
 }
