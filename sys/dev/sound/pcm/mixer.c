@@ -47,9 +47,9 @@ struct snd_mixer {
 	u_int32_t recdevs;
 	u_int32_t recsrc;
 	u_int16_t level[32];
-	u_int32_t parent[32];
+	u_int8_t parent[32];
 	u_int32_t child[32];
-	u_int32_t realdev[32];
+	u_int8_t realdev[32];
 	char name[MIXER_NAMELEN];
 	struct mtx *lock;
 	oss_mixer_enuminfo enuminfo;
