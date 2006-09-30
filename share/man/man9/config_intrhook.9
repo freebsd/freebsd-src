@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (C) 2006 M. Warner Losh <imp@freebsd.org>. All rights reserved.
+.\" Copyright (C) 2006 M. Warner Losh <imp@FreeBSD.org>. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -31,13 +31,13 @@
 .Os
 .Sh NAME
 .Nm config_intrhook
-.Nd schedules a function to be run after interrupts have been enabled,
-but before root is mounted.
+.Nd schedule a function to be run after interrupts have been enabled,
+but before root is mounted
 .Sh SYNOPSIS
 .In sys/kernel.h
-.Ft "int"
+.Ft int
 .Fn config_intrhook_establish "struct intr_config_hook *hook"
-.Ft "void"
+.Ft void
 .Fn config_intrhook_disestablish "struct intr_config_hook *hook"
 .Sh DESCRIPTION
 The
@@ -65,7 +65,7 @@ Since interrupts are disabled during the probe process, many drivers
 need a method to probe for devices with interrupts enabled.
 .Pp
 The requests are made with the
-.Vt "intr_config_hook"
+.Vt intr_config_hook
 structure.
 This structure is defined as follows:
 .Bd -literal
@@ -96,7 +96,8 @@ These functions were introduced in
 .Fx 3.0
 with the CAM subsystem, but are available for any driver to use.
 .Sh AUTHORS
+.An -nosplit
 The functions were written by
-.An Justin Gibbs Aq gibbs@freebsd.org .
+.An Justin Gibbs Aq gibbs@FreeBSD.org .
 This manual page was written by
-.An M. Warner Losh Aq imp@freebsd.org .
+.An M. Warner Losh Aq imp@FreeBSD.org .
