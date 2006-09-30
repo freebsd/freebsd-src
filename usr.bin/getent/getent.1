@@ -49,7 +49,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-program retrieves and displays entries from the administrative
+utility retrieves and displays entries from the administrative
 database specified by
 .Ar database ,
 using the lookup order specified in
@@ -60,19 +60,21 @@ is as per the
 .Dq traditional
 file format for that database.
 .Pp
+The
 .Ar database
-may be one of:
-.Bl -column "netgroup" -offset indent -compact
+argument may be one of:
+.Pp
+.Bl -column ".Li netgroup" -offset indent -compact
 .Sy Database Ta Sy Display format
-.It ethers Ta address name
-.It group Ta group:passwd:gid:[member[,member]...]
-.It hosts Ta address name [alias ...]
-.It networks Ta name network [alias ...]
-.It passwd Ta user:passwd:uid:gid:gecos:home_dir:shell
-.It protocols Ta name protocol [alias ...]
-.It rpc Ta name number [alias ...]
-.It services Ta name port/protocol [alias ...]
-.It shells Ta /path/to/shell
+.It Li ethers Ta address name
+.It Li group Ta group:passwd:gid:[member[,member]...]
+.It Li hosts Ta address name [alias ...]
+.It Li networks Ta name network [alias ...]
+.It Li passwd Ta user:passwd:uid:gid:gecos:home_dir:shell
+.It Li protocols Ta name protocol [alias ...]
+.It Li rpc Ta name number [alias ...]
+.It Li services Ta name port/protocol [alias ...]
+.It Li shells Ta /path/to/shell
 .El
 .Pp
 If one or more
@@ -81,12 +83,12 @@ arguments are provided, they will be looked up in
 .Ar database
 using the appropriate function.
 For example,
-.Sy passwd
+.Dq Li passwd
 supports a numeric UID or user name;
-.Sy hosts
+.Dq Li hosts
 supports an IPv4 address, IPv6 address, or host name;
 and
-.Sy services
+.Dq Li services
 supports a service name, service name/protocol name, numeric port, or
 numeric port/protocol name.
 .Pp
@@ -97,9 +99,10 @@ is provided and
 supports enumeration, all entries for
 .Ar database
 will be retrieved using the appropriate enumeration function and printed.
-.Sh DIAGNOSTICS
+.Sh EXIT STATUS
+The
 .Nm
-exits 0 on success,
+utility exits 0 on success,
 1 if there was an error in the command syntax,
 2 if one of the specified key names was not found in
 .Ar database ,
@@ -121,7 +124,7 @@ A
 .Nm
 command appeared in
 .Nx 3.0 ,
-and was imported into 
+and was imported into
 .Fx 7.0 .
 It was based on the command of the same name in
 .Tn Solaris
