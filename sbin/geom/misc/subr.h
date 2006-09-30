@@ -41,8 +41,8 @@ int g_metadata_read(const char *name, u_char *md, size_t size,
 int g_metadata_store(const char *name, u_char *md, size_t size);
 int g_metadata_clear(const char *name, const char *magic);
 
-void gctl_error(struct gctl_req *req, const char *error, ...);
-int gctl_get_int(struct gctl_req *req, const char *pfmt, ...);
-intmax_t gctl_get_intmax(struct gctl_req *req, const char *pfmt, ...);
-const char *gctl_get_ascii(struct gctl_req *req, const char *pfmt, ...);
+void gctl_error(struct gctl_req *req, const char *error, ...) __printflike(2, 3);
+int gctl_get_int(struct gctl_req *req, const char *pfmt, ...) __printflike(2, 3);
+intmax_t gctl_get_intmax(struct gctl_req *req, const char *pfmt, ...) __printflike(2, 3);
+const char *gctl_get_ascii(struct gctl_req *req, const char *pfmt, ...) __printflike(2, 3);
 #endif	/* !_SUBR_H_ */
