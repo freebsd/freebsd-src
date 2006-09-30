@@ -49,26 +49,20 @@ The
 function takes a name and returns a non-zero value if a module of that
 name is currently loaded.
 The name can be either the name of a module file
-.Po
-.Va cpufreq.ko
-.Pc ,
+.Pq Pa cpufreq.ko ,
 the same name without the
 .Pa .ko
 extension
-.Po
-.Va cpufreq
-.Pc ,
+.Pq Pa cpufreq ,
 or the name of a module contained within that file
-.Po
-.Va cpu/ichss
-.Pc .
+.Pq Pa cpu/ichss .
 Only the latter will return correct results if the module is compiled
 into the kernel.
 .Pp
 The
 .Fn kld_load
 function is a simple wrapper around the
-.Fn kldload
+.Xr kldload 2
 function.
 It returns zero if and only if the corresponding
 .Fn kldload
