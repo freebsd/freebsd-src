@@ -55,15 +55,16 @@ The
 .Nm
 bridge driver allows the generic audio driver
 .Xr sound 4
-to attach to the Creative sound cards based on EMU10K1, CA0100, CA0101, CA0102 
+to attach to the Creative sound cards based on EMU10K1, CA0100, CA0101, CA0102
 and CA0108 DSPs.
 .Pp
+The
 .Nm
 sound cards have a PCM part, which is accessible through one to five
 .Xr pcm 4
-devices (see 
+devices (see
 .Sx MULTICHANNEL PLAYBACK
-for details), and MPU401-compatible MIDI I/O controller, which is accessible 
+for details), and MPU401-compatible MIDI I/O controller, which is accessible
 through the midi device.
 Wave table synthesizer is not supported.
 .Sh HARDWARE
@@ -86,7 +87,7 @@ of this chipset is not supported).
 .It
 Creative Sound Blaster Audigy 2 Value (CA0108 Chipset).
 PCM support is limited
-to 48kHz/16 bit stereo (192kHz/24 bit part of this chipset is not supported).\&
+to 48kHz/16 bit stereo (192kHz/24 bit part of this chipset is not supported).
 There is no MIDI support for this card.
 .El
 .Pp
@@ -99,19 +100,22 @@ similar to some supported ones):
 .Pp
 .Bl -bullet -compact
 .It
-Creative Sound Blaster Live!\& 24-Bit, identified by FreeBSD as
-.Li Qq emu10k1x Soundblaster Live! 5.1 .
+Creative Sound Blaster Live!\& 24-Bit, identified by
+.Fx
+as
+.Qq Li "emu10k1x Soundblaster Live! 5.1" .
 .It
-Creative Sound Blaster Audigy LS / ES, identified by FreeBSD as
-.Li Qq CA0106-DAT Audigy LS .
+Creative Sound Blaster Audigy LS / ES, identified by
+.Fx
+as
+.Qq Li "CA0106-DAT Audigy LS" .
 .It
 All other cards with -DAT chipsets.
 .El
 .Sh MULTICHANNEL PLAYBACK
-.Pp
 It is possible to build this driver with multichannel playback capabilites.
 If you enable the
-.Dq Dv EMU10KX_MULTICHANNEL
+.Dv EMU10KX_MULTICHANNEL
 option in your kernel configuration (or
 build it as a module) you will get up to five DSP devices, one for each sound
 card output.
@@ -120,36 +124,38 @@ Only
 output can play and record sound from external
 sources (like line or S/PDIF inputs).
 .Sh OSS MIXER CONTROLS
-.Pp 
-These are controls available through the standard OSS programming interface. 
+These are controls available through the standard OSS programming interface.
 You can use
 .Xr mixer 8
 to change them.
 .Pp
-On EMU10K1-based cards the OSS mixer directly controls the  AC97 codec on card.
+On EMU10K1-based cards the OSS mixer directly controls the AC97 codec on card.
 On newer cards the OSS mixer controls some parameters of the AC97 codec and
 some DSP-based mixer controls.
-.Pp
-"vol" mixer control is overall sound volume.
-.Pp
-"pcm" mixer control is PCM playback volume.
+.Bl -inset
+.It Qq vol
+mixer control is overall sound volume.
+.It Qq pcm
+mixer control is PCM playback volume.
 It controls only front output
 volume in multichannel mode and all output volume in single chennel mode.
-.Pp
-"rec" mixer control acts very different on EMU10K1 and other cards.
+.It Qq rec
+mixer control acts very different on EMU10K1 and other cards.
 On EMU10K1 cards it controls the AC97 codec recording level.
 On non-EMU10K1 cards
 it controls the amount of AC97 "stereo mix" entering the DSP.
-AC97 recording level and AC97 recording source are fixed 
+AC97 recording level and AC97 recording source are fixed
 on CA0100, CA0101, CA0102 and CA0108 cards.
-AC97 recording level are always set to 
-maximum and recording source is always "stereo mix". 
+AC97 recording level are always set to
+maximum and recording source is always
+.Dq Li "stereo mix" .
+.El
 .Pp
 Other OSS mixer controls do not work.
 .Sh PRIVATE DEVICE CONTROLS
-.Pp
 You can control most of EMU10Kx operation and configuration parameters through
-dev.emu10kx.X sysctls.
+.Va dev.emu10kx. Ns Aq Ar X
+sysctls.
 These
 .Xr sysctl 8
 values are temporary and should not be relied
@@ -159,21 +165,21 @@ upon.
 The following kernel configuration options control the
 .Nm
 driver.
-.Bl -tag -width EMU10KX_MULTICHANNEL
-.It Em EMU10KX_MULTICHANNEL
+.Bl -tag -width ".Dv EMU10KX_MULTICHANNEL"
+.It Dv EMU10KX_MULTICHANNEL
 This option enables
 .Sx MULTICHANNEL PLAYBACK
 for all instances of the
 .Nm
 driver.
-.It Em EMU10KX_DEBUG
+.It Dv EMU10KX_DEBUG
 This option enables additional debug messages.
 .El
-.Pp
 .Sh FILES
-.Bl -tag -width /dev/emu10kx? -compact
+.Bl -tag -width ".Pa /dev/emu10kx?" -compact
 .It Pa /dev/emu10kx?
-emu10kx management interface
+.Nm
+management interface
 .El
 .Sh SEE ALSO
 .Xr sound 4
@@ -183,12 +189,15 @@ The
 device driver first appeared in
 .Fx 7.0 .
 .Sh AUTHORS
+.An -nosplit
 The PCM part of the driver is based on the
 .Xr snd_emu10k1 4
-SB Live! driver by Cameron Grant.
+SB Live!\& driver by
+.An "Cameron Grant" .
 The MIDI interface is based on the
 .Xr snd_emu10k1 4
-MIDI interface code by Mathew Kanner.
+MIDI interface code by
+.An "Mathew Kanner" .
 The
 .Nm
 device driver and this manual page were written by
@@ -197,7 +206,7 @@ device driver and this manual page were written by
 8kHz/8bit/mono recording does not work.
 8kHz recording was removed from the driver capabilites.
 .Pp
-The Driver does not detect lost S/PDIF signal and produces noise when S/PDIF
+The driver does not detect lost S/PDIF signal and produces noise when S/PDIF
 is not connected and S/PDIF volume is not zero.
 .Pp
 The PCM driver cannot detect the presence of Live!Drive or AudigyDrive

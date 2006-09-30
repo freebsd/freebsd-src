@@ -61,7 +61,8 @@ driver provides support for PCI Express 10 Gigabit Ethernet adapters based on
 the Myricom LANai Z8E chip.
 The driver supports Transmit/Receive checksum offload,
 Jumbo Frames as well as TCP segmentation offload (TSO).
-For further hardware information, see http://www.myri.com
+For further hardware information, see
+.Pa http://www.myri.com/ .
 .Pp
 For questions related to hardware requirements,
 refer to the documentation supplied with your Myri10GE adapter.
@@ -107,7 +108,7 @@ The default value is 30.
 This value determines whether or not the driver may omit doing a
 pio read in the interrupt handler which ensures that the interrupt
 line has been deasserted when using xPIC interrupts.
-A non-zero value 
+A non-zero value
 may result in lower CPU overhead, however it may also result in
 spurious interrupts.
 The default value is 0.
@@ -125,7 +126,7 @@ This is a fatal initialization error.
 .Sh SUPPORT
 For general information and support,
 go to the Myricom support website at:
-.Pa http://www.myri.com/scs .
+.Pa http://www.myri.com/scs/ .
 .Pp
 If an issue is identified with the released source code on the supported kernel
 with a supported adapter, email the specific information related to the

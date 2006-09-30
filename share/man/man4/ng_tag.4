@@ -316,17 +316,6 @@ variable:
 .Bd -literal -offset 4n
 sysctl net.inet.ip.fw.one_pass=0
 .Ed
-.Sh BUGS
-For manipulating any tags with data payload (that is, all tags with non-zero
-.Va tag_len )
-one should care about non-portable machine-dependent representation of
-tags on the low level as byte stream.
-Perhaps this should be done by another program rather than manually.
-.Sh HISTORY
-The
-.Nm
-node type was implemented in
-.Fx 6.2 .
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr ng_bpf 4 ,
@@ -334,5 +323,16 @@ node type was implemented in
 .Xr ipfw 8 ,
 .Xr ngctl 8 ,
 .Xr mbuf_tags 9
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 6.2 .
 .Sh AUTHORS
 .An Vadim Goncharov Aq vadimnuclight@tpu.ru
+.Sh BUGS
+For manipulating any tags with data payload (that is, all tags with non-zero
+.Va tag_len )
+one should care about non-portable machine-dependent representation of
+tags on the low level as byte stream.
+Perhaps this should be done by another program rather than manually.
