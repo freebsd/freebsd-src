@@ -35,10 +35,12 @@
 /* #pragma ident	"@(#)bsmaudit.c	1.1	01/09/17 SMI" */
 
 #include "includes.h"
+__RCSID("$FreeBSD$");
 #if defined(USE_BSM_AUDIT)
 
 #include <sys/types.h>
 
+#include <errno.h>
 #include <stdarg.h>
 #include <unistd.h>
 
