@@ -28,7 +28,7 @@
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
-#include <dev/sound/pci/ak452x.h>
+#include <dev/sound/pci/spicds.h>
 #include <dev/sound/pci/envy24.h>
 
 #include <dev/pci/pcireg.h>
@@ -742,7 +742,7 @@ envy24_gpiosetdir(struct sc_info *sc, u_int32_t dir)
 /* M-Audio Delta series AK4524 access interface routine */
 
 struct envy24_delta_ak4524_codec {
-	struct ak452x_info *info;
+	struct spicds_info *info;
 	struct sc_info *parent;
 	int dir;
 	int num;
@@ -786,7 +786,7 @@ envy24_delta_ak4524_create(device_t dev, void *info, int dir, int num)
 	else if (dir == PCMDIR_PLAY && sc->dac[num] != NULL)
 		buff->info = ((struct envy24_delta_ak4524_codec *)sc->dac[num])->info;
 	else
-		buff->info = ak452x_create(dev, buff, num, envy24_delta_ak4524_ctl);
+		buff->info = spicds_create(dev, buff, num, envy24_delta_ak4524_ctl);
 	if (buff->info == NULL) {
 		free(buff, M_ENVY24);
 		return NULL;
@@ -810,12 +810,12 @@ envy24_delta_ak4524_destroy(void *codec)
 #endif
 
 	if (ptr->dir == PCMDIR_PLAY) {
-		if (ptr->parent->adc[ptr->num] != NULL)
-			ak452x_destroy(ptr->info);
+		if (ptr->parent->dac[ptr->num] != NULL)
+			spicds_destroy(ptr->info);
 	}
 	else {
-		if (ptr->parent->dac[ptr->num] != NULL)
-			ak452x_destroy(ptr->info);
+		if (ptr->parent->adc[ptr->num] != NULL)
+			spicds_destroy(ptr->info);
 	}
 
 	free(codec, M_ENVY24);
@@ -853,22 +853,15 @@ envy24_delta_ak4524_init(void *codec)
 	ptr->cclk = ENVY24_GPIO_AK4524_CCLK;
 #endif
 	ptr->cclk = ptr->parent->cfg->cclk;
-#if 0
-	ptr->cdti = ENVY24_GPIO_AK4524_CDTI;
-#endif
 	ptr->cdti = ptr->parent->cfg->cdti;
-#if 0
-	ak452x_settype(ptr->info, AK452X_TYPE_4524);
-#endif
-	ak452x_settype(ptr->info,  ptr->parent->cfg->type);
-#if 0
-	ak452x_setcif(ptr->info, ENVY24_DELTA_AK4524_CIF);
-#endif
-	ak452x_setcif(ptr->info, ptr->parent->cfg->cif);
-	ak452x_setformat(ptr->info,
+	spicds_settype(ptr->info,  ptr->parent->cfg->type);
+	spicds_setcif(ptr->info, ptr->parent->cfg->cif);
+	spicds_setformat(ptr->info,
 	    AK452X_FORMAT_I2S | AK452X_FORMAT_256FSN | AK452X_FORMAT_1X);
-	ak452x_setdvc(ptr->info, 0);
-	ak452x_init(ptr->info);
+	spicds_setdvc(ptr->info, 0);
+	/* for the time being, init only first codec */
+	if (ptr->num == 0)
+		spicds_init(ptr->info);
 }
 
 static void
@@ -881,7 +874,7 @@ envy24_delta_ak4524_reinit(void *codec)
 	device_printf(ptr->parent->dev, "envy24_delta_ak4524_reinit()\n");
 #endif
 
-	ak452x_reinit(ptr->info);
+	spicds_reinit(ptr->info);
 }
 
 static void
@@ -894,7 +887,7 @@ envy24_delta_ak4524_setvolume(void *codec, int dir, unsigned int left, unsigned 
 	device_printf(ptr->parent->dev, "envy24_delta_ak4524_set()\n");
 #endif
 
-	ak452x_set(ptr->info, dir, left, right);
+	spicds_set(ptr->info, dir, left, right);
 }
 
 /*
@@ -2512,5 +2505,5 @@ static driver_t envy24_driver = {
 
 DRIVER_MODULE(snd_envy24, pci, envy24_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_envy24, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
-MODULE_DEPEND(snd_envy24, snd_ak452x, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
+MODULE_DEPEND(snd_envy24, snd_spicds, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_envy24, 1);
