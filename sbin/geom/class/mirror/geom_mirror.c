@@ -64,11 +64,11 @@ struct g_command class_commands[] = {
 	},
 	{ "configure", G_FLAG_VERBOSE, NULL,
 	    {
-		{ 'a', "autosync", NULL, G_TYPE_NONE },
+		{ 'a', "autosync", NULL, G_TYPE_BOOL },
 		{ 'b', "balance", configure_balance, G_TYPE_STRING },
-		{ 'd', "dynamic", NULL, G_TYPE_NONE },
-		{ 'h', "hardcode", NULL, G_TYPE_NONE },
-		{ 'n', "noautosync", NULL, G_TYPE_NONE },
+		{ 'd', "dynamic", NULL, G_TYPE_BOOL },
+		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
+		{ 'n', "noautosync", NULL, G_TYPE_BOOL },
 		{ 's', "slice", &configure_slice, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
@@ -86,8 +86,8 @@ struct g_command class_commands[] = {
 	{ "label", G_FLAG_VERBOSE, mirror_main,
 	    {
 		{ 'b', "balance", label_balance, G_TYPE_STRING },
-		{ 'h', "hardcode", NULL, G_TYPE_NONE },
-		{ 'n', "noautosync", NULL, G_TYPE_NONE },
+		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
+		{ 'n', "noautosync", NULL, G_TYPE_BOOL },
 		{ 's', "slice", &label_slice, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
@@ -95,8 +95,8 @@ struct g_command class_commands[] = {
 	},
 	{ "insert", G_FLAG_VERBOSE, NULL,
 	    {
-		{ 'h', "hardcode", NULL, G_TYPE_NONE },
-		{ 'i', "inactive", NULL, G_TYPE_NONE },
+		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
+		{ 'i', "inactive", NULL, G_TYPE_BOOL },
 		{ 'p', "priority", &insert_priority, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
@@ -110,7 +110,7 @@ struct g_command class_commands[] = {
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
-		{ 'f', "force", NULL, G_TYPE_NONE },
+		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
 	    "[-fv] name ..."
