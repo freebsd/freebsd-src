@@ -27,7 +27,7 @@
 SUBDIR=	${_csu} libbsm libcom_err libcrypt libkvm msun libmd libncurses \
 	libnetgraph libradius librpcsvc libsbuf libtacplus libutil \
 	${_libypclnt} libalias libarchive ${_libatm} \
-	libbegemot ${_libbluetooth} libbsnmp libbz2 libc ${_libc_r} \
+	libbegemot ${_libbluetooth} libbsnmp libbz2 libc \
 	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
 	libedit libexpat libfetch libform libftpio libgeom ${_libgpib} \
 	libgssapi libipsec \
@@ -74,11 +74,6 @@ _libvgl=	libvgl
 
 .if ${MACHINE_ARCH} == "ia64"
 _libsmb=	libsmb
-.endif
-
-.if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "ia64" && \
-    ${MACHINE_ARCH} != "powerpc" && ${MK_LIBC_R} != "no"
-_libc_r=
 .endif
 
 .if ${MK_SENDMAIL} != "no"

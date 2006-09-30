@@ -26,7 +26,6 @@ LIBBSNMP?=	${DESTDIR}${LIBDIR}/libbsnmp.a
 LIBBZ2?=	${DESTDIR}${LIBDIR}/libbz2.a
 LIBC?=		${DESTDIR}${LIBDIR}/libc.a
 LIBC_PIC?=	${DESTDIR}${LIBDIR}/libc_pic.a
-LIBC_R?=	${DESTDIR}${LIBDIR}/libc_r.a
 LIBCALENDAR?=	${DESTDIR}${LIBDIR}/libcalendar.a
 LIBCAM?=	${DESTDIR}${LIBDIR}/libcam.a
 LIBCOM_ERR?=	${DESTDIR}${LIBDIR}/libcom_err.a
