@@ -872,10 +872,6 @@ OLD_FILES+=usr/share/man/man8/ktutil.8.gz
 # to be filled in
 #.endif
 
-#.if ${MK_LIBC_R} == no
-# to be filled in
-#.endif
-
 #.if ${MK_LIBPTHREAD} == no
 # to be filled in
 #.endif
