@@ -2266,7 +2266,7 @@ do_cleanup(Authctxt *authctxt)
 		return;
 	called = 1;
 
-	if (authctxt == NULL)
+	if (authctxt == NULL || !authctxt->authenticated)
 		return;
 #ifdef KRB5
 	if (options.kerberos_ticket_cleanup &&
