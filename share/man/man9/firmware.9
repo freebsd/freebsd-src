@@ -48,7 +48,7 @@ struct firmware {
 	linker_file_t	file;		/* loadable module */
 };
 .Ed
-.Ft struct firmware *
+.Ft "struct firmware *"
 .Fo firmware_register
 .Fa "const char *imagename"
 .Fa "const void *data"
@@ -58,12 +58,14 @@ struct firmware {
 .Fc
 .Ft int
 .Fn firmware_unregister "const char *imagename"
-.Ft struct firmware *
+.Ft "struct firmware *"
 .Fn firmware_get "const char *imagename"
 .Ft void
 .Fn firmware_put "struct firmware *fp" "int flags"
 .Sh DESCRIPTION
-The firmware abstraction provides a convenient interface for loading firmware
+The
+.Nm firmware
+abstraction provides a convenient interface for loading firmware
 images into the kernel.
 Specially crafted kernel modules are used to hold the firmware images.
 .Pp
@@ -72,7 +74,8 @@ The function
 is used on load of such modules to register contained firmware images.
 The arguments to
 .Fn firmware_register
-include a name that identifies the image for later requests to the firmware
+include a name that identifies the image for later requests to the
+.Nm firmware
 system, a pointer to the actual image, the size of the image and an optional
 parent image.
 The parent image is used to keep track of references to a given module so that
@@ -86,13 +89,14 @@ are no pending references or returns an error otherwise.
 The function
 .Fn firmware_get
 returns the requested firmware image.
-If the image is not yet registered with the system
+If the image is not yet registered with the system,
 .Fn firmware_get
 tries to load a module with the corresponding name.
 This involves the linker subsystem and disk access which is why
 .Fn firmware_get
-must not be called with any locks (except for Giant).
-On success
+must not be called with any locks (except for
+.Va Giant ) .
+On success,
 .Fn firmware_get
 returns a pointer to the image description and increases the reference count
 for this image.
@@ -100,7 +104,9 @@ for this image.
 The function
 .Fn firmware_put
 is used to drop the reference to a firmware image.
-The flags argument may be set to
+The
+.Fa flags
+argument may be set to
 .Dv FIRMWARE_UNLOAD
 to indicate that the caller wishes to unload the corresponding module if the
 image becomes unreferenced.
@@ -109,7 +115,9 @@ image becomes unreferenced.
 .Pp
 .Pa /usr/share/examples/kld
 .Sh HISTORY
-The firmware system was introduced in
+The
+.Nm firmware
+system was introduced in
 .Fx 6.1 .
 .Sh AUTHORS
 This manual page was written by

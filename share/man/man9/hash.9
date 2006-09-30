@@ -30,17 +30,16 @@
 .Dt HASH 9
 .Os
 .Sh NAME
-.Nm hash
-.\" XXX - Should all these be .Nm as well?
-.\" .Nm hash32 ,
-.\" .Nm hash32_buf ,
-.\" .Nm hash32_str ,
-.\" .Nm hash32_strn ,
-.\" .Nm hash32_stre ,
-.\" .Nm hash32_strne
+.Nm hash ,
+.Nm hash32 ,
+.Nm hash32_buf ,
+.Nm hash32_str ,
+.Nm hash32_strn ,
+.Nm hash32_stre ,
+.Nm hash32_strne
 .Nd general kernel hashing functions
 .Sh SYNOPSIS
-.Fd #include <sys/hash.h>
+.In sys/hash.h
 .Ft uint32_t
 .Fn hash32_buf "void *buf" "size_t len" "uint32_t hash"
 .Ft uint32_t
@@ -56,7 +55,8 @@ The
 .Fn hash32
 functions are used to give a consistent and general interface to
 a decent hashing algorithm within the kernel.
-These functions can be used to hash ASCII
+These functions can be used to hash
+.Tn ASCII
 .Dv NUL
 terminated strings, as well as blocks of memory.
 .Pp
@@ -119,6 +119,7 @@ u_long mask = 0;
 void
 sample_init(void)
 {
+
         hashtbl = hashinit(numwanted, type, flags, &mask);
 }
 
