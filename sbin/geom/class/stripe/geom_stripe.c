@@ -66,7 +66,7 @@ struct g_command class_commands[] = {
 	},
 	{ "destroy", G_FLAG_VERBOSE, NULL,
 	    {
-		{ 'f', "force", NULL, G_TYPE_NONE },
+		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
 	    "[-fv] name ..."
@@ -76,7 +76,7 @@ struct g_command class_commands[] = {
 	},
 	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, stripe_main,
 	    {
-		{ 'h', "hardcode", NULL, G_TYPE_NONE },
+		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
 		{ 's', "stripesize", &default_stripesize, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
@@ -84,7 +84,7 @@ struct g_command class_commands[] = {
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
-		{ 'f', "force", NULL, G_TYPE_NONE },
+		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
 	    "[-fv] name ..."
