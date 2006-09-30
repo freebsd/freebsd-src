@@ -47,7 +47,7 @@ geom_fox_load="YES"
 .Ed
 .Sh DESCRIPTION
 The intent of the
-.Nm 
+.Nm
 framework is to provide basic multipathing support to access direct
 access devices.
 Basic in the above sentence should be read as:
@@ -88,7 +88,7 @@ fox device has been opened for writing.
 .Pp
 .Bl -bullet -compact
 .It
-.Nm 
+.Nm
 needs a label on the disk as follows in order to work properly:
 .Bd -literal
 "0123456789abcdef0123456789abcdef"
@@ -96,14 +96,14 @@ needs a label on the disk as follows in order to work properly:
 .Ed
 .Pp
 For the unique ID 16 bytes are available.
-The 
-.Li GEOM::FOX
+The
+.Dq Li GEOM::FOX
 is the magic to mark a
 .Nm
 device.
 .Pp
 The actual labelling is accomplished by
-.Bd -literal 
+.Bd -literal
 echo "GEOM::FOX       someid" | dd of=/dev/da2 conv=sync
 .Ed
 .Pp
@@ -190,8 +190,16 @@ You have to be very sure to provide a unique label for each of the
 devices.
 Safety belts are not provided.
 For FibreChannel devices it is suggested to use the Port WWN of the device.
-The World Wide Name is guaranteed to be worldwide unique per the 
+The World Wide Name is guaranteed to be worldwide unique per the
 FibreChannel standard.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An "Poul-Henning Kamp" Aq phk@FreeBSD.org .
+This manual page was written by
+.An "Wilko Bulte" Aq wilko@FreeBSD.org .
 .Sh BUGS
 The
 .Nm
@@ -204,11 +212,3 @@ is completely obscure.
 Just remember that any sly fox has multiple exits from its hole.
 .Pp
 The examples provided are too FibreChannel-centric.
-.Sh AUTHORS
-.An -nosplit
-The
-.Nm
-driver was written by 
-.An "Poul-Henning Kamp" Aq phk@FreeBSD.org .
-This manual page was written by
-.An "Wilko Bulte" Aq wilko@FreeBSD.org .

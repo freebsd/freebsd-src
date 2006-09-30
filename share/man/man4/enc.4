@@ -63,21 +63,21 @@ or incoming packets after they have been similarly processed, via
 .Xr tcpdump 8 .
 .Pp
 The
-.Dq enc0
+.Dq Li enc0
 interface inherits all IPsec traffic.
 Thus all IPsec traffic can be filtered based on
-.Dq enc0 ,
+.Dq Li enc0 ,
 and all IPsec traffic could be seen by invoking
 .Xr tcpdump 8
 on the
-.Dq enc0
+.Dq Li enc0
 interface.
 .Sh EXAMPLES
 To see all outgoing packets before they have been processed via
 .Xr fast_ipsec 4 ,
 or all incoming packets after they have been similarly processed:
 .Pp
-.Dl # tcpdump -i enc0
+.Dl "tcpdump -i enc0"
 .Sh SEE ALSO
 .Xr tcpdump 1 ,
 .Xr bpf 4 ,

@@ -77,7 +77,7 @@ The Sundance/Tamarack TC9021 supports TBI (ten bit interface)
 and GMII transceivers, which means it can be used with either
 copper or 1000baseX fiber applications.
 .Pp
-The Sundance/Tamarack TC9021 also support jumbo frames, which can be
+The Sundance/Tamarack TC9021 also supports jumbo frames, which can be
 configured via the interface MTU setting.
 Selecting an MTU larger than 1500 bytes with the
 .Xr ifconfig 8
@@ -139,7 +139,6 @@ Force half duplex operation.
 The
 .Nm
 driver also supports one special link option for 1000baseTX cards:
-.Pp
 .Bl -tag -width ".Cm link0"
 .It Cm link0
 With 1000baseTX cards, establishing a link between two ports requires
@@ -152,7 +151,7 @@ The
 .Nm
 driver configures the ports as slaves by default.
 Setting the
-.Ar link0
+.Cm link0
 flag with
 .Xr ifconfig 8
 will set a port as a master instead.
@@ -192,12 +191,13 @@ variables and
 tunables:
 .Bl -tag -width indent
 .It Va dev.stge.%d.rxint_nframe
-Number of frames between RxDMAComplete interrupt.
+Number of frames between RxDMAComplete interrupts.
 The accepted range is 1 to 255, default value is 8 frames.
 The interface has to be brought down and up again before a change takes effect.
 .It Va dev.stge.%d.rxint_dmawait
 Maximum amount of time to wait in 1us increments before issuing
-a Rx interrupt if number of frames received is less than rxint_nframe.
+an Rx interrupt if the number of frames received is less than
+.Va rxint_nframe .
 The accepted range is 0 to 4194, default value is 30 microseconds.
 The interface has to be brought down and up again before a change takes effect.
 .El
