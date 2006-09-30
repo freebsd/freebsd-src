@@ -1,3 +1,4 @@
+/* $OpenBSD: serverloop.c,v 1.144 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +36,25 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: serverloop.c,v 1.124 2005/12/13 15:03:02 reyk Exp $");
+
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/wait.h>
+#include <sys/socket.h>
+#ifdef HAVE_SYS_TIME_H
+# include <sys/time.h>
+#endif
+
+#include <netinet/in.h>
+
+#include <errno.h>
+#include <fcntl.h>
+#include <pwd.h>
+#include <signal.h>
+#include <string.h>
+#include <termios.h>
+#include <unistd.h>
+#include <stdarg.h>
 
 #include "xmalloc.h"
 #include "packet.h"
@@ -48,13 +67,16 @@ RCSID("$OpenBSD: serverloop.c,v 1.124 2005/12/13 15:03:02 reyk Exp $");
 #include "compat.h"
 #include "ssh1.h"
 #include "ssh2.h"
+#include "key.h"
+#include "cipher.h"
+#include "kex.h"
+#include "hostfile.h"
 #include "auth.h"
 #include "session.h"
 #include "dispatch.h"
 #include "auth-options.h"
 #include "serverloop.h"
 #include "misc.h"
-#include "kex.h"
 
 extern ServerOptions options;
 
@@ -142,11 +164,11 @@ notify_done(fd_set *readset)
 			debug2("notify_done: reading");
 }
 
+/*ARGSUSED*/
 static void
 sigchld_handler(int sig)
 {
 	int save_errno = errno;
-	debug("Received SIGCHLD.");
 	child_terminated = 1;
 #ifndef _UNICOS
 	mysignal(SIGCHLD, sigchld_handler);
@@ -155,6 +177,7 @@ sigchld_handler(int sig)
 	errno = save_errno;
 }
 
+/*ARGSUSED*/
 static void
 sigterm_handler(int sig)
 {
@@ -348,7 +371,7 @@ wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
  * in buffers and processed later.
  */
 static void
-process_input(fd_set * readset)
+process_input(fd_set *readset)
 {
 	int len;
 	char buf[16384];
@@ -380,10 +403,16 @@ process_input(fd_set * readset)
 
 	/* Read and buffer any available stdout data from the program. */
 	if (!fdout_eof && FD_ISSET(fdout, readset)) {
+		errno = 0;
 		len = read(fdout, buf, sizeof(buf));
 		if (len < 0 && (errno == EINTR || errno == EAGAIN)) {
 			/* do nothing */
+#ifndef PTY_ZEROREAD
 		} else if (len <= 0) {
+#else
+		} else if ((!isatty(fdout) && len <= 0) ||
+		    (isatty(fdout) && (len < 0 || (len == 0 && errno != 0)))) {
+#endif
 			fdout_eof = 1;
 		} else {
 			buffer_append(&stdout_buffer, buf, len);
@@ -392,10 +421,16 @@ process_input(fd_set * readset)
 	}
 	/* Read and buffer any available stderr data from the program. */
 	if (!fderr_eof && FD_ISSET(fderr, readset)) {
+		errno = 0;
 		len = read(fderr, buf, sizeof(buf));
 		if (len < 0 && (errno == EINTR || errno == EAGAIN)) {
 			/* do nothing */
+#ifndef PTY_ZEROREAD
 		} else if (len <= 0) {
+#else
+		} else if ((!isatty(fderr) && len <= 0) ||
+		    (isatty(fderr) && (len < 0 || (len == 0 && errno != 0)))) {
+#endif
 			fderr_eof = 1;
 		} else {
 			buffer_append(&stderr_buffer, buf, len);
@@ -407,7 +442,7 @@ process_input(fd_set * readset)
  * Sends data from internal buffers to client program stdin.
  */
 static void
-process_output(fd_set * writeset)
+process_output(fd_set *writeset)
 {
 	struct termios tio;
 	u_char *data;
@@ -749,6 +784,7 @@ collect_children(void)
 	sigaddset(&nset, SIGCHLD);
 	sigprocmask(SIG_BLOCK, &nset, &oset);
 	if (child_terminated) {
+		debug("Received SIGCHLD.");
 		while ((pid = waitpid(-1, &status, WNOHANG)) > 0 ||
 		    (pid < 0 && errno == EINTR))
 			if (pid > 0)
@@ -873,10 +909,10 @@ server_input_eof(int type, u_int32_t seq, void *ctxt)
 static void
 server_input_window_size(int type, u_int32_t seq, void *ctxt)
 {
-	int row = packet_get_int();
-	int col = packet_get_int();
-	int xpixel = packet_get_int();
-	int ypixel = packet_get_int();
+	u_int row = packet_get_int();
+	u_int col = packet_get_int();
+	u_int xpixel = packet_get_int();
+	u_int ypixel = packet_get_int();
 
 	debug("Window change received.");
 	packet_check_eom();
@@ -937,7 +973,7 @@ server_request_tun(void)
 
 	tun = packet_get_int();
 	if (forced_tun_device != -1) {
-	 	if (tun != SSH_TUNID_ANY && forced_tun_device != tun)
+		if (tun != SSH_TUNID_ANY && forced_tun_device != tun)
 			goto done;
 		tun = forced_tun_device;
 	}
@@ -1085,6 +1121,7 @@ server_input_global_request(int type, u_int32_t seq, void *ctxt)
 
 		success = channel_cancel_rport_listener(cancel_address,
 		    cancel_port);
+		xfree(cancel_address);
 	}
 	if (want_reply) {
 		packet_start(success ?
@@ -1094,6 +1131,7 @@ server_input_global_request(int type, u_int32_t seq, void *ctxt)
 	}
 	xfree(rtype);
 }
+
 static void
 server_input_channel_req(int type, u_int32_t seq, void *ctxt)
 {

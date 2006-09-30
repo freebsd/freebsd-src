@@ -1,3 +1,4 @@
+/* $OpenBSD: authfile.c,v 1.76 2006/08/03 03:34:41 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -36,16 +37,27 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: authfile.c,v 1.61 2005/06/17 02:44:32 djm Exp $");
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/param.h>
+#include <sys/uio.h>
 
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 
-#include "cipher.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "xmalloc.h"
+#include "cipher.h"
 #include "buffer.h"
-#include "bufaux.h"
 #include "key.h"
 #include "ssh.h"
 #include "log.h"
@@ -184,7 +196,7 @@ key_save_private_pem(Key *key, const char *filename, const char *_passphrase,
 		return 0;
 	}
 	fp = fdopen(fd, "w");
-	if (fp == NULL ) {
+	if (fp == NULL) {
 		error("fdopen %s failed: %s.", filename, strerror(errno));
 		close(fd);
 		return 0;
@@ -211,12 +223,10 @@ key_save_private(Key *key, const char *filename, const char *passphrase,
 	case KEY_RSA1:
 		return key_save_private_rsa1(key, filename, passphrase,
 		    comment);
-		break;
 	case KEY_DSA:
 	case KEY_RSA:
 		return key_save_private_pem(key, filename, passphrase,
 		    comment);
-		break;
 	default:
 		break;
 	}
@@ -507,7 +517,7 @@ key_load_private_pem(int fd, int type, const char *passphrase,
 	return prv;
 }
 
-static int
+int
 key_perm_ok(int fd, const char *filename)
 {
 	struct stat st;
@@ -537,7 +547,7 @@ key_perm_ok(int fd, const char *filename)
 
 Key *
 key_load_private_type(int type, const char *filename, const char *passphrase,
-    char **commentp)
+    char **commentp, int *perm_ok)
 {
 	int fd;
 
@@ -545,22 +555,24 @@ key_load_private_type(int type, const char *filename, const char *passphrase,
 	if (fd < 0)
 		return NULL;
 	if (!key_perm_ok(fd, filename)) {
+		if (perm_ok != NULL)
+			*perm_ok = 0;
 		error("bad permissions: ignore key: %s", filename);
 		close(fd);
 		return NULL;
 	}
+	if (perm_ok != NULL)
+		*perm_ok = 1;
 	switch (type) {
 	case KEY_RSA1:
 		return key_load_private_rsa1(fd, filename, passphrase,
 		    commentp);
 		/* closes fd */
-		break;
 	case KEY_DSA:
 	case KEY_RSA:
 	case KEY_UNSPEC:
 		return key_load_private_pem(fd, type, passphrase, commentp);
 		/* closes fd */
-		break;
 	default:
 		close(fd);
 		break;

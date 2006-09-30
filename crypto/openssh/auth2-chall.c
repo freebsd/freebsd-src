@@ -1,3 +1,4 @@
+/* $OpenBSD: auth2-chall.c,v 1.31 2006/08/05 08:28:24 dtucker Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2001 Per Allansson.  All rights reserved.
@@ -22,15 +23,23 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "includes.h"
-RCSID("$OpenBSD: auth2-chall.c,v 1.24 2005/07/17 07:17:54 djm Exp $");
-RCSID("$FreeBSD$");
 
+#include "includes.h"
+__RCSID("$FreeBSD$");
+
+#include <sys/types.h>
+
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "xmalloc.h"
 #include "ssh2.h"
+#include "key.h"
+#include "hostfile.h"
 #include "auth.h"
 #include "buffer.h"
 #include "packet.h"
-#include "xmalloc.h"
 #include "dispatch.h"
 #include "log.h"
 #include "servconf.h"
@@ -292,7 +301,7 @@ input_userauth_info_response(int type, u_int32_t seq, void *ctxt)
 	if (nresp > 100)
 		fatal("input_userauth_info_response: too many replies");
 	if (nresp > 0) {
-		response = xmalloc(nresp * sizeof(char *));
+		response = xcalloc(nresp, sizeof(char *));
 		for (i = 0; i < nresp; i++)
 			response[i] = packet_get_string(NULL);
 	}

@@ -1,3 +1,4 @@
+/* $OpenBSD: sshconnect2.c,v 1.162 2006/08/30 00:06:51 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -23,18 +24,30 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect2.c,v 1.143 2005/10/14 02:17:59 stevesk Exp $");
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+
+#include <errno.h>
+#include <pwd.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "openbsd-compat/sys-queue.h"
 
+#include "xmalloc.h"
 #include "ssh.h"
 #include "ssh2.h"
-#include "xmalloc.h"
 #include "buffer.h"
 #include "packet.h"
 #include "compat.h"
-#include "bufaux.h"
 #include "cipher.h"
+#include "key.h"
 #include "kex.h"
 #include "myproposal.h"
 #include "sshconnect.h"
@@ -49,6 +62,7 @@ RCSID("$OpenBSD: sshconnect2.c,v 1.143 2005/10/14 02:17:59 stevesk Exp $");
 #include "canohost.h"
 #include "msg.h"
 #include "pathnames.h"
+#include "uidswap.h"
 
 #ifdef GSSAPI
 #include "ssh-gss.h"
@@ -122,6 +136,7 @@ ssh_kex2(char *host, struct sockaddr *hostaddr)
 	kex->kex[KEX_DH_GRP1_SHA1] = kexdh_client;
 	kex->kex[KEX_DH_GRP14_SHA1] = kexdh_client;
 	kex->kex[KEX_DH_GEX_SHA1] = kexgex_client;
+	kex->kex[KEX_DH_GEX_SHA256] = kexgex_client;
 	kex->client_version_string=client_version_string;
 	kex->server_version_string=server_version_string;
 	kex->verify_host_key=&verify_host_key_callback;
@@ -363,7 +378,7 @@ input_userauth_banner(int type, u_int32_t seq, void *ctxt)
 	debug3("input_userauth_banner");
 	msg = packet_get_string(NULL);
 	lang = packet_get_string(NULL);
-	if (options.log_level > SYSLOG_LEVEL_QUIET)
+	if (options.log_level >= SYSLOG_LEVEL_INFO)
 		fprintf(stderr, "%s", msg);
 	xfree(msg);
 	xfree(lang);
@@ -494,15 +509,10 @@ userauth_gssapi(Authctxt *authctxt)
 
 	/* Check to see if the mechanism is usable before we offer it */
 	while (mech < gss_supported->count && !ok) {
-		if (gssctxt)
-			ssh_gssapi_delete_ctx(&gssctxt);
-		ssh_gssapi_build_ctx(&gssctxt);
-		ssh_gssapi_set_oid(gssctxt, &gss_supported->elements[mech]);
-
 		/* My DER encoding requires length<128 */
 		if (gss_supported->elements[mech].length < 128 &&
-		    !GSS_ERROR(ssh_gssapi_import_name(gssctxt,
-		    authctxt->host))) {
+		    ssh_gssapi_check_mechanism(&gssctxt, 
+		    &gss_supported->elements[mech], authctxt->host)) {
 			ok = 1; /* Mechanism works */
 		} else {
 			mech++;
@@ -963,14 +973,16 @@ load_identity_file(char *filename)
 {
 	Key *private;
 	char prompt[300], *passphrase;
-	int quit, i;
+	int perm_ok, quit, i;
 	struct stat st;
 
 	if (stat(filename, &st) < 0) {
 		debug3("no such identity: %s", filename);
 		return NULL;
 	}
-	private = key_load_private_type(KEY_UNSPEC, filename, "", NULL);
+	private = key_load_private_type(KEY_UNSPEC, filename, "", NULL, &perm_ok);
+	if (!perm_ok)
+		return NULL;
 	if (private == NULL) {
 		if (options.batch_mode)
 			return NULL;
@@ -979,8 +991,8 @@ load_identity_file(char *filename)
 		for (i = 0; i < options.number_of_password_prompts; i++) {
 			passphrase = read_passphrase(prompt, 0);
 			if (strcmp(passphrase, "") != 0) {
-				private = key_load_private_type(KEY_UNSPEC, filename,
-				    passphrase, NULL);
+				private = key_load_private_type(KEY_UNSPEC,
+				    filename, passphrase, NULL, NULL);
 				quit = 0;
 			} else {
 				debug2("no passphrase given, try next key");
@@ -1023,8 +1035,7 @@ pubkey_prepare(Authctxt *authctxt)
 		if (key && key->type == KEY_RSA1)
 			continue;
 		options.identity_keys[i] = NULL;
-		id = xmalloc(sizeof(*id));
-		memset(id, 0, sizeof(*id));
+		id = xcalloc(1, sizeof(*id));
 		id->key = key;
 		id->filename = xstrdup(options.identity_files[i]);
 		TAILQ_INSERT_TAIL(&files, id, next);
@@ -1048,8 +1059,7 @@ pubkey_prepare(Authctxt *authctxt)
 				}
 			}
 			if (!found && !options.identities_only) {
-				id = xmalloc(sizeof(*id));
-				memset(id, 0, sizeof(*id));
+				id = xcalloc(1, sizeof(*id));
 				id->key = key;
 				id->filename = comment;
 				id->ac = ac;
@@ -1245,8 +1255,7 @@ ssh_keysign(Key *key, u_char **sigp, u_int *lenp,
 		return -1;
 	}
 	if (pid == 0) {
-		seteuid(getuid());
-		setuid(getuid());
+		permanently_drop_suid(getuid());
 		close(from[0]);
 		if (dup2(from[1], STDOUT_FILENO) < 0)
 			fatal("ssh_keysign: dup2: %s", strerror(errno));
@@ -1326,12 +1335,11 @@ userauth_hostbased(Authctxt *authctxt)
 	if (p == NULL) {
 		error("userauth_hostbased: cannot get local ipaddr/name");
 		key_free(private);
+		xfree(blob);
 		return 0;
 	}
 	len = strlen(p) + 2;
-	chost = xmalloc(len);
-	strlcpy(chost, p, len);
-	strlcat(chost, ".", len);
+	xasprintf(&chost, "%s.", p);
 	debug2("userauth_hostbased: chost %s", chost);
 	xfree(p);
 
@@ -1364,6 +1372,7 @@ userauth_hostbased(Authctxt *authctxt)
 		error("key_sign failed");
 		xfree(chost);
 		xfree(pkalg);
+		xfree(blob);
 		return 0;
 	}
 	packet_start(SSH2_MSG_USERAUTH_REQUEST);
@@ -1379,6 +1388,7 @@ userauth_hostbased(Authctxt *authctxt)
 	xfree(signature);
 	xfree(chost);
 	xfree(pkalg);
+	xfree(blob);
 
 	packet_send();
 	return 1;
