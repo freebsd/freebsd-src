@@ -30,7 +30,7 @@
 .Os FreeBSD
 .Sh NAME
 .Nm freebsd-update.conf
-.Nd configuration file for 
+.Nd configuration file for
 .Xr freebsd-update 8
 .Sh DESCRIPTION
 The
@@ -38,18 +38,18 @@ The
 file controls the behaviour of the
 .Xr freebsd-update 8
 utility.
-The file contains lines consisting of a case-sensitive option name and 
+The file contains lines consisting of a case-sensitive option name and
 zero or more parameters.
 Empty lines and any part of a line following a
 .Ql #
 character are ignored.
-Unless stated otherwise, specifying an option multiple times is an 
+Unless stated otherwise, specifying an option multiple times is an
 error.
 .Pp
 The possible options and their meanings are as follows:
 .Pp
 .Bl -tag -width "KeepModifiedMetadata"
-.It Cm KeyPrint 
+.It Cm KeyPrint
 The single parameter following this keyword is the SHA256 hash
 of the RSA key which will be trusted to sign updates.
 .It Cm ServerName
@@ -59,7 +59,8 @@ server or server pool from which updates will be downloaded.
 The parameters following this keyword are the components or
 sub-components of
 .Fx
-which will be updated.  The components are
+which will be updated.
+The components are
 .Dq src
 (source code),
 .Dq world
@@ -112,7 +113,8 @@ or
 and specifies whether
 .Cm freebsd-update
 is allowed to create new files, directories, and symlinks if
-these are part of updates downloaded.  Note that
+these are part of updates downloaded.
+Note that
 .Cm freebsd-update
 will not re-add files which have been deleted from a
 .Fx
@@ -145,7 +147,7 @@ Default location of the
 configuration file.
 .El
 .Sh SEE ALSO
+.Xr sha256 1 ,
 .Xr freebsd-update 8
-.Xr sha256 8
 .Sh AUTHORS
 .An Colin Percival Aq cperciva@FreeBSD.org

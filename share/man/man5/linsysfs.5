@@ -14,25 +14,31 @@
 linsys		/compat/linux/sys	linsysfs	rw 0 0
 .Ed
 .Sh DESCRIPTION
-The Linux system file system, or
+The
+.Tn Linux
+system file system, or
 .Nm ,
-emulates a subset of the Linux sys file system and is required for
-the complete operation of some Linux binaries.
+emulates a subset of the
+.Tn Linux
+sys file system and is required for
+the complete operation of some
+.Tn Linux
+binaries.
 .Pp
 The
 .Nm
 provides a two-level view of devices.
 At the highest level, PCI devices themselves are named, according to
 their bus, slot and function in the system hierachy.
-PCI storage devices are listed in the scsi_host class with a device sym-link
+PCI storage devices are listed in the
+.Pa scsi_host
+class with a device symlink
 to the PCI directories of the devices.
 .Pp
 Each device node is a directory containing some files and directories:
-.Bl -tag -width status
+.Bl -tag -width ".Pa status"
 .It Pa host
-A place holder for storage
-.Pa host
-information.
+A place holder for storage host information.
 .It Pa pci_id
 A directory for the
 .Pa pci_id
@@ -41,18 +47,18 @@ for a PCI bridge.
 .El
 .Pp
 Each host node of scsi_host is a directory containing some files and directories:
-.Bl -tag -width proc_name
+.Bl -tag -width ".Pa proc_name"
 .It Pa proc_name
-The Linux registered driver name for these devices.
+The
+.Tn Linux
+registered driver name for these devices.
 .It Pa device
-A sym-link to the PCI
-.Pa device
-directory.
+A symlink to the PCI device directory.
 .El
 .Sh FILES
-.Bl -tag -width /compat/linux/sys/devices/pci0000:00 -compact
+.Bl -tag -width ".Pa /compat/linux/sys/devices/pci0000:00" -compact
 .It Pa /compat/linux/sys
-The normal mount point for the
+The normal mount point for
 .Nm .
 .It Pa /compat/linux/sys/class/scsi_host
 The storage host node.
@@ -67,13 +73,13 @@ The PCI device hierarchy node.
 .Sh HISTORY
 The
 .Nm
-first appeared in
+driver first appeared in
 .Fx 7.0 .
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
-was derived from
+driver was derived from
 .Nm linprocfs
 by
 .An Doug Ambrisko .
