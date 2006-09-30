@@ -1,4 +1,4 @@
-/*	$OpenBSD: channels.h,v 1.83 2005/12/30 15:56:37 reyk Exp $	*/
+/* $OpenBSD: channels.h,v 1.88 2006/08/03 03:34:42 deraadt Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -37,8 +37,6 @@
 
 #ifndef CHANNEL_H
 #define CHANNEL_H
-
-#include "buffer.h"
 
 /* Definitions for channel types. */
 #define SSH_CHANNEL_X11_LISTENER	1	/* Listening for inet X11 conn. */
@@ -207,11 +205,13 @@ int	 channel_find_open(void);
 void	 channel_set_af(int af);
 void     channel_permit_all_opens(void);
 void	 channel_add_permitted_opens(char *, int);
+int	 channel_add_adm_permitted_opens(char *, int);
 void	 channel_clear_permitted_opens(void);
-void     channel_input_port_forward_request(int, int);
+void	 channel_clear_adm_permitted_opens(void);
+int      channel_input_port_forward_request(int, int);
 int	 channel_connect_to(const char *, u_short);
 int	 channel_connect_by_listen_address(u_short);
-void	 channel_request_remote_forwarding(const char *, u_short,
+int	 channel_request_remote_forwarding(const char *, u_short,
 	     const char *, u_short);
 int	 channel_setup_local_fwd_listener(const char *, u_short,
 	     const char *, u_short, int);

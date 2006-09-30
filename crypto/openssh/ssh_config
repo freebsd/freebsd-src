@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh_config,v 1.21 2005/12/06 22:38:27 reyk Exp $
+#	$OpenBSD: ssh_config,v 1.22 2006/05/29 12:56:33 dtucker Exp $
 #	$FreeBSD$
 
 # This is the ssh client system-wide configuration file.  See
@@ -25,6 +25,8 @@
 #   RSAAuthentication yes
 #   PasswordAuthentication yes
 #   HostbasedAuthentication no
+#   GSSAPIAuthentication no
+#   GSSAPIDelegateCredentials no
 #   BatchMode no
 #   CheckHostIP no
 #   AddressFamily any
