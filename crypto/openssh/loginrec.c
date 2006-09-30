@@ -146,9 +146,28 @@
  */
 
 #include "includes.h"
+__RCSID("$FreeBSD$");
 
-#include "ssh.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/socket.h>
+
+#include <netinet/in.h>
+
+#include <errno.h>
+#include <fcntl.h>
+#ifdef HAVE_PATHS_H
+# include <paths.h>
+#endif
+#include <pwd.h>
+#include <stdarg.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "xmalloc.h"
+#include "key.h"
+#include "hostfile.h"
+#include "ssh.h"
 #include "loginrec.h"
 #include "log.h"
 #include "atomicio.h"
@@ -164,9 +183,6 @@
 #ifdef HAVE_LIBUTIL_H
 # include <libutil.h>
 #endif
-
-RCSID("$Id: loginrec.c,v 1.71 2005/11/22 08:55:13 dtucker Exp $");
-RCSID("$FreeBSD$");
 
 /**
  ** prototypes for helper functions in this file

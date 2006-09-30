@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.253 2006/01/30 13:37:49 jmc Exp $
+.\" $OpenBSD: ssh.1,v 1.263 2006/07/11 18:50:48 markus Exp $
 .\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSH 1
@@ -79,7 +79,8 @@
 .Oc
 .Op Fl S Ar ctl_path
 .Bk -words
-.Op Fl w Ar tunnel : Ns Ar tunnel
+.Oo Fl w Ar local_tun Ns
+.Op : Ns Ar remote_tun Oc
 .Oo Ar user Ns @ Oc Ns Ar hostname
 .Op Ar command
 .Ek
@@ -449,6 +450,7 @@ For full details of the options listed below, and their possible values, see
 .It ControlPath
 .It DynamicForward
 .It EscapeChar
+.It ExitOnForwardFailure
 .It ForwardAgent
 .It ForwardX11
 .It ForwardX11Trusted
@@ -571,7 +573,7 @@ Disable pseudo-tty allocation.
 Force pseudo-tty allocation.
 This can be used to execute arbitrary
 screen-based programs on a remote machine, which can be very useful,
-e.g., when implementing menu services.
+e.g. when implementing menu services.
 Multiple
 .Fl t
 options force tty allocation, even if
@@ -590,24 +592,35 @@ Multiple
 .Fl v
 options increase the verbosity.
 The maximum is 3.
-.It Fl w Ar tunnel : Ns Ar tunnel
-Requests a
+.It Fl w Xo
+.Ar local_tun Ns Op : Ns Ar remote_tun
+.Xc
+Requests
+tunnel
+device forwarding with the specified
 .Xr tun 4
-device on the client
-(first
-.Ar tunnel
-arg)
-and server
-(second
-.Ar tunnel
-arg).
+devices between the client
+.Pq Ar local_tun
+and the server
+.Pq Ar remote_tun .
+.Pp
 The devices may be specified by numerical ID or the keyword
 .Dq any ,
 which uses the next available tunnel device.
+If
+.Ar remote_tun
+is not specified, it defaults to
+.Dq any .
 See also the
 .Cm Tunnel
-directive in
+and
+.Cm TunnelDevice
+directives in
 .Xr ssh_config 5 .
+If the
+.Cm Tunnel
+directive is unset, it is set to the default tunnel mode, which is
+.Dq point-to-point .
 .It Fl X
 Enables X11 forwarding.
 This can also be specified on a per-host basis in a configuration file.
@@ -668,6 +681,7 @@ Protocol 1 lacks a strong mechanism for ensuring the
 integrity of the connection.
 .Pp
 The methods available for authentication are:
+GSSAPI-based authentication,
 host-based authentication,
 public key authentication,
 challenge-response authentication,
@@ -874,7 +888,9 @@ and
 options (see above).
 It also allows the cancellation of existing remote port-forwardings
 using
-.Fl KR Ar hostport .
+.Sm off
+.Fl KR Oo Ar bind_address : Oc Ar port .
+.Sm on
 .Ic !\& Ns Ar command
 allows the user to execute a local command if the
 .Ic PermitLocalCommand
@@ -1027,8 +1043,7 @@ In this example, we are connecting a client to a server,
 The SSHFP resource records should first be added to the zonefile for
 host.example.com:
 .Bd -literal -offset indent
-$ ssh-keygen -f /etc/ssh/ssh_host_rsa_key.pub -r host.example.com.
-$ ssh-keygen -f /etc/ssh/ssh_host_dsa_key.pub -r host.example.com.
+$ ssh-keygen -r host.example.com.
 .Ed
 .Pp
 The output lines will have to be added to the zonefile.
@@ -1077,11 +1092,11 @@ Client access may be more finely tuned via the
 file (see below) and the
 .Cm PermitRootLogin
 server option.
-The following entry would permit connections on the first
+The following entry would permit connections on
 .Xr tun 4
-device from user
+device 1 from user
 .Dq jane
-and on the second device from user
+and on tun device 2 from user
 .Dq john ,
 if
 .Cm PermitRootLogin
@@ -1089,7 +1104,7 @@ is set to
 .Dq forced-commands-only :
 .Bd -literal -offset 2n
 tunnel="1",command="sh /etc/netstart tun1" ssh-rsa ... jane
-tunnel="2",command="sh /etc/netstart tun1" ssh-rsa ... john
+tunnel="2",command="sh /etc/netstart tun2" ssh-rsa ... john
 .Ed
 .Pp
 Since a SSH-based setup entails a fair amount of overhead,
@@ -1180,7 +1195,7 @@ If the current session has no tty,
 this variable is not set.
 .It Ev TZ
 This variable is set to indicate the present time zone if it
-was set when the daemon was started (i.e., the daemon passes the value
+was set when the daemon was started (i.e. the daemon passes the value
 on to new connections).
 .It Ev USER
 Set to the name of the user logging in.
@@ -1341,15 +1356,59 @@ manual page for more information.
 .Xr ssh-keysign 8 ,
 .Xr sshd 8
 .Rs
-.%A T. Ylonen
-.%A T. Kivinen
-.%A M. Saarinen
-.%A T. Rinne
-.%A S. Lehtinen
-.%T "SSH Protocol Architecture"
-.%N draft-ietf-secsh-architecture-12.txt
-.%D January 2002
-.%O work in progress material
+.%R RFC 4250
+.%T "The Secure Shell (SSH) Protocol Assigned Numbers"
+.%D 2006
+.Re
+.Rs
+.%R RFC 4251
+.%T "The Secure Shell (SSH) Protocol Architecture"
+.%D 2006
+.Re
+.Rs
+.%R RFC 4252
+.%T "The Secure Shell (SSH) Authentication Protocol"
+.%D 2006
+.Re
+.Rs
+.%R RFC 4253
+.%T "The Secure Shell (SSH) Transport Layer Protocol"
+.%D 2006
+.Re
+.Rs
+.%R RFC 4254
+.%T "The Secure Shell (SSH) Connection Protocol"
+.%D 2006
+.Re
+.Rs
+.%R RFC 4255
+.%T "Using DNS to Securely Publish Secure Shell (SSH) Key Fingerprints"
+.%D 2006
+.Re
+.Rs
+.%R RFC 4256
+.%T "Generic Message Exchange Authentication for the Secure Shell Protocol (SSH)"
+.%D 2006
+.Re
+.Rs
+.%R RFC 4335
+.%T "The Secure Shell (SSH) Session Channel Break Extension"
+.%D 2006
+.Re
+.Rs
+.%R RFC 4344
+.%T "The Secure Shell (SSH) Transport Layer Encryption Modes"
+.%D 2006
+.Re
+.Rs
+.%R RFC 4345
+.%T "Improved Arcfour Modes for the Secure Shell (SSH) Transport Layer Protocol"
+.%D 2006
+.Re
+.Rs
+.%R RFC 4419
+.%T "Diffie-Hellman Group Exchange for the Secure Shell (SSH) Transport Layer Protocol"
+.%D 2006
 .Re
 .Sh AUTHORS
 OpenSSH is a derivative of the original and free

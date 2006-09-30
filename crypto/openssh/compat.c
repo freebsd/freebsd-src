@@ -1,3 +1,4 @@
+/* $OpenBSD: compat.c,v 1.76 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
@@ -23,12 +24,17 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: compat.c,v 1.71 2005/03/01 10:09:52 djm Exp $");
-RCSID("$FreeBSD$");
+__RCSID("$FreeBSD$");
 
+#include <sys/types.h>
+
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
+
+#include "xmalloc.h"
 #include "buffer.h"
 #include "packet.h"
-#include "xmalloc.h"
 #include "compat.h"
 #include "log.h"
 #include "match.h"
