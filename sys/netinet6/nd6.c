@@ -1391,7 +1391,7 @@ nd6_rtrequest(req, rt, info)
 				}
 			}
 		} else if (req == RTM_ADD && SDL(gate)->sdl_alen == 0 &&
-		    (ifp->if_flags & (IFF_POINTOPOINT | IFF_LOOPBACK)) == 0) {
+		    (rt->rt_flags & RTF_HOST) != 0) {
 			ln->ln_state = ND6_LLINFO_INCOMPLETE;
 		}
 		break;
