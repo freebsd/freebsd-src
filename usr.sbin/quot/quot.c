@@ -121,7 +121,7 @@ get_inode(fd,super,ino)
 		if (ipbuf) {
 			free(ipbuf);
 			ipbuf = 0;
-			if (super->fs_magic == FS_UFS2_MAGIC) {
+			if (super != NULL && super->fs_magic == FS_UFS2_MAGIC) {
 				free(cgp);
 				cgp = 0;
 			}
