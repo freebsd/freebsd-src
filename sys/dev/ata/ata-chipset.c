@@ -985,6 +985,13 @@ ata_ali_chipinit(device_t dev)
 	ctlr->allocate = ata_ali_sata_allocate;
 	ctlr->setmode = ata_sata_setmode;
 
+	/* if we have a memory resource we can likely do AHCI */
+	ctlr->r_type2 = SYS_RES_MEMORY;
+	ctlr->r_rid2 = PCIR_BAR(5);
+	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+						   &ctlr->r_rid2, RF_ACTIVE)))
+	    return ata_ahci_chipinit(dev);
+
 	/* enable PCI interrupt */
 	pci_write_config(dev, PCIR_COMMAND,
 			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
@@ -3952,14 +3959,17 @@ ata_serverworks_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_ROSB4,     0x00, SWKS33,  0x00, ATA_UDMA2, "ROSB4" },
-     { ATA_CSB5,      0x92, SWKS100, 0x00, ATA_UDMA5, "CSB5" },
-     { ATA_CSB5,      0x00, SWKS66,  0x00, ATA_UDMA4, "CSB5" },
-     { ATA_CSB6,      0x00, SWKS100, 0x00, ATA_UDMA5, "CSB6" },
-     { ATA_CSB6_1,    0x00, SWKS66,  0x00, ATA_UDMA4, "CSB6" },
-     { ATA_HT1000,    0x00, SWKS100, 0x00, ATA_UDMA5, "HT1000" },
-     { ATA_HT1000_S1, 0x00, SWKS100, 0x00, ATA_SA150, "HT1000 SATA" },
-     { ATA_HT1000_S2, 0x00, SWKSMIO, 0x00, ATA_SA150, "HT1000 SATA mmio" },
+    {{ ATA_ROSB4,     0x00, SWKS33,  0, ATA_UDMA2, "ROSB4" },
+     { ATA_CSB5,      0x92, SWKS100, 0, ATA_UDMA5, "CSB5" },
+     { ATA_CSB5,      0x00, SWKS66,  0, ATA_UDMA4, "CSB5" },
+     { ATA_CSB6,      0x00, SWKS100, 0, ATA_UDMA5, "CSB6" },
+     { ATA_CSB6_1,    0x00, SWKS66,  0, ATA_UDMA4, "CSB6" },
+     { ATA_HT1000,    0x00, SWKS100, 0, ATA_UDMA5, "HT1000" },
+     { ATA_HT1000_S1, 0x00, SWKS100, 4, ATA_SA150, "HT1000" },
+     { ATA_HT1000_S2, 0x00, SWKSMIO, 4, ATA_SA150, "HT1000" },
+     { ATA_K2,        0x00, SWKSMIO, 4, ATA_SA150, "K2" },
+     { ATA_FRODO4,    0x00, SWKSMIO, 4, ATA_SA150, "Frodo4" },
+     { ATA_FRODO8,    0x00, SWKSMIO, 8, ATA_SA150, "Frodo8" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
@@ -3989,7 +3999,7 @@ ata_serverworks_chipinit(device_t dev)
 						    &ctlr->r_rid2, RF_ACTIVE)))
 	    return ENXIO;
 
-	ctlr->channels = 4;
+	ctlr->channels = ctlr->chip->cfg2;
 	ctlr->allocate = ata_serverworks_allocate;
 	ctlr->setmode = ata_sata_setmode;
 	return 0;
@@ -4866,7 +4876,7 @@ ata_via_allocate(device_t dev)
 	ata_default_registers(dev);
 	for (i = ATA_BMCMD_PORT; i <= ATA_BMDTP_PORT; i++) {
 	    ch->r_io[i].res = ctlr->r_res1;
-	    ch->r_io[i].offset = i - ATA_BMCMD_PORT;
+	    ch->r_io[i].offset = (i - ATA_BMCMD_PORT)+(ch->unit * ATA_BMIOSIZE);
 	}
 	ata_pci_hw(dev);
     }
