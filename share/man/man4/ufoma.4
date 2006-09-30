@@ -47,7 +47,7 @@ by
 .Xr umodem 4 ,
 but the
 .Nm
-driver recognizes a specific usb descriptor that describes its role and
+driver recognizes a specific USB descriptor that describes its role and
 interface structure, and it will negotiate its role when the device is open.
 They support a regular AT command set and
 the commands can either be multiplexed with the data stream
@@ -60,9 +60,9 @@ The device is accessed through the
 driver which makes it behave like a
 .Xr tty 4 .
 .Sh SYSCTLS
-This device often have a few interface sets and these interfaces
-have its role, sometimes multiplexed.
-These roles are identified with the following sysctl MIB's:
+These devices often have a few interface sets and these interfaces
+have their role, sometimes multiplexed.
+These roles are identified with the following sysctl MIBs:
 .Bl -tag -width indent
 .It Va dev.ucom.%d.supportmode
 The modes which are supported by the interface.
@@ -73,20 +73,19 @@ Mode to transit when the device is open next.
 .El
 The modes are as follows:
 .Bl -tag -width indent
-.It modem
+.It Li modem
 Accepts AT commands and go and pass packet communication data.
-.It handsfree
+.It Li handsfree
 Accepts AT commands but it does not pass data.
-.It obex
+.It Li obex
 Accepts OBEX frame which is used to exchange telephone book, etc.
-.It vendor1
-.It vendor2
-Vendor specific data may passed.
-.It deactivated
-When a interface is recognized to the system and not used, the interface
-will set to this mode.
-.It unlinked
-When a interface is not yet negotiated, the interface is in this mode.
+.It Li vendor1 , vendor2
+Vendor specific data may be passed.
+.It Li deactivated
+When an interface is recognized by the system but not used, the interface
+will be set to this mode.
+.It Li unlinked
+When an interface is not yet negotiated, the interface is in this mode.
 .El 
 .Sh HARDWARE
 Devices supported by the
@@ -102,10 +101,14 @@ KYOCERA PHS AH-K3001V (a.k.a Kyopon)
 SANYO Vodafone3G V801SA
 .El
 .Sh SEE ALSO
-specification can be found at:
+Specification can be found at:
 .Pp
-http://www.nttdocomo.co.jp/corporate/technology/document/foma/index.html
-http://www.mcpc-jp.org/doclist.htm
+.Bl -item -compact
+.It
+.Pa http://www.nttdocomo.co.jp/corporate/technology/document/foma/index.html
+.It
+.Pa http://www.mcpc-jp.org/doclist.htm
+.El
 .Pp
 .Xr tty 4 ,
 .Xr ucom 4 ,
@@ -116,7 +119,8 @@ The
 .Nm
 driver
 appeared in
-.Fx 7-CURRENT, partly from
+.Fx 7.0 ,
+partly derived from the
 .Xr umodem 4
 code.
 .Sh BUGS

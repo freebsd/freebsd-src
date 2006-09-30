@@ -29,7 +29,7 @@
 .Dt SCHED_CORE 4
 .Sh NAME
 .Nm sched_core
-.Nd CORE Scheduler
+.Nd CORE scheduler
 .Sh SYNOPSIS
 .Cd "options SCHED_CORE"
 .Sh DESCRIPTION
@@ -40,12 +40,14 @@ is an experimental scheduler that provides a number of advanced scheduler
 features not present in
 .Xr sched_4bsd 4 ,
 the default system scheduler, nor
-.Xr sched_ule 4 where it is forked off.
+.Xr sched_ule 4
+where it is forked off.
 These features address SMP and interactivity and include:
 .Pp
 .Bl -bullet -compact -offset indent
 .It
-Nice value of timesharing processes is respected.  Allocation of
+Nice value of timesharing processes is respected.
+Allocation of
 time slice and interaction detection algorithm are based on
 nice value.
 .It
@@ -68,11 +70,11 @@ This read-only sysctl reports the name of the active scheduler.
 .It Va kern.sched.ipiwakeup.enabled
 (SMP specific) Whether to allow forwarding of wakeup to idle CPUs.
 .It Va kern.sched.ipiwakeup.requested
-(SMP specific) Requests for forwarding of wakeup to idle CPUs.
-(read-only).
+(SMP specific) Requests for forwarding of wakeup to idle CPUs,
+read-only.
 .It Va kern.sched.ipiwakeup.requested
-(SMP specific) Completed forwarding of wakeup to idle CPUs.
-(read-only).
+(SMP specific) Completed forwarding of wakeup to idle CPUs,
+read-only.
 .It Va kern.sched.ipiwakeup.usemask
 (SMP specific) Whether to use the mask of idle CPUs.
 .It Va kern.sched.ipiwakeup.useloop

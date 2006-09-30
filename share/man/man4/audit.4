@@ -39,7 +39,8 @@ of the Common Criteria (CC) Common Access Protection Profile (CAPP)
 evaluation.
 The
 .Fx
-audit facility implements the de facto industry standard BSM API, file
+.Nm
+facility implements the de facto industry standard BSM API, file
 formats, and command line interface, first found in the Solaris operating
 system.
 Information on the user space implementation can be found in
@@ -50,15 +51,21 @@ Audit support is enabled at boot, if present in the kernel, using an
 flag.
 The audit daemon,
 .Xr auditd 8 ,
-is responsible for configuring the kernel to perform audit, pushing
+is responsible for configuring the kernel to perform
+.Nm ,
+pushing
 configuration data from the various audit configuration files into the
 kernel.
 .Ss Audit Special Device
-The kernel audit facility provides a special device,
+The kernel
+.Nm
+facility provides a special device,
 .Pa /dev/audit ,
 which is used by
 .Xr auditd 8
-to monitor for audit events, such as requests to cycle the log, low disk
+to monitor for
+.Nm
+events, such as requests to cycle the log, low disk
 space conditions, and requests to terminate auditing.
 This device is not intended for use by applications.
 .Ss Audit Pipe Special Devices
@@ -81,35 +88,45 @@ to track users and events in a fine-grained manner.
 .Xr setauid 2 ,
 .Xr libbsm 3 ,
 .Xr auditpipe 4 ,
-.Xr audit.log 5 ,
 .Xr audit_class 5 ,
 .Xr audit_control 5 ,
 .Xr audit_event 5 ,
+.Xr audit.log 5 ,
 .Xr audit_user 5 ,
 .Xr audit_warn 5 ,
 .Xr rc.conf 5 ,
 .Xr audit 8 ,
 .Xr auditd 8
+.Sh HISTORY
+The
+.Tn OpenBSM
+implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
+.Pp
+Support for kernel
+.Nm
+first appeared in
+.Fx 6.2 .
 .Sh AUTHORS
+.An -nosplit
 This software was created by McAfee Research, the security research division
 of McAfee, Inc., under contract to Apple Computer Inc.
-Additional authors include Wayne Salamon, Robert Watson, and SPARTA Inc.
+Additional authors include
+.An Wayne Salamon ,
+.An Robert Watson ,
+and SPARTA Inc.
 .Pp
 The Basic Security Module (BSM) interface to audit records and audit event
 stream format were defined by Sun Microsystems.
 .Pp
 This manual page was written by
 .An Robert Watson Aq rwatson@FreeBSD.org .
-.Sh HISTORY
-The OpenBSM implementation was created by McAfee Research, the security
-division of McAfee Inc., under contract to Apple Computer Inc. in 2004.
-It was subsequently adopted by the TrustedBSD Project as the foundation for
-the OpenBSM distribution.
-.Pp
-Support for kernel audit first appeared in
-.Fx 6.2 .
 .Sh BUGS
-The audit facility in
+The
+.Nm
+facility in
 .Fx
 is considered experimental, and production deployment should occur only after
 careful consideration of the risks of deploying experimental software.

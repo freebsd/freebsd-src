@@ -1,31 +1,31 @@
-.\"Copyright (c) 2006 Broadcom Corporation
-.\" David Christensen <davidch@broadcom.com>.  All rights reserved.
+.\" Copyright (c) 2006 Broadcom Corporation
+.\"  David Christensen <davidch@broadcom.com>.  All rights reserved.
 .\"
-.\"Redistribution and use in source and binary forms, with or without
-.\"modification, are permitted provided that the following conditions
-.\"are met:
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
 .\"
-.\"1. Redistributions of source code must retain the above copyright
-.\"   notice, this list of conditions and the following disclaimer.
-.\"2. Redistributions in binary form must reproduce the above copyright
-.\"   notice, this list of conditions and the following disclaimer in the
-.\"   documentation and/or other materials provided with the distribution.
-.\"3. Neither the name of Broadcom Corporation nor the name of its contributors
-.\"   may be used to endorse or promote products derived from this software
-.\"   without specific prior written consent.
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of Broadcom Corporation nor the name of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written consent.
 .\"
-.\"THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
-.\"AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-.\"IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-.\"ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
-.\"BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-.\"CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-.\"SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-.\"INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-.\"CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-.\"ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
-.\"THE POSSIBILITY OF SUCH DAMAGE.
-\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
 .\" $FreeBSD$
 .\"
 .Dd April 4, 2006
@@ -52,24 +52,32 @@ if_bce_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver supports Broadcom's NetXtreme II product family, including the 
+driver supports Broadcom's NetXtreme II product family, including the
 BCM5706 and BCM5708 Ethernet controllers.
 .Pp
-The NetXtreme II product family is composed of various Converged NIC (or CNIC) 
-Ethernet controllers which support a TCP Offload Engine (TOE), Remote DMA (RDMA), 
-and iSCSI acceleration, in addition to standard L2 Ethernet traffic, all on the 
+The NetXtreme II product family is composed of various Converged NIC (or CNIC)
+Ethernet controllers which support a TCP Offload Engine (TOE), Remote DMA (RDMA),
+and iSCSI acceleration, in addition to standard L2 Ethernet traffic, all on the
 same controller.
-The following features are supported in the 
+The following features are supported in the
 .Nm
-driver under FreeBSD:
-.Bd -literal -offset indent
+driver under
+.Fx :
+.Pp
+.Bl -item -offset indent -compact
+.It
 IP/TCP/UDP checksum offload
+.It
 Jumbo frames (up to 9022 bytes)
+.It
 VLAN tag stripping
+.It
 Interrupt coalescing
+.It
 10/100/1000Mbps operation in full-duplex mode
+.It
 10/100Mbps operation in half-duplex mode
-.Ed
+.El
 .Pp
 The
 .Nm
@@ -84,7 +92,7 @@ the autoselected mode by adding media options to
 Set 10Mbps operation.
 The
 .Xr ifconfig 8
-.Ic mediaopt
+.Cm mediaopt
 option can also be used to select either
 .Cm full-duplex
 or
@@ -94,7 +102,7 @@ modes.
 Set 100Mbps (Fast Ethernet) operation.
 The
 .Xr ifconfig 8
-.Ic mediaopt
+.Cm mediaopt
 option can also be used to select either
 .Cm full-duplex
 or
@@ -141,7 +149,7 @@ The driver has encountered a fatal initialization error.
 .It "bce%d: Unsupported controller revision (%c%d)"
 The driver does not support the controller revision in use.
 .It "bce%d: SerDes controllers are not supported!"
-The driver does not currently support SerDes/Fiber versions of the 
+The driver does not currently support SerDes/Fiber versions of the
 NetXtreme II controller.
 .It "bce%d: Controller initialization failed!"
 The driver has encountered a fatal initialization error.
