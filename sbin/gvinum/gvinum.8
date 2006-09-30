@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 1, 2005
+.Dd March 23, 2006
 .Dt GVINUM 8
 .Os
 .Sh NAME
@@ -40,21 +40,16 @@
 .Op Fl options
 .Sh COMMANDS
 .Bl -tag -width indent
-.It Xo
-.Ic checkparity
-.Op Fl f
-.Ar plex
-.Xc
-Check the parity blocks of a RAID-5 plex.  The parity check will start at the
+.It Ic checkparity Oo Fl f Oc Ar plex
+Check the parity blocks of a RAID-5 plex.
+The parity check will start at the
 beginning of the plex if the
 .Fl f
 flag is specified, or otherwise at the location of the parity check pointer,
-the first location at which plex's parity is incorrect.  All subdisks in the
+the first location at which plex's parity is incorrect.
+All subdisks in the
 plex must be up for a parity check.
-.It Xo
-.Ic create
-.Op Ar description-file
-.Xc
+.It Ic create Op Ar description-file
 Create a volume as described in
 .Ar description-file .
 If no
@@ -62,105 +57,66 @@ If no
 provided, opens an editor and provides the current
 .Nm
 configuration for editing.
-.It Xo
-.Ic help
-.Xc
+.It Ic help
 Provides a synopsis of
 .Nm
 commands and arguments.
-.It Xo
-.Ic l | list
-.Op Fl r
-.Op Fl v
-.Op Fl V
-.Op Ar volume | plex | subdisk
-.Xc
-.It Xo
-.Ic ld
-.Op Fl r
-.Op Fl v
-.Op Fl V
-.Op Ar drive ...
-.Xc
-.It Xo
-.Ic ls
-.Op Fl r
-.Op Fl v
-.Op Fl V
-.Op Ar subdisk ...
-.Xc
-.It Xo
-.Ic lp
-.Op Fl r
-.Op Fl v
-.Op Fl V
-.Op Ar plex ...
-.Xc
-.It Xo
-.Ic lv
-.Op Fl r
-.Op Fl v
-.Op Fl V
-.Op Ar volume ...
-.Xc
-List information about the relevant object(s).  The
+.It Ic l | list Oo Fl rvV Oc Op Ar volume | plex | subdisk
+.It Ic ld Oo Fl rvV Oc Op Ar drive ...
+.It Ic ls Oo Fl rvV Oc Op Ar subdisk ...
+.It Ic lp Oo Fl rvV Oc Op Ar plex ...
+.It Ic lv Oo Fl rvV Oc Op Ar volume ...
+List information about the relevant object(s).
+The
 .Fl r
 flag provides recursive display, showing each object's subordinate objects in
-proper relation.  The
+proper relation.
+The
 .Fl v
 and
 .Fl V
 flags provide progressively more detailed output.
-.It Xo
-.Ic move | mv
-.Fl f
-.Ar drive subdisk
-.Op Ar ...
-.Xc
-Move the subdisk(s) to the specified drive.  The
+.It Ic move | mv Fl f Ar drive subdisk Op Ar ...
+Move the subdisk(s) to the specified drive.
+The
 .Fl f
 flag is required, as all data on the indicated subdisk(s) will be destroyed as
-part of the move.  This can currently only be done when the subdisk is
+part of the move.
+This can currently only be done when the subdisk is
 not being accessed.
 .Pp
 If the subdisk(s) form part of a RAID-5 plex, the disk(s) will need to be set
-to the 'up' state and the plex will require a
+to the
+.Dq up
+state and the plex will require a
 .Ic rebuildparity
 command; if the subdisk(s) form part of a plex that is mirrored with other
-plexes, the plex will require restarting and will sync once restarted.  Moving
+plexes, the plex will require restarting and will sync once restarted.
+Moving
 more than one subdisk in a RAID-5 plex or subdisks from both sides of a
-mirrored plex volume will destroy data.  Note that parity rebuilds and syncing
+mirrored plex volume will destroy data.
+Note that parity rebuilds and syncing
 must be started manually after a move.
-.It Xo
-.Ic printconfig
-.Xc
+.It Ic printconfig
 Write a copy of the current configuration to standard output.
-.It Xo
-.Ic quit
-.Xc
+.It Ic quit
 Exit
 .Nm
-when running in interactive mode.  Normally this would be done by entering the
+when running in interactive mode.
+Normally this would be done by entering the
 EOF character.
-.It Xo
-.Ic rename
-.Op Fl r
-.Ar drive | subdisk | plex | volume
-.Ar newname
-.Xc
-Change the name of the specified object.  The
+.It Ic rename Oo Fl r Oc Ar drive | subdisk | plex | volume newname
+Change the name of the specified object.
+The
 .Fl r
 flag will recursively rename subordinate objects.
 .Pp
 Note that device nodes will not be renamed until
 .Nm
 is restarted.
-.It Xo
-.Ic rebuildparity
-.Op Fl f
-.Ar plex
-.Xc
-Rebuild the parity blocks of a RAID-5 plex.  The parity rebuild will start at
+.It Ic rebuildparity Oo Fl f Oc Ar plex
+Rebuild the parity blocks of a RAID-5 plex.
+The parity rebuild will start at
 the beginning of the plex if the
 .Fl f
 flag is specified, or otherwise at the location of the parity check pointer.
@@ -169,40 +125,25 @@ All subdisks in the plex must be up for a parity check.
 Reset the complete
 .Nm
 configuration.
-.It Xo
-.Ic rm
-.Op Fl r
-.Ar volume | plex | subdisk
-.Xc
+.It Ic rm Oo Fl r Oc Ar volume | plex | subdisk
 Remove an object and, if
 .Fl r
 is specified, its subordinate objects.
-.It Xo
-.Ic saveconfig
-.Xc
+.It Ic saveconfig
 Save
 .Nm
 configuration to disk after configuration failures.
-.It Xo
-.Ic setstate
-.Op Fl f
-.Ar state
-.Ar volume | plex | subdisk | drive
-.Xc
+.It Ic setstate Oo Fl f Oc Ar state volume | plex | subdisk | drive
 Set state without influencing other objects, for diagnostic purposes
-only.  The
+only.
+The
 .Fl f
 flag forces state changes regardless of whether they are legal.
-.It Xo
-.Ic start
-.Xc
+.It Ic start
 Read configuration from all vinum drives.
-.It Xo
-.Ic start
-.Op Fl S Ar size
-.Ar volume | plex | subdisk
-.Xc
-Allow the system to access the objects.  The
+.It Ic start Oo Fl S Ar size Oc Ar volume | plex | subdisk
+Allow the system to access the objects.
+The
 .Fl S
 flag is currently ignored.
 .El
@@ -210,12 +151,15 @@ flag is currently ignored.
 The
 .Nm
 utility communicates with the kernel component of the GVinum logical volume
-manager.  It is designed either for interactive use, when started without
+manager.
+It is designed either for interactive use, when started without
 command line arguments, or to execute a single command if the command is
-supplied on the command line.  In interactive mode,
+supplied on the command line.
+In interactive mode,
 .Nm
 maintains a command line history.
 .Sh OPTIONS
+The
 .Nm
 commands may be followed by an option.
 .Bl -tag -width indent
@@ -223,7 +167,9 @@ commands may be followed by an option.
 The
 .Fl f
 .Pq Dq force
-option overrides safety checks.  It should be used with extreme caution.  This
+option overrides safety checks.
+It should be used with extreme caution.
+This
 option is required in order to use the
 .Ic move
 command.
@@ -231,13 +177,15 @@ command.
 The
 .Fl r
 .Pq Dq recursive
-option applies the command recursively to subordinate objects.  For example, in
+option applies the command recursively to subordinate objects.
+For example, in
 conjunction with the
 .Ic lv
 command, the
 .Fl r
 option will also show information about the plexes and subdisks belonging to
-the volume.  It is also used by the
+the volume.
+It is also used by the
 .Ic rename
 command to indicate that subordinate objects such as subdisks should be renamed
 to match the object(s) specified and by the
@@ -251,12 +199,20 @@ option provides more detailed output.
 .It Fl V
 The
 .Fl V
-.Pq Dq very verbose
+.Pq Dq "very verbose"
 option provides even more detailed output than
 .Fl v .
 .El
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev EDITOR"
+.It Ev EDITOR
+The name of the editor to use for editing configuration files, by
+default
+.Xr vi 1
+is invoked.
+.El
 .Sh FILES
-.Bl -tag -width /dev/gvinum/plex
+.Bl -tag -width ".Pa /dev/gvinum/plex"
 .It Pa /dev/gvinum
 directory with device nodes for
 .Nm
@@ -270,36 +226,42 @@ directory containing device nodes for
 .Nm
 subdisks
 .El
-.Sh ENVIRONMENT
-.Bl -tag -width EDITOR
-.It Ev EDITOR
-The name of the editor to use for editing configuration files, by
-default
-.Nm vi .
-.El
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr geom 8
-.Pp
-.Sh AUTHORS
-.An Lukas Ertl Aq le@freebsd.org
-.An Chris Jones Aq soc-cjones@freebsd.org
 .Sh HISTORY
 The
 .Nm
 utility first appeared in
-.Fx 5.3 .  The
+.Fx 5.3 .
+The
 .Nm vinum
 utility, on which
 .Nm
-is based, was written by Greg Lehey.
+is based, was written by
+.An "Greg Lehey" .
 .Pp
+The
 .Nm
-was written by Lukas Ertl.  The move and rename commands and
-documentation were added by Chris Jones through the 2005 Google Summer
+utility
+was written by
+.An "Lukas Ertl" .
+The
+.Ic move
+and
+.Ic rename
+commands and
+documentation were added by
+.An "Chris Jones"
+through the 2005 Google Summer
 of Code program.
+.Sh AUTHORS
+.An Lukas Ertl Aq le@FreeBSD.org
+.An Chris Jones Aq soc-cjones@FreeBSD.org
 .Sh BUGS
-.Xr gvinum 8 does not rename devices in
+Currently,
+.Nm
+does not rename devices in
 .Pa /dev/gvinum
 until reloaded.
 .Pp
@@ -314,84 +276,51 @@ The
 command does not work.
 .Pp
 Moving subdisks that are not part of a mirrored or RAID-5 volume will
-destroy data.  It is perhaps a bug to permit this.
+destroy data.
+It is perhaps a bug to permit this.
 .Pp
 Plexes in which subdisks have been moved do not automatically sync or
-rebuild parity.  This may leave data unprotected and is perhaps unwise.
+rebuild parity.
+This may leave data unprotected and is perhaps unwise.
 .Pp
-.Xr gvinum 8 does not yet fully implement all functions found in
-.Xr vinum 4 .  Specifically, the following commands from
-.Xr vinum 4 are not supported:
+Currently,
+.Nm
+does not yet fully implement all of the functions found in
+.Xr vinum 4 .
+Specifically, the following commands from
+.Xr vinum 4
+are not supported:
 .Bl -tag -width indent
 .It Ic attach Ar plex volume Op Cm rename
-.It Xo
-.Ic attach Ar subdisk plex
-.Op Ar offset
-.Op Cm rename
-.Xc
+.It Ic attach Ar subdisk plex Oo Ar offset Oc Op Cm rename
 Attach a plex to a volume, or a subdisk to a plex.
-.It Xo
-.Ic concat
-.Op Fl f
-.Op Fl n Ar name
-.Op Fl v
-.Ar drives
-.Xc
+.It Ic concat Oo Fl fv Oc Oo Fl n Ar name Oc Ar drives
 Create a concatenated volume from the specified drives.
 .It Ic debug
 Cause the volume manager to enter the kernel debugger.
 .It Ic debug Ar flags
 Set debugging flags.
-.It Xo
-.Ic detach
-.Op Fl f
-.Op Ar plex | subdisk
-.Xc
+.It Ic detach Oo Fl f Oc Op Ar plex | subdisk
 Detach a plex or subdisk from the volume or plex to which it is
 attached.
 .It Ic dumpconfig Op Ar drive ...
 List the configuration information stored on the specified drives, or all
 drives in the system if no drive names are specified.
-.It Xo
-.Ic info
-.Op Fl v
-.Op Fl V
-.Xc
+.It Ic info Op Fl vV
 List information about volume manager state.
 .It Ic label Ar volume
 Create a volume label.
-.It Xo
-.Ic mirror
-.Op Fl f
-.Op Fl n Ar name
-.Op Fl s
-.Op Fl v
-.Ar drives
-.Xc
+.It Ic mirror Oo Fl fsv Oc Oo Fl n Ar name Oc Ar drives
 Create a mirrored volume from the specified drives.
-.It Xo
-.Ic resetstats
-.Op Fl r
-.Op Ar volume | plex | subdisk
-.Xc
+.It Ic resetstats Oo Fl r Oc Op Ar volume | plex | subdisk
 Reset statistics counters for the specified objects, or for all objects if none
 are specified.
 .It Ic setdaemon Op Ar value
 Set daemon configuration.
-.It Xo
-.Ic stop
-.Op Fl f
-.Op Ar volume | plex | subdisk
-.Xc
+.It Ic stop Oo Fl f Oc Op Ar volume | plex | subdisk
 Terminate access to the objects, or stop
 .Nm
 if no parameters are specified.
-.It Xo
-.Ic stripe
-.Op Fl f
-.Op Fl n Ar name
-.Op Fl v
-.Ar drives
-.Xc
+.It Ic stripe Oo Fl fv Oc Oo Fl n Ar name Oc Ar drives
 Create a striped volume from the specified drives.
 .El
