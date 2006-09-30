@@ -26,15 +26,26 @@
 #include "includes.h"
 
 #ifdef HAVE_LIBIAF
+#include <sys/types.h>
 #ifdef HAVE_CRYPT_H
-#include <crypt.h>
+# include <crypt.h>
 #endif
+#include <pwd.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "xmalloc.h"
 #include "packet.h"
 #include "buffer.h"
+#include "auth-options.h"
 #include "log.h"
 #include "servconf.h"
+#include "key.h"
+#include "hostfile.h"
 #include "auth.h"
-#include "auth-options.h"
+#include "ssh.h"
 
 int nischeck(char *);
 

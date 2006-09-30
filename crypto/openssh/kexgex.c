@@ -1,3 +1,4 @@
+/* $OpenBSD: kexgex.c,v 1.27 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -24,12 +25,15 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: kexgex.c,v 1.24 2005/11/04 05:15:59 djm Exp $");
+
+#include <sys/types.h>
 
 #include <openssl/evp.h>
+#include <signal.h>
 
 #include "buffer.h"
-#include "bufaux.h"
+#include "key.h"
+#include "cipher.h"
 #include "kex.h"
 #include "ssh2.h"
 

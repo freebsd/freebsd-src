@@ -1,4 +1,4 @@
-/*	$OpenBSD: compress.h,v 1.11 2002/03/04 17:27:39 stevesk Exp $	*/
+/* $OpenBSD: compress.h,v 1.12 2006/03/25 22:22:43 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>

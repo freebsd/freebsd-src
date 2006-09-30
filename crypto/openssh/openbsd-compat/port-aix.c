@@ -25,16 +25,36 @@
  *
  */
 #include "includes.h"
+
+#include "xmalloc.h"
+#include "buffer.h"
+#include "key.h"
+#include "hostfile.h"
 #include "auth.h"
 #include "ssh.h"
 #include "log.h"
-#include "xmalloc.h"
-#include "buffer.h"
 
 #ifdef _AIX
 
+#include <errno.h>
+#if defined(HAVE_NETDB_H)
+# include <netdb.h>
+#endif
 #include <uinfo.h>
+#include <stdarg.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/socket.h>
+
+#ifdef WITH_AIXAUTHENTICATE
+# include <login.h>
+# include <userpw.h>
+# if defined(HAVE_SYS_AUDIT_H) && defined(AIX_LOGINFAILED_4ARG)
+#  include <sys/audit.h>
+# endif
+# include <usersec.h>
+#endif
+
 #include "port-aix.h"
 
 # ifdef HAVE_SETAUTHDB
@@ -256,15 +276,17 @@ sys_auth_record_login(const char *user, const char *host, const char *ttynm,
     Buffer *loginmsg)
 {
 	char *msg = NULL;
+	static int msg_done = 0;
 	int success = 0;
 
 	aix_setauthdb(user);
 	if (loginsuccess((char *)user, (char *)host, (char *)ttynm, &msg) == 0) {
 		success = 1;
-		if (msg != NULL) {
+		if (msg != NULL && loginmsg != NULL && !msg_done) {
 			debug("AIX/loginsuccess: msg %s", msg);
 			buffer_append(loginmsg, msg, strlen(msg));
 			xfree(msg);
+			msg_done = 1;
 		}
 	}
 	aix_restoreauthdb();

@@ -1,4 +1,4 @@
-/* $Id: audit.h,v 1.2 2005/02/08 10:52:48 dtucker Exp $ */
+/* $Id: audit.h,v 1.3 2006/08/05 14:05:10 dtucker Exp $ */
 
 /*
  * Copyright (c) 2004, 2005 Darren Tucker.  All rights reserved.
@@ -23,8 +23,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include "auth.h"
 
 #ifndef _SSH_AUDIT_H
 # define _SSH_AUDIT_H

@@ -35,6 +35,16 @@
 
 #ifndef HAVE_RRESVPORT_AF
 
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+
 #if 0
 int
 rresvport(int *alport)

@@ -29,6 +29,10 @@
     defined(WITH_IRIX_JOBS) || \
     defined(WITH_IRIX_ARRAY)
 
+#include <errno.h>
+#include <string.h>
+#include <unistd.h>
+
 #ifdef WITH_IRIX_PROJECT
 # include <proj.h>
 #endif /* WITH_IRIX_PROJECT */
