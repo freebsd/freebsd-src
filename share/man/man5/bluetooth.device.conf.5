@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Dec 1, 2005
+.Dd December 1, 2005
 .Dt BLUETOOTH.DEVICE.CONF 5
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@ to basic
 syntax.
 Even though Bluetooth device are not exactly shell scripts,
 they are parsed and passed through shell
-.Cm eval
+.Ic eval
 command.
 This makes it possible to use various shell tricks in the Bluetooth device
 configuration files.
@@ -62,10 +62,10 @@ file apply to every Bluetooth device connected to the system.
 .Pp
 Configuration parameters overrides for the specific Bluetooth device
 should be placed in the
-.Pa /etc/bluetooth/DEVICE_DRIVER_NAME.conf
+.Pa /etc/bluetooth/ Ns Ar DEVICE_DRIVER_NAME Ns Pa .conf
 file.
 Where
-.Va DEVICE_DRIVER_NAME
+.Ar DEVICE_DRIVER_NAME
 is the device driver name of the Bluetooth device.
 .Pp
 The following list provides a name and short description for each
@@ -90,7 +90,7 @@ The
 parameter is used to indicate the capabilities of the device to
 other devices.
 For more details see
-https://www.bluetooth.org/foundry/assignnumb/document/baseband.
+.Pa https://www.bluetooth.org/foundry/assignnumb/document/baseband .
 .It Va connectable
 .Pq Vt bool
 The
@@ -153,21 +153,24 @@ such devices will fail.
 If
 .Va role switch
 is disabled then accepting device will remain Slave.
-.Sh EXAMPLES
-.Bl -tag -width ".Pa /etc/bluetooth/ubt0.conf"
-.It Pa /etc/bluetooth/ubt0.conf
-file should be used to specify configuration parameters overrides for the
-first USB Bluetooth device
-.Pq device driver name is ubt0 .
-.It Pa /etc/bluetooth/ubt1.conf
-file should be used to specify configuration parameters overrides for the
-second USB Bluetooth device.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/bluetooth.device.conf" -compact
 .It Pa /etc/defaults/bluetooth.device.conf
 .It Pa /etc/rc.d/bluetooth
 .El
+.Sh EXAMPLES
+The
+.Pa /etc/bluetooth/ubt0.conf
+file should be used to specify configuration parameters overrides for the
+first USB Bluetooth device
+(device driver name is
+.Li ubt0 ) .
+.Pp
+The
+.Pa /etc/bluetooth/ubt1.conf
+file should be used to specify configuration parameters overrides for the
+second USB Bluetooth device.
 .Sh SEE ALSO
 .Xr ng_bt3c 4 ,
 .Xr ng_h4 4 ,
