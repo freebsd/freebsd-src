@@ -49,6 +49,7 @@ typedef struct KbdintDevice KbdintDevice;
 
 struct Authctxt {
 	int		 success;
+	int		 authenticated;	/* authenticated and alarms cancelled */
 	int		 postponed;	/* authentication needs another step */
 	int		 valid;		/* user exists and is allowed to login */
 	int		 attempt;
