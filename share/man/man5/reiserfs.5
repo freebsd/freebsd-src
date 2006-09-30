@@ -47,8 +47,7 @@ The
 driver will permit the
 .Fx
 kernel to access
-.Tn
-ReiserFS
+.Tn ReiserFS
 file systems.
 .Sh EXAMPLES
 To mount a
@@ -63,10 +62,12 @@ volume located on
 .Xr fstab 5 ,
 .Xr mount 8
 .Sh CAVEATS
-Currently, read-only access is supported for ReiserFS volumes.
-Writing to a volume is currently unsupported.
+Currently, only read-only access is supported for ReiserFS volumes,
+writing to a volume is not supported.
 .Sh HISTORY
+The
 .Nm
+file system support
 first appeared in
 .Fx 6.0 .
 .Sh AUTHORS

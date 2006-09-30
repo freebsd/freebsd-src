@@ -26,6 +26,7 @@
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd November 30, 2005
 .Dt MQUEUEFS 5
 .Os
@@ -33,29 +34,36 @@
 .Nm mqueuefs
 .Nd POSIX message queue file system
 .Sh SYNOPSIS
-To link into kernel
-.Dl Cd "options P1003_1B_MQUEUE"
+To link into kernel:
 .Pp
-To load as a kernel loadable module
-.Dl kldload mqueuefs
+.D1 Cd "options P1003_1B_MQUEUE"
+.Pp
+To load as a kernel loadable module:
+.Pp
+.Dl "kldload mqueuefs"
 .Sh DESCRIPTION
 The
 .Nm
 module will permit the
 .Fx
-kernel to support POSIX message queue.
-The module contains system call to manipulate POSIX message queue.
+kernel to support
+.Tn POSIX
+message queue.
+The module contains system calls to manipulate
+.Tn POSIX
+message queues.
 It also contains a file system to implement a view for all message queues of
-the system. This helps users to keep track of their message queues and make
+the system.
+This helps users to keep track of their message queues and make
 it more easily usable without having to invent additional tools.
 .Pp
-The most common usage follows:
+The most common usage is as follows:
 .Pp
 .Dl "mount -t mqueuefs null /mnt/mqueue"
 .Pp
 where
 .Pa /mnt/mqueue
-is a mount point. 
+is a mount point.
 .Pp
 It is possible to define an entry in
 .Pa /etc/fstab
@@ -64,7 +72,9 @@ that looks similar to:
 null	/mnt/mqueue	mqueuefs	rw	0	0
 .Ed
 .Pp
-This will mount mqueuefs at the
+This will mount
+.Nm
+at the
 .Pa /mnt/mqueue
 mount point during system boot.
 Using
@@ -77,34 +87,38 @@ for more information on
 .Fx
 directory layout.
 .Pp
-Some common tools can be used on the file system, e.g:
+Some common tools can be used on the file system, e.g.:
 .Xr cat 1 ,
 .Xr chmod 1 ,
 .Xr chown 8 ,
 .Xr ls 1 ,
 .Xr rm 1 ,
-etcs.
-To only use the message queue system call, it is not necessary for
+etc.
+To use only the message queue system calls, it is not necessary for
 user to mount the file system, just load the module or compile it
-into the kernel. Manually creating a file, for example, touch
-.Pa /mnt/mqueue/myqueue ,
-will create a message queue named myqueue in the kernel, default
-message queue attributes will be applied to the queue, it is not
-advised to use this method to create a queue, it is better to use
+into the kernel.
+Manually creating a file, for example,
+.Dq Li "touch /mnt/mqueue/myqueue" ,
+will create a message queue named
+.Pa myqueue
+in the kernel, default
+message queue attributes will be applied to the queue.
+It is not
+advised to use this method to create a queue;
+it is better to use the
 .Xr mq_open 2
-system call to create the queue, the
-.Xr mq_open 2
-allows user to specify differnt attributes.
+system call to create a queue as it
+allows the user to specify different attributes.
 .Pp
 To see the queue's attributes, just read the file:
 .Pp
-.Dl cat /mnt/mqueue/myqueue
+.Dl "cat /mnt/mqueue/myqueue"
 .Sh SEE ALSO
-.Xr mq_open 2 ,
 .Xr mount 2 ,
+.Xr mq_open 2 ,
 .Xr unmount 2 ,
 .Xr mount 8 ,
-.Xr umount 8 .
+.Xr umount 8
 .Sh AUTHORS
 This manual page was written by
 .An "David Xu" Aq davidxu@FreeBSD.org .
