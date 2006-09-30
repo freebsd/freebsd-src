@@ -96,12 +96,12 @@ struct g_command class_commands[] = {
 	{ "init", G_FLAG_VERBOSE, eli_main,
 	    {
 		{ 'a', "aalgo", aalgo, G_TYPE_STRING },
-		{ 'b', "boot", NULL, G_TYPE_NONE },
+		{ 'b', "boot", NULL, G_TYPE_BOOL },
 		{ 'e', "ealgo", ealgo, G_TYPE_STRING },
 		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
 		{ 'K', "newkeyfile", newkeyfile, G_TYPE_STRING },
 		{ 'l', "keylen", &keylen, G_TYPE_NUMBER },
-		{ 'P', "nonewpassphrase", NULL, G_TYPE_NONE },
+		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
 		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
@@ -110,12 +110,12 @@ struct g_command class_commands[] = {
 	{ "label", G_FLAG_VERBOSE, eli_main,
 	    {
 		{ 'a', "aalgo", aalgo, G_TYPE_STRING },
-		{ 'b', "boot", NULL, G_TYPE_NONE },
+		{ 'b', "boot", NULL, G_TYPE_BOOL },
 		{ 'e', "ealgo", ealgo, G_TYPE_STRING },
 		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
 		{ 'K', "newkeyfile", newkeyfile, G_TYPE_STRING },
 		{ 'l', "keylen", &keylen, G_TYPE_NUMBER },
-		{ 'P', "nonewpassphrase", NULL, G_TYPE_NONE },
+		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
 		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
@@ -123,26 +123,26 @@ struct g_command class_commands[] = {
 	},
 	{ "attach", G_FLAG_VERBOSE | G_FLAG_LOADKLD, eli_main,
 	    {
-		{ 'd', "detach", NULL, G_TYPE_NONE },
+		{ 'd', "detach", NULL, G_TYPE_BOOL },
 		{ 'k', "keyfile", keyfile, G_TYPE_STRING },
-		{ 'p', "nopassphrase", NULL, G_TYPE_NONE },
-		{ 'r', "readonly", NULL, G_TYPE_NONE },
+		{ 'p', "nopassphrase", NULL, G_TYPE_BOOL },
+		{ 'r', "readonly", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
 	    "[-dprv] [-k keyfile] prov"
 	},
 	{ "detach", 0, NULL,
 	    {
-		{ 'f', "force", NULL, G_TYPE_NONE },
-		{ 'l', "last", NULL, G_TYPE_NONE },
+		{ 'f', "force", NULL, G_TYPE_BOOL },
+		{ 'l', "last", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
 	    "[-fl] prov ..."
 	},
 	{ "stop", 0, NULL,
 	    {
-		{ 'f', "force", NULL, G_TYPE_NONE },
-		{ 'l', "last", NULL, G_TYPE_NONE },
+		{ 'f', "force", NULL, G_TYPE_BOOL },
+		{ 'l', "last", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
 	    "- an alias for 'detach'"
@@ -150,7 +150,7 @@ struct g_command class_commands[] = {
 	{ "onetime", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL,
 	    {
 		{ 'a', "aalgo", aalgo, G_TYPE_STRING },
-		{ 'd', "detach", NULL, G_TYPE_NONE },
+		{ 'd', "detach", NULL, G_TYPE_BOOL },
 		{ 'e', "ealgo", ealgo, G_TYPE_STRING },
 		{ 'l', "keylen", &keylen, G_TYPE_NUMBER },
 		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
@@ -160,8 +160,8 @@ struct g_command class_commands[] = {
 	},
 	{ "configure", G_FLAG_VERBOSE, eli_main,
 	    {
-		{ 'b', "boot", NULL, G_TYPE_NONE },
-		{ 'B', "noboot", NULL, G_TYPE_NONE },
+		{ 'b', "boot", NULL, G_TYPE_BOOL },
+		{ 'B', "noboot", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
 	    "[-bB] prov ..."
@@ -172,16 +172,16 @@ struct g_command class_commands[] = {
 		{ 'k', "keyfile", keyfile, G_TYPE_STRING },
 		{ 'K', "newkeyfile", newkeyfile, G_TYPE_STRING },
 		{ 'n', "keyno", &keyno, G_TYPE_NUMBER },
-		{ 'p', "nopassphrase", NULL, G_TYPE_NONE },
-		{ 'P', "nonewpassphrase", NULL, G_TYPE_NONE },
+		{ 'p', "nopassphrase", NULL, G_TYPE_BOOL },
+		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
 	    "[-pPv] [-n keyno] [-i iterations] [-k keyfile] [-K newkeyfile] prov"
 	},
 	{ "delkey", G_FLAG_VERBOSE, eli_main,
 	    {
-		{ 'a', "all", NULL, G_TYPE_NONE },
-		{ 'f', "force", NULL, G_TYPE_NONE },
+		{ 'a', "all", NULL, G_TYPE_BOOL },
+		{ 'f', "force", NULL, G_TYPE_BOOL },
 		{ 'n', "keyno", &keyno, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
@@ -189,7 +189,7 @@ struct g_command class_commands[] = {
 	},
 	{ "kill", G_FLAG_VERBOSE, eli_main,
 	    {
-		{ 'a', "all", NULL, G_TYPE_NONE },
+		{ 'a', "all", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
 	    "[-av] [prov ...]"
