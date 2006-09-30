@@ -28,19 +28,23 @@
 
 #ifndef _GEOM_H_
 #define	_GEOM_H_
-#define	G_LIB_VERSION	1
+#define	G_LIB_VERSION	2
 
 #define	G_FLAG_NONE	0x0000
 #define	G_FLAG_VERBOSE	0x0001
 #define	G_FLAG_LOADKLD	0x0002
 
-#define	G_TYPE_NONE	0
-#define	G_TYPE_STRING	1
-#define	G_TYPE_NUMBER	2
+#define	G_TYPE_NONE	0x00
+#define	G_TYPE_BOOL	0x01
+#define	G_TYPE_STRING	0x02
+#define	G_TYPE_NUMBER	0x03
+#define	G_TYPE_MASK	0x03
+#define	G_TYPE_DONE	0x10
 
 #define	G_OPT_MAX	16
-#define	G_OPT_DONE(opt)		(opt)->go_char = '\0'
-#define	G_OPT_ISDONE(opt)	((opt)->go_char == '\0')
+#define	G_OPT_DONE(opt)		do { (opt)->go_type |= G_TYPE_DONE; } while (0)
+#define	G_OPT_ISDONE(opt)	((opt)->go_type & G_TYPE_DONE)
+#define	G_OPT_TYPE(opt)		((opt)->go_type & G_TYPE_MASK)
 
 #define G_OPT_SENTINEL	{ '\0', NULL, NULL, G_TYPE_NONE }
 #define G_NULL_OPTS	{ G_OPT_SENTINEL }
