@@ -30,6 +30,18 @@ gcc, gcc-mingw-core, mingw-runtime, binutils, make, openssl,
 openssl-devel, zlib, minres, minires-devel.
 
 
+Darwin and MacOS X
+------------------
+Darwin does not provide a tun(4) driver required for OpenSSH-based
+virtual private networks. The BSD manpage still exists, but the driver
+has been removed in recent releases of Darwin and MacOS X.
+
+Nevertheless, tunnel support is known to work with Darwin 8 and
+MacOS X 10.4 in Point-to-Point (Layer 3) and Ethernet (Layer 2) mode
+using a third party driver. More information is available at:
+	http://www-user.rhrk.uni-kl.de/~nissler/tuntap/
+
+
 Solaris
 -------
 If you enable BSM auditing on Solaris, you need to update audit_event(4)
@@ -55,4 +67,4 @@ account stacks which will prevent authentication entirely, but will still
 return the output from pam_nologin to the client.
 
 
-$Id: README.platform,v 1.6 2005/11/05 05:28:35 dtucker Exp $
+$Id: README.platform,v 1.7 2006/06/23 11:05:13 dtucker Exp $

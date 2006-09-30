@@ -1,3 +1,4 @@
+/* $OpenBSD: sftp-server.c,v 1.70 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -13,15 +14,33 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include "includes.h"
-RCSID("$OpenBSD: sftp-server.c,v 1.50 2006/01/02 01:20:31 djm Exp $");
 
-#include "buffer.h"
-#include "bufaux.h"
-#include "getput.h"
-#include "log.h"
+#include "includes.h"
+
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/stat.h>
+#ifdef HAVE_SYS_TIME_H
+# include <sys/time.h>
+#endif
+
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <pwd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <pwd.h>
+#include <time.h>
+#include <unistd.h>
+#include <stdarg.h>
+
 #include "xmalloc.h"
+#include "buffer.h"
+#include "log.h"
 #include "misc.h"
+#include "uidswap.h"
 
 #include "sftp.h"
 #include "sftp-common.h"
@@ -30,9 +49,13 @@ RCSID("$OpenBSD: sftp-server.c,v 1.50 2006/01/02 01:20:31 djm Exp $");
 #define get_int64()			buffer_get_int64(&iqueue);
 #define get_int()			buffer_get_int(&iqueue);
 #define get_string(lenp)		buffer_get_string(&iqueue, lenp);
-#define TRACE				debug
 
-extern char *__progname;
+/* Our verbosity */
+LogLevel log_level = SYSLOG_LEVEL_ERROR;
+
+/* Our client */
+struct passwd *pw = NULL;
+char *client_addr = NULL;
 
 /* input and output queue */
 Buffer iqueue;
@@ -104,6 +127,33 @@ flags_from_portable(int pflags)
 	return flags;
 }
 
+static const char *
+string_from_portable(int pflags)
+{
+	static char ret[128];
+
+	*ret = '\0';
+
+#define PAPPEND(str)	{				\
+		if (*ret != '\0')			\
+			strlcat(ret, ",", sizeof(ret));	\
+		strlcat(ret, str, sizeof(ret));		\
+	}
+
+	if (pflags & SSH2_FXF_READ)
+		PAPPEND("READ")
+	if (pflags & SSH2_FXF_WRITE)
+		PAPPEND("WRITE")
+	if (pflags & SSH2_FXF_CREAT)
+		PAPPEND("CREATE")
+	if (pflags & SSH2_FXF_TRUNC)
+		PAPPEND("TRUNCATE")
+	if (pflags & SSH2_FXF_EXCL)
+		PAPPEND("EXCL")
+
+	return ret;
+}
+
 static Attrib *
 get_attrib(void)
 {
@@ -118,6 +168,7 @@ struct Handle {
 	DIR *dirp;
 	int fd;
 	char *name;
+	u_int64_t bytes_read, bytes_write;
 };
 
 enum {
@@ -148,6 +199,7 @@ handle_new(int use, const char *name, int fd, DIR *dirp)
 			handles[i].dirp = dirp;
 			handles[i].fd = fd;
 			handles[i].name = xstrdup(name);
+			handles[i].bytes_read = handles[i].bytes_write = 0;
 			return i;
 		}
 	}
@@ -167,7 +219,7 @@ handle_to_string(int handle, char **stringp, int *hlenp)
 	if (stringp == NULL || hlenp == NULL)
 		return -1;
 	*stringp = xmalloc(sizeof(int32_t));
-	PUT_32BIT(*stringp, handle);
+	put_u32(*stringp, handle);
 	*hlenp = sizeof(int32_t);
 	return 0;
 }
@@ -179,7 +231,7 @@ handle_from_string(const char *handle, u_int hlen)
 
 	if (hlen != sizeof(int32_t))
 		return -1;
-	val = GET_32BIT(handle);
+	val = get_u32(handle);
 	if (handle_is_ok(val, HANDLE_FILE) ||
 	    handle_is_ok(val, HANDLE_DIR))
 		return val;
@@ -211,6 +263,36 @@ handle_to_fd(int handle)
 	return -1;
 }
 
+static void
+handle_update_read(int handle, ssize_t bytes)
+{
+	if (handle_is_ok(handle, HANDLE_FILE) && bytes > 0)
+		handles[handle].bytes_read += bytes;
+}
+
+static void
+handle_update_write(int handle, ssize_t bytes)
+{
+	if (handle_is_ok(handle, HANDLE_FILE) && bytes > 0)
+		handles[handle].bytes_write += bytes;
+}
+
+static u_int64_t
+handle_bytes_read(int handle)
+{
+	if (handle_is_ok(handle, HANDLE_FILE))
+		return (handles[handle].bytes_read);
+	return 0;
+}
+
+static u_int64_t
+handle_bytes_write(int handle)
+{
+	if (handle_is_ok(handle, HANDLE_FILE))
+		return (handles[handle].bytes_write);
+	return 0;
+}
+
 static int
 handle_close(int handle)
 {
@@ -228,6 +310,31 @@ handle_close(int handle)
 		errno = ENOENT;
 	}
 	return ret;
+}
+
+static void
+handle_log_close(int handle, char *emsg)
+{
+	if (handle_is_ok(handle, HANDLE_FILE)) {
+		logit("%s%sclose \"%s\" bytes read %llu written %llu",
+		    emsg == NULL ? "" : emsg, emsg == NULL ? "" : " ",
+		    handle_to_name(handle),
+		    handle_bytes_read(handle), handle_bytes_write(handle));
+	} else {
+		logit("%s%sclosedir \"%s\"",
+		    emsg == NULL ? "" : emsg, emsg == NULL ? "" : " ",
+		    handle_to_name(handle));
+	}
+}
+
+static void
+handle_log_exit(void)
+{
+	u_int i;
+
+	for (i = 0; i < sizeof(handles)/sizeof(Handle); i++)
+		if (handles[i].use != HANDLE_UNUSED)
+			handle_log_close(i, "forced");
 }
 
 static int
@@ -256,10 +363,9 @@ send_msg(Buffer *m)
 	buffer_consume(m, mlen);
 }
 
-static void
-send_status(u_int32_t id, u_int32_t status)
+static const char *
+status_to_message(u_int32_t status)
 {
-	Buffer msg;
 	const char *status_messages[] = {
 		"Success",			/* SSH_FX_OK */
 		"End of file",			/* SSH_FX_EOF */
@@ -272,15 +378,24 @@ send_status(u_int32_t id, u_int32_t status)
 		"Operation unsupported",	/* SSH_FX_OP_UNSUPPORTED */
 		"Unknown error"			/* Others */
 	};
+	return (status_messages[MIN(status,SSH2_FX_MAX)]);
+}
 
-	TRACE("sent status id %u error %u", id, status);
+static void
+send_status(u_int32_t id, u_int32_t status)
+{
+	Buffer msg;
+
+	debug3("request %u: sent status %u", id, status);
+	if (log_level > SYSLOG_LEVEL_VERBOSE ||
+	    (status != SSH2_FX_OK && status != SSH2_FX_EOF))
+		logit("sent status %s", status_to_message(status));
 	buffer_init(&msg);
 	buffer_put_char(&msg, SSH2_FXP_STATUS);
 	buffer_put_int(&msg, id);
 	buffer_put_int(&msg, status);
 	if (version >= 3) {
-		buffer_put_cstring(&msg,
-		    status_messages[MIN(status,SSH2_FX_MAX)]);
+		buffer_put_cstring(&msg, status_to_message(status));
 		buffer_put_cstring(&msg, "");
 	}
 	send_msg(&msg);
@@ -302,7 +417,7 @@ send_data_or_handle(char type, u_int32_t id, const char *data, int dlen)
 static void
 send_data(u_int32_t id, const char *data, int dlen)
 {
-	TRACE("sent data id %u len %d", id, dlen);
+	debug("request %u: sent data len %d", id, dlen);
 	send_data_or_handle(SSH2_FXP_DATA, id, data, dlen);
 }
 
@@ -313,7 +428,7 @@ send_handle(u_int32_t id, int handle)
 	int hlen;
 
 	handle_to_string(handle, &string, &hlen);
-	TRACE("sent handle id %u handle %d", id, handle);
+	debug("request %u: sent handle handle %d", id, handle);
 	send_data_or_handle(SSH2_FXP_HANDLE, id, string, hlen);
 	xfree(string);
 }
@@ -328,7 +443,7 @@ send_names(u_int32_t id, int count, const Stat *stats)
 	buffer_put_char(&msg, SSH2_FXP_NAME);
 	buffer_put_int(&msg, id);
 	buffer_put_int(&msg, count);
-	TRACE("sent names id %u count %d", id, count);
+	debug("request %u: sent names count %d", id, count);
 	for (i = 0; i < count; i++) {
 		buffer_put_cstring(&msg, stats[i].name);
 		buffer_put_cstring(&msg, stats[i].long_name);
@@ -343,7 +458,7 @@ send_attrib(u_int32_t id, const Attrib *a)
 {
 	Buffer msg;
 
-	TRACE("sent attrib id %u have 0x%x", id, a->flags);
+	debug("request %u: sent attrib have 0x%x", id, a->flags);
 	buffer_init(&msg);
 	buffer_put_char(&msg, SSH2_FXP_ATTRS);
 	buffer_put_int(&msg, id);
@@ -360,7 +475,7 @@ process_init(void)
 	Buffer msg;
 
 	version = get_int();
-	TRACE("client version %d", version);
+	verbose("received client version %d", version);
 	buffer_init(&msg);
 	buffer_put_char(&msg, SSH2_FXP_VERSION);
 	buffer_put_int(&msg, SSH2_FILEXFER_VERSION);
@@ -379,10 +494,12 @@ process_open(void)
 	id = get_int();
 	name = get_string(NULL);
 	pflags = get_int();		/* portable flags */
+	debug3("request %u: open flags %d", id, pflags);
 	a = get_attrib();
 	flags = flags_from_portable(pflags);
 	mode = (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) ? a->perm : 0666;
-	TRACE("open id %u name %s flags %d mode 0%o", id, name, pflags, mode);
+	logit("open \"%s\" flags %s mode 0%o",
+	    name, string_from_portable(pflags), mode);
 	fd = open(name, flags, mode);
 	if (fd < 0) {
 		status = errno_to_portable(errno);
@@ -408,7 +525,8 @@ process_close(void)
 
 	id = get_int();
 	handle = get_handle();
-	TRACE("close id %u handle %d", id, handle);
+	debug3("request %u: close handle %u", id, handle);
+	handle_log_close(handle, NULL);
 	ret = handle_close(handle);
 	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
 	send_status(id, status);
@@ -427,11 +545,11 @@ process_read(void)
 	off = get_int64();
 	len = get_int();
 
-	TRACE("read id %u handle %d off %llu len %d", id, handle,
-	    (unsigned long long)off, len);
+	debug("request %u: read \"%s\" (handle %d) off %llu len %d",
+	    id, handle_to_name(handle), handle, (unsigned long long)off, len);
 	if (len > sizeof buf) {
 		len = sizeof buf;
-		logit("read change len %d", len);
+		debug2("read change len %d", len);
 	}
 	fd = handle_to_fd(handle);
 	if (fd >= 0) {
@@ -447,6 +565,7 @@ process_read(void)
 			} else {
 				send_data(id, buf, ret);
 				status = SSH2_FX_OK;
+				handle_update_read(handle, ret);
 			}
 		}
 	}
@@ -468,8 +587,8 @@ process_write(void)
 	off = get_int64();
 	data = get_string(&len);
 
-	TRACE("write id %u handle %d off %llu len %d", id, handle,
-	    (unsigned long long)off, len);
+	debug("request %u: write \"%s\" (handle %d) off %llu len %d",
+	    id, handle_to_name(handle), handle, (unsigned long long)off, len);
 	fd = handle_to_fd(handle);
 	if (fd >= 0) {
 		if (lseek(fd, off, SEEK_SET) < 0) {
@@ -483,8 +602,9 @@ process_write(void)
 				status = errno_to_portable(errno);
 			} else if ((size_t)ret == len) {
 				status = SSH2_FX_OK;
+				handle_update_write(handle, ret);
 			} else {
-				logit("nothing at all written");
+				debug2("nothing at all written");
 			}
 		}
 	}
@@ -503,7 +623,8 @@ process_do_stat(int do_lstat)
 
 	id = get_int();
 	name = get_string(NULL);
-	TRACE("%sstat id %u name %s", do_lstat ? "l" : "", id, name);
+	debug3("request %u: %sstat", id, do_lstat ? "l" : "");
+	verbose("%sstat name \"%s\"", do_lstat ? "l" : "", name);
 	ret = do_lstat ? lstat(name, &st) : stat(name, &st);
 	if (ret < 0) {
 		status = errno_to_portable(errno);
@@ -539,7 +660,8 @@ process_fstat(void)
 
 	id = get_int();
 	handle = get_handle();
-	TRACE("fstat id %u handle %d", id, handle);
+	debug("request %u: fstat \"%s\" (handle %u)",
+	    id, handle_to_name(handle), handle);
 	fd = handle_to_fd(handle);
 	if (fd  >= 0) {
 		ret = fstat(fd, &st);
@@ -578,23 +700,33 @@ process_setstat(void)
 	id = get_int();
 	name = get_string(NULL);
 	a = get_attrib();
-	TRACE("setstat id %u name %s", id, name);
+	debug("request %u: setstat name \"%s\"", id, name);
 	if (a->flags & SSH2_FILEXFER_ATTR_SIZE) {
+		logit("set \"%s\" size %llu", name, a->size);
 		ret = truncate(name, a->size);
 		if (ret == -1)
 			status = errno_to_portable(errno);
 	}
 	if (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) {
+		logit("set \"%s\" mode %04o", name, a->perm);
 		ret = chmod(name, a->perm & 0777);
 		if (ret == -1)
 			status = errno_to_portable(errno);
 	}
 	if (a->flags & SSH2_FILEXFER_ATTR_ACMODTIME) {
+		char buf[64];
+		time_t t = a->mtime;
+
+		strftime(buf, sizeof(buf), "%Y%m%d-%H:%M:%S",
+		    localtime(&t));
+		logit("set \"%s\" modtime %s", name, buf);
 		ret = utimes(name, attrib_to_tv(a));
 		if (ret == -1)
 			status = errno_to_portable(errno);
 	}
 	if (a->flags & SSH2_FILEXFER_ATTR_UIDGID) {
+		logit("set \"%s\" owner %lu group %lu", name,
+		    (u_long)a->uid, (u_long)a->gid);
 		ret = chown(name, a->uid, a->gid);
 		if (ret == -1)
 			status = errno_to_portable(errno);
@@ -610,23 +742,25 @@ process_fsetstat(void)
 	u_int32_t id;
 	int handle, fd, ret;
 	int status = SSH2_FX_OK;
-	char *name;
 
 	id = get_int();
 	handle = get_handle();
 	a = get_attrib();
-	TRACE("fsetstat id %u handle %d", id, handle);
+	debug("request %u: fsetstat handle %d", id, handle);
 	fd = handle_to_fd(handle);
-	name = handle_to_name(handle);
-	if (fd < 0 || name == NULL) {
+	if (fd < 0) {
 		status = SSH2_FX_FAILURE;
 	} else {
+		char *name = handle_to_name(handle);
+
 		if (a->flags & SSH2_FILEXFER_ATTR_SIZE) {
+			logit("set \"%s\" size %llu", name, a->size);
 			ret = ftruncate(fd, a->size);
 			if (ret == -1)
 				status = errno_to_portable(errno);
 		}
 		if (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) {
+			logit("set \"%s\" mode %04o", name, a->perm);
 #ifdef HAVE_FCHMOD
 			ret = fchmod(fd, a->perm & 0777);
 #else
@@ -636,6 +770,12 @@ process_fsetstat(void)
 				status = errno_to_portable(errno);
 		}
 		if (a->flags & SSH2_FILEXFER_ATTR_ACMODTIME) {
+			char buf[64];
+			time_t t = a->mtime;
+
+			strftime(buf, sizeof(buf), "%Y%m%d-%H:%M:%S",
+			    localtime(&t));
+			logit("set \"%s\" modtime %s", name, buf);
 #ifdef HAVE_FUTIMES
 			ret = futimes(fd, attrib_to_tv(a));
 #else
@@ -645,6 +785,8 @@ process_fsetstat(void)
 				status = errno_to_portable(errno);
 		}
 		if (a->flags & SSH2_FILEXFER_ATTR_UIDGID) {
+			logit("set \"%s\" owner %lu group %lu", name,
+			    (u_long)a->uid, (u_long)a->gid);
 #ifdef HAVE_FCHOWN
 			ret = fchown(fd, a->uid, a->gid);
 #else
@@ -667,7 +809,8 @@ process_opendir(void)
 
 	id = get_int();
 	path = get_string(NULL);
-	TRACE("opendir id %u path %s", id, path);
+	debug3("request %u: opendir", id);
+	logit("opendir \"%s\"", path);
 	dirp = opendir(path);
 	if (dirp == NULL) {
 		status = errno_to_portable(errno);
@@ -697,22 +840,23 @@ process_readdir(void)
 
 	id = get_int();
 	handle = get_handle();
-	TRACE("readdir id %u handle %d", id, handle);
+	debug("request %u: readdir \"%s\" (handle %d)", id,
+	    handle_to_name(handle), handle);
 	dirp = handle_to_dir(handle);
 	path = handle_to_name(handle);
 	if (dirp == NULL || path == NULL) {
 		send_status(id, SSH2_FX_FAILURE);
 	} else {
 		struct stat st;
-		char pathname[1024];
+		char pathname[MAXPATHLEN];
 		Stat *stats;
 		int nstats = 10, count = 0, i;
 
-		stats = xmalloc(nstats * sizeof(Stat));
+		stats = xcalloc(nstats, sizeof(Stat));
 		while ((dp = readdir(dirp)) != NULL) {
 			if (count >= nstats) {
 				nstats *= 2;
-				stats = xrealloc(stats, nstats * sizeof(Stat));
+				stats = xrealloc(stats, nstats, sizeof(Stat));
 			}
 /* XXX OVERFLOW ? */
 			snprintf(pathname, sizeof pathname, "%s%s%s", path,
@@ -751,7 +895,8 @@ process_remove(void)
 
 	id = get_int();
 	name = get_string(NULL);
-	TRACE("remove id %u name %s", id, name);
+	debug3("request %u: remove", id);
+	logit("remove name \"%s\"", name);
 	ret = unlink(name);
 	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
 	send_status(id, status);
@@ -771,7 +916,8 @@ process_mkdir(void)
 	a = get_attrib();
 	mode = (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) ?
 	    a->perm & 0777 : 0777;
-	TRACE("mkdir id %u name %s mode 0%o", id, name, mode);
+	debug3("request %u: mkdir", id);
+	logit("mkdir name \"%s\" mode 0%o", name, mode);
 	ret = mkdir(name, mode);
 	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
 	send_status(id, status);
@@ -787,7 +933,8 @@ process_rmdir(void)
 
 	id = get_int();
 	name = get_string(NULL);
-	TRACE("rmdir id %u name %s", id, name);
+	debug3("request %u: rmdir", id);
+	logit("rmdir name \"%s\"", name);
 	ret = rmdir(name);
 	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
 	send_status(id, status);
@@ -807,7 +954,8 @@ process_realpath(void)
 		xfree(path);
 		path = xstrdup(".");
 	}
-	TRACE("realpath id %u path %s", id, path);
+	debug3("request %u: realpath", id);
+	verbose("realpath \"%s\"", path);
 	if (realpath(path, resolvedname) == NULL) {
 		send_status(id, errno_to_portable(errno));
 	} else {
@@ -830,7 +978,8 @@ process_rename(void)
 	id = get_int();
 	oldpath = get_string(NULL);
 	newpath = get_string(NULL);
-	TRACE("rename id %u old %s new %s", id, oldpath, newpath);
+	debug3("request %u: rename", id);
+	logit("rename old \"%s\" new \"%s\"", oldpath, newpath);
 	status = SSH2_FX_FAILURE;
 	if (lstat(oldpath, &sb) == -1)
 		status = errno_to_portable(errno);
@@ -885,7 +1034,8 @@ process_readlink(void)
 
 	id = get_int();
 	path = get_string(NULL);
-	TRACE("readlink id %u path %s", id, path);
+	debug3("request %u: readlink", id);
+	verbose("readlink \"%s\"", path);
 	if ((len = readlink(path, buf, sizeof(buf) - 1)) == -1)
 		send_status(id, errno_to_portable(errno));
 	else {
@@ -909,7 +1059,8 @@ process_symlink(void)
 	id = get_int();
 	oldpath = get_string(NULL);
 	newpath = get_string(NULL);
-	TRACE("symlink id %u old %s new %s", id, oldpath, newpath);
+	debug3("request %u: symlink", id);
+	logit("symlink old \"%s\" new \"%s\"", oldpath, newpath);
 	/* this will fail if 'newpath' exists */
 	ret = symlink(oldpath, newpath);
 	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
@@ -945,10 +1096,11 @@ process(void)
 	if (buf_len < 5)
 		return;		/* Incomplete message. */
 	cp = buffer_ptr(&iqueue);
-	msg_len = GET_32BIT(cp);
+	msg_len = get_u32(cp);
 	if (msg_len > SFTP_MAX_MSG_LENGTH) {
-		error("bad message ");
-		exit(11);
+		error("bad message from %s local user %s",
+		    client_addr, pw->pw_name);
+		cleanup_exit(11);
 	}
 	if (buf_len < msg_len + 4)
 		return;
@@ -1022,7 +1174,7 @@ process(void)
 	}
 	/* discard the remaining bytes from the current packet */
 	if (buf_len < buffer_len(&iqueue))
-		fatal("iqueue grows");
+		fatal("iqueue grew unexpectedly");
 	consumed = buf_len - buffer_len(&iqueue);
 	if (msg_len < consumed)
 		fatal("msg_len %d < consumed %d", msg_len, consumed);
@@ -1030,24 +1182,93 @@ process(void)
 		buffer_consume(&iqueue, msg_len - consumed);
 }
 
+/* Cleanup handler that logs active handles upon normal exit */
+void
+cleanup_exit(int i)
+{
+	if (pw != NULL && client_addr != NULL) {
+		handle_log_exit();
+		logit("session closed for local user %s from [%s]",
+		    pw->pw_name, client_addr);
+	}
+	_exit(i);
+}
+
+static void
+usage(void)
+{
+	extern char *__progname;
+
+	fprintf(stderr,
+	    "usage: %s [-he] [-l log_level] [-f log_facility]\n", __progname);
+	exit(1);
+}
+
 int
-main(int ac, char **av)
+main(int argc, char **argv)
 {
 	fd_set *rset, *wset;
-	int in, out, max;
+	int in, out, max, ch, skipargs = 0, log_stderr = 0;
 	ssize_t len, olen, set_size;
+	SyslogFacility log_facility = SYSLOG_FACILITY_AUTH;
+	char *cp;
+
+	extern char *optarg;
+	extern char *__progname;
 
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
 	sanitise_stdfd();
 
-	/* XXX should use getopt */
+	__progname = ssh_get_progname(argv[0]);
+	log_init(__progname, log_level, log_facility, log_stderr);
 
-	__progname = ssh_get_progname(av[0]);
+	while (!skipargs && (ch = getopt(argc, argv, "C:f:l:che")) != -1) {
+		switch (ch) {
+		case 'c':
+			/*
+			 * Ignore all arguments if we are invoked as a
+			 * shell using "sftp-server -c command"
+			 */
+			skipargs = 1;
+			break;
+		case 'e':
+			log_stderr = 1;
+			break;
+		case 'l':
+			log_level = log_level_number(optarg);
+			if (log_level == SYSLOG_LEVEL_NOT_SET)
+				error("Invalid log level \"%s\"", optarg);
+			break;
+		case 'f':
+			log_facility = log_facility_number(optarg);
+			if (log_level == SYSLOG_FACILITY_NOT_SET)
+				error("Invalid log facility \"%s\"", optarg);
+			break;
+		case 'h':
+		default:
+			usage();
+		}
+	}
+
+	log_init(__progname, log_level, log_facility, log_stderr);
+
+	if ((cp = getenv("SSH_CONNECTION")) != NULL) {
+		client_addr = xstrdup(cp);
+		if ((cp = strchr(client_addr, ' ')) == NULL)
+			fatal("Malformed SSH_CONNECTION variable: \"%s\"",
+			    getenv("SSH_CONNECTION"));
+		*cp = '\0';
+	} else
+		client_addr = xstrdup("UNKNOWN");
+
+	if ((pw = getpwuid(getuid())) == NULL)
+		fatal("No user found for uid %lu", (u_long)getuid());
+	pw = pwcopy(pw);
+
+	logit("session opened for local user %s from [%s]",
+	    pw->pw_name, client_addr);
+
 	handle_init();
-
-#ifdef DEBUG_SFTP_SERVER
-	log_init("sftp-server", SYSLOG_LEVEL_DEBUG1, SYSLOG_FACILITY_AUTH, 0);
-#endif
 
 	in = dup(STDIN_FILENO);
 	out = dup(STDOUT_FILENO);
@@ -1082,7 +1303,8 @@ main(int ac, char **av)
 		if (select(max+1, rset, wset, NULL, NULL) < 0) {
 			if (errno == EINTR)
 				continue;
-			exit(2);
+			error("select: %s", strerror(errno));
+			cleanup_exit(2);
 		}
 
 		/* copy stdin to iqueue */
@@ -1091,10 +1313,10 @@ main(int ac, char **av)
 			len = read(in, buf, sizeof buf);
 			if (len == 0) {
 				debug("read eof");
-				exit(0);
+				cleanup_exit(0);
 			} else if (len < 0) {
-				error("read error");
-				exit(1);
+				error("read: %s", strerror(errno));
+				cleanup_exit(1);
 			} else {
 				buffer_append(&iqueue, buf, len);
 			}
@@ -1103,8 +1325,8 @@ main(int ac, char **av)
 		if (FD_ISSET(out, wset)) {
 			len = write(out, buffer_ptr(&oqueue), olen);
 			if (len < 0) {
-				error("write error");
-				exit(1);
+				error("write: %s", strerror(errno));
+				cleanup_exit(1);
 			} else {
 				buffer_consume(&oqueue, len);
 			}

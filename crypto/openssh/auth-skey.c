@@ -1,3 +1,4 @@
+/* $OpenBSD: auth-skey.c,v 1.26 2006/08/05 08:28:24 dtucker Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -21,15 +22,23 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 #include "includes.h"
-RCSID("$OpenBSD: auth-skey.c,v 1.20 2002/06/30 21:59:45 deraadt Exp $");
 
 #ifdef SKEY
+
+#include <sys/types.h>
+
+#include <pwd.h>
+#include <stdio.h>
 
 #include <skey.h>
 
 #include "xmalloc.h"
+#include "key.h"
+#include "hostfile.h"
 #include "auth.h"
+#include "ssh-gss.h"
 #include "monitor_wrap.h"
 
 static void *
@@ -43,8 +52,7 @@ skey_query(void *ctx, char **name, char **infotxt,
     u_int* numprompts, char ***prompts, u_int **echo_on)
 {
 	Authctxt *authctxt = ctx;
-	char challenge[1024], *p;
-	int len;
+	char challenge[1024];
 	struct skey skey;
 
 	if (_compat_skeychallenge(&skey, authctxt->user, challenge,
@@ -54,15 +62,10 @@ skey_query(void *ctx, char **name, char **infotxt,
 	*name  = xstrdup("");
 	*infotxt  = xstrdup("");
 	*numprompts = 1;
-	*prompts = xmalloc(*numprompts * sizeof(char *));
-	*echo_on = xmalloc(*numprompts * sizeof(u_int));
-	(*echo_on)[0] = 0;
+	*prompts = xcalloc(*numprompts, sizeof(char *));
+	*echo_on = xcalloc(*numprompts, sizeof(u_int));
 
-	len = strlen(challenge) + strlen(SKEY_PROMPT) + 1;
-	p = xmalloc(len);
-	strlcpy(p, challenge, len);
-	strlcat(p, SKEY_PROMPT, len);
-	(*prompts)[0] = p;
+	xasprintf(*prompts, "%s%s", challenge, SKEY_PROMPT);
 
 	return 0;
 }

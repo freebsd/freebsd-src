@@ -31,6 +31,10 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/socket.h>
+
+#include <netinet/in.h>
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -42,8 +46,6 @@
 #endif
 
 #include "loginrec.h"
-
-RCSID("$Id: logintest.c,v 1.11 2004/07/17 04:07:42 dtucker Exp $");
 
 extern char *__progname;
 

@@ -33,8 +33,14 @@
 #include "includes.h"
 
 #ifndef HAVE_BINDRESVPORT_SA
+#include <sys/types.h>
+#include <sys/socket.h>
 
-#include "includes.h"
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#include <errno.h>
+#include <string.h>
 
 #define STARTPORT 600
 #define ENDPORT (IPPORT_RESERVED - 1)

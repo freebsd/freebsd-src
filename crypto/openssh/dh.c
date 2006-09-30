@@ -1,3 +1,4 @@
+/* $OpenBSD: dh.c,v 1.42 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  *
@@ -23,17 +24,17 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: dh.c,v 1.31 2004/08/04 10:37:52 djm Exp $");
 
-#include "xmalloc.h"
+#include <sys/param.h>
 
 #include <openssl/bn.h>
 #include <openssl/dh.h>
-#include <openssl/evp.h>
 
-#include "buffer.h"
-#include "cipher.h"
-#include "kex.h"
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "dh.h"
 #include "pathnames.h"
 #include "log.h"
@@ -44,9 +45,11 @@ parse_prime(int linenum, char *line, struct dhgroup *dhg)
 {
 	char *cp, *arg;
 	char *strsize, *gen, *prime;
+	const char *errstr = NULL;
 
 	cp = line;
-	arg = strdelim(&cp);
+	if ((arg = strdelim(&cp)) == NULL)
+		return 0;
 	/* Ignore leading whitespace */
 	if (*arg == '\0')
 		arg = strdelim(&cp);
@@ -67,7 +70,8 @@ parse_prime(int linenum, char *line, struct dhgroup *dhg)
 		goto fail;
 	strsize = strsep(&cp, " "); /* size */
 	if (cp == NULL || *strsize == '\0' ||
-	    (dhg->size = atoi(strsize)) == 0)
+	    (dhg->size = (u_int)strtonum(strsize, 0, 64*1024, &errstr)) == 0 ||
+	    errstr)
 		goto fail;
 	/* The whole group is one bit larger */
 	dhg->size++;
@@ -178,19 +182,36 @@ dh_pub_is_valid(DH *dh, BIGNUM *dh_pub)
 	int i;
 	int n = BN_num_bits(dh_pub);
 	int bits_set = 0;
+	BIGNUM *tmp;
 
 	if (dh_pub->neg) {
 		logit("invalid public DH value: negativ");
 		return 0;
 	}
+	if (BN_cmp(dh_pub, BN_value_one()) != 1) {	/* pub_exp <= 1 */
+		logit("invalid public DH value: <= 1");
+		return 0;
+	}
+
+	if ((tmp = BN_new()) == NULL)
+		return (-1);
+	if (!BN_sub(tmp, dh->p, BN_value_one()) ||
+	    BN_cmp(dh_pub, tmp) != -1) {		/* pub_exp > p-2 */
+		BN_clear_free(tmp);
+		logit("invalid public DH value: >= p-1");
+		return 0;
+	}
+	BN_clear_free(tmp);
+
 	for (i = 0; i <= n; i++)
 		if (BN_is_bit_set(dh_pub, i))
 			bits_set++;
 	debug2("bits set: %d/%d", bits_set, BN_num_bits(dh->p));
 
 	/* if g==2 and bits_set==1 then computing log_g(dh_pub) is trivial */
-	if (bits_set > 1 && (BN_cmp(dh_pub, dh->p) == -1))
+	if (bits_set > 1)
 		return 1;
+
 	logit("invalid public DH value (%d/%d)", bits_set, BN_num_bits(dh->p));
 	return 0;
 }

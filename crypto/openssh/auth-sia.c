@@ -25,14 +25,6 @@
 #include "includes.h"
 
 #ifdef HAVE_OSF_SIA
-#include "ssh.h"
-#include "auth.h"
-#include "auth-sia.h"
-#include "log.h"
-#include "servconf.h"
-#include "canohost.h"
-#include "uidswap.h"
-
 #include <sia.h>
 #include <siad.h>
 #include <pwd.h>
@@ -40,7 +32,18 @@
 #include <setjmp.h>
 #include <sys/resource.h>
 #include <unistd.h>
+#include <stdarg.h>
 #include <string.h>
+
+#include "ssh.h"
+#include "key.h"
+#include "hostfile.h"
+#include "auth.h"
+#include "auth-sia.h"
+#include "log.h"
+#include "servconf.h"
+#include "canohost.h"
+#include "uidswap.h"
 
 extern ServerOptions options;
 extern int saved_argc;
