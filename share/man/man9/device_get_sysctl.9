@@ -34,22 +34,22 @@
 .Sh NAME
 .Nm device_get_sysctl_ctx ,
 .Nm device_get_sysctl_tree
-.Nd Manipulate the sysctl oid tree for driver specific sysctl nodes.
+.Nd manipulate the sysctl oid tree for driver specific sysctl nodes
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/bus.h
-.Ft struct sysctl_ctx_list *
+.Ft "struct sysctl_ctx_list *"
 .Fn device_get_sysctl_ctx "device_t dev"
-.Ft struct sysctl_oid *
+.Ft "struct sysctl_oid *"
 .Fn device_get_sysctl_tree "device_t dev"
 .Sh DESCRIPTION
 The newbus system automatically adds a sysctl node for each device
 in the system.
 This node can be accessed with the
 .Fn device_get_sysctl_tree
- function.
+function.
 The context for the node can be obtained with the
-.Fn device_get_sysctl_ctl 
+.Fn device_get_sysctl_ctl
 function.
 .Sh SEE ALSO
 .Xr device 9
