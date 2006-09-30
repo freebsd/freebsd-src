@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 08, 2006
+.Dd August 8, 2006
 .Dt SADE 8
 .Os
 .Sh NAME
@@ -45,23 +45,29 @@ behavior, where the main menu is presented.
 The
 .Nm
 utility aims to provide a handy tool for disk management
-tasks on an already installed system. The goal is to save
-some of the useful functionality of the old sysinstall, which
+tasks on an already installed system.
+The goal is to save
+some of the useful functionality of the old
+.Xr sysinstall 8
+which
 will be removed from the system in favor of the new installer.
-.\".Sh FILES
 .Sh SEE ALSO
-sysinstall(8)
+.Xr sysinstall 8
 .Sh HISTORY
 This version of
 .Nm
 first appeared in
-.Fx 7.0 . The code is extracted from the
-sysinstall
+.Fx 7.0 .
+The code is extracted from the
+.Xr sysinstall 8
 utility.
 .Sh AUTHORS
 .An Jordan K. Hubbard Aq jkh@FreeBSD.org
 .Sh BUGS
 The utility misses a lot of nice features, such as tools for
-manipulating gmirror or gvinum stuff. These will be added
-later.
-
+manipulating
+.Xr gmirror 8
+or
+.Xr gvinum 8
+stuff.
+These will be added later.
