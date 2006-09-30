@@ -100,7 +100,8 @@ print_version_info(void)
 static void
 usage(void)
 {
-	fprintf(stderr,"usage: cached [-nstiId]\n");
+	fprintf(stderr,
+	    "usage: cached [-dnst] [-i cachename] [-I cachename]\n");
 	exit(1);
 }
 
