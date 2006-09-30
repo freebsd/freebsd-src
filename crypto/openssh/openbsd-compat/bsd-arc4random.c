@@ -15,9 +15,13 @@
  */
 
 #include "includes.h"
-#include "log.h"
 
-RCSID("$Id: bsd-arc4random.c,v 1.10 2005/02/16 02:01:28 djm Exp $");
+#include <sys/types.h>
+
+#include <string.h>
+#include <stdarg.h>
+
+#include "log.h"
 
 #ifndef HAVE_ARC4RANDOM
 

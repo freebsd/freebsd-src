@@ -1,3 +1,4 @@
+/* $OpenBSD: compress.c,v 1.25 2006/08/06 01:13:32 stevesk Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -12,11 +13,14 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: compress.c,v 1.21 2004/01/13 19:45:15 markus Exp $");
+
+#include <sys/types.h>
+
+#include <stdarg.h>
+#include <zlib.h>
 
 #include "log.h"
 #include "buffer.h"
-#include "zlib.h"
 #include "compress.h"
 
 z_stream incoming_stream;

@@ -1,3 +1,4 @@
+/* $OpenBSD: canohost.c,v 1.61 2006/08/03 03:34:41 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -12,10 +13,23 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: canohost.c,v 1.48 2005/12/28 22:46:06 stevesk Exp $");
 
-#include "packet.h"
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#include <ctype.h>
+#include <errno.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
+
 #include "xmalloc.h"
+#include "packet.h"
 #include "log.h"
 #include "canohost.h"
 
@@ -43,6 +57,9 @@ get_remote_hostname(int sock, int use_dns)
 		cleanup_exit(255);
 	}
 
+	if (from.ss_family == AF_INET)
+		check_ip_options(sock, ntop);
+
 	ipv64_normalise_mapped(&from, &fromlen);
 
 	if (from.ss_family == AF_INET6)
@@ -51,9 +68,6 @@ get_remote_hostname(int sock, int use_dns)
 	if (getnameinfo((struct sockaddr *)&from, fromlen, ntop, sizeof(ntop),
 	    NULL, 0, NI_NUMERICHOST) != 0)
 		fatal("get_remote_hostname: getnameinfo NI_NUMERICHOST failed");
-
-	if (from.ss_family == AF_INET)
-		check_ip_options(sock, ntop);
 
 	if (!use_dns)
 		return xstrdup(ntop);
@@ -87,7 +101,7 @@ get_remote_hostname(int sock, int use_dns)
 	 */
 	for (i = 0; name[i]; i++)
 		if (isupper(name[i]))
-			name[i] = tolower(name[i]);
+			name[i] = (char)tolower(name[i]);
 	/*
 	 * Map it back to an IP address and check that the given
 	 * address actually is an address of this host.  This is
@@ -102,7 +116,7 @@ get_remote_hostname(int sock, int use_dns)
 	hints.ai_socktype = SOCK_STREAM;
 	if (getaddrinfo(name, NULL, &hints, &aitop) != 0) {
 		logit("reverse mapping checking getaddrinfo for %.700s "
-		    "failed - POSSIBLE BREAK-IN ATTEMPT!", name);
+		    "[%s] failed - POSSIBLE BREAK-IN ATTEMPT!", name, ntop);
 		return xstrdup(ntop);
 	}
 	/* Look for the address from the list of addresses. */

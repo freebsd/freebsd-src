@@ -28,9 +28,13 @@
 #include "openbsd-compat/openssl-compat.h"
 
 #ifdef USE_BUILTIN_RIJNDAEL
-RCSID("$OpenBSD: cipher-aes.c,v 1.2 2003/11/26 21:44:29 djm Exp $");
+#include <sys/types.h>
 
 #include <openssl/evp.h>
+
+#include <stdarg.h>
+#include <string.h>
+
 #include "rijndael.h"
 #include "xmalloc.h"
 #include "log.h"
