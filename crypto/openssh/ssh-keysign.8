@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-keysign.8,v 1.7 2003/06/10 09:12:11 jmc Exp $
+.\" $OpenBSD: ssh-keysign.8,v 1.8 2006/02/24 20:22:16 jmc Exp $
 .\"
 .\" Copyright (c) 2002 Markus Friedl.  All rights reserved.
 .\"
@@ -27,7 +27,7 @@
 .Os
 .Sh NAME
 .Nm ssh-keysign
-.Nd ssh helper program for hostbased authentication
+.Nd ssh helper program for host-based authentication
 .Sh SYNOPSIS
 .Nm
 .Sh DESCRIPTION
@@ -35,7 +35,7 @@
 is used by
 .Xr ssh 1
 to access the local host keys and generate the digital signature
-required during hostbased authentication with SSH protocol version 2.
+required during host-based authentication with SSH protocol version 2.
 .Pp
 .Nm
 is disabled by default and can only be enabled in the
@@ -53,7 +53,7 @@ See
 .Xr ssh 1
 and
 .Xr sshd 8
-for more information about hostbased authentication.
+for more information about host-based authentication.
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa /etc/ssh/ssh_config
@@ -67,7 +67,7 @@ They should be owned by root, readable only by root, and not
 accessible to others.
 Since they are readable only by root,
 .Nm
-must be set-uid root if hostbased authentication is used.
+must be set-uid root if host-based authentication is used.
 .El
 .Sh SEE ALSO
 .Xr ssh 1 ,

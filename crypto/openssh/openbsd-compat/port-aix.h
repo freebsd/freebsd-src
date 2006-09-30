@@ -1,4 +1,4 @@
-/* $Id: port-aix.h,v 1.26 2005/05/28 10:28:40 dtucker Exp $ */
+/* $Id: port-aix.h,v 1.27 2006/09/18 13:54:33 dtucker Exp $ */
 
 /*
  *
@@ -30,18 +30,6 @@
 
 #ifdef HAVE_SYS_SOCKET_H
 # include <sys/socket.h>
-#endif
-#ifdef HAVE_UNISTD_H
-# include <unistd.h>	/* for seteuid() */
-#endif
-
-#ifdef WITH_AIXAUTHENTICATE
-# include <login.h>
-# include <userpw.h>
-# if defined(HAVE_SYS_AUDIT_H) && defined(AIX_LOGINFAILED_4ARG)
-#  include <sys/audit.h>
-# endif
-# include <usersec.h>
 #endif
 
 #include "buffer.h"

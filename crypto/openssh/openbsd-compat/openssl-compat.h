@@ -1,4 +1,4 @@
-/* $Id: openssl-compat.h,v 1.3 2005/12/19 06:40:40 dtucker Exp $ */
+/* $Id: openssl-compat.h,v 1.6 2006/02/22 11:24:47 dtucker Exp $ */
 
 /*
  * Copyright (c) 2005 Darren Tucker <dtucker@zip.com.au>
@@ -54,21 +54,27 @@ extern const EVP_CIPHER *evp_acss(void);
  * define SSH_DONT_OVERLOAD_OPENSSL_FUNCS before including this file and
  * implement the ssh_* equivalents.
  */
-#ifdef SSH_OLD_EVP
+#ifndef SSH_DONT_OVERLOAD_OPENSSL_FUNCS
 
-# ifndef SSH_DONT_REDEF_EVP
-
+# ifdef SSH_OLD_EVP
 #  ifdef EVP_Cipher
 #   undef EVP_Cipher
 #  endif
-
 #  define EVP_CipherInit(a,b,c,d,e)	ssh_EVP_CipherInit((a),(b),(c),(d),(e))
 #  define EVP_Cipher(a,b,c,d)		ssh_EVP_Cipher((a),(b),(c),(d))
 #  define EVP_CIPHER_CTX_cleanup(a)	ssh_EVP_CIPHER_CTX_cleanup((a))
-# endif
+# endif /* SSH_OLD_EVP */
+
+# ifdef USE_OPENSSL_ENGINE
+#  ifdef SSLeay_add_all_algorithms
+#   undef SSLeay_add_all_algorithms
+#  endif
+#  define SSLeay_add_all_algorithms()	ssh_SSLeay_add_all_algorithms()
+#endif
 
 int ssh_EVP_CipherInit(EVP_CIPHER_CTX *, const EVP_CIPHER *, unsigned char *,
     unsigned char *, int);
 int ssh_EVP_Cipher(EVP_CIPHER_CTX *, char *, char *, int);
 int ssh_EVP_CIPHER_CTX_cleanup(EVP_CIPHER_CTX *);
-#endif
+void ssh_SSLeay_add_all_algorithms(void);
+#endif	/* SSH_DONT_OVERLOAD_OPENSSL_FUNCS */

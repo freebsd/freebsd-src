@@ -27,7 +27,13 @@
 #ifndef HAVE_READPASSPHRASE
 
 #include <termios.h>
+#include <signal.h>
+#include <ctype.h>
+#include <fcntl.h>
 #include <readpassphrase.h>
+#include <errno.h>
+#include <string.h>
+#include <unistd.h>
 
 #ifdef TCSASOFT
 # define _T_FLUSH	(TCSAFLUSH|TCSASOFT)

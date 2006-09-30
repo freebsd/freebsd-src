@@ -1,4 +1,4 @@
-/*	$OpenBSD: progressmeter.h,v 1.1 2003/01/10 08:19:07 fgsch Exp $	*/
+/* $OpenBSD: progressmeter.h,v 1.2 2006/03/25 22:22:43 djm Exp $ */
 /*
  * Copyright (c) 2002 Nils Nordman.  All rights reserved.
  *

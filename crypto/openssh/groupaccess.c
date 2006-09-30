@@ -1,3 +1,4 @@
+/* $OpenBSD: groupaccess.c,v 1.12 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Copyright (c) 2001 Kevin Steves.  All rights reserved.
  *
@@ -23,10 +24,16 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: groupaccess.c,v 1.6 2003/04/08 20:21:28 itojun Exp $");
 
-#include "groupaccess.h"
+#include <sys/types.h>
+#include <sys/param.h>
+
+#include <grp.h>
+#include <unistd.h>
+#include <stdarg.h>
+
 #include "xmalloc.h"
+#include "groupaccess.h"
 #include "match.h"
 #include "log.h"
 
@@ -52,8 +59,8 @@ ga_init(const char *user, gid_t base)
 	ngroups = MAX(NGROUPS_MAX, sysconf(_SC_NGROUPS_MAX));
 #endif
 
-	groups_bygid = xmalloc(ngroups * sizeof(*groups_bygid));
-	groups_byname = xmalloc(ngroups * sizeof(*groups_byname));
+	groups_bygid = xcalloc(ngroups, sizeof(*groups_bygid));
+	groups_byname = xcalloc(ngroups, sizeof(*groups_byname));
 
 	if (getgrouplist(user, base, groups_bygid, &ngroups) == -1)
 		logit("getgrouplist: groups list too small");
