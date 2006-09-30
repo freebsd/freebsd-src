@@ -333,7 +333,15 @@ tty_close(struct tty *tp)
 	tp->t_state = 0;
 	knlist_clear(&tp->t_rsel.si_note, 0);
 	knlist_clear(&tp->t_wsel.si_note, 0);
-	ttyrel(tp);
+	/*
+	 * Any close with tp->t_refcnt == 1 is wrong and is
+	 * an indication of a locking bug somewhere and that
+	 * our open call has not been finished properly.
+	 * Instead of putting an assert here we skip decrementing
+	 * the refcount to work around any problems.
+	 */
+	if (tp->t_refcnt > 1)
+		ttyrel(tp);
 	splx(s);
 	return (0);
 }
@@ -3067,11 +3075,6 @@ ttyopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	struct tty	*tp;
 
 	tp = dev->si_tty;
-
-	/* XXX It can happen that devfs_open calls us with tp->t_refcnt == 0 */
-	if (tp == NULL || tp->t_refcnt == 0) {
-		return (ENXIO);
-	}
 
 	s = spltty();
 	/*
