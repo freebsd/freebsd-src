@@ -1390,7 +1390,8 @@ nd6_rtrequest(req, rt, info)
 					    ip6_sprintf(&llsol), error));
 				}
 			}
-		} else if (req == RTM_ADD && SDL(gate)->sdl_alen == 0) {
+		} else if (req == RTM_ADD && SDL(gate)->sdl_alen == 0 &&
+		    (ifp->if_flags & (IFF_POINTOPOINT | IFF_LOOPBACK)) == 0) {
 			ln->ln_state = ND6_LLINFO_INCOMPLETE;
 		}
 		break;
