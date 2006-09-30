@@ -22,8 +22,8 @@
 .Nm strtonum
 .Nd "reliably convert string value to an integer"
 .Sh SYNOPSIS
-.Fd #include <stdlib.h>
-.Fd #include <limits.h>
+.In stdlib.h
+.In limits.h
 .Ft long long
 .Fo strtonum
 .Fa "const char *nptr"
@@ -37,7 +37,7 @@ The
 function converts the string in
 .Fa nptr
 to a
-.Li long long
+.Vt "long long"
 value.
 The
 .Fn strtonum
@@ -58,7 +58,7 @@ or
 sign.
 .Pp
 The remainder of the string is converted to a
-.Li long long
+.Vt "long long"
 value according to base 10.
 .Pp
 The value obtained is then checked against the provided
@@ -83,10 +83,10 @@ On error, 0 is returned,
 is set, and
 .Fa errstr
 will point to an error message.
+On success,
 .Fa *errstr
 will be set to
-.Dv NULL
-on success;
+.Dv NULL ;
 this fact can be used to differentiate
 a successful return of 0 from an error.
 .Sh EXAMPLES
@@ -111,21 +111,22 @@ The given string was out of range.
 .It Bq Er EINVAL
 The given string did not consist solely of digit characters.
 .It Bq Er EINVAL
-.Ar minval
+The supplied
+.Fa minval
 was larger than
-.Ar maxval .
+.Fa maxval .
 .El
 .Pp
 If an error occurs,
 .Fa errstr
 will be set to one of the following strings:
 .Pp
-.Bl -tag -width "too largeXX" -compact
-.It too large
+.Bl -tag -width ".Li too large" -compact
+.It Li "too large"
 The result was larger than the provided maximum value.
-.It too small
+.It Li "too small"
 The result was smaller than the provided minimum value.
-.It invalid
+.It Li invalid
 The string did not consist solely of digit characters.
 .El
 .Sh SEE ALSO
@@ -138,8 +139,9 @@ The string did not consist solely of digit characters.
 .Xr strtol 3 ,
 .Xr strtoul 3
 .Sh STANDARDS
+The
 .Fn strtonum
-is a
+function is a
 .Bx
 extension.
 The existing alternatives, such as

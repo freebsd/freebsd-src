@@ -51,7 +51,8 @@ and returns the allocation in the value pointed to by
 .Pp
 The requested
 .Fa alignment
-must be a power of 2 at least as large as sizeof(void *).
+must be a power of 2 at least as large as
+.Fn sizeof "void *" .
 .Pp
 Memory that is allocated via
 .Fn posix_memalign
@@ -72,16 +73,17 @@ function will fail if:
 .It Bq Er EINVAL
 The
 .Fa alignment
-parameter is not a power of 2 at least as large as sizeof(void *).
+parameter is not a power of 2 at least as large as
+.Fn sizeof "void *" .
 .It Bq Er ENOMEM
 Memory allocation error.
 .El
 .Sh SEE ALSO
+.Xr free 3 ,
 .Xr malloc 3 ,
-.Xr valloc 3 ,
 .Xr realloc 3 ,
 .Xr reallocf 3 ,
-.Xr free 3
+.Xr valloc 3
 .Sh STANDARDS
 The
 .Fn posix_memalign
