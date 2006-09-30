@@ -35,12 +35,12 @@
 .Op Fl r Ar rlist
 .Op Fl w Ar wlist
 .Ar special
-.Op file
+.Op Ar file
 .Sh DESCRIPTION
 The
 .Nm
 utility reads data from the
-.Pa special
+.Ar special
 file until all blocks could be successfully read.
 It starts reading in multiples of the sector size.
 Whenever a block fails, it is put to the end of the working queue and will be
@@ -58,57 +58,71 @@ Read the list of blocks and block sizes to read from the specified file.
 .It Fl w Ar wlist
 Write the list of remaining blocks to read to the specified file if
 .Nm
-is aborted via SIGINT.
+is aborted via
+.Dv SIGINT .
 .El
 .Pp
 The
 .Fl r
 and
 .Fl w
-option can be used in combination.
+options can be specified together.
 Especially, they can point to the same file, which will be updated on abort.
 .Sh OUTPUT
+The
 .Nm
+utility
 prints several columns, detailing the progress
 .Bl -tag -width remaining
-.It start
+.It Va start
 Starting offset of the current block.
-.It size
+.It Va size
 Read size of the current block.
-.It len
+.It Va len
 Length of the current block.
-.It state
+.It Va state
 Is increased for every failed read.
-.It done
+.It Va done
 Number of bytes already read.
-.It remaining
+.It Va remaining
 Number of bytes remaining.
-.It % done
+.It Va "% done"
 Percent complete.
 .El
 .Sh EXAMPLES
+.Bd -literal
 # recover data from failing hard drive ad3
-.Dl $ touch /data/lots_of_space
-.Dl $ recoverdisk /dev/ad3 /data/lots_of_space
-.Pp
+touch /data/lots_of_space
+recoverdisk /dev/ad3 /data/lots_of_space
+
 # clone a hard disk
-.Dl $ recoverdisk /dev/ad3 /dev/ad4
-.Pp
+recoverdisk /dev/ad3 /dev/ad4
+
 # read an ISO image from a CD-ROM
-.Dl $ touch /data/cd.iso; recoverdisk /dev/acd0 /data/cd.iso
-.Pp
+touch /data/cd.iso; recoverdisk /dev/acd0 /data/cd.iso
+
 # continue reading from a broken CD and update the existing worklist
-.Dl $ recoverdisk -r worklist -w worklist /dev/acd0 /data/cd.iso
-.Pp
+recoverdisk -r worklist -w worklist /dev/acd0 /data/cd.iso
+
 # recover a single file from the unreadable media
-.Dl $ touch file.avi; recoverdisk /cdrom/file.avi file.avi
+touch file.avi; recoverdisk /cdrom/file.avi file.avi
+.Ed
 .Sh SEE ALSO
 .Xr dd 1
 .Sh HISTORY
 The
 .Nm
-command first appeared in
+utility first appeared in
 .Fx 7.0 .
+.Sh AUTHORS
+.An -nosplit
+The original implementation was done by
+.An Poul-Henning Kamp Aq phk@FreeBSD.org
+with minor improvements from
+.An Ulrich Sp\(:orlein Aq uspoerlein@gmail.com .
+.Pp
+This manual page was written by
+.An Ulrich Sp\(:orlein .
 .Sh BUGS
 Reading from media where the sectorsize is not a power of 2 will make all
 1 MB reads fail.
@@ -117,12 +131,3 @@ These reads then fail if the sectorsize is not a divisor of 128kB.
 When reading a full raw audio CD, this leads to roughly 700 error messages
 flying by.
 This is harmless.
-.Sh AUTHORS
-.An -nosplit
-The original implementation was done by
-.An Poul-Henning Kamp Aq phk@freebsd.org
-with minor improvements from
-.An Ulrich Sp\(:orlein Aq uspoerlein@gmail.com .
-.Pp
-This manual page was written by
-.An Ulrich Sp\(:orlein Aq uspoerlein@gmail.com .
