@@ -63,7 +63,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	int retval, i;
 	const char *(promptstr[]) = { "%s\nPassword: ", "%s\nPassword [echo on]: "};
 	char challenge[OPIE_CHALLENGE_MAX];
-	char *user;
+	char principal[OPIE_PRINCIPAL_MAX];
+	const char *user;
 	char *response;
 	int style;
 
@@ -74,12 +75,21 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 		user = pwd->pw_name;
 	}
 	else {
-		retval = pam_get_user(pamh, (const char **)&user, NULL);
+		retval = pam_get_user(pamh, &user, NULL);
 		if (retval != PAM_SUCCESS)
 			return (retval);
 	}
 
 	PAM_LOG("Got user: %s", user);
+
+	/*
+	 * Watch out: libopie feels entitled to truncate the user name
+	 * passed to it if it's longer than OPIE_PRINCIPAL_MAX, which is
+	 * not uncommon in Windows environments.
+	 */
+	if (strlen(user) >= sizeof(principal))
+		return (PAM_AUTH_ERR);
+	strlcpy(principal, user, sizeof(principal));
 
 	/*
 	 * Don't call the OPIE atexit() handler when our program exits,
@@ -92,8 +102,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	 * doesn't have an OPIE key, just fail rather than present the
 	 * user with a bogus OPIE challenge.
 	 */
-	/* XXX generates a const warning because of incorrect prototype */
-	if (opiechallenge(&opie, (char *)user, challenge) != 0 &&
+	if (opiechallenge(&opie, principal, challenge) != 0 &&
 	    openpam_get_option(pamh, PAM_OPT_NO_FAKE_PROMPTS))
 		return (PAM_AUTH_ERR);
 
