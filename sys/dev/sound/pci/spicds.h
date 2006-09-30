@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 Konstantin Dimitrov <kosio.dimitrov@gmail.com>
  * Copyright (c) 2001 Katsurajima Naoto <raven@katsurajima.seya.yokohama.jp>
  * All rights reserved.
  *
@@ -27,8 +28,11 @@
  */
 
 /* supported CODECs */
-#define AK452X_TYPE_4524 0
-#define AK452X_TYPE_4528 1
+#define SPICDS_TYPE_AK4524 0
+#define SPICDS_TYPE_AK4528 1
+#define SPICDS_TYPE_WM8770 2
+#define SPICDS_TYPE_AK4358 3
+#define SPICDS_TYPE_AK4381 4
 
 /* AK4524/AK4528 control registers */
 #define AK4524_POWER 0x00
@@ -76,16 +80,37 @@
 #define AK4528_LOATT 0x04
 #define AK4528_ROATT 0x05
 
-struct ak452x_info;
+/* WM8770 control registers */
+#define WM8770_AOATT_L1 0x00
+#define WM8770_AOATT_R1 0x01
+#define WM8770_AOATT_L2 0x02
+#define WM8770_AOATT_R2 0x03
+#define WM8770_AOATT_L3 0x04
+#define WM8770_AOATT_R3 0x05
+#define WM8770_AOATT_L4 0x06
+#define WM8770_AOATT_R4 0x07
+#define WM8770_AOATT_MAST 0x08
+#define WM8770_AOATT_UPDATE 0x100
 
-typedef void (*ak452x_ctrl)(void *, unsigned int, unsigned int, unsigned int);
+/* AK4358 control registers */
+#define AK4358_LO1ATT 0x04
+#define AK4358_RO1ATT 0x05 
+#define AK4358_OATT_ENABLE 0x80
 
-struct ak452x_info *ak452x_create(device_t dev, void *devinfo, int num, ak452x_ctrl);
-void ak452x_destroy(struct ak452x_info *codec);
-void ak452x_settype(struct ak452x_info *codec, unsigned int type);
-void ak452x_setcif(struct ak452x_info *codec, unsigned int cif);
-void ak452x_setformat(struct ak452x_info *codec, unsigned int format);
-void ak452x_setdvc(struct ak452x_info *codec, unsigned int dvc);
-void ak452x_init(struct ak452x_info *codec);
-void ak452x_reinit(struct ak452x_info *codec);
-void ak452x_set(struct ak452x_info *codec, int dir, unsigned int left, unsigned int right);
+/* AK4381 control registers */
+#define AK4381_LOATT 0x03
+#define AK4381_ROATT 0x04
+
+struct spicds_info;
+
+typedef void (*spicds_ctrl)(void *, unsigned int, unsigned int, unsigned int);
+
+struct spicds_info *spicds_create(device_t dev, void *devinfo, int num, spicds_ctrl);
+void spicds_destroy(struct spicds_info *codec);
+void spicds_settype(struct spicds_info *codec, unsigned int type);
+void spicds_setcif(struct spicds_info *codec, unsigned int cif);
+void spicds_setformat(struct spicds_info *codec, unsigned int format);
+void spicds_setdvc(struct spicds_info *codec, unsigned int dvc);
+void spicds_init(struct spicds_info *codec);
+void spicds_reinit(struct spicds_info *codec);
+void spicds_set(struct spicds_info *codec, int dir, unsigned int left, unsigned int right);
