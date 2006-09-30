@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp-server.8,v 1.10 2003/10/08 08:27:36 jmc Exp $
+.\" $OpenBSD: sftp-server.8,v 1.11 2006/07/06 10:47:57 djm Exp $
 .\"
 .\" Copyright (c) 2000 Markus Friedl.  All rights reserved.
 .\"
@@ -30,6 +30,8 @@
 .Nd SFTP server subsystem
 .Sh SYNOPSIS
 .Nm sftp-server
+.Op Fl f Ar log_facility
+.Op Fl l Ar log_level
 .Sh DESCRIPTION
 .Nm
 is a program that speaks the server side of SFTP protocol
@@ -40,9 +42,36 @@ is not intended to be called directly, but from
 using the
 .Cm Subsystem
 option.
+.Pp
+Command-line flags to
+.Nm
+should be specified in the
+.Cm Subsystem
+declaration.
 See
 .Xr sshd_config 5
 for more information.
+.Pp
+Valid options are:
+.Bl -tag -width Ds
+.It Fl f Ar log_facility
+Specifies the facility code that is used when logging messages from
+.Nm .
+The possible values are: DAEMON, USER, AUTH, LOCAL0, LOCAL1, LOCAL2,
+LOCAL3, LOCAL4, LOCAL5, LOCAL6, LOCAL7.
+The default is AUTH.
+.It Fl l Ar log_level
+Specifies which messages will be logged by
+.Nm .
+The possible values are:
+QUIET, FATAL, ERROR, INFO, VERBOSE, DEBUG, DEBUG1, DEBUG2, and DEBUG3.
+INFO and VERBOSE log transactions that
+.Nm
+performs on behalf of the client.
+DEBUG and DEBUG1 are equivalent.
+DEBUG2 and DEBUG3 each specify higher levels of debugging output.
+The default is ERROR.
+.El
 .Sh SEE ALSO
 .Xr sftp 1 ,
 .Xr ssh 1 ,
@@ -56,8 +85,9 @@ for more information.
 .%D January 2001
 .%O work in progress material
 .Re
-.Sh AUTHORS
-.An Markus Friedl Aq markus@openbsd.org
 .Sh HISTORY
 .Nm
-first appeared in OpenBSD 2.8 .
+first appeared in
+.Ox 2.8 .
+.Sh AUTHORS
+.An Markus Friedl Aq markus@openbsd.org

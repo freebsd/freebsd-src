@@ -16,9 +16,23 @@
 
 #include "includes.h"
 
+#include <sys/types.h>
+#include <sys/ioctl.h>
+
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netinet/ip.h>
+
+#include <errno.h>
+#include <fcntl.h>
+#include <stdarg.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "log.h"
 #include "misc.h"
-#include "bufaux.h"
+#include "buffer.h"
+#include "channels.h"
 
 /*
  * This is the portable version of the SSH tunnel forwarding, it
@@ -26,6 +40,7 @@
  * settings.
  *
  * SSH_TUN_LINUX	Use the (newer) Linux tun/tap device
+ * SSH_TUN_FREEBSD	Use the FreeBSD tun/tap device
  * SSH_TUN_COMPAT_AF	Translate the OpenBSD address family
  * SSH_TUN_PREPEND_AF	Prepend/remove the address family
  */
@@ -93,7 +108,10 @@ sys_tun_open(int tun, int mode)
 #ifdef SSH_TUN_FREEBSD
 #include <sys/socket.h>
 #include <net/if.h>
+
+#ifdef HAVE_NET_IF_TUN_H
 #include <net/if_tun.h>
+#endif
 
 int
 sys_tun_open(int tun, int mode)

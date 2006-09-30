@@ -1,4 +1,4 @@
-/* $Id: audit-bsm.c,v 1.1 2005/02/20 10:08:00 dtucker Exp $ */
+/* $Id: audit-bsm.c,v 1.4 2006/09/01 05:38:36 djm Exp $ */
 
 /*
  * TODO
@@ -37,8 +37,15 @@
 #include "includes.h"
 #if defined(USE_BSM_AUDIT)
 
+#include <sys/types.h>
+
+#include <stdarg.h>
+#include <unistd.h>
+
 #include "ssh.h"
 #include "log.h"
+#include "key.h"
+#include "hostfile.h"
 #include "auth.h"
 #include "xmalloc.h"
 

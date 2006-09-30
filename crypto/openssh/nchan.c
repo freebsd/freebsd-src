@@ -1,3 +1,4 @@
+/* $OpenBSD: nchan.c,v 1.57 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
@@ -23,7 +24,13 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: nchan.c,v 1.51 2004/07/11 17:48:47 deraadt Exp $");
+
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#include <errno.h>
+#include <string.h>
+#include <stdarg.h>
 
 #include "ssh1.h"
 #include "ssh2.h"

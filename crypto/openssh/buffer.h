@@ -1,4 +1,4 @@
-/*	$OpenBSD: buffer.h,v 1.13 2005/03/14 11:46:56 markus Exp $	*/
+/* $OpenBSD: buffer.h,v 1.16 2006/08/03 03:34:41 deraadt Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -23,9 +23,6 @@ typedef struct {
 	u_int	 end;		/* Offset of last byte containing data. */
 }       Buffer;
 
-#define	BUFFER_MAX_CHUNK	0x100000
-#define	BUFFER_MAX_LEN		0xa00000
-
 void	 buffer_init(Buffer *);
 void	 buffer_clear(Buffer *);
 void	 buffer_free(Buffer *);
@@ -35,6 +32,8 @@ void	*buffer_ptr(Buffer *);
 
 void	 buffer_append(Buffer *, const void *, u_int);
 void	*buffer_append_space(Buffer *, u_int);
+
+int	 buffer_check_alloc(Buffer *, u_int);
 
 void	 buffer_get(Buffer *, void *, u_int);
 
@@ -46,5 +45,41 @@ void     buffer_dump(Buffer *);
 int	 buffer_get_ret(Buffer *, void *, u_int);
 int	 buffer_consume_ret(Buffer *, u_int);
 int	 buffer_consume_end_ret(Buffer *, u_int);
+
+#include <openssl/bn.h>
+
+void    buffer_put_bignum(Buffer *, const BIGNUM *);
+void    buffer_put_bignum2(Buffer *, const BIGNUM *);
+void	buffer_get_bignum(Buffer *, BIGNUM *);
+void	buffer_get_bignum2(Buffer *, BIGNUM *);
+
+u_short	buffer_get_short(Buffer *);
+void	buffer_put_short(Buffer *, u_short);
+
+u_int	buffer_get_int(Buffer *);
+void    buffer_put_int(Buffer *, u_int);
+
+u_int64_t buffer_get_int64(Buffer *);
+void	buffer_put_int64(Buffer *, u_int64_t);
+
+int     buffer_get_char(Buffer *);
+void    buffer_put_char(Buffer *, int);
+
+void   *buffer_get_string(Buffer *, u_int *);
+void    buffer_put_string(Buffer *, const void *, u_int);
+void	buffer_put_cstring(Buffer *, const char *);
+
+#define buffer_skip_string(b) \
+    do { u_int l = buffer_get_int(b); buffer_consume(b, l); } while (0)
+
+int	buffer_put_bignum_ret(Buffer *, const BIGNUM *);
+int	buffer_get_bignum_ret(Buffer *, BIGNUM *);
+int	buffer_put_bignum2_ret(Buffer *, const BIGNUM *);
+int	buffer_get_bignum2_ret(Buffer *, BIGNUM *);
+int	buffer_get_short_ret(u_short *, Buffer *);
+int	buffer_get_int_ret(u_int *, Buffer *);
+int	buffer_get_int64_ret(u_int64_t *, Buffer *);
+void	*buffer_get_string_ret(Buffer *, u_int *);
+int	buffer_get_char_ret(char *, Buffer *);
 
 #endif				/* BUFFER_H */

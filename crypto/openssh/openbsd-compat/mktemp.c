@@ -35,6 +35,14 @@
 
 #include "includes.h"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#include <fcntl.h>
+#include <ctype.h>
+#include <errno.h>
+#include <unistd.h>
+
 #if !defined(HAVE_MKDTEMP) || defined(HAVE_STRICT_MKSTEMP)
 
 static int _gettemp(char *, int *, int, int);
