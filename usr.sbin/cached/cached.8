@@ -32,15 +32,17 @@
 .Nd "caching server daemon"
 .Sh SYNOPSIS
 .Nm
-.Op Fl nst
+.Op Fl dnst
 .Op Fl i Ar cachename
 .Op Fl I Ar cachename
 .Sh DESCRIPTION
+The
 .Nm
+utility
 is the system caching daemon.
 It can cache almost all types of data and is basically intended to be used
 with the
-.Pa nsswitch
+.Nm nsswitch
 subsystem.
 The cache is actually per-user.
 This means that each user can work only with the
@@ -49,19 +51,19 @@ cache of other users.
 The
 .Nm
 utility supports two types of caching:
-.Bl -tag -width Pair
+.Bl -tag -width ".Sy Type"
 .It Sy Type
 .Sy Description
 .It Common caching
-Each cached element is the the key+value pair.
+Each cached element is the key+value pair.
 This type of caching supports policies which are applied when maximum
 number of cached elements is exceeded.
 Three policies are available:
-.Pa FIFO
+.Cm FIFO
 (first in - first out),
-.Pa LRU
+.Cm LRU
 (least recently used) and
-.Pa LFU
+.Cm LFU
 (least frequently used).
 This type of caching is used with the
 .Fn getXXXbyname
@@ -77,24 +79,26 @@ The
 .Nm
 utility is able not only to cache elements, but to perform the actual nsswitch
 lookups by itself.
-To enable this feature use the
-.Pa perform-actual-lookups
-parameter in the
-.Xr cached.conf 5
+To enable this feature, use the
+.Va perform-actual-lookups
+parameter in
+.Xr cached.conf 5 .
 .Pp
 The
 .Nm
 utility recognizes the following runtime options:
 .Bl -tag -width indent
+.\" .It Fl d
+.\" XXX Document me!
 .It Fl n
-Do not daemonize.
+Do not daemonize;
 .Nm
 will not fork or disconnect itself from the terminal.
 .It Fl s
 Single-threaded mode.
 Forces using only one thread for all processing purposes (it overrides
 the
-.Pa threads
+.Va threads
 parameter in the
 .Xr cached.conf 5
 file).
@@ -116,16 +120,17 @@ It asks the already running
 to invalidate the specified part of the cache of the
 calling user.
 For example, sometimes you may want to invalidate your
-.Pa hosts
+.Dq Li hosts
 cache.
 You can specify
-.Pa all
+.Dq Li all
 as the
-.Pa cachename
+.Ar cachename
 to invalidate your personal cache as a whole.
-You cannot use this option for the cachename, for which
-the
-.Pa perform-actual-lookups
+You cannot use this option for the
+.Ar cachename
+for which the
+.Va perform-actual-lookups
 option is enabled.
 .It Fl I Ar cachename
 Invalidates the cache for every user.
@@ -138,14 +143,14 @@ running
 to invalidate the specified part of the cache for
 every user.
 You can specify
-.Pa all
+.Dq Li all
 as the
-.Pa cachename
+.Ar cachename
 to invalidate the whole cache.
 Only the root can use this option.
 .El
 .Sh FILES
-.Bl -tag -width /etc/cached.conf -compact
+.Bl -tag -width ".Pa /etc/cached.conf" -compact
 .It Pa /etc/cached.conf
 The default configuration file.
 .El
@@ -153,8 +158,8 @@ The default configuration file.
 .Xr nsdispatch 3 ,
 .Xr cached.conf 5 ,
 .Xr nsswitch.conf 5
-.Sh "AUTHORS"
+.Sh AUTHORS
 .An Michael Bushkov Aq bushman@rsu.ru
-.Sh "BUGS"
-To report bugs or suggestions please mail me:
-.Aq bushman@rsu.ru
+.Sh BUGS
+Please send bug reports and suggestions to
+.Aq bushman@rsu.ru .

@@ -35,9 +35,8 @@
 .Nm
 .Fl p
 .Nm
-.Op Fl d Ar name
-.Op Ar name Ns = Ns Ar value
-.Ar ...
+.Oo Fl d Ar name Oc Ar ...
+.Op Ar name Ns = Ns Ar value ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -58,7 +57,8 @@ The following options are available:
 .It Fl d Ar name
 Delete the variable selected by
 .Ar name
-from the EEPROM or NVRAM.  The
+from the EEPROM or NVRAM.
+The
 .Fl d
 flag can be specified multiple times, in which case multiple variables
 will be removed.
@@ -97,7 +97,6 @@ to
 .Dq Li 100 :
 .Pp
 .Dl "nvram -d foo -d bar baz=100"
-.Ed
 .Sh SEE ALSO
 .Xr powermac_nvram 4 ,
 .Xr eeprom 8
@@ -108,10 +107,10 @@ utility first appeared in
 .Fx 7.0 .
 It is inspired by the
 Darwin/Mac OS X
-.Xr nvram 8
+.Nm
 utility.
 .Sh AUTHORS
-.An Maxim Sobolev Aq sobomax@FreeBSD.org .
+.An Maxim Sobolev Aq sobomax@FreeBSD.org
 .Sh BUGS
 Currently,
 .Nm
