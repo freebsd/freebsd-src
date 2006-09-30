@@ -37,7 +37,7 @@
 .Nm rw_wunlock ,
 .Nm rw_initialized ,
 .Nm rw_destroy ,
-.Nm RW_SYSINIT ,
+.Nm RW_SYSINIT
 .Nd kernel reader/writer lock
 .Sh SYNOPSIS
 .In sys/param.h
@@ -219,7 +219,7 @@ is not included in the kernel,
 then it is impossible to assert that the current thread does or does not
 hold a shared lock.
 In the
-.No non - Ns Dv WITNESS
+.Pf non- Dv WITNESS
 case, the
 .Dv RA_LOCKED
 and
