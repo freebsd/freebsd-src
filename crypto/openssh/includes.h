@@ -1,5 +1,5 @@
-/*	$OpenBSD: includes.h,v 1.22 2006/01/01 08:59:27 stevesk Exp $	*/
-/*	$FreeBSD$	*/
+/* $OpenBSD: includes.h,v 1.54 2006/07/22 20:48:23 stevesk Exp $ */
+/* $FreeBSD$	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -17,43 +17,23 @@
 #ifndef INCLUDES_H
 #define INCLUDES_H
 
-#define RCSID(msg) \
-__RCSID(msg)
-
 #include "config.h"
 
 #define _GNU_SOURCE /* activate extra prototypes for glibc */
 
-#include <stdarg.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <errno.h>
-#include <fcntl.h> /* For O_NONBLOCK */
-#include <signal.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#include <pwd.h>
-#include <grp.h>
-#include <time.h>
-#include <dirent.h>
-#include <stddef.h>
+#include <sys/types.h>
+#include <sys/socket.h> /* For CMSG_* */
 
 #ifdef HAVE_LIMITS_H
 # include <limits.h> /* For PATH_MAX */
-#endif
-#ifdef HAVE_GETOPT_H
-# include <getopt.h>
 #endif
 #ifdef HAVE_BSTRING_H
 # include <bstring.h>
 #endif
 #if defined(HAVE_GLOB_H) && defined(GLOB_HAS_ALTDIRFUNC) && \
-    defined(GLOB_HAS_GL_MATCHC)
+    defined(GLOB_HAS_GL_MATCHC) && \
+    defined(HAVE_DECL_GLOB_NOMATCH) &&  HAVE_DECL_GLOB_NOMATCH != 0
 # include <glob.h>
-#endif
-#ifdef HAVE_NETGROUP_H
-# include <netgroup.h>
 #endif
 #ifdef HAVE_ENDIAN_H
 # include <endian.h>
@@ -68,10 +48,11 @@ __RCSID(msg)
 # include <maillock.h> /* For _PATH_MAILDIR */
 #endif
 #ifdef HAVE_NEXT
-#  include <libc.h>
+# include <libc.h>
 #endif
-#include <unistd.h> /* For STDIN_FILENO, etc */
-#include <termios.h> /* Struct winsize */
+#ifdef HAVE_PATHS
+# include <paths.h>
+#endif
 
 /*
  *-*-nto-qnx needs these headers for strcasecmp and LASTLOG_FILE respectively
@@ -87,39 +68,22 @@ __RCSID(msg)
 #  include <utmp.h>
 #endif
 #ifdef HAVE_UTMPX_H
-#  ifdef HAVE_TV_IN_UTMPX
-#    include <sys/time.h>
-#  endif
 #  include <utmpx.h>
 #endif
 #ifdef HAVE_LASTLOG_H
 #  include <lastlog.h>
 #endif
-#ifdef HAVE_PATHS_H
-#  include <paths.h> /* For _PATH_XXX */
-#endif
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <sys/wait.h>
-#ifdef HAVE_SYS_TIME_H
-# include <sys/time.h> /* For timersub */
-#endif
-#include <sys/resource.h>
 #ifdef HAVE_SYS_SELECT_H
 # include <sys/select.h>
 #endif
 #ifdef HAVE_SYS_BSDTTY_H
 # include <sys/bsdtty.h>
 #endif
-#include <sys/param.h> /* For MAXPATHLEN and roundup() */
-#ifdef HAVE_SYS_UN_H
-# include <sys/un.h> /* For sockaddr_un */
-#endif
 #ifdef HAVE_STDINT_H
 # include <stdint.h>
 #endif
+#include <termios.h>
 #ifdef HAVE_SYS_BITYPES_H
 # include <sys/bitypes.h> /* For u_intXX_t */
 #endif
@@ -145,14 +109,8 @@ __RCSID(msg)
 #include <sys/ptms.h>	/* for grantpt() and friends */
 #endif
 
+#include <netinet/in.h>
 #include <netinet/in_systm.h> /* For typedefs */
-#include <netinet/in.h> /* For IPv6 macros */
-#include <netinet/ip.h> /* For IPTOS macros */
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-#if defined(HAVE_NETDB_H)
-# include <netdb.h>
-#endif
 #ifdef HAVE_RPC_TYPES_H
 # include <rpc/types.h> /* For INADDR_LOOPBACK */
 #endif
@@ -206,7 +164,7 @@ __RCSID(msg)
 
 #include "defines.h"
 
-#include "version.h"
+#include "platform.h"
 #include "openbsd-compat/openbsd-compat.h"
 #include "openbsd-compat/bsd-nextstep.h"
 

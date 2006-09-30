@@ -1,5 +1,5 @@
-/*	$OpenBSD: monitor_wrap.h,v 1.14 2004/06/21 17:36:31 avsm Exp $	*/
-/*	$FreeBSD$	*/
+/* $OpenBSD: monitor_wrap.h,v 1.20 2006/08/03 03:34:42 deraadt Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
@@ -28,8 +28,6 @@
 
 #ifndef _MM_WRAP_H_
 #define _MM_WRAP_H_
-#include "key.h"
-#include "buffer.h"
 
 extern int use_privsep;
 #define PRIVSEP(x)	(use_privsep ? mm_##x : x)
@@ -38,7 +36,6 @@ enum mm_keytype {MM_NOKEY, MM_HOSTKEY, MM_USERKEY, MM_RSAHOSTKEY, MM_RSAUSERKEY}
 
 struct monitor;
 struct mm_master;
-struct passwd;
 struct Authctxt;
 
 int mm_is_monitor(void);
@@ -58,7 +55,6 @@ int mm_auth_rsa_verify_response(Key *, BIGNUM *, u_char *);
 BIGNUM *mm_auth_rsa_generate_challenge(Key *);
 
 #ifdef GSSAPI
-#include "ssh-gss.h"
 OM_uint32 mm_ssh_gssapi_server_ctx(Gssctxt **, gss_OID);
 OM_uint32 mm_ssh_gssapi_accept_ctx(Gssctxt *,
    gss_buffer_desc *, gss_buffer_desc *, OM_uint32 *);
@@ -83,7 +79,7 @@ void mm_audit_run_command(const char *);
 
 struct Session;
 void mm_terminate(void);
-int mm_pty_allocate(int *, int *, char *, int);
+int mm_pty_allocate(int *, int *, char *, size_t);
 void mm_session_pty_cleanup2(struct Session *);
 
 /* SSHv1 interfaces */
@@ -112,4 +108,4 @@ void *mm_zalloc(struct mm_master *, u_int, u_int);
 void mm_zfree(struct mm_master *, void *);
 void mm_init_compression(struct mm_master *);
 
-#endif /* _MM_H_ */
+#endif /* _MM_WRAP_H_ */

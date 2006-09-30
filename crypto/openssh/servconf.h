@@ -1,5 +1,5 @@
-/*	$OpenBSD: servconf.h,v 1.72 2005/12/06 22:38:27 reyk Exp $	*/
-/*	$FreeBSD$	*/
+/* $OpenBSD: servconf.h,v 1.79 2006/08/14 12:40:25 dtucker Exp $ */
+/* $FreeBSD$	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -17,8 +17,6 @@
 #ifndef SERVCONF_H
 #define SERVCONF_H
 
-#include "buffer.h"
-
 #define MAX_PORTS		256	/* Max # ports. */
 
 #define MAX_ALLOW_USERS		256	/* Max # users on allow list. */
@@ -28,6 +26,7 @@
 #define MAX_SUBSYSTEMS		256	/* Max # subsystems. */
 #define MAX_HOSTKEYS		256	/* Max # hostkeys. */
 #define MAX_ACCEPT_ENV		256	/* Max # of env vars. */
+#define MAX_MATCH_GROUPS	256	/* Max # of groups for Match. */
 
 /* permit_root_login */
 #define	PERMIT_NOT_SET		-1
@@ -112,6 +111,7 @@ typedef struct {
 	u_int num_subsystems;
 	char   *subsystem_name[MAX_SUBSYSTEMS];
 	char   *subsystem_command[MAX_SUBSYSTEMS];
+	char   *subsystem_args[MAX_SUBSYSTEMS];
 
 	u_int num_accept_env;
 	char   *accept_env[MAX_ACCEPT_ENV];
@@ -135,15 +135,24 @@ typedef struct {
 	char   *authorized_keys_file;	/* File containing public keys */
 	char   *authorized_keys_file2;
 
+	char   *adm_forced_command;
+
 	int	use_pam;		/* Enable auth via PAM */
 
 	int	permit_tun;
+
+	int	num_permitted_opens;
 }       ServerOptions;
 
 void	 initialize_server_options(ServerOptions *);
 void	 fill_default_server_options(ServerOptions *);
-int	 process_server_config_line(ServerOptions *, char *, const char *, int);
+int	 process_server_config_line(ServerOptions *, char *, const char *, int,
+	     int *, const char *, const char *, const char *);
 void	 load_server_config(const char *, Buffer *);
-void	 parse_server_config(ServerOptions *, const char *, Buffer *);
+void	 parse_server_config(ServerOptions *, const char *, Buffer *,
+	     const char *, const char *, const char *);
+void	 parse_server_match_config(ServerOptions *, const char *, const char *,
+	     const char *);
+void	 copy_set_server_options(ServerOptions *, ServerOptions *);
 
 #endif				/* SERVCONF_H */

@@ -1,3 +1,4 @@
+/* $OpenBSD: key.c,v 1.67 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * read_bignum():
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -31,17 +32,22 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 #include "includes.h"
-RCSID("$OpenBSD: key.c,v 1.58 2005/06/17 02:44:32 djm Exp $");
+
+#include <sys/types.h>
 
 #include <openssl/evp.h>
+
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "xmalloc.h"
 #include "key.h"
 #include "rsa.h"
 #include "uuencode.h"
 #include "buffer.h"
-#include "bufaux.h"
 #include "log.h"
 
 Key *
@@ -50,9 +56,8 @@ key_new(int type)
 	Key *k;
 	RSA *rsa;
 	DSA *dsa;
-	k = xmalloc(sizeof(*k));
+	k = xcalloc(1, sizeof(*k));
 	k->type = type;
-	k->flags = 0;
 	k->dsa = NULL;
 	k->rsa = NULL;
 	switch (k->type) {
@@ -123,6 +128,8 @@ key_new_private(int type)
 void
 key_free(Key *k)
 {
+	if (k == NULL)
+		fatal("key_free: key is NULL");
 	switch (k->type) {
 	case KEY_RSA1:
 	case KEY_RSA:
@@ -155,14 +162,12 @@ key_equal(const Key *a, const Key *b)
 		return a->rsa != NULL && b->rsa != NULL &&
 		    BN_cmp(a->rsa->e, b->rsa->e) == 0 &&
 		    BN_cmp(a->rsa->n, b->rsa->n) == 0;
-		break;
 	case KEY_DSA:
 		return a->dsa != NULL && b->dsa != NULL &&
 		    BN_cmp(a->dsa->p, b->dsa->p) == 0 &&
 		    BN_cmp(a->dsa->q, b->dsa->q) == 0 &&
 		    BN_cmp(a->dsa->g, b->dsa->g) == 0 &&
 		    BN_cmp(a->dsa->pub_key, b->dsa->pub_key) == 0;
-		break;
 	default:
 		fatal("key_equal: bad key type %d", a->type);
 		break;
@@ -209,7 +214,6 @@ key_fingerprint_raw(const Key *k, enum fp_type dgst_type,
 		break;
 	case KEY_UNSPEC:
 		return retval;
-		break;
 	default:
 		fatal("key_fingerprint_raw: bad key type %d", k->type);
 		break;
@@ -233,8 +237,7 @@ key_fingerprint_hex(u_char *dgst_raw, u_int dgst_raw_len)
 	char *retval;
 	u_int i;
 
-	retval = xmalloc(dgst_raw_len * 3 + 1);
-	retval[0] = '\0';
+	retval = xcalloc(1, dgst_raw_len * 3 + 1);
 	for (i = 0; i < dgst_raw_len; i++) {
 		char hex[4];
 		snprintf(hex, sizeof(hex), "%02x:", dgst_raw[i]);
@@ -256,7 +259,7 @@ key_fingerprint_bubblebabble(u_char *dgst_raw, u_int dgst_raw_len)
 	char *retval;
 
 	rounds = (dgst_raw_len / 2) + 1;
-	retval = xmalloc(sizeof(char) * (rounds*6));
+	retval = xcalloc((rounds * 6), sizeof(char));
 	retval[j++] = 'x';
 	for (i = 0; i < rounds; i++) {
 		u_int idx0, idx1, idx2, idx3, idx4;
@@ -530,13 +533,10 @@ key_type(const Key *k)
 	switch (k->type) {
 	case KEY_RSA1:
 		return "RSA1";
-		break;
 	case KEY_RSA:
 		return "RSA";
-		break;
 	case KEY_DSA:
 		return "DSA";
-		break;
 	}
 	return "unknown";
 }
@@ -547,10 +547,8 @@ key_ssh_name(const Key *k)
 	switch (k->type) {
 	case KEY_RSA:
 		return "ssh-rsa";
-		break;
 	case KEY_DSA:
 		return "ssh-dss";
-		break;
 	}
 	return "ssh-unknown";
 }
@@ -562,10 +560,8 @@ key_size(const Key *k)
 	case KEY_RSA1:
 	case KEY_RSA:
 		return BN_num_bits(k->rsa->n);
-		break;
 	case KEY_DSA:
 		return BN_num_bits(k->dsa->p);
-		break;
 	}
 	return 0;
 }
@@ -574,6 +570,7 @@ static RSA *
 rsa_generate_private_key(u_int bits)
 {
 	RSA *private;
+
 	private = RSA_generate_key(bits, 35, NULL, NULL);
 	if (private == NULL)
 		fatal("rsa_generate_private_key: key generation failed.");
@@ -584,6 +581,7 @@ static DSA*
 dsa_generate_private_key(u_int bits)
 {
 	DSA *private = DSA_generate_parameters(bits, NULL, 0, NULL, NULL, NULL, NULL);
+
 	if (private == NULL)
 		fatal("dsa_generate_private_key: DSA_generate_parameters failed");
 	if (!DSA_generate_key(private))
@@ -793,14 +791,11 @@ key_sign(
 	switch (key->type) {
 	case KEY_DSA:
 		return ssh_dss_sign(key, sigp, lenp, data, datalen);
-		break;
 	case KEY_RSA:
 		return ssh_rsa_sign(key, sigp, lenp, data, datalen);
-		break;
 	default:
 		error("key_sign: invalid key type %d", key->type);
 		return -1;
-		break;
 	}
 }
 
@@ -820,14 +815,11 @@ key_verify(
 	switch (key->type) {
 	case KEY_DSA:
 		return ssh_dss_verify(key, signature, signaturelen, data, datalen);
-		break;
 	case KEY_RSA:
 		return ssh_rsa_verify(key, signature, signaturelen, data, datalen);
-		break;
 	default:
 		error("key_verify: invalid key type %d", key->type);
 		return -1;
-		break;
 	}
 }
 
@@ -837,7 +829,7 @@ key_demote(const Key *k)
 {
 	Key *pk;
 
-	pk = xmalloc(sizeof(*pk));
+	pk = xcalloc(1, sizeof(*pk));
 	pk->type = k->type;
 	pk->flags = k->flags;
 	pk->dsa = NULL;

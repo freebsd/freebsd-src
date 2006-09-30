@@ -1,4 +1,4 @@
-/* $Id: fake-rfc2553.h,v 1.12 2005/08/03 05:36:21 dtucker Exp $ */
+/* $Id: fake-rfc2553.h,v 1.13 2006/07/24 03:51:52 djm Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -42,7 +42,10 @@
 #define _FAKE_RFC2553_H
 
 #include "includes.h"
-#include "sys/types.h"
+#include <sys/types.h>
+#if defined(HAVE_NETDB_H)
+# include <netdb.h>
+#endif
 
 /*
  * First, socket and INET6 related definitions 

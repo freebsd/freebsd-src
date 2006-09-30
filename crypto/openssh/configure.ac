@@ -1,4 +1,4 @@
-# $Id: configure.ac,v 1.322 2006/01/29 13:22:39 dtucker Exp $
+# $Id: configure.ac,v 1.367 2006/09/24 19:08:59 tim Exp $
 # $FreeBSD$
 #
 # Copyright (c) 1999-2004 Damien Miller
@@ -16,6 +16,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_INIT(OpenSSH, Portable, openssh-unix-dev@mindrot.org)
+AC_REVISION($Revision: 1.367 $)
 AC_CONFIG_SRCDIR([ssh.c])
 
 AC_CONFIG_HEADER(config.h)
@@ -28,6 +29,7 @@ AC_PROG_AWK
 AC_PROG_CPP
 AC_PROG_RANLIB
 AC_PROG_INSTALL
+AC_PROG_EGREP
 AC_PATH_PROG(AR, ar)
 AC_PATH_PROG(CAT, cat)
 AC_PATH_PROG(KILL, kill)
@@ -126,15 +128,45 @@ AC_ARG_WITH(rpath,
 	]
 )
 
+# Messages for features tested for in target-specific section
+SIA_MSG="no"
+SPC_MSG="no"
+
 # Check for some target-specific stuff
 case "$host" in
 *-*-aix*)
+	# Some versions of VAC won't allow macro redefinitions at
+	# -qlanglevel=ansi, and autoconf 2.60 sometimes insists on using that
+	# particularly with older versions of vac or xlc.
+	# It also throws errors about null macro argments, but these are
+	# not fatal.
+	AC_MSG_CHECKING(if compiler allows macro redefinitions)
+	AC_COMPILE_IFELSE(
+	    [AC_LANG_SOURCE([[
+#define testmacro foo
+#define testmacro bar
+int main(void) { exit(0); }
+	    ]])],
+	    [ AC_MSG_RESULT(yes) ],
+	    [ AC_MSG_RESULT(no)
+	      CC="`echo $CC | sed 's/-qlanglvl\=ansi//g'`"
+	      LD="`echo $LD | sed 's/-qlanglvl\=ansi//g'`"
+	      CFLAGS="`echo $CFLAGS | sed 's/-qlanglvl\=ansi//g'`"
+	      CPPFLAGS="`echo $CPPFLAGS | sed 's/-qlanglvl\=ansi//g'`"
+	    ]
+	)
+
 	AC_MSG_CHECKING([how to specify blibpath for linker ($LD)])
 	if (test -z "$blibpath"); then
 		blibpath="/usr/lib:/lib"
 	fi
 	saved_LDFLAGS="$LDFLAGS"
-	for tryflags in -blibpath: -Wl,-blibpath: -Wl,-rpath, ;do
+	if test "$GCC" = "yes"; then
+		flags="-Wl,-blibpath: -Wl,-rpath, -blibpath:"
+	else
+		flags="-blibpath: -Wl,-blibpath: -Wl,-rpath,"
+	fi
+	for tryflags in $flags ;do
 		if (test -z "$blibflags"); then
 			LDFLAGS="$saved_LDFLAGS $tryflags$blibpath"
 			AC_TRY_LINK([], [], [blibflags=$tryflags])
@@ -174,6 +206,12 @@ case "$host" in
 		[#include <usersec.h>]
 	)
 	AC_CHECK_FUNCS(setauthdb)
+	AC_CHECK_DECL(F_CLOSEM,
+	    AC_DEFINE(HAVE_FCNTL_CLOSEM, 1, [Use F_CLOSEM fcntl for closefrom]),
+	    [],
+	    [ #include <limits.h>
+	      #include <fcntl.h> ]
+	)
 	check_for_aix_broken_getaddrinfo=1
 	AC_DEFINE(BROKEN_REALPATH, 1, [Define if you have a broken realpath.])
 	AC_DEFINE(SETEUID_BREAKS_SETUID, 1,
@@ -189,6 +227,7 @@ case "$host" in
 		supported by bsd-setproctitle.c])
 	AC_DEFINE(SSHPAM_CHAUTHTOK_NEEDS_RUID, 1,
 	    [AIX 5.2 and 5.3 (and presumably newer) require this])
+	AC_DEFINE(PTY_ZEROREAD, 1, [read(1) can return 0 for a non-closed fd])
 	;;
 *-*-cygwin*)
 	check_for_libcrypt_later=1
@@ -230,6 +269,14 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	AC_DEFINE(BROKEN_SETREGID)
 	AC_DEFINE_UNQUOTED(BIND_8_COMPAT, 1,
 		[Define if your resolver libs need this for getrrsetbyname])
+	AC_DEFINE(SSH_TUN_FREEBSD, 1, [Open tunnel devices the FreeBSD way])
+	AC_DEFINE(SSH_TUN_COMPAT_AF, 1,
+	    [Use tunnel device compatibility to OpenBSD])
+	AC_DEFINE(SSH_TUN_PREPEND_AF, 1,
+	    [Prepend the address family to IP tunnel traffic])
+	;;
+*-*-dragonfly*)
+	SSHDLIBS="$SSHDLIBS -lcrypt"
 	;;
 *-*-hpux*)
 	# first we define all of the options common to all HP-UX releases
@@ -344,7 +391,7 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	fi
 	;;
 mips-sony-bsd|mips-sony-newsos4)
-	AC_DEFINE(NEED_SETPRGP, 1, [Need setpgrp to acquire controlling tty])
+	AC_DEFINE(NEED_SETPGRP, 1, [Need setpgrp to acquire controlling tty])
 	SONY=1
 	;;
 *-*-netbsd*)
@@ -384,6 +431,8 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE(HAVE_ATTRIBUTE__SENTINEL__, 1, [OpenBSD's gcc has sentinel])
 	AC_DEFINE(HAVE_ATTRIBUTE__BOUNDED__, 1, [OpenBSD's gcc has bounded])
 	AC_DEFINE(SSH_TUN_OPENBSD, 1, [Open tunnel devices the OpenBSD way])
+	AC_DEFINE(SYSLOG_R_SAFE_IN_SIGHAND, 1,
+	    [syslog_r function is safe to use in in a signal handler])
 	;;
 *-*-solaris*)
 	if test "x$withval" != "xno" ; then
@@ -403,6 +452,8 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE(SSHD_ACQUIRES_CTTY, 1,
 		[Define if sshd somehow reacquires a controlling TTY
 		after setsid()])
+	AC_DEFINE(PASSWD_NEEDS_USERNAME, 1, [must supply username to passwd
+		in case the name is longer than 8 chars])
 	external_path_file=/etc/default/login
 	# hardwire lastlog location (can't detect it on some versions)
 	conf_lastlog_location="/var/adm/lastlog"
@@ -416,6 +467,17 @@ mips-sony-bsd|mips-sony-newsos4)
 	else
 		AC_MSG_RESULT(no)
 	fi
+	AC_ARG_WITH(solaris-contracts,
+		[  --with-solaris-contracts Enable Solaris process contracts (experimental)],
+		[
+		AC_CHECK_LIB(contract, ct_tmpl_activate,
+			[ AC_DEFINE(USE_SOLARIS_PROCESS_CONTRACTS, 1,
+				[Define if you have Solaris process contracts])
+			  SSHDLIBS="$SSHDLIBS -lcontract"
+			  AC_SUBST(SSHDLIBS)
+			  SPC_MSG="yes" ], )
+		],
+	)
 	;;
 *-*-sunos4*)
 	CPPFLAGS="$CPPFLAGS -DSUNOS4"
@@ -453,7 +515,6 @@ mips-sony-bsd|mips-sony-newsos4)
 	;;
 # UnixWare 1.x, UnixWare 2.x, and others based on code from Univel.
 *-*-sysv4.2*)
-	CFLAGS="$CFLAGS -Dva_list=_VA_LIST"
 	AC_DEFINE(USE_PIPES)
 	AC_DEFINE(SETEUID_BREAKS_SETUID)
 	AC_DEFINE(BROKEN_SETREUID)
@@ -475,6 +536,7 @@ mips-sony-bsd|mips-sony-newsos4)
 		TEST_SHELL=/u95/bin/sh
 		AC_DEFINE(BROKEN_LIBIAF, 1,
 			[ia_uinfo routines not supported by OS yet])
+		AC_DEFINE(BROKEN_UPDWTMPX)
 		;;
 	*)	AC_DEFINE(LOCKED_PASSWD_STRING, "*LK*")
 		;;
@@ -564,6 +626,7 @@ mips-sony-bsd|mips-sony-newsos4)
 				system's login() call])
 			AC_DEFINE(DISABLE_FD_PASSING)
 			LIBS="$LIBS -lsecurity -ldb -lm -laud"
+			SIA_MSG="yes"
 		else
 			AC_MSG_RESULT(no)
 			AC_DEFINE(LOCKED_PASSWD_SUBSTR, "Nologin",
@@ -576,18 +639,21 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE(BROKEN_SETREGID)
 	;;
 
-*-*-nto-qnx)
+*-*-nto-qnx*)
 	AC_DEFINE(USE_PIPES)
 	AC_DEFINE(NO_X11_UNIX_SOCKETS)
 	AC_DEFINE(MISSING_NFDBITS, 1, [Define on *nto-qnx systems])
 	AC_DEFINE(MISSING_HOWMANY, 1, [Define on *nto-qnx systems])
 	AC_DEFINE(MISSING_FD_MASK, 1, [Define on *nto-qnx systems])
+	AC_DEFINE(DISABLE_LASTLOG)
+	AC_DEFINE(SSHD_ACQUIRES_CTTY)
+	enable_etc_default_login=no	# has incompatible /etc/default/login
 	;;
 
 *-*-ultrix*)
 	AC_DEFINE(BROKEN_GETGROUPS, 1, [getgroups(0,NULL) will return -1])
 	AC_DEFINE(BROKEN_MMAP, 1, [Ultrix mmap can't map files])
-	AC_DEFINE(NEED_SETPRGP)
+	AC_DEFINE(NEED_SETPGRP)
 	AC_DEFINE(HAVE_SYS_SYSLOG_H, 1, [Force use of sys/syslog.h on Ultrix])
 	;;
 
@@ -665,30 +731,30 @@ dnl Checks for header files.
 AC_CHECK_HEADERS( \
 	bstring.h \
 	crypt.h \
+	crypto/sha2.h \
 	dirent.h \
 	endian.h \
 	features.h \
+	fcntl.h \
 	floatingpoint.h \
 	getopt.h \
 	glob.h \
 	ia.h \
 	iaf.h \
-	lastlog.h \
 	limits.h \
 	login.h \
-	login_cap.h \
 	maillock.h \
 	ndir.h \
-	net/if.h \
+	net/if_tun.h \
 	netdb.h \
 	netgroup.h \
-	netinet/in_systm.h \
 	pam/pam_appl.h \
 	paths.h \
 	pty.h \
 	readpassphrase.h \
 	rpc/types.h \
 	security/pam_appl.h \
+	sha2.h \
 	shadow.h \
 	stddef.h \
 	stdint.h \
@@ -724,11 +790,23 @@ AC_CHECK_HEADERS( \
 	vis.h \
 )
 
+# lastlog.h requires sys/time.h to be included first on Solaris
+AC_CHECK_HEADERS(lastlog.h, [], [], [
+#ifdef HAVE_SYS_TIME_H
+# include <sys/time.h>
+#endif
+])
+
 # sys/ptms.h requires sys/stream.h to be included first on Solaris
 AC_CHECK_HEADERS(sys/ptms.h, [], [], [
 #ifdef HAVE_SYS_STREAM_H
 # include <sys/stream.h>
 #endif
+])
+
+# login_cap.h requires sys/types.h on NetBSD
+AC_CHECK_HEADERS(login_cap.h, [], [], [
+#include <sys/types.h>
 ])
 
 # Checks for libraries.
@@ -915,11 +993,9 @@ AC_EGREP_CPP(FOUNDIT,
 
 # Check for g.gl_matchc glob() extension
 AC_MSG_CHECKING(for gl_matchc field in glob_t)
-AC_EGREP_CPP(FOUNDIT,
-	[
-		#include <glob.h>
-		int main(void){glob_t g; g.gl_matchc = 1;}
-	],
+AC_TRY_COMPILE(
+	[ #include <glob.h> ],
+	[glob_t g; g.gl_matchc = 1;],
 	[
 		AC_DEFINE(GLOB_HAS_GL_MATCHC, 1,
 			[Define if your system glob() function has
@@ -930,6 +1006,8 @@ AC_EGREP_CPP(FOUNDIT,
 		AC_MSG_RESULT(no)
 	]
 )
+
+AC_CHECK_DECLS(GLOB_NOMATCH, , , [#include <glob.h>])
 
 AC_MSG_CHECKING([whether struct dirent allocates space for d_name])
 AC_RUN_IFELSE(
@@ -1147,7 +1225,13 @@ AC_ARG_WITH(audit,
 		AUDIT_MODULE=bsm
 		dnl    Checks for headers, libs and functions
 		AC_CHECK_HEADERS(bsm/audit.h, [],
-		    [AC_MSG_ERROR(BSM enabled and bsm/audit.h not found)])
+		    [AC_MSG_ERROR(BSM enabled and bsm/audit.h not found)],
+		    [
+#ifdef HAVE_TIME_H
+# include <time.h>
+#endif
+		    ]
+)
 		AC_CHECK_LIB(bsm, getaudit, [],
 		    [AC_MSG_ERROR(BSM enabled and required library not found)])
 		AC_CHECK_FUNCS(getaudit, [],
@@ -1292,6 +1376,29 @@ AC_CHECK_DECL(tcsendbreak,
 )
 
 AC_CHECK_DECLS(h_errno, , ,[#include <netdb.h>])
+
+AC_CHECK_DECLS(SHUT_RD, , ,
+	[
+#include <sys/types.h>
+#include <sys/socket.h>
+	])
+
+AC_CHECK_DECLS(O_NONBLOCK, , ,
+	[
+#include <sys/types.h>
+#ifdef HAVE_SYS_STAT_H
+# include <sys/stat.h>
+#endif
+#ifdef HAVE_FCNTL_H
+# include <fcntl.h>
+#endif
+	])
+
+AC_CHECK_DECLS(writev, , , [
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <unistd.h>
+	])
 
 AC_CHECK_FUNCS(setresuid, [
 	dnl Some platorms have setresuid that isn't implemented, test for this
@@ -1637,6 +1744,7 @@ main(void)
 			AC_MSG_RESULT(no)
 			AC_DEFINE(BROKEN_GETADDRINFO)
 		],
+		[
 			AC_MSG_RESULT(cross-compiling, assuming no)
 		]
 	)
@@ -1661,61 +1769,6 @@ int main(void) {exit(0);}
 fi
 
 AC_FUNC_GETPGRP
-
-# Check for PAM libs
-PAM_MSG="no"
-AC_ARG_WITH(pam,
-	[  --with-pam              Enable PAM support ],
-	[
-		if test "x$withval" != "xno" ; then
-			if test "x$ac_cv_header_security_pam_appl_h" != "xyes" && \
-			   test "x$ac_cv_header_pam_pam_appl_h" != "xyes" ; then
-				AC_MSG_ERROR([PAM headers not found])
-			fi
-
-			AC_CHECK_LIB(dl, dlopen, , )
-			AC_CHECK_LIB(pam, pam_set_item, , AC_MSG_ERROR([*** libpam missing]))
-			AC_CHECK_FUNCS(pam_getenvlist)
-			AC_CHECK_FUNCS(pam_putenv)
-
-			PAM_MSG="yes"
-
-			AC_DEFINE(USE_PAM, 1,
-				[Define if you want to enable PAM support])
-			if test $ac_cv_lib_dl_dlopen = yes; then
-				LIBPAM="-lpam -ldl"
-			else
-				LIBPAM="-lpam"
-			fi
-			AC_SUBST(LIBPAM)
-		fi
-	]
-)
-
-# Check for older PAM
-if test "x$PAM_MSG" = "xyes" ; then
-	# Check PAM strerror arguments (old PAM)
-	AC_MSG_CHECKING([whether pam_strerror takes only one argument])
-	AC_TRY_COMPILE(
-		[
-#include <stdlib.h>
-#if defined(HAVE_SECURITY_PAM_APPL_H)
-#include <security/pam_appl.h>
-#elif defined (HAVE_PAM_PAM_APPL_H)
-#include <pam/pam_appl.h>
-#endif
-		],
-		[(void)pam_strerror((pam_handle_t *)NULL, -1);],
-		[AC_MSG_RESULT(no)],
-		[
-			AC_DEFINE(HAVE_OLD_PAM, 1,
-				[Define if you have an old version of PAM
-				which takes only one argument to pam_strerror])
-			AC_MSG_RESULT(yes)
-			PAM_MSG="yes (old library)"
-		]
-	)
-fi
 
 # Search for OpenSSL
 saved_CPPFLAGS="$CPPFLAGS"
@@ -1862,13 +1915,61 @@ Also see contrib/findssl.sh for help identifying header/library mismatches.])
 	]
 )
 
+AC_MSG_CHECKING([if programs using OpenSSL functions will link])
+AC_LINK_IFELSE(
+	[AC_LANG_SOURCE([[
+#include <openssl/evp.h>
+int main(void) { SSLeay_add_all_algorithms(); }
+	]])],
+	[
+		AC_MSG_RESULT(yes)
+	],
+	[
+		AC_MSG_RESULT(no)
+		saved_LIBS="$LIBS"
+		LIBS="$LIBS -ldl"
+		AC_MSG_CHECKING([if programs using OpenSSL need -ldl])
+		AC_LINK_IFELSE(
+			[AC_LANG_SOURCE([[
+#include <openssl/evp.h>
+int main(void) { SSLeay_add_all_algorithms(); }
+			]])],
+			[
+				AC_MSG_RESULT(yes)
+			],
+			[
+				AC_MSG_RESULT(no)
+				LIBS="$saved_LIBS"
+			]
+		)
+	]
+)
+
+AC_ARG_WITH(ssl-engine,
+	[  --with-ssl-engine       Enable OpenSSL (hardware) ENGINE support ],
+	[ if test "x$withval" != "xno" ; then
+		AC_MSG_CHECKING(for OpenSSL ENGINE support)
+		AC_TRY_COMPILE(
+			[ #include <openssl/engine.h>],
+			[
+int main(void){ENGINE_load_builtin_engines();ENGINE_register_all_complete();}
+			],
+			[ AC_MSG_RESULT(yes)
+			  AC_DEFINE(USE_OPENSSL_ENGINE, 1,
+			     [Enable OpenSSL engine support])
+			],
+			[ AC_MSG_ERROR(OpenSSL ENGINE support not found)]
+		)
+	  fi ]
+)
+
 # Check for OpenSSL without EVP_aes_{192,256}_cbc
 AC_MSG_CHECKING([whether OpenSSL has crippled AES support])
-AC_COMPILE_IFELSE(
+AC_LINK_IFELSE(
 	[AC_LANG_SOURCE([[
 #include <string.h>
 #include <openssl/evp.h>
-int main(void) { exit(EVP_aes_192_cbc() == NULL || EVP_aes_256_cbc() == NULL)}
+int main(void) { exit(EVP_aes_192_cbc() == NULL || EVP_aes_256_cbc() == NULL);}
 	]])],
 	[
 		AC_MSG_RESULT(no)
@@ -1891,6 +1992,9 @@ fi
 if test "x$check_for_libcrypt_later" = "x1"; then
 	AC_CHECK_LIB(crypt, crypt, LIBS="$LIBS -lcrypt")
 fi
+
+# Search for SHA256 support in libc and/or OpenSSL
+AC_CHECK_FUNCS(SHA256_Update EVP_sha256)
 
 AC_CHECK_LIB(iaf, ia_openinfo)
 
@@ -1922,6 +2026,69 @@ int main(void) { exit(RAND_status() == 1 ? 0 : 1); }
 	]
 )
 
+# Check for PAM libs
+PAM_MSG="no"
+AC_ARG_WITH(pam,
+	[  --with-pam              Enable PAM support ],
+	[
+		if test "x$withval" != "xno" ; then
+			if test "x$ac_cv_header_security_pam_appl_h" != "xyes" && \
+			   test "x$ac_cv_header_pam_pam_appl_h" != "xyes" ; then
+				AC_MSG_ERROR([PAM headers not found])
+			fi
+
+			saved_LIBS="$LIBS"
+			AC_CHECK_LIB(dl, dlopen, , )
+			AC_CHECK_LIB(pam, pam_set_item, , AC_MSG_ERROR([*** libpam missing]))
+			AC_CHECK_FUNCS(pam_getenvlist)
+			AC_CHECK_FUNCS(pam_putenv)
+			LIBS="$saved_LIBS"
+
+			PAM_MSG="yes"
+
+			LIBPAM="-lpam"
+			AC_DEFINE(USE_PAM, 1,
+				[Define if you want to enable PAM support])
+
+			if test $ac_cv_lib_dl_dlopen = yes; then
+				case "$LIBS" in
+				*-ldl*)
+					# libdl already in LIBS
+					;;
+				*)
+					LIBPAM="$LIBPAM -ldl"
+					;;
+				esac
+			fi
+			AC_SUBST(LIBPAM)
+		fi
+	]
+)
+
+# Check for older PAM
+if test "x$PAM_MSG" = "xyes" ; then
+	# Check PAM strerror arguments (old PAM)
+	AC_MSG_CHECKING([whether pam_strerror takes only one argument])
+	AC_TRY_COMPILE(
+		[
+#include <stdlib.h>
+#if defined(HAVE_SECURITY_PAM_APPL_H)
+#include <security/pam_appl.h>
+#elif defined (HAVE_PAM_PAM_APPL_H)
+#include <pam/pam_appl.h>
+#endif
+		],
+		[(void)pam_strerror((pam_handle_t *)NULL, -1);],
+		[AC_MSG_RESULT(no)],
+		[
+			AC_DEFINE(HAVE_OLD_PAM, 1,
+				[Define if you have an old version of PAM
+				which takes only one argument to pam_strerror])
+			AC_MSG_RESULT(yes)
+			PAM_MSG="yes (old library)"
+		]
+	)
+fi
 
 # Do we want to force the use of the rand helper?
 AC_ARG_WITH(rand-helper,
@@ -2141,6 +2308,34 @@ if test -z "$have_llong_max"; then
 #define __USE_ISOC99
 #include <limits.h>
 #define DATA "conftest.llminmax"
+#define my_abs(a) ((a) < 0 ? ((a) * -1) : (a))
+
+/*
+ * printf in libc on some platforms (eg old Tru64) does not understand %lld so
+ * we do this the hard way.
+ */
+static int
+fprint_ll(FILE *f, long long n)
+{
+	unsigned int i;
+	int l[sizeof(long long) * 8];
+
+	if (n < 0)
+		if (fprintf(f, "-") < 0)
+			return -1;
+	for (i = 0; n != 0; i++) {
+		l[i] = my_abs(n % 10);
+		n /= 10;
+	}
+	do {
+		if (fprintf(f, "%d", l[--i]) < 0)
+			return -1;
+	} while (i != 0);
+	if (fprintf(f, " ") < 0)
+		return -1;
+	return 0;
+}
+
 int main(void) {
 	FILE *f;
 	long long i, llmin, llmax = 0;
@@ -2162,31 +2357,24 @@ int main(void) {
 
 	/* Sanity check */
 	if (llmin + 1 < llmin || llmin - 1 < llmin || llmax + 1 > llmax
-	    || llmax - 1 > llmax) {
+	    || llmax - 1 > llmax || llmin == llmax || llmin == 0
+	    || llmax == 0 || llmax < LONG_MAX || llmin > LONG_MIN) {
 		fprintf(f, "unknown unknown\n");
 		exit(2);
 	}
 
-	if (fprintf(f ,"%lld %lld", llmin, llmax) < 0)
+	if (fprint_ll(f, llmin) < 0)
 		exit(3);
-
+	if (fprint_ll(f, llmax) < 0)
+		exit(4);
+	if (fclose(f) < 0)
+		exit(5);
 	exit(0);
 }
 		]])],
 		[
 			llong_min=`$AWK '{print $1}' conftest.llminmax`
 			llong_max=`$AWK '{print $2}' conftest.llminmax`
-
-			# snprintf on some Tru64s doesn't understand "%lld"
-			case "$host" in
-			alpha-dec-osf*)
-				if test "x$ac_cv_sizeof_long_long_int" = "x8" &&
-				  test "x$llong_max" = "xld"; then
-					llong_min="-9223372036854775808"
-					llong_max="9223372036854775807"
-				fi
-				;;
-			esac
 
 			AC_MSG_RESULT($llong_max)
 			AC_DEFINE_UNQUOTED(LLONG_MAX, [${llong_max}LL],
@@ -2937,7 +3125,7 @@ AC_ARG_WITH(opensc,
 			LIBOPENSC_CFLAGS=`$OPENSC_CONFIG --cflags`
 			LIBOPENSC_LIBS=`$OPENSC_CONFIG --libs`
 			CPPFLAGS="$CPPFLAGS $LIBOPENSC_CFLAGS"
-			LDFLAGS="$LDFLAGS $LIBOPENSC_LIBS"
+			LIBS="$LIBS $LIBOPENSC_LIBS"
 			AC_DEFINE(SMARTCARD)
 			AC_DEFINE(USE_OPENSC, 1,
 				[Define if you want smartcard support
@@ -2984,6 +3172,23 @@ int main()
 			    [Define if HEADER.ad exists in arpa/nameser.h])],,
 			[#include <arpa/nameser.h>])
 	])
+
+# Check whether user wants SELinux support
+SELINUX_MSG="no"
+LIBSELINUX=""
+AC_ARG_WITH(selinux,
+	[  --with-selinux   Enable SELinux support],
+	[ if test "x$withval" != "xno" ; then
+		AC_DEFINE(WITH_SELINUX,1,[Define if you want SELinux support.])
+		SELINUX_MSG="yes"
+		AC_CHECK_HEADER([selinux/selinux.h], ,
+		    AC_MSG_ERROR(SELinux support requires selinux.h header))
+		AC_CHECK_LIB(selinux, setexeccon, [ LIBSELINUX="-lselinux" ],
+		    AC_MSG_ERROR(SELinux support requires libselinux library))
+		AC_CHECK_FUNCS(getseuserbyname get_default_context_with_level)
+	fi ]
+)
+AC_SUBST(LIBSELINUX)
 
 # Check whether user wants Kerberos 5 support
 KRB5_MSG="no"
@@ -3747,20 +3952,13 @@ if test ! -z "$blibpath" ; then
 	AC_MSG_WARN([Please check and edit blibpath in LDFLAGS in Makefile])
 fi
 
-dnl remove pam and dl because they are in $LIBPAM
-if test "$PAM_MSG" = yes ; then
-	LIBS=`echo $LIBS | sed 's/-lpam //'`
-fi
-if test "$ac_cv_lib_pam_pam_set_item" = yes ; then
-	LIBS=`echo $LIBS | sed 's/-ldl //'`
-fi
-
 dnl Adding -Werror to CFLAGS early prevents configure tests from running.
 dnl Add now.
 CFLAGS="$CFLAGS $werror_flags"
 
 AC_EXEEXT
-AC_CONFIG_FILES([Makefile buildpkg.sh opensshd.init openbsd-compat/Makefile \
+AC_CONFIG_FILES([Makefile buildpkg.sh opensshd.init openssh.xml \
+	openbsd-compat/Makefile openbsd-compat/regress/Makefile \
 	scard/Makefile ssh_prng_cmds survey.sh])
 AC_OUTPUT
 
@@ -3802,13 +4000,16 @@ echo "          sshd superuser user PATH: $J"
 fi
 echo "                    Manpage format: $MANTYPE"
 echo "                       PAM support: $PAM_MSG"
+echo "                   OSF SIA support: $SIA_MSG"
 echo "                 KerberosV support: $KRB5_MSG"
+echo "                   SELinux support: $SELINUX_MSG"
 echo "                 Smartcard support: $SCARD_MSG"
 echo "                     S/KEY support: $SKEY_MSG"
 echo "                      OPIE support: $OPIE_MSG"
 echo "              TCP Wrappers support: $TCPW_MSG"
 echo "              MD5 password support: $MD5_MSG"
 echo "                   libedit support: $LIBEDIT_MSG"
+echo "  Solaris process contract support: $SPC_MSG"
 echo "       IP address in \$DISPLAY hack: $DISPLAY_HACK_MSG"
 echo "           Translate v4 in v6 hack: $IPV4_IN6_HACK_MSG"
 echo "                  BSD Auth support: $BSD_AUTH_MSG"

@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.48 2006/01/02 17:09:49 jmc Exp $
+.\" $OpenBSD: sshd_config.5,v 1.70 2006/08/21 08:14:01 dtucker Exp $
 .\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSHD_CONFIG 5
@@ -47,7 +47,7 @@
 .It Pa /etc/ssh/sshd_config
 .El
 .Sh DESCRIPTION
-.Nm sshd
+.Xr sshd 8
 reads configuration data from
 .Pa /etc/ssh/sshd_config
 (or the file specified with
@@ -57,6 +57,9 @@ The file contains keyword-argument pairs, one per line.
 Lines starting with
 .Ql #
 and empty lines are interpreted as comments.
+Arguments may optionally be enclosed in double quotes
+.Pq \&"
+in order to represent arguments containing spaces.
 .Pp
 The possible
 keywords and their meanings are as follows (note that
@@ -73,7 +76,7 @@ in
 for how to configure the client.
 Note that environment passing is only supported for protocol 2.
 Variables are specified by name, which may contain the wildcard characters
-.Ql \&*
+.Ql *
 and
 .Ql \&? .
 Multiple environment variables may be separated by whitespace or spread
@@ -86,11 +89,11 @@ For this reason, care should be taken in the use of this directive.
 The default is not to accept any environment variables.
 .It Cm AddressFamily
 Specifies which address family should be used by
-.Nm sshd .
+.Xr sshd 8 .
 Valid arguments are
 .Dq any ,
 .Dq inet
-(use IPv4 only) or
+(use IPv4 only), or
 .Dq inet6
 (use IPv6 only).
 The default is
@@ -100,13 +103,20 @@ This keyword can be followed by a list of group name patterns, separated
 by spaces.
 If specified, login is allowed only for users whose primary
 group or supplementary group list matches one of the patterns.
-.Ql \&*
-and
-.Ql \&?
-can be used as
-wildcards in the patterns.
 Only group names are valid; a numerical group ID is not recognized.
 By default, login is allowed for all groups.
+The allow/deny directives are processed in the following order:
+.Cm DenyUsers ,
+.Cm AllowUsers ,
+.Cm DenyGroups ,
+and finally
+.Cm AllowGroups .
+.Pp
+See
+.Sx PATTERNS
+in
+.Xr ssh_config 5
+for more information on patterns.
 .It Cm AllowTcpForwarding
 Specifies whether TCP forwarding is permitted.
 The default is
@@ -119,24 +129,31 @@ This keyword can be followed by a list of user name patterns, separated
 by spaces.
 If specified, login is allowed only for user names that
 match one of the patterns.
-.Ql \&*
-and
-.Ql \&?
-can be used as
-wildcards in the patterns.
 Only user names are valid; a numerical user ID is not recognized.
 By default, login is allowed for all users.
 If the pattern takes the form USER@HOST then USER and HOST
 are separately checked, restricting logins to particular
 users from particular hosts.
+The allow/deny directives are processed in the following order:
+.Cm DenyUsers ,
+.Cm AllowUsers ,
+.Cm DenyGroups ,
+and finally
+.Cm AllowGroups .
+.Pp
+See
+.Sx PATTERNS
+in
+.Xr ssh_config 5
+for more information on patterns.
 .It Cm AuthorizedKeysFile
 Specifies the file that contains the public keys that can be used
 for user authentication.
 .Cm AuthorizedKeysFile
 may contain tokens of the form %T which are substituted during connection
-set-up.
+setup.
 The following tokens are defined: %% is replaced by a literal '%',
-%h is replaced by the home directory of the user being authenticated and
+%h is replaced by the home directory of the user being authenticated, and
 %u is replaced by the username of that user.
 After expansion,
 .Cm AuthorizedKeysFile
@@ -182,20 +199,19 @@ The supported ciphers are
 .Dq blowfish-cbc ,
 and
 .Dq cast128-cbc .
-The default is
-.Bd -literal
-  ``aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour128,
-    arcfour256,arcfour,aes192-cbc,aes256-cbc,aes128-ctr,
-    aes192-ctr,aes256-ctr''
+The default is:
+.Bd -literal -offset 3n
+aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour128,
+arcfour256,arcfour,aes192-cbc,aes256-cbc,aes128-ctr,
+aes192-ctr,aes256-ctr
 .Ed
 .It Cm ClientAliveCountMax
 Sets the number of client alive messages (see below) which may be
 sent without
-.Nm sshd
+.Xr sshd 8
 receiving any messages back from the client.
 If this threshold is reached while client alive messages are being sent,
-.Nm sshd
-will disconnect the client, terminating the session.
+sshd will disconnect the client, terminating the session.
 It is important to note that the use of client alive messages is very
 different from
 .Cm TCPKeepAlive
@@ -213,12 +229,13 @@ If
 .Cm ClientAliveInterval
 (see below) is set to 15, and
 .Cm ClientAliveCountMax
-is left at the default, unresponsive ssh clients
+is left at the default, unresponsive SSH clients
 will be disconnected after approximately 45 seconds.
+This option applies to protocol version 2 only.
 .It Cm ClientAliveInterval
 Sets a timeout interval in seconds after which if no data has been received
 from the client,
-.Nm sshd
+.Xr sshd 8
 will send a message through the encrypted
 channel to request a response from the client.
 The default
@@ -239,36 +256,62 @@ This keyword can be followed by a list of group name patterns, separated
 by spaces.
 Login is disallowed for users whose primary group or supplementary
 group list matches one of the patterns.
-.Ql \&*
-and
-.Ql \&?
-can be used as
-wildcards in the patterns.
 Only group names are valid; a numerical group ID is not recognized.
 By default, login is allowed for all groups.
+The allow/deny directives are processed in the following order:
+.Cm DenyUsers ,
+.Cm AllowUsers ,
+.Cm DenyGroups ,
+and finally
+.Cm AllowGroups .
+.Pp
+See
+.Sx PATTERNS
+in
+.Xr ssh_config 5
+for more information on patterns.
 .It Cm DenyUsers
 This keyword can be followed by a list of user name patterns, separated
 by spaces.
 Login is disallowed for user names that match one of the patterns.
-.Ql \&*
-and
-.Ql \&?
-can be used as wildcards in the patterns.
 Only user names are valid; a numerical user ID is not recognized.
 By default, login is allowed for all users.
 If the pattern takes the form USER@HOST then USER and HOST
 are separately checked, restricting logins to particular
 users from particular hosts.
+The allow/deny directives are processed in the following order:
+.Cm DenyUsers ,
+.Cm AllowUsers ,
+.Cm DenyGroups ,
+and finally
+.Cm AllowGroups .
+.Pp
+See
+.Sx PATTERNS
+in
+.Xr ssh_config 5
+for more information on patterns.
+.It Cm ForceCommand
+Forces the execution of the command specified by
+.Cm ForceCommand ,
+ignoring any command supplied by the client.
+The command is invoked by using the user's login shell with the -c option.
+This applies to shell, command, or subsystem execution.
+It is most useful inside a
+.Cm Match
+block.
+The command originally supplied by the client is available in the
+.Ev SSH_ORIGINAL_COMMAND
+environment variable.
 .It Cm GatewayPorts
 Specifies whether remote hosts are allowed to connect to ports
 forwarded for the client.
 By default,
-.Nm sshd
+.Xr sshd 8
 binds remote port forwardings to the loopback address.
 This prevents other remote hosts from connecting to forwarded ports.
 .Cm GatewayPorts
-can be used to specify that
-.Nm sshd
+can be used to specify that sshd
 should allow remote port forwardings to bind to non-loopback addresses, thus
 allowing other hosts to connect.
 The argument may be
@@ -294,10 +337,27 @@ Note that this option applies to protocol version 2 only.
 .It Cm HostbasedAuthentication
 Specifies whether rhosts or /etc/hosts.equiv authentication together
 with successful public key client host authentication is allowed
-(hostbased authentication).
+(host-based authentication).
 This option is similar to
 .Cm RhostsRSAAuthentication
 and applies to protocol version 2 only.
+The default is
+.Dq no .
+.It Cm HostbasedUsesNameFromPacketOnly
+Specifies whether or not the server will attempt to perform a reverse
+name lookup when matching the name in the
+.Pa ~/.shosts ,
+.Pa ~/.rhosts ,
+and
+.Pa /etc/hosts.equiv
+files during
+.Cm HostbasedAuthentication .
+A setting of
+.Dq yes
+means that
+.Xr sshd 8
+uses the name supplied by the client rather than
+attempting to resolve the name from the TCP connection itself.
 The default is
 .Dq no .
 .It Cm HostKey
@@ -309,7 +369,7 @@ for protocol version 1, and
 .Pa /etc/ssh/ssh_host_dsa_key
 for protocol version 2.
 Note that
-.Nm sshd
+.Xr sshd 8
 will refuse to use a file if it is group/world-accessible.
 It is possible to have multiple host key files.
 .Dq rsa1
@@ -336,7 +396,7 @@ The default is
 .Dq yes .
 .It Cm IgnoreUserKnownHosts
 Specifies whether
-.Nm sshd
+.Xr sshd 8
 should ignore the user's
 .Pa ~/.ssh/known_hosts
 during
@@ -351,24 +411,24 @@ Specifies whether the password provided by the user for
 will be validated through the Kerberos KDC.
 To use this option, the server needs a
 Kerberos servtab which allows the verification of the KDC's identity.
-Default is
+The default is
 .Dq no .
 .It Cm KerberosGetAFSToken
 If AFS is active and the user has a Kerberos 5 TGT, attempt to acquire
 an AFS token before accessing the user's home directory.
-Default is
+The default is
 .Dq no .
 .It Cm KerberosOrLocalPasswd
-If set then if password authentication through Kerberos fails then
+If password authentication through Kerberos fails then
 the password will be validated via any additional local mechanism
 such as
 .Pa /etc/passwd .
-Default is
+The default is
 .Dq yes .
 .It Cm KerberosTicketCleanup
 Specifies whether to automatically destroy the user's ticket cache
 file on logout.
-Default is
+The default is
 .Dq yes .
 .It Cm KeyRegenerationInterval
 In protocol version 1, the ephemeral server key is automatically regenerated
@@ -381,7 +441,7 @@ If the value is 0, the key is never regenerated.
 The default is 3600 (seconds).
 .It Cm ListenAddress
 Specifies the local addresses
-.Nm sshd
+.Xr sshd 8
 should listen on.
 The following forms may be used:
 .Pp
@@ -407,8 +467,7 @@ The following forms may be used:
 If
 .Ar port
 is not specified,
-.Nm sshd
-will listen on the address and all prior
+sshd will listen on the address and all prior
 .Cm Port
 options specified.
 The default is to listen on all local addresses.
@@ -417,7 +476,7 @@ Multiple
 options are permitted.
 Additionally, any
 .Cm Port
-options must precede this option for non port qualified addresses.
+options must precede this option for non-port qualified addresses.
 .It Cm LoginGraceTime
 The server disconnects after this time if the user has not
 successfully logged in.
@@ -425,9 +484,9 @@ If the value is 0, there is no time limit.
 The default is 120 seconds.
 .It Cm LogLevel
 Gives the verbosity level that is used when logging messages from
-.Nm sshd .
+.Xr sshd 8 .
 The possible values are:
-QUIET, FATAL, ERROR, INFO, VERBOSE, DEBUG, DEBUG1, DEBUG2 and DEBUG3.
+QUIET, FATAL, ERROR, INFO, VERBOSE, DEBUG, DEBUG1, DEBUG2, and DEBUG3.
 The default is INFO.
 DEBUG and DEBUG1 are equivalent.
 DEBUG2 and DEBUG3 each specify higher levels of debugging output.
@@ -437,8 +496,37 @@ Specifies the available MAC (message authentication code) algorithms.
 The MAC algorithm is used in protocol version 2
 for data integrity protection.
 Multiple algorithms must be comma-separated.
-The default is
+The default is:
 .Dq hmac-md5,hmac-sha1,hmac-ripemd160,hmac-sha1-96,hmac-md5-96 .
+.It Cm Match
+Introduces a conditional block.
+If all of the criteria on the
+.Cm Match
+line are satisfied, the keywords on the following lines override those
+set in the global section of the config file, until either another
+.Cm Match
+line or the end of the file.
+The arguments to
+.Cm Match
+are one or more criteria-pattern pairs.
+The available criteria are
+.Cm User ,
+.Cm Group ,
+.Cm Host ,
+and
+.Cm Address .
+Only a subset of keywords may be used on the lines following a
+.Cm Match
+keyword.
+Available keywords are
+.Cm AllowTcpForwarding ,
+.Cm ForceCommand ,
+.Cm GatewayPorts ,
+.Cm PermitOpen ,
+.Cm X11DisplayOffset ,
+.Cm X11Forwarding ,
+and
+.Cm X11UseLocalHost .
 .It Cm MaxAuthTries
 Specifies the maximum number of authentication attempts permitted per
 connection.
@@ -447,8 +535,7 @@ additional failures are logged.
 The default is 6.
 .It Cm MaxStartups
 Specifies the maximum number of concurrent unauthenticated connections to the
-.Nm sshd
-daemon.
+SSH daemon.
 Additional connections will be dropped until authentication succeeds or the
 .Cm LoginGraceTime
 expires for a connection.
@@ -457,8 +544,8 @@ The default is 10.
 Alternatively, random early drop can be enabled by specifying
 the three colon separated values
 .Dq start:rate:full
-(e.g., "10:30:60").
-.Nm sshd
+(e.g. "10:30:60").
+.Xr sshd 8
 will refuse connection attempts with a probability of
 .Dq rate/100
 (30%)
@@ -494,13 +581,40 @@ When password authentication is allowed, it specifies whether the
 server allows login to accounts with empty password strings.
 The default is
 .Dq no .
+.It Cm PermitOpen
+Specifies the destinations to which TCP port forwarding is permitted.
+The forwarding specification must be one of the following forms:
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Cm PermitOpen
+.Sm off
+.Ar host : port
+.Sm on
+.It
+.Cm PermitOpen
+.Sm off
+.Ar IPv4_addr : port
+.Sm on
+.It
+.Cm PermitOpen
+.Sm off
+.Ar \&[ IPv6_addr \&] : port
+.Sm on
+.El
+.Pp
+Multiple forwards may be specified by separating them with whitespace.
+An argument of
+.Dq any
+can be used to remove all restrictions and permit any forwarding requests.
+By default all port forwarding requests are permitted.
 .It Cm PermitRootLogin
 Specifies whether root can log in using
 .Xr ssh 1 .
 The argument must be
 .Dq yes ,
 .Dq without-password ,
-.Dq forced-commands-only
+.Dq forced-commands-only ,
 or
 .Dq no .
 The default is
@@ -514,11 +628,11 @@ the root user may be allowed in with its password even if
 .Dq without-password .
 .Pp
 If this option is set to
-.Dq without-password
+.Dq without-password ,
 password authentication is disabled for root.
 .Pp
 If this option is set to
-.Dq forced-commands-only
+.Dq forced-commands-only ,
 root login with public key authentication will be allowed,
 but only if the
 .Ar command
@@ -528,7 +642,7 @@ normally not allowed).
 All other authentication methods are disabled for root.
 .Pp
 If this option is set to
-.Dq no
+.Dq no ,
 root is not allowed to log in.
 .It Cm PermitTunnel
 Specifies whether
@@ -536,10 +650,17 @@ Specifies whether
 device forwarding is allowed.
 The argument must be
 .Dq yes ,
-.Dq point-to-point ,
+.Dq point-to-point
+(layer 3),
 .Dq ethernet
-or
+(layer 2), or
 .Dq no .
+Specifying
+.Dq yes
+permits both
+.Dq point-to-point
+and
+.Dq ethernet .
 The default is
 .Dq no .
 .It Cm PermitUserEnvironment
@@ -550,7 +671,7 @@ and
 options in
 .Pa ~/.ssh/authorized_keys
 are processed by
-.Nm sshd .
+.Xr sshd 8 .
 The default is
 .Dq no .
 Enabling environment processing may enable users to bypass access
@@ -558,13 +679,12 @@ restrictions in some configurations using mechanisms such as
 .Ev LD_PRELOAD .
 .It Cm PidFile
 Specifies the file that contains the process ID of the
-.Nm sshd
-daemon.
+SSH daemon.
 The default is
 .Pa /var/run/sshd.pid .
 .It Cm Port
 Specifies the port number that
-.Nm sshd
+.Xr sshd 8
 listens on.
 The default is 22.
 Multiple options of this type are permitted.
@@ -572,14 +692,14 @@ See also
 .Cm ListenAddress .
 .It Cm PrintLastLog
 Specifies whether
-.Nm sshd
+.Xr sshd 8
 should print the date and time of the last user login when a user logs
 in interactively.
 The default is
 .Dq yes .
 .It Cm PrintMotd
 Specifies whether
-.Nm sshd
+.Xr sshd 8
 should print
 .Pa /etc/motd
 when a user logs in interactively.
@@ -590,12 +710,12 @@ The default is
 .Dq yes .
 .It Cm Protocol
 Specifies the protocol versions
-.Nm sshd
+.Xr sshd 8
 supports.
 The possible values are
-.Dq 1
+.Sq 1
 and
-.Dq 2 .
+.Sq 2 .
 Multiple versions must be comma-separated.
 The default is
 .Dq 2 .
@@ -629,7 +749,7 @@ Defines the number of bits in the ephemeral protocol version 1 server key.
 The minimum value is 512, and the default is 768.
 .It Cm StrictModes
 Specifies whether
-.Nm sshd
+.Xr sshd 8
 should check file modes and ownership of the
 user's files and home directory before accepting login.
 This is normally desirable because novices sometimes accidentally leave their
@@ -637,9 +757,9 @@ directory or files world-writable.
 The default is
 .Dq yes .
 .It Cm Subsystem
-Configures an external subsystem (e.g., file transfer daemon).
-Arguments should be a subsystem name and a command to execute upon subsystem
-request.
+Configures an external subsystem (e.g. file transfer daemon).
+Arguments should be a subsystem name and a command (with optional arguments)
+to execute upon subsystem request.
 The command
 .Xr sftp-server 8
 implements the
@@ -649,7 +769,7 @@ By default no subsystems are defined.
 Note that this option applies to protocol version 2 only.
 .It Cm SyslogFacility
 Gives the facility code that is used when logging messages from
-.Nm sshd .
+.Xr sshd 8 .
 The possible values are: DAEMON, USER, AUTH, LOCAL0, LOCAL1, LOCAL2,
 LOCAL3, LOCAL4, LOCAL5, LOCAL6, LOCAL7.
 The default is AUTH.
@@ -676,7 +796,7 @@ To disable TCP keepalive messages, the value should be set to
 .Dq no .
 .It Cm UseDNS
 Specifies whether
-.Nm sshd
+.Xr sshd 8
 should look up the remote host name and check that
 the resolved host name for the remote IP address maps back to the
 very same IP address.
@@ -707,7 +827,10 @@ If set to
 .Dq yes
 this will enable PAM authentication using
 .Cm ChallengeResponseAuthentication
-and PAM account and session module processing for all authentication types.
+and
+.Cm PasswordAuthentication
+in addition to PAM account and session module processing for all
+authentication types.
 .Pp
 Because PAM challenge-response authentication usually serves an equivalent
 role to password authentication, you should disable either
@@ -724,7 +847,7 @@ The default is
 .Dq yes .
 .It Cm UsePrivilegeSeparation
 Specifies whether
-.Nm sshd
+.Xr sshd 8
 separates privileges by creating an unprivileged child process
 to deal with incoming network traffic.
 After successful authentication, another process will be created that has
@@ -740,11 +863,9 @@ The default is
 .Dq FreeBSD-20060322 .
 .It Cm X11DisplayOffset
 Specifies the first display number available for
-.Nm sshd Ns 's
+.Xr sshd 8 Ns 's
 X11 forwarding.
-This prevents
-.Nm sshd
-from interfering with real X11 servers.
+This prevents sshd from interfering with real X11 servers.
 The default is 10.
 .It Cm X11Forwarding
 Specifies whether X11 forwarding is permitted.
@@ -757,14 +878,14 @@ The default is
 .Pp
 When X11 forwarding is enabled, there may be additional exposure to
 the server and to client displays if the
-.Nm sshd
+.Xr sshd 8
 proxy display is configured to listen on the wildcard address (see
 .Cm X11UseLocalhost
-below), however this is not the default.
+below), though this is not the default.
 Additionally, the authentication spoofing and authentication data
 verification and substitution occur on the client side.
 The security risk of using X11 forwarding is that the client's X11
-display server may be exposed to attack when the ssh client requests
+display server may be exposed to attack when the SSH client requests
 forwarding (see the warnings for
 .Cm ForwardX11
 in
@@ -782,12 +903,11 @@ X11 forwarding is automatically disabled if
 is enabled.
 .It Cm X11UseLocalhost
 Specifies whether
-.Nm sshd
+.Xr sshd 8
 should bind the X11 forwarding server to the loopback address or to
 the wildcard address.
 By default,
-.Nm sshd
-binds the forwarding server to the loopback address and sets the
+sshd binds the forwarding server to the loopback address and sets the
 hostname part of the
 .Ev DISPLAY
 environment variable to
@@ -813,8 +933,8 @@ program.
 The default is
 .Pa /usr/X11R6/bin/xauth .
 .El
-.Ss Time Formats
-.Nm sshd
+.Sh TIME FORMATS
+.Xr sshd 8
 command-line arguments and configuration file options that specify time
 may be expressed using a sequence of the form:
 .Sm off
@@ -827,7 +947,7 @@ is a positive integer value and
 is one of the following:
 .Pp
 .Bl -tag -width Ds -compact -offset indent
-.It Cm <none>
+.It Aq Cm none
 seconds
 .It Cm s | Cm S
 seconds
@@ -858,7 +978,7 @@ Time format examples:
 .Bl -tag -width Ds
 .It Pa /etc/ssh/sshd_config
 Contains configuration data for
-.Nm sshd .
+.Xr sshd 8 .
 This file should be writable by root only, but it is recommended
 (though not necessary) that it be world-readable.
 .El
