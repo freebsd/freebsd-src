@@ -639,7 +639,9 @@ ata_getparam(struct ata_device *atadev, int init)
 	if (init) {
 	    sprintf(buffer, "%.40s/%.8s", atacap->model, atacap->revision);
 	    device_set_desc_copy(atadev->dev, buffer);
-	    if (atadev->param.config & ATA_PROTO_ATAPI) {
+	    if ((atadev->param.config & ATA_PROTO_ATAPI) &&
+		(atadev->param.config != ATA_CFA_MAGIC1) &&
+		(atadev->param.config != ATA_CFA_MAGIC2)) {
 		if (atapi_dma && ch->dma &&
 		    (atadev->param.config & ATA_DRQ_MASK) != ATA_DRQ_INTR &&
 		    ata_umode(&atadev->param) >= ATA_UDMA2)

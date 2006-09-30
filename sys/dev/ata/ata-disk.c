@@ -97,7 +97,8 @@ ad_attach(device_t dev)
     }
     device_set_ivars(dev, adp);
 
-    if (atadev->param.atavalid & ATA_FLAG_54_58) {
+    if ((atadev->param.atavalid & ATA_FLAG_54_58) &&
+	atadev->param.current_heads && atadev->param.current_sectors) {
 	adp->heads = atadev->param.current_heads;
 	adp->sectors = atadev->param.current_sectors;
 	adp->total_secs = (u_int32_t)atadev->param.current_size_1 |
