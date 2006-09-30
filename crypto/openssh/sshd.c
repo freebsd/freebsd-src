@@ -317,7 +317,7 @@ grace_alarm_handler(int sig)
 		kill(pmonitor->m_pid, SIGALRM);
 
 	/* Log error and exit. */
-	fatal("Timeout before authentication for %s", get_remote_ipaddr());
+	sigdie("Timeout before authentication for %s", get_remote_ipaddr());
 }
 
 /*
@@ -1730,6 +1730,7 @@ main(int ac, char **av)
 	}
 
  authenticated:
+	authctxt->authenticated = 1;
 #ifdef SSH_AUDIT_EVENTS
 	audit_event(SSH_AUTH_SUCCESS);
 #endif

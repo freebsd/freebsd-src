@@ -25,6 +25,7 @@
 /* Return codes */
 #define DEATTACK_OK		0
 #define DEATTACK_DETECTED	1
+#define DEATTACK_DOS_DETECTED	2
 
 int	 detect_attack(u_char *, u_int32_t, u_char[8]);
 #endif
