@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20060930: demangle.h from contrib/libstdc++/include/ext/
+OLD_FILES+=usr/include/c++/3.4/ext/demangle.h
 # 20060929: mrouted removed
 OLD_FILES+=usr/sbin/map-mbone
 OLD_FILES+=usr/sbin/mrinfo
