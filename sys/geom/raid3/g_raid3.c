@@ -696,23 +696,23 @@ g_raid3_write_metadata(struct g_raid3_disk *disk, struct g_raid3_metadata *md)
 	error = g_write_data(cp, offset, sector, length);
 	free(sector, M_RAID3);
 	if (error != 0) {
-		if ((disk->d_flags & G_RAID3_DISK_FLAG_BROKEN) == 0) {												      
-			G_RAID3_DEBUG(0, "Cannot write metadata on %s "												     
-			    "(device=%s, error=%d).",															
-			    g_raid3_get_diskname(disk), sc->sc_name, error);												
-			disk->d_flags |= G_RAID3_DISK_FLAG_BROKEN;													  
-		} else {																		     
-			G_RAID3_DEBUG(1, "Cannot write metadata on %s "												     
-			    "(device=%s, error=%d).",															
-			    g_raid3_get_diskname(disk), sc->sc_name, error);												
-		}																			    
-		if (g_raid3_disconnect_on_failure &&															
+		if ((disk->d_flags & G_RAID3_DISK_FLAG_BROKEN) == 0) {
+			G_RAID3_DEBUG(0, "Cannot write metadata on %s "
+			    "(device=%s, error=%d).",
+			    g_raid3_get_diskname(disk), sc->sc_name, error);
+			disk->d_flags |= G_RAID3_DISK_FLAG_BROKEN;
+		} else {
+			G_RAID3_DEBUG(1, "Cannot write metadata on %s "
+			    "(device=%s, error=%d).",
+			    g_raid3_get_diskname(disk), sc->sc_name, error);
+		}
+		if (g_raid3_disconnect_on_failure &&
 		    sc->sc_state == G_RAID3_DEVICE_STATE_COMPLETE) {
-			sc->sc_bump_id |= G_RAID3_BUMP_GENID;												    
-			g_raid3_event_send(disk,															    
-			    G_RAID3_DISK_STATE_DISCONNECTED,														
-			    G_RAID3_EVENT_DONTWAIT);															
-		}		 
+			sc->sc_bump_id |= G_RAID3_BUMP_GENID;
+			g_raid3_event_send(disk,
+			    G_RAID3_DISK_STATE_DISCONNECTED,
+			    G_RAID3_EVENT_DONTWAIT);
+		}
 	}
 	return (error);
 }
