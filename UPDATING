@@ -24,6 +24,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 20060929:
 	mrouted and its utilities have been removed from the base system.
 
+20060927:
+	Some ioctl(2) command codes have changed.  Full backward ABI
+	compatibility is provided if the "options COMPAT_FREEBSD6" is
+	present in the kernel configuration file.  Make sure to add
+	this option to your kernel config file, or recompile X.Org
+	and the rest of ports; otherwise they may refuse to work.
+
 20060924:
 	tcpslice has been removed from the base system.
 
