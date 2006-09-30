@@ -233,7 +233,6 @@ WITHOUT_${var}=
     IPX \
     KERBEROS \
     LIB32 \
-    LIBC_R \
     LIBPTHREAD \
     LIBTHR \
     LOCALES \
@@ -320,7 +319,6 @@ WITH_IDEA=
     IPX \
     KERBEROS \
     LIB32 \
-    LIBC_R \
     LIBPTHREAD \
     LIBTHR \
     LOCALES \
