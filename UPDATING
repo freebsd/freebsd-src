@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20060930:	p8	FreeBSD-SA-06:22.openssh
+	Correct multiple vulnerabilities in sshd(8).
+
 20060929:	p7	FreeBSD-SA-06:23.openssl
 	Correct problem in the 2006-09-28 patch concerning the handling of
 	excessively large DH moduli.
