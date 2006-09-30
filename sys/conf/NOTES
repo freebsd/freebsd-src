@@ -1923,7 +1923,6 @@ device		sound
 #		    since this is unsupported at the moment...).
 #
 # snd_ad1816:		Analog Devices AD1816 ISA PnP/non-PnP.
-# snd_ak452x:		Asahi Kasei AK452x codec, needed by snd_envy24.
 # snd_als4000:		Avance Logic ALS4000 PCI.
 # snd_atiixp:		ATI IXP 200/300/400 PCI.
 # snd_au88x0		Aureal Vortex 1/2/Advantage PCI. This driver
@@ -1937,7 +1936,8 @@ device		sound
 # snd_ds1:		Yamaha DS-1 PCI.
 # snd_emu10k1:		Creative EMU10K1 PCI and EMU10K2 (Audigy) PCI.
 # snd_emu10kx:		Creative SoundBlaster Live! and Audigy
-# snd_envy24:		VIA Envy24 and compatible, needs snd_ak452x.
+# snd_envy24:		VIA Envy24 and compatible, needs snd_spicds.
+# snd_envy24ht:		VIA Envy24HT and compatible, needs snd_spicds.
 # snd_es137x:		Ensoniq AudioPCI ES137x PCI.
 # snd_ess:		Ensoniq ESS ISA PnP/non-PnP, to be used in
 #			conjunction with snd_sbc.
@@ -1956,6 +1956,7 @@ device		sound
 #			conjunction with snd_sbc.
 # snd_sbc:		Creative SoundBlaster ISA PnP/non-PnP.
 #			Supports ESS and Avance ISA chips as well.
+# snd_spicds:		SPI codec driver, needed by Envy24/Envy24HT drivers.
 # snd_solo:		ESS Solo-1x PCI.
 # snd_t4dwave:		Trident 4DWave DX/NX PCI, Sis 7018 PCI and Acer Labs
 #			M5451 PCI.
@@ -1965,7 +1966,6 @@ device		sound
 # snd_uaudio:		USB audio.
 
 device		snd_ad1816
-device		snd_ak452x
 device		snd_als4000
 device		snd_atiixp
 #device		snd_au88x0
@@ -1978,6 +1978,7 @@ device		snd_emu10k1
 device		snd_emu10kx
 options		SND_EMU10KX_MULTICHANNEL
 device		snd_envy24
+device		snd_envy24ht
 device		snd_es137x
 device		snd_ess
 device		snd_fm801
@@ -1991,6 +1992,7 @@ device		snd_sb16
 device		snd_sb8
 device		snd_sbc
 device		snd_solo
+device		snd_spicds
 device		snd_t4dwave
 device		snd_via8233
 device		snd_via82c686
