@@ -1275,9 +1275,6 @@ SYSCTL_PROC(_machdep, OID_AUTO, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
 SYSCTL_INT(_machdep, OID_AUTO, disable_rtc_set,
 	CTLFLAG_RW, &disable_rtc_set, 0, "");
 
-SYSCTL_STRUCT(_machdep, OID_AUTO, bootinfo, 
-	CTLFLAG_RD, &bootinfo, bootinfo, "");
-
 SYSCTL_INT(_machdep, OID_AUTO, wall_cmos_clock,
 	CTLFLAG_RW, &wall_cmos_clock, 0, "");
 
