@@ -148,7 +148,7 @@ g_label_msdosfs_taste(struct g_consumer *cp, char *label, size_t size)
 		    (pfat32_bsbpb->BPB_NumFATs *
 		     UINT32BYTES(pfat32_bsbpb->BPB_FATSz32));
 		fat_BytesPerSector = UINT16BYTES(pfat32_bsbpb->BPB_BytsPerSec);
-			
+
 		G_LABEL_DEBUG(2,
 		    "MSDOSFS: FAT_FirstDataSector=0x%x, FAT_BytesPerSector=%d",
 		    fat_FirstDataSector, fat_BytesPerSector);
