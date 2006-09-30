@@ -73,7 +73,7 @@ address of faulting instruction
 exit value or signal
 .It Vt long Ta Va si_band Ta
 band event for
-.Dv SIGPOLL 
+.Dv SIGPOLL
 .It Vt int Ta Va si_trapno Ta
 machine trap code
 .It Vt int Ta Va si_timerid Ta
@@ -100,7 +100,7 @@ The
 .Va si_code
 member contains a code which describes the cause of the signal.
 The macros specified in the
-.Dq Code
+.Sy Code
 column of the following table are defined
 for use as values of
 .Va si_code
@@ -219,8 +219,7 @@ machine dependent of trap code
 .It Dv SIGCHLD Ta Vt Va si_pid Ta
 child process ID
 .It Ta Va si_status Ta
-exit value or signal
-- If
+exit value or signal; if
 .Va si_code
 is equal to
 .Dv CLD_EXITED ,
@@ -270,7 +269,7 @@ system call
 the ID of the message queue which generated the signal
 .El
 .Sh NOTES
-Currently, the kernel never generates
+Currently, the kernel never generates the
 .Dv SIGPOLL
 signal.
 Also, the
@@ -280,7 +279,7 @@ system call does not queue signals, so you will not get code
 .Dv SIGCHLD
 signal is queued when a process changed its status or exited.
 .Tn POSIX
-Realtime Extensions like aio, timer, message queue also queue
+Realtime Extensions like aio, timer, and message queue also queue
 signals.
 For some hardware architectures, the exact value of
 .Va si_addr
