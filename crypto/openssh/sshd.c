@@ -309,7 +309,7 @@ grace_alarm_handler(int sig)
 	/* XXX no idea how fix this signal handler */
 
 	/* Log error and exit. */
-	fatal("Timeout before authentication for %s", get_remote_ipaddr());
+	sigdie("Timeout before authentication for %s", get_remote_ipaddr());
 }
 
 /*

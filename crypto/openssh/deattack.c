@@ -27,6 +27,24 @@ RCSID("$OpenBSD: deattack.c,v 1.18 2002/03/04 17:27:39 stevesk Exp $");
 #include "xmalloc.h"
 #include "deattack.h"
 
+/*
+ * CRC attack detection has a worst-case behaviour that is O(N^3) over
+ * the number of identical blocks in a packet. This behaviour can be 
+ * exploited to create a limited denial of service attack. 
+ * 
+ * However, because we are dealing with encrypted data, identical
+ * blocks should only occur every 2^35 maximally-sized packets or so. 
+ * Consequently, we can detect this DoS by looking for identical blocks
+ * in a packet.
+ *
+ * The parameter below determines how many identical blocks we will
+ * accept in a single packet, trading off between attack detection and
+ * likelihood of terminating a legitimate connection. A value of 32 
+ * corresponds to an average of 2^40 messages before an attack is
+ * misdetected
+ */
+#define MAX_IDENTICAL	32
+
 /* SSH Constants */
 #define SSH_MAXBLOCKS	(32 * 1024)
 #define SSH_BLOCKSIZE	(8)
@@ -87,7 +105,7 @@ detect_attack(u_char *buf, u_int32_t len, u_char *IV)
 	static u_int16_t *h = (u_int16_t *) NULL;
 	static u_int32_t n = HASH_MINSIZE / HASH_ENTRYSIZE;
 	u_int32_t i, j;
-	u_int32_t l;
+	u_int32_t l, same;
 	u_char *c;
 	u_char *d;
 
@@ -133,7 +151,7 @@ detect_attack(u_char *buf, u_int32_t len, u_char *IV)
 	if (IV)
 		h[HASH(IV) & (n - 1)] = HASH_IV;
 
-	for (c = buf, j = 0; c < (buf + len); c += SSH_BLOCKSIZE, j++) {
+	for (c = buf, same = j = 0; c < (buf + len); c += SSH_BLOCKSIZE, j++) {
 		for (i = HASH(c) & (n - 1); h[i] != HASH_UNUSED;
 		    i = (i + 1) & (n - 1)) {
 			if (h[i] == HASH_IV) {
@@ -144,6 +162,8 @@ detect_attack(u_char *buf, u_int32_t len, u_char *IV)
 						break;
 				}
 			} else if (!CMP(c, buf + h[i] * SSH_BLOCKSIZE)) {
+				if (++same > MAX_IDENTICAL)
+					return (DEATTACK_DOS_DETECTED);
 				if (check_crc(c, buf, len, IV))
 					return (DEATTACK_DETECTED);
 				else

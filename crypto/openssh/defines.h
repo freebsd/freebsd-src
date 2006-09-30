@@ -450,6 +450,11 @@ struct winsize {
 # undef HAVE_GAI_STRERROR
 #endif
 
+#if defined(HAVE_OPENLOG_R) && defined(SYSLOG_DATA_INIT) && \
+    defined(SYSLOG_R_SAFE_IN_SIGHAND)
+# define DO_LOG_SAFE_IN_SIGHAND
+#endif
+
 #if !defined(HAVE_MEMMOVE) && defined(HAVE_BCOPY)
 # define memmove(s1, s2, n) bcopy((s2), (s1), (n))
 #endif /* !defined(HAVE_MEMMOVE) && defined(HAVE_BCOPY) */
