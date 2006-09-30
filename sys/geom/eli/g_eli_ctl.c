@@ -638,7 +638,7 @@ g_eli_ctl_delkey(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "No '%s' argument.", "force");
 			return;
 		}
-	
+
 		valp = gctl_get_paraml(req, "keyno", sizeof(*valp));
 		if (valp == NULL) {
 			gctl_error(req, "No '%s' argument.", "keyno");

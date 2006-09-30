@@ -265,7 +265,7 @@ g_eli_start(struct bio *bp)
 		 * It could be done by overwritting requested sector with
 		 * random data g_eli_overwrites number of times.
 		 */
-	default:	
+	default:
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
 	}
