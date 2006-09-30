@@ -52,11 +52,7 @@ extern int mixer_count;
  * this is a kludge to allow hiding of the struct snd_mixer definition
  * 512 should be enough for all architectures
  */
-#ifdef OSSV4_EXPERIMENT
 # define	MIXER_SIZE	(512 + sizeof(struct kobj) + \
 				 sizeof(oss_mixer_enuminfo))
-#else
-# define	MIXER_SIZE	(512 + sizeof(struct kobj))
-#endif
 
 #define MIXER_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, MIXER_SIZE)
