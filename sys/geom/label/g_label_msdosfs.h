@@ -38,7 +38,7 @@
 
 /*
  * All following structures are according to:
- * 
+ *
  * Microsoft Extensible Firmware Initiative FAT32 File System Specification
  * FAT: General Overview of On-Disk Format
  * Version 1.03, December 6, 2000
@@ -74,7 +74,7 @@ typedef struct fat_bsbpb {
 	uint8_t BS_FilSysType[8];
 } FAT_BSBPB; /* 62 bytes */
 
-/* 
+/*
  * FAT boot sector and boot parameter block for
  * FAT32 volumes
  */
@@ -110,7 +110,7 @@ typedef struct fat32_bsbpb {
 	uint8_t BS_FilSysType[8];
 } FAT32_BSBPB; /* 90 bytes */
 
-/* 
+/*
  * FAT directory entry structure
  */
 #define	FAT_DES_ATTR_READ_ONLY	0x01
