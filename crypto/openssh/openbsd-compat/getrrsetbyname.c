@@ -49,6 +49,12 @@
 
 #ifndef HAVE_GETRRSETBYNAME
 
+#include <stdlib.h>
+#include <string.h>
+
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include "getrrsetbyname.h"
 
 #if defined(HAVE_DECL_H_ERRNO) && !HAVE_DECL_H_ERRNO
@@ -60,6 +66,13 @@ extern int h_errno;
 # undef _THREAD_PRIVATE
 #endif
 #define _THREAD_PRIVATE(a,b,c) (c)
+
+/* to avoid conflicts where a platform already has _res */
+#ifdef _res
+# undef _res
+#endif
+#define _res	_compat_res
+
 struct __res_state _res;
 
 /* Necessary functions and macros */

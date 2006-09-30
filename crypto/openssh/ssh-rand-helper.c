@@ -24,6 +24,29 @@
 
 #include "includes.h"
 
+#include <sys/types.h>
+#include <sys/resource.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <sys/socket.h>
+
+#include <stdarg.h>
+#include <stddef.h>
+
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#ifdef HAVE_SYS_UN_H
+# include <sys/un.h>
+#endif
+
+#include <errno.h>
+#include <fcntl.h>
+#include <pwd.h>
+#include <signal.h>
+#include <time.h>
+#include <unistd.h>
+
 #include <openssl/rand.h>
 #include <openssl/sha.h>
 #include <openssl/crypto.h>
@@ -38,8 +61,6 @@
 #include "atomicio.h"
 #include "pathnames.h"
 #include "log.h"
-
-RCSID("$Id: ssh-rand-helper.c,v 1.26 2005/07/17 07:26:44 djm Exp $");
 
 /* Number of bytes we write out */
 #define OUTPUT_SEED_SIZE	48
@@ -564,7 +585,8 @@ prng_write_seedfile(void)
 	/* Try to ensure that the parent directory is there */
 	snprintf(filename, sizeof(filename), "%.512s/%s", pw->pw_dir,
 	    _PATH_SSH_USER_DIR);
-	mkdir(filename, 0700);
+	if (mkdir(filename, 0700) < 0 && errno != EEXIST)
+		fatal("mkdir %.200s: %s", filename, strerror(errno));
 
 	snprintf(filename, sizeof(filename), "%.512s/%s", pw->pw_dir,
 	    SSH_PRNG_SEED_FILE);
@@ -665,8 +687,7 @@ prng_read_commands(char *cmdfilename)
 	}
 
 	num_cmds = 64;
-	entcmd = xmalloc(num_cmds * sizeof(entropy_cmd_t));
-	memset(entcmd, '\0', num_cmds * sizeof(entropy_cmd_t));
+	entcmd = xcalloc(num_cmds, sizeof(entropy_cmd_t));
 
 	/* Read in file */
 	cur_cmd = linenum = 0;
@@ -759,7 +780,7 @@ prng_read_commands(char *cmdfilename)
 		 */
 		if (cur_cmd == num_cmds) {
 			num_cmds *= 2;
-			entcmd = xrealloc(entcmd, num_cmds *
+			entcmd = xrealloc(entcmd, num_cmds,
 			    sizeof(entropy_cmd_t));
 		}
 	}
@@ -768,12 +789,13 @@ prng_read_commands(char *cmdfilename)
 	memset(&entcmd[cur_cmd], '\0', sizeof(entropy_cmd_t));
 
 	/* trim to size */
-	entropy_cmds = xrealloc(entcmd, (cur_cmd + 1) *
+	entropy_cmds = xrealloc(entcmd, (cur_cmd + 1),
 	    sizeof(entropy_cmd_t));
 
 	debug("Loaded %d entropy commands from %.100s", cur_cmd,
 	    cmdfilename);
 
+	fclose(f);
 	return cur_cmd < MIN_ENTROPY_SOURCES ? -1 : 0;
 }
 

@@ -34,7 +34,21 @@
 /* OPENBSD ORIGINAL: lib/libc/gen/glob.c */
 
 #include "includes.h"
+
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#include <dirent.h>
 #include <ctype.h>
+#include <errno.h>
+#include <pwd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#if !defined(HAVE_GLOB) || !defined(GLOB_HAS_ALTDIRFUNC) || \
+    !defined(GLOB_HAS_GL_MATCHC) || \
+    !defined(HAVE_DECL_GLOB_NOMATCH) || HAVE_DECL_GLOB_NOMATCH == 0
 
 static long
 get_arg_max(void)
@@ -47,9 +61,6 @@ get_arg_max(void)
 	return(256); /* XXX: arbitrary */
 #endif
 }
-
-#if !defined(HAVE_GLOB) || !defined(GLOB_HAS_ALTDIRFUNC) || \
-    !defined(GLOB_HAS_GL_MATCHC)
 
 /*
  * glob(3) -- a superset of the one defined in POSIX 1003.2.

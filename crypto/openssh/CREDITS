@@ -25,6 +25,7 @@ Chris, the Young One <cky@pobox.com> - Password auth fixes
 Christos Zoulas <christos@zoulas.com> - Autoconf fixes
 Chun-Chung Chen <cjj@u.washington.edu> - RPM fixes
 Corinna Vinschen <vinschen@redhat.com> - Cygwin support
+Chad Mynhier <mynhier@interstel.net> - Solaris Process Contract support
 Dan Brosemer <odin@linuxfreak.com> - Autoconf support, build fixes
 Darren Hall <dhall@virage.org> - AIX patches
 Darren Tucker <dtucker@zip.com.au> - AIX BFF package scripts
@@ -100,5 +101,5 @@ Apologies to anyone I have missed.
 
 Damien Miller <djm@mindrot.org>
 
-$Id: CREDITS,v 1.80 2005/08/26 20:15:20 tim Exp $
+$Id: CREDITS,v 1.81 2006/08/30 17:24:41 djm Exp $
 

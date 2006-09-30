@@ -1,4 +1,4 @@
-/*	$OpenBSD: auth-options.h,v 1.13 2005/12/06 22:38:27 reyk Exp $	*/
+/* $OpenBSD: auth-options.h,v 1.16 2006/08/03 03:34:41 deraadt Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>

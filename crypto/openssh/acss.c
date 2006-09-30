@@ -1,4 +1,4 @@
-/*	$Id: acss.c,v 1.3 2005/07/17 07:04:47 djm Exp $ */
+/*	$Id: acss.c,v 1.4 2006/07/24 04:51:01 djm Exp $ */
 /*
  * Copyright (c) 2004 The OpenBSD project
  *
@@ -16,6 +16,9 @@
  */
 
 #include "includes.h"
+
+#include <string.h>
+
 #include <openssl/evp.h>
 
 #if !defined(EVP_CTRL_SET_ACSS_MODE) && (OPENSSL_VERSION_NUMBER >= 0x00906000L)
