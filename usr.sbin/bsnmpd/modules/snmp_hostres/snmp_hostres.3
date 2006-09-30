@@ -33,24 +33,26 @@
 .Os
 .Sh NAME
 .Nm snmp_hostres
-.Nd "host resources module for snmpd.
+.Nd host resources module for
+.Xr bsnmpd 8
 .Sh LIBRARY
 .Pq begemotSnmpdModulePath."hostres" = "/usr/lib/snmp_hostres.so"
 .Sh DESCRIPTION
 The
-.Nm snmp_hostres
+.Nm
 module implements the HOST-RESOURCES-MIB as standardized in RFC 2790.
 .Sh RESTRICTIONS
 Not all information in the MIB is meaningful in FreeBSD or is available.
 The following variables are not implemented or carry no information:
-.Bl -tag -width "XXXXXXXXX"
+.Bl -tag -width indent
 .It Va hrFSType
 There are several types of file systems for which no appropriate OID
-exists yet which are supported by FreeBSD.
-For smbfs, procfs and devfs
+exists yet which are supported by
+.Fx .
+For smbfs, procfs and devfs ,
 .Va hrFSOther
 is returned.
-In all other cases
+In all other cases,
 .Va hrFSUnknown .
 .It Va hrFSBootable
 It is questionable what bootable means here.
@@ -59,17 +61,18 @@ or does it mean that there is something bootable?
 In either case this information is not available so this variable returns True
 for the root file system (which is not necessarily correct) and False for
 all others.
-.It Va hrFSLastFullBackupDate
-.It Va hrFSLastPartialBackupDate
+.It Va hrFSLastFullBackupDate , hrFSLastPartialBackupDate
 This is not available and always returns an empty string.
-Theoretically this could be retrieved from /etc/dumpdates, which would
+Theoretically, this could be retrieved from
+.Pa /etc/dumpdates ,
+which would
 hardly be correct given the different ways of doing backups.
 .It Va hrDiskStorageTable
 Floppy devices are currently not reported.
 Also the names of the disks are hard-coded in the module.
 .El
 .Sh FILES
-.Bl -tag -width "XXXXXXXXX"
+.Bl -tag -width indent
 .It Pa /usr/share/snmp/defs/hostres_tree.def
 The description of the MIB tree implemented by
 .Nm .
@@ -82,4 +85,4 @@ This is the MIB that is implemented by this module.
 .Xr gensnmptree 1 ,
 .Xr snmpmod 3
 .Sh AUTHORS
-.An Victor Cruceru Aq soc-victor@freebsd.org
+.An Victor Cruceru Aq soc-victor@FreeBSD.org

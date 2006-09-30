@@ -54,11 +54,13 @@ The packets are then dropped unless
 is used.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl d
 Turns on extra debugging messages.
 .It Fl r
-Writes packets back to the divert socket.
+Writes packets back to the
+.Xr divert 4
+socket.
 .It Fl rr
 Indicates that it is okay to quit if
 .Ar maxbytes
@@ -66,7 +68,8 @@ or
 .Ar maxpkts
 are reached.
 Diverted packets will silently disappear if nothing is listening on the
-divert socket.
+.Xr divert 4
+socket.
 .It Fl b Ar maxbytes
 Stop dumping after
 .Ar maxbytes
@@ -90,23 +93,23 @@ The
 .Ar dumpfile
 argument is the path to the file to write captured packets to.
 Specify
-.Sq Li -
+.Sq Fl
 to write to stdout.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
-.Dl ipfwpcap -r 8091 divt.log &
+.Dl "ipfwpcap -r 8091 divt.log &"
 .Pp
 Starts
 .Nm
 as a background job listening to port 8091 and reflecting the packets
 back to the socket.
 .Pp
-.Dl ipfw add 2864 divert 8091 ip from 192.168.1.101
+.Dl "ipfw add 2864 divert 8091 ip from 192.0.2.101"
 .Pp
 Example
 .Xr ipfw 8
-rule to divert all packets from 192.168.1.101 to port 8091.
+rule to divert all packets from 192.0.2.101 to port 8091.
 See
 .Xr ipfw 8
 for details.
