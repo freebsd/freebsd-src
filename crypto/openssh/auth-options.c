@@ -1,3 +1,4 @@
+/* $OpenBSD: auth-options.c,v 1.40 2006/08/03 03:34:41 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -10,18 +11,31 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-options.c,v 1.33 2005/12/08 18:34:11 reyk Exp $");
+
+#include <sys/types.h>
+
+#include <netdb.h>
+#include <pwd.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 #include "xmalloc.h"
 #include "match.h"
 #include "log.h"
 #include "canohost.h"
+#include "buffer.h"
 #include "channels.h"
 #include "auth-options.h"
 #include "servconf.h"
 #include "misc.h"
-#include "monitor_wrap.h"
+#include "key.h"
+#include "hostfile.h"
 #include "auth.h"
+#ifdef GSSAPI
+#include "ssh-gss.h"
+#endif
+#include "monitor_wrap.h"
 
 /* Flags set authorized_keys flags */
 int no_port_forwarding_flag = 0;
@@ -131,7 +145,7 @@ auth_parse_options(struct passwd *pw, char *opts, char *file, u_long linenum)
 				forced_command = NULL;
 				goto bad_option;
 			}
-			forced_command[i] = 0;
+			forced_command[i] = '\0';
 			auth_debug_add("Forced command: %.900s", forced_command);
 			opts++;
 			goto next_option;
@@ -163,7 +177,7 @@ auth_parse_options(struct passwd *pw, char *opts, char *file, u_long linenum)
 				xfree(s);
 				goto bad_option;
 			}
-			s[i] = 0;
+			s[i] = '\0';
 			auth_debug_add("Adding to environment: %.900s", s);
 			debug("Adding to environment: %.900s", s);
 			opts++;
@@ -200,7 +214,7 @@ auth_parse_options(struct passwd *pw, char *opts, char *file, u_long linenum)
 				xfree(patterns);
 				goto bad_option;
 			}
-			patterns[i] = 0;
+			patterns[i] = '\0';
 			opts++;
 			if (match_host_and_ip(remote_host, remote_ip,
 			    patterns) != 1) {
@@ -245,7 +259,7 @@ auth_parse_options(struct passwd *pw, char *opts, char *file, u_long linenum)
 				xfree(patterns);
 				goto bad_option;
 			}
-			patterns[i] = 0;
+			patterns[i] = '\0';
 			opts++;
 			p = patterns;
 			host = hpdelim(&p);
@@ -293,7 +307,7 @@ auth_parse_options(struct passwd *pw, char *opts, char *file, u_long linenum)
 				forced_tun_device = -1;
 				goto bad_option;
 			}
-			tun[i] = 0;
+			tun[i] = '\0';
 			forced_tun_device = a2tun(tun, NULL);
 			xfree(tun);
 			if (forced_tun_device == SSH_TUNID_ERR) {

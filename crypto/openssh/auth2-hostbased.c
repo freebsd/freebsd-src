@@ -1,3 +1,4 @@
+/* $OpenBSD: auth2-hostbased.c,v 1.11 2006/08/03 03:34:41 deraadt Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -23,19 +24,27 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth2-hostbased.c,v 1.6 2004/01/19 21:25:15 markus Exp $");
 
-#include "ssh2.h"
+#include <sys/types.h>
+
+#include <pwd.h>
+#include <string.h>
+#include <stdarg.h>
+
 #include "xmalloc.h"
+#include "ssh2.h"
 #include "packet.h"
 #include "buffer.h"
 #include "log.h"
 #include "servconf.h"
 #include "compat.h"
-#include "bufaux.h"
-#include "auth.h"
 #include "key.h"
+#include "hostfile.h"
+#include "auth.h"
 #include "canohost.h"
+#ifdef GSSAPI
+#include "ssh-gss.h"
+#endif
 #include "monitor_wrap.h"
 #include "pathnames.h"
 

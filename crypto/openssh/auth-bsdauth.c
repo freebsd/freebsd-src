@@ -1,3 +1,4 @@
+/* $OpenBSD: auth-bsdauth.c,v 1.10 2006/08/03 03:34:41 deraadt Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -21,13 +22,23 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 #include "includes.h"
-RCSID("$OpenBSD: auth-bsdauth.c,v 1.6 2005/01/19 13:11:47 dtucker Exp $");
+
+#include <sys/types.h>
+
+#include <stdarg.h>
 
 #ifdef BSD_AUTH
 #include "xmalloc.h"
+#include "key.h"
+#include "hostfile.h"
 #include "auth.h"
 #include "log.h"
+#include "buffer.h"
+#ifdef GSSAPI
+#include "ssh-gss.h"
+#endif
 #include "monitor_wrap.h"
 
 static void *
@@ -69,9 +80,8 @@ bsdauth_query(void *ctx, char **name, char **infotxt,
 	*name = xstrdup("");
 	*infotxt = xstrdup("");
 	*numprompts = 1;
-	*prompts = xmalloc(*numprompts * sizeof(char *));
-	*echo_on = xmalloc(*numprompts * sizeof(u_int));
-	(*echo_on)[0] = 0;
+	*prompts = xcalloc(*numprompts, sizeof(char *));
+	*echo_on = xcalloc(*numprompts, sizeof(u_int));
 	(*prompts)[0] = xstrdup(challenge);
 
 	return 0;

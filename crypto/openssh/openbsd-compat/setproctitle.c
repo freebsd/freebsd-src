@@ -35,10 +35,13 @@
 
 #ifndef HAVE_SETPROCTITLE
 
+#include <stdarg.h>
+#include <stdlib.h>
 #include <unistd.h>
 #ifdef HAVE_SYS_PSTAT_H
 #include <sys/pstat.h>
 #endif
+#include <string.h>
 
 #define SPT_NONE	0	/* don't use it at all */
 #define SPT_PSTAT	1	/* use pstat(PSTAT_SETCMD, ...) */
@@ -80,7 +83,7 @@ compat_init_setproctitle(int argc, char *argv[])
 	/* Fail if we can't allocate room for the new environment */
 	for (i = 0; envp[i] != NULL; i++)
 		;
-	if ((environ = malloc(sizeof(*environ) * (i + 1))) == NULL) {
+	if ((environ = calloc(i + 1, sizeof(*environ))) == NULL) {
 		environ = envp;	/* put it back */
 		return;
 	}

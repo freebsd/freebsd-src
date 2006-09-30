@@ -35,6 +35,21 @@
 #include "includes.h"
 #if !defined(HAVE_OPENPTY)
 
+#include <sys/types.h>
+
+#include <stdlib.h>
+
+#ifdef HAVE_SYS_STAT_H
+# include <sys/stat.h>
+#endif
+#ifdef HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
+
+#ifdef HAVE_FCNTL_H
+# include <fcntl.h>
+#endif
+
 #ifdef HAVE_UTIL_H
 # include <util.h>
 #endif /* HAVE_UTIL_H */
@@ -45,6 +60,10 @@
 #if defined(HAVE_DEV_PTMX) && defined(HAVE_SYS_STROPTS_H)
 # include <sys/stropts.h>
 #endif
+
+#include <signal.h>
+#include <string.h>
+#include <unistd.h>
 
 #ifndef O_NOCTTY
 #define O_NOCTTY 0

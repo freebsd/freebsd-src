@@ -1,3 +1,4 @@
+/* $OpenBSD: log.c,v 1.39 2006/08/18 09:13:25 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -34,15 +35,21 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: log.c,v 1.29 2003/09/23 20:17:11 markus Exp $");
 
-#include "log.h"
-#include "xmalloc.h"
+#include <sys/types.h>
 
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <syslog.h>
+#include <unistd.h>
 #if defined(HAVE_STRNVIS) && defined(HAVE_VIS_H)
 # include <vis.h>
 #endif
+
+#include "xmalloc.h"
+#include "log.h"
 
 static LogLevel log_level = SYSLOG_LEVEL_INFO;
 static int log_on_stderr = 1;
@@ -129,6 +136,20 @@ error(const char *fmt,...)
 	do_log(SYSLOG_LEVEL_ERROR, fmt, args);
 	va_end(args);
 }
+
+void
+sigdie(const char *fmt,...)
+{
+#ifdef DO_LOG_SAFE_IN_SIGHAND
+	va_list args;
+
+	va_start(args, fmt);
+	do_log(SYSLOG_LEVEL_FATAL, fmt, args);
+	va_end(args);
+#endif
+	_exit(1);
+}
+
 
 /* Log this message (information that usually should go to the log). */
 

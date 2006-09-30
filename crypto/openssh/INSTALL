@@ -12,6 +12,8 @@ http://www.openssl.org/
 (OpenSSL 0.9.5a is partially supported, but some ciphers (SSH protocol 1
 Blowfish) do not work correctly.)
 
+The remaining items are optional.
+
 OpenSSH can utilise Pluggable Authentication Modules (PAM) if your system
 supports it. PAM is standard on Redhat and Debian Linux, Solaris and
 HP-UX 11.
@@ -57,12 +59,28 @@ installed.  No other S/Key library is currently known to be supported.
 http://www.sparc.spb.su/solaris/skey/
 
 LibEdit:
-sftp now supports command-line editing via NetBSD's libedit.  If your
-platform has it available natively you can use that, alternatively
-you might try these multi-platform ports:
+
+sftp supports command-line editing via NetBSD's libedit.  If your platform
+has it available natively you can use that, alternatively you might try
+these multi-platform ports:
 
 http://www.thrysoee.dk/editline/
 http://sourceforge.net/projects/libedit/
+
+Autoconf:
+
+If you modify configure.ac or configure doesn't exist (eg if you checked
+the code out of CVS yourself) then you will need autoconf-2.60 to rebuild
+the automatically generated files by running "autoreconf".
+
+http://www.gnu.org/software/autoconf/
+
+Basic Security Module (BSM):
+
+Native BSM support is know to exist in Solaris from at least 2.5.1,
+FreeBSD 6.1 and OS X.  Alternatively, you may use the OpenBSM
+implementation (http://www.openbsm.org).
+
 
 2. Building / Installation
 --------------------------
@@ -112,6 +130,10 @@ configuration will work with sshd (sshd will match the other service
 name).
 
 There are a few other options to the configure script:
+
+--with-audit=[module] enable additional auditing via the specified module.
+Currently, drivers for "debug" (additional info via syslog) and "bsm"
+(Sun's Basic Security Module) are supported.
 
 --with-pam enables PAM support. If PAM support is compiled in, it must
 also be enabled in sshd_config (refer to the UsePAM directive).
@@ -165,6 +187,8 @@ created.
 --with-ssl-dir=DIR allows you to specify where your OpenSSL libraries
 are installed.
 
+--with-ssl-engine enables OpenSSL's (hardware) ENGINE support
+
 --with-4in6 Check for IPv4 in IPv6 mapped addresses and convert them to
 real (AF_INET) IPv4 addresses. Works around some quirks on Linux.
 
@@ -208,7 +232,8 @@ for sshd, ssh and ssh-agent.
 -------------------------
 
 $ make survey
-[check the contents and make sure there's no sensitive information]
+[check the contents of the file "survey" to ensure there's no information
+that you consider sensitive]
 $ make send-survey
 
 This will send configuration information for the currently configured
@@ -225,4 +250,4 @@ Please refer to the "reporting bugs" section of the webpage at
 http://www.openssh.com/
 
 
-$Id: INSTALL,v 1.70 2005/04/24 07:52:23 dtucker Exp $
+$Id: INSTALL,v 1.76 2006/09/17 12:55:52 dtucker Exp $

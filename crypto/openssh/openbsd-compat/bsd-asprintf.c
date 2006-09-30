@@ -21,6 +21,10 @@
 
 #ifndef HAVE_VASPRINTF
 
+#include <errno.h>
+#include <stdarg.h>
+#include <stdlib.h>
+
 #ifndef VA_COPY
 # ifdef HAVE_VA_COPY
 #  define VA_COPY(dest, src) va_copy(dest, src)
