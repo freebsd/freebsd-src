@@ -876,7 +876,6 @@ dev/sound/isa/sb16.c		optional snd_sb16 isa
 dev/sound/isa/sb8.c		optional snd_sb8 isa
 dev/sound/isa/sbc.c		optional snd_sbc isa
 dev/sound/isa/sndbuf_dma.c	optional sound isa
-dev/sound/pci/ak452x.c		optional snd_ak452x pci
 dev/sound/pci/als4000.c		optional snd_als4000 pci
 dev/sound/pci/atiixp.c		optional snd_atiixp pci
 #dev/sound/pci/au88x0.c		optional snd_au88x0 pci
@@ -903,6 +902,7 @@ dev/sound/pci/emu10kx-midi.c	optional snd_emu10kx pci \
 	dependency "emu10k1-alsa%diked.h" \
 	warning "kernel contains GPL contaminated emu10kx headers"
 dev/sound/pci/envy24.c		optional snd_envy24 pci
+dev/sound/pci/envy24ht.c	optional snd_envy24ht pci
 dev/sound/pci/es137x.c		optional snd_es137x pci
 dev/sound/pci/fm801.c		optional snd_fm801 pci
 dev/sound/pci/ich.c		optional snd_ich pci
@@ -911,6 +911,7 @@ dev/sound/pci/maestro3.c	optional snd_maestro3 pci \
 	warning "kernel contains GPL contaminated maestro3 headers"
 dev/sound/pci/neomagic.c	optional snd_neomagic pci
 dev/sound/pci/solo.c		optional snd_solo pci
+dev_sound/pci/spicds.c		optional snd_spicds pci
 dev/sound/pci/t4dwave.c		optional snd_t4dwave pci
 dev/sound/pci/via8233.c		optional snd_via8233 pci
 dev/sound/pci/via82c686.c	optional snd_via82c686 pci
