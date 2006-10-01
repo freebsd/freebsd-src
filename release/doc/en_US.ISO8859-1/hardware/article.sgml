@@ -696,6 +696,8 @@
 
     &hwlist.snd.gusc;
 
+    &hwlist.snd.hda;
+
     &hwlist.snd.ich;
 
     &hwlist.snd.maestro;
