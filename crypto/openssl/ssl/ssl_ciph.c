@@ -56,6 +56,59 @@
  * [including the GNU Public Licence.]
  */
 /* ====================================================================
+ * Copyright (c) 1998-2006 The OpenSSL Project.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer. 
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+ *
+ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission. For written permission, please contact
+ *    openssl-core@openssl.org.
+ *
+ * 5. Products derived from this software may not be called "OpenSSL"
+ *    nor may "OpenSSL" appear in their names without prior written
+ *    permission of the OpenSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
+ *
+ * This product includes cryptographic software written by Eric Young
+ * (eay@cryptsoft.com).  This product includes software written by Tim
+ * Hudson (tjh@cryptsoft.com).
+ *
+ */
+/* ====================================================================
  * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
  * ECC cipher suite support in OpenSSL originally developed by 
  * SUN MICROSYSTEMS, INC., and contributed to the OpenSSL project.
@@ -75,6 +128,11 @@
 #define SSL_ENC_AES128_IDX	7
 #define SSL_ENC_AES256_IDX	8
 #define SSL_ENC_NUM_IDX		9
+#define SSL_ENC_CAMELLIA128_IDX	9
+#define SSL_ENC_CAMELLIA256_IDX	10
+#undef  SSL_ENC_NUM_IDX
+#define SSL_ENC_NUM_IDX		11
+
 
 static const EVP_CIPHER *ssl_cipher_methods[SSL_ENC_NUM_IDX]={
 	NULL,NULL,NULL,NULL,NULL,NULL,
@@ -141,6 +199,7 @@ static const SSL_CIPHER cipher_aliases[]={
 	{0,SSL_TXT_eNULL,0,SSL_eNULL,0,0,0,0,SSL_ENC_MASK,0},
 	{0,SSL_TXT_eFZA,0,SSL_eFZA,  0,0,0,0,SSL_ENC_MASK,0},
 	{0,SSL_TXT_AES,	0,SSL_AES,   0,0,0,0,SSL_ENC_MASK,0},
+	{0,SSL_TXT_CAMELLIA,	0,SSL_CAMELLIA,   0,0,0,0,SSL_ENC_MASK,0},
 
 	{0,SSL_TXT_MD5,	0,SSL_MD5,   0,0,0,0,SSL_MAC_MASK,0},
 	{0,SSL_TXT_SHA1,0,SSL_SHA1,  0,0,0,0,SSL_MAC_MASK,0},
@@ -185,6 +244,10 @@ void ssl_load_ciphers(void)
 	  EVP_get_cipherbyname(SN_aes_128_cbc);
 	ssl_cipher_methods[SSL_ENC_AES256_IDX]=
 	  EVP_get_cipherbyname(SN_aes_256_cbc);
+	ssl_cipher_methods[SSL_ENC_CAMELLIA128_IDX]=
+	  EVP_get_cipherbyname(SN_camellia_128_cbc);
+	ssl_cipher_methods[SSL_ENC_CAMELLIA256_IDX]=
+	  EVP_get_cipherbyname(SN_camellia_256_cbc);
 
 	ssl_digest_methods[SSL_MD_MD5_IDX]=
 		EVP_get_digestbyname(SN_md5);
@@ -203,36 +266,46 @@ static int sk_comp_cmp(const SSL_COMP * const *a,
 
 static void load_builtin_compressions(void)
 	{
-	if (ssl_comp_methods != NULL)
-		return;
+	int got_write_lock = 0;
 
-	CRYPTO_w_lock(CRYPTO_LOCK_SSL);
+	CRYPTO_r_lock(CRYPTO_LOCK_SSL);
 	if (ssl_comp_methods == NULL)
 		{
-		SSL_COMP *comp = NULL;
-
-		MemCheck_off();
-		ssl_comp_methods=sk_SSL_COMP_new(sk_comp_cmp);
-		if (ssl_comp_methods != NULL)
+		CRYPTO_r_unlock(CRYPTO_LOCK_SSL);
+		CRYPTO_w_lock(CRYPTO_LOCK_SSL);
+		got_write_lock = 1;
+		
+		if (ssl_comp_methods == NULL)
 			{
-			comp=(SSL_COMP *)OPENSSL_malloc(sizeof(SSL_COMP));
-			if (comp != NULL)
+			SSL_COMP *comp = NULL;
+
+			MemCheck_off();
+			ssl_comp_methods=sk_SSL_COMP_new(sk_comp_cmp);
+			if (ssl_comp_methods != NULL)
 				{
-				comp->method=COMP_zlib();
-				if (comp->method
-					&& comp->method->type == NID_undef)
-					OPENSSL_free(comp);
-				else
+				comp=(SSL_COMP *)OPENSSL_malloc(sizeof(SSL_COMP));
+				if (comp != NULL)
 					{
-					comp->id=SSL_COMP_ZLIB_IDX;
-					comp->name=comp->method->name;
-					sk_SSL_COMP_push(ssl_comp_methods,comp);
+					comp->method=COMP_zlib();
+					if (comp->method
+						&& comp->method->type == NID_undef)
+						OPENSSL_free(comp);
+					else
+						{
+						comp->id=SSL_COMP_ZLIB_IDX;
+						comp->name=comp->method->name;
+						sk_SSL_COMP_push(ssl_comp_methods,comp);
+						}
 					}
 				}
+			MemCheck_on();
 			}
-		MemCheck_on();
 		}
-	CRYPTO_w_unlock(CRYPTO_LOCK_SSL);
+	
+	if (got_write_lock)
+		CRYPTO_w_unlock(CRYPTO_LOCK_SSL);
+	else
+		CRYPTO_r_unlock(CRYPTO_LOCK_SSL);
 	}
 #endif
 
@@ -293,6 +366,15 @@ int ssl_cipher_get_evp(const SSL_SESSION *s, const EVP_CIPHER **enc,
 		default: i=-1; break;
 			}
 		break;
+	case SSL_CAMELLIA:
+		switch(c->alg_bits)
+			{
+		case 128: i=SSL_ENC_CAMELLIA128_IDX; break;
+		case 256: i=SSL_ENC_CAMELLIA256_IDX; break;
+		default: i=-1; break;
+			}
+		break;
+
 	default:
 		i= -1;
 		break;
@@ -381,6 +463,7 @@ static unsigned long ssl_cipher_get_disabled(void)
 	mask |= (ssl_cipher_methods[SSL_ENC_IDEA_IDX] == NULL) ? SSL_IDEA:0;
 	mask |= (ssl_cipher_methods[SSL_ENC_eFZA_IDX] == NULL) ? SSL_eFZA:0;
 	mask |= (ssl_cipher_methods[SSL_ENC_AES128_IDX] == NULL) ? SSL_AES:0;
+	mask |= (ssl_cipher_methods[SSL_ENC_CAMELLIA128_IDX] == NULL) ? SSL_CAMELLIA:0;
 
 	mask |= (ssl_digest_methods[SSL_MD_MD5_IDX ] == NULL) ? SSL_MD5 :0;
 	mask |= (ssl_digest_methods[SSL_MD_SHA1_IDX] == NULL) ? SSL_SHA1:0;
@@ -482,7 +565,7 @@ static void ssl_cipher_collect_aliases(SSL_CIPHER **ca_list,
 	*ca_curr = NULL;	/* end of list */
 	}
 
-static void ssl_cipher_apply_rule(unsigned long cipher_id,
+static void ssl_cipher_apply_rule(unsigned long cipher_id, unsigned long ssl_version,
 		unsigned long algorithms, unsigned long mask,
 		unsigned long algo_strength, unsigned long mask_strength,
 		int rule, int strength_bits, CIPHER_ORDER *co_list,
@@ -509,9 +592,10 @@ static void ssl_cipher_apply_rule(unsigned long cipher_id,
 
 		cp = curr->cipher;
 
-		/* If explicit cipher suite match that one only */
+		/* If explicit cipher suite, match only that one for its own protocol version.
+		 * Usual selection criteria will be used for similar ciphersuites from other version! */
 
-		if (cipher_id)
+		if (cipher_id && (cp->algorithms & SSL_SSL_MASK) == ssl_version)
 			{
 			if (cp->id != cipher_id)
 				continue;
@@ -552,8 +636,22 @@ static void ssl_cipher_apply_rule(unsigned long cipher_id,
 			{
 			if (!curr->active)
 				{
-				ll_append_tail(&head, curr, &tail);
-				curr->active = 1;
+				int add_this_cipher = 1;
+
+				if (((cp->algorithms & (SSL_kECDHE|SSL_kECDH|SSL_aECDSA)) != 0))
+					{
+					/* Make sure "ECCdraft" ciphersuites are activated only if
+					 * *explicitly* requested, but not implicitly (such as
+					 * as part of the "AES" alias). */
+
+					add_this_cipher = (mask & (SSL_kECDHE|SSL_kECDH|SSL_aECDSA)) != 0 || cipher_id != 0;
+					}
+				
+				if (add_this_cipher)
+					{
+					ll_append_tail(&head, curr, &tail);
+					curr->active = 1;
+					}
 				}
 			}
 		/* Move the added cipher to this location */
@@ -634,7 +732,7 @@ static int ssl_cipher_strength_sort(CIPHER_ORDER *co_list,
 	 */
 	for (i = max_strength_bits; i >= 0; i--)
 		if (number_uses[i] > 0)
-			ssl_cipher_apply_rule(0, 0, 0, 0, 0, CIPHER_ORD, i,
+			ssl_cipher_apply_rule(0, 0, 0, 0, 0, 0, CIPHER_ORD, i,
 					co_list, head_p, tail_p);
 
 	OPENSSL_free(number_uses);
@@ -648,7 +746,7 @@ static int ssl_cipher_process_rulestr(const char *rule_str,
 	unsigned long algorithms, mask, algo_strength, mask_strength;
 	const char *l, *start, *buf;
 	int j, multi, found, rule, retval, ok, buflen;
-	unsigned long cipher_id;
+	unsigned long cipher_id = 0, ssl_version = 0;
 	char ch;
 
 	retval = 1;
@@ -739,6 +837,7 @@ static int ssl_cipher_process_rulestr(const char *rule_str,
 			 */
 			 j = found = 0;
 			 cipher_id = 0;
+			 ssl_version = 0;
 			 while (ca_list[j])
 				{
 				if (!strncmp(buf, ca_list[j]->name, buflen) &&
@@ -753,12 +852,6 @@ static int ssl_cipher_process_rulestr(const char *rule_str,
 			if (!found)
 				break;	/* ignore this entry */
 
-			if (ca_list[j]->valid)
-				{
-				cipher_id = ca_list[j]->id;
-				break;
-				}
-
 			/* New algorithms:
 			 *  1 - any old restrictions apply outside new mask
 			 *  2 - any new restrictions apply outside old mask
@@ -772,6 +865,14 @@ static int ssl_cipher_process_rulestr(const char *rule_str,
 			                (ca_list[j]->algo_strength & ~mask_strength) |
 			                (algo_strength & ca_list[j]->algo_strength);
 			mask_strength |= ca_list[j]->mask_strength;
+
+			/* explicit ciphersuite found */
+			if (ca_list[j]->valid)
+				{
+				cipher_id = ca_list[j]->id;
+				ssl_version = ca_list[j]->algorithms & SSL_SSL_MASK;
+				break;
+				}
 
 			if (!multi) break;
 			}
@@ -802,7 +903,7 @@ static int ssl_cipher_process_rulestr(const char *rule_str,
 			}
 		else if (found)
 			{
-			ssl_cipher_apply_rule(cipher_id, algorithms, mask,
+			ssl_cipher_apply_rule(cipher_id, ssl_version, algorithms, mask,
 				algo_strength, mask_strength, rule, -1,
 				co_list, head_p, tail_p);
 			}
@@ -1067,6 +1168,15 @@ char *SSL_CIPHER_description(SSL_CIPHER *cipher, char *buf, int len)
 		default: enc="AES(?""?""?)"; break;
 			}
 		break;
+	case SSL_CAMELLIA:
+		switch(cipher->strength_bits)
+			{
+		case 128: enc="Camellia(128)"; break;
+		case 256: enc="Camellia(256)"; break;
+		default: enc="Camellia(?""?""?)"; break;
+			}
+		break;
+		
 	default:
 		enc="unknown";
 		break;
