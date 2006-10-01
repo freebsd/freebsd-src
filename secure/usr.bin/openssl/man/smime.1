@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SMIME 1"
-.TH SMIME 1 "2006-07-29" "0.9.8b" "OpenSSL"
+.TH SMIME 1 "2006-10-01" "0.9.8d" "OpenSSL"
 .SH "NAME"
 smime \- S/MIME utility
 .SH "SYNOPSIS"
@@ -148,6 +148,9 @@ smime \- S/MIME utility
 [\fB\-aes128\fR]
 [\fB\-aes192\fR]
 [\fB\-aes256\fR]
+[\fB\-camellia128\fR]
+[\fB\-camellia192\fR]
+[\fB\-camellia256\fR]
 [\fB\-in file\fR]
 [\fB\-certfile file\fR]
 [\fB\-signer file\fR]
@@ -239,10 +242,10 @@ a directory containing trusted \s-1CA\s0 certificates, only used with
 \&\fB\-verify\fR. This directory must be a standard certificate directory: that
 is a hash of each subject name (using \fBx509 \-hash\fR) should be linked
 to each certificate.
-.IP "\fB\-des \-des3 \-rc2\-40 \-rc2\-64 \-rc2\-128 \-aes128 \-aes192 \-aes256\fR" 4
-.IX Item "-des -des3 -rc2-40 -rc2-64 -rc2-128 -aes128 -aes192 -aes256"
+.IP "\fB\-des \-des3 \-rc2\-40 \-rc2\-64 \-rc2\-128 \-aes128 \-aes192 \-aes256 \-camellia128 \-camellia192 \-camellia256\fR" 4
+.IX Item "-des -des3 -rc2-40 -rc2-64 -rc2-128 -aes128 -aes192 -aes256 -camellia128 -camellia192 -camellia256"
 the encryption algorithm to use. \s-1DES\s0 (56 bits), triple \s-1DES\s0 (168 bits),
-40, 64 or 128 bit \s-1RC2\s0 or 128, 192 or 256 bit \s-1AES\s0 respectively.  If not
+40, 64 or 128 bit \s-1RC2\s0, 128, 192 or 256 bit \s-1AES\s0, or 128, 192 or 256 bit Camellia respectively.  If not
 specified 40 bit \s-1RC2\s0 is used. Only used with \fB\-encrypt\fR.
 .IP "\fB\-nointern\fR" 4
 .IX Item "-nointern"
@@ -453,6 +456,12 @@ alternatively you can base64 decode the signature and use
 .PP
 .Vb 1
 \& openssl smime -verify -inform DER -in signature.der -content content.txt
+.Ve
+.PP
+Create an encrypted message using 128 bit Camellia:
+.PP
+.Vb 1
+\& openssl smime -encrypt -in plain.txt -camellia128 -out mail.msg cert.pem
 .Ve
 .SH "BUGS"
 .IX Header "BUGS"

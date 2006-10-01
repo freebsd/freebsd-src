@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CIPHERS 1"
-.TH CIPHERS 1 "2006-07-29" "0.9.8b" "OpenSSL"
+.TH CIPHERS 1 "2006-10-01" "0.9.8d" "OpenSSL"
 .SH "NAME"
 ciphers \- SSL cipher display and cipher list tool.
 .SH "SYNOPSIS"
@@ -233,10 +233,10 @@ the cipher suites not enabled by \fB\s-1ALL\s0\fR, currently being \fBeNULL\fR.
 .IP "\fB\s-1HIGH\s0\fR" 4
 .IX Item "HIGH"
 \&\*(L"high\*(R" encryption cipher suites. This currently means those with key lengths larger
-than 128 bits.
+than 128 bits, and some cipher suites with 128\-bit keys.
 .IP "\fB\s-1MEDIUM\s0\fR" 4
 .IX Item "MEDIUM"
-\&\*(L"medium\*(R" encryption cipher suites, currently those using 128 bit encryption.
+\&\*(L"medium\*(R" encryption cipher suites, currently some of those using 128 bit encryption.
 .IP "\fB\s-1LOW\s0\fR" 4
 .IX Item "LOW"
 \&\*(L"low\*(R" encryption cipher suites, currently those using 64 or 56 bit encryption algorithms
@@ -317,6 +317,9 @@ cipher suites using \s-1MD5\s0.
 .IP "\fB\s-1SHA1\s0\fR, \fB\s-1SHA\s0\fR" 4
 .IX Item "SHA1, SHA"
 cipher suites using \s-1SHA1\s0.
+.IP "\fBCamellia\fR" 4
+.IX Item "Camellia"
+cipher suites using Camellia.
 .SH "CIPHER SUITE NAMES"
 .IX Header "CIPHER SUITE NAMES"
 The following lists give the \s-1SSL\s0 or \s-1TLS\s0 cipher suites names from the
@@ -427,6 +430,31 @@ e.g. \s-1DES\-CBC3\-SHA\s0. In these cases, \s-1RSA\s0 authentication is used.
 .Vb 2
 \& TLS_DH_anon_WITH_AES_128_CBC_SHA        ADH-AES128-SHA
 \& TLS_DH_anon_WITH_AES_256_CBC_SHA        ADH-AES256-SHA
+.Ve
+.Sh "Camellia ciphersuites from \s-1RFC4132\s0, extending \s-1TLS\s0 v1.0"
+.IX Subsection "Camellia ciphersuites from RFC4132, extending TLS v1.0"
+.Vb 2
+\& TLS_RSA_WITH_CAMELLIA_128_CBC_SHA      CAMELLIA128-SHA
+\& TLS_RSA_WITH_CAMELLIA_256_CBC_SHA      CAMELLIA256-SHA
+.Ve
+.PP
+.Vb 4
+\& TLS_DH_DSS_WITH_CAMELLIA_128_CBC_SHA   Not implemented.
+\& TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA   Not implemented.
+\& TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA   Not implemented.
+\& TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA   Not implemented.
+.Ve
+.PP
+.Vb 4
+\& TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA  DHE-DSS-CAMELLIA128-SHA
+\& TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA  DHE-DSS-CAMELLIA256-SHA
+\& TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA  DHE-RSA-CAMELLIA128-SHA
+\& TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA  DHE-RSA-CAMELLIA256-SHA
+.Ve
+.PP
+.Vb 2
+\& TLS_DH_anon_WITH_CAMELLIA_128_CBC_SHA  ADH-CAMELLIA128-SHA
+\& TLS_DH_anon_WITH_CAMELLIA_256_CBC_SHA  ADH-CAMELLIA256-SHA
 .Ve
 .Sh "Additional Export 1024 and other cipher suites"
 .IX Subsection "Additional Export 1024 and other cipher suites"
