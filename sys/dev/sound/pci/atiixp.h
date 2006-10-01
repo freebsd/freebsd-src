@@ -46,9 +46,8 @@
 #define ATI_IXP_DMA_CHSEGS_MIN	2
 #define ATI_IXP_DMA_CHSEGS_MAX	256
 
-#define ATI_IXP_DEFAULT_BUFSZ	(1 << 13)	/* 8192 */
-
 #define ATI_VENDOR_ID		0x1002	/* ATI Technologies */
+
 #define ATI_IXP_200_ID		0x4341
 #define ATI_IXP_300_ID		0x4361
 #define ATI_IXP_400_ID		0x4370
