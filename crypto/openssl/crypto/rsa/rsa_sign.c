@@ -196,7 +196,7 @@ int RSA_verify(int dtype, const unsigned char *m, unsigned int m_len,
 		/* Parameters to the signature algorithm can also be used to
 		   create forgeries */
 		if(sig->algor->parameter
-		   && sig->algor->parameter->type != V_ASN1_NULL)
+		   && ASN1_TYPE_get(sig->algor->parameter) != V_ASN1_NULL)
 			{
 			RSAerr(RSA_F_RSA_VERIFY,RSA_R_BAD_SIGNATURE);
 			goto err;
