@@ -1943,6 +1943,8 @@ device		sound
 #			conjunction with snd_sbc.
 # snd_fm801:		Forte Media FM801 PCI.
 # snd_gusc:		Gravis UltraSound ISA PnP/non-PnP.
+# snd_hda:		Intel High Definition Audio (Controller) and
+#			compatible.
 # snd_ich:		Intel ICH PCI and some more audio controllers
 #			embedded in a chipset, for example nVidia
 #			nForce controllers.
@@ -1983,6 +1985,7 @@ device		snd_es137x
 device		snd_ess
 device		snd_fm801
 device		snd_gusc
+device		snd_hda
 device		snd_ich
 device		snd_maestro
 device		snd_maestro3
