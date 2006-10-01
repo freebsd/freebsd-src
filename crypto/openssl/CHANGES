@@ -2,6 +2,108 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 0.9.8c and 0.9.8d  [28 Sep 2006]
+
+  *) Introduce limits to prevent malicious keys being able to
+     cause a denial of service.  (CVE-2006-2940)
+     [Steve Henson, Bodo Moeller]
+
+  *) Fix ASN.1 parsing of certain invalid structures that can result
+     in a denial of service.  (CVE-2006-2937)  [Steve Henson]
+
+  *) Fix buffer overflow in SSL_get_shared_ciphers() function. 
+     (CVE-2006-3738) [Tavis Ormandy and Will Drewry, Google Security Team]
+
+  *) Fix SSL client code which could crash if connecting to a
+     malicious SSLv2 server.  (CVE-2006-4343)
+     [Tavis Ormandy and Will Drewry, Google Security Team]
+
+  *) Since 0.9.8b, ciphersuite strings naming explicit ciphersuites
+     match only those.  Before that, "AES256-SHA" would be interpreted
+     as a pattern and match "AES128-SHA" too (since AES128-SHA got
+     the same strength classification in 0.9.7h) as we currently only
+     have a single AES bit in the ciphersuite description bitmap.
+     That change, however, also applied to ciphersuite strings such as
+     "RC4-MD5" that intentionally matched multiple ciphersuites --
+     namely, SSL 2.0 ciphersuites in addition to the more common ones
+     from SSL 3.0/TLS 1.0.
+
+     So we change the selection algorithm again: Naming an explicit
+     ciphersuite selects this one ciphersuite, and any other similar
+     ciphersuite (same bitmap) from *other* protocol versions.
+     Thus, "RC4-MD5" again will properly select both the SSL 2.0
+     ciphersuite and the SSL 3.0/TLS 1.0 ciphersuite.
+
+     Since SSL 2.0 does not have any ciphersuites for which the
+     128/256 bit distinction would be relevant, this works for now.
+     The proper fix will be to use different bits for AES128 and
+     AES256, which would have avoided the problems from the beginning;
+     however, bits are scarce, so we can only do this in a new release
+     (not just a patchlevel) when we can change the SSL_CIPHER
+     definition to split the single 'unsigned long mask' bitmap into
+     multiple values to extend the available space.
+
+     [Bodo Moeller]
+
+ Changes between 0.9.8b and 0.9.8c  [05 Sep 2006]
+
+  *) Avoid PKCS #1 v1.5 signature attack discovered by Daniel Bleichenbacher
+     (CVE-2006-4339)  [Ben Laurie and Google Security Team]
+
+  *) Add AES IGE and biIGE modes.
+     [Ben Laurie]
+
+  *) Change the Unix randomness entropy gathering to use poll() when
+     possible instead of select(), since the latter has some
+     undesirable limitations.
+     [Darryl Miles via Richard Levitte and Bodo Moeller]
+
+  *) Disable "ECCdraft" ciphersuites more thoroughly.  Now special
+     treatment in ssl/ssl_ciph.s makes sure that these ciphersuites
+     cannot be implicitly activated as part of, e.g., the "AES" alias.
+     However, please upgrade to OpenSSL 0.9.9[-dev] for
+     non-experimental use of the ECC ciphersuites to get TLS extension
+     support, which is required for curve and point format negotiation
+     to avoid potential handshake problems.
+     [Bodo Moeller]
+
+  *) Disable rogue ciphersuites:
+
+      - SSLv2 0x08 0x00 0x80 ("RC4-64-MD5")
+      - SSLv3/TLSv1 0x00 0x61 ("EXP1024-RC2-CBC-MD5")
+      - SSLv3/TLSv1 0x00 0x60 ("EXP1024-RC4-MD5")
+
+     The latter two were purportedly from
+     draft-ietf-tls-56-bit-ciphersuites-0[01].txt, but do not really
+     appear there.
+
+     Also deactive the remaining ciphersuites from
+     draft-ietf-tls-56-bit-ciphersuites-01.txt.  These are just as
+     unofficial, and the ID has long expired.
+     [Bodo Moeller]
+
+  *) Fix RSA blinding Heisenbug (problems sometimes occured on
+     dual-core machines) and other potential thread-safety issues.
+     [Bodo Moeller]
+
+  *) Add the symmetric cipher Camellia (128-bit, 192-bit, 256-bit key
+     versions), which is now available for royalty-free use
+     (see http://info.isl.ntt.co.jp/crypt/eng/info/chiteki.html).
+     Also, add Camellia TLS ciphersuites from RFC 4132.
+
+     To minimize changes between patchlevels in the OpenSSL 0.9.8
+     series, Camellia remains excluded from compilation unless OpenSSL
+     is configured with 'enable-camellia'.
+     [NTT]
+
+  *) Disable the padding bug check when compression is in use. The padding
+     bug check assumes the first packet is of even length, this is not
+     necessarily true if compresssion is enabled and can result in false
+     positives causing handshake failure. The actual bug test is ancient
+     code so it is hoped that implementations will either have fixed it by
+     now or any which still have the bug do not support compression.
+     [Steve Henson]
+
  Changes between 0.9.8a and 0.9.8b  [04 May 2006]
 
   *) When applying a cipher rule check to see if string match is an explicit
@@ -83,6 +185,9 @@
      [Steve Henson]
 
  Changes between 0.9.7h and 0.9.8  [05 Jul 2005]
+
+  [NB: OpenSSL 0.9.7i and later 0.9.7 patch levels were released after
+  OpenSSL 0.9.8.]
 
   *) Add libcrypto.pc and libssl.pc for those who feel they need them.
      [Richard Levitte]
@@ -900,6 +1005,61 @@
      bn_sub_words() and bn_add_words() except they take arrays with
      differing sizes.
      [Richard Levitte]
+
+ Changes between 0.9.7k and 0.9.7l  [xx XXX xxxx]
+
+  *) Change ciphersuite string processing so that an explicit
+     ciphersuite selects this one ciphersuite (so that "AES256-SHA"
+     will no longer include "AES128-SHA"), and any other similar
+     ciphersuite (same bitmap) from *other* protocol versions (so that
+     "RC4-MD5" will still include both the SSL 2.0 ciphersuite and the
+     SSL 3.0/TLS 1.0 ciphersuite).  This is a backport combining
+     changes from 0.9.8b and 0.9.8d.
+     [Bodo Moeller]
+
+ Changes between 0.9.7j and 0.9.7k  [05 Sep 2006]
+
+  *) Avoid PKCS #1 v1.5 signature attack discovered by Daniel Bleichenbacher
+     (CVE-2006-4339)  [Ben Laurie and Google Security Team]
+
+  *) Change the Unix randomness entropy gathering to use poll() when
+     possible instead of select(), since the latter has some
+     undesirable limitations.
+     [Darryl Miles via Richard Levitte and Bodo Moeller]
+
+  *) Disable rogue ciphersuites:
+
+      - SSLv2 0x08 0x00 0x80 ("RC4-64-MD5")
+      - SSLv3/TLSv1 0x00 0x61 ("EXP1024-RC2-CBC-MD5")
+      - SSLv3/TLSv1 0x00 0x60 ("EXP1024-RC4-MD5")
+
+     The latter two were purportedly from
+     draft-ietf-tls-56-bit-ciphersuites-0[01].txt, but do not really
+     appear there.
+
+     Also deactive the remaining ciphersuites from
+     draft-ietf-tls-56-bit-ciphersuites-01.txt.  These are just as
+     unofficial, and the ID has long expired.
+     [Bodo Moeller]
+
+  *) Fix RSA blinding Heisenbug (problems sometimes occured on
+     dual-core machines) and other potential thread-safety issues.
+     [Bodo Moeller]
+
+ Changes between 0.9.7i and 0.9.7j  [04 May 2006]
+
+  *) Adapt fipsld and the build system to link against the validated FIPS
+     module in FIPS mode.
+     [Steve Henson]
+
+  *) Fixes for VC++ 2005 build under Windows.
+     [Steve Henson]
+
+  *) Add new Windows build target VC-32-GMAKE for VC++. This uses GNU make 
+     from a Windows bash shell such as MSYS. It is autodetected from the
+     "config" script when run from a VC++ environment. Modify standard VC++
+     build to use fipscanister.o from the GNU make build. 
+     [Steve Henson]
 
  Changes between 0.9.7h and 0.9.7i  [14 Oct 2005]
 

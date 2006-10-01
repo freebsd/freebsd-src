@@ -832,6 +832,7 @@ static int asn1_d2i_ex_primitive(ASN1_VALUE **pval,
 		}
 	else if (ret == -1)
 		return -1;
+        ret = 0;
 	/* SEQUENCE, SET and "OTHER" are left in encoded form */
 	if ((utype == V_ASN1_SEQUENCE)
 		|| (utype == V_ASN1_SET) || (utype == V_ASN1_OTHER))
@@ -878,7 +879,10 @@ static int asn1_d2i_ex_primitive(ASN1_VALUE **pval,
 		 * for UNIVERSAL class and ignore the tag.
 		 */
 		if (!asn1_collect(&buf, &p, plen, inf, -1, V_ASN1_UNIVERSAL))
+			{
+			free_cont = 1;
 			goto err;
+			}
 		len = buf.length;
 		/* Append a final null to string */
 		if (!BUF_MEM_grow_clean(&buf, len + 1))
