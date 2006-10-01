@@ -2960,6 +2960,14 @@ OLD_LIBS+=lib/libc.so.6
 OLD_LIBS+=lib/libutil.so.5
 # 20060413: shared library moved to /usr/lib
 OLD_LIBS+=lib/libgpib.so.1
+# 20060413: libpcap.so.4 moved to /lib/
+OLD_LIBS+=usr/lib/libpcap.so.4
+# 20060412: libpthread.so.2 moved to /lib/
+.if ${TARGET_ARCH} != "sparc64"
+OLD_LIBS+=usr/lib/libpthread.so.2
+.else
+OLD_LIBS+=usr/lib/libthr.so.2
+.endif
 # 20060127: revert libdisk to static-only
 OLD_LIBS+=usr/lib/libdisk.so.3
 # 20050722: bump for 6.0-RELEASE
