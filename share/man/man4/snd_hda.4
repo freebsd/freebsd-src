@@ -1,0 +1,153 @@
+.\" Copyright (c) 2006 Joel Dahl <joel@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 1, 2006
+.Dt SND_HDA 4
+.Os
+.Sh NAME
+.Nm snd_hda
+.Nd "Intel High Definition Audio bridge device driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device sound"
+.Cd "device snd_hda"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+snd_hda_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+bridge device driver allows the generic audio driver,
+.Xr sound 4 ,
+to attach to Intel High Definition Audio devices.
+The
+.Nm
+driver supports hardware that conforms with revision 1.0 of the Intel High
+Definition Audio specification and tries to behave much like the Microsoft
+Universal Audio Architecture (UAA) draft (revision 0.7b) for handling audio
+devices.
+HDA acts like a primary bus, similar to
+.Xr miibus 4 ,
+for handling various child buses such as audio, modem and HDMI (High Definition
+Multimedia Interface).
+Only audio is implemented in the
+.Nm
+driver.
+.Pp
+The High Definition (HD) Audio specification was developed by Intel as the
+logical successor of the old AC'97 specification and has several advantages,
+such as higher bandwidth which allows more channels and more detailed formats,
+support for several logical audio devices, and general purpose DMA channels.
+.Pp
+The HDA specification defines the register-level interface, physical link
+characteristics, codec programming models, and codec architectural components.
+This specification is intended for both device driver developers and hardware
+component designers.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following audio chipsets:
+.Pp
+.Bl -bullet -compact
+.It
+ATI SB450
+.It
+Intel 82801F
+.It
+Intel 82801G
+.It
+nVidia MCP51
+.It
+nVidia MCP55
+.El
+.Pp
+Generic Audio chipsets compatible with the Intel HDA specification should work,
+but have not been verified yet.
+The following codecs have been verified to work:
+.Pp
+.Bl -bullet -compact
+.It
+Analog Device AD1981HD
+.It
+Analog Device AD1983
+.It
+Analog Device AD1986A
+.It
+CMedia CMI9880
+.It
+Conexant Venice
+.It
+Realtek ALC260
+.It
+Realtek ALC861
+.It
+Realtek ALC880
+.It
+Realtek ALC882
+.It
+Sigmatel STAC9220
+.It
+Sigmatel STAC9221
+.It
+Sigmatel STAC9221D
+.It
+Sigmatel STAC922XD
+.El
+.Sh SEE ALSO
+.Xr sound 4 ,
+.Xr loader.conf 5
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Stephane E. Potvin Aq sepotvin@videotron.ca
+and
+.An Ariff Abdullah Aq ariff@FreeBSD.org .
+This manual page was written by
+.An Joel Dahl Aq joel@FreeBSD.org .
+.Sh BUGS
+There are a couple of missing features, such as support for Digital
+S/PDIF and multichannel output.
+.Pp
+A few Hardware/OEM vendors tend to screw up BIOS settings, thus
+rendering the
+.Nm
+driver useless, which usually results in a state where the
+.Nm
+driver seems to attach and work, but without any sound.
