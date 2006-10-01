@@ -1,7 +1,7 @@
 
- OpenSSL 0.9.8b 04 May 2006
+ OpenSSL 0.9.8d 28 Sep 2006
 
- Copyright (c) 1998-2005 The OpenSSL Project
+ Copyright (c) 1998-2006 The OpenSSL Project
  Copyright (c) 1995-1998 Eric A. Young, Tim J. Hudson
  All rights reserved.
 
@@ -112,6 +112,10 @@
  http://www.ascom.ch/.
 
  The MDC2 algorithm is patented by IBM.
+
+ NTT and Mitsubishi have patents and pending patents on the Camellia
+ algorithm, but allow use at no charge without requiring an explicit
+ licensing agreement: http://info.isl.ntt.co.jp/crypt/eng/info/chiteki.html
 
  INSTALLATION
  ------------
