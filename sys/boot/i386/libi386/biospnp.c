@@ -165,7 +165,7 @@ biospnp_enumerate(void)
     if (biospnp_init())
 	return;
 
-    devNodeBuffer = (struct pnp_devNode *)malloc(pnp_NodeSize);
+    devNodeBuffer = (struct pnp_devNode *)alloca(pnp_NodeSize);
     Node = 0;
     count = 1000;
     while((Node != 0xff) && (count-- > 0)) {

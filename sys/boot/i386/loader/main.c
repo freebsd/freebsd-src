@@ -72,6 +72,9 @@ extern	char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
 /* XXX debugging */
 extern char end[];
 
+static void *heap_top;
+static void *heap_bottom;
+
 int
 main(void)
 {
@@ -88,7 +91,15 @@ main(void)
      */
     bios_getmem();
 
-    setheap((void *)end, (void *)bios_basemem);
+#ifdef LOADER_BZIP2_SUPPORT
+    heap_top = PTOV(memtop_copyin);
+    memtop_copyin -= 0x300000;
+    heap_bottom = PTOV(memtop_copyin);
+#else
+    heap_top = (void *)bios_basemem;
+    heap_bottom = (void *)end;
+#endif
+    setheap(heap_bottom, heap_top);
 
     /* 
      * XXX Chicken-and-egg problem; we want to have console output early, but some
@@ -215,7 +226,7 @@ extract_currdev(void)
 
 	/*
 	 * If we are booted by an old bootstrap, we have to guess at the BIOS
-	 * unit number.  We will loose if there is more than one disk type
+	 * unit number.  We will lose if there is more than one disk type
 	 * and we are not booting from the lowest-numbered disk type 
 	 * (ie. SCSI when IDE also exists).
 	 */
@@ -269,7 +280,8 @@ static int
 command_heap(int argc, char *argv[])
 {
     mallocstats();
-    printf("heap base at %p, top at %p\n", end, sbrk(0));
+    printf("heap base at %p, top at %p, upper limit at %p\n", heap_bottom,
+      sbrk(0), heap_top);
     return(CMD_OK);
 }
 
