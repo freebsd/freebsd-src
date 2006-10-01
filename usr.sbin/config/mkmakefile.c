@@ -305,6 +305,7 @@ makeenv(void)
 static void
 read_file(char *fname)
 {
+	char ifname[MAXPATHLEN];
 	FILE *fp;
 	struct file_list *tp;
 	struct device *dp;
@@ -318,6 +319,7 @@ read_file(char *fname)
 		err(1, "%s", fname);
 next:
 	/*
+	 * include "filename"
 	 * filename    [ standard | mandatory | optional ]
 	 *	[ dev* [ | dev* ... ] | profiling-routine ] [ no-obj ]
 	 *	[ compile-with "compile rule" [no-implicit-rule] ]
@@ -333,6 +335,18 @@ next:
 		goto next;
 	if (wd[0] == '#')
 	{
+		while (((wd = get_word(fp)) != (char *)EOF) && wd)
+			;
+		goto next;
+	}
+	if (eq(wd, "include")) {
+		next_quoted_word(fp, wd);
+		if (wd == 0) {
+			printf("%s: missing include filename.\n", fname);
+			exit(1);
+		}
+		(void) snprintf(ifname, sizeof(ifname), "../../%s", wd);
+		read_file(ifname);
 		while (((wd = get_word(fp)) != (char *)EOF) && wd)
 			;
 		goto next;
