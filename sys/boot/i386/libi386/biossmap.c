@@ -86,9 +86,10 @@ bios_getsmap(void)
 		v86.eax = 0xe820;
 		v86.ecx = sizeof(struct smap);
 		v86.edx = SMAPSIG;
-		v86.es = VTOPSEG(&smapbase[smaplen]);
-		v86.edi = VTOPOFF(&smapbase[smaplen]);
+		v86.es = VTOPSEG(&smap);
+		v86.edi = VTOPOFF(&smap);
 		v86int();
+		bcopy(&smap, &smapbase[smaplen], sizeof(struct smap));
 		smaplen++;
 		if ((v86.efl & 1) || (v86.eax != SMAPSIG))
 			break;

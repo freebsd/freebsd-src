@@ -212,8 +212,7 @@ seta20.2:	inb $0x64,%al			# Get status
 		jnz seta20.2			# Yes
 		movb $0xdf,%al			# Enable
 		outb %al,$0x60			#  A20
-seta20.3:
-		sti				# Enable interrupts
+seta20.3:	sti				# Enable interrupts
 
 		jmp start+MEM_JMP-MEM_ORG	# Start BTX
 
