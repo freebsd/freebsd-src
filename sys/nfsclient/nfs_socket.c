@@ -838,6 +838,20 @@ nfstcp_readable(struct socket *so, int bytes)
 
 #define nfstcp_marker_readable(so)	nfstcp_readable(so, sizeof(u_int32_t))
 
+static int
+nfs_copy_len(struct mbuf *mp, char *buf, int len)
+{
+	while (len > 0 && mp != NULL) {
+		int copylen = min(len, mp->m_len);
+		
+		bcopy(mp->m_data, buf, copylen);
+		buf += copylen;
+		len -= copylen;
+		mp = mp->m_next;
+	}
+	return (len);
+}
+
 static void
 nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 {
@@ -863,6 +877,8 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 	auio.uio_rw = UIO_READ;
 	for ( ; ; ) {
 		if (nmp->nm_nfstcpstate.flags & NFS_TCP_EXPECT_RPCMARKER) {
+			int resid;
+
 			if (!nfstcp_marker_readable(so)) {
 				/* Marker is not readable */
 				return;
@@ -891,6 +907,21 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 			}
 			if (mp == NULL)
 				panic("nfs_clnt_tcp_soupcall: Got empty mbuf chain from sorecv\n");
+			/*
+			 * Sigh. We can't do the obvious thing here (which would
+			 * be to have soreceive copy the length from mbufs for us).
+			 * Calling uiomove() from the context of a socket callback
+			 * (even for kernel-kernel copies) leads to LORs (since
+			 * we hold network locks at this point).
+			 */
+			if ((resid = nfs_copy_len(mp, (char *)&len, 
+						  sizeof(u_int32_t)))) {
+				log(LOG_ERR, "%s (%d) from nfs server %s\n",
+				    "Bad RPC HDR length",
+				    (int)(sizeof(u_int32_t) - resid),
+				    nmp->nm_mountp->mnt_stat.f_mntfromname);
+				goto mark_reconnect;
+			}				
 			bcopy(mtod(mp, u_int32_t *), &len, sizeof(len));
 			len = ntohl(len) & ~0x80000000;
 			m_freem(mp);
