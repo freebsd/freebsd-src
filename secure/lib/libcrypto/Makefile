@@ -26,7 +26,8 @@ INCS=	crypto.h ebcdic.h opensslv.h ossl_typ.h symhacks.h tmdiff.h \
 	../e_os.h ../e_os2.h
 
 # aes
-SRCS+=	aes_cbc.c aes_cfb.c aes_core.c aes_ctr.c aes_ecb.c aes_misc.c aes_ofb.c
+SRCS+=	aes_cbc.c aes_cfb.c aes_core.c aes_ctr.c aes_ecb.c aes_ige.c \
+	aes_misc.c aes_ofb.c
 INCS+=	aes.h aes_locl.h
 
 # asn1
