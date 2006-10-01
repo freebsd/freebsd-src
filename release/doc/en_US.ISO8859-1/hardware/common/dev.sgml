@@ -686,7 +686,11 @@
 
     &hwlist.snd.emu10k1;
 
+    &hwlist.snd.emu10kx;
+
     &hwlist.snd.envy24;
+
+    &hwlist.snd.envy24ht;
 
     &hwlist.snd.es137x;
 
@@ -711,6 +715,8 @@
     &hwlist.snd.sbc;
 
     &hwlist.snd.solo;
+
+    &hwlist.snd.spicds;
 
     &hwlist.snd.t4dwave;
 
