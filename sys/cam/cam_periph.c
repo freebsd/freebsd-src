@@ -86,6 +86,14 @@ struct periph_driver **periph_drivers;
 
 MALLOC_DEFINE(M_CAMPERIPH, "CAM periph", "CAM peripheral buffers");
 
+static int periph_selto_delay = 1000;
+TUNABLE_INT("kern.cam.periph_selto_delay", &periph_selto_delay);
+static int periph_noresrc_delay = 500;
+TUNABLE_INT("kern.cam.periph_noresrc_delay", &periph_noresrc_delay);
+static int periph_busy_delay = 500;
+TUNABLE_INT("kern.cam.periph_busy_delay", &periph_busy_delay);
+
+
 void
 periphdriver_register(void *data)
 {
@@ -1544,7 +1552,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	int	    error, printed = 0;
 	int         openings;
 	u_int32_t   relsim_flags;
-	u_int32_t   timeout;
+	u_int32_t   timeout = 0;
 	
 	action_string = NULL;
 	status = ccb->ccb_h.status;
@@ -1636,11 +1644,11 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 				}
 
 				/*
-				 * Wait a second to give the device
+				 * Wait a bit to give the device
 				 * time to recover before we try again.
 				 */
 				relsim_flags = RELSIM_RELEASE_AFTER_TIMEOUT;
-				timeout = 1000;
+				timeout = periph_selto_delay;
 				break;
 			}
 		}
@@ -1699,8 +1707,16 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		}
 		break;
 	case CAM_RESRC_UNAVAIL:
+		/* Wait a bit for the resource shortage to abate. */
+		timeout = periph_noresrc_delay;
+		/* FALLTHROUGH */
 	case CAM_BUSY:
-		/* timeout??? */
+		if (timeout == 0) {
+			/* Wait a bit for the busy condition to abate. */
+			timeout = periph_busy_delay;
+		}
+		relsim_flags = RELSIM_RELEASE_AFTER_TIMEOUT;
+		/* FALLTHROUGH */
 	default:
 		/* decrement the number of retries */
 		if (ccb->ccb_h.retry_count > 0) {
