@@ -1313,7 +1313,7 @@ nd6_rtrequest(req, rt, info)
 		callout_init(&ln->ln_timer_ch, 0);
 
 		/* this is required for "ndp" command. - shin */
-		if (req == RTM_ADD) {
+		if (req == RTM_ADD && (rt->rt_flags & RTF_STATIC)) {
 		        /*
 			 * gate should have some valid AF_LINK entry,
 			 * and ln->ln_expire should have some lifetime
@@ -1390,9 +1390,6 @@ nd6_rtrequest(req, rt, info)
 					    ip6_sprintf(&llsol), error));
 				}
 			}
-		} else if (req == RTM_ADD && SDL(gate)->sdl_alen == 0 &&
-		    (rt->rt_flags & RTF_HOST) != 0) {
-			ln->ln_state = ND6_LLINFO_INCOMPLETE;
 		}
 		break;
 
