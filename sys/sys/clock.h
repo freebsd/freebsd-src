@@ -41,6 +41,24 @@
 #ifndef _SYS_CLOCK_H_
 #define _SYS_CLOCK_H_
 
+#ifdef _KERNEL		/* No user serviceable parts */
+
+/*
+ * Kernel to clock driver interface.
+ */
+void	inittodr(time_t base);
+void	resettodr(void);
+void	startrtclock(void);
+extern int	wall_cmos_clock;
+extern int	adjkerntz;
+extern int	disable_rtc_set;
+
+/*
+ * Timezone info from settimeofday(2), usually not used
+ */
+extern int tz_minuteswest;
+extern int tz_dsttime;
+
 /*
  * Structure to hold the values typically reported by time-of-day clocks.
  * This can be passed to the generic conversion functions to be converted
@@ -64,8 +82,8 @@ void clock_register(device_t, long);
 /*
  * BCD to decimal and decimal to BCD.
  */
-#define	FROMBCD(x)	(((x) >> 4) * 10 + ((x) & 0xf))
-#define	TOBCD(x)	(((x) / 10 * 16) + ((x) % 10))
+#define	FROMBCD(x)	bcd2bin(x)
+#define	TOBCD(x)	bin2bcd(x)
 
 /* Some handy constants. */
 #define SECDAY		(24 * 60 * 60)
@@ -73,5 +91,7 @@ void clock_register(device_t, long);
 
 /* Traditional POSIX base year */
 #define	POSIX_BASE_YEAR	1970
+
+#endif /* _KERNEL */
 
 #endif /* !_SYS_CLOCK_H_ */

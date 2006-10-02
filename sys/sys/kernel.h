@@ -69,9 +69,6 @@ extern int profprocs;			/* number of process's profiling */
 extern int ticks;
 extern int lbolt;			/* once a second sleep address */
 
-extern int tz_minuteswest;
-extern int tz_dsttime;
-
 #endif /* _KERNEL */
 
 /*
