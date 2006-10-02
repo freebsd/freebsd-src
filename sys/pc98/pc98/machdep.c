@@ -1254,26 +1254,6 @@ cpu_setregs(void)
 	load_gs(_udatasel);
 }
 
-static int
-sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2,
-		req);
-	if (!error && req->newptr)
-		resettodr();
-	return (error);
-}
-
-SYSCTL_PROC(_machdep, OID_AUTO, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
-	&adjkerntz, 0, sysctl_machdep_adjkerntz, "I", "");
-
-SYSCTL_INT(_machdep, OID_AUTO, disable_rtc_set,
-	CTLFLAG_RW, &disable_rtc_set, 0, "");
-
-SYSCTL_INT(_machdep, OID_AUTO, wall_cmos_clock,
-	CTLFLAG_RW, &wall_cmos_clock, 0, "");
-
 u_long bootdev;		/* not a struct cdev *- encoding is different */
 SYSCTL_ULONG(_machdep, OID_AUTO, guessed_bootdev,
 	CTLFLAG_RD, &bootdev, 0, "Maybe the Boot device (not in struct cdev *format)");
