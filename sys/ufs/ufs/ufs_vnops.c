@@ -1214,7 +1214,7 @@ abortit:
 			DIP_SET(xp, i_nlink, xp->i_nlink);
 			xp->i_flag |= IN_CHANGE;
 			ioflag = IO_NORMAL;
-			if (DOINGASYNC(tvp))
+			if (!DOINGASYNC(tvp))
 				ioflag |= IO_SYNC;
 			if ((error = UFS_TRUNCATE(tvp, (off_t)0, ioflag,
 			    tcnp->cn_cred, tcnp->cn_thread)) != 0)
@@ -1721,7 +1721,7 @@ ufs_rmdir(ap)
 		DIP_SET(ip, i_nlink, ip->i_nlink);
 		ip->i_flag |= IN_CHANGE;
 		ioflag = IO_NORMAL;
-		if (DOINGASYNC(vp))
+		if (!DOINGASYNC(vp))
 			ioflag |= IO_SYNC;
 		error = UFS_TRUNCATE(vp, (off_t)0, ioflag, cnp->cn_cred,
 		    cnp->cn_thread);
