@@ -857,6 +857,7 @@ ac97mix_init(struct snd_mixer *m)
 
 	switch (codec->id) {
 	case 0x41445374:	/* AD1981B */
+#if 0
 		mask = 0;
 		if (codec->mix[SOUND_MIXER_OGAIN].enable)
 			mask |= SOUND_MASK_OGAIN;
@@ -869,6 +870,7 @@ ac97mix_init(struct snd_mixer *m)
 			mix_setparentchild(m, SOUND_MIXER_VOLUME, mask);
 			mix_setrealdev(m, SOUND_MIXER_VOLUME, SOUND_MIXER_NONE);
 		}
+#endif
 		break;
 	case 0x434d4941:	/* CMI9738 */
 	case 0x434d4961:	/* CMI9739 */
