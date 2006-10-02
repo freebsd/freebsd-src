@@ -992,6 +992,7 @@ hdac_dma_cb(void *callback_arg, bus_dma_segment_t *segs, int nseg, int error)
 static void
 hdac_dma_nocache(void *ptr)
 {
+#if defined(__i386__) || defined(__amd64__)
 	pt_entry_t *pte;
 	vm_offset_t va;
 
@@ -1001,6 +1002,7 @@ hdac_dma_nocache(void *ptr)
 		*pte |= PG_N;
 		invltlb();
 	}
+#endif
 }
 
 /****************************************************************************
