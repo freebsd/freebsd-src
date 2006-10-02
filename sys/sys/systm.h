@@ -266,13 +266,6 @@ void	usrinfoinit(void);
 /* Finalize the world. */
 void	shutdown_nice(int);
 
-/*
- * Kernel to clock driver interface.
- */
-void	inittodr(time_t base);
-void	resettodr(void);
-void	startrtclock(void);
-
 /* Timeouts */
 typedef void timeout_t(void *);	/* timeout function type */
 #define CALLOUT_HANDLE_INITIALIZER(handle)	\
