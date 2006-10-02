@@ -91,13 +91,6 @@
 #include <isa/isavar.h>
 #endif
 
-/*
- * 32-bit time_t's can't reach leap years before 1904 or after 2036, so we
- * can use a simple formula for leap years.
- */
-#define	LEAPYEAR(y) (((u_int)(y) % 4 == 0) ? 1 : 0)
-#define DAYSPERYEAR   (31+28+31+30+31+30+31+31+30+31+30+31)
-
 #define	TIMER_DIV(x) ((timer_freq + (x) / 2) / (x))
 
 int	clkintr_pending;
@@ -113,7 +106,6 @@ int	timer0_real_max_count;
 struct mtx clock_lock;
 
 static	int	beeping = 0;
-static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
 static	struct intsrc *i8254_intsrc;
 static	u_int32_t i8254_lastcount;
 static	u_int32_t i8254_offset;
@@ -637,66 +629,30 @@ rtc_inb(void)
 void
 inittodr(time_t base)
 {
-	unsigned long	sec, days;
-	int		year, month;
-	int		y, m, s;
 	struct timespec ts;
-	int		second, min, hour;
+	struct clocktime ct;
 
 	if (base) {
-		s = splclock();
 		ts.tv_sec = base;
 		ts.tv_nsec = 0;
 		tc_setclock(&ts);
-		splx(s);
 	}
 
 	rtc_serialcom(0x03);	/* Time Read */
 	rtc_serialcom(0x01);	/* Register shift command. */
 	DELAY(20);
 
-	second = bcd2bin(rtc_inb() & 0xff);	/* sec */
-	min = bcd2bin(rtc_inb() & 0xff);	/* min */
-	hour = bcd2bin(rtc_inb() & 0xff);	/* hour */
-	days = bcd2bin(rtc_inb() & 0xff) - 1;	/* date */
-
-	month = (rtc_inb() >> 4) & 0x0f;	/* month */
-	for (m = 1; m <	month; m++)
-		days +=	daysinmonth[m-1];
-	year = bcd2bin(rtc_inb() & 0xff) + 1900;	/* year */
-	/* 2000 year problem */
-	if (year < 1995)
-		year += 100;
-	if (year < 1970)
-		goto wrong_time;
-	for (y = 1970; y < year; y++)
-		days +=	DAYSPERYEAR + LEAPYEAR(y);
-	if ((month > 2)	&& LEAPYEAR(year))
-		days ++;
-	sec = ((( days * 24 +
-		  hour) * 60 +
-		  min) * 60 +
-		  second);
-	/* sec now contains the	number of seconds, since Jan 1 1970,
-	   in the local	time zone */
-
-	s = splhigh();
-
-	sec += tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
-
-	y = time_second - sec;
-	if (y <= -2 || y >= 2) {
-		/* badly off, adjust it */
-		ts.tv_sec = sec;
-		ts.tv_nsec = 0;
-		tc_setclock(&ts);
-	}
-	splx(s);
-	return;
-
-wrong_time:
-	printf("Invalid time in real time clock.\n");
-	printf("Check and reset the date immediately!\n");
+	ct.nsec = 0;
+	ct.sec = bcd2bin(rtc_inb() & 0xff);		/* sec */
+	ct.min = bcd2bin(rtc_inb() & 0xff);		/* min */
+	ct.hour = bcd2bin(rtc_inb() & 0xff);		/* hour */
+	ct.day = bcd2bin(rtc_inb() & 0xff) - 1;		/* date */
+	ct.mon = (rtc_inb() >> 4) & 0x0f;		/* month */
+	ct.year = bcd2bin(rtc_inb() & 0xff) + 1900;	/* year */
+	if (ct.year < 1995)
+		ct.year += 100;
+	clock_ct_to_ts(&ct, &ts);
+	tc_setclock(&ts);
 }
 
 /*
@@ -705,50 +661,25 @@ wrong_time:
 void
 resettodr()
 {
-	unsigned long	tm;
-	int		y, m, s;
-	int		wd;
+	struct timespec ts;
+	struct clocktime ct;
 
 	if (disable_rtc_set)
 		return;
 
-	s = splclock();
-	tm = time_second;
-	splx(s);
+	getnanotime(&ts);
+	ts.tv_sec -= utc_offset();
+	clock_ts_to_ct(&ts, &ct);
 
 	rtc_serialcom(0x01);	/* Register shift command. */
 
-	/* Calculate local time	to put in RTC */
+	rtc_outb(bin2bcd(ct.sec)); 		/* Write back Seconds */
+	rtc_outb(bin2bcd(ct.min)); 		/* Write back Minutes */
+	rtc_outb(bin2bcd(ct.hour)); 		/* Write back Hours   */
 
-	tm -= tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
-
-	rtc_outb(bin2bcd(tm%60)); tm /= 60;	/* Write back Seconds */
-	rtc_outb(bin2bcd(tm%60)); tm /= 60;	/* Write back Minutes */
-	rtc_outb(bin2bcd(tm%24)); tm /= 24;	/* Write back Hours   */
-
-	/* We have now the days	since 01-01-1970 in tm */
-	wd = (tm + 4) % 7 + 1;			/* Write back Weekday */
-	for (y = 1970, m = DAYSPERYEAR + LEAPYEAR(y);
-	     tm >= m;
-	     y++,      m = DAYSPERYEAR + LEAPYEAR(y))
-	     tm -= m;
-
-	/* Now we have the years in y and the day-of-the-year in tm */
-	for (m = 0; ; m++) {
-		int ml;
-
-		ml = daysinmonth[m];
-		if (m == 1 && LEAPYEAR(y))
-			ml++;
-		if (tm < ml)
-			break;
-		tm -= ml;
-	}
-
-	m++;
-	rtc_outb(bin2bcd(tm+1));		/* Write back Day     */
-	rtc_outb((m << 4) | wd);		/* Write back Month & Weekday  */
-	rtc_outb(bin2bcd(y%100));		/* Write back Year    */
+	rtc_outb(bin2bcd(ct.day));		/* Write back Day     */
+	rtc_outb((ct.mon << 4) | (ct.dow + 1));	/* Write back Month and DOW */
+	rtc_outb(bin2bcd(ct.year % 100));	/* Write back Year    */
 
 	rtc_serialcom(0x02);	/* Time set & Counter hold command. */
 	rtc_serialcom(0x00);	/* Register hold command. */
