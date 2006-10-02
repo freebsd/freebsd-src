@@ -58,9 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/timetc.h>
 
-/* XXX: for the  CPU_* sysctl OID constants. */
-#include <machine/cpu.h>
-
 #include "clock_if.h"
 
 static device_t clock_dev = NULL;
@@ -132,8 +129,7 @@ inittodr(time_t base)
 		printf("Check and reset the date immediately!\n");
 	}
 
-	ts.tv_sec += tz_minuteswest * 60 +
-	    (wall_cmos_clock ? adjkerntz : 0);
+	ts.tv_sec += utc_offset();
 
 	if (timespeccmp(&ref, &ts, >)) {
 		diff = ref;
@@ -161,7 +157,7 @@ resettodr()
 		return;
 
 	getnanotime(&ts);
-	ts.tv_sec -= tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
+	ts.tv_sec -= utc_offset();
 	if ((error = CLOCK_SETTIME(clock_dev, &ts)) != 0) {
 		printf("warning: clock_settime failed (%d), time-of-day clock "
 		    "not adjusted to system time\n", error);

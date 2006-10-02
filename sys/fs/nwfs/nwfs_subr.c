@@ -37,7 +37,7 @@
 #include <sys/clock.h>
 #include <sys/lockmgr.h>
 #include <sys/malloc.h>
-#include <machine/clock.h>
+#include <sys/clock.h>
 #include <sys/time.h>
 
 #include <netncp/ncp.h>
@@ -598,8 +598,7 @@ ncp_unix2dostime(tsp, tzoff, ddp, dtp, dhp)
 	 * If the time from the last conversion is the same as now, then
 	 * skip the computations and use the saved result.
 	 */
-	t = tsp->tv_sec - tzoff * 60 - tz_minuteswest * 60 -
-	    (wall_cmos_clock ? adjkerntz : 0);
+	t = tsp->tv_sec - tzoff * 60 - utc_offset();
 	t &= ~1;
 	if (lasttime != t) {
 		lasttime = t;
@@ -708,7 +707,6 @@ ncp_dos2unixtime(dd, dt, dh, tzoff, tsp)
 		days += ((dd & DD_DAY_MASK) >> DD_DAY_SHIFT) - 1;
 		lastseconds = (days * 24 * 60 * 60) + SECONDSTO1980;
 	}
-	tsp->tv_sec = seconds + lastseconds + tz_minuteswest * 60 +
-	    tzoff * 60 + (wall_cmos_clock ? adjkerntz : 0);
+	tsp->tv_sec = seconds + lastseconds + tzoff * 60 + utc_offset();
 	tsp->tv_nsec = (dh % 100) * 10000000;
 }

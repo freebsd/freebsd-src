@@ -49,9 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/timetc.h>
 
-int adjkerntz;		/* local offset from GMT in seconds */
-int disable_rtc_set;	/* disable resettodr() if != 0 */
-int wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
+static int adjkerntz;		/* local offset from GMT in seconds */
+static int wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
+int disable_rtc_set;		/* disable resettodr() if != 0 */
 
 int tz_minuteswest;
 int tz_dsttime;
