@@ -100,9 +100,7 @@
 
 #define	TIMER_DIV(x) ((timer_freq + (x) / 2) / (x))
 
-int	adjkerntz;		/* local offset from GMT in seconds */
 int	clkintr_pending;
-int	disable_rtc_set;	/* disable resettodr() if != 0 */
 int	pscnt = 1;
 int	psdiv = 1;
 int	statclock_disable;
@@ -112,7 +110,6 @@ int	statclock_disable;
 u_int	timer_freq = TIMER_FREQ;
 int	timer0_max_count;
 int	timer0_real_max_count;
-int	wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
 struct mtx clock_lock;
 
 static	int	beeping = 0;
