@@ -53,6 +53,7 @@ dhclient_stop()
 ifn="$2"
 
 load_rc_config $name
+load_rc_config network
 
 if ! dhcpif $ifn; then
 	return 1
