@@ -49,6 +49,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/clock.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
@@ -56,7 +57,6 @@
 #include <sys/taskqueue.h>
 
 #include <machine/bus.h>
-#include <machine/clock.h>
 #include <machine/endian.h>
 #include <machine/stdarg.h>
 

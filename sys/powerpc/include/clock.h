@@ -11,10 +11,6 @@
 
 #ifdef _KERNEL
 
-extern	int	disable_rtc_set;
-extern	int	wall_cmos_clock;
-extern	int	adjkerntz;
-
 struct trapframe;
 
 int	sysbeep(int pitch, int period);
