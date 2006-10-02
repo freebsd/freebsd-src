@@ -105,7 +105,7 @@ xmitfile(fd, name, mode)
 	volatile int size, convert;
 	volatile unsigned long amount;
 	struct sockaddr_storage from;
-	int fromlen;
+	socklen_t fromlen;
 	FILE *file;
 	struct sockaddr_storage peer;
 	struct sockaddr_storage serv;	/* valid server port number */
@@ -205,6 +205,7 @@ abort:
 	stopclock();
 	if (amount > 0)
 		printstats("Sent", amount);
+	txrx_error = 1;
 }
 
 /*
@@ -223,7 +224,7 @@ recvfile(fd, name, mode)
 	volatile int size, firsttrip;
 	volatile unsigned long amount;
 	struct sockaddr_storage from;
-	int fromlen;
+	socklen_t fromlen;
 	FILE *file;
 	volatile int convert;		/* true if converting crlf -> lf */
 	struct sockaddr_storage peer;
@@ -330,6 +331,7 @@ abort:						/* ok to ack, since user */
 	stopclock();
 	if (amount > 0)
 		printstats("Received", amount);
+	txrx_error = 1;
 }
 
 static int
