@@ -78,7 +78,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20061001_0028"
+#define HDA_DRV_TEST_REV	"20061003_0029"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -102,13 +102,17 @@ SND_DECLARE_FILE("$FreeBSD$");
 	}					\
 } while(0)
 
-#if 0
+#if 1
 #undef HDAC_INTR_EXTRA
 #define HDAC_INTR_EXTRA		1
 #endif
 
-#define hdac_lock(sc)	snd_mtxlock((sc)->lock)
-#define hdac_unlock(sc)	snd_mtxunlock((sc)->lock)
+#define hdac_lock(sc)		snd_mtxlock((sc)->lock)
+#define hdac_unlock(sc)		snd_mtxunlock((sc)->lock)
+
+#define HDA_FLAG_MATCH(fl, v)	(((fl) & (v)) == (v))
+#define HDA_MATCH_ALL		0xffffffff
+#define HDAC_INVALID		0xffffffff
 
 #define HDA_MODEL_CONSTRUCT(vendor, model)	\
 		(((uint32_t)(model) << 16) | ((vendor##_VENDORID) & 0xffff))
@@ -155,6 +159,11 @@ SND_DECLARE_FILE("$FreeBSD$");
 /* Acer */
 #define ACER_VENDORID		0x1025
 #define ACER_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(ACER, 0xffff)
+
+/* Asus */
+#define ASUS_VENDORID		0x1043
+#define ASUS_M5200_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1993)
+#define ASUS_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0xffff)
 
 
 /* Misc constants.. */
@@ -346,7 +355,7 @@ enum {
 };
 
 static const struct {
-	uint32_t vendormask;
+	uint32_t model;
 	uint32_t id;
 	int type;
 	nid_t hpnid;
@@ -379,7 +388,7 @@ static const struct {
 		(sizeof(hdac_hp_switch) / sizeof(hdac_hp_switch[0]))
 
 static const struct {
-	uint32_t vendormask;
+	uint32_t model;
 	uint32_t id;
 	nid_t eapdnid;
 	int hp_switch;
@@ -451,7 +460,7 @@ hdac_codec_name(struct hdac_devinfo *devinfo)
 	id = hdac_codec_id(devinfo);
 
 	for (i = 0; i < HDAC_CODECS_LEN; i++) {
-		if ((hdac_codecs[i].id & id) == id)
+		if (HDA_FLAG_MATCH(hdac_codecs[i].id, id))
 			return (hdac_codecs[i].name);
 	}
 
@@ -554,8 +563,8 @@ hdac_hp_switch_handler(struct hdac_devinfo *devinfo)
 	cad = devinfo->codec->cad;
 	id = hdac_codec_id(devinfo);
 	for (i = 0; i < HDAC_HP_SWITCH_LEN; i++) {
-		if ((hdac_hp_switch[i].vendormask & sc->pci_subvendor) ==
-		    sc->pci_subvendor &&
+		if (HDA_FLAG_MATCH(hdac_hp_switch[i].model,
+		    sc->pci_subvendor) &&
 		    hdac_hp_switch[i].id == id)
 			break;
 	}
@@ -566,7 +575,7 @@ hdac_hp_switch_handler(struct hdac_devinfo *devinfo)
 	forcemute = 0;
 	if (hdac_hp_switch[i].eapdnid != -1) {
 		w = hdac_widget_get(devinfo, hdac_hp_switch[i].eapdnid);
-		if (w != NULL && w->param.eapdbtl != 0xffffffff)
+		if (w != NULL && w->param.eapdbtl != HDAC_INVALID)
 			forcemute = (w->param.eapdbtl &
 			    HDA_CMD_SET_EAPD_BTL_ENABLE_EAPD) ? 0 : 1;
 	}
@@ -668,7 +677,7 @@ hdac_unsolicited_handler(struct hdac_codec *codec, uint32_t tag)
 {
 	struct hdac_softc *sc;
 	struct hdac_devinfo *devinfo = NULL;
-	device_t *devlist;
+	device_t *devlist = NULL;
 	int devcount, i;
 
 	if (codec == NULL || codec->sc == NULL)
@@ -681,20 +690,19 @@ hdac_unsolicited_handler(struct hdac_codec *codec, uint32_t tag)
 	);
 
 	device_get_children(sc->dev, &devlist, &devcount);
-	if (devcount != 0 && devlist != NULL) {
-		for (i = 0; i < devcount; i++) {
-			devinfo = (struct hdac_devinfo *)
-			    device_get_ivars(devlist[i]);
-			if (devinfo != NULL &&
-			    devinfo->node_type ==
-			    HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_AUDIO &&
-			    devinfo->codec != NULL &&
-			    devinfo->codec->cad == codec->cad) {
-				break;
-			} else
-				devinfo = NULL;
-		}
+	for (i = 0; devlist != NULL && i < devcount; i++) {
+		devinfo = (struct hdac_devinfo *)device_get_ivars(devlist[i]);
+		if (devinfo != NULL && devinfo->node_type ==
+		    HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_AUDIO &&
+		    devinfo->codec != NULL &&
+		    devinfo->codec->cad == codec->cad) {
+			break;
+		} else
+			devinfo = NULL;
 	}
+	if (devlist != NULL)
+		free(devlist, M_TEMP);
+
 	if (devinfo == NULL)
 		return;
 
@@ -1047,7 +1055,7 @@ hdac_dma_alloc(struct hdac_softc *sc, struct hdac_dma *dma, bus_size_t size)
 	/*
 	 * Allocate DMA memory
 	 */
-	result = bus_dmamem_alloc(dma->dma_tag, (void **) &dma->dma_vaddr,
+	result = bus_dmamem_alloc(dma->dma_tag, (void **)&dma->dma_vaddr,
 	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &dma->dma_map);
 	if (result != 0) {
 		device_printf(sc->dev, "%s: bus_dmamem_alloc failed (%x)\n",
@@ -1450,12 +1458,11 @@ hdac_probe_function(struct hdac_codec *codec, nid_t nid)
 	uint32_t fctgrptype;
 	nid_t cad = codec->cad;
 
-	fctgrptype = hdac_command(sc,
-	    HDA_CMD_GET_PARAMETER(cad, nid, HDA_PARAM_FCT_GRP_TYPE), cad);
+	fctgrptype = HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE(hdac_command(sc,
+	    HDA_CMD_GET_PARAMETER(cad, nid, HDA_PARAM_FCT_GRP_TYPE), cad));
 
 	/* XXX For now, ignore other FG. */
-	if (HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE(fctgrptype) !=
-	    HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_AUDIO)
+	if (fctgrptype != HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_AUDIO)
 		return (NULL);
 
 	hdac_unlock(sc);
@@ -1469,7 +1476,7 @@ hdac_probe_function(struct hdac_codec *codec, nid_t nid)
 	}
 
 	devinfo->nid = nid;
-	devinfo->node_type = HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE(fctgrptype);
+	devinfo->node_type = fctgrptype;
 	devinfo->codec = codec;
 
 	hdac_add_child(sc, devinfo);
@@ -1554,10 +1561,14 @@ hdac_widget_pin_getconfig(struct hdac_widget *w)
 	config = hdac_command(sc,
 	    HDA_CMD_GET_CONFIGURATION_DEFAULT(cad, nid),
 	    cad);
+	/*
+	 * XXX REWRITE!!!! Don't argue!
+	 */
 	if (id == HDA_CODEC_ALC880 &&
-	    sc->pci_subvendor == CLEVO_D900T_SUBVENDOR) {
+	    (sc->pci_subvendor == CLEVO_D900T_SUBVENDOR ||
+	    sc->pci_subvendor == ASUS_M5200_SUBVENDOR)) {
 		/*
-		 * Super broken BIOS: Clevo D900T
+		 * Super broken BIOS
 		 */
 		switch (nid) {
 		case 20:
@@ -1634,7 +1645,7 @@ hdac_widget_pin_parse(struct hdac_widget *w)
 		w->param.eapdbtl &= 0x7;
 		w->param.eapdbtl |= HDA_CMD_SET_EAPD_BTL_ENABLE_EAPD;
 	} else
-		w->param.eapdbtl = 0xffffffff;
+		w->param.eapdbtl = HDAC_INVALID;
 
 	switch (config & HDA_CONFIG_DEFAULTCONF_DEVICE_MASK) {
 	case HDA_CONFIG_DEFAULTCONF_DEVICE_LINE_OUT:
@@ -2039,7 +2050,7 @@ static uint32_t
 hdac_command_sendone_internal(struct hdac_softc *sc, uint32_t verb, nid_t cad)
 {
 	struct hdac_command_list cl;
-	uint32_t response = 0xffffffff;
+	uint32_t response = HDAC_INVALID;
 
 	if (!mtx_owned(sc->lock))
 		device_printf(sc->dev, "WARNING!!!! mtx not owned!!!!\n");
@@ -2187,7 +2198,7 @@ hdac_probe(device_t dev)
 		    	result = BUS_PROBE_DEFAULT;
 			break;
 		}
-		if ((hdac_devices[i].model & model) == model &&
+		if (HDA_FLAG_MATCH(hdac_devices[i].model, model) &&
 		    class == PCIC_MULTIMEDIA &&
 		    subclass == PCIS_MULTIMEDIA_HDA) {
 		    	strlcpy(desc, hdac_devices[i].desc, sizeof(desc));
@@ -2479,8 +2490,8 @@ hdac_audio_ctl_ossmixer_init(struct snd_mixer *m)
 	id = hdac_codec_id(devinfo);
 	cad = devinfo->codec->cad;
 	for (i = 0; i < HDAC_HP_SWITCH_LEN; i++) {
-		if (!((hdac_hp_switch[i].vendormask & sc->pci_subvendor) ==
-		    sc->pci_subvendor &&
+		if (!(HDA_FLAG_MATCH(hdac_hp_switch[i].model,
+		    sc->pci_subvendor) &&
 		    hdac_hp_switch[i].id == id))
 			continue;
 		w = hdac_widget_get(devinfo, hdac_hp_switch[i].hpnid);
@@ -2498,14 +2509,15 @@ hdac_audio_ctl_ossmixer_init(struct snd_mixer *m)
 		break;
 	}
 	for (i = 0; i < HDAC_EAPD_SWITCH_LEN; i++) {
-		if (!((hdac_eapd_switch[i].vendormask & sc->pci_subvendor) ==
-		    sc->pci_subvendor && hdac_eapd_switch[i].id == id))
+		if (!(HDA_FLAG_MATCH(hdac_eapd_switch[i].model,
+		    sc->pci_subvendor) &&
+		    hdac_eapd_switch[i].id == id))
 			continue;
 		w = hdac_widget_get(devinfo, hdac_eapd_switch[i].eapdnid);
 		if (w == NULL || w->enable == 0)
 			break;
 		if (w->type != HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX ||
-		    w->param.eapdbtl == 0xffffffff)
+		    w->param.eapdbtl == HDAC_INVALID)
 			break;
 		mask |= SOUND_MASK_OGAIN;
 		break;
@@ -2621,8 +2633,8 @@ hdac_audio_ctl_ossmixer_set(struct snd_mixer *m, unsigned dev,
 		}*/
 		id = hdac_codec_id(devinfo);
 		for (i = 0; i < HDAC_EAPD_SWITCH_LEN; i++) {
-			if ((hdac_eapd_switch[i].vendormask &
-			    sc->pci_subvendor) == sc->pci_subvendor &&
+			if (HDA_FLAG_MATCH(hdac_eapd_switch[i].model,
+			    sc->pci_subvendor) &&
 			    hdac_eapd_switch[i].id == id)
 				break;
 		}
@@ -2633,7 +2645,7 @@ hdac_audio_ctl_ossmixer_set(struct snd_mixer *m, unsigned dev,
 		w = hdac_widget_get(devinfo, hdac_eapd_switch[i].eapdnid);
 		if (w == NULL ||
 		    w->type != HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX ||
-		    w->param.eapdbtl == 0xffffffff) {
+		    w->param.eapdbtl == HDAC_INVALID) {
 			hdac_unlock(sc);
 			return (-1);
 		}
@@ -2722,7 +2734,7 @@ hdac_audio_ctl_ossmixer_setrecsrc(struct snd_mixer *m, uint32_t src)
 
 	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
 		w = hdac_widget_get(devinfo, i);
-		if (w == NULL && w->enable == 0)
+		if (w == NULL || w->enable == 0)
 			continue;
 		if (!(w->pflags & HDA_ADC_RECSEL))
 			continue;
@@ -2970,7 +2982,7 @@ hdac_audio_parse(struct hdac_devinfo *devinfo)
 			w->selconn = -1;
 			w->pflags = 0;
 			w->ctlflags = 0;
-			w->param.eapdbtl = 0xffffffff;
+			w->param.eapdbtl = HDAC_INVALID;
 			hdac_widget_parse(w);
 		}
 	}
@@ -3116,11 +3128,27 @@ hdac_audio_ctl_parse(struct hdac_devinfo *devinfo)
 	devinfo->function.audio.ctl = ctls;
 }
 
+static const struct {
+	uint32_t model;
+	uint32_t id;
+	uint32_t set, unset;
+} hdac_quirks[] = {
+	{ ACER_ALL_SUBVENDOR, HDA_MATCH_ALL,
+	    HDA_QUIRK_GPIO1, 0 },
+	{ ASUS_M5200_SUBVENDOR, HDA_CODEC_ALC880,
+	    HDA_QUIRK_GPIO1, 0 },
+	{ HDA_MATCH_ALL, HDA_CODEC_CXVENICE,
+	    0, HDA_QUIRK_FORCESTEREO },
+	{ HDA_MATCH_ALL, HDA_CODEC_STACXXXX,
+	    HDA_QUIRK_SOFTPCMVOL, 0 }
+};
+#define HDAC_QUIRKS_LEN (sizeof(hdac_quirks) / sizeof(hdac_quirks[0]))
+
 static void
 hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 {
 	struct hdac_widget *w;
-	uint32_t id;
+	uint32_t id, subvendor;
 	int i;
 
 	/*
@@ -3135,6 +3163,7 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 	 */
 	devinfo->function.audio.quirks |= HDA_QUIRK_FORCESTEREO;
 	id = hdac_codec_id(devinfo);
+	subvendor = devinfo->codec->sc->pci_subvendor;
 	switch (id) {
 	case HDA_CODEC_ALC260:
 		for (i = devinfo->startnode; i < devinfo->endnode; i++) {
@@ -3205,20 +3234,24 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 
 		}
 		break;
-	case HDA_CODEC_CXVENICE:
-		devinfo->function.audio.quirks &= ~HDA_QUIRK_FORCESTEREO;
-		break;
 	default:
 		break;
 	}
-	if ((HDA_CODEC_STACXXXX & id) == id) {
-		/* Sigmatel codecs need soft PCM volume emulation */
-		devinfo->function.audio.quirks |= HDA_QUIRK_SOFTPCMVOL;
-	}
-	if ((ACER_ALL_SUBVENDOR & devinfo->codec->sc->pci_subvendor) ==
-	    devinfo->codec->sc->pci_subvendor) {
-		/* Acer */
-		devinfo->function.audio.quirks |= HDA_QUIRK_GPIO1;
+
+	/*
+	 * Quirks
+	 */
+	for (i = 0; i < HDAC_QUIRKS_LEN; i++) {
+		if (!(HDA_FLAG_MATCH(hdac_quirks[i].model, subvendor) &&
+		    HDA_FLAG_MATCH(hdac_quirks[i].id, id)))
+			continue;
+		if (hdac_quirks[i].set != 0)
+			devinfo->function.audio.quirks |=
+			    hdac_quirks[i].set;
+		if (hdac_quirks[i].unset != 0)
+			devinfo->function.audio.quirks &=
+			    ~(hdac_quirks[i].unset);
+		break;
 	}
 }
 
@@ -3765,7 +3798,7 @@ hdac_audio_commit(struct hdac_devinfo *devinfo, uint32_t cfl)
 			    w->wclass.pin.ctrl), cad);
 		}
 		if ((cfl & HDA_COMMIT_EAPD) &&
-		    w->param.eapdbtl != 0xffffffff)
+		    w->param.eapdbtl != HDAC_INVALID)
 			hdac_command(sc,
 			    HDA_CMD_SET_EAPD_BTL_ENABLE(cad, w->nid,
 			    w->param.eapdbtl), cad);
@@ -4151,7 +4184,7 @@ hdac_dump_nodes(struct hdac_devinfo *devinfo)
 		} else if (w->type ==
 		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
 			hdac_dump_pin(sc, w);
-		if (w->param.eapdbtl != 0xffffffff)
+		if (w->param.eapdbtl != HDAC_INVALID)
 			device_printf(sc->dev, "           EAPD: 0x%08x\n",
 			    w->param.eapdbtl);
 		if (HDA_PARAM_AUDIO_WIDGET_CAP_OUT_AMP(w->param.widget_cap))
@@ -4259,7 +4292,7 @@ hdac_attach2(void *arg)
 	int pcnt, rcnt;
 	int i;
 	char status[SND_STATUSLEN];
-	device_t *devlist;
+	device_t *devlist = NULL;
 	int devcount;
 	struct hdac_devinfo *devinfo = NULL;
 
@@ -4298,18 +4331,16 @@ hdac_attach2(void *arg)
 	hdac_scan_codecs(sc);
 
 	device_get_children(sc->dev, &devlist, &devcount);
-	if (devcount != 0 && devlist != NULL) {
-		for (i = 0; i < devcount; i++) {
-			devinfo = (struct hdac_devinfo *)
-			    device_get_ivars(devlist[i]);
-			if (devinfo != NULL &&
-					devinfo->node_type ==
-					HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_AUDIO) {
-				break;
-			} else
-				devinfo = NULL;
-		}
+	for (i = 0; devlist != NULL && i < devcount; i++) {
+		devinfo = (struct hdac_devinfo *)device_get_ivars(devlist[i]);
+		if (devinfo != NULL && devinfo->node_type ==
+		    HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_AUDIO) {
+			break;
+		} else
+			devinfo = NULL;
 	}
+	if (devlist != NULL)
+		free(devlist, M_TEMP);
 
 	if (devinfo == NULL) {
 		hdac_unlock(sc);
@@ -4499,10 +4530,10 @@ static int
 hdac_detach(device_t dev)
 {
 	struct hdac_softc *sc = NULL;
-	device_t *devlist;
+	device_t *devlist = NULL;
 	int devcount;
 	struct hdac_devinfo *devinfo = NULL;
-	struct hdac_codec *codec, *codec_tmp;
+	struct hdac_codec *codec;
 	int i;
 
 	devinfo = (struct hdac_devinfo *)pcm_getdevinfo(dev);
@@ -4527,31 +4558,26 @@ hdac_detach(device_t dev)
 	sc->lock = NULL;
 
 	device_get_children(sc->dev, &devlist, &devcount);
-	if (devcount != 0 && devlist != NULL) {
-		for (i = 0; i < devcount; i++) {
-			devinfo = (struct hdac_devinfo *)
-			    device_get_ivars(devlist[i]);
-			if (devinfo == NULL)
-				continue;
-			if (devinfo->widget != NULL) {
-				free(devinfo->widget, M_HDAC);
-			}
-			if (devinfo->node_type ==
-			    HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_AUDIO &&
-			    devinfo->function.audio.ctl != NULL) {
-				free(devinfo->function.audio.ctl, M_HDAC);
-			}
-
-			free(devinfo, M_HDAC);
-			device_delete_child(sc->dev, devlist[i]);
-		}
-		free(devlist, M_TEMP);
+	for (i = 0; devlist != NULL && i < devcount; i++) {
+		devinfo = (struct hdac_devinfo *)device_get_ivars(devlist[i]);
+		if (devinfo == NULL)
+			continue;
+		if (devinfo->widget != NULL)
+			free(devinfo->widget, M_HDAC);
+		if (devinfo->node_type ==
+		    HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_AUDIO &&
+		    devinfo->function.audio.ctl != NULL)
+			free(devinfo->function.audio.ctl, M_HDAC);
+		free(devinfo, M_HDAC);
+		device_delete_child(sc->dev, devlist[i]);
 	}
+	if (devlist != NULL)
+		free(devlist, M_TEMP);
 
-	SLIST_FOREACH_SAFE(codec, &sc->codec_list, next_codec, codec_tmp) {
-		SLIST_REMOVE(&sc->codec_list, codec, hdac_codec,
-		    next_codec);
-		free((void *)codec, M_HDAC);
+	while (!SLIST_EMPTY(&sc->codec_list)) {
+		codec = SLIST_FIRST(&sc->codec_list);
+		SLIST_REMOVE_HEAD(&sc->codec_list, next_codec);
+		free(codec, M_HDAC);
 	}
 
 	hdac_dma_free(&sc->rirb_dma);
