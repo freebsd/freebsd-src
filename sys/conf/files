@@ -1370,7 +1370,7 @@ kern/subr_acl_posix1e.c		standard
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
 kern/subr_bus.c			standard
-kern/subr_clock.c		optional genclock
+kern/subr_clock.c		standard
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
 kern/subr_eventhandler.c	standard
@@ -1390,6 +1390,7 @@ kern/subr_power.c		standard
 kern/subr_prf.c			standard
 kern/subr_prof.c		standard
 kern/subr_rman.c		standard
+kern/subr_rtc.c			optional genclock
 kern/subr_sbuf.c		standard
 kern/subr_scanf.c		standard
 kern/subr_sleepqueue.c		standard
