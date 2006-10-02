@@ -110,6 +110,7 @@ MAN=	accept_filter.9 \
 	g_provider_by_name.9 \
 	groupmember.9 \
 	g_wither_geom.9 \
+	hash.9 \
 	hashinit.9 \
 	hexdump.9 \
 	ieee80211.9 \
@@ -587,6 +588,12 @@ MLINKS+=g_geom.9 g_destroy_geom.9 \
 MLINKS+=g_provider.9 g_destroy_provider.9 \
 	g_provider.9 g_error_provider.9 \
 	g_provider.9 g_new_providerf.9
+MLINKS+=hash.9 hash32.9 \
+	hash.9 hash32_buf.9 \
+	hash.9 hash32_str.9 \
+	hash.9 hash32_strn.9 \
+	hash.9 hash32_stre.9 \
+	hash.9 hash32_strne.9
 MLINKS+=hashinit.9 hashdestroy.9 \
 	hashinit.9 phashinit.9
 MLINKS+=ieee80211.9 ieee80211_attach.9 \
