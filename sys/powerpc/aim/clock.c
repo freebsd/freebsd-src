@@ -97,17 +97,6 @@ static struct timecounter	decr_timecounter = {
 	"decrementer"		/* name */
 };
 
-static int
-sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
-	if (!error && req->newptr)
-		resettodr();
-	return (error);
-}
-
 void
 inittodr(time_t base)
 {
