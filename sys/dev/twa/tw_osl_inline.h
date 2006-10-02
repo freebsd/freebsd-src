@@ -276,9 +276,7 @@ tw_osl_write_reg_inline(struct tw_cl_ctlr_handle *ctlr_handle,
  * Return value:	local time
  */
 #define tw_osl_get_local_time()						\
-	(time_second - (tz_minuteswest * 60) -				\
-		(wall_cmos_clock ? adjkerntz : 0))
-
+	(time_second - utc_offset())
 
 
 /*
