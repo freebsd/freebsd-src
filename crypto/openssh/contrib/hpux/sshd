@@ -1,5 +1,0 @@
-# SSHD_START:		Set to 1 to start SSH daemon
-# SSHD_ARGS:		Command line arguments to pass to sshd
-#
-SSHD_START=1
-SSHD_ARGS=
