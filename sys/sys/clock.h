@@ -49,8 +49,7 @@
 void	inittodr(time_t base);
 void	resettodr(void);
 void	startrtclock(void);
-extern int	wall_cmos_clock;
-extern int	adjkerntz;
+
 extern int	disable_rtc_set;
 
 /*
