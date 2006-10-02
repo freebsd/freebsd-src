@@ -53,6 +53,7 @@ LOCALES=	am_ET.UTF-8 \
 		lt_LT.ISO8859-4 \
 		lt_LT.ISO8859-13 \
 		lt_LT.UTF-8 \
+		mn_MN.UTF-8 \
 		nl_NL.ISO8859-1 \
 		no_NO.ISO8859-1 \
 		no_NO.UTF-8 \
