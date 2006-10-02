@@ -14,9 +14,7 @@
  * i386 to clock driver interface.
  * XXX large parts of the driver and its interface are misplaced.
  */
-extern int	adjkerntz;
 extern int	clkintr_pending;
-extern int	disable_rtc_set;
 extern int	pscnt;
 extern int	psdiv;
 extern int	statclock_disable;
@@ -24,7 +22,6 @@ extern u_int	timer_freq;
 extern int	timer0_max_count;
 extern uint64_t	tsc_freq;
 extern int	tsc_is_broken;
-extern int	wall_cmos_clock;
 extern struct mtx clock_lock;
 
 /*

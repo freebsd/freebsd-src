@@ -34,6 +34,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/clock.h>
 #include <sys/lockmgr.h>
 #include <sys/malloc.h>
 #include <machine/clock.h>

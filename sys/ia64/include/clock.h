@@ -13,10 +13,6 @@
 
 #define	CLOCK_VECTOR	254
 
-extern int adjkerntz;
-extern int disable_rtc_set;
-extern int wall_cmos_clock;
-
 extern uint64_t	ia64_clock_reload;
 extern uint64_t	itc_frequency;
 
