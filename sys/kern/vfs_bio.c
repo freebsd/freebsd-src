@@ -1890,6 +1890,17 @@ restart:
 		}
 
 		/*
+		 * Notify any waiters for the buffer lock about
+		 * identity change by freeing the buffer.
+		 */
+		if (qindex == QUEUE_CLEAN && BUF_LOCKWAITERS(bp) > 0) {
+			bp->b_flags |= B_INVAL;
+			bfreekva(bp);
+			brelse(bp);
+			goto restart;
+		}
+
+		/*
 		 * If we are overcomitted then recover the buffer and its
 		 * KVM space.  This occurs in rare situations when multiple
 		 * processes are blocked in getnewbuf() or allocbuf().
