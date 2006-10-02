@@ -63,7 +63,7 @@ unsigned long in6_maxmtu = 0;
 #ifdef IP6_AUTO_LINKLOCAL
 int ip6_auto_linklocal = IP6_AUTO_LINKLOCAL;
 #else
-int ip6_auto_linklocal = 1;	/* enable by default */
+int ip6_auto_linklocal = 0;	/* disable by default */
 #endif
 
 struct callout in6_tmpaddrtimer_ch;
