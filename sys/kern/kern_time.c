@@ -62,9 +62,6 @@ __FBSDID("$FreeBSD$");
 
 #define MAX_CLOCKS 	(CLOCK_MONOTONIC+1)
 
-int tz_minuteswest;
-int tz_dsttime;
-
 static struct kclock	posix_clocks[MAX_CLOCKS];
 static uma_zone_t	itimer_zone = NULL;
 

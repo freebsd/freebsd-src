@@ -53,6 +53,9 @@ int adjkerntz;		/* local offset from GMT in seconds */
 int disable_rtc_set;	/* disable resettodr() if != 0 */
 int wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
 
+int tz_minuteswest;
+int tz_dsttime;
+
 /*
  * These have traditionally been in machdep, but should probably be moved to
  * kern.
