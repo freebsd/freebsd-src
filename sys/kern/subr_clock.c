@@ -197,3 +197,10 @@ clock_ts_to_ct(struct timespec *ts, struct clocktime *ct)
 	ct->sec  = rsec;
 	ct->nsec = ts->tv_nsec;
 }
+
+int
+utc_offset(void)
+{
+
+	return (tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0));
+}

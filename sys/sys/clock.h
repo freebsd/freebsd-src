@@ -59,6 +59,8 @@ extern int	disable_rtc_set;
 extern int tz_minuteswest;
 extern int tz_dsttime;
 
+int utc_offset(void);
+
 /*
  * Structure to hold the values typically reported by time-of-day clocks.
  * This can be passed to the generic conversion functions to be converted
