@@ -421,7 +421,7 @@ static int		keycode2scancode(int keycode, int shift, int up);
 /* local variables */
 
 /* the initial key map, accent map and fkey strings */
-#ifdef UKBD_DFLT_KEYMAP
+#if defined(UKBD_DFLT_KEYMAP) && !defined(KLD_MODULE)
 #define KBD_DFLT_KEYMAP
 #include "ukbdmap.h"
 #endif
