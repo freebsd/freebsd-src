@@ -4,7 +4,7 @@
  * Copyright (c) 2000 Jason L. Wright (jason@thought.net)
  * Copyright (c) 2000 Theo de Raadt (deraadt@openbsd.org)
  * Copyright (c) 2001 Patrik Lindergren (patrik@ipunplugged.com)
- * 
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -301,7 +301,7 @@ ubsec_attach(device_t dev)
 		sc->sc_flags |= UBS_FLAGS_KEY | UBS_FLAGS_RNG |
 		    UBS_FLAGS_LONGCTX | UBS_FLAGS_HWNORM | UBS_FLAGS_BIGKEY;
 	}
- 
+
 	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
 	cmd |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN;
 	pci_write_config(dev, PCIR_COMMAND, cmd, 4);
@@ -317,7 +317,7 @@ ubsec_attach(device_t dev)
 		goto bad;
 	}
 
-	/* 
+	/*
 	 * Setup memory-mapping of PCI registers.
 	 */
 	rid = BS_BAR;
@@ -1418,7 +1418,7 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 				q->q_dst_m = top;
 				ubsec_mcopy(q->q_src_m, q->q_dst_m,
 				    cpskip, cpoffset);
-				if (bus_dmamap_create(sc->sc_dmat, 
+				if (bus_dmamap_create(sc->sc_dmat,
 				    BUS_DMA_NOWAIT, &q->q_dst_map) != 0) {
 					ubsecstats.hst_nomap++;
 					err = ENOMEM;
@@ -1504,7 +1504,7 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 
 		ctxl = (struct ubsec_pktctx_long *)(dmap->d_alloc.dma_vaddr +
 		    offsetof(struct ubsec_dmachunk, d_ctx));
-		
+
 		/* transform small context into long context */
 		ctxl->pc_len = htole16(sizeof(struct ubsec_pktctx_long));
 		ctxl->pc_type = htole16(UBS_PKTCTX_TYPE_IPSEC);
@@ -1515,7 +1515,7 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 		for (i = 0; i < 5; i++)
 			ctxl->pc_hminner[i] = ctx.pc_hminner[i];
 		for (i = 0; i < 5; i++)
-			ctxl->pc_hmouter[i] = ctx.pc_hmouter[i];   
+			ctxl->pc_hmouter[i] = ctx.pc_hmouter[i];
 		ctxl->pc_iv[0] = ctx.pc_iv[0];
 		ctxl->pc_iv[1] = ctx.pc_iv[1];
 	} else
@@ -2021,13 +2021,13 @@ ubsec_free_q(struct ubsec_softc *sc, struct ubsec_q *q)
 		if(q->q_stacked_mcr[i]) {
 			q2 = q->q_stacked_mcr[i];
 
-			if ((q2->q_dst_m != NULL) && (q2->q_src_m != q2->q_dst_m)) 
+			if ((q2->q_dst_m != NULL) && (q2->q_src_m != q2->q_dst_m))
 				m_freem(q2->q_dst_m);
 
 			crp = (struct cryptop *)q2->q_crp;
-			
+
 			SIMPLEQ_INSERT_TAIL(&sc->sc_freequeue, q2, q_next);
-			
+
 			crp->crp_etype = EFAULT;
 			crypto_done(crp);
 		} else {
@@ -2042,9 +2042,9 @@ ubsec_free_q(struct ubsec_softc *sc, struct ubsec_q *q)
 		m_freem(q->q_dst_m);
 
 	crp = (struct cryptop *)q->q_crp;
-	
+
 	SIMPLEQ_INSERT_TAIL(&sc->sc_freequeue, q, q_next);
-	
+
 	crp->crp_etype = EFAULT;
 	crypto_done(crp);
 	return(0);
