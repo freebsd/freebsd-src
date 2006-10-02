@@ -94,13 +94,6 @@ __FBSDID("$FreeBSD$");
 #include <i386/bios/mca_machdep.h>
 #endif
 
-/*
- * 32-bit time_t's can't reach leap years before 1904 or after 2036, so we
- * can use a simple formula for leap years.
- */
-#define	LEAPYEAR(y) (((u_int)(y) % 4 == 0) ? 1 : 0)
-#define DAYSPERYEAR   (31+28+31+30+31+30+31+31+30+31+30+31)
-
 #define	TIMER_DIV(x) ((timer_freq + (x) / 2) / (x))
 
 int	clkintr_pending;
@@ -118,7 +111,6 @@ struct mtx clock_lock;
 #define	RTC_UNLOCK	mtx_unlock_spin(&clock_lock)
 
 static	int	beeping = 0;
-static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
 static	struct intsrc *i8254_intsrc;
 static	u_int32_t i8254_lastcount;
 static	u_int32_t i8254_offset;
@@ -663,10 +655,9 @@ startrtclock()
 void
 inittodr(time_t base)
 {
-	unsigned long	sec, days;
-	int		year, month;
-	int		y, m, s;
+	int s;
 	struct timespec ts;
+	struct clocktime ct;
 
 	if (base) {
 		s = splclock();
@@ -677,8 +668,11 @@ inittodr(time_t base)
 	}
 
 	/* Look if we have a RTC present and the time is valid */
-	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR))
-		goto wrong_time;
+	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR)) {
+		printf("Invalid time in real time clock.\n");
+		printf("Check and reset the date immediately!\n");
+		return;
+	}
 
 	/* wait for time update to complete */
 	/* If RTCSA_TUP is zero, we have at least 244us before next update */
@@ -687,49 +681,22 @@ inittodr(time_t base)
 		splx(s);
 		s = splhigh();
 	}
-
-	days = 0;
+	ct.nsec = 0;
+	ct.sec = readrtc(RTC_SEC);
+	ct.min = readrtc(RTC_MIN);
+	ct.hour = readrtc(RTC_HRS);
+	ct.day = readrtc(RTC_DAY);
+	ct.dow = readrtc(RTC_WDAY) - 1;
+	ct.mon = readrtc(RTC_MONTH);
+	ct.year = readrtc(RTC_YEAR);
 #ifdef USE_RTC_CENTURY
-	year = readrtc(RTC_YEAR) + readrtc(RTC_CENTURY) * 100;
+	ct.year += readrtc(RTC_CENTURY) * 100;
 #else
-	year = readrtc(RTC_YEAR) + 1900;
-	if (year < 1970)
-		year += 100;
+	ct.year += 2000;
 #endif
-	if (year < 1970) {
-		splx(s);
-		goto wrong_time;
-	}
-	month = readrtc(RTC_MONTH);
-	for (m = 1; m < month; m++)
-		days += daysinmonth[m-1];
-	if ((month > 2) && LEAPYEAR(year))
-		days ++;
-	days += readrtc(RTC_DAY) - 1;
-	for (y = 1970; y < year; y++)
-		days += DAYSPERYEAR + LEAPYEAR(y);
-	sec = ((( days * 24 +
-		  readrtc(RTC_HRS)) * 60 +
-		  readrtc(RTC_MIN)) * 60 +
-		  readrtc(RTC_SEC));
-	/* sec now contains the number of seconds, since Jan 1 1970,
-	   in the local time zone */
-
-	sec += tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
-
-	y = time_second - sec;
-	if (y <= -2 || y >= 2) {
-		/* badly off, adjust it */
-		ts.tv_sec = sec;
-		ts.tv_nsec = 0;
-		tc_setclock(&ts);
-	}
-	splx(s);
-	return;
-
-wrong_time:
-	printf("Invalid time in real time clock.\n");
-	printf("Check and reset the date immediately!\n");
+	clock_ct_to_ts(&ct, &ts);
+	ts.tv_sec += utc_offset();
+	tc_setclock(&ts);
 }
 
 /*
@@ -738,52 +705,30 @@ wrong_time:
 void
 resettodr()
 {
-	unsigned long	tm;
-	int		y, m, s;
+	struct timespec	ts;
+	struct clocktime ct;
 
 	if (disable_rtc_set)
 		return;
 
-	s = splclock();
-	tm = time_second;
-	splx(s);
+	getnanotime(&ts);
+	ts.tv_sec -= utc_offset();
+	clock_ts_to_ct(&ts, &ct);
 
 	/* Disable RTC updates and interrupts. */
 	writertc(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
 
-	/* Calculate local time to put in RTC */
+	writertc(RTC_SEC, bin2bcd(ct.sec)); 		/* Write back Seconds */
+	writertc(RTC_MIN, bin2bcd(ct.min)); 		/* Write back Minutes */
+	writertc(RTC_HRS, bin2bcd(ct.hour));		/* Write back Hours   */
 
-	tm -= tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
-
-	writertc(RTC_SEC, bin2bcd(tm%60)); tm /= 60;	/* Write back Seconds */
-	writertc(RTC_MIN, bin2bcd(tm%60)); tm /= 60;	/* Write back Minutes */
-	writertc(RTC_HRS, bin2bcd(tm%24)); tm /= 24;	/* Write back Hours   */
-
-	/* We have now the days since 01-01-1970 in tm */
-	writertc(RTC_WDAY, (tm + 4) % 7 + 1);		/* Write back Weekday */
-	for (y = 1970, m = DAYSPERYEAR + LEAPYEAR(y);
-	     tm >= m;
-	     y++,      m = DAYSPERYEAR + LEAPYEAR(y))
-	     tm -= m;
-
-	/* Now we have the years in y and the day-of-the-year in tm */
-	writertc(RTC_YEAR, bin2bcd(y%100));		/* Write back Year    */
+	writertc(RTC_WDAY, ct.dow + 1);			/* Write back Weekday */
+	writertc(RTC_DAY, bin2bcd(ct.day));		/* Write back Day */
+	writertc(RTC_MONTH, bin2bcd(ct.mon));           /* Write back Month   */
+	writertc(RTC_YEAR, bin2bcd(ct.year % 100));	/* Write back Year    */
 #ifdef USE_RTC_CENTURY
-	writertc(RTC_CENTURY, bin2bcd(y/100));		/* ... and Century    */
+	writertc(RTC_CENTURY, bin2bcd(ct.year / 100));	/* ... and Century    */
 #endif
-	for (m = 0; ; m++) {
-		int ml;
-
-		ml = daysinmonth[m];
-		if (m == 1 && LEAPYEAR(y))
-			ml++;
-		if (tm < ml)
-			break;
-		tm -= ml;
-	}
-
-	writertc(RTC_MONTH, bin2bcd(m + 1));            /* Write back Month   */
-	writertc(RTC_DAY, bin2bcd(tm + 1));             /* Write back Month Day */
 
 	/* Reenable RTC updates and interrupts. */
 	writertc(RTC_STATUSB, rtc_statusb);
