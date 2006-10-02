@@ -566,6 +566,21 @@ lockcount(lkp)
 }
 
 /*
+ * Determine the number of waiters on a lock.
+ */
+int
+lockwaiters(lkp)
+	struct lock *lkp;
+{
+	int count;
+
+	mtx_lock(lkp->lk_interlock);
+	count = lkp->lk_waitcount;
+	mtx_unlock(lkp->lk_interlock);
+	return (count);
+}
+
+/*
  * Print out information about state of a lock. Used by VOP_PRINT
  * routines to display status about contained locks.
  */
