@@ -54,7 +54,7 @@ static void aic_pccard_release_resources(device_t);
 static int aic_pccard_probe(device_t);
 static int aic_pccard_attach(device_t);
 
-const struct pccard_product aic_pccard_products[] = {
+static const struct pccard_product aic_pccard_products[] = {
 	PCMCIA_CARD(ADAPTEC, APA1460),
 	PCMCIA_CARD(ADAPTEC, APA1460A),
 	PCMCIA_CARD(NEWMEDIA, BUSTOASTER),
