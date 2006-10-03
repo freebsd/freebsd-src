@@ -379,7 +379,7 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 #define nfsm_reqdone \
 	do { \
 		m_freem(mrep); \
-		nfsmout: \
+		nfsmout: ; \
 	} while (0)
 
 #define nfsm_rndup(a)	(((a)+3)&(~0x3))
