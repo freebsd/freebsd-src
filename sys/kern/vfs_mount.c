@@ -475,6 +475,7 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= vfsp->vfc_flags & MNT_VISFLAGMASK;
 	MNT_IUNLOCK(mp);
+	mp->mnt_gen++;
 	strlcpy(mp->mnt_stat.f_fstypename, vfsp->vfc_name, MFSNAMELEN);
 	mp->mnt_vnodecovered = vp;
 	mp->mnt_cred = crdup(td->td_ucred);
@@ -1148,10 +1149,12 @@ dounmount(mp, flags, td)
 	struct vnode *coveredvp, *fsrootvp;
 	int error;
 	int async_flag;
+	int mnt_gen_r;
 
 	mtx_assert(&Giant, MA_OWNED);
 
 	if ((coveredvp = mp->mnt_vnodecovered) != NULL) {
+		mnt_gen_r = mp->mnt_gen;
 		VI_LOCK(coveredvp);
 		vholdl(coveredvp);
 		error = vn_lock(coveredvp, LK_EXCLUSIVE | LK_INTERLOCK, td);
@@ -1162,7 +1165,8 @@ dounmount(mp, flags, td)
 		 */
 		if (error)
 			return (error);
-		if (coveredvp->v_mountedhere != mp) {
+		if (coveredvp->v_mountedhere != mp ||
+		    coveredvp->v_mountedhere->mnt_gen != mnt_gen_r) {
 			VOP_UNLOCK(coveredvp, 0, td);
 			return (EBUSY);
 		}
