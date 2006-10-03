@@ -83,7 +83,9 @@ __RCSID("$FreeBSD$");
 
 #ifdef __FreeBSD__
 #include <resolv.h>
-#ifdef GSSAPI
+#if defined(GSSAPI) && defined(HAVE_GSSAPI_H)
+#include <gssapi.h>
+#elif defined(GSSAPI) && defined(HAVE_GSSAPI_GSSAPI_H)
 #include <gssapi/gssapi.h>
 #endif
 #endif
