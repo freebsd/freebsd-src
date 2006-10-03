@@ -151,7 +151,7 @@ the emacs control keys, the usual ANSI arrow keys might be used to
 browse through the history buffer, and move the cursor within the
 current line.
 .Sh COMMANDS
-.Bl -ohang
+.Bl -tag -width indent -compact
 .It Cm examine
 .It Cm x
 Display the addressed locations according to the formats in the modifier.
@@ -212,15 +212,18 @@ No alternate format.
 No alternate format.
 .El
 .El
+.Pp
 .It Cm xf
 Examine forward:
 Execute an examine command with the last specified parameters to it
 except that the next address displayed by it is used as the start address.
+.Pp
 .It Cm xb
 Examine backward:
 Execute an examine command with the last specified parameters to it
 except that the last start address subtracted by the size displayed by it
 is used as the start address.
+.Pp
 .It Cm print Ns Op Cm /acdoruxz
 Print
 .Ar addr Ns s
@@ -249,6 +252,7 @@ will print like:
 eax = xxxxxx
 ecx = yyyyyy
 .Ed
+.Pp
 .It Xo
 .Cm write Ns Op Cm /bhl
 .Ar addr Ar expr1 Op Ar "expr2 ..."
@@ -271,6 +275,7 @@ long word is assumed.
 since there is no delimiter between expressions, strange
 things may happen.
 It is best to enclose each expression in parentheses.
+.Pp
 .It Xo
 .Cm set
 .Li \&$ Ns Ar variable
@@ -280,6 +285,7 @@ It is best to enclose each expression in parentheses.
 Set the named variable or register with the value of
 .Ar expr .
 Valid variable names are described below.
+.Pp
 .It Cm break Ns Op Cm /u
 Set a break point at
 .Ar addr .
@@ -311,6 +317,7 @@ If a user text is shadowed by a normal user space debugger,
 user space break points may not work correctly.
 Setting a break
 point at the low-level code paths may also cause strange behavior.
+.Pp
 .It Cm delete Ar addr
 .It Cm delete Li \&# Ns Ar number
 Delete the break point.
@@ -322,6 +329,7 @@ or by using the same
 specified in the original
 .Cm break
 command.
+.Pp
 .It Cm step Ns Op Cm /p
 Single step
 .Ar count
@@ -337,6 +345,7 @@ single-step through some low-level code paths or user space code.
 On machines with software-emulated single-stepping (e.g., pmax),
 stepping through code executed by interrupt handlers will probably
 do the wrong thing.
+.Pp
 .It Cm continue Ns Op Cm /c
 Continue execution until a breakpoint or watchpoint.
 If the
@@ -348,6 +357,7 @@ Some machines (e.g., pmax) also count loads and stores.
 when counting, the debugger is really silently single-stepping.
 This means that single-stepping on low-level code may cause strange
 behavior.
+.Pp
 .It Cm until Ns Op Cm /p
 Stop at the next call or return instruction.
 If the
@@ -356,6 +366,7 @@ modifier is specified, print the call nesting depth and the
 cumulative instruction count at each call or return.
 Otherwise,
 only print when the matching return is hit.
+.Pp
 .It Cm next Ns Op Cm /p
 .It Cm match Ns Op Cm /p
 Stop at the matching return instruction.
@@ -364,6 +375,7 @@ If the
 modifier is specified, print the call nesting depth and the
 cumulative instruction count at each call or return.
 Otherwise, only print when the matching return is hit.
+.Pp
 .It Xo
 .Cm trace Ns Op Cm /u
 .Op Ar frame
@@ -385,6 +397,7 @@ is omitted, all frames are printed.
 .Sy Warning :
 User space stack trace is valid
 only if the machine dependent code supports it.
+.Pp
 .It Xo
 .Cm search Ns Op Cm /bhl
 .Ar addr
@@ -400,6 +413,7 @@ This is because ddb does not always recover from touching bad memory.
 The optional
 .Ar count
 argument limits the search.
+.Pp
 .It Cm show all procs Ns Op Cm /m
 .It Cm ps Ns Op Cm /m
 Display all process information.
@@ -410,6 +424,7 @@ The
 .Li m
 modifier will alter the display to show VM map
 addresses for the process and not show other info.
+.Pp
 .It Cm show registers Ns Op Cm /u
 Display the register set.
 If the
@@ -422,6 +437,7 @@ The support of the
 .Li u
 modifier depends on the machine.
 If not supported, incorrect information will be displayed.
+.Pp
 .It Cm show geom Op Ar addr
 If the
 .Ar addr
@@ -430,6 +446,7 @@ If the
 .Ar addr
 is given, displays details about the given GEOM object (class, geom, provider
 or consumer).
+.Pp
 .It Xo
 .Cm show map Ns Op Cm /f
 .Ar addr
@@ -440,6 +457,7 @@ If the
 .Li f
 modifier is specified the
 complete map is printed.
+.Pp
 .It Xo
 .Cm show object Ns Op Cm /f
 .Ar addr
@@ -450,12 +468,16 @@ If the
 .Li f
 option is specified the
 complete object is printed.
+.Pp
 .It Cm show vnode Ar addr
 Displays details about the given vnode.
+.Pp
 .It Cm "show watches"
 Displays all watchpoints.
+.Pp
 .It Cm reset
 Hard reset the system.
+.Pp
 .It Xo
 .Cm watch
 .Ar addr Ns Li \&, Ns Ar size
@@ -472,6 +494,7 @@ with an error message.
 Attempts to watch wired kernel memory
 may cause unrecoverable error in some systems such as i386.
 Watchpoints on user addresses work best.
+.Pp
 .It Xo
 .Cm hwatch
 .Ar addr Ns Li \&, Ns Ar size
@@ -490,11 +513,13 @@ Use
 .Cm hwatch
 for setting watchpoints on kernel address locations only, and avoid
 its use on user mode address spaces.
+.Pp
 .It Xo
 .Cm dhwatch
 .Ar addr Ns Li \&, Ns Ar size
 .Xc
 Delete specified hardware watchpoint.
+.Pp
 .It Cm gdb
 Toggles between remote GDB and DDB mode.
 In remote GDB mode, another machine is required that runs
@@ -504,6 +529,7 @@ console port on the target machine.
 Currently only available on the
 .Em i386
 architecture.
+.Pp
 .It Cm help
 Print a short summary of the available commands and command
 abbreviations.
