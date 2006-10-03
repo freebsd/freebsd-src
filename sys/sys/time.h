@@ -339,7 +339,7 @@ __END_DECLS
 typedef longlong_t	hrtime_t;
 
 #ifndef _KERNEL
-static __inline hrtime_t gethrtime() {
+static __inline hrtime_t gethrtime(void) {
 	struct timespec ts;
 	clock_gettime(CLOCK_UPTIME,&ts);
 	return (((u_int64_t) ts.tv_sec) * NANOSEC + ts.tv_nsec);
