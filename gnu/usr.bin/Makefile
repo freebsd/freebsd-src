@@ -24,10 +24,6 @@ SUBDIR= bc \
 	sort \
 	${_texinfo}
  
-.if ${MACHINE_ARCH} == "arm"
-MK_GDB=	no	# not yet
-.endif
-
 .if ${MK_CXX} != "no"
 _gperf=		gperf
 .if ${MK_GROFF} != "no"
