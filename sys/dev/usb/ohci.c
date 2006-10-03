@@ -1733,7 +1733,6 @@ ohci_device_request(usbd_xfer_handle xfer)
 	usb_device_request_t *req = &xfer->request;
 	usbd_device_handle dev = opipe->pipe.device;
 	ohci_softc_t *sc = (ohci_softc_t *)dev->bus;
-	int addr = dev->address;
 	ohci_soft_td_t *setup, *stat, *next, *tail;
 	ohci_soft_ed_t *sed;
 	int isread;
@@ -1747,7 +1746,7 @@ ohci_device_request(usbd_xfer_handle xfer)
 	DPRINTFN(3,("ohci_device_control type=0x%02x, request=0x%02x, "
 		    "wValue=0x%04x, wIndex=0x%04x len=%d, addr=%d, endpt=%d\n",
 		    req->bmRequestType, req->bRequest, UGETW(req->wValue),
-		    UGETW(req->wIndex), len, addr,
+		    UGETW(req->wIndex), len, dev->address,
 		    opipe->pipe.endpoint->edesc->bEndpointAddress));
 
 	setup = opipe->tail.td;
