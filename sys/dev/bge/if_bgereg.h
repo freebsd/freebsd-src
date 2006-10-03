@@ -2027,10 +2027,9 @@ struct bge_status_block {
 #define ALTEON_DEVICEID_BCM5701		0x0004
 
 /*
- * 3Com 3c985 PCI vendor/device ID.
+ * 3Com 3c996 PCI vendor/device ID.
  */
 #define TC_VENDORID			0x10B7
-#define TC_DEVICEID_3C985		0x0001
 #define TC_DEVICEID_3C996		0x0003
 
 /*
