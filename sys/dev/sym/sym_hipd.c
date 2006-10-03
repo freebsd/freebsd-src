@@ -6516,6 +6516,7 @@ out_clrack:
 	OUTL_DSP (SCRIPTA_BA (np, clrack));
 	return;
 out_stuck:
+	return;
 }
 
 /*
@@ -6980,6 +6981,7 @@ static void sym_alloc_lcb_tags (hcb_p np, u_char tn, u_char ln)
 
 	return;
 fail:
+	return;
 }
 
 /*
