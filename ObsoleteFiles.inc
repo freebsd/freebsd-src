@@ -14,14 +14,6 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
-# 20060929: libpcap.so.4 moved to /lib/
-OLD_FILES+=usr/lib/libpcap.so.4
-# 20060929: libpthread.so.2 moved to /lib/
-.if ${TARGET_ARCH} != "alpha" && ${TARGET_ARCH} != "sparc64"
-OLD_FILES+=usr/lib/libpthread.so.2
-.else
-OLD_FILES+=usr/lib/libc_r.so.6
-.endif
 # 20060928: kvmdb cleanup script removed
 OLD_FILES+=etc/periodic/weekly/120.clean-kvmdb
 # 20051215: rescue/nextboot.sh renamed to rescue/nextboot
@@ -2658,6 +2650,14 @@ OLD_FILES+=usr/games/worm
 OLD_FILES+=usr/games/worms
 OLD_FILES+=usr/games/wump
 
+# 20060929: libpcap.so.4 moved to /lib/
+OLD_LIBS+=usr/lib/libpcap.so.4
+# 20060929: libpthread.so.2 moved to /lib/
+.if ${TARGET_ARCH} != "alpha" && ${TARGET_ARCH} != "sparc64"
+OLD_LIBS+=usr/lib/libpthread.so.2
+.else
+OLD_LIBS+=usr/lib/libc_r.so.6
+.endif
 # 20050722: bump for 6.0-RELEASE
 OLD_LIBS+=lib/libalias.so.4
 OLD_LIBS+=lib/libatm.so.2
