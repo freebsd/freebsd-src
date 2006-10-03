@@ -16,6 +16,8 @@
 
 # 20060928: kvmdb cleanup script removed
 OLD_FILES+=etc/periodic/weekly/120.clean-kvmdb
+# 20060905: demangle.h from contrib/libstdc++/include/ext/
+OLD_FILES+=usr/include/c++/3.4/ext/demangle.h
 # 20051215: rescue/nextboot.sh renamed to rescue/nextboot
 OLD_FILES+=rescue/nextboot.sh
 # 20051029: rc.d/ppp-user renamed to rc.d/ppp for convenience
