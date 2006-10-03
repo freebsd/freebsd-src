@@ -385,8 +385,6 @@ usbd_start_transfer(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 			bus_dmamap_destroy(tag, dmap->map);
 			xfer->rqflags &= ~URQ_AUTO_DMABUF;
 		}
-		/* XXX */
-		usb_insert_transfer(xfer);
 		xfer->status = err;
 		usb_transfer_complete(xfer);
 		return;
