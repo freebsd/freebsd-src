@@ -1110,6 +1110,15 @@ usbd_new_device(device_t parent, usbd_bus_handle bus, int depth,
 	dev->address = addr;	/* New device address now */
 	bus->devices[addr] = dev;
 
+	/* Re-establish the default pipe with the new address. */
+	usbd_kill_pipe(dev->default_pipe);
+	err = usbd_setup_pipe(dev, 0, &dev->def_ep, USBD_DEFAULT_INTERVAL,
+	    &dev->default_pipe);
+	if (err) {
+		usbd_remove_device(dev, up);
+		return (err);
+	}
+
 	dd = &dev->ddesc;
 	/* Get the first 8 bytes of the device descriptor. */
 	err = usbd_get_desc(dev, UDESC_DEVICE, 0, USB_MAX_IPACKET, dd);
@@ -1152,6 +1161,15 @@ usbd_new_device(device_t parent, usbd_bus_handle bus, int depth,
 	}
 
 	USETW(dev->def_ep_desc.wMaxPacketSize, dd->bMaxPacketSize);
+
+	/* Re-establish the default pipe with the new max packet size. */
+	usbd_kill_pipe(dev->default_pipe);
+	err = usbd_setup_pipe(dev, 0, &dev->def_ep, USBD_DEFAULT_INTERVAL,
+	    &dev->default_pipe);
+	if (err) {
+		usbd_remove_device(dev, up);
+		return (err);
+	}
 
 	err = usbd_reload_device_desc(dev);
 	if (err) {
