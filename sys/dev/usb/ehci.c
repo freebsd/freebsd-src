@@ -2867,7 +2867,6 @@ ehci_device_request(usbd_xfer_handle xfer)
 	usb_device_request_t *req = &xfer->request;
 	usbd_device_handle dev = epipe->pipe.device;
 	ehci_softc_t *sc = (ehci_softc_t *)dev->bus;
-	int addr = dev->address;
 	ehci_soft_qtd_t *newinactive, *setup, *stat, *next;
 	ehci_soft_qh_t *sqh;
 	int isread;
@@ -2881,7 +2880,7 @@ ehci_device_request(usbd_xfer_handle xfer)
 	DPRINTFN(3,("ehci_device_request: type=0x%02x, request=0x%02x, "
 		    "wValue=0x%04x, wIndex=0x%04x len=%d, addr=%d, endpt=%d\n",
 		    req->bmRequestType, req->bRequest, UGETW(req->wValue),
-		    UGETW(req->wIndex), len, addr,
+		    UGETW(req->wIndex), len, dev->address,
 		    epipe->pipe.endpoint->edesc->bEndpointAddress));
 
 	newinactive = ehci_alloc_sqtd(sc);
