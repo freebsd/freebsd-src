@@ -2903,17 +2903,6 @@ ehci_device_request(usbd_xfer_handle xfer)
 	sqh->inactivesqtd = newinactive;
 	epipe->u.ctl.length = len;
 
-	/* Update device address and length since they may have changed
-	   during the setup of the control pipe in usbd_new_device(). */
-	/* XXX This only needs to be done once, but it's too early in open. */
-	/* XXXX Should not touch ED here! */
-	sqh->qh.qh_endp =
-	    (sqh->qh.qh_endp & htole32(~(EHCI_QH_ADDRMASK | EHCI_QH_MPLMASK))) |
-	    htole32(
-	     EHCI_QH_SET_ADDR(addr) |
-	     EHCI_QH_SET_MPL(UGETW(epipe->pipe.endpoint->edesc->wMaxPacketSize))
-	    );
-
 	/* Set up data transaction */
 	if (len != 0) {
 		ehci_soft_qtd_t *end;
