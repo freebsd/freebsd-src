@@ -141,7 +141,7 @@
 61	AUE_CHROOT	NOPROTO	{ int chroot(char *path); }
 62	AUE_FSTAT	OBSOL	ofstat
 63	AUE_NULL	OBSOL	ogetkerninfo
-64	AUE_GETPAGESIZE	OBSOL	ogetpagesize
+64	AUE_NULL	OBSOL	ogetpagesize
 ; XXX implement (not OBSOL at all)
 65	AUE_MSYNC	NOPROTO	{ int msync(void *addr, size_t len, \
 				    int flags); }
