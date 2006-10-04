@@ -155,7 +155,7 @@ cmd_remove(int argc, char *argv[])
 		case 'b':
 			if (block > 0)
 				usage_remove();
-			block = strtol(optarg, &p, 10);
+			block = strtoll(optarg, &p, 10);
 			if (*p != 0 || block < 1)
 				usage_remove();
 			break;
@@ -169,7 +169,7 @@ cmd_remove(int argc, char *argv[])
 		case 's':
 			if (size > 0)
 				usage_remove();
-			size = strtol(optarg, &p, 10);
+			size = strtoll(optarg, &p, 10);
 			if (*p != 0 || size < 1)
 				usage_remove();
 			break;

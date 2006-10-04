@@ -163,7 +163,7 @@ cmd_add(int argc, char *argv[])
 		case 'b':
 			if (block > 0)
 				usage_add();
-			block = strtol(optarg, &p, 10);
+			block = strtoll(optarg, &p, 10);
 			if (*p != 0 || block < 1)
 				usage_add();
 			break;
@@ -177,7 +177,7 @@ cmd_add(int argc, char *argv[])
 		case 's':
 			if (size > 0)
 				usage_add();
-			size = strtol(optarg, &p, 10);
+			size = strtoll(optarg, &p, 10);
 			if (*p != 0 || size < 1)
 				usage_add();
 			break;
