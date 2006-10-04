@@ -591,8 +591,6 @@ in_arpinput(m)
 {
 	struct arphdr *ah;
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
-	struct iso88025_header *th = (struct iso88025_header *)0;
-	struct iso88025_sockaddr_dl_data *trld;
 	struct llinfo_arp *la;
 	struct rtentry *rt;
 	struct ifaddr *ifa;
@@ -766,6 +764,9 @@ match:
 	 * routing info.
 	 */
 	if (ifp->if_type == IFT_ISO88025) {
+		struct iso88025_header *th = NULL;
+		struct iso88025_sockaddr_dl_data *trld;
+
 		th = (struct iso88025_header *)m->m_pkthdr.header;
 		trld = SDL_ISO88025(sdl);
 		rif_len = TR_RCF_RIFLEN(th->rcf);
