@@ -40,6 +40,7 @@ typedef uint16_t	Elf32_Half;
 typedef uint32_t	Elf32_Off;
 typedef int32_t		Elf32_Sword;
 typedef uint32_t	Elf32_Word;
+typedef uint64_t	Elf32_Lword;
 
 typedef Elf32_Word	Elf32_Hashelt;
 
@@ -138,6 +139,48 @@ typedef struct {
 #define ELF32_R_INFO(sym, type)	(((sym) << 8) + (unsigned char)(type))
 
 /*
+ *	Note entry header
+ */
+typedef struct {
+	Elf32_Word	n_namesz;	/* length of note's name */
+	Elf32_Word	n_descsz;	/* length of note's "desc" */
+	Elf32_Word	n_type;		/* type of note */
+} Elf32_Nhdr;
+
+/*
+ *	Move entry
+ */
+typedef struct {
+	Elf32_Lword	m_value;	/* symbol value */
+	Elf32_Word 	m_info;		/* size + index */
+	Elf32_Word	m_poffset;	/* symbol offset */
+	Elf32_Half	m_repeat;	/* repeat count */
+	Elf32_Half	m_stride;	/* stride info */
+} Elf32_Move;
+
+/*
+ *	The macros compose and decompose values for Move.r_info
+ *
+ *	sym = ELF32_M_SYM(M.m_info)
+ *	size = ELF32_M_SIZE(M.m_info)
+ *	M.m_info = ELF32_M_INFO(sym, size)
+ */
+#define	ELF32_M_SYM(info)	((info)>>8)
+#define	ELF32_M_SIZE(info)	((unsigned char)(info))
+#define	ELF32_M_INFO(sym, size)	(((sym)<<8)+(unsigned char)(size))
+
+/*
+ *	Hardware/Software capabilities entry
+ */
+typedef struct {
+	Elf32_Word	c_tag;		/* how to interpret value */
+	union {
+		Elf32_Word	c_val;
+		Elf32_Addr	c_ptr;
+	} c_un;
+} Elf32_Cap;
+
+/*
  * Symbol table entries.
  */
 
@@ -197,5 +240,10 @@ typedef struct
 } Elf32_Vernaux;
 
 typedef Elf32_Half Elf32_Versym;
+
+typedef struct {
+	Elf32_Half	si_boundto;	/* direct bindings - symbol bound to */
+	Elf32_Half	si_flags;	/* per symbol flags */
+} Elf32_Syminfo;
 
 #endif /* !_SYS_ELF32_H_ */
