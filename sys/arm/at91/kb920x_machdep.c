@@ -153,7 +153,7 @@ static const struct pmap_devmap kb920x_devmap[] = {
 		 * and the timer. Other devices should use newbus to
 		 * map their memory anyway.
 		 */
-		0xfff00000,
+		0xdff00000,
 		0xfff00000,
 		0x100000,
 		VM_PROT_READ|VM_PROT_WRITE,                             
@@ -364,7 +364,7 @@ initarm(void *arg, void *arg2)
 	l1pagetable = kernel_l1pt.pv_va;
 
 	/* Map the L2 pages tables in the L1 page table */
-	pmap_link_l2pt(l1pagetable, ARM_VECTORS_LOW,
+	pmap_link_l2pt(l1pagetable, ARM_VECTORS_HIGH,
 	    &kernel_pt_table[KERNEL_PT_SYS]);
 	for (i = 0; i < KERNEL_PT_KERN_NUM; i++)
 		pmap_link_l2pt(l1pagetable, KERNBASE + i * 0x100000,
@@ -383,7 +383,7 @@ initarm(void *arg, void *arg2)
 	
 
 	/* Map the vector page. */
-	pmap_map_entry(l1pagetable, ARM_VECTORS_LOW, systempage.pv_pa,
+	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	/* Map the stack pages */
 	pmap_map_chunk(l1pagetable, irqstack.pv_va, irqstack.pv_pa,
@@ -462,7 +462,7 @@ initarm(void *arg, void *arg2)
 	thread0.td_frame = &proc0_tf;
 	pcpup->pc_curpcb = thread0.td_pcb;
 	
-	arm_vector_init(ARM_VECTORS_LOW, ARM_VEC_ALL);
+	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = afterkern + 0x100000 * (KERNEL_PT_KERN_NUM - 1);
 	pmap_bootstrap(freemempos,
@@ -478,7 +478,7 @@ initarm(void *arg, void *arg2)
 	dump_avail[2] = 0;
 	dump_avail[3] = 0;
 	
-	phys_avail[0] = freemempos - KERNVIRTADDR + KERNPHYSADDR;
+	phys_avail[0] = virtual_avail - KERNVIRTADDR + KERNPHYSADDR;
 	phys_avail[1] = KERNPHYSADDR + memsize;
 	phys_avail[2] = 0;
 	phys_avail[3] = 0;
