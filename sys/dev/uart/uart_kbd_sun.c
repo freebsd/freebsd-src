@@ -425,6 +425,7 @@ sunkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t data)
 {
 	struct sunkbd_softc *sc;
 	int error;
+	int ival;
 
 	sc = (struct sunkbd_softc *)kbd;
 	error = 0;
@@ -432,6 +433,10 @@ sunkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t data)
 	case KDGKBMODE:
 		*(int *)data = sc->sc_mode;
 		break;
+	case _IO('K', 7):
+		ival = IOCPARM_IVAL(data);
+		data = (caddr_t)&ival;
+		/* FALLTHROUGH */
 	case KDSKBMODE:
 		switch (*(int *)data) {
 		case K_XLATE:
@@ -456,6 +461,10 @@ sunkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t data)
 	case KDGETLED:
 		*(int *)data = KBD_LED_VAL(kbd);
 		break;
+	case _IO('K', 66):
+		ival = IOCPARM_IVAL(data);
+		data = (caddr_t)&ival;
+		/* FALLTHROUGH */
 	case KDSETLED:
 		if (*(int *)data & ~LOCK_MASK) {
 			error = EINVAL;
@@ -478,6 +487,10 @@ sunkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t data)
 	case KDGKBSTATE:
 		*(int *)data = sc->sc_state & LOCK_MASK;
 		break;
+	case _IO('K', 20):
+		ival = IOCPARM_IVAL(data);
+		data = (caddr_t)&ival;
+		/* FALLTHROUGH */
 	case KDSKBSTATE:
 		if (*(int *)data & ~LOCK_MASK) {
 			error = EINVAL;
@@ -485,7 +498,8 @@ sunkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t data)
 		}
 		sc->sc_state &= ~LOCK_MASK;
 		sc->sc_state |= *(int *)data;
-		break;
+		/* set LEDs and quit */
+		return (sunkbd_ioctl(kbd, KDSETLED, data));
 	case KDSETREPEAT:
 	case KDSETRAD:
 		break;

@@ -526,7 +526,7 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 	struct file *fp;
 	struct filedesc *fdp;
 	u_long com;
-	int error = 0;
+	int arg, error;
 	u_int size;
 	caddr_t data, memp;
 	int tmp;
@@ -571,14 +571,21 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 #else
 	    ((com & (IOC_IN | IOC_OUT)) && size == 0) ||
 #endif
-	    ((com & IOC_VOID) && size > 0)) {
+	    ((com & IOC_VOID) && size > 0 && size != sizeof(int))) {
 		fdrop(fp, td);
 		return (ENOTTY);
 	}
 
 	if (size > 0) {
-		memp = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
-		data = memp;
+		if (!(com & IOC_VOID)) {
+			memp = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
+			data = memp;
+		} else {
+			/* Integer argument. */
+			memp = NULL;
+			arg = (intptr_t)uap->data;
+			data = (void *)&arg;
+		}
 	} else {
 		memp = NULL;
 		data = (void *)&uap->data;

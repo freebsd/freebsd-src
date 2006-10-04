@@ -482,6 +482,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *
     video_adapter_info_t adp_info;
     int error;
     int s;
+    int ival;
 
     scp = SC_STAT(tp->t_dev);
     if (scp == NULL)		/* tp == SC_MOUSE */
@@ -584,6 +585,10 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *
     case FBIO_FINDMODE:
 	return fb_ioctl(adp, FBIO_FINDMODE, data);
 
+    case _IO('c', 104):
+	ival = IOCPARM_IVAL(data);
+	data = (caddr_t)&ival;
+	/* FALLTHROUGH */
     case CONS_SETWINORG:	/* set frame buffer window origin */
     case FBIO_SETWINORG:
 	if (scp != scp->sc->cur_scp)
@@ -675,8 +680,12 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *
 	return sc_set_graphics_mode(scp, tp, cmd & 0xff);
 #endif /* SC_NO_MODE_CHANGE */
 
+    case _IO('K', 10):
+	ival = IOCPARM_IVAL(data);
+	data = (caddr_t)&ival;
+	/* FALLTHROUGH */
     case KDSETMODE:     	/* set current mode of this (virtual) console */
-	switch (*(intptr_t *)data) {
+	switch (*(int *)data) {
 	case KD_TEXT:   	/* switch to TEXT (known) mode */
 	    /*
 	     * If scp->mode is of graphics modes, we don't know which
@@ -804,8 +813,12 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *
 	*data = ISGRAPHSC(scp) ? KD_GRAPHICS : KD_TEXT;
 	return 0;
 
+    case _IO('K', 13):
+	ival = IOCPARM_IVAL(data);
+	data = (caddr_t)&ival;
+	/* FALLTHROUGH */
     case KDSBORDER:     	/* set border color of this (virtual) console */
-	scp->border = *(intptr_t *)data;
+	scp->border = *(int *)data;
 	if (scp == scp->sc->cur_scp)
 	    sc_set_border(scp, scp->border);
 	return 0;

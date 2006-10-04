@@ -854,6 +854,7 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	int error;
 	int s;
 	int i;
+	int ival;
 
 	s = spltty();
 	switch (cmd) {
@@ -861,6 +862,10 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	case KDGKBMODE:		/* get keyboard mode */
 		*(int *)arg = state->ks_mode;
 		break;
+	case _IO('K', 7):
+		ival = IOCPARM_IVAL(arg);
+		arg = (caddr_t)&ival;
+		/* FALLTHROUGH */
 	case KDSKBMODE:		/* set keyboard mode */
 		switch (*(int *)arg) {
 		case K_XLATE:
@@ -886,6 +891,10 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	case KDGETLED:		/* get keyboard LED */
 		*(int *)arg = KBD_LED_VAL(kbd);
 		break;
+	case _IO('K', 66):
+		ival = IOCPARM_IVAL(arg);
+		arg = (caddr_t)&ival;
+		/* FALLTHROUGH */
 	case KDSETLED:		/* set keyboard LED */
 		/* NOTE: lock key state in ks_state won't be changed */
 		if (*(int *)arg & ~LOCK_MASK) {
@@ -915,6 +924,10 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	case KDGKBSTATE:	/* get lock key state */
 		*(int *)arg = state->ks_state & LOCK_MASK;
 		break;
+	case _IO('K', 20):
+		ival = IOCPARM_IVAL(arg);
+		arg = (caddr_t)&ival;
+		/* FALLTHROUGH */
 	case KDSKBSTATE:	/* set lock key state */
 		if (*(int *)arg & ~LOCK_MASK) {
 			splx(s);
@@ -938,6 +951,10 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		}
 		return error;
 
+	case _IO('K', 67):
+		ival = IOCPARM_IVAL(arg);
+		arg = (caddr_t)&ival;
+		/* FALLTHROUGH */
 	case KDSETRAD:		/* set keyboard repeat rate (old interface) */
 		splx(s);
 		if (!KBD_HAS_DEVICE(kbd))
