@@ -41,7 +41,7 @@
  * 0xf0000000 - 0xfffffffff : Peripherals
  */
 
-#define AT91RM92_BASE		0xf0000000
+#define AT91RM92_BASE		0xd0000000
 /* Usart */
 
 #define AT91RM92_USART0_BASE	0xffc0000
