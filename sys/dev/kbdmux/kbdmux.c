@@ -940,6 +940,7 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	kbdmux_kbd_t	*k;
 	keyboard_info_t	*ki;
 	int		 error = 0, mode;
+	int		 ival;
 
 	if (state == NULL)
 		return (ENXIO);
@@ -1048,6 +1049,10 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		KBDMUX_UNLOCK(state);
 		break;
 
+	case _IO('K', 7):
+		ival = IOCPARM_IVAL(arg);
+		arg = (caddr_t)&ival;
+		/* FALLTHROUGH */
 	case KDSKBMODE: /* set keyboard mode */
 		KBDMUX_LOCK(state);
 
@@ -1082,6 +1087,10 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		KBDMUX_UNLOCK(state);
 		break;
 
+	case _IO('K', 66):
+		ival = IOCPARM_IVAL(arg);
+		arg = (caddr_t)&ival;
+		/* FALLTHROUGH */
 	case KDSETLED: /* set keyboard LED */
 		KBDMUX_LOCK(state);
 
@@ -1107,6 +1116,10 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		KBDMUX_UNLOCK(state);
 		break;
 
+	case _IO('K', 20):
+		ival = IOCPARM_IVAL(arg);
+		arg = (caddr_t)&ival;
+		/* FALLTHROUGH */
 	case KDSKBSTATE: /* set lock key state */
 		KBDMUX_LOCK(state);
 
@@ -1128,6 +1141,11 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		return (kbdmux_ioctl(kbd, KDSETLED, arg));
 		/* NOT REACHED */
 
+	case _IO('K', 67):
+		cmd = KDSETRAD;
+		ival = IOCPARM_IVAL(arg);
+		arg = (caddr_t)&ival;
+		/* FALLTHROUGH */
 	case KDSETREPEAT: /* set keyboard repeat rate (new interface) */
 	case KDSETRAD: /* set keyboard repeat rate (old interface) */
 		KBDMUX_LOCK(state);

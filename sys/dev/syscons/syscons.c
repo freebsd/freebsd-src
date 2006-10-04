@@ -683,6 +683,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
     sc_softc_t *sc;
     scr_stat *scp;
     int s;
+    int ival;
 
     tp = dev->si_tty;
 
@@ -983,6 +984,10 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	bcopy(&scp->smode, data, sizeof(struct vt_mode));
 	return 0;
 
+    case _IO('v', 4):
+	ival = IOCPARM_IVAL(data);
+	data = (caddr_t)&ival;
+	/* FALLTHROUGH */
     case VT_RELDISP:    	/* screen switcher ioctl */
 	s = spltty();
 	/*
@@ -999,7 +1004,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	    return EPERM;
 	}
 	error = EINVAL;
-	switch(*(intptr_t *)data) {
+	switch(*(int *)data) {
 	case VT_FALSE:  	/* user refuses to release screen, abort */
 	    if ((error = finish_vt_rel(scp, FALSE, &s)) == 0)
 		DPRINTF(5, ("%s%d: VT_FALSE\n", SC_DRIVER_NAME, sc->unit));
@@ -1028,15 +1033,23 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	}
 	return EINVAL;
 
+    case _IO('v', 5):
+	ival = IOCPARM_IVAL(data);
+	data = (caddr_t)&ival;
+	/* FALLTHROUGH */
     case VT_ACTIVATE:   	/* switch to screen *data */
-	i = (*(intptr_t *)data == 0) ? scp->index : (*(intptr_t *)data - 1);
+	i = (*(int *)data == 0) ? scp->index : (*(int *)data - 1);
 	s = spltty();
 	sc_clean_up(sc->cur_scp);
 	splx(s);
 	return sc_switch_scr(sc, i);
 
+    case _IO('v', 6):
+	ival = IOCPARM_IVAL(data);
+	data = (caddr_t)&ival;
+	/* FALLTHROUGH */
     case VT_WAITACTIVE: 	/* wait for switch to occur */
-	i = (*(intptr_t *)data == 0) ? scp->index : (*(intptr_t *)data - 1);
+	i = (*(int *)data == 0) ? scp->index : (*(int *)data - 1);
 	if ((i < sc->first_vty) || (i >= sc->first_vty + sc->vtys))
 	    return EINVAL;
 	s = spltty();
@@ -1088,6 +1101,10 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 #endif
 	return 0;
 
+    case _IO('K', 20):
+	ival = IOCPARM_IVAL(data);
+	data = (caddr_t)&ival;
+	/* FALLTHROUGH */
     case KDSKBSTATE:    	/* set keyboard state (locks) */
 	if (*(int *)data & ~LOCK_MASK)
 	    return EINVAL;
@@ -1110,14 +1127,22 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	    error = ENODEV;
 	return error;
 
+    case _IO('K', 67):
+	ival = IOCPARM_IVAL(data);
+	data = (caddr_t)&ival;
+	/* FALLTHROUGH */
     case KDSETRAD:      	/* set keyboard repeat & delay rates (old) */
 	if (*(int *)data & ~0x7f)
 	    return EINVAL;
-	error = kbd_ioctl(sc->kbd, cmd, data);
+	error = kbd_ioctl(sc->kbd, KDSETRAD, data);
 	if (error == ENOIOCTL)
 	    error = ENODEV;
 	return error;
 
+    case _IO('K', 7):
+	ival = IOCPARM_IVAL(data);
+	data = (caddr_t)&ival;
+	/* FALLTHROUGH */
     case KDSKBMODE:     	/* set keyboard mode */
 	switch (*(int *)data) {
 	case K_XLATE:   	/* switch to XLT ascii mode */
@@ -1125,7 +1150,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	case K_CODE: 		/* switch to CODE mode */
 	    scp->kbd_mode = *(int *)data;
 	    if (scp == sc->cur_scp)
-		kbd_ioctl(sc->kbd, cmd, data);
+		kbd_ioctl(sc->kbd, KDSKBMODE, data);
 	    return 0;
 	default:
 	    return EINVAL;
@@ -1142,6 +1167,10 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	    error = ENODEV;
 	return error;
 
+    case _IO('K', 8):
+	ival = IOCPARM_IVAL(data);
+	data = (caddr_t)&ival;
+	/* FALLTHROUGH */
     case KDMKTONE:      	/* sound the bell */
 	if (*(int*)data)
 	    sc_bell(scp, (*(int*)data)&0xffff,
@@ -1150,6 +1179,10 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	    sc_bell(scp, scp->bell_pitch, scp->bell_duration);
 	return 0;
 
+    case _IO('K', 63):
+	ival = IOCPARM_IVAL(data);
+	data = (caddr_t)&ival;
+	/* FALLTHROUGH */
     case KIOCSOUND:     	/* make tone (*data) hz */
 	if (scp == sc->cur_scp) {
 	    if (*(int *)data)
@@ -1167,6 +1200,10 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	}
 	return 0;
 
+    case _IO('K', 66):
+	ival = IOCPARM_IVAL(data);
+	data = (caddr_t)&ival;
+	/* FALLTHROUGH */
     case KDSETLED:      	/* set keyboard LED status */
 	if (*(int *)data & ~LED_MASK)	/* FIXME: LOCK_MASK? */
 	    return EINVAL;
@@ -1189,6 +1226,10 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	    error = ENODEV;
 	return error;
 
+    case _IO('c', 110):
+	ival = IOCPARM_IVAL(data);
+	data = (caddr_t)&ival;
+	/* FALLTHROUGH */
     case CONS_SETKBD: 		/* set the new keyboard */
 	{
 	    keyboard_t *newkbd;

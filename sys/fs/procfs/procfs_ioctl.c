@@ -65,6 +65,7 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 	struct procfs_status32 *ps32;
 #endif
 	int error, flags, sig;
+	int ival;
 
 	PROC_LOCK(p);
 	error = 0;
@@ -72,20 +73,29 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 #if defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
 	case _IOC(IOC_IN, 'p', 1, 0):
 #endif
+	case _IO('p', 1):
+		ival = IOCPARM_IVAL(data);
+		data = &ival;
 	case PIOCBIS:
-		p->p_stops |= *(uintptr_t *)data;
+		p->p_stops |= *(unsigned int *)data;
 		break;
 #if defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
 	case _IOC(IOC_IN, 'p', 2, 0):
 #endif
+	case _IO('p', 2):
+		ival = IOCPARM_IVAL(data);
+		data = &ival;
 	case PIOCBIC:
-		p->p_stops &= ~*(uintptr_t *)data;
+		p->p_stops &= ~*(unsigned int *)data;
 		break;
 #if defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
 	case _IOC(IOC_IN, 'p', 3, 0):
 #endif
+	case _IO('p', 3):
+		ival = IOCPARM_IVAL(data);
+		data = &ival;
 	case PIOCSFL:
-		flags = *(uintptr_t *)data;
+		flags = *(unsigned int *)data;
 		if (flags & PF_ISUGID && (error = suser(td)) != 0)
 			break;
 		p->p_pfsflags = flags;
@@ -132,10 +142,13 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 #if defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
 	case _IOC(IOC_IN, 'p', 5, 0):
 #endif
+	case _IO('p', 5):
+		ival = IOCPARM_IVAL(data);
+		data = &ival;
 	case PIOCCONT:
 		if (p->p_step == 0)
 			break;
-		sig = *(uintptr_t *)data;
+		sig = *(unsigned int *)data;
 		if (sig != 0 && !_SIG_VALID(sig)) {
 			error = EINVAL;
 			break;

@@ -1168,7 +1168,7 @@ interrupt(void)
 	ptyflush();	/* half-hearted */
 
 #ifdef	TCSIG
-	(void) ioctl(pty, TCSIG, (char *)SIGINT);
+	(void) ioctl(pty, TCSIG, SIGINT);
 #else	/* TCSIG */
 	init_termbuf();
 	*pfrontp++ = slctab[SLC_IP].sptr ?
@@ -1186,7 +1186,7 @@ sendbrk(void)
 {
 	ptyflush();	/* half-hearted */
 #ifdef	TCSIG
-	(void) ioctl(pty, TCSIG, (char *)SIGQUIT);
+	(void) ioctl(pty, TCSIG, SIGQUIT);
 #else	/* TCSIG */
 	init_termbuf();
 	*pfrontp++ = slctab[SLC_ABORT].sptr ?
@@ -1200,7 +1200,7 @@ sendsusp(void)
 #ifdef	SIGTSTP
 	ptyflush();	/* half-hearted */
 # ifdef	TCSIG
-	(void) ioctl(pty, TCSIG, (char *)SIGTSTP);
+	(void) ioctl(pty, TCSIG, SIGTSTP);
 # else	/* TCSIG */
 	*pfrontp++ = slctab[SLC_SUSP].sptr ?
 			(unsigned char)*slctab[SLC_SUSP].sptr : '\032';
@@ -1217,7 +1217,7 @@ recv_ayt(void)
 {
 #if	defined(SIGINFO) && defined(TCSIG)
 	if (slctab[SLC_AYT].sptr && *slctab[SLC_AYT].sptr != _POSIX_VDISABLE) {
-		(void) ioctl(pty, TCSIG, (char *)SIGINFO);
+		(void) ioctl(pty, TCSIG, SIGINFO);
 		return;
 	}
 #endif
