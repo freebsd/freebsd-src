@@ -61,6 +61,7 @@ static pthread_mutex_t	arc4random_mtx = PTHREAD_MUTEX_INITIALIZER;
 static struct arc4_stream rs;
 static int rs_initialized;
 static int rs_stired;
+static int arc4_count;
 
 static inline u_int8_t arc4_getbyte(struct arc4_stream *);
 static void arc4_stir(struct arc4_stream *);
@@ -127,7 +128,8 @@ arc4_stir(as)
 	 * by Ilya Mironov.
 	 */
 	for (n = 0; n < 1024; n++)
-		arc4_getbyte(as);
+		(void) arc4_getbyte(as);
+	arc4_count = 400000;
 }
 
 static inline u_int8_t
@@ -172,7 +174,7 @@ arc4_check_init(void)
 static void
 arc4_check_stir(void)
 {
-	if (!rs_stired) {
+	if (!rs_stired || --arc4_count == 0) {
 		arc4_stir(&rs);
 		rs_stired = 1;
 	}
