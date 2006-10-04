@@ -1,4 +1,3 @@
-# $Id: configure.ac,v 1.367 2006/09/24 19:08:59 tim Exp $
 # $Id: configure.ac,v 1.369 2006/10/03 16:34:35 tim Exp $
 #
 # Copyright (c) 1999-2004 Damien Miller
