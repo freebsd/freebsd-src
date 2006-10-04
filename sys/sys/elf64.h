@@ -41,6 +41,7 @@ typedef uint64_t	Elf64_Off;
 typedef int32_t		Elf64_Sword;
 typedef int64_t		Elf64_Sxword;
 typedef uint32_t	Elf64_Word;
+typedef uint64_t	Elf64_Lword;
 typedef uint64_t	Elf64_Xword;
 
 /*
@@ -146,6 +147,46 @@ typedef struct {
 /* Macro for constructing r_info from field values. */
 #define ELF64_R_INFO(sym, type)	(((sym) << 32) + ((type) & 0xffffffffL))
 
+#define	ELF64_R_TYPE_DATA(info)	(((Elf64_Xword)(info)<<32)>>40)
+#define	ELF64_R_TYPE_ID(info)	(((Elf64_Xword)(info)<<56)>>56)
+#define	ELF64_R_TYPE_INFO(data, type)	\
+		(((Elf64_Xword)(data)<<8)+(Elf64_Xword)(type))
+
+/*
+ *	Note entry header
+ */
+typedef struct {
+	Elf64_Word	n_namesz;	/* length of note's name */
+	Elf64_Word	n_descsz;	/* length of note's "desc" */
+	Elf64_Word	n_type;		/* type of note */
+} Elf64_Nhdr;
+
+/*
+ *	Move entry
+ */
+typedef struct {
+	Elf64_Lword	m_value;	/* symbol value */
+	Elf64_Xword 	m_info;		/* size + index */
+	Elf64_Xword	m_poffset;	/* symbol offset */
+	Elf64_Half	m_repeat;	/* repeat count */
+	Elf64_Half	m_stride;	/* stride info */
+} Elf64_Move;
+
+#define	ELF64_M_SYM(info)	((info)>>8)
+#define	ELF64_M_SIZE(info)	((unsigned char)(info))
+#define	ELF64_M_INFO(sym, size)	(((sym)<<8)+(unsigned char)(size))
+
+/*
+ *	Hardware/Software capabilities entry
+ */
+typedef struct {
+	Elf64_Xword	c_tag;		/* how to interpret value */
+	union {
+		Elf64_Xword	c_val;
+		Elf64_Addr	c_ptr;
+	} c_un;
+} Elf64_Cap;
+
 /*
  * Symbol table entries.
  */
@@ -202,5 +243,10 @@ typedef struct {
 } Elf64_Vernaux;
 
 typedef Elf64_Half Elf64_Versym;
+
+typedef struct {
+	Elf64_Half	si_boundto;	/* direct bindings - symbol bound to */
+	Elf64_Half	si_flags;	/* per symbol flags */
+} Elf64_Syminfo;
 
 #endif /* !_SYS_ELF64_H_ */
