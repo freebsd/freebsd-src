@@ -1083,7 +1083,7 @@ acpi_release_resource(device_t bus, device_t child, int type, int rid,
      * If we know about this address, deactivate it and release it to the
      * local pool.  If we don't, pass this request up to the parent.
      */
-    if (acpi_sysres_find(bus, type, rman_get_start(r)) == NULL) {
+    if (acpi_sysres_find(bus, type, rman_get_start(r)) != NULL) {
 	if (rman_get_flags(r) & RF_ACTIVE) {
 	    ret = bus_deactivate_resource(child, type, rid, r);
 	    if (ret != 0)
