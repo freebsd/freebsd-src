@@ -870,8 +870,8 @@ reply:
 			 * proxying for.
 			 */
 			if (rt->rt_ifp != ifp &&
-				(rt->rt_ifp->if_bridge != ifp->if_bridge ||
-				ifp->if_bridge == NULL)) {
+			    (rt->rt_ifp->if_bridge != ifp->if_bridge ||
+			    ifp->if_bridge == NULL)) {
 				RT_UNLOCK(rt);
 				goto drop;
 			}
