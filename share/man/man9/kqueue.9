@@ -1,0 +1,338 @@
+.\" Copyright 2004 John-Mark Gurney
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 1, 2004
+.Dt KQUEUE 9
+.Os
+.Sh NAME
+.Nm kqueue_add_filteropts , kqueue_del_filteropts
+.Nd "add and remove kqueue event filters"
+.Pp
+.Nm kqfd_register
+.Nd "register a kevent with kqueue by fd"
+.Pp
+.Nm knote_fdclose
+.Nd "deactivate all knotes associated with fd"
+.Pp
+.Nm knlist_add , knlist_remove , knlist_remove_inevent , knlist_empty , knlist_init , knlist_destroy , knlist_clear , knlist_delete
+.Nd "initalize and manipulate lists of knotes"
+.Pp
+.Nm KNOTE_LOCKED , KNOTE_UNLOCKED
+.Nd "activate knotes on a knlist"
+.Sh SYNOPSIS
+.In sys/event.h
+.Ft int
+.Fn kqueue_add_filteropts "int filt" "struct filterops *"
+.Ft int
+.Fn kqueue_del_filteropts "int filt"
+.Ft int
+.Fn kqfd_register "int fd" "struct kevent *" "struct thread *" "int waitok"
+.Ft void
+.Fn knote_fdclose "struct thread *" "int fd"
+.Ft void
+.Fn knlist_add "struct knlist *" "struct knote *" "int islocked"
+.Ft void
+.Fn knlist_remove "struct knlist *" "struct knote *" "int islocked"
+.Ft void
+.Fn knlist_remove_inevent "struct knlist *" "struct knote *"
+.Ft int
+.Fn knlist_empty "struct knlist *"
+.Ft void
+.Fn knlist_init "struct knlist *" "void *lock" "void (*kl_lock)(void *)" "void (*kl_unlock)(void *) "int (*kl_locked)(void *)"
+.Ft void
+.Fn knlist_destroy "struct knlist *"
+.Ft void
+.Fn knlist_clear "struct knlist *" "int islocked"
+.Ft void
+.Fn knlist_delete "struct knlist *" "struct thread *" "int islocked"
+.Ft void
+.Fn KNOTE_LOCKED "struct knlist *" "long hint"
+.Ft void
+.Fn KNOTE_UNLOCKED "struct knlist *" "long hint"
+.Sh DESCRIPTION
+The functions
+.Fn kqueue_add_filteropts
+and
+.Fn kqueue_del_filteropts
+allows the addition and removal of a filter type.
+The filter is staticly defined by the
+.Dv EVFILT_*
+macros.
+The function
+.Fn kqueue_add_filteropts
+will make filt available.  The
+.Vt "struct filterops"
+has the following members:
+.Bl -tag -width ".Va f_attach"
+.It Va f_isfd
+If
+.Va f_isfd
+is set,
+.Va ident
+in
+.Vt "struct kevent"
+is taken to be a file descriptor.
+In this case, the knote passed into
+.Va f_attach
+will have the
+.Va kn_fp
+member initalized to the
+.Vt "struct file *"
+that represense the file descriptor.
+.It Va f_attach
+The
+.Va f_attach
+member will be called when attaching a
+.Vt knote
+to the object.
+The method should call
+.Fn knlist_add
+to add the
+.Vt knote
+to the list that was initalized with
+.Fn knlist_init .
+The call to
+.Fn knlist_add
+is only necesary if the object can have multiple knotes associated with it.
+If there is no
+.Vt knlist
+to call
+.Fn knlist_add
+with, the function
+.Va f_attach
+must clear the
+.Dv KN_DETACHED
+bit of
+.Va kn_status
+in the
+.Va knote .
+The function shall return 0 on success, or appropriate errno for the failure.
+Durning
+.Va f_attach
+it is valid to change the
+.Va kn_fops
+pointer to a different pointer.
+This will change the
+.Va f_event
+and
+.Va f_detach
+members called when processing the knote.
+.It Va f_detach
+The
+.Va f_detach
+member will be called to detach the
+.Vt knote
+if the
+.Vt knote
+has not already been detached by a call to
+.Fn knlist_remove .
+.It Va f_event
+The
+.Va f_event
+meber will be called to update the status of the
+.Vt knote .
+If the function returns 0, it will be assumed that the object is not
+ready (or no longer ready) to be woken up.
+The hint field will be 0 when called scanning knotes to see which
+are available.
+Otherwise the hint field will be populated with the value passed to
+.Dv KNOTE_LOCKED
+or
+.Dv KNOTE_UNLOCKED .
+The
+.Va kn_data
+value should be updated as necessary to reflect the current value, such as
+number of bytes available for reading, or buffer space available for writing.
+If the note needs to be removed,
+.Fn knlist_remove_inevent
+must be called.
+The function
+.Fn knlist_remove_inevent
+will remove the note from the list, the
+.Va f_detach
+member will not be called and the
+.Va knote
+will not be returned as an event.
+.El
+.Pp
+The function
+.Fn kqfd_register
+will register the
+.Vt kevent
+on the kqueue file descriptor
+.Fa fd .
+If it is safe to sleep, waitok should be set.
+.Pp
+The function
+.Fn knote_fdclose
+is used to delete all
+.Vt knotes
+associated with
+.Fa fd .
+Once returned there will no longer be any
+.Vt knotes
+associated with the
+.Fa fd .
+The
+.Vt knotes
+removed will never be returned from a
+.Xr kevent 2
+call, so if userland uses the
+.Vt knote
+to track resources, they will be leaked.
+The
+.Fn FILEDESC_LOCK
+must be held over the call to
+.Fn knote_fdclose
+so that file descriptors cannot be added or removed.
+.Pp
+The
+.Fn knlist_*
+family of functions are for managing knotes associated with an object.
+A
+.Va knlist
+is not required, but is commonly used.
+If used, the
+.Vt knlist
+must be initalized with the
+.Fn knlist_init
+function.
+If
+.Fa lock
+is
+.Dv NULL ,
+an internal lock will be used and the remaining arguments will be ignored.
+The
+.Fa kl_lock , kl_unlock
+and
+.Fa kl_locked
+will be used to manipulate
+.Fa lock .
+If the argument is
+.Dv NULL ,
+a default routine operating on
+.Vt "struct mtx *"
+will be used.
+The
+.Vt knlist
+structure may be embeded in your object structure.
+The
+.Fa lock
+will be held over calls to
+.Fn f_event .
+If
+.Dv NULL
+is passed for the mutex, a private mutex will be used.
+The function
+.Fn knlist_empty
+requires that
+.Fa lock
+be held.
+The function
+.Fn knlist_clear
+is used to remove all knotes associated with the list.
+The
+.Fa islocked
+argument declares if you have the
+.Fa lock
+has been aquired.
+All
+.Vt knotes
+will be marked as detached, and
+.Dv EV_ONESHOT
+will be set so that the
+.Vt knote
+will be deleted after the next scan.
+The function
+.Fn knlist_destroy
+is to be used at object destruction time.
+There must be no
+.Vt knotes
+associated with the
+.Vt knlist
+.Fn ( knlist_clear
+be called before or
+.Fn knlist_empty
+returns true) and no more
+.Vt knotes
+are able to be attached to the object.
+.Pp
+.Pp
+The functions
+.Fn KNOTE_LOCKED
+and
+.Fn KNOTE_UNLOCKED
+are used to notify knotes about events associated with your object.
+It will iterated over all
+.Vt knotes
+on the list calling the
+.Va f_event
+function associated with the
+.Vt knote .
+The function
+.Fn KNOTE_LOCKED
+must be used if the lock associated with the
+.Fa knl
+passed in is held.
+The function
+.Fn KNOTE_UNLOCKED
+will aquire the lock before iterating over the list of
+.Ft knotes .
+.Sh RETURN VALUES
+The function
+.Fn kqueue_add_filteropts
+will return zero on success,
+.Er EINVAL
+in the case of an invalid
+.Fa filt
+or
+.Er EEXIST
+if the filter has already been installed.
+.Pp
+The function
+.Fn kqueue_del_filteropts
+will return zero on success,
+.Er EINVAL
+in the case of an invalid
+.Fa filt
+or
+.Er EBUSY
+if the filter is still in use.
+.Pp
+The function
+.Fn kqfd_register
+will return zero on success,
+.Er EBADF
+if the file descriptor is not a kqueue or any of the possible values returned
+by
+.Xr kevent .
+.Sh SEE ALSO
+.Xr kqueue 2 ,
+.Xr kevent 2
+.Sh AUTHORS
+This
+manual page was written by
+.An John-Mark Gurney Aq jmg@FreeBSD.org .
